@@ -69,6 +69,8 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#4-settings">4. 设置窗口（Settings）</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#41-i18n">4.1 国际化（i18n）</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#5">5. 组件基线</a>
     </li>
     </ul>
@@ -403,14 +405,14 @@ PromptInput → Body / Footer / Submit
 </tr>
 <tr>
 <td>文案</td>
-<td>英文 UI（与当前应用一致），简短说明可作 footer</td>
+<td>支持国际化（i18n）：English 与简体中文可切换，English 为源语言与兜底；简短说明可作 footer</td>
 </tr>
 </tbody>
 </table>
 <p><strong>页面职责</strong></p>
 <ul>
 <li><strong>General</strong>：恢复上次 Vault、退出确认等应用行为。</li>
-<li><strong>Appearance</strong>：主题、编辑字号、行号。</li>
+<li><strong>Appearance</strong>：主题、<strong>语言（跟随系统 / English / 简体中文）</strong>、编辑字号、行号。</li>
 <li><strong>Agent</strong>（BYOA，非模型 BYOK 表单）：</li>
 <li>总开关。</li>
 <li><strong>Common agents</strong> 目录表：名称 + 状态徽章（installed / ACP ready / missing 等）；打开页自动 Probe。</li>
@@ -422,7 +424,18 @@ PromptInput → Body / Footer / Submit
 <li><strong>Privacy</strong>：分析与崩溃上报（默认关，本地优先）。</li>
 <li><strong>About</strong>：版本与一句话定位。</li>
 </ul>
-<p>实现：<code>src/components/settings-window.tsx</code>；持久化暂用 <code>localStorage</code>（<code>src/lib/settings.ts</code>）。</p>
+<p>实现：<code>src/components/settings-window.tsx</code>；持久化暂用 <code>localStorage</code>（<code>src/lib/settings.ts</code>，含 <code>locale</code> 偏好）。</p>
+<h2 id="41-i18n">4.1 国际化（i18n）<a class="headerlink" href="#41-i18n" title="Permanent link">&para;</a></h2>
+<ul>
+<li>技术选型：<a href="https://react.i18next.com/"><code>react-i18next</code></a> + <code>i18next</code>，运行时切换，无需重启。</li>
+<li>语言：English（<code>en</code>，源语言与兜底）、简体中文（<code>zh-CN</code>）；<code>locale</code> 偏好为 <code>system | en | zh-CN</code>，<code>system</code> 依据 <code>navigator.language</code> 解析。</li>
+<li>词条目录：<code>src/i18n/locales/&lt;locale&gt;/&lt;namespace&gt;.json</code>，按功能划分命名空间（<code>common</code> <code>app</code> <code>settings</code> <code>agent</code> <code>sidebar</code> <code>viewer</code> <code>editor</code> <code>shortcuts</code> <code>aiElements</code>）。</li>
+<li>类型安全：<code>src/i18n/i18next.d.ts</code> 依据英文词条推导 <code>t()</code> 的 key 类型；新增文案须先在 <code>en</code> 词条登记，并同步 <code>zh-CN</code>。</li>
+<li>组件内用 <code>useTranslation("&lt;ns&gt;")</code>；跨命名空间用 <code>t("ns:key")</code> 前缀，并在 <code>useTranslation([...])</code> 中声明相关命名空间。React 之外的模块（如 <code>lib/</code>、<code>error-boundary</code>）用全局实例 <code>i18n.t(...)</code>。</li>
+<li>数字/货币/日期用活动 locale 格式化（<code>Intl.*</code> 传入 <code>i18n.language</code>）。</li>
+<li>原生 macOS 菜单同样本地化：渲染层通过 <code>set_locale</code> command 通知 Host 重建菜单（见 <code>docs/backend/api.md</code>）。</li>
+<li>语言切换的联动集中在 <code>src/App.tsx</code>：<code>i18n.changeLanguage</code>、<code>document.documentElement.lang</code>、以及 <code>set_locale</code>。</li>
+</ul>
 <h2 id="5">5. 组件基线<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
 <p>目录分层（详情 <strong><code>docs/frontend/components.md</code> §0</strong>）：</p>
 <table>

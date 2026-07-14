@@ -176,6 +176,14 @@
     </li>
         </ul>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#39-ui-i18n">3.9 界面与本地化（UI / i18n）</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#set_locale">set_locale（已实现）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#_1">菜单事件</a>
+    </li>
+        </ul>
+    </li>
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#4">4. 数据模型</a>
@@ -1155,6 +1163,59 @@ Host (Tauri + Rust)
 <li><code>parser.mineru.enabled</code>：是否启用云端 MinerU，默认 <code>false</code>。</li>
 <li><code>recent_vaults</code>：最近 Vault 列表（Host 维护，前端一般只读）。</li>
 </ul>
+<h3 id="39-ui-i18n">3.9 界面与本地化（UI / i18n）<a class="headerlink" href="#39-ui-i18n" title="Permanent link">&para;</a></h3>
+<h4 id="set_locale"><code>set_locale</code>（已实现）<a class="headerlink" href="#set_locale" title="Permanent link">&para;</a></h4>
+<p>渲染层在语言偏好变化时通知 Host 按新 locale 重建原生应用菜单（macOS 菜单栏）。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  locale: string; // 解析后的具体 locale，如 &quot;en&quot; | &quot;zh-CN&quot;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code>（成功为 <code>()</code>，失败返回错误信息字符串）。</li>
+<li><strong>说明</strong>：locale 偏好由渲染层持有（<code>localStorage</code> 的 <code>motif-settings.locale</code>）。Host 启动时以英文兜底构建菜单；前端挂载及每次语言切换时调用 <code>set_locale</code> 同步。实现见 <code>src-tauri/src/lib.rs</code>（<code>build_menu</code> + <code>set_locale</code>）与 <code>src-tauri/src/i18n.rs</code>（菜单词条）。</li>
+</ul>
+<h4 id="_1">菜单事件<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h4>
+<p>原生菜单项点击后 Host 通过 <code>emit(id, ())</code> 广播，前端在 <code>src/App.tsx</code> 监听。事件名（id）稳定、不随语言变化；仅菜单显示文案随 <code>set_locale</code> 本地化。</p>
+<table>
+<thead>
+<tr>
+<th>事件名</th>
+<th>菜单项</th>
+<th>快捷键</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>settings</code></td>
+<td>Settings…</td>
+<td><code>⌘,</code></td>
+</tr>
+<tr>
+<td><code>open_vault</code></td>
+<td>Open Vault…</td>
+<td><code>⌘O</code></td>
+</tr>
+<tr>
+<td><code>refresh_tree</code></td>
+<td>Refresh File Tree</td>
+<td><code>⌘R</code></td>
+</tr>
+<tr>
+<td><code>toggle_sidebar</code></td>
+<td>Toggle Sidebar</td>
+<td><code>⌥⌘S</code></td>
+</tr>
+<tr>
+<td><code>toggle_chat</code></td>
+<td>Toggle Chat</td>
+<td><code>⌘L</code></td>
+</tr>
+</tbody>
+</table>
 <h2 id="4">4. 数据模型<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
 <p>完整类型定义见 <code>docs/backend/data-model.md</code>。API 中涉及的核心类型包括：</p>
 <ul>
