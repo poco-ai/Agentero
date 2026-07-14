@@ -13,7 +13,7 @@
       <script>
         // Current page data
         var mkdocs_page_name = "\u6982\u89c8";
-        var mkdocs_page_input_path = "development/index.md";
+        var mkdocs_page_input_path = "test/index.md";
         var mkdocs_page_url = null;
       </script>
     
@@ -64,33 +64,35 @@
                   </li>
               </ul>
               <p class="caption"><span class="caption-text">测试</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../test/">概览</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">开发</span></p>
               <ul class="current">
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">概览</a>
     <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#_2">技术与流程选型</a>
+    <li class="toctree-l2"><a class="reference internal" href="#_2">目录结构</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_3">当前实现状态</a>
+    <li class="toctree-l2"><a class="reference internal" href="#_3">前端测试</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_4">本分区文档</a>
+    <li class="toctree-l2"><a class="reference internal" href="#rust">Rust 测试</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_5">交叉引用</a>
+    <li class="toctree-l2"><a class="reference internal" href="#_4">手动验证</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_5">文档验证</a>
     </li>
     </ul>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="prd/">产品需求</a>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../development/">概览</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="technical-plan/">技术方案</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../development/prd/">产品需求</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="roadmap/">路线图</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../development/technical-plan/">技术方案</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="todo/">TODO</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../development/roadmap/">路线图</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="hypothesis/">产品假设</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../development/hypothesis/">产品假设</a>
                   </li>
               </ul>
       </div>
@@ -107,10 +109,10 @@
         <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
     <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
-          <li class="breadcrumb-item">开发</li>
+          <li class="breadcrumb-item">测试</li>
       <li class="breadcrumb-item active">概览</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/motif/edit/main/docs/development/index.md">Edit on poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/motif/edit/main/docs/test/index.md">Edit on poco-ai/motif</a>
     </li>
   </ul>
   <hr/>
@@ -118,83 +120,70 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="_1">开发<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>开发分区说明 Motif 要构建什么、当前完成了什么、还剩什么，以及发布和文档如何维护。</p>
-<h2 id="_2">技术与流程选型<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>领域</th>
-<th>选型</th>
-<th>原因</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>产品文档来源</td>
-<td><code>docs/development/</code> 下的 Markdown</td>
-<td>需求和路线图可以在 Git 中 review、追踪和重构。</td>
-</tr>
-<tr>
-<td>应用包管理</td>
-<td><a href="https://pnpm.io/">pnpm</a></td>
-<td>快速、基于 lockfile 的 Node 依赖管理。</td>
-</tr>
-<tr>
-<td>TypeScript 质量</td>
-<td><a href="https://biomejs.dev/">Biome</a></td>
-<td>前端代码与文档相关文件的格式化和检查。</td>
-</tr>
-<tr>
-<td>Rust 质量</td>
-<td><a href="https://doc.rust-lang.org/cargo/commands/cargo-fmt.html"><code>cargo fmt</code></a> + <a href="https://doc.rust-lang.org/clippy/"><code>cargo clippy</code></a></td>
-<td>Rust 官方格式化与 lint 工具。</td>
-</tr>
-<tr>
-<td>桌面构建</td>
-<td><a href="https://v2.tauri.app/reference/cli/">Tauri CLI</a></td>
-<td>本地和 CI 中构建桌面应用。</td>
-</tr>
-<tr>
-<td>发布 CI</td>
-<td><a href="https://docs.github.com/actions">GitHub Actions</a> + <a href="https://github.com/tauri-apps/tauri-action"><code>tauri-apps/tauri-action</code></a></td>
-<td><code>v*</code> tag 触发 macOS、Linux、Windows 安装包构建。</td>
-</tr>
-<tr>
-<td>文档站</td>
-<td><a href="https://www.mkdocs.org/">MkDocs</a> + Read the Docs 主题</td>
-<td>静态文档部署到 <code>gh-pages</code> 分支。</td>
-</tr>
-</tbody>
-</table>
-<h2 id="_3">当前实现状态<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+                <h1 id="_1">测试<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<p>当代码依赖 Vault 路径、Markdown 双链或论文元数据时，测试应优先创建真实的临时 Vault 目录和文件。保持 <code>src/</code> 与 <code>test/</code> 解耦：应用代码不能 import 测试 fixture 或 helper。</p>
+<h2 id="_2">目录结构<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">test/
+├── helpers/
+│   └── create-test-vault.ts
+└── *.test.ts
+</code></pre>
+
 <ul>
-<li>V0.1 本地工作台基本完成：文件树、Markdown IO、paper 视图、设置与最近 Vault 恢复。</li>
-<li>V0.3 Agent 进行中：BYOA 注册表、ACP run-once、流式 UI 与 Sources 已有；workflow prompt 和写入确认仍待补齐。</li>
-<li>V0.4 反链与图谱基本完成：Backlinks 和 Graph 位于同一个右侧栏中。</li>
-<li>V0.2 arXiv 入库和 V0.5 Importer 架构仍在规划。</li>
-<li>Release CI 已支持 <code>v*</code> tag 构建 Tauri 安装包。</li>
+<li><code>test/helpers/create-test-vault.ts</code> 用临时目录创建真实文件形态的 Vault。</li>
+<li>测试文件可以从 <code>src/</code> import 生产代码，但生产代码不能从 <code>test/</code> import。</li>
+<li>优先在每个测试内声明最小必要 Vault 文件，让测试数据和断言靠近。</li>
 </ul>
-<h2 id="_4">本分区文档<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_3">前端测试<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>运行 TypeScript 单元测试：</p>
+<pre class="codehilite"><code class="language-bash">pnpm test
+</code></pre>
+
+<p>Vitest 适合覆盖纯 TypeScript 逻辑，例如：</p>
 <ul>
-<li><a href="prd/"><code>prd.md</code></a>：产品需求、范围、用户流程、验收标准。</li>
-<li><a href="roadmap/"><code>roadmap.md</code></a>：状态快照、完成项和优先级路线图。</li>
-<li><a href="todo/"><code>todo.md</code></a>：按 P0/P1/P2 拆分的可执行 backlog。</li>
-<li><a href="technical-plan/"><code>technical-plan.md</code></a>：跨前后端的技术方案和模块设计。</li>
-<li><a href="hypothesis/"><code>hypothesis.md</code></a>：简短产品假设。</li>
+<li>双链解析与预览链接重写；</li>
+<li>Vault-relative 路径规范化与目标解析；</li>
+<li>settings、shortcuts、metadata、viewer 等 helper。</li>
 </ul>
-<h2 id="_5">交叉引用<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<ul>
-<li>前端 UI 细节：<a href="../frontend/"><code>../frontend/index.md</code></a></li>
-<li>后端数据与 API 契约：<a href="../backend/"><code>../backend/index.md</code></a></li>
-<li>总体技术框架：<a href="../"><code>../index.md</code></a></li>
-</ul>
+<p>测试 Vault 语义时，创建临时 Vault 目录，不要在 <code>src/</code> 中引入全局 mock 数据：</p>
+<pre class="codehilite"><code class="language-ts">const vault = await createTestVault({
+    &quot;notes/Source.md&quot;: &quot;See [[notes/Target]].&quot;,
+    &quot;notes/Target.md&quot;: &quot;# Target&quot;,
+});
+
+try {
+    const files = await vault.listMarkdownFiles();
+    // assertions
+} finally {
+    await vault.cleanup();
+}
+</code></pre>
+
+<h2 id="rust">Rust 测试<a class="headerlink" href="#rust" title="Permanent link">&para;</a></h2>
+<p>运行后端测试：</p>
+<pre class="codehilite"><code class="language-bash">cargo test --manifest-path src-tauri/Cargo.toml
+</code></pre>
+
+<p>解析器和 resolver 的边界用例可以放在对应 Rust 模块的 <code>#[cfg(test)]</code> 中。依赖 Vault 的 graph/index 测试应创建临时目录和文件，不依赖已提交的缓存文件。</p>
+<h2 id="_4">手动验证<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>纯逻辑优先用自动化测试覆盖。涉及 UI 或桌面流程时，还需要启动应用检查受影响路径。如果 dev 端口被占用或无法做浏览器/桌面验证，汇报时需要明确说明。</p>
+<h2 id="_5">文档验证<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>修改 docs 或 <code>mkdocs.yml</code> 后运行：</p>
+<pre class="codehilite"><code class="language-bash">mkdocs build --strict
+</code></pre>
+
+<p>如果本地未安装 MkDocs，先创建文档环境：</p>
+<pre class="codehilite"><code class="language-bash">python3 -m venv .venv-docs
+. .venv-docs/bin/activate
+pip install mkdocs==1.6.1
+mkdocs build --strict
+</code></pre>
               
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../test/" class="btn btn-neutral float-left" title="概览"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="prd/" class="btn btn-neutral float-right" title="产品需求">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../backend/wikilinks/" class="btn btn-neutral float-left" title="双链与图谱"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../development/" class="btn btn-neutral float-right" title="概览">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -221,10 +210,10 @@
         </span>
     
     
-      <span><a href="../test/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../backend/wikilinks/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
-      <span><a href="prd/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <span><a href="../development/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>
