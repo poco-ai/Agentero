@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="description" content="Motif 本地优先 Agent 科研工作台文档" />
+      <link rel="shortcut icon" href="img/favicon.ico" />
+    <title>Motif 文档</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u9996\u9875";
+        var mkdocs_page_input_path = "index.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="." class="icon icon-home"> Motif 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">首页</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#_1">技术框架</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_2">文档分层</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#ui">当前 UI 形态</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_3">关键三方技术</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_4">推荐阅读顺序</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="development/hypothesis/">产品假设</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href=".">Motif 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">首页</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/motif/edit/main/docs/index.md">Edit on poco-ai/motif</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="motif">Motif 文档<a class="headerlink" href="#motif" title="Permanent link">&para;</a></h1>
+<p>Motif 是一个本地优先、Agent-first 的科研工作台，由 Tauri 桌面 Host、React 前端和普通文件组成的 Vault 数据模型构成。本文档按工作边界分层：前端 UI、后端/Host 数据契约、开发与产品流程。</p>
+<h2 id="_1">技术框架<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">Motif 桌面应用
+├── Frontend Webview
+│   ├── React 19 + TypeScript + Vite
+│   ├── Tailwind CSS 4 + shadcn/ui + AI Elements
+│   ├── Plate Markdown 编辑
+│   ├── react-pdf / iframe 阅读器
+│   └── react-force-graph-2d 图谱面板
+├── Tauri Host
+│   ├── Rust + Tauri 2 commands/events
+│   ├── 文件系统访问与 Vault IO
+│   ├── 双链 / 反链 / 图谱索引
+│   ├── 面向 BYOA Agent 的 ACP Client
+│   └── 本地配置与可重建缓存
+└── Vault
+    ├── Markdown 文件与 paper notes
+    ├── metadata.json 作为论文元数据事实来源
+    ├── papers/&lt;id&gt;/source/ 下的原始来源文件
+    └── .motif/cache.sqlite 作为可重建缓存
+</code></pre>
+
+<h2 id="_2">文档分层<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>分层</th>
+<th>目录</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>前端</td>
+<td><a href="frontend/"><code>frontend/</code></a></td>
+<td>工作台 UI、组件约定、AI Elements 接入、右侧栏行为。</td>
+</tr>
+<tr>
+<td>后端</td>
+<td><a href="backend/"><code>backend/</code></a></td>
+<td>Tauri command 契约、Vault 数据模型、双链/反链/图谱索引。</td>
+</tr>
+<tr>
+<td>开发</td>
+<td><a href="development/"><code>development/</code></a></td>
+<td>产品需求、路线图、实现 backlog、发布与开发流程。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ui">当前 UI 形态<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h2>
+<ul>
+<li>默认工作台为三栏：文件树、中间内容、Preview/Notes。</li>
+<li>可选右侧栏只有两个顶层入口：Agent 与 Backlinks。</li>
+<li>Backlinks 视图上方显示反链，下方显示 Graph；Graph 不是独立顶层 tab。</li>
+</ul>
+<h2 id="_3">关键三方技术<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>领域</th>
+<th>三方库 / 服务</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>桌面 Host</td>
+<td><a href="https://v2.tauri.app/">Tauri 2</a>、<a href="https://www.rust-lang.org/">Rust</a></td>
+</tr>
+<tr>
+<td>前端运行时</td>
+<td><a href="https://react.dev/">React</a>、<a href="https://www.typescriptlang.org/">TypeScript</a>、<a href="https://vite.dev/">Vite</a></td>
+</tr>
+<tr>
+<td>样式与 UI</td>
+<td><a href="https://tailwindcss.com/">Tailwind CSS</a>、<a href="https://ui.shadcn.com/">shadcn/ui</a>、<a href="https://www.radix-ui.com/">Radix UI</a>、<a href="https://lucide.dev/">Lucide</a></td>
+</tr>
+<tr>
+<td>Agent UI</td>
+<td><a href="https://elements.ai-sdk.dev/">AI Elements</a>、<a href="https://github.com/vercel/streamdown">Streamdown</a>、<a href="https://agentclientprotocol.com/">Agent Client Protocol</a></td>
+</tr>
+<tr>
+<td>编辑器与阅读器</td>
+<td><a href="https://platejs.org/">Plate</a>、<a href="https://github.com/wojtekmaj/react-pdf">react-pdf</a>、<a href="https://github.com/mozilla/pdf.js">pdfjs-dist</a></td>
+</tr>
+<tr>
+<td>图谱</td>
+<td><a href="https://github.com/vasturiano/react-force-graph">react-force-graph-2d</a></td>
+</tr>
+<tr>
+<td>文档站</td>
+<td><a href="https://www.mkdocs.org/">MkDocs</a> + <a href="https://www.mkdocs.org/user-guide/choosing-your-theme/#readthedocs">Read the Docs 主题</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">推荐阅读顺序<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<ul>
+<li>产品状态与路线图：<a href="development/roadmap/"><code>development/roadmap.md</code></a></li>
+<li>前端布局：<a href="frontend/ui/"><code>frontend/ui.md</code></a></li>
+<li>后端 API 契约：<a href="backend/api/"><code>backend/api.md</code></a></li>
+<li>Vault 数据模型：<a href="backend/data-model/"><code>backend/data-model.md</code></a></li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="frontend/" class="btn btn-neutral float-right" title="概览">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+        </span>
+    
+    
+    
+      <span><a href="frontend/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = ".";</script>
+    <script src="js/theme_extra.js"></script>
+    <script src="js/theme.js"></script>
+      <script src="search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
+
+<!--
+MkDocs version : 1.6.1
+Build Date UTC : 2026-07-14 15:21:42.992894+00:00
+-->

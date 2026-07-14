@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>组件约定 - Motif 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u7ec4\u4ef6\u7ea6\u5b9a";
+        var mkdocs_page_input_path = "frontend/components.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Motif 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">组件约定</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1-motif">1. 约定（Motif）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 组件总表（按官网）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#21-chat">2.1 对话核心（Chat）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#22-agent">2.2 Agent / 推理 / 工具</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#23">2.3 代码与工程</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#24-artifact">2.4 预览 / Artifact / 沙箱</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#25">2.5 语音 / 音频</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#26">2.6 图 / 工作流画布</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3-motif">3. Motif 已安装明细</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4-motif">4. Motif 集成要点</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#41-chat">4.1 Chat 组合（已接线）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#42">4.2 流式事件映射</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#43">4.3 传输边界</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#44-import">4.4 推荐 import</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 扩展新组件</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6-ai-elements">6. 仓库目录（非 AI Elements）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7">7. 参考</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/hypothesis/">产品假设</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Motif 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">前端</li>
+      <li class="breadcrumb-item active">组件约定</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/motif/edit/main/docs/frontend/components.md">Edit on poco-ai/motif</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="ai-elements">AI Elements 组件目录<a class="headerlink" href="#ai-elements" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Motif 的 Chat / Agent / 文件树等 AI UI <strong>统一使用 <a href="https://elements.ai-sdk.dev/">AI Elements</a></strong>。<br />
+本文档按 <strong><a href="https://elements.ai-sdk.dev/components">elements.ai-sdk.dev/components</a></strong> 的组件目录整理，并标注 Motif 安装与使用状态。</p>
+</blockquote>
+<p>相关：<code>docs/frontend/ui.md</code> · <code>docs/development/technical-plan.md</code> · 官网 <a href="https://elements.ai-sdk.dev/docs">Docs</a> · <a href="https://elements.ai-sdk.dev/docs/setup">Setup</a></p>
+<hr />
+<h2 id="1-motif">1. 约定（Motif）<a class="headerlink" href="#1-motif" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>落盘</td>
+<td><code>src/components/ai-elements/&lt;name&gt;.tsx</code></td>
+</tr>
+<tr>
+<td>安装</td>
+<td><code>pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/&lt;name&gt;.json -y -o</code></td>
+</tr>
+<tr>
+<td>通用 UI</td>
+<td>继续 shadcn <code>src/components/ui/</code>（AI Elements 依赖其 peers）</td>
+</tr>
+<tr>
+<td>传输层</td>
+<td>Motif <strong>ACP Client</strong>（<code>agent_run_once</code> + 事件流），<strong>不是</strong>默认 <code>useChat</code></td>
+</tr>
+<tr>
+<td>业务壳</td>
+<td><code>layout/agent-panel</code>（Chat）、<code>layout/file-tree</code>（Vault 树）、<code>layout/backlinks-panel</code>（反链）、<code>layout/graph-panel</code>（图谱）</td>
+</tr>
+<tr>
+<td>状态列</td>
+<td>✅ 已装并接线 · 📦 已装未接线 · — 未安装</td>
+</tr>
+</tbody>
+</table>
+<p>安装命令中的 <code>&lt;name&gt;</code> 与下表 <strong>Registry 名</strong>（URL 路径）一致。</p>
+<pre class="codehilite"><code class="language-bash"># 示例：安装 Message
+pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json -y -o
+</code></pre>
+
+<hr />
+<h2 id="2">2. 组件总表（按官网）<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<p>官网组件页：<code>https://elements.ai-sdk.dev/components/&lt;name&gt;</code>。<br />
+下表按场景分组；<strong>Registry 名</strong> = 安装 URL 与文件名。</p>
+<h3 id="21-chat">2.1 对话核心（Chat）<a class="headerlink" href="#21-chat" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>Registry</th>
+<th>说明</th>
+<th>Motif</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/conversation">Conversation</a></td>
+<td><code>conversation</code></td>
+<td>消息列表容器；贴底滚动、空状态、滚动按钮</td>
+<td>✅ Chat 列表</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/message">Message</a></td>
+<td><code>message</code></td>
+<td>单条消息：<code>from</code>、内容、<code>MessageResponse</code>（Streamdown）、操作/分支</td>
+<td>✅ 用户/助手气泡</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/prompt-input">Prompt Input</a></td>
+<td><code>prompt-input</code></td>
+<td>Composer：输入、附件、提交状态、工具槽</td>
+<td>✅ 底部输入</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/sources">Sources</a></td>
+<td><code>sources</code></td>
+<td>折叠展示引用来源列表</td>
+<td>✅ Vault 路径引用</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/attachments">Attachments</a></td>
+<td><code>attachments</code></td>
+<td>附件网格/列表/预览</td>
+<td>📦（Prompt 已支持，ACP 暂不传文件）</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/suggestion">Suggestion</a></td>
+<td><code>suggestion</code></td>
+<td>快捷建议 chip</td>
+<td>✅ 空态 / 输入上方</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/shimmer">Shimmer</a></td>
+<td><code>shimmer</code></td>
+<td>加载占位闪光文案</td>
+<td>✅ 等待正文</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/inline-citation">Inline Citation</a></td>
+<td><code>inline-citation</code></td>
+<td>正文内可悬停引用</td>
+<td>✅ 回复末尾徽章 + Hover 轮播</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/open-in-chat">Open in Chat</a></td>
+<td><code>open-in-chat</code></td>
+<td>「在 Chat 中打开」</td>
+<td>— 非 Chat 栏入口</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-agent">2.2 Agent / 推理 / 工具<a class="headerlink" href="#22-agent" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>Registry</th>
+<th>说明</th>
+<th>Motif</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/reasoning">Reasoning</a></td>
+<td><code>reasoning</code></td>
+<td>思考过程折叠展示</td>
+<td>✅ ACP <code>thought</code> 流</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/chain-of-thought">Chain of Thought</a></td>
+<td><code>chain-of-thought</code></td>
+<td>思维链步骤</td>
+<td>📦（Reasoning + Tool 已覆盖）</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/tool">Tool</a></td>
+<td><code>tool</code></td>
+<td>工具调用：状态、输入、输出</td>
+<td>✅ <code>agent:tool</code></td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/confirmation">Confirmation</a></td>
+<td><code>confirmation</code></td>
+<td>人在环确认</td>
+<td>📦（Host 仍自动选第一项）</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/task">Task</a></td>
+<td><code>task</code></td>
+<td>任务列表 / 进度折叠</td>
+<td>✅ 工具调用摘要</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/plan">Plan</a></td>
+<td><code>plan</code></td>
+<td>计划步骤展示</td>
+<td>✅ <code>agent:plan</code></td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/queue">Queue</a></td>
+<td><code>queue</code></td>
+<td>消息队列、待办</td>
+<td>📦</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/checkpoint">Checkpoint</a></td>
+<td><code>checkpoint</code></td>
+<td>检查点 / 里程碑</td>
+<td>✅ 系统行</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/agent">Agent</a></td>
+<td><code>agent</code></td>
+<td>Agent 身份 UI</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/context">Context</a></td>
+<td><code>context</code></td>
+<td>上下文窗口/用量</td>
+<td>✅ <code>agent:usage</code></td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/persona">Persona</a></td>
+<td><code>persona</code></td>
+<td>Rive 角色动画</td>
+<td>📦（依赖 WebGL/外链，未接）</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/model-selector">Model Selector</a></td>
+<td><code>model-selector</code></td>
+<td>模型选择</td>
+<td>✅ 输入框旁；列表来自 ACP session config</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Motif BYOA：模型列表与能力由 <strong>ACP Agent</strong> 通过 session <code>config_options</code>（category: model）上报；Motif 不托管 API Key。Header 切换的是 <strong>ACP 后端</strong>，输入框切换的是 <strong>该 Agent 提供的 model</strong>。</p>
+</blockquote>
+<h3 id="23">2.3 代码与工程<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>Registry</th>
+<th>说明</th>
+<th>Motif</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/code-block">Code Block</a></td>
+<td><code>code-block</code></td>
+<td>代码块、复制、语言切换</td>
+<td>📦（<code>MessageResponse</code> 内已有 streamdown 代码）</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/file-tree">File Tree</a></td>
+<td><code>file-tree</code></td>
+<td>可展开文件树</td>
+<td>✅ 侧栏 Vault 树</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/terminal">Terminal</a></td>
+<td><code>terminal</code></td>
+<td>终端输出样式</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/stack-trace">Stack Trace</a></td>
+<td><code>stack-trace</code></td>
+<td>堆栈展示</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/test-results">Test Results</a></td>
+<td><code>test-results</code></td>
+<td>测试结果</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/snippet">Snippet</a></td>
+<td><code>snippet</code></td>
+<td>短代码片段</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/commit">Commit</a></td>
+<td><code>commit</code></td>
+<td>Commit 信息展示</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/package-info">Package Info</a></td>
+<td><code>package-info</code></td>
+<td>包信息</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/schema-display">Schema Display</a></td>
+<td><code>schema-display</code></td>
+<td>Schema 结构展示</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/environment-variables">Environment Variables</a></td>
+<td><code>environment-variables</code></td>
+<td>环境变量展示</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-artifact">2.4 预览 / Artifact / 沙箱<a class="headerlink" href="#24-artifact" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>Registry</th>
+<th>说明</th>
+<th>Motif</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/web-preview">Web Preview</a></td>
+<td><code>web-preview</code></td>
+<td>URL / 网页预览框</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/artifact">Artifact</a></td>
+<td><code>artifact</code></td>
+<td>生成物（文档/代码等）容器</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/sandbox">Sandbox</a></td>
+<td><code>sandbox</code></td>
+<td>沙箱运行环境 UI</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/jsx-preview">JSX Preview</a></td>
+<td><code>jsx-preview</code></td>
+<td>JSX 实时预览</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/image">Image</a></td>
+<td><code>image</code></td>
+<td>图片展示</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="25">2.5 语音 / 音频<a class="headerlink" href="#25" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>Registry</th>
+<th>说明</th>
+<th>Motif</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/speech-input">Speech Input</a></td>
+<td><code>speech-input</code></td>
+<td>语音输入</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/mic-selector">Mic Selector</a></td>
+<td><code>mic-selector</code></td>
+<td>麦克风设备选择</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/voice-selector">Voice Selector</a></td>
+<td><code>voice-selector</code></td>
+<td>语音/音色选择</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/audio-player">Audio Player</a></td>
+<td><code>audio-player</code></td>
+<td>音频播放</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/transcription">Transcription</a></td>
+<td><code>transcription</code></td>
+<td>转写文本</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="26">2.6 图 / 工作流画布<a class="headerlink" href="#26" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>Registry</th>
+<th>说明</th>
+<th>Motif</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/canvas">Canvas</a></td>
+<td><code>canvas</code></td>
+<td>画布根容器</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/node">Node</a></td>
+<td><code>node</code></td>
+<td>图节点</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/edge">Edge</a></td>
+<td><code>edge</code></td>
+<td>边</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/connection">Connection</a></td>
+<td><code>connection</code></td>
+<td>连接线/连线交互</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/controls">Controls</a></td>
+<td><code>controls</code></td>
+<td>画布控件</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/panel">Panel</a></td>
+<td><code>panel</code></td>
+<td>画布面板</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a href="https://elements.ai-sdk.dev/components/toolbar">Toolbar</a></td>
+<td><code>toolbar</code></td>
+<td>画布工具栏</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-motif">3. Motif 已安装明细<a class="headerlink" href="#3-motif" title="Permanent link">&para;</a></h2>
+<p>路径：<code>src/components/ai-elements/</code></p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>主要导出</th>
+<th>接线位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>conversation.tsx</code></td>
+<td>列表 / 空态 / 贴底</td>
+<td><code>layout/agent-panel</code></td>
+</tr>
+<tr>
+<td><code>message.tsx</code></td>
+<td>Message + Actions / Response</td>
+<td><code>layout/agent-panel</code></td>
+</tr>
+<tr>
+<td><code>prompt-input.tsx</code></td>
+<td>Composer</td>
+<td><code>layout/agent-panel</code></td>
+</tr>
+<tr>
+<td><code>sources.tsx</code></td>
+<td>Vault 引用</td>
+<td><code>layout/agent-panel</code></td>
+</tr>
+<tr>
+<td><code>reasoning.tsx</code></td>
+<td>Thought 折叠</td>
+<td><code>layout/agent-panel</code></td>
+</tr>
+<tr>
+<td><code>tool.tsx</code></td>
+<td>ACP tool 调用</td>
+<td><code>layout/agent-panel</code></td>
+</tr>
+<tr>
+<td><code>plan.tsx</code></td>
+<td>ACP plan</td>
+<td><code>layout/agent-panel</code></td>
+</tr>
+<tr>
+<td><code>task.tsx</code></td>
+<td>工具摘要</td>
+<td><code>layout/agent-panel</code></td>
+</tr>
+<tr>
+<td><code>suggestion.tsx</code> / <code>shimmer.tsx</code></td>
+<td>建议 chip / 加载</td>
+<td><code>layout/agent-panel</code></td>
+</tr>
+<tr>
+<td><code>checkpoint.tsx</code></td>
+<td>系统切换行</td>
+<td><code>layout/agent-panel</code></td>
+</tr>
+<tr>
+<td><code>context.tsx</code></td>
+<td>Token 用量</td>
+<td><code>layout/agent-panel</code> header</td>
+</tr>
+<tr>
+<td><code>file-tree.tsx</code></td>
+<td>Vault 树</td>
+<td><code>layout/file-tree</code></td>
+</tr>
+<tr>
+<td><code>inline-citation.tsx</code></td>
+<td>正文旁引用徽章</td>
+<td><code>layout/agent-panel</code></td>
+</tr>
+<tr>
+<td>其它已装未接</td>
+<td>chain-of-thought, queue, confirmation, persona, attachments, code-block</td>
+<td>按需扩展</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-motif">4. Motif 集成要点<a class="headerlink" href="#4-motif" title="Permanent link">&para;</a></h2>
+<h3 id="41-chat">4.1 Chat 组合（已接线）<a class="headerlink" href="#41-chat" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">Conversation
+  ConversationContent
+    Message from=&quot;user&quot; | &quot;assistant&quot;
+      MessageContent
+        Reasoning → ReasoningTrigger + ReasoningContent   // ACP thought
+        MessageResponse                                    // ACP message
+    Sources（可选）
+  ConversationScrollButton
+PromptInput
+  PromptInputBody → PromptInputTextarea
+  PromptInputFooter → PromptInputTools + PromptInputSubmit
+</code></pre>
+
+<h3 id="42">4.2 流式事件映射<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>ACP 事件</th>
+<th>UI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>发送成功</td>
+<td>追加 user 行 + streaming assistant 行</td>
+</tr>
+<tr>
+<td><code>agent:stream</code> <code>kind=thought</code></td>
+<td>追加到最后一条 agent 的 <code>reasoning</code>，<code>Reasoning isStreaming</code></td>
+</tr>
+<tr>
+<td><code>agent:stream</code> <code>kind=message</code>（默认）</td>
+<td>追加到最后一条 agent 的正文 <code>MessageResponse</code></td>
+</tr>
+<tr>
+<td><code>agent:completed</code></td>
+<td>定稿正文 / reasoning + <code>sources</code></td>
+</tr>
+<tr>
+<td><code>agent:failed</code></td>
+<td>去掉未完成 streaming，追加 error</td>
+</tr>
+</tbody>
+</table>
+<p>监听需可取消，避免 Strict Mode 双挂载导致重复气泡。</p>
+<h3 id="43">4.3 传输边界<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>能力</th>
+<th>Motif</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI Elements UI</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>useChat</code> / HTTP DefaultChatTransport</td>
+<td>❌ 默认不用</td>
+</tr>
+<tr>
+<td>ACP <code>runOnce</code> + events</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="44-import">4.4 推荐 import<a class="headerlink" href="#44-import" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-ts">import {
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
+} from &quot;@/components/ai-elements/conversation&quot;;
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+} from &quot;@/components/ai-elements/message&quot;;
+import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+} from &quot;@/components/ai-elements/prompt-input&quot;;
+import {
+  Source,
+  Sources,
+  SourcesContent,
+  SourcesTrigger,
+} from &quot;@/components/ai-elements/sources&quot;;
+import {
+  FileTree,
+  FileTreeFile,
+  FileTreeFolder,
+} from &quot;@/components/ai-elements/file-tree&quot;;
+</code></pre>
+
+<hr />
+<h2 id="5">5. 扩展新组件<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<ol>
+<li>在 <a href="https://elements.ai-sdk.dev/components">组件目录</a> 确认名称与文档。  </li>
+<li><code>pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/&lt;name&gt;.json -y -o</code>  </li>
+<li>仅在 <code>layout/*</code> 等业务壳接线；不复制平行实现。  </li>
+<li>更新本文 <strong>§2 状态列</strong> 与 <strong>§3</strong>。  </li>
+<li>传输仍走 ACP，除非产品明确改为 HTTP Agent。</li>
+</ol>
+<hr />
+<h2 id="6-ai-elements">6. 仓库目录（非 AI Elements）<a class="headerlink" href="#6-ai-elements" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">src/components/
+├── ui/                  # shadcn 原语
+├── ai-elements/         # 本文档对应内容
+├── layout/              # 工作台：分栏、文件树、Agent、Backlinks、Graph
+├── editor/              # Plate Markdown 编辑器
+├── viewer/              # PDF / HTML
+└── settings-window.tsx
+</code></pre>
+
+<ul>
+<li><strong>Plate</strong>（<code>editor/</code>）：笔记 WYSIWYG，不是 AI Elements。  </li>
+<li><strong>禁止</strong>把 Chat 塞进 <code>ui/</code> 或与 shadcn Message/Bubble 混用。</li>
+</ul>
+<hr />
+<h2 id="7">7. 参考<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://elements.ai-sdk.dev/">AI Elements</a>  </li>
+<li><a href="https://elements.ai-sdk.dev/components">Components</a>  </li>
+<li><a href="https://elements.ai-sdk.dev/docs/setup">Docs / Setup</a>  </li>
+<li><a href="https://elements.ai-sdk.dev/components/conversation">Conversation</a> · <a href="https://elements.ai-sdk.dev/components/message">Message</a> · <a href="https://elements.ai-sdk.dev/components/prompt-input">Prompt Input</a> · <a href="https://elements.ai-sdk.dev/components/sources">Sources</a> · <a href="https://elements.ai-sdk.dev/components/file-tree">File Tree</a>  </li>
+<li>业务：<code>src/components/layout/agent-panel.tsx</code> · <code>src/components/layout/file-tree.tsx</code></li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../ui/" class="btn btn-neutral float-left" title="UI 规范"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../backend/" class="btn btn-neutral float-right" title="概览">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+        </span>
+    
+    
+      <span><a href="../ui/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../../backend/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

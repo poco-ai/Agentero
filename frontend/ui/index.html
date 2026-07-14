@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>UI 规范 - Motif 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "UI \u89c4\u8303";
+        var mkdocs_page_input_path = "frontend/ui.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Motif 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">UI 规范</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 主题与设计系统</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2-vs">2. 文案 vs 图标</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#21">2.1 侧边栏文件树</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 布局</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31-macos-apple-hig">3.1 快捷键（对齐 macOS / Apple HIG 习惯）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32-agent-ai-elements">3.2 Agent 右侧栏（AI Elements）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#33-backlinks-graph">3.3 Backlinks + Graph 右侧栏</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4-settings">4. 设置窗口（Settings）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 组件基线</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/hypothesis/">产品假设</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Motif 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">前端</li>
+      <li class="breadcrumb-item active">UI 规范</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/motif/edit/main/docs/frontend/ui.md">Edit on poco-ai/motif</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="motif-ui">Motif UI 规范<a class="headerlink" href="#motif-ui" title="Permanent link">&para;</a></h1>
+<h2 id="1">1. 主题与设计系统<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>基础组件</strong>：以 <a href="https://ui.shadcn.com/">shadcn/ui</a> 为规范（<code>components.json</code> → <code>style: radix-nova</code>，<code>baseColor: neutral</code>，CSS variables）。</li>
+<li><strong>主题</strong>：tweakcn <strong>modern-minimal</strong>（覆盖 token，不另起皮肤）：
+  <code>bash
+  pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/modern-minimal.json</code></li>
+<li><strong>Chat / Agent / 文件树 AI UI</strong>：以 <a href="https://elements.ai-sdk.dev/"><strong>AI Elements</strong></a> 为规范（完整约定见 <strong><code>docs/frontend/components.md</code></strong>）：</li>
+<li>落盘：<code>src/components/ai-elements/</code>（<code>conversation</code>、<code>message</code>、<code>prompt-input</code>、<code>sources</code>、<code>file-tree</code> 等）</li>
+<li>安装：<code>pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/&lt;name&gt;.json -y -o</code></li>
+<li>主题 <strong>不单独配置</strong>：继续读 shadcn CSS token，随 System / Light / Dark。</li>
+<li>传输层是 Motif <strong>ACP Client</strong>（<code>agent_run_once</code> + 事件流），<strong>不是</strong> Vercel AI SDK <code>useChat</code>。</li>
+<li><strong>禁止</strong>用自研 <code>src/components/ai/*</code> 或官方 <code>ui/message</code>+<code>bubble</code> 搭新 Chat。</li>
+<li>视觉原则：<strong>尽量简约，减少不必要的元素</strong>。</li>
+<li>外观跟随 <strong>System / Light / Dark</strong>（<code>next-themes</code>，设置 → Appearance）。</li>
+</ul>
+<h2 id="2-vs">2. 文案 vs 图标<a class="headerlink" href="#2-vs" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>规则</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>工具栏、侧边栏操作、可识别的动作</td>
+<td><strong>优先用图标</strong>，不要用长按钮文案</td>
+</tr>
+<tr>
+<td>图标含义</td>
+<td>必须配 <code>aria-label</code>；悬停用 <strong>Tooltip</strong> 显示短标签</td>
+</tr>
+<tr>
+<td>页面主标题、空状态、错误、表单字段</td>
+<td>可用文字；错误仅在发生时出现</td>
+</tr>
+<tr>
+<td>解释性说明文案</td>
+<td>默认不展示；避免常驻帮助段落挤占空间</td>
+</tr>
+</tbody>
+</table>
+<h3 id="21">2.1 侧边栏文件树<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<ul>
+<li>树 UI：<strong>AI Elements</strong> <code>FileTree</code>（业务包装：<code>src/components/layout/file-tree.tsx</code>；约定见 <code>docs/frontend/components.md</code>）。</li>
+<li>顶栏单行：左侧 Vault 名称（可截断）+ 右侧 <strong>纯图标操作</strong>。</li>
+<li>动作映射（Lucide）：</li>
+<li>打开 Vault → <code>FolderSearch</code>（⌘O）</li>
+<li>刷新树 → <code>RefreshCw</code>（⌘R）</li>
+<li>切回 Demo → <code>Sparkles</code>（仅非 demo）</li>
+<li><strong>设置入口不在侧边栏</strong>：使用 macOS 顶部菜单 <strong>motif → Settings…</strong>（<code>⌘,</code>），不放齿轮图标。</li>
+<li><strong>不要</strong>使用「Open vault… / Refresh」等文字按钮。</li>
+</ul>
+<h2 id="3">3. 布局<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<ul>
+<li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容 + Preview/Notes。</li>
+<li><strong>⌘L</strong> 显示 / 隐藏右侧栏；右侧栏入口为 <strong>Agent</strong> 与 <strong>Backlinks</strong>。</li>
+<li>Backlinks 入口内采用上下分区：上方反链列表，下方 Graph。Graph 不再是独立顶层 tab。</li>
+<li>各栏 header 等高：统一 <code>h-10</code>（<code>PaneHeader</code> / <code>PANE_HEADER_CLASS</code>），水平对齐；错误提示等放在 header 下方，不撑高标题栏。</li>
+<li>边距、分割线保持轻量；控件密度偏紧凑（icon-xs / icon-sm）。</li>
+<li><strong>面板分隔（sash）</strong>：对齐 VS Code / Cursor——默认 <strong>1px</strong> 细线，hover / 拖拽时略提亮；可点区域略宽但视觉不占粗条。实现见 <code>src/components/layout/resizable.tsx</code>。</li>
+<li><strong>独立滚动</strong>：侧边栏 / 中间 / Preview <strong>各自</strong>滚动，顶栏固定；禁止整页连带滚动。内容区使用 <code>.motif-scroll</code>（细滚动条、半透明、<code>overscroll-behavior: contain</code>）。</li>
+<li><strong>中间栏视图切换</strong>（纯图标 + Tooltip）：Markdown · PDF · HTML（<code>ViewModeToggle</code>）。</li>
+<li>Markdown：源码编辑</li>
+<li>PDF / HTML：<strong>只读 <code>metadata.json</code> 的远程 <code>pdf_url</code> / <code>html_url</code></strong>（<strong>不下载、不读本地 pdf/html 文件</strong>）</li>
+<li>arXiv 推荐写入：<ul>
+<li><code>pdf_url</code>: <code>https://arxiv.org/pdf/{id}</code></li>
+<li><code>html_url</code>: <code>https://arxiv.org/html/{id}</code></li>
+<li><code>source_url</code>: <code>https://arxiv.org/abs/{id}</code></li>
+</ul>
+</li>
+<li>若只有 <code>arxiv_id</code>，用 <code>src/lib/arxiv.ts</code> 推导远程 URL</li>
+<li>PDF：PDF.js 按 URL 流式渲染；HTML：独立 iframe 打开远程页</li>
+<li><strong>PDF/HTML 时右侧自动加载该篇 <code>NOTES.md</code></strong></li>
+<li><strong>HTML 沙盒</strong>：独立 <code>&lt;iframe&gt;</code>；arXiv 允许 scripts（对方 origin）；布局铺满中间栏</li>
+<li>无障碍：图标按钮必须有可访问名称；焦点环使用主题 <code>ring</code>。</li>
+</ul>
+<h3 id="31-macos-apple-hig">3.1 快捷键（对齐 macOS / Apple HIG 习惯）<a class="headerlink" href="#31-macos-apple-hig" title="Permanent link">&para;</a></h3>
+<p>显示使用 Apple 符号：<code>⌘ ⌥ ⇧ ⌃</code>。Windows / Linux 上将 <code>⌘</code> 映射为 <code>Ctrl</code>。</p>
+<table>
+<thead>
+<tr>
+<th>快捷键</th>
+<th>作用</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>⌘,</code></td>
+<td>打开 / 关闭 Settings</td>
+<td>系统级 Preferences 约定</td>
+</tr>
+<tr>
+<td><code>Esc</code></td>
+<td>关闭 Settings</td>
+<td>关闭 sheet / 对话框</td>
+</tr>
+<tr>
+<td><code>⌘O</code></td>
+<td>Open vault…</td>
+<td>打开文档/文件夹</td>
+</tr>
+<tr>
+<td><code>⌘R</code></td>
+<td>刷新文件树</td>
+<td>刷新当前视图</td>
+</tr>
+<tr>
+<td><code>⌥⌘S</code></td>
+<td>显示 / 隐藏侧边栏</td>
+<td>对齐 Mail / Preview 等侧边栏约定</td>
+</tr>
+<tr>
+<td><code>⌘B</code></td>
+<td>显示 / 隐藏侧边栏（别名）</td>
+<td>兼容常见生产力应用</td>
+</tr>
+<tr>
+<td><code>⌘1</code></td>
+<td>聚焦侧边栏</td>
+<td>分区焦点（Mail 等）</td>
+</tr>
+<tr>
+<td><code>⌘2</code></td>
+<td>聚焦编辑器</td>
+<td></td>
+</tr>
+<tr>
+<td><code>⌘3</code></td>
+<td>聚焦预览</td>
+<td></td>
+</tr>
+<tr>
+<td><code>⌘L</code></td>
+<td>显示 / 隐藏右侧栏</td>
+<td>Agent / Backlinks（含 Graph）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>在编辑区聚焦时同样生效；涉及浏览器保留键时需 <code>preventDefault</code>。</li>
+<li>快捷键清单以设置页 <strong>Keyboard</strong> 为准，实现见 <code>src/lib/shortcuts.ts</code>。</li>
+</ul>
+<h3 id="32-agent-ai-elements">3.2 Agent 右侧栏（AI Elements）<a class="headerlink" href="#32-agent-ai-elements" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>要求</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>入口</td>
+<td><code>⌘L</code>、标题栏右侧 Agent 图标、菜单 <strong>View → Toggle Chat</strong></td>
+</tr>
+<tr>
+<td>结构</td>
+<td>Header（标题 · <strong>可点 Agent 名切换 ACP 后端</strong> · 关闭）+ 消息列表 + PromptInput</td>
+</tr>
+<tr>
+<td>消息组件</td>
+<td>AI Elements <code>Message</code> + <code>MessageContent</code> + <code>MessageResponse</code>（<code>from="user" \| "assistant"</code>）</td>
+</tr>
+<tr>
+<td>列表滚动</td>
+<td><code>Conversation</code> + <code>use-stick-to-bottom</code>（<code>ConversationScrollButton</code>）</td>
+</tr>
+<tr>
+<td>输入</td>
+<td><code>ai-elements/prompt-input</code>（↵ 发送 / ⇧↵ 换行）</td>
+</tr>
+<tr>
+<td>业务壳</td>
+<td><code>src/components/layout/agent-panel.tsx</code>：注册表、流式事件、默认 Agent</td>
+</tr>
+<tr>
+<td>Sources</td>
+<td><code>ai-elements/sources</code>：Vault 相对路径列表</td>
+</tr>
+<tr>
+<td>不内置</td>
+<td>模型 Key、Agent 二进制（BYOA）</td>
+</tr>
+<tr>
+<td>规范文档</td>
+<td><strong><code>docs/frontend/components.md</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>消息树（AI Elements；不带头像）</strong></p>
+<pre class="codehilite"><code class="language-text">Conversation
+  └── ConversationContent
+        ├── Message from=&quot;user&quot; → MessageContent → MessageResponse
+        └── Message from=&quot;assistant&quot; → MessageContent
+              ├── Reasoning（ACP thought，可选）
+              ├── MessageResponse
+              └── Sources（可选）
+PromptInput → Body / Footer / Submit
+</code></pre>
+
+<p><strong>Agent 切换</strong>：点击 header 中的 Agent 名称打开下拉，列表来自 catalog + 注册表；选择后设为默认并用于后续 <code>runOnce</code>。</p>
+<h3 id="33-backlinks-graph">3.3 Backlinks + Graph 右侧栏<a class="headerlink" href="#33-backlinks-graph" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>入口</td>
+<td>标题栏右侧 Backlinks 图标；若右侧栏关闭，点击后打开并切到 Backlinks</td>
+</tr>
+<tr>
+<td>上方</td>
+<td><code>BacklinksPanel</code>：当前文件的反链来源与上下文摘录</td>
+</tr>
+<tr>
+<td>下方</td>
+<td><code>GraphPanel</code>：当前邻域 / 全图切换，节点点击打开对应文件或 paper</td>
+</tr>
+<tr>
+<td>布局</td>
+<td>同一右侧栏内垂直堆叠，Backlinks 约占上方区域，Graph 填充剩余高度</td>
+</tr>
+<tr>
+<td>非目标</td>
+<td>不再提供独立顶层 Graph tab；避免右侧栏入口过多</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-settings">4. 设置窗口（Settings）<a class="headerlink" href="#4-settings" title="Permanent link">&para;</a></h2>
+<p>参考 <strong>macOS System Settings / 传统 Preferences</strong> 形态，而非多标签网页：</p>
+<table>
+<thead>
+<tr>
+<th>要求</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>入口</td>
+<td>顶部菜单栏 <strong>motif → Settings…</strong>，或 <code>⌘,</code>（不在侧边栏放设置图标）</td>
+</tr>
+<tr>
+<td>结构</td>
+<td>左侧分类导航 + 右侧内容；居中浮层 dialog</td>
+</tr>
+<tr>
+<td>分类</td>
+<td>General · Appearance · Agent · Keyboard · Privacy · About</td>
+</tr>
+<tr>
+<td>行样式</td>
+<td>分组卡片（rounded + border）；左标签、右控件；行间细分隔</td>
+</tr>
+<tr>
+<td>控件</td>
+<td>Switch / Select / Input；避免花哨装饰</td>
+</tr>
+<tr>
+<td>关闭</td>
+<td>右上角 <code>X</code>、点遮罩、<code>Esc</code>、再次 <code>⌘,</code></td>
+</tr>
+<tr>
+<td>文案</td>
+<td>英文 UI（与当前应用一致），简短说明可作 footer</td>
+</tr>
+</tbody>
+</table>
+<p><strong>页面职责</strong></p>
+<ul>
+<li><strong>General</strong>：恢复上次 Vault、退出确认等应用行为。</li>
+<li><strong>Appearance</strong>：主题、编辑字号、行号。</li>
+<li><strong>Agent</strong>（BYOA，非模型 BYOK 表单）：</li>
+<li>总开关。</li>
+<li><strong>Common agents</strong> 目录表：名称 + 状态徽章（installed / ACP ready / missing 等）；打开页自动 Probe。</li>
+<li>仅保留 <strong>Probe</strong> 文字按钮（无 icon）；无逐行 Probe、无 command/路径/Handshake 详情文案。</li>
+<li><strong>Use default</strong> 纯文字（无 icon）。</li>
+<li>Custom 区：添加任意 ACP command/args。</li>
+<li>页脚说明：模型与 API Key 由各 Agent CLI 自行管理，不在 Motif 内填写。</li>
+<li><strong>Keyboard</strong>：只读快捷键表（按 App / Vault / Navigation 分组）。</li>
+<li><strong>Privacy</strong>：分析与崩溃上报（默认关，本地优先）。</li>
+<li><strong>About</strong>：版本与一句话定位。</li>
+</ul>
+<p>实现：<code>src/components/settings-window.tsx</code>；持久化暂用 <code>localStorage</code>（<code>src/lib/settings.ts</code>）。</p>
+<h2 id="5">5. 组件基线<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<p>目录分层（详情 <strong><code>docs/frontend/components.md</code> §0</strong>）：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ui/</code></td>
+<td>shadcn 通用原语</td>
+</tr>
+<tr>
+<td><code>ai-elements/</code></td>
+<td>AI Elements</td>
+</tr>
+<tr>
+<td><code>layout/</code></td>
+<td>分栏、顶栏、文件树、Chat 面板</td>
+</tr>
+<tr>
+<td><code>editor/</code></td>
+<td>Plate 编辑器 + 插件</td>
+</tr>
+<tr>
+<td><code>viewer/</code></td>
+<td>PDF / HTML</td>
+</tr>
+<tr>
+<td><code>settings-window.tsx</code></td>
+<td>设置窗</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>图标：<strong>Lucide React</strong>。</li>
+<li>优先复用 <code>Button</code>（<code>variant="ghost"</code> + <code>size="icon-xs"</code>）、<code>Tooltip</code>、<code>Switch</code>、<code>Select</code>、<code>Input</code>、<code>DropdownMenu</code>。</li>
+<li>参考：<a href="https://ui.shadcn.com/">shadcn/ui</a> · <a href="https://elements.ai-sdk.dev/">AI Elements</a> · <code>docs/frontend/components.md</code></li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../" class="btn btn-neutral float-left" title="概览"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../components/" class="btn btn-neutral float-right" title="组件约定">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+        </span>
+    
+    
+      <span><a href="../" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../components/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

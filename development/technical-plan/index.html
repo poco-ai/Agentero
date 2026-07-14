@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>技术方案 - Motif 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u6280\u672f\u65b9\u6848";
+        var mkdocs_page_input_path = "development/technical-plan.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Motif 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">技术方案</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 技术定位与目标</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 整体架构</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#21-tauri-2">2.1 为什么选 Tauri 2</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#22">2.2 前后端职责边界</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 前端技术栈</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31">3.1 基础框架</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32-ui">3.2 UI 与样式</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#321-vault">3.2.1 工作台布局与 Vault 文件树（已接入）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#33-markdown">3.3 Markdown 编辑与预览</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#34-pdf-html">3.4 PDF / HTML 阅读器</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#35">3.5 关系图谱</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#36">3.6 状态管理</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#37">3.7 路由（可选）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4-tauri-rust">4. 后端/宿主层（Tauri + Rust）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#41-tauri">4.1 Tauri 插件</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#42-rust-crates">4.2 Rust Crates</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#43-rust">4.3 核心 Rust 模块设计</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#44">4.4 安全模型</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#45-tauri-store-vs-sqlite">4.5 本地存储分层：Tauri Store vs SQLite</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 核心模块搭配与数据流</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#51-vault">5.1 Vault 初始化与恢复</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#52-arxiv">5.2 arXiv 入库闭环</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#53-pdf">5.3 本地 PDF 入库闭环</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#54-markdown">5.4 Markdown 工作台</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#55">5.5 双链与反链</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#56">5.6 关系图谱</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#57-agent-acp-client-byoa">5.7 Agent 工作流（ACP Client + BYOA）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#58-agent-byok">5.8 Agent 配置（注册表，非模型 BYOK）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6-mac-ipados">6. 平台策略：Mac 优先 + iPadOS 扩展</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#61-mac-mvp">6.1 Mac 优先（MVP）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#62-ipados">6.2 iPadOS 扩展（后续版本）</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#621">6.2.1 构建与打包</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#622-ui">6.2.2 UI 适配</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#623">6.2.3 文件系统差异</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#624-agent">6.2.4 Agent 与网络</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#63">6.3 跨平台共享代码</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7">7. 开发/构建/部署</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#71">7.1 本地开发</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#72">7.2 构建</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#73-release-ci">7.3 Release CI</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#74">7.4 代码规范</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#8">8. 依赖清单（计划）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#81">8.1 前端依赖</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#82-rust">8.2 Rust 依赖</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#83">8.3 安全相关依赖</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#84">8.4 可选依赖</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#9-roadmap">9. 与 Roadmap 的对应关系</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#10">10. 风险与技术对策</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#11">11. 相关文档</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../hypothesis/">产品假设</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Motif 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">开发</li>
+      <li class="breadcrumb-item active">技术方案</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/motif/edit/main/docs/development/technical-plan.md">Edit on poco-ai/motif</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="motif-notemd">Motif / notemd 技术方案<a class="headerlink" href="#motif-notemd" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>本文档基于 <code>docs/development/prd.md</code>、<code>docs/frontend/ui.md</code>、<code>docs/development/roadmap.md</code> 与当前仓库现状编写，用于指导 MVP 及后续演进的技术选型与模块划分。</p>
+</blockquote>
+<h2 id="1">1. 技术定位与目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>本地优先（Local-first）</strong>：Vault 以 Markdown + 源文件为事实来源，数据库/索引仅作为缓存。</li>
+<li><strong>跨平台但 Mac 优先</strong>：MVP 以 macOS 桌面应用为主，技术栈保留向 iPadOS 扩展的能力。</li>
+<li><strong>Agent-first</strong>：前端为人类提供审阅、编辑、导航界面；后端 Rust 宿主提供文件系统、网络、索引，并以 <strong>ACP Client</strong> 身份连接本机已有 Agent。</li>
+<li><strong>BYOA（Bring Your Own Agent）</strong>：Motif <strong>不内置、不捆绑</strong> 任何 coding agent 二进制；用户使用本机已安装的 ACP-compatible CLI（OpenCode、Gemini CLI、Claude ACP 适配器、Codex ACP、自定义 command）。密钥与模型由各 Agent 自行管理。</li>
+<li><strong>可迁移</strong>：Vault 离开应用后仍能被 Obsidian、VS Code、Cursor 直接打开。</li>
+</ul>
+<h2 id="2">2. 整体架构<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">┌─────────────────────────────────────────────────────────────┐
+│                     Frontend (Web)                          │
+│  React 19 + TypeScript + Vite + Tailwind CSS + shadcn/ui    │
+│  - 三栏工作台                                                │
+│  - Markdown 编辑/预览                                        │
+│  - PDF / HTML 阅读器                                         │
+│  - 双链/反链/图谱                                            │
+│  - Agent 面板（会话 / 权限确认 / 读取路径回显）               │
+└───────────────────────────┬─────────────────────────────────┘
+│                           │ Tauri invoke / event
+┌───────────────────────────▼─────────────────────────────────┐
+│           Host (Tauri 2 + Rust) = ACP Client                 │
+│  - 文件系统操作（读写 Vault、文件树、文件监听）               │
+│  - arXiv / HTTP 抓取                                         │
+│  - Markdown / 双链 / 图谱索引                                 │
+│  - Agent 注册表 / 发现 / 会话 / 权限 UX                       │
+│  - 工作流 prompt 模板（总结 / 问答 / Related Work）           │
+│  - 本地配置与最近 Vault 存储                                  │
+└───────────────────────────┬─────────────────────────────────┘
+│                           │ ACP (JSON-RPC 2.0 over stdio)
+┌───────────────────────────▼─────────────────────────────────┐
+│     用户本机已安装的 ACP Agent（BYOA，Motif 不打包）           │
+│  - OpenCode / Gemini CLI / Claude ACP / Codex ACP / 自定义  │
+│  - cwd = 当前 Vault；密钥与模型由 Agent CLI 自行管理          │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<blockquote>
+<p><strong>协议说明</strong>：此处 ACP 指编辑器 ↔ coding agent 的 <a href="https://agentclientprotocol.com/">Agent Client Protocol</a>（stdio 上的 JSON-RPC 2.0），<strong>不是</strong> Linux Foundation 的 REST 风格 ACP。Motif 始终作为 <strong>Client</strong>，Agent CLI 作为 <strong>Server</strong>。</p>
+</blockquote>
+<h3 id="21-tauri-2">2.1 为什么选 Tauri 2<a class="headerlink" href="#21-tauri-2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Rust 宿主能直接、安全地操作本地文件系统，符合本地优先定位。</li>
+<li>前端使用成熟的 Web 技术栈，UI 开发效率高于纯原生。</li>
+<li>Tauri 2 支持 iOS/iPadOS 构建（<code>tauri ios</code>），与 MVP 的 Mac-first、后续 iPadOS 策略一致。</li>
+<li>包体小、内存占用低，适合作为常驻研究工具。</li>
+</ul>
+<h3 id="22">2.2 前后端职责边界<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>能力</th>
+<th>Frontend</th>
+<th>Host (Rust)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>文件树展示/交互</td>
+<td><code>FileTree</code> + 可伸缩侧边栏；展开/选中/打开文件</td>
+<td><code>plugin-dialog</code> 选目录 + <code>plugin-fs</code> <code>readDir</code>/<code>readTextFile</code>（监听变化后续）</td>
+</tr>
+<tr>
+<td>Markdown 编辑</td>
+<td>Plate.js WYSIWYG 编辑器</td>
+<td>持久化到磁盘</td>
+</tr>
+<tr>
+<td>双链解析与高亮</td>
+<td>正则 + AST 渲染</td>
+<td>构建全局索引、反链查询</td>
+</tr>
+<tr>
+<td>图谱</td>
+<td><code>react-force-graph-2d</code>，嵌在 Backlinks 右侧栏下方</td>
+<td><code>graph_get_graph</code> 输出 nodes/edges</td>
+</tr>
+<tr>
+<td>PDF/HTML 阅读</td>
+<td>react-pdf 渲染；内联 HTML 经 DOMPurify 消毒</td>
+<td>可插拔解析器提取文本、提供本地文件路径/URL</td>
+</tr>
+<tr>
+<td>本地 PDF 导入</td>
+<td>文件选择/拖拽/进度展示</td>
+<td>归档原始 PDF、解析生成 PAPER.md、混合获取元数据</td>
+</tr>
+<tr>
+<td>arXiv 抓取</td>
+<td>输入/进度展示</td>
+<td>HTTP 下载、LaTeX/HTML/PDF 获取</td>
+</tr>
+<tr>
+<td>Agent 调用</td>
+<td>会话 UI、权限确认、读取路径回显</td>
+<td>ACP Client：spawn 用户配置的 agent、stdio JSON-RPC、会话与权限桥接、工作流 prompt</td>
+</tr>
+<tr>
+<td>Agent 配置</td>
+<td>注册表 UI、PATH 探测空状态、模板选择</td>
+<td>持久化 command/args/env；探测可执行文件；不持有模型 API Key</td>
+</tr>
+<tr>
+<td>配置/最近 Vault</td>
+<td>读取与展示</td>
+<td>使用 Tauri Store 持久化</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3">3. 前端技术栈<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31">3.1 基础框架<a class="headerlink" href="#31" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>库/工具</th>
+<th>版本/说明</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>React</td>
+<td>^19.1.0</td>
+<td>UI 组件与状态驱动</td>
+</tr>
+<tr>
+<td>TypeScript</td>
+<td>~5.8.3</td>
+<td>类型安全</td>
+</tr>
+<tr>
+<td>Vite</td>
+<td>^7.0.4</td>
+<td>构建与 HMR</td>
+</tr>
+<tr>
+<td>Biome</td>
+<td>2.5.2</td>
+<td>Lint + Format（已配置）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-ui">3.2 UI 与样式<a class="headerlink" href="#32-ui" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>库/工具</th>
+<th>说明</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tailwind CSS v4</td>
+<td>原子化 CSS + CSS variables</td>
+<td>布局、间距、响应式</td>
+</tr>
+<tr>
+<td>shadcn/ui</td>
+<td><code>components.json</code> → <code>radix-nova</code></td>
+<td>通用控件（<code>src/components/ui/</code>）</td>
+</tr>
+<tr>
+<td><strong>AI Elements</strong></td>
+<td><a href="https://elements.ai-sdk.dev/">elements.ai-sdk.dev</a></td>
+<td>Chat / Prompt / Sources / <strong>FileTree</strong> 等；落盘 <code>src/components/ai-elements/</code></td>
+</tr>
+<tr>
+<td>streamdown + <code>@streamdown/*</code></td>
+<td>Markdown 流式渲染</td>
+<td><code>MessageResponse</code></td>
+</tr>
+<tr>
+<td><code>use-stick-to-bottom</code></td>
+<td>对话贴底</td>
+<td><code>Conversation</code></td>
+</tr>
+<tr>
+<td><code>ai</code>（AI SDK 类型）</td>
+<td>可选类型借用</td>
+<td><strong>不</strong>作 Motif 默认 HTTP 传输</td>
+</tr>
+<tr>
+<td>Radix UI / <code>radix-ui</code></td>
+<td>shadcn 底层</td>
+<td>可访问性、键盘、弹层</td>
+</tr>
+<tr>
+<td>Lucide React</td>
+<td>图标库</td>
+<td>工具栏、文件树、Chat 操作</td>
+</tr>
+<tr>
+<td><code>react-resizable-panels</code></td>
+<td>可拖拽分隔面板</td>
+<td>文件树 / 编辑 / Preview/Notes / 可选右侧栏（Agent 或 Backlinks+Graph）</td>
+</tr>
+<tr>
+<td>tweakcn <code>modern-minimal</code></td>
+<td>shadcn token 主题</td>
+<td>简约视觉；Chat 共用同一套 token</td>
+</tr>
+<tr>
+<td><code>next-themes</code></td>
+<td>明暗</td>
+<td>System / Light / Dark</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>主题：<code>pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/modern-minimal.json</code>（见 <code>docs/frontend/ui.md</code>）。<br />
+AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</code></strong>。</p>
+</blockquote>
+<p><strong>Chat 分层（强制）</strong></p>
+<pre class="codehilite"><code class="language-text">UI (AI Elements: Conversation + Message + PromptInput + Sources)
+  → AgentPanel 状态机
+  → Tauri invoke / events
+  → Rust ACP Client
+  → 本机 Agent CLI
+</code></pre>
+
+<ul>
+<li><strong>不要</strong>把 Vercel AI SDK 的 <code>useChat</code> HTTP 后端当作 Motif 默认传输层。</li>
+<li>流式：<code>agent:stream</code>（<code>kind: message | thought</code>）/ <code>agent:completed</code> / <code>agent:failed</code> 映射到 <code>Reasoning</code> + <code>MessageResponse</code> + <code>Sources</code>。</li>
+<li>组件规范与安装：<code>docs/frontend/components.md</code>。</li>
+</ul>
+<h3 id="321-vault">3.2.1 工作台布局与 Vault 文件树（已接入）<a class="headerlink" href="#321-vault" title="Permanent link">&para;</a></h3>
+<p><strong>布局</strong></p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>可伸缩面板</td>
+<td><code>react-resizable-panels</code>（<code>Group</code> / <code>Panel</code> / <code>Separator</code>）</td>
+<td>v4 API；封装见 <code>src/components/layout/resizable.tsx</code></td>
+</tr>
+<tr>
+<td>侧边栏文件树</td>
+<td><code>src/components/layout/file-tree.tsx</code></td>
+<td>包装 <strong>AI Elements</strong> <code>FileTree</code> / <code>FileTreeFolder</code> / <code>FileTreeFile</code></td>
+</tr>
+<tr>
+<td>Vault IO</td>
+<td><code>src/lib/vault.ts</code></td>
+<td>选目录、建树、读文本文件；浏览器下提供 demo vault</td>
+</tr>
+</tbody>
+</table>
+<p><strong>交互（当前实现）</strong></p>
+<ol>
+<li>左侧可拖拽伸缩（可折叠）侧边栏展示 Vault 文件树。  </li>
+<li>「Open vault…」通过 <code>@tauri-apps/plugin-dialog</code> 选择本地文件夹。  </li>
+<li>通过 <code>@tauri-apps/plugin-fs</code> 的 <code>readDir</code> 递归构建树；忽略 <code>.git</code> / <code>node_modules</code> / <code>target</code> / <code>dist</code> / <code>.motif</code> 等。  </li>
+<li>点击文本类文件（<code>.md</code> / <code>.json</code> / <code>.txt</code> 等）用 <code>readTextFile</code> 载入中间 Markdown 面板，右侧 Plate 预览同步更新。  </li>
+<li>非 Tauri 环境（纯浏览器 <code>pnpm dev</code>）使用内置 <strong>demo vault</strong> 演示结构；真实读盘需 <code>pnpm tauri dev</code>。  </li>
+<li>最近 Vault 路径暂存 <code>localStorage</code>（后续迁到 <code>tauri-plugin-store</code>）。</li>
+</ol>
+<p><strong>权限（<code>src-tauri/capabilities/default.json</code>）</strong></p>
+<ul>
+<li><code>fs:default</code> + <code>fs:allow-read-dir</code> / <code>fs:allow-read-text-file</code> / <code>fs:allow-stat</code> / <code>fs:allow-exists</code></li>
+<li><code>fs:scope</code> 允许：<code>$HOME/**</code>、<code>$DOCUMENT/**</code>、<code>$DESKTOP/**</code>、<code>$DOWNLOAD/**</code>（用户自选 Vault 落在这些目录下可读）</li>
+<li><code>dialog:default</code> 打开文件夹对话框</li>
+</ul>
+<p><strong>未做（后续）</strong>：写回磁盘、文件监听热更新、按 Vault 白名单动态收紧 scope、Zustand 全局状态。</p>
+<h3 id="33-markdown">3.3 Markdown 编辑与预览<a class="headerlink" href="#33-markdown" title="Permanent link">&para;</a></h3>
+<p>采用 <strong>Plate.js WYSIWYG 编辑器</strong>方案，编辑即预览，无需分屏切换：</p>
+<table>
+<thead>
+<tr>
+<th>库</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@platejs/core</code> + 插件体系</td>
+<td>基于 Slate.js 的富文本编辑器框架，WYSIWYG 编辑 Markdown</td>
+</tr>
+<tr>
+<td><code>@platejs/markdown</code></td>
+<td>Markdown ↔ Slate 序列化/反序列化，支持导入导出</td>
+</tr>
+<tr>
+<td><code>@platejs/ai</code></td>
+<td>内置 AI 能力，可直接对接 Agent 工作流（补全、改写、总结）</td>
+</tr>
+<tr>
+<td>Plate shadcn/ui 组件</td>
+<td>工具栏、浮动菜单、AI 面板等 UI 组件，与项目 shadcn/ui 体系一致</td>
+</tr>
+<tr>
+<td>自定义 <code>[[双链]]</code> 插件</td>
+<td>基于 Plate 插件机制实现双链输入、解析、高亮与点击跳转</td>
+</tr>
+</tbody>
+</table>
+<p><strong>选型理由</strong>：
+- <strong>所见即所得</strong>：用户无需在源码和预览之间切换，编辑体验接近 Notion/Obsidian Live Preview。
+- <strong>与 shadcn/ui 原生集成</strong>：Plate 的 UI 组件直接基于 shadcn/ui 构建，与项目现有组件体系无缝配合。
+- <strong>内置 AI 能力</strong>：<code>@platejs/ai</code> 提供编辑器内 AI 交互（补全、改写、内联建议），可通过 ACP 对接 Agent 工作流。
+- <strong>插件架构</strong>：双链、数学公式（KaTeX）、代码高亮等均可通过 Plate 插件扩展。
+- <strong>Markdown 兼容</strong>：通过 <code>@platejs/markdown</code> 实现 Markdown 文件的导入（反序列化为 Slate 文档）和保存（序列化为 Markdown 文本），保持与 Vault 文件的兼容。</p>
+<p><strong>注意事项</strong>：
+- Plate 内部使用 Slate 数据模型，保存时需序列化为 Markdown 再写入磁盘，确保 Vault 文件仍为标准 Markdown。
+- Agent 写入的 Markdown 同样需反序列化为 Slate 文档后展示在编辑器中。
+- 对于习惯源码编辑的用户，后续可考虑提供 CodeMirror 源码模式作为可选切换。</p>
+<h3 id="34-pdf-html">3.4 PDF / HTML 阅读器<a class="headerlink" href="#34-pdf-html" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PDF 渲染（前端）</td>
+<td><strong>已接入</strong> <code>react-pdf</code> + <code>pdfjs-dist</code>：仅按 <strong>远程 <code>pdf_url</code></strong> 流式渲染（<strong>不落盘、不读 vault 内 pdf</strong>）</td>
+</tr>
+<tr>
+<td>PDF 解析（Rust）</td>
+<td>可插拔 <code>PdfParser</code>（入库生成 PAPER.md 用）；与预览路径分离</td>
+</tr>
+<tr>
+<td>HTML 预览</td>
+<td>远程 <code>html_url</code> → 独立 iframe；<strong>不下载到本地</strong></td>
+</tr>
+<tr>
+<td>中间栏切换</td>
+<td><code>ViewModeToggle</code>；URL 来自 metadata / <code>arxiv_id</code> 推导（<code>arxiv.ts</code>）</td>
+</tr>
+<tr>
+<td>arXiv 资源</td>
+<td><code>pdf</code> / <code>html</code> / <code>abs</code> 规范 URL；CORS <code>*</code> 便于内嵌</td>
+</tr>
+</tbody>
+</table>
+<p><strong>分工说明</strong>：
+- <strong>渲染层</strong>（<code>react-pdf</code>）：负责在 Webview 中展示 PDF 页面，供用户审阅、缩放、翻页浏览。
+- <strong>解析层</strong>（<code>liteparse</code>）：在 Rust 端提取 PDF 文本内容，用于生成 <code>PAPER.md</code>、Agent 上下文读取、全文检索索引等。输出支持 Markdown（含标题/表格/列表重建）、JSON（含 bounding box）和纯文本。
+- <code>liteparse</code> 内置 Tesseract OCR，对扫描型 PDF 也能处理；支持多格式（PDF/DOCX/XLSX/PPTX/图片）。
+- <strong>HTML 安全</strong>：完整远程/本地 HTML 文档优先用隔离 <code>iframe</code> 或 <code>convertFileSrc</code> 加载；任何会进入主文档 DOM 的不可信 HTML 字符串必须调用 <code>sanitizeHtml</code>（DOMPurify）。许可证 Apache-2.0。</p>
+<p><strong>可插拔 PDF 解析器（<code>PdfParser</code>）</strong>：
+- 抽象 <code>PdfParser</code> trait，提供两个后端：本地 <code>LiteparseBackend</code>（默认，离线开箱即用）与云端 <code>MineruCloudBackend</code>（BYOK，配置 MinerU API Key 后启用）。
+- 选择策略：配置并启用 MinerU 时优先云端（解析质量更高），失败自动降级本地 <code>liteparse</code>；未配置时始终本地。
+- 质量映射：MinerU → <code>body_quality=high</code>；liteparse 文本层 → <code>medium</code>；扫描件 OCR → <code>low</code>，写入 <code>metadata.json</code>。
+- 隐私：云端 MinerU 需上传 PDF，首次启用时提示；默认本地解析不外传数据。
+- arXiv 入库在无 LaTeX/HTML 时复用同一 <code>PdfParser</code> 做兜底解析。</p>
+<blockquote>
+<p>MVP 阅读器以审阅和定位为主，不实现完整批注系统。</p>
+</blockquote>
+<h3 id="35">3.5 关系图谱<a class="headerlink" href="#35" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>库</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>react-force-graph-2d</code></strong></td>
+<td>Canvas 力导向：缩放、拖拽、邻域高亮、点击打开</td>
+</tr>
+<tr>
+<td><code>@xyflow/react</code>（备选）</td>
+<td>仅当未来要可编辑流程图式节点时再引入</td>
+</tr>
+</tbody>
+</table>
+<p><strong>原因</strong>：产品对照 Obsidian 式「中心 + 辐射」力导向图；右侧栏内 Canvas 性能足够；数据来自 wikilink 索引而非手写布局。<br />
+<strong>壳</strong>：右侧栏只有 <code>agent</code> 与 <code>backlinks</code> 两个顶层 tab；<code>GraphPanel</code> 嵌在 Backlinks 下方，与反链共享上下文。<br />
+<strong>详设</strong>：<code>docs/backend/wikilinks.md</code> §4.4 / §6.3；Host 契约 <code>docs/backend/api.md</code> §3.7 <code>graph_get_graph</code>。</p>
+<h3 id="36">3.6 状态管理<a class="headerlink" href="#36" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>库</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Zustand</td>
+<td>全局状态：当前 Vault、打开的文件、Agent 会话、UI 布局</td>
+</tr>
+</tbody>
+</table>
+<p><strong>原因</strong>：MVP 规模下 Zustand 足够轻量；无需 Redux 的样板代码。</p>
+<h3 id="37">3.7 路由（可选）<a class="headerlink" href="#37" title="Permanent link">&para;</a></h3>
+<p>MVP 为单窗口桌面应用，暂不使用前端路由。若后续需要多视图（图谱全屏、设置页），引入：</p>
+<table>
+<thead>
+<tr>
+<th>库</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TanStack Router</td>
+<td>类型安全路由</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-tauri-rust">4. 后端/宿主层（Tauri + Rust）<a class="headerlink" href="#4-tauri-rust" title="Permanent link">&para;</a></h2>
+<h3 id="41-tauri">4.1 Tauri 插件<a class="headerlink" href="#41-tauri" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>插件</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tauri-plugin-fs</code></td>
+<td>读 Vault 目录树与文本文件（<strong>已用于文件树</strong>）；写/监听后续</td>
+</tr>
+<tr>
+<td><code>tauri-plugin-dialog</code></td>
+<td>选择 Vault 文件夹（<strong>已用于 Open vault</strong>）</td>
+</tr>
+<tr>
+<td><code>tauri-plugin-store</code></td>
+<td>持久化用户配置、最近 Vault、API Key（加密存储后续补充；当前最近路径仍用 localStorage）</td>
+</tr>
+<tr>
+<td><code>tauri-plugin-opener</code></td>
+<td>打开外部链接（已配置）</td>
+</tr>
+<tr>
+<td><code>tauri-plugin-shell</code></td>
+<td>已注册；spawn 用户配置的 ACP agent 子进程</td>
+</tr>
+<tr>
+<td><code>tauri-plugin-http</code>（可选）</td>
+<td>前端直接发起受控 HTTP 请求</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-rust-crates">4.2 Rust Crates<a class="headerlink" href="#42-rust-crates" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Crate</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tauri</code> / <code>tauri-build</code></td>
+<td>应用框架</td>
+</tr>
+<tr>
+<td><code>serde</code> / <code>serde_json</code></td>
+<td>序列化与 IPC</td>
+</tr>
+<tr>
+<td><code>agent-client-protocol</code></td>
+<td>ACP Client SDK：stdio JSON-RPC 与本机 Agent Server 通信</td>
+</tr>
+<tr>
+<td><code>reqwest</code> + <code>tokio</code></td>
+<td>异步 HTTP：抓取 arXiv 资源、查询 Crossref、调用云端 MinerU API</td>
+</tr>
+<tr>
+<td><code>pulldown-cmark</code> 或 <code>comrak</code></td>
+<td>Markdown 解析、提取双链、标题、frontmatter</td>
+</tr>
+<tr>
+<td><code>regex</code></td>
+<td>双链、arXiv ID 解析</td>
+</tr>
+<tr>
+<td><code>thiserror</code> / <code>anyhow</code></td>
+<td>错误处理</td>
+</tr>
+<tr>
+<td><code>notify</code></td>
+<td>文件系统监听，实时同步外部编辑器修改</td>
+</tr>
+<tr>
+<td><code>dirs</code></td>
+<td>获取系统配置/缓存目录</td>
+</tr>
+<tr>
+<td><code>tempfile</code></td>
+<td>Agent 生成内容临时文件，确认后写入</td>
+</tr>
+<tr>
+<td><code>walkdir</code></td>
+<td>遍历 Vault 构建索引</td>
+</tr>
+<tr>
+<td><code>liteparse</code></td>
+<td>默认本地 PDF 解析后端：提取结构化文本 + bounding box，输出 Markdown/JSON/Text，内置 OCR</td>
+</tr>
+<tr>
+<td><code>rusqlite</code></td>
+<td>本地 SQLite 索引，缓存论文元数据与全文检索</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-rust">4.3 核心 Rust 模块设计<a class="headerlink" href="#43-rust" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">src-tauri/src/
+  main.rs          # 入口
+  lib.rs           # Tauri Builder、命令注册
+  commands/        # invoke 命令
+    vault.rs       # 创建/打开/列出 Vault、最近记录
+    file.rs        # 文件读写、监听
+    input.rs       # 输入分类与候选论文查询
+    arxiv.rs       # arXiv 入库命令
+    pdf.rs         # 本地 PDF 入库：元数据预解析与确认、入库任务
+    agent.rs       # Agent 注册表 / 会话 / 权限 / 工作流触发
+    graph.rs       # 图谱节点/边查询
+  services/        # 业务逻辑
+    vault.rs       # Vault 初始化与校验
+    fs.rs          # 安全文件操作（路径白名单）
+    input.rs       # 输入分类、意图解析、候选检索
+    importer/      # 入库来源抽象（统一落盘结构与状态契约）
+      mod.rs       #   Importer trait：import/status/输出文件契约
+      arxiv.rs     #   arXiv importer：HTML/LaTeX/PDF 抓取与解析
+      pdf.rs       #   本地 PDF importer：归档、解析、生成 PAPER.md
+    parser/        # PDF 解析后端
+      mod.rs       #   PdfParser trait：parse(pdf) -&gt; Markdown/bbox
+      liteparse.rs #   本地嵌入式后端（默认，含 OCR）
+      mineru.rs    #   云端 MinerU 后端（BYOK，可选）
+    metadata.rs    # 元数据解析：DOI/arXiv 识别 + Crossref/arXiv 查询 + Agent 兜底 + citekey
+    markdown.rs    # Markdown 解析、双链提取、索引构建
+    agent/         # ACP Client（BYOA，不内置 agent 二进制）
+      acp.rs       # ACP client：spawn 用户配置的 agent、stdio JSON-RPC
+      registry.rs  # Agent 注册表：模板预设 + 自定义 command/args/env
+      discover.rs  # PATH / 可执行文件探测，空状态安装指引
+      session.rs   # 会话管理：cwd=Vault、创建/切换/恢复
+      permission.rs# 权限请求转发前端确认（含写文件前确认）
+      prompts.rs   # 工作流 prompt 模板 + AGENTS.md 注入
+      workflows.rs # 总结/问答/Related Work 流程
+      search.rs    # Agent 驱动的论文检索/候选生成
+  models/          # 数据类型
+    vault.rs
+    paper.rs
+    note.rs
+    annotation.rs  # 标注/highlights
+    graph.rs
+    agent.rs
+    candidate.rs   # 候选论文/检索结果
+    importer.rs    # 入库状态、PDF 元数据草稿、解析器配置
+  error.rs         # 应用错误类型
+</code></pre>
+
+<h3 id="44">4.4 安全模型<a class="headerlink" href="#44" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>路径白名单</strong>：Tauri <code>fs</code> 权限仅允许访问用户显式选择的 Vault 目录及其子目录。</li>
+<li><strong>CSP 配置</strong>：<code>tauri.conf.json</code> 中设置合理的 Content-Security-Policy，限制本地 Webview 加载外部资源。</li>
+<li><strong>密钥边界</strong>：Motif <strong>不持有、不转发</strong> 模型 API Key。认证由用户本机 Agent CLI 自行管理（各 agent 自己的 login / config）。Host 仅持久化 agent 启动参数（command / args / env 中非敏感项）与 UI 偏好；MinerU 等产品侧 BYOK 仍走 <code>tauri-plugin-store</code>（后续可迁系统钥匙串）。</li>
+<li><strong>网络范围</strong>：Agent 网络访问由 agent 进程自身控制；Motif 自身 arXiv 抓取限定于 <code>arxiv.org</code> 域名。</li>
+</ul>
+<h2 id="45-tauri-store-vs-sqlite">4.5 本地存储分层：Tauri Store vs SQLite<a class="headerlink" href="#45-tauri-store-vs-sqlite" title="Permanent link">&para;</a></h2>
+<p>MVP 涉及两类本地持久化需求，需要明确分层：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Tauri Store</th>
+<th>SQLite 索引</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数据类型</td>
+<td>用户配置、最近 Vault 列表、API Key、UI 状态</td>
+<td>论文元数据、标签、全文检索、双链图、标注坐标缓存</td>
+</tr>
+<tr>
+<td>数据模型</td>
+<td>Key-Value</td>
+<td>关系表 + FTS</td>
+</tr>
+<tr>
+<td>典型容量</td>
+<td>几十到几百条记录</td>
+<td>可扩展到数万条论文与链接</td>
+</tr>
+<tr>
+<td>查询能力</td>
+<td>按 key 读取，不适合过滤/聚合</td>
+<td>支持按作者、年份、标签、关键词过滤，支持复杂查询</td>
+</tr>
+<tr>
+<td>事实来源</td>
+<td>是（配置类数据无其他来源）</td>
+<td>否，只能从 <code>metadata.json</code> / <code>NOTES.md</code> / <code>highlights.md</code> / 双链重建</td>
+</tr>
+<tr>
+<td>存放位置</td>
+<td>应用配置目录（<code>dirs::config_dir</code>）</td>
+<td>Vault 内 <code>.motif/cache.sqlite</code> 或应用缓存目录</td>
+</tr>
+<tr>
+<td>损坏处理</td>
+<td>丢失后用户重新配置</td>
+<td>删除后可从 Markdown 自动重建</td>
+</tr>
+</tbody>
+</table>
+<p><strong>使用原则</strong>：
+- Tauri Store 只存配置和机密，不存论文元数据。
+- 每篇论文的元数据事实来源是 <code>papers/&lt;id&gt;/metadata.json</code>；<code>PAPERS.md</code>、<code>library.bib</code>、SQLite 都是它的派生投影。
+- SQLite 是查询缓存/索引，遵守三条纪律：可整删重建、写入 file-first（先写 <code>metadata.json</code>/Markdown 再更新索引）、冲突时以文件为准并触发重索引。
+- Agent 路由、搜索、图谱可先读 SQLite，但最终引用和展示必须落回本地文件路径。</p>
+<h2 id="5">5. 核心模块搭配与数据流<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<h3 id="51-vault">5.1 Vault 初始化与恢复<a class="headerlink" href="#51-vault" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">用户选择目录
+  → Rust: dialog.open({ directory: true })
+  → Rust: 初始化 AGENTS.md / PAPERS.md / papers / notes / plans
+  → Rust: store.set('recent-vaults', [...])
+  → Frontend: 加载文件树，打开 PAPERS.md
+</code></pre>
+
+<h3 id="52-arxiv">5.2 arXiv 入库闭环<a class="headerlink" href="#52-arxiv" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">用户输入 arXiv ID / URL / 关键词 / 话题 / 一段描述
+  → Rust: 输入分类（规则解析 + Agent 意图识别）
+     ├─ 精确 ID/URL → 直接提取标准 arXiv ID
+     └─ 模糊输入 → Agent 检索 arXiv 候选并返回候选列表
+  → Frontend: 展示候选论文（标题、作者、摘要片段、推荐理由）
+  → 用户确认目标论文（单选/多选）
+  → Rust: 归一化为标准 arXiv ID
+  → Rust: 请求 arXiv API (http://export.arxiv.org/api/query)
+  → Rust: 并行下载 LaTeX source / HTML / PDF（按优先级），均存入 `papers/&lt;id&gt;/source/`
+  → Rust: 若无 LaTeX source 或需要可读结构化正文，生成 `papers/&lt;id&gt;/PAPER.md`（LaTeX/HTML/PDF → Markdown）
+  → Rust: 调用 Agent 生成 `papers/&lt;id&gt;/NOTES.md`（三段论结构），并创建空的 `papers/&lt;id&gt;/highlights.md`
+  → Rust: 写入 `papers/&lt;id&gt;/metadata.json` 并更新 PAPERS.md（派生索引）与 library.bib，同步刷新 `.motif/cache.sqlite`（查询缓存）
+  → Frontend: 展示进度、成功、失败原因
+  → Frontend: 自动打开 NOTES.md 供用户审阅
+</code></pre>
+
+<p><strong>输入分类与 Agent 解析</strong>：
+- 规则层先用正则识别 arXiv ID（如 <code>1706.03762</code>、<code>arXiv:1706.03762</code>）和 URL。
+- 非精确输入统一交给 Agent，Agent 可调用 arXiv API 进行关键词/摘要搜索，并返回 Top-K 候选。
+- 候选需包含：标题、作者、年份、arXiv ID、摘要片段、与输入意图的匹配理由。
+- 用户可在列表中多选批量入库，或拒绝全部候选后重新输入。</p>
+<p><strong>PAPER.md 生成策略</strong>：
+- <code>papers/&lt;id&gt;/source/</code> 始终存在，LaTeX source、PDF、HTML 均下载到该目录。
+- Agent 优先读取 <code>source/</code> 中的 <code>.tex</code> 原始源文件。
+- 仅在无 LaTeX source 或 Agent/用户需要统一可读格式时，按需生成 <code>papers/&lt;id&gt;/PAPER.md</code>：
+  - 有 LaTeX source 时，通过 pandoc 或轻量 LaTeX→Markdown 转换保留章节、公式、表格。
+  - 无 LaTeX source 时，次选 arXiv HTML 实验版，解析 DOM 转 Markdown。
+  - 兜底使用 <code>liteparse</code> 进行 PDF 文本提取（支持 Markdown/JSON/Text 输出，内置 OCR），并明确标记质量。
+- <code>PAPER.md</code> 是派生文件，可被删除或重建；<code>source/</code> 中的原始文件才是归档事实来源。</p>
+<h3 id="53-pdf">5.3 本地 PDF 入库闭环<a class="headerlink" href="#53-pdf" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">用户选择或拖拽本地 PDF（可批量）
+  → Rust: 复制原始 PDF 到临时目录 &lt;tmp&gt;/source/original.pdf（先入临时，确认后落位）
+  → Rust: 轻量解析首页文本，正则识别 DOI / arXiv ID
+     ├─ 命中 → 查询 Crossref(DOI) / arXiv API 获取权威元数据
+     └─ 未命中/失败 → Agent 从首页正文抽取候选元数据（标题/作者/年份/摘要）
+  → Frontend: 弹出确认面板，用户校对并修正元数据
+  → Rust: 生成 citekey（作者 + 年份 + 标题词，冲突加后缀），重复检测（DOI / 标题指纹）
+  → Rust: 临时目录落位为 papers/&lt;citekey&gt;/，写入 metadata.json（type=pdf）
+  → Rust: 用当前 PdfParser 全文解析（默认 liteparse；配置并启用则优先 MinerU，失败降级）
+          生成 papers/&lt;citekey&gt;/PAPER.md 与 assets/，记录 body_source / body_quality
+  → Rust: 调用 Agent 生成 NOTES.md（三段论），创建空的 highlights.md
+  → Rust: 更新 PAPERS.md（派生索引）与 library.bib，同步刷新 .motif/cache.sqlite
+  → Frontend: 展示进度、成功、失败原因；自动打开 NOTES.md
+</code></pre>
+
+<p><strong>与 arXiv 入库的差异</strong>：
+- 目录名用 citekey 而非 arXiv ID；无 arXiv API 提供权威元数据，改由“标识符查询 + Agent 抽取 + 用户确认”混合获取。
+- 无 LaTeX source，<code>PAPER.md</code> 必定生成，是该篇唯一结构化可读正文。
+- 解析器可插拔：默认本地 <code>liteparse</code>，配置 MinerU API Key 后优先云端 MinerU，失败自动降级；arXiv 入库在缺 LaTeX/HTML 时复用同一 <code>PdfParser</code>。</p>
+<h3 id="54-markdown">5.4 Markdown 工作台<a class="headerlink" href="#54-markdown" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">文件树点击
+  → Frontend: 请求 Rust 读取 Markdown 文件内容
+  → Frontend: @platejs/markdown 将 Markdown 反序列化为 Slate 文档
+  → Frontend: Plate.js WYSIWYG 编辑器渲染（所见即所得，双链高亮可点击）
+  → Frontend: 右侧 Preview/Notes 展示渲染内容；可选右侧栏展示 Agent 或 Backlinks+Graph
+
+用户保存
+  → Frontend: @platejs/markdown 将 Slate 文档序列化为 Markdown 文本
+  → Frontend: 将 Markdown 内容发往 Rust 写入磁盘
+  → Rust: notify 触发文件变化事件
+  → Frontend: 重建双链索引与图谱
+</code></pre>
+
+<h3 id="55">5.5 双链与反链<a class="headerlink" href="#55" title="Permanent link">&para;</a></h3>
+<p>完整设计见 <strong><code>docs/backend/wikilinks.md</code></strong>（语法、索引、反链、开源选型与分期）。</p>
+<ul>
+<li><strong>双链格式</strong>：<code>[[Concept]]</code>、<code>[[papers/1706.03762/NOTES]]</code>，与 Obsidian 兼容。</li>
+<li><strong>模型</strong>：单向写入 Markdown + 索引反查（不做目标文件自动插入回链）。</li>
+<li><strong>提取时机</strong>：Rust 在后台遍历 Vault，构建文件→链接→目标索引（<code>.motif/cache.sqlite</code> 可删重建）。</li>
+<li><strong>前端渲染</strong>：remark-wiki-link 系 / Plate 插件将 <code>[[...]]</code> 转为可点击链接；序列化必须写回 <code>[[...]]</code>。</li>
+<li><strong>反链查询</strong>：Rust 根据当前文件路径返回所有引用它的文件列表。</li>
+<li><strong>缺失目标</strong>：点击不存在的双链时弹出创建对话框，生成 <code>notes/&lt;concept&gt;.md</code>。</li>
+</ul>
+<h3 id="56">5.6 关系图谱<a class="headerlink" href="#56" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>数据来源</strong>：<code>graph_get_graph</code> → <code>{ nodes, edges, center, depth }</code>（<code>docs/backend/api.md</code> §3.7；设计 <code>docs/backend/wikilinks.md</code> §4.4）。</li>
+<li><strong>节点类型（路径启发）</strong>：<code>paper</code> | <code>note</code> | <code>index</code> | <code>stub</code>。</li>
+<li><strong>边</strong>：wikilink 有向边 <code>source → target</code>（未解析目标为 <code>stub:&lt;raw&gt;</code>）；邻域模式用无向 BFS 裁剪。</li>
+<li><strong>前端渲染</strong>：<code>react-force-graph-2d</code>；<code>GraphPanel</code> 位于 Backlinks 右侧栏下方，点击节点打开文件/paper。</li>
+<li><strong>Demo</strong>：无 Tauri 时前端从 demo vault Markdown 现算图。</li>
+</ul>
+<h3 id="57-agent-acp-client-byoa">5.7 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#57-agent-acp-client-byoa" title="Permanent link">&para;</a></h3>
+<p>Agent 层统一基于 <strong>ACP（Agent Client Protocol）</strong>：Rust Host 作为 <strong>ACP Client</strong>，通过 <code>agent-client-protocol</code> crate 与用户本机 <strong>已安装</strong> 的 Agent 子进程进行 stdio JSON-RPC 通信。Motif <strong>不打包</strong> 任何 agent 二进制。</p>
+<p><strong>BYOA 原则</strong>：
+- 用户在设置中添加 / 选择 Agent（预设模板或自定义 <code>command</code> + <code>args</code> + <code>env</code>）。
+- 会话 <code>cwd</code> = 当前 Vault 根目录，使 Agent 直接面对 <code>AGENTS.md</code> / <code>PAPERS.md</code> / <code>papers/</code> 等本地资产。
+- 模型与 API Key 完全由 Agent CLI 管理；Motif 只负责 Client 侧会话、权限 UX 与工作流 prompt。</p>
+<pre class="codehilite"><code class="language-text">用户首次打开 Agent 面板 / 进入设置
+  → Rust: 读取 agent 注册表；对 PATH 做可执行文件探测
+  → Frontend: 若无可用 agent → 空状态（安装指引 + 添加自定义 agent）
+  → 用户选择预设模板或填写 command/args/env 并设为默认
+
+用户选择流程（总结 / 问答 / Related Work / 自由对话）
+  → Rust: 按默认或指定 agent 配置 spawn 子进程（cwd = Vault）
+  → Rust: 通过 ACP stdio 建立 JSON-RPC 连接，等待 ready
+  → Rust: 创建/复用 ACP session
+  → Rust: 注入工作流 prompt 模板 + AGENTS.md 约束
+  → Agent: 按渐进式披露自行读取 Vault
+      （AGENTS.md → PAPERS.md → NOTES.md → highlights.md → PAPER.md → source/）
+  → Rust: 转发权限请求到 Frontend（读/写/网络等）；写文件默认确认后落盘
+  → Rust: 接收流式响应，汇总读取过的本地路径
+  → Frontend: 展示结果与 Sources；用户确认后写入目标 Markdown
+</code></pre>
+
+<p><strong>预设模板（仅命令模板，不随应用分发二进制）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>模板 ID</th>
+<th>典型 command / args</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>opencode</code></td>
+<td><code>opencode</code> + <code>acp</code></td>
+<td>多模型 OpenCode</td>
+</tr>
+<tr>
+<td><code>gemini</code></td>
+<td><code>gemini</code>（ACP 模式参数以官方为准）</td>
+<td>Gemini CLI</td>
+</tr>
+<tr>
+<td><code>claude-acp</code></td>
+<td>用户本机 Claude ACP 适配器</td>
+<td>Claude 系 agent</td>
+</tr>
+<tr>
+<td><code>codex-acp</code></td>
+<td>用户本机 Codex ACP 入口</td>
+<td>Codex</td>
+</tr>
+<tr>
+<td><code>qodercli</code></td>
+<td><code>qodercli</code> + <code>--acp</code></td>
+<td><a href="https://docs.qoder.com/en/cli/acp">Qoder CLI ACP</a></td>
+</tr>
+<tr>
+<td><code>custom</code></td>
+<td>任意 command + args + env</td>
+<td>用户完全自定义</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Agent 切换</strong>：
+- 切换只改注册表中的默认 agent id 与启动参数，不改变 Rust 业务逻辑。
+- ACP 保证接口统一；某 agent 不可用时展示探测失败原因与重试，不静默回退到「内置」agent。</p>
+<p><strong>权限与写入</strong>：
+- ACP 权限请求经 Host 转发给前端确认（可记住会话内策略）。
+- 涉及覆盖 Vault 内已有笔记的写入：先临时文件 / 草稿，用户确认后再落盘（与 <code>agent:accept_draft</code> 一致）。</p>
+<p><strong>Agent 输出规范</strong>（工作流 prompt + <code>AGENTS.md</code> 强约束）：
+- 结果末尾必须包含 <code>## Sources</code> 或 <code>读取文件：</code> 列表（相对 Vault 路径）。
+- 涉及双链的内容必须保留 <code>[[...]]</code> 格式。
+- Agent 可先查 SQLite 索引加速路由，但最终引用与展示必须落回本地文件路径。</p>
+<h3 id="58-agent-byok">5.8 Agent 配置（注册表，非模型 BYOK）<a class="headerlink" href="#58-agent-byok" title="Permanent link">&para;</a></h3>
+<p>Motif 配置的是 <strong>如何启动本机 Agent</strong>，不是模型 API Key。</p>
+<table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>说明</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agents[]</code></td>
+<td>已注册 agent 列表</td>
+<td>见下</td>
+</tr>
+<tr>
+<td><code>agents[].id</code></td>
+<td>稳定 id</td>
+<td><code>opencode-default</code></td>
+</tr>
+<tr>
+<td><code>agents[].name</code></td>
+<td>展示名</td>
+<td><code>OpenCode</code></td>
+</tr>
+<tr>
+<td><code>agents[].template</code></td>
+<td>预设模板或 <code>custom</code></td>
+<td><code>opencode</code></td>
+</tr>
+<tr>
+<td><code>agents[].command</code></td>
+<td>可执行文件</td>
+<td><code>opencode</code></td>
+</tr>
+<tr>
+<td><code>agents[].args</code></td>
+<td>启动参数</td>
+<td><code>["acp"]</code></td>
+</tr>
+<tr>
+<td><code>agents[].env</code></td>
+<td>额外环境变量（非密钥优先）</td>
+<td><code>{}</code></td>
+</tr>
+<tr>
+<td><code>agents[].cwd_mode</code></td>
+<td>工作目录策略</td>
+<td><code>vault</code>（默认）</td>
+</tr>
+<tr>
+<td><code>agent.default_id</code></td>
+<td>默认 agent</td>
+<td><code>opencode-default</code></td>
+</tr>
+<tr>
+<td><code>agent.enabled</code></td>
+<td>Agent 总开关</td>
+<td><code>true</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>持久化：<code>tauri-plugin-store</code>（或后续等价本地配置）。</li>
+<li><strong>不</strong> 要求用户在 Motif 内填写 <code>CLAUDE_API_KEY</code> / <code>OPENCODE_API_KEY</code> 等模型密钥；若某 agent 需要环境变量，由用户在系统或自定义 <code>env</code> 中自行配置，文档明确风险。</li>
+<li>探测：Host 在 PATH（及可选用户指定绝对路径）上检查 <code>command</code> 是否可执行；失败时 UI 展示安装文档链接，不阻塞应用其他功能。</li>
+</ul>
+<h2 id="6-mac-ipados">6. 平台策略：Mac 优先 + iPadOS 扩展<a class="headerlink" href="#6-mac-ipados" title="Permanent link">&para;</a></h2>
+<h3 id="61-mac-mvp">6.1 Mac 优先（MVP）<a class="headerlink" href="#61-mac-mvp" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>窗口模型</strong>：单文档多面板工作台，参考 Obsidian / Notion 桌面版。</li>
+<li><strong>Bundle 目标</strong>：<code>tauri.conf.json</code> 中 <code>bundle.targets = "all"</code>；本地仍以 macOS 开发为主，tag CI 会构建 macOS / Linux / Windows 安装包。</li>
+<li><strong>原生体验</strong>：</li>
+<li>使用 macOS 原生菜单栏（Tauri <code>Menu</code> API）。</li>
+<li>快捷键遵循 macOS 习惯：<code>Cmd+O</code> 打开 Vault、<code>Cmd+S</code> 保存、<code>Cmd+Shift+N</code> 新建笔记。</li>
+<li>支持窗口大小记忆与恢复。</li>
+<li><strong>文件系统集成</strong>：直接读写用户选择的本地目录，与 Finder 无缝协作。</li>
+</ul>
+<h3 id="62-ipados">6.2 iPadOS 扩展（后续版本）<a class="headerlink" href="#62-ipados" title="Permanent link">&para;</a></h3>
+<p>Tauri 2 支持 iOS/iPadOS，但需针对触控设备做以下调整：</p>
+<h4 id="621">6.2.1 构建与打包<a class="headerlink" href="#621" title="Permanent link">&para;</a></h4>
+<ul>
+<li>使用 <code>tauri ios init</code> / <code>tauri ios build</code> 生成 Xcode 工程。</li>
+<li>在 <code>tauri.conf.json</code> 中补充 iOS bundle 配置：</li>
+<li><code>bundle.ios.minimumSystemVersion</code> 设为 <code>16.0</code> 或更高。</li>
+<li>配置 <code>identifier</code>、<code>developmentTeam</code>。</li>
+<li>Rust 代码中避免使用桌面专属插件（如 <code>shell</code>），使用 iOS 兼容的 <code>fs</code>、<code>dialog</code>、<code>store</code>。</li>
+</ul>
+<h4 id="622-ui">6.2.2 UI 适配<a class="headerlink" href="#622-ui" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Mac 设计</th>
+<th>iPadOS 调整</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>三栏固定布局</td>
+<td>侧边栏可收起，主编辑区全屏；使用 Sheet/Popover 展示右侧面板</td>
+</tr>
+<tr>
+<td>鼠标悬停提示</td>
+<td>长按菜单替代</td>
+</tr>
+<tr>
+<td>小点击区域</td>
+<td>增大按钮/节点热区至 44pt</td>
+</tr>
+<tr>
+<td>多窗口自由拖拽</td>
+<td>分屏/Split View 适配；暂不支持多独立窗口</td>
+</tr>
+<tr>
+<td>PDF 阅读器</td>
+<td>支持 pinch 缩放、滚动阅读、Apple Pencil 批注（后续）</td>
+</tr>
+<tr>
+<td>键盘快捷键</td>
+<td>同时支持外接键盘快捷键与屏幕触摸操作</td>
+</tr>
+</tbody>
+</table>
+<h4 id="623">6.2.3 文件系统差异<a class="headerlink" href="#623" title="Permanent link">&para;</a></h4>
+<ul>
+<li>iPadOS 沙盒限制更强，Vault 选择通过系统文件选择器（<code>UIDocumentPickerViewController</code>）完成。</li>
+<li>考虑支持 iCloud Drive / Files App 中的 Vault，保持与 macOS 相同的目录结构。</li>
+<li>文件监听策略在 iOS 上受限，可改为应用激活时增量扫描。</li>
+</ul>
+<h4 id="624-agent">6.2.4 Agent 与网络<a class="headerlink" href="#624-agent" title="Permanent link">&para;</a></h4>
+<ul>
+<li>iPadOS 若支持 ACP，仍作为 Client 连接本机/可用 agent；子进程与沙盒限制更严，<strong>不保证</strong> 与 macOS 同等 BYOA 体验。</li>
+<li>注意后台任务限制：长时间 Agent 调用需在前台保持连接或拆分为短请求。</li>
+<li>MVP 以 macOS 桌面 BYOA 为准；iPadOS Agent 能力单独评估，不作为 V0.3 验收项。</li>
+</ul>
+<h3 id="63">6.3 跨平台共享代码<a class="headerlink" href="#63" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>共享层</strong>：Rust 业务逻辑（Vault、Markdown 索引、ACP Client）完全跨平台。</li>
+<li><strong>前端适配层</strong>：通过 <code>useMediaQuery</code> / 平台检测（Tauri <code>os</code> API）切换布局组件。</li>
+<li><strong>平台特定代码</strong>：封装在 <code>src/platform/</code> 下，如 <code>desktop.ts</code>、<code>mobile.ts</code>。</li>
+</ul>
+<h2 id="7">7. 开发/构建/部署<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<h3 id="71">7.1 本地开发<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-bash">pnpm install
+pnpm tauri dev
+</code></pre>
+
+<h3 id="72">7.2 构建<a class="headerlink" href="#72" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-bash">pnpm tauri build
+</code></pre>
+
+<h3 id="73-release-ci">7.3 Release CI<a class="headerlink" href="#73-release-ci" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>.github/workflows/release.yml</code> 在 push <code>v*</code> tag 时触发。</li>
+<li>构建矩阵：<code>macos-latest</code>、<code>ubuntu-22.04</code>、<code>windows-latest</code>。</li>
+<li>CI 安装 pnpm、Node.js 24、Rust stable；Linux 额外安装 WebKit/AppIndicator/Rsvg/patchelf 依赖。</li>
+<li>使用 <code>tauri-apps/tauri-action@v0</code> 构建安装包，并上传到草稿 GitHub Release。</li>
+<li>后续若加入签名、公证或自动发布，需要在文档中同步列出所需 secrets，并保证本地开发构建不依赖发布凭据。</li>
+</ul>
+<h3 id="74">7.4 代码规范<a class="headerlink" href="#74" title="Permanent link">&para;</a></h3>
+<ul>
+<li>TypeScript：Biome 已配置，提交前通过 husky + lint-staged 自动检查。</li>
+<li>Rust：<code>cargo clippy</code> + <code>cargo fmt</code>。</li>
+<li>提交信息遵循仓库现有风格：<code>feat:</code>, <code>fix:</code>, <code>docs:</code>, <code>chore:</code>。</li>
+</ul>
+<h2 id="8">8. 依赖清单（计划）<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<h3 id="81">8.1 前端依赖<a class="headerlink" href="#81" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-json">{
+  &quot;@tauri-apps/api&quot;: &quot;^2&quot;,
+  &quot;@tauri-apps/plugin-fs&quot;: &quot;^2&quot;,
+  &quot;@tauri-apps/plugin-dialog&quot;: &quot;^2&quot;,
+  &quot;@tauri-apps/plugin-store&quot;: &quot;^2&quot;,
+  &quot;@tauri-apps/plugin-opener&quot;: &quot;^2&quot;,
+  &quot;@tauri-apps/plugin-shell&quot;: &quot;^2&quot;,
+  &quot;react&quot;: &quot;^19.1.0&quot;,
+  &quot;react-dom&quot;: &quot;^19.1.0&quot;,
+  &quot;react-resizable-panels&quot;: &quot;^4&quot;,
+  &quot;platejs&quot;: &quot;^53&quot;,
+  &quot;@platejs/markdown&quot;: &quot;^53&quot;,
+  &quot;@platejs/basic-nodes&quot;: &quot;^53&quot;,
+  &quot;@platejs/ai&quot;: &quot;^53&quot;,
+  &quot;dompurify&quot;: &quot;^3&quot;,
+  &quot;lucide-react&quot;: &quot;^1&quot;,
+  &quot;remark-gfm&quot;: &quot;^4&quot;,
+  &quot;remark-math&quot;: &quot;^6&quot;,
+  &quot;remark-emoji&quot;: &quot;^5&quot;,
+  &quot;zustand&quot;: &quot;^5&quot;,
+  &quot;react-force-graph-2d&quot;: &quot;^1&quot;,
+  &quot;react-pdf&quot;: &quot;^9&quot;,
+  &quot;class-variance-authority&quot;: &quot;^0.7&quot;,
+  &quot;clsx&quot;: &quot;^2&quot;,
+  &quot;tailwind-merge&quot;: &quot;^3&quot;
+}
+</code></pre>
+
+<blockquote>
+<p><strong>已落地</strong>：<code>react-resizable-panels</code>、<code>@tauri-apps/plugin-fs</code>、<code>@tauri-apps/plugin-dialog</code>、<code>react-pdf</code>、双链反链、<code>react-force-graph-2d</code> + <code>graph_get_graph</code>。<br />
+<strong>图谱 UI</strong>：Graph 位于 Backlinks 右侧栏下方，支持 Near / All 模式和节点点击打开。<br />
+<strong>仍为计划</strong>：<code>zustand</code>（可选）。</p>
+</blockquote>
+<h3 id="82-rust">8.2 Rust 依赖<a class="headerlink" href="#82-rust" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-toml">[dependencies]
+tauri = { version = &quot;2&quot;, features = [] }
+tauri-plugin-fs = &quot;2&quot;
+tauri-plugin-dialog = &quot;2&quot;
+tauri-plugin-store = &quot;2&quot;
+tauri-plugin-opener = &quot;2&quot;
+reqwest = { version = &quot;0.12&quot;, features = [&quot;json&quot;] }
+tokio = { version = &quot;1&quot;, features = [&quot;full&quot;] }
+pulldown-cmark = &quot;0.12&quot;
+regex = &quot;1&quot;
+liteparse = &quot;0.2&quot;
+agent-client-protocol = &quot;0.2&quot;
+rusqlite = { version = &quot;0.32&quot;, features = [&quot;bundled&quot;] }
+serde = { version = &quot;1&quot;, features = [&quot;derive&quot;] }
+serde_json = &quot;1&quot;
+thiserror = &quot;1&quot;
+anyhow = &quot;1&quot;
+notify = &quot;6&quot;
+dirs = &quot;5&quot;
+walkdir = &quot;2&quot;
+tempfile = &quot;3&quot;
+</code></pre>
+
+<h3 id="83">8.3 安全相关依赖<a class="headerlink" href="#83" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>库</th>
+<th>用途</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dompurify</code></td>
+<td>HTML XSS 消毒</td>
+<td>已接入；封装见 <code>src/lib/sanitize.ts</code> 的 <code>sanitizeHtml</code>。内联 HTML 渲染前必须调用。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="84">8.4 可选依赖<a class="headerlink" href="#84" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>库</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LaTeX → Markdown</td>
+<td><code>pandoc</code>（外部 CLI，可选）、<code>texparser</code></td>
+</tr>
+<tr>
+<td>数学公式渲染</td>
+<td>Plate math 插件 + <code>katex</code></td>
+</tr>
+<tr>
+<td>全文搜索</td>
+<td><code>minisearch</code>（前端）或 Rust <code>tantivy</code> / SQLite FTS5</td>
+</tr>
+<tr>
+<td>加密存储产品侧密钥（如 MinerU）</td>
+<td><code>keyring</code> crate</td>
+</tr>
+<tr>
+<td>本机 ACP Agents（用户自装，不随 Motif 分发）</td>
+<td>OpenCode、Gemini CLI、Claude ACP、Codex ACP、自定义 CLI</td>
+</tr>
+<tr>
+<td>iOS 原生能力</td>
+<td><code>tauri-plugin-os</code>、Swift 桥接</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-roadmap">9. 与 Roadmap 的对应关系<a class="headerlink" href="#9-roadmap" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Roadmap 版本</th>
+<th>技术重点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>V0.1</td>
+<td>Tauri + React 工作台基本完成；可伸缩文件树、Open vault、读写 Markdown、最近 Vault、PDF/HTML/Notes 视图已接入；仍需补 Create Vault 初始化与文件监听。</td>
+</tr>
+<tr>
+<td>V0.2</td>
+<td>arXiv importer 仍待实现；当前仅有 arXiv URL 推导、metadata 读取和 demo paper 数据。</td>
+</tr>
+<tr>
+<td>V0.3</td>
+<td>ACP Client + BYOA 面板进行中；注册表、探测、<code>agent_run_once</code>、流式 UI 和 Sources 已接入；workflow prompt、权限确认、写入草稿待补。</td>
+</tr>
+<tr>
+<td>V0.4</td>
+<td>双链解析、反链面板、<code>graph_get_graph</code>、<code>react-force-graph-2d</code> 图谱已落地；Graph 嵌在 Backlinks 右侧栏下方。</td>
+</tr>
+<tr>
+<td>V0.5</td>
+<td>抽象 <code>Importer</code> trait 与可插拔 <code>PdfParser</code>；落地 arXiv 与本地 PDF 两个 importer（liteparse 默认 + 云端 MinerU）；预留 DOI/BibTeX 扩展点。</td>
+</tr>
+<tr>
+<td>Release</td>
+<td>push <code>v*</code> tag 构建 macOS / Linux / Windows Tauri 安装包并上传草稿 GitHub Release。</td>
+</tr>
+<tr>
+<td>Later</td>
+<td>iPadOS 构建、完整 PDF 批注、云同步、多 Agent 并行。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="10">10. 风险与技术对策<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>对策</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>arXiv HTML/LaTeX 不可用</td>
+<td>降级到 <code>liteparse</code> PDF 解析（支持 Markdown 输出 + OCR），并在 <code>metadata.json</code> 中标记 <code>body_source</code>/<code>body_quality</code>。</td>
+</tr>
+<tr>
+<td>云端 MinerU 不可用或数据敏感</td>
+<td>默认本地 <code>liteparse</code> 解析不外传；MinerU 失败自动降级本地；启用前提示 PDF 将上传第三方。</td>
+</tr>
+<tr>
+<td>Agent 输出破坏用户笔记</td>
+<td>所有写入先走临时文件，用户确认后再覆盖；NOTES.md 用户修改部分优先保留。</td>
+</tr>
+<tr>
+<td>文件索引性能差</td>
+<td>SQLite 缓存元数据与双链；增量索引，仅在 Vault 变化时重建受影响文件。</td>
+</tr>
+<tr>
+<td>SQLite 索引损坏或过期</td>
+<td>索引只能从 <code>metadata.json</code> 与 Markdown 重建；启动时校验版本，异常时全量重建。</td>
+</tr>
+<tr>
+<td>iPadOS 文件沙盒限制</td>
+<td>使用系统文件选择器；Vault 结构保持与 macOS 一致。</td>
+</tr>
+<tr>
+<td>跨平台 UI 差异大</td>
+<td>核心组件复用，布局通过平台适配层切换。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="11">11. 相关文档<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>docs/development/prd.md</code>：产品需求与验收标准。</li>
+<li><code>docs/frontend/ui.md</code>：视觉主题与简约设计原则。</li>
+<li><code>docs/frontend/components.md</code>：AI Elements 组件规范与 Chat / 文件树集成约定。</li>
+<li><code>docs/backend/wikilinks.md</code>：Obsidian 兼容双链 / 反链 / 图谱设计与开源选型。</li>
+<li><code>docs/development/roadmap.md</code>：版本规划与里程碑。</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../prd/" class="btn btn-neutral float-left" title="产品需求"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../roadmap/" class="btn btn-neutral float-right" title="路线图">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+        </span>
+    
+    
+      <span><a href="../prd/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../roadmap/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

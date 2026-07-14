@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>TODO - Motif 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "TODO";
+        var mkdocs_page_input_path = "development/todo.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Motif 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">TODO</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#p0">P0 — 近期闭环</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#p1">P1 — 中期增强</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#p2">P2 — 长期方向</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../hypothesis/">产品假设</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Motif 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">开发</li>
+      <li class="breadcrumb-item active">TODO</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/motif/edit/main/docs/development/todo.md">Edit on poco-ai/motif</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="motif-todo">Motif TODO<a class="headerlink" href="#motif-todo" title="Permanent link">&para;</a></h1>
+<h2 id="p0">P0 — 近期闭环<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Create Vault 初始化</strong></li>
+<li>创建标准目录：<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.motif/</code>。</li>
+<li>生成 Vault 内 <code>AGENTS.md</code>、<code>PAPERS.md</code>、<code>library.bib</code> 模板。</li>
+<li>
+<p>初始化后自动打开 <code>PAPERS.md</code> 或欢迎笔记。</p>
+</li>
+<li>
+<p><strong>arXiv 精确入库</strong></p>
+</li>
+<li>支持输入 arXiv ID / URL。</li>
+<li>拉取 metadata，写入 <code>papers/&lt;id&gt;/metadata.json</code>。</li>
+<li>写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code>，刷新 <code>PAPERS.md</code>。</li>
+<li>
+<p>入库后自动打开 paper，并刷新 Backlinks/Graph。</p>
+</li>
+<li>
+<p><strong>Agent 工作流入口</strong></p>
+</li>
+<li>在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>
+<li>workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code>。</li>
+<li>
+<p>输出必须包含 Sources；写入前先进入草稿确认。</p>
+</li>
+<li>
+<p><strong>文件与索引同步</strong></p>
+</li>
+<li>将最近 Vault、UI 偏好迁到 Tauri Store。</li>
+<li>增加文件监听，外部编辑器修改后自动刷新当前文件与 wiki 索引。</li>
+<li>保存失败、外部冲突和未保存状态要有明确提示。</li>
+</ol>
+<h2 id="p1">P1 — 中期增强<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>本地 PDF importer</strong></li>
+<li>文件选择 / 拖拽 / 批量导入。</li>
+<li>DOI / arXiv ID 识别，元数据确认面板。</li>
+<li>生成 citekey、<code>PAPER.md</code>、<code>NOTES.md</code>、<code>metadata.json</code>。</li>
+<li>
+<p>默认本地解析，MinerU BYOK 后可选云端解析。</p>
+</li>
+<li>
+<p><strong>双链与图谱增强</strong></p>
+</li>
+<li>源码编辑 <code>[[</code> 补全。</li>
+<li>Plate 内联 wikilink 节点，序列化仍保持 <code>[[...]]</code>。</li>
+<li>Graph 增加全屏/聚焦模式、邻居高亮、节点搜索。</li>
+<li>
+<p>SQLite 持久化双链索引并支持增量重建。</p>
+</li>
+<li>
+<p><strong>Release 完善</strong></p>
+</li>
+<li>tag 构建已完成；后续补签名、公证、自动 changelog。</li>
+<li>同步 <code>package.json</code>、<code>src-tauri/tauri.conf.json</code> 和 tag 版本号。</li>
+<li>Release artifact 命名规范化，区分 macOS arch / Windows / Linux。</li>
+</ol>
+<h2 id="p2">P2 — 长期方向<a class="headerlink" href="#p2" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Zotero/BibTeX 迁移工具</strong></li>
+<li>解析 Zotero export 或 BibTeX。</li>
+<li>由 Agent 辅助重组为 Motif vault。</li>
+<li>
+<p>保留原始附件与引用 key 映射。</p>
+</li>
+<li>
+<p><strong>用户友好的 Skills / Workflows</strong></p>
+</li>
+<li>粗读论文。</li>
+<li>多篇对比。</li>
+<li>Related Work 草稿。</li>
+<li>Idea 批判性评估。</li>
+<li>
+<p>实验复现清单。</p>
+</li>
+<li>
+<p><strong>PDF / HTML 标注系统</strong></p>
+</li>
+<li>参考 Hypothesis 风格的边注、评论、锚点。</li>
+<li>标注正文进入 <code>highlights.md</code>，坐标/锚点缓存可重建。</li>
+<li>
+<p>PDF.js / HTML iframe 都需要统一标注模型。</p>
+</li>
+<li>
+<p><strong>更大范围导入</strong></p>
+</li>
+<li>DOI / 网页 importer。</li>
+<li>浏览器插件一键收集。</li>
+<li>
+<p>远程 PDF 链接入库。</p>
+</li>
+<li>
+<p><strong>多端与协作</strong></p>
+</li>
+<li>iPadOS 触控布局。</li>
+<li>Git 版本管理集成。</li>
+<li>可选云同步与多设备阅读。</li>
+</ol>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../roadmap/" class="btn btn-neutral float-left" title="路线图"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../hypothesis/" class="btn btn-neutral float-right" title="产品假设">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+        </span>
+    
+    
+      <span><a href="../roadmap/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../hypothesis/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

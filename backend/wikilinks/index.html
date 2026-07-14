@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>双链与图谱 - Motif 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u53cc\u94fe\u4e0e\u56fe\u8c31";
+        var mkdocs_page_input_path = "backend/wikilinks.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Motif 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">双链与图谱</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 目标与非目标</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#11">1.1 目标</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#12-mvp">1.2 非目标（MVP）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#13-obsidian">1.3 核心模型（与 Obsidian 一致）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 语法与解析</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#21-v04">2.1 支持的形式（V0.4）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#22">2.2 解析规则（概要）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#23">2.3 落盘纪律</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 索引与存储</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31">3.1 边模型</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32">3.2 缓存位置</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#33-tech-56">3.3 图谱节点 / 边类型（与 TECH §5.6 对齐）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4">4. 产品表面</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#41">4.1 预览 / 编辑（分期）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#42">4.2 反链面板</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#43">4.3 缺失目标</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#44-backlinks">4.4 图谱（Backlinks 右侧栏下方）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5-host-api">5. Host API</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6">6. 开源参考与选型</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#61">6.1 可直接依赖（解析 / 渲染）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#62">6.2 架构参考（不必整包嵌入）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#63">6.3 图可视化 — 已定栈</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#64">6.4 节点类型与折叠规则</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#65">6.5 不采用</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7-roadmap-v04">7. 实现分期（与 ROADMAP V0.4 对齐）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#phase-a">Phase A — 索引与反链（后端优先） ✅</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#phase-b">Phase B — 预览可点 ✅</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#phase-c-plate">Phase C — 输入补全 + Plate（可选同一版本）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#phase-d">Phase D — 图谱 ✅</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#8">8. 与现有代码的关系</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#9">9. 风险与约束</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#10">10. 参考</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/hypothesis/">产品假设</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Motif 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">后端</li>
+      <li class="breadcrumb-item active">双链与图谱</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/motif/edit/main/docs/backend/wikilinks.md">Edit on poco-ai/motif</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="motif-obsidian">Motif 双链设计（Obsidian 兼容）<a class="headerlink" href="#motif-obsidian" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>状态：<strong>Phase A–B 已实现</strong>（索引 + 反链 + 预览可点）/ <strong>Phase D 基本完成</strong>（GraphPanel + <code>graph_get_graph</code>）/ Phase C 待增强<br />
+相关：<code>docs/development/prd.md</code> · <code>docs/development/technical-plan.md</code> §5.5–5.6 · <code>docs/development/roadmap.md</code> V0.4 · <code>docs/backend/api.md</code> §3.7 · <code>docs/backend/data-model.md</code></p>
+</blockquote>
+<p>本文定义 Motif 如何实现类似 Obsidian 的 <code>[[双链]]</code>：语法、索引、反链、编辑器与开源选型。</p>
+<hr />
+<h2 id="1">1. 目标与非目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<h3 id="11">1.1 目标<a class="headerlink" href="#11" title="Permanent link">&para;</a></h3>
+<ul>
+<li>用户在 Markdown 中书写 <code>[[...]]</code>，与 <strong>Obsidian 兼容</strong>，可在 Motif / Obsidian 间互开 Vault。</li>
+<li>点击双链可跳转到 Vault 内目标文件；目标不存在时可创建。</li>
+<li>查看某文件的 <strong>反链（backlinks）</strong>：谁引用了我。</li>
+<li>图谱视图展示节点与 <code>links_to</code> 等边；<strong>可从 Markdown 全量重建</strong>。</li>
+<li>Agent 生成/改写笔记时 <strong>保留</strong> <code>[[...]]</code> 字面量，不破坏链接。</li>
+</ul>
+<h3 id="12-mvp">1.2 非目标（MVP）<a class="headerlink" href="#12-mvp" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>不</strong>在目标文件正文里自动插入回链（不做“双向写盘”）。</li>
+<li><strong>不</strong>把 SQLite 当作第二事实来源。</li>
+<li><strong>不</strong>第一期做完整 Obsidian 方言（callouts、embed <code>![[...]]</code>、块引用 <code>^id</code> 可第二期）。</li>
+<li><strong>不</strong>替换 Plate 编辑器为 Logseq/Foam 等整应用。</li>
+</ul>
+<h3 id="13-obsidian">1.3 核心模型（与 Obsidian 一致）<a class="headerlink" href="#13-obsidian" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>出链</strong></td>
+<td>文件 A 正文中的 <code>[[B]]</code> → 边 <code>A → B</code>（写入 Markdown）</td>
+</tr>
+<tr>
+<td><strong>反链</strong></td>
+<td>打开 B 时，索引查询「谁链到 B」→ 列表展示（<strong>派生</strong>，不写回 B）</td>
+</tr>
+<tr>
+<td><strong>双向可见</strong></td>
+<td>单向写入 + 反向查询，不是两处都写链接</td>
+</tr>
+</tbody>
+</table>
+<pre class="codehilite"><code class="language-text">事实来源：Vault 内 *.md 中的 [[...]] 文本
+     │
+     ▼ 解析 + resolve
+边表 / 反查索引（内存 + .motif/cache.sqlite 缓存）
+     │
+     ├── 预览/编辑器：高亮、点击跳转
+     ├── 反链面板
+     └── 图谱
+</code></pre>
+
+<hr />
+<h2 id="2">2. 语法与解析<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="21-v04">2.1 支持的形式（V0.4）<a class="headerlink" href="#21-v04" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>写法</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[[Note]]</code></td>
+<td>按标题 / 路径片段解析到笔记</td>
+</tr>
+<tr>
+<td><code>[[papers/1706.03762/NOTES]]</code></td>
+<td>相对 Vault 根的路径（可省略 <code>.md</code>）</td>
+</tr>
+<tr>
+<td><code>[[Note\|显示名]]</code></td>
+<td>出链目标 <code>Note</code>，展示文案 <code>显示名</code></td>
+</tr>
+<tr>
+<td><code>[[Note#Heading]]</code></td>
+<td>跳到目标文件内标题（第二期可做滚动定位）</td>
+</tr>
+</tbody>
+</table>
+<p>块引用 <code>[[file#^blockid]]</code>、嵌入 <code>![[file]]</code>：<strong>V0.4 后</strong>。</p>
+<h3 id="22">2.2 解析规则（概要）<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<ol>
+<li>从 Markdown 源文本提取 wikilink（代码块 / 行内 code 内 <strong>不</strong>解析）。</li>
+<li>拆分 <code>target</code>、可选 <code>alias</code>（<code>|</code>）、可选 <code>heading</code>（<code>#</code>）。</li>
+<li><strong>resolve(target)</strong> 顺序建议：</li>
+<li>若以 <code>papers/</code>、<code>notes/</code>、<code>plans/</code> 等开头 → 当相对路径；补 <code>.md</code> 若缺扩展名且文件存在。</li>
+<li>否则在 Vault 内按 <strong>路径后缀 / 文件名 stem / 标题</strong> 模糊匹配（与 Obsidian「最短唯一路径」可逐步对齐）。</li>
+<li>resolve 结果：<code>{ path, exists: boolean }</code>。</li>
+</ol>
+<h3 id="23">2.3 落盘纪律<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<ul>
+<li>编辑器内部可用 AST / Plate 节点表示 wikilink。</li>
+<li><strong>序列化必须写回</strong> <code>[[...]]</code> 文本，禁止不可逆变成仅 HTML。</li>
+<li>Agent 工作流 prompt / <code>AGENTS.md</code> 约束：涉及双链必须保留 <code>[[...]]</code>。</li>
+</ul>
+<hr />
+<h2 id="3">3. 索引与存储<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31">3.1 边模型<a class="headerlink" href="#31" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-ts">type WikiLinkEdge = {
+  source: string;      // vault 相对路径，如 papers/1706.03762/NOTES.md
+  target_raw: string;  // [[ ]] 内原始 target
+  target_path: string | null; // resolve 后路径；null = 未解析到
+  alias?: string;
+  heading?: string;
+};
+</code></pre>
+
+<p>反链查询：</p>
+<pre class="codehilite"><code class="language-text">backlinks(path) = { e.source | e.target_path == path }
+</code></pre>
+
+<h3 id="32">3.2 缓存位置<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
+<ul>
+<li>派生索引：<code>.motif/cache.sqlite</code>（与 <code>DATA_MODEL</code> 一致）。</li>
+<li>可整删重建：重扫 <code>metadata.json</code> + 全部 Markdown 中的 <code>[[...]]</code>。</li>
+<li>增量：文件 mtime / fs 事件变化时，仅重算该 <code>source</code> 的出边。</li>
+</ul>
+<h3 id="33-tech-56">3.3 图谱节点 / 边类型（与 TECH §5.6 对齐）<a class="headerlink" href="#33-tech-56" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>节点 <code>paper</code> / <code>note</code> / <code>concept</code></td>
+<td>论文目录、自由笔记、仅被链接的概念 stub</td>
+</tr>
+<tr>
+<td>边 <code>links_to</code></td>
+<td>双链出边</td>
+</tr>
+<tr>
+<td>边 <code>has_note</code> 等</td>
+<td>结构关系（论文→NOTES），非 <code>[[ ]]</code> 亦可存在</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4">4. 产品表面<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<h3 id="41">4.1 预览 / 编辑（分期）<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>能力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0</strong></td>
+<td>中间栏预览：<code>[[...]]</code> 高亮、可点跳转；缺失目标样式区分</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td>源码编辑：<code>[[</code> 补全 Vault 路径/标题</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>Plate WYSIWYG：wikilink 内联节点 + 同上序列化</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42">4.2 反链面板<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
+<ul>
+<li>展示当前打开文件的 <code>backlinks</code>：源路径 + 可选上下文摘录（一行）。</li>
+<li>点击源路径打开对应文件。</li>
+</ul>
+<h3 id="43">4.3 缺失目标<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
+<ul>
+<li>点击不存在的 <code>[[Concept]]</code> → 确认创建 <code>notes/&lt;slug&gt;.md</code>（默认 frontmatter 可极简）。</li>
+<li>创建后刷新索引并跳转。</li>
+</ul>
+<h3 id="44-backlinks">4.4 图谱（Backlinks 右侧栏下方）<a class="headerlink" href="#44-backlinks" title="Permanent link">&para;</a></h3>
+<p>产品形态：</p>
+<ul>
+<li>右侧边栏只有 Agent 与 Backlinks 两个顶层入口；Graph 嵌在 Backlinks 入口下方。</li>
+<li>上方 <code>BacklinksPanel</code> 展示当前文件反链；下方 <code>GraphPanel</code> 展示力导向关系图。</li>
+<li>点击节点打开对应文件 / paper（paper 级路径走现有 openPaper 逻辑）。</li>
+<li>模式：<strong>全图</strong> | <strong>当前邻域</strong>（<code>center</code> + <code>depth</code>，默认 depth=2）。</li>
+</ul>
+<p>数据：</p>
+<ul>
+<li>唯一事实来源：Markdown 中的 <code>[[wikilink]]</code>（内存索引，可 <code>graph_rebuild</code> 重建）。</li>
+<li>Host：<code>graph_get_graph</code>（见 <code>docs/backend/api.md</code> §3.7）。</li>
+<li>Demo（无 Tauri）：前端用 demo vault 文件内容现算 nodes/edges。</li>
+</ul>
+<p>验收：20+ 节点可交互；选中 paper 时邻域图以当前 paper 为中心；不依赖手写图数据库。</p>
+<hr />
+<h2 id="5-host-api">5. Host API<a class="headerlink" href="#5-host-api" title="Permanent link">&para;</a></h2>
+<p>见 <code>docs/backend/api.md</code> §3.7：</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>状态</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>graph_get_backlinks</code></td>
+<td>✅</td>
+<td><code>{ vaultPath, path }</code> → 反链列表</td>
+</tr>
+<tr>
+<td><code>graph_rebuild</code></td>
+<td>✅</td>
+<td>全量重建内存索引</td>
+</tr>
+<tr>
+<td><code>graph_get_graph</code></td>
+<td>✅ / Phase D</td>
+<td>全图或局部邻域 <code>{ nodes, edges }</code></td>
+</tr>
+</tbody>
+</table>
+<p>建议后续补充：</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wiki:resolve</code></td>
+<td>单条 target → path / missing</td>
+</tr>
+<tr>
+<td><code>wiki:search</code></td>
+<td>补全用标题/路径搜索</td>
+</tr>
+</tbody>
+</table>
+<p>索引更新：Markdown 保存、Vault 扫描、打开 Vault 后 <code>rebuild</code>；查询侧 <code>ensure_vault</code> 惰性重建。</p>
+<hr />
+<h2 id="6">6. 开源参考与选型<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h3 id="61">6.1 可直接依赖（解析 / 渲染）<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>库</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/landakram/remark-wiki-link">landakram/remark-wiki-link</a></td>
+<td>remark 管线解析/渲染 <code>[[wiki]]</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/landakram/micromark-extension-wiki-link">landakram/micromark-extension-wiki-link</a></td>
+<td>micromark 层 token</td>
+</tr>
+</tbody>
+</table>
+<p>Motif 预览侧已用自定义 <code>rewriteWikilinksForPreview</code> + Plate Link；图谱 <strong>不</strong>依赖 remark-wiki-link。</p>
+<h3 id="62">6.2 架构参考（不必整包嵌入）<a class="headerlink" href="#62" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>看点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/foambubble/foam">Foam</a></td>
+<td>本地 vault、wikilink 跳转</td>
+</tr>
+<tr>
+<td><a href="https://github.com/jackyzha0/quartz">Quartz</a></td>
+<td>从 vault 批处理建 backlinks / graph</td>
+</tr>
+<tr>
+<td><a href="https://help.obsidian.md/plugins/graph">Obsidian Graph</a></td>
+<td>力导向 UX 对照</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63">6.3 图可视化 — <strong>已定栈</strong><a class="headerlink" href="#63" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>选型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数据</td>
+<td>Rust <code>WikiIndex</code> + <code>graph_get_graph</code></td>
+<td>复用 wikilink 边；不引入图数据库</td>
+</tr>
+<tr>
+<td>可视化</td>
+<td><strong><code>react-force-graph-2d</code></strong></td>
+<td>Canvas 力导向，贴合「中心 + 辐射」；侧栏性能足够</td>
+</tr>
+<tr>
+<td>备选</td>
+<td><code>@xyflow/react</code></td>
+<td>仅当未来需要可编辑流程图式节点时再考虑</td>
+</tr>
+<tr>
+<td>UI 壳</td>
+<td>Backlinks 右侧栏下方 + Tailwind</td>
+<td>与反链共享上下文，避免额外顶层入口</td>
+</tr>
+<tr>
+<td>模式切换</td>
+<td>Near / All</td>
+<td>当前邻域与全图切换</td>
+</tr>
+</tbody>
+</table>
+<p><strong>不采用：</strong> Neo4j 等图库；D3 从零画力导向；Cytoscape / Sigma / vis-network（集成成本高）。</p>
+<h3 id="64">6.4 节点类型与折叠规则<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th><code>type</code></th>
+<th>判定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>paper</code></td>
+<td><strong>一个 paper 一个节点</strong>：<code>papers/&lt;id&gt;/…</code>（含 <code>NOTES.md</code>）全部折叠为 <code>papers/&lt;id&gt;</code></td>
+</tr>
+<tr>
+<td><code>note</code></td>
+<td><code>notes/</code> 下或其它 Markdown</td>
+</tr>
+<tr>
+<td><code>index</code></td>
+<td>根级 <code>PAPERS.md</code> / <code>AGENTS.md</code> 等</td>
+</tr>
+<tr>
+<td><code>stub</code></td>
+<td>未解析目标（<code>stub:&lt;raw&gt;</code> 或 missing）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Paper 标签</strong>：优先读 <code>papers/&lt;id&gt;/metadata.json</code> 的 <code>title</code>；缺失时回退 arXiv id / 目录名。</li>
+<li>折叠后自环（同 paper 内文件互链）丢弃。</li>
+</ul>
+<h3 id="65">6.5 不采用<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
+<ul>
+<li>为双链替换整个编辑器栈。</li>
+<li>自动改写目标文件插入回链（除非未来产品单独立项）。</li>
+<li>图谱常驻第四主栏或独立顶层 Graph tab（当前默认嵌在 Backlinks 下方）。</li>
+</ul>
+<hr />
+<h2 id="7-roadmap-v04">7. 实现分期（与 ROADMAP V0.4 对齐）<a class="headerlink" href="#7-roadmap-v04" title="Permanent link">&para;</a></h2>
+<h3 id="phase-a">Phase A — 索引与反链（后端优先） ✅<a class="headerlink" href="#phase-a" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Rust：<code>extract_wikilinks(md)</code> + <code>resolve</code> + <strong>内存索引</strong>（全量 <code>graph_rebuild</code>；尚无 SQLite 落盘）。  </li>
+<li>Tauri：<code>graph_get_backlinks</code> / <code>graph_rebuild</code>（参数 <code>vaultPath</code> + <code>path</code>）。  </li>
+<li>前端：<code>src/lib/wiki.ts</code> + <code>BacklinksPanel</code>；Demo 模式纯前端索引。  </li>
+</ol>
+<p><strong>代码位置</strong>：<code>src-tauri/src/services/wiki/</code> · <code>src-tauri/src/commands/graph.rs</code> · <code>src/components/layout/backlinks-panel.tsx</code></p>
+<h3 id="phase-b">Phase B — 预览可点 ✅<a class="headerlink" href="#phase-b" title="Permanent link">&para;</a></h3>
+<ol>
+<li>预览：<code>rewriteWikilinksForPreview</code> → Plate <code>LinkPlugin</code>。  </li>
+<li>存在 / 缺失链跳转与创建。  </li>
+</ol>
+<p><strong>代码</strong>：<code>src/lib/wiki.ts</code> · <code>link-node.tsx</code> · <code>WikiNavContext</code></p>
+<h3 id="phase-c-plate">Phase C — 输入补全 + Plate（可选同一版本）<a class="headerlink" href="#phase-c-plate" title="Permanent link">&para;</a></h3>
+<ol>
+<li>源码模式 <code>[[</code> 补全。  </li>
+<li>Plate 内联 wikilink 节点，序列化回 <code>[[...]]</code>。  </li>
+</ol>
+<h3 id="phase-d">Phase D — 图谱 ✅<a class="headerlink" href="#phase-d" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>API</strong>：<code>graph_get_graph</code>（<code>center?</code> + <code>depth?</code>，默认全图 / depth=2）。  </li>
+<li><strong>前端</strong>：<code>getGraph()</code> + demo 构图；<code>GraphPanel</code>（force-graph-2d、Near / All 模式、节点点击打开）。  </li>
+<li><strong>壳</strong>：<code>rightSidebarTab</code> 只有 <code>agent</code> / <code>backlinks</code>；<code>GraphPanel</code> 嵌在 Backlinks 下方。  </li>
+<li><strong>测试数据</strong>：Demo vault 多 paper + 交叉 <code>[[双链]]</code>（图谱质量取决于 NOTES 链接，不依赖本地下载 PDF 正文）。  </li>
+</ol>
+<p><strong>代码位置</strong>：</p>
+<ul>
+<li><code>src-tauri/src/models/wiki.rs</code>（<code>GraphNode</code> / <code>GraphEdge</code> / <code>GraphResponse</code>）</li>
+<li><code>src-tauri/src/services/wiki/index.rs</code>（<code>get_graph</code>）</li>
+<li><code>src-tauri/src/commands/graph.rs</code>（<code>graph_get_graph</code>）</li>
+<li><code>src/lib/wiki.ts</code>（<code>getGraph</code> / demo）</li>
+<li><code>src/components/layout/graph-panel.tsx</code></li>
+<li><code>src/App.tsx</code>（Backlinks 右侧栏内接线）</li>
+</ul>
+<hr />
+<h2 id="8">8. 与现有代码的关系<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>现状</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Demo vault 已有 <code>[[papers/.../NOTES]]</code> 字面量</td>
+<td>仅文本，未解析</td>
+</tr>
+<tr>
+<td>Plate + <code>@platejs/markdown</code></td>
+<td>编辑/预览主干；双链插件待加</td>
+</tr>
+<tr>
+<td>ACP Agent</td>
+<td>生成笔记须保留 <code>[[...]]</code>；不负责索引</td>
+</tr>
+<tr>
+<td>Settings / Chat</td>
+<td>与双链无关</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9">9. 风险与约束<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>缓解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>大 Vault 全量扫描慢</td>
+<td>增量索引 + SQLite；后台队列</td>
+</tr>
+<tr>
+<td>标题歧义（重名笔记）</td>
+<td>resolve 规则文档化；偏好显式路径</td>
+</tr>
+<tr>
+<td>与 Obsidian 细节不一致</td>
+<td>优先兼容常见 <code>[[path]]</code> / <code>[[name]]</code> / alias</td>
+</tr>
+<tr>
+<td>编辑器插件复杂</td>
+<td>Phase B 先预览可点，编辑器第二期</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10">10. 参考<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://obsidian.md/help/links">Obsidian Internal links</a>  </li>
+<li><a href="https://agentclientprotocol.com/">Agent Client Protocol</a>（Agent 侧不解析双链，只保证文件约定）  </li>
+<li>本仓库：<code>docs/development/technical-plan.md</code> §5.5–5.6、<code>docs/development/roadmap.md</code> V0.4  </li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../data-model/" class="btn btn-neutral float-left" title="数据模型"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../development/" class="btn btn-neutral float-right" title="概览">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+        </span>
+    
+    
+      <span><a href="../data-model/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../../development/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

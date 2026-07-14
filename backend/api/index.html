@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>API 契约 - Motif 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "API \u5951\u7ea6";
+        var mkdocs_page_input_path = "backend/api.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Motif 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">API 契约</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 分层定位</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 通用约定</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#21">2.1 命名规范</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#22">2.2 参数与返回</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#23">2.3 路径表示</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#24">2.4 事件约定</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#agent_warm">agent_warm</a>
+    </li>
+        </ul>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3-host-tauri-invoke-api">3. Host 层 Tauri invoke API</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31-vault">3.1 Vault 管理</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#vaultcreate">vault:create</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#vaultopen">vault:open</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#vaultclose">vault:close</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#vaultrecent">vault:recent</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#vaultinfo">vault:info</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32">3.2 文件操作</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#fileread_text">file:read_text</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#filewrite_text">file:write_text</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#filelist">file:list</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#filecreate">file:create</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#filedelete">file:delete</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#fileresolve_asset_url">file:resolve_asset_url</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#33-arxiv">3.3 arXiv 入库</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#arxivclassify_input">arxiv:classify_input</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#arxivsearch_candidates">arxiv:search_candidates</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#arxivimport">arxiv:import</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#34-pdf">3.4 本地 PDF 入库</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#pdfprepare">pdf:prepare</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#pdfimport">pdf:import</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#35">3.5 论文</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#paperget">paper:get</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#paperlist">paper:list</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#36-agent-acp-client-byoa">3.6 Agent 工作流（ACP Client + BYOA）</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#agentlist_agents">agent:list_agents</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agentupsert_agent">agent:upsert_agent</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agentremove_agent">agent:remove_agent</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agentdiscover">agent:discover</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agentlist_sessions">agent:list_sessions</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agentcreate_session">agent:create_session</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agentsend_prompt">agent:send_prompt</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agentrespond_permission">agent:respond_permission</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agentaccept_draft">agent:accept_draft</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agentclose_session">agent:close_session</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#37">3.7 双链与图谱</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#graph_get_backlinks-graphget_backlinks">graph_get_backlinks（实现中；草案名 graph:get_backlinks）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#graph_get_graph-graphget_graph">graph_get_graph（草案名 graph:get_graph）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#graph_rebuild-graphrebuild_index">graph_rebuild（实现中；草案名 graph:rebuild_index）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#38">3.8 配置</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#configget">config:get</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#configset">config:set</a>
+    </li>
+        </ul>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4">4. 数据模型</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 版本与演进</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/hypothesis/">产品假设</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Motif 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">后端</li>
+      <li class="breadcrumb-item active">API 契约</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/motif/edit/main/docs/backend/api.md">Edit on poco-ai/motif</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="motif-notemd-api">Motif / notemd 后端 API 规范<a class="headerlink" href="#motif-notemd-api" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>本文档基于 <code>docs/development/technical-plan.md</code>、<code>docs/development/prd.md</code>、<code>docs/development/roadmap.md</code> 编写，定义 Host（Tauri + Rust）暴露给前端的 Tauri invoke 命令与事件。</p>
+</blockquote>
+<h2 id="1">1. 分层定位<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">Frontend (React)
+       │ Tauri invoke / event
+       ▼
+Host (Tauri + Rust)
+</code></pre>
+
+<ul>
+<li><strong>Frontend ↔ Host</strong>：<code>invoke('namespace:command')</code> 请求响应，配合 Tauri event 做进度/流式推送。</li>
+<li>Host 作为 <strong>ACP Client</strong> 连接用户本机 Agent；Frontend 只面对下方 <code>agent:*</code> 命令与事件，<strong>不</strong> 直接暴露 ACP JSON-RPC 细节。</li>
+</ul>
+<h2 id="2">2. 通用约定<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="21">2.1 命名规范<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tauri command：<code>namespace:verb</code>（全小写，冒号分隔命名空间）。</li>
+<li>例：<code>vault:create</code>、<code>file:read_text</code>、<code>arxiv:import</code>。</li>
+</ul>
+<h3 id="22">2.2 参数与返回<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<ul>
+<li>所有请求统一通过对象传参。</li>
+<li>返回结构：</li>
+<li>成功：<code>{ "ok": true, "data": T }</code></li>
+<li>失败：<code>{ "ok": false, "error": { "code": "...", "message": "...", "details": {} } }</code></li>
+<li>流式结果通过 Tauri event 推送，不占用返回通道。</li>
+</ul>
+<h3 id="23">2.3 路径表示<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Vault 内路径统一使用相对路径（UNIX 风格 <code>/</code>），以 Vault root 为基准。</li>
+<li>例：<code>papers/1706.03762/NOTES.md</code>、<code>notes/transformer.md</code>。</li>
+<li>Host 负责把相对路径解析为本地绝对路径，并校验路径白名单。</li>
+</ul>
+<h3 id="24">2.4 事件约定<a class="headerlink" href="#24" title="Permanent link">&para;</a></h3>
+<p>Host 通过 <code>emit('event_name', payload)</code> 向前端推送事件：</p>
+<table>
+<thead>
+<tr>
+<th>事件名</th>
+<th>触发时机</th>
+<th>payload 关键字段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fs:changed</code></td>
+<td>Vault 内文件被外部修改</td>
+<td><code>{ path: string, kind: 'created' \| 'modified' \| 'removed' }</code></td>
+</tr>
+<tr>
+<td><code>arxiv:progress</code></td>
+<td>arXiv 入库进度更新</td>
+<td><code>{ job_id: string, stage: string, progress?: number, message?: string }</code></td>
+</tr>
+<tr>
+<td><code>arxiv:completed</code></td>
+<td>入库完成</td>
+<td><code>{ job_id: string, paper: Paper, created_paths: string[] }</code></td>
+</tr>
+<tr>
+<td><code>arxiv:failed</code></td>
+<td>入库失败</td>
+<td><code>{ job_id: string, error: AppError }</code></td>
+</tr>
+<tr>
+<td><code>pdf:progress</code></td>
+<td>本地 PDF 入库进度更新</td>
+<td><code>{ job_id: string, stage: string, progress?: number, message?: string }</code></td>
+</tr>
+<tr>
+<td><code>pdf:completed</code></td>
+<td>PDF 入库完成</td>
+<td><code>{ job_id: string, paper: Paper, created_paths: string[] }</code></td>
+</tr>
+<tr>
+<td><code>pdf:failed</code></td>
+<td>PDF 入库失败</td>
+<td><code>{ job_id: string, error: AppError }</code></td>
+</tr>
+<tr>
+<td><code>agent:stream</code></td>
+<td>Agent 流式输出</td>
+<td><code>{ sessionId, chunk, kind: "message" \| "thought" }</code>（<code>thought</code> = ACP reasoning）</td>
+</tr>
+<tr>
+<td><code>agent:tool</code></td>
+<td>ACP tool call 创建/更新</td>
+<td><code>{ sessionId, toolCallId, title?, kind?, status?, input?, output?, full? }</code></td>
+</tr>
+<tr>
+<td><code>agent:plan</code></td>
+<td>ACP 执行计划</td>
+<td><code>{ sessionId, entries: { content, status, priority }[] }</code></td>
+</tr>
+<tr>
+<td><code>agent:usage</code></td>
+<td>上下文 token 用量</td>
+<td><code>{ sessionId, used, size }</code></td>
+</tr>
+<tr>
+<td><code>agent:models</code></td>
+<td>Agent 上报可用模型</td>
+<td><code>{ sessionId, agentId, configId, currentId, models: { id, name, group? }[] }</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="agent_warm"><code>agent_warm</code><a class="headerlink" href="#agent_warm" title="Permanent link">&para;</a></h4>
+<p>打开 Chat 时后台预热 ACP（不发用户 prompt）：<code>initialize</code> + <code>session/new</code>，上报 <code>agent:models</code>，并短暂等待 <code>UsageUpdate</code>。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  agentId?: string;
+  vaultPath?: string;
+  modelId?: string; // preferred ACP model config value
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong> <code>WarmResult</code>：<code>{ agentId, ok, models?, usageUsed?, usageSize?, error? }</code>
+| <code>agent:permission_request</code> | Agent 请求权限（读/写/网络等） | <code>{ session_id: string, request_id: string, kind: string, detail: object }</code> |
+| <code>agent:completed</code> | Agent 回答完成 | <code>{ session_id: string, result: AgentResult }</code> |
+| <code>agent:failed</code> | Agent 调用失败 | <code>{ session_id: string, error: AppError }</code> |
+| <code>graph:updated</code> | 图谱索引重建 | <code>{ nodes: number, edges: number }</code> |</li>
+</ul>
+<h2 id="3-host-tauri-invoke-api">3. Host 层 Tauri invoke API<a class="headerlink" href="#3-host-tauri-invoke-api" title="Permanent link">&para;</a></h2>
+<h3 id="31-vault">3.1 Vault 管理<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
+<h4 id="vaultcreate"><code>vault:create</code><a class="headerlink" href="#vaultcreate" title="Permanent link">&para;</a></h4>
+<p>创建并初始化一个 Vault。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  path: string; // 本地绝对路径，由 dialog 选择或用户输入
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    vault: VaultInfo;
+    created: string[]; // 创建的目录/文件相对路径列表
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>行为</strong></li>
+<li>检查目录是否为空或已包含 Vault。</li>
+<li>创建 <code>AGENTS.md</code>、<code>PAPERS.md</code>、<code>papers/</code>、<code>notes/</code>、<code>plans/</code>。</li>
+<li>写入默认 <code>AGENTS.md</code> 模板。</li>
+<li>更新最近 Vault 列表。</li>
+</ul>
+<h4 id="vaultopen"><code>vault:open</code><a class="headerlink" href="#vaultopen" title="Permanent link">&para;</a></h4>
+<p>打开一个已存在的 Vault。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  path: string;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    vault: VaultInfo;
+    tree: FileNode[];
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>行为</strong></li>
+<li>校验 Vault 结构（至少存在 <code>PAPERS.md</code>）。</li>
+<li>初始化/校验 SQLite 索引。</li>
+<li>启动文件监听。</li>
+<li>返回完整文件树。</li>
+</ul>
+<h4 id="vaultclose"><code>vault:close</code><a class="headerlink" href="#vaultclose" title="Permanent link">&para;</a></h4>
+<p>关闭当前 Vault。</p>
+<ul>
+<li><strong>参数</strong>：无</li>
+<li><strong>返回</strong>：<code>{ ok: true; data: null }</code></li>
+<li><strong>行为</strong>：停止文件监听，释放资源，不删除数据。</li>
+</ul>
+<h4 id="vaultrecent"><code>vault:recent</code><a class="headerlink" href="#vaultrecent" title="Permanent link">&para;</a></h4>
+<p>获取最近打开的 Vault 列表。</p>
+<ul>
+<li><strong>参数</strong>：无</li>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    vaults: RecentVault[];
+  };
+}
+</code></pre>
+
+<h4 id="vaultinfo"><code>vault:info</code><a class="headerlink" href="#vaultinfo" title="Permanent link">&para;</a></h4>
+<p>获取当前 Vault 元信息。</p>
+<ul>
+<li><strong>参数</strong>：无</li>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: VaultInfo;
+}
+</code></pre>
+
+<h3 id="32">3.2 文件操作<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
+<h4 id="fileread_text"><code>file:read_text</code><a class="headerlink" href="#fileread_text" title="Permanent link">&para;</a></h4>
+<p>读取文本文件内容。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  path: string; // Vault 相对路径
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    path: string;
+    content: string;
+    mtime: number; // 毫秒时间戳
+  };
+}
+</code></pre>
+
+<h4 id="filewrite_text"><code>file:write_text</code><a class="headerlink" href="#filewrite_text" title="Permanent link">&para;</a></h4>
+<p>写入文本文件。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  path: string;
+  content: string;
+  create_dirs?: boolean; // 默认 true
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    path: string;
+    mtime: number;
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>行为</strong></li>
+<li>写入时先写临时文件，再原子重命名。</li>
+<li>触发 <code>fs:changed</code> 事件。</li>
+</ul>
+<h4 id="filelist"><code>file:list</code><a class="headerlink" href="#filelist" title="Permanent link">&para;</a></h4>
+<p>列出指定目录下的文件树节点。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  path?: string; // Vault 相对路径，空字符串表示 root
+  depth?: number; // 默认 1，-1 表示无限
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    nodes: FileNode[];
+  };
+}
+</code></pre>
+
+<h4 id="filecreate"><code>file:create</code><a class="headerlink" href="#filecreate" title="Permanent link">&para;</a></h4>
+<p>创建新文件或目录。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  path: string;
+  type: 'file' | 'directory';
+  content?: string; // 仅 type='file' 有效
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    path: string;
+  };
+}
+</code></pre>
+
+<h4 id="filedelete"><code>file:delete</code><a class="headerlink" href="#filedelete" title="Permanent link">&para;</a></h4>
+<p>删除文件或目录。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  path: string;
+  recursive?: boolean; // 默认 false
+}
+</code></pre>
+
+<ul>
+<li>
+<p><strong>返回</strong>：<code>{ ok: true; data: null }</code></p>
+</li>
+<li>
+<p><strong>风险</strong>：删除操作不可逆，前端需二次确认。</p>
+</li>
+</ul>
+<h4 id="fileresolve_asset_url"><code>file:resolve_asset_url</code><a class="headerlink" href="#fileresolve_asset_url" title="Permanent link">&para;</a></h4>
+<p>将 Vault 内资源文件转换为前端可安全加载的 URL。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  path: string; // 如 papers/1706.03762/assets/figure.pdf
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    url: string; // tauri convertFileSrc 后的安全 URL
+  };
+}
+</code></pre>
+
+<h3 id="33-arxiv">3.3 arXiv 入库<a class="headerlink" href="#33-arxiv" title="Permanent link">&para;</a></h3>
+<h4 id="arxivclassify_input"><code>arxiv:classify_input</code><a class="headerlink" href="#arxivclassify_input" title="Permanent link">&para;</a></h4>
+<p>对用户输入进行分类与意图解析。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  input: string;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    kind: 'exact_id' | 'url' | 'keyword' | 'topic' | 'description';
+    normalized_id?: string; // 当 kind 为 exact_id/url 时
+    query?: string; // 当 kind 为 keyword/topic/description 时，整理后的查询串
+  };
+}
+</code></pre>
+
+<h4 id="arxivsearch_candidates"><code>arxiv:search_candidates</code><a class="headerlink" href="#arxivsearch_candidates" title="Permanent link">&para;</a></h4>
+<p>检索 arXiv 候选论文。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  query: string;
+  max_results?: number; // 默认 10
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    candidates: ArxivCandidate[];
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>行为</strong></li>
+<li>模糊输入调用 Agent 检索，Agent 可访问 arXiv API。</li>
+<li>返回候选包含标题、作者、年份、arXiv ID、摘要片段、推荐理由。</li>
+</ul>
+<h4 id="arxivimport"><code>arxiv:import</code><a class="headerlink" href="#arxivimport" title="Permanent link">&para;</a></h4>
+<p>启动 arXiv 论文入库任务。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  arxiv_id: string;
+  options?: {
+    generate_paper_md?: boolean; // 是否强制生成 PAPER.md
+    overwrite?: boolean; // 是否覆盖已有目录，默认 false
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    job_id: string;
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>行为</strong></li>
+<li>异步任务，通过 <code>arxiv:progress</code> / <code>arxiv:completed</code> / <code>arxiv:failed</code> 事件推送结果。</li>
+<li>创建 <code>papers/&lt;id&gt;/</code> 与 <code>papers/&lt;id&gt;/source/</code>，写入 <code>metadata.json</code>（元数据事实来源）。</li>
+<li>下载 LaTeX source、PDF、HTML 到 <code>source/</code>。</li>
+<li>无 tex 源或需要可读结构化正文时，生成 <code>papers/&lt;id&gt;/PAPER.md</code>。</li>
+<li>调用 Agent 生成 <code>papers/&lt;id&gt;/NOTES.md</code>，并创建空的 <code>papers/&lt;id&gt;/highlights.md</code>。</li>
+<li>更新 <code>PAPERS.md</code>（派生索引）与 <code>library.bib</code>，刷新 <code>.motif/cache.sqlite</code>。</li>
+</ul>
+<h3 id="34-pdf">3.4 本地 PDF 入库<a class="headerlink" href="#34-pdf" title="Permanent link">&para;</a></h3>
+<p>本地 PDF 通过统一 Importer 接入，与 arXiv 共用 <code>papers/&lt;id&gt;/</code> 输出结构。入库分两步：先解析并混合获取元数据供用户确认，再正式入库。</p>
+<h4 id="pdfprepare"><code>pdf:prepare</code><a class="headerlink" href="#pdfprepare" title="Permanent link">&para;</a></h4>
+<p>对本地 PDF 做轻量解析并混合获取候选元数据，供入库前确认，不落盘。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  paths: string[]; // 本地 PDF 绝对路径，可批量
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    drafts: PdfMetadataDraft[]; // 每篇一个候选元数据草稿
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>行为</strong></li>
+<li>复制 PDF 到临时目录，提取首页文本并识别 DOI / arXiv ID。</li>
+<li>命中标识符时查询 Crossref / arXiv 获取权威元数据；未命中或失败时由 Agent 从正文抽取候选。</li>
+<li>生成建议 citekey，并标记与已入库论文的重复情况。</li>
+</ul>
+<h4 id="pdfimport"><code>pdf:import</code><a class="headerlink" href="#pdfimport" title="Permanent link">&para;</a></h4>
+<p>根据用户确认后的元数据正式入库。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  items: {
+    tmp_id: string;             // 对应 pdf:prepare 返回的草稿
+    metadata: PdfMetadataDraft; // 用户校对后的元数据
+  }[];
+  options?: {
+    parser?: 'auto' | 'liteparse' | 'mineru'; // 默认 auto：配置并启用则 mineru，否则 liteparse
+    overwrite?: boolean;        // 默认 false
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    job_id: string;
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>行为</strong></li>
+<li>异步任务，通过 <code>pdf:progress</code> / <code>pdf:completed</code> / <code>pdf:failed</code> 事件推送结果。</li>
+<li>生成 citekey，落位 <code>papers/&lt;citekey&gt;/</code>，写入 <code>metadata.json</code>（<code>type=pdf</code>）。</li>
+<li>原始 PDF 存入 <code>source/</code>；用选定 <code>PdfParser</code> 全文解析生成 <code>PAPER.md</code>（PDF 来源必生成）与 <code>assets/</code>，记录 <code>body_source</code> / <code>body_quality</code>。</li>
+<li>调用 Agent 生成 <code>NOTES.md</code>，创建空 <code>highlights.md</code>。</li>
+<li>更新 <code>PAPERS.md</code>、<code>library.bib</code>，刷新 <code>.motif/cache.sqlite</code>。</li>
+<li>使用云端 MinerU 前需前端已获用户同意（PDF 将上传第三方）。</li>
+</ul>
+<h3 id="35">3.5 论文<a class="headerlink" href="#35" title="Permanent link">&para;</a></h3>
+<p>论文数据由 arXiv 入库流程生成，也可通过本组命令查询与列表。</p>
+<h4 id="paperget"><code>paper:get</code><a class="headerlink" href="#paperget" title="Permanent link">&para;</a></h4>
+<p>获取单篇论文完整数据。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  id: string; // 论文唯一标识，如 arxiv_id
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    paper: Paper;
+  };
+}
+</code></pre>
+
+<h4 id="paperlist"><code>paper:list</code><a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
+<p>列出当前 Vault 中已入库的论文。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  status?: ('pending' | 'importing' | 'completed' | 'failed')[];
+  tag?: string;
+  limit?: number;
+  offset?: number;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    papers: Paper[];
+    total: number;
+  };
+}
+</code></pre>
+
+<h3 id="36-agent-acp-client-byoa">3.6 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#36-agent-acp-client-byoa" title="Permanent link">&para;</a></h3>
+<p>Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（<code>cwd</code> = 当前 Vault），通过 stdio JSON-RPC 会话。<strong>不</strong> 内置 agent 二进制；<strong>不</strong> 在 config 中要求模型 API Key。</p>
+<h4 id="agentlist_agents"><code>agent:list_agents</code><a class="headerlink" href="#agentlist_agents" title="Permanent link">&para;</a></h4>
+<p>列出已注册 Agent 及其探测状态。</p>
+<ul>
+<li><strong>参数</strong>：无</li>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    agents: AgentDescriptor[];
+    default_id: string | null;
+  };
+}
+</code></pre>
+
+<h4 id="agentupsert_agent"><code>agent:upsert_agent</code><a class="headerlink" href="#agentupsert_agent" title="Permanent link">&para;</a></h4>
+<p>新增或更新一条 Agent 注册项。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  id?: string; // 省略则新建
+  name: string;
+  template?: 'opencode' | 'gemini' | 'claude-acp' | 'codex-acp' | 'qodercli' | 'custom';
+  command: string;
+  args?: string[];
+  env?: Record&lt;string, string&gt;;
+  set_default?: boolean;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    agent: AgentDescriptor;
+  };
+}
+</code></pre>
+
+<h4 id="agentremove_agent"><code>agent:remove_agent</code><a class="headerlink" href="#agentremove_agent" title="Permanent link">&para;</a></h4>
+<p>删除注册项（不卸载用户本机 CLI）。</p>
+<ul>
+<li><strong>参数</strong>：<code>{ id: string }</code></li>
+<li><strong>返回</strong>：<code>{ ok: true; data: null }</code></li>
+</ul>
+<h4 id="agentdiscover"><code>agent:discover</code><a class="headerlink" href="#agentdiscover" title="Permanent link">&para;</a></h4>
+<p>对 PATH / 已配置绝对路径做可执行文件探测，更新 <code>available</code> 状态。</p>
+<ul>
+<li><strong>参数</strong>：<code>{ id?: string }</code> // 省略则探测全部</li>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    agents: AgentDescriptor[];
+  };
+}
+</code></pre>
+
+<h4 id="agentlist_sessions"><code>agent:list_sessions</code><a class="headerlink" href="#agentlist_sessions" title="Permanent link">&para;</a></h4>
+<p>列出当前 Vault 中的 Agent 会话。</p>
+<ul>
+<li><strong>参数</strong>：无</li>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    sessions: AgentSession[];
+  };
+}
+</code></pre>
+
+<h4 id="agentcreate_session"><code>agent:create_session</code><a class="headerlink" href="#agentcreate_session" title="Permanent link">&para;</a></h4>
+<p>创建新的 Agent 会话（按需 spawn ACP 子进程）。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  name?: string;
+  agent_id?: string; // 默认 agent.default_id
+  workflow?: 'summary' | 'qa' | 'related_work' | 'free';
+  context_paths?: string[]; // 预加载的 Vault 相对路径
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    session: AgentSession;
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>行为</strong></li>
+<li>使用注册表中的 <code>command</code> / <code>args</code> / <code>env</code> spawn Agent，<code>cwd</code> = Vault root。</li>
+<li>加载工作流 prompt 模板与 <code>AGENTS.md</code> 作为系统约束。</li>
+<li>若 command 不可用，返回可诊断错误（含探测信息），不静默使用其他 agent。</li>
+</ul>
+<h4 id="agentsend_prompt"><code>agent:send_prompt</code><a class="headerlink" href="#agentsend_prompt" title="Permanent link">&para;</a></h4>
+<p>向指定会话发送 prompt。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  session_id: string;
+  prompt: string;
+  workflow?: 'summary' | 'qa' | 'related_work' | 'free'; // 默认 'free'
+  target?: string; // workflow 为 summary/qa/related_work 时的目标文件路径
+  stream?: boolean; // 默认 true
+  write_target?: string; // 可选：输出写入目标文件相对路径，需用户确认
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    session_id: string;
+    message_id: string;
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>行为</strong></li>
+<li>若 <code>stream=true</code>，通过 <code>agent:stream</code> 事件推送增量内容。</li>
+<li>权限请求通过 <code>agent:permission_request</code> 推送，前端调用 <code>agent:respond_permission</code> 应答。</li>
+<li>完成时推送 <code>agent:completed</code> 事件，包含读取过的文件路径列表。</li>
+<li>若指定 <code>write_target</code>，输出先写入临时草稿，不直接覆盖目标。</li>
+</ul>
+<h4 id="agentrespond_permission"><code>agent:respond_permission</code><a class="headerlink" href="#agentrespond_permission" title="Permanent link">&para;</a></h4>
+<p>应答权限请求。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  session_id: string;
+  request_id: string;
+  allow: boolean;
+  remember?: 'session' | 'once'; // 默认 'once'
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>：<code>{ ok: true; data: null }</code></li>
+</ul>
+<h4 id="agentaccept_draft"><code>agent:accept_draft</code><a class="headerlink" href="#agentaccept_draft" title="Permanent link">&para;</a></h4>
+<p>将 Agent 生成的临时草稿写入正式文件。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  session_id: string;
+  message_id: string;
+  target: string;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    path: string;
+    mtime: number;
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>行为</strong></li>
+<li>将临时文件移动到目标路径。</li>
+<li>若目标文件已存在且包含用户手写内容，默认合并或提示冲突。</li>
+</ul>
+<h4 id="agentclose_session"><code>agent:close_session</code><a class="headerlink" href="#agentclose_session" title="Permanent link">&para;</a></h4>
+<p>关闭 Agent 会话（结束 ACP 连接并可终止子进程）。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  session_id: string;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>：<code>{ ok: true; data: null }</code></li>
+</ul>
+<h3 id="37">3.7 双链与图谱<a class="headerlink" href="#37" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p>产品与索引设计见 <strong><code>docs/backend/wikilinks.md</code></strong>。下列为 Host 接口草案。</p>
+</blockquote>
+<h4 id="graph_get_backlinks-graphget_backlinks"><code>graph_get_backlinks</code>（实现中；草案名 <code>graph:get_backlinks</code>）<a class="headerlink" href="#graph_get_backlinks-graphget_backlinks" title="Permanent link">&para;</a></h4>
+<p>获取某个文件的反链列表。若当前 Vault 尚未索引会先全量重建。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  path: string; // 绝对路径或 Vault 相对路径
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    path: string; // 规范化后的 Vault 相对路径
+    backlinks: Backlink[]; // { source, targetRaw, alias?, context?, line? }
+  };
+}
+</code></pre>
+
+<h4 id="graph_get_graph-graphget_graph"><code>graph_get_graph</code>（草案名 <code>graph:get_graph</code>）<a class="headerlink" href="#graph_get_graph-graphget_graph" title="Permanent link">&para;</a></h4>
+<p>获取全量或局部 wikilink 图谱。数据来自内存索引（必要时 <code>ensure_vault</code> 先 rebuild）。<br />
+设计见 <strong><code>docs/backend/wikilinks.md</code> §4.4 / §6.3</strong>。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  /** 中心节点：Vault 相对路径或绝对路径；省略 / 空 = 全图 */
+  center?: string | null;
+  /** 邻域跳数；仅当 center 有效时生效。默认 2。全图时忽略。 */
+  depth?: number | null;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    nodes: GraphNode[]; // { id, label, type, path? }
+    edges: GraphEdge[]; // { id, source, target, targetRaw? }
+    /** 实际用作中心的规范化路径；全图时为 null */
+    center: string | null;
+    depth: number;
+  };
+}
+</code></pre>
+
+<ul>
+<li><strong>节点折叠</strong>：<code>papers/&lt;id&gt;/NOTES.md</code> 与同目录其它文件 <strong>合并为一个节点</strong> <code>papers/&lt;id&gt;</code>。</li>
+<li><strong>节点 <code>label</code></strong>：paper 用 <code>metadata.json</code> 的 <code>title</code>；其它节点用文件名（去扩展名）。</li>
+<li><strong>节点 <code>type</code></strong></li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>type</th>
+<th>规则</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>paper</code></td>
+<td>折叠后的 <code>papers/&lt;id&gt;</code></td>
+</tr>
+<tr>
+<td><code>note</code></td>
+<td><code>notes/…</code> 或其它 md</td>
+</tr>
+<tr>
+<td><code>index</code></td>
+<td>根级 <code>PAPERS.md</code> / <code>AGENTS.md</code> 等</td>
+</tr>
+<tr>
+<td><code>stub</code></td>
+<td>未解析目标（id 形如 <code>stub:&lt;raw&gt;</code>）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>边</strong>：有向，<code>source</code> / <code>target</code> 为折叠后节点 id；折叠后的自环丢弃。</li>
+<li><strong>邻域</strong>：无向 BFS（出边+入边）从 <code>center</code> 扩展至多 <code>depth</code> 跳，再裁剪 edges。</li>
+</ul>
+<h4 id="graph_rebuild-graphrebuild_index"><code>graph_rebuild</code>（实现中；草案名 <code>graph:rebuild_index</code>）<a class="headerlink" href="#graph_rebuild-graphrebuild_index" title="Permanent link">&para;</a></h4>
+<p>全量扫描 Vault 内 Markdown，重建内存 wikilink 索引。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    indexedFiles: number;
+    edges: number;
+    nodes: number;
+  };
+}
+</code></pre>
+
+<h3 id="38">3.8 配置<a class="headerlink" href="#38" title="Permanent link">&para;</a></h3>
+<h4 id="configget"><code>config:get</code><a class="headerlink" href="#configget" title="Permanent link">&para;</a></h4>
+<p>获取应用配置。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  key: string;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    key: string;
+    value: unknown;
+  };
+}
+</code></pre>
+
+<h4 id="configset"><code>config:set</code><a class="headerlink" href="#configset" title="Permanent link">&para;</a></h4>
+<p>设置应用配置。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  key: string;
+  value: unknown;
+}
+</code></pre>
+
+<ul>
+<li>
+<p><strong>返回</strong>：<code>{ ok: true; data: null }</code></p>
+</li>
+<li>
+<p><strong>常用 key</strong></p>
+</li>
+<li><code>agent.enabled</code>：Agent 总开关，默认 <code>true</code>。</li>
+<li><code>agent.default_id</code>：默认 Agent 注册 id；无可用 agent 时为 <code>null</code>。</li>
+<li><code>agent.agents</code>：Agent 注册表数组（<code>id</code> / <code>name</code> / <code>template</code> / <code>command</code> / <code>args</code> / <code>env</code>）。<strong>不</strong> 包含模型 API Key 字段。</li>
+<li><code>parser.pdf.backend</code>：PDF 解析后端，<code>liteparse</code>（默认）或 <code>mineru</code>。</li>
+<li><code>parser.mineru.api_key</code>：云端 MinerU API Key（产品侧 BYOK，与 Agent 密钥分离）。</li>
+<li><code>parser.mineru.enabled</code>：是否启用云端 MinerU，默认 <code>false</code>。</li>
+<li><code>recent_vaults</code>：最近 Vault 列表（Host 维护，前端一般只读）。</li>
+</ul>
+<h2 id="4">4. 数据模型<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<p>完整类型定义见 <code>docs/backend/data-model.md</code>。API 中涉及的核心类型包括：</p>
+<ul>
+<li><code>VaultInfo</code> / <code>RecentVault</code></li>
+<li><code>FileNode</code></li>
+<li><code>Paper</code> / <code>PaperMetadata</code></li>
+<li><code>Highlight</code></li>
+<li><code>ArxivCandidate</code> / <code>ArxivImportResult</code></li>
+<li><code>PdfMetadataDraft</code> / <code>PdfImportResult</code></li>
+<li><code>AgentDescriptor</code> / <code>AgentSession</code> / <code>AgentResult</code></li>
+<li><code>GraphNode</code> / <code>GraphEdge</code> / <code>Backlink</code></li>
+<li><code>AppError</code></li>
+</ul>
+<h2 id="5">5. 版本与演进<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>API 重点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>V0.1</td>
+<td>实现 <code>vault:*</code>、<code>file:*</code>、<code>config:*</code>。</td>
+</tr>
+<tr>
+<td>V0.2</td>
+<td>增加 <code>arxiv:*</code>、<code>paper:*</code> 命令与异步任务事件；定义 <code>Paper</code> 数据结构。</td>
+</tr>
+<tr>
+<td>V0.3</td>
+<td>ACP Client + BYOA：<code>agent:list_agents</code> / <code>upsert_agent</code> / <code>discover</code> / 会话与权限 / 工作流。</td>
+</tr>
+<tr>
+<td>V0.4</td>
+<td>增加 <code>graph:*</code> 命令。</td>
+</tr>
+<tr>
+<td>V0.5</td>
+<td>抽象 importer，落地 arxiv 与本地 PDF；新增 <code>pdf:*</code> 命令与可插拔 <code>PdfParser</code>（liteparse 默认 + 云端 MinerU）。</td>
+</tr>
+</tbody>
+</table>
+<p>后续扩展：
+- <code>importer:import</code> 统一来源入口。
+- <code>search:full_text</code> 本地全文搜索。
+- <code>reader:annotations</code> 标注（<code>highlights.md</code>）读写。
+- <code>sync:*</code> 多设备同步（远期）。</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../" class="btn btn-neutral float-left" title="概览"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../data-model/" class="btn btn-neutral float-right" title="数据模型">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+        </span>
+    
+    
+      <span><a href="../" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../data-model/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
