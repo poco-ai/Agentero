@@ -179,7 +179,7 @@
 <tr>
 <td>V0.1 本地 Vault 与 Markdown 工作台</td>
 <td>✅ 基本完成</td>
-<td>Tauri/React 工作台、文件树、文件读取/保存、最近 Vault、PDF/HTML/Notes 视图已落地。</td>
+<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页最近列表、树内联新建文件/文件夹、PDF/HTML/Notes、WYSIWYG Markdown。</td>
 </tr>
 <tr>
 <td>V0.2 arXiv 入库闭环</td>
@@ -216,8 +216,10 @@
 <li>[x] 打开本地 Vault。</li>
 <li>[x] 创建空 Vault 并初始化 <code>AGENTS.md</code> / <code>papers</code> / <code>notes</code> / <code>plans</code> / <code>.motif/catalog.sqlite</code>。</li>
 <li>[x] 工作台：文件树 + 中间内容 + Preview/Notes + 可选右侧栏。</li>
-<li>[x] Markdown 文件读取、编辑、保存。</li>
-<li>[x] 最近 Vault 记录与应用重启恢复。</li>
+<li>[x] Markdown 文件读取、编辑、保存（Plate WYSIWYG + 自动保存）。</li>
+<li>[x] 最近 Vault 列表（欢迎页）与主窗口恢复上次 Vault。</li>
+<li>[x] 多窗口：<code>⌘N</code> 新建窗口，session 级 Vault 隔离。</li>
+<li>[x] 树内联新建文件 / 文件夹。</li>
 <li>[x] Paper-centric 视图：选中 paper 后中间显示远程 PDF/HTML，右侧显示该篇 <code>NOTES.md</code>。</li>
 <li>[x] 侧边栏折叠、标题栏快捷按钮、Settings 窗口。</li>
 </ul>
@@ -225,12 +227,13 @@
 <ul>
 <li>[x] 用户可以创建一个空 Vault 并看到标准目录结构与 catalog 数据库。</li>
 <li>[x] 用户可以打开、编辑、保存一个 Markdown note。</li>
-<li>[x] 重启应用后可以回到最近使用的 Vault。</li>
+<li>[x] 重启应用后可以回到最近使用的 Vault（设置开启时）。</li>
+<li>[x] <code>⌘N</code> 打开的新窗口不自动占用上一窗口的 Vault，欢迎页可点最近路径。</li>
 </ul>
 <p>后续 TODO：</p>
 <ul>
 <li>[x] 补齐“Create Vault”流程（含 catalog 初始化），而不只是打开已有目录。</li>
-<li>[ ] 最近 Vault 从 <code>localStorage</code> 迁到 Tauri Store。</li>
+<li>[ ] 最近 Vault / UI 偏好从 <code>localStorage</code> 迁到 Tauri Store（语义对齐现有前端 MRU）。</li>
 <li>[ ] 文件监听与外部编辑器修改同步。</li>
 <li>[ ] 增加保存状态提示和冲突处理。</li>
 </ul>
@@ -374,6 +377,7 @@
 <h3 id="p0">近期优先级 P0<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] Create Vault：标准目录 + <code>AGENTS.md</code> + <code>.motif/catalog.sqlite</code>。</li>
+<li>[x] 多窗口（⌘N）+ 欢迎页最近 Vault 列表（前端 MRU；Store 迁移仍待做）。</li>
 <li>[ ] arXiv 精确 ID/URL 入库闭环。</li>
 <li>[ ] Agent workflow prompt：总结当前论文、本地库问答、Related Work。</li>
 <li>[ ] Agent 写入草稿确认与拒绝路径。</li>

@@ -78,17 +78,19 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#3-host-tauri-invoke-api">3. Host 层 Tauri invoke API</a>
         <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#31-vault">3.1 Vault 管理</a>
+    <li class="toctree-l3"><a class="reference internal" href="#31-vault">3.1 Vault 与窗口</a>
         <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#vaultcreate">vault:create</a>
+    <li class="toctree-l4"><a class="reference internal" href="#vault_create">vault_create（已实现）</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#vaultopen">vault:open</a>
+    <li class="toctree-l4"><a class="reference internal" href="#window_new">window_new（已实现）</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#vaultclose">vault:close</a>
+    <li class="toctree-l4"><a class="reference internal" href="#vaultopen">vault:open（规划）</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#vaultrecent">vault:recent</a>
+    <li class="toctree-l4"><a class="reference internal" href="#vaultclose">vault:close（规划）</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#vaultinfo">vault:info</a>
+    <li class="toctree-l4"><a class="reference internal" href="#vaultrecent">vault:recent（规划；前端已临时实现）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#vaultinfo">vault:info（规划）</a>
     </li>
         </ul>
     </li>
@@ -261,7 +263,7 @@ Host (Tauri + Rust)
 <h3 id="21">2.1 命名规范<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Tauri command：<code>namespace:verb</code>（全小写，冒号分隔命名空间）。</li>
-<li>例：<code>vault:create</code>、<code>file:read_text</code>、<code>arxiv:import</code>。</li>
+<li>规划契约多用 <code>namespace:verb</code>（如 <code>vault:open</code>）；已落地的 invoke 名以 <code>src-tauri</code> 为准（如 <code>vault_create</code>、<code>window_new</code>、<code>graph_get_graph</code>）。</li>
 </ul>
 <h3 id="22">2.2 参数与返回<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
 <ul>
@@ -370,39 +372,56 @@ Host (Tauri + Rust)
 | <code>graph:updated</code> | 图谱索引重建 | <code>{ nodes: number, edges: number }</code> |</li>
 </ul>
 <h2 id="3-host-tauri-invoke-api">3. Host 层 Tauri invoke API<a class="headerlink" href="#3-host-tauri-invoke-api" title="Permanent link">&para;</a></h2>
-<h3 id="31-vault">3.1 Vault 管理<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
-<h4 id="vaultcreate"><code>vault:create</code><a class="headerlink" href="#vaultcreate" title="Permanent link">&para;</a></h4>
-<p>创建并初始化一个 Vault。</p>
+<h3 id="31-vault">3.1 Vault 与窗口<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>实现状态（V0.1）</strong><br />
+- 已实现：<code>vault_create</code>（snake_case invoke 名）、<code>window_new</code>、<code>set_locale</code>。<br />
+- 打开 Vault / 最近列表 / 树加载：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成，Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。<br />
+- 实际 command 注册见 <code>src-tauri/src/lib.rs</code>。</p>
+</blockquote>
+<h4 id="vault_create"><code>vault_create</code>（已实现）<a class="headerlink" href="#vault_create" title="Permanent link">&para;</a></h4>
+<p>创建并初始化一个 Vault（前端 dialog 选路径后 <code>invoke("vault_create", { path })</code>）。</p>
 <ul>
 <li><strong>参数</strong></li>
 </ul>
 <pre class="codehilite"><code class="language-ts">{
-  path: string; // 本地绝对路径，由 dialog 选择或用户输入
+  path: string; // 本地绝对路径
 }
 </code></pre>
 
 <ul>
-<li><strong>返回</strong></li>
+<li><strong>返回</strong>（<code>ApiResult&lt;CreateVaultResult&gt;</code>）</li>
 </ul>
 <pre class="codehilite"><code class="language-ts">{
   ok: true;
   data: {
-    vault: VaultInfo;
+    path: string;
     created: string[]; // 创建的目录/文件相对路径列表
+    openPath: string;  // 建议首开，如 AGENTS.md
   };
 }
 </code></pre>
 
 <ul>
 <li><strong>行为</strong></li>
-<li>检查目录是否为空或已包含 Vault。</li>
-<li>创建 <code>AGENTS.md</code>、<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.motif/</code>。</li>
-<li>初始化 <code>.motif/catalog.sqlite</code>（schema v1，空 <code>papers</code> 表）。详见 <a href="../catalog/"><code>catalog.md</code></a>。</li>
-<li>写入默认 <code>AGENTS.md</code> 模板。</li>
-<li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>（导出见 <code>catalog:export_*</code>）。</li>
-<li>更新最近 Vault 列表。</li>
+<li>确保目录存在；脚手架 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.motif/</code>。</li>
+<li>初始化 <code>.motif/catalog.sqlite</code>（schema v1）。详见 <a href="../catalog/"><code>catalog.md</code></a>。</li>
+<li>写入默认 <code>AGENTS.md</code>。</li>
+<li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
+<li>最近列表由前端在成功打开后写入 <code>localStorage</code>（<code>motif-recent-vaults</code>）。</li>
 </ul>
-<h4 id="vaultopen"><code>vault:open</code><a class="headerlink" href="#vaultopen" title="Permanent link">&para;</a></h4>
+<h4 id="window_new"><code>window_new</code>（已实现）<a class="headerlink" href="#window_new" title="Permanent link">&para;</a></h4>
+<p>打开一个新的 Motif 窗口（菜单 <strong>File → New Window</strong> / <code>⌘N</code>）。</p>
+<ul>
+<li><strong>参数</strong>：无</li>
+<li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
+<li><strong>行为</strong></li>
+<li>创建 label 为 <code>motif-&lt;uuid&gt;</code> 的 Webview 窗口，URL 带 <code>?fresh=1</code>（不自动恢复上次 Vault）。</li>
+<li>窗口尺寸 / macOS overlay 标题栏与主窗口一致。</li>
+<li>Capability 覆盖 <code>main</code> 与 <code>motif-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
+<li>菜单点击由 Host 直接调用，不经过前端 event 往返。</li>
+</ul>
+<h4 id="vaultopen"><code>vault:open</code>（规划）<a class="headerlink" href="#vaultopen" title="Permanent link">&para;</a></h4>
 <p>打开一个已存在的 Vault。</p>
 <ul>
 <li><strong>参数</strong></li>
@@ -431,18 +450,17 @@ Host (Tauri + Rust)
 <li>启动文件监听（后续）。</li>
 <li>返回完整文件树。</li>
 </ul>
-<h4 id="vaultclose"><code>vault:close</code><a class="headerlink" href="#vaultclose" title="Permanent link">&para;</a></h4>
+<h4 id="vaultclose"><code>vault:close</code>（规划）<a class="headerlink" href="#vaultclose" title="Permanent link">&para;</a></h4>
 <p>关闭当前 Vault。</p>
 <ul>
 <li><strong>参数</strong>：无</li>
 <li><strong>返回</strong>：<code>{ ok: true; data: null }</code></li>
 <li><strong>行为</strong>：停止文件监听，释放资源，不删除数据。</li>
 </ul>
-<h4 id="vaultrecent"><code>vault:recent</code><a class="headerlink" href="#vaultrecent" title="Permanent link">&para;</a></h4>
+<h4 id="vaultrecent"><code>vault:recent</code>（规划；前端已临时实现）<a class="headerlink" href="#vaultrecent" title="Permanent link">&para;</a></h4>
 <p>获取最近打开的 Vault 列表。</p>
 <ul>
-<li><strong>参数</strong>：无</li>
-<li><strong>返回</strong></li>
+<li><strong>规划返回</strong></li>
 </ul>
 <pre class="codehilite"><code class="language-ts">{
   ok: true;
@@ -452,7 +470,10 @@ Host (Tauri + Rust)
 }
 </code></pre>
 
-<h4 id="vaultinfo"><code>vault:info</code><a class="headerlink" href="#vaultinfo" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>当前实现</strong>：渲染层 <code>getRecentVaults()</code> / <code>rememberRecentVault()</code> 读写 <code>localStorage</code> 键 <code>motif-recent-vaults</code>（MRU，最多 8 条）。后续迁 Host / Tauri Store 时保持该语义。</li>
+</ul>
+<h4 id="vaultinfo"><code>vault:info</code>（规划）<a class="headerlink" href="#vaultinfo" title="Permanent link">&para;</a></h4>
 <p>获取当前 Vault 元信息。</p>
 <ul>
 <li><strong>参数</strong>：无</li>
@@ -1247,6 +1268,7 @@ Host (Tauri + Rust)
 <th>事件名</th>
 <th>菜单项</th>
 <th>快捷键</th>
+<th>说明</th>
 </tr>
 </thead>
 <tbody>
@@ -1254,26 +1276,43 @@ Host (Tauri + Rust)
 <td><code>settings</code></td>
 <td>Settings…</td>
 <td><code>⌘,</code></td>
+<td>前端监听，打开设置</td>
+</tr>
+<tr>
+<td><code>new_window</code></td>
+<td>New Window</td>
+<td><code>⌘N</code></td>
+<td><strong>Host 直接</strong> <code>window_new</code>，不 emit 给前端</td>
 </tr>
 <tr>
 <td><code>open_vault</code></td>
 <td>Open Vault…</td>
 <td><code>⌘O</code></td>
+<td>前端监听</td>
+</tr>
+<tr>
+<td><code>create_vault</code></td>
+<td>Create Vault…</td>
+<td><code>⇧⌘N</code></td>
+<td>前端监听</td>
 </tr>
 <tr>
 <td><code>refresh_tree</code></td>
 <td>Refresh File Tree</td>
 <td><code>⌘R</code></td>
+<td>前端监听</td>
 </tr>
 <tr>
 <td><code>toggle_sidebar</code></td>
 <td>Toggle Sidebar</td>
 <td><code>⌥⌘S</code></td>
+<td>前端监听</td>
 </tr>
 <tr>
 <td><code>toggle_chat</code></td>
 <td>Toggle Chat</td>
 <td><code>⌘L</code></td>
+<td>前端监听</td>
 </tr>
 </tbody>
 </table>

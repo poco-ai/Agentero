@@ -126,12 +126,14 @@
 <li>生成 Vault 内 <code>AGENTS.md</code> 模板。</li>
 <li>初始化 <code>.motif/catalog.sqlite</code>（schema v1，<code>path</code> 主键）。</li>
 <li><strong>不</strong>默认生成 <code>PAPERS.md</code> / <code>library.bib</code>（导出能力另做）。</li>
-<li>
-<p>初始化后打开 <code>AGENTS.md</code>。</p>
-</li>
-<li>
-<p><strong>arXiv 精确入库</strong></p>
-</li>
+<li>初始化后打开 <code>AGENTS.md</code>。</li>
+</ol>
+<p>1b. <strong>多窗口与欢迎页</strong> ✅
+   - <code>⌘N</code> / File → New Window → Host <code>window_new</code>（<code>?fresh=1</code>）。
+   - 无 Vault 欢迎页：最近路径 MRU + 打开 / 创建（无常驻说明文案）。
+   - 当前窗口 Vault 用 <code>sessionStorage</code>；最近列表 / 上次路径用 <code>localStorage</code>。</p>
+<ol>
+<li><strong>arXiv 精确入库</strong></li>
 <li>支持输入 arXiv ID / URL。</li>
 <li>拉取 metadata，写入 catalog <code>papers</code> 表。</li>
 <li>写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code>。</li>

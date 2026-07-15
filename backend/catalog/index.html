@@ -260,7 +260,7 @@
 <li><strong>Catalog 主键</strong>：Vault 相对路径 <code>path</code>（如 <code>papers/nlp/transformers/1706.03762</code>），不是「仅叶子目录名」。</li>
 <li><strong>逻辑 <code>id</code></strong>：arXiv ID / citekey，用于展示与去重；可与目录名相同，但<strong>唯一标识落盘位置的是 <code>path</code></strong>。</li>
 </ul>
-<p><strong>合法 Vault 最低条件</strong>（<code>vault:open</code> / <code>vault:create</code>）：</p>
+<p><strong>合法 Vault 最低条件</strong>（打开目录 / <code>vault_create</code>）：</p>
 <ul>
 <li>存在 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>（目录可空）</li>
 <li>存在 <code>AGENTS.md</code>（建议；缺失时可提示补模板）</li>
@@ -470,16 +470,20 @@
 </thead>
 <tbody>
 <tr>
-<td><code>vault:create</code></td>
+<td><code>vault_create</code>（已实现）</td>
 <td>建目录骨架 + <code>ensure_catalog(path)</code> 空库</td>
 </tr>
 <tr>
-<td><code>vault:open</code></td>
+<td><code>vault:open</code>（规划）</td>
 <td><code>ensure_catalog</code> + migration；失败则 open 失败</td>
 </tr>
 <tr>
-<td><code>vault:close</code></td>
+<td><code>vault:close</code>（规划）</td>
 <td>关闭连接，释放锁</td>
+</tr>
+<tr>
+<td><code>window_new</code>（已实现）</td>
+<td>新 Webview 窗口（与 Vault 打开无关）</td>
 </tr>
 <tr>
 <td>入库完成</td>
@@ -662,7 +666,7 @@
 <hr />
 <h2 id="9">9. 验收要点<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
 <ul>
-<li>[ ] Create Vault 生成 <code>.motif/catalog.sqlite</code>（v1 schema），<strong>不</strong>生成 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
+<li>[x] Create Vault 生成 <code>.motif/catalog.sqlite</code>（v1 schema），<strong>不</strong>生成 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
 <li>[ ] 入库后 <code>paper:list</code> 可见新行；磁盘上无强制 <code>metadata.json</code>。</li>
 <li>[ ] <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code> 能生成与历史格式兼容的文本。</li>
 <li>[ ] 删除导出文件不影响 catalog 与 UI 列表。</li>

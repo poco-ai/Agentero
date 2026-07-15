@@ -55,6 +55,10 @@
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#21">2.1 侧边栏文件树</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#22-vault">2.2 无 Vault 欢迎页</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#23">2.3 原生菜单与多窗口</a>
+    </li>
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#3">3. 布局</a>
@@ -187,11 +191,83 @@
 <li>新建文件 → <code>FilePlus2</code>（在选中目录 / 文件父目录下 <strong>树内联命名</strong>，Enter 确认 / Esc 取消，对齐 VS Code）</li>
 <li>新建文件夹 → <code>FolderPlus</code>（同上）</li>
 <li>刷新树 → <code>RefreshCw</code>（⌘R）</li>
-<li><strong>打开 / 创建 Vault</strong> 不在侧边栏：使用 macOS 顶部菜单 <strong>File → Open Vault…</strong>（<code>⌘O</code>）/ <strong>Create Vault…</strong>（<code>⇧⌘N</code>）。</li>
-<li><strong>新建窗口</strong>：菜单 <strong>File → New Window</strong>（<code>⌘N</code>）。新窗口不自动打开上次 Vault；无 Vault 时中间栏显示欢迎页（最近路径列表 + 打开 / 创建）。</li>
-<li><strong>设置入口不在侧边栏</strong>：使用 macOS 顶部菜单 <strong>motif → Settings…</strong>（<code>⌘,</code>），不放齿轮图标。</li>
+<li><strong>不要</strong>在侧边栏放打开 / 创建 Vault、关闭 Vault 或设置入口。</li>
 <li><strong>不要</strong>使用「Open vault… / Refresh」等文字按钮。</li>
 </ul>
+<h3 id="22-vault">2.2 无 Vault 欢迎页<a class="headerlink" href="#22-vault" title="Permanent link">&para;</a></h3>
+<p>当当前窗口未打开 Vault 时，中间栏显示欢迎页（<code>src/components/layout/vault-welcome.tsx</code>）：</p>
+<ul>
+<li><strong>内容</strong>：图标 + <strong>Create vault</strong> / <strong>Open vault</strong> 按钮 + <strong>Recent</strong> 路径列表（可点打开，可从列表移除）。</li>
+<li><strong>不加</strong>常驻说明文案、标题口号或快捷键提示（保持空状态极简）。</li>
+<li>点选最近路径时若目录不存在：提示错误并从列表剔除。</li>
+</ul>
+<h3 id="23">2.3 原生菜单与多窗口<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>菜单</th>
+<th>项</th>
+<th>快捷键</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>File</td>
+<td>New Window</td>
+<td><code>⌘N</code></td>
+<td>Host <code>window_new</code>：新 Webview 窗口（<code>?fresh=1</code>），<strong>不</strong>自动恢复上次 Vault</td>
+</tr>
+<tr>
+<td>File</td>
+<td>Open Vault…</td>
+<td><code>⌘O</code></td>
+<td>选择已有文件夹并打开</td>
+</tr>
+<tr>
+<td>File</td>
+<td>Create Vault…</td>
+<td><code>⇧⌘N</code></td>
+<td>选择目录 → Host <code>vault_create</code> 脚手架</td>
+</tr>
+<tr>
+<td>File</td>
+<td>Refresh File Tree</td>
+<td><code>⌘R</code></td>
+<td>刷新当前 Vault 文件树</td>
+</tr>
+<tr>
+<td>motif</td>
+<td>Settings…</td>
+<td><code>⌘,</code></td>
+<td>设置 sheet</td>
+</tr>
+</tbody>
+</table>
+<p><strong>窗口与路径状态</strong>（<code>src/lib/vault.ts</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>存储</th>
+<th>键 / 用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sessionStorage</code></td>
+<td>当前窗口已打开的 Vault 路径（多窗口互不抢）</td>
+</tr>
+<tr>
+<td><code>localStorage</code></td>
+<td>最近 Vault 列表（MRU，欢迎页）、上次 Vault（主窗口「恢复最近」）</td>
+</tr>
+<tr>
+<td>查询参数 <code>fresh=1</code></td>
+<td>新建窗口标记：跳过自动恢复，直接欢迎页</td>
+</tr>
+</tbody>
+</table>
+<p>主窗口在设置开启「恢复上次 Vault」且非 <code>fresh</code> 时，用 <code>localStorage</code> 上次路径自动打开；<code>⌘N</code> 窗口始终从欢迎页开始。</p>
 <h2 id="3">3. 布局<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
 <ul>
 <li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容（WYSIWYG Markdown 编辑器）+ 右侧栏（Agent / Backlinks）。查看论文 PDF/HTML 时，右侧显示可编辑的 <strong>Notes</strong>（该篇 <code>NOTES.md</code>）。</li>
@@ -243,7 +319,7 @@
 <tr>
 <td><code>⌘N</code></td>
 <td>新建窗口</td>
-<td>打开空白窗口；不自动恢复 Vault，欢迎页列出最近路径</td>
+<td><code>window_new</code>；欢迎页 + 最近列表，不恢复上次 Vault</td>
 </tr>
 <tr>
 <td><code>⌘O</code></td>
@@ -253,7 +329,7 @@
 <tr>
 <td><code>⇧⌘N</code></td>
 <td>Create vault…</td>
-<td>创建并初始化新 Vault</td>
+<td>创建并初始化新 Vault（含 catalog）</td>
 </tr>
 <tr>
 <td><code>⌘R</code></td>
