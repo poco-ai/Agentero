@@ -145,9 +145,10 @@
 <p>2b. <strong>魔棒 / Identifier Lookup（Translator 后端）</strong> ✅ v0 — 设计见 <a href="../../backend/identifier-lookup/"><code>docs/backend/identifier-lookup.md</code></a>
    - [x] UI：侧栏魔棒 → 粘贴链接或编号 → 加入 Papers。
    - [x] 目标：<code>papers/</code> 或文件树当前选中的 Papers 子文件夹。
-   - [x] Translator → 直接写入 <code>PaperMetadata</code>/catalog；有 <code>pdf_url</code>/<code>html_url</code> 默认不下载。
-   - [x] 无预览 URL 始终尝试下载；设置 <code>downloadFulltextToLocal</code>（默认关）。
-   - [x] Host：<code>lookup_import</code> / <code>lookup_translator_config</code>；HTTP Translator（<code>translatorBaseUrl</code>）。
+   - [x] Translator → 直接写入 <code>PaperMetadata</code>/catalog。
+   - [x] <strong>始终下载 PDF</strong>；<strong>arXiv 另解压 LaTeX</strong> 到 <code>source/</code>（无下载开关）。
+   - [x] Host：<code>lookup_import</code> / <code>lookup_translator_config</code> / <code>paper_download_assets</code>；HTTP Translator。
+   - [x] 文件树：缺 PDF，或 arXiv 缺 TeX 时行尾 Download 图标。
    - [ ] <code>⇧⌘I</code> 快捷键；批量；本机 sidecar 捆绑。</p>
 <p>2c. <strong>论文库表格 UI</strong> ✅
    - [x] 虚拟节点 <code>motif:library</code>；中间栏 catalog 表（<code>paper_list</code>）。

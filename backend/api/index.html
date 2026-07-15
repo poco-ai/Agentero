@@ -828,7 +828,6 @@ Host (Tauri + Rust)
     vaultPath: string;
     parentDir: string;              // &quot;papers&quot; | &quot;papers/nlp&quot;
     text: string;
-    downloadFulltextToLocal?: boolean;
     translatorBaseUrl?: string;     // 来自设置，默认 https://translator.philfan.cn
   }
   ```
@@ -846,7 +845,21 @@ Host (Tauri + Rust)
     }
   }
   ```
-- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` / `highlights.md`；`metadata.json` 为 catalog 投影同步；下载策略见 identifier-lookup §1.3。
+- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` / `highlights.md`；`metadata.json` 为 catalog 投影同步；**始终下载 PDF** 到 `source/`；**arXiv 另下载 e-print 并解压 LaTeX** 到 `source/`。
+
+#### `paper_download_assets`（已落地）
+
+为已有 paper 文件夹补下载缺失的 PDF（及 arXiv LaTeX）。用于文件树单篇 Download，以及 Library 行「下载全部缺失」。
+
+- **参数**（invoke 字段名 `args`）：
+  ```ts
+  {
+    vaultPath: string;
+    path: string; // Vault 相对 paper 文件夹，如 papers/1706.03762
+  }
+  ```
+- **返回**：`{ ok: true; data: { pdf: boolean; tex: boolean; messages: string[] } }`
+- **行为**：读 catalog 取 `pdf_url` / `arxiv_id`；已有对应文件则跳过；PDF → `source/{id}.pdf`；arXiv e-print → 解压进 `source/`。
 
 ### 3.6 论文
 

@@ -74,13 +74,9 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#12">1.2 目标文件夹解析规则</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#13-vs">1.3 远程预览 vs 本地下载（策略 + 设置）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#13">1.3 本地下载（默认策略）</a>
         <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#_2">决策表</a>
-    </li>
     <li class="toctree-l4"><a class="reference internal" href="#translator">Translator 服务地址（设置）</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#_3">设置项</a>
     </li>
         </ul>
     </li>
@@ -134,7 +130,7 @@
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#51-item-metadata">5.1 字段对照（Item → metadata）</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#52-url">5.2 URL 补全（仍不下载）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#52-url">5.2 URL 补全</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#53">5.3 中间结果</a>
     </li>
@@ -192,7 +188,7 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#12_1">12. 测试要点</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#13">13. 验收标准</a>
+    <li class="toctree-l2"><a class="reference internal" href="#13_1">13. 验收标准</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#14_1">14. 开放问题</a>
     </li>
@@ -250,8 +246,8 @@
               
                 <h1 id="identifier-lookup-translator">魔棒入库（Identifier Lookup）与 Translator 后端<a class="headerlink" href="#identifier-lookup-translator" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>v0 已落地</strong>（侧栏魔棒 + <code>lookup_import</code> + HTTP Translator；sidecar/批量/快捷键仍可扩展）<br />
-目标：用户点击 <strong>魔棒</strong>，粘贴 <strong>链接或编号</strong> → 用 <strong>Translator</strong> 解析元数据 → <strong>写 catalog + 轻量 paper 文件夹</strong>（远程 <code>pdf_url</code> / <code>html_url</code> 默认 <strong>不下载</strong>）→ 落到 <code>papers/</code> 或当前 Papers 子文件夹。</p>
+<p>状态：<strong>v0 已落地</strong>（侧栏魔棒 + <code>lookup_import</code> + HTTP Translator + 默认 PDF/LaTeX 下载；sidecar/批量/快捷键仍可扩展）<br />
+目标：用户点击 <strong>魔棒</strong>，粘贴 <strong>链接或编号</strong> → 用 <strong>Translator</strong> 解析元数据 → <strong>写 catalog + paper 文件夹</strong>（<code>NOTES.md</code> 壳 + <strong>PDF 默认进 <code>source/</code></strong>；arXiv <strong>e-print 解压 LaTeX</strong>）→ 落到 <code>papers/</code> 或当前 Papers 子文件夹。catalog 仍保留远程 <code>pdf_url</code>/<code>html_url</code> 供在线预览。</p>
 </blockquote>
 <p>相关文档：</p>
 <ul>
@@ -271,7 +267,8 @@
        ├─ 默认：papers/&lt;id&gt;/
        └─ 若当前上下文是 papers 下的组织子文件夹：papers/&lt;子路径&gt;/&lt;id&gt;/
   → catalog.sqlite 写入一行（含 pdf_url / html_url / source_url 等）
-  → 不下载 PDF/HTML 文件到 source/（与现有「远程 URL 只读 catalog」一致）
+  → 始终下载 PDF → source/{id}.pdf
+  → 若 arXiv：下载 e-print 并解压 LaTeX → source/
 </code></pre>
 
 <h4 id="_1">用户故事<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h4>
@@ -332,41 +329,34 @@
 <li>Host <strong>校验</strong>：<code>parent_dir</code> 必须是 <code>papers</code> 或 <code>papers/</code> 下既有（或可创建的）相对路径；禁止写到 Vault 外。</li>
 </ol>
 <p>UI：弹层底部一行轻量文案，如「将加入 <code>papers/nlp/</code>」（i18n），避免大段说明。</p>
-<h3 id="13-vs">1.3 远程预览 vs 本地下载（策略 + 设置）<a class="headerlink" href="#13-vs" title="Permanent link">&para;</a></h3>
-<p>catalog <strong>始终</strong>可写入 <code>pdf_url</code> / <code>html_url</code>（有则供在线预览）。本地下载规则如下。</p>
-<h4 id="_2">决策表<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h4>
+<h3 id="13">1.3 本地下载（默认策略）<a class="headerlink" href="#13" title="Permanent link">&para;</a></h3>
+<p>catalog <strong>始终</strong>写入 <code>pdf_url</code> / <code>html_url</code>（有则仍可供在线预览）。入库时<strong>默认本地下载</strong>，无配置开关：</p>
 <table>
 <thead>
 <tr>
-<th>有 <code>pdf_url</code> 或 <code>html_url</code></th>
-<th>设置 <code>downloadFulltextToLocal</code></th>
+<th>资源</th>
 <th>行为</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>有</strong></td>
-<td><strong>关（默认）</strong></td>
-<td>只写 catalog URL；<strong>不</strong>下载（用远程预览）</td>
+<td><strong>PDF</strong></td>
+<td>始终尝试下载到 <code>{paper}/source/{id}.pdf</code>（URL 来自 <code>pdf_url</code> 或 arXiv 推导）</td>
 </tr>
 <tr>
-<td><strong>有</strong></td>
-<td><strong>开</strong></td>
-<td>catalog 写 URL <strong>且</strong> 用该 URL 下载到 <code>source/</code></td>
+<td><strong>arXiv LaTeX</strong></td>
+<td>从 <code>https://arxiv.org/e-print/{id}</code> 下载；gzip/tar 解压到 <code>source/</code>（路径穿越拒绝）</td>
 </tr>
 <tr>
-<td><strong>无</strong></td>
-<td><strong>任意</strong>（关/开相同）</td>
-<td><strong>必须尝试下载</strong>到 <code>source/</code>（否则没有可预览内容）；无可下载地址则仅 metadata</td>
+<td><strong>已有文件</strong></td>
+<td>跳过对应资源</td>
 </tr>
 </tbody>
 </table>
-<p>要点：</p>
-<ul>
-<li><strong>无预览 URL → 始终尽量下载</strong>（与设置无关）。</li>
-<li><strong>有预览 URL → 默认不下载</strong>；仅设置打开时额外镜像到本地。</li>
-</ul>
-<p>阅读：优先远程 URL；<code>source/</code> 有文件时可作离线回退（实现阶段再定优先级）。</p>
+<p>按需补下：
+- <strong>单篇 paper 行</strong>：缺 PDF，或 arXiv 可取 TeX 但缺本地 TeX → Download → <code>paper_download_assets</code>。
+- <strong>Library 行</strong>：库内任一篇仍缺资源时显示 Download → 对全部缺失 paper <strong>批量</strong> <code>paper_download_assets</code>（只补缺失 PDF / 可下载 TeX）。</p>
+<p>UI 阅读：优先 catalog 远程 URL；<code>source/</code> 为归档副本。</p>
 <h4 id="translator">Translator 服务地址（设置）<a class="headerlink" href="#translator" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
@@ -395,35 +385,9 @@
 <li>Host：<code>POST {base}/search</code> 或 <code>/web</code>（<code>Content-Type: text/plain</code>）。</li>
 <li>服务不可达且输入为 arXiv 时，回退 export.arxiv.org。</li>
 </ul>
-<h4 id="_3">设置项<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h4>
-<table>
-<thead>
-<tr>
-<th>Key</th>
-<th>类型</th>
-<th>默认</th>
-<th>UI</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>downloadFulltextToLocal</code></td>
-<td><code>boolean</code></td>
-<td><strong><code>false</code></strong></td>
-<td>Settings → <strong>General</strong></td>
-</tr>
-</tbody>
-</table>
-<p>含义是「<strong>有预览链接时是否也下载到本地</strong>」，不是「总开关」：</p>
-<ul>
-<li><strong>关（默认）</strong>：有 URL 只远程预览；无 URL 仍会下载（若可能）。</li>
-<li><strong>开</strong>：有 URL 时也写入 <code>source/</code>。</li>
-</ul>
-<p>文案（i18n）：</p>
-<ul>
-<li>en：<code>Also download when a preview URL exists</code></li>
-<li>zh：<code>有预览链接时也下载到本地</code></li>
-</ul>
+<blockquote>
+<p>~~<code>downloadFulltextToLocal</code>~~ 已移除；始终下载 PDF。</p>
+</blockquote>
 <p>实现：<code>AppSettings</code> + General Switch；<code>lookup:import</code> 传入该标志。</p>
 <h3 id="14">1.4 非目标（本阶段）<a class="headerlink" href="#14" title="Permanent link">&para;</a></h3>
 <table>
@@ -480,10 +444,7 @@
   + papers/.../NOTES.md、highlights.md
         │
         ▼
-  下载判定（见 §1.3）：
-    无 pdf_url 且无 html_url → 始终尝试下载到 source/
-    有预览 URL 且 downloadFulltextToLocal → 用 URL 下载到 source/
-    有预览 URL 且设置关 → 不下载
+  下载（见 §1.3）：始终 PDF → source/；arXiv 另 e-print 解压 LaTeX
 
 读路径：UI 用 paper_get 读 catalog；不把 metadata.json 当主源。
 </code></pre>
@@ -498,26 +459,26 @@
 <tbody>
 <tr>
 <td>arXiv 编号/abs URL</td>
-<td>同一 Translator（arXiv Search/Web）→ map 进 metadata</td>
+<td>同一 Translator（arXiv Search/Web）→ map 进 metadata + PDF/TeX 下载</td>
 </tr>
 <tr>
 <td>DOI / ISBN / PMID</td>
-<td>同一 Translator Search → map 进 metadata</td>
+<td>同一 Translator Search → map 进 metadata + 尽量下载 PDF</td>
 </tr>
 <tr>
 <td>远程 PDF/HTML</td>
-<td><strong>只</strong>作为 <code>pdf_url</code> / <code>html_url</code> 字段进 metadata/catalog</td>
+<td>catalog 字段 + <strong>PDF 默认本地下载</strong>；HTML 可仍远程预览</td>
 </tr>
 <tr>
 <td>旧独立 <code>arxiv:import</code> 全量下载</td>
-<td><strong>不</strong>混进魔棒；若保留则是另一命令，默认用户走魔棒</td>
+<td>已并入魔棒默认下载路径</td>
 </tr>
 </tbody>
 </table>
 <p>原则：</p>
 <ul>
 <li><strong>Translator 返回值 → 直接并入 <code>PaperMetadata</code></strong>，再落 catalog；不并行维护两套 arXiv 专用结构。</li>
-<li><strong>魔棒 = 轻量加入文库</strong>（metadata + 远程 URL + 笔记壳）。</li>
+<li><strong>魔棒 = 加入文库 + 本地归档</strong>（metadata + 远程 URL + 笔记壳 + PDF；arXiv 含 LaTeX）。</li>
 </ul>
 <hr />
 <h2 id="2">2. 架构总览<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
@@ -973,21 +934,22 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 </tr>
 </tbody>
 </table>
-<h3 id="52-url">5.2 URL 补全（仍不下载）<a class="headerlink" href="#52-url" title="Permanent link">&para;</a></h3>
+<h3 id="52-url">5.2 URL 补全<a class="headerlink" href="#52-url" title="Permanent link">&para;</a></h3>
 <p>在 map 之后、写库之前：</p>
 <ol>
-<li>若有 <code>arxiv_id</code> 且缺 URL → <code>arxiv.ts</code>：<code>pdf_url</code> / <code>html_url</code> / <code>source_url</code>。</li>
+<li>若有 <code>arxiv_id</code> 且缺 URL → 推导 <code>pdf_url</code> / <code>html_url</code> / <code>source_url</code>。</li>
 <li>若有 <code>doi</code> 且缺 <code>source_url</code> → <code>https://doi.org/{doi}</code>。</li>
 <li>若有 <code>pmid</code> 且缺 <code>source_url</code> → PubMed 条目 URL。</li>
-<li><strong>禁止</strong>因补全 URL 而发起 PDF 文件下载。</li>
+<li><strong>URL 补全本身不下载</strong>；下载在 catalog upsert <strong>之后</strong>由 <code>ensure_paper_assets</code> 统一执行（§1.3）。</li>
 </ol>
 <h3 id="53">5.3 中间结果<a class="headerlink" href="#53" title="Permanent link">&para;</a></h3>
 <p>入库前 Host 手中只有 <strong><code>PaperMetadata</code>（已 map）</strong>；不必单独长期持有 Zotero Item。调试可选暂存 <code>raw</code> 日志，不进 catalog。</p>
-<pre class="codehilite"><code class="language-ts">// 概念：一次魔棒调用
+<pre class="codehilite"><code class="language-ts">// 概念：一次魔棒调用（落地：lookup_import）
 const item = await translator.searchOrWeb(input); // Zotero Item
 const metadata = mapZoteroItemToPaperMetadata(item); // → PaperMetadata
 enrichRemoteUrls(metadata); // arxiv/doi 推导
 await catalog.upsert({ ...metadata, path });
+await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 </code></pre>
 
 <hr />
@@ -1038,13 +1000,6 @@ await catalog.upsert({ ...metadata, path });
     on_duplicate?: 'skip' | 'open_existing';
   }[];
   options?: {
-    /**
-     * 来自设置 `downloadFulltextToLocal`（默认 false）。
-     * true：有 pdf_url/html_url 时也下载到 source/。
-     * false：有预览 URL 时不下载。
-     * 注意：无 pdf_url 且无 html_url 时，无论本标志，都尝试下载。
-     */
-    download_fulltext_to_local?: boolean;
     /** Agent 生成 NOTES；默认 false 写占位模板 */
     generate_notes?: boolean;
   };
@@ -1055,23 +1010,13 @@ await catalog.upsert({ ...metadata, path });
 // 或同步：{ ok: true; data: { paths: string[] } }
 </code></pre>
 
-<p><strong>Host 行为</strong>：</p>
+<p><strong>Host 行为</strong>（落地实现：<code>lookup_import</code>）：</p>
 <ol>
 <li>规范化 <code>parent_dir</code>（必须位于 <code>papers</code> 下）。</li>
 <li><code>path = {parent_dir}/{id}</code>。</li>
 <li>创建目录 + 占位 <code>NOTES.md</code> + 空 <code>highlights.md</code>。</li>
-<li><strong>事务 upsert catalog</strong>（远程 URL 只存字符串）。</li>
-<li><strong>下载判定</strong>（伪代码）：
-   <code>text
-   has_preview = nonEmpty(pdf_url) || nonEmpty(html_url)
-   if has_preview and not options.download_fulltext_to_local:
-     skip download                    # 远程预览即可
-   else:
-     url = pdf_url or html_url or resolve_downloadable_url(metadata)
-     if url:
-       try download(url) → source/    # 无预览 URL 时必走此支；有 URL 且设置开也走
-     else:
-       skip download                  # 真的无法下载</code></li>
+<li><strong>事务 upsert catalog</strong>（远程 URL 仍存字符串供预览）。</li>
+<li><strong>始终</strong> <code>ensure_paper_assets</code>：PDF → <code>source/{id}.pdf</code>；有 <code>arxiv_id</code> 时 e-print 解压到 <code>source/</code>。</li>
 <li>返回 <code>path</code>；前端刷新并打开 paper。</li>
 </ol>
 <h3 id="64">6.4 事件<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
@@ -1171,9 +1116,9 @@ await catalog.upsert({ ...metadata, path });
   → 展示目标路径提示：将加入「papers/」或「papers/nlp/」（来自 §1.2）
   → 用户 Enter 或点「添加」
   → lookup:search（Translator）→ 可选极简预览
-  → lookup:import({ parent_dir, items, download_fulltext_to_local: settings… })
-  → 成功：刷新文件树；打开该 paper（PDF 视图读 catalog.pdf_url）
-  → 失败：toast / 行内错误，不写半截 catalog
+  → lookup_import({ parent_dir, text, translatorBaseUrl })
+  → 成功：catalog + source/PDF（arXiv 含 TeX）；刷新文件树；打开 paper（预览仍可走远程 pdf_url）
+  → 失败：toast / 行内错误
 </code></pre>
 
 <p><strong>默认体验偏好</strong>：少步骤——解析成功即可入库；仅在 <strong>重复</strong> 或 <strong>解析到多结果</strong> 时打断确认。</p>
@@ -1224,8 +1169,9 @@ await catalog.upsert({ ...metadata, path });
     └── &lt;id&gt;/
         ├── NOTES.md
         ├── highlights.md
-        └── source/            # 无预览 URL 时尽量有；有 URL 且设置开时也有
-            └── …pdf / …
+        └── source/
+            ├── {id}.pdf       # 默认下载
+            └── …              # arXiv：e-print 解压后的 .tex 工程
 # catalog.papers：path, title, pdf_url, html_url, …
 </code></pre>
 
@@ -1233,25 +1179,26 @@ await catalog.upsert({ ...metadata, path });
 <li><code>path = {parent_dir}/{id}</code>（§1.2 + §6.3）。</li>
 <li>写 <code>NOTES.md</code> + <code>highlights.md</code>。</li>
 <li><strong>catalog 事务</strong>：有则写入 <code>pdf_url</code> / <code>html_url</code>。</li>
-<li>下载按 §1.3：<strong>无预览 URL 必下</strong>；有 URL 仅设置开时下。</li>
+<li>下载按 §1.3：<strong>始终 PDF</strong>；<strong>arXiv 另解压 LaTeX</strong>。</li>
 <li><strong>不</strong>写默认 <code>PAPERS.md</code> / <code>library.bib</code>；<code>metadata.json</code> 仅在 catalog upsert 后作为投影同步。</li>
 <li>重复：<code>on_duplicate: skip | open_existing</code>，<strong>不</strong>覆盖用户 <code>NOTES.md</code>。</li>
 </ol>
-<p>arXiv 远程 URL 推导（无下载）：</p>
+<p>arXiv URL 推导：</p>
 <ul>
-<li><code>pdf_url</code>: <code>https://arxiv.org/pdf/{id}</code></li>
+<li><code>pdf_url</code>: <code>https://arxiv.org/pdf/{id}</code>（并下载）</li>
 <li><code>html_url</code>: <code>https://arxiv.org/html/{id}</code></li>
 <li><code>source_url</code>: <code>https://arxiv.org/abs/{id}</code></li>
+<li>e-print: <code>https://arxiv.org/e-print/{id}</code>（解压到 <code>source/</code>）</li>
 </ul>
 <p><code>type</code>：<code>arxiv</code> | <code>doi</code> | <code>other</code>（按标识符）。</p>
 <hr />
 <h2 id="11_1">11. 实现分期<a class="headerlink" href="#11_1" title="Permanent link">&para;</a></h2>
 <h3 id="phase-a-fallback">Phase A — 交互闭环（可先 fallback）<a class="headerlink" href="#phase-a-fallback" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[x] 文档：交互、目标文件夹、不下载约定</li>
+<li>[x] 文档：交互、目标文件夹、默认下载约定</li>
 <li>[x] 魔棒 Popover + <code>parent_dir</code> 解析 + i18n（侧栏 <code>WandSparkles</code>）</li>
 <li>[x] Host 解析 + arXiv fallback（Translator 失败时）</li>
-<li>[x] <code>lookup_import</code>：catalog upsert + NOTES 壳；下载策略见 §1.3</li>
+<li>[x] <code>lookup_import</code>：catalog upsert + NOTES 壳 + PDF/LaTeX 下载</li>
 </ul>
 <h3 id="phase-b-translator">Phase B — Translator 服务<a class="headerlink" href="#phase-b-translator" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1268,7 +1215,8 @@ await catalog.upsert({ ...metadata, path });
 </ul>
 <h3 id="phase-d">Phase D — 可选<a class="headerlink" href="#phase-d" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[x] 设置：<code>downloadFulltextToLocal</code>（有预览 URL 时是否也下载；无 URL 始终下载）</li>
+<li>[x] 默认下载 PDF；arXiv e-print 解压 LaTeX；无 <code>downloadFulltextToLocal</code> 开关</li>
+<li>[x] 文件树缺 PDF 或 arXiv 缺 TeX 时 Download → <code>paper_download_assets</code></li>
 <li>[ ] PDF prepare 复用同一 Lookup</li>
 </ul>
 <hr />
@@ -1300,12 +1248,12 @@ await catalog.upsert({ ...metadata, path });
 </tbody>
 </table>
 <hr />
-<h2 id="13">13. 验收标准<a class="headerlink" href="#13" title="Permanent link">&para;</a></h2>
+<h2 id="13_1">13. 验收标准<a class="headerlink" href="#13_1" title="Permanent link">&para;</a></h2>
 <ol>
 <li>~~点击魔棒，粘贴链接或编号，成功后 paper 壳 + <strong>catalog 有行</strong>。~~ ✅  </li>
-<li><strong>无</strong> <code>pdf_url</code>/<code>html_url</code>：无论设置，尽量下载到 <code>source/</code>。  </li>
-<li><strong>有</strong> 预览 URL + 设置关：不下载，远程预览。  </li>
-<li><strong>有</strong> 预览 URL + 设置开：catalog 保留 URL 且下载到 <code>source/</code>。  </li>
+<li>~~入库始终尝试下载 PDF 到 <code>source/</code>。~~ ✅  </li>
+<li>~~arXiv 另下载 e-print 并解压 LaTeX。~~ ✅  </li>
+<li>~~缺 PDF，或 arXiv 缺 TeX 时文件树显示 Download，可补下。~~ ✅  </li>
 <li>文件树选中 <code>papers/nlp</code> 时路径为 <code>papers/nlp/&lt;id&gt;/</code>。  </li>
 <li>重复不覆盖 <code>NOTES.md</code>；文案 i18n。  </li>
 <li>~~论文库表格（<code>paper_list</code>）能列出已入库论文。~~ ✅  </li>
@@ -1346,6 +1294,10 @@ await catalog.upsert({ ...metadata, path });
 <tr>
 <td>2026-07-15</td>
 <td>实现进度：<code>lookup_import</code> / 设置 Translator URL / catalog 权威 / <code>paper_list</code> + Library UI；metadata.json 仅为投影</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td>默认下载 PDF；arXiv 解压 LaTeX；移除 <code>downloadFulltextToLocal</code>；<code>paper_download_assets</code> + 树行 Download</td>
 </tr>
 </tbody>
 </table>

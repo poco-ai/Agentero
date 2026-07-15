@@ -653,11 +653,12 @@
 <li>Agent 工作流若需要文件形态 L1：可在 prompt 前 <strong>临时导出到</strong> <code>.motif/export/PAPERS.md</code>（gitignore 友好）或会话临时目录，而不污染 Vault 根。</li>
 </ul>
 <h3 id="55-importer">5.5 与 importer 的写路径<a class="headerlink" href="#55-importer" title="Permanent link">&para;</a></h3>
-<pre class="codehilite"><code class="language-text">import paper
+<pre class="codehilite"><code class="language-text">import paper（魔棒 lookup_import）
   → 创建 paper 文件夹（默认 `papers/&lt;id&gt;/`，也可 `papers/&lt;org&gt;/…/&lt;id&gt;/`）
   → 事务写入 catalog.papers（path = 该文件夹相对路径）
+  → ensure_paper_assets：PDF → source/；arXiv e-print → 解压 LaTeX 到 source/
   → 不更新根级 PAPERS.md / library.bib
-  → 可选：emit 事件供 UI 刷新 paper_list
+  → UI 刷新 paper_list / 文件树
 </code></pre>
 
 <p>重复入库：<code>id</code> 冲突时按 <code>overwrite</code> 策略更新行或拒绝；<strong>不得静默覆盖</strong>用户 <code>NOTES.md</code>。</p>

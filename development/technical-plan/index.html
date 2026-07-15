@@ -555,7 +555,15 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <tbody>
 <tr>
 <td>PDF 渲染（前端）</td>
-<td><strong>已接入</strong> <code>react-pdf</code> + <code>pdfjs-dist</code>：仅按 <strong>远程 <code>pdf_url</code></strong> 流式渲染（<strong>不落盘、不读 vault 内 pdf</strong>）</td>
+<td><strong>已接入</strong> <code>react-pdf</code> + <code>pdfjs-dist</code>：预览按 <strong>远程 <code>pdf_url</code></strong> 流式渲染</td>
+</tr>
+<tr>
+<td>PDF 本地归档（Host）</td>
+<td>魔棒 / <code>paper_download_assets</code> → <code>{paper}/source/{id}.pdf</code>（与预览路径分离）</td>
+</tr>
+<tr>
+<td>arXiv LaTeX 归档</td>
+<td>e-print 下载 + gzip/tar 解压到 <code>source/</code>（<code>lookup/assets.rs</code>）</td>
 </tr>
 <tr>
 <td>PDF 解析（Rust）</td>
@@ -563,7 +571,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 <tr>
 <td>HTML 预览</td>
-<td>远程 <code>html_url</code> → 独立 iframe；<strong>不下载到本地</strong></td>
+<td>远程 <code>html_url</code> → 独立 iframe（HTML 本身不强制本地下载）</td>
 </tr>
 <tr>
 <td>中间栏切换</td>
@@ -571,7 +579,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 <tr>
 <td>arXiv 资源</td>
-<td><code>pdf</code> / <code>html</code> / <code>abs</code> 规范 URL；CORS <code>*</code> 便于内嵌</td>
+<td><code>pdf</code> / <code>html</code> / <code>abs</code> / <code>e-print</code> 规范 URL</td>
 </tr>
 </tbody>
 </table>
@@ -865,20 +873,20 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </code></pre>
 
 <h3 id="52-arxiv">5.2 arXiv 入库闭环<a class="headerlink" href="#52-arxiv" title="Permanent link">&para;</a></h3>
-<pre class="codehilite"><code class="language-text">用户输入 arXiv ID / URL / 关键词 / 话题 / 一段描述
-  → Rust: 输入分类（规则解析 + Agent 意图识别）
-     ├─ 精确 ID/URL → 直接提取标准 arXiv ID
-     └─ 模糊输入 → Agent 检索 arXiv 候选并返回候选列表
-  → Frontend: 展示候选论文（标题、作者、摘要片段、推荐理由）
-  → 用户确认目标论文（单选/多选）
-  → Rust: 归一化为标准 arXiv ID
-  → Rust: 请求 arXiv API (http://export.arxiv.org/api/query)
-  → Rust: 并行下载 LaTeX source / HTML / PDF（按优先级），均存入 `papers/&lt;id&gt;/source/`
-  → Rust: 若无 LaTeX source 或需要可读结构化正文，生成 `papers/&lt;id&gt;/PAPER.md`（LaTeX/HTML/PDF → Markdown）
-  → Rust: 调用 Agent 生成 `papers/&lt;id&gt;/NOTES.md`（三段论结构），并创建空的 `papers/&lt;id&gt;/highlights.md`
-  → Rust: 写 `papers/&lt;id&gt;/` 文件 + 事务写入 catalog.papers（不写默认 PAPERS.md / library.bib / metadata.json）
-  → Frontend: 展示进度、成功、失败原因
-  → Frontend: 自动打开 NOTES.md 供用户审阅
+<p><strong>已落地（魔棒精确 ID/URL）</strong>：</p>
+<pre class="codehilite"><code class="language-text">侧栏魔棒粘贴 arXiv ID/URL
+  → lookup_import → Translator（或 arXiv Atom fallback）
+  → catalog upsert + NOTES.md / highlights.md 壳
+  → ensure_paper_assets：PDF → source/{id}.pdf；e-print → 解压 LaTeX 到 source/
+  → 刷新文件树；打开 paper（预览可用远程 pdf_url）
+</code></pre>
+
+<p><strong>规划中（关键词 / Agent 候选）</strong>：</p>
+<pre class="codehilite"><code class="language-text">用户输入关键词 / 话题 / 一段描述
+  → Rust: 输入分类 + Agent 检索 arXiv 候选
+  → Frontend: 候选列表确认（单选/多选）
+  → 复用 lookup_import / ensure_paper_assets 写盘
+  → 可选：生成 PAPER.md、Agent NOTES 深化
 </code></pre>
 
 <p><strong>输入分类与 Agent 解析</strong>：

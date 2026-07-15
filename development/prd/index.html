@@ -405,11 +405,11 @@
 <li>系统识别论文元数据。</li>
 <li>系统将确认结果归一化为标准 arXiv ID。</li>
 <li>系统创建 <code>papers/&lt;id&gt;/</code>（arxiv 用 arXiv ID，非 arxiv 用 citekey），metadata 写入 catalog。</li>
-<li>系统获取 LaTeX source / HTML / PDF，source 文件保存到 <code>source/</code>。</li>
-<li>若无 LaTeX source 或需要可读结构化正文，系统生成 <code>PAPER.md</code>。</li>
-<li>Agent 生成 <code>NOTES.md</code>，并创建空的 <code>highlights.md</code>。</li>
+<li>系统<strong>默认下载 PDF</strong> 到 <code>source/</code>；arXiv <strong>另下载 e-print 并解压 LaTeX</strong> 到 <code>source/</code>（catalog 仍保留远程 URL 供预览）。</li>
+<li>若无 LaTeX source 或需要可读结构化正文，系统可生成 <code>PAPER.md</code>（后续）。</li>
+<li>生成占位 <code>NOTES.md</code>，并创建空的 <code>highlights.md</code>（Agent 深化仍规划）。</li>
 <li>系统将 metadata 写入 catalog；不自动写 <code>PAPERS.md</code> / <code>library.bib</code>（可按需导出）。</li>
-<li>用户进入 <code>NOTES.md</code> 审阅和修订。</li>
+<li>用户进入 paper 视图 / <code>NOTES.md</code> 审阅和修订。</li>
 </ol>
 <h3 id="63-pdf">6.3 本地 PDF 入库<a class="headerlink" href="#63-pdf" title="Permanent link">&para;</a></h3>
 <ol>
