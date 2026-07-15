@@ -55,6 +55,8 @@
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#21">2.1 侧边栏文件树</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#211-ide">2.1.1 后台任务（左下角，IDE 风格）</a>
+    </li>
     <li class="toctree-l3"><a class="reference internal" href="#22-vault">2.2 无 Vault 欢迎页</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#23">2.3 原生菜单与多窗口</a>
@@ -202,6 +204,15 @@
 <li><strong>刷新文件树</strong>不在侧边栏：使用菜单 <strong>File → Refresh File Tree</strong>（<code>⌘R</code>）。</li>
 <li><strong>不要</strong>在侧边栏放打开 / 创建 Vault、关闭 Vault、刷新或设置入口。</li>
 <li><strong>不要</strong>使用「Open vault… / Refresh」等文字按钮。</li>
+</ul>
+<h3 id="211-ide">2.1.1 后台任务（左下角，IDE 风格）<a class="headerlink" href="#211-ide" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>位置</strong>：窗口左下角固定悬浮（<code>BackgroundTasksPanel</code>），不占用侧栏布局。</li>
+<li><strong>显示时机</strong>：<strong>有任务时</strong>才出现；全部结束后约 4s 自动消失。</li>
+<li><strong>收起态</strong>：一条状态条——转圈 / 完成勾 + 当前任务标题或「N 个进行中」+ 进度条；点击展开/收起。</li>
+<li><strong>展开态</strong>：任务列表（队列序号、标题、详情、进度）；可清除已完成项。</li>
+<li><strong>接入任务</strong>：单篇下载、批量下载、魔棒入库、文献库导入/导出等长操作经 <code>runBackgroundTask</code> 登记。</li>
+<li>交互对齐常见 IDE（VS Code 类）：不抢焦点、可折叠、只展示后台进度，错误仍可走原有 error 槽位。</li>
 </ul>
 <h3 id="22-vault">2.2 无 Vault 欢迎页<a class="headerlink" href="#22-vault" title="Permanent link">&para;</a></h3>
 <p>当当前窗口未打开 Vault 时，中间栏显示欢迎页（<code>src/components/layout/vault-welcome.tsx</code>）：</p>
