@@ -1016,7 +1016,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata }</code>（更新后的整行）。</li>
 <li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>setPaperIsRead</code>；paper-reader 工作流成功结束后置 <code>true</code>。</li>
-<li><strong>说明</strong>：与 <code>status</code>（入库态）无关；默认 <code>false</code>。文件树在「资源齐全且 <code>is_read === false</code>」时显示眼睛图标。</li>
+<li><strong>说明</strong>：与 <code>status</code>（入库态）无关；默认 <code>false</code>。文件树在「资源齐全且 <code>is_read === false</code>」时显示眼睛图标。实现：<code>src/lib/paper-read.ts</code>（进度 <code>kind=paperRead</code>）；skill 触发按当前默认 Agent 的 <code>SkillMentionStyle</code>。</li>
 </ul>
 <h4 id="paperlist"><code>paper:list</code>（扩展规划）<a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
 <p>带过滤与分页的列表（尚未实现；现网用 <code>paper_list</code>）。</p>

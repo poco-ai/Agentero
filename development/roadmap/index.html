@@ -191,7 +191,7 @@
 <tr>
 <td>V0.1 本地 Vault 与 Markdown 工作台</td>
 <td>✅ 基本完成</td>
-<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页、树内联新建 / <strong>Finder 显示 / 删除</strong>、PDF/HTML/Notes、WYSIWYG Markdown、<strong>论文库表格 + 虚拟 Library 节点</strong>、左右侧栏 collapsible 隔离、后台任务条、Preview/Info 仅在具体论文时显示。</td>
+<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页、树内联新建 / <strong>Finder 显示 / 删除</strong>、PDF/HTML/Notes、WYSIWYG Markdown、<strong>论文库表格 + 虚拟 Library 节点</strong>、左右侧栏 collapsible 隔离、后台任务条（含 paper-reader；hover 实色）、Preview/Info 仅在具体论文时显示。</td>
 </tr>
 <tr>
 <td>V0.2 arXiv / 标识符入库闭环</td>
@@ -238,7 +238,7 @@
 <li>[x] 侧边栏折叠、标题栏快捷按钮、Settings 窗口；左右侧栏 <strong>常驻 collapsible + preserve-pixel-size</strong>（交替快捷键互不冲态）。</li>
 <li>[x] 论文库表格：虚拟节点 <code>motif:library</code>、<code>paper_list</code>、表头排序、双向滚动。</li>
 <li>[x] Paper Info / Notes 仅在选中具体论文时显示（Library 视图隐藏）。</li>
-<li>[x] 后台任务条（左下角）：下载 / 入库 / 导入导出等长操作进度。</li>
+<li>[x] 后台任务条（左下角）：下载 / 入库 / 导入导出 / paper-reader 等长操作进度；收起态 hover 保持实色不透明。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -304,7 +304,8 @@
 <li>[x] Agent 输出期间 Composer 仍可编辑；按 <code>Esc</code> 会取消当前 ACP session 并保留已输出内容。</li>
 <li>[x] 会话 <code>cwd</code> = 当前 Vault。</li>
 <li>[ ] 工作流 prompt 模板注入 + <code>AGENTS.md</code> 约束。</li>
-<li>[x] <strong>paper-reader 精读工作流</strong>：资源齐全且未读时文件树 Eye → <code>$paper-reader</code> skill → 写 <code>NOTES.md</code> → catalog <code>is_read=true</code>；左下角任务条进度。</li>
+<li>[x] <strong>paper-reader 精读工作流</strong>：资源齐全且未读时文件树 Eye → paper-reader skill（<strong>provider 分流：Codex <code>$</code> / Claude <code>/</code> / 其它注入</strong>）→ 写 <code>NOTES.md</code> → catalog <code>is_read=true</code>；左下角任务条进度。</li>
+<li>[x] <strong>Skill 提及按 Agent 模板</strong>：Host <code>SkillMentionStyle</code>（<code>skills.rs</code>）；Composer <code>$</code> 仅为 UI 选 skill。</li>
 <li>[ ] 内置工作流：总结当前论文（面板入口）、基于本地库问答、生成 Related Work 草稿。</li>
 <li>[x] Agent 读取路径回显（Sources）。</li>
 <li>[x] 密钥边界：模型 API Key 由 Agent CLI 管理，Motif 不要求模型 BYOK 表单。</li>

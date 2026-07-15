@@ -166,14 +166,15 @@
    - [x] 在 Finder 中显示：双击 / 右键 / <code>⌥⌘R</code>（<code>revealItemInDir</code>）。
    - [x] 删除：右键 / <code>⌘⌫</code>；确认；<code>papers/</code> 下同步 <code>paper_delete</code>。
    - [x] 左右侧栏 collapsible 常驻 + <code>preserve-pixel-size</code>（交替 <code>⌥⌘S</code> / <code>⌘L</code> 不重叠）。
-   - [x] 后台任务条（下载 / 入库 / 导入导出）。</p>
+   - [x] 后台任务条（下载 / 入库 / 导入导出 / paper-reader；hover 实色不透明）。</p>
 <p>2e. <strong>PDF 阅读增强</strong> 🟡
    - [x] 缩放：工具栏 +/- / 重置；<code>⌘/Ctrl</code>+滚轮（0.5×–3×，100%=适应栏宽）。
    - [x] 划词提问 MVP：M1–M4（见 3. PDF 划词提问）。
    - [ ] 本地 PDF 直接预览（非仅远程 <code>pdf_url</code>）。</p>
 <ol>
 <li><strong>Agent 工作流入口</strong></li>
-<li>[x] <strong>paper-reader 精读</strong>：文件树 Eye（资源齐全 + <code>is_read=false</code>）→ <code>$paper-reader</code> → <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度。</li>
+<li>[x] <strong>paper-reader 精读</strong>：文件树 Eye（资源齐全 + <code>is_read=false</code>）→ paper-reader skill（Codex <code>$</code> / Claude <code>/</code> / 其它注入）→ <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度。</li>
+<li>[x] skill 运行时语法按 Agent 模板分流（Host <code>SkillMentionStyle</code>）。</li>
 <li>[ ] 在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>
 <li>[ ] workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code>。</li>
 <li>
