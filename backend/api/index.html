@@ -124,6 +124,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paper_list">paper_list（已落地）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#paper_delete">paper_delete（已落地）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#paperlist">paper:list（扩展规划）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paperupdate">paper:update</a>
@@ -975,6 +977,23 @@ Host (Tauri + Rust)
 <li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata[] }</code>（数组元素含 <code>path</code>、<code>title</code>、<code>authors</code>、<code>year</code>、<code>type</code>、标识符与远程 URL 等）。</li>
 <li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>listPapers</code>；UI 侧本地表头排序（不经由本命令传 sort 参数）。</li>
 <li><strong>说明</strong>：当前无 filter/pagination；扩展筛选/FTS 仍可用规划契约 <code>paper:list</code>（见下）。</li>
+</ul>
+<h4 id="paper_delete"><code>paper_delete</code>（已落地）<a class="headerlink" href="#paper_delete" title="Permanent link">&para;</a></h4>
+<p>从 <strong>catalog.sqlite</strong> 删除指定路径的 paper 行，以及其下嵌套路径（组织目录批量删）。<strong>不</strong>删除磁盘文件；文件树删除由前端 <code>plugin-fs</code> <code>remove</code> 负责，再调本命令清理索引。</p>
+<ul>
+<li><strong>参数</strong>（invoke 字段名 <code>args</code>）：</li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  /** paper 文件夹或 papers/ 下组织目录的 Vault 相对路径 */
+  path: string;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>：<code>{ ok: true; data: { removed: number } }</code>（删除行数；无匹配时 <code>removed: 0</code>）。</li>
+<li><strong>SQL</strong>：<code>DELETE FROM papers WHERE path = ? OR path LIKE '{path}/%'</code>。</li>
+<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>deletePapersUnderPath</code>；侧栏右键删除 / <code>⌘⌫</code>。</li>
 </ul>
 <h4 id="paperlist"><code>paper:list</code>（扩展规划）<a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
 <p>带过滤与分页的列表（尚未实现；现网用 <code>paper_list</code>）。</p>

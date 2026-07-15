@@ -239,6 +239,7 @@
 <li><strong>笔记与 source 仍是可再生之外的用户资产</strong>；catalog 损坏时，磁盘上的 paper 文件夹仍在，但 meta 字段不可从 NOTES 可靠还原。</li>
 <li><strong>导出是单向投影</strong>：<code>PAPERS.md</code> / <code>library.bib</code> 不是写回入口；改元数据只走 <code>paper:*</code> / 入库命令写 SQLite。</li>
 <li><strong><code>metadata.json</code> 是投影</strong>：读路径走 <code>paper_get</code>（catalog）；每次 <code>upsert</code> 后同步写到对应 paper 文件夹，便于外部工具浏览，<strong>不是</strong> UI 主数据源。</li>
+<li><strong>删除</strong>：文件树删除磁盘后，若路径在 <code>papers/</code> 下，调用 Host <code>paper_delete</code> 清理 catalog 行（<code>path = ? OR path LIKE '{path}/%'</code>），避免 Library 残留幽灵条目。</li>
 </ol>
 <hr />
 <h2 id="3-vault">3. 文件位置与 Vault 校验<a class="headerlink" href="#3-vault" title="Permanent link">&para;</a></h2>

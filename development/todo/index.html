@@ -229,12 +229,13 @@
 <li>
 <p><strong>PDF 划词提问（Selection Ask）</strong> — 设计见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a></p>
 </li>
-<li>[ ] M1：划词弹出迷你问答卡（本地假回复可验收交互）。</li>
-<li>[ ] M2：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code> 读写 + 页边圆片锚点（归一化坐标）。</li>
-<li>[ ] M3：接入 ACP <code>agent_run_once</code> 流式多轮；结束会话落盘。</li>
-<li>[ ] M4：双击 / 悬停停留触发 + 防误触；阈值可配置。</li>
+<li>[x] M1：划词弹出迷你问答卡。</li>
+<li>[x] M2：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code> 读写 + 页边圆片锚点（归一化坐标）。</li>
+<li>[x] M3：接入 ACP <code>agent_run_once</code> 流式多轮；结束会话落盘。</li>
+<li>[x] M4：双击 / 悬停停留触发 + 防误触（阈值暂固定 700ms）。</li>
+<li>[x] 框选截图：⌥/Alt+拖或工具栏框选 → canvas 裁剪 → 选框可缩放 → ACP Image。</li>
 <li>
-<p>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer 增强。</p>
+<p>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer；真·三指手势（系统常占用）；PDF 内嵌图 XObject 一键提取；Codex 多模态。</p>
 </li>
 <li>
 <p><strong>PDF / HTML 标注系统</strong></p>

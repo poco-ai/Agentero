@@ -166,8 +166,9 @@
               
                 <h1 id="pdf-selection-ask">PDF 划词提问（Selection Ask）<a class="headerlink" href="#pdf-selection-ask" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>设计中（未实现）</strong><br />
+<p>状态：<strong>MVP 已落地（前端 + 文件 IO）</strong><br />
 范围：阅读 PDF 时选中/双击/悬停触发提问 → 小对话框问答 → JSON 落盘 → 页边圆片回访（飞书式边注）。<br />
+实现入口：<code>src/components/viewer/pdf-viewer.tsx</code>、<code>src/lib/pdf-ask/</code>、<code>src/components/viewer/pdf-ask/</code>。<br />
 相关：<a href="../technical-plan/"><code>technical-plan.md</code></a> §3.4 阅读器、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a> Agent 契约。</p>
 </blockquote>
 <h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
@@ -193,8 +194,12 @@
 <td>指针在某处静止超过阈值 (T)（建议默认 600–800 ms，可设置），弹出迷你问答卡（无选区时以指针页坐标为锚）</td>
 </tr>
 <tr>
+<td><strong>框选截图</strong></td>
+<td>工具栏「框选」或 <strong>⌥/Alt+拖拽</strong>（PS 选框）；裁剪页 canvas → 附件；可拖控制点调框后发送。ACP 以 <code>ContentBlock::Image</code> 下发</td>
+</tr>
+<tr>
 <td><strong>键入提问</strong></td>
-<td>卡内输入问题并发送；可多轮；结束会话后收起</td>
+<td>卡内输入问题并发送；可多轮；结束会话后收起；有图时可纯图提问</td>
 </tr>
 <tr>
 <td><strong>边注圆片</strong></td>
@@ -202,7 +207,7 @@
 </tr>
 <tr>
 <td><strong>回访</strong></td>
-<td>Hover 预览摘要；点击重新打开该线程对话框</td>
+<td>Hover 打开线程；移出对话框隐藏</td>
 </tr>
 </tbody>
 </table>

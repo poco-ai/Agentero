@@ -209,6 +209,11 @@
 <li><strong>右键</strong>同上节点 → 上下文菜单「在 Finder 中显示」（文案随平台切换；旁注 <code>⌥⌘R</code>）。</li>
 <li><strong><code>⌥⌘R</code></strong>：对当前选中路径执行相同操作（<code>shortcuts.ts</code> → <code>revealInFinder</code>）。</li>
 <li>虚拟节点 <strong>Library</strong>（<code>motif:library</code>）不提供此操作；仅桌面端可用。</li>
+<li><strong>删除</strong>（<code>remove</code> + 可选 <code>paper_delete</code>）：</li>
+<li><strong>右键</strong>真实节点 →「删除」（旁注 <code>⌘⌫</code>）；确认后删盘。</li>
+<li><strong><code>⌘⌫</code></strong>：删除当前选中项（编辑器 / 输入框聚焦时不拦截，保留系统删行首行为）。</li>
+<li>路径在 <code>papers/</code> 下时同步清理 catalog 对应行（含组织目录下嵌套 paper）；随后刷新文件树、Library 与双链索引。</li>
+<li>不可删：虚拟 Library、Vault 根。</li>
 <li><strong>不要</strong>在侧边栏放打开 / 创建 Vault、关闭 Vault、刷新或设置入口。</li>
 <li><strong>不要</strong>使用「Open vault… / Refresh」等文字按钮。</li>
 </ul>
@@ -384,6 +389,11 @@
 <td><code>⌥⌘R</code></td>
 <td>在 Finder 中显示</td>
 <td>定位当前选中文件/文件夹；<code>shortcuts.ts</code> → <code>revealInFinder</code></td>
+</tr>
+<tr>
+<td><code>⌘⌫</code></td>
+<td>删除选中项</td>
+<td>文件树选中项；确认后删盘；<code>papers/</code> 同步 <code>paper_delete</code>；编辑区不拦截</td>
 </tr>
 <tr>
 <td><code>⌥⌘S</code></td>
