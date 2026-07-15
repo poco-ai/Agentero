@@ -120,13 +120,15 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#pdfimport">pdf:import</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#paperget">paper:get（扩展规划）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#paperlist">paper:list</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paperupdate">paper:update</a>
     </li>
         </ul>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#351-catalog">3.5.1 Catalog 导出</a>
+    <li class="toctree-l3"><a class="reference internal" href="#361-catalog">3.6.1 Catalog 导出</a>
         <ul>
     <li class="toctree-l4"><a class="reference internal" href="#catalogexport_papers_md">catalog:export_papers_md</a>
     </li>
@@ -134,7 +136,7 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#36-agent-acp-client-byoa">3.6 Agent 工作流（ACP Client + BYOA）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#37-agent-acp-client-byoa">3.7 Agent 工作流（ACP Client + BYOA）</a>
         <ul>
     <li class="toctree-l4"><a class="reference internal" href="#agentlist_agents">agent:list_agents</a>
     </li>
@@ -158,7 +160,7 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#37">3.7 双链与图谱</a>
+    <li class="toctree-l3"><a class="reference internal" href="#38">3.8 双链与图谱</a>
         <ul>
     <li class="toctree-l4"><a class="reference internal" href="#graph_get_backlinks-graphget_backlinks">graph_get_backlinks（实现中；草案名 graph:get_backlinks）</a>
     </li>
@@ -168,7 +170,7 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#38">3.8 配置</a>
+    <li class="toctree-l3"><a class="reference internal" href="#39">3.9 配置</a>
         <ul>
     <li class="toctree-l4"><a class="reference internal" href="#configget">config:get</a>
     </li>
@@ -176,7 +178,7 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#39-ui-i18n">3.9 界面与本地化（UI / i18n）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#310-ui-i18n">3.10 界面与本地化（UI / i18n）</a>
         <ul>
     <li class="toctree-l4"><a class="reference internal" href="#set_locale">set_locale（已实现）</a>
     </li>
@@ -195,6 +197,8 @@
                   <li class="toctree-l1"><a class="reference internal" href="../data-model/">数据模型</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../identifier-lookup/">魔棒与 Translator</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../wikilinks/">双链与图谱</a>
                   </li>
@@ -405,7 +409,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>行为</strong></li>
 <li>确保目录存在；脚手架 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.motif/</code>。</li>
-<li>初始化 <code>.motif/catalog.sqlite</code>（schema v1）。详见 <a href="../catalog/"><code>catalog.md</code></a>。</li>
+<li>初始化 <code>.motif/catalog.sqlite</code>（schema 当前版本，含 Translator 元数据列）。详见 <a href="../catalog/"><code>catalog.md</code></a>。</li>
 <li>写入默认 <code>AGENTS.md</code>。</li>
 <li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
 <li>最近列表由前端在成功打开后写入 <code>localStorage</code>（<code>motif-recent-vaults</code>）。</li>
@@ -778,18 +782,76 @@ Host (Tauri + Rust)
 <li><strong>不</strong>自动写 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
 <li>使用云端 MinerU 前需前端已获用户同意（PDF 将上传第三方）。</li>
 </ul>
-<pre class="codehilite"><code>### 3.5 论文
+<pre class="codehilite"><code>### 3.5 魔棒 / 标识符入库（已落地 v0）
+
+**交互**：侧边栏魔棒 → 粘贴链接/编号 → Host `lookup_import` → Translator → 写 paper 文件夹。  
+详见 [`identifier-lookup.md`](identifier-lookup.md)。
+
+**Translator 默认地址**：`https://translator.philfan.cn`（设置 `translatorBaseUrl` 可改）。  
+`POST {base}/search` 或 `/web`，body 为 plain text。
+
+#### `lookup_translator_config`
+
+- **返回**：`{ ok: true; data: { defaultBaseUrl: &quot;https://translator.philfan.cn&quot; } }`
+
+#### `lookup_import`
+
+- **参数**（invoke 字段名 `args`）：
+  ```ts
+  {
+    vaultPath: string;
+    parentDir: string;              // &quot;papers&quot; | &quot;papers/nlp&quot;
+    text: string;
+    downloadFulltextToLocal?: boolean;
+    translatorBaseUrl?: string;     // 来自设置，默认 https://translator.philfan.cn
+  }
+  ```
+- **返回**：
+  ```ts
+  {
+    ok: true;
+    data: {
+      paperDir: string;
+      path: string;
+      id: string;
+      title: string;
+      usedTranslator: boolean;
+      translatorBaseUrl: string;
+    }
+  }
+  ```
+- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；写 `NOTES.md` / `highlights.md` / `metadata.json`；下载策略见 identifier-lookup §1.3。
+
+### 3.6 论文
 
 论文**集合与元数据**存于 `.motif/catalog.sqlite`；本组命令读写 catalog，并附带 Vault 相对路径字段。详见 [`catalog.md`](catalog.md)、[`data-model.md`](data-model.md)。
 
-#### `paper:get`
+#### `paper_get`（已落地）
 
-获取单篇论文完整数据（catalog 行 + 路径）。
+从 **catalog.sqlite** 读取单篇论文元数据（权威来源）。
 
-- **参数**
+- **参数**（invoke 字段名 `args`）：
 
 ```ts
 {
+  vaultPath: string;
+  /** paper 文件夹 Vault 相对路径（主键），如 papers/nlp/1706.03762 */
+  path?: string;
+  /** 或按逻辑 id 查询 */
+  id?: string;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata }</code>（含 <code>pdf_url</code> / <code>html_url</code> / <code>arxiv_id</code> 等）；未找到则 <code>ok: false</code>。</li>
+<li><strong>说明</strong>：UI 预览链接从此接口读取；<code>metadata.json</code> 仅作同步投影。</li>
+</ul>
+<h4 id="paperget"><code>paper:get</code>（扩展规划）<a class="headerlink" href="#paperget" title="Permanent link">&para;</a></h4>
+<p>获取单篇论文完整数据（catalog 行 + 路径附件信息）。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
   /** paper 文件夹 Vault 相对路径（主键），如 papers/nlp/1706.03762 */
   path?: string;
   /** 逻辑 id（arXiv / citekey）；多 path 命中时返回列表或报歧义（实现可选） */
@@ -850,7 +912,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>返回</strong>：<code>{ ok: true; data: { paper: Paper } }</code></li>
 </ul>
-<h3 id="351-catalog">3.5.1 Catalog 导出<a class="headerlink" href="#351-catalog" title="Permanent link">&para;</a></h3>
+<h3 id="361-catalog">3.6.1 Catalog 导出<a class="headerlink" href="#361-catalog" title="Permanent link">&para;</a></h3>
 <p>根级 <code>PAPERS.md</code> / <code>library.bib</code> <strong>默认不存在</strong>；需要时显式导出。完整约定见 <a href="../catalog/"><code>catalog.md</code></a>。</p>
 <h4 id="catalogexport_papers_md"><code>catalog:export_papers_md</code><a class="headerlink" href="#catalogexport_papers_md" title="Permanent link">&para;</a></h4>
 <p>从 <code>papers</code> 表生成 Markdown 索引表（历史 <code>PAPERS.md</code> 形态）。</p>
@@ -881,7 +943,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>参数 / 返回</strong>：同 <code>catalog:export_papers_md</code>（<code>content</code> 为 BibTeX 文本）。</li>
 </ul>
-<h3 id="36-agent-acp-client-byoa">3.6 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#36-agent-acp-client-byoa" title="Permanent link">&para;</a></h3>
+<h3 id="37-agent-acp-client-byoa">3.7 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#37-agent-acp-client-byoa" title="Permanent link">&para;</a></h3>
 <p>Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（<code>cwd</code> = 当前 Vault），通过 stdio JSON-RPC 会话。<strong>不</strong> 内置 agent 二进制；<strong>不</strong> 在 config 中要求模型 API Key。</p>
 <h4 id="agentlist_agents"><code>agent:list_agents</code><a class="headerlink" href="#agentlist_agents" title="Permanent link">&para;</a></h4>
 <p>列出已注册 Agent 及其探测状态。</p>
@@ -1081,7 +1143,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>返回</strong>：<code>{ ok: true; data: null }</code></li>
 </ul>
-<h3 id="37">3.7 双链与图谱<a class="headerlink" href="#37" title="Permanent link">&para;</a></h3>
+<h3 id="38">3.8 双链与图谱<a class="headerlink" href="#38" title="Permanent link">&para;</a></h3>
 <blockquote>
 <p>产品与索引设计见 <strong><code>docs/backend/wikilinks.md</code></strong>。下列为 Host 接口草案。</p>
 </blockquote>
@@ -1196,7 +1258,7 @@ Host (Tauri + Rust)
 }
 </code></pre>
 
-<h3 id="38">3.8 配置<a class="headerlink" href="#38" title="Permanent link">&para;</a></h3>
+<h3 id="39">3.9 配置<a class="headerlink" href="#39" title="Permanent link">&para;</a></h3>
 <h4 id="configget"><code>config:get</code><a class="headerlink" href="#configget" title="Permanent link">&para;</a></h4>
 <p>获取应用配置。</p>
 <ul>
@@ -1245,7 +1307,7 @@ Host (Tauri + Rust)
 <li><code>parser.mineru.enabled</code>：是否启用云端 MinerU，默认 <code>false</code>。</li>
 <li><code>recent_vaults</code>：最近 Vault 列表（Host 维护，前端一般只读）。</li>
 </ul>
-<h3 id="39-ui-i18n">3.9 界面与本地化（UI / i18n）<a class="headerlink" href="#39-ui-i18n" title="Permanent link">&para;</a></h3>
+<h3 id="310-ui-i18n">3.10 界面与本地化（UI / i18n）<a class="headerlink" href="#310-ui-i18n" title="Permanent link">&para;</a></h3>
 <h4 id="set_locale"><code>set_locale</code>（已实现）<a class="headerlink" href="#set_locale" title="Permanent link">&para;</a></h4>
 <p>渲染层在语言偏好变化时通知 Host 按新 locale 重建原生应用菜单（macOS 菜单栏）。</p>
 <ul>
@@ -1358,10 +1420,15 @@ Host (Tauri + Rust)
 <td>V0.5</td>
 <td>抽象 importer，落地 arxiv 与本地 PDF；新增 <code>pdf:*</code> 命令与可插拔 <code>PdfParser</code>（liteparse 默认 + 云端 MinerU）。</td>
 </tr>
+<tr>
+<td>V0.x</td>
+<td>魔棒 <code>lookup:*</code> + 本机 Translator Runtime（见 <a href="../identifier-lookup/"><code>identifier-lookup.md</code></a>）。</td>
+</tr>
 </tbody>
 </table>
 <p>后续扩展：
 - <code>importer:import</code> 统一来源入口。
+- <code>lookup:*</code> 与 PDF prepare 共用元数据管道。
 - <code>search:full_text</code> 本地全文搜索。
 - <code>reader:annotations</code> 标注（<code>highlights.md</code>）读写。
 - <code>sync:*</code> 多设备同步（远期）。</p>

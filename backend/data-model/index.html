@@ -110,6 +110,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../catalog/">论文目录库</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../identifier-lookup/">魔棒与 Translator</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../wikilinks/">双链与图谱</a>
                   </li>
               </ul>
@@ -401,14 +403,33 @@ UI 列表 / 筛选 / Paper Info / 远程 PDF·HTML URL 均读 catalog，不扫 <
   id: string;                 // 逻辑 id：arXiv ID 或 citekey
   type: 'arxiv' | 'pdf' | 'html' | 'doi' | 'other';
   title: string;
-  authors: string[];
-  year: number;
+  authors: string[];          // 展示用
+  /** 完整 creators（Translator 映射，含 creatorType） */
+  creators?: { firstName?: string; lastName?: string; name?: string; creatorType?: string }[];
+  year?: number;
+  /** 原始日期串（Translator `date`） */
+  date?: string;
   abstract?: string;
   tags: string[];
 
-  // 来源链接（UI 阅读器 PDF/HTML 模式以此为准）
+  // 标识符
   arxiv_id?: string;
   doi?: string;
+  isbn?: string;
+  issn?: string;
+  pmid?: string;
+
+  // 出版信息（Translator 期刊/图书字段并入）
+  publication?: string;       // publicationTitle / proceedingsTitle / bookTitle
+  volume?: string;
+  issue?: string;
+  pages?: string;
+  publisher?: string;
+  place?: string;
+  series?: string;
+  language?: string;
+
+  // 来源链接（UI 阅读器 PDF/HTML 模式以此为准；只存 URL，不落盘）
   /**
    * 远程 PDF URL（UI 仅流式预览，不落盘）。
    * 推荐 arXiv: `https://arxiv.org/pdf/{arxiv_id}`；缺省且有 arxiv_id 时自动推导。
@@ -419,16 +440,22 @@ UI 列表 / 筛选 / Paper Info / 远程 PDF·HTML URL 均读 catalog，不扫 <
    * 推荐 arXiv: `https://arxiv.org/html/{arxiv_id}`；缺省且有 arxiv_id 时自动推导。
    */
   html_url?: string;
-  /** 摘要页等，如 `https://arxiv.org/abs/{arxiv_id}` */
+  /** 摘要页 / 条目页，如 arXiv abs、doi.org */
   source_url?: string;
 
-  // 正文来源与质量:渐进式披露与降级策略的决策依据
+  // 正文来源与质量（本地 PDF 解析时用；魔棒通常不填）
   body_source?: 'latex' | 'html' | 'pdf' | 'ocr';
   body_quality?: 'high' | 'medium' | 'low';
 
-  // 引用
+  // 引用与溯源
   bibtex_key?: string;
   citation_count?: number;
+  /** Translator itemType，如 journalArticle / preprint / book */
+  zotero_item_type?: string;
+  /** libraryCatalog，如 DOI.org (Crossref)、arXiv.org */
+  meta_source?: string;
+  /** Translator extra 残余 */
+  extra?: string;
 
   /** 列表/导出用一行说明（可选） */
   summary?: string;
@@ -440,11 +467,11 @@ UI 列表 / 筛选 / Paper Info / 远程 PDF·HTML URL 均读 catalog，不扫 <
 }
 </code></pre>
 
-<p><strong>元数据来源</strong>:</p>
+<p><strong>元数据来源</strong>（统一）:</p>
 <ul>
-<li><strong>arxiv</strong>:由 arXiv API 提供权威字段(标题 / 作者 / 年份 / 摘要 / arxiv_id)。</li>
-<li><strong>pdf</strong>:先从 PDF 提取 DOI / arXiv ID,命中则查询 Crossref / arXiv;未命中或失败时由 Agent 从正文抽取候选,最终一律经用户在入库前确认面板校对后<strong>写入 catalog</strong>。</li>
-<li><code>type='pdf'</code> 时 <code>body_source</code> 为 <code>pdf</code>(文本层)或 <code>ocr</code>(扫描件),<code>body_quality</code> 由解析后端决定:MinerU → high,liteparse 文本 → medium,OCR → low。</li>
+<li><strong>魔棒 / 标识符入库</strong>：Translator（含 arXiv、DOI、ISBN、PMID 等）→ <strong>直接 map 进 <code>PaperMetadata</code></strong> → catalog；<code>pdf_url</code>/<code>html_url</code> 只存远程 URL。见 <a href="../identifier-lookup/"><code>identifier-lookup.md</code></a> §5。</li>
+<li><strong>本地 PDF</strong>：提取 DOI/arXiv 后同样可走 Translator 补全，再经用户确认写 catalog。</li>
+<li><code>type='pdf'</code> 时 <code>body_source</code> 为 <code>pdf</code> 或 <code>ocr</code>，<code>body_quality</code> 由解析后端决定。</li>
 </ul>
 <h3 id="34-paper">3.4 论文运行时对象 (Paper)<a class="headerlink" href="#34-paper" title="Permanent link">&para;</a></h3>
 <p>Host 返回给前端的运行时对象 = catalog 行 + 解析出的 Vault 相对路径。</p>

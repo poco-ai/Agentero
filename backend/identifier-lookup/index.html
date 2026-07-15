@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>魔棒与 Translator - Motif 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u9b54\u68d2\u4e0e Translator";
+        var mkdocs_page_input_path = "backend/identifier-lookup.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Motif 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">魔棒与 Translator</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 产品目标</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#11">1.1 主交互（必须先满足）</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#_1">用户故事</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#12">1.2 目标文件夹解析规则</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#13-vs">1.3 远程预览 vs 本地下载（策略 + 设置）</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#_2">决策表</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#translator">Translator 服务地址（设置）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#_3">设置项</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#14">1.4 非目标（本阶段）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#15-arxiv-doi">1.5 统一数据流（arXiv 与 DOI 等合并）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 架构总览</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#21">2.1 分层</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#22-translator-runtime">2.2 为何用旁路 Translator Runtime</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#23-zotero">2.3 与 Zotero 魔棒的对应关系</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 标识符与解析规则</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31-v1">3.1 支持的类型（v1）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32-zotero-extractidentifiers">3.2 解析优先级（对齐 Zotero extractIdentifiers）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#33-parsedidentifier">3.3 输出：ParsedIdentifier</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4-translator-runtime">4. Translator Runtime 契约</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#41">4.1 部署形态</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#42-http-api-translation-server">4.2 HTTP API（与官方 translation-server 对齐）</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#post-search">POST /search — 标识符查元数据（魔棒主路径）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#post-web-urlv2">POST /web — 网页 URL（v2 可选）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#post-import-bibtexris">POST /import — BibTeX/RIS 等（与迁移工具共享，非魔棒主路径）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#43">4.3 健康检查与懒启动</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#44">4.4 失败与降级</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5-translator-item-papermetadata">5. 数据映射：Translator Item → PaperMetadata（直接并入）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#51-item-metadata">5.1 字段对照（Item → metadata）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#52-url">5.2 URL 补全（仍不下载）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#53">5.3 中间结果</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6-tauri">6. Tauri 命令与事件（契约）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#61-lookupparse">6.1 lookup:parse</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#62-lookupsearch">6.2 lookup:search</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#63-lookupimport">6.3 lookup:import</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#64">6.4 事件</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#65-translatorstatus-translatorrestart">6.5 translator:status / translator:restart（设置页）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7">7. 许可、隐私与合规</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#71">7.1 许可</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#72">7.2 隐私与网络</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#73-local-first">7.3 local-first</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#8-ui">8. 前端 UI（概要）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#81">8.1 入口</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#82-v1">8.2 主交互流（v1）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#83">8.3 目标文件夹展示</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#9-host">9. Host 模块布局（规划）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#10">10. 入库落盘契约（魔棒）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#11_1">11. 实现分期</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#phase-a-fallback">Phase A — 交互闭环（可先 fallback）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#phase-b-translator-runtime">Phase B — Translator Runtime</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#phase-c">Phase C — 体验打磨</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#phase-d">Phase D — 可选</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#12_1">12. 测试要点</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#13">13. 验收标准</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#14_1">14. 开放问题</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#15">15. 修订记录</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/hypothesis/">产品假设</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Motif 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">后端</li>
+      <li class="breadcrumb-item active">魔棒与 Translator</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/motif/edit/main/docs/backend/identifier-lookup.md">Edit on poco-ai/motif</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="identifier-lookup-translator">魔棒入库（Identifier Lookup）与 Translator 后端<a class="headerlink" href="#identifier-lookup-translator" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>状态：<strong>设计稿（待实现）</strong><br />
+目标：用户点击 <strong>魔棒</strong>，粘贴 <strong>链接或编号</strong> → 用 <strong>Translator</strong> 解析元数据 → <strong>只写 catalog + 轻量 paper 文件夹</strong>（远程 <code>pdf_url</code> / <code>html_url</code> <strong>不下载</strong>）→ 落到 <code>papers/</code> 或当前 Papers 子文件夹。</p>
+</blockquote>
+<p>相关文档：</p>
+<ul>
+<li>Catalog 权威存储：<a href="../catalog/"><code>catalog.md</code></a></li>
+<li>入库命令与事件：<a href="../api/"><code>api.md</code></a> §3.5</li>
+<li>Vault 文件模型：<a href="../data-model/"><code>data-model.md</code></a></li>
+<li>UI：<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a></li>
+</ul>
+<hr />
+<h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<h3 id="11">1.1 主交互（必须先满足）<a class="headerlink" href="#11" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">用户点击魔棒
+  → 输入框：粘贴链接或编号（DOI / arXiv URL / arXiv ID / ISBN / PMID …）
+  → Translator 解析元数据
+  → 展示标题/作者等简要结果（可极简：成功即入库，失败 toast）
+  → 加入 Papers：
+       ├─ 默认：papers/&lt;id&gt;/
+       └─ 若当前上下文是 papers 下的组织子文件夹：papers/&lt;子路径&gt;/&lt;id&gt;/
+  → catalog.sqlite 写入一行（含 pdf_url / html_url / source_url 等）
+  → 不下载 PDF/HTML 文件到 source/（与现有「远程 URL 只读 catalog」一致）
+</code></pre>
+
+<h4 id="_1">用户故事<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h4>
+<ol>
+<li>用户在工具栏点击 <strong>魔棒</strong>（或 <code>⇧⌘I</code>）。</li>
+<li>粘贴 <strong>链接</strong>（如 <code>https://arxiv.org/abs/1706.03762</code>、<code>https://doi.org/10.…</code>）或 <strong>编号</strong>（如 <code>1706.03762</code>、<code>10.1038/…</code>）。</li>
+<li>Motif 用 <strong>本机 Translator Runtime</strong>（Search / 必要 Web）解析出书目元数据。</li>
+<li>将条目加入 <strong>Papers</strong>：</li>
+<li><strong>默认目标</strong>：Vault 的 <code>papers/</code> 根下，<code>papers/&lt;id&gt;/</code>。</li>
+<li><strong>上下文目标</strong>：若文件树当前选中（或等价「当前打开」）的是 <code>papers/</code> 下的<strong>组织子文件夹</strong>（非 paper 本体），则写入<br />
+<code>papers/&lt;该子路径&gt;/&lt;id&gt;/</code>。</li>
+<li><strong>Catalog 写入</strong> title / authors / year / doi / arxiv_id / <strong><code>pdf_url</code> / <code>html_url</code> / <code>source_url</code></strong> 等；中间栏 PDF/HTML 视图仍按 UI 约定 <strong>只读远程 URL，不落盘下载</strong>。</li>
+<li>本地只创建轻量 paper 壳：<code>NOTES.md</code>（占位或短摘要）、空 <code>highlights.md</code>；<strong>不</strong>强制 <code>source/</code> 下载、<strong>不</strong>因魔棒去抓 PDF/HTML 文件。</li>
+</ol>
+<h3 id="12">1.2 目标文件夹解析规则<a class="headerlink" href="#12" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>当前上下文（前端算出后传给 Host）</th>
+<th>入库父目录 <code>parent_dir</code></th>
+<th>最终 path 示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>未选中 / 选中不在 <code>papers/</code> 下</td>
+<td><code>papers</code></td>
+<td><code>papers/1706.03762</code></td>
+</tr>
+<tr>
+<td>选中 <code>papers</code> 根目录</td>
+<td><code>papers</code></td>
+<td><code>papers/1706.03762</code></td>
+</tr>
+<tr>
+<td>选中 <code>papers/nlp</code>（组织文件夹，非 paper）</td>
+<td><code>papers/nlp</code></td>
+<td><code>papers/nlp/1706.03762</code></td>
+</tr>
+<tr>
+<td>选中某个 paper 文件夹或其中的文件</td>
+<td><strong>该 paper 的父目录</strong></td>
+<td><code>papers/nlp/1706.03762</code>（与兄弟 paper 同级）</td>
+</tr>
+<tr>
+<td>选中 <code>notes/</code>、<code>plans/</code> 等</td>
+<td>回退 <code>papers</code></td>
+<td><code>papers/1706.03762</code></td>
+</tr>
+</tbody>
+</table>
+<p>规则摘要（前端 <code>resolvePapersParentDir</code>）：</p>
+<ol>
+<li>取文件树 <strong>当前选中路径</strong>（与新建文件时类似；若打开的是 paper 内文件，先归到 paper 文件夹再取其父目录）。</li>
+<li>若路径落在某个 <strong>paper 最小单元</strong> 内 → 使用该 paper 的 <strong>父目录</strong> 作为 <code>parent_dir</code>。</li>
+<li>若路径是 <code>papers/</code> 下目录且 <strong>不是</strong> paper → 该目录即为 <code>parent_dir</code>。</li>
+<li>否则 <code>parent_dir = "papers"</code>。</li>
+<li>Host <strong>校验</strong>：<code>parent_dir</code> 必须是 <code>papers</code> 或 <code>papers/</code> 下既有（或可创建的）相对路径；禁止写到 Vault 外。</li>
+</ol>
+<p>UI：弹层底部一行轻量文案，如「将加入 <code>papers/nlp/</code>」（i18n），避免大段说明。</p>
+<h3 id="13-vs">1.3 远程预览 vs 本地下载（策略 + 设置）<a class="headerlink" href="#13-vs" title="Permanent link">&para;</a></h3>
+<p>catalog <strong>始终</strong>可写入 <code>pdf_url</code> / <code>html_url</code>（有则供在线预览）。本地下载规则如下。</p>
+<h4 id="_2">决策表<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>有 <code>pdf_url</code> 或 <code>html_url</code></th>
+<th>设置 <code>downloadFulltextToLocal</code></th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>有</strong></td>
+<td><strong>关（默认）</strong></td>
+<td>只写 catalog URL；<strong>不</strong>下载（用远程预览）</td>
+</tr>
+<tr>
+<td><strong>有</strong></td>
+<td><strong>开</strong></td>
+<td>catalog 写 URL <strong>且</strong> 用该 URL 下载到 <code>source/</code></td>
+</tr>
+<tr>
+<td><strong>无</strong></td>
+<td><strong>任意</strong>（关/开相同）</td>
+<td><strong>必须尝试下载</strong>到 <code>source/</code>（否则没有可预览内容）；无可下载地址则仅 metadata</td>
+</tr>
+</tbody>
+</table>
+<p>要点：</p>
+<ul>
+<li><strong>无预览 URL → 始终尽量下载</strong>（与设置无关）。</li>
+<li><strong>有预览 URL → 默认不下载</strong>；仅设置打开时额外镜像到本地。</li>
+</ul>
+<p>阅读：优先远程 URL；<code>source/</code> 有文件时可作离线回退（实现阶段再定优先级）。</p>
+<h4 id="translator">Translator 服务地址（设置）<a class="headerlink" href="#translator" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>设置 key</td>
+<td><code>translatorBaseUrl</code>（Settings → General）</td>
+</tr>
+<tr>
+<td>默认</td>
+<td><strong><code>https://translator.philfan.cn</code></strong></td>
+</tr>
+<tr>
+<td>Host 常量</td>
+<td><code>DEFAULT_TRANSLATOR_BASE_URL</code>（与设置默认一致）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>魔棒入库时前端把设置中的 URL 传入 <code>lookup_import.args.translatorBaseUrl</code>。</li>
+<li>Host：<code>POST {base}/search</code> 或 <code>/web</code>（<code>Content-Type: text/plain</code>）。</li>
+<li>服务不可达且输入为 arXiv 时，回退 export.arxiv.org。</li>
+</ul>
+<h4 id="_3">设置项<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>类型</th>
+<th>默认</th>
+<th>UI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>downloadFulltextToLocal</code></td>
+<td><code>boolean</code></td>
+<td><strong><code>false</code></strong></td>
+<td>Settings → <strong>General</strong></td>
+</tr>
+</tbody>
+</table>
+<p>含义是「<strong>有预览链接时是否也下载到本地</strong>」，不是「总开关」：</p>
+<ul>
+<li><strong>关（默认）</strong>：有 URL 只远程预览；无 URL 仍会下载（若可能）。</li>
+<li><strong>开</strong>：有 URL 时也写入 <code>source/</code>。</li>
+</ul>
+<p>文案（i18n）：</p>
+<ul>
+<li>en：<code>Also download when a preview URL exists</code></li>
+<li>zh：<code>有预览链接时也下载到本地</code></li>
+</ul>
+<p>实现：<code>AppSettings</code> + General Switch；<code>lookup:import</code> 传入该标志。</p>
+<h3 id="14">1.4 非目标（本阶段）<a class="headerlink" href="#14" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>不做</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>有远程预览时仍强制镜像下载</td>
+<td>与「远程优先」冲突；不做</td>
+</tr>
+<tr>
+<td>官方 Zotero 公网 Translation SaaS</td>
+<td>自托管 Runtime</td>
+</tr>
+<tr>
+<td>AGPL 翻译器链进主二进制</td>
+<td>sidecar 旁路进程</td>
+</tr>
+<tr>
+<td>复杂多步确认面板</td>
+<td>v1 可「解析成功即入库」；重复时提示 skip / 打开已有</td>
+</tr>
+</tbody>
+</table>
+<h3 id="15-arxiv-doi">1.5 统一数据流（arXiv 与 DOI 等合并）<a class="headerlink" href="#15-arxiv-doi" title="Permanent link">&para;</a></h3>
+<p><strong>不要</strong>再分「左边 arXiv API / 右边 Translator」两条线。魔棒只走一条管道：</p>
+<pre class="codehilite"><code class="language-text">用户输入（链接或编号：arXiv / DOI / ISBN / PMID …）
+        │
+        ▼
+  parse → 规范化标识符 / URL
+        │
+        ▼
+  Translator Runtime
+    ├─ 编号 → POST /search
+    └─ 链接 → POST /web（必要时）
+        │
+        ▼
+  Zotero API JSON Item
+        │
+        ▼
+  map → PaperMetadata（字段直接写入，见 §5）
+    + 补全：arxiv 时用 arxiv.ts 填 pdf_url/html_url/source_url（若 Translator 未给）
+        │
+        ▼
+  parent_dir 解析 → path = {parent_dir}/{id}
+        │
+        ▼
+  catalog.papers UPSERT（sqlite，权威）
+  + 同步投影 metadata.json 到 paper 文件夹
+  + papers/.../NOTES.md、highlights.md
+        │
+        ▼
+  下载判定（见 §1.3）：
+    无 pdf_url 且无 html_url → 始终尝试下载到 source/
+    有预览 URL 且 downloadFulltextToLocal → 用 URL 下载到 source/
+    有预览 URL 且设置关 → 不下载
+
+读路径：UI 用 paper_get 读 catalog；不把 metadata.json 当主源。
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>来源</th>
+<th>在统一流中的位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>arXiv 编号/abs URL</td>
+<td>同一 Translator（arXiv Search/Web）→ map 进 metadata</td>
+</tr>
+<tr>
+<td>DOI / ISBN / PMID</td>
+<td>同一 Translator Search → map 进 metadata</td>
+</tr>
+<tr>
+<td>远程 PDF/HTML</td>
+<td><strong>只</strong>作为 <code>pdf_url</code> / <code>html_url</code> 字段进 metadata/catalog</td>
+</tr>
+<tr>
+<td>旧独立 <code>arxiv:import</code> 全量下载</td>
+<td><strong>不</strong>混进魔棒；若保留则是另一命令，默认用户走魔棒</td>
+</tr>
+</tbody>
+</table>
+<p>原则：</p>
+<ul>
+<li><strong>Translator 返回值 → 直接并入 <code>PaperMetadata</code></strong>，再落 catalog；不并行维护两套 arXiv 专用结构。</li>
+<li><strong>魔棒 = 轻量加入文库</strong>（metadata + 远程 URL + 笔记壳）。</li>
+</ul>
+<hr />
+<h2 id="2">2. 架构总览<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="21">2.1 分层<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">┌──────────────────────────────────────────────────────────┐
+│ Frontend：魔棒输入 + parent_dir + 打开 paper              │
+└───────────────────────────┬──────────────────────────────┘
+                            │ lookup:add / lookup:search+import
+┌───────────────────────────▼──────────────────────────────┐
+│ Host：parse → Translator client → map→PaperMetadata      │
+│       → catalog upsert + 最小文件落盘                      │
+└───────────────────────────┬──────────────────────────────┘
+                            │ POST /search | /web
+┌───────────────────────────▼──────────────────────────────┐
+│ Translator Runtime（本机 sidecar）                         │
+│  Search/Web translators（含 arXiv、DOI、ISBN、PMID…）      │
+└──────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="22-translator-runtime">2.2 为何用旁路 Translator Runtime<a class="headerlink" href="#22-translator-runtime" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>优点</th>
+<th>缺点</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A. 仅自写 Crossref/arXiv 客户端</td>
+<td>无 AGPL、实现简单</td>
+<td>覆盖面远小于 Zotero；ISBN/PMID/ADS 等要逐个做</td>
+<td>可作为 <strong>fallback</strong></td>
+</tr>
+<tr>
+<td>B. Motif 进程内嵌 JS 翻译器引擎</td>
+<td>零外部进程</td>
+<td>AGPL 传染风险、打包复杂</td>
+<td><strong>不做</strong>（除非产品整体 AGPL）</td>
+</tr>
+<tr>
+<td>C. <strong>本机 sidecar：translation-server</strong></td>
+<td>复用全量 Search Translator；进程边界清晰；可热更新 translators</td>
+<td>需管理子进程生命周期</td>
+<td><strong>推荐主路径</strong></td>
+</tr>
+<tr>
+<td>D. 用户自备 URL 指向外部 server</td>
+<td>灵活</td>
+<td>隐私/ToS/可用性不可控</td>
+<td>高级设置可选</td>
+</tr>
+</tbody>
+</table>
+<p><strong>默认策略</strong>：Motif 启动后按需拉起本地 Translator Runtime；不可用时降级到内置轻量客户端（DOI→doi.org/Crossref，arXiv→export API），并在 UI 标明「精简模式」。</p>
+<h3 id="23-zotero">2.3 与 Zotero 魔棒的对应关系<a class="headerlink" href="#23-zotero" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Zotero</th>
+<th>Motif</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lookup.js</code> UI</td>
+<td><code>MagicWand</code> 弹层</td>
+</tr>
+<tr>
+<td><code>extractIdentifiers()</code></td>
+<td><code>lookup:parse</code> / Host <code>parse.rs</code></td>
+</tr>
+<tr>
+<td><code>Zotero.Translate.Search</code></td>
+<td><code>POST /search</code> on translation-server</td>
+</tr>
+<tr>
+<td>Search Translators 仓库</td>
+<td>sidecar 内置 / 可更新的 translators 目录</td>
+</tr>
+<tr>
+<td>写入 Zotero SQLite</td>
+<td>写 Vault 文件 + <strong>catalog.sqlite</strong></td>
+</tr>
+<tr>
+<td>可选附件</td>
+<td>本阶段可选：有 <code>pdf_url</code>/<code>arxiv_id</code> 再走 source 抓取</td>
+</tr>
+</tbody>
+</table>
+<p>参考实现（上游，不 fork 进 Motif 主仓逻辑）：</p>
+<ul>
+<li>UI：<a href="https://github.com/zotero/zotero/blob/main/chrome/content/zotero/lookup.js"><code>zotero/zotero</code> <code>lookup.js</code></a></li>
+<li>解析：<a href="https://github.com/zotero/utilities"><code>zotero/utilities</code> <code>extractIdentifiers</code></a></li>
+<li>引擎：<a href="https://github.com/zotero/translate"><code>zotero/translate</code> <code>Translate.Search</code></a></li>
+<li>HTTP 服务：<a href="https://github.com/zotero/translation-server"><code>zotero/translation-server</code></a></li>
+<li>翻译器：<a href="https://github.com/zotero/translators"><code>zotero/translators</code></a>（如 <code>DOI Content Negotiation.js</code>、<code>Library of Congress ISBN.js</code>、<code>PubMed.js</code>、<code>arXiv.org.js</code>）</li>
+</ul>
+<hr />
+<h2 id="3">3. 标识符与解析规则<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31-v1">3.1 支持的类型（v1）<a class="headerlink" href="#31-v1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>示例</th>
+<th>Translator 侧典型来源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DOI</strong></td>
+<td><code>10.1038/nature12373</code>、<code>https://doi.org/10.…</code></td>
+<td>DOI Content Negotiation → Crossref / DataCite / CSL</td>
+</tr>
+<tr>
+<td><strong>ISBN</strong></td>
+<td><code>978-0-262-03384-8</code>、<code>0838985890</code></td>
+<td>LoC / WorldCat 等 ISBN Search Translator</td>
+</tr>
+<tr>
+<td><strong>PMID</strong></td>
+<td><code>24297125</code>、<code>PMID:24297125</code></td>
+<td>NCBI E-utilities via PubMed Translator</td>
+</tr>
+<tr>
+<td><strong>arXiv</strong></td>
+<td><code>1706.03762</code>、<code>arXiv:1706.03762v1</code>、abs URL</td>
+<td>arXiv Search Translator 或 Motif arXiv API</td>
+</tr>
+<tr>
+<td><strong>ADS Bibcode</strong></td>
+<td><code>2015ApJ...810...89S</code></td>
+<td>ADS 相关 Search Translator</td>
+</tr>
+</tbody>
+</table>
+<p>批量：空格、逗号、换行分隔；PMID 可在 Runtime 侧按批合并（Zotero 习惯每批 ≤200）。</p>
+<h3 id="32-zotero-extractidentifiers">3.2 解析优先级（对齐 Zotero <code>extractIdentifiers</code>）<a class="headerlink" href="#32-zotero-extractidentifiers" title="Permanent link">&para;</a></h3>
+<p>对同一段输入文本，<strong>按序</strong>尝试（命中一类后，Zotero 原逻辑会停止后续类型；Motif 建议：</p>
+<ul>
+<li><strong>单条粘贴框</strong>：采用 Zotero 同序，降低数字误识别为 PMID。</li>
+<li><strong>显式多行「每行一个」模式</strong>：逐行独立解析，允许一行 DOI、一行 arXiv 混合。</li>
+</ul>
+<p>顺序：</p>
+<ol>
+<li>DOI（含 URL 解码与 <code>cleanDOI</code>）</li>
+<li>ISBN（校验位；ISBN-10/13）</li>
+<li>arXiv（去掉 version 后缀用于查库）</li>
+<li>ADS Bibcode</li>
+<li>PMID（1–9 位数字，最后匹配）</li>
+</ol>
+<p>解析失败：返回 <code>lookup.failure_to_id</code>，不调用网络。</p>
+<h3 id="33-parsedidentifier">3.3 输出：<code>ParsedIdentifier</code><a class="headerlink" href="#33-parsedidentifier" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-ts">type IdentifierKind = 'doi' | 'isbn' | 'pmid' | 'arxiv' | 'ads_bibcode';
+
+interface ParsedIdentifier {
+  kind: IdentifierKind;
+  /** 规范化后的原始值（无 version 的 arXiv、clean DOI 等） */
+  value: string;
+  /** 用户输入中的原始片段（用于 UI 高亮） */
+  raw: string;
+}
+</code></pre>
+
+<hr />
+<h2 id="4-translator-runtime">4. Translator Runtime 契约<a class="headerlink" href="#4-translator-runtime" title="Permanent link">&para;</a></h2>
+<h3 id="41">4.1 部署形态<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>说明</th>
+<th>默认</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bundled</code></td>
+<td>Motif 附带/下载 sidecar 二进制或 Docker 镜像说明；Host 管理端口与生命周期</td>
+<td>是（桌面）</td>
+</tr>
+<tr>
+<td><code>external</code></td>
+<td>用户在设置中填 <code>http://127.0.0.1:1969</code></td>
+<td>可选</td>
+</tr>
+<tr>
+<td><code>off</code></td>
+<td>仅用内置 fallback 客户端</td>
+<td>降级</td>
+</tr>
+</tbody>
+</table>
+<p>设置项（应用配置 / Tauri Store，<strong>非</strong> Vault）：</p>
+<pre class="codehilite"><code class="language-ts">interface TranslatorRuntimeConfig {
+  mode: 'bundled' | 'external' | 'off';
+  base_url?: string;           // external 时必填，如 http://127.0.0.1:1969
+  auto_start?: boolean;        // bundled 时默认 true
+  user_agent_suffix?: string;  // 追加到请求 UA，便于站点联系
+  timeout_ms?: number;         // 默认 30000
+}
+</code></pre>
+
+<p><strong>User-Agent</strong>：对外请求应带可识别后缀，例如<br />
+<code>motif-translation/0.1 (+https://github.com/poco-ai/motif; contact@…)</code>，避免伪装成无标识爬虫（与 translation-server README 建议一致）。</p>
+<h3 id="42-http-api-translation-server">4.2 HTTP API（与官方 translation-server 对齐）<a class="headerlink" href="#42-http-api-translation-server" title="Permanent link">&para;</a></h3>
+<h4 id="post-search"><code>POST /search</code> — 标识符查元数据（魔棒主路径）<a class="headerlink" href="#post-search" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Request</strong>：<code>Content-Type: text/plain</code><br />
+  Body：单个标识符字符串，或实现约定的多 ID 文本。</li>
+<li><strong>Response</strong>：<code>200</code> + Zotero API JSON 数组（items）。</li>
+</ul>
+<pre class="codehilite"><code class="language-bash">curl -d '10.2307/4486062' \
+  -H 'Content-Type: text/plain' \
+  http://127.0.0.1:1969/search
+</code></pre>
+
+<h4 id="post-web-urlv2"><code>POST /web</code> — 网页 URL（v2 可选）<a class="headerlink" href="#post-web-urlv2" title="Permanent link">&para;</a></h4>
+<p>用于后续「粘贴论文页 URL」；本阶段可不接 UI。</p>
+<h4 id="post-import-bibtexris"><code>POST /import</code> — BibTeX/RIS 等（与迁移工具共享，非魔棒主路径）<a class="headerlink" href="#post-import-bibtexris" title="Permanent link">&para;</a></h4>
+<h3 id="43">4.3 健康检查与懒启动<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">lookup:search 被调用
+  → client.ensure_ready()
+       ├─ mode=off → 走 fallback
+       ├─ external → GET/探测 base_url，失败则错误「无法连接 Translator」
+       └─ bundled → 若进程未起：spawn sidecar，轮询 ready（≤ N 秒）
+  → POST /search
+</code></pre>
+
+<p>事件（可选）：<code>translator:status</code> → <code>{ state: 'stopped'|'starting'|'ready'|'error', detail? }</code>。</p>
+<h3 id="44">4.4 失败与降级<a class="headerlink" href="#44" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>情况</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Runtime 未启动且 auto_start 失败</td>
+<td>错误 + 引导打开设置；可选「用精简模式重试」</td>
+</tr>
+<tr>
+<td><code>/search</code> 超时</td>
+<td><code>lookup.timeout</code>；该 ID 标记 failed，其它 ID 继续</td>
+</tr>
+<tr>
+<td>无匹配书目</td>
+<td><code>lookup.not_found</code></td>
+</tr>
+<tr>
+<td>Runtime 返回部分成功</td>
+<td>返回成功草稿 + 失败列表（对齐 Zotero「部分失败仍继续」）</td>
+</tr>
+<tr>
+<td>fallback 成功</td>
+<td><code>source: 'fallback'</code>，libraryCatalog 填 <code>Motif (Crossref)</code> 等</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-translator-item-papermetadata">5. 数据映射：Translator Item → <code>PaperMetadata</code>（直接并入）<a class="headerlink" href="#5-translator-item-papermetadata" title="Permanent link">&para;</a></h2>
+<p>Translator 输出的 <strong>Zotero API JSON Item</strong> 经 <code>map</code> <strong>直接写入</strong> <code>PaperMetadata</code> / catalog 列，<strong>不再</strong>先落到另一套 arXiv 专用结构。<br />
+catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a href="../catalog/"><code>catalog.md</code></a> §4.2）。</p>
+<h3 id="51-item-metadata">5.1 字段对照（Item → metadata）<a class="headerlink" href="#51-item-metadata" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th><code>PaperMetadata</code> / catalog</th>
+<th>Translator Item 来源</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title</code></td>
+<td><code>title</code></td>
+<td>必填；缺失则失败</td>
+</tr>
+<tr>
+<td><code>authors</code></td>
+<td><code>creators[]</code> → 展示串</td>
+<td><code>firstName</code>+<code>lastName</code> 或 <code>name</code>；优先 <code>creatorType=author</code></td>
+</tr>
+<tr>
+<td><code>creators_json</code></td>
+<td><code>creators</code> 原数组</td>
+<td>保留角色（author/editor…），JSON 文本</td>
+</tr>
+<tr>
+<td><code>year</code></td>
+<td>自 <code>date</code> 解析四位年</td>
+<td></td>
+</tr>
+<tr>
+<td><code>date</code></td>
+<td><code>date</code></td>
+<td>原始日期串（如 <code>2017-06-12</code>）</td>
+</tr>
+<tr>
+<td><code>abstract</code></td>
+<td><code>abstractNote</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>summary</code></td>
+<td>截断 <code>abstractNote</code> 或 Translator 短摘要</td>
+<td>可选</td>
+</tr>
+<tr>
+<td><code>doi</code></td>
+<td><code>DOI</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>isbn</code></td>
+<td><code>ISBN</code></td>
+<td>图书</td>
+</tr>
+<tr>
+<td><code>issn</code></td>
+<td><code>ISSN</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>pmid</code></td>
+<td><code>extra</code> 中 <code>PMID:</code> 或字段</td>
+<td></td>
+</tr>
+<tr>
+<td><code>arxiv_id</code></td>
+<td><code>archiveID</code> / <code>extra</code> 的 <code>arXiv:</code> / 用户输入</td>
+<td>去 version</td>
+</tr>
+<tr>
+<td><code>publication</code></td>
+<td><code>publicationTitle</code> | <code>proceedingsTitle</code> | <code>bookTitle</code></td>
+<td>期刊/会议/书名</td>
+</tr>
+<tr>
+<td><code>volume</code></td>
+<td><code>volume</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>issue</code></td>
+<td><code>issue</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>pages</code></td>
+<td><code>pages</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>publisher</code></td>
+<td><code>publisher</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>place</code></td>
+<td><code>place</code></td>
+<td>出版地</td>
+</tr>
+<tr>
+<td><code>series</code></td>
+<td><code>series</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>language</code></td>
+<td><code>language</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>source_url</code></td>
+<td><code>url</code></td>
+<td>条目页；缺省时按类型推导</td>
+</tr>
+<tr>
+<td><code>pdf_url</code></td>
+<td>attachments 中 pdf 的 <code>url</code>（若有）</td>
+<td><strong>只存 URL</strong>；arXiv 可再推导</td>
+</tr>
+<tr>
+<td><code>html_url</code></td>
+<td>—</td>
+<td>arXiv 可推导 <code>…/html/{id}</code></td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td><code>tags[].tag</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>zotero_item_type</code></td>
+<td><code>itemType</code></td>
+<td>如 <code>journalArticle</code>、<code>preprint</code>、<code>book</code></td>
+</tr>
+<tr>
+<td><code>meta_source</code></td>
+<td><code>libraryCatalog</code></td>
+<td>如 <code>DOI.org (Crossref)</code>、<code>arXiv.org</code></td>
+</tr>
+<tr>
+<td><code>extra</code></td>
+<td><code>extra</code></td>
+<td>未结构化残余</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>由 <code>zotero_item_type</code> + 标识符推断</td>
+<td>有 <code>arxiv_id</code>→<code>arxiv</code>；有 <code>doi</code>→<code>doi</code>；book→<code>other</code> 等</td>
+</tr>
+<tr>
+<td><code>id</code></td>
+<td>arXiv ID 或 citekey</td>
+<td></td>
+</tr>
+<tr>
+<td><code>bibtex_key</code></td>
+<td>生成或沿用</td>
+<td>作者+年+题词</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td>Host 用 <code>parent_dir</code>+<code>id</code> 写入</td>
+<td>入库时填</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>Host</td>
+<td>入库完成 → <code>completed</code></td>
+</tr>
+<tr>
+<td><code>added_at</code> / <code>updated_at</code></td>
+<td>Host</td>
+<td>ISO 8601</td>
+</tr>
+<tr>
+<td><code>body_source</code> / <code>body_quality</code></td>
+<td>魔棒通常不填</td>
+<td>无本地正文解析</td>
+</tr>
+<tr>
+<td><code>citation_count</code></td>
+<td>一般无</td>
+<td>可空</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-url">5.2 URL 补全（仍不下载）<a class="headerlink" href="#52-url" title="Permanent link">&para;</a></h3>
+<p>在 map 之后、写库之前：</p>
+<ol>
+<li>若有 <code>arxiv_id</code> 且缺 URL → <code>arxiv.ts</code>：<code>pdf_url</code> / <code>html_url</code> / <code>source_url</code>。</li>
+<li>若有 <code>doi</code> 且缺 <code>source_url</code> → <code>https://doi.org/{doi}</code>。</li>
+<li>若有 <code>pmid</code> 且缺 <code>source_url</code> → PubMed 条目 URL。</li>
+<li><strong>禁止</strong>因补全 URL 而发起 PDF 文件下载。</li>
+</ol>
+<h3 id="53">5.3 中间结果<a class="headerlink" href="#53" title="Permanent link">&para;</a></h3>
+<p>入库前 Host 手中只有 <strong><code>PaperMetadata</code>（已 map）</strong>；不必单独长期持有 Zotero Item。调试可选暂存 <code>raw</code> 日志，不进 catalog。</p>
+<pre class="codehilite"><code class="language-ts">// 概念：一次魔棒调用
+const item = await translator.searchOrWeb(input); // Zotero Item
+const metadata = mapZoteroItemToPaperMetadata(item); // → PaperMetadata
+enrichRemoteUrls(metadata); // arxiv/doi 推导
+await catalog.upsert({ ...metadata, path });
+</code></pre>
+
+<hr />
+<h2 id="6-tauri">6. Tauri 命令与事件（契约）<a class="headerlink" href="#6-tauri" title="Permanent link">&para;</a></h2>
+<p>命令名采用 <code>lookup:*</code>，与 <code>arxiv:*</code> / <code>pdf:*</code> 并列。完整登记见 <a href="../api/"><code>api.md</code></a>（实现时同步）。</p>
+<h3 id="61-lookupparse">6.1 <code>lookup:parse</code><a class="headerlink" href="#61-lookupparse" title="Permanent link">&para;</a></h3>
+<p>从文本提取标识符，<strong>不访问网络</strong>。</p>
+<pre class="codehilite"><code class="language-ts">// 参数
+{ text: string; mode?: 'zotero' | 'line_by_line' }
+
+// 返回
+{
+  ok: true;
+  data: { identifiers: ParsedIdentifier[] }
+}
+</code></pre>
+
+<h3 id="62-lookupsearch">6.2 <code>lookup:search</code><a class="headerlink" href="#62-lookupsearch" title="Permanent link">&para;</a></h3>
+<p>解析 + 调用 Translator Runtime（或 fallback），返回草稿列表。</p>
+<pre class="codehilite"><code class="language-ts">// 参数
+{
+  text: string;
+  mode?: 'zotero' | 'line_by_line';
+  /** 强制只用 fallback，用于调试 */
+  force_fallback?: boolean;
+}
+
+// 返回
+{
+  ok: true;
+  data: {
+    drafts: LookupDraft[];
+    failures: { raw: string; code: string; message: string }[];
+    runtime: { mode: string; used: 'translator' | 'fallback' };
+  }
+}
+</code></pre>
+
+<h3 id="63-lookupimport">6.3 <code>lookup:import</code><a class="headerlink" href="#63-lookupimport" title="Permanent link">&para;</a></h3>
+<p>将解析结果写入目标 Papers 文件夹 + catalog；下载策略见 §1.3。</p>
+<pre class="codehilite"><code class="language-ts">// 参数
+{
+  /** Vault 相对父目录：`papers` 或 `papers/nlp` 等（见 §1.2） */
+  parent_dir: string;
+  items: {
+    draft_id?: string;
+    metadata: PaperMetadata; // 可含 pdf_url / html_url / source_url
+    on_duplicate?: 'skip' | 'open_existing';
+  }[];
+  options?: {
+    /**
+     * 来自设置 `downloadFulltextToLocal`（默认 false）。
+     * true：有 pdf_url/html_url 时也下载到 source/。
+     * false：有预览 URL 时不下载。
+     * 注意：无 pdf_url 且无 html_url 时，无论本标志，都尝试下载。
+     */
+    download_fulltext_to_local?: boolean;
+    /** Agent 生成 NOTES；默认 false 写占位模板 */
+    generate_notes?: boolean;
+  };
+}
+
+// 返回
+{ ok: true; data: { job_id: string } }
+// 或同步：{ ok: true; data: { paths: string[] } }
+</code></pre>
+
+<p><strong>Host 行为</strong>：</p>
+<ol>
+<li>规范化 <code>parent_dir</code>（必须位于 <code>papers</code> 下）。</li>
+<li><code>path = {parent_dir}/{id}</code>。</li>
+<li>创建目录 + 占位 <code>NOTES.md</code> + 空 <code>highlights.md</code>。</li>
+<li><strong>事务 upsert catalog</strong>（远程 URL 只存字符串）。</li>
+<li><strong>下载判定</strong>（伪代码）：
+   <code>text
+   has_preview = nonEmpty(pdf_url) || nonEmpty(html_url)
+   if has_preview and not options.download_fulltext_to_local:
+     skip download                    # 远程预览即可
+   else:
+     url = pdf_url or html_url or resolve_downloadable_url(metadata)
+     if url:
+       try download(url) → source/    # 无预览 URL 时必走此支；有 URL 且设置开也走
+     else:
+       skip download                  # 真的无法下载</code></li>
+<li>返回 <code>path</code>；前端刷新并打开 paper。</li>
+</ol>
+<h3 id="64">6.4 事件<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>事件</th>
+<th>载荷</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lookup:progress</code></td>
+<td><code>{ job_id, done, total, current_id?, phase }</code></td>
+</tr>
+<tr>
+<td><code>lookup:item_completed</code></td>
+<td><code>{ job_id, path, id }</code></td>
+</tr>
+<tr>
+<td><code>lookup:item_failed</code></td>
+<td><code>{ job_id, draft_id, code, message }</code></td>
+</tr>
+<tr>
+<td><code>lookup:completed</code></td>
+<td><code>{ job_id, paths: string[] }</code></td>
+</tr>
+<tr>
+<td><code>lookup:failed</code></td>
+<td><code>{ job_id, message }</code></td>
+</tr>
+<tr>
+<td><code>translator:status</code></td>
+<td>Runtime 状态（可选）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="65-translatorstatus-translatorrestart">6.5 <code>translator:status</code> / <code>translator:restart</code>（设置页）<a class="headerlink" href="#65-translatorstatus-translatorrestart" title="Permanent link">&para;</a></h3>
+<p>供设置页显示 Runtime 是否就绪、手动重启 sidecar。</p>
+<hr />
+<h2 id="7">7. 许可、隐私与合规<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<h3 id="71">7.1 许可<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>许可（典型）</th>
+<th>Motif 用法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zotero/translators</code></td>
+<td>多为 AGPL-3.0</td>
+<td><strong>仅在 sidecar 进程内</strong>使用与分发</td>
+</tr>
+<tr>
+<td><code>zotero/translate</code> / translation-server</td>
+<td>AGPL-3.0</td>
+<td>旁路进程；源码按 AGPL 提供或指向上游</td>
+</tr>
+<tr>
+<td>Motif 主应用</td>
+<td>以仓库 LICENSE 为准</td>
+<td>通过 <strong>HTTP localhost</strong> 调用 sidecar，不把 translators 链进主二进制</td>
+</tr>
+</tbody>
+</table>
+<p>产品文案建议：</p>
+<ul>
+<li>设置页注明：「书目解析可选用 Zotero Translator 引擎（开源，AGPL），运行在本机独立进程。」</li>
+<li>不声称「Official Zotero」；不使用 Zotero 商标做应用名。</li>
+</ul>
+<h3 id="72">7.2 隐私与网络<a class="headerlink" href="#72" title="Permanent link">&para;</a></h3>
+<ul>
+<li>标识符与查询会发往 <strong>第三方书目服务</strong>（Crossref、PubMed、出版社 DOI 解析等），由各 Translator 决定，<strong>不经 Zotero 公司服务器</strong>（自托管 Runtime 时）。</li>
+<li>Motif 默认 <strong>不</strong>把 Vault 路径或笔记内容发给 Translator Runtime（Search 路径只传 ID）。</li>
+<li>遵守目标站 ToS；控制并发与超时；批量入库限流。</li>
+</ul>
+<h3 id="73-local-first">7.3 local-first<a class="headerlink" href="#73-local-first" title="Permanent link">&para;</a></h3>
+<ul>
+<li>元数据确认后写入 <strong>用户 Vault</strong> + <strong>catalog</strong>；离开应用后仍是普通文件 + sqlite。</li>
+<li>不引入「仅云端可解析」为默认；Runtime 可离线则仅失败，不锁死 Vault。</li>
+</ul>
+<hr />
+<h2 id="8-ui">8. 前端 UI（概要）<a class="headerlink" href="#8-ui" title="Permanent link">&para;</a></h2>
+<p>详细视觉以 <a href="../../frontend/ui/"><code>ui.md</code></a> 为准；本处只定行为。</p>
+<h3 id="81">8.1 入口<a class="headerlink" href="#81" title="Permanent link">&para;</a></h3>
+<ul>
+<li>工具栏 <strong>魔棒图标</strong>（<code>WandSparkles</code> 等），Tooltip + <code>aria-label</code> → i18n <code>lookup.magicWand</code>。</li>
+<li>快捷键：<code>⇧⌘I</code>（写入 <code>shortcuts.ts</code> + 设置 Keyboard）。</li>
+<li>无 Vault 时 disabled。</li>
+</ul>
+<h3 id="82-v1">8.2 主交互流（v1）<a class="headerlink" href="#82-v1" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">点击魔棒
+  → 弹出输入框（单行或小多行）：placeholder 如 “arXiv URL / ID, DOI, …”
+  → 展示目标路径提示：将加入「papers/」或「papers/nlp/」（来自 §1.2）
+  → 用户 Enter 或点「添加」
+  → lookup:search（Translator）→ 可选极简预览
+  → lookup:import({ parent_dir, items, download_fulltext_to_local: settings… })
+  → 成功：刷新文件树；打开该 paper（PDF 视图读 catalog.pdf_url）
+  → 失败：toast / 行内错误，不写半截 catalog
+</code></pre>
+
+<p><strong>默认体验偏好</strong>：少步骤——解析成功即可入库；仅在 <strong>重复</strong> 或 <strong>解析到多结果</strong> 时打断确认。</p>
+<p>文案：English 源语言 <code>en</code>，同步 <code>zh-CN</code>。无常驻说明段落。</p>
+<h3 id="83">8.3 目标文件夹展示<a class="headerlink" href="#83" title="Permanent link">&para;</a></h3>
+<ul>
+<li>弹层内一行：<code>t('lookup.addTo', { path: parentDirDisplay })</code>。</li>
+<li>用户切换文件树选中项后再次打开魔棒，目标随之更新（打开弹层时快照一次即可）。</li>
+</ul>
+<hr />
+<h2 id="9-host">9. Host 模块布局（规划）<a class="headerlink" href="#9-host" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">src-tauri/src/
+  commands/
+    lookup.rs
+    translator.rs          # status / restart
+  services/
+    lookup/
+      mod.rs
+      parse.rs             # extractIdentifiers 规则
+      client.rs            # Runtime HTTP
+      map.rs               # Zotero JSON → PaperMetadata
+      dedupe.rs
+      fallback/
+        mod.rs
+        crossref.rs
+        arxiv.rs
+    importer/
+      mod.rs               # 统一落盘
+      from_metadata.rs     # 魔棒确认后的 metadata-only / optional source
+    translator_runtime/
+      mod.rs               # spawn / health / shutdown
+</code></pre>
+
+<p>前端：</p>
+<pre class="codehilite"><code class="language-text">src/
+  components/lookup/
+    MagicWandButton.tsx
+    LookupPopover.tsx
+    LookupDraftList.tsx
+  lib/lookup.ts            # invoke 封装
+  i18n/locales/{en,zh-CN}/lookup.json
+</code></pre>
+
+<hr />
+<h2 id="10">10. 入库落盘契约（魔棒）<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">papers/
+└── [optional-subfolders/]
+    └── &lt;id&gt;/
+        ├── NOTES.md
+        ├── highlights.md
+        └── source/            # 无预览 URL 时尽量有；有 URL 且设置开时也有
+            └── …pdf / …
+# catalog.papers：path, title, pdf_url, html_url, …
+</code></pre>
+
+<ol>
+<li><code>path = {parent_dir}/{id}</code>（§1.2 + §6.3）。</li>
+<li>写 <code>NOTES.md</code> + <code>highlights.md</code>。</li>
+<li><strong>catalog 事务</strong>：有则写入 <code>pdf_url</code> / <code>html_url</code>。</li>
+<li>下载按 §1.3：<strong>无预览 URL 必下</strong>；有 URL 仅设置开时下。</li>
+<li><strong>不</strong>写默认 <code>PAPERS.md</code> / <code>library.bib</code>；<code>metadata.json</code> 仅在 catalog upsert 后作为投影同步。</li>
+<li>重复：<code>on_duplicate: skip | open_existing</code>，<strong>不</strong>覆盖用户 <code>NOTES.md</code>。</li>
+</ol>
+<p>arXiv 远程 URL 推导（无下载）：</p>
+<ul>
+<li><code>pdf_url</code>: <code>https://arxiv.org/pdf/{id}</code></li>
+<li><code>html_url</code>: <code>https://arxiv.org/html/{id}</code></li>
+<li><code>source_url</code>: <code>https://arxiv.org/abs/{id}</code></li>
+</ul>
+<p><code>type</code>：<code>arxiv</code> | <code>doi</code> | <code>other</code>（按标识符）。</p>
+<hr />
+<h2 id="11_1">11. 实现分期<a class="headerlink" href="#11_1" title="Permanent link">&para;</a></h2>
+<h3 id="phase-a-fallback">Phase A — 交互闭环（可先 fallback）<a class="headerlink" href="#phase-a-fallback" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] 文档：交互、目标文件夹、不下载约定</li>
+<li>[ ] 魔棒 Popover + <code>parent_dir</code> 解析 + i18n</li>
+<li>[ ] <code>lookup:parse</code> + arXiv/DOI fallback 客户端</li>
+<li>[ ] <code>lookup:import</code>：catalog + NOTES 壳，<strong>无下载</strong></li>
+</ul>
+<h3 id="phase-b-translator-runtime">Phase B — Translator Runtime<a class="headerlink" href="#phase-b-translator-runtime" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] sidecar + <code>lookup:search</code> → <code>POST /search</code>（及链接时 <code>/web</code>）</li>
+<li>[ ] map / dedupe / 设置页状态</li>
+</ul>
+<h3 id="phase-c">Phase C — 体验打磨<a class="headerlink" href="#phase-c" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 重复提示、批量、打开 paper 联调</li>
+<li>[ ] 与文件树选中态同步目标路径</li>
+</ul>
+<h3 id="phase-d">Phase D — 可选<a class="headerlink" href="#phase-d" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] 设置：<code>downloadFulltextToLocal</code>（有预览 URL 时是否也下载；无 URL 始终下载）— UI 已加</li>
+<li>[ ] PDF prepare 复用同一 Lookup</li>
+</ul>
+<hr />
+<h2 id="12_1">12. 测试要点<a class="headerlink" href="#12_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>单测 <code>parse</code></td>
+<td>arXiv URL/ID、DOI、version 剥离</td>
+</tr>
+<tr>
+<td>单测 <code>parent_dir</code></td>
+<td>根 / 子文件夹 / paper 内文件 → 父目录</td>
+</tr>
+<tr>
+<td>单测 import</td>
+<td>catalog 有 <code>pdf_url</code>；<code>source/</code> 不出现 pdf</td>
+</tr>
+<tr>
+<td>UI</td>
+<td>目标路径文案；无 Vault；重复 skip</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="13">13. 验收标准<a class="headerlink" href="#13" title="Permanent link">&para;</a></h2>
+<ol>
+<li>点击魔棒，粘贴链接或编号，成功后 paper 壳 + <strong>catalog 有行</strong>。  </li>
+<li><strong>无</strong> <code>pdf_url</code>/<code>html_url</code>：无论设置，尽量下载到 <code>source/</code>。  </li>
+<li><strong>有</strong> 预览 URL + 设置关：不下载，远程预览。  </li>
+<li><strong>有</strong> 预览 URL + 设置开：catalog 保留 URL 且下载到 <code>source/</code>。  </li>
+<li>文件树选中 <code>papers/nlp</code> 时路径为 <code>papers/nlp/&lt;id&gt;/</code>。  </li>
+<li>重复不覆盖 <code>NOTES.md</code>；文案 i18n。</li>
+</ol>
+<hr />
+<h2 id="14_1">14. 开放问题<a class="headerlink" href="#14_1" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>sidecar 分发</strong>方式（捆绑 / Docker / 首次下载）。  </li>
+<li>v1 是否「解析成功即入库」还是始终二次确认。  </li>
+<li><code>generate_notes</code> 默认是否调 Agent（建议默认占位模板）。  </li>
+</ol>
+<hr />
+<h2 id="15">15. 修订记录<a class="headerlink" href="#15" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>日期</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-07-15</td>
+<td>初稿：Translator sidecar、命令契约</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td>交互收敛：链接/编号 → Translator → 加入 papers/ 或当前子文件夹；远程 URL 只写 catalog、不下载</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td>数据流合并：arXiv/DOI 等统一 Translator → 直接 map 进 PaperMetadata；catalog schema v2 补字段</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td>下载策略：无预览 URL 始终尝试下载；有 URL 时仅 <code>downloadFulltextToLocal</code> 开才额外本地下载</td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../catalog/" class="btn btn-neutral float-left" title="论文目录库"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../wikilinks/" class="btn btn-neutral float-right" title="双链与图谱">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+        </span>
+    
+    
+      <span><a href="../catalog/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../wikilinks/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

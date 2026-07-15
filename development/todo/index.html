@@ -62,6 +62,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
                   </li>
               </ul>
@@ -124,7 +126,7 @@
 <li><strong>Create Vault 初始化</strong> ✅</li>
 <li>创建标准目录：<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.motif/</code>。</li>
 <li>生成 Vault 内 <code>AGENTS.md</code> 模板。</li>
-<li>初始化 <code>.motif/catalog.sqlite</code>（schema v1，<code>path</code> 主键）。</li>
+<li>初始化 <code>.motif/catalog.sqlite</code>（schema 当前版本，<code>path</code> 主键）。</li>
 <li><strong>不</strong>默认生成 <code>PAPERS.md</code> / <code>library.bib</code>（导出能力另做）。</li>
 <li>初始化后打开 <code>AGENTS.md</code>。</li>
 </ol>
@@ -137,12 +139,16 @@
 <li>支持输入 arXiv ID / URL。</li>
 <li>拉取 metadata，写入 catalog <code>papers</code> 表。</li>
 <li>写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code>。</li>
-<li>
-<p>入库后自动打开 paper，并刷新 Backlinks/Graph。</p>
-</li>
-<li>
-<p><strong>Agent 工作流入口</strong></p>
-</li>
+<li>入库后自动打开 paper，并刷新 Backlinks/Graph。</li>
+</ol>
+<p>2b. <strong>魔棒 / Identifier Lookup（Translator 后端）</strong> — 设计见 <a href="../../backend/identifier-lookup/"><code>docs/backend/identifier-lookup.md</code></a>
+   - UI：点击魔棒 → 粘贴链接或编号 → 加入 Papers。
+   - 目标：<code>papers/</code> 或文件树当前选中的 Papers 子文件夹。
+   - Translator → 直接写入 <code>PaperMetadata</code>/catalog；有 <code>pdf_url</code>/<code>html_url</code> <strong>不下载</strong>。
+   - 无预览 URL 始终尝试下载；设置 <code>downloadFulltextToLocal</code>（默认关）控制「有预览 URL 时是否也下载」。
+   - Host：<code>lookup:parse</code> / <code>lookup:search</code> / <code>lookup:import(parent_dir)</code>；sidecar Runtime。</p>
+<ol>
+<li><strong>Agent 工作流入口</strong></li>
 <li>在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>
 <li>workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code>。</li>
 <li>
