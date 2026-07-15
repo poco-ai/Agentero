@@ -183,12 +183,12 @@
 <tr>
 <td>V0.1 本地 Vault 与 Markdown 工作台</td>
 <td>✅ 基本完成</td>
-<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页最近列表、树内联新建文件/文件夹、PDF/HTML/Notes、WYSIWYG Markdown。</td>
+<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页最近列表、树内联新建文件/文件夹、PDF/HTML/Notes、WYSIWYG Markdown、<strong>论文库表格 + 虚拟 Library 节点</strong>。</td>
 </tr>
 <tr>
 <td>V0.2 arXiv 入库闭环</td>
-<td>⏳ 待实现</td>
-<td>已有 arXiv URL/metadata 辅助与 demo 数据，完整检索、确认、入库、索引刷新仍待做。</td>
+<td>🟡 部分完成</td>
+<td><strong>魔棒 + Translator</strong> 精确 ID/URL 入库、catalog 权威、<code>paper_list</code> 列表已落地；Agent 关键词检索/候选确认、LaTeX source 全量闭环仍待做。</td>
 </tr>
 <tr>
 <td>V0.3 Agent 工作流（BYOA）</td>
@@ -224,8 +224,9 @@
 <li>[x] 最近 Vault 列表（欢迎页）与主窗口恢复上次 Vault。</li>
 <li>[x] 多窗口：<code>⌘N</code> 新建窗口，session 级 Vault 隔离。</li>
 <li>[x] 树内联新建文件 / 文件夹。</li>
-<li>[x] Paper-centric 视图：选中 paper 后中间显示远程 PDF/HTML，右侧显示该篇 <code>NOTES.md</code>。</li>
+<li>[x] Paper-centric 视图：选中 paper 后中间显示远程 PDF/HTML，右侧显示该篇 <code>NOTES.md</code>（<strong>仅具体论文</strong>时显示 Preview/Info）。</li>
 <li>[x] 侧边栏折叠、标题栏快捷按钮、Settings 窗口。</li>
+<li>[x] 论文库表格：虚拟节点 <code>motif:library</code>、<code>paper_list</code>、表头排序、双向滚动。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -233,6 +234,7 @@
 <li>[x] 用户可以打开、编辑、保存一个 Markdown note。</li>
 <li>[x] 重启应用后可以回到最近使用的 Vault（设置开启时）。</li>
 <li>[x] <code>⌘N</code> 打开的新窗口不自动占用上一窗口的 Vault，欢迎页可点最近路径。</li>
+<li>[x] 打开 Vault 后可在 Library 视图看到 catalog 中的论文列表。</li>
 </ul>
 <p>后续 TODO：</p>
 <ul>
@@ -245,32 +247,33 @@
 <p>目标：完成从用户输入（ID/URL/关键词/话题/描述）到本地 Markdown 文献资产的首个闭环，并保留 Agent 的检索与推荐能力。</p>
 <p>关键交付：</p>
 <ul>
-<li>[ ] 输入 arXiv ID/URL/关键词/话题/自然语言描述。</li>
-<li>[ ] 输入分类与意图解析：规则识别精确 ID/URL，Agent 处理模糊输入。</li>
+<li>[x] 输入 arXiv ID/URL（魔棒 + Translator / arXiv fallback）。</li>
+<li>[ ] 关键词/话题/自然语言描述 + 输入分类与意图解析（规则 + Agent）。</li>
 <li>[ ] Agent 检索 arXiv 候选论文并返回列表供用户确认（单选/多选）。</li>
-<li>[ ] 获取论文元数据。</li>
-<li>[ ] 创建 <code>papers/&lt;id&gt;/</code>（arxiv 用 arXiv ID，非 arxiv 用 citekey），metadata 写入 catalog。</li>
-<li>[ ] 获取 LaTeX source / HTML / PDF 资源，source 保存到 <code>source/</code>。</li>
+<li>[x] 获取论文元数据（Translator map → <code>PaperMetadata</code>）。</li>
+<li>[x] 创建 <code>papers/&lt;id&gt;/</code>（arxiv 用 arXiv ID 等），metadata 写入 catalog。</li>
+<li>[ ] 获取 LaTeX source 全量归档；HTML/PDF 默认远程 URL，可选本地下载（<code>downloadFulltextToLocal</code>）。</li>
 <li>[ ] 仅在无 LaTeX source 或需要可读结构化正文时生成 <code>PAPER.md</code>。</li>
-<li>[ ] 生成默认结构的 <code>NOTES.md</code>，并创建空的 <code>highlights.md</code>。</li>
-<li>[ ] metadata 写入 <code>.motif/catalog.sqlite</code>；可选 <code>catalog:export_*</code>（不默认写 PAPERS.md / library.bib）。</li>
-<li>[ ] 在 UI 中展示入库进度、成功结果和失败原因。</li>
+<li>[x] 生成默认结构的 <code>NOTES.md</code>，并创建空的 <code>highlights.md</code>。</li>
+<li>[x] metadata 写入 <code>.motif/catalog.sqlite</code>（<code>paper_list</code> / <code>paper_get</code>）；可选 <code>catalog:export_*</code> 仍待做。</li>
+<li>[x] 在 UI 中展示入库错误（Popover 行内）；进度条可后续增强。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
-<li>[ ] 输入 <code>1706.03762</code> 后能生成对应论文目录和核心 Markdown 文件。</li>
+<li>[x] 输入 <code>1706.03762</code> 后能生成对应论文目录和核心 Markdown 文件（NOTES 壳 + catalog 行）。</li>
 <li>[ ] 输入一段描述或关键词后，Agent 能返回候选论文列表，用户确认后完成入库。</li>
-<li>[ ] 连续入库 3 篇论文后，<code>paper:list</code> 返回 3 条；export 的 PAPERS.md 含 3 行。</li>
+<li>[x] 连续入库多篇后 <code>paper_list</code> 可见对应行（export PAPERS.md 仍待做）。</li>
 <li>[ ] 有 LaTeX source 的论文优先保留 <code>.tex</code> 源文件，<code>PAPER.md</code> 为可选生成。</li>
-<li>[ ] 重复入库时不会破坏用户已修改的 <code>NOTES.md</code>。</li>
+<li>[x] 重复入库时不会破坏用户已修改的 <code>NOTES.md</code>（skip / open existing 策略）。</li>
 </ul>
 <p>细化 TODO：</p>
 <ul>
-<li>[ ] 设计 Import dialog：精确 ID/URL 直接导入，关键词/描述走 Agent 候选。</li>
-<li>[ ] Rust 端实现 arXiv Atom 查询、标准 ID 归一化、错误类型。</li>
+<li>[x] 魔棒精确 ID/URL 导入（侧栏；设计见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>）。</li>
+<li>[ ] 设计 Import dialog：关键词/描述走 Agent 候选。</li>
+<li>[ ] Rust 端 arXiv Atom 查询（关键词路径）、标准 ID 归一化补强。</li>
 <li>[ ] 入库任务需要可取消、可重试，并能恢复部分完成状态。</li>
-<li>[ ] 明确 catalog schema 与 BibTeX / PAPERS.md 导出规则。</li>
-<li>[ ] 入库后自动打开 paper 目录并刷新反链/图谱索引。</li>
+<li>[ ] 明确 BibTeX / PAPERS.md 导出规则并实现 <code>catalog:export_*</code>。</li>
+<li>[ ] 入库后刷新反链/图谱索引（当前刷新文件树 + 可打开 paper）。</li>
 </ul>
 <h2 id="v03-agent-acp-client-byoa">V0.3 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#v03-agent-acp-client-byoa" title="Permanent link">&para;</a></h2>
 <p>目标：将 Motif 实现为 <strong>ACP Client</strong>，连接用户本机已安装的 Agent，按 Vault 规则完成总结 / 问答 / Related Work。</p>
@@ -348,7 +351,7 @@
 <li>[ ] PDF 元数据混合获取：DOI/arXiv 标识符查询 Crossref/arXiv + Agent 正文抽取，入库前用户确认。</li>
 <li>[ ] 预留本地 HTML importer。</li>
 <li>[ ] 预留 BibTeX/Zotero importer。</li>
-<li>[ ] <strong>魔棒 Identifier Lookup</strong>：本机 Zotero Translator Runtime + <code>lookup:*</code> 命令（设计见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>）。</li>
+<li>[x] <strong>魔棒 Identifier Lookup（v0）</strong>：HTTP Translator + <code>lookup_import</code>（见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>）；sidecar 捆绑 / 批量仍可扩展。</li>
 <li>[ ] 统一入库状态、错误类型和输出文件契约。</li>
 </ul>
 <p>验收标准：</p>
@@ -389,7 +392,9 @@
 <ul>
 <li>[x] Create Vault：标准目录 + <code>AGENTS.md</code> + <code>.motif/catalog.sqlite</code>。</li>
 <li>[x] 多窗口（⌘N）+ 欢迎页最近 Vault 列表（前端 MRU；Store 迁移仍待做）。</li>
-<li>[ ] arXiv 精确 ID/URL 入库闭环。</li>
+<li>[x] arXiv 精确 ID/URL 入库（魔棒 + Translator + catalog）。</li>
+<li>[x] 论文库 UI：<code>paper_list</code> + Library 虚拟节点 + 表头排序。</li>
+<li>[ ] Agent 关键词候选 / 自然语言入库闭环。</li>
 <li>[ ] Agent workflow prompt：总结当前论文、本地库问答、Related Work。</li>
 <li>[ ] Agent 写入草稿确认与拒绝路径。</li>
 <li>[ ] Tauri Store 替代当前 localStorage 中的最近 Vault / UI 偏好。</li>
@@ -398,7 +403,7 @@
 <h3 id="p1">中期优先级 P1<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[ ] 本地 PDF importer 与 metadata 确认面板。</li>
-<li>[ ] Catalog 落地 + 双链边/全文 FTS 缓存表（可重建）。</li>
+<li>[x] Catalog 权威存储 + <code>paper_list</code> / <code>paper_get</code>（导出 / FTS / 双链缓存表仍待）。</li>
 <li>[ ] <code>[[</code> 补全与 Plate wikilink 内联节点。</li>
 <li>[ ] Graph 全屏/聚焦模式与邻居高亮。</li>
 <li>[ ] Release 流程补充签名、公证、版本号同步和自动 changelog。</li>

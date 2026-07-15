@@ -190,7 +190,7 @@
 </tr>
 <tr>
 <td>L1 索引</td>
-<td><strong>Catalog</strong>（<code>paper:list</code> / 可选导出的 <code>PAPERS.md</code>）</td>
+<td><strong>Catalog</strong>（<code>paper_list</code> / 可选导出的 <code>PAPERS.md</code>）</td>
 <td>需要"库里有什么"</td>
 <td>小(每篇一行)</td>
 </tr>
@@ -302,7 +302,7 @@
 <h3 id="metadatacatalog-markdown">论文集合与 metadata（Catalog，非 Markdown 文件）<a class="headerlink" href="#metadatacatalog-markdown" title="Permanent link">&para;</a></h3>
 <p>权威存储：<strong><code>.motif/catalog.sqlite</code></strong> 的 <code>papers</code> 表。<br />
 字段、schema、导出与实现见 <strong><a href="../catalog/"><code>catalog.md</code></a></strong>。<br />
-UI 列表 / 筛选 / Paper Info / 远程 PDF·HTML URL 均读 catalog，不扫 <code>metadata.json</code>。</p>
+UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<code>paper_get</code>）均读 catalog，不扫 <code>metadata.json</code>。</p>
 <h3 id="papersmd-librarybib">可选导出：<code>PAPERS.md</code> / <code>library.bib</code><a class="headerlink" href="#papersmd-librarybib" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

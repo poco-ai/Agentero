@@ -182,7 +182,7 @@
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#phase-a-fallback">Phase A — 交互闭环（可先 fallback）</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#phase-b-translator-runtime">Phase B — Translator Runtime</a>
+    <li class="toctree-l3"><a class="reference internal" href="#phase-b-translator">Phase B — Translator 服务</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#phase-c">Phase C — 体验打磨</a>
     </li>
@@ -250,8 +250,8 @@
               
                 <h1 id="identifier-lookup-translator">魔棒入库（Identifier Lookup）与 Translator 后端<a class="headerlink" href="#identifier-lookup-translator" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>设计稿（待实现）</strong><br />
-目标：用户点击 <strong>魔棒</strong>，粘贴 <strong>链接或编号</strong> → 用 <strong>Translator</strong> 解析元数据 → <strong>只写 catalog + 轻量 paper 文件夹</strong>（远程 <code>pdf_url</code> / <code>html_url</code> <strong>不下载</strong>）→ 落到 <code>papers/</code> 或当前 Papers 子文件夹。</p>
+<p>状态：<strong>v0 已落地</strong>（侧栏魔棒 + <code>lookup_import</code> + HTTP Translator；sidecar/批量/快捷键仍可扩展）<br />
+目标：用户点击 <strong>魔棒</strong>，粘贴 <strong>链接或编号</strong> → 用 <strong>Translator</strong> 解析元数据 → <strong>写 catalog + 轻量 paper 文件夹</strong>（远程 <code>pdf_url</code> / <code>html_url</code> 默认 <strong>不下载</strong>）→ 落到 <code>papers/</code> 或当前 Papers 子文件夹。</p>
 </blockquote>
 <p>相关文档：</p>
 <ul>
@@ -1249,23 +1249,26 @@ await catalog.upsert({ ...metadata, path });
 <h3 id="phase-a-fallback">Phase A — 交互闭环（可先 fallback）<a class="headerlink" href="#phase-a-fallback" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] 文档：交互、目标文件夹、不下载约定</li>
-<li>[ ] 魔棒 Popover + <code>parent_dir</code> 解析 + i18n</li>
-<li>[ ] <code>lookup:parse</code> + arXiv/DOI fallback 客户端</li>
-<li>[ ] <code>lookup:import</code>：catalog + NOTES 壳，<strong>无下载</strong></li>
+<li>[x] 魔棒 Popover + <code>parent_dir</code> 解析 + i18n（侧栏 <code>WandSparkles</code>）</li>
+<li>[x] Host 解析 + arXiv fallback（Translator 失败时）</li>
+<li>[x] <code>lookup_import</code>：catalog upsert + NOTES 壳；下载策略见 §1.3</li>
 </ul>
-<h3 id="phase-b-translator-runtime">Phase B — Translator Runtime<a class="headerlink" href="#phase-b-translator-runtime" title="Permanent link">&para;</a></h3>
+<h3 id="phase-b-translator">Phase B — Translator 服务<a class="headerlink" href="#phase-b-translator" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[ ] sidecar + <code>lookup:search</code> → <code>POST /search</code>（及链接时 <code>/web</code>）</li>
-<li>[ ] map / dedupe / 设置页状态</li>
+<li>[x] HTTP 客户端 → <code>POST {translatorBaseUrl}/search|/web</code>（默认 <code>https://translator.philfan.cn</code>）</li>
+<li>[x] map → <code>PaperMetadata</code> / catalog schema v2；设置页 <code>translatorBaseUrl</code></li>
+<li>[ ] 可选本机 sidecar 捆绑 / 探测；更细 dedupe UX</li>
 </ul>
 <h3 id="phase-c">Phase C — 体验打磨<a class="headerlink" href="#phase-c" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[ ] 重复提示、批量、打开 paper 联调</li>
-<li>[ ] 与文件树选中态同步目标路径</li>
+<li>[x] 入库后刷新文件树；可打开 paper</li>
+<li>[x] 与文件树选中态同步目标 <code>parent_dir</code></li>
+<li>[x] 论文库 UI：<code>paper_list</code> 表格 + 虚拟 Library 节点（见 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>）</li>
+<li>[ ] 重复提示、批量导入、<code>⇧⌘I</code> 快捷键</li>
 </ul>
 <h3 id="phase-d">Phase D — 可选<a class="headerlink" href="#phase-d" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[x] 设置：<code>downloadFulltextToLocal</code>（有预览 URL 时是否也下载；无 URL 始终下载）— UI 已加</li>
+<li>[x] 设置：<code>downloadFulltextToLocal</code>（有预览 URL 时是否也下载；无 URL 始终下载）</li>
 <li>[ ] PDF prepare 复用同一 Lookup</li>
 </ul>
 <hr />
@@ -1288,28 +1291,29 @@ await catalog.upsert({ ...metadata, path });
 </tr>
 <tr>
 <td>单测 import</td>
-<td>catalog 有 <code>pdf_url</code>；<code>source/</code> 不出现 pdf</td>
+<td>catalog 有 <code>pdf_url</code>；<code>source/</code> 不出现 pdf（设置关时）</td>
 </tr>
 <tr>
 <td>UI</td>
-<td>目标路径文案；无 Vault；重复 skip</td>
+<td>魔棒无 Vault 禁用；Library 表可见新行；远程 PDF 预览</td>
 </tr>
 </tbody>
 </table>
 <hr />
 <h2 id="13">13. 验收标准<a class="headerlink" href="#13" title="Permanent link">&para;</a></h2>
 <ol>
-<li>点击魔棒，粘贴链接或编号，成功后 paper 壳 + <strong>catalog 有行</strong>。  </li>
+<li>~~点击魔棒，粘贴链接或编号，成功后 paper 壳 + <strong>catalog 有行</strong>。~~ ✅  </li>
 <li><strong>无</strong> <code>pdf_url</code>/<code>html_url</code>：无论设置，尽量下载到 <code>source/</code>。  </li>
 <li><strong>有</strong> 预览 URL + 设置关：不下载，远程预览。  </li>
 <li><strong>有</strong> 预览 URL + 设置开：catalog 保留 URL 且下载到 <code>source/</code>。  </li>
 <li>文件树选中 <code>papers/nlp</code> 时路径为 <code>papers/nlp/&lt;id&gt;/</code>。  </li>
-<li>重复不覆盖 <code>NOTES.md</code>；文案 i18n。</li>
+<li>重复不覆盖 <code>NOTES.md</code>；文案 i18n。  </li>
+<li>~~论文库表格（<code>paper_list</code>）能列出已入库论文。~~ ✅  </li>
 </ol>
 <hr />
 <h2 id="14_1">14. 开放问题<a class="headerlink" href="#14_1" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>sidecar 分发</strong>方式（捆绑 / Docker / 首次下载）。  </li>
+<li><strong>sidecar 分发</strong>方式（捆绑 / Docker / 首次下载）— 当前默认远程 Translator URL。  </li>
 <li>v1 是否「解析成功即入库」还是始终二次确认。  </li>
 <li><code>generate_notes</code> 默认是否调 Agent（建议默认占位模板）。  </li>
 </ol>
@@ -1338,6 +1342,10 @@ await catalog.upsert({ ...metadata, path });
 <tr>
 <td>2026-07-15</td>
 <td>下载策略：无预览 URL 始终尝试下载；有 URL 时仅 <code>downloadFulltextToLocal</code> 开才额外本地下载</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td>实现进度：<code>lookup_import</code> / 设置 Translator URL / catalog 权威 / <code>paper_list</code> + Library UI；metadata.json 仅为投影</td>
 </tr>
 </tbody>
 </table>

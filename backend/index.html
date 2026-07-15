@@ -194,14 +194,14 @@
 <li>向前端暴露 Tauri invoke commands 与 event streams。</li>
 <li>启动并管理本地 ACP-compatible Agent，但不托管模型密钥。</li>
 <li>提供 catalog 导出；双链等可重建索引与 catalog 分层清晰。</li>
-<li>标识符魔棒入库：解析 ID、调用本机 Translator Runtime、映射元数据并写入 catalog（规划中）。</li>
+<li>标识符魔棒入库：<code>lookup_import</code> 调用 Translator 服务（可配置 base URL）、映射元数据并写入 catalog；论文库列表 <code>paper_list</code>。</li>
 </ul>
 <h2 id="_3">本分区文档<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="api/"><code>api.md</code></a>：Tauri invoke commands、event contracts、Graph 与 Agent API 形状。</li>
 <li><a href="data-model/"><code>data-model.md</code></a>：Vault 结构、paper 文件、分层规则、运行时类型。</li>
 <li><a href="catalog/"><code>catalog.md</code></a>：Catalog SQLite schema、导出、Host 实现与迁移。</li>
-<li><a href="identifier-lookup/"><code>identifier-lookup.md</code></a>：魔棒（Identifier Lookup）与 Zotero Translator 后端架构（设计稿）。</li>
+<li><a href="identifier-lookup/"><code>identifier-lookup.md</code></a>：魔棒（Identifier Lookup）与 Translator 后端（v0 已落地 + 后续扩展）。</li>
 <li><a href="wikilinks/"><code>wikilinks.md</code></a>：Obsidian 兼容双链语法、反链查询、图谱模型。</li>
 </ul>
 <h2 id="_4">交叉引用<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>

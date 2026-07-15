@@ -585,10 +585,35 @@
 使用 <code>PRAGMA foreign_keys = ON</code>；写操作包在事务中，与「先落盘笔记再改 status」的顺序在 importer 中约定（建议：目录与 NOTES 成功后再把 <code>status</code> 置 <code>completed</code>）。</p>
 <h3 id="53-l1">5.3 列表与查询（应用内 L1）<a class="headerlink" href="#53-l1" title="Permanent link">&para;</a></h3>
 <p>前端「论文库 / 筛选」<strong>只读 catalog</strong>，不扫盘拼表：</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>状态</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>paper_list</code></td>
+<td><strong>已落地</strong></td>
+<td>全量列表 → UI 论文库表格；参数仅 <code>vaultPath</code></td>
+</tr>
+<tr>
+<td><code>paper_get</code></td>
+<td><strong>已落地</strong></td>
+<td>单篇 meta（<code>path</code> 或 <code>id</code>）→ Paper Info / 远程预览 URL</td>
+</tr>
+<tr>
+<td><code>paper:list</code>（过滤/分页）</td>
+<td>规划</td>
+<td>year、tag、type、query（LIKE 或 FTS）、limit/offset</td>
+</tr>
+</tbody>
+</table>
 <ul>
-<li><code>paper:list</code>：支持 year、tag、type、query（LIKE 或 FTS）</li>
-<li><code>paper:get</code>：单篇 meta + 解析出的路径字段</li>
-<li>文件树仍扫 <code>papers/</code> 目录；<strong>标题展示</strong>优先 <code>paper:get</code> / 批量 map，缺失则回退目录名</li>
+<li>文件树仍扫 <code>papers/</code> 目录；<strong>标题与元数据</strong>优先 <code>paper_get</code> / <code>paper_list</code>，缺失则回退目录名。</li>
+<li>UI 排序在前端对 <code>paper_list</code> 结果本地完成（表头点击），不写回 SQLite。</li>
 </ul>
 <h3 id="54">5.4 导出（保留能力，非默认文件）<a class="headerlink" href="#54" title="Permanent link">&para;</a></h3>
 <table>
@@ -632,7 +657,7 @@
   → 创建 paper 文件夹（默认 `papers/&lt;id&gt;/`，也可 `papers/&lt;org&gt;/…/&lt;id&gt;/`）
   → 事务写入 catalog.papers（path = 该文件夹相对路径）
   → 不更新根级 PAPERS.md / library.bib
-  → 可选：emit 事件供 UI 刷新 paper:list
+  → 可选：emit 事件供 UI 刷新 paper_list
 </code></pre>
 
 <p>重复入库：<code>id</code> 冲突时按 <code>overwrite</code> 策略更新行或拒绝；<strong>不得静默覆盖</strong>用户 <code>NOTES.md</code>。</p>
@@ -752,8 +777,9 @@
 <hr />
 <h2 id="9">9. 验收要点<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
 <ul>
-<li>[x] Create Vault 生成 <code>.motif/catalog.sqlite</code>（v1 schema），<strong>不</strong>生成 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
-<li>[ ] 入库后 <code>paper:list</code> 可见新行；磁盘上无强制 <code>metadata.json</code>。</li>
+<li>[x] Create Vault 生成 <code>.motif/catalog.sqlite</code>（schema 当前版本），<strong>不</strong>生成 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
+<li>[x] 魔棒 / <code>lookup_import</code> 入库后 <code>paper_list</code> 可见新行；UI 论文库表格展示。</li>
+<li>[x] 读路径走 <code>paper_get</code> / <code>paper_list</code>；<code>metadata.json</code> 仅为 upsert 后投影（非 UI 主源）。</li>
 <li>[ ] <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code> 能生成与历史格式兼容的文本。</li>
 <li>[ ] 删除导出文件不影响 catalog 与 UI 列表。</li>
 <li>[ ] 打开缺 catalog 的旧目录能 init 或从 <code>metadata.json</code> 迁移。</li>
@@ -762,8 +788,9 @@
 <h2 id="10">10. 相关文档<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../data-model/"><code>data-model.md</code></a> — Vault 分层与类型</li>
-<li><a href="../api/"><code>api.md</code></a> — <code>vault:*</code> / <code>paper:*</code> / <code>catalog:export_*</code> / <code>lookup:*</code>（规划）</li>
+<li><a href="../api/"><code>api.md</code></a> — <code>paper_list</code> / <code>paper_get</code> / <code>lookup_import</code> 等已落地契约 + 规划扩展</li>
 <li><a href="../identifier-lookup/"><code>identifier-lookup.md</code></a> — 魔棒元数据 → catalog 写入路径</li>
+<li><a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> — 论文库表格与虚拟 Library 节点</li>
 <li><a href="../../development/technical-plan/"><code>../development/technical-plan.md</code></a> — 模块与依赖</li>
 <li><a href="../../development/roadmap/"><code>../development/roadmap.md</code></a> — 版本交付</li>
 </ul>

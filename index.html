@@ -180,10 +180,13 @@
 </table>
 <h2 id="ui">当前 UI 形态<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h2>
 <ul>
-<li>默认工作台为三栏：文件树、中间内容、Preview/Notes。</li>
+<li>默认工作台：文件树 + 中间内容 +（按需）Notes + 可选右侧栏。</li>
+<li>文件树顶部有虚拟节点 <strong>Library</strong>；中间栏可展示 catalog <strong>论文库表格</strong>（排序、双向滚动），数据来自 <code>paper_list</code>。</li>
+<li><strong>Paper Info / Notes</strong> 仅在选中具体论文时出现；论文库视图不显示。</li>
 <li>无 Vault 时中间栏为欢迎页（最近路径 + 打开 / 创建）；<code>⌘N</code> 可开多窗口。</li>
 <li>可选右侧栏只有两个顶层入口：Agent 与 Backlinks。</li>
 <li>Backlinks 视图上方显示反链，下方显示 Graph；Graph 不是独立顶层 tab。</li>
+<li>魔棒：侧栏粘贴标识符 → Translator → 写入 catalog（见 <a href="backend/identifier-lookup/"><code>backend/identifier-lookup.md</code></a>）。</li>
 </ul>
 <h2 id="_3">关键三方技术<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>
@@ -286,5 +289,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-07-15 10:50:47.193946+00:00
+Build Date UTC : 2026-07-15 11:18:44.843660+00:00
 -->

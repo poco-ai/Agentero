@@ -135,18 +135,23 @@
    - 无 Vault 欢迎页：最近路径 MRU + 打开 / 创建（无常驻说明文案）。
    - 当前窗口 Vault 用 <code>sessionStorage</code>；最近列表 / 上次路径用 <code>localStorage</code>。</p>
 <ol>
-<li><strong>arXiv 精确入库</strong></li>
-<li>支持输入 arXiv ID / URL。</li>
-<li>拉取 metadata，写入 catalog <code>papers</code> 表。</li>
-<li>写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code>。</li>
-<li>入库后自动打开 paper，并刷新 Backlinks/Graph。</li>
+<li><strong>arXiv 精确入库</strong> 🟡 魔棒路径已通；Agent 候选 / LaTeX 全量仍待</li>
+<li>[x] 支持输入 arXiv ID / URL（魔棒）。</li>
+<li>[x] 拉取 metadata，写入 catalog <code>papers</code> 表。</li>
+<li>[x] 写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code>。</li>
+<li>[x] 入库后刷新文件树并打开 paper。</li>
+<li>[ ] 刷新 Backlinks/Graph 索引；关键词/描述 Agent 候选。</li>
 </ol>
-<p>2b. <strong>魔棒 / Identifier Lookup（Translator 后端）</strong> — 设计见 <a href="../../backend/identifier-lookup/"><code>docs/backend/identifier-lookup.md</code></a>
-   - UI：点击魔棒 → 粘贴链接或编号 → 加入 Papers。
-   - 目标：<code>papers/</code> 或文件树当前选中的 Papers 子文件夹。
-   - Translator → 直接写入 <code>PaperMetadata</code>/catalog；有 <code>pdf_url</code>/<code>html_url</code> <strong>不下载</strong>。
-   - 无预览 URL 始终尝试下载；设置 <code>downloadFulltextToLocal</code>（默认关）控制「有预览 URL 时是否也下载」。
-   - Host：<code>lookup:parse</code> / <code>lookup:search</code> / <code>lookup:import(parent_dir)</code>；sidecar Runtime。</p>
+<p>2b. <strong>魔棒 / Identifier Lookup（Translator 后端）</strong> ✅ v0 — 设计见 <a href="../../backend/identifier-lookup/"><code>docs/backend/identifier-lookup.md</code></a>
+   - [x] UI：侧栏魔棒 → 粘贴链接或编号 → 加入 Papers。
+   - [x] 目标：<code>papers/</code> 或文件树当前选中的 Papers 子文件夹。
+   - [x] Translator → 直接写入 <code>PaperMetadata</code>/catalog；有 <code>pdf_url</code>/<code>html_url</code> 默认不下载。
+   - [x] 无预览 URL 始终尝试下载；设置 <code>downloadFulltextToLocal</code>（默认关）。
+   - [x] Host：<code>lookup_import</code> / <code>lookup_translator_config</code>；HTTP Translator（<code>translatorBaseUrl</code>）。
+   - [ ] <code>⇧⌘I</code> 快捷键；批量；本机 sidecar 捆绑。</p>
+<p>2c. <strong>论文库表格 UI</strong> ✅
+   - [x] 虚拟节点 <code>motif:library</code>；中间栏 catalog 表（<code>paper_list</code>）。
+   - [x] 表头排序；横向/纵向滚动；仅具体论文时显示 Paper Info / Notes。</p>
 <ol>
 <li><strong>Agent 工作流入口</strong></li>
 <li>在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>

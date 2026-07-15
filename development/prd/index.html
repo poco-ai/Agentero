@@ -282,7 +282,8 @@
 <ul>
 <li>左侧：Vault 文件树与 paper 元信息。</li>
 <li>中间：Markdown / PDF / HTML 视图切换。</li>
-<li>右侧 Preview/Notes：Markdown 预览，或阅读 PDF/HTML 时展示该篇 <code>NOTES.md</code>。</li>
+<li>中间栏：论文库表格（Library / vault home）或 Markdown / PDF / HTML。</li>
+<li>右侧 Notes（Preview）：<strong>仅</strong>打开具体论文且 PDF/HTML 时展示该篇 <code>NOTES.md</code>；论文库视图隐藏。</li>
 <li>可选右侧栏：Agent，或 Backlinks+Graph（上方反链，下方图谱）。</li>
 <li>支持打开、编辑、保存 Markdown。</li>
 <li>支持基本标题、列表、代码块、链接、表格预览。</li>
@@ -454,7 +455,7 @@
 <li>导入一篇本地 PDF 后，生成 <code>papers/&lt;citekey&gt;/</code>，catalog 中 <code>type=pdf</code>，磁盘有必定生成的 <code>PAPER.md</code>、<code>NOTES.md</code> 与 <code>source/</code> 中的原始 PDF。</li>
 <li>配置 MinerU API Key 后导入 PDF 默认走云端解析；未配置或云端失败时自动降级为本地解析，且入库流程不中断。</li>
 <li>输入关键词或一段研究描述后，在已配置本机 Agent 的前提下，能检索并返回候选论文，用户确认后完成入库。</li>
-<li>连续入库 3 篇 arXiv 论文后，<code>paper:list</code> 至少返回 3 条；导出 PAPERS.md 时含 3 行。</li>
+<li>连续入库 3 篇 arXiv 论文后，<code>paper_list</code> 至少返回 3 条；导出 PAPERS.md 时含 3 行（export 仍可规划）。</li>
 <li>编辑 <code>NOTES.md</code> 并保存后，文件系统中的 Markdown 内容同步更新。</li>
 <li><code>[[双链]]</code> 能跳转；Backlinks 右侧栏能在上方显示引用来源，并在下方显示图谱。</li>
 <li>配置并探测到本机 ACP Agent 后，跨论文问答结果包含读取文件列表；未配置时展示 BYOA 空状态而非崩溃。</li>

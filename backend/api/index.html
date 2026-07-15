@@ -122,7 +122,9 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paperget">paper:get（扩展规划）</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#paperlist">paper:list</a>
+    <li class="toctree-l4"><a class="reference internal" href="#paper_list">paper_list（已落地）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#paperlist">paper:list（扩展规划）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paperupdate">paper:update</a>
     </li>
@@ -844,7 +846,7 @@ Host (Tauri + Rust)
     }
   }
   ```
-- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；写 `NOTES.md` / `highlights.md` / `metadata.json`；下载策略见 identifier-lookup §1.3。
+- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` / `highlights.md`；`metadata.json` 为 catalog 投影同步；下载策略见 identifier-lookup §1.3。
 
 ### 3.6 论文
 
@@ -894,12 +896,28 @@ Host (Tauri + Rust)
 }
 </code></pre>
 
-<h4 id="paperlist"><code>paper:list</code><a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
-<p>列出当前 Vault 中已入库的论文（<strong>读 catalog</strong>，不扫盘拼表）。</p>
+<h4 id="paper_list"><code>paper_list</code>（已落地）<a class="headerlink" href="#paper_list" title="Permanent link">&para;</a></h4>
+<p>列出当前 Vault 中已入库的全部论文（<strong>读 catalog</strong>，不扫盘拼表）。供前端 <strong>论文库表格</strong>（Library 虚拟节点 / vault home）。</p>
+<ul>
+<li><strong>参数</strong>（invoke 字段名 <code>args</code>）：</li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata[] }</code>（数组元素含 <code>path</code>、<code>title</code>、<code>authors</code>、<code>year</code>、<code>type</code>、标识符与远程 URL 等）。</li>
+<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>listPapers</code>；UI 侧本地表头排序（不经由本命令传 sort 参数）。</li>
+<li><strong>说明</strong>：当前无 filter/pagination；扩展筛选/FTS 仍可用规划契约 <code>paper:list</code>（见下）。</li>
+</ul>
+<h4 id="paperlist"><code>paper:list</code>（扩展规划）<a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
+<p>带过滤与分页的列表（尚未实现；现网用 <code>paper_list</code>）。</p>
 <ul>
 <li><strong>参数</strong></li>
 </ul>
 <pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
   status?: ('pending' | 'importing' | 'completed' | 'failed')[];
   tag?: string;
   year?: number;
