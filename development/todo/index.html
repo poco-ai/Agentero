@@ -153,7 +153,8 @@
    - [x] Host：<code>lookup_import</code> / <code>lookup_translator_config</code> / <code>paper_download_assets</code> / <code>paper_parse_body</code>。
    - [x] 设置：<code>translatorBaseUrl</code>（默认 <code>https://translator.philfan.cn</code>）；<strong>无</strong>「是否本地下载」开关。
    - [x] 文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 原因）。
-   - [x] 无 TeX + 有 PDF：下载后 liteparse 生成 <code>PAPER.md</code>（Download 路径内；无独立眼睛图标）。
+   - [x] 无 TeX + 有 PDF：下载后 liteparse 生成 <code>PAPER.md</code>（Download 路径内）。
+   - [x] 资源齐全且未读：文件树 Eye → paper-reader 精读 → <code>is_read</code>。
    - [x] Library 行：库内任一篇仍缺资源 → 批量 Download。
    - [x] 快捷键 <code>⇧⌘I</code>（打开魔棒）；本机 Translator sidecar 捆绑仍待。</p>
 <p>2c. <strong>论文库表格 UI</strong> ✅
@@ -172,10 +173,11 @@
    - [ ] 本地 PDF 直接预览（非仅远程 <code>pdf_url</code>）。</p>
 <ol>
 <li><strong>Agent 工作流入口</strong></li>
-<li>在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>
-<li>workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code>。</li>
+<li>[x] <strong>paper-reader 精读</strong>：文件树 Eye（资源齐全 + <code>is_read=false</code>）→ <code>$paper-reader</code> → <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度。</li>
+<li>[ ] 在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>
+<li>[ ] workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code>。</li>
 <li>
-<p>输出必须包含 Sources；写入前先进入草稿确认。</p>
+<p>[ ] 输出必须包含 Sources；写入前先进入草稿确认。</p>
 </li>
 <li>
 <p><strong>文件与索引同步</strong></p>
@@ -228,12 +230,12 @@
 <li>
 <p><strong>用户友好的 Skills / Workflows</strong></p>
 </li>
-<li>粗读论文。</li>
-<li>多篇对比。</li>
-<li>Related Work 草稿。</li>
-<li>Idea 批判性评估。</li>
+<li>[x] 精读论文（paper-reader：文件树 Eye + catalog <code>is_read</code>）。</li>
+<li>[ ] 多篇对比。</li>
+<li>[ ] Related Work 草稿。</li>
+<li>[ ] Idea 批判性评估。</li>
 <li>
-<p>实验复现清单。</p>
+<p>[ ] 实验复现清单。</p>
 </li>
 <li>
 <p><strong>PDF 划词提问（Selection Ask）</strong> — 设计见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a></p>

@@ -126,6 +126,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paper_delete">paper_delete（已落地）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#paper_set_is_read">paper_set_is_read（已落地）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#paperlist">paper:list（扩展规划）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paperupdate">paper:update</a>
@@ -868,7 +870,9 @@ Host (Tauri + Rust)
 
 #### `paper_parse_body`（已落地）
 
-对**无本地 TeX** 的 paper，用 liteparse 从本地 PDF 生成 `{paper}/PAPER.md`。在 `paper_download_assets` / `lookup_import` 下载后自动触发，亦可手动 `paper_parse_body`（UI 无独立眼睛图标）。
+对**无本地 TeX** 的 paper，用 liteparse 从本地 PDF 生成 `{paper}/PAPER.md`。在 `paper_download_assets` / `lookup_import` 下载后自动触发，亦可手动 `paper_parse_body`。
+
+&gt; **眼睛图标**现用于 **paper-reader 精读**（资源齐全且未读时显示），不再表示「生成 PAPER.md」。
 
 - **参数**（invoke 字段名 `args`）：
   ```ts
@@ -996,6 +1000,24 @@ Host (Tauri + Rust)
 <li><strong>SQL</strong>：<code>DELETE FROM papers WHERE path = ? OR path LIKE '{path}/%'</code>。</li>
 <li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>deletePapersUnderPath</code>；侧栏右键删除 / <code>⌘⌫</code>。</li>
 </ul>
+<h4 id="paper_set_is_read"><code>paper_set_is_read</code>（已落地）<a class="headerlink" href="#paper_set_is_read" title="Permanent link">&para;</a></h4>
+<p>更新 catalog 中单篇论文的 <strong><code>is_read</code></strong>（是否已完成 paper-reader 精读）。成功后同步 <code>metadata.json</code> 投影。</p>
+<ul>
+<li><strong>参数</strong>（invoke 字段名 <code>args</code>）：</li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  /** paper 文件夹 Vault 相对路径 */
+  path: string;
+  isRead: boolean;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata }</code>（更新后的整行）。</li>
+<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>setPaperIsRead</code>；paper-reader 工作流成功结束后置 <code>true</code>。</li>
+<li><strong>说明</strong>：与 <code>status</code>（入库态）无关；默认 <code>false</code>。文件树在「资源齐全且 <code>is_read === false</code>」时显示眼睛图标。</li>
+</ul>
 <h4 id="paperlist"><code>paper:list</code>（扩展规划）<a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
 <p>带过滤与分页的列表（尚未实现；现网用 <code>paper_list</code>）。</p>
 <ul>
@@ -1097,7 +1119,14 @@ Host (Tauri + Rust)
 <p><strong>返回</strong>：<code>{ ok: true, data: { sessionId, messageId, agentId } }</code></p>
 </li>
 <li>
-<p><strong>技能上下文</strong>：<code>agent_list_skills</code> 列出 <code>~/.agents/skills</code>、<code>${CODEX_HOME:-~/.codex}/skills</code> 和当前 Vault <code>.agents/skills</code>。运行时重新解析 id，只读取 <code>SKILL.md</code>，单个文件上限 64 KiB，最多加载 5 个。</p>
+<p><strong>技能上下文</strong>：<code>agent_list_skills</code> 列出 <code>~/.agents/skills</code>、<code>${CODEX_HOME:-~/.codex}/skills</code>、<code>~/.claude/skills</code> 和当前 Vault <code>.agents/skills</code>。运行时重新解析 id，只读取 <code>SKILL.md</code>，单个文件上限 64 KiB，最多加载 5 个。</p>
+</li>
+<li><strong>技能提及按 provider 分流</strong>（<code>SkillMentionStyle</code>，见 Host <code>skills.rs</code>）：</li>
+<li><strong>Codex</strong> → <code>$skill-id</code> 前缀 + 注入正文；</li>
+<li><strong>Claude ACP</strong> → <code>/skill-id</code> 前缀 + 注入正文；</li>
+<li><strong>其它</strong> → 仅注入正文（<code>skill:id</code> 标签），prompt 明确写明不要依赖 <code>$</code>/<code>/</code> 运行时命令。</li>
+<li>
+<p>Composer 的 <code>$</code> 仅是 Motif UI 选 skill 的方式，不等于每个 Agent 的运行时语法。</p>
 </li>
 <li>
 <p><strong>权限策略</strong>：默认取消 ACP 权限请求。Composer 按 provider 持久化 YOLO 偏好，并在每次运行中通过 <code>autoApprove</code> 传入；逐项权限确认仍未实现。</p>

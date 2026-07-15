@@ -299,7 +299,7 @@
 </tr>
 </tbody>
 </table>
-<p>当前 <strong><code>schema_version = 2</code></strong>（v1 打开时自动 migration 加 Translator 字段列）。打开 Vault 时：</p>
+<p>当前 <strong><code>schema_version = 3</code></strong>（v1→v2 Translator 列；v2→v3 <code>is_read</code>）。打开 Vault 时：</p>
 <ol>
 <li>若文件不存在 → 创建并执行 migration v1。</li>
 <li>若 version &lt; 当前 → 顺序 migration。</li>
@@ -492,6 +492,11 @@
 <td>短摘要/一行说明（可选，供列表与导出表）</td>
 </tr>
 <tr>
+<td><code>is_read</code></td>
+<td>INTEGER NOT NULL DEFAULT 0</td>
+<td>v3：是否已完成 paper-reader 精读工作流（0/1 → bool）</td>
+</tr>
+<tr>
 <td><code>added_at</code></td>
 <td>TEXT NOT NULL</td>
 <td>ISO 8601</td>
@@ -503,7 +508,7 @@
 </tr>
 </tbody>
 </table>
-<p><strong>schema_version</strong>：当前目标 <strong>2</strong>（v1 库打开时 <code>ALTER TABLE</code> 追加列）。见 Host <code>schema.rs</code>。</p>
+<p><strong>schema_version</strong>：当前目标 <strong>3</strong>（v1→v2 Translator 列；v2→v3 增加 <code>is_read</code>）。见 Host <code>schema.rs</code>。</p>
 <p>索引建议：</p>
 <ul>
 <li><code>idx_papers_id</code> ON <code>papers(id)</code></li>
@@ -515,6 +520,7 @@
 <li><code>idx_papers_bibtex</code> ON <code>papers(bibtex_key)</code> WHERE <code>bibtex_key</code> IS NOT NULL</li>
 <li><code>idx_papers_pmid</code> ON <code>papers(pmid)</code> WHERE <code>pmid</code> IS NOT NULL（v2）</li>
 <li><code>idx_papers_isbn</code> ON <code>papers(isbn)</code> WHERE <code>isbn</code> IS NOT NULL（v2）</li>
+<li><code>idx_papers_is_read</code> ON <code>papers(is_read)</code>（v3）</li>
 </ul>
 <p>可选后续：</p>
 <ul>
