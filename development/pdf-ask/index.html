@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>PDF 划词提问 - Motif 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "PDF \u5212\u8bcd\u63d0\u95ee";
+        var mkdocs_page_input_path = "development/pdf-ask.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Motif 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">PDF 划词提问</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 产品目标</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 与现有架构的关系</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 技术栈分析</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31">3.1 分层选型</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32">3.2 为何不选的方案</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#33-pdfjs">3.3 关键技术细节（PDF.js）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4">4. 交互状态机</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5-json">5. 数据模型（JSON 落盘）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#51">5.1 路径约定</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#52-json-schema">5.2 线程 JSON Schema（逻辑）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#53-highlightsmd">5.3 与 highlights.md 的边界</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6">6. 前端模块划分（建议）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7-host-api">7. Host / API 契约（规划）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#a-host-commands">A. Host commands（推荐）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#b-plugin-fs">B. 前端 plugin-fs 直写</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#8">8. 页边圆片布局算法</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#9">9. 实现分期</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#10">10. 风险与降级</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#11">11. 测试要点</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#12">12. 文档与代码入口（落地时同步）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#13">13. 决策摘要</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../hypothesis/">产品假设</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Motif 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">开发</li>
+      <li class="breadcrumb-item active">PDF 划词提问</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/motif/edit/main/docs/development/pdf-ask.md">Edit on poco-ai/motif</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="pdf-selection-ask">PDF 划词提问（Selection Ask）<a class="headerlink" href="#pdf-selection-ask" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>状态：<strong>设计中（未实现）</strong><br />
+范围：阅读 PDF 时选中/双击/悬停触发提问 → 小对话框问答 → JSON 落盘 → 页边圆片回访（飞书式边注）。<br />
+相关：<a href="../technical-plan/"><code>technical-plan.md</code></a> §3.4 阅读器、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a> Agent 契约。</p>
+</blockquote>
+<h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>在 <strong>中间栏 PDF 阅读</strong> 场景下，用户对论文原文发起「就地提问」，而不是先跳到右侧 Agent 面板再手工粘贴上下文。</p>
+<table>
+<thead>
+<tr>
+<th>交互</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>划词</strong></td>
+<td>选中 PDF 文本后，在选区旁弹出迷你问答卡</td>
+</tr>
+<tr>
+<td><strong>双击</strong></td>
+<td>双击词/短句，按词边界取上下文，弹出迷你问答卡</td>
+</tr>
+<tr>
+<td><strong>悬停停留</strong></td>
+<td>指针在某处静止超过阈值 (T)（建议默认 600–800 ms，可设置），弹出迷你问答卡（无选区时以指针页坐标为锚）</td>
+</tr>
+<tr>
+<td><strong>键入提问</strong></td>
+<td>卡内输入问题并发送；可多轮；结束会话后收起</td>
+</tr>
+<tr>
+<td><strong>边注圆片</strong></td>
+<td>结束后在 PDF <strong>右侧页边空白</strong> 渲染小圆片（类似飞书文档评论角标）</td>
+</tr>
+<tr>
+<td><strong>回访</strong></td>
+<td>Hover 预览摘要；点击重新打开该线程对话框</td>
+</tr>
+</tbody>
+</table>
+<p>参考形态：浮层卡片 + 底部输入（类似常见 AI 浮层；本应用内需对齐 shadcn / AI Elements，且不引入外部 Chat 产品壳）。</p>
+<p><strong>非目标（首版不做）</strong>：</p>
+<ul>
+<li>完整 Zotero/Hypothesis 高亮批注系统（仍走后续 <code>highlights.md</code> 路线）。</li>
+<li>跨设备实时协作评论。</li>
+<li>扫描件 OCR 实时划词（无文本层时降级为「仅坐标提问」，见 §7）。</li>
+<li>在 PDF 二进制内写入注解（不改原始 PDF 文件）。</li>
+</ul>
+<h2 id="2">2. 与现有架构的关系<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">中间栏 PdfViewer（react-pdf + pdf.js TextLayer）
+        │
+        ├─ 选区 / 双击 / 悬停  →  AskTrigger
+        ├─ 迷你问答卡          →  AskPopover（AI Elements 子集）
+        ├─ 页边圆片层          →  AskGutter
+        │
+        ├─ 会话 IO             →  Host 读写 papers/&lt;id&gt;/asks/*.json
+        └─ 模型回答            →  既有 ACP Client（agent_run_once + 流式事件）
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>已有能力</th>
+<th>本功能用法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>react-pdf</code> + <code>pdfjs-dist</code>（已开 <code>renderTextLayer</code>）</td>
+<td>选区与字符坐标来源</td>
+</tr>
+<tr>
+<td><code>PdfViewer</code>（<code>src/components/viewer/pdf-viewer.tsx</code>）</td>
+<td>扩展为带交互层的阅读器，而非平行第二套渲染</td>
+</tr>
+<tr>
+<td>ACP / <code>agent_run_once</code> + <code>agent:stream</code> 等</td>
+<td>问答传输；<strong>不</strong>新建模型 SDK、<strong>不</strong>在 Motif 存 API Key</td>
+</tr>
+<tr>
+<td>AI Elements（Conversation / Message / PromptInput）</td>
+<td>迷你卡内消息列表与输入；传输仍是 ACP，不是 Vercel <code>useChat</code></td>
+</tr>
+<tr>
+<td>Paper 文件夹 / Vault 文件</td>
+<td>线程 JSON 落在 paper 目录，local-first</td>
+</tr>
+<tr>
+<td><code>highlights.md</code>（L2.5 标注）</td>
+<td><strong>首版不混写</strong>；可选后续把「值得保留的引文」导出为 highlight</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3">3. 技术栈分析<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31">3.1 分层选型<a class="headerlink" href="#31" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>选型</th>
+<th>理由</th>
+<th>是否新增依赖</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PDF 渲染</td>
+<td><strong>既有</strong> <code>react-pdf</code> + <code>pdfjs-dist</code></td>
+<td>已渲染 TextLayer / AnnotationLayer，适合划词</td>
+<td>否</td>
+</tr>
+<tr>
+<td>选区与几何</td>
+<td><strong>DOM Selection + TextLayer span 几何</strong>；必要时读 <code>page.getTextContent()</code></td>
+<td>浏览器原生选区成本低；bbox 用 <code>getClientRects()</code> 映射到页坐标</td>
+<td>否</td>
+</tr>
+<tr>
+<td>浮层定位</td>
+<td><strong>Floating UI</strong>（<code>@floating-ui/react</code>）或 Radix <strong>Popover</strong> 定位 primitives</td>
+<td>处理碰撞、滚动、缩放后重算；与 shadcn 生态一致</td>
+<td>建议新增 Floating UI（若未间接依赖）</td>
+</tr>
+<tr>
+<td>迷你对话 UI</td>
+<td><strong>AI Elements</strong> 精简组合 + shadcn Card/Button/Tooltip</td>
+<td>与 Agent 面板视觉一致；图标 + Tooltip，无常驻说明文案</td>
+<td>否</td>
+</tr>
+<tr>
+<td>状态</td>
+<td>React 局部 state + 可选轻量 store（若已有 Zustand 可复用）</td>
+<td>当前选区线程、打开中的 threadId、流式 buffer</td>
+<td>视实现而定</td>
+</tr>
+<tr>
+<td>持久化</td>
+<td><strong>Vault 内 JSON 文件</strong>（见 §5）</td>
+<td>用户明确要求 JSON；结构化线程/坐标天然适合 JSON；外部工具仍可读</td>
+<td>否（<code>plugin-fs</code> / Host 读写）</td>
+</tr>
+<tr>
+<td>问答后端</td>
+<td><strong>BYOA ACP Client</strong></td>
+<td>与产品一致；上下文注入 quote + 页码 + 可选 <code>PAPER.md</code>/<code>NOTES.md</code> 摘要</td>
+<td>否</td>
+</tr>
+<tr>
+<td>ID</td>
+<td>既有 <code>nanoid</code></td>
+<td>thread / message id</td>
+<td>否</td>
+</tr>
+<tr>
+<td>i18n</td>
+<td><code>react-i18next</code></td>
+<td>全部用户文案走 <code>t()</code>；en 源语言</td>
+<td>否</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32">3.2 为何不选的方案<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>不采用原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>在 PDF 内嵌 XFDF/注解</td>
+<td>污染用户原始 PDF；与 local-first「人可读旁路文件」冲突</td>
+</tr>
+<tr>
+<td>仅存 <code>.motif/catalog.sqlite</code></td>
+<td>问答是人的阅读产物，应可被外部工具打开；JSON 文件更透明</td>
+</tr>
+<tr>
+<td>全部写入 <code>highlights.md</code></td>
+<td>Markdown 不便表达多轮消息与流式元数据；首版 JSON 更干净；可后续互导</td>
+</tr>
+<tr>
+<td>浏览器扩展式划词</td>
+<td>应用内 Webview 已有 PDF，无需跨页面扩展</td>
+</tr>
+<tr>
+<td>自研 Canvas 文本命中</td>
+<td>TextLayer 已够用；仅在无文本层时再考虑坐标-only</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-pdfjs">3.3 关键技术细节（PDF.js）<a class="headerlink" href="#33-pdfjs" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>TextLayer 已开启</strong>（<code>renderTextLayer</code>），选区 API 可用。</li>
+<li><strong>坐标系</strong>：以「页内归一化坐标」或「PDF 用户空间点 + pageNumber」存盘，<strong>禁止只存屏幕像素</strong>（缩放/窗口变化会失效）。</li>
+<li><strong>映射公式（建议）</strong>：</li>
+<li>运行时：<code>DOMRect</code> → 相对当前 <code>Page</code> 容器的 <code>(x, y, w, h)</code> → 除以 <code>viewport.width/height</code> 得 <code>0–1</code> 归一化 rects。</li>
+<li>回放：页渲染完成 + <code>width</code> 变化时，用同一归一化 rects × 当前 viewport 重定位圆片与高亮。</li>
+<li><strong>多矩形选区</strong>：跨行选区可能多个 <code>ClientRect</code>；全部保存为 <code>rects[]</code>，圆片锚点取首段中线 y 或包围盒中心。</li>
+<li><strong>远程 PDF CORS</strong>：当前预览走远程 <code>pdf_url</code>；TextLayer 抽取依赖 PDF.js 能读文本。若 CORS/范围请求失败，需降级提示；本地归档 PDF（<code>{paper}/{id}.pdf</code>）未来可用 <code>convertFileSrc</code> 增强稳定性（与阅读器演进一致）。</li>
+</ol>
+<h2 id="4">4. 交互状态机<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">idle
+  │ selectionchange（非空选区）
+  │ dblclick
+  │ pointerdown + stay ≥ T（可配置，默认 ~700ms）
+  ▼
+prompting  ── 显示 AskPopover（空会话或继续）
+  │ 用户发送
+  ▼
+streaming  ── agent:stream 更新助手气泡
+  │ agent:completed / failed
+  ▼
+active     ── 可继续多轮；用户点「结束 / 收起」
+  │
+  ▼
+anchored   ── 写盘；页边圆片；popover 关闭
+  │ hover 圆片 → 预览
+  │ click 圆片 → 回到 active/prompting
+  ▼
+...
+</code></pre>
+
+<p><strong>互斥与边界</strong>：</p>
+<ul>
+<li>打开迷你卡时，不自动抢右侧 Agent 大面板焦点；可选「在 Agent 面板打开」升级路径（后续）。</li>
+<li>滚动 / 缩放时：popover 跟随锚点或临时隐藏，圆片重算 y。</li>
+<li>切换论文 / 关闭 Vault：flush 未保存消息后卸载层。</li>
+<li>悬停触发需 <strong>防误触</strong>：移动超过阈值像素则取消计时；编辑 NOTES 时不触发。</li>
+</ul>
+<h2 id="5-json">5. 数据模型（JSON 落盘）<a class="headerlink" href="#5-json" title="Permanent link">&para;</a></h2>
+<h3 id="51">5.1 路径约定<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
+<p>建议（与 paper 绑定、可备份、不进 catalog 权威表）：</p>
+<pre class="codehilite"><code class="language-text">papers/&lt;id&gt;/
+  NOTES.md
+  highlights.md
+  asks/                    # 本功能
+    index.json             # 可选：线程目录（id、page、updatedAt）
+    &lt;threadId&gt;.json        # 单线程完整记录
+  1706.03762.pdf
+  ...
+</code></pre>
+
+<ul>
+<li><strong>事实来源</strong>：<code>asks/&lt;threadId&gt;.json</code>（人产生的问答）。</li>
+<li><strong>可选索引</strong>：<code>asks/index.json</code> 加速页边渲染（仅 id/page/y/preview）；丢失时可扫目录重建。</li>
+<li><strong>不</strong>把全文塞进 <code>.motif/catalog.sqlite</code>；catalog 不承载对话正文。</li>
+</ul>
+<h3 id="52-json-schema">5.2 线程 JSON Schema（逻辑）<a class="headerlink" href="#52-json-schema" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-ts">/** papers/&lt;id&gt;/asks/&lt;threadId&gt;.json */
+interface PdfAskThread {
+  version: 1;
+  id: string;                 // nanoid
+  paperPath: string;          // vault 相对路径
+  createdAt: string;          // ISO 8601
+  updatedAt: string;
+  status: &quot;open&quot; | &quot;ended&quot;;
+
+  /** 锚点：可重建 UI 位置 */
+  anchor: {
+    page: number;             // 1-based
+    /** 0–1 归一化矩形，相对该页 viewport */
+    rects: { x: number; y: number; w: number; h: number }[];
+    /** 划词原文；双击/悬停可为空或短上下文 */
+    quote?: string;
+    /** 触发方式，便于分析与调试 */
+    trigger: &quot;selection&quot; | &quot;dblclick&quot; | &quot;dwell&quot;;
+  };
+
+  messages: PdfAskMessage[];
+}
+
+interface PdfAskMessage {
+  id: string;
+  role: &quot;user&quot; | &quot;assistant&quot; | &quot;system&quot;;
+  content: string;
+  createdAt: string;
+  /** 可选：ACP session / message 关联，便于调试 */
+  agentSessionId?: string;
+  sources?: { title?: string; uri?: string }[];
+}
+</code></pre>
+
+<h3 id="53-highlightsmd">5.3 与 <code>highlights.md</code> 的边界<a class="headerlink" href="#53-highlightsmd" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>asks/*.json</code></th>
+<th><code>highlights.md</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>目的</td>
+<td>多轮就地问答</td>
+<td>引文 + 想法证据层</td>
+</tr>
+<tr>
+<td>形态</td>
+<td>JSON 线程</td>
+<td>Markdown 块引用</td>
+</tr>
+<tr>
+<td>首版</td>
+<td><strong>本功能唯一落盘</strong></td>
+<td>不自动写入</td>
+</tr>
+<tr>
+<td>后续</td>
+<td>「保存为标注」可导出 quote+comment</td>
+<td>Agent/笔记引用 <code>^id</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="6">6. 前端模块划分（建议）<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">src/components/viewer/
+  pdf-viewer.tsx              # 现有；挂载交互层与 gutter
+  pdf-ask/
+    ask-layer.tsx             # 捕获 selection / dblclick / dwell
+    ask-popover.tsx           # 迷你对话框（消息 + 输入）
+    ask-gutter.tsx            # 右侧圆片列表
+    ask-highlight.tsx         # 选区/已锚定高亮 overlay（可选）
+    use-pdf-geometry.ts       # DOMRect ↔ 归一化坐标
+    use-pdf-ask-store.ts      # 当前 paper 的 threads 加载/保存
+src/lib/pdf-ask/
+  types.ts
+  schema.ts                   # 校验 version / 字段
+  prompt.ts                   # 组装发给 Agent 的 prompt（含 quote/page）
+</code></pre>
+
+<p><strong>UI 约定</strong>（对齐 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>）：</p>
+<ul>
+<li>圆片：小尺寸、低对比；Hover Tooltip 显示 quote 截断 + 首问摘要。</li>
+<li>提问框：圆角矩形，只保留模型选择和发送按钮，上方是对话框</li>
+<li>迷你卡：限制最大高度，内部滚动；底部输入；结束/关闭为图标按钮 + <code>aria-label</code>。</li>
+<li>文案全部 i18n（建议 namespace <code>viewer</code> 或新建 <code>pdfAsk</code>）。</li>
+</ul>
+<h2 id="7-host-api">7. Host / API 契约（规划）<a class="headerlink" href="#7-host-api" title="Permanent link">&para;</a></h2>
+<p>首版可两路径之一（实现时二选一，推荐 A 以统一权限与路径校验）：</p>
+<h3 id="a-host-commands">A. Host commands（推荐）<a class="headerlink" href="#a-host-commands" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pdf_ask_list</code></td>
+<td><code>{ paperPath }</code> → 线程摘要列表（供 gutter）</td>
+</tr>
+<tr>
+<td><code>pdf_ask_read</code></td>
+<td><code>{ paperPath, threadId }</code> → 完整线程</td>
+</tr>
+<tr>
+<td><code>pdf_ask_write</code></td>
+<td><code>{ paperPath, thread }</code> → 原子写 <code>asks/&lt;id&gt;.json</code> + 更新 index</td>
+</tr>
+<tr>
+<td><code>pdf_ask_delete</code></td>
+<td><code>{ paperPath, threadId }</code></td>
+</tr>
+</tbody>
+</table>
+<p>写盘规则：仅 Vault 内路径；不覆盖用户其他文件；JSON pretty-print 便于 Git diff。</p>
+<h3 id="b-plugin-fs">B. 前端 <code>plugin-fs</code> 直写<a class="headerlink" href="#b-plugin-fs" title="Permanent link">&para;</a></h3>
+<ul>
+<li>实现快，但路径校验与原子写分散；多窗口并发时更易冲突。  </li>
+<li>若采用，仍须集中在 <code>src/lib/pdf-ask/io.ts</code>，后续可无痛迁 Host。</li>
+</ul>
+<p><strong>问答</strong>复用既有：</p>
+<ul>
+<li><code>agent_run_once</code>：<code>prompt</code> 由 <code>prompt.ts</code> 注入 quote / page / 用户问题。</li>
+<li>事件：<code>agent:stream</code> / <code>agent:completed</code> / <code>agent:failed</code>（窗口定向不变）。</li>
+</ul>
+<p><strong>Prompt 骨架（示意）</strong>：</p>
+<pre class="codehilite"><code class="language-text">你在帮助用户阅读论文 PDF。
+页码: {page}
+对应的原文路径在{这里写tex路径或PAPER.md路径}
+引用原文:
+&gt; {quote}
+
+用户问题:
+{question}
+
+请基于引用作答；不确定时明确说明。回答简洁，必要时分点。
+</code></pre>
+
+<p>可选增强：附加 <code>NOTES.md</code> 摘要或 <code>PAPER.md</code> 邻近段落（需 Host 读文件，注意 token 预算）。</p>
+<h2 id="8">8. 页边圆片布局算法<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<ol>
+<li>每页右侧预留 gutter（CSS：<code>page</code> 容器 <code>position: relative</code>，圆片 <code>absolute; right: -Npx</code> 或贴白边内侧）。</li>
+<li>圆片 <code>top</code> = 锚点 rects 的垂直中心映射到页容器像素。</li>
+<li><strong>碰撞</strong>：同页多线程 y 接近时，做简单纵向错开（stack），避免重叠不可点。</li>
+<li>Hover：高亮对应 quote rects（半透明色带，语义色与选区区分，避免纯广告黄）。</li>
+<li>点击：打开 popover，anchor 仍绑该 thread。</li>
+</ol>
+<p>视觉对标飞书：<strong>正文锚点 + 边注指示器 + 点击回线程</strong>，不实现完整右侧评论列表首版。</p>
+<h2 id="9">9. 实现分期<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>交付</th>
+<th>验收</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>M1 选区 + 弹层</strong></td>
+<td>划词出现 popover；可输入本地假回复</td>
+<td>选区稳定、滚动不崩</td>
+</tr>
+<tr>
+<td><strong>M2 持久化</strong></td>
+<td>JSON 读写；重开 PDF 圆片仍在</td>
+<td>缩放后圆片仍对齐 quote</td>
+</tr>
+<tr>
+<td><strong>M3 ACP 接入</strong></td>
+<td>真流式回答；多轮；结束写盘</td>
+<td>与 Agent 面板共用 provider 配置</td>
+</tr>
+<tr>
+<td><strong>M4 双击 / 悬停</strong></td>
+<td>触发完善；设置项阈值</td>
+<td>防误触可接受</td>
+</tr>
+<tr>
+<td><strong>M5 增强</strong></td>
+<td>导出 highlight；本地 PDF 文本层；无文本层降级 UI</td>
+<td>扫描件有明确空状态</td>
+</tr>
+</tbody>
+</table>
+<h2 id="10">10. 风险与降级<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>缓解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>远程 PDF 无 TextLayer / 乱码</td>
+<td>检测 <code>textContent</code> 为空 → 仅允许坐标提问 + 提示「无文本层」</td>
+</tr>
+<tr>
+<td>缩放后锚点漂移</td>
+<td>归一化坐标 + 页渲染后重算；集成测试多 width</td>
+</tr>
+<tr>
+<td>流式中切换论文</td>
+<td>取消/收尾当前 turn；禁止跨 paper 写盘</td>
+</tr>
+<tr>
+<td>JSON 与 Git 冲突</td>
+<td>单线程单文件，降低合并难度；write 带 updatedAt</td>
+</tr>
+<tr>
+<td>与 NOTES 编辑抢焦点</td>
+<td>popover 焦点陷阱适度；Esc 关闭</td>
+</tr>
+<tr>
+<td>Token / 隐私</td>
+<td>默认只发 quote + 问题；不默认整篇 PDF 上传；BYOA 由用户 Agent 出网</td>
+</tr>
+</tbody>
+</table>
+<h2 id="11">11. 测试要点<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<ul>
+<li>单元：归一化坐标往返、<code>schema</code> 校验、index 重建。</li>
+<li>组件：selection → open popover；write → gutter 出现；click → 消息恢复。</li>
+<li>集成：mock <code>agent:stream</code> 完成一轮后文件存在且可再读。</li>
+<li>手工：长 PDF 滚动、窗口缩放、中英混排选区、双栏论文（rects 多段）。</li>
+</ul>
+<h2 id="12">12. 文档与代码入口（落地时同步）<a class="headerlink" href="#12" title="Permanent link">&para;</a></h2>
+<p>实现时需同步：</p>
+<ul>
+<li><a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>：增加 <code>asks/</code> 文件约定与类型。</li>
+<li><a href="../../backend/api/"><code>../backend/api.md</code></a>：<code>pdf_ask_*</code> 与 Agent prompt 约定。</li>
+<li><a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>：PDF 中间栏交互与圆片规则。</li>
+<li><a href="../roadmap/"><code>roadmap.md</code></a> / <a href="../todo/"><code>todo.md</code></a>：勾选进度。</li>
+</ul>
+<h2 id="13">13. 决策摘要<a class="headerlink" href="#13" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>渲染</strong>：继续 <code>react-pdf</code> TextLayer，不引入第二套 PDF 引擎。  </li>
+<li><strong>交互</strong>：选区 / 双击 / 悬停三触发 → 迷你问答卡 → 结束变页边圆片。  </li>
+<li><strong>存储</strong>：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>（用户要求的 JSON）；坐标归一化可重建。  </li>
+<li><strong>智能</strong>：复用 ACP BYOA，不在 Motif 内嵌模型 Key。  </li>
+<li><strong>UI</strong>：AI Elements + shadcn；飞书式边注心智，不做完整批注产品首版。  </li>
+<li><strong>与 highlights</strong>：分离；后续可选导出。</li>
+</ol>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../technical-plan/" class="btn btn-neutral float-left" title="技术方案"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../roadmap/" class="btn btn-neutral float-right" title="路线图">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+        </span>
+    
+    
+      <span><a href="../technical-plan/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../roadmap/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

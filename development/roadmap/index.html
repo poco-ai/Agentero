@@ -80,6 +80,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../technical-plan/">技术方案</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../pdf-ask/">PDF 划词提问</a>
+                  </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">路线图</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#1-roadmap">1. Roadmap 原则</a>
@@ -273,6 +275,7 @@
 <li>[ ] <code>catalog:export_papers_md</code>（Markdown 表形态；BibTeX 已由 Library 导出覆盖）。</li>
 <li>[x] 入库后刷新 Backlinks/Graph 索引</li>
 <li>[x] 魔棒快捷键 <code>⇧⌘I</code>；</li>
+<li>[ ] 非 arxiv 下载 PDF 有问题（10.1371/journal.pbio.0040157）</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -299,7 +302,6 @@
 <li>[ ] 工作流 prompt 模板注入 + <code>AGENTS.md</code> 约束。</li>
 <li>[ ] 内置工作流：总结当前论文、基于本地库问答、生成 Related Work 草稿。</li>
 <li>[x] Agent 读取路径回显（Sources）。</li>
-<li>[ ] 写文件前临时草稿确认机制。</li>
 <li>[x] 密钥边界：模型 API Key 由 Agent CLI 管理，Motif 不要求模型 BYOK 表单。</li>
 </ul>
 <p>验收标准：</p>
@@ -376,7 +378,8 @@
 <ul>
 <li>Zotero/BibTeX 批量导入。</li>
 <li>浏览器插件，一键收集网页和论文。</li>
-<li>完整 PDF 高亮、批注、摘录同步。</li>
+<li><strong>PDF 划词提问</strong>（选区/双击/悬停 → 迷你问答 → <code>asks/*.json</code> → 页边圆片）；设计见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>。</li>
+<li>完整 PDF 高亮、批注、摘录同步（<code>highlights.md</code>；可与划词提问互导）。</li>
 <li>远程 PDF 链接、任意网页入库（DOI 魔棒路径可部分覆盖）。</li>
 <li>多 Agent 并行读论文和综合评估。</li>
 <li>论文引用关系自动抽取。</li>
@@ -434,7 +437,8 @@
 <ul>
 <li>[ ] Zotero/BibTeX 迁移工具。</li>
 <li>[ ] 浏览器插件与网页 importer。</li>
-<li>[ ] PDF/HTML 标注系统。</li>
+<li>[ ] PDF 划词提问（见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>：JSON 线程 + 页边圆片 + ACP）。</li>
+<li>[ ] PDF/HTML 标注系统（<code>highlights.md</code>）。</li>
 <li>[ ] 多 Agent 并行综述与评估。</li>
 <li>[ ] iPadOS 文件系统与触控布局适配。</li>
 </ul>
@@ -452,7 +456,7 @@
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../technical-plan/" class="btn btn-neutral float-left" title="技术方案"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../pdf-ask/" class="btn btn-neutral float-left" title="PDF 划词提问"><span class="icon icon-circle-arrow-left"></span> Previous</a>
         <a href="../todo/" class="btn btn-neutral float-right" title="TODO">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
@@ -480,7 +484,7 @@
         </span>
     
     
-      <span><a href="../technical-plan/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../pdf-ask/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
       <span><a href="../todo/" style="color: #fcfcfc">Next &raquo;</a></span>

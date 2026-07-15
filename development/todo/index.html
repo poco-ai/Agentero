@@ -80,6 +80,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../technical-plan/">技术方案</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../pdf-ask/">PDF 划词提问</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">TODO</a>
@@ -225,12 +227,23 @@
 <p>实验复现清单。</p>
 </li>
 <li>
+<p><strong>PDF 划词提问（Selection Ask）</strong> — 设计见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a></p>
+</li>
+<li>[ ] M1：划词弹出迷你问答卡（本地假回复可验收交互）。</li>
+<li>[ ] M2：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code> 读写 + 页边圆片锚点（归一化坐标）。</li>
+<li>[ ] M3：接入 ACP <code>agent_run_once</code> 流式多轮；结束会话落盘。</li>
+<li>[ ] M4：双击 / 悬停停留触发 + 防误触；阈值可配置。</li>
+<li>
+<p>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer 增强。</p>
+</li>
+<li>
 <p><strong>PDF / HTML 标注系统</strong></p>
 </li>
 <li>参考 Hypothesis 风格的边注、评论、锚点。</li>
 <li>标注正文进入 <code>highlights.md</code>，坐标/锚点缓存可重建。</li>
+<li>PDF.js / HTML iframe 都需要统一标注模型。</li>
 <li>
-<p>PDF.js / HTML iframe 都需要统一标注模型。</p>
+<p>与划词提问（asks JSON）边界清晰，可互导。</p>
 </li>
 <li>
 <p><strong>更大范围导入</strong></p>

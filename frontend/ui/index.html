@@ -112,6 +112,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
@@ -202,6 +204,11 @@
 <li>新建文件 → <code>FilePlus2</code>（在选中目录 / 文件父目录下 <strong>树内联命名</strong>，Enter 确认 / Esc 取消，对齐 VS Code）</li>
 <li>新建文件夹 → <code>FolderPlus</code>（同上）</li>
 <li><strong>刷新文件树</strong>不在侧边栏：使用菜单 <strong>File → Refresh File Tree</strong>（<code>⌘R</code>）。</li>
+<li><strong>在系统文件管理器中显示</strong>（<code>revealItemInDir</code> / <code>src/lib/reveal.ts</code>）：</li>
+<li><strong>双击</strong>真实文件 / 文件夹 / paper 行 → 在 Finder（macOS）/ Explorer（Windows）/ 文件管理器（Linux）中定位并选中。</li>
+<li><strong>右键</strong>同上节点 → 上下文菜单「在 Finder 中显示」（文案随平台切换；旁注 <code>⌥⌘R</code>）。</li>
+<li><strong><code>⌥⌘R</code></strong>：对当前选中路径执行相同操作（<code>shortcuts.ts</code> → <code>revealInFinder</code>）。</li>
+<li>虚拟节点 <strong>Library</strong>（<code>motif:library</code>）不提供此操作；仅桌面端可用。</li>
 <li><strong>不要</strong>在侧边栏放打开 / 创建 Vault、关闭 Vault、刷新或设置入口。</li>
 <li><strong>不要</strong>使用「Open vault… / Refresh」等文字按钮。</li>
 </ul>
@@ -372,6 +379,11 @@
 <td><code>⌘R</code></td>
 <td>刷新文件树</td>
 <td>刷新当前视图</td>
+</tr>
+<tr>
+<td><code>⌥⌘R</code></td>
+<td>在 Finder 中显示</td>
+<td>定位当前选中文件/文件夹；<code>shortcuts.ts</code> → <code>revealInFinder</code></td>
 </tr>
 <tr>
 <td><code>⌥⌘S</code></td>

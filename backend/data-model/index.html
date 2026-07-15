@@ -82,6 +82,8 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#highlightsmdl25">highlights.md(L2.5,事实来源)</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#askspdf">asks/（规划：PDF 划词提问）</a>
+    </li>
     <li class="toctree-l3"><a class="reference internal" href="#papermdl3">PAPER.md(L3,派生)</a>
     </li>
         </ul>
@@ -127,6 +129,8 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
@@ -342,6 +346,12 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <li><strong>引文 + 想法</strong>留在 <code>highlights.md</code>,是事实来源,保持便携 Markdown。</li>
 <li><strong>页码 / bbox 等渲染坐标是纯 UI 数据</strong>,可缓存于 <code>.motif/</code>（catalog 同库缓存表或旁路文件）,按标注 id 关联;丢失后可用引文全文检索重新锚定。</li>
 <li>用 Obsidian 块引用 <code>^id</code>,让 <code>NOTES.md</code> 能精确引用某条标注:<code>[[papers/1706.03762/highlights#^h12]]</code>。</li>
+</ul>
+<h3 id="askspdf"><code>asks/</code>（规划：PDF 划词提问）<a class="headerlink" href="#askspdf" title="Permanent link">&para;</a></h3>
+<p>多轮「就地问答」线程，与 <code>highlights.md</code> <strong>分离</strong>：asks 存对话 JSON，highlights 存引文证据。设计见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>。</p>
+<ul>
+<li>路径：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>（可选 <code>asks/index.json</code> 目录）。</li>
+<li>含锚点（page + 归一化 rects + quote）与 <code>messages[]</code>；<strong>不</strong>写入 PDF 二进制，<strong>不</strong>进 catalog 正文。</li>
 </ul>
 <p>格式示例:</p>
 <pre class="codehilite"><code class="language-md">### ^h12 · p.3 §3.2
