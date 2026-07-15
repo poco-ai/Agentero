@@ -90,7 +90,13 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#v01-vault-markdown">V0.1 本地 Vault 与 Markdown 工作台</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#v02-arxiv">V0.2 arXiv 入库闭环</a>
+    <li class="toctree-l2"><a class="reference internal" href="#v02-arxiv">V0.2 arXiv / 标识符入库闭环</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#idurl">已落地（精确 ID/URL + 本地归档）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_1">未完成</a>
+    </li>
+        </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#v03-agent-acp-client-byoa">V0.3 Agent 工作流（ACP Client + BYOA）</a>
     </li>
@@ -104,7 +110,7 @@
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#milestone-a">Milestone A：本地知识库可用 ✅</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#milestone-b">Milestone B：论文可入库 ⏳</a>
+    <li class="toctree-l3"><a class="reference internal" href="#milestone-b">Milestone B：论文可入库 🟡</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#milestone-cagent">Milestone C：Agent 可协作 🟡</a>
     </li>
@@ -183,27 +189,27 @@
 <tr>
 <td>V0.1 本地 Vault 与 Markdown 工作台</td>
 <td>✅ 基本完成</td>
-<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页最近列表、树内联新建文件/文件夹、PDF/HTML/Notes、WYSIWYG Markdown、<strong>论文库表格 + 虚拟 Library 节点</strong>。</td>
+<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页、树内联新建、PDF/HTML/Notes、WYSIWYG Markdown、<strong>论文库表格 + 虚拟 Library 节点</strong>、Preview/Info 仅在具体论文时显示。</td>
 </tr>
 <tr>
-<td>V0.2 arXiv 入库闭环</td>
-<td>🟡 部分完成</td>
-<td><strong>魔棒 + Translator</strong> 精确 ID/URL 入库、catalog 权威、<code>paper_list</code> 列表已落地；Agent 关键词检索/候选确认、LaTeX source 全量闭环仍待做。</td>
+<td>V0.2 arXiv / 标识符入库闭环</td>
+<td>🟡 精确路径基本完成</td>
+<td><strong>魔棒 + Translator</strong> 入库、catalog 权威、<code>paper_list</code> / <code>paper_get</code>、<strong>默认下载 PDF + arXiv e-print 解压 LaTeX</strong>、单篇/Library <strong>补下缺失资源</strong> 已落地；Agent 关键词候选、<code>PAPER.md</code> 生成、<code>catalog:export_*</code> 仍待。</td>
 </tr>
 <tr>
 <td>V0.3 Agent 工作流（BYOA）</td>
 <td>🟡 进行中</td>
-<td>通用 ACP Client 覆盖 OpenCode、Gemini、Claude、Qoder、Grok 与自定义 agent；Codex 已切换到原生 App Server thread runtime，可读取、恢复本地 Codex history。内置工作流、逐项权限确认和写入草稿仍待补齐。</td>
+<td>通用 ACP Client（OpenCode、Gemini、Claude、Qoder、Grok、自定义）+ Codex 原生 App Server thread/history；内置工作流、逐项权限确认、写入草稿确认仍待。</td>
 </tr>
 <tr>
 <td>V0.4 双链、反链与图谱</td>
 <td>✅ 基本完成</td>
-<td>反链、预览双链跳转、缺失目标创建、Graph 面板与 <code>graph_get_graph</code> 已落地；输入补全/Plate 内联节点可后续增强。</td>
+<td>反链、预览双链跳转、缺失目标创建、Graph 与 <code>graph_get_graph</code> 已落地；<code>[[</code> 补全 / Plate 内联节点可后续增强。</td>
 </tr>
 <tr>
 <td>V0.5 Importer 架构与本地 PDF 入库</td>
 <td>⏳ 待实现</td>
-<td>Importer trait、本地 PDF 入库、PDF parser 策略仍在规划。</td>
+<td>Importer trait、本地 PDF 拖拽入库、PdfParser（liteparse / MinerU）仍在规划；魔棒 v0 已可复用部分写盘路径。</td>
 </tr>
 <tr>
 <td>Release CI</td>
@@ -212,6 +218,7 @@
 </tr>
 </tbody>
 </table>
+<p><strong>精确 arXiv/标识符入库（可用）</strong>：魔棒粘贴 ID/URL → Translator → catalog + <code>NOTES.md</code> 壳 → <code>source/</code> PDF（arXiv 含 TeX）→ Library 表可见；缺资源时树行/Library 可补下。</p>
 <h2 id="3">3. 版本规划<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
 <h2 id="v01-vault-markdown">V0.1 本地 Vault 与 Markdown 工作台<a class="headerlink" href="#v01-vault-markdown" title="Permanent link">&para;</a></h2>
 <p>目标：让产品从 Tauri 模板变成一个可用的本地 Markdown 知识库壳。</p>
@@ -227,6 +234,7 @@
 <li>[x] Paper-centric 视图：选中 paper 后中间显示远程 PDF/HTML，右侧显示该篇 <code>NOTES.md</code>（<strong>仅具体论文</strong>时显示 Preview/Info）。</li>
 <li>[x] 侧边栏折叠、标题栏快捷按钮、Settings 窗口。</li>
 <li>[x] 论文库表格：虚拟节点 <code>motif:library</code>、<code>paper_list</code>、表头排序、双向滚动。</li>
+<li>[x] Paper Info / Notes 仅在选中具体论文时显示（Library 视图隐藏）。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -241,39 +249,40 @@
 <li>[x] 补齐“Create Vault”流程（含 catalog 初始化），而不只是打开已有目录。</li>
 <li>[ ] 最近 Vault / UI 偏好从 <code>localStorage</code> 迁到 Tauri Store（语义对齐现有前端 MRU）。</li>
 <li>[ ] 文件监听与外部编辑器修改同步。</li>
-<li>[ ] 增加保存状态提示和冲突处理。</li>
+<li>[ ] 增加保存状态提示和冲突处理（Markdown 已有脏点 + 自动保存，可再增强）。</li>
 </ul>
-<h2 id="v02-arxiv">V0.2 arXiv 入库闭环<a class="headerlink" href="#v02-arxiv" title="Permanent link">&para;</a></h2>
-<p>目标：完成从用户输入（ID/URL/关键词/话题/描述）到本地 Markdown 文献资产的首个闭环，并保留 Agent 的检索与推荐能力。</p>
-<p>关键交付：</p>
+<h2 id="v02-arxiv">V0.2 arXiv / 标识符入库闭环<a class="headerlink" href="#v02-arxiv" title="Permanent link">&para;</a></h2>
+<p>目标：从用户输入（ID/URL，后续关键词/话题/描述）到本地文献资产的闭环；精确路径优先落地，再扩展 Agent 检索。</p>
+<p>设计：<a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>、<a href="../../backend/catalog/"><code>../backend/catalog.md</code></a>。</p>
+<h3 id="idurl">已落地（精确 ID/URL + 本地归档）<a class="headerlink" href="#idurl" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[x] 输入 arXiv ID/URL（魔棒 + Translator / arXiv fallback）。</li>
-<li>[ ] 关键词/话题/自然语言描述 + 输入分类与意图解析（规则 + Agent）。</li>
-<li>[ ] Agent 检索 arXiv 候选论文并返回列表供用户确认（单选/多选）。</li>
-<li>[x] 获取论文元数据（Translator map → <code>PaperMetadata</code>）。</li>
-<li>[x] 创建 <code>papers/&lt;id&gt;/</code>（arxiv 用 arXiv ID 等），metadata 写入 catalog。</li>
-<li>[x] 入库默认下载 PDF；arXiv e-print 解压 LaTeX 到 <code>source/</code>（catalog 仍保留远程 URL 供预览）。</li>
-<li>[ ] 仅在无 LaTeX source 或需要可读结构化正文时生成 <code>PAPER.md</code>。</li>
-<li>[x] 生成默认结构的 <code>NOTES.md</code>，并创建空的 <code>highlights.md</code>。</li>
-<li>[x] metadata 写入 <code>.motif/catalog.sqlite</code>（<code>paper_list</code> / <code>paper_get</code>）；可选 <code>catalog:export_*</code> 仍待做。</li>
-<li>[x] 在 UI 中展示入库错误（Popover 行内）；进度条可后续增强。</li>
+<li>[x] 侧栏魔棒：粘贴 arXiv / DOI 等链接或编号 → Host <code>lookup_import</code>。</li>
+<li>[x] Translator HTTP（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）+ arXiv Atom fallback。</li>
+<li>[x] map → <code>PaperMetadata</code> → <strong>catalog.sqlite 权威</strong>；<code>metadata.json</code> 仅为投影。</li>
+<li>[x] 创建 <code>papers/&lt;id&gt;/</code>（或当前 Papers 子文件夹下）、<code>NOTES.md</code> / <code>highlights.md</code> 壳。</li>
+<li>[x] <strong>始终下载 PDF</strong> 到 <code>source/{id}.pdf</code>；<strong>arXiv e-print 解压 LaTeX</strong> 到 <code>source/</code>（无下载开关）。</li>
+<li>[x] 中间栏预览仍可用 catalog 远程 <code>pdf_url</code> / <code>html_url</code>。</li>
+<li>[x] <code>paper_list</code> / <code>paper_get</code>；Library 表格 + 虚拟节点。</li>
+<li>[x] 按需补下：<code>paper_download_assets</code>；paper 行缺 PDF 或 arXiv 缺 TeX 时 Download；<strong>Library 行批量补下全部缺失</strong>。</li>
+<li>[x] 入库错误行内展示；重复不覆盖用户 <code>NOTES.md</code>。</li>
+</ul>
+<h3 id="_1">未完成<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 关键词/话题/自然语言描述 + 输入分类（规则 + Agent）。</li>
+<li>[ ] Agent 检索候选列表确认（单选/多选）。</li>
+<li>[ ] 无 LaTeX 或需要统一正文时生成 <code>PAPER.md</code>。(放在解析部分完成)</li>
+<li>[ ] <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code>。</li>
+<li>[x] 入库后刷新 Backlinks/Graph 索引</li>
+<li>[x] 魔棒快捷键 <code>⇧⌘I</code>；</li>
 </ul>
 <p>验收标准：</p>
 <ul>
-<li>[x] 输入 <code>1706.03762</code> 后能生成对应论文目录和核心 Markdown 文件（NOTES 壳 + catalog 行）。</li>
-<li>[ ] 输入一段描述或关键词后，Agent 能返回候选论文列表，用户确认后完成入库。</li>
-<li>[x] 连续入库多篇后 <code>paper_list</code> 可见对应行（export PAPERS.md 仍待做）。</li>
-<li>[ ] 有 LaTeX source 的论文优先保留 <code>.tex</code> 源文件，<code>PAPER.md</code> 为可选生成。</li>
-<li>[x] 重复入库时不会破坏用户已修改的 <code>NOTES.md</code>（skip / open existing 策略）。</li>
-</ul>
-<p>细化 TODO：</p>
-<ul>
-<li>[x] 魔棒精确 ID/URL 导入（侧栏；设计见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>）。</li>
-<li>[ ] 设计 Import dialog：关键词/描述走 Agent 候选。</li>
-<li>[ ] Rust 端 arXiv Atom 查询（关键词路径）、标准 ID 归一化补强。</li>
-<li>[ ] 入库任务需要可取消、可重试，并能恢复部分完成状态。</li>
-<li>[ ] 明确 BibTeX / PAPERS.md 导出规则并实现 <code>catalog:export_*</code>。</li>
-<li>[ ] 入库后刷新反链/图谱索引（当前刷新文件树 + 可打开 paper）。</li>
+<li>[x] 输入 <code>1706.03762</code> 后生成 paper 目录、NOTES 壳、catalog 行，并尽量得到 PDF（arXiv 另有 TeX）。</li>
+<li>[x] 连续入库多篇后 <code>paper_list</code> / Library 可见对应行。</li>
+<li>[x] 缺本地资源时 paper 行 / Library 可补下。</li>
+<li>[ ] 关键词路径：候选列表 → 确认 → 入库。</li>
+<li>[ ] 可选导出 PAPERS.md / BibTeX 与 catalog 一致。</li>
+<li>[x] 重复入库不破坏已有 <code>NOTES.md</code>。</li>
 </ul>
 <h2 id="v03-agent-acp-client-byoa">V0.3 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#v03-agent-acp-client-byoa" title="Permanent link">&para;</a></h2>
 <p>目标：将 Motif 实现为 <strong>ACP Client</strong>，连接用户本机已安装的 Agent，按 Vault 规则完成总结 / 问答 / Related Work。</p>
@@ -338,7 +347,6 @@
 <li>[ ] Plate 内联 wikilink 节点与更稳定的 Markdown 序列化。</li>
 <li>[ ] 图谱 hover 时只高亮直接邻居。</li>
 <li>[ ] 增加 Graph 全屏/聚焦模式，保留右侧栏小图作为默认入口。</li>
-<li>[ ] 图谱索引持久化到 SQLite，并支持增量重建。</li>
 </ul>
 <h2 id="v05-importer-pdf">V0.5 Importer 架构与本地 PDF 入库<a class="headerlink" href="#v05-importer-pdf" title="Permanent link">&para;</a></h2>
 <p>目标：抽象 Importer 接口，落地 arXiv 与本地 PDF 两个 importer，并为后续 HTML、DOI、Zotero/BibTeX 做架构准备。</p>
@@ -351,12 +359,13 @@
 <li>[ ] PDF 元数据混合获取：DOI/arXiv 标识符查询 Crossref/arXiv + Agent 正文抽取，入库前用户确认。</li>
 <li>[ ] 预留本地 HTML importer。</li>
 <li>[ ] 预留 BibTeX/Zotero importer。</li>
-<li>[x] <strong>魔棒 Identifier Lookup（v0）</strong>：HTTP Translator + <code>lookup_import</code>（见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>）；sidecar 捆绑 / 批量仍可扩展。</li>
+<li>[x] <strong>魔棒 Identifier Lookup（v0）</strong>：HTTP Translator + <code>lookup_import</code> + 默认 PDF/LaTeX + <code>paper_download_assets</code>（见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>）。</li>
+<li>[ ] 将魔棒路径收编为正式 Importer 实现之一。</li>
 <li>[ ] 统一入库状态、错误类型和输出文件契约。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
-<li>[ ] arXiv importer 行为与 V0.2 保持兼容。</li>
+<li>[ ] arXiv importer 行为与 V0.2 精确路径保持兼容。</li>
 <li>[ ] 导入本地 PDF 能生成 <code>papers/&lt;citekey&gt;/</code>（含必定生成的 <code>PAPER.md</code>）并进入笔记审阅。</li>
 <li>[ ] 配置 MinerU API Key 后 PDF 默认走云端解析，未配置或失败时自动降级本地且不中断。</li>
 <li>[ ] 新 importer 可以复用同一套输出结构。</li>
@@ -368,7 +377,7 @@
 <li>Zotero/BibTeX 批量导入。</li>
 <li>浏览器插件，一键收集网页和论文。</li>
 <li>完整 PDF 高亮、批注、摘录同步。</li>
-<li>远程 PDF 链接、DOI、任意网页入库。</li>
+<li>远程 PDF 链接、任意网页入库（DOI 魔棒路径可部分覆盖）。</li>
 <li>多 Agent 并行读论文和综合评估。</li>
 <li>论文引用关系自动抽取。</li>
 <li>作者、机构、会议关系图谱。</li>
@@ -378,11 +387,11 @@
 </ul>
 <h2 id="5">5. 主要里程碑<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
 <h3 id="milestone-a">Milestone A：本地知识库可用 ✅<a class="headerlink" href="#milestone-a" title="Permanent link">&para;</a></h3>
-<p>包含 V0.1。完成后，产品可以作为普通 Markdown vault 编辑器使用。</p>
-<h3 id="milestone-b">Milestone B：论文可入库 ⏳<a class="headerlink" href="#milestone-b" title="Permanent link">&para;</a></h3>
-<p>包含 V0.2。完成后，产品可以把 arXiv 论文变成本地 Markdown 资产。</p>
+<p>包含 V0.1。完成后，产品可以作为普通 Markdown vault 编辑器使用，并浏览 catalog 论文库。</p>
+<h3 id="milestone-b">Milestone B：论文可入库 🟡<a class="headerlink" href="#milestone-b" title="Permanent link">&para;</a></h3>
+<p>包含 V0.2。<strong>精确 ID/URL 路径已可用</strong>（魔棒 → catalog + PDF/TeX 归档 + Library）；关键词/Agent 候选与导出仍属本里程碑剩余工作。</p>
 <h3 id="milestone-cagent">Milestone C：Agent 可协作 🟡<a class="headerlink" href="#milestone-cagent" title="Permanent link">&para;</a></h3>
-<p>包含 V0.3。完成后，Motif 可作为 ACP Client 连接本机 Agent，基于本地库问答和写作。</p>
+<p>包含 V0.3。完成后，Motif 可作为 ACP Client 连接本机 Agent，基于本地库问答和写作（workflow / 写入确认仍待）。</p>
 <h3 id="milestone-d">Milestone D：知识可导航 ✅<a class="headerlink" href="#milestone-d" title="Permanent link">&para;</a></h3>
 <p>包含 V0.4。完成后，用户可以通过双链、反链、图谱组织研究上下文。</p>
 <h3 id="milestone-e">Milestone E：来源可扩展 ⏳<a class="headerlink" href="#milestone-e" title="Permanent link">&para;</a></h3>
@@ -392,8 +401,9 @@
 <ul>
 <li>[x] Create Vault：标准目录 + <code>AGENTS.md</code> + <code>.motif/catalog.sqlite</code>。</li>
 <li>[x] 多窗口（⌘N）+ 欢迎页最近 Vault 列表（前端 MRU；Store 迁移仍待做）。</li>
-<li>[x] arXiv 精确 ID/URL 入库（魔棒 + Translator + catalog）。</li>
-<li>[x] 论文库 UI：<code>paper_list</code> + Library 虚拟节点 + 表头排序。</li>
+<li>[x] arXiv/标识符精确入库（魔棒 + Translator + catalog + 默认 PDF/LaTeX）。</li>
+<li>[x] 论文库 UI：<code>paper_list</code> + Library 虚拟节点 + 表头排序 + 双向滚动。</li>
+<li>[x] 缺失资源补下：单篇 Download + Library 批量 Download（<code>paper_download_assets</code>）。</li>
 <li>[ ] Agent 关键词候选 / 自然语言入库闭环。</li>
 <li>[ ] Agent workflow prompt：总结当前论文、本地库问答、Related Work。</li>
 <li>[ ] Agent 写入草稿确认与拒绝路径。</li>
@@ -403,7 +413,8 @@
 <h3 id="p1">中期优先级 P1<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[ ] 本地 PDF importer 与 metadata 确认面板。</li>
-<li>[x] Catalog 权威存储 + <code>paper_list</code> / <code>paper_get</code>（导出 / FTS / 双链缓存表仍待）。</li>
+<li>[x] Catalog 权威存储 + <code>paper_list</code> / <code>paper_get</code> / 入库写路径（导出 / FTS / 双链缓存表仍待）。</li>
+<li>[ ] <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code>。</li>
 <li>[ ] <code>[[</code> 补全与 Plate wikilink 内联节点。</li>
 <li>[ ] Graph 全屏/聚焦模式与邻居高亮。</li>
 <li>[ ] Release 流程补充签名、公证、版本号同步和自动 changelog。</li>

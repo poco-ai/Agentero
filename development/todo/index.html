@@ -121,6 +121,7 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="motif-todo">Motif TODO<a class="headerlink" href="#motif-todo" title="Permanent link">&para;</a></h1>
+<p>可执行 backlog。版本级状态与验收以 <a href="../roadmap/"><code>roadmap.md</code></a> 为准；魔棒设计见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>。</p>
 <h2 id="p0">P0 — 近期闭环<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Create Vault 初始化</strong> ✅</li>
@@ -135,24 +136,28 @@
    - 无 Vault 欢迎页：最近路径 MRU + 打开 / 创建（无常驻说明文案）。
    - 当前窗口 Vault 用 <code>sessionStorage</code>；最近列表 / 上次路径用 <code>localStorage</code>。</p>
 <ol>
-<li><strong>arXiv 精确入库</strong> 🟡 魔棒路径已通；Agent 候选 / LaTeX 全量仍待</li>
-<li>[x] 支持输入 arXiv ID / URL（魔棒）。</li>
-<li>[x] 拉取 metadata，写入 catalog <code>papers</code> 表。</li>
+<li><strong>精确标识符入库（arXiv / DOI 等）</strong> ✅ 魔棒路径</li>
+<li>[x] 支持输入 arXiv ID / URL 等（侧栏魔棒）。</li>
+<li>[x] Translator → <code>PaperMetadata</code> → catalog <code>papers</code> 表。</li>
 <li>[x] 写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code>。</li>
+<li>[x] <strong>始终下载 PDF</strong>；<strong>arXiv 解压 e-print LaTeX</strong> 到 <code>source/</code>。</li>
 <li>[x] 入库后刷新文件树并打开 paper。</li>
-<li>[ ] 刷新 Backlinks/Graph 索引；关键词/描述 Agent 候选。</li>
+<li>[x] 入库后刷新 Backlinks/Graph 索引。</li>
+<li>[ ] 关键词/描述 Agent 候选列表确认。</li>
 </ol>
-<p>2b. <strong>魔棒 / Identifier Lookup（Translator 后端）</strong> ✅ v0 — 设计见 <a href="../../backend/identifier-lookup/"><code>docs/backend/identifier-lookup.md</code></a>
+<p>2b. <strong>魔棒 / Identifier Lookup（Translator）</strong> ✅ v0
    - [x] UI：侧栏魔棒 → 粘贴链接或编号 → 加入 Papers。
    - [x] 目标：<code>papers/</code> 或文件树当前选中的 Papers 子文件夹。
-   - [x] Translator → 直接写入 <code>PaperMetadata</code>/catalog。
-   - [x] <strong>始终下载 PDF</strong>；<strong>arXiv 另解压 LaTeX</strong> 到 <code>source/</code>（无下载开关）。
-   - [x] Host：<code>lookup_import</code> / <code>lookup_translator_config</code> / <code>paper_download_assets</code>；HTTP Translator。
-   - [x] 文件树：缺 PDF，或 arXiv 缺 TeX 时行尾 Download 图标。
-   - [ ] <code>⇧⌘I</code> 快捷键；批量；本机 sidecar 捆绑。</p>
+   - [x] Host：<code>lookup_import</code> / <code>lookup_translator_config</code> / <code>paper_download_assets</code>。
+   - [x] 设置：<code>translatorBaseUrl</code>（默认 <code>https://translator.philfan.cn</code>）；<strong>无</strong>「是否本地下载」开关。
+   - [x] 文件树：paper 行缺 PDF 或 arXiv 缺 TeX → Download。
+   - [x] Library 行：库内任一篇仍缺资源 → 批量 Download 全部缺失 PDF / 可取 TeX。
+   - [x] 快捷键 <code>⇧⌘I</code>（打开魔棒）；本机 Translator sidecar 捆绑仍待。</p>
 <p>2c. <strong>论文库表格 UI</strong> ✅
    - [x] 虚拟节点 <code>motif:library</code>；中间栏 catalog 表（<code>paper_list</code>）。
-   - [x] 表头排序；横向/纵向滚动；仅具体论文时显示 Paper Info / Notes。</p>
+   - [x] 表头排序；横向/纵向滚动。
+   - [x] 仅具体论文时显示 Paper Info / Notes（Library 隐藏）。
+   - [x] Library 行批量补资源（与 2b 联动）。</p>
 <ol>
 <li><strong>Agent 工作流入口</strong></li>
 <li>在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>
@@ -228,7 +233,7 @@
 <li>
 <p><strong>更大范围导入</strong></p>
 </li>
-<li>DOI / 网页 importer。</li>
+<li>DOI / 网页 importer 深化（魔棒已部分覆盖 DOI）。</li>
 <li>浏览器插件一键收集。</li>
 <li>
 <p>远程 PDF 链接入库。</p>

@@ -1107,7 +1107,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <h3 id="81">8.1 入口<a class="headerlink" href="#81" title="Permanent link">&para;</a></h3>
 <ul>
 <li>工具栏 <strong>魔棒图标</strong>（<code>WandSparkles</code> 等），Tooltip + <code>aria-label</code> → i18n <code>lookup.magicWand</code>。</li>
-<li>快捷键：<code>⇧⌘I</code>（写入 <code>shortcuts.ts</code> + 设置 Keyboard）。</li>
+<li>快捷键：<code>⇧⌘I</code>（<code>shortcuts.ts</code> <code>magicWand</code> + 设置 Keyboard；无 Vault 时提示先打开）。</li>
 <li>无 Vault 时 disabled。</li>
 </ul>
 <h3 id="82-v1">8.2 主交互流（v1）<a class="headerlink" href="#82-v1" title="Permanent link">&para;</a></h3>
@@ -1209,9 +1209,12 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <h3 id="phase-c">Phase C — 体验打磨<a class="headerlink" href="#phase-c" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] 入库后刷新文件树；可打开 paper</li>
+<li>[x] 入库后 <code>graph_rebuild</code> 并刷新 Backlinks/Graph</li>
 <li>[x] 与文件树选中态同步目标 <code>parent_dir</code></li>
 <li>[x] 论文库 UI：<code>paper_list</code> 表格 + 虚拟 Library 节点（见 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>）</li>
-<li>[ ] 重复提示、批量导入、<code>⇧⌘I</code> 快捷键</li>
+<li>[x] 单篇 / Library 批量补下缺失 PDF 与 arXiv TeX（<code>paper_download_assets</code>）</li>
+<li>[x] <code>⇧⌘I</code> 魔棒快捷键</li>
+<li>[ ] 重复提示增强、入库任务可取消</li>
 </ul>
 <h3 id="phase-d">Phase D — 可选<a class="headerlink" href="#phase-d" title="Permanent link">&para;</a></h3>
 <ul>

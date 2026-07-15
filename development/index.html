@@ -172,14 +172,48 @@
 </tbody>
 </table>
 <h2 id="_3">当前实现状态<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<ul>
-<li>V0.1 本地工作台基本完成：文件树、Markdown IO、paper 视图、<strong>论文库表格 + Library 虚拟节点</strong>、设置与最近 Vault 恢复；<strong>Create Vault</strong>（含 catalog schema）已落地。</li>
-<li>V0.2 arXiv 入库 <strong>部分完成</strong>：魔棒 + Translator + catalog 权威 + <strong>默认 PDF/LaTeX 下载</strong> + <code>paper_list</code> / <code>paper_get</code> / <code>paper_download_assets</code>；Agent 关键词候选与 export 仍待。</li>
-<li>V0.3 Agent 进行中：BYOA 注册表、ACP run-once、流式 UI 与 Sources 已有；workflow prompt 和写入确认仍待补齐。</li>
-<li>V0.4 反链与图谱基本完成：Backlinks 和 Graph 位于同一个右侧栏中。</li>
-<li>V0.5 Importer 架构（本地 PDF 等）仍在规划。</li>
-<li>Release CI 已支持 <code>v*</code> tag 构建 Tauri 安装包。</li>
-</ul>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>状态</th>
+<th>摘要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>V0.1 工作台</td>
+<td>✅</td>
+<td>文件树、Markdown IO、paper 预览/Notes、<strong>Library 论文表</strong>、多窗口、Create Vault + catalog</td>
+</tr>
+<tr>
+<td>V0.2 标识符入库</td>
+<td>🟡 精确路径 ✅</td>
+<td>魔棒 + Translator、catalog 权威、<strong>默认 PDF + arXiv TeX</strong>、单篇/Library <strong>补下缺失</strong>；关键词 Agent 候选与 export 仍待</td>
+</tr>
+<tr>
+<td>V0.3 Agent</td>
+<td>🟡</td>
+<td>BYOA + ACP / Codex 原生 runtime、流式 UI、Sources；workflow 与写入确认仍待</td>
+</tr>
+<tr>
+<td>V0.4 双链/图谱</td>
+<td>✅</td>
+<td>Backlinks + Graph 同栏；<code>graph_get_graph</code></td>
+</tr>
+<tr>
+<td>V0.5 Importer</td>
+<td>⏳</td>
+<td>本地 PDF / PdfParser 规划中</td>
+</tr>
+<tr>
+<td>Release CI</td>
+<td>✅</td>
+<td><code>v*</code> tag → 三平台安装包草稿 Release</td>
+</tr>
+</tbody>
+</table>
+<p>更细的勾选表见 <a href="roadmap/"><code>roadmap.md</code></a>；可执行任务见 <a href="todo/"><code>todo.md</code></a>。</p>
 <h2 id="_4">本分区文档<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="prd/"><code>prd.md</code></a>：产品需求、范围、用户流程、验收标准。</li>

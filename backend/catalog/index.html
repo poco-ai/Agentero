@@ -781,6 +781,7 @@
 <li>[x] Create Vault 生成 <code>.motif/catalog.sqlite</code>（schema 当前版本），<strong>不</strong>生成 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
 <li>[x] 魔棒 / <code>lookup_import</code> 入库后 <code>paper_list</code> 可见新行；UI 论文库表格展示。</li>
 <li>[x] 读路径走 <code>paper_get</code> / <code>paper_list</code>；<code>metadata.json</code> 仅为 upsert 后投影（非 UI 主源）。</li>
+<li>[x] 入库默认写 PDF（及 arXiv TeX）到 <code>source/</code>；<code>paper_download_assets</code> 可补缺失。</li>
 <li>[ ] <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code> 能生成与历史格式兼容的文本。</li>
 <li>[ ] 删除导出文件不影响 catalog 与 UI 列表。</li>
 <li>[ ] 打开缺 catalog 的旧目录能 init 或从 <code>metadata.json</code> 迁移。</li>
