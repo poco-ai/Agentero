@@ -319,6 +319,10 @@
 <li><strong>右侧 Notes</strong>：仅当已打开具体论文且中心为 PDF/HTML 时显示该篇 <code>NOTES.md</code>；论文库视图或未选论文时隐藏（不残留上一篇 Notes 栏）。</li>
 <li><strong>⌘L</strong> 显示 / 隐藏右侧栏；右侧栏入口为 <strong>Agent</strong> 与 <strong>Backlinks</strong>。</li>
 <li>Backlinks 入口内采用上下分区：上方反链列表，下方 Graph。Graph 不再是独立顶层 tab。</li>
+<li><strong>左右侧栏隔离</strong>（<code>react-resizable-panels</code>）：</li>
+<li>左栏（文件树）与右栏（Agent/Backlinks）均为 <strong>常驻 collapsible 面板</strong>（<code>collapsedSize=0</code>），用 <code>expand</code>/<code>collapse</code>/<code>resize</code> 切换，<strong>不要</strong>对右栏做条件卸载整块 <code>ResizablePanel</code>（否则 Group 重排会冲掉左栏折叠态，交替 <code>⌥⌘S</code> / <code>⌘L</code> 时出现重叠/半开）。</li>
+<li>两侧使用 <code>groupResizeBehavior="preserve-pixel-size"</code>，中间主栏保持默认相对尺寸，避免一侧开合时另一侧像素宽度被重新分配。</li>
+<li>Notes 列仍随论文选中条件挂载；<code>showNotesOnRight</code> 变化后 rAF 再 assert 两侧折叠意图。</li>
 <li>各栏 header 等高：统一 <code>h-10</code>（<code>PaneHeader</code> / <code>PANE_HEADER_CLASS</code>），水平对齐；错误提示等放在 header 下方，不撑高标题栏。</li>
 <li>边距、分割线保持轻量；控件密度偏紧凑（icon-xs / icon-sm）。</li>
 <li><strong>面板分隔（sash）</strong>：对齐 VS Code / Cursor——默认 <strong>1px</strong> 细线，hover / 拖拽时略提亮；可点区域略宽但视觉不占粗条。实现见 <code>src/components/layout/resizable.tsx</code>。</li>
