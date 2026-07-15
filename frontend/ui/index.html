@@ -190,15 +190,18 @@
 </ul>
 <h2 id="3">3. 布局<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
 <ul>
-<li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容 + Preview/Notes。</li>
+<li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容（WYSIWYG Markdown 编辑器）+ 右侧栏（Agent / Backlinks）。查看论文 PDF/HTML 时，右侧显示可编辑的 <strong>Notes</strong>（该篇 <code>NOTES.md</code>）。</li>
 <li><strong>⌘L</strong> 显示 / 隐藏右侧栏；右侧栏入口为 <strong>Agent</strong> 与 <strong>Backlinks</strong>。</li>
 <li>Backlinks 入口内采用上下分区：上方反链列表，下方 Graph。Graph 不再是独立顶层 tab。</li>
 <li>各栏 header 等高：统一 <code>h-10</code>（<code>PaneHeader</code> / <code>PANE_HEADER_CLASS</code>），水平对齐；错误提示等放在 header 下方，不撑高标题栏。</li>
 <li>边距、分割线保持轻量；控件密度偏紧凑（icon-xs / icon-sm）。</li>
 <li><strong>面板分隔（sash）</strong>：对齐 VS Code / Cursor——默认 <strong>1px</strong> 细线，hover / 拖拽时略提亮；可点区域略宽但视觉不占粗条。实现见 <code>src/components/layout/resizable.tsx</code>。</li>
-<li><strong>独立滚动</strong>：侧边栏 / 中间 / Preview <strong>各自</strong>滚动，顶栏固定；禁止整页连带滚动。内容区使用 <code>.motif-scroll</code>（细滚动条、半透明、<code>overscroll-behavior: contain</code>）。</li>
+<li><strong>独立滚动</strong>：侧边栏 / 中间编辑器 / 右侧 Notes <strong>各自</strong>滚动，顶栏固定；禁止整页连带滚动。内容区使用 <code>.motif-scroll</code>（细滚动条、半透明、<code>overscroll-behavior: contain</code>）。</li>
 <li><strong>中间栏视图切换</strong>（纯图标 + Tooltip）：Markdown · PDF · HTML（<code>ViewModeToggle</code>）。</li>
-<li>Markdown：源码编辑</li>
+<li>Markdown：<strong>所见即所得富文本编辑</strong>（Plate）。直接输入 Markdown 语法即时渲染（标题、列表、任务列表、代码块、表格、公式、<code>[[wikilink]]</code> 等）；无独立「预览」栏。</li>
+<li><strong>保存</strong>：编辑防抖后 <strong>自动写回</strong> 磁盘 <code>.md</code>，<code>⌘S</code> 立即保存；有未保存更改时 pane header 显示小圆点。未发生真实编辑不会写盘（打开文件不触发保存）。</li>
+<li><strong>双链</strong>：<code>[[目标#标题|别名]]</code> 与 <code>![[嵌入]]</code> 由 <code>@flowershow/remark-wiki-link</code> 解析并 <strong>无损回写</strong>；渲染仍复用既有 exists/missing 样式与点击导航。</li>
+<li><strong>YAML frontmatter</strong> 按字节原样保留（不经 Plate 往返）；注意 Plate 会归一化部分 Markdown 风格（列表 <code>-</code>→<code>*</code>、斜体 <code>*</code>→<code>_</code>），内容语义不变。</li>
 <li>PDF / HTML：<strong>只读 <code>metadata.json</code> 的远程 <code>pdf_url</code> / <code>html_url</code></strong>（<strong>不下载、不读本地 pdf/html 文件</strong>）</li>
 <li>arXiv 推荐写入：<ul>
 <li><code>pdf_url</code>: <code>https://arxiv.org/pdf/{id}</code></li>
@@ -208,7 +211,7 @@
 </li>
 <li>若只有 <code>arxiv_id</code>，用 <code>src/lib/arxiv.ts</code> 推导远程 URL</li>
 <li>PDF：PDF.js 按 URL 流式渲染；HTML：独立 iframe 打开远程页</li>
-<li><strong>PDF/HTML 时右侧自动加载该篇 <code>NOTES.md</code></strong></li>
+<li><strong>PDF/HTML 时右侧自动加载该篇 <code>NOTES.md</code></strong>（可编辑，自动保存 / <code>⌘S</code>）</li>
 <li><strong>HTML 沙盒</strong>：独立 <code>&lt;iframe&gt;</code>；arXiv 允许 scripts（对方 origin）；布局铺满中间栏</li>
 <li>无障碍：图标按钮必须有可访问名称；焦点环使用主题 <code>ring</code>。</li>
 </ul>
@@ -265,7 +268,7 @@
 </tr>
 <tr>
 <td><code>⌘3</code></td>
-<td>聚焦预览</td>
+<td>聚焦 Notes（论文 PDF/HTML 视图时）</td>
 <td></td>
 </tr>
 <tr>
