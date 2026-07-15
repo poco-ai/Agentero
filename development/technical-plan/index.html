@@ -237,7 +237,7 @@
 <li><strong>本地优先（Local-first）</strong>：Vault 以 Markdown + 源文件为事实来源，数据库/索引仅作为缓存。</li>
 <li><strong>跨平台但 Mac 优先</strong>：MVP 以 macOS 桌面应用为主，技术栈保留向 iPadOS 扩展的能力。</li>
 <li><strong>Agent-first</strong>：前端为人类提供审阅、编辑、导航界面；后端 Rust 宿主提供文件系统、网络、索引，并以 <strong>ACP Client</strong> 身份连接本机已有 Agent。</li>
-<li><strong>BYOA（Bring Your Own Agent）</strong>：Motif <strong>不内置、不捆绑</strong> 任何 coding agent 二进制；用户使用本机已安装的 ACP-compatible CLI（OpenCode、Gemini CLI、Claude ACP 适配器、Codex ACP、自定义 command）。密钥与模型由各 Agent 自行管理。</li>
+<li><strong>BYOA（Bring Your Own Agent）</strong>：Motif <strong>不内置、不捆绑</strong>任何 coding agent 二进制；通用 provider 使用本机 ACP-compatible CLI（OpenCode、Gemini CLI、Claude ACP 适配器、自定义 command），Codex 使用用户本机的 <code>codex app-server</code>。密钥与模型由各 Agent CLI 自行管理。</li>
 <li><strong>可迁移</strong>：Vault 离开应用后仍能被 Obsidian、VS Code、Cursor 直接打开。</li>
 </ul>
 <h2 id="2">2. 整体架构<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
@@ -260,10 +260,11 @@
 │  - 工作流 prompt 模板（总结 / 问答 / Related Work）           │
 │  - 本地配置与最近 Vault 存储                                  │
 └───────────────────────────┬─────────────────────────────────┘
-│                           │ ACP (JSON-RPC 2.0 over stdio)
+│                           │ Provider runtime (JSON-RPC 2.0 over stdio)
 ┌───────────────────────────▼─────────────────────────────────┐
-│     用户本机已安装的 ACP Agent（BYOA，Motif 不打包）           │
-│  - OpenCode / Gemini CLI / Claude ACP / Codex ACP / 自定义  │
+│     用户本机已安装的 Agent（BYOA，Motif 不打包）               │
+│  - ACP: OpenCode / Gemini CLI / Claude ACP / 自定义           │
+│  - Native: Codex App Server                                   │
 │  - cwd = 当前 Vault；密钥与模型由 Agent CLI 自行管理          │
 └─────────────────────────────────────────────────────────────┘
 </code></pre>
@@ -995,8 +996,8 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 <tr>
 <td><code>codex-acp</code></td>
-<td>用户本机 Codex ACP 入口</td>
-<td>Codex</td>
+<td><code>codex app-server</code></td>
+<td>Codex 原生 thread runtime（保留 template id 兼容既有设置）</td>
 </tr>
 <tr>
 <td><code>qodercli</code></td>
@@ -1288,8 +1289,8 @@ tempfile = &quot;3&quot;
 <td><code>keyring</code> crate</td>
 </tr>
 <tr>
-<td>本机 ACP Agents（用户自装，不随 Motif 分发）</td>
-<td>OpenCode、Gemini CLI、Claude ACP、Codex ACP、自定义 CLI</td>
+<td>本机 Agent（用户自装，不随 Motif 分发）</td>
+<td>OpenCode、Gemini CLI、Claude ACP、Codex App Server、自定义 CLI</td>
 </tr>
 <tr>
 <td>iOS 原生能力</td>
@@ -1316,7 +1317,7 @@ tempfile = &quot;3&quot;
 </tr>
 <tr>
 <td>V0.3</td>
-<td>ACP Client + BYOA 面板进行中；注册表、探测、<code>agent_run_once</code>、流式 UI 和 Sources 已接入；workflow prompt、权限确认、写入草稿待补。</td>
+<td>BYOA 面板进行中；通用 provider 走 ACP，Codex 走原生 App Server thread（历史、恢复、模型、effort、Fast、YOLO）；注册表、探测、<code>agent_run_once</code>、流式 UI、Sources、<code>@</code> / <code>$</code> 上下文已接入；workflow prompt、逐项权限确认、写入草稿待补。</td>
 </tr>
 <tr>
 <td>V0.4</td>

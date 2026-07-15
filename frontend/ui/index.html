@@ -400,7 +400,7 @@
 </tr>
 <tr>
 <td>结构</td>
-<td>Header（标题 · <strong>可点 Agent 名切换 ACP 后端</strong> · 关闭）+ 消息列表 + PromptInput</td>
+<td>会话标签 · Agent 选择 / 新建 / 历史操作 + 消息列表 + Composer</td>
 </tr>
 <tr>
 <td>消息组件</td>
@@ -412,7 +412,7 @@
 </tr>
 <tr>
 <td>输入</td>
-<td><code>ai-elements/prompt-input</code>（↵ 发送 / ⇧↵ 换行）</td>
+<td>单层 Composer：当前文件、<code>@</code> 文件提及和 <code>$</code> 本机技能显示为可移除 context chip；候选列表支持 <code>↑</code> / <code>↓</code>、<code>Enter</code>，当前项仅使用背景高亮；文字与 context chip 按 Vault、Agent、session 独立持久化，发送成功后清空该 session 已发送的一次性上下文；发送按钮与 <code>↵</code> 均可提交，输出期间按钮和 <code>Esc</code> 均可中止，<code>⇧↵</code> 换行；Agent 输出期间仍可编辑下一条输入；底栏空闲时使用主要色，仅存在正在输出的 Agent 消息时切换为次要色，Fast / YOLO 的启用色保持不变；<code>/</code> 文本原样透传给 ACP Agent；YOLO 默认关闭</td>
 </tr>
 <tr>
 <td>业务壳</td>
@@ -443,7 +443,14 @@
 PromptInput → Body / Footer / Submit
 </code></pre>
 
-<p><strong>Agent 切换</strong>：点击 header 中的 Agent 名称打开下拉，列表来自 catalog + 注册表；选择后设为默认并用于后续 <code>runOnce</code>。</p>
+<p><strong>Agent 切换</strong>：点击 Composer 上方的 Agent 图标打开下拉，列表来自 catalog + 注册表；选择后设为默认并用于后续 <code>runOnce</code>。</p>
+<p><strong>会话标签</strong>：运行中的 Agent session 不会锁定标签栏。用户可随时切换并查看其它已打开的会话，也可在新会话中发起独立运行；同一 session 在运行期间保持只读，避免重入。流式消息、工具调用和最终状态仍只写回它们所属的 session。</p>
+<p><strong>上下文提及</strong>：Composer 默认附带当前打开的 Vault 文件；输入 <code>@</code> 可按 Vault 内 Markdown 路径筛选并加入 context chip。发送时 Motif 将这些 Vault 相对路径追加到 prompt，并将第一个路径传为 <code>target</code>，Agent 仍按自身权限读取文件。</p>
+<p><strong>本机技能</strong>：输入 <code>$</code> 可筛选 <code>~/.agents/skills</code>、<code>${CODEX_HOME:-~/.codex}/skills</code> 和当前 Vault <code>.agents/skills</code> 中的 <code>SKILL.md</code>。选中后显示为 context chip；发送时 Host 重新解析技能 id、校验文件大小并将内容注入当前 provider 的 prompt。Codex 也会使用这条受限的本机技能注入路径。</p>
+<p><strong>斜杠命令</strong>：Motif 不实现自己的 <code>/</code> 命令菜单，输入内容原样传递给当前 provider。Codex 使用 App Server 的 native thread，保持 Codex 自己的命令语义。</p>
+<p><strong>YOLO</strong>：Composer 底栏的 YOLO 开关按 provider 注册项保存在本机浏览器偏好中，并持续作用于后续运行，直到用户主动关闭。默认关闭时，Motif 取消 ACP 的权限请求；开启后自动选择 Agent 给出的第一个权限选项。逐项权限确认需要由保持 ACP 会话的后续实现提供。</p>
+<p><strong>Codex 控件</strong>：只有选中 <code>codex-acp</code> 时，底栏才显示 App Server <code>model/list</code> 提供的模型与 reasoning effort，以及仅在闪电图标内填充黄色的 Fast toggle。选择在下一次 native turn 中传给 App Server；其他 Agent 不显示也不接收这些偏好。YOLO 按 provider 注册项保存在本机浏览器偏好中。</p>
+<p><strong>Codex 历史</strong>：Motif 会将它创建或继续运行的 native thread id 记录在 Vault 的 <code>.motif/agent-sessions/codex.json</code>。历史列表默认只显示这份索引中的会话，避免混入同一 Vault 工作目录下由 Codex CLI、编辑器或其它应用创建的 thread。历史面板的“External”开关仅对 Codex 生效；开启后显示 App Server 返回的全部 Vault-scoped thread。开关偏好按 Codex provider 注册项保存在本机浏览器中。</p>
 <h3 id="33-backlinks-graph">3.3 Backlinks + Graph 右侧栏<a class="headerlink" href="#33-backlinks-graph" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

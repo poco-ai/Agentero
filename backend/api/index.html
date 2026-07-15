@@ -138,6 +138,14 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#37-agent-acp-client-byoa">3.7 Agent 工作流（ACP Client + BYOA）</a>
         <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#agent_run_once">agent_run_once</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agent_codex_list_threads">agent_codex_list_threads</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agent_codex_read_thread">agent_codex_read_thread</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agent_list_skills">agent_list_skills</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#agentlist_agents">agent:list_agents</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#agentupsert_agent">agent:upsert_agent</a>
@@ -261,7 +269,7 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>Frontend ↔ Host</strong>：<code>invoke('namespace:command')</code> 请求响应，配合 Tauri event 做进度/流式推送。</li>
-<li>Host 作为 <strong>ACP Client</strong> 连接用户本机 Agent；Frontend 只面对下方 <code>agent:*</code> 命令与事件，<strong>不</strong> 直接暴露 ACP JSON-RPC 细节。</li>
+<li>Host 对通用 provider 作为 <strong>ACP Client</strong>；Codex 使用本机 <code>codex app-server</code> 的原生 thread runtime。Frontend 只面对下方 <code>agent:*</code> 命令与事件，<strong>不</strong> 直接暴露底层 RPC 细节。</li>
 </ul>
 <h2 id="2">2. 通用约定<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
 <h3 id="21">2.1 命名规范<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
@@ -284,7 +292,7 @@ Host (Tauri + Rust)
 <li>Host 负责把相对路径解析为本地绝对路径，并校验路径白名单。</li>
 </ul>
 <h3 id="24">2.4 事件约定<a class="headerlink" href="#24" title="Permanent link">&para;</a></h3>
-<p>Host 通过 <code>emit('event_name', payload)</code> 向前端推送事件：</p>
+<p>Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单事件可广播；<code>agent:*</code> 事件必须由 Host 使用 <code>emit_to</code> 定向到发起 <code>agent_run_once</code> 或 <code>agent_warm</code> 的 WebviewWindow，前端也必须通过当前 WebviewWindow 注册 listener。发射与监听两端使用相同窗口 label，避免多窗口之间串流、误消费终态或覆盖 Composer 配置。</p>
 <table>
 <thead>
 <tr>
@@ -332,11 +340,11 @@ Host (Tauri + Rust)
 <tr>
 <td><code>agent:stream</code></td>
 <td>Agent 流式输出</td>
-<td><code>{ sessionId, chunk, kind: "message" \| "thought" }</code>（<code>thought</code> = ACP reasoning）</td>
+<td><code>{ sessionId, chunk, kind: "message" \| "thought" }</code>（<code>thought</code> = reasoning）</td>
 </tr>
 <tr>
 <td><code>agent:tool</code></td>
-<td>ACP tool call 创建/更新</td>
+<td>Agent tool call 创建/更新</td>
 <td><code>{ sessionId, toolCallId, title?, kind?, status?, input?, output?, full? }</code></td>
 </tr>
 <tr>
@@ -354,10 +362,30 @@ Host (Tauri + Rust)
 <td>Agent 上报可用模型</td>
 <td><code>{ sessionId, agentId, configId, currentId, models: { id, name, group? }[] }</code></td>
 </tr>
+<tr>
+<td><code>agent:effort</code></td>
+<td>ACP 上报 reasoning effort 选项</td>
+<td><code>{ sessionId, agentId, configId, currentId, efforts: { id, name, description? }[] }</code></td>
+</tr>
+<tr>
+<td><code>agent:fast-mode</code></td>
+<td>ACP 上报 Fast 开关状态</td>
+<td><code>{ sessionId, agentId, configId, enabled }</code></td>
+</tr>
+<tr>
+<td><code>agent:completed</code></td>
+<td>Agent 回答完成</td>
+<td><code>{ sessionId, messageId, content, reasoning?, sources, stopReason? }</code></td>
+</tr>
+<tr>
+<td><code>agent:failed</code></td>
+<td>Agent 调用失败</td>
+<td><code>{ sessionId, error }</code></td>
+</tr>
 </tbody>
 </table>
 <h4 id="agent_warm"><code>agent_warm</code><a class="headerlink" href="#agent_warm" title="Permanent link">&para;</a></h4>
-<p>打开 Chat 时后台预热 ACP（不发用户 prompt）：<code>initialize</code> + <code>session/new</code>，上报 <code>agent:models</code>，并短暂等待 <code>UsageUpdate</code>。</p>
+<p>打开 Chat 时后台预热 provider（不发用户 prompt）。ACP provider 通过 <code>initialize</code> + <code>session/new</code> 获取配置；Codex 通过 <code>model/list</code> 获取模型、effort 和 service tier。</p>
 <ul>
 <li><strong>参数</strong></li>
 </ul>
@@ -369,11 +397,7 @@ Host (Tauri + Rust)
 </code></pre>
 
 <ul>
-<li><strong>返回</strong> <code>WarmResult</code>：<code>{ agentId, ok, models?, usageUsed?, usageSize?, error? }</code>
-| <code>agent:permission_request</code> | Agent 请求权限（读/写/网络等） | <code>{ session_id: string, request_id: string, kind: string, detail: object }</code> |
-| <code>agent:completed</code> | Agent 回答完成 | <code>{ session_id: string, result: AgentResult }</code> |
-| <code>agent:failed</code> | Agent 调用失败 | <code>{ session_id: string, error: AppError }</code> |
-| <code>graph:updated</code> | 图谱索引重建 | <code>{ nodes: number, edges: number }</code> |</li>
+<li><strong>返回</strong> <code>WarmResult</code>：<code>{ agentId, ok, models?, usageUsed?, usageSize?, error? }</code></li>
 </ul>
 <h2 id="3-host-tauri-invoke-api">3. Host 层 Tauri invoke API<a class="headerlink" href="#3-host-tauri-invoke-api" title="Permanent link">&para;</a></h2>
 <h3 id="31-vault">3.1 Vault 与窗口<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
@@ -945,6 +969,58 @@ Host (Tauri + Rust)
 </ul>
 <h3 id="37-agent-acp-client-byoa">3.7 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#37-agent-acp-client-byoa" title="Permanent link">&para;</a></h3>
 <p>Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（<code>cwd</code> = 当前 Vault），通过 stdio JSON-RPC 会话。<strong>不</strong> 内置 agent 二进制；<strong>不</strong> 在 config 中要求模型 API Key。</p>
+<h4 id="agent_run_once"><code>agent_run_once</code><a class="headerlink" href="#agent_run_once" title="Permanent link">&para;</a></h4>
+<p>通用 ACP provider 创建一次性会话并发送 prompt。Codex 会先创建或恢复原生 thread，再通过 <code>turn/start</code> 发送 prompt；每个 turn 的连接结束后，native thread 仍保存在 Codex CLI history 中。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  agentId?: string;
+  sessionId?: string; // Codex native thread id; other providers currently ignore it
+  prompt: string;
+  vaultPath?: string;
+  workflow?: string;
+  target?: string;
+  modelId?: string;
+  reasoningEffort?: string; // 仅写入当前 ACP 会话声明的 thought_level 选项
+  fastMode?: boolean; // 仅写入当前 ACP 会话声明的 fast model_config 选项
+  skillIds?: string[]; // 已发现的本机 SKILL.md id，最多 5 个
+  autoApprove?: boolean; // 默认 false；true 时选择 ACP 返回的第一个权限选项
+}
+</code></pre>
+
+<ul>
+<li>
+<p><strong>返回</strong>：<code>{ ok: true, data: { sessionId, messageId, agentId } }</code></p>
+</li>
+<li>
+<p><strong>技能上下文</strong>：<code>agent_list_skills</code> 列出 <code>~/.agents/skills</code>、<code>${CODEX_HOME:-~/.codex}/skills</code> 和当前 Vault <code>.agents/skills</code>。运行时重新解析 id，只读取 <code>SKILL.md</code>，单个文件上限 64 KiB，最多加载 5 个。</p>
+</li>
+<li>
+<p><strong>权限策略</strong>：默认取消 ACP 权限请求。Composer 按 provider 持久化 YOLO 偏好，并在每次运行中通过 <code>autoApprove</code> 传入；逐项权限确认仍未实现。</p>
+</li>
+<li>
+<p><strong>能力边界</strong>：Codex 使用 App Server 的模型目录、reasoning effort 与 service tier；ACP provider 根据 <code>SessionConfigOption</code> 协商。Composer 只为当前 provider 已声明的能力显示对应控件。</p>
+</li>
+</ul>
+<h4 id="agent_codex_list_threads"><code>agent_codex_list_threads</code><a class="headerlink" href="#agent_codex_list_threads" title="Permanent link">&para;</a></h4>
+<p>列出当前 Vault 的原生 Codex thread，按最近活跃时间排序。该命令读取 App Server 的 <code>thread/list</code>，不会复制或改写 <code>~/.codex/sessions</code>。Motif 在 <code>.motif/agent-sessions/codex.json</code> 记录自己创建或继续使用的 native thread；默认只返回这份索引中的 thread。<code>includeExternal: true</code> 时返回当前 Vault 下的全部 Codex thread。</p>
+<pre class="codehilite"><code class="language-ts">{ agentId?: string; vaultPath?: string; includeExternal?: boolean }
+// -&gt; CodexThreadInfo[]
+</code></pre>
+
+<h4 id="agent_codex_read_thread"><code>agent_codex_read_thread</code><a class="headerlink" href="#agent_codex_read_thread" title="Permanent link">&para;</a></h4>
+<p>按 native thread id 恢复对话显示。Host 用 <code>thread/read</code> 校验 thread 与当前 Vault 的 canonical 工作目录，并从对应 Codex JSONL transcript 回放 user、assistant 与 reasoning 文本。默认只允许读取 Vault 索引中的 thread；<code>includeExternal: true</code> 可读取同一 Vault 下由其他 Codex 客户端创建的 thread。</p>
+<pre class="codehilite"><code class="language-ts">{ agentId?: string; threadId: string; vaultPath?: string; includeExternal?: boolean }
+// -&gt; { thread: CodexThreadInfo; lines: CodexHistoryLine[] }
+</code></pre>
+
+<h4 id="agent_list_skills"><code>agent_list_skills</code><a class="headerlink" href="#agent_list_skills" title="Permanent link">&para;</a></h4>
+<p>列出可由 Composer <code>$</code> 提及的本机技能。</p>
+<ul>
+<li><strong>参数</strong>：<code>{ vaultPath?: string }</code></li>
+<li><strong>返回</strong>：<code>{ ok: true, data: { id, name, description }[] }</code></li>
+</ul>
 <h4 id="agentlist_agents"><code>agent:list_agents</code><a class="headerlink" href="#agentlist_agents" title="Permanent link">&para;</a></h4>
 <p>列出已注册 Agent 及其探测状态。</p>
 <ul>
