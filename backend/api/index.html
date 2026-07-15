@@ -438,10 +438,11 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>行为</strong></li>
-<li>确保目录存在；脚手架 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.motif/</code>。</li>
+<li>确保目录存在；脚手架 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.motif/</code>、<strong><code>.agents/</code></strong>、<strong><code>.agents/skills/</code></strong>。</li>
 <li>初始化 <code>.motif/catalog.sqlite</code>（schema 当前版本，含 Translator 元数据列）。详见 <a href="../catalog/"><code>catalog.md</code></a>。</li>
-<li>写入默认 <code>AGENTS.md</code>。</li>
-<li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
+<li>写入默认 <code>AGENTS.md</code>（若不存在）。</li>
+<li>写入 <strong><code>.agents/README.md</code></strong>（若不存在；内容来自仓库 <code>templates/vault/.agents/</code>）。</li>
+<li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>；<strong>不</strong>覆盖已有 <code>AGENTS.md</code> / <code>.agents/**</code>。</li>
 <li>最近列表由前端在成功打开后写入 <code>localStorage</code>（<code>motif-recent-vaults</code>）。</li>
 </ul>
 <h4 id="window_new"><code>window_new</code>（已实现）<a class="headerlink" href="#window_new" title="Permanent link">&para;</a></h4>

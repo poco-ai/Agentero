@@ -238,7 +238,7 @@
 <tbody>
 <tr>
 <td><strong>Tier 1a 人的知识 + 原始归档</strong></td>
-<td><code>AGENTS.md</code>、<code>NOTES.md</code>、<code>highlights.md</code>、<code>notes/</code>、<code>plans/</code>、<code>source/</code></td>
+<td><code>AGENTS.md</code>、<code>NOTES.md</code>、<code>highlights.md</code>、<code>notes/</code>、<code>plans/</code>、<code>.agents/</code>（skills 等）、<code>source/</code></td>
 <td>文件</td>
 </tr>
 <tr>
@@ -281,6 +281,9 @@
 │               └── source/
 ├── notes/
 ├── plans/
+├── .agents/               # Vault 本地 Agent 资产（Create Vault 脚手架）
+│   ├── README.md
+│   └── skills/            # `$` 技能：`skills/&lt;id&gt;/SKILL.md`
 └── .motif/
     ├── catalog.sqlite     # path = paper 文件夹相对路径
     └── config.json

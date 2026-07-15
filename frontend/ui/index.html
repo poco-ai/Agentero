@@ -319,6 +319,12 @@
 <li><strong>Notes（WYSIWYG，无独立预览栏）</strong>：中心切换为 Notes 时全宽编辑 <code>NOTES.md</code>；中心为 PDF/HTML 时右侧栏显示同一篇 <code>NOTES.md</code> 实时编辑。论文库视图或未选论文时隐藏。</li>
 <li><strong>⌘L</strong> 显示 / 隐藏右侧栏；右侧栏入口为 <strong>Agent</strong> 与 <strong>Backlinks</strong>。</li>
 <li>Backlinks 入口内采用上下分区：上方反链列表，下方 Graph。Graph 不再是独立顶层 tab。</li>
+<li><strong>Agent 禅模式</strong>（quest / Cursor Agents Window 心智，<code>⌥⌘Z</code> 或标题栏 Focus 图标）：</li>
+<li>进入后：折叠左栏与中间主栏，右栏 Agent 铺满；系统标题栏仅拖拽区 + 退出；隐藏后台任务条与 Notes。</li>
+<li><strong>同一</strong> <code>AgentPanel</code> 实例保持挂载（CSS 切换 / 不 remount），会话与流式状态不丢。</li>
+<li><strong>布局</strong>（<code>variant="zen"</code>）：浅底全幅画布；顶栏工具与对话列同宽居中（<code>max-w-2xl</code>）；空态垂直居中；底部 Composer 圆角悬浮（无侧栏式 <code>border-t</code> 底条）。</li>
+<li>仍用 AI Elements：<code>Conversation</code> / <code>Message</code> / <code>PromptInput</code> / <code>Suggestion</code> 等。</li>
+<li>退出：标题栏 / 面板头 <strong>X</strong>，或再次 <code>⌥⌘Z</code>；恢复进入前左栏折叠意图与右栏默认宽度。</li>
 <li><strong>左右侧栏隔离</strong>（<code>react-resizable-panels</code>）：</li>
 <li>左栏（文件树）与右栏（Agent/Backlinks）均为 <strong>常驻 collapsible 面板</strong>（<code>collapsedSize=0</code>），用 <code>expand</code>/<code>collapse</code>/<code>resize</code> 切换，<strong>不要</strong>对右栏做条件卸载整块 <code>ResizablePanel</code>（否则 Group 重排会冲掉左栏折叠态，交替 <code>⌥⌘S</code> / <code>⌘L</code> 时出现重叠/半开）。</li>
 <li>两侧使用 <code>groupResizeBehavior="preserve-pixel-size"</code>，中间主栏保持默认相对尺寸，避免一侧开合时另一侧像素宽度被重新分配。</li>
@@ -434,6 +440,11 @@
 <td><code>⌘L</code></td>
 <td>显示 / 隐藏右侧栏</td>
 <td>Agent / Backlinks（含 Graph）</td>
+</tr>
+<tr>
+<td><code>⌥⌘Z</code></td>
+<td>Agent 禅模式</td>
+<td>全屏仅 Agent 对话（quest / Agents Window 心智）；再按退出；<code>toggleAgentZen</code></td>
 </tr>
 <tr>
 <td><code>⇧⌘I</code></td>
