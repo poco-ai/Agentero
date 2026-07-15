@@ -191,7 +191,7 @@
 <tr>
 <td>V0.1 本地 Vault 与 Markdown 工作台</td>
 <td>✅ 基本完成</td>
-<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页、树内联新建、PDF/HTML/Notes、WYSIWYG Markdown、<strong>论文库表格 + 虚拟 Library 节点</strong>、Preview/Info 仅在具体论文时显示。</td>
+<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页、树内联新建 / <strong>Finder 显示 / 删除</strong>、PDF/HTML/Notes、WYSIWYG Markdown、<strong>论文库表格 + 虚拟 Library 节点</strong>、左右侧栏 collapsible 隔离、后台任务条、Preview/Info 仅在具体论文时显示。</td>
 </tr>
 <tr>
 <td>V0.2 arXiv / 标识符入库闭环</td>
@@ -233,10 +233,12 @@
 <li>[x] 最近 Vault 列表（欢迎页）与主窗口恢复上次 Vault。</li>
 <li>[x] 多窗口：<code>⌘N</code> 新建窗口，session 级 Vault 隔离。</li>
 <li>[x] 树内联新建文件 / 文件夹。</li>
+<li>[x] 文件树：<strong>在 Finder 中显示</strong>（双击 / 右键 / <code>⌥⌘R</code>）；<strong>删除</strong>（右键 / <code>⌘⌫</code>，<code>papers/</code> 同步 <code>paper_delete</code>）。</li>
 <li>[x] Paper-centric 视图：选中 paper 后中间显示远程 PDF/HTML，右侧显示该篇 <code>NOTES.md</code>（<strong>仅具体论文</strong>时显示 Preview/Info）。</li>
-<li>[x] 侧边栏折叠、标题栏快捷按钮、Settings 窗口。</li>
+<li>[x] 侧边栏折叠、标题栏快捷按钮、Settings 窗口；左右侧栏 <strong>常驻 collapsible + preserve-pixel-size</strong>（交替快捷键互不冲态）。</li>
 <li>[x] 论文库表格：虚拟节点 <code>motif:library</code>、<code>paper_list</code>、表头排序、双向滚动。</li>
 <li>[x] Paper Info / Notes 仅在选中具体论文时显示（Library 视图隐藏）。</li>
+<li>[x] 后台任务条（左下角）：下载 / 入库 / 导入导出等长操作进度。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -264,9 +266,10 @@
 <li>[x] 中间栏预览仍可用 catalog 远程 <code>pdf_url</code> / <code>html_url</code>。</li>
 <li>[x] <code>paper_list</code> / <code>paper_get</code>；Library 表格 + 虚拟节点。</li>
 <li>[x] 按需补下：<code>paper_download_assets</code>；paper 行缺 PDF 或 arXiv 缺 TeX 时 Download；<strong>Library 行批量补下全部缺失</strong>。</li>
-<li>[x] <strong>无 TeX 时 liteparse → <code>PAPER.md</code></strong>：下载后自动；<code>paper_parse_body</code>；文件树眼睛 / Library 批量解析。</li>
+<li>[x] <strong>无 TeX 时 liteparse → <code>PAPER.md</code></strong>：下载后自动；<code>paper_parse_body</code>（Download 流程内触发；无独立眼睛图标）。</li>
 <li>[x] Library 导入/导出：<code>paper_import</code> / <code>paper_export</code>（Translator <code>/import</code> + <code>/export</code>，Zotero JSON 数组）。</li>
 <li>[x] 入库错误行内展示；重复不覆盖用户 <code>NOTES.md</code>。</li>
+<li>[x] 删除 paper / 组织目录：磁盘 <code>remove</code> + catalog <code>paper_delete</code>（含嵌套 path）。</li>
 </ul>
 <h3 id="_1">未完成<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
 <ul>
@@ -378,7 +381,7 @@
 <ul>
 <li>Zotero/BibTeX 批量导入。</li>
 <li>浏览器插件，一键收集网页和论文。</li>
-<li><strong>PDF 划词提问</strong>（选区/双击/悬停 → 迷你问答 → <code>asks/*.json</code> → 页边圆片）；设计见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>。</li>
+<li>~~<strong>PDF 划词提问</strong> MVP~~ ✅（选区/框选/双击/悬停 → 迷你问答 → <code>asks/*.json</code> → 锚点对话图标；见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>）。仍待：导出 <code>highlights.md</code>、无文本层降级、本地 PDF TextLayer 增强。</li>
 <li>完整 PDF 高亮、批注、摘录同步（<code>highlights.md</code>；可与划词提问互导）。</li>
 <li>远程 PDF 链接、任意网页入库（DOI 魔棒路径可部分覆盖）。</li>
 <li>多 Agent 并行读论文和综合评估。</li>
@@ -407,7 +410,10 @@
 <li>[x] arXiv/标识符精确入库（魔棒 + Translator + catalog + 默认 PDF/LaTeX）。</li>
 <li>[x] 论文库 UI：<code>paper_list</code> + Library 虚拟节点 + 表头排序 + 双向滚动。</li>
 <li>[x] 缺失资源补下：单篇 Download + Library 批量 Download（<code>paper_download_assets</code>）。</li>
-<li>[x] 无 TeX 正文：下载后 liteparse → <code>PAPER.md</code>；<code>paper_parse_body</code>；眼睛 / Library 批量解析。</li>
+<li>[x] 无 TeX 正文：下载后 liteparse → <code>PAPER.md</code>；<code>paper_parse_body</code>（Download 路径内）。</li>
+<li>[x] 文件树：Finder 显示、删除 + <code>paper_delete</code>、左右侧栏隔离。</li>
+<li>[x] PDF 缩放（工具栏 / <code>⌘</code>+滚轮）。</li>
+<li>[x] PDF 划词提问 MVP（M1–M4；见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>）。</li>
 <li>[ ] Agent 关键词候选 / 自然语言入库闭环。</li>
 <li>[ ] Agent workflow prompt：总结当前论文、本地库问答、Related Work。</li>
 <li>[ ] Agent 写入草稿确认与拒绝路径。</li>
@@ -417,7 +423,7 @@
 <h3 id="p1">中期优先级 P1<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[ ] 本地 PDF importer 与 metadata 确认面板。</li>
-<li>[x] Catalog 权威存储 + <code>paper_list</code> / <code>paper_get</code> / 入库写路径（FTS / 双链缓存表仍待）。</li>
+<li>[x] Catalog 权威存储 + <code>paper_list</code> / <code>paper_get</code> / <code>paper_delete</code> / 入库写路径（FTS / 双链缓存表仍待）。</li>
 <li>[x] Library BibTeX 导入/导出（Translator <code>/import</code> <code>/export</code>）。</li>
 <li>[ ] <code>catalog:export_papers_md</code>（Markdown 表）。</li>
 <li>[ ] <code>[[</code> 补全与 Plate wikilink 内联节点。</li>
@@ -437,7 +443,7 @@
 <ul>
 <li>[ ] Zotero/BibTeX 迁移工具。</li>
 <li>[ ] 浏览器插件与网页 importer。</li>
-<li>[ ] PDF 划词提问（见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>：JSON 线程 + 页边圆片 + ACP）。</li>
+<li>[x] PDF 划词提问 MVP（见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>：JSON 线程 + 锚点图标 + ACP；M5 增强仍待）。</li>
 <li>[ ] PDF/HTML 标注系统（<code>highlights.md</code>）。</li>
 <li>[ ] 多 Agent 并行综述与评估。</li>
 <li>[ ] iPadOS 文件系统与触控布局适配。</li>

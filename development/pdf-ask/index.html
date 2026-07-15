@@ -187,27 +187,23 @@
 </tr>
 <tr>
 <td><strong>双击</strong></td>
-<td>双击词/短句，按词边界取上下文，弹出迷你问答卡</td>
+<td>双击打开对话框，输入框预填页码（不选词、不高亮整页）</td>
 </tr>
 <tr>
 <td><strong>悬停停留</strong></td>
-<td>指针在某处静止超过阈值 (T)（建议默认 600–800 ms，可设置），弹出迷你问答卡（无选区时以指针页坐标为锚）</td>
-</tr>
-<tr>
-<td><strong>框选截图</strong></td>
-<td>工具栏「框选」或 <strong>⌥/Alt+拖拽</strong>（PS 选框）；裁剪页 canvas → 附件；可拖控制点调框后发送。ACP 以 <code>ContentBlock::Image</code> 下发</td>
+<td>指针在某处静止超过阈值 (T)，弹出迷你问答卡</td>
 </tr>
 <tr>
 <td><strong>键入提问</strong></td>
-<td>卡内输入问题并发送；可多轮；结束会话后收起；有图时可纯图提问</td>
+<td>卡内输入问题并发送；<strong>仅发送过问题的线程</strong>保留对话图标</td>
 </tr>
 <tr>
-<td><strong>边注圆片</strong></td>
-<td>结束后在 PDF <strong>右侧页边空白</strong> 渲染小圆片（类似飞书文档评论角标）</td>
+<td><strong>对话图标</strong></td>
+<td>锚在选区附近；Hover 打开，离开约 1s 后隐藏</td>
 </tr>
 <tr>
 <td><strong>回访</strong></td>
-<td>Hover 打开线程；移出对话框隐藏</td>
+<td>Hover 图标打开线程；隐藏 / 删除</td>
 </tr>
 </tbody>
 </table>
@@ -580,33 +576,39 @@ src/lib/pdf-ask/
 <th>阶段</th>
 <th>交付</th>
 <th>验收</th>
+<th>状态</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>M1 选区 + 弹层</strong></td>
-<td>划词出现 popover；可输入本地假回复</td>
+<td>划词 / 框选出现 popover</td>
 <td>选区稳定、滚动不崩</td>
+<td>✅</td>
 </tr>
 <tr>
 <td><strong>M2 持久化</strong></td>
-<td>JSON 读写；重开 PDF 圆片仍在</td>
-<td>缩放后圆片仍对齐 quote</td>
+<td>JSON 读写；重开 PDF 锚点图标仍在</td>
+<td>缩放后锚点仍对齐 quote</td>
+<td>✅</td>
 </tr>
 <tr>
 <td><strong>M3 ACP 接入</strong></td>
 <td>真流式回答；多轮；结束写盘</td>
 <td>与 Agent 面板共用 provider 配置</td>
+<td>✅</td>
 </tr>
 <tr>
 <td><strong>M4 双击 / 悬停</strong></td>
-<td>触发完善；设置项阈值</td>
+<td>触发完善；阈值暂固定（约 700ms）</td>
 <td>防误触可接受</td>
+<td>✅</td>
 </tr>
 <tr>
 <td><strong>M5 增强</strong></td>
 <td>导出 highlight；本地 PDF 文本层；无文本层降级 UI</td>
 <td>扫描件有明确空状态</td>
+<td>⏳</td>
 </tr>
 </tbody>
 </table>

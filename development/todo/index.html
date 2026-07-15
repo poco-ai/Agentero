@@ -152,15 +152,24 @@
    - [x] 目标：<code>papers/</code> 或文件树当前选中的 Papers 子文件夹。
    - [x] Host：<code>lookup_import</code> / <code>lookup_translator_config</code> / <code>paper_download_assets</code> / <code>paper_parse_body</code>。
    - [x] 设置：<code>translatorBaseUrl</code>（默认 <code>https://translator.philfan.cn</code>）；<strong>无</strong>「是否本地下载」开关。
-   - [x] 文件树：paper 行缺 PDF 或 arXiv 缺 TeX → Download。
-   - [x] 无 TeX + 有 PDF：下载后 liteparse 生成 <code>PAPER.md</code>；无 <code>PAPER.md</code> 时行尾眼睛手动解析。
-   - [x] Library 行：库内任一篇仍缺资源 → 批量 Download；需 <code>PAPER.md</code> → 批量 Parse（眼睛）。
+   - [x] 文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 原因）。
+   - [x] 无 TeX + 有 PDF：下载后 liteparse 生成 <code>PAPER.md</code>（Download 路径内；无独立眼睛图标）。
+   - [x] Library 行：库内任一篇仍缺资源 → 批量 Download。
    - [x] 快捷键 <code>⇧⌘I</code>（打开魔棒）；本机 Translator sidecar 捆绑仍待。</p>
 <p>2c. <strong>论文库表格 UI</strong> ✅
    - [x] 虚拟节点 <code>motif:library</code>；中间栏 catalog 表（<code>paper_list</code>）。
    - [x] 表头排序；横向/纵向滚动。
    - [x] 仅具体论文时显示 Paper Info / Notes（Library 隐藏）。
    - [x] Library 行批量补资源（与 2b 联动）。</p>
+<p>2d. <strong>文件树与侧栏 UX</strong> ✅
+   - [x] 在 Finder 中显示：双击 / 右键 / <code>⌥⌘R</code>（<code>revealItemInDir</code>）。
+   - [x] 删除：右键 / <code>⌘⌫</code>；确认；<code>papers/</code> 下同步 <code>paper_delete</code>。
+   - [x] 左右侧栏 collapsible 常驻 + <code>preserve-pixel-size</code>（交替 <code>⌥⌘S</code> / <code>⌘L</code> 不重叠）。
+   - [x] 后台任务条（下载 / 入库 / 导入导出）。</p>
+<p>2e. <strong>PDF 阅读增强</strong> 🟡
+   - [x] 缩放：工具栏 +/- / 重置；<code>⌘/Ctrl</code>+滚轮（0.5×–3×，100%=适应栏宽）。
+   - [x] 划词提问 MVP：M1–M4（见 3. PDF 划词提问）。
+   - [ ] 本地 PDF 直接预览（非仅远程 <code>pdf_url</code>）。</p>
 <ol>
 <li><strong>Agent 工作流入口</strong></li>
 <li>在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>
@@ -233,9 +242,8 @@
 <li>[x] M2：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code> 读写 + 页边圆片锚点（归一化坐标）。</li>
 <li>[x] M3：接入 ACP <code>agent_run_once</code> 流式多轮；结束会话落盘。</li>
 <li>[x] M4：双击 / 悬停停留触发 + 防误触（阈值暂固定 700ms）。</li>
-<li>[x] 框选截图：⌥/Alt+拖或工具栏框选 → canvas 裁剪 → 选框可缩放 → ACP Image。</li>
 <li>
-<p>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer；真·三指手势（系统常占用）；PDF 内嵌图 XObject 一键提取；Codex 多模态。</p>
+<p>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer。</p>
 </li>
 <li>
 <p><strong>PDF / HTML 标注系统</strong></p>

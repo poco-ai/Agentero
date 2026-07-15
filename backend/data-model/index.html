@@ -82,7 +82,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#highlightsmdl25">highlights.md(L2.5,事实来源)</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#askspdf">asks/（规划：PDF 划词提问）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#asks-mvppdf">asks/（已落地 MVP：PDF 划词提问）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#papermdl3">PAPER.md(L3,派生)</a>
     </li>
@@ -347,11 +347,12 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <li><strong>页码 / bbox 等渲染坐标是纯 UI 数据</strong>,可缓存于 <code>.motif/</code>（catalog 同库缓存表或旁路文件）,按标注 id 关联;丢失后可用引文全文检索重新锚定。</li>
 <li>用 Obsidian 块引用 <code>^id</code>,让 <code>NOTES.md</code> 能精确引用某条标注:<code>[[papers/1706.03762/highlights#^h12]]</code>。</li>
 </ul>
-<h3 id="askspdf"><code>asks/</code>（规划：PDF 划词提问）<a class="headerlink" href="#askspdf" title="Permanent link">&para;</a></h3>
-<p>多轮「就地问答」线程，与 <code>highlights.md</code> <strong>分离</strong>：asks 存对话 JSON，highlights 存引文证据。设计见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>。</p>
+<h3 id="asks-mvppdf"><code>asks/</code>（已落地 MVP：PDF 划词提问）<a class="headerlink" href="#asks-mvppdf" title="Permanent link">&para;</a></h3>
+<p>多轮「就地问答」线程，与 <code>highlights.md</code> <strong>分离</strong>：asks 存对话 JSON，highlights 存引文证据。设计与实现见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>；前端 <code>src/lib/pdf-ask/</code> + <code>PdfViewer</code> 交互层。</p>
 <ul>
 <li>路径：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>（可选 <code>asks/index.json</code> 目录）。</li>
 <li>含锚点（page + 归一化 rects + quote）与 <code>messages[]</code>；<strong>不</strong>写入 PDF 二进制，<strong>不</strong>进 catalog 正文。</li>
+<li>触发：划词 / 框选 / 双击 / 悬停；发送过问题后锚点旁对话图标可回访。</li>
 </ul>
 <p>格式示例:</p>
 <pre class="codehilite"><code class="language-md">### ^h12 · p.3 §3.2
@@ -392,7 +393,7 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <li>PDF → <code>{paper}/{id}.pdf</code>（论文文件夹根目录，不在 <code>source/</code> 下）</li>
 <li>arXiv LaTeX → <code>https://arxiv.org/e-print/{id}</code> → 解压进 <code>source/</code>（拒绝路径穿越）</li>
 <li><strong>无 TeX 且有 PDF</strong>：下载流程结束后用 <strong>liteparse</strong> 写 <code>{paper}/PAPER.md</code>，并更新 catalog <code>body_source</code> / <code>body_quality</code>（文本层 <code>pdf</code>+<code>medium</code>；OCR 主导 <code>ocr</code>+<code>low</code>）</li>
-<li>文件树：paper 行缺 PDF 或 arXiv 缺 TeX → Download；有 PDF、无 TeX、无 <code>PAPER.md</code> → 眼睛图标手动解析；Library 行可批量 Download / 批量 Parse</li>
+<li>文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 列原因）；Library 行可批量 Download；解析走 Download 后 liteparse / <code>paper_parse_body</code>（无独立眼睛图标）</li>
 </ul>
 <p>正文来源与质量记录在 <strong>catalog</strong> 的 <code>body_source</code> / <code>body_quality</code> 字段。<code>PAPER.md</code> 可删可重建,<code>source/</code> 中的原始文件才是归档事实来源。中间栏 PDF/HTML <strong>预览</strong>仍可走 catalog 远程 URL。</p>
 <h2 id="3">3. 数据类型<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>

@@ -1233,14 +1233,14 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <li>[x] 与文件树选中态同步目标 <code>parent_dir</code></li>
 <li>[x] 论文库 UI：<code>paper_list</code> 表格 + 虚拟 Library 节点（见 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>）</li>
 <li>[x] 单篇 / Library 批量补下缺失 PDF 与 arXiv TeX（<code>paper_download_assets</code>）</li>
-<li>[x] 无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动 + <code>paper_parse_body</code> + 眼睛 / Library 批量）</li>
+<li>[x] 无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动 + <code>paper_parse_body</code>）</li>
 <li>[x] <code>⇧⌘I</code> 魔棒快捷键</li>
 <li>[ ] 重复提示增强、入库任务可取消</li>
 </ul>
 <h3 id="phase-d">Phase D — 可选<a class="headerlink" href="#phase-d" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] 默认下载 PDF；arXiv e-print 解压 LaTeX；无 <code>downloadFulltextToLocal</code> 开关</li>
-<li>[x] 文件树缺 PDF 或 arXiv 缺 TeX 时 Download → <code>paper_download_assets</code></li>
+<li>[x] 文件树缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时 Download → <code>paper_download_assets</code></li>
 <li>[x] 无 TeX 时生成 <code>PAPER.md</code>（liteparse）</li>
 <li>[ ] PDF prepare 复用同一 Lookup</li>
 </ul>
@@ -1278,8 +1278,8 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <li>~~点击魔棒，粘贴链接或编号，成功后 paper 壳 + <strong>catalog 有行</strong>。~~ ✅  </li>
 <li>~~入库始终尝试下载 PDF 到 <code>source/</code>。~~ ✅  </li>
 <li>~~arXiv 另下载 e-print 并解压 LaTeX。~~ ✅  </li>
-<li>~~缺 PDF，或 arXiv 缺 TeX 时文件树显示 Download，可补下。~~ ✅  </li>
-<li>~~无 TeX 时下载后 / 眼睛图标可生成 <code>PAPER.md</code>。~~ ✅  </li>
+<li>~~缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时文件树显示 Download，可补下。~~ ✅  </li>
+<li>~~无 TeX 时下载后 liteparse 可生成 <code>PAPER.md</code>（无独立眼睛图标）。~~ ✅  </li>
 <li>文件树选中 <code>papers/nlp</code> 时路径为 <code>papers/nlp/&lt;id&gt;/</code>。  </li>
 <li>重复不覆盖 <code>NOTES.md</code>；文案 i18n。  </li>
 <li>~~论文库表格（<code>paper_list</code>）能列出已入库论文。~~ ✅  </li>
@@ -1327,7 +1327,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 </tr>
 <tr>
 <td>2026-07-15</td>
-<td>无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动 + <code>paper_parse_body</code> + 眼睛 / Library 批量）</td>
+<td>无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动 + <code>paper_parse_body</code>）</td>
 </tr>
 </tbody>
 </table>

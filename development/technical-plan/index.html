@@ -293,8 +293,8 @@
 <tbody>
 <tr>
 <td>文件树展示/交互</td>
-<td><code>FileTree</code> + 可伸缩侧边栏；展开/选中/打开文件</td>
-<td><code>plugin-dialog</code> 选目录 + <code>plugin-fs</code> <code>readDir</code>/<code>readTextFile</code>（监听变化后续）</td>
+<td><code>FileTree</code> + 可伸缩侧边栏；展开/选中/打开；Finder 显示；删除</td>
+<td><code>plugin-dialog</code> 选目录 + <code>plugin-fs</code> <code>readDir</code>/<code>readTextFile</code>/<code>writeTextFile</code>/<code>mkdir</code>/<code>remove</code>；<code>plugin-opener</code> <code>revealItemInDir</code>；<code>paper_delete</code></td>
 </tr>
 <tr>
 <td>Markdown 编辑</td>
@@ -474,36 +474,43 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <tr>
 <td>可伸缩面板</td>
 <td><code>react-resizable-panels</code>（<code>Group</code> / <code>Panel</code> / <code>Separator</code>）</td>
-<td>v4 API；封装见 <code>src/components/layout/resizable.tsx</code></td>
+<td>v4 API；封装见 <code>src/components/layout/resizable.tsx</code>；左右侧栏 <strong>collapsible 常驻</strong> + <code>preserve-pixel-size</code></td>
 </tr>
 <tr>
 <td>侧边栏文件树</td>
 <td><code>src/components/layout/file-tree.tsx</code></td>
-<td>包装 <strong>AI Elements</strong> <code>FileTree</code> / <code>FileTreeFolder</code> / <code>FileTreeFile</code></td>
+<td>包装 <strong>AI Elements</strong> <code>FileTree</code>；右键 / 双击 / 快捷键</td>
 </tr>
 <tr>
 <td>Vault IO</td>
 <td><code>src/lib/vault.ts</code></td>
-<td>选目录、建树、读文本文件；浏览器下提供 demo vault</td>
+<td>选目录、建树、读写文本、建目录、删除路径；<code>src/lib/reveal.ts</code> 系统文件管理器定位</td>
+</tr>
+<tr>
+<td>Catalog 删除</td>
+<td>Host <code>paper_delete</code></td>
+<td>删除 paper 或组织目录下 catalog 行（<code>path</code> / <code>path/%</code>）</td>
 </tr>
 </tbody>
 </table>
 <p><strong>交互（当前实现）</strong></p>
 <ol>
-<li>左侧可拖拽伸缩（可折叠）侧边栏展示 Vault 文件树。  </li>
+<li>左侧可拖拽伸缩（可折叠）侧边栏展示 Vault 文件树；右侧 Agent/Backlinks 同为 collapsible 常驻面板（避免条件卸载冲掉折叠态）。  </li>
 <li>「Open vault…」通过 <code>@tauri-apps/plugin-dialog</code> 选择本地文件夹。  </li>
 <li>通过 <code>@tauri-apps/plugin-fs</code> 的 <code>readDir</code> 递归构建树；忽略 <code>.git</code> / <code>node_modules</code> / <code>target</code> / <code>dist</code> / <code>.motif</code> 等。  </li>
-<li>点击文本类文件（<code>.md</code> / <code>.json</code> / <code>.txt</code> 等）用 <code>readTextFile</code> 载入中间 Markdown 面板，右侧 Plate 预览同步更新。  </li>
-<li>非 Tauri 环境（纯浏览器 <code>pnpm dev</code>）使用内置 <strong>demo vault</strong> 演示结构；真实读盘需 <code>pnpm tauri dev</code>。  </li>
+<li>点击文本类文件用 <code>readTextFile</code> 载入中间 Markdown 面板（Plate WYSIWYG）；写回 <code>writeTextFile</code>。  </li>
+<li>双击 / 右键 / <code>⌥⌘R</code>：<code>revealItemInDir</code> 在 Finder 中显示；右键 / <code>⌘⌫</code>：确认后 <code>remove</code> + 可选 <code>paper_delete</code>。  </li>
+<li>非 Tauri 环境（纯浏览器 <code>pnpm dev</code>）能力受限；真实读盘需 <code>pnpm tauri dev</code>。  </li>
 <li>最近 Vault 路径暂存 <code>localStorage</code>（后续迁到 <code>tauri-plugin-store</code>）。</li>
 </ol>
 <p><strong>权限（<code>src-tauri/capabilities/default.json</code>）</strong></p>
 <ul>
-<li><code>fs:default</code> + <code>fs:allow-read-dir</code> / <code>fs:allow-read-text-file</code> / <code>fs:allow-stat</code> / <code>fs:allow-exists</code></li>
-<li><code>fs:scope</code> 允许：<code>$HOME/**</code>、<code>$DOCUMENT/**</code>、<code>$DESKTOP/**</code>、<code>$DOWNLOAD/**</code>（用户自选 Vault 落在这些目录下可读）</li>
+<li><code>fs:default</code> + <code>fs:allow-read-dir</code> / <code>fs:allow-read-text-file</code> / <code>fs:allow-write-text-file</code> / <code>fs:allow-mkdir</code> / <code>fs:allow-remove</code> / <code>fs:allow-stat</code> / <code>fs:allow-exists</code></li>
+<li><code>fs:scope</code> 允许：<code>$HOME/**</code>、<code>$DOCUMENT/**</code>、<code>$DESKTOP/**</code>、<code>$DOWNLOAD/**</code></li>
+<li><code>opener:default</code>（含 <code>revealItemInDir</code>）</li>
 <li><code>dialog:default</code> 打开文件夹对话框</li>
 </ul>
-<p><strong>未做（后续）</strong>：写回磁盘、文件监听热更新、按 Vault 白名单动态收紧 scope、Zustand 全局状态。</p>
+<p><strong>未做（后续）</strong>：文件监听热更新、按 Vault 白名单动态收紧 scope、Zustand 全局状态。</p>
 <h3 id="33-markdown">3.3 Markdown 编辑与预览<a class="headerlink" href="#33-markdown" title="Permanent link">&para;</a></h3>
 <p>采用 <strong>Plate.js WYSIWYG 编辑器</strong>方案，编辑即预览，无需分屏切换：</p>
 <table>
@@ -583,12 +590,16 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <td>arXiv 资源</td>
 <td><code>pdf</code> / <code>html</code> / <code>abs</code> / <code>e-print</code> 规范 URL</td>
 </tr>
+<tr>
+<td>PDF 划词提问</td>
+<td><strong>MVP 已落地</strong>：<code>src/lib/pdf-ask/</code> + <code>PdfViewer</code> 交互层；<code>asks/*.json</code>；ACP 流式</td>
+</tr>
 </tbody>
 </table>
 <p><strong>分工说明</strong>：
 - <strong>渲染层</strong>（<code>react-pdf</code>）：负责在 Webview 中展示 PDF 页面，供用户审阅、缩放、翻页浏览。
 - <strong>解析层</strong>（<code>liteparse</code>，crate <code>2.5+</code>）：在 Rust 端提取 PDF 文本内容，用于生成 <code>PAPER.md</code>、Agent 上下文读取、全文检索索引等。输出支持 Markdown（含标题/表格/列表重建）、JSON（含 bounding box）和纯文本。
-- <strong>当前落地</strong>：无本地 TeX 时，在 <code>lookup_import</code> / <code>paper_download_assets</code> <strong>下载之后</strong>自动 liteparse → <code>PAPER.md</code>；手动 <code>paper_parse_body</code>；文件树眼睛 / Library 批量。有 TeX 不自动生成。
+- <strong>当前落地</strong>：无本地 TeX 时，在 <code>lookup_import</code> / <code>paper_download_assets</code> <strong>下载之后</strong>自动 liteparse → <code>PAPER.md</code>；<code>paper_parse_body</code> 亦可手动。有 TeX 不自动生成。Download 单一图标（无独立眼睛）。
 - <code>liteparse</code> 内置 Tesseract OCR，对扫描型 PDF 也能处理；支持多格式（PDF/DOCX/XLSX/PPTX/图片）。
 - <strong>HTML 安全</strong>：完整远程/本地 HTML 文档优先用隔离 <code>iframe</code> 或 <code>convertFileSrc</code> 加载；任何会进入主文档 DOM 的不可信 HTML 字符串必须调用 <code>sanitizeHtml</code>（DOMPurify）。许可证 Apache-2.0。</p>
 <p><strong>可插拔 PDF 解析器（<code>PdfParser</code>）</strong>：
@@ -598,9 +609,9 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 - 隐私：云端 MinerU 需上传 PDF，首次启用时提示；默认本地解析不外传数据。
 - arXiv 入库在无 LaTeX/HTML 时复用同一 <code>PdfParser</code> 做兜底解析。</p>
 <blockquote>
-<p>MVP 阅读器以审阅和定位为主，不实现完整批注系统。</p>
+<p>MVP 阅读器以审阅、定位与就地提问为主，不实现完整 Hypothesis 式批注系统。</p>
 </blockquote>
-<p><strong>PDF 划词提问（设计中）</strong>：选区 / 双击 / 悬停 → 迷你问答卡 → <code>papers/&lt;id&gt;/asks/*.json</code> → 页边圆片回访。复用 TextLayer + ACP BYOA，不写入 PDF 二进制。详见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>。</p>
+<p><strong>PDF 划词提问（MVP 已落地）</strong>：选区 / 框选 / 双击 / 悬停 → 迷你问答卡 → <code>papers/&lt;id&gt;/asks/*.json</code> → 锚点对话图标回访。复用 TextLayer + ACP BYOA，不写入 PDF 二进制。详设与分期见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>。</p>
 <h3 id="35">3.5 关系图谱<a class="headerlink" href="#35" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -667,7 +678,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <tbody>
 <tr>
 <td><code>tauri-plugin-fs</code></td>
-<td>读 Vault 目录树与文本文件（<strong>已用于文件树</strong>）；写/监听后续</td>
+<td>读/写 Vault 目录树与文本文件、mkdir、remove（<strong>已用于文件树</strong>）；监听热更新后续</td>
 </tr>
 <tr>
 <td><code>tauri-plugin-dialog</code></td>
@@ -900,7 +911,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 - 用户可在列表中多选批量入库，或拒绝全部候选后重新输入。</p>
 <p><strong>PAPER.md 生成策略</strong>（魔棒路径已部分落地）：
 - <code>papers/&lt;id&gt;/source/</code> 存 PDF / 可选 LaTeX；Agent 优先读 <code>.tex</code>。
-- <strong>无本地 TeX</strong>：在 PDF（及 e-print 尝试）<strong>下载之后</strong>，Host 用 <strong>liteparse</strong> 写 <code>PAPER.md</code>，并更新 catalog <code>body_source</code> / <code>body_quality</code>；亦可 <code>paper_parse_body</code> / 文件树眼睛 / Library 批量。
+- <strong>无本地 TeX</strong>：在 PDF（及 e-print 尝试）<strong>下载之后</strong>，Host 用 <strong>liteparse</strong> 写 <code>PAPER.md</code>，并更新 catalog <code>body_source</code> / <code>body_quality</code>；亦可 <code>paper_parse_body</code>（Download 路径内触发）。
 - <strong>有 TeX</strong>：不自动生成 <code>PAPER.md</code>。
 - 可选后续：LaTeX→Markdown（pandoc）、arXiv HTML DOM→Markdown、可插拔 MinerU。
 - <code>PAPER.md</code> 是派生文件，可被删除或重建；<code>source/</code> 中的原始文件才是归档事实来源。</p>
@@ -1319,7 +1330,7 @@ tempfile = &quot;3&quot;
 <tbody>
 <tr>
 <td>V0.1</td>
-<td>Tauri + React 工作台基本完成；可伸缩文件树、Open vault、读写 Markdown、最近 Vault、PDF/HTML/Notes 视图已接入；仍需补 Create Vault 初始化与文件监听。</td>
+<td>Tauri + React 工作台基本完成；可伸缩文件树（Finder / 删除）、Create Vault + catalog、Open vault、读写 Markdown、最近 Vault、PDF/HTML/Notes、Library 表、左右侧栏 collapsible 隔离；文件监听仍待。</td>
 </tr>
 <tr>
 <td>V0.2</td>

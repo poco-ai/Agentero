@@ -314,9 +314,9 @@
 </ul>
 </li>
 <li><strong>导入</strong>（Upload）：在侧栏<strong>魔棒 Popover 卡片左下角</strong>（与「添加」按钮同一行）；打开 <code>.bib</code>/<code>.ris</code>/… → <code>paper_import</code> → Translator <code>/import</code> → catalog + paper 文件夹（默认下 PDF/TeX）。</li>
-<li><strong>Paper Info / Notes（Preview）——仅具体论文</strong>：</li>
+<li><strong>Paper Info / Notes——仅具体论文</strong>：</li>
 <li><strong>左侧 Paper Info</strong>（<code>paper-info-panel</code>）：仅当存在 <code>paperMeta</code>（选中 paper 文件夹）时渲染；论文库 / 普通笔记时隐藏。</li>
-<li><strong>右侧 Notes</strong>：仅当已打开具体论文且中心为 PDF/HTML 时显示该篇 <code>NOTES.md</code>；论文库视图或未选论文时隐藏（不残留上一篇 Notes 栏）。</li>
+<li><strong>Notes（WYSIWYG，无独立预览栏）</strong>：中心切换为 Notes 时全宽编辑 <code>NOTES.md</code>；中心为 PDF/HTML 时右侧栏显示同一篇 <code>NOTES.md</code> 实时编辑。论文库视图或未选论文时隐藏。</li>
 <li><strong>⌘L</strong> 显示 / 隐藏右侧栏；右侧栏入口为 <strong>Agent</strong> 与 <strong>Backlinks</strong>。</li>
 <li>Backlinks 入口内采用上下分区：上方反链列表，下方 Graph。Graph 不再是独立顶层 tab。</li>
 <li><strong>左右侧栏隔离</strong>（<code>react-resizable-panels</code>）：</li>
@@ -329,13 +329,13 @@
 <li><strong>独立滚动</strong>：侧边栏 / 中间内容 / 右侧 Notes <strong>各自</strong>滚动，顶栏固定；禁止整页连带滚动。</li>
 <li>默认竖向：<code>.motif-scroll</code>（<code>overflow-x: hidden; overflow-y: auto</code>）。</li>
 <li>需双向滚动（论文库表）：<code>.motif-scroll-both</code>。</li>
-<li><strong>中间栏视图切换</strong>（纯图标 + Tooltip）：Markdown · PDF · HTML（<code>ViewModeToggle</code>）；论文库视图下不显示该切换。</li>
-<li>Markdown：<strong>所见即所得富文本编辑</strong>（Plate）。直接输入 Markdown 语法即时渲染（标题、列表、任务列表、代码块、表格、公式、<code>[[wikilink]]</code> 等）；无独立「预览」栏。</li>
+<li><strong>中间栏视图切换</strong>（纯图标 + Tooltip）：<strong>仅 PDF · HTML</strong>（<code>ViewModeToggle</code>）；无 PDF/HTML 时不显示切换。论文库视图下不显示。</li>
+<li>Notes / 普通 Markdown 文件：<strong>所见即所得富文本编辑</strong>（Plate），在 Notes 侧栏或打开 <code>.md</code> 时编辑；不占中间栏切换卡片。</li>
 <li><strong>保存</strong>：编辑防抖后 <strong>自动写回</strong> 磁盘 <code>.md</code>，<code>⌘S</code> 立即保存；有未保存更改时 pane header 显示小圆点。未发生真实编辑不会写盘（打开文件不触发保存）。</li>
 <li><strong>双链</strong>：<code>[[目标#标题|别名]]</code> 与 <code>![[嵌入]]</code> 由 <code>@flowershow/remark-wiki-link</code> 解析并 <strong>无损回写</strong>；渲染仍复用既有 exists/missing 样式与点击导航。</li>
 <li><strong>YAML frontmatter</strong> 按字节原样保留（不经 Plate 往返）；注意 Plate 会归一化部分 Markdown 风格（列表 <code>-</code>→<code>*</code>、斜体 <code>*</code>→<code>_</code>），内容语义不变。</li>
 <li>PDF / HTML <strong>预览</strong>：当前仍读 catalog 远程 <code>pdf_url</code> / <code>html_url</code>（经 <code>paper_get</code> + PDF.js / iframe）。</li>
-<li><strong>本地归档</strong>（与预览分离）：魔棒 / <code>paper_download_assets</code> 将 PDF（及 arXiv LaTeX）写入 <code>{paper}/source/</code>；中间栏预览暂不强制读本地文件。</li>
+<li><strong>本地归档</strong>（与预览分离）：魔棒 / <code>paper_download_assets</code> 将 PDF 写入 <code>{paper}/{id}.pdf</code>（根目录），arXiv LaTeX 到 <code>source/</code>；中间栏预览暂不强制读本地文件。</li>
 <li>arXiv 推荐写入 catalog：<ul>
 <li><code>pdf_url</code>: <code>https://arxiv.org/pdf/{id}</code></li>
 <li><code>html_url</code>: <code>https://arxiv.org/html/{id}</code></li>
@@ -344,6 +344,12 @@
 </li>
 <li>若只有 <code>arxiv_id</code>，用 <code>src/lib/arxiv.ts</code> 推导远程 URL</li>
 <li>PDF：PDF.js 按 URL 流式渲染；HTML：独立 iframe 打开远程页</li>
+<li><strong>PDF 缩放</strong>（<code>PdfViewer</code>）：工具栏放大 / 缩小 / 重置；<code>⌘/Ctrl</code>+滚轮缩放；范围约 <strong>0.5×–3×</strong>；<strong>100% = 适应中间栏宽度</strong>（非固定 pt）。i18n <code>viewer:pdf.zoom*</code>。</li>
+<li><strong>PDF 划词提问</strong>（已落地 MVP，见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>）：<ul>
+<li>划词 / 框选 / 双击 / 悬停停留 → 迷你问答卡（ACP 流式）；发送过问题后在锚点旁保留对话图标（Hover 回访）。</li>
+<li>线程落盘 <code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>；<strong>不</strong>写 PDF 二进制。</li>
+</ul>
+</li>
 <li><strong>PDF/HTML 时右侧自动加载该篇 <code>NOTES.md</code></strong>（可编辑，自动保存 / <code>⌘S</code>）</li>
 <li><strong>HTML 沙盒</strong>：独立 <code>&lt;iframe&gt;</code>；arXiv 允许 scripts（对方 origin）；布局铺满中间栏</li>
 <li>无障碍：图标按钮必须有可访问名称；焦点环使用主题 <code>ring</code>。</li>
@@ -421,7 +427,7 @@
 </tr>
 <tr>
 <td><code>⌘3</code></td>
-<td>聚焦 Notes（论文 PDF/HTML 视图时）</td>
+<td>聚焦 Notes（<code>focusNotes</code>；论文 PDF/HTML 侧栏 Notes）</td>
 <td></td>
 </tr>
 <tr>
@@ -444,8 +450,7 @@
 <li><strong>始终下载 PDF</strong> 到 <code>{paper}/{id}.pdf</code>（论文文件夹根目录）。  </li>
 <li><strong>arXiv</strong>：另从 <code>https://arxiv.org/e-print/{id}</code> 下载并解压 LaTeX 到 <code>source/</code>。  </li>
 <li>详见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>；i18n <code>sidebar:lookup.*</code> / <code>papersLibrary.*</code>；无 Vault 时禁用。</li>
-<li><strong>论文行下载按钮</strong>：缺本地 PDF，或 arXiv 可取 TeX 但尚无 <code>.tex</code> 时，行尾 Download → <code>paper_download_assets</code>（已有资源跳过，只补缺失项）。下载后若仍无 TeX 且有 PDF，Host 自动 liteparse 写 <code>PAPER.md</code>。</li>
-<li><strong>论文行解析按钮</strong>：有 PDF、无 TeX、无 <code>PAPER.md</code> 时行尾眼睛 → <code>paper_parse_body</code>；Library 行可批量解析。</li>
+<li><strong>论文行 Download</strong>（单一图标，无独立眼睛）：缺本地 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时显示；hover 列出原因 → <code>paper_download_assets</code>（已有资源跳过）。下载后若仍无 TeX 且有 PDF，Host 自动 liteparse 写 <code>PAPER.md</code>。Library 行可对库内全部不完整 paper <strong>批量</strong> Download。</li>
 </ul>
 <h3 id="32-agent-ai-elements">3.2 Agent 右侧栏（AI Elements）<a class="headerlink" href="#32-agent-ai-elements" title="Permanent link">&para;</a></h3>
 <table>

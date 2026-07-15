@@ -867,7 +867,7 @@ Host (Tauri + Rust)
 
 #### `paper_parse_body`（已落地）
 
-对**无本地 TeX** 的 paper，用 liteparse 从本地 PDF 生成 `{paper}/PAPER.md`。用于文件树眼睛图标与 Library 批量解析。
+对**无本地 TeX** 的 paper，用 liteparse 从本地 PDF 生成 `{paper}/PAPER.md`。在 `paper_download_assets` / `lookup_import` 下载后自动触发，亦可手动 `paper_parse_body`（UI 无独立眼睛图标）。
 
 - **参数**（invoke 字段名 `args`）：
   ```ts
@@ -1546,16 +1546,17 @@ Host (Tauri + Rust)
 <td><code>toggle_sidebar</code></td>
 <td>Toggle Sidebar</td>
 <td><code>⌥⌘S</code></td>
-<td>前端监听</td>
+<td>前端监听（左栏 collapsible；与右栏隔离）</td>
 </tr>
 <tr>
 <td><code>toggle_chat</code></td>
 <td>Toggle Chat</td>
 <td><code>⌘L</code></td>
-<td>前端监听</td>
+<td>前端监听（右栏 collapsible 常驻；勿条件卸载 Panel）</td>
 </tr>
 </tbody>
 </table>
+<p>前端快捷键（非菜单 emit，见 <code>src/lib/shortcuts.ts</code> / <code>docs/frontend/ui.md</code> §3.1）：<code>⌥⌘R</code> 在 Finder 中显示、<code>⌘⌫</code> 删除选中树项、<code>⇧⌘I</code> 魔棒。</p>
 <h2 id="4">4. 数据模型<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
 <p>完整类型定义见 <code>docs/backend/data-model.md</code>。API 中涉及的核心类型包括：</p>
 <ul>
