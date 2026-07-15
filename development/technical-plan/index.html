@@ -559,7 +559,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 <tr>
 <td>PDF 本地归档（Host）</td>
-<td>魔棒 / <code>paper_download_assets</code> → <code>{paper}/source/{id}.pdf</code>（与预览路径分离）</td>
+<td>魔棒 / <code>paper_download_assets</code> → <code>{paper}/{id}.pdf</code>（论文根目录；与预览路径分离）</td>
 </tr>
 <tr>
 <td>arXiv LaTeX 归档</td>
@@ -585,7 +585,8 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </table>
 <p><strong>分工说明</strong>：
 - <strong>渲染层</strong>（<code>react-pdf</code>）：负责在 Webview 中展示 PDF 页面，供用户审阅、缩放、翻页浏览。
-- <strong>解析层</strong>（<code>liteparse</code>）：在 Rust 端提取 PDF 文本内容，用于生成 <code>PAPER.md</code>、Agent 上下文读取、全文检索索引等。输出支持 Markdown（含标题/表格/列表重建）、JSON（含 bounding box）和纯文本。
+- <strong>解析层</strong>（<code>liteparse</code>，crate <code>2.5+</code>）：在 Rust 端提取 PDF 文本内容，用于生成 <code>PAPER.md</code>、Agent 上下文读取、全文检索索引等。输出支持 Markdown（含标题/表格/列表重建）、JSON（含 bounding box）和纯文本。
+- <strong>当前落地</strong>：无本地 TeX 时，在 <code>lookup_import</code> / <code>paper_download_assets</code> <strong>下载之后</strong>自动 liteparse → <code>PAPER.md</code>；手动 <code>paper_parse_body</code>；文件树眼睛 / Library 批量。有 TeX 不自动生成。
 - <code>liteparse</code> 内置 Tesseract OCR，对扫描型 PDF 也能处理；支持多格式（PDF/DOCX/XLSX/PPTX/图片）。
 - <strong>HTML 安全</strong>：完整远程/本地 HTML 文档优先用隔离 <code>iframe</code> 或 <code>convertFileSrc</code> 加载；任何会进入主文档 DOM 的不可信 HTML 字符串必须调用 <code>sanitizeHtml</code>（DOMPurify）。许可证 Apache-2.0。</p>
 <p><strong>可插拔 PDF 解析器（<code>PdfParser</code>）</strong>：
@@ -877,7 +878,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <pre class="codehilite"><code class="language-text">侧栏魔棒粘贴 arXiv ID/URL
   → lookup_import → Translator（或 arXiv Atom fallback）
   → catalog upsert + NOTES.md / highlights.md 壳
-  → ensure_paper_assets：PDF → source/{id}.pdf；e-print → 解压 LaTeX 到 source/
+  → ensure_paper_assets：PDF → {paper}/{id}.pdf；e-print TeX → 解压 LaTeX 到 source/
   → 刷新文件树；打开 paper（预览可用远程 pdf_url）
 </code></pre>
 
@@ -894,13 +895,11 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 - 非精确输入统一交给 Agent，Agent 可调用 arXiv API 进行关键词/摘要搜索，并返回 Top-K 候选。
 - 候选需包含：标题、作者、年份、arXiv ID、摘要片段、与输入意图的匹配理由。
 - 用户可在列表中多选批量入库，或拒绝全部候选后重新输入。</p>
-<p><strong>PAPER.md 生成策略</strong>：
-- <code>papers/&lt;id&gt;/source/</code> 始终存在，LaTeX source、PDF、HTML 均下载到该目录。
-- Agent 优先读取 <code>source/</code> 中的 <code>.tex</code> 原始源文件。
-- 仅在无 LaTeX source 或 Agent/用户需要统一可读格式时，按需生成 <code>papers/&lt;id&gt;/PAPER.md</code>：
-  - 有 LaTeX source 时，通过 pandoc 或轻量 LaTeX→Markdown 转换保留章节、公式、表格。
-  - 无 LaTeX source 时，次选 arXiv HTML 实验版，解析 DOM 转 Markdown。
-  - 兜底使用 <code>liteparse</code> 进行 PDF 文本提取（支持 Markdown/JSON/Text 输出，内置 OCR），并明确标记质量。
+<p><strong>PAPER.md 生成策略</strong>（魔棒路径已部分落地）：
+- <code>papers/&lt;id&gt;/source/</code> 存 PDF / 可选 LaTeX；Agent 优先读 <code>.tex</code>。
+- <strong>无本地 TeX</strong>：在 PDF（及 e-print 尝试）<strong>下载之后</strong>，Host 用 <strong>liteparse</strong> 写 <code>PAPER.md</code>，并更新 catalog <code>body_source</code> / <code>body_quality</code>；亦可 <code>paper_parse_body</code> / 文件树眼睛 / Library 批量。
+- <strong>有 TeX</strong>：不自动生成 <code>PAPER.md</code>。
+- 可选后续：LaTeX→Markdown（pandoc）、arXiv HTML DOM→Markdown、可插拔 MinerU。
 - <code>PAPER.md</code> 是派生文件，可被删除或重建；<code>source/</code> 中的原始文件才是归档事实来源。</p>
 <h3 id="53-pdf">5.3 本地 PDF 入库闭环<a class="headerlink" href="#53-pdf" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">用户选择或拖拽本地 PDF（可批量）
@@ -1241,7 +1240,7 @@ reqwest = { version = &quot;0.12&quot;, features = [&quot;json&quot;] }
 tokio = { version = &quot;1&quot;, features = [&quot;full&quot;] }
 pulldown-cmark = &quot;0.12&quot;
 regex = &quot;1&quot;
-liteparse = &quot;0.2&quot;
+liteparse = &quot;2.5&quot;
 agent-client-protocol = &quot;0.2&quot;
 rusqlite = { version = &quot;0.32&quot;, features = [&quot;bundled&quot;] } # Catalog：.motif/catalog.sqlite
 serde = { version = &quot;1&quot;, features = [&quot;derive&quot;] }

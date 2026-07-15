@@ -845,11 +845,11 @@ Host (Tauri + Rust)
     }
   }
   ```
-- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` / `highlights.md`；`metadata.json` 为 catalog 投影同步；**始终下载 PDF** 到 `source/`；**arXiv 另下载 e-print 并解压 LaTeX** 到 `source/`。
+- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` / `highlights.md`；`metadata.json` 为 catalog 投影同步；**始终下载 PDF** 到 `source/`；**arXiv 另下载 e-print 并解压 LaTeX** 到 `source/`；下载后若**无 TeX 且有 PDF 且无 `PAPER.md`**，用 **liteparse** 生成 `PAPER.md` 并更新 `body_source` / `body_quality`。
 
 #### `paper_download_assets`（已落地）
 
-为已有 paper 文件夹补下载缺失的 PDF（及 arXiv LaTeX）。用于文件树单篇 Download，以及 Library 行「下载全部缺失」。
+为已有 paper 文件夹补下载缺失的 PDF（及 arXiv LaTeX）。用于文件树单篇 Download，以及 Library 行「下载全部缺失」。下载后若无 TeX，同样尝试生成 `PAPER.md`。
 
 - **参数**（invoke 字段名 `args`）：
   ```ts
@@ -858,8 +858,58 @@ Host (Tauri + Rust)
     path: string; // Vault 相对 paper 文件夹，如 papers/1706.03762
   }
   ```
-- **返回**：`{ ok: true; data: { pdf: boolean; tex: boolean; messages: string[] } }`
-- **行为**：读 catalog 取 `pdf_url` / `arxiv_id`；已有对应文件则跳过；PDF → `source/{id}.pdf`；arXiv e-print → 解压进 `source/`。
+- **返回**：`{ ok: true; data: { pdf: boolean; tex: boolean; paperMd: boolean; messages: string[] } }`
+- **行为**：读 catalog 取 `pdf_url` / `arxiv_id`；已有对应文件则跳过；PDF → `{paper}/{id}.pdf`（论文根目录）；arXiv e-print TeX → 解压进 `source/`；无 TeX + 有 PDF + 无 `PAPER.md` → liteparse → `PAPER.md`。
+
+#### `paper_parse_body`（已落地）
+
+对**无本地 TeX** 的 paper，用 liteparse 从本地 PDF 生成 `{paper}/PAPER.md`。用于文件树眼睛图标与 Library 批量解析。
+
+- **参数**（invoke 字段名 `args`）：
+  ```ts
+  {
+    vaultPath: string;
+    path: string; // Vault 相对 paper 文件夹
+    force?: boolean; // 默认 false：已有 PAPER.md 则跳过；true 时覆盖
+  }
+  ```
+- **返回**：`{ ok: true; data: { paperMd: boolean; bodySource?: string; bodyQuality?: string; messages: string[] } }`
+- **行为**：
+  - 本地已有 `.tex`/`.ltx` → 跳过（不生成）。
+  - 无本地 PDF → 失败。
+  - 已有 `PAPER.md` 且 `force` 非 true → 跳过。
+  - 否则 liteparse（Markdown 输出）写 `PAPER.md`；catalog 写入 `body_source`（`pdf` | `ocr`）与 `body_quality`（`medium` | `low`）。
+
+#### `paper_export`（已落地）
+
+导出 catalog 全文：Host 将每行转为 **Zotero API JSON item**，组成 **JSON 数组**，再 `POST {translatorBaseUrl}/export?format=…`（`Content-Type: application/json`）。
+
+- **参数**（`args`）：
+  ```ts
+  {
+    vaultPath: string;
+    format?: string;              // 默认 &quot;bibtex&quot;；亦支持 biblatex/ris/csljson/csv/…
+    translatorBaseUrl?: string;
+  }
+  ```
+- **返回**：`{ ok: true; data: { format, content, count, filename } }`
+- **注意**：`/export` **要求 body 为 Zotero items 数组**，不是 Motif `PaperMetadata` 蛇形字段；转换在 Host `zotero_io::paper_record_to_zotero_item`。
+
+#### `paper_import`（已落地）
+
+导入 BibTeX / RIS 等：`POST {translatorBaseUrl}/import`（`Content-Type: text/plain`）→ Zotero items 数组 → map + catalog upsert + paper 壳 + 默认下载资源。
+
+- **参数**（`args`）：
+  ```ts
+  {
+    vaultPath: string;
+    content: string;              // 文件全文
+    parentDir?: string;           // 默认 &quot;papers&quot;
+    translatorBaseUrl?: string;
+  }
+  ```
+- **返回**：`{ ok: true; data: { imported, skipped, paths, titles, errors } }`
+- **行为**：已存在同 path 的 paper（有 NOTES 或 catalog 行）→ **skip**，不覆盖 `NOTES.md`。
 
 ### 3.6 论文
 

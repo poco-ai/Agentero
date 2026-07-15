@@ -116,7 +116,9 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#post-web-urlv2">POST /web — 网页 URL（v2 可选）</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#post-import-bibtexris">POST /import — BibTeX/RIS 等（与迁移工具共享，非魔棒主路径）</a>
+    <li class="toctree-l4"><a class="reference internal" href="#post-import-bibtexris-library">POST /import — BibTeX/RIS 等（Library 导入已用）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#post-export-zotero-items-bibtexrislibrary">POST /export — Zotero items → BibTeX/RIS/…（Library 导出已用）</a>
     </li>
         </ul>
     </li>
@@ -247,7 +249,7 @@
                 <h1 id="identifier-lookup-translator">魔棒入库（Identifier Lookup）与 Translator 后端<a class="headerlink" href="#identifier-lookup-translator" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p>状态：<strong>v0 已落地</strong>（侧栏魔棒 + <code>lookup_import</code> + HTTP Translator + 默认 PDF/LaTeX 下载；sidecar/批量/快捷键仍可扩展）<br />
-目标：用户点击 <strong>魔棒</strong>，粘贴 <strong>链接或编号</strong> → 用 <strong>Translator</strong> 解析元数据 → <strong>写 catalog + paper 文件夹</strong>（<code>NOTES.md</code> 壳 + <strong>PDF 默认进 <code>source/</code></strong>；arXiv <strong>e-print 解压 LaTeX</strong>）→ 落到 <code>papers/</code> 或当前 Papers 子文件夹。catalog 仍保留远程 <code>pdf_url</code>/<code>html_url</code> 供在线预览。</p>
+目标：用户点击 <strong>魔棒</strong>，粘贴 <strong>链接或编号</strong> → 用 <strong>Translator</strong> 解析元数据 → <strong>写 catalog + paper 文件夹</strong>（<code>NOTES.md</code> 壳 + <strong>PDF 默认到论文根目录</strong>；arXiv <strong>e-print 解压 LaTeX 到 <code>source/</code></strong>）→ 落到 <code>papers/</code> 或当前 Papers 子文件夹。catalog 仍保留远程 <code>pdf_url</code>/<code>html_url</code> 供在线预览。</p>
 </blockquote>
 <p>相关文档：</p>
 <ul>
@@ -267,7 +269,7 @@
        ├─ 默认：papers/&lt;id&gt;/
        └─ 若当前上下文是 papers 下的组织子文件夹：papers/&lt;子路径&gt;/&lt;id&gt;/
   → catalog.sqlite 写入一行（含 pdf_url / html_url / source_url 等）
-  → 始终下载 PDF → source/{id}.pdf
+  → 始终下载 PDF → {paper}/{id}.pdf
   → 若 arXiv：下载 e-print 并解压 LaTeX → source/
 </code></pre>
 
@@ -341,22 +343,27 @@
 <tbody>
 <tr>
 <td><strong>PDF</strong></td>
-<td>始终尝试下载到 <code>{paper}/source/{id}.pdf</code>（URL 来自 <code>pdf_url</code> 或 arXiv 推导）</td>
+<td><strong>始终</strong>尝试下载到 <strong><code>{paper}/{id}.pdf</code>（论文文件夹根目录）</strong>（<code>pdf_url</code> + arXiv 多候选 URL 回退）</td>
 </tr>
 <tr>
 <td><strong>arXiv LaTeX</strong></td>
-<td>从 <code>https://arxiv.org/e-print/{id}</code> 下载；gzip/tar 解压到 <code>source/</code>（路径穿越拒绝）</td>
+<td>从 <code>https://arxiv.org/e-print/{id}</code> 下载；gzip/tar 解压到 <code>source/</code>（路径穿越拒绝）；纯 PDF e-print 写到论文根目录</td>
 </tr>
 <tr>
 <td><strong>已有文件</strong></td>
 <td>跳过对应资源</td>
 </tr>
+<tr>
+<td><strong><code>PAPER.md</code>（无 TeX 时）</strong></td>
+<td>下载结束后：若<strong>无</strong>本地 <code>.tex</code>/<code>.ltx</code>、<strong>有</strong> PDF、且尚无 <code>PAPER.md</code> → <strong>liteparse</strong> 解析 PDF 写 <code>{paper}/PAPER.md</code>，并写 catalog <code>body_source</code> / <code>body_quality</code>。有 TeX 则不自动生成</td>
+</tr>
 </tbody>
 </table>
-<p>按需补下：
-- <strong>单篇 paper 行</strong>：缺 PDF，或 arXiv 可取 TeX 但缺本地 TeX → Download → <code>paper_download_assets</code>。
-- <strong>Library 行</strong>：库内任一篇仍缺资源时显示 Download → 对全部缺失 paper <strong>批量</strong> <code>paper_download_assets</code>（只补缺失 PDF / 可下载 TeX）。</p>
-<p>UI 阅读：优先 catalog 远程 URL；<code>source/</code> 为归档副本。</p>
+<p>按需补下（仅 Download 图标，无眼睛）：
+- <strong>显示条件</strong>：缺 PDF <strong>或</strong> 缺 <code>source/</code> <strong>或</strong>（既无 TeX 也无 <code>PAPER.md</code>）。可读正文 <strong>TeX 与 PAPER.md 二选一即可，优先 TeX</strong>（有 TeX 不强制 PAPER.md）。hover 说明原因。
+- <strong>点击</strong>：<code>paper_download_assets</code> → PDF 到论文根目录 → arXiv 尽量 TeX 到 <code>source/</code> → 无 TeX 则 liteparse <code>PAPER.md</code>。
+- <strong>Library 行</strong>：库内任一篇不完整时批量同一逻辑。</p>
+<p>UI 阅读：优先 catalog 远程 URL；<code>source/</code> 为归档副本；<code>PAPER.md</code> 为无 TeX 时的派生正文。</p>
 <h4 id="translator">Translator 服务地址（设置）<a class="headerlink" href="#translator" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
@@ -444,7 +451,7 @@
   + papers/.../NOTES.md、highlights.md
         │
         ▼
-  下载（见 §1.3）：始终 PDF → source/；arXiv 另 e-print 解压 LaTeX
+  下载（见 §1.3）：始终 PDF → 论文根目录；arXiv 另 e-print 解压 LaTeX 到 source/
 
 读路径：UI 用 paper_get 读 catalog；不把 metadata.json 当主源。
 </code></pre>
@@ -701,7 +708,18 @@ interface ParsedIdentifier {
 
 <h4 id="post-web-urlv2"><code>POST /web</code> — 网页 URL（v2 可选）<a class="headerlink" href="#post-web-urlv2" title="Permanent link">&para;</a></h4>
 <p>用于后续「粘贴论文页 URL」；本阶段可不接 UI。</p>
-<h4 id="post-import-bibtexris"><code>POST /import</code> — BibTeX/RIS 等（与迁移工具共享，非魔棒主路径）<a class="headerlink" href="#post-import-bibtexris" title="Permanent link">&para;</a></h4>
+<h4 id="post-import-bibtexris-library"><code>POST /import</code> — BibTeX/RIS 等（Library 导入已用）<a class="headerlink" href="#post-import-bibtexris-library" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Request</strong>：<code>Content-Type: text/plain</code>，body = 文件全文。  </li>
+<li><strong>Response</strong>：<code>200</code> + <strong>Zotero API JSON 数组</strong>（与 <code>/search</code> 相同 item 形状）。  </li>
+<li>Motif：<code>paper_import</code> → map → catalog + paper 壳。</li>
+</ul>
+<h4 id="post-export-zotero-items-bibtexrislibrary"><code>POST /export</code> — Zotero items → BibTeX/RIS/…（Library 导出已用）<a class="headerlink" href="#post-export-zotero-items-bibtexrislibrary" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Request</strong>：<code>Content-Type: application/json</code>，body = <strong>items 数组</strong>（非单个 object）。  </li>
+<li><strong>Query</strong>：<code>format=bibtex|biblatex|ris|csljson|…</code>  </li>
+<li>Motif：catalog 行先 <code>paper_record_to_zotero_item</code> 再调 <code>/export</code>。</li>
+</ul>
 <h3 id="43">4.3 健康检查与懒启动<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">lookup:search 被调用
   → client.ensure_ready()
@@ -1016,7 +1034,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <li><code>path = {parent_dir}/{id}</code>。</li>
 <li>创建目录 + 占位 <code>NOTES.md</code> + 空 <code>highlights.md</code>。</li>
 <li><strong>事务 upsert catalog</strong>（远程 URL 仍存字符串供预览）。</li>
-<li><strong>始终</strong> <code>ensure_paper_assets</code>：PDF → <code>source/{id}.pdf</code>；有 <code>arxiv_id</code> 时 e-print 解压到 <code>source/</code>。</li>
+<li><strong>始终</strong> <code>ensure_paper_assets</code>：PDF → <code>{paper}/{id}.pdf</code>；有 <code>arxiv_id</code> 时 e-print TeX 解压到 <code>source/</code>。</li>
 <li>返回 <code>path</code>；前端刷新并打开 paper。</li>
 </ol>
 <h3 id="64">6.4 事件<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
@@ -1213,6 +1231,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <li>[x] 与文件树选中态同步目标 <code>parent_dir</code></li>
 <li>[x] 论文库 UI：<code>paper_list</code> 表格 + 虚拟 Library 节点（见 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>）</li>
 <li>[x] 单篇 / Library 批量补下缺失 PDF 与 arXiv TeX（<code>paper_download_assets</code>）</li>
+<li>[x] 无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动 + <code>paper_parse_body</code> + 眼睛 / Library 批量）</li>
 <li>[x] <code>⇧⌘I</code> 魔棒快捷键</li>
 <li>[ ] 重复提示增强、入库任务可取消</li>
 </ul>
@@ -1220,6 +1239,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <ul>
 <li>[x] 默认下载 PDF；arXiv e-print 解压 LaTeX；无 <code>downloadFulltextToLocal</code> 开关</li>
 <li>[x] 文件树缺 PDF 或 arXiv 缺 TeX 时 Download → <code>paper_download_assets</code></li>
+<li>[x] 无 TeX 时生成 <code>PAPER.md</code>（liteparse）</li>
 <li>[ ] PDF prepare 复用同一 Lookup</li>
 </ul>
 <hr />
@@ -1257,6 +1277,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <li>~~入库始终尝试下载 PDF 到 <code>source/</code>。~~ ✅  </li>
 <li>~~arXiv 另下载 e-print 并解压 LaTeX。~~ ✅  </li>
 <li>~~缺 PDF，或 arXiv 缺 TeX 时文件树显示 Download，可补下。~~ ✅  </li>
+<li>~~无 TeX 时下载后 / 眼睛图标可生成 <code>PAPER.md</code>。~~ ✅  </li>
 <li>文件树选中 <code>papers/nlp</code> 时路径为 <code>papers/nlp/&lt;id&gt;/</code>。  </li>
 <li>重复不覆盖 <code>NOTES.md</code>；文案 i18n。  </li>
 <li>~~论文库表格（<code>paper_list</code>）能列出已入库论文。~~ ✅  </li>
@@ -1301,6 +1322,10 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <tr>
 <td>2026-07-15</td>
 <td>默认下载 PDF；arXiv 解压 LaTeX；移除 <code>downloadFulltextToLocal</code>；<code>paper_download_assets</code> + 树行 Download</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td>无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动 + <code>paper_parse_body</code> + 眼睛 / Library 批量）</td>
 </tr>
 </tbody>
 </table>

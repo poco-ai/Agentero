@@ -148,10 +148,11 @@
 <p>2b. <strong>魔棒 / Identifier Lookup（Translator）</strong> ✅ v0
    - [x] UI：侧栏魔棒 → 粘贴链接或编号 → 加入 Papers。
    - [x] 目标：<code>papers/</code> 或文件树当前选中的 Papers 子文件夹。
-   - [x] Host：<code>lookup_import</code> / <code>lookup_translator_config</code> / <code>paper_download_assets</code>。
+   - [x] Host：<code>lookup_import</code> / <code>lookup_translator_config</code> / <code>paper_download_assets</code> / <code>paper_parse_body</code>。
    - [x] 设置：<code>translatorBaseUrl</code>（默认 <code>https://translator.philfan.cn</code>）；<strong>无</strong>「是否本地下载」开关。
    - [x] 文件树：paper 行缺 PDF 或 arXiv 缺 TeX → Download。
-   - [x] Library 行：库内任一篇仍缺资源 → 批量 Download 全部缺失 PDF / 可取 TeX。
+   - [x] 无 TeX + 有 PDF：下载后 liteparse 生成 <code>PAPER.md</code>；无 <code>PAPER.md</code> 时行尾眼睛手动解析。
+   - [x] Library 行：库内任一篇仍缺资源 → 批量 Download；需 <code>PAPER.md</code> → 批量 Parse（眼睛）。
    - [x] 快捷键 <code>⇧⌘I</code>（打开魔棒）；本机 Translator sidecar 捆绑仍待。</p>
 <p>2c. <strong>论文库表格 UI</strong> ✅
    - [x] 虚拟节点 <code>motif:library</code>；中间栏 catalog 表（<code>paper_list</code>）。
@@ -175,9 +176,10 @@
 <h2 id="p1">P1 — 中期增强<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Catalog 导出与检索</strong></li>
-<li><code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code>。</li>
+<li>[x] Library UI：Translator <code>/export</code> BibTeX + <code>/import</code> Bib/RIS（<code>paper_export</code> / <code>paper_import</code>）。</li>
+<li>[ ] <code>catalog:export_papers_md</code>（Markdown 表）等其它形态。</li>
 <li>
-<p>可选 FTS5；Agent 工作流临时导出 L1 列表。</p>
+<p>[ ] 可选 FTS5；Agent 工作流临时导出 L1 列表。</p>
 </li>
 <li>
 <p><strong>本地 PDF importer</strong></p>

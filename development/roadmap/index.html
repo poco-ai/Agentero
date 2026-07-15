@@ -194,7 +194,7 @@
 <tr>
 <td>V0.2 arXiv / 标识符入库闭环</td>
 <td>🟡 精确路径基本完成</td>
-<td><strong>魔棒 + Translator</strong> 入库、catalog 权威、<code>paper_list</code> / <code>paper_get</code>、<strong>默认下载 PDF + arXiv e-print 解压 LaTeX</strong>、单篇/Library <strong>补下缺失资源</strong> 已落地；Agent 关键词候选、<code>PAPER.md</code> 生成、<code>catalog:export_*</code> 仍待。</td>
+<td><strong>魔棒 + Translator</strong> 入库、catalog 权威、<code>paper_list</code> / <code>paper_get</code>、<strong>默认下载 PDF + arXiv e-print 解压 LaTeX</strong>、单篇/Library <strong>补下缺失资源</strong>、<strong>无 TeX 时 liteparse → <code>PAPER.md</code></strong> 已落地；Agent 关键词候选、<code>catalog:export_*</code> 仍待。</td>
 </tr>
 <tr>
 <td>V0.3 Agent 工作流（BYOA）</td>
@@ -248,8 +248,6 @@
 <ul>
 <li>[x] 补齐“Create Vault”流程（含 catalog 初始化），而不只是打开已有目录。</li>
 <li>[ ] 最近 Vault / UI 偏好从 <code>localStorage</code> 迁到 Tauri Store（语义对齐现有前端 MRU）。</li>
-<li>[ ] 文件监听与外部编辑器修改同步。</li>
-<li>[ ] 增加保存状态提示和冲突处理（Markdown 已有脏点 + 自动保存，可再增强）。</li>
 </ul>
 <h2 id="v02-arxiv">V0.2 arXiv / 标识符入库闭环<a class="headerlink" href="#v02-arxiv" title="Permanent link">&para;</a></h2>
 <p>目标：从用户输入（ID/URL，后续关键词/话题/描述）到本地文献资产的闭环；精确路径优先落地，再扩展 Agent 检索。</p>
@@ -260,18 +258,19 @@
 <li>[x] Translator HTTP（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）+ arXiv Atom fallback。</li>
 <li>[x] map → <code>PaperMetadata</code> → <strong>catalog.sqlite 权威</strong>；<code>metadata.json</code> 仅为投影。</li>
 <li>[x] 创建 <code>papers/&lt;id&gt;/</code>（或当前 Papers 子文件夹下）、<code>NOTES.md</code> / <code>highlights.md</code> 壳。</li>
-<li>[x] <strong>始终下载 PDF</strong> 到 <code>source/{id}.pdf</code>；<strong>arXiv e-print 解压 LaTeX</strong> 到 <code>source/</code>（无下载开关）。</li>
+<li>[x] <strong>始终下载 PDF</strong> 到 <code>{paper}/{id}.pdf</code>（论文根目录）；<strong>arXiv e-print 解压 LaTeX</strong> 到 <code>source/</code>（无下载开关）。</li>
 <li>[x] 中间栏预览仍可用 catalog 远程 <code>pdf_url</code> / <code>html_url</code>。</li>
 <li>[x] <code>paper_list</code> / <code>paper_get</code>；Library 表格 + 虚拟节点。</li>
 <li>[x] 按需补下：<code>paper_download_assets</code>；paper 行缺 PDF 或 arXiv 缺 TeX 时 Download；<strong>Library 行批量补下全部缺失</strong>。</li>
+<li>[x] <strong>无 TeX 时 liteparse → <code>PAPER.md</code></strong>：下载后自动；<code>paper_parse_body</code>；文件树眼睛 / Library 批量解析。</li>
+<li>[x] Library 导入/导出：<code>paper_import</code> / <code>paper_export</code>（Translator <code>/import</code> + <code>/export</code>，Zotero JSON 数组）。</li>
 <li>[x] 入库错误行内展示；重复不覆盖用户 <code>NOTES.md</code>。</li>
 </ul>
 <h3 id="_1">未完成<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[ ] 关键词/话题/自然语言描述 + 输入分类（规则 + Agent）。</li>
 <li>[ ] Agent 检索候选列表确认（单选/多选）。</li>
-<li>[ ] 无 LaTeX 或需要统一正文时生成 <code>PAPER.md</code>。(放在解析部分完成)</li>
-<li>[ ] <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code>。</li>
+<li>[ ] <code>catalog:export_papers_md</code>（Markdown 表形态；BibTeX 已由 Library 导出覆盖）。</li>
 <li>[x] 入库后刷新 Backlinks/Graph 索引</li>
 <li>[x] 魔棒快捷键 <code>⇧⌘I</code>；</li>
 </ul>
@@ -280,8 +279,9 @@
 <li>[x] 输入 <code>1706.03762</code> 后生成 paper 目录、NOTES 壳、catalog 行，并尽量得到 PDF（arXiv 另有 TeX）。</li>
 <li>[x] 连续入库多篇后 <code>paper_list</code> / Library 可见对应行。</li>
 <li>[x] 缺本地资源时 paper 行 / Library 可补下。</li>
+<li>[x] Library 可导出 BibTeX、可导入 .bib/.ris 进 catalog。</li>
 <li>[ ] 关键词路径：候选列表 → 确认 → 入库。</li>
-<li>[ ] 可选导出 PAPERS.md / BibTeX 与 catalog 一致。</li>
+<li>[ ] 可选导出 PAPERS.md 与 catalog 一致。</li>
 <li>[x] 重复入库不破坏已有 <code>NOTES.md</code>。</li>
 </ul>
 <h2 id="v03-agent-acp-client-byoa">V0.3 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#v03-agent-acp-client-byoa" title="Permanent link">&para;</a></h2>
@@ -404,6 +404,7 @@
 <li>[x] arXiv/标识符精确入库（魔棒 + Translator + catalog + 默认 PDF/LaTeX）。</li>
 <li>[x] 论文库 UI：<code>paper_list</code> + Library 虚拟节点 + 表头排序 + 双向滚动。</li>
 <li>[x] 缺失资源补下：单篇 Download + Library 批量 Download（<code>paper_download_assets</code>）。</li>
+<li>[x] 无 TeX 正文：下载后 liteparse → <code>PAPER.md</code>；<code>paper_parse_body</code>；眼睛 / Library 批量解析。</li>
 <li>[ ] Agent 关键词候选 / 自然语言入库闭环。</li>
 <li>[ ] Agent workflow prompt：总结当前论文、本地库问答、Related Work。</li>
 <li>[ ] Agent 写入草稿确认与拒绝路径。</li>
@@ -413,8 +414,9 @@
 <h3 id="p1">中期优先级 P1<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[ ] 本地 PDF importer 与 metadata 确认面板。</li>
-<li>[x] Catalog 权威存储 + <code>paper_list</code> / <code>paper_get</code> / 入库写路径（导出 / FTS / 双链缓存表仍待）。</li>
-<li>[ ] <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code>。</li>
+<li>[x] Catalog 权威存储 + <code>paper_list</code> / <code>paper_get</code> / 入库写路径（FTS / 双链缓存表仍待）。</li>
+<li>[x] Library BibTeX 导入/导出（Translator <code>/import</code> <code>/export</code>）。</li>
+<li>[ ] <code>catalog:export_papers_md</code>（Markdown 表）。</li>
 <li>[ ] <code>[[</code> 补全与 Plate wikilink 内联节点。</li>
 <li>[ ] Graph 全屏/聚焦模式与邻居高亮。</li>
 <li>[ ] Release 流程补充签名、公证、版本号同步和自动 changelog。</li>

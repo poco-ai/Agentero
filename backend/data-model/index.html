@@ -363,25 +363,26 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <tr>
 <td>arxiv 有 LaTeX</td>
 <td><strong>默认下载</strong>：<code>{id}.pdf</code> + e-print 解包的 <code>.tex</code> 工程</td>
-<td><strong>按需</strong>生成(Agent 可直接读 <code>.tex</code>)</td>
+<td><strong>不自动生成</strong>（Agent 可直接读 <code>.tex</code>）</td>
 </tr>
 <tr>
-<td>非 arxiv（有 <code>pdf_url</code>）</td>
+<td>无 TeX（非 arXiv / e-print 失败 / PDF-only）</td>
 <td><strong>默认下载</strong> PDF</td>
-<td>解析成 Markdown(必生成，后续 importer)</td>
+<td><strong>下载后</strong> liteparse 生成 Markdown（<code>paper_parse_body</code> 亦可手动）</td>
 </tr>
 <tr>
 <td>扫描件</td>
-<td>原始 PDF + <code>ocr/</code> 中间产物</td>
-<td>OCR → Markdown(必生成,并标注质量)</td>
+<td>原始 PDF</td>
+<td>liteparse OCR → Markdown，<code>body_quality=low</code></td>
 </tr>
 </tbody>
 </table>
 <p><strong>入库下载</strong>（<code>lookup_import</code> / <code>paper_download_assets</code>，见 <a href="../identifier-lookup/"><code>identifier-lookup.md</code></a> §1.3）：</p>
 <ul>
-<li>PDF → <code>{paper}/source/{id}.pdf</code></li>
+<li>PDF → <code>{paper}/{id}.pdf</code>（论文文件夹根目录，不在 <code>source/</code> 下）</li>
 <li>arXiv LaTeX → <code>https://arxiv.org/e-print/{id}</code> → 解压进 <code>source/</code>（拒绝路径穿越）</li>
-<li>文件树：paper 行缺 PDF，或 arXiv 可取 TeX 但本地无 TeX 时，显示 Download 补下</li>
+<li><strong>无 TeX 且有 PDF</strong>：下载流程结束后用 <strong>liteparse</strong> 写 <code>{paper}/PAPER.md</code>，并更新 catalog <code>body_source</code> / <code>body_quality</code>（文本层 <code>pdf</code>+<code>medium</code>；OCR 主导 <code>ocr</code>+<code>low</code>）</li>
+<li>文件树：paper 行缺 PDF 或 arXiv 缺 TeX → Download；有 PDF、无 TeX、无 <code>PAPER.md</code> → 眼睛图标手动解析；Library 行可批量 Download / 批量 Parse</li>
 </ul>
 <p>正文来源与质量记录在 <strong>catalog</strong> 的 <code>body_source</code> / <code>body_quality</code> 字段。<code>PAPER.md</code> 可删可重建,<code>source/</code> 中的原始文件才是归档事实来源。中间栏 PDF/HTML <strong>预览</strong>仍可走 catalog 远程 URL。</p>
 <h2 id="3">3. 数据类型<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>

@@ -656,7 +656,7 @@
 <pre class="codehilite"><code class="language-text">import paper（魔棒 lookup_import）
   → 创建 paper 文件夹（默认 `papers/&lt;id&gt;/`，也可 `papers/&lt;org&gt;/…/&lt;id&gt;/`）
   → 事务写入 catalog.papers（path = 该文件夹相对路径）
-  → ensure_paper_assets：PDF → source/；arXiv e-print → 解压 LaTeX 到 source/
+  → ensure_paper_assets：PDF → 论文根目录；arXiv e-print TeX → 解压到 source/
   → 不更新根级 PAPERS.md / library.bib
   → UI 刷新 paper_list / 文件树
 </code></pre>
@@ -782,6 +782,7 @@
 <li>[x] 魔棒 / <code>lookup_import</code> 入库后 <code>paper_list</code> 可见新行；UI 论文库表格展示。</li>
 <li>[x] 读路径走 <code>paper_get</code> / <code>paper_list</code>；<code>metadata.json</code> 仅为 upsert 后投影（非 UI 主源）。</li>
 <li>[x] 入库默认写 PDF（及 arXiv TeX）到 <code>source/</code>；<code>paper_download_assets</code> 可补缺失。</li>
+<li>[x] 无 TeX 时 liteparse 写 <code>PAPER.md</code>，catalog 更新 <code>body_source</code> / <code>body_quality</code>（<code>paper_parse_body</code>）。</li>
 <li>[ ] <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code> 能生成与历史格式兼容的文本。</li>
 <li>[ ] 删除导出文件不影响 catalog 与 UI 列表。</li>
 <li>[ ] 打开缺 catalog 的旧目录能 init 或从 <code>metadata.json</code> 迁移。</li>
