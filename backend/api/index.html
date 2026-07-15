@@ -116,21 +116,19 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#arxivimport">arxiv:import</a>
     </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#34-pdf">3.4 本地 PDF 入库</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#pdfprepare">pdf:prepare</a>
-    </li>
     <li class="toctree-l4"><a class="reference internal" href="#pdfimport">pdf:import</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#paperlist">paper:list</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#paperupdate">paper:update</a>
+    </li>
         </ul>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#35">3.5 论文</a>
+    <li class="toctree-l3"><a class="reference internal" href="#351-catalog">3.5.1 Catalog 导出</a>
         <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#paperget">paper:get</a>
+    <li class="toctree-l4"><a class="reference internal" href="#catalogexport_papers_md">catalog:export_papers_md</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#paperlist">paper:list</a>
+    <li class="toctree-l4"><a class="reference internal" href="#catalogexport_bibtex">catalog:export_bibtex</a>
     </li>
         </ul>
     </li>
@@ -193,6 +191,8 @@
     </ul>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../catalog/">论文目录库</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../wikilinks/">双链与图谱</a>
                   </li>
@@ -396,8 +396,10 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>行为</strong></li>
 <li>检查目录是否为空或已包含 Vault。</li>
-<li>创建 <code>AGENTS.md</code>、<code>PAPERS.md</code>、<code>papers/</code>、<code>notes/</code>、<code>plans/</code>。</li>
+<li>创建 <code>AGENTS.md</code>、<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.motif/</code>。</li>
+<li>初始化 <code>.motif/catalog.sqlite</code>（schema v1，空 <code>papers</code> 表）。详见 <a href="../catalog/"><code>catalog.md</code></a>。</li>
 <li>写入默认 <code>AGENTS.md</code> 模板。</li>
+<li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>（导出见 <code>catalog:export_*</code>）。</li>
 <li>更新最近 Vault 列表。</li>
 </ul>
 <h4 id="vaultopen"><code>vault:open</code><a class="headerlink" href="#vaultopen" title="Permanent link">&para;</a></h4>
@@ -424,9 +426,9 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>行为</strong></li>
-<li>校验 Vault 结构（至少存在 <code>PAPERS.md</code>）。</li>
-<li>初始化/校验 SQLite 索引。</li>
-<li>启动文件监听。</li>
+<li>校验 Vault 结构（至少存在 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>；确保 <code>.motif/catalog.sqlite</code> 可打开或可初始化）。</li>
+<li>打开 catalog、执行 schema migration；若存在历史 <code>papers/*/metadata.json</code> 且 catalog 为空则导入（见 catalog 迁移）。</li>
+<li>启动文件监听（后续）。</li>
 <li>返回完整文件树。</li>
 </ul>
 <h4 id="vaultclose"><code>vault:close</code><a class="headerlink" href="#vaultclose" title="Permanent link">&para;</a></h4>
@@ -679,20 +681,24 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>行为</strong></li>
 <li>异步任务，通过 <code>arxiv:progress</code> / <code>arxiv:completed</code> / <code>arxiv:failed</code> 事件推送结果。</li>
-<li>创建 <code>papers/&lt;id&gt;/</code> 与 <code>papers/&lt;id&gt;/source/</code>，写入 <code>metadata.json</code>（元数据事实来源）。</li>
+<li>创建 paper 文件夹（默认 <code>papers/&lt;id&gt;/</code>，允许 <code>papers/&lt;org&gt;/…/&lt;id&gt;/</code>）与 <code>source/</code>；<strong>元数据写入 catalog</strong>（<code>path</code> = 该文件夹；不写默认 <code>metadata.json</code>）。</li>
 <li>下载 LaTeX source、PDF、HTML 到 <code>source/</code>。</li>
 <li>无 tex 源或需要可读结构化正文时，生成 <code>papers/&lt;id&gt;/PAPER.md</code>。</li>
 <li>调用 Agent 生成 <code>papers/&lt;id&gt;/NOTES.md</code>，并创建空的 <code>papers/&lt;id&gt;/highlights.md</code>。</li>
-<li>更新 <code>PAPERS.md</code>（派生索引）与 <code>library.bib</code>，刷新 <code>.motif/cache.sqlite</code>。</li>
+<li><strong>不</strong>自动更新根级 <code>PAPERS.md</code> / <code>library.bib</code>（需要时由用户触发 <code>catalog:export_*</code>）。</li>
 </ul>
-<h3 id="34-pdf">3.4 本地 PDF 入库<a class="headerlink" href="#34-pdf" title="Permanent link">&para;</a></h3>
-<p>本地 PDF 通过统一 Importer 接入，与 arXiv 共用 <code>papers/&lt;id&gt;/</code> 输出结构。入库分两步：先解析并混合获取元数据供用户确认，再正式入库。</p>
-<h4 id="pdfprepare"><code>pdf:prepare</code><a class="headerlink" href="#pdfprepare" title="Permanent link">&para;</a></h4>
-<p>对本地 PDF 做轻量解析并混合获取候选元数据，供入库前确认，不落盘。</p>
-<ul>
-<li><strong>参数</strong></li>
-</ul>
-<pre class="codehilite"><code class="language-ts">{
+<pre class="codehilite"><code>### 3.4 本地 PDF 入库
+
+本地 PDF 通过统一 Importer 接入，与 arXiv 共用 `papers/&lt;id&gt;/` 输出结构。入库分两步：先解析并混合获取元数据供用户确认，再正式入库。
+
+#### `pdf:prepare`
+
+对本地 PDF 做轻量解析并混合获取候选元数据，供入库前确认，不落盘。
+
+- **参数**
+
+```ts
+{
   paths: string[]; // 本地 PDF 绝对路径，可批量
 }
 </code></pre>
@@ -745,21 +751,28 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>行为</strong></li>
 <li>异步任务，通过 <code>pdf:progress</code> / <code>pdf:completed</code> / <code>pdf:failed</code> 事件推送结果。</li>
-<li>生成 citekey，落位 <code>papers/&lt;citekey&gt;/</code>，写入 <code>metadata.json</code>（<code>type=pdf</code>）。</li>
-<li>原始 PDF 存入 <code>source/</code>；用选定 <code>PdfParser</code> 全文解析生成 <code>PAPER.md</code>（PDF 来源必生成）与 <code>assets/</code>，记录 <code>body_source</code> / <code>body_quality</code>。</li>
+<li>生成 citekey，落位 <code>papers/&lt;citekey&gt;/</code>，<strong>metadata 写入 catalog</strong>（<code>type=pdf</code>）。</li>
+<li>原始 PDF 存入 <code>source/</code>；用选定 <code>PdfParser</code> 全文解析生成 <code>PAPER.md</code>（PDF 来源必生成）与 <code>assets/</code>，<code>body_source</code> / <code>body_quality</code> 写入 catalog。</li>
 <li>调用 Agent 生成 <code>NOTES.md</code>，创建空 <code>highlights.md</code>。</li>
-<li>更新 <code>PAPERS.md</code>、<code>library.bib</code>，刷新 <code>.motif/cache.sqlite</code>。</li>
+<li><strong>不</strong>自动写 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
 <li>使用云端 MinerU 前需前端已获用户同意（PDF 将上传第三方）。</li>
 </ul>
-<h3 id="35">3.5 论文<a class="headerlink" href="#35" title="Permanent link">&para;</a></h3>
-<p>论文数据由 arXiv 入库流程生成，也可通过本组命令查询与列表。</p>
-<h4 id="paperget"><code>paper:get</code><a class="headerlink" href="#paperget" title="Permanent link">&para;</a></h4>
-<p>获取单篇论文完整数据。</p>
-<ul>
-<li><strong>参数</strong></li>
-</ul>
-<pre class="codehilite"><code class="language-ts">{
-  id: string; // 论文唯一标识，如 arxiv_id
+<pre class="codehilite"><code>### 3.5 论文
+
+论文**集合与元数据**存于 `.motif/catalog.sqlite`；本组命令读写 catalog，并附带 Vault 相对路径字段。详见 [`catalog.md`](catalog.md)、[`data-model.md`](data-model.md)。
+
+#### `paper:get`
+
+获取单篇论文完整数据（catalog 行 + 路径）。
+
+- **参数**
+
+```ts
+{
+  /** paper 文件夹 Vault 相对路径（主键），如 papers/nlp/1706.03762 */
+  path?: string;
+  /** 逻辑 id（arXiv / citekey）；多 path 命中时返回列表或报歧义（实现可选） */
+  id?: string;
 }
 </code></pre>
 
@@ -775,13 +788,16 @@ Host (Tauri + Rust)
 </code></pre>
 
 <h4 id="paperlist"><code>paper:list</code><a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
-<p>列出当前 Vault 中已入库的论文。</p>
+<p>列出当前 Vault 中已入库的论文（<strong>读 catalog</strong>，不扫盘拼表）。</p>
 <ul>
 <li><strong>参数</strong></li>
 </ul>
 <pre class="codehilite"><code class="language-ts">{
   status?: ('pending' | 'importing' | 'completed' | 'failed')[];
   tag?: string;
+  year?: number;
+  type?: string;
+  query?: string; // title/abstract/authors 子串或后续 FTS
   limit?: number;
   offset?: number;
 }
@@ -799,6 +815,51 @@ Host (Tauri + Rust)
 }
 </code></pre>
 
+<h4 id="paperupdate"><code>paper:update</code><a class="headerlink" href="#paperupdate" title="Permanent link">&para;</a></h4>
+<p>更新 catalog 中已有论文的元数据字段（标题、标签、URL 等）。不覆盖 <code>NOTES.md</code>。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  path: string; // paper 文件夹路径（主键）
+  patch: Partial&lt;PaperMetadata&gt;; // 不允许改 path
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>：<code>{ ok: true; data: { paper: Paper } }</code></li>
+</ul>
+<h3 id="351-catalog">3.5.1 Catalog 导出<a class="headerlink" href="#351-catalog" title="Permanent link">&para;</a></h3>
+<p>根级 <code>PAPERS.md</code> / <code>library.bib</code> <strong>默认不存在</strong>；需要时显式导出。完整约定见 <a href="../catalog/"><code>catalog.md</code></a>。</p>
+<h4 id="catalogexport_papers_md"><code>catalog:export_papers_md</code><a class="headerlink" href="#catalogexport_papers_md" title="Permanent link">&para;</a></h4>
+<p>从 <code>papers</code> 表生成 Markdown 索引表（历史 <code>PAPERS.md</code> 形态）。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  vault_path: string;
+  /** 若提供则写入路径（绝对或 Vault 相对）；否则仅返回 content */
+  dest_path?: string;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  ok: true;
+  data: {
+    content: string;
+    written_path?: string;
+  };
+}
+</code></pre>
+
+<h4 id="catalogexport_bibtex"><code>catalog:export_bibtex</code><a class="headerlink" href="#catalogexport_bibtex" title="Permanent link">&para;</a></h4>
+<p>从 catalog 生成 BibTeX 汇总（历史 <code>library.bib</code> 形态）。</p>
+<ul>
+<li><strong>参数 / 返回</strong>：同 <code>catalog:export_papers_md</code>（<code>content</code> 为 BibTeX 文本）。</li>
+</ul>
 <h3 id="36-agent-acp-client-byoa">3.6 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#36-agent-acp-client-byoa" title="Permanent link">&para;</a></h3>
 <p>Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（<code>cwd</code> = 当前 Vault），通过 stdio JSON-RPC 会话。<strong>不</strong> 内置 agent 二进制；<strong>不</strong> 在 config 中要求模型 API Key。</p>
 <h4 id="agentlist_agents"><code>agent:list_agents</code><a class="headerlink" href="#agentlist_agents" title="Permanent link">&para;</a></h4>
@@ -1058,7 +1119,7 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>节点折叠</strong>：<code>papers/&lt;id&gt;/NOTES.md</code> 与同目录其它文件 <strong>合并为一个节点</strong> <code>papers/&lt;id&gt;</code>。</li>
-<li><strong>节点 <code>label</code></strong>：paper 用 <code>metadata.json</code> 的 <code>title</code>；其它节点用文件名（去扩展名）。</li>
+<li><strong>节点 <code>label</code></strong>：paper 用 catalog <code>papers.title</code>；其它节点用文件名（去扩展名）。</li>
 <li><strong>节点 <code>type</code></strong></li>
 </ul>
 <table>
@@ -1079,7 +1140,7 @@ Host (Tauri + Rust)
 </tr>
 <tr>
 <td><code>index</code></td>
-<td>根级 <code>PAPERS.md</code> / <code>AGENTS.md</code> 等</td>
+<td>根级 <code>AGENTS.md</code> 及用户导出的索引类 md 等</td>
 </tr>
 <tr>
 <td><code>stub</code></td>

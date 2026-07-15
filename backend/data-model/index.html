@@ -64,7 +64,7 @@
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#01">0.1 渐进式披露分层</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#02">0.2 三级事实来源</a>
+    <li class="toctree-l3"><a class="reference internal" href="#02">0.2 事实来源分层</a>
     </li>
         </ul>
     </li>
@@ -74,9 +74,9 @@
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#agentsmdl0">AGENTS.md(L0,事实来源)</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#papersmdl1">PAPERS.md(L1,派生索引)</a>
+    <li class="toctree-l3"><a class="reference internal" href="#metadatacatalog-markdown">论文集合与 metadata（Catalog，非 Markdown 文件）</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#metadatajson">metadata.json(每篇元数据的事实来源)</a>
+    <li class="toctree-l3"><a class="reference internal" href="#papersmd-librarybib">可选导出：PAPERS.md / library.bib</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#notesmdl2">NOTES.md(L2,事实来源)</a>
     </li>
@@ -92,7 +92,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#32">3.2 文件树</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#33-metadatajson">3.3 论文元数据 (metadata.json)</a>
+    <li class="toctree-l3"><a class="reference internal" href="#33-catalog-papers">3.3 论文元数据 (Catalog papers 行)</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#34-paper">3.4 论文运行时对象 (Paper)</a>
     </li>
@@ -100,13 +100,15 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#4">4. 事实来源与缓存规则</a>
+    <li class="toctree-l2"><a class="reference internal" href="#4-catalog">4. Catalog 与缓存纪律</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#5-agent-vault">5. Agent 运行时类型（应用配置，非 Vault 文件）</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#6">6. 相关文档</a>
     </li>
     </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../catalog/">论文目录库</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../wikilinks/">双链与图谱</a>
                   </li>
@@ -158,21 +160,22 @@
               
                 <h1 id="motif-notemd">Motif / notemd 数据模型<a class="headerlink" href="#motif-notemd" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>定义 Vault 的落盘结构、事实来源分层与核心数据类型。时间戳统一为 ISO 8601 字符串。</p>
+<p>定义 Vault 的落盘结构、事实来源分层与核心数据类型。时间戳统一为 ISO 8601 字符串。<br />
+<strong>论文集合与结构化元数据</strong>见专题 <a href="../catalog/"><code>catalog.md</code></a>（<code>.motif/catalog.sqlite</code>）。</p>
 </blockquote>
 <h2 id="0">0. 设计原则<a class="headerlink" href="#0" title="Permanent link">&para;</a></h2>
 <p>Motif 的存储遵循两条原则:</p>
 <ol>
-<li><strong>文件即事实来源,数据库只是缓存</strong>:人的知识与原始归档以 Markdown / JSON / 源文件落盘;SQLite 等索引均可从文件重建、可随时删除。这是与 Zotero(事实锁在 <code>zotero.sqlite</code>)最大的区别。</li>
-<li><strong>渐进式披露(Progressive Disclosure)</strong>:目录结构本身就是 Agent 的接口。信息按"体量递增、成本递增"分层,Agent 按需逐层下钻,而不是一次性加载整篇论文。</li>
+<li><strong>人的知识与原始归档以文件为准；结构化论文目录以 Catalog SQLite 为准</strong>:笔记、标注、源文件必须是普通文件，可被外部编辑器打开；论文集合与 metadata 进入 <code>.motif/catalog.sqlite</code>，支持查询与入库事务。这与 Zotero（几乎一切锁在单一 sqlite、笔记不可便携）不同：<strong>笔记层仍是 Markdown</strong>。</li>
+<li><strong>渐进式披露(Progressive Disclosure)</strong>:目录与 catalog 共同构成 Agent 接口。信息按"体量递增、成本递增"分层,Agent 按需逐层下钻,而不是一次性加载整篇论文。</li>
 </ol>
 <h3 id="01">0.1 渐进式披露分层<a class="headerlink" href="#01" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>层</th>
-<th>文件</th>
-<th>Agent 何时读</th>
+<th>载体</th>
+<th>Agent / UI 何时用</th>
 <th>体量</th>
 </tr>
 </thead>
@@ -185,117 +188,142 @@
 </tr>
 <tr>
 <td>L1 索引</td>
-<td><code>PAPERS.md</code></td>
+<td><strong>Catalog</strong>（<code>paper:list</code> / 可选导出的 <code>PAPERS.md</code>）</td>
 <td>需要"库里有什么"</td>
 <td>小(每篇一行)</td>
 </tr>
 <tr>
 <td>L2 条目</td>
-<td><code>papers/&lt;id&gt;/NOTES.md</code></td>
+<td><code>{paper}/NOTES.md</code></td>
 <td>锁定某篇之后</td>
 <td>小</td>
 </tr>
 <tr>
 <td>L2.5 证据</td>
-<td><code>papers/&lt;id&gt;/highlights.md</code></td>
+<td><code>{paper}/highlights.md</code></td>
 <td>需要用户标注 / 精确引文</td>
 <td>中</td>
 </tr>
 <tr>
 <td>L3 正文</td>
-<td><code>papers/&lt;id&gt;/PAPER.md</code></td>
+<td><code>{paper}/PAPER.md</code></td>
 <td>需要公式 / 实验细节 / 原文</td>
 <td>大</td>
 </tr>
 <tr>
 <td>L4 原始</td>
-<td><code>papers/&lt;id&gt;/source/*</code></td>
+<td><code>{paper}/source/*</code></td>
 <td>需追溯或重新解析</td>
 <td>很大</td>
 </tr>
 </tbody>
 </table>
-<p><code>AGENTS.md</code> 是渐进式披露的"总开关":它本身很短,只写清楚库怎么组织、按什么顺序读、引用要带本地路径、写入先走临时文件——相当于一张地图,而不是把内容全塞进去。</p>
-<h3 id="02">0.2 三级事实来源<a class="headerlink" href="#02" title="Permanent link">&para;</a></h3>
+<p>其中 <code>{paper}</code> = paper 文件夹（<code>papers/</code> 下任意深度，见下）。</p>
+<p><code>AGENTS.md</code> 是渐进式披露的"总开关":它本身很短,只写清楚库怎么组织、L1 以 catalog 为准（根目录通常无 <code>PAPERS.md</code>）、按什么顺序读笔记与正文、引用要带本地路径、写入先走临时文件。</p>
+<h3 id="02">0.2 事实来源分层<a class="headerlink" href="#02" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>层级</th>
 <th>内容</th>
-<th>文件</th>
+<th>落盘</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Tier 1 事实来源</strong></td>
-<td>人的知识 + 原始归档 + 结构化元数据</td>
-<td><code>AGENTS.md</code>、<code>NOTES.md</code>、<code>highlights.md</code>、<code>metadata.json</code>、<code>notes/</code>、<code>plans/</code>、<code>source/</code></td>
+<td><strong>Tier 1a 人的知识 + 原始归档</strong></td>
+<td><code>AGENTS.md</code>、<code>NOTES.md</code>、<code>highlights.md</code>、<code>notes/</code>、<code>plans/</code>、<code>source/</code></td>
+<td>文件</td>
 </tr>
 <tr>
-<td><strong>Tier 2 派生索引</strong></td>
-<td>可从 Tier 1 重建的可移植投影</td>
+<td><strong>Tier 1b 结构化论文目录</strong></td>
+<td>论文集合 + 每篇 metadata</td>
+<td><strong><code>.motif/catalog.sqlite</code></strong></td>
+</tr>
+<tr>
+<td><strong>Tier 2 可选导出 / 派生</strong></td>
 <td><code>PAPERS.md</code>、<code>library.bib</code>、<code>PAPER.md</code>、<code>assets/</code></td>
+<td><strong>按需</strong>生成，非 Vault 必备</td>
 </tr>
 <tr>
-<td><strong>Tier 3 缓存</strong></td>
-<td>应用私有、可整删重建</td>
-<td><code>.motif/</code>(<code>cache.sqlite</code>、标注坐标、库级配置)</td>
+<td><strong>Tier 3 可重建缓存</strong></td>
+<td>双链边、标注坐标、全文 FTS 副本等</td>
+<td>可与 catalog 同库分表；可整删后重建</td>
 </tr>
 </tbody>
 </table>
 <ul>
-<li>删除 Tier 3:应用重扫 Vault 即可恢复。</li>
-<li>删除 Tier 2:可从 Tier 1 重新生成。</li>
-<li>Tier 1 才是不可再生的用户资产,任何写入都要谨慎(先临时文件、确认后落盘)。</li>
+<li>删除 Tier 3:重扫 Markdown + 读 catalog 标题即可恢复图谱等。</li>
+<li>删除 Tier 2:可从 catalog / source 再导出或再解析。</li>
+<li><strong>删除 <code>catalog.sqlite</code></strong>:结构化 meta 丢失（除非事先 export 备份）；<code>papers/&lt;id&gt;/</code> 目录仍在。</li>
+<li>Tier 1a 是不可再生的用户手写与归档,任何写入都要谨慎(先临时文件、确认后落盘)。</li>
 </ul>
 <h2 id="1-vault">1. Vault 结构<a class="headerlink" href="#1-vault" title="Permanent link">&para;</a></h2>
 <pre class="codehilite"><code class="language-text">motif-vault/
 ├── AGENTS.md              # L0 Agent 行为规范与读取协议
-├── PAPERS.md              # L1 全局论文索引(派生自各篇 metadata.json,可重建)
-├── library.bib            # 派生 BibTeX 汇总(引用导出)
-├── papers/                # 文献主体,每篇一个独立目录
-│   └── 1706.03762/        # arxiv 用 arXiv ID;非 arxiv 用 citekey 如 vaswani2017attention
-│       ├── metadata.json  # 该篇元数据的事实来源(机器写入,UI 编辑)
-│       ├── NOTES.md       # L2 结构化笔记(纯人的知识)
-│       ├── highlights.md  # L2.5 标注:引文 + 想法(便携 Markdown)
-│       ├── PAPER.md       # L3 清洗后的统一可读正文(派生,可选)
-│       ├── assets/        # PAPER.md / NOTES.md 引用的图片(派生自 source)
-│       └── source/        # L4 原始归档(只增不改)
-│           ├── original.pdf
-│           ├── arxiv-src/ #   解包后的 LaTeX 工程:main.tex、sections/、figures/、refs.bib
-│           ├── original.html
-│           └── ocr/       #   OCR / 解析中间产物:page-*.json(含 bbox)、raw-text.txt
-├── notes/                 # 自由概念笔记 / 作者 / idea(Markdown + 双链)
-│   └── *.md
-├── plans/                 # 研究计划、Related Work 草稿
-│   └── *.md
-└── .motif/                # Tier 3 缓存(进 .gitignore,可整删)
-    ├── cache.sqlite       #   元数据 / 全文 / 双链图 / 标注坐标索引
-    └── config.json        #   库级设置(非机密)
+├── papers/                # 文献区；可含组织子目录
+│   ├── 1706.03762/        # paper 单元（一级）
+│   │   ├── NOTES.md
+│   │   ├── highlights.md
+│   │   ├── PAPER.md       # 可选
+│   │   ├── assets/
+│   │   └── source/
+│   └── nlp/               # 组织目录（非 paper）
+│       └── transformers/
+│           └── 1706.03762/  # paper 单元（嵌套，最小单元仍是该文件夹）
+│               ├── NOTES.md
+│               └── source/
+├── notes/
+├── plans/
+└── .motif/
+    ├── catalog.sqlite     # path = paper 文件夹相对路径
+    └── config.json
 </code></pre>
 
 <blockquote>
-<p>ID 方案:arxiv 论文用标准 arXiv ID 作为目录名;非 arxiv 来源(如本地 PDF)用 citekey 作为目录名。citekey 由「第一作者姓氏 + 年份 + 标题首个实词」小写拼接生成(如 <code>vaswani2017attention</code>),冲突时追加字母后缀(<code>…a</code> / <code>…b</code>)。目录名即论文唯一标识。</p>
+<p><strong>默认不生成</strong>：根级 <code>PAPERS.md</code>、<code>library.bib</code>、各篇 <code>metadata.json</code>。<br />
+需要可读索引或 BibTeX 时，使用 <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code>（见 <a href="../catalog/"><code>catalog.md</code></a> §5.4）。</p>
+<p><strong>Paper 文件夹</strong>是最小单元：以标记文件/目录识别（<code>NOTES.md</code> / <code>highlights.md</code> / <code>source/</code> 等），可位于 <code>papers/</code> 下任意深度。<br />
+<strong>Catalog <code>path</code></strong>（Vault 相对路径）标识位置；<strong><code>id</code></strong> 为逻辑 id（arXiv ID 或 citekey）。<br />
+默认入库可仍写 <code>papers/&lt;id&gt;/</code>；用户也可整理到 <code>papers/&lt;topic&gt;/…/&lt;id&gt;/</code>。citekey 冲突时追加字母后缀。</p>
 </blockquote>
 <h2 id="2">2. 核心文件约定<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
 <h3 id="agentsmdl0"><code>AGENTS.md</code>(L0,事实来源)<a class="headerlink" href="#agentsmdl0" title="Permanent link">&para;</a></h3>
 <p>Vault 内的 Agent 行为规范,至少包含:</p>
 <ul>
-<li><strong>读取协议</strong>:按 <code>PAPERS.md → NOTES.md → highlights.md → PAPER.md → source/</code> 逐层下钻,仅在需要时进入下一层。</li>
+<li><strong>读取协议</strong>:L1 以应用 catalog 为准（无默认 <code>PAPERS.md</code>）；锁定篇目后按 <code>NOTES.md → highlights.md → PAPER.md → source/</code> 下钻。</li>
 <li>笔记结构规范(三段论)。</li>
 <li>引用路径要求:回答必须列出读取过的本地文件路径。</li>
 <li>生成内容的双链要求:保留 <code>[[...]]</code> 格式。</li>
 <li>写入规范:先写临时文件,用户确认后落盘;不得覆盖用户手写笔记。</li>
 </ul>
-<h3 id="papersmdl1"><code>PAPERS.md</code>(L1,派生索引)<a class="headerlink" href="#papersmdl1" title="Permanent link">&para;</a></h3>
-<p>全局论文索引,是 Agent 的第一层路由表。<strong>由各篇 <code>metadata.json</code> 汇总生成,可随时重建</strong>,不是手工维护的 master。</p>
-<p>推荐字段:</p>
-<pre class="codehilite"><code class="language-md">| ID | Title | Authors | Year | Path | Tags | Summary |
-| --- | --- | --- | --- | --- | --- | --- |
-</code></pre>
-
-<h3 id="metadatajson"><code>metadata.json</code>(每篇元数据的事实来源)<a class="headerlink" href="#metadatajson" title="Permanent link">&para;</a></h3>
-<p>位于 <code>papers/&lt;id&gt;/metadata.json</code>,是这篇论文结构化元数据的唯一事实来源。与 <code>NOTES.md</code> 分离,避免机器字段与人的 prose 相互踩踏:用户编辑笔记不会碰坏元数据,importer 也能确定性地写入。<code>PAPERS.md</code>、<code>library.bib</code>、<code>cache.sqlite</code> 都是它的派生投影。字段见下文“3.3 论文元数据”。</p>
+<h3 id="metadatacatalog-markdown">论文集合与 metadata（Catalog，非 Markdown 文件）<a class="headerlink" href="#metadatacatalog-markdown" title="Permanent link">&para;</a></h3>
+<p>权威存储：<strong><code>.motif/catalog.sqlite</code></strong> 的 <code>papers</code> 表。<br />
+字段、schema、导出与实现见 <strong><a href="../catalog/"><code>catalog.md</code></a></strong>。<br />
+UI 列表 / 筛选 / Paper Info / 远程 PDF·HTML URL 均读 catalog，不扫 <code>metadata.json</code>。</p>
+<h3 id="papersmd-librarybib">可选导出：<code>PAPERS.md</code> / <code>library.bib</code><a class="headerlink" href="#papersmd-librarybib" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>含义</th>
+<th>何时出现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PAPERS.md</code></td>
+<td>Markdown 表形态的论文索引（历史 L1 文件形态）</td>
+<td>仅用户或工作流<strong>显式导出</strong></td>
+</tr>
+<tr>
+<td><code>library.bib</code></td>
+<td>BibTeX 汇总</td>
+<td>仅<strong>显式导出</strong></td>
+</tr>
+</tbody>
+</table>
+<p>二者<strong>不是</strong>手工 master，也<strong>不是</strong>入库写路径；改 meta 只写 SQLite。导出后若用户再入库，导出文件<strong>不会</strong>自动更新（避免假装它是权威源）。</p>
 <h3 id="notesmdl2"><code>NOTES.md</code>(L2,事实来源)<a class="headerlink" href="#notesmdl2" title="Permanent link">&para;</a></h3>
 <p>单篇论文的结构化压缩笔记,纯粹是人的知识/综合产物,不掺元数据 frontmatter。</p>
 <p>默认结构:</p>
@@ -307,10 +335,10 @@
 </code></pre>
 
 <h3 id="highlightsmdl25"><code>highlights.md</code>(L2.5,事实来源)<a class="headerlink" href="#highlightsmdl25" title="Permanent link">&para;</a></h3>
-<p>单篇论文的标注层,与 <code>NOTES.md</code> <strong>分开存放</strong>:笔记是"熟的"综合知识,标注是"生的"原始证据(锚定原文位置的引文 + 想法),数量多、带定位。分层后 Agent 想看摘要时不会被一堆坐标噪音污染,而"用户划了哪几句"本身又是高价值的注意力信号。</p>
+<p>单篇论文的标注层,与 <code>NOTES.md</code> <strong>分开存放</strong>:笔记是"熟的"综合知识,标注是"生的"原始证据(锚定原文位置的引文 + 想法),数量多、带定位。</p>
 <ul>
-<li><strong>引文 + 想法</strong>留在 <code>highlights.md</code>,是事实来源(是人的知识),保持便携 Markdown。</li>
-<li><strong>页码 / bbox 等渲染坐标是纯 UI 数据,不是知识</strong>,缓存于 <code>.motif/</code>,按标注 id 关联;丢失后可用引文全文检索重新锚定。</li>
+<li><strong>引文 + 想法</strong>留在 <code>highlights.md</code>,是事实来源,保持便携 Markdown。</li>
+<li><strong>页码 / bbox 等渲染坐标是纯 UI 数据</strong>,可缓存于 <code>.motif/</code>（catalog 同库缓存表或旁路文件）,按标注 id 关联;丢失后可用引文全文检索重新锚定。</li>
 <li>用 Obsidian 块引用 <code>^id</code>,让 <code>NOTES.md</code> 能精确引用某条标注:<code>[[papers/1706.03762/highlights#^h12]]</code>。</li>
 </ul>
 <p>格式示例:</p>
@@ -320,8 +348,7 @@
 </code></pre>
 
 <h3 id="papermdl3"><code>PAPER.md</code>(L3,派生)<a class="headerlink" href="#papermdl3" title="Permanent link">&para;</a></h3>
-<p>位于 <code>papers/&lt;id&gt;/PAPER.md</code>(注意:在论文目录根部,不在 <code>source/</code> 内,因为它是派生文件而 <code>source/</code> 是原始归档)。面向 Agent 阅读的统一可读正文,保留章节、公式、表格、引用等结构,降低 PDF 排版噪音。</p>
-<p><code>source/</code> 是<strong>异构</strong>的原始归档(tex / pdf / html),而 <code>PAPER.md</code> 给 Agent 提供一个<strong>同构</strong>的可读正文出口:</p>
+<p>位于 paper 文件夹根部的 <code>PAPER.md</code>(不在 <code>source/</code> 内)。面向 Agent 阅读的统一可读正文。<strong>仍是文件，不进 catalog 正文列。</strong></p>
 <table>
 <thead>
 <tr>
@@ -348,7 +375,7 @@
 </tr>
 </tbody>
 </table>
-<p>正文来源与质量记录在 <code>metadata.json</code> 的 <code>body_source</code> / <code>body_quality</code> 字段,Agent 据此判断可信度。<code>PAPER.md</code> 可删可重建,<code>source/</code> 中的原始文件才是归档事实来源。</p>
+<p>正文来源与质量记录在 <strong>catalog</strong> 的 <code>body_source</code> / <code>body_quality</code> 字段。<code>PAPER.md</code> 可删可重建,<code>source/</code> 中的原始文件才是归档事实来源。</p>
 <h2 id="3">3. 数据类型<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
 <h3 id="31-vault">3.1 Vault<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-ts">interface VaultInfo {
@@ -367,10 +394,11 @@
 }
 </code></pre>
 
-<h3 id="33-metadatajson">3.3 论文元数据 (metadata.json)<a class="headerlink" href="#33-metadatajson" title="Permanent link">&para;</a></h3>
-<p><code>papers/&lt;id&gt;/metadata.json</code> 的落盘结构,是单篇论文元数据的事实来源。</p>
+<h3 id="33-catalog-papers">3.3 论文元数据 (Catalog <code>papers</code> 行)<a class="headerlink" href="#33-catalog-papers" title="Permanent link">&para;</a></h3>
+<p>与 <code>.motif/catalog.sqlite</code> 中一行对应,是单篇论文结构化元数据的事实来源（不再默认落盘 <code>metadata.json</code>）。</p>
 <pre class="codehilite"><code class="language-ts">interface PaperMetadata {
-  id: string;                 // arXiv ID 或 citekey,等于目录名
+  path: string;               // paper 文件夹 Vault 相对路径（主键语义）
+  id: string;                 // 逻辑 id：arXiv ID 或 citekey
   type: 'arxiv' | 'pdf' | 'html' | 'doi' | 'other';
   title: string;
   authors: string[];
@@ -402,6 +430,9 @@
   bibtex_key?: string;
   citation_count?: number;
 
+  /** 列表/导出用一行说明（可选） */
+  summary?: string;
+
   // 状态与时间
   status: 'pending' | 'importing' | 'completed' | 'failed';
   added_at: string;   // ISO 8601
@@ -412,20 +443,19 @@
 <p><strong>元数据来源</strong>:</p>
 <ul>
 <li><strong>arxiv</strong>:由 arXiv API 提供权威字段(标题 / 作者 / 年份 / 摘要 / arxiv_id)。</li>
-<li><strong>pdf</strong>:先从 PDF 提取 DOI / arXiv ID,命中则查询 Crossref / arXiv 获取权威字段;未命中或失败时由 Agent 从正文抽取候选,最终一律经用户在入库前确认面板校对后写入。</li>
-<li><code>type='pdf'</code> 时 <code>body_source</code> 为 <code>pdf</code>(文本层)或 <code>ocr</code>(扫描件),<code>body_quality</code> 由解析后端与结果决定:MinerU → high,liteparse 文本 → medium,OCR → low。</li>
+<li><strong>pdf</strong>:先从 PDF 提取 DOI / arXiv ID,命中则查询 Crossref / arXiv;未命中或失败时由 Agent 从正文抽取候选,最终一律经用户在入库前确认面板校对后<strong>写入 catalog</strong>。</li>
+<li><code>type='pdf'</code> 时 <code>body_source</code> 为 <code>pdf</code>(文本层)或 <code>ocr</code>(扫描件),<code>body_quality</code> 由解析后端决定:MinerU → high,liteparse 文本 → medium,OCR → low。</li>
 </ul>
 <h3 id="34-paper">3.4 论文运行时对象 (Paper)<a class="headerlink" href="#34-paper" title="Permanent link">&para;</a></h3>
-<p>Host 返回给前端的运行时对象 = <code>PaperMetadata</code> 反序列化后 + 解析出的 Vault 相对路径。始终存在的路径便于前端直接打开。</p>
+<p>Host 返回给前端的运行时对象 = catalog 行 + 解析出的 Vault 相对路径。</p>
 <pre class="codehilite"><code class="language-ts">interface Paper extends PaperMetadata {
-  vault_path: string;        // papers/&lt;id&gt;/                    始终存在
-  metadata_path: string;     // papers/&lt;id&gt;/metadata.json       始终存在
-  notes_path: string;        // papers/&lt;id&gt;/NOTES.md            始终存在
-  highlights_path: string;   // papers/&lt;id&gt;/highlights.md       始终存在(可为空文件)
-  source_dir: string;        // papers/&lt;id&gt;/source/             始终存在
-  paper_md_path?: string;    // papers/&lt;id&gt;/PAPER.md            派生,可选
-  pdf_path?: string;         // papers/&lt;id&gt;/source/original.pdf 未下载时 undefined
-  assets_dir?: string;       // papers/&lt;id&gt;/assets/
+  vault_path: string;        // = path，paper 文件夹
+  notes_path: string;        // {path}/NOTES.md
+  highlights_path: string;   // {path}/highlights.md
+  source_dir: string;        // {path}/source/
+  paper_md_path?: string;    // {path}/PAPER.md
+  pdf_path?: string;         // {path}/source/original.pdf
+  assets_dir?: string;       // {path}/assets/
 }
 </code></pre>
 
@@ -444,12 +474,14 @@
 }
 </code></pre>
 
-<h2 id="4">4. 事实来源与缓存规则<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
-<p><code>.motif/cache.sqlite</code> 存储元数据、全文检索、双链图与标注坐标的<strong>派生副本</strong>,用于文件系统做不快的查询(按作者/年份/标签过滤排序、全文检索、反链聚合、大规模)。它不是第二个事实来源,须遵守三条纪律（双链边模型与重建纪律详见 <strong><code>docs/backend/wikilinks.md</code></strong>）:</p>
+<h2 id="4-catalog">4. Catalog 与缓存纪律<a class="headerlink" href="#4-catalog" title="Permanent link">&para;</a></h2>
+<p>详见 <a href="../catalog/"><code>catalog.md</code></a>。摘要:</p>
 <ol>
-<li><strong>可整删重建</strong>:删除 <code>cache.sqlite</code> 后,应用重扫 Vault(<code>metadata.json</code> + Markdown + 双链)即可完全恢复。</li>
-<li><strong>写入 file-first</strong>:先写 <code>metadata.json</code> / Markdown,再更新 SQLite 与 <code>PAPERS.md</code>;<code>notify</code> 监听外部编辑(如在 Obsidian 中修改)自动增量重建。</li>
-<li><strong>冲突时文件赢</strong>:SQLite 与文件不一致时以文件为准并触发重索引;Agent 可查 SQLite 加速路由,但最终引用与展示必须落回本地文件路径。</li>
+<li><strong>Catalog（<code>papers</code> 表）是结构化目录的权威来源</strong>，备份应包含 <code>.motif/catalog.sqlite</code>。</li>
+<li><strong>入库与改 meta</strong>：写 SQLite；文件系统负责对应 paper 文件夹下笔记与 source。</li>
+<li><strong>导出</strong> <code>PAPERS.md</code> / <code>library.bib</code> 为只读投影，默认不生成、不自动刷新。</li>
+<li><strong>双链等 Tier 3</strong>：可从 Markdown 重建；与 catalog 冲突时，<strong>笔记文件赢</strong>（链接文本）、<strong>paper 标题以 catalog 为准</strong>。</li>
+<li>历史 Vault 若仍有 <code>metadata.json</code>，打开时可导入 catalog（见 catalog 迁移节）。</li>
 </ol>
 <h2 id="5-agent-vault">5. Agent 运行时类型（应用配置，非 Vault 文件）<a class="headerlink" href="#5-agent-vault" title="Permanent link">&para;</a></h2>
 <p>以下类型由 Host 配置与会话层持有，<strong>不</strong> 写入 Vault 目录；模型密钥不在此模型中出现。</p>
@@ -485,16 +517,18 @@ interface AgentResult {
 
 <h2 id="6">6. 相关文档<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
 <ul>
+<li><a href="../catalog/"><code>catalog.md</code></a>：Catalog schema、导出、Host 实现。</li>
 <li><code>docs/development/prd.md</code>:产品需求与验收标准(§5 文件结构)。</li>
-<li><code>docs/development/technical-plan.md</code>:存储分层与入库/Agent 数据流(§4.5、§5)；ACP Client + BYOA。</li>
+<li><code>docs/development/technical-plan.md</code>:存储分层与入库/Agent 数据流；ACP Client + BYOA。</li>
 <li><code>docs/backend/api.md</code>:Host 命令与数据模型引用。</li>
+<li><code>docs/backend/wikilinks.md</code>:双链与图谱（paper 标题读 catalog）。</li>
 </ul>
               
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
         <a href="../api/" class="btn btn-neutral float-left" title="API 契约"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../wikilinks/" class="btn btn-neutral float-right" title="双链与图谱">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../catalog/" class="btn btn-neutral float-right" title="论文目录库">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -524,7 +558,7 @@ interface AgentResult {
       <span><a href="../api/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
-      <span><a href="../wikilinks/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <span><a href="../catalog/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

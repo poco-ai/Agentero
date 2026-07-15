@@ -60,6 +60,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
                   </li>
               </ul>
@@ -119,18 +121,20 @@
                 <h1 id="motif-todo">Motif TODO<a class="headerlink" href="#motif-todo" title="Permanent link">&para;</a></h1>
 <h2 id="p0">P0 — 近期闭环<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Create Vault 初始化</strong></li>
+<li><strong>Create Vault 初始化</strong> ✅</li>
 <li>创建标准目录：<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.motif/</code>。</li>
-<li>生成 Vault 内 <code>AGENTS.md</code>、<code>PAPERS.md</code>、<code>library.bib</code> 模板。</li>
+<li>生成 Vault 内 <code>AGENTS.md</code> 模板。</li>
+<li>初始化 <code>.motif/catalog.sqlite</code>（schema v1，<code>path</code> 主键）。</li>
+<li><strong>不</strong>默认生成 <code>PAPERS.md</code> / <code>library.bib</code>（导出能力另做）。</li>
 <li>
-<p>初始化后自动打开 <code>PAPERS.md</code> 或欢迎笔记。</p>
+<p>初始化后打开 <code>AGENTS.md</code>。</p>
 </li>
 <li>
 <p><strong>arXiv 精确入库</strong></p>
 </li>
 <li>支持输入 arXiv ID / URL。</li>
-<li>拉取 metadata，写入 <code>papers/&lt;id&gt;/metadata.json</code>。</li>
-<li>写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code>，刷新 <code>PAPERS.md</code>。</li>
+<li>拉取 metadata，写入 catalog <code>papers</code> 表。</li>
+<li>写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code>。</li>
 <li>
 <p>入库后自动打开 paper，并刷新 Backlinks/Graph。</p>
 </li>
@@ -151,10 +155,17 @@
 </ol>
 <h2 id="p1">P1 — 中期增强<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>本地 PDF importer</strong></li>
+<li><strong>Catalog 导出与检索</strong></li>
+<li><code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code>。</li>
+<li>
+<p>可选 FTS5；Agent 工作流临时导出 L1 列表。</p>
+</li>
+<li>
+<p><strong>本地 PDF importer</strong></p>
+</li>
 <li>文件选择 / 拖拽 / 批量导入。</li>
 <li>DOI / arXiv ID 识别，元数据确认面板。</li>
-<li>生成 citekey、<code>PAPER.md</code>、<code>NOTES.md</code>、<code>metadata.json</code>。</li>
+<li>生成 citekey、<code>PAPER.md</code>、<code>NOTES.md</code>；metadata 写入 catalog。</li>
 <li>
 <p>默认本地解析，MinerU BYOK 后可选云端解析。</p>
 </li>
@@ -165,7 +176,7 @@
 <li>Plate 内联 wikilink 节点，序列化仍保持 <code>[[...]]</code>。</li>
 <li>Graph 增加全屏/聚焦模式、邻居高亮、节点搜索。</li>
 <li>
-<p>SQLite 持久化双链索引并支持增量重建。</p>
+<p>双链边可写入 catalog 可重建表并支持增量重建。</p>
 </li>
 <li>
 <p><strong>Release 完善</strong></p>

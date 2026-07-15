@@ -60,6 +60,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../data-model/">数据模型</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../catalog/">论文目录库</a>
+                  </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">双链与图谱</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#1">1. 目标与非目标</a>
@@ -235,7 +237,7 @@
 <pre class="codehilite"><code class="language-text">事实来源：Vault 内 *.md 中的 [[...]] 文本
      │
      ▼ 解析 + resolve
-边表 / 反查索引（内存 + .motif/cache.sqlite 缓存）
+边表 / 反查索引（内存；后续可入 catalog 可重建表）
      │
      ├── 预览/编辑器：高亮、点击跳转
      ├── 反链面板
@@ -305,8 +307,9 @@
 
 <h3 id="32">3.2 缓存位置<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
 <ul>
-<li>派生索引：<code>.motif/cache.sqlite</code>（与 <code>DATA_MODEL</code> 一致）。</li>
-<li>可整删重建：重扫 <code>metadata.json</code> + 全部 Markdown 中的 <code>[[...]]</code>。</li>
+<li>双链边：当前为<strong>内存索引</strong>；后续可落入 <code>.motif/catalog.sqlite</code> 的可重建表（与 <code>papers</code> 权威表区分，见 <a href="../catalog/"><code>catalog.md</code></a> §6）。</li>
+<li><strong>Paper 标题</strong>：读 catalog <code>papers.title</code>，不读 <code>metadata.json</code>。</li>
+<li>可整删重建（仅边表）：重扫全部 Markdown 中的 <code>[[...]]</code> + join catalog 取 label。</li>
 <li>增量：文件 mtime / fs 事件变化时，仅重算该 <code>source</code> 的出边。</li>
 </ul>
 <h3 id="33-tech-56">3.3 图谱节点 / 边类型（与 TECH §5.6 对齐）<a class="headerlink" href="#33-tech-56" title="Permanent link">&para;</a></h3>
@@ -525,7 +528,7 @@
 <tbody>
 <tr>
 <td><code>paper</code></td>
-<td><strong>一个 paper 一个节点</strong>：<code>papers/&lt;id&gt;/…</code>（含 <code>NOTES.md</code>）全部折叠为 <code>papers/&lt;id&gt;</code></td>
+<td><strong>一个 paper 文件夹一个节点</strong>（任意深度）：文件夹内路径折叠为该文件夹 path</td>
 </tr>
 <tr>
 <td><code>note</code></td>
@@ -533,7 +536,7 @@
 </tr>
 <tr>
 <td><code>index</code></td>
-<td>根级 <code>PAPERS.md</code> / <code>AGENTS.md</code> 等</td>
+<td>根级 <code>AGENTS.md</code> 及用户导出的索引类 md 等</td>
 </tr>
 <tr>
 <td><code>stub</code></td>
@@ -542,7 +545,7 @@
 </tbody>
 </table>
 <ul>
-<li><strong>Paper 标签</strong>：优先读 <code>papers/&lt;id&gt;/metadata.json</code> 的 <code>title</code>；缺失时回退 arXiv id / 目录名。</li>
+<li><strong>Paper 标签</strong>：优先读 catalog <code>papers.title</code>（按 path）；缺失时回退逻辑 id / 文件夹名。</li>
 <li>折叠后自环（同 paper 内文件互链）丢弃。</li>
 </ul>
 <h3 id="65">6.5 不采用<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
@@ -654,7 +657,7 @@
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../data-model/" class="btn btn-neutral float-left" title="数据模型"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../catalog/" class="btn btn-neutral float-left" title="论文目录库"><span class="icon icon-circle-arrow-left"></span> Previous</a>
         <a href="../../test/" class="btn btn-neutral float-right" title="概览">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
@@ -682,7 +685,7 @@
         </span>
     
     
-      <span><a href="../data-model/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../catalog/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
       <span><a href="../../test/" style="color: #fcfcfc">Next &raquo;</a></span>

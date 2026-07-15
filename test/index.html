@@ -60,6 +60,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../backend/data-model/">数据模型</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../backend/catalog/">论文目录库</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../backend/wikilinks/">双链与图谱</a>
                   </li>
               </ul>
@@ -68,6 +70,10 @@
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">概览</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#_2">目录结构</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#demo-vault">Demo Vault 脚本</a>
+    </li>
+        </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#_3">前端测试</a>
     </li>
@@ -126,14 +132,31 @@
 <pre class="codehilite"><code class="language-text">test/
 ├── helpers/
 │   └── create-test-vault.ts
+├── scripts/
+│   └── create-demo-vault.mjs   # 本地 demo / 手工验收用 Vault
 └── *.test.ts
 </code></pre>
 
 <ul>
 <li><code>test/helpers/create-test-vault.ts</code> 用临时目录创建真实文件形态的 Vault。</li>
+<li><code>test/scripts/create-demo-vault.mjs</code> 生成符合 catalog + 嵌套 paper 文件夹约定的 demo Vault（含 <code>.motif/catalog.sqlite</code>）。</li>
 <li>测试文件可以从 <code>src/</code> import 生产代码，但生产代码不能从 <code>test/</code> import。</li>
 <li>优先在每个测试内声明最小必要 Vault 文件，让测试数据和断言靠近。</li>
 </ul>
+<h3 id="demo-vault">Demo Vault 脚本<a class="headerlink" href="#demo-vault" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-bash"># 默认写到仓库 tmp/motif-demo-vault
+pnpm demo:vault
+
+# ~/Downloads/motif-demo-vault（嵌套 papers + catalog 样本数据）
+pnpm demo:vault:downloads
+
+# 仅 Create Vault 骨架（无样例论文）
+pnpm demo:vault:empty -- ~/Downloads/motif-empty-vault
+
+# 校验已有目录
+pnpm demo:vault:verify -- ~/Downloads/motif-demo-vault
+</code></pre>
+
 <h2 id="_3">前端测试<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>运行 TypeScript 单元测试：</p>
 <pre class="codehilite"><code class="language-bash">pnpm test

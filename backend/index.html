@@ -70,6 +70,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="data-model/">数据模型</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="catalog/">论文目录库</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="wikilinks/">双链与图谱</a>
                   </li>
               </ul>
@@ -166,9 +168,9 @@
 <td>反链和图谱必须从 Vault Markdown 派生。</td>
 </tr>
 <tr>
-<td>缓存</td>
-<td>计划使用 SQLite / <code>rusqlite</code></td>
-<td>作为可重建查询缓存，不作为事实来源。</td>
+<td>论文目录库</td>
+<td>SQLite / <a href="https://crates.io/crates/rusqlite"><code>rusqlite</code></a>（bundled）</td>
+<td><code>.motif/catalog.sqlite</code>：论文集合 + metadata 权威存储；可选导出 <code>PAPERS.md</code> / BibTeX。</td>
 </tr>
 <tr>
 <td>PDF 解析</td>
@@ -180,16 +182,17 @@
 <h2 id="host">Host 职责<a class="headerlink" href="#host" title="Permanent link">&para;</a></h2>
 <ul>
 <li>校验并访问用户显式选择的 Vault 路径。</li>
-<li>读写 Markdown 与 metadata 文件。</li>
-<li>从 Markdown 构建双链、反链和图谱索引。</li>
+<li>读写 Markdown 笔记与 source；维护 <strong>catalog</strong>（论文 meta / 集合）。</li>
+<li>从 Markdown 构建双链、反链和图谱索引（paper 标题可读 catalog）。</li>
 <li>向前端暴露 Tauri invoke commands 与 event streams。</li>
 <li>启动并管理本地 ACP-compatible Agent，但不托管模型密钥。</li>
-<li>确保缓存可从 Vault 文件重建。</li>
+<li>提供 catalog 导出；双链等可重建索引与 catalog 分层清晰。</li>
 </ul>
 <h2 id="_3">本分区文档<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="api/"><code>api.md</code></a>：Tauri invoke commands、event contracts、Graph 与 Agent API 形状。</li>
-<li><a href="data-model/"><code>data-model.md</code></a>：Vault 结构、paper 文件、缓存规则、运行时类型。</li>
+<li><a href="data-model/"><code>data-model.md</code></a>：Vault 结构、paper 文件、分层规则、运行时类型。</li>
+<li><a href="catalog/"><code>catalog.md</code></a>：Catalog SQLite schema、导出、Host 实现与迁移。</li>
 <li><a href="wikilinks/"><code>wikilinks.md</code></a>：Obsidian 兼容双链语法、反链查询、图谱模型。</li>
 </ul>
 <h2 id="_4">交叉引用<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>

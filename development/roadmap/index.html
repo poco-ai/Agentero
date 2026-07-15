@@ -60,6 +60,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
                   </li>
               </ul>
@@ -212,7 +214,7 @@
 <p>关键交付：</p>
 <ul>
 <li>[x] 打开本地 Vault。</li>
-<li>[ ] 创建空 Vault 并初始化 <code>AGENTS.md / PAPERS.md / papers / notes / plans</code>。</li>
+<li>[x] 创建空 Vault 并初始化 <code>AGENTS.md</code> / <code>papers</code> / <code>notes</code> / <code>plans</code> / <code>.motif/catalog.sqlite</code>。</li>
 <li>[x] 工作台：文件树 + 中间内容 + Preview/Notes + 可选右侧栏。</li>
 <li>[x] Markdown 文件读取、编辑、保存。</li>
 <li>[x] 最近 Vault 记录与应用重启恢复。</li>
@@ -221,13 +223,13 @@
 </ul>
 <p>验收标准：</p>
 <ul>
-<li>[ ] 用户可以创建一个空 Vault 并看到标准目录结构。</li>
+<li>[x] 用户可以创建一个空 Vault 并看到标准目录结构与 catalog 数据库。</li>
 <li>[x] 用户可以打开、编辑、保存一个 Markdown note。</li>
 <li>[x] 重启应用后可以回到最近使用的 Vault。</li>
 </ul>
 <p>后续 TODO：</p>
 <ul>
-<li>[ ] 补齐“Create Vault”流程，而不只是打开已有目录。</li>
+<li>[x] 补齐“Create Vault”流程（含 catalog 初始化），而不只是打开已有目录。</li>
 <li>[ ] 最近 Vault 从 <code>localStorage</code> 迁到 Tauri Store。</li>
 <li>[ ] 文件监听与外部编辑器修改同步。</li>
 <li>[ ] 增加保存状态提示和冲突处理。</li>
@@ -240,18 +242,18 @@
 <li>[ ] 输入分类与意图解析：规则识别精确 ID/URL，Agent 处理模糊输入。</li>
 <li>[ ] Agent 检索 arXiv 候选论文并返回列表供用户确认（单选/多选）。</li>
 <li>[ ] 获取论文元数据。</li>
-<li>[ ] 创建 <code>papers/&lt;id&gt;/</code>（arxiv 用 arXiv ID，非 arxiv 用 citekey），写入 <code>metadata.json</code>。</li>
+<li>[ ] 创建 <code>papers/&lt;id&gt;/</code>（arxiv 用 arXiv ID，非 arxiv 用 citekey），metadata 写入 catalog。</li>
 <li>[ ] 获取 LaTeX source / HTML / PDF 资源，source 保存到 <code>source/</code>。</li>
 <li>[ ] 仅在无 LaTeX source 或需要可读结构化正文时生成 <code>PAPER.md</code>。</li>
 <li>[ ] 生成默认结构的 <code>NOTES.md</code>，并创建空的 <code>highlights.md</code>。</li>
-<li>[ ] 更新 <code>PAPERS.md</code>（派生索引）与 <code>library.bib</code>，并同步刷新 <code>.motif/cache.sqlite</code>（查询缓存）。</li>
+<li>[ ] metadata 写入 <code>.motif/catalog.sqlite</code>；可选 <code>catalog:export_*</code>（不默认写 PAPERS.md / library.bib）。</li>
 <li>[ ] 在 UI 中展示入库进度、成功结果和失败原因。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
 <li>[ ] 输入 <code>1706.03762</code> 后能生成对应论文目录和核心 Markdown 文件。</li>
 <li>[ ] 输入一段描述或关键词后，Agent 能返回候选论文列表，用户确认后完成入库。</li>
-<li>[ ] 连续入库 3 篇论文后，<code>PAPERS.md</code> 有 3 条有效索引，SQLite 索引可从各篇 <code>metadata.json</code> 重建。</li>
+<li>[ ] 连续入库 3 篇论文后，<code>paper:list</code> 返回 3 条；export 的 PAPERS.md 含 3 行。</li>
 <li>[ ] 有 LaTeX source 的论文优先保留 <code>.tex</code> 源文件，<code>PAPER.md</code> 为可选生成。</li>
 <li>[ ] 重复入库时不会破坏用户已修改的 <code>NOTES.md</code>。</li>
 </ul>
@@ -260,7 +262,7 @@
 <li>[ ] 设计 Import dialog：精确 ID/URL 直接导入，关键词/描述走 Agent 候选。</li>
 <li>[ ] Rust 端实现 arXiv Atom 查询、标准 ID 归一化、错误类型。</li>
 <li>[ ] 入库任务需要可取消、可重试，并能恢复部分完成状态。</li>
-<li>[ ] 明确 <code>metadata.json</code> schema 与 <code>library.bib</code> 派生规则。</li>
+<li>[ ] 明确 catalog schema 与 BibTeX / PAPERS.md 导出规则。</li>
 <li>[ ] 入库后自动打开 paper 目录并刷新反链/图谱索引。</li>
 </ul>
 <h2 id="v03-agent-acp-client-byoa">V0.3 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#v03-agent-acp-client-byoa" title="Permanent link">&para;</a></h2>
@@ -371,7 +373,7 @@
 <h2 id="6-todo">6. 主要 TODO 总表<a class="headerlink" href="#6-todo" title="Permanent link">&para;</a></h2>
 <h3 id="p0">近期优先级 P0<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[ ] Create Vault：初始化标准目录与 Vault 内 <code>AGENTS.md</code>。</li>
+<li>[x] Create Vault：标准目录 + <code>AGENTS.md</code> + <code>.motif/catalog.sqlite</code>。</li>
 <li>[ ] arXiv 精确 ID/URL 入库闭环。</li>
 <li>[ ] Agent workflow prompt：总结当前论文、本地库问答、Related Work。</li>
 <li>[ ] Agent 写入草稿确认与拒绝路径。</li>
@@ -381,7 +383,7 @@
 <h3 id="p1">中期优先级 P1<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[ ] 本地 PDF importer 与 metadata 确认面板。</li>
-<li>[ ] SQLite 索引落盘：元数据、双链边、全文检索。</li>
+<li>[ ] Catalog 落地 + 双链边/全文 FTS 缓存表（可重建）。</li>
 <li>[ ] <code>[[</code> 补全与 Plate wikilink 内联节点。</li>
 <li>[ ] Graph 全屏/聚焦模式与邻居高亮。</li>
 <li>[ ] Release 流程补充签名、公证、版本号同步和自动 changelog。</li>
@@ -398,8 +400,8 @@
 <ul>
 <li>每个版本都必须保持 Vault 可被外部编辑器打开。</li>
 <li>每个版本都必须避免覆盖用户手写笔记。</li>
-<li>新 importer 不得改变已存在的 <code>PAPERS.md / NOTES.md</code> 语义；<code>PAPER.md</code> 作为派生文件可随时重建。</li>
-<li>SQLite 索引损坏时必须能从 <code>metadata.json</code>、<code>NOTES.md</code> 和双链自动重建。</li>
+<li>新 importer 不得覆盖用户 <code>NOTES.md</code>；meta 只写 catalog；<code>PAPER.md</code> 可重建；不自动改用户导出的 PAPERS.md。</li>
+<li>Catalog 损坏时依赖备份/export；双链缓存可从 Markdown 重建；历史 <code>metadata.json</code> 可导入。</li>
 <li>图谱和搜索可以使用缓存，但缓存损坏时必须能从 Markdown 重建。</li>
 <li>Agent 功能失败时必须保留可读错误信息和重试入口。</li>
 <li>发布构建必须由 tag 触发；如加入签名/公证，需要保证本地开发构建不依赖发布密钥。</li>

@@ -72,6 +72,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="backend/data-model/">数据模型</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="backend/catalog/">论文目录库</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="backend/wikilinks/">双链与图谱</a>
                   </li>
               </ul>
@@ -136,10 +138,10 @@
 │   ├── 面向 BYOA Agent 的 ACP Client
 │   └── 本地配置与可重建缓存
 └── Vault
-    ├── Markdown 文件与 paper notes
-    ├── metadata.json 作为论文元数据事实来源
-    ├── papers/&lt;id&gt;/source/ 下的原始来源文件
-    └── .motif/cache.sqlite 作为可重建缓存
+    ├── Markdown 笔记与 paper notes / source
+    ├── .motif/catalog.sqlite（论文集合 + metadata 权威）
+    ├── 可选导出 PAPERS.md / library.bib（非默认）
+    └── papers/&lt;id&gt;/ 下 NOTES、highlights、可选 PAPER.md、source/
 </code></pre>
 
 <h2 id="_2">文档分层<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
@@ -160,7 +162,7 @@
 <tr>
 <td>后端</td>
 <td><a href="backend/"><code>backend/</code></a></td>
-<td>Tauri command 契约、Vault 数据模型、双链/反链/图谱索引。</td>
+<td>Tauri command 契约、Vault 数据模型、Catalog SQLite、双链/反链/图谱索引。</td>
 </tr>
 <tr>
 <td>测试</td>
@@ -225,6 +227,7 @@
 <li>前端布局：<a href="frontend/ui/"><code>frontend/ui.md</code></a></li>
 <li>后端 API 契约：<a href="backend/api/"><code>backend/api.md</code></a></li>
 <li>Vault 数据模型：<a href="backend/data-model/"><code>backend/data-model.md</code></a></li>
+<li>论文目录库：<a href="backend/catalog/"><code>backend/catalog.md</code></a></li>
 <li>测试与验证：<a href="test/"><code>test/index.md</code></a></li>
 </ul>
               
@@ -279,5 +282,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-07-15 05:38:02.437435+00:00
+Build Date UTC : 2026-07-15 08:40:45.972394+00:00
 -->
