@@ -156,7 +156,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#milestone-e">Milestone E：来源可扩展 ⏳</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#milestone-f">Milestone F：多文档工作区 ⏳</a>
+    <li class="toctree-l3"><a class="reference internal" href="#milestone-f">Milestone F：多文档工作区 🟡</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#milestone-g">Milestone G：文献引用可探索 ⏳</a>
     </li>
@@ -233,17 +233,17 @@
 <tr>
 <td>V0.1 本地 Vault 与 Markdown 工作台</td>
 <td>✅ 基本完成</td>
-<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页、树内联新建 / <strong>Finder 显示 / 删除</strong>、PDF/HTML/Notes、WYSIWYG Markdown、<strong>论文库表格 + 虚拟 Library 节点</strong>、左右侧栏 collapsible 隔离、后台任务条（含 paper-reader；hover 实色）、Preview/Info 仅在具体论文时显示。</td>
+<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页、树内联新建 / <strong>Finder 显示 / 删除</strong>、PDF/HTML/图片/Notes、WYSIWYG Markdown、<strong>论文库表格 + tags + 虚拟 Library 节点</strong>、左右侧栏 collapsible 隔离、后台任务条（含 paper-reader；hover 实色）、<strong>全局错误 Toast</strong>（<code>notifyError</code>）、Preview/Info 仅在具体论文时显示。</td>
 </tr>
 <tr>
 <td>V0.2 arXiv / 标识符入库闭环</td>
 <td>🟡 精确路径基本完成</td>
-<td><strong>魔棒 + Translator</strong> 入库、catalog 权威、<code>paper_list</code> / <code>paper_get</code>、<strong>默认下载 PDF + arXiv e-print 解压 LaTeX</strong>、单篇/Library <strong>补下缺失资源</strong>、<strong>无 TeX 时 liteparse → <code>PAPER.md</code></strong> 已落地；Agent 关键词候选、<code>catalog:export_*</code> 仍待。</td>
+<td><strong>魔棒 + Translator</strong> 入库、catalog 权威、<code>paper_list</code> / <code>paper_get</code> / <code>paper_set_tags</code>、<strong>默认下载 PDF + arXiv e-print 解压 LaTeX</strong>、单篇/Library <strong>补下缺失资源</strong>、<strong>无 TeX 时 liteparse → <code>PAPER.md</code></strong> 已落地；Agent 关键词候选、<code>catalog:export_*</code> 仍待。</td>
 </tr>
 <tr>
 <td>V0.3 Agent 工作流（BYOA）</td>
 <td>🟡 进行中</td>
-<td>通用 ACP Client（OpenCode、Gemini、Claude、Qoder、Grok、自定义）+ Codex 原生 App Server thread/history；<strong>paper-reader 精读</strong>（入库/单篇 Download <strong>自动</strong> + 文件树 Eye 手动；catalog <code>is_read</code>）；<strong>全局权限模式</strong>（设置 → Agent：受限 / 自动批准）；其它内置工作流、逐项权限确认 UI、写入草稿确认仍待。</td>
+<td>通用 ACP Client（OpenCode、Gemini、Claude、Qoder、Grok、自定义）+ Codex 原生 App Server thread/history；<strong>paper-reader 精读</strong>（入库/单篇 Download <strong>自动</strong> + 文件树 Eye 手动；catalog <code>is_read</code>）；<strong>全局权限模式</strong>（设置 → Agent：受限 / 自动批准）；模型收藏；其它内置工作流、逐项权限确认 UI、写入草稿确认仍待。</td>
 </tr>
 <tr>
 <td>V0.4 双链、反链与图谱</td>
@@ -257,8 +257,8 @@
 </tr>
 <tr>
 <td>V0.6 工作区标签页与分屏</td>
-<td>⏳ 待实现</td>
-<td>中间栏由「单文件固定排布」升级为可开多标签、可分屏；与当前左右侧栏 collapsible 共存。</td>
+<td>🟡 标签页已完成</td>
+<td><strong>文档标签页已落地</strong>（标题栏多 tab、常驻挂载、<code>⌘W</code> 先关 tab 再关窗）；<strong>分屏（split）仍待</strong>；与左右侧栏 collapsible 共存。</td>
 </tr>
 <tr>
 <td>V0.7 引用关系与 Connected Papers</td>
@@ -292,15 +292,18 @@
 <li>[x] 创建空 Vault 并初始化 <code>AGENTS.md</code> / <code>papers</code> / <code>notes</code> / <code>plans</code> / <code>.agents</code>（含 <code>skills/</code>）/ <code>.agentero/catalog.sqlite</code>。</li>
 <li>[x] 工作台：文件树 + 中间内容 + Preview/Notes + 可选右侧栏。</li>
 <li>[x] Markdown 文件读取、编辑、保存（Plate WYSIWYG + 自动保存；顶部可选<strong>格式工具栏</strong>，设置 <code>showEditorToolbar</code> / Notes header 一键开关）。</li>
+<li>[x] Markdown <strong>图片插入</strong>：粘贴 / 工具栏选文件 → 写入当前 <code>.md</code> 旁 <code>./assets/</code> → 正文 <code>![](./assets/…)</code>；相对路径 <code>blob:</code> 预览（见 <code>src/lib/markdown-image.ts</code>、data-model）。</li>
 <li>[x] 最近 Vault 列表（欢迎页）与主窗口恢复上次 Vault。</li>
 <li>[x] 多窗口：<code>⌘N</code> 新建窗口，session 级 Vault 隔离。</li>
 <li>[x] 树内联新建文件 / 文件夹。</li>
 <li>[x] 文件树：<strong>在 Finder 中显示</strong>（右键 / <code>⌥⌘R</code>，无双击）；<strong>在终端中打开</strong>（右键 / <code>⌥⌘T</code>；文件夹 = 自身 / 文件 = 父目录）；<strong>删除</strong>（右键 / <code>⌘⌫</code>，<code>papers/</code> 同步 <code>paper_delete</code>）。</li>
 <li>[x] Paper-centric 视图：选中 paper 后中间显示 PDF（本地优先 / 远程回退）或 HTML，右侧显示该篇 <code>NOTES.md</code>（<strong>仅具体论文</strong>时显示 Preview/Info）。</li>
+<li>[x] Vault <strong>任意路径</strong> PDF / 常见图片中间栏预览（<code>blob:</code>）。</li>
 <li>[x] 侧边栏折叠、标题栏快捷按钮、Settings 窗口；左右侧栏 <strong>常驻 collapsible + preserve-pixel-size</strong>（交替快捷键互不冲态）。</li>
-<li>[x] 论文库表格：虚拟节点 <code>agentero:library</code>、<code>paper_list</code>、表头排序、双向滚动。</li>
-<li>[x] Paper Info / Notes 仅在选中具体论文时显示（Library 视图隐藏）。</li>
+<li>[x] 论文库表格：虚拟节点 <code>agentero:library</code>、<code>paper_list</code>、表头排序、<strong>tags 列 + chip 筛选</strong>、双向滚动。</li>
+<li>[x] Paper Info / Notes 仅在选中具体论文时显示（Library 视图隐藏）；Paper Info <strong>Tags</strong> 可编辑（<code>paper_set_tags</code>）。</li>
 <li>[x] 后台任务条（左下角）：下载 / 入库 / 导入导出 / paper-reader 等长操作进度；收起态 hover 保持实色不透明。</li>
+<li>[x] 全局错误 Toast（右上角 Sonner + <code>notifyError</code>）；操作失败不占侧栏 header。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -331,7 +334,7 @@
 <li>[x] <strong>无 TeX 时 liteparse → <code>PAPER.md</code></strong>：下载后自动；<code>paper_parse_body</code>（Download 流程内触发）。</li>
 <li>[x] <strong>paper-reader 精读</strong>：入库/单篇 Download 后可自动；资源齐全且 <code>is_read=false</code> 时文件树 Eye 手动（见 V0.3）。</li>
 <li>[x] Library 导入/导出：<code>paper_import</code> / <code>paper_export</code>（Translator <code>/import</code> + <code>/export</code>，Zotero JSON 数组）。</li>
-<li>[x] 入库错误行内展示；重复不覆盖用户 <code>NOTES.md</code>。</li>
+<li>[x] 入库错误经全局 Toast（<code>notifyError</code>）展示；重复不覆盖用户 <code>NOTES.md</code>。</li>
 <li>[x] 删除 paper / 组织目录：磁盘 <code>remove</code> + catalog <code>paper_delete</code>（含嵌套 path）。</li>
 </ul>
 <h3 id="_1">未完成<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
@@ -705,8 +708,8 @@
 <p>包含 V0.4。完成后，用户可以通过双链、反链、图谱组织研究上下文。</p>
 <h3 id="milestone-e">Milestone E：来源可扩展 ⏳<a class="headerlink" href="#milestone-e" title="Permanent link">&para;</a></h3>
 <p>包含 V0.5。完成后，产品在 arXiv 之外可稳妥导入本地 PDF，并为更多来源预留扩展点。</p>
-<h3 id="milestone-f">Milestone F：多文档工作区 ⏳<a class="headerlink" href="#milestone-f" title="Permanent link">&para;</a></h3>
-<p>包含 V0.6。完成后，用户可以标签页管理打开的文档，并分屏并排阅读/笔记。</p>
+<h3 id="milestone-f">Milestone F：多文档工作区 🟡<a class="headerlink" href="#milestone-f" title="Permanent link">&para;</a></h3>
+<p>包含 V0.6。<strong>标签页已完成</strong>（多文档 tab、<code>⌘W</code> 先关 tab 再关窗）；<strong>分屏</strong>完成后用户可并排阅读/笔记。</p>
 <h3 id="milestone-g">Milestone G：文献引用可探索 ⏳<a class="headerlink" href="#milestone-g" title="Permanent link">&para;</a></h3>
 <p>包含 V0.7。完成后，用户可 hover 文内引用看 Info、浏览引用邻域，并用 Agent 沿引用链探索与入库。</p>
 <h3 id="milestone-hcli-mvp">Milestone H：CLI 可脚本化 ✅ MVP<a class="headerlink" href="#milestone-hcli-mvp" title="Permanent link">&para;</a></h3>
@@ -743,8 +746,8 @@
 <li>[ ] <code>catalog:export_papers_md</code>（Markdown 表）。</li>
 <li>[ ] <code>[[</code> 补全与 Plate wikilink 内联节点。</li>
 <li>[ ] Graph 全屏/聚焦模式与邻居高亮。</li>
-<li>[ ] <strong>工作区标签页</strong>：多文档 tab、关闭/重排、滚动与视图状态保留（V0.6）。</li>
-<li>[ ] <strong>分屏</strong>：中间栏 2 格并排（PDF | NOTES 或 paper | paper）（V0.6）。</li>
+<li>[x] <strong>工作区标签页</strong>：多文档 tab、关闭/重排、滚动与视图状态保留；<code>⌘W</code> 关 tab / 无 tab 关窗（V0.6 标签页部分）。</li>
+<li>[ ] <strong>分屏</strong>：中间栏 2 格并排（PDF | NOTES 或 paper | paper）（V0.6 余量）。</li>
 <li>[ ] <strong>文内引用 hover → 右侧 Paper Info</strong>（库内/远程缓存 + 一键入库）（V0.7-A）。</li>
 <li>[ ] <strong>引用关系图 / Connected Papers 式邻域</strong>（cites / cited_by 缓存 + 列表/简图）（V0.7-B）。</li>
 <li>[ ] <strong>Agent 引用工作流</strong>：Explore citations / Map related work / Ingest neighborhood（V0.7-C）。</li>

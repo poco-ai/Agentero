@@ -268,7 +268,7 @@
 <pre class="codehilite"><code class="language-text">用户点击魔棒
   → 输入框：粘贴链接或编号（DOI / arXiv URL / arXiv ID / ISBN / PMID …）
   → Translator 解析元数据
-  → 展示标题/作者等简要结果（可极简：成功即入库，失败 toast）
+  → 展示标题/作者等简要结果（可极简：成功即入库，失败走全局 `notifyError` Toast）
   → 加入 Papers：
        ├─ 默认：papers/&lt;id&gt;/
        └─ 若当前上下文是 papers 下的组织子文件夹：papers/&lt;子路径&gt;/&lt;id&gt;/
@@ -1146,7 +1146,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
   → lookup:search（Translator）→ 可选极简预览
   → lookup_import({ parent_dir, text, translatorBaseUrl })
   → 成功：catalog + source/PDF（arXiv 含 TeX）；刷新文件树；打开 paper（PDF 预览优先本地文件）
-  → 失败：toast / 行内错误
+  → 失败：全局 Toast（`notifyError`，见 [`../frontend/ui.md`](../frontend/ui.md) §2.1.2）；Popover 内字段校验可仍就地显示
 </code></pre>
 
 <p><strong>默认体验偏好</strong>：少步骤——解析成功即可入库；仅在 <strong>重复</strong> 或 <strong>解析到多结果</strong> 时打断确认。</p>

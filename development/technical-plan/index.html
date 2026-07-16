@@ -1154,7 +1154,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 <tr>
 <td>多窗口自由拖拽</td>
-<td>已支持 <code>⌘N</code> 多窗口；<strong>中间栏文档分屏 / 标签页</strong> 规划见 roadmap V0.6（当前仍为单槽）</td>
+<td>已支持 <code>⌘N</code> 多窗口与<strong>文档标签页</strong>；<strong>分屏</strong> 规划见 roadmap V0.6 余量</td>
 </tr>
 <tr>
 <td>PDF 阅读器</td>
@@ -1330,15 +1330,15 @@ tempfile = &quot;3&quot;
 <tbody>
 <tr>
 <td>V0.1</td>
-<td>Tauri + React 工作台基本完成；可伸缩文件树（Finder / 删除）、Create Vault + catalog、Open vault、读写 Markdown、最近 Vault、PDF/HTML/Notes、Library 表、左右侧栏 collapsible 隔离、左下角后台任务条（实色 hover）；文件监听仍待。</td>
+<td>Tauri + React 工作台基本完成；可伸缩文件树（Finder / 删除）、Create Vault + catalog、Open vault、读写 Markdown、最近 Vault、PDF/HTML/图片/Notes、Library 表 + tags、左右侧栏 collapsible 隔离、左下角后台任务条（实色 hover）、右上角全局 Toast（<code>notifyError</code>）；文件监听仍待。</td>
 </tr>
 <tr>
 <td>V0.2</td>
-<td>魔棒 + Translator 入库、catalog 权威、<code>paper_download_assets</code>、无 TeX 时 liteparse → <code>PAPER.md</code>、Library 导入导出已落地；关键词候选等仍待。</td>
+<td>魔棒 + Translator 入库、catalog 权威、<code>paper_download_assets</code>、<code>paper_set_tags</code>、无 TeX 时 liteparse → <code>PAPER.md</code>、Library 导入导出已落地；关键词候选等仍待。</td>
 </tr>
 <tr>
 <td>V0.3</td>
-<td>BYOA 面板进行中；通用 provider 走 ACP，Codex 走原生 App Server thread；<code>@</code> / <code>$</code> 上下文、<strong>paper-reader</strong>（入库/单篇 Download <strong>自动</strong> + Eye 手动 + <code>is_read</code>）、<strong>SkillMentionStyle</strong>、<strong>全局权限模式</strong>（<code>agentPermissionMode</code>：受限 / 自动批准）已接入；面板内其它 workflow、逐项「每次询问」、写入草稿待补。</td>
+<td>BYOA 面板进行中；通用 provider 走 ACP，Codex 走原生 App Server thread；<code>@</code> / <code>$</code> 上下文、<strong>paper-reader</strong>（入库/单篇 Download <strong>自动</strong> + Eye 手动 + <code>is_read</code>）、<strong>SkillMentionStyle</strong>、<strong>全局权限模式</strong>（<code>agentPermissionMode</code>：受限 / 自动批准）、模型收藏已接入；面板内其它 workflow、逐项「每次询问」、写入草稿待补。</td>
 </tr>
 <tr>
 <td>V0.4</td>
@@ -1350,7 +1350,7 @@ tempfile = &quot;3&quot;
 </tr>
 <tr>
 <td>V0.6</td>
-<td>中间栏从单槽升级为<strong>文档标签页 + 2 格分屏</strong>；布局/滚动状态可恢复；与 Agent 会话标签分离；多窗口各自独立 tab 集。</td>
+<td><strong>文档标签页已落地</strong>（标题栏多 tab、常驻挂载、<code>⌘W</code> 关 tab / 无 tab 关窗、多窗口独立 tab 集）；<strong>2 格分屏</strong>仍待；与 Agent 会话标签分离。</td>
 </tr>
 <tr>
 <td>V0.7</td>

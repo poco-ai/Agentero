@@ -1630,6 +1630,12 @@ Host (Tauri + Rust)
 <td>前端监听</td>
 </tr>
 <tr>
+<td><code>close_tab_or_window</code></td>
+<td>Close</td>
+<td><code>⌘W</code></td>
+<td>前端监听：有文档 tab 时关闭当前 tab；无 tab 时 <code>getCurrentWindow().close()</code>。<strong>不要</strong>用 PredefinedMenuItem::CloseWindow（会独占 <code>⌘W</code>）</td>
+</tr>
+<tr>
 <td><code>toggle_sidebar</code></td>
 <td>Toggle Sidebar</td>
 <td><code>⌥⌘S</code></td>
@@ -1643,7 +1649,7 @@ Host (Tauri + Rust)
 </tr>
 </tbody>
 </table>
-<p>前端快捷键（非菜单 emit，见 <code>src/lib/shortcuts.ts</code> / <code>docs/frontend/ui.md</code> §3.1）：<code>⌥⌘R</code> 在 Finder 中显示、<code>⌥⌘T</code> 在终端中打开、<code>⌘⌫</code> 删除选中树项、<code>⇧⌘I</code> 魔棒。</p>
+<p>前端快捷键（非菜单 emit，见 <code>src/lib/shortcuts.ts</code> / <code>docs/frontend/ui.md</code> §3.1）：<code>⌥⌘R</code> 在 Finder 中显示、<code>⌥⌘T</code> 在终端中打开、<code>⌘⌫</code> 删除选中树项、<code>⇧⌘I</code> 魔棒、<code>⌥⌘←/→</code> 切换文档标签。<code>⌘W</code> 亦可由渲染层 <code>shortcuts.ts</code> 直接匹配（与菜单同源逻辑，防抖避免双触发）。</p>
 <h2 id="3x-headless-cli">3.x Headless CLI（对照）<a class="headerlink" href="#3x-headless-cli" title="Permanent link">&para;</a></h2>
 <blockquote>
 <p>完整语义见 <a href="../../development/cli/"><code>../development/cli.md</code></a>。CLI <strong>不</strong>走 Tauri invoke，直接 path 依赖 <code>agentero_lib::services</code>（无 BYOA）。</p>
@@ -1739,7 +1745,7 @@ Host (Tauri + Rust)
 </tr>
 <tr>
 <td>V0.6</td>
-<td>主要为前端工作区状态（文档 tab / 分屏布局持久化）；Host 侧可选 <code>config</code>/Store 扩展，一般无需新 paper API。</td>
+<td>文档 <strong>tab 已落地</strong>（前端 <code>agentero-open-tabs</code> + 菜单 <code>close_tab_or_window</code>）；<strong>分屏</strong>布局持久化仍待。Host 侧可选 <code>config</code>/Store 扩展，一般无需新 paper API。</td>
 </tr>
 <tr>
 <td>V0.7</td>

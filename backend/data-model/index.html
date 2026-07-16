@@ -80,6 +80,8 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#notesmdl2">NOTES.md(L2,事实来源)</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#markdown-assets">Markdown 内嵌图片（./assets/）</a>
+    </li>
     <li class="toctree-l3"><a class="reference internal" href="#highlightsmdl25">highlights.md(L2.5,事实来源)</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#asks-mvppdf">asks/（已落地 MVP：PDF 划词提问）</a>
@@ -281,17 +283,19 @@
 │           └── 1706.03762/  # paper 单元（嵌套，最小单元仍是该文件夹）
 │               ├── NOTES.md
 │               └── source/
-├── notes/
+├── notes/                 # 概念笔记；亦可放 loose 附件（如 notes/attachments/*.pdf）
 ├── plans/
+├── assets/                # 可选：非 paper 媒体（demo / 用户图床）；不进 catalog
 ├── .agents/               # Vault 本地 Agent 资产（Create Vault 脚手架）
 │   ├── README.md
 │   └── skills/            # `$` 技能：`skills/&lt;id&gt;/SKILL.md`
 └── .agentero/
-    ├── catalog.sqlite     # path = paper 文件夹相对路径
+    ├── catalog.sqlite     # path = paper 文件夹相对路径；schema_version = 3
     └── config.json
 </code></pre>
 
 <blockquote>
+<p><strong>预览</strong>：Vault 内<strong>任意路径</strong>的 <code>.pdf</code> 与常见图片（png/jpg/gif/webp/bmp/svg/avif/ico）均可在中间栏打开；不要求位于 <code>papers/</code>。Demo 脚手架见 <a href="../../test/"><code>../test/index.md</code></a>。</p>
 <p><strong>默认不生成</strong>：根级 <code>PAPERS.md</code>、<code>library.bib</code>、各篇 <code>metadata.json</code>。<br />
 需要可读索引或 BibTeX 时，使用 <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code>（见 <a href="../catalog/"><code>catalog.md</code></a> §5.4）。</p>
 <p><strong>Paper 文件夹</strong>是最小单元：以标记文件/目录识别（<code>NOTES.md</code> / <code>highlights.md</code> / <code>source/</code> 等），可位于 <code>papers/</code> 下任意深度。<br />
@@ -347,6 +351,42 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 # 效果怎么样
 </code></pre>
 
+<h3 id="markdown-assets">Markdown 内嵌图片（<code>./assets/</code>）<a class="headerlink" href="#markdown-assets" title="Permanent link">&para;</a></h3>
+<p>编辑任意 Markdown（含 <code>NOTES.md</code> 与 <code>notes/**/*.md</code>）时，<strong>粘贴 / 工具栏插入</strong>的图片统一落在<strong>该 <code>.md</code> 文件旁</strong>的 <code>assets/</code> 目录，正文写入便携相对路径：</p>
+<pre class="codehilite"><code class="language-md">![可选说明](./assets/image-2026-07-16_12-00-00-abc123.png)
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>约定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>落盘目录</td>
+<td><code>{mdDir}/assets/</code>（对 paper 的 <code>NOTES.md</code> 即 <code>{paper}/assets/</code>）</td>
+</tr>
+<tr>
+<td>链接写法</td>
+<td><code>./assets/&lt;file&gt;</code>（相对当前 <code>.md</code>，Obsidian 兼容）</td>
+</tr>
+<tr>
+<td>触发</td>
+<td>剪贴板粘贴图片；工具栏「插入图片」选本地文件</td>
+</tr>
+<tr>
+<td>展示</td>
+<td>WYSIWYG 将相对路径解析为本地 <code>blob:</code> 预览；不把 base64 写进 <code>.md</code></td>
+</tr>
+<tr>
+<td>命名</td>
+<td>粘贴生成时间戳 + 短 id；点选文件尽量保留原名，冲突则 <code>-1</code>/<code>-2</code> 后缀</td>
+</tr>
+</tbody>
+</table>
+<p>与 PDF 解析派生资源共用同一 <code>assets/</code> 文件夹时互不冲突（文件名唯一）。<strong>不要</strong>把大图 base64 嵌进 Markdown 正文。</p>
 <h3 id="highlightsmdl25"><code>highlights.md</code>(L2.5,事实来源)<a class="headerlink" href="#highlightsmdl25" title="Permanent link">&para;</a></h3>
 <p>单篇论文的标注层,与 <code>NOTES.md</code> <strong>分开存放</strong>:笔记是"熟的"综合知识,标注是"生的"原始证据(锚定原文位置的引文 + 想法),数量多、带定位。</p>
 <ul>

@@ -252,12 +252,13 @@
 <li>
 <p><strong>工作区标签页与分屏</strong>（roadmap V0.6）</p>
 </li>
-<li>[x] 中间栏文档 <strong>标签栏</strong>：paper / MD / PDF / HTML / Library 以 tab 打开，可关闭、切换、拖拽重排。</li>
+<li>[x] 中间栏文档 <strong>标签栏</strong>：paper / MD / PDF / HTML / 图片 / Library 以 tab 打开，可关闭、切换、拖拽重排。</li>
 <li>[x] 每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；MD/NOTES 自动保存，关闭不丢内容。</li>
 <li>[ ] <strong>分屏</strong>：水平或垂直 2 格；每格独立内容（典型：PDF | NOTES，或两篇 paper 并排）。</li>
-<li>[x] 快捷键：关 tab <code>⌘W</code>（无 tab 时关窗口）/ 切 tab <code>⌥⌘→·⌥⌘←</code>；分屏·取消分屏随 split 补（键位写入 <code>docs/frontend/ui.md</code>）。</li>
+<li>[x] 快捷键：关 tab <code>⌘W</code>（无 tab 时关窗口；File → Close / 菜单 <code>close_tab_or_window</code> 同源）/ 切 tab <code>⌥⌘→·⌥⌘←</code>；分屏·取消分屏随 split 补（键位写入 <code>docs/frontend/ui.md</code>）。</li>
 <li>[x] 文件树 / Library / Graph / Backlinks / wiki 跳转统一 <code>openTab</code>；同路径已开则聚焦。</li>
 <li>[x] 与 <code>⌘N</code> 多窗口隔离：每窗口独立 tab 集（<code>agentero-open-tabs</code>）；关窗/换 Vault 可恢复布局。</li>
+<li>[x] 全局操作错误 Toast（<code>notifyError</code>，右上角；替代侧栏 header 错误条）。</li>
 <li>
 <p>说明：Agent 面板内的 <strong>会话标签</strong> 已存在，与本项「文档标签」分开。</p>
 </li>
@@ -393,22 +394,22 @@
 <tbody>
 <tr>
 <td>Vault / 工作台壳</td>
-<td>打开·创建 Vault、catalog 初始化、多窗口 ⌘N、欢迎页 MRU、文件树新建/Finder/删除、左右侧栏 collapsible、后台任务条</td>
+<td>打开·创建 Vault、catalog 初始化、多窗口 ⌘N、欢迎页 MRU、文件树新建/Finder/删除、左右侧栏 collapsible、后台任务条、<strong>全局错误 Toast</strong>（<code>notifyError</code>）</td>
 <td>最近 Vault 迁 Tauri Store；文件监听；<strong>打开已有夹自动发现/整理</strong>（P0-4b / P1-2b）</td>
 </tr>
 <tr>
 <td>中间内容</td>
-<td>单槽：Library 表 / PDF / HTML / Markdown WYSIWYG；Notes 仅具体论文时显示</td>
-<td><strong>文档标签页、分屏</strong>（V0.6）</td>
+<td><strong>文档标签页</strong>（常驻挂载；<code>⌘W</code> / <code>⌥⌘←→</code>）；Library 表 + <strong>tags</strong>；PDF / HTML / 图片 / Markdown WYSIWYG（图片 → <code>./assets/</code>）；Notes 仅具体论文时显示</td>
+<td><strong>分屏</strong>（V0.6 余量）</td>
 </tr>
 <tr>
 <td>入库</td>
-<td>魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md、Library 导入导出 Bib</td>
+<td>魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md、Library 导入导出 Bib、<code>paper_set_tags</code></td>
 <td>关键词/Agent 候选；本地 PDF importer；部分非 arXiv PDF 下载</td>
 </tr>
 <tr>
 <td>Agent</td>
-<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader</strong>（自动+Eye）、<strong>全局权限模式</strong>、Skill 提及分流、会话标签（Agent 内）</td>
+<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader</strong>（自动+Eye）、<strong>全局权限模式</strong>、模型收藏、Skill 提及分流、会话标签（Agent 内）</td>
 <td>面板内置 workflow 入口、写入草稿确认、逐项权限 UI；<strong>引用类 workflow</strong>（V0.7）</td>
 </tr>
 <tr>
@@ -422,13 +423,13 @@
 <td><strong>hover 引用→Info、Connected Papers 邻域、引用边缓存</strong>（V0.7）</td>
 </tr>
 <tr>
-<td>PDF</td>
-<td>缩放、划词操作菜单（高亮/笔记/提问/翻译；asks + highlights JSON）</td>
-<td>本地 PDF 直开、<code>highlights.md</code> 标注系统、M5</td>
+<td>PDF / 媒体</td>
+<td>任意路径 PDF + 常见图片预览；缩放；划词操作菜单（asks + highlights JSON）</td>
+<td><code>highlights.md</code> 标注系统、M5</td>
 </tr>
 <tr>
 <td><strong>CLI</strong></td>
-<td><strong>MVP</strong>（<a href="../cli/"><code>cli.md</code></a>：<code>cli/</code>、workspace、无 BYOA）</td>
+<td><strong>MVP</strong>（<a href="../cli/"><code>cli.md</code></a>：<code>cli/</code>、workspace、<code>paper set-tags</code> / <code>tags</code>、无 BYOA）</td>
 <td>graph / doctor / completions（P1-7）；Release 附带二进制</td>
 </tr>
 <tr>

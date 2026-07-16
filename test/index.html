@@ -232,6 +232,37 @@ try {
 <p>解析器和 resolver 的边界用例可以放在对应 Rust 模块的 <code>#[cfg(test)]</code> 中。依赖 Vault 的 graph/index 测试应创建临时目录和文件，不依赖已提交的缓存文件。</p>
 <h2 id="_4">手动验证<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p>纯逻辑优先用自动化测试覆盖。涉及 UI 或桌面流程时，还需要启动应用检查受影响路径。如果 dev 端口被占用或无法做浏览器/桌面验证，汇报时需要明确说明。</p>
+<p>建议用 <code>pnpm demo:vault</code> 生成的 Vault 做冒烟：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>预期</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>打开 demo vault</td>
+<td>catalog 5 篇、Library 可见、tags 可筛</td>
+</tr>
+<tr>
+<td>点 <code>assets/sample.pdf</code> / <code>notes/attachments/*.pdf</code></td>
+<td>中间栏 PDF 预览（非 papers 路径）</td>
+</tr>
+<tr>
+<td>点 <code>assets/figures/*</code> 图片</td>
+<td>中间栏图片预览</td>
+</tr>
+<tr>
+<td>打开多 tab 后连按 <code>⌘W</code></td>
+<td>逐个关 tab；无 tab 后再按关窗口</td>
+</tr>
+<tr>
+<td>触发删除失败 / 无 Vault 操作等</td>
+<td>右上角 Toast，不出现侧栏 header 错误条</td>
+</tr>
+</tbody>
+</table>
 <h2 id="_5">文档验证<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p>修改 docs 或 <code>mkdocs.yml</code> 后运行：</p>
 <pre class="codehilite"><code class="language-bash">mkdocs build --strict
