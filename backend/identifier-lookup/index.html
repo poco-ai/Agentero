@@ -365,10 +365,12 @@
 - <strong>显示条件</strong>：缺 PDF <strong>或</strong>（既无 TeX 也无 <code>PAPER.md</code>）。可读正文 <strong>TeX 与 PAPER.md 二选一即可，优先 TeX</strong>（有 TeX 不强制 PAPER.md）。<strong>不再</strong>因缺少空 <code>source/</code> 单独显示 Download。hover 说明原因。
 - <strong>点击</strong>：<code>paper_download_assets</code> → PDF 到论文根目录 → arXiv 尽量 TeX 到 <code>source/</code> → 无 TeX 则 liteparse <code>PAPER.md</code>。
 - <strong>Library 行</strong>：库内任一篇不完整时批量同一逻辑。</p>
-<p><strong>精读（Eye 图标，与 Download 互斥）</strong>：
-- <strong>显示条件</strong>：本地资源齐全（有 PDF + TeX 或 <code>PAPER.md</code>）且 catalog <strong><code>is_read === false</code></strong>。
-- <strong>点击</strong>：paper-reader 工作流（<code>src/lib/paper-read.ts</code> → <code>agent_run_once</code> + skill；Codex <code>$paper-reader</code> / Claude <code>/paper-reader</code> / 其它注入 <code>SKILL.md</code>）→ 写 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。
-- <strong>进度</strong>：左下角后台任务条 <code>kind=paperRead</code>。</p>
+<p><strong>精读（Eye 图标 + 自动触发）</strong>：
+- <strong>显示条件（Eye）</strong>：本地资源齐全且 catalog <strong><code>is_read === false</code></strong>（与 Download 互斥）。
+- <strong>自动触发</strong>：<code>lookup_import</code>（魔棒）或单篇 <code>paper_download_assets</code> 成功且 PDF/TeX/<code>PAPER.md</code> 任一可读正文/归档就绪时，前端 <code>maybeAutoRunPaperReader</code> 自动跑同一工作流（批量 Library 导入/批量 Download <strong>不</strong>自动连跑，避免并发炸 Agent）。
+- <strong>手动</strong>：点击 Eye → 同上。
+- <strong>实现</strong>：<code>src/lib/paper-read.ts</code> → <code>agent_run_once</code> + skill；Codex <code>$paper-reader</code> / Claude <code>/paper-reader</code> / 其它注入 <code>SKILL.md</code> → 写 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。
+- <strong>进度</strong>：左下角后台任务条——入库/下载阶段 <code>kind=lookup|download</code>（分阶段 detail/progress），随后精读 <code>kind=paperRead</code>。</p>
 <p>UI 阅读：优先 catalog 远程 URL；<code>source/</code> 为 arXiv TeX 归档；<code>PAPER.md</code> 为无 TeX 时的派生正文。</p>
 <h4 id="translator">Translator 服务地址（设置）<a class="headerlink" href="#translator" title="Permanent link">&para;</a></h4>
 <table>
