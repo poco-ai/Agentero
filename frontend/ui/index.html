@@ -211,10 +211,17 @@
 <li>新建文件夹 → <code>FolderPlus</code>（同上）</li>
 <li><strong>刷新文件树</strong>不在侧边栏：使用菜单 <strong>File → Refresh File Tree</strong>（<code>⌘R</code>）。</li>
 <li><strong>在系统文件管理器中显示</strong>（<code>revealItemInDir</code> / <code>src/lib/reveal.ts</code>）：</li>
-<li><strong>双击</strong>真实文件 / 文件夹 / paper 行 → 在 Finder（macOS）/ Explorer（Windows）/ 文件管理器（Linux）中定位并选中。</li>
-<li><strong>右键</strong>同上节点 → 上下文菜单「在 Finder 中显示」（文案随平台切换；旁注 <code>⌥⌘R</code>）。</li>
+<li><strong>右键</strong>真实文件 / 文件夹 / paper 行 → 上下文菜单「在 Finder 中显示」（文案随平台切换；旁注 <code>⌥⌘R</code>）。</li>
 <li><strong><code>⌥⌘R</code></strong>：对当前选中路径执行相同操作（<code>shortcuts.ts</code> → <code>revealInFinder</code>）。</li>
+<li><strong>不</strong>绑定双击（单击选中 / 打开文档；双击不触发 Finder）。</li>
 <li>虚拟节点 <strong>Library</strong>（<code>agentero:library</code>）不提供此操作；仅桌面端可用。</li>
+<li><strong>在终端中打开</strong>（Host <code>path_open_in_terminal</code> / <code>src/lib/reveal.ts</code> <code>openInTerminal</code>）：</li>
+<li><strong>右键</strong>真实文件 / 文件夹 / paper 行 →「在终端中打开」（旁注 <code>⌥⌘T</code>）。</li>
+<li><strong><code>⌥⌘T</code></strong>：对当前选中路径执行相同操作（<code>shortcuts.ts</code> → <code>openInTerminal</code>）。</li>
+<li><strong>文件夹</strong>（含 paper 目录）：终端 cwd 为该目录本身。</li>
+<li><strong>文件</strong>：终端 cwd 为文件所在父目录。</li>
+<li>使用系统默认终端：macOS <code>Terminal.app</code>；Windows 优先 <code>wt</code>（Windows Terminal）否则 <code>cmd</code>；Linux <code>xdg-terminal-exec</code> / <code>$TERMINAL</code> / 常见终端回退。</li>
+<li>虚拟 Library 不可用；仅桌面端。</li>
 <li><strong>删除</strong>（<code>remove</code> + 可选 <code>paper_delete</code>）：</li>
 <li><strong>右键</strong>真实节点 →「删除」（旁注 <code>⌘⌫</code>）；确认后删盘。</li>
 <li><strong><code>⌘⌫</code></strong>：删除当前选中项（编辑器 / 输入框聚焦时不拦截，保留系统删行首行为）。</li>
@@ -353,9 +360,11 @@
 <li><strong>保存</strong>：编辑防抖后 <strong>自动写回</strong> 磁盘 <code>.md</code>，<code>⌘S</code> 立即保存；有未保存更改时 pane header 显示小圆点。未发生真实编辑不会写盘（打开文件不触发保存）。</li>
 <li><strong>双链</strong>：<code>[[目标#标题|别名]]</code> 与 <code>![[嵌入]]</code> 由 <code>@flowershow/remark-wiki-link</code> 解析并 <strong>无损回写</strong>；渲染仍复用既有 exists/missing 样式与点击导航。</li>
 <li><strong>YAML frontmatter</strong> 按字节原样保留（不经 Plate 往返）；注意 Plate 会归一化部分 Markdown 风格（列表 <code>-</code>→<code>*</code>、斜体 <code>*</code>→<code>_</code>），内容语义不变。</li>
-<li>PDF / HTML <strong>预览</strong>：<ul>
-<li><strong>PDF 解析顺序</strong>（本地优先）：① 论文文件夹内本地 PDF（根目录 <code>{id}.pdf</code> 优先，兼容 <code>source/</code> 等嵌套）→ <code>readFile</code> 读字节生成 <code>blob:</code> URL 交给 PDF.js（<strong>不用</strong> <code>convertFileSrc</code>/<code>asset://</code>，PDF.js XHR 会失败）；② <strong>无本地 PDF</strong> 时自动 <code>paper_download_assets</code> 尝试下载；③ 下载失败或无可用下载源时回退 catalog 远程 <code>pdf_url</code>（或 <code>arxiv_id</code> 推导 URL）。</li>
-<li><strong>HTML</strong>：仍读远程 <code>html_url</code>（iframe）；HTML 本身不强制本地下载。</li>
+<li>PDF / HTML / <strong>图片</strong> <strong>预览</strong>：<ul>
+<li><strong>PDF（任意路径）</strong>：Vault 内任意位置的 <code>.pdf</code>（根目录、<code>notes/</code>、paper 内嵌套文件等）均可直接打开；<code>readFile</code> → <code>blob:</code> → PDF.js（<strong>不用</strong> <code>convertFileSrc</code>/<code>asset://</code>）。</li>
+<li><strong>PDF（论文单元）</strong>额外链路：① 论文文件夹内本地 PDF（根目录 <code>{id}.pdf</code> 优先，兼容 <code>source/</code> 等嵌套）；② <strong>无本地 PDF</strong> 时自动 <code>paper_download_assets</code>；③ 失败回退 catalog 远程 <code>pdf_url</code>（或 <code>arxiv_id</code> 推导 URL）。点开 paper 内某一具体 <code>.pdf</code> 时优先该文件字节。</li>
+<li><strong>HTML</strong>：仍读远程 <code>html_url</code>（iframe）；本地 <code>.html</code> 文件尚无 file 沙盒预览。</li>
+<li><strong>图片</strong>：常见格式 <code>.png</code> / <code>.jpg</code> / <code>.jpeg</code> / <code>.gif</code> / <code>.webp</code> / <code>.bmp</code> / <code>.svg</code> / <code>.avif</code> / <code>.ico</code> → <code>readFile</code> → <code>blob:</code> → 中间栏 <code>ImageViewer</code>（居中 contain、可滚动）；任意 Vault 路径。</li>
 </ul>
 </li>
 <li><strong>本地归档</strong>：魔棒 / <code>paper_download_assets</code> 将 PDF 写入 <code>{paper}/{id}.pdf</code>（根目录），arXiv LaTeX 到 <code>source/</code>；预览优先读同一本地 PDF。</li>
@@ -366,7 +375,7 @@
 </ul>
 </li>
 <li>若只有 <code>arxiv_id</code>，用 <code>src/lib/arxiv.ts</code> 推导远程 URL（作下载候选与 HTML/远程回退）</li>
-<li>PDF：本地经 <code>blob:</code>（fs <code>readFile</code>）/ 远程 <code>https</code> 由 PDF.js 渲染；HTML：独立 iframe 打开远程页</li>
+<li>PDF：本地经 <code>blob:</code>（fs <code>readFile</code>）/ 远程 <code>https</code> 由 PDF.js 渲染；HTML：独立 iframe 打开远程页；图片：<code>blob:</code> + <code>&lt;img&gt;</code></li>
 <li><strong>PDF 缩放</strong>（<code>PdfViewer</code>）：工具栏放大 / 缩小 / 重置；<code>⌘/Ctrl</code>+滚轮缩放；范围约 <strong>0.5×–3×</strong>；<strong>100% = 适应中间栏宽度</strong>（非固定 pt）。i18n <code>viewer:pdf.zoom*</code>。</li>
 <li><strong>PDF 划词操作菜单</strong>（已落地，见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>）：<ul>
 <li>划词后在选区旁弹出操作菜单（图标 + Tooltip）：<strong>高亮 / 笔记 / 提问 / 翻译</strong>；<strong>不再默认套用琥珀高亮</strong>，只保留浏览器原生选区。双击 / 悬停停留仍直接开问答卡（页码上下文）。</li>
@@ -422,7 +431,12 @@
 <tr>
 <td><code>⌥⌘R</code></td>
 <td>在 Finder 中显示</td>
-<td>定位当前选中文件/文件夹；<code>shortcuts.ts</code> → <code>revealInFinder</code></td>
+<td>右键或快捷键定位当前选中文件/文件夹（无双击）；<code>shortcuts.ts</code> → <code>revealInFinder</code></td>
+</tr>
+<tr>
+<td><code>⌥⌘T</code></td>
+<td>在终端中打开</td>
+<td>文件夹 = 自身 cwd，文件 = 父目录；系统默认终端；<code>shortcuts.ts</code> → <code>openInTerminal</code></td>
 </tr>
 <tr>
 <td><code>⌘⌫</code></td>

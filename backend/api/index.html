@@ -82,6 +82,8 @@
         <ul>
     <li class="toctree-l4"><a class="reference internal" href="#vault_create">vault_create（已实现）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#path_open_in_terminal">path_open_in_terminal（已实现）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#window_new">window_new（已实现）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#vaultopen">vault:open（规划）</a>
@@ -413,7 +415,7 @@ Host (Tauri + Rust)
 <h3 id="31-vault">3.1 Vault 与窗口<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
 <blockquote>
 <p><strong>实现状态（V0.1）</strong><br />
-- 已实现：<code>vault_create</code>（snake_case invoke 名）、<code>window_new</code>、<code>set_locale</code>。<br />
+- 已实现：<code>vault_create</code>（snake_case invoke 名）、<code>path_open_in_terminal</code>、<code>window_new</code>、<code>set_locale</code>。<br />
 - 打开 Vault / 最近列表 / 树加载：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成，Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。<br />
 - 实际 command 注册见 <code>src-tauri/src/lib.rs</code>。</p>
 </blockquote>
@@ -448,6 +450,30 @@ Host (Tauri + Rust)
 <li>写入 <strong><code>.agents/README.md</code></strong>（若不存在；内容来自仓库 <code>templates/vault/.agents/</code>）。</li>
 <li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>；<strong>不</strong>覆盖已有 <code>AGENTS.md</code> / <code>.agents/**</code>。</li>
 <li>最近列表由前端在成功打开后写入 <code>localStorage</code>（<code>agentero-recent-vaults</code>）。</li>
+</ul>
+<h4 id="path_open_in_terminal"><code>path_open_in_terminal</code>（已实现）<a class="headerlink" href="#path_open_in_terminal" title="Permanent link">&para;</a></h4>
+<p>在系统默认终端中打开本地路径（文件树右键 / <code>⌥⌘T</code>「在终端中打开」）。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  path: string; // 本地绝对路径
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>（<code>ApiResult&lt;{ cwd: string }&gt;</code>）</li>
+<li>成功时 <code>cwd</code> 为实际作为终端工作目录打开的绝对路径。</li>
+<li><strong>行为</strong></li>
+<li>路径为<strong>目录</strong>时：<code>cwd</code> = 该目录。</li>
+<li>路径为<strong>文件</strong>时：<code>cwd</code> = 父目录。</li>
+<li>路径不存在或无法解析父目录时返回错误。</li>
+<li>平台：<ul>
+<li>macOS：<code>open -a Terminal &lt;cwd&gt;</code></li>
+<li>Windows：优先 <code>wt -d &lt;cwd&gt;</code>，失败则 <code>cmd /K cd /d …</code></li>
+<li>Linux：<code>xdg-terminal-exec</code> → <code>$TERMINAL</code> → 常见终端（gnome-terminal / konsole / …）→ <code>x-terminal-emulator</code></li>
+</ul>
+</li>
 </ul>
 <h4 id="window_new"><code>window_new</code>（已实现）<a class="headerlink" href="#window_new" title="Permanent link">&para;</a></h4>
 <p>打开一个新的 Agentero 窗口（菜单 <strong>File → New Window</strong> / <code>⌘N</code>）。</p>
@@ -1595,7 +1621,7 @@ Host (Tauri + Rust)
 </tr>
 </tbody>
 </table>
-<p>前端快捷键（非菜单 emit，见 <code>src/lib/shortcuts.ts</code> / <code>docs/frontend/ui.md</code> §3.1）：<code>⌥⌘R</code> 在 Finder 中显示、<code>⌘⌫</code> 删除选中树项、<code>⇧⌘I</code> 魔棒。</p>
+<p>前端快捷键（非菜单 emit，见 <code>src/lib/shortcuts.ts</code> / <code>docs/frontend/ui.md</code> §3.1）：<code>⌥⌘R</code> 在 Finder 中显示、<code>⌥⌘T</code> 在终端中打开、<code>⌘⌫</code> 删除选中树项、<code>⇧⌘I</code> 魔棒。</p>
 <h2 id="3x-headless-cli">3.x Headless CLI（对照）<a class="headerlink" href="#3x-headless-cli" title="Permanent link">&para;</a></h2>
 <blockquote>
 <p>完整语义见 <a href="../../development/cli/"><code>../development/cli.md</code></a>。CLI <strong>不</strong>走 Tauri invoke，直接 path 依赖 <code>agentero_lib::services</code>（无 BYOA）。</p>

@@ -293,8 +293,8 @@
 <tbody>
 <tr>
 <td>文件树展示/交互</td>
-<td><code>FileTree</code> + 可伸缩侧边栏；展开/选中/打开；Finder 显示；删除</td>
-<td><code>plugin-dialog</code> 选目录 + <code>plugin-fs</code> <code>readDir</code>/<code>readTextFile</code>/<code>writeTextFile</code>/<code>mkdir</code>/<code>remove</code>；<code>plugin-opener</code> <code>revealItemInDir</code>；<code>paper_delete</code></td>
+<td><code>FileTree</code> + 可伸缩侧边栏；展开/选中/打开；Finder 显示；终端打开；删除</td>
+<td><code>plugin-dialog</code> 选目录 + <code>plugin-fs</code> <code>readDir</code>/<code>readTextFile</code>/<code>writeTextFile</code>/<code>mkdir</code>/<code>remove</code>；<code>plugin-opener</code> <code>revealItemInDir</code>；Host <code>path_open_in_terminal</code>；<code>paper_delete</code></td>
 </tr>
 <tr>
 <td>Markdown 编辑</td>
@@ -479,12 +479,12 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <tr>
 <td>侧边栏文件树</td>
 <td><code>src/components/layout/file-tree.tsx</code></td>
-<td>包装 <strong>AI Elements</strong> <code>FileTree</code>；右键 / 双击 / 快捷键</td>
+<td>包装 <strong>AI Elements</strong> <code>FileTree</code>；右键 / 快捷键</td>
 </tr>
 <tr>
 <td>Vault IO</td>
 <td><code>src/lib/vault.ts</code></td>
-<td>选目录、建树、读写文本、建目录、删除路径；<code>src/lib/reveal.ts</code> 系统文件管理器定位</td>
+<td>选目录、建树、读写文本、建目录、删除路径；<code>src/lib/reveal.ts</code> 系统文件管理器定位 / 终端打开</td>
 </tr>
 <tr>
 <td>Catalog 删除</td>
@@ -499,7 +499,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <li>「Open vault…」通过 <code>@tauri-apps/plugin-dialog</code> 选择本地文件夹。  </li>
 <li>通过 <code>@tauri-apps/plugin-fs</code> 的 <code>readDir</code> 递归构建树；忽略 <code>.git</code> / <code>node_modules</code> / <code>target</code> / <code>dist</code> / <code>.agentero</code> 等。  </li>
 <li>点击文本类文件用 <code>readTextFile</code> 载入中间 Markdown 面板（Plate WYSIWYG）；写回 <code>writeTextFile</code>。  </li>
-<li>双击 / 右键 / <code>⌥⌘R</code>：<code>revealItemInDir</code> 在 Finder 中显示；右键 / <code>⌘⌫</code>：确认后 <code>remove</code> + 可选 <code>paper_delete</code>。  </li>
+<li>右键 / <code>⌥⌘R</code>：<code>revealItemInDir</code> 在 Finder 中显示（无双击）；右键 / <code>⌥⌘T</code>「在终端中打开」：<code>path_open_in_terminal</code>；右键 / <code>⌘⌫</code>：确认后 <code>remove</code> + 可选 <code>paper_delete</code>。  </li>
 <li>非 Tauri 环境（纯浏览器 <code>pnpm dev</code>）能力受限；真实读盘需 <code>pnpm tauri dev</code>。  </li>
 <li>最近 Vault 路径暂存 <code>localStorage</code>（后续迁到 <code>tauri-plugin-store</code>）。</li>
 </ol>
