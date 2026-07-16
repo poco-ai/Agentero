@@ -295,6 +295,14 @@
 </ol>
 <h2 id="p2">P2 — 长期方向<a class="headerlink" href="#p2" title="Permanent link">&para;</a></h2>
 <ol>
+<li><strong>Zotero/BibTeX 迁移工具</strong> 🟡</li>
+<li>[x] 一键从本地 Zotero 迁移：直读 <code>zotero.sqlite</code> + <code>storage/</code> → catalog，可选拷本地 PDF（<code>zotero_scan</code> / <code>zotero_migrate</code>；见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a> §16）。</li>
+<li>[ ] 解析 Zotero export / 独立 BibTeX 文件路径（Library 导入已覆盖 Bib/RIS 文本）。</li>
+<li>[x] 按 Zotero collection 还原文件夹层级（可选；collection 名写入 tags）。</li>
+<li>[x] 选择性导入指定 collection + 迁移前自愈 catalog 孤儿行（<code>prune_missing</code>）。</li>
+<li>[x] 迁移 Zotero 笔记（子笔记 HTML→Markdown 追加进 NOTES.md；<code>htmd</code>）。</li>
+<li>[x] 迁移 PDF 批注文本（高亮+评论→NOTES.md）+ 逐条选择/搜索 + 迁移进度 + 记住选项。</li>
+<li>[ ] 批注原位高亮渲染（highlights.md 系统）与引用 key 映射。</li>
 <li><strong>Zotero/BibTeX 迁移工具</strong></li>
 <li>解析 Zotero export 或 BibTeX。</li>
 <li>由 Agent 辅助重组为 Agentero vault。</li>
