@@ -378,7 +378,11 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 </tr>
 <tr>
 <td>展示</td>
-<td>WYSIWYG 将相对路径解析为本地 <code>blob:</code> 预览；不把 base64 写进 <code>.md</code></td>
+<td>WYSIWYG 将相对路径解析为本地 <code>blob:</code> 预览；<strong>选中图片节点时</strong>显示 Markdown 源码 <code>![](./assets/…)</code>；不把 base64 写进 <code>.md</code></td>
+</tr>
+<tr>
+<td>删除</td>
+<td>从文档中移除图片节点后，若该 <code>./assets/</code> 文件<strong>无其它引用</strong>，同步删除磁盘文件（仅限本笔记 <code>assets/</code>；远程 URL 不动）</td>
 </tr>
 <tr>
 <td>命名</td>

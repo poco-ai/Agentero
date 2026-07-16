@@ -292,7 +292,7 @@
 <li>[x] 创建空 Vault 并初始化 <code>AGENTS.md</code> / <code>papers</code> / <code>notes</code> / <code>plans</code> / <code>.agents</code>（含 <code>skills/</code>）/ <code>.agentero/catalog.sqlite</code>。</li>
 <li>[x] 工作台：文件树 + 中间内容 + Preview/Notes + 可选右侧栏。</li>
 <li>[x] Markdown 文件读取、编辑、保存（Plate WYSIWYG + 自动保存；顶部可选<strong>格式工具栏</strong>，设置 <code>showEditorToolbar</code> / Notes header 一键开关）。</li>
-<li>[x] Markdown <strong>图片插入</strong>：粘贴 / 工具栏选文件 → 写入当前 <code>.md</code> 旁 <code>./assets/</code> → 正文 <code>![](./assets/…)</code>；相对路径 <code>blob:</code> 预览（见 <code>src/lib/markdown-image.ts</code>、data-model）。</li>
+<li>[x] Markdown <strong>图片</strong>：粘贴 / 工具栏 → <code>./assets/</code> + <code>![](./assets/…)</code>；相对路径预览；<strong>选中显示源码</strong>；删除节点且无引用时同步删 assets 文件（见 <code>src/lib/markdown-image.ts</code>、data-model）。</li>
 <li>[x] 最近 Vault 列表（欢迎页）与主窗口恢复上次 Vault。</li>
 <li>[x] 多窗口：<code>⌘N</code> 新建窗口，session 级 Vault 隔离。</li>
 <li>[x] 树内联新建文件 / 文件夹。</li>
