@@ -189,22 +189,28 @@
 </li>
 <li>将最近 Vault、UI 偏好迁到 Tauri Store。</li>
 <li>增加文件监听，外部编辑器修改后自动刷新当前文件与 wiki 索引。</li>
-<li>
-<p>保存失败、外部冲突和未保存状态要有明确提示。</p>
-</li>
-<li>
-<p><strong>CLI（headless Vault 接口）</strong> — 设计定稿 <a href="../cli/"><code>cli.md</code></a>；可与 UI 并行</p>
-</li>
+<li>保存失败、外部冲突和未保存状态要有明确提示。</li>
+</ol>
+<p>4b. <strong>Vault 采纳 / 现有文件夹发现（编程优先）</strong> — roadmap「Vault 采纳」
+   - 场景：用户 <strong>打开已有文件夹</strong>（非 Create Vault），自动 <strong>发现</strong> 是否已是 Agentero Vault、缺什么、盘上有哪些 paper/PDF 候选。
+   - [ ] 设计：<code>docs/development/vault-adopt.md</code>（发现报告 JSON、安全级/确认级动作、与 <code>vault_create</code> 边界）。
+   - [ ] Host：<code>vault_inspect</code>（只读报告）——结构、catalog、paper 单元、散落 PDF、与 catalog 漂移。
+   - [ ] Host：安全自动整理——缺 <code>papers|notes|plans|.agentero</code> 则补空目录；<code>ensure_catalog</code> + schema migrate；缺失则种子 <code>AGENTS.md</code> / bundled skills（<strong>不覆盖</strong>）。
+   - [ ] 打开文件夹 UX：就绪则静默；半结构/未知则横幅或对话框「可整理」，进度进后台任务条。
+   - [ ] 幂等：已就绪 Vault 重复打开不反复打扰。
+   - 路径：<strong>以编程为主</strong>；不确定命名/归类留给 P1 skill 或确认面板。</p>
+<ol>
+<li><strong>CLI（headless Vault 接口）</strong> — 设计 <a href="../cli/"><code>cli.md</code></a>；<strong>MVP 已落地</strong></li>
 <li>边界：<strong>无 BYOA / 无 Agent / 无 paper-reader</strong>；只做 Vault 管理、发现、暴露 + 文献基础能力。</li>
 <li>布局：仓库根 <strong><code>cli/</code></strong>（package <code>agentero-cli</code>，bin <code>agentero</code>）；根 Cargo workspace <code>members = ["src-tauri", "cli"]</code>。</li>
 <li>复用：<strong>不迁 core</strong>；path 依赖 <code>agentero_lib</code>，调用 <code>services::{vault,catalog,lookup,pdf_parse,wiki}</code>；禁止 <code>use …::agent</code>。</li>
-<li>[ ] Workspace + scaffold <code>cli/</code>（clap、<code>--vault</code> / env / 上溯、<code>--json</code>、退出码）。</li>
-<li>[ ] <code>vault create|which|info|check|use</code>（对齐 <code>vault_create</code> / catalog 初始化）。</li>
-<li>[ ] <code>tree</code>；<code>paper list|get|paths|delete|set-read|download|parse</code>（<code>get</code>：<code>assets</code> + <code>suggestedReads</code>）。</li>
-<li>[ ] <code>import id|bib</code>、<code>export bib</code>（对齐 Host；<strong>不</strong>自动精读）。</li>
-<li>[ ] 稳定 <code>error.code</code>；集成测试（临时 Vault + <code>--json</code> 契约）。</li>
-<li>[ ] 按需放宽 service <code>pub</code>（小改可见性，不搬模块）。</li>
-<li>[ ] README / 本仓库开发说明：<code>cargo build -p agentero-cli</code>。</li>
+<li>[x] Workspace + scaffold <code>cli/</code>（clap、<code>--vault</code> / env / 上溯、<code>--json</code>、退出码）。</li>
+<li>[x] <code>vault create|which|info|check|use</code>（对齐 <code>vault_create</code> / catalog 初始化）。</li>
+<li>[x] <code>tree</code>；<code>paper list|get|paths|delete|set-read|download|parse</code>（<code>get</code>：<code>assets</code> + <code>suggestedReads</code>）。</li>
+<li>[x] <code>import id|bib</code>、<code>export bib</code>（对齐 Host；<strong>不</strong>自动精读）。</li>
+<li>[x] 稳定 <code>error.code</code>；集成测试（临时 Vault + <code>--json</code> 契约，<code>cli/tests/cli_mvp.rs</code>）。</li>
+<li>[x] 按需放宽 service <code>pub</code>（<code>lib.rs</code> 导出 <code>services</code> / <code>error</code>；<code>list_by_id</code>）。</li>
+<li>[x] README / 本仓库开发说明：<code>cargo build -p agentero-cli</code>。</li>
 <li>[x] Vault skill 模板：<code>templates/vault/.agents/skills/agentero-cli/SKILL.md</code>；Create Vault 种子；README Quick Start 已写协议。</li>
 </ol>
 <h2 id="p1">P1 — 中期增强<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h2>
@@ -221,12 +227,19 @@
 <li>文件选择 / 拖拽 / 批量导入。</li>
 <li>DOI / arXiv ID 识别，元数据确认面板。</li>
 <li>生成 citekey、<code>PAPER.md</code>、<code>NOTES.md</code>；metadata 写入 catalog。</li>
-<li>
-<p>默认本地解析，MinerU BYOK 后可选云端解析。</p>
-</li>
-<li>
-<p><strong>双链与图谱增强</strong></p>
-</li>
+<li>默认本地解析，MinerU BYOK 后可选云端解析。</li>
+<li>与 <strong>Vault 采纳</strong> 边界：importer = 用户显式导入源；采纳 = 整夹扫描改造。</li>
+</ol>
+<p>2b. <strong>Vault 采纳 / 整理（确认迁移 + Skill 可选）</strong> — 接 P0-4b
+   - [ ] 确认后改造：散落 PDF → <code>papers/&lt;id|citekey&gt;/</code> + NOTES 壳 + catalog upsert（复用 lookup/import 写盘纪律）。
+   - [ ] catalog ↔ 磁盘漂移修复（有盘无行 / 有行无盘的报告与可选清理索引）。
+   - [ ] 历史 <code>metadata.json</code> → catalog 导入（若尚未统一入口则收拢）。
+   - [ ] <strong>Skill 路径</strong>：模板 <code>vault-organize</code>（或同名）——读 inspect 报告、提议移动/命名、经用户确认后落盘；触发 <code>$vault-organize</code> / <code>/vault-organize</code>。
+   - [ ] <strong>组合</strong>：编程产报告与执行机械步骤；Agent 只处理模糊归类；无 Agent 时确认面板仍可用。
+   - [ ] CLI（若 MVP 已有）：<code>vault inspect|adopt</code> 对齐 Host（命名实现时定）。
+   - [ ] 纪律：dry-run / 计划清单；禁止静默覆盖 NOTES、禁止无确认大删。</p>
+<ol>
+<li><strong>双链与图谱增强</strong></li>
 <li>源码编辑 <code>[[</code> 补全。</li>
 <li>Plate 内联 wikilink 节点，序列化仍保持 <code>[[...]]</code>。</li>
 <li>Graph 增加全屏/聚焦模式、邻居高亮、节点搜索。</li>
@@ -370,7 +383,7 @@
 <tr>
 <td>Vault / 工作台壳</td>
 <td>打开·创建 Vault、catalog 初始化、多窗口 ⌘N、欢迎页 MRU、文件树新建/Finder/删除、左右侧栏 collapsible、后台任务条</td>
-<td>最近 Vault 迁 Tauri Store；文件监听增量刷新</td>
+<td>最近 Vault 迁 Tauri Store；文件监听；<strong>打开已有夹自动发现/整理</strong>（P0-4b / P1-2b）</td>
 </tr>
 <tr>
 <td>中间内容</td>
@@ -404,8 +417,8 @@
 </tr>
 <tr>
 <td><strong>CLI</strong></td>
-<td>设计定稿（<a href="../cli/"><code>cli.md</code></a>：<code>cli/</code>、不迁 core、无 BYOA）</td>
-<td><strong>MVP 实现</strong>（P0-5）；graph/doctor/completions（P1-7）</td>
+<td><strong>MVP</strong>（<a href="../cli/"><code>cli.md</code></a>：<code>cli/</code>、workspace、无 BYOA）</td>
+<td>graph / doctor / completions（P1-7）；Release 附带二进制</td>
 </tr>
 <tr>
 <td>发布</td>

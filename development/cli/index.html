@@ -234,7 +234,7 @@
               
                 <h1 id="agentero-cli">Agentero CLI 设计（语义 + 技术栈）<a class="headerlink" href="#agentero-cli" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>设计定稿（未实现；实现排期另议）</strong><br />
+<p>状态：<strong>MVP 已落地</strong>（<code>cli/</code> + workspace；<code>graph</code> / <code>doctor</code> / completions 仍待）<br />
 目标：为 Vault / Catalog / 文献基础能力提供 <strong>headless、Agent 友好</strong> 的 CLI。<br />
 相关：<a href="../../backend/api/"><code>backend/api.md</code></a>、<a href="../../backend/data-model/"><code>backend/data-model.md</code></a>、<a href="../../backend/catalog/"><code>backend/catalog.md</code></a>、<a href="../technical-plan/"><code>technical-plan.md</code></a>。</p>
 </blockquote>
@@ -273,7 +273,7 @@
 </tr>
 <tr>
 <td>实现状态</td>
-<td>文档定稿；代码尚未落地</td>
+<td><strong>MVP</strong>：<code>vault</code> / <code>tree</code> / <code>paper</code> / <code>import</code> / <code>export</code> / <code>config</code>；集成测试 <code>cli/tests/cli_mvp.rs</code></td>
 </tr>
 <tr>
 <td><strong>Vault skill</strong></td>
@@ -511,8 +511,8 @@
 
 GLOBAL:
   -v, --vault &lt;PATH&gt;     Vault 根（绝对或相对）
-  --json                 等价 -o json（Agent / 脚本推荐始终使用）
-  -o, --output &lt;FMT&gt;     text | json（默认 text）
+  --json                 等价 --output json（Agent / 脚本推荐始终使用）
+  --output &lt;FMT&gt;         text | json（默认 text；短选项 `-o` 留给 export 等写文件）
   -q, --quiet            成功时少说话；错误仍走 stderr
   -y, --yes              跳过破坏性确认
   --translator-url &lt;URL&gt; 覆盖 Translator base
@@ -577,12 +577,12 @@ GLOBAL:
 │   └── bib &lt;file|-&gt; [--parent …]
 │
 ├── export
-│   ├── bib [--format …] [-o file|-]
-│   └── papers-md [-o file|-]      # 可选；Host 落地后对齐
+│   ├── bib [--format …] [-o|--out file|-]
+│   └── papers-md [-o|--out file|-]      # 可选；Host 落地后对齐
 │
 ├── graph
 │   ├── backlinks &lt;path&gt;
-│   ├── export [--format json|dot] [-o …]
+│   ├── export [--format json|dot] [-o|--out …]
 │   └── rebuild
 │
 ├── config
@@ -806,12 +806,16 @@ GLOBAL:
 <td>Translator / 写盘失败</td>
 </tr>
 <tr>
+<td><code>export_failed</code></td>
+<td>Translator export / 写文件失败</td>
+</tr>
+<tr>
 <td><code>asset_missing</code></td>
 <td>download/parse 缺前置文件</td>
 </tr>
 <tr>
 <td><code>needs_confirmation</code></td>
-<td>破坏性操作无 <code>--yes</code></td>
+<td>破坏性操作无 <code>--yes</code> / 非 TTY 或用户取消 prompt</td>
 </tr>
 <tr>
 <td><code>catalog_busy</code></td>
@@ -1071,6 +1075,11 @@ Desktop-only: services/agent/*   （CLI 不引用）
 <td>轻量手写或 comfy-table；进度走 stderr</td>
 <td>不污染 stdout JSON</td>
 </tr>
+<tr>
+<td>交互确认</td>
+<td><strong><code>inquire</code></strong>（TTY only）</td>
+<td><code>--json</code> 永不 prompt；破坏性确认可用 <code>-y</code> 跳过</td>
+</tr>
 </tbody>
 </table>
 <p><strong>刻意不做</strong>：初始化 Tauri app、调用 ACP/Agent registry、任何模型 SDK。<br />
@@ -1138,12 +1147,12 @@ Desktop-only: services/agent/*   （CLI 不引用）
 <h2 id="7">7. 分阶段交付<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
 <h3 id="mvp">MVP（基础：管理 + 发现 + 暴露 + 入库资源）<a class="headerlink" href="#mvp" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[ ] <code>vault create|which|info|check|use</code></li>
-<li>[ ] <code>tree</code></li>
-<li>[ ] <code>paper list|get|paths|delete|set-read|download|parse</code></li>
-<li>[ ] <code>import id|bib</code>、<code>export bib</code></li>
-<li>[ ] 全局 <code>--vault</code> / env / 上溯 / <code>--json</code> / 退出码</li>
-<li>[ ] 稳定 error.code 表</li>
+<li>[x] <code>vault create|which|info|check|use</code></li>
+<li>[x] <code>tree</code></li>
+<li>[x] <code>paper list|get|paths|delete|set-read|download|parse</code></li>
+<li>[x] <code>import id|bib</code>、<code>export bib</code></li>
+<li>[x] 全局 <code>--vault</code> / env / 上溯 / <code>--json</code> / 退出码</li>
+<li>[x] 稳定 error.code 表</li>
 </ul>
 <h3 id="_6">随后<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
 <ul>

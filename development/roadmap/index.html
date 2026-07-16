@@ -122,6 +122,26 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#clivault-headless">CLI：Vault 管理与发现（headless）</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#vault">Vault 采纳：现有文件夹自动发现与整理</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#_2">目标</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_3">触发点</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_4">双路径（均可；可组合）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_5">发现维度（初稿）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_6">改造动作分级</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_7">关键交付</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_8">验收标准</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_9">风险与纪律</a>
+    </li>
+        </ul>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#4-later">4. Later</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#5">5. 主要里程碑</a>
@@ -140,7 +160,9 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#milestone-g">Milestone G：文献引用可探索 ⏳</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#milestone-hcli">Milestone H：CLI 可脚本化 ⏳</a>
+    <li class="toctree-l3"><a class="reference internal" href="#milestone-hcli-mvp">Milestone H：CLI 可脚本化 ✅ MVP</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#milestone-i">Milestone I：现有文件夹可采纳 ⏳</a>
     </li>
         </ul>
     </li>
@@ -245,8 +267,13 @@
 </tr>
 <tr>
 <td><strong>CLI（headless Vault 接口）</strong></td>
-<td>⏳ 设计定稿</td>
-<td>设计见 <a href="../cli/"><code>cli.md</code></a>；代码目录 <strong><code>cli/</code></strong>；<strong>不迁 core</strong>，path 依赖 <code>agentero_lib::services</code>；Vault 创建/发现/暴露 + 文献基础；<strong>无 BYOA / 无精读编排</strong>；Agent 友好 <code>--json</code>。</td>
+<td>✅ MVP</td>
+<td>设计见 <a href="../cli/"><code>cli.md</code></a>；代码 <strong><code>cli/</code></strong> + workspace；path 依赖 <code>agentero_lib</code>；<code>vault</code>/<code>tree</code>/<code>paper</code>/<code>import</code>/<code>export</code>/<code>config</code>；<strong>无 BYOA</strong>；<code>cargo build -p agentero-cli</code>。graph/doctor 仍待 P1。</td>
+</tr>
+<tr>
+<td><strong>Vault 采纳 / 现有文件夹整理</strong></td>
+<td>⏳ 待设计</td>
+<td>打开非标准或半结构目录时 <strong>自动发现与改造</strong> 为 Agentero Vault（脚手架 + catalog + paper 单元识别）；<strong>编程路径</strong>（确定性扫描/迁移）与 <strong>Skill + Agent 路径</strong> 均可；不静默覆盖用户文件。</td>
 </tr>
 <tr>
 <td>Release CI</td>
@@ -502,29 +529,153 @@
 </ul>
 <p>关键交付：</p>
 <ul>
-<li>[ ] 根 <code>Cargo.toml</code> workspace：<code>members = ["src-tauri", "cli"]</code>。</li>
-<li>[ ] <strong><code>cli/</code></strong> crate（package <code>agentero-cli</code>，bin <strong><code>agentero</code></strong>）+ clap 命令树。</li>
-<li>[ ] 按需放宽 <code>services::*</code> 可见性（<code>pub</code> / re-export），<strong>不搬迁模块</strong>。</li>
-<li>[ ] <strong>Vault</strong>：<code>create</code> / <code>which</code> / <code>info</code> / <code>check</code> / <code>use</code>；<code>--vault</code> / <code>AGENTERO_VAULT</code> / cwd 上溯 / default_vault。</li>
-<li>[ ] <strong>发现与暴露</strong>：<code>tree</code>；<code>paper list|get|paths</code>（<code>get</code> 含 <code>assets</code> + <code>suggestedReads</code>，对齐渐进披露）。</li>
-<li>[ ] <strong>文献基础</strong>：<code>import id|bib</code>、<code>export bib</code>、<code>paper download|parse|delete|set-read</code>（仅 catalog 字段；<strong>无</strong>自动精读）。</li>
-<li>[ ] 全局 <code>--json</code> / 退出码 / 稳定 <code>error.code</code>（Agent 友好）。</li>
+<li>[x] 根 <code>Cargo.toml</code> workspace：<code>members = ["src-tauri", "cli"]</code>。</li>
+<li>[x] <strong><code>cli/</code></strong> crate（package <code>agentero-cli</code>，bin <strong><code>agentero</code></strong>）+ clap 命令树。</li>
+<li>[x] 按需放宽 <code>services::*</code> 可见性（<code>pub</code> / re-export），<strong>不搬迁模块</strong>。</li>
+<li>[x] <strong>Vault</strong>：<code>create</code> / <code>which</code> / <code>info</code> / <code>check</code> / <code>use</code>；<code>--vault</code> / <code>AGENTERO_VAULT</code> / cwd 上溯 / default_vault。</li>
+<li>[x] <strong>发现与暴露</strong>：<code>tree</code>；<code>paper list|get|paths</code>（<code>get</code> 含 <code>assets</code> + <code>suggestedReads</code>，对齐渐进披露）。</li>
+<li>[x] <strong>文献基础</strong>：<code>import id|bib</code>、<code>export bib</code>、<code>paper download|parse|delete|set-read</code>（仅 catalog 字段；<strong>无</strong>自动精读）。</li>
+<li>[x] 全局 <code>--json</code> / 退出码 / 稳定 <code>error.code</code>（Agent 友好）。</li>
 <li>[ ] 可选随后：<code>graph backlinks|export|rebuild</code>、<code>doctor</code>、shell completions。</li>
-<li>[ ] 文档：README 构建说明；Release 可选附带 <code>agentero</code> 二进制。</li>
+<li>[x] 文档：README 构建说明；Release 可选附带 <code>agentero</code> 二进制（仍待）。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
-<li>[ ] <code>cargo build -p agentero-cli</code>（或等价）产出 <code>agentero</code>。</li>
-<li>[ ] <code>agentero vault create &lt;path&gt;</code> 脚手架与 Host <code>vault_create</code> 一致（含 catalog，无默认 PAPERS.md）。</li>
-<li>[ ] 在已有 Vault 上 <code>paper list --json</code> / <code>paper get &lt;id&gt; --json</code> 与 catalog 语义一致。</li>
-<li>[ ] <code>import id 1706.03762 --json</code> 写入 catalog + 资源路径，<strong>不</strong>调用 Agent、不重写用户 NOTES 精读体。</li>
-<li>[ ] 无 GUI 时，外部 Agent / 脚本可仅凭 CLI + 读文件完成「摸库 → 入库 → 自己写 NOTES」。</li>
+<li>[x] <code>cargo build -p agentero-cli</code>（或等价）产出 <code>agentero</code>。</li>
+<li>[x] <code>agentero vault create &lt;path&gt;</code> 脚手架与 Host <code>vault_create</code> 一致（含 catalog，无默认 PAPERS.md）。</li>
+<li>[x] 在已有 Vault 上 <code>paper list --json</code> / <code>paper get &lt;id&gt; --json</code> 与 catalog 语义一致。</li>
+<li>[x] <code>import id</code> / <code>export bib</code> 对齐 Host service（<strong>不</strong>调用 Agent；集成测试覆盖离线路径）。</li>
+<li>[x] 无 GUI 时，外部 Agent / 脚本可仅凭 CLI + 读文件完成「摸库 → 入库 → 自己写 NOTES」。</li>
 </ul>
 <p>非目标（本里程碑明确不做）：</p>
 <ul>
-<li>[ ] ~~<code>agent run</code> / BYOA / paper-reader / 自动写精读 NOTES~~</li>
-<li>[ ] ~~抽离 <code>agentero-core</code> crate~~（远期可选，非本里程碑）</li>
-<li>[ ] ~~daemon / <code>serve</code>~~</li>
+<li>[x] ~~<code>agent run</code> / BYOA / paper-reader / 自动写精读 NOTES~~</li>
+<li>[x] ~~抽离 <code>agentero-core</code> crate~~（远期可选，非本里程碑）</li>
+<li>[x] ~~daemon / <code>serve</code>~~</li>
+</ul>
+<h2 id="vault">Vault 采纳：现有文件夹自动发现与整理<a class="headerlink" href="#vault" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>与 <strong>Create Vault（空库脚手架）</strong>、<strong>CLI <code>vault create</code></strong> 互补：用户打开的是 <strong>已有资料夹</strong>（散落 PDF、Markdown 笔记、Zotero 导出、半 Agentero 结构等），产品应 <strong>发现 → 计划 → 改造</strong>，而非只能「从零创建」。</p>
+</blockquote>
+<h3 id="_2">目标<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<p>打开（或 CLI 指定）一个文件夹时：</p>
+<ol>
+<li><strong>发现</strong>当前目录像什么（空壳 / 已是合法 Vault / 缺 catalog / 仅 PDF 堆 / 混杂笔记 / 未知）。</li>
+<li><strong>整理与改造</strong>为符合 data-model 的 Vault：<code>papers/</code>·<code>notes/</code>·<code>plans/</code>、<code>.agentero/catalog.sqlite</code>、paper 最小单元、可选 <code>AGENTS.md</code> / skills 种子。</li>
+<li>过程 <strong>可解释、可预览、可撤销或至少可报告</strong>；默认 <strong>不覆盖</strong> 用户手写笔记与已有 Markdown。</li>
+</ol>
+<h3 id="_3">触发点<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>入口</th>
+<th>行为（规划）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>桌面 <strong>打开文件夹</strong></td>
+<td>打开后跑发现；若非「就绪 Vault」→ 提示整理计划或后台任务</td>
+</tr>
+<tr>
+<td>桌面 <strong>欢迎页 / Open</strong></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>CLI（落地后）</td>
+<td><code>agentero vault adopt &lt;path&gt;</code> / <code>vault check --fix</code> 等（命名实现时定）</td>
+</tr>
+<tr>
+<td>用户手动</td>
+<td>设置或命令面板「整理此文件夹为 Vault」</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_4">双路径（均可；可组合）<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>路径</th>
+<th>适用</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. 编程（确定性）</strong></td>
+<td>结构清晰、规则可写死</td>
+<td>Host/CLI：扫描 PDF/目录名/arXiv 模式、补脚手架、<code>ensure_catalog</code>、历史 <code>metadata.json</code> 导入、paper 文件夹识别、可选批量 <code>paper_download_assets</code> / parse；输出 diff 清单</td>
+</tr>
+<tr>
+<td><strong>B. Skill + Agent</strong></td>
+<td>命名混乱、多来源混杂、需语义归类</td>
+<td>Vault skill（如 <code>vault-adopt</code> / <code>vault-organize</code>）+ BYOA：读发现报告 → 提议移动/命名/NOTES 壳 → <strong>用户确认后</strong>落盘；可与 CLI/编程 API 配合执行机械步骤</td>
+</tr>
+<tr>
+<td><strong>组合（推荐）</strong></td>
+<td>默认产品路径</td>
+<td>编程先产 <strong>发现报告 + 安全脚手架</strong>；不确定项交给 Agent skill 或人工确认面板</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_5">发现维度（初稿）<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>是否已有 <code>.agentero/catalog.sqlite</code>、schema 版本、能否打开。</li>
+<li>是否已有 <code>papers/</code> / <code>notes/</code> / <code>plans/</code> / <code>AGENTS.md</code> / <code>.agents/skills</code>。</li>
+<li><code>papers/</code> 下 paper 单元候选（含 <code>NOTES.md</code> / <code>source/</code> / 根 PDF 等标记）。</li>
+<li>散落 PDF（根目录或任意子树）与可抽取标识符（arXiv/DOI）。</li>
+<li>已有 Markdown 笔记是否应归入 <code>notes/</code> 而非 paper。</li>
+<li>与 catalog 的漂移（盘上有、库中无 / 库中有、盘上无）。</li>
+</ul>
+<h3 id="_6">改造动作分级<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>级别</th>
+<th>示例</th>
+<th>默认</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>安全自动</strong></td>
+<td>建缺失空目录、<code>ensure_catalog</code>、schema migrate、种子缺失的 <code>AGENTS.md</code>/skills（不覆盖）</td>
+<td>可默认开</td>
+</tr>
+<tr>
+<td><strong>建议确认</strong></td>
+<td>散落 PDF → <code>papers/&lt;id|citekey&gt;/</code>、生成 NOTES 壳、catalog upsert</td>
+<td>计划面板 / <code>--yes</code> / Agent 确认</td>
+</tr>
+<tr>
+<td><strong>禁止静默</strong></td>
+<td>覆盖用户 NOTES、删除文件、大范围重命名无备份</td>
+<td>必须显式</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_7">关键交付<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 设计文档：<code>docs/development/vault-adopt.md</code>（或 backend 分册）：发现模型、报告 JSON、与 <code>vault_create</code> 边界。</li>
+<li>[ ] <strong>编程路径</strong>：<code>vault_inspect</code> / <code>vault_adopt</code>（Host + 可选 CLI）→ 发现报告 + 安全脚手架 + 可选确认后迁移。</li>
+<li>[ ] <strong>Skill 路径</strong>：模板 skill（如 <code>vault-organize</code>）描述如何读报告、提议整理、调用 CLI/不直接蛮力 <code>rm</code>。</li>
+<li>[ ] 打开文件夹 UX：非就绪 Vault 时横幅/对话框「可整理」+ 进度进后台任务条。</li>
+<li>[ ] 幂等：重复打开同一已整理库不重复打扰；报告可缓存于 <code>.agentero/</code>（可删重建）。</li>
+<li>[ ] 与现有 <strong>catalog 从 metadata.json 导入</strong>、Create Vault 种子逻辑复用，避免第三套写盘规则。</li>
+</ul>
+<h3 id="_8">验收标准<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 打开「仅含若干 PDF 的普通文件夹」可得到发现报告，并在用户确认后形成合法 Vault + catalog 行（至少路径与标题/id 尽力填充）。</li>
+<li>[ ] 打开「已是完整 Agentero Vault」时发现为就绪，<strong>无</strong>破坏性改动、无多余弹窗（或仅首次静默 check）。</li>
+<li>[ ] 缺 catalog 的半结构库可自动 <code>ensure_catalog</code> + 扫描 paper 单元补行，不覆盖已有 NOTES。</li>
+<li>[ ] Agent skill 路径：在有默认 Agent 时可根据报告给出整理计划并经确认执行；无 Agent 时编程路径仍可用。</li>
+</ul>
+<h3 id="_9">风险与纪律<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Local-first：改造结果仍是普通文件 + catalog，可被 Obsidian 打开。</li>
+<li>不覆盖用户手写；大改前 plan / dry-run。</li>
+<li>Agent 路径不得绕过权限模式；破坏性操作走确认。</li>
+<li>与 V0.5 本地 PDF importer、Zotero 迁移工具边界写清（采纳 = 整夹变 Vault；importer = 单次导入源）。</li>
 </ul>
 <h2 id="4-later">4. Later<a class="headerlink" href="#4-later" title="Permanent link">&para;</a></h2>
 <p>这些能力不进入 MVP 主线，但可在上述版本之后继续规划：</p>
@@ -558,8 +709,10 @@
 <p>包含 V0.6。完成后，用户可以标签页管理打开的文档，并分屏并排阅读/笔记。</p>
 <h3 id="milestone-g">Milestone G：文献引用可探索 ⏳<a class="headerlink" href="#milestone-g" title="Permanent link">&para;</a></h3>
 <p>包含 V0.7。完成后，用户可 hover 文内引用看 Info、浏览引用邻域，并用 Agent 沿引用链探索与入库。</p>
-<h3 id="milestone-hcli">Milestone H：CLI 可脚本化 ⏳<a class="headerlink" href="#milestone-hcli" title="Permanent link">&para;</a></h3>
-<p>包含 <strong>CLI（headless）</strong>（<a href="../cli/"><code>cli.md</code></a>）。完成后，人与外部 Agent 可在无 GUI 下创建/发现 Vault、列表与入库文献基础能力；<strong>不含</strong> BYOA。代码在 <code>cli/</code>，复用 <code>agentero_lib</code> services，不迁 core。</p>
+<h3 id="milestone-hcli-mvp">Milestone H：CLI 可脚本化 ✅ MVP<a class="headerlink" href="#milestone-hcli-mvp" title="Permanent link">&para;</a></h3>
+<p>包含 <strong>CLI（headless）</strong>（<a href="../cli/"><code>cli.md</code></a>）。<strong>MVP 已落地</strong>：人与外部 Agent 可在无 GUI 下创建/发现 Vault、列表与入库文献基础能力；<strong>不含</strong> BYOA。代码在 <code>cli/</code>，复用 <code>agentero_lib</code> services，不迁 core。P1：<code>graph</code> / <code>doctor</code> / completions。</p>
+<h3 id="milestone-i">Milestone I：现有文件夹可采纳 ⏳<a class="headerlink" href="#milestone-i" title="Permanent link">&para;</a></h3>
+<p>包含 <strong>Vault 采纳 / 整理</strong>。完成后，打开非标准或半结构目录时可自动发现并（在安全范围内或经确认后）改造为 Agentero Vault；支持 <strong>编程路径</strong> 与 <strong>Skill + Agent 路径</strong>，二者可组合。</p>
 <h2 id="6-todo">6. 主要 TODO 总表<a class="headerlink" href="#6-todo" title="Permanent link">&para;</a></h2>
 <h3 id="p0">近期优先级 P0<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h3>
 <ul>
@@ -579,7 +732,8 @@
 <li>[ ] Agent 写入草稿确认与拒绝路径。</li>
 <li>[ ] Tauri Store 替代当前 localStorage 中的最近 Vault / UI 偏好。</li>
 <li>[ ] 文件监听与索引增量刷新。</li>
-<li>[ ] <strong>CLI MVP</strong>（设计已定稿 <a href="../cli/"><code>cli.md</code></a>）：<code>cli/</code> + workspace；<code>vault</code> / <code>tree</code> / <code>paper</code> / <code>import</code> / <code>export</code>；<code>--json</code>；path 复用 services，<strong>不迁 core、无 Agent</strong>。</li>
+<li>[x] <strong>CLI MVP</strong>（<a href="../cli/"><code>cli.md</code></a>）：<code>cli/</code> + workspace；<code>vault</code> / <code>tree</code> / <code>paper</code> / <code>import</code> / <code>export</code> / <code>config</code>；<code>--json</code>；path 复用 services，<strong>不迁 core、无 Agent</strong>。</li>
+<li>[ ] <strong>Vault 采纳（发现）</strong>：打开文件夹时 inspect——合法 Vault / 半结构 / 散落 PDF / 未知；安全自动项（ensure catalog、缺目录脚手架、不覆盖种子）。</li>
 </ul>
 <h3 id="p1">中期优先级 P1<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h3>
 <ul>
@@ -595,6 +749,7 @@
 <li>[ ] <strong>引用关系图 / Connected Papers 式邻域</strong>（cites / cited_by 缓存 + 列表/简图）（V0.7-B）。</li>
 <li>[ ] <strong>Agent 引用工作流</strong>：Explore citations / Map related work / Ingest neighborhood（V0.7-C）。</li>
 <li>[ ] CLI 增强：<code>graph *</code>、<code>doctor</code>、shell completions；Release 附带 <code>agentero</code> 二进制。</li>
+<li>[ ] <strong>Vault 采纳（整理）</strong>：确认后迁移散落 PDF→paper 单元、catalog 对齐、漂移修复；打开 UX + 后台任务；编程 API + 可选 <code>vault-organize</code> skill。</li>
 <li>[ ] Release 流程补充签名、公证、版本号同步和自动 changelog。</li>
 </ul>
 <h3 id="agent-provider">Agent provider 后续改造<a class="headerlink" href="#agent-provider" title="Permanent link">&para;</a></h3>
@@ -622,6 +777,7 @@
 <ul>
 <li>每个版本都必须保持 Vault 可被外部编辑器打开。</li>
 <li>每个版本都必须避免覆盖用户手写笔记。</li>
+<li><strong>Vault 采纳 / 整理</strong>不得静默覆盖 NOTES 或大范围删改；安全自动项与需确认项分级；Agent 路径须走权限与确认。</li>
 <li>新 importer 不得覆盖用户 <code>NOTES.md</code>；meta 只写 catalog；<code>PAPER.md</code> 可重建；不自动改用户导出的 PAPERS.md。</li>
 <li>Catalog 损坏时依赖备份/export；双链缓存可从 Markdown 重建；历史 <code>metadata.json</code> 可导入。</li>
 <li>图谱和搜索可以使用缓存，但缓存损坏时必须能从 Markdown 重建。</li>

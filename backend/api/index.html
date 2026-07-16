@@ -202,6 +202,8 @@
     </li>
         </ul>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3x-headless-cli">3.x Headless CLI（对照）</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#4">4. 数据模型</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#5">5. 版本与演进</a>
@@ -1594,6 +1596,53 @@ Host (Tauri + Rust)
 </tbody>
 </table>
 <p>前端快捷键（非菜单 emit，见 <code>src/lib/shortcuts.ts</code> / <code>docs/frontend/ui.md</code> §3.1）：<code>⌥⌘R</code> 在 Finder 中显示、<code>⌘⌫</code> 删除选中树项、<code>⇧⌘I</code> 魔棒。</p>
+<h2 id="3x-headless-cli">3.x Headless CLI（对照）<a class="headerlink" href="#3x-headless-cli" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>完整语义见 <a href="../../development/cli/"><code>../development/cli.md</code></a>。CLI <strong>不</strong>走 Tauri invoke，直接 path 依赖 <code>agentero_lib::services</code>（无 BYOA）。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>CLI</th>
+<th>Host service / command 锚点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vault create</code></td>
+<td><code>services::vault::create_vault</code> / <code>vault_create</code></td>
+</tr>
+<tr>
+<td><code>vault which\|info\|check\|use</code></td>
+<td>CLI 自管解析 + catalog <code>ensure_catalog</code> / <code>schema_version</code></td>
+</tr>
+<tr>
+<td><code>tree</code></td>
+<td>磁盘扫描（非 Library 虚拟节点）</td>
+</tr>
+<tr>
+<td><code>paper list\|get\|paths\|delete\|set-read</code></td>
+<td><code>catalog::papers::*</code> / <code>paper_*</code></td>
+</tr>
+<tr>
+<td><code>paper download\|parse</code></td>
+<td><code>lookup::download_paper_assets</code> / <code>pdf_parse::parse_paper_body</code></td>
+</tr>
+<tr>
+<td><code>import id\|bib</code></td>
+<td><code>lookup::import_by_identifier</code> / <code>import_catalog</code></td>
+</tr>
+<tr>
+<td><code>export bib</code></td>
+<td><code>lookup::export_catalog</code>（<code>-o</code>/<code>--out</code> 写文件；全局格式用 <code>--json</code>）</td>
+</tr>
+<tr>
+<td><code>config show\|set</code></td>
+<td><code>~/.config/agentero/config.toml</code>（与 GUI 隔离）</td>
+</tr>
+</tbody>
+</table>
+<p>构建：<code>cargo build -p agentero-cli</code> → bin <code>agentero</code>。</p>
 <h2 id="4">4. 数据模型<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
 <p>完整类型定义见 <code>docs/backend/data-model.md</code>。API 中涉及的核心类型包括：</p>
 <ul>
