@@ -116,9 +116,11 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#_3">关系图谱</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#_4">工作区（规划）</a>
+    </li>
         </ul>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#42-p1">4.2 P1 暂缓</a>
+    <li class="toctree-l3"><a class="reference internal" href="#42-p1">4.2 P1 暂缓 / 后续版本</a>
     </li>
         </ul>
     </li>
@@ -303,10 +305,12 @@
 <li>Motif 作为 <strong>ACP Client</strong> 连接用户本机已安装的 coding agent；<strong>不内置、不捆绑</strong> Agent 二进制或 Claude Agent SDK。</li>
 <li><strong>BYOA（Bring Your Own Agent）</strong>：用户在设置中添加 Agent（预设模板：OpenCode / Gemini CLI / Claude ACP / Codex ACP，或自定义 <code>command</code> + <code>args</code> + <code>env</code>）。模型与 API Key 由各 Agent CLI 自行管理，Motif 不持有模型密钥。</li>
 <li>会话工作目录为当前 Vault 根目录，使 Agent 直接读写本地 Markdown 资产。</li>
-<li>MVP 提供 3 个内置<strong>工作流 prompt</strong>（由 Host 注入，仍由用户选定的 Agent 执行）：</li>
+<li>已落地：<strong>paper-reader 精读</strong>（魔棒/单篇 Download 后自动 + 文件树 Eye 手动；catalog <code>is_read</code>）；全局 Agent <strong>权限模式</strong>（受限 / 自动批准）。</li>
+<li>MVP 仍规划面板可点的内置<strong>工作流 prompt</strong>（由 Host 注入，仍由用户选定的 Agent 执行）：</li>
 <li>总结当前论文。</li>
 <li>基于本地库问答。</li>
 <li>生成带本地路径引用的 Related Work 草稿。</li>
+<li>后续（roadmap V0.7）：沿文献引用链的 Explore citations / Map related work / Ingest neighborhood。</li>
 <li>Agent 读取顺序遵循渐进式披露：<code>AGENTS.md</code> →（catalog/列表或可选导出）→ <code>NOTES.md</code> → <code>highlights.md</code> → <code>PAPER.md</code> → <code>source/</code>，仅在需要时逐层下钻。</li>
 <li>Agent 输出必须展示读取过的文件路径；写回 Vault 前需用户确认（临时草稿 → 正式文件）。</li>
 <li>未检测到可用 Agent 时，设置与 Agent 面板展示安装/配置指引，不阻塞 Vault 与阅读功能。</li>
@@ -317,17 +321,26 @@
 <li>支持在应用内打开 arXiv HTML 或本地 HTML。</li>
 <li>支持基础搜索、缩放、页内定位。</li>
 <li>标注（引文 + 想法）以 <code>highlights.md</code> 落盘，坐标缓存于 <code>.motif/</code>；MVP 提供轻量标注捕获，不做完整 PDF 批注同步系统。</li>
+<li>划词提问 MVP 已落地（<code>asks/*.json</code>）；完整批注同步仍属后续。</li>
 </ul>
 <h4 id="_3">关系图谱<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h4>
 <ul>
-<li>基于 Markdown 双链和论文索引生成图谱。</li>
+<li>基于 Markdown 双链和论文索引生成图谱（<strong>双链图</strong>）。</li>
 <li>节点至少包括 Paper、Note、Concept/Stub。</li>
 <li>点击节点可以打开对应 Markdown。</li>
 <li>图谱数据必须能从本地 Markdown 重建。</li>
 <li>MVP UI 中图谱位于 Backlinks 右侧栏下方，与当前文件反链共享上下文。</li>
+<li><strong>文献引用图</strong>（bibliographic cites/cited_by、Connected Papers 式邻域、文内引用 hover→Info）见 roadmap <strong>V0.7</strong>，与双链 Graph 分离。</li>
 </ul>
-<h3 id="42-p1">4.2 P1 暂缓<a class="headerlink" href="#42-p1" title="Permanent link">&para;</a></h3>
+<h4 id="_4">工作区（规划）<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h4>
 <ul>
+<li>当前中间栏为单槽：打开项互斥替换。</li>
+<li>规划（roadmap <strong>V0.6</strong>）：文档标签页管理打开内容，并支持分屏并排（PDF | NOTES 等）。</li>
+</ul>
+<h3 id="42-p1">4.2 P1 暂缓 / 后续版本<a class="headerlink" href="#42-p1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>文档标签页与分屏（升格为 roadmap V0.6）。</li>
+<li>文献引用关系探索与 hover Paper Info（升格为 roadmap V0.7）。</li>
 <li>Zotero 全量替代能力。</li>
 <li>云同步、多人协作、权限管理。</li>
 <li>浏览器插件。</li>

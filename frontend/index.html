@@ -191,14 +191,15 @@
 <h2 id="_3">布局模型<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
 <li>左侧栏：Vault 文件树（顶部虚拟节点 <strong>Library</strong>；魔棒 / 新建文件 / 文件夹；右键 <strong>在 Finder 中显示</strong> / <strong>删除</strong>）+ 选中论文时底部 <strong>Paper Info</strong>。</li>
-<li>中间栏：无 Vault 时欢迎页；有 Vault 时为 <strong>论文库表格</strong>（Library / 根 / <code>papers/</code>）或 Markdown / PDF / HTML。</li>
+<li>中间栏：<strong>单槽</strong>（当前打开项互斥替换）。无 Vault 时欢迎页；有 Vault 时为 <strong>论文库表格</strong>（Library / 根 / <code>papers/</code>）或 Markdown / PDF / HTML。</li>
 <li>PDF：缩放工具栏 + <code>⌘/Ctrl</code>+滚轮；<strong>划词提问</strong>（迷你卡 + <code>asks/*.json</code> + 锚点对话图标）。</li>
+<li><strong>规划（V0.6）</strong>：文档标签页 + 2 格分屏（与 Agent 面板内的<strong>会话标签</strong>不同）。</li>
 <li>右侧 Notes（Preview）：<strong>仅</strong>打开具体论文且 PDF/HTML 时显示该篇 <code>NOTES.md</code>；论文库视图隐藏。</li>
 <li>可选右侧栏：Agent 或 Backlinks（与左栏同为 <strong>常驻 collapsible</strong>，<code>preserve-pixel-size</code>，互不冲折叠态）。</li>
-<li>Backlinks 右侧栏：上方反链列表，下方 Graph 面板。</li>
+<li>Backlinks 右侧栏：上方反链列表，下方 <strong>双链</strong> Graph 面板（非 bibliographic 引用图；引用图见 roadmap V0.7）。</li>
 <li>多窗口：<code>⌘N</code> 新开窗口，当前 Vault 按窗口隔离（sessionStorage）。</li>
 <li>左下角：后台任务条（下载 / 入库 / 导入导出 / paper-reader 精读等；<code>BackgroundTasksPanel</code>；hover 保持实色不透明）。</li>
-<li>文件树 paper 行：资源不齐 → Download；资源齐且未读 → Eye（精读）。</li>
+<li>文件树 paper 行：资源不齐 → Download；资源齐且未读 → Eye（精读；入库/单篇 Download 亦可<strong>自动</strong>精读）。</li>
 </ul>
 <h2 id="_4">本分区文档<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>

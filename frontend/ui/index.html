@@ -67,6 +67,10 @@
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#31-macos-apple-hig">3.1 快捷键（对齐 macOS / Apple HIG 习惯）</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#311-roadmap-v06">3.1.1 规划：文档标签与分屏（roadmap V0.6）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#312-hover-paper-inforoadmap-v07">3.1.2 规划：文内引用 hover → Paper Info（roadmap V0.7）</a>
+    </li>
     <li class="toctree-l3"><a class="reference internal" href="#32-agent-ai-elements">3.2 Agent 右侧栏（AI Elements）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#33-backlinks-graph">3.3 Backlinks + Graph 右侧栏</a>
@@ -466,8 +470,17 @@
 <li><strong>arXiv</strong>：另从 <code>https://arxiv.org/e-print/{id}</code> 下载并解压 LaTeX 到 <code>source/</code>。  </li>
 <li>详见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>；i18n <code>sidebar:lookup.*</code> / <code>papersLibrary.*</code>；无 Vault 时禁用。</li>
 <li><strong>论文行 Download</strong>：缺本地 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时显示；hover 列出原因 → <code>paper_download_assets</code>（已有资源跳过）。下载后若仍无 TeX 且有 PDF，Host 自动 liteparse 写 <code>PAPER.md</code>。Library 行可对库内全部不完整 paper <strong>批量</strong> Download。</li>
-<li><strong>论文行 Eye（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击 → paper-reader 工作流（<code>agent_run_once</code> + skill；<strong>Codex 用 <code>$paper-reader</code>，Claude 用 <code>/paper-reader</code>，其它靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。进度在左下角后台任务条。</li>
+<li><strong>论文行 Eye（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Codex 用 <code>$paper-reader</code>，Claude 用 <code>/paper-reader</code>，其它靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。魔棒入库 / 单篇 Download 成功后会<strong>自动</strong>同一工作流（批量不连跑）。进度在左下角后台任务条（lookup/download → paperRead）。</li>
 </ul>
+<h3 id="311-roadmap-v06">3.1.1 规划：文档标签与分屏（roadmap V0.6）<a class="headerlink" href="#311-roadmap-v06" title="Permanent link">&para;</a></h3>
+<p>当前中间栏为<strong>单槽</strong>：打开新文件/论文会替换当前内容。规划升级为：</p>
+<ul>
+<li>文档 <strong>tab 栏</strong>（paper / MD / PDF / HTML / Library），可关/切/重排；保留滚动与 PDF 缩放等视图状态。</li>
+<li><strong>2 格分屏</strong>（水平或垂直）：例如 PDF | NOTES、两篇 paper 并排。</li>
+<li>与 Agent 面板 <strong>会话标签</strong> 分离；快捷键与「当前 tab vs 新 tab 打开」策略见落地时更新本表与 <code>shortcuts.ts</code>。</li>
+</ul>
+<h3 id="312-hover-paper-inforoadmap-v07">3.1.2 规划：文内引用 hover → Paper Info（roadmap V0.7）<a class="headerlink" href="#312-hover-paper-inforoadmap-v07" title="Permanent link">&para;</a></h3>
+<p>阅读 PDF/HTML/<code>PAPER.md</code> 时，对文内引用锚点 hover，右侧 Paper Info 展示<strong>被引论文</strong>元信息（库内打开 / 库外缓存 + 入库）。引用邻域图与 Agent 引用工作流见 roadmap V0.7；<strong>不</strong>与 Backlinks 双链 Graph 混为一谈。</p>
 <h3 id="32-agent-ai-elements">3.2 Agent 右侧栏（AI Elements）<a class="headerlink" href="#32-agent-ai-elements" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

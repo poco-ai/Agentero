@@ -1016,7 +1016,10 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata }</code>（更新后的整行）。</li>
 <li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>setPaperIsRead</code>；paper-reader 工作流成功结束后置 <code>true</code>。</li>
-<li><strong>说明</strong>：与 <code>status</code>（入库态）无关；默认 <code>false</code>。文件树在「资源齐全且 <code>is_read === false</code>」时显示眼睛图标。实现：<code>src/lib/paper-read.ts</code>（进度 <code>kind=paperRead</code>）；skill 触发按当前默认 Agent 的 <code>SkillMentionStyle</code>。</li>
+<li><strong>说明</strong>：与 <code>status</code>（入库态）无关；默认 <code>false</code>。触发路径：</li>
+<li><strong>自动</strong>：魔棒 <code>lookup_import</code> / 单篇 <code>paper_download_assets</code> 成功且资源就绪时，前端 <code>maybeAutoRunPaperReader</code>（批量导入/批量 Download 不连跑）。</li>
+<li><strong>手动</strong>：文件树在「资源齐全且 <code>is_read === false</code>」时显示眼睛图标。</li>
+<li>实现：<code>src/lib/paper-read.ts</code>（进度 <code>kind=paperRead</code>；可与 lookup/download 任务衔接）；skill 触发按当前默认 Agent 的 <code>SkillMentionStyle</code>。</li>
 </ul>
 <h4 id="paperlist"><code>paper:list</code>（扩展规划）<a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
 <p>带过滤与分页的列表（尚未实现；现网用 <code>paper_list</code>）。</p>
@@ -1619,15 +1622,23 @@ Host (Tauri + Rust)
 </tr>
 <tr>
 <td>V0.3</td>
-<td>ACP Client + BYOA：<code>agent:list_agents</code> / <code>upsert_agent</code> / <code>discover</code> / 会话与权限 / 工作流。</td>
+<td>ACP Client + BYOA：<code>agent:list_agents</code> / <code>upsert_agent</code> / <code>discover</code> / 会话与权限 / 工作流；<code>paper_set_is_read</code> + paper-reader（自动/手动）。</td>
 </tr>
 <tr>
 <td>V0.4</td>
-<td>增加 <code>graph:*</code> 命令。</td>
+<td>增加 <code>graph:*</code> 命令（双链 / 反链 / 图谱；与 bibliographic 引用图分离）。</td>
 </tr>
 <tr>
 <td>V0.5</td>
 <td>抽象 importer，落地 arxiv 与本地 PDF；新增 <code>pdf:*</code> 命令与可插拔 <code>PdfParser</code>（liteparse 默认 + 云端 MinerU）。</td>
+</tr>
+<tr>
+<td>V0.6</td>
+<td>主要为前端工作区状态（文档 tab / 分屏布局持久化）；Host 侧可选 <code>config</code>/Store 扩展，一般无需新 paper API。</td>
+</tr>
+<tr>
+<td>V0.7</td>
+<td>引用关系：<code>citation:*</code> 或 catalog 扩展表（cites / cited_by 缓存）、远程元数据补全、文内引用解析；与 <code>graph:*</code> 双链 API 并存。</td>
 </tr>
 <tr>
 <td>V0.x</td>
@@ -1638,6 +1649,7 @@ Host (Tauri + Rust)
 <p>后续扩展：
 - <code>importer:import</code> 统一来源入口。
 - <code>lookup:*</code> 与 PDF prepare 共用元数据管道。
+- <code>citation:fetch</code> / <code>citation:list_neighbors</code>（名称待定）：引用/被引邻域与缓存刷新（V0.7）。
 - <code>search:full_text</code> 本地全文搜索。
 - <code>reader:annotations</code> 标注（<code>highlights.md</code>）读写。
 - <code>sync:*</code> 多设备同步（远期）。</p>

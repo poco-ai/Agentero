@@ -217,7 +217,7 @@
 <tr>
 <td>V0.3 Agent 工作流（BYOA）</td>
 <td>🟡 进行中</td>
-<td>通用 ACP Client（OpenCode、Gemini、Claude、Qoder、Grok、自定义）+ Codex 原生 App Server thread/history；<strong>paper-reader 精读</strong>（文件树 Eye + catalog <code>is_read</code>）已落地；其它内置工作流、逐项权限确认、写入草稿确认仍待。</td>
+<td>通用 ACP Client（OpenCode、Gemini、Claude、Qoder、Grok、自定义）+ Codex 原生 App Server thread/history；<strong>paper-reader 精读</strong>（入库/单篇 Download <strong>自动</strong> + 文件树 Eye 手动；catalog <code>is_read</code>）；<strong>全局权限模式</strong>（设置 → Agent：受限 / 自动批准）；其它内置工作流、逐项权限确认 UI、写入草稿确认仍待。</td>
 </tr>
 <tr>
 <td>V0.4 双链、反链与图谱</td>
@@ -293,7 +293,7 @@
 <li>[x] <code>paper_list</code> / <code>paper_get</code>；Library 表格 + 虚拟节点。</li>
 <li>[x] 按需补下：<code>paper_download_assets</code>；paper 行缺 PDF 或 arXiv 缺 TeX 时 Download；<strong>Library 行批量补下全部缺失</strong>。</li>
 <li>[x] <strong>无 TeX 时 liteparse → <code>PAPER.md</code></strong>：下载后自动；<code>paper_parse_body</code>（Download 流程内触发）。</li>
-<li>[x] <strong>paper-reader 精读</strong>：资源齐全且 <code>is_read=false</code> 时文件树 Eye（见 V0.3）。</li>
+<li>[x] <strong>paper-reader 精读</strong>：入库/单篇 Download 后可自动；资源齐全且 <code>is_read=false</code> 时文件树 Eye 手动（见 V0.3）。</li>
 <li>[x] Library 导入/导出：<code>paper_import</code> / <code>paper_export</code>（Translator <code>/import</code> + <code>/export</code>，Zotero JSON 数组）。</li>
 <li>[x] 入库错误行内展示；重复不覆盖用户 <code>NOTES.md</code>。</li>
 <li>[x] 删除 paper / 组织目录：磁盘 <code>remove</code> + catalog <code>paper_delete</code>（含嵌套 path）。</li>
@@ -326,13 +326,17 @@
 <li>[x] BYOA 注册表：预设模板 + 自定义 <code>command</code> / <code>args</code> / <code>env</code>；默认 agent 选择。</li>
 <li>[x] 可执行文件探测与空状态安装指引（Motif <strong>不打包</strong> agent 二进制）。</li>
 <li>[x] Composer 上下文：当前文件 chip、<code>@</code> / <code>$</code> 候选的键盘选择、本地会话标签切换。</li>
-<li>[x] Codex 会话配置：仅在 Codex provider 上按 App Server 模型目录显示并应用 reasoning effort 与 Fast；YOLO 保持独立权限开关。</li>
+<li>[x] Codex 会话配置：仅在 Codex provider 上按 App Server 模型目录显示并应用 reasoning effort 与 Fast。</li>
+<li>[x] <strong>全局权限模式</strong>：设置 → Agent（<code>agentPermissionMode</code>：<code>restricted</code> 默认 / <code>autoApprove</code>）；对所有 Agent 生效；经 <code>autoApprove</code> 传入运行；逐项「每次询问」仍待。</li>
 <li>[x] Agent 输出期间 Composer 仍可编辑；按 <code>Esc</code> 会取消当前 ACP session 并保留已输出内容。</li>
 <li>[x] 会话 <code>cwd</code> = 当前 Vault。</li>
 <li>[ ] 工作流 prompt 模板注入 + <code>AGENTS.md</code> 约束。</li>
-<li>[x] <strong>paper-reader 精读工作流</strong>：资源齐全且未读时文件树 Eye → paper-reader skill（<strong>provider 分流：Codex <code>$</code> / Claude <code>/</code> / 其它注入</strong>）→ 写 <code>NOTES.md</code> → catalog <code>is_read=true</code>；左下角任务条进度。</li>
+<li>[x] <strong>paper-reader 精读工作流</strong>：</li>
+<li>魔棒入库 / 单篇 Download 资源就绪且 <code>is_read=false</code> 时<strong>自动</strong>启动（<code>maybeAutoRunPaperReader</code>；批量导入/批量 Download <strong>不</strong>连跑）。</li>
+<li>资源齐全且未读时文件树 <strong>Eye</strong> 可手动重跑。</li>
+<li>skill（<strong>provider 分流：Codex <code>$</code> / Claude <code>/</code> / 其它注入</strong>）→ 写 <code>NOTES.md</code> → catalog <code>is_read=true</code>；左下角任务条（入库/下载 → 精读衔接）。</li>
 <li>[x] <strong>Skill 提及按 Agent 模板</strong>：Host <code>SkillMentionStyle</code>（<code>skills.rs</code>）；Composer <code>$</code> 仅为 UI 选 skill。</li>
-<li>[ ] 内置工作流：总结当前论文（面板入口）、基于本地库问答、生成 Related Work 草稿。</li>
+<li>[ ] 内置工作流：总结当前论文（面板入口）、基于本地库问答、生成 Related Work 草稿（引用类 workflow 见 V0.7）。</li>
 <li>[x] Agent 读取路径回显（Sources）。</li>
 <li>[x] 密钥边界：模型 API Key 由 Agent CLI 管理，Motif 不要求模型 BYOK 表单。</li>
 </ul>
@@ -342,15 +346,17 @@
 <li>[x] 未安装 Agent 时有清晰空状态与配置入口，应用其余功能可用。</li>
 <li>[x] Agent 问答展示读取过的本地文件路径（Agent 返回 Sources 时）。</li>
 <li>[x] 下载完成且未读的 paper 行显示 Eye；点击后精读并标记已读。</li>
+<li>[x] 魔棒/单篇 Download 成功后可自动进入精读（有默认 Agent 时）。</li>
 <li>[ ] Related Work 草稿必须包含本地路径引用。</li>
 <li>[ ] Agent 失败或用户拒绝写入时，不会覆盖已有 Markdown。</li>
 </ul>
 <p>细化 TODO：</p>
 <ul>
-<li>[x] paper-reader：文件树 Eye + <code>is_read</code> + 后台任务进度。</li>
+<li>[x] paper-reader：自动触发 + 文件树 Eye + <code>is_read</code> + 后台任务进度。</li>
+<li>[x] 全局权限模式替代 per-provider YOLO 开关。</li>
 <li>[ ] 把“总结当前论文 / 本地库问答 / Related Work”做成 Agent 面板可点击 workflow。</li>
 <li>[ ] 将 <code>AGENTS.md</code> 自动注入 workflow prompt，并在缺失时提示初始化。</li>
-<li>[ ] 接入 ACP 权限确认 UI，而不是自动选择或静默处理。</li>
+<li>[ ] 接入 ACP 权限确认 UI（「每次询问」档），而不是仅取消或自动选第一项。</li>
 <li>[ ] 写入草稿使用 diff/preview 确认后落盘。</li>
 <li>[x] Codex 会话恢复：按 Vault 过滤原生 Codex thread，恢复后继续使用同一 thread id。</li>
 <li>[ ] 为通用 ACP provider 定义持久 runtime 与原生 history 契约；当前 ACP 会话仍是一次性连接。</li>
@@ -516,6 +522,8 @@
 <li>[x] 文件树：Finder 显示、删除 + <code>paper_delete</code>、左右侧栏隔离。</li>
 <li>[x] PDF 缩放（工具栏 / <code>⌘</code>+滚轮）。</li>
 <li>[x] PDF 划词提问 MVP（M1–M4；见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>）。</li>
+<li>[x] paper-reader 精读：自动（入库/单篇 Download）+ Eye 手动；<code>is_read</code>；任务条进度。</li>
+<li>[x] Agent 全局权限模式（受限 / 自动批准）。</li>
 <li>[ ] Agent 关键词候选 / 自然语言入库闭环。</li>
 <li>[ ] Agent workflow prompt：总结当前论文、本地库问答、Related Work。</li>
 <li>[ ] Agent 写入草稿确认与拒绝路径。</li>
@@ -543,8 +551,8 @@
 <li>[ ] Claude Code：评估官方 SDK / 原生 session resume，保存 native session id，接入其历史和权限请求；不能时继续走 ACP 单轮模式。</li>
 <li>[ ] OpenCode：使用其原生 session API / ACP 能力确认持久会话、模型目录、权限与 history 的可用接口。</li>
 <li>[ ] Gemini CLI：确认 experimental ACP 的 session lifecycle 和恢复语义；在稳定前仅提供一次性 ACP run。</li>
-<li>[ ] Qoder CLI、Grok Build 与 Custom ACP：只暴露 ACP 已声明的能力；增加 capability discovery，避免展示不受支持的模型、effort、Fast、YOLO 或 history 控件。</li>
-<li>[ ] 建立 provider capability contract：<code>persistentRuntime</code>、<code>nativeHistory</code>、<code>modelCatalog</code>、<code>reasoningEffort</code>、<code>serviceTier</code>、<code>permissionRequests</code>、<code>skillPicker</code>。Composer 仅按当前 provider 的能力显示对应组件。</li>
+<li>[ ] Qoder CLI、Grok Build 与 Custom ACP：只暴露 ACP 已声明的能力；增加 capability discovery，避免展示不受支持的模型、effort、Fast 或 history 控件。</li>
+<li>[ ] 建立 provider capability contract：<code>persistentRuntime</code>、<code>nativeHistory</code>、<code>modelCatalog</code>、<code>reasoningEffort</code>、<code>serviceTier</code>、<code>permissionRequests</code>、<code>skillPicker</code>。Composer 仅按当前 provider 的能力显示对应组件；<strong>全局权限模式</strong>已对所有 Agent 生效，不在 per-provider 能力表重复。</li>
 </ul>
 <h3 id="p2">长期优先级 P2<a class="headerlink" href="#p2" title="Permanent link">&para;</a></h3>
 <ul>

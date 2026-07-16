@@ -182,17 +182,19 @@
 </table>
 <h2 id="ui">当前 UI 形态<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h2>
 <ul>
-<li>默认工作台：文件树 + 中间内容 +（按需）Notes + 可选右侧栏。</li>
+<li>默认工作台：文件树 + <strong>单槽</strong>中间内容 +（按需）Notes + 可选右侧栏。</li>
 <li>文件树顶部有虚拟节点 <strong>Library</strong>；中间栏可展示 catalog <strong>论文库表格</strong>（排序、双向滚动），数据来自 <code>paper_list</code>。</li>
 <li>文件树：双击 / 右键 / <code>⌥⌘R</code> <strong>在 Finder 中显示</strong>；右键 / <code>⌘⌫</code> <strong>删除</strong>（<code>papers/</code> 同步 <code>paper_delete</code>）。</li>
 <li><strong>Paper Info / Notes</strong> 仅在选中具体论文时出现；论文库视图不显示。</li>
 <li>无 Vault 时中间栏为欢迎页（最近路径 + 打开 / 创建）；<code>⌘N</code> 可开多窗口。</li>
 <li>可选右侧栏只有两个顶层入口：Agent 与 Backlinks（左右侧栏均为 collapsible 常驻面板，交替快捷键互不冲折叠态）。</li>
-<li>Backlinks 视图上方显示反链，下方显示 Graph；Graph 不是独立顶层 tab。</li>
+<li>Backlinks 视图上方显示反链，下方显示 Graph；Graph 不是独立顶层 tab（<strong>双链图</strong>，非文献引用图）。</li>
 <li>魔棒：侧栏粘贴标识符 → Translator → catalog + <strong>默认下载 PDF</strong>（arXiv 含 LaTeX 解压）。</li>
 <li>补资源：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时 Download（hover 列原因）；Library 行可<strong>批量</strong>补全部缺失。无 TeX 时下载后 liteparse 生成 <code>PAPER.md</code>（见 <a href="backend/identifier-lookup/"><code>backend/identifier-lookup.md</code></a>）。</li>
-<li><strong>精读</strong>：资源齐全且 catalog <code>is_read === false</code> 时 paper 行显示 <strong>Eye</strong>；点击启动 paper-reader（<strong>Codex <code>$</code> / Claude <code>/</code> / 其它注入正文</strong>）→ 写 <code>NOTES.md</code> → <code>is_read=true</code>；进度在左下角任务条（实色 hover，不透明）。</li>
+<li><strong>精读</strong>：魔棒入库 / 单篇 Download 资源就绪后<strong>自动</strong> paper-reader；资源齐全且 <code>is_read === false</code> 时 paper 行仍显示 <strong>Eye</strong> 可手动。Skill 按 provider（<strong>Codex <code>$</code> / Claude <code>/</code> / 其它注入正文</strong>）→ 写 <code>NOTES.md</code> → <code>is_read=true</code>；进度在左下角任务条（入库/下载 → 精读衔接；hover 实色）。</li>
+<li><strong>Agent 权限</strong>：设置 → Agent 全局「权限模式」（受限默认 / 自动批准）；逐项确认仍待。</li>
 <li>PDF 阅读：缩放（工具栏 / <code>⌘</code>+滚轮）；<strong>划词提问</strong> MVP（<code>asks/*.json</code> + 锚点图标，见 <a href="development/pdf-ask/"><code>development/pdf-ask.md</code></a>）。</li>
+<li><strong>规划中</strong>（见 roadmap）：<strong>V0.6</strong> 中间栏文档标签页 + 分屏；<strong>V0.7</strong> 文内引用 hover→Paper Info、Connected Papers 式引用邻域与 Agent 引用工作流。</li>
 <li>实现状态与路线图：<a href="development/roadmap/"><code>development/roadmap.md</code></a>。</li>
 </ul>
 <h2 id="_3">关键三方技术<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
@@ -297,5 +299,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-07-16 03:26:39.121381+00:00
+Build Date UTC : 2026-07-16 03:32:39.076888+00:00
 -->

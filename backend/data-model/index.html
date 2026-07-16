@@ -310,7 +310,7 @@
 <p>权威存储：<strong><code>.motif/catalog.sqlite</code></strong> 的 <code>papers</code> 表。<br />
 字段、schema、导出与实现见 <strong><a href="../catalog/"><code>catalog.md</code></a></strong>。<br />
 UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<code>paper_get</code>）均读 catalog，不扫 <code>metadata.json</code>。</p>
-<p>其中 <strong><code>is_read</code></strong>（bool，schema v3）：是否已完成 <strong>paper-reader</strong> 精读工作流。默认 <code>false</code>；文件树在「本地 PDF +（TeX 或 <code>PAPER.md</code>）齐全且未读」时显示眼睛图标，点击后启动默认 Agent 精读并写入 <code>NOTES.md</code>，成功后置 <code>true</code>。Skill 触发语法按 provider（Codex <code>$</code> / Claude <code>/</code> / 其它注入正文）；进度在左下角后台任务条。</p>
+<p>其中 <strong><code>is_read</code></strong>（bool，schema v3）：是否已完成 <strong>paper-reader</strong> 精读工作流。默认 <code>false</code>。触发：魔棒入库 / 单篇 Download 资源就绪后可<strong>自动</strong>精读；文件树在「本地 PDF +（TeX 或 <code>PAPER.md</code>）齐全且未读」时仍显示眼睛图标供<strong>手动</strong>重跑。成功写入 <code>NOTES.md</code> 后置 <code>true</code>。Skill 触发语法按 provider（Codex <code>$</code> / Claude <code>/</code> / 其它注入正文）；进度在左下角后台任务条（可与入库/下载任务衔接）。</p>
 <p>Vault 技能种子：Create Vault 写入 <code>.agents/skills/paper-reader/SKILL.md</code>（亦可放在 <code>~/.agents/skills</code> / <code>~/.claude/skills</code>）。</p>
 <h3 id="papersmd-librarybib">可选导出：<code>PAPERS.md</code> / <code>library.bib</code><a class="headerlink" href="#papersmd-librarybib" title="Permanent link">&para;</a></h3>
 <table>
@@ -398,7 +398,7 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <li>PDF → <code>{paper}/{id}.pdf</code>（论文文件夹根目录，不在 <code>source/</code> 下）</li>
 <li>arXiv LaTeX → <code>https://arxiv.org/e-print/{id}</code> → 解压进 <code>source/</code>（拒绝路径穿越）</li>
 <li><strong>无 TeX 且有 PDF</strong>：下载流程结束后用 <strong>liteparse</strong> 写 <code>{paper}/PAPER.md</code>，并更新 catalog <code>body_source</code> / <code>body_quality</code>（文本层 <code>pdf</code>+<code>medium</code>；OCR 主导 <code>ocr</code>+<code>low</code>）</li>
-<li>文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 列原因）；Library 行可批量 Download；解析走 Download 后 liteparse / <code>paper_parse_body</code>；资源齐全且 <code>is_read=false</code> → Eye 精读</li>
+<li>文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 列原因）；Library 行可批量 Download；解析走 Download 后 liteparse / <code>paper_parse_body</code>；入库/单篇 Download 后可自动精读；资源齐全且 <code>is_read=false</code> → Eye 手动精读</li>
 </ul>
 <p>正文来源与质量记录在 <strong>catalog</strong> 的 <code>body_source</code> / <code>body_quality</code> 字段。<code>PAPER.md</code> 可删可重建,<code>source/</code> 中的原始文件才是归档事实来源。中间栏 PDF/HTML <strong>预览</strong>仍可走 catalog 远程 URL。</p>
 <h2 id="3">3. 数据类型<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>

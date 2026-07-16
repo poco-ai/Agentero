@@ -120,7 +120,9 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#64">6.4 节点类型与折叠规则</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#65">6.5 不采用</a>
+    <li class="toctree-l3"><a class="reference internal" href="#65">6.5 与文献引用图的边界</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#66">6.6 不采用</a>
     </li>
         </ul>
     </li>
@@ -552,11 +554,19 @@
 <li><strong>Paper 标签</strong>：优先读 catalog <code>papers.title</code>（按 path）；缺失时回退逻辑 id / 文件夹名。</li>
 <li>折叠后自环（同 paper 内文件互链）丢弃。</li>
 </ul>
-<h3 id="65">6.5 不采用<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
+<h3 id="65">6.5 与文献引用图的边界<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
+<p>本设计只覆盖 <strong>Obsidian 式 <code>[[wikilinks]]</code></strong>（用户/Agent 写在 Markdown 里的概念与文件链接）。</p>
+<p><strong>文献引用图</strong>（paper cites / cited_by、Connected Papers 式邻域、文内 <code>[12]</code> hover → Paper Info）是另一条能力线，见 <a href="../../development/roadmap/"><code>../development/roadmap.md</code></a> <strong>V0.7</strong>。二者可在 UI 上对照展示，但：</p>
+<ul>
+<li>数据源不同：双链边来自 Markdown 解析；引用边来自外部 API 或参考文献解析，缓存于 catalog / <code>.motif/</code> 可重建结构。</li>
+<li>API 不同：现有 <code>graph_*</code> 服务双链；引用图使用独立 <code>citation:*</code>（名称待定），不污染双链索引语义。</li>
+</ul>
+<h3 id="66">6.6 不采用<a class="headerlink" href="#66" title="Permanent link">&para;</a></h3>
 <ul>
 <li>为双链替换整个编辑器栈。</li>
 <li>自动改写目标文件插入回链（除非未来产品单独立项）。</li>
 <li>图谱常驻第四主栏或独立顶层 Graph tab（当前默认嵌在 Backlinks 下方）。</li>
+<li>用双链 Graph 冒充 bibliographic 引用关系（引用探索走 V0.7）。</li>
 </ul>
 <hr />
 <h2 id="7-roadmap-v04">7. 实现分期（与 ROADMAP V0.4 对齐）<a class="headerlink" href="#7-roadmap-v04" title="Permanent link">&para;</a></h2>

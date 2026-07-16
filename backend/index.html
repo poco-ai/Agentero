@@ -197,6 +197,8 @@
 <li>启动并管理本地 ACP-compatible Agent，但不托管模型密钥。</li>
 <li>提供 catalog 导出；双链等可重建索引与 catalog 分层清晰。</li>
 <li>标识符魔棒入库：<code>lookup_import</code> 调用 Translator（可配置 base URL）、写 catalog，并<strong>默认下载 PDF</strong>（arXiv 另解压 LaTeX）；<code>paper_download_assets</code> 按需补下；无 TeX 时 <strong>liteparse → <code>PAPER.md</code></strong>（<code>paper_parse_body</code>）；论文库列表 <code>paper_list</code>。</li>
+<li>精读状态：<code>paper_set_is_read</code>（catalog <code>is_read</code>）；前端入库/单篇 Download 后可自动跑 paper-reader。</li>
+<li><strong>双链</strong>索引（<code>graph_*</code>）与规划中的 <strong>文献引用图</strong>（roadmap V0.7）分层；后者不复用双链边语义。</li>
 </ul>
 <h2 id="_3">本分区文档<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
@@ -204,7 +206,7 @@
 <li><a href="data-model/"><code>data-model.md</code></a>：Vault 结构、paper 文件、分层规则、运行时类型。</li>
 <li><a href="catalog/"><code>catalog.md</code></a>：Catalog SQLite schema、导出、Host 实现与迁移。</li>
 <li><a href="identifier-lookup/"><code>identifier-lookup.md</code></a>：魔棒（Identifier Lookup）与 Translator 后端（v0 已落地 + 后续扩展）。</li>
-<li><a href="wikilinks/"><code>wikilinks.md</code></a>：Obsidian 兼容双链语法、反链查询、图谱模型。</li>
+<li><a href="wikilinks/"><code>wikilinks.md</code></a>：Obsidian 兼容双链语法、反链查询、图谱模型（与 V0.7 文献引用图边界见文内 §6.5）。</li>
 </ul>
 <h2 id="_4">交叉引用<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
