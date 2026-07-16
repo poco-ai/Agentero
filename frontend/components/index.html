@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>组件约定 - Motif 文档</title>
+    <title>组件约定 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Motif 文档
+          <a href="../.." class="icon icon-home"> Agentero 文档
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -51,7 +51,7 @@
                   </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">组件约定</a>
     <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#1-motif">1. 约定（Motif）</a>
+    <li class="toctree-l2"><a class="reference internal" href="#1-agentero">1. 约定（Agentero）</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#2">2. 组件总表（按官网）</a>
         <ul>
@@ -69,9 +69,9 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#3-motif">3. Motif 已安装明细</a>
+    <li class="toctree-l2"><a class="reference internal" href="#3-agentero">3. Agentero 已安装明细</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#4-motif">4. Motif 集成要点</a>
+    <li class="toctree-l2"><a class="reference internal" href="#4-agentero">4. Agentero 集成要点</a>
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#41-chat">4.1 Chat 组合（已接线）</a>
     </li>
@@ -136,7 +136,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../..">Motif 文档</a>
+          <a href="../..">Agentero 文档</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -146,7 +146,7 @@
           <li class="breadcrumb-item">前端</li>
       <li class="breadcrumb-item active">组件约定</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/motif/edit/main/docs/frontend/components.md">Edit on poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/frontend/components.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -156,12 +156,12 @@
               
                 <h1 id="ai-elements">AI Elements 组件目录<a class="headerlink" href="#ai-elements" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>Motif 的 Chat / Agent / 文件树等 AI UI <strong>统一使用 <a href="https://elements.ai-sdk.dev/">AI Elements</a></strong>。<br />
-本文档按 <strong><a href="https://elements.ai-sdk.dev/components">elements.ai-sdk.dev/components</a></strong> 的组件目录整理，并标注 Motif 安装与使用状态。</p>
+<p>Agentero 的 Chat / Agent / 文件树等 AI UI <strong>统一使用 <a href="https://elements.ai-sdk.dev/">AI Elements</a></strong>。<br />
+本文档按 <strong><a href="https://elements.ai-sdk.dev/components">elements.ai-sdk.dev/components</a></strong> 的组件目录整理，并标注 Agentero 安装与使用状态。</p>
 </blockquote>
 <p>相关：<code>docs/frontend/ui.md</code> · <code>docs/development/technical-plan.md</code> · 官网 <a href="https://elements.ai-sdk.dev/docs">Docs</a> · <a href="https://elements.ai-sdk.dev/docs/setup">Setup</a></p>
 <hr />
-<h2 id="1-motif">1. 约定（Motif）<a class="headerlink" href="#1-motif" title="Permanent link">&para;</a></h2>
+<h2 id="1-agentero">1. 约定（Agentero）<a class="headerlink" href="#1-agentero" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -184,7 +184,7 @@
 </tr>
 <tr>
 <td>传输层</td>
-<td>Motif <strong>ACP Client</strong>（<code>agent_run_once</code> + 事件流），<strong>不是</strong>默认 <code>useChat</code></td>
+<td>Agentero <strong>ACP Client</strong>（<code>agent_run_once</code> + 事件流），<strong>不是</strong>默认 <code>useChat</code></td>
 </tr>
 <tr>
 <td>业务壳</td>
@@ -212,7 +212,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 <th>组件</th>
 <th>Registry</th>
 <th>说明</th>
-<th>Motif</th>
+<th>Agentero</th>
 </tr>
 </thead>
 <tbody>
@@ -279,7 +279,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 <th>组件</th>
 <th>Registry</th>
 <th>说明</th>
-<th>Motif</th>
+<th>Agentero</th>
 </tr>
 </thead>
 <tbody>
@@ -358,7 +358,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 </tbody>
 </table>
 <blockquote>
-<p>Motif BYOA：模型列表与能力由 <strong>ACP Agent</strong> 通过 session <code>config_options</code>（category: model）上报；Motif 不托管 API Key。Header 切换的是 <strong>ACP 后端</strong>，输入框切换的是 <strong>该 Agent 提供的 model</strong>。</p>
+<p>Agentero BYOA：模型列表与能力由 <strong>ACP Agent</strong> 通过 session <code>config_options</code>（category: model）上报；Agentero 不托管 API Key。Header 切换的是 <strong>ACP 后端</strong>，输入框切换的是 <strong>该 Agent 提供的 model</strong>。</p>
 </blockquote>
 <h3 id="23">2.3 代码与工程<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
 <table>
@@ -367,7 +367,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 <th>组件</th>
 <th>Registry</th>
 <th>说明</th>
-<th>Motif</th>
+<th>Agentero</th>
 </tr>
 </thead>
 <tbody>
@@ -440,7 +440,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 <th>组件</th>
 <th>Registry</th>
 <th>说明</th>
-<th>Motif</th>
+<th>Agentero</th>
 </tr>
 </thead>
 <tbody>
@@ -483,7 +483,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 <th>组件</th>
 <th>Registry</th>
 <th>说明</th>
-<th>Motif</th>
+<th>Agentero</th>
 </tr>
 </thead>
 <tbody>
@@ -526,7 +526,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 <th>组件</th>
 <th>Registry</th>
 <th>说明</th>
-<th>Motif</th>
+<th>Agentero</th>
 </tr>
 </thead>
 <tbody>
@@ -575,7 +575,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 </tbody>
 </table>
 <hr />
-<h2 id="3-motif">3. Motif 已安装明细<a class="headerlink" href="#3-motif" title="Permanent link">&para;</a></h2>
+<h2 id="3-agentero">3. Agentero 已安装明细<a class="headerlink" href="#3-agentero" title="Permanent link">&para;</a></h2>
 <p>路径：<code>src/components/ai-elements/</code></p>
 <table>
 <thead>
@@ -659,7 +659,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 </tbody>
 </table>
 <hr />
-<h2 id="4-motif">4. Motif 集成要点<a class="headerlink" href="#4-motif" title="Permanent link">&para;</a></h2>
+<h2 id="4-agentero">4. Agentero 集成要点<a class="headerlink" href="#4-agentero" title="Permanent link">&para;</a></h2>
 <h3 id="41-chat">4.1 Chat 组合（已接线）<a class="headerlink" href="#41-chat" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">Conversation
   ConversationContent
@@ -711,7 +711,7 @@ PromptInput
 <thead>
 <tr>
 <th>能力</th>
-<th>Motif</th>
+<th>Agentero</th>
 </tr>
 </thead>
 <tbody>
@@ -823,7 +823,7 @@ import {
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
         </span>
     
     

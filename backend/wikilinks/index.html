@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>双链与图谱 - Motif 文档</title>
+    <title>双链与图谱 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Motif 文档
+          <a href="../.." class="icon icon-home"> Agentero 文档
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -176,7 +176,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../..">Motif 文档</a>
+          <a href="../..">Agentero 文档</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -186,7 +186,7 @@
           <li class="breadcrumb-item">后端</li>
       <li class="breadcrumb-item active">双链与图谱</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/motif/edit/main/docs/backend/wikilinks.md">Edit on poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/backend/wikilinks.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -194,17 +194,17 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="motif-obsidian">Motif 双链设计（Obsidian 兼容）<a class="headerlink" href="#motif-obsidian" title="Permanent link">&para;</a></h1>
+                <h1 id="agentero-obsidian">Agentero 双链设计（Obsidian 兼容）<a class="headerlink" href="#agentero-obsidian" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p>状态：<strong>Phase A–B 已实现</strong>（索引 + 反链 + 预览可点）/ <strong>Phase D 基本完成</strong>（GraphPanel + <code>graph_get_graph</code>）/ Phase C 待增强<br />
 相关：<code>docs/development/prd.md</code> · <code>docs/development/technical-plan.md</code> §5.5–5.6 · <code>docs/development/roadmap.md</code> V0.4 · <code>docs/backend/api.md</code> §3.7 · <code>docs/backend/data-model.md</code></p>
 </blockquote>
-<p>本文定义 Motif 如何实现类似 Obsidian 的 <code>[[双链]]</code>：语法、索引、反链、编辑器与开源选型。</p>
+<p>本文定义 Agentero 如何实现类似 Obsidian 的 <code>[[双链]]</code>：语法、索引、反链、编辑器与开源选型。</p>
 <hr />
 <h2 id="1">1. 目标与非目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <h3 id="11">1.1 目标<a class="headerlink" href="#11" title="Permanent link">&para;</a></h3>
 <ul>
-<li>用户在 Markdown 中书写 <code>[[...]]</code>，与 <strong>Obsidian 兼容</strong>，可在 Motif / Obsidian 间互开 Vault。</li>
+<li>用户在 Markdown 中书写 <code>[[...]]</code>，与 <strong>Obsidian 兼容</strong>，可在 Agentero / Obsidian 间互开 Vault。</li>
 <li>点击双链可跳转到 Vault 内目标文件；目标不存在时可创建。</li>
 <li>查看某文件的 <strong>反链（backlinks）</strong>：谁引用了我。</li>
 <li>图谱视图展示节点与 <code>links_to</code> 等边；<strong>可从 Markdown 全量重建</strong>。</li>
@@ -313,7 +313,7 @@
 
 <h3 id="32">3.2 缓存位置<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
 <ul>
-<li>双链边：当前为<strong>内存索引</strong>；后续可落入 <code>.motif/catalog.sqlite</code> 的可重建表（与 <code>papers</code> 权威表区分，见 <a href="../catalog/"><code>catalog.md</code></a> §6）。</li>
+<li>双链边：当前为<strong>内存索引</strong>；后续可落入 <code>.agentero/catalog.sqlite</code> 的可重建表（与 <code>papers</code> 权威表区分，见 <a href="../catalog/"><code>catalog.md</code></a> §6）。</li>
 <li><strong>Paper 标题</strong>：读 catalog <code>papers.title</code>，不读 <code>metadata.json</code>。</li>
 <li>可整删重建（仅边表）：重扫全部 Markdown 中的 <code>[[...]]</code> + join catalog 取 label。</li>
 <li>增量：文件 mtime / fs 事件变化时，仅重算该 <code>source</code> 的出边。</li>
@@ -461,7 +461,7 @@
 </tr>
 </tbody>
 </table>
-<p>Motif 预览侧已用自定义 <code>rewriteWikilinksForPreview</code> + Plate Link；图谱 <strong>不</strong>依赖 remark-wiki-link。</p>
+<p>Agentero 预览侧已用自定义 <code>rewriteWikilinksForPreview</code> + Plate Link；图谱 <strong>不</strong>依赖 remark-wiki-link。</p>
 <h3 id="62">6.2 架构参考（不必整包嵌入）<a class="headerlink" href="#62" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -558,7 +558,7 @@
 <p>本设计只覆盖 <strong>Obsidian 式 <code>[[wikilinks]]</code></strong>（用户/Agent 写在 Markdown 里的概念与文件链接）。</p>
 <p><strong>文献引用图</strong>（paper cites / cited_by、Connected Papers 式邻域、文内 <code>[12]</code> hover → Paper Info）是另一条能力线，见 <a href="../../development/roadmap/"><code>../development/roadmap.md</code></a> <strong>V0.7</strong>。二者可在 UI 上对照展示，但：</p>
 <ul>
-<li>数据源不同：双链边来自 Markdown 解析；引用边来自外部 API 或参考文献解析，缓存于 catalog / <code>.motif/</code> 可重建结构。</li>
+<li>数据源不同：双链边来自 Markdown 解析；引用边来自外部 API 或参考文献解析，缓存于 catalog / <code>.agentero/</code> 可重建结构。</li>
 <li>API 不同：现有 <code>graph_*</code> 服务双链；引用图使用独立 <code>citation:*</code>（名称待定），不污染双链索引语义。</li>
 </ul>
 <h3 id="66">6.6 不采用<a class="headerlink" href="#66" title="Permanent link">&para;</a></h3>
@@ -695,7 +695,7 @@
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
         </span>
     
     

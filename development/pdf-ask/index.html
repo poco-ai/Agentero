@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>PDF 划词提问 - Motif 文档</title>
+    <title>PDF 划词提问 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Motif 文档
+          <a href="../.." class="icon icon-home"> Agentero 文档
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -146,7 +146,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../..">Motif 文档</a>
+          <a href="../..">Agentero 文档</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -156,7 +156,7 @@
           <li class="breadcrumb-item">开发</li>
       <li class="breadcrumb-item active">PDF 划词提问</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/motif/edit/main/docs/development/pdf-ask.md">Edit on poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/pdf-ask.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -244,7 +244,7 @@
 </tr>
 <tr>
 <td>ACP / <code>agent_run_once</code> + <code>agent:stream</code> 等</td>
-<td>问答传输；<strong>不</strong>新建模型 SDK、<strong>不</strong>在 Motif 存 API Key</td>
+<td>问答传输；<strong>不</strong>新建模型 SDK、<strong>不</strong>在 Agentero 存 API Key</td>
 </tr>
 <tr>
 <td>AI Elements（Conversation / Message / PromptInput）</td>
@@ -342,7 +342,7 @@
 <td>污染用户原始 PDF；与 local-first「人可读旁路文件」冲突</td>
 </tr>
 <tr>
-<td>仅存 <code>.motif/catalog.sqlite</code></td>
+<td>仅存 <code>.agentero/catalog.sqlite</code></td>
 <td>问答是人的阅读产物，应可被外部工具打开；JSON 文件更透明</td>
 </tr>
 <tr>
@@ -414,7 +414,7 @@ anchored   ── 写盘；页边圆片；popover 关闭
 <ul>
 <li><strong>事实来源</strong>：<code>asks/&lt;threadId&gt;.json</code>（人产生的问答）。</li>
 <li><strong>可选索引</strong>：<code>asks/index.json</code> 加速页边渲染（仅 id/page/y/preview）；丢失时可扫目录重建。</li>
-<li><strong>不</strong>把全文塞进 <code>.motif/catalog.sqlite</code>；catalog 不承载对话正文。</li>
+<li><strong>不</strong>把全文塞进 <code>.agentero/catalog.sqlite</code>；catalog 不承载对话正文。</li>
 </ul>
 <h3 id="52-json-schema">5.2 线程 JSON Schema（逻辑）<a class="headerlink" href="#52-json-schema" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-ts">/** papers/&lt;id&gt;/asks/&lt;threadId&gt;.json */
@@ -667,7 +667,7 @@ src/lib/pdf-ask/
 <li><strong>渲染</strong>：继续 <code>react-pdf</code> TextLayer，不引入第二套 PDF 引擎。  </li>
 <li><strong>交互</strong>：选区 / 双击 / 悬停三触发 → 迷你问答卡 → 结束变页边圆片。  </li>
 <li><strong>存储</strong>：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>（用户要求的 JSON）；坐标归一化可重建。  </li>
-<li><strong>智能</strong>：复用 ACP BYOA，不在 Motif 内嵌模型 Key。  </li>
+<li><strong>智能</strong>：复用 ACP BYOA，不在 Agentero 内嵌模型 Key。  </li>
 <li><strong>UI</strong>：AI Elements + shadcn；飞书式边注心智，不做完整批注产品首版。  </li>
 <li><strong>与 highlights</strong>：分离；后续可选导出。</li>
 </ol>
@@ -699,7 +699,7 @@ src/lib/pdf-ask/
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
         </span>
     
     

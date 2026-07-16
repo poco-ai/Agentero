@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>技术方案 - Motif 文档</title>
+    <title>技术方案 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Motif 文档
+          <a href="../.." class="icon icon-home"> Agentero 文档
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -212,7 +212,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../..">Motif 文档</a>
+          <a href="../..">Agentero 文档</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -222,7 +222,7 @@
           <li class="breadcrumb-item">开发</li>
       <li class="breadcrumb-item active">技术方案</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/motif/edit/main/docs/development/technical-plan.md">Edit on poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/technical-plan.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -230,7 +230,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="motif-notemd">Motif / notemd 技术方案<a class="headerlink" href="#motif-notemd" title="Permanent link">&para;</a></h1>
+                <h1 id="agentero-notemd">Agentero / notemd 技术方案<a class="headerlink" href="#agentero-notemd" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p>本文档基于 <code>docs/development/prd.md</code>、<code>docs/frontend/ui.md</code>、<code>docs/development/roadmap.md</code> 与当前仓库现状编写，用于指导 MVP 及后续演进的技术选型与模块划分。</p>
 </blockquote>
@@ -239,7 +239,7 @@
 <li><strong>本地优先（Local-first）</strong>：Vault 以 Markdown + 源文件为事实来源，数据库/索引仅作为缓存。</li>
 <li><strong>跨平台但 Mac 优先</strong>：MVP 以 macOS 桌面应用为主，技术栈保留向 iPadOS 扩展的能力。</li>
 <li><strong>Agent-first</strong>：前端为人类提供审阅、编辑、导航界面；后端 Rust 宿主提供文件系统、网络、索引，并以 <strong>ACP Client</strong> 身份连接本机已有 Agent。</li>
-<li><strong>BYOA（Bring Your Own Agent）</strong>：Motif <strong>不内置、不捆绑</strong>任何 coding agent 二进制；通用 provider 使用本机 ACP-compatible CLI（OpenCode、Gemini CLI、Claude ACP 适配器、自定义 command），Codex 使用用户本机的 <code>codex app-server</code>。密钥与模型由各 Agent CLI 自行管理。</li>
+<li><strong>BYOA（Bring Your Own Agent）</strong>：Agentero <strong>不内置、不捆绑</strong>任何 coding agent 二进制；通用 provider 使用本机 ACP-compatible CLI（OpenCode、Gemini CLI、Claude ACP 适配器、自定义 command），Codex 使用用户本机的 <code>codex app-server</code>。密钥与模型由各 Agent CLI 自行管理。</li>
 <li><strong>可迁移</strong>：Vault 离开应用后仍能被 Obsidian、VS Code、Cursor 直接打开。</li>
 </ul>
 <h2 id="2">2. 整体架构<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
@@ -264,7 +264,7 @@
 └───────────────────────────┬─────────────────────────────────┘
 │                           │ Provider runtime (JSON-RPC 2.0 over stdio)
 ┌───────────────────────────▼─────────────────────────────────┐
-│     用户本机已安装的 Agent（BYOA，Motif 不打包）               │
+│     用户本机已安装的 Agent（BYOA，Agentero 不打包）               │
 │  - ACP: OpenCode / Gemini CLI / Claude ACP / 自定义           │
 │  - Native: Codex App Server                                   │
 │  - cwd = 当前 Vault；密钥与模型由 Agent CLI 自行管理          │
@@ -272,7 +272,7 @@
 </code></pre>
 
 <blockquote>
-<p><strong>协议说明</strong>：此处 ACP 指编辑器 ↔ coding agent 的 <a href="https://agentclientprotocol.com/">Agent Client Protocol</a>（stdio 上的 JSON-RPC 2.0），<strong>不是</strong> Linux Foundation 的 REST 风格 ACP。Motif 始终作为 <strong>Client</strong>，Agent CLI 作为 <strong>Server</strong>。</p>
+<p><strong>协议说明</strong>：此处 ACP 指编辑器 ↔ coding agent 的 <a href="https://agentclientprotocol.com/">Agent Client Protocol</a>（stdio 上的 JSON-RPC 2.0），<strong>不是</strong> Linux Foundation 的 REST 风格 ACP。Agentero 始终作为 <strong>Client</strong>，Agent CLI 作为 <strong>Server</strong>。</p>
 </blockquote>
 <h3 id="21-tauri-2">2.1 为什么选 Tauri 2<a class="headerlink" href="#21-tauri-2" title="Permanent link">&para;</a></h3>
 <ul>
@@ -414,7 +414,7 @@
 <tr>
 <td><code>ai</code>（AI SDK 类型）</td>
 <td>可选类型借用</td>
-<td><strong>不</strong>作 Motif 默认 HTTP 传输</td>
+<td><strong>不</strong>作 Agentero 默认 HTTP 传输</td>
 </tr>
 <tr>
 <td>Radix UI / <code>radix-ui</code></td>
@@ -456,7 +456,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </code></pre>
 
 <ul>
-<li><strong>不要</strong>把 Vercel AI SDK 的 <code>useChat</code> HTTP 后端当作 Motif 默认传输层。</li>
+<li><strong>不要</strong>把 Vercel AI SDK 的 <code>useChat</code> HTTP 后端当作 Agentero 默认传输层。</li>
 <li>流式：<code>agent:stream</code>（<code>kind: message | thought</code>）/ <code>agent:completed</code> / <code>agent:failed</code> 映射到 <code>Reasoning</code> + <code>MessageResponse</code> + <code>Sources</code>。</li>
 <li>组件规范与安装：<code>docs/frontend/components.md</code>。</li>
 </ul>
@@ -497,7 +497,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <ol>
 <li>左侧可拖拽伸缩（可折叠）侧边栏展示 Vault 文件树；右侧 Agent/Backlinks 同为 collapsible 常驻面板（避免条件卸载冲掉折叠态）。  </li>
 <li>「Open vault…」通过 <code>@tauri-apps/plugin-dialog</code> 选择本地文件夹。  </li>
-<li>通过 <code>@tauri-apps/plugin-fs</code> 的 <code>readDir</code> 递归构建树；忽略 <code>.git</code> / <code>node_modules</code> / <code>target</code> / <code>dist</code> / <code>.motif</code> 等。  </li>
+<li>通过 <code>@tauri-apps/plugin-fs</code> 的 <code>readDir</code> 递归构建树；忽略 <code>.git</code> / <code>node_modules</code> / <code>target</code> / <code>dist</code> / <code>.agentero</code> 等。  </li>
 <li>点击文本类文件用 <code>readTextFile</code> 载入中间 Markdown 面板（Plate WYSIWYG）；写回 <code>writeTextFile</code>。  </li>
 <li>双击 / 右键 / <code>⌥⌘R</code>：<code>revealItemInDir</code> 在 Finder 中显示；右键 / <code>⌘⌫</code>：确认后 <code>remove</code> + 可选 <code>paper_delete</code>。  </li>
 <li>非 Tauri 环境（纯浏览器 <code>pnpm dev</code>）能力受限；真实读盘需 <code>pnpm tauri dev</code>。  </li>
@@ -761,7 +761,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 <tr>
 <td><code>rusqlite</code>（<code>bundled</code>）</td>
-<td><strong>Catalog</strong>：<code>.motif/catalog.sqlite</code> 论文集合 + metadata；可选 FTS / 双链缓存表</td>
+<td><strong>Catalog</strong>：<code>.agentero/catalog.sqlite</code> 论文集合 + metadata；可选 FTS / 双链缓存表</td>
 </tr>
 </tbody>
 </table>
@@ -779,7 +779,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
     graph.rs       # 图谱节点/边查询
   services/        # 业务逻辑
     vault.rs       # Vault 初始化与校验
-    catalog/       # .motif/catalog.sqlite：schema、papers CRUD、export
+    catalog/       # .agentero/catalog.sqlite：schema、papers CRUD、export
     fs.rs          # 安全文件操作（路径白名单）
     input.rs       # 输入分类、意图解析、候选检索
     importer/      # 入库来源抽象（统一落盘结构与状态契约）
@@ -819,8 +819,8 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <ul>
 <li><strong>路径白名单</strong>：Tauri <code>fs</code> 权限仅允许访问用户显式选择的 Vault 目录及其子目录。</li>
 <li><strong>CSP 配置</strong>：<code>tauri.conf.json</code> 中设置合理的 Content-Security-Policy，限制本地 Webview 加载外部资源。</li>
-<li><strong>密钥边界</strong>：Motif <strong>不持有、不转发</strong> 模型 API Key。认证由用户本机 Agent CLI 自行管理（各 agent 自己的 login / config）。Host 仅持久化 agent 启动参数（command / args / env 中非敏感项）与 UI 偏好；MinerU 等产品侧 BYOK 仍走 <code>tauri-plugin-store</code>（后续可迁系统钥匙串）。</li>
-<li><strong>网络范围</strong>：Agent 网络访问由 agent 进程自身控制；Motif 自身 arXiv 抓取限定于 <code>arxiv.org</code> 域名。</li>
+<li><strong>密钥边界</strong>：Agentero <strong>不持有、不转发</strong> 模型 API Key。认证由用户本机 Agent CLI 自行管理（各 agent 自己的 login / config）。Host 仅持久化 agent 启动参数（command / args / env 中非敏感项）与 UI 偏好；MinerU 等产品侧 BYOK 仍走 <code>tauri-plugin-store</code>（后续可迁系统钥匙串）。</li>
+<li><strong>网络范围</strong>：Agent 网络访问由 agent 进程自身控制；Agentero 自身 arXiv 抓取限定于 <code>arxiv.org</code> 域名。</li>
 </ul>
 <h2 id="45-tauri-store-vs-catalog-sqlite">4.5 本地存储分层：Tauri Store vs Catalog SQLite<a class="headerlink" href="#45-tauri-store-vs-catalog-sqlite" title="Permanent link">&para;</a></h2>
 <p>MVP 涉及两类本地持久化需求，需要明确分层：</p>
@@ -861,7 +861,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <tr>
 <td>存放位置</td>
 <td>应用配置目录（<code>dirs::config_dir</code>）</td>
-<td>Vault 内 <code>.motif/catalog.sqlite</code></td>
+<td>Vault 内 <code>.agentero/catalog.sqlite</code></td>
 </tr>
 <tr>
 <td>损坏处理</td>
@@ -882,7 +882,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <h3 id="51-vault">5.1 Vault 初始化与恢复<a class="headerlink" href="#51-vault" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">用户选择目录
   → Rust: dialog.open({ directory: true })
-  → Rust: 初始化 AGENTS.md / papers / notes / plans / .motif/catalog.sqlite
+  → Rust: 初始化 AGENTS.md / papers / notes / plans / .agentero/catalog.sqlite
   → Rust: store.set('recent-vaults', [...])
   → Frontend: 加载文件树；打开 AGENTS.md 或空状态（无默认 PAPERS.md）
 </code></pre>
@@ -968,11 +968,11 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <li><strong>Demo</strong>：无 Tauri 时前端从 demo vault Markdown 现算图。</li>
 </ul>
 <h3 id="57-agent-acp-client-byoa">5.7 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#57-agent-acp-client-byoa" title="Permanent link">&para;</a></h3>
-<p>Agent 层统一基于 <strong>ACP（Agent Client Protocol）</strong>：Rust Host 作为 <strong>ACP Client</strong>，通过 <code>agent-client-protocol</code> crate 与用户本机 <strong>已安装</strong> 的 Agent 子进程进行 stdio JSON-RPC 通信。Motif <strong>不打包</strong> 任何 agent 二进制。</p>
+<p>Agent 层统一基于 <strong>ACP（Agent Client Protocol）</strong>：Rust Host 作为 <strong>ACP Client</strong>，通过 <code>agent-client-protocol</code> crate 与用户本机 <strong>已安装</strong> 的 Agent 子进程进行 stdio JSON-RPC 通信。Agentero <strong>不打包</strong> 任何 agent 二进制。</p>
 <p><strong>BYOA 原则</strong>：
 - 用户在设置中添加 / 选择 Agent（预设模板或自定义 <code>command</code> + <code>args</code> + <code>env</code>）。
 - 会话 <code>cwd</code> = 当前 Vault 根目录，使 Agent 直接面对 <code>AGENTS.md</code> / <code>papers/</code> 等本地资产（无默认 PAPERS.md）。
-- 模型与 API Key 完全由 Agent CLI 管理；Motif 只负责 Client 侧会话、权限 UX 与工作流 prompt。</p>
+- 模型与 API Key 完全由 Agent CLI 管理；Agentero 只负责 Client 侧会话、权限 UX 与工作流 prompt。</p>
 <pre class="codehilite"><code class="language-text">用户首次打开 Agent 面板 / 进入设置
   → Rust: 读取 agent 注册表；对 PATH 做可执行文件探测
   → Frontend: 若无可用 agent → 空状态（安装指引 + 添加自定义 agent）
@@ -1043,7 +1043,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 - 涉及双链的内容必须保留 <code>[[...]]</code> 格式。
 - Agent 可先查 SQLite 索引加速路由，但最终引用与展示必须落回本地文件路径。</p>
 <h3 id="58-agent-byok">5.8 Agent 配置（注册表，非模型 BYOK）<a class="headerlink" href="#58-agent-byok" title="Permanent link">&para;</a></h3>
-<p>Motif 配置的是 <strong>如何启动本机 Agent</strong>，不是模型 API Key。</p>
+<p>Agentero 配置的是 <strong>如何启动本机 Agent</strong>，不是模型 API Key。</p>
 <table>
 <thead>
 <tr>
@@ -1107,7 +1107,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </table>
 <ul>
 <li>持久化：<code>tauri-plugin-store</code>（或后续等价本地配置）。</li>
-<li><strong>不</strong> 要求用户在 Motif 内填写 <code>CLAUDE_API_KEY</code> / <code>OPENCODE_API_KEY</code> 等模型密钥；若某 agent 需要环境变量，由用户在系统或自定义 <code>env</code> 中自行配置，文档明确风险。</li>
+<li><strong>不</strong> 要求用户在 Agentero 内填写 <code>CLAUDE_API_KEY</code> / <code>OPENCODE_API_KEY</code> 等模型密钥；若某 agent 需要环境变量，由用户在系统或自定义 <code>env</code> 中自行配置，文档明确风险。</li>
 <li>探测：Host 在 PATH（及可选用户指定绝对路径）上检查 <code>command</code> 是否可执行；失败时 UI 展示安装文档链接，不阻塞应用其他功能。</li>
 </ul>
 <h2 id="6-mac-ipados">6. 平台策略：Mac 优先 + iPadOS 扩展<a class="headerlink" href="#6-mac-ipados" title="Permanent link">&para;</a></h2>
@@ -1256,7 +1256,7 @@ pulldown-cmark = &quot;0.12&quot;
 regex = &quot;1&quot;
 liteparse = &quot;2.5&quot;
 agent-client-protocol = &quot;0.2&quot;
-rusqlite = { version = &quot;0.32&quot;, features = [&quot;bundled&quot;] } # Catalog：.motif/catalog.sqlite
+rusqlite = { version = &quot;0.32&quot;, features = [&quot;bundled&quot;] } # Catalog：.agentero/catalog.sqlite
 serde = { version = &quot;1&quot;, features = [&quot;derive&quot;] }
 serde_json = &quot;1&quot;
 thiserror = &quot;1&quot;
@@ -1310,7 +1310,7 @@ tempfile = &quot;3&quot;
 <td><code>keyring</code> crate</td>
 </tr>
 <tr>
-<td>本机 Agent（用户自装，不随 Motif 分发）</td>
+<td>本机 Agent（用户自装，不随 Agentero 分发）</td>
 <td>OpenCode、Gemini CLI、Claude ACP、Codex App Server、自定义 CLI</td>
 </tr>
 <tr>
@@ -1442,7 +1442,7 @@ tempfile = &quot;3&quot;
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
         </span>
     
     

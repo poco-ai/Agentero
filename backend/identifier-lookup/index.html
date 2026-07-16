@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>魔棒与 Translator - Motif 文档</title>
+    <title>魔棒与 Translator - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Motif 文档
+          <a href="../.." class="icon icon-home"> Agentero 文档
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -230,7 +230,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../..">Motif 文档</a>
+          <a href="../..">Agentero 文档</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -240,7 +240,7 @@
           <li class="breadcrumb-item">后端</li>
       <li class="breadcrumb-item active">魔棒与 Translator</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/motif/edit/main/docs/backend/identifier-lookup.md">Edit on poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/backend/identifier-lookup.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -279,7 +279,7 @@
 <ol>
 <li>用户在工具栏点击 <strong>魔棒</strong>（或 <code>⇧⌘I</code>）。</li>
 <li>粘贴 <strong>链接</strong>（如 <code>https://arxiv.org/abs/1706.03762</code>、<code>https://doi.org/10.…</code>）或 <strong>编号</strong>（如 <code>1706.03762</code>、<code>10.1038/…</code>）。</li>
-<li>Motif 用 <strong>本机 Translator Runtime</strong>（Search / 必要 Web）解析出书目元数据。</li>
+<li>Agentero 用 <strong>本机 Translator Runtime</strong>（Search / 必要 Web）解析出书目元数据。</li>
 <li>将条目加入 <strong>Papers</strong>：</li>
 <li><strong>默认目标</strong>：Vault 的 <code>papers/</code> 根下，<code>papers/&lt;id&gt;/</code>。</li>
 <li><strong>上下文目标</strong>：若文件树当前选中（或等价「当前打开」）的是 <code>papers/</code> 下的<strong>组织子文件夹</strong>（非 paper 本体），则写入<br />
@@ -531,7 +531,7 @@
 <td>可作为 <strong>fallback</strong></td>
 </tr>
 <tr>
-<td>B. Motif 进程内嵌 JS 翻译器引擎</td>
+<td>B. Agentero 进程内嵌 JS 翻译器引擎</td>
 <td>零外部进程</td>
 <td>AGPL 传染风险、打包复杂</td>
 <td><strong>不做</strong>（除非产品整体 AGPL）</td>
@@ -550,13 +550,13 @@
 </tr>
 </tbody>
 </table>
-<p><strong>默认策略</strong>：Motif 启动后按需拉起本地 Translator Runtime；不可用时降级到内置轻量客户端（DOI→doi.org/Crossref，arXiv→export API），并在 UI 标明「精简模式」。</p>
+<p><strong>默认策略</strong>：Agentero 启动后按需拉起本地 Translator Runtime；不可用时降级到内置轻量客户端（DOI→doi.org/Crossref，arXiv→export API），并在 UI 标明「精简模式」。</p>
 <h3 id="23-zotero">2.3 与 Zotero 魔棒的对应关系<a class="headerlink" href="#23-zotero" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>Zotero</th>
-<th>Motif</th>
+<th>Agentero</th>
 </tr>
 </thead>
 <tbody>
@@ -586,7 +586,7 @@
 </tr>
 </tbody>
 </table>
-<p>参考实现（上游，不 fork 进 Motif 主仓逻辑）：</p>
+<p>参考实现（上游，不 fork 进 Agentero 主仓逻辑）：</p>
 <ul>
 <li>UI：<a href="https://github.com/zotero/zotero/blob/main/chrome/content/zotero/lookup.js"><code>zotero/zotero</code> <code>lookup.js</code></a></li>
 <li>解析：<a href="https://github.com/zotero/utilities"><code>zotero/utilities</code> <code>extractIdentifiers</code></a></li>
@@ -624,7 +624,7 @@
 <tr>
 <td><strong>arXiv</strong></td>
 <td><code>1706.03762</code>、<code>arXiv:1706.03762v1</code>、abs URL</td>
-<td>arXiv Search Translator 或 Motif arXiv API</td>
+<td>arXiv Search Translator 或 Agentero arXiv API</td>
 </tr>
 <tr>
 <td><strong>ADS Bibcode</strong></td>
@@ -635,7 +635,7 @@
 </table>
 <p>批量：空格、逗号、换行分隔；PMID 可在 Runtime 侧按批合并（Zotero 习惯每批 ≤200）。</p>
 <h3 id="32-zotero-extractidentifiers">3.2 解析优先级（对齐 Zotero <code>extractIdentifiers</code>）<a class="headerlink" href="#32-zotero-extractidentifiers" title="Permanent link">&para;</a></h3>
-<p>对同一段输入文本，<strong>按序</strong>尝试（命中一类后，Zotero 原逻辑会停止后续类型；Motif 建议：</p>
+<p>对同一段输入文本，<strong>按序</strong>尝试（命中一类后，Zotero 原逻辑会停止后续类型；Agentero 建议：</p>
 <ul>
 <li><strong>单条粘贴框</strong>：采用 Zotero 同序，降低数字误识别为 PMID。</li>
 <li><strong>显式多行「每行一个」模式</strong>：逐行独立解析，允许一行 DOI、一行 arXiv 混合。</li>
@@ -675,7 +675,7 @@ interface ParsedIdentifier {
 <tbody>
 <tr>
 <td><code>bundled</code></td>
-<td>Motif 附带/下载 sidecar 二进制或 Docker 镜像说明；Host 管理端口与生命周期</td>
+<td>Agentero 附带/下载 sidecar 二进制或 Docker 镜像说明；Host 管理端口与生命周期</td>
 <td>是（桌面）</td>
 </tr>
 <tr>
@@ -701,7 +701,7 @@ interface ParsedIdentifier {
 </code></pre>
 
 <p><strong>User-Agent</strong>：对外请求应带可识别后缀，例如<br />
-<code>motif-translation/0.1 (+https://github.com/poco-ai/motif; contact@…)</code>，避免伪装成无标识爬虫（与 translation-server README 建议一致）。</p>
+<code>agentero-translation/0.1 (+https://github.com/poco-ai/agentero; contact@…)</code>，避免伪装成无标识爬虫（与 translation-server README 建议一致）。</p>
 <h3 id="42-http-api-translation-server">4.2 HTTP API（与官方 translation-server 对齐）<a class="headerlink" href="#42-http-api-translation-server" title="Permanent link">&para;</a></h3>
 <h4 id="post-search"><code>POST /search</code> — 标识符查元数据（魔棒主路径）<a class="headerlink" href="#post-search" title="Permanent link">&para;</a></h4>
 <ul>
@@ -720,13 +720,13 @@ interface ParsedIdentifier {
 <ul>
 <li><strong>Request</strong>：<code>Content-Type: text/plain</code>，body = 文件全文。  </li>
 <li><strong>Response</strong>：<code>200</code> + <strong>Zotero API JSON 数组</strong>（与 <code>/search</code> 相同 item 形状）。  </li>
-<li>Motif：<code>paper_import</code> → map → catalog + paper 壳。</li>
+<li>Agentero：<code>paper_import</code> → map → catalog + paper 壳。</li>
 </ul>
 <h4 id="post-export-zotero-items-bibtexrislibrary"><code>POST /export</code> — Zotero items → BibTeX/RIS/…（Library 导出已用）<a class="headerlink" href="#post-export-zotero-items-bibtexrislibrary" title="Permanent link">&para;</a></h4>
 <ul>
 <li><strong>Request</strong>：<code>Content-Type: application/json</code>，body = <strong>items 数组</strong>（非单个 object）。  </li>
 <li><strong>Query</strong>：<code>format=bibtex|biblatex|ris|csljson|…</code>  </li>
-<li>Motif：catalog 行先 <code>paper_record_to_zotero_item</code> 再调 <code>/export</code>。</li>
+<li>Agentero：catalog 行先 <code>paper_record_to_zotero_item</code> 再调 <code>/export</code>。</li>
 </ul>
 <h3 id="43">4.3 健康检查与懒启动<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">lookup:search 被调用
@@ -765,7 +765,7 @@ interface ParsedIdentifier {
 </tr>
 <tr>
 <td>fallback 成功</td>
-<td><code>source: 'fallback'</code>，libraryCatalog 填 <code>Motif (Crossref)</code> 等</td>
+<td><code>source: 'fallback'</code>，libraryCatalog 填 <code>Agentero (Crossref)</code> 等</td>
 </tr>
 </tbody>
 </table>
@@ -1090,7 +1090,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <tr>
 <th>组件</th>
 <th>许可（典型）</th>
-<th>Motif 用法</th>
+<th>Agentero 用法</th>
 </tr>
 </thead>
 <tbody>
@@ -1105,7 +1105,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <td>旁路进程；源码按 AGPL 提供或指向上游</td>
 </tr>
 <tr>
-<td>Motif 主应用</td>
+<td>Agentero 主应用</td>
 <td>以仓库 LICENSE 为准</td>
 <td>通过 <strong>HTTP localhost</strong> 调用 sidecar，不把 translators 链进主二进制</td>
 </tr>
@@ -1119,7 +1119,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <h3 id="72">7.2 隐私与网络<a class="headerlink" href="#72" title="Permanent link">&para;</a></h3>
 <ul>
 <li>标识符与查询会发往 <strong>第三方书目服务</strong>（Crossref、PubMed、出版社 DOI 解析等），由各 Translator 决定，<strong>不经 Zotero 公司服务器</strong>（自托管 Runtime 时）。</li>
-<li>Motif 默认 <strong>不</strong>把 Vault 路径或笔记内容发给 Translator Runtime（Search 路径只传 ID）。</li>
+<li>Agentero 默认 <strong>不</strong>把 Vault 路径或笔记内容发给 Translator Runtime（Search 路径只传 ID）。</li>
 <li>遵守目标站 ToS；控制并发与超时；批量入库限流。</li>
 </ul>
 <h3 id="73-local-first">7.3 local-first<a class="headerlink" href="#73-local-first" title="Permanent link">&para;</a></h3>
@@ -1369,7 +1369,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
         </span>
     
     

@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>API 契约 - Motif 文档</title>
+    <title>API 契约 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Motif 文档
+          <a href="../.." class="icon icon-home"> Agentero 文档
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -246,7 +246,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../..">Motif 文档</a>
+          <a href="../..">Agentero 文档</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -256,7 +256,7 @@
           <li class="breadcrumb-item">后端</li>
       <li class="breadcrumb-item active">API 契约</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/motif/edit/main/docs/backend/api.md">Edit on poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/backend/api.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -264,7 +264,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="motif-notemd-api">Motif / notemd 后端 API 规范<a class="headerlink" href="#motif-notemd-api" title="Permanent link">&para;</a></h1>
+                <h1 id="agentero-notemd-api">Agentero / notemd 后端 API 规范<a class="headerlink" href="#agentero-notemd-api" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p>本文档基于 <code>docs/development/technical-plan.md</code>、<code>docs/development/prd.md</code>、<code>docs/development/roadmap.md</code> 编写，定义 Host（Tauri + Rust）暴露给前端的 Tauri invoke 命令与事件。</p>
 </blockquote>
@@ -440,22 +440,22 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>行为</strong></li>
-<li>确保目录存在；脚手架 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.motif/</code>、<strong><code>.agents/</code></strong>、<strong><code>.agents/skills/</code></strong>。</li>
-<li>初始化 <code>.motif/catalog.sqlite</code>（schema 当前版本，含 Translator 元数据列）。详见 <a href="../catalog/"><code>catalog.md</code></a>。</li>
+<li>确保目录存在；脚手架 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agentero/</code>、<strong><code>.agents/</code></strong>、<strong><code>.agents/skills/</code></strong>。</li>
+<li>初始化 <code>.agentero/catalog.sqlite</code>（schema 当前版本，含 Translator 元数据列）。详见 <a href="../catalog/"><code>catalog.md</code></a>。</li>
 <li>写入默认 <code>AGENTS.md</code>（若不存在）。</li>
 <li>写入 <strong><code>.agents/README.md</code></strong>（若不存在；内容来自仓库 <code>templates/vault/.agents/</code>）。</li>
 <li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>；<strong>不</strong>覆盖已有 <code>AGENTS.md</code> / <code>.agents/**</code>。</li>
-<li>最近列表由前端在成功打开后写入 <code>localStorage</code>（<code>motif-recent-vaults</code>）。</li>
+<li>最近列表由前端在成功打开后写入 <code>localStorage</code>（<code>agentero-recent-vaults</code>）。</li>
 </ul>
 <h4 id="window_new"><code>window_new</code>（已实现）<a class="headerlink" href="#window_new" title="Permanent link">&para;</a></h4>
-<p>打开一个新的 Motif 窗口（菜单 <strong>File → New Window</strong> / <code>⌘N</code>）。</p>
+<p>打开一个新的 Agentero 窗口（菜单 <strong>File → New Window</strong> / <code>⌘N</code>）。</p>
 <ul>
 <li><strong>参数</strong>：无</li>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
 <li><strong>行为</strong></li>
-<li>创建 label 为 <code>motif-&lt;uuid&gt;</code> 的 Webview 窗口，URL 带 <code>?fresh=1</code>（不自动恢复上次 Vault）。</li>
+<li>创建 label 为 <code>agentero-&lt;uuid&gt;</code> 的 Webview 窗口，URL 带 <code>?fresh=1</code>（不自动恢复上次 Vault）。</li>
 <li>窗口尺寸 / macOS overlay 标题栏与主窗口一致。</li>
-<li>Capability 覆盖 <code>main</code> 与 <code>motif-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
+<li>Capability 覆盖 <code>main</code> 与 <code>agentero-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
 <li>菜单点击由 Host 直接调用，不经过前端 event 往返。</li>
 </ul>
 <h4 id="vaultopen"><code>vault:open</code>（规划）<a class="headerlink" href="#vaultopen" title="Permanent link">&para;</a></h4>
@@ -482,7 +482,7 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>行为</strong></li>
-<li>校验 Vault 结构（至少存在 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>；确保 <code>.motif/catalog.sqlite</code> 可打开或可初始化）。</li>
+<li>校验 Vault 结构（至少存在 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>；确保 <code>.agentero/catalog.sqlite</code> 可打开或可初始化）。</li>
 <li>打开 catalog、执行 schema migration；若存在历史 <code>papers/*/metadata.json</code> 且 catalog 为空则导入（见 catalog 迁移）。</li>
 <li>启动文件监听（后续）。</li>
 <li>返回完整文件树。</li>
@@ -508,7 +508,7 @@ Host (Tauri + Rust)
 </code></pre>
 
 <ul>
-<li><strong>当前实现</strong>：渲染层 <code>getRecentVaults()</code> / <code>rememberRecentVault()</code> 读写 <code>localStorage</code> 键 <code>motif-recent-vaults</code>（MRU，最多 8 条）。后续迁 Host / Tauri Store 时保持该语义。</li>
+<li><strong>当前实现</strong>：渲染层 <code>getRecentVaults()</code> / <code>rememberRecentVault()</code> 读写 <code>localStorage</code> 键 <code>agentero-recent-vaults</code>（MRU，最多 8 条）。后续迁 Host / Tauri Store 时保持该语义。</li>
 </ul>
 <h4 id="vaultinfo"><code>vault:info</code>（规划）<a class="headerlink" href="#vaultinfo" title="Permanent link">&para;</a></h4>
 <p>获取当前 Vault 元信息。</p>
@@ -902,7 +902,7 @@ Host (Tauri + Rust)
   }
   ```
 - **返回**：`{ ok: true; data: { format, content, count, filename } }`
-- **注意**：`/export` **要求 body 为 Zotero items 数组**，不是 Motif `PaperMetadata` 蛇形字段；转换在 Host `zotero_io::paper_record_to_zotero_item`。
+- **注意**：`/export` **要求 body 为 Zotero items 数组**，不是 Agentero `PaperMetadata` 蛇形字段；转换在 Host `zotero_io::paper_record_to_zotero_item`。
 
 #### `paper_import`（已落地）
 
@@ -922,7 +922,7 @@ Host (Tauri + Rust)
 
 ### 3.6 论文
 
-论文**集合与元数据**存于 `.motif/catalog.sqlite`；本组命令读写 catalog，并附带 Vault 相对路径字段。详见 [`catalog.md`](catalog.md)、[`data-model.md`](data-model.md)。
+论文**集合与元数据**存于 `.agentero/catalog.sqlite`；本组命令读写 catalog，并附带 Vault 相对路径字段。详见 [`catalog.md`](catalog.md)、[`data-model.md`](data-model.md)。
 
 #### `paper_get`（已落地）
 
@@ -1130,7 +1130,7 @@ Host (Tauri + Rust)
 <li><strong>Claude ACP</strong> → <code>/skill-id</code> 前缀 + 注入正文；</li>
 <li><strong>其它</strong> → 仅注入正文（<code>skill:id</code> 标签），prompt 明确写明不要依赖 <code>$</code>/<code>/</code> 运行时命令。</li>
 <li>
-<p>Composer 的 <code>$</code> 仅是 Motif UI 选 skill 的方式，不等于每个 Agent 的运行时语法。</p>
+<p>Composer 的 <code>$</code> 仅是 Agentero UI 选 skill 的方式，不等于每个 Agent 的运行时语法。</p>
 </li>
 <li>
 <p><strong>权限策略</strong>：默认取消 ACP 权限请求。设置 → Agent 提供全局「权限模式」（受限默认 / 自动批准），对所有 Agent 生效，并在每次运行中通过 <code>autoApprove</code>（自动批准 → <code>true</code>）传入；逐项权限确认仍未实现。</p>
@@ -1143,7 +1143,7 @@ Host (Tauri + Rust)
 </li>
 </ul>
 <h4 id="agent_codex_list_threads"><code>agent_codex_list_threads</code><a class="headerlink" href="#agent_codex_list_threads" title="Permanent link">&para;</a></h4>
-<p>列出当前 Vault 的原生 Codex thread，按最近活跃时间排序。该命令读取 App Server 的 <code>thread/list</code>，不会复制或改写 <code>~/.codex/sessions</code>。Motif 在 <code>.motif/agent-sessions/codex.json</code> 记录自己创建或继续使用的 native thread；默认只返回这份索引中的 thread。<code>includeExternal: true</code> 时返回当前 Vault 下的全部 Codex thread。</p>
+<p>列出当前 Vault 的原生 Codex thread，按最近活跃时间排序。该命令读取 App Server 的 <code>thread/list</code>，不会复制或改写 <code>~/.codex/sessions</code>。Agentero 在 <code>.agentero/agent-sessions/codex.json</code> 记录自己创建或继续使用的 native thread；默认只返回这份索引中的 thread。<code>includeExternal: true</code> 时返回当前 Vault 下的全部 Codex thread。</p>
 <pre class="codehilite"><code class="language-ts">{ agentId?: string; vaultPath?: string; includeExternal?: boolean }
 // -&gt; CodexThreadInfo[]
 </code></pre>
@@ -1535,7 +1535,7 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code>（成功为 <code>()</code>，失败返回错误信息字符串）。</li>
-<li><strong>说明</strong>：locale 偏好由渲染层持有（<code>localStorage</code> 的 <code>motif-settings.locale</code>）。Host 启动时以英文兜底构建菜单；前端挂载及每次语言切换时调用 <code>set_locale</code> 同步。实现见 <code>src-tauri/src/lib.rs</code>（<code>build_menu</code> + <code>set_locale</code>）与 <code>src-tauri/src/i18n.rs</code>（菜单词条）。</li>
+<li><strong>说明</strong>：locale 偏好由渲染层持有（<code>localStorage</code> 的 <code>agentero-settings.locale</code>）。Host 启动时以英文兜底构建菜单；前端挂载及每次语言切换时调用 <code>set_locale</code> 同步。实现见 <code>src-tauri/src/lib.rs</code>（<code>build_menu</code> + <code>set_locale</code>）与 <code>src-tauri/src/i18n.rs</code>（菜单词条）。</li>
 </ul>
 <h4 id="_1">菜单事件<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h4>
 <p>原生菜单项点击后 Host 通过 <code>emit(id, ())</code> 广播，前端在 <code>src/App.tsx</code> 监听。事件名（id）稳定、不随语言变化；仅菜单显示文案随 <code>set_locale</code> 本地化。</p>
@@ -1685,7 +1685,7 @@ Host (Tauri + Rust)
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
         </span>
     
     

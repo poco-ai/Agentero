@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>TODO - Motif 文档</title>
+    <title>TODO - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Motif 文档
+          <a href="../.." class="icon icon-home"> Agentero 文档
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -106,7 +106,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../..">Motif 文档</a>
+          <a href="../..">Agentero 文档</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -116,7 +116,7 @@
           <li class="breadcrumb-item">开发</li>
       <li class="breadcrumb-item active">TODO</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/motif/edit/main/docs/development/todo.md">Edit on poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/todo.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -124,14 +124,14 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="motif-todo">Motif TODO<a class="headerlink" href="#motif-todo" title="Permanent link">&para;</a></h1>
+                <h1 id="agentero-todo">Agentero TODO<a class="headerlink" href="#agentero-todo" title="Permanent link">&para;</a></h1>
 <p>可执行 backlog。版本级状态与验收以 <a href="../roadmap/"><code>roadmap.md</code></a> 为准；魔棒设计见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>。</p>
 <h2 id="p0">P0 — 近期闭环<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Create Vault 初始化</strong> ✅</li>
-<li>创建标准目录：<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.motif/</code>、<code>.agents/</code>、<code>.agents/skills/</code>。</li>
+<li>创建标准目录：<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agentero/</code>、<code>.agents/</code>、<code>.agents/skills/</code>。</li>
 <li>生成 Vault 内 <code>AGENTS.md</code> 模板；种子 <code>.agents/README.md</code>（<code>templates/vault/.agents/</code>）。</li>
-<li>初始化 <code>.motif/catalog.sqlite</code>（schema 当前版本，<code>path</code> 主键）。</li>
+<li>初始化 <code>.agentero/catalog.sqlite</code>（schema 当前版本，<code>path</code> 主键）。</li>
 <li><strong>不</strong>默认生成 <code>PAPERS.md</code> / <code>library.bib</code>（导出能力另做）。</li>
 <li>初始化后打开 <code>AGENTS.md</code>。</li>
 </ol>
@@ -160,7 +160,7 @@
    - [x] Library 行：库内任一篇仍缺资源 → 批量 Download。
    - [x] 快捷键 <code>⇧⌘I</code>（打开魔棒）；本机 Translator sidecar 捆绑仍待。</p>
 <p>2c. <strong>论文库表格 UI</strong> ✅
-   - [x] 虚拟节点 <code>motif:library</code>；中间栏 catalog 表（<code>paper_list</code>）。
+   - [x] 虚拟节点 <code>agentero:library</code>；中间栏 catalog 表（<code>paper_list</code>）。
    - [x] 表头排序；横向/纵向滚动。
    - [x] 仅具体论文时显示 Paper Info / Notes（Library 隐藏）。
    - [x] Library 行批量补资源（与 2b 联动）。</p>
@@ -233,7 +233,7 @@
 <p><strong>引用关系 / Connected Papers</strong>（roadmap V0.7）</p>
 </li>
 <li>[ ] <strong>文内引用 hover → 右侧 Paper Info</strong>：PDF/HTML/<code>PAPER.md</code> 中识别 <code>[n]</code> / Author-year / DOI·arXiv 链接；hover 时侧栏展示目标论文 Info（库内 path / 远程缓存 metadata、入库或打开）。</li>
-<li>[ ] <strong>引用图数据</strong>：cites / cited_by 可重建缓存（catalog 扩展表或 <code>.motif/</code>）；外部 API 可插拔（Semantic Scholar / OpenAlex 等），失败可降级 TeX/参考文献解析。</li>
+<li>[ ] <strong>引用图数据</strong>：cites / cited_by 可重建缓存（catalog 扩展表或 <code>.agentero/</code>）；外部 API 可插拔（Semantic Scholar / OpenAlex 等），失败可降级 TeX/参考文献解析。</li>
 <li>[ ] <strong>Connected Papers 式邻域 UI</strong>：以当前 paper 为中心展示引用/被引列表 + 简易图；节点可打开 / 入库 / 进阅读队列。</li>
 <li>
 <p>[ ] 与 V0.4 <strong>双链 Graph</strong> 区分：双链 = <code>[[wikilinks]]</code>；本项 = bibliographic 引用边。</p>
@@ -258,7 +258,7 @@
 <ol>
 <li><strong>Zotero/BibTeX 迁移工具</strong></li>
 <li>解析 Zotero export 或 BibTeX。</li>
-<li>由 Agent 辅助重组为 Motif vault。</li>
+<li>由 Agent 辅助重组为 Agentero vault。</li>
 <li>
 <p>保留原始附件与引用 key 映射。</p>
 </li>
@@ -403,7 +403,7 @@
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
         </span>
     
     

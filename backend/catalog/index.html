@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>论文目录库 - Motif 文档</title>
+    <title>论文目录库 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Motif 文档
+          <a href="../.." class="icon icon-home"> Agentero 文档
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -144,7 +144,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../..">Motif 文档</a>
+          <a href="../..">Agentero 文档</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -154,7 +154,7 @@
           <li class="breadcrumb-item">后端</li>
       <li class="breadcrumb-item active">论文目录库</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/motif/edit/main/docs/backend/catalog.md">Edit on poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/backend/catalog.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -164,7 +164,7 @@
               
                 <h1 id="catalog-sqlite">论文目录库（Catalog SQLite）<a class="headerlink" href="#catalog-sqlite" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>定义 Vault 内论文<strong>集合索引</strong>与<strong>结构化元数据</strong>的权威存储：<code>.motif/catalog.sqlite</code>。<br />
+<p>定义 Vault 内论文<strong>集合索引</strong>与<strong>结构化元数据</strong>的权威存储：<code>.agentero/catalog.sqlite</code>。<br />
 <code>PAPERS.md</code> / <code>library.bib</code> <strong>不再默认落盘</strong>；需要时由导出命令生成。单篇正文仍是 <code>PAPER.md</code>（文件），不进库。</p>
 </blockquote>
 <p>相关文档：<a href="../data-model/"><code>data-model.md</code></a>、<a href="../api/"><code>api.md</code></a>、<a href="../../development/technical-plan/"><code>../development/technical-plan.md</code></a>。</p>
@@ -219,7 +219,7 @@
 <tr>
 <td><strong>Tier 1b 结构化论文目录</strong></td>
 <td>论文集合 + 每篇 metadata</td>
-<td><strong><code>.motif/catalog.sqlite</code></strong></td>
+<td><strong><code>.agentero/catalog.sqlite</code></strong></td>
 </tr>
 <tr>
 <td><strong>Tier 2 可选导出 / 派生</strong></td>
@@ -243,7 +243,7 @@
 </ol>
 <hr />
 <h2 id="3-vault">3. 文件位置与 Vault 校验<a class="headerlink" href="#3-vault" title="Permanent link">&para;</a></h2>
-<pre class="codehilite"><code class="language-text">motif-vault/
+<pre class="codehilite"><code class="language-text">agentero-vault/
 ├── AGENTS.md
 ├── papers/               # 可含任意深度组织目录；paper 文件夹为最小单元
 │   ├── 1706.03762/       # 一级：直接在 papers/ 下
@@ -252,7 +252,7 @@
 │           └── 1706.03762/  # 嵌套：仍是一个 paper 单元（含 NOTES.md 等）
 ├── notes/
 ├── plans/
-└── .motif/
+└── .agentero/
     ├── catalog.sqlite    # 论文集合 + metadata（必备，Create/Open 时确保存在）
     └── config.json       # 库级设置（非机密，可选）
 </code></pre>
@@ -270,10 +270,10 @@
 <ul>
 <li>存在 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>（目录可空）</li>
 <li>存在 <code>AGENTS.md</code>（建议；缺失时可提示补模板）</li>
-<li>存在或可初始化 <code>.motif/catalog.sqlite</code>（schema 版本匹配）</li>
+<li>存在或可初始化 <code>.agentero/catalog.sqlite</code>（schema 版本匹配）</li>
 </ul>
 <p><strong>不再要求</strong>：根级 <code>PAPERS.md</code>、<code>library.bib</code>、各篇 <code>metadata.json</code>。</p>
-<p>文件树 UI <strong>忽略</strong> <code>.motif/</code>（与现网一致），避免把 sqlite 当普通笔记展示。</p>
+<p>文件树 UI <strong>忽略</strong> <code>.agentero/</code>（与现网一致），避免把 sqlite 当普通笔记展示。</p>
 <hr />
 <h2 id="4-schema">4. Schema<a class="headerlink" href="#4-schema" title="Permanent link">&para;</a></h2>
 <h3 id="41">4.1 版本<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
@@ -290,7 +290,7 @@
 <tr>
 <td><code>key</code></td>
 <td>TEXT PRIMARY KEY</td>
-<td>如 <code>schema_version</code>、<code>motif_app</code></td>
+<td>如 <code>schema_version</code>、<code>agentero_app</code></td>
 </tr>
 <tr>
 <td><code>value</code></td>
@@ -590,7 +590,7 @@
 </tr>
 </tbody>
 </table>
-<p>路径：<code>{vault_root}/.motif/catalog.sqlite</code>。<br />
+<p>路径：<code>{vault_root}/.agentero/catalog.sqlite</code>。<br />
 使用 <code>PRAGMA foreign_keys = ON</code>；写操作包在事务中，与「先落盘笔记再改 status」的顺序在 importer 中约定（建议：目录与 NOTES 成功后再把 <code>status</code> 置 <code>completed</code>）。</p>
 <h3 id="53-l1">5.3 列表与查询（应用内 L1）<a class="headerlink" href="#53-l1" title="Permanent link">&para;</a></h3>
 <p>前端「论文库 / 筛选」<strong>只读 catalog</strong>，不扫盘拼表：</p>
@@ -659,7 +659,7 @@
 <ul>
 <li><strong>Create Vault / 日常入库：不写这两份文件。</strong></li>
 <li>用户在设置或命令面板触发「导出论文索引 / 导出 BibTeX」时生成。</li>
-<li>Agent 工作流若需要文件形态 L1：可在 prompt 前 <strong>临时导出到</strong> <code>.motif/export/PAPERS.md</code>（gitignore 友好）或会话临时目录，而不污染 Vault 根。</li>
+<li>Agent 工作流若需要文件形态 L1：可在 prompt 前 <strong>临时导出到</strong> <code>.agentero/export/PAPERS.md</code>（gitignore 友好）或会话临时目录，而不污染 Vault 根。</li>
 </ul>
 <h3 id="55-importer">5.5 与 importer 的写路径<a class="headerlink" href="#55-importer" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">import paper（魔棒 lookup_import）
@@ -681,11 +681,11 @@
 </thead>
 <tbody>
 <tr>
-<td><code>.motif/catalog.sqlite</code></td>
+<td><code>.agentero/catalog.sqlite</code></td>
 <td><strong>纳入备份</strong>；若用 Git 管理 Vault，应提交或 LFS（团队自定）</td>
 </tr>
 <tr>
-<td><code>.motif/export/</code></td>
+<td><code>.agentero/export/</code></td>
 <td>可 gitignore；纯派生</td>
 </tr>
 <tr>
@@ -709,7 +709,7 @@
 <tr>
 <td>论文 meta / 集合</td>
 <td>catalog</td>
-<td><code>.motif/catalog.sqlite</code> → <code>papers</code></td>
+<td><code>.agentero/catalog.sqlite</code> → <code>papers</code></td>
 </tr>
 <tr>
 <td>双链边 / 反链</td>
@@ -787,7 +787,7 @@
 <hr />
 <h2 id="9">9. 验收要点<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
 <ul>
-<li>[x] Create Vault 生成 <code>.motif/catalog.sqlite</code>（schema 当前版本），<strong>不</strong>生成 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
+<li>[x] Create Vault 生成 <code>.agentero/catalog.sqlite</code>（schema 当前版本），<strong>不</strong>生成 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
 <li>[x] 魔棒 / <code>lookup_import</code> 入库后 <code>paper_list</code> 可见新行；UI 论文库表格展示。</li>
 <li>[x] 读路径走 <code>paper_get</code> / <code>paper_list</code>；<code>metadata.json</code> 仅为 upsert 后投影（非 UI 主源）。</li>
 <li>[x] 入库默认写 PDF（及 arXiv TeX）到 <code>source/</code>；<code>paper_download_assets</code> 可补缺失。</li>
@@ -834,7 +834,7 @@
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
         </span>
     
     

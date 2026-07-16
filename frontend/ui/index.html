@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>UI 规范 - Motif 文档</title>
+    <title>UI 规范 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Motif 文档
+          <a href="../.." class="icon icon-home"> Agentero 文档
         </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
@@ -132,7 +132,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../..">Motif 文档</a>
+          <a href="../..">Agentero 文档</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -142,7 +142,7 @@
           <li class="breadcrumb-item">前端</li>
       <li class="breadcrumb-item active">UI 规范</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/motif/edit/main/docs/frontend/ui.md">Edit on poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/frontend/ui.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -150,7 +150,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="motif-ui">Motif UI 规范<a class="headerlink" href="#motif-ui" title="Permanent link">&para;</a></h1>
+                <h1 id="agentero-ui">Agentero UI 规范<a class="headerlink" href="#agentero-ui" title="Permanent link">&para;</a></h1>
 <h2 id="1">1. 主题与设计系统<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>基础组件</strong>：以 <a href="https://ui.shadcn.com/">shadcn/ui</a> 为规范（<code>components.json</code> → <code>style: radix-nova</code>，<code>baseColor: neutral</code>，CSS variables）。</li>
@@ -161,7 +161,7 @@
 <li>落盘：<code>src/components/ai-elements/</code>（<code>conversation</code>、<code>message</code>、<code>prompt-input</code>、<code>sources</code>、<code>file-tree</code> 等）</li>
 <li>安装：<code>pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/&lt;name&gt;.json -y -o</code></li>
 <li>主题 <strong>不单独配置</strong>：继续读 shadcn CSS token，随 System / Light / Dark。</li>
-<li>传输层是 Motif <strong>ACP Client</strong>（<code>agent_run_once</code> + 事件流），<strong>不是</strong> Vercel AI SDK <code>useChat</code>。</li>
+<li>传输层是 Agentero <strong>ACP Client</strong>（<code>agent_run_once</code> + 事件流），<strong>不是</strong> Vercel AI SDK <code>useChat</code>。</li>
 <li><strong>禁止</strong>用自研 <code>src/components/ai/*</code> 或官方 <code>ui/message</code>+<code>bubble</code> 搭新 Chat。</li>
 <li>视觉原则：<strong>尽量简约，减少不必要的元素</strong>。</li>
 <li>外观跟随 <strong>System / Light / Dark</strong>（<code>next-themes</code>，设置 → Appearance）。</li>
@@ -196,7 +196,7 @@
 <h3 id="21">2.1 侧边栏文件树<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
 <ul>
 <li>树 UI：<strong>AI Elements</strong> <code>FileTree</code>（业务包装：<code>src/components/layout/file-tree.tsx</code>；约定见 <code>docs/frontend/components.md</code>）。</li>
-<li><strong>虚拟节点 Library</strong>：树顶固定一项 <strong>Library / 论文库</strong>（路径常量 <code>motif:library</code>，非真实目录、不写盘）。图标 <code>Library</code>。选中后中间栏显示论文库表格（见 §3）。空 Vault 时仍显示该节点。</li>
+<li><strong>虚拟节点 Library</strong>：树顶固定一项 <strong>Library / 论文库</strong>（路径常量 <code>agentero:library</code>，非真实目录、不写盘）。图标 <code>Library</code>。选中后中间栏显示论文库表格（见 §3）。空 Vault 时仍显示该节点。</li>
 <li><strong>Library 行 Download</strong>：当库内<strong>任一</strong> paper 资源不完整时，Library 标题右侧显示 Download；点击<strong>批量</strong> <code>paper_download_assets</code>。</li>
 <li><strong>Paper 行 Download</strong>：下列任一成立即显示，hover 列出原因：</li>
 <li>本地<strong>没有 PDF</strong>（期望在论文根目录 <code>{id}.pdf</code>）；</li>
@@ -214,7 +214,7 @@
 <li><strong>双击</strong>真实文件 / 文件夹 / paper 行 → 在 Finder（macOS）/ Explorer（Windows）/ 文件管理器（Linux）中定位并选中。</li>
 <li><strong>右键</strong>同上节点 → 上下文菜单「在 Finder 中显示」（文案随平台切换；旁注 <code>⌥⌘R</code>）。</li>
 <li><strong><code>⌥⌘R</code></strong>：对当前选中路径执行相同操作（<code>shortcuts.ts</code> → <code>revealInFinder</code>）。</li>
-<li>虚拟节点 <strong>Library</strong>（<code>motif:library</code>）不提供此操作；仅桌面端可用。</li>
+<li>虚拟节点 <strong>Library</strong>（<code>agentero:library</code>）不提供此操作；仅桌面端可用。</li>
 <li><strong>删除</strong>（<code>remove</code> + 可选 <code>paper_delete</code>）：</li>
 <li><strong>右键</strong>真实节点 →「删除」（旁注 <code>⌘⌫</code>）；确认后删盘。</li>
 <li><strong><code>⌘⌫</code></strong>：删除当前选中项（编辑器 / 输入框聚焦时不拦截，保留系统删行首行为）。</li>
@@ -277,7 +277,7 @@
 <td>刷新当前 Vault 文件树</td>
 </tr>
 <tr>
-<td>motif</td>
+<td>agentero</td>
 <td>Settings…</td>
 <td><code>⌘,</code></td>
 <td>设置 sheet</td>
@@ -312,11 +312,11 @@
 <ul>
 <li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容 + 可选右侧栏（Agent / Backlinks）。中间与 Notes 随内容切换。</li>
 <li><strong>论文库表格</strong>（<code>src/components/layout/papers-library.tsx</code>）：</li>
-<li><strong>入口</strong>：文件树虚拟节点 <code>motif:library</code>；亦在选中 Vault 根 / <code>papers/</code> / 未选文件时作为中间栏默认视图。</li>
+<li><strong>入口</strong>：文件树虚拟节点 <code>agentero:library</code>；亦在选中 Vault 根 / <code>papers/</code> / 未选文件时作为中间栏默认视图。</li>
 <li><strong>数据</strong>：Host <code>paper_list</code> → catalog.sqlite（不扫盘拼表）。前端封装 <code>src/lib/papers-api.ts</code>。</li>
 <li><strong>列</strong>：标题、作者、年份、类型、标识符；点击行打开对应 paper 文件夹。</li>
 <li><strong>排序</strong>：点击表头按该列升序 / 降序切换；同一列再点切换方向。年份列首次点击为降序（新→旧）；文字列默认升序。</li>
-<li><strong>滚动</strong>：容器 <code>.motif-scroll-both</code>（<strong>横向 + 纵向</strong> <code>overflow: auto</code>）。表格 <code>w-max min-w-full</code> + 列 <code>min-width</code>，宽表可左右滑。</li>
+<li><strong>滚动</strong>：容器 <code>.agentero-scroll-both</code>（<strong>横向 + 纵向</strong> <code>overflow: auto</code>）。表格 <code>w-max min-w-full</code> + 列 <code>min-width</code>，宽表可左右滑。</li>
 <li><strong>中间栏 header（右侧）</strong>：仅 <strong>导出</strong>（Download 图标），无「Library」文案。<ul>
 <li><strong>导出</strong>：<code>paper_export</code> → Translator <code>/export?format=bibtex</code> → 保存对话框写 <code>.bib</code>。</li>
 </ul>
@@ -344,8 +344,8 @@
 <li>边距、分割线保持轻量；控件密度偏紧凑（icon-xs / icon-sm）。</li>
 <li><strong>面板分隔（sash）</strong>：对齐 VS Code / Cursor——默认 <strong>1px</strong> 细线，hover / 拖拽时略提亮；可点区域略宽但视觉不占粗条。实现见 <code>src/components/layout/resizable.tsx</code>。</li>
 <li><strong>独立滚动</strong>：侧边栏 / 中间内容 / 右侧 Notes <strong>各自</strong>滚动，顶栏固定；禁止整页连带滚动。</li>
-<li>默认竖向：<code>.motif-scroll</code>（<code>overflow-x: hidden; overflow-y: auto</code>）。</li>
-<li>需双向滚动（论文库表）：<code>.motif-scroll-both</code>。</li>
+<li>默认竖向：<code>.agentero-scroll</code>（<code>overflow-x: hidden; overflow-y: auto</code>）。</li>
+<li>需双向滚动（论文库表）：<code>.agentero-scroll-both</code>。</li>
 <li><strong>中间栏视图切换</strong>（纯图标 + Tooltip）：<strong>仅 PDF · HTML</strong>（<code>ViewModeToggle</code>）；无 PDF/HTML 时不显示切换。论文库视图下不显示。</li>
 <li>Notes / 普通 Markdown 文件：<strong>所见即所得富文本编辑</strong>（Plate），在 Notes 侧栏或打开 <code>.md</code> 时编辑；不占中间栏切换卡片。</li>
 <li><strong>保存</strong>：编辑防抖后 <strong>自动写回</strong> 磁盘 <code>.md</code>，<code>⌘S</code> 立即保存；有未保存更改时 pane header 显示小圆点。未发生真实编辑不会写盘（打开文件不触发保存）。</li>
@@ -545,8 +545,8 @@ PromptInput → Body / Footer / Submit
 <p><strong>Agent 切换</strong>：点击 Composer 上方的 Agent 图标打开下拉，列表来自 catalog + 注册表；选择后设为默认并用于后续 <code>runOnce</code>。</p>
 <p><strong>消息编辑与重发</strong>：会话空闲时（发送成功、停止或失败后）hover 已发送的用户消息会显示 <strong>Edit（铅笔）</strong> 与 <strong>Copy</strong> 两个图标按钮；运行中不显示 Edit，须先按 <code>Esc</code> / 点击停止。点击 Edit 就地把气泡替换为文本框（<code>↵</code> 重新发送、<code>⇧↵</code> 换行、<code>Esc</code> 取消），重发时会丢弃<strong>该消息及其之后的所有内容</strong>（旧回答 / 被中断的运行）并以新文本发起一次全新的 turn，用于修正发错的输入。切换会话 / 标签 / 新建对话会自动取消未完成的编辑。（重发沿用普通发送的 session 续接规则：非 Codex 每次新建 session；Codex 续接原生 thread，因此可见转录被截断但 Agent 侧线程记忆不随之回退。）</p>
 <p><strong>会话标签</strong>：运行中的 Agent session 不会锁定标签栏。用户可随时切换并查看其它已打开的会话，也可在新会话中发起独立运行；同一 session 在运行期间保持只读，避免重入。流式消息、工具调用和最终状态仍只写回它们所属的 session。</p>
-<p><strong>上下文提及</strong>：Composer 默认附带当前打开的 Vault 文件；输入 <code>@</code> 可按 Vault 内 Markdown 路径筛选并加入 context chip。发送时 Motif 将这些 Vault 相对路径追加到 prompt，并将第一个路径传为 <code>target</code>，Agent 仍按自身权限读取文件。</p>
-<p><strong>本机技能</strong>：Composer 统一用 <code>$</code> 打开技能选择器（Motif UI 约定，与运行时触发语法无关）。可选来源：<code>~/.agents/skills</code>、<code>${CODEX_HOME:-~/.codex}/skills</code>、<code>~/.claude/skills</code>、当前 Vault <code>.agents/skills</code>。选中后显示为 context chip；发送时 Host 重新解析技能 id、校验文件大小，并<strong>按当前 Agent 模板</strong>组装 prompt：</p>
+<p><strong>上下文提及</strong>：Composer 默认附带当前打开的 Vault 文件；输入 <code>@</code> 可按 Vault 内 Markdown 路径筛选并加入 context chip。发送时 Agentero 将这些 Vault 相对路径追加到 prompt，并将第一个路径传为 <code>target</code>，Agent 仍按自身权限读取文件。</p>
+<p><strong>本机技能</strong>：Composer 统一用 <code>$</code> 打开技能选择器（Agentero UI 约定，与运行时触发语法无关）。可选来源：<code>~/.agents/skills</code>、<code>${CODEX_HOME:-~/.codex}/skills</code>、<code>~/.claude/skills</code>、当前 Vault <code>.agents/skills</code>。选中后显示为 context chip；发送时 Host 重新解析技能 id、校验文件大小，并<strong>按当前 Agent 模板</strong>组装 prompt：</p>
 <table>
 <thead>
 <tr>
@@ -574,11 +574,11 @@ PromptInput → Body / Footer / Submit
 </tbody>
 </table>
 <p>paper-reader 精读工作流与 Composer 共用这套规则，避免把 Codex 的 <code>$</code> 误写成 Claude 的 <code>/</code>，或反向。</p>
-<p><strong>斜杠命令</strong>：Motif 不实现自己的 <code>/</code> 命令菜单。用户手打的 <code>/…</code> 原样透传；Claude 路径上 Host 也可能主动加上 <code>/skill-id</code> 前缀以对齐其 skill 语法。Codex 使用 App Server native thread，skill 侧以 <code>$</code> 为准。</p>
-<p><strong>权限模式</strong>：<strong>设置 → Agent</strong> 提供一个全局「权限模式」下拉，对<strong>所有 Agent</strong> 的运行生效（存于 app settings，默认 <strong>受限</strong>）。<strong>受限（默认）</strong>时，Motif 取消 ACP 的权限请求（Codex 走原生策略、沙箱为 <code>workspace-write</code>）；<strong>自动批准</strong>时自动选择 Agent 给出的第一个权限选项（Codex 沙箱切换为 <code>danger-full-access</code>）。选 <strong>自动批准</strong> 时面板下方显示一行风险说明。逐项权限确认需要由保持 ACP 会话的后续实现提供；届时可在此下拉新增「每次询问」档。</p>
+<p><strong>斜杠命令</strong>：Agentero 不实现自己的 <code>/</code> 命令菜单。用户手打的 <code>/…</code> 原样透传；Claude 路径上 Host 也可能主动加上 <code>/skill-id</code> 前缀以对齐其 skill 语法。Codex 使用 App Server native thread，skill 侧以 <code>$</code> 为准。</p>
+<p><strong>权限模式</strong>：<strong>设置 → Agent</strong> 提供一个全局「权限模式」下拉，对<strong>所有 Agent</strong> 的运行生效（存于 app settings，默认 <strong>受限</strong>）。<strong>受限（默认）</strong>时，Agentero 取消 ACP 的权限请求（Codex 走原生策略、沙箱为 <code>workspace-write</code>）；<strong>自动批准</strong>时自动选择 Agent 给出的第一个权限选项（Codex 沙箱切换为 <code>danger-full-access</code>）。选 <strong>自动批准</strong> 时面板下方显示一行风险说明。逐项权限确认需要由保持 ACP 会话的后续实现提供；届时可在此下拉新增「每次询问」档。</p>
 <p><strong>回答语言</strong>：<strong>设置 → Agent</strong> 提供一个全局「回答语言」下拉（<strong>自动 / English / 简体中文</strong>，存于 app settings，默认 <strong>自动</strong>），<strong>独立于界面语言</strong>，对<strong>所有 Agent</strong> 交互生效（Composer 对话、精读、summary/QA、PDF 划词问答）。前端 <code>runOnce</code> 统一读取该设置并透传，Host 在 <code>build_prompt</code> 为所有 workflow 追加一句语言指令；选 <strong>自动</strong> 时不注入任何指令，交由 Agent 依据内容决定。</p>
 <p><strong>Codex 控件</strong>：只有选中 <code>codex-acp</code> 时，底栏才显示 App Server <code>model/list</code> 提供的模型与 reasoning effort，以及仅在闪电图标内填充黄色的 Fast toggle。选择在下一次 native turn 中传给 App Server；其他 Agent 不显示也不接收这些偏好。</p>
-<p><strong>Codex 历史</strong>：Motif 会将它创建或继续运行的 native thread id 记录在 Vault 的 <code>.motif/agent-sessions/codex.json</code>。历史列表默认只显示这份索引中的会话，避免混入同一 Vault 工作目录下由 Codex CLI、编辑器或其它应用创建的 thread。历史面板的“External”开关仅对 Codex 生效；开启后显示 App Server 返回的全部 Vault-scoped thread。开关偏好按 Codex provider 注册项保存在本机浏览器中。</p>
+<p><strong>Codex 历史</strong>：Agentero 会将它创建或继续运行的 native thread id 记录在 Vault 的 <code>.agentero/agent-sessions/codex.json</code>。历史列表默认只显示这份索引中的会话，避免混入同一 Vault 工作目录下由 Codex CLI、编辑器或其它应用创建的 thread。历史面板的“External”开关仅对 Codex 生效；开启后显示 App Server 返回的全部 Vault-scoped thread。开关偏好按 Codex provider 注册项保存在本机浏览器中。</p>
 <h3 id="33-backlinks-graph">3.3 Backlinks + Graph 右侧栏<a class="headerlink" href="#33-backlinks-graph" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -622,7 +622,7 @@ PromptInput → Body / Footer / Submit
 <tbody>
 <tr>
 <td>入口</td>
-<td>顶部菜单栏 <strong>motif → Settings…</strong>，或 <code>⌘,</code>（不在侧边栏放设置图标）</td>
+<td>顶部菜单栏 <strong>agentero → Settings…</strong>，或 <code>⌘,</code>（不在侧边栏放设置图标）</td>
 </tr>
 <tr>
 <td>结构</td>
@@ -660,7 +660,7 @@ PromptInput → Body / Footer / Submit
 <li>仅保留 <strong>Probe</strong> 文字按钮（无 icon）；无逐行 Probe、无 command/路径/Handshake 详情文案。</li>
 <li><strong>Use default</strong> 纯文字（无 icon）。</li>
 <li>Custom 区：添加任意 ACP command/args。</li>
-<li>页脚说明：模型与 API Key 由各 Agent CLI 自行管理，不在 Motif 内填写。</li>
+<li>页脚说明：模型与 API Key 由各 Agent CLI 自行管理，不在 Agentero 内填写。</li>
 <li><strong>Keyboard</strong>：只读快捷键表（按 App / Vault / Navigation 分组）。</li>
 <li><strong>Privacy</strong>：分析与崩溃上报（默认关，本地优先）。</li>
 <li><strong>About</strong>：版本与一句话定位。</li>
@@ -746,7 +746,7 @@ PromptInput → Body / Footer / Submit
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/poco-ai/motif" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/motif</a>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
         </span>
     
     
