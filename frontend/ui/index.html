@@ -116,13 +116,13 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/hypothesis/">产品假设</a>
                   </li>
               </ul>
       </div>
@@ -351,16 +351,20 @@
 <li><strong>保存</strong>：编辑防抖后 <strong>自动写回</strong> 磁盘 <code>.md</code>，<code>⌘S</code> 立即保存；有未保存更改时 pane header 显示小圆点。未发生真实编辑不会写盘（打开文件不触发保存）。</li>
 <li><strong>双链</strong>：<code>[[目标#标题|别名]]</code> 与 <code>![[嵌入]]</code> 由 <code>@flowershow/remark-wiki-link</code> 解析并 <strong>无损回写</strong>；渲染仍复用既有 exists/missing 样式与点击导航。</li>
 <li><strong>YAML frontmatter</strong> 按字节原样保留（不经 Plate 往返）；注意 Plate 会归一化部分 Markdown 风格（列表 <code>-</code>→<code>*</code>、斜体 <code>*</code>→<code>_</code>），内容语义不变。</li>
-<li>PDF / HTML <strong>预览</strong>：当前仍读 catalog 远程 <code>pdf_url</code> / <code>html_url</code>（经 <code>paper_get</code> + PDF.js / iframe）。</li>
-<li><strong>本地归档</strong>（与预览分离）：魔棒 / <code>paper_download_assets</code> 将 PDF 写入 <code>{paper}/{id}.pdf</code>（根目录），arXiv LaTeX 到 <code>source/</code>；中间栏预览暂不强制读本地文件。</li>
+<li>PDF / HTML <strong>预览</strong>：<ul>
+<li><strong>PDF 解析顺序</strong>（本地优先）：① 论文文件夹内本地 PDF（根目录 <code>{id}.pdf</code> 优先，兼容 <code>source/</code> 等嵌套）→ <code>readFile</code> 读字节生成 <code>blob:</code> URL 交给 PDF.js（<strong>不用</strong> <code>convertFileSrc</code>/<code>asset://</code>，PDF.js XHR 会失败）；② <strong>无本地 PDF</strong> 时自动 <code>paper_download_assets</code> 尝试下载；③ 下载失败或无可用下载源时回退 catalog 远程 <code>pdf_url</code>（或 <code>arxiv_id</code> 推导 URL）。</li>
+<li><strong>HTML</strong>：仍读远程 <code>html_url</code>（iframe）；HTML 本身不强制本地下载。</li>
+</ul>
+</li>
+<li><strong>本地归档</strong>：魔棒 / <code>paper_download_assets</code> 将 PDF 写入 <code>{paper}/{id}.pdf</code>（根目录），arXiv LaTeX 到 <code>source/</code>；预览优先读同一本地 PDF。</li>
 <li>arXiv 推荐写入 catalog：<ul>
 <li><code>pdf_url</code>: <code>https://arxiv.org/pdf/{id}</code></li>
 <li><code>html_url</code>: <code>https://arxiv.org/html/{id}</code></li>
 <li><code>source_url</code>: <code>https://arxiv.org/abs/{id}</code></li>
 </ul>
 </li>
-<li>若只有 <code>arxiv_id</code>，用 <code>src/lib/arxiv.ts</code> 推导远程 URL</li>
-<li>PDF：PDF.js 按 URL 流式渲染；HTML：独立 iframe 打开远程页</li>
+<li>若只有 <code>arxiv_id</code>，用 <code>src/lib/arxiv.ts</code> 推导远程 URL（作下载候选与 HTML/远程回退）</li>
+<li>PDF：本地经 <code>blob:</code>（fs <code>readFile</code>）/ 远程 <code>https</code> 由 PDF.js 渲染；HTML：独立 iframe 打开远程页</li>
 <li><strong>PDF 缩放</strong>（<code>PdfViewer</code>）：工具栏放大 / 缩小 / 重置；<code>⌘/Ctrl</code>+滚轮缩放；范围约 <strong>0.5×–3×</strong>；<strong>100% = 适应中间栏宽度</strong>（非固定 pt）。i18n <code>viewer:pdf.zoom*</code>。</li>
 <li><strong>PDF 划词提问</strong>（已落地 MVP，见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>）：<ul>
 <li>划词 / 框选 / 双击 / 悬停停留 → 迷你问答卡（ACP 流式）；发送过问题后在锚点旁保留对话图标（Hover 回访）。</li>

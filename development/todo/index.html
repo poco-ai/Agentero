@@ -80,6 +80,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../technical-plan/">技术方案</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI 设计</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../pdf-ask/">PDF 划词提问</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
@@ -95,8 +97,6 @@
     <li class="toctree-l2"><a class="reference internal" href="#_1">已完成能力速览（对照现状）</a>
     </li>
     </ul>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../hypothesis/">产品假设</a>
                   </li>
               </ul>
       </div>
@@ -169,10 +169,10 @@
    - [x] 删除：右键 / <code>⌘⌫</code>；确认；<code>papers/</code> 下同步 <code>paper_delete</code>。
    - [x] 左右侧栏 collapsible 常驻 + <code>preserve-pixel-size</code>（交替 <code>⌥⌘S</code> / <code>⌘L</code> 不重叠）。
    - [x] 后台任务条（下载 / 入库 / 导入导出 / paper-reader；hover 实色不透明）。</p>
-<p>2e. <strong>PDF 阅读增强</strong> 🟡
+<p>2e. <strong>PDF 阅读增强</strong> ✅
    - [x] 缩放：工具栏 +/- / 重置；<code>⌘/Ctrl</code>+滚轮（0.5×–3×，100%=适应栏宽）。
    - [x] 划词提问 MVP：M1–M4（见 3. PDF 划词提问）。
-   - [ ] 本地 PDF 直接预览（非仅远程 <code>pdf_url</code>）。</p>
+   - [x] 本地 PDF 直接预览（优先本地 → 无本地时 <code>paper_download_assets</code> → 失败再远程 <code>pdf_url</code>）。</p>
 <ol>
 <li><strong>Agent 工作流入口</strong></li>
 <li>[x] <strong>paper-reader 精读</strong>：入库/单篇 Download <strong>自动</strong> + 文件树 Eye 手动（资源齐全 + <code>is_read=false</code>）→ paper-reader skill（Codex <code>$</code> / Claude <code>/</code> / 其它注入）→ <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度（lookup/download → paperRead）。</li>
@@ -189,7 +189,23 @@
 </li>
 <li>将最近 Vault、UI 偏好迁到 Tauri Store。</li>
 <li>增加文件监听，外部编辑器修改后自动刷新当前文件与 wiki 索引。</li>
-<li>保存失败、外部冲突和未保存状态要有明确提示。</li>
+<li>
+<p>保存失败、外部冲突和未保存状态要有明确提示。</p>
+</li>
+<li>
+<p><strong>CLI（headless Vault 接口）</strong> — 设计定稿 <a href="../cli/"><code>cli.md</code></a>；可与 UI 并行</p>
+</li>
+<li>边界：<strong>无 BYOA / 无 Agent / 无 paper-reader</strong>；只做 Vault 管理、发现、暴露 + 文献基础能力。</li>
+<li>布局：仓库根 <strong><code>cli/</code></strong>（package <code>agentero-cli</code>，bin <code>agentero</code>）；根 Cargo workspace <code>members = ["src-tauri", "cli"]</code>。</li>
+<li>复用：<strong>不迁 core</strong>；path 依赖 <code>agentero_lib</code>，调用 <code>services::{vault,catalog,lookup,pdf_parse,wiki}</code>；禁止 <code>use …::agent</code>。</li>
+<li>[ ] Workspace + scaffold <code>cli/</code>（clap、<code>--vault</code> / env / 上溯、<code>--json</code>、退出码）。</li>
+<li>[ ] <code>vault create|which|info|check|use</code>（对齐 <code>vault_create</code> / catalog 初始化）。</li>
+<li>[ ] <code>tree</code>；<code>paper list|get|paths|delete|set-read|download|parse</code>（<code>get</code>：<code>assets</code> + <code>suggestedReads</code>）。</li>
+<li>[ ] <code>import id|bib</code>、<code>export bib</code>（对齐 Host；<strong>不</strong>自动精读）。</li>
+<li>[ ] 稳定 <code>error.code</code>；集成测试（临时 Vault + <code>--json</code> 契约）。</li>
+<li>[ ] 按需放宽 service <code>pub</code>（小改可见性，不搬模块）。</li>
+<li>[ ] README / 本仓库开发说明：<code>cargo build -p agentero-cli</code>。</li>
+<li>[x] Vault skill 模板：<code>templates/vault/.agents/skills/agentero-cli/SKILL.md</code>；Create Vault 种子；README Quick Start 已写协议。</li>
 </ol>
 <h2 id="p1">P1 — 中期增强<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h2>
 <ol>
@@ -246,6 +262,16 @@
 <li>[ ] 面板 workflow：<strong>Ingest citation neighborhood</strong>（确认后批量魔棒入库邻居）。</li>
 <li>
 <p>[ ] 与「Summarize / Ask library / Draft Related Work」共用 prompt 注入与草稿确认路径。</p>
+</li>
+<li>
+<p><strong>CLI 增强</strong>（MVP 见 P0-5）</p>
+</li>
+<li>[ ] <code>graph backlinks|export|rebuild</code>（复用 wiki service；CLI 自管索引生命周期）。</li>
+<li>[ ] <code>doctor</code>（Translator / catalog schema / 路径；<strong>不</strong> probe Agent）。</li>
+<li>[ ] shell completions（bash / zsh / fish）。</li>
+<li>[ ] <code>export papers-md</code>（Host 落地 <code>catalog:export_papers_md</code> 后对齐）。</li>
+<li>
+<p>[ ] Release 可选附带 <code>agentero</code> 二进制（与桌面安装包并列）。</p>
 </li>
 <li>
 <p><strong>Release 完善</strong></p>
@@ -319,7 +345,14 @@
 </li>
 <li>iPadOS 触控布局。</li>
 <li>Git 版本管理集成。</li>
-<li>可选云同步与多设备阅读。</li>
+<li>
+<p>可选云同步与多设备阅读。</p>
+</li>
+<li>
+<p><strong>CLI domain 抽离（可选）</strong></p>
+</li>
+<li>仅当 CLI 体积 / 依赖边界成为问题时：从 <code>agentero_lib</code> 抽出无 Agent 的 <code>services</code> 到独立 crate。</li>
+<li><strong>当前不做</strong>；默认保持 <code>cli/</code> → path → <code>agentero_lib</code>。</li>
 </ol>
 <hr />
 <h2 id="_1">已完成能力速览（对照现状）<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
@@ -369,9 +402,14 @@
 <td>本地 PDF 直开、highlights 标注系统、M5</td>
 </tr>
 <tr>
+<td><strong>CLI</strong></td>
+<td>设计定稿（<a href="../cli/"><code>cli.md</code></a>：<code>cli/</code>、不迁 core、无 BYOA）</td>
+<td><strong>MVP 实现</strong>（P0-5）；graph/doctor/completions（P1-7）</td>
+</tr>
+<tr>
 <td>发布</td>
 <td>tag → 三平台草稿 Release</td>
-<td>签名/公证/changelog</td>
+<td>签名/公证/changelog；可选附带 <code>agentero</code> bin</td>
 </tr>
 </tbody>
 </table>
@@ -380,7 +418,6 @@
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
         <a href="../roadmap/" class="btn btn-neutral float-left" title="路线图"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../hypothesis/" class="btn btn-neutral float-right" title="产品假设">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -409,8 +446,6 @@
     
       <span><a href="../roadmap/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
-    
-      <span><a href="../hypothesis/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

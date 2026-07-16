@@ -80,6 +80,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../technical-plan/">技术方案</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI 设计</a>
+                  </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">PDF 划词提问</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#1">1. 产品目标</a>
@@ -135,8 +137,6 @@
                   <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../todo/">TODO</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../hypothesis/">产品假设</a>
                   </li>
               </ul>
       </div>
@@ -367,7 +367,7 @@
 <li>运行时：<code>DOMRect</code> → 相对当前 <code>Page</code> 容器的 <code>(x, y, w, h)</code> → 除以 <code>viewport.width/height</code> 得 <code>0–1</code> 归一化 rects。</li>
 <li>回放：页渲染完成 + <code>width</code> 变化时，用同一归一化 rects × 当前 viewport 重定位圆片与高亮。</li>
 <li><strong>多矩形选区</strong>：跨行选区可能多个 <code>ClientRect</code>；全部保存为 <code>rects[]</code>，圆片锚点取首段中线 y 或包围盒中心。</li>
-<li><strong>远程 PDF CORS</strong>：当前预览走远程 <code>pdf_url</code>；TextLayer 抽取依赖 PDF.js 能读文本。若 CORS/范围请求失败，需降级提示；本地归档 PDF（<code>{paper}/{id}.pdf</code>）未来可用 <code>convertFileSrc</code> 增强稳定性（与阅读器演进一致）。</li>
+<li><strong>PDF 源与 CORS</strong>：预览 <strong>本地优先</strong>（fs <code>readFile</code> → <code>blob:</code> 读 <code>{paper}/*.pdf</code>；不用 <code>asset://</code>，PDF.js 对其 XHR 会 <code>Unexpected server response (0)</code>）；无本地时尝试下载，失败再回退远程 <code>pdf_url</code>。TextLayer 抽取依赖 PDF.js 能读文本。远程路径若 CORS/范围请求失败，可提示用户补下本地 PDF 后重开。</li>
 </ol>
 <h2 id="4">4. 交互状态机<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
 <pre class="codehilite"><code class="language-text">idle
@@ -675,7 +675,7 @@ src/lib/pdf-ask/
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../technical-plan/" class="btn btn-neutral float-left" title="技术方案"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../cli/" class="btn btn-neutral float-left" title="CLI 设计"><span class="icon icon-circle-arrow-left"></span> Previous</a>
         <a href="../roadmap/" class="btn btn-neutral float-right" title="路线图">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
@@ -703,7 +703,7 @@ src/lib/pdf-ask/
         </span>
     
     
-      <span><a href="../technical-plan/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../cli/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
       <span><a href="../roadmap/" style="color: #fcfcfc">Next &raquo;</a></span>

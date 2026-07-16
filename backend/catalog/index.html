@@ -128,13 +128,13 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/hypothesis/">产品假设</a>
                   </li>
               </ul>
       </div>
@@ -434,7 +434,7 @@
 <tr>
 <td><code>pdf_url</code></td>
 <td>TEXT</td>
-<td>远程预览 URL，不强制落盘 PDF</td>
+<td>远程 PDF URL：下载候选；本地 PDF 缺失且下载失败时作预览回退</td>
 </tr>
 <tr>
 <td><code>html_url</code></td>
@@ -611,7 +611,7 @@
 <tr>
 <td><code>paper_get</code></td>
 <td><strong>已落地</strong></td>
-<td>单篇 meta（<code>path</code> 或 <code>id</code>）→ Paper Info / 远程预览 URL</td>
+<td>单篇 meta（<code>path</code> 或 <code>id</code>）→ Paper Info / 远程 URL（下载候选与预览回退）</td>
 </tr>
 <tr>
 <td><code>paper:list</code>（过滤/分页）</td>

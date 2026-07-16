@@ -214,13 +214,13 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/hypothesis/">产品假设</a>
                   </li>
               </ul>
       </div>
@@ -251,7 +251,7 @@
                 <h1 id="identifier-lookup-translator">魔棒入库（Identifier Lookup）与 Translator 后端<a class="headerlink" href="#identifier-lookup-translator" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p>状态：<strong>v0 已落地</strong>（侧栏魔棒 + <code>lookup_import</code> + HTTP Translator + 默认 PDF/LaTeX 下载；sidecar/批量/快捷键仍可扩展）<br />
-目标：用户点击 <strong>魔棒</strong>，粘贴 <strong>链接或编号</strong> → 用 <strong>Translator</strong> 解析元数据 → <strong>写 catalog + paper 文件夹</strong>（<code>NOTES.md</code> 壳 + <strong>PDF 默认到论文根目录</strong>；arXiv <strong>e-print 解压 LaTeX 到 <code>source/</code></strong>）→ 落到 <code>papers/</code> 或当前 Papers 子文件夹。catalog 仍保留远程 <code>pdf_url</code>/<code>html_url</code> 供在线预览。</p>
+目标：用户点击 <strong>魔棒</strong>，粘贴 <strong>链接或编号</strong> → 用 <strong>Translator</strong> 解析元数据 → <strong>写 catalog + paper 文件夹</strong>（<code>NOTES.md</code> 壳 + <strong>PDF 默认到论文根目录</strong>；arXiv <strong>e-print 解压 LaTeX 到 <code>source/</code></strong>）→ 落到 <code>papers/</code> 或当前 Papers 子文件夹。catalog 仍保留远程 <code>pdf_url</code>/<code>html_url</code>（PDF 预览本地优先，远程作下载候选与回退；HTML 仍远程 iframe）。</p>
 </blockquote>
 <p>相关文档：</p>
 <ul>
@@ -284,7 +284,7 @@
 <li><strong>默认目标</strong>：Vault 的 <code>papers/</code> 根下，<code>papers/&lt;id&gt;/</code>。</li>
 <li><strong>上下文目标</strong>：若文件树当前选中（或等价「当前打开」）的是 <code>papers/</code> 下的<strong>组织子文件夹</strong>（非 paper 本体），则写入<br />
 <code>papers/&lt;该子路径&gt;/&lt;id&gt;/</code>。</li>
-<li><strong>Catalog 写入</strong> title / authors / year / doi / arxiv_id / <strong><code>pdf_url</code> / <code>html_url</code> / <code>source_url</code></strong> 等；中间栏 PDF/HTML 视图仍按 UI 约定 <strong>只读远程 URL，不落盘下载</strong>。</li>
+<li><strong>Catalog 写入</strong> title / authors / year / doi / arxiv_id / <strong><code>pdf_url</code> / <code>html_url</code> / <code>source_url</code></strong> 等；中间栏 <strong>PDF 预览本地优先</strong>（见 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>），<code>pdf_url</code> 作下载候选与失败回退；HTML 仍读远程 <code>html_url</code>。</li>
 <li>本地只创建轻量 paper 壳：<code>NOTES.md</code>（占位或短摘要）、空 <code>highlights.md</code>；<strong>不</strong>强制 <code>source/</code> 下载、<strong>不</strong>因魔棒去抓 PDF/HTML 文件。</li>
 </ol>
 <h3 id="12">1.2 目标文件夹解析规则<a class="headerlink" href="#12" title="Permanent link">&para;</a></h3>
@@ -414,8 +414,8 @@
 </thead>
 <tbody>
 <tr>
-<td>有远程预览时仍强制镜像下载</td>
-<td>与「远程优先」冲突；不做</td>
+<td>有远程 URL 时跳过本地下载</td>
+<td>不做：入库与预览均本地优先；远程仅作下载候选与失败回退</td>
 </tr>
 <tr>
 <td>官方 Zotero 公网 Translation SaaS</td>
@@ -1143,7 +1143,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
   → 用户 Enter 或点「添加」
   → lookup:search（Translator）→ 可选极简预览
   → lookup_import({ parent_dir, text, translatorBaseUrl })
-  → 成功：catalog + source/PDF（arXiv 含 TeX）；刷新文件树；打开 paper（预览仍可走远程 pdf_url）
+  → 成功：catalog + source/PDF（arXiv 含 TeX）；刷新文件树；打开 paper（PDF 预览优先本地文件）
   → 失败：toast / 行内错误
 </code></pre>
 
@@ -1274,7 +1274,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 </tr>
 <tr>
 <td>UI</td>
-<td>魔棒无 Vault 禁用；Library 表可见新行；远程 PDF 预览</td>
+<td>魔棒无 Vault 禁用；Library 表可见新行；本地 PDF 预览（无本地则下载 / 远程回退）</td>
 </tr>
 </tbody>
 </table>

@@ -80,6 +80,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../technical-plan/">技术方案</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI 设计</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../pdf-ask/">PDF 划词提问</a>
                   </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">路线图</a>
@@ -118,6 +120,8 @@
     </li>
         </ul>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#clivault-headless">CLI：Vault 管理与发现（headless）</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#4-later">4. Later</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#5">5. 主要里程碑</a>
@@ -135,6 +139,8 @@
     <li class="toctree-l3"><a class="reference internal" href="#milestone-f">Milestone F：多文档工作区 ⏳</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#milestone-g">Milestone G：文献引用可探索 ⏳</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#milestone-hcli">Milestone H：CLI 可脚本化 ⏳</a>
     </li>
         </ul>
     </li>
@@ -155,8 +161,6 @@
     </ul>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../todo/">TODO</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../hypothesis/">产品假设</a>
                   </li>
               </ul>
       </div>
@@ -240,6 +244,11 @@
 <td>文内引用 hover → 右侧 Paper Info；引用图 / Connected-Papers 式探索；配套 Agent 工作流。</td>
 </tr>
 <tr>
+<td><strong>CLI（headless Vault 接口）</strong></td>
+<td>⏳ 设计定稿</td>
+<td>设计见 <a href="../cli/"><code>cli.md</code></a>；代码目录 <strong><code>cli/</code></strong>；<strong>不迁 core</strong>，path 依赖 <code>agentero_lib::services</code>；Vault 创建/发现/暴露 + 文献基础；<strong>无 BYOA / 无精读编排</strong>；Agent 友好 <code>--json</code>。</td>
+</tr>
+<tr>
 <td>Release CI</td>
 <td>✅ 完成</td>
 <td>push <code>v*</code> tag 时构建 macOS/Linux/Windows Tauri 安装包并上传草稿 Release。</td>
@@ -260,7 +269,7 @@
 <li>[x] 多窗口：<code>⌘N</code> 新建窗口，session 级 Vault 隔离。</li>
 <li>[x] 树内联新建文件 / 文件夹。</li>
 <li>[x] 文件树：<strong>在 Finder 中显示</strong>（双击 / 右键 / <code>⌥⌘R</code>）；<strong>删除</strong>（右键 / <code>⌘⌫</code>，<code>papers/</code> 同步 <code>paper_delete</code>）。</li>
-<li>[x] Paper-centric 视图：选中 paper 后中间显示远程 PDF/HTML，右侧显示该篇 <code>NOTES.md</code>（<strong>仅具体论文</strong>时显示 Preview/Info）。</li>
+<li>[x] Paper-centric 视图：选中 paper 后中间显示 PDF（本地优先 / 远程回退）或 HTML，右侧显示该篇 <code>NOTES.md</code>（<strong>仅具体论文</strong>时显示 Preview/Info）。</li>
 <li>[x] 侧边栏折叠、标题栏快捷按钮、Settings 窗口；左右侧栏 <strong>常驻 collapsible + preserve-pixel-size</strong>（交替快捷键互不冲态）。</li>
 <li>[x] 论文库表格：虚拟节点 <code>agentero:library</code>、<code>paper_list</code>、表头排序、双向滚动。</li>
 <li>[x] Paper Info / Notes 仅在选中具体论文时显示（Library 视图隐藏）。</li>
@@ -289,7 +298,7 @@
 <li>[x] map → <code>PaperMetadata</code> → <strong>catalog.sqlite 权威</strong>；<code>metadata.json</code> 仅为投影。</li>
 <li>[x] 创建 <code>papers/&lt;id&gt;/</code>（或当前 Papers 子文件夹下）、<code>NOTES.md</code> / <code>highlights.md</code> 壳。</li>
 <li>[x] <strong>始终下载 PDF</strong> 到 <code>{paper}/{id}.pdf</code>（论文根目录）；<strong>arXiv e-print 解压 LaTeX</strong> 到 <code>source/</code>（无下载开关）。</li>
-<li>[x] 中间栏预览仍可用 catalog 远程 <code>pdf_url</code> / <code>html_url</code>。</li>
+<li>[x] 中间栏 <strong>PDF 预览本地优先</strong>：本地 <code>{paper}/*.pdf</code> → 缺省时自动 <code>paper_download_assets</code> → 失败回退远程 <code>pdf_url</code>；HTML 仍用远程 <code>html_url</code>。</li>
 <li>[x] <code>paper_list</code> / <code>paper_get</code>；Library 表格 + 虚拟节点。</li>
 <li>[x] 按需补下：<code>paper_download_assets</code>；paper 行缺 PDF 或 arXiv 缺 TeX 时 Download；<strong>Library 行批量补下全部缺失</strong>。</li>
 <li>[x] <strong>无 TeX 时 liteparse → <code>PAPER.md</code></strong>：下载后自动；<code>paper_parse_body</code>（Download 流程内触发）。</li>
@@ -479,6 +488,44 @@
 <li>[ ] 可查看至少「出链 cites」或「入链 cited_by」列表/图，并一键打开或入库。</li>
 <li>[ ] Agent「Explore citations」能基于本地 + 缓存引用边回答，并列出读取过的路径/来源。</li>
 </ul>
+<h2 id="clivault-headless">CLI：Vault 管理与发现（headless）<a class="headerlink" href="#clivault-headless" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>设计文档：<a href="../cli/"><code>cli.md</code></a>。可与 UI 版本线并行推进，不依赖 V0.5–V0.7。</p>
+</blockquote>
+<p>目标：提供 <strong><code>agentero</code> CLI</strong>，作为 Vault / Catalog 的机器接口——创建、管理、发现、暴露本地研究库，并覆盖已落地的文献基础能力（入库、补资源、<code>PAPER.md</code>、Bib 导入导出）。<strong>不</strong>内嵌 BYOA、不 spawn Agent、不跑 paper-reader。</p>
+<p>架构约束（已拍板）：</p>
+<ul>
+<li>代码在仓库根 <strong><code>cli/</code></strong>（与 <code>src-tauri</code> 并列），Cargo workspace member。</li>
+<li><strong>不迁 <code>agentero-core</code></strong>；path 依赖 <code>src-tauri</code> 的 <code>agentero_lib</code>，直接调用 <code>services::{vault,catalog,lookup,pdf_parse,wiki}</code>。</li>
+<li>CLI 源码禁止 <code>use …::services::agent</code>；可接受编译期带上 tauri 依赖图。</li>
+<li>与 GUI 只通过 <strong>同一 Vault 目录</strong> 协作；CLI 自有 <code>config.toml</code> / <code>default_vault</code>，不读 GUI localStorage / Agent 注册表。</li>
+</ul>
+<p>关键交付：</p>
+<ul>
+<li>[ ] 根 <code>Cargo.toml</code> workspace：<code>members = ["src-tauri", "cli"]</code>。</li>
+<li>[ ] <strong><code>cli/</code></strong> crate（package <code>agentero-cli</code>，bin <strong><code>agentero</code></strong>）+ clap 命令树。</li>
+<li>[ ] 按需放宽 <code>services::*</code> 可见性（<code>pub</code> / re-export），<strong>不搬迁模块</strong>。</li>
+<li>[ ] <strong>Vault</strong>：<code>create</code> / <code>which</code> / <code>info</code> / <code>check</code> / <code>use</code>；<code>--vault</code> / <code>AGENTERO_VAULT</code> / cwd 上溯 / default_vault。</li>
+<li>[ ] <strong>发现与暴露</strong>：<code>tree</code>；<code>paper list|get|paths</code>（<code>get</code> 含 <code>assets</code> + <code>suggestedReads</code>，对齐渐进披露）。</li>
+<li>[ ] <strong>文献基础</strong>：<code>import id|bib</code>、<code>export bib</code>、<code>paper download|parse|delete|set-read</code>（仅 catalog 字段；<strong>无</strong>自动精读）。</li>
+<li>[ ] 全局 <code>--json</code> / 退出码 / 稳定 <code>error.code</code>（Agent 友好）。</li>
+<li>[ ] 可选随后：<code>graph backlinks|export|rebuild</code>、<code>doctor</code>、shell completions。</li>
+<li>[ ] 文档：README 构建说明；Release 可选附带 <code>agentero</code> 二进制。</li>
+</ul>
+<p>验收标准：</p>
+<ul>
+<li>[ ] <code>cargo build -p agentero-cli</code>（或等价）产出 <code>agentero</code>。</li>
+<li>[ ] <code>agentero vault create &lt;path&gt;</code> 脚手架与 Host <code>vault_create</code> 一致（含 catalog，无默认 PAPERS.md）。</li>
+<li>[ ] 在已有 Vault 上 <code>paper list --json</code> / <code>paper get &lt;id&gt; --json</code> 与 catalog 语义一致。</li>
+<li>[ ] <code>import id 1706.03762 --json</code> 写入 catalog + 资源路径，<strong>不</strong>调用 Agent、不重写用户 NOTES 精读体。</li>
+<li>[ ] 无 GUI 时，外部 Agent / 脚本可仅凭 CLI + 读文件完成「摸库 → 入库 → 自己写 NOTES」。</li>
+</ul>
+<p>非目标（本里程碑明确不做）：</p>
+<ul>
+<li>[ ] ~~<code>agent run</code> / BYOA / paper-reader / 自动写精读 NOTES~~</li>
+<li>[ ] ~~抽离 <code>agentero-core</code> crate~~（远期可选，非本里程碑）</li>
+<li>[ ] ~~daemon / <code>serve</code>~~</li>
+</ul>
 <h2 id="4-later">4. Later<a class="headerlink" href="#4-later" title="Permanent link">&para;</a></h2>
 <p>这些能力不进入 MVP 主线，但可在上述版本之后继续规划：</p>
 <ul>
@@ -511,6 +558,8 @@
 <p>包含 V0.6。完成后，用户可以标签页管理打开的文档，并分屏并排阅读/笔记。</p>
 <h3 id="milestone-g">Milestone G：文献引用可探索 ⏳<a class="headerlink" href="#milestone-g" title="Permanent link">&para;</a></h3>
 <p>包含 V0.7。完成后，用户可 hover 文内引用看 Info、浏览引用邻域，并用 Agent 沿引用链探索与入库。</p>
+<h3 id="milestone-hcli">Milestone H：CLI 可脚本化 ⏳<a class="headerlink" href="#milestone-hcli" title="Permanent link">&para;</a></h3>
+<p>包含 <strong>CLI（headless）</strong>（<a href="../cli/"><code>cli.md</code></a>）。完成后，人与外部 Agent 可在无 GUI 下创建/发现 Vault、列表与入库文献基础能力；<strong>不含</strong> BYOA。代码在 <code>cli/</code>，复用 <code>agentero_lib</code> services，不迁 core。</p>
 <h2 id="6-todo">6. 主要 TODO 总表<a class="headerlink" href="#6-todo" title="Permanent link">&para;</a></h2>
 <h3 id="p0">近期优先级 P0<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h3>
 <ul>
@@ -530,6 +579,7 @@
 <li>[ ] Agent 写入草稿确认与拒绝路径。</li>
 <li>[ ] Tauri Store 替代当前 localStorage 中的最近 Vault / UI 偏好。</li>
 <li>[ ] 文件监听与索引增量刷新。</li>
+<li>[ ] <strong>CLI MVP</strong>（设计已定稿 <a href="../cli/"><code>cli.md</code></a>）：<code>cli/</code> + workspace；<code>vault</code> / <code>tree</code> / <code>paper</code> / <code>import</code> / <code>export</code>；<code>--json</code>；path 复用 services，<strong>不迁 core、无 Agent</strong>。</li>
 </ul>
 <h3 id="p1">中期优先级 P1<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h3>
 <ul>
@@ -544,6 +594,7 @@
 <li>[ ] <strong>文内引用 hover → 右侧 Paper Info</strong>（库内/远程缓存 + 一键入库）（V0.7-A）。</li>
 <li>[ ] <strong>引用关系图 / Connected Papers 式邻域</strong>（cites / cited_by 缓存 + 列表/简图）（V0.7-B）。</li>
 <li>[ ] <strong>Agent 引用工作流</strong>：Explore citations / Map related work / Ingest neighborhood（V0.7-C）。</li>
+<li>[ ] CLI 增强：<code>graph *</code>、<code>doctor</code>、shell completions；Release 附带 <code>agentero</code> 二进制。</li>
 <li>[ ] Release 流程补充签名、公证、版本号同步和自动 changelog。</li>
 </ul>
 <h3 id="agent-provider">Agent provider 后续改造<a class="headerlink" href="#agent-provider" title="Permanent link">&para;</a></h3>
@@ -565,6 +616,7 @@
 <li>[ ] 作者 / 机构 / 会议关系图谱；更深的 prior–derivative 引用布局。</li>
 <li>[ ] 复杂分屏（&gt;2 格）与命名工作区会话。</li>
 <li>[ ] iPadOS 文件系统与触控布局适配。</li>
+<li>[ ] （可选）从 <code>agentero_lib</code> 抽出无 Agent 的 domain crate，供 CLI 零 tauri 依赖——<strong>非当前 CLI 范围</strong>。</li>
 </ul>
 <h2 id="7">7. 风险控制<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
 <ul>

@@ -130,13 +130,13 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/hypothesis/">产品假设</a>
                   </li>
               </ul>
       </div>
@@ -400,7 +400,7 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <li><strong>无 TeX 且有 PDF</strong>：下载流程结束后用 <strong>liteparse</strong> 写 <code>{paper}/PAPER.md</code>，并更新 catalog <code>body_source</code> / <code>body_quality</code>（文本层 <code>pdf</code>+<code>medium</code>；OCR 主导 <code>ocr</code>+<code>low</code>）</li>
 <li>文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 列原因）；Library 行可批量 Download；解析走 Download 后 liteparse / <code>paper_parse_body</code>；入库/单篇 Download 后可自动精读；资源齐全且 <code>is_read=false</code> → Eye 手动精读</li>
 </ul>
-<p>正文来源与质量记录在 <strong>catalog</strong> 的 <code>body_source</code> / <code>body_quality</code> 字段。<code>PAPER.md</code> 可删可重建,<code>source/</code> 中的原始文件才是归档事实来源。中间栏 PDF/HTML <strong>预览</strong>仍可走 catalog 远程 URL。</p>
+<p>正文来源与质量记录在 <strong>catalog</strong> 的 <code>body_source</code> / <code>body_quality</code> 字段。<code>PAPER.md</code> 可删可重建,<code>source/</code> 中的原始文件才是归档事实来源。中间栏 <strong>PDF 预览</strong>优先本地 <code>{paper}/*.pdf</code>（无本地则先下载，失败再远程 <code>pdf_url</code>）；<strong>HTML 预览</strong>仍走 catalog 远程 <code>html_url</code>。</p>
 <h2 id="3">3. 数据类型<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
 <h3 id="31-vault">3.1 Vault<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-ts">interface VaultInfo {
@@ -452,14 +452,14 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
   series?: string;
   language?: string;
 
-  // 来源链接（UI 阅读器 PDF/HTML 模式以此为准；只存 URL，不落盘）
+  // 来源链接（catalog 存远程 URL；PDF 预览优先本地文件）
   /**
-   * 远程 PDF URL（UI 仅流式预览，不落盘）。
+   * 远程 PDF URL：下载候选；本地 PDF 缺失且下载失败时作预览回退。
    * 推荐 arXiv: `https://arxiv.org/pdf/{arxiv_id}`；缺省且有 arxiv_id 时自动推导。
    */
   pdf_url?: string;
   /**
-   * 远程 HTML URL（iframe 预览，不落盘）。
+   * 远程 HTML URL（iframe 预览，不强制本地下载）。
    * 推荐 arXiv: `https://arxiv.org/html/{arxiv_id}`；缺省且有 arxiv_id 时自动推导。
    */
   html_url?: string;
