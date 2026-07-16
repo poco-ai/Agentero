@@ -494,7 +494,7 @@
 </tr>
 <tr>
 <td>输入</td>
-<td>单层 Composer：当前文件、<code>@</code> 文件提及和 <code>$</code> 本机技能显示为可移除 context chip；候选列表支持 <code>↑</code> / <code>↓</code>、<code>Enter</code>，当前项仅使用背景高亮；文字与 context chip 按 Vault、Agent、session 独立持久化，发送成功后清空该 session 已发送的一次性上下文；发送按钮与 <code>↵</code> 均可提交，输出期间按钮和 <code>Esc</code> 均可中止，<code>⇧↵</code> 换行；Agent 输出期间仍可编辑下一条输入；底栏空闲时使用主要色，仅存在正在输出的 Agent 消息时切换为次要色，Fast / YOLO 的启用色保持不变；<code>/</code> 文本原样透传给 ACP Agent；YOLO 默认关闭</td>
+<td>单层 Composer：当前文件以可切换 chip 呈现（打开文件时默认未选中的虚线态，点击加入/移出上下文），<code>@</code> 文件提及和 <code>$</code> 本机技能显示为可移除 context chip；候选列表支持 <code>↑</code> / <code>↓</code>、<code>Enter</code>，当前项仅使用背景高亮；文字与 context chip 按 Vault、Agent、session 独立持久化，发送成功后清空该 session 已发送的一次性上下文；发送按钮与 <code>↵</code> 均可提交，输出期间按钮和 <code>Esc</code> 均可中止，<code>⇧↵</code> 换行；Agent 输出期间仍可编辑下一条输入；底栏空闲时使用主要色，仅存在正在输出的 Agent 消息时切换为次要色，Fast 的启用色保持不变；<code>/</code> 文本原样透传给 ACP Agent</td>
 </tr>
 <tr>
 <td>业务壳</td>
@@ -557,8 +557,8 @@ PromptInput → Body / Footer / Submit
 </table>
 <p>paper-reader 精读工作流与 Composer 共用这套规则，避免把 Codex 的 <code>$</code> 误写成 Claude 的 <code>/</code>，或反向。</p>
 <p><strong>斜杠命令</strong>：Motif 不实现自己的 <code>/</code> 命令菜单。用户手打的 <code>/…</code> 原样透传；Claude 路径上 Host 也可能主动加上 <code>/skill-id</code> 前缀以对齐其 skill 语法。Codex 使用 App Server native thread，skill 侧以 <code>$</code> 为准。</p>
-<p><strong>YOLO</strong>：Composer 底栏的 YOLO 开关按 provider 注册项保存在本机浏览器偏好中，并持续作用于后续运行，直到用户主动关闭。默认关闭时，Motif 取消 ACP 的权限请求；开启后自动选择 Agent 给出的第一个权限选项。逐项权限确认需要由保持 ACP 会话的后续实现提供。</p>
-<p><strong>Codex 控件</strong>：只有选中 <code>codex-acp</code> 时，底栏才显示 App Server <code>model/list</code> 提供的模型与 reasoning effort，以及仅在闪电图标内填充黄色的 Fast toggle。选择在下一次 native turn 中传给 App Server；其他 Agent 不显示也不接收这些偏好。YOLO 按 provider 注册项保存在本机浏览器偏好中。</p>
+<p><strong>权限模式</strong>：<strong>设置 → Agent</strong> 提供一个全局「权限模式」下拉，对<strong>所有 Agent</strong> 的运行生效（存于 app settings，默认 <strong>受限</strong>）。<strong>受限（默认）</strong>时，Motif 取消 ACP 的权限请求（Codex 走原生策略、沙箱为 <code>workspace-write</code>）；<strong>自动批准</strong>时自动选择 Agent 给出的第一个权限选项（Codex 沙箱切换为 <code>danger-full-access</code>）。选 <strong>自动批准</strong> 时面板下方显示一行风险说明。逐项权限确认需要由保持 ACP 会话的后续实现提供；届时可在此下拉新增「每次询问」档。</p>
+<p><strong>Codex 控件</strong>：只有选中 <code>codex-acp</code> 时，底栏才显示 App Server <code>model/list</code> 提供的模型与 reasoning effort，以及仅在闪电图标内填充黄色的 Fast toggle。选择在下一次 native turn 中传给 App Server；其他 Agent 不显示也不接收这些偏好。</p>
 <p><strong>Codex 历史</strong>：Motif 会将它创建或继续运行的 native thread id 记录在 Vault 的 <code>.motif/agent-sessions/codex.json</code>。历史列表默认只显示这份索引中的会话，避免混入同一 Vault 工作目录下由 Codex CLI、编辑器或其它应用创建的 thread。历史面板的“External”开关仅对 Codex 生效；开启后显示 App Server 返回的全部 Vault-scoped thread。开关偏好按 Codex provider 注册项保存在本机浏览器中。</p>
 <h3 id="33-backlinks-graph">3.3 Backlinks + Graph 右侧栏<a class="headerlink" href="#33-backlinks-graph" title="Permanent link">&para;</a></h3>
 <table>
