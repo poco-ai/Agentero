@@ -67,7 +67,7 @@
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#31-macos-apple-hig">3.1 快捷键（对齐 macOS / Apple HIG 习惯）</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#311-roadmap-v06">3.1.1 规划：文档标签与分屏（roadmap V0.6）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#311-roadmap-v06">3.1.1 文档标签页（已落地）与分屏（规划，roadmap V0.6）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#312-hover-paper-inforoadmap-v07">3.1.2 规划：文内引用 hover → Paper Info（roadmap V0.7）</a>
     </li>
@@ -310,7 +310,7 @@
 <p>主窗口在设置开启「恢复上次 Vault」且非 <code>fresh</code> 时，用 <code>localStorage</code> 上次路径自动打开；<code>⌘N</code> 窗口始终从欢迎页开始。</p>
 <h2 id="3">3. 布局<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
 <ul>
-<li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容 + 可选右侧栏（Agent / Backlinks）。中间与 Notes 随内容切换。</li>
+<li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容 + 可选右侧栏（Agent / Backlinks）。中间内容为<strong>文档标签页</strong>（浏览器式多 tab，见 §3.1.1），Notes 随激活文档切换。</li>
 <li><strong>论文库表格</strong>（<code>src/components/layout/papers-library.tsx</code>）：</li>
 <li><strong>入口</strong>：文件树虚拟节点 <code>agentero:library</code>；亦在选中 Vault 根 / <code>papers/</code> / 未选文件时作为中间栏默认视图。</li>
 <li><strong>数据</strong>：Host <code>paper_list</code> → catalog.sqlite（不扫盘拼表）。前端封装 <code>src/lib/papers-api.ts</code>。</li>
@@ -326,7 +326,7 @@
 <li><strong>左侧 Paper Info</strong>（<code>paper-info-panel</code>）：仅当存在 <code>paperMeta</code>（选中 paper 文件夹）时渲染；论文库 / 普通笔记时隐藏。</li>
 <li><strong>Notes（WYSIWYG，无独立预览栏）</strong>：中心切换为 Notes 时全宽编辑 <code>NOTES.md</code>；中心为 PDF/HTML 时右侧栏显示同一篇 <code>NOTES.md</code> 实时编辑。论文库视图或未选论文时隐藏。</li>
 <li><strong>格式工具栏（WYSIWYG toolbar）</strong>：<code>MarkdownEditor</code> 顶部可选的固定工具栏（<code>editor-toolbar.tsx</code>），提供标题（H1–H3）、引用、加粗 / 斜体 / 下划线 / 删除线 / 行内代码 / 高亮、无序 / 有序 / 待办列表等常用格式按钮，无需手写 Markdown 即可排版。由全局设置 <code>showEditorToolbar</code>（默认开）控制，Notes 面板 header 右侧另有 <code>PanelTop</code> 一键显示 / 隐藏；只读时不渲染。所有按钮均有 <code>aria-label</code> + Tooltip，i18n <code>editor:toolbar.*</code>。</li>
-<li><strong>Notes 显示开关 / 快速打开 / 关闭文档</strong>：<code>showNotes</code>（默认显示）控制右侧 Notes 栏是否挂载。看 PDF/HTML 时，中间栏 header 右侧提供 <code>NotebookPen</code> 快捷开关（一键显示/隐藏 Notes）；全局入口则在标题栏 <strong>Layout 菜单</strong>（见下）；<code>⌘3</code> 聚焦 Notes（隐藏时先显示再聚焦）。关闭当前文档为中间栏 header 右侧的 <code>X</code>（<code>closeDocument</code>）→ 返回论文库表格（等价于选中虚拟 <code>Library</code> 节点）；论文库视图与欢迎页不显示。</li>
+<li><strong>Notes 显示开关 / 快速打开 / 关闭文档</strong>：<code>showNotes</code>（默认显示）控制右侧 Notes 栏是否挂载。看 PDF/HTML 时，中间栏 header 右侧提供 <code>NotebookPen</code> 快捷开关（一键显示/隐藏 Notes）；全局入口则在标题栏 <strong>Layout 菜单</strong>（见下）；<code>⌘3</code> 聚焦 Notes（隐藏时先显示再聚焦）。关闭当前文档为中间栏 header 右侧的 <code>X</code>（<code>closeDocument</code>）→ 关闭当前标签（等价 <code>⌥⌘W</code>）；论文库视图与欢迎页不显示。</li>
 <li><strong>⌘L</strong> 显示 / 隐藏右侧栏；右侧栏入口为 <strong>Agent</strong> 与 <strong>Backlinks</strong>。</li>
 <li><strong>Layout 菜单</strong>（标题栏 <code>PanelsTopLeft</code> 图标，<code>src/components/layout/layout-menu.tsx</code>）：集中式面板可见性开关（对齐 VS Code「Customize Layout」）。以复选项反映并切换 <strong>左侧边栏 / Notes / 右侧边栏 / 禅模式</strong>，各项显示对应快捷键；Notes 项仅在打开论文 PDF/HTML 时可用；切换时菜单保持打开。i18n <code>app:titlebar.layout*</code>。</li>
 <li>Backlinks 入口内采用上下分区：上方反链列表，下方 Graph。Graph 不再是独立顶层 tab。</li>
@@ -448,6 +448,16 @@
 <td></td>
 </tr>
 <tr>
+<td><code>⌥⌘W</code></td>
+<td>关闭当前标签（<code>closeTab</code>）</td>
+<td>关闭中间栏激活文档；<code>⌘W</code> 仍关窗口</td>
+</tr>
+<tr>
+<td><code>⌥⌘→</code> / <code>⌥⌘←</code></td>
+<td>下一 / 上一标签（<code>nextTab</code> / <code>prevTab</code>）</td>
+<td>在打开的文档标签间循环</td>
+</tr>
+<tr>
 <td><code>⌘L</code></td>
 <td>显示 / 隐藏右侧栏</td>
 <td>Agent / Backlinks（含 Graph）</td>
@@ -475,12 +485,20 @@
 <li><strong>论文行 Download</strong>：缺本地 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时显示；hover 列出原因 → <code>paper_download_assets</code>（已有资源跳过）。下载后若仍无 TeX 且有 PDF，Host 自动 liteparse 写 <code>PAPER.md</code>。Library 行可对库内全部不完整 paper <strong>批量</strong> Download。</li>
 <li><strong>论文行 Eye（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Codex 用 <code>$paper-reader</code>，Claude 用 <code>/paper-reader</code>，其它靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。魔棒入库 / 单篇 Download 成功后会<strong>自动</strong>同一工作流（批量不连跑）。进度在左下角后台任务条（lookup/download → paperRead）。</li>
 </ul>
-<h3 id="311-roadmap-v06">3.1.1 规划：文档标签与分屏（roadmap V0.6）<a class="headerlink" href="#311-roadmap-v06" title="Permanent link">&para;</a></h3>
-<p>当前中间栏为<strong>单槽</strong>：打开新文件/论文会替换当前内容。规划升级为：</p>
+<h3 id="311-roadmap-v06">3.1.1 文档标签页（已落地）与分屏（规划，roadmap V0.6）<a class="headerlink" href="#311-roadmap-v06" title="Permanent link">&para;</a></h3>
+<p>中间栏为<strong>浏览器式文档标签页</strong>（<code>src/components/layout/document-tab-bar.tsx</code>、模型 <code>src/lib/tabs.ts</code>）：</p>
 <ul>
-<li>文档 <strong>tab 栏</strong>（paper / MD / PDF / HTML / Library），可关/切/重排；保留滚动与 PDF 缩放等视图状态。</li>
-<li><strong>2 格分屏</strong>（水平或垂直）：例如 PDF | NOTES、两篇 paper 并排。</li>
-<li>与 Agent 面板 <strong>会话标签</strong> 分离；快捷键与「当前 tab vs 新 tab 打开」策略见落地时更新本表与 <code>shortcuts.ts</code>。</li>
+<li><strong>多 tab</strong>：paper / Markdown / PDF / HTML / Library 各占一个 tab，可切换、关闭（<code>X</code> / 中键 / <code>⌥⌘W</code>）、拖拽重排；同一路径已开则聚焦其 tab（不重复打开）。</li>
+<li><strong>常驻挂载</strong>：每个 tab 的内容组件保持 mounted（非激活 <code>hidden</code>），切换瞬时并保留 <strong>PDF 滚动位置/缩放</strong> 与编辑器状态。PDF 多篇同开会同时占用内存（符合浏览器式取舍）。</li>
+<li><strong>状态派生</strong>：<code>activeTab</code> 驱动 <code>selectedPath</code> / <code>centerMode</code> / <code>paperMeta</code> / Notes；文件树选中与「新建父目录」上下文用独立的 <code>treeSelectedPath</code>（跟随激活文档，folder 新建时可指向文件夹）。</li>
+<li><strong>持久化</strong>：<code>agentero-open-tabs</code>（<code>{tabs:[{path,mode}], activeIndex}</code>）按窗口保存，重开窗口恢复 tab 集与激活项；<code>⌘N</code> 各窗口独立。</li>
+<li><strong>NOTES 编辑器</strong>：每篇 paper 的 <code>NOTES.md</code> 编辑器也按 tab 常驻挂载在右侧 Notes 栏；paper-reader / download 写回后按路径 reseed 对应 tab。</li>
+</ul>
+<p>规划中（尚未实现）：</p>
+<ul>
+<li><strong>2 格分屏</strong>（水平或垂直）：例如 PDF | NOTES、两篇 paper 并排；分屏快捷键随实现补入本表与 <code>shortcuts.ts</code>。</li>
+<li>tab 固定（pin）、按 paper 分组、「当前 tab vs 新 tab 打开」策略可配。</li>
+<li>与 Agent 面板 <strong>会话标签</strong> 分离（不同概念）。</li>
 </ul>
 <h3 id="312-hover-paper-inforoadmap-v07">3.1.2 规划：文内引用 hover → Paper Info（roadmap V0.7）<a class="headerlink" href="#312-hover-paper-inforoadmap-v07" title="Permanent link">&para;</a></h3>
 <p>阅读 PDF/HTML/<code>PAPER.md</code> 时，对文内引用锚点 hover，右侧 Paper Info 展示<strong>被引论文</strong>元信息（库内打开 / 库外缓存 + 入库）。引用邻域图与 Agent 引用工作流见 roadmap V0.7；<strong>不</strong>与 Backlinks 双链 Graph 混为一谈。</p>

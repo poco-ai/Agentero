@@ -418,24 +418,24 @@
 <p>目标：中间内容区从「当前选中一项即替换」升级为 <strong>标签式多文档工作区</strong>，并支持 <strong>分屏并排阅读/编辑</strong>。</p>
 <p>现状对照：</p>
 <ul>
-<li>今日中间栏是单槽：Library / PDF / HTML / Markdown 互斥切换，打开新文件会替换当前内容。</li>
+<li><strong>标签页已落地</strong>（浏览器式多 tab，常驻挂载）：中间区可同时打开 Library / PDF / HTML / Markdown 多个文档，切换保留 PDF 滚动/缩放与编辑器状态。<strong>分屏（split）仍待实现</strong>。</li>
 <li>左右侧栏已是常驻 collapsible（<code>preserve-pixel-size</code>）；Agent 禅模式是全屏 Agent，不是编辑区分屏。</li>
 <li>Agent 面板内部已有 <strong>会话标签</strong>（多 session），与「文档标签页」是不同概念。</li>
 </ul>
 <p>关键交付：</p>
 <ul>
-<li>[ ] <strong>文档标签栏</strong>：打开 paper / Markdown / PDF / HTML / Library 时在中间区以 tab 呈现，可关闭、切换、拖拽重排。</li>
-<li>[ ] <strong>标签状态</strong>：每 tab 保留滚动位置、PDF 缩放、视图模式（PDF/HTML/Notes 侧栏上下文）；关闭前未保存 Markdown 需提示。</li>
+<li>[x] <strong>文档标签栏</strong>：打开 paper / Markdown / PDF / HTML / Library 时在中间区以 tab 呈现，可关闭、切换、拖拽重排。（<code>src/components/layout/document-tab-bar.tsx</code>、<code>src/lib/tabs.ts</code>）</li>
+<li>[x] <strong>标签状态</strong>：每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；Markdown/NOTES 自动保存（debounce + 卸载 flush），关闭不丢内容。</li>
 <li>[ ] <strong>分屏（split）</strong>：水平或垂直拆成 2 格（MVP 可先 2 格；后续可扩展 3–4 格），每格独立 tab 栈或共享 tab 池。</li>
-<li>[ ] <strong>快捷键</strong>：新建/关闭 tab、下一/上一 tab、分屏 / 取消分屏（具体键位写入 <code>docs/frontend/ui.md</code>）。</li>
-<li>[ ] <strong>与文件树联动</strong>：树选中可「在当前 tab 打开」或「新 tab 打开」；默认策略在设置中可配。</li>
-<li>[ ] <strong>多窗口兼容</strong>：<code>⌘N</code> 窗口各自有独立 tab 集（session 隔离，与 Vault session 一致）。</li>
+<li>[x] <strong>快捷键</strong>：关闭 tab <code>⌥⌘W</code>、下一/上一 tab <code>⌥⌘→ / ⌥⌘←</code>；分屏快捷键随 split 一并补。</li>
+<li>[x] <strong>与文件树联动</strong>：树选中 / Library / Graph / Backlinks / wiki 跳转统一走 <code>openTab</code>；同一路径已开则聚焦其 tab。</li>
+<li>[x] <strong>多窗口兼容</strong>：<code>⌘N</code> 窗口各自有独立 tab 集（<code>agentero-open-tabs</code> 按窗口 localStorage 恢复）。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
-<li>[ ] 可同时打开至少 3 个文档标签并在其间切换而不丢滚动位置。</li>
+<li>[x] 可同时打开至少 3 个文档标签并在其间切换而不丢滚动位置。</li>
 <li>[ ] 分屏下左格读 PDF、右格写 <code>NOTES.md</code>（或两篇 paper 并排）可用。</li>
-<li>[ ] 关闭 Vault / 关窗不损坏磁盘文件；tab 布局可恢复（localStorage 或 Tauri Store）。</li>
+<li>[x] 关闭 Vault / 关窗不损坏磁盘文件；tab 布局可恢复（localStorage）。</li>
 </ul>
 <p>后续增强：</p>
 <ul>
