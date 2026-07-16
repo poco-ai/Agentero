@@ -306,8 +306,9 @@
 <li>[x] M2：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code> 读写 + 页边圆片锚点（归一化坐标）。</li>
 <li>[x] M3：接入 ACP <code>agent_run_once</code> 流式多轮；结束会话落盘。</li>
 <li>[x] M4：双击 / 悬停停留触发 + 防误触（阈值暂固定 700ms）。</li>
+<li>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer。</li>
 <li>
-<p>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer。</p>
+<p>[x] M6：划词操作菜单（高亮 / 笔记 / 提问 / 翻译）；高亮落盘 <code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code> + 覆盖层 + 点击删除；笔记追加 <code>NOTES.md</code>（经编辑器实例，防覆盖）；翻译复用问答卡走 Agent；去掉默认琥珀高亮，仅原生选区。</p>
 </li>
 <li>
 <p><strong>PDF / HTML 标注系统</strong></p>
@@ -398,8 +399,8 @@
 </tr>
 <tr>
 <td>PDF</td>
-<td>缩放、划词提问 MVP（asks JSON）</td>
-<td>本地 PDF 直开、highlights 标注系统、M5</td>
+<td>缩放、划词操作菜单（高亮/笔记/提问/翻译；asks + highlights JSON）</td>
+<td>本地 PDF 直开、<code>highlights.md</code> 标注系统、M5</td>
 </tr>
 <tr>
 <td><strong>CLI</strong></td>

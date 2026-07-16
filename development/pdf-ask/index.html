@@ -166,9 +166,9 @@
               
                 <h1 id="pdf-selection-ask">PDF 划词提问（Selection Ask）<a class="headerlink" href="#pdf-selection-ask" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>MVP 已落地（前端 + 文件 IO）</strong><br />
-范围：阅读 PDF 时选中/双击/悬停触发提问 → 小对话框问答 → JSON 落盘 → 页边圆片回访（飞书式边注）。<br />
-实现入口：<code>src/components/viewer/pdf-viewer.tsx</code>、<code>src/lib/pdf-ask/</code>、<code>src/components/viewer/pdf-ask/</code>。<br />
+<p>状态：<strong>MVP 已落地（前端 + 文件 IO）</strong>；划词现先弹<strong>操作菜单</strong>（高亮 / 笔记 / 提问 / 翻译），不再默认套用琥珀高亮。<br />
+范围：阅读 PDF 时选中文本 → 选区操作菜单 → 分派到高亮（JSON 落盘）/ 笔记（追加 <code>NOTES.md</code>）/ 提问（迷你对话框）/ 翻译（复用对话框走 Agent）。提问线程 JSON 落盘 + 页边圆片回访（飞书式边注）。<br />
+实现入口：<code>src/components/viewer/pdf-viewer.tsx</code>、<code>src/components/viewer/pdf-ask/</code>（含 <code>selection-menu.tsx</code>、<code>highlight-layer.tsx</code>）、<code>src/lib/pdf-ask/</code>、<code>src/lib/pdf-highlight/</code>。<br />
 相关：<a href="../technical-plan/"><code>technical-plan.md</code></a> §3.4 阅读器、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a> Agent 契约。</p>
 </blockquote>
 <h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
@@ -183,7 +183,11 @@
 <tbody>
 <tr>
 <td><strong>划词</strong></td>
-<td>选中 PDF 文本后，在选区旁弹出迷你问答卡</td>
+<td>选中 PDF 文本后，在选区旁弹出<strong>操作菜单</strong>（高亮 / 笔记 / 提问 / 翻译）；不默认高亮，只保留浏览器原生选区</td>
+</tr>
+<tr>
+<td><strong>操作菜单</strong></td>
+<td>高亮→JSON 落盘并渲染琥珀覆盖层；笔记→原文以 <code>&gt; …</code> 追加进 <code>NOTES.md</code>（菜单内联「已加入」）；提问→打开迷你问答卡；翻译→建线程后复用问答卡走 Agent 流式</td>
 </tr>
 <tr>
 <td><strong>双击</strong></td>
@@ -203,7 +207,7 @@
 </tr>
 <tr>
 <td><strong>回访</strong></td>
-<td>Hover 图标打开线程；隐藏 / 删除</td>
+<td>Hover 图标打开线程；隐藏 / 删除；点击已有高亮出现删除浮层</td>
 </tr>
 </tbody>
 </table>
@@ -609,6 +613,12 @@ src/lib/pdf-ask/
 <td>导出 highlight；本地 PDF 文本层；无文本层降级 UI</td>
 <td>扫描件有明确空状态</td>
 <td>⏳</td>
+</tr>
+<tr>
+<td><strong>M6 选区菜单</strong></td>
+<td>划词弹菜单：高亮（<code>highlights/*.json</code>）/ 笔记（追加 <code>NOTES.md</code>）/ 提问 / 翻译；去掉默认琥珀高亮</td>
+<td>四项可用；高亮重开对齐并可删除；笔记不覆盖未存改动</td>
+<td>✅</td>
 </tr>
 </tbody>
 </table>
