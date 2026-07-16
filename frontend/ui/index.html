@@ -338,9 +338,10 @@
 <li>仍用 AI Elements：<code>Conversation</code> / <code>Message</code> / <code>PromptInput</code> / <code>Suggestion</code> 等。</li>
 <li>退出：标题栏 / 面板头 <strong>X</strong>，或再次 <code>⌥⌘Z</code>；恢复进入前左栏折叠意图与右栏默认宽度。</li>
 <li><strong>左右侧栏隔离</strong>（<code>react-resizable-panels</code>）：</li>
-<li>左栏（文件树）与右栏（Agent/Backlinks）均为 <strong>常驻 collapsible 面板</strong>（<code>collapsedSize=0</code>），用 <code>expand</code>/<code>collapse</code>/<code>resize</code> 切换，<strong>不要</strong>对右栏做条件卸载整块 <code>ResizablePanel</code>（否则 Group 重排会冲掉左栏折叠态，交替 <code>⌥⌘S</code> / <code>⌘L</code> 时出现重叠/半开）。</li>
-<li>两侧使用 <code>groupResizeBehavior="preserve-pixel-size"</code>，中间主栏保持默认相对尺寸，避免一侧开合时另一侧像素宽度被重新分配。</li>
-<li>Notes 列仍随论文选中条件挂载；<code>showNotesOnRight</code> 变化后 rAF 再 assert 两侧折叠意图。</li>
+<li>左栏（文件树）与右栏（Agent/Backlinks）均为 <strong>常驻 collapsible 面板</strong>（<code>collapsedSize=0</code>），用 <code>expand</code>/<code>collapse</code>/<code>resize</code> 切换，<strong>不要</strong>对右栏做条件卸载整块 <code>ResizablePanel</code>（否则 Group 重排会冲掉左栏折叠态）。</li>
+<li>两侧使用 <code>groupResizeBehavior="preserve-pixel-size"</code>，并把上次展开像素宽记入 ref；中间主栏保持默认相对尺寸。</li>
+<li>Notes 列仍随论文选中条件挂载（需真实 <code>defaultSize</code> 才能出现）；<code>showNotesOnRight</code> 变化后 rAF 再 assert 左右栏宽度/折叠意图，避免 Library ↔ paper 时左栏跳宽。</li>
+<li><strong>文档标签栏位置</strong>：与标题栏右侧禅模式 / Layout / 右栏图标 <strong>同一行</strong>（<code>DocumentTabBar</code> 在 <code>header</code> 中间 flex 区；无 tab 时该区为拖拽空白）。中间栏仅保留 view mode / 文档标题工具行。</li>
 <li>各栏 header 等高：统一 <code>h-10</code>（<code>PaneHeader</code> / <code>PANE_HEADER_CLASS</code>），水平对齐；错误提示等放在 header 下方，不撑高标题栏。</li>
 <li>边距、分割线保持轻量；控件密度偏紧凑（icon-xs / icon-sm）。</li>
 <li><strong>面板分隔（sash）</strong>：对齐 VS Code / Cursor——默认 <strong>1px</strong> 细线，hover / 拖拽时略提亮；可点区域略宽但视觉不占粗条。实现见 <code>src/components/layout/resizable.tsx</code>。</li>
@@ -492,7 +493,7 @@
 <li><strong>论文行 Eye（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Codex 用 <code>$paper-reader</code>，Claude 用 <code>/paper-reader</code>，其它靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。魔棒入库 / 单篇 Download 成功后会<strong>自动</strong>同一工作流（批量不连跑）。进度在左下角后台任务条（lookup/download → paperRead）。</li>
 </ul>
 <h3 id="311-roadmap-v06">3.1.1 文档标签页（已落地）与分屏（规划，roadmap V0.6）<a class="headerlink" href="#311-roadmap-v06" title="Permanent link">&para;</a></h3>
-<p>中间栏为<strong>浏览器式文档标签页</strong>（<code>src/components/layout/document-tab-bar.tsx</code>、模型 <code>src/lib/tabs.ts</code>）：</p>
+<p><strong>浏览器式文档标签页</strong>（<code>src/components/layout/document-tab-bar.tsx</code>、模型 <code>src/lib/tabs.ts</code>）位于<strong>窗口标题栏</strong>（与禅模式 Focus 图标同行）：</p>
 <ul>
 <li><strong>多 tab</strong>：paper / Markdown / PDF / HTML / Library 各占一个 tab，可切换、关闭（<code>X</code> / 中键 / <code>⌥⌘W</code>）、拖拽重排；同一路径已开则聚焦其 tab（不重复打开）。</li>
 <li><strong>常驻挂载</strong>：每个 tab 的内容组件保持 mounted（非激活 <code>hidden</code>），切换瞬时并保留 <strong>PDF 滚动位置/缩放</strong> 与编辑器状态。PDF 多篇同开会同时占用内存（符合浏览器式取舍）。</li>

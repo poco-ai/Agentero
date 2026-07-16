@@ -460,7 +460,7 @@
 </ul>
 <p>关键交付：</p>
 <ul>
-<li>[x] <strong>文档标签栏</strong>：打开 paper / Markdown / PDF / HTML / Library 时在中间区以 tab 呈现，可关闭、切换、拖拽重排。（<code>src/components/layout/document-tab-bar.tsx</code>、<code>src/lib/tabs.ts</code>）</li>
+<li>[x] <strong>文档标签栏</strong>：打开 paper / Markdown / PDF / HTML / Library 时在标题栏（与禅模式图标同行）以 tab 呈现，可关闭、切换、拖拽重排。（<code>src/components/layout/document-tab-bar.tsx</code>、<code>src/lib/tabs.ts</code>）</li>
 <li>[x] <strong>标签状态</strong>：每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；Markdown/NOTES 自动保存（debounce + 卸载 flush），关闭不丢内容。</li>
 <li>[ ] <strong>分屏（split）</strong>：水平或垂直拆成 2 格（MVP 可先 2 格；后续可扩展 3–4 格），每格独立 tab 栈或共享 tab 池。</li>
 <li>[x] <strong>快捷键</strong>：关闭 tab <code>⌥⌘W</code>、下一/上一 tab <code>⌥⌘→ / ⌥⌘←</code>；分屏快捷键随 split 一并补。</li>
