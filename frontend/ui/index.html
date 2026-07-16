@@ -211,6 +211,7 @@
 <li><strong>按标识符添加（魔棒）</strong> → <code>WandSparkles</code>（紧挨 <strong>New file 左侧</strong>；Popover 粘贴 arXiv 链接/编号 → Host <code>lookup_import</code>）</li>
 <li>新建文件 → <code>FilePlus2</code>（在选中目录 / 文件父目录下 <strong>树内联命名</strong>，Enter 确认 / Esc 取消，对齐 VS Code）</li>
 <li>新建文件夹 → <code>FolderPlus</code>（同上）</li>
+<li><strong>回收站</strong> → <code>Trash2</code>（最右；打开 <code>RecycleBinDialog</code> 浏览 / 恢复 / 永久删除已删项，见「删除」）</li>
 <li><strong>刷新文件树</strong>不在侧边栏：使用菜单 <strong>File → Refresh File Tree</strong>（<code>⌘R</code>）。</li>
 <li><strong>在系统文件管理器中显示</strong>（<code>revealItemInDir</code> / <code>src/lib/reveal.ts</code>）：</li>
 <li><strong>右键</strong>真实文件 / 文件夹 / paper 行 → 上下文菜单「在 Finder 中显示」（文案随平台切换；旁注 <code>⌥⌘R</code>）。</li>
@@ -224,10 +225,12 @@
 <li><strong>文件</strong>：终端 cwd 为文件所在父目录。</li>
 <li>使用系统默认终端：macOS <code>Terminal.app</code>；Windows 优先 <code>wt</code>（Windows Terminal）否则 <code>cmd</code>；Linux <code>xdg-terminal-exec</code> / <code>$TERMINAL</code> / 常见终端回退。</li>
 <li>虚拟 Library 不可用；仅桌面端。</li>
-<li><strong>删除</strong>（<code>remove</code> + 可选 <code>paper_delete</code>）：</li>
-<li><strong>右键</strong>真实节点 →「删除」（旁注 <code>⌘⌫</code>）；确认后删盘。</li>
-<li><strong><code>⌘⌫</code></strong>：删除当前选中项（编辑器 / 输入框聚焦时不拦截，保留系统删行首行为）。</li>
-<li>路径在 <code>papers/</code> 下时同步清理 catalog 对应行（含组织目录下嵌套 paper）；随后刷新文件树、Library 与双链索引。</li>
+<li><strong>删除（回收站 + 撤销）</strong>（<code>path_trash</code> / <code>path_untrash</code>；不再物理 <code>remove</code>）：</li>
+<li><strong>右键</strong>「删除」（旁注 <code>⌘⌫</code>）、<strong><code>⌘⌫</code></strong>、批量条 / 右键「删除 N 项」：均<strong>移入 Vault 回收站</strong> <code>.agentero/.trash/&lt;批次&gt;/</code>，<strong>不弹确认</strong>，随后弹「已删除 N 项 · 撤销」Toast（<code>notifyUndo</code>）。</li>
+<li><strong>撤销</strong>：Toast 内点「撤销」→ <code>path_untrash</code> 把文件移回原位并恢复 catalog 行；若原路径已被重新占用则整批中止、不覆盖新内容。</li>
+<li><code>papers/</code> 下的项移入回收站时<strong>快照并移除</strong> catalog 对应行（含嵌套 paper），撤销时一并恢复；随后刷新文件树、Library 与双链索引。</li>
+<li><code>⌘⌫</code> 在编辑器 / 输入框聚焦时不拦截（保留系统删行首行为）。</li>
+<li><strong>回收站浏览</strong>：侧栏头部 <code>Trash2</code> 图标打开 <code>RecycleBinDialog</code> → 列出全部已删项（名称 / 原路径 / 删除时间），逐项<strong>恢复</strong>（<code>path_restore_item</code>，恢复文件 + catalog 行）或<strong>永久删除</strong>（<code>path_purge_item</code>），底部可<strong>清空回收站</strong>（<code>path_purge_trash</code>，不可撤销、需确认）。撤销 Toast 错过后仍可从这里找回。</li>
 <li>不可删：虚拟 Library、Vault 根。</li>
 <li><strong>多选与批量操作</strong>（<code>file-tree.tsx</code> + 原语 <code>ai-elements/file-tree.tsx</code>）：</li>
 <li>对齐 VS Code / Finder：<strong>无勾选框</strong>，以<strong>行高亮</strong>表达选区。<strong>Ctrl/⌘ 点击</strong>切换单项、<strong>Shift 点击</strong>按可见顺序选区间；普通点击仍为单选并打开。</li>
@@ -475,7 +478,7 @@
 <tr>
 <td><code>⌘⌫</code></td>
 <td>删除选中项</td>
-<td>文件树选中项；确认后删盘；<code>papers/</code> 同步 <code>paper_delete</code>；编辑区不拦截</td>
+<td>文件树选中项；移入回收站 <code>.agentero/.trash/</code> + 「撤销」Toast；<code>papers/</code> 行随删随快照；编辑区不拦截</td>
 </tr>
 <tr>
 <td><code>⌥⌘S</code></td>

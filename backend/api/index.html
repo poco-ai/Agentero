@@ -84,6 +84,10 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#path_open_in_terminal">path_open_in_terminal（已实现）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#path_trash-path_untrash">path_trash / path_untrash（已落地）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#path_list_trash-path_restore_item-path_purge_item-path_purge_trash">path_list_trash / path_restore_item / path_purge_item / path_purge_trash（已落地）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#window_new">window_new（已实现）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#vaultopen">vault:open（规划）</a>
@@ -419,7 +423,7 @@ Host (Tauri + Rust)
 <h3 id="31-vault">3.1 Vault 与窗口<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
 <blockquote>
 <p><strong>实现状态（V0.1）</strong><br />
-- 已实现：<code>vault_create</code>（snake_case invoke 名）、<code>path_open_in_terminal</code>、<code>window_new</code>、<code>set_locale</code>。<br />
+- 已实现：<code>vault_create</code>（snake_case invoke 名）、<code>path_open_in_terminal</code>、<code>path_trash</code> / <code>path_untrash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。<br />
 - 打开 Vault / 最近列表 / 树加载：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成，Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。<br />
 - 实际 command 注册见 <code>src-tauri/src/lib.rs</code>。</p>
 </blockquote>
@@ -478,6 +482,47 @@ Host (Tauri + Rust)
 <li>Linux：<code>xdg-terminal-exec</code> → <code>$TERMINAL</code> → 常见终端（gnome-terminal / konsole / …）→ <code>x-terminal-emulator</code></li>
 </ul>
 </li>
+</ul>
+<h4 id="path_trash-path_untrash"><code>path_trash</code> / <code>path_untrash</code>（已落地）<a class="headerlink" href="#path_trash-path_untrash" title="Permanent link">&para;</a></h4>
+<p>可撤销删除：把项移入 Vault 回收站 <code>.agentero/.trash/&lt;batchId&gt;/</code>（带 <code>manifest.json</code> 记录原路径与被删 catalog 行快照），而非物理删除。前端删除后弹「已删除 N 项 · 撤销」Toast。</p>
+<ul>
+<li><strong><code>path_trash</code> 参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  rels: string[]; // 待删除的 Vault 相对路径
+}
+</code></pre>
+
+<ul>
+<li><strong><code>path_trash</code> 返回</strong>（<code>ApiResult&lt;{ batchId: string; count: number }&gt;</code>）</li>
+<li><code>batchId</code> 用于撤销；<code>count</code> 为实际移入回收站的项数。</li>
+<li><code>papers/</code> 下的项：移动前<strong>快照并删除</strong> catalog 行（含嵌套 paper）。</li>
+<li>
+<p>跳过空 / 含 <code>..</code> / <code>.agentero</code> / <code>papers</code> 根 / 不存在的路径。</p>
+</li>
+<li>
+<p><strong><code>path_untrash</code> 参数</strong></p>
+</li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  batchId: string;
+}
+</code></pre>
+
+<ul>
+<li><strong><code>path_untrash</code> 返回</strong>（<code>ApiResult&lt;{ restored: number }&gt;</code>）</li>
+<li>把该批次文件移回原位并 <code>upsert</code> 恢复 catalog 行。</li>
+<li><strong>预检</strong>：若任一原路径已被重新占用，整批中止且不改动任何内容（不覆盖新内容）。</li>
+</ul>
+<h4 id="path_list_trash-path_restore_item-path_purge_item-path_purge_trash"><code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>（已落地）<a class="headerlink" href="#path_list_trash-path_restore_item-path_purge_item-path_purge_trash" title="Permanent link">&para;</a></h4>
+<p>回收站浏览：<code>RecycleBinDialog</code> 用这些命令列出 / 恢复 / 永久删除已删项。</p>
+<ul>
+<li><strong><code>path_list_trash</code></strong>（<code>{ vaultPath }</code> → <code>ApiResult&lt;TrashEntry[]&gt;</code>）：展平所有批次为逐项条目 <code>{ id, batchId, stored, rel, name, deletedAt, isDir }</code>，按删除时间倒序。</li>
+<li><strong><code>path_restore_item</code></strong>（<code>{ vaultPath, batchId, stored }</code> → <code>ApiResult&lt;{ rel: string }&gt;</code>）：把单项移回原位并 <code>upsert</code> 恢复其 catalog 行；原路径已占用则报错；批次清空后删除批次目录。</li>
+<li><strong><code>path_purge_item</code></strong>（<code>{ vaultPath, batchId, stored }</code> → <code>ApiResult&lt;null&gt;</code>）：永久删除单项（不可恢复）。</li>
+<li><strong><code>path_purge_trash</code></strong>（<code>{ vaultPath }</code> → <code>ApiResult&lt;null&gt;</code>）：清空整个回收站（不可恢复）。</li>
 </ul>
 <h4 id="window_new"><code>window_new</code>（已实现）<a class="headerlink" href="#window_new" title="Permanent link">&para;</a></h4>
 <p>打开一个新的 Agentero 窗口（菜单 <strong>File → New Window</strong> / <code>⌘N</code>）。</p>
