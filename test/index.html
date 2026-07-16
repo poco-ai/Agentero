@@ -143,7 +143,7 @@
 
 <ul>
 <li><code>test/helpers/create-test-vault.ts</code> 用临时目录创建真实文件形态的 Vault。</li>
-<li><code>test/scripts/create-demo-vault.mjs</code> 生成符合 catalog + 嵌套 paper 文件夹约定的 demo Vault（含 <code>.agentero/catalog.sqlite</code>）。</li>
+<li><code>test/scripts/create-demo-vault.mjs</code> 生成符合 catalog + 嵌套 paper 文件夹约定的 demo Vault（含 <code>.agentero/catalog.sqlite</code>，<strong>schema_version = 3</strong>）。</li>
 <li>测试文件可以从 <code>src/</code> import 生产代码，但生产代码不能从 <code>test/</code> import。</li>
 <li>优先在每个测试内声明最小必要 Vault 文件，让测试数据和断言靠近。</li>
 </ul>
@@ -154,13 +154,51 @@ pnpm demo:vault
 # ~/Downloads/agentero-demo-vault（嵌套 papers + catalog 样本数据）
 pnpm demo:vault:downloads
 
-# 仅 Create Vault 骨架（无样例论文）
+# 仅 Create Vault 骨架（无样例论文 / 无 loose media）
 pnpm demo:vault:empty -- ~/Downloads/agentero-empty-vault
 
 # 校验已有目录
 pnpm demo:vault:verify -- ~/Downloads/agentero-demo-vault
 </code></pre>
 
+<p>Demo 完整包内容（<code>--empty</code> 除外）：</p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>路径示例</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>嵌套 paper 单元</td>
+<td><code>papers/nlp/transformers/1706.03762/</code></td>
+<td>Library / NOTES / 双链</td>
+</tr>
+<tr>
+<td>paper 根 PDF</td>
+<td><code>{paper}/{id}.pdf</code></td>
+<td>本地优先 PDF 预览</td>
+</tr>
+<tr>
+<td>非 papers PDF</td>
+<td><code>assets/sample.pdf</code>、<code>notes/attachments/reading-list.pdf</code></td>
+<td>任意路径 PDF 预览</td>
+</tr>
+<tr>
+<td>图片</td>
+<td><code>assets/figures/*.{png,jpg,gif,webp,svg,bmp,ico}</code></td>
+<td>中间栏图片预览</td>
+</tr>
+<tr>
+<td>Catalog</td>
+<td><code>.agentero/catalog.sqlite</code></td>
+<td>schema v3（含 <code>is_read</code> / Translator 列）+ 样例 paper 行</td>
+</tr>
+</tbody>
+</table>
+<p>每次生成会<strong>重建</strong> <code>catalog.sqlite</code>（避免重复跑脚本留下旧 schema）。依赖本机 <code>sqlite3</code> CLI。</p>
 <h2 id="_3">前端测试<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>运行 TypeScript 单元测试：</p>
 <pre class="codehilite"><code class="language-bash">pnpm test

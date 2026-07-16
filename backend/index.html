@@ -198,6 +198,7 @@
 <li>提供 catalog 导出；双链等可重建索引与 catalog 分层清晰。</li>
 <li>标识符魔棒入库：<code>lookup_import</code> 调用 Translator（可配置 base URL）、写 catalog，并<strong>默认下载 PDF</strong>（arXiv 另解压 LaTeX）；<code>paper_download_assets</code> 按需补下；无 TeX 时 <strong>liteparse → <code>PAPER.md</code></strong>（<code>paper_parse_body</code>）；论文库列表 <code>paper_list</code>。</li>
 <li>精读状态：<code>paper_set_is_read</code>（catalog <code>is_read</code>）；前端入库/单篇 Download 后可自动跑 paper-reader。</li>
+<li>标签：<code>paper_set_tags</code> / <code>papers::set_tags</code>（catalog <code>tags</code> 整表替换）；Paper Info 编辑；Library 展示与筛选；CLI <code>set-tags</code> / <code>list --tag</code> / <code>tags</code>。</li>
 <li><strong>双链</strong>索引（<code>graph_*</code>）与规划中的 <strong>文献引用图</strong>（roadmap V0.7）分层；后者不复用双链边语义。</li>
 </ul>
 <h2 id="_3">本分区文档<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>

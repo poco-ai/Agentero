@@ -463,7 +463,7 @@
 <li>[x] <strong>文档标签栏</strong>：打开 paper / Markdown / PDF / HTML / Library 时在标题栏（与禅模式图标同行）以 tab 呈现，可关闭、切换、拖拽重排。（<code>src/components/layout/document-tab-bar.tsx</code>、<code>src/lib/tabs.ts</code>）</li>
 <li>[x] <strong>标签状态</strong>：每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；Markdown/NOTES 自动保存（debounce + 卸载 flush），关闭不丢内容。</li>
 <li>[ ] <strong>分屏（split）</strong>：水平或垂直拆成 2 格（MVP 可先 2 格；后续可扩展 3–4 格），每格独立 tab 栈或共享 tab 池。</li>
-<li>[x] <strong>快捷键</strong>：关闭 tab <code>⌥⌘W</code>、下一/上一 tab <code>⌥⌘→ / ⌥⌘←</code>；分屏快捷键随 split 一并补。</li>
+<li>[x] <strong>快捷键</strong>：关闭 tab <code>⌘W</code>（无 tab 时关窗口）、下一/上一 tab <code>⌥⌘→ / ⌥⌘←</code>；分屏快捷键随 split 一并补。</li>
 <li>[x] <strong>与文件树联动</strong>：树选中 / Library / Graph / Backlinks / wiki 跳转统一走 <code>openTab</code>；同一路径已开则聚焦其 tab。</li>
 <li>[x] <strong>多窗口兼容</strong>：<code>⌘N</code> 窗口各自有独立 tab 集（<code>agentero-open-tabs</code> 按窗口 localStorage 恢复）。</li>
 </ul>
@@ -534,7 +534,7 @@
 <li>[x] 按需放宽 <code>services::*</code> 可见性（<code>pub</code> / re-export），<strong>不搬迁模块</strong>。</li>
 <li>[x] <strong>Vault</strong>：<code>create</code> / <code>which</code> / <code>info</code> / <code>check</code> / <code>use</code>；<code>--vault</code> / <code>AGENTERO_VAULT</code> / cwd 上溯 / default_vault。</li>
 <li>[x] <strong>发现与暴露</strong>：<code>tree</code>；<code>paper list|get|paths</code>（<code>get</code> 含 <code>assets</code> + <code>suggestedReads</code>，对齐渐进披露）。</li>
-<li>[x] <strong>文献基础</strong>：<code>import id|bib</code>、<code>export bib</code>、<code>paper download|parse|delete|set-read</code>（仅 catalog 字段；<strong>无</strong>自动精读）。</li>
+<li>[x] <strong>文献基础</strong>：<code>import id|bib</code>、<code>export bib</code>、<code>paper download|parse|delete|set-read|set-tags|tags</code>（仅 catalog 字段；<strong>无</strong>自动精读；<code>list --tag</code> 筛选）。</li>
 <li>[x] 全局 <code>--json</code> / 退出码 / 稳定 <code>error.code</code>（Agent 友好）。</li>
 <li>[ ] 可选随后：<code>graph backlinks|export|rebuild</code>、<code>doctor</code>、shell completions。</li>
 <li>[x] 文档：README 构建说明；Release 附带 <code>agentero</code> 二进制（<code>release.yml</code>）。</li>

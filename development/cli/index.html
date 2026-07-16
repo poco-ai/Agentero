@@ -445,8 +445,8 @@
 </tr>
 <tr>
 <td><strong>Catalog 标记</strong></td>
-<td><code>is_read</code> 等字段读写（<strong>仅字段</strong>，不触发精读）</td>
-<td><code>paper_set_is_read</code></td>
+<td><code>is_read</code> / <code>tags</code> 等字段读写（<strong>仅字段</strong>，不触发精读）</td>
+<td><code>paper_set_is_read</code>、<code>paper_set_tags</code></td>
 </tr>
 </tbody>
 </table>
@@ -564,11 +564,13 @@ GLOBAL:
 ├── tree [path] [--depth N]        # 文件树暴露（Vault 相对）
 │
 ├── paper
-│   ├── list [--query] [--unread] [--status …]
+│   ├── list [--query] [--tag …] [--unread] [--status …]
+│   ├── tags                       # 库内 tag 汇总（名 + 计数）
 │   ├── get &lt;path|id&gt;              # meta + 资源探测 + 建议读取路径
 │   ├── paths &lt;path|id&gt;            # 仅输出相关文件路径（极简 Agent 用）
 │   ├── delete &lt;path&gt; [--files]    # 默认只删 catalog；--files 删目录
 │   ├── set-read &lt;path|id&gt; [--false]  # 仅改 is_read 字段
+│   ├── set-tags &lt;path|id&gt; [tags…] [--add|--remove]  # 仅改 tags
 │   ├── download &lt;path|id&gt;         # 补 PDF / arXiv TeX
 │   └── parse &lt;path|id&gt; [--force]  # 无 TeX 时 liteparse → PAPER.md
 │
@@ -650,9 +652,20 @@ GLOBAL:
 <p><strong><code>paper list</code></strong></p>
 <ul>
 <li>L1 索引：读 catalog，不扫全文</li>
-<li>text 列：<code>path</code> <code>id</code> <code>title</code> <code>year</code> <code>is_read</code></li>
-<li>过滤：<code>--unread</code>、<code>--query</code>（title/authors/id 子串）</li>
-<li>JSON：<code>PaperRecord[]</code>（字段与 Host 对齐，<strong>稳定</strong>）</li>
+<li>text 列：<code>path</code> <code>id</code> <code>title</code> <code>year</code> <code>tags</code> <code>is_read</code>（<code>tags</code> 逗号拼接，空为 <code>-</code>）</li>
+<li>过滤：</li>
+<li><code>--unread</code>：仅 <code>is_read = false</code></li>
+<li><code>--status &lt;s&gt;</code>：status 字段（ignore case）</li>
+<li><code>--query &lt;q&gt;</code>：title / authors / id / path / <strong>tags</strong> 子串（ignore case）</li>
+<li><code>--tag &lt;name&gt;</code>：<strong>可重复</strong>；每篇须 <strong>同时含</strong> 全部给定 tag（AND；精确匹配、ignore case）</li>
+<li>JSON：<code>PaperRecord[]</code>（字段与 Host 对齐，<strong>稳定</strong>；含 <code>tags: string[]</code>）</li>
+</ul>
+<p><strong><code>paper tags</code></strong></p>
+<ul>
+<li>库内全部 tag 汇总（从 catalog 扫描，不另建 tags 表）</li>
+<li>text 列：<code>tag</code> <code>count</code>（按 tag 名排序）</li>
+<li>JSON：<code>{ items: [{ tag, count }] }</code></li>
+<li>用途：外部 Agent 先摸有哪些标签，再 <code>paper list --tag …</code></li>
 </ul>
 <p><strong><code>paper get &lt;ref&gt;</code></strong></p>
 <p>暴露单篇时给 Agent 足够导航信息，仍不 dump 正文：</p>
@@ -710,6 +723,17 @@ GLOBAL:
 <ul>
 <li><strong>仅</strong>更新 catalog <code>is_read</code> 布尔值</li>
 <li>语义：外部 Agent 自己读完写完 NOTES 后，可用此标记；CLI 不负责「读」</li>
+</ul>
+<p><strong><code>paper set-tags</code></strong></p>
+<ul>
+<li><strong>仅</strong>更新 catalog <code>tags</code>（<code>tags_json</code>）；同步 <code>metadata.json</code> 投影（与 Host <code>paper_set_tags</code> / <code>papers::set_tags</code> 同一 service）</li>
+<li><strong>默认 = 整表替换</strong>：<code>agentero paper set-tags &lt;ref&gt; nlp rl</code> → tags 变为 <code>["nlp","rl"]</code></li>
+<li><strong>清空</strong>：<code>agentero paper set-tags &lt;ref&gt;</code>（无额外 tag 参数）</li>
+<li><strong>增量</strong>（与 replace 互斥）：</li>
+<li><code>--add t1 t2</code>：在现有列表上追加（trim + 大小写不敏感去重）</li>
+<li><code>--remove t1 t2</code>：按 ignore-case 移除</li>
+<li>规范化与 Host 一致：trim 空白、丢弃空串、大小写不敏感去重（保留首次写法）</li>
+<li>不触发精读、不改 NOTES</li>
 </ul>
 <p><strong><code>graph *</code></strong></p>
 <ul>
@@ -873,7 +897,7 @@ services/*     → 真正的业务（文件系统、SQLite、HTTP、liteparse、
 </tr>
 <tr>
 <td><code>services/catalog</code></td>
-<td><code>papers::list_all/get/delete/set_is_read</code></td>
+<td><code>papers::list_all/get/delete/set_is_read/set_tags/add_tags/remove_tags/list_all_tags</code></td>
 <td><strong>否</strong></td>
 <td>✅ 直接 <code>use</code></td>
 </tr>
@@ -1149,7 +1173,8 @@ Desktop-only: services/agent/*   （CLI 不引用）
 <ul>
 <li>[x] <code>vault create|which|info|check|use</code></li>
 <li>[x] <code>tree</code></li>
-<li>[x] <code>paper list|get|paths|delete|set-read|download|parse</code></li>
+<li>[x] <code>paper list|get|paths|delete|set-read|set-tags|tags|download|parse</code></li>
+<li>[x] <code>paper list --tag</code>（AND、ignore case）+ <code>--query</code> 匹配 tags</li>
 <li>[x] <code>import id|bib</code>、<code>export bib</code></li>
 <li>[x] 全局 <code>--vault</code> / env / 上溯 / <code>--json</code> / 退出码</li>
 <li>[x] 稳定 error.code 表</li>
@@ -1241,10 +1266,17 @@ agentero paper get 1706.03762 --json
 agentero import id 2401.12345 --json
 # 外部 Agent 自行精读并写 NOTES.md 后：
 agentero paper set-read papers/2401.12345 --json
+
+# Tags（仅 catalog 字段）
+agentero paper tags --json
+agentero paper set-tags papers/2401.12345 nlp survey --json
+agentero paper set-tags papers/2401.12345 --add draft --json
+agentero paper list --tag nlp --json
 </code></pre>
 
 <h3 id="_9">管道<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-bash">agentero paper list --json | jq -r '.data[].path'
+agentero paper list --tag nlp --json | jq -r '.data[].path'
 agentero paper paths 1706.03762 | xargs -I{} echo &quot;read {}&quot;
 </code></pre>
 
@@ -1278,6 +1310,11 @@ agentero paper paths 1706.03762 | xargs -I{} echo &quot;read {}&quot;
 <td>Q4</td>
 <td><code>is_read</code></td>
 <td>仅字段读写，不触发精读</td>
+</tr>
+<tr>
+<td>Q4b</td>
+<td><code>tags</code></td>
+<td>仅字段读写；<code>set-tags</code> 默认 replace；<code>--add</code>/<code>--remove</code> 增量；<code>list --tag</code> AND 精确匹配</td>
 </tr>
 <tr>
 <td>Q5</td>

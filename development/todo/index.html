@@ -163,7 +163,9 @@
    - [x] 虚拟节点 <code>agentero:library</code>；中间栏 catalog 表（<code>paper_list</code>）。
    - [x] 表头排序；横向/纵向滚动。
    - [x] 仅具体论文时显示 Paper Info / Notes（Library 隐藏）。
-   - [x] Library 行批量补资源（与 2b 联动）。</p>
+   - [x] Library 行批量补资源（与 2b 联动）。
+   - [x] <strong>Tags</strong>：Paper Info 增删 → <code>paper_set_tags</code>；Library 列展示 + chip 筛选。
+   - [x] <strong>Tags CLI</strong>：<code>paper set-tags</code> / <code>list --tag</code> / <code>tags</code>（与 Host 共用 <code>papers::set_tags</code>）。</p>
 <p>2d. <strong>文件树与侧栏 UX</strong> ✅
    - [x] 在 Finder 中显示：右键 / <code>⌥⌘R</code>（<code>revealItemInDir</code>；无双击）。
    - [x] 在终端中打开：右键 / <code>⌥⌘T</code>（文件夹 = 自身；文件 = 父目录；Host <code>path_open_in_terminal</code>）。
@@ -207,7 +209,7 @@
 <li>复用：<strong>不迁 core</strong>；path 依赖 <code>agentero_lib</code>，调用 <code>services::{vault,catalog,lookup,pdf_parse,wiki}</code>；禁止 <code>use …::agent</code>。</li>
 <li>[x] Workspace + scaffold <code>cli/</code>（clap、<code>--vault</code> / env / 上溯、<code>--json</code>、退出码）。</li>
 <li>[x] <code>vault create|which|info|check|use</code>（对齐 <code>vault_create</code> / catalog 初始化）。</li>
-<li>[x] <code>tree</code>；<code>paper list|get|paths|delete|set-read|download|parse</code>（<code>get</code>：<code>assets</code> + <code>suggestedReads</code>）。</li>
+<li>[x] <code>tree</code>；<code>paper list|get|paths|delete|set-read|set-tags|tags|download|parse</code>（<code>get</code>：<code>assets</code> + <code>suggestedReads</code>；<code>list --tag</code> AND）。</li>
 <li>[x] <code>import id|bib</code>、<code>export bib</code>（对齐 Host；<strong>不</strong>自动精读）。</li>
 <li>[x] 稳定 <code>error.code</code>；集成测试（临时 Vault + <code>--json</code> 契约，<code>cli/tests/cli_mvp.rs</code>）。</li>
 <li>[x] 按需放宽 service <code>pub</code>（<code>lib.rs</code> 导出 <code>services</code> / <code>error</code>；<code>list_by_id</code>）。</li>
@@ -253,7 +255,7 @@
 <li>[x] 中间栏文档 <strong>标签栏</strong>：paper / MD / PDF / HTML / Library 以 tab 打开，可关闭、切换、拖拽重排。</li>
 <li>[x] 每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；MD/NOTES 自动保存，关闭不丢内容。</li>
 <li>[ ] <strong>分屏</strong>：水平或垂直 2 格；每格独立内容（典型：PDF | NOTES，或两篇 paper 并排）。</li>
-<li>[x] 快捷键：关 tab <code>⌥⌘W</code> / 切 tab <code>⌥⌘→·⌥⌘←</code>；分屏·取消分屏随 split 补（键位写入 <code>docs/frontend/ui.md</code>）。</li>
+<li>[x] 快捷键：关 tab <code>⌘W</code>（无 tab 时关窗口）/ 切 tab <code>⌥⌘→·⌥⌘←</code>；分屏·取消分屏随 split 补（键位写入 <code>docs/frontend/ui.md</code>）。</li>
 <li>[x] 文件树 / Library / Graph / Backlinks / wiki 跳转统一 <code>openTab</code>；同路径已开则聚焦。</li>
 <li>[x] 与 <code>⌘N</code> 多窗口隔离：每窗口独立 tab 集（<code>agentero-open-tabs</code>）；关窗/换 Vault 可恢复布局。</li>
 <li>

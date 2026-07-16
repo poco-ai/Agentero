@@ -130,6 +130,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paper_set_is_read">paper_set_is_read（已落地）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#paper_set_tags">paper_set_tags（已落地）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#paperlist">paper:list（扩展规划）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paperupdate">paper:update</a>
@@ -1049,6 +1051,26 @@ Host (Tauri + Rust)
 <li><strong>手动</strong>：文件树在「资源齐全且 <code>is_read === false</code>」时显示眼睛图标。</li>
 <li>实现：<code>src/lib/paper-read.ts</code>（进度 <code>kind=paperRead</code>；可与 lookup/download 任务衔接）；skill 触发按当前默认 Agent 的 <code>SkillMentionStyle</code>。</li>
 </ul>
+<h4 id="paper_set_tags"><code>paper_set_tags</code>（已落地）<a class="headerlink" href="#paper_set_tags" title="Permanent link">&para;</a></h4>
+<p>整表替换 catalog 中单篇论文的 <strong><code>tags</code></strong>（<code>tags_json</code>）。成功后同步 <code>metadata.json</code> 投影。</p>
+<ul>
+<li><strong>参数</strong>（invoke 字段名 <code>args</code>）：</li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  /** paper 文件夹 Vault 相对路径 */
+  path: string;
+  /** 完整标签列表（非增量 patch） */
+  tags: string[];
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata }</code>（更新后的整行）。</li>
+<li><strong>规范化</strong>：trim 空白；丢弃空串；大小写不敏感去重（保留首次出现的写法）。</li>
+<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>setPaperTags</code>；Paper Info 面板可增删；Library 表格展示 + 标签筛选。</li>
+<li><strong>CLI</strong>：<code>agentero paper set-tags &lt;ref&gt; [tags…]</code>（默认 replace；<code>--add</code> / <code>--remove</code> 增量）；<code>paper list --tag</code> 筛选；<code>paper tags</code> 汇总。见 <a href="../../development/cli/"><code>../development/cli.md</code></a>。</li>
+</ul>
 <h4 id="paperlist"><code>paper:list</code>（扩展规划）<a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
 <p>带过滤与分页的列表（尚未实现；现网用 <code>paper_list</code>）。</p>
 <ul>
@@ -1647,8 +1669,12 @@ Host (Tauri + Rust)
 <td>磁盘扫描（非 Library 虚拟节点）</td>
 </tr>
 <tr>
-<td><code>paper list\|get\|paths\|delete\|set-read</code></td>
-<td><code>catalog::papers::*</code> / <code>paper_*</code></td>
+<td><code>paper list\|get\|paths\|delete\|set-read\|set-tags\|tags</code></td>
+<td><code>catalog::papers::*</code>（含 <code>set_tags</code> / <code>list_all_tags</code>）/ <code>paper_*</code></td>
+</tr>
+<tr>
+<td><code>paper list --tag</code> / <code>--query</code> 含 tags</td>
+<td>CLI 侧过滤（读 <code>list_all</code>）；Host <code>paper_list</code> 仍全量</td>
 </tr>
 <tr>
 <td><code>paper download\|parse</code></td>
