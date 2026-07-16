@@ -128,6 +128,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paper_delete">paper_delete（已落地）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#paper_move">paper_move（已落地）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#paper_set_is_read">paper_set_is_read（已落地）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paper_set_tags">paper_set_tags（已落地）</a>
@@ -1029,6 +1031,27 @@ Host (Tauri + Rust)
 <li><strong>返回</strong>：<code>{ ok: true; data: { removed: number } }</code>（删除行数；无匹配时 <code>removed: 0</code>）。</li>
 <li><strong>SQL</strong>：<code>DELETE FROM papers WHERE path = ? OR path LIKE '{path}/%'</code>。</li>
 <li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>deletePapersUnderPath</code>；侧栏右键删除 / <code>⌘⌫</code>。</li>
+</ul>
+<h4 id="paper_move"><code>paper_move</code>（已落地）<a class="headerlink" href="#paper_move" title="Permanent link">&para;</a></h4>
+<p>把 paper 文件夹 / <code>papers/</code> 下组织目录（或文件）移动到另一 <code>papers/</code> 目录：磁盘 <code>fs::rename</code>（<strong>不覆盖</strong>已存在目标），并改写 catalog 中受影响行的 <code>path</code> 前缀。</p>
+<ul>
+<li><strong>参数</strong>（invoke 字段名 <code>args</code>）：</li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  /** 要移动的 Vault 相对路径（paper / 组织目录 / 文件） */
+  fromRel: string;
+  /** 目标父目录（`papers` 或 `papers/` 下），Vault 相对 */
+  destParentRel: string;
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>：<code>{ ok: true; data: { newRel: string } }</code>（移动后的新相对路径）。</li>
+<li><strong>校验</strong>：目标须在 <code>papers/</code> 下；拒绝移入自身 / 子孙；目标已存在则报错。</li>
+<li><strong>SQL</strong>：<code>UPDATE papers SET path = ?to || substr(path, len(?from)+1) WHERE path = ?from OR path LIKE '{from}/%'</code>（字符级 substr，兼容非 ASCII 目录名）。</li>
+<li><strong>单测</strong>：<code>papers.rs::move_under_path</code>（叶子 + 组织目录下多行前缀改写）。</li>
+<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>movePaperFolder</code>；文件树多选批量移动（<code>MovePapersDialog</code>）。</li>
 </ul>
 <h4 id="paper_set_is_read"><code>paper_set_is_read</code>（已落地）<a class="headerlink" href="#paper_set_is_read" title="Permanent link">&para;</a></h4>
 <p>更新 catalog 中单篇论文的 <strong><code>is_read</code></strong>（是否已完成 paper-reader 精读）。成功后同步 <code>metadata.json</code> 投影。</p>

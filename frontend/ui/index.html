@@ -229,6 +229,11 @@
 <li><strong><code>⌘⌫</code></strong>：删除当前选中项（编辑器 / 输入框聚焦时不拦截，保留系统删行首行为）。</li>
 <li>路径在 <code>papers/</code> 下时同步清理 catalog 对应行（含组织目录下嵌套 paper）；随后刷新文件树、Library 与双链索引。</li>
 <li>不可删：虚拟 Library、Vault 根。</li>
+<li><strong>多选与批量操作</strong>（<code>file-tree.tsx</code> + 原语 <code>ai-elements/file-tree.tsx</code>）：</li>
+<li>对齐 VS Code / Finder：<strong>无勾选框</strong>，以<strong>行高亮</strong>表达选区。<strong>Ctrl/⌘ 点击</strong>切换单项、<strong>Shift 点击</strong>按可见顺序选区间；普通点击仍为单选并打开。</li>
+<li>选中 ≥1 项时树顶出现<strong>批量条</strong>（移动 / 删除 / 清空，<strong>吸顶固定</strong>、滚动时保持可见）；右键选中项菜单提供「删除 N 项 / 移动 N 项」；<code>Delete</code>/<code>⌘⌫</code> 批量删除，<code>Esc</code> 清空（编辑 / 输入聚焦时不拦截）。</li>
+<li><strong>拖拽移动</strong>：把行（或整个选区）拖到某个 <code>papers/</code> 组织文件夹（含 papers 根）即移动；仅这类文件夹是合法落点（论文文件夹与 Library 除外），hover 时以 ring 高亮。经 <code>onMoveTo</code> 复用批量移动管线，无需对话框。</li>
+<li><strong>批量移动</strong>（<code>MovePapersDialog</code> → <code>paper_move</code>）：把选中项移到某个 <code>papers/</code> 子文件夹（现有或新建）；移动文件夹并改写 catalog 路径前缀，随后统一刷新树 / Library / 双链。</li>
 <li><strong>不要</strong>在侧边栏放打开 / 创建 Vault、关闭 Vault、刷新或设置入口。</li>
 <li><strong>不要</strong>使用「Open vault… / Refresh」等文字按钮。</li>
 </ul>
