@@ -130,6 +130,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paper_list">paper_list（已落地）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#paper_rescan">paper_rescan（已落地）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#paper_delete">paper_delete（已落地）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paper_move">paper_move（已落地）</a>
@@ -1059,6 +1061,14 @@ Host (Tauri + Rust)
 <li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata[] }</code>（数组元素含 <code>path</code>、<code>title</code>、<code>authors</code>、<code>year</code>、<code>type</code>、标识符与远程 URL 等）。</li>
 <li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>listPapers</code>；UI 侧本地表头排序（不经由本命令传 sort 参数）。</li>
 <li><strong>说明</strong>：当前无 filter/pagination；扩展筛选/FTS 仍可用规划契约 <code>paper:list</code>（见下）。</li>
+</ul>
+<h4 id="paper_rescan"><code>paper_rescan</code>（已落地）<a class="headerlink" href="#paper_rescan" title="Permanent link">&para;</a></h4>
+<p>扫描 <code>papers/</code> 磁盘目录，用每个 paper 文件夹的 <code>metadata.json</code>（catalog 投影）<strong>重建 / 补齐 catalog 行</strong>——找回“盘上有、catalog 无”的论文（外部拷入，或历史删除顺序 bug 丢失的行）。幂等。</p>
+<ul>
+<li><strong>参数</strong>（invoke 字段名 <code>args</code>）：<code>{ vaultPath: string }</code>。</li>
+<li><strong>返回</strong>：<code>{ ok: true; data: { count: number } }</code>（重新导入的 paper 数）。</li>
+<li><strong>行为</strong>：递归遍历 <code>papers/</code>，遇含 <code>metadata.json</code> 的文件夹即为 paper 叶子；反序列化时<strong>回填</strong> <code>path</code>（投影省略），<code>upsert</code> 进 catalog。不删行、不改磁盘文件。</li>
+<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>rescanPapers</code>；论文库空态「重新扫描 papers/」按钮。</li>
 </ul>
 <h4 id="paper_delete"><code>paper_delete</code>（已落地）<a class="headerlink" href="#paper_delete" title="Permanent link">&para;</a></h4>
 <p>从 <strong>catalog.sqlite</strong> 删除指定路径的 paper 行，以及其下嵌套路径（组织目录批量删）。<strong>不</strong>删除磁盘文件；文件树删除由前端 <code>plugin-fs</code> <code>remove</code> 负责，再调本命令清理索引。</p>

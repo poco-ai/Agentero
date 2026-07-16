@@ -211,7 +211,7 @@
 <li><strong>按标识符添加（魔棒）</strong> → <code>WandSparkles</code>（紧挨 <strong>New file 左侧</strong>；Popover 粘贴 arXiv 链接/编号 → Host <code>lookup_import</code>）</li>
 <li>新建文件 → <code>FilePlus2</code>（在选中目录 / 文件父目录下 <strong>树内联命名</strong>，Enter 确认 / Esc 取消，对齐 VS Code）</li>
 <li>新建文件夹 → <code>FolderPlus</code>（同上）</li>
-<li><strong>回收站</strong> → <code>Trash2</code>（最右；打开 <code>RecycleBinDialog</code> 浏览 / 恢复 / 永久删除已删项，见「删除」）</li>
+<li><strong>回收站</strong> → <code>Trash2</code>（最右；像点「论文库」一样在<strong>中间栏</strong>打开回收站视图（非弹窗）→ 浏览 / 恢复 / 永久删除已删项，见「删除」）</li>
 <li><strong>刷新文件树</strong>不在侧边栏：使用菜单 <strong>File → Refresh File Tree</strong>（<code>⌘R</code>）。</li>
 <li><strong>在系统文件管理器中显示</strong>（<code>revealItemInDir</code> / <code>src/lib/reveal.ts</code>）：</li>
 <li><strong>右键</strong>真实文件 / 文件夹 / paper 行 → 上下文菜单「在 Finder 中显示」（文案随平台切换；旁注 <code>⌥⌘R</code>）。</li>
@@ -225,12 +225,11 @@
 <li><strong>文件</strong>：终端 cwd 为文件所在父目录。</li>
 <li>使用系统默认终端：macOS <code>Terminal.app</code>；Windows 优先 <code>wt</code>（Windows Terminal）否则 <code>cmd</code>；Linux <code>xdg-terminal-exec</code> / <code>$TERMINAL</code> / 常见终端回退。</li>
 <li>虚拟 Library 不可用；仅桌面端。</li>
-<li><strong>删除（回收站 + 撤销）</strong>（<code>path_trash</code> / <code>path_untrash</code>；不再物理 <code>remove</code>）：</li>
-<li><strong>右键</strong>「删除」（旁注 <code>⌘⌫</code>）、<strong><code>⌘⌫</code></strong>、批量条 / 右键「删除 N 项」：均<strong>移入 Vault 回收站</strong> <code>.agentero/.trash/&lt;批次&gt;/</code>，<strong>不弹确认</strong>，随后弹「已删除 N 项 · 撤销」Toast（<code>notifyUndo</code>）。</li>
-<li><strong>撤销</strong>：Toast 内点「撤销」→ <code>path_untrash</code> 把文件移回原位并恢复 catalog 行；若原路径已被重新占用则整批中止、不覆盖新内容。</li>
-<li><code>papers/</code> 下的项移入回收站时<strong>快照并移除</strong> catalog 对应行（含嵌套 paper），撤销时一并恢复；随后刷新文件树、Library 与双链索引。</li>
+<li><strong>删除（回收站）</strong>（<code>path_trash</code>；不再物理 <code>remove</code>）：</li>
+<li><strong>右键</strong>「删除」（旁注 <code>⌘⌫</code>）、<strong><code>⌘⌫</code></strong>、批量条 / 右键「删除 N 项」：均<strong>移入 Vault 回收站</strong> <code>.agentero/.trash/&lt;批次&gt;/</code>，<strong>不弹确认、不弹提示</strong>（随时可从回收站找回）。</li>
+<li><code>papers/</code> 下的项移入回收站时<strong>快照并移除</strong> catalog 对应行（含嵌套 paper），从回收站恢复时一并恢复；随后刷新文件树、Library 与双链索引。</li>
 <li><code>⌘⌫</code> 在编辑器 / 输入框聚焦时不拦截（保留系统删行首行为）。</li>
-<li><strong>回收站浏览</strong>：侧栏头部 <code>Trash2</code> 图标打开 <code>RecycleBinDialog</code> → 列出全部已删项（名称 / 原路径 / 删除时间），逐项<strong>恢复</strong>（<code>path_restore_item</code>，恢复文件 + catalog 行）或<strong>永久删除</strong>（<code>path_purge_item</code>），底部可<strong>清空回收站</strong>（<code>path_purge_trash</code>，不可撤销、需确认）。撤销 Toast 错过后仍可从这里找回。</li>
+<li><strong>回收站浏览</strong>：侧栏头部 <code>Trash2</code> 图标在<strong>中间栏</strong>打开回收站视图（<code>RecycleBinView</code>，<code>kind:"trash"</code> 虚拟 tab，与论文库同一位置、Zotero 风格；<strong>非弹窗</strong>）→ 列出全部已删项（名称 / 原路径 / 删除时间），逐项<strong>恢复</strong>（<code>path_restore_item</code>，恢复文件 + catalog 行）或<strong>永久删除</strong>（<code>path_purge_item</code>），顶部可<strong>清空回收站</strong>（<code>path_purge_trash</code>，不可撤销、需确认）。删除后从这里找回。</li>
 <li>不可删：虚拟 Library、Vault 根。</li>
 <li><strong>多选与批量操作</strong>（<code>file-tree.tsx</code> + 原语 <code>ai-elements/file-tree.tsx</code>）：</li>
 <li>对齐 VS Code / Finder：<strong>无勾选框</strong>，以<strong>行高亮</strong>表达选区。<strong>Ctrl/⌘ 点击</strong>切换单项、<strong>Shift 点击</strong>按可见顺序选区间；普通点击仍为单选并打开。</li>
@@ -348,7 +347,7 @@
 <li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容 + 可选右侧栏（Agent / Backlinks）。中间内容为<strong>文档标签页</strong>（浏览器式多 tab，见 §3.1.1），Notes 随激活文档切换。</li>
 <li><strong>论文库表格</strong>（<code>src/components/layout/papers-library.tsx</code>）：</li>
 <li><strong>入口</strong>：文件树虚拟节点 <code>agentero:library</code>；亦在选中 Vault 根 / <code>papers/</code> / 未选文件时作为中间栏默认视图。</li>
-<li><strong>数据</strong>：Host <code>paper_list</code> → catalog.sqlite（不扫盘拼表）。前端封装 <code>src/lib/papers-api.ts</code>。</li>
+<li><strong>数据</strong>：Host <code>paper_list</code> → catalog.sqlite（不扫盘拼表）。前端封装 <code>src/lib/papers-api.ts</code>。<strong>catalog 权威</strong>：盘上有、catalog 无的论文不会显示；空态提供「重新扫描 papers/」（<code>paper_rescan</code>）从各 <code>metadata.json</code> 重建 catalog。</li>
 <li><strong>列</strong>：标题、作者、年份、<strong>标签</strong>、类型、标识符；点击行打开对应 paper 文件夹。</li>
 <li><strong>标签筛选</strong>：表上方汇总库内全部 tag 为可点 chip（再点取消）；单元格内 tag 也可筛选。标题搜索同时匹配 tag 子串。</li>
 <li><strong>排序</strong>：点击表头按该列升序 / 降序切换；同一列再点切换方向。年份列首次点击为降序（新→旧）；文字列默认升序。</li>
@@ -413,9 +412,12 @@
 </li>
 <li>若只有 <code>arxiv_id</code>，用 <code>src/lib/arxiv.ts</code> 推导远程 URL（作下载候选与 HTML/远程回退）</li>
 <li>PDF：本地经 <code>blob:</code>（fs <code>readFile</code>）/ 远程 <code>https</code> 由 PDF.js 渲染；HTML：独立 iframe 打开远程页；图片：<code>blob:</code> + <code>&lt;img&gt;</code></li>
-<li><strong>PDF 缩放</strong>（<code>PdfViewer</code>）：工具栏放大 / 缩小 / 重置；<code>⌘/Ctrl</code>+滚轮缩放；范围约 <strong>0.5×–3×</strong>；<strong>100% = 适应中间栏宽度</strong>（非固定 pt）。i18n <code>viewer:pdf.zoom*</code>。</li>
+<li><strong>PDF 缩放</strong>（<code>PdfViewer</code>）：工具栏放大 / 缩小 / 重置 / <strong>适应宽度</strong>（<code>RotateCcw</code>，= 重置到 100%）/ <strong>适应整页</strong>（<code>MoveVertical</code>，缩放到整页高度铺满视口）；<code>⌘/Ctrl</code>+滚轮缩放；范围约 <strong>0.5×–3×</strong>；<strong>100% = 适应中间栏宽度</strong>（非固定 pt）；<strong>放大后</strong>缩放停下 ~160ms 后按<strong>真实比例</strong>重渲染页面（<code>width = 基准宽 × 缩放</code>、transform 归 1），文本层与画布同尺度 → 清晰且<strong>划词/高亮顺滑</strong>（对齐 Zotero），手势中以 transform 比值即时反馈；<strong>缩放后</strong>中间栏可<strong>双向滚动/平移</strong>（横向 + 纵向，<code>agentero-scroll-both</code>），滚轮缩放以光标为锚点。i18n <code>viewer:pdf.zoom*</code>。</li>
+<li><strong>PDF 页码导航</strong>：底部居中页码 pill（<code>‹ [当前页] / 总页数 ›</code>，输入数字回车跳页）；当前页用 <code>IntersectionObserver</code> 跟踪；键盘 <code>PageDown/PageUp</code> 翻页、<code>Home/End</code> 首/末页（PDF 区悬停或聚焦时生效，输入框内不拦截）。i18n <code>viewer:pdf.prevPage/nextPage/goToPage</code>。</li>
+<li><strong>PDF 大纲（书签）</strong>：有大纲时左上 <code>List</code> 按钮切换<strong>左侧浮层目录</strong>（<code>getOutline()</code> 读书签树；点条目经 <code>getDestination</code>/<code>getPageIndex</code> 解析跳页）；无大纲不显示。i18n <code>viewer:pdf.outline</code>。</li>
+<li><strong>PDF 文档内查找</strong>（<code>⌘/Ctrl+F</code>）：右上查找条（查询 + 命中计数 + 上/下一个 + <code>Esc</code> 关闭；<code>Enter</code>/<code>Shift+Enter</code> 循环）。<code>pdf-find.ts</code> 用 pdfjs <code>getTextContent</code> 逐页搜索（按页缓存）；命中滚动到该页并把该次出现映射回<strong>文本层 rects</strong> 高亮（复用 pdf-ask 归一化覆盖层），文本层未就绪时仅滚动。i18n <code>viewer:pdf.find*</code>。</li>
 <li><strong>PDF 划词操作菜单</strong>（已落地，见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>）：<ul>
-<li>划词后在选区旁弹出操作菜单（图标 + Tooltip）：<strong>高亮 / 笔记 / 提问 / 翻译</strong>；<strong>不再默认套用琥珀高亮</strong>，只保留浏览器原生选区。双击 / 悬停停留仍直接开问答卡（页码上下文）。</li>
+<li>划词后在选区旁弹出操作菜单（图标 + Tooltip）：<strong>高亮 / 笔记 / 提问 / 翻译</strong>；<strong>不再默认套用琥珀高亮</strong>；选区以<strong>平滑蓝色覆盖层</strong>呈现（<code>selectionRectsByPage</code> 按行合并 rects + <code>SELECTION_CSS</code> 隐藏原生 <code>::selection</code>，对齐 Zotero、点掉即消）。双击 / 悬停停留仍直接开问答卡（页码上下文）。</li>
 <li>高亮：<code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code>（归一化坐标可重定位）→ 页面琥珀覆盖层；点击已有高亮出现「删除」浮层。笔记：选中原文以块引用 <code>&gt; …</code> 追加进该篇 <code>NOTES.md</code>（经编辑器实例写入，避免覆盖未存改动），菜单内联「已加入」。提问 / 翻译复用迷你问答卡（ACP 流式）；发送过问题后锚点旁保留对话图标（Hover 回访）。</li>
 <li>提问线程落盘 <code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>；高亮 / 提问 / 笔记均<strong>不</strong>写 PDF 二进制。</li>
 </ul>
