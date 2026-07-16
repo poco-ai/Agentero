@@ -1114,6 +1114,7 @@ Host (Tauri + Rust)
   fastMode?: boolean; // 仅写入当前 ACP 会话声明的 fast model_config 选项
   skillIds?: string[]; // 已发现的本机 SKILL.md id，最多 5 个
   autoApprove?: boolean; // 默认 false；true 时选择 ACP 返回的第一个权限选项
+  responseLanguage?: string; // 强制回答/笔记语言（如 zh-CN）；省略或 auto 时不注入
 }
 </code></pre>
 
@@ -1133,6 +1134,9 @@ Host (Tauri + Rust)
 </li>
 <li>
 <p><strong>权限策略</strong>：默认取消 ACP 权限请求。设置 → Agent 提供全局「权限模式」（受限默认 / 自动批准），对所有 Agent 生效，并在每次运行中通过 <code>autoApprove</code>（自动批准 → <code>true</code>）传入；逐项权限确认仍未实现。</p>
+</li>
+<li>
+<p><strong>回答语言</strong>：设置 → Agent 提供全局「回答语言」（自动 / English / 简体中文，独立于界面语言）。前端 <code>runOnce</code> 统一读取该设置并透传 <code>responseLanguage</code>；Host 在 <code>build_prompt</code>（<code>prompts.rs</code>）为所有 workflow 追加一句语言指令，<code>auto</code> 时不注入。</p>
 </li>
 <li>
 <p><strong>能力边界</strong>：Codex 使用 App Server 的模型目录、reasoning effort 与 service tier；ACP provider 根据 <code>SessionConfigOption</code> 协商。Composer 只为当前 provider 已声明的能力显示对应控件。</p>
