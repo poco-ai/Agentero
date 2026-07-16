@@ -553,6 +553,42 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 - Plate 内部使用 Slate 数据模型，保存时需序列化为 Markdown 再写入磁盘，确保 Vault 文件仍为标准 Markdown。
 - Agent 写入的 Markdown 同样需反序列化为 Slate 文档后展示在编辑器中。
 - 对于习惯源码编辑的用户，后续可考虑提供 CodeMirror 源码模式作为可选切换。</p>
+<p><strong>Markdown 内嵌图片（已落地）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>落盘</td>
+<td><code>{mdDir}/assets/</code>；正文 <code>![alt](./assets/file.ext)</code>（Obsidian 兼容）</td>
+</tr>
+<tr>
+<td>插入</td>
+<td>Plate <code>ImagePlugin.uploadImage</code>（粘贴）+ 工具栏 <code>pickImageFiles</code> → <code>writeVaultBytes</code></td>
+</tr>
+<tr>
+<td>预览</td>
+<td>相对路径 → fs <code>readFile</code> → <code>blob:</code>；<strong>选中</strong>节点时渲染 Markdown 源码而非位图</td>
+</tr>
+<tr>
+<td>GC</td>
+<td><code>collectImageUrlCounts</code> 引用计数；归零且 managed <code>./assets/</code> 时 <code>remove</code> 文件</td>
+</tr>
+<tr>
+<td>代码</td>
+<td><code>src/lib/markdown-image.ts</code>；<code>MarkdownEditor</code> 配置 <code>ImagePlugin</code>；<code>ImageElement</code></td>
+</tr>
+<tr>
+<td>权限</td>
+<td><code>fs:allow-write-file</code>（capabilities）</td>
+</tr>
+</tbody>
+</table>
+<p>详见 <a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>「Markdown 内嵌图片」、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>。</p>
 <h3 id="34-pdf-html">3.4 PDF / HTML 阅读器<a class="headerlink" href="#34-pdf-html" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

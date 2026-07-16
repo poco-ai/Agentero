@@ -788,6 +788,10 @@ import {
 
 <ul>
 <li><strong>Plate</strong>（<code>editor/</code>）：笔记 WYSIWYG，不是 AI Elements。  </li>
+<li><code>markdown-editor.tsx</code>：防抖保存、<code>ImagePlugin.uploadImage</code> → <code>./assets/</code>、引用计数 GC。  </li>
+<li><code>image-node.tsx</code>：相对路径 <code>blob:</code> 预览；选中显示 <code>![alt](url)</code> 源码。  </li>
+<li><code>editor-toolbar.tsx</code>：格式按钮 +「插入图片」。  </li>
+<li><code>src/lib/markdown-image.ts</code>：路径 / 落盘 / GC 工具（单测 <code>test/markdown-image.test.ts</code>）。  </li>
 <li><strong>禁止</strong>把 Chat 塞进 <code>ui/</code> 或与 shadcn Message/Bubble 混用。</li>
 </ul>
 <hr />

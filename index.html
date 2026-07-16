@@ -197,6 +197,7 @@
 <li><strong>精读</strong>：魔棒入库 / 单篇 Download 资源就绪后<strong>自动</strong> paper-reader；资源齐全且 <code>is_read === false</code> 时 paper 行仍显示 <strong>Eye</strong> 可手动。Skill 按 provider（<strong>Codex <code>$</code> / Claude <code>/</code> / 其它注入正文</strong>）→ 写 <code>NOTES.md</code> → <code>is_read=true</code>；进度在左下角任务条（入库/下载 → 精读衔接；hover 实色）。</li>
 <li><strong>Agent 权限</strong>：设置 → Agent 全局「权限模式」（受限默认 / 自动批准）；逐项确认仍待。</li>
 <li>预览：Vault <strong>任意路径</strong> <code>.pdf</code> 与常见图片（png/jpg/gif/webp/bmp/svg/avif/ico）中间栏 <code>blob:</code> 预览；PDF 另支持缩放与<strong>划词提问</strong> MVP（见 <a href="development/pdf-ask/"><code>development/pdf-ask.md</code></a>）。</li>
+<li><strong>Markdown 内嵌图片</strong>：粘贴 / 工具栏 → <code>{mdDir}/assets/</code> + <code>![](./assets/…)</code>；选中显示源码；删节点且无引用时 GC 文件（见 <a href="backend/data-model/"><code>backend/data-model.md</code></a>、<a href="frontend/ui/"><code>frontend/ui.md</code></a>）。</li>
 <li><strong>全局错误 Toast</strong>（右上角 Sonner）：操作失败经 <code>notifyError</code>（<code>src/lib/notify.ts</code>）；表单就地校验除外（见 <a href="frontend/ui/"><code>frontend/ui.md</code></a> §2.1.2）。</li>
 <li><strong>规划中</strong>（见 roadmap）：<strong>V0.6</strong> 分屏（标签页已落地）；<strong>V0.7</strong> 文内引用 hover→Paper Info、Connected Papers 式引用邻域与 Agent 引用工作流。</li>
 <li>实现状态与路线图：<a href="development/roadmap/"><code>development/roadmap.md</code></a>。</li>
@@ -303,5 +304,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-07-16 11:34:30.079101+00:00
+Build Date UTC : 2026-07-16 11:36:55.763612+00:00
 -->

@@ -168,8 +168,8 @@
 </tr>
 <tr>
 <td>Markdown 编辑</td>
-<td><a href="https://platejs.org/">Plate</a> + <code>@platejs/markdown</code></td>
-<td>兼容 Markdown 的 WYSIWYG 编辑，并保留插件扩展空间。</td>
+<td><a href="https://platejs.org/">Plate</a> + <code>@platejs/markdown</code> + <code>@platejs/media</code></td>
+<td>WYSIWYG 编辑；内嵌图写入 <code>./assets/</code>（见 <a href="ui/"><code>ui.md</code></a>、<a href="../backend/data-model/"><code>../backend/data-model.md</code></a>）。</td>
 </tr>
 <tr>
 <td>PDF 阅读</td>
@@ -198,10 +198,11 @@
 <li>左侧栏：Vault 文件树（顶部虚拟节点 <strong>Library</strong>；魔棒 / 新建文件 / 文件夹；右键 <strong>在 Finder 中显示</strong> / <strong>在终端中打开</strong>（<code>⌥⌘T</code>）/ <strong>删除</strong>）+ 选中论文时底部 <strong>Paper Info</strong>（Tags 可编辑）。</li>
 <li>中间栏：<strong>文档标签页</strong>（浏览器式多 tab，标题栏；常驻挂载）。无 Vault 时欢迎页；有 Vault 时可开 <strong>论文库表格</strong> / Markdown / PDF / HTML / <strong>图片</strong>。</li>
 <li>PDF：任意路径本地预览；缩放工具栏 + <code>⌘/Ctrl</code>+滚轮；<strong>划词操作菜单</strong>（高亮 / 笔记 / 提问 / 翻译）。</li>
-<li>图片：常见格式中间栏 <code>blob:</code> 预览（<code>ImageViewer</code>）。</li>
+<li>图片文件：常见格式中间栏 <code>blob:</code> 预览（<code>ImageViewer</code>）。</li>
+<li>Markdown / Notes：<strong>Plate WYSIWYG</strong>；内嵌图 → <code>./assets/</code>（粘贴 / 工具栏；选中源码；删除 GC）。</li>
 <li>快捷键：关标签 <code>⌘W</code>（无标签时关窗口）、切标签 <code>⌥⌘←/→</code>。</li>
 <li><strong>规划（V0.6 余）</strong>：<strong>2 格分屏</strong>（与 Agent 面板内的<strong>会话标签</strong>不同；文档标签页已落地）。</li>
-<li>右侧 Notes（Preview）：<strong>仅</strong>打开具体论文且 PDF/HTML 时显示该篇 <code>NOTES.md</code>；论文库视图隐藏。</li>
+<li>右侧 Notes（Preview）：<strong>仅</strong>打开具体论文且 PDF/HTML 时显示该篇 <code>NOTES.md</code>（同上图片约定）；论文库视图隐藏。</li>
 <li>可选右侧栏：Agent 或 Backlinks（与左栏同为 <strong>常驻 collapsible</strong>，<code>preserve-pixel-size</code>，互不冲折叠态）。</li>
 <li>Backlinks 右侧栏：上方反链列表，下方 <strong>双链</strong> Graph 面板（非 bibliographic 引用图；引用图见 roadmap V0.7）。</li>
 <li>多窗口：<code>⌘N</code> 新开窗口，当前 Vault 按窗口隔离（sessionStorage）；各窗独立 tab 集。</li>

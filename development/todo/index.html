@@ -176,6 +176,11 @@
    - [x] 缩放：工具栏 +/- / 重置；<code>⌘/Ctrl</code>+滚轮（0.5×–3×，100%=适应栏宽）。
    - [x] 划词提问 MVP：M1–M4（见 3. PDF 划词提问）。
    - [x] 本地 PDF 直接预览（优先本地 → 无本地时 <code>paper_download_assets</code> → 失败再远程 <code>pdf_url</code>）。</p>
+<p>2f. <strong>Markdown 内嵌图片</strong> ✅
+   - [x] 粘贴 / 工具栏插入 → <code>{mdDir}/assets/</code> + <code>![](./assets/…)</code>（<code>src/lib/markdown-image.ts</code>）。
+   - [x] 选中图片节点显示 Markdown 源码；未选中 <code>blob:</code> 预览。
+   - [x] 删除节点且引用计数归零时 GC managed assets 文件并刷新文件树。
+   - [x] 单测 + 文档（data-model / ui / technical-plan / test 冒烟表）。</p>
 <ol>
 <li><strong>Agent 工作流入口</strong></li>
 <li>[x] <strong>paper-reader 精读</strong>：入库/单篇 Download <strong>自动</strong> + 文件树 Eye 手动（资源齐全 + <code>is_read=false</code>）→ paper-reader skill（Codex <code>$</code> / Claude <code>/</code> / 其它注入）→ <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度（lookup/download → paperRead）。</li>
@@ -399,7 +404,7 @@
 </tr>
 <tr>
 <td>中间内容</td>
-<td><strong>文档标签页</strong>（常驻挂载；<code>⌘W</code> / <code>⌥⌘←→</code>）；Library 表 + <strong>tags</strong>；PDF / HTML / 图片 / Markdown WYSIWYG（图片 → <code>./assets/</code>）；Notes 仅具体论文时显示</td>
+<td><strong>文档标签页</strong>（常驻挂载；<code>⌘W</code> / <code>⌥⌘←→</code>）；Library 表 + <strong>tags</strong>；PDF / HTML / 图片 / Markdown WYSIWYG（内嵌图 → <code>./assets/</code>、选中源码、删节点 GC）；Notes 仅具体论文时显示</td>
 <td><strong>分屏</strong>（V0.6 余量）</td>
 </tr>
 <tr>

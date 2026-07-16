@@ -254,6 +254,18 @@ try {
 <td>中间栏图片预览</td>
 </tr>
 <tr>
+<td>Notes / <code>.md</code> 中粘贴图片</td>
+<td>生成 <code>{mdDir}/assets/*</code>，正文 <code>![](./assets/…)</code>；文件树可见新文件</td>
+</tr>
+<tr>
+<td>选中文档中的图片节点</td>
+<td>显示 Markdown 源码而非位图；取消选中恢复预览</td>
+</tr>
+<tr>
+<td>删除文档中的图片节点</td>
+<td>若无其它引用，磁盘 <code>./assets/</code> 文件同步删除并刷新树</td>
+</tr>
+<tr>
 <td>打开多 tab 后连按 <code>⌘W</code></td>
 <td>逐个关 tab；无 tab 后再按关窗口</td>
 </tr>

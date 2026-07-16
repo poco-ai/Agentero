@@ -242,7 +242,7 @@
 <tbody>
 <tr>
 <td><strong>Tier 1a 人的知识 + 原始归档</strong></td>
-<td><code>AGENTS.md</code>、<code>NOTES.md</code>、<code>highlights.md</code>、<code>notes/</code>、<code>plans/</code>、<code>.agents/</code>（skills 等）、<code>source/</code></td>
+<td><code>AGENTS.md</code>、<code>NOTES.md</code>、<code>highlights.md</code>、<code>notes/</code>、<code>plans/</code>、<code>.agents/</code>（skills 等）、<code>source/</code>、<strong>用户插入的</strong> <code>{mdDir}/assets/*</code>（见下）</td>
 <td>文件</td>
 </tr>
 <tr>
@@ -252,7 +252,7 @@
 </tr>
 <tr>
 <td><strong>Tier 2 可选导出 / 派生</strong></td>
-<td><code>PAPERS.md</code>、<code>library.bib</code>、<code>PAPER.md</code>、<code>assets/</code></td>
+<td><code>PAPERS.md</code>、<code>library.bib</code>、<code>PAPER.md</code>、<strong>解析派生</strong>的 <code>assets/</code> 图</td>
 <td><strong>按需</strong>生成，非 Vault 必备</td>
 </tr>
 <tr>
@@ -264,9 +264,10 @@
 </table>
 <ul>
 <li>删除 Tier 3:重扫 Markdown + 读 catalog 标题即可恢复图谱等。</li>
-<li>删除 Tier 2:可从 catalog / source 再导出或再解析。</li>
+<li>删除 Tier 2:可从 catalog / source 再导出或再解析（<strong>不含</strong>用户粘贴进笔记的图片）。</li>
 <li><strong>删除 <code>catalog.sqlite</code></strong>:结构化 meta 丢失（除非事先 export 备份）；<code>papers/&lt;id&gt;/</code> 目录仍在。</li>
 <li>Tier 1a 是不可再生的用户手写与归档,任何写入都要谨慎(先临时文件、确认后落盘)。</li>
+<li><strong><code>assets/</code> 双义</strong>：同一目录可同时存放（1）用户经编辑器插入的图（Tier 1a，删节点可 GC）；（2）PDF 解析等派生资源（Tier 2，可再生成）。二者文件名唯一，互不覆盖。</li>
 </ul>
 <h2 id="1-vault">1. Vault 结构<a class="headerlink" href="#1-vault" title="Permanent link">&para;</a></h2>
 <pre class="codehilite"><code class="language-text">agentero-vault/
@@ -352,7 +353,7 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 </code></pre>
 
 <h3 id="markdown-assets">Markdown 内嵌图片（<code>./assets/</code>）<a class="headerlink" href="#markdown-assets" title="Permanent link">&para;</a></h3>
-<p>编辑任意 Markdown（含 <code>NOTES.md</code> 与 <code>notes/**/*.md</code>）时，<strong>粘贴 / 工具栏插入</strong>的图片统一落在<strong>该 <code>.md</code> 文件旁</strong>的 <code>assets/</code> 目录，正文写入便携相对路径：</p>
+<p>编辑任意 Markdown（含 <code>NOTES.md</code> 与 <code>notes/**/*.md</code>）时，<strong>粘贴 / 工具栏插入</strong>的图片统一落在<strong>该 <code>.md</code> 文件旁</strong>的 <code>assets/</code> 目录，正文写入便携相对路径（Obsidian 兼容；<strong>禁止</strong>把大图 base64 写进 <code>.md</code>）：</p>
 <pre class="codehilite"><code class="language-md">![可选说明](./assets/image-2026-07-16_12-00-00-abc123.png)
 </code></pre>
 
@@ -370,7 +371,7 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 </tr>
 <tr>
 <td>链接写法</td>
-<td><code>./assets/&lt;file&gt;</code>（相对当前 <code>.md</code>，Obsidian 兼容）</td>
+<td><code>./assets/&lt;file&gt;</code>（相对当前 <code>.md</code>）</td>
 </tr>
 <tr>
 <td>触发</td>
@@ -378,19 +379,31 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 </tr>
 <tr>
 <td>展示</td>
-<td>WYSIWYG 将相对路径解析为本地 <code>blob:</code> 预览；<strong>选中图片节点时</strong>显示 Markdown 源码 <code>![](./assets/…)</code>；不把 base64 写进 <code>.md</code></td>
+<td>未选中：相对路径 → 本地 <code>blob:</code> 位图预览；<strong>选中图片节点时</strong>：显示 Markdown 源码 <code>![alt](url)</code></td>
 </tr>
 <tr>
-<td>删除</td>
-<td>从文档中移除图片节点后，若该 <code>./assets/</code> 文件<strong>无其它引用</strong>，同步删除磁盘文件（仅限本笔记 <code>assets/</code>；远程 URL 不动）</td>
+<td>删除 / GC</td>
+<td>文档中移除图片节点后，若该 URL 在<strong>全文引用计数为 0</strong>，且路径属于本笔记 managed <code>assets/</code>，则同步删磁盘文件；<code>https://</code> / <code>data:</code> 等远程或内联 URL <strong>不</strong>删盘</td>
+</tr>
+<tr>
+<td>安全</td>
+<td>GC 仅限 <code>{mdDir}/assets/</code> 下文件；拒绝 <code>..</code> 穿越；不删 <code>assets</code> 目录本身</td>
 </tr>
 <tr>
 <td>命名</td>
-<td>粘贴生成时间戳 + 短 id；点选文件尽量保留原名，冲突则 <code>-1</code>/<code>-2</code> 后缀</td>
+<td>粘贴：<code>image-&lt;时间戳&gt;-&lt;短 id&gt;.ext</code>；点选文件尽量保留原名，冲突则 <code>-1</code> / <code>-2</code> 后缀</td>
+</tr>
+<tr>
+<td>实现</td>
+<td><code>src/lib/markdown-image.ts</code>；编辑器 <code>MarkdownEditor</code> + <code>ImageElement</code>；插入/删除后 <code>onAssetsChanged</code> 刷新文件树</td>
+</tr>
+<tr>
+<td>权限</td>
+<td>Host capability 含 <code>fs:allow-write-file</code>（二进制写入 assets）</td>
 </tr>
 </tbody>
 </table>
-<p>与 PDF 解析派生资源共用同一 <code>assets/</code> 文件夹时互不冲突（文件名唯一）。<strong>不要</strong>把大图 base64 嵌进 Markdown 正文。</p>
+<p>与 PDF 解析派生资源共用同一 <code>assets/</code> 文件夹时互不冲突（文件名唯一）。用户插入图属 <strong>Tier 1a</strong>；勿把仅由解析生成的图误当成可随意 GC 的临时缓存（当前 GC <strong>只</strong>针对编辑器移除的 managed <code>./assets/</code> 链接）。</p>
 <h3 id="highlightsmdl25"><code>highlights.md</code>(L2.5,事实来源)<a class="headerlink" href="#highlightsmdl25" title="Permanent link">&para;</a></h3>
 <p>单篇论文的标注层,与 <code>NOTES.md</code> <strong>分开存放</strong>:笔记是"熟的"综合知识,标注是"生的"原始证据(锚定原文位置的引文 + 想法),数量多、带定位。</p>
 <ul>
