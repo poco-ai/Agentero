@@ -92,6 +92,8 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#p2">P2 — 长期方向</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_1">已完成能力速览（对照现状）</a>
+    </li>
     </ul>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../hypothesis/">产品假设</a>
@@ -214,6 +216,36 @@
 <p>双链边可写入 catalog 可重建表并支持增量重建。</p>
 </li>
 <li>
+<p><strong>工作区标签页与分屏</strong>（roadmap V0.6）</p>
+</li>
+<li>[ ] 中间栏文档 <strong>标签栏</strong>：paper / MD / PDF / HTML / Library 以 tab 打开，可关闭、切换、拖拽重排。</li>
+<li>[ ] 每 tab 保留滚动位置、PDF 缩放、视图模式；未保存 MD 关闭前提示。</li>
+<li>[ ] <strong>分屏</strong>：水平或垂直 2 格；每格独立内容（典型：PDF | NOTES，或两篇 paper 并排）。</li>
+<li>[ ] 快捷键：新 tab / 关 tab / 切 tab / 分屏·取消分屏（键位写入 <code>docs/frontend/ui.md</code>）。</li>
+<li>[ ] 文件树：当前 tab 打开 vs 新 tab 打开（设置可配默认）。</li>
+<li>[ ] 与 <code>⌘N</code> 多窗口隔离：每窗口独立 tab 集；关窗/换 Vault 可恢复布局。</li>
+<li>
+<p>说明：Agent 面板内的 <strong>会话标签</strong> 已存在，与本项「文档标签」分开。</p>
+</li>
+<li>
+<p><strong>引用关系 / Connected Papers</strong>（roadmap V0.7）</p>
+</li>
+<li>[ ] <strong>文内引用 hover → 右侧 Paper Info</strong>：PDF/HTML/<code>PAPER.md</code> 中识别 <code>[n]</code> / Author-year / DOI·arXiv 链接；hover 时侧栏展示目标论文 Info（库内 path / 远程缓存 metadata、入库或打开）。</li>
+<li>[ ] <strong>引用图数据</strong>：cites / cited_by 可重建缓存（catalog 扩展表或 <code>.motif/</code>）；外部 API 可插拔（Semantic Scholar / OpenAlex 等），失败可降级 TeX/参考文献解析。</li>
+<li>[ ] <strong>Connected Papers 式邻域 UI</strong>：以当前 paper 为中心展示引用/被引列表 + 简易图；节点可打开 / 入库 / 进阅读队列。</li>
+<li>
+<p>[ ] 与 V0.4 <strong>双链 Graph</strong> 区分：双链 = <code>[[wikilinks]]</code>；本项 = bibliographic 引用边。</p>
+</li>
+<li>
+<p><strong>Agent 引用与综述工作流</strong>（衔接 V0.3 面板入口 + V0.7）</p>
+</li>
+<li>[ ] 面板 workflow：<strong>Explore citations</strong>（沿引用/被引解释相关性、建议精读顺序）。</li>
+<li>[ ] 面板 workflow：<strong>Map related work</strong>（本地 NOTES + 引用图 → Related Work 骨架，含本地 path）。</li>
+<li>[ ] 面板 workflow：<strong>Ingest citation neighborhood</strong>（确认后批量魔棒入库邻居）。</li>
+<li>
+<p>[ ] 与「Summarize / Ask library / Draft Related Work」共用 prompt 注入与草稿确认路径。</p>
+</li>
+<li>
 <p><strong>Release 完善</strong></p>
 </li>
 <li>tag 构建已完成；后续补签名、公证、自动 changelog。</li>
@@ -232,8 +264,9 @@
 <p><strong>用户友好的 Skills / Workflows</strong></p>
 </li>
 <li>[x] 精读论文（paper-reader：文件树 Eye + catalog <code>is_read</code>）。</li>
-<li>[ ] 多篇对比。</li>
-<li>[ ] Related Work 草稿。</li>
+<li>[ ] 多篇对比（可与分屏 + 引用邻域联动）。</li>
+<li>[ ] Related Work 草稿（面板入口；与 V0.7 Map related work 可合并实现）。</li>
+<li>[ ] Explore citations / Ingest neighborhood（见 P1-6；完成后勾到此处）。</li>
 <li>[ ] Idea 批判性评估。</li>
 <li>
 <p>[ ] 实验复现清单。</p>
@@ -266,12 +299,80 @@
 <p>远程 PDF 链接入库。</p>
 </li>
 <li>
+<p><strong>引用图增强</strong></p>
+</li>
+<li>prior / derivative 布局、相似度聚类、跨库联合图（更深 Connected Papers 体验）。</li>
+<li>
+<p>作者、机构、会议关系图谱。</p>
+</li>
+<li>
+<p><strong>工作区增强</strong></p>
+</li>
+<li>超过 2 格的网格分屏；tab 固定（pin）、按 paper 分组。</li>
+<li>
+<p>命名工作区会话（保存/恢复一整套 tab + 分屏布局）。</p>
+</li>
+<li>
 <p><strong>多端与协作</strong></p>
 </li>
 <li>iPadOS 触控布局。</li>
 <li>Git 版本管理集成。</li>
 <li>可选云同步与多设备阅读。</li>
 </ol>
+<hr />
+<h2 id="_1">已完成能力速览（对照现状）<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>便于对照「还没做的新项」。细节与验收以 <a href="../roadmap/"><code>roadmap.md</code></a> 为准。</p>
+<table>
+<thead>
+<tr>
+<th>领域</th>
+<th>已完成</th>
+<th>未完成 / 进行中</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vault / 工作台壳</td>
+<td>打开·创建 Vault、catalog 初始化、多窗口 ⌘N、欢迎页 MRU、文件树新建/Finder/删除、左右侧栏 collapsible、后台任务条</td>
+<td>最近 Vault 迁 Tauri Store；文件监听增量刷新</td>
+</tr>
+<tr>
+<td>中间内容</td>
+<td>单槽：Library 表 / PDF / HTML / Markdown WYSIWYG；Notes 仅具体论文时显示</td>
+<td><strong>文档标签页、分屏</strong>（V0.6）</td>
+</tr>
+<tr>
+<td>入库</td>
+<td>魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md、Library 导入导出 Bib</td>
+<td>关键词/Agent 候选；本地 PDF importer；部分非 arXiv PDF 下载</td>
+</tr>
+<tr>
+<td>Agent</td>
+<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader 精读</strong>、Skill 提及分流、会话标签（Agent 内）</td>
+<td>面板内置 workflow 入口、写入草稿确认、权限 UI；<strong>引用类 workflow</strong>（V0.7）</td>
+</tr>
+<tr>
+<td>双链 / Graph</td>
+<td><code>[[wikilink]]</code> 跳转、反链、缺失创建、Backlinks 下 Graph</td>
+<td><code>[[</code> 补全、Plate 内联节点、Graph 全屏/邻居高亮</td>
+</tr>
+<tr>
+<td>文献引用图</td>
+<td>—</td>
+<td><strong>hover 引用→Info、Connected Papers 邻域、引用边缓存</strong>（V0.7）</td>
+</tr>
+<tr>
+<td>PDF</td>
+<td>缩放、划词提问 MVP（asks JSON）</td>
+<td>本地 PDF 直开、highlights 标注系统、M5</td>
+</tr>
+<tr>
+<td>发布</td>
+<td>tag → 三平台草稿 Release</td>
+<td>签名/公证/changelog</td>
+</tr>
+</tbody>
+</table>
               
             </div>
           </div><footer>
