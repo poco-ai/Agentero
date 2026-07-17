@@ -196,8 +196,9 @@
 <p><strong>文件与索引同步</strong></p>
 </li>
 <li>将最近 Vault、UI 偏好迁到 Tauri Store。</li>
-<li>增加文件监听，外部编辑器修改后自动刷新当前文件与 wiki 索引。</li>
-<li>保存失败、外部冲突和未保存状态要有明确提示。</li>
+<li>[x] 文件监听（<code>notify</code> → <code>vault:file-changed</code>）：外部编辑器 / Agent 修改后自动重载当前打开的 <code>.md</code>/<code>NOTES.md</code> 与文件树（当前策略：覆盖本地未存改动）。</li>
+<li>[ ] 文件变更后增量刷新 wiki 双链 / Backlinks 索引（当前重载编辑器与文件树，未重建索引）。</li>
+<li>[ ] 保存失败、外部冲突和未保存状态要有明确提示（当前冲突为静默覆盖本地）。</li>
 </ol>
 <p>4b. <strong>Vault 采纳 / 现有文件夹发现（编程优先）</strong> — roadmap「Vault 采纳」
    - 场景：用户 <strong>打开已有文件夹</strong>（非 Create Vault），自动 <strong>发现</strong> 是否已是 Agentero Vault、缺什么、盘上有哪些 paper/PDF 候选。

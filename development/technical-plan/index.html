@@ -510,7 +510,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <li><code>opener:default</code>（含 <code>revealItemInDir</code>）</li>
 <li><code>dialog:default</code> 打开文件夹对话框</li>
 </ul>
-<p><strong>未做（后续）</strong>：文件监听热更新、按 Vault 白名单动态收紧 scope、Zustand 全局状态。</p>
+<p><strong>未做（后续）</strong>：按 Vault 白名单动态收紧 scope、Zustand 全局状态、索引增量刷新（文件监听热更新已落地：<code>notify</code> → <code>vault:file-changed</code>）。</p>
 <h3 id="33-markdown">3.3 Markdown 编辑与预览<a class="headerlink" href="#33-markdown" title="Permanent link">&para;</a></h3>
 <p>采用 <strong>Plate.js WYSIWYG 编辑器</strong>方案，编辑即预览，无需分屏切换：</p>
 <table>
@@ -1366,7 +1366,7 @@ tempfile = &quot;3&quot;
 <tbody>
 <tr>
 <td>V0.1</td>
-<td>Tauri + React 工作台基本完成；可伸缩文件树（Finder / 删除）、Create Vault + catalog、Open vault、读写 Markdown、最近 Vault、PDF/HTML/图片/Notes、Library 表 + tags、左右侧栏 collapsible 隔离、左下角后台任务条（实色 hover）、右上角全局 Toast（<code>notifyError</code>）；文件监听仍待。</td>
+<td>Tauri + React 工作台基本完成；可伸缩文件树（Finder / 删除）、Create Vault + catalog、Open vault、读写 Markdown、最近 Vault、PDF/HTML/图片/Notes、Library 表 + tags、左右侧栏 collapsible 隔离、左下角后台任务条（实色 hover）、右上角全局 Toast（<code>notifyError</code>）；文件监听（<code>notify</code> → <code>vault:file-changed</code>，编辑器/文件树自动重载）已落地。</td>
 </tr>
 <tr>
 <td>V0.2</td>

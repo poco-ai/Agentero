@@ -553,6 +553,7 @@
 <li><strong>状态派生</strong>：<code>activeTab</code> 驱动 <code>selectedPath</code> / <code>centerMode</code> / <code>paperMeta</code> / Notes；文件树选中与「新建父目录」上下文用独立的 <code>treeSelectedPath</code>（跟随激活文档，folder 新建时可指向文件夹）。</li>
 <li><strong>持久化</strong>：<code>agentero-open-tabs</code>（<code>{tabs:[{path,mode}], activeIndex}</code>）按窗口保存，重开窗口恢复 tab 集与激活项；<code>⌘N</code> 各窗口独立。</li>
 <li><strong>NOTES 编辑器</strong>：每篇 paper 的 <code>NOTES.md</code> 编辑器也按 tab 常驻挂载在右侧 Notes 栏；paper-reader / download 写回后按路径 reseed 对应 tab。</li>
+<li><strong>外部/Agent 改动自动重载</strong>：Host <code>notify</code> 监听 Vault，发 <code>vault:file-changed</code>（<code>src/lib/fs-watch.ts</code>、<code>App.tsx</code> 的 <code>applyDiskChange</code>）。打开中的 <code>.md</code>/<code>NOTES.md</code> 若磁盘内容与当前 seed 不同则从盘重载（key bump 重挂载），<strong>自动覆盖本地未保存修改</strong>；内容相等即判定为自身 autosave 回声、跳过；重载期内 <code>reseedGuardRef</code> 阻止旧实例卸载 flush 覆盖新盘内容。结构性变更（create/remove/rename）去抖刷新文件树；纯 <code>modify</code> 不刷新树。</li>
 </ul>
 <p>规划中（尚未实现）：</p>
 <ul>

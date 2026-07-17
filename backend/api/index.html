@@ -90,6 +90,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#window_new">window_new（已实现）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#fs_watch_start-fs_watch_stop">fs_watch_start / fs_watch_stop（已实现）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#vaultopen">vault:open（规划）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#vaultclose">vault:close（规划）</a>
@@ -325,9 +327,9 @@ Host (Tauri + Rust)
 </thead>
 <tbody>
 <tr>
-<td><code>fs:changed</code></td>
-<td>Vault 内文件被外部修改</td>
-<td><code>{ path: string, kind: 'created' \| 'modified' \| 'removed' }</code></td>
+<td><code>vault:file-changed</code>（已实现）</td>
+<td>Vault 内文件被外部/Agent 改动（Host <code>notify</code> 监听，按窗口 <code>emit_to</code> 定向）</td>
+<td><code>{ paths: string[], kind: 'create' \| 'modify' \| 'remove' \| 'rename' \| 'other' }</code>（绝对路径；<code>.agentero/</code>、<code>.git/</code>、<code>node_modules/</code> 已过滤）</td>
 </tr>
 <tr>
 <td><code>arxiv:progress</code></td>
@@ -536,6 +538,19 @@ Host (Tauri + Rust)
 <li>窗口尺寸 / macOS overlay 标题栏与主窗口一致。</li>
 <li>Capability 覆盖 <code>main</code> 与 <code>agentero-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
 <li>菜单点击由 Host 直接调用，不经过前端 event 往返。</li>
+</ul>
+<h4 id="fs_watch_start-fs_watch_stop"><code>fs_watch_start</code> / <code>fs_watch_stop</code>（已实现）<a class="headerlink" href="#fs_watch_start-fs_watch_stop" title="Permanent link">&para;</a></h4>
+<p>按窗口启停 Vault 文件系统监听（Rust <code>notify</code> 递归监听），用于外部编辑器 / Agent 写盘后自动重载编辑器与文件树。</p>
+<ul>
+<li><strong><code>fs_watch_start</code></strong></li>
+<li><strong>参数</strong>：<code>{ vaultPath: string }</code></li>
+<li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
+<li><strong>行为</strong>：为当前窗口（label）启动递归监听；若该窗口已有监听则先停止再重建。命中变更时按窗口 <code>emit_to</code> 发送 <code>vault:file-changed</code>（去抖 ~300ms，过滤 <code>.agentero/</code>、<code>.git/</code>、<code>node_modules/</code>）。</li>
+<li><strong><code>fs_watch_stop</code></strong></li>
+<li><strong>参数</strong>：无</li>
+<li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
+<li><strong>行为</strong>：停止并释放当前窗口的监听（无监听时 no-op）。窗口 <code>Destroyed</code> 时 Host 亦自动停止，避免线程泄漏。</li>
+<li><strong>前端</strong>：<code>src/lib/fs-watch.ts</code> 封装 <code>startVaultWatch</code> / <code>stopVaultWatch</code>；<code>App.tsx</code> 随 <code>vaultPath</code> 生命周期启停，并监听 <code>vault:file-changed</code>。</li>
 </ul>
 <h4 id="vaultopen"><code>vault:open</code>（规划）<a class="headerlink" href="#vaultopen" title="Permanent link">&para;</a></h4>
 <p>打开一个已存在的 Vault。</p>
