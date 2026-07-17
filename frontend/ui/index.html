@@ -198,6 +198,7 @@
 <h3 id="21">2.1 侧边栏文件树<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
 <ul>
 <li>树 UI：<strong>AI Elements</strong> <code>FileTree</code>（业务包装：<code>src/components/layout/file-tree.tsx</code>；约定见 <code>docs/frontend/components.md</code>）。</li>
+<li><strong>性能（虚拟化）</strong>：树把可见节点<strong>拍平为一维列表 + 窗口化</strong>（<code>@tanstack/react-virtual</code>），只渲染视口内的行；FileTree 自持滚动容器（<code>treeScrollRef</code>），折叠文件夹用扫平行组件 <code>FileTreeFolderRow</code>（<code>ai-elements/file-tree.tsx</code>）。避免大 Vault（成百上千篇）时常驻海量 DOM，以及选中/展开/拖拽时的全树重渲染。</li>
 <li><strong>虚拟节点 Library</strong>：树顶固定一项 <strong>Library / 论文库</strong>（路径常量 <code>agentero:library</code>，非真实目录、不写盘）。图标 <code>Library</code>。选中后中间栏显示论文库表格（见 §3）。空 Vault 时仍显示该节点。</li>
 <li><strong>Library 行 Download</strong>：当库内<strong>任一</strong> paper 资源不完整时，Library 标题右侧显示 Download；点击<strong>批量</strong> <code>paper_download_assets</code>。</li>
 <li><strong>Paper 行 Download</strong>：下列任一成立即显示，hover 列出原因：</li>
@@ -347,6 +348,7 @@
 <li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容 + 可选右侧栏（Agent / Backlinks）。中间内容为<strong>文档标签页</strong>（浏览器式多 tab，见 §3.1.1），Notes 随激活文档切换。</li>
 <li><strong>论文库表格</strong>（<code>src/components/layout/papers-library.tsx</code>）：</li>
 <li><strong>入口</strong>：文件树虚拟节点 <code>agentero:library</code>；亦在选中 Vault 根 / <code>papers/</code> / 未选文件时作为中间栏默认视图。</li>
+<li><strong>性能（虚拟化）</strong>：表格行用 <code>@tanstack/react-virtual</code> 窗口化（spacer-row 方案，保留 <code>&lt;table&gt;</code> 语义与横向滚动；<code>measureElement</code> 动态测高），大库不卡。</li>
 <li><strong>数据</strong>：Host <code>paper_list</code> → catalog.sqlite（不扫盘拼表）。前端封装 <code>src/lib/papers-api.ts</code>。<strong>catalog 权威</strong>：盘上有、catalog 无的论文不会显示；空态提供「重新扫描 papers/」（<code>paper_rescan</code>）从各 <code>metadata.json</code> 重建 catalog。</li>
 <li><strong>列</strong>：标题、作者、年份、<strong>标签</strong>、类型、标识符；点击行打开对应 paper 文件夹。</li>
 <li><strong>标签筛选</strong>：表上方汇总库内全部 tag 为可点 chip（再点取消）；单元格内 tag 也可筛选。标题搜索同时匹配 tag 子串。</li>
@@ -413,6 +415,7 @@
 <li>若只有 <code>arxiv_id</code>，用 <code>src/lib/arxiv.ts</code> 推导远程 URL（作下载候选与 HTML/远程回退）</li>
 <li>PDF：本地经 <code>blob:</code>（fs <code>readFile</code>）/ 远程 <code>https</code> 由 PDF.js 渲染；HTML：独立 iframe 打开远程页；图片：<code>blob:</code> + <code>&lt;img&gt;</code></li>
 <li><strong>PDF 缩放</strong>（<code>PdfViewer</code>）：工具栏放大 / 缩小 / 重置 / <strong>适应宽度</strong>（<code>RotateCcw</code>，= 重置到 100%）/ <strong>适应整页</strong>（<code>MoveVertical</code>，缩放到整页高度铺满视口）；<code>⌘/Ctrl</code>+滚轮缩放；范围约 <strong>0.5×–3×</strong>；<strong>100% = 适应中间栏宽度</strong>（非固定 pt）；<strong>放大后</strong>缩放停下 ~160ms 后按<strong>真实比例</strong>重渲染页面（<code>width = 基准宽 × 缩放</code>、transform 归 1），文本层与画布同尺度 → 清晰且<strong>划词/高亮顺滑</strong>（对齐 Zotero），手势中以 transform 比值即时反馈；<strong>缩放后</strong>中间栏可<strong>双向滚动/平移</strong>（横向 + 纵向，<code>agentero-scroll-both</code>），滚轮缩放以光标为锚点。i18n <code>viewer:pdf.zoom*</code>。</li>
+<li><strong>PDF 性能（页面窗口化）</strong>：只给「当前页 ±4」（<code>PAGE_WINDOW</code>）渲染真实 <code>&lt;Page&gt;</code>（canvas + 文本层 + 批注层），其余为等高占位 div；<code>currentPage</code> 由 <code>IntersectionObserver</code> 跟踪、随滚动移动窗口。避免大 PDF（几十上百页）一次性挂载全部 canvas，并把缩放重渲染限制在窗口内。</li>
 <li><strong>PDF 页码导航</strong>：底部居中页码 pill（<code>‹ [当前页] / 总页数 ›</code>，输入数字回车跳页）；当前页用 <code>IntersectionObserver</code> 跟踪；键盘 <code>PageDown/PageUp</code> 翻页、<code>Home/End</code> 首/末页（PDF 区悬停或聚焦时生效，输入框内不拦截）；<strong>续读</strong>：按论文（路径）记住上次页码，重开自动续上（<code>pdf-reading-position.ts</code>，localStorage）。i18n <code>viewer:pdf.prevPage/nextPage/goToPage</code>。</li>
 <li><strong>PDF 大纲（书签）</strong>：有大纲时左上 <code>List</code> 按钮切换<strong>左侧浮层目录</strong>（<code>getOutline()</code> 读书签树；点条目经 <code>getDestination</code>/<code>getPageIndex</code> 解析跳页）；无大纲不显示。i18n <code>viewer:pdf.outline</code>。</li>
 <li><strong>PDF 文档内查找</strong>（<code>⌘/Ctrl+F</code>）：右上查找条（查询 + 命中计数 + 上/下一个 + <code>Esc</code> 关闭；<code>Enter</code>/<code>Shift+Enter</code> 循环）。<code>pdf-find.ts</code> 用 pdfjs <code>getTextContent</code> 逐页搜索（按页缓存）；命中滚动到该页并把该次出现映射回<strong>文本层 rects</strong> 高亮（复用 pdf-ask 归一化覆盖层），文本层未就绪时仅滚动。i18n <code>viewer:pdf.find*</code>。</li>
