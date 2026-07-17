@@ -156,7 +156,7 @@
    - [x] 设置：<code>translatorBaseUrl</code>（默认 <code>https://translator.philfan.cn</code>）；<strong>无</strong>「是否本地下载」开关。
    - [x] 文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 原因）。
    - [x] 无 TeX + 有 PDF：下载后 liteparse 生成 <code>PAPER.md</code>（Download 路径内）。
-   - [x] 精读：魔棒/单篇 Download 后自动 paper-reader；资源齐全且未读时 Eye 可手动 → <code>is_read</code>。
+   - [x] 精读：魔棒/单篇 Download 后自动 paper-reader；资源齐全且未读时 Zap 可手动 → <code>is_read</code>。
    - [x] Library 行：库内任一篇仍缺资源 → 批量 Download。
    - [x] 快捷键 <code>⇧⌘I</code>（打开魔棒）；本机 Translator sidecar 捆绑仍待。</p>
 <p>2c. <strong>论文库表格 UI</strong> ✅
@@ -183,7 +183,7 @@
    - [x] 单测 + 文档（data-model / ui / technical-plan / test 冒烟表）。</p>
 <ol>
 <li><strong>Agent 工作流入口</strong></li>
-<li>[x] <strong>paper-reader 精读</strong>：入库/单篇 Download <strong>自动</strong> + 文件树 Eye 手动（资源齐全 + <code>is_read=false</code>）→ paper-reader skill（Codex <code>$</code> / Claude <code>/</code> / 其它注入）→ <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度（lookup/download → paperRead）。</li>
+<li>[x] <strong>paper-reader 精读</strong>：入库/单篇 Download <strong>自动</strong> + 文件树 Zap 手动（资源齐全 + <code>is_read=false</code>）→ paper-reader skill（Codex <code>$</code> / Claude <code>/</code> / 其它注入）→ <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度（lookup/download → paperRead）。</li>
 <li>[x] skill 运行时语法按 Agent 模板分流（Host <code>SkillMentionStyle</code>）。</li>
 <li>[x] <strong>全局权限模式</strong>：设置 → Agent（<code>restricted</code> / <code>autoApprove</code>），替代 per-provider YOLO。</li>
 <li>[ ] 在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>
@@ -321,7 +321,7 @@
 <li>
 <p><strong>用户友好的 Skills / Workflows</strong></p>
 </li>
-<li>[x] 精读论文（paper-reader：文件树 Eye + catalog <code>is_read</code>）。</li>
+<li>[x] 精读论文（paper-reader：文件树 Zap + catalog <code>is_read</code>）。</li>
 <li>[ ] 多篇对比（可与分屏 + 引用邻域联动）。</li>
 <li>[ ] Related Work 草稿（面板入口；与 V0.7 Map related work 可合并实现）。</li>
 <li>[ ] Explore citations / Ingest neighborhood（见 P1-6；完成后勾到此处）。</li>
@@ -414,7 +414,7 @@
 </tr>
 <tr>
 <td>Agent</td>
-<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader</strong>（自动+Eye）、<strong>全局权限模式</strong>、模型收藏、Skill 提及分流、会话标签（Agent 内）</td>
+<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader</strong>（自动+Zap）、<strong>全局权限模式</strong>、模型收藏、Skill 提及分流、会话标签（Agent 内）</td>
 <td>面板内置 workflow 入口、写入草稿确认、逐项权限 UI；<strong>引用类 workflow</strong>（V0.7）</td>
 </tr>
 <tr>

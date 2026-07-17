@@ -635,7 +635,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <p><strong>分工说明</strong>：
 - <strong>渲染层</strong>（<code>react-pdf</code>）：负责在 Webview 中展示 PDF 页面，供用户审阅、缩放、翻页浏览。
 - <strong>解析层</strong>（<code>liteparse</code>，crate <code>2.5+</code>）：在 Rust 端提取 PDF 文本内容，用于生成 <code>PAPER.md</code>、Agent 上下文读取、全文检索索引等。输出支持 Markdown（含标题/表格/列表重建）、JSON（含 bounding box）和纯文本。
-- <strong>当前落地</strong>：无本地 TeX 时，在 <code>lookup_import</code> / <code>paper_download_assets</code> <strong>下载之后</strong>自动 liteparse → <code>PAPER.md</code>；<code>paper_parse_body</code> 亦可手动。有 TeX 不自动生成。Download 图标补资源。精读：<strong>入库/单篇 Download 后自动</strong> paper-reader，资源齐全且未读时 Eye 可手动（catalog <code>is_read</code>；skill 触发：<strong>Codex <code>$paper-reader</code></strong>、<strong>Claude <code>/paper-reader</code></strong>、其它仅注入 <code>SKILL.md</code>，见 Host <code>SkillMentionStyle</code>；前端 <code>src/lib/paper-read.ts</code>）。
+- <strong>当前落地</strong>：无本地 TeX 时，在 <code>lookup_import</code> / <code>paper_download_assets</code> <strong>下载之后</strong>自动 liteparse → <code>PAPER.md</code>；<code>paper_parse_body</code> 亦可手动。有 TeX 不自动生成。Download 图标补资源。精读：<strong>入库/单篇 Download 后自动</strong> paper-reader，资源齐全且未读时 Zap 可手动（catalog <code>is_read</code>；skill 触发：<strong>Codex <code>$paper-reader</code></strong>、<strong>Claude <code>/paper-reader</code></strong>、其它仅注入 <code>SKILL.md</code>，见 Host <code>SkillMentionStyle</code>；前端 <code>src/lib/paper-read.ts</code>）。
 - <code>liteparse</code> 内置 Tesseract OCR，对扫描型 PDF 也能处理；支持多格式（PDF/DOCX/XLSX/PPTX/图片）。
 - <strong>HTML 安全</strong>：完整远程/本地 HTML 文档优先用隔离 <code>iframe</code> 或 <code>convertFileSrc</code> 加载；任何会进入主文档 DOM 的不可信 HTML 字符串必须调用 <code>sanitizeHtml</code>（DOMPurify）。许可证 Apache-2.0。</p>
 <p><strong>可插拔 PDF 解析器（<code>PdfParser</code>）</strong>：
@@ -1374,7 +1374,7 @@ tempfile = &quot;3&quot;
 </tr>
 <tr>
 <td>V0.3</td>
-<td>BYOA 面板进行中；通用 provider 走 ACP，Codex 走原生 App Server thread；<code>@</code> / <code>$</code> 上下文、<strong>paper-reader</strong>（入库/单篇 Download <strong>自动</strong> + Eye 手动 + <code>is_read</code>）、<strong>SkillMentionStyle</strong>、<strong>全局权限模式</strong>（<code>agentPermissionMode</code>：受限 / 自动批准）、模型收藏已接入；面板内其它 workflow、逐项「每次询问」、写入草稿待补。</td>
+<td>BYOA 面板进行中；通用 provider 走 ACP，Codex 走原生 App Server thread；<code>@</code> / <code>$</code> 上下文、<strong>paper-reader</strong>（入库/单篇 Download <strong>自动</strong> + Zap 手动 + <code>is_read</code>）、<strong>SkillMentionStyle</strong>、<strong>全局权限模式</strong>（<code>agentPermissionMode</code>：受限 / 自动批准）、模型收藏已接入；面板内其它 workflow、逐项「每次询问」、写入草稿待补。</td>
 </tr>
 <tr>
 <td>V0.4</td>

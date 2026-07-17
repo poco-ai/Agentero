@@ -204,8 +204,8 @@
 <li>本地<strong>没有 PDF</strong>（期望在论文根目录 <code>{id}.pdf</code>）；</li>
 <li><strong>既没有 TeX 也没有 <code>PAPER.md</code></strong>（二者有其一即可，<strong>优先 TeX</strong>）；</li>
 <li>点击后：PDF 写入论文根目录 → arXiv 尽量下 TeX 到 <code>source/</code> → <strong>无 TeX</strong> 时 liteparse 写 <code>PAPER.md</code>。</li>
-<li><strong>Paper 行 Eye（精读）</strong>：当本地资源<strong>已齐全</strong>（有 PDF，且有 TeX 或 <code>PAPER.md</code>）且 catalog <strong><code>is_read === false</code></strong> 时显示 <code>Eye</code> 图标；点击可<strong>手动</strong>启动 <strong>paper-reader</strong>。</li>
-<li><strong>自动精读</strong>：魔棒入库 / 单篇 Download 在 PDF（或 TeX / <code>PAPER.md</code>）就绪且 <code>is_read === false</code> 时<strong>自动</strong>启动同一工作流；左下角先显示入库/下载任务进度，完成后接上 <code>paperRead</code> 精读进度。运行时 skill 触发按 provider：<strong>Codex <code>$paper-reader</code></strong>、<strong>Claude <code>/paper-reader</code></strong>、其它仅注入 <code>SKILL.md</code>。成功后 <code>is_read = true</code>，Eye 消失。</li>
+<li><strong>Paper 行 Zap（精读）</strong>：当本地资源<strong>已齐全</strong>（有 PDF，且有 TeX 或 <code>PAPER.md</code>）且 catalog <strong><code>is_read === false</code></strong> 时显示 <code>Zap</code> 图标；点击可<strong>手动</strong>启动 <strong>paper-reader</strong>。</li>
+<li><strong>自动精读</strong>：魔棒入库 / 单篇 Download 在 PDF（或 TeX / <code>PAPER.md</code>）就绪且 <code>is_read === false</code> 时<strong>自动</strong>启动同一工作流；左下角先显示入库/下载任务进度，完成后接上 <code>paperRead</code> 精读进度。运行时 skill 触发按 provider：<strong>Codex <code>$paper-reader</code></strong>、<strong>Claude <code>/paper-reader</code></strong>、其它仅注入 <code>SKILL.md</code>。成功后 <code>is_read = true</code>，Zap 消失。</li>
 <li>顶栏单行：左侧 Vault 名称（可截断）+ 右侧 <strong>纯图标操作</strong>。</li>
 <li>动作映射（Lucide），从左到右：</li>
 <li><strong>按标识符添加（魔棒）</strong> → <code>WandSparkles</code>（紧挨 <strong>New file 左侧</strong>；Popover 粘贴 arXiv 链接/编号 → Host <code>lookup_import</code>）</li>
@@ -543,7 +543,7 @@
 <li><strong>arXiv</strong>：另从 <code>https://arxiv.org/e-print/{id}</code> 下载并解压 LaTeX 到 <code>source/</code>。  </li>
 <li>详见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>；i18n <code>sidebar:lookup.*</code> / <code>papersLibrary.*</code>；无 Vault 时禁用。</li>
 <li><strong>论文行 Download</strong>：缺本地 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时显示；hover 列出原因 → <code>paper_download_assets</code>（已有资源跳过）。下载后若仍无 TeX 且有 PDF，Host 自动 liteparse 写 <code>PAPER.md</code>。Library 行可对库内全部不完整 paper <strong>批量</strong> Download。</li>
-<li><strong>论文行 Eye（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Codex 用 <code>$paper-reader</code>，Claude 用 <code>/paper-reader</code>，其它靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。魔棒入库 / 单篇 Download 成功后会<strong>自动</strong>同一工作流（批量不连跑）。进度在左下角后台任务条（lookup/download → paperRead）。</li>
+<li><strong>论文行 Zap（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Codex 用 <code>$paper-reader</code>，Claude 用 <code>/paper-reader</code>，其它靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。魔棒入库 / 单篇 Download 成功后会<strong>自动</strong>同一工作流（批量不连跑）。进度在左下角后台任务条（lookup/download → paperRead）。</li>
 </ul>
 <h3 id="311-roadmap-v06">3.1.1 文档标签页（已落地）与分屏（规划，roadmap V0.6）<a class="headerlink" href="#311-roadmap-v06" title="Permanent link">&para;</a></h3>
 <p><strong>浏览器式文档标签页</strong>（<code>src/components/layout/document-tab-bar.tsx</code>、模型 <code>src/lib/tabs.ts</code>）位于<strong>窗口标题栏</strong>（与禅模式 Focus 图标同行）：</p>
