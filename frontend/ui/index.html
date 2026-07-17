@@ -416,9 +416,10 @@
 <li><strong>PDF 页码导航</strong>：底部居中页码 pill（<code>‹ [当前页] / 总页数 ›</code>，输入数字回车跳页）；当前页用 <code>IntersectionObserver</code> 跟踪；键盘 <code>PageDown/PageUp</code> 翻页、<code>Home/End</code> 首/末页（PDF 区悬停或聚焦时生效，输入框内不拦截）。i18n <code>viewer:pdf.prevPage/nextPage/goToPage</code>。</li>
 <li><strong>PDF 大纲（书签）</strong>：有大纲时左上 <code>List</code> 按钮切换<strong>左侧浮层目录</strong>（<code>getOutline()</code> 读书签树；点条目经 <code>getDestination</code>/<code>getPageIndex</code> 解析跳页）；无大纲不显示。i18n <code>viewer:pdf.outline</code>。</li>
 <li><strong>PDF 文档内查找</strong>（<code>⌘/Ctrl+F</code>）：右上查找条（查询 + 命中计数 + 上/下一个 + <code>Esc</code> 关闭；<code>Enter</code>/<code>Shift+Enter</code> 循环）。<code>pdf-find.ts</code> 用 pdfjs <code>getTextContent</code> 逐页搜索（按页缓存）；命中滚动到该页并把该次出现映射回<strong>文本层 rects</strong> 高亮（复用 pdf-ask 归一化覆盖层），文本层未就绪时仅滚动。i18n <code>viewer:pdf.find*</code>。</li>
+<li><strong>PDF 沉浸式阅读</strong>（工具栏 <code>Maximize2</code> 进入 / <code>Minimize2</code> 或 <code>Esc</code> 退出）：折叠左右侧栏 + 隐藏中间栏头，PDF 铺满窗口；正文<strong>限宽 ≤ 1100px 居中</strong>（舒适阅读 + 两侧留白），缩放 / 页码 / 大纲 / 查找浮层照常；切到非 PDF tab 自动退出。i18n <code>viewer:pdf.zenEnter/zenExit</code>。</li>
 <li><strong>PDF 划词操作菜单</strong>（已落地，见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>）：<ul>
-<li>划词后在选区旁弹出操作菜单（图标 + Tooltip）：<strong>高亮 / 笔记 / 提问 / 翻译</strong>；<strong>不再默认套用琥珀高亮</strong>；选区以<strong>平滑蓝色覆盖层</strong>呈现（<code>selectionRectsByPage</code> 按行合并 rects + <code>SELECTION_CSS</code> 隐藏原生 <code>::selection</code>，对齐 Zotero、点掉即消）。双击 / 悬停停留仍直接开问答卡（页码上下文）。</li>
-<li>高亮：<code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code>（归一化坐标可重定位）→ 页面琥珀覆盖层；点击已有高亮出现「删除」浮层。笔记：选中原文以块引用 <code>&gt; …</code> 追加进该篇 <code>NOTES.md</code>（经编辑器实例写入，避免覆盖未存改动），菜单内联「已加入」。提问 / 翻译复用迷你问答卡（ACP 流式）；发送过问题后锚点旁保留对话图标（Hover 回访）。</li>
+<li>划词后在选区旁弹出操作菜单（图标 + Tooltip）：<strong>5 色色板 + 笔记 / 提问 / 翻译</strong>（点色板 = 该色<strong>高亮</strong>）；选区以<strong>平滑蓝色覆盖层</strong>呈现（<code>selectionRectsByPage</code> 按行合并 rects + <code>SELECTION_CSS</code> 隐藏原生 <code>::selection</code>，对齐 Zotero、点掉即消）。双击 / 悬停停留仍直接开问答卡（页码上下文）。</li>
+<li>高亮：<code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code>（含 <code>color</code>（yellow/green/blue/pink/purple），归一化坐标可重定位；调色板 <code>lib/pdf-highlight/palette.ts</code>）→ 页面半透明色带覆盖层；点击已有高亮出现「删除」浮层。笔记：选中原文以块引用 <code>&gt; …</code> 追加进该篇 <code>NOTES.md</code>（经编辑器实例写入，避免覆盖未存改动），菜单内联「已加入」。提问 / 翻译复用迷你问答卡（ACP 流式）；发送过问题后锚点旁保留对话图标（Hover 回访）。</li>
 <li>提问线程落盘 <code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>；高亮 / 提问 / 笔记均<strong>不</strong>写 PDF 二进制。</li>
 </ul>
 </li>
