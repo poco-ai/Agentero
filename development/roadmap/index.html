@@ -233,7 +233,7 @@
 <tr>
 <td>V0.1 本地 Vault 与 Markdown 工作台</td>
 <td>✅ 基本完成</td>
-<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页、树内联新建 / <strong>Finder 显示 / 删除</strong>、PDF/HTML/图片/Notes、WYSIWYG Markdown、<strong>论文库表格 + tags + 虚拟 Library 节点</strong>、左右侧栏 collapsible 隔离、后台任务条（含 paper-reader；hover 实色）、<strong>全局错误 Toast</strong>（<code>notifyError</code>）、Preview/Info 仅在具体论文时显示。</td>
+<td>工作台、Create Vault + catalog、多窗口（⌘N）+ 欢迎页、树内联新建 / Finder / <strong>回收站删除</strong> / 多选拖拽、PDF 阅读工具（导航·适应整页·大纲·查找·平滑划词）/ 图片 / Notes、WYSIWYG + 内嵌图 <code>./assets/</code>、<strong>Library + tags + Rescan</strong>、<strong>Vault 文件监听</strong>、左右侧栏 collapsible、后台任务条、<strong>全局错误 Toast</strong>。</td>
 </tr>
 <tr>
 <td>V0.2 arXiv / 标识符入库闭环</td>
@@ -296,15 +296,15 @@
 <li>[x] 最近 Vault 列表（欢迎页）与主窗口恢复上次 Vault。</li>
 <li>[x] 多窗口：<code>⌘N</code> 新建窗口，session 级 Vault 隔离。</li>
 <li>[x] 树内联新建文件 / 文件夹。</li>
-<li>[x] 文件树：<strong>在 Finder 中显示</strong>（右键 / <code>⌥⌘R</code>，无双击）；<strong>在终端中打开</strong>（右键 / <code>⌥⌘T</code>；文件夹 = 自身 / 文件 = 父目录）；<strong>删除</strong>（右键 / <code>⌘⌫</code>，移入回收站 <code>.agentero/.trash/</code>（不弹提示）；侧栏 <code>Trash2</code> 打开<strong>回收站</strong>中间栏视图可浏览 / 恢复 / 永久删除 / 清空；<code>papers/</code> 行随删随快照 catalog）。</li>
-<li>[x] Paper-centric 视图：选中 paper 后中间显示 PDF（本地优先 / 远程回退）或 HTML，右侧显示该篇 <code>NOTES.md</code>（<strong>仅具体论文</strong>时显示 Preview/Info）。</li>
+<li>[x] 文件树：<strong>Finder 显示</strong>（<code>⌥⌘R</code>）；<strong>终端打开</strong>（<code>⌥⌘T</code>）；<strong>多选 + 拖拽移动</strong>；<strong>删除</strong>走回收站（<code>path_trash</code>，无确认 / 无 Undo toast；侧栏 <code>Trash2</code> → 中间栏浏览 / 恢复 / 清空；<code>papers/</code> 快照 catalog）。</li>
+<li>[x] Paper-centric 视图：选中 paper 后中间 PDF（本地优先 / 远程回退）或 HTML，右侧 <code>NOTES.md</code>（<strong>仅具体论文</strong>）。</li>
 <li>[x] Vault <strong>任意路径</strong> PDF / 常见图片中间栏预览（<code>blob:</code>）。</li>
-<li>[x] <strong>PDF 阅读操作</strong>：页码导航（底部 pill 跳转 + <code>PageDown/PageUp</code>、<code>Home/End</code>）、<strong>适应宽度 / 适应整页</strong>、<strong>大纲（书签）</strong>左侧浮层跳页、<strong>文档内查找</strong>（<code>⌘/Ctrl+F</code> + 命中高亮）。</li>
-<li>[x] 侧边栏折叠、标题栏快捷按钮、Settings 窗口；左右侧栏 <strong>常驻 collapsible + preserve-pixel-size</strong>（交替快捷键互不冲态）。</li>
-<li>[x] 论文库表格：虚拟节点 <code>agentero:library</code>、<code>paper_list</code>、表头排序、<strong>tags 列 + chip 筛选</strong>、双向滚动。</li>
-<li>[x] Paper Info / Notes 仅在选中具体论文时显示（Library 视图隐藏）；Paper Info <strong>Tags</strong> 可编辑（<code>paper_set_tags</code>）。</li>
-<li>[x] 后台任务条（左下角）：下载 / 入库 / 导入导出 / paper-reader 等长操作进度；收起态 hover 保持实色不透明。</li>
-<li>[x] 全局错误 Toast（右上角 Sonner + <code>notifyError</code>）；操作失败不占侧栏 header。</li>
+<li>[x] <strong>PDF 阅读操作</strong>：页码导航；<strong>适应宽度 / 适应整页</strong>；真实 scale 重渲染 + 放大后平移；<strong>大纲</strong>；<strong>⌘F 查找</strong>；<strong>平滑划词覆盖层</strong>。</li>
+<li>[x] 侧边栏折叠、标题栏快捷按钮、Settings；左右侧栏 <strong>常驻 collapsible + preserve-pixel-size</strong>。</li>
+<li>[x] 论文库表格：<code>agentero:library</code>、<code>paper_list</code>、表头排序、<strong>tags 筛选</strong>、<strong>Rescan</strong>（<code>paper_rescan</code>）、双向滚动。</li>
+<li>[x] Paper Info / Notes 仅具体论文；Paper Info <strong>Tags</strong> 可编辑。</li>
+<li>[x] 后台任务条（含 paper-reader；hover 实色）；<strong>全局错误 Toast</strong>。</li>
+<li>[x] <strong>Vault 文件监听</strong>（<code>notify</code> → <code>vault:file-changed</code>）：外部/Agent 改盘自动重载打开的 Markdown 与文件树。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -336,7 +336,7 @@
 <li>[x] <strong>paper-reader 精读</strong>：入库/单篇 Download 后可自动；资源齐全且 <code>is_read=false</code> 时文件树 Zap 手动（见 V0.3）。</li>
 <li>[x] Library 导入/导出：<code>paper_import</code> / <code>paper_export</code>（Translator <code>/import</code> + <code>/export</code>，Zotero JSON 数组）。</li>
 <li>[x] 入库错误经全局 Toast（<code>notifyError</code>）展示；重复不覆盖用户 <code>NOTES.md</code>。</li>
-<li>[x] 删除 paper / 组织目录：磁盘 <code>remove</code> + catalog <code>paper_delete</code>（含嵌套 path）。</li>
+<li>[x] 删除 paper / 组织目录：移入回收站 + catalog 快照移除（恢复时 upsert；含嵌套 path）。</li>
 </ul>
 <h3 id="_1">未完成<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
 <ul>
@@ -686,7 +686,7 @@
 <ul>
 <li>~~Zotero/BibTeX 批量导入~~ ✅ 一键从本地 Zotero 迁移（直读 <code>zotero.sqlite</code> + <code>storage/</code>，可选拷 PDF；见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a> §16）；BibTeX/RIS 文件仍走 Library 导入。</li>
 <li>浏览器插件，一键收集网页和论文。</li>
-<li>~~<strong>PDF 划词提问</strong> MVP~~ ✅（划词弹操作菜单：高亮 / 笔记 / 提问 / 翻译 → <code>asks/*.json</code> 问答线程 + <code>highlights/*.json</code> 高亮 → 锚点对话图标；去掉默认琥珀高亮，仅原生选区；见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>）。仍待：导出 <code>highlights.md</code>、无文本层降级、本地 PDF TextLayer 增强。</li>
+<li>~~<strong>PDF 划词提问</strong> MVP~~ ✅（划词弹操作菜单：高亮 / 笔记 / 提问 / 翻译 → <code>asks/*.json</code> + <code>highlights/*.json</code>；<strong>平滑蓝色选区覆盖层</strong>（非默认琥珀高亮）；见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>）。仍待：导出 <code>highlights.md</code>、无文本层降级、TextLayer 增强。</li>
 <li>完整 PDF 高亮、批注、摘录同步（<code>highlights.md</code>；可与划词提问互导）。</li>
 <li>远程 PDF 链接、任意网页入库（DOI 魔棒路径可部分覆盖）。</li>
 <li>多 Agent 并行读论文和综合评估。</li>

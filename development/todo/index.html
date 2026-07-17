@@ -169,18 +169,26 @@
 <p>2d. <strong>文件树与侧栏 UX</strong> ✅
    - [x] 在 Finder 中显示：右键 / <code>⌥⌘R</code>（<code>revealItemInDir</code>；无双击）。
    - [x] 在终端中打开：右键 / <code>⌥⌘T</code>（文件夹 = 自身；文件 = 父目录；Host <code>path_open_in_terminal</code>）。
-   - [x] 删除：右键 / <code>⌘⌫</code>；确认；<code>papers/</code> 下同步 <code>paper_delete</code>。
+   - [x] <strong>回收站删除</strong>：右键 / <code>⌘⌫</code> / 批量 → <code>path_trash</code>（无确认、无 Undo toast）；侧栏 <code>Trash2</code> → 中间栏 <code>RecycleBinView</code> 恢复 / 永久删除 / 清空。
+   - [x] 多选（⌘/Shift 行高亮）+ 拖拽移动到 <code>papers/</code> 组织夹 + 批量移动对话框。
    - [x] 左右侧栏 collapsible 常驻 + <code>preserve-pixel-size</code>（交替 <code>⌥⌘S</code> / <code>⌘L</code> 不重叠）。
-   - [x] 后台任务条（下载 / 入库 / 导入导出 / paper-reader；hover 实色不透明）。</p>
+   - [x] 后台任务条（下载 / 入库 / 导入导出 / paper-reader；hover 实色不透明）。
+   - [x] 精读触发图标 <strong>Zap</strong>（非 Eye）；tooltip 单行。</p>
 <p>2e. <strong>PDF 阅读增强</strong> ✅
-   - [x] 缩放：工具栏 +/- / 重置；<code>⌘/Ctrl</code>+滚轮（0.5×–3×，100%=适应栏宽）。
-   - [x] 划词提问 MVP：M1–M4（见 3. PDF 划词提问）。
+   - [x] 缩放：+/- / 适应宽度 / <strong>适应整页</strong>；<code>⌘/Ctrl</code>+滚轮（0.5×–3×，100%=适应栏宽）；真实 scale 重渲染 + 放大后双向平移。
+   - [x] 页码导航：底部 pill + 跳转输入；<code>PageDown/PageUp</code> / <code>Home/End</code>。
+   - [x] 大纲（书签）左侧浮层；文档内查找 <code>⌘/Ctrl+F</code> + 命中高亮（<code>pdf-find.ts</code>）。
+   - [x] 平滑划词覆盖层（Zotero 风格；隐藏原生 <code>::selection</code> 行间缝隙）。
+   - [x] 划词操作菜单 MVP：高亮 / 笔记 / 提问 / 翻译（见 3. PDF 划词提问）。
    - [x] 本地 PDF 直接预览（优先本地 → 无本地时 <code>paper_download_assets</code> → 失败再远程 <code>pdf_url</code>）。</p>
 <p>2f. <strong>Markdown 内嵌图片</strong> ✅
    - [x] 粘贴 / 工具栏插入 → <code>{mdDir}/assets/</code> + <code>![](./assets/…)</code>（<code>src/lib/markdown-image.ts</code>）。
    - [x] 选中图片节点显示 Markdown 源码；未选中 <code>blob:</code> 预览。
    - [x] 删除节点且引用计数归零时 GC managed assets 文件并刷新文件树。
    - [x] 单测 + 文档（data-model / ui / technical-plan / test 冒烟表）。</p>
+<p>2g. <strong>Library Rescan</strong> ✅
+   - [x] Host <code>paper_rescan</code>：扫 <code>papers/</code> + <code>metadata.json</code> 补齐 catalog（盘上有、库内无）。
+   - [x] Library 空态 / 工具栏 Rescan 入口 + i18n。</p>
 <ol>
 <li><strong>Agent 工作流入口</strong></li>
 <li>[x] <strong>paper-reader 精读</strong>：入库/单篇 Download <strong>自动</strong> + 文件树 Zap 手动（资源齐全 + <code>is_read=false</code>）→ paper-reader skill（Codex <code>$</code> / Claude <code>/</code> / 其它注入）→ <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度（lookup/download → paperRead）。</li>
@@ -400,17 +408,17 @@
 <tbody>
 <tr>
 <td>Vault / 工作台壳</td>
-<td>打开·创建 Vault、catalog 初始化、多窗口 ⌘N、欢迎页 MRU、文件树新建/Finder/<strong>删除（回收站 + 撤销 + 浏览恢复）</strong>、左右侧栏 collapsible、后台任务条、<strong>全局错误 Toast</strong>（<code>notifyError</code>）</td>
-<td>最近 Vault 迁 Tauri Store；文件监听；<strong>打开已有夹自动发现/整理</strong>（P0-4b / P1-2b）</td>
+<td>打开·创建 Vault、catalog 初始化、多窗口 ⌘N、欢迎页 MRU、文件树新建/Finder/<strong>回收站删除（中间栏浏览恢复，无 Undo toast）</strong>、多选拖拽、<code>notify</code> 文件监听、左右侧栏 collapsible、后台任务条、<strong>全局错误 Toast</strong></td>
+<td>最近 Vault 迁 Tauri Store；<strong>打开已有夹自动发现/整理</strong>（P0-4b / P1-2b）；冲突提示（当前静默覆盖本地未存）</td>
 </tr>
 <tr>
 <td>中间内容</td>
-<td><strong>文档标签页</strong>（常驻挂载；<code>⌘W</code> / <code>⌥⌘←→</code>）；Library 表 + <strong>tags</strong>；PDF / HTML / 图片 / Markdown WYSIWYG（内嵌图 → <code>./assets/</code>、选中源码、删节点 GC）；Notes 仅具体论文时显示</td>
+<td><strong>文档标签页</strong>（常驻挂载；<code>⌘W</code> / <code>⌥⌘←→</code>）；Library 表 + <strong>tags</strong> + <strong>Rescan</strong>；PDF / HTML / 图片 / Markdown WYSIWYG（内嵌图 → <code>./assets/</code>）；Notes 仅具体论文时显示</td>
 <td><strong>分屏</strong>（V0.6 余量）</td>
 </tr>
 <tr>
 <td>入库</td>
-<td>魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md、Library 导入导出 Bib、<code>paper_set_tags</code></td>
+<td>魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md、Library 导入导出 Bib、<code>paper_set_tags</code>、<code>paper_rescan</code></td>
 <td>关键词/Agent 候选；本地 PDF importer；部分非 arXiv PDF 下载</td>
 </tr>
 <tr>
@@ -421,7 +429,7 @@
 <tr>
 <td>双链 / Graph</td>
 <td><code>[[wikilink]]</code> 跳转、反链、缺失创建、Backlinks 下 Graph</td>
-<td><code>[[</code> 补全、Plate 内联节点、Graph 全屏/邻居高亮</td>
+<td><code>[[</code> 补全、Plate 内联节点、Graph 全屏/邻居高亮；文件变更后增量重建索引</td>
 </tr>
 <tr>
 <td>文献引用图</td>
@@ -430,7 +438,7 @@
 </tr>
 <tr>
 <td>PDF / 媒体</td>
-<td>任意路径 PDF + 常见图片预览；缩放；划词操作菜单（asks + highlights JSON）</td>
+<td>任意路径预览；导航 / 适应宽·整页 / 大纲 / ⌘F；真实 scale + 平滑划词；操作菜单（asks + highlights JSON）</td>
 <td><code>highlights.md</code> 标注系统、M5</td>
 </tr>
 <tr>

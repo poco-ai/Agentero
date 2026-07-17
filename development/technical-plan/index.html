@@ -600,35 +600,35 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <tbody>
 <tr>
 <td>PDF 渲染（前端）</td>
-<td><strong>已接入</strong> <code>react-pdf</code> + <code>pdfjs-dist</code>：<strong>本地优先</strong>（<code>findLocalPdf</code> + fs <code>readFile</code> → <code>blob:</code>；避免 <code>asset://</code>）→ 无本地时自动 <code>paper_download_assets</code> → 失败回退远程 <code>pdf_url</code>；工具栏缩放 + ⌘/Ctrl+滚轮（0.5×–3×，100%=适应栏宽）</td>
+<td><strong>已接入</strong> <code>react-pdf</code> + <code>pdfjs-dist</code>：本地优先 <code>blob:</code> → 自动下载 → 远程回退；<strong>真实 scale 重渲染</strong>（缩放停后 <code>width = 基准×缩放</code>）；放大后双向滚动</td>
+</tr>
+<tr>
+<td>PDF 工具栏</td>
+<td>适应宽 / <strong>适应整页</strong>；页码 pill + 跳转；<code>PageDown/Up</code>；大纲浮层；<strong>⌘F 查找</strong>（<code>pdf-find.ts</code> + 文本层 rects 高亮）</td>
 </tr>
 <tr>
 <td>PDF 本地归档（Host）</td>
-<td>魔棒 / <code>paper_download_assets</code> → <code>{paper}/{id}.pdf</code>（论文根目录；预览与归档同一文件）</td>
+<td>魔棒 / <code>paper_download_assets</code> → <code>{paper}/{id}.pdf</code></td>
 </tr>
 <tr>
 <td>arXiv LaTeX 归档</td>
-<td>e-print 下载 + gzip/tar 解压到 <code>source/</code>（<code>lookup/assets.rs</code>）</td>
+<td>e-print 解压到 <code>source/</code>（<code>lookup/assets.rs</code>）</td>
 </tr>
 <tr>
 <td>PDF 解析（Rust）</td>
-<td>可插拔 <code>PdfParser</code>（入库生成 PAPER.md 用；与 Webview 预览分离）</td>
+<td>可插拔 <code>PdfParser</code>（生成 PAPER.md；与预览分离）</td>
 </tr>
 <tr>
 <td>HTML 预览</td>
-<td>远程 <code>html_url</code> → 独立 iframe（HTML 本身不强制本地下载）</td>
+<td>远程 <code>html_url</code> → iframe</td>
 </tr>
 <tr>
 <td>中间栏切换</td>
-<td><code>ViewModeToggle</code>；PDF 源见上；HTML URL 来自 metadata / <code>arxiv_id</code> 推导（<code>arxiv.ts</code>）</td>
+<td><code>ViewModeToggle</code>；HTML URL 来自 catalog / <code>arxiv.ts</code></td>
 </tr>
 <tr>
-<td>arXiv 资源</td>
-<td><code>pdf</code> / <code>html</code> / <code>abs</code> / <code>e-print</code> 规范 URL</td>
-</tr>
-<tr>
-<td>PDF 划词提问</td>
-<td><strong>MVP 已落地</strong>：<code>src/lib/pdf-ask/</code> + <code>PdfViewer</code> 交互层；<code>asks/*.json</code>；ACP 流式</td>
+<td>PDF 划词</td>
+<td>平滑选区覆盖层 + 操作菜单；<code>pdf-ask</code> / <code>highlights</code> JSON；ACP 流式</td>
 </tr>
 </tbody>
 </table>
@@ -714,7 +714,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <tbody>
 <tr>
 <td><code>tauri-plugin-fs</code></td>
-<td>读/写 Vault 目录树与文本文件、mkdir、remove（<strong>已用于文件树</strong>）；监听热更新后续</td>
+<td>读/写 Vault 目录树与文本/二进制、mkdir、remove（文件树、Markdown assets、回收站）</td>
 </tr>
 <tr>
 <td><code>tauri-plugin-dialog</code></td>
@@ -777,7 +777,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 <tr>
 <td><code>notify</code></td>
-<td>文件系统监听，实时同步外部编辑器修改</td>
+<td>Host 递归监听 Vault → <code>vault:file-changed</code>（编辑器 / 文件树热更新；<code>services/watcher.rs</code>）</td>
 </tr>
 <tr>
 <td><code>dirs</code></td>

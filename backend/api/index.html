@@ -488,7 +488,7 @@ Host (Tauri + Rust)
 </li>
 </ul>
 <h4 id="path_trash-path_untrash"><code>path_trash</code> / <code>path_untrash</code>（已落地）<a class="headerlink" href="#path_trash-path_untrash" title="Permanent link">&para;</a></h4>
-<p>可撤销删除：把项移入 Vault 回收站 <code>.agentero/.trash/&lt;batchId&gt;/</code>（带 <code>manifest.json</code> 记录原路径与被删 catalog 行快照），而非物理删除。前端删除后弹「已删除 N 项 · 撤销」Toast。</p>
+<p>可恢复删除：把项移入 Vault 回收站 <code>.agentero/.trash/&lt;batchId&gt;/</code>（带 <code>manifest.json</code> 记录原路径与被删 catalog 行快照），而非物理删除。<strong>前端不弹 Undo toast</strong>——用户从侧栏 <code>Trash2</code> 打开的<strong>中间栏回收站视图</strong>（<code>RecycleBinView</code>）浏览 / 恢复 / 永久删除 / 清空。</p>
 <ul>
 <li><strong><code>path_trash</code> 参数</strong></li>
 </ul>
@@ -500,8 +500,8 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong><code>path_trash</code> 返回</strong>（<code>ApiResult&lt;{ batchId: string; count: number }&gt;</code>）</li>
-<li><code>batchId</code> 用于撤销；<code>count</code> 为实际移入回收站的项数。</li>
-<li><code>papers/</code> 下的项：移动前<strong>快照并删除</strong> catalog 行（含嵌套 paper）。</li>
+<li><code>batchId</code> 标识批次（浏览/恢复用）；<code>count</code> 为实际移入回收站的项数。</li>
+<li><code>papers/</code> 下的项：<strong>先移文件</strong>，再快照并删除 catalog 行（含嵌套 paper），避免幽灵 catalog。</li>
 <li>
 <p>跳过空 / 含 <code>..</code> / <code>.agentero</code> / <code>papers</code> 根 / 不存在的路径。</p>
 </li>
@@ -521,7 +521,7 @@ Host (Tauri + Rust)
 <li><strong>预检</strong>：若任一原路径已被重新占用，整批中止且不改动任何内容（不覆盖新内容）。</li>
 </ul>
 <h4 id="path_list_trash-path_restore_item-path_purge_item-path_purge_trash"><code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>（已落地）<a class="headerlink" href="#path_list_trash-path_restore_item-path_purge_item-path_purge_trash" title="Permanent link">&para;</a></h4>
-<p>回收站浏览：<code>RecycleBinDialog</code> 用这些命令列出 / 恢复 / 永久删除已删项。</p>
+<p>回收站浏览：中间栏 <code>RecycleBinView</code>（虚拟 tab <code>agentero:trash</code>）用这些命令列出 / 恢复 / 永久删除已删项。</p>
 <ul>
 <li><strong><code>path_list_trash</code></strong>（<code>{ vaultPath }</code> → <code>ApiResult&lt;TrashEntry[]&gt;</code>）：展平所有批次为逐项条目 <code>{ id, batchId, stored, rel, name, deletedAt, isDir }</code>，按删除时间倒序。</li>
 <li><strong><code>path_restore_item</code></strong>（<code>{ vaultPath, batchId, stored }</code> → <code>ApiResult&lt;{ rel: string }&gt;</code>）：把单项移回原位并 <code>upsert</code> 恢复其 catalog 行；原路径已占用则报错；批次清空后删除批次目录。</li>
@@ -578,7 +578,7 @@ Host (Tauri + Rust)
 <li><strong>行为</strong></li>
 <li>校验 Vault 结构（至少存在 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>；确保 <code>.agentero/catalog.sqlite</code> 可打开或可初始化）。</li>
 <li>打开 catalog、执行 schema migration；若存在历史 <code>papers/*/metadata.json</code> 且 catalog 为空则导入（见 catalog 迁移）。</li>
-<li>启动文件监听（后续）。</li>
+<li>文件监听由前端打开 Vault 后调用 <code>fs_watch_start</code>（已落地；见上），非本命令内隐式启动。</li>
 <li>返回完整文件树。</li>
 </ul>
 <h4 id="vaultclose"><code>vault:close</code>（规划）<a class="headerlink" href="#vaultclose" title="Permanent link">&para;</a></h4>
@@ -966,7 +966,7 @@ Host (Tauri + Rust)
 
 对**无本地 TeX** 的 paper，用 liteparse 从本地 PDF 生成 `{paper}/PAPER.md`。在 `paper_download_assets` / `lookup_import` 下载后自动触发，亦可手动 `paper_parse_body`。
 
-&gt; **眼睛图标**现用于 **paper-reader 精读**（资源齐全且未读时显示），不再表示「生成 PAPER.md」。
+&gt; **Zap 图标**现用于 **paper-reader 精读**（资源齐全且未读时显示），不再表示「生成 PAPER.md」。
 
 - **参数**（invoke 字段名 `args`）：
   ```ts
@@ -1141,7 +1141,7 @@ Host (Tauri + Rust)
 <li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>setPaperIsRead</code>；paper-reader 工作流成功结束后置 <code>true</code>。</li>
 <li><strong>说明</strong>：与 <code>status</code>（入库态）无关；默认 <code>false</code>。触发路径：</li>
 <li><strong>自动</strong>：魔棒 <code>lookup_import</code> / 单篇 <code>paper_download_assets</code> 成功且资源就绪时，前端 <code>maybeAutoRunPaperReader</code>（批量导入/批量 Download 不连跑）。</li>
-<li><strong>手动</strong>：文件树在「资源齐全且 <code>is_read === false</code>」时显示眼睛图标。</li>
+<li><strong>手动</strong>：文件树在「资源齐全且 <code>is_read === false</code>」时显示 <strong>Zap</strong> 图标。</li>
 <li>实现：<code>src/lib/paper-read.ts</code>（进度 <code>kind=paperRead</code>；可与 lookup/download 任务衔接）；skill 触发按当前默认 Agent 的 <code>SkillMentionStyle</code>。</li>
 </ul>
 <h4 id="paper_set_tags"><code>paper_set_tags</code>（已落地）<a class="headerlink" href="#paper_set_tags" title="Permanent link">&para;</a></h4>
