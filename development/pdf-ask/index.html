@@ -492,7 +492,7 @@ interface PdfAskMessage {
   pdf-viewer.tsx              # 现有；挂载交互层与 gutter；暴露命令式 `PdfViewerHandle`
                              #   （getHighlights / scrollToHighlight / editComment / deleteHighlight）
                              #   + `onHighlightsChange` 回调，App.tsx 按 tab 保存 handle + highlights 驱动面板
-  annotations-panel.tsx       # 右侧「批注」tab：列出**当前活动 PDF tab** 的批注卡（页码 + 引文 + 评论）；
+  annotations-panel.tsx       # 右侧「批注」tab：总览**当前活动 PDF tab** 的全部高亮/批注卡（颜色色条 + 页码 + 引文 + 可选评论）；点击跳转、悬停改注/删除；
                              #   点击卡片滚动到原文并闪烁；卡片可编辑 / 删除
   pdf-ask/
     ask-layer.tsx             # 捕获 selection / dblclick / dwell
