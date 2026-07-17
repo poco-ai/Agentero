@@ -413,12 +413,12 @@
 <li>若只有 <code>arxiv_id</code>，用 <code>src/lib/arxiv.ts</code> 推导远程 URL（作下载候选与 HTML/远程回退）</li>
 <li>PDF：本地经 <code>blob:</code>（fs <code>readFile</code>）/ 远程 <code>https</code> 由 PDF.js 渲染；HTML：独立 iframe 打开远程页；图片：<code>blob:</code> + <code>&lt;img&gt;</code></li>
 <li><strong>PDF 缩放</strong>（<code>PdfViewer</code>）：工具栏放大 / 缩小 / 重置 / <strong>适应宽度</strong>（<code>RotateCcw</code>，= 重置到 100%）/ <strong>适应整页</strong>（<code>MoveVertical</code>，缩放到整页高度铺满视口）；<code>⌘/Ctrl</code>+滚轮缩放；范围约 <strong>0.5×–3×</strong>；<strong>100% = 适应中间栏宽度</strong>（非固定 pt）；<strong>放大后</strong>缩放停下 ~160ms 后按<strong>真实比例</strong>重渲染页面（<code>width = 基准宽 × 缩放</code>、transform 归 1），文本层与画布同尺度 → 清晰且<strong>划词/高亮顺滑</strong>（对齐 Zotero），手势中以 transform 比值即时反馈；<strong>缩放后</strong>中间栏可<strong>双向滚动/平移</strong>（横向 + 纵向，<code>agentero-scroll-both</code>），滚轮缩放以光标为锚点。i18n <code>viewer:pdf.zoom*</code>。</li>
-<li><strong>PDF 页码导航</strong>：底部居中页码 pill（<code>‹ [当前页] / 总页数 ›</code>，输入数字回车跳页）；当前页用 <code>IntersectionObserver</code> 跟踪；键盘 <code>PageDown/PageUp</code> 翻页、<code>Home/End</code> 首/末页（PDF 区悬停或聚焦时生效，输入框内不拦截）。i18n <code>viewer:pdf.prevPage/nextPage/goToPage</code>。</li>
+<li><strong>PDF 页码导航</strong>：底部居中页码 pill（<code>‹ [当前页] / 总页数 ›</code>，输入数字回车跳页）；当前页用 <code>IntersectionObserver</code> 跟踪；键盘 <code>PageDown/PageUp</code> 翻页、<code>Home/End</code> 首/末页（PDF 区悬停或聚焦时生效，输入框内不拦截）；<strong>续读</strong>：按论文（路径）记住上次页码，重开自动续上（<code>pdf-reading-position.ts</code>，localStorage）。i18n <code>viewer:pdf.prevPage/nextPage/goToPage</code>。</li>
 <li><strong>PDF 大纲（书签）</strong>：有大纲时左上 <code>List</code> 按钮切换<strong>左侧浮层目录</strong>（<code>getOutline()</code> 读书签树；点条目经 <code>getDestination</code>/<code>getPageIndex</code> 解析跳页）；无大纲不显示。i18n <code>viewer:pdf.outline</code>。</li>
 <li><strong>PDF 文档内查找</strong>（<code>⌘/Ctrl+F</code>）：右上查找条（查询 + 命中计数 + 上/下一个 + <code>Esc</code> 关闭；<code>Enter</code>/<code>Shift+Enter</code> 循环）。<code>pdf-find.ts</code> 用 pdfjs <code>getTextContent</code> 逐页搜索（按页缓存）；命中滚动到该页并把该次出现映射回<strong>文本层 rects</strong> 高亮（复用 pdf-ask 归一化覆盖层），文本层未就绪时仅滚动。i18n <code>viewer:pdf.find*</code>。</li>
 <li><strong>PDF 沉浸式阅读</strong>（工具栏 <code>Maximize2</code> 进入 / <code>Minimize2</code> 或 <code>Esc</code> 退出）：折叠左右侧栏 + 隐藏中间栏头，PDF 铺满窗口；正文<strong>限宽 ≤ 1100px 居中</strong>（舒适阅读 + 两侧留白），缩放 / 页码 / 大纲 / 查找浮层照常；切到非 PDF tab 自动退出。i18n <code>viewer:pdf.zenEnter/zenExit</code>。</li>
 <li><strong>PDF 划词操作菜单</strong>（已落地，见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>）：<ul>
-<li>划词后在选区旁弹出操作菜单（图标 + Tooltip）：<strong>5 色色板 + 笔记 / 提问 / 翻译</strong>（点色板 = 该色<strong>高亮</strong>）；选区以<strong>平滑蓝色覆盖层</strong>呈现（<code>selectionRectsByPage</code> 按行合并 rects + <code>SELECTION_CSS</code> 隐藏原生 <code>::selection</code>，对齐 Zotero、点掉即消）。双击 / 悬停停留仍直接开问答卡（页码上下文）。</li>
+<li>划词后在选区旁弹出操作菜单（图标 + Tooltip）：<strong>5 色色板 + 复制 / 笔记 / 提问 / 翻译</strong>（点色板 = 该色<strong>高亮</strong>；复制 / 笔记有内联确认）；选区以<strong>平滑蓝色覆盖层</strong>呈现（<code>selectionRectsByPage</code> 按行合并 rects + <code>SELECTION_CSS</code> 隐藏原生 <code>::selection</code>，对齐 Zotero、点掉即消）。双击 / 悬停停留仍直接开问答卡（页码上下文）。</li>
 <li>高亮：<code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code>（含 <code>color</code>（yellow/green/blue/pink/purple），归一化坐标可重定位；调色板 <code>lib/pdf-highlight/palette.ts</code>）→ 页面半透明色带覆盖层；点击已有高亮出现「删除」浮层；工具栏 <code>Highlighter</code> 开<strong>标注面板</strong>（右侧浮层，<code>annotations-panel.tsx</code>）列出本篇全部高亮 → 点击跳转 / 改色 / 删除 / 一键导出到 <code>NOTES.md</code>。笔记：选中原文以块引用 <code>&gt; …</code> 追加进该篇 <code>NOTES.md</code>（经编辑器实例写入，避免覆盖未存改动），菜单内联「已加入」。提问 / 翻译复用迷你问答卡（ACP 流式）；发送过问题后锚点旁保留对话图标（Hover 回访）。</li>
 <li>提问线程落盘 <code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>；高亮 / 提问 / 笔记均<strong>不</strong>写 PDF 二进制。</li>
 </ul>
@@ -442,6 +442,11 @@
 <td><code>⌘,</code></td>
 <td>打开 / 关闭 Settings</td>
 <td>系统级 Preferences 约定</td>
+</tr>
+<tr>
+<td><code>⌘/</code></td>
+<td>键盘快捷键速查</td>
+<td>打开快捷键清单对话框（<code>ShortcutsDialog</code>）</td>
 </tr>
 <tr>
 <td><code>Esc</code></td>
@@ -554,7 +559,7 @@
 <li><strong>状态派生</strong>：<code>activeTab</code> 驱动 <code>selectedPath</code> / <code>centerMode</code> / <code>paperMeta</code> / Notes；文件树选中与「新建父目录」上下文用独立的 <code>treeSelectedPath</code>（跟随激活文档，folder 新建时可指向文件夹）。</li>
 <li><strong>持久化</strong>：<code>agentero-open-tabs</code>（<code>{tabs:[{path,mode}], activeIndex}</code>）按窗口保存，重开窗口恢复 tab 集与激活项；<code>⌘N</code> 各窗口独立。</li>
 <li><strong>NOTES 编辑器</strong>：每篇 paper 的 <code>NOTES.md</code> 编辑器也按 tab 常驻挂载在右侧 Notes 栏；paper-reader / download 写回后按路径 reseed 对应 tab。</li>
-<li><strong>外部/Agent 改动自动重载</strong>：Host <code>notify</code> 监听 Vault，发 <code>vault:file-changed</code>（<code>src/lib/fs-watch.ts</code>、<code>App.tsx</code> 的 <code>applyDiskChange</code>）。打开中的 <code>.md</code>/<code>NOTES.md</code> 若磁盘内容与当前 seed 不同则从盘重载（key bump 重挂载），<strong>自动覆盖本地未保存修改</strong>；内容相等即判定为自身 autosave 回声、跳过；重载期内 <code>reseedGuardRef</code> 阻止旧实例卸载 flush 覆盖新盘内容。结构性变更（create/remove/rename）去抖刷新文件树；纯 <code>modify</code> 不刷新树。</li>
+<li><strong>外部/Agent 改动自动重载</strong>：Host <code>notify</code> 监听 Vault，发 <code>vault:file-changed</code>（<code>src/lib/fs-watch.ts</code>、<code>App.tsx</code> 的 <code>applyDiskChange</code>）。打开中的 <code>.md</code>/<code>NOTES.md</code> 若磁盘内容与当前 seed 不同：<strong>无未存改动时</strong>从盘重载（key bump 重挂载）；<strong>有未存改动时不静默覆盖</strong>，弹 toast（<code>diskConflict</code>，操作「载入磁盘版」；忽略则保留本地改动）；内容相等即判定为自身 autosave 回声、跳过；重载期内 <code>reseedGuardRef</code> 阻止旧实例卸载 flush 覆盖新盘内容。结构性变更（create/remove/rename）去抖刷新文件树；纯 <code>modify</code> 不刷新树。</li>
 </ul>
 <p>规划中（尚未实现）：</p>
 <ul>

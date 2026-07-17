@@ -86,7 +86,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#asks-mvppdf">asks/（已落地 MVP：PDF 划词提问）</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#highlightspdf">highlights/（已落地：PDF 划词高亮）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#highlightspdf">highlights/（已落地：PDF 划词高亮 + 批注）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#papermdl3">PAPER.md(L3,派生)</a>
     </li>
@@ -419,14 +419,15 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <li>含锚点（page + 归一化 rects + quote）与 <code>messages[]</code>；<strong>不</strong>写入 PDF 二进制，<strong>不</strong>进 catalog 正文。</li>
 <li>触发：划词 / 框选 / 双击 / 悬停；发送过问题后锚点旁对话图标可回访。</li>
 </ul>
-<h3 id="highlightspdf"><code>highlights/</code>（已落地：PDF 划词高亮）<a class="headerlink" href="#highlightspdf" title="Permanent link">&para;</a></h3>
-<p>划词后弹出的操作菜单（<strong>高亮 / 笔记 / 提问 / 翻译</strong>）中，「高亮」写入的持久化标注。与多轮问答 <code>asks/</code> 分离，是纯视觉标注（不含对话）。</p>
+<h3 id="highlightspdf"><code>highlights/</code>（已落地：PDF 划词高亮 + 批注）<a class="headerlink" href="#highlightspdf" title="Permanent link">&para;</a></h3>
+<p>划词后弹出的操作菜单（<strong>高亮 / 批注 / 提问 / 翻译</strong>）中，「高亮」与「批注」写入的持久化标注。与多轮问答 <code>asks/</code> 分离；「批注」= <code>comment</code> 非空的高亮（高亮 + 内联评论），纯高亮则 <code>comment</code> 为空。</p>
 <ul>
 <li>路径：<code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code>（pretty JSON，便于 Git diff）。</li>
-<li>字段：<code>version:1</code>、<code>id</code>、<code>paperPath</code>、<code>createdAt/updatedAt</code>、<code>page</code>、归一化 <code>rects[]</code>、<code>quote</code>、可选 <code>color</code>（预留调色板，缺省琥珀）。</li>
-<li>归一化坐标可在缩放/重开后重定位；页面上点击已有高亮出现「删除」浮层。</li>
-<li><strong>不</strong>污染原始 PDF、<strong>不</strong>进 catalog；坏文件读取时跳过。</li>
-<li>「笔记」操作把选中原文以块引用 <code>&gt; …</code> 追加进该篇 <code>NOTES.md</code>（经编辑器实例写入，避免覆盖未存改动）；「翻译」复用 asks 弹层走 Agent 流式，不额外落盘。</li>
+<li>字段：<code>version:1</code>、<code>id</code>、<code>paperPath</code>、<code>createdAt/updatedAt</code>、<code>page</code>、归一化 <code>rects[]</code>、<code>quote</code>、可选 <code>color</code>（预留调色板，缺省琥珀）、<strong>可选 <code>comment?: string</code></strong>（非空 ⇒ 批注；<code>version</code> 保持 <code>1</code>，向后兼容）。</li>
+<li>归一化坐标可在缩放/重开后重定位；页面上点击已有高亮出现「删除」浮层；<code>comment</code> 非空的高亮在页边渲染<strong>批注针</strong>，点击打开内联编辑器读/改评论。</li>
+<li>右侧「批注」面板列出<strong>当前活动 PDF tab</strong> 的批注卡（页码 + 引文 + 评论），点击跳转闪烁、可编辑 / 删除；由 <code>PdfViewerHandle</code> + <code>onHighlightsChange</code> 驱动。</li>
+<li><strong>不</strong>污染原始 PDF、<strong>不</strong>进 catalog、<strong>不</strong>写入 <code>NOTES.md</code>（旧「追加引文到 <code>NOTES.md</code>」行为已移除）；坏文件读取时跳过。</li>
+<li>「翻译」复用 asks 弹层走 Agent 流式，不额外落盘。</li>
 </ul>
 <p>格式示例:</p>
 <pre class="codehilite"><code class="language-md">### ^h12 · p.3 §3.2

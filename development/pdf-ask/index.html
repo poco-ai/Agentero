@@ -166,9 +166,9 @@
               
                 <h1 id="pdf-selection-ask">PDF 划词提问（Selection Ask）<a class="headerlink" href="#pdf-selection-ask" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>MVP 已落地（前端 + 文件 IO）</strong>；划词现先弹<strong>操作菜单</strong>（高亮 / 笔记 / 提问 / 翻译），不再默认套用琥珀高亮。<br />
-范围：阅读 PDF 时选中文本 → 选区操作菜单 → 分派到高亮（JSON 落盘）/ 笔记（追加 <code>NOTES.md</code>）/ 提问（迷你对话框）/ 翻译（复用对话框走 Agent）。提问线程 JSON 落盘 + 页边圆片回访（飞书式边注）。<br />
-实现入口：<code>src/components/viewer/pdf-viewer.tsx</code>、<code>src/components/viewer/pdf-ask/</code>（含 <code>selection-menu.tsx</code>、<code>highlight-layer.tsx</code>）、<code>src/lib/pdf-ask/</code>、<code>src/lib/pdf-highlight/</code>。<br />
+<p>状态：<strong>MVP 已落地（前端 + 文件 IO）</strong>；划词现先弹<strong>操作菜单</strong>（高亮 / 批注 / 提问 / 翻译），不再默认套用琥珀高亮。<br />
+范围：阅读 PDF 时选中文本 → 选区操作菜单 → 分派到高亮（JSON 落盘）/ 批注（高亮 + 内联评论）/ 提问（迷你对话框）/ 翻译（复用对话框走 Agent）。提问线程 JSON 落盘 + 页边圆片回访（飞书式边注）；<strong>批注 = <code>comment</code> 非空的高亮</strong>，页边批注针 + 右侧「批注」面板回访。<br />
+实现入口：<code>src/components/viewer/pdf-viewer.tsx</code>、<code>src/components/viewer/pdf-ask/</code>（含 <code>selection-menu.tsx</code>、<code>highlight-layer.tsx</code>、<code>annotation-editor.tsx</code>、<code>annotation-gutter.tsx</code>）、<code>src/components/viewer/annotations-panel.tsx</code>、<code>src/lib/pdf-ask/</code>、<code>src/lib/pdf-highlight/</code>。<br />
 相关：<a href="../technical-plan/"><code>technical-plan.md</code></a> §3.4 阅读器、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a> Agent 契约。</p>
 </blockquote>
 <h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
@@ -183,11 +183,11 @@
 <tbody>
 <tr>
 <td><strong>划词</strong></td>
-<td>选中 PDF 文本后，在选区旁弹出<strong>操作菜单</strong>（高亮 / 笔记 / 提问 / 翻译）；不默认高亮，只保留浏览器原生选区</td>
+<td>选中 PDF 文本后，在选区旁弹出<strong>操作菜单</strong>（5 色高亮 / 复制 / 批注 / 提问 / 翻译）；不默认高亮，只保留平滑蓝色选区覆盖层</td>
 </tr>
 <tr>
 <td><strong>操作菜单</strong></td>
-<td>高亮→JSON 落盘（含 <code>color</code>）并渲染半透明色带覆盖层；笔记→原文以 <code>&gt; …</code> 追加进 <code>NOTES.md</code>（菜单内联「已加入」）；提问→打开迷你问答卡；翻译→建线程后复用问答卡走 Agent 流式</td>
+<td>高亮→JSON 落盘（含 <code>color</code>，5 色调色板）并渲染半透明色带覆盖层；复制→复制选中原文（菜单内联「已复制」）；批注→先建高亮，再在选区旁弹出<strong>内联编辑器</strong>（<code>annotation-editor.tsx</code>）写评论，保存后 <code>comment</code> 落盘（留空则退化为纯高亮），<strong>不写 <code>NOTES.md</code></strong>；提问→打开迷你问答卡；翻译→建线程后复用问答卡走 Agent 流式</td>
 </tr>
 <tr>
 <td><strong>双击</strong></td>
@@ -489,12 +489,18 @@ interface PdfAskMessage {
 </table>
 <h2 id="6">6. 前端模块划分（建议）<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
 <pre class="codehilite"><code class="language-text">src/components/viewer/
-  pdf-viewer.tsx              # 现有；挂载交互层与 gutter
+  pdf-viewer.tsx              # 现有；挂载交互层与 gutter；暴露命令式 `PdfViewerHandle`
+                             #   （getHighlights / scrollToHighlight / editComment / deleteHighlight）
+                             #   + `onHighlightsChange` 回调，App.tsx 按 tab 保存 handle + highlights 驱动面板
+  annotations-panel.tsx       # 右侧「批注」tab：列出**当前活动 PDF tab** 的批注卡（页码 + 引文 + 评论）；
+                             #   点击卡片滚动到原文并闪烁；卡片可编辑 / 删除
   pdf-ask/
     ask-layer.tsx             # 捕获 selection / dblclick / dwell
     ask-popover.tsx           # 迷你对话框（消息 + 输入）
     ask-gutter.tsx            # 右侧圆片列表
     ask-highlight.tsx         # 选区/已锚定高亮 overlay（可选）
+    annotation-editor.tsx     # 内联评论编辑器（选区旁 popover；新建/读取/编辑批注）
+    annotation-gutter.tsx     # 页边**批注针**（仅 comment 非空的高亮）；点击打开内联编辑器
     use-pdf-geometry.ts       # DOMRect ↔ 归一化坐标
     use-pdf-ask-store.ts      # 当前 paper 的 threads 加载/保存
 src/lib/pdf-ask/
@@ -616,8 +622,14 @@ src/lib/pdf-ask/
 </tr>
 <tr>
 <td><strong>M6 选区菜单</strong></td>
-<td>划词弹菜单：高亮（<code>highlights/*.json</code>）/ 笔记（追加 <code>NOTES.md</code>）/ 提问 / 翻译；去掉默认琥珀高亮</td>
-<td>四项可用；高亮重开对齐并可删除；笔记不覆盖未存改动</td>
+<td>划词弹菜单：高亮（<code>highlights/*.json</code>）/ 批注 / 提问 / 翻译；去掉默认琥珀高亮</td>
+<td>四项可用；高亮重开对齐并可删除</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>M7 批注（Zotero 式）</strong></td>
+<td>「批注」= 建高亮 + 内联编辑器写 <code>comment</code>；页边批注针；右侧「批注」面板（活动 PDF tab）列卡、跳转闪烁、编辑/删除；<strong>不写 <code>NOTES.md</code></strong></td>
+<td>新建/编辑/面板跳转/删除闭环；<code>comment</code> 落盘且 <code>version</code> 兼容</td>
 <td>✅</td>
 </tr>
 </tbody>
@@ -659,8 +671,9 @@ src/lib/pdf-ask/
 </table>
 <h2 id="11">11. 测试要点<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
 <ul>
-<li>单元：归一化坐标往返、<code>schema</code> 校验、index 重建。</li>
+<li>单元：归一化坐标往返、<code>schema</code> 校验（含可选 <code>comment</code>）、index 重建。</li>
 <li>组件：selection → open popover；write → gutter 出现；click → 消息恢复。</li>
+<li>批注：批注→内联编辑器写 <code>comment</code> 落盘并出现页边批注针；右侧「批注」面板列卡、点击跳转并闪烁、编辑 / 删除闭环。</li>
 <li>集成：mock <code>agent:stream</code> 完成一轮后文件存在且可再读。</li>
 <li>手工：长 PDF 滚动、窗口缩放、中英混排选区、双栏论文（rects 多段）。</li>
 </ul>

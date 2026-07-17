@@ -179,7 +179,7 @@
    - [x] 页码导航：底部 pill + 跳转输入；<code>PageDown/PageUp</code> / <code>Home/End</code>。
    - [x] 大纲（书签）左侧浮层；文档内查找 <code>⌘/Ctrl+F</code> + 命中高亮（<code>pdf-find.ts</code>）。
    - [x] 平滑划词覆盖层（Zotero 风格；隐藏原生 <code>::selection</code> 行间缝隙）。
-   - [x] 划词操作菜单 MVP：高亮 / 笔记 / 提问 / 翻译（见 3. PDF 划词提问）。
+   - [x] 划词操作菜单 MVP：高亮 / 批注 / 提问 / 翻译（见 3. PDF 划词提问）。
    - [x] 本地 PDF 直接预览（优先本地 → 无本地时 <code>paper_download_assets</code> → 失败再远程 <code>pdf_url</code>）。</p>
 <p>2f. <strong>Markdown 内嵌图片</strong> ✅
    - [x] 粘贴 / 工具栏插入 → <code>{mdDir}/assets/</code> + <code>![](./assets/…)</code>（<code>src/lib/markdown-image.ts</code>）。
@@ -346,15 +346,17 @@
 <li>[x] M3：接入 ACP <code>agent_run_once</code> 流式多轮；结束会话落盘。</li>
 <li>[x] M4：双击 / 悬停停留触发 + 防误触（阈值暂固定 700ms）。</li>
 <li>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer。</li>
+<li>[x] M6：划词操作菜单（高亮 / 批注 / 提问 / 翻译）；高亮落盘 <code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code> + 覆盖层 + 点击删除；翻译复用问答卡走 Agent；去掉默认琥珀高亮，仅原生选区。</li>
 <li>
-<p>[x] M6：划词操作菜单（高亮 / 笔记 / 提问 / 翻译）；高亮落盘 <code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code> + 覆盖层 + 点击删除；笔记追加 <code>NOTES.md</code>（经编辑器实例，防覆盖）；翻译复用问答卡走 Agent；去掉默认琥珀高亮，仅原生选区。</p>
+<p>[x] M7：Zotero 式批注 —「批注」= 建高亮 + 内联编辑器（<code>annotation-editor.tsx</code>）写可选 <code>comment</code>；页边批注针（<code>annotation-gutter.tsx</code>）；右侧「批注」面板（<code>annotations-panel.tsx</code>，活动 PDF tab）列卡、跳转闪烁、编辑 / 删除，经 <code>PdfViewerHandle</code> + <code>onHighlightsChange</code> 驱动；<strong>不写 <code>NOTES.md</code></strong>（旧追加行为已移除）。</p>
 </li>
 <li>
 <p><strong>PDF / HTML 标注系统</strong></p>
 </li>
 <li>参考 Hypothesis 风格的边注、评论、锚点。</li>
-<li>标注正文进入 <code>highlights.md</code>，坐标/锚点缓存可重建。</li>
-<li>PDF.js / HTML iframe 都需要统一标注模型。</li>
+<li>[x] PDF 就地批注已落地（高亮 + <code>comment</code> + 页边针 + 右侧面板）；标注落 <code>highlights/*.json</code>。</li>
+<li>[ ] 标注正文进入 <code>highlights.md</code> / 导出到 <code>NOTES.md</code>（<strong>暂不做</strong>，可能的后续），坐标/锚点缓存可重建。</li>
+<li>[ ] PDF.js / HTML iframe 统一标注模型（HTML iframe 标注仍待）。</li>
 <li>
 <p>与划词提问（asks JSON）边界清晰，可互导。</p>
 </li>
