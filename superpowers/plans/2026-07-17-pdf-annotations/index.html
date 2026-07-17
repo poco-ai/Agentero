@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../../img/favicon.ico" />
+    <title>PDF 批注（Zotero 式）Implementation Plan - Agentero 文档</title>
+    <link rel="stylesheet" href="../../../css/theme.css" />
+    <link rel="stylesheet" href="../../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "PDF \u6279\u6ce8\uff08Zotero \u5f0f\uff09Implementation Plan";
+        var mkdocs_page_input_path = "superpowers/plans/2026-07-17-pdf-annotations.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../development/cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../development/pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../development/todo/">TODO</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">PDF 批注（Zotero 式）Implementation Plan</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/superpowers/plans/2026-07-17-pdf-annotations.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="pdf-zotero-implementation-plan">PDF 批注（Zotero 式）Implementation Plan<a class="headerlink" href="#pdf-zotero-implementation-plan" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for tracking.</p>
+</blockquote>
+<p><strong>Goal:</strong> 把 PDF 划词的「加入笔记」替换为 Zotero 式批注——对选中段落写备注，存进现有高亮 JSON（新增 <code>comment</code> 字段），并通过页边图标 + 右侧「批注」面板呈现，可跳转/编辑/删除，完全不写入 NOTES.md。</p>
+<p><strong>Architecture:</strong> 批注 = <code>comment</code> 非空的高亮，复用 <code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code> 存储与既有渲染层。Phase 1 在 <code>pdf-viewer.tsx</code> 内完成创建、内联备注编辑器、页边图标、点击高亮的编辑/删除菜单（自成可用闭环）。Phase 2 把高亮列表与命令句柄提升到 <code>App.tsx</code>，新增右侧「批注」tab 面板，点卡片经 per-tab <code>PdfViewerHandle</code> 跳转/编辑/删除。</p>
+<p><strong>Tech Stack:</strong> React 19 + TypeScript、Tauri plugin-fs、react-pdf/pdfjs-dist、react-i18next、Vitest（lib 层单测）、Biome（lint/format）。</p>
+<p><strong>Design spec:</strong> <code>docs/superpowers/specs/2026-07-17-pdf-annotations-design.md</code></p>
+<p><strong>Conventions:</strong>
+- 每个 task 完成后 <code>pnpm run fix:ts</code>（Biome，pre-commit 也会跑），确保通过再 commit。
+- lib 层用 Vitest TDD；UI 层用 <code>pnpm tauri dev</code> 手动验证（无组件测试基建）。
+- 提交信息用 Conventional Commits，一次提交一件事。</p>
+<hr />
+<h2 id="phase-1-viewer">Phase 1 — 数据模型与 viewer 内批注<a class="headerlink" href="#phase-1-viewer" title="Permanent link">&para;</a></h2>
+<h3 id="task-1-comment">Task 1: 高亮数据模型新增 <code>comment</code> 字段<a class="headerlink" href="#task-1-comment" title="Permanent link">&para;</a></h3>
+<p><strong>Files:</strong>
+- Modify: <code>src/lib/pdf-highlight/types.ts</code>
+- Modify: <code>src/lib/pdf-highlight/schema.ts:30-41</code>
+- Modify: <code>src/lib/pdf-highlight/io.ts:33-54</code>
+- Create: <code>test/pdf-highlight.test.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 写失败测试</strong></li>
+</ul>
+<p>Create <code>test/pdf-highlight.test.ts</code>:</p>
+<pre class="codehilite"><code class="language-ts">import { describe, expect, it } from &quot;vitest&quot;;
+
+import { createHighlight } from &quot;@/lib/pdf-highlight/io&quot;;
+import { parsePdfHighlight } from &quot;@/lib/pdf-highlight/schema&quot;;
+
+const base = {
+    version: 1,
+    id: &quot;h1&quot;,
+    paperPath: &quot;papers/1706.03762&quot;,
+    createdAt: &quot;2026-01-01T00:00:00.000Z&quot;,
+    updatedAt: &quot;2026-01-01T00:00:00.000Z&quot;,
+    page: 2,
+    rects: [{ x: 0.1, y: 0.2, w: 0.3, h: 0.05 }],
+    quote: &quot;attention is all you need&quot;,
+};
+
+describe(&quot;pdf-highlight schema&quot;, () =&gt; {
+    it(&quot;parses a highlight without comment (backward compatible)&quot;, () =&gt; {
+        const h = parsePdfHighlight(base);
+        expect(h).not.toBeNull();
+        expect(h?.comment).toBeUndefined();
+    });
+
+    it(&quot;keeps a string comment&quot;, () =&gt; {
+        const h = parsePdfHighlight({ ...base, comment: &quot;这是动机&quot; });
+        expect(h?.comment).toBe(&quot;这是动机&quot;);
+    });
+
+    it(&quot;drops a non-string comment&quot;, () =&gt; {
+        const h = parsePdfHighlight({ ...base, comment: 42 });
+        expect(h).not.toBeNull();
+        expect(h?.comment).toBeUndefined();
+    });
+
+    it(&quot;createHighlight carries an optional comment&quot;, () =&gt; {
+        const h = createHighlight({
+            paperPath: &quot;papers/x&quot;,
+            page: 1,
+            rects: [{ x: 0, y: 0, w: 0.1, h: 0.1 }],
+            quote: &quot;q&quot;,
+            comment: &quot;note&quot;,
+        });
+        expect(h.comment).toBe(&quot;note&quot;);
+        const plain = createHighlight({
+            paperPath: &quot;papers/x&quot;,
+            page: 1,
+            rects: [{ x: 0, y: 0, w: 0.1, h: 0.1 }],
+            quote: &quot;q&quot;,
+        });
+        expect(plain.comment).toBeUndefined();
+    });
+});
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 2: 运行测试确认失败</strong></li>
+</ul>
+<p>Run: <code>pnpm exec vitest run test/pdf-highlight.test.ts</code>
+Expected: FAIL（<code>createHighlight</code> 不接受 <code>comment</code>；<code>parsePdfHighlight</code> 不返回 <code>comment</code>）。</p>
+<ul>
+<li>[ ] <strong>Step 3: 实现——types.ts 增加字段</strong></li>
+</ul>
+<p>In <code>src/lib/pdf-highlight/types.ts</code>, add the field after <code>color?</code>:</p>
+<pre class="codehilite"><code class="language-ts">    /** Reserved for future color palette; defaults to amber when absent */
+    color?: string;
+    /** Zotero-style annotation note; non-empty means this highlight is an annotation */
+    comment?: string;
+};
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 4: 实现——schema.ts 放行可选 comment</strong></li>
+</ul>
+<p>In <code>src/lib/pdf-highlight/schema.ts</code>, after the <code>if (typeof raw.color === "string") highlight.color = raw.color;</code> line (currently L40), add:</p>
+<pre class="codehilite"><code class="language-ts">    if (typeof raw.color === &quot;string&quot;) highlight.color = raw.color;
+    if (typeof raw.comment === &quot;string&quot; &amp;&amp; raw.comment.trim()) {
+        highlight.comment = raw.comment;
+    }
+    return highlight;
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 5: 实现——io.ts createHighlight 接受 comment</strong></li>
+</ul>
+<p>In <code>src/lib/pdf-highlight/io.ts</code>, extend the <code>createHighlight</code> input type and body. Change the input signature (L33-40) to add <code>comment?: string;</code>, and after <code>if (input.color) highlight.color = input.color;</code> (L52) add:</p>
+<pre class="codehilite"><code class="language-ts">        if (input.color) highlight.color = input.color;
+        if (input.comment?.trim()) highlight.comment = input.comment;
+        return highlight;
+</code></pre>
+
+<p>Add <code>comment?: string;</code> to the input object type alongside <code>color?: string;</code>.</p>
+<ul>
+<li>[ ] <strong>Step 6: 运行测试确认通过</strong></li>
+</ul>
+<p>Run: <code>pnpm exec vitest run test/pdf-highlight.test.ts</code>
+Expected: PASS（4 项）。</p>
+<ul>
+<li>[ ] <strong>Step 7: Commit</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-bash">git add src/lib/pdf-highlight/types.ts src/lib/pdf-highlight/schema.ts src/lib/pdf-highlight/io.ts test/pdf-highlight.test.ts
+git commit -m &quot;feat(pdf): add optional comment field to highlight model&quot;
+</code></pre>
+
+<hr />
+<h3 id="task-2-i18n">Task 2: i18n 文案——「笔记」改「批注」+ 新词条<a class="headerlink" href="#task-2-i18n" title="Permanent link">&para;</a></h3>
+<p><strong>Files:</strong>
+- Modify: <code>src/i18n/locales/en/viewer.json</code>
+- Modify: <code>src/i18n/locales/zh-CN/viewer.json</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 更新 en/viewer.json 的 <code>selection</code> 块</strong></li>
+</ul>
+<p>Replace the <code>selection</code> object with:</p>
+<pre class="codehilite"><code class="language-json">    &quot;selection&quot;: {
+        &quot;menuLabel&quot;: &quot;Selection actions&quot;,
+        &quot;highlight&quot;: &quot;Highlight&quot;,
+        &quot;note&quot;: &quot;Annotate&quot;,
+        &quot;ask&quot;: &quot;Ask&quot;,
+        &quot;translate&quot;: &quot;Translate&quot;,
+        &quot;noteAdded&quot;: &quot;Added to notes&quot;,
+        &quot;removeHighlight&quot;: &quot;Remove highlight&quot;,
+        &quot;editComment&quot;: &quot;Edit note&quot;,
+        &quot;translateAction&quot;: &quot;Translate this passage&quot;
+    },
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 2: 新增 <code>annotations</code> 块到 en/viewer.json</strong></li>
+</ul>
+<p>After the <code>pdfAsk</code> object (before <code>selection</code>), add:</p>
+<pre class="codehilite"><code class="language-json">    &quot;annotations&quot;: {
+        &quot;title&quot;: &quot;Annotations&quot;,
+        &quot;empty&quot;: &quot;No annotations yet. Select text in the PDF and choose Annotate.&quot;,
+        &quot;placeholder&quot;: &quot;Write a note…&quot;,
+        &quot;save&quot;: &quot;Save&quot;,
+        &quot;cancel&quot;: &quot;Cancel&quot;,
+        &quot;delete&quot;: &quot;Delete&quot;,
+        &quot;editorLabel&quot;: &quot;Annotation note&quot;,
+        &quot;pinAria&quot;: &quot;Open annotation: {{preview}}&quot;,
+        &quot;panelAria&quot;: &quot;Annotations for this paper&quot;
+    },
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 3: 同步 zh-CN/viewer.json 的 <code>selection</code> 块</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-json">    &quot;selection&quot;: {
+        &quot;menuLabel&quot;: &quot;选区操作&quot;,
+        &quot;highlight&quot;: &quot;高亮&quot;,
+        &quot;note&quot;: &quot;批注&quot;,
+        &quot;ask&quot;: &quot;提问&quot;,
+        &quot;translate&quot;: &quot;翻译&quot;,
+        &quot;noteAdded&quot;: &quot;已加入笔记&quot;,
+        &quot;removeHighlight&quot;: &quot;删除高亮&quot;,
+        &quot;editComment&quot;: &quot;编辑批注&quot;,
+        &quot;translateAction&quot;: &quot;翻译这段文字&quot;
+    },
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 4: 新增 <code>annotations</code> 块到 zh-CN/viewer.json</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-json">    &quot;annotations&quot;: {
+        &quot;title&quot;: &quot;批注&quot;,
+        &quot;empty&quot;: &quot;还没有批注。在 PDF 中选中文本并点「批注」。&quot;,
+        &quot;placeholder&quot;: &quot;写点备注…&quot;,
+        &quot;save&quot;: &quot;保存&quot;,
+        &quot;cancel&quot;: &quot;取消&quot;,
+        &quot;delete&quot;: &quot;删除&quot;,
+        &quot;editorLabel&quot;: &quot;批注备注&quot;,
+        &quot;pinAria&quot;: &quot;打开批注：{{preview}}&quot;,
+        &quot;panelAria&quot;: &quot;本论文的批注&quot;
+    },
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 5: 校验 JSON + commit</strong></li>
+</ul>
+<p>Run: <code>pnpm run fix:ts</code> (Biome 会格式化/校验 JSON)
+Expected: 无错误。</p>
+<pre class="codehilite"><code class="language-bash">git add src/i18n/locales/en/viewer.json src/i18n/locales/zh-CN/viewer.json
+git commit -m &quot;i18n(viewer): rename note action to annotate and add annotation strings&quot;
+</code></pre>
+
+<hr />
+<h3 id="task-3">Task 3: 内联批注编辑器组件<a class="headerlink" href="#task-3" title="Permanent link">&para;</a></h3>
+<p><strong>Files:</strong>
+- Create: <code>src/components/viewer/pdf-ask/annotation-editor.tsx</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 创建组件</strong></li>
+</ul>
+<p>Create <code>src/components/viewer/pdf-ask/annotation-editor.tsx</code>:</p>
+<pre class="codehilite"><code class="language-tsx">import { useEffect, useRef, useState } from &quot;react&quot;;
+import { useTranslation } from &quot;react-i18next&quot;;
+
+import { Button } from &quot;@/components/ui/button&quot;;
+import { cn } from &quot;@/lib/utils&quot;;
+
+type AnnotationEditorProps = {
+    /** Screen point near the highlight (from popoverScreenPoint) */
+    screen: { x: number; y: number };
+    /** The highlighted passage, shown read-only */
+    quote: string;
+    /** Existing note text when editing; empty for a fresh annotation */
+    initialComment?: string;
+    /** Save the (possibly empty) note; empty means &quot;no comment / plain highlight&quot; */
+    onSave: (text: string) =&gt; void;
+    /** Delete the whole highlight */
+    onDelete: () =&gt; void;
+    /** Dismiss without saving */
+    onClose: () =&gt; void;
+};
+
+const BOX_W = 260;
+
+/** Floating note editor anchored next to a highlight. */
+export function AnnotationEditor({
+    screen,
+    quote,
+    initialComment,
+    onSave,
+    onDelete,
+    onClose,
+}: AnnotationEditorProps) {
+    const { t } = useTranslation(&quot;viewer&quot;);
+    const [text, setText] = useState(initialComment ?? &quot;&quot;);
+    const ref = useRef&lt;HTMLTextAreaElement&gt;(null);
+
+    useEffect(() =&gt; {
+        ref.current?.focus();
+    }, []);
+
+    const vw = typeof window !== &quot;undefined&quot; ? window.innerWidth : 1200;
+    const vh = typeof window !== &quot;undefined&quot; ? window.innerHeight : 800;
+    let left = screen.x;
+    left = Math.min(Math.max(12, left), vw - BOX_W - 12);
+    let top = screen.y;
+    top = Math.min(Math.max(12, top), vh - 180);
+
+    return (
+        &lt;div
+            className={cn(
+                &quot;fixed z-50 flex w-[260px] flex-col gap-2 rounded-xl border border-border/80 bg-background p-3 shadow-2xl ring-1 ring-black/5 dark:ring-white/10&quot;,
+            )}
+            style={{ left, top }}
+            role=&quot;dialog&quot;
+            aria-label={t(&quot;annotations.editorLabel&quot;)}
+            onMouseDown={(e) =&gt; e.stopPropagation()}
+        &gt;
+            &lt;blockquote className=&quot;max-h-16 overflow-y-auto border-amber-400 border-l-2 pl-2 text-muted-foreground text-xs&quot;&gt;
+                {quote}
+            &lt;/blockquote&gt;
+            &lt;textarea
+                ref={ref}
+                className=&quot;min-h-16 w-full resize-none rounded-md border border-border/80 bg-transparent p-2 text-sm outline-none focus:ring-1 focus:ring-ring&quot;
+                placeholder={t(&quot;annotations.placeholder&quot;)}
+                value={text}
+                onChange={(e) =&gt; setText(e.target.value)}
+                onKeyDown={(e) =&gt; {
+                    if (e.key === &quot;Enter&quot; &amp;&amp; (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        onSave(text);
+                    }
+                    if (e.key === &quot;Escape&quot;) {
+                        e.preventDefault();
+                        onClose();
+                    }
+                }}
+            /&gt;
+            &lt;div className=&quot;flex items-center justify-between&quot;&gt;
+                &lt;Button
+                    type=&quot;button&quot;
+                    variant=&quot;ghost&quot;
+                    size=&quot;sm&quot;
+                    className=&quot;text-destructive hover:text-destructive&quot;
+                    onClick={onDelete}
+                &gt;
+                    {t(&quot;annotations.delete&quot;)}
+                &lt;/Button&gt;
+                &lt;div className=&quot;flex items-center gap-1&quot;&gt;
+                    &lt;Button type=&quot;button&quot; variant=&quot;ghost&quot; size=&quot;sm&quot; onClick={onClose}&gt;
+                        {t(&quot;annotations.cancel&quot;)}
+                    &lt;/Button&gt;
+                    &lt;Button type=&quot;button&quot; size=&quot;sm&quot; onClick={() =&gt; onSave(text)}&gt;
+                        {t(&quot;annotations.save&quot;)}
+                    &lt;/Button&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    );
+}
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 2: 校验类型 + commit</strong></li>
+</ul>
+<p>Run: <code>pnpm run fix:ts</code>
+Expected: 无错误（若 <code>Button</code> 无 <code>size="sm"</code> 变体，改用现有变体，检查 <code>src/components/ui/button.tsx</code>）。</p>
+<pre class="codehilite"><code class="language-bash">git add src/components/viewer/pdf-ask/annotation-editor.tsx
+git commit -m &quot;feat(pdf): add inline annotation note editor component&quot;
+</code></pre>
+
+<hr />
+<h3 id="task-4">Task 4: 页边批注图标组件<a class="headerlink" href="#task-4" title="Permanent link">&para;</a></h3>
+<p><strong>Files:</strong>
+- Create: <code>src/components/viewer/pdf-ask/annotation-gutter.tsx</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 创建组件</strong></li>
+</ul>
+<p>Create <code>src/components/viewer/pdf-ask/annotation-gutter.tsx</code>（复用 <code>ask-gutter.tsx</code> 的 <code>layoutPins</code> 碰撞思路，改用批注图标与 amber 配色）：</p>
+<pre class="codehilite"><code class="language-tsx">import { MessageSquareText } from &quot;lucide-react&quot;;
+import { useTranslation } from &quot;react-i18next&quot;;
+
+import { cn } from &quot;@/lib/utils&quot;;
+
+export type AnnotationPin = {
+    id: string;
+    /** 0–1 page-normalized anchor (top-right of the highlight) */
+    x: number;
+    y: number;
+    preview: string;
+};
+
+type AnnotationGutterProps = {
+    /** Pins for this page only */
+    items: AnnotationPin[];
+    activeId: string | null;
+    onOpen: (id: string) =&gt; void;
+};
+
+const PILL = 20;
+const GAP = 4;
+
+function layoutPins(
+    items: AnnotationPin[],
+    pageW: number,
+    pageH: number,
+): Array&lt;{ id: string; leftPct: number; topPct: number }&gt; {
+    const sorted = [...items].sort((a, b) =&gt; a.y - b.y || a.x - b.x);
+    const placed: Array&lt;{ id: string; x: number; y: number }&gt; = [];
+    for (const it of sorted) {
+        let x = it.x;
+        let y = it.y;
+        let guard = 0;
+        while (guard &lt; 12) {
+            let hit = false;
+            for (const p of placed) {
+                const dx = (x - p.x) * pageW;
+                const dy = (y - p.y) * pageH;
+                if (Math.hypot(dx, dy) &lt; PILL + GAP) {
+                    y += (PILL + GAP) / (pageH || 1);
+                    hit = true;
+                    break;
+                }
+            }
+            if (!hit) break;
+            guard += 1;
+        }
+        y = Math.min(0.98, Math.max(0.02, y));
+        x = Math.min(0.98, Math.max(0.02, x));
+        placed.push({ id: it.id, x, y });
+    }
+    return placed.map((p) =&gt; ({ id: p.id, leftPct: p.x * 100, topPct: p.y * 100 }));
+}
+
+/** Note icons next to annotated highlights; click opens the note editor. */
+export function AnnotationGutter({
+    items,
+    activeId,
+    onOpen,
+}: AnnotationGutterProps) {
+    const { t } = useTranslation(&quot;viewer&quot;);
+    if (!items.length) return null;
+    const laid = layoutPins(items, 600, 800);
+    const byId = new Map(items.map((it) =&gt; [it.id, it]));
+
+    return (
+        &lt;div className=&quot;pointer-events-none absolute inset-0 z-[9]&quot; aria-hidden={false}&gt;
+            {laid.map((pos) =&gt; {
+                const item = byId.get(pos.id);
+                if (!item) return null;
+                return (
+                    &lt;button
+                        key={item.id}
+                        type=&quot;button&quot;
+                        className={cn(
+                            &quot;pointer-events-auto absolute flex size-6 -translate-y-1/2 items-center justify-center rounded-md border border-amber-600/40 bg-background text-amber-600 shadow-sm transition-transform hover:scale-110 dark:text-amber-400&quot;,
+                            activeId === item.id &amp;&amp; &quot;ring-2 ring-ring ring-offset-1&quot;,
+                        )}
+                        style={{ left: `${pos.leftPct}%`, top: `${pos.topPct}%` }}
+                        aria-label={t(&quot;annotations.pinAria&quot;, { preview: item.preview })}
+                        onClick={(e) =&gt; {
+                            e.stopPropagation();
+                            onOpen(item.id);
+                        }}
+                    &gt;
+                        &lt;MessageSquareText className=&quot;size-3.5&quot; strokeWidth={2} /&gt;
+                    &lt;/button&gt;
+                );
+            })}
+        &lt;/div&gt;
+    );
+}
+</code></pre>
+
+<blockquote>
+<p>注：批注 pin 锚点用高亮首个 rect 的右上（<code>x + w</code>, <code>y</code>），与提问气泡（选区中点）通常不重叠；若同页碰撞由各自 <code>layoutPins</code> 分别避让，MVP 接受偶发相邻。</p>
+</blockquote>
+<ul>
+<li>[ ] <strong>Step 2: 校验 + commit</strong></li>
+</ul>
+<p>Run: <code>pnpm run fix:ts</code>
+Expected: 无错误（确认 <code>lucide-react</code> 有 <code>MessageSquareText</code>；若无则用 <code>StickyNote</code>）。</p>
+<pre class="codehilite"><code class="language-bash">git add src/components/viewer/pdf-ask/annotation-gutter.tsx
+git commit -m &quot;feat(pdf): add annotation gutter pin component&quot;
+</code></pre>
+
+<hr />
+<h3 id="task-5-viewer">Task 5: viewer 接入批注创建 + 编辑器 + 页边图标<a class="headerlink" href="#task-5-viewer" title="Permanent link">&para;</a></h3>
+<p><strong>Files:</strong>
+- Modify: <code>src/components/viewer/pdf-viewer.tsx</code>（imports、state、handlers、render）</p>
+<ul>
+<li>[ ] <strong>Step 1: 补充 imports</strong></li>
+</ul>
+<p>In <code>src/components/viewer/pdf-viewer.tsx</code>, ensure the geometry helpers are imported. Find the import block that includes <code>clientPointInPage</code> (around L47) and make sure it also imports <code>findPageElByNumber</code> and <code>popoverScreenPoint</code> from <code>@/lib/pdf-ask/geometry</code>. Add the two component imports near the other <code>pdf-ask</code> component imports:</p>
+<pre class="codehilite"><code class="language-tsx">import { AnnotationEditor } from &quot;@/components/viewer/pdf-ask/annotation-editor&quot;;
+import {
+    AnnotationGutter,
+    type AnnotationPin,
+} from &quot;@/components/viewer/pdf-ask/annotation-gutter&quot;;
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 2: 新增 state（在 <code>highlightMenu</code> state 之后，约 L227）</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-tsx">    /** Inline note editor for an annotation, anchored to a highlight */
+    const [commentEditor, setCommentEditor] = useState&lt;{
+        id: string;
+        screen: { x: number; y: number };
+    } | null&gt;(null);
+    /** Transient focus flash after jump-to-highlight from the panel */
+    const [activeHighlightId, setActiveHighlightId] = useState&lt;string | null&gt;(
+        null,
+    );
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 3: 在切换论文的 reset effect 里清理新 state（约 L627-629）</strong></li>
+</ul>
+<p>After <code>setHighlightMenu(null);</code> inside the <code>useEffect</code> that resets on <code>paperAbsPath</code> change, add:</p>
+<pre class="codehilite"><code class="language-tsx">        setHighlightMenu(null);
+        setCommentEditor(null);
+        setActiveHighlightId(null);
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 4: 新增 helper——打开编辑器</strong></li>
+</ul>
+<p>Add near the menu handlers (before <code>handleMenuHighlight</code>, ~L1116):</p>
+<pre class="codehilite"><code class="language-tsx">    const openCommentEditorFor = useCallback((id: string) =&gt; {
+        const host = contentRef.current;
+        const hl = highlightsRef.current.find((h) =&gt; h.id === id);
+        if (!host || !hl) return;
+        const pageEl = findPageElByNumber(host, hl.page);
+        const screen = popoverScreenPoint(pageEl, hl.rects);
+        if (screen) {
+            setHighlightMenu(null);
+            setCommentEditor({ id, screen });
+        }
+    }, []);
+
+    const saveComment = useCallback(
+        (id: string, text: string) =&gt; {
+            const comment = text.trim();
+            setHighlights((prev) =&gt;
+                prev.map((h) =&gt;
+                    h.id === id
+                        ? { ...h, comment: comment || undefined }
+                        : h,
+                ),
+            );
+            setCommentEditor(null);
+            if (paperAbsPath) {
+                const hl = highlightsRef.current.find((h) =&gt; h.id === id);
+                if (hl) {
+                    void writePdfHighlight(paperAbsPath, {
+                        ...hl,
+                        comment: comment || undefined,
+                    }).catch(() =&gt; undefined);
+                }
+            }
+        },
+        [paperAbsPath],
+    );
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 5: 替换 <code>handleMenuNote</code> 为 <code>handleMenuAnnotate</code>（L1142-1146）</strong></li>
+</ul>
+<p>Replace:</p>
+<pre class="codehilite"><code class="language-tsx">    const handleMenuNote = useCallback(() =&gt; {
+        const quote = selectionMenu?.anchor.quote?.trim();
+        if (quote) onAddNote?.(quote);
+        // SelectionMenu shows its own confirmation, then calls onClose.
+    }, [selectionMenu, onAddNote]);
+</code></pre>
+
+<p>with:</p>
+<pre class="codehilite"><code class="language-tsx">    const handleMenuAnnotate = useCallback(() =&gt; {
+        const sm = selectionMenu;
+        if (!sm) return;
+        setSelectionMenu(null);
+        const quote = sm.anchor.quote?.trim();
+        if (!quote || !sm.anchor.rects.length) return;
+        const paperPath = paperRelPath || paperAbsPath || &quot;paper&quot;;
+        const hl = createHighlight({
+            paperPath,
+            page: sm.anchor.page,
+            rects: mergeRectsByLine(
+                sm.anchor.rects.filter((r) =&gt; r.w &gt; 0 &amp;&amp; r.h &gt; 0),
+            ),
+            quote,
+        });
+        setHighlights((prev) =&gt; [hl, ...prev]);
+        window.getSelection()?.removeAllRanges();
+        if (paperAbsPath) {
+            void writePdfHighlight(paperAbsPath, hl).catch(() =&gt; undefined);
+        }
+        const host = contentRef.current;
+        const pageEl = host ? findPageElByNumber(host, hl.page) : null;
+        const screen = popoverScreenPoint(pageEl, hl.rects);
+        if (screen) setCommentEditor({ id: hl.id, screen });
+    }, [selectionMenu, paperAbsPath, paperRelPath]);
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 6: SelectionMenu 的 <code>onNote</code> 改指向 <code>handleMenuAnnotate</code>（L1638）</strong></li>
+</ul>
+<p>In the <code>&lt;SelectionMenu ... /&gt;</code> JSX, change <code>onNote={handleMenuNote}</code> to <code>onNote={handleMenuAnnotate}</code>.</p>
+<ul>
+<li>[ ] <strong>Step 7: SelectionMenu 组件去掉「已加入笔记」确认，直接触发</strong></li>
+</ul>
+<p>In <code>src/components/viewer/pdf-ask/selection-menu.tsx</code>: replace the <code>handleNote</code> callback (L58-66) so it calls <code>onNote()</code> then <code>onClose()</code> immediately (no <code>noted</code> confirmation state), and remove the <code>noted</code> branch (L78-83) so the four buttons always render. Concretely:
+- Delete the <code>noted</code> state, <code>timerRef</code>, and the <code>Check</code> import usage.
+- Replace <code>handleNote</code> with:</p>
+<pre class="codehilite"><code class="language-tsx">    const handleNote = useCallback(() =&gt; {
+        onNote();
+        onClose();
+    }, [onNote, onClose]);
+</code></pre>
+
+<ul>
+<li>Remove the <code>{noted ? (...) : (</code> wrapper so the <code>TooltipProvider</code> block renders unconditionally.</li>
+</ul>
+<p>（保留 <code>onClick={handleNote}</code> 在批注按钮上；<code>selection.note</code> 现渲染为「批注」。<code>noteAdded</code> 词条可留作历史，不再引用。）</p>
+<ul>
+<li>[ ] <strong>Step 8: 派生每页批注 pin，并渲染 AnnotationGutter（render，约 L1447 与 L1516-1524 附近）</strong></li>
+</ul>
+<p>Where <code>pageHighlights</code> is computed (L1447), add below it:</p>
+<pre class="codehilite"><code class="language-tsx">                                        const pageAnnotations: AnnotationPin[] = pageHighlights
+                                            .filter((h) =&gt; h.comment?.trim())
+                                            .map((h) =&gt; {
+                                                const r = h.rects[0] ?? { x: 0, y: 0, w: 0, h: 0 };
+                                                return {
+                                                    id: h.id,
+                                                    x: r.x + r.w,
+                                                    y: r.y,
+                                                    preview: h.comment ?? &quot;&quot;,
+                                                };
+                                            });
+</code></pre>
+
+<p>Then inside the <code>&lt;div data-pdf-ask-ui=""&gt;</code> that wraps <code>&lt;AskGutter .../&gt;</code> (L1516-1524), add the annotation gutter alongside it:</p>
+<pre class="codehilite"><code class="language-tsx">                                    &lt;div data-pdf-ask-ui=&quot;&quot;&gt;
+                                        &lt;AskGutter
+                                            items={pageSummaries}
+                                            activeId={activeThreadId}
+                                            onOpen={handleOpenPill}
+                                            onEnter={cancelHoverHide}
+                                            onLeave={scheduleHoverHide}
+                                        /&gt;
+                                        &lt;AnnotationGutter
+                                            items={pageAnnotations}
+                                            activeId={commentEditor?.id ?? activeHighlightId}
+                                            onOpen={openCommentEditorFor}
+                                        /&gt;
+                                    &lt;/div&gt;
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 9: HighlightLayer activeId 合并 flash（L1476-1479）</strong></li>
+</ul>
+<p>Change <code>activeId={highlightMenu?.id ?? null}</code> to:</p>
+<pre class="codehilite"><code class="language-tsx">                                                activeId={
+                                                    highlightMenu?.id ??
+                                                    commentEditor?.id ??
+                                                    activeHighlightId
+                                                }
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 10: 渲染 AnnotationEditor（在 SelectionMenu JSX 之后，highlightMenu 之前，约 L1644）</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-tsx">            {commentEditor
+                ? (() =&gt; {
+                        const hl = highlights.find((h) =&gt; h.id === commentEditor.id);
+                        if (!hl) return null;
+                        return (
+                            &lt;div data-pdf-ask-ui=&quot;&quot;&gt;
+                                &lt;AnnotationEditor
+                                    screen={commentEditor.screen}
+                                    quote={hl.quote}
+                                    initialComment={hl.comment}
+                                    onSave={(text) =&gt; saveComment(hl.id, text)}
+                                    onDelete={() =&gt; removeHighlight(hl.id)}
+                                    onClose={() =&gt; setCommentEditor(null)}
+                                /&gt;
+                            &lt;/div&gt;
+                        );
+                    })()
+                : null}
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 11: 关闭 menus 的 effect 也关闭 commentEditor（约 L1160-1182）</strong></li>
+</ul>
+<p>The <code>useEffect</code> that dismisses menus on outside pointerdown/Escape/scroll currently guards on <code>if (!selectionMenu &amp;&amp; !highlightMenu) return;</code> and <code>closeAll</code> sets both to null. Leave <code>commentEditor</code> OUT of <code>closeAll</code> (the editor should not close on scroll/outside-click while typing; it closes via its own Save/Cancel/Escape). No change needed here, but verify the editor's own <code>onMouseDown stopPropagation</code> + <code>data-pdf-ask-ui</code> prevents the outside-pointerdown handler from closing sibling menus incorrectly.</p>
+<ul>
+<li>[ ] <strong>Step 12: 手动验证 Phase-1 创建/编辑/图标</strong></li>
+</ul>
+<p>Run: <code>pnpm tauri dev</code>（若端口被占用，说明无法浏览器验证并跳到 lint/commit）
+验证：
+1. 打开一篇 PDF，选中一段 → 菜单显示「批注」。
+2. 点「批注」→ 出现高亮 + 内联备注框（聚焦）。输入文字 → ⌘/Ctrl+Enter 或点保存 → 框关闭，页边出现批注图标。
+3. 点页边图标 → 重新打开备注框可编辑；点删除 → 高亮与图标消失。
+4. 关闭并重开该 PDF tab → 批注与备注仍在（JSON 持久化）。
+5. 纯「高亮」按钮仍工作，无备注框、无页边图标。
+6. 打开该论文的 <code>NOTES.md</code> 确认未被批注流程改动。</p>
+<ul>
+<li>[ ] <strong>Step 13: lint + commit</strong></li>
+</ul>
+<p>Run: <code>pnpm run fix:ts</code>
+Expected: 无错误。</p>
+<pre class="codehilite"><code class="language-bash">git add src/components/viewer/pdf-viewer.tsx src/components/viewer/pdf-ask/selection-menu.tsx
+git commit -m &quot;feat(pdf): create/edit annotations inline with gutter pins&quot;
+</code></pre>
+
+<hr />
+<h3 id="task-6-pdfnotesmd">Task 6: 移除 PDF→NOTES.md 的引文追加链路<a class="headerlink" href="#task-6-pdfnotesmd" title="Permanent link">&para;</a></h3>
+<p><strong>Files:</strong>
+- Modify: <code>src/components/viewer/pdf-viewer.tsx</code>（去掉 <code>onAddNote</code> prop）
+- Modify: <code>src/components/layout/tab-center.tsx:126</code>（去掉 <code>onAddPdfNote</code> 透传）
+- Modify: <code>src/App.tsx</code>（删除 <code>handleAddPdfNote</code> 及其 prop 传递）</p>
+<ul>
+<li>[ ] <strong>Step 1: 移除 viewer 的 <code>onAddNote</code> prop</strong></li>
+</ul>
+<p>In <code>src/components/viewer/pdf-viewer.tsx</code>:
+- Delete the <code>onAddNote?: (quote: string) =&gt; void;</code> line from <code>PdfViewerProps</code> (L114-115) and its comment.
+- Remove <code>onAddNote,</code> from the destructured props (L167).</p>
+<ul>
+<li>[ ] <strong>Step 2: 移除 tab-center 的 onAddNote 使用</strong></li>
+</ul>
+<p>In <code>src/components/layout/tab-center.tsx</code>, delete <code>onAddNote={(quote) =&gt; onAddPdfNote(tab, quote)}</code> (L126). Then remove the now-unused <code>onAddPdfNote</code> from this component's props type and its parameter list (search <code>onAddPdfNote</code> in the file; remove the prop declaration and any pass-through). If <code>onAddPdfNote</code> was required by a parent-facing props type in this file, delete that field.</p>
+<ul>
+<li>[ ] <strong>Step 3: 移除 App.tsx 的 handleAddPdfNote 与传递</strong></li>
+</ul>
+<p>In <code>src/App.tsx</code>:
+- Delete the <code>handleAddPdfNote</code> useCallback (L425-453).
+- Delete the <code>onAddPdfNote={handleAddPdfNote}</code> prop passed to the center/tab component (L2220).
+- If <code>notesEditorHandles</code> (L412) and <code>MarkdownEditorHandle.appendMarkdown</code> are now unused anywhere else, leave <code>notesEditorHandles</code> if still used for reseed elsewhere; only remove <code>appendMarkdown</code> usage. Verify with a search: <code>grep appendMarkdown</code> — if the only caller was <code>handleAddPdfNote</code>, remove the <code>appendMarkdown</code> method from <code>MarkdownEditorHandle</code> and its implementation in <code>src/components/editor/markdown-editor.tsx:150-171</code>. If still referenced elsewhere, keep it.</p>
+<ul>
+<li>[ ] <strong>Step 4: 验证 + 手动 smoke</strong></li>
+</ul>
+<p>Run: <code>pnpm run fix:ts</code>
+Expected: 无 TS/lint 错误、无 “unused” 报错。</p>
+<p>Run: <code>pnpm tauri dev</code> — 划词「批注」仍工作；确认没有任何路径再写 NOTES.md。</p>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-bash">git add src/components/viewer/pdf-viewer.tsx src/components/layout/tab-center.tsx src/App.tsx src/components/editor/markdown-editor.tsx
+git commit -m &quot;refactor(pdf): drop the selection-to-NOTES.md append path&quot;
+</code></pre>
+
+<hr />
+<h2 id="phase-2">Phase 2 — 右侧批注面板<a class="headerlink" href="#phase-2" title="Permanent link">&para;</a></h2>
+<h3 id="task-7-viewer">Task 7: viewer 暴露句柄与高亮变更回调<a class="headerlink" href="#task-7-viewer" title="Permanent link">&para;</a></h3>
+<p><strong>Files:</strong>
+- Modify: <code>src/components/viewer/pdf-viewer.tsx</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 定义并导出 <code>PdfViewerHandle</code> 类型</strong></li>
+</ul>
+<p>Add near <code>PdfViewerProps</code> in <code>src/components/viewer/pdf-viewer.tsx</code>:</p>
+<pre class="codehilite"><code class="language-tsx">export type PdfViewerHandle = {
+    getHighlights: () =&gt; PdfHighlight[];
+    scrollToHighlight: (id: string) =&gt; void;
+    editComment: (id: string) =&gt; void;
+    deleteHighlight: (id: string) =&gt; void;
+};
+</code></pre>
+
+<p>Add two optional props to <code>PdfViewerProps</code>:</p>
+<pre class="codehilite"><code class="language-tsx">    /** Register/unregister an imperative handle for the annotations panel */
+    onHandle?: (handle: PdfViewerHandle | null) =&gt; void;
+    /** Called whenever the highlight list changes (for the annotations panel) */
+    onHighlightsChange?: (highlights: PdfHighlight[]) =&gt; void;
+</code></pre>
+
+<p>Add <code>onHandle,</code> and <code>onHighlightsChange,</code> to the destructured props.</p>
+<ul>
+<li>[ ] <strong>Step 2: 实现 <code>scrollToHighlight</code>（放在 <code>openCommentEditorFor</code> 附近）</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-tsx">    const scrollToHighlight = useCallback((id: string) =&gt; {
+        const host = contentRef.current;
+        const hl = highlightsRef.current.find((h) =&gt; h.id === id);
+        if (!host || !hl) return;
+        const pageEl = findPageElByNumber(host, hl.page);
+        pageEl?.scrollIntoView({ behavior: &quot;smooth&quot;, block: &quot;center&quot; });
+        setActiveHighlightId(id);
+        window.setTimeout(() =&gt; {
+            setActiveHighlightId((cur) =&gt; (cur === id ? null : cur));
+        }, 1600);
+    }, []);
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 3: 上报高亮变更</strong></li>
+</ul>
+<p>Add an effect after the highlights state/ref setup:</p>
+<pre class="codehilite"><code class="language-tsx">    useEffect(() =&gt; {
+        onHighlightsChange?.(highlights);
+    }, [highlights, onHighlightsChange]);
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 4: 注册/注销句柄</strong></li>
+</ul>
+<p>Add an effect:</p>
+<pre class="codehilite"><code class="language-tsx">    useEffect(() =&gt; {
+        if (!onHandle) return;
+        onHandle({
+            getHighlights: () =&gt; highlightsRef.current,
+            scrollToHighlight,
+            editComment: openCommentEditorFor,
+            deleteHighlight: removeHighlight,
+        });
+        return () =&gt; onHandle(null);
+    }, [onHandle, scrollToHighlight, openCommentEditorFor, removeHighlight]);
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 5: 验证 + commit</strong></li>
+</ul>
+<p>Run: <code>pnpm run fix:ts</code>
+Expected: 无错误。</p>
+<pre class="codehilite"><code class="language-bash">git add src/components/viewer/pdf-viewer.tsx
+git commit -m &quot;feat(pdf): expose viewer handle and highlight-change callback&quot;
+</code></pre>
+
+<hr />
+<h3 id="task-8">Task 8: 批注面板组件<a class="headerlink" href="#task-8" title="Permanent link">&para;</a></h3>
+<p><strong>Files:</strong>
+- Create: <code>src/components/viewer/annotations-panel.tsx</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 创建组件</strong></li>
+</ul>
+<p>Create <code>src/components/viewer/annotations-panel.tsx</code>:</p>
+<pre class="codehilite"><code class="language-tsx">import { MessageSquareText, Pencil, Trash2 } from &quot;lucide-react&quot;;
+import { useTranslation } from &quot;react-i18next&quot;;
+
+import { Button } from &quot;@/components/ui/button&quot;;
+import { cn } from &quot;@/lib/utils&quot;;
+
+export type AnnotationRow = {
+    id: string;
+    page: number;
+    quote: string;
+    comment: string;
+};
+
+type AnnotationsPanelProps = {
+    items: AnnotationRow[];
+    onJump: (id: string) =&gt; void;
+    onEdit: (id: string) =&gt; void;
+    onDelete: (id: string) =&gt; void;
+    className?: string;
+};
+
+/** Right-sidebar list of the active paper's annotations. */
+export function AnnotationsPanel({
+    items,
+    onJump,
+    onEdit,
+    onDelete,
+    className,
+}: AnnotationsPanelProps) {
+    const { t } = useTranslation(&quot;viewer&quot;);
+
+    return (
+        &lt;div
+            className={cn(&quot;flex h-full min-h-0 flex-col overflow-hidden&quot;, className)}
+            aria-label={t(&quot;annotations.panelAria&quot;)}
+        &gt;
+            &lt;div className=&quot;flex items-center gap-2 border-b px-3 py-2 text-muted-foreground text-xs&quot;&gt;
+                &lt;MessageSquareText className=&quot;size-3.5&quot; /&gt;
+                {t(&quot;annotations.title&quot;)}
+            &lt;/div&gt;
+            {items.length === 0 ? (
+                &lt;p className=&quot;px-3 py-6 text-center text-muted-foreground text-xs&quot;&gt;
+                    {t(&quot;annotations.empty&quot;)}
+                &lt;/p&gt;
+            ) : (
+                &lt;ul className=&quot;min-h-0 flex-1 overflow-y-auto p-2&quot;&gt;
+                    {items.map((a) =&gt; (
+                        &lt;li key={a.id} className=&quot;mb-2&quot;&gt;
+                            &lt;div className=&quot;group rounded-lg border border-border/70 p-2 hover:border-border&quot;&gt;
+                                &lt;button
+                                    type=&quot;button&quot;
+                                    className=&quot;block w-full text-left&quot;
+                                    onClick={() =&gt; onJump(a.id)}
+                                &gt;
+                                    &lt;span className=&quot;text-[10px] text-muted-foreground uppercase&quot;&gt;
+                                        p.{a.page}
+                                    &lt;/span&gt;
+                                    &lt;blockquote className=&quot;mt-0.5 line-clamp-2 border-amber-400 border-l-2 pl-2 text-muted-foreground text-xs&quot;&gt;
+                                        {a.quote}
+                                    &lt;/blockquote&gt;
+                                    &lt;p className=&quot;mt-1 whitespace-pre-wrap text-foreground text-sm&quot;&gt;
+                                        {a.comment}
+                                    &lt;/p&gt;
+                                &lt;/button&gt;
+                                &lt;div className=&quot;mt-1 flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100&quot;&gt;
+                                    &lt;Button
+                                        type=&quot;button&quot;
+                                        variant=&quot;ghost&quot;
+                                        size=&quot;icon-xs&quot;
+                                        aria-label={t(&quot;selection.editComment&quot;)}
+                                        onClick={() =&gt; onEdit(a.id)}
+                                    &gt;
+                                        &lt;Pencil className=&quot;size-3.5&quot; /&gt;
+                                    &lt;/Button&gt;
+                                    &lt;Button
+                                        type=&quot;button&quot;
+                                        variant=&quot;ghost&quot;
+                                        size=&quot;icon-xs&quot;
+                                        aria-label={t(&quot;annotations.delete&quot;)}
+                                        onClick={() =&gt; onDelete(a.id)}
+                                    &gt;
+                                        &lt;Trash2 className=&quot;size-3.5&quot; /&gt;
+                                    &lt;/Button&gt;
+                                &lt;/div&gt;
+                            &lt;/div&gt;
+                        &lt;/li&gt;
+                    ))}
+                &lt;/ul&gt;
+            )}
+        &lt;/div&gt;
+    );
+}
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 2: 验证 + commit</strong></li>
+</ul>
+<p>Run: <code>pnpm run fix:ts</code>
+Expected: 无错误（确认 <code>Button</code> 有 <code>size="icon-xs"</code>，workspace-header 已在用）。</p>
+<pre class="codehilite"><code class="language-bash">git add src/components/viewer/annotations-panel.tsx
+git commit -m &quot;feat(pdf): add annotations side panel component&quot;
+</code></pre>
+
+<hr />
+<h3 id="task-9-app-per-tab-tab">Task 9: App 接线——per-tab 句柄、高亮态、右栏 tab<a class="headerlink" href="#task-9-app-per-tab-tab" title="Permanent link">&para;</a></h3>
+<p><strong>Files:</strong>
+- Modify: <code>src/App.tsx</code>
+- Modify: <code>src/components/layout/tab-center.tsx</code>
+- Modify: <code>src/components/layout/workspace-header.tsx</code></p>
+<ul>
+<li>[ ] <strong>Step 1: App 扩展右栏 tab 类型与状态</strong></li>
+</ul>
+<p>In <code>src/App.tsx</code>:
+- Change <code>useState&lt;"agent" | "backlinks"&gt;("agent")</code> (L192) to <code>useState&lt;"agent" | "backlinks" | "annotations"&gt;("agent")</code>.
+- Change <code>openRightTab</code> param type (L580) to <code>(tab: "agent" | "backlinks" | "annotations")</code>.</p>
+<ul>
+<li>[ ] <strong>Step 2: App 新增 per-tab 句柄与高亮态</strong></li>
+</ul>
+<p>Add near <code>notesEditorHandles</code> (L412):</p>
+<pre class="codehilite"><code class="language-tsx">    /** PDF viewer imperative handles by tab id (for the annotations panel). */
+    const pdfViewerHandles = useRef(new Map&lt;string, PdfViewerHandle&gt;());
+    /** Latest highlights per PDF tab id, for the annotations panel. */
+    const [pdfHighlightsByTab, setPdfHighlightsByTab] = useState&lt;
+        Record&lt;string, PdfHighlight[]&gt;
+    &gt;({});
+</code></pre>
+
+<p>Import the types at top of <code>App.tsx</code>:</p>
+<pre class="codehilite"><code class="language-tsx">import type { PdfViewerHandle } from &quot;@/components/viewer/pdf-viewer&quot;;
+import type { PdfHighlight } from &quot;@/lib/pdf-highlight/types&quot;;
+import type { AnnotationRow } from &quot;@/components/viewer/annotations-panel&quot;;
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 3: App 派生活动 tab 的批注行 + 面板动作</strong></li>
+</ul>
+<p>Add (after <code>pdfHighlightsByTab</code> declaration; assumes <code>activeTabId</code> exists — confirm the active-tab id variable name and adjust):</p>
+<pre class="codehilite"><code class="language-tsx">    const activeAnnotations = useMemo&lt;AnnotationRow[]&gt;(() =&gt; {
+        const list = activeTabId ? pdfHighlightsByTab[activeTabId] : undefined;
+        if (!list) return [];
+        return list
+            .filter((h) =&gt; h.comment?.trim())
+            .map((h) =&gt; ({
+                id: h.id,
+                page: h.page,
+                quote: h.quote,
+                comment: h.comment ?? &quot;&quot;,
+            }))
+            .sort((a, b) =&gt; a.page - b.page);
+    }, [activeTabId, pdfHighlightsByTab]);
+
+    const annotationAction = useCallback(
+        (fn: (h: PdfViewerHandle) =&gt; void) =&gt; {
+            if (!activeTabId) return;
+            const h = pdfViewerHandles.current.get(activeTabId);
+            if (h) fn(h);
+        },
+        [activeTabId],
+    );
+</code></pre>
+
+<blockquote>
+<p><code>useMemo</code>/<code>useCallback</code>/<code>useRef</code> 已在文件中使用；确认 <code>activeTabId</code> 就是当前活动 tab id 的变量名（若不同，替换为实际名字）。</p>
+</blockquote>
+<ul>
+<li>[ ] <strong>Step 4: App 传高亮回调与句柄给 center</strong></li>
+</ul>
+<p>At the center/tab component usage where <code>onAddPdfNote</code> used to be (near L2220 now removed), pass registration callbacks down. Add props on the <code>&lt;TabCenter .../&gt;</code> (or equivalent) call:</p>
+<pre class="codehilite"><code class="language-tsx">                            registerPdfHandle={(tabId, handle) =&gt; {
+                                if (handle) pdfViewerHandles.current.set(tabId, handle);
+                                else pdfViewerHandles.current.delete(tabId);
+                            }}
+                            onPdfHighlightsChange={(tabId, list) =&gt;
+                                setPdfHighlightsByTab((prev) =&gt; ({ ...prev, [tabId]: list }))
+                            }
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 5: tab-center 透传到 PdfViewer</strong></li>
+</ul>
+<p>In <code>src/components/layout/tab-center.tsx</code>:
+- Add to its props type: <code>registerPdfHandle: (tabId: string, handle: PdfViewerHandle | null) =&gt; void;</code> and <code>onPdfHighlightsChange: (tabId: string, list: PdfHighlight[]) =&gt; void;</code> (import the two types).
+- In the <code>tab.mode === "pdf"</code> branch (L114-129), pass:</p>
+<pre class="codehilite"><code class="language-tsx">                    onHandle={(h) =&gt; registerPdfHandle(tab.id, h)}
+                    onHighlightsChange={(list) =&gt; onPdfHighlightsChange(tab.id, list)}
+</code></pre>
+
+<ul>
+<li>[ ] <strong>Step 6: workspace-header 新增「批注」toggle 按钮</strong></li>
+</ul>
+<p>In <code>src/components/layout/workspace-header.tsx</code>:
+- Change <code>onOpenRightTab</code> prop type (L43) to <code>(tab: "agent" | "backlinks" | "annotations") =&gt; void</code>; same for the <code>rightSidebarTab</code> prop type if it's typed as a union.
+- Import an icon: add <code>MessageSquareText</code> to the <code>lucide-react</code> import.
+- After the backlinks <code>&lt;Tooltip&gt;</code> block (ends L231), add:</p>
+<pre class="codehilite"><code class="language-tsx">                                        &lt;Tooltip&gt;
+                                            &lt;TooltipTrigger asChild&gt;
+                                                &lt;Button
+                                                    type=&quot;button&quot;
+                                                    variant=&quot;ghost&quot;
+                                                    size=&quot;icon-xs&quot;
+                                                    aria-label={t(&quot;titlebar.annotationsPanel&quot;)}
+                                                    aria-pressed={rightSidebarTab === &quot;annotations&quot;}
+                                                    className={cn(
+                                                        rightSidebarTab === &quot;annotations&quot; &amp;&amp;
+                                                            &quot;bg-muted text-foreground&quot;,
+                                                    )}
+                                                    onClick={() =&gt; onOpenRightTab(&quot;annotations&quot;)}
+                                                &gt;
+                                                    &lt;MessageSquareText className=&quot;size-3.5&quot; /&gt;
+                                                &lt;/Button&gt;
+                                            &lt;/TooltipTrigger&gt;
+                                            &lt;TooltipContent side=&quot;bottom&quot;&gt;
+                                                {t(&quot;annotations.title&quot;, { ns: &quot;viewer&quot; })}
+                                            &lt;/TooltipContent&gt;
+                                        &lt;/Tooltip&gt;
+</code></pre>
+
+<p>Add i18n key <code>titlebar.annotationsPanel</code> to the header's namespace (find where <code>titlebar.backlinksPanel</code> lives — likely <code>common</code>/<code>app</code> namespace en+zh) with values <code>"Annotations"</code> / <code>"批注"</code>.</p>
+<ul>
+<li>[ ] <strong>Step 7: App 渲染批注面板分支</strong></li>
+</ul>
+<p>In the right-sidebar <code>ResizablePanel</code> (after the <code>backlinks</code> branch, before <code>&lt;/ResizablePanel&gt;</code> at L2409), add:</p>
+<pre class="codehilite"><code class="language-tsx">                                {rightSidebarOpen &amp;&amp;
+                                !agentZenMode &amp;&amp;
+                                rightSidebarTab === &quot;annotations&quot; ? (
+                                    &lt;AnnotationsPanel
+                                        items={activeAnnotations}
+                                        onJump={(id) =&gt;
+                                            annotationAction((h) =&gt; h.scrollToHighlight(id))
+                                        }
+                                        onEdit={(id) =&gt; annotationAction((h) =&gt; h.editComment(id))}
+                                        onDelete={(id) =&gt;
+                                            annotationAction((h) =&gt; h.deleteHighlight(id))
+                                        }
+                                    /&gt;
+                                ) : null}
+</code></pre>
+
+<p>Import <code>AnnotationsPanel</code> at top of <code>App.tsx</code>.</p>
+<ul>
+<li>[ ] <strong>Step 8: 手动验证 Phase-2</strong></li>
+</ul>
+<p>Run: <code>pnpm tauri dev</code>
+验证：
+1. 打开 PDF 并创建 ≥2 条批注 → 标题栏出现「批注」图标 → 打开右栏「批注」tab，列出卡片（页码 + 引文 + 备注）。
+2. 点卡片 → PDF 平滑滚动到该处并高亮闪烁 ~1.6s。
+3. 卡片「编辑」→ viewer 内联备注框打开；改动保存后面板同步更新。
+4. 卡片「删除」→ 高亮、页边图标、卡片同时消失。
+5. 打开第二个 PDF tab，批注面板随活动 tab 切换内容；无 PDF tab 时显示空状态。</p>
+<ul>
+<li>[ ] <strong>Step 9: lint + commit</strong></li>
+</ul>
+<p>Run: <code>pnpm run fix:ts</code>
+Expected: 无错误。</p>
+<pre class="codehilite"><code class="language-bash">git add src/App.tsx src/components/layout/tab-center.tsx src/components/layout/workspace-header.tsx
+git commit -m &quot;feat(pdf): add annotations right-sidebar tab wired to the active PDF&quot;
+</code></pre>
+
+<hr />
+<h3 id="task-10">Task 10: 文档同步<a class="headerlink" href="#task-10" title="Permanent link">&para;</a></h3>
+<p><strong>Files:</strong>
+- Modify: <code>docs/development/pdf-ask.md</code>
+- Modify: <code>docs/backend/data-model.md</code>
+- Modify: <code>docs/development/roadmap.md</code>
+- Modify: <code>docs/development/todo.md</code>
+- Modify: <code>AGENTS.md</code>（若批注语义值得在总览提及）</p>
+<ul>
+<li>[ ] <strong>Step 1: 更新 pdf-ask.md</strong></li>
+</ul>
+<p>在交互矩阵与数据模型章节：把「note = append NOTES.md」改为「annotate = 高亮 + <code>comment</code>（存 <code>highlights/&lt;id&gt;.json</code>），完全不写 NOTES.md」；在模块清单加入 <code>annotation-editor.tsx</code>、<code>annotation-gutter.tsx</code>、<code>annotations-panel.tsx</code>、<code>PdfViewerHandle</code>；在测试清单加入「创建批注 / 编辑备注 / 面板跳转 / 删除同步」。</p>
+<ul>
+<li>[ ] <strong>Step 2: 更新 data-model.md</strong></li>
+</ul>
+<p>在高亮 schema 处加 <code>comment?: string</code> 字段说明（非空即批注），并注明右侧面板由活动 PDF tab 驱动、不入 catalog。</p>
+<ul>
+<li>[ ] <strong>Step 3: 更新 roadmap.md / todo.md</strong></li>
+</ul>
+<p>勾选/更新「PDF 标注系统」相关条目为已落地（in-viewer + 侧栏面板；导出到 NOTES.md 列为后续可选）。</p>
+<ul>
+<li>[ ] <strong>Step 4: 提交</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-bash">git add docs/development/pdf-ask.md docs/backend/data-model.md docs/development/roadmap.md docs/development/todo.md AGENTS.md
+git commit -m &quot;docs(pdf): document Zotero-style annotation feature&quot;
+</code></pre>
+
+<hr />
+<h2 id="self-review">Self-Review 记录<a class="headerlink" href="#self-review" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Spec 覆盖</strong>：数据模型→Task 1；按钮改名/交互→Task 2/5;内联编辑器→Task 3/5;页边图标→Task 4/5;移除 NOTES.md 链路→Task 6;句柄与回调→Task 7;右侧面板→Task 8/9;i18n→Task 2 + Task 9 Step6;文档→Task 10。全部有对应 task。</li>
+<li><strong>Placeholder 扫描</strong>：无 TBD/TODO；每个改代码步骤均含实际代码或精确锚点。</li>
+<li><strong>类型一致性</strong>：<code>PdfViewerHandle</code>（getHighlights/scrollToHighlight/editComment/deleteHighlight）在 Task 7 定义、Task 9 使用一致；<code>AnnotationPin</code>（Task 4）与 viewer 派生（Task 5 Step8）字段一致；<code>AnnotationRow</code>（Task 8）与 App 派生（Task 9 Step3）一致；<code>comment</code> 字段贯穿 Task 1/5/7/8/9 命名一致。</li>
+<li><strong>执行者需现场确认的变量名</strong>：<code>activeTabId</code>（活动 tab id）、center 组件在 App 中的实际标签名与 props、<code>Button</code> 的 size 变体、<code>lucide-react</code> 是否有 <code>MessageSquareText</code>、<code>titlebar.*</code> 所在 i18n 命名空间。这些在对应步骤已标注“确认/替换为实际名字”。</li>
+</ul>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+    
+  </span>
+</div>
+    <script src="../../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../../..";</script>
+    <script src="../../../js/theme_extra.js"></script>
+    <script src="../../../js/theme.js"></script>
+      <script src="../../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
