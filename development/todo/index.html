@@ -241,10 +241,10 @@
 <li>
 <p><strong>本地 PDF importer</strong></p>
 </li>
-<li>文件选择 / 拖拽 / 批量导入。</li>
-<li>DOI / arXiv ID 识别，元数据确认面板。</li>
-<li>生成 citekey、<code>PAPER.md</code>、<code>NOTES.md</code>；metadata 写入 catalog。</li>
-<li>默认本地解析，MinerU BYOK 后可选云端解析。</li>
+<li>[x] 文件选择 / 批量导入（魔棒弹层 <code>FileUp</code> → <code>paper_import_local_pdf</code>，多选）；拖拽待增强。</li>
+<li>[ ] DOI / arXiv ID 识别，元数据确认面板。</li>
+<li>[x] 生成 citekey slug（重复 <code>-2</code>/<code>-3</code>）、liteparse <code>PAPER.md</code>、<code>NOTES.md</code>；metadata 写入 catalog（type <code>pdf</code>）。</li>
+<li>[ ] 默认本地解析，MinerU BYOK 后可选云端解析。</li>
 <li>与 <strong>Vault 采纳</strong> 边界：importer = 用户显式导入源；采纳 = 整夹扫描改造。</li>
 </ol>
 <p>2b. <strong>Vault 采纳 / 整理（确认迁移 + Skill 可选）</strong> — 接 P0-4b
@@ -420,8 +420,8 @@
 </tr>
 <tr>
 <td>入库</td>
-<td>魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md、Library 导入导出 Bib、<code>paper_set_tags</code>、<code>paper_rescan</code></td>
-<td>关键词/Agent 候选；本地 PDF importer；部分非 arXiv PDF 下载</td>
+<td>魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md、<strong>本地 PDF 导入</strong>、<strong>非 arXiv 下载（浏览器 UA + Crossref 兜底）</strong>、Library 导入导出 Bib、<code>paper_set_tags</code>、<code>paper_rescan</code></td>
+<td>关键词/Agent 候选；本地 PDF 拖拽 / DOI 识别与元数据确认；MinerU 云端解析</td>
 </tr>
 <tr>
 <td>Agent</td>

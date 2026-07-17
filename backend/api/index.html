@@ -960,7 +960,22 @@ Host (Tauri + Rust)
   }
   ```
 - **返回**：`{ ok: true; data: { pdf: boolean; tex: boolean; paperMd: boolean; messages: string[] } }`
-- **行为**：读 catalog 取 `pdf_url` / `arxiv_id`；已有对应文件则跳过；PDF → `{paper}/{id}.pdf`（论文根目录）；arXiv e-print TeX → 解压进 `source/`；无 TeX + 有 PDF + 无 `PAPER.md` → liteparse → `PAPER.md`。打开 paper 预览时若无本地 PDF 也会自动调用本命令（失败则回退远程 `pdf_url`）。
+- **行为**：读 catalog 取 `pdf_url` / `arxiv_id` / `doi`；已有对应文件则跳过；PDF → `{paper}/{id}.pdf`（论文根目录）；arXiv e-print TeX → 解压进 `source/`；无 TeX + 有 PDF + 无 `PAPER.md` → liteparse → `PAPER.md`。下载客户端使用**浏览器 UA**（绕开部分出版商 403）；若直链/arXiv 候选都失败且有 `doi`，再查 **Crossref** 取直链 / OA PDF 兜底。打开 paper 预览时若无本地 PDF 也会自动调用本命令（失败则回退远程 `pdf_url`）。
+
+#### `paper_import_local_pdf`（已落地）
+
+把用户选择的本地 PDF 导入为 paper 文件夹（复制 + catalog + liteparse），**无网络查询**；元数据来自文件名。前端经魔棒弹层 `FileUp` 按钮的原生 PDF 选择器（多选）触发。
+
+- **参数**（invoke 字段名 `args`）：
+  ```ts
+  {
+    vaultPath: string;
+    parentDir: string;   // Vault 相对，如 papers 或 papers/nlp
+    filePaths: string[]; // 用户选择的本地 PDF 绝对路径
+  }
+  ```
+- **返回**：`{ ok: true; data: { papers: LookupImportResult[]; errors: string[] } }`（`errors` 为 `&quot;&lt;文件&gt;: &lt;原因&gt;&quot;`；仅当**全部**失败才整体 `ok:false`）。
+- **行为**：每个 PDF → 由文件名 stem 派生 slug（`{parent}/{slug}/`，冲突加 `-2`/`-3`）与标题；复制到 `{slug}.pdf`（论文根目录）；写 `NOTES.md` / `highlights.md` 壳 + catalog（type `pdf`）；无 TeX → liteparse `PAPER.md`。不覆盖已存在文件夹（slug 去重）。
 
 #### `paper_parse_body`（已落地）
 

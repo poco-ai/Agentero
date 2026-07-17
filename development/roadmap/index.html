@@ -252,8 +252,8 @@
 </tr>
 <tr>
 <td>V0.5 Importer 架构与本地 PDF 入库</td>
-<td>⏳ 待实现</td>
-<td>Importer trait、本地 PDF 拖拽入库、PdfParser（liteparse / MinerU）仍在规划；魔棒 v0 已可复用部分写盘路径。</td>
+<td>🟡 本地 PDF 入库已落地</td>
+<td><strong>本地 PDF 导入</strong>（魔棒弹层多选 → 复制 PDF + catalog + liteparse <code>PAPER.md</code>）已落地；Importer trait 抽象、拖拽导入、DOI 识别、PdfParser（MinerU）仍在规划。</td>
 </tr>
 <tr>
 <td>V0.6 工作区标签页与分屏</td>
@@ -345,7 +345,7 @@
 <li>[ ] <code>catalog:export_papers_md</code>（Markdown 表形态；BibTeX 已由 Library 导出覆盖）。</li>
 <li>[x] 入库后刷新 Backlinks/Graph 索引</li>
 <li>[x] 魔棒快捷键 <code>⇧⌘I</code>；</li>
-<li>[ ] 非 arxiv 下载 PDF 有问题（10.1371/journal.pbio.0040157）</li>
+<li>[x] 非 arxiv 下载 PDF：下载改用浏览器 UA（绕开出版商 403）+ DOI 走 Crossref 取直链 / OA PDF 兜底（如 10.1371/journal.pbio.0040157）。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -437,7 +437,7 @@
 <ul>
 <li>[ ] 抽象 importer 接口。</li>
 <li>[ ] 将 arXiv 入库实现迁移为第一个 importer。</li>
-<li>[ ] 实现本地 PDF importer：文件选择/拖拽/批量导入、citekey 生成与重复检测。</li>
+<li>[x] 本地 PDF 导入：魔棒弹层文件选择（多选，<code>paper_import_local_pdf</code>）、citekey slug 生成 + 重复检测（<code>-2</code>/<code>-3</code>）、复制 PDF + catalog + liteparse <code>PAPER.md</code>；拖拽 / DOI 识别待增强。</li>
 <li>[ ] 可插拔 <code>PdfParser</code>：默认本地 liteparse，配置 MinerU API Key 后优先云端 MinerU，失败自动降级。</li>
 <li>[ ] PDF 元数据混合获取：DOI/arXiv 标识符查询 Crossref/arXiv + Agent 正文抽取，入库前用户确认。</li>
 <li>[ ] 预留本地 HTML importer。</li>
@@ -449,7 +449,7 @@
 <p>验收标准：</p>
 <ul>
 <li>[ ] arXiv importer 行为与 V0.2 精确路径保持兼容。</li>
-<li>[ ] 导入本地 PDF 能生成 <code>papers/&lt;citekey&gt;/</code>（含必定生成的 <code>PAPER.md</code>）并进入笔记审阅。</li>
+<li>[x] 导入本地 PDF 生成 <code>papers/&lt;citekey&gt;/</code>（复制 PDF + liteparse <code>PAPER.md</code>）并进入笔记审阅。</li>
 <li>[ ] 配置 MinerU API Key 后 PDF 默认走云端解析，未配置或失败时自动降级本地且不中断。</li>
 <li>[ ] 新 importer 可以复用同一套输出结构。</li>
 <li>[ ] UI 不需要为每种来源重写入库流程。</li>
