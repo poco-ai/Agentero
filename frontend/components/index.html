@@ -188,7 +188,7 @@
 </tr>
 <tr>
 <td>业务壳</td>
-<td><code>layout/agent-panel</code>（Chat；<code>sidebar</code>/<code>zen</code>；全局权限模式）、<code>layout/file-tree</code>（Vault 树 + Library + 魔棒 + paper <strong>Download / Zap</strong> + 多选拖拽 + 回收站入口）、<code>layout/recycle-bin-view</code>（中间栏回收站）、<code>layout/papers-library</code>（catalog 表 + tags + <strong>Rescan</strong>）、<code>layout/paper-info-panel</code>、<code>layout/document-tab-bar</code>、<code>layout/backlinks-panel</code>、<code>layout/graph-panel</code>、<code>layout/background-tasks-panel</code>；<code>viewer/pdf-viewer</code>（导航/大纲/查找/平滑划词）</td>
+<td><code>layout/agent-panel</code>（Chat；<code>sidebar</code>/<code>zen</code>：禅模式左侧历史 + 全宽 <code>Conversation</code> 滚动；无会话数字标签；<code>hideFromChatHistory</code> 过滤后台运行；全局权限模式）、<code>layout/file-tree</code>（Vault 树 + Library + 魔棒 + paper <strong>Download / Zap</strong> + 多选拖拽 + 回收站入口）、<code>layout/recycle-bin-view</code>（中间栏回收站）、<code>layout/papers-library</code>（catalog 表 + tags + <strong>Rescan</strong>）、<code>layout/paper-info-panel</code>、<code>layout/document-tab-bar</code>、<code>layout/backlinks-panel</code>、<code>layout/graph-panel</code>、<code>layout/background-tasks-panel</code>；<code>viewer/pdf-viewer</code>（导航/大纲/查找/平滑划词；划词提问 <code>hideFromChatHistory</code>）</td>
 </tr>
 <tr>
 <td>全局通知</td>
@@ -223,7 +223,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 <tr>
 <td><a href="https://elements.ai-sdk.dev/components/conversation">Conversation</a></td>
 <td><code>conversation</code></td>
-<td>消息列表容器；贴底滚动、空状态、滚动按钮</td>
+<td>消息列表容器；贴底滚动、空状态、滚动按钮；<code>scrollClassName</code> 接 <code>agentero-scroll</code>（禅模式全宽视口、滚动条贴右）</td>
 <td>✅ Chat 列表</td>
 </tr>
 <tr>

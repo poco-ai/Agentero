@@ -488,7 +488,7 @@ Host (Tauri + Rust)
 </li>
 </ul>
 <h4 id="path_trash-path_untrash"><code>path_trash</code> / <code>path_untrash</code>（已落地）<a class="headerlink" href="#path_trash-path_untrash" title="Permanent link">&para;</a></h4>
-<p>可恢复删除：把项移入 Vault 回收站 <code>.agentero/.trash/&lt;batchId&gt;/</code>（带 <code>manifest.json</code> 记录原路径与被删 catalog 行快照），而非物理删除。<strong>前端不弹 Undo toast</strong>——用户从侧栏 <code>Trash2</code> 打开的<strong>中间栏回收站视图</strong>（<code>RecycleBinView</code>）浏览 / 恢复 / 永久删除 / 清空。</p>
+<p>可恢复删除：把项移入 Vault 回收站 <code>.agentero/.trash/&lt;batchId&gt;/</code>（带 <code>manifest.json</code> 记录原路径与被删 catalog 行快照），而非物理删除。<strong>前端不弹 Undo toast</strong>——用户从文件树虚拟节点 <code>agentero:trash</code> 打开的<strong>中间栏回收站视图</strong>（<code>RecycleBinView</code>）浏览 / 恢复 / 永久删除 / 清空。</p>
 <ul>
 <li><strong><code>path_trash</code> 参数</strong></li>
 </ul>
@@ -1273,12 +1273,16 @@ Host (Tauri + Rust)
   skillIds?: string[]; // 已发现的本机 SKILL.md id，最多 5 个
   autoApprove?: boolean; // 默认 false；true 时选择 ACP 返回的第一个权限选项
   responseLanguage?: string; // 强制回答/笔记语言（如 zh-CN）；省略或 auto 时不注入
+  hideFromChatHistory?: boolean; // 默认 false；true 时不写入 Vault Codex 会话索引（精读 / PDF 划词提问等）
 }
 </code></pre>
 
 <ul>
 <li>
 <p><strong>返回</strong>：<code>{ ok: true, data: { sessionId, messageId, agentId } }</code></p>
+</li>
+<li>
+<p><strong><code>hideFromChatHistory</code></strong>：为 <code>true</code> 时，Codex 路径不把该 native thread 记入 <code>.agentero/agent-sessions/codex.json</code>，因此默认 <code>agent_codex_list_threads</code> 不会列出；前端 Agent 面板也不会把这类流式事件并入对话记录。用于 <strong>paper-reader 精读</strong>、<strong>PDF 划词提问</strong> 等非 Composer 发起的运行。Composer 对话保持默认 <code>false</code>。</p>
 </li>
 <li>
 <p><strong>技能上下文</strong>：<code>agent_list_skills</code> 列出 <code>~/.agents/skills</code>、<code>${CODEX_HOME:-~/.codex}/skills</code>、<code>~/.claude/skills</code> 和当前 Vault <code>.agents/skills</code>。运行时重新解析 id，只读取 <code>SKILL.md</code>，单个文件上限 64 KiB，最多加载 5 个。</p>
@@ -1301,7 +1305,7 @@ Host (Tauri + Rust)
 </li>
 </ul>
 <h4 id="agent_codex_list_threads"><code>agent_codex_list_threads</code><a class="headerlink" href="#agent_codex_list_threads" title="Permanent link">&para;</a></h4>
-<p>列出当前 Vault 的原生 Codex thread，按最近活跃时间排序。该命令读取 App Server 的 <code>thread/list</code>，不会复制或改写 <code>~/.codex/sessions</code>。Agentero 在 <code>.agentero/agent-sessions/codex.json</code> 记录自己创建或继续使用的 native thread；默认只返回这份索引中的 thread。<code>includeExternal: true</code> 时返回当前 Vault 下的全部 Codex thread。</p>
+<p>列出当前 Vault 的原生 Codex thread，按最近活跃时间排序。该命令读取 App Server 的 <code>thread/list</code>，不会复制或改写 <code>~/.codex/sessions</code>。Agentero 在 <code>.agentero/agent-sessions/codex.json</code> 记录自己创建或继续使用的 native thread（<strong>不含</strong> <code>hideFromChatHistory</code> 的后台运行）；默认只返回这份索引中的 thread。<code>includeExternal: true</code> 时返回当前 Vault 下的全部 Codex thread。</p>
 <pre class="codehilite"><code class="language-ts">{ agentId?: string; vaultPath?: string; includeExternal?: boolean }
 // -&gt; CodexThreadInfo[]
 </code></pre>

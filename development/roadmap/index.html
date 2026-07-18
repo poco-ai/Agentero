@@ -296,7 +296,7 @@
 <li>[x] 最近 Vault 列表（欢迎页）与主窗口恢复上次 Vault。</li>
 <li>[x] 多窗口：<code>⌘N</code> 新建窗口，session 级 Vault 隔离。</li>
 <li>[x] 树内联新建文件 / 文件夹。</li>
-<li>[x] 文件树：<strong>Finder 显示</strong>（<code>⌥⌘R</code>）；<strong>终端打开</strong>（<code>⌥⌘T</code>）；<strong>多选 + 拖拽移动</strong>；<strong>删除</strong>走回收站（<code>path_trash</code>，无确认 / 无 Undo toast；侧栏 <code>Trash2</code> → 中间栏浏览 / 恢复 / 清空；<code>papers/</code> 快照 catalog）。</li>
+<li>[x] 文件树：<strong>Finder 显示</strong>（<code>⌥⌘R</code>）；<strong>终端打开</strong>（<code>⌥⌘T</code>）；<strong>多选 + 拖拽移动</strong>；<strong>删除</strong>走回收站（<code>path_trash</code>，无确认 / 无 Undo toast；Library 下虚拟节点 <code>agentero:trash</code> → 中间栏浏览 / 恢复 / 清空；<code>papers/</code> 快照 catalog）；<strong>选中同步 / 定位</strong>（激活文档与魔棒入库后展开祖先并滚到对应行）；<strong>Paper 行标签</strong>默认标题 · 作者（<code>paperTreeLabelMode</code>，设置 → 通用）。</li>
 <li>[x] Paper-centric 视图：选中 paper 后中间 PDF（本地优先 / 远程回退）或 HTML，右侧 <code>NOTES.md</code>（<strong>仅具体论文</strong>）。</li>
 <li>[x] Vault <strong>任意路径</strong> PDF / 常见图片中间栏预览（<code>blob:</code>）。</li>
 <li>[x] <strong>PDF 阅读操作</strong>：页码导航；<strong>适应宽度 / 适应整页</strong>；真实 scale 重渲染 + 放大后平移；<strong>大纲</strong>；<strong>⌘F 查找</strong>；<strong>平滑划词覆盖层</strong>；<strong>沉浸式阅读</strong>（全屏 + 限宽居中）；<strong>标注面板</strong>（高亮总览·改色·导出 NOTES）。</li>
@@ -372,6 +372,7 @@
 <li>[x] 消息编辑与重发：会话空闲时 hover 用户消息可 <strong>Edit</strong>，就地编辑后重发（丢弃该消息及其之后内容并发起全新 turn）。</li>
 <li>[x] 会话 <code>cwd</code> = 当前 Vault。</li>
 <li>[ ] 工作流 prompt 模板注入 + <code>AGENTS.md</code> 约束。</li>
+<li>[x] <strong>Agent 禅模式 UI</strong>：左侧历史栏（Quest 式）、返回图标退出、全宽 Conversation 滚动、无 1/2/3 数字标签；精读/划词等 <code>hideFromChatHistory</code>。</li>
 <li>[x] <strong>paper-reader 精读工作流</strong>：</li>
 <li>魔棒入库 / 单篇 Download 资源就绪且 <code>is_read=false</code> 时<strong>自动</strong>启动（<code>maybeAutoRunPaperReader</code>；批量导入/批量 Download <strong>不</strong>连跑）。</li>
 <li>资源齐全且未读时文件树 <strong>Zap</strong> 可手动重跑。</li>

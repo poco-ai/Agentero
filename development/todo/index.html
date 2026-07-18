@@ -137,7 +137,7 @@
 </ol>
 <p>1b. <strong>多窗口与欢迎页</strong> ✅
    - <code>⌘N</code> / File → New Window → Host <code>window_new</code>（<code>?fresh=1</code>）。
-   - 无 Vault 欢迎页：最近路径 MRU + 打开 / 创建（无常驻说明文案）。
+   - 无 Vault 欢迎页：最近路径 MRU + 打开 / 创建 / <strong>从 Zotero 迁移</strong>（同一行；迁移前先创建 Vault）（无常驻说明文案）。
    - 当前窗口 Vault 用 <code>sessionStorage</code>；最近列表 / 上次路径用 <code>localStorage</code>。</p>
 <ol>
 <li><strong>精确标识符入库（arXiv / DOI 等）</strong> ✅ 魔棒路径</li>
@@ -145,7 +145,7 @@
 <li>[x] Translator → <code>PaperMetadata</code> → catalog <code>papers</code> 表。</li>
 <li>[x] 写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code>。</li>
 <li>[x] <strong>始终下载 PDF</strong>；<strong>arXiv 解压 e-print LaTeX</strong> 到 <code>source/</code>。</li>
-<li>[x] 入库后刷新文件树并打开 paper。</li>
+<li>[x] 入库后刷新文件树并打开 paper；<strong>左侧树展开祖先并滚到新论文行</strong>（<code>openPaper</code> → <code>setTreeSelectedPath</code> + FileTree reveal）。</li>
 <li>[x] 入库后刷新 Backlinks/Graph 索引。</li>
 <li>[ ] 关键词/描述 Agent 候选列表确认。</li>
 </ol>
@@ -167,13 +167,16 @@
    - [x] <strong>Tags</strong>：Paper Info 增删 → <code>paper_set_tags</code>；Library 列展示 + chip 筛选。
    - [x] <strong>Tags CLI</strong>：<code>paper set-tags</code> / <code>list --tag</code> / <code>tags</code>（与 Host 共用 <code>papers::set_tags</code>）。</p>
 <p>2d. <strong>文件树与侧栏 UX</strong> ✅
+   - [x] <strong>回收站虚拟节点</strong>：Library 下方 <code>agentero:trash</code>（不在侧栏 Header）；<code>RecycleBinView</code> 自持 <code>PaneHeader</code>（与侧栏同高）；中间栏不重复 title/关闭行。
+   - [x] <strong>选中同步 / 定位</strong>：激活文档与入库完成后树展开祖先并 <code>scrollToIndex</code>。
    - [x] 在 Finder 中显示：右键 / <code>⌥⌘R</code>（<code>revealItemInDir</code>；无双击）。
    - [x] 在终端中打开：右键 / <code>⌥⌘T</code>（文件夹 = 自身；文件 = 父目录；Host <code>path_open_in_terminal</code>）。
-   - [x] <strong>回收站删除</strong>：右键 / <code>⌘⌫</code> / 批量 → <code>path_trash</code>（无确认、无 Undo toast）；侧栏 <code>Trash2</code> → 中间栏 <code>RecycleBinView</code> 恢复 / 永久删除 / 清空。
+   - [x] <strong>回收站删除</strong>：右键 / <code>⌘⌫</code> / 批量 → <code>path_trash</code>（无确认、无 Undo toast）；文件树虚拟节点 <code>agentero:trash</code> → 中间栏 <code>RecycleBinView</code> 恢复 / 永久删除 / 清空。
    - [x] 多选（⌘/Shift 行高亮）+ 拖拽移动到 <code>papers/</code> 组织夹 + 批量移动对话框。
    - [x] 左右侧栏 collapsible 常驻 + <code>preserve-pixel-size</code>（交替 <code>⌥⌘S</code> / <code>⌘L</code> 不重叠）。
    - [x] 后台任务条（下载 / 入库 / 导入导出 / paper-reader；hover 实色不透明）。
-   - [x] 精读触发图标 <strong>Zap</strong>（非 Eye）；tooltip 单行。</p>
+   - [x] 精读触发图标 <strong>Zap</strong>（非 Eye）；tooltip 单行。
+   - [x] <strong>Paper 行标签预设</strong>：默认标题 · 作者；设置 → 通用 <code>paperTreeLabelMode</code>（标题 / 作者(年)·标题 / 文件夹名）；展示用、不改磁盘名（<code>formatPaperTreeLabel</code>）。</p>
 <p>2e. <strong>PDF 阅读增强</strong> ✅
    - [x] 缩放：+/- / 适应宽度 / <strong>适应整页</strong>；<code>⌘/Ctrl</code>+滚轮（0.5×–3×，100%=适应栏宽）；真实 scale 重渲染 + 放大后双向平移。
    - [x] 页码导航：底部 pill + 跳转输入；<code>PageDown/PageUp</code> / <code>Home/End</code>。
@@ -191,7 +194,7 @@
    - [x] Library 空态 / 工具栏 Rescan 入口 + i18n。</p>
 <ol>
 <li><strong>Agent 工作流入口</strong></li>
-<li>[x] <strong>paper-reader 精读</strong>：入库/单篇 Download <strong>自动</strong> + 文件树 Zap 手动（资源齐全 + <code>is_read=false</code>）→ paper-reader skill（Codex <code>$</code> / Claude <code>/</code> / 其它注入）→ <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度（lookup/download → paperRead）。</li>
+<li>[x] <strong>paper-reader 精读</strong>：入库/单篇 Download <strong>自动</strong> + 文件树 Zap 手动（资源齐全 + <code>is_read=false</code>）→ paper-reader skill（Codex <code>$</code> / Claude <code>/</code> / 其它注入）→ <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度（lookup/download → paperRead）；<strong><code>hideFromChatHistory</code></strong> 不进 Agent 历史。</li>
 <li>[x] skill 运行时语法按 Agent 模板分流（Host <code>SkillMentionStyle</code>）。</li>
 <li>[x] <strong>全局权限模式</strong>：设置 → Agent（<code>restricted</code> / <code>autoApprove</code>），替代 per-provider YOLO。</li>
 <li>[ ] 在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>
@@ -425,7 +428,7 @@
 </tr>
 <tr>
 <td>Agent</td>
-<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader</strong>（自动+Zap）、<strong>全局权限模式</strong>、模型收藏、Skill 提及分流、会话标签（Agent 内）</td>
+<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader</strong>（自动+Zap；<strong>不进对话历史</strong>）、<strong>全局权限模式</strong>、模型收藏、Skill 提及分流、<strong>禅模式左侧历史栏</strong>（无 1/2/3 数字标签）</td>
 <td>面板内置 workflow 入口、写入草稿确认、逐项权限 UI；<strong>引用类 workflow</strong>（V0.7）</td>
 </tr>
 <tr>
