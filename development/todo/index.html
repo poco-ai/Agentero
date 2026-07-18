@@ -207,11 +207,11 @@
 <li>[x] <strong>paper-reader 精读</strong>：设置 <code>autoPaperReader</code>（默认关）开启时入库/单篇 Download 自动；文件树 Zap 手动（资源齐全 + <code>is_read=false</code>）→ skill → <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度；<strong><code>hideFromChatHistory</code></strong>。</li>
 <li>[x] skill 运行时语法按 Agent 模板分流（Host <code>SkillMentionStyle</code>）。</li>
 <li>[x] <strong>全局权限模式</strong>：设置 → Agent（<code>restricted</code> / <code>autoApprove</code>），替代 per-provider YOLO。</li>
-<li>[ ] 在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>
+<li>[x] 在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”（建议按钮接通后端 <code>summary</code>/<code>qa</code>/<code>related_work</code> workflow）。</li>
 <li>[ ] workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code>。</li>
-<li>[ ] 输出必须包含 Sources；写入前先进入草稿确认。</li>
+<li>[x] 输出必须包含 Sources（workflow prompt 已要求 <code>## Sources</code>）；写入前先进入草稿确认（写后审阅：<code>agent:notes-review</code> 保留/还原）。</li>
 <li>
-<p>[ ] 权限「每次询问」档 + 逐项确认 UI。</p>
+<p>[x] 权限「每次询问」档（<code>agentPermissionMode: ask</code> → <code>agent:permission-request</code> 对话框 + <code>agent_respond_permission</code>）；逐项确认 UI 同此。</p>
 </li>
 <li>
 <p><strong>文件与索引同步</strong></p>

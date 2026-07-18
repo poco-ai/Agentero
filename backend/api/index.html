@@ -160,6 +160,8 @@
         <ul>
     <li class="toctree-l4"><a class="reference internal" href="#agent_run_once">agent_run_once</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agent_respond_permission">agent_respond_permission</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#agent_codex_list_threads">agent_codex_list_threads</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#agent_codex_read_thread">agent_codex_read_thread</a>
@@ -413,6 +415,16 @@ Host (Tauri + Rust)
 <td><code>agent:failed</code></td>
 <td>Agent 调用失败</td>
 <td><code>{ sessionId, error }</code></td>
+</tr>
+<tr>
+<td><code>agent:permission-request</code></td>
+<td>权限「每次询问」档：ACP 权限请求转交用户</td>
+<td><code>{ requestId, sessionId, title, kind?, paths, options: { optionId, name, kind }[] }</code></td>
+</tr>
+<tr>
+<td><code>agent:notes-review</code></td>
+<td>运行重写了目标笔记，供保留/还原</td>
+<td><code>{ path, before, after }</code></td>
 </tr>
 </tbody>
 </table>
@@ -1378,6 +1390,7 @@ Host (Tauri + Rust)
   fastMode?: boolean; // 仅写入当前 ACP 会话声明的 fast model_config 选项
   skillIds?: string[]; // 已发现的本机 SKILL.md id，最多 5 个
   autoApprove?: boolean; // 默认 false；true 时选择 ACP 返回的第一个权限选项
+  permissionMode?: string; // &quot;restricted&quot; | &quot;ask&quot; | &quot;auto&quot;；&quot;ask&quot; 时每个 ACP 权限请求转交用户（agent:permission-request）
   responseLanguage?: string; // 强制回答/笔记语言（如 zh-CN）；省略或 auto 时不注入
   hideFromChatHistory?: boolean; // 默认 false；true 时不写入 Vault Codex 会话索引（精读 / PDF 划词提问等）
 }
@@ -1401,7 +1414,13 @@ Host (Tauri + Rust)
 <p>Composer 的 <code>$</code> 仅是 Agentero UI 选 skill 的方式，不等于每个 Agent 的运行时语法。</p>
 </li>
 <li>
-<p><strong>权限策略</strong>：默认取消 ACP 权限请求。设置 → Agent 提供全局「权限模式」（受限默认 / 自动批准），对所有 Agent 生效，并在每次运行中通过 <code>autoApprove</code>（自动批准 → <code>true</code>）传入；逐项权限确认仍未实现。</p>
+<p><strong>权限策略</strong>：设置 → Agent 提供全局「权限模式」，对所有 Agent 生效，并在每次运行中通过 <code>permissionMode</code> 传入：</p>
+</li>
+<li><code>restricted</code>（默认）：取消所有 ACP 权限请求；</li>
+<li><code>ask</code>（每次询问）：每个权限请求经 <code>agent:permission-request</code> 事件转交前端，用户点选后由 <code>agent_respond_permission</code> 回传（超时 5 分钟未应答则取消）；</li>
+<li><code>auto</code>（自动批准）：选择第一个 AllowOnce 选项（等价旧 <code>autoApprove: true</code>）。</li>
+<li>
+<p><strong>笔记写后审阅（信任闭环）</strong>：运行前快照目标笔记（<code>.md</code> target 或论文夹 <code>NOTES.md</code>），运行结束后若被 Agent 重写则 emit <code>agent:notes-review</code>，前端弹「原文 / Agent 版本」对照，可保留或还原。</p>
 </li>
 <li>
 <p><strong>回答语言</strong>：设置 → Agent 提供全局「回答语言」（自动 / English / 简体中文，独立于界面语言）。前端 <code>runOnce</code> 统一读取该设置并透传 <code>responseLanguage</code>；Host 在 <code>build_prompt</code>（<code>prompts.rs</code>）为所有 workflow 追加一句语言指令，<code>auto</code> 时不注入。</p>
@@ -1409,6 +1428,12 @@ Host (Tauri + Rust)
 <li>
 <p><strong>能力边界</strong>：Codex 使用 App Server 的模型目录、reasoning effort 与 service tier；ACP provider 根据 <code>SessionConfigOption</code> 协商。Composer 只为当前 provider 已声明的能力显示对应控件。</p>
 </li>
+</ul>
+<h4 id="agent_respond_permission"><code>agent_respond_permission</code><a class="headerlink" href="#agent_respond_permission" title="Permanent link">&para;</a></h4>
+<p>应答「每次询问」档下的 ACP 权限请求（<code>agent:permission-request</code>）。</p>
+<ul>
+<li><strong>参数</strong>：<code>{ request: { requestId: string; optionId: string | null } }</code>（<code>optionId = null</code> 表示取消）</li>
+<li><strong>返回</strong>：<code>{ ok: true, data: { resolved: boolean } }</code>（<code>resolved=false</code> 表示请求已超时/不存在）</li>
 </ul>
 <h4 id="agent_codex_list_threads"><code>agent_codex_list_threads</code><a class="headerlink" href="#agent_codex_list_threads" title="Permanent link">&para;</a></h4>
 <p>列出当前 Vault 的原生 Codex thread，按最近活跃时间排序。该命令读取 App Server 的 <code>thread/list</code>，不会复制或改写 <code>~/.codex/sessions</code>。Agentero 在 <code>.agentero/agent-sessions/codex.json</code> 记录自己创建或继续使用的 native thread（<strong>不含</strong> <code>hideFromChatHistory</code> 的后台运行）；默认只返回这份索引中的 thread。<code>includeExternal: true</code> 时返回当前 Vault 下的全部 Codex thread。</p>
