@@ -174,6 +174,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#agentdiscover">agent:discover</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#agent_open_install_terminal">agent_open_install_terminal（已实现）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#agentlist_sessions">agent:list_sessions</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#agentcreate_session">agent:create_session</a>
@@ -1311,7 +1313,7 @@ Host (Tauri + Rust)
 </code></pre>
 
 <h4 id="agent_codex_read_thread"><code>agent_codex_read_thread</code><a class="headerlink" href="#agent_codex_read_thread" title="Permanent link">&para;</a></h4>
-<p>按 native thread id 恢复对话显示。Host 用 <code>thread/read</code> 校验 thread 与当前 Vault 的 canonical 工作目录，并从对应 Codex JSONL transcript 回放 user、assistant 与 reasoning 文本。默认只允许读取 Vault 索引中的 thread；<code>includeExternal: true</code> 可读取同一 Vault 下由其他 Codex 客户端创建的 thread。</p>
+<p>按 native thread id 恢复对话显示。Host 用 <code>thread/read</code> 校验 thread 与当前 Vault 的 canonical 工作目录，并从对应 Codex JSONL transcript 回放 user、assistant 与 reasoning 文本。<strong>用户轮</strong>经 <code>strip_prompt_envelope_for_display</code> 去掉 Host 系统信封，只返回 <code>User request:</code> 后的人类原文。默认只允许读取 Vault 索引中的 thread；<code>includeExternal: true</code> 可读取同一 Vault 下由其他 Codex 客户端创建的 thread。</p>
 <pre class="codehilite"><code class="language-ts">{ agentId?: string; threadId: string; vaultPath?: string; includeExternal?: boolean }
 // -&gt; { thread: CodexThreadInfo; lines: CodexHistoryLine[] }
 </code></pre>
@@ -1384,6 +1386,17 @@ Host (Tauri + Rust)
 }
 </code></pre>
 
+<h4 id="agent_open_install_terminal"><code>agent_open_install_terminal</code>（已实现）<a class="headerlink" href="#agent_open_install_terminal" title="Permanent link">&para;</a></h4>
+<p>打开系统终端，展示指定 catalog 模板的 <strong>安装命令</strong>，并 <strong>等待用户按 Enter（Windows：任意键）后才执行</strong>。不静默安装；UI 不得传入任意 shell——仅允许模板内置的 <code>install_command</code>。</p>
+<ul>
+<li><strong>参数</strong>：<code>{ templateId: string }</code>（如 <code>claude-acp</code>）</li>
+<li><strong>返回</strong>：<code>{ ok: true; data: null }</code></li>
+<li><strong>行为</strong></li>
+<li>查找内置模板的 <code>installCommand</code>；无则报错。</li>
+<li>写入临时脚本 → 打开系统默认终端运行该脚本（打印命令 → 确认 → 执行 → 提示回到 Settings 点 Refresh）。</li>
+<li>Claude：<code>npm i -g @agentclientprotocol/claude-agent-acp</code>（需本机已装 Claude Code 与 npm）。</li>
+<li><strong>Catalog 扫描字段</strong>（<code>agent_scan_catalog</code>）：<code>detect</code> 对 Claude 使用 <code>claude</code>；<code>command</code> 仍为 <code>claude-agent-acp</code>。当 <code>binaryAvailable &amp;&amp; !acpCommandAvailable &amp;&amp; installCommand</code> 时 <code>offerInstall: true</code>。</li>
+</ul>
 <h4 id="agentlist_sessions"><code>agent:list_sessions</code><a class="headerlink" href="#agentlist_sessions" title="Permanent link">&para;</a></h4>
 <p>列出当前 Vault 中的 Agent 会话。</p>
 <ul>

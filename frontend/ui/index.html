@@ -368,7 +368,7 @@
 <li><strong>导入</strong>（Upload）：在侧栏<strong>魔棒 Popover 卡片左下角</strong>（与「添加」按钮同一行）；打开 <code>.bib</code>/<code>.ris</code>/… → <code>paper_import</code> → Translator <code>/import</code> → catalog + paper 文件夹（默认下 PDF/TeX）。</li>
 <li><strong>从 Zotero 迁移</strong>（<code>Import</code> 图标，论文库工具栏左侧；仅 Library 视图）：<code>ZoteroMigrateDialog</code> → 选 Zotero 数据目录 → 预览文献/PDF 计数 + 「把 PDF 复制进知识库」勾选（默认开）→ <code>zotero_migrate</code>（直读 <code>zotero.sqlite</code>，见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a> §16）。</li>
 <li><strong>Paper Info / Notes——仅具体论文</strong>：</li>
-<li><strong>左侧 Paper Info</strong>（<code>paper-info-panel</code>）：仅当存在 <code>paperMeta</code>（选中 paper 文件夹）时渲染；论文库 / 普通笔记时隐藏。<strong>Tags</strong> 可编辑：输入回车添加、chip 上 × 删除 → Host <code>paper_set_tags</code>（catalog 权威，同步 <code>metadata.json</code>）。</li>
+<li><strong>左侧 Paper Info</strong>（<code>paper-info-panel</code>）：仅当存在 <code>paperMeta</code>（选中 paper 文件夹）时渲染；论文库 / 普通笔记时隐藏。<strong>Tags</strong> 可编辑：输入框在 chip 上方（多标签时无需先滚动）；回车添加、chip 上 × 删除 → Host <code>paper_set_tags</code>（catalog 权威，同步 <code>metadata.json</code>）。<code>loadPaperMetadata</code> 会注入 vault-relative <code>path</code>（<code>metadata.json</code> 投影本身不含 path），Zotero 导入等路径也可持续编辑。</li>
 <li><strong>Notes（WYSIWYG，无独立预览栏）</strong>：中心切换为 Notes 时全宽编辑 <code>NOTES.md</code>；中心为 PDF/HTML 时右侧栏显示同一篇 <code>NOTES.md</code> 实时编辑。论文库视图或未选论文时隐藏。</li>
 <li><strong>格式工具栏（WYSIWYG toolbar）</strong>：<code>MarkdownEditor</code> 顶部可选的固定工具栏（<code>editor-toolbar.tsx</code>），提供标题（H1–H3）、引用、加粗 / 斜体 / 下划线 / 删除线 / 行内代码 / 高亮、无序 / 有序 / 待办列表、<strong>插入图片</strong>等常用格式按钮，无需手写 Markdown 即可排版。由全局设置 <code>showEditorToolbar</code>（默认开）控制，Notes 面板 header 右侧另有 <code>PanelTop</code> 一键显示 / 隐藏；只读时不渲染。所有按钮均有 <code>aria-label</code> + Tooltip，i18n <code>editor:toolbar.*</code>。</li>
 <li><strong>Markdown 图片</strong>（已落地）：<ul>
@@ -758,9 +758,9 @@ PromptInput → Body / Footer / Submit
 <li><strong>Appearance</strong>：主题、<strong>语言（跟随系统 / English / 简体中文）</strong>、编辑字号、行号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，控制 Markdown/Notes 编辑器顶部的 WYSIWYG 工具栏，默认开）。</li>
 <li><strong>Agent</strong>（BYOA，非模型 BYOK 表单）：</li>
 <li>总开关。</li>
-<li><strong>Common agents</strong> 目录表：名称 + 状态徽章（installed / ACP ready / missing 等）；打开页自动 Probe。</li>
-<li>仅保留 <strong>Probe</strong> 文字按钮（无 icon）；无逐行 Probe、无 command/路径/Handshake 详情文案。</li>
-<li><strong>Use default</strong> 纯文字（无 icon）。</li>
+<li><strong>Common agents</strong> 目录表：名称 + 状态徽章（installed / ACP ready / missing 等）；打开页自动 Probe（<strong>并行</strong>；每完成一个即 <code>scanCatalog</code> 刷新该批徽章，不必等全部结束）。</li>
+<li><strong>Claude</strong>：<code>detect</code> 用本机 <code>claude</code>（Claude Code）；ACP 入口为 <code>claude-agent-acp</code>。若已装 Claude Code 但缺适配器，显示 <strong>ACP adapter missing</strong> 徽章 + <strong>Install ACP</strong> 小按钮 → Host <code>agent_open_install_terminal</code> 打开系统终端，展示 <code>npm i -g @agentclientprotocol/claude-agent-acp</code>，<strong>等待用户按 Enter 才执行</strong>（不静默安装）。装完后用户点 Refresh 再 Probe。</li>
+<li>顶部 <strong>Refresh</strong>（Rescan + Probe）；<strong>Use default</strong> 纯文字（无 icon）。</li>
 <li>Custom 区：添加任意 ACP command/args。</li>
 <li>页脚说明：模型与 API Key 由各 Agent CLI 自行管理，不在 Agentero 内填写。</li>
 <li><strong>Keyboard</strong>：只读快捷键表（按 App / Vault / Navigation 分组）。</li>
