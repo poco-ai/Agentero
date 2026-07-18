@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>运行日志 - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u8fd0\u884c\u65e5\u5fd7";
+        var mkdocs_page_input_path = "development/logging.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">运行日志</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 背景与问题</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 产品原则</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#21">2.1 三层分离（硬约束）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#22-local-first">2.2 Local-first 与隐私</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#23">2.3 非目标（本方案不做）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 技术选型</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31-p0">3.1 拍板（P0）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32-p3-p0">3.2 中长期（P3，不阻塞 P0）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#33">3.3 明确不采用</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4-dev-vs-release">4. 环境行为：dev vs release</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 关键操作：开始 / 结束日志规范</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#51">5.1 约定格式</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#52-p0">5.2 操作清单（P0 必覆盖）</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#hostrust-command-service">Host（Rust command / service）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#react-lib">前端（React / lib）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#cli">CLI</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#53-startend">5.3 不必 start/end 的（默认）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6">6. 前端模块设计</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#61-srclibloggerts">6.1 src/lib/logger.ts</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#62">6.2 初始化</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#63-notifyerror">6.3 与 notifyError 配合</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7-host-cli">7. Host / CLI 落地要点</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#71">7.1 依赖与权限</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#72-eprintln">7.2 替换既有 eprintln!</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#73-cli">7.3 CLI</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#74-apperror">7.4 与 AppError 的边界</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#8">8. 分阶段执行</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#p0">P0 — 基础设施 + 关键操作起止（本方案主交付）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#p1">P1 — 可支持性</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#p2">P2 — 覆盖度与约定硬化</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#p3-tracing">P3 — 可选 tracing</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#9-p0">9. 验收标准（P0）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#10">10. 建议改动文件清单（实现时）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#11">11. 风险与缓解</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#12-adr">12. 决策记录（ADR 摘要）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#13">13. 实现检查清单（执行时勾选）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#131">13.1 临时验证记录（开发机）</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../todo/">TODO</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">开发</li>
+      <li class="breadcrumb-item active">运行日志</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/logging.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="logging">Logging（运行日志）<a class="headerlink" href="#logging" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>状态：<strong>P0 已落地</strong>（基础设施 + 关键操作 start/end；P1 导出日志 UI 仍待）。<br />
+范围：Tauri Host + React 前端 + 共享 <code>agentero_lib</code> + headless CLI 的 <strong>本地运行日志</strong>；与 <strong>错误契约 / 用户 Toast</strong> 分层，不替代现有 UX。<br />
+实现入口：<code>src-tauri/src/log_util.rs</code>、<code>src-tauri/src/lib.rs</code>（<code>tauri-plugin-log</code>）、<code>src/lib/logger.ts</code>、CLI <code>env_logger</code>（<code>cli/src/main.rs</code>）。<br />
+相关：<a href="../technical-plan/"><code>technical-plan.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §2.1.2、<a href="../cli/"><code>cli.md</code></a>、<a href="../roadmap/"><code>roadmap.md</code></a>、<a href="../todo/"><code>todo.md</code></a>。</p>
+</blockquote>
+<h2 id="1">1. 背景与问题<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>当前仓库 <strong>没有统一 logger</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>现状</th>
+<th>问题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Host 零散 <code>eprintln!</code></td>
+<td>无 level、无 rotation、release 几乎不可见</td>
+</tr>
+<tr>
+<td>前端 <code>console.error</code>（ErrorBoundary 等）</td>
+<td>仅 WebView 控制台；与 Rust 日志割裂</td>
+</tr>
+<tr>
+<td>用户错误走 <code>notifyError</code> / 任务条 / Agent error 行</td>
+<td>正确，但是 <strong>UX 通道</strong>，不是可检索的运行日志</td>
+</tr>
+<tr>
+<td><code>AppError</code> + <code>ApiResult</code> / CLI <code>error.code</code></td>
+<td>正确的 <strong>错误契约</strong>，不是 observability</td>
+</tr>
+</tbody>
+</table>
+<p>目标：在 <strong>local-first、无默认遥测</strong> 前提下，让开发与支持能回答：</p>
+<ol>
+<li>这次关键操作 <strong>开始了吗、结束了吗、失败原因是什么</strong>？</li>
+<li>dev 时终端/控制台够用；release 时有 <strong>本机日志文件</strong> 可导出。</li>
+</ol>
+<h2 id="2">2. 产品原则<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="21">2.1 三层分离（硬约束）<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">┌─────────────────────────────────────────────────────────────┐
+│  UX feedback                                                 │
+│  notifyError / notifyWarning / 后台任务条 / Agent error 行   │
+│  ErrorBoundary 重试 UI                                       │
+└─────────────────────────────┬───────────────────────────────┘
+                              │ 可同时发生，互不替代
+┌─────────────────────────────▼───────────────────────────────┐
+│  Observability（本方案）                                      │
+│  log facade → stdout / 本机 log 文件 /（dev）Webview console  │
+│  关键操作 start / end / fail                                  │
+└─────────────────────────────┬───────────────────────────────┘
+                              │ 不改契约形态
+┌─────────────────────────────▼───────────────────────────────┐
+│  Error contract                                              │
+│  Host AppError + ApiResult { ok, data?, error? }             │
+│  CLI CliError + exit code + --json envelope                  │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>职责</th>
+<th>禁止</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Log</strong></td>
+<td>可检索诊断；关键操作起止；失败细节</td>
+<td>替代 Toast；写入 Vault 当事实源</td>
+</tr>
+<tr>
+<td><strong>Contract</strong></td>
+<td>稳定 <code>code</code> / <code>message</code> 给前端与 CLI</td>
+<td>为了 log 改 API 形状</td>
+</tr>
+<tr>
+<td><strong>UX</strong></td>
+<td>用户可读、i18n、短句</td>
+<td>把整段 stack / 内部 path 堆进 Toast</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-local-first">2.2 Local-first 与隐私<a class="headerlink" href="#22-local-first" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>默认不上传</strong> 任何日志（无 Sentry / 默认遥测）。</li>
+<li>日志写在 <strong>应用系统 log 目录</strong>（Tauri <code>LogDir</code>），<strong>不</strong>写进 Vault、<strong>不</strong>进 <code>catalog.sqlite</code>。</li>
+<li>禁止记录：笔记/NOTES 全文、PDF 正文、用户粘贴的大段选区、Agent 流式完整输出、翻译原文/译文全文（可记长度与服务 id）。</li>
+<li>允许记录：操作名、相对 path、paper id、sessionId 截断、error.code、短 message、耗时 ms。</li>
+<li>远程崩溃上报（若未来需要）：必须 <strong>设置 opt-in + 脱敏</strong>，另开方案，不在本 MVP。</li>
+</ul>
+<h3 id="23">2.3 非目标（本方案不做）<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<ul>
+<li>分布式 tracing / OpenTelemetry 全链路（P3 可选 span，见 §8）。</li>
+<li>把 <code>ApiResult</code> 改成 panic/throw 直穿。</li>
+<li>用 logger 替代 <code>notifyError</code>。</li>
+<li>结构化审计库（合规审计）或 Vault 内操作历史 UI。</li>
+<li>默认向第三方发送日志。</li>
+</ul>
+<h2 id="3">3. 技术选型<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31-p0">3.1 拍板（P0）<a class="headerlink" href="#31-p0" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>选型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>桌面 Host 胶水</strong></td>
+<td><a href="https://v2.tauri.app/plugin/logging/"><code>tauri-plugin-log</code></a></td>
+<td>官方插件；stdout / LogDir / Webview；rotation、level、按模块过滤</td>
+</tr>
+<tr>
+<td><strong>Rust facade</strong></td>
+<td><a href="https://crates.io/crates/log"><code>log</code></a> <code>0.4</code></td>
+<td><code>log::info!</code> / <code>error!</code>；commands / services 统一入口</td>
+</tr>
+<tr>
+<td><strong>前端</strong></td>
+<td><code>@tauri-apps/plugin-log</code> + <code>src/lib/logger.ts</code></td>
+<td>统一 <code>logger.info/warn/error</code>；浏览器 dev 回退 <code>console</code></td>
+</tr>
+<tr>
+<td><strong>CLI</strong></td>
+<td>同一 <code>log</code> facade + <code>env_logger</code>（或等价）</td>
+<td><code>RUST_LOG</code>；业务 <code>--json</code> 仍只走 stdout envelope</td>
+</tr>
+<tr>
+<td><strong>用户可见错误</strong></td>
+<td>保持现有 <code>notify.ts</code> 等</td>
+<td>不改产品行为</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-p3-p0">3.2 中长期（P3，不阻塞 P0）<a class="headerlink" href="#32-p3-p0" title="Permanent link">&para;</a></h3>
+<p>当 Agent / ACP / 入库链路需要 <strong>span</strong>（一次 run 关联多步）时：</p>
+<ul>
+<li>业务层迁 <a href="https://crates.io/crates/tracing"><code>tracing</code></a> + <code>#[instrument]</code></li>
+<li><a href="https://crates.io/crates/tracing-log"><code>tracing-log</code></a> 桥回现有 <code>log</code> / <code>tauri-plugin-log</code> sink</li>
+<li>CLI 用 <code>tracing-subscriber</code> + <code>EnvFilter</code></li>
+</ul>
+<p>P0 <strong>不</strong>同时上 tracing，避免双栈。</p>
+<h3 id="33">3.3 明确不采用<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>技术</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>前端 pino / winston</td>
+<td>WebView 内过重；与 Host 分裂</td>
+</tr>
+<tr>
+<td>默认 Sentry 等</td>
+<td>隐私与 local-first</td>
+</tr>
+<tr>
+<td>继续堆 <code>eprintln!</code></td>
+<td>无 level / 文件 / 前端汇聚</td>
+</tr>
+<tr>
+<td>日志写入 Vault</td>
+<td>污染用户库</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-dev-vs-release">4. 环境行为：dev vs release<a class="headerlink" href="#4-dev-vs-release" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>pnpm tauri dev</code>（<code>debug_assertions</code>）</th>
+<th>打包 release</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>默认 level</strong></td>
+<td><code>Debug</code>；Agent/ACP 模块可 <code>Trace</code></td>
+<td><code>Info</code>（可配置为 <code>Warn</code>）</td>
+</tr>
+<tr>
+<td><strong>Stdout</strong></td>
+<td>开</td>
+<td>关或仅 <code>Error</code>（Windows release 无 console）</td>
+</tr>
+<tr>
+<td><strong>LogDir 文件</strong></td>
+<td>建议开（与 release 路径一致，便于对照）</td>
+<td>开</td>
+</tr>
+<tr>
+<td><strong>Webview console 转发</strong></td>
+<td>可选 <code>attachConsole</code></td>
+<td>默认关</td>
+</tr>
+<tr>
+<td><strong>Rotation</strong></td>
+<td><code>max_file_size</code> + <code>KeepAll</code>（或 Keep 最近 N）</td>
+<td>同左</td>
+</tr>
+<tr>
+<td><strong>时区</strong></td>
+<td>local</td>
+<td>local</td>
+</tr>
+</tbody>
+</table>
+<p><strong>日志目录（<code>LogDir</code>，随 bundle id）</strong>（官方约定）：</p>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>路径模式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS</td>
+<td><code>~/Library/Logs/{bundleIdentifier}/</code></td>
+</tr>
+<tr>
+<td>Linux</td>
+<td><code>$XDG_DATA_HOME/{bundleIdentifier}/logs</code> 或 <code>~/.local/share/.../logs</code></td>
+</tr>
+<tr>
+<td>Windows</td>
+<td><code>%LocalAppData%\{bundleIdentifier}\logs</code></td>
+</tr>
+</tbody>
+</table>
+<p>当前 bundle id 见 <code>src-tauri/tauri.conf.json</code> → <code>identifier</code>（如 <code>com.poco-ai.agentero</code>）。</p>
+<p><strong>CLI</strong>：不写 LogDir 强制文件（避免 headless 噪音）；默认 stderr + <code>RUST_LOG</code>。可选后续 <code>--log-file</code>。</p>
+<h2 id="5">5. 关键操作：开始 / 结束日志规范<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<h3 id="51">5.1 约定格式<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
+<p>统一 <strong>成对</strong> 记录，便于 grep：</p>
+<pre class="codehilite"><code class="language-text">op start  &lt;name&gt;  key=value …
+op end    &lt;name&gt;  ok=true|false  duration_ms=N  key=value …  [error_code=…] [error=…]
+</code></pre>
+
+<p>Rust 示例：</p>
+<pre class="codehilite"><code class="language-rust">log::info!(target: &quot;agentero::op&quot;, &quot;op start vault_create path={}&quot;, path);
+// …
+log::info!(target: &quot;agentero::op&quot;, &quot;op end vault_create ok=true duration_ms={}&quot;, ms);
+// 失败：
+log::error!(
+    target: &quot;agentero::op&quot;,
+    &quot;op end vault_create ok=false duration_ms={} error_code={} error={}&quot;,
+    ms, err.code(), err
+);
+</code></pre>
+
+<p>前端示例：</p>
+<pre class="codehilite"><code class="language-ts">logger.info(&quot;op start openVault&quot;);
+// …
+logger.info(`op end openVault ok=true duration_ms=${ms}`);
+// 失败：
+logger.error(`op end openVault ok=false duration_ms=${ms} error=${msg}`);
+</code></pre>
+
+<p><strong>规则：</strong></p>
+<ol>
+<li>每个关键操作 <strong>必须</strong> 有 <code>start</code>；正常结束或失败 <strong>必须</strong> 有 <code>end</code>（禁止只打 start）。</li>
+<li><code>end</code> 必须带 <code>ok=</code>；失败时尽量带 <code>error_code</code>（若有）与短 <code>error</code>。</li>
+<li>异步后台任务（入库、下载、paper-reader）：start 在入队/真正开跑时；end 在终态（完成/失败/取消）。</li>
+<li>高频只读（如每次渲染触发的无副作用查询）<strong>默认不打</strong> start/end，避免刷屏；仅在失败时 <code>log::warn!</code> / <code>logger.warn</code>。</li>
+<li>target / 模块名稳定：<code>agentero::op</code>（横切操作）、<code>agentero::agent</code>、<code>agentero::lookup</code>、<code>agentero::connector</code>、<code>agentero::catalog</code> 等。</li>
+</ol>
+<h3 id="52-p0">5.2 操作清单（P0 必覆盖）<a class="headerlink" href="#52-p0" title="Permanent link">&para;</a></h3>
+<p>按「用户可感知、有副作用或长耗时」优先。</p>
+<h4 id="hostrust-command-service">Host（Rust command / service）<a class="headerlink" href="#hostrust-command-service" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>操作名（log name）</th>
+<th>入口</th>
+<th>必记字段（脱敏）</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vault_create</code></td>
+<td><code>vault_create</code></td>
+<td>path（绝对路径可记；勿记目录内文件内容）</td>
+<td></td>
+</tr>
+<tr>
+<td><code>path_trash</code> / <code>path_untrash</code> / <code>path_purge_*</code></td>
+<td>trash commands</td>
+<td>count、batch_id</td>
+<td></td>
+</tr>
+<tr>
+<td><code>lookup_import</code></td>
+<td><code>lookup_import</code></td>
+<td>query/id 类型与截断 id</td>
+<td>魔棒入库</td>
+</tr>
+<tr>
+<td><code>paper_download_assets</code></td>
+<td>同名 command</td>
+<td>paper path/id</td>
+<td></td>
+</tr>
+<tr>
+<td><code>paper_import_local_pdf</code></td>
+<td>同名</td>
+<td>文件名（非全文）</td>
+<td></td>
+</tr>
+<tr>
+<td><code>paper_parse_body</code></td>
+<td>同名</td>
+<td>paper path</td>
+<td>liteparse</td>
+</tr>
+<tr>
+<td><code>paper_export</code> / <code>paper_import</code></td>
+<td>同名</td>
+<td>format、count</td>
+<td></td>
+</tr>
+<tr>
+<td><code>paper_rescan</code></td>
+<td>同名</td>
+<td>vault、result count</td>
+<td></td>
+</tr>
+<tr>
+<td><code>paper_move</code> / <code>paper_delete</code></td>
+<td>同名</td>
+<td>count</td>
+<td></td>
+</tr>
+<tr>
+<td><code>paper_set_tags</code> / <code>paper_set_is_read</code></td>
+<td>同名</td>
+<td>paper id</td>
+<td>写字段；可只 end+ok</td>
+</tr>
+<tr>
+<td><code>agent_run_once</code></td>
+<td>同名</td>
+<td>sessionId、agentId</td>
+<td><strong>勿</strong>记 prompt 全文</td>
+</tr>
+<tr>
+<td><code>agent_warm</code> / <code>agent_probe*</code> / <code>agent_cancel_run</code></td>
+<td>同名</td>
+<td>agentId</td>
+<td></td>
+</tr>
+<tr>
+<td><code>agent_codex_list_threads</code> / <code>read_thread</code></td>
+<td>同名</td>
+<td>thread id</td>
+<td>读操作；失败才 error</td>
+</tr>
+<tr>
+<td><code>zotero_scan</code> / <code>zotero_migrate</code></td>
+<td>同名</td>
+<td>库路径、imported/skipped</td>
+<td></td>
+</tr>
+<tr>
+<td><code>translate_text</code></td>
+<td>同名</td>
+<td>service id、src/tgt lang、text_len</td>
+<td>勿记正文</td>
+</tr>
+<tr>
+<td><code>fs_watch_start</code> / <code>stop</code></td>
+<td>watcher</td>
+<td>vault path</td>
+<td></td>
+</tr>
+<tr>
+<td><code>connector_set_enabled</code> / 服务启停</td>
+<td>connector</td>
+<td>enabled、port 冲突原因</td>
+<td></td>
+</tr>
+<tr>
+<td><code>window_new</code></td>
+<td>window</td>
+<td>—</td>
+<td>失败 log::error</td>
+</tr>
+<tr>
+<td><code>graph_rebuild</code></td>
+<td>graph</td>
+<td>vault</td>
+<td>重索引</td>
+</tr>
+</tbody>
+</table>
+<p><strong>实现偏好：</strong> 在 <strong>command 层</strong> 包一层 start/end（统一看到 IPC 边界）；service 内部深层失败用 <code>log::error!</code> 补细节，避免每层重复 start。</p>
+<p>可选小工具（P0 或紧随）：</p>
+<pre class="codehilite"><code class="language-rust">// 示意：src-tauri/src/log_util.rs
+pub struct OpGuard { name: &amp;'static str, start: Instant, /* fields */ }
+// Drop 或显式 finish(ok, err) 保证 end
+</code></pre>
+
+<h4 id="react-lib">前端（React / lib）<a class="headerlink" href="#react-lib" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>操作名</th>
+<th>入口建议</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>openVault</code> / <code>createVault</code></td>
+<td><code>App</code> / <code>vault.ts</code></td>
+<td>与 Host create 可双端都有；字段对齐</td>
+</tr>
+<tr>
+<td><code>runBackgroundTask</code></td>
+<td><code>background-tasks.ts</code></td>
+<td><strong>统一包一层</strong>：任意 kind 自动 start/end</td>
+</tr>
+<tr>
+<td><code>lookupImport</code> / 批量下载</td>
+<td>lookup 调用点 / App</td>
+<td>若已走 background task，可只靠 task 层</td>
+</tr>
+<tr>
+<td><code>paperRead</code></td>
+<td><code>paper-read.ts</code></td>
+<td>与 agent session 关联 sessionId</td>
+</tr>
+<tr>
+<td><code>agentRunOnce</code>（Chat）</td>
+<td>agent-panel</td>
+<td>start 发消息；end 在 completed/failed</td>
+</tr>
+<tr>
+<td><code>connectorToggle</code></td>
+<td>settings / connector</td>
+<td></td>
+</tr>
+<tr>
+<td><code>zoteroMigrate</code></td>
+<td>migrate dialog</td>
+<td></td>
+</tr>
+<tr>
+<td><code>exportPapers</code> / <code>importPapers</code></td>
+<td>library 工具栏</td>
+<td></td>
+</tr>
+<tr>
+<td><code>ErrorBoundary catch</code></td>
+<td><code>error-boundary.tsx</code></td>
+<td>单次 error 日志（非 op pair）</td>
+</tr>
+</tbody>
+</table>
+<p><code>runBackgroundTask</code> 是横切抓手：所有已接入后台任务的长操作 <strong>自动</strong> 获得 start/end，优先改造此处，减少散落埋点。</p>
+<h4 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>每个写命令 / 重 IO 子命令</td>
+<td><code>op start</code> / <code>op end</code> 到 stderr（text）或仅当 <code>RUST_LOG</code> 开启时</td>
+</tr>
+<tr>
+<td><code>--json</code> 成功/失败 envelope</td>
+<td><strong>不变</strong>；日志不得污染 stdout</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-startend">5.3 不必 start/end 的（默认）<a class="headerlink" href="#53-startend" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>paper_list</code> / <code>paper_get</code> 成功路径（高频；失败打 warn）</li>
+<li><code>graph_get_backlinks</code> / <code>graph_get_graph</code> 成功路径</li>
+<li><code>connector_get_status</code> 轮询</li>
+<li>UI 布局、主题、纯渲染</li>
+</ul>
+<p>若日后调试需要，用 <code>RUST_LOG=agentero::catalog=debug</code> 等打开，而不是默认 Info 刷屏。</p>
+<h2 id="6">6. 前端模块设计<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h3 id="61-srclibloggerts">6.1 <code>src/lib/logger.ts</code><a class="headerlink" href="#61-srclibloggerts" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-ts">// 职责：统一门面；Tauri 用 plugin-log；纯浏览器用 console
+export const logger = {
+  trace(msg: string): void;
+  debug(msg: string): void;
+  info(msg: string): void;
+  warn(msg: string): void;
+  error(msg: string): void;
+};
+
+/** 关键操作计时助手 */
+export function logOp&lt;T&gt;(name: string, fields: Record&lt;string, unknown&gt;, fn: () =&gt; Promise&lt;T&gt;): Promise&lt;T&gt;;
+</code></pre>
+
+<ul>
+<li><code>logOp</code>：自动 <code>start</code> → await → <code>end ok=true|false duration_ms=</code>。</li>
+<li>字段序列化：只允许 string/number/boolean；过长 string 截断（如 200 字符）。</li>
+</ul>
+<h3 id="62">6.2 初始化<a class="headerlink" href="#62" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>main.tsx</code>（或 App mount）：若 <code>isTauri()</code>，可选 dev 下 <code>attachConsole()</code>。</li>
+<li><strong>不要</strong>默认把所有 <code>console.log</code> 转发到插件（噪音大）；仅 ErrorBoundary 与显式 <code>logger.*</code>。</li>
+</ul>
+<h3 id="63-notifyerror">6.3 与 <code>notifyError</code> 配合<a class="headerlink" href="#63-notifyerror" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-ts">catch (e) {
+  const msg = errorMessage(e);
+  logger.error(`op end foo ok=false error=${msg}`);
+  notifyError(msg); // UX 不变
+}
+</code></pre>
+
+<p>若使用 <code>logOp</code>，失败日志在 helper 内完成，调用方仍负责 Toast。</p>
+<h2 id="7-host-cli">7. Host / CLI 落地要点<a class="headerlink" href="#7-host-cli" title="Permanent link">&para;</a></h2>
+<h3 id="71">7.1 依赖与权限<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>src-tauri/Cargo.toml</code>：<code>tauri-plugin-log</code>、<code>log</code></li>
+<li><code>package.json</code>：<code>@tauri-apps/plugin-log</code></li>
+<li><code>capabilities/default.json</code>：<code>log:default</code></li>
+<li><code>lib.rs</code>：<code>.plugin(tauri_plugin_log::Builder::new()…)</code>，按 §4 配置 targets / level</li>
+</ul>
+<h3 id="72-eprintln">7.2 替换既有 <code>eprintln!</code><a class="headerlink" href="#72-eprintln" title="Permanent link">&para;</a></h3>
+<p>逐步替换（P0 关键路径必须换掉）：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>watcher.rs</code></td>
+<td><code>log::warn!</code> / <code>error!</code></td>
+</tr>
+<tr>
+<td><code>agent/acp.rs</code>、<code>codex</code>、<code>registry</code></td>
+<td><code>log::debug!</code> / <code>error!</code></td>
+</tr>
+<tr>
+<td><code>lib.rs</code> <code>window_new</code> menu</td>
+<td><code>log::error!</code></td>
+</tr>
+<tr>
+<td>测试内 <code>eprintln!</code></td>
+<td>可保留</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73-cli">7.3 CLI<a class="headerlink" href="#73-cli" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>cli/src/main.rs</code>：初始化 <code>env_logger</code>（或 <code>tracing-subscriber</code> fmt，二选一；P0 推荐 <code>env_logger</code> 简单）</li>
+<li>与 <code>emit_ok</code> / <code>emit_err</code> 正交：日志永远不写 stdout 业务流</li>
+</ul>
+<h3 id="74-apperror">7.4 与 <code>AppError</code> 的边界<a class="headerlink" href="#74-apperror" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-rust">match do_thing() {
+    Ok(v) =&gt; {
+        log::info!(target: &quot;agentero::op&quot;, &quot;op end … ok=true …&quot;);
+        ApiResult::ok(v)
+    }
+    Err(e) =&gt; {
+        log::error!(target: &quot;agentero::op&quot;, &quot;op end … ok=false error_code={} error={}&quot;, e.code(), e);
+        map_err(e)
+    }
+}
+</code></pre>
+
+<p>不在 <code>ApiResult::err</code> 内隐式打全局 log（避免库式二次包装重复）；优先 <strong>command 边界</strong> 明确成对。</p>
+<h2 id="8">8. 分阶段执行<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<h3 id="p0">P0 — 基础设施 + 关键操作起止（本方案主交付）<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h3>
+<ol>
+<li>接入 <code>tauri-plugin-log</code> + <code>log</code> + capabilities + Builder（dev/release level/targets）。</li>
+<li>前端 <code>src/lib/logger.ts</code> + <code>logOp</code>；<code>main.tsx</code> 初始化（dev attachConsole 可选）。</li>
+<li><code>runBackgroundTask</code> 自动 start/end。</li>
+<li>Host 表 §5.2 中 <strong>写/长耗时 command</strong> 成对 log；替换关键 <code>eprintln!</code>。</li>
+<li>ErrorBoundary → <code>logger.error</code>。</li>
+<li>CLI：<code>env_logger</code> + 写命令 start/end（至少 vault create / import / paper download）。</li>
+<li>文档：本文件状态改为「P0 已落地」；<code>ui.md</code> 可补一句「诊断日志见 logging.md」；<code>development/index.md</code> 链入。</li>
+<li><strong>验收</strong>：见 §9。</li>
+</ol>
+<h3 id="p1">P1 — 可支持性<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>设置 → 通用（或关于）：<strong>打开日志文件夹</strong>、<strong>导出最近日志 zip</strong>（仅 log 文件，无 Vault 内容）。</li>
+<li>可选：设置内日志 level（持久化到 plugin-store / 设置 JSON）。</li>
+<li>过滤噪音依赖（reqwest/hyper 等）的 <code>level_for</code> / filter。</li>
+</ul>
+<h3 id="p2">P2 — 覆盖度与约定硬化<a class="headerlink" href="#p2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>剩余 command 失败路径统一 warn/error。</li>
+<li><code>OpGuard</code> 或宏减少样板代码。</li>
+<li>集成测试或手工 checklist：入库 / 精读 / connector 启停各走一轮，确认文件中有成对 op。</li>
+</ul>
+<h3 id="p3-tracing">P3 — 可选 tracing<a class="headerlink" href="#p3-tracing" title="Permanent link">&para;</a></h3>
+<ul>
+<li>services 关键路径 <code>tracing</code> + span；桥接 <code>tracing-log</code>。</li>
+<li>不改变前端 API 与 Toast 行为。</li>
+</ul>
+<h2 id="9-p0">9. 验收标准（P0）<a class="headerlink" href="#9-p0" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>标准</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>pnpm tauri dev</code> 终端可见 <code>op start</code> / <code>op end</code>（至少：vault create、lookup import、agent_run_once、background download/paperRead 之一）</td>
+</tr>
+<tr>
+<td>2</td>
+<td>release 或 dev 配置的 LogDir 下产生日志文件，含同样 op 对</td>
+</tr>
+<tr>
+<td>3</td>
+<td>操作失败时：有 <code>op end ok=false</code> <strong>且</strong> 用户仍收到 Toast/任务条/对话错误（UX 不退化）</td>
+</tr>
+<tr>
+<td>4</td>
+<td>日志中 <strong>无</strong> NOTES/PDF 正文、无完整 Agent prompt 流</td>
+</tr>
+<tr>
+<td>5</td>
+<td>CLI <code>agentero … --json</code> 的 stdout 仍为纯 JSON envelope；日志在 stderr 或仅文件</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>capabilities</code> 含 <code>log:default</code>；未授权时前端 log 不静默拖垮主流程（失败应降级 console）</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>cargo clippy</code> / 前端 lint 对新增代码干净</td>
+</tr>
+</tbody>
+</table>
+<h2 id="10">10. 建议改动文件清单（实现时）<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>路径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>依赖</td>
+<td><code>src-tauri/Cargo.toml</code>、<code>package.json</code>、lockfiles</td>
+</tr>
+<tr>
+<td>插件注册</td>
+<td><code>src-tauri/src/lib.rs</code></td>
+</tr>
+<tr>
+<td>权限</td>
+<td><code>src-tauri/capabilities/default.json</code></td>
+</tr>
+<tr>
+<td>可选 util</td>
+<td><code>src-tauri/src/log_util.rs</code>（OpGuard）</td>
+</tr>
+<tr>
+<td>Commands</td>
+<td><code>src-tauri/src/commands/{vault,lookup,agent,paper,trash,zotero,connector,translate,watcher,graph,window}.rs</code>（按 §5.2）</td>
+</tr>
+<tr>
+<td>替换 eprintln</td>
+<td><code>services/watcher.rs</code>、<code>agent/*</code>、<code>lib.rs</code> menu 等</td>
+</tr>
+<tr>
+<td>前端 logger</td>
+<td><code>src/lib/logger.ts</code></td>
+</tr>
+<tr>
+<td>横切</td>
+<td><code>src/lib/background-tasks.ts</code>、<code>src/main.tsx</code>、<code>src/components/error-boundary.tsx</code></td>
+</tr>
+<tr>
+<td>业务埋点</td>
+<td><code>src/lib/{vault,lookup,paper-read,agent}.ts</code>、<code>agent-panel</code> 发消息路径等</td>
+</tr>
+<tr>
+<td>CLI</td>
+<td><code>cli/src/main.rs</code> + 写命令</td>
+</tr>
+<tr>
+<td>文档</td>
+<td>本文、<code>development/index.md</code>、<code>mkdocs.yml</code>；落地后勾 <code>todo.md</code> / roadmap 一句</td>
+</tr>
+</tbody>
+</table>
+<p><strong>原则：</strong> 小而聚焦；不借机重构 invoke 契约或 UI 布局。</p>
+<h2 id="11">11. 风险与缓解<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>缓解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>日志刷屏（list/get）</td>
+<td>§5.3 默认不打；level 分层</td>
+</tr>
+<tr>
+<td>双端重复 start（前端 + Host）</td>
+<td>允许双端；字段用同一 <code>name</code>；前端偏用户动作，Host 偏 IPC</td>
+</tr>
+<tr>
+<td>异步任务只 start 不 end</td>
+<td><code>runBackgroundTask</code> / <code>OpGuard</code> 用 defer/finally</td>
+</tr>
+<tr>
+<td>隐私泄漏</td>
+<td>§2.2 黑名单 + code review 清单</td>
+</tr>
+<tr>
+<td>plugin 权限遗漏</td>
+<td>capabilities 必加；前端 isTauri 降级 console</td>
+</tr>
+<tr>
+<td>CLI 污染 stdout</td>
+<td>强制日志走 stderr</td>
+</tr>
+</tbody>
+</table>
+<h2 id="12-adr">12. 决策记录（ADR 摘要）<a class="headerlink" href="#12-adr" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>决策</th>
+<th>选择</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>首版 facade</td>
+<td><code>log</code> + tauri-plugin-log</td>
+<td>官方路径、前后端汇聚、成本低</td>
+</tr>
+<tr>
+<td>暂缓 tracing</td>
+<td>P3</td>
+<td>当前痛点是「有没有、成对、落盘」，不是分布式 span</td>
+</tr>
+<tr>
+<td>日志目录</td>
+<td>系统 LogDir，非 Vault</td>
+<td>local-first 与可迁移边界清晰</td>
+</tr>
+<tr>
+<td>关键操作</td>
+<td>强制 start/end + duration_ms</td>
+<td>可回答「卡在哪」</td>
+</tr>
+<tr>
+<td>遥测</td>
+<td>默认无</td>
+<td>产品原则</td>
+</tr>
+</tbody>
+</table>
+<h2 id="13">13. 实现检查清单（执行时勾选）<a class="headerlink" href="#13" title="Permanent link">&para;</a></h2>
+<ul>
+<li>[x] Host：依赖 + plugin + capabilities + Builder</li>
+<li>[x] 前端：<code>logger.ts</code> + <code>logOp</code> + main 初始化</li>
+<li>[x] <code>runBackgroundTask</code> 自动 op 对</li>
+<li>[x] §5.2 Host 表 P0 项（vault/lookup/trash/agent_run/paper_rescan/zotero/translate/connector/watcher/graph_rebuild/window）</li>
+<li>[x] §5.2 前端表 P0 项（<code>createVault</code> / background_task / ErrorBoundary / boot）</li>
+<li>[x] 关键 <code>eprintln!</code> 替换（watcher / agent 路径）</li>
+<li>[x] CLI logger + 每命令 op 对（<code>command_label</code>）</li>
+<li>[x] ErrorBoundary 打 error 日志</li>
+<li>[x] §9 验收（CLI 成对 op + JSON 隔离；<code>log_util</code> 单测；<code>cargo check</code> / tsc）</li>
+<li>[x] 本文状态改为「P0 已落地」；index / todo 同步</li>
+</ul>
+<h3 id="131">13.1 临时验证记录（开发机）<a class="headerlink" href="#131" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cargo test -p agentero log_util</code></td>
+<td><code>trunc</code> + <code>OpTimer</code> ok/err 通过</td>
+</tr>
+<tr>
+<td><code>RUST_LOG=info agentero vault create &lt;tmp&gt; --json</code></td>
+<td>stderr：<code>op start/end cli.vault.create</code>；stdout 纯 JSON <code>ok:true</code></td>
+</tr>
+<tr>
+<td><code>agentero vault which --vault /nonexistent --json</code></td>
+<td>stderr：<code>op end … ok=false error_code=vault_not_found</code>；stdout <code>ok:false</code>；exit 3</td>
+</tr>
+<tr>
+<td><code>cargo check -p agentero</code> / <code>agentero-cli</code></td>
+<td>通过</td>
+</tr>
+<tr>
+<td><code>pnpm exec tsc --noEmit</code></td>
+<td>通过</td>
+</tr>
+</tbody>
+</table>
+<p><strong>桌面 LogDir（release/dev 文件 sink）：</strong> macOS <code>~/Library/Logs/com.poco-ai.agentero/</code>（<code>agentero*.log</code>）。完整 GUI 路径需 <code>pnpm tauri dev</code> 手动点一次入库/创建 Vault 再 <code>tail -f</code> 该目录。</p>
+<hr />
+<p><strong>下一步：</strong> P1 设置「打开/导出日志」；其余 command 失败路径统一 warn；可选 <code>OpGuard</code> 宏减样板。</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../translate/" class="btn btn-neutral float-left" title="翻译服务"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../roadmap/" class="btn btn-neutral float-right" title="路线图">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+      <span><a href="../translate/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../roadmap/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

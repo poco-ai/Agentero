@@ -88,6 +88,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">TODO</a>
@@ -239,7 +241,20 @@
 <li>[x] 稳定 <code>error.code</code>；集成测试（临时 Vault + <code>--json</code> 契约，<code>cli/tests/cli_mvp.rs</code>）。</li>
 <li>[x] 按需放宽 service <code>pub</code>（<code>lib.rs</code> 导出 <code>services</code> / <code>error</code>；<code>list_by_id</code>）。</li>
 <li>[x] README / 本仓库开发说明：<code>cargo build -p agentero-cli</code>。</li>
-<li>[x] Vault skill 模板：<code>templates/vault/.agents/skills/agentero-cli/SKILL.md</code>；Create Vault 种子；README Quick Start 已写协议。</li>
+<li>
+<p>[x] Vault skill 模板：<code>templates/vault/.agents/skills/agentero-cli/SKILL.md</code>；Create Vault 种子；README Quick Start 已写协议。</p>
+</li>
+<li>
+<p><strong>运行日志（Logging）</strong> — <a href="../logging/"><code>logging.md</code></a>；<strong>P0 已落地</strong></p>
+</li>
+<li>分层：log（诊断）≠ <code>ApiResult</code> / CLI envelope ≠ <code>notifyError</code> / 任务条 / Agent error 行。</li>
+<li>栈：<code>tauri-plugin-log</code> + <code>log</code> + <code>@tauri-apps/plugin-log</code>；CLI <code>env_logger</code> / <code>RUST_LOG</code>；默认无远程遥测。</li>
+<li>[x] Host：插件注册、capabilities <code>log:default</code>、dev/release level 与 LogDir。</li>
+<li>[x] 前端：<code>src/lib/logger.ts</code> + <code>logOp</code>；ErrorBoundary 打 error。</li>
+<li>[x] <strong>关键操作成对</strong> <code>op start</code> / <code>op end</code>（<code>ok</code>、<code>duration_ms</code>）；<code>runBackgroundTask</code> 横切自动埋点。</li>
+<li>[x] Host 写/长耗时 command（vault、lookup、agent_run、trash、zotero、parse…）与 CLI 每命令 op 对。</li>
+<li>[x] 隐私：不写 Vault；不记 NOTES/PDF/prompt 全文（仅 path/id/len）。</li>
+<li>[ ] P1：设置「打开/导出日志文件夹」。</li>
 </ol>
 <h2 id="p1">P1 — 中期增强<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h2>
 <ol>

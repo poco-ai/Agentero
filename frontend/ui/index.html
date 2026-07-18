@@ -126,6 +126,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
@@ -273,6 +275,7 @@
 <li><code>errorMessage(err)</code> — <code>catch</code> 值转可读字符串</li>
 <li><strong>约定</strong>：跨页面的<strong>操作失败</strong>统一 toast；<strong>表单字段校验</strong>（如树内联新建命名、Popover 内输入）仍可就地 <code>text-destructive</code>。</li>
 <li><strong>禁止</strong>再在侧栏 header 下挂常驻 error 条（已移除）。</li>
+<li><strong>诊断日志</strong>（非 UX）：<code>src/lib/logger.ts</code> + Host <code>tauri-plugin-log</code>；关键操作 <code>op start</code> / <code>op end</code>。看日志方式见 <a href="../../development/logging/"><code>../development/logging.md</code></a>。失败时仍应 toast，logger 不替代本小节。</li>
 </ul>
 <h3 id="22-vault">2.2 无 Vault 欢迎页<a class="headerlink" href="#22-vault" title="Permanent link">&para;</a></h3>
 <p>当当前窗口未打开 Vault 时，中间栏显示欢迎页（<code>src/components/layout/vault-welcome.tsx</code>）：</p>
