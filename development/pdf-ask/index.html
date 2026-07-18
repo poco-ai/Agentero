@@ -134,6 +134,8 @@
     </li>
     </ul>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../todo/">TODO</a>
@@ -169,7 +171,7 @@
 <p>状态：<strong>MVP 已落地（前端 + 文件 IO）</strong>；划词现先弹<strong>操作菜单</strong>（高亮 / 批注 / 提问 / 翻译），不再默认套用琥珀高亮。<br />
 范围：阅读 PDF 时选中文本 → 选区操作菜单 → 分派到高亮（JSON 落盘）/ 批注（高亮 + 内联评论）/ 提问（迷你对话框）/ 翻译（复用对话框走 Agent）。提问线程 JSON 落盘 + 页边圆片回访（飞书式边注）；<strong>批注 = <code>comment</code> 非空的高亮</strong>，页边批注针 + 右侧「批注」面板回访。<br />
 实现入口：<code>src/components/viewer/pdf-viewer.tsx</code>、<code>src/components/viewer/pdf-ask/</code>（含 <code>selection-menu.tsx</code>、<code>highlight-layer.tsx</code>、<code>annotation-editor.tsx</code>、<code>annotation-gutter.tsx</code>）、<code>src/components/viewer/annotations-panel.tsx</code>、<code>src/lib/pdf-ask/</code>、<code>src/lib/pdf-highlight/</code>。<br />
-相关：<a href="../technical-plan/"><code>technical-plan.md</code></a> §3.4 阅读器、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a> Agent 契约。</p>
+相关：<a href="../technical-plan/"><code>technical-plan.md</code></a> §3.4 阅读器、<a href="../translate/"><code>translate.md</code></a>（应用级翻译服务；本菜单为消费方之一）、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a> Agent 契约。</p>
 </blockquote>
 <h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <p>在 <strong>中间栏 PDF 阅读</strong> 场景下，用户对论文原文发起「就地提问」，而不是先跳到右侧 Agent 面板再手工粘贴上下文。</p>
@@ -187,7 +189,7 @@
 </tr>
 <tr>
 <td><strong>操作菜单</strong></td>
-<td>高亮→JSON 落盘（含 <code>color</code>，5 色调色板）并渲染半透明色带覆盖层；复制→复制选中原文（菜单内联「已复制」）；批注→先建高亮，再在选区旁弹出<strong>内联编辑器</strong>（<code>annotation-editor.tsx</code>）写评论，保存后 <code>comment</code> 落盘（留空则退化为纯高亮），<strong>不写 <code>NOTES.md</code></strong>；提问→打开迷你问答卡；翻译→建线程后复用问答卡走 Agent 流式</td>
+<td>高亮→JSON 落盘（含 <code>color</code>，5 色调色板）并渲染半透明色带覆盖层；复制→复制选中原文（菜单内联「已复制」）；批注→先建高亮，再在选区旁弹出<strong>内联编辑器</strong>（<code>annotation-editor.tsx</code>）写评论，保存后 <code>comment</code> 落盘（留空则退化为纯高亮），<strong>不写 <code>NOTES.md</code></strong>；提问→打开迷你问答卡；翻译→应用级翻译服务（默认 free 单次 / agent 流式，见 <a href="../translate/"><code>translate.md</code></a>）</td>
 </tr>
 <tr>
 <td><strong>双击</strong></td>
@@ -699,7 +701,7 @@ src/lib/pdf-ask/
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
         <a href="../cli/" class="btn btn-neutral float-left" title="CLI 设计"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../roadmap/" class="btn btn-neutral float-right" title="路线图">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../translate/" class="btn btn-neutral float-right" title="翻译服务">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -729,7 +731,7 @@ src/lib/pdf-ask/
       <span><a href="../cli/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
-      <span><a href="../roadmap/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <span><a href="../translate/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

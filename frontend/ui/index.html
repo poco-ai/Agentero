@@ -122,6 +122,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
@@ -435,7 +437,7 @@
 <li><strong>PDF 沉浸式阅读</strong>（工具栏 <code>Maximize2</code> 进入 / <code>Minimize2</code> 或 <code>Esc</code> 退出）：折叠左右侧栏 + 隐藏中间栏头，PDF 铺满窗口；正文<strong>限宽 ≤ 1100px 居中</strong>（舒适阅读 + 两侧留白），缩放 / 页码 / 大纲 / 查找浮层照常；切到非 PDF tab 自动退出。i18n <code>viewer:pdf.zenEnter/zenExit</code>。</li>
 <li><strong>PDF 划词操作菜单</strong>（已落地，见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>）：<ul>
 <li>划词后在选区旁弹出操作菜单（图标 + Tooltip）：<strong>5 色色板 + 复制 / 笔记 / 提问 / 翻译</strong>（点色板 = 该色<strong>高亮</strong>；复制 / 笔记有内联确认）；选区以<strong>平滑蓝色覆盖层</strong>呈现（<code>selectionRectsByPage</code> 按行合并 rects + <code>SELECTION_CSS</code> 隐藏原生 <code>::selection</code>，对齐 Zotero、点掉即消）。双击 / 悬停停留仍直接开问答卡（页码上下文）。</li>
-<li>高亮：<code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code>（含 <code>color</code>（yellow/green/blue/pink/purple），归一化坐标可重定位；调色板 <code>lib/pdf-highlight/palette.ts</code>）→ 页面半透明色带覆盖层；点击已有高亮出现「删除」浮层。<strong>标注总览</strong>：标题栏或 PDF 工具栏 💬（<code>MessageSquareText</code>）打开右侧栏「批注」tab（<code>viewer/annotations-panel.tsx</code>）→ 总览本篇全部高亮（颜色色条 + 页码 + 引文 + 可选备注），点击跳转闪烁 / 编辑备注 / 删除。批注：选中→「批注」= 建高亮 + 内联备注编辑器写 <code>comment</code>（<strong>不写 <code>NOTES.md</code></strong>），页边批注针。提问 / 翻译复用迷你问答卡（ACP 流式）；发送过问题后锚点旁保留对话图标（Hover 回访）。</li>
+<li>高亮：<code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code>（含 <code>color</code>（yellow/green/blue/pink/purple），归一化坐标可重定位；调色板 <code>lib/pdf-highlight/palette.ts</code>）→ 页面半透明色带覆盖层；点击已有高亮出现「删除」浮层。<strong>标注总览</strong>：标题栏或 PDF 工具栏 💬（<code>MessageSquareText</code>）打开右侧栏「批注」tab（<code>viewer/annotations-panel.tsx</code>）→ 总览本篇全部高亮（颜色色条 + 页码 + 引文 + 可选备注），点击跳转闪烁 / 编辑备注 / 删除。批注：选中→「批注」= 建高亮 + 内联备注编辑器写 <code>comment</code>（<strong>不写 <code>NOTES.md</code></strong>），页边批注针。提问复用迷你问答卡（ACP 流式）；<strong>翻译</strong>当前走 Agent，规划改为调用应用级翻译服务（免费 MT / BYOA Agent，设置 → Translate，见 <a href="../../development/translate/"><code>../development/translate.md</code></a>）；发送过问题后锚点旁保留对话图标（Hover 回访）。</li>
 <li>提问线程落盘 <code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>；高亮 / 提问 / 笔记均<strong>不</strong>写 PDF 二进制。</li>
 </ul>
 </li>
@@ -601,7 +603,7 @@
 </tr>
 <tr>
 <td>结构</td>
-<td>会话标签 · Agent 选择 / 新建 / 历史操作 + 消息列表 + Composer</td>
+<td>顶栏：ACP 后端选择 · 新建 · 历史 + 消息列表 + Composer</td>
 </tr>
 <tr>
 <td>消息组件</td>
@@ -644,7 +646,7 @@
 PromptInput → Body / Footer / Submit
 </code></pre>
 
-<p><strong>Agent 切换</strong>：点击 Composer 上方的 Agent 图标打开下拉，列表来自 catalog + 注册表；选择后设为默认并用于后续 <code>runOnce</code>。</p>
+<p><strong>Agent 切换</strong>：顶栏左侧当前 ACP 后端名打开下拉（列表来自 catalog + 注册表）；选择后设为默认并用于后续 <code>runOnce</code>。下拉 <strong>「ACP backend」标题行最右侧</strong> 齿轮（<code>Settings</code>）→ <strong>设置 → Agent</strong>（<code>onOpenAgentSettings</code>）。</p>
 <p><strong>消息编辑与重发</strong>：会话空闲时（发送成功、停止或失败后）hover 已发送的用户消息会显示 <strong>Edit（铅笔）</strong> 与 <strong>Copy</strong> 两个图标按钮；运行中不显示 Edit，须先按 <code>Esc</code> / 点击停止。点击 Edit 就地把气泡替换为文本框（<code>↵</code> 重新发送、<code>⇧↵</code> 换行、<code>Esc</code> 取消），重发时会丢弃<strong>该消息及其之后的所有内容</strong>（旧回答 / 被中断的运行）并以新文本发起一次全新的 turn，用于修正发错的输入。切换会话 / 标签 / 新建对话会自动取消未完成的编辑。（重发沿用普通发送的 session 续接规则：非 Codex 每次新建 session；Codex 续接原生 thread，因此可见转录被截断但 Agent 侧线程记忆不随之回退。）</p>
 <p><strong>会话标签</strong>：运行中的 Agent session 不会锁定标签栏。用户可随时切换并查看其它已打开的会话，也可在新会话中发起独立运行；同一 session 在运行期间保持只读，避免重入。流式消息、工具调用和最终状态仍只写回它们所属的 session。</p>
 <p><strong>上下文提及</strong>：Composer 默认附带当前打开的 Vault 文件；输入 <code>@</code> 可按 Vault 内 Markdown 路径筛选并加入 context chip。发送时 Agentero 将这些 Vault 相对路径追加到 prompt，并将第一个路径传为 <code>target</code>，Agent 仍按自身权限读取文件。</p>
@@ -732,7 +734,7 @@ PromptInput → Body / Footer / Submit
 </tr>
 <tr>
 <td>分类</td>
-<td>General · Appearance · Agent · Keyboard · Privacy · About</td>
+<td>General · Appearance · Agent · <strong>Translate</strong> · Keyboard · Privacy · About</td>
 </tr>
 <tr>
 <td>行样式</td>
@@ -758,11 +760,21 @@ PromptInput → Body / Footer / Submit
 <li><strong>Appearance</strong>：主题、<strong>语言（跟随系统 / English / 简体中文）</strong>、编辑字号、行号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，控制 Markdown/Notes 编辑器顶部的 WYSIWYG 工具栏，默认开）。</li>
 <li><strong>Agent</strong>（BYOA，非模型 BYOK 表单）：</li>
 <li>总开关。</li>
-<li><strong>Common agents</strong> 目录表：名称 + 状态徽章（installed / ACP ready / missing 等）；打开页自动 Probe（<strong>并行</strong>；每完成一个即 <code>scanCatalog</code> 刷新该批徽章，不必等全部结束）。</li>
+<li><strong>Common agents</strong> 目录表：名称 + 状态徽章（installed / ACP ready / missing 等）；打开页自动 <strong>scan + 并行 Probe</strong>（每完成一个刷新徽章）；Refresh 可再跑。代理开关不因 Probe busy 禁用；改代理只持久化 + scan，不顺带全量 Probe。</li>
 <li><strong>Claude</strong>：<code>detect</code> 用本机 <code>claude</code>（Claude Code）；ACP 入口为 <code>claude-agent-acp</code>。若已装 Claude Code 但缺适配器，显示 <strong>ACP adapter missing</strong> 徽章 + <strong>Install ACP</strong> 小按钮 → Host <code>agent_open_install_terminal</code> 打开系统终端，展示 <code>npm i -g @agentclientprotocol/claude-agent-acp</code>，<strong>等待用户按 Enter 才执行</strong>（不静默安装）。装完后用户点 Refresh 再 Probe。</li>
 <li>顶部 <strong>Refresh</strong>（Rescan + Probe）；<strong>Use default</strong> 纯文字（无 icon）。</li>
 <li>Custom 区：添加任意 ACP command/args。</li>
 <li>页脚说明：模型与 API Key 由各 Agent CLI 自行管理，不在 Agentero 内填写。</li>
+<li><strong>Translate（翻译）</strong>（应用级翻译服务，见 <a href="../../development/translate/"><code>../development/translate.md</code></a>）：</li>
+<li><strong>默认翻译服务</strong>：多引擎免费 MT + <strong>Agent（BYOA）</strong>。</li>
+<li><strong>目标语言</strong>、PDF 划词自动译、条件显示的自定义端点（libre）。</li>
+<li><strong>当服务 = Agent 时</strong>（渐进披露，见 translate.md §7.6）：<ul>
+<li><strong>Agent</strong>：下拉；默认「跟随默认 (当前 default 名)」；选项 = 本机可用 Agent；空则提示去 Agent 页。</li>
+<li><strong>模型</strong>：下拉；默认「跟随 Agent 默认」（<code>loadModelPref</code>）；选项 = 该 Agent 的 <code>loadModelCatalog</code>；无缓存则仅跟随项 + 一句「在 Chat 打开过一次后可选模型」。</li>
+<li>不在此页 Probe / 装适配器 / 填 API Key；不复制 Chat 完整 ModelSelector。</li>
+</ul>
+</li>
+<li>运行时：翻译偏好独立于 Chat 当前选中；未指定则回落 default Agent + 该 Agent 模型偏好。</li>
 <li><strong>Keyboard</strong>：只读快捷键表（按 App / Vault / Navigation 分组）。</li>
 <li><strong>Privacy</strong>：分析与崩溃上报（默认关，本地优先）。</li>
 <li><strong>About</strong>：版本与一句话定位。</li>

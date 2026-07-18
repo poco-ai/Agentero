@@ -252,6 +252,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
@@ -911,7 +913,26 @@ Host (Tauri + Rust)
 <li><strong>不</strong>自动写 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
 <li>使用云端 MinerU 前需前端已获用户同意（PDF 将上传第三方）。</li>
 </ul>
-<pre class="codehilite"><code>### 3.5 魔棒 / 标识符入库（已落地 v0）
+<pre class="codehilite"><code>### 3.5 翻译服务（已落地）
+
+应用级文本翻译（**非**文献元数据 Translator）。前端 `src/lib/translate/`；设置 → Translate。Agent 路径走 `agent_run_once`。详见 [`../development/translate.md`](../development/translate.md)。
+
+#### `translate_text`
+
+- **参数**（invoke 字段名 `args`）：
+  ```ts
+  {
+    text: string;
+    sourceLang?: string;     // default &quot;auto&quot;
+    targetLang: string;      // e.g. &quot;zh-CN&quot; | &quot;en&quot;
+    provider?: string;       // bing (default) | youdao | huoshanweb | tencenttransmart | googleapi | google | libre
+    freeBaseUrl?: string | null; // libre 必填
+  }
+  ```
+- **返回**：`{ ok: true; data: { text: string; provider: string } }`
+- **约束**：单次约 ≤ 5000 字符（CNKI ≤800）；超时约 30s。无付费 API Key；免费引擎为非官方网页接口。
+
+### 3.6 魔棒 / 标识符入库（已落地 v0）
 
 **交互**：侧边栏魔棒 → 粘贴链接/编号 → Host `lookup_import` → Translator → 写 paper 文件夹。  
 详见 [`identifier-lookup.md`](identifier-lookup.md)。
@@ -948,7 +969,7 @@ Host (Tauri + Rust)
     }
   }
   ```
-- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` / `highlights.md`；`metadata.json` 为 catalog 投影同步；**始终下载 PDF** 到 `source/`；**arXiv 另下载 e-print 并解压 LaTeX** 到 `source/`；下载后若**无 TeX 且有 PDF 且无 `PAPER.md`**，用 **liteparse** 生成 `PAPER.md` 并更新 `body_source` / `body_quality`。
+- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` / `highlights.md`（`NOTES.md` 摘要块优先经免费 MT 译为中文，失败则保留原文；catalog 中 `abstract` 仍为原文）；`metadata.json` 为 catalog 投影同步；**始终下载 PDF** 到 `source/`；**arXiv 另下载 e-print 并解压 LaTeX** 到 `source/`；下载后若**无 TeX 且有 PDF 且无 `PAPER.md`**，用 **liteparse** 生成 `PAPER.md` 并更新 `body_source` / `body_quality`。
 
 #### `paper_download_assets`（已落地）
 
@@ -977,7 +998,7 @@ Host (Tauri + Rust)
   }
   ```
 - **返回**：`{ ok: true; data: { papers: LookupImportResult[]; errors: string[] } }`（`errors` 为 `&quot;&lt;文件&gt;: &lt;原因&gt;&quot;`；仅当**全部**失败才整体 `ok:false`）。
-- **行为**：每个 PDF → 由文件名 stem 派生 slug（`{parent}/{slug}/`，冲突加 `-2`/`-3`）与标题；复制到 `{slug}.pdf`（论文根目录）；写 `NOTES.md` / `highlights.md` 壳 + catalog（type `pdf`）；无 TeX → liteparse `PAPER.md`。不覆盖已存在文件夹（slug 去重）。
+- **行为**：每个 PDF → 由文件名 stem 派生 slug（`{parent}/{slug}/`，冲突加 `-2`/`-3`）与标题；复制到 `{slug}.pdf`（论文根目录）；写 `NOTES.md` / `highlights.md` 壳（摘要优先译中文，见 `lookup_import`）+ catalog（type `pdf`）；无 TeX → liteparse `PAPER.md`。不覆盖已存在文件夹（slug 去重）。
 
 #### `paper_parse_body`（已落地）
 

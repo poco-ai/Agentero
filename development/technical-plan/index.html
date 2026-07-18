@@ -200,6 +200,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../pdf-ask/">PDF 划词提问</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../todo/">TODO</a>
@@ -630,6 +632,10 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <td>PDF 划词</td>
 <td>平滑选区覆盖层 + 操作菜单；<code>pdf-ask</code> / <code>highlights</code> JSON；ACP 流式</td>
 </tr>
+<tr>
+<td>翻译服务</td>
+<td>应用级可插拔 <code>TranslateService</code>（free + agent）；见 <a href="../translate/"><code>translate.md</code></a></td>
+</tr>
 </tbody>
 </table>
 <p><strong>分工说明</strong>：
@@ -648,6 +654,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <p>MVP 阅读器以审阅、定位与就地提问为主，不实现完整 Hypothesis 式批注系统。</p>
 </blockquote>
 <p><strong>PDF 划词提问（MVP 已落地）</strong>：选区 / 框选 / 双击 / 悬停 → 迷你问答卡 → <code>papers/&lt;id&gt;/asks/*.json</code> → 锚点对话图标回访。复用 TextLayer + ACP BYOA，不写入 PDF 二进制。详设与分期见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>。</p>
+<p><strong>翻译服务（首版已落地）</strong>：应用级可插拔 <code>TranslateService</code>；<strong>免费 MT</strong>（Host <code>translate_text</code>：内置 Google gtx 或 LibreTranslate URL）与 <strong>BYOA Agent</strong>；设置 → <strong>Translate</strong>；PDF 划词为首个消费方。详设见 <a href="../translate/"><code>translate.md</code></a>。</p>
 <h3 id="35">3.5 关系图谱<a class="headerlink" href="#35" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

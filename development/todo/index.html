@@ -84,6 +84,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../pdf-ask/">PDF 划词提问</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">TODO</a>
@@ -350,12 +352,18 @@
 <li>[x] M4：双击 / 悬停停留触发 + 防误触（阈值暂固定 700ms）。</li>
 <li>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer。</li>
 <li>[x] M6：划词操作菜单（高亮 / 批注 / 提问 / 翻译）；高亮落盘 <code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code> + 覆盖层 + 点击删除；翻译复用问答卡走 Agent；去掉默认琥珀高亮，仅原生选区。</li>
-<li>
-<p>[x] M7：Zotero 式批注 —「批注」= 建高亮 + 内联编辑器（<code>annotation-editor.tsx</code>）写可选 <code>comment</code>；页边批注针（<code>annotation-gutter.tsx</code>）；右侧「批注」面板（<code>annotations-panel.tsx</code>，活动 PDF tab）列卡、跳转闪烁、编辑 / 删除，经 <code>PdfViewerHandle</code> + <code>onHighlightsChange</code> 驱动；<strong>不写 <code>NOTES.md</code></strong>（旧追加行为已移除）。</p>
-</li>
-<li>
-<p><strong>PDF / HTML 标注系统</strong></p>
-</li>
+<li>[x] M7：Zotero 式批注 —「批注」= 建高亮 + 内联编辑器（<code>annotation-editor.tsx</code>）写可选 <code>comment</code>；页边批注针（<code>annotation-gutter.tsx</code>）；右侧「批注」面板（<code>annotations-panel.tsx</code>，活动 PDF tab）列卡、跳转闪烁、编辑 / 删除，经 <code>PdfViewerHandle</code> + <code>onHighlightsChange</code> 驱动；<strong>不写 <code>NOTES.md</code></strong>（旧追加行为已移除）。</li>
+</ol>
+<p>3b. <strong>翻译服务（Translate Service）</strong> — 设计见 <a href="../translate/"><code>translate.md</code></a>（应用级能力，非仅划词）
+   - [x] T0：设计文档（可插拔 <code>TranslateService</code>；首版 free + agent；设置 → 翻译页；消费方模型）。
+   - [x] T1：<code>src/lib/translate/</code> 注册表 + <code>agent</code> adapter；设置页 <strong>Translate</strong>（<code>provider</code> / <code>targetLang</code> / 自动译 / freeBaseUrl）；PDF 划词接服务层。
+   - [x] T2：Host <code>translate_text</code> + <code>free</code> adapter（内置 Google gtx 或 LibreTranslate URL）；默认 <code>provider=free</code>。
+   - [x] T3：PDF free 单次结果 / agent 流式；<code>autoTranslateSelection</code>；与 <code>translatorBaseUrl</code> 命名隔离。
+   - [x] T3.5 设计：翻译用 <strong>Agent 座 + 模型</strong> 最小选择（跟随默认 / 渐进披露；见 <a href="../translate/"><code>translate.md</code></a> §5.4 · §7.6）。
+   - [x] T3.6：实现 <code>translate.agentId</code> / <code>modelId</code> + Translate 页两行 Select + PDF <code>runOnce</code> 传参；临时探测脚本 <code>scripts/probe-translate-free.mjs</code>。
+   - [ ] T4+（可选）：更多 adapter（DeepL 等）/ 更多消费方（标题·摘要等）；<code>type: word</code> 词典。</p>
+<ol>
+<li><strong>PDF / HTML 标注系统</strong></li>
 <li>参考 Hypothesis 风格的边注、评论、锚点。</li>
 <li>[x] PDF 就地批注已落地（高亮 + <code>comment</code> + 页边针 + 右侧面板）；标注落 <code>highlights/*.json</code>。</li>
 <li>[ ] 标注正文进入 <code>highlights.md</code> / 导出到 <code>NOTES.md</code>（<strong>暂不做</strong>，可能的后续），坐标/锚点缓存可重建。</li>
