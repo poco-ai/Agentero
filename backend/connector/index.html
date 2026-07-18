@@ -106,7 +106,7 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#43-endpoints">4.3 下一阶段 endpoints（未实现 — 附件与快照）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#43-endpoints-cookies">4.3 下一阶段 endpoints（快照 / cookies 未实现）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#44">4.4 低优先级 / 明确不做</a>
     </li>
@@ -168,7 +168,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#pr2">PR2 — 体验与稳健性 ✅</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#pr3">PR3 — 附件与快照（未做）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#pr3-c4b">PR3 — 附件与快照（C4b 已做）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#pr4">PR4 — 可选 / 低优先级</a>
     </li>
@@ -246,7 +246,7 @@
               
                 <h1 id="zotero-connector">Zotero Connector 兼容服务（方案一）<a class="headerlink" href="#zotero-connector" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>MVP 已落地</strong>（元数据保存 + 文件夹选择 + 超时规避；<strong>附件二进制 / 快照 / cookies 仍待</strong>）<br />
+<p>状态：<strong>MVP 已落地</strong>（元数据保存 + 文件夹选择 + 超时规避 + <strong>附件二进制上传 <code>saveAttachment</code></strong>；<strong>快照 / cookies 仍待</strong>）<br />
 范围：Agentero Host 在本机 <strong>模拟 Zotero 桌面端 Connector HTTP Server</strong>，使官方 <a href="https://www.zotero.org/download/connectors">Zotero Connector</a> 浏览器扩展把「保存」请求打到 Agentero，条目落入当前 Vault 的 catalog + paper 文件夹。<br />
 实现入口：<code>src-tauri/src/services/connector/</code>、<code>commands/connector.rs</code>、<code>src/lib/connector.ts</code>、设置 → 通用、<code>App.tsx</code> 监听 <code>connector:*</code>。<br />
 <strong>HTTP 覆盖总表</strong>：见本文 <a href="#45-上游-api-覆盖总表实现-vs-缺口">§4.5</a>。<br />
@@ -657,7 +657,23 @@ Tauri event: connector:item-saved / connector:error
 </tr>
 </tbody>
 </table>
-<h3 id="43-endpoints">4.3 下一阶段 endpoints（未实现 — 附件与快照）<a class="headerlink" href="#43-endpoints" title="Permanent link">&para;</a></h3>
+<h3 id="43-endpoints-cookies">4.3 下一阶段 endpoints（快照 / cookies 未实现）<a class="headerlink" href="#43-endpoints-cookies" title="Permanent link">&para;</a></h3>
+<p><strong>已实现（PR3 C4b）：</strong></p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /connector/saveAttachment</code></td>
+<td>浏览器上传的附件（登录墙 PDF，插件用页面 cookie 拉取）。Body = 原始字节；<code>X-Metadata</code> 头携 <code>{ sessionID, parentItemID, title, url }</code>。按 <code>parentItemID</code> → session item 映射解析目标 paper（无映射时回退本 session 最近一篇），校验 <code>%PDF</code> magic 后写 <code>{paper}/{id}.pdf</code>，触发 <code>PAPER.md</code>（幂等）+ <code>connector:item-saved</code>。<code>ping</code> 回 <code>supportsAttachmentUpload: true</code>；body 上限 200 MiB。</td>
+</tr>
+</tbody>
+</table>
+<p><strong>未实现：</strong></p>
 <table>
 <thead>
 <tr>
@@ -667,11 +683,6 @@ Tauri event: connector:item-saved / connector:error
 </tr>
 </thead>
 <tbody>
-<tr>
-<td><code>POST /connector/saveAttachment</code></td>
-<td>二进制 PDF + <code>X-Metadata</code>（<code>sessionID</code>, <code>parentItemID</code>, <code>title</code>, <code>url</code>）→ <code>{paper}/{id}.pdf</code></td>
-<td><strong>P0</strong></td>
-</tr>
 <tr>
 <td><code>POST /connector/saveSnapshot</code></td>
 <td>网页条目 + 可选快照</td>
@@ -799,8 +810,8 @@ Tauri event: connector:item-saved / connector:error
 </tr>
 <tr>
 <td><code>POST /connector/saveAttachment</code></td>
-<td>❌</td>
-<td><strong>最大缺口</strong>：登录墙 PDF</td>
+<td>✅</td>
+<td>登录墙 PDF：浏览器字节上传；<code>parentItemID</code>→paper；<code>%PDF</code> 校验；触发 PAPER.md</td>
 </tr>
 <tr>
 <td><code>POST /connector/saveSnapshot</code></td>
@@ -890,7 +901,7 @@ Tauri event: connector:item-saved / connector:error
 <tbody>
 <tr>
 <td>订阅站 / 登录墙 PDF</td>
-<td>无 <code>saveAttachment</code>、无 <code>detailedCookies</code></td>
+<td>✅ <code>saveAttachment</code> 浏览器上传；<code>detailedCookies</code> 仍未做</td>
 </tr>
 <tr>
 <td><code>singleFile: true</code></td>
@@ -914,7 +925,7 @@ Tauri event: connector:item-saved / connector:error
 </tr>
 </tbody>
 </table>
-<p><strong>建议补齐顺序：</strong> <code>saveAttachment</code> → <code>saveSnapshot</code> / <code>saveSingleFile</code>（可降级）→ <code>detailedCookies</code> →（按需）<code>detect</code>/<code>savePage</code>/<code>selectItems</code>。</p>
+<p><strong>建议补齐顺序：</strong> ~~<code>saveAttachment</code>~~ ✅ → <code>saveSnapshot</code> / <code>saveSingleFile</code>（可降级）→ <code>detailedCookies</code> →（按需）<code>detect</code>/<code>savePage</code>/<code>selectItems</code>。</p>
 <hr />
 <h2 id="5">5. 数据映射与落盘<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
 <h3 id="51-item-papermeta">5.1 Item → PaperMeta<a class="headerlink" href="#51-item-papermeta" title="Permanent link">&para;</a></h3>
@@ -1222,9 +1233,9 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
 <li>[x] Library 作用域 → <code>connector_set_parent_dir</code></li>
 <li>[x] <code>docs/backend/api.md</code> 命令表同步</li>
 </ul>
-<h3 id="pr3">PR3 — 附件与快照（未做）<a class="headerlink" href="#pr3" title="Permanent link">&para;</a></h3>
+<h3 id="pr3-c4b">PR3 — 附件与快照（C4b 已做）<a class="headerlink" href="#pr3-c4b" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[ ] <strong>C4b</strong> <code>saveAttachment</code> 二进制上传</li>
+<li>[x] <strong>C4b</strong> <code>saveAttachment</code> 二进制上传</li>
 <li>[ ] <strong>C4c</strong> <code>saveSnapshot</code> / <code>saveSingleFile</code>（可降级）</li>
 <li>[ ] <strong>C5a</strong> <code>detailedCookies</code></li>
 <li>[ ] （可选）<code>sessionProgress</code> 真实附件百分比；后台任务条</li>
@@ -1380,6 +1391,10 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
 <tr>
 <td>2026-07-18</td>
 <td>防 15s 超时（后台资产）；<code>targets</code> 子文件夹 + <code>updateSession</code> 移动；§4.5 上游 API 覆盖总表</td>
+</tr>
+<tr>
+<td>2026-07-18</td>
+<td><strong>C4b <code>saveAttachment</code></strong>：浏览器上传登录墙 PDF（<code>X-Metadata</code> <code>parentItemID</code>→paper；<code>%PDF</code> 校验；触发 PAPER.md；<code>supportsAttachmentUpload: true</code>；200 MiB body 上限）</td>
 </tr>
 </tbody>
 </table>

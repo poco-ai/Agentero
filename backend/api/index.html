@@ -945,8 +945,8 @@ Host (Tauri + Rust)
 - **与魔棒关系**：元数据映射复用 `map_zotero_item`；入口不同（插件 vs ⇧⌘I）。
 - **设置**：`connectorEnabled` 默认 `false`；与 Zotero 桌面端 **端口互斥**。
 - **实现**：`services/connector/`、`commands/connector.rs`、`src/lib/connector.ts`。
-- **已挂 HTTP**：`ping`、`saveItems`、`sessionProgress`、`getSelectedCollection`（含子文件夹 targets）、`updateSession`、`delaySync`。
-- **未挂 HTTP（P0）**：`saveAttachment`、`saveSnapshot`、`saveSingleFile`；`detailedCookies`。
+- **已挂 HTTP**：`ping`、`saveItems`、`sessionProgress`、`getSelectedCollection`（含子文件夹 targets）、`updateSession`、`delaySync`、`saveAttachment`（浏览器上传登录墙 PDF）。
+- **未挂 HTTP（P0）**：`saveSnapshot`、`saveSingleFile`；`detailedCookies`。
 
 #### `connector_get_status`
 
