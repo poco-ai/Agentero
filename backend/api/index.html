@@ -988,6 +988,33 @@ Host (Tauri + Rust)
 | `connector:item-saved` | `{ path, id, title, deduped, sessionId }` |
 | `connector:error` | `{ message, sessionId? }` |
 
+### 3.5c 全库搜索（已落地）
+
+命令面板（`⌘K` / `⌘P`）“In contents”层的后端。walk Vault 内 `*.md`（跳过 `.` 隐藏 / `node_modules` / `source`），多词 **AND**，返回 标题 + 片段 + 行号 + 评分。**无索引**（始终新鲜；结构上可后续换 FTS5）。论文 quick-open（标题/作者）在前端对内存 `libraryPapers` 完成，不走本命令。
+
+#### `vault_search`（已落地）
+
+- **参数**（invoke 字段名 `args`）：
+  ```ts
+  {
+    vaultPath: string;
+    query: string;      // 空白分词，全部命中（AND）
+    limit?: number;     // 默认 60，clamp 1–200
+  }
+  ```
+- **返回**：`{ ok: true; data: { hits: SearchHit[]; truncated: boolean } }`
+  ```ts
+  type SearchHit = {
+    path: string;         // Vault 相对 md，如 papers/x/NOTES.md
+    paperPath?: string;   // 命中在 papers/… 下时的论文文件夹
+    title: string;        // 首个 H1，或文件名
+    snippet: string;      // 首个命中行片段
+    line: number;         // 1-based 命中行号（0=未知）
+    score: number;
+  };
+  ```
+- **行为**：读文件（&gt;2MB 跳过）；标题优先取 `# ` H1；片段居中于首个命中词；评分 = 标题命中（+50/词）+ 正文出现次数（每词封顶 20）+ NOTES/PAPER.md 加成；按 score 降序、path 升序；截断到 `limit`。命中 `papers/&lt;x&gt;/…` 时 `paperPath=papers/&lt;x&gt;`，供 UI 打开论文而非裸文件。
+
 ### 3.6 魔棒 / 标识符入库（已落地 v0）
 
 **交互**：侧边栏魔棒 → 粘贴链接/编号 → Host `lookup_import` → Translator → 写 paper 文件夹。  
