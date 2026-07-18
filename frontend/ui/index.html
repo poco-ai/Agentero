@@ -204,7 +204,8 @@
 <li><strong>默认展开</strong>：打开 Vault 时<strong>只</strong>展开 <code>papers/</code> 及其<strong>一级</strong>子目录（组织文件夹），其余（<code>notes/</code>、更深层 org 等）默认折叠；paper 文件夹始终作叶子、不展开。树刷新<strong>不</strong>重置用户展开状态。</li>
 <li><strong>选中同步 / 定位</strong>：激活文档变化时（切换标签、从 Library 打开 paper、打开图片或其他文件、<strong>魔棒 / 本地 PDF 入库完成后 <code>openPaper</code></strong>），树将高亮对应行（paper 内任意文件 → 该 paper 叶子；其它路径 → 自身或最近祖先），<strong>自动展开祖先文件夹</strong>并 <code>scrollToIndex</code>（<code>align: "center"</code>）滚入视口。树刷新后若目标行尚未出现在拍平行中，会重新展开祖先再滚一次（覆盖入库刚写入磁盘的竞态）。</li>
 <li><strong>Paper 行标签</strong>（展示用，不改磁盘名）：默认 <strong>标题 · 作者</strong>（catalog <code>title</code> / <code>authors</code>）；设置 → <strong>通用 → 文件树论文显示</strong> 可选：<code>标题 · 作者</code> / <code>标题</code> / <code>作者 (年份) · 标题</code> / <code>文件夹名</code>。无元数据时回退文件夹名。实现：<code>formatPaperTreeLabel</code>（<code>src/lib/paper-metadata.ts</code>），偏好 <code>paperTreeLabelMode</code>（<code>agentero-settings</code>）。</li>
-<li><strong>虚拟节点 Library</strong>：树顶固定一项 <strong>Library / 论文库</strong>（路径常量 <code>agentero:library</code>，非真实目录、不写盘）。图标 <code>Library</code>。选中后中间栏显示论文库表格（见 §3）。空 Vault 时仍显示该节点。</li>
+<li><strong>虚拟节点 Library</strong>：树顶固定一项 <strong>Library / 论文库</strong>（路径常量 <code>agentero:library</code>，非真实目录、不写盘）。图标 <code>Library</code>。选中后中间栏显示<strong>全库</strong>论文表格（见 §3）。空 Vault 时仍显示该节点。</li>
+<li><strong>组织文件夹 → 作用域论文库</strong>：单击<strong>非 paper</strong> 目录（如 <code>papers/</code>、<code>papers/nlp/</code>、<code>papers/nlp/pretrain</code>）时 <strong>同时</strong>：(1) 树内展开/折叠子节点；(2) <strong>同一</strong> Library 标签页（<code>agentero:library</code>）就地按路径前缀筛选，<strong>不</strong>为文件夹新建 tab。点顶栏 Library 虚拟节点清除筛选回全库。<strong>paper 文件夹</strong>仍打开该篇 PDF/Notes（叶子、不展开）。</li>
 <li><strong>虚拟节点 Recycle Bin</strong>：紧挨 <strong>Library</strong> 下方固定一项 <strong>Recycle Bin / 回收站</strong>（路径常量 <code>agentero:trash</code>，非真实目录、不写盘）。图标 <code>Trash2</code>。选中后中间栏显示回收站视图（见「删除」）。空 Vault 时仍显示该节点。</li>
 <li><strong>Library 行 Download</strong>：当库内<strong>任一</strong> paper 资源不完整时，Library 标题右侧显示 Download；点击<strong>批量</strong> <code>paper_download_assets</code>。</li>
 <li><strong>Paper 行 Download</strong>：下列任一成立即显示，hover 列出原因：</li>
@@ -212,7 +213,7 @@
 <li><strong>既没有 TeX 也没有 <code>PAPER.md</code></strong>（二者有其一即可，<strong>优先 TeX</strong>）；</li>
 <li>点击后：PDF 写入论文根目录 → arXiv 尽量下 TeX 到 <code>source/</code> → <strong>无 TeX</strong> 时 liteparse 写 <code>PAPER.md</code>。</li>
 <li><strong>Paper 行 Zap（精读）</strong>：当本地资源<strong>已齐全</strong>（有 PDF，且有 TeX 或 <code>PAPER.md</code>）且 catalog <strong><code>is_read === false</code></strong> 时显示 <code>Zap</code> 图标；点击可<strong>手动</strong>启动 <strong>paper-reader</strong>。</li>
-<li><strong>自动精读</strong>：魔棒入库 / 单篇 Download 在 PDF（或 TeX / <code>PAPER.md</code>）就绪且 <code>is_read === false</code> 时<strong>自动</strong>启动同一工作流；左下角先显示入库/下载任务进度，完成后接上 <code>paperRead</code> 精读进度。运行时 skill 触发按 provider：<strong>Codex <code>$paper-reader</code></strong>、<strong>Claude <code>/paper-reader</code></strong>、其它仅注入 <code>SKILL.md</code>。成功后 <code>is_read = true</code>，Zap 消失。精读与 PDF 划词提问等非 Composer 运行 <strong><code>hideFromChatHistory</code></strong>，不出现在 Agent 对话记录。</li>
+<li><strong>自动精读</strong>（设置 → Agent → <strong>入库后自动精读</strong>，<code>autoPaperReader</code>，<strong>默认关</strong>）：开启后，魔棒 / 单篇 Download 资源就绪且未读时自动 paper-reader。<strong>Zap 不受此开关影响</strong>。批量导入 / Zotero 不自动精读。Skill 按 provider；成功后 <code>is_read = true</code>；<strong><code>hideFromChatHistory</code></strong>。</li>
 <li>顶栏单行：左侧 Vault 名称（可截断）+ 右侧 <strong>纯图标操作</strong>。</li>
 <li>图标按钮点击反馈：统一走 <code>Button</code>（<code>variant="ghost"</code> + <code>size="icon-xs"</code> 等）的 <strong>active</strong> 态（背景加深 + 轻微缩放）；文件树行同样有 <code>active:bg-muted/80</code>。</li>
 <li>动作映射（Lucide），从左到右：</li>
@@ -356,19 +357,25 @@
 <ul>
 <li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容 + 可选右侧栏（Agent / Backlinks）。中间内容为<strong>文档标签页</strong>（浏览器式多 tab，见 §3.1.1），Notes 随激活文档切换。</li>
 <li><strong>论文库表格</strong>（<code>src/components/layout/papers-library.tsx</code>）：</li>
-<li><strong>入口</strong>：文件树虚拟节点 <code>agentero:library</code>；亦在选中 Vault 根 / <code>papers/</code> / 未选文件时作为中间栏默认视图。</li>
-<li><strong>性能（虚拟化）</strong>：表格行用 <code>@tanstack/react-virtual</code> 窗口化（spacer-row 方案，保留 <code>&lt;table&gt;</code> 语义与横向滚动；<code>measureElement</code> 动态测高），大库不卡。</li>
-<li><strong>数据</strong>：Host <code>paper_list</code> → catalog.sqlite（不扫盘拼表）。前端封装 <code>src/lib/papers-api.ts</code>。<strong>catalog 权威</strong>：盘上有、catalog 无的论文不会显示；空态提供「重新扫描 papers/」（<code>paper_rescan</code>）从各 <code>metadata.json</code> 重建 catalog。</li>
+<li><strong>入口</strong>：<ol>
+<li>虚拟节点 <code>agentero:library</code> → <strong>全库</strong>（清除 <code>libraryScopePath</code>）；</li>
+<li>单击<strong>非 paper</strong> 目录 → 聚焦<strong>同一</strong> Library tab，设置 <code>libraryScopePath</code> 做前缀过滤（<strong>不新建 tab</strong>）；</li>
+<li><strong>默认页</strong>：有 Vault 且 tab 条为空时自动 <code>ensureFullLibraryTab()</code>。</li>
+</ol>
+</li>
+<li><strong>作用域</strong>：App 状态 <code>libraryScopePath</code>（vault-relative，如 <code>papers/nlp/pretrain</code>）；null = 全库。过滤：<code>filterPapersByScope</code> 内存前缀匹配。无 per-folder RPC、不扫盘。</li>
+<li><strong>性能</strong>：全库一次 <code>paper_list</code>；切文件夹仅改 scope + filter；见 <code>test/library-scope.test.ts</code> latency。</li>
+<li><strong>数据</strong>：Host <code>paper_list</code> → catalog.sqlite。<strong>catalog 权威</strong>；空态「重新扫描 papers/」（<code>paper_rescan</code>）。</li>
 <li><strong>列</strong>：标题、作者、年份、<strong>标签</strong>、类型、标识符；点击行打开对应 paper 文件夹。</li>
-<li><strong>标签筛选</strong>：表上方汇总库内全部 tag 为可点 chip（再点取消）；单元格内 tag 也可筛选。标题搜索同时匹配 tag 子串。</li>
-<li><strong>排序</strong>：点击表头按该列升序 / 降序切换；同一列再点切换方向。年份列首次点击为降序（新→旧）；文字列默认升序。</li>
-<li><strong>滚动</strong>：容器 <code>.agentero-scroll-both</code>（<strong>横向 + 纵向</strong> <code>overflow: auto</code>）。表格 <code>w-max min-w-full</code> + 列 <code>min-width</code>，宽表可左右滑。</li>
-<li><strong>中间栏 header（右侧）</strong>：仅 <strong>导出</strong>（Download 图标），无「Library」文案。<ul>
-<li><strong>导出</strong>：<code>paper_export</code> → Translator <code>/export?format=bibtex</code> → 保存对话框写 <code>.bib</code>。</li>
+<li><strong>标签筛选</strong>：表上方汇总<strong>当前作用域</strong> tag chip；单元格 tag 也可筛选。标题搜索同时匹配 tag 子串。</li>
+<li><strong>排序</strong>：点击表头升序 / 降序；年份列首次为降序；文字列默认升序。</li>
+<li><strong>滚动</strong>：<code>.agentero-scroll-both</code>；表格 <code>w-max min-w-full</code>。</li>
+<li><strong>中间栏 header</strong>：搜索框；全库另有 Zotero 迁移；<strong>导出</strong>（Download 图标）。<ul>
+<li><strong>导出</strong>：<code>paper_export</code> → Translator <code>/export?format=bibtex</code> → 保存 <code>.bib</code>。</li>
 </ul>
 </li>
-<li><strong>导入</strong>（Upload）：在侧栏<strong>魔棒 Popover 卡片左下角</strong>（与「添加」按钮同一行）；打开 <code>.bib</code>/<code>.ris</code>/… → <code>paper_import</code> → Translator <code>/import</code> → catalog + paper 文件夹（默认下 PDF/TeX）。</li>
-<li><strong>从 Zotero 迁移</strong>（<code>Import</code> 图标，论文库工具栏左侧；仅 Library 视图）：<code>ZoteroMigrateDialog</code> → 选 Zotero 数据目录 → 预览文献/PDF 计数 + 「把 PDF 复制进知识库」勾选（默认开）→ <code>zotero_migrate</code>（直读 <code>zotero.sqlite</code>，见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a> §16）。</li>
+<li><strong>导入</strong>（Upload）：魔棒 Popover 左下角 → <code>paper_import</code>。</li>
+<li><strong>从 Zotero 迁移</strong>：仅<strong>全库</strong>视图工具栏。</li>
 <li><strong>Paper Info / Notes——仅具体论文</strong>：</li>
 <li><strong>左侧 Paper Info</strong>（<code>paper-info-panel</code>）：仅当存在 <code>paperMeta</code>（选中 paper 文件夹）时渲染；论文库 / 普通笔记时隐藏。<strong>Tags</strong> 可编辑：输入框在 chip 上方（多标签时无需先滚动）；回车添加、chip 上 × 删除 → Host <code>paper_set_tags</code>（catalog 权威，同步 <code>metadata.json</code>）。<code>loadPaperMetadata</code> 会注入 vault-relative <code>path</code>（<code>metadata.json</code> 投影本身不含 path），Zotero 导入等路径也可持续编辑。</li>
 <li><strong>Notes（WYSIWYG，无独立预览栏）</strong>：中心切换为 Notes 时全宽编辑 <code>NOTES.md</code>；中心为 PDF/HTML 时右侧栏显示同一篇 <code>NOTES.md</code> 实时编辑。论文库视图或未选论文时隐藏。</li>
@@ -534,7 +541,7 @@
 <tr>
 <td><code>⌘W</code></td>
 <td>关闭当前标签 / 窗口（<code>closeTab</code>）</td>
-<td>有打开标签时逐个关闭当前标签；无标签时关闭当前窗口（File → Close 同源）</td>
+<td>仅剩全库 Library 时关窗；否则关当前 tab，关空后自动全库（File → Close 同源）</td>
 </tr>
 <tr>
 <td><code>⌥⌘→</code> / <code>⌥⌘←</code></td>
@@ -568,15 +575,19 @@
 <li><strong>完成后</strong>：刷新文件树 / Library / wiki → <code>openPaper(paperDir)</code>（打开 PDF tab，并 <code>setTreeSelectedPath</code>）→ 左侧树<strong>展开祖先并滚到新论文行</strong>（见 §2.1 选中同步）。本地 PDF 导入同样走 <code>openPaper</code>。  </li>
 <li>详见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>；i18n <code>sidebar:lookup.*</code> / <code>papersLibrary.*</code>；无 Vault 时禁用。</li>
 <li><strong>论文行 Download</strong>：缺本地 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时显示；hover 列出原因 → <code>paper_download_assets</code>（已有资源跳过）。下载后若仍无 TeX 且有 PDF，Host 自动 liteparse 写 <code>PAPER.md</code>。Library 行可对库内全部不完整 paper <strong>批量</strong> Download。</li>
-<li><strong>论文行 Zap（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Codex 用 <code>$paper-reader</code>，Claude 用 <code>/paper-reader</code>，其它靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。魔棒入库 / 单篇 Download 成功后会<strong>自动</strong>同一工作流（批量不连跑）。进度在左下角后台任务条（lookup/download → paperRead）。</li>
+<li><strong>论文行 Zap（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Codex 用 <code>$paper-reader</code>，Claude 用 <code>/paper-reader</code>，其它靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。若设置开启 <code>autoPaperReader</code>，魔棒 / 单篇 Download 成功后也会自动跑（批量不连跑）。进度在左下角后台任务条。</li>
 </ul>
 <h3 id="311-roadmap-v06">3.1.1 文档标签页（已落地）与分屏（规划，roadmap V0.6）<a class="headerlink" href="#311-roadmap-v06" title="Permanent link">&para;</a></h3>
 <p><strong>浏览器式文档标签页</strong>（<code>src/components/layout/document-tab-bar.tsx</code>、模型 <code>src/lib/tabs.ts</code>）位于<strong>窗口标题栏</strong>（与禅模式 Focus 图标同行）：</p>
 <ul>
-<li><strong>多 tab</strong>：paper / Markdown / PDF / HTML / Library 各占一个 tab，可切换、关闭（<code>X</code> / 中键 / <code>⌘W</code>）、拖拽重排；同一路径已开则聚焦其 tab（不重复打开）。无标签时再按 <code>⌘W</code> 关闭窗口。</li>
-<li><strong>常驻挂载</strong>：每个 tab 的内容组件保持 mounted（非激活 <code>hidden</code>），切换瞬时并保留 <strong>PDF 滚动位置/缩放</strong> 与编辑器状态。PDF 多篇同开会同时占用内存（符合浏览器式取舍）。</li>
-<li><strong>状态派生</strong>：<code>activeTab</code> 驱动 <code>selectedPath</code> / <code>centerMode</code> / <code>paperMeta</code> / Notes；文件树选中与「新建父目录」上下文用独立的 <code>treeSelectedPath</code>（跟随激活文档，folder 新建时可指向文件夹）。激活路径变化时左侧树会展开祖先并滚到对应行（见 §2.1）。</li>
-<li><strong>持久化</strong>：<code>agentero-open-tabs</code>（<code>{tabs:[{path,mode}], activeIndex}</code>）按窗口保存，重开窗口恢复 tab 集与激活项；<code>⌘N</code> 各窗口独立。</li>
+<li><strong>多 tab</strong>：paper / Markdown / PDF / HTML / <strong>Library（全库或文件夹作用域）</strong> 各占一个 tab，可切换、关闭（<code>X</code> / 中键 / <code>⌘W</code>）、拖拽重排；同一路径已开则聚焦其 tab。</li>
+<li><strong>默认页 = 全库 Library</strong>：</li>
+<li>打开 Vault 无持久化 tab → <code>ensureFullLibraryTab()</code>。</li>
+<li>关 tab 后列表为空 → 自动打开全库（无「无标签」空态）。</li>
+<li><strong><code>⌘W</code> / tab X</strong>：仅剩全库 <code>agentero:library</code> 时<strong>关窗</strong>；否则关当前 tab，关空后回全库。</li>
+<li><strong>常驻挂载</strong>：每个 tab 保持 mounted（非激活 <code>hidden</code>）；切换保留 PDF 滚动/缩放与编辑器状态。作用域 / 全库共用 <code>libraryPapers</code> 缓存。</li>
+<li><strong>状态派生</strong>：<code>activeTab</code> 驱动路径 / 模式 / Notes；作用域 Library 的 <code>path</code> 为文件夹绝对路径，树高亮该组织夹。</li>
+<li><strong>持久化</strong>：<code>agentero-open-tabs</code> 按窗口保存；全库与作用域 path 均可恢复。</li>
 <li><strong>NOTES 编辑器</strong>：每篇 paper 的 <code>NOTES.md</code> 编辑器也按 tab 常驻挂载在右侧 Notes 栏；paper-reader / download 写回后按路径 reseed 对应 tab。</li>
 <li><strong>外部/Agent 改动自动重载</strong>：Host <code>notify</code> 监听 Vault，发 <code>vault:file-changed</code>（<code>src/lib/fs-watch.ts</code>、<code>App.tsx</code> 的 <code>applyDiskChange</code>）。打开中的 <code>.md</code>/<code>NOTES.md</code> 若磁盘内容与当前 seed 不同：<strong>无未存改动时</strong>从盘重载（key bump 重挂载）；<strong>有未存改动时不静默覆盖</strong>，弹 toast（<code>diskConflict</code>，操作「载入磁盘版」；忽略则保留本地改动）；内容相等即判定为自身 autosave 回声、跳过；重载期内 <code>reseedGuardRef</code> 阻止旧实例卸载 flush 覆盖新盘内容。结构性变更（create/remove/rename）去抖刷新文件树；纯 <code>modify</code> 不刷新树。</li>
 </ul>
@@ -760,7 +771,7 @@ PromptInput → Body / Footer / Submit
 <li><strong>Appearance</strong>：主题、<strong>语言（跟随系统 / English / 简体中文）</strong>、编辑字号、行号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，控制 Markdown/Notes 编辑器顶部的 WYSIWYG 工具栏，默认开）。</li>
 <li><strong>Agent</strong>（BYOA，非模型 BYOK 表单）：</li>
 <li>总开关。</li>
-<li><strong>Common agents</strong> 目录表：名称 + 状态徽章（installed / ACP ready / missing 等）；打开页自动 <strong>scan + 并行 Probe</strong>（每完成一个刷新徽章）；Refresh 可再跑。代理开关不因 Probe busy 禁用；改代理只持久化 + scan，不顺带全量 Probe。</li>
+<li><strong>Common agents</strong> 目录表：名称与 badge 组留距；badge 组内紧凑（安装列固定槽：已安装 / 未安装；ACP 列仅 ready/failed/not-probed，不把 missing 显示成「未安装」；+ adapter missing）；未安装整行置灰；默认 Agent 右侧对勾。打开页自动 scan + 并行 Probe；Refresh 可再跑。表下小字：ACP 失败时可试代理。代理开关不因 Probe busy 禁用；改代理只持久化 + scan。</li>
 <li><strong>Claude</strong>：<code>detect</code> 用本机 <code>claude</code>（Claude Code）；ACP 入口为 <code>claude-agent-acp</code>。若已装 Claude Code 但缺适配器，显示 <strong>ACP adapter missing</strong> 徽章 + <strong>Install ACP</strong> 小按钮 → Host <code>agent_open_install_terminal</code> 打开系统终端，展示 <code>npm i -g @agentclientprotocol/claude-agent-acp</code>，<strong>等待用户按 Enter 才执行</strong>（不静默安装）。装完后用户点 Refresh 再 Probe。</li>
 <li>顶部 <strong>Refresh</strong>（Rescan + Probe）；<strong>Use default</strong> 纯文字（无 icon）。</li>
 <li>Custom 区：添加任意 ACP command/args。</li>

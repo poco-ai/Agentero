@@ -267,6 +267,7 @@
 <li><strong>不是 paper</strong>：仅作分类的中间目录（如 <code>papers/nlp/</code>），无上述标记，文件树中可展开。</li>
 <li><strong>Catalog 主键</strong>：Vault 相对路径 <code>path</code>（如 <code>papers/nlp/transformers/1706.03762</code>），不是「仅叶子目录名」。</li>
 <li><strong>逻辑 <code>id</code></strong>：arXiv ID / citekey，用于展示与去重；可与目录名相同，但<strong>唯一标识落盘位置的是 <code>path</code></strong>。</li>
+<li><strong>UI 作用域过滤</strong>：文件树单击组织文件夹时，中间栏论文表用 <code>path</code> <strong>前缀匹配</strong>（<code>paper.path === scope || paper.path.startsWith(scope + "/")</code>）在已拉取的 <code>paper_list</code> 结果上过滤；catalog 主键即组织关系，无需按目录再查库或扫盘。详见 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §3。</li>
 </ul>
 <p><strong>合法 Vault 最低条件</strong>（打开目录 / <code>vault_create</code>）：</p>
 <ul>
@@ -496,7 +497,7 @@
 <tr>
 <td><code>is_read</code></td>
 <td>INTEGER NOT NULL DEFAULT 0</td>
-<td>v3：是否已完成 paper-reader 精读（0/1 → bool）；入库/单篇 Download 可自动精读，Zap 可手动</td>
+<td>v3：是否已完成 paper-reader 精读（0/1 → bool）；设置 <code>autoPaperReader</code>（默认关）开启时入库/单篇 Download 可自动精读，Zap 可手动</td>
 </tr>
 <tr>
 <td><code>added_at</code></td>

@@ -260,7 +260,7 @@
 <tr>
 <td>V0.6 工作区标签页与分屏</td>
 <td>🟡 标签页已完成</td>
-<td><strong>文档标签页已落地</strong>（标题栏多 tab、常驻挂载、<code>⌘W</code> 先关 tab 再关窗）；<strong>分屏（split）仍待</strong>；与左右侧栏 collapsible 共存。</td>
+<td><strong>文档标签页 + 默认全库 + 文件夹作用域库已落地</strong>；<strong>分屏（split）仍待</strong>；与左右侧栏 collapsible 共存。</td>
 </tr>
 <tr>
 <td>V0.7 引用关系与 Connected Papers</td>
@@ -304,6 +304,8 @@
 <li>[x] <strong>PDF 阅读操作</strong>：页码导航；<strong>适应宽度 / 适应整页</strong>；真实 scale 重渲染 + 放大后平移；<strong>大纲</strong>；<strong>⌘F 查找</strong>；<strong>平滑划词覆盖层</strong>；<strong>沉浸式阅读</strong>（全屏 + 限宽居中）；<strong>标注面板</strong>（高亮总览·改色·导出 NOTES）。</li>
 <li>[x] 侧边栏折叠、标题栏快捷按钮、Settings；左右侧栏 <strong>常驻 collapsible + preserve-pixel-size</strong>。</li>
 <li>[x] 论文库表格：<code>agentero:library</code>、<code>paper_list</code>、表头排序、<strong>tags 筛选</strong>、<strong>Rescan</strong>（<code>paper_rescan</code>）、双向滚动。</li>
+<li>[x] <strong>论文库默认页</strong>：关光文档 tab 后回到全库；仅剩全库时 <code>⌘W</code> 关窗。</li>
+<li>[x] <strong>文件夹作用域库</strong>：单击非 paper 目录 → 同 Library 表，<code>path</code> 前缀过滤内存 <code>libraryPapers</code>。</li>
 <li>[x] Paper Info / Notes 仅具体论文；Paper Info <strong>Tags</strong> 可编辑。</li>
 <li>[x] 后台任务条（含 paper-reader；hover 实色）；<strong>全局错误 Toast</strong>。</li>
 <li>[x] <strong>Vault 文件监听</strong>（<code>notify</code> → <code>vault:file-changed</code>）：外部/Agent 改盘自动重载打开的 Markdown 与文件树。</li>
@@ -315,6 +317,7 @@
 <li>[x] 重启应用后可以回到最近使用的 Vault（设置开启时）。</li>
 <li>[x] <code>⌘N</code> 打开的新窗口不自动占用上一窗口的 Vault，欢迎页可点最近路径。</li>
 <li>[x] 打开 Vault 后可在 Library 视图看到 catalog 中的论文列表。</li>
+<li>[x] 关光文档 tab 后中间栏为全库 Library；点组织文件夹只显示该路径下论文且不重新 <code>paper_list</code>。</li>
 </ul>
 <p>后续 TODO：</p>
 <ul>
@@ -461,7 +464,7 @@
 <p>目标：中间内容区从「当前选中一项即替换」升级为 <strong>标签式多文档工作区</strong>，并支持 <strong>分屏并排阅读/编辑</strong>。</p>
 <p>现状对照：</p>
 <ul>
-<li><strong>标签页已落地</strong>（浏览器式多 tab，常驻挂载）：中间区可同时打开 Library / PDF / HTML / Markdown 多个文档，切换保留 PDF 滚动/缩放与编辑器状态。<strong>分屏（split）仍待实现</strong>。</li>
+<li><strong>标签页 + 默认全库 + 文件夹作用域库已落地</strong>。<strong>分屏（split）仍待实现</strong>。</li>
 <li>左右侧栏已是常驻 collapsible（<code>preserve-pixel-size</code>）；Agent 禅模式是全屏 Agent，不是编辑区分屏。</li>
 <li>Agent 面板内部已有 <strong>会话标签</strong>（多 session），与「文档标签页」是不同概念。</li>
 </ul>
@@ -469,14 +472,17 @@
 <ul>
 <li>[x] <strong>文档标签栏</strong>：打开 paper / Markdown / PDF / HTML / Library 时在标题栏（与禅模式图标同行）以 tab 呈现，可关闭、切换、拖拽重排。（<code>src/components/layout/document-tab-bar.tsx</code>、<code>src/lib/tabs.ts</code>）</li>
 <li>[x] <strong>标签状态</strong>：每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；Markdown/NOTES 自动保存（debounce + 卸载 flush），关闭不丢内容。</li>
+<li>[x] <strong>默认页 = 全库 Library</strong>：<code>ensureFullLibraryTab</code>；仅剩全库时 <code>⌘W</code> 关窗。</li>
+<li>[x] <strong>文件夹作用域库</strong>：非 paper 目录 → <code>filterPapersByScope</code> 内存前缀过滤。</li>
 <li>[ ] <strong>分屏（split）</strong>：水平或垂直拆成 2 格（MVP 可先 2 格；后续可扩展 3–4 格），每格独立 tab 栈或共享 tab 池。</li>
-<li>[x] <strong>快捷键</strong>：关闭 tab <code>⌘W</code>（无 tab 时关窗口）、下一/上一 tab <code>⌥⌘→ / ⌥⌘←</code>；分屏快捷键随 split 一并补。</li>
+<li>[x] <strong>快捷键</strong>：关闭 tab <code>⌘W</code>（仅剩全库关窗）、下一/上一 tab <code>⌥⌘→ / ⌥⌘←</code>；分屏快捷键随 split 一并补。</li>
 <li>[x] <strong>与文件树联动</strong>：树选中 / Library / Graph / Backlinks / wiki 跳转统一走 <code>openTab</code>；同一路径已开则聚焦其 tab。</li>
 <li>[x] <strong>多窗口兼容</strong>：<code>⌘N</code> 窗口各自有独立 tab 集（<code>agentero-open-tabs</code> 按窗口 localStorage 恢复）。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
 <li>[x] 可同时打开至少 3 个文档标签并在其间切换而不丢滚动位置。</li>
+<li>[x] 关光文档 tab 后中间栏为全库；点组织文件夹只看到该路径下论文且不重新 <code>paper_list</code>。</li>
 <li>[ ] 分屏下左格读 PDF、右格写 <code>NOTES.md</code>（或两篇 paper 并排）可用。</li>
 <li>[x] 关闭 Vault / 关窗不损坏磁盘文件；tab 布局可恢复（localStorage）。</li>
 </ul>

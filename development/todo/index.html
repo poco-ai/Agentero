@@ -158,7 +158,7 @@
    - [x] 设置：<code>translatorBaseUrl</code>（默认 <code>https://translator.philfan.cn</code>）；<strong>无</strong>「是否本地下载」开关。
    - [x] 文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 原因）。
    - [x] 无 TeX + 有 PDF：下载后 liteparse 生成 <code>PAPER.md</code>（Download 路径内）。
-   - [x] 精读：魔棒/单篇 Download 后自动 paper-reader；资源齐全且未读时 Zap 可手动 → <code>is_read</code>。
+   - [x] 精读：设置 <code>autoPaperReader</code>（默认关）+ 魔棒/单篇 Download 自动；资源齐全且未读时 Zap 可手动 → <code>is_read</code>。
    - [x] Library 行：库内任一篇仍缺资源 → 批量 Download。
    - [x] 快捷键 <code>⇧⌘I</code>（打开魔棒）；本机 Translator sidecar 捆绑仍待。</p>
 <p>2c. <strong>论文库表格 UI</strong> ✅
@@ -168,6 +168,10 @@
    - [x] Library 行批量补资源（与 2b 联动）。
    - [x] <strong>Tags</strong>：Paper Info 增删 → <code>paper_set_tags</code>；Library 列展示 + chip 筛选。
    - [x] <strong>Tags CLI</strong>：<code>paper set-tags</code> / <code>list --tag</code> / <code>tags</code>（与 Host 共用 <code>papers::set_tags</code>）。</p>
+<p>2c-2. <strong>论文库默认页 + 文件夹作用域库</strong> ✅
+   - [x] <strong>默认页</strong>：有 Vault 时默认全库；关空 tab → <code>ensureFullLibraryTab()</code>；仅剩全库时 <code>⌘W</code>/X 关窗。
+   - [x] <strong>文件夹作用域</strong>：非 paper 目录 → 展开树 + <strong>同一</strong> Library tab 上 <code>libraryScopePath</code> 前缀过滤（<strong>不</strong>为文件夹开新 tab）。
+   - [x] 单测 + latency：<code>test/library-scope.test.ts</code>。</p>
 <p>2d. <strong>文件树与侧栏 UX</strong> ✅
    - [x] <strong>回收站虚拟节点</strong>：Library 下方 <code>agentero:trash</code>（不在侧栏 Header）；<code>RecycleBinView</code> 自持 <code>PaneHeader</code>（与侧栏同高）；中间栏不重复 title/关闭行。
    - [x] <strong>选中同步 / 定位</strong>：激活文档与入库完成后树展开祖先并 <code>scrollToIndex</code>。
@@ -196,7 +200,7 @@
    - [x] Library 空态 / 工具栏 Rescan 入口 + i18n。</p>
 <ol>
 <li><strong>Agent 工作流入口</strong></li>
-<li>[x] <strong>paper-reader 精读</strong>：入库/单篇 Download <strong>自动</strong> + 文件树 Zap 手动（资源齐全 + <code>is_read=false</code>）→ paper-reader skill（Codex <code>$</code> / Claude <code>/</code> / 其它注入）→ <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度（lookup/download → paperRead）；<strong><code>hideFromChatHistory</code></strong> 不进 Agent 历史。</li>
+<li>[x] <strong>paper-reader 精读</strong>：设置 <code>autoPaperReader</code>（默认关）开启时入库/单篇 Download 自动；文件树 Zap 手动（资源齐全 + <code>is_read=false</code>）→ skill → <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度；<strong><code>hideFromChatHistory</code></strong>。</li>
 <li>[x] skill 运行时语法按 Agent 模板分流（Host <code>SkillMentionStyle</code>）。</li>
 <li>[x] <strong>全局权限模式</strong>：设置 → Agent（<code>restricted</code> / <code>autoApprove</code>），替代 per-provider YOLO。</li>
 <li>[ ] 在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”。</li>
@@ -273,8 +277,9 @@
 </li>
 <li>[x] 中间栏文档 <strong>标签栏</strong>：paper / MD / PDF / HTML / 图片 / Library 以 tab 打开，可关闭、切换、拖拽重排。</li>
 <li>[x] 每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；MD/NOTES 自动保存，关闭不丢内容。</li>
+<li>[x] <strong>默认页全库 + 文件夹作用域库</strong>（2c-2）。</li>
 <li>[ ] <strong>分屏</strong>：水平或垂直 2 格；每格独立内容（典型：PDF | NOTES，或两篇 paper 并排）。</li>
-<li>[x] 快捷键：关 tab <code>⌘W</code>（无 tab 时关窗口；File → Close / 菜单 <code>close_tab_or_window</code> 同源）/ 切 tab <code>⌥⌘→·⌥⌘←</code>；分屏·取消分屏随 split 补（键位写入 <code>docs/frontend/ui.md</code>）。</li>
+<li>[x] 快捷键：关 tab <code>⌘W</code>（仅剩全库时关窗；File → Close 同源）/ 切 tab <code>⌥⌘→·⌥⌘←</code>；分屏随 split 补。</li>
 <li>[x] 文件树 / Library / Graph / Backlinks / wiki 跳转统一 <code>openTab</code>；同路径已开则聚焦。</li>
 <li>[x] 与 <code>⌘N</code> 多窗口隔离：每窗口独立 tab 集（<code>agentero-open-tabs</code>）；关窗/换 Vault 可恢复布局。</li>
 <li>[x] 全局操作错误 Toast（<code>notifyError</code>，右上角；替代侧栏 header 错误条）。</li>
@@ -436,7 +441,7 @@
 </tr>
 <tr>
 <td>Agent</td>
-<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader</strong>（自动+Zap；<strong>不进对话历史</strong>）、<strong>全局权限模式</strong>、模型收藏、Skill 提及分流、<strong>禅模式左侧历史栏</strong>（无 1/2/3 数字标签）</td>
+<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader</strong>（Zap + 可选自动默认关；<strong>不进对话历史</strong>）、<strong>全局权限模式</strong>、模型收藏、Skill 提及分流、<strong>禅模式左侧历史栏</strong>（无 1/2/3 数字标签）</td>
 <td>面板内置 workflow 入口、写入草稿确认、逐项权限 UI；<strong>引用类 workflow</strong>（V0.7）</td>
 </tr>
 <tr>
