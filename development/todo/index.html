@@ -64,6 +64,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
                   </li>
               </ul>
@@ -127,7 +129,7 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="agentero-todo">Agentero TODO<a class="headerlink" href="#agentero-todo" title="Permanent link">&para;</a></h1>
-<p>可执行 backlog。版本级状态与验收以 <a href="../roadmap/"><code>roadmap.md</code></a> 为准；魔棒设计见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>。</p>
+<p>可执行 backlog。版本级状态与验收以 <a href="../roadmap/"><code>roadmap.md</code></a> 为准；魔棒设计见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>；Zotero Connector 兼容见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>。</p>
 <h2 id="p0">P0 — 近期闭环<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Create Vault 初始化</strong> ✅</li>
@@ -331,15 +333,21 @@
 <li>[x] 迁移 Zotero 笔记（子笔记 HTML→Markdown 追加进 NOTES.md；<code>htmd</code>）。</li>
 <li>[x] 迁移 PDF 批注文本（高亮+评论→NOTES.md）+ 逐条选择/搜索 + 迁移进度 + 记住选项。</li>
 <li>[ ] 批注原位高亮渲染（highlights.md 系统）与引用 key 映射。</li>
-<li><strong>Zotero/BibTeX 迁移工具</strong></li>
-<li>解析 Zotero export 或 BibTeX。</li>
-<li>由 Agent 辅助重组为 Agentero vault。</li>
-<li>
-<p>保留原始附件与引用 key 映射。</p>
-</li>
-<li>
-<p><strong>用户友好的 Skills / Workflows</strong></p>
-</li>
+</ol>
+<p>1b. <strong>Zotero Connector 兼容服务</strong>（方案一）— 设计见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a> <strong>§4.5 覆盖总表</strong>
+   - [x] C0：设计文档（本机 <code>23119</code>、互斥 Zotero 桌面、默认关、MVP endpoints、映射与分期）。
+   - [x] C1：Host <code>services/connector</code> — <code>ping</code> / <code>saveItems</code> / <code>sessionProgress</code> + loopback 安全策略；复用 <code>map_zotero_item</code> 落盘。
+   - [x] C2：设置开关 <code>connectorEnabled</code> + <code>connector_get_status</code> / <code>connector_set_enabled</code> / <code>set_vault</code>；端口冲突 / 无 Vault UX；i18n。
+   - [x] C3：前端 <code>connector:item-saved</code> 刷新树/Library；退出释放端口；<code>api.md</code> 命令表。
+   - [x] C4a：catalog id 去重；URL 附件后台 <code>ensure_paper_assets</code>；防插件 15s 超时（NOTES 无实时 MT）。
+   - [x] C4a2：<code>getSelectedCollection.targets</code> 列出 <code>papers/</code> 组织子文件夹；<code>updateSession</code> 移动 paper；<code>connector_set_parent_dir</code> + Library 作用域同步。
+   - [ ] C4b（P0）：<code>saveAttachment</code> 二进制上传协议。
+   - [ ] C4c（P0）：<code>saveSnapshot</code> / <code>saveSingleFile</code>（可降级为元数据 + <code>html_url</code>）。
+   - [ ] C5a（P0）：<code>detailedCookies</code> 注入下载。
+   - [ ] C5b（P1）：<code>detect</code> / <code>savePage</code> / <code>selectItems</code>；<code>attachmentProgress</code>。
+   - [ ] C5c（可选）：<code>getTranslators</code> / proxies；可配置端口；<code>updateSession.tags</code> 写入 catalog。</p>
+<ol>
+<li><strong>用户友好的 Skills / Workflows</strong></li>
 <li>[x] 精读论文（paper-reader：文件树 Zap + catalog <code>is_read</code>）。</li>
 <li>[ ] 多篇对比（可与分屏 + 引用邻域联动）。</li>
 <li>[ ] Related Work 草稿（面板入口；与 V0.7 Map related work 可合并实现）。</li>

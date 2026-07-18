@@ -64,6 +64,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
                   </li>
               </ul>
@@ -694,7 +696,8 @@
 <p>这些能力不进入 MVP 主线，但可在上述版本之后继续规划：</p>
 <ul>
 <li>~~Zotero/BibTeX 批量导入~~ ✅ 一键从本地 Zotero 迁移（直读 <code>zotero.sqlite</code> + <code>storage/</code>，可选拷 PDF；见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a> §16）；BibTeX/RIS 文件仍走 Library 导入。</li>
-<li>浏览器插件，一键收集网页和论文。</li>
+<li><strong>Zotero Connector 兼容服务</strong>（方案一，<strong>MVP 已落地</strong>）：Host 在 <code>127.0.0.1:23119</code> 兼容官方浏览器扩展保存协议 → 当前 Vault；与 Zotero 桌面端端口互斥、默认关；组织子文件夹可选；见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a> <strong>§4.5</strong>。仍待 P0：<code>saveAttachment</code> / snapshot / cookies。</li>
+<li>浏览器插件（可选后续）：自研扩展或 fork，可共用入库核心、不必抢 23119。</li>
 <li>~~<strong>PDF 划词提问</strong> MVP~~ ✅（划词弹操作菜单：高亮 / 批注 / 提问 / 翻译 → <code>asks/*.json</code> + <code>highlights/*.json</code>；<strong>平滑蓝色选区覆盖层</strong>（非默认琥珀高亮）；见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>）。仍待：导出 <code>highlights.md</code>、无文本层降级、TextLayer 增强。</li>
 <li>~~<strong>翻译服务</strong>~~ ✅ 首版（见 <a href="../translate/"><code>translate.md</code></a>）：应用级可插拔 <code>TranslateService</code>；<strong>免费 MT + BYOA Agent</strong>（无付费 API）；设置 → <strong>Translate</strong>；PDF 划词为首个消费方。T4+ 更多引擎/消费方仍待。</li>
 <li>~~阅读器内 PDF 高亮 + 批注~~ ✅（就地批注 = 高亮 + 内联评论 + 页边批注针 + 右侧「批注」面板）。仍待：<code>highlights.md</code> 摘录同步 / 导出到 <code>NOTES.md</code>（暂不做）、与划词提问互导。</li>

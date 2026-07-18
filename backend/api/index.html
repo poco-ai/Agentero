@@ -232,6 +232,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../identifier-lookup/">魔棒与 Translator</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../connector/">Zotero Connector 兼容</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../wikilinks/">双链与图谱</a>
                   </li>
               </ul>
@@ -927,10 +929,62 @@ Host (Tauri + Rust)
     targetLang: string;      // e.g. &quot;zh-CN&quot; | &quot;en&quot;
     provider?: string;       // bing (default) | youdao | huoshanweb | tencenttransmart | googleapi | google | libre
     freeBaseUrl?: string | null; // libre 必填
+    timeoutMs?: number | null;   // optional; clamped 1s–30s server-side (default 30s); settings probe uses 5000
   }
   ```
 - **返回**：`{ ok: true; data: { text: string; provider: string } }`
-- **约束**：单次约 ≤ 5000 字符（CNKI ≤800）；超时约 30s。无付费 API Key；免费引擎为非官方网页接口。
+- **约束**：单次约 ≤ 5000 字符（CNKI ≤800）；默认超时约 30s。无付费 API Key；免费引擎为非官方网页接口。设置页打开默认服务下拉时，对全部免费引擎并行 probe（`timeoutMs=5000`，不含 Agent）。
+
+### 3.5b Zotero Connector 兼容服务（MVP 已落地）
+
+**目标**：Host 在本机 `127.0.0.1:23119` 兼容 [Zotero Connector HTTP Server](https://www.zotero.org/support/dev/client_coding/connector_http_server)，使官方浏览器扩展把保存请求写入当前 Vault。
+
+- **HTTP 契约、安全模型、实现 vs 缺口总表**：见 [`connector.md`](connector.md) **§4.5**（权威）。
+- **与魔棒关系**：元数据映射复用 `map_zotero_item`；入口不同（插件 vs ⇧⌘I）。
+- **设置**：`connectorEnabled` 默认 `false`；与 Zotero 桌面端 **端口互斥**。
+- **实现**：`services/connector/`、`commands/connector.rs`、`src/lib/connector.ts`。
+- **已挂 HTTP**：`ping`、`saveItems`、`sessionProgress`、`getSelectedCollection`（含子文件夹 targets）、`updateSession`、`delaySync`。
+- **未挂 HTTP（P0）**：`saveAttachment`、`saveSnapshot`、`saveSingleFile`；`detailedCookies`。
+
+#### `connector_get_status`
+
+- **返回**：`{ ok: true; data: ConnectorStatus }`
+  ```ts
+  type ConnectorStatus = {
+    enabled: boolean;
+    listening: boolean;
+    port: number;                 // 23119
+    boundAddress: string | null;  // &quot;127.0.0.1:23119&quot;
+    lastError: string | null;
+    vaultPath: string | null;
+    parentDir: string;            // default &quot;papers&quot;
+  };
+  ```
+
+#### `connector_set_enabled`
+
+- **参数**（`args`）：`{ enabled: boolean }`
+- **返回**：`{ ok: true; data: ConnectorStatus }`（bind 失败时 `listening=false` 且 `lastError` 有文案）
+
+#### `connector_set_vault`
+
+- **参数**（`args`）：`{ vaultPath: string | null }`
+- **返回**：`{ ok: true; data: null }`
+- **说明**：保存目标 Vault；无 Vault 时 HTTP `saveItems` 返回 503。
+
+#### `connector_set_parent_dir`
+
+- **参数**（`args`）：`{ parentDir: string }` — `papers` 或 `papers/…` 组织文件夹
+- **返回**：`{ ok: true; data: null }`
+- **说明**：默认保存位置；前端 Library 作用域会同步；插件 `getSelectedCollection.targets` 列出全部组织子文件夹（`L1` / `Dpapers/…`）。
+
+#### Events
+
+| 事件 | payload |
+|---|---|
+| `connector:status` | `ConnectorStatus` |
+| `connector:item-saved` | `{ path, id, title, deduped, sessionId }` |
+| `connector:error` | `{ message, sessionId? }` |
 
 ### 3.6 魔棒 / 标识符入库（已落地 v0）
 
