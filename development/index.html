@@ -202,12 +202,12 @@
 <tr>
 <td>V0.3 Agent</td>
 <td>🟡</td>
-<td>BYOA + ACP / Codex 原生 runtime、流式 UI、Sources、<strong>paper-reader</strong>（Zap 手动 + 可选自动，默认关）、<strong>全局权限模式</strong>、模型收藏；面板 workflow 与写入确认仍待</td>
+<td>BYOA + ACP / Codex 原生 runtime、流式 UI、Sources、<strong>paper-reader</strong>（Zap + 可选自动默认关）、<strong>权限三档</strong>（含每次询问）、<strong>面板 workflow</strong>、<strong>笔记写后审阅</strong>；<code>AGENTS.md</code> 注入仍待</td>
 </tr>
 <tr>
 <td>V0.4 双链/图谱</td>
 <td>✅</td>
-<td>Backlinks + Graph 同栏；<code>graph_get_graph</code></td>
+<td>Backlinks + Graph 同栏；<code>graph_get_graph</code>；<strong>文件变更防抖重建索引</strong></td>
 </tr>
 <tr>
 <td>阅读增强</td>
@@ -247,7 +247,12 @@
 <tr>
 <td>Zotero Connector 兼容</td>
 <td>✅ MVP</td>
-<td>本机 <code>23119</code> 兼容官方扩展保存 → Vault；设置开关默认关；见 <a href="../backend/connector/"><code>../backend/connector.md</code></a></td>
+<td>本机 <code>23119</code>：<code>saveItems</code> + 子文件夹 targets + <strong><code>saveAttachment</code></strong>；设置开关默认关；见 <a href="../backend/connector/"><code>../backend/connector.md</code></a></td>
+</tr>
+<tr>
+<td>全库搜索</td>
+<td>✅</td>
+<td>命令面板 <code>⌘K</code>/<code>⌘P</code>：论文 quick-open + <code>vault_search</code> Markdown 全文</td>
 </tr>
 <tr>
 <td>Release CI</td>

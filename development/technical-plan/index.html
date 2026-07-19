@@ -1083,8 +1083,8 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 - 切换只改注册表中的默认 agent id 与启动参数，不改变 Rust 业务逻辑。
 - ACP 保证接口统一；某 agent 不可用时展示探测失败原因与重试，不静默回退到「内置」agent。</p>
 <p><strong>权限与写入</strong>：
-- <strong>全局权限模式</strong>（设置 → Agent，<code>agentPermissionMode</code>）：<strong>受限</strong>（默认）时取消 ACP 权限请求 / Codex <code>workspace-write</code>；<strong>自动批准</strong>时选 Agent 给出的第一项 / Codex <code>danger-full-access</code>。运行经 <code>autoApprove</code> 传入。逐项「每次询问」仍待。
-- 涉及覆盖 Vault 内已有笔记的写入：先临时文件 / 草稿，用户确认后再落盘（与 <code>agent:accept_draft</code> 一致；草稿确认 UX 仍待补齐）。</p>
+- <strong>全局权限模式</strong>（设置 → Agent，<code>agentPermissionMode</code>）：<strong>受限</strong>（默认）取消 ACP 权限请求 / Codex <code>workspace-write</code>；<strong>每次询问</strong>（<code>ask</code>）经 <code>agent:permission-request</code> + <code>agent_respond_permission</code> 对话框；<strong>自动批准</strong>（<code>auto</code>）选第一项 AllowOnce / Codex <code>danger-full-access</code>。运行经 <code>permissionMode</code> 传入（旧 <code>autoApprove</code> 仍兼容）。
+- <strong>笔记写后审阅</strong>：BYOA 直接写盘，运行前快照目标笔记；重写后 <code>agent:notes-review</code> 对照 Keep/Revert。写前 dry-run / <code>agent:accept_draft</code> 路径仍可后续加强。</p>
 <p><strong>Agent 输出规范</strong>（工作流 prompt + <code>AGENTS.md</code> 强约束）：
 - 结果末尾必须包含 <code>## Sources</code> 或 <code>读取文件：</code> 列表（相对 Vault 路径）。
 - 涉及双链的内容必须保留 <code>[[...]]</code> 格式。
@@ -1385,11 +1385,11 @@ tempfile = &quot;3&quot;
 </tr>
 <tr>
 <td>V0.3</td>
-<td>BYOA 面板进行中；通用 provider 走 ACP，Codex 走原生 App Server thread；<code>@</code> / <code>$</code> 上下文、<strong>paper-reader</strong>（入库/单篇 Download <strong>自动</strong> + Zap 手动 + <code>is_read</code>）、<strong>SkillMentionStyle</strong>、<strong>全局权限模式</strong>（<code>agentPermissionMode</code>：受限 / 自动批准）、模型收藏已接入；面板内其它 workflow、逐项「每次询问」、写入草稿待补。</td>
+<td>BYOA 面板进行中；通用 provider 走 ACP，Codex 走原生 App Server thread；<code>@</code> / <code>$</code> 上下文、<strong>paper-reader</strong>（可选自动 + Zap 手动 + <code>is_read</code>）、<strong>SkillMentionStyle</strong>、<strong>权限三档</strong>（<code>restricted</code> / <code>ask</code> / <code>auto</code> + <code>agent:permission-request</code>）、<strong>面板 workflow</strong>（summary / qa / related_work）、<strong>笔记写后审阅</strong>（<code>agent:notes-review</code> Keep/Revert）、模型收藏已接入；<code>AGENTS.md</code> 自动注入与写前草稿拦截仍待。</td>
 </tr>
 <tr>
 <td>V0.4</td>
-<td>双链解析、反链面板、<code>graph_get_graph</code>、<code>react-force-graph-2d</code> 图谱已落地；Graph 嵌在 Backlinks 右侧栏下方（<strong>双链图</strong>，非文献引用图）。</td>
+<td>双链解析、反链面板、<code>graph_get_graph</code>、<code>react-force-graph-2d</code> 图谱已落地；Graph 嵌在 Backlinks 右侧栏下方（<strong>双链图</strong>）；<code>.md</code> 变更经 <code>scheduleWikiRebuild</code> 防抖重建索引。</td>
 </tr>
 <tr>
 <td>V0.5</td>
@@ -1432,7 +1432,7 @@ tempfile = &quot;3&quot;
 </tr>
 <tr>
 <td>Agent 输出破坏用户笔记</td>
-<td>所有写入先走临时文件，用户确认后再覆盖；NOTES.md 用户修改部分优先保留。</td>
+<td>BYOA 直接写盘，运行前快照目标笔记；重写后 <code>agent:notes-review</code> 对照 + Keep/Revert。写前 dry-run 拦截仍待。</td>
 </tr>
 <tr>
 <td>论文列表性能差</td>

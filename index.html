@@ -199,14 +199,16 @@
 <li>可选右侧栏只有两个顶层入口：Agent 与 Backlinks（左右侧栏均为 collapsible 常驻面板，交替快捷键互不冲折叠态）。</li>
 <li>Backlinks 视图上方显示反链，下方显示 Graph；Graph 不是独立顶层 tab（<strong>双链图</strong>，非文献引用图）。</li>
 <li>魔棒：侧栏粘贴标识符 → Translator → catalog + <strong>默认下载 PDF</strong>（arXiv 含 LaTeX 解压）。</li>
-<li><strong>Zotero Connector 兼容</strong>（MVP）：设置开启后本机 <code>23119</code> 接收官方浏览器扩展保存到 Vault（与 Zotero 桌面互斥）— 见 <a href="backend/connector/"><code>backend/connector.md</code></a>。</li>
+<li><strong>Zotero Connector 兼容</strong>（MVP）：设置开启后本机 <code>23119</code> 接收官方浏览器扩展 <code>saveItems</code> + <strong><code>saveAttachment</code></strong> → Vault（与 Zotero 桌面互斥）— 见 <a href="backend/connector/"><code>backend/connector.md</code></a>。</li>
 <li>补资源：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时 Download；Library 行可<strong>批量</strong>补全部缺失。无 TeX 时下载后 liteparse 生成 <code>PAPER.md</code>。</li>
 <li><strong>精读</strong>：设置 → Agent 可开「入库后自动精读」（默认关）；<strong>Zap</strong> 始终可手动。Skill 按 provider → 写 <code>NOTES.md</code> → <code>is_read=true</code>。</li>
-<li><strong>Agent 权限</strong>：设置 → Agent 全局「权限模式」（受限默认 / 自动批准）；逐项确认仍待。</li>
+<li><strong>Agent 权限</strong>：设置 → Agent 全局「权限模式」（受限默认 / <strong>每次询问</strong> / 自动批准）；<code>ask</code> 时弹权限对话框。</li>
+<li><strong>Agent 面板</strong>：空态建议 → summary / qa / related_work；笔记被 Agent 改写后可 Keep / Revert。</li>
+<li><strong>命令面板</strong>（<code>⌘K</code> / <code>⌘P</code>）：论文 quick-open + Vault Markdown 全文搜索。</li>
 <li>预览：任意路径 PDF / 图片 <code>blob:</code>；PDF <strong>导航 / 适应宽·整页 / 大纲 / ⌘F / 平滑划词</strong> + 划词操作菜单（见 <a href="development/pdf-ask/"><code>development/pdf-ask.md</code></a>）。</li>
 <li><strong>翻译服务</strong>（首版：免费 MT + BYOA Agent）：见 <a href="development/translate/"><code>development/translate.md</code></a>。</li>
 <li><strong>Markdown 内嵌图片</strong>：<code>./assets/</code> 落盘 + 选中源码 + 删除 GC（见 <a href="backend/data-model/"><code>backend/data-model.md</code></a>）。</li>
-<li><strong>外部改盘自动重载</strong>：<code>notify</code> → <code>vault:file-changed</code> 刷新打开的 Markdown / 文件树（见 <a href="frontend/ui/"><code>frontend/ui.md</code></a>）。</li>
+<li><strong>外部改盘自动重载</strong>：<code>notify</code> → <code>vault:file-changed</code> 刷新打开的 Markdown / 文件树；<code>.md</code> 变更防抖重建 wiki 索引；写盘前保存冲突检测（见 <a href="frontend/ui/"><code>frontend/ui.md</code></a>）。</li>
 <li><strong>全局错误 Toast</strong>（右上角 Sonner）：<code>notifyError</code>；表单就地校验除外。</li>
 <li><strong>规划中</strong>（见 roadmap）：<strong>V0.6</strong> 分屏；<strong>V0.7</strong> 文内引用 hover→Paper Info、Connected Papers 式邻域。</li>
 <li>实现状态与路线图：<a href="development/roadmap/"><code>development/roadmap.md</code></a>。</li>
@@ -315,5 +317,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-07-18 19:15:33.955592+00:00
+Build Date UTC : 2026-07-19 01:44:55.079384+00:00
 -->

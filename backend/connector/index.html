@@ -1040,7 +1040,8 @@ Tauri event: connector:item-saved / connector:error
 <h3 id="54-cookie">5.4 附件与 cookie<a class="headerlink" href="#54-cookie" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>当前</strong>：<code>saveItems</code> 元数据返回后，后台 <code>ensure_paper_assets</code>（公开 PDF URL / arXiv）；<strong>不</strong>阻塞 201。</li>
-<li><strong>未做</strong>：<code>saveAttachment</code> 二进制；<code>detailedCookies</code> 注入（校园网 PDF 仍可能失败 → 用户可 Download 补下）。</li>
+<li><strong>已做</strong>：<code>saveAttachment</code> 二进制上传（浏览器用页面 cookie 拉取登录墙 PDF → Vault；<code>supportsAttachmentUpload: true</code>；body 上限 200 MiB）。</li>
+<li><strong>未做</strong>：<code>detailedCookies</code> 注入（无 <code>saveAttachment</code> 时校园网 PDF 仍可能失败 → 用户可 Download 补下）。</li>
 <li><strong>纪律</strong>：<code>saveItems</code> 同步路径禁止摘要 MT + 同步大附件，以免官方插件 <strong>15s 超时</strong>。</li>
 </ul>
 <h3 id="55">5.5 精读自动触发<a class="headerlink" href="#55" title="Permanent link">&para;</a></h3>
@@ -1386,7 +1387,7 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
 </tr>
 <tr>
 <td>2026-07-18</td>
-<td>MVP 实现：Host axum server、commands、设置开关、事件刷新；PR3 附件协议仍待</td>
+<td>MVP 实现：Host axum server、commands、设置开关、事件刷新</td>
 </tr>
 <tr>
 <td>2026-07-18</td>
@@ -1394,7 +1395,7 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
 </tr>
 <tr>
 <td>2026-07-18</td>
-<td><strong>C4b <code>saveAttachment</code></strong>：浏览器上传登录墙 PDF（<code>X-Metadata</code> <code>parentItemID</code>→paper；<code>%PDF</code> 校验；触发 PAPER.md；<code>supportsAttachmentUpload: true</code>；200 MiB body 上限）</td>
+<td><strong>C4b <code>saveAttachment</code></strong>：浏览器上传登录墙 PDF（<code>X-Metadata</code> <code>parentItemID</code>→paper；<code>%PDF</code> 校验；触发 PAPER.md；<code>supportsAttachmentUpload: true</code>；200 MiB body 上限）。仍待：<code>saveSnapshot</code> / <code>saveSingleFile</code> / <code>detailedCookies</code></td>
 </tr>
 </tbody>
 </table>

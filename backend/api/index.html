@@ -1987,11 +1987,11 @@ Host (Tauri + Rust)
 </tr>
 <tr>
 <td>V0.3</td>
-<td>ACP Client + BYOA：<code>agent:list_agents</code> / <code>upsert_agent</code> / <code>discover</code> / 会话与权限 / 工作流；<code>paper_set_is_read</code> + paper-reader（自动/手动）。</td>
+<td>ACP Client + BYOA：会话与流式事件；<code>permissionMode</code>（<code>restricted</code>/<code>ask</code>/<code>auto</code>）+ <code>agent_respond_permission</code> / <code>agent:permission-request</code>；<code>agent:notes-review</code>；面板 workflow（<code>summary</code>/<code>qa</code>/<code>related_work</code>）；<code>paper_set_is_read</code> + paper-reader（可选自动/手动）。</td>
 </tr>
 <tr>
 <td>V0.4</td>
-<td>增加 <code>graph:*</code> 命令（双链 / 反链 / 图谱；与 bibliographic 引用图分离）。</td>
+<td><code>graph:*</code>（双链 / 反链 / 图谱）；前端文件变更防抖 <code>graph_rebuild</code>。</td>
 </tr>
 <tr>
 <td>V0.5</td>
@@ -2015,7 +2015,7 @@ Host (Tauri + Rust)
 - <code>importer:import</code> 统一来源入口。
 - <code>lookup:*</code> 与 PDF prepare 共用元数据管道。
 - <code>citation:fetch</code> / <code>citation:list_neighbors</code>（名称待定）：引用/被引邻域与缓存刷新（V0.7）。
-- <code>search:full_text</code> 本地全文搜索。
+- ~~<code>search:full_text</code>~~ → 已用 walk 式 <code>vault_search</code>（命令面板）；FTS5 / PDF 正文层仍可替换增强。
 - <code>reader:annotations</code> 标注（<code>highlights.md</code>）读写。
 - <code>sync:*</code> 多设备同步（远期）。</p>
               

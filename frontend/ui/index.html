@@ -481,7 +481,7 @@
 <tr>
 <td><code>⌘K</code> / <code>⌘P</code></td>
 <td>命令面板：搜索 / 快速打开</td>
-<td>论文标题·作者即时 quick-open + <code>vault_search</code> 全文正文匹配（<code>CommandPalette</code>；<code>shortcuts.ts</code> → <code>commandPalette</code>）</td>
+<td>无 Vault 时提示先打开 Vault；有 Vault 时：论文标题·作者·id <strong>即时</strong> quick-open + 去抖 <code>vault_search</code> Markdown 全文（片段/行号；<code>papers/</code> 命中打开 paper）（<code>CommandPalette</code>；<code>shortcuts.ts</code> → <code>commandPalette</code>）</td>
 </tr>
 <tr>
 <td><code>Esc</code></td>
@@ -600,6 +600,8 @@
 <li><strong>持久化</strong>：<code>agentero-open-tabs</code> 按窗口保存；全库与作用域 path 均可恢复。</li>
 <li><strong>NOTES 编辑器</strong>：每篇 paper 的 <code>NOTES.md</code> 编辑器也按 tab 常驻挂载在右侧 Notes 栏；paper-reader / download 写回后按路径 reseed 对应 tab。</li>
 <li><strong>外部/Agent 改动自动重载</strong>：Host <code>notify</code> 监听 Vault，发 <code>vault:file-changed</code>（<code>src/lib/fs-watch.ts</code>、<code>App.tsx</code> 的 <code>applyDiskChange</code>）。打开中的 <code>.md</code>/<code>NOTES.md</code> 若磁盘内容与当前 seed 不同：<strong>无未存改动时</strong>从盘重载（key bump 重挂载）；<strong>有未存改动时不静默覆盖</strong>，弹 toast（<code>diskConflict</code>，操作「载入磁盘版」；忽略则保留本地改动）；内容相等即判定为自身 autosave 回声、跳过；重载期内 <code>reseedGuardRef</code> 阻止旧实例卸载 flush 覆盖新盘内容。结构性变更（create/remove/rename）去抖刷新文件树；纯 <code>modify</code> 不刷新树。</li>
+<li><strong>Wiki 索引刷新</strong>：<code>.md</code> 变更经 <code>useVaultFileEvents.onWikiChange</code> → <code>scheduleWikiRebuild</code>（约 900ms 防抖）重建双链 / Backlinks / Graph，避免外部/Agent 写盘后图谱陈旧。</li>
+<li><strong>保存冲突检测（防丢数据）</strong>：autosave / <code>⌘S</code> / 卸载 flush 写盘前，<code>persistFile</code> 比对磁盘内容与上次落盘内容；若文件已被外部修改则<strong>中止写入</strong>并 <code>notifyWarning</code>（<code>diskConflict.saveBlocked</code>），不静默覆盖外部变更。</li>
 </ul>
 <p>规划中（尚未实现）：</p>
 <ul>
@@ -700,7 +702,62 @@ PromptInput → Body / Footer / Submit
 </table>
 <p>paper-reader 精读工作流与 Composer 共用这套规则，避免把 Codex 的 <code>$</code> 误写成 Claude 的 <code>/</code>，或反向。</p>
 <p><strong>斜杠命令</strong>：Agentero 不实现自己的 <code>/</code> 命令菜单。用户手打的 <code>/…</code> 原样透传；Claude 路径上 Host 也可能主动加上 <code>/skill-id</code> 前缀以对齐其 skill 语法。Codex 使用 App Server native thread，skill 侧以 <code>$</code> 为准。</p>
-<p><strong>权限模式</strong>：<strong>设置 → Agent</strong> 提供一个全局「权限模式」下拉，对<strong>所有 Agent</strong> 的运行生效（存于 app settings，默认 <strong>受限</strong>）。<strong>受限（默认）</strong>时，Agentero 取消 ACP 的权限请求（Codex 走原生策略、沙箱为 <code>workspace-write</code>）；<strong>自动批准</strong>时自动选择 Agent 给出的第一个权限选项（Codex 沙箱切换为 <code>danger-full-access</code>）。选 <strong>自动批准</strong> 时面板下方显示一行风险说明。逐项权限确认需要由保持 ACP 会话的后续实现提供；届时可在此下拉新增「每次询问」档。</p>
+<p><strong>权限模式</strong>：<strong>设置 → Agent</strong> 提供一个全局「权限模式」下拉（<code>agentPermissionMode</code>），对<strong>所有 Agent</strong> 生效（默认 <strong>受限</strong>），经 <code>runOnce</code> → <code>permissionMode</code> 传入：</p>
+<table>
+<thead>
+<tr>
+<th>档位</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>受限</strong>（默认）</td>
+<td>取消 ACP 权限请求；Codex 沙箱 <code>workspace-write</code></td>
+</tr>
+<tr>
+<td><strong>每次询问</strong></td>
+<td>每个 ACP 权限请求 emit <code>agent:permission-request</code>；面板对话框展示标题、受影响路径与选项（Allow once / Always / Reject）；用户点选后 <code>agent_respond_permission</code>；<strong>5 分钟</strong>未应答则取消</td>
+</tr>
+<tr>
+<td><strong>自动批准</strong></td>
+<td>选择 Agent 给出的第一个 AllowOnce 选项；Codex 沙箱 <code>danger-full-access</code>；面板下方显示风险说明</td>
+</tr>
+</tbody>
+</table>
+<p><strong>空态建议 chips（工作流入口）</strong>：面板空态提供可点击建议，路由到后端 purpose-built workflow（非 free chat）：</p>
+<table>
+<thead>
+<tr>
+<th>建议（i18n）</th>
+<th><code>workflow</code></th>
+<th>目标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Summarize</td>
+<td><code>summary</code></td>
+<td>当前聚焦 paper（提及路径或选中路径）</td>
+</tr>
+<tr>
+<td>Ask library</td>
+<td><code>qa</code></td>
+<td>跨库问答</td>
+</tr>
+<tr>
+<td>List claims</td>
+<td><code>qa</code></td>
+<td>当前 paper</td>
+</tr>
+<tr>
+<td>Draft Related Work</td>
+<td><code>related_work</code></td>
+<td>当前 paper</td>
+</tr>
+</tbody>
+</table>
+<p><strong>笔记写后审阅（信任闭环）</strong>：BYOA Agent 直接写盘，无法可靠事前拦截。<code>agent_run_once</code> 运行前快照目标笔记（<code>.md</code> target 或论文夹 <code>NOTES.md</code>）；若内容被改写则 emit <code>agent:notes-review</code>。面板弹 <strong>原文 / Agent 版本</strong> 对照对话框：<strong>Keep</strong> 保留 Agent 版本；<strong>Revert</strong> 写回快照（文件监听随后重载打开的编辑器）。</p>
 <p><strong>回答语言</strong>：<strong>设置 → Agent</strong> 提供一个全局「回答语言」下拉（<strong>自动 / English / 简体中文</strong>，存于 app settings，默认 <strong>自动</strong>），<strong>独立于界面语言</strong>，对<strong>所有 Agent</strong> 交互生效（Composer 对话、精读、summary/QA、PDF 划词问答）。前端 <code>runOnce</code> 统一读取该设置并透传，Host 在 <code>build_prompt</code> 为所有 workflow 追加一句语言指令；选 <strong>自动</strong> 时不注入任何指令，交由 Agent 依据内容决定。</p>
 <p><strong>Codex 控件</strong>：只有选中 <code>codex-acp</code> 时，底栏才显示 App Server <code>model/list</code> 提供的模型与 reasoning effort，以及仅在闪电图标内填充黄色的 Fast toggle。选择在下一次 native turn 中传给 App Server；其他 Agent 不显示也不接收这些偏好。</p>
 <p><strong>Codex 历史</strong>：Agentero 会将它创建或继续运行的 native thread id 记录在 Vault 的 <code>.agentero/agent-sessions/codex.json</code>。历史列表默认只显示这份索引中的会话，避免混入同一 Vault 工作目录下由 Codex CLI、编辑器或其它应用创建的 thread。历史面板的“External”开关仅对 Codex 生效；开启后显示 App Server 返回的全部 Vault-scoped thread。开关偏好按 Codex provider 注册项保存在本机浏览器中。</p>
@@ -781,6 +838,9 @@ PromptInput → Body / Footer / Submit
 <li><strong>Appearance</strong>：主题、<strong>语言（跟随系统 / English / 简体中文）</strong>、编辑字号、行号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，控制 Markdown/Notes 编辑器顶部的 WYSIWYG 工具栏，默认开）。</li>
 <li><strong>Agent</strong>（BYOA，非模型 BYOK 表单）：</li>
 <li>总开关。</li>
+<li><strong>权限模式</strong>（<code>agentPermissionMode</code>：受限 / 每次询问 / 自动批准，见 §3.2）。</li>
+<li><strong>回答语言</strong>（自动 / English / 简体中文，独立于界面语言）。</li>
+<li><strong>入库后自动精读</strong>（<code>autoPaperReader</code>，<strong>默认关</strong>）：开启后魔棒 / 单篇 Download 资源就绪且未读时自动 paper-reader；Zap 始终可手动。</li>
 <li><strong>Common agents</strong> 目录表：名称与 badge 组留距；badge 组内紧凑（安装列固定槽：已安装 / 未安装；ACP 列仅 ready/failed/not-probed，不把 missing 显示成「未安装」；+ adapter missing）；未安装整行置灰；默认 Agent 右侧对勾。打开页自动 scan + 并行 Probe；Refresh 可再跑。表下小字：ACP 失败时可试代理。代理开关不因 Probe busy 禁用；改代理只持久化 + scan。</li>
 <li><strong>Claude</strong>：<code>detect</code> 用本机 <code>claude</code>（Claude Code）；ACP 入口为 <code>claude-agent-acp</code>。若已装 Claude Code 但缺适配器，显示 <strong>ACP adapter missing</strong> 徽章 + <strong>Install ACP</strong> 小按钮 → Host <code>agent_open_install_terminal</code> 打开系统终端，展示 <code>npm i -g @agentclientprotocol/claude-agent-acp</code>，<strong>等待用户按 Enter 才执行</strong>（不静默安装）。装完后用户点 Refresh 再 Probe。</li>
 <li>顶部 <strong>Refresh</strong>（Rescan + Probe）；<strong>Use default</strong> 纯文字（无 icon）。</li>

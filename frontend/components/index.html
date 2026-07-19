@@ -194,7 +194,7 @@
 </tr>
 <tr>
 <td>业务壳</td>
-<td><code>layout/agent-panel</code>（Chat；<code>sidebar</code>/<code>zen</code>：禅模式左侧历史 + 全宽 <code>Conversation</code> 滚动；无会话数字标签；<code>hideFromChatHistory</code> 过滤后台运行；全局权限模式）、<code>layout/file-tree</code>（Vault 树 + Library + 魔棒 + paper <strong>Download / Zap</strong> + 多选拖拽 + 回收站入口）、<code>layout/recycle-bin-view</code>（中间栏回收站）、<code>layout/papers-library</code>（catalog 表 + tags + <strong>Rescan</strong>）、<code>layout/paper-info-panel</code>、<code>layout/document-tab-bar</code>、<code>layout/backlinks-panel</code>、<code>layout/graph-panel</code>、<code>layout/background-tasks-panel</code>；<code>viewer/pdf-viewer</code>（导航/大纲/查找/平滑划词；划词提问 <code>hideFromChatHistory</code>）</td>
+<td><code>layout/agent-panel</code>（Chat；<code>sidebar</code>/<code>zen</code>：禅模式左侧历史 + 全宽 <code>Conversation</code>；无会话数字标签；<code>hideFromChatHistory</code> 过滤后台运行；<strong>权限三档</strong> + <code>agent:permission-request</code> 对话框；<strong>空态 suggestion → workflow</strong>；<strong><code>agent:notes-review</code> Keep/Revert</strong>）、<code>layout/command-palette</code>（<code>⌘K</code>/<code>⌘P</code> 论文 quick-open + <code>vault_search</code>）、<code>layout/file-tree</code>（Vault 树 + Library + 魔棒 + paper <strong>Download / Zap</strong> + 多选拖拽 + 回收站入口）、<code>layout/recycle-bin-view</code>（中间栏回收站）、<code>layout/papers-library</code>（catalog 表 + tags + <strong>Rescan</strong> + 文件夹作用域）、<code>layout/paper-info-panel</code>、<code>layout/document-tab-bar</code>、<code>layout/backlinks-panel</code>、<code>layout/graph-panel</code>、<code>layout/background-tasks-panel</code>；<code>viewer/pdf-viewer</code>（导航/大纲/查找/平滑划词；划词提问 <code>hideFromChatHistory</code>）</td>
 </tr>
 <tr>
 <td>全局通知</td>
@@ -260,7 +260,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 <td><a href="https://elements.ai-sdk.dev/components/suggestion">Suggestion</a></td>
 <td><code>suggestion</code></td>
 <td>快捷建议 chip</td>
-<td>✅ 空态 / 输入上方</td>
+<td>✅ 空态：Summarize / Ask library / List claims / Draft Related Work → <code>summary</code>/<code>qa</code>/<code>related_work</code></td>
 </tr>
 <tr>
 <td><a href="https://elements.ai-sdk.dev/components/shimmer">Shimmer</a></td>

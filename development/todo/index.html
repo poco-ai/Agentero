@@ -450,12 +450,12 @@
 <tbody>
 <tr>
 <td>Vault / 工作台壳</td>
-<td>打开·创建 Vault、catalog 初始化、多窗口 ⌘N、欢迎页 MRU、文件树新建/Finder/<strong>回收站删除（中间栏浏览恢复，无 Undo toast）</strong>、多选拖拽、<code>notify</code> 文件监听、左右侧栏 collapsible、后台任务条、<strong>全局错误 Toast</strong></td>
-<td>最近 Vault 迁 Tauri Store；<strong>打开已有夹自动发现/整理</strong>（P0-4b / P1-2b）；冲突提示（当前静默覆盖本地未存）</td>
+<td>打开·创建 Vault、catalog 初始化、多窗口 ⌘N、欢迎页 MRU、文件树新建/Finder/<strong>回收站删除（中间栏浏览恢复，无 Undo toast）</strong>、多选拖拽、<code>notify</code> 文件监听、<strong>保存冲突检测</strong>（<code>diskConflict.saveBlocked</code>）、左右侧栏 collapsible、后台任务条、<strong>全局错误 Toast</strong>、<strong>统一运行日志</strong></td>
+<td>最近 Vault 迁 Tauri Store；<strong>打开已有夹自动发现/整理</strong>（P0-4b / P1-2b）；设置「打开/导出日志文件夹」</td>
 </tr>
 <tr>
 <td>中间内容</td>
-<td><strong>文档标签页</strong>（常驻挂载；<code>⌘W</code> / <code>⌥⌘←→</code>）；Library 表 + <strong>tags</strong> + <strong>Rescan</strong>；PDF / HTML / 图片 / Markdown WYSIWYG（内嵌图 → <code>./assets/</code>）；Notes 仅具体论文时显示</td>
+<td><strong>文档标签页</strong>（常驻挂载；<code>⌘W</code> / <code>⌥⌘←→</code>）；Library 表 + <strong>tags</strong> + <strong>Rescan</strong> + <strong>文件夹作用域</strong>；PDF / HTML / 图片 / Markdown WYSIWYG（内嵌图 → <code>./assets/</code>）；Notes 仅具体论文时显示</td>
 <td><strong>分屏</strong>（V0.6 余量）</td>
 </tr>
 <tr>
@@ -465,18 +465,18 @@
 </tr>
 <tr>
 <td>入库</td>
-<td>魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md、<strong>本地 PDF 导入</strong>、<strong>非 arXiv 下载（浏览器 UA + Crossref 兜底）</strong>、Library 导入导出 Bib、<code>paper_set_tags</code>、<code>paper_rescan</code></td>
-<td>关键词/Agent 候选；本地 PDF 拖拽 / DOI 识别与元数据确认；MinerU 云端解析</td>
+<td>魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md、<strong>本地 PDF 导入</strong>、<strong>非 arXiv 下载（浏览器 UA + Crossref 兜底）</strong>、Library 导入导出 Bib、<code>paper_set_tags</code>、<code>paper_rescan</code>、<strong>Zotero Connector MVP</strong>（含 <code>saveAttachment</code>）</td>
+<td>关键词/Agent 候选；本地 PDF 拖拽 / DOI 识别与元数据确认；MinerU 云端解析；Connector 快照/cookies</td>
 </tr>
 <tr>
 <td>Agent</td>
-<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader</strong>（Zap + 可选自动默认关；<strong>不进对话历史</strong>）、<strong>全局权限模式</strong>、模型收藏、Skill 提及分流、<strong>禅模式左侧历史栏</strong>（无 1/2/3 数字标签）</td>
-<td>面板内置 workflow 入口、写入草稿确认、逐项权限 UI；<strong>引用类 workflow</strong>（V0.7）</td>
+<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader</strong>（Zap + 可选自动默认关；<strong>不进对话历史</strong>）、<strong>权限三档</strong>（受限 / 每次询问 / 自动批准）、<strong>面板 workflow</strong>（summary / qa / related_work）、<strong>笔记写后审阅</strong> Keep/Revert、模型收藏、Skill 提及分流、<strong>禅模式左侧历史栏</strong></td>
+<td><code>AGENTS.md</code> 自动注入；写前草稿拦截；<strong>引用类 workflow</strong>（V0.7）</td>
 </tr>
 <tr>
 <td>双链 / Graph</td>
-<td><code>[[wikilink]]</code> 跳转、反链、缺失创建、Backlinks 下 Graph</td>
-<td><code>[[</code> 补全、Plate 内联节点、Graph 全屏/邻居高亮；文件变更后增量重建索引</td>
+<td><code>[[wikilink]]</code> 跳转、反链、缺失创建、Backlinks 下 Graph；<strong><code>.md</code> 变更防抖重建索引</strong></td>
+<td><code>[[</code> 补全、Plate 内联节点、Graph 全屏/邻居高亮；边级增量索引</td>
 </tr>
 <tr>
 <td>文献引用图</td>
