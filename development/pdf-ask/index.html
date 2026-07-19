@@ -173,7 +173,7 @@
                 <h1 id="pdf-selection-ask">PDF 划词提问（Selection Ask）<a class="headerlink" href="#pdf-selection-ask" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p>状态：<strong>MVP 已落地（前端 + 文件 IO）</strong>；划词现先弹<strong>操作菜单</strong>（高亮 / 批注 / 提问 / 翻译），不再默认套用琥珀高亮。<br />
-范围：阅读 PDF 时选中文本 → 选区操作菜单 → 分派到高亮（JSON 落盘）/ 批注（高亮 + 内联评论）/ 提问（迷你对话框）/ 翻译（复用对话框走 Agent）。提问线程 JSON 落盘 + 页边圆片回访（飞书式边注）；<strong>批注 = <code>comment</code> 非空的高亮</strong>，页边批注针 + 右侧「批注」面板回访。<br />
+范围：阅读 PDF 时选中文本 → 选区操作菜单 → 分派到高亮（JSON 落盘）/ 批注（高亮 + 内联评论）/ 提问（迷你对话框）/ 翻译（轻量结果卡，仅展示译文）。提问线程 JSON 落盘 + 页边圆片回访（飞书式边注）；<strong>批注 = <code>comment</code> 非空的高亮</strong>，页边批注针 + 右侧「批注」面板回访。<br />
 实现入口：<code>src/components/viewer/pdf-viewer.tsx</code>、<code>src/components/viewer/pdf-ask/</code>（含 <code>selection-menu.tsx</code>、<code>highlight-layer.tsx</code>、<code>annotation-editor.tsx</code>、<code>annotation-gutter.tsx</code>）、<code>src/components/viewer/annotations-panel.tsx</code>、<code>src/lib/pdf-ask/</code>、<code>src/lib/pdf-highlight/</code>。<br />
 相关：<a href="../technical-plan/"><code>technical-plan.md</code></a> §3.4 阅读器、<a href="../translate/"><code>translate.md</code></a>（应用级翻译服务；本菜单为消费方之一）、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a> Agent 契约。</p>
 </blockquote>
@@ -193,7 +193,7 @@
 </tr>
 <tr>
 <td><strong>操作菜单</strong></td>
-<td>高亮→JSON 落盘（含 <code>color</code>，5 色调色板）并渲染半透明色带覆盖层；复制→复制选中原文（菜单内联「已复制」）；批注→先建高亮，再在选区旁弹出<strong>内联编辑器</strong>（<code>annotation-editor.tsx</code>）写评论，保存后 <code>comment</code> 落盘（留空则退化为纯高亮），<strong>不写 <code>NOTES.md</code></strong>；提问→打开迷你问答卡；翻译→应用级翻译服务（默认 free 单次 / agent 流式，见 <a href="../translate/"><code>translate.md</code></a>）</td>
+<td>高亮→JSON 落盘（含 <code>color</code>，5 色调色板）并渲染半透明色带覆盖层；复制→复制选中原文（菜单内联「已复制」）；批注 / 提问 / 翻译共用 <strong><code>selection-card.tsx</code> 浮层壳</strong>（定位、圆角、标题栏、footer 槽）：批注 = <code>annotation-editor.tsx</code>（原文摘录 + 笔记输入；取消=放弃修改不删高亮；保存写 <code>comment</code>）；提问 = <code>ask-popover.tsx</code>（对话 + 输入）；翻译 = <code>translate-card.tsx</code>（仅译文；free 单次 / agent 流式，见 <a href="../translate/"><code>translate.md</code></a>）</td>
 </tr>
 <tr>
 <td><strong>双击</strong></td>
