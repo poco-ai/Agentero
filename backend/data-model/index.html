@@ -82,11 +82,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#markdown-assets">Markdown 内嵌图片（./assets/）</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#highlightsmdl25">highlights.md(L2.5,事实来源)</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#markspdf">marks/（统一：PDF 划词标记）</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#highlightsmdl25-markdown">highlights.md（L2.5，规划中的 Markdown 证据层）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#marksl25pdf">marks/（L2.5，PDF 划词标记 — 唯一运行时事实来源）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#papermdl3">PAPER.md(L3,派生)</a>
     </li>
@@ -102,7 +98,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#34-paper">3.4 论文运行时对象 (Paper)</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#35-highlight">3.5 标注 (Highlight)</a>
+    <li class="toctree-l3"><a class="reference internal" href="#35-marksjson">3.5 标注（marks/*.json）</a>
     </li>
         </ul>
     </li>
@@ -225,7 +221,7 @@
 </tr>
 <tr>
 <td>L2.5 证据</td>
-<td><code>{paper}/marks/*.json</code>（运行时）；可选 <code>highlights.md</code> 导出</td>
+<td><code>{paper}/marks/*.json</code>（划词高亮 / 批注 / 提问 / 翻译）</td>
 <td>需要用户标注 / 精确引文</td>
 <td>中</td>
 </tr>
@@ -257,7 +253,7 @@
 <tbody>
 <tr>
 <td><strong>Tier 1a 人的知识 + 原始归档</strong></td>
-<td><code>AGENTS.md</code>、<code>NOTES.md</code>、<code>highlights.md</code>、<code>notes/</code>、<code>plans/</code>、<code>.agents/</code>（skills 等）、<code>source/</code>、<strong>用户插入的</strong> <code>{mdDir}/assets/*</code>（见下）</td>
+<td><code>AGENTS.md</code>、<code>NOTES.md</code>、<code>marks/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agents/</code>（skills 等）、<code>source/</code>、<strong>用户插入的</strong> <code>{mdDir}/assets/*</code>（见下）</td>
 <td>文件</td>
 </tr>
 <tr>
@@ -291,7 +287,6 @@
 │   ├── 1706.03762/        # paper 单元（一级）
 │   │   ├── NOTES.md
 │   │   ├── marks/         # 划词标记 JSON（ask/highlight/translate）
-│   │   ├── highlights.md  # 可选导出，非默认
 │   │   ├── PAPER.md       # 可选
 │   │   ├── assets/
 │   │   └── source/
@@ -316,7 +311,7 @@
 <p><strong>预览</strong>：Vault 内<strong>任意路径</strong>的 <code>.pdf</code> 与常见图片（png/jpg/gif/webp/bmp/svg/avif/ico）均可在中间栏打开；不要求位于 <code>papers/</code>。Demo 脚手架见 <a href="../../test/"><code>../test/index.md</code></a>。</p>
 <p><strong>默认不生成</strong>：根级 <code>PAPERS.md</code>、<code>library.bib</code>、各篇 <code>metadata.json</code>。<br />
 需要可读索引或 BibTeX 时，使用 <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code>（见 <a href="../catalog/"><code>catalog.md</code></a> §5.4）。</p>
-<p><strong>Paper 文件夹</strong>是最小单元：以标记文件/目录识别（<code>NOTES.md</code> / <code>highlights.md</code> / <code>source/</code> 等），可位于 <code>papers/</code> 下任意深度。<br />
+<p><strong>Paper 文件夹</strong>是最小单元：以标记文件/目录识别（<code>NOTES.md</code> / <code>marks/</code> / <code>source/</code> / <code>assets/</code> 等），可位于 <code>papers/</code> 下任意深度。<br />
 <strong>Catalog <code>path</code></strong>（Vault 相对路径）标识位置；<strong><code>id</code></strong> 为逻辑 id（arXiv ID 或 citekey）。<br />
 默认入库可仍写 <code>papers/&lt;id&gt;/</code>；用户也可整理到 <code>papers/&lt;topic&gt;/…/&lt;id&gt;/</code>。citekey 冲突时追加字母后缀。</p>
 </blockquote>
@@ -324,7 +319,7 @@
 <h3 id="agentsmdl0"><code>AGENTS.md</code>(L0,事实来源)<a class="headerlink" href="#agentsmdl0" title="Permanent link">&para;</a></h3>
 <p>Vault 内的 Agent 行为规范,至少包含:</p>
 <ul>
-<li><strong>读取协议</strong>:L1 以应用 catalog 为准（无默认 <code>PAPERS.md</code>）；锁定篇目后按 <code>NOTES.md → highlights.md → PAPER.md → source/</code> 下钻。</li>
+<li><strong>读取协议</strong>:L1 以应用 catalog 为准（无默认 <code>PAPERS.md</code>）；锁定篇目后按 <code>NOTES.md → marks/ → PAPER.md → source/</code> 下钻。</li>
 <li>笔记结构规范(三段论)。</li>
 <li>引用路径要求:回答必须列出读取过的本地文件路径。</li>
 <li>生成内容的双链要求:保留 <code>[[...]]</code> 格式。</li>
@@ -335,7 +330,7 @@
 字段、schema、导出与实现见 <strong><a href="../catalog/"><code>catalog.md</code></a></strong>。<br />
 UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<code>paper_get</code>）均读 catalog，不扫 <code>metadata.json</code>。</p>
 <p>其中 <strong><code>is_read</code></strong>（bool，schema v3）：是否已完成 <strong>paper-reader</strong> 精读工作流。默认 <code>false</code>。触发：魔棒入库 / 单篇 Download 资源就绪后可<strong>自动</strong>精读；文件树在「本地 PDF +（TeX 或 <code>PAPER.md</code>）齐全且未读」时显示 <strong>Zap</strong> 图标供<strong>手动</strong>重跑。成功写入 <code>NOTES.md</code> 后置 <code>true</code>。Skill 触发语法按 provider（Codex <code>$</code> / Claude <code>/</code> / 其它注入正文）；进度在左下角后台任务条（可与入库/下载任务衔接）。</p>
-<p>Vault 技能种子（Create Vault，已存在不覆盖；模板见 <code>templates/vault/.agents/skills/</code>）：</p>
+<p>Vault 技能种子（<strong>Create Vault</strong> 与 <strong>打开/恢复 Vault 时的 <code>vault_ensure</code></strong>；模板见 <code>templates/vault/.agents/skills/</code>）：</p>
 <table>
 <thead>
 <tr>
@@ -367,6 +362,10 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 </tr>
 </tbody>
 </table>
+<ul>
+<li><strong>已存在不覆盖</strong>：用户改过的 skill 文件保持原样。</li>
+<li><strong>应用更新</strong>：发行版模板里<strong>新增</strong>的 skill 在下次 <code>vault_ensure</code>（打开 Vault）时写入缺失路径；不会静默覆盖旧版用户副本。</li>
+</ul>
 <p>亦可放在 <code>~/.agents/skills</code> / <code>~/.claude/skills</code>。第三方 skill 的来源与 LICENSE 见 vault 内 <code>.agents/skills/README.md</code>。</p>
 <h3 id="papersmd-librarybib">可选导出：<code>PAPERS.md</code> / <code>library.bib</code><a class="headerlink" href="#papersmd-librarybib" title="Permanent link">&para;</a></h3>
 <table>
@@ -453,14 +452,7 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 </tbody>
 </table>
 <p>与 PDF 解析派生资源共用同一 <code>assets/</code> 文件夹时互不冲突（文件名唯一）。用户插入图属 <strong>Tier 1a</strong>；勿把仅由解析生成的图误当成可随意 GC 的临时缓存（当前 GC <strong>只</strong>针对编辑器移除的 managed <code>./assets/</code> 链接）。</p>
-<h3 id="highlightsmdl25"><code>highlights.md</code>(L2.5,事实来源)<a class="headerlink" href="#highlightsmdl25" title="Permanent link">&para;</a></h3>
-<p>单篇论文的标注层,与 <code>NOTES.md</code> <strong>分开存放</strong>:笔记是"熟的"综合知识,标注是"生的"原始证据(锚定原文位置的引文 + 想法),数量多、带定位。</p>
-<ul>
-<li><strong>引文 + 想法</strong>留在 <code>highlights.md</code>,是事实来源,保持便携 Markdown。</li>
-<li><strong>页码 / bbox 等渲染坐标是纯 UI 数据</strong>,可缓存于 <code>.agentero/</code>（catalog 同库缓存表或旁路文件）,按标注 id 关联;丢失后可用引文全文检索重新锚定。</li>
-<li>用 Obsidian 块引用 <code>^id</code>,让 <code>NOTES.md</code> 能精确引用某条标注:<code>[[papers/1706.03762/highlights#^h12]]</code>。</li>
-</ul>
-<h3 id="markspdf"><code>marks/</code>（统一：PDF 划词标记）<a class="headerlink" href="#markspdf" title="Permanent link">&para;</a></h3>
+<h3 id="marksl25pdf"><code>marks/</code>（L2.5，PDF 划词标记 — 唯一运行时事实来源）<a class="headerlink" href="#marksl25pdf" title="Permanent link">&para;</a></h3>
 <p>划词后的 <strong>提问 / 高亮·批注 / 翻译</strong> 全部为 <strong>JSON</strong>，落在同一目录（pretty，便于 Git diff）：</p>
 <pre class="codehilite"><code class="language-text">papers/&lt;id&gt;/marks/&lt;id&gt;.json
 </code></pre>
@@ -498,14 +490,6 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <li>实现：<code>src/lib/pdf-selection/marks-io.ts</code> + <code>pdf-ask</code> / <code>pdf-highlight</code> / <code>pdf-translate</code> 的 IO；UI 见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>。</li>
 <li><strong>阅读热力</strong>：聚合上述三类 mark 的 page + y，Library 标题文字横向背景（左=文首、右=文末）表示位置强度；可选 <code>{paper}/reading-meta.json</code>（<code>pageCount</code>）。</li>
 </ul>
-<h3 id="highlightsmdl25-markdown"><code>highlights.md</code>（L2.5，规划中的 Markdown 证据层）<a class="headerlink" href="#highlightsmdl25-markdown" title="Permanent link">&para;</a></h3>
-<p>与 JSON marks <strong>分离</strong>：若将来导出引文块，可写便携 Markdown；当前阅读器标注以 <code>marks/</code> 为准。</p>
-<p>格式示例（导出形态，非默认落盘）:</p>
-<pre class="codehilite"><code class="language-md">### ^h12 · p.3 §3.2
-&gt; &quot;The Transformer ... dispensing with recurrence entirely.&quot;
-想法:核心卖点是彻底抛弃 recurrence。→ [[Self-Attention]]
-</code></pre>
-
 <h3 id="papermdl3"><code>PAPER.md</code>(L3,派生)<a class="headerlink" href="#papermdl3" title="Permanent link">&para;</a></h3>
 <p>位于 paper 文件夹根部的 <code>PAPER.md</code>(不在 <code>source/</code> 内)。面向 Agent 阅读的统一可读正文。<strong>仍是文件，不进 catalog 正文列。</strong></p>
 <table>
@@ -647,7 +631,7 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <pre class="codehilite"><code class="language-ts">interface Paper extends PaperMetadata {
   vault_path: string;        // = path，paper 文件夹
   notes_path: string;        // {path}/NOTES.md
-  highlights_path: string;   // {path}/highlights.md
+  marks_dir: string;         // {path}/marks/
   source_dir: string;        // {path}/source/
   paper_md_path?: string;    // {path}/PAPER.md
   pdf_path?: string;         // {path}/source/original.pdf
@@ -655,18 +639,19 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 }
 </code></pre>
 
-<h3 id="35-highlight">3.5 标注 (Highlight)<a class="headerlink" href="#35-highlight" title="Permanent link">&para;</a></h3>
-<p><code>highlights.md</code> 中每条标注的逻辑结构。<code>quote</code> / <code>comment</code> / <code>links</code> 来自 Markdown(事实来源);<code>page</code> / <code>bbox</code> 是缓存于 <code>.agentero/</code> 的渲染坐标,可由 <code>quote</code> 全文检索重建。</p>
-<pre class="codehilite"><code class="language-ts">interface Highlight {
-  id: string;          // 块引用 id,对应 highlights.md 中的 ^id(如 h12)
-  paper_id: string;
-  quote: string;       // 引文原文(事实来源)
-  comment?: string;    // 想法 / 评论
-  links: string[];     // 双链目标,如 ['Self-Attention']
-
-  // 以下为渲染定位,缓存于 .agentero,可重建
-  page?: number;
-  bbox?: [number, number, number, number];
+<h3 id="35-marksjson">3.5 标注（<code>marks/*.json</code>）<a class="headerlink" href="#35-marksjson" title="Permanent link">&para;</a></h3>
+<p>运行时标注见 §2 <code>marks/</code>：<code>kind</code> ∈ <code>highlight</code> | <code>ask</code> | <code>translate</code>。高亮/批注字段摘要：</p>
+<pre class="codehilite"><code class="language-ts">interface PdfHighlight {
+  version: 1;
+  kind: &quot;highlight&quot;;
+  id: string;
+  page: number;
+  rects: { x: number; y: number; w: number; h: number }[]; // 0–1 归一化
+  quote?: string;
+  color?: string;
+  comment?: string; // 非空 = 批注
+  createdAt: string;
+  updatedAt?: string;
 }
 </code></pre>
 

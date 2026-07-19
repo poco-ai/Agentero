@@ -261,7 +261,7 @@
 <li>[x] <strong>精确标识符入库（魔棒路径）</strong>（整项核心）</li>
 <li>[x] 支持输入 arXiv ID / URL 等（侧栏魔棒）</li>
 <li>[x] Translator → <code>PaperMetadata</code> → catalog <code>papers</code> 表</li>
-<li>[x] 写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code></li>
+<li>[x] 写入默认 <code>NOTES.md</code> 壳（标注用 <code>marks/</code>）</li>
 <li>[x] <strong>始终下载 PDF</strong>；<strong>arXiv 解压 e-print LaTeX</strong> 到 <code>source/</code></li>
 <li>[x] 入库后刷新文件树并打开 paper；<strong>左侧树展开祖先并滚到新论文行</strong>（<code>openPaper</code> → <code>setTreeSelectedPath</code> + FileTree reveal）</li>
 <li>[x] 入库后刷新 Backlinks/Graph 索引</li>
@@ -481,7 +481,7 @@
 <li>[x] 选择性导入指定 collection + 迁移前自愈 catalog 孤儿行（<code>prune_missing</code>）</li>
 <li>[x] 迁移 Zotero 笔记（子笔记 HTML→Markdown 追加进 NOTES.md；<code>htmd</code>）</li>
 <li>[x] 迁移 PDF 批注文本（高亮+评论→NOTES.md）+ 逐条选择/搜索 + 迁移进度 + 记住选项</li>
-<li>[ ] 批注原位高亮渲染（highlights.md 系统）与引用 key 映射</li>
+<li>[x] 批注原位高亮渲染（<code>marks/</code> + 页边针 + 右侧批注面板）</li>
 </ul>
 <h3 id="1b-zotero-connector">1b. Zotero Connector 兼容服务（方案一）<a class="headerlink" href="#1b-zotero-connector" title="Permanent link">&para;</a></h3>
 <p>设计见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a> <strong>§4.5 覆盖总表</strong>。</p>
@@ -514,8 +514,8 @@
 <li>[x] M2：<code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code> 读写 + 页边针（归一化坐标）</li>
 <li>[x] M3：接入 ACP <code>agent_run_once</code> 流式多轮；结束会话落盘</li>
 <li>[x] M4：双击 / 悬停停留触发 + 防误触（阈值暂固定 700ms）</li>
-<li>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer</li>
-<li>[x] M6：划词操作菜单（高亮 / 批注 / 提问 / 翻译）；高亮落盘 <code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code> + 覆盖层 + 点击删除；翻译复用问答卡走 Agent；去掉默认琥珀高亮，仅原生选区</li>
+<li>[ ] M5（可选）：无文本层降级；本地 PDF TextLayer</li>
+<li>[x] M6：划词操作菜单（高亮 / 批注 / 提问 / 翻译）；统一落盘 <code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code> + 覆盖层 + 点击删除；翻译复用问答卡走 Agent；去掉默认琥珀高亮，仅原生选区</li>
 <li>[x] M7：Zotero 式批注 —「批注」= 建高亮 + 内联编辑器（<code>annotation-editor.tsx</code>）写可选 <code>comment</code>；页边针（<code>selection-gutter.tsx</code>）；右侧「批注」面板（<code>annotations-panel.tsx</code>）；落盘 <code>marks/</code>（<code>kind: highlight</code>）；<strong>不写 <code>NOTES.md</code></strong></li>
 </ul>
 <h3 id="3b-translate-service">3b. 翻译服务（Translate Service）<a class="headerlink" href="#3b-translate-service" title="Permanent link">&para;</a></h3>
@@ -526,14 +526,14 @@
 <li>[x] T2：Host <code>translate_text</code> + <code>free</code> adapter（内置 Google gtx 或 LibreTranslate URL）；默认 <code>provider=free</code></li>
 <li>[x] T3：PDF free 单次结果 / agent 流式；<code>autoTranslateSelection</code>；与 <code>translatorBaseUrl</code> 命名隔离</li>
 <li>[x] T3.5 设计：翻译用 <strong>Agent 座 + 模型</strong> 最小选择（跟随默认 / 渐进披露；见 <a href="../translate/"><code>translate.md</code></a> §5.4 · §7.6）</li>
-<li>[x] T3.6：实现 <code>translate.agentId</code> / <code>modelId</code> + Translate 页两行 Select + PDF <code>runOnce</code> 传参；临时探测脚本 <code>scripts/probe-translate-free.mjs</code></li>
+<li>[x] T3.6：实现 <code>translate.agentId</code> / <code>modelId</code> + Translate 页两行 Select + PDF <code>runOnce</code> 传参</li>
 <li>[ ] T4+（可选）：更多 adapter（DeepL 等）/ 更多消费方（标题·摘要等）；<code>type: word</code> 词典</li>
 </ul>
 <h3 id="4-pdf-html">4. PDF / HTML 标注系统<a class="headerlink" href="#4-pdf-html" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[ ] 参考 Hypothesis 风格的边注、评论、锚点（完整体系）</li>
 <li>[x] PDF 就地批注已落地（高亮 + <code>comment</code> + 页边针 + 右侧面板）；标注落 <code>marks/</code>（<code>kind: highlight</code>）</li>
-<li>[ ] 标注正文进入 <code>highlights.md</code> / 导出到 <code>NOTES.md</code>（<strong>暂不做</strong>，可能的后续），坐标/锚点缓存可重建</li>
+<li>[x] 标注正文落盘 <code>marks/*.json</code>（坐标归一化可重建）；导出 Markdown / <code>NOTES.md</code> 互导暂不做</li>
 <li>[ ] PDF.js / HTML iframe 统一标注模型（HTML iframe 标注仍待）</li>
 <li>[ ] 与划词提问（asks JSON）边界清晰，可互导</li>
 </ul>
@@ -635,8 +635,9 @@
 <h3 id="pdf">PDF / 媒体<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] 任意路径预览；导航 / 适应宽·整页 / 大纲 / ⌘F</li>
-<li>[x] 真实 scale + 平滑划词；操作菜单（asks + highlights JSON）</li>
-<li>[ ] <code>highlights.md</code> 标注系统、M5</li>
+<li>[x] 真实 scale + 平滑划词；操作菜单（统一 <code>marks/*.json</code>）</li>
+<li>[x] 划词标注系统（<code>marks/</code>；CLI <code>marksDir</code>）</li>
+<li>[ ] M5：无文本层降级</li>
 </ul>
 <h3 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h3>
 <ul>

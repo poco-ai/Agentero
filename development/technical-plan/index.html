@@ -643,7 +643,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 <tr>
 <td>PDF 划词</td>
-<td>平滑选区覆盖层 + 操作菜单；<code>pdf-ask</code> / <code>highlights</code> JSON；ACP 流式</td>
+<td>平滑选区覆盖层 + 操作菜单；<code>marks/*.json</code>（highlight/ask/translate）；ACP 流式</td>
 </tr>
 <tr>
 <td>翻译服务</td>
@@ -863,7 +863,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
     vault.rs
     paper.rs
     note.rs
-    annotation.rs  # 标注/highlights
+    # 划词标注：前端 marks-io → papers/&lt;id&gt;/marks/*.json（无 Host annotation 模块）
     graph.rs
     agent.rs
     candidate.rs   # 候选论文/检索结果
@@ -929,7 +929,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <p><strong>使用原则</strong>：
 - Tauri Store 只存配置和机密，不存论文元数据。
 - 论文集合与 metadata 的权威来源是 <strong>catalog</strong>；根级 <code>PAPERS.md</code> / <code>library.bib</code> <strong>默认不生成</strong>，仅 <code>catalog:export_*</code> 按需写出。
-- 人写笔记（<code>NOTES.md</code> / <code>highlights.md</code>）与 <code>source/</code> 仍是文件；<code>PAPER.md</code> 仍是可选派生文件。
+- 人写笔记（<code>NOTES.md</code>）与 <code>marks/</code>、<code>source/</code> 仍是文件；<code>PAPER.md</code> 仍是可选派生文件。
 - 入库：写 <code>papers/&lt;id&gt;/</code> 文件 + 事务写入 catalog；不维护自动同步的 Markdown 总表。
 - Agent 最终引用必须落回 Vault 相对文件路径；L1 总览可靠应用注入列表或临时导出。
 - 专题：<a href="../../backend/catalog/"><code>docs/backend/catalog.md</code></a>。
@@ -947,7 +947,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <p><strong>已落地（魔棒精确 ID/URL）</strong>：</p>
 <pre class="codehilite"><code class="language-text">侧栏魔棒粘贴 arXiv ID/URL
   → lookup_import → Translator（或 arXiv Atom fallback）
-  → catalog upsert + NOTES.md / highlights.md 壳
+  → catalog upsert + NOTES.md 壳
   → ensure_paper_assets：PDF → {paper}/{id}.pdf；e-print TeX → 解压 LaTeX 到 source/
   → 刷新文件树；打开 paper（PDF 预览优先本地文件）
 </code></pre>
@@ -982,7 +982,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
   → Rust: 临时目录落位为 papers/&lt;citekey&gt;/，catalog 写入 type=pdf
   → Rust: 用当前 PdfParser 全文解析（默认 liteparse；配置并启用则优先 MinerU，失败降级）
           生成 papers/&lt;citekey&gt;/PAPER.md 与 assets/，记录 body_source / body_quality
-  → Rust: 调用 Agent 生成 NOTES.md（三段论），创建空的 highlights.md
+  → Rust: 调用 Agent 生成 NOTES.md（三段论）
   → Rust: 更新 catalog 行（不自动写 PAPERS.md / library.bib）
   → Frontend: 展示进度、成功、失败原因；自动打开 NOTES.md
 </code></pre>
@@ -1040,7 +1040,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
   → Rust: 创建/复用 ACP session
   → Rust: 注入工作流 prompt 模板 + AGENTS.md 约束
   → Agent: 按渐进式披露自行读取 Vault
-      （AGENTS.md → catalog/列表或导出 → NOTES.md → highlights.md → PAPER.md → source/）
+      （AGENTS.md → catalog/列表或导出 → NOTES.md → marks/ → PAPER.md → source/）
   → Rust: 转发权限请求到 Frontend（读/写/网络等）；写文件默认确认后落盘
   → Rust: 接收流式响应，汇总读取过的本地路径
   → Frontend: 展示结果与 Sources；用户确认后写入目标 Markdown

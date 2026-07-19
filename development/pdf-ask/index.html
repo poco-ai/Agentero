@@ -110,7 +110,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#52-schema">5.2 Schema（逻辑）</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#53-highlightsmd">5.3 与 highlights.md 的边界</a>
+    <li class="toctree-l3"><a class="reference internal" href="#53">5.3 存储边界</a>
     </li>
         </ul>
     </li>
@@ -217,7 +217,7 @@
 <p>参考形态：浮层卡片 + 底部输入（类似常见 AI 浮层；本应用内需对齐 shadcn / AI Elements，且不引入外部 Chat 产品壳）。</p>
 <p><strong>非目标（首版不做）</strong>：</p>
 <ul>
-<li>完整 Zotero/Hypothesis 高亮批注系统（仍走后续 <code>highlights.md</code> 路线）。</li>
+<li>完整 Zotero/Hypothesis 原位高亮同步（导入侧暂迁文本到 <code>NOTES.md</code>；阅读器自用 <code>marks/</code>）。</li>
 <li>跨设备实时协作评论。</li>
 <li>扫描件 OCR 实时划词（无文本层时降级为「仅坐标提问」，见 §7）。</li>
 <li>在 PDF 二进制内写入注解（不改原始 PDF 文件）。</li>
@@ -350,8 +350,8 @@
 <td>问答是人的阅读产物，应可被外部工具打开；JSON 文件更透明</td>
 </tr>
 <tr>
-<td>全部写入 <code>highlights.md</code></td>
-<td>Markdown 不便表达多轮消息与流式元数据；首版 JSON 更干净；可后续互导</td>
+<td>全部写入 Markdown 文件</td>
+<td>不便表达多轮消息与流式元数据；JSON <code>marks/</code> 更干净</td>
 </tr>
 <tr>
 <td>浏览器扩展式划词</td>
@@ -497,30 +497,30 @@ interface PdfTranslateRecord {
 </code></pre>
 
 <p>实现：<code>src/lib/pdf-selection/marks-io.ts</code>（路径）+ 各 <code>parse*</code> / <code>list*</code> / <code>write*</code>。</p>
-<h3 id="53-highlightsmd">5.3 与 <code>highlights.md</code> 的边界<a class="headerlink" href="#53-highlightsmd" title="Permanent link">&para;</a></h3>
+<h3 id="53">5.3 存储边界<a class="headerlink" href="#53" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th></th>
 <th><code>marks/*.json</code></th>
-<th><code>highlights.md</code>（规划）</th>
+<th><code>NOTES.md</code></th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>目的</td>
 <td>阅读器标注/问答/翻译（运行时事实来源）</td>
-<td>便携 Markdown 引文证据层</td>
+<td>人写综合笔记 / 精读讲义</td>
 </tr>
 <tr>
 <td>默认</td>
 <td><strong>读写均用 marks</strong></td>
-<td><strong>不自动写入</strong></td>
+<td><strong>不</strong>因划词自动写入</td>
 </tr>
 <tr>
-<td>后续</td>
-<td>可选导出 quote+comment</td>
-<td>Agent/双链 <code>^id</code></td>
+<td>导出</td>
+<td>可选将来导出 quote+comment 为 Markdown</td>
+<td>独立</td>
 </tr>
 </tbody>
 </table>
@@ -675,7 +675,7 @@ src/lib/pdf-ask|pdf-highlight|pdf-translate/
 <li><strong>存储</strong>：<strong>仅</strong> <code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code> + <code>kind</code>；坐标 0–1 归一化。  </li>
 <li><strong>智能</strong>：ACP BYOA；不在应用内嵌模型 Key。  </li>
 <li><strong>UI</strong>：SelectionCard / Gutter + AI Elements 提问卡。  </li>
-<li><strong><code>highlights.md</code></strong>：可选将来导出，非运行时事实来源。</li>
+<li><strong>标注层唯一</strong>：<code>marks/*.json</code>（不写 NOTES / 不另建 Markdown 证据文件）。</li>
 </ol>
               
             </div>

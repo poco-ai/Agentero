@@ -417,7 +417,7 @@
 <pre class="codehilite"><code class="language-text">1. agentero vault which --json          # 确认库根
 2. agentero paper list --json           # L1 索引
 3. agentero paper get &lt;path|id&gt; --json  # 单篇 meta + 建议读取路径
-4. 按需 read_file: NOTES.md → highlights.md → PAPER.md → source/
+4. 按需 read_file: NOTES.md → marks/ → PAPER.md → source/
 5. 入库: agentero import id &lt;arxiv|doi|url&gt; --json
 </code></pre>
 
@@ -693,11 +693,11 @@ GLOBAL:
       &quot;tex&quot;: true,
       &quot;paperMd&quot;: false,
       &quot;notesMd&quot;: true,
-      &quot;highlightsMd&quot;: true
+      &quot;marksDir&quot;: true
     },
     &quot;suggestedReads&quot;: [
       &quot;papers/1706.03762/NOTES.md&quot;,
-      &quot;papers/1706.03762/highlights.md&quot;,
+      &quot;papers/1706.03762/marks&quot;,
       &quot;papers/1706.03762/PAPER.md&quot;
     ]
   }
@@ -705,12 +705,14 @@ GLOBAL:
 </code></pre>
 
 <ul>
-<li><code>suggestedReads</code> 按 L2 → L2.5 → L3 顺序，<strong>仅包含存在的文件</strong></li>
+<li><code>assets.marksDir</code>：<code>{paper}/marks/</code> 是否存在（阅读器划词 JSON：<code>kind</code> ∈ highlight / ask / translate）</li>
+<li><code>suggestedReads</code> 按 L2 → L2.5（<code>marks/</code>）→ L3 顺序，<strong>仅包含存在的路径</strong>（目录或文件）</li>
 <li>正文内容不进 JSON；Agent 自己读文件</li>
 </ul>
 <p><strong><code>paper paths &lt;ref&gt;</code></strong></p>
 <ul>
 <li>极简：只输出相关路径列表（text 每行一个 / json <code>string[]</code>）</li>
+<li>含 paper 根、<code>NOTES.md</code>、<code>marks/</code>（若有）、<code>PAPER.md</code>、本地 PDF、<code>source/</code>（有 TeX 时）</li>
 <li>适合 Agent tool 描述极短、只要路径清单的场景</li>
 </ul>
 <h4 id="c-agent">C. 文献基础（无 Agent）<a class="headerlink" href="#c-agent" title="Permanent link">&para;</a></h4>

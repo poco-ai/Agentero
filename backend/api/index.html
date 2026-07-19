@@ -82,6 +82,8 @@
         <ul>
     <li class="toctree-l4"><a class="reference internal" href="#vault_create">vault_create（已实现）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#vault_ensure">vault_ensure（已实现）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#path_open_in_terminal">path_open_in_terminal（已实现）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#path_trash-path_untrash">path_trash / path_untrash（已落地）</a>
@@ -318,7 +320,7 @@ Host (Tauri + Rust)
 <h3 id="21">2.1 命名规范<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Tauri command：<code>namespace:verb</code>（全小写，冒号分隔命名空间）。</li>
-<li>规划契约多用 <code>namespace:verb</code>（如 <code>vault:open</code>）；已落地的 invoke 名以 <code>src-tauri</code> 为准（如 <code>vault_create</code>、<code>window_new</code>、<code>graph_get_graph</code>）。</li>
+<li>规划契约多用 <code>namespace:verb</code>（如 <code>vault:open</code>）；已落地的 invoke 名以 <code>src-tauri</code> 为准（如 <code>vault_create</code>、<code>vault_ensure</code>、<code>window_new</code>、<code>graph_get_graph</code>）。</li>
 </ul>
 <h3 id="22">2.2 参数与返回<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
 <ul>
@@ -456,8 +458,8 @@ Host (Tauri + Rust)
 <h3 id="31-vault">3.1 Vault 与窗口<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
 <blockquote>
 <p><strong>实现状态（V0.1）</strong><br />
-- 已实现：<code>vault_create</code>（snake_case invoke 名）、<code>path_open_in_terminal</code>、<code>path_trash</code> / <code>path_untrash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。<br />
-- 打开 Vault / 最近列表 / 树加载：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成，Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。<br />
+- 已实现：<code>vault_create</code>、<code>vault_ensure</code>（snake_case invoke 名）、<code>path_open_in_terminal</code>、<code>path_trash</code> / <code>path_untrash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。<br />
+- 打开 Vault / 最近列表 / 树加载：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成；打开或恢复时会调用 <code>vault_ensure</code> 补种缺失 bundled skills。Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。<br />
 - 实际 command 注册见 <code>src-tauri/src/lib.rs</code>。</p>
 </blockquote>
 <h4 id="vault_create"><code>vault_create</code>（已实现）<a class="headerlink" href="#vault_create" title="Permanent link">&para;</a></h4>
@@ -492,6 +494,28 @@ Host (Tauri + Rust)
 <li>种子 <strong>bundled skills</strong>（已存在则跳过）：<code>paper-reader</code>、<code>agentero-cli</code>、<code>idea-evaluator</code>、<code>deep-research</code>（后两者含 <code>references/</code>，来自 <a href="https://github.com/HKUSTDial/Supervisor-Skills">Supervisor-Skills</a>，<strong>CC BY-NC-SA 4.0</strong>；另写 <code>skills/README.md</code> 与 <code>LICENSE-Supervisor-Skills.txt</code>）。</li>
 <li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>；<strong>不</strong>覆盖已有 <code>AGENTS.md</code> / <code>.agents/**</code>。</li>
 <li>最近列表由前端在成功打开后写入 <code>localStorage</code>（<code>agentero-recent-vaults</code>）。</li>
+</ul>
+<h4 id="vault_ensure"><code>vault_ensure</code>（已实现）<a class="headerlink" href="#vault_ensure" title="Permanent link">&para;</a></h4>
+<p>幂等脚手架 / 同步缺失 bundled skills（Host <code>ensure_vault</code>，与 <code>vault_create</code> 同一实现）。<strong>打开或恢复 Vault 时</strong>前端调用，以便应用更新后把<strong>新增</strong> skill 写入 <code>.agents/skills/</code>。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  path: string; // 本地绝对路径
+}
+</code></pre>
+
+<ul>
+<li>
+<p><strong>返回</strong>：同 <code>vault_create</code>（<code>ApiResult&lt;CreateVaultResult&gt;</code>；<code>created</code> 仅含本次新建的相对路径）。</p>
+</li>
+<li>
+<p><strong>策略</strong></p>
+</li>
+<li><strong>只补缺失</strong>：目录 / <code>AGENTS.md</code> / 模板里有而盘上没有的 skill 文件。</li>
+<li><strong>从不覆盖</strong>：用户改过的 <code>SKILL.md</code> 或 references 保持原样。</li>
+<li>应用升级新增的 skill（如后续模板里加的 id）会在下次打开 Vault 时自动出现。</li>
+<li>前端：若 <code>created</code> 含 <code>.agents/skills/&lt;id&gt;/…</code>，右上角 success toast（<code>vault.skillsSeeded</code>）提示新增 skill 名称；无新增则不打扰。</li>
 </ul>
 <h4 id="path_open_in_terminal"><code>path_open_in_terminal</code>（已实现）<a class="headerlink" href="#path_open_in_terminal" title="Permanent link">&para;</a></h4>
 <p>在系统默认终端中打开本地路径（文件树右键 / <code>⌥⌘T</code>「在终端中打开」）。</p>
@@ -866,7 +890,7 @@ Host (Tauri + Rust)
 <li>创建 paper 文件夹（默认 <code>papers/&lt;id&gt;/</code>，允许 <code>papers/&lt;org&gt;/…/&lt;id&gt;/</code>）与 <code>source/</code>；<strong>元数据写入 catalog</strong>（<code>path</code> = 该文件夹；不写默认 <code>metadata.json</code>）。</li>
 <li>下载 LaTeX source、PDF、HTML 到 <code>source/</code>。</li>
 <li>无 tex 源或需要可读结构化正文时，生成 <code>papers/&lt;id&gt;/PAPER.md</code>。</li>
-<li>调用 Agent 生成 <code>papers/&lt;id&gt;/NOTES.md</code>，并创建空的 <code>papers/&lt;id&gt;/highlights.md</code>。</li>
+<li>调用 Agent 生成 <code>papers/&lt;id&gt;/NOTES.md</code>。</li>
 <li><strong>不</strong>自动更新根级 <code>PAPERS.md</code> / <code>library.bib</code>（需要时由用户触发 <code>catalog:export_*</code>）。</li>
 </ul>
 <pre class="codehilite"><code>### 3.4 本地 PDF 入库
@@ -935,7 +959,7 @@ Host (Tauri + Rust)
 <li>异步任务，通过 <code>pdf:progress</code> / <code>pdf:completed</code> / <code>pdf:failed</code> 事件推送结果。</li>
 <li>生成 citekey，落位 <code>papers/&lt;citekey&gt;/</code>，<strong>metadata 写入 catalog</strong>（<code>type=pdf</code>）。</li>
 <li>原始 PDF 存入 <code>source/</code>；用选定 <code>PdfParser</code> 全文解析生成 <code>PAPER.md</code>（PDF 来源必生成）与 <code>assets/</code>，<code>body_source</code> / <code>body_quality</code> 写入 catalog。</li>
-<li>调用 Agent 生成 <code>NOTES.md</code>，创建空 <code>highlights.md</code>。</li>
+<li>调用 Agent 生成 <code>NOTES.md</code>。</li>
 <li><strong>不</strong>自动写 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
 <li>使用云端 MinerU 前需前端已获用户同意（PDF 将上传第三方）。</li>
 </ul>
@@ -1074,7 +1098,7 @@ Host (Tauri + Rust)
     }
   }
   ```
-- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` / `highlights.md`（`NOTES.md` 摘要块优先经免费 MT 译为中文，失败则保留原文；catalog 中 `abstract` 仍为原文）；`metadata.json` 为 catalog 投影同步；**始终下载 PDF** 到 `source/`；**arXiv 另下载 e-print 并解压 LaTeX** 到 `source/`；下载后若**无 TeX 且有 PDF 且无 `PAPER.md`**，用 **liteparse** 生成 `PAPER.md` 并更新 `body_source` / `body_quality`。
+- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` 壳（摘要块优先经免费 MT 译为中文，失败则保留原文；catalog 中 `abstract` 仍为原文）；`metadata.json` 为 catalog 投影同步；**始终下载 PDF** 到 `source/`；**arXiv 另下载 e-print 并解压 LaTeX** 到 `source/`；下载后若**无 TeX 且有 PDF 且无 `PAPER.md`**，用 **liteparse** 生成 `PAPER.md` 并更新 `body_source` / `body_quality`。
 
 #### `paper_download_assets`（已落地）
 
@@ -1089,6 +1113,13 @@ Host (Tauri + Rust)
   ```
 - **返回**：`{ ok: true; data: { pdf: boolean; tex: boolean; paperMd: boolean; messages: string[] } }`
 - **行为**：读 catalog 取 `pdf_url` / `arxiv_id` / `doi`；已有对应文件则跳过；PDF → `{paper}/{id}.pdf`（论文根目录）；arXiv e-print TeX → 解压进 `source/`；无 TeX + 有 PDF + 无 `PAPER.md` → liteparse → `PAPER.md`。下载客户端使用**浏览器 UA**（绕开部分出版商 403）；若直链/arXiv 候选都失败且有 `doi`，再查 **Crossref** 取直链 / OA PDF 兜底。打开 paper 预览时若无本地 PDF 也会自动调用本命令（失败则回退远程 `pdf_url`）。
+
+#### `paper_stage_import_file`（已落地）
+
+将「无绝对路径」的 OS 拖放 PDF（macOS WKWebView 常无 `File.path`）以 base64 写入 `~/.agentero/import-tmp/`，返回绝对路径供 `paper_import_local_pdf` 使用。
+
+- **参数**（`args`）：`{ fileName: string; contentBase64: string }`
+- **返回**：`{ ok: true; data: { path: string } }`
 
 #### `paper_import_local_pdf`（已落地）
 
@@ -1110,7 +1141,7 @@ Host (Tauri + Rust)
   }
   ```
 - **返回**：`{ ok: true; data: { papers: LookupImportResult[]; errors: string[] } }`（`errors` 为 `&quot;&lt;文件&gt;: &lt;原因&gt;&quot;`；仅当**全部**失败才整体 `ok:false`）。
-- **行为**：每个 PDF → 标题/id 优先用 `entries` 覆盖，否则文件名 stem；复制到 `{slug}.pdf`；写 `NOTES.md` / `highlights.md` 壳 + catalog（type `pdf`，可含 authors/year）；无 TeX → liteparse `PAPER.md`。不覆盖已存在文件夹（slug 去重）。
+- **行为**：每个 PDF → 标题/id 优先用 `entries` 覆盖，否则文件名 stem；复制到 `{slug}.pdf`；写 `NOTES.md` 壳 + catalog（type `pdf`，可含 authors/year）；无 TeX → liteparse `PAPER.md`。不覆盖已存在文件夹（slug 去重）。
 
 #### `paper_parse_body`（已落地）
 
@@ -1944,7 +1975,7 @@ Host (Tauri + Rust)
 <tbody>
 <tr>
 <td><code>vault create</code></td>
-<td><code>services::vault::create_vault</code> / <code>vault_create</code></td>
+<td><code>services::vault::create_vault</code> / <code>vault_create</code>（与 GUI <code>vault_ensure</code> 同幂等实现）</td>
 </tr>
 <tr>
 <td><code>vault which\|info\|check\|use</code></td>
@@ -2042,7 +2073,7 @@ Host (Tauri + Rust)
 - <code>lookup:*</code> 与 PDF prepare 共用元数据管道。
 - <code>citation:fetch</code> / <code>citation:list_neighbors</code>（名称待定）：引用/被引邻域与缓存刷新（V0.7）。
 - ~~<code>search:full_text</code>~~ → 已用 walk 式 <code>vault_search</code>（命令面板）；FTS5 / PDF 正文层仍可替换增强。
-- <code>reader:annotations</code> 标注（<code>highlights.md</code>）读写。
+- <code>reader:annotations</code>（历史规划；划词标注现为前端 <code>marks/*.json</code>，不经 Host command）。
 - <code>sync:*</code> 多设备同步（远期）。</p>
               
             </div>

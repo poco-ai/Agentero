@@ -138,7 +138,7 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#notesmdl2">NOTES.md（L2，事实来源）</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#highlightsmdl25">highlights.md（L2.5，事实来源）</a>
+    <li class="toctree-l4"><a class="reference internal" href="#marksl25">marks/（L2.5，划词标注）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#papermdl3">PAPER.md（L3，派生）</a>
     </li>
@@ -282,7 +282,7 @@
 <li>将 metadata 写入 <code>.agentero/catalog.sqlite</code>，作为该篇结构化元数据的事实来源。</li>
 <li>优先获取 arXiv LaTeX source 作为结构化来源；HTML/PDF 作为人类阅读补充。</li>
 <li>仅在无 LaTeX source 或 Agent/用户需要时才生成 <code>PAPER.md</code>；有 source 时直接保留原始 <code>.tex</code>。</li>
-<li>生成 <code>NOTES.md</code>（默认三段论结构），并创建空的 <code>highlights.md</code> 供标注写入。</li>
+<li>生成 <code>NOTES.md</code>（默认三段论结构）；划词标注写入 <code>marks/*.json</code>。</li>
 <li>不自动写根目录 <code>PAPERS.md</code> / <code>library.bib</code>；需要时由 <code>catalog:export_*</code> 导出。</li>
 <li>对重复入库、网络失败、缺少 HTML/LaTeX、解析失败给出明确状态。</li>
 </ul>
@@ -294,7 +294,7 @@
 <li>元数据混合获取 + 入库前确认：先从 PDF 提取 DOI / arXiv ID 并查询 Crossref / arXiv 获取权威元数据；无标识符或查询失败时由 Agent 从正文抽取候选；入库前弹出确认面板供用户校对、修正标题、作者、年份、摘要与标签。</li>
 <li>为每篇创建 <code>papers/&lt;citekey&gt;/</code> 目录（citekey 由作者、年份、标题派生，冲突时追加后缀），catalog 写入 <code>type=pdf</code>。</li>
 <li>原始 PDF 保存到 <code>source/</code>；因无 LaTeX source，PDF 来源必定生成 <code>PAPER.md</code> 作为唯一可读正文，并在 catalog 记录 <code>body_source</code>（<code>pdf</code>/<code>ocr</code>）与 <code>body_quality</code>。</li>
-<li>生成 <code>NOTES.md</code> 与空的 <code>highlights.md</code>，更新 catalog。</li>
+<li>生成 <code>NOTES.md</code> 壳，更新 catalog。</li>
 <li>使用云端 MinerU 前需明确提示用户 PDF 将上传至第三方服务；默认本地解析不外传数据。</li>
 </ul>
 <h4 id="markdown">Markdown 工作台<a class="headerlink" href="#markdown" title="Permanent link">&para;</a></h4>
@@ -323,7 +323,7 @@
 <li>已落地：<strong>paper-reader 精读</strong>（设置 <code>autoPaperReader</code> 默认关；可选自动 + 文件树 Zap 手动；catalog <code>is_read</code>）；全局 Agent <strong>权限模式</strong>（受限 / <strong>每次询问</strong> / 自动批准）；<strong>面板工作流</strong>（Summarize / Ask library / Draft Related Work → <code>summary</code> / <code>qa</code> / <code>related_work</code>）；<strong>笔记写后审阅</strong>（统一 Diff + Keep / Revert）；<strong>当前论文默认 context</strong> + <strong>个人偏好提示词</strong>（<code>agentPersonalPrompt</code>）。</li>
 <li>面板空态建议 chips 接通上述 workflow；<code>AGENTS.md</code> 自动注入 workflow prompt 仍待。</li>
 <li>后续（roadmap V0.7）：沿文献引用链的 Explore citations / Map related work / Ingest neighborhood。</li>
-<li>Agent 读取顺序遵循渐进式披露：<code>AGENTS.md</code> →（catalog/列表或可选导出）→ <code>NOTES.md</code> → <code>highlights.md</code> → <code>PAPER.md</code> → <code>source/</code>，仅在需要时逐层下钻。</li>
+<li>Agent 读取顺序遵循渐进式披露：<code>AGENTS.md</code> →（catalog/列表或可选导出）→ <code>NOTES.md</code> → <code>marks/</code> → <code>PAPER.md</code> → <code>source/</code>，仅在需要时逐层下钻。</li>
 <li>Agent 输出必须展示读取过的文件路径；Agent 改写笔记后用户可在写后审阅中保留或还原（写前草稿拦截仍待加强）。</li>
 <li>未检测到可用 Agent 时，设置与 Agent 面板展示安装/配置指引，不阻塞 Vault 与阅读功能。</li>
 </ul>
@@ -332,8 +332,7 @@
 <li>支持在应用内打开 PDF。</li>
 <li>支持在应用内打开 arXiv HTML 或本地 HTML。</li>
 <li>支持基础搜索、缩放、页内定位。</li>
-<li>标注（引文 + 想法）以 <code>highlights.md</code> 落盘，坐标缓存于 <code>.agentero/</code>；MVP 提供轻量标注捕获，不做完整 PDF 批注同步系统。</li>
-<li>划词（高亮/批注/提问/翻译）MVP 已落地（<code>marks/*.json</code>）；导出 <code>highlights.md</code> 仍属后续。</li>
+<li>划词（高亮/批注/提问/翻译）以 <code>marks/*.json</code> 落盘（坐标页内归一化）；不做完整 Zotero 原位批注同步。</li>
 </ul>
 <h4 id="_3">关系图谱<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h4>
 <ul>
@@ -370,7 +369,7 @@
   papers/
     1706.03762/          # arxiv 用 arXiv ID；非 arxiv 用 citekey
       NOTES.md           # L2 结构化笔记
-      highlights.md      # L2.5 标注：引文 + 想法
+      marks/             # L2.5 划词标注 JSON（highlight/ask/translate）
       PAPER.md           # L3 派生可读正文（可选）
       assets/            # 引用图：用户插入（NOTES 旁 ./assets）与/或解析派生
       source/            # L4 原始归档（始终存在，只增不改）
@@ -401,14 +400,14 @@
 # 效果怎么样
 </code></pre>
 
-<h4 id="highlightsmdl25"><code>highlights.md</code>（L2.5，事实来源）<a class="headerlink" href="#highlightsmdl25" title="Permanent link">&para;</a></h4>
-<p>单篇论文的标注层，与 <code>NOTES.md</code> 分开存放：笔记是「熟的」综合知识，标注是「生的」原始证据（锚定原文位置的引文 + 想法）。引文与想法留在 Markdown（事实来源），页码/bbox 等坐标缓存于 <code>.agentero/</code>（可由引文检索重建）；用 Obsidian 块引用 <code>^id</code>，让 <code>NOTES.md</code> 能精确引用某条标注。</p>
+<h4 id="marksl25"><code>marks/</code>（L2.5，划词标注）<a class="headerlink" href="#marksl25" title="Permanent link">&para;</a></h4>
+<p>PDF 划词后的高亮 / 批注 / 提问 / 翻译，以 <code>marks/&lt;id&gt;.json</code>（<code>kind</code> 判别）落盘。与 <code>NOTES.md</code> 分开：笔记是综合知识，marks 是锚定原文位置的交互证据。详见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>。</p>
 <h4 id="papermdl3"><code>PAPER.md</code>（L3，派生）<a class="headerlink" href="#papermdl3" title="Permanent link">&para;</a></h4>
 <p>位于 <code>papers/&lt;id&gt;/PAPER.md</code>（在论文目录根部，不在 <code>source/</code> 内），面向 Agent 阅读的统一可读正文，保留章节、公式、表格、引用等结构信息，降低 PDF 排版噪音。<code>source/</code> 是异构原始归档，<code>PAPER.md</code> 提供同构可读出口；正文来源与质量记录在 catalog 的 <code>body_source</code>/<code>body_quality</code>。当 <code>source/</code> 中已存在 LaTeX 源文件时，<code>PAPER.md</code> 为可选生成项；对无 LaTeX source 的本地 PDF 来源，<code>PAPER.md</code> 为必定生成项，是该篇唯一的结构化可读正文。</p>
 <h4 id="agentsmdl0"><code>AGENTS.md</code>（L0，事实来源）<a class="headerlink" href="#agentsmdl0" title="Permanent link">&para;</a></h4>
 <p>Vault 内的 Agent 行为规范，至少包含：</p>
 <ul>
-<li>读取协议：L1 以 catalog / 可选导出为准；锁定篇目后按 <code>NOTES.md → highlights.md → PAPER.md → source/</code> 下钻。</li>
+<li>读取协议：L1 以 catalog / 可选导出为准；锁定篇目后按 <code>NOTES.md → marks/ → PAPER.md → source/</code> 下钻。</li>
 <li>笔记结构规范（三段论）。</li>
 <li>引用路径要求：回答必须列出读取过的本地文件路径。</li>
 <li>生成内容的双链要求。</li>
@@ -435,7 +434,7 @@
 <li>系统创建 <code>papers/&lt;id&gt;/</code>（arxiv 用 arXiv ID，非 arxiv 用 citekey），metadata 写入 catalog。</li>
 <li>系统<strong>默认下载 PDF</strong> 到 <code>source/</code>；arXiv <strong>另下载 e-print 并解压 LaTeX</strong> 到 <code>source/</code>（catalog 仍保留远程 URL 供预览）。</li>
 <li>若无 LaTeX source 或需要可读结构化正文，系统可生成 <code>PAPER.md</code>（后续）。</li>
-<li>生成占位 <code>NOTES.md</code>，并创建空的 <code>highlights.md</code>（Agent 深化仍规划）。</li>
+<li>生成占位 <code>NOTES.md</code>（Agent 深化 / paper-reader 仍规划）。</li>
 <li>系统将 metadata 写入 catalog；不自动写 <code>PAPERS.md</code> / <code>library.bib</code>（可按需导出）。</li>
 <li>用户进入 paper 视图 / <code>NOTES.md</code> 审阅和修订。</li>
 </ol>
@@ -447,7 +446,7 @@
 <li>系统弹出确认面板，展示标题、作者、年份、摘要、标签，用户校对并修正。</li>
 <li>系统据此生成 citekey，检测重复（DOI / 标题指纹），创建 <code>papers/&lt;citekey&gt;/</code> 并将 metadata 写入 catalog。</li>
 <li>原始 PDF 保存到 <code>source/</code>；按当前解析器（默认本地，配置 Key 后优先 MinerU）全文解析生成 <code>PAPER.md</code> 与 <code>assets/</code>。</li>
-<li>Agent 生成 <code>NOTES.md</code>，创建空的 <code>highlights.md</code>。</li>
+<li>Agent 生成 <code>NOTES.md</code>。</li>
 <li>系统更新 catalog（可按需 export PAPERS.md / BibTeX）。</li>
 <li>用户进入 <code>NOTES.md</code> 审阅和修订。</li>
 </ol>
@@ -455,7 +454,7 @@
 <ol>
 <li>用户在 Agent 面板输入问题。</li>
 <li>Agent 先根据 catalog 列表或 <code>papers/*/NOTES.md</code> 锁定候选论文。</li>
-<li>Agent 读取相关 <code>NOTES.md</code>，必要时读取 <code>highlights.md</code> 获取用户标注。</li>
+<li>Agent 读取相关 <code>NOTES.md</code>，必要时读取 <code>marks/</code> 获取用户标注。</li>
 <li>仅当需要公式、实验细节或原文时读取 <code>PAPER.md</code>，最后才进入 <code>source/</code>。</li>
 <li>Agent 输出答案。</li>
 <li>答案末尾展示读取过的文件路径。</li>

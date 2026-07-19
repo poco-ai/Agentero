@@ -203,7 +203,7 @@
 </tr>
 <tr>
 <td>人写内容仍文件</td>
-<td><code>NOTES.md</code>、<code>highlights.md</code>、<code>source/</code>、可选 <code>PAPER.md</code> 保持 Markdown/二进制文件。</td>
+<td><code>NOTES.md</code>、<code>marks/</code>、<code>source/</code>、可选 <code>PAPER.md</code> 保持 Markdown/JSON/二进制文件。</td>
 </tr>
 <tr>
 <td>可导出、非默认</td>
@@ -228,7 +228,7 @@
 <tbody>
 <tr>
 <td><strong>Tier 1a 人的知识 / 原始归档</strong></td>
-<td><code>AGENTS.md</code>、<code>NOTES.md</code>、<code>highlights.md</code>、<code>notes/</code>、<code>plans/</code>、<code>source/</code>、用户插入的笔记旁 <code>assets/*</code></td>
+<td><code>AGENTS.md</code>、<code>NOTES.md</code>、<code>marks/</code>、<code>notes/</code>、<code>plans/</code>、<code>source/</code>、用户插入的笔记旁 <code>assets/*</code></td>
 <td>文件</td>
 </tr>
 <tr>
@@ -275,7 +275,7 @@
 <h3 id="paper">Paper 文件夹（最小单元）<a class="headerlink" href="#paper" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>定义</strong>：<code>papers/</code> 下任意深度的一个目录，其<strong>直接子项</strong>含 paper 标记之一：</li>
-<li>文件：<code>NOTES.md</code>、<code>highlights.md</code>、<code>PAPER.md</code>、<code>metadata.json</code>（过渡）</li>
+<li>文件：<code>NOTES.md</code>、<code>marks/</code>、<code>PAPER.md</code>、<code>metadata.json</code>（过渡）</li>
 <li>目录：<code>source/</code>、<code>assets/</code></li>
 <li><strong>不是 paper</strong>：仅作分类的中间目录（如 <code>papers/nlp/</code>），无上述标记，文件树中可展开。</li>
 <li><strong>Catalog 主键</strong>：Vault 相对路径 <code>path</code>（如 <code>papers/nlp/transformers/1706.03762</code>），不是「仅叶子目录名」。</li>
@@ -550,7 +550,7 @@
   path: string;             // = catalog path，paper 文件夹（可嵌套）
   vault_path: string;       // 同 path，或带尾 /
   notes_path: string;       // {path}/NOTES.md
-  highlights_path: string;  // {path}/highlights.md
+  marks_dir: string;        // {path}/marks/
   source_dir: string;       // {path}/source/
   paper_md_path?: string;   // {path}/PAPER.md 若存在
 }
@@ -769,8 +769,8 @@
 </tr>
 <tr>
 <td>L2+</td>
-<td>NOTES → highlights → PAPER.md → source</td>
-<td>不变</td>
+<td>NOTES → marks/ → PAPER.md → source</td>
+<td>标注层为 <code>marks/*.json</code></td>
 </tr>
 </tbody>
 </table>
