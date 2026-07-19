@@ -64,6 +64,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
@@ -203,6 +205,11 @@
     </ul>
                   </li>
               </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+              </ul>
       </div>
     </div>
     </nav>
@@ -229,7 +236,7 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="agentero-todo">Agentero TODO<a class="headerlink" href="#agentero-todo" title="Permanent link">&para;</a></h1>
-<p>可执行 backlog（GitHub Flavored Markdown checklist：<code>- [x]</code> 已完成 / <code>- [ ]</code> 未完成）。版本级状态与验收以 <a href="../roadmap/"><code>roadmap.md</code></a> 为准；魔棒设计见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>；Zotero Connector 兼容见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>。</p>
+<p>可执行 backlog（GitHub Flavored Markdown checklist：<code>- [x]</code> 已完成 / <code>- [ ]</code> 未完成）。版本级状态与验收以 <a href="../roadmap/"><code>roadmap.md</code></a> 为准；魔棒设计见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>；Zotero Connector 兼容见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>；多入口入库统一见 <a href="../../backend/paper-import-pipeline/"><code>../backend/paper-import-pipeline.md</code></a>。</p>
 <h2 id="p0">P0 — 近期闭环<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h2>
 <h3 id="1-create-vault">1. Create Vault 初始化<a class="headerlink" href="#1-create-vault" title="Permanent link">&para;</a></h3>
 <ul>
@@ -302,6 +309,7 @@
 <li>[x] 后台任务条（下载 / 入库 / 导入导出 / paper-reader；hover 实色不透明）</li>
 <li>[x] 精读触发图标 <strong>Zap</strong>（非 Eye）；tooltip 单行</li>
 <li>[x] <strong>Paper 行标签预设</strong>：默认标题 · 作者；设置 → 通用 <code>paperTreeLabelMode</code>（标题 / 作者(年)·标题 / 文件夹名）；展示用、不改磁盘名（<code>formatPaperTreeLabel</code>）</li>
+<li>[x] <strong>文件树论文排序预设</strong>：默认文件夹名 A–Z；设置 → 通用 <code>paperTreeSortMode</code>（标题 / 作者 / 年份新→旧 / 年份旧→新 / 添加时间新→旧）；展示用、不移动磁盘（<code>sortFileTreeNodes</code>）</li>
 </ul>
 <h3 id="2e-pdf">2e. PDF 阅读增强<a class="headerlink" href="#2e-pdf" title="Permanent link">&para;</a></h3>
 <ul>
@@ -477,7 +485,7 @@
 <li>[x] C0：设计文档（本机 <code>23119</code>、互斥 Zotero 桌面、默认关、MVP endpoints、映射与分期）</li>
 <li>[x] C1：Host <code>services/connector</code> — <code>ping</code> / <code>saveItems</code> / <code>sessionProgress</code> + loopback 安全策略；复用 <code>map_zotero_item</code> 落盘</li>
 <li>[x] C2：设置开关 <code>connectorEnabled</code> + <code>connector_get_status</code> / <code>connector_set_enabled</code> / <code>set_vault</code>；端口冲突 / 无 Vault UX；i18n</li>
-<li>[x] C3：前端 <code>connector:item-saved</code> 刷新树/Library；退出释放端口；<code>api.md</code> 命令表</li>
+<li>[x] C3：前端 <code>connector:item-saved</code> 刷新树/Library + <strong><code>openPaper</code> 打开论文 tab</strong>；退出释放端口；<code>api.md</code> 命令表</li>
 <li>[x] C4a：catalog id 去重；URL 附件后台 <code>ensure_paper_assets</code>；防插件 15s 超时（NOTES 无实时 MT）</li>
 <li>[x] C4a2：<code>getSelectedCollection.targets</code> 列出 <code>papers/</code> 组织子文件夹；<code>updateSession</code> 移动 paper；<code>connector_set_parent_dir</code> + Library 作用域同步</li>
 <li>[x] C4b：<code>saveAttachment</code> 二进制上传协议（浏览器登录墙 PDF；<code>parentItemID</code>→paper；<code>%PDF</code> 校验；触发 PAPER.md）</li>
@@ -587,7 +595,11 @@
 <li>[x] 魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md</li>
 <li>[x] <strong>本地 PDF 导入</strong>、<strong>非 arXiv 下载（浏览器 UA + Crossref 兜底）</strong></li>
 <li>[x] Library 导入导出 Bib、<code>paper_set_tags</code>、<code>paper_rescan</code></li>
-<li>[x] <strong>Zotero Connector MVP</strong>（含 <code>saveAttachment</code>）</li>
+<li>[x] <strong>Zotero Connector MVP</strong>（含 <code>saveAttachment</code>）+ <strong>保存后 <code>openPaper</code></strong></li>
+<li>[x] <strong>入库流水线统一设计</strong>（<a href="../../backend/paper-import-pipeline/"><code>paper-import-pipeline.md</code></a>）</li>
+<li>[ ] <strong>P0</strong> Host <code>paper_commit</code> + 魔棒 / Connector / 本地 PDF 迁入</li>
+<li>[ ] <strong>P1</strong> 前端 <code>afterPaperImport</code> 策略表</li>
+<li>[ ] <strong>P2</strong> Bib / CLI 走 commit；<strong>P3</strong> Zotero 迁移；<strong>P4</strong> <code>paper:imported</code> 事件</li>
 <li>[ ] 关键词/Agent 候选</li>
 <li>[ ] 本地 PDF 拖拽 / DOI 识别与元数据确认</li>
 <li>[ ] MinerU 云端解析</li>
@@ -639,6 +651,7 @@
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
         <a href="../roadmap/" class="btn btn-neutral float-left" title="路线图"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../bug_fix/deepseek-thinking-body/" class="btn btn-neutral float-right" title="DeepSeek 正文落入 Thinking">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -667,6 +680,8 @@
     
       <span><a href="../roadmap/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
+    
+      <span><a href="../../bug_fix/deepseek-thinking-body/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>DeepSeek 正文落入 Thinking - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "DeepSeek \u6b63\u6587\u843d\u5165 Thinking";
+        var mkdocs_page_input_path = "bug_fix/deepseek-thinking-body.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">DeepSeek 正文落入 Thinking</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 问题现象</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 根因</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#21-deepseek">2.1 DeepSeek 官方：推理与正文双字段</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#22">2.2 文本内嵌标签</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#23-acp-agentero">2.3 ACP 通道误标（Agentero 侧直接触发路径）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#24">2.4 数据流示意</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 解决方案</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31-think">3.1 消息通道：拆分 think 风格标签</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32-orphan-thought">3.2 完成时兜底：提升 orphan thought</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#33">3.3 为何这样设计</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#34">3.4 测试</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4">4. 未覆盖 / 后续可选</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 参考资料</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#_1">官方与协议</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_2">业界同类问题（展示 / 适配层）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_3">本仓库</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6-review">6. 变更摘要（便于 review）</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Bug 修复记录</li>
+      <li class="breadcrumb-item active">DeepSeek 正文落入 Thinking</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/bug_fix/deepseek-thinking-body.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="deepseek-thinking">DeepSeek 正文落入 Thinking 区块<a class="headerlink" href="#deepseek-thinking" title="Permanent link">&para;</a></h1>
+<p><strong>状态</strong>：已修复（前端流解析 + 完成时兜底）<br />
+<strong>影响面</strong>：Agent 对话面板（ACP 流式 UI）<br />
+<strong>相关代码</strong>：</p>
+<ul>
+<li><code>src/lib/agent-stream-parse.ts</code> — 标签拆分与 orphan thought 提升</li>
+<li><code>src/components/layout/agent-panel.tsx</code> — 流式接入与 turn 完成处理</li>
+<li><code>test/agent-stream-parse.test.ts</code> — 单测</li>
+<li>Host：<code>src-tauri/src/services/agent/acp.rs</code>（<code>AgentMessageChunk</code> → <code>message</code>，<code>AgentThoughtChunk</code> → <code>thought</code>）</li>
+</ul>
+<hr />
+<h2 id="1">1. 问题现象<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>使用 DeepSeek 推理类模型（如 DeepSeek-R1 / deepseek-reasoner 风格，或经部分 ACP Agent 代理的同类模型）时，对话 UI 可能出现：</p>
+<ol>
+<li><strong>最终回答只出现在「Thinking / Reasoning」折叠块</strong>，正文区为空或显示 <code>(empty response)</code>。</li>
+<li><strong>正文与思考混在同一段 message 文本里</strong>，且被 <code>&lt;think&gt;…&lt;/think&gt;</code>（或同类标签）包住，未拆成 reasoning + text 两部分。</li>
+<li>流式过程中界面长时间停在 “thinking”，结束后正文仍不可见或整段被当成思考。</li>
+</ol>
+<p>用户侧观感：模型「想完了但没回复」，或「答案被藏在思考里」。</p>
+<hr />
+<h2 id="2">2. 根因<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<p>问题通常不是单一 bug，而是 <strong>模型输出形态 × 中间 Agent/适配器 × 前端按 ACP 通道渲染</strong> 叠加造成的。</p>
+<h3 id="21-deepseek">2.1 DeepSeek 官方：推理与正文双字段<a class="headerlink" href="#21-deepseek" title="Permanent link">&para;</a></h3>
+<p>DeepSeek 推理模型在 API 层将输出拆成：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reasoning_content</code></td>
+<td>思考过程（应进 Thinking UI）</td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td>最终回答（应进正文）</td>
+</tr>
+</tbody>
+</table>
+<p>客户端若只读 <code>content</code>、或把 <code>reasoning_content</code> 误当成唯一输出，就会出现「有思考无正文 / 正文进错栏」一类问题。多轮对话时，部分服务还要求把历史 <code>reasoning_content</code> 正确回传，否则行为异常。</p>
+<p>这是行业内普遍的适配点，并非 Agentero 独有。</p>
+<h3 id="22">2.2 文本内嵌标签<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<p>部分链路（蒸馏模型、代理、旧格式）会把思考写在 <strong>message 文本</strong> 里，用标签分隔，例如：</p>
+<pre class="codehilite"><code class="language-text">&lt;think&gt;
+…推理过程…
+&lt;/think&gt;
+
+## 最终答案
+…
+</code></pre>
+
+<p>同类别名还有 <code>&lt;thinking&gt;…&lt;/thinking&gt;</code>、<code>&lt;reasoning&gt;…&lt;/reasoning&gt;</code>。<br />
+若前端把整段 <code>message</code> chunk 原样当正文渲染，标签会泄漏或思考与答案无法分栏；若整段被上层标成 thought，则答案会整段落进 Thinking。</p>
+<h3 id="23-acp-agentero">2.3 ACP 通道误标（Agentero 侧直接触发路径）<a class="headerlink" href="#23-acp-agentero" title="Permanent link">&para;</a></h3>
+<p>Agentero 经 ACP 接收流更新：</p>
+<table>
+<thead>
+<tr>
+<th>ACP 更新</th>
+<th>Host <code>AgentStreamKind</code></th>
+<th>UI 用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AgentMessageChunk</code></td>
+<td><code>message</code></td>
+<td>助手正文（可再拆 think 标签）</td>
+</tr>
+<tr>
+<td><code>AgentThoughtChunk</code></td>
+<td><code>thought</code></td>
+<td>仅 reasoning</td>
+</tr>
+</tbody>
+</table>
+<p>映射见 <code>acp.rs</code> 的 <code>stream_from_update</code>。</p>
+<p><strong>部分 Agent / 模型适配器</strong>会把本应走 <code>AgentMessageChunk</code> 的最终答案，全部或主要地发成 <code>AgentThoughtChunk</code>。<br />
+对前端而言：</p>
+<ul>
+<li>流式阶段只有 <code>kind=thought</code> → 全部进入 <code>reasoning</code> parts；</li>
+<li>turn 结束时若 <code>content</code> 也为空 → 正文为空，答案只留在 Thinking 里。</li>
+</ul>
+<p>这是本仓库里观察到的主要故障形态之一：<strong>「orphan thought」——有 reasoning、无 text</strong>。</p>
+<h3 id="24">2.4 数据流示意<a class="headerlink" href="#24" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">  DeepSeek / 代理 CLI
+        │
+        ├─ reasoning_content  ──► (适配器) ──► AgentThoughtChunk ──► kind=thought
+        ├─ content            ──► (适配器) ──► AgentMessageChunk ──► kind=message
+        └─ 或 content 内含 &lt;think&gt;…&lt;/think&gt;answer
+        │
+        ▼
+  Agentero Host (acp.rs)  →  agent:stream 事件
+        │
+        ▼
+  agent-panel：classifyStreamChunk / promoteOrphanThoughtToText
+        │
+        ▼
+  UI：Reasoning 块 + 正文 Markdown
+</code></pre>
+
+<p>适配器若把 <code>content</code> 错映射到 Thought，或只转发 thought，UI 在修复前无法恢复正文。</p>
+<hr />
+<h2 id="3">3. 解决方案<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<p>在 <strong>前端流解析层</strong> 做兼容，不依赖某个特定 Agent 修 bug；Host 仍忠实转发 ACP 的 message / thought 通道。</p>
+<h3 id="31-think">3.1 消息通道：拆分 think 风格标签<a class="headerlink" href="#31-think" title="Permanent link">&para;</a></h3>
+<p><code>ThinkTagParser</code>（<code>agent-stream-parse.ts</code>）对 <strong><code>kind=message</code></strong> 的 chunk 做有状态扫描：</p>
+<ul>
+<li>识别开标签：<code>&lt;think&gt;</code> / <code>&lt;thinking&gt;</code> / <code>&lt;reasoning&gt;</code>（大小写不敏感）</li>
+<li>识别闭标签：<code>&lt;/think&gt;</code> / <code>&lt;/thinking&gt;</code> / <code>&lt;/reasoning&gt;</code></li>
+<li>跨 chunk 边界时缓存不完整标签前缀，避免截断误伤</li>
+<li>标签内 → <code>reasoning</code> part；标签外 → <code>text</code> part</li>
+</ul>
+<p><code>kind=thought</code> <strong>不</strong>再做标签反解为正文（通道语义已是思考）；误标正文的情况交给完成时兜底。</p>
+<p>接入点：<code>agent-panel</code> 的 <code>applyStreamEvent</code> → <code>classifyStreamChunk</code> → <code>appendStreamPart</code>。</p>
+<h3 id="32-orphan-thought">3.2 完成时兜底：提升 orphan thought<a class="headerlink" href="#32-orphan-thought" title="Permanent link">&para;</a></h3>
+<p>当 turn 结束（<code>agent:result</code>）时，若：</p>
+<ol>
+<li>已有 parts 中 <strong>没有任何非空 <code>text</code></strong>，且  </li>
+<li>结果 payload 的 <code>content</code> 也为空，且  </li>
+<li>存在非空 <code>reasoning</code> parts，</li>
+</ol>
+<p>则调用 <code>promoteOrphanThoughtToText</code>：</p>
+<ul>
+<li>将 <strong>最后一个</strong> 非空 reasoning 块的 <code>type</code> 改为 <code>text</code>；</li>
+<li>若存在多段 reasoning，<strong>更早的</strong>仍保留为思考（兼容「思考 → 工具 → 再思考 → 答案被误标」）。</li>
+</ul>
+<p>仍无任何正文时，才回退为 <code>(empty response)</code> 占位。</p>
+<h3 id="33">3.3 为何这样设计<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>优点</th>
+<th>代价 / 边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>只修 Host / 某个 Agent</td>
+<td>语义更「正」</td>
+<td>无法覆盖用户 BYOA 的多种 CLI；修不全</td>
+</tr>
+<tr>
+<td>前端拆标签 + promote</td>
+<td>对用户立即可用；可测</td>
+<td>promote 可能把「纯思考、无答案」的最后一段当正文（少见）</td>
+</tr>
+<tr>
+<td>不在 thought 通道上拆标签</td>
+<td>避免把真·思考里的伪标签抬成正文</td>
+<td>完全误路由时必须靠 promote</td>
+</tr>
+</tbody>
+</table>
+<p>与业界常见做法一致：UI / 客户端在展示层兼容 <code>reasoning_content</code> 与内嵌 think 标签，并对「只有 reasoning」做降级展示。</p>
+<h3 id="34">3.4 测试<a class="headerlink" href="#34" title="Permanent link">&para;</a></h3>
+<p><code>test/agent-stream-parse.test.ts</code> 覆盖：</p>
+<ul>
+<li>单 chunk 内 <code>&lt;think&gt;…&lt;/think&gt;</code> + 正文拆分  </li>
+<li>开闭标签跨 chunk  </li>
+<li><code>&lt;thinking&gt;</code> / <code>&lt;reasoning&gt;</code> 别名  </li>
+<li><code>classifyStreamChunk</code> 对 thought / message 的分流  </li>
+<li><code>promoteOrphanThoughtToText</code>：单段提升、多段只抬最后一段、已有 text 时不改动  </li>
+</ul>
+<p>本地：<code>pnpm exec vitest run test/agent-stream-parse.test.ts</code>。</p>
+<hr />
+<h2 id="4">4. 未覆盖 / 后续可选<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>适配器侧根治</strong>：在具体 ACP Agent 内把 DeepSeek 的 <code>content</code> 正确发成 <code>AgentMessageChunk</code>，<code>reasoning_content</code> 发成 <code>AgentThoughtChunk</code>。前端兜底不能替代正确协议。</li>
+<li><strong>流式中途 promote</strong>：当前仅在 turn 完成时提升；流式过程中答案若全在 thought 里，结束前仍只显示 Thinking（可接受）。</li>
+<li><strong>真·无正文的长思考</strong>：promote 会把最后一段 reasoning 显示为正文；若产品要区分「无答案」与「误标答案」，需要 Agent 提供更可靠的 stop / 空 content 语义。</li>
+<li><strong>多轮 <code>reasoning_content</code> 回传</strong>：属 Agent CLI / API 客户端职责，不在本修复范围。</li>
+</ul>
+<hr />
+<h2 id="5">5. 参考资料<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<h3 id="_1">官方与协议<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="https://api-docs.deepseek.com/guides/reasoning_model">DeepSeek API 文档 — 推理模型（reasoning_content / content）</a></li>
+<li><a href="https://agentclientprotocol.com/">Agent Client Protocol</a> — <code>AgentMessageChunk</code> / <code>AgentThoughtChunk</code> 会话更新语义</li>
+</ul>
+<h3 id="_2">业界同类问题（展示 / 适配层）<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<p>以下为公开讨论与 issue 中的常见模式，说明「推理进错栏 / 只有 thinking」并非个案：</p>
+<ul>
+<li><strong>Open WebUI</strong> 等聊天前端：对 reasoning 字段与折叠 UI 的适配与回归讨论（字段映射错误会导致正文或思考缺失）。</li>
+<li><strong>OpenCode + DeepSeek</strong> 社区反馈：仅有 reasoning、界面卡在 thinking 或结束后无正文（适配器与模型字段不同步时）。</li>
+<li><strong>agno / Kilo Code</strong> 等 Agent 框架：处理 <code>reasoning_content</code> 与流式 delta 时的映射问题。</li>
+<li>通用实践：客户端需同时处理<br />
+  1）API 双字段；<br />
+  2）<code>&lt;think&gt;</code> 类内嵌标签；<br />
+  3）上游把最终答案误标为 thought 时的展示兜底。</li>
+</ul>
+<h3 id="_3">本仓库<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>实现：<code>src/lib/agent-stream-parse.ts</code>  </li>
+<li>UI 接入：<code>src/components/layout/agent-panel.tsx</code>（<code>applyStreamEvent</code>、turn 完成分支中的 <code>promoteOrphanThoughtToText</code>）  </li>
+<li>Host 通道映射：<code>src-tauri/src/services/agent/acp.rs</code> → <code>stream_from_update</code>  </li>
+<li>备忘勾选：<code>docs/development/bug.md</code>（对话 / Agent 一节）</li>
+</ul>
+<hr />
+<h2 id="6-review">6. 变更摘要（便于 review）<a class="headerlink" href="#6-review" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>问题</td>
+<td>DeepSeek 类模型回答出现在 Thinking，正文为空</td>
+</tr>
+<tr>
+<td>原因</td>
+<td>双字段 / <code>&lt;think&gt;</code> 标签 / ACP thought 误路由</td>
+</tr>
+<tr>
+<td>修复</td>
+<td>message 流拆标签 + 完成时 promote 最后 orphan reasoning → text</td>
+</tr>
+<tr>
+<td>验证</td>
+<td><code>test/agent-stream-parse.test.ts</code></td>
+</tr>
+<tr>
+<td>不修</td>
+<td>各 BYOA Agent 内部对 DeepSeek API 的字段映射（仍建议上游正确）</td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../../development/todo/" class="btn btn-neutral float-left" title="TODO"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+      <span><a href="../../development/todo/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

@@ -234,6 +234,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../identifier-lookup/">魔棒与 Translator</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../connector/">Zotero Connector 兼容</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../wikilinks/">双链与图谱</a>
@@ -263,6 +265,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
                   </li>
               </ul>
       </div>
@@ -997,7 +1004,7 @@ Host (Tauri + Rust)
 | 事件 | payload |
 |---|---|
 | `connector:status` | `ConnectorStatus` |
-| `connector:item-saved` | `{ path, id, title, deduped, sessionId }` |
+| `connector:item-saved` | `{ path, id, title, deduped, sessionId }` — 前端刷新树/Library 并 `openPaper` |
 | `connector:error` | `{ message, sessionId? }` |
 
 ### 3.5c 全库搜索（已落地）

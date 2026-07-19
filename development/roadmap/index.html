@@ -64,6 +64,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
@@ -189,6 +191,11 @@
     </ul>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../todo/">TODO</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
                   </li>
               </ul>
       </div>
@@ -451,26 +458,28 @@
 </ul>
 <h2 id="v05-importer-pdf">V0.5 Importer 架构与本地 PDF 入库<a class="headerlink" href="#v05-importer-pdf" title="Permanent link">&para;</a></h2>
 <p>目标：抽象 Importer 接口，落地 arXiv 与本地 PDF 两个 importer，并为后续 HTML、DOI、Zotero/BibTeX 做架构准备。</p>
+<p><strong>入库编排统一（设计）</strong>：多入口（魔棒 / Connector / 本地 PDF / Bib / 迁移 / CLI）收敛为 Host <code>paper_commit</code> + 前端 <code>afterPaperImport</code>——见 <a href="../../backend/paper-import-pipeline/"><code>../backend/paper-import-pipeline.md</code></a>。与下文「Importer trait」互补：trait 管 <strong>元数据源</strong>，<code>paper_commit</code> 管 <strong>落盘与 UI 后置</strong>。</p>
 <p>关键交付：</p>
 <ul>
-<li>[ ] 抽象 importer 接口。</li>
-<li>[ ] 将 arXiv 入库实现迁移为第一个 importer。</li>
+<li>[ ] 抽象 importer 接口（Source adapter）。</li>
+<li>[ ] 将 arXiv / 魔棒入库实现迁移为第一个 adapter + <strong><code>paper_commit</code></strong>。</li>
 <li>[x] 本地 PDF 导入：魔棒弹层文件选择（多选，<code>paper_import_local_pdf</code>）、citekey slug 生成 + 重复检测（<code>-2</code>/<code>-3</code>）、复制 PDF + catalog + liteparse <code>PAPER.md</code>；拖拽 / DOI 识别待增强。</li>
 <li>[ ] 可插拔 <code>PdfParser</code>：默认本地 liteparse，配置 MinerU API Key 后优先云端 MinerU，失败自动降级。</li>
 <li>[ ] PDF 元数据混合获取：DOI/arXiv 标识符查询 Crossref/arXiv + Agent 正文抽取，入库前用户确认。</li>
 <li>[ ] 预留本地 HTML importer。</li>
-<li>[ ] 预留 BibTeX/Zotero importer。</li>
+<li>[x] BibTeX / Zotero 形导入（<code>paper_import</code>、Connector、迁移）已落地入口；<strong>编排尚未统一</strong>。</li>
 <li>[x] <strong>魔棒 Identifier Lookup（v0）</strong>：HTTP Translator + <code>lookup_import</code> + 默认 PDF/LaTeX + <code>paper_download_assets</code>（见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>）。</li>
-<li>[ ] 将魔棒路径收编为正式 Importer 实现之一。</li>
-<li>[ ] 统一入库状态、错误类型和输出文件契约。</li>
+<li>[ ] 将魔棒 / Connector / 本地 PDF 收编为 adapter + 共用 <code>paper_commit</code>（pipeline P0）。</li>
+<li>[ ] 前端 <code>afterPaperImport</code> 策略表（pipeline P1）。</li>
+<li>[ ] 统一入库状态、错误类型和 <code>PaperCommitResult</code> 契约。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
-<li>[ ] arXiv importer 行为与 V0.2 精确路径保持兼容。</li>
+<li>[ ] arXiv / 魔棒 importer 行为与 V0.2 精确路径保持兼容。</li>
 <li>[x] 导入本地 PDF 生成 <code>papers/&lt;citekey&gt;/</code>（复制 PDF + liteparse <code>PAPER.md</code>）并进入笔记审阅。</li>
 <li>[ ] 配置 MinerU API Key 后 PDF 默认走云端解析，未配置或失败时自动降级本地且不中断。</li>
-<li>[ ] 新 importer 可以复用同一套输出结构。</li>
-<li>[ ] UI 不需要为每种来源重写入库流程。</li>
+<li>[ ] 新 adapter 只产出 meta / 资源意图，复用同一 <code>paper_commit</code> 输出结构。</li>
+<li>[ ] UI 不需要为每种来源重写刷新 / openTab / toast / auto-reader 流程。</li>
 </ul>
 <h2 id="v06">V0.6 工作区标签页与分屏<a class="headerlink" href="#v06" title="Permanent link">&para;</a></h2>
 <p>目标：中间内容区从「当前选中一项即替换」升级为 <strong>标签式多文档工作区</strong>，并支持 <strong>分屏并排阅读/编辑</strong>。</p>

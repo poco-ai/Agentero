@@ -200,6 +200,8 @@
     </li>
     </ul>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../connector/">Zotero Connector 兼容</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../wikilinks/">双链与图谱</a>
@@ -229,6 +231,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
                   </li>
               </ul>
       </div>
@@ -267,7 +274,8 @@
 <li>入库命令与事件：<a href="../api/"><code>api.md</code></a> §3.5</li>
 <li>Vault 文件模型：<a href="../data-model/"><code>data-model.md</code></a></li>
 <li>UI：<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a></li>
-<li><strong>浏览器一键保存（规划）</strong>：官方 Zotero Connector → 本机兼容服务 — <a href="../connector/"><code>connector.md</code></a>（与魔棒并存；元数据映射复用 <code>map_zotero_item</code>）</li>
+<li><strong>浏览器一键保存</strong>：官方 Zotero Connector → 本机兼容服务 — <a href="../connector/"><code>connector.md</code></a>（与魔棒并存；元数据映射复用 <code>map_zotero_item</code>）</li>
+<li><strong>多入口入库统一方案</strong>（魔棒 / Connector / 本地 PDF / Bib / 迁移 / CLI）— <a href="../paper-import-pipeline/"><code>paper-import-pipeline.md</code></a></li>
 </ul>
 <hr />
 <h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
@@ -1378,7 +1386,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
         <a href="../catalog/" class="btn btn-neutral float-left" title="论文目录库"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../connector/" class="btn btn-neutral float-right" title="Zotero Connector 兼容">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../paper-import-pipeline/" class="btn btn-neutral float-right" title="Paper 入库流水线">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -1408,7 +1416,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
       <span><a href="../catalog/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
-      <span><a href="../connector/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <span><a href="../paper-import-pipeline/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

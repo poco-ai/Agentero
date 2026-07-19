@@ -76,6 +76,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="backend/identifier-lookup/">魔棒与 Translator</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="backend/connector/">Zotero Connector 兼容</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="backend/wikilinks/">双链与图谱</a>
@@ -105,6 +107,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="development/todo/">TODO</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
                   </li>
               </ul>
       </div>
@@ -174,7 +181,7 @@
 <tr>
 <td>后端</td>
 <td><a href="backend/"><code>backend/</code></a></td>
-<td>Tauri command 契约、Vault 数据模型、Catalog SQLite、双链/反链/图谱索引。</td>
+<td>Tauri command 契约、Vault 数据模型、Catalog SQLite、双链/反链/图谱索引、<a href="backend/paper-import-pipeline/">入库流水线</a>。</td>
 </tr>
 <tr>
 <td>测试</td>
@@ -186,6 +193,11 @@
 <td><a href="development/"><code>development/</code></a></td>
 <td>产品需求、路线图、实现 backlog、发布与开发流程。</td>
 </tr>
+<tr>
+<td>Bug 修复</td>
+<td><a href="bug_fix/deepseek-thinking-body/"><code>bug_fix/</code></a></td>
+<td>已修复问题的现象、根因、方案与参考资料。</td>
+</tr>
 </tbody>
 </table>
 <h2 id="ui">当前 UI 形态<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h2>
@@ -193,7 +205,7 @@
 <li>默认工作台：文件树 + <strong>文档标签页</strong>中间内容 +（按需）Notes + 可选右侧栏。</li>
 <li><strong>文档标签</strong>：标题栏浏览器式多 tab（paper / PDF / HTML / Markdown / Library / 图片）；常驻挂载，切换保留 PDF 滚动/缩放与编辑器状态。<code>⌘W</code> / <code>Esc</code> 优先关最顶层弹层（<code>overlay-stack</code>：设置 / 快捷键清单 / 命令面板 / 迁移对话框等），否则逐个关标签，仅剩全库时关窗；<code>⌥⌘←/→</code> 切换。<strong>分屏（split）</strong> 仍规划见 V0.6。</li>
 <li>文件树顶部有虚拟节点 <strong>Library</strong>；中间栏可展示 catalog <strong>论文库表格</strong>（排序、<strong>tags</strong> 列 + chip 筛选、双向滚动），数据来自 <code>paper_list</code>。</li>
-<li>文件树：右键 / <code>⌥⌘R</code> <strong>Finder 显示</strong>；右键 / <code>⌥⌘T</code> <strong>终端打开</strong>；多选 + 拖拽移动；右键 / <code>⌘⌫</code> <strong>移入回收站</strong>（Library 下虚拟节点 <code>agentero:trash</code> → 中间栏回收站视图恢复 / 清空，无 Undo toast）。Paper 行默认 <strong>标题 · 作者</strong>（设置 → 通用可切换预设，不改磁盘文件夹名）。</li>
+<li>文件树：右键 / <code>⌥⌘R</code> <strong>Finder 显示</strong>；右键 / <code>⌥⌘T</code> <strong>终端打开</strong>；多选 + 拖拽移动；右键 / <code>⌘⌫</code> <strong>移入回收站</strong>（Library 下虚拟节点 <code>agentero:trash</code> → 中间栏回收站视图恢复 / 清空，无 Undo toast）。Paper 行默认 <strong>标题 · 作者</strong>（设置 → 通用可切换标签/排序预设，不改磁盘文件夹名）。</li>
 <li><strong>Paper Info / Notes</strong> 仅在选中具体论文时出现；论文库视图不显示。Paper Info <strong>Tags</strong> 可编辑（<code>paper_set_tags</code>）。Library 空态可 <strong>Rescan</strong>（<code>paper_rescan</code>）从盘补 catalog。</li>
 <li>无 Vault 时中间栏为欢迎页（最近路径 + 打开 / 创建 / 从 Zotero 迁移）；<code>⌘N</code> 可开多窗口。</li>
 <li>可选右侧栏只有两个顶层入口：Agent 与 Backlinks（左右侧栏均为 collapsible 常驻面板，交替快捷键互不冲折叠态）。</li>
@@ -317,5 +329,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-07-19 04:48:02.023857+00:00
+Build Date UTC : 2026-07-19 05:35:45.860651+00:00
 -->

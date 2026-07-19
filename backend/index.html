@@ -74,6 +74,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="identifier-lookup/">魔棒与 Translator</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="connector/">Zotero Connector 兼容</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="wikilinks/">双链与图谱</a>
@@ -103,6 +105,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../development/todo/">TODO</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
                   </li>
               </ul>
       </div>
@@ -206,6 +213,7 @@
 <li>精读状态：<code>paper_set_is_read</code>（catalog <code>is_read</code>）；前端入库/单篇 Download 后可自动跑 paper-reader。</li>
 <li>标签：<code>paper_set_tags</code> / <code>papers::set_tags</code>（catalog <code>tags_json</code> 整表替换）；Paper Info 编辑；Library 展示与筛选；CLI <code>set-tags</code> / <code>list --tag</code> / <code>tags</code>。</li>
 <li><strong>Zotero Connector 兼容服务</strong>（MVP）：本机 <code>127.0.0.1:23119</code> 兼容官方浏览器扩展保存协议 → 当前 Vault；与 Zotero 桌面端端口互斥、默认关；见 <a href="connector/"><code>connector.md</code></a>。</li>
+<li><strong>Paper 入库流水线统一</strong>（设计）：多入口应收敛为 Host <code>paper_commit</code> + 前端 <code>afterPaperImport</code>；见 <a href="paper-import-pipeline/"><code>paper-import-pipeline.md</code></a>。</li>
 <li>原生菜单 Close（<code>close_tab_or_window</code> / <code>⌘W</code>）：由前端先关文档 tab，无 tab 时关窗口（见 <a href="api/"><code>api.md</code></a> §3.10）。</li>
 <li><strong>双链</strong>索引（<code>graph_*</code>）与规划中的 <strong>文献引用图</strong>（roadmap V0.7）分层；后者不复用双链边语义。</li>
 </ul>
@@ -215,6 +223,7 @@
 <li><a href="data-model/"><code>data-model.md</code></a>：Vault 结构、paper 文件、分层规则、运行时类型。</li>
 <li><a href="catalog/"><code>catalog.md</code></a>：Catalog SQLite schema、导出、Host 实现与迁移。</li>
 <li><a href="identifier-lookup/"><code>identifier-lookup.md</code></a>：魔棒（Identifier Lookup）与 Translator 后端（v0 已落地 + 后续扩展）。</li>
+<li><a href="paper-import-pipeline/"><code>paper-import-pipeline.md</code></a>：多入口入库现状、统一 <code>paper_commit</code> / <code>afterPaperImport</code> 设计与分期（<strong>设计已落库</strong>）。</li>
 <li><a href="connector/"><code>connector.md</code></a>：Zotero Connector 兼容 HTTP 服务（方案一：本机 23119；MVP 已落地）。</li>
 <li><a href="wikilinks/"><code>wikilinks.md</code></a>：Obsidian 兼容双链语法、反链查询、图谱模型（与 V0.7 文献引用图边界见文内 §6.5）。</li>
 <li>CLI（MVP）：<a href="../development/cli/"><code>../development/cli.md</code></a> — 代码在 <strong><code>cli/</code></strong>（bin <code>agentero</code>）；不迁 core，复用 <code>services/*</code>；Vault 管理/发现/暴露；无 BYOA。</li>

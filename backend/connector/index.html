@@ -64,6 +64,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../identifier-lookup/">魔棒与 Translator</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">Zotero Connector 兼容</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#1">1. 产品目标</a>
@@ -219,6 +221,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
                   </li>
               </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+              </ul>
       </div>
     </div>
     </nav>
@@ -250,7 +257,7 @@
 范围：Agentero Host 在本机 <strong>模拟 Zotero 桌面端 Connector HTTP Server</strong>，使官方 <a href="https://www.zotero.org/download/connectors">Zotero Connector</a> 浏览器扩展把「保存」请求打到 Agentero，条目落入当前 Vault 的 catalog + paper 文件夹。<br />
 实现入口：<code>src-tauri/src/services/connector/</code>、<code>commands/connector.rs</code>、<code>src/lib/connector.ts</code>、设置 → 通用、<code>App.tsx</code> 监听 <code>connector:*</code>。<br />
 <strong>HTTP 覆盖总表</strong>：见本文 <a href="#45-上游-api-覆盖总表实现-vs-缺口">§4.5</a>。<br />
-相关：<a href="../identifier-lookup/"><code>identifier-lookup.md</code></a>（魔棒入库与 <code>map_zotero_item</code>）、<a href="../catalog/"><code>catalog.md</code></a>、<a href="../api/"><code>api.md</code></a>、<a href="../data-model/"><code>data-model.md</code></a>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../development/roadmap/"><code>../development/roadmap.md</code></a>、<a href="../../development/todo/"><code>../development/todo.md</code></a>。</p>
+相关：<a href="../identifier-lookup/"><code>identifier-lookup.md</code></a>（魔棒入库与 <code>map_zotero_item</code>）、<a href="../paper-import-pipeline/"><code>paper-import-pipeline.md</code></a>（与其它入库入口的统一 <code>paper_commit</code> 方案）、<a href="../catalog/"><code>catalog.md</code></a>、<a href="../api/"><code>api.md</code></a>、<a href="../data-model/"><code>data-model.md</code></a>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../development/roadmap/"><code>../development/roadmap.md</code></a>、<a href="../../development/todo/"><code>../development/todo.md</code></a>。</p>
 </blockquote>
 <hr />
 <h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
@@ -269,7 +276,7 @@
 <li>Host 在 <code>127.0.0.1:23119</code> 启动 Connector 兼容服务；若端口被 Zotero 占用则明确失败提示。</li>
 <li>用户在浏览器使用 <strong>官方 Zotero Connector</strong> 点保存（arXiv、DOI 页、期刊站等）。</li>
 <li>Connector 将 translator 产出的 items JSON POST 到本机；Agentero 写入 <code>papers/…</code> + catalog，并按现有策略尽量下载 PDF。</li>
-<li>Agentero 刷新文件树 / Library；可选 toast 成功摘要。</li>
+<li>Agentero 刷新文件树 / Library；<strong><code>openPaper</code> 打开（或聚焦）该论文标签页</strong>（与魔棒入库一致；附件 <code>saveAttachment</code> / 会话移动再次发出事件时亦会聚焦）；可选 toast 成功摘要。</li>
 <li>用户关闭开关或退出应用时释放端口。</li>
 </ol>
 <h3 id="13">1.3 与其它入库路径的边界<a class="headerlink" href="#13" title="Permanent link">&para;</a></h3>
@@ -287,13 +294,13 @@
 <td>魔棒 <code>lookup_import</code></td>
 <td>侧栏 ⇧⌘I</td>
 <td>Host 调 Translator Runtime</td>
-<td><strong>并存</strong>；入库落盘应对齐同一 paper 单元语义</td>
+<td><strong>并存</strong>；落盘应对齐同一 paper 单元语义（统一方案见 <a href="../paper-import-pipeline/"><code>paper-import-pipeline.md</code></a>）</td>
 </tr>
 <tr>
 <td>本地 PDF 导入</td>
 <td>魔棒弹层多选</td>
 <td>文件名 + liteparse</td>
-<td>无关</td>
+<td>并存；目标共用 <code>paper_commit</code></td>
 </tr>
 <tr>
 <td>Zotero 迁移</td>
@@ -433,7 +440,7 @@ services/connector  →  map_zotero_item（复用 lookup/map）
 Tauri event: connector:item-saved / connector:error
         │
         ▼
-前端：刷新树 / Library；Toast（成功或失败）
+前端：刷新树 / Library；openPaper（打开/聚焦论文 tab）；Toast（成功或失败）
 </code></pre>
 
 <table>
@@ -1148,7 +1155,7 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
 <tr>
 <td><code>connector:item-saved</code></td>
 <td><code>{ path, id, title, deduped?, sessionId }</code></td>
-<td>刷新树、<code>paper_list</code>、可选 toast</td>
+<td>刷新树、<code>paper_list</code>、<strong><code>openPaper(path)</code> 打开/聚焦论文 tab</strong>、可选 toast</td>
 </tr>
 <tr>
 <td><code>connector:error</code></td>
@@ -1403,7 +1410,7 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../identifier-lookup/" class="btn btn-neutral float-left" title="魔棒与 Translator"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../paper-import-pipeline/" class="btn btn-neutral float-left" title="Paper 入库流水线"><span class="icon icon-circle-arrow-left"></span> Previous</a>
         <a href="../wikilinks/" class="btn btn-neutral float-right" title="双链与图谱">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
@@ -1431,7 +1438,7 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
         </span>
     
     
-      <span><a href="../identifier-lookup/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../paper-import-pipeline/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
       <span><a href="../wikilinks/" style="color: #fcfcfc">Next &raquo;</a></span>

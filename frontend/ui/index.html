@@ -104,6 +104,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
@@ -133,6 +135,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
                   </li>
               </ul>
       </div>
@@ -210,6 +217,7 @@
 <li><strong>默认展开</strong>：打开 Vault 时<strong>只</strong>展开 <code>papers/</code> 及其<strong>一级</strong>子目录（组织文件夹），其余（<code>notes/</code>、更深层 org 等）默认折叠；paper 文件夹始终作叶子、不展开。树刷新<strong>不</strong>重置用户展开状态。</li>
 <li><strong>选中同步 / 定位</strong>：激活文档变化时（切换标签、从 Library 打开 paper、打开图片或其他文件、<strong>魔棒 / 本地 PDF 入库完成后 <code>openPaper</code></strong>），树将高亮对应行（paper 内任意文件 → 该 paper 叶子；其它路径 → 自身或最近祖先），<strong>自动展开祖先文件夹</strong>并 <code>scrollToIndex</code>（<code>align: "center"</code>）滚入视口。树刷新后若目标行尚未出现在拍平行中，会重新展开祖先再滚一次（覆盖入库刚写入磁盘的竞态）。</li>
 <li><strong>Paper 行标签</strong>（展示用，不改磁盘名）：默认 <strong>标题 · 作者</strong>（catalog <code>title</code> / <code>authors</code>）；设置 → <strong>通用 → 文件树论文显示</strong> 可选：<code>标题 · 作者</code> / <code>标题</code> / <code>作者 (年份) · 标题</code> / <code>文件夹名</code>。无元数据时回退文件夹名。实现：<code>formatPaperTreeLabel</code>（<code>src/lib/paper-metadata.ts</code>），偏好 <code>paperTreeLabelMode</code>（<code>agentero-settings</code>）。</li>
+<li><strong>文件树排序</strong>（展示用，不改名不移动）：默认 <strong>文件夹名 A–Z</strong>；设置 → <strong>通用 → 文件树论文排序</strong> 可选：<code>文件夹名 A–Z</code> / <code>标题 A–Z</code> / <code>作者 A–Z</code> / <code>年份（新→旧）</code> / <code>年份（旧→新）</code> / <code>添加时间（新→旧）</code>。同目录下目录优先于文件；元数据排序时组织文件夹在前（按名）、paper 按所选键（缺元数据回退文件夹名，年份/添加时间缺失排最后）。实现：<code>sortFileTreeNodes</code>，偏好 <code>paperTreeSortMode</code>。</li>
 <li><strong>虚拟节点 Library</strong>：树顶固定一项 <strong>Library / 论文库</strong>（路径常量 <code>agentero:library</code>，非真实目录、不写盘）。图标 <code>Library</code>。选中后中间栏显示<strong>全库</strong>论文表格（见 §3）。空 Vault 时仍显示该节点。</li>
 <li><strong>组织文件夹 → 作用域论文库</strong>：单击<strong>非 paper</strong> 目录（如 <code>papers/</code>、<code>papers/nlp/</code>、<code>papers/nlp/pretrain</code>）时 <strong>同时</strong>：(1) 树内展开/折叠子节点；(2) <strong>同一</strong> Library 标签页（<code>agentero:library</code>）就地按路径前缀筛选，<strong>不</strong>为文件夹新建 tab。点顶栏 Library 虚拟节点清除筛选回全库。<strong>paper 文件夹</strong>仍打开该篇 PDF/Notes（叶子、不展开）。</li>
 <li><strong>虚拟节点 Recycle Bin</strong>：紧挨 <strong>Library</strong> 下方固定一项 <strong>Recycle Bin / 回收站</strong>（路径常量 <code>agentero:trash</code>，非真实目录、不写盘）。图标 <code>Trash2</code>。选中后中间栏显示回收站视图（见「删除」）。空 Vault 时仍显示该节点。</li>
@@ -914,7 +922,7 @@ PromptInput → Body / Footer / Submit
 </table>
 <p><strong>页面职责</strong></p>
 <ul>
-<li><strong>General</strong>：恢复上次 Vault、退出确认；<strong>文件树论文显示</strong>（<code>paperTreeLabelMode</code>，默认 <code>title-author</code>：标题 · 作者；另有标题 / 作者(年)·标题 / 文件夹名）；<strong>Translator 服务地址</strong>（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）。入库默认下载 PDF（arXiv 含 LaTeX），无「是否本地下载」开关。<strong>Zotero Connector 兼容</strong>开关（<code>connectorEnabled</code>，默认关；与 Zotero 桌面端互斥占用 <code>23119</code>；状态行显示监听地址 / 错误；见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>），勿与 Translator 地址混为同一设置项。</li>
+<li><strong>General</strong>：恢复上次 Vault、退出确认；<strong>文件树论文显示</strong>（<code>paperTreeLabelMode</code>，默认 <code>title-author</code>：标题 · 作者；另有标题 / 作者(年)·标题 / 文件夹名）；<strong>文件树论文排序</strong>（<code>paperTreeSortMode</code>，默认 <code>folder</code>：文件夹名 A–Z；另有标题 / 作者 / 年份新→旧 / 年份旧→新 / 添加时间新→旧）；<strong>Translator 服务地址</strong>（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）。入库默认下载 PDF（arXiv 含 LaTeX），无「是否本地下载」开关。<strong>Zotero Connector 兼容</strong>开关（<code>connectorEnabled</code>，默认关；与 Zotero 桌面端互斥占用 <code>23119</code>；状态行显示监听地址 / 错误；保存成功后刷新树/Library 并 <strong><code>openPaper</code> 打开论文 tab</strong>；见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>），勿与 Translator 地址混为同一设置项。</li>
 <li><strong>Appearance</strong>：主题、<strong>语言（跟随系统 / English / 简体中文）</strong>；其下分组 <strong>Markdown编辑器</strong>（<code>appearance.markdownEditor.section</code>）：编辑字号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，控制 Markdown/Notes 编辑器顶部的 WYSIWYG 工具栏，默认开）。</li>
 <li><strong>Agent</strong>（BYOA，非模型 BYOK 表单）：</li>
 <li>总开关。</li>
