@@ -61,6 +61,8 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#22-vault">2.2 无 Vault 欢迎页</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#221-vault">2.2.1 侧栏切换知识库（有 Vault 时）</a>
+    </li>
     <li class="toctree-l3"><a class="reference internal" href="#23">2.3 原生菜单与多窗口</a>
     </li>
         </ul>
@@ -131,6 +133,8 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
@@ -218,9 +222,13 @@
 <li><strong>性能（虚拟化）</strong>：树把可见节点<strong>拍平为一维列表 + 窗口化</strong>（<code>@tanstack/react-virtual</code>），只渲染视口内的行；FileTree 自持滚动容器（<code>treeScrollRef</code>），折叠文件夹用扫平行组件 <code>FileTreeFolderRow</code>（<code>ai-elements/file-tree.tsx</code>）。避免大 Vault（成百上千篇）时常驻海量 DOM，以及选中/展开/拖拽时的全树重渲染。</li>
 <li><strong>默认展开</strong>：打开 Vault 时<strong>只</strong>展开 <code>papers/</code> 及其<strong>一级</strong>子目录（组织文件夹），其余（<code>notes/</code>、更深层 org 等）默认折叠；paper 文件夹始终作叶子、不展开。树刷新<strong>不</strong>重置用户展开状态。</li>
 <li><strong>选中同步 / 定位</strong>：激活文档变化时（切换标签、从 Library 打开 paper、打开图片或其他文件、<strong>魔棒 / 本地 PDF 入库完成后 <code>openPaper</code></strong>），树将高亮对应行（paper 内任意文件 → 该 paper 叶子；其它路径 → 自身或最近祖先），<strong>自动展开祖先文件夹</strong>并 <code>scrollToIndex</code>（<code>align: "center"</code>）滚入视口。树刷新后若目标行尚未出现在拍平行中，会重新展开祖先再滚一次（覆盖入库刚写入磁盘的竞态）。</li>
-<li><strong>Paper 行标签</strong>（展示用，不改磁盘名）：默认 <strong>标题 · 作者</strong>（catalog <code>title</code> / <code>authors</code>）；设置 → <strong>通用 → 文件树论文显示</strong> 可选：<code>标题 · 作者</code> / <code>标题</code> / <code>作者 (年份) · 标题</code> / <code>文件夹名</code>。无元数据时回退文件夹名。实现：<code>formatPaperTreeLabel</code>（<code>src/lib/paper-metadata.ts</code>），偏好 <code>paperTreeLabelMode</code>（<code>agentero-settings</code>）。</li>
-<li><strong>文件树排序</strong>（展示用，不改名不移动）：默认 <strong>显示名称 A–Z</strong>（与「论文显示」<code>paperTreeLabelMode</code> 一致，按树中所见标签排序，而非磁盘文件夹名）；设置 → <strong>通用 → 文件树论文排序</strong> 可选：<code>显示名称 A–Z</code> / <code>标题 A–Z</code> / <code>作者 A–Z</code> / <code>年份（新→旧）</code> / <code>年份（旧→新）</code> / <code>添加时间（新→旧）</code>。同目录下目录优先于文件；元数据排序时组织文件夹在前（按名）、paper 按所选键（缺元数据回退显示名，年份/添加时间缺失排最后）。实现：<code>sortFileTreeNodes</code>，偏好 <code>paperTreeSortMode</code> + <code>paperTreeLabelMode</code>。</li>
-<li><strong>虚拟节点 Library</strong>：树顶固定一项 <strong>Library / 论文库</strong>（路径常量 <code>agentero:library</code>，非真实目录、不写盘）。图标 <code>Library</code>。选中后中间栏显示<strong>全库</strong>论文表格（见 §3）。空 Vault 时仍显示该节点。</li>
+<li><strong>Paper 行标签</strong>（展示用，不改磁盘名）：默认 <strong>标题 · 作者</strong>（catalog <code>title</code> / <code>authors</code>）；设置 → <strong>通用 → 文件树论文显示</strong> 可选：<code>标题 · 作者</code> / <code>标题</code> / <code>作者 (年份) · 标题</code> / <code>文件夹名</code>。无元数据时回退文件夹名。实现：<code>formatPaperTreeLabel</code>（<code>src/lib/paper-metadata.ts</code>），偏好 <code>paperTreeLabelMode</code>（XDG <code>settings.json</code>）。</li>
+<li>
+<p><strong>文件树排序</strong>（展示用，不改名不移动）：默认 <strong>显示名称 A–Z</strong>（与「论文显示」<code>paperTreeLabelMode</code> 一致，按树中所见标签排序，而非磁盘文件夹名）；设置 → <strong>通用 → 文件树论文排序</strong> 可选：<code>显示名称 A–Z</code> / <code>标题 A–Z</code> / <code>作者 A–Z</code> / <code>年份（新→旧）</code> / <code>年份（旧→新）</code> / <code>添加时间（新→旧）</code>。同目录下目录优先于文件；元数据排序时组织文件夹在前（按名）、paper 按所选键（缺元数据回退显示名，年份/添加时间缺失排最后）。实现：<code>sortFileTreeNodes</code>，偏好 <code>paperTreeSortMode</code> + <code>paperTreeLabelMode</code>。</p>
+</li>
+<li>
+<p><strong>虚拟节点 Library</strong>：树顶固定一项 <strong>Library / 论文库</strong>（路径常量 <code>agentero:library</code>，非真实目录、不写盘）。图标 <code>Library</code>。选中后中间栏显示<strong>全库</strong>论文表格（见 §3）。空 Vault 时仍显示该节点。</p>
+</li>
 <li><strong>组织文件夹 → 作用域论文库</strong>：单击<strong>非 paper</strong> 目录（如 <code>papers/</code>、<code>papers/nlp/</code>、<code>papers/nlp/pretrain</code>）时 <strong>同时</strong>：(1) 树内展开/折叠子节点；(2) <strong>同一</strong> Library 标签页（<code>agentero:library</code>）就地按路径前缀筛选，<strong>不</strong>为文件夹新建 tab。点顶栏 Library 虚拟节点清除筛选回全库。<strong>paper 文件夹</strong>仍打开该篇 PDF/Notes（叶子、不展开）。</li>
 <li><strong>虚拟节点 Recycle Bin</strong>：紧挨 <strong>Library</strong> 下方固定一项 <strong>Recycle Bin / 回收站</strong>（路径常量 <code>agentero:trash</code>，非真实目录、不写盘）。图标 <code>Trash2</code>。选中后中间栏显示回收站视图（见「删除」）。空 Vault 时仍显示该节点。</li>
 <li><strong>Library 行 Download</strong>：当库内<strong>任一</strong> paper 资源不完整时，Library 标题右侧显示 Download；点击<strong>批量</strong> <code>paper_download_assets</code>。</li>
@@ -294,10 +302,36 @@
 <h3 id="22-vault">2.2 无 Vault 欢迎页<a class="headerlink" href="#22-vault" title="Permanent link">&para;</a></h3>
 <p>当当前窗口未打开 Vault 时，中间栏显示欢迎页（<code>src/components/layout/vault-welcome.tsx</code>）：</p>
 <ul>
-<li><strong>内容</strong>：图标 + <strong>Create vault</strong> / <strong>Open vault</strong> / <strong>Migrate from Zotero</strong> 同一行按钮 + <strong>Recent</strong> 路径列表（可点打开，可从列表移除）。</li>
+<li><strong>内容</strong>：图标 + <strong>Create vault</strong> / <strong>Open vault</strong> / <strong>Open remote…</strong> / <strong>Migrate from Zotero</strong> 同一行按钮 + <strong>Recent</strong> 列表。</li>
+<li><strong>Open remote…</strong>：共用 <code>RemoteVaultDialog</code>（SSH host / 可选 user / 远端绝对路径）；成功后进入 <code>remote:&lt;sessionId&gt;</code> 会话。</li>
+<li><strong>Recent</strong>：本地绝对路径 + 远程条目（<code>host:remotePath</code> + 「远程」徽章）；可点打开 / 可从列表移除。</li>
 <li><strong>从 Zotero 迁移</strong>（欢迎页）：先选目录创建 Vault，再打开 <code>ZoteroMigrateDialog</code>（与论文库工具栏入口共用对话框）。</li>
 <li><strong>不加</strong>常驻说明文案、标题口号或快捷键提示（保持空状态极简）。</li>
-<li>点选最近路径时若目录不存在：提示错误并从列表剔除。</li>
+<li>点选最近<strong>本地</strong>路径时若目录不存在：提示错误并从列表剔除。</li>
+</ul>
+<h3 id="221-vault">2.2.1 侧栏切换知识库（有 Vault 时）<a class="headerlink" href="#221-vault" title="Permanent link">&para;</a></h3>
+<p>左侧文件树顶栏标题（<code>VaultSidebarHeader</code>，<code>src/components/layout/file-tree.tsx</code>）为下拉菜单：</p>
+<table>
+<thead>
+<tr>
+<th>区块</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Recent</td>
+<td>远程 MRU（徽章）+ 本地 MRU；当前项 ✓；可单项移除</td>
+</tr>
+<tr>
+<td>操作</td>
+<td><strong>Open vault…</strong> / <strong>Open remote…</strong> / <strong>Create vault</strong></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Open remote…</strong> 与欢迎页共用 <code>RemoteVaultDialog</code>（<code>src/components/layout/remote-vault-dialog.tsx</code>）。</li>
+<li>远程会话伪路径 <strong><code>remote:&lt;sessionId&gt;</code> 不得</strong>写入本地 recent（见 §2.3 存储表）；每次 SSH 连接都会换新 session id，误写入会导致「同一远端目录出现多条不同建议」。</li>
 </ul>
 <h3 id="23">2.3 原生菜单与多窗口<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
 <table>
@@ -348,7 +382,7 @@
 </tr>
 </tbody>
 </table>
-<p><strong>窗口与路径状态</strong>（<code>src/lib/vault.ts</code>）：</p>
+<p><strong>窗口与路径状态</strong>（<code>src/lib/vault.ts</code>、<code>src/lib/remote-vault.ts</code>）：</p>
 <table>
 <thead>
 <tr>
@@ -359,11 +393,23 @@
 <tbody>
 <tr>
 <td><code>sessionStorage</code></td>
-<td>当前窗口已打开的 Vault 路径（多窗口互不抢）</td>
+<td>当前窗口已打开的 Vault（本地绝对路径 <strong>或</strong> 存活中的 <code>remote:&lt;sessionId&gt;</code>；多窗口互不抢）</td>
 </tr>
 <tr>
-<td><code>localStorage</code></td>
-<td>最近 Vault 列表（MRU，欢迎页）、上次 Vault（主窗口「恢复最近」）</td>
+<td><code>localStorage</code> <code>agentero-recent-vaults</code></td>
+<td><strong>仅本地</strong>路径 MRU（欢迎页 / 切换菜单）；<strong>排除</strong> <code>remote:…</code></td>
+</tr>
+<tr>
+<td><code>localStorage</code> 上次 Vault 键</td>
+<td>主窗口「恢复最近」——<strong>仅本地</strong>路径；远程不写、不自动恢复</td>
+</tr>
+<tr>
+<td><code>localStorage</code> <code>agentero-recent-remote-vaults</code></td>
+<td>远程 MRU：<code>{ kind:"remote", host, user?, remotePath, label }</code></td>
+</tr>
+<tr>
+<td><code>sessionStorage</code> 远程 meta</td>
+<td>当前会话 <code>RemoteSessionInfo</code>（展示名 / host / path）</td>
 </tr>
 <tr>
 <td>查询参数 <code>fresh=1</code></td>
@@ -371,7 +417,7 @@
 </tr>
 </tbody>
 </table>
-<p>主窗口在设置开启「恢复上次 Vault」且非 <code>fresh</code> 时，用 <code>localStorage</code> 上次路径自动打开；<code>⌘N</code> 窗口始终从欢迎页开始。</p>
+<p>主窗口在设置开启「恢复上次 Vault」且非 <code>fresh</code> 时，用本地上次路径自动打开；<strong>远程 Vault 须重新 SSH 连接</strong>（欢迎页或切换菜单的远程 recent / Open remote…）。<code>⌘N</code> 窗口始终从欢迎页开始。</p>
 <h2 id="3">3. 布局<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
 <h3 id="30-overlay-stack">3.0 应用弹层栈（overlay-stack）<a class="headerlink" href="#30-overlay-stack" title="Permanent link">&para;</a></h3>
 <p>应用级 <strong>sheet / Dialog</strong> 不再各自绑定关闭键，而是注册到统一栈，由全局快捷键按 LIFO 关闭。</p>
@@ -969,7 +1015,35 @@ PromptInput → Body / Footer / Submit
 <li><strong>Privacy</strong>：分析与崩溃上报（默认关，本地优先）。</li>
 <li><strong>About</strong>：版本与一句话定位。</li>
 </ul>
-<p>实现：<code>src/components/settings-window.tsx</code>；持久化暂用 <code>localStorage</code>（<code>src/lib/settings.ts</code>，含 <code>locale</code> 偏好）。</p>
+<p>实现：<code>src/components/settings-window.tsx</code>；<strong>应用设置</strong>持久化为 Host 文件（XDG）：</p>
+<table>
+<thead>
+<tr>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$XDG_CONFIG_HOME/agentero/settings.json</code></td>
+<td>UI 设置（通用 / 外观 / Agent 权限与语言 / 翻译 / 隐私等）；未设 env 时 Unix 默认 <code>~/.config/agentero/settings.json</code></td>
+</tr>
+<tr>
+<td><code>$XDG_CONFIG_HOME/agentero/agents.json</code></td>
+<td>BYOA Agent 注册表（默认 Agent、自定义 command、代理）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>前端：<code>src/lib/settings.ts</code>（内存缓存 + <code>settings_get</code> / <code>settings_set</code>）；启动时 <code>ensureSettingsLoaded()</code>，旧 <code>localStorage</code> 键 <code>agentero-settings</code> <strong>一次性迁移后删除</strong>。</li>
+<li>Host：<code>src-tauri/src/services/app_settings.rs</code>、<code>services/paths.rs</code>（XDG 解析）。</li>
+</ul>
+<p><strong>Host 上下文（本机 / 远端）</strong>：</p>
+<ul>
+<li>设置侧栏<strong>底部</strong>显示 <strong>Host</strong>（系统图标 + 本机 hostname / 远端 <code>user@host</code>；本机用编译目标 OS，远端 <code>uname -s</code>）。</li>
+<li>当前 Vault 为 <code>remote:…</code> 时：Agent 分区切换为 <strong>远端探测</strong>（<code>remote_agent_scan</code> + <code>remote_agent_probe</code>；<strong>代理</strong>与本地共用并注入远端 env；<strong>Install ACP</strong> 经 SSH 装适配器）；外观等仍为本机 <code>settings.json</code>。PATH / Linuxbrew 注意见 <a href="../../bug_fix/remote-acp-path-ssh/"><code>../bug_fix/remote-acp-path-ssh.md</code></a>。</li>
+<li>本机 Vault / 无 Vault：Agent 分区为现有本机 catalog + probe。</li>
+</ul>
 <h2 id="41-i18n">4.1 国际化（i18n）<a class="headerlink" href="#41-i18n" title="Permanent link">&para;</a></h2>
 <ul>
 <li>技术选型：<a href="https://react.i18next.com/"><code>react-i18next</code></a> + <code>i18next</code>，运行时切换，无需重启。</li>

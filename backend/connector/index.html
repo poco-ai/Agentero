@@ -216,6 +216,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
@@ -255,7 +257,7 @@
               
                 <h1 id="zotero-connector">Zotero Connector 兼容服务（方案一）<a class="headerlink" href="#zotero-connector" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>MVP 已落地</strong>（元数据保存 + 文件夹选择 + 超时规避 + <strong>附件二进制上传 <code>saveAttachment</code></strong>；<strong>快照 / cookies 仍待</strong>）<br />
+<p>状态：<strong>MVP 已落地</strong>（元数据保存 + 文件夹选择 + 超时规避 + <strong>附件二进制上传 <code>saveAttachment</code></strong> + <strong>远程 Vault（SSH）</strong>；<strong>快照 / cookies 仍待</strong>）<br />
 范围：Agentero Host 在本机 <strong>模拟 Zotero 桌面端 Connector HTTP Server</strong>，使官方 <a href="https://www.zotero.org/download/connectors">Zotero Connector</a> 浏览器扩展把「保存」请求打到 Agentero，条目落入当前 Vault 的 catalog + paper 文件夹。<br />
 实现入口：<code>src-tauri/src/services/connector/</code>、<code>commands/connector.rs</code>、<code>src/lib/connector.ts</code>、设置 → 通用、<code>App.tsx</code> 监听 <code>connector:*</code>。<br />
 <strong>HTTP 覆盖总表</strong>：见本文 <a href="#45-上游-api-覆盖总表实现-vs-缺口">§4.5</a>。<br />
@@ -273,14 +275,15 @@
 <p>方案一：<strong>不改官方插件</strong>，在 Agentero 内实现与 Zotero 桌面端兼容的本地 HTTP API，<strong>占用（或兼容）<code>127.0.0.1:23119</code></strong>，让 Connector 以为本机 Zotero 在线。</p>
 <h3 id="12">1.2 用户故事<a class="headerlink" href="#12" title="Permanent link">&para;</a></h3>
 <ol>
-<li>用户打开 Agentero，打开某个 Vault。</li>
+<li>用户打开 Agentero，打开某个 Vault（<strong>本地路径</strong>或 <strong>Open Remote Vault</strong>）。</li>
 <li>在 <strong>设置</strong> 中开启「兼容 Zotero Connector」（<strong>默认关</strong>）。</li>
 <li>Host 在 <code>127.0.0.1:23119</code> 启动 Connector 兼容服务；若端口被 Zotero 占用则明确失败提示。</li>
 <li>用户在浏览器使用 <strong>官方 Zotero Connector</strong> 点保存（arXiv、DOI 页、期刊站等）。</li>
-<li>Connector 将 translator 产出的 items JSON POST 到本机；Agentero 写入 <code>papers/…</code> + catalog，并按现有策略尽量下载 PDF。</li>
+<li>Connector 将 translator 产出的 items JSON POST 到本机；Agentero 写入 <code>papers/…</code> + catalog，并按现有策略尽量下载 PDF。<strong>远程 Vault</strong> 时先 stage 再 SFTP 上传，catalog 经 work mirror PUT。</li>
 <li>Agentero 刷新文件树 / Library；<strong><code>openPaper</code> 打开（或聚焦）该论文标签页</strong>（与魔棒入库一致；附件 <code>saveAttachment</code> / 会话移动再次发出事件时亦会聚焦）；可选 toast 成功摘要。</li>
 <li>用户关闭开关或退出应用时释放端口。</li>
 </ol>
+<p><strong>Vault 绑定</strong>：<code>connector_set_vault</code> 接受本地绝对路径或 <code>remote:&lt;sessionId&gt;</code>。<code>remote_connect</code> 成功时 Host <strong>立即</strong>绑定 Connector；前端在 <code>vaultPath</code> 变化与 Connector 开启时再次同步。设置状态应显示 Listening 且带 vault（远程为 <code>remote:…</code>）；若提示 <em>No vault open</em>，请确认已打开知识库并已开启 Connector，远程场景请重新连接一次远程库。</p>
 <h3 id="13">1.3 与其它入库路径的边界<a class="headerlink" href="#13" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -1138,7 +1141,7 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
 </tr>
 </tbody>
 </table>
-<p>设置权威：<strong>前端 <code>agentero-settings</code></strong> 存 <code>connectorEnabled</code>；启动时 <code>App</code> 调 <code>set_enabled</code>；Vault / Library 作用域同步 vault 与 parent。类型细节见 <a href="../api/"><code>api.md</code></a> §3.5b。</p>
+<p>设置权威：<strong>XDG <code>settings.json</code></strong> 存 <code>connectorEnabled</code>（前端缓存经 <code>settings_get</code> / <code>settings_set</code>）；启动时 <code>App</code> 调 <code>set_enabled</code>；Vault / Library 作用域同步 vault 与 parent。类型细节见 <a href="../api/"><code>api.md</code></a> §3.5b。</p>
 <h3 id="72-events">7.2 Events<a class="headerlink" href="#72-events" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

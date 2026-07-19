@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>远端 ACP：BatchMode SSH PATH / 安装 / 探测 - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u8fdc\u7aef ACP\uff1aBatchMode SSH PATH / \u5b89\u88c5 / \u63a2\u6d4b";
+        var mkdocs_page_input_path = "bug_fix/remote-acp-path-ssh.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/github-project/">GitHub Project</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">远端 ACP：BatchMode SSH PATH / 安装 / 探测</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/bug_fix/remote-acp-path-ssh.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="acpbatchmode-ssh-path">远端 ACP：BatchMode SSH PATH / 安装 / 探测<a class="headerlink" href="#acpbatchmode-ssh-path" title="Permanent link">&para;</a></h1>
+<p><strong>状态</strong>：已修复（PATH 引导 + 探测候选路径 + 远端 Install ACP 引号 + 代理注入）<br />
+<strong>影响面</strong>：远程 Vault 设置 → Agent；远端 BYOA <code>agent_warm</code> / <code>agent_run_once</code> / <code>remote_agent_probe</code><br />
+<strong>相关代码</strong>：</p>
+<ul>
+<li><code>src-tauri/src/services/remote/agent_exec.rs</code> — <code>REMOTE_PATH_BOOTSTRAP</code>、<code>remote_which</code>、<code>remote_agent_shell_command</code></li>
+<li><code>src-tauri/src/services/remote/agent_catalog.rs</code> — scan / probe、缺适配器错误文案</li>
+<li><code>src-tauri/src/services/terminal.rs</code> — <code>open_terminal_confirm_remote_install</code>（SSH 安装引号）</li>
+<li><code>src-tauri/src/services/agent/templates.rs</code> — Claude 安装命令（用户 prefix）</li>
+<li><code>src-tauri/src/services/agent/acp.rs</code> — 远端 spawn 注入 proxy env</li>
+<li><code>src/components/settings-window.tsx</code> — 远端 Agent 页：代理、Install ACP</li>
+<li>设计总览：<a href="../../development/remote-vault/"><code>../development/remote-vault.md</code></a> §5 / §11</li>
+</ul>
+<hr />
+<h2 id="1">1. 问题现象<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>交互式 <code>ssh</code> 里</strong> <code>command -v claude-agent-acp</code> 有路径（如 Linuxbrew），<strong>设置 → Agent（远端）</strong> 仍显示未安装 / ACP 失败 / adapter missing。</li>
+<li>点 <strong>Install ACP</strong> 后终端只打印 <code>npm</code> 的 Usage 帮助，安装命令未真正执行。</li>
+<li>远端 Agent 页没有代理开关；本机开代理后远端 probe 仍超时（或误以为不需要代理）。</li>
+<li>用户误以为「装了 Claude Code = 装了 ACP」。</li>
+</ol>
+<hr />
+<h2 id="2">2. 根因<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="21-ssh-path-path">2.1 非交互 SSH 的 PATH ≠ 交互终端 PATH（主因）<a class="headerlink" href="#21-ssh-path-path" title="Permanent link">&para;</a></h3>
+<p>Agentero 探测 / 启动远端 Agent 使用：</p>
+<pre class="codehilite"><code class="language-bash">ssh -T -o BatchMode=yes &lt;host&gt; 'bash -lc &quot;…&quot;'
+</code></pre>
+
+<p>特点：</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>交互 <code>ssh host</code></th>
+<th>Agentero BatchMode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TTY</td>
+<td>有</td>
+<td>无（<code>-T</code>）</td>
+</tr>
+<tr>
+<td>是否交互</td>
+<td>是</td>
+<td>否</td>
+</tr>
+<tr>
+<td>PATH</td>
+<td>常含 brew/nvm（<code>.bashrc</code> 交互段）</td>
+<td>常为「瘦」login PATH</td>
+</tr>
+</tbody>
+</table>
+<p>许多机器在 <code>~/.bashrc</code> 里：</p>
+<pre class="codehilite"><code class="language-bash">case $- in *i*) ;; *) return;; esac   # 非交互直接 return
+# … 之后才有 eval &quot;$(brew shellenv)&quot;
+</code></pre>
+
+<p>于是 <strong>Linuxbrew</strong> 下的全局 npm bin：</p>
+<pre class="codehilite"><code class="language-text">/home/linuxbrew/.linuxbrew/bin/claude-agent-acp
+</code></pre>
+
+<p>在交互 shell 可见，在 BatchMode <code>command -v</code> 下不可见。<br />
+这不是「没用用户 PATH」，而是 <strong>同一用户、非交互会话拿到的 PATH 更短</strong>。</p>
+<p>实测（BatchMode）PATH 可能类似：</p>
+<pre class="codehilite"><code class="language-text">~/.cargo/bin:/usr/local/bin:/usr/bin:…
+# 无 /home/linuxbrew/.linuxbrew/bin
+</code></pre>
+
+<p>同时文件已存在：<code>test -x /home/linuxbrew/.linuxbrew/bin/claude-agent-acp</code> → OK。</p>
+<h3 id="22-claude-claude-agent-acp">2.2 <code>claude</code> ≠ <code>claude-agent-acp</code><a class="headerlink" href="#22-claude-claude-agent-acp" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>探测项</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>detect_command</code> = <code>claude</code></td>
+<td>Claude Code 主机 CLI（「已安装」徽章）</td>
+</tr>
+<tr>
+<td><code>command</code> = <code>claude-agent-acp</code></td>
+<td>ACP 入口（协议 initialize / Chat）</td>
+</tr>
+</tbody>
+</table>
+<p>只装 Claude Code、未装 <code>@agentclientprotocol/claude-agent-acp</code> 时：本机/远端都会 <strong>installed + adapter missing</strong>。</p>
+<h3 id="23-install-ssh">2.3 远端 Install 脚本 SSH 引号错误（已修）<a class="headerlink" href="#23-install-ssh" title="Permanent link">&para;</a></h3>
+<p>错误写法：</p>
+<pre class="codehilite"><code class="language-bash">ssh -t host -- bash -lc &quot;$CMD&quot;
+# 远端再分词后 -c 只吃到 &quot;npm&quot;，其余参数丢失 → 打印 npm Usage
+</code></pre>
+
+<p>正确：本地用 <code>printf '%q'</code> 把整段命令作为 <strong>一个</strong> <code>-c</code> 脚本：</p>
+<pre class="codehilite"><code class="language-bash">ssh -t &quot;$DEST&quot; &quot;bash -lc $(printf '%q' &quot;$CMD&quot;)&quot;
+</code></pre>
+
+<h3 id="24-npm-i-g">2.4 系统 <code>npm i -g</code> 与权限<a class="headerlink" href="#24-npm-i-g" title="Permanent link">&para;</a></h3>
+<p>系统 npm <code>prefix=/usr</code> 时，无 root 的 <code>npm i -g</code> 易失败。应使用用户可写 prefix，例如：</p>
+<pre class="codehilite"><code class="language-bash">npm i -g @agentclientprotocol/claude-agent-acp --prefix &quot;$HOME/.local&quot;
+</code></pre>
+
+<h3 id="25">2.5 代理<a class="headerlink" href="#25" title="Permanent link">&para;</a></h3>
+<p>本机 Settings 代理原先只注入 <strong>本机</strong> agent 子进程 env；远端 <code>ssh … exec agent</code> <strong>未</strong>转发 <code>HTTP_PROXY</code>。<br />
+且代理 URL 必须从 <strong>服务器</strong> 可达（服务器上的 <code>127.0.0.1:7890</code> ≠ 本机代理）。</p>
+<hr />
+<h2 id="3">3. 解决方案（已落地）<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31-remote_path_bootstrap">3.1 <code>REMOTE_PATH_BOOTSTRAP</code><a class="headerlink" href="#31-remote_path_bootstrap" title="Permanent link">&para;</a></h3>
+<p>在远端 <code>bash -lc</code> 脚本前统一：</p>
+<ul>
+<li>把 <code>~/.local/bin</code>、<code>/home/linuxbrew/.linuxbrew/bin</code>、cargo/npm 等目录 <strong>prepend 到 PATH</strong></li>
+<li>若存在 brew，尝试 <code>eval "$(brew shellenv)"</code></li>
+</ul>
+<p>用于：<code>remote_which</code>、<code>remote_agent_shell_command</code>（probe / warm / run）。</p>
+<h3 id="32-remote_which">3.2 <code>remote_which</code> 绝对路径回退<a class="headerlink" href="#32-remote_which" title="Permanent link">&para;</a></h3>
+<p><code>command -v</code> 失败时再扫候选绝对路径（含 linuxbrew、nvm、<code>npm prefix -g</code>/bin）。</p>
+<h3 id="33-install-acp">3.3 远端 Install ACP<a class="headerlink" href="#33-install-acp" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>remote_agent_open_install_terminal</code>：本机终端确认 → <code>ssh -t</code> 在远端执行模板 <code>install_command</code></li>
+<li>Claude 默认安装命令改为带 <code>--prefix "$HOME/.local"</code></li>
+<li>UI：与本地一致显示 <strong>ACP adapter missing</strong> + <strong>Install ACP</strong></li>
+</ul>
+<h3 id="34">3.4 远端代理<a class="headerlink" href="#34" title="Permanent link">&para;</a></h3>
+<ul>
+<li>设置远端 Agent 页展示与本地共用的 proxy 开关/URL</li>
+<li>probe / spawn 时在远端 <code>export HTTP_PROXY/HTTPS_PROXY/ALL_PROXY</code></li>
+<li>UI 提示：地址须从服务器可达</li>
+</ul>
+<h3 id="35">3.5 探测错误文案<a class="headerlink" href="#35" title="Permanent link">&para;</a></h3>
+<p>有 <code>claude</code>、无 <code>claude-agent-acp</code> 时，明确提示安装适配器（含 install 命令），而非笼统「not found」。</p>
+<hr />
+<h2 id="4">4. 运维注意点（排障清单）<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>先在 BatchMode 下验证</strong>（与 Agentero 一致），不要只看交互终端：</li>
+</ol>
+<p><code>bash
+   ssh -T -o BatchMode=yes &lt;host&gt; 'bash -lc "command -v claude-agent-acp; echo PATH=$PATH"'</code></p>
+<ol>
+<li>若文件在 brew 下但上面找不到，确认：</li>
+</ol>
+<p><code>bash
+   ls -la /home/linuxbrew/.linuxbrew/bin/claude-agent-acp</code></p>
+<p>Agentero 新版本应能通过 PATH bootstrap / 绝对路径扫到。</p>
+<ol>
+<li><strong>推荐</strong> 在远端 <code>~/.profile</code> 或非交互也会执行的配置中加入（且不要被「仅交互」return 挡掉）：</li>
+</ol>
+<p><code>bash
+   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"</code></p>
+<ol>
+<li>
+<p>安装后应用内 <strong>Refresh</strong>；改代理后会 force 再 probe。</p>
+</li>
+<li>
+<p>Codex + 纯 SSH 仍不支持；用 OpenCode / Claude ACP 等。</p>
+</li>
+</ol>
+<hr />
+<h2 id="5">5. 参考<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<ul>
+<li>OpenSSH 非交互与 login shell：<code>bash -lc</code>、无 TTY</li>
+<li>Linuxbrew 路径：<code>/home/linuxbrew/.linuxbrew</code></li>
+<li>产品设计：<a href="../../development/remote-vault/"><code>remote-vault.md</code></a> §5 远端 BYOA、§11 风险（nvm/PATH）</li>
+<li>API：<code>remote_agent_scan</code> / <code>remote_agent_probe</code> / <code>remote_agent_open_install_terminal</code>（<a href="../../backend/api/"><code>api.md</code></a>）</li>
+</ul>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

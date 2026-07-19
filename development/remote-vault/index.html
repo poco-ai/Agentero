@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>远程 Vault（SSH/SFTP） - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u8fdc\u7a0b Vault\uff08SSH/SFTP\uff09";
+        var mkdocs_page_input_path = "development/remote-vault.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">远程 Vault（SSH/SFTP）</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 目标与非目标</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#11-mvp">1.1 目标（MVP）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#12-mvp">1.2 非目标（MVP 不做）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#13">1.3 产品表述（期望管理）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2-ssh-sftp">2. SSH 与 SFTP（实现前必读）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 架构总览</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31-ephemeral">3.1 本机 ephemeral 布局（可丢）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4">4. 核心抽象</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#41-vaultfs-fscaps">4.1 VaultFs + FsCaps</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#42-vaultsession">4.2 VaultSession</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#43-catalog-work">4.3 Catalog：远端权威 + 会话内 work 副本</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#44-pdf">4.4 普通文件与 PDF</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#45-watch">4.5 Watch</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5-byoaacp-over-ssh">5. 远端 BYOA（ACP over SSH）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#51">5.1 与现网差异</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#52">5.2 启动示意</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#53-provider">5.3 Provider 配置扩展（草案）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#54-zap">5.4 精读 / Zap</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#55">5.5 用户侧远端前置条件</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6-ux">6. 前端与 UX</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7-host-api">7. Host API 草案</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#8">8. 分阶段交付</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#81-mvp">8.1 验收（MVP）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#9">9. 技术栈建议</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#91">9.1 已有（沿用）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#92-host">9.2 建议新增（Host）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#93">9.3 前端</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#94-mvp">9.4 明确不采用（MVP）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#10">10. 可参考的开源项目</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#101">10.1 同栈 / 直接可抄</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#102-ssh-sftp">10.2 SSH / SFTP 库与工具</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#103">10.3 远程开发架构（学思路，不抄协议）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#104-agent">10.4 Agent 协议</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#105">10.5 反模式参考</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#11">11. 风险与对策</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#12">12. 文档与代码落点（实现时）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#13_1">13. 决议记录（讨论收敛）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#14-live-ssh">14. Live SSH 冒烟（可选）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#15-mvp">15. 后续（非 MVP）</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../github-project/">GitHub Project</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">开发</li>
+      <li class="breadcrumb-item active">远程 Vault（SSH/SFTP）</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/remote-vault.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="vaultssh-sftp-byoa">远程 Vault（SSH / SFTP）与远端 BYOA<a class="headerlink" href="#vaultssh-sftp-byoa" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>状态</strong>：<strong>MVP 已落地</strong>（M0–M3）；M4 加固中（远端 trash ✅、入库写远端 ✅、blob LRU ✅、Connector 远程 ✅；Codex-SSH 待办）<br />
+<strong>分支</strong>：<code>docs/remote-vault-ssh</code><br />
+<strong>相关</strong>：<a href="../../backend/data-model/"><code>data-model.md</code></a>、<a href="../../backend/catalog/"><code>catalog.md</code></a>、<a href="../../backend/api/"><code>api.md</code></a>、Agent 运行时 <code>src-tauri/src/services/agent/</code><br />
+<strong>代码</strong>：<code>src-tauri/src/services/fs/</code>、<code>services/remote/</code>、<code>commands/remote.rs</code>；前端 <code>src/lib/remote-vault.ts</code>、<code>vault.ts</code> 远程 IO</p>
+</blockquote>
+<p>本文定义：如何通过 SSH 打开<strong>服务器上的</strong> Agentero Vault，并在<strong>同一台远端机器</strong>上运行 BYOA Agent（ACP），使文件权威与 Agent 工作目录始终同机。</p>
+<hr />
+<h2 id="1">1. 目标与非目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<h3 id="11-mvp">1.1 目标（MVP）<a class="headerlink" href="#11-mvp" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>目标</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G1</td>
+<td><strong>文件权威全在远端</strong></td>
+<td><code>papers/</code>、<code>NOTES.md</code>、PDF、<code>.agentero/catalog.sqlite</code> 等均以远端磁盘为唯一事实来源</td>
+</tr>
+<tr>
+<td>G2</td>
+<td><strong>SFTP 服务 UI 文件 IO</strong></td>
+<td>文件树、读写 Markdown、PDF 预览、目录操作经 SFTP（经 SSH 会话）</td>
+</tr>
+<tr>
+<td>G3</td>
+<td><strong>BYOA 跑在远端</strong></td>
+<td>Codex / Claude-ACP / OpenCode 等进程在服务器上启动；<code>cwd</code> = 远端 Vault 根</td>
+</tr>
+<tr>
+<td>G4</td>
+<td><strong>本机不持有第二套库</strong></td>
+<td>允许 ephemeral 工作副本与 PDF blob 缓存；断开后不得变成可独立打开的「本地 Vault」</td>
+</tr>
+<tr>
+<td>G5</td>
+<td><strong>复用现有产品契约</strong></td>
+<td>Vault 相对路径、catalog 语义、ACP 事件、权限三档、notes-review 尽量同构</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-mvp">1.2 非目标（MVP 不做）<a class="headerlink" href="#12-mvp" title="Permanent link">&para;</a></h3>
+<ul>
+<li>劫持 / 嵌入 <strong>VS Code Server</strong> / code-server 协议</li>
+<li>本机 spawn Agent 再去「同步」远端文件（双权威）</li>
+<li>多人同时写同一远端 Vault 的自动合并</li>
+<li>离线编辑队列（会变成第二权威）</li>
+<li>系统级挂载（sshfs / FUSE）作为唯一路径</li>
+<li>在 Agentero 内填写模型 API Key（仍 BYOA：Key 在<strong>服务器</strong>上配置）</li>
+<li>Finder 显示 / 系统终端打开远端路径（无本机 path 语义）</li>
+</ul>
+<h3 id="13">1.3 产品表述（期望管理）<a class="headerlink" href="#13" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>Open Remote Vault</strong>：经 SSH 连接服务器上的目录。笔记与 catalog 保存在服务器；本机仅缓存预览与会话工作文件。Agent 在服务器上运行并直接读写该目录。同一远端库请勿多客户端并发写入。</p>
+</blockquote>
+<hr />
+<h2 id="2-ssh-sftp">2. SSH 与 SFTP（实现前必读）<a class="headerlink" href="#2-ssh-sftp" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>SSH</strong></th>
+<th><strong>SFTP</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>角色</td>
+<td>加密会话、认证、多路 channel</td>
+<td>SSH 之上的<strong>文件子系统</strong></td>
+</tr>
+<tr>
+<td>用途（本特性）</td>
+<td>远程执行 Agent、stdio 转发 ACP</td>
+<td>列目录、读写、rename、stat</td>
+</tr>
+<tr>
+<td>类比</td>
+<td>高速公路</td>
+<td>公路上的货运通道</td>
+</tr>
+</tbody>
+</table>
+<pre class="codehilite"><code class="language-text">TCP
+ └─ SSH 会话（认证 · 加密 · 多 channel）
+      ├─ session / exec  → 远端 agent 进程（ACP over stdio）
+      ├─ subsystem sftp  → Vault 文件 API
+      └─ （可选）端口转发
+</code></pre>
+
+<ul>
+<li><strong>不是二选一</strong>：MVP <strong>同时</strong>需要 SFTP（UI 文件）与 SSH exec（远端 BYOA）。</li>
+<li>优先<strong>复用同一 TCP / ControlMaster</strong>，避免文件一条连接、Agent 再登一次。</li>
+</ul>
+<hr />
+<h2 id="3">3. 架构总览<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">┌─────────────────────── 本机 Agentero ───────────────────────┐
+│  React：文件树 / 编辑器 / Library / PDF / Agent 面板          │
+│  路径语义：vault-relative（papers/…/NOTES.md）               │
+│         │ invoke / events                                   │
+│  Tauri Host                                                 │
+│    ├── RemoteSession（SSH 连接 · 状态机）                     │
+│    ├── SftpFs : VaultFs     ──SFTP──► 远端文件               │
+│    ├── CatalogWorkMirror    ──GET/PUT► catalog.sqlite        │
+│    └── AcpBridge(SshStdio)  ──exec───► 远端 agent stdio      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────── 远端服务器 ──────────────────────────┐
+│  /data/my-vault/          ← 唯一权威 Vault                   │
+│  codex / claude-agent-acp / opencode …  ← 用户预装 BYOA      │
+│  cwd = vault root；Agent 眼中 = 普通本地目录                  │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<p><strong>同构原则</strong>：今日「本机 Host ↔ 本机 Agent ↔ 本机盘」整体平移为「本机 Host ↔ SSH ↔ 远端 Agent ↔ 远端盘」。UI 通过 SFTP 看同一棵树。</p>
+<h3 id="31-ephemeral">3.1 本机 ephemeral 布局（可丢）<a class="headerlink" href="#31-ephemeral" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">~/.cache/agentero/remote/&lt;session-hash&gt;/
+├── work/
+│   └── .agentero/catalog.sqlite   # 仅会话内 rusqlite 工作副本
+└── blobs/                         # PDF 等 LRU 预览缓存
+</code></pre>
+
+<ul>
+<li><strong>权威写成功</strong> = SFTP PUT / 远端 Agent 写盘成功。</li>
+<li>Disconnect / 关闭远程 Vault：flush dirty catalog → 删除 <code>work/</code>；blob 可 LRU，但<strong>不得</strong>进入「最近本地 Vault」列表。</li>
+</ul>
+<hr />
+<h2 id="4">4. 核心抽象<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<h3 id="41-vaultfs-fscaps">4.1 <code>VaultFs</code> + <code>FsCaps</code><a class="headerlink" href="#41-vaultfs-fscaps" title="Permanent link">&para;</a></h3>
+<p>业务代码禁止继续散落 <code>std::fs</code> 直连（渐进迁移）。统一：</p>
+<pre class="codehilite"><code class="language-rust">// 概念接口（实现时落在 src-tauri/src/services/fs/ 或 remote/）
+trait VaultFs: Send + Sync {
+    async fn list(&amp;self, rel: &amp;str) -&gt; Result&lt;Vec&lt;DirEntry&gt;&gt;;
+    async fn stat(&amp;self, rel: &amp;str) -&gt; Result&lt;FileStat&gt;;
+    async fn read(&amp;self, rel: &amp;str) -&gt; Result&lt;Vec&lt;u8&gt;&gt;;
+    async fn read_range(&amp;self, rel: &amp;str, off: u64, len: u64) -&gt; Result&lt;Vec&lt;u8&gt;&gt;;
+    async fn write(&amp;self, rel: &amp;str, data: &amp;[u8], opts: WriteOpts) -&gt; Result&lt;()&gt;;
+    async fn mkdir(&amp;self, rel: &amp;str) -&gt; Result&lt;()&gt;;
+    async fn rename(&amp;self, from: &amp;str, to: &amp;str) -&gt; Result&lt;()&gt;;
+    async fn remove(&amp;self, rel: &amp;str, recursive: bool) -&gt; Result&lt;()&gt;;
+    fn caps(&amp;self) -&gt; FsCaps;
+}
+
+struct FsCaps {
+    atomic_rename: bool,
+    reliable_watch: bool,   // 远端 false
+    sqlite_native: bool,    // 远端 false：须 work mirror
+    cheap_random_read: bool,
+    agent_cwd_local: bool,  // 远端 false：Agent 在 SSH 对端
+    finder_reveal: bool,    // 远端 false
+}
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>实现</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LocalFs</code></td>
+<td>现网本地 Vault</td>
+</tr>
+<tr>
+<td><code>SftpFs</code></td>
+<td>远程文件权威路径</td>
+</tr>
+<tr>
+<td>（可选后续）<code>CachedSftpFs</code></td>
+<td>读缓存 + write-through，仍以远端为准</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-vaultsession">4.2 <code>VaultSession</code><a class="headerlink" href="#42-vaultsession" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-text">VaultSession
+├── kind: Local | Remote
+├── display_root: 展示用（本地绝对路径 或 user@host:remotePath）
+├── fs: Arc&lt;dyn VaultFs&gt;
+├── catalog: CatalogHandle   # Local 直接 open；Remote = work mirror + push
+└── agent_transport: LocalStdio | SshStdio
+</code></pre>
+
+<p>前端相对路径不变；<code>vaultPath</code> 对远程可为逻辑 handle（如 <code>remote:&lt;sessionId&gt;</code>），Host 解析。</p>
+<h3 id="43-catalog-work">4.3 Catalog：远端权威 + 会话内 work 副本<a class="headerlink" href="#43-catalog-work" title="Permanent link">&para;</a></h3>
+<p><code>rusqlite</code> <strong>不能</strong>直接 open SFTP 路径。MVP：</p>
+<pre class="codehilite"><code class="language-text">open remote vault:
+  SFTP GET .agentero/catalog.sqlite → work/…
+  记录远端 FileMeta（mtime + size）
+  rusqlite open 工作副本
+
+mutation（tags / rescan / is_read…）:
+  写本地 work 事务
+  立刻 SFTP PUT（建议 catalog.sqlite.tmp + rename）
+  更新 FileMeta；失败则整次操作失败 + toast
+
+写前乐观锁:
+  stat 远端；与打开/上次 push 的 meta 不一致 → Conflict，提示重新打开
+</code></pre>
+
+<ul>
+<li><strong>禁止</strong>远端 Agent 直接改 <code>catalog.sqlite</code>（AGENTS.md / skill / 权限约定）；<code>is_read</code> 等由 Host 在 Agent 成功后编排再 PUT。</li>
+<li>MVP <strong>单写者假设</strong>：同一远端库同时只应有一个 Agentero 写入。</li>
+</ul>
+<h3 id="44-pdf">4.4 普通文件与 PDF<a class="headerlink" href="#44-pdf" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>读</th>
+<th>写</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Markdown / 小文件</td>
+<td>SFTP → 编辑器；保存 write-through</td>
+<td>写前 <code>stat</code> 冲突检测（对齐 diskConflict）</td>
+</tr>
+<tr>
+<td>PDF / 大文件</td>
+<td>GET → <code>blobs/</code> → <code>blob:</code> 预览</td>
+<td>入库等直接 SFTP 写远端 paper 目录</td>
+</tr>
+<tr>
+<td>删除</td>
+<td>—</td>
+<td>远端 <code>.agentero/.trash/</code>（与本地语义对齐；<code>path_trash</code> 经 <code>trash_bridge</code>）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="45-watch">4.5 Watch<a class="headerlink" href="#45-watch" title="Permanent link">&para;</a></h3>
+<p>远端无可靠 inotify。MVP：</p>
+<ul>
+<li><strong>不做</strong>完整 <code>vault:file-changed</code> 等价物</li>
+<li>Agent 会话结束 / 用户保存后：对<strong>已打开</strong>文件 SFTP <code>stat</code> + 按需 re-read</li>
+<li>文件树：手动刷新或展开时 readdir</li>
+</ul>
+<hr />
+<h2 id="5-byoaacp-over-ssh">5. 远端 BYOA（ACP over SSH）<a class="headerlink" href="#5-byoaacp-over-ssh" title="Permanent link">&para;</a></h2>
+<h3 id="51">5.1 与现网差异<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>本地（现网）</th>
+<th>远程 MVP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>进程</td>
+<td><code>Command::new(local_bin)</code></td>
+<td>SSH <code>exec</code> 远端 bin</td>
+</tr>
+<tr>
+<td>cwd</td>
+<td>本机 vault 绝对路径</td>
+<td><strong>远端</strong> vault 绝对路径</td>
+</tr>
+<tr>
+<td>Transport</td>
+<td>本机 stdio pipe</td>
+<td>SSH channel stdin/stdout 泵到 ACP Client</td>
+</tr>
+<tr>
+<td>发现</td>
+<td>扫本机 PATH</td>
+<td>远端 <code>command -v</code> / 配置绝对路径</td>
+</tr>
+<tr>
+<td>密钥</td>
+<td>本机环境 / login</td>
+<td><strong>远端</strong>环境 / <code>codex login</code> 等</td>
+</tr>
+<tr>
+<td>文件</td>
+<td>Agent 本机 fs</td>
+<td>Agent <strong>远端本机</strong> fs（与 SFTP 同一树）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52">5.2 启动示意<a class="headerlink" href="#52" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-bash"># Host 经 SSH session channel 执行（非交互优先；视 agent 是否需要 PTY）
+cd /data/my-vault &amp;&amp; exec claude-agent-acp
+# 或
+cd /data/my-vault &amp;&amp; exec opencode acp
+</code></pre>
+
+<p>本机 <code>AcpBridge</code>：</p>
+<ol>
+<li>建立 / 复用 <code>RemoteSession</code> 的 SSH  </li>
+<li><code>exec</code> 上述命令  </li>
+<li>channel stdout → 现有 ACP 解析 / 事件 <code>emit</code>  </li>
+<li>ACP 写入 → channel stdin  </li>
+<li>退出码 / 断开 → <code>agent:completed</code> / <code>agent:failed</code>  </li>
+</ol>
+<p><strong>协议与 UI 复用</strong>：<code>agent:stream</code>、<code>agent:permission-request</code>、<code>agent:notes-review</code>、权限三档、paper-reader skill 触发语法不变；路径展示尽量 strip 为 vault-relative。</p>
+<h3 id="53-provider">5.3 Provider 配置扩展（草案）<a class="headerlink" href="#53-provider" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-ts">// 概念：在现有 AgentDescriptor / 设置模型上扩展
+type RemoteAgentLaunch = {
+  /** 绑定当前 RemoteVaultSession，不另建无 vault 的 SSH */
+  useVaultSession: true;
+  /** 远端可执行文件，PATH 或绝对路径 */
+  remoteCommand: string;
+  remoteArgs: string[];
+  /** 可选：需要 login shell 以加载 nvm 等 */
+  loginShell?: boolean;
+};
+</code></pre>
+
+<p>远程 Vault 打开时：Agent 面板只列出 <strong>远端可发现</strong> 或用户配置的 remote launch；不混用本机 bin（避免 cwd 错位）。</p>
+<h3 id="54-zap">5.4 精读 / Zap<a class="headerlink" href="#54-zap" title="Permanent link">&para;</a></h3>
+<ul>
+<li>资源检查：SFTP <code>stat</code> 远端 PDF / TeX / <code>PAPER.md</code></li>
+<li>运行：远端 agent + 现有 skill 注入（<code>$id</code> / <code>/id</code> 等按 provider）</li>
+<li>成功：SFTP 确认 <code>NOTES.md</code> → Host <code>paper_set_is_read</code> → catalog PUT</li>
+<li>进度：沿用左下角后台任务条</li>
+</ul>
+<h3 id="55">5.5 用户侧远端前置条件<a class="headerlink" href="#55" title="Permanent link">&para;</a></h3>
+<ol>
+<li>SSH 可登录（密钥 / agent 优先；密码 MVP 可后置）  </li>
+<li>SFTP subsystem 可用  </li>
+<li>已安装选用的 ACP agent，且在 PATH 或配置了绝对路径  </li>
+<li>已在<strong>服务器</strong>完成 agent login / API 配置  </li>
+<li>SSH 用户对 Vault 目录可读写  </li>
+</ol>
+<hr />
+<h2 id="6-ux">6. 前端与 UX<a class="headerlink" href="#6-ux" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>欢迎页</td>
+<td><strong>Open remote…</strong>（<code>RemoteVaultDialog</code>）：SSH host（<code>~/.ssh/config</code> alias 优先）+ 可选 user + 远端绝对路径</td>
+</tr>
+<tr>
+<td>侧栏切换知识库</td>
+<td>同对话框 + 最近远程条目（<code>VaultSidebarHeader</code>）；与本地 Open / Create 并列</td>
+</tr>
+<tr>
+<td>最近远程</td>
+<td><code>localStorage</code> <code>agentero-recent-remote-vaults</code>：<code>{ kind:"remote", host, user?, remotePath, label }</code></td>
+</tr>
+<tr>
+<td>最近本地</td>
+<td><strong>不得</strong>收录 <code>remote:&lt;sessionId&gt;</code>（每次连接新 UUID；见 <code>rememberRecentVault</code> 过滤）</td>
+</tr>
+<tr>
+<td>标题栏 / 树标题</td>
+<td>远程展示 <code>displayName</code> + 「远程」徽章；会话内用伪路径 <code>remote:&lt;sessionId&gt;</code></td>
+</tr>
+<tr>
+<td>文件树</td>
+<td>懒加载 list；隐藏 Finder / 系统终端菜单（<code>FsCaps</code>）</td>
+</tr>
+<tr>
+<td>Agent 面板</td>
+<td>远端 transport；Codex+纯 SSH 暂拒</td>
+</tr>
+<tr>
+<td>设置 → 通用</td>
+<td>「清除远程缓存」（blob LRU 2 GiB/库）</td>
+</tr>
+<tr>
+<td>i18n</td>
+<td>全部 <code>t()</code>；先 <code>en</code> 再 <code>zh-CN</code></td>
+</tr>
+</tbody>
+</table>
+<p>多窗口：每窗口独立 <code>RemoteSession</code>（对齐现有 vault session 隔离）。MVP <strong>不</strong>支持两窗口写同一 <code>host+remotePath</code>（可检测后警告）。</p>
+<p><strong>UI 细节</strong>见 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §2.2 / §2.2.1。</p>
+<hr />
+<h2 id="7-host-api">7. Host API 草案<a class="headerlink" href="#7-host-api" title="Permanent link">&para;</a></h2>
+<p>命名随实现可调整为 snake_case invoke；语义如下。</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>remote_connect</code></td>
+<td><code>{ hostAlias \| endpoint, remotePath }</code> → <code>{ sessionId, caps, displayName }</code></td>
+</tr>
+<tr>
+<td><code>remote_disconnect</code></td>
+<td>flush + 拆连接 + 清 work</td>
+</tr>
+<tr>
+<td><code>remote_status</code></td>
+<td>connecting / ready / reconnecting / failed + 可选 latency</td>
+</tr>
+<tr>
+<td><code>remote_list_dir</code></td>
+<td>连接后选路径用（未 open vault 前）</td>
+</tr>
+<tr>
+<td>现有 <code>path_*</code> / 读写</td>
+<td>经 <code>VaultSession.fs</code>，签名尽量保持</td>
+</tr>
+<tr>
+<td><code>paper_*</code></td>
+<td>catalog 经 work mirror；mutation 触发 PUT</td>
+</tr>
+<tr>
+<td><code>agent_warm</code> / <code>agent_run_*</code></td>
+<td><code>kind=remote</code> 时走 <code>SshStdio</code></td>
+</tr>
+<tr>
+<td>Events</td>
+<td><code>remote:status</code>；现有 <code>agent:*</code> 复用</td>
+</tr>
+</tbody>
+</table>
+<p>路径：一律 vault-relative；Host 防 <code>..</code> 逃逸，拼在 <code>remote_root</code> 下。</p>
+<hr />
+<h2 id="8">8. 分阶段交付<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>交付</th>
+<th>权威</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>M0</strong></td>
+<td><code>VaultFs</code> + <code>LocalFs</code> 迁移关键读写路径；本地零回归</td>
+<td>本地</td>
+</tr>
+<tr>
+<td><strong>M1</strong></td>
+<td>SSH 连接、SFTP 树、md 读写、PDF blob 预览、远程徽章</td>
+<td>文件远端</td>
+</tr>
+<tr>
+<td><strong>M2</strong></td>
+<td>catalog GET/PUT、<code>paper_list</code> / tags / rescan、冲突 stat</td>
+<td><strong>含 sqlite 远端</strong></td>
+</tr>
+<tr>
+<td><strong>M3</strong></td>
+<td><code>SshStdio</code> ACP、远端 discover/warm、精读 Zap、permission/notes-review</td>
+<td>远端 BYOA</td>
+</tr>
+<tr>
+<td><strong>M4</strong></td>
+<td>连接复用、atomic catalog PUT、<strong>trash ✅</strong>、<strong>入库写远端 ✅</strong>、<strong>缓存 LRU ✅</strong></td>
+<td>加固</td>
+</tr>
+</tbody>
+</table>
+<p><strong>MVP 闭环</strong> = M0–M3。M1 无 catalog 不算完整远程 Vault；M2 无 Agent 不满足「要 BYOA」。</p>
+<h3 id="81-mvp">8.1 验收（MVP）<a class="headerlink" href="#81-mvp" title="Permanent link">&para;</a></h3>
+<ol>
+<li>仅 SSH，不选本机文件夹，可打开远端 Vault。  </li>
+<li>保存 <code>NOTES.md</code> 后，另一终端 <code>ssh</code> + <code>cat</code> 可见新内容。  </li>
+<li>改 tags / rescan 后远端 <code>catalog.sqlite</code> 更新；清本机 cache 再连，Library 一致。  </li>
+<li>远端已装 agent 时，Chat / 精可读盘并改 <code>NOTES.md</code>；<code>is_read</code> 反映在远端 catalog。  </li>
+<li>权限「每次询问」弹本机对话框，批准后远端 agent 继续。  </li>
+<li>Disconnect 后 work 副本删除；最近列表无「伪本地路径」。  </li>
+<li>本机未安装对应 agent 时，远程会话仍可用（只要远端有）。</li>
+</ol>
+<hr />
+<h2 id="9">9. 技术栈建议<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<h3 id="91">9.1 已有（沿用）<a class="headerlink" href="#91" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>技术</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>桌面</td>
+<td>Tauri 2、Rust、React 19、TypeScript</td>
+</tr>
+<tr>
+<td>本地 catalog</td>
+<td><code>rusqlite</code>（bundled）</td>
+</tr>
+<tr>
+<td>Agent</td>
+<td>ACP Client（<code>agent_client_protocol</code> 等现网依赖）、Codex app-server 分支</td>
+</tr>
+<tr>
+<td>日志</td>
+<td><code>tauri-plugin-log</code> / 现有 <code>OpTimer</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="92-host">9.2 建议新增（Host）<a class="headerlink" href="#92-host" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>用途</th>
+<th>候选</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SSH 客户端</td>
+<td><a href="https://github.com/Eugeny/russh"><code>russh</code></a></td>
+<td>纯 Rust；与 r-shell 同栈；需自接 config/agent 或简化配置</td>
+</tr>
+<tr>
+<td>SSH + 系统兼容</td>
+<td><a href="https://crates.io/crates/openssh"><code>openssh</code></a> + 系统 <code>ssh</code></td>
+<td><strong>优先吃 <code>~/.ssh/config</code>、ProxyJump、ssh-agent</strong>；MVP 打通快</td>
+</tr>
+<tr>
+<td>SFTP</td>
+<td><a href="https://crates.io/crates/russh-sftp"><code>russh-sftp</code></a> 或 <a href="https://crates.io/crates/openssh-sftp-client"><code>openssh-sftp-client</code></a></td>
+<td>与上表 SSH 选型配对</td>
+</tr>
+<tr>
+<td>备选</td>
+<td><a href="https://crates.io/crates/ssh2"><code>ssh2</code></a>（libssh2）</td>
+<td>成熟但 FFI / 构建链更重</td>
+</tr>
+<tr>
+<td>异步</td>
+<td>现有 Tokio 运行时</td>
+<td>channel 泵与 SFTP 同 runtime</td>
+</tr>
+<tr>
+<td>密钥</td>
+<td>ssh-agent / 本机 key 路径；密码入 keychain（后置）</td>
+<td><strong>禁止</strong>明文写进 Vault</td>
+</tr>
+</tbody>
+</table>
+<p><strong>MVP 推荐组合（务实）</strong>：</p>
+<ol>
+<li><strong>Phase 连接打通</strong>：系统 <code>ssh</code>/<code>scp</code> 或 <code>openssh</code> + <code>openssh-sftp-client</code>（配置兼容性最好）。  </li>
+<li><strong>Phase 产品化</strong>：评估迁 <code>russh</code> + <code>russh-sftp</code> 做连接池与细粒度 channel（参考 r-shell）。</li>
+</ol>
+<h3 id="93">9.3 前端<a class="headerlink" href="#93" title="Permanent link">&para;</a></h3>
+<ul>
+<li>无新重视图库；状态：远程 session + caps  </li>
+<li>PDF 仍 <code>blob:</code> / react-pdf  </li>
+<li>设置页：远程条目；i18n <code>en</code> + <code>zh-CN</code></li>
+</ul>
+<h3 id="94-mvp">9.4 明确不采用（MVP）<a class="headerlink" href="#94-mvp" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>技术</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VS Code Server / 闭源 remote agent 协议</td>
+<td>无稳定 API、目标是 IDE 非 Vault</td>
+</tr>
+<tr>
+<td>code-server / openvscode-server 内嵌</td>
+<td>第二套 IDE，非 FS/ACP 后端</td>
+</tr>
+<tr>
+<td>sshfs 作为唯一 IO</td>
+<td>FUSE 依赖、断线与 SQLite 风险</td>
+</tr>
+<tr>
+<td>SQLite over 网络盘直 open</td>
+<td>损坏与锁问题</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10">10. 可参考的开源项目<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<h3 id="101">10.1 同栈 / 直接可抄<a class="headerlink" href="#101" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>地址</th>
+<th>可参考点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>r-shell</strong></td>
+<td><a href="https://github.com/GOODBOY008/r-shell">GOODBOY008/r-shell</a></td>
+<td><strong>Tauri 2 + russh + SFTP</strong> 客户端；连接态、SFTP 会话、认证 UX</td>
+</tr>
+<tr>
+<td>Fileman 类 SFTP 管理器</td>
+<td>社区 Tauri SFTP 文件管理器文章/仓库</td>
+<td>列表、传输进度、书签</td>
+</tr>
+</tbody>
+</table>
+<h3 id="102-ssh-sftp">10.2 SSH / SFTP 库与工具<a class="headerlink" href="#102-ssh-sftp" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>地址</th>
+<th>可参考点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>russh</td>
+<td><a href="https://github.com/Eugeny/russh">Eugeny/russh</a></td>
+<td>纯 Rust SSH 服务端/客户端生态</td>
+</tr>
+<tr>
+<td>openssh-sftp-client</td>
+<td>crates.io</td>
+<td>与系统 OpenSSH 配合的 SFTP</td>
+</tr>
+<tr>
+<td>OpenSSH</td>
+<td>系统自带</td>
+<td><code>~/.ssh/config</code>、<code>ControlMaster</code>、ProxyJump 语义</td>
+</tr>
+</tbody>
+</table>
+<h3 id="103">10.3 远程开发架构（学思路，不抄协议）<a class="headerlink" href="#103" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>地址</th>
+<th>可参考点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VS Code Remote-SSH</td>
+<td><a href="https://code.visualstudio.com/docs/remote/ssh">文档</a></td>
+<td><strong>UI 本地、工具远端</strong>；勿劫持 server</td>
+</tr>
+<tr>
+<td>code-server</td>
+<td><a href="https://github.com/coder/code-server">coder/code-server</a></td>
+<td>浏览器 IDE；<strong>对比</strong>说明我们为何只做 SFTP+ACP</td>
+</tr>
+<tr>
+<td>openvscode-server</td>
+<td><a href="https://github.com/gitpod-io/openvscode-server">gitpod-io/openvscode-server</a></td>
+<td>开源 VS Code web server；同上，非目标依赖</td>
+</tr>
+<tr>
+<td>Mutagen</td>
+<td><a href="https://github.com/mutagen-io/mutagen">mutagen-io/mutagen</a></td>
+<td>双向同步思路；我们是 <strong>write-through 权威远端</strong>，非默认同步引擎</td>
+</tr>
+</tbody>
+</table>
+<h3 id="104-agent">10.4 Agent 协议<a class="headerlink" href="#104-agent" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>地址</th>
+<th>可参考点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent Client Protocol</td>
+<td><a href="https://agentclientprotocol.com/">agentclientprotocol.com</a></td>
+<td>现有 BYOA 契约；远程仅换 transport</td>
+</tr>
+<tr>
+<td>各 ACP agent 发行版</td>
+<td>Claude ACP、OpenCode、Codex 等</td>
+<td>远端安装与 <code>cwd</code> 行为验证矩阵</td>
+</tr>
+</tbody>
+</table>
+<h3 id="105">10.5 反模式参考<a class="headerlink" href="#105" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>做法</th>
+<th>问题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本机 Agent + SFTP 当盘</td>
+<td>双权威、延迟、工具路径混乱</td>
+</tr>
+<tr>
+<td>catalog 仅本地侧车当权威</td>
+<td>违背「所有文件在远端」</td>
+</tr>
+<tr>
+<td>解析 VS Code 私有 RPC</td>
+<td>闭源、无保证、维护税极高</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="11">11. 风险与对策<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>对策</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>catalog PUT 中断</td>
+<td>远端 tmp + rename；失败不更新 FileMeta；reopen 以远端为准</td>
+</tr>
+<tr>
+<td>多客户端写坏 sqlite</td>
+<td>产品假设单写者；mtime 冲突拒写</td>
+</tr>
+<tr>
+<td>SSH 延迟导致 Chat 慢</td>
+<td>warm 状态；流式仍用现有事件；超时可配</td>
+</tr>
+<tr>
+<td>远端无 agent / PATH 怪</td>
+<td><code>remote_which</code> + PATH bootstrap（linuxbrew / <code>~/.local</code>）；设置绝对路径；见 <a href="../../bug_fix/remote-acp-path-ssh/"><code>../bug_fix/remote-acp-path-ssh.md</code></a></td>
+</tr>
+<tr>
+<td>nvm / <strong>Linuxbrew</strong> 仅交互加载</td>
+<td>BatchMode <code>bash -lc</code> 常跳过 <code>.bashrc</code> 交互段 → brew 不在 PATH；Host 侧 prepend + <code>brew shellenv</code> 兜底；用户侧可把 <code>brew shellenv</code> 放到非交互也会执行的 profile</td>
+</tr>
+<tr>
+<td>有 Claude 无 ACP 适配器</td>
+<td>UI <strong>Install ACP</strong>（SSH 远端 <code>npm i -g … --prefix ~/.local</code>）；探测区分 <code>claude</code> vs <code>claude-agent-acp</code></td>
+</tr>
+<tr>
+<td>远端 Agent 代理</td>
+<td>与本地共用 proxy 配置，注入远端 <code>HTTP(S)_PROXY</code>；URL 须从<strong>服务器</strong>可达</td>
+</tr>
+<tr>
+<td>PDF 反复下载</td>
+<td>blob LRU + mtime 校验</td>
+</tr>
+<tr>
+<td>安全：远端→本机</td>
+<td>ACP 桥只转发协议字节；不自动 ForwardAgent 除非用户显式</td>
+</tr>
+<tr>
+<td>Host key</td>
+<td>校验 known_hosts；未知 host 提示确认</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12">12. 文档与代码落点（实现时）<a class="headerlink" href="#12" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>建议路径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>设计（本文）</td>
+<td><code>docs/development/remote-vault.md</code></td>
+</tr>
+<tr>
+<td>API 契约增补</td>
+<td><code>docs/backend/api.md</code>（落地 command 时）</td>
+</tr>
+<tr>
+<td>Host</td>
+<td><code>src-tauri/src/services/remote/</code>、<code>services/fs/</code>、<code>agent</code> transport 分支</td>
+</tr>
+<tr>
+<td>前端</td>
+<td>欢迎页远程入口、session store、caps 驱动菜单、设置</td>
+</tr>
+<tr>
+<td>i18n</td>
+<td><code>src/i18n/locales/en</code> → <code>zh-CN</code></td>
+</tr>
+<tr>
+<td>路线图 / backlog</td>
+<td><a href="../roadmap/"><code>roadmap.md</code></a>、<a href="../todo/"><code>todo.md</code></a></td>
+</tr>
+</tbody>
+</table>
+<p><strong>实现顺序建议</strong>：M0 抽象 → M1 SFTP UI → M2 catalog → M3 远端 ACP（BYOA）→ M4 加固。不要在未抽 <code>VaultFs</code> 前散落 <code>if remote</code>。</p>
+<hr />
+<h2 id="13_1">13. 决议记录（讨论收敛）<a class="headerlink" href="#13_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>议题</th>
+<th>决议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>文件放哪</td>
+<td>MVP <strong>全部权威在远端</strong></td>
+</tr>
+<tr>
+<td>catalog</td>
+<td>远端权威；会话内 work 副本 + GET/PUT</td>
+</tr>
+<tr>
+<td>BYOA</td>
+<td><strong>需要</strong>；进程在<strong>远端</strong>，非本机</td>
+</tr>
+<tr>
+<td>VS Code Server</td>
+<td><strong>不</strong>劫持</td>
+</tr>
+<tr>
+<td>本机 cache</td>
+<td>仅 ephemeral，非第二 Vault</td>
+</tr>
+<tr>
+<td>SSH vs SFTP</td>
+<td>同会话两用：SFTP=文件，exec=Agent</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="14-live-ssh">14. Live SSH 冒烟（可选）<a class="headerlink" href="#14-live-ssh" title="Permanent link">&para;</a></h2>
+<p>在本机 <code>~/.ssh/config</code> 配置好 Host 别名，远端准备符合 data-model 的 Vault 目录后：</p>
+<pre class="codehilite"><code class="language-bash"># 远端脚手架示例（替换 HOST 与路径）
+ssh HOST 'mkdir -p ~/agentero-remote-test-vault/{papers/demo-paper,notes,plans,.agents/skills/hello}
+  &amp;&amp; printf &quot;# AGENTS.md\n&quot; &gt; ~/agentero-remote-test-vault/AGENTS.md
+  &amp;&amp; printf &quot;# Demo Paper\n\nnotes\n&quot; &gt; ~/agentero-remote-test-vault/papers/demo-paper/NOTES.md'
+
+# Host 集成测试（ignored，需环境变量；勿把具体主机名写进仓库）
+cd src-tauri
+AGENTERO_REMOTE_SSH_HOST=&lt;ssh-config-Host&gt; \
+AGENTERO_REMOTE_SSH_PATH=&lt;absolute-remote-vault-path&gt; \
+cargo test --lib live_ssh_remote_vault -- --ignored --nocapture
+</code></pre>
+
+<p>覆盖：connect / list / read / write-through / catalog checkout·push / paper upsert / <code>remote_which</code>（<code>bash -lc</code> + PATH bootstrap，含 linuxbrew）。</p>
+<p>完整 Chat 依赖远端已安装 <strong>ACP-compatible</strong> agent（<code>claude-agent-acp</code> / <code>opencode acp</code> 等）；仅有 Claude Code / 其它 CLI 时，文件层可用，Agent 面板需对应 ACP 入口。</p>
+<p><strong>排障</strong>：交互 shell 能 <code>command -v</code>、应用内探测不到 → 多半是 BatchMode PATH（Linuxbrew）。见 <a href="../../bug_fix/remote-acp-path-ssh/"><code>../bug_fix/remote-acp-path-ssh.md</code></a>。</p>
+<h2 id="15-mvp">15. 后续（非 MVP）<a class="headerlink" href="#15-mvp" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Codex App Server 经 SSH  </li>
+<li>更完整设置页远程偏好（默认 identity 等）  </li>
+<li>更广的 <code>std::fs</code> → <code>VaultFs</code> 迁移 </li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../logging/" class="btn btn-neutral float-left" title="运行日志"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../roadmap/" class="btn btn-neutral float-right" title="路线图">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+      <span><a href="../logging/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../roadmap/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

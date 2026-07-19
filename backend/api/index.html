@@ -84,6 +84,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#vault_ensure">vault_ensure（已实现）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#vaultsshsftpmvp">远程 Vault（SSH/SFTP，MVP 已实现）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#path_open_in_terminal">path_open_in_terminal（已实现）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#path_trash-path_untrash">path_trash / path_untrash（已落地）</a>
@@ -212,7 +214,17 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#310-ui-i18n">3.10 界面与本地化（UI / i18n）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#310-xdg">3.10 应用设置（XDG）</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#settings_get">settings_get（已实现）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#settings_set">settings_set（已实现）</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#settings_path">settings_path（已实现）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#311-ui-i18n">3.11 界面与本地化（UI / i18n）</a>
         <ul>
     <li class="toctree-l4"><a class="reference internal" href="#set_locale">set_locale（已实现）</a>
     </li>
@@ -263,6 +275,8 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
                   </li>
@@ -517,6 +531,150 @@ Host (Tauri + Rust)
 <li>应用升级新增的 skill（如后续模板里加的 id）会在下次打开 Vault 时自动出现。</li>
 <li>前端：若 <code>created</code> 含 <code>.agents/skills/&lt;id&gt;/…</code>，右上角 success toast（<code>vault.skillsSeeded</code>）提示新增 skill 名称；无新增则不打扰。</li>
 </ul>
+<h4 id="vaultsshsftpmvp">远程 Vault（SSH/SFTP，MVP 已实现）<a class="headerlink" href="#vaultsshsftpmvp" title="Permanent link">&para;</a></h4>
+<p>设计见 <a href="../../development/remote-vault/"><code>../development/remote-vault.md</code></a>。前端伪路径 <code>remote:&lt;sessionId&gt;</code>；文件权威在远端。</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>remote_connect</code></td>
+<td><code>{ host, user?, remotePath }</code> → <code>RemoteSessionInfo</code>（含 <code>vaultHandle</code>、<code>caps</code>）</td>
+</tr>
+<tr>
+<td><code>remote_disconnect</code></td>
+<td>flush catalog + 拆会话</td>
+</tr>
+<tr>
+<td><code>remote_status</code></td>
+<td>会话信息</td>
+</tr>
+<tr>
+<td><code>remote_list</code> / <code>remote_stat</code></td>
+<td>列目录 / 元数据</td>
+</tr>
+<tr>
+<td><code>remote_read_text</code> / <code>remote_write_text</code> / <code>remote_write_bytes</code></td>
+<td>读写</td>
+</tr>
+<tr>
+<td><code>remote_read_bytes</code></td>
+<td>读二进制</td>
+</tr>
+<tr>
+<td><code>remote_mkdir</code> / <code>remote_remove</code></td>
+<td>建目录 / 删除（可 recursive）</td>
+</tr>
+<tr>
+<td><code>remote_paper_list</code> / <code>remote_paper_get</code> / <code>remote_paper_delete</code></td>
+<td>catalog 工作副本</td>
+</tr>
+<tr>
+<td><code>remote_paper_rescan</code> / <code>remote_paper_set_tags</code> / <code>remote_paper_set_is_read</code></td>
+<td>mutation 后 PUT 远端</td>
+</tr>
+<tr>
+<td><code>remote_cache_file</code></td>
+<td>PDF 等缓存到本机 ephemeral 路径（mtime 键 + LRU 2 GiB）</td>
+</tr>
+<tr>
+<td><code>remote_cache_stats</code></td>
+<td><code>{ sessionId? }</code> → <code>{ bytes, files, root, maxBytes }</code>（无 session 则汇总全部）</td>
+</tr>
+<tr>
+<td><code>remote_cache_clear</code></td>
+<td><code>{ sessionId? }</code> → <code>{ freedBytes }</code> 清除 blob 缓存</td>
+</tr>
+<tr>
+<td><code>remote_agent_discover</code></td>
+<td>远端 <code>bash -lc 'command -v …'</code></td>
+</tr>
+<tr>
+<td><code>remote_agent_scan</code></td>
+<td>目录模板 + 远端 PATH 扫描 → <code>CatalogEntry[]</code>（设置页远端 Agent）</td>
+</tr>
+<tr>
+<td><code>remote_agent_probe</code></td>
+<td><code>{ sessionId, templateId }</code> → 远端 ACP <code>initialize</code>（应用 Agent 代理 env；Codex+SSH 拒绝）</td>
+</tr>
+<tr>
+<td><code>remote_agent_open_install_terminal</code></td>
+<td>本机终端确认后 <code>ssh -t</code> 在远端执行模板 <code>install_command</code>（如 Claude ACP 适配器）</td>
+</tr>
+<tr>
+<td><code>host_identity</code></td>
+<td>本机 hostname + <code>os</code>（macos/windows/linux）/ 设置 Host 徽章</td>
+</tr>
+<tr>
+<td><code>remote_host_identity</code></td>
+<td>远端 <code>uname -s</code> → <code>os</code> 家族（Host 徽章系统图标）</td>
+</tr>
+</tbody>
+</table>
+<p>Host 还支持 <code>__local_sim__</code> host（本机目录当远端，单测/开发用）。</p>
+<p><strong>入库入口与远程 Vault</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>入口</th>
+<th>Command</th>
+<th>远程 <code>remote:…</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>魔棒标识符</td>
+<td><code>lookup_import</code></td>
+<td>✅ staging → SFTP → catalog PUT</td>
+</tr>
+<tr>
+<td>补资源 Download</td>
+<td><code>paper_download_assets</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>生成本地/远端 PAPER.md</td>
+<td><code>paper_parse_body</code></td>
+<td>✅ 远端 pull PDF → liteparse → put</td>
+</tr>
+<tr>
+<td>本地 PDF</td>
+<td><code>paper_import_local_pdf</code></td>
+<td>✅ 本机选 PDF → 上传远端</td>
+</tr>
+<tr>
+<td>Bib/RIS 库导入</td>
+<td><code>paper_import</code></td>
+<td>✅ Translator → 上传远端</td>
+</tr>
+<tr>
+<td>Zotero 桌面迁移</td>
+<td><code>zotero_migrate</code></td>
+<td>❌ 仅本地路径</td>
+</tr>
+<tr>
+<td>Zotero Connector</td>
+<td>HTTP <code>saveItems</code> / <code>saveAttachment</code></td>
+<td>✅ 绑定 <code>remote:&lt;sessionId&gt;</code>；stage → SFTP → catalog PUT</td>
+</tr>
+<tr>
+<td>CLI import</td>
+<td><code>agentero import</code></td>
+<td>❌ 仅本地 vault 路径</td>
+</tr>
+<tr>
+<td>回收站</td>
+<td><code>path_trash</code> / <code>path_list_trash</code> / restore / purge</td>
+<td>✅ 经 <code>trash_bridge</code> 写远端 <code>.agentero/.trash/</code></td>
+</tr>
+</tbody>
+</table>
+<p>返回的 <code>paperDir</code>（远程）为 <code>remote:&lt;sessionId&gt;/papers/…</code>。</p>
+<p>Agent：<code>agent_run_once</code> / <code>agent_warm</code> 在 vault 为 <code>remote:…</code> 时经 SSH <code>bash -lc</code> 启动远端 ACP；Codex+纯 SSH 暂不支持。</p>
 <h4 id="path_open_in_terminal"><code>path_open_in_terminal</code>（已实现）<a class="headerlink" href="#path_open_in_terminal" title="Permanent link">&para;</a></h4>
 <p>在系统默认终端中打开本地路径（文件树右键 / <code>⌥⌘T</code>「在终端中打开」）。</p>
 <ul>
@@ -1883,7 +2041,43 @@ Host (Tauri + Rust)
 <li><code>parser.mineru.enabled</code>：是否启用云端 MinerU，默认 <code>false</code>。</li>
 <li><code>recent_vaults</code>：最近 Vault 列表（Host 维护，前端一般只读）。</li>
 </ul>
-<h3 id="310-ui-i18n">3.10 界面与本地化（UI / i18n）<a class="headerlink" href="#310-ui-i18n" title="Permanent link">&para;</a></h3>
+<h3 id="310-xdg">3.10 应用设置（XDG）<a class="headerlink" href="#310-xdg" title="Permanent link">&para;</a></h3>
+<p>应用 UI 设置与 Agent 注册表落在 <strong>XDG 配置目录</strong>（非 Vault、非 <code>localStorage</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>路径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>应用设置</td>
+<td><code>$XDG_CONFIG_HOME/agentero/settings.json</code>（未设 env 时 Unix：<code>~/.config/agentero/settings.json</code>）</td>
+</tr>
+<tr>
+<td>Agent 注册表</td>
+<td><code>$XDG_CONFIG_HOME/agentero/agents.json</code></td>
+</tr>
+</tbody>
+</table>
+<p>Windows：未设 <code>XDG_CONFIG_HOME</code> 时回退 <code>%APPDATA%/agentero/</code>。旧版 macOS 路径 <code>~/Library/Application Support/agentero/</code> 在首次启动时 <strong>best-effort 复制</strong> 到 XDG 路径。</p>
+<h4 id="settings_get"><code>settings_get</code>（已实现）<a class="headerlink" href="#settings_get" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>返回</strong>（<code>ApiResult</code>）：<code>{ settings: AppSettings, path: string, existed: boolean }</code></li>
+<li><code>existed === false</code> 时前端可将遗留 <code>localStorage</code> 的 <code>agentero-settings</code> 一次性写入并清除。</li>
+</ul>
+<h4 id="settings_set"><code>settings_set</code>（已实现）<a class="headerlink" href="#settings_set" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>参数</strong>：<code>{ settings: AppSettings }</code>（camelCase，与前端 <code>src/lib/settings.ts</code> 同构）</li>
+<li><strong>返回</strong>：规范化后的 <code>AppSettings</code>（写盘 + 更新 Host 内存）</li>
+</ul>
+<h4 id="settings_path"><code>settings_path</code>（已实现）<a class="headerlink" href="#settings_path" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>返回</strong>：设置文件绝对路径字符串（About / 诊断用）</li>
+</ul>
+<p>实现：<code>src-tauri/src/services/app_settings.rs</code>、<code>services/paths.rs</code>、<code>commands/settings.rs</code>。</p>
+<h3 id="311-ui-i18n">3.11 界面与本地化（UI / i18n）<a class="headerlink" href="#311-ui-i18n" title="Permanent link">&para;</a></h3>
 <h4 id="set_locale"><code>set_locale</code>（已实现）<a class="headerlink" href="#set_locale" title="Permanent link">&para;</a></h4>
 <p>渲染层在语言偏好变化时通知 Host 按新 locale 重建原生应用菜单（macOS 菜单栏）。</p>
 <ul>
@@ -1896,7 +2090,7 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code>（成功为 <code>()</code>，失败返回错误信息字符串）。</li>
-<li><strong>说明</strong>：locale 偏好由渲染层持有（<code>localStorage</code> 的 <code>agentero-settings.locale</code>）。Host 启动时以英文兜底构建菜单；前端挂载及每次语言切换时调用 <code>set_locale</code> 同步。实现见 <code>src-tauri/src/lib.rs</code>（<code>build_menu</code> + <code>set_locale</code>）与 <code>src-tauri/src/i18n.rs</code>（菜单词条）。</li>
+<li><strong>说明</strong>：locale 偏好存于 XDG <code>settings.json</code>（<code>settings_get</code> / <code>settings_set</code>）。Host 启动时以英文兜底构建菜单；前端在 <code>ensureSettingsLoaded</code> 后及每次语言切换时调用 <code>set_locale</code> 同步。实现见 <code>src-tauri/src/lib.rs</code>（<code>build_menu</code> + <code>set_locale</code>）与 <code>src-tauri/src/i18n.rs</code>（菜单词条）。</li>
 </ul>
 <h4 id="_1">菜单事件<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h4>
 <p>原生菜单项点击后 Host 通过 <code>emit(id, ())</code> 广播，前端在 <code>src/App.tsx</code> 监听。事件名（id）稳定、不随语言变化；仅菜单显示文案随 <code>set_locale</code> 本地化。</p>

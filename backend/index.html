@@ -102,6 +102,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../development/logging/">运行日志</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../development/roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../development/todo/">TODO</a>
@@ -174,7 +176,7 @@
 <tr>
 <td>Tauri Store</td>
 <td><a href="https://v2.tauri.app/plugin/store/"><code>tauri-plugin-store</code></a></td>
-<td>已接入插件；最近 Vault / 设置目前仍以前端 <code>localStorage</code> 为主，后续迁 Store。</td>
+<td>已接入插件；<strong>应用设置</strong>与 <strong>Agent 注册表</strong>已迁 XDG 文件（<code>~/.config/agentero/</code>）；最近 Vault 等仍以前端 <code>localStorage</code> 为主。</td>
 </tr>
 <tr>
 <td>Agent 协议</td>
@@ -209,7 +211,7 @@
 <li>读写 Markdown 笔记与 source；维护 <strong>catalog</strong>（论文 meta / 集合）。笔记内嵌图由前端写入 <code>{mdDir}/assets/</code>（见 <a href="data-model/"><code>data-model.md</code></a>「Markdown 内嵌图片」）；Host 提供 fs 权限，无独立 image Tauri command。</li>
 <li>从 Markdown 构建双链、反链和图谱索引（paper 标题可读 catalog）。</li>
 <li>向前端暴露 Tauri invoke commands 与 event streams。</li>
-<li>启动并管理本地 ACP-compatible Agent，但不托管模型密钥。</li>
+<li>启动并管理 <strong>ACP-compatible Agent</strong>（现网：本机进程；规划中：远程 Vault 时经 SSH 在<strong>远端</strong>启动），但不托管模型密钥（BYOA）。远程设计见 <a href="../development/remote-vault/"><code>../development/remote-vault.md</code></a>。</li>
 <li>提供 catalog 导出；双链等可重建索引与 catalog 分层清晰。</li>
 <li>标识符魔棒入库：<code>lookup_import</code> 调用 Translator（可配置 base URL）、写 catalog，并<strong>默认下载 PDF</strong>（arXiv 另解压 LaTeX）；<code>paper_download_assets</code> 按需补下；无 TeX 时 <strong>liteparse → <code>PAPER.md</code></strong>（<code>paper_parse_body</code>）；论文库列表 <code>paper_list</code>。</li>
 <li>精读状态：<code>paper_set_is_read</code>（catalog <code>is_read</code>）；前端入库/单篇 Download 后可自动跑 paper-reader。</li>

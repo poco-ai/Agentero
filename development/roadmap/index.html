@@ -92,6 +92,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">路线图</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#1-roadmap">1. Roadmap 原则</a>
@@ -289,6 +291,11 @@
 <td><strong>Vault 采纳 / 现有文件夹整理</strong></td>
 <td>⏳ 待设计</td>
 <td>打开非标准或半结构目录时 <strong>自动发现与改造</strong> 为 Agentero Vault（脚手架 + catalog + paper 单元识别）；<strong>编程路径</strong>（确定性扫描/迁移）与 <strong>Skill + Agent 路径</strong> 均可；不静默覆盖用户文件。</td>
+</tr>
+<tr>
+<td><strong>远程 Vault（SSH/SFTP）+ 远端 BYOA</strong></td>
+<td>✅ MVP</td>
+<td>文件权威远端；SFTP IO；catalog work mirror；ACP over SSH；PDF cache。设计见 <a href="../remote-vault/"><code>remote-vault.md</code></a>。</td>
 </tr>
 <tr>
 <td>Release CI</td>
@@ -832,7 +839,7 @@
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../logging/" class="btn btn-neutral float-left" title="运行日志"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../remote-vault/" class="btn btn-neutral float-left" title="远程 Vault（SSH/SFTP）"><span class="icon icon-circle-arrow-left"></span> Previous</a>
         <a href="../todo/" class="btn btn-neutral float-right" title="TODO">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
@@ -860,7 +867,7 @@
         </span>
     
     
-      <span><a href="../logging/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../remote-vault/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
       <span><a href="../todo/" style="color: #fcfcfc">Next &raquo;</a></span>

@@ -102,6 +102,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="logging/">运行日志</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="todo/">TODO</a>
@@ -273,6 +275,11 @@
 <td>✅</td>
 <td><code>v*</code> tag → 三平台桌面安装包 + <strong>CLI <code>agentero</code> 预编译包</strong>（同草稿 Release）</td>
 </tr>
+<tr>
+<td>远程 Vault（SSH/SFTP）</td>
+<td>✅ MVP</td>
+<td>文件权威远端 + 远端 BYOA（ACP over SSH）；见 <a href="remote-vault/"><code>remote-vault.md</code></a></td>
+</tr>
 </tbody>
 </table>
 <p>更细的勾选表见 <a href="roadmap/"><code>roadmap.md</code></a>；可执行任务见 <a href="todo/"><code>todo.md</code></a>。</p>
@@ -289,9 +296,15 @@
 <li><a href="translate/"><code>translate.md</code></a>：翻译服务（首版已落地；应用级可插拔 <strong>免费 MT + BYOA Agent</strong>；设置 → 翻译页；PDF 划词为首个消费方）。</li>
 <li><a href="logging/"><code>logging.md</code></a>：运行日志（<strong>P0 已落地</strong>；<code>tauri-plugin-log</code> + <code>log</code> + CLI <code>env_logger</code>；关键操作 start/end；与 Toast / <code>ApiResult</code> 分层）。</li>
 <li><a href="command-palette/"><code>command-palette.md</code></a>：全局命令面板 / 快速打开（对照 VS Code ⇧⌘P · ⌘P；现状与分期设计）。</li>
-<li><a href="bug/"><code>bug.md</code></a>：待处理现象语料（与 Project / Issue 草案对照）。</li>
-<li><a href=".md"><code>.md</code></a>：简短产品假设。</li>
-<li>Bug 修复记录：<a href="../bug_fix/deepseek-thinking-body/"><code>../bug_fix/deepseek-thinking-body.md</code></a>（DeepSeek 正文落入 Thinking）。</li>
+<li>
+<p><a href="remote-vault/"><code>remote-vault.md</code></a>：远程 Vault（SSH/SFTP）与<strong>远端 BYOA</strong>——文件权威全在服务器、ACP over SSH；含技术栈与开源参考（<strong>MVP 已实现</strong>）。</p>
+</li>
+<li>
+<p><a href=".md"><code>.md</code></a>：简短产品假设。</p>
+</li>
+<li>Bug 修复记录：</li>
+<li><a href="../bug_fix/deepseek-thinking-body/"><code>../bug_fix/deepseek-thinking-body.md</code></a>（DeepSeek 正文落入 Thinking）</li>
+<li><a href="../bug_fix/remote-acp-path-ssh/"><code>../bug_fix/remote-acp-path-ssh.md</code></a>（远端 ACP：BatchMode SSH PATH / Linuxbrew / Install 引号）</li>
 <li>Paper 入库流水线统一：<a href="../backend/paper-import-pipeline/"><code>../backend/paper-import-pipeline.md</code></a>。</li>
 </ul>
 <h2 id="_5">交叉引用<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
