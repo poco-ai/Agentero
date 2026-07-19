@@ -204,9 +204,9 @@
 <ul>
 <li>默认工作台：文件树 + <strong>文档标签页</strong>中间内容 +（按需）Notes + 可选右侧栏。</li>
 <li><strong>文档标签</strong>：标题栏浏览器式多 tab（paper / PDF / HTML / Markdown / Library / 图片）；常驻挂载，切换保留 PDF 滚动/缩放与编辑器状态。<code>⌘W</code> / <code>Esc</code> 优先关最顶层弹层（<code>overlay-stack</code>：设置 / 快捷键清单 / 命令面板 / 迁移对话框等），否则逐个关标签，仅剩全库时关窗；<code>⌥⌘←/→</code> 切换。<strong>分屏（split）</strong> 仍规划见 V0.6。</li>
-<li>文件树顶部有虚拟节点 <strong>Library</strong>；中间栏可展示 catalog <strong>论文库表格</strong>（排序、<strong>tags</strong> 列 + chip 筛选、双向滚动），数据来自 <code>paper_list</code>。</li>
+<li>文件树顶部有虚拟节点 <strong>Library</strong>；中间栏可展示 catalog <strong>论文库表格</strong>（排序、<strong>tags</strong> 染色 chip + 筛选、双向滚动），数据来自 <code>paper_list</code>。</li>
 <li>文件树：右键 / <code>⌥⌘R</code> <strong>Finder 显示</strong>；右键 / <code>⌥⌘T</code> <strong>终端打开</strong>；多选 + 拖拽移动；右键 / <code>⌘⌫</code> <strong>移入回收站</strong>（Library 下虚拟节点 <code>agentero:trash</code> → 中间栏回收站视图恢复 / 清空，无 Undo toast）。Paper 行默认 <strong>标题 · 作者</strong>（设置 → 通用可切换标签/排序预设，不改磁盘文件夹名）。</li>
-<li><strong>Paper Info / Notes</strong> 仅在选中具体论文时出现；论文库视图不显示。Paper Info <strong>Tags</strong> 可编辑（<code>paper_set_tags</code>）。Library 空态可 <strong>Rescan</strong>（<code>paper_rescan</code>）从盘补 catalog。</li>
+<li><strong>Paper Info / Notes</strong> 仅在选中具体论文时出现；论文库视图不显示。Paper Info <strong>Tags</strong> 可编辑并可设 <strong>Apple 8 色</strong>（<code>paper_set_tags</code>，<code>tags_json</code> 字符串或 <code>{name,color}</code>）。Library 空态可 <strong>Rescan</strong>（<code>paper_rescan</code>）从盘补 catalog。</li>
 <li>无 Vault 时中间栏为欢迎页（最近路径 + 打开 / 创建 / 从 Zotero 迁移）；<code>⌘N</code> 可开多窗口。</li>
 <li>可选右侧栏只有两个顶层入口：Agent 与 Backlinks（左右侧栏均为 collapsible 常驻面板，交替快捷键互不冲折叠态）。</li>
 <li>Backlinks 视图上方显示反链，下方显示 Graph；Graph 不是独立顶层 tab（<strong>双链图</strong>，非文献引用图）。</li>
@@ -329,5 +329,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-07-19 06:49:24.940869+00:00
+Build Date UTC : 2026-07-19 07:24:09.837329+00:00
 -->

@@ -472,7 +472,8 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <li>归一化坐标可在缩放/重开后重定位；页面上点击已有高亮出现「删除」浮层；<code>comment</code> 非空的高亮在页边渲染<strong>批注针</strong>，点击打开内联编辑器读/改评论。</li>
 <li>右侧「批注」面板列出<strong>当前活动 PDF tab</strong> 的批注卡（页码 + 引文 + 评论），点击跳转闪烁、可编辑 / 删除；由 <code>PdfViewerHandle</code> + <code>onHighlightsChange</code> 驱动。</li>
 <li><strong>不</strong>污染原始 PDF、<strong>不</strong>进 catalog、<strong>不</strong>写入 <code>NOTES.md</code>（旧「追加引文到 <code>NOTES.md</code>」行为已移除）；坏文件读取时跳过。</li>
-<li>「翻译」复用 asks 弹层走 Agent 流式，不额外落盘。</li>
+<li>「翻译」走独立翻译卡（免费 MT 或 BYOA Agent）；为阅读热力图额外落盘轻量记录 <code>papers/&lt;id&gt;/translates/&lt;id&gt;.json</code>（<code>page</code> + 归一化 <code>rects</code> + 可选 <code>quote</code>），<strong>不</strong>存译文正文。</li>
+<li><strong>阅读热力图</strong>（论文库列）：聚合 <code>highlights/</code> + <code>asks/</code> + <code>translates/</code> 的位置与频次；可选 <code>{paper}/reading-meta.json</code>（<code>pageCount</code>，打开 PDF 时写入）标定全文跨度。见 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §3。</li>
 </ul>
 <p>格式示例:</p>
 <pre class="codehilite"><code class="language-md">### ^h12 · p.3 §3.2
@@ -548,7 +549,12 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
   /** 原始日期串（Translator `date`） */
   date?: string;
   abstract?: string;
-  tags: string[];
+  /**
+   * Catalog 标签。序列化兼容：无色为字符串，有色为 `{ name, color }`。
+   * `color` 预置 id：red/orange/yellow/green/teal/blue/indigo/purple。
+   * 前端读写经 `coercePaperTags` / `normalizePaperTags`（`src/lib/tag-colors.ts`）。
+   */
+  tags: Array&lt;string | { name: string; color?: string }&gt;;
 
   // 标识符
   arxiv_id?: string;

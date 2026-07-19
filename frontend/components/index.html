@@ -201,7 +201,7 @@
 </tr>
 <tr>
 <td>业务壳</td>
-<td><code>layout/agent-panel</code>（Chat；<code>sidebar</code>/<code>zen</code>：禅模式左侧历史 + 全宽 <code>Conversation</code>；无会话数字标签；<code>hideFromChatHistory</code> 过滤后台运行；<strong>权限三档</strong> + <code>agent:permission-request</code> 对话框；<strong>空态 suggestion → workflow</strong>；<strong><code>agent:notes-review</code> Keep/Revert</strong>）、<code>layout/command-palette</code>（<code>⌘K</code>/<code>⌘P</code> 论文 quick-open + <code>vault_search</code>）、<code>layout/file-tree</code>（Vault 树 + Library + 魔棒 + paper <strong>Download / Zap</strong> + 多选拖拽 + 回收站入口）、<code>layout/recycle-bin-view</code>（中间栏回收站）、<code>layout/papers-library</code>（catalog 表 + tags + <strong>Rescan</strong> + 文件夹作用域）、<code>layout/paper-info-panel</code>、<code>layout/document-tab-bar</code>、<code>layout/backlinks-panel</code>、<code>layout/graph-panel</code>、<code>layout/background-tasks-panel</code>；<code>viewer/pdf-viewer</code>（导航/大纲/查找/平滑划词；划词提问 <code>hideFromChatHistory</code>）</td>
+<td><code>layout/agent-panel</code>（Chat；<code>sidebar</code>/<code>zen</code>：禅模式左侧历史 + 全宽 <code>Conversation</code>；无会话数字标签；<code>hideFromChatHistory</code> 过滤后台运行；<strong>权限三档</strong> + <code>agent:permission-request</code> 对话框；<strong>空态 suggestion → workflow</strong>；<strong><code>agent:notes-review</code> Keep/Revert</strong>；Composer <strong><code>@</code> / 文件树拖入 → context chip</strong>（图标：<code>context-path-icon</code> — paper <code>ScrollText</code> / 文件夹 <code>Folder</code> / 文件按扩展名））、<code>layout/command-palette</code>（<code>⌘K</code>/<code>⌘P</code> 论文 quick-open + <code>vault_search</code>）、<code>layout/file-tree</code>（Vault 树 + Library + 魔棒 + paper <strong>Download / Zap</strong> + 多选拖拽 + 回收站入口）、<code>layout/recycle-bin-view</code>（中间栏回收站）、<code>layout/papers-library</code>（catalog 表 + <strong>染色 tags</strong> + <strong>Rescan</strong> + 文件夹作用域）、<code>layout/paper-info-panel</code>（Tags 色盘）、<code>layout/document-tab-bar</code>、<code>layout/backlinks-panel</code>、<code>layout/graph-panel</code>、<code>layout/background-tasks-panel</code>；<code>viewer/pdf-viewer</code>（导航/大纲/查找/平滑划词；划词提问 <code>hideFromChatHistory</code>）</td>
 </tr>
 <tr>
 <td>全局通知</td>
@@ -261,7 +261,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 <td><a href="https://elements.ai-sdk.dev/components/attachments">Attachments</a></td>
 <td><code>attachments</code></td>
 <td>附件网格/列表/预览</td>
-<td>📦（Prompt 已支持，ACP 暂不传文件）</td>
+<td>📦（Prompt 已支持，ACP 暂不传文件；Vault 路径上下文用 Composer context chip，见 ui.md）</td>
 </tr>
 <tr>
 <td><a href="https://elements.ai-sdk.dev/components/suggestion">Suggestion</a></td>

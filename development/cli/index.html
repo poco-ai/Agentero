@@ -665,13 +665,13 @@ GLOBAL:
 <p><strong><code>paper list</code></strong></p>
 <ul>
 <li>L1 索引：读 catalog，不扫全文</li>
-<li>text 列：<code>path</code> <code>id</code> <code>title</code> <code>year</code> <code>tags</code> <code>is_read</code>（<code>tags</code> 逗号拼接，空为 <code>-</code>）</li>
+<li>text 列：<code>path</code> <code>id</code> <code>title</code> <code>year</code> <code>tags</code> <code>is_read</code>（<code>tags</code> 为<strong>名称</strong>逗号拼接，空为 <code>-</code>；不展示 color）</li>
 <li>过滤：</li>
 <li><code>--unread</code>：仅 <code>is_read = false</code></li>
 <li><code>--status &lt;s&gt;</code>：status 字段（ignore case）</li>
-<li><code>--query &lt;q&gt;</code>：title / authors / id / path / <strong>tags</strong> 子串（ignore case）</li>
-<li><code>--tag &lt;name&gt;</code>：<strong>可重复</strong>；每篇须 <strong>同时含</strong> 全部给定 tag（AND；精确匹配、ignore case）</li>
-<li>JSON：<code>PaperRecord[]</code>（字段与 Host 对齐，<strong>稳定</strong>；含 <code>tags: string[]</code>）</li>
+<li><code>--query &lt;q&gt;</code>：title / authors / id / path / <strong>tags 名称</strong> 子串（ignore case）</li>
+<li><code>--tag &lt;name&gt;</code>：<strong>可重复</strong>；每篇须 <strong>同时含</strong> 全部给定 tag 名（AND；精确匹配、ignore case）</li>
+<li>JSON：<code>PaperRecord[]</code>（字段与 Host 对齐；<code>tags</code> 元素为字符串或 <code>{name,color?}</code>，与 catalog 序列化一致）</li>
 </ul>
 <p><strong><code>paper tags</code></strong></p>
 <ul>
@@ -740,12 +740,12 @@ GLOBAL:
 <p><strong><code>paper set-tags</code></strong></p>
 <ul>
 <li><strong>仅</strong>更新 catalog <code>tags</code>（<code>tags_json</code>）；同步 <code>metadata.json</code> 投影（与 Host <code>paper_set_tags</code> / <code>papers::set_tags</code> 同一 service）</li>
-<li><strong>默认 = 整表替换</strong>：<code>agentero paper set-tags &lt;ref&gt; nlp rl</code> → tags 变为 <code>["nlp","rl"]</code></li>
+<li><strong>默认 = 整表替换</strong>：<code>agentero paper set-tags &lt;ref&gt; nlp rl</code> → tags 变为 <code>["nlp","rl"]</code>（CLI 只写名称，<strong>不设 color</strong>）</li>
 <li><strong>清空</strong>：<code>agentero paper set-tags &lt;ref&gt;</code>（无额外 tag 参数）</li>
 <li><strong>增量</strong>（与 replace 互斥）：</li>
-<li><code>--add t1 t2</code>：在现有列表上追加（trim + 大小写不敏感去重）</li>
-<li><code>--remove t1 t2</code>：按 ignore-case 移除</li>
-<li>规范化与 Host 一致：trim 空白、丢弃空串、大小写不敏感去重（保留首次写法）</li>
+<li><code>--add t1 t2</code>：在现有列表上追加（trim + 大小写不敏感去重；新 tag 无色）</li>
+<li><code>--remove t1 t2</code>：按 ignore-case 按<strong>名称</strong>移除</li>
+<li>规范化与 Host 一致：trim 空白、丢弃空串、大小写不敏感去重（保留首次写法）；有色标签需在桌面 Paper Info 设置</li>
 <li>不触发精读、不改 NOTES</li>
 </ul>
 <p><strong><code>graph *</code></strong></p>
