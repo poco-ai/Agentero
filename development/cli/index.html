@@ -1252,12 +1252,13 @@ Desktop-only: services/agent/*   （CLI 不引用）
 cargo run -p agentero-cli -- vault which --json
 </code></pre>
 
-<p>Release（已接 CI）：推送 <code>v*</code> tag 时，<code>.github/workflows/release.yml</code> 在构建桌面安装包的同一矩阵上：</p>
+<p>Release（已接 CI）：推送 <code>v*</code> tag 时，<code>.github/workflows/release.yml</code> 拆成独立 job：</p>
 <ol>
-<li><code>cargo build -p agentero-cli --release</code></li>
-<li>打包为 <code>agentero-&lt;version&gt;-&lt;rustc-host-triple&gt;.tar.gz</code>（macOS/Linux）或 <code>.zip</code>（Windows）</li>
-<li>用 <code>softprops/action-gh-release</code> <strong>上传到同一草稿 GitHub Release</strong></li>
+<li><strong>prepare</strong>：创建草稿 GitHub Release（共用 release notes）</li>
+<li><strong>installers</strong>（矩阵 macOS / Ubuntu / Windows）：Tauri 桌面安装包 → 上传草稿</li>
+<li><strong>cli</strong>（同矩阵，与 installers <strong>并行</strong>）：<code>cargo build -p agentero-cli --release</code> → 打包 <code>agentero-&lt;version&gt;-&lt;rustc-host-triple&gt;.tar.gz</code>（macOS/Linux）或 <code>.zip</code>（Windows）→ 上传同一草稿</li>
 </ol>
+<p>CLI job <strong>不</strong>装 Node/pnpm/前端；Linux 仍需 WebKit 等系统库（path 依赖 <code>agentero_lib</code>/Tauri 链接）。一侧失败不会取消另一侧（<code>fail-fast: false</code>）。</p>
 <p>用户从 Releases 下载解压即可，无需 npm/pypi。<br />
 <strong>不</strong>发 crates.io（当前 path 依赖整包 <code>agentero_lib</code>/Tauri）；开发者可用 <code>cargo install --git … --package agentero-cli</code>。不绑签名公证第一步。</p>
 <hr />

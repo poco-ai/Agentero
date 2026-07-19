@@ -1254,10 +1254,12 @@ pnpm tauri dev
 
 <h3 id="73-release-ci">7.3 Release CI<a class="headerlink" href="#73-release-ci" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>.github/workflows/release.yml</code> 在 push <code>v*</code> tag 时触发。</li>
-<li>构建矩阵：<code>macos-latest</code>、<code>ubuntu-22.04</code>、<code>windows-latest</code>。</li>
-<li>CI 安装 pnpm、Node.js 24、Rust stable；Linux 额外安装 WebKit/AppIndicator/Rsvg/patchelf 依赖。</li>
-<li>使用 <code>tauri-apps/tauri-action@v0</code> 构建安装包，并上传到草稿 GitHub Release。</li>
+<li><code>.github/workflows/release.yml</code> 在 push <code>v*</code> tag 时触发（workflow 名 <strong>Release</strong>）。</li>
+<li>Job 拆分（可并行、互不 <code>needs</code> 对方）：</li>
+<li><strong>prepare</strong>：创建草稿 GitHub Release + release notes</li>
+<li><strong>installers</strong>（矩阵 <code>macos-latest</code> / <code>ubuntu-22.04</code> / <code>windows-latest</code>）：pnpm、Node 24、Rust stable；Linux 装 WebKit 等；<code>tauri-apps/tauri-action@v0</code> 构建桌面安装包并上传</li>
+<li><strong>cli</strong>（同矩阵）：仅 Rust（+ Linux 系统库，因 path 依赖 <code>agentero_lib</code>）；<code>cargo build -p agentero-cli --release</code>，打包后上传同一草稿</li>
+<li><code>fail-fast: false</code>：安装包失败不取消 CLI（反之亦然）。</li>
 <li>后续若加入签名、公证或自动发布，需要在文档中同步列出所需 secrets，并保证本地开发构建不依赖发布凭据。</li>
 </ul>
 <h3 id="74">7.4 代码规范<a class="headerlink" href="#74" title="Permanent link">&para;</a></h3>
