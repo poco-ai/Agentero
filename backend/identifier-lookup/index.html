@@ -1220,7 +1220,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 
 <ol>
 <li><code>path = {parent_dir}/{id}</code>（§1.2 + §6.3）。</li>
-<li>写 <code>NOTES.md</code> + <code>highlights.md</code>（<code>NOTES.md</code> 中摘要 blockquote 优先经 Host 免费 MT 译为中文，失败保留原文；catalog <code>abstract</code> 仍为原文）。</li>
+<li>写 <code>NOTES.md</code> + <code>highlights.md</code>（<code>NOTES.md</code> 中摘要 blockquote 优先经 Host 免费 MT 译为中文，多引擎兜底 googleapi → bing → youdao → 火山 → 腾讯，全失败才保留原文；catalog <code>abstract</code> 仍为原文）。</li>
 <li><strong>catalog 事务</strong>：有则写入 <code>pdf_url</code> / <code>html_url</code>。</li>
 <li>下载按 §1.3：<strong>始终 PDF</strong>；<strong>arXiv 另解压 LaTeX</strong>。</li>
 <li><strong>不</strong>写默认 <code>PAPERS.md</code> / <code>library.bib</code>；<code>metadata.json</code> 仅在 catalog upsert 后作为投影同步。</li>
@@ -1371,10 +1371,11 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <li>Host：<code>zotero_scan</code>（只读预览：文献数 / 有本地 PDF 数）、<code>zotero_migrate</code>（执行）；实现在 <code>services/lookup/zotero_db.rs</code>。</li>
 <li>读库：把 <code>zotero.sqlite</code>（含 <code>-wal</code>/<code>-shm</code>）<strong>拷到临时目录</strong>再只读打开（容忍 Zotero 正在运行）；查 <code>items</code>/<code>itemData</code>/<code>creators</code>/<code>itemTags</code>/<code>itemAttachments</code>，跳过 <code>deletedItems</code> 与 attachment/note/annotation 类型。</li>
 <li>映射：每条<strong>拼装成 Zotero-API-JSON item</strong> → 复用 <code>map_zotero_item</code> + <code>enrich_remote_urls</code> + <code>write_paper_shell</code> + <code>paper_record_from_meta</code> + catalog upsert，落到 <code>{parent_dir}/{id}/</code>（id/citekey 与魔棒 / 文件导入一致）。</li>
+<li>标签：<strong>仅保留手动标签</strong>——Zotero 自动标签（网络翻译器加的来源/状态标签，<code>itemTags.type ≠ 0</code>）在导入时过滤；<code>type = 0</code> 的用户标签保留（旧库无 <code>type</code> 列时回退为全部）。collection 名仍作为组织标签补充。</li>
 <li>PDF：对话框 <strong>“把 PDF 复制进知识库”</strong> 勾选项（默认开）。勾选时从 <code>storage/&lt;attachmentKey&gt;/</code> 拷到 <code>{paper}/{id}.pdf</code> 并 liteparse <code>PAPER.md</code>；不勾则只留书目，<code>pdf_url</code> 供按需下载。</li>
 <li>去重：按 arXiv id / DOI / 归一化标题跳过重复（re-run 与既有）；不同文献 citekey 相撞时目录追加后缀。<strong>不覆盖</strong> <code>NOTES.md</code>。</li>
 <li>自愈：迁移前 <code>prune_missing</code> 清掉「文件夹已被手动删除」的 catalog 孤儿行，防止幽灵条目占位、去重误跳过导致无法重导（结果含 <code>pruned</code> 计数）。</li>
-<li>分类：对话框 <strong>“按 Zotero 分类建子文件夹”</strong> 勾选项（默认开）→ 在目标目录下还原 collection 层级（<code>{parent}/&lt;collection 路径&gt;/&lt;id&gt;/</code>），collection 名同时写入 tags（多归属不丢失）；关闭则平铺。条目在多个 collection 时取确定性的单一路径（全路径字典序最小）。</li>
+<li>分类：对话框 <strong>“按 Zotero 分类建子文件夹”</strong> 勾选项（<strong>默认关</strong>，避免把 Zotero 分组（如 logs/Archive）建成多余子文件夹）→ 勾选时在目标目录下还原 collection 层级（<code>{parent}/&lt;collection 路径&gt;/&lt;id&gt;/</code>），collection 名同时写入 tags（多归属不丢失）；关闭则平铺。条目在多个 collection 时取确定性的单一路径（全路径字典序最小）。</li>
 <li>选择性导入：<code>zotero_scan</code> 预览返回各 collection（含「未分类」= id 0）及条目数，并返回逐条 <code>items</code>（id/title/year/hasPdf/notes/collections）；对话框提供<strong>搜索 + 文件夹筛选 + 逐条勾选</strong>（<code>include_items</code> 优先于 <code>include_collections</code>，缺省 = 全部）；迁移经 Tauri Channel 回传 <code>{current,total}</code> 进度，选项记于 localStorage。</li>
 <li>笔记：对话框「迁移 Zotero 笔记」勾选项（默认开）→ 每篇挂载的子笔记（<code>itemNotes</code>）HTML 经 <code>htmd</code> 转 Markdown，追加进该篇 <code>NOTES.md</code>（以 <code>---</code> 分隔）；<code>zotero_scan</code> 预览显示笔记总数。仅处理有父条目的子笔记。</li>
 <li>批注：对话框「迁移 PDF 高亮批注」勾选项（默认开）→ 读 <code>itemAnnotations</code>（高亮 text + comment + 页码）转 Markdown 引用块追加进 <code>NOTES.md</code>（与笔记共用幂等追加）。<strong>注</strong>：<code>highlights.md</code> 渲染系统尚未落地，故批注文本暂入 <code>NOTES.md</code>。</li>
