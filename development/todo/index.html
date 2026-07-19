@@ -95,12 +95,110 @@
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">TODO</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#p0">P0 — 近期闭环</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#1-create-vault">1. Create Vault 初始化</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#1b">1b. 多窗口与欢迎页</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2-arxiv-doi">2. 精确标识符入库（arXiv / DOI 等）— 魔棒路径</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2b-identifier-lookuptranslatorv0">2b. 魔棒 / Identifier Lookup（Translator）v0</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2c-ui">2c. 论文库表格 UI</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2c-2">2c-2. 论文库默认页 + 文件夹作用域库</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2d-ux">2d. 文件树与侧栏 UX</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2e-pdf">2e. PDF 阅读增强</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2f-markdown">2f. Markdown 内嵌图片</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2g-library-rescan">2g. Library Rescan</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#3-agent">3. Agent 工作流入口</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#4">4. 文件与索引同步</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#4b-vault">4b. Vault 采纳 / 现有文件夹发现（编程优先）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#5-cliheadless-vault-mvp">5. CLI（headless Vault 接口）— MVP</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#6-logging-p0">6. 运行日志（Logging）— P0</a>
+    </li>
+        </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#p1">P1 — 中期增强</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#1-catalog">1. Catalog 导出与检索</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2-pdf-importer">2. 本地 PDF importer</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2b-vault-skill-p0-4b">2b. Vault 采纳 / 整理（确认迁移 + Skill 可选）— 接 P0-4b</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#3">3. 双链与图谱增强</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#4-roadmap-v06">4. 工作区标签页与分屏（roadmap V0.6）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#5-connected-papersroadmap-v07">5. 引用关系 / Connected Papers（roadmap V0.7）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#6-agent-v03-v07">6. Agent 引用与综述工作流（衔接 V0.3 面板入口 + V0.7）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#7-cli-mvp-p0-5">7. CLI 增强（MVP 见 P0-5）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#8-release">8. Release 完善</a>
+    </li>
+        </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#p2">P2 — 长期方向</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#1-zoterobibtex">1. Zotero/BibTeX 迁移工具</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#1b-zotero-connector">1b. Zotero Connector 兼容服务（方案一）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2-skills-workflows">2. 用户友好的 Skills / Workflows</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#3-pdf-selection-ask">3. PDF 划词提问（Selection Ask）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#3b-translate-service">3b. 翻译服务（Translate Service）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#4-pdf-html">4. PDF / HTML 标注系统</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#5">5. 更大范围导入</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#6">6. 引用图增强</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#7">7. 工作区增强</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#8">8. 多端与协作</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#9-cli-domain">9. CLI domain 抽离（可选）</a>
+    </li>
+        </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#_1">已完成能力速览（对照现状）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#vault">Vault / 工作台壳</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_2">中间内容</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_3">查找</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_4">入库</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#agent">Agent</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#graph">双链 / Graph</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_5">文献引用图</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#pdf">PDF / 媒体</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#cli">CLI</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_6">发布</a>
+    </li>
+        </ul>
     </li>
     </ul>
                   </li>
@@ -131,375 +229,410 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="agentero-todo">Agentero TODO<a class="headerlink" href="#agentero-todo" title="Permanent link">&para;</a></h1>
-<p>可执行 backlog。版本级状态与验收以 <a href="../roadmap/"><code>roadmap.md</code></a> 为准；魔棒设计见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>；Zotero Connector 兼容见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>。</p>
+<p>可执行 backlog（GitHub Flavored Markdown checklist：<code>- [x]</code> 已完成 / <code>- [ ]</code> 未完成）。版本级状态与验收以 <a href="../roadmap/"><code>roadmap.md</code></a> 为准；魔棒设计见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>；Zotero Connector 兼容见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>。</p>
 <h2 id="p0">P0 — 近期闭环<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>Create Vault 初始化</strong> ✅</li>
-<li>创建标准目录：<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agentero/</code>、<code>.agents/</code>、<code>.agents/skills/</code>。</li>
-<li>生成 Vault 内 <code>AGENTS.md</code> 模板；种子 <code>.agents/README.md</code>（<code>templates/vault/.agents/</code>）。</li>
-<li>初始化 <code>.agentero/catalog.sqlite</code>（schema 当前版本，<code>path</code> 主键）。</li>
-<li><strong>不</strong>默认生成 <code>PAPERS.md</code> / <code>library.bib</code>（导出能力另做）。</li>
-<li>初始化后打开 <code>AGENTS.md</code>。</li>
-</ol>
-<p>1b. <strong>多窗口与欢迎页</strong> ✅
-   - <code>⌘N</code> / File → New Window → Host <code>window_new</code>（<code>?fresh=1</code>）。
-   - 无 Vault 欢迎页：最近路径 MRU + 打开 / 创建 / <strong>从 Zotero 迁移</strong>（同一行；迁移前先创建 Vault）（无常驻说明文案）。
-   - 当前窗口 Vault 用 <code>sessionStorage</code>；最近列表 / 上次路径用 <code>localStorage</code>。</p>
-<ol>
-<li><strong>精确标识符入库（arXiv / DOI 等）</strong> ✅ 魔棒路径</li>
-<li>[x] 支持输入 arXiv ID / URL 等（侧栏魔棒）。</li>
-<li>[x] Translator → <code>PaperMetadata</code> → catalog <code>papers</code> 表。</li>
-<li>[x] 写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code>。</li>
-<li>[x] <strong>始终下载 PDF</strong>；<strong>arXiv 解压 e-print LaTeX</strong> 到 <code>source/</code>。</li>
-<li>[x] 入库后刷新文件树并打开 paper；<strong>左侧树展开祖先并滚到新论文行</strong>（<code>openPaper</code> → <code>setTreeSelectedPath</code> + FileTree reveal）。</li>
-<li>[x] 入库后刷新 Backlinks/Graph 索引。</li>
-<li>[ ] 关键词/描述 Agent 候选列表确认。</li>
-</ol>
-<p>2b. <strong>魔棒 / Identifier Lookup（Translator）</strong> ✅ v0
-   - [x] UI：侧栏魔棒 → 粘贴链接或编号 → 加入 Papers。
-   - [x] 目标：<code>papers/</code> 或文件树当前选中的 Papers 子文件夹。
-   - [x] Host：<code>lookup_import</code> / <code>lookup_translator_config</code> / <code>paper_download_assets</code> / <code>paper_parse_body</code>。
-   - [x] 设置：<code>translatorBaseUrl</code>（默认 <code>https://translator.philfan.cn</code>）；<strong>无</strong>「是否本地下载」开关。
-   - [x] 文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 原因）。
-   - [x] 无 TeX + 有 PDF：下载后 liteparse 生成 <code>PAPER.md</code>（Download 路径内）。
-   - [x] 精读：设置 <code>autoPaperReader</code>（默认关）+ 魔棒/单篇 Download 自动；资源齐全且未读时 Zap 可手动 → <code>is_read</code>。
-   - [x] Library 行：库内任一篇仍缺资源 → 批量 Download。
-   - [x] 快捷键 <code>⇧⌘I</code>（打开魔棒）；本机 Translator sidecar 捆绑仍待。</p>
-<p>2c. <strong>论文库表格 UI</strong> ✅
-   - [x] 虚拟节点 <code>agentero:library</code>；中间栏 catalog 表（<code>paper_list</code>）。
-   - [x] 表头排序；横向/纵向滚动。
-   - [x] 仅具体论文时显示 Paper Info / Notes（Library 隐藏）。
-   - [x] Library 行批量补资源（与 2b 联动）。
-   - [x] <strong>Tags</strong>：Paper Info 增删 → <code>paper_set_tags</code>；Library 列展示 + chip 筛选。
-   - [x] <strong>Tags CLI</strong>：<code>paper set-tags</code> / <code>list --tag</code> / <code>tags</code>（与 Host 共用 <code>papers::set_tags</code>）。</p>
-<p>2c-2. <strong>论文库默认页 + 文件夹作用域库</strong> ✅
-   - [x] <strong>默认页</strong>：有 Vault 时默认全库；关空 tab → <code>ensureFullLibraryTab()</code>；仅剩全库时 <code>⌘W</code>/X 关窗。
-   - [x] <strong>文件夹作用域</strong>：非 paper 目录 → 展开树 + <strong>同一</strong> Library tab 上 <code>libraryScopePath</code> 前缀过滤（<strong>不</strong>为文件夹开新 tab）。
-   - [x] 单测 + latency：<code>test/library-scope.test.ts</code>。</p>
-<p>2d. <strong>文件树与侧栏 UX</strong> ✅
-   - [x] <strong>回收站虚拟节点</strong>：Library 下方 <code>agentero:trash</code>（不在侧栏 Header）；<code>RecycleBinView</code> 自持 <code>PaneHeader</code>（与侧栏同高）；中间栏不重复 title/关闭行。
-   - [x] <strong>选中同步 / 定位</strong>：激活文档与入库完成后树展开祖先并 <code>scrollToIndex</code>。
-   - [x] 在 Finder 中显示：右键 / <code>⌥⌘R</code>（<code>revealItemInDir</code>；无双击）。
-   - [x] 在终端中打开：右键 / <code>⌥⌘T</code>（文件夹 = 自身；文件 = 父目录；Host <code>path_open_in_terminal</code>）。
-   - [x] <strong>回收站删除</strong>：右键 / <code>⌘⌫</code> / 批量 → <code>path_trash</code>（无确认、无 Undo toast）；文件树虚拟节点 <code>agentero:trash</code> → 中间栏 <code>RecycleBinView</code> 恢复 / 永久删除 / 清空。
-   - [x] 多选（⌘/Shift 行高亮）+ 拖拽移动到 <code>papers/</code> 组织夹 + 批量移动对话框。
-   - [x] 左右侧栏 collapsible 常驻 + <code>preserve-pixel-size</code>（交替 <code>⌥⌘S</code> / <code>⌘L</code> 不重叠）。
-   - [x] 后台任务条（下载 / 入库 / 导入导出 / paper-reader；hover 实色不透明）。
-   - [x] 精读触发图标 <strong>Zap</strong>（非 Eye）；tooltip 单行。
-   - [x] <strong>Paper 行标签预设</strong>：默认标题 · 作者；设置 → 通用 <code>paperTreeLabelMode</code>（标题 / 作者(年)·标题 / 文件夹名）；展示用、不改磁盘名（<code>formatPaperTreeLabel</code>）。</p>
-<p>2e. <strong>PDF 阅读增强</strong> ✅
-   - [x] 缩放：+/- / 适应宽度 / <strong>适应整页</strong>；<code>⌘/Ctrl</code>+滚轮（0.5×–3×，100%=适应栏宽）；真实 scale 重渲染 + 放大后双向平移。
-   - [x] 页码导航：底部 pill + 跳转输入；<code>PageDown/PageUp</code> / <code>Home/End</code>。
-   - [x] 大纲（书签）左侧浮层；文档内查找 <code>⌘/Ctrl+F</code> + 命中高亮（<code>pdf-find.ts</code>）。
-   - [x] 平滑划词覆盖层（Zotero 风格；隐藏原生 <code>::selection</code> 行间缝隙）。
-   - [x] 划词操作菜单 MVP：高亮 / 批注 / 提问 / 翻译（见 3. PDF 划词提问）。
-   - [x] 本地 PDF 直接预览（优先本地 → 无本地时 <code>paper_download_assets</code> → 失败再远程 <code>pdf_url</code>）。</p>
-<p>2f. <strong>Markdown 内嵌图片</strong> ✅
-   - [x] 粘贴 / 工具栏插入 → <code>{mdDir}/assets/</code> + <code>![](./assets/…)</code>（<code>src/lib/markdown-image.ts</code>）。
-   - [x] 选中图片节点显示 Markdown 源码；未选中 <code>blob:</code> 预览。
-   - [x] 删除节点且引用计数归零时 GC managed assets 文件并刷新文件树。
-   - [x] 单测 + 文档（data-model / ui / technical-plan / test 冒烟表）。</p>
-<p>2g. <strong>Library Rescan</strong> ✅
-   - [x] Host <code>paper_rescan</code>：扫 <code>papers/</code> + <code>metadata.json</code> 补齐 catalog（盘上有、库内无）。
-   - [x] Library 空态 / 工具栏 Rescan 入口 + i18n。</p>
-<ol>
-<li><strong>Agent 工作流入口</strong></li>
-<li>[x] <strong>paper-reader 精读</strong>：设置 <code>autoPaperReader</code>（默认关）开启时入库/单篇 Download 自动；文件树 Zap 手动（资源齐全 + <code>is_read=false</code>）→ skill → <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度；<strong><code>hideFromChatHistory</code></strong>。</li>
-<li>[x] skill 运行时语法按 Agent 模板分流（Host <code>SkillMentionStyle</code>）。</li>
-<li>[x] <strong>全局权限模式</strong>：设置 → Agent（<code>restricted</code> / <code>autoApprove</code>），替代 per-provider YOLO。</li>
-<li>[x] 在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”（建议按钮接通后端 <code>summary</code>/<code>qa</code>/<code>related_work</code> workflow）。</li>
-<li>[ ] workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code>。</li>
-<li>[x] 输出必须包含 Sources（workflow prompt 已要求 <code>## Sources</code>）；写入前先进入草稿确认（写后审阅：<code>agent:notes-review</code> 保留/还原）。</li>
-<li>
-<p>[x] 权限「每次询问」档（<code>agentPermissionMode: ask</code> → <code>agent:permission-request</code> 对话框 + <code>agent_respond_permission</code>）；逐项确认 UI 同此。</p>
-</li>
-<li>
-<p><strong>文件与索引同步</strong></p>
-</li>
-<li>将最近 Vault、UI 偏好迁到 Tauri Store。</li>
-<li>[x] 文件监听（<code>notify</code> → <code>vault:file-changed</code>）：外部编辑器 / Agent 修改后自动重载当前打开的 <code>.md</code>/<code>NOTES.md</code> 与文件树；有未存改动时提示重载（不静默覆盖）。</li>
-<li>[x] 文件变更后防抖重建 wiki 双链 / Backlinks / Graph 索引（<code>scheduleWikiRebuild</code>，仅 <code>.md</code>，~900ms 防抖）。</li>
-<li>[x] 保存冲突检测：写盘前比对上次落盘内容，被外部修改则中止写入 + <code>notifyWarning</code>（<code>diskConflict.saveBlocked</code>），不静默覆盖本地未存改动。</li>
-</ol>
-<p>4b. <strong>Vault 采纳 / 现有文件夹发现（编程优先）</strong> — roadmap「Vault 采纳」
-   - 场景：用户 <strong>打开已有文件夹</strong>（非 Create Vault），自动 <strong>发现</strong> 是否已是 Agentero Vault、缺什么、盘上有哪些 paper/PDF 候选。
-   - [ ] 设计：<code>docs/development/vault-adopt.md</code>（发现报告 JSON、安全级/确认级动作、与 <code>vault_create</code> 边界）。
-   - [ ] Host：<code>vault_inspect</code>（只读报告）——结构、catalog、paper 单元、散落 PDF、与 catalog 漂移。
-   - [ ] Host：安全自动整理——缺 <code>papers|notes|plans|.agentero</code> 则补空目录；<code>ensure_catalog</code> + schema migrate；缺失则种子 <code>AGENTS.md</code> / bundled skills（<strong>不覆盖</strong>）。
-   - [ ] 打开文件夹 UX：就绪则静默；半结构/未知则横幅或对话框「可整理」，进度进后台任务条。
-   - [ ] 幂等：已就绪 Vault 重复打开不反复打扰。
-   - 路径：<strong>以编程为主</strong>；不确定命名/归类留给 P1 skill 或确认面板。</p>
-<ol>
-<li><strong>CLI（headless Vault 接口）</strong> — 设计 <a href="../cli/"><code>cli.md</code></a>；<strong>MVP 已落地</strong></li>
-<li>边界：<strong>无 BYOA / 无 Agent / 无 paper-reader</strong>；只做 Vault 管理、发现、暴露 + 文献基础能力。</li>
-<li>布局：仓库根 <strong><code>cli/</code></strong>（package <code>agentero-cli</code>，bin <code>agentero</code>）；根 Cargo workspace <code>members = ["src-tauri", "cli"]</code>。</li>
-<li>复用：<strong>不迁 core</strong>；path 依赖 <code>agentero_lib</code>，调用 <code>services::{vault,catalog,lookup,pdf_parse,wiki}</code>；禁止 <code>use …::agent</code>。</li>
-<li>[x] Workspace + scaffold <code>cli/</code>（clap、<code>--vault</code> / env / 上溯、<code>--json</code>、退出码）。</li>
-<li>[x] <code>vault create|which|info|check|use</code>（对齐 <code>vault_create</code> / catalog 初始化）。</li>
-<li>[x] <code>tree</code>；<code>paper list|get|paths|delete|set-read|set-tags|tags|download|parse</code>（<code>get</code>：<code>assets</code> + <code>suggestedReads</code>；<code>list --tag</code> AND）。</li>
-<li>[x] <code>import id|bib</code>、<code>export bib</code>（对齐 Host；<strong>不</strong>自动精读）。</li>
-<li>[x] 稳定 <code>error.code</code>；集成测试（临时 Vault + <code>--json</code> 契约，<code>cli/tests/cli_mvp.rs</code>）。</li>
-<li>[x] 按需放宽 service <code>pub</code>（<code>lib.rs</code> 导出 <code>services</code> / <code>error</code>；<code>list_by_id</code>）。</li>
-<li>[x] README / 本仓库开发说明：<code>cargo build -p agentero-cli</code>。</li>
-<li>
-<p>[x] Vault skill 模板：<code>templates/vault/.agents/skills/agentero-cli/SKILL.md</code>；Create Vault 种子；README Quick Start 已写协议。</p>
-</li>
-<li>
-<p><strong>运行日志（Logging）</strong> — <a href="../logging/"><code>logging.md</code></a>；<strong>P0 已落地</strong></p>
-</li>
-<li>分层：log（诊断）≠ <code>ApiResult</code> / CLI envelope ≠ <code>notifyError</code> / 任务条 / Agent error 行。</li>
-<li>栈：<code>tauri-plugin-log</code> + <code>log</code> + <code>@tauri-apps/plugin-log</code>；CLI <code>env_logger</code> / <code>RUST_LOG</code>；默认无远程遥测。</li>
-<li>[x] Host：插件注册、capabilities <code>log:default</code>、dev/release level 与 LogDir。</li>
-<li>[x] 前端：<code>src/lib/logger.ts</code> + <code>logOp</code>；ErrorBoundary 打 error。</li>
-<li>[x] <strong>关键操作成对</strong> <code>op start</code> / <code>op end</code>（<code>ok</code>、<code>duration_ms</code>）；<code>runBackgroundTask</code> 横切自动埋点。</li>
-<li>[x] Host 写/长耗时 command（vault、lookup、agent_run、trash、zotero、parse…）与 CLI 每命令 op 对。</li>
-<li>[x] 隐私：不写 Vault；不记 NOTES/PDF/prompt 全文（仅 path/id/len）。</li>
-<li>[ ] P1：设置「打开/导出日志文件夹」。</li>
-</ol>
+<h3 id="1-create-vault">1. Create Vault 初始化<a class="headerlink" href="#1-create-vault" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>Create Vault 初始化</strong>（整项）</li>
+<li>[x] 创建标准目录：<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agentero/</code>、<code>.agents/</code>、<code>.agents/skills/</code></li>
+<li>[x] 生成 Vault 内 <code>AGENTS.md</code> 模板；种子 <code>.agents/README.md</code>（<code>templates/vault/.agents/</code>）</li>
+<li>[x] 初始化 <code>.agentero/catalog.sqlite</code>（schema 当前版本，<code>path</code> 主键）</li>
+<li>[x] <strong>不</strong>默认生成 <code>PAPERS.md</code> / <code>library.bib</code>（导出能力另做）</li>
+<li>[x] 初始化后打开 <code>AGENTS.md</code></li>
+</ul>
+<h3 id="1b">1b. 多窗口与欢迎页<a class="headerlink" href="#1b" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>多窗口与欢迎页</strong>（整项）</li>
+<li>[x] <code>⌘N</code> / File → New Window → Host <code>window_new</code>（<code>?fresh=1</code>）</li>
+<li>[x] 无 Vault 欢迎页：最近路径 MRU + 打开 / 创建 / <strong>从 Zotero 迁移</strong>（同一行；迁移前先创建 Vault；无常驻说明文案）</li>
+<li>[x] 当前窗口 Vault 用 <code>sessionStorage</code>；最近列表 / 上次路径用 <code>localStorage</code></li>
+</ul>
+<h3 id="2-arxiv-doi">2. 精确标识符入库（arXiv / DOI 等）— 魔棒路径<a class="headerlink" href="#2-arxiv-doi" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>精确标识符入库（魔棒路径）</strong>（整项核心）</li>
+<li>[x] 支持输入 arXiv ID / URL 等（侧栏魔棒）</li>
+<li>[x] Translator → <code>PaperMetadata</code> → catalog <code>papers</code> 表</li>
+<li>[x] 写入默认 <code>NOTES.md</code>、空 <code>highlights.md</code></li>
+<li>[x] <strong>始终下载 PDF</strong>；<strong>arXiv 解压 e-print LaTeX</strong> 到 <code>source/</code></li>
+<li>[x] 入库后刷新文件树并打开 paper；<strong>左侧树展开祖先并滚到新论文行</strong>（<code>openPaper</code> → <code>setTreeSelectedPath</code> + FileTree reveal）</li>
+<li>[x] 入库后刷新 Backlinks/Graph 索引</li>
+<li>[ ] 关键词/描述 Agent 候选列表确认</li>
+</ul>
+<h3 id="2b-identifier-lookuptranslatorv0">2b. 魔棒 / Identifier Lookup（Translator）v0<a class="headerlink" href="#2b-identifier-lookuptranslatorv0" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>魔棒 / Identifier Lookup（Translator）v0</strong>（整项）</li>
+<li>[x] UI：侧栏魔棒 → 粘贴链接或编号 → 加入 Papers</li>
+<li>[x] 目标：<code>papers/</code> 或文件树当前选中的 Papers 子文件夹</li>
+<li>[x] Host：<code>lookup_import</code> / <code>lookup_translator_config</code> / <code>paper_download_assets</code> / <code>paper_parse_body</code></li>
+<li>[x] 设置：<code>translatorBaseUrl</code>（默认 <code>https://translator.philfan.cn</code>）；<strong>无</strong>「是否本地下载」开关</li>
+<li>[x] 文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 原因）</li>
+<li>[x] 无 TeX + 有 PDF：下载后 liteparse 生成 <code>PAPER.md</code>（Download 路径内）</li>
+<li>[x] 精读：设置 <code>autoPaperReader</code>（默认关）+ 魔棒/单篇 Download 自动；资源齐全且未读时 Zap 可手动 → <code>is_read</code></li>
+<li>[x] Library 行：库内任一篇仍缺资源 → 批量 Download</li>
+<li>[x] 快捷键 <code>⇧⌘I</code>（打开魔棒）</li>
+<li>[ ] 本机 Translator sidecar 捆绑</li>
+</ul>
+<h3 id="2c-ui">2c. 论文库表格 UI<a class="headerlink" href="#2c-ui" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>论文库表格 UI</strong>（整项）</li>
+<li>[x] 虚拟节点 <code>agentero:library</code>；中间栏 catalog 表（<code>paper_list</code>）</li>
+<li>[x] 表头排序；横向/纵向滚动</li>
+<li>[x] 仅具体论文时显示 Paper Info / Notes（Library 隐藏）</li>
+<li>[x] Library 行批量补资源（与 2b 联动）</li>
+<li>[x] <strong>Tags</strong>：Paper Info 增删 → <code>paper_set_tags</code>；Library 列展示 + chip 筛选</li>
+<li>[x] <strong>Tags CLI</strong>：<code>paper set-tags</code> / <code>list --tag</code> / <code>tags</code>（与 Host 共用 <code>papers::set_tags</code>）</li>
+</ul>
+<h3 id="2c-2">2c-2. 论文库默认页 + 文件夹作用域库<a class="headerlink" href="#2c-2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>论文库默认页 + 文件夹作用域库</strong>（整项）</li>
+<li>[x] <strong>默认页</strong>：有 Vault 时默认全库；关空 tab → <code>ensureFullLibraryTab()</code>；仅剩全库时 <code>⌘W</code>/X 关窗</li>
+<li>[x] <strong>文件夹作用域</strong>：非 paper 目录 → 展开树 + <strong>同一</strong> Library tab 上 <code>libraryScopePath</code> 前缀过滤（<strong>不</strong>为文件夹开新 tab）</li>
+<li>[x] 单测 + latency：<code>test/library-scope.test.ts</code></li>
+</ul>
+<h3 id="2d-ux">2d. 文件树与侧栏 UX<a class="headerlink" href="#2d-ux" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>文件树与侧栏 UX</strong>（整项）</li>
+<li>[x] <strong>回收站虚拟节点</strong>：Library 下方 <code>agentero:trash</code>（不在侧栏 Header）；<code>RecycleBinView</code> 自持 <code>PaneHeader</code>（与侧栏同高）；中间栏不重复 title/关闭行</li>
+<li>[x] <strong>选中同步 / 定位</strong>：激活文档与入库完成后树展开祖先并 <code>scrollToIndex</code></li>
+<li>[x] 在 Finder 中显示：右键 / <code>⌥⌘R</code>（<code>revealItemInDir</code>；无双击）</li>
+<li>[x] 在终端中打开：右键 / <code>⌥⌘T</code>（文件夹 = 自身；文件 = 父目录；Host <code>path_open_in_terminal</code>）</li>
+<li>[x] <strong>回收站删除</strong>：右键 / <code>⌘⌫</code> / 批量 → <code>path_trash</code>（无确认、无 Undo toast）；文件树虚拟节点 <code>agentero:trash</code> → 中间栏 <code>RecycleBinView</code> 恢复 / 永久删除 / 清空</li>
+<li>[x] 多选（⌘/Shift 行高亮）+ 拖拽移动到 <code>papers/</code> 组织夹 + 批量移动对话框</li>
+<li>[x] 左右侧栏 collapsible 常驻 + <code>preserve-pixel-size</code>（交替 <code>⌥⌘S</code> / <code>⌘L</code> 不重叠）</li>
+<li>[x] 后台任务条（下载 / 入库 / 导入导出 / paper-reader；hover 实色不透明）</li>
+<li>[x] 精读触发图标 <strong>Zap</strong>（非 Eye）；tooltip 单行</li>
+<li>[x] <strong>Paper 行标签预设</strong>：默认标题 · 作者；设置 → 通用 <code>paperTreeLabelMode</code>（标题 / 作者(年)·标题 / 文件夹名）；展示用、不改磁盘名（<code>formatPaperTreeLabel</code>）</li>
+</ul>
+<h3 id="2e-pdf">2e. PDF 阅读增强<a class="headerlink" href="#2e-pdf" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>PDF 阅读增强</strong>（整项）</li>
+<li>[x] 缩放：+/- / 适应宽度 / <strong>适应整页</strong>；<code>⌘/Ctrl</code>+滚轮（0.5×–3×，100%=适应栏宽）；真实 scale 重渲染 + 放大后双向平移</li>
+<li>[x] 页码导航：底部 pill + 跳转输入；<code>PageDown/PageUp</code> / <code>Home/End</code></li>
+<li>[x] 大纲（书签）左侧浮层；文档内查找 <code>⌘/Ctrl+F</code> + 命中高亮（<code>pdf-find.ts</code>）</li>
+<li>[x] 平滑划词覆盖层（Zotero 风格；隐藏原生 <code>::selection</code> 行间缝隙）</li>
+<li>[x] 划词操作菜单 MVP：高亮 / 批注 / 提问 / 翻译（见 P2「PDF 划词提问」）</li>
+<li>[x] 本地 PDF 直接预览（优先本地 → 无本地时 <code>paper_download_assets</code> → 失败再远程 <code>pdf_url</code>）</li>
+</ul>
+<h3 id="2f-markdown">2f. Markdown 内嵌图片<a class="headerlink" href="#2f-markdown" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>Markdown 内嵌图片</strong>（整项）</li>
+<li>[x] 粘贴 / 工具栏插入 → <code>{mdDir}/assets/</code> + <code>![](./assets/…)</code>（<code>src/lib/markdown-image.ts</code>）</li>
+<li>[x] 选中图片节点显示 Markdown 源码；未选中 <code>blob:</code> 预览</li>
+<li>[x] 删除节点且引用计数归零时 GC managed assets 文件并刷新文件树</li>
+<li>[x] 单测 + 文档（data-model / ui / technical-plan / test 冒烟表）</li>
+</ul>
+<h3 id="2g-library-rescan">2g. Library Rescan<a class="headerlink" href="#2g-library-rescan" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>Library Rescan</strong>（整项）</li>
+<li>[x] Host <code>paper_rescan</code>：扫 <code>papers/</code> + <code>metadata.json</code> 补齐 catalog（盘上有、库内无）</li>
+<li>[x] Library 空态 / 工具栏 Rescan 入口 + i18n</li>
+</ul>
+<h3 id="3-agent">3. Agent 工作流入口<a class="headerlink" href="#3-agent" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>paper-reader 精读</strong>：设置 <code>autoPaperReader</code>（默认关）开启时入库/单篇 Download 自动；文件树 Zap 手动（资源齐全 + <code>is_read=false</code>）→ skill → <code>NOTES.md</code> → <code>paper_set_is_read</code>；左下角任务进度；<strong><code>hideFromChatHistory</code></strong></li>
+<li>[x] skill 运行时语法按 Agent 模板分流（Host <code>SkillMentionStyle</code>）</li>
+<li>[x] <strong>全局权限模式</strong>：设置 → Agent（<code>restricted</code> / <code>ask</code> / <code>auto</code>），替代 per-provider YOLO</li>
+<li>[x] 在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”（建议按钮接通后端 <code>summary</code>/<code>qa</code>/<code>related_work</code> workflow）</li>
+<li>[ ] workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code></li>
+<li>[x] 输出必须包含 Sources（workflow prompt 已要求 <code>## Sources</code>）</li>
+<li>[x] 写后审阅：<code>agent:notes-review</code> 保留/还原（BYOA 写盘后对照；写前草稿拦截仍待）</li>
+<li>[x] 权限「每次询问」档（<code>agentPermissionMode: ask</code> → <code>agent:permission-request</code> 对话框 + <code>agent_respond_permission</code>）</li>
+</ul>
+<h3 id="4">4. 文件与索引同步<a class="headerlink" href="#4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 将最近 Vault、UI 偏好迁到 Tauri Store</li>
+<li>[x] 文件监听（<code>notify</code> → <code>vault:file-changed</code>）：外部编辑器 / Agent 修改后自动重载当前打开的 <code>.md</code>/<code>NOTES.md</code> 与文件树；有未存改动时提示重载（不静默覆盖）</li>
+<li>[x] 文件变更后防抖重建 wiki 双链 / Backlinks / Graph 索引（<code>scheduleWikiRebuild</code>，仅 <code>.md</code>，~900ms 防抖）</li>
+<li>[x] 保存冲突检测：写盘前比对上次落盘内容，被外部修改则中止写入 + <code>notifyWarning</code>（<code>diskConflict.saveBlocked</code>），不静默覆盖本地未存改动</li>
+</ul>
+<h3 id="4b-vault">4b. Vault 采纳 / 现有文件夹发现（编程优先）<a class="headerlink" href="#4b-vault" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <strong>Vault 采纳 / 现有文件夹发现</strong>（整项）</li>
+<li>[ ] 场景：用户 <strong>打开已有文件夹</strong>（非 Create Vault），自动 <strong>发现</strong> 是否已是 Agentero Vault、缺什么、盘上有哪些 paper/PDF 候选</li>
+<li>[ ] 设计：<code>docs/development/vault-adopt.md</code>（发现报告 JSON、安全级/确认级动作、与 <code>vault_create</code> 边界）</li>
+<li>[ ] Host：<code>vault_inspect</code>（只读报告）——结构、catalog、paper 单元、散落 PDF、与 catalog 漂移</li>
+<li>[ ] Host：安全自动整理——缺 <code>papers|notes|plans|.agentero</code> 则补空目录；<code>ensure_catalog</code> + schema migrate；缺失则种子 <code>AGENTS.md</code> / bundled skills（<strong>不覆盖</strong>）</li>
+<li>[ ] 打开文件夹 UX：就绪则静默；半结构/未知则横幅或对话框「可整理」，进度进后台任务条</li>
+<li>[ ] 幂等：已就绪 Vault 重复打开不反复打扰</li>
+<li>[ ] 路径：<strong>以编程为主</strong>；不确定命名/归类留给 P1 skill 或确认面板</li>
+</ul>
+<h3 id="5-cliheadless-vault-mvp">5. CLI（headless Vault 接口）— MVP<a class="headerlink" href="#5-cliheadless-vault-mvp" title="Permanent link">&para;</a></h3>
+<p>设计见 <a href="../cli/"><code>cli.md</code></a>。</p>
+<ul>
+<li>[x] <strong>CLI MVP</strong>（整项）</li>
+<li>[x] 边界：<strong>无 BYOA / 无 Agent / 无 paper-reader</strong>；只做 Vault 管理、发现、暴露 + 文献基础能力</li>
+<li>[x] 布局：仓库根 <strong><code>cli/</code></strong>（package <code>agentero-cli</code>，bin <code>agentero</code>）；根 Cargo workspace <code>members = ["src-tauri", "cli"]</code></li>
+<li>[x] 复用：<strong>不迁 core</strong>；path 依赖 <code>agentero_lib</code>，调用 <code>services::{vault,catalog,lookup,pdf_parse,wiki}</code>；禁止 <code>use …::agent</code></li>
+<li>[x] Workspace + scaffold <code>cli/</code>（clap、<code>--vault</code> / env / 上溯、<code>--json</code>、退出码）</li>
+<li>[x] <code>vault create|which|info|check|use</code>（对齐 <code>vault_create</code> / catalog 初始化）</li>
+<li>[x] <code>tree</code>；<code>paper list|get|paths|delete|set-read|set-tags|tags|download|parse</code>（<code>get</code>：<code>assets</code> + <code>suggestedReads</code>；<code>list --tag</code> AND）</li>
+<li>[x] <code>import id|bib</code>、<code>export bib</code>（对齐 Host；<strong>不</strong>自动精读）</li>
+<li>[x] 稳定 <code>error.code</code>；集成测试（临时 Vault + <code>--json</code> 契约，<code>cli/tests/cli_mvp.rs</code>）</li>
+<li>[x] 按需放宽 service <code>pub</code>（<code>lib.rs</code> 导出 <code>services</code> / <code>error</code>；<code>list_by_id</code>）</li>
+<li>[x] README / 本仓库开发说明：<code>cargo build -p agentero-cli</code></li>
+<li>[x] Vault skill 模板：<code>templates/vault/.agents/skills/agentero-cli/SKILL.md</code>；Create Vault 种子；README Quick Start 已写协议</li>
+</ul>
+<h3 id="6-logging-p0">6. 运行日志（Logging）— P0<a class="headerlink" href="#6-logging-p0" title="Permanent link">&para;</a></h3>
+<p>设计见 <a href="../logging/"><code>logging.md</code></a>。</p>
+<ul>
+<li>[x] <strong>运行日志 P0</strong>（整项）</li>
+<li>[x] 分层：log（诊断）≠ <code>ApiResult</code> / CLI envelope ≠ <code>notifyError</code> / 任务条 / Agent error 行</li>
+<li>[x] 栈：<code>tauri-plugin-log</code> + <code>log</code> + <code>@tauri-apps/plugin-log</code>；CLI <code>env_logger</code> / <code>RUST_LOG</code>；默认无远程遥测</li>
+<li>[x] Host：插件注册、capabilities <code>log:default</code>、dev/release level 与 LogDir</li>
+<li>[x] 前端：<code>src/lib/logger.ts</code> + <code>logOp</code>；ErrorBoundary 打 error</li>
+<li>[x] <strong>关键操作成对</strong> <code>op start</code> / <code>op end</code>（<code>ok</code>、<code>duration_ms</code>）；<code>runBackgroundTask</code> 横切自动埋点</li>
+<li>[x] Host 写/长耗时 command（vault、lookup、agent_run、trash、zotero、parse…）与 CLI 每命令 op 对</li>
+<li>[x] 隐私：不写 Vault；不记 NOTES/PDF/prompt 全文（仅 path/id/len）</li>
+<li>[ ] P1：设置「打开/导出日志文件夹」</li>
+</ul>
 <h2 id="p1">P1 — 中期增强<a class="headerlink" href="#p1" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>Catalog 导出与检索</strong></li>
-<li>[x] Library UI：Translator <code>/export</code> BibTeX + <code>/import</code> Bib/RIS（<code>paper_export</code> / <code>paper_import</code>）。</li>
-<li>[ ] <code>catalog:export_papers_md</code>（Markdown 表）等其它形态。</li>
-<li>[x] <strong>全库搜索 + 快速打开</strong>：命令面板 <code>⌘K</code>/<code>⌘P</code>（论文 quick-open + <code>vault_search</code> walk 全文；<code>SearchHit</code> 带片段/行号）；FTS5 可后续替换。</li>
-<li>
-<p>[ ] Agent 工作流临时导出 L1 列表；PDF 正文层检索；搜索历史 / 过滤。</p>
-</li>
-<li>
-<p><strong>本地 PDF importer</strong></p>
-</li>
-<li>[x] 文件选择 / 批量导入（魔棒弹层 <code>FileUp</code> → <code>paper_import_local_pdf</code>，多选）；拖拽待增强。</li>
-<li>[ ] DOI / arXiv ID 识别，元数据确认面板。</li>
-<li>[x] 生成 citekey slug（重复 <code>-2</code>/<code>-3</code>）、liteparse <code>PAPER.md</code>、<code>NOTES.md</code>；metadata 写入 catalog（type <code>pdf</code>）。</li>
-<li>[ ] 默认本地解析，MinerU BYOK 后可选云端解析。</li>
-<li>与 <strong>Vault 采纳</strong> 边界：importer = 用户显式导入源；采纳 = 整夹扫描改造。</li>
-</ol>
-<p>2b. <strong>Vault 采纳 / 整理（确认迁移 + Skill 可选）</strong> — 接 P0-4b
-   - [ ] 确认后改造：散落 PDF → <code>papers/&lt;id|citekey&gt;/</code> + NOTES 壳 + catalog upsert（复用 lookup/import 写盘纪律）。
-   - [ ] catalog ↔ 磁盘漂移修复（有盘无行 / 有行无盘的报告与可选清理索引）。
-   - [x] 历史 <code>metadata.json</code> → catalog 导入（<code>paper_rescan</code> / <code>rebuild_from_disk</code>；论文库空态「重新扫描」重建行）。
-   - [ ] <strong>Skill 路径</strong>：模板 <code>vault-organize</code>（或同名）——读 inspect 报告、提议移动/命名、经用户确认后落盘；触发 <code>$vault-organize</code> / <code>/vault-organize</code>。
-   - [ ] <strong>组合</strong>：编程产报告与执行机械步骤；Agent 只处理模糊归类；无 Agent 时确认面板仍可用。
-   - [ ] CLI（若 MVP 已有）：<code>vault inspect|adopt</code> 对齐 Host（命名实现时定）。
-   - [ ] 纪律：dry-run / 计划清单；禁止静默覆盖 NOTES、禁止无确认大删。</p>
-<ol>
-<li><strong>双链与图谱增强</strong></li>
-<li>源码编辑 <code>[[</code> 补全。</li>
-<li>Plate 内联 wikilink 节点，序列化仍保持 <code>[[...]]</code>。</li>
-<li>Graph 增加全屏/聚焦模式、邻居高亮、节点搜索。</li>
-<li>
-<p>双链边可写入 catalog 可重建表并支持增量重建。</p>
-</li>
-<li>
-<p><strong>工作区标签页与分屏</strong>（roadmap V0.6）</p>
-</li>
-<li>[x] 中间栏文档 <strong>标签栏</strong>：paper / MD / PDF / HTML / 图片 / Library 以 tab 打开，可关闭、切换、拖拽重排。</li>
-<li>[x] 每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；MD/NOTES 自动保存，关闭不丢内容。</li>
-<li>[x] <strong>默认页全库 + 文件夹作用域库</strong>（2c-2）。</li>
-<li>[ ] <strong>分屏</strong>：水平或垂直 2 格；每格独立内容（典型：PDF | NOTES，或两篇 paper 并排）。</li>
-<li>[x] 快捷键：关 tab <code>⌘W</code>（仅剩全库时关窗；File → Close 同源）/ 切 tab <code>⌥⌘→·⌥⌘←</code>；分屏随 split 补。</li>
-<li>[x] 文件树 / Library / Graph / Backlinks / wiki 跳转统一 <code>openTab</code>；同路径已开则聚焦。</li>
-<li>[x] 与 <code>⌘N</code> 多窗口隔离：每窗口独立 tab 集（<code>agentero-open-tabs</code>）；关窗/换 Vault 可恢复布局。</li>
-<li>[x] 全局操作错误 Toast（<code>notifyError</code>，右上角；替代侧栏 header 错误条）。</li>
-<li>
-<p>说明：Agent 面板内的 <strong>会话标签</strong> 已存在，与本项「文档标签」分开。</p>
-</li>
-<li>
-<p><strong>引用关系 / Connected Papers</strong>（roadmap V0.7）</p>
-</li>
-<li>[ ] <strong>文内引用 hover → 右侧 Paper Info</strong>：PDF/HTML/<code>PAPER.md</code> 中识别 <code>[n]</code> / Author-year / DOI·arXiv 链接；hover 时侧栏展示目标论文 Info（库内 path / 远程缓存 metadata、入库或打开）。</li>
-<li>[ ] <strong>引用图数据</strong>：cites / cited_by 可重建缓存（catalog 扩展表或 <code>.agentero/</code>）；外部 API 可插拔（Semantic Scholar / OpenAlex 等），失败可降级 TeX/参考文献解析。</li>
-<li>[ ] <strong>Connected Papers 式邻域 UI</strong>：以当前 paper 为中心展示引用/被引列表 + 简易图；节点可打开 / 入库 / 进阅读队列。</li>
-<li>
-<p>[ ] 与 V0.4 <strong>双链 Graph</strong> 区分：双链 = <code>[[wikilinks]]</code>；本项 = bibliographic 引用边。</p>
-</li>
-<li>
-<p><strong>Agent 引用与综述工作流</strong>（衔接 V0.3 面板入口 + V0.7）</p>
-</li>
-<li>[ ] 面板 workflow：<strong>Explore citations</strong>（沿引用/被引解释相关性、建议精读顺序）。</li>
-<li>[ ] 面板 workflow：<strong>Map related work</strong>（本地 NOTES + 引用图 → Related Work 骨架，含本地 path）。</li>
-<li>[ ] 面板 workflow：<strong>Ingest citation neighborhood</strong>（确认后批量魔棒入库邻居）。</li>
-<li>
-<p>[ ] 与「Summarize / Ask library / Draft Related Work」共用 prompt 注入与草稿确认路径。</p>
-</li>
-<li>
-<p><strong>CLI 增强</strong>（MVP 见 P0-5）</p>
-</li>
-<li>[ ] <code>graph backlinks|export|rebuild</code>（复用 wiki service；CLI 自管索引生命周期）。</li>
-<li>[ ] <code>doctor</code>（Translator / catalog schema / 路径；<strong>不</strong> probe Agent）。</li>
-<li>[ ] shell completions（bash / zsh / fish）。</li>
-<li>[ ] <code>export papers-md</code>（Host 落地 <code>catalog:export_papers_md</code> 后对齐）。</li>
-<li>
-<p>[x] Release 附带 <code>agentero</code> 二进制（与桌面安装包同草稿 Release；见 <code>release.yml</code>）。</p>
-</li>
-<li>
-<p><strong>Release 完善</strong></p>
-</li>
-<li>tag 构建已完成；后续补签名、公证、自动 changelog。</li>
-<li>同步 <code>package.json</code>、<code>src-tauri/tauri.conf.json</code> 和 tag 版本号。</li>
-<li>Release artifact 命名规范化，区分 macOS arch / Windows / Linux。</li>
-</ol>
+<h3 id="1-catalog">1. Catalog 导出与检索<a class="headerlink" href="#1-catalog" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] Library UI：Translator <code>/export</code> BibTeX + <code>/import</code> Bib/RIS（<code>paper_export</code> / <code>paper_import</code>）</li>
+<li>[ ] <code>catalog:export_papers_md</code>（Markdown 表）等其它形态</li>
+<li>[x] <strong>全库搜索 + 快速打开</strong>：命令面板 <code>⌘K</code>/<code>⌘P</code>（论文 quick-open + <code>vault_search</code> walk 全文；<code>SearchHit</code> 带片段/行号）；FTS5 可后续替换</li>
+<li>[ ] Agent 工作流临时导出 L1 列表；PDF 正文层检索；搜索历史 / 过滤</li>
+</ul>
+<h3 id="2-pdf-importer">2. 本地 PDF importer<a class="headerlink" href="#2-pdf-importer" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] 文件选择 / 批量导入（魔棒弹层 <code>FileUp</code> → <code>paper_import_local_pdf</code>，多选）</li>
+<li>[ ] 拖拽导入增强</li>
+<li>[ ] DOI / arXiv ID 识别，元数据确认面板</li>
+<li>[x] 生成 citekey slug（重复 <code>-2</code>/<code>-3</code>）、liteparse <code>PAPER.md</code>、<code>NOTES.md</code>；metadata 写入 catalog（type <code>pdf</code>）</li>
+<li>[ ] 默认本地解析，MinerU BYOK 后可选云端解析</li>
+<li>[x] 与 <strong>Vault 采纳</strong> 边界约定：importer = 用户显式导入源；采纳 = 整夹扫描改造</li>
+</ul>
+<h3 id="2b-vault-skill-p0-4b">2b. Vault 采纳 / 整理（确认迁移 + Skill 可选）— 接 P0-4b<a class="headerlink" href="#2b-vault-skill-p0-4b" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 确认后改造：散落 PDF → <code>papers/&lt;id|citekey&gt;/</code> + NOTES 壳 + catalog upsert（复用 lookup/import 写盘纪律）</li>
+<li>[ ] catalog ↔ 磁盘漂移修复（有盘无行 / 有行无盘的报告与可选清理索引）</li>
+<li>[x] 历史 <code>metadata.json</code> → catalog 导入（<code>paper_rescan</code> / <code>rebuild_from_disk</code>；论文库空态「重新扫描」重建行）</li>
+<li>[ ] <strong>Skill 路径</strong>：模板 <code>vault-organize</code>（或同名）——读 inspect 报告、提议移动/命名、经用户确认后落盘；触发 <code>$vault-organize</code> / <code>/vault-organize</code></li>
+<li>[ ] <strong>组合</strong>：编程产报告与执行机械步骤；Agent 只处理模糊归类；无 Agent 时确认面板仍可用</li>
+<li>[ ] CLI（若 MVP 已有）：<code>vault inspect|adopt</code> 对齐 Host（命名实现时定）</li>
+<li>[ ] 纪律：dry-run / 计划清单；禁止静默覆盖 NOTES、禁止无确认大删</li>
+</ul>
+<h3 id="3">3. 双链与图谱增强<a class="headerlink" href="#3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 源码编辑 <code>[[</code> 补全</li>
+<li>[ ] Plate 内联 wikilink 节点，序列化仍保持 <code>[[...]]</code></li>
+<li>[ ] Graph 增加全屏/聚焦模式、邻居高亮、节点搜索</li>
+<li>[ ] 双链边可写入 catalog 可重建表并支持增量重建</li>
+</ul>
+<h3 id="4-roadmap-v06">4. 工作区标签页与分屏（roadmap V0.6）<a class="headerlink" href="#4-roadmap-v06" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] 中间栏文档 <strong>标签栏</strong>：paper / MD / PDF / HTML / 图片 / Library 以 tab 打开，可关闭、切换、拖拽重排</li>
+<li>[x] 每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；MD/NOTES 自动保存，关闭不丢内容</li>
+<li>[x] <strong>默认页全库 + 文件夹作用域库</strong>（2c-2）</li>
+<li>[ ] <strong>分屏</strong>：水平或垂直 2 格；每格独立内容（典型：PDF | NOTES，或两篇 paper 并排）</li>
+<li>[x] 快捷键：关 tab <code>⌘W</code>（仅剩全库时关窗；File → Close 同源）/ 切 tab <code>⌥⌘→·⌥⌘←</code>；分屏随 split 补</li>
+<li>[x] 文件树 / Library / Graph / Backlinks / wiki 跳转统一 <code>openTab</code>；同路径已开则聚焦</li>
+<li>[x] 与 <code>⌘N</code> 多窗口隔离：每窗口独立 tab 集（<code>agentero-open-tabs</code>）；关窗/换 Vault 可恢复布局</li>
+<li>[x] 全局操作错误 Toast（<code>notifyError</code>，右上角；替代侧栏 header 错误条）</li>
+<li>[x] 说明：Agent 面板内的 <strong>会话标签</strong> 已存在，与本项「文档标签」分开</li>
+</ul>
+<h3 id="5-connected-papersroadmap-v07">5. 引用关系 / Connected Papers（roadmap V0.7）<a class="headerlink" href="#5-connected-papersroadmap-v07" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <strong>文内引用 hover → 右侧 Paper Info</strong>：PDF/HTML/<code>PAPER.md</code> 中识别 <code>[n]</code> / Author-year / DOI·arXiv 链接；hover 时侧栏展示目标论文 Info（库内 path / 远程缓存 metadata、入库或打开）</li>
+<li>[ ] <strong>引用图数据</strong>：cites / cited_by 可重建缓存（catalog 扩展表或 <code>.agentero/</code>）；外部 API 可插拔（Semantic Scholar / OpenAlex 等），失败可降级 TeX/参考文献解析</li>
+<li>[ ] <strong>Connected Papers 式邻域 UI</strong>：以当前 paper 为中心展示引用/被引列表 + 简易图；节点可打开 / 入库 / 进阅读队列</li>
+<li>[ ] 与 V0.4 <strong>双链 Graph</strong> 区分：双链 = <code>[[wikilinks]]</code>；本项 = bibliographic 引用边</li>
+</ul>
+<h3 id="6-agent-v03-v07">6. Agent 引用与综述工作流（衔接 V0.3 面板入口 + V0.7）<a class="headerlink" href="#6-agent-v03-v07" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 面板 workflow：<strong>Explore citations</strong>（沿引用/被引解释相关性、建议精读顺序）</li>
+<li>[ ] 面板 workflow：<strong>Map related work</strong>（本地 NOTES + 引用图 → Related Work 骨架，含本地 path）</li>
+<li>[ ] 面板 workflow：<strong>Ingest citation neighborhood</strong>（确认后批量魔棒入库邻居）</li>
+<li>[ ] 与「Summarize / Ask library / Draft Related Work」共用 prompt 注入与草稿确认路径</li>
+</ul>
+<h3 id="7-cli-mvp-p0-5">7. CLI 增强（MVP 见 P0-5）<a class="headerlink" href="#7-cli-mvp-p0-5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <code>graph backlinks|export|rebuild</code>（复用 wiki service；CLI 自管索引生命周期）</li>
+<li>[ ] <code>doctor</code>（Translator / catalog schema / 路径；<strong>不</strong> probe Agent）</li>
+<li>[ ] shell completions（bash / zsh / fish）</li>
+<li>[ ] <code>export papers-md</code>（Host 落地 <code>catalog:export_papers_md</code> 后对齐）</li>
+<li>[x] Release 附带 <code>agentero</code> 二进制（与桌面安装包同草稿 Release；见 <code>release.yml</code>）</li>
+</ul>
+<h3 id="8-release">8. Release 完善<a class="headerlink" href="#8-release" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] tag 构建已完成（<code>v*</code> → 三平台桌面安装包草稿 Release）</li>
+<li>[ ] 签名、公证、自动 changelog</li>
+<li>[ ] 同步 <code>package.json</code>、<code>src-tauri/tauri.conf.json</code> 和 tag 版本号</li>
+<li>[ ] Release artifact 命名规范化，区分 macOS arch / Windows / Linux</li>
+</ul>
 <h2 id="p2">P2 — 长期方向<a class="headerlink" href="#p2" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>Zotero/BibTeX 迁移工具</strong> 🟡</li>
-<li>[x] 一键从本地 Zotero 迁移：直读 <code>zotero.sqlite</code> + <code>storage/</code> → catalog，可选拷本地 PDF（<code>zotero_scan</code> / <code>zotero_migrate</code>；见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a> §16）。</li>
-<li>[ ] 解析 Zotero export / 独立 BibTeX 文件路径（Library 导入已覆盖 Bib/RIS 文本）。</li>
-<li>[x] 按 Zotero collection 还原文件夹层级（可选；collection 名写入 tags）。</li>
-<li>[x] 选择性导入指定 collection + 迁移前自愈 catalog 孤儿行（<code>prune_missing</code>）。</li>
-<li>[x] 迁移 Zotero 笔记（子笔记 HTML→Markdown 追加进 NOTES.md；<code>htmd</code>）。</li>
-<li>[x] 迁移 PDF 批注文本（高亮+评论→NOTES.md）+ 逐条选择/搜索 + 迁移进度 + 记住选项。</li>
-<li>[ ] 批注原位高亮渲染（highlights.md 系统）与引用 key 映射。</li>
-</ol>
-<p>1b. <strong>Zotero Connector 兼容服务</strong>（方案一）— 设计见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a> <strong>§4.5 覆盖总表</strong>
-   - [x] C0：设计文档（本机 <code>23119</code>、互斥 Zotero 桌面、默认关、MVP endpoints、映射与分期）。
-   - [x] C1：Host <code>services/connector</code> — <code>ping</code> / <code>saveItems</code> / <code>sessionProgress</code> + loopback 安全策略；复用 <code>map_zotero_item</code> 落盘。
-   - [x] C2：设置开关 <code>connectorEnabled</code> + <code>connector_get_status</code> / <code>connector_set_enabled</code> / <code>set_vault</code>；端口冲突 / 无 Vault UX；i18n。
-   - [x] C3：前端 <code>connector:item-saved</code> 刷新树/Library；退出释放端口；<code>api.md</code> 命令表。
-   - [x] C4a：catalog id 去重；URL 附件后台 <code>ensure_paper_assets</code>；防插件 15s 超时（NOTES 无实时 MT）。
-   - [x] C4a2：<code>getSelectedCollection.targets</code> 列出 <code>papers/</code> 组织子文件夹；<code>updateSession</code> 移动 paper；<code>connector_set_parent_dir</code> + Library 作用域同步。
-   - [x] C4b：<code>saveAttachment</code> 二进制上传协议（浏览器登录墙 PDF；<code>parentItemID</code>→paper；<code>%PDF</code> 校验；触发 PAPER.md）。
-   - [ ] C4c（P0）：<code>saveSnapshot</code> / <code>saveSingleFile</code>（可降级为元数据 + <code>html_url</code>）。
-   - [ ] C5a（P0）：<code>detailedCookies</code> 注入下载。
-   - [ ] C5b（P1）：<code>detect</code> / <code>savePage</code> / <code>selectItems</code>；<code>attachmentProgress</code>。
-   - [ ] C5c（可选）：<code>getTranslators</code> / proxies；可配置端口；<code>updateSession.tags</code> 写入 catalog。</p>
-<ol>
-<li><strong>用户友好的 Skills / Workflows</strong></li>
-<li>[x] 精读论文（paper-reader：文件树 Zap + catalog <code>is_read</code>）。</li>
-<li>[ ] 多篇对比（可与分屏 + 引用邻域联动）。</li>
-<li>[ ] Related Work 草稿（面板入口；与 V0.7 Map related work 可合并实现）。</li>
-<li>[ ] Explore citations / Ingest neighborhood（见 P1-6；完成后勾到此处）。</li>
-<li>[ ] Idea 批判性评估。</li>
-<li>
-<p>[ ] 实验复现清单。</p>
-</li>
-<li>
-<p><strong>PDF 划词提问（Selection Ask）</strong> — 设计见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a></p>
-</li>
-<li>[x] M1：划词弹出迷你问答卡。</li>
-<li>[x] M2：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code> 读写 + 页边圆片锚点（归一化坐标）。</li>
-<li>[x] M3：接入 ACP <code>agent_run_once</code> 流式多轮；结束会话落盘。</li>
-<li>[x] M4：双击 / 悬停停留触发 + 防误触（阈值暂固定 700ms）。</li>
-<li>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer。</li>
-<li>[x] M6：划词操作菜单（高亮 / 批注 / 提问 / 翻译）；高亮落盘 <code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code> + 覆盖层 + 点击删除；翻译复用问答卡走 Agent；去掉默认琥珀高亮，仅原生选区。</li>
-<li>[x] M7：Zotero 式批注 —「批注」= 建高亮 + 内联编辑器（<code>annotation-editor.tsx</code>）写可选 <code>comment</code>；页边批注针（<code>annotation-gutter.tsx</code>）；右侧「批注」面板（<code>annotations-panel.tsx</code>，活动 PDF tab）列卡、跳转闪烁、编辑 / 删除，经 <code>PdfViewerHandle</code> + <code>onHighlightsChange</code> 驱动；<strong>不写 <code>NOTES.md</code></strong>（旧追加行为已移除）。</li>
-</ol>
-<p>3b. <strong>翻译服务（Translate Service）</strong> — 设计见 <a href="../translate/"><code>translate.md</code></a>（应用级能力，非仅划词）
-   - [x] T0：设计文档（可插拔 <code>TranslateService</code>；首版 free + agent；设置 → 翻译页；消费方模型）。
-   - [x] T1：<code>src/lib/translate/</code> 注册表 + <code>agent</code> adapter；设置页 <strong>Translate</strong>（<code>provider</code> / <code>targetLang</code> / 自动译 / freeBaseUrl）；PDF 划词接服务层。
-   - [x] T2：Host <code>translate_text</code> + <code>free</code> adapter（内置 Google gtx 或 LibreTranslate URL）；默认 <code>provider=free</code>。
-   - [x] T3：PDF free 单次结果 / agent 流式；<code>autoTranslateSelection</code>；与 <code>translatorBaseUrl</code> 命名隔离。
-   - [x] T3.5 设计：翻译用 <strong>Agent 座 + 模型</strong> 最小选择（跟随默认 / 渐进披露；见 <a href="../translate/"><code>translate.md</code></a> §5.4 · §7.6）。
-   - [x] T3.6：实现 <code>translate.agentId</code> / <code>modelId</code> + Translate 页两行 Select + PDF <code>runOnce</code> 传参；临时探测脚本 <code>scripts/probe-translate-free.mjs</code>。
-   - [ ] T4+（可选）：更多 adapter（DeepL 等）/ 更多消费方（标题·摘要等）；<code>type: word</code> 词典。</p>
-<ol>
-<li><strong>PDF / HTML 标注系统</strong></li>
-<li>参考 Hypothesis 风格的边注、评论、锚点。</li>
-<li>[x] PDF 就地批注已落地（高亮 + <code>comment</code> + 页边针 + 右侧面板）；标注落 <code>highlights/*.json</code>。</li>
-<li>[ ] 标注正文进入 <code>highlights.md</code> / 导出到 <code>NOTES.md</code>（<strong>暂不做</strong>，可能的后续），坐标/锚点缓存可重建。</li>
-<li>[ ] PDF.js / HTML iframe 统一标注模型（HTML iframe 标注仍待）。</li>
-<li>
-<p>与划词提问（asks JSON）边界清晰，可互导。</p>
-</li>
-<li>
-<p><strong>更大范围导入</strong></p>
-</li>
-<li>DOI / 网页 importer 深化（魔棒已部分覆盖 DOI）。</li>
-<li>浏览器插件一键收集。</li>
-<li>
-<p>远程 PDF 链接入库。</p>
-</li>
-<li>
-<p><strong>引用图增强</strong></p>
-</li>
-<li>prior / derivative 布局、相似度聚类、跨库联合图（更深 Connected Papers 体验）。</li>
-<li>
-<p>作者、机构、会议关系图谱。</p>
-</li>
-<li>
-<p><strong>工作区增强</strong></p>
-</li>
-<li>超过 2 格的网格分屏；tab 固定（pin）、按 paper 分组。</li>
-<li>
-<p>命名工作区会话（保存/恢复一整套 tab + 分屏布局）。</p>
-</li>
-<li>
-<p><strong>多端与协作</strong></p>
-</li>
-<li>iPadOS 触控布局。</li>
-<li>Git 版本管理集成。</li>
-<li>
-<p>可选云同步与多设备阅读。</p>
-</li>
-<li>
-<p><strong>CLI domain 抽离（可选）</strong></p>
-</li>
-<li>仅当 CLI 体积 / 依赖边界成为问题时：从 <code>agentero_lib</code> 抽出无 Agent 的 <code>services</code> 到独立 crate。</li>
-<li><strong>当前不做</strong>；默认保持 <code>cli/</code> → path → <code>agentero_lib</code>。</li>
-</ol>
+<h3 id="1-zoterobibtex">1. Zotero/BibTeX 迁移工具<a class="headerlink" href="#1-zoterobibtex" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] 一键从本地 Zotero 迁移：直读 <code>zotero.sqlite</code> + <code>storage/</code> → catalog，可选拷本地 PDF（<code>zotero_scan</code> / <code>zotero_migrate</code>；见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a> §16）</li>
+<li>[ ] 解析 Zotero export / 独立 BibTeX 文件路径（Library 导入已覆盖 Bib/RIS 文本）</li>
+<li>[x] 按 Zotero collection 还原文件夹层级（可选；collection 名写入 tags）</li>
+<li>[x] 选择性导入指定 collection + 迁移前自愈 catalog 孤儿行（<code>prune_missing</code>）</li>
+<li>[x] 迁移 Zotero 笔记（子笔记 HTML→Markdown 追加进 NOTES.md；<code>htmd</code>）</li>
+<li>[x] 迁移 PDF 批注文本（高亮+评论→NOTES.md）+ 逐条选择/搜索 + 迁移进度 + 记住选项</li>
+<li>[ ] 批注原位高亮渲染（highlights.md 系统）与引用 key 映射</li>
+</ul>
+<h3 id="1b-zotero-connector">1b. Zotero Connector 兼容服务（方案一）<a class="headerlink" href="#1b-zotero-connector" title="Permanent link">&para;</a></h3>
+<p>设计见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a> <strong>§4.5 覆盖总表</strong>。</p>
+<ul>
+<li>[x] C0：设计文档（本机 <code>23119</code>、互斥 Zotero 桌面、默认关、MVP endpoints、映射与分期）</li>
+<li>[x] C1：Host <code>services/connector</code> — <code>ping</code> / <code>saveItems</code> / <code>sessionProgress</code> + loopback 安全策略；复用 <code>map_zotero_item</code> 落盘</li>
+<li>[x] C2：设置开关 <code>connectorEnabled</code> + <code>connector_get_status</code> / <code>connector_set_enabled</code> / <code>set_vault</code>；端口冲突 / 无 Vault UX；i18n</li>
+<li>[x] C3：前端 <code>connector:item-saved</code> 刷新树/Library；退出释放端口；<code>api.md</code> 命令表</li>
+<li>[x] C4a：catalog id 去重；URL 附件后台 <code>ensure_paper_assets</code>；防插件 15s 超时（NOTES 无实时 MT）</li>
+<li>[x] C4a2：<code>getSelectedCollection.targets</code> 列出 <code>papers/</code> 组织子文件夹；<code>updateSession</code> 移动 paper；<code>connector_set_parent_dir</code> + Library 作用域同步</li>
+<li>[x] C4b：<code>saveAttachment</code> 二进制上传协议（浏览器登录墙 PDF；<code>parentItemID</code>→paper；<code>%PDF</code> 校验；触发 PAPER.md）</li>
+<li>[ ] C4c（P0）：<code>saveSnapshot</code> / <code>saveSingleFile</code>（可降级为元数据 + <code>html_url</code>）</li>
+<li>[ ] C5a（P0）：<code>detailedCookies</code> 注入下载</li>
+<li>[ ] C5b（P1）：<code>detect</code> / <code>savePage</code> / <code>selectItems</code>；<code>attachmentProgress</code></li>
+<li>[ ] C5c（可选）：<code>getTranslators</code> / proxies；可配置端口；<code>updateSession.tags</code> 写入 catalog</li>
+</ul>
+<h3 id="2-skills-workflows">2. 用户友好的 Skills / Workflows<a class="headerlink" href="#2-skills-workflows" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] 精读论文（paper-reader：文件树 Zap + catalog <code>is_read</code>）</li>
+<li>[ ] 多篇对比（可与分屏 + 引用邻域联动）</li>
+<li>[x] Related Work 草稿（面板入口 → <code>related_work</code> workflow；与 V0.7 Map related work 可合并增强）</li>
+<li>[ ] Explore citations / Ingest neighborhood（见 P1-6；完成后勾到此处）</li>
+<li>[ ] Idea 批判性评估</li>
+<li>[ ] 实验复现清单</li>
+</ul>
+<h3 id="3-pdf-selection-ask">3. PDF 划词提问（Selection Ask）<a class="headerlink" href="#3-pdf-selection-ask" title="Permanent link">&para;</a></h3>
+<p>设计见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>。</p>
+<ul>
+<li>[x] M1：划词弹出迷你问答卡</li>
+<li>[x] M2：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code> 读写 + 页边圆片锚点（归一化坐标）</li>
+<li>[x] M3：接入 ACP <code>agent_run_once</code> 流式多轮；结束会话落盘</li>
+<li>[x] M4：双击 / 悬停停留触发 + 防误触（阈值暂固定 700ms）</li>
+<li>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer</li>
+<li>[x] M6：划词操作菜单（高亮 / 批注 / 提问 / 翻译）；高亮落盘 <code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code> + 覆盖层 + 点击删除；翻译复用问答卡走 Agent；去掉默认琥珀高亮，仅原生选区</li>
+<li>[x] M7：Zotero 式批注 —「批注」= 建高亮 + 内联编辑器（<code>annotation-editor.tsx</code>）写可选 <code>comment</code>；页边批注针（<code>annotation-gutter.tsx</code>）；右侧「批注」面板（<code>annotations-panel.tsx</code>，活动 PDF tab）列卡、跳转闪烁、编辑 / 删除，经 <code>PdfViewerHandle</code> + <code>onHighlightsChange</code> 驱动；<strong>不写 <code>NOTES.md</code></strong>（旧追加行为已移除）</li>
+</ul>
+<h3 id="3b-translate-service">3b. 翻译服务（Translate Service）<a class="headerlink" href="#3b-translate-service" title="Permanent link">&para;</a></h3>
+<p>设计见 <a href="../translate/"><code>translate.md</code></a>（应用级能力，非仅划词）。</p>
+<ul>
+<li>[x] T0：设计文档（可插拔 <code>TranslateService</code>；首版 free + agent；设置 → 翻译页；消费方模型）</li>
+<li>[x] T1：<code>src/lib/translate/</code> 注册表 + <code>agent</code> adapter；设置页 <strong>Translate</strong>（<code>provider</code> / <code>targetLang</code> / 自动译 / freeBaseUrl）；PDF 划词接服务层</li>
+<li>[x] T2：Host <code>translate_text</code> + <code>free</code> adapter（内置 Google gtx 或 LibreTranslate URL）；默认 <code>provider=free</code></li>
+<li>[x] T3：PDF free 单次结果 / agent 流式；<code>autoTranslateSelection</code>；与 <code>translatorBaseUrl</code> 命名隔离</li>
+<li>[x] T3.5 设计：翻译用 <strong>Agent 座 + 模型</strong> 最小选择（跟随默认 / 渐进披露；见 <a href="../translate/"><code>translate.md</code></a> §5.4 · §7.6）</li>
+<li>[x] T3.6：实现 <code>translate.agentId</code> / <code>modelId</code> + Translate 页两行 Select + PDF <code>runOnce</code> 传参；临时探测脚本 <code>scripts/probe-translate-free.mjs</code></li>
+<li>[ ] T4+（可选）：更多 adapter（DeepL 等）/ 更多消费方（标题·摘要等）；<code>type: word</code> 词典</li>
+</ul>
+<h3 id="4-pdf-html">4. PDF / HTML 标注系统<a class="headerlink" href="#4-pdf-html" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 参考 Hypothesis 风格的边注、评论、锚点（完整体系）</li>
+<li>[x] PDF 就地批注已落地（高亮 + <code>comment</code> + 页边针 + 右侧面板）；标注落 <code>highlights/*.json</code></li>
+<li>[ ] 标注正文进入 <code>highlights.md</code> / 导出到 <code>NOTES.md</code>（<strong>暂不做</strong>，可能的后续），坐标/锚点缓存可重建</li>
+<li>[ ] PDF.js / HTML iframe 统一标注模型（HTML iframe 标注仍待）</li>
+<li>[ ] 与划词提问（asks JSON）边界清晰，可互导</li>
+</ul>
+<h3 id="5">5. 更大范围导入<a class="headerlink" href="#5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] DOI / 网页 importer 深化（魔棒已部分覆盖 DOI）</li>
+<li>[ ] 浏览器插件一键收集</li>
+<li>[ ] 远程 PDF 链接入库</li>
+</ul>
+<h3 id="6">6. 引用图增强<a class="headerlink" href="#6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] prior / derivative 布局、相似度聚类、跨库联合图（更深 Connected Papers 体验）</li>
+<li>[ ] 作者、机构、会议关系图谱</li>
+</ul>
+<h3 id="7">7. 工作区增强<a class="headerlink" href="#7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 超过 2 格的网格分屏；tab 固定（pin）、按 paper 分组</li>
+<li>[ ] 命名工作区会话（保存/恢复一整套 tab + 分屏布局）</li>
+</ul>
+<h3 id="8">8. 多端与协作<a class="headerlink" href="#8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] iPadOS 触控布局</li>
+<li>[ ] Git 版本管理集成</li>
+<li>[ ] 可选云同步与多设备阅读</li>
+</ul>
+<h3 id="9-cli-domain">9. CLI domain 抽离（可选）<a class="headerlink" href="#9-cli-domain" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 仅当 CLI 体积 / 依赖边界成为问题时：从 <code>agentero_lib</code> 抽出无 Agent 的 <code>services</code> 到独立 crate</li>
+<li>[x] <strong>当前不做</strong>；默认保持 <code>cli/</code> → path → <code>agentero_lib</code>（已定为默认策略）</li>
+</ul>
 <hr />
 <h2 id="_1">已完成能力速览（对照现状）<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p>便于对照「还没做的新项」。细节与验收以 <a href="../roadmap/"><code>roadmap.md</code></a> 为准。</p>
-<table>
-<thead>
-<tr>
-<th>领域</th>
-<th>已完成</th>
-<th>未完成 / 进行中</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Vault / 工作台壳</td>
-<td>打开·创建 Vault、catalog 初始化、多窗口 ⌘N、欢迎页 MRU、文件树新建/Finder/<strong>回收站删除（中间栏浏览恢复，无 Undo toast）</strong>、多选拖拽、<code>notify</code> 文件监听、<strong>保存冲突检测</strong>（<code>diskConflict.saveBlocked</code>）、左右侧栏 collapsible、后台任务条、<strong>全局错误 Toast</strong>、<strong>统一运行日志</strong></td>
-<td>最近 Vault 迁 Tauri Store；<strong>打开已有夹自动发现/整理</strong>（P0-4b / P1-2b）；设置「打开/导出日志文件夹」</td>
-</tr>
-<tr>
-<td>中间内容</td>
-<td><strong>文档标签页</strong>（常驻挂载；<code>⌘W</code> / <code>⌥⌘←→</code>）；Library 表 + <strong>tags</strong> + <strong>Rescan</strong> + <strong>文件夹作用域</strong>；PDF / HTML / 图片 / Markdown WYSIWYG（内嵌图 → <code>./assets/</code>）；Notes 仅具体论文时显示</td>
-<td><strong>分屏</strong>（V0.6 余量）</td>
-</tr>
-<tr>
-<td>查找</td>
-<td><strong>命令面板 <code>⌘K</code>/<code>⌘P</code></strong>：论文 quick-open + <code>vault_search</code> 全文正文匹配（命中论文 → 打开论文）</td>
-<td>FTS5 索引、PDF 正文层检索、搜索历史 / 过滤</td>
-</tr>
-<tr>
-<td>入库</td>
-<td>魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md、<strong>本地 PDF 导入</strong>、<strong>非 arXiv 下载（浏览器 UA + Crossref 兜底）</strong>、Library 导入导出 Bib、<code>paper_set_tags</code>、<code>paper_rescan</code>、<strong>Zotero Connector MVP</strong>（含 <code>saveAttachment</code>）</td>
-<td>关键词/Agent 候选；本地 PDF 拖拽 / DOI 识别与元数据确认；MinerU 云端解析；Connector 快照/cookies</td>
-</tr>
-<tr>
-<td>Agent</td>
-<td>BYOA ACP Client、Codex 原生 thread、Sources、<strong>paper-reader</strong>（Zap + 可选自动默认关；<strong>不进对话历史</strong>）、<strong>权限三档</strong>（受限 / 每次询问 / 自动批准）、<strong>面板 workflow</strong>（summary / qa / related_work）、<strong>笔记写后审阅</strong> Keep/Revert、模型收藏、Skill 提及分流、<strong>禅模式左侧历史栏</strong></td>
-<td><code>AGENTS.md</code> 自动注入；写前草稿拦截；<strong>引用类 workflow</strong>（V0.7）</td>
-</tr>
-<tr>
-<td>双链 / Graph</td>
-<td><code>[[wikilink]]</code> 跳转、反链、缺失创建、Backlinks 下 Graph；<strong><code>.md</code> 变更防抖重建索引</strong></td>
-<td><code>[[</code> 补全、Plate 内联节点、Graph 全屏/邻居高亮；边级增量索引</td>
-</tr>
-<tr>
-<td>文献引用图</td>
-<td>—</td>
-<td><strong>hover 引用→Info、Connected Papers 邻域、引用边缓存</strong>（V0.7）</td>
-</tr>
-<tr>
-<td>PDF / 媒体</td>
-<td>任意路径预览；导航 / 适应宽·整页 / 大纲 / ⌘F；真实 scale + 平滑划词；操作菜单（asks + highlights JSON）</td>
-<td><code>highlights.md</code> 标注系统、M5</td>
-</tr>
-<tr>
-<td><strong>CLI</strong></td>
-<td><strong>MVP</strong>（<a href="../cli/"><code>cli.md</code></a>：<code>cli/</code>、workspace、<code>paper set-tags</code> / <code>tags</code>、无 BYOA）</td>
-<td>graph / doctor / completions（P1-7）；Release 附带二进制</td>
-</tr>
-<tr>
-<td>发布</td>
-<td>tag → 三平台草稿 Release</td>
-<td>签名/公证/changelog；可选附带 <code>agentero</code> bin</td>
-</tr>
-</tbody>
-</table>
+<h3 id="vault">Vault / 工作台壳<a class="headerlink" href="#vault" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] 打开·创建 Vault、catalog 初始化</li>
+<li>[x] 多窗口 ⌘N、欢迎页 MRU</li>
+<li>[x] 文件树新建/Finder/<strong>回收站删除</strong>（中间栏浏览恢复，无 Undo toast）</li>
+<li>[x] 多选拖拽、<code>notify</code> 文件监听</li>
+<li>[x] <strong>保存冲突检测</strong>（<code>diskConflict.saveBlocked</code>）</li>
+<li>[x] 左右侧栏 collapsible、后台任务条、<strong>全局错误 Toast</strong></li>
+<li>[x] <strong>统一运行日志</strong></li>
+<li>[ ] 最近 Vault 迁 Tauri Store</li>
+<li>[ ] <strong>打开已有夹自动发现/整理</strong>（P0-4b / P1-2b）</li>
+<li>[ ] 设置「打开/导出日志文件夹」</li>
+</ul>
+<h3 id="_2">中间内容<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>文档标签页</strong>（常驻挂载；<code>⌘W</code> / <code>⌥⌘←→</code>）</li>
+<li>[x] Library 表 + <strong>tags</strong> + <strong>Rescan</strong> + <strong>文件夹作用域</strong></li>
+<li>[x] PDF / HTML / 图片 / Markdown WYSIWYG（内嵌图 → <code>./assets/</code>）</li>
+<li>[x] Notes 仅具体论文时显示</li>
+<li>[ ] <strong>分屏</strong>（V0.6 余量）</li>
+</ul>
+<h3 id="_3">查找<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>命令面板 <code>⌘K</code>/<code>⌘P</code></strong>：论文 quick-open + <code>vault_search</code> 全文正文匹配（命中论文 → 打开论文）</li>
+<li>[ ] FTS5 索引、PDF 正文层检索、搜索历史 / 过滤</li>
+</ul>
+<h3 id="_4">入库<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] 魔棒精确 ID/URL、Translator、默认 PDF+arXiv TeX、补下、无 TeX→PAPER.md</li>
+<li>[x] <strong>本地 PDF 导入</strong>、<strong>非 arXiv 下载（浏览器 UA + Crossref 兜底）</strong></li>
+<li>[x] Library 导入导出 Bib、<code>paper_set_tags</code>、<code>paper_rescan</code></li>
+<li>[x] <strong>Zotero Connector MVP</strong>（含 <code>saveAttachment</code>）</li>
+<li>[ ] 关键词/Agent 候选</li>
+<li>[ ] 本地 PDF 拖拽 / DOI 识别与元数据确认</li>
+<li>[ ] MinerU 云端解析</li>
+<li>[ ] Connector 快照/cookies</li>
+</ul>
+<h3 id="agent">Agent<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] BYOA ACP Client、Codex 原生 thread、Sources</li>
+<li>[x] <strong>paper-reader</strong>（Zap + 可选自动默认关；<strong>不进对话历史</strong>）</li>
+<li>[x] <strong>权限三档</strong>（受限 / 每次询问 / 自动批准）</li>
+<li>[x] <strong>面板 workflow</strong>（summary / qa / related_work）</li>
+<li>[x] <strong>笔记写后审阅</strong> Keep/Revert</li>
+<li>[x] 模型收藏、Skill 提及分流、<strong>禅模式左侧历史栏</strong></li>
+<li>[ ] <code>AGENTS.md</code> 自动注入</li>
+<li>[ ] 写前草稿拦截</li>
+<li>[ ] <strong>引用类 workflow</strong>（V0.7）</li>
+</ul>
+<h3 id="graph">双链 / Graph<a class="headerlink" href="#graph" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <code>[[wikilink]]</code> 跳转、反链、缺失创建、Backlinks 下 Graph</li>
+<li>[x] <strong><code>.md</code> 变更防抖重建索引</strong></li>
+<li>[ ] <code>[[</code> 补全、Plate 内联节点、Graph 全屏/邻居高亮</li>
+<li>[ ] 边级增量索引</li>
+</ul>
+<h3 id="_5">文献引用图<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <strong>hover 引用→Info、Connected Papers 邻域、引用边缓存</strong>（V0.7）</li>
+</ul>
+<h3 id="pdf">PDF / 媒体<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] 任意路径预览；导航 / 适应宽·整页 / 大纲 / ⌘F</li>
+<li>[x] 真实 scale + 平滑划词；操作菜单（asks + highlights JSON）</li>
+<li>[ ] <code>highlights.md</code> 标注系统、M5</li>
+</ul>
+<h3 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] <strong>MVP</strong>（<a href="../cli/"><code>cli.md</code></a>：<code>cli/</code>、workspace、<code>paper set-tags</code> / <code>tags</code>、无 BYOA）</li>
+<li>[x] Release 附带 <code>agentero</code> 二进制</li>
+<li>[ ] graph / doctor / completions（P1-7）</li>
+</ul>
+<h3 id="_6">发布<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[x] tag → 三平台草稿 Release</li>
+<li>[ ] 签名/公证/changelog</li>
+<li>[ ] 可选 artifact 命名规范化</li>
+</ul>
               
             </div>
           </div><footer>
