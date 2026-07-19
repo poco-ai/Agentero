@@ -106,23 +106,17 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#5-json">5. 数据模型（JSON 落盘）</a>
         <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#51">5.1 路径约定</a>
+    <li class="toctree-l3"><a class="reference internal" href="#51">5.1 路径（唯一）</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#52-json-schema">5.2 线程 JSON Schema（逻辑）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#52-schema">5.2 Schema（逻辑）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#53-highlightsmd">5.3 与 highlights.md 的边界</a>
     </li>
         </ul>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#6">6. 前端模块划分（建议）</a>
+    <li class="toctree-l2"><a class="reference internal" href="#6">6. 前端模块</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#7-host-api">7. Host / API 契约（规划）</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#a-host-commands">A. Host commands（推荐）</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#b-plugin-fs">B. 前端 plugin-fs 直写</a>
-    </li>
-        </ul>
+    <li class="toctree-l2"><a class="reference internal" href="#7-agent-api">7. Agent / 翻译 API</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#8">8. 页边圆片布局算法</a>
     </li>
@@ -132,7 +126,7 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#11">11. 测试要点</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#12">12. 文档与代码入口（落地时同步）</a>
+    <li class="toctree-l2"><a class="reference internal" href="#12">12. 文档与代码入口</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#13">13. 决策摘要</a>
     </li>
@@ -177,15 +171,17 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="pdf-selection-ask">PDF 划词提问（Selection Ask）<a class="headerlink" href="#pdf-selection-ask" title="Permanent link">&para;</a></h1>
+                <h1 id="pdf-selection">PDF 划词（Selection：高亮 / 批注 / 提问 / 翻译）<a class="headerlink" href="#pdf-selection" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>MVP 已落地（前端 + 文件 IO）</strong>；划词现先弹<strong>操作菜单</strong>（高亮 / 批注 / 提问 / 翻译），不再默认套用琥珀高亮。<br />
-范围：阅读 PDF 时选中文本 → 选区操作菜单 → 分派到高亮（JSON 落盘）/ 批注（高亮 + 内联评论）/ 提问（迷你对话框）/ 翻译（轻量结果卡，仅展示译文）。提问线程 JSON 落盘 + 页边圆片回访（飞书式边注）；<strong>批注 = <code>comment</code> 非空的高亮</strong>，页边批注针 + 右侧「批注」面板回访。<br />
-实现入口：<code>src/components/viewer/pdf-viewer.tsx</code>、<code>src/components/viewer/pdf-ask/</code>（含 <code>selection-menu.tsx</code>、<code>highlight-layer.tsx</code>、<code>annotation-editor.tsx</code>、<code>annotation-gutter.tsx</code>）、<code>src/components/viewer/annotations-panel.tsx</code>、<code>src/lib/pdf-ask/</code>、<code>src/lib/pdf-highlight/</code>。<br />
-相关：<a href="../technical-plan/"><code>technical-plan.md</code></a> §3.4 阅读器、<a href="../translate/"><code>translate.md</code></a>（应用级翻译服务；本菜单为消费方之一）、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a> Agent 契约。</p>
+<p>状态：<strong>MVP 已落地（前端 + Vault 文件 IO）</strong>。<br />
+范围：阅读 PDF 时选中文本 → <strong>操作菜单</strong> → 高亮 / 批注 / 提问 / 翻译；共用 <strong><code>activeCard</code> + <code>SelectionCard</code> + <code>SelectionGutter</code></strong>。<br />
+<strong>落盘（唯一）</strong>：<code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code>，<code>kind</code> ∈ <code>highlight</code> | <code>ask</code> | <code>translate</code>（pretty JSON；<strong>无</strong> <code>asks/</code> / <code>highlights/</code> / <code>translates/</code> 兼容路径）。<br />
+批注 = <code>kind: highlight</code> 且 <code>comment</code> 非空；提问 / 翻译 / 批注均可页边针回访。<br />
+实现：<code>pdf-viewer.tsx</code>、<code>pdf-ask/*</code>、<code>lib/pdf-selection</code>（路径）、<code>lib/pdf-ask|pdf-highlight|pdf-translate</code>（类型与 IO）、<code>annotations-panel.tsx</code>。<br />
+相关：<a href="../technical-plan/"><code>technical-plan.md</code></a>、<a href="../translate/"><code>translate.md</code></a>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a>（问答复用 <code>agent_run_once</code>）。</p>
 </blockquote>
 <h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
-<p>在 <strong>中间栏 PDF 阅读</strong> 场景下，用户对论文原文发起「就地提问」，而不是先跳到右侧 Agent 面板再手工粘贴上下文。</p>
+<p>在 <strong>中间栏 PDF 阅读</strong> 场景下，对原文就地 <strong>高亮 / 批注 / 提问 / 翻译</strong>，结果全部落在论文目录的 <code>marks/</code> 下，可重开与回访。</p>
 <table>
 <thead>
 <tr>
@@ -196,31 +192,23 @@
 <tbody>
 <tr>
 <td><strong>划词</strong></td>
-<td>选中 PDF 文本后，在选区旁弹出<strong>操作菜单</strong>（5 色高亮 / 复制 / 批注 / 提问 / 翻译）；不默认高亮，只保留平滑蓝色选区覆盖层</td>
+<td>选中文本 → <strong>操作菜单</strong>（5 色高亮 / 复制 / 批注 / 提问 / 翻译）；平滑蓝色选区覆盖层</td>
 </tr>
 <tr>
 <td><strong>操作菜单</strong></td>
-<td>高亮→JSON 落盘（含 <code>color</code>，5 色调色板）并渲染半透明色带覆盖层；复制→复制选中原文（菜单内联「已复制」）；批注 / 提问 / 翻译共用 <strong><code>selection-card.tsx</code> 浮层壳</strong>（视口边缘 clamp、<code>maxHeight</code> 按剩余空间动态计算、body 可滚动，避免溢出窗口）：批注 = <code>annotation-editor.tsx</code>（原文摘录 + 笔记输入；取消=放弃修改不删高亮；保存写 <code>comment</code>）；提问 = <code>ask-popover.tsx</code>（对话 + 输入）；翻译 = <code>translate-card.tsx</code>（仅译文；free 单次 / agent 流式，见 <a href="../translate/"><code>translate.md</code></a>）</td>
+<td>共用框架；落盘 <strong><code>marks/&lt;id&gt;.json</code></strong>（<code>kind</code> 区分）；滚动/缩放 <strong>重定位</strong> 卡片不关闭</td>
 </tr>
 <tr>
-<td><strong>双击</strong></td>
-<td>双击打开对话框，输入框预填页码（不选词、不高亮整页）</td>
+<td><strong>双击 / 悬停</strong></td>
+<td>直接开提问卡（页码上下文；悬停有防误触阈值）</td>
 </tr>
 <tr>
-<td><strong>悬停停留</strong></td>
-<td>指针在某处静止超过阈值 (T)，弹出迷你问答卡</td>
-</tr>
-<tr>
-<td><strong>键入提问</strong></td>
-<td>卡内输入问题并发送（<code>runOnce</code> + <strong><code>hideFromChatHistory</code></strong>，不进 Agent 对话历史）；<strong>仅发送过问题的线程</strong>保留对话图标</td>
-</tr>
-<tr>
-<td><strong>对话图标</strong></td>
-<td>锚在选区附近；Hover 打开，离开约 1s 后隐藏</td>
+<td><strong>提问</strong></td>
+<td><code>runOnce</code> + <code>hideFromChatHistory</code>；有用户消息后保留页边提问针</td>
 </tr>
 <tr>
 <td><strong>回访</strong></td>
-<td>Hover 图标打开线程；隐藏 / 删除；点击已有高亮出现删除浮层</td>
+<td><code>SelectionGutter</code>：提问 Hover 打开；批注/翻译点击打开；Hide 留针、Delete 删盘</td>
 </tr>
 </tbody>
 </table>
@@ -235,12 +223,13 @@
 <h2 id="2">2. 与现有架构的关系<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
 <pre class="codehilite"><code class="language-text">中间栏 PdfViewer（react-pdf + pdf.js TextLayer）
         │
-        ├─ 选区 / 双击 / 悬停  →  AskTrigger
-        ├─ 迷你问答卡          →  AskPopover（AI Elements 子集）
-        ├─ 页边圆片层          →  AskGutter
-        │
-        ├─ 会话 IO             →  Host 读写 papers/&lt;id&gt;/asks/*.json
-        └─ 模型回答            →  既有 ACP Client（agent_run_once + 流式事件）
+        ├─ 划词 → SelectionMenu
+        ├─ activeCard: ask | annotate | translate
+        │     ├─ AskPopover / AnnotationEditor / TranslateCard（SelectionCard）
+        │     └─ 滚动/缩放 → placeActiveCard（不关卡）
+        ├─ SelectionGutter → 页边针
+        ├─ marks IO        → papers/&lt;id&gt;/marks/&lt;id&gt;.json
+        └─ 提问 / Agent 译 → agent_run_once + stream（hideFromChatHistory）
 </code></pre>
 
 <table>
@@ -252,28 +241,24 @@
 </thead>
 <tbody>
 <tr>
-<td><code>react-pdf</code> + <code>pdfjs-dist</code>（已开 <code>renderTextLayer</code>）</td>
-<td>选区与字符坐标来源</td>
+<td><code>react-pdf</code> TextLayer</td>
+<td>选区与坐标</td>
 </tr>
 <tr>
-<td><code>PdfViewer</code>（<code>src/components/viewer/pdf-viewer.tsx</code>）</td>
-<td>扩展为带交互层的阅读器，而非平行第二套渲染</td>
+<td><code>PdfViewer</code></td>
+<td>菜单 / activeCard / gutter / 落盘</td>
 </tr>
 <tr>
-<td>ACP / <code>agent_run_once</code> + <code>agent:stream</code> 等</td>
-<td>问答传输；<strong>不</strong>新建模型 SDK、<strong>不</strong>在 Agentero 存 API Key</td>
+<td>ACP <code>agent_run_once</code></td>
+<td>提问与可选 Agent 翻译</td>
 </tr>
 <tr>
-<td>AI Elements（Conversation / Message / PromptInput）</td>
-<td>迷你卡内消息列表与输入；传输仍是 ACP，不是 Vercel <code>useChat</code></td>
+<td>AI Elements</td>
+<td>提问卡 Conversation / PromptInput</td>
 </tr>
 <tr>
-<td>Paper 文件夹 / Vault 文件</td>
-<td>线程 JSON 落在 paper 目录，local-first</td>
-</tr>
-<tr>
-<td><code>highlights.md</code>（L2.5 标注）</td>
-<td><strong>首版不混写</strong>；可选后续把「值得保留的引文」导出为 highlight</td>
+<td>Vault 文件</td>
+<td><strong>仅</strong> <code>marks/*.json</code></td>
 </tr>
 </tbody>
 </table>
@@ -411,181 +396,156 @@ anchored   ── 写盘；页边圆片；popover 关闭
 <p><strong>互斥与边界</strong>：</p>
 <ul>
 <li>打开迷你卡时，不自动抢右侧 Agent 大面板焦点；可选「在 Agent 面板打开」升级路径（后续）。</li>
-<li>滚动 / 缩放时：popover 跟随锚点或临时隐藏，圆片重算 y。</li>
+<li>滚动 / 缩放时：activeCard <strong>跟随锚点重定位</strong>（不关闭）；页边针按归一化坐标重算。</li>
 <li>切换论文 / 关闭 Vault：flush 未保存消息后卸载层。</li>
 <li>悬停触发需 <strong>防误触</strong>：移动超过阈值像素则取消计时；编辑 NOTES 时不触发。</li>
 </ul>
 <h2 id="5-json">5. 数据模型（JSON 落盘）<a class="headerlink" href="#5-json" title="Permanent link">&para;</a></h2>
-<h3 id="51">5.1 路径约定<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
-<p>建议（与 paper 绑定、可备份、不进 catalog 权威表）：</p>
+<h3 id="51">5.1 路径（唯一）<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">papers/&lt;id&gt;/
   NOTES.md
-  highlights.md
-  asks/                    # 本功能
-    index.json             # 可选：线程目录（id、page、updatedAt）
-    &lt;threadId&gt;.json        # 单线程完整记录
-  highlights/              # 划词高亮 / 批注 JSON
-  translates/              # 翻译事件（阅读热力图；不存译文）
-  reading-meta.json        # 可选：PDF pageCount（热图跨度）
-  1706.03762.pdf
-  ...
+  marks/
+    &lt;id&gt;.json              # 必填 kind: ask | highlight | translate
+  reading-meta.json        # 可选：PDF pageCount（热图）
+  *.pdf
 </code></pre>
 
-<ul>
-<li><strong>事实来源</strong>：<code>asks/&lt;threadId&gt;.json</code>（人产生的问答）。</li>
-<li><strong>可选索引</strong>：<code>asks/index.json</code> 加速页边渲染（仅 id/page/y/preview）；丢失时可扫目录重建。</li>
-<li><strong>不</strong>把全文塞进 <code>.agentero/catalog.sqlite</code>；catalog 不承载对话正文。</li>
-</ul>
-<h3 id="52-json-schema">5.2 线程 JSON Schema（逻辑）<a class="headerlink" href="#52-json-schema" title="Permanent link">&para;</a></h3>
-<pre class="codehilite"><code class="language-ts">/** papers/&lt;id&gt;/asks/&lt;threadId&gt;.json */
+<table>
+<thead>
+<tr>
+<th>规则</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>目录</td>
+<td><strong>仅</strong> <code>marks/</code>；不使用 <code>asks/</code>、<code>highlights/</code>、<code>translates/</code></td>
+</tr>
+<tr>
+<td>格式</td>
+<td>pretty JSON；便于 Git diff</td>
+</tr>
+<tr>
+<td>判别</td>
+<td>每条 <strong><code>kind</code> 必填</strong>；解析时 <code>kind</code> 不符则丢弃</td>
+</tr>
+<tr>
+<td>catalog</td>
+<td><strong>不</strong>把正文写入 SQLite</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-schema">5.2 Schema（逻辑）<a class="headerlink" href="#52-schema" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-ts">/** papers/&lt;id&gt;/marks/&lt;id&gt;.json */
+
+// kind: &quot;ask&quot;
 interface PdfAskThread {
   version: 1;
-  id: string;                 // nanoid
-  paperPath: string;          // vault 相对路径
-  createdAt: string;          // ISO 8601
+  kind: &quot;ask&quot;;
+  id: string;
+  paperPath: string;
+  createdAt: string;
   updatedAt: string;
   status: &quot;open&quot; | &quot;ended&quot;;
-
-  /** 锚点：可重建 UI 位置 */
   anchor: {
-    page: number;             // 1-based
-    /** 0–1 归一化矩形，相对该页 viewport */
-    rects: { x: number; y: number; w: number; h: number }[];
-    /** 划词原文；双击/悬停可为空或短上下文 */
+    page: number;
+    rects: { x: number; y: number; w: number; h: number }[]; // 0–1
     quote?: string;
-    /** 触发方式，便于分析与调试 */
     trigger: &quot;selection&quot; | &quot;dblclick&quot; | &quot;dwell&quot;;
   };
-
-  messages: PdfAskMessage[];
+  messages: {
+    id: string;
+    role: &quot;user&quot; | &quot;assistant&quot; | &quot;system&quot;;
+    content: string;
+    createdAt: string;
+    agentSessionId?: string;
+  }[];
 }
 
-interface PdfAskMessage {
+// kind: &quot;highlight&quot;（comment 非空 = 批注）
+interface PdfHighlight {
+  version: 1;
+  kind: &quot;highlight&quot;;
   id: string;
-  role: &quot;user&quot; | &quot;assistant&quot; | &quot;system&quot;;
-  content: string;
+  paperPath: string;
   createdAt: string;
-  /** 可选：ACP session / message 关联，便于调试 */
-  agentSessionId?: string;
-  sources?: { title?: string; uri?: string }[];
+  updatedAt: string;
+  page: number;
+  rects: { x: number; y: number; w: number; h: number }[];
+  quote: string;
+  color?: string;   // yellow|green|blue|pink|purple
+  comment?: string;
+}
+
+// kind: &quot;translate&quot;
+interface PdfTranslateRecord {
+  version: 1;
+  kind: &quot;translate&quot;;
+  id: string;
+  paperPath: string;
+  createdAt: string;
+  updatedAt?: string;
+  page: number;
+  rects: { x: number; y: number; w: number; h: number }[];
+  quote?: string;
+  result?: string;
+  error?: string;
 }
 </code></pre>
 
+<p>实现：<code>src/lib/pdf-selection/marks-io.ts</code>（路径）+ 各 <code>parse*</code> / <code>list*</code> / <code>write*</code>。</p>
 <h3 id="53-highlightsmd">5.3 与 <code>highlights.md</code> 的边界<a class="headerlink" href="#53-highlightsmd" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th></th>
-<th><code>asks/*.json</code></th>
-<th><code>highlights.md</code></th>
+<th><code>marks/*.json</code></th>
+<th><code>highlights.md</code>（规划）</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>目的</td>
-<td>多轮就地问答</td>
-<td>引文 + 想法证据层</td>
+<td>阅读器标注/问答/翻译（运行时事实来源）</td>
+<td>便携 Markdown 引文证据层</td>
 </tr>
 <tr>
-<td>形态</td>
-<td>JSON 线程</td>
-<td>Markdown 块引用</td>
-</tr>
-<tr>
-<td>首版</td>
-<td><strong>本功能唯一落盘</strong></td>
-<td>不自动写入</td>
+<td>默认</td>
+<td><strong>读写均用 marks</strong></td>
+<td><strong>不自动写入</strong></td>
 </tr>
 <tr>
 <td>后续</td>
-<td>「保存为标注」可导出 quote+comment</td>
-<td>Agent/笔记引用 <code>^id</code></td>
+<td>可选导出 quote+comment</td>
+<td>Agent/双链 <code>^id</code></td>
 </tr>
 </tbody>
 </table>
-<h2 id="6">6. 前端模块划分（建议）<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h2 id="6">6. 前端模块<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
 <pre class="codehilite"><code class="language-text">src/components/viewer/
-  pdf-viewer.tsx              # 现有；挂载交互层与 gutter；暴露命令式 `PdfViewerHandle`
-                             #   （getHighlights / scrollToHighlight / editComment / deleteHighlight）
-                             #   + `onHighlightsChange` 回调，App.tsx 按 tab 保存 handle + highlights 驱动面板
-  annotations-panel.tsx       # 右侧「批注」tab：总览**当前活动 PDF tab** 的全部高亮/批注卡（颜色色条 + 页码 + 引文 + 可选评论）；点击跳转、悬停改注/删除；
-                             #   点击卡片滚动到原文并闪烁；卡片可编辑 / 删除
+  pdf-viewer.tsx                 # SelectionMenu + activeCard + gutter + IO
+  annotations-panel.tsx          # 右侧批注/提问总览
   pdf-ask/
-    ask-layer.tsx             # 捕获 selection / dblclick / dwell
-    ask-popover.tsx           # 迷你对话框（消息 + 输入）
-    ask-gutter.tsx            # 右侧圆片列表
-    ask-highlight.tsx         # 选区/已锚定高亮 overlay（可选）
-    annotation-editor.tsx     # 内联评论编辑器（选区旁 popover；新建/读取/编辑批注）
-    annotation-gutter.tsx     # 页边**批注针**（仅 comment 非空的高亮）；点击打开内联编辑器
-    use-pdf-geometry.ts       # DOMRect ↔ 归一化坐标
-    use-pdf-ask-store.ts      # 当前 paper 的 threads 加载/保存
-src/lib/pdf-ask/
-  types.ts
-  schema.ts                   # 校验 version / 字段
-  prompt.ts                   # 组装发给 Agent 的 prompt（含 quote/page）
+    selection-menu.tsx
+    selection-card.tsx           # 共用浮层（lockHeight 等）
+    selection-gutter.tsx         # 共用页边针
+    ask-popover.tsx | annotation-editor.tsx | translate-card.tsx
+    highlight-layer.tsx | highlight-menu.tsx
+src/lib/pdf-selection/           # marks-io + pin + ActiveSelectionCard
+src/lib/pdf-ask|pdf-highlight|pdf-translate/
 </code></pre>
 
-<p><strong>UI 约定</strong>（对齐 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>）：</p>
+<p><strong>UI</strong>：i18n <code>viewer</code>；图标 + Tooltip；卡片 Esc/收起/删除；滚动重定位。</p>
+<h2 id="7-agent-api">7. Agent / 翻译 API<a class="headerlink" href="#7-agent-api" title="Permanent link">&para;</a></h2>
+<p>落盘 <strong>不</strong>经 Host <code>pdf_ask_*</code> command（当前前端 <code>plugin-fs</code> + <code>marks-io</code>）。</p>
+<p><strong>提问 / Agent 翻译</strong>复用：</p>
 <ul>
-<li>圆片：小尺寸、低对比；Hover Tooltip 显示 quote 截断 + 首问摘要。</li>
-<li>提问框：圆角矩形，只保留模型选择和发送按钮，上方是对话框</li>
-<li>迷你卡：限制最大高度，内部滚动；底部输入；结束/关闭为图标按钮 + <code>aria-label</code>。</li>
-<li>文案全部 i18n（建议 namespace <code>viewer</code> 或新建 <code>pdfAsk</code>）。</li>
+<li><code>agent_run_once</code>（<code>hideFromChatHistory: true</code>）</li>
+<li><code>agent:stream</code> / <code>agent:completed</code> / <code>agent:failed</code></li>
+<li>提问 prompt：<code>src/lib/pdf-ask/prompt.ts</code>；Agent/模型：<code>settings.pdfAsk</code></li>
+<li>翻译：应用级 <code>translate</code> 服务（免费 MT 或 BYOA Agent，见 <a href="../translate/"><code>translate.md</code></a>）</li>
 </ul>
-<h2 id="7-host-api">7. Host / API 契约（规划）<a class="headerlink" href="#7-host-api" title="Permanent link">&para;</a></h2>
-<p>首版可两路径之一（实现时二选一，推荐 A 以统一权限与路径校验）：</p>
-<h3 id="a-host-commands">A. Host commands（推荐）<a class="headerlink" href="#a-host-commands" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Command</th>
-<th>作用</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>pdf_ask_list</code></td>
-<td><code>{ paperPath }</code> → 线程摘要列表（供 gutter）</td>
-</tr>
-<tr>
-<td><code>pdf_ask_read</code></td>
-<td><code>{ paperPath, threadId }</code> → 完整线程</td>
-</tr>
-<tr>
-<td><code>pdf_ask_write</code></td>
-<td><code>{ paperPath, thread }</code> → 原子写 <code>asks/&lt;id&gt;.json</code> + 更新 index</td>
-</tr>
-<tr>
-<td><code>pdf_ask_delete</code></td>
-<td><code>{ paperPath, threadId }</code></td>
-</tr>
-</tbody>
-</table>
-<p>写盘规则：仅 Vault 内路径；不覆盖用户其他文件；JSON pretty-print 便于 Git diff。</p>
-<h3 id="b-plugin-fs">B. 前端 <code>plugin-fs</code> 直写<a class="headerlink" href="#b-plugin-fs" title="Permanent link">&para;</a></h3>
-<ul>
-<li>实现快，但路径校验与原子写分散；多窗口并发时更易冲突。  </li>
-<li>若采用，仍须集中在 <code>src/lib/pdf-ask/io.ts</code>，后续可无痛迁 Host。</li>
-</ul>
-<p><strong>问答</strong>复用既有：</p>
-<ul>
-<li><code>agent_run_once</code>：<code>prompt</code> 由 <code>prompt.ts</code> 注入 quote / page / 用户问题。</li>
-<li>事件：<code>agent:stream</code> / <code>agent:completed</code> / <code>agent:failed</code>（窗口定向不变）。</li>
-</ul>
-<p><strong>Prompt 骨架（示意）</strong>：</p>
-<pre class="codehilite"><code class="language-text">你在帮助用户阅读论文 PDF。
-页码: {page}
-对应的原文路径在{这里写tex路径或PAPER.md路径}
-引用原文:
-&gt; {quote}
-
-用户问题:
-{question}
-
-请基于引用作答；不确定时明确说明。回答简洁，必要时分点。
-</code></pre>
-
-<p>可选增强：附加 <code>NOTES.md</code> 摘要或 <code>PAPER.md</code> 邻近段落（需 Host 读文件，注意 token 预算）。</p>
 <h2 id="8">8. 页边圆片布局算法<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
 <ol>
 <li>每页右侧预留 gutter（CSS：<code>page</code> 容器 <code>position: relative</code>，圆片 <code>absolute; right: -Npx</code> 或贴白边内侧）。</li>
@@ -638,7 +598,7 @@ src/lib/pdf-ask/
 </tr>
 <tr>
 <td><strong>M6 选区菜单</strong></td>
-<td>划词弹菜单：高亮（<code>highlights/*.json</code>）/ 批注 / 提问 / 翻译；去掉默认琥珀高亮</td>
+<td>划词弹菜单：高亮 / 批注 / 提问 / 翻译 → 统一 <code>marks/*.json</code>；去掉默认琥珀高亮</td>
 <td>四项可用；高亮重开对齐并可删除</td>
 <td>✅</td>
 </tr>
@@ -693,22 +653,21 @@ src/lib/pdf-ask/
 <li>集成：mock <code>agent:stream</code> 完成一轮后文件存在且可再读。</li>
 <li>手工：长 PDF 滚动、窗口缩放、中英混排选区、双栏论文（rects 多段）。</li>
 </ul>
-<h2 id="12">12. 文档与代码入口（落地时同步）<a class="headerlink" href="#12" title="Permanent link">&para;</a></h2>
-<p>实现时需同步：</p>
+<h2 id="12">12. 文档与代码入口<a class="headerlink" href="#12" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>：增加 <code>asks/</code> 文件约定与类型。</li>
-<li><a href="../../backend/api/"><code>../backend/api.md</code></a>：<code>pdf_ask_*</code> 与 Agent prompt 约定。</li>
-<li><a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>：PDF 中间栏交互与圆片规则。</li>
-<li><a href="../roadmap/"><code>roadmap.md</code></a> / <a href="../todo/"><code>todo.md</code></a>：勾选进度。</li>
+<li><a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>：<code>marks/</code> 约定  </li>
+<li><a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>：PDF 划词 UI  </li>
+<li><a href="../translate/"><code>translate.md</code></a>：翻译服务  </li>
+<li><a href="../roadmap/"><code>roadmap.md</code></a> / <a href="../todo/"><code>todo.md</code></a></li>
 </ul>
 <h2 id="13">13. 决策摘要<a class="headerlink" href="#13" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>渲染</strong>：继续 <code>react-pdf</code> TextLayer，不引入第二套 PDF 引擎。  </li>
-<li><strong>交互</strong>：选区 / 双击 / 悬停三触发 → 迷你问答卡 → 结束变页边圆片。  </li>
-<li><strong>存储</strong>：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>（用户要求的 JSON）；坐标归一化可重建。  </li>
-<li><strong>智能</strong>：复用 ACP BYOA，不在 Agentero 内嵌模型 Key。  </li>
-<li><strong>UI</strong>：AI Elements + shadcn；飞书式边注心智，不做完整批注产品首版。  </li>
-<li><strong>与 highlights</strong>：分离；后续可选导出。</li>
+<li><strong>渲染</strong>：<code>react-pdf</code> TextLayer。  </li>
+<li><strong>交互</strong>：划词菜单 + 统一 activeCard；页边针回访。  </li>
+<li><strong>存储</strong>：<strong>仅</strong> <code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code> + <code>kind</code>；坐标 0–1 归一化。  </li>
+<li><strong>智能</strong>：ACP BYOA；不在应用内嵌模型 Key。  </li>
+<li><strong>UI</strong>：SelectionCard / Gutter + AI Elements 提问卡。  </li>
+<li><strong><code>highlights.md</code></strong>：可选将来导出，非运行时事实来源。</li>
 </ol>
               
             </div>

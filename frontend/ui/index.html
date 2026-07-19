@@ -455,7 +455,7 @@
 <li><strong>性能</strong>：全库一次 <code>paper_list</code>；切文件夹仅改 scope + filter；见 <code>test/library-scope.test.ts</code> latency。</li>
 <li><strong>数据</strong>：Host <code>paper_list</code> → catalog.sqlite。<strong>catalog 权威</strong>；空态「重新扫描 papers/」（<code>paper_rescan</code>）。</li>
 <li><strong>列</strong>：标题、作者、年份、<strong>标签</strong>、类型、标识符、<strong>阅读热力图</strong>；<strong>单击</strong>单元格复制对应字段（作者复制完整列表，非 et al. 缩写；标题下出版物单独可复制；行内标签 chip 复制该标签）；<strong>双击</strong>行打开对应 paper 文件夹。</li>
-<li><strong>阅读热力图</strong>：聚合该篇 <code>highlights/</code>（划词高亮/批注）、<code>asks/</code>（对话）、<code>translates/</code>（翻译）的<strong>页码 + 页内 y</strong>，画成横向文档脊条（左=文首、右=文末；强度用主题 <code>primary</code> 的 <code>color-mix</code>，随 light/dark 变化）。可选 <code>reading-meta.json</code> 记录 PDF 总页数以对齐全文跨度；无元数据时用活动最大页。全库与文件夹作用域均显示。实现：<code>src/lib/reading-heatmap/</code>、<code>ReadingHeatmapBar</code>。</li>
+<li><strong>阅读热力图</strong>：聚合该篇 <code>marks/</code>（<code>kind</code>: highlight / ask / translate）的<strong>页码 + 页内 y</strong>，画成横向文档脊条（左=文首、右=文末；强度用主题 <code>primary</code> 的 <code>color-mix</code>，随 light/dark 变化）。可选 <code>reading-meta.json</code> 记录 PDF 总页数以对齐全文跨度；无元数据时用活动最大页。全库与文件夹作用域均显示。实现：<code>src/lib/reading-heatmap/</code>、<code>ReadingHeatmapBar</code>。</li>
 <li><strong>标签筛选</strong>：表上方汇总<strong>当前作用域</strong> tag chip 做筛选；行内 tag 单击复制该标签。标题搜索同时匹配 tag 子串。</li>
 <li><strong>排序</strong>：点击表头升序 / 降序；年份列首次为降序；文字列默认升序。</li>
 <li><strong>滚动</strong>：<code>.agentero-scroll-both</code>；表格 <code>w-max min-w-full</code>。</li>
@@ -533,8 +533,7 @@
 <li><strong>PDF 沉浸式阅读</strong>（工具栏 <code>Maximize2</code> 进入 / <code>Minimize2</code> 或 <code>Esc</code> 退出）：折叠左右侧栏 + 隐藏中间栏头，PDF 铺满窗口；正文<strong>限宽 ≤ 1100px 居中</strong>（舒适阅读 + 两侧留白），缩放 / 页码 / 大纲 / 查找浮层照常；切到非 PDF tab 自动退出。i18n <code>viewer:pdf.zenEnter/zenExit</code>。</li>
 <li><strong>PDF 划词操作菜单</strong>（已落地，见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>）：<ul>
 <li>划词后在选区旁弹出操作菜单（图标 + Tooltip）：<strong>5 色色板 + 复制 / 笔记 / 提问 / 翻译</strong>（点色板 = 该色<strong>高亮</strong>；复制 / 笔记有内联确认）；选区以<strong>平滑蓝色覆盖层</strong>呈现（<code>selectionRectsByPage</code> 按行合并 rects + <code>SELECTION_CSS</code> 隐藏原生 <code>::selection</code>，对齐 Zotero、点掉即消）。双击 / 悬停停留仍直接开问答卡（页码上下文）。</li>
-<li>高亮：<code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code>（含 <code>color</code>（yellow/green/blue/pink/purple），归一化坐标可重定位；调色板 <code>lib/pdf-highlight/palette.ts</code>）→ 页面半透明色带覆盖层；点击已有高亮出现「删除」浮层。<strong>标注总览</strong>：标题栏或 PDF 工具栏 💬（<code>MessageSquareText</code>）打开右侧栏「批注」tab（<code>viewer/annotations-panel.tsx</code>）→ 总览本篇全部高亮（颜色色条 + 页码 + 引文 + 可选备注），点击跳转闪烁 / 编辑备注 / 删除。批注：选中→「批注」= 建高亮 + 内联备注编辑器写 <code>comment</code>（<strong>不写 <code>NOTES.md</code></strong>），页边批注针。提问复用迷你问答卡（ACP 流式）；<strong>翻译</strong>当前走 Agent，规划改为调用应用级翻译服务（免费 MT / BYOA Agent，设置 → Translate，见 <a href="../../development/translate/"><code>../development/translate.md</code></a>）；发送过问题后锚点旁保留对话图标（Hover 回访）。</li>
-<li>提问线程落盘 <code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>；高亮 / 提问 / 笔记均<strong>不</strong>写 PDF 二进制。</li>
+<li>划词标记统一落盘 <strong><code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code></strong>（<code>kind</code>: <code>highlight</code> / <code>ask</code> / <code>translate</code>）。高亮含 <code>color</code> 调色板；批注 = <code>comment</code> 非空；提问为多轮 <code>messages</code>；翻译含 <code>result</code> 可回访。均不写 PDF 二进制 / 默认不写 <code>NOTES.md</code>。右侧「批注」tab 总览高亮与提问。</li>
 </ul>
 </li>
 <li><strong>PDF/HTML 时右侧自动加载该篇 <code>NOTES.md</code></strong>（可编辑，自动保存 / <code>⌘S</code>）</li>

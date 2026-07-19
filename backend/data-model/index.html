@@ -84,9 +84,9 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#highlightsmdl25">highlights.md(L2.5,事实来源)</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#asks-mvppdf">asks/（已落地 MVP：PDF 划词提问）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#markspdf">marks/（统一：PDF 划词标记）</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#highlightspdf">highlights/（已落地：PDF 划词高亮 + 批注）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#highlightsmdl25-markdown">highlights.md（L2.5，规划中的 Markdown 证据层）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#papermdl3">PAPER.md(L3,派生)</a>
     </li>
@@ -223,7 +223,7 @@
 </tr>
 <tr>
 <td>L2.5 证据</td>
-<td><code>{paper}/highlights.md</code></td>
+<td><code>{paper}/marks/*.json</code>（运行时）；可选 <code>highlights.md</code> 导出</td>
 <td>需要用户标注 / 精确引文</td>
 <td>中</td>
 </tr>
@@ -288,7 +288,8 @@
 ├── papers/                # 文献区；可含组织子目录
 │   ├── 1706.03762/        # paper 单元（一级）
 │   │   ├── NOTES.md
-│   │   ├── highlights.md
+│   │   ├── marks/         # 划词标记 JSON（ask/highlight/translate）
+│   │   ├── highlights.md  # 可选导出，非默认
 │   │   ├── PAPER.md       # 可选
 │   │   ├── assets/
 │   │   └── source/
@@ -457,25 +458,47 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <li><strong>页码 / bbox 等渲染坐标是纯 UI 数据</strong>,可缓存于 <code>.agentero/</code>（catalog 同库缓存表或旁路文件）,按标注 id 关联;丢失后可用引文全文检索重新锚定。</li>
 <li>用 Obsidian 块引用 <code>^id</code>,让 <code>NOTES.md</code> 能精确引用某条标注:<code>[[papers/1706.03762/highlights#^h12]]</code>。</li>
 </ul>
-<h3 id="asks-mvppdf"><code>asks/</code>（已落地 MVP：PDF 划词提问）<a class="headerlink" href="#asks-mvppdf" title="Permanent link">&para;</a></h3>
-<p>多轮「就地问答」线程，与 <code>highlights.md</code> <strong>分离</strong>：asks 存对话 JSON，highlights 存引文证据。设计与实现见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>；前端 <code>src/lib/pdf-ask/</code> + <code>PdfViewer</code> 交互层。</p>
+<h3 id="markspdf"><code>marks/</code>（统一：PDF 划词标记）<a class="headerlink" href="#markspdf" title="Permanent link">&para;</a></h3>
+<p>划词后的 <strong>提问 / 高亮·批注 / 翻译</strong> 全部为 <strong>JSON</strong>，落在同一目录（pretty，便于 Git diff）：</p>
+<pre class="codehilite"><code class="language-text">papers/&lt;id&gt;/marks/&lt;id&gt;.json
+</code></pre>
+
+<p>每条带 <strong><code>kind</code></strong> 判别器：</p>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>含义</th>
+<th>主要字段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ask</code></td>
+<td>多轮就地提问</td>
+<td><code>anchor</code>（page/rects/quote）、<code>messages[]</code>、<code>status</code></td>
+</tr>
+<tr>
+<td><code>highlight</code></td>
+<td>高亮；<code>comment</code> 非空 = 批注</td>
+<td><code>page</code>、<code>rects</code>、<code>quote</code>、<code>color?</code>、<code>comment?</code></td>
+</tr>
+<tr>
+<td><code>translate</code></td>
+<td>划词翻译（可页边回访）</td>
+<td><code>page</code>、<code>rects</code>、<code>quote?</code>、<code>result?</code>、<code>error?</code></td>
+</tr>
+</tbody>
+</table>
 <ul>
-<li>路径：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code>（可选 <code>asks/index.json</code> 目录）。</li>
-<li>含锚点（page + 归一化 rects + quote）与 <code>messages[]</code>；<strong>不</strong>写入 PDF 二进制，<strong>不</strong>进 catalog 正文。</li>
-<li>触发：划词 / 框选 / 双击 / 悬停；发送过问题后锚点旁对话图标可回访。</li>
+<li><strong>不</strong>写 PDF 二进制、<strong>不</strong>进 catalog 正文、<strong>不</strong>默认写 <code>NOTES.md</code>。</li>
+<li>坐标均为页内归一化 0–1，缩放/重开可重建。</li>
+<li>实现：<code>src/lib/pdf-selection/marks-io.ts</code> + <code>pdf-ask</code> / <code>pdf-highlight</code> / <code>pdf-translate</code> 的 IO；UI 见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>。</li>
+<li><strong>阅读热力图</strong>：聚合上述三类 mark 的 page + y；可选 <code>{paper}/reading-meta.json</code>（<code>pageCount</code>）。</li>
 </ul>
-<h3 id="highlightspdf"><code>highlights/</code>（已落地：PDF 划词高亮 + 批注）<a class="headerlink" href="#highlightspdf" title="Permanent link">&para;</a></h3>
-<p>划词后弹出的操作菜单（<strong>高亮 / 批注 / 提问 / 翻译</strong>）中，「高亮」与「批注」写入的持久化标注。与多轮问答 <code>asks/</code> 分离；「批注」= <code>comment</code> 非空的高亮（高亮 + 内联评论），纯高亮则 <code>comment</code> 为空。</p>
-<ul>
-<li>路径：<code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code>（pretty JSON，便于 Git diff）。</li>
-<li>字段：<code>version:1</code>、<code>id</code>、<code>paperPath</code>、<code>createdAt/updatedAt</code>、<code>page</code>、归一化 <code>rects[]</code>、<code>quote</code>、可选 <code>color</code>（预留调色板，缺省琥珀）、<strong>可选 <code>comment?: string</code></strong>（非空 ⇒ 批注；<code>version</code> 保持 <code>1</code>，向后兼容）。</li>
-<li>归一化坐标可在缩放/重开后重定位；页面上点击已有高亮出现「删除」浮层；<code>comment</code> 非空的高亮在页边渲染<strong>批注针</strong>，点击打开内联编辑器读/改评论。</li>
-<li>右侧「批注」面板列出<strong>当前活动 PDF tab</strong> 的批注卡（页码 + 引文 + 评论），点击跳转闪烁、可编辑 / 删除；由 <code>PdfViewerHandle</code> + <code>onHighlightsChange</code> 驱动。</li>
-<li><strong>不</strong>污染原始 PDF、<strong>不</strong>进 catalog、<strong>不</strong>写入 <code>NOTES.md</code>（旧「追加引文到 <code>NOTES.md</code>」行为已移除）；坏文件读取时跳过。</li>
-<li>「翻译」走独立翻译卡（免费 MT 或 BYOA Agent）；为阅读热力图额外落盘轻量记录 <code>papers/&lt;id&gt;/translates/&lt;id&gt;.json</code>（<code>page</code> + 归一化 <code>rects</code> + 可选 <code>quote</code>），<strong>不</strong>存译文正文。</li>
-<li><strong>阅读热力图</strong>（论文库列）：聚合 <code>highlights/</code> + <code>asks/</code> + <code>translates/</code> 的位置与频次；可选 <code>{paper}/reading-meta.json</code>（<code>pageCount</code>，打开 PDF 时写入）标定全文跨度。见 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §3。</li>
-</ul>
-<p>格式示例:</p>
+<h3 id="highlightsmdl25-markdown"><code>highlights.md</code>（L2.5，规划中的 Markdown 证据层）<a class="headerlink" href="#highlightsmdl25-markdown" title="Permanent link">&para;</a></h3>
+<p>与 JSON marks <strong>分离</strong>：若将来导出引文块，可写便携 Markdown；当前阅读器标注以 <code>marks/</code> 为准。</p>
+<p>格式示例（导出形态，非默认落盘）:</p>
 <pre class="codehilite"><code class="language-md">### ^h12 · p.3 §3.2
 &gt; &quot;The Transformer ... dispensing with recurrence entirely.&quot;
 想法:核心卖点是彻底抛弃 recurrence。→ [[Self-Attention]]

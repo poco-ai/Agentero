@@ -509,12 +509,12 @@
 <p>设计见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>。</p>
 <ul>
 <li>[x] M1：划词弹出迷你问答卡</li>
-<li>[x] M2：<code>papers/&lt;id&gt;/asks/&lt;threadId&gt;.json</code> 读写 + 页边圆片锚点（归一化坐标）</li>
+<li>[x] M2：<code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code> 读写 + 页边针（归一化坐标）</li>
 <li>[x] M3：接入 ACP <code>agent_run_once</code> 流式多轮；结束会话落盘</li>
 <li>[x] M4：双击 / 悬停停留触发 + 防误触（阈值暂固定 700ms）</li>
 <li>[ ] M5（可选）：导出为 <code>highlights.md</code>；无文本层降级；本地 PDF TextLayer</li>
 <li>[x] M6：划词操作菜单（高亮 / 批注 / 提问 / 翻译）；高亮落盘 <code>papers/&lt;id&gt;/highlights/&lt;id&gt;.json</code> + 覆盖层 + 点击删除；翻译复用问答卡走 Agent；去掉默认琥珀高亮，仅原生选区</li>
-<li>[x] M7：Zotero 式批注 —「批注」= 建高亮 + 内联编辑器（<code>annotation-editor.tsx</code>）写可选 <code>comment</code>；页边批注针（<code>annotation-gutter.tsx</code>）；右侧「批注」面板（<code>annotations-panel.tsx</code>，活动 PDF tab）列卡、跳转闪烁、编辑 / 删除，经 <code>PdfViewerHandle</code> + <code>onHighlightsChange</code> 驱动；<strong>不写 <code>NOTES.md</code></strong>（旧追加行为已移除）</li>
+<li>[x] M7：Zotero 式批注 —「批注」= 建高亮 + 内联编辑器（<code>annotation-editor.tsx</code>）写可选 <code>comment</code>；页边针（<code>selection-gutter.tsx</code>）；右侧「批注」面板（<code>annotations-panel.tsx</code>）；落盘 <code>marks/</code>（<code>kind: highlight</code>）；<strong>不写 <code>NOTES.md</code></strong></li>
 </ul>
 <h3 id="3b-translate-service">3b. 翻译服务（Translate Service）<a class="headerlink" href="#3b-translate-service" title="Permanent link">&para;</a></h3>
 <p>设计见 <a href="../translate/"><code>translate.md</code></a>（应用级能力，非仅划词）。</p>
@@ -530,7 +530,7 @@
 <h3 id="4-pdf-html">4. PDF / HTML 标注系统<a class="headerlink" href="#4-pdf-html" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[ ] 参考 Hypothesis 风格的边注、评论、锚点（完整体系）</li>
-<li>[x] PDF 就地批注已落地（高亮 + <code>comment</code> + 页边针 + 右侧面板）；标注落 <code>highlights/*.json</code></li>
+<li>[x] PDF 就地批注已落地（高亮 + <code>comment</code> + 页边针 + 右侧面板）；标注落 <code>marks/</code>（<code>kind: highlight</code>）</li>
 <li>[ ] 标注正文进入 <code>highlights.md</code> / 导出到 <code>NOTES.md</code>（<strong>暂不做</strong>，可能的后续），坐标/锚点缓存可重建</li>
 <li>[ ] PDF.js / HTML iframe 统一标注模型（HTML iframe 标注仍待）</li>
 <li>[ ] 与划词提问（asks JSON）边界清晰，可互导</li>

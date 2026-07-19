@@ -664,7 +664,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <blockquote>
 <p>MVP 阅读器以审阅、定位与就地提问为主，不实现完整 Hypothesis 式批注系统。</p>
 </blockquote>
-<p><strong>PDF 划词提问（MVP 已落地）</strong>：选区 / 框选 / 双击 / 悬停 → 迷你问答卡 → <code>papers/&lt;id&gt;/asks/*.json</code> → 锚点对话图标回访。复用 TextLayer + ACP BYOA，不写入 PDF 二进制。详设与分期见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>。</p>
+<p><strong>PDF 划词（MVP 已落地）</strong>：选区菜单（高亮/批注/提问/翻译）→ 统一 <code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code>（<code>kind</code>）→ 页边针回访。复用 TextLayer + ACP BYOA，不写 PDF 二进制。详设见 <a href="../pdf-ask/"><code>pdf-ask.md</code></a>。</p>
 <p><strong>翻译服务（首版已落地）</strong>：应用级可插拔 <code>TranslateService</code>；<strong>免费 MT</strong>（Host <code>translate_text</code>：内置 Google gtx 或 LibreTranslate URL）与 <strong>BYOA Agent</strong>；设置 → <strong>Translate</strong>；PDF 划词为首个消费方。详设见 <a href="../translate/"><code>translate.md</code></a>。</p>
 <h3 id="35">3.5 关系图谱<a class="headerlink" href="#35" title="Permanent link">&para;</a></h3>
 <table>
