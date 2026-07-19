@@ -346,7 +346,7 @@
 <li>[x] 在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”（建议按钮接通后端 <code>summary</code>/<code>qa</code>/<code>related_work</code> workflow）</li>
 <li>[ ] workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code></li>
 <li>[x] 输出必须包含 Sources（workflow prompt 已要求 <code>## Sources</code>）</li>
-<li>[x] 写后审阅：<code>agent:notes-review</code> 保留/还原（BYOA 写盘后对照；写前草稿拦截仍待）</li>
+<li>[x] 写后审阅：<code>agent:notes-review</code> → <strong>统一 Diff</strong>（<code>NotesReviewDiff</code>）Keep / Revert（BYOA 写盘后对照；写前草稿拦截仍待）</li>
 <li>[x] 权限「每次询问」档（<code>agentPermissionMode: ask</code> → <code>agent:permission-request</code> 对话框 + <code>agent_respond_permission</code>）</li>
 </ul>
 <h3 id="4">4. 文件与索引同步<a class="headerlink" href="#4" title="Permanent link">&para;</a></h3>
@@ -408,7 +408,7 @@
 <h3 id="2-pdf-importer">2. 本地 PDF importer<a class="headerlink" href="#2-pdf-importer" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] 文件选择 / 批量导入（魔棒弹层 <code>FileUp</code> → <code>paper_import_local_pdf</code>，多选）</li>
-<li>[ ] 拖拽导入增强</li>
+<li>[x] 窗口拖入文件：非 PDF 无反应（仅防导航）；PDF 拖到 <code>papers/</code> 组织夹 → metadata 确认对话框 → <code>paper_import_local_pdf</code>（可改 title/authors/year/id/目标路径）</li>
 <li>[ ] DOI / arXiv ID 识别，元数据确认面板</li>
 <li>[x] 生成 citekey slug（重复 <code>-2</code>/<code>-3</code>）、liteparse <code>PAPER.md</code>、<code>NOTES.md</code>；metadata 写入 catalog（type <code>pdf</code>）</li>
 <li>[ ] 默认本地解析，MinerU BYOK 后可选云端解析</li>

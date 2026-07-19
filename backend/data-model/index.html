@@ -428,11 +428,11 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 </tr>
 <tr>
 <td>展示</td>
-<td>未选中：相对路径 → 本地 <code>blob:</code> 位图预览；<strong>选中图片节点时</strong>：显示 Markdown 源码 <code>![alt](url)</code></td>
+<td>相对路径 → 本地 <code>blob:</code> 位图预览；<strong>选中时保留位图</strong> + ring + 下方 monospace 源码 <code>![alt](url)</code>（不再用源码替换位图，避免剪切/粘贴冲突）</td>
 </tr>
 <tr>
 <td>删除 / GC</td>
-<td>文档中移除图片节点后，若该 URL 在<strong>全文引用计数为 0</strong>，且路径属于本笔记 managed <code>assets/</code>，则同步删磁盘文件；<code>https://</code> / <code>data:</code> 等远程或内联 URL <strong>不</strong>删盘</td>
+<td>文档中移除图片节点后，若该 URL 在<strong>全文引用计数为 0</strong>，且路径属于本笔记 managed <code>assets/</code>，则 <strong>延迟 ~15s</strong> 删磁盘文件（剪切→粘贴 / 撤销期间可取消）；离开编辑器时 flush 待删项；<code>https://</code> / <code>data:</code> 等远程或内联 URL <strong>不</strong>删盘</td>
 </tr>
 <tr>
 <td>安全</td>

@@ -610,6 +610,12 @@ src/lib/pdf-ask|pdf-highlight|pdf-translate/
 <td>新建/编辑/面板跳转/删除闭环；<code>comment</code> 落盘且 <code>version</code> 兼容</td>
 <td>✅</td>
 </tr>
+<tr>
+<td><strong>M7b 批注 UX</strong></td>
+<td>内联编辑器 <strong><code>Enter</code> 保存 / <code>Shift+Enter</code> 换行</strong>；批注卡与默认评论文案颜色减弱（<code>muted</code>，避免过深）</td>
+<td>Enter 落盘；默认色对比度可接受</td>
+<td>✅</td>
+</tr>
 </tbody>
 </table>
 <h2 id="10">10. 风险与降级<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
@@ -651,7 +657,7 @@ src/lib/pdf-ask|pdf-highlight|pdf-translate/
 <ul>
 <li>单元：归一化坐标往返、<code>schema</code> 校验（含可选 <code>comment</code>）、index 重建。</li>
 <li>组件：selection → open popover；write → gutter 出现；click → 消息恢复。</li>
-<li>批注：批注→内联编辑器写 <code>comment</code> 落盘并出现页边批注针；右侧「批注」面板列卡、点击跳转并闪烁、编辑 / 删除闭环。</li>
+<li>批注：批注→内联编辑器写 <code>comment</code> 落盘并出现页边批注针；<strong><code>Enter</code> 保存 / <code>Shift+Enter</code> 换行</strong>；右侧「批注」面板列卡、点击跳转并闪烁、编辑 / 删除闭环；默认评论文案色为 muted。</li>
 <li>集成：mock <code>agent:stream</code> 完成一轮后文件存在且可再读。</li>
 <li>手工：长 PDF 滚动、窗口缩放、中英混排选区、双栏论文（rects 多段）。</li>
 </ul>

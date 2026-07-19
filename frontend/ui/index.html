@@ -233,9 +233,10 @@
 <li>顶栏单行：左侧 Vault 名称（可截断）+ 右侧 <strong>纯图标操作</strong>。</li>
 <li>图标按钮点击反馈：统一走 <code>Button</code>（<code>variant="ghost"</code> + <code>size="icon-xs"</code> 等）的 <strong>active</strong> 态（背景加深 + 轻微缩放）；文件树行同样有 <code>active:bg-muted/80</code>。</li>
 <li>动作映射（Lucide），从左到右：</li>
-<li><strong>按标识符添加（魔棒）</strong> → <code>WandSparkles</code>（紧挨 <strong>New file 左侧</strong>；Popover 粘贴 arXiv 链接/编号 → Host <code>lookup_import</code>）</li>
+<li><strong>按标识符添加（魔棒）</strong> → <code>WandSparkles</code>（紧挨 <strong>New file 左侧</strong>；Popover 粘贴 arXiv 链接/编号 → Host <code>lookup_import</code>；弹层内 <strong>FileUp</strong> 可多选本地 PDF → <code>paper_import_local_pdf</code>）</li>
 <li>新建文件 → <code>FilePlus2</code>（在选中目录 / 文件父目录下 <strong>树内联命名</strong>，Enter 确认 / Esc 取消，对齐 VS Code）</li>
 <li>新建文件夹 → <code>FolderPlus</code>（同上）</li>
+<li><strong>外部 PDF 拖入入库</strong>（窗口级 <code>preventDefault</code>，避免 WebView 导航/卡死）：非 PDF 或未落到 <code>papers/</code> 组织夹 → 无入库动作；PDF 拖到 <strong><code>papers/</code> 组织夹</strong>（含根与子文件夹）→ 解析绝对路径（macOS 常无 <code>File.path</code>：将 File 字节落到 <code>~/.agentero/import-tmp/</code>）→ <code>ImportLocalPdfDialog</code> 确认 metadata → <code>paper_import_local_pdf</code>（<code>entries</code>）→ 刷树 / Library / wiki → <code>openPaper</code> 第一篇。实现：<code>use-external-file-drop</code> + <code>external-file-drop</code> + <code>local-pdf-meta</code>。</li>
 <li><strong>内联新建进行中</strong>时，顶栏其它图标（魔棒 / 新建文件 / 新建文件夹）<strong>保持可点</strong>（可切换新建类型或打开魔棒）；仅在全局 <code>busy</code> 或文献导入进行中时禁用。</li>
 <li><strong>回收站入口</strong>：文件树中 <strong>Library 下方</strong> 虚拟节点 <code>Trash2</code>（不在侧栏 Header）；点击后中间栏打开 <code>RecycleBinView</code>（见「删除」）。</li>
 <li><strong>刷新文件树</strong>不在侧边栏：使用菜单 <strong>File → Refresh File Tree</strong>（<code>⌘R</code>）。</li>
@@ -261,6 +262,7 @@
 <li>对齐 VS Code / Finder：<strong>无勾选框</strong>，以<strong>行高亮</strong>表达选区。<strong>Ctrl/⌘ 点击</strong>切换单项、<strong>Shift 点击</strong>按可见顺序选区间；普通点击仍为单选并打开。</li>
 <li>选中 ≥1 项时树顶出现<strong>批量条</strong>（移动 / 删除 / 清空，<strong>吸顶固定</strong>、滚动时保持可见）；右键选中项菜单提供「删除 N 项 / 移动 N 项」；<code>Delete</code>/<code>⌘⌫</code> 批量删除，<code>Esc</code> 清空（编辑 / 输入聚焦时不拦截）。</li>
 <li><strong>拖拽移动</strong>：把行（或整个选区）拖到某个 <code>papers/</code> 组织文件夹（含 papers 根）即移动；仅这类文件夹是合法落点（论文文件夹与 Library 除外），hover 时以 ring 高亮。经 <code>onMoveTo</code> 复用批量移动管线，无需对话框。</li>
+<li><strong>外部文件拖入</strong>：与树内拖移区分；见上文「外部 PDF 拖入入库」（仅 <code>papers/</code> 组织夹 + PDF）。</li>
 <li><strong>批量移动</strong>（<code>MovePapersDialog</code> → <code>paper_move</code>）：把选中项移到某个 <code>papers/</code> 子文件夹（现有或新建）；移动文件夹并改写 catalog 路径前缀，随后统一刷新树 / Library / 双链。</li>
 <li><strong>不要</strong>在侧边栏放打开 / 创建 Vault、关闭 Vault、刷新或设置入口。</li>
 <li><strong>不要</strong>使用「Open vault… / Refresh」等文字按钮。</li>
@@ -438,7 +440,7 @@
 </tr>
 <tr>
 <td><code>notes-review</code></td>
-<td>Agent 笔记 Keep/Revert Dialog</td>
+<td>Agent 笔记写后审阅：统一 Diff + Keep/Revert Dialog</td>
 </tr>
 </tbody>
 </table>
@@ -471,10 +473,11 @@
 <li><strong>左侧 Paper Info</strong>（<code>paper-info-panel</code>）：仅当存在 <code>paperMeta</code>（选中 paper 文件夹）时渲染；论文库 / 普通笔记时隐藏。<strong>Tags</strong> 可编辑：输入框在 chip 上方（多标签时无需先滚动）；输入框<strong>右侧圆形色点</strong>打开上方色盘（Apple 风格预置 8 色：<code>red</code>/<code>orange</code>/<code>yellow</code>/<code>green</code>/<code>teal</code>/<code>blue</code>/<code>indigo</code>/<code>purple</code> + 默认）；有色标签前导小圆点且 chip 背景/文字染色，未选色则默认 <code>muted</code>。回车添加、chip 上 × 删除 → Host <code>paper_set_tags</code>（catalog 权威；<code>tags_json</code> 可为 <code>"name"</code> 或 <code>{"name","color"}</code>，同步 <code>metadata.json</code>）。<code>loadPaperMetadata</code> 会注入 vault-relative <code>path</code>（<code>metadata.json</code> 投影本身不含 path），Zotero 导入等路径也可持续编辑。</li>
 <li><strong>Notes（WYSIWYG，无独立预览栏）</strong>：中心切换为 Notes 时全宽编辑 <code>NOTES.md</code>；中心为 PDF/HTML 时右侧栏显示同一篇 <code>NOTES.md</code> 实时编辑。论文库视图或未选论文时隐藏。</li>
 <li><strong>格式工具栏（WYSIWYG toolbar）</strong>：<code>MarkdownEditor</code> 顶部可选的固定工具栏（<code>editor-toolbar.tsx</code>），提供标题（H1–H3）、引用、加粗 / 斜体 / 下划线 / 删除线 / 行内代码 / 高亮、无序 / 有序 / 待办列表、<strong>插入图片</strong>等常用格式按钮，无需手写 Markdown 即可排版。由全局设置 <code>showEditorToolbar</code>（默认开）控制，Notes 面板 header 右侧另有 <code>PanelTop</code> 一键显示 / 隐藏；只读时不渲染。所有按钮均有 <code>aria-label</code> + Tooltip，i18n <code>editor:toolbar.*</code>。</li>
+<li><strong>编辑体验</strong>：有序 / 无序列表经 Plate list 插件可正常编辑；文本选区为中性色（非高饱和系统蓝）；文档末与图片后保持可点 trailing paragraph，便于点到最后一行并继续输入。</li>
 <li><strong>Markdown 图片</strong>（已落地）：<ul>
 <li><strong>插入</strong>：粘贴剪贴板图 / 工具栏「插入图片」→ 二进制写入当前 <code>.md</code> 旁 <code>{mdDir}/assets/</code> → 正文 <code>![alt](./assets/…)</code>（不写 base64）。</li>
-<li><strong>预览</strong>：未选中时相对路径解析为 <code>blob:</code> 位图；<strong>选中节点</strong>时显示 monospace Markdown 源码（<code>ImageElement</code> + <code>useSelected</code>）。</li>
-<li><strong>删除</strong>：节点离开文档且 managed <code>./assets/</code> URL 引用计数归零 → 删磁盘文件 → 刷新文件树（<code>onAssetsChanged</code>）。</li>
+<li><strong>预览</strong>：相对路径解析为 <code>blob:</code> 位图；<strong>选中</strong>时保留位图 + ring，下方显示 monospace Markdown 源码（不再用源码替换图片）。</li>
+<li><strong>删除</strong>：节点离开文档且 managed <code>./assets/</code> 引用计数归零 → <strong>延迟 GC</strong>（~15s，剪切粘贴/撤销可取消；关编辑器 flush）→ 刷新文件树（<code>onAssetsChanged</code>）。</li>
 <li>实现：<code>src/lib/markdown-image.ts</code>、<code>markdown-editor.tsx</code>、<code>image-node.tsx</code>、<code>editor-toolbar.tsx</code>；i18n <code>editor:toolbar.image</code> / <code>editor:image.*</code>。</li>
 <li>数据约定：<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>「Markdown 内嵌图片」。</li>
 </ul>
@@ -772,7 +775,7 @@ PromptInput → Body / Footer / Submit
 <p><strong>Agent 切换</strong>：顶栏左侧当前 ACP 后端名打开下拉（列表来自 catalog + 注册表）；选择后设为默认并用于后续 <code>runOnce</code>。下拉 <strong>「ACP backend」标题行最右侧</strong> 齿轮（<code>Settings</code>）→ <strong>设置 → Agent</strong>（<code>onOpenAgentSettings</code>）。</p>
 <p><strong>消息编辑与重发</strong>：会话空闲时（发送成功、停止或失败后）hover 已发送的用户消息会显示 <strong>Edit（铅笔）</strong> 与 <strong>Copy</strong> 两个图标按钮；运行中不显示 Edit，须先按 <code>Esc</code> / 点击停止。点击 Edit 就地把气泡替换为文本框（<code>↵</code> 重新发送、<code>⇧↵</code> 换行、<code>Esc</code> 取消），重发时会丢弃<strong>该消息及其之后的所有内容</strong>（旧回答 / 被中断的运行）并以新文本发起一次全新的 turn，用于修正发错的输入。切换会话 / 标签 / 新建对话会自动取消未完成的编辑。（重发沿用普通发送的 session 续接规则：非 Codex 每次新建 session；Codex 续接原生 thread，因此可见转录被截断但 Agent 侧线程记忆不随之回退。）</p>
 <p><strong>会话标签</strong>：运行中的 Agent session 不会锁定标签栏。用户可随时切换并查看其它已打开的会话，也可在新会话中发起独立运行；同一 session 在运行期间保持只读，避免重入。流式消息、工具调用和最终状态仍只写回它们所属的 session。</p>
-<p><strong>上下文提及</strong>：Composer <strong>默认附带</strong>当前聚焦的论文单元（文件在 paper 内时解析为 paper 文件夹）或其它打开的 Vault 路径，无需点击加号；chip 标签为 <strong>虚拟名称</strong>（论文优先 catalog 标题，否则路径最后一段 / paper-name），完整 Vault 相对路径仅作 tooltip 与发送给 Agent 的引用。输入 <code>@</code> 打开候选菜单：候选为 <strong>论文文件夹 + 其它目录 + paper 外 Markdown</strong>（paper 内 <code>NOTES.md</code> 等折叠为 paper 单元）；<strong>空 <code>@</code></strong> 优先展示最近选用路径与浅层目录树（depth ≤ 2）；输入关键字按路径或论文显示名筛选。论文候选标签与文件树一致（设置 → 通用 <code>paperTreeLabelMode</code>：标题 · 作者等）。从左侧文件树<strong>拖入</strong>文件/文件夹到输入区同样解析为 chip（<code>text/plain</code> 路径 → <code>mentionedPaths</code>，不插入纯文本路径）。Chip 图标按路径类型选择（<code>src/lib/context-path-icon.ts</code>）：<strong>论文文件夹</strong>用 <code>ScrollText</code>（与文件树 paper 行一致，依据 marker 收集的 <code>vaultPaperPaths</code>）；<strong>其它文件夹</strong>用 <code>Folder</code>；<strong>文件</strong>按扩展名（PDF / 图片 / 代码 / Markdown 等）。发送时 Agentero 将这些 Vault 相对路径追加到 prompt，并将第一个路径传为 <code>target</code>，Agent 仍按自身权限读取文件。</p>
+<p><strong>上下文提及</strong>：Composer <strong>默认附带</strong>当前聚焦的论文单元（文件在 paper 内时解析为 paper 文件夹）或其它打开的 Vault 路径，无需点击加号；chip 标签为 <strong>虚拟名称</strong>（论文优先 catalog 标题，否则路径最后一段 / paper-name），完整 Vault 相对路径仅作 tooltip 与发送给 Agent 的引用。输入 <code>@</code> 打开候选菜单：候选为 <strong>论文文件夹 + 其它目录 + paper 外 Markdown</strong>（paper 内 <code>NOTES.md</code> 等折叠为 paper 单元）；<strong>空 <code>@</code></strong> 优先展示最近选用路径与浅层目录树（depth ≤ 2）；行右侧 <strong>›</strong> 可进入子目录（论文单元为叶子、不可再下钻；顶部 ‹ 或 <code>←</code> / <code>Esc</code> 返回上级）；输入关键字按路径或论文显示名筛选。论文候选标签与文件树一致（设置 → 通用 <code>paperTreeLabelMode</code>：标题 · 作者等）。从左侧文件树<strong>拖入</strong>文件/文件夹到输入区同样解析为 chip（<code>text/plain</code> 路径 → <code>mentionedPaths</code>，不插入纯文本路径）。Chip 图标按路径类型选择（<code>src/lib/context-path-icon.ts</code>）：<strong>论文文件夹</strong>用 <code>ScrollText</code>（与文件树 paper 行一致，依据 marker 收集的 <code>vaultPaperPaths</code>）；<strong>其它文件夹</strong>用 <code>Folder</code>；<strong>文件</strong>按扩展名（PDF / 图片 / 代码 / Markdown 等）。发送时 Agentero 将这些 Vault 相对路径追加到 prompt，并将第一个路径传为 <code>target</code>，Agent 仍按自身权限读取文件。</p>
 <blockquote>
 <p><strong>不</strong>接 AI Elements <code>Attachments</code> 做 Vault 上下文：那套组件面向 <code>FileUIPart</code> 二进制附件（<code>prompt-input</code> 已装未对 ACP 传文件）；本产品上下文是 <strong>路径引用</strong>，与 <code>@</code> chip / <code>composer.contextInstruction</code> 一致。</p>
 </blockquote>
@@ -860,7 +863,7 @@ PromptInput → Body / Footer / Submit
 </tr>
 </tbody>
 </table>
-<p><strong>笔记写后审阅（信任闭环）</strong>：BYOA Agent 直接写盘，无法可靠事前拦截。<code>agent_run_once</code> 运行前快照目标笔记（<code>.md</code> target 或论文夹 <code>NOTES.md</code>）；若内容被改写则 emit <code>agent:notes-review</code>。面板弹 <strong>原文 / Agent 版本</strong> 对照对话框：<strong>Keep</strong> 保留 Agent 版本；<strong>Revert</strong> 写回快照（文件监听随后重载打开的编辑器）。</p>
+<p><strong>笔记写后审阅（信任闭环）</strong>：BYOA Agent 直接写盘，无法可靠事前拦截。<code>agent_run_once</code> 运行前快照目标笔记（<code>.md</code> target 或论文夹 <code>NOTES.md</code>）；若内容被改写则 emit <code>agent:notes-review</code>。面板弹 <strong>统一 Diff</strong> 对话框（<code>NotesReviewDiff</code>：行级 <code>+</code>/<code>-</code>/<code></code>，红/绿底）：<strong>Keep</strong> 保留 Agent 版本；<strong>Revert</strong> 写回快照（文件监听随后重载打开的编辑器）。</p>
 <p><strong>回答语言</strong>：<strong>设置 → Agent</strong> 提供一个全局「回答语言」下拉（<strong>自动 / English / 简体中文</strong>，存于 app settings，默认 <strong>自动</strong>），<strong>独立于界面语言</strong>，对<strong>所有 Agent</strong> 交互生效（Composer 对话、精读、summary/QA、PDF 划词问答）。前端 <code>runOnce</code> 统一读取该设置并透传，Host 在 <code>build_prompt</code> 为所有 workflow 追加一句语言指令；选 <strong>自动</strong> 时不注入任何指令，交由 Agent 依据内容决定。</p>
 <p><strong>个人偏好提示词</strong>：<strong>设置 → Agent</strong> 提供多行文本框（<code>agentPersonalPrompt</code>，默认空）。非空时，前端 <code>runOnce</code> 透传 <code>personalPrompt</code>，Host 在 <code>build_prompt</code> 的 system envelope 中追加 <code>User preference instructions</code> 块（所有 workflow）。留空不注入；Chat 展示经 <code>strip_prompt_envelope</code> 剥离 envelope，<strong>不</strong>在对话记录中显示该块。</p>
 <p><strong>Codex 控件</strong>：只有选中 <code>codex-acp</code> 时，底栏才显示 App Server <code>model/list</code> 提供的模型与 reasoning effort，以及仅在闪电图标内填充黄色的 Fast toggle。选择在下一次 native turn 中传给 App Server；其他 Agent 不显示也不接收这些偏好。</p>

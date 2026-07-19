@@ -320,7 +320,7 @@
 <li>Agentero 作为 <strong>ACP Client</strong> 连接用户本机已安装的 coding agent；<strong>不内置、不捆绑</strong> Agent 二进制或 Claude Agent SDK。</li>
 <li><strong>BYOA（Bring Your Own Agent）</strong>：用户在设置中添加 Agent（预设模板：OpenCode / Gemini CLI / Claude ACP / Codex ACP，或自定义 <code>command</code> + <code>args</code> + <code>env</code>）。模型与 API Key 由各 Agent CLI 自行管理，Agentero 不持有模型密钥。</li>
 <li>会话工作目录为当前 Vault 根目录，使 Agent 直接读写本地 Markdown 资产。</li>
-<li>已落地：<strong>paper-reader 精读</strong>（设置 <code>autoPaperReader</code> 默认关；可选自动 + 文件树 Zap 手动；catalog <code>is_read</code>）；全局 Agent <strong>权限模式</strong>（受限 / <strong>每次询问</strong> / 自动批准）；<strong>面板工作流</strong>（Summarize / Ask library / Draft Related Work → <code>summary</code> / <code>qa</code> / <code>related_work</code>）；<strong>笔记写后审阅</strong>（Keep / Revert）。</li>
+<li>已落地：<strong>paper-reader 精读</strong>（设置 <code>autoPaperReader</code> 默认关；可选自动 + 文件树 Zap 手动；catalog <code>is_read</code>）；全局 Agent <strong>权限模式</strong>（受限 / <strong>每次询问</strong> / 自动批准）；<strong>面板工作流</strong>（Summarize / Ask library / Draft Related Work → <code>summary</code> / <code>qa</code> / <code>related_work</code>）；<strong>笔记写后审阅</strong>（统一 Diff + Keep / Revert）；<strong>当前论文默认 context</strong> + <strong>个人偏好提示词</strong>（<code>agentPersonalPrompt</code>）。</li>
 <li>面板空态建议 chips 接通上述 workflow；<code>AGENTS.md</code> 自动注入 workflow prompt 仍待。</li>
 <li>后续（roadmap V0.7）：沿文献引用链的 Explore citations / Map related work / Ingest neighborhood。</li>
 <li>Agent 读取顺序遵循渐进式披露：<code>AGENTS.md</code> →（catalog/列表或可选导出）→ <code>NOTES.md</code> → <code>highlights.md</code> → <code>PAPER.md</code> → <code>source/</code>，仅在需要时逐层下钻。</li>

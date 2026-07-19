@@ -258,7 +258,7 @@
 <tr>
 <td>V0.3 Agent 工作流（BYOA）</td>
 <td>🟡 进行中</td>
-<td>通用 ACP Client（OpenCode、Gemini、Claude、Qoder、Grok、自定义）+ Codex 原生 App Server thread/history；<strong>paper-reader 精读</strong>（可选自动 + Zap 手动；<code>is_read</code>）；<strong>全局权限模式</strong>（受限 / <strong>每次询问</strong> / 自动批准）；<strong>面板工作流</strong>（Summarize → <code>summary</code>、Ask library / List claims → <code>qa</code>、Draft Related Work → <code>related_work</code>）；<strong>信任闭环</strong>（<code>agent:permission-request</code> 对话框 + <code>agent:notes-review</code> 保留/还原）；模型收藏；<strong>AGENTS.md 自动注入仍待</strong>。</td>
+<td>通用 ACP Client（OpenCode、Gemini、Claude、Qoder、Grok、自定义）+ Codex 原生 App Server thread/history；<strong>paper-reader 精读</strong>（可选自动 + Zap 手动；<code>is_read</code>）；<strong>全局权限模式</strong>（受限 / <strong>每次询问</strong> / 自动批准）；<strong>面板工作流</strong>（Summarize → <code>summary</code>、Ask library / List claims → <code>qa</code>、Draft Related Work → <code>related_work</code>）；<strong>信任闭环</strong>（<code>agent:permission-request</code> 对话框 + <code>agent:notes-review</code> <strong>统一 Diff</strong> Keep/Revert）；<strong>当前论文默认 context</strong> + <strong><code>agentPersonalPrompt</code></strong>；模型收藏；<strong>AGENTS.md 自动注入仍待</strong>；非 Codex 历史持久化见 <a href="https://github.com/poco-ai/Agentero/issues/33">#33</a>。</td>
 </tr>
 <tr>
 <td>V0.4 双链、反链与图谱</td>
@@ -268,7 +268,7 @@
 <tr>
 <td>V0.5 Importer 架构与本地 PDF 入库</td>
 <td>🟡 本地 PDF 入库已落地</td>
-<td><strong>本地 PDF 导入</strong>（魔棒弹层多选 → 复制 PDF + catalog + liteparse <code>PAPER.md</code>）已落地；Importer trait 抽象、拖拽导入、DOI 识别、PdfParser（MinerU）仍在规划。</td>
+<td><strong>本地 PDF 导入</strong>（魔棒弹层多选 / <strong>拖到 <code>papers/</code> 组织夹</strong> → metadata 确认 → 复制 PDF + catalog + liteparse <code>PAPER.md</code>）已落地；Importer trait 抽象、DOI 识别、PdfParser（MinerU）仍在规划。</td>
 </tr>
 <tr>
 <td>V0.6 工作区标签页与分屏</td>
@@ -399,7 +399,7 @@
 <li>skill（<strong>provider 分流：Codex <code>$</code> / Claude <code>/</code> / 其它注入</strong>）→ 写 <code>NOTES.md</code> → catalog <code>is_read=true</code>；左下角任务条（入库/下载 → 精读衔接）。</li>
 <li>[x] <strong>Skill 提及按 Agent 模板</strong>：Host <code>SkillMentionStyle</code>（<code>skills.rs</code>）；Composer <code>$</code> 仅为 UI 选 skill。</li>
 <li>[x] <strong>面板内置工作流入口</strong>（建议 chips → 后端 workflow）：Summarize → <code>summary</code>；Ask library / List claims → <code>qa</code>；Draft Related Work → <code>related_work</code>；目标为当前聚焦 paper（提及路径或选中路径）。引用类 workflow 见 V0.7。</li>
-<li>[x] <strong>笔记写后审阅（信任闭环）</strong>：运行前快照目标笔记；若 Agent 重写则 <code>agent:notes-review</code>，前端 Before/After 对照，<strong>Keep / Revert</strong>（BYOA 直接写盘，无法可靠事前拦截）。</li>
+<li>[x] <strong>笔记写后审阅（信任闭环）</strong>：运行前快照目标笔记；若 Agent 重写则 <code>agent:notes-review</code>，前端<strong>统一 Diff</strong>（<code>NotesReviewDiff</code>），<strong>Keep / Revert</strong>（BYOA 直接写盘，无法可靠事前拦截）。</li>
 <li>[x] Agent 读取路径回显（Sources）。</li>
 <li>[x] 密钥边界：模型 API Key 由 Agent CLI 管理，Agentero 不要求模型 BYOK 表单。</li>
 </ul>
@@ -465,7 +465,7 @@
 <ul>
 <li>[ ] 抽象 importer 接口（Source adapter）。</li>
 <li>[ ] 将 arXiv / 魔棒入库实现迁移为第一个 adapter + <strong><code>paper_commit</code></strong>。</li>
-<li>[x] 本地 PDF 导入：魔棒弹层文件选择（多选，<code>paper_import_local_pdf</code>）、citekey slug 生成 + 重复检测（<code>-2</code>/<code>-3</code>）、复制 PDF + catalog + liteparse <code>PAPER.md</code>；拖拽 / DOI 识别待增强。</li>
+<li>[x] 本地 PDF 导入：魔棒弹层文件选择（多选，<code>paper_import_local_pdf</code>）、citekey slug 生成 + 重复检测（<code>-2</code>/<code>-3</code>）、复制 PDF + catalog + liteparse <code>PAPER.md</code>；<strong>外部 PDF 拖到 <code>papers/</code> 组织夹</strong> → metadata 确认对话框（<code>entries</code>）再入库；窗口级拦截默认导航防卡死；DOI 识别待增强。</li>
 <li>[ ] 可插拔 <code>PdfParser</code>：默认本地 liteparse，配置 MinerU API Key 后优先云端 MinerU，失败自动降级。</li>
 <li>[ ] PDF 元数据混合获取：DOI/arXiv 标识符查询 Crossref/arXiv + Agent 正文抽取，入库前用户确认。</li>
 <li>[ ] 预留本地 HTML importer。</li>

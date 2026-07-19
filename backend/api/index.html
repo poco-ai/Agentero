@@ -1092,18 +1092,25 @@ Host (Tauri + Rust)
 
 #### `paper_import_local_pdf`（已落地）
 
-把用户选择的本地 PDF 导入为 paper 文件夹（复制 + catalog + liteparse），**无网络查询**；元数据来自文件名。前端经魔棒弹层 `FileUp` 按钮的原生 PDF 选择器（多选）触发。
+把本地 PDF 导入为 paper 文件夹（复制 + catalog + liteparse），**无网络查询**。入口：魔棒弹层原生 PDF 选择器；或将 PDF **拖到左侧树 `papers/` 组织夹** → metadata 确认对话框后再导入。
 
 - **参数**（invoke 字段名 `args`）：
   ```ts
   {
     vaultPath: string;
     parentDir: string;   // Vault 相对，如 papers 或 papers/nlp
-    filePaths: string[]; // 用户选择的本地 PDF 绝对路径
+    filePaths?: string[]; // 仅路径（无 overrides）时用；`entries` 非空时忽略
+    entries?: Array&lt;{    // 推荐：路径 + 可选 metadata（确认对话框）
+      filePath: string;
+      title?: string;
+      authors?: string[];
+      year?: number;
+      id?: string;       // 文件夹 slug 偏好；Host 仍会做 -2/-3 去重
+    }&gt;;
   }
   ```
 - **返回**：`{ ok: true; data: { papers: LookupImportResult[]; errors: string[] } }`（`errors` 为 `&quot;&lt;文件&gt;: &lt;原因&gt;&quot;`；仅当**全部**失败才整体 `ok:false`）。
-- **行为**：每个 PDF → 由文件名 stem 派生 slug（`{parent}/{slug}/`，冲突加 `-2`/`-3`）与标题；复制到 `{slug}.pdf`（论文根目录）；写 `NOTES.md` / `highlights.md` 壳（摘要优先译中文，见 `lookup_import`）+ catalog（type `pdf`）；无 TeX → liteparse `PAPER.md`。不覆盖已存在文件夹（slug 去重）。
+- **行为**：每个 PDF → 标题/id 优先用 `entries` 覆盖，否则文件名 stem；复制到 `{slug}.pdf`；写 `NOTES.md` / `highlights.md` 壳 + catalog（type `pdf`，可含 authors/year）；无 TeX → liteparse `PAPER.md`。不覆盖已存在文件夹（slug 去重）。
 
 #### `paper_parse_body`（已落地）
 
@@ -1436,7 +1443,7 @@ Host (Tauri + Rust)
 <li><code>ask</code>（每次询问）：每个权限请求经 <code>agent:permission-request</code> 事件转交前端，用户点选后由 <code>agent_respond_permission</code> 回传（超时 5 分钟未应答则取消）；</li>
 <li><code>auto</code>（自动批准）：选择第一个 AllowOnce 选项（等价旧 <code>autoApprove: true</code>）。</li>
 <li>
-<p><strong>笔记写后审阅（信任闭环）</strong>：运行前快照目标笔记（<code>.md</code> target 或论文夹 <code>NOTES.md</code>），运行结束后若被 Agent 重写则 emit <code>agent:notes-review</code>，前端弹「原文 / Agent 版本」对照，可保留或还原。</p>
+<p><strong>笔记写后审阅（信任闭环）</strong>：运行前快照目标笔记（<code>.md</code> target 或论文夹 <code>NOTES.md</code>），运行结束后若被 Agent 重写则 emit <code>agent:notes-review</code>，前端弹<strong>统一 Diff</strong>（行级增删），可保留或还原。</p>
 </li>
 <li>
 <p><strong>回答语言</strong>：设置 → Agent 提供全局「回答语言」（自动 / English / 简体中文，独立于界面语言）。前端 <code>runOnce</code> 统一读取该设置并透传 <code>responseLanguage</code>；Host 在 <code>build_prompt</code>（<code>prompts.rs</code>）为所有 workflow 追加一句语言指令，<code>auto</code> 时不注入。</p>

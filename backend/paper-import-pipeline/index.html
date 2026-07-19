@@ -280,11 +280,11 @@
 <tr>
 <td>3</td>
 <td><strong>本地 PDF</strong></td>
-<td>魔棒弹层 / Library 导入</td>
-<td><code>paper_import_local_pdf</code> → <code>import_local_pdfs</code></td>
-<td>文件名 stem 造 meta（无网络）</td>
+<td>魔棒弹层 / Library 导入 / <strong>拖到 papers/ 组织夹</strong></td>
+<td><code>paper_import_local_pdf</code> → <code>import_local_pdfs</code>（<code>entries</code> 可带 title/authors/year/id）</td>
+<td>默认文件名 stem；拖入弹窗可确认/改 meta</td>
 <td><strong>复制</strong> <code>{id}.pdf</code> + liteparse</td>
-<td>刷树/wiki/Library → <strong>只 open 第一篇</strong>；<strong>无</strong> auto reader</td>
+<td>刷树/wiki/Library → <strong>只 open 第一篇</strong>；<strong>无</strong> auto reader；非 PDF / 非 papers 落点：仅 <code>preventDefault</code> 不导航</td>
 </tr>
 <tr>
 <td>4</td>

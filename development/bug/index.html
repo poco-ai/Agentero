@@ -130,43 +130,43 @@
               
                 <h2 id="pdf">一、论文入库与 PDF 处理<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h2>
 <ul>
-<li>重构 paper 入库流程</li>
-<li>本地 PDF 导入时 metadata 与 note.md 初始化未做</li>
-<li>拖入本地 PDF 会直接跳 PDF 预览器并卡死</li>
-<li>Note MD 在下载有问题时初始化有问题</li>
+<li>重构 paper 入库流程（见 <a href="https://github.com/poco-ai/Agentero/issues/16">#16</a> <code>paper_commit</code>）</li>
+<li>本地 PDF 导入时 metadata 与 note.md 初始化未做（<a href="https://github.com/poco-ai/Agentero/issues/7">#7</a> 剩余）</li>
+<li>[x] 把本地 PDF 直接拖入窗口会跳 PDF 预览器并卡死 → 窗口级 <code>preventDefault</code>；仅拖到 <code>papers/</code> 组织夹时弹 metadata 确认再入库；非 PDF 无反应（<a href="https://github.com/poco-ai/Agentero/issues/7">#7</a> 部分）</li>
+<li>Note MD 在下载有问题时初始化有问题（<a href="https://github.com/poco-ai/Agentero/issues/7">#7</a> 剩余）</li>
 </ul>
 <h2 id="agent">二、Agent / 对话<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h2>
 <ul>
-<li>当前论文默认加到对话当中</li>
-<li>Update 时也要更新 skill 文件夹下 skill 是否最新</li>
-<li>在根目录下放一个 chat 文件做全局对话/对话历史记录（需开 issue 讨论）</li>
-<li>加用户可定义系统提示词插入</li>
+<li>[x] 当前论文默认加到对话当中（<a href="https://github.com/poco-ai/Agentero/issues/8">#8</a>）</li>
+<li>Update 时也要更新 skill 文件夹下 skill 是否最新（<a href="https://github.com/poco-ai/Agentero/issues/9">#9</a>）</li>
+<li>在根目录下放一个 chat 文件做全局对话/对话历史记录 → 讨论见 <a href="https://github.com/poco-ai/Agentero/issues/33">#33</a>（非 Codex 持久化）</li>
+<li>[x] 加用户可定义系统提示词插入（<code>agentPersonalPrompt</code>，<a href="https://github.com/poco-ai/Agentero/issues/8">#8</a>）</li>
 </ul>
 <h2 id="markdown">三、Markdown 编辑器<a class="headerlink" href="#markdown" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Markdown 编辑器编辑时卡顿</li>
-<li>选中文字为什么是蓝色</li>
-<li>各种功能都需要改进</li>
-<li>点不到最后一行，不能换到新的一行</li>
-<li>笔记改动页面用 Diff 格式，不要使用对比，看不清楚</li>
+<li>[x] Markdown 编辑器编辑时卡顿（输入路径 memo / 避免整应用重渲染；<a href="https://github.com/poco-ai/Agentero/issues/10">#10</a>）</li>
+<li>[x] 有序 / 无序列表可用（Plate list 插件；<a href="https://github.com/poco-ai/Agentero/issues/10">#10</a>）</li>
+<li>[x] 选中文字中性色（非高饱和蓝；<a href="https://github.com/poco-ai/Agentero/issues/10">#10</a>）</li>
+<li>[x] 末行可点、可追加新行；图片后保持 trailing paragraph（<a href="https://github.com/poco-ai/Agentero/issues/10">#10</a>）</li>
+<li>[x] 笔记写后审阅用统一 Diff（<code>NotesReviewDiff</code>），非双栏对比（<a href="https://github.com/poco-ai/Agentero/issues/11">#11</a>）</li>
 </ul>
 <h2 id="vault">四、文件树 / Vault<a class="headerlink" href="#vault" title="Permanent link">&para;</a></h2>
 <ul>
-<li>[x] 侧边栏在对话的时候。@ 需要给最近目录或目录树提示</li>
-<li>[x] 侧边栏在对话的时候 @ 需要和文件树一样把文件名改成论文名，保持和设置当中一样的</li>
-<li>[x] 文件夹排序应按目录树中显示名称排序，而不是原目录文件夹名</li>
-<li>[x] 目录树收缩节点需要快捷键，折叠至默认只展开 <code>papers/</code>、不展开其子目录（<code>⌘←</code> 折叠选中 / <code>⇧⌘←</code> 折叠至默认）</li>
+<li>[x] <code>@</code> 空态：最近路径 + 浅层目录树；行内可下钻子目录（<a href="https://github.com/poco-ai/Agentero/issues/12">#12</a>）</li>
+<li>[x] <code>@</code> 论文标签与文件树 <code>paperTreeLabelMode</code> 一致（<a href="https://github.com/poco-ai/Agentero/issues/12">#12</a>）</li>
+<li>[x] 文件夹排序按显示名称（<code>paperTreeSortMode</code> + 显示名；<a href="https://github.com/poco-ai/Agentero/issues/12">#12</a>）</li>
+<li>[x] 目录树收缩快捷键：<code>⌘←</code> 折叠选中 / <code>⇧⌘←</code> 折叠至默认只展开 <code>papers/</code>（<a href="https://github.com/poco-ai/Agentero/issues/12">#12</a>）</li>
 </ul>
 <h2 id="pdf-ui">五、批注 / PDF UI<a class="headerlink" href="#pdf-ui" title="Permanent link">&para;</a></h2>
 <ul>
-<li>批注默认文字颜色太深</li>
-<li>批注应该有 Enter 快捷键</li>
+<li>[x] 批注默认文字颜色减弱对比（<a href="https://github.com/poco-ai/Agentero/issues/13">#13</a>）</li>
+<li>[x] 批注内联编辑：<code>Enter</code> 保存 / <code>Shift+Enter</code> 换行（<a href="https://github.com/poco-ai/Agentero/issues/13">#13</a>）</li>
 </ul>
 <h2 id="_1">六、界面 / 图标<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <ul>
-<li>整体页面 icon 偏小，小屏幕下更小</li>
-<li>配置「面板」的 Icon 换新的，和另一个太像</li>
-<li>[x] 热力图标在标题文字背景上（横条左→右 = 文首→文末，深度 = 该位置交互强度；颜色不显眼）</li>
+<li>[x] 整体页面 icon 偏小，小屏幕下更小（<a href="https://github.com/poco-ai/Agentero/issues/14">#14</a>）</li>
+<li>[x] 配置「面板」的 Icon 换新的，和另一个太像（<a href="https://github.com/poco-ai/Agentero/issues/14">#14</a>）</li>
+<li>[x] 热力图标在标题文字背景上（横条左→右 = 文首→文末，深度 = 该位置交互强度；颜色不显眼）（<a href="https://github.com/poco-ai/Agentero/issues/14">#14</a>）</li>
 </ul>
               
             </div>
