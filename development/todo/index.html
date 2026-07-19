@@ -285,7 +285,7 @@
 <h3 id="2c-2">2c-2. 论文库默认页 + 文件夹作用域库<a class="headerlink" href="#2c-2" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] <strong>论文库默认页 + 文件夹作用域库</strong>（整项）</li>
-<li>[x] <strong>默认页</strong>：有 Vault 时默认全库；关空 tab → <code>ensureFullLibraryTab()</code>；仅剩全库时 <code>⌘W</code>/X 关窗</li>
+<li>[x] <strong>默认页</strong>：有 Vault 时默认全库；关空 tab → <code>ensureFullLibraryTab()</code>；仅剩全库且无弹层时 <code>⌘W</code>/X 关窗</li>
 <li>[x] <strong>文件夹作用域</strong>：非 paper 目录 → 展开树 + <strong>同一</strong> Library tab 上 <code>libraryScopePath</code> 前缀过滤（<strong>不</strong>为文件夹开新 tab）</li>
 <li>[x] 单测 + latency：<code>test/library-scope.test.ts</code></li>
 </ul>
@@ -425,7 +425,7 @@
 <li>[x] 每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；MD/NOTES 自动保存，关闭不丢内容</li>
 <li>[x] <strong>默认页全库 + 文件夹作用域库</strong>（2c-2）</li>
 <li>[ ] <strong>分屏</strong>：水平或垂直 2 格；每格独立内容（典型：PDF | NOTES，或两篇 paper 并排）</li>
-<li>[x] 快捷键：关 tab <code>⌘W</code>（仅剩全库时关窗；File → Close 同源）/ 切 tab <code>⌥⌘→·⌥⌘←</code>；分屏随 split 补</li>
+<li>[x] 快捷键：关 tab <code>⌘W</code>（有弹层先关顶层；仅剩全库时关窗；File → Close 同源）/ 切 tab <code>⌥⌘→·⌥⌘←</code>；分屏随 split 补</li>
 <li>[x] 文件树 / Library / Graph / Backlinks / wiki 跳转统一 <code>openTab</code>；同路径已开则聚焦</li>
 <li>[x] 与 <code>⌘N</code> 多窗口隔离：每窗口独立 tab 集（<code>agentero-open-tabs</code>）；关窗/换 Vault 可恢复布局</li>
 <li>[x] 全局操作错误 Toast（<code>notifyError</code>，右上角；替代侧栏 header 错误条）</li>
@@ -578,8 +578,9 @@
 </ul>
 <h3 id="_3">查找<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[x] <strong>命令面板 <code>⌘K</code>/<code>⌘P</code></strong>：论文 quick-open + <code>vault_search</code> 全文正文匹配（命中论文 → 打开论文）</li>
-<li>[ ] FTS5 索引、PDF 正文层检索、搜索历史 / 过滤</li>
+<li>[x] <strong>快速打开 <code>⌘P</code>/<code>⌘K</code></strong>：论文 quick-open + <code>vault_search</code> 全文正文匹配（命中论文 → 打开论文）</li>
+<li>[x] <strong>命令面板 <code>⇧⌘P</code></strong>：内置应用命令（设置 / 视图 / Vault / 标签…）；<code>&gt;</code> 前缀可从快速打开切入</li>
+<li>[ ] 命令注册表抽离 + MRU；FTS5 索引、PDF 正文层检索、搜索历史 / 过滤</li>
 </ul>
 <h3 id="_4">入库<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
 <ul>

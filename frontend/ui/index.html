@@ -67,6 +67,8 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#3">3. 布局</a>
         <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#30-overlay-stack">3.0 应用弹层栈（overlay-stack）</a>
+    </li>
     <li class="toctree-l3"><a class="reference internal" href="#31-macos-apple-hig">3.1 快捷键（对齐 macOS / Apple HIG 习惯）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#311-roadmap-v06">3.1.1 文档标签页（已落地）与分屏（规划，roadmap V0.6）</a>
@@ -324,7 +326,7 @@
 <td>File</td>
 <td>Close</td>
 <td><code>⌘W</code></td>
-<td>自定义菜单项 <code>close_tab_or_window</code>：先关当前文档 tab；无 tab 时关当前窗口（非系统 CloseWindow）</td>
+<td>自定义菜单项 <code>close_tab_or_window</code>：有弹层时先关最顶层（<code>overlay-stack</code>）；否则关当前文档 tab；仅剩全库时关窗（非系统 CloseWindow）</td>
 </tr>
 <tr>
 <td>agentero</td>
@@ -359,6 +361,79 @@
 </table>
 <p>主窗口在设置开启「恢复上次 Vault」且非 <code>fresh</code> 时，用 <code>localStorage</code> 上次路径自动打开；<code>⌘N</code> 窗口始终从欢迎页开始。</p>
 <h2 id="3">3. 布局<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="30-overlay-stack">3.0 应用弹层栈（overlay-stack）<a class="headerlink" href="#30-overlay-stack" title="Permanent link">&para;</a></h3>
+<p>应用级 <strong>sheet / Dialog</strong> 不再各自绑定关闭键，而是注册到统一栈，由全局快捷键按 LIFO 关闭。</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>实现</td>
+<td><code>src/lib/overlay-stack.ts</code>；React 接入 <code>src/hooks/use-overlay-registration.ts</code>（<code>useOverlayRegistration</code> / <code>useAnyOverlayOpen</code>）</td>
+</tr>
+<tr>
+<td>注册</td>
+<td>弹层 <code>open === true</code> 时 <code>pushOverlay({ id, close })</code>；关闭或卸载时 dispose（idempotent）</td>
+</tr>
+<tr>
+<td>关闭</td>
+<td><code>closeTopOverlay()</code> 弹出栈顶并调用其 <code>close</code>；<code>⌘W</code>（<code>closeTabOrWindow</code>）与 <code>Esc</code>（<code>closeSheet</code>）共用</td>
+</tr>
+<tr>
+<td>门控</td>
+<td><code>useAppShortcuts(anyOverlayOpen, …)</code>：<code>whenSettingsClosed</code> 实际表示「无弹层」；有弹层时挡 Vault/导航类快捷键，避免误触</td>
+</tr>
+<tr>
+<td>开关类</td>
+<td><code>⌘,</code> 设置、<code>⌘/</code> 快捷键清单、<code>⌘K</code>/<code>⌘P</code> 命令面板、<code>⇧⌘P</code> 命令模式：自身可再按关闭（不依赖 <code>whenSettingsClosed</code>）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>已注册 id（须保持稳定）</strong></p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>组件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>settings</code></td>
+<td><code>SettingsWindow</code></td>
+</tr>
+<tr>
+<td><code>shortcuts</code></td>
+<td><code>ShortcutsDialog</code></td>
+</tr>
+<tr>
+<td><code>command-palette</code></td>
+<td><code>CommandPalette</code>（Go / Commands 共用）</td>
+</tr>
+<tr>
+<td><code>zotero-migrate</code></td>
+<td><code>ZoteroMigrateDialog</code></td>
+</tr>
+<tr>
+<td><code>move-papers</code></td>
+<td><code>MovePapersDialog</code></td>
+</tr>
+<tr>
+<td><code>agent-permission</code></td>
+<td>Agent 权限询问 Dialog</td>
+</tr>
+<tr>
+<td><code>notes-review</code></td>
+<td>Agent 笔记 Keep/Revert Dialog</td>
+</tr>
+</tbody>
+</table>
+<p><strong>新弹层约定</strong>：在 Dialog / 全屏 sheet 内调用 <code>useOverlayRegistration("stable-id", open, () =&gt; onOpenChange(false))</code> 即可自动支持 <code>Esc</code> / <code>⌘W</code>。<strong>不</strong>把普通 Popover / Tooltip / 树内联重命名注册进栈。</p>
+<p>单测：<code>test/overlay-stack.test.ts</code>。</p>
 <ul>
 <li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容 + 可选右侧栏（Agent / Backlinks）。中间内容为<strong>文档标签页</strong>（浏览器式多 tab，见 §3.1.1），Notes 随激活文档切换。</li>
 <li><strong>论文库表格</strong>（<code>src/components/layout/papers-library.tsx</code>）：</li>
@@ -393,7 +468,7 @@
 <li>数据约定：<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>「Markdown 内嵌图片」。</li>
 </ul>
 </li>
-<li><strong>Notes 显示开关 / 快速打开 / 关闭文档</strong>：<code>showNotes</code>（默认显示）控制右侧 Notes 栏是否挂载。看 PDF/HTML 时，中间栏 header 右侧提供 <code>NotebookPen</code> 快捷开关（一键显示/隐藏 Notes）；全局入口则在标题栏 <strong>Layout 菜单</strong>（见下）；<code>⌘3</code> 聚焦 Notes（隐藏时先显示再聚焦）。关闭当前文档为中间栏 header 右侧的 <code>X</code>（<code>closeDocument</code>）→ 关闭当前标签（等价 <code>⌘W</code>）；论文库视图与欢迎页不显示。</li>
+<li><strong>Notes 显示开关 / 快速打开</strong>：<code>showNotes</code>（默认显示）控制右侧 Notes 栏是否挂载。看 PDF/HTML 时，中间栏 header 右侧提供 <code>NotebookPen</code> 快捷开关（一键显示/隐藏 Notes）；全局入口则在标题栏 <strong>Layout 菜单</strong>（见下）；<code>⌘3</code> 聚焦 Notes（隐藏时先显示再聚焦）。关闭当前标签走标题栏标签页上的 <code>X</code> 或 <code>⌘W</code>（有弹层时 <code>⌘W</code> 先关弹层，见 §3.0）。</li>
 <li><strong>⌘L</strong> 显示 / 隐藏右侧栏；右侧栏入口为 <strong>Agent</strong> 与 <strong>Backlinks</strong>。</li>
 <li><strong>Layout 菜单</strong>（标题栏 <code>PanelsTopLeft</code> 图标，<code>src/components/layout/layout-menu.tsx</code>）：集中式面板可见性开关（对齐 VS Code「Customize Layout」）。以复选项反映并切换 <strong>左侧边栏 / Notes / 右侧边栏 / 禅模式</strong>，各项显示对应快捷键；Notes 项仅在打开论文 PDF/HTML 时可用；切换时菜单保持打开。i18n <code>app:titlebar.layout*</code>。</li>
 <li>Backlinks 入口内采用上下分区：上方反链列表，下方 Graph。Graph 不再是独立顶层 tab。</li>
@@ -475,18 +550,28 @@
 </tr>
 <tr>
 <td><code>⌘/</code></td>
-<td>键盘快捷键速查</td>
-<td>打开快捷键清单对话框（<code>ShortcutsDialog</code>）</td>
+<td>键盘快捷键速查（开关）</td>
+<td>再按关闭；<code>ShortcutsDialog</code></td>
 </tr>
 <tr>
-<td><code>⌘K</code> / <code>⌘P</code></td>
-<td>命令面板：搜索 / 快速打开</td>
-<td>无 Vault 时提示先打开 Vault；有 Vault 时：论文标题·作者·id <strong>即时</strong> quick-open + 去抖 <code>vault_search</code> Markdown 全文（片段/行号；<code>papers/</code> 命中打开 paper）（<code>CommandPalette</code>；<code>shortcuts.ts</code> → <code>commandPalette</code>）</td>
+<td><code>⌘P</code> / <code>⌘K</code></td>
+<td>快速打开（开关）</td>
+<td>论文标题·作者·id 即时 quick-open + 去抖 <code>vault_search</code> 全文；输入 <code>&gt;</code> 可切命令模式（<code>CommandPalette</code> · <code>quickOpen</code>）</td>
+</tr>
+<tr>
+<td><code>⇧⌘P</code></td>
+<td>命令面板（开关）</td>
+<td>执行应用命令（设置 / 侧栏 / Vault / 标签…）；与快速打开共用浮层（<code>commandPalette</code>）</td>
 </tr>
 <tr>
 <td><code>Esc</code></td>
-<td>关闭 Settings</td>
-<td>关闭 sheet / 对话框</td>
+<td>关闭最顶层弹层</td>
+<td>统一经 <code>overlay-stack</code>：设置 / 快捷键清单 / 命令面板 / Zotero 迁移 / 移动论文 / Agent 权限与笔记审阅等</td>
+</tr>
+<tr>
+<td><code>⌘W</code></td>
+<td>关闭最顶层弹层 / 标签 / 窗口</td>
+<td>有注册弹层时先关弹层；否则关当前 tab；仅剩全库 Library 时关窗（File → Close 同源）</td>
 </tr>
 <tr>
 <td><code>⌘N</code></td>
@@ -549,11 +634,6 @@
 <td></td>
 </tr>
 <tr>
-<td><code>⌘W</code></td>
-<td>关闭当前标签 / 窗口（<code>closeTab</code>）</td>
-<td>仅剩全库 Library 时关窗；否则关当前 tab，关空后自动全库（File → Close 同源）</td>
-</tr>
-<tr>
 <td><code>⌥⌘→</code> / <code>⌥⌘←</code></td>
 <td>下一 / 上一标签（<code>nextTab</code> / <code>prevTab</code>）</td>
 <td>在打开的文档标签间循环</td>
@@ -594,7 +674,7 @@
 <li><strong>默认页 = 全库 Library</strong>：</li>
 <li>打开 Vault 无持久化 tab → <code>ensureFullLibraryTab()</code>。</li>
 <li>关 tab 后列表为空 → 自动打开全库（无「无标签」空态）。</li>
-<li><strong><code>⌘W</code> / tab X</strong>：仅剩全库 <code>agentero:library</code> 时<strong>关窗</strong>；否则关当前 tab，关空后回全库。</li>
+<li><strong><code>⌘W</code> / tab X</strong>：有注册弹层时<strong>先关最顶层</strong>（见 §3.0）；否则仅剩全库 <code>agentero:library</code> 时<strong>关窗</strong>；否则关当前 tab，关空后回全库。</li>
 <li><strong>常驻挂载</strong>：每个 tab 保持 mounted（非激活 <code>hidden</code>）；切换保留 PDF 滚动/缩放与编辑器状态。作用域 / 全库共用 <code>libraryPapers</code> 缓存。</li>
 <li><strong>状态派生</strong>：<code>activeTab</code> 驱动路径 / 模式 / Notes；作用域 Library 的 <code>path</code> 为文件夹绝对路径，树高亮该组织夹。</li>
 <li><strong>持久化</strong>：<code>agentero-open-tabs</code> 按窗口保存；全库与作用域 path 均可恢复。</li>
@@ -824,7 +904,7 @@ PromptInput → Body / Footer / Submit
 </tr>
 <tr>
 <td>关闭</td>
-<td>右上角 <code>X</code>、点遮罩、<code>Esc</code>、再次 <code>⌘,</code></td>
+<td>右上角 <code>X</code>、点遮罩、<code>Esc</code>、<code>⌘W</code>（经 <code>overlay-stack</code>）、再次 <code>⌘,</code></td>
 </tr>
 <tr>
 <td>文案</td>
@@ -835,12 +915,13 @@ PromptInput → Body / Footer / Submit
 <p><strong>页面职责</strong></p>
 <ul>
 <li><strong>General</strong>：恢复上次 Vault、退出确认；<strong>文件树论文显示</strong>（<code>paperTreeLabelMode</code>，默认 <code>title-author</code>：标题 · 作者；另有标题 / 作者(年)·标题 / 文件夹名）；<strong>Translator 服务地址</strong>（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）。入库默认下载 PDF（arXiv 含 LaTeX），无「是否本地下载」开关。<strong>Zotero Connector 兼容</strong>开关（<code>connectorEnabled</code>，默认关；与 Zotero 桌面端互斥占用 <code>23119</code>；状态行显示监听地址 / 错误；见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>），勿与 Translator 地址混为同一设置项。</li>
-<li><strong>Appearance</strong>：主题、<strong>语言（跟随系统 / English / 简体中文）</strong>、编辑字号、行号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，控制 Markdown/Notes 编辑器顶部的 WYSIWYG 工具栏，默认开）。</li>
+<li><strong>Appearance</strong>：主题、<strong>语言（跟随系统 / English / 简体中文）</strong>；其下分组 <strong>Markdown编辑器</strong>（<code>appearance.markdownEditor.section</code>）：编辑字号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，控制 Markdown/Notes 编辑器顶部的 WYSIWYG 工具栏，默认开）。</li>
 <li><strong>Agent</strong>（BYOA，非模型 BYOK 表单）：</li>
 <li>总开关。</li>
 <li><strong>权限模式</strong>（<code>agentPermissionMode</code>：受限 / 每次询问 / 自动批准，见 §3.2）。</li>
 <li><strong>回答语言</strong>（自动 / English / 简体中文，独立于界面语言）。</li>
 <li><strong>入库后自动精读</strong>（<code>autoPaperReader</code>，<strong>默认关</strong>）：开启后魔棒 / 单篇 Download 资源就绪且未读时自动 paper-reader；Zap 始终可手动。</li>
+<li><strong>PDF 划词提问</strong>（<code>pdfAsk.agentId</code> / <code>pdfAsk.modelId</code>）：划词「提问」对话框专用 Agent 与模型；空则跟随默认 Agent / 该 Agent 的模型偏好；与 Chat 当前选择、翻译用 Agent <strong>相互独立</strong>。</li>
 <li><strong>Common agents</strong> 目录表：名称与 badge 组留距；badge 组内紧凑（安装列固定槽：已安装 / 未安装；ACP 列仅 ready/failed/not-probed，不把 missing 显示成「未安装」；+ adapter missing）；未安装整行置灰；默认 Agent 右侧对勾。打开页自动 scan + 并行 Probe；Refresh 可再跑。表下小字：ACP 失败时可试代理。代理开关不因 Probe busy 禁用；改代理只持久化 + scan。</li>
 <li><strong>Claude</strong>：<code>detect</code> 用本机 <code>claude</code>（Claude Code）；ACP 入口为 <code>claude-agent-acp</code>。若已装 Claude Code 但缺适配器，显示 <strong>ACP adapter missing</strong> 徽章 + <strong>Install ACP</strong> 小按钮 → Host <code>agent_open_install_terminal</code> 打开系统终端，展示 <code>npm i -g @agentclientprotocol/claude-agent-acp</code>，<strong>等待用户按 Enter 才执行</strong>（不静默安装）。装完后用户点 Refresh 再 Probe。</li>
 <li>顶部 <strong>Refresh</strong>（Rescan + Probe）；<strong>Use default</strong> 纯文字（无 icon）。</li>

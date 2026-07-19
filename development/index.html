@@ -250,9 +250,14 @@
 <td>本机 <code>23119</code>：<code>saveItems</code> + 子文件夹 targets + <strong><code>saveAttachment</code></strong>；设置开关默认关；见 <a href="../backend/connector/"><code>../backend/connector.md</code></a></td>
 </tr>
 <tr>
-<td>全库搜索</td>
+<td>全库搜索 / 命令面板</td>
+<td>✅ Phase A</td>
+<td><code>⌘P</code>/<code>⌘K</code> 快速打开 + <code>⇧⌘P</code> 命令模式；<code>&gt;</code> 前缀；见 <a href="command-palette/"><code>command-palette.md</code></a></td>
+</tr>
+<tr>
+<td>应用弹层栈</td>
 <td>✅</td>
-<td>命令面板 <code>⌘K</code>/<code>⌘P</code>：论文 quick-open + <code>vault_search</code> Markdown 全文</td>
+<td><code>overlay-stack</code>：Esc/<code>⌘W</code> 统一关最顶层 sheet/Dialog；见 <a href="../frontend/ui/"><code>../frontend/ui.md</code></a> §3.0</td>
 </tr>
 <tr>
 <td>Release CI</td>
@@ -272,6 +277,7 @@
 <li><a href="pdf-ask/"><code>pdf-ask.md</code></a>：PDF 划词提问（MVP 已落地；选区/双击/悬停 → 迷你问答 → JSON → 锚点图标）技术栈与数据契约。</li>
 <li><a href="translate/"><code>translate.md</code></a>：翻译服务（首版已落地；应用级可插拔 <strong>免费 MT + BYOA Agent</strong>；设置 → 翻译页；PDF 划词为首个消费方）。</li>
 <li><a href="logging/"><code>logging.md</code></a>：运行日志（<strong>P0 已落地</strong>；<code>tauri-plugin-log</code> + <code>log</code> + CLI <code>env_logger</code>；关键操作 start/end；与 Toast / <code>ApiResult</code> 分层）。</li>
+<li><a href="command-palette/"><code>command-palette.md</code></a>：全局命令面板 / 快速打开（对照 VS Code ⇧⌘P · ⌘P；现状与分期设计）。</li>
 <li><a href=".md"><code>.md</code></a>：简短产品假设。</li>
 </ul>
 <h2 id="_5">交叉引用<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>

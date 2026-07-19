@@ -487,7 +487,7 @@
 <li>[x] <strong>默认页 = 全库 Library</strong>：<code>ensureFullLibraryTab</code>；仅剩全库时 <code>⌘W</code> 关窗。</li>
 <li>[x] <strong>文件夹作用域库</strong>：非 paper 目录 → <code>filterPapersByScope</code> 内存前缀过滤。</li>
 <li>[ ] <strong>分屏（split）</strong>：水平或垂直拆成 2 格（MVP 可先 2 格；后续可扩展 3–4 格），每格独立 tab 栈或共享 tab 池。</li>
-<li>[x] <strong>快捷键</strong>：关闭 tab <code>⌘W</code>（仅剩全库关窗）、下一/上一 tab <code>⌥⌘→ / ⌥⌘←</code>；分屏快捷键随 split 一并补。</li>
+<li>[x] <strong>快捷键</strong>：关闭 tab <code>⌘W</code>（有弹层先关 <code>overlay-stack</code> 顶层；仅剩全库关窗）、下一/上一 tab <code>⌥⌘→ / ⌥⌘←</code>；分屏快捷键随 split 一并补。</li>
 <li>[x] <strong>与文件树联动</strong>：树选中 / Library / Graph / Backlinks / wiki 跳转统一走 <code>openTab</code>；同一路径已开则聚焦其 tab。</li>
 <li>[x] <strong>多窗口兼容</strong>：<code>⌘N</code> 窗口各自有独立 tab 集（<code>agentero-open-tabs</code> 按窗口 localStorage 恢复）。</li>
 </ul>
