@@ -1407,6 +1407,7 @@ Host (Tauri + Rust)
   autoApprove?: boolean; // 默认 false；true 时选择 ACP 返回的第一个权限选项
   permissionMode?: string; // &quot;restricted&quot; | &quot;ask&quot; | &quot;auto&quot;；&quot;ask&quot; 时每个 ACP 权限请求转交用户（agent:permission-request）
   responseLanguage?: string; // 强制回答/笔记语言（如 zh-CN）；省略或 auto 时不注入
+  personalPrompt?: string; // 用户个人偏好提示词；省略或空时不注入
   hideFromChatHistory?: boolean; // 默认 false；true 时不写入 Vault Codex 会话索引（精读 / PDF 划词提问等）
 }
 </code></pre>
@@ -1439,6 +1440,9 @@ Host (Tauri + Rust)
 </li>
 <li>
 <p><strong>回答语言</strong>：设置 → Agent 提供全局「回答语言」（自动 / English / 简体中文，独立于界面语言）。前端 <code>runOnce</code> 统一读取该设置并透传 <code>responseLanguage</code>；Host 在 <code>build_prompt</code>（<code>prompts.rs</code>）为所有 workflow 追加一句语言指令，<code>auto</code> 时不注入。</p>
+</li>
+<li>
+<p><strong>个人偏好提示词</strong>：设置 → Agent 多行文本（<code>agentPersonalPrompt</code>，默认空）。非空时前端 <code>runOnce</code> 透传 <code>personalPrompt</code>；Host 在 <code>build_prompt</code> system envelope 追加 <code>User preference instructions</code> 块（所有 workflow）。留空不注入；Chat 展示剥离 envelope，不出现在对话记录。</p>
 </li>
 <li>
 <p><strong>能力边界</strong>：Codex 使用 App Server 的模型目录、reasoning effort 与 service tier；ACP provider 根据 <code>SessionConfigOption</code> 协商。Composer 只为当前 provider 已声明的能力显示对应控件。</p>
@@ -1918,7 +1922,7 @@ Host (Tauri + Rust)
 </tr>
 </tbody>
 </table>
-<p>前端快捷键（非菜单 emit，见 <code>src/lib/shortcuts.ts</code> / <code>docs/frontend/ui.md</code> §3.1）：<code>⌥⌘R</code> 在 Finder 中显示、<code>⌥⌘T</code> 在终端中打开、<code>⌘⌫</code> 删除选中树项、<code>⇧⌘I</code> 魔棒、<code>⌥⌘←/→</code> 切换文档标签。<code>⌘W</code> 亦可由渲染层 <code>shortcuts.ts</code> 直接匹配（与菜单同源逻辑，防抖避免双触发）。</p>
+<p>前端快捷键（非菜单 emit，见 <code>src/lib/shortcuts.ts</code> / <code>docs/frontend/ui.md</code> §3.1）：<code>⌥⌘R</code> 在 Finder 中显示、<code>⌥⌘T</code> 在终端中打开、<code>⌘←</code> 折叠选中文件夹、<code>⇧⌘←</code> 折叠文件树至默认（仅 <code>papers/</code> 展开）、<code>⌘⌫</code> 删除选中树项、<code>⇧⌘I</code> 魔棒、<code>⌥⌘←/→</code> 切换文档标签。<code>⌘W</code> 亦可由渲染层 <code>shortcuts.ts</code> 直接匹配（与菜单同源逻辑，防抖避免双触发）。</p>
 <h2 id="3x-headless-cli">3.x Headless CLI（对照）<a class="headerlink" href="#3x-headless-cli" title="Permanent link">&para;</a></h2>
 <blockquote>
 <p>完整语义见 <a href="../../development/cli/"><code>../development/cli.md</code></a>。CLI <strong>不</strong>走 Tauri invoke，直接 path 依赖 <code>agentero_lib::services</code>（无 BYOA）。</p>

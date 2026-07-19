@@ -496,7 +496,7 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <li><strong>不</strong>写 PDF 二进制、<strong>不</strong>进 catalog 正文、<strong>不</strong>默认写 <code>NOTES.md</code>。</li>
 <li>坐标均为页内归一化 0–1，缩放/重开可重建。</li>
 <li>实现：<code>src/lib/pdf-selection/marks-io.ts</code> + <code>pdf-ask</code> / <code>pdf-highlight</code> / <code>pdf-translate</code> 的 IO；UI 见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>。</li>
-<li><strong>阅读热力图</strong>：聚合上述三类 mark 的 page + y；可选 <code>{paper}/reading-meta.json</code>（<code>pageCount</code>）。</li>
+<li><strong>阅读热力</strong>：聚合上述三类 mark 的 page + y，Library 标题文字横向背景（左=文首、右=文末）表示位置强度；可选 <code>{paper}/reading-meta.json</code>（<code>pageCount</code>）。</li>
 </ul>
 <h3 id="highlightsmdl25-markdown"><code>highlights.md</code>（L2.5，规划中的 Markdown 证据层）<a class="headerlink" href="#highlightsmdl25-markdown" title="Permanent link">&para;</a></h3>
 <p>与 JSON marks <strong>分离</strong>：若将来导出引文块，可写便携 Markdown；当前阅读器标注以 <code>marks/</code> 为准。</p>
