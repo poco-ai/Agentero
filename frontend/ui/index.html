@@ -454,7 +454,7 @@
 <li><strong>作用域</strong>：App 状态 <code>libraryScopePath</code>（vault-relative，如 <code>papers/nlp/pretrain</code>）；null = 全库。过滤：<code>filterPapersByScope</code> 内存前缀匹配。无 per-folder RPC、不扫盘。</li>
 <li><strong>性能</strong>：全库一次 <code>paper_list</code>；切文件夹仅改 scope + filter；见 <code>test/library-scope.test.ts</code> latency。</li>
 <li><strong>数据</strong>：Host <code>paper_list</code> → catalog.sqlite。<strong>catalog 权威</strong>；空态「重新扫描 papers/」（<code>paper_rescan</code>）。</li>
-<li><strong>列</strong>：标题、作者、年份、<strong>标签</strong>、类型、标识符；点击行打开对应 paper 文件夹。</li>
+<li><strong>列</strong>：标题、作者、年份、<strong>标签</strong>、类型、标识符；<strong>双击</strong>行打开对应 paper 文件夹。</li>
 <li><strong>标签筛选</strong>：表上方汇总<strong>当前作用域</strong> tag chip；单元格 tag 也可筛选。标题搜索同时匹配 tag 子串。</li>
 <li><strong>排序</strong>：点击表头升序 / 降序；年份列首次为降序；文字列默认升序。</li>
 <li><strong>滚动</strong>：<code>.agentero-scroll-both</code>；表格 <code>w-max min-w-full</code>。</li>

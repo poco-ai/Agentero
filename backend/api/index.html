@@ -487,6 +487,7 @@ Host (Tauri + Rust)
 <li>初始化 <code>.agentero/catalog.sqlite</code>（schema 当前版本，含 Translator 元数据列）。详见 <a href="../catalog/"><code>catalog.md</code></a>。</li>
 <li>写入默认 <code>AGENTS.md</code>（若不存在）。</li>
 <li>写入 <strong><code>.agents/README.md</code></strong>（若不存在；内容来自仓库 <code>templates/vault/.agents/</code>）。</li>
+<li>种子 <strong>bundled skills</strong>（已存在则跳过）：<code>paper-reader</code>、<code>agentero-cli</code>、<code>idea-evaluator</code>、<code>deep-research</code>（后两者含 <code>references/</code>，来自 <a href="https://github.com/HKUSTDial/Supervisor-Skills">Supervisor-Skills</a>，<strong>CC BY-NC-SA 4.0</strong>；另写 <code>skills/README.md</code> 与 <code>LICENSE-Supervisor-Skills.txt</code>）。</li>
 <li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>；<strong>不</strong>覆盖已有 <code>AGENTS.md</code> / <code>.agents/**</code>。</li>
 <li>最近列表由前端在成功打开后写入 <code>localStorage</code>（<code>agentero-recent-vaults</code>）。</li>
 </ul>

@@ -332,7 +332,39 @@
 字段、schema、导出与实现见 <strong><a href="../catalog/"><code>catalog.md</code></a></strong>。<br />
 UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<code>paper_get</code>）均读 catalog，不扫 <code>metadata.json</code>。</p>
 <p>其中 <strong><code>is_read</code></strong>（bool，schema v3）：是否已完成 <strong>paper-reader</strong> 精读工作流。默认 <code>false</code>。触发：魔棒入库 / 单篇 Download 资源就绪后可<strong>自动</strong>精读；文件树在「本地 PDF +（TeX 或 <code>PAPER.md</code>）齐全且未读」时显示 <strong>Zap</strong> 图标供<strong>手动</strong>重跑。成功写入 <code>NOTES.md</code> 后置 <code>true</code>。Skill 触发语法按 provider（Codex <code>$</code> / Claude <code>/</code> / 其它注入正文）；进度在左下角后台任务条（可与入库/下载任务衔接）。</p>
-<p>Vault 技能种子：Create Vault 写入 <code>.agents/skills/paper-reader/SKILL.md</code>（亦可放在 <code>~/.agents/skills</code> / <code>~/.claude/skills</code>）。</p>
+<p>Vault 技能种子（Create Vault，已存在不覆盖；模板见 <code>templates/vault/.agents/skills/</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>Skill</th>
+<th>用途</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>paper-reader</code></td>
+<td>精读 → <code>{paper}/NOTES.md</code></td>
+<td>本项目维护</td>
+</tr>
+<tr>
+<td><code>agentero-cli</code></td>
+<td>headless <code>agentero</code> CLI</td>
+<td>本项目维护</td>
+</tr>
+<tr>
+<td><code>idea-evaluator</code></td>
+<td>研究 idea 评审</td>
+<td>来自 <a href="https://github.com/HKUSTDial/Supervisor-Skills">Supervisor-Skills</a>（<strong>CC BY-NC-SA 4.0</strong>）</td>
+</tr>
+<tr>
+<td><code>deep-research</code></td>
+<td>综述级文献调研</td>
+<td>同上</td>
+</tr>
+</tbody>
+</table>
+<p>亦可放在 <code>~/.agents/skills</code> / <code>~/.claude/skills</code>。第三方 skill 的来源与 LICENSE 见 vault 内 <code>.agents/skills/README.md</code>。</p>
 <h3 id="papersmd-librarybib">可选导出：<code>PAPERS.md</code> / <code>library.bib</code><a class="headerlink" href="#papersmd-librarybib" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
