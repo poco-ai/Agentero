@@ -481,7 +481,7 @@
 <li><strong>⌘L</strong> 显示 / 隐藏右侧栏；右侧栏入口为 <strong>Agent</strong> 与 <strong>Backlinks</strong>。</li>
 <li><strong>Layout 菜单</strong>（标题栏 <code>PanelsTopLeft</code> 图标，<code>src/components/layout/layout-menu.tsx</code>）：集中式面板可见性开关（对齐 VS Code「Customize Layout」）。以复选项反映并切换 <strong>左侧边栏 / Notes / 右侧边栏 / 禅模式</strong>，各项显示对应快捷键；Notes 项仅在打开论文 PDF/HTML 时可用；切换时菜单保持打开。i18n <code>app:titlebar.layout*</code>。</li>
 <li>Backlinks 入口内采用上下分区：上方反链列表，下方 Graph。Graph 不再是独立顶层 tab。</li>
-<li><strong>Agent 禅模式</strong>（quest / Cursor Agents Window 心智，<code>⌥⌘Z</code> 或标题栏 Focus 图标）：</li>
+<li><strong>Agent 禅模式</strong>（quest / Cursor Agents Window 心智，<code>⌥⌘Z</code> 或标题栏 <strong>Layout / 面板</strong> 菜单中的禅模式项）：</li>
 <li>进入后：折叠左栏与中间主栏，右栏 Agent 铺满；系统标题栏仅拖拽区 + <strong>返回</strong>（<code>ArrowLeft</code>，不再用关闭 <code>X</code>）；隐藏后台任务条与 Notes；Agent 面板头<strong>无</strong>重复退出按钮。</li>
 <li><strong>同一</strong> <code>AgentPanel</code> 实例保持挂载（CSS 切换 / 不 remount），会话与流式状态不丢。</li>
 <li><strong>布局</strong>（<code>variant="zen"</code>）：<ul>
@@ -676,7 +676,7 @@
 <li><strong>论文行 Zap（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Codex 用 <code>$paper-reader</code>，Claude 用 <code>/paper-reader</code>，其它靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。若设置开启 <code>autoPaperReader</code>，魔棒 / 单篇 Download 成功后也会自动跑（批量不连跑）。进度在左下角后台任务条。</li>
 </ul>
 <h3 id="311-roadmap-v06">3.1.1 文档标签页（已落地）与分屏（规划，roadmap V0.6）<a class="headerlink" href="#311-roadmap-v06" title="Permanent link">&para;</a></h3>
-<p><strong>浏览器式文档标签页</strong>（<code>src/components/layout/document-tab-bar.tsx</code>、模型 <code>src/lib/tabs.ts</code>）位于<strong>窗口标题栏</strong>（与禅模式 Focus 图标同行）：</p>
+<p><strong>浏览器式文档标签页</strong>（<code>src/components/layout/document-tab-bar.tsx</code>、模型 <code>src/lib/tabs.ts</code>）位于<strong>窗口标题栏</strong>（与 Layout / 侧栏图标同行）：</p>
 <ul>
 <li><strong>多 tab</strong>：paper / Markdown / PDF / HTML / <strong>Library（全库或文件夹作用域）</strong> 各占一个 tab，可切换、关闭（<code>X</code> / 中键 / <code>⌘W</code>）、拖拽重排；同一路径已开则聚焦其 tab。</li>
 <li><strong>默认页 = 全库 Library</strong>：</li>
