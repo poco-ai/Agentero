@@ -100,6 +100,8 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#12-mvp">1.2 非目标（MVP 不做）</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#121">1.2.1 平台支持</a>
+    </li>
     <li class="toctree-l3"><a class="reference internal" href="#13">1.3 产品表述（期望管理）</a>
     </li>
         </ul>
@@ -281,7 +283,31 @@
 <li>系统级挂载（sshfs / FUSE）作为唯一路径</li>
 <li>在 Agentero 内填写模型 API Key（仍 BYOA：Key 在<strong>服务器</strong>上配置）</li>
 <li>Finder 显示 / 系统终端打开远端路径（无本机 path 语义）</li>
+<li><strong>Windows 客户端打开远程 Vault</strong>（见下）</li>
 </ul>
+<h3 id="121">1.2.1 平台支持<a class="headerlink" href="#121" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>客户端 OS</th>
+<th>本地 Vault</th>
+<th>远程 Vault（SSH/SFTP）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS / Linux</td>
+<td>✅</td>
+<td>✅（<code>openssh</code> + <code>openssh-sftp-client</code>）</td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>✅</td>
+<td>❌ MVP：依赖的 <code>openssh</code>/<code>sendfd</code> 为 Unix-only；连接时返回明确错误。跨平台需后续迁 <code>russh</code>/<code>ssh2</code> 等</td>
+</tr>
+</tbody>
+</table>
+<p>依赖在 <code>src-tauri/Cargo.toml</code> 中以 <code>[target.'cfg(unix)'.dependencies]</code> 声明，避免 Windows release 构建失败。</p>
 <h3 id="13">1.3 产品表述（期望管理）<a class="headerlink" href="#13" title="Permanent link">&para;</a></h3>
 <blockquote>
 <p><strong>Open Remote Vault</strong>：经 SSH 连接服务器上的目录。笔记与 catalog 保存在服务器；本机仅缓存预览与会话工作文件。Agent 在服务器上运行并直接读写该目录。同一远端库请勿多客户端并发写入。</p>
@@ -752,12 +778,12 @@ type RemoteAgentLaunch = {
 <tr>
 <td>SSH + 系统兼容</td>
 <td><a href="https://crates.io/crates/openssh"><code>openssh</code></a> + 系统 <code>ssh</code></td>
-<td><strong>优先吃 <code>~/.ssh/config</code>、ProxyJump、ssh-agent</strong>；MVP 打通快</td>
+<td><strong>优先吃 <code>~/.ssh/config</code>、ProxyJump、ssh-agent</strong>；MVP 打通快；<strong>Unix-only</strong>（<code>sendfd</code>）</td>
 </tr>
 <tr>
 <td>SFTP</td>
 <td><a href="https://crates.io/crates/russh-sftp"><code>russh-sftp</code></a> 或 <a href="https://crates.io/crates/openssh-sftp-client"><code>openssh-sftp-client</code></a></td>
-<td>与上表 SSH 选型配对</td>
+<td>与上表 SSH 选型配对；当前 MVP 用后者且仅 <code>cfg(unix)</code></td>
 </tr>
 <tr>
 <td>备选</td>
