@@ -541,8 +541,8 @@
 <li><strong>对话区</strong>（AI Elements）：<code>Conversation</code> 视口<strong>全宽</strong>（滚动条贴主区最右，<code>agentero-scroll</code>）；消息 / Composer 内容 <code>max-w-2xl</code> 居中；空态垂直居中；组件：<code>Message</code> / <code>Reasoning</code> / <code>Plan</code> / <code>Tool</code> / <code>PromptInput</code> / <code>Suggestion</code> / <code>Sources</code> / <code>Checkpoint</code> 等。</li>
 </ul>
 </li>
-<li><strong>侧栏模式</strong>（非禅）：顶栏仍为 Agent 切换 + 新建 + History 弹出层（Codex 可开「外部会话」）；无 1/2/3 数字标签。</li>
-<li><strong>历史过滤</strong>：精读 <code>paper_reader</code>、PDF 划词提问等非 Composer 工作流传 <code>hideFromChatHistory</code>，不写入 Codex 会话索引、不出现在对话记录（含旧标题启发式过滤）；进度只走左下角后台任务条。</li>
+<li><strong>侧栏模式</strong>（非禅）：顶栏仍为 Agent 切换 + 新建 + History 弹出层；无 1/2/3 数字标签。</li>
+<li><strong>历史过滤</strong>：精读 <code>paper_reader</code>、PDF 划词提问等非 Composer 工作流传 <code>hideFromChatHistory</code>，不写入会话历史、不出现在对话记录；进度只走左下角后台任务条。</li>
 <li>退出：标题栏 <strong>返回图标</strong>，或再次 <code>⌥⌘Z</code>；恢复进入前左栏折叠意图与右栏默认宽度。</li>
 <li><strong>左右侧栏隔离</strong>（<code>react-resizable-panels</code>）：</li>
 <li>左栏（文件树）与右栏（Agent/Backlinks）均为 <strong>常驻 collapsible 面板</strong>（<code>collapsedSize=0</code>），用 <code>expand</code>/<code>collapse</code>/<code>resize</code> 切换，<strong>不要</strong>对右栏做条件卸载整块 <code>ResizablePanel</code>（否则 Group 重排会冲掉左栏折叠态）。</li>
@@ -734,7 +734,7 @@
 <li><strong>完成后</strong>：刷新文件树 / Library / wiki → <code>openPaper(paperDir)</code>（打开 PDF tab，并 <code>setTreeSelectedPath</code>）→ 左侧树<strong>展开祖先并滚到新论文行</strong>（见 §2.1 选中同步）。本地 PDF 导入同样走 <code>openPaper</code>。  </li>
 <li>详见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>；i18n <code>sidebar:lookup.*</code> / <code>papersLibrary.*</code>；无 Vault 时禁用。</li>
 <li><strong>论文行 Download</strong>：缺本地 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时显示；hover 列出原因 → <code>paper_download_assets</code>（已有资源跳过）。下载后若仍无 TeX 且有 PDF，Host 自动 liteparse 写 <code>PAPER.md</code>。Library 行可对库内全部不完整 paper <strong>批量</strong> Download。</li>
-<li><strong>论文行 Zap（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Codex 用 <code>$paper-reader</code>，Claude 用 <code>/paper-reader</code>，其它靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。若设置开启 <code>autoPaperReader</code>，魔棒 / 单篇 Download 成功后也会自动跑（批量不连跑）。进度在左下角后台任务条。</li>
+<li><strong>论文行 Zap（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Claude 用 <code>/paper-reader</code>，其它（含 Codex）靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。若设置开启 <code>autoPaperReader</code>，魔棒 / 单篇 Download 成功后也会自动跑（批量不连跑）。进度在左下角后台任务条。</li>
 </ul>
 <h3 id="311-roadmap-v06">3.1.1 文档标签页（已落地）与分屏（规划，roadmap V0.6）<a class="headerlink" href="#311-roadmap-v06" title="Permanent link">&para;</a></h3>
 <p><strong>浏览器式文档标签页</strong>（<code>src/components/layout/document-tab-bar.tsx</code>、模型 <code>src/lib/tabs.ts</code>）位于<strong>窗口标题栏</strong>（与 Layout / 侧栏图标同行）：</p>
@@ -819,7 +819,7 @@ PromptInput → Body / Footer / Submit
 </code></pre>
 
 <p><strong>Agent 切换</strong>：顶栏左侧当前 ACP 后端名打开下拉（列表来自 catalog + 注册表）；选择后设为默认并用于后续 <code>runOnce</code>。下拉 <strong>「ACP backend」标题行最右侧</strong> 齿轮（<code>Settings</code>）→ <strong>设置 → Agent</strong>（<code>onOpenAgentSettings</code>）。</p>
-<p><strong>消息编辑与重发</strong>：会话空闲时（发送成功、停止或失败后）hover 已发送的用户消息会显示 <strong>Edit（铅笔）</strong> 与 <strong>Copy</strong> 两个图标按钮；运行中不显示 Edit，须先按 <code>Esc</code> / 点击停止。点击 Edit 就地把气泡替换为文本框（<code>↵</code> 重新发送、<code>⇧↵</code> 换行、<code>Esc</code> 取消），重发时会丢弃<strong>该消息及其之后的所有内容</strong>（旧回答 / 被中断的运行）并以新文本发起一次全新的 turn，用于修正发错的输入。切换会话 / 标签 / 新建对话会自动取消未完成的编辑。（重发沿用普通发送的 session 续接规则：非 Codex 每次新建 session；Codex 续接原生 thread，因此可见转录被截断但 Agent 侧线程记忆不随之回退。）</p>
+<p><strong>消息编辑与重发</strong>：会话空闲时（发送成功、停止或失败后）hover 已发送的用户消息会显示 <strong>Edit（铅笔）</strong> 与 <strong>Copy</strong> 两个图标按钮；运行中不显示 Edit，须先按 <code>Esc</code> / 点击停止。点击 Edit 就地把气泡替换为文本框（<code>↵</code> 重新发送、<code>⇧↵</code> 换行、<code>Esc</code> 取消），重发时会丢弃<strong>该消息及其之后的所有内容</strong>（旧回答 / 被中断的运行）并以新文本发起一次全新的 turn，用于修正发错的输入。切换会话 / 标签 / 新建对话会自动取消未完成的编辑。（重发沿用普通发送的 session 续接规则：有 <code>sessionId</code> 时经 ACP <code>session/resume</code> 续接，可见转录被截断但 Agent 侧会话记忆不随之回退。）</p>
 <p><strong>会话标签</strong>：运行中的 Agent session 不会锁定标签栏。用户可随时切换并查看其它已打开的会话，也可在新会话中发起独立运行；同一 session 在运行期间保持只读，避免重入。流式消息、工具调用和最终状态仍只写回它们所属的 session。</p>
 <p><strong>上下文提及</strong>：Composer <strong>默认附带</strong>当前聚焦的论文单元（文件在 paper 内时解析为 paper 文件夹）或其它打开的 Vault 路径，无需点击加号；chip 标签为 <strong>虚拟名称</strong>（论文优先 catalog 标题，否则路径最后一段 / paper-name），完整 Vault 相对路径仅作 tooltip 与发送给 Agent 的引用。输入 <code>@</code> 打开候选菜单：候选为 <strong>论文文件夹 + 其它目录 + paper 外 Markdown</strong>（paper 内 <code>NOTES.md</code> 等折叠为 paper 单元）；<strong>空 <code>@</code></strong> 优先展示最近选用路径与浅层目录树（depth ≤ 2）；行右侧 <strong>›</strong> 可进入子目录（论文单元为叶子、不可再下钻；顶部 ‹ 或 <code>←</code> / <code>Esc</code> 返回上级）；输入关键字按路径或论文显示名筛选。论文候选标签与文件树一致（设置 → 通用 <code>paperTreeLabelMode</code>：标题 · 作者等）。从左侧文件树<strong>拖入</strong>文件/文件夹到输入区同样解析为 chip（<code>text/plain</code> 路径 → <code>mentionedPaths</code>，不插入纯文本路径）。Chip 图标按路径类型选择（<code>src/lib/context-path-icon.ts</code>）：<strong>论文文件夹</strong>用 <code>ScrollText</code>（与文件树 paper 行一致，依据 marker 收集的 <code>vaultPaperPaths</code>）；<strong>其它文件夹</strong>用 <code>Folder</code>；<strong>文件</strong>按扩展名（PDF / 图片 / 代码 / Markdown 等）。发送时 Agentero 将这些 Vault 相对路径追加到 prompt，并将第一个路径传为 <code>target</code>，Agent 仍按自身权限读取文件。</p>
 <blockquote>
@@ -836,24 +836,19 @@ PromptInput → Body / Footer / Submit
 </thead>
 <tbody>
 <tr>
-<td><strong>Codex</strong> (<code>codex-acp</code>)</td>
-<td><strong><code>$skill-id</code></strong></td>
-<td>用户 prompt 前缀 <code>$id</code> + 注入完整 <code>SKILL.md</code>（双保险）</td>
-</tr>
-<tr>
 <td><strong>Claude</strong> (<code>claude-acp</code>)</td>
 <td><strong><code>/skill-id</code></strong></td>
 <td>用户 prompt 前缀 <code>/id</code> + 注入完整 <code>SKILL.md</code></td>
 </tr>
 <tr>
-<td>其它（OpenCode / Gemini / Qoder / Grok / custom）</td>
+<td>其它（Codex / OpenCode / Gemini / Qoder / Grok / custom）</td>
 <td>无原生触发</td>
 <td>仅注入 <code>SKILL.md</code> 正文，并在 prompt 中说明不要等待 <code>$</code>/<code>/</code> 命令</td>
 </tr>
 </tbody>
 </table>
 <p>paper-reader 精读工作流与 Composer 共用这套规则，避免把 Codex 的 <code>$</code> 误写成 Claude 的 <code>/</code>，或反向。</p>
-<p><strong>斜杠命令</strong>：Agentero 不实现自己的 <code>/</code> 命令菜单。用户手打的 <code>/…</code> 原样透传；Claude 路径上 Host 也可能主动加上 <code>/skill-id</code> 前缀以对齐其 skill 语法。Codex 使用 App Server native thread，skill 侧以 <code>$</code> 为准。</p>
+<p><strong>斜杠命令</strong>：Agentero 不实现自己的 <code>/</code> 命令菜单。用户手打的 <code>/…</code> 原样透传；Claude 路径上 Host 也可能主动加上 <code>/skill-id</code> 前缀以对齐其 skill 语法。其它 provider（含 Codex）仅注入 <code>SKILL.md</code> 正文。</p>
 <p><strong>权限模式</strong>：<strong>设置 → Agent</strong> 提供一个全局「权限模式」下拉（<code>agentPermissionMode</code>），对<strong>所有 Agent</strong> 生效（默认 <strong>受限</strong>），经 <code>runOnce</code> → <code>permissionMode</code> 传入：</p>
 <table>
 <thead>
@@ -912,8 +907,8 @@ PromptInput → Body / Footer / Submit
 <p><strong>笔记写后审阅（信任闭环）</strong>：BYOA Agent 直接写盘，无法可靠事前拦截。<code>agent_run_once</code> 运行前快照目标笔记（<code>.md</code> target 或论文夹 <code>NOTES.md</code>）；若内容被改写则 emit <code>agent:notes-review</code>。面板弹 <strong>统一 Diff</strong> 对话框（<code>NotesReviewDiff</code>：行级 <code>+</code>/<code>-</code>/<code></code>，红/绿底）：<strong>Keep</strong> 保留 Agent 版本；<strong>Revert</strong> 写回快照（文件监听随后重载打开的编辑器）。</p>
 <p><strong>回答语言</strong>：<strong>设置 → Agent</strong> 提供一个全局「回答语言」下拉（<strong>自动 / English / 简体中文</strong>，存于 app settings，默认 <strong>自动</strong>），<strong>独立于界面语言</strong>，对<strong>所有 Agent</strong> 交互生效（Composer 对话、精读、summary/QA、PDF 划词问答）。前端 <code>runOnce</code> 统一读取该设置并透传，Host 在 <code>build_prompt</code> 为所有 workflow 追加一句语言指令；选 <strong>自动</strong> 时不注入任何指令，交由 Agent 依据内容决定。</p>
 <p><strong>个人偏好提示词</strong>：<strong>设置 → Agent</strong> 提供多行文本框（<code>agentPersonalPrompt</code>，默认空）。非空时，前端 <code>runOnce</code> 透传 <code>personalPrompt</code>，Host 在 <code>build_prompt</code> 的 system envelope 中追加 <code>User preference instructions</code> 块（所有 workflow）。留空不注入；Chat 展示经 <code>strip_prompt_envelope</code> 剥离 envelope，<strong>不</strong>在对话记录中显示该块。</p>
-<p><strong>Codex 控件</strong>：只有选中 <code>codex-acp</code> 时，底栏才显示 App Server <code>model/list</code> 提供的模型与 reasoning effort，以及仅在闪电图标内填充黄色的 Fast toggle。选择在下一次 native turn 中传给 App Server；其他 Agent 不显示也不接收这些偏好。</p>
-<p><strong>Codex 历史</strong>：Agentero 会将它创建或继续运行的 native thread id 记录在 Vault 的 <code>.agentero/agent-sessions/codex.json</code>。历史列表默认只显示这份索引中的会话，避免混入同一 Vault 工作目录下由 Codex CLI、编辑器或其它应用创建的 thread。历史面板的“External”开关仅对 Codex 生效；开启后显示 App Server 返回的全部 Vault-scoped thread。开关偏好按 Codex provider 注册项保存在本机浏览器中。</p>
+<p><strong>会话配置控件</strong>：底栏按当前 provider 的 ACP <code>SessionConfigOption</code> 声明显示模型选择、reasoning effort 与 Fast toggle（所有 provider 含 Codex 统一）。选择在下一次 turn 中生效；未声明对应能力的 Agent 不显示也不接收这些偏好。</p>
+<p><strong>会话历史</strong>：所有 provider（含 Codex）统一经 ACP <code>session/list</code> + <code>session/load</code> 获取历史（<code>agent_list_sessions</code> / <code>agent_load_session</code>）。历史列表显示当前 Vault 下的会话；<code>hideFromChatHistory</code> 的后台运行（精读、划词提问等）不出现。</p>
 <h3 id="33-backlinks-graph">3.3 Backlinks + Graph 右侧栏<a class="headerlink" href="#33-backlinks-graph" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

@@ -256,7 +256,7 @@
 <li><strong>本地优先（Local-first）</strong>：Vault 以 Markdown + 源文件为事实来源，数据库/索引仅作为缓存。</li>
 <li><strong>跨平台但 Mac 优先</strong>：MVP 以 macOS 桌面应用为主，技术栈保留向 iPadOS 扩展的能力。</li>
 <li><strong>Agent-first</strong>：前端为人类提供审阅、编辑、导航界面；后端 Rust 宿主提供文件系统、网络、索引，并以 <strong>ACP Client</strong> 身份连接本机已有 Agent。</li>
-<li><strong>BYOA（Bring Your Own Agent）</strong>：Agentero <strong>不内置、不捆绑</strong>任何 coding agent 二进制；通用 provider 使用本机 ACP-compatible CLI（OpenCode、Gemini CLI、Claude ACP 适配器、自定义 command），Codex 使用用户本机的 <code>codex app-server</code>。密钥与模型由各 Agent CLI 自行管理。</li>
+<li><strong>BYOA（Bring Your Own Agent）</strong>：Agentero <strong>不内置、不捆绑</strong>任何 coding agent 二进制；所有 provider 使用本机 ACP-compatible CLI（OpenCode、Gemini CLI、Claude ACP 适配器、Codex ACP 适配器、自定义 command）。密钥与模型由各 Agent CLI 自行管理。</li>
 <li><strong>可迁移</strong>：Vault 离开应用后仍能被 Obsidian、VS Code、Cursor 直接打开。</li>
 </ul>
 <h2 id="2">2. 整体架构<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
@@ -1075,8 +1075,8 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 <tr>
 <td><code>codex-acp</code></td>
-<td><code>codex app-server</code></td>
-<td>Codex 原生 thread runtime（保留 template id 兼容既有设置）</td>
+<td><code>codex-acp</code>（npm <code>@agentclientprotocol/codex-acp</code>）</td>
+<td>Codex via ACP adapter</td>
 </tr>
 <tr>
 <td><code>qodercli</code></td>
