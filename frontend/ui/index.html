@@ -308,8 +308,9 @@
 <li><strong>收起态</strong>：一条状态条——转圈 / 完成勾 + 当前任务标题或「N 个进行中」+ 进度条；点击展开/收起。</li>
 <li><strong>展开态</strong>：任务列表（队列序号、标题、详情、进度）；可清除已完成项。</li>
 <li><strong>外观</strong>：<code>bg-popover</code> 实底 + 边框阴影；<strong>hover 使用实色 <code>hover:bg-accent</code></strong>（禁止 <code>accent/40</code> 等半透明，避免底下内容透出）。</li>
-<li><strong>接入任务</strong>：单篇下载、批量下载、魔棒入库、文献库导入/导出、<strong>paper-reader 精读</strong>等长操作经 <code>runBackgroundTask</code> / <code>startBackgroundTask</code> 登记（<code>kind</code> 含 <code>download</code> | <code>downloadAll</code> | <code>lookup</code> | <code>import</code> | <code>export</code> | <code>paperRead</code> | …）。</li>
+<li><strong>接入任务</strong>：单篇下载、批量下载、魔棒入库、文献库导入/导出、<strong>paper-reader 精读</strong>、<strong>Zotero Connector 附件下载</strong>等长操作经 <code>runBackgroundTask</code> / <code>startBackgroundTask</code> 登记（<code>kind</code> 含 <code>download</code> | <code>downloadAll</code> | <code>lookup</code> | <code>import</code> | <code>export</code> | <code>paperRead</code> | <code>connector</code> | …）。</li>
 <li><strong>paper-reader 进度</strong>：任务 kind=<code>paperRead</code>；title/detail 走 i18n <code>app:tasks.paperRead*</code>；plan/tool 事件会更新进度百分比；失败时 error 写入任务条。</li>
+<li><strong>Connector 进度</strong>：Host 发 <code>connector:progress</code>；前端显示附件下载、正文生成、完成/失败阶段；不进入 Agent 对话历史。</li>
 <li>交互对齐常见 IDE（VS Code 类）：不抢焦点、可折叠、只展示后台进度；操作级错误另走右上角 toast（见 §2.1.2）。</li>
 </ul>
 <h3 id="212-toast">2.1.2 全局错误 Toast（右上角）<a class="headerlink" href="#212-toast" title="Permanent link">&para;</a></h3>

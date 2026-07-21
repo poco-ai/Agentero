@@ -125,7 +125,7 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#43-endpoints-cookies">4.3 下一阶段 endpoints（快照 / cookies 未实现）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#43-cookies-endpoints">4.3 快照、cookies 与兼容 endpoints</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#44">4.4 低优先级 / 明确不做</a>
     </li>
@@ -177,7 +177,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#83">8.3 成功反馈</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#84-p1">8.4 后台任务条（P1）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#84">8.4 后台任务条</a>
     </li>
         </ul>
     </li>
@@ -187,9 +187,9 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#pr2">PR2 — 体验与稳健性 ✅</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#pr3-c4b">PR3 — 附件与快照（C4b 已做）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#pr3-c4bc4cc5a">PR3 — 附件与快照（C4b/C4c/C5a 已做）</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#pr4">PR4 — 可选 / 低优先级</a>
+    <li class="toctree-l3"><a class="reference internal" href="#pr4">PR4 — 兼容降级与端口</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#_2">非目标</a>
     </li>
@@ -276,7 +276,7 @@
               
                 <h1 id="zotero-connector">Zotero Connector 兼容服务（方案一）<a class="headerlink" href="#zotero-connector" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>MVP 已落地</strong>（元数据保存 + 文件夹选择 + 超时规避 + <strong>附件二进制上传 <code>saveAttachment</code></strong> + <strong>远程 Vault（SSH）</strong>；<strong>快照 / cookies 仍待</strong>）<br />
+<p>状态：<strong>MVP 已落地</strong>（元数据保存 + 文件夹选择 + 超时规避 + <strong>附件二进制上传 <code>saveAttachment</code></strong> + <strong>快照 / cookies / 后台进度</strong> + <strong>远程 Vault（SSH）</strong>）
 范围：Agentero Host 在本机 <strong>模拟 Zotero 桌面端 Connector HTTP Server</strong>，使官方 <a href="https://www.zotero.org/download/connectors">Zotero Connector</a> 浏览器扩展把「保存」请求打到 Agentero，条目落入当前 Vault 的 catalog + paper 文件夹。<br />
 实现入口：<code>src-tauri/src/services/connector/</code>、<code>commands/connector.rs</code>、<code>src/lib/connector.ts</code>、设置 → 通用、<code>App.tsx</code> 监听 <code>connector:*</code>。<br />
 <strong>HTTP 覆盖总表</strong>：见本文 <a href="#45-上游-api-覆盖总表实现-vs-缺口">§4.5</a>。<br />
@@ -680,7 +680,7 @@ Tauri event: connector:item-saved / connector:error
 </tr>
 <tr>
 <td><code>POST /connector/updateSession</code></td>
-<td><code>sessionID</code> + <code>target</code>：解析目标并 <strong>移动</strong> 本 session 已写入的 paper 文件夹 + 更新 catalog path；同时记住默认 <code>parent_dir</code>；<code>tags</code> 暂未写入 catalog</td>
+<td><code>sessionID</code> + <code>target</code>：解析目标并 <strong>移动</strong> 本 session 已写入的 paper 文件夹 + 更新 catalog path；同时记住默认 <code>parent_dir</code>；<code>tags</code> 支持逗号字符串或字符串数组并写入 catalog</td>
 </tr>
 <tr>
 <td><code>POST /connector/delaySync</code></td>
@@ -688,7 +688,7 @@ Tauri event: connector:item-saved / connector:error
 </tr>
 </tbody>
 </table>
-<h3 id="43-endpoints-cookies">4.3 下一阶段 endpoints（快照 / cookies 未实现）<a class="headerlink" href="#43-endpoints-cookies" title="Permanent link">&para;</a></h3>
+<h3 id="43-cookies-endpoints">4.3 快照、cookies 与兼容 endpoints<a class="headerlink" href="#43-cookies-endpoints" title="Permanent link">&para;</a></h3>
 <p><strong>已实现（PR3 C4b）：</strong></p>
 <table>
 <thead>
@@ -702,9 +702,25 @@ Tauri event: connector:item-saved / connector:error
 <td><code>POST /connector/saveAttachment</code></td>
 <td>浏览器上传的附件（登录墙 PDF，插件用页面 cookie 拉取）。Body = 原始字节；<code>X-Metadata</code> 头携 <code>{ sessionID, parentItemID, title, url }</code>。按 <code>parentItemID</code> → session item 映射解析目标 paper（无映射时回退本 session 最近一篇），校验 <code>%PDF</code> magic 后写 <code>{paper}/{id}.pdf</code>，触发 <code>PAPER.md</code>（幂等）+ <code>connector:item-saved</code>。<code>ping</code> 回 <code>supportsAttachmentUpload: true</code>；body 上限 200 MiB。</td>
 </tr>
+<tr>
+<td><code>POST /connector/saveSnapshot</code></td>
+<td>创建 <code>webpage</code> paper 条目；若请求带 <code>html</code>，同步写入 <code>{paper}/snapshot.html</code>。</td>
+</tr>
+<tr>
+<td><code>POST /connector/saveSingleFile</code></td>
+<td>接收官方 Connector 的 <code>snapshotContent</code>，写入当前 session 对应 paper 的 <code>snapshot.html</code>。</td>
+</tr>
+<tr>
+<td><code>detailedCookies</code></td>
+<td>在 <code>saveItems</code> / <code>saveSnapshot</code> 内消费；仅用于后台 PDF 下载，不持久化 Cookie。</td>
+</tr>
+<tr>
+<td><code>connector:progress</code></td>
+<td>Rust 后台资源任务发出阶段进度；前端映射到左下角 <code>BackgroundTasksPanel</code>。</td>
+</tr>
 </tbody>
 </table>
-<p><strong>未实现：</strong></p>
+<p><strong>兼容实现 / 安全降级：</strong></p>
 <table>
 <thead>
 <tr>
@@ -715,39 +731,24 @@ Tauri event: connector:item-saved / connector:error
 </thead>
 <tbody>
 <tr>
-<td><code>POST /connector/saveSnapshot</code></td>
-<td>网页条目 + 可选快照</td>
-<td><strong>P0</strong></td>
-</tr>
-<tr>
-<td><code>POST /connector/saveSingleFile</code></td>
-<td>SingleFile 整页 HTML</td>
-<td><strong>P0</strong>（可降级为仅元数据 + <code>html_url</code>）</td>
-</tr>
-<tr>
-<td><code>detailedCookies</code>（在 <code>saveItems</code> 内消费）</td>
-<td>用浏览器 cookie 下 PDF</td>
-<td><strong>P0</strong></td>
-</tr>
-<tr>
 <td><code>POST /connector/detect</code></td>
-<td>服务端 HTML 检测 translator</td>
+<td>返回空 translator 列表；不在 Host 执行任意 Translator JavaScript</td>
 <td>P1</td>
 </tr>
 <tr>
 <td><code>POST /connector/savePage</code></td>
-<td>服务端翻译整页；多选时 300</td>
+<td>复用网页条目/快照保存路径</td>
 <td>P1</td>
 </tr>
 <tr>
 <td><code>POST /connector/selectItems</code></td>
-<td>多条目勾选后续</td>
+<td>回传请求中的 <code>items</code></td>
 <td>P1</td>
 </tr>
 <tr>
 <td><code>POST /connector/attachmentProgress</code></td>
-<td>旧版按 id 查附件进度</td>
-<td>P1（新版多用 <code>sessionProgress</code>）</td>
+<td>复用 <code>sessionProgress</code> 返回附件状态</td>
+<td>P1</td>
 </tr>
 </tbody>
 </table>
@@ -762,7 +763,7 @@ Tauri event: connector:item-saved / connector:error
 <tbody>
 <tr>
 <td><code>POST /connector/getTranslators</code></td>
-<td>桌面拉 translator 列表；现代插件多自带缓存</td>
+<td>返回空列表；Translator 代码执行仍由官方 Connector 完成</td>
 </tr>
 <tr>
 <td><code>POST /connector/getTranslatorCode</code></td>
@@ -770,7 +771,7 @@ Tauri event: connector:item-saved / connector:error
 </tr>
 <tr>
 <td><code>POST /connector/proxies</code></td>
-<td>代理规则列表</td>
+<td>返回空列表；不暴露本地代理配置</td>
 </tr>
 <tr>
 <td><code>POST /connector/getClientHostnames</code></td>
@@ -817,12 +818,12 @@ Tauri event: connector:item-saved / connector:error
 <tr>
 <td><code>POST /connector/saveItems</code></td>
 <td>✅ 基本</td>
-<td>元数据同步落盘；PDF URL <strong>后台</strong>下；无 cookie；NOTES 不做实时 MT（防 15s 超时）</td>
+<td>元数据同步落盘；PDF URL <strong>后台</strong>下；支持 <code>detailedCookies</code>；NOTES 不做实时 MT（防 15s 超时）</td>
 </tr>
 <tr>
 <td><code>POST /connector/sessionProgress</code></td>
 <td>✅ 简版</td>
-<td><code>done</code> 在元数据完成后即为 true；附件进度多为占位</td>
+<td>元数据完成后返回 <code>done</code>；附件阶段由 <code>connector:progress</code> 驱动 Agentero 后台任务条</td>
 </tr>
 <tr>
 <td><code>POST /connector/getSelectedCollection</code></td>
@@ -832,7 +833,7 @@ Tauri event: connector:item-saved / connector:error
 <tr>
 <td><code>POST /connector/updateSession</code></td>
 <td>✅</td>
-<td>切换 target 移动 paper；tags 未写</td>
+<td>切换 target 移动 paper；tags 写入 catalog</td>
 </tr>
 <tr>
 <td><code>POST /connector/delaySync</code></td>
@@ -846,38 +847,38 @@ Tauri event: connector:item-saved / connector:error
 </tr>
 <tr>
 <td><code>POST /connector/saveSnapshot</code></td>
-<td>❌</td>
-<td>普通网页保存</td>
+<td>✅</td>
+<td>创建网页 paper + 可选 <code>snapshot.html</code></td>
 </tr>
 <tr>
 <td><code>POST /connector/saveSingleFile</code></td>
-<td>❌</td>
-<td>插件 snapshot 链路</td>
+<td>✅</td>
+<td>写入 SingleFile <code>snapshot.html</code></td>
 </tr>
 <tr>
 <td><code>POST /connector/detect</code></td>
-<td>❌</td>
-<td>旧/bookmarklet 路径</td>
+<td>✅ 降级</td>
+<td>不执行 Host 侧 Translator JS</td>
 </tr>
 <tr>
 <td><code>POST /connector/savePage</code></td>
-<td>❌</td>
-<td>服务端翻译 + 多选</td>
+<td>✅ 降级</td>
+<td>复用网页保存路径</td>
 </tr>
 <tr>
 <td><code>POST /connector/selectItems</code></td>
-<td>❌</td>
-<td>配合 savePage 300</td>
+<td>✅ 降级</td>
+<td>原样回传 items</td>
 </tr>
 <tr>
 <td><code>POST /connector/attachmentProgress</code></td>
-<td>❌</td>
-<td>旧附件进度</td>
+<td>✅</td>
+<td>复用 session progress</td>
 </tr>
 <tr>
 <td><code>POST /connector/getTranslators</code></td>
-<td>❌</td>
-<td>现代插件通常不依赖</td>
+<td>✅ 降级</td>
+<td>空列表</td>
 </tr>
 <tr>
 <td><code>POST /connector/getTranslatorCode</code></td>
@@ -886,8 +887,8 @@ Tauri event: connector:item-saved / connector:error
 </tr>
 <tr>
 <td><code>POST /connector/proxies</code></td>
-<td>❌</td>
-<td>可选</td>
+<td>✅ 降级</td>
+<td>空列表</td>
 </tr>
 <tr>
 <td><code>POST /connector/getClientHostnames</code></td>
@@ -932,11 +933,11 @@ Tauri event: connector:item-saved / connector:error
 <tbody>
 <tr>
 <td>订阅站 / 登录墙 PDF</td>
-<td>✅ <code>saveAttachment</code> 浏览器上传；<code>detailedCookies</code> 仍未做</td>
+<td>✅ <code>saveAttachment</code> 浏览器上传；URL 下载支持 <code>detailedCookies</code></td>
 </tr>
 <tr>
 <td><code>singleFile: true</code></td>
-<td>固定回 <code>false</code>，不接 <code>saveSingleFile</code></td>
+<td>支持 <code>saveSingleFile</code>，快照写入 <code>snapshot.html</code></td>
 </tr>
 <tr>
 <td>摘要中文 MT</td>
@@ -944,19 +945,19 @@ Tauri event: connector:item-saved / connector:error
 </tr>
 <tr>
 <td><code>updateSession.tags</code></td>
-<td>忽略</td>
+<td>支持字符串/数组，追加到 catalog</td>
 </tr>
 <tr>
-<td>附件真实 progress %</td>
-<td>占位；URL 下载在后台</td>
+<td>附件后台进度</td>
+<td><code>connector:progress</code> 映射到左下角后台任务条</td>
 </tr>
 <tr>
 <td>可配置端口</td>
-<td>写死 <code>23119</code></td>
+<td>设置 → General → Connector port；修改时自动重启 loopback server</td>
 </tr>
 </tbody>
 </table>
-<p><strong>建议补齐顺序：</strong> ~~<code>saveAttachment</code>~~ ✅ → <code>saveSnapshot</code> / <code>saveSingleFile</code>（可降级）→ <code>detailedCookies</code> →（按需）<code>detect</code>/<code>savePage</code>/<code>selectItems</code>。</p>
+<p><strong>当前边界：</strong> 页面 Translator 检测、translator 列表与代理规则不在 Host 执行；官方 Connector 继续负责页面识别，Agentero 负责兼容接收与 Vault 落盘。</p>
 <hr />
 <h2 id="5">5. 数据映射与落盘<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
 <h3 id="51-item-papermeta">5.1 Item → PaperMeta<a class="headerlink" href="#51-item-papermeta" title="Permanent link">&para;</a></h3>
@@ -1241,8 +1242,8 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
 <li>非模态：右上角成功 toast（简短标题）或仅依赖树刷新。</li>
 <li>失败：<code>notifyError</code>，不在侧栏挂常驻错误条。</li>
 </ul>
-<h3 id="84-p1">8.4 后台任务条（P1）<a class="headerlink" href="#84-p1" title="Permanent link">&para;</a></h3>
-<p>若 PDF 下载较慢，可 <code>kind=connector</code> 任务；MVP 可省略。</p>
+<h3 id="84">8.4 后台任务条<a class="headerlink" href="#84" title="Permanent link">&para;</a></h3>
+<p>Connector 的后台 PDF/TeX/PAPER.md 处理创建 <code>kind=connector</code> 任务。任务条显示阶段进度，完成/失败后沿用统一的短暂历史保留与自动收起行为。</p>
 <hr />
 <h2 id="9">9. 实现分期<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
 <h3 id="pr1">PR1 — 可保存元数据 ✅<a class="headerlink" href="#pr1" title="Permanent link">&para;</a></h3>
@@ -1265,18 +1266,17 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
 <li>[x] Library 作用域 → <code>connector_set_parent_dir</code></li>
 <li>[x] <code>docs/backend/api.md</code> 命令表同步</li>
 </ul>
-<h3 id="pr3-c4b">PR3 — 附件与快照（C4b 已做）<a class="headerlink" href="#pr3-c4b" title="Permanent link">&para;</a></h3>
+<h3 id="pr3-c4bc4cc5a">PR3 — 附件与快照（C4b/C4c/C5a 已做）<a class="headerlink" href="#pr3-c4bc4cc5a" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] <strong>C4b</strong> <code>saveAttachment</code> 二进制上传</li>
-<li>[ ] <strong>C4c</strong> <code>saveSnapshot</code> / <code>saveSingleFile</code>（可降级）</li>
-<li>[ ] <strong>C5a</strong> <code>detailedCookies</code></li>
-<li>[ ] （可选）<code>sessionProgress</code> 真实附件百分比；后台任务条</li>
+<li>[x] <strong>C4c</strong> <code>saveSnapshot</code> / <code>saveSingleFile</code>（写入 <code>snapshot.html</code>）</li>
+<li>[x] <strong>C5a</strong> <code>detailedCookies</code>（仅用于后台附件下载，不持久化）</li>
+<li>[x] Connector 后台任务条（阶段进度、完成/失败）</li>
 </ul>
-<h3 id="pr4">PR4 — 可选 / 低优先级<a class="headerlink" href="#pr4" title="Permanent link">&para;</a></h3>
+<h3 id="pr4">PR4 — 兼容降级与端口<a class="headerlink" href="#pr4" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[ ] <code>detect</code> / <code>savePage</code> / <code>selectItems</code></li>
-<li>[ ] <code>getTranslators</code> / <code>getTranslatorCode</code> / proxies</li>
-<li>[ ] 可配置端口（须用户改插件 <code>connector.url</code>）</li>
+<li>[x] <strong>C5b</strong> <code>detect</code> / <code>savePage</code> / <code>selectItems</code> / <code>attachmentProgress</code>（安全降级）</li>
+<li>[x] <strong>C5c</strong> <code>getTranslators</code> / proxies（空列表降级）、可配置端口、<code>updateSession.tags</code></li>
 </ul>
 <h3 id="_2">非目标<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1427,6 +1427,10 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
 <tr>
 <td>2026-07-18</td>
 <td><strong>C4b <code>saveAttachment</code></strong>：浏览器上传登录墙 PDF（<code>X-Metadata</code> <code>parentItemID</code>→paper；<code>%PDF</code> 校验；触发 PAPER.md；<code>supportsAttachmentUpload: true</code>；200 MiB body 上限）。仍待：<code>saveSnapshot</code> / <code>saveSingleFile</code> / <code>detailedCookies</code></td>
+</tr>
+<tr>
+<td>2026-07-21</td>
+<td>完成 C4c/C5a/C5b/C5c：网页快照、Cookie 下载、兼容降级路由、tags、端口设置与 Connector 后台任务条。</td>
 </tr>
 </tbody>
 </table>

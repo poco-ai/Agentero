@@ -517,10 +517,10 @@
 <li>[x] C4a：catalog id 去重；URL 附件后台 <code>ensure_paper_assets</code>；防插件 15s 超时（NOTES 无实时 MT）</li>
 <li>[x] C4a2：<code>getSelectedCollection.targets</code> 列出 <code>papers/</code> 组织子文件夹；<code>updateSession</code> 移动 paper；<code>connector_set_parent_dir</code> + Library 作用域同步</li>
 <li>[x] C4b：<code>saveAttachment</code> 二进制上传协议（浏览器登录墙 PDF；<code>parentItemID</code>→paper；<code>%PDF</code> 校验；触发 PAPER.md）</li>
-<li>[ ] C4c（P0）：<code>saveSnapshot</code> / <code>saveSingleFile</code>（可降级为元数据 + <code>html_url</code>）</li>
-<li>[ ] C5a（P0）：<code>detailedCookies</code> 注入下载</li>
-<li>[ ] C5b（P1）：<code>detect</code> / <code>savePage</code> / <code>selectItems</code>；<code>attachmentProgress</code></li>
-<li>[ ] C5c（可选）：<code>getTranslators</code> / proxies；可配置端口；<code>updateSession.tags</code> 写入 catalog</li>
+<li>[x] C4c（P0）：<code>saveSnapshot</code> / <code>saveSingleFile</code>，写入 paper <code>snapshot.html</code></li>
+<li>[x] C5a（P0）：<code>detailedCookies</code> 注入后台 PDF 下载（不持久化 Cookie）</li>
+<li>[x] C5b（P1）：<code>detect</code> / <code>savePage</code> / <code>selectItems</code>；<code>attachmentProgress</code>（安全降级）</li>
+<li>[x] C5c（可选）：<code>getTranslators</code> / proxies 降级；可配置端口；<code>updateSession.tags</code> 写入 catalog</li>
 </ul>
 <h3 id="2-skills-workflows">2. 用户友好的 Skills / Workflows<a class="headerlink" href="#2-skills-workflows" title="Permanent link">&para;</a></h3>
 <ul>
