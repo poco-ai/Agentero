@@ -384,7 +384,7 @@
 <td>agentero</td>
 <td>Settings…</td>
 <td><code>⌘,</code></td>
-<td>设置 sheet</td>
+<td>打开 / 聚焦独立原生设置窗口（Host <code>settings_window_open</code>，见 §4）</td>
 </tr>
 </tbody>
 </table>
@@ -453,7 +453,7 @@
 </tr>
 <tr>
 <td>开关类</td>
-<td><code>⌘,</code> 设置、<code>⌘/</code> 快捷键清单、<code>⌘K</code>/<code>⌘P</code> 命令面板、<code>⇧⌘P</code> 命令模式：自身可再按关闭（不依赖 <code>whenSettingsClosed</code>）</td>
+<td><code>⌘/</code> 快捷键清单、<code>⌘K</code>/<code>⌘P</code> 命令面板、<code>⇧⌘P</code> 命令模式：自身可再按关闭（不依赖 <code>whenSettingsClosed</code>）；<code>⌘,</code> 打开 / 聚焦独立设置窗口（非弹层）</td>
 </tr>
 </tbody>
 </table>
@@ -468,7 +468,7 @@
 <tbody>
 <tr>
 <td><code>settings</code></td>
-<td><code>SettingsWindow</code></td>
+<td><code>SettingsWindow</code>（仅浏览器 dev 回退 modal；Tauri 下设置为独立窗口，不入栈）</td>
 </tr>
 <tr>
 <td><code>shortcuts</code></td>
@@ -611,8 +611,8 @@
 <tbody>
 <tr>
 <td><code>⌘,</code></td>
-<td>打开 / 关闭 Settings</td>
-<td>系统级 Preferences 约定</td>
+<td>打开 / 聚焦 Settings 窗口</td>
+<td>系统级 Preferences 约定；独立原生单例窗口，<code>⌘W</code> 关闭</td>
 </tr>
 <tr>
 <td><code>⌘/</code></td>
@@ -948,7 +948,7 @@ PromptInput → Body / Footer / Submit
 </tbody>
 </table>
 <h2 id="4-settings">4. 设置窗口（Settings）<a class="headerlink" href="#4-settings" title="Permanent link">&para;</a></h2>
-<p>参考 <strong>macOS System Settings / 传统 Preferences</strong> 形态，而非多标签网页：</p>
+<p>参考 <strong>macOS System Settings / 传统 Preferences</strong> 形态：Tauri 下为<strong>独立原生单例窗口</strong>（Host <code>settings_window_open</code>，label <code>agentero-settings</code>，原生标题栏、禁用最大化，760×600 / min 640×480）；纯浏览器 dev 回退为居中浮层 dialog。</p>
 <table>
 <thead>
 <tr>
@@ -959,11 +959,11 @@ PromptInput → Body / Footer / Submit
 <tbody>
 <tr>
 <td>入口</td>
-<td>macOS：顶部菜单栏 <strong>agentero → Settings…</strong>，或 <code>⌘,</code>；Windows / Linux 无原生菜单栏，标题栏窗口控制按钮左侧显示 <strong>齿轮图标</strong>（<code>Settings</code>，hover 旋转 90°，Tooltip 含快捷键；<code>workspace-header.tsx</code>，i18n <code>app:titlebar.settings*</code>）。不在侧边栏放设置图标</td>
+<td>macOS：顶部菜单栏 <strong>agentero → Settings…</strong>，或 <code>⌘,</code>；Windows / Linux 无原生菜单栏，标题栏窗口控制按钮左侧显示 <strong>齿轮图标</strong>（<code>Settings</code>，hover 旋转 90°，Tooltip 含快捷键；<code>workspace-header.tsx</code>，i18n <code>app:titlebar.settings*</code>）。不在侧边栏放设置图标。窗口已打开时再次触发 → 聚焦并按需切换分类（<code>settings:navigate</code>）</td>
 </tr>
 <tr>
 <td>结构</td>
-<td>左侧分类导航 + 右侧内容；居中浮层 dialog</td>
+<td>左侧分类导航 + 右侧内容；独立窗口内容占满窗口，无遮罩</td>
 </tr>
 <tr>
 <td>分类</td>
@@ -979,11 +979,15 @@ PromptInput → Body / Footer / Submit
 </tr>
 <tr>
 <td>关闭</td>
-<td>右上角 <code>X</code>、点遮罩、<code>Esc</code>、<code>⌘W</code>（经 <code>overlay-stack</code>）、再次 <code>⌘,</code></td>
+<td>原生窗口关闭按钮 / <code>⌘W</code>；浏览器回退模式另有右上角 <code>X</code>、点遮罩、<code>Esc</code>（经 <code>overlay-stack</code>）</td>
+</tr>
+<tr>
+<td>同步</td>
+<td>保存经 <code>settings_set</code> → Host 广播 <code>settings:changed</code> → 各窗口即时应用（主题 / 语言 / 列配置等），见 <code>../backend/api.md</code></td>
 </tr>
 <tr>
 <td>文案</td>
-<td>支持国际化（i18n）：English 与简体中文可切换，English 为源语言与兜底；简短说明可作 footer</td>
+<td>支持国际化（i18n）：English 与简体中文可切换，English 为源语言与兜底；简短说明可作 footer；窗口标题随 UI 语言</td>
 </tr>
 </tbody>
 </table>
@@ -1017,7 +1021,7 @@ PromptInput → Body / Footer / Submit
 <li><strong>Privacy</strong>：分析与崩溃上报（默认关，本地优先）。</li>
 <li><strong>About</strong>：版本与一句话定位。</li>
 </ul>
-<p>实现：<code>src/components/settings-window.tsx</code>；<strong>应用设置</strong>持久化为 Host 文件（XDG）：</p>
+<p>实现：<code>src/components/settings-window.tsx</code>（<code>SettingsContent</code> + 浏览器回退 modal）、<code>src/components/settings-window-root.tsx</code>（独立窗口根组件）；<strong>应用设置</strong>持久化为 Host 文件（XDG）：</p>
 <table>
 <thead>
 <tr>

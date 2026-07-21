@@ -94,6 +94,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#window_new">window_new（已实现）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#settings_window_open">settings_window_open（已实现）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#fs_watch_start-fs_watch_stop">fs_watch_start / fs_watch_stop（已实现）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#vaultopen">vault:open（规划）</a>
@@ -750,6 +752,17 @@ Host (Tauri + Rust)
 <li>窗口尺寸 / macOS overlay 标题栏与主窗口一致。</li>
 <li>Capability 覆盖 <code>main</code> 与 <code>agentero-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
 <li>菜单点击由 Host 直接调用，不经过前端 event 往返。</li>
+</ul>
+<h4 id="settings_window_open"><code>settings_window_open</code>（已实现）<a class="headerlink" href="#settings_window_open" title="Permanent link">&para;</a></h4>
+<p>打开（或聚焦）<strong>单例原生设置窗口</strong>（macOS 惯例：<code>⌘,</code> → 独立小窗口，原生标题栏）。</p>
+<ul>
+<li><strong>参数</strong>：<code>{ section?: string, vault?: string }</code>（section 深链设置分类；vault 传调用方窗口的 Vault 路径，供远程 Vault 的 Agent 页上下文）</li>
+<li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
+<li><strong>行为</strong></li>
+<li>固定 label <code>agentero-settings</code>（匹配 capability <code>agentero-*</code>）；已存在则 <code>set_focus</code> 并向该窗口 <code>emit("settings:navigate", { section })</code>。</li>
+<li>否则创建 760×600（min 640×480）窗口，URL <code>index.html?window=settings&amp;section=…&amp;vault=…</code>（percent-encoded）；原生标题栏（macOS 不用 Overlay）、禁用最大化；macOS 复制 app menu。</li>
+<li>前端 <code>main.tsx</code> 检测 <code>?window=settings</code> 渲染 <code>SettingsWindowRoot</code>（<code>src/components/settings-window-root.tsx</code>）而非完整工作台；窗口标题随 UI 语言 <code>setTitle</code>。</li>
+<li>设置保存后经 <code>settings:changed</code> 事件广播同步所有窗口（见 <code>settings_set</code>）。</li>
 </ul>
 <h4 id="fs_watch_start-fs_watch_stop"><code>fs_watch_start</code> / <code>fs_watch_stop</code>（已实现）<a class="headerlink" href="#fs_watch_start-fs_watch_stop" title="Permanent link">&para;</a></h4>
 <p>按窗口启停 Vault 文件系统监听（Rust <code>notify</code> 递归监听），用于外部编辑器 / Agent 写盘后自动重载编辑器与文件树。</p>
@@ -2070,6 +2083,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>参数</strong>：<code>{ settings: AppSettings }</code>（camelCase，与前端 <code>src/lib/settings.ts</code> 同构）</li>
 <li><strong>返回</strong>：规范化后的 <code>AppSettings</code>（写盘 + 更新 Host 内存）</li>
+<li><strong>事件</strong>：保存成功后向<strong>所有窗口</strong> <code>emit("settings:changed", AppSettings)</code>（规范化后的快照）。前端 <code>initSettingsSync()</code>（<code>src/lib/settings.ts</code>）监听该事件更新各窗口内存缓存并通知订阅者（<code>subscribeSettings</code>），保证独立设置窗口与各主窗口的设置实时一致。</li>
 </ul>
 <h4 id="settings_path"><code>settings_path</code>（已实现）<a class="headerlink" href="#settings_path" title="Permanent link">&para;</a></h4>
 <ul>
