@@ -5,15 +5,15 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>打开远程 Vault - Agentero 文档</title>
+    <title>ACP 会话恢复 ID 错误 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
     
       <script>
         // Current page data
-        var mkdocs_page_name = "\u6253\u5f00\u8fdc\u7a0b Vault";
-        var mkdocs_page_input_path = "usage/remote-vault.md";
+        var mkdocs_page_name = "ACP \u4f1a\u8bdd\u6062\u590d ID \u9519\u8bef";
+        var mkdocs_page_input_path = "bug_fix/acp-session-resume-id.md";
         var mkdocs_page_url = null;
       </script>
     
@@ -44,40 +44,20 @@
                 </li>
               </ul>
               <p class="caption"><span class="caption-text">用户指南</span></p>
-              <ul class="current">
-                  <li class="toctree-l1"><a class="reference internal" href="../">使用指南</a>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/">使用指南</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../getting-started/">安装与首次使用</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/getting-started/">安装与首次使用</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../import-papers/">导入和管理论文</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/import-papers/">导入和管理论文</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../read-and-organize/">阅读、标注与整理</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/read-and-organize/">阅读、标注与整理</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../agents/">接入 Agent</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/agents/">接入 Agent</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../zotero/">使用 Zotero Connector</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/zotero/">使用 Zotero Connector</a>
                   </li>
-                  <li class="toctree-l1 current"><a class="reference internal current" href="#">打开远程 Vault</a>
-    <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#_1">使用前提</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#vault_1">连接远程 Vault</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#agent">远程 Agent</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#vault_2">在远程 Vault 中工作</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_2">远程使用注意事项</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#vault_3">不要并发写同一个 Vault</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#_3">远程文件变化不会立即推送到界面</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#_4">连接失败</a>
-    </li>
-        </ul>
-    </li>
-    </ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/remote-vault/">打开远程 Vault</a>
                   </li>
               </ul>
               <p class="caption"><span class="caption-text">前端</span></p>
@@ -139,10 +119,30 @@
                   </li>
               </ul>
               <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">ACP 会话恢复 ID 错误</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 问题现象</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 根因</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 解决方案</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31-host-provider-session-id">3.1 Host 返回 provider session ID</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32-provider-session-id">3.2 前端只保存 provider session ID</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4">4. 修复后的数据流</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 验收建议</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6">6. 边界</a>
+    </li>
+    </ul>
                   </li>
               </ul>
       </div>
@@ -159,10 +159,10 @@
         <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
     <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
-          <li class="breadcrumb-item">用户指南</li>
-      <li class="breadcrumb-item active">打开远程 Vault</li>
+          <li class="breadcrumb-item">Bug 修复记录</li>
+      <li class="breadcrumb-item active">ACP 会话恢复 ID 错误</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/agentero/edit/main/docs/usage/remote-vault.md">Edit on poco-ai/agentero</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/bug_fix/acp-session-resume-id.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -170,73 +170,90 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="vault">打开远程 Vault<a class="headerlink" href="#vault" title="Permanent link">&para;</a></h1>
-<p>远程 Vault 适合把论文和笔记放在服务器上，同时在本地使用 Agentero 的界面。文件权威保留在服务器，Agent 也在服务器上运行。</p>
-<h2 id="_1">使用前提<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
-<p>需要准备：</p>
+                <h1 id="acp-session-id">ACP 会话恢复使用错误的 Session ID<a class="headerlink" href="#acp-session-id" title="Permanent link">&para;</a></h1>
+<p><strong>状态</strong>：已修复（保存并复用 ACP provider session ID）<br />
+<strong>影响面</strong>：Agent 对话面板的多轮对话、<code>session/resume</code><br />
+<strong>相关代码</strong>：</p>
 <ul>
-<li>macOS 或 Linux 客户端；</li>
-<li>可以通过 SSH 登录的服务器；</li>
-<li>服务器上的 Vault 目录；</li>
-<li>服务器已安装并登录要使用的 ACP Agent；</li>
-<li>当前用户对远程 Vault 有读写权限。</li>
+<li><code>src-tauri/src/models/agent.rs</code> — <code>AgentResultPayload.provider_session_id</code></li>
+<li><code>src-tauri/src/services/agent/acp.rs</code> — 返回 ACP provider session ID</li>
+<li><code>src/lib/agent.ts</code> — 前端结果 payload 类型</li>
+<li><code>src/components/layout/agent-panel.tsx</code> — 保存并复用 provider session ID</li>
 </ul>
-<p>Windows 客户端当前不能打开远程 Vault。</p>
-<h2 id="vault_1">连接远程 Vault<a class="headerlink" href="#vault_1" title="Permanent link">&para;</a></h2>
-<ol>
-<li>在欢迎页选择 <strong>Open Remote Vault</strong>，或在当前窗口的 Vault 切换菜单中选择同名入口。</li>
-<li>填写 SSH 用户、主机、端口和远程 Vault 路径。</li>
-<li>选择 SSH 密钥或当前可用的 SSH 认证方式。</li>
-<li>连接并等待文件树加载。</li>
-<li>确认 Library 和论文目录已经出现。</li>
-</ol>
-<p>远程连接同时使用：</p>
-<ul>
-<li>SFTP 读写文件树、Markdown 和 PDF；</li>
-<li>SSH 执行远程 Agent；</li>
-<li>会话内 Catalog 工作副本，用于 Library 查询和元数据操作。</li>
-</ul>
-<h2 id="agent">远程 Agent<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h2>
-<p>远程 Agent 必须安装在服务器上，而不是只安装在本机。Agentero 会在远程 Vault 根目录启动它，使 Agent 看到的工作目录与 SFTP 文件树一致。</p>
-<p>在服务器上先确认：</p>
-<pre class="codehilite"><code class="language-bash">command -v claude-agent-acp
-command -v codex-acp
-command -v opencode
+<h2 id="1">1. 问题现象<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>使用支持 ACP 会话持久化的 Agent（例如 Qoder CLI）进行第二轮对话时，Agent 可能返回：</p>
+<pre class="codehilite"><code class="language-text">Invalid session identifier
 </code></pre>
 
-<p>至少准备一个实际使用的命令，并完成对应的官方登录流程。然后在 Agentero 的 Agent 设置中选择远程可用的 Agent。</p>
-<h2 id="vault_2">在远程 Vault 中工作<a class="headerlink" href="#vault_2" title="Permanent link">&para;</a></h2>
-<p>连接成功后，常用操作与本地 Vault 基本一致：</p>
-<ul>
-<li>浏览 Library 和文件树；</li>
-<li>打开远程 PDF；</li>
-<li>编辑并保存 <code>NOTES.md</code>；</li>
-<li>导入论文；</li>
-<li>使用 Agent 总结或整理；</li>
-<li>使用 Backlinks 和 Graph。</li>
-</ul>
-<p>PDF 和部分大文件可能会暂存在本机缓存中，仅用于预览。断开连接后，远程目录仍是唯一事实来源。</p>
-<h2 id="_2">远程使用注意事项<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<h3 id="vault_3">不要并发写同一个 Vault<a class="headerlink" href="#vault_3" title="Permanent link">&para;</a></h3>
-<p>MVP 按单写者设计。不要同时让多个 Agentero 客户端、远程 Agent 和外部同步程序修改同一个远程 Vault。</p>
-<h3 id="_3">远程文件变化不会立即推送到界面<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
-<p>远程文件系统没有本地 inotify 等价物。Agent 结束、用户保存或重新展开目录时，Agentero 会按需检查文件；必要时手动刷新文件树。</p>
-<h3 id="_4">连接失败<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
-<p>依次确认：</p>
+<p>同时，Agent CLI 的会话列表中实际存在可恢复的会话，但 Agentero 仍无法继续上一轮对话。</p>
+<h2 id="2">2. 根因<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<p>此前 Agentero 将自己的运行 ID 当作 provider 的 ACP session ID 使用。两者用途不同：</p>
+<table>
+<thead>
+<tr>
+<th>标识</th>
+<th>生成方</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agentero run/session ID</td>
+<td>Agentero</td>
+<td>关联前端事件、流式输出和当前聊天页</td>
+</tr>
+<tr>
+<td>ACP provider session ID</td>
+<td>Agent / ACP provider</td>
+<td><code>session/resume</code>、<code>session/load</code> 和 provider 侧会话持久化</td>
+</tr>
+<tr>
+<td><code>cwd</code></td>
+<td>Agentero / provider</td>
+<td>限定会话所属项目目录</td>
+</tr>
+</tbody>
+</table>
+<p>一次 <code>session/new</code> 调用后，ACP provider 会返回自己的 session ID。旧实现没有把这个 ID 传回前端，而是在发送完成后继续使用 Agentero 的运行 ID。因此下一轮调用 <code>session/resume</code> 时，provider 会在当前项目目录下查找一个并不存在的会话，最终报 <code>INVALID_SESSION_IDENTIFIER</code>。</p>
+<p>这个问题不是项目目录本身无效，也不是会话一定丢失；主要是恢复请求携带了错误的 ID。</p>
+<h2 id="3">3. 解决方案<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31-host-provider-session-id">3.1 Host 返回 provider session ID<a class="headerlink" href="#31-host-provider-session-id" title="Permanent link">&para;</a></h3>
+<p><code>AgentResultPayload</code> 新增可选字段 <code>provider_session_id</code>。ACP <code>session/new</code> 或 <code>session/resume</code> 完成后，Host 将实际使用的 ACP session ID 放入完成事件。</p>
+<p>取消或未建立 ACP session 的情况不填充该字段。</p>
+<h3 id="32-provider-session-id">3.2 前端只保存 provider session ID<a class="headerlink" href="#32-provider-session-id" title="Permanent link">&para;</a></h3>
+<p>Agent 面板收到当前活动会话的完成事件后，将 <code>providerSessionId</code> 保存到 <code>activeConversationRef</code>。下一轮发送时，该值才会作为 <code>sessionId</code> 传给 Host，并触发 ACP <code>session/resume</code>。</p>
+<p>完成事件属于已切换到其它标签页的旧会话时，不更新当前活动会话的恢复 ID，避免异步完成事件污染另一段对话。</p>
+<h2 id="4">4. 修复后的数据流<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">首次发送
+  → ACP session/new
+  → provider 返回 ACP session ID
+  → Host agent:completed 携带 providerSessionId
+  → Agentero 保存 providerSessionId
+
+后续发送
+  → 使用 providerSessionId 调用 session/resume
+  → provider 在当前项目目录中恢复原会话
+  → 继续发送 prompt
+</code></pre>
+
+<h2 id="5">5. 验收建议<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
 <ol>
-<li>本机终端可以执行 <code>ssh user@host</code>。</li>
-<li>服务器 SSH 端口可达。</li>
-<li>远程路径是绝对路径，且用户有权限访问。</li>
-<li>服务器上的 Agent 命令在非交互 SSH 的 PATH 中可见。</li>
-<li>Agent 需要的登录凭据已经配置在服务器上。</li>
+<li>使用支持会话持久化的 ACP Agent 连续发送两轮消息。</li>
+<li>确认第二轮不再出现 <code>INVALID_SESSION_IDENTIFIER</code>，且 Agent 能够利用第一轮上下文。</li>
+<li>切换到另一聊天标签页后再完成旧请求，确认不会覆盖当前标签的恢复状态。</li>
+<li>使用 <code>--list-sessions</code> 检查时，列表中的 provider session ID 应与 Agentero 后续恢复所使用的 ID 一致。</li>
 </ol>
-<p>如果终端登录成功但 Agentero 仍然找不到命令，优先在 Agent 设置中使用绝对路径，或把命令所在目录加入非交互 shell 的 PATH。</p>
+<h2 id="6">6. 边界<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<ul>
+<li>provider 不支持会话恢复时，仍按 provider 能力走新会话或禁用恢复。</li>
+<li>provider 侧删除会话、清理会话存储或更换项目目录后，旧 session ID 仍可能失效；这属于 provider 会话生命周期问题。</li>
+<li>本修复不改变 Agentero 的前端事件关联 ID，也不把 provider session ID 当作本地文件名或 Vault 数据来源。</li>
+</ul>
               
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../zotero/" class="btn btn-neutral float-left" title="使用 Zotero Connector"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../../frontend/" class="btn btn-neutral float-right" title="概览">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../deepseek-thinking-body/" class="btn btn-neutral float-left" title="DeepSeek 正文落入 Thinking"><span class="icon icon-circle-arrow-left"></span> Previous</a>
     </div>
 
   <hr/>
@@ -263,10 +280,8 @@ command -v opencode
         </span>
     
     
-      <span><a href="../zotero/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../deepseek-thinking-body/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
-    
-      <span><a href="../../frontend/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>
