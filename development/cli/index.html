@@ -1275,10 +1275,10 @@ cargo run -p agentero-cli -- vault which --json
 <ol>
 <li><strong>prepare</strong>：创建草稿 GitHub Release（共用 release notes）</li>
 <li><strong>installers</strong>（矩阵 macOS / Ubuntu / Windows）：Tauri 桌面安装包 → 上传草稿</li>
-<li><strong>cli</strong>（同矩阵，与 installers <strong>并行</strong>）：<code>cargo build -p agentero-cli --release</code> → 打包 <code>agentero-&lt;version&gt;-&lt;rustc-host-triple&gt;.tar.gz</code>（macOS/Linux）或 <code>.zip</code>（Windows）→ 上传同一草稿</li>
+<li><strong>cli</strong>（同矩阵，与 installers <strong>并行</strong>）：<code>cargo build -p agentero-cli --release</code> → 打包 <code>agentero-&lt;version&gt;-&lt;rustc-host-triple&gt;.tar.gz</code>（macOS/Linux）或 <code>.zip</code>（Windows）→ 上传同一草稿。Linux CLI 同时构建 x86_64（<code>ubuntu-22.04</code>）和 ARM64（<code>ubuntu-24.04-arm</code>）。</li>
 </ol>
 <p>CLI job <strong>不</strong>装 Node/pnpm/前端；Linux 仍需 WebKit 等系统库（path 依赖 <code>agentero_lib</code>/Tauri 链接）。一侧失败不会取消另一侧（<code>fail-fast: false</code>）。</p>
-<p>用户从 Releases 下载解压即可，无需 npm/pypi。<br />
+<p>用户从 Releases 下载解压即可，无需 npm/pypi。Linux ARM64 用户选择 <code>aarch64-unknown-linux-gnu</code> 产物；Homebrew formula 需同步包含该架构后才能使用 <code>brew install agentero</code>。
 <strong>不</strong>发 crates.io（当前 path 依赖整包 <code>agentero_lib</code>/Tauri）；开发者可用 <code>cargo install --git … --package agentero-cli</code>。不绑签名公证第一步。</p>
 <hr />
 <h2 id="9">9. 示例<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
