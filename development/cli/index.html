@@ -1274,7 +1274,7 @@ cargo run -p agentero-cli -- vault which --json
 <p>Release（已接 CI）：推送 <code>v*</code> tag 时，<code>.github/workflows/release.yml</code> 拆成独立 job：</p>
 <ol>
 <li><strong>prepare</strong>：创建草稿 GitHub Release（共用 release notes）</li>
-<li><strong>installers</strong>（矩阵 macOS / Ubuntu / Windows）：Tauri 桌面安装包 → 上传草稿</li>
+<li><strong>installers</strong>（矩阵 macOS / Ubuntu x86_64 / Ubuntu ARM64 / Windows）：Tauri 桌面安装包 → 上传草稿</li>
 <li><strong>cli</strong>（同矩阵，与 installers <strong>并行</strong>）：<code>cargo build -p agentero-cli --release</code> → 打包 <code>agentero-&lt;version&gt;-&lt;rustc-host-triple&gt;.tar.gz</code>（macOS/Linux）或 <code>.zip</code>（Windows）→ 上传同一草稿。Linux CLI 同时构建 x86_64（<code>ubuntu-22.04</code>）和 ARM64（<code>ubuntu-24.04-arm</code>）。</li>
 </ol>
 <p>CLI job <strong>不</strong>装 Node/pnpm/前端；Linux 仍需 WebKit 等系统库（path 依赖 <code>agentero_lib</code>/Tauri 链接）。一侧失败不会取消另一侧（<code>fail-fast: false</code>）。</p>
