@@ -484,7 +484,7 @@
 </tbody>
 </table>
 <p>当前 bundle id 见 <code>src-tauri/tauri.conf.json</code> → <code>identifier</code>（如 <code>com.poco-ai.agentero</code>）。</p>
-<p><strong>CLI</strong>：不写 LogDir 强制文件（避免 headless 噪音）；默认 stderr + <code>RUST_LOG</code>。可选后续 <code>--log-file</code>。</p>
+<p><strong>CLI</strong>：不写 LogDir 强制文件（避免 headless 噪音）；默认 <strong>stderr + 级别 <code>warn</code></strong>（无 <code>op start/end</code> 刷屏）。需要诊断时设 <code>RUST_LOG=info</code> 或 <code>RUST_LOG=agentero::op=info</code>。可选后续 <code>--log-file</code>。</p>
 <h2 id="5">5. 关键操作：开始 / 结束日志规范<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
 <h3 id="51">5.1 约定格式<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
 <p>统一 <strong>成对</strong> 记录，便于 grep：</p>
@@ -724,8 +724,8 @@ pub struct OpGuard { name: &amp;'static str, start: Instant, /* fields */ }
 </thead>
 <tbody>
 <tr>
-<td>每个写命令 / 重 IO 子命令</td>
-<td><code>op start</code> / <code>op end</code> 到 stderr（text）或仅当 <code>RUST_LOG</code> 开启时</td>
+<td>每个子命令（<code>main</code> 包一层）</td>
+<td>打 <code>agentero::op</code> 的 <code>op start</code> / <code>op end</code>，但 <strong>默认 filter=<code>warn</code> 不可见</strong>；<code>RUST_LOG=info</code>（或更细 target）时才出现在 stderr</td>
 </tr>
 <tr>
 <td><code>--json</code> 成功/失败 envelope</td>
@@ -1052,12 +1052,16 @@ export function logOp&lt;T&gt;(name: string, fields: Record&lt;string, unknown&g
 <td><code>trunc</code> + <code>OpTimer</code> ok/err 通过</td>
 </tr>
 <tr>
+<td><code>agentero vault create &lt;tmp&gt; --json</code>（无 <code>RUST_LOG</code>）</td>
+<td>stderr <strong>无</strong> <code>op start/end</code>；stdout 纯 JSON <code>ok:true</code></td>
+</tr>
+<tr>
 <td><code>RUST_LOG=info agentero vault create &lt;tmp&gt; --json</code></td>
 <td>stderr：<code>op start/end cli.vault.create</code>；stdout 纯 JSON <code>ok:true</code></td>
 </tr>
 <tr>
 <td><code>agentero vault which --vault /nonexistent --json</code></td>
-<td>stderr：<code>op end … ok=false error_code=vault_not_found</code>；stdout <code>ok:false</code>；exit 3</td>
+<td>stderr：业务 <code>error:</code> 行；stdout <code>ok:false</code>；exit 3（无默认 op 日志）</td>
 </tr>
 <tr>
 <td><code>cargo check -p agentero</code> / <code>agentero-cli</code></td>

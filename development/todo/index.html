@@ -313,7 +313,7 @@
 <li>[x] 仅具体论文时显示 Paper Info / Notes（Library 隐藏）</li>
 <li>[x] Library 行批量补资源（与 2b 联动）</li>
 <li>[x] <strong>Tags</strong>：Paper Info 增删 → <code>paper_set_tags</code>；Library 列展示 + chip 筛选</li>
-<li>[x] <strong>Tags CLI</strong>：<code>paper set-tags</code> / <code>list --tag</code> / <code>tags</code>（与 Host 共用 <code>papers::set_tags</code>）</li>
+<li>[x] <strong>Tags CLI</strong>：<code>paper tag list|set|add|rm</code> / <code>list --tag</code>（与 Host 共用 <code>papers::set_tags</code>）</li>
 <li>[x] <strong>Tags 颜色</strong>：Apple 风格 8 色 id；<code>tags_json</code> 字符串或 <code>{name,color}</code>；Paper Info 色盘；Library 染色 chip（<code>src/lib/tag-colors.ts</code>）</li>
 </ul>
 <h3 id="2c-2">2c-2. 论文库默认页 + 文件夹作用域库<a class="headerlink" href="#2c-2" title="Permanent link">&para;</a></h3>
@@ -400,7 +400,7 @@
 <li>[x] 复用：<strong>不迁 core</strong>；path 依赖 <code>agentero_lib</code>，调用 <code>services::{vault,catalog,lookup,pdf_parse,wiki}</code>；禁止 <code>use …::agent</code></li>
 <li>[x] Workspace + scaffold <code>cli/</code>（clap、<code>--vault</code> / env / 上溯、<code>--json</code>、退出码）</li>
 <li>[x] <code>vault create|which|info|check|use</code>（对齐 <code>vault_create</code> / catalog 初始化）</li>
-<li>[x] <code>tree</code>；<code>paper list|get|paths|delete|set-read|set-tags|tags|download|parse</code>（<code>get</code>：<code>assets</code> + <code>suggestedReads</code>；<code>list --tag</code> AND）</li>
+<li>[x] <code>tree</code>；<code>paper list|get|paths|delete|set-read|tag list|set|add|rm|download|parse</code>（<code>get</code>：<code>assets</code> + <code>suggestedReads</code>；<code>list --tag</code> AND）</li>
 <li>[x] <code>import id|bib</code>、<code>export bib</code>（对齐 Host；<strong>不</strong>自动精读）</li>
 <li>[x] 稳定 <code>error.code</code>；集成测试（临时 Vault + <code>--json</code> 契约，<code>cli/tests/cli_mvp.rs</code>）</li>
 <li>[x] 按需放宽 service <code>pub</code>（<code>lib.rs</code> 导出 <code>services</code> / <code>error</code>；<code>list_by_id</code>）</li>
@@ -665,7 +665,7 @@
 </ul>
 <h3 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[x] <strong>MVP</strong>（<a href="../cli/"><code>cli.md</code></a>：<code>cli/</code>、workspace、<code>paper set-tags</code> / <code>tags</code>、无 BYOA）</li>
+<li>[x] <strong>MVP</strong>（<a href="../cli/"><code>cli.md</code></a>：<code>cli/</code>、workspace、<code>paper tag list|set|add|rm</code>、无 BYOA）</li>
 <li>[x] Release 附带 <code>agentero</code> 二进制</li>
 <li>[ ] graph / doctor / completions（P1-7）</li>
 </ul>

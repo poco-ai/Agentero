@@ -143,6 +143,8 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#45-watch">4.5 Watch</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#46-vault-skill">4.6 远端 Vault skill 更新</a>
+    </li>
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#5-byoaacp-over-ssh">5. 远端 BYOA（ACP over SSH）</a>
@@ -516,6 +518,8 @@ mutation（tags / rescan / is_read…）:
 <li>Agent 会话结束 / 用户保存后：对<strong>已打开</strong>文件 SFTP <code>stat</code> + 按需 re-read</li>
 <li>文件树：手动刷新或展开时 readdir</li>
 </ul>
+<h3 id="46-vault-skill">4.6 远端 Vault skill 更新<a class="headerlink" href="#46-vault-skill" title="Permanent link">&para;</a></h3>
+<p>打开远端 Vault 时不能调用本地 <code>vault_ensure</code>：<code>remote:&lt;sessionId&gt;</code> 是本机 Host 的会话句柄，不是远端文件系统路径。Host 通过 <code>remote_vault_ensure</code> 使用当前 <code>RemoteSession.fs</code> 的 SFTP 写入能力，仅补种缺失的 bundled skill 文件，不覆盖远端已有文件。Agent 面板列出远端 skills 时也会先执行同一补种并刷新本地 ephemeral skill mirror，确保“已更新”状态与 Composer 列表一致。</p>
 <hr />
 <h2 id="5-byoaacp-over-ssh">5. 远端 BYOA（ACP over SSH）<a class="headerlink" href="#5-byoaacp-over-ssh" title="Permanent link">&para;</a></h2>
 <h3 id="51">5.1 与现网差异<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>

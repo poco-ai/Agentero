@@ -307,7 +307,7 @@
 ├── papers/                # 文献区；可含组织子目录
 │   ├── 1706.03762/        # paper 单元（一级）
 │   │   ├── NOTES.md
-│   │   ├── marks/         # 划词标记 JSON（ask/highlight/translate）
+│   │   ├── marks/         # 划词：ask/translate 单文件 + annotations.json 高亮/批注
 │   │   ├── PAPER.md       # 可选
 │   │   ├── assets/
 │   │   └── source/
@@ -480,41 +480,46 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 <p>与 PDF 解析派生资源共用同一 <code>assets/</code> 文件夹时互不冲突（文件名唯一）。用户插入图属 <strong>Tier 1a</strong>；勿把仅由解析生成的图误当成可随意 GC 的临时缓存（当前 GC <strong>只</strong>针对编辑器移除的 managed <code>./assets/</code> 链接）。</p>
 <h3 id="marksl25pdf"><code>marks/</code>（L2.5，PDF 划词标记 — 唯一运行时事实来源）<a class="headerlink" href="#marksl25pdf" title="Permanent link">&para;</a></h3>
 <p>划词后的 <strong>提问 / 高亮·批注 / 翻译</strong> 全部为 <strong>JSON</strong>，落在同一目录（pretty，便于 Git diff）：</p>
-<pre class="codehilite"><code class="language-text">papers/&lt;id&gt;/marks/&lt;id&gt;.json
+<pre class="codehilite"><code class="language-text">papers/&lt;id&gt;/marks/&lt;id&gt;.json           # kind: ask | translate（及遗留 kind: highlight）
+papers/&lt;id&gt;/marks/annotations.json    # EmbedPDF 高亮/批注（export/import 传输格式）
 </code></pre>
 
-<p>每条带 <strong><code>kind</code></strong> 判别器：</p>
 <table>
 <thead>
 <tr>
-<th><code>kind</code></th>
+<th>文件</th>
 <th>含义</th>
 <th>主要字段</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>ask</code></td>
+<td><code>marks/&lt;id&gt;.json</code> · <code>kind: ask</code></td>
 <td>多轮就地提问</td>
 <td><code>anchor</code>（page/rects/quote）、<code>messages[]</code>、<code>status</code></td>
 </tr>
 <tr>
-<td><code>highlight</code></td>
-<td>高亮；<code>comment</code> 非空 = 批注</td>
-<td><code>page</code>、<code>rects</code>、<code>quote</code>、<code>color?</code>、<code>comment?</code></td>
-</tr>
-<tr>
-<td><code>translate</code></td>
+<td><code>marks/&lt;id&gt;.json</code> · <code>kind: translate</code></td>
 <td>成功划词翻译（可页边回访）</td>
 <td><code>page</code>、<code>rects</code>、<code>quote?</code>、<code>result?</code>、<code>error?</code></td>
+</tr>
+<tr>
+<td><code>marks/annotations.json</code></td>
+<td><strong>高亮 / 批注</strong>（EmbedPDF 注解数组；<code>contents</code> 非空 = 批注）</td>
+<td>插件 transfer item；调色板键 / quote 在注解 <code>custom</code></td>
+</tr>
+<tr>
+<td>（遗留）<code>marks/&lt;id&gt;.json</code> · <code>kind: highlight</code></td>
+<td>旧归一化高亮；打开时一次性迁入 <code>annotations.json</code> 后删除</td>
+<td><code>page</code>、<code>rects</code>、<code>quote</code>、<code>color?</code>、<code>comment?</code></td>
 </tr>
 </tbody>
 </table>
 <ul>
 <li><strong>不</strong>写 PDF 二进制、<strong>不</strong>进 catalog 正文、<strong>不</strong>默认写 <code>NOTES.md</code>。</li>
-<li>坐标均为页内归一化 0–1，缩放/重开可重建。</li>
-<li>实现：<code>src/lib/pdf-selection/marks-io.ts</code> + <code>pdf-ask</code> / <code>pdf-highlight</code> / <code>pdf-translate</code> 的 IO；UI 见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>。</li>
-<li><strong>阅读热力</strong>：聚合上述三类 mark 的 page + y，Library 标题文字横向背景（左=文首、右=文末）表示位置强度；可选 <code>{paper}/reading-meta.json</code>（<code>pageCount</code>）。</li>
+<li>提问 / 翻译坐标为页内归一化 0–1；高亮几何由 EmbedPDF 注解（页点坐标）保存。</li>
+<li>实现：<code>src/lib/pdf-selection/marks-io.ts</code> + <code>pdf-ask</code> / <code>pdf-highlight</code>（含 <code>annotation-store.ts</code>）/ <code>pdf-translate</code> 的 IO；UI 见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>。</li>
+<li><strong>阅读热力</strong>：聚合 ask / translate mark 与高亮视图的 page + y，Library 标题文字横向背景（左=文首、右=文末）表示位置强度；可选 <code>{paper}/reading-meta.json</code>（<code>pageCount</code>）。</li>
 </ul>
 <h3 id="papermdl3"><code>PAPER.md</code>(L3,派生)<a class="headerlink" href="#papermdl3" title="Permanent link">&para;</a></h3>
 <p>位于 paper 文件夹根部的 <code>PAPER.md</code>(不在 <code>source/</code> 内)。面向 Agent 阅读的统一可读正文。<strong>仍是文件，不进 catalog 正文列。</strong></p>

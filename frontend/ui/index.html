@@ -613,7 +613,7 @@
 <li><strong>PDF 沉浸式阅读</strong>（工具栏 <code>Maximize2</code> 进入 / <code>Minimize2</code> 或 <code>Esc</code> 退出）：折叠左右侧栏 + 隐藏中间栏头，PDF 铺满窗口；正文<strong>限宽 ≤ 1100px 居中</strong>（舒适阅读 + 两侧留白），缩放 / 页码 / 大纲 / 查找浮层照常；切到非 PDF tab 自动退出。i18n <code>viewer:pdf.zenEnter/zenExit</code>。</li>
 <li><strong>PDF 划词操作菜单</strong>（已落地，见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>）：<ul>
 <li>划词后在选区旁弹出操作菜单（图标 + Tooltip）：<strong>5 色色板 + 复制 / 笔记 / 提问 / 翻译</strong>（点色板 = 该色<strong>高亮</strong>；复制 / 笔记有内联确认）；选区以<strong>平滑蓝色覆盖层</strong>呈现（<code>selectionRectsByPage</code> 按行合并 rects + <code>SELECTION_CSS</code> 隐藏原生 <code>::selection</code>，对齐 Zotero、点掉即消）。双击 / 悬停停留仍直接开问答卡（页码上下文）。</li>
-<li>划词标记统一落盘 <strong><code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code></strong>（<code>kind</code>: <code>highlight</code> / <code>ask</code> / <code>translate</code>）。高亮含 <code>color</code> 调色板；批注 = <code>comment</code> 非空；提问为多轮 <code>messages</code>；成功翻译含 <code>result</code> 可回访。翻译 API 失败时仅保留当前错误卡片，不落盘且不显示页边入口，卡片提供跳转翻译设置。均不写 PDF 二进制 / 默认不写 <code>NOTES.md</code>。右侧「批注」tab 总览高亮与提问。</li>
+<li>划词标记统一落在 <strong><code>papers/&lt;id&gt;/marks/</code></strong>：高亮 / 批注 → <strong><code>marks/annotations.json</code></strong>（EmbedPDF 注解；<code>contents</code> 非空 = 批注）；提问 / 翻译 → <strong><code>marks/&lt;id&gt;.json</code></strong>（<code>kind</code>: <code>ask</code> / <code>translate</code>）。提问为多轮 <code>messages</code>；成功翻译含 <code>result</code> 可回访。翻译 API 失败时仅保留当前错误卡片，不落盘且不显示页边入口，卡片提供跳转翻译设置。均不写 PDF 二进制 / 默认不写 <code>NOTES.md</code>。右侧「批注」tab 总览高亮与提问。</li>
 </ul>
 </li>
 <li><strong>PDF/HTML 时右侧自动加载该篇 <code>NOTES.md</code></strong>（可编辑，自动保存 / <code>⌘S</code>）</li>

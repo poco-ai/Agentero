@@ -627,6 +627,10 @@ Host (Tauri + Rust)
 <td>本机终端确认后 <code>ssh -t</code> 在远端执行模板 <code>install_command</code>（如 Claude ACP 适配器）</td>
 </tr>
 <tr>
+<td><code>remote_vault_ensure</code></td>
+<td><code>{ sessionId }</code> → 通过 SFTP 补种缺失 bundled skills，不覆盖远端用户文件</td>
+</tr>
+<tr>
 <td><code>host_identity</code></td>
 <td>本机 hostname + <code>os</code>（macos/windows/linux）/ 设置 Host 徽章</td>
 </tr>
@@ -1538,7 +1542,7 @@ Host (Tauri + Rust)
 <li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata }</code>（更新后的整行；<code>tags</code> 序列化：无色为字符串，有色为 <code>{name,color}</code>）。</li>
 <li><strong>规范化</strong>：trim 空白；丢弃空串；大小写不敏感去重（保留首次出现的写法与颜色；同名后续项仅在先无色时补色）；<code>color</code> 白名单校验。</li>
 <li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>setPaperTags</code>；Paper Info 增删 + 色盘；Library 染色 chip + 筛选；<code>src/lib/tag-colors.ts</code>。</li>
-<li><strong>CLI</strong>：<code>agentero paper set-tags &lt;ref&gt; [tags…]</code>（默认 replace；<code>--add</code> / <code>--remove</code> 增量；CLI 仅传裸名称，不设色）；<code>paper list --tag</code> 筛选；<code>paper tags</code> 汇总。见 <a href="../../development/cli/"><code>../development/cli.md</code></a>。</li>
+<li><strong>CLI</strong>：<code>agentero paper tag set|add|rm &lt;ref&gt; …</code>（<code>set</code> 整表替换，<code>--clear</code> 清空；CLI 仅传裸名称，不设色）；<code>paper list --tag</code> 筛选；<code>paper tag list</code> 汇总。见 <a href="../../development/cli/"><code>../development/cli.md</code></a>。</li>
 </ul>
 <h4 id="paperlist"><code>paper:list</code>（扩展规划）<a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
 <p>带过滤与分页的列表（尚未实现；现网用 <code>paper_list</code>）。</p>
@@ -2212,7 +2216,7 @@ Host (Tauri + Rust)
 <td>磁盘扫描（非 Library 虚拟节点）</td>
 </tr>
 <tr>
-<td><code>paper list\|get\|paths\|delete\|set-read\|set-tags\|tags</code></td>
+<td><code>paper list\|get\|paths\|delete\|set-read\|tag list\|set\|add\|rm</code></td>
 <td><code>catalog::papers::*</code>（含 <code>set_tags</code> / <code>list_all_tags</code>）/ <code>paper_*</code></td>
 </tr>
 <tr>
