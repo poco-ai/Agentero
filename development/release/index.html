@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>iPadOS App 上架要求 - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "iPadOS App \u4e0a\u67b6\u8981\u6c42";
+        var mkdocs_page_input_path = "development/release.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">用户指南</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/">使用指南</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/getting-started/">安装与首次使用</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/import-papers/">导入和管理论文</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/read-and-organize/">阅读、标注与整理</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/agents/">接入 Agent</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/zotero/">使用 Zotero Connector</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/remote-vault/">打开远程 Vault</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../github-project/">GitHub Project</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">iPadOS App 上架要求</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/release.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="ipados-app">iPadOS App 上架要求<a class="headerlink" href="#ipados-app" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>调研日期：2026-07-21<br />
+适用场景：将基于 iPadOS 的 App 提交到 Apple App Store，并为“启航”赛道准备可验证的上架或 TestFlight 版本。<br />
+说明：Apple 的审核规则和上传要求会持续更新，正式提交前应再次检查官方页面。</p>
+</blockquote>
+<h2 id="1">1. 结论先看<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>要把 App 上架到 iPadOS，至少需要完成以下事项：</p>
+<ul>
+<li>具备 Apple Developer Program 账号，并在 App Store Connect 中创建 App 记录。</li>
+<li>在 Xcode 中将 App 配置为支持 iPad 设备族，设置正确的 Bundle ID、版本号和 Build 号。</li>
+<li>生成可上传的 Release 构建，并通过 Xcode、Transporter 或其他 Apple 支持的方式上传。</li>
+<li>提供至少一张 iPad 商店截图，推荐直接提供 13 英寸 iPad 的高分辨率截图。</li>
+<li>填写 App 名称、副标题、描述、关键词、分类、年龄分级、版权和支持网址等商店信息。</li>
+<li>提供隐私政策 URL，并在 App Store Connect 中准确填写 App Privacy 数据收集信息，包括第三方 SDK 的数据行为。</li>
+<li>App 必须能够稳定运行，不能包含占位内容、失效链接、明显崩溃或未完成功能。</li>
+<li>如果需要登录，必须向 Apple 审核提供可用的演示账号，或提供功能完整的演示模式。</li>
+<li>如果 App 提供付费数字内容、订阅或功能解锁，通常必须使用 Apple 的 App 内购买。</li>
+<li>提交前必须确认代码、图片、字体、音视频、数据和第三方服务均拥有合法使用权。</li>
+</ul>
+<h2 id="2-ipados">2. iPadOS 平台配置<a class="headerlink" href="#2-ipados" title="Permanent link">&para;</a></h2>
+<h3 id="21-app-store-connect">2.1 App Store Connect 中的平台<a class="headerlink" href="#21-app-store-connect" title="Permanent link">&para;</a></h3>
+<p>在 App Store Connect 中，iPhone 和 iPad 属于同一个 <strong>iOS 平台</strong>。如果希望 App 同时出现在 iPhone 和 iPad 上，App 必须同时支持这两类设备。</p>
+<p>因此，iPadOS App 通常不是单独创建一个名为“iPadOS”的平台记录，而是在 Xcode 的 iOS App 中启用 iPad 支持。</p>
+<h3 id="22-xcode">2.2 Xcode 项目检查项<a class="headerlink" href="#22-xcode" title="Permanent link">&para;</a></h3>
+<p>在 Xcode 中确认：</p>
+<ul>
+<li>Target 的设备族包含 iPad，通常选择 <code>iPhone and iPad</code> 或等效配置。</li>
+<li><code>Bundle Identifier</code> 与 App Store Connect 中创建的 Bundle ID 完全一致。</li>
+<li><code>Marketing Version</code> 与 App Store Connect 中的版本号一致。</li>
+<li><code>Current Project Version</code> / Build Number 每次上传都递增。</li>
+<li>Deployment Target 与实际支持的最低 iPadOS 版本一致。</li>
+<li>代码使用公开 API，避免使用私有 API、未公开接口或已废弃能力。</li>
+<li>Release 配置可以正常 Archive，Archive 后可以进行 Validate。</li>
+<li>App 的图标已配置在 Asset Catalog 中，且各类尺寸完整。</li>
+<li>如果使用相机、麦克风、定位、照片、蓝牙、通讯录等能力，<code>Info.plist</code> 中存在准确、面向用户的用途说明。</li>
+<li>如果使用受限能力或特殊 Entitlement，已获得相应权限，并能在审核说明中解释用途。</li>
+</ul>
+<h3 id="23-ipad">2.3 iPad 体验要求<a class="headerlink" href="#23-ipad" title="Permanent link">&para;</a></h3>
+<p>Apple 不仅检查 App 能否安装，还会关注 iPad 上的实际体验。建议至少检查：</p>
+<ul>
+<li>竖屏、横屏和旋转过程是否正常。</li>
+<li>不同尺寸 iPad 上是否出现布局溢出、按钮遮挡、文字截断或不可点击区域。</li>
+<li>是否充分利用大屏，而不是简单放大 iPhone 界面。</li>
+<li>多窗口、Split View、Slide Over 等场景下是否仍然可用；如果 App 不支持，应保证限制是合理且不会导致界面异常。</li>
+<li>键盘、触控板、Apple Pencil（如果产品需要）交互是否明确且稳定。</li>
+<li>Safe Area、状态栏、底部 Home Indicator 区域和弹窗布局是否正确。</li>
+<li>网络异常、无权限、空数据、加载失败、首次启动和升级后的状态是否可用。</li>
+</ul>
+<h2 id="3-app-store-connect">3. App Store Connect 必填信息<a class="headerlink" href="#3-app-store-connect" title="Permanent link">&para;</a></h2>
+<p>创建 App 记录和提交版本时，通常需要准备：</p>
+<h3 id="31-app">3.1 App 基础信息<a class="headerlink" href="#31-app" title="Permanent link">&para;</a></h3>
+<ul>
+<li>App 名称：2 至 30 个字符。</li>
+<li>副标题：不超过 30 个字符。</li>
+<li>Bundle ID。</li>
+<li>SKU。</li>
+<li>主语言。</li>
+<li>主分类，必要时设置次分类。</li>
+<li>年龄分级。</li>
+<li>版权信息。</li>
+<li>内容版权声明。</li>
+<li>隐私政策 URL。</li>
+</ul>
+<h3 id="32">3.2 版本信息<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
+<ul>
+<li>版本号。</li>
+<li>“本次更新内容”或版本说明。</li>
+<li>App 描述。</li>
+<li>关键词。</li>
+<li>技术支持 URL。</li>
+<li>营销 URL（可选，但建议提供）。</li>
+<li>App Review Information。</li>
+<li>审核备注。</li>
+<li>App Store 截图。</li>
+<li>App Preview 视频（可选）。</li>
+</ul>
+<h3 id="33">3.3 审核备注建议写清楚<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
+<p>如果 App 有以下情况，应在审核备注中主动说明：</p>
+<ul>
+<li>测试账号、密码、验证码或演示模式进入方式。</li>
+<li>需要扫码、特定硬件、特定地区或特定网络环境的功能。</li>
+<li>付费功能、订阅、App 内购买的测试方式。</li>
+<li>非显而易见的功能入口。</li>
+<li>后端服务地址、测试数据或特殊操作流程。</li>
+<li>使用相机、麦克风、定位、蓝牙、健康数据等敏感权限的原因。</li>
+</ul>
+<p>Apple 要求审核人员能够完整访问和验证 App 的核心功能。后端服务在审核期间也必须保持在线。</p>
+<h2 id="4-ipad">4. iPad 商店截图要求<a class="headerlink" href="#4-ipad" title="Permanent link">&para;</a></h2>
+<h3 id="41">4.1 基本规则<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
+<ul>
+<li>截图格式：<code>.jpeg</code>、<code>.jpg</code> 或 <code>.png</code>。</li>
+<li>每个设备尺寸、语言最多 10 张。</li>
+<li>截图不能包含透明通道或 Alpha。</li>
+<li>如果界面在多个设备尺寸和语言中相同，可以提供最高分辨率截图，让系统自动缩放。</li>
+<li>但对于参加比赛或需要展示产品完成度的场景，建议提供真实 iPad 模拟器或真机截图，而不是只依赖自动缩放。</li>
+</ul>
+<h3 id="42-13-ipad">4.2 推荐使用的 13 英寸 iPad 截图尺寸<a class="headerlink" href="#42-13-ipad" title="Permanent link">&para;</a></h3>
+<p>13 英寸 iPad 是新项目的首选截图规格。以下任一组尺寸均可：</p>
+<table>
+<thead>
+<tr>
+<th>方向</th>
+<th style="text-align: right;">尺寸</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>竖屏</td>
+<td style="text-align: right;">2064 × 2752</td>
+</tr>
+<tr>
+<td>横屏</td>
+<td style="text-align: right;">2752 × 2064</td>
+</tr>
+<tr>
+<td>竖屏</td>
+<td style="text-align: right;">2048 × 2732</td>
+</tr>
+<tr>
+<td>横屏</td>
+<td style="text-align: right;">2732 × 2048</td>
+</tr>
+</tbody>
+</table>
+<p>Apple 标注：如果 App 支持 iPad，13 英寸 iPad 截图是要求提供的截图规格。</p>
+<h3 id="43-ipad">4.3 其他常见 iPad 截图尺寸<a class="headerlink" href="#43-ipad" title="Permanent link">&para;</a></h3>
+<p>如需提供针对其他设备的截图，可使用：</p>
+<table>
+<thead>
+<tr>
+<th>设备</th>
+<th style="text-align: right;">竖屏</th>
+<th style="text-align: right;">横屏</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>11 英寸 iPad</td>
+<td style="text-align: right;">1488 × 2266、1668 × 2420、1668 × 2388、1640 × 2360</td>
+<td style="text-align: right;">2266 × 1488、2420 × 1668、2388 × 1668、2360 × 1640</td>
+</tr>
+<tr>
+<td>10.5 英寸 iPad</td>
+<td style="text-align: right;">1668 × 2224</td>
+<td style="text-align: right;">2224 × 1668</td>
+</tr>
+</tbody>
+</table>
+<p>实际选择哪组尺寸取决于截图对应的设备型号。提交前应在 App Store Connect 的截图上传界面确认当前接受的尺寸。</p>
+<h3 id="44">4.4 截图内容建议<a class="headerlink" href="#44" title="Permanent link">&para;</a></h3>
+<p>建议按以下顺序准备 5 至 8 张：</p>
+<ol>
+<li>首页或核心价值界面。</li>
+<li>最重要的核心功能。</li>
+<li>关键操作流程。</li>
+<li>iPad 横屏或大屏布局。</li>
+<li>个性化、数据分析或结果页面。</li>
+<li>账号、设置、导出或协作功能。</li>
+<li>能体现产品差异化的页面。</li>
+</ol>
+<p>截图中的文案、按钮和功能必须与实际提交版本一致，不能用夸大、虚假或 App 中不存在的功能作为宣传内容。</p>
+<h2 id="5">5. 隐私与数据合规<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<h3 id="51">5.1 必须提供隐私政策<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
+<p>所有 iOS 平台 App 都需要在 App Store Connect 提供隐私政策 URL。该页面应公开可访问，不能要求登录，也不应是空白页面。</p>
+<p>隐私政策至少建议说明：</p>
+<ul>
+<li>收集哪些数据。</li>
+<li>为什么收集。</li>
+<li>数据保存多久。</li>
+<li>是否与第三方共享。</li>
+<li>使用了哪些第三方 SDK。</li>
+<li>用户如何查询、更正或删除个人数据。</li>
+<li>用户如何联系开发者。</li>
+<li>未成年人数据处理方式（如适用）。</li>
+</ul>
+<h3 id="52-app-privacy">5.2 App Privacy 数据标签<a class="headerlink" href="#52-app-privacy" title="Permanent link">&para;</a></h3>
+<p>必须在 App Store Connect 中填写 App Privacy，包括：</p>
+<ul>
+<li>App 是否收集数据。</li>
+<li>收集的数据类型。</li>
+<li>数据是否与用户身份关联。</li>
+<li>数据是否用于追踪。</li>
+<li>数据收集的目的。</li>
+<li>第三方 SDK 或服务商收集的数据。</li>
+</ul>
+<p>填写内容必须与实际行为一致。如果后续版本改变数据收集方式，需要及时更新。</p>
+<h3 id="53">5.3 权限用途说明<a class="headerlink" href="#53" title="Permanent link">&para;</a></h3>
+<p>每个系统权限都必须有清楚、具体、面向用户的用途说明。例如：</p>
+<ul>
+<li>相机：用于扫描二维码或拍摄上传图片。</li>
+<li>麦克风：用于录制语音内容。</li>
+<li>定位：用于显示附近地点或提供基于位置的服务。</li>
+<li>照片：用于选择并上传用户主动选择的图片。</li>
+</ul>
+<p>不能用笼统的“App 需要此权限”作为用途说明，也不能申请与核心功能无关的权限。</p>
+<h2 id="6">6. 审核容易拒绝的情况<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h3 id="61-app">6.1 App 不完整<a class="headerlink" href="#61-app" title="Permanent link">&para;</a></h3>
+<ul>
+<li>启动后崩溃。</li>
+<li>核心按钮无响应。</li>
+<li>页面仍有“Coming Soon”“TODO”等占位内容。</li>
+<li>后端接口关闭或测试账号失效。</li>
+<li>主要功能需要审核人员自行猜测入口。</li>
+<li>只提交演示视频，实际二进制无法运行。</li>
+</ul>
+<h3 id="62">6.2 只是网页包装<a class="headerlink" href="#62" title="Permanent link">&para;</a></h3>
+<p>如果 App 只是一个简单的网页壳、链接集合、宣传页面或内容聚合页面，可能因缺乏足够的 App 功能而被拒。</p>
+<h3 id="63">6.3 隐私或权限问题<a class="headerlink" href="#63" title="Permanent link">&para;</a></h3>
+<ul>
+<li>隐私政策无法访问。</li>
+<li>App Privacy 填写与实际 SDK 行为不一致。</li>
+<li>申请了不必要的敏感权限。</li>
+<li>未解释数据用途。</li>
+<li>使用第三方 SDK 却没有纳入隐私披露。</li>
+</ul>
+<h3 id="64">6.4 付费方式不符合要求<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
+<p>如果在 App 内解锁数字内容、订阅、功能或虚拟物品，通常必须使用 Apple In-App Purchase。</p>
+<p>实体商品、线下服务或某些合规的外部服务有不同规则，不能直接套用数字内容的支付方式。</p>
+<h3 id="65">6.5 版权和第三方服务<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
+<ul>
+<li>未获得图片、字体、音乐、视频、模型或数据的使用授权。</li>
+<li>未获得第三方 API 或平台内容的使用许可。</li>
+<li>使用其他产品的名称、图标、界面或品牌元素，造成混淆。</li>
+<li>将 App 提交到不拥有相关知识产权的开发者账号下。</li>
+</ul>
+<h2 id="7">7. 上传和提交流程<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<ol>
+<li>注册或加入 Apple Developer Program。</li>
+<li>在 App Store Connect 签署最新协议。</li>
+<li>创建 App 记录，选择 iOS 平台。</li>
+<li>配置 Bundle ID、签名证书和 Provisioning Profile。</li>
+<li>在 Xcode 中完成 iPad 支持和适配。</li>
+<li>在真机和模拟器上测试。</li>
+<li>在 Xcode 中执行 <code>Product &gt; Archive</code>。</li>
+<li>在 Organizer 中 Validate。</li>
+<li>使用 Distribute App 上传到 App Store Connect。</li>
+<li>等待构建处理完成。</li>
+<li>选择构建版本，填写商店元数据、隐私、截图和审核信息。</li>
+<li>提交 App Review。</li>
+<li>处理审核反馈，必要时修复并重新提交。</li>
+</ol>
+<p>Apple 支持通过 Xcode、Transporter、altool 或 App Store Connect API 上传构建。2026 年上传要求和 Xcode 版本可能继续变化，提交前应查看 Apple 当前的上传要求页面。</p>
+<h2 id="8">8. 针对“启航”赛道的额外建议<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<p>启航赛道要求的是已经具有产品形态的 App。除了满足 Apple 上架要求，建议额外准备：</p>
+<ul>
+<li>App Store 上架链接，或可正常使用的 TestFlight 链接。</li>
+<li>真实版本号和最近一次更新时间。</li>
+<li>真实用户或测试用户反馈。</li>
+<li>产品迭代记录。</li>
+<li>核心功能演示视频。</li>
+<li>App Store 截图与商业计划书中的产品图片保持一致。</li>
+<li>能说明用户规模、留存、使用频率或测试结果的数据。</li>
+<li>能说明商业模式、推广渠道和后续运营计划的材料。</li>
+</ul>
+<p>如果暂时不能公开上架，至少应保证 TestFlight 构建可以被评审人员安装和使用，并准备明确的测试说明。</p>
+<h2 id="9">9. 提交前检查清单<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<ul>
+<li>[ ] Apple Developer Program 账号有效。</li>
+<li>[ ] App Store Connect 已创建 iOS App 记录。</li>
+<li>[ ] Bundle ID 与 Xcode 完全一致。</li>
+<li>[ ] iPad 设备族已启用。</li>
+<li>[ ] iPad 竖屏、横屏和旋转已测试。</li>
+<li>[ ] 在至少一台真实 iPad 或对应模拟器上测试通过。</li>
+<li>[ ] 没有崩溃、死循环、空白页或不可用核心功能。</li>
+<li>[ ] 图标资源完整。</li>
+<li>[ ] 提供至少一组 13 英寸 iPad 截图。</li>
+<li>[ ] App 名称不超过 30 个字符。</li>
+<li>[ ] 副标题不超过 30 个字符。</li>
+<li>[ ] 描述、关键词、分类和年龄分级已填写。</li>
+<li>[ ] 隐私政策 URL 可公开访问。</li>
+<li>[ ] App Privacy 与实际数据收集一致。</li>
+<li>[ ] 所有权限用途说明准确。</li>
+<li>[ ] 登录功能已准备审核账号或演示模式。</li>
+<li>[ ] 后端服务在审核期间可访问。</li>
+<li>[ ] 付费数字功能使用合规的 In-App Purchase。</li>
+<li>[ ] 第三方图片、字体、音视频、SDK 和数据有授权或合规依据。</li>
+<li>[ ] 审核备注已写清楚特殊功能和测试步骤。</li>
+<li>[ ] Archive、Validate、Upload 均成功。</li>
+</ul>
+<h2 id="10">10. 官方依据<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://developer.apple.com/app-store/review/guidelines/">App Review Guidelines</a></li>
+<li><a href="https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds/">Upload builds</a></li>
+<li><a href="https://developer.apple.com/help/app-store-connect/create-an-app-record/add-a-new-app/">Add a new app</a></li>
+<li><a href="https://developer.apple.com/help/app-store-connect/create-an-app-record/add-platforms/">Add platforms</a></li>
+<li><a href="https://developer.apple.com/help/app-store-connect/reference/app-information/app-information">App information</a></li>
+<li><a href="https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy">Manage app privacy</a></li>
+<li><a href="https://developer.apple.com/help/app-store-connect/manage-app-information/upload-app-previews-and-screenshots">Upload app previews and screenshots</a></li>
+<li><a href="https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/">Screenshot specifications</a></li>
+<li><a href="https://developer.apple.com/help/app-store-connect/reference/app-uploads/maximum-build-file-sizes/">Maximum build file sizes</a></li>
+</ul>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
