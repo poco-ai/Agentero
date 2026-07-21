@@ -618,7 +618,7 @@ type RemoteAgentLaunch = {
 </tr>
 <tr>
 <td>文件树</td>
-<td>懒加载 list；隐藏 Finder / 系统终端菜单（<code>FsCaps</code>）</td>
+<td><strong>懒加载</strong>：<code>papers/</code>/<code>notes/</code>/<code>plans/</code>/<code>.agents/</code> 打开时全量递归；其它根目录仅一层，<code>childrenPending</code> 展开再 list；忽略名永不 list。隐藏 Finder / 系统终端（<code>FsCaps</code>）</td>
 </tr>
 <tr>
 <td>Agent 面板</td>

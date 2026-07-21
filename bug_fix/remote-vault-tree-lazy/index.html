@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>远程 / 大型 Vault：文件树全量递归导致「解析不出来」 - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u8fdc\u7a0b / \u5927\u578b Vault\uff1a\u6587\u4ef6\u6811\u5168\u91cf\u9012\u5f52\u5bfc\u81f4\u300c\u89e3\u6790\u4e0d\u51fa\u6765\u300d";
+        var mkdocs_page_input_path = "bug_fix/remote-vault-tree-lazy.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/github-project/">GitHub Project</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">远程 / 大型 Vault：文件树全量递归导致「解析不出来」</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/bug_fix/remote-vault-tree-lazy.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="vault">远程 / 大型 Vault：文件树全量递归导致「解析不出来」<a class="headerlink" href="#vault" title="Permanent link">&para;</a></h1>
+<p><strong>状态</strong>：已修复（eager 产品目录 + 非产品浅层 / 按需 list + 扩展忽略名）<br />
+<strong>影响面</strong>：打开 Vault 时的左侧文件树（本地与远程同一套建树逻辑；远程 SFTP 下体感最重）<br />
+<strong>相关代码</strong>：</p>
+<ul>
+<li><code>src/lib/vault.ts</code> — <code>loadVaultTree</code> / <code>listVaultDirChildren</code> / <code>shouldIgnoreTreeName</code> / <code>isEagerTreeRel</code> / <code>replaceTreeNodeChildren</code></li>
+<li><code>src/components/layout/file-tree.tsx</code> — 展开时触发懒加载、pending spinner</li>
+<li><code>src/App.tsx</code> — <code>onLoadDirChildren</code> 合并子树</li>
+<li><code>test/vault-tree.test.ts</code> — 忽略规则、eager 判定、pending 合并</li>
+<li>产品约定：<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §2.1；远程设计：<a href="../../development/remote-vault/"><code>../development/remote-vault.md</code></a> §6</li>
+</ul>
+<hr />
+<h2 id="1">1. 问题现象<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<ol>
+<li>打开<strong>远程 Vault</strong>（SSH/SFTP）时，连接本身可能成功（catalog / 远程徽章正常），但<strong>左侧文件树长时间空白或一直 busy</strong>，像「解析不出来」。</li>
+<li>同一目录若在服务器本机 <code>ls</code> / 本地挂载打开，往往仍可用，用户易误判为「远程路径错误」或「SFTP 坏了」。</li>
+<li>失败时 <code>refreshTree</code> 可能 catch 后 <code>setTree([])</code>，或卡在数万次串行 <code>remote_list</code> 上直至超时。</li>
+</ol>
+<hr />
+<h2 id="2">2. 根因<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="21">2.1 建树是「打开时全量递归」，不是文档里的懒加载（主因）<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<p>设计写过文件树应「懒加载 list」，实现却是：</p>
+<pre class="codehilite"><code class="language-text">loadVaultTree(root)
+  → 对每个目录 remoteList / readDir
+  → 子目录递归，直到 depth &gt; 12
+</code></pre>
+
+<p>每个目录 = <strong>一次</strong> Host <code>remote_list</code>（SFTP readdir），且 SFTP 侧多有锁、<strong>串行</strong>。<br />
+远程延迟下：<code>list 次数 × 单次 RTT</code> 直接决定打开耗时。</p>
+<h3 id="22-vault">2.2 真实 Vault 常「产品目录 + 巨量非产品树」混放<a class="headerlink" href="#22-vault" title="Permanent link">&para;</a></h3>
+<p>产品需要深扫的是：</p>
+<table>
+<thead>
+<tr>
+<th>根目录</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>papers/</code></td>
+<td>paper marker、组织夹、下载/精读图标</td>
+</tr>
+<tr>
+<td><code>notes/</code> / <code>plans/</code></td>
+<td>笔记与计划</td>
+</tr>
+<tr>
+<td><code>.agents/</code></td>
+<td>bundled / 用户 skills</td>
+</tr>
+</tbody>
+</table>
+<p>但用户工作区根下还可能有<strong>完整代码仓、实验 run、依赖树</strong>等。旧实现会把这些<strong>一并递归</strong>进文件树。</p>
+<p>在「论文 + 大型代码/实验树」混合的远程库上，按旧忽略规则模拟建树：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>量级（该复现库）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>readdir / SFTP list</td>
+<td><strong>~1.4×10⁴</strong> 次</td>
+</tr>
+<tr>
+<td>目录节点</td>
+<td><strong>~1.4×10⁴</strong></td>
+</tr>
+<tr>
+<td>文件节点</td>
+<td><strong>~4.5×10⁴</strong></td>
+</tr>
+<tr>
+<td>其中非产品树占比</td>
+<td>list 次数的绝大部分（约 97%+）</td>
+</tr>
+</tbody>
+</table>
+<p>产品侧 <code>papers/</code> 一类通常只有数百次 list；真正拖垮打开的是深层非产品子树。</p>
+<h3 id="23">2.3 旧忽略集合过窄<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<p>旧规则大致只跳过：<code>.git</code>、<code>.agentero</code>、<code>node_modules</code>、<code>target</code>、<code>dist</code> 以及多数点开头名。</p>
+<p>仍会扫入（示例类）：</p>
+<ul>
+<li>名称不以点开头的依赖/构建产物目录  </li>
+<li>嵌套在非产品树里的包与 vendored 代码  </li>
+<li>其它本应用从不需要展示的缓存/工具目录  </li>
+</ul>
+<p>点开头的 <code>.venv</code> 等虽会被「点目录」规则跳过，但<strong>非隐藏</strong>的巨型项目树仍全量进入递归。</p>
+<h3 id="24-vs">2.4 远程 vs 本地体感差几个数量级<a class="headerlink" href="#24-vs" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>环境</th>
+<th>同一套全量递归</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>服务器本机 <code>scandir</code></td>
+<td>整树可在 <strong>~0.1 s</strong> 级完成（盘很快）</td>
+</tr>
+<tr>
+<td>客户端经 SFTP 串行 list</td>
+<td>按 <strong>~20–100 ms/次</strong> 估，整树约 <strong>数分钟～十余分钟</strong></td>
+</tr>
+</tbody>
+</table>
+<p>因此：<strong>不是路径无效，而是打开策略不可扩展。</strong></p>
+<hr />
+<h2 id="3">3. 修复策略<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31">3.1 两类目录<a class="headerlink" href="#31" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>根名（vault-relative 顶段）</th>
+<th>打开时</th>
+<th>展开时</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Eager</strong></td>
+<td><code>papers</code>、<code>notes</code>、<code>plans</code>、<code>.agents</code></td>
+<td><strong>全量递归</strong>（保留 paper marker / skill 语义）</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Lazy</strong></td>
+<td>其它根下目录（代码、论文草稿夹等）</td>
+<td>只 list <strong>一层</strong>（文件 + 子目录壳）</td>
+<td>子目录 <code>childrenPending</code>，展开再 list 一层</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-list">3.2 忽略名永不 list<a class="headerlink" href="#32-list" title="Permanent link">&para;</a></h3>
+<p><code>TREE_IGNORE_NAMES</code> + 点目录策略（保留 <code>.agents</code>、<code>.env.example</code>）+ <code>*.egg-info</code>：</p>
+<ul>
+<li>VCS / Host 内部：<code>.git</code>、<code>.agentero</code>、…  </li>
+<li>依赖与缓存：<code>node_modules</code>、<code>.venv</code>、<code>venv</code>、<code>__pycache__</code>、<code>site-packages</code>、各类 <code>.*_cache</code>、…  </li>
+<li>编辑器 / 工具：<code>.codex</code>、<code>.idea</code>、<code>.vscode</code>、…  </li>
+</ul>
+<p>命中则<strong>不进入树、不发 list</strong>。</p>
+<h3 id="33-ui">3.3 UI<a class="headerlink" href="#33-ui" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>FileNode.childrenPending</code>：未 list 的目录仍显示为可展开文件夹。  </li>
+<li>展开时 <code>listVaultDirChildren</code> → <code>replaceTreeNodeChildren</code> 合并。  </li>
+<li>加载中可显示行内 spinner；失败 toast，可再次展开重试。</li>
+</ul>
+<hr />
+<h2 id="4-vault">4. 修复前后数据（同一混合型远程 Vault）<a class="headerlink" href="#4-vault" title="Permanent link">&para;</a></h2>
+<p><strong>方法</strong>：在服务器上用与前后端一致的忽略 / eager / 浅层规则模拟 walk（本地 <code>scandir</code> 计次数）；远程耗时按 <strong>list 次数 × 实测单次 SFTP list 延迟</strong> 估算（同会话串行 list，约数十 ms/次量级）。</p>
+<h3 id="41">4.1 工作量<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>修复前</th>
+<th>修复后</th>
+<th>变化</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>readdir / SFTP list</td>
+<td><strong>~13 600</strong></td>
+<td><strong>~390</strong></td>
+<td><strong>约 35× 更少</strong></td>
+</tr>
+<tr>
+<td>目录节点（进树）</td>
+<td><strong>~13 600</strong></td>
+<td><strong>~400</strong></td>
+<td>约 34× 更少</td>
+</tr>
+<tr>
+<td>文件节点（进树）</td>
+<td><strong>~44 700</strong></td>
+<td><strong>~2 200</strong></td>
+<td>约 20× 更少</td>
+</tr>
+<tr>
+<td>待展开 pending 目录</td>
+<td>0</td>
+<td>少量（非产品一层下的子目录壳）</td>
+<td>按需再 list</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-walk">4.2 服务器本机 walk（无网络）<a class="headerlink" href="#42-walk" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>修复前</th>
+<th>修复后</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>墙钟</td>
+<td><strong>~0.11 s</strong></td>
+<td><strong>~0.004 s</strong></td>
+</tr>
+<tr>
+<td>加速</td>
+<td>—</td>
+<td><strong>约 25–30×</strong></td>
+</tr>
+</tbody>
+</table>
+<p>说明：盘上 list 不是瓶颈，对比的是<strong>调用次数</strong>与算法分支。</p>
+<h3 id="43-sftp">4.3 远程打开估算（串行 SFTP）<a class="headerlink" href="#43-sftp" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>假设单次 list</th>
+<th>修复前</th>
+<th>修复后</th>
+<th>加速</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~20 ms</td>
+<td>~4–5 min</td>
+<td>~8 s</td>
+<td>~35×</td>
+</tr>
+<tr>
+<td>~50–60 ms（本机 CLI 批测量级）</td>
+<td><strong>~10–15 min</strong></td>
+<td><strong>~20–25 s</strong></td>
+<td>~35×</td>
+</tr>
+<tr>
+<td>~100 ms</td>
+<td>~20+ min</td>
+<td>~40 s</td>
+<td>~35×</td>
+</tr>
+</tbody>
+</table>
+<p><strong>定性结论</strong>：</p>
+<ul>
+<li>修复前：远程大库打开文件树常落在<strong>数分钟以上</strong>，UI 等同失败。  </li>
+<li>修复后：同库打开落在<strong>数十秒内</strong>（主要成本仍是 eager 的 <code>papers/</code> 等产品树）；非产品根目录一层几乎立刻可见。  </li>
+<li>收益与 list 次数比一致：<strong>约 35×</strong>。</li>
+</ul>
+<h3 id="44-list">4.4 修复后 list 构成（典型）<a class="headerlink" href="#44-list" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>部分</th>
+<th>策略</th>
+<th>占比（该复现）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>产品 <code>papers/</code> 等 eager 树</td>
+<td>全量</td>
+<td><strong>绝大多数</strong>（~90%+ list）</td>
+</tr>
+<tr>
+<td>其它根目录</td>
+<td>每根 1 次浅层</td>
+<td>极少</td>
+</tr>
+<tr>
+<td>忽略名</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>因此：若仍慢，下一步优化应针对 <strong><code>papers/</code> 分层 / 批量 list</strong>，而不是再砍非产品树。</p>
+<hr />
+<h2 id="5">5. 验收建议<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<ol>
+<li>打开「产品目录 + 大型非产品子树」的<strong>远程</strong> Vault：顶层与 <code>papers/</code> 应在可接受时间内出现；非产品根可展开一层，不一次性扫尽深层。  </li>
+<li>忽略名（依赖、venv、<code>.git</code> 等）<strong>不出现在树中</strong>。  </li>
+<li>仅 <code>papers/</code> 的精简 Vault：行为与修复前一致（仍 eager 全量）。  </li>
+<li>展开 lazy 目录失败时 toast，树不整页清空；再次展开可重试。  </li>
+<li>单元测试：<code>test/vault-tree.test.ts</code>（忽略、eager、pending 合并）。</li>
+</ol>
+<hr />
+<h2 id="6">6. 后续（非本次）<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>papers/</code> 组织夹过深时仍可能数百次 list：可考虑 Host 批量 <code>list_tree</code>、或 org 层懒加载。  </li>
+<li>刷新树时若保留已展开 lazy 子树，可减少重复 list（当前刷新仍按 <code>loadVaultTree</code> 重算 eager + 浅层）。  </li>
+<li>打开进度 toast（「正在加载远程文件树…」）改善体感。</li>
+</ul>
+<hr />
+<h2 id="7">7. 决议记录<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>议题</th>
+<th>决议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>是否全树懒加载</td>
+<td><strong>否</strong>：产品目录必须 eager（marker / skills）</td>
+</tr>
+<tr>
+<td>非产品目录</td>
+<td>打开 list 一层；子目录 pending，展开再 list</td>
+</tr>
+<tr>
+<td>忽略策略</td>
+<td>应用不需要的目录/缓存<strong>永不 list</strong></td>
+</tr>
+<tr>
+<td>文档是否写具体主机/路径</td>
+<td><strong>否</strong>（可复现条件用结构描述，不写环境专有路径）</td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
