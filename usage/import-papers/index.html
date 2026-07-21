@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>导入和管理论文 - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u5bfc\u5165\u548c\u7ba1\u7406\u8bba\u6587";
+        var mkdocs_page_input_path = "usage/import-papers.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">用户指南</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">使用指南</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../getting-started/">安装与首次使用</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">导入和管理论文</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#_2">用魔棒导入标识符或链接</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#_3">识别失败时</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#pdf">导入本地 PDF</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#zotero">从 Zotero 迁移</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_4">管理论文</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#_5">用标签筛选</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_6">补下载资源</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_7">处理重复导入</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../read-and-organize/">阅读、标注与整理</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../agents/">接入 Agent</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../zotero/">使用 Zotero Connector</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">打开远程 Vault</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/github-project/">GitHub Project</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">用户指南</li>
+      <li class="breadcrumb-item active">导入和管理论文</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/usage/import-papers.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="_1">导入和管理论文<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<p>Agentero 提供四种常用入口。选择哪一种取决于你手上的资料，而不是论文来源。</p>
+<table>
+<thead>
+<tr>
+<th>手上的资料</th>
+<th>推荐入口</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DOI、arXiv ID、PMID、ISBN 或论文链接</td>
+<td>魔棒</td>
+</tr>
+<tr>
+<td>浏览器中正在打开的论文网页</td>
+<td>Zotero Connector</td>
+</tr>
+<tr>
+<td>本地 PDF 文件</td>
+<td>魔棒中的本地文件导入</td>
+</tr>
+<tr>
+<td>已有 Zotero 文库</td>
+<td>从 Zotero 迁移</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">用魔棒导入标识符或链接<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<ol>
+<li>打开一个 Vault。</li>
+<li>在左侧选择魔棒，或使用命令面板中的导入入口。</li>
+<li>粘贴 DOI、arXiv ID、PMID、ISBN 或论文 URL。</li>
+<li>检查识别出的标题和作者。</li>
+<li>确认导入。</li>
+</ol>
+<p>导入成功后，Agentero 会创建论文目录，写入元数据，并尽量下载 PDF。对于 arXiv 论文，还会尝试把 LaTeX 源码解压到 <code>source/</code>。</p>
+<p>导入后的论文通常位于：</p>
+<pre class="codehilite"><code class="language-text">papers/&lt;paper-id&gt;/
+├── NOTES.md
+├── &lt;paper-id&gt;.pdf
+└── source/          # 有可用源文件时才会出现
+</code></pre>
+
+<h3 id="_3">识别失败时<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>优先粘贴单篇论文的 DOI 或 URL，不要一次粘贴带多个候选结果的搜索页。</li>
+<li>检查设置中的 Translator 服务地址是否可访问。</li>
+<li>arXiv 论文可以直接使用 arXiv ID 作为备用入口。</li>
+<li>元数据成功但 PDF 下载失败时，先保留论文条目，再在 Library 或论文行上使用 Download。</li>
+</ul>
+<h2 id="pdf">导入本地 PDF<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h2>
+<ol>
+<li>打开魔棒的本地文件导入入口。</li>
+<li>选择一个或多个 PDF。</li>
+<li>选择目标目录。</li>
+<li>等待解析和写入完成。</li>
+</ol>
+<p>本地 PDF 的文件名不一定包含完整论文信息。导入后应在 Paper Info 中检查标题、作者、年份和标签；需要时再手动修改。</p>
+<h2 id="zotero">从 Zotero 迁移<a class="headerlink" href="#zotero" title="Permanent link">&para;</a></h2>
+<p>适合把已有 Zotero 文库整体迁移到一个新的 Agentero Vault：</p>
+<ol>
+<li>在欢迎页选择 <strong>Migrate from Zotero</strong>，或在侧栏打开对应入口。</li>
+<li>选择包含 <code>zotero.sqlite</code> 和 <code>storage/</code> 的 Zotero 数据目录。</li>
+<li>先查看扫描结果，确认论文、PDF 和笔记数量。</li>
+<li>选择是否复制本地 PDF。</li>
+<li>选择是否按 Zotero collection 创建子文件夹。</li>
+<li>选择是否迁移笔记和 PDF 高亮批注。</li>
+<li>开始迁移并等待进度完成。</li>
+</ol>
+<p>迁移过程不会把 Zotero 数据库作为 Agentero 的运行时数据库；论文文件、笔记和 PDF 会写入当前 Vault，Library 元数据写入当前 Vault 的 Catalog。</p>
+<h2 id="_4">管理论文<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h3 id="_5">用标签筛选<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<p>在 Library 中使用 tags 列或筛选控件查找论文。标签可以在 Paper Info 中新增、删除和设置颜色。</p>
+<h3 id="_6">补下载资源<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<p>如果论文行显示缺少 PDF，选择 Download。没有 TeX 且没有 <code>PAPER.md</code> 时，Agentero 也可能提供正文资源下载或解析入口。</p>
+<h3 id="_7">处理重复导入<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<p>重复导入通常会复用已有论文目录或显示去重结果。确认结果后，不要手动删除目录中的 <code>NOTES.md</code>；其中可能已经包含你的阅读记录。</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../getting-started/" class="btn btn-neutral float-left" title="安装与首次使用"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../read-and-organize/" class="btn btn-neutral float-right" title="阅读、标注与整理">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+      <span><a href="../getting-started/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../read-and-organize/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

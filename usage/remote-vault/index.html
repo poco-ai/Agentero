@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>打开远程 Vault - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u6253\u5f00\u8fdc\u7a0b Vault";
+        var mkdocs_page_input_path = "usage/remote-vault.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">用户指南</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">使用指南</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../getting-started/">安装与首次使用</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../import-papers/">导入和管理论文</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../read-and-organize/">阅读、标注与整理</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../agents/">接入 Agent</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../zotero/">使用 Zotero Connector</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">打开远程 Vault</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#_1">使用前提</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#vault_1">连接远程 Vault</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#agent">远程 Agent</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#vault_2">在远程 Vault 中工作</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_2">远程使用注意事项</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#vault_3">不要并发写同一个 Vault</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_3">远程文件变化不会立即推送到界面</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#_4">连接失败</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/github-project/">GitHub Project</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">用户指南</li>
+      <li class="breadcrumb-item active">打开远程 Vault</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/usage/remote-vault.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="vault">打开远程 Vault<a class="headerlink" href="#vault" title="Permanent link">&para;</a></h1>
+<p>远程 Vault 适合把论文和笔记放在服务器上，同时在本地使用 Agentero 的界面。文件权威保留在服务器，Agent 也在服务器上运行。</p>
+<h2 id="_1">使用前提<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>需要准备：</p>
+<ul>
+<li>macOS 或 Linux 客户端；</li>
+<li>可以通过 SSH 登录的服务器；</li>
+<li>服务器上的 Vault 目录；</li>
+<li>服务器已安装并登录要使用的 ACP Agent；</li>
+<li>当前用户对远程 Vault 有读写权限。</li>
+</ul>
+<p>Windows 客户端当前不能打开远程 Vault。</p>
+<h2 id="vault_1">连接远程 Vault<a class="headerlink" href="#vault_1" title="Permanent link">&para;</a></h2>
+<ol>
+<li>在欢迎页选择 <strong>Open Remote Vault</strong>，或在当前窗口的 Vault 切换菜单中选择同名入口。</li>
+<li>填写 SSH 用户、主机、端口和远程 Vault 路径。</li>
+<li>选择 SSH 密钥或当前可用的 SSH 认证方式。</li>
+<li>连接并等待文件树加载。</li>
+<li>确认 Library 和论文目录已经出现。</li>
+</ol>
+<p>远程连接同时使用：</p>
+<ul>
+<li>SFTP 读写文件树、Markdown 和 PDF；</li>
+<li>SSH 执行远程 Agent；</li>
+<li>会话内 Catalog 工作副本，用于 Library 查询和元数据操作。</li>
+</ul>
+<h2 id="agent">远程 Agent<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h2>
+<p>远程 Agent 必须安装在服务器上，而不是只安装在本机。Agentero 会在远程 Vault 根目录启动它，使 Agent 看到的工作目录与 SFTP 文件树一致。</p>
+<p>在服务器上先确认：</p>
+<pre class="codehilite"><code class="language-bash">command -v claude-agent-acp
+command -v codex-acp
+command -v opencode
+</code></pre>
+
+<p>至少准备一个实际使用的命令，并完成对应的官方登录流程。然后在 Agentero 的 Agent 设置中选择远程可用的 Agent。</p>
+<h2 id="vault_2">在远程 Vault 中工作<a class="headerlink" href="#vault_2" title="Permanent link">&para;</a></h2>
+<p>连接成功后，常用操作与本地 Vault 基本一致：</p>
+<ul>
+<li>浏览 Library 和文件树；</li>
+<li>打开远程 PDF；</li>
+<li>编辑并保存 <code>NOTES.md</code>；</li>
+<li>导入论文；</li>
+<li>使用 Agent 总结或整理；</li>
+<li>使用 Backlinks 和 Graph。</li>
+</ul>
+<p>PDF 和部分大文件可能会暂存在本机缓存中，仅用于预览。断开连接后，远程目录仍是唯一事实来源。</p>
+<h2 id="_2">远程使用注意事项<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h3 id="vault_3">不要并发写同一个 Vault<a class="headerlink" href="#vault_3" title="Permanent link">&para;</a></h3>
+<p>MVP 按单写者设计。不要同时让多个 Agentero 客户端、远程 Agent 和外部同步程序修改同一个远程 Vault。</p>
+<h3 id="_3">远程文件变化不会立即推送到界面<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<p>远程文件系统没有本地 inotify 等价物。Agent 结束、用户保存或重新展开目录时，Agentero 会按需检查文件；必要时手动刷新文件树。</p>
+<h3 id="_4">连接失败<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<p>依次确认：</p>
+<ol>
+<li>本机终端可以执行 <code>ssh user@host</code>。</li>
+<li>服务器 SSH 端口可达。</li>
+<li>远程路径是绝对路径，且用户有权限访问。</li>
+<li>服务器上的 Agent 命令在非交互 SSH 的 PATH 中可见。</li>
+<li>Agent 需要的登录凭据已经配置在服务器上。</li>
+</ol>
+<p>如果终端登录成功但 Agentero 仍然找不到命令，优先在 Agent 设置中使用绝对路径，或把命令所在目录加入非交互 shell 的 PATH。</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../zotero/" class="btn btn-neutral float-left" title="使用 Zotero Connector"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../frontend/" class="btn btn-neutral float-right" title="概览">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+      <span><a href="../zotero/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../../frontend/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
