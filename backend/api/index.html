@@ -472,6 +472,11 @@ Host (Tauri + Rust)
 <td>运行重写了目标笔记，供保留/还原</td>
 <td><code>{ path, before, after }</code></td>
 </tr>
+<tr>
+<td><code>background-task:progress</code></td>
+<td>下载任务的实际字节进度</td>
+<td><code>{ taskId, phase, downloadedBytes, totalBytes?, progress? }</code>；无 <code>Content-Length</code> 时 <code>progress</code> 为空</td>
+</tr>
 </tbody>
 </table>
 <h4 id="agent_warm"><code>agent_warm</code><a class="headerlink" href="#agent_warm" title="Permanent link">&para;</a></h4>
@@ -1303,10 +1308,11 @@ Host (Tauri + Rust)
   {
     vaultPath: string;
     path: string; // Vault 相对 paper 文件夹，如 papers/1706.03762
+    taskId?: string; // 前端后台任务 id，用于接收 background-task:progress
   }
   ```
 - **返回**：`{ ok: true; data: { pdf: boolean; tex: boolean; paperMd: boolean; messages: string[] } }`
-- **行为**：读 catalog 取 `pdf_url` / `arxiv_id` / `doi`；已有对应文件则跳过；PDF → `{paper}/{id}.pdf`（论文根目录）；arXiv e-print TeX → 解压进 `source/`；无 TeX + 有 PDF + 无 `PAPER.md` → liteparse → `PAPER.md`。下载客户端使用**浏览器 UA**（绕开部分出版商 403）；若直链/arXiv 候选都失败且有 `doi`，再查 **Crossref** 取直链 / OA PDF 兜底。打开 paper 预览时若无本地 PDF 也会自动调用本命令（失败则回退远程 `pdf_url`）。
+- **行为**：读 catalog 取 `pdf_url` / `arxiv_id` / `doi`；已有对应文件则跳过；PDF → `{paper}/{id}.pdf`（论文根目录）；arXiv e-print TeX → 解压进 `source/`；无 TeX + 有 PDF + 无 `PAPER.md` → liteparse → `PAPER.md`。下载客户端使用**浏览器 UA**（绕开部分出版商 403）；若直链/arXiv 候选都失败且有 `doi`，再查 **Crossref** 取直链 / OA PDF 兜底。打开 paper 预览时若无本地 PDF 也会自动调用本命令（失败则回退远程 `pdf_url`）。当传入 `taskId` 且响应提供 `Content-Length` 时，通过 `background-task:progress` 按实际已接收字节数推送百分比；无法得知总大小时只推送不确定进度。
 
 #### `paper_stage_import_file`（已落地）
 
