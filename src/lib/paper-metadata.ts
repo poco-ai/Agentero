@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { readDir, readFile } from "@tauri-apps/plugin-fs";
 import { arxivUrls } from "@/lib/arxiv";
 import {
@@ -755,12 +754,6 @@ function enrichArxivUrls(data: PaperMetadata): PaperMetadata {
 	return data;
 }
 
-type ApiResult<T> = {
-	ok: boolean;
-	data?: T;
-	error?: { code: string; message: string };
-};
-
 /**
  * Vault-relative paper folder path for catalog APIs.
  * `metadata.json` omits `path` (folder identity is the path); callers must re-inject it.
@@ -804,10 +797,10 @@ export async function loadPaperMetadata(
 				data = (await remotePaperGet(sessionId, { path })) as PaperMetadata;
 			}
 		} else {
-			const res = await invoke<ApiResult<PaperMetadata>>("paper_get", {
+			const { ipc } = await import("@/lib/ipc");
+			data = await ipc<PaperMetadata>("paper_get", {
 				args: { vaultPath: vaultRoot, path },
 			});
-			if (res.ok && res.data) data = res.data;
 		}
 		if (data?.id) {
 			return withNormalizedTags(

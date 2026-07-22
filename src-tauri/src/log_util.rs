@@ -1,6 +1,6 @@
 //! Operation start/end logging helpers (see `docs/development/logging.md`).
 
-use crate::error::{map_err, ApiResult, AppError};
+use crate::error::AppError;
 use std::time::Instant;
 
 const TARGET: &str = "agentero::op";
@@ -102,22 +102,8 @@ impl OpTimer {
         );
     }
 
-    /// Map `Result` → `ApiResult` and emit matching end log.
-    pub fn finish_result<T: serde::Serialize>(self, result: Result<T, AppError>) -> ApiResult<T> {
-        match result {
-            Ok(v) => {
-                self.finish_ok();
-                ApiResult::ok(v)
-            }
-            Err(e) => {
-                self.finish_err(&e);
-                map_err(e)
-            }
-        }
-    }
-
     /// Emit the matching end log and pass the `Result` through unchanged
-    /// (for migrated commands returning `Result<T, AppError>` directly).
+    /// (commands return `Result<T, AppError>` on the Tauri error channel).
     pub fn finish<T>(self, result: Result<T, AppError>) -> Result<T, AppError> {
         match result {
             Ok(v) => {
@@ -146,25 +132,6 @@ impl OpTimer {
             Err(e) => {
                 self.finish_err(&e);
                 Err(e)
-            }
-        }
-    }
-
-    /// Like `finish_result` but append extra fields on success (e.g. `count=3`).
-    pub fn finish_result_ok_extra<T: serde::Serialize>(
-        self,
-        result: Result<T, AppError>,
-        ok_extra: impl FnOnce(&T) -> String,
-    ) -> ApiResult<T> {
-        match result {
-            Ok(v) => {
-                let extra = ok_extra(&v);
-                self.finish_ok_extra(extra);
-                ApiResult::ok(v)
-            }
-            Err(e) => {
-                self.finish_err(&e);
-                map_err(e)
             }
         }
     }
@@ -197,13 +164,12 @@ mod tests {
     #[test]
     fn op_timer_ok_and_err() {
         let op = OpTimer::start_with("unit_test_ok", "k=v");
-        let res = op.finish_result::<i32>(Ok(42));
-        assert!(res.ok);
-        assert_eq!(res.data, Some(42));
+        let res = op.finish::<i32>(Ok(42));
+        assert_eq!(res.unwrap(), 42);
 
         let op = OpTimer::start("unit_test_err");
-        let res = op.finish_result::<i32>(Err(AppError::message("boom")));
-        assert!(!res.ok);
-        assert_eq!(res.error.as_ref().map(|e| e.code.as_str()), Some("message"));
+        let res = op.finish::<i32>(Err(AppError::message("boom")));
+        let err = res.unwrap_err();
+        assert_eq!(err.code(), crate::error::ErrorCode::Internal);
     }
 }

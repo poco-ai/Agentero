@@ -4,9 +4,9 @@
  * Translator base URL comes from Settings (`translatorBaseUrl`).
  * @see docs/backend/identifier-lookup.md
  */
-import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import i18n from "@/i18n";
+import { ipc } from "@/lib/ipc";
 import { type AppSettings, DEFAULT_TRANSLATOR_BASE_URL } from "@/lib/settings";
 import { isTauri } from "@/lib/tauri";
 
@@ -37,12 +37,6 @@ export type PaperParseBodyResult = {
 	bodySource?: string;
 	bodyQuality?: string;
 	messages: string[];
-};
-
-type ApiResult<T> = {
-	ok: boolean;
-	data?: T;
-	error?: { code: string; message: string };
 };
 
 type HostLookupResult = {
@@ -115,7 +109,7 @@ export async function addPaperByIdentifier(opts: {
 		opts.translatorBaseUrl,
 	);
 
-	const result = await invoke<ApiResult<HostLookupResult>>("lookup_import", {
+	const result = await ipc<HostLookupResult>("lookup_import", {
 		args: {
 			vaultPath: opts.vaultRoot,
 			parentDir: opts.parentDir.replace(/\\/g, "/"),
@@ -125,13 +119,7 @@ export async function addPaperByIdentifier(opts: {
 		},
 	});
 
-	if (!result.ok || !result.data) {
-		throw new Error(
-			result.error?.message ?? i18n.t("sidebar:lookup.fetchFailed"),
-		);
-	}
-
-	return toLookupAddResult(result.data);
+	return toLookupAddResult(result);
 }
 
 /**
@@ -146,22 +134,13 @@ export async function downloadPaperAssets(opts: {
 	if (!isTauri()) {
 		throw new Error(i18n.t("sidebar:lookup.desktopOnly"));
 	}
-	const result = await invoke<ApiResult<PaperAssetsDownloadResult>>(
-		"paper_download_assets",
-		{
-			args: {
-				vaultPath: opts.vaultRoot,
-				path: opts.paperPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""),
-				taskId: opts.progressTaskId,
-			},
+	return ipc<PaperAssetsDownloadResult>("paper_download_assets", {
+		args: {
+			vaultPath: opts.vaultRoot,
+			path: opts.paperPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""),
+			taskId: opts.progressTaskId,
 		},
-	);
-	if (!result.ok || !result.data) {
-		throw new Error(
-			result.error?.message ?? i18n.t("sidebar:fileTree.downloadFailed"),
-		);
-	}
-	return result.data;
+	});
 }
 
 /**
@@ -176,22 +155,13 @@ export async function parsePaperBody(opts: {
 	if (!isTauri()) {
 		throw new Error(i18n.t("sidebar:lookup.desktopOnly"));
 	}
-	const result = await invoke<ApiResult<PaperParseBodyResult>>(
-		"paper_parse_body",
-		{
-			args: {
-				vaultPath: opts.vaultRoot,
-				path: opts.paperPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""),
-				force: opts.force ?? false,
-			},
+	return ipc<PaperParseBodyResult>("paper_parse_body", {
+		args: {
+			vaultPath: opts.vaultRoot,
+			path: opts.paperPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""),
+			force: opts.force ?? false,
 		},
-	);
-	if (!result.ok || !result.data) {
-		throw new Error(
-			result.error?.message ?? i18n.t("sidebar:fileTree.downloadFailed"),
-		);
-	}
-	return result.data;
+	});
 }
 
 type HostLocalPdfImportResult = {
@@ -250,24 +220,16 @@ export async function importLocalPdfs(opts: {
 	}
 	if (!entries.length) return null;
 
-	const result = await invoke<ApiResult<HostLocalPdfImportResult>>(
-		"paper_import_local_pdf",
-		{
-			args: {
-				vaultPath: opts.vaultRoot,
-				parentDir: opts.parentDir.replace(/\\/g, "/"),
-				filePaths: [],
-				entries,
-			},
+	const result = await ipc<HostLocalPdfImportResult>("paper_import_local_pdf", {
+		args: {
+			vaultPath: opts.vaultRoot,
+			parentDir: opts.parentDir.replace(/\\/g, "/"),
+			filePaths: [],
+			entries,
 		},
-	);
-	if (!result.ok || !result.data) {
-		throw new Error(
-			result.error?.message ?? i18n.t("sidebar:lookup.fetchFailed"),
-		);
-	}
+	});
 	return {
-		papers: result.data.papers.map(toLookupAddResult),
-		errors: result.data.errors ?? [],
+		papers: result.papers.map(toLookupAddResult),
+		errors: result.errors ?? [],
 	};
 }

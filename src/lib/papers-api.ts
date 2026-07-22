@@ -80,13 +80,10 @@ export async function listPapers(vaultPath: string): Promise<PaperMetadata[]> {
 		const rows = (await remotePaperList(sessionId)) as PaperMetadata[];
 		return rows.map(withNormalizedTags);
 	}
-	const res = await invoke<ApiResult<PaperMetadata[]>>("paper_list", {
+	const rows = await ipc<PaperMetadata[]>("paper_list", {
 		args: { vaultPath },
 	});
-	if (!res.ok || !res.data) {
-		throw new Error(res.error?.message ?? "paper_list failed");
-	}
-	return res.data.map(withNormalizedTags);
+	return rows.map(withNormalizedTags);
 }
 
 export type PaperRescanResult = { count: number };
@@ -102,15 +99,10 @@ export async function rescanPapers(vaultPath: string): Promise<number> {
 		const r = await remotePaperRescan(sessionId);
 		return r.count;
 	}
-	const res = await invoke<ApiResult<PaperRescanResult>>("paper_rescan", {
+	const res = await ipc<PaperRescanResult>("paper_rescan", {
 		args: { vaultPath },
 	});
-	if (!res.ok || !res.data) {
-		throw new Error(
-			res.error?.message ?? i18n.t("sidebar:papersLibrary.rescanFailed"),
-		);
-	}
-	return res.data.count;
+	return res.count;
 }
 
 export type PaperDeleteResult = {
@@ -147,15 +139,7 @@ export async function deletePapersUnderPath(
 		}
 		return res.data;
 	}
-	const res = await invoke<ApiResult<PaperDeleteResult>>("paper_delete", {
-		args: { vaultPath, path },
-	});
-	if (!res.ok || !res.data) {
-		throw new Error(
-			res.error?.message ?? i18n.t("sidebar:fileTree.deleteFailed"),
-		);
-	}
-	return res.data;
+	return ipc<PaperDeleteResult>("paper_delete", { args: { vaultPath, path } });
 }
 
 export type TrashResult = {
@@ -290,15 +274,10 @@ export async function setPaperIsRead(
 		}
 		return withNormalizedTags(res.data);
 	}
-	const res = await invoke<ApiResult<PaperMetadata>>("paper_set_is_read", {
+	const row = await ipc<PaperMetadata>("paper_set_is_read", {
 		args: { vaultPath, path, isRead },
 	});
-	if (!res.ok || !res.data) {
-		throw new Error(
-			res.error?.message ?? i18n.t("sidebar:fileTree.readMarkFailed"),
-		);
-	}
-	return res.data;
+	return row;
 }
 
 /**
@@ -332,15 +311,10 @@ export async function setPaperTags(
 		}
 		return withNormalizedTags(res.data);
 	}
-	const res = await invoke<ApiResult<PaperMetadata>>("paper_set_tags", {
+	const row = await ipc<PaperMetadata>("paper_set_tags", {
 		args: { vaultPath, path, tags },
 	});
-	if (!res.ok || !res.data) {
-		throw new Error(
-			res.error?.message ?? i18n.t("sidebar:paperInfo.tagsSaveFailed"),
-		);
-	}
-	return withNormalizedTags(res.data);
+	return withNormalizedTags(row);
 }
 
 export type PaperExportResult = {
@@ -377,19 +351,13 @@ export async function exportLibrary(opts: {
 	if (!isTauri()) {
 		throw new Error(i18n.t("sidebar:papersLibrary.desktopOnly"));
 	}
-	const res = await invoke<ApiResult<PaperExportResult>>("paper_export", {
+	return ipc<PaperExportResult>("paper_export", {
 		args: {
 			vaultPath: opts.vaultPath,
 			format: opts.format ?? "bibtex",
 			translatorBaseUrl: translatorBase(opts.settings),
 		},
 	});
-	if (!res.ok || !res.data) {
-		throw new Error(
-			res.error?.message ?? i18n.t("sidebar:papersLibrary.exportFailed"),
-		);
-	}
-	return res.data;
 }
 
 /**
@@ -428,7 +396,7 @@ export async function importLibraryText(opts: {
 	if (!isTauri()) {
 		throw new Error(i18n.t("sidebar:papersLibrary.desktopOnly"));
 	}
-	const res = await invoke<ApiResult<PaperImportResult>>("paper_import", {
+	return ipc<PaperImportResult>("paper_import", {
 		args: {
 			vaultPath: opts.vaultPath,
 			parentDir: opts.parentDir ?? "papers",
@@ -436,12 +404,6 @@ export async function importLibraryText(opts: {
 			translatorBaseUrl: translatorBase(opts.settings),
 		},
 	});
-	if (!res.ok || !res.data) {
-		throw new Error(
-			res.error?.message ?? i18n.t("sidebar:papersLibrary.importFailed"),
-		);
-	}
-	return res.data;
 }
 
 /**
