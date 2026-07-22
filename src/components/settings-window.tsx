@@ -98,6 +98,15 @@ import {
 	type TranslateTargetLang,
 } from "@/lib/settings";
 import {
+	catalogNeedsProbe,
+	catalogProbeKey,
+	catalogStatusTone,
+	customProbeKey,
+	formatBytes,
+	patchCatalogProbe,
+	patchCustomProbe,
+} from "@/lib/settings-probe";
+import {
 	formatShortcut,
 	type ShortcutDef,
 	type ShortcutGroup,
@@ -622,14 +631,6 @@ function GeneralPane({
 	);
 }
 
-function formatBytes(n: number): string {
-	if (!Number.isFinite(n) || n < 0) return "0 B";
-	if (n < 1024) return `${n} B`;
-	if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-	if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-	return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
-
 function RemoteCacheSettingsBlock() {
 	const { t } = useTranslation("settings");
 	const [stats, setStats] = useState<{
@@ -1013,78 +1014,6 @@ function ProbingBadge({ label }: { label: string }) {
 			{label}
 		</StatusBadge>
 	);
-}
-
-function catalogProbeKey(templateId: string): string {
-	return `catalog:${templateId}`;
-}
-
-function customProbeKey(id: string): string {
-	return `custom:${id}`;
-}
-
-/** Whether a catalog row still needs ACP initialize (skip already-ready on soft open). */
-function catalogNeedsProbe(entry: CatalogEntry, force: boolean): boolean {
-	if (!(entry.binaryAvailable || entry.acpCommandAvailable)) return false;
-	if (force) return true;
-	return entry.acpStatus === "not-probed" || entry.acpStatus === "failed";
-}
-
-function patchCatalogProbe(
-	scan: CatalogScanResponse,
-	templateId: string,
-	result: ProbeResult,
-): CatalogScanResponse {
-	return {
-		...scan,
-		entries: scan.entries.map((entry) => {
-			if (entry.templateId !== templateId) return entry;
-			return {
-				...entry,
-				registeredId: entry.registeredId ?? result.agentId,
-				acpStatus: result.available ? "ready" : "failed",
-				acpAgentName: result.agentName ?? null,
-				lastProbeError: result.error ?? null,
-				lastProbedAt: new Date().toISOString(),
-			};
-		}),
-	};
-}
-
-function patchCustomProbe(
-	scan: CatalogScanResponse,
-	agentId: string,
-	result: ProbeResult,
-): CatalogScanResponse {
-	return {
-		...scan,
-		customAgents: scan.customAgents.map((agent) => {
-			if (agent.id !== agentId) return agent;
-			return {
-				...agent,
-				available: result.available ? true : agent.available,
-				lastProbeOk: result.available,
-				lastProbeAgentName: result.agentName ?? null,
-				lastProbeError: result.error ?? null,
-				lastProbedAt: new Date().toISOString(),
-			};
-		}),
-	};
-}
-
-function catalogStatusTone(
-	status: CatalogEntry["acpStatus"],
-): "ok" | "warn" | "err" | "muted" {
-	switch (status) {
-		case "ready":
-			return "ok";
-		case "failed":
-			return "err";
-		case "not-probed":
-			return "warn";
-		case "missing":
-			return "muted";
-	}
 }
 
 const TRANSLATE_FOLLOW_AGENT = "__follow_default__";
