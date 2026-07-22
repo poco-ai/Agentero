@@ -1,12 +1,9 @@
 /**
  * Typed IPC layer for Tauri commands (`docs/backend/api.md` §2.2).
  *
- * Migrated commands return `Result<T, AppError>` on the Rust side: success
- * resolves with `T`, failure rejects with `{ code, message }`. `ipc()` wraps
- * `invoke` and normalizes rejections into `IpcError`.
- *
- * Legacy commands still resolve an `ApiResult` envelope; their lib wrappers
- * keep unwrapping it until each domain is migrated.
+ * All commands return `Result<T, AppError>` on the Rust side: success resolves
+ * with `T`, failure rejects with `{ code, message }`. `ipc()` wraps `invoke`
+ * and normalizes rejections into `IpcError`.
  */
 
 import { type InvokeArgs, invoke } from "@tauri-apps/api/core";
