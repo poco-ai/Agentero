@@ -201,6 +201,14 @@ import {
 import { closeTopOverlay } from "@/stores/overlay-store";
 import { saveSettings, useSettings } from "@/stores/settings-store";
 import {
+	getTabsState,
+	setActiveTabId,
+	setPdfAsksByTab,
+	setPdfHighlightsByTab,
+	setTabs,
+	useTabsState,
+} from "@/stores/tabs-store";
+import {
 	getVaultState,
 	initializeVaultStore,
 	setCreateDraft,
@@ -237,9 +245,9 @@ export default function App() {
 		createDraft,
 		recentVaults,
 	} = useVaultState();
-	/** Open documents in the center tab strip (browser-style multi-tab). */
-	const [tabs, setTabs] = useState<DocTab[]>([]);
-	const [activeTabId, setActiveTabId] = useState<string | null>(null);
+	/** Open documents / active tab + per-tab PDF annotations live in tabs-store. */
+	const { tabs, activeTabId, pdfHighlightsByTab, pdfAsksByTab } =
+		useTabsState();
 	const [busy, setBusy] = useState(false);
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 	const [libraryPapers, setLibraryPapers] = useState<PaperMetadata[]>([]);
@@ -482,7 +490,7 @@ export default function App() {
 			const { tabs, removed, activeId } = removeTab(
 				prev,
 				id,
-				activeTabIdRef.current,
+				getTabsState().activeTabId,
 			);
 			if (!removed) return prev;
 			revokeTabPdfSource(removed);
@@ -508,7 +516,7 @@ export default function App() {
 			const { tabs, removed, activeId } = removeTabsUnderPath(
 				prev,
 				path,
-				activeTabIdRef.current,
+				getTabsState().activeTabId,
 			);
 			if (!removed.length) return prev;
 			for (const t of removed) revokeTabPdfSource(t);
@@ -556,21 +564,8 @@ export default function App() {
 		[activeTabId, updateTab],
 	);
 
-	const tabsRef = useRef(tabs);
-	tabsRef.current = tabs;
-	const activeTabIdRef = useRef(activeTabId);
-	activeTabIdRef.current = activeTabId;
-
 	/** PDF viewer imperative handles by tab id (for the annotations panel). */
 	const pdfViewerHandles = useRef(new Map<string, PdfViewerHandle>());
-	/** Latest highlights per PDF tab id, for the annotations panel. */
-	const [pdfHighlightsByTab, setPdfHighlightsByTab] = useState<
-		Record<string, PdfHighlight[]>
-	>({});
-	/** Latest PDF ask threads per tab (for the annotations panel conversations). */
-	const [pdfAsksByTab, setPdfAsksByTab] = useState<
-		Record<string, PdfAskThread[]>
-	>({});
 
 	const activeAnnotations = useMemo<AnnotationRow[]>(() => {
 		const list = activeTabId ? pdfHighlightsByTab[activeTabId] : undefined;
@@ -647,7 +642,7 @@ export default function App() {
 
 	/** Cycle the active tab by delta (wraps). */
 	const cycleActiveTab = useCallback((delta: number) => {
-		setActiveTabId((cur) => cycleActiveTabId(tabsRef.current, cur, delta));
+		setActiveTabId((cur) => cycleActiveTabId(getTabsState().tabs, cur, delta));
 	}, []);
 
 	/**
@@ -679,14 +674,14 @@ export default function App() {
 		// Any registered overlay (settings, shortcuts, palette, dialogs…) first.
 		if (closeTopOverlay()) return;
 
-		const list = tabsRef.current;
+		const list = getTabsState().tabs;
 		const sole = list.length === 1 ? list[0] : null;
 		if (sole && isLibraryVirtualPath(sole.path)) {
 			closeWindow();
 			return;
 		}
 		if (list.length > 0) {
-			const id = activeTabIdRef.current ?? list[list.length - 1]?.id;
+			const id = getTabsState().activeTabId ?? list[list.length - 1]?.id;
 			if (id) closeTab(id);
 			return;
 		}
@@ -696,7 +691,7 @@ export default function App() {
 	/** Tab strip X: same as ⌘W when sole full Library; otherwise close that tab. */
 	const handleCloseTab = useCallback(
 		(id: string) => {
-			const list = tabsRef.current;
+			const list = getTabsState().tabs;
 			if (
 				list.length === 1 &&
 				list[0]?.id === id &&
@@ -1088,7 +1083,7 @@ export default function App() {
 	const applyDiskChange = useCallback(
 		async (absPath: string) => {
 			const norm = normalizeTabPath(absPath);
-			const openTabs = tabsRef.current;
+			const openTabs = getTabsState().tabs;
 			const notesTab = openTabs.find(
 				(t) => t.notesPath && normalizeTabPath(t.notesPath) === norm,
 			);
