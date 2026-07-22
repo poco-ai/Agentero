@@ -101,6 +101,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#vault_ensure">vault_ensure（已实现）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#vault_allow_fs_scope">vault_allow_fs_scope（已实现）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#vaultsshsftpmvp">远程 Vault（SSH/SFTP，MVP 已实现）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#path_open_in_terminal">path_open_in_terminal（已实现）</a>
@@ -111,7 +113,7 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#window_new">window_new（已实现）</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#settings_window_open">settings_window_open（已实现）</a>
+    <li class="toctree-l4"><a class="reference internal" href="#settings_window_open">settings_window_open（已实现，前端暂未调用）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#fs_watch_start-fs_watch_stop">fs_watch_start / fs_watch_stop（已实现）</a>
     </li>
@@ -500,7 +502,7 @@ Host (Tauri + Rust)
 <h3 id="31-vault">3.1 Vault 与窗口<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
 <blockquote>
 <p><strong>实现状态（V0.1）</strong><br />
-- 已实现：<code>vault_create</code>、<code>vault_ensure</code>（snake_case invoke 名）、<code>path_open_in_terminal</code>、<code>path_trash</code> / <code>path_untrash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。<br />
+- 已实现：<code>vault_create</code>、<code>vault_ensure</code>（snake_case invoke 名）、<code>vault_allow_fs_scope</code>、<code>path_open_in_terminal</code>、<code>path_trash</code> / <code>path_untrash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。<br />
 - 打开 Vault / 最近列表 / 树加载：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成；打开或恢复时会调用 <code>vault_ensure</code> 补种缺失 bundled skills。Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。<br />
 - 实际 command 注册见 <code>src-tauri/src/lib.rs</code>。</p>
 </blockquote>
@@ -558,6 +560,13 @@ Host (Tauri + Rust)
 <li><strong>从不覆盖</strong>：用户改过的 <code>SKILL.md</code> 或 references 保持原样。</li>
 <li>应用升级新增的 skill（如后续模板里加的 id）会在下次打开 Vault 时自动出现。</li>
 <li>前端：若 <code>created</code> 含 <code>.agents/skills/&lt;id&gt;/…</code>，右上角 success toast（<code>vault.skillsSeeded</code>）提示新增 skill 名称；无新增则不打扰。</li>
+</ul>
+<h4 id="vault_allow_fs_scope"><code>vault_allow_fs_scope</code>（已实现）<a class="headerlink" href="#vault_allow_fs_scope" title="Permanent link">&para;</a></h4>
+<p>把本地 Vault 目录加入 <code>tauri-plugin-fs</code> 的<strong>运行时 scope</strong>（<code>fs_scope().allow_directory(path, recursive=true)</code>）。</p>
+<ul>
+<li><strong>参数</strong>：<code>{ path: string }</code>（本地绝对路径）。<strong>返回</strong>：<code>ApiResult&lt;null&gt;</code>。</li>
+<li><strong>动机</strong>：静态 scope 仅允许 <code>$HOME/**</code> / <code>$DOCUMENT/**</code> / <code>$DESKTOP/**</code> / <code>$DOWNLOAD/**</code>（<code>capabilities/default.json</code>）。dialog 选目录时 Tauri 会为该目录授予运行时 scope，但<strong>不持久化</strong>；重启后恢复位于上述根之外的 Vault（如 <code>D:\…</code>）会让每次 <code>plugin-fs</code> 调用（<code>readDir</code> / <code>readTextFile</code> / <code>exists</code>）报 <strong><code>forbidden path</code></strong>，直到再次用 dialog 打开。</li>
+<li><strong>调用点</strong>：前端 <code>ensureLocalFsScope(root)</code>（<code>src/lib/vault.ts</code>，按根去重、并发共享同一 grant、幂等）在<strong>任何 <code>plugin-fs</code> 读之前</strong>调用 —— <code>loadVaultTree</code>、<code>loadTabResources</code>（恢复的标签页与树并发加载）、启动时校验恢复路径是否存在的 effect。远端 handle / 非 Tauri 环境为 no-op。</li>
 </ul>
 <h4 id="vaultsshsftpmvp">远程 Vault（SSH/SFTP，MVP 已实现）<a class="headerlink" href="#vaultsshsftpmvp" title="Permanent link">&para;</a></h4>
 <p>设计见 <a href="../../development/remote-vault/"><code>../development/remote-vault.md</code></a>。前端伪路径 <code>remote:&lt;sessionId&gt;</code>；文件权威在远端。</p>
@@ -784,16 +793,14 @@ Host (Tauri + Rust)
 <li>Capability 覆盖 <code>main</code> 与 <code>agentero-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
 <li>菜单点击由 Host 直接调用，不经过前端 event 往返。</li>
 </ul>
-<h4 id="settings_window_open"><code>settings_window_open</code>（已实现）<a class="headerlink" href="#settings_window_open" title="Permanent link">&para;</a></h4>
-<p>打开（或聚焦）<strong>单例原生设置窗口</strong>（macOS 惯例：<code>⌘,</code> → 独立小窗口，原生标题栏）。</p>
+<h4 id="settings_window_open"><code>settings_window_open</code>（已实现，<strong>前端暂未调用</strong>）<a class="headerlink" href="#settings_window_open" title="Permanent link">&para;</a></h4>
+<p>打开（或聚焦）<strong>单例原生设置窗口</strong>。命令仍注册，但因该第二 webview 在 <strong>Windows 下白屏卡死</strong>，前端已改用 App 内浮层（<code>SettingsWindow</code>，见 <code>../frontend/ui.md</code> §4），暂不调用本命令；代码保留待根因修复后再启用。</p>
 <ul>
 <li><strong>参数</strong>：<code>{ section?: string, vault?: string }</code>（section 深链设置分类；vault 传调用方窗口的 Vault 路径，供远程 Vault 的 Agent 页上下文）</li>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
 <li><strong>行为</strong></li>
 <li>固定 label <code>agentero-settings</code>（匹配 capability <code>agentero-*</code>）；已存在则 <code>set_focus</code> 并向该窗口 <code>emit("settings:navigate", { section })</code>。</li>
-<li>否则创建 760×600（min 640×480）窗口，URL <code>index.html?window=settings&amp;section=…&amp;vault=…</code>（percent-encoded）；原生标题栏（macOS 不用 Overlay）、禁用最大化；macOS 复制 app menu。</li>
-<li>前端 <code>main.tsx</code> 检测 <code>?window=settings</code> 渲染 <code>SettingsWindowRoot</code>（<code>src/components/settings-window-root.tsx</code>）而非完整工作台；窗口标题随 UI 语言 <code>setTitle</code>。</li>
-<li>设置保存后经 <code>settings:changed</code> 事件广播同步所有窗口（见 <code>settings_set</code>）。</li>
+<li>否则创建 760×600（min 640×480）窗口，URL <code>index.html?window=settings&amp;section=…&amp;vault=…</code>（percent-encoded）；前端 <code>main.tsx</code> 检测 <code>?window=settings</code> 渲染 <code>SettingsWindowRoot</code>。</li>
 </ul>
 <h4 id="fs_watch_start-fs_watch_stop"><code>fs_watch_start</code> / <code>fs_watch_stop</code>（已实现）<a class="headerlink" href="#fs_watch_start-fs_watch_stop" title="Permanent link">&para;</a></h4>
 <p>按窗口启停 Vault 文件系统监听（Rust <code>notify</code> 递归监听），用于外部编辑器 / Agent 写盘后自动重载编辑器与文件树。</p>
@@ -2181,7 +2188,7 @@ Host (Tauri + Rust)
 <td><code>settings</code></td>
 <td>Settings…</td>
 <td><code>⌘,</code></td>
-<td>前端监听，打开设置</td>
+<td>前端监听，打开 App 内设置浮层</td>
 </tr>
 <tr>
 <td><code>new_window</code></td>
