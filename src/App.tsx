@@ -199,6 +199,17 @@ import {
 	updateBackgroundTask,
 } from "@/stores/background-tasks-store";
 import {
+	getLayoutState,
+	setAgentPanelMounted,
+	setAgentZenMode,
+	setPdfZenMode,
+	setRightSidebarOpen,
+	setRightSidebarTab,
+	setShowNotes,
+	setSidebarCollapsed,
+	useLayoutState,
+} from "@/stores/layout-store";
+import {
 	setLibraryLoading,
 	setLibraryPapers,
 	setLibraryQuery,
@@ -258,7 +269,6 @@ export default function App() {
 	const { tabs, activeTabId, pdfHighlightsByTab, pdfAsksByTab } =
 		useTabsState();
 	const [busy, setBusy] = useState(false);
-	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 	/** Papers Library view state (rows, filters, load/rescan flags) in library-store. */
 	const {
 		libraryPapers,
@@ -268,27 +278,16 @@ export default function App() {
 		libraryScopePath,
 		rescanning,
 	} = useLibraryState();
-	/** Whether the side Notes column is shown while viewing a paper PDF/HTML. */
-	const [showNotes, setShowNotes] = useState(true);
-	const showNotesRef = useRef(showNotes);
-	showNotesRef.current = showNotes;
-	/**
-	 * Right sidebar (⌘L): Agent (default) or Backlinks with Graph below.
-	 * Collapsed by default; top-bar icons open a tab.
-	 */
-	const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
-	const [rightSidebarTab, setRightSidebarTab] = useState<
-		"agent" | "backlinks" | "annotations"
-	>("agent");
-	/**
-	 * Agent zen / quest mode: hide vault chrome, full-width Agent chat
-	 * (Cursor Agents Window / VS Code zen — distraction-free single surface).
-	 */
-	const [agentZenMode, setAgentZenMode] = useState(false);
-	/** Immersive full-window PDF reading: hide chrome, center a comfortable width. */
-	const [pdfZenMode, setPdfZenMode] = useState(false);
-	/** Keep AgentPanel mounted across sidebar ↔ zen so chat history is not lost. */
-	const [agentPanelMounted, setAgentPanelMounted] = useState(false);
+	/** Workspace chrome (sidebars, zen modes, notes column) in layout-store. */
+	const {
+		sidebarCollapsed,
+		showNotes,
+		rightSidebarOpen,
+		rightSidebarTab,
+		agentZenMode,
+		pdfZenMode,
+		agentPanelMounted,
+	} = useLayoutState();
 	/** Bumped after graph_rebuild so Backlinks/Graph re-fetch. */
 	const [wikiIndexRevision, setWikiIndexRevision] = useState(0);
 	/** Increment to open magic-wand popover (⇧⌘I). */
@@ -2514,7 +2513,7 @@ export default function App() {
 			notesPaneRef.current
 				?.querySelector<HTMLElement>("[contenteditable='true']")
 				?.focus();
-		if (!showNotesRef.current) {
+		if (!getLayoutState().showNotes) {
 			setShowNotes(true);
 			requestAnimationFrame(() => requestAnimationFrame(focus));
 		} else {
