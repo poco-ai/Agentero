@@ -20,8 +20,8 @@ import {
 	FileTree,
 	type FileTreeHandle,
 	type TreeCreateDraft,
-	VaultSidebarHeader,
 } from "@/components/layout/file-tree";
+import { VaultSidebarHeader } from "@/components/layout/file-tree-header";
 import { GraphPanel } from "@/components/layout/graph-panel";
 import { ImportLocalPdfDialog } from "@/components/layout/import-local-pdf-dialog";
 import { MovePapersDialog } from "@/components/layout/move-papers-dialog";
