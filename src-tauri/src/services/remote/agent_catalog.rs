@@ -1,7 +1,7 @@
 //! Discover and ACP-probe agents on a remote vault host (SSH).
 
 use super::agent_exec;
-use super::launch::{resolve_remote_target, RemoteAgentTarget};
+use super::launch::resolve_remote_target;
 use super::session::{RemoteRegistry, RemoteSession, LOCAL_SIM_HOST};
 use crate::error::AppError;
 use crate::models::agent::{AgentDescriptor, CatalogAcpStatus, CatalogEntry, ProbeResult};
@@ -224,16 +224,4 @@ async fn remote_or_local_which(
         return Ok(which::which(bin).ok().map(|p| p.display().to_string()));
     }
     agent_exec::remote_which(destination, bin).await
-}
-
-/// Resolve RemoteAgentTarget for an open remote vault handle (tests / callers).
-#[allow(dead_code)]
-pub async fn target_for_session(
-    registry: &RemoteRegistry,
-    session_id: &str,
-) -> Result<RemoteAgentTarget, AppError> {
-    let handle = format!("remote:{session_id}");
-    resolve_remote_target(registry, Some(&handle))
-        .await?
-        .ok_or_else(|| AppError::message("remote session not found"))
 }

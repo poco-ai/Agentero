@@ -2,7 +2,7 @@
 
 use super::session::RemoteSession;
 use crate::error::AppError;
-use crate::services::catalog::papers::{self, PaperRecord};
+use crate::services::catalog::papers;
 use crate::services::fs::{VaultFs, WriteOpts};
 use crate::services::lookup::parse::extract_arxiv_id;
 use crate::services::lookup::{
@@ -592,7 +592,3 @@ pub async fn parse_paper_body_remote(
     }
     Ok(result)
 }
-
-/// Allow catalog helpers to silence unused import warnings if PaperRecord used only via upsert.
-#[allow(dead_code)]
-fn _paper_record_type(_: &PaperRecord) {}
