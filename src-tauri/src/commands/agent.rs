@@ -1,4 +1,4 @@
-use crate::error::{map_err, ApiResult, AppError};
+use crate::error::AppError;
 use crate::models::agent::{
     AgentDescriptor, AgentListResponse, AgentSkill, AgentTemplateInfo, CatalogScanResponse,
     ProbeResult, RunOnceAccepted, RunOnceRequest, UpsertAgentRequest, WarmRequest, WarmResult,
@@ -52,16 +52,15 @@ fn list_from_state(state: crate::models::agent::AgentRegistryState) -> AgentList
 }
 
 #[tauri::command]
-pub fn agent_list_agents(registry: State<'_, AgentRegistry>) -> ApiResult<AgentListResponse> {
-    match registry.snapshot() {
-        Ok(s) => ApiResult::ok(list_from_state(s)),
-        Err(e) => map_err(e),
-    }
+pub fn agent_list_agents(
+    registry: State<'_, AgentRegistry>,
+) -> Result<AgentListResponse, AppError> {
+    registry.snapshot().map(list_from_state)
 }
 
 #[tauri::command]
-pub fn agent_list_templates() -> ApiResult<TemplatesResponse> {
-    ApiResult::ok(TemplatesResponse {
+pub fn agent_list_templates() -> Result<TemplatesResponse, AppError> {
+    Ok(TemplatesResponse {
         templates: builtin_templates(),
     })
 }
@@ -70,42 +69,31 @@ pub fn agent_list_templates() -> ApiResult<TemplatesResponse> {
 pub async fn agent_list_skills(
     remote_registry: State<'_, Arc<RemoteRegistry>>,
     vault_path: Option<String>,
-) -> Result<ApiResult<Vec<AgentSkill>>, String> {
+) -> Result<Vec<AgentSkill>, AppError> {
     let remote_target =
-        match resolve_remote_target(remote_registry.inner(), vault_path.as_deref()).await {
-            Ok(target) => target,
-            Err(e) => return Ok(map_err(e)),
-        };
+        resolve_remote_target(remote_registry.inner(), vault_path.as_deref()).await?;
     if let Some(remote) = remote_target {
-        if let Err(e) = crate::services::remote::ensure_remote_vault_skills(&remote.session).await {
-            return Ok(map_err(e));
-        }
-        if let Err(e) = materialize_skills_to_work(&remote.session).await {
-            return Ok(map_err(e));
-        }
+        crate::services::remote::ensure_remote_vault_skills(&remote.session).await?;
+        materialize_skills_to_work(&remote.session).await?;
         let work_root = remote.work_root.to_string_lossy().to_string();
-        return Ok(ApiResult::ok(list_agent_skills(Some(&work_root))));
+        return Ok(list_agent_skills(Some(&work_root)));
     }
-    Ok(ApiResult::ok(list_agent_skills(vault_path.as_deref())))
+    Ok(list_agent_skills(vault_path.as_deref()))
 }
 
 #[tauri::command]
-pub fn agent_scan_catalog(registry: State<'_, AgentRegistry>) -> ApiResult<CatalogScanResponse> {
-    match registry.scan_catalog() {
-        Ok(s) => ApiResult::ok(s),
-        Err(e) => map_err(e),
-    }
+pub fn agent_scan_catalog(
+    registry: State<'_, AgentRegistry>,
+) -> Result<CatalogScanResponse, AppError> {
+    registry.scan_catalog()
 }
 
 #[tauri::command]
 pub fn agent_upsert_agent(
     registry: State<'_, AgentRegistry>,
     request: UpsertAgentRequest,
-) -> ApiResult<AgentOnly> {
-    match registry.upsert(request) {
-        Ok(agent) => ApiResult::ok(AgentOnly { agent }),
-        Err(e) => map_err(e),
-    }
+) -> Result<AgentOnly, AppError> {
+    registry.upsert(request).map(|agent| AgentOnly { agent })
 }
 
 #[tauri::command]
@@ -113,44 +101,33 @@ pub fn agent_ensure_catalog(
     registry: State<'_, AgentRegistry>,
     template_id: String,
     set_default: bool,
-) -> ApiResult<AgentOnly> {
-    match registry.ensure_catalog_agent(&template_id, set_default) {
-        Ok(agent) => ApiResult::ok(AgentOnly { agent }),
-        Err(e) => map_err(e),
-    }
+) -> Result<AgentOnly, AppError> {
+    registry
+        .ensure_catalog_agent(&template_id, set_default)
+        .map(|agent| AgentOnly { agent })
 }
 
 #[tauri::command]
-pub fn agent_remove_agent(
-    registry: State<'_, AgentRegistry>,
-    id: String,
-) -> ApiResult<serde_json::Value> {
-    match registry.remove(&id) {
-        Ok(()) => ApiResult::ok(serde_json::Value::Null),
-        Err(e) => map_err(e),
-    }
+pub fn agent_remove_agent(registry: State<'_, AgentRegistry>, id: String) -> Result<(), AppError> {
+    registry.remove(&id)
 }
 
 #[tauri::command]
 pub fn agent_set_default(
     registry: State<'_, AgentRegistry>,
     id: Option<String>,
-) -> ApiResult<AgentListResponse> {
-    match registry.set_default(id) {
-        Ok(s) => ApiResult::ok(list_from_state(s)),
-        Err(e) => map_err(e),
-    }
+) -> Result<AgentListResponse, AppError> {
+    registry.set_default(id).map(list_from_state)
 }
 
 #[tauri::command]
 pub fn agent_set_enabled(
     registry: State<'_, AgentRegistry>,
     enabled: bool,
-) -> ApiResult<EnabledResponse> {
-    match registry.set_enabled(enabled) {
-        Ok(s) => ApiResult::ok(EnabledResponse { enabled: s.enabled }),
-        Err(e) => map_err(e),
-    }
+) -> Result<EnabledResponse, AppError> {
+    registry
+        .set_enabled(enabled)
+        .map(|s| EnabledResponse { enabled: s.enabled })
 }
 
 #[tauri::command]
@@ -158,39 +135,30 @@ pub fn agent_set_proxy(
     registry: State<'_, AgentRegistry>,
     proxy_enabled: bool,
     proxy_url: String,
-) -> ApiResult<AgentProxyResponse> {
-    match registry.set_proxy(proxy_enabled, proxy_url) {
-        Ok(s) => ApiResult::ok(AgentProxyResponse {
+) -> Result<AgentProxyResponse, AppError> {
+    registry
+        .set_proxy(proxy_enabled, proxy_url)
+        .map(|s| AgentProxyResponse {
             proxy_enabled: s.proxy_enabled,
             proxy_url: s.proxy_url,
-        }),
-        Err(e) => map_err(e),
-    }
+        })
 }
 
 #[tauri::command]
 pub fn agent_discover(
     registry: State<'_, AgentRegistry>,
     id: Option<String>,
-) -> ApiResult<AgentListResponse> {
-    match registry.discover(id.as_deref()) {
-        Ok(_) => match registry.snapshot() {
-            Ok(s) => ApiResult::ok(list_from_state(s)),
-            Err(e) => map_err(e),
-        },
-        Err(e) => map_err(e),
-    }
+) -> Result<AgentListResponse, AppError> {
+    registry.discover(id.as_deref())?;
+    registry.snapshot().map(list_from_state)
 }
 
 #[tauri::command]
 pub async fn agent_probe(
     registry: State<'_, AgentRegistry>,
     id: String,
-) -> Result<ApiResult<ProbeResult>, String> {
-    let desc = match registry.get(&id) {
-        Ok(d) => d,
-        Err(e) => return Ok(map_err(e)),
-    };
+) -> Result<ProbeResult, AppError> {
+    let desc = registry.get(&id)?;
     if !desc.available {
         let result = ProbeResult {
             agent_id: id.clone(),
@@ -203,38 +171,29 @@ pub async fn agent_probe(
             session_capabilities: None,
         };
         let _ = registry.apply_probe_result(&id, &result);
-        return Ok(ApiResult::ok(result));
+        return Ok(result);
     }
     let result = probe_agent(&desc, None).await;
     let _ = registry.apply_probe_result(&id, &result);
-    Ok(ApiResult::ok(result))
+    Ok(result)
 }
 
 /// Open a system terminal that shows the template's install command and waits for
 /// the user to press Enter before running it. Only templates with a registered
 /// `install_command` are allowed (no free-form shell from the UI).
 #[tauri::command]
-pub fn agent_open_install_terminal(template_id: String) -> ApiResult<serde_json::Value> {
-    let info = match template_info(&template_id) {
-        Some(t) => t,
-        None => {
-            return map_err(AppError::message(format!(
-                "unknown catalog template: {template_id}"
-            )));
-        }
-    };
+pub fn agent_open_install_terminal(template_id: String) -> Result<(), AppError> {
+    let info = template_info(&template_id)
+        .ok_or_else(|| AppError::invalid(format!("unknown catalog template: {template_id}")))?;
     let command = match info.install_command {
         Some(c) if !c.trim().is_empty() => c,
         _ => {
-            return map_err(AppError::message(format!(
+            return Err(AppError::invalid(format!(
                 "no install command for template: {template_id}"
             )));
         }
     };
-    match terminal::open_terminal_confirm_command(&command) {
-        Ok(()) => ApiResult::ok(serde_json::Value::Null),
-        Err(e) => map_err(e),
-    }
+    terminal::open_terminal_confirm_command(&command)
 }
 
 /// Ensure catalog agent is registered, then run ACP initialize probe.
@@ -242,11 +201,8 @@ pub fn agent_open_install_terminal(template_id: String) -> ApiResult<serde_json:
 pub async fn agent_probe_catalog(
     registry: State<'_, AgentRegistry>,
     template_id: String,
-) -> Result<ApiResult<ProbeResult>, String> {
-    let desc = match registry.ensure_catalog_agent(&template_id, false) {
-        Ok(d) => d,
-        Err(e) => return Ok(map_err(e)),
-    };
+) -> Result<ProbeResult, AppError> {
+    let desc = registry.ensure_catalog_agent(&template_id, false)?;
     if !desc.available {
         let result = ProbeResult {
             agent_id: desc.id.clone(),
@@ -259,11 +215,11 @@ pub async fn agent_probe_catalog(
             session_capabilities: None,
         };
         let _ = registry.apply_probe_result(&desc.id, &result);
-        return Ok(ApiResult::ok(result));
+        return Ok(result);
     }
     let result = probe_agent(&desc, None).await;
     let _ = registry.apply_probe_result(&desc.id, &result);
-    Ok(ApiResult::ok(result))
+    Ok(result)
 }
 
 #[tauri::command]
@@ -274,7 +230,7 @@ pub async fn agent_run_once(
     gate: State<'_, PermissionGate>,
     remote_registry: State<'_, Arc<RemoteRegistry>>,
     request: RunOnceRequest,
-) -> Result<ApiResult<RunOnceAccepted>, String> {
+) -> Result<RunOnceAccepted, AppError> {
     use crate::log_util::{trunc, OpTimer};
 
     let op = OpTimer::start_with(
@@ -287,16 +243,16 @@ pub async fn agent_run_once(
         ),
     );
     if request.prompt.trim().is_empty() && request.images.is_empty() {
-        let err = AppError::message("prompt or images are required");
+        let err = AppError::invalid("prompt or images are required");
         op.finish_err(&err);
-        return Ok(map_err(err));
+        return Err(err);
     }
 
     let desc = match registry.resolve_default(request.agent_id.as_deref()) {
         Ok(d) => d,
         Err(e) => {
             op.finish_err(&e);
-            return Ok(map_err(e));
+            return Err(e);
         }
     };
 
@@ -305,7 +261,7 @@ pub async fn agent_run_once(
             Ok(t) => t,
             Err(e) => {
                 op.finish_err(&e);
-                return Ok(map_err(e));
+                return Err(e);
             }
         };
     let (session_id, message_id) = new_ids();
@@ -319,7 +275,7 @@ pub async fn agent_run_once(
         Ok(cancellation) => cancellation,
         Err(error) => {
             op.finish_err(&error);
-            return Ok(map_err(error));
+            return Err(error);
         }
     };
 
@@ -431,7 +387,7 @@ pub async fn agent_run_once(
         trunc(&log_session_id, 48),
         trunc(&log_agent_id, 48)
     ));
-    Ok(ApiResult::ok(accepted))
+    Ok(accepted)
 }
 
 /// List ACP sessions for an agent via `session/list`.
@@ -442,16 +398,10 @@ pub async fn agent_list_sessions(
     agent_id: Option<String>,
     vault_path: Option<String>,
     cursor: Option<String>,
-) -> Result<ApiResult<crate::models::agent::AcpListSessionsResult>, String> {
-    let desc = match registry.resolve_default(agent_id.as_deref()) {
-        Ok(desc) => desc,
-        Err(error) => return Ok(map_err(error)),
-    };
+) -> Result<crate::models::agent::AcpListSessionsResult, AppError> {
+    let desc = registry.resolve_default(agent_id.as_deref())?;
     let remote_target =
-        match resolve_remote_target(remote_registry.inner(), vault_path.as_deref()).await {
-            Ok(t) => t,
-            Err(e) => return Ok(map_err(e)),
-        };
+        resolve_remote_target(remote_registry.inner(), vault_path.as_deref()).await?;
     let cwd = if let Some(ref rt) = remote_target {
         rt.agent_cwd()
     } else {
@@ -460,12 +410,7 @@ pub async fn agent_list_sessions(
             .filter(|p| p.is_dir())
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
     };
-    match crate::services::agent::list_acp_sessions(&desc, cwd, cursor, remote_target.as_ref())
-        .await
-    {
-        Ok(result) => Ok(ApiResult::ok(result)),
-        Err(error) => Ok(map_err(error)),
-    }
+    crate::services::agent::list_acp_sessions(&desc, cwd, cursor, remote_target.as_ref()).await
 }
 
 /// Load an ACP session's history via `session/load`.
@@ -476,16 +421,10 @@ pub async fn agent_load_session(
     agent_id: Option<String>,
     session_id: String,
     vault_path: Option<String>,
-) -> Result<ApiResult<crate::models::agent::AcpLoadSessionResult>, String> {
-    let desc = match registry.resolve_default(agent_id.as_deref()) {
-        Ok(desc) => desc,
-        Err(error) => return Ok(map_err(error)),
-    };
+) -> Result<crate::models::agent::AcpLoadSessionResult, AppError> {
+    let desc = registry.resolve_default(agent_id.as_deref())?;
     let remote_target =
-        match resolve_remote_target(remote_registry.inner(), vault_path.as_deref()).await {
-            Ok(t) => t,
-            Err(e) => return Ok(map_err(e)),
-        };
+        resolve_remote_target(remote_registry.inner(), vault_path.as_deref()).await?;
     let cwd = if let Some(ref rt) = remote_target {
         rt.agent_cwd()
     } else {
@@ -494,12 +433,7 @@ pub async fn agent_load_session(
             .filter(|p| p.is_dir())
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
     };
-    match crate::services::agent::load_acp_session(&desc, session_id, cwd, remote_target.as_ref())
-        .await
-    {
-        Ok(result) => Ok(ApiResult::ok(result)),
-        Err(error) => Ok(map_err(error)),
-    }
+    crate::services::agent::load_acp_session(&desc, session_id, cwd, remote_target.as_ref()).await
 }
 
 /// Request cooperative cancellation for a currently streaming ACP session.
@@ -507,11 +441,9 @@ pub async fn agent_load_session(
 pub fn agent_cancel_run(
     runs: State<'_, AgentRunController>,
     session_id: String,
-) -> ApiResult<bool> {
-    match runs.cancel(&session_id) {
-        Ok(()) => ApiResult::ok(true),
-        Err(e) => map_err(e),
-    }
+) -> Result<bool, AppError> {
+    runs.cancel(&session_id)?;
+    Ok(true)
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -534,9 +466,9 @@ pub struct PermissionResponded {
 pub fn agent_respond_permission(
     gate: State<'_, PermissionGate>,
     request: PermissionResponseRequest,
-) -> ApiResult<PermissionResponded> {
+) -> Result<PermissionResponded, AppError> {
     let resolved = gate.resolve(&request.request_id, request.option_id);
-    ApiResult::ok(PermissionResponded { resolved })
+    Ok(PermissionResponded { resolved })
 }
 
 /// Payload for the `agent:notes-review` event: a note the agent modified this
@@ -576,18 +508,18 @@ pub async fn agent_warm(
     registry: State<'_, AgentRegistry>,
     remote_registry: State<'_, Arc<RemoteRegistry>>,
     request: WarmRequest,
-) -> Result<ApiResult<WarmResult>, String> {
+) -> Result<WarmResult, AppError> {
     let desc = match registry.resolve_default(request.agent_id.as_deref()) {
         Ok(d) => d,
         Err(e) => {
-            return Ok(ApiResult::ok(WarmResult {
+            return Ok(WarmResult {
                 agent_id: request.agent_id.unwrap_or_default(),
                 ok: false,
                 models: None,
                 usage_used: None,
                 usage_size: None,
                 error: Some(e.to_string()),
-            }));
+            });
         }
     };
 
@@ -595,18 +527,18 @@ pub async fn agent_warm(
         match resolve_remote_target(remote_registry.inner(), request.vault_path.as_deref()).await {
             Ok(t) => t,
             Err(e) => {
-                return Ok(ApiResult::ok(WarmResult {
+                return Ok(WarmResult {
                     agent_id: desc.id,
                     ok: false,
                     models: None,
                     usage_used: None,
                     usage_size: None,
                     error: Some(e.to_string()),
-                }));
+                });
             }
         };
 
     let events = AgentEventEmitter::new(window.app_handle().clone(), window.label());
     let result = warm_agent(events, desc, request.vault_path, request.model_id, remote).await;
-    Ok(ApiResult::ok(result))
+    Ok(result)
 }

@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import i18n from "@/i18n";
@@ -246,12 +245,6 @@ export type NotesReview = {
 	after: string;
 };
 
-type ApiResult<T> = {
-	ok: boolean;
-	data?: T;
-	error?: { code: string; message: string };
-};
-
 async function invokeApi<T>(
 	cmd: string,
 	args?: Record<string, unknown>,
@@ -259,11 +252,8 @@ async function invokeApi<T>(
 	if (!isTauri()) {
 		throw new Error("Agent features require the Tauri desktop app.");
 	}
-	const res = await invoke<ApiResult<T>>(cmd, args);
-	if (!res.ok || res.data === undefined) {
-		throw new Error(res.error?.message ?? `Command ${cmd} failed`);
-	}
-	return res.data;
+	const { ipc } = await import("@/lib/ipc");
+	return ipc<T>(cmd, args);
 }
 
 export async function listAgents(): Promise<AgentListResponse> {
