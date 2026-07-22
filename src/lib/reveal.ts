@@ -1,18 +1,20 @@
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { ipc } from "@/lib/ipc";
-import { isTauri } from "@/lib/tauri";
+import { getPlatformOS, isTauri } from "@/lib/tauri";
 
 /** Platform-aware label key under `sidebar:fileTree.*`. */
 export function revealInOsLabelKey():
 	| "fileTree.showInFinder"
 	| "fileTree.showInExplorer"
 	| "fileTree.showInFileManager" {
-	if (typeof navigator === "undefined") return "fileTree.showInFinder";
-	const p = navigator.platform ?? "";
-	const ua = navigator.userAgent ?? "";
-	if (/Mac|iPhone|iPad|iPod/.test(p)) return "fileTree.showInFinder";
-	if (/Win/.test(p) || /Windows/.test(ua)) return "fileTree.showInExplorer";
-	return "fileTree.showInFileManager";
+	switch (getPlatformOS()) {
+		case "macos":
+			return "fileTree.showInFinder";
+		case "windows":
+			return "fileTree.showInExplorer";
+		default:
+			return "fileTree.showInFileManager";
+	}
 }
 
 /**

@@ -1,29 +1,19 @@
 import { nanoid } from "nanoid";
 
-import {
-	deleteMarkFile,
-	listMarkRaw,
-	readMarkRaw,
-	writeMarkFile,
-} from "@/lib/pdf-selection/marks-io";
 import { parsePdfTranslateRecord } from "@/lib/pdf-translate/schema";
 import type {
 	PdfTranslateRecord,
 	PdfTranslateRect,
 } from "@/lib/pdf-translate/types";
-import { isTauri } from "@/lib/tauri";
+import { makeSidecarStore } from "@/lib/sidecar-store";
 
-/** In-memory fallback when not running under Tauri (browser dev). */
-const memoryStore = new Map<string, Map<string, PdfTranslateRecord>>();
-
-function memoryBucket(paperAbsPath: string): Map<string, PdfTranslateRecord> {
-	let b = memoryStore.get(paperAbsPath);
-	if (!b) {
-		b = new Map();
-		memoryStore.set(paperAbsPath, b);
-	}
-	return b;
-}
+const store = makeSidecarStore<PdfTranslateRecord>({
+	kind: "translate",
+	parse: parsePdfTranslateRecord,
+	sortKey: "createdAt",
+	// Translate records preserve their own updatedAt when present.
+	stampUpdatedAt: "preserve",
+});
 
 export function newTranslateId(): string {
 	return nanoid(10);
@@ -55,63 +45,29 @@ export function createTranslateRecord(input: {
 	return rec;
 }
 
-export async function listPdfTranslates(
+export function listPdfTranslates(
 	paperAbsPath: string,
 ): Promise<PdfTranslateRecord[]> {
-	if (!paperAbsPath) return [];
-
-	if (!isTauri()) {
-		return Array.from(memoryBucket(paperAbsPath).values()).sort((a, b) =>
-			a.createdAt < b.createdAt ? 1 : -1,
-		);
-	}
-
-	const list: PdfTranslateRecord[] = [];
-	for (const raw of await listMarkRaw(paperAbsPath)) {
-		const parsed = parsePdfTranslateRecord(raw);
-		if (parsed) list.push(parsed);
-	}
-	list.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-	return list;
+	return store.list(paperAbsPath);
 }
 
-export async function writePdfTranslate(
+export function writePdfTranslate(
 	paperAbsPath: string,
 	record: PdfTranslateRecord,
 ): Promise<void> {
-	const next: PdfTranslateRecord = {
-		...record,
-		kind: "translate",
-		updatedAt: record.updatedAt ?? new Date().toISOString(),
-	};
-
-	if (!isTauri()) {
-		memoryBucket(paperAbsPath).set(next.id, next);
-		return;
-	}
-
-	await writeMarkFile(paperAbsPath, next.id, next);
+	return store.write(paperAbsPath, record);
 }
 
-export async function deletePdfTranslate(
+export function deletePdfTranslate(
 	paperAbsPath: string,
 	id: string,
 ): Promise<void> {
-	if (!paperAbsPath || !id) return;
-	if (!isTauri()) {
-		memoryBucket(paperAbsPath).delete(id);
-		return;
-	}
-	await deleteMarkFile(paperAbsPath, id);
+	return store.remove(paperAbsPath, id);
 }
 
-export async function readPdfTranslate(
+export function readPdfTranslate(
 	paperAbsPath: string,
 	id: string,
 ): Promise<PdfTranslateRecord | null> {
-	if (!isTauri()) {
-		return memoryBucket(paperAbsPath).get(id) ?? null;
-	}
-	const raw = await readMarkRaw(paperAbsPath, id);
-	return raw ? parsePdfTranslateRecord(raw) : null;
+	return store.read(paperAbsPath, id);
 }

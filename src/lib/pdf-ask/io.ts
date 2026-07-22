@@ -10,25 +10,14 @@ import type {
 	PdfAskThread,
 	PdfAskThreadSummary,
 } from "@/lib/pdf-ask/types";
-import {
-	deleteMarkFile,
-	listMarkRaw,
-	readMarkRaw,
-	writeMarkFile,
-} from "@/lib/pdf-selection/marks-io";
-import { isTauri } from "@/lib/tauri";
+import { makeSidecarStore } from "@/lib/sidecar-store";
 
-/** In-memory fallback when not running under Tauri (browser dev). */
-const memoryStore = new Map<string, Map<string, PdfAskThread>>();
-
-function memoryBucket(paperAbsPath: string): Map<string, PdfAskThread> {
-	let b = memoryStore.get(paperAbsPath);
-	if (!b) {
-		b = new Map();
-		memoryStore.set(paperAbsPath, b);
-	}
-	return b;
-}
+const store = makeSidecarStore<PdfAskThread>({
+	kind: "ask",
+	parse: parsePdfAskThread,
+	sortKey: "updatedAt",
+	stampUpdatedAt: "always",
+});
 
 export function newThreadId(): string {
 	return nanoid(10);
@@ -57,24 +46,10 @@ export function createEmptyThread(input: {
 	};
 }
 
-export async function listPdfAskThreads(
+export function listPdfAskThreads(
 	paperAbsPath: string,
 ): Promise<PdfAskThread[]> {
-	if (!paperAbsPath) return [];
-
-	if (!isTauri()) {
-		return Array.from(memoryBucket(paperAbsPath).values()).sort((a, b) =>
-			a.updatedAt < b.updatedAt ? 1 : -1,
-		);
-	}
-
-	const threads: PdfAskThread[] = [];
-	for (const raw of await listMarkRaw(paperAbsPath)) {
-		const parsed = parsePdfAskThread(raw);
-		if (parsed) threads.push(parsed);
-	}
-	threads.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-	return threads;
+	return store.list(paperAbsPath);
 }
 
 export async function listPdfAskSummaries(
@@ -83,44 +58,25 @@ export async function listPdfAskSummaries(
 	return toSummaries(await listPdfAskThreads(paperAbsPath));
 }
 
-export async function readPdfAskThread(
+export function readPdfAskThread(
 	paperAbsPath: string,
 	threadId: string,
 ): Promise<PdfAskThread | null> {
-	if (!isTauri()) {
-		return memoryBucket(paperAbsPath).get(threadId) ?? null;
-	}
-	const raw = await readMarkRaw(paperAbsPath, threadId);
-	return raw ? parsePdfAskThread(raw) : null;
+	return store.read(paperAbsPath, threadId);
 }
 
-export async function writePdfAskThread(
+export function writePdfAskThread(
 	paperAbsPath: string,
 	thread: PdfAskThread,
 ): Promise<void> {
-	const next: PdfAskThread = {
-		...thread,
-		kind: "ask",
-		updatedAt: new Date().toISOString(),
-	};
-
-	if (!isTauri()) {
-		memoryBucket(paperAbsPath).set(next.id, next);
-		return;
-	}
-
-	await writeMarkFile(paperAbsPath, next.id, next);
+	return store.write(paperAbsPath, thread);
 }
 
-export async function deletePdfAskThread(
+export function deletePdfAskThread(
 	paperAbsPath: string,
 	threadId: string,
 ): Promise<void> {
-	if (!isTauri()) {
-		memoryBucket(paperAbsPath).delete(threadId);
-		return;
-	}
-	await deleteMarkFile(paperAbsPath, threadId);
+	return store.remove(paperAbsPath, threadId);
 }
 
 export function toSummaries(threads: PdfAskThread[]): PdfAskThreadSummary[] {
