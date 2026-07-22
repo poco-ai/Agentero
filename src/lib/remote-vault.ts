@@ -3,16 +3,8 @@
  * Design: `docs/development/remote-vault.md`
  */
 
-import { invoke } from "@tauri-apps/api/core";
-
 import { ipc } from "@/lib/ipc";
 import { isTauri } from "@/lib/tauri";
-
-type ApiResult<T> = {
-	ok: boolean;
-	data?: T;
-	error?: { code: string; message: string };
-};
 
 export type FsCaps = {
 	atomicRename: boolean;
@@ -111,17 +103,6 @@ export function removeRecentRemoteVault(entry: RecentRemoteVault): void {
 	}
 }
 
-async function unwrap<T>(
-	promise: Promise<ApiResult<T>>,
-	fallback: string,
-): Promise<T> {
-	const result = await promise;
-	if (!result.ok || result.data === undefined) {
-		throw new Error(result.error?.message ?? fallback);
-	}
-	return result.data;
-}
-
 export async function remoteConnect(args: {
 	host: string;
 	user?: string;
@@ -130,10 +111,7 @@ export async function remoteConnect(args: {
 	if (!isTauri()) {
 		throw new Error("Remote vault requires the desktop app");
 	}
-	return unwrap(
-		invoke<ApiResult<RemoteSessionInfo>>("remote_connect", { args }),
-		"Failed to connect remote vault",
-	);
+	return ipc<RemoteSessionInfo>("remote_connect", { args });
 }
 
 export type RemoteVaultEnsureResult = {
@@ -146,46 +124,34 @@ export type RemoteVaultEnsureResult = {
 export async function remoteEnsureVault(
 	sessionId: string,
 ): Promise<RemoteVaultEnsureResult> {
-	return unwrap(
-		invoke<ApiResult<RemoteVaultEnsureResult>>("remote_vault_ensure", {
-			args: { sessionId },
-		}),
-		"Failed to update remote vault skills",
-	);
+	return ipc<RemoteVaultEnsureResult>("remote_vault_ensure", {
+		args: { sessionId },
+	});
 }
 
 export async function remoteDisconnect(sessionId: string): Promise<void> {
 	if (!isTauri()) return;
-	await unwrap(
-		invoke<ApiResult<null>>("remote_disconnect", {
-			args: { sessionId },
-		}),
-		"Failed to disconnect",
-	);
+	await ipc<null>("remote_disconnect", {
+		args: { sessionId },
+	});
 }
 
 export async function remoteList(
 	sessionId: string,
 	path = "",
 ): Promise<RemoteDirEntry[]> {
-	return unwrap(
-		invoke<ApiResult<RemoteDirEntry[]>>("remote_list", {
-			args: { sessionId, path },
-		}),
-		"Failed to list remote directory",
-	);
+	return ipc<RemoteDirEntry[]>("remote_list", {
+		args: { sessionId, path },
+	});
 }
 
 export async function remoteReadText(
 	sessionId: string,
 	path: string,
 ): Promise<string> {
-	return unwrap(
-		invoke<ApiResult<string>>("remote_read_text", {
-			args: { sessionId, path },
-		}),
-		"Failed to read remote file",
-	);
+	return ipc<string>("remote_read_text", {
+		args: { sessionId, path },
+	});
 }
 
 export async function remoteWriteText(
@@ -193,24 +159,18 @@ export async function remoteWriteText(
 	path: string,
 	content: string,
 ): Promise<void> {
-	await unwrap(
-		invoke<ApiResult<null>>("remote_write_text", {
-			args: { sessionId, path, content },
-		}),
-		"Failed to write remote file",
-	);
+	await ipc<null>("remote_write_text", {
+		args: { sessionId, path, content },
+	});
 }
 
 export async function remoteReadBytes(
 	sessionId: string,
 	path: string,
 ): Promise<Uint8Array> {
-	const data = await unwrap(
-		invoke<ApiResult<number[]>>("remote_read_bytes", {
-			args: { sessionId, path },
-		}),
-		"Failed to read remote bytes",
-	);
+	const data = await ipc<number[]>("remote_read_bytes", {
+		args: { sessionId, path },
+	});
 	return new Uint8Array(data);
 }
 
@@ -218,12 +178,9 @@ export async function remoteMkdir(
 	sessionId: string,
 	path: string,
 ): Promise<void> {
-	await unwrap(
-		invoke<ApiResult<null>>("remote_mkdir", {
-			args: { sessionId, path },
-		}),
-		"Failed to mkdir",
-	);
+	await ipc<null>("remote_mkdir", {
+		args: { sessionId, path },
+	});
 }
 
 export async function remoteRemove(
@@ -231,12 +188,9 @@ export async function remoteRemove(
 	path: string,
 	recursive = true,
 ): Promise<void> {
-	await unwrap(
-		invoke<ApiResult<null>>("remote_remove", {
-			args: { sessionId, path, recursive },
-		}),
-		"Failed to remove remote path",
-	);
+	await ipc<null>("remote_remove", {
+		args: { sessionId, path, recursive },
+	});
 }
 
 export async function remoteWriteBytes(
@@ -244,24 +198,18 @@ export async function remoteWriteBytes(
 	path: string,
 	data: Uint8Array,
 ): Promise<void> {
-	await unwrap(
-		invoke<ApiResult<null>>("remote_write_bytes", {
-			args: { sessionId, path, data: Array.from(data) },
-		}),
-		"Failed to write remote bytes",
-	);
+	await ipc<null>("remote_write_bytes", {
+		args: { sessionId, path, data: Array.from(data) },
+	});
 }
 
 export async function remotePaperGet(
 	sessionId: string,
 	args: { path?: string; id?: string },
 ): Promise<unknown> {
-	return unwrap(
-		invoke<ApiResult<unknown>>("remote_paper_get", {
-			args: { sessionId, path: args.path, id: args.id },
-		}),
-		"Failed to get paper",
-	);
+	return ipc<unknown>("remote_paper_get", {
+		args: { sessionId, path: args.path, id: args.id },
+	});
 }
 
 /** Split `remote:<sessionId>/rel` → `{ sessionId, rel }` or null. */
@@ -280,36 +228,28 @@ export function parseRemoteJoinedPath(
 }
 
 export async function remotePaperList(sessionId: string): Promise<unknown[]> {
-	return unwrap(
-		invoke<ApiResult<unknown[]>>("remote_paper_list", {
-			args: { sessionId },
-		}),
-		"Failed to list papers",
-	);
+	return ipc<unknown[]>("remote_paper_list", {
+		args: { sessionId },
+	});
 }
 
 export async function remotePaperRescan(
 	sessionId: string,
 ): Promise<{ count: number }> {
-	return unwrap(
-		invoke<ApiResult<{ count: number }>>("remote_paper_rescan", {
-			args: { sessionId },
-		}),
-		"Failed to rescan",
-	);
+	return ipc<{ count: number }>("remote_paper_rescan", {
+		args: { sessionId },
+	});
 }
 
 export async function remoteAgentDiscover(sessionId: string): Promise<{
 	destination: string;
 	found: { bin: string; path: string }[];
 }> {
-	return unwrap(
-		invoke<
-			ApiResult<{ destination: string; found: { bin: string; path: string }[] }>
-		>("remote_agent_discover", {
+	return ipc<{ destination: string; found: { bin: string; path: string }[] }>(
+		"remote_agent_discover",
+		{
 			args: { sessionId, bins: [] },
-		}),
-		"Failed to discover remote agents",
+		},
 	);
 }
 
@@ -323,12 +263,9 @@ export type RemoteAgentScanResponse = {
 export async function remoteAgentScan(
 	sessionId: string,
 ): Promise<RemoteAgentScanResponse> {
-	return unwrap(
-		invoke<ApiResult<RemoteAgentScanResponse>>("remote_agent_scan", {
-			args: { sessionId },
-		}),
-		"Failed to scan remote agents",
-	);
+	return ipc<RemoteAgentScanResponse>("remote_agent_scan", {
+		args: { sessionId },
+	});
 }
 
 /** ACP initialize probe for one catalog template on the remote host. */
@@ -336,12 +273,9 @@ export async function remoteAgentProbe(
 	sessionId: string,
 	templateId: string,
 ): Promise<import("@/lib/agent").ProbeResult> {
-	return unwrap(
-		invoke<ApiResult<import("@/lib/agent").ProbeResult>>("remote_agent_probe", {
-			args: { sessionId, templateId },
-		}),
-		"Failed to probe remote agent",
-	);
+	return ipc<import("@/lib/agent").ProbeResult>("remote_agent_probe", {
+		args: { sessionId, templateId },
+	});
 }
 
 /**
@@ -352,12 +286,9 @@ export async function remoteAgentOpenInstallTerminal(
 	sessionId: string,
 	templateId: string,
 ): Promise<void> {
-	await unwrap(
-		invoke<ApiResult<null>>("remote_agent_open_install_terminal", {
-			args: { sessionId, templateId },
-		}),
-		"Failed to open remote install terminal",
-	);
+	await ipc<null>("remote_agent_open_install_terminal", {
+		args: { sessionId, templateId },
+	});
 }
 
 export type HostOsKind = "macos" | "windows" | "linux" | "other";
@@ -385,12 +316,9 @@ export type RemoteHostIdentity = {
 export async function fetchRemoteHostIdentity(
 	sessionId: string,
 ): Promise<RemoteHostIdentity> {
-	return unwrap(
-		invoke<ApiResult<RemoteHostIdentity>>("remote_host_identity", {
-			args: { sessionId },
-		}),
-		"Failed to read remote host identity",
-	);
+	return ipc<RemoteHostIdentity>("remote_host_identity", {
+		args: { sessionId },
+	});
 }
 
 /** Download a remote file into Host cache; returns local absolute path. */
@@ -398,12 +326,9 @@ export async function remoteCacheFile(
 	sessionId: string,
 	path: string,
 ): Promise<string> {
-	const r = await unwrap(
-		invoke<ApiResult<{ localPath: string }>>("remote_cache_file", {
-			args: { sessionId, path },
-		}),
-		"Failed to cache remote file",
-	);
+	const r = await ipc<{ localPath: string }>("remote_cache_file", {
+		args: { sessionId, path },
+	});
 	return r.localPath;
 }
 
@@ -418,24 +343,18 @@ export type RemoteCacheStats = {
 export async function remoteCacheStats(
 	sessionId?: string | null,
 ): Promise<RemoteCacheStats> {
-	return unwrap(
-		invoke<ApiResult<RemoteCacheStats>>("remote_cache_stats", {
-			args: { sessionId: sessionId ?? null },
-		}),
-		"Failed to read remote cache stats",
-	);
+	return ipc<RemoteCacheStats>("remote_cache_stats", {
+		args: { sessionId: sessionId ?? null },
+	});
 }
 
 /** Clear PDF/blob cache for one session or all remote vaults. */
 export async function remoteCacheClear(
 	sessionId?: string | null,
 ): Promise<{ freedBytes: number }> {
-	return unwrap(
-		invoke<ApiResult<{ freedBytes: number }>>("remote_cache_clear", {
-			args: { sessionId: sessionId ?? null },
-		}),
-		"Failed to clear remote cache",
-	);
+	return ipc<{ freedBytes: number }>("remote_cache_clear", {
+		args: { sessionId: sessionId ?? null },
+	});
 }
 
 /** Session-scoped display metadata (not the handle itself). */

@@ -18,16 +18,32 @@ Host (Tauri + Rust)
 
 ### 2.1 命名规范
 
-- Tauri command：`namespace:verb`（全小写，冒号分隔命名空间）。
-  - 规划契约多用 `namespace:verb`（如 `vault:open`）；已落地的 invoke 名以 `src-tauri` 为准（如 `vault_create`、`vault_ensure`、`window_new`、`graph_get_graph`）。
+- Tauri command 统一使用 **snake_case** invoke 名（如 `vault_create`、`paper_list`、`agent_run_once`、`remote_connect`），以 `src-tauri/src/lib.rs` 的注册为准。
+  - 历史文档曾规划 `namespace:verb` 形式（如 `vault:open`），已废弃。
 
 ### 2.2 参数与返回
 
 - 所有请求统一通过对象传参。
-- 返回结构：
-  - 成功：`{ "ok": true, "data": T }`
-  - 失败：`{ "ok": false, "error": { "code": "...", "message": "...", "details": {} } }`
+- 返回结构（Tauri 原生 Result 通道）：
+  - 成功：promise resolve 为 `T`（命令的业务负载本身，无信封包装）。
+  - 失败：promise **reject**，payload 为 `{ code: ErrorCode, message: string }`。
+- 前端统一经 `src/lib/ipc.ts` 的 `ipc<T>(cmd, args)` 调用；rejection 归一化为 `IpcError`（携带 `code`）。
+- 稳定错误码 `ErrorCode`（Rust `agentero_lib::error::ErrorCode`，wire 为 snake_case）：
+
+| code | 语义 |
+|---|---|
+| `invalid_input` | 参数缺失 / 非法（400 类） |
+| `vault_not_found` | vault 路径不存在或不是目录 |
+| `paper_not_found` | catalog 无此论文 |
+| `session_not_found` | 远程 / agent 会话不存在或已过期 |
+| `agent_not_found` / `agent_unavailable` | agent 未注册 / 不可用 |
+| `permission_denied` | 权限拒绝 |
+| `import_failed` / `export_failed` | Translator 导入 / 导出失败 |
+| `io` / `json` / `sqlite` / `acp` | 对应子系统错误 |
+| `internal` | Host 内部错误（含遗留自由文本错误） |
+
 - 流式结果通过 Tauri event 推送，不占用返回通道。
+- CLI 的 JSON 错误输出（`{ ok: false, error: { code, message, details } }`）与 exit code 契约不变（见 `docs/development/cli.md`），其 code 由同一 `ErrorCode` 派生。
 
 ### 2.3 路径表示
 
@@ -98,16 +114,13 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
 }
 ```
 
-- **返回**（`ApiResult<CreateVaultResult>`）
+- **返回**（`CreateVaultResult`）
 
 ```ts
 {
-  ok: true;
-  data: {
-    path: string;
-    created: string[]; // 创建的目录/文件相对路径列表
-    openPath: string;  // 建议首开，如 AGENTS.md
-  };
+  path: string;
+  created: string[]; // 创建的目录/文件相对路径列表
+  openPath: string;  // 建议首开，如 AGENTS.md
 }
 ```
 
@@ -132,7 +145,7 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
 }
 ```
 
-- **返回**：同 `vault_create`（`ApiResult<CreateVaultResult>`；`created` 仅含本次新建的相对路径）。
+- **返回**：同 `vault_create`（`CreateVaultResult`；`created` 仅含本次新建的相对路径）。
 
 - **策略**
   - **只补缺失**：目录 / `AGENTS.md` / 模板里有而盘上没有的 skill 文件。
@@ -152,7 +165,7 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
 }
 ```
 
-- **返回**：`ApiResult<boolean>` — 目录是否存在。
+- **返回**：`boolean` — 目录是否存在。
 - **行为**
   - **从不创建目录**（与 `vault_ensure` 的关键差异），可安全用作存在性探针。
   - 目录存在时调用 `fs_scope().allow_directory(path, recursive=true)`；失败仅记日志不报错。
@@ -217,7 +230,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **返回**（`ApiResult<{ cwd: string }>`）
+- **返回**（`{ cwd: string }`）
   - 成功时 `cwd` 为实际作为终端工作目录打开的绝对路径。
 - **行为**
   - 路径为**目录**时：`cwd` = 该目录。
@@ -241,7 +254,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **`path_trash` 返回**（`ApiResult<{ batchId: string; count: number }>`）
+- **`path_trash` 返回**（`{ batchId: string; count: number }`）
   - `batchId` 标识批次（浏览/恢复用）；`count` 为实际移入回收站的项数。
   - `papers/` 下的项：**先移文件**，再快照并删除 catalog 行（含嵌套 paper），避免幽灵 catalog。
   - 跳过空 / 含 `..` / `.agentero` / `papers` 根 / 不存在的路径。
@@ -255,7 +268,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **`path_untrash` 返回**（`ApiResult<{ restored: number }>`）
+- **`path_untrash` 返回**（`{ restored: number }`）
   - 把该批次文件移回原位并 `upsert` 恢复 catalog 行。
   - **预检**：若任一原路径已被重新占用，整批中止且不改动任何内容（不覆盖新内容）。
 
@@ -263,10 +276,10 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 回收站浏览：中间栏 `RecycleBinView`（虚拟 tab `agentero:trash`）用这些命令列出 / 恢复 / 永久删除已删项。
 
-- **`path_list_trash`**（`{ vaultPath }` → `ApiResult<TrashEntry[]>`）：展平所有批次为逐项条目 `{ id, batchId, stored, rel, name, deletedAt, isDir }`，按删除时间倒序。
-- **`path_restore_item`**（`{ vaultPath, batchId, stored }` → `ApiResult<{ rel: string }>`）：把单项移回原位并 `upsert` 恢复其 catalog 行；原路径已占用则报错；批次清空后删除批次目录。
-- **`path_purge_item`**（`{ vaultPath, batchId, stored }` → `ApiResult<null>`）：永久删除单项（不可恢复）。
-- **`path_purge_trash`**（`{ vaultPath }` → `ApiResult<null>`）：清空整个回收站（不可恢复）。
+- **`path_list_trash`**（`{ vaultPath }` → `TrashEntry[]`）：展平所有批次为逐项条目 `{ id, batchId, stored, rel, name, deletedAt, isDir }`，按删除时间倒序。
+- **`path_restore_item`**（`{ vaultPath, batchId, stored }` → `{ rel: string }`）：把单项移回原位并 `upsert` 恢复其 catalog 行；原路径已占用则报错；批次清空后删除批次目录。
+- **`path_purge_item`**（`{ vaultPath, batchId, stored }` → `null`）：永久删除单项（不可恢复）。
+- **`path_purge_trash`**（`{ vaultPath }` → `null`）：清空整个回收站（不可恢复）。
 
 #### `window_new`（已实现）
 
@@ -322,11 +335,8 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    vault: VaultInfo;
-    tree: FileNode[];
-  };
+  vault: VaultInfo;
+  tree: FileNode[]
 }
 ```
 
@@ -341,7 +351,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 关闭当前 Vault。
 
 - **参数**：无
-- **返回**：`{ ok: true; data: null }`
+- **返回**：`null`
 - **行为**：停止文件监听，释放资源，不删除数据。
 
 #### `vault:recent`（规划；前端已临时实现）
@@ -352,10 +362,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    vaults: RecentVault[];
-  };
+  vaults: RecentVault[]
 }
 ```
 
@@ -369,10 +376,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 - **返回**
 
 ```ts
-{
-  ok: true;
-  data: VaultInfo;
-}
+VaultInfo
 ```
 
 ### 3.2 文件操作
@@ -393,12 +397,9 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    path: string;
-    content: string;
-    mtime: number; // 毫秒时间戳
-  };
+  path: string;
+  content: string;
+  mtime: number; // 毫秒时间戳
 }
 ```
 
@@ -420,11 +421,8 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    path: string;
-    mtime: number;
-  };
+  path: string;
+  mtime: number
 }
 ```
 
@@ -449,10 +447,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    nodes: FileNode[];
-  };
+  nodes: FileNode[]
 }
 ```
 
@@ -474,10 +469,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    path: string;
-  };
+  path: string
 }
 ```
 
@@ -494,7 +486,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **返回**：`{ ok: true; data: null }`
+- **返回**：`null`
 
 - **风险**：删除操作不可逆，前端需二次确认。
 
@@ -514,10 +506,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    url: string; // tauri convertFileSrc 后的安全 URL
-  };
+  url: string; // tauri convertFileSrc 后的安全 URL
 }
 ```
 
@@ -539,12 +528,9 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    kind: 'exact_id' | 'url' | 'keyword' | 'topic' | 'description';
-    normalized_id?: string; // 当 kind 为 exact_id/url 时
-    query?: string; // 当 kind 为 keyword/topic/description 时，整理后的查询串
-  };
+  kind: 'exact_id' | 'url' | 'keyword' | 'topic' | 'description';
+  normalized_id?: string; // 当 kind 为 exact_id/url 时
+  query?: string; // 当 kind 为 keyword/topic/description 时，整理后的查询串
 }
 ```
 
@@ -565,10 +551,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    candidates: ArxivCandidate[];
-  };
+  candidates: ArxivCandidate[]
 }
 ```
 
@@ -596,10 +579,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    job_id: string;
-  };
+  job_id: string
 }
 ```
 
@@ -632,10 +612,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    drafts: PdfMetadataDraft[]; // 每篇一个候选元数据草稿
-  };
+  drafts: PdfMetadataDraft[]; // 每篇一个候选元数据草稿
 }
 ```
 
@@ -667,10 +644,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    job_id: string;
-  };
+  job_id: string
 }
 ```
 
@@ -700,7 +674,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
     timeoutMs?: number | null;   // optional; clamped 1s–30s server-side (default 30s); settings probe uses 5000
   }
   ```
-- **返回**：`{ ok: true; data: { text: string; provider: string } }`
+- **返回**：`{ text: string; provider: string }`
 - **约束**：单次约 ≤ 5000 字符（CNKI ≤800）；默认超时约 30s。无付费 API Key；免费引擎为非官方网页接口。设置页打开默认服务下拉时，对全部免费引擎并行 probe（`timeoutMs=5000`，不含 Agent）。
 
 ### 3.5b Zotero Connector 兼容服务（MVP 已落地）
@@ -715,7 +689,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 #### `connector_get_status`
 
-- **返回**：`{ ok: true; data: ConnectorStatus }`
+- **返回**：`ConnectorStatus`
   ```ts
   type ConnectorStatus = {
     enabled: boolean;
@@ -731,18 +705,18 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 #### `connector_set_enabled`
 
 - **参数**（`args`）：`{ enabled: boolean }`
-- **返回**：`{ ok: true; data: ConnectorStatus }`（bind 失败时 `listening=false` 且 `lastError` 有文案）
+- **返回**：`ConnectorStatus`（bind 失败时 `listening=false` 且 `lastError` 有文案）
 
 #### `connector_set_vault`
 
 - **参数**（`args`）：`{ vaultPath: string | null }`
-- **返回**：`{ ok: true; data: null }`
+- **返回**：`null`
 - **说明**：保存目标 Vault；无 Vault 时 HTTP `saveItems` 返回 503。
 
 #### `connector_set_parent_dir`
 
 - **参数**（`args`）：`{ parentDir: string }` — `papers` 或 `papers/…` 组织文件夹
-- **返回**：`{ ok: true; data: null }`
+- **返回**：`null`
 - **说明**：默认保存位置；前端 Library 作用域会同步；插件 `getSelectedCollection.targets` 列出全部组织子文件夹（`L1` / `Dpapers/…`）。
 
 #### Events
@@ -768,7 +742,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
     limit?: number;     // 默认 60，clamp 1–200
   }
   ```
-- **返回**：`{ ok: true; data: { hits: SearchHit[]; truncated: boolean } }`
+- **返回**：`{ hits: SearchHit[]; truncated: boolean }`
   ```ts
   type SearchHit = {
     path: string;         // Vault 相对 md，如 papers/x/NOTES.md
@@ -791,7 +765,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 #### `lookup_translator_config`
 
-- **返回**：`{ ok: true; data: { defaultBaseUrl: "https://translator.philfan.cn" } }`
+- **返回**：`{ defaultBaseUrl: "https://translator.philfan.cn" }`
 
 #### `lookup_import`
 
@@ -807,15 +781,12 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 - **返回**：
   ```ts
   {
-    ok: true;
-    data: {
-      paperDir: string;
-      path: string;
-      id: string;
-      title: string;
-      usedTranslator: boolean;
-      translatorBaseUrl: string;
-    }
+    paperDir: string;
+    path: string;
+    id: string;
+    title: string;
+    usedTranslator: boolean;
+    translatorBaseUrl: string;
   }
   ```
 - **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` 壳（摘要块优先经免费 MT 译为中文，失败则保留原文；catalog 中 `abstract` 仍为原文）；`metadata.json` 为 catalog 投影同步；**始终下载 PDF** 到 `source/`；**arXiv 另下载 e-print 并解压 LaTeX** 到 `source/`；下载后若**无 TeX 且有 PDF 且无 `PAPER.md`**，用 **liteparse** 生成 `PAPER.md` 并更新 `body_source` / `body_quality`。
@@ -832,7 +803,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
     taskId?: string; // 前端后台任务 id，用于接收 background-task:progress
   }
   ```
-- **返回**：`{ ok: true; data: { pdf: boolean; tex: boolean; paperMd: boolean; messages: string[] } }`
+- **返回**：`{ pdf: boolean; tex: boolean; paperMd: boolean; messages: string[] }`
 - **行为**：读 catalog 取 `pdf_url` / `arxiv_id` / `doi`；已有对应文件则跳过；PDF → `{paper}/{id}.pdf`（论文根目录）；arXiv e-print TeX → 解压进 `source/`；无 TeX + 有 PDF + 无 `PAPER.md` → liteparse → `PAPER.md`。下载客户端使用**浏览器 UA**（绕开部分出版商 403）；若直链/arXiv 候选都失败且有 `doi`，再查 **Crossref** 取直链 / OA PDF 兜底。打开 paper 预览时若无本地 PDF 也会自动调用本命令（失败则回退远程 `pdf_url`）。当传入 `taskId` 且响应提供 `Content-Length` 时，通过 `background-task:progress` 按实际已接收字节数推送百分比；无法得知总大小时只推送不确定进度。
 
 #### `paper_stage_import_file`（已落地）
@@ -840,7 +811,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 将「无绝对路径」的 OS 拖放 PDF（macOS WKWebView 常无 `File.path`）以 base64 写入 `~/.agentero/import-tmp/`，返回绝对路径供 `paper_import_local_pdf` 使用。
 
 - **参数**（`args`）：`{ fileName: string; contentBase64: string }`
-- **返回**：`{ ok: true; data: { path: string } }`
+- **返回**：`{ path: string }`
 
 #### `paper_import_local_pdf`（已落地）
 
@@ -861,7 +832,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
     }>;
   }
   ```
-- **返回**：`{ ok: true; data: { papers: LookupImportResult[]; errors: string[] } }`（`errors` 为 `"<文件>: <原因>"`；仅当**全部**失败才整体 `ok:false`）。
+- **返回**：`{ papers: LookupImportResult[]; errors: string[] }`（`errors` 为 `"<文件>: <原因>"`；仅当**全部**失败才整体 reject）。
 - **行为**：每个 PDF → 标题/id 优先用 `entries` 覆盖，否则文件名 stem；复制到 `{slug}.pdf`；写 `NOTES.md` 壳 + catalog（type `pdf`，可含 authors/year）；无 TeX → liteparse `PAPER.md`。不覆盖已存在文件夹（slug 去重）。
 
 #### `paper_parse_body`（已落地）
@@ -878,7 +849,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
     force?: boolean; // 默认 false：已有 PAPER.md 则跳过；true 时覆盖
   }
   ```
-- **返回**：`{ ok: true; data: { paperMd: boolean; bodySource?: string; bodyQuality?: string; messages: string[] } }`
+- **返回**：`{ paperMd: boolean; bodySource?: string; bodyQuality?: string; messages: string[] }`
 - **行为**：
   - 本地已有 `.tex`/`.ltx` → 跳过（不生成）。
   - 无本地 PDF → 失败。
@@ -925,7 +896,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
     translatorBaseUrl?: string;
   }
   ```
-- **返回**：`{ ok: true; data: { format, content, count, filename } }`
+- **返回**：`{ format, content, count, filename }`
 - **注意**：`/export` **要求 body 为 Zotero items 数组**，不是 Agentero `PaperMetadata` 蛇形字段；转换在 Host `zotero_io::paper_record_to_zotero_item`。
 
 #### `paper_import`（已落地）
@@ -941,7 +912,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
     translatorBaseUrl?: string;
   }
   ```
-- **返回**：`{ ok: true; data: { imported, skipped, paths, titles, errors } }`
+- **返回**：`{ imported, skipped, paths, titles, errors }`
 - **行为**：已存在同 path 的 paper（有 NOTES 或 catalog 行）→ **skip**，不覆盖 `NOTES.md`。
 
 ### 3.6 论文
@@ -964,7 +935,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **返回**：`{ ok: true; data: PaperMetadata }`（含 `pdf_url` / `html_url` / `arxiv_id` 等）；未找到则 `ok: false`。
+- **返回**：`PaperMetadata`（含 `pdf_url` / `html_url` / `arxiv_id` 等）；未找到则 reject `paper_not_found`。
 - **说明**：UI 预览链接从此接口读取；`metadata.json` 仅作同步投影。
 
 #### `paper:get`（扩展规划）
@@ -986,10 +957,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    paper: Paper;
-  };
+  paper: Paper
 }
 ```
 
@@ -1005,7 +973,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **返回**：`{ ok: true; data: PaperMetadata[] }`（数组元素含 `path`、`title`、`authors`、`year`、`type`、标识符与远程 URL 等）。
+- **返回**：`PaperMetadata[]`（数组元素含 `path`、`title`、`authors`、`year`、`type`、标识符与远程 URL 等）。
 - **前端**：`src/lib/papers-api.ts` → `listPapers`；UI 侧本地表头排序（不经由本命令传 sort 参数）。
 - **说明**：当前无 filter/pagination；扩展筛选/FTS 仍可用规划契约 `paper:list`（见下）。
 
@@ -1014,7 +982,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 扫描 `papers/` 磁盘目录，用每个 paper 文件夹的 `metadata.json`（catalog 投影）**重建 / 补齐 catalog 行**——找回“盘上有、catalog 无”的论文（外部拷入，或历史删除顺序 bug 丢失的行）。幂等。
 
 - **参数**（invoke 字段名 `args`）：`{ vaultPath: string }`。
-- **返回**：`{ ok: true; data: { count: number } }`（重新导入的 paper 数）。
+- **返回**：`{ count: number }`（重新导入的 paper 数）。
 - **行为**：递归遍历 `papers/`，遇含 `metadata.json` 的文件夹即为 paper 叶子；反序列化时**回填** `path`（投影省略），`upsert` 进 catalog。不删行、不改磁盘文件。
 - **前端**：`src/lib/papers-api.ts` → `rescanPapers`；论文库空态「重新扫描 papers/」按钮。
 
@@ -1032,7 +1000,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **返回**：`{ ok: true; data: { removed: number } }`（删除行数；无匹配时 `removed: 0`）。
+- **返回**：`{ removed: number }`（删除行数；无匹配时 `removed: 0`）。
 - **SQL**：`DELETE FROM papers WHERE path = ? OR path LIKE '{path}/%'`。
 - **前端**：`src/lib/papers-api.ts` → `deletePapersUnderPath`；侧栏右键删除 / `⌘⌫`。
 
@@ -1052,7 +1020,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **返回**：`{ ok: true; data: { newRel: string } }`（移动后的新相对路径）。
+- **返回**：`{ newRel: string }`（移动后的新相对路径）。
 - **校验**：目标须在 `papers/` 下；拒绝移入自身 / 子孙；目标已存在则报错。
 - **SQL**：`UPDATE papers SET path = ?to || substr(path, len(?from)+1) WHERE path = ?from OR path LIKE '{from}/%'`（字符级 substr，兼容非 ASCII 目录名）。
 - **单测**：`papers.rs::move_under_path`（叶子 + 组织目录下多行前缀改写）。
@@ -1073,7 +1041,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **返回**：`{ ok: true; data: PaperMetadata }`（更新后的整行）。
+- **返回**：`PaperMetadata`（更新后的整行）。
 - **前端**：`src/lib/papers-api.ts` → `setPaperIsRead`；paper-reader 工作流成功结束后置 `true`。
 - **说明**：与 `status`（入库态）无关；默认 `false`。触发路径：
   - **自动**：魔棒 `lookup_import` / 单篇 `paper_download_assets` 成功且资源就绪时，前端 `maybeAutoRunPaperReader`（批量导入/批量 Download 不连跑）。
@@ -1101,7 +1069,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **返回**：`{ ok: true; data: PaperMetadata }`（更新后的整行；`tags` 序列化：无色为字符串，有色为 `{name,color}`）。
+- **返回**：`PaperMetadata`（更新后的整行；`tags` 序列化：无色为字符串，有色为 `{name,color}`）。
 - **规范化**：trim 空白；丢弃空串；大小写不敏感去重（保留首次出现的写法与颜色；同名后续项仅在先无色时补色）；`color` 白名单校验。
 - **前端**：`src/lib/papers-api.ts` → `setPaperTags`；Paper Info 增删 + 色盘；Library 染色 chip + 筛选；`src/lib/tag-colors.ts`。
 - **CLI**：`agentero paper tag set|add|rm <ref> …`（`set` 整表替换，`--clear` 清空；CLI 仅传裸名称，不设色）；`paper list --tag` 筛选；`paper tag list` 汇总。见 [`../development/cli.md`](../development/cli.md)。
@@ -1129,11 +1097,8 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    papers: Paper[];
-    total: number;
-  };
+  papers: Paper[];
+  total: number
 }
 ```
 
@@ -1150,7 +1115,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **返回**：`{ ok: true; data: { paper: Paper } }`
+- **返回**：`{ paper: Paper }`
 
 ### 3.6.1 Catalog 导出
 
@@ -1174,11 +1139,8 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  ok: true;
-  data: {
-    content: string;
-    written_path?: string;
-  };
+  content: string;
+  written_path?: string
 }
 ```
 
@@ -1218,7 +1180,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 }
 ```
 
-- **返回**：`{ ok: true, data: { sessionId, messageId, agentId } }`
+- **返回**：`{ sessionId, messageId, agentId }`
 
 - **`hideFromChatHistory`**：为 `true` 时，该次运行不记入会话历史（`agent_list_sessions` 不列出）；前端 Agent 面板也不会把这类流式事件并入对话记录。用于 **paper-reader 精读**、**PDF 划词提问** 等非 Composer 发起的运行。Composer 对话保持默认 `false`。
 
@@ -1244,7 +1206,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 应答「每次询问」档下的 ACP 权限请求（`agent:permission-request`）。
 
 - **参数**：`{ request: { requestId: string; optionId: string | null } }`（`optionId = null` 表示取消）
-- **返回**：`{ ok: true, data: { resolved: boolean } }`（`resolved=false` 表示请求已超时/不存在）
+- **返回**：`{ resolved: boolean }`（`resolved=false` 表示请求已超时/不存在）
 
 #### `agent_list_sessions`
 
@@ -1252,7 +1214,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 { agentId?: string; vaultPath?: string }
-// -> { ok: true, data: { sessions: AgentSessionInfo[] } }
+// -> { sessions: AgentSessionInfo[] }
 ```
 
 #### `agent_load_session`
@@ -1261,7 +1223,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 { agentId?: string; sessionId: string; vaultPath?: string }
-// -> { ok: true, data: { session: AgentSessionInfo; lines: SessionHistoryLine[] } }
+// -> { session: AgentSessionInfo; lines: SessionHistoryLine[] }
 ```
 
 #### `agent_list_skills`
@@ -1269,7 +1231,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 列出可由 Composer `$` 提及的本机技能。
 
 - **参数**：`{ vaultPath?: string }`
-- **返回**：`{ ok: true, data: { id, name, description }[] }`
+- **返回**：`{ id, name, description }[]`
 
 #### `agent:list_agents`
 
@@ -1280,11 +1242,8 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 {
-  ok: true;
-  data: {
-    agents: AgentDescriptor[];
-    default_id: string | null;
-  };
+  agents: AgentDescriptor[];
+  default_id: string | null
 }
 ```
 
@@ -1310,10 +1269,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 {
-  ok: true;
-  data: {
-    agent: AgentDescriptor;
-  };
+  agent: AgentDescriptor
 }
 ```
 
@@ -1322,7 +1278,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 删除注册项（不卸载用户本机 CLI）。
 
 - **参数**：`{ id: string }`
-- **返回**：`{ ok: true; data: null }`
+- **返回**：`null`
 
 #### `agent:discover`
 
@@ -1333,10 +1289,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 {
-  ok: true;
-  data: {
-    agents: AgentDescriptor[];
-  };
+  agents: AgentDescriptor[]
 }
 ```
 
@@ -1345,7 +1298,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 打开系统终端，展示指定 catalog 模板的 **安装命令**，并 **等待用户按 Enter（Windows：任意键）后才执行**。不静默安装；UI 不得传入任意 shell——仅允许模板内置的 `install_command`。
 
 - **参数**：`{ templateId: string }`（如 `claude-acp`）
-- **返回**：`{ ok: true; data: null }`
+- **返回**：`null`
 - **行为**
   - 查找内置模板的 `installCommand`；无则报错。
   - 写入临时脚本 → 打开系统默认终端运行该脚本（打印命令 → 确认 → 执行 → 提示回到 Settings 点 Refresh）。
@@ -1361,10 +1314,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 {
-  ok: true;
-  data: {
-    sessions: AgentSession[];
-  };
+  sessions: AgentSession[]
 }
 ```
 
@@ -1387,10 +1337,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 {
-  ok: true;
-  data: {
-    session: AgentSession;
-  };
+  session: AgentSession
 }
 ```
 
@@ -1420,11 +1367,8 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 {
-  ok: true;
-  data: {
-    session_id: string;
-    message_id: string;
-  };
+  session_id: string;
+  message_id: string
 }
 ```
 
@@ -1449,7 +1393,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 }
 ```
 
-- **返回**：`{ ok: true; data: null }`
+- **返回**：`null`
 
 #### `agent:accept_draft`
 
@@ -1469,11 +1413,8 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 {
-  ok: true;
-  data: {
-    path: string;
-    mtime: number;
-  };
+  path: string;
+  mtime: number
 }
 ```
 
@@ -1493,7 +1434,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 }
 ```
 
-- **返回**：`{ ok: true; data: null }`
+- **返回**：`null`
 
 ### 3.8 双链与图谱
 
@@ -1516,11 +1457,8 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 {
-  ok: true;
-  data: {
-    path: string; // 规范化后的 Vault 相对路径
-    backlinks: Backlink[]; // { source, targetRaw, alias?, context?, line? }
-  };
+  path: string; // 规范化后的 Vault 相对路径
+  backlinks: Backlink[]; // { source, targetRaw, alias?, context?, line? }
 }
 ```
 
@@ -1545,14 +1483,11 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 {
-  ok: true;
-  data: {
-    nodes: GraphNode[]; // { id, label, type, path? }
-    edges: GraphEdge[]; // { id, source, target, targetRaw? }
-    /** 实际用作中心的规范化路径；全图时为 null */
-    center: string | null;
-    depth: number;
-  };
+  nodes: GraphNode[]; // { id, label, type, path? }
+  edges: GraphEdge[]; // { id, source, target, targetRaw? }
+  /** 实际用作中心的规范化路径；全图时为 null */
+  center: string | null;
+  depth: number
 }
 ```
 
@@ -1586,12 +1521,9 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 {
-  ok: true;
-  data: {
-    indexedFiles: number;
-    edges: number;
-    nodes: number;
-  };
+  indexedFiles: number;
+  edges: number;
+  nodes: number
 }
 ```
 
@@ -1613,11 +1545,8 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 ```ts
 {
-  ok: true;
-  data: {
-    key: string;
-    value: unknown;
-  };
+  key: string;
+  value: unknown
 }
 ```
 
@@ -1634,7 +1563,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 }
 ```
 
-- **返回**：`{ ok: true; data: null }`
+- **返回**：`null`
 
 - **常用 key**
   - `agent.enabled`：Agent 总开关，默认 `true`。
@@ -1658,7 +1587,7 @@ Windows：未设 `XDG_CONFIG_HOME` 时回退 `%APPDATA%/agentero/`。旧版 macO
 
 #### `settings_get`（已实现）
 
-- **返回**（`ApiResult`）：`{ settings: AppSettings, path: string, existed: boolean }`
+- **返回**：`{ settings: AppSettings, path: string, existed: boolean }`
 - `existed === false` 时前端可将遗留 `localStorage` 的 `agentero-settings` 一次性写入并清除。
 
 #### `settings_set`（已实现）

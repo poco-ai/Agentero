@@ -2,7 +2,6 @@
 //!
 //! Contract (`docs/backend/api.md` §2.2): commands return `Result<T, AppError>`;
 //! failures reach the webview as a rejected promise carrying `{ code, message }`.
-//! Legacy commands still return the `ApiResult` envelope during the migration.
 
 use serde::ser::SerializeStruct;
 use serde::Serialize;
@@ -153,51 +152,6 @@ impl Serialize for AppError {
     }
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ErrorBody {
-    pub code: String,
-    pub message: String,
-}
-
-/// Legacy response envelope (errors folded into the resolve path).
-/// Migration target: commands return `Result<T, AppError>` instead; delete
-/// once no command references this.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApiResult<T: Serialize> {
-    pub ok: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<T>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<ErrorBody>,
-}
-
-impl<T: Serialize> ApiResult<T> {
-    pub fn ok(data: T) -> Self {
-        Self {
-            ok: true,
-            data: Some(data),
-            error: None,
-        }
-    }
-
-    pub fn err(err: AppError) -> ApiResult<T> {
-        ApiResult {
-            ok: false,
-            data: None,
-            error: Some(ErrorBody {
-                code: err.code().as_str().to_string(),
-                message: err.to_string(),
-            }),
-        }
-    }
-}
-
-pub fn map_err<T: Serialize>(err: AppError) -> ApiResult<T> {
-    ApiResult::err(err)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -233,12 +187,5 @@ mod tests {
             let json = serde_json::to_value(code).unwrap();
             assert_eq!(json, serde_json::json!(code.as_str()));
         }
-    }
-
-    #[test]
-    fn legacy_envelope_uses_wire_codes() {
-        let out: ApiResult<()> = map_err(AppError::message("boom"));
-        assert!(!out.ok);
-        assert_eq!(out.error.as_ref().unwrap().code, "internal");
     }
 }

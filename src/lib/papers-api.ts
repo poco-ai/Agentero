@@ -2,7 +2,6 @@
  * Catalog paper list/get helpers (SQLite via Host).
  * Import/export go through Translator `/import` and `/export` (Zotero JSON).
  */
-import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import i18n from "@/i18n";
@@ -64,12 +63,6 @@ export function filterPapersByScope(
 	return papers.filter((p) => paperInLibraryScope(p.path, s));
 }
 
-type ApiResult<T> = {
-	ok: boolean;
-	data?: T;
-	error?: { code: string; message: string };
-};
-
 export async function listPapers(vaultPath: string): Promise<PaperMetadata[]> {
 	if (!isTauri()) return [];
 	const { isRemoteVaultHandle, remotePaperList, remoteSessionIdFromHandle } =
@@ -128,16 +121,9 @@ export async function deletePapersUnderPath(
 		if (!sessionId) {
 			throw new Error(i18n.t("sidebar:fileTree.deleteFailed"));
 		}
-		const res = await invoke<ApiResult<PaperDeleteResult>>(
-			"remote_paper_delete",
-			{ args: { sessionId, path } },
-		);
-		if (!res.ok || !res.data) {
-			throw new Error(
-				res.error?.message ?? i18n.t("sidebar:fileTree.deleteFailed"),
-			);
-		}
-		return res.data;
+		return ipc<PaperDeleteResult>("remote_paper_delete", {
+			args: { sessionId, path },
+		});
 	}
 	return ipc<PaperDeleteResult>("paper_delete", { args: { vaultPath, path } });
 }
@@ -233,15 +219,9 @@ export async function movePaperFolder(
 	if (!isTauri()) {
 		throw new Error(i18n.t("sidebar:fileTree.moveDesktopOnly"));
 	}
-	const res = await invoke<ApiResult<PaperMoveResult>>("paper_move", {
+	return ipc<PaperMoveResult>("paper_move", {
 		args: { vaultPath, fromRel, destParentRel },
 	});
-	if (!res.ok || !res.data) {
-		throw new Error(
-			res.error?.message ?? i18n.t("sidebar:fileTree.moveFailed"),
-		);
-	}
-	return res.data;
 }
 
 /**
@@ -263,16 +243,10 @@ export async function setPaperIsRead(
 		if (!sessionId) {
 			throw new Error(i18n.t("sidebar:fileTree.readMarkFailed"));
 		}
-		const res = await invoke<ApiResult<PaperMetadata>>(
-			"remote_paper_set_is_read",
-			{ args: { sessionId, path, isRead } },
-		);
-		if (!res.ok || !res.data) {
-			throw new Error(
-				res.error?.message ?? i18n.t("sidebar:fileTree.readMarkFailed"),
-			);
-		}
-		return withNormalizedTags(res.data);
+		const row = await ipc<PaperMetadata>("remote_paper_set_is_read", {
+			args: { sessionId, path, isRead },
+		});
+		return withNormalizedTags(row);
 	}
 	const row = await ipc<PaperMetadata>("paper_set_is_read", {
 		args: { vaultPath, path, isRead },
@@ -300,16 +274,10 @@ export async function setPaperTags(
 		if (!sessionId) {
 			throw new Error(i18n.t("sidebar:paperInfo.tagsSaveFailed"));
 		}
-		const res = await invoke<ApiResult<PaperMetadata>>(
-			"remote_paper_set_tags",
-			{ args: { sessionId, path, tags } },
-		);
-		if (!res.ok || !res.data) {
-			throw new Error(
-				res.error?.message ?? i18n.t("sidebar:paperInfo.tagsSaveFailed"),
-			);
-		}
-		return withNormalizedTags(res.data);
+		const row = await ipc<PaperMetadata>("remote_paper_set_tags", {
+			args: { sessionId, path, tags },
+		});
+		return withNormalizedTags(row);
 	}
 	const row = await ipc<PaperMetadata>("paper_set_tags", {
 		args: { vaultPath, path, tags },
