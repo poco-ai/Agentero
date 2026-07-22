@@ -646,6 +646,7 @@ Host (Tauri + Rust)
 </tbody>
 </table>
 <p>Host 还支持 <code>__local_sim__</code> host（本机目录当远端，单测/开发用）。</p>
+<p><strong>远程超时与保活</strong>：SSH/SFTP 建连、SFTP subsystem 启动和远端根目录校验默认最多 15 秒；每次 SFTP 文件操作默认最多 30 秒。SSH 使用 <code>ServerAliveInterval=30</code> 和 <code>ServerAliveCountMax=3</code>，约 90 秒无响应后判定连接失效。远端 <code>uname</code>/<code>which</code> 探测最多 30 秒；远端 ACP Agent 仅限制 15 秒建连，不限制正常运行时长。当前不自动重连、不重放写操作，详见 <a href="../../development/remote-vault/"><code>../development/remote-vault.md</code></a> §2.1。</p>
 <p><strong>入库入口与远程 Vault</strong>：</p>
 <table>
 <thead>

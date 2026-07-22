@@ -124,6 +124,10 @@
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#2-ssh-sftp">2. SSH 与 SFTP（实现前必读）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#21">2.1 超时、保活与断线行为</a>
+    </li>
+        </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#3">3. 架构总览</a>
         <ul>
@@ -371,6 +375,51 @@
 <ul>
 <li><strong>不是二选一</strong>：MVP <strong>同时</strong>需要 SFTP（UI 文件）与 SSH exec（远端 BYOA）。</li>
 <li>优先<strong>复用同一 TCP / ControlMaster</strong>，避免文件一条连接、Agent 再登一次。</li>
+</ul>
+<h3 id="21">2.1 超时、保活与断线行为<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<p>远程连接采用固定的安全默认值，当前不在 UI 中暴露配置项：</p>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th style="text-align: right;">默认值</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SSH/SFTP 建连</td>
+<td style="text-align: right;">15 秒</td>
+<td>建立 SSH、启动 SFTP subsystem、校验远端 Vault 根目录均受此限制</td>
+</tr>
+<tr>
+<td>SFTP 单次操作</td>
+<td style="text-align: right;">30 秒</td>
+<td><code>list/stat/read/write/mkdir/rename/remove</code> 超时返回错误；不会无限等待</td>
+</tr>
+<tr>
+<td>SSH 保活</td>
+<td style="text-align: right;">30 秒</td>
+<td><code>ServerAliveInterval=30</code>；连续 3 次无响应后由 OpenSSH 判定连接失效，约 90 秒</td>
+</tr>
+<tr>
+<td>远端 <code>uname</code> / <code>which</code></td>
+<td style="text-align: right;">30 秒</td>
+<td>探测命令有完整执行超时，另受 15 秒 SSH 建连限制</td>
+</tr>
+<tr>
+<td>远端 ACP Agent</td>
+<td style="text-align: right;">15 秒建连</td>
+<td>Agent 是长生命周期进程，不设置 30 秒运行超时；连接断开或进程退出时由 ACP 流结束报告失败</td>
+</tr>
+</tbody>
+</table>
+<p>说明：</p>
+<ul>
+<li>用户 <code>~/.ssh/config</code> 仍可提供端口、ProxyJump、密钥等连接参数；Agentero 的显式超时用于避免配置缺失时无限等待。</li>
+<li>超时不会自动重连，也不会重放写操作。用户需要重新打开远程 Vault；后续可增加带会话状态机的自动重连。</li>
+<li>SFTP 超时只取消当前 Tokio future；对于已发出的远端写入，不宣称具备事务回滚语义，因此写入仍遵循现有临时文件/冲突检测策略。</li>
+<li>详细 command 对照见 <a href="../../backend/api/"><code>../backend/api.md</code></a>。</li>
 </ul>
 <hr />
 <h2 id="3">3. 架构总览<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
