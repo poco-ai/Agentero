@@ -469,6 +469,9 @@
 </ul>
 <h3 id="5-connected-papersroadmap-v07">5. 引用关系 / Connected Papers（roadmap V0.7）<a class="headerlink" href="#5-connected-papersroadmap-v07" title="Permanent link">&para;</a></h3>
 <ul>
+<li>[ ] <strong>P0：本地 PDF citation/figure analysis</strong>：按 <a href="../../backend/pdf-analysis/"><code>../backend/pdf-analysis.md</code></a> 实现 Host <code>paper_analyze_pdf</code>、sidecar、TeX/PDF 双解析和 PNG 派生。</li>
+<li>[ ] <strong>P0：Paper Content 侧栏</strong>：展示 citations/figures，支持 PDF hover 高亮、reference/figure 跳转。</li>
+<li>[ ] <strong>P0：Agent context</strong>：Composer <code>@</code> 与拖拽支持 citation/figure structured refs；继续使用 path context chip，不使用二进制 Attachments。</li>
 <li>[ ] <strong>文内引用 hover → 右侧 Paper Info</strong>：PDF/HTML/<code>PAPER.md</code> 中识别 <code>[n]</code> / Author-year / DOI·arXiv 链接；hover 时侧栏展示目标论文 Info（库内 path / 远程缓存 metadata、入库或打开）</li>
 <li>[ ] <strong>引用图数据</strong>：cites / cited_by 可重建缓存（catalog 扩展表或 <code>.agentero/</code>）；外部 API 可插拔（Semantic Scholar / OpenAlex 等），失败可降级 TeX/参考文献解析</li>
 <li>[ ] <strong>Connected Papers 式邻域 UI</strong>：以当前 paper 为中心展示引用/被引列表 + 简易图；节点可打开 / 入库 / 进阅读队列</li>

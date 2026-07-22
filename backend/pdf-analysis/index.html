@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>PDF 引用与插图解析方案 - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "PDF \u5f15\u7528\u4e0e\u63d2\u56fe\u89e3\u6790\u65b9\u6848";
+        var mkdocs_page_input_path = "backend/pdf-analysis.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">用户指南</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/">使用指南</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/getting-started/">安装与首次使用</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/import-papers/">导入和管理论文</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/read-and-organize/">阅读、标注与整理</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/agents/">接入 Agent</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/zotero/">使用 Zotero Connector</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/remote-vault/">打开远程 Vault</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/github-project/">GitHub Project</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">PDF 引用与插图解析方案</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/backend/pdf-analysis.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="pdf">PDF 引用与插图解析方案<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>状态：设计中，尚未实现。<br />
+目标：为本地 PDF 阅读器提供可重建的文内引用与插图索引，并把结果展示到侧边栏。</p>
+</blockquote>
+<h2 id="1">1. 目标与边界<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<h3 id="11-mvp">1.1 首个 MVP<a class="headerlink" href="#11-mvp" title="Permanent link">&para;</a></h3>
+<ul>
+<li>只处理<strong>本地 Vault 中 paper 单元的本地 PDF</strong>。</li>
+<li>解析结果写入 paper 的 <code>source/</code>，不写入用户笔记、不修改原始 PDF、不修改原始 TeX/Bib。</li>
+<li>优先使用 TeX/Bib：</li>
+<li>有 <code>.tex</code>/<code>.ltx</code>：解析源码、引用命令、参考文献和 <code>figure</code>/<code>includegraphics</code> 声明。</li>
+<li>无 TeX：使用 <code>liteparse</code> 解析 PDF 文本、文字 bbox、图片对象和页截图。</li>
+<li>即使有 TeX，仍需要从最终 PDF 提取最小文字 bbox，用于把 TeX 引用映射到 PDF 页面。</li>
+<li><code>PAPER.md</code> 只作为正文读取和解析质量的回退，不作为引用/插图交互的事实来源。</li>
+</ul>
+<h3 id="12">1.2 明确不做<a class="headerlink" href="#12" title="Permanent link">&para;</a></h3>
+<ul>
+<li>不覆盖用户已有的 <code>source/agentero-*</code> 文件以外的文件。</li>
+<li>不替换 TeX 中引用的原始 PDF 图片；只在派生目录生成 PNG。</li>
+<li>不承诺任意 TeX 宏包、任意 BibLaTeX 样式、扫描 PDF 都能 100% 识别。</li>
+<li>不把库外引用自动导入 Vault；只展示未解析成功的原始 key/文本。</li>
+<li>不把引用边写入双链 Graph；双链图和文献引用关系保持两个模型。</li>
+<li>不在首版实现 Connected Papers、cited-by、外部引用 API 或全文 HTML 解析。</li>
+</ul>
+<h2 id="2-vault">2. Vault 落盘契约<a class="headerlink" href="#2-vault" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">{paper}/
+└── source/
+    ├── agentero-cite.json
+    ├── agentero-figures.json
+    └── agentero-figures/
+        ├── fig-1.png
+        └── fig-2.png
+</code></pre>
+
+<p>三个路径都是可重建 sidecar。删除后可通过再次运行分析恢复；不存在时不影响 PDF、TeX、Bib、<code>NOTES.md</code> 或 <code>PAPER.md</code>。</p>
+<h3 id="21-agentero-citejson">2.1 <code>agentero-cite.json</code><a class="headerlink" href="#21-agentero-citejson" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-json">{
+  &quot;schemaVersion&quot;: 1,
+  &quot;source&quot;: {
+    &quot;pdf&quot;: &quot;1706.03762.pdf&quot;,
+    &quot;pdfSha256&quot;: &quot;…&quot;,
+    &quot;mode&quot;: &quot;tex&quot;,
+    &quot;generatedAt&quot;: &quot;2026-07-21T00:00:00Z&quot;
+  },
+  &quot;citations&quot;: [
+    {
+      &quot;id&quot;: &quot;cite-vaswani2017&quot;,
+      &quot;rawKey&quot;: &quot;vaswani2017&quot;,
+      &quot;display&quot;: &quot;[1]&quot;,
+      &quot;metadata&quot;: {
+        &quot;title&quot;: &quot;Attention Is All You Need&quot;,
+        &quot;authors&quot;: [&quot;Ashish Vaswani&quot;],
+        &quot;year&quot;: 2017,
+        &quot;doi&quot;: &quot;10.48550/arXiv.1706.03762&quot;,
+        &quot;arxivId&quot;: &quot;1706.03762&quot;
+      },
+      &quot;localMatch&quot;: {
+        &quot;paperPath&quot;: &quot;papers/1706.03762&quot;,
+        &quot;matchBy&quot;: &quot;doi&quot;
+      },
+      &quot;anchors&quot;: [
+        {
+          &quot;page&quot;: 2,
+          &quot;bbox&quot;: { &quot;x&quot;: 80, &quot;y&quot;: 420, &quot;width&quot;: 22, &quot;height&quot;: 10 },
+          &quot;text&quot;: &quot;[1]&quot;
+        }
+      ],
+      &quot;reference&quot;: {
+        &quot;page&quot;: 15,
+        &quot;bbox&quot;: { &quot;x&quot;: 70, &quot;y&quot;: 180, &quot;width&quot;: 330, &quot;height&quot;: 24 }
+      },
+      &quot;status&quot;: &quot;resolved&quot;,
+      &quot;confidence&quot;: 0.96
+    }
+  ],
+  &quot;messages&quot;: []
+}
+</code></pre>
+
+<p><code>anchors</code> 是文中出现位置；<code>reference</code> 是参考文献条目位置，可为空。<code>status</code> 为 <code>resolved</code>、<code>unresolved</code> 或 <code>ambiguous</code>。<code>confidence</code> 只表示解析定位置信度。</p>
+<h3 id="22-agentero-figuresjson">2.2 <code>agentero-figures.json</code><a class="headerlink" href="#22-agentero-figuresjson" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-json">{
+  &quot;schemaVersion&quot;: 1,
+  &quot;source&quot;: {
+    &quot;pdf&quot;: &quot;1706.03762.pdf&quot;,
+    &quot;pdfSha256&quot;: &quot;…&quot;,
+    &quot;mode&quot;: &quot;tex&quot;,
+    &quot;generatedAt&quot;: &quot;2026-07-21T00:00:00Z&quot;
+  },
+  &quot;figures&quot;: [
+    {
+      &quot;id&quot;: &quot;fig-1&quot;,
+      &quot;label&quot;: &quot;Figure 1&quot;,
+      &quot;caption&quot;: &quot;The Transformer model architecture.&quot;,
+      &quot;page&quot;: 3,
+      &quot;bbox&quot;: { &quot;x&quot;: 72, &quot;y&quot;: 120, &quot;width&quot;: 460, &quot;height&quot;: 280 },
+      &quot;png&quot;: &quot;source/agentero-figures/fig-1.png&quot;,
+      &quot;sourceKind&quot;: &quot;tex-declaration&quot;,
+      &quot;sourcePath&quot;: &quot;source/figures/model.pdf&quot;,
+      &quot;warnings&quot;: []
+    }
+  ],
+  &quot;messages&quot;: []
+}
+</code></pre>
+
+<p><code>png</code> 始终是派生 PNG；原始 <code>sourcePath</code> 保留但不替换。<code>sourceKind</code> 为 <code>tex-declaration</code>、<code>pdf-image</code> 或 <code>pdf-figure-region</code>。无法生成缩略图时保留条目并写入 <code>warnings</code>。</p>
+<h2 id="3-host-api">3. Host API<a class="headerlink" href="#3-host-api" title="Permanent link">&para;</a></h2>
+<p>新增 Host command：<code>paper_analyze_pdf</code>。</p>
+<pre class="codehilite"><code class="language-ts">type PaperAnalyzePdfArgs = {
+  vaultPath: string;
+  path: string;
+  force?: boolean;
+  taskId?: string;
+};
+
+type PaperAnalyzePdfResult = {
+  mode: &quot;tex&quot; | &quot;pdf&quot;;
+  citePath: string;
+  figuresPath: string;
+  figuresDir: string;
+  citationCount: number;
+  figureCount: number;
+  messages: string[];
+};
+</code></pre>
+
+<p>行为：</p>
+<ol>
+<li>校验 Vault 和 paper 路径，拒绝 <code>..</code> 路径穿越。</li>
+<li>查找 paper 内本地 PDF；没有 PDF 时返回可读错误。</li>
+<li>计算 PDF fingerprint。无 <code>force</code> 且 fingerprint、解析器 schema 都未变化时跳过。</li>
+<li>有 TeX 时 <code>mode = "tex"</code>，否则 <code>mode = "pdf"</code>。</li>
+<li>以临时文件写 JSON，成功后原子替换 sidecar；图片写入临时目录后再替换派生目录。</li>
+<li>解析失败不删除上一版可用 sidecar；错误写入 <code>messages</code>。</li>
+</ol>
+<p>首版远程 Vault 返回“不支持远程 PDF 分析”，不复用远程 SFTP 临时缓存。</p>
+<h2 id="4">4. 解析策略<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<h3 id="41-tex">4.1 TeX 模式<a class="headerlink" href="#41-tex" title="Permanent link">&para;</a></h3>
+<p>从主文件递归处理 <code>\input{}</code>、<code>\include{}</code>，解析：</p>
+<ul>
+<li><code>\cite{}</code>、<code>\citep{}</code>、<code>\citet{}</code>、<code>\parencite{}</code>、<code>\textcite{}</code> 等常用命令；</li>
+<li><code>\bibliography{}</code>、<code>\addbibresource{}</code> 和 <code>.bib</code>；</li>
+<li><code>figure</code> 环境、<code>\caption{}</code>、<code>\label{}</code>、<code>\includegraphics[options]{}</code>；</li>
+<li><code>includegraphics[page=N]{figure.pdf}</code> 的页号信息。</li>
+</ul>
+<p>Bib 解析只做 brace-aware 字段读取，不引入完整 TeX 编译器。元数据匹配优先级为 DOI、arXiv、<code>title + author + year</code>、原始 cite key。</p>
+<p>TeX 不提供最终 PDF 坐标，因此仍对 PDF 做一次关闭 OCR 的 liteparse text/bbox 提取，把数字引用、author-year 文本和参考文献条目匹配到 PDF。匹配不到时保留 citation，但 <code>anchors=[]</code> 并标记 <code>unresolved</code>。</p>
+<p>PNG/JPG 等图片可复制到派生目录。PDF/EPS/SVG 等资源使用页面渲染或后续图像转换生成 PNG，原始图片不改写。</p>
+<h3 id="42-pdf">4.2 PDF 模式<a class="headerlink" href="#42-pdf" title="Permanent link">&para;</a></h3>
+<p>配置 liteparse：</p>
+<ul>
+<li><code>emit_word_boxes = true</code>；</li>
+<li><code>ImageMode::Embed</code>；</li>
+<li>OCR 开启但 best-effort，OCR 失败不阻止文字层结果。</li>
+</ul>
+<p>引用识别顺序为 DOI/arXiv 链接、数字引用 <code>[1]</code>/<code>[1, 2]</code>/<code>[3–5]</code>、author-year、参考文献区域弱匹配。插图优先使用 <code>ExtractedImage</code>；没有独立 bytes 时渲染并裁剪 figure region；只有 caption 时保留条目并写 warning。</p>
+<h3 id="43">4.3 元数据匹配<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
+<p>首版只查询本地 catalog：</p>
+<ul>
+<li>DOI 精确匹配；</li>
+<li>arXiv ID 精确匹配；</li>
+<li>cite key 与 catalog id 精确匹配；</li>
+<li>title/author/year 保守模糊匹配，多候选标记 <code>ambiguous</code>。</li>
+</ul>
+<p>Translator、Semantic Scholar、OpenAlex 等网络补全延后到引用关系版本，并且必须由用户显式操作触发。</p>
+<h2 id="5">5. 前端交互<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<h3 id="51-paper-content">5.1 Paper Content 侧栏<a class="headerlink" href="#51-paper-content" title="Permanent link">&para;</a></h3>
+<p>右侧新增 <code>Paper Content</code> tab，仅在当前 tab 是 paper PDF 且 sidecar 可用时显示：</p>
+<ul>
+<li><code>Citations</code>：display、title/author/year、库内状态、解析状态；</li>
+<li><code>Figures</code>：PNG 缩略图、caption、页码和 warning；</li>
+<li>空态显示 <code>Analyze PDF</code>，不显示常驻错误条。</li>
+</ul>
+<h3 id="52-pdf">5.2 PDF 内交互<a class="headerlink" href="#52-pdf" title="Permanent link">&para;</a></h3>
+<ul>
+<li>citation hover：高亮当前 anchor，并显示轻量 metadata preview；不自动跳页。</li>
+<li>citation click：跳到 References 条目并短暂高亮；无 reference 时保留当前 anchor。</li>
+<li>侧栏 citation：跳转到第一个 anchor；无 anchor 不跳转。</li>
+<li>figure card：跳至 figure 页并高亮 bbox。</li>
+<li>overlay 使用 sidecar bbox 与现有 PDF 页坐标转换，不复制 PDF 文本层。</li>
+</ul>
+<h3 id="53-agent-composer">5.3 Agent Composer<a class="headerlink" href="#53-agent-composer" title="Permanent link">&para;</a></h3>
+<p>当前 PDF 有分析结果时，<code>@</code> 菜单增加 Citations/Figures 分组。citation 使用结构化 ref，figure 同时注入 sidecar JSON 路径和 PNG 路径。侧栏卡片支持拖入 Composer，继续使用 context chip，不使用 AI Elements Attachments。</p>
+<h2 id="6">6. 分阶段交付与难度<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>内容</th>
+<th style="text-align: right;">估算</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td>schema、fingerprint、Host command 契约、fixture 设计</td>
+<td style="text-align: right;">1–2 天</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>TeX/Bib/figure parser + PDF text bbox locator</td>
+<td style="text-align: right;">4–6 天</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>liteparse 引用/图片/截图提取、PNG 派生</td>
+<td style="text-align: right;">3–5 天</td>
+</tr>
+<tr>
+<td>P3</td>
+<td>PDF overlay、跳转、Paper Content 侧栏</td>
+<td style="text-align: right;">3–4 天</td>
+</tr>
+<tr>
+<td>P4</td>
+<td>Composer <code>@</code>/drag structured refs、i18n、错误与后台任务</td>
+<td style="text-align: right;">2–3 天</td>
+</tr>
+<tr>
+<td>P5</td>
+<td>测试、文档、真实 arXiv/扫描 PDF 回归</td>
+<td style="text-align: right;">2–4 天</td>
+</tr>
+</tbody>
+</table>
+<p>单人约 <strong>3–4 周</strong>。主要不确定性是非标准 TeX 宏、BibLaTeX 样式、多栏 PDF 的 bbox 匹配、vector figure 裁剪和 OCR 坐标一致性。首版允许“有条目但定位失败”降级，避免极端 PDF 阻塞主流程。</p>
+<h2 id="7">7. 验收标准<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<ul>
+<li>有 TeX 和无 TeX 的 paper 都能生成两个 JSON sidecar；重复运行不修改原始资产。</li>
+<li>TeX 引用 PDF 图片时，<code>source/agentero-figures/</code> 生成 PNG，原 PDF 仍存在。</li>
+<li>citation hover 高亮 anchor；点击或侧栏点击可跳转 reference。</li>
+<li>figure card 可预览缩略图并跳到 PDF figure。</li>
+<li>Composer 可通过 <code>@</code> 和拖拽引用 citation/figure，prompt 含 Vault-relative 路径。</li>
+<li>删除 sidecar 后再次运行可以重建；已有 <code>NOTES.md</code>、<code>PAPER.md</code>、TeX/Bib 不被覆盖。</li>
+</ul>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

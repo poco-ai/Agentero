@@ -141,6 +141,8 @@
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#a-hover-paper-info">A. 文内引用 hover → 右侧 Paper Info</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#a0-pdf-paper-content">A0. 本地 PDF 解析与 Paper Content（首个交付）</a>
+    </li>
     <li class="toctree-l3"><a class="reference internal" href="#b-connected-papers">B. Connected Papers 式引用关系</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#c-agent">C. Agent 工作流</a>
@@ -254,7 +256,7 @@
 <li>所有核心数据必须能从本地 Markdown 重建。</li>
 <li>阅读器服务于审阅和修正，不在早期追求完整 Zotero/PDF 批注体验。</li>
 <li>Agent 采用 <strong>BYOA</strong>：Agentero 只做 ACP Client，不捆绑 Agent；能力必须可解释、可追溯、可被用户修正。</li>
-<li>UI 以“少入口、强上下文”为原则：右侧栏只保留 Agent 与 Backlinks 两个入口，Backlinks 下方承载 Graph。</li>
+<li>UI 以“少入口、强上下文”为原则：右侧栏保留 Agent、Backlinks、批注和按需出现的 Paper Content；Backlinks 下方承载 Graph。</li>
 </ul>
 <h2 id="2">2. 当前状态快照<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
 <table>
@@ -299,7 +301,7 @@
 <tr>
 <td>V0.7 引用关系与 Connected Papers</td>
 <td>⏳ 待实现</td>
-<td>文内引用 hover → 右侧 Paper Info；引用图 / Connected-Papers 式探索；配套 Agent 工作流。</td>
+<td>先落地本地 PDF citation/figure sidecar 与 Paper Content 侧栏，再做引用图、Connected Papers 和外部关系补全。</td>
 </tr>
 <tr>
 <td><strong>CLI（headless Vault 接口）</strong></td>
@@ -541,7 +543,7 @@
 <li>[ ] 超过 2 格的网格分屏与拖拽合并。</li>
 </ul>
 <h2 id="v07-connected-papers">V0.7 引用关系与 Connected Papers<a class="headerlink" href="#v07-connected-papers" title="Permanent link">&para;</a></h2>
-<p>目标：让用户在阅读时能 <strong>发现与跳转引用/被引论文</strong>，并在侧栏快速预览元信息；用 Agent 工作流辅助「沿引用链探索」与入库。</p>
+<p>目标：先让用户在本地 PDF 中发现、预览和跳转引用/插图，再扩展为引用关系图和 Agent 工作流。</p>
 <p>设计原则：</p>
 <ul>
 <li>引用边应能 <strong>从本地资产或可重建索引恢复</strong>（catalog / 导出表），不依赖不可见专有图库作为唯一事实来源。</li>
@@ -555,6 +557,15 @@
 <li>[ ] 已在 Vault 内的引用：Info 展示本地 path、是否有 PDF/NOTES、<code>is_read</code>。</li>
 <li>[ ] 库外引用：显示远程 metadata（缓存），提供魔棒式「加入 Papers」。</li>
 <li>[ ] 离开 hover / 明确关闭后恢复当前 paper 的 Info；不打断中间栏阅读位置。</li>
+</ul>
+<h3 id="a0-pdf-paper-content">A0. 本地 PDF 解析与 Paper Content（首个交付）<a class="headerlink" href="#a0-pdf-paper-content" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 新增 <code>paper_analyze_pdf</code>，只处理本地 paper PDF。</li>
+<li>[ ] 有 TeX 时解析 TeX/Bib/figure declaration；无 TeX 时使用 liteparse。</li>
+<li>[ ] 生成 <code>source/agentero-cite.json</code>、<code>source/agentero-figures.json</code>、<code>source/agentero-figures/*.png</code>。</li>
+<li>[ ] 右侧 Paper Content 展示 citations/figures；PDF 内 hover 高亮、点击跳 reference/figure。</li>
+<li>[ ] Composer <code>@</code> 和拖拽支持 citation/figure structured refs；不使用 AI Elements Attachments。</li>
+<li>[ ] 原始 PDF、TeX/Bib、<code>NOTES.md</code>、<code>PAPER.md</code> 不被覆盖；sidecar 删除后可重建。</li>
 </ul>
 <h3 id="b-connected-papers">B. Connected Papers 式引用关系<a class="headerlink" href="#b-connected-papers" title="Permanent link">&para;</a></h3>
 <ul>

@@ -349,8 +349,8 @@
 </tr>
 <tr>
 <td>PDF/HTML 阅读</td>
-<td>react-pdf 渲染；内联 HTML 经 DOMPurify 消毒</td>
-<td>可插拔解析器提取文本、提供本地文件路径/URL</td>
+<td>PDF viewer 渲染；内联 HTML 经 DOMPurify 消毒；引用/插图 overlay 与 Paper Content 侧栏</td>
+<td>可插拔解析器提取文本、bbox、图片和本地文件路径/URL</td>
 </tr>
 <tr>
 <td>本地 PDF 导入</td>
@@ -677,6 +677,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 - <strong>解析层</strong>（<code>liteparse</code>，crate <code>2.5+</code>）：在 Rust 端提取 PDF 文本内容，用于生成 <code>PAPER.md</code>、Agent 上下文读取、全文检索索引等。输出支持 Markdown（含标题/表格/列表重建）、JSON（含 bounding box）和纯文本。
 - <strong>当前落地</strong>：无本地 TeX 时，在 <code>lookup_import</code> / <code>paper_download_assets</code> <strong>下载之后</strong>自动 liteparse → <code>PAPER.md</code>；<code>paper_parse_body</code> 亦可手动。有 TeX 不自动生成。Download 图标补资源。精读：<strong>入库/单篇 Download 后自动</strong> paper-reader，资源齐全且未读时 Zap 可手动（catalog <code>is_read</code>；skill 触发：<strong>Codex <code>$paper-reader</code></strong>、<strong>Claude <code>/paper-reader</code></strong>、其它仅注入 <code>SKILL.md</code>，见 Host <code>SkillMentionStyle</code>；前端 <code>src/lib/paper-read.ts</code>）。
 - <code>liteparse</code> 内置 Tesseract OCR，对扫描型 PDF 也能处理；支持多格式（PDF/DOCX/XLSX/PPTX/图片）。
+- PDF 引用/插图解析的落盘契约、TeX/PDF 双路径和交互边界见 <a href="../../backend/pdf-analysis/"><code>../backend/pdf-analysis.md</code></a>。首版只分析本地 paper PDF；sidecar 写入 paper <code>source/</code>，不覆盖原始资产。
 - <strong>HTML 安全</strong>：完整远程/本地 HTML 文档优先用隔离 <code>iframe</code> 或 <code>convertFileSrc</code> 加载；任何会进入主文档 DOM 的不可信 HTML 字符串必须调用 <code>sanitizeHtml</code>（DOMPurify）。许可证 Apache-2.0。</p>
 <p><strong>可插拔 PDF 解析器（<code>PdfParser</code>）</strong>：
 - 抽象 <code>PdfParser</code> trait，提供两个后端：本地 <code>LiteparseBackend</code>（默认，离线开箱即用）与云端 <code>MineruCloudBackend</code>（BYOK，配置 MinerU API Key 后启用）。

@@ -86,6 +86,10 @@
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#1-vault">1. Vault 结构</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#11-pdf-sidecar">1.1 PDF 分析派生 sidecar</a>
+    </li>
+        </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#2">2. 核心文件约定</a>
         <ul>
@@ -332,6 +336,10 @@
 <p><strong>预览</strong>：Vault 内<strong>任意路径</strong>的 <code>.pdf</code> 与常见图片（png/jpg/gif/webp/bmp/svg/avif/ico）均可在中间栏打开；不要求位于 <code>papers/</code>。Demo 脚手架见 <a href="../../test/"><code>../test/index.md</code></a>。</p>
 <p><strong>默认不生成</strong>：根级 <code>PAPERS.md</code>、<code>library.bib</code>、各篇 <code>metadata.json</code>。<br />
 需要可读索引或 BibTeX 时，使用 <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code>（见 <a href="../catalog/"><code>catalog.md</code></a> §5.4）。</p>
+</blockquote>
+<h3 id="11-pdf-sidecar">1.1 PDF 分析派生 sidecar<a class="headerlink" href="#11-pdf-sidecar" title="Permanent link">&para;</a></h3>
+<p>论文 PDF 的引用与插图解析结果固定写入 <code>source/agentero-cite.json</code>、<code>source/agentero-figures.json</code> 和 <code>source/agentero-figures/*.png</code>。它们是可删除、可重建的派生数据，不属于用户笔记或原始归档；字段契约和重建规则见 <a href="../pdf-analysis/"><code>pdf-analysis.md</code></a>。</p>
+<blockquote>
 <p><strong>Paper 文件夹</strong>是最小单元：以标记文件/目录识别（<code>NOTES.md</code> / <code>marks/</code> / <code>source/</code> / <code>assets/</code> 等），可位于 <code>papers/</code> 下任意深度。<br />
 <strong>Catalog <code>path</code></strong>（Vault 相对路径）标识位置；<strong><code>id</code></strong> 为逻辑 id（arXiv ID 或 citekey）。<br />
 默认入库可仍写 <code>papers/&lt;id&gt;/</code>；用户也可整理到 <code>papers/&lt;topic&gt;/…/&lt;id&gt;/</code>。citekey 冲突时追加字母后缀。</p>
