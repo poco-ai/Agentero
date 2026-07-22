@@ -1,6 +1,11 @@
 //! Paper metadata commands — catalog.sqlite is authoritative.
+//!
+//! rusqlite is synchronous; these `async` commands move catalog work onto the
+//! blocking pool via [`crate::services::catalog::blocking`] so the async
+//! runtime servicing IPC never stalls on SQLite.
 
 use crate::error::AppError;
+use crate::services::catalog::blocking;
 use crate::services::catalog::papers::{self, PaperRecord};
 use crate::services::fs::{normalize_rel, path_escapes_root};
 use serde::Deserialize;
@@ -44,23 +49,35 @@ pub struct PaperGetArgs {
 
 /// Get one paper's metadata from catalog.sqlite.
 #[tauri::command]
-pub fn paper_get(args: PaperGetArgs) -> Result<PaperRecord, AppError> {
+pub async fn paper_get(args: PaperGetArgs) -> Result<PaperRecord, AppError> {
     let vault = vault_arg(&args.vault_path)?;
-
-    let row = if let Some(path) = args
+    let path = match args
         .path
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty())
     {
-        papers::get_by_path(&vault, &rel_path_arg(path)?)?
-    } else if let Some(id) = args.id.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
-        papers::get_by_id(&vault, id)?
-    } else {
-        return Err(AppError::invalid("path or id is required"));
+        Some(p) => Some(rel_path_arg(p)?),
+        None => None,
     };
+    let id = args
+        .id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
 
-    row.ok_or_else(|| AppError::PaperNotFound("paper not found in catalog".into()))
+    blocking(move || {
+        let row = if let Some(path) = path {
+            papers::get_by_path(&vault, &path)?
+        } else if let Some(id) = id {
+            papers::get_by_id(&vault, &id)?
+        } else {
+            return Err(AppError::invalid("path or id is required"));
+        };
+        row.ok_or_else(|| AppError::PaperNotFound("paper not found in catalog".into()))
+    })
+    .await
 }
 
 #[derive(Debug, Deserialize)]
@@ -71,9 +88,9 @@ pub struct PaperListArgs {
 
 /// List all papers for the library table (catalog.sqlite).
 #[tauri::command]
-pub fn paper_list(args: PaperListArgs) -> Result<Vec<PaperRecord>, AppError> {
+pub async fn paper_list(args: PaperListArgs) -> Result<Vec<PaperRecord>, AppError> {
     let vault = vault_arg(&args.vault_path)?;
-    papers::list_all(&vault)
+    blocking(move || papers::list_all(&vault)).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -94,10 +111,10 @@ pub struct PaperDeleteResult {
 
 /// Remove paper row(s) from catalog.sqlite (does not delete files).
 #[tauri::command]
-pub fn paper_delete(args: PaperDeleteArgs) -> Result<PaperDeleteResult, AppError> {
+pub async fn paper_delete(args: PaperDeleteArgs) -> Result<PaperDeleteResult, AppError> {
     let vault = vault_arg(&args.vault_path)?;
     let path = rel_path_arg(&args.path)?;
-    let removed = papers::delete_under_path(&vault, &path)?;
+    let removed = blocking(move || papers::delete_under_path(&vault, &path)).await?;
     Ok(PaperDeleteResult { removed })
 }
 
@@ -112,10 +129,11 @@ pub struct PaperSetIsReadArgs {
 
 /// Update catalog `is_read` after paper-reader workflow completes (or reset).
 #[tauri::command]
-pub fn paper_set_is_read(args: PaperSetIsReadArgs) -> Result<PaperRecord, AppError> {
+pub async fn paper_set_is_read(args: PaperSetIsReadArgs) -> Result<PaperRecord, AppError> {
     let vault = vault_arg(&args.vault_path)?;
     let path = rel_path_arg(&args.path)?;
-    papers::set_is_read(&vault, &path, args.is_read)
+    let is_read = args.is_read;
+    blocking(move || papers::set_is_read(&vault, &path, is_read)).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -138,7 +156,7 @@ pub struct PaperMoveResult {
 /// Move an item into another `papers/` folder on disk and rewrite matching
 /// catalog path prefixes. Never overwrites an existing target.
 #[tauri::command]
-pub fn paper_move(args: PaperMoveArgs) -> Result<PaperMoveResult, AppError> {
+pub async fn paper_move(args: PaperMoveArgs) -> Result<PaperMoveResult, AppError> {
     let vault = vault_arg(&args.vault_path)?;
     let from = rel_path_arg(&args.from_rel)?;
     let dest_raw = if path_escapes_root(&args.dest_parent_rel) {
@@ -166,20 +184,27 @@ pub fn paper_move(args: PaperMoveArgs) -> Result<PaperMoveResult, AppError> {
     if new_rel == from {
         return Err(AppError::invalid("already in this folder"));
     }
-    let from_abs = vault.join(&from);
-    if !from_abs.exists() {
-        return Err(AppError::PaperNotFound("source path does not exist".into()));
-    }
-    let new_abs = vault.join(&new_rel);
-    if new_abs.exists() {
-        return Err(AppError::invalid("target already exists"));
-    }
-    if let Some(parent) = new_abs.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    std::fs::rename(&from_abs, &new_abs)?;
-    papers::move_under_path(&vault, &from, &new_rel)?;
-    Ok(PaperMoveResult { new_rel })
+
+    let moved_rel = new_rel.clone();
+    blocking(move || {
+        let from_abs = vault.join(&from);
+        if !from_abs.exists() {
+            return Err(AppError::PaperNotFound("source path does not exist".into()));
+        }
+        let new_abs = vault.join(&new_rel);
+        if new_abs.exists() {
+            return Err(AppError::invalid("target already exists"));
+        }
+        if let Some(parent) = new_abs.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::rename(&from_abs, &new_abs)?;
+        papers::move_under_path(&vault, &from, &new_rel)?;
+        Ok(())
+    })
+    .await?;
+
+    Ok(PaperMoveResult { new_rel: moved_rel })
 }
 
 #[derive(Debug, Deserialize)]
@@ -195,10 +220,11 @@ pub struct PaperSetTagsArgs {
 
 /// Replace catalog tags for a paper (syncs metadata.json projection).
 #[tauri::command]
-pub fn paper_set_tags(args: PaperSetTagsArgs) -> Result<PaperRecord, AppError> {
+pub async fn paper_set_tags(args: PaperSetTagsArgs) -> Result<PaperRecord, AppError> {
     let vault = vault_arg(&args.vault_path)?;
     let path = rel_path_arg(&args.path)?;
-    papers::set_tags(&vault, &path, &args.tags)
+    let tags = args.tags;
+    blocking(move || papers::set_tags(&vault, &path, &tags)).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -217,14 +243,19 @@ pub struct PaperRescanResult {
 /// Rebuild catalog rows from `papers/` metadata.json — recovers papers that are
 /// on disk but missing from the catalog (added externally, or a lost row).
 #[tauri::command]
-pub fn paper_rescan(args: PaperRescanArgs) -> Result<PaperRescanResult, AppError> {
+pub async fn paper_rescan(args: PaperRescanArgs) -> Result<PaperRescanResult, AppError> {
     use crate::log_util::OpTimer;
 
     let op = OpTimer::start("paper_rescan");
-    op.finish_extra(
-        vault_arg(&args.vault_path)
-            .and_then(|vault| papers::rebuild_from_disk(&vault))
-            .map(|count| PaperRescanResult { count }),
-        |r| format!("count={}", r.count),
-    )
+    let vault = match vault_arg(&args.vault_path) {
+        Ok(v) => v,
+        Err(e) => {
+            op.finish_err(&e);
+            return Err(e);
+        }
+    };
+    let result = blocking(move || papers::rebuild_from_disk(&vault))
+        .await
+        .map(|count| PaperRescanResult { count });
+    op.finish_extra(result, |r| format!("count={}", r.count))
 }

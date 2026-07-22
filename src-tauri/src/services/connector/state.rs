@@ -328,19 +328,22 @@ impl ConnectorController {
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
         let ctrl = Arc::clone(self);
 
-        // Bind on the current runtime so EADDRINUSE fails before we claim success.
-        let listener = tauri::async_runtime::block_on(async {
-            tokio::net::TcpListener::bind(std::net::SocketAddr::from(([127, 0, 0, 1], port))).await
-        })
-        .map_err(|e| {
-            if e.kind() == std::io::ErrorKind::AddrInUse {
-                AppError::message(format!(
-                    "Port {port} is already in use (often Zotero is running). Quit the other app and try again."
-                ))
-            } else {
-                AppError::message(format!("Failed to bind 127.0.0.1:{port}: {e}"))
-            }
-        })?;
+        // Bind synchronously (no runtime needed) so EADDRINUSE fails before we
+        // claim success. Converted to a tokio listener inside the serve task.
+        let std_listener =
+            std::net::TcpListener::bind(std::net::SocketAddr::from(([127, 0, 0, 1], port)))
+                .map_err(|e| {
+                    if e.kind() == std::io::ErrorKind::AddrInUse {
+                        AppError::message(format!(
+                            "Port {port} is already in use (often Zotero is running). Quit the other app and try again."
+                        ))
+                    } else {
+                        AppError::message(format!("Failed to bind 127.0.0.1:{port}: {e}"))
+                    }
+                })?;
+        std_listener
+            .set_nonblocking(true)
+            .map_err(|e| AppError::message(format!("Failed to configure listener: {e}")))?;
 
         {
             let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
@@ -352,6 +355,18 @@ impl ConnectorController {
 
         let ctrl_serve = Arc::clone(&ctrl);
         tauri::async_runtime::spawn(async move {
+            let listener = match tokio::net::TcpListener::from_std(std_listener) {
+                Ok(l) => l,
+                Err(e) => {
+                    if let Ok(mut g) = ctrl.inner.lock() {
+                        g.listening = false;
+                        g.last_error = Some(format!("Failed to register listener: {e}"));
+                    }
+                    ctrl.running.store(false, Ordering::SeqCst);
+                    ctrl.emit_status();
+                    return;
+                }
+            };
             if let Err(e) = server::serve(listener, shutdown_rx, ctrl_serve).await {
                 if let Ok(mut g) = ctrl.inner.lock() {
                     g.listening = false;
