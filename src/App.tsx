@@ -168,6 +168,7 @@ import {
 import { isMacOS, isTauri } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
 import {
+	authorizeVault,
 	collectDirectoryRelPaths,
 	collectMarkdownRelPaths,
 	createVault,
@@ -380,8 +381,7 @@ export default function App() {
 		}
 
 		let cancelled = false;
-		void import("@tauri-apps/plugin-fs")
-			.then(({ exists }) => exists(restoredPath))
+		void authorizeVault(restoredPath)
 			.then((pathExists) => {
 				if (cancelled || pathExists || vaultPathRef.current !== restoredPath) {
 					return;
@@ -758,8 +758,8 @@ export default function App() {
 		if (!isTauri()) return;
 		void (async () => {
 			try {
-				const { invoke } = await import("@tauri-apps/api/core");
-				await invoke("set_locale", { locale });
+				const { ipc } = await import("@/lib/ipc");
+				await ipc("set_locale", { locale });
 			} catch {
 				// Native menu keeps its previous locale; non-fatal.
 			}
@@ -1228,6 +1228,14 @@ export default function App() {
 				}
 				clearRemoteSessionMeta();
 			}
+			// Grant the (narrowed) fs scope before any plugin-fs reads fire.
+			if (!isRemoteVaultHandle(path)) {
+				try {
+					await authorizeVault(path);
+				} catch {
+					// Best-effort; vault_ensure re-grants on open.
+				}
+			}
 			saveVaultPath(path);
 			setVaultPath(path);
 			setTabs([]);
@@ -1329,8 +1337,7 @@ export default function App() {
 					return;
 				}
 				setBusy(true);
-				const { exists } = await import("@tauri-apps/plugin-fs");
-				if (!(await exists(path))) {
+				if (!(await authorizeVault(path))) {
 					removeRecentVault(path);
 					setRecentVaults(getRecentVaults());
 					notifyError(t("vault.recentMissing", { path }));
@@ -1704,13 +1711,13 @@ export default function App() {
 				// Native singleton settings window (focuses + navigates if open).
 				void (async () => {
 					try {
-						const { invoke } = await import("@tauri-apps/api/core");
-						await invoke("settings_window_open", {
+						const { ipc } = await import("@/lib/ipc");
+						await ipc("settings_window_open", {
 							section,
 							vault: vaultPath,
 						});
 					} catch (e) {
-						notifyError(String(e));
+						notifyError(e instanceof Error ? e.message : String(e));
 					}
 				})();
 				return;

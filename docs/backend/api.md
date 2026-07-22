@@ -82,7 +82,7 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
 ### 3.1 Vault 与窗口
 
 > **实现状态（V0.1）**  
-> - 已实现：`vault_create`、`vault_ensure`（snake_case invoke 名）、`path_open_in_terminal`、`path_trash` / `path_untrash`（+ `path_list_trash` / `path_restore_item` / `path_purge_item` / `path_purge_trash`）、`window_new`、`set_locale`。  
+> - 已实现：`vault_create`、`vault_ensure`、`vault_authorize`（snake_case invoke 名）、`path_open_in_terminal`、`path_trash` / `path_untrash`（+ `path_list_trash` / `path_restore_item` / `path_purge_item` / `path_purge_trash`）、`window_new`、`set_locale`。  
 > - 打开 Vault / 最近列表 / 树加载：当前主要由前端 `plugin-fs` + `localStorage`/`sessionStorage` 完成；打开或恢复时会调用 `vault_ensure` 补种缺失 bundled skills。Host 侧 `vault:open` / `vault:recent` 仍为规划契约。  
 > - 实际 command 注册见 `src-tauri/src/lib.rs`。
 
@@ -139,6 +139,24 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
   - **从不覆盖**：用户改过的 `SKILL.md` 或 references 保持原样。
   - 应用升级新增的 skill（如后续模板里加的 id）会在下次打开 Vault 时自动出现。
   - 前端：若 `created` 含 `.agents/skills/<id>/…`，右上角 success toast（`vault.skillsSeeded`）提示新增 skill 名称；无新增则不打扰。
+
+#### `vault_authorize`（已实现）
+
+探测 Vault 目录是否存在，存在则把该目录（递归）授权进 webview fs scope（`tauri-plugin-persisted-scope` 持久化）。静态 `fs:scope` 已收窄为 `$HOME/.agentero/**`，恢复 / 最近列表 / 激活 Vault 前必须先经此命令（或 `vault_ensure` / `vault_create`）授权，之后前端 `plugin-fs` 读写才可用。
+
+- **参数**
+
+```ts
+{
+  path: string; // 本地绝对路径
+}
+```
+
+- **返回**：`ApiResult<boolean>` — 目录是否存在。
+- **行为**
+  - **从不创建目录**（与 `vault_ensure` 的关键差异），可安全用作存在性探针。
+  - 目录存在时调用 `fs_scope().allow_directory(path, recursive=true)`；失败仅记日志不报错。
+  - `vault_create` / `vault_ensure` 成功时也会做同样的 scope 授权。
 
 #### 远程 Vault（SSH/SFTP，MVP 已实现）
 

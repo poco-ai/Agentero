@@ -121,11 +121,13 @@ fn build_menu(app: &tauri::AppHandle, lang: &str) -> tauri::Result<tauri::menu::
 /// macOS-only: other platforms have no native window menu (actions live in the
 /// React title bar + keyboard shortcuts), so this is a no-op there.
 #[tauri::command]
-fn set_locale(app: tauri::AppHandle, locale: String) -> Result<(), String> {
+fn set_locale(app: tauri::AppHandle, locale: String) -> Result<(), error::AppError> {
     #[cfg(target_os = "macos")]
     {
-        let menu = build_menu(&app, &locale).map_err(|e| e.to_string())?;
-        app.set_menu(menu).map_err(|e| e.to_string())?;
+        let menu =
+            build_menu(&app, &locale).map_err(|e| error::AppError::internal(e.to_string()))?;
+        app.set_menu(menu)
+            .map_err(|e| error::AppError::internal(e.to_string()))?;
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -174,6 +176,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_persisted_scope::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
@@ -216,6 +219,7 @@ pub fn run() {
             commands::graph::graph_rebuild,
             commands::vault::vault_create,
             commands::vault::vault_ensure,
+            commands::vault::vault_authorize,
             commands::remote::remote_connect,
             commands::remote::remote_disconnect,
             commands::remote::remote_status,

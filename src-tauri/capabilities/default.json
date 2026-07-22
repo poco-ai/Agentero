@@ -26,12 +26,7 @@
 		"fs:allow-exists",
 		{
 			"identifier": "fs:scope",
-			"allow": [
-				{ "path": "$HOME/**" },
-				{ "path": "$DOCUMENT/**" },
-				{ "path": "$DESKTOP/**" },
-				{ "path": "$DOWNLOAD/**" }
-			]
+			"allow": [{ "path": "$HOME/.agentero/**" }]
 		},
 		"shell:default",
 		"store:default",

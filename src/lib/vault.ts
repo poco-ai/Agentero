@@ -1,8 +1,8 @@
-import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readDir, readTextFile } from "@tauri-apps/plugin-fs";
 
 import i18n from "@/i18n";
+import { ipc } from "@/lib/ipc";
 import {
 	getRemoteSessionMeta,
 	isRemoteVaultHandle,
@@ -23,12 +23,6 @@ export type CreateVaultResult = {
 	path: string;
 	created: string[];
 	openPath: string;
-};
-
-type ApiResult<T> = {
-	ok: boolean;
-	data?: T;
-	error?: { code: string; message: string };
 };
 
 export type FileNode = {
@@ -255,7 +249,7 @@ export async function openNewWindow(): Promise<void> {
 	if (!isTauri()) {
 		throw new Error(i18n.t("app:vault.openDesktopOnly"));
 	}
-	await invoke("window_new");
+	await ipc<null>("window_new");
 }
 
 function joinPath(parent: string, name: string): string {
@@ -572,17 +566,9 @@ export async function createVault(path: string): Promise<CreateVaultResult> {
 	}
 
 	const { logOp } = await import("@/lib/logger");
-	return logOp("createVault", { path }, async () => {
-		const result = await invoke<ApiResult<CreateVaultResult>>("vault_create", {
-			path,
-		});
-		if (!result.ok || !result.data) {
-			throw new Error(
-				result.error?.message ?? i18n.t("app:vault.createFailed"),
-			);
-		}
-		return result.data;
-	});
+	return logOp("createVault", { path }, () =>
+		ipc<CreateVaultResult>("vault_create", { path }),
+	);
 }
 
 /**
@@ -601,16 +587,20 @@ export async function ensureVault(path: string): Promise<CreateVaultResult> {
 		if (remoteSessionId) {
 			return remoteEnsureVault(remoteSessionId);
 		}
-		const result = await invoke<ApiResult<CreateVaultResult>>("vault_ensure", {
-			path,
-		});
-		if (!result.ok || !result.data) {
-			throw new Error(
-				result.error?.message ?? i18n.t("app:vault.createFailed"),
-			);
-		}
-		return result.data;
+		return ipc<CreateVaultResult>("vault_ensure", { path });
 	});
+}
+
+/**
+ * Probe an existing vault dir and grant it to the webview fs scope
+ * (Host: vault_authorize; persisted across restarts). Never creates
+ * directories — safe as an existence check for restore/recent flows.
+ * Remote vault handles bypass plugin-fs and are always authorized.
+ */
+export async function authorizeVault(path: string): Promise<boolean> {
+	if (!isTauri()) return false;
+	if (remoteSessionIdFromHandle(path)) return true;
+	return ipc<boolean>("vault_authorize", { path });
 }
 
 /**

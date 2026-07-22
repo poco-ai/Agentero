@@ -133,11 +133,11 @@ UI (AI Elements: Conversation + Message + PromptInput + Sources)
 **权限（`src-tauri/capabilities/default.json`）**
 
 - `fs:default` + `fs:allow-read-dir` / `fs:allow-read-text-file` / `fs:allow-write-text-file` / `fs:allow-mkdir` / `fs:allow-remove` / `fs:allow-stat` / `fs:allow-exists`
-- `fs:scope` 允许：`$HOME/**`、`$DOCUMENT/**`、`$DESKTOP/**`、`$DOWNLOAD/**`
+- `fs:scope` 静态仅允许 `$HOME/.agentero/**`（拖入 PDF 的 staging 区）；Vault 目录在打开时由 Host `vault_authorize` / `vault_ensure` / `vault_create` 运行时授权（`fs_scope().allow_directory` 递归），并经 `tauri-plugin-persisted-scope` 跨重启持久化
 - `opener:default`（含 `revealItemInDir`）
 - `dialog:default` 打开文件夹对话框
 
-**未做（后续）**：按 Vault 白名单动态收紧 scope、Zustand 全局状态、索引增量刷新（文件监听热更新已落地：`notify` → `vault:file-changed`）。
+**未做（后续）**：Zustand 全局状态、索引增量刷新（文件监听热更新已落地：`notify` → `vault:file-changed`）。
 
 ### 3.3 Markdown 编辑与预览
 
@@ -323,8 +323,9 @@ src-tauri/src/
 
 ### 4.4 安全模型
 
-- **路径白名单**：Tauri `fs` 权限仅允许访问用户显式选择的 Vault 目录及其子目录。
-- **CSP 配置**：`tauri.conf.json` 中设置合理的 Content-Security-Policy，限制本地 Webview 加载外部资源。
+- **路径白名单**：静态 `fs:scope` 仅 `$HOME/.agentero/**`；Vault 目录在打开时运行时授权（`vault_authorize` / `vault_ensure`），`tauri-plugin-persisted-scope` 持久化。Host 命令侧统一经 `services::fs::normalize_rel` / `path_escapes_root` 拒绝 `..` 穿越。
+- **CSP 配置**：`tauri.conf.json` 已启用结构化 CSP（`default-src 'self'`；`script-src` 仅 `'self' 'wasm-unsafe-eval'`（pdfium WASM）；PDF blob 预览 / 远程回退经 `img/connect/frame-src` 的 `blob:`、`https:` 放行；`object-src 'none'`；dev 下 `devCsp` 额外放行 Vite HMR）。
+- **引导安装命令**：`agent_open_install_terminal` 仅接受内置模板 id；Host 侧再经包管理器白名单（npm/npx/pnpm/yarn/brew/cargo/pip/pipx/uv）+ shell 元字符黑名单双重校验（`services/terminal.rs`）。
 - **密钥边界**：Agentero **不持有、不转发** 模型 API Key。认证由用户本机 Agent CLI 自行管理（各 agent 自己的 login / config）。Host 仅持久化 agent 启动参数（command / args / env 中非敏感项）与 UI 偏好；MinerU 等产品侧 BYOK 仍走 `tauri-plugin-store`（后续可迁系统钥匙串）。
 - **网络范围**：Agent 网络访问由 agent 进程自身控制；Agentero 自身 arXiv 抓取限定于 `arxiv.org` 域名。
 
