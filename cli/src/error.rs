@@ -106,29 +106,36 @@ impl std::error::Error for CliError {}
 
 impl From<agentero_lib::error::AppError> for CliError {
     fn from(err: agentero_lib::error::AppError) -> Self {
+        use agentero_lib::error::ErrorCode;
         let msg = err.to_string();
-        let lower = msg.to_ascii_lowercase();
-        if lower.contains("not found") {
-            return Self::new("paper_not_found", msg, ExitCode::Business);
+        match err.code() {
+            ErrorCode::VaultNotFound => Self::vault_not_found(msg),
+            ErrorCode::PaperNotFound => Self::new("paper_not_found", msg, ExitCode::Business),
+            ErrorCode::InvalidInput => Self::new("message", msg, ExitCode::Business),
+            ErrorCode::ImportFailed => Self::import_failed(msg),
+            ErrorCode::ExportFailed => Self::export_failed(msg),
+            ErrorCode::Sqlite => Self::new("catalog_busy", msg, ExitCode::Business),
+            ErrorCode::Io => Self::new("io", msg, ExitCode::Business),
+            ErrorCode::Json => Self::new("json", msg, ExitCode::Business),
+            // Legacy free-form messages: keep the historical substring mapping
+            // until every host call site uses a structured variant.
+            _ => {
+                let lower = msg.to_ascii_lowercase();
+                if lower.contains("not found") {
+                    return Self::new("paper_not_found", msg, ExitCode::Business);
+                }
+                if lower.contains("vault") && lower.contains("not a directory") {
+                    return Self::vault_not_found(msg);
+                }
+                if lower.contains("export") {
+                    return Self::export_failed(msg);
+                }
+                if lower.contains("translator") || lower.contains("import") {
+                    return Self::import_failed(msg);
+                }
+                Self::new("message", msg, ExitCode::Business)
+            }
         }
-        if lower.contains("vault") && lower.contains("not a directory") {
-            return Self::vault_not_found(msg);
-        }
-        // Prefer domain-specific codes for Translator IO.
-        if lower.contains("export") {
-            return Self::export_failed(msg);
-        }
-        if lower.contains("translator") || lower.contains("import") {
-            return Self::import_failed(msg);
-        }
-        // Map generic app errors to business failure with host-aligned codes.
-        let code = match err.code() {
-            "sqlite" => "catalog_busy",
-            "io" => "io",
-            "json" => "json",
-            _ => "message",
-        };
-        Self::new(code, msg, ExitCode::Business)
     }
 }
 

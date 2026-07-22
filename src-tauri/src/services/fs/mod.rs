@@ -37,9 +37,10 @@ pub trait VaultFs: Send + Sync {
     async fn remove(&self, rel: &str, recursive: bool) -> Result<(), AppError>;
 
     async fn exists(&self, rel: &str) -> Result<bool, AppError> {
+        use crate::error::ErrorCode;
         match self.stat(rel).await {
             Ok(_) => Ok(true),
-            Err(e) if e.code() == "io" || e.code() == "message" => {
+            Err(e) if matches!(e.code(), ErrorCode::Io | ErrorCode::Internal) => {
                 // Treat missing path as false; other errors bubble via message text.
                 let msg = e.to_string().to_lowercase();
                 if msg.contains("not found")

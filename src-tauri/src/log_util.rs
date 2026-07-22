@@ -83,7 +83,7 @@ impl OpTimer {
             self.name,
             ms,
             extra,
-            err.code(),
+            err.code().as_str(),
             err
         );
     }
@@ -112,6 +112,21 @@ impl OpTimer {
             Err(e) => {
                 self.finish_err(&e);
                 map_err(e)
+            }
+        }
+    }
+
+    /// Emit the matching end log and pass the `Result` through unchanged
+    /// (for migrated commands returning `Result<T, AppError>` directly).
+    pub fn finish<T>(self, result: Result<T, AppError>) -> Result<T, AppError> {
+        match result {
+            Ok(v) => {
+                self.finish_ok();
+                Ok(v)
+            }
+            Err(e) => {
+                self.finish_err(&e);
+                Err(e)
             }
         }
     }
