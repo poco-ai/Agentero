@@ -198,6 +198,15 @@ import {
 	startBackgroundTask,
 	updateBackgroundTask,
 } from "@/stores/background-tasks-store";
+import {
+	setLibraryLoading,
+	setLibraryPapers,
+	setLibraryQuery,
+	setLibraryScopePath,
+	setLibraryTagFilter,
+	setRescanning,
+	useLibraryState,
+} from "@/stores/library-store";
 import { closeTopOverlay } from "@/stores/overlay-store";
 import { saveSettings, useSettings } from "@/stores/settings-store";
 import {
@@ -250,17 +259,15 @@ export default function App() {
 		useTabsState();
 	const [busy, setBusy] = useState(false);
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-	const [libraryPapers, setLibraryPapers] = useState<PaperMetadata[]>([]);
-	const [libraryLoading, setLibraryLoading] = useState(false);
-	/** Title search query for the papers library view. */
-	const [libraryQuery, setLibraryQuery] = useState("");
-	/** Tag filter for the papers library view (exact match). */
-	const [libraryTagFilter, setLibraryTagFilter] = useState<string | null>(null);
-	/**
-	 * Vault-relative folder filter for the single Library tab (e.g. `papers/nlp/pretrain`).
-	 * Null = full library. Set by clicking org folders in the tree — does not open new tabs.
-	 */
-	const [libraryScopePath, setLibraryScopePath] = useState<string | null>(null);
+	/** Papers Library view state (rows, filters, load/rescan flags) in library-store. */
+	const {
+		libraryPapers,
+		libraryLoading,
+		libraryQuery,
+		libraryTagFilter,
+		libraryScopePath,
+		rescanning,
+	} = useLibraryState();
 	/** Whether the side Notes column is shown while viewing a paper PDF/HTML. */
 	const [showNotes, setShowNotes] = useState(true);
 	const showNotesRef = useRef(showNotes);
@@ -1427,8 +1434,6 @@ export default function App() {
 			await refreshLibrary();
 		})();
 	}, [vaultPath, refreshTree, refreshLibrary, rebuildWikiAndNotify]);
-
-	const [rescanning, setRescanning] = useState(false);
 
 	/** Rebuild the catalog from papers/ on disk (recover disk-only papers). */
 	const handleRescanPapers = useCallback(async () => {
