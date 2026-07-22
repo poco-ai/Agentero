@@ -5,6 +5,7 @@
 
 mod import;
 mod server;
+mod sessions;
 mod state;
 mod targets;
 
