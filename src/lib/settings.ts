@@ -1,11 +1,9 @@
-import { ipc } from "@/lib/ipc";
 import {
 	isPaperTreeLabelMode,
 	isPaperTreeSortMode,
 	type PaperTreeLabelMode,
 	type PaperTreeSortMode,
 } from "@/lib/paper-metadata";
-import { isTauri } from "@/lib/tauri";
 import { DEFAULT_TRANSLATE_SETTINGS } from "@/lib/translate/defaults";
 import { isTranslateProviderId } from "@/lib/translate/services";
 import type {
@@ -185,25 +183,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
 /** Legacy browser key — only used once to migrate into Host `settings.json`. */
 const LEGACY_SETTINGS_KEY = "agentero-settings";
 
-type SettingsGetResult = {
-	settings: AppSettings;
-	path: string;
-	existed: boolean;
-};
-
-/** In-memory snapshot (source of truth between Host round-trips). */
-let cache: AppSettings = {
-	...DEFAULT_SETTINGS,
-	libraryColumns: DEFAULT_LIBRARY_COLUMNS.map((c) => ({ ...c })),
-	translate: { ...DEFAULT_TRANSLATE_SETTINGS },
-	pdfAsk: { ...DEFAULT_PDF_ASK_SETTINGS },
-};
-let loaded = false;
-let loadPromise: Promise<AppSettings> | null = null;
-/** Absolute path reported by Host (empty until loaded in Tauri). */
-let settingsFilePath = "";
-
-function cloneSettings(s: AppSettings): AppSettings {
+/** Deep-clone a settings snapshot so callers never share nested references. */
+export function cloneSettings(s: AppSettings): AppSettings {
 	return {
 		...s,
 		libraryColumns: s.libraryColumns.map((c) => ({ ...c })),
@@ -212,141 +193,13 @@ function cloneSettings(s: AppSettings): AppSettings {
 	};
 }
 
-function setCache(s: AppSettings): AppSettings {
-	cache = cloneSettings(s);
-	return cache;
+/** Coerce an arbitrary (possibly legacy) snapshot into valid {@link AppSettings}. */
+export function normalizeSettings(raw: AppSettings): AppSettings {
+	return normalizePartial(raw);
 }
 
-/**
- * Synchronous read of the in-memory cache.
- * Call {@link ensureSettingsLoaded} at boot so this reflects the file on disk.
- */
-export function loadSettings(): AppSettings {
-	return cloneSettings(cache);
-}
-
-/** Absolute path to Host settings file, if known. */
-export function getSettingsFilePath(): string {
-	return settingsFilePath;
-}
-
-/**
- * Load settings from Host XDG config (`settings.json`).
- * One-shot: migrates legacy `localStorage` when the file does not exist yet.
- */
-export async function ensureSettingsLoaded(): Promise<AppSettings> {
-	if (loaded) return loadSettings();
-	if (loadPromise) return loadPromise;
-	loadPromise = (async () => {
-		try {
-			if (isTauri()) {
-				const res = await ipc<SettingsGetResult>("settings_get");
-				settingsFilePath = res.path;
-				let next = normalizeSettings(res.settings);
-
-				if (!res.existed) {
-					const legacy = readLegacyLocalStorage();
-					if (legacy) {
-						next = normalizeSettings(legacy);
-						await persistToHost(next);
-					}
-				}
-				// Drop dual-source: file is authoritative after first load.
-				clearLegacyLocalStorage();
-				setCache(next);
-			} else {
-				// Browser-only dev: no XDG file; keep in-memory defaults
-				// (optional one-shot hydrate from legacy key for web preview).
-				const legacy = readLegacyLocalStorage();
-				if (legacy) setCache(normalizeSettings(legacy));
-			}
-		} catch (e) {
-			console.warn("[settings] load failed, using defaults", e);
-			setCache({ ...DEFAULT_SETTINGS });
-		} finally {
-			loaded = true;
-		}
-		return loadSettings();
-	})();
-	return loadPromise;
-}
-
-/**
- * Update cache and persist to Host `settings.json` (Tauri).
- * Fire-and-forget on the write path so UI stays snappy; errors are logged.
- */
-export function saveSettings(settings: AppSettings): void {
-	const next = normalizeSettings(settings);
-	setCache(next);
-	if (!isTauri()) return;
-	void persistToHost(next).catch((e) => {
-		console.warn("[settings] save failed", e);
-	});
-}
-
-type SettingsListener = (settings: AppSettings) => void;
-
-const settingsListeners = new Set<SettingsListener>();
-
-/** Subscribe to settings changes coming from other windows. Returns unsubscribe. */
-export function subscribeSettings(listener: SettingsListener): () => void {
-	settingsListeners.add(listener);
-	return () => {
-		settingsListeners.delete(listener);
-	};
-}
-
-/** Apply a settings snapshot broadcast by the Host (`settings:changed`). */
-export function applyExternalSettings(raw: AppSettings): void {
-	const next = normalizeSettings(raw);
-	setCache(next);
-	for (const listener of settingsListeners) {
-		try {
-			listener(loadSettings());
-		} catch (e) {
-			console.warn("[settings] listener failed", e);
-		}
-	}
-}
-
-let syncStarted = false;
-
-/**
- * Start listening for cross-window `settings:changed` broadcasts (Tauri only).
- * Called once at boot; keeps this window's cache + subscribers fresh when the
- * settings window (or another main window) persists changes.
- */
-export function initSettingsSync(): void {
-	if (syncStarted || !isTauri()) return;
-	syncStarted = true;
-	void (async () => {
-		try {
-			const { listen } = await import("@tauri-apps/api/event");
-			await listen<AppSettings>("settings:changed", (event) => {
-				applyExternalSettings(event.payload);
-			});
-		} catch (e) {
-			console.warn("[settings] sync listener failed", e);
-		}
-	})();
-}
-
-/** Awaitable save (settings UI / tests). */
-export async function saveSettingsAsync(
-	settings: AppSettings,
-): Promise<AppSettings> {
-	const next = normalizeSettings(settings);
-	setCache(next);
-	if (!isTauri()) return loadSettings();
-	return persistToHost(next);
-}
-
-async function persistToHost(settings: AppSettings): Promise<AppSettings> {
-	const saved = await ipc<AppSettings>("settings_set", { settings });
-	return setCache(normalizeSettings(saved));
-}
-
-function readLegacyLocalStorage(): AppSettings | null {
+/** Read + normalize the one-shot legacy `localStorage` snapshot, if present. */
+export function readLegacyLocalStorage(): AppSettings | null {
 	try {
 		if (typeof localStorage === "undefined") return null;
 		const raw = localStorage.getItem(LEGACY_SETTINGS_KEY);
@@ -365,17 +218,14 @@ function readLegacyLocalStorage(): AppSettings | null {
 	}
 }
 
-function clearLegacyLocalStorage(): void {
+/** Drop the legacy `localStorage` key once the Host file is authoritative. */
+export function clearLegacyLocalStorage(): void {
 	try {
 		if (typeof localStorage === "undefined") return;
 		localStorage.removeItem(LEGACY_SETTINGS_KEY);
 	} catch {
 		// ignore
 	}
-}
-
-function normalizeSettings(raw: AppSettings): AppSettings {
-	return normalizePartial(raw);
 }
 
 function normalizePartial(

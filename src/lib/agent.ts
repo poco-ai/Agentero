@@ -1,8 +1,8 @@
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import i18n from "@/i18n";
-import { loadSettings } from "@/lib/settings";
 import { isTauri } from "@/lib/tauri";
+import { loadSettings } from "@/stores/settings-store";
 
 export type AgentTemplate =
 	| "opencode"

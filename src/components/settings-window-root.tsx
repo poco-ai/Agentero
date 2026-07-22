@@ -1,18 +1,14 @@
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	SettingsContent,
 	type SettingsSection,
 } from "@/components/settings-window";
 import i18n, { resolveLocale } from "@/i18n";
-import {
-	type AppSettings,
-	loadSettings,
-	saveSettings,
-	subscribeSettings,
-} from "@/lib/settings";
+import type { AppSettings } from "@/lib/settings";
 import { isTauri } from "@/lib/tauri";
+import { saveSettings, useSettings } from "@/stores/settings-store";
 
 const SECTIONS: SettingsSection[] = [
 	"general",
@@ -42,13 +38,10 @@ export function SettingsWindowRoot({
 }: SettingsWindowRootProps) {
 	const { t } = useTranslation(["settings"]);
 	const { setTheme } = useTheme();
-	const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+	const settings = useSettings();
 	const [section, setSection] = useState<SettingsSection>(initialSection);
-	const settingsRef = useRef(settings);
-	settingsRef.current = settings;
 
 	const updateSettings = useCallback((next: AppSettings) => {
-		setSettings(next);
 		saveSettings(next);
 	}, []);
 
@@ -76,15 +69,6 @@ export function SettingsWindowRoot({
 			}
 		})();
 	}, [t]);
-
-	// Merge writes from other windows (e.g. main window persisting libraryColumns);
-	// skip echoes of our own saves so in-progress edits are not disturbed.
-	useEffect(() => {
-		return subscribeSettings((next) => {
-			if (JSON.stringify(next) === JSON.stringify(settingsRef.current)) return;
-			setSettings(next);
-		});
-	}, []);
 
 	// Deep-link navigation when an already-open window is re-opened (⌘, etc.).
 	useEffect(() => {

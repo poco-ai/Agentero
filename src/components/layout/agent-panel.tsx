@@ -228,10 +228,10 @@ import {
 	paperDirFromPath,
 } from "@/lib/paper-metadata";
 import { isLibraryVirtualPath, isTrashVirtualPath } from "@/lib/papers-api";
-import { loadSettings } from "@/lib/settings";
 import { isTauri } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
 import { toVaultRelative } from "@/lib/wiki";
+import { loadSettings } from "@/stores/settings-store";
 
 type AgentPanelProps = {
 	vaultPath: string | null;

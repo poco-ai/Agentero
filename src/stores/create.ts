@@ -12,15 +12,23 @@
 import { useStore } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { useShallow as useShallowSelector } from "zustand/react/shallow";
-import { createStore, type StateCreator, type StoreApi } from "zustand/vanilla";
+import {
+	createStore,
+	type Mutate,
+	type StateCreator,
+	type StoreApi,
+} from "zustand/vanilla";
 
 /** Mutator tag added by the `subscribeWithSelector` middleware. */
 type WithSelector = [["zustand/subscribeWithSelector", never]];
 
+/** Vanilla store with the selector-aware `subscribe(selector, listener)` overload. */
+type SelectorStore<T> = Mutate<StoreApi<T>, WithSelector>;
+
 /** A vanilla store together with its React binding hooks. */
 export interface AppStore<T> {
 	/** Vanilla store: `getState`, `setState`, selector-aware `subscribe`. */
-	readonly store: StoreApi<T>;
+	readonly store: SelectorStore<T>;
 	/** Subscribe a component to a selected slice. */
 	use<U>(selector: (state: T) => U): U;
 	/** Like {@link AppStore.use} but compares the selected value shallowly. */

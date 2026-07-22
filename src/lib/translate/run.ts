@@ -1,5 +1,4 @@
 import i18n from "@/i18n";
-import { loadSettings } from "@/lib/settings";
 import { langsFromSettings } from "@/lib/translate/lang";
 import { getTranslateService } from "@/lib/translate/services";
 import type {
@@ -7,6 +6,7 @@ import type {
 	TranslateRunOptions,
 	TranslateTask,
 } from "@/lib/translate/types";
+import { loadSettings } from "@/stores/settings-store";
 
 /**
  * App-wide translation entry: resolve default provider, run service, return text.

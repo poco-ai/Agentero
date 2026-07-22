@@ -149,7 +149,6 @@ import {
 } from "@/lib/pdf-translate";
 import type { PdfTranslateRecord } from "@/lib/pdf-translate/types";
 import { writeReadingMetaPageCount } from "@/lib/reading-heatmap";
-import { loadSettings } from "@/lib/settings";
 import {
 	buildTranslatePrompt,
 	prepareTranslateTask,
@@ -157,6 +156,7 @@ import {
 	runTranslate,
 } from "@/lib/translate";
 import { cn } from "@/lib/utils";
+import { loadSettings } from "@/stores/settings-store";
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3;

@@ -10,13 +10,13 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PdfEngineHost } from "@/components/viewer/embed/engine-provider";
 import { initLogger, logger } from "@/lib/logger";
+import { applyUiTheme } from "@/lib/ui-theme";
 import {
 	ensureSettingsLoaded,
 	initSettingsSync,
 	loadSettings,
-	subscribeSettings,
-} from "@/lib/settings";
-import { applyUiTheme } from "@/lib/ui-theme";
+	settingsStore,
+} from "@/stores/settings-store";
 import App from "./App";
 import i18n, { resolveLocale } from "./i18n";
 import "./index.css";
@@ -29,7 +29,10 @@ async function boot() {
 	await ensureSettingsLoaded();
 	initSettingsSync();
 	applyUiTheme(loadSettings().uiTheme);
-	subscribeSettings((s) => applyUiTheme(s.uiTheme));
+	settingsStore.store.subscribe(
+		(s) => s.settings.uiTheme,
+		(uiTheme) => applyUiTheme(uiTheme),
+	);
 	const locale = resolveLocale(loadSettings().locale);
 	await i18n.changeLanguage(locale);
 	if (typeof document !== "undefined") {

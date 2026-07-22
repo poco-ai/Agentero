@@ -129,12 +129,7 @@ import {
 	saveRemoteSessionMeta,
 } from "@/lib/remote-vault";
 import { openInTerminal, revealInFileManager } from "@/lib/reveal";
-import {
-	type AppSettings,
-	loadSettings,
-	saveSettings,
-	subscribeSettings,
-} from "@/lib/settings";
+import type { AppSettings } from "@/lib/settings";
 import {
 	basenameOf,
 	cycleActiveTabId,
@@ -205,11 +200,16 @@ import {
 	updateBackgroundTask,
 } from "@/stores/background-tasks-store";
 import { closeTopOverlay } from "@/stores/overlay-store";
+import {
+	loadSettings,
+	saveSettings,
+	useSettings,
+} from "@/stores/settings-store";
 
 export default function App() {
 	const { t } = useTranslation(["app", "sidebar", "editor"]);
 	const { setTheme } = useTheme();
-	const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+	const settings = useSettings();
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const [settingsSection, setSettingsSection] =
 		useState<SettingsSection>("general");
@@ -767,18 +767,7 @@ export default function App() {
 	}, [settings.locale]);
 
 	const updateSettings = useCallback((next: AppSettings) => {
-		setSettings(next);
 		saveSettings(next);
-	}, []);
-
-	// Cross-window settings sync: apply snapshots persisted by the native
-	// settings window (or other main windows); skip no-op echoes of own saves.
-	useEffect(() => {
-		return subscribeSettings((next) => {
-			setSettings((prev) =>
-				JSON.stringify(prev) === JSON.stringify(next) ? prev : next,
-			);
-		});
 	}, []);
 
 	const SIDEBAR_DEFAULT_PX = 200;
