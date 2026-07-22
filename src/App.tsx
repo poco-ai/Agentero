@@ -62,13 +62,6 @@ import { useNativeMenuEvents } from "@/hooks/use-native-menu-events";
 import { useAnyOverlayOpen } from "@/hooks/use-overlay-registration";
 import { useVaultFileEvents } from "@/hooks/use-vault-file-events";
 import i18n, { resolveLocale } from "@/i18n";
-import {
-	completeBackgroundTask,
-	failBackgroundTask,
-	runBackgroundTask,
-	startBackgroundTask,
-	updateBackgroundTask,
-} from "@/lib/background-tasks";
 import type { AppCommand, PaletteMode } from "@/lib/commands/types";
 import {
 	type ConnectorItemSaved,
@@ -93,7 +86,6 @@ import {
 	notifyUndo,
 	notifyWarning,
 } from "@/lib/notify";
-import { closeTopOverlay } from "@/lib/overlay-stack";
 import {
 	collectPaperFoldersFromTree,
 	collectPapersNeedingAssetDownload,
@@ -205,6 +197,14 @@ import {
 	type WikiNavTarget,
 } from "@/lib/wiki";
 import { WikiNavContext } from "@/lib/wiki-nav-context";
+import {
+	completeBackgroundTask,
+	failBackgroundTask,
+	runBackgroundTask,
+	startBackgroundTask,
+	updateBackgroundTask,
+} from "@/stores/background-tasks-store";
+import { closeTopOverlay } from "@/stores/overlay-store";
 
 export default function App() {
 	const { t } = useTranslation(["app", "sidebar", "editor"]);

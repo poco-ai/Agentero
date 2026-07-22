@@ -1,11 +1,6 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef } from "react";
 
-import {
-	getOverlayStackSnapshot,
-	isAnyOverlayOpen,
-	pushOverlay,
-	subscribeOverlayStack,
-} from "@/lib/overlay-stack";
+import { overlayStore, pushOverlay } from "@/stores/overlay-store";
 
 /**
  * While `open` is true, register this overlay on the app stack so
@@ -32,18 +27,10 @@ export function useOverlayRegistration(
 
 /** True when any registered app overlay (settings, dialogs, palette…) is open. */
 export function useAnyOverlayOpen(): boolean {
-	return useSyncExternalStore(
-		subscribeOverlayStack,
-		isAnyOverlayOpen,
-		() => false,
-	);
+	return overlayStore.use((s) => s.stack.length > 0);
 }
 
 /** Debug / tests: current stack ids top-last. */
 export function useOverlayStackIds(): string[] {
-	return useSyncExternalStore(
-		subscribeOverlayStack,
-		() => getOverlayStackSnapshot().map((h) => h.id),
-		() => [] as string[],
-	);
+	return overlayStore.useShallow((s) => s.stack.map((h) => h.id));
 }

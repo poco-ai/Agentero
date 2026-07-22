@@ -23,17 +23,17 @@ import {
 	type RunOnceAccepted,
 	runOnce,
 } from "@/lib/agent";
-import {
-	completeBackgroundTask,
-	failBackgroundTask,
-	startBackgroundTask,
-	updateBackgroundTask,
-} from "@/lib/background-tasks";
 import { loadPaperMetadata } from "@/lib/paper-metadata";
 import { setPaperIsRead } from "@/lib/papers-api";
 import { loadSettings } from "@/lib/settings";
 import { isTauri } from "@/lib/tauri";
 import { joinVaultPath } from "@/lib/vault";
+import {
+	completeBackgroundTask,
+	failBackgroundTask,
+	startBackgroundTask,
+	updateBackgroundTask,
+} from "@/stores/background-tasks-store";
 
 export const PAPER_READER_SKILL_ID = "paper-reader";
 

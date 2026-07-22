@@ -1,5 +1,4 @@
 import i18n from "@/i18n";
-import { runBackgroundTask } from "@/lib/background-tasks";
 import { downloadPaperAssets } from "@/lib/lookup";
 import {
 	canAttemptPdfDownload,
@@ -35,6 +34,7 @@ import {
 	preferredModeForPath,
 } from "@/lib/viewer";
 import { toVaultRelative } from "@/lib/wiki";
+import { runBackgroundTask } from "@/stores/background-tasks-store";
 
 export type DocTabKind = "library" | "trash" | "paper" | "file";
 

@@ -23,13 +23,13 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useBackgroundTasks } from "@/hooks/use-background-tasks";
+import { cn } from "@/lib/utils";
 import {
 	type BackgroundTask,
 	clearFinishedBackgroundTasks,
 	getActiveBackgroundTasks,
 	setBackgroundTasksExpanded,
-} from "@/lib/background-tasks";
-import { cn } from "@/lib/utils";
+} from "@/stores/background-tasks-store";
 
 function statusIcon(task: BackgroundTask) {
 	switch (task.status) {

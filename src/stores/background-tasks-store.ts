@@ -1,12 +1,16 @@
 /**
  * Lightweight background-task store (IDE-style progress / queue).
- * No external state lib — useSyncExternalStore for React subscriptions.
+ *
+ * Backed by a Zustand store; React reads go through `useBackgroundTasks`
+ * (`@/hooks/use-background-tasks`), while non-React callers drive it through
+ * the exported action functions.
  */
 
 import { listen } from "@tauri-apps/api/event";
 import i18n from "@/i18n";
 import { logger } from "@/lib/logger";
 import { isTauri } from "@/lib/tauri";
+import { createAppStore } from "@/stores/create";
 
 export type BackgroundTaskKind =
 	| "download"
@@ -42,9 +46,7 @@ export type BackgroundTask = {
 	updatedAt: number;
 };
 
-type Listener = () => void;
-
-type Store = {
+export type BackgroundTasksState = {
 	tasks: BackgroundTask[];
 	expanded: boolean;
 };
@@ -75,15 +77,15 @@ function phaseLabel(phase: string): string {
 	return i18n.t("app:tasks.downloadPhaseAsset");
 }
 
-let store: Store = {
-	tasks: [],
-	expanded: false,
-};
+export const backgroundTasksStore = createAppStore<BackgroundTasksState>(
+	() => ({
+		tasks: [],
+		expanded: false,
+	}),
+);
 
-const listeners = new Set<Listener>();
-
-function emit() {
-	for (const l of listeners) l();
+function getState(): BackgroundTasksState {
+	return backgroundTasksStore.store.getState();
 }
 
 function reindexQueue(tasks: BackgroundTask[]): BackgroundTask[] {
@@ -96,21 +98,12 @@ function reindexQueue(tasks: BackgroundTask[]): BackgroundTask[] {
 	});
 }
 
-function setStore(next: Store) {
-	store = {
+/** Apply a full store update, renumbering the active-task queue indices. */
+function setStore(next: BackgroundTasksState): void {
+	backgroundTasksStore.store.setState({
 		...next,
 		tasks: reindexQueue(next.tasks),
-	};
-	emit();
-}
-
-export function getBackgroundTasksSnapshot(): Store {
-	return store;
-}
-
-export function subscribeBackgroundTasks(listener: Listener): () => void {
-	listeners.add(listener);
-	return () => listeners.delete(listener);
+	});
 }
 
 function uid(): string {
@@ -123,9 +116,9 @@ const MAX_HISTORY = 12;
 
 function schedulePrune(id: string) {
 	window.setTimeout(() => {
-		const tasks = store.tasks.filter((t) => t.id !== id);
-		if (tasks.length !== store.tasks.length) {
-			setStore({ ...store, tasks });
+		const tasks = getState().tasks.filter((t) => t.id !== id);
+		if (tasks.length !== getState().tasks.length) {
+			setStore({ ...getState(), tasks });
 		}
 		// Collapse when nothing left
 		if (
@@ -136,7 +129,7 @@ function schedulePrune(id: string) {
 				(t) => t.status === "queued" || t.status === "running",
 			);
 			if (!stillActive && tasks.length === 0) {
-				setStore({ ...store, tasks: [], expanded: false });
+				setStore({ ...getState(), tasks: [], expanded: false });
 			}
 		}
 	}, COMPLETED_TTL_MS);
@@ -162,8 +155,9 @@ export function startBackgroundTask(input: {
 		createdAt: now,
 		updatedAt: now,
 	};
-	const tasks = [...store.tasks, task].slice(-MAX_HISTORY - 8);
-	setStore({ ...store, tasks, expanded: store.expanded });
+	const current = getState();
+	const tasks = [...current.tasks, task].slice(-MAX_HISTORY - 8);
+	setStore({ ...current, tasks, expanded: current.expanded });
 	return task.id;
 }
 
@@ -173,10 +167,11 @@ export function updateBackgroundTask(
 		Pick<BackgroundTask, "title" | "detail" | "status" | "progress" | "error">
 	>,
 ): void {
-	const tasks = store.tasks.map((t) =>
+	const current = getState();
+	const tasks = current.tasks.map((t) =>
 		t.id === id ? { ...t, ...patch, updatedAt: Date.now() } : t,
 	);
-	setStore({ ...store, tasks });
+	setStore({ ...current, tasks });
 }
 
 export function completeBackgroundTask(id: string, detail?: string): void {
@@ -198,17 +193,18 @@ export function failBackgroundTask(id: string, error: string): void {
 }
 
 export function setBackgroundTasksExpanded(expanded: boolean): void {
-	setStore({ ...store, expanded });
+	setStore({ ...getState(), expanded });
 }
 
 export function clearFinishedBackgroundTasks(): void {
-	const tasks = store.tasks.filter(
+	const current = getState();
+	const tasks = current.tasks.filter(
 		(t) => t.status === "queued" || t.status === "running",
 	);
 	setStore({
-		...store,
+		...current,
 		tasks,
-		expanded: tasks.length > 0 ? store.expanded : false,
+		expanded: tasks.length > 0 ? current.expanded : false,
 	});
 }
 

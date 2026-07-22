@@ -6,7 +6,7 @@ import {
 	getOverlayStackSnapshot,
 	isAnyOverlayOpen,
 	pushOverlay,
-} from "@/lib/overlay-stack";
+} from "@/stores/overlay-store";
 
 afterEach(() => {
 	while (isAnyOverlayOpen()) {
@@ -14,7 +14,7 @@ afterEach(() => {
 	}
 });
 
-describe("overlay-stack", () => {
+describe("overlay-store", () => {
 	it("pushes and closes top first (LIFO)", () => {
 		const a = vi.fn();
 		const b = vi.fn();
@@ -52,6 +52,17 @@ describe("overlay-stack", () => {
 		expect(closeOverlayById("a")).toBe(true);
 		expect(a).toHaveBeenCalledTimes(1);
 		expect(b).not.toHaveBeenCalled();
+		expect(getOverlayStackSnapshot().map((h) => h.id)).toEqual(["b"]);
+	});
+
+	it("disposer returned by pushOverlay removes its own layer", () => {
+		const dispose = pushOverlay({ id: "a", close: () => {} });
+		pushOverlay({ id: "b", close: () => {} });
+
+		dispose();
+		expect(getOverlayStackSnapshot().map((h) => h.id)).toEqual(["b"]);
+		// Idempotent: a second call is a no-op.
+		dispose();
 		expect(getOverlayStackSnapshot().map((h) => h.id)).toEqual(["b"]);
 	});
 });
