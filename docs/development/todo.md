@@ -243,6 +243,42 @@
 - [ ] 同步 `package.json`、`src-tauri/tauri.conf.json` 和 tag 版本号
 - [ ] Release artifact 命名规范化，区分 macOS arch / Windows / Linux
 
+## 重构 — 工程质量（Google 级代码审查，`refactor` 分支）
+
+面向 Tauri 最佳实践与可审查性的分阶段重构。已落地部分均通过 `cargo clippy -D warnings`、`cargo test`、`tsc`、`biome`、`vitest`。
+
+### 安全加固（已完成）
+
+- [x] 启用结构化 CSP（`tauri.conf.json`，含 `devCsp`；pdfium `wasm-unsafe-eval` + blob/https 白名单）
+- [x] `fs:scope` 收窄至 `$HOME/.agentero/**`；Vault 目录运行时授权（`vault_authorize` / `vault_ensure`）+ `tauri-plugin-persisted-scope` 持久化
+- [x] 引导安装命令白名单校验（包管理器 argv0 + shell 元字符黑名单，`services/terminal.rs`）+ 单测
+- [x] `commands/paper.rs` 复用 `services::fs::normalize_rel` / `path_escapes_root`
+
+### IPC 错误契约（已完成）
+
+- [x] 结构化 `AppError` + `ErrorCode`（`{code,message}` 走 Tauri 原生 reject 通道）
+- [x] 92 个 command 全部迁移为 `Result<T, AppError>`，删除 `ApiResult` 信封
+- [x] 前端 `src/lib/ipc.ts`（`IpcError` + `ipc<T>()`）；~10 个 lib 模块去信封
+- [x] CLI 错误映射改为 `match ErrorCode`（外部 JSON/exit code 契约不变）
+- [x] `docs/backend/api.md` §2.1/§2.2 契约重写
+
+### 异步 IO + god-file 拆分（已完成）
+
+- [x] rusqlite 经 `services::catalog::blocking`（`spawn_blocking`）离开 async 运行时；`paper_*` 命令改 async
+- [x] 移除 `connector` 启动的 `block_on`（std bind + `from_std`）
+- [x] `acp.rs`（1596 行）→ `acp/{convert,config,permission,run,probe,sessions}`
+- [x] `connector/state.rs`（918 行）→ `state` + `sessions`
+- [x] `remote/session.rs` 的 ~870 行 env-gated 测试 → `session/tests.rs`
+- [x] 清理 `#[allow(dead_code)]` 死代码
+
+### 前端解耦（部分完成）
+
+- [x] 抽纯逻辑到可测 lib：`agent-parts` / `agent-options`（agent-panel）、`settings-probe`（settings-window）+ 单测
+- [x] `sidecar-store` 统一 pdf-highlight/ask/translate 的 IO 回退；`reveal` 复用 `getPlatformOS`
+- [ ] 引入 zustand + 迁移 App.tsx 的 vault/tabs/UI 状态（消除 prop drilling / ref 镜像）
+- [ ] god-component JSX 拆分：`App.tsx`、`agent-panel`、`settings-window`、`file-tree`、`pdf-viewer`
+  - 备注：状态归属迁移与大组件拆分改动交互行为，需在浏览器中人工验证（当前 headless 环境无法驱动 UI），暂缓以避免不可验证的回归。
+
 ## P2 — 长期方向
 
 ### 1. Zotero/BibTeX 迁移工具
