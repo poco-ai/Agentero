@@ -30,8 +30,10 @@ export default defineConfig(async () => ({
 	},
 
 	test: {
+		// Default to node; DOM-dependent suites opt in per-file with the
+		// `// @vitest-environment jsdom` docblock (stores touching window/localStorage).
 		environment: "node",
-		include: ["test/**/*.test.ts"],
+		include: ["test/**/*.test.{ts,tsx}", "src/**/*.test.{ts,tsx}"],
 	},
 
 	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
