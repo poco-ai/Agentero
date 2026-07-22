@@ -1,5 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
-
+import { ipc } from "@/lib/ipc";
 import { isTauri } from "@/lib/tauri";
 
 /** Payload of the `vault:file-changed` event emitted by the Host watcher. */
@@ -18,11 +17,11 @@ export async function startVaultWatch(vaultPath: string): Promise<void> {
 	if (!isTauri() || !vaultPath) return;
 	// Remote vaults (`remote:<sessionId>`) have no local notify path.
 	if (vaultPath.startsWith("remote:")) return;
-	await invoke("fs_watch_start", { vaultPath });
+	await ipc("fs_watch_start", { vaultPath });
 }
 
 /** Stop watching the Vault for this window. */
 export async function stopVaultWatch(): Promise<void> {
 	if (!isTauri()) return;
-	await invoke("fs_watch_stop");
+	await ipc("fs_watch_stop");
 }

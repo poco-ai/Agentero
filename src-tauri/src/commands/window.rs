@@ -1,12 +1,13 @@
 //! Multi-window helpers.
 
+use crate::error::AppError;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 pub const SETTINGS_WINDOW_LABEL: &str = "agentero-settings";
 
 /// Open a fresh Agentero window without restoring the last vault (`?fresh=1`).
 #[tauri::command]
-pub fn window_new(app: AppHandle) -> Result<(), String> {
+pub fn window_new(app: AppHandle) -> Result<(), AppError> {
     use crate::log_util::OpTimer;
 
     let op = OpTimer::start("window_new");
@@ -44,7 +45,7 @@ pub fn window_new(app: AppHandle) -> Result<(), String> {
         Ok(w) => w,
         Err(e) => {
             op.finish_err_msg("window", &e);
-            return Err(e.to_string());
+            return Err(AppError::internal(e.to_string()));
         }
     };
     let _ = window.set_focus();
@@ -69,7 +70,7 @@ pub fn settings_window_open(
     app: AppHandle,
     section: Option<String>,
     vault: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     use crate::log_util::OpTimer;
 
     let op = OpTimer::start("settings_window_open");
@@ -109,7 +110,7 @@ pub fn settings_window_open(
         Ok(w) => w,
         Err(e) => {
             op.finish_err_msg("window", &e);
-            return Err(e.to_string());
+            return Err(AppError::internal(e.to_string()));
         }
     };
     let _ = window.set_focus();

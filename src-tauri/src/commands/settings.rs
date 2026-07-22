@@ -1,6 +1,6 @@
 //! App settings commands — durable XDG config file.
 
-use crate::error::{map_err, ApiResult};
+use crate::error::AppError;
 use crate::services::app_settings::{AppSettings, AppSettingsStore, SettingsGetResult};
 use crate::services::connector::ConnectorController;
 use serde::Serialize;
@@ -8,11 +8,8 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 
 #[tauri::command]
-pub fn settings_get(store: State<'_, AppSettingsStore>) -> ApiResult<SettingsGetResult> {
-    match store.get() {
-        Ok(r) => ApiResult::ok(r),
-        Err(e) => map_err(e),
-    }
+pub fn settings_get(store: State<'_, AppSettingsStore>) -> Result<SettingsGetResult, AppError> {
+    store.get()
 }
 
 #[tauri::command]
@@ -21,22 +18,18 @@ pub fn settings_set(
     store: State<'_, AppSettingsStore>,
     connector: State<'_, Arc<ConnectorController>>,
     settings: AppSettings,
-) -> ApiResult<AppSettings> {
-    match store.set(settings) {
-        Ok(s) => {
-            let _ = connector.set_port(s.connector_port);
-            // Keep every window's settings cache fresh (settings window, main windows).
-            let _ = app.emit("settings:changed", &s);
-            ApiResult::ok(s)
-        }
-        Err(e) => map_err(e),
-    }
+) -> Result<AppSettings, AppError> {
+    let s = store.set(settings)?;
+    let _ = connector.set_port(s.connector_port);
+    // Keep every window's settings cache fresh (settings window, main windows).
+    let _ = app.emit("settings:changed", &s);
+    Ok(s)
 }
 
 /// Absolute path to the settings file (for About / diagnostics).
 #[tauri::command]
-pub fn settings_path(store: State<'_, AppSettingsStore>) -> ApiResult<String> {
-    ApiResult::ok(store.path().to_string_lossy().into_owned())
+pub fn settings_path(store: State<'_, AppSettingsStore>) -> Result<String, AppError> {
+    Ok(store.path().to_string_lossy().into_owned())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -52,14 +45,14 @@ pub struct HostIdentity {
 
 /// Local host identity for the Settings host badge.
 #[tauri::command]
-pub fn host_identity() -> ApiResult<HostIdentity> {
+pub fn host_identity() -> Result<HostIdentity, AppError> {
     let hostname = local_hostname();
     let label = if hostname.is_empty() || hostname == "localhost" {
         "This computer".into()
     } else {
         hostname.clone()
     };
-    ApiResult::ok(HostIdentity {
+    Ok(HostIdentity {
         hostname,
         label,
         os: compile_os().into(),

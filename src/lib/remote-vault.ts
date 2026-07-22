@@ -5,6 +5,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
+import { ipc } from "@/lib/ipc";
 import { isTauri } from "@/lib/tauri";
 
 type ApiResult<T> = {
@@ -370,10 +371,7 @@ export type HostIdentity = {
 
 /** Local machine hostname for Settings host badge. */
 export async function fetchHostIdentity(): Promise<HostIdentity> {
-	return unwrap(
-		invoke<ApiResult<HostIdentity>>("host_identity"),
-		"Failed to read host identity",
-	);
+	return ipc<HostIdentity>("host_identity");
 }
 
 export type RemoteHostIdentity = {

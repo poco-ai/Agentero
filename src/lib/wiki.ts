@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { ipc } from "@/lib/ipc";
 import { isTauri } from "@/lib/tauri";
 
 export type Backlink = {
@@ -43,12 +43,6 @@ export type GraphResponse = {
 	depth: number;
 };
 
-type ApiResult<T> = {
-	ok: boolean;
-	data?: T;
-	error?: { code: string; message: string };
-};
-
 async function invokeApi<T>(
 	cmd: string,
 	args?: Record<string, unknown>,
@@ -56,11 +50,7 @@ async function invokeApi<T>(
 	if (!isTauri()) {
 		throw new Error("Wiki index requires the Tauri desktop app.");
 	}
-	const res = await invoke<ApiResult<T>>(cmd, args);
-	if (!res.ok || res.data === undefined) {
-		throw new Error(res.error?.message ?? `Command ${cmd} failed`);
-	}
-	return res.data;
+	return ipc<T>(cmd, args);
 }
 
 /** Normalize vault-relative path (forward slashes, no leading ./). */

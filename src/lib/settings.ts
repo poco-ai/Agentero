@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { ipc } from "@/lib/ipc";
 import {
 	isPaperTreeLabelMode,
 	isPaperTreeSortMode,
@@ -185,12 +185,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
 /** Legacy browser key — only used once to migrate into Host `settings.json`. */
 const LEGACY_SETTINGS_KEY = "agentero-settings";
 
-type ApiResult<T> = {
-	ok: boolean;
-	data?: T;
-	error?: { code: string; message: string };
-};
-
 type SettingsGetResult = {
 	settings: AppSettings;
 	path: string;
@@ -246,14 +240,11 @@ export async function ensureSettingsLoaded(): Promise<AppSettings> {
 	loadPromise = (async () => {
 		try {
 			if (isTauri()) {
-				const res = await invoke<ApiResult<SettingsGetResult>>("settings_get");
-				if (!res.ok || !res.data) {
-					throw new Error(res.error?.message ?? "settings_get failed");
-				}
-				settingsFilePath = res.data.path;
-				let next = normalizeSettings(res.data.settings);
+				const res = await ipc<SettingsGetResult>("settings_get");
+				settingsFilePath = res.path;
+				let next = normalizeSettings(res.settings);
 
-				if (!res.data.existed) {
+				if (!res.existed) {
 					const legacy = readLegacyLocalStorage();
 					if (legacy) {
 						next = normalizeSettings(legacy);
@@ -351,13 +342,8 @@ export async function saveSettingsAsync(
 }
 
 async function persistToHost(settings: AppSettings): Promise<AppSettings> {
-	const res = await invoke<ApiResult<AppSettings>>("settings_set", {
-		settings,
-	});
-	if (!res.ok || !res.data) {
-		throw new Error(res.error?.message ?? "settings_set failed");
-	}
-	return setCache(normalizeSettings(res.data));
+	const saved = await ipc<AppSettings>("settings_set", { settings });
+	return setCache(normalizeSettings(saved));
 }
 
 function readLegacyLocalStorage(): AppSettings | null {
