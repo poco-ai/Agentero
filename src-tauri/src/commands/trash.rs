@@ -1,6 +1,6 @@
 //! Recycle-bin commands: undoable delete + restore (local + remote).
 
-use crate::error::{map_err, ApiResult, AppError};
+use crate::error::AppError;
 use crate::log_util::{trunc, OpTimer};
 use crate::services::remote::{parse_remote_handle, trash_bridge, RemoteRegistry};
 use crate::services::trash;
@@ -22,48 +22,20 @@ pub struct PathTrashArgs {
 pub async fn path_trash(
     registry: State<'_, Arc<RemoteRegistry>>,
     args: PathTrashArgs,
-) -> Result<ApiResult<trash::TrashResult>, String> {
+) -> Result<trash::TrashResult, AppError> {
     let n = args.rels.len();
     let op = OpTimer::start_with("path_trash", format!("count={n}"));
-    if let Some(sid) = parse_remote_handle(args.vault_path.trim()) {
-        let session = match registry.get(sid).await {
-            Ok(s) => s,
-            Err(e) => {
-                op.finish_err(&e);
-                return Ok(map_err(e));
-            }
-        };
-        match trash_bridge::trash_paths(&session, &args.rels).await {
-            Ok(res) => {
-                op.finish_ok_extra(format!(
-                    "batch_id={} count={}",
-                    trunc(&res.batch_id, 40),
-                    res.count
-                ));
-                Ok(ApiResult::ok(res))
-            }
-            Err(e) => {
-                op.finish_err(&e);
-                Ok(map_err(e))
-            }
+    let result = if let Some(sid) = parse_remote_handle(args.vault_path.trim()) {
+        match registry.get(sid).await {
+            Ok(session) => trash_bridge::trash_paths(&session, &args.rels).await,
+            Err(e) => Err(e),
         }
     } else {
-        let vault = PathBuf::from(args.vault_path.trim());
-        match trash::trash_paths(&vault, &args.rels) {
-            Ok(res) => {
-                op.finish_ok_extra(format!(
-                    "batch_id={} count={}",
-                    trunc(&res.batch_id, 40),
-                    res.count
-                ));
-                Ok(ApiResult::ok(res))
-            }
-            Err(e) => {
-                op.finish_err(&e);
-                Ok(map_err(e))
-            }
-        }
-    }
+        trash::trash_paths(&PathBuf::from(args.vault_path.trim()), &args.rels)
+    };
+    op.finish_extra(result, |res| {
+        format!("batch_id={} count={}", trunc(&res.batch_id, 40), res.count)
+    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -86,42 +58,22 @@ pub struct PathUntrashResult {
 pub async fn path_untrash(
     registry: State<'_, Arc<RemoteRegistry>>,
     args: PathUntrashArgs,
-) -> Result<ApiResult<PathUntrashResult>, String> {
+) -> Result<PathUntrashResult, AppError> {
     let op = OpTimer::start_with(
         "path_untrash",
         format!("batch_id={}", trunc(&args.batch_id, 40)),
     );
-    if let Some(sid) = parse_remote_handle(args.vault_path.trim()) {
-        let session = match registry.get(sid).await {
-            Ok(s) => s,
-            Err(e) => {
-                op.finish_err(&e);
-                return Ok(map_err(e));
-            }
-        };
-        match trash_bridge::restore_batch(&session, &args.batch_id).await {
-            Ok(restored) => {
-                op.finish_ok_extra(format!("restored={restored}"));
-                Ok(ApiResult::ok(PathUntrashResult { restored }))
-            }
-            Err(e) => {
-                op.finish_err(&e);
-                Ok(map_err(e))
-            }
+    let result = if let Some(sid) = parse_remote_handle(args.vault_path.trim()) {
+        match registry.get(sid).await {
+            Ok(session) => trash_bridge::restore_batch(&session, &args.batch_id).await,
+            Err(e) => Err(e),
         }
     } else {
-        let vault = PathBuf::from(args.vault_path.trim());
-        match trash::restore_batch(&vault, &args.batch_id) {
-            Ok(restored) => {
-                op.finish_ok_extra(format!("restored={restored}"));
-                Ok(ApiResult::ok(PathUntrashResult { restored }))
-            }
-            Err(e) => {
-                op.finish_err(&e);
-                Ok(map_err(e))
-            }
-        }
-    }
+        trash::restore_batch(&PathBuf::from(args.vault_path.trim()), &args.batch_id)
+    };
+    op.finish_extra(result.map(|restored| PathUntrashResult { restored }), |r| {
+        format!("restored={}", r.restored)
+    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -135,22 +87,12 @@ pub struct TrashVaultArgs {
 pub async fn path_list_trash(
     registry: State<'_, Arc<RemoteRegistry>>,
     args: TrashVaultArgs,
-) -> Result<ApiResult<Vec<trash::TrashEntry>>, String> {
+) -> Result<Vec<trash::TrashEntry>, AppError> {
     if let Some(sid) = parse_remote_handle(args.vault_path.trim()) {
-        let session = match registry.get(sid).await {
-            Ok(s) => s,
-            Err(e) => return Ok(map_err(e)),
-        };
-        match trash_bridge::list_trash(&session).await {
-            Ok(items) => Ok(ApiResult::ok(items)),
-            Err(e) => Ok(map_err(e)),
-        }
+        let session = registry.get(sid).await?;
+        trash_bridge::list_trash(&session).await
     } else {
-        let vault = PathBuf::from(args.vault_path.trim());
-        match trash::list_trash(&vault) {
-            Ok(items) => Ok(ApiResult::ok(items)),
-            Err(e) => Ok(map_err(e)),
-        }
+        trash::list_trash(&PathBuf::from(args.vault_path.trim()))
     }
 }
 
@@ -159,39 +101,17 @@ pub async fn path_list_trash(
 pub async fn path_purge_trash(
     registry: State<'_, Arc<RemoteRegistry>>,
     args: TrashVaultArgs,
-) -> Result<ApiResult<()>, String> {
+) -> Result<(), AppError> {
     let op = OpTimer::start("path_purge_trash");
-    if let Some(sid) = parse_remote_handle(args.vault_path.trim()) {
-        let session = match registry.get(sid).await {
-            Ok(s) => s,
-            Err(e) => {
-                op.finish_err(&e);
-                return Ok(map_err(e));
-            }
-        };
-        match trash_bridge::purge_all(&session).await {
-            Ok(()) => {
-                op.finish_ok();
-                Ok(ApiResult::ok(()))
-            }
-            Err(e) => {
-                op.finish_err(&e);
-                Ok(map_err(e))
-            }
+    let result = if let Some(sid) = parse_remote_handle(args.vault_path.trim()) {
+        match registry.get(sid).await {
+            Ok(session) => trash_bridge::purge_all(&session).await,
+            Err(e) => Err(e),
         }
     } else {
-        let vault = PathBuf::from(args.vault_path.trim());
-        match trash::purge_all(&vault) {
-            Ok(()) => {
-                op.finish_ok();
-                Ok(ApiResult::ok(()))
-            }
-            Err(e) => {
-                op.finish_err(&e);
-                Ok(map_err(e))
-            }
-        }
-    }
+        trash::purge_all(&PathBuf::from(args.vault_path.trim()))
+    };
+    op.finish(result)
 }
 
 #[derive(Debug, Deserialize)]
@@ -215,7 +135,7 @@ pub struct PathRestoreItemResult {
 pub async fn path_restore_item(
     registry: State<'_, Arc<RemoteRegistry>>,
     args: TrashItemArgs,
-) -> Result<ApiResult<PathRestoreItemResult>, String> {
+) -> Result<PathRestoreItemResult, AppError> {
     let op = OpTimer::start_with(
         "path_restore_item",
         format!(
@@ -224,37 +144,21 @@ pub async fn path_restore_item(
             trunc(&args.stored, 80)
         ),
     );
-    if let Some(sid) = parse_remote_handle(args.vault_path.trim()) {
-        let session = match registry.get(sid).await {
-            Ok(s) => s,
-            Err(e) => {
-                op.finish_err(&e);
-                return Ok(map_err(e));
-            }
-        };
-        match trash_bridge::restore_item(&session, &args.batch_id, &args.stored).await {
-            Ok(rel) => {
-                op.finish_ok_extra(format!("rel={}", trunc(&rel, 120)));
-                Ok(ApiResult::ok(PathRestoreItemResult { rel }))
-            }
-            Err(e) => {
-                op.finish_err(&e);
-                Ok(map_err(e))
-            }
+    let result = if let Some(sid) = parse_remote_handle(args.vault_path.trim()) {
+        match registry.get(sid).await {
+            Ok(session) => trash_bridge::restore_item(&session, &args.batch_id, &args.stored).await,
+            Err(e) => Err(e),
         }
     } else {
-        let vault = PathBuf::from(args.vault_path.trim());
-        match trash::restore_item(&vault, &args.batch_id, &args.stored) {
-            Ok(rel) => {
-                op.finish_ok_extra(format!("rel={}", trunc(&rel, 120)));
-                Ok(ApiResult::ok(PathRestoreItemResult { rel }))
-            }
-            Err(e) => {
-                op.finish_err(&e);
-                Ok(map_err(e))
-            }
-        }
-    }
+        trash::restore_item(
+            &PathBuf::from(args.vault_path.trim()),
+            &args.batch_id,
+            &args.stored,
+        )
+    };
+    op.finish_extra(result.map(|rel| PathRestoreItemResult { rel }), |r| {
+        format!("rel={}", trunc(&r.rel, 120))
+    })
 }
 
 /// Permanently delete a single recycle-bin item.
@@ -262,7 +166,7 @@ pub async fn path_restore_item(
 pub async fn path_purge_item(
     registry: State<'_, Arc<RemoteRegistry>>,
     args: TrashItemArgs,
-) -> Result<ApiResult<()>, String> {
+) -> Result<(), AppError> {
     let op = OpTimer::start_with(
         "path_purge_item",
         format!(
@@ -271,39 +175,17 @@ pub async fn path_purge_item(
             trunc(&args.stored, 80)
         ),
     );
-    if let Some(sid) = parse_remote_handle(args.vault_path.trim()) {
-        let session = match registry.get(sid).await {
-            Ok(s) => s,
-            Err(e) => {
-                op.finish_err(&e);
-                return Ok(map_err(e));
-            }
-        };
-        match trash_bridge::purge_item(&session, &args.batch_id, &args.stored).await {
-            Ok(()) => {
-                op.finish_ok();
-                Ok(ApiResult::ok(()))
-            }
-            Err(e) => {
-                op.finish_err(&e);
-                Ok(map_err(e))
-            }
+    let result = if let Some(sid) = parse_remote_handle(args.vault_path.trim()) {
+        match registry.get(sid).await {
+            Ok(session) => trash_bridge::purge_item(&session, &args.batch_id, &args.stored).await,
+            Err(e) => Err(e),
         }
     } else {
-        let vault = PathBuf::from(args.vault_path.trim());
-        match trash::purge_item(&vault, &args.batch_id, &args.stored) {
-            Ok(()) => {
-                op.finish_ok();
-                Ok(ApiResult::ok(()))
-            }
-            Err(e) => {
-                op.finish_err(&e);
-                Ok(map_err(e))
-            }
-        }
-    }
+        trash::purge_item(
+            &PathBuf::from(args.vault_path.trim()),
+            &args.batch_id,
+            &args.stored,
+        )
+    };
+    op.finish(result)
 }
-
-// Silence unused import when only used in type position in some builds.
-#[allow(dead_code)]
-fn _unused_app_error(_: AppError) {}

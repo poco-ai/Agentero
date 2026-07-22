@@ -1,6 +1,6 @@
 //! Tauri commands for the Zotero Connector–compatible local server.
 
-use crate::error::ApiResult;
+use crate::error::AppError;
 use crate::services::connector::{ConnectorController, ConnectorStatus};
 use serde::Deserialize;
 use std::sync::Arc;
@@ -9,8 +9,8 @@ use tauri::State;
 #[tauri::command]
 pub fn connector_get_status(
     ctrl: State<'_, Arc<ConnectorController>>,
-) -> ApiResult<ConnectorStatus> {
-    ApiResult::ok(ctrl.status())
+) -> Result<ConnectorStatus, AppError> {
+    Ok(ctrl.status())
 }
 
 #[derive(Debug, Deserialize)]
@@ -23,7 +23,7 @@ pub struct ConnectorSetEnabledArgs {
 pub fn connector_set_enabled(
     ctrl: State<'_, Arc<ConnectorController>>,
     args: ConnectorSetEnabledArgs,
-) -> ApiResult<ConnectorStatus> {
+) -> Result<ConnectorStatus, AppError> {
     use crate::log_util::OpTimer;
 
     let op = OpTimer::start_with("connector_set_enabled", format!("enabled={}", args.enabled));
@@ -43,7 +43,7 @@ pub fn connector_set_enabled(
             status.listening, status.port
         ));
     }
-    ApiResult::ok(status)
+    Ok(status)
 }
 
 #[derive(Debug, Deserialize)]
@@ -56,9 +56,9 @@ pub struct ConnectorSetVaultArgs {
 pub fn connector_set_vault(
     ctrl: State<'_, Arc<ConnectorController>>,
     args: ConnectorSetVaultArgs,
-) -> ApiResult<()> {
+) -> Result<(), AppError> {
     ctrl.set_vault(args.vault_path);
-    ApiResult::ok(())
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,9 +73,9 @@ pub struct ConnectorSetParentDirArgs {
 pub fn connector_set_parent_dir(
     ctrl: State<'_, Arc<ConnectorController>>,
     args: ConnectorSetParentDirArgs,
-) -> ApiResult<()> {
+) -> Result<(), AppError> {
     ctrl.set_parent_dir(args.parent_dir);
-    ApiResult::ok(())
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -88,6 +88,6 @@ pub struct ConnectorSetPortArgs {
 pub fn connector_set_port(
     ctrl: State<'_, Arc<ConnectorController>>,
     args: ConnectorSetPortArgs,
-) -> ApiResult<ConnectorStatus> {
-    ApiResult::ok(ctrl.set_port(args.port))
+) -> Result<ConnectorStatus, AppError> {
+    Ok(ctrl.set_port(args.port))
 }

@@ -1,4 +1,4 @@
-use crate::error::{map_err, ApiResult, AppError};
+use crate::error::AppError;
 use crate::services::terminal;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -13,15 +13,13 @@ pub struct OpenInTerminalResult {
 /// Open the system default terminal at `path`.
 /// Directories open as themselves; files open their parent directory.
 #[tauri::command]
-pub fn path_open_in_terminal(path: String) -> ApiResult<OpenInTerminalResult> {
+pub fn path_open_in_terminal(path: String) -> Result<OpenInTerminalResult, AppError> {
     let p = PathBuf::from(path.trim());
     if p.as_os_str().is_empty() {
-        return map_err(AppError::message("path is required"));
+        return Err(AppError::invalid("path is required"));
     }
-    match terminal::open_in_terminal(&p) {
-        Ok(cwd) => ApiResult::ok(OpenInTerminalResult {
-            cwd: cwd.to_string_lossy().into_owned(),
-        }),
-        Err(e) => map_err(e),
-    }
+    let cwd = terminal::open_in_terminal(&p)?;
+    Ok(OpenInTerminalResult {
+        cwd: cwd.to_string_lossy().into_owned(),
+    })
 }

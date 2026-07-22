@@ -131,6 +131,25 @@ impl OpTimer {
         }
     }
 
+    /// Like `finish` but append extra fields on success (e.g. `count=3`).
+    pub fn finish_extra<T>(
+        self,
+        result: Result<T, AppError>,
+        ok_extra: impl FnOnce(&T) -> String,
+    ) -> Result<T, AppError> {
+        match result {
+            Ok(v) => {
+                let extra = ok_extra(&v);
+                self.finish_ok_extra(extra);
+                Ok(v)
+            }
+            Err(e) => {
+                self.finish_err(&e);
+                Err(e)
+            }
+        }
+    }
+
     /// Like `finish_result` but append extra fields on success (e.g. `count=3`).
     pub fn finish_result_ok_extra<T: serde::Serialize>(
         self,

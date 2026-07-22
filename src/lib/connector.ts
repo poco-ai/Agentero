@@ -2,7 +2,7 @@
  * Zotero Connector–compatible local server control (Host :23119).
  * @see docs/backend/connector.md
  */
-import { invoke } from "@tauri-apps/api/core";
+import { ipc } from "@/lib/ipc";
 import { isTauri } from "@/lib/tauri";
 
 export type ConnectorStatus = {
@@ -34,24 +34,6 @@ export type ConnectorProgress = {
 	error: string | null;
 };
 
-type ApiResult<T> = {
-	ok: boolean;
-	data?: T;
-	error?: { code: string; message: string };
-};
-
-async function unwrap<T>(promise: Promise<ApiResult<T>>): Promise<T> {
-	const res = await promise;
-	if (!res?.ok) {
-		throw new Error(res?.error?.message ?? "connector command failed");
-	}
-	// Unit commands (`ApiResult<()>` / null data) still count as success.
-	if (res.data === undefined || res.data === null) {
-		return undefined as T;
-	}
-	return res.data;
-}
-
 export async function connectorGetStatus(): Promise<ConnectorStatus> {
 	if (!isTauri()) {
 		return {
@@ -64,7 +46,7 @@ export async function connectorGetStatus(): Promise<ConnectorStatus> {
 			parentDir: "papers",
 		};
 	}
-	return unwrap(invoke<ApiResult<ConnectorStatus>>("connector_get_status"));
+	return ipc<ConnectorStatus>("connector_get_status");
 }
 
 export async function connectorSetEnabled(
@@ -73,31 +55,19 @@ export async function connectorSetEnabled(
 	if (!isTauri()) {
 		return connectorGetStatus();
 	}
-	return unwrap(
-		invoke<ApiResult<ConnectorStatus>>("connector_set_enabled", {
-			args: { enabled },
-		}),
-	);
+	return ipc<ConnectorStatus>("connector_set_enabled", { args: { enabled } });
 }
 
 export async function connectorSetPort(port: number): Promise<ConnectorStatus> {
 	if (!isTauri()) return connectorGetStatus();
-	return unwrap(
-		invoke<ApiResult<ConnectorStatus>>("connector_set_port", {
-			args: { port },
-		}),
-	);
+	return ipc<ConnectorStatus>("connector_set_port", { args: { port } });
 }
 
 export async function connectorSetVault(
 	vaultPath: string | null,
 ): Promise<void> {
 	if (!isTauri()) return;
-	await unwrap(
-		invoke<ApiResult<null>>("connector_set_vault", {
-			args: { vaultPath },
-		}),
-	);
+	await ipc("connector_set_vault", { args: { vaultPath } });
 }
 
 /** Default save parent for Connector (`papers` or `papers/…` org folder). */
@@ -108,9 +78,5 @@ export async function connectorSetParentDir(parentDir: string): Promise<void> {
 		.replace(/\\/g, "/")
 		.replace(/^\/+|\/+$/g, "");
 	if (!dir) return;
-	await unwrap(
-		invoke<ApiResult<null>>("connector_set_parent_dir", {
-			args: { parentDir: dir },
-		}),
-	);
+	await ipc("connector_set_parent_dir", { args: { parentDir: dir } });
 }

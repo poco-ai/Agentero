@@ -1,7 +1,7 @@
 //! Zotero migration commands: scan a Zotero data directory and migrate its
 //! library into the catalog. Fully local (no Translator).
 
-use crate::error::ApiResult;
+use crate::error::AppError;
 use crate::services::lookup::{
     migrate_zotero, scan_zotero, MigrateProgress, ZoteroMigrateArgs, ZoteroMigrateResult,
     ZoteroScan, ZoteroScanArgs,
@@ -10,14 +10,14 @@ use tauri::ipc::Channel;
 
 /// Read-only preview of a Zotero data directory (item + local-PDF counts).
 #[tauri::command]
-pub fn zotero_scan(args: ZoteroScanArgs) -> ApiResult<ZoteroScan> {
+pub fn zotero_scan(args: ZoteroScanArgs) -> Result<ZoteroScan, AppError> {
     use crate::log_util::{trunc, OpTimer};
 
     let op = OpTimer::start_with(
         "zotero_scan",
         format!("path={}", trunc(&args.zotero_dir, 160)),
     );
-    op.finish_result(scan_zotero(args))
+    op.finish(scan_zotero(args))
 }
 
 /// Migrate a Zotero library into `papers/…` + catalog; optionally copy PDFs.
@@ -26,7 +26,7 @@ pub fn zotero_scan(args: ZoteroScanArgs) -> ApiResult<ZoteroScan> {
 pub async fn zotero_migrate(
     args: ZoteroMigrateArgs,
     on_progress: Channel<MigrateProgress>,
-) -> ApiResult<ZoteroMigrateResult> {
+) -> Result<ZoteroMigrateResult, AppError> {
     use crate::log_util::{trunc, OpTimer};
 
     let op = OpTimer::start_with(
@@ -36,7 +36,7 @@ pub async fn zotero_migrate(
     let report = move |current, total| {
         let _ = on_progress.send(MigrateProgress { current, total });
     };
-    op.finish_result_ok_extra(migrate_zotero(args, report).await, |r| {
+    op.finish_extra(migrate_zotero(args, report).await, |r| {
         format!("imported={} skipped={}", r.imported, r.skipped)
     })
 }
