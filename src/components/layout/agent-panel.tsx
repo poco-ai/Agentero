@@ -1,4 +1,3 @@
-import type { ToolUIPart } from "ai";
 import {
 	Check,
 	CheckIcon,
@@ -143,7 +142,6 @@ import {
 	type AgentEffortChoice,
 	type AgentListResponse,
 	type AgentModelChoice,
-	type AgentPlanEntry,
 	type AgentPlanEvent,
 	type AgentResultPayload,
 	type AgentSkill,
@@ -188,6 +186,26 @@ import {
 	mentionPathHasChildren,
 	pushRecentMentionPath,
 } from "@/lib/agent-mention";
+import {
+	type AgentOption,
+	buildOptions,
+	isBackgroundWorkflowHistoryTitle,
+	resolveSelected,
+	SUGGESTION_KEYS,
+	SUGGESTION_WORKFLOW,
+} from "@/lib/agent-options";
+import {
+	type AgentPart,
+	agentHasContent,
+	agentReasoningFromParts,
+	agentTextFromParts,
+	appendStreamPart,
+	applyToolToParts,
+	dedupeModelsClient,
+	nextPartId,
+	toolPartState,
+	upsertPlanPart,
+} from "@/lib/agent-parts";
 import {
 	displayHistoryTitle,
 	stripPromptEnvelopeForDisplay,
@@ -269,27 +287,6 @@ function ContextPathIcon({
 	);
 }
 
-type ToolUiState = {
-	id: string;
-	title: string;
-	kind: string;
-	status: "pending" | "in_progress" | "completed" | "failed";
-	input?: unknown;
-	output?: unknown;
-};
-
-/**
- * Ordered slice of an agent turn. Reasoning, tool calls, plan and message text
- * are stored in the sequence the agent emitted them so the transcript can show
- * interleaved thinking (think → tool → think → answer) instead of grouping all
- * reasoning and tools into fixed blocks.
- */
-type AgentPart =
-	| { type: "reasoning"; id: string; text: string }
-	| { type: "text"; id: string; text: string }
-	| { type: "tool"; id: string; tool: ToolUiState }
-	| { type: "plan"; id: string; entries: AgentPlanEntry[] };
-
 type ChatLine =
 	| { id: string; kind: "user"; text: string }
 	| {
@@ -328,326 +325,12 @@ function nextLineId(prefix: string) {
 	return `${prefix}-${chatLineSeq}`;
 }
 
-let agentPartSeq = 0;
-function nextPartId(prefix: string) {
-	agentPartSeq += 1;
-	return `${prefix}-${agentPartSeq}`;
-}
-
-/**
- * Background workflows (paper-reader, etc.) must not appear in Agent chat history.
- * Matches titles already indexed before hideFromChatHistory existed.
- */
-function isBackgroundWorkflowHistoryTitle(title: string): boolean {
-	const t = stripPromptEnvelopeForDisplay(title).toLowerCase();
-	const raw = title.toLowerCase();
-	return (
-		raw.includes("paper-reader") ||
-		raw.includes("paper_reader") ||
-		raw.includes("agentero paper-reader") ||
-		raw.includes("write structured lecture notes") ||
-		raw.includes("activate and follow $paper-reader") ||
-		raw.includes("activate and follow /paper-reader") ||
-		raw.includes("you are running the agentero paper-reader") ||
-		t.includes("activate and follow $paper-reader") ||
-		t.includes("write structured lecture notes")
-	);
-}
-
-/** Empty-state suggestion chips — one per row. Labels via i18n. */
-const SUGGESTION_KEYS = [
-	"summarizePaper",
-	"askLibrary",
-	"listClaims",
-	"draftRelatedWork",
-] as const;
-
-type SuggestionKey = (typeof SUGGESTION_KEYS)[number];
-
-/**
- * Each suggestion routes to a purpose-built backend workflow so the agent gets
- * the right system prompt (progressive disclosure, citation discipline, …)
- * instead of a generic free-form chat.
- */
-const SUGGESTION_WORKFLOW: Record<SuggestionKey, string> = {
-	summarizePaper: "summary",
-	askLibrary: "qa",
-	listClaims: "qa",
-	draftRelatedWork: "related_work",
-};
-
-type AgentOption = {
-	key: string;
-	id: string | null;
-	templateId: string | null;
-	name: string;
-	available: boolean;
-	isDefault: boolean;
-	source: "registry" | "catalog";
-};
-
-/** Catalog entry is usable in Chat only when ACP handshake succeeded. */
-function catalogEntryUsable(e: {
-	acpStatus: string;
-	binaryAvailable: boolean;
-	acpCommandAvailable: boolean;
-}): boolean {
-	return e.acpStatus === "ready";
-}
-
-function registryAgentUsable(a: {
-	available: boolean;
-	lastProbeOk?: boolean | null;
-}): boolean {
-	return a.available || a.lastProbeOk === true;
-}
-
-/**
- * Agents shown in the Chat header switcher.
- * Unavailable ACP backends are omitted entirely (not shown as disabled).
- */
-function buildOptions(
-	registry: AgentListResponse | null,
-	catalog: CatalogScanResponse | null,
-): AgentOption[] {
-	const options: AgentOption[] = [];
-	const seenIds = new Set<string>();
-
-	if (catalog) {
-		for (const e of catalog.entries) {
-			if (!catalogEntryUsable(e)) continue;
-			const id = e.registeredId ?? null;
-			if (id) seenIds.add(id);
-			options.push({
-				key: `catalog:${e.templateId}`,
-				id,
-				templateId: e.templateId,
-				name: e.name,
-				available: true,
-				isDefault: e.isDefault,
-				source: "catalog",
-			});
-		}
-		for (const a of catalog.customAgents) {
-			if (!registryAgentUsable(a)) continue;
-			if (seenIds.has(a.id)) continue;
-			seenIds.add(a.id);
-			options.push({
-				key: `reg:${a.id}`,
-				id: a.id,
-				templateId: null,
-				name: a.name,
-				available: true,
-				isDefault: catalog.defaultId === a.id,
-				source: "registry",
-			});
-		}
-	}
-
-	if (registry) {
-		for (const a of registry.agents) {
-			if (!registryAgentUsable(a)) continue;
-			if (seenIds.has(a.id)) continue;
-			seenIds.add(a.id);
-			options.push({
-				key: `reg:${a.id}`,
-				id: a.id,
-				templateId: null,
-				name: a.name,
-				available: true,
-				isDefault: registry.defaultId === a.id,
-				source: "registry",
-			});
-		}
-	}
-
-	return options;
-}
-
-function resolveSelected(
-	options: AgentOption[],
-	selectedId: string | null,
-	registry: AgentListResponse | null,
-): AgentOption | undefined {
-	// options is already availability-filtered
-	if (selectedId) {
-		const byId = options.find((o) => o.id === selectedId);
-		if (byId) return byId;
-	}
-	const def = options.find((o) => o.isDefault);
-	if (def) return def;
-	if (registry?.defaultId) {
-		const byDefault = options.find((o) => o.id === registry.defaultId);
-		if (byDefault) return byDefault;
-	}
-	return options[0];
-}
-
-function mapToolStatus(
-	status: string | null | undefined,
-): ToolUiState["status"] {
-	switch (status) {
-		case "in_progress":
-			return "in_progress";
-		case "completed":
-			return "completed";
-		case "failed":
-			return "failed";
-		default:
-			return "pending";
-	}
-}
-
-function toolPartState(status: ToolUiState["status"]): ToolUIPart["state"] {
-	switch (status) {
-		case "in_progress":
-			return "input-available";
-		case "completed":
-			return "output-available";
-		case "failed":
-			return "output-error";
-		default:
-			return "input-streaming";
-	}
-}
-
-type ToolPatch = {
-	id: string;
-	title?: string | null;
-	kind?: string | null;
-	status?: string | null;
-	input?: unknown;
-	output?: unknown;
-	full?: boolean;
-};
-
-function mergeToolState(
-	prev: ToolUiState | undefined,
-	patch: ToolPatch,
-): ToolUiState {
-	return {
-		id: patch.id,
-		title: patch.title ?? prev?.title ?? "",
-		kind: patch.kind ?? prev?.kind ?? "other",
-		status: mapToolStatus(patch.status ?? prev?.status),
-		input: patch.input !== undefined ? patch.input : prev?.input,
-		output: patch.output !== undefined ? patch.output : prev?.output,
-	};
-}
-
-/**
- * Append a streamed message/thought chunk, extending the trailing part when it
- * matches so consecutive chunks of the same kind stay in one block but a switch
- * of kind (thought → message or vice versa) starts a fresh, ordered part.
- */
-function appendStreamPart(
-	parts: AgentPart[],
-	kind: "reasoning" | "text",
-	chunk: string,
-): AgentPart[] {
-	const last = parts[parts.length - 1];
-	if (last && last.type === kind) {
-		const next = parts.slice();
-		next[next.length - 1] = { ...last, text: last.text + chunk };
-		return next;
-	}
-	return [...parts, { type: kind, id: nextPartId(kind), text: chunk }];
-}
-
-/**
- * Upsert a tool call by id: update the existing part in place (keeping its
- * position in the timeline) or append a new tool part at the current tail.
- */
-function applyToolToParts(parts: AgentPart[], patch: ToolPatch): AgentPart[] {
-	const idx = parts.findIndex(
-		(p) => p.type === "tool" && p.tool.id === patch.id,
-	);
-	if (idx >= 0) {
-		const existing = parts[idx] as Extract<AgentPart, { type: "tool" }>;
-		const next = parts.slice();
-		next[idx] = { ...existing, tool: mergeToolState(existing.tool, patch) };
-		return next;
-	}
-	return [
-		...parts,
-		{
-			type: "tool",
-			id: nextPartId("tool"),
-			tool: mergeToolState(undefined, patch),
-		},
-	];
-}
-
-/** Plan updates arrive as full snapshots; keep a single plan part in place. */
-function upsertPlanPart(
-	parts: AgentPart[],
-	entries: AgentPlanEntry[],
-): AgentPart[] {
-	const idx = parts.findIndex((p) => p.type === "plan");
-	if (idx >= 0) {
-		const existing = parts[idx] as Extract<AgentPart, { type: "plan" }>;
-		const next = parts.slice();
-		next[idx] = { ...existing, entries };
-		return next;
-	}
-	return [...parts, { type: "plan", id: nextPartId("plan"), entries }];
-}
-
-function agentTextFromParts(parts: AgentPart[]): string {
-	return parts
-		.filter((p): p is Extract<AgentPart, { type: "text" }> => p.type === "text")
-		.map((p) => p.text)
-		.join("");
-}
-
-function agentReasoningFromParts(parts: AgentPart[]): string {
-	return parts
-		.filter(
-			(p): p is Extract<AgentPart, { type: "reasoning" }> =>
-				p.type === "reasoning",
-		)
-		.map((p) => p.text)
-		.join("\n\n");
-}
-
-/** True when the turn has produced anything worth keeping on screen. */
-function agentHasContent(parts: AgentPart[]): boolean {
-	return parts.some((p) => {
-		if (p.type === "text" || p.type === "reasoning") {
-			return p.text.trim().length > 0;
-		}
-		if (p.type === "plan") return p.entries.length > 0;
-		return true;
-	});
-}
-
 async function copyText(text: string) {
 	try {
 		await navigator.clipboard.writeText(text);
 	} catch {
 		// ignore
 	}
-}
-
-/** Client-side dedupe (id first, then display name) for cached/stale catalogs. */
-function dedupeModelsClient(models: AgentModelChoice[]): AgentModelChoice[] {
-	const seenIds = new Set<string>();
-	const seenNames = new Set<string>();
-	const out: AgentModelChoice[] = [];
-	for (const m of models) {
-		const id = m.id.trim();
-		const nameKey = m.name.trim().toLowerCase();
-		if (!id || !nameKey) continue;
-		if (seenIds.has(id) || seenNames.has(nameKey)) continue;
-		seenIds.add(id);
-		seenNames.add(nameKey);
-		out.push({
-			id,
-			name: m.name.trim(),
-			group: m.group,
-		});
-	}
-	return out;
 }
 
 export function AgentPanel({
