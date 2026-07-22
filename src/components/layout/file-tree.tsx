@@ -77,15 +77,14 @@ import {
 	fileIcon,
 	isVirtualTreePath,
 	pathKey,
+	type TreeCreateDraft,
+	type TreeCreateKind,
 } from "./file-tree-helpers";
 
-export type TreeCreateKind = "file" | "folder";
-
-export type TreeCreateDraft = {
-	kind: TreeCreateKind;
-	/** Absolute path of the parent directory (vault root or folder). */
-	parentPath: string;
-};
+export type {
+	TreeCreateDraft,
+	TreeCreateKind,
+} from "./file-tree-helpers";
 
 /** Inline name input — VS Code / Cursor style create. */
 function TreeCreateInput({

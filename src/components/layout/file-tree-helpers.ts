@@ -14,6 +14,14 @@ import {
 import { LIBRARY_VIRTUAL_PATH, TRASH_VIRTUAL_PATH } from "@/lib/papers-api";
 import type { FileNode } from "@/lib/vault";
 
+export type TreeCreateKind = "file" | "folder";
+
+export type TreeCreateDraft = {
+	kind: TreeCreateKind;
+	/** Absolute path of the parent directory (vault root or folder). */
+	parentPath: string;
+};
+
 /** One flattened, windowable tree row in display order. */
 export type FlatRow =
 	| { key: string; kind: "library" }

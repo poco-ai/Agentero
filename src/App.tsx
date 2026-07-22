@@ -163,7 +163,6 @@ import {
 	ensureVault,
 	type FileNode,
 	getRecentVaults,
-	getSavedVaultPath,
 	isMarkdownPath,
 	isValidVaultEntryName,
 	joinVaultPath,
@@ -200,11 +199,18 @@ import {
 	updateBackgroundTask,
 } from "@/stores/background-tasks-store";
 import { closeTopOverlay } from "@/stores/overlay-store";
+import { saveSettings, useSettings } from "@/stores/settings-store";
 import {
-	loadSettings,
-	saveSettings,
-	useSettings,
-} from "@/stores/settings-store";
+	getVaultState,
+	initializeVaultStore,
+	setCreateDraft,
+	setRecentVaults,
+	setTree,
+	setTreeLoading,
+	setTreeSelectedPath,
+	setVaultPath,
+	useVaultState,
+} from "@/stores/vault-store";
 
 export default function App() {
 	const { t } = useTranslation(["app", "sidebar", "editor"]);
@@ -216,28 +222,25 @@ export default function App() {
 	const settingsOpenRef = useRef(settingsOpen);
 	settingsOpenRef.current = settingsOpen;
 
-	const [vaultPath, setVaultPath] = useState<string | null>(() => {
-		if (!isTauri()) return null;
-		return getSavedVaultPath({
-			allowRestore: loadSettings().restoreLastVault,
-		});
+	// Vault state lives in the Zustand vault-store; seed it once during the first
+	// render (after boot() hydrated settings) so restore-last-vault is honored,
+	// then read the live slice.
+	useState(() => {
+		initializeVaultStore();
+		return null;
 	});
-	const [tree, setTree] = useState<FileNode[]>([]);
-	const [treeLoading, setTreeLoading] = useState(() => Boolean(vaultPath));
+	const {
+		vaultPath,
+		tree,
+		treeLoading,
+		treeSelectedPath,
+		createDraft,
+		recentVaults,
+	} = useVaultState();
 	/** Open documents in the center tab strip (browser-style multi-tab). */
 	const [tabs, setTabs] = useState<DocTab[]>([]);
 	const [activeTabId, setActiveTabId] = useState<string | null>(null);
-	/**
-	 * File-tree selection / create-parent context. Follows the active document,
-	 * but a folder create can point it at a folder without opening a tab.
-	 */
-	const [treeSelectedPath, setTreeSelectedPath] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
-	/** Inline new file/folder draft in the tree (IDE-style). */
-	const [createDraft, setCreateDraft] = useState<TreeCreateDraft | null>(null);
-	const [recentVaults, setRecentVaults] = useState<string[]>(() =>
-		getRecentVaults(),
-	);
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 	const [libraryPapers, setLibraryPapers] = useState<PaperMetadata[]>([]);
 	const [libraryLoading, setLibraryLoading] = useState(false);
@@ -349,11 +352,7 @@ export default function App() {
 
 	const paperFoldersRef = useRef(paperFolders);
 	paperFoldersRef.current = paperFolders;
-	const treeRef = useRef(tree);
-	treeRef.current = tree;
-	const vaultPathRef = useRef(vaultPath);
 	const connectorProgressTasksRef = useRef(new Map<string, string>());
-	vaultPathRef.current = vaultPath;
 	/** Invalidates in-flight tree loads when the active Vault changes. */
 	const treeLoadGenerationRef = useRef(0);
 	const restoredVaultPathRef = useRef(vaultPath);
@@ -383,7 +382,11 @@ export default function App() {
 		let cancelled = false;
 		void authorizeVault(restoredPath)
 			.then((pathExists) => {
-				if (cancelled || pathExists || vaultPathRef.current !== restoredPath) {
+				if (
+					cancelled ||
+					pathExists ||
+					getVaultState().vaultPath !== restoredPath
+				) {
 					return;
 				}
 				saveVaultPath(null);
@@ -427,8 +430,8 @@ export default function App() {
 			void (async () => {
 				const res = await loadTabResources(
 					path,
-					vaultPathRef.current,
-					treeRef.current,
+					getVaultState().vaultPath,
+					getVaultState().tree,
 					paperFoldersRef.current,
 				);
 				if (res.error) {
@@ -453,13 +456,13 @@ export default function App() {
 					loaded: true,
 				});
 				// Auto-download for preview may have written local PDF — refresh tree icons
-				const vault = vaultPathRef.current;
+				const vault = getVaultState().vaultPath;
 				if (res.didDownloadAssets && vault) {
 					const generation = treeLoadGenerationRef.current;
 					try {
 						const nodes = await loadVaultTree(vault);
 						if (
-							vaultPathRef.current === vault &&
+							getVaultState().vaultPath === vault &&
 							treeLoadGenerationRef.current === generation
 						) {
 							setTree(nodes);
@@ -483,7 +486,7 @@ export default function App() {
 			);
 			if (!removed) return prev;
 			revokeTabPdfSource(removed);
-			if (tabs.length === 0 && vaultPathRef.current) {
+			if (tabs.length === 0 && getVaultState().vaultPath) {
 				const ensured = ensureFullLibraryTab([]);
 				setActiveTabId(ensured.activeId);
 				return ensured.tabs;
@@ -509,7 +512,7 @@ export default function App() {
 			);
 			if (!removed.length) return prev;
 			for (const t of removed) revokeTabPdfSource(t);
-			if (tabs.length === 0 && vaultPathRef.current) {
+			if (tabs.length === 0 && getVaultState().vaultPath) {
 				const ensured = ensureFullLibraryTab([]);
 				setActiveTabId(ensured.activeId);
 				setPdfHighlightsByTab((prevHl) => {
@@ -720,7 +723,7 @@ export default function App() {
 	// Restore the previous window's open tabs once on mount (per-window session).
 	// biome-ignore lint/correctness/useExhaustiveDependencies: mount-only restore
 	useEffect(() => {
-		if (!isTauri() || !vaultPathRef.current) return;
+		if (!isTauri() || !getVaultState().vaultPath) return;
 		const persisted = loadPersistedTabs();
 		if (!persisted?.tabs.length) {
 			// No saved layout → default page is full Library.
@@ -1004,14 +1007,14 @@ export default function App() {
 	}, [pdfZenMode, activeTab, exitPdfZen]);
 
 	const refreshTree = useCallback(async (path: string) => {
-		if (vaultPathRef.current !== path) return;
+		if (getVaultState().vaultPath !== path) return;
 		const generation = treeLoadGenerationRef.current;
 		setTreeLoading(true);
 		setBusy(true);
 		try {
 			const nodes = await loadVaultTree(path);
 			if (
-				vaultPathRef.current === path &&
+				getVaultState().vaultPath === path &&
 				treeLoadGenerationRef.current === generation
 			) {
 				setTree(nodes);
@@ -1019,7 +1022,7 @@ export default function App() {
 		} catch (e) {
 			const message = e instanceof Error ? e.message : String(e);
 			if (
-				vaultPathRef.current === path &&
+				getVaultState().vaultPath === path &&
 				treeLoadGenerationRef.current === generation
 			) {
 				notifyError(message);
@@ -1027,7 +1030,7 @@ export default function App() {
 			}
 		} finally {
 			if (
-				vaultPathRef.current === path &&
+				getVaultState().vaultPath === path &&
 				treeLoadGenerationRef.current === generation
 			) {
 				setTreeLoading(false);
@@ -1041,20 +1044,20 @@ export default function App() {
 	 * Eager roots (`papers/` …) are fully loaded in `loadVaultTree`.
 	 */
 	const handleLoadDirChildren = useCallback(async (dirPath: string) => {
-		const vault = vaultPathRef.current;
+		const vault = getVaultState().vaultPath;
 		if (!vault) return;
 		const generation = treeLoadGenerationRef.current;
 		try {
 			const children = await listVaultDirChildren(vault, dirPath);
 			if (
-				vaultPathRef.current === vault &&
+				getVaultState().vaultPath === vault &&
 				treeLoadGenerationRef.current === generation
 			) {
 				setTree((prev) => replaceTreeNodeChildren(prev, dirPath, children));
 			}
 		} catch (e) {
 			if (
-				vaultPathRef.current === vault &&
+				getVaultState().vaultPath === vault &&
 				treeLoadGenerationRef.current === generation
 			) {
 				notifyError(e instanceof Error ? e.message : String(e));
@@ -1141,13 +1144,13 @@ export default function App() {
 		if (treeRefreshTimerRef.current) clearTimeout(treeRefreshTimerRef.current);
 		treeRefreshTimerRef.current = setTimeout(() => {
 			treeRefreshTimerRef.current = null;
-			const vault = vaultPathRef.current;
+			const vault = getVaultState().vaultPath;
 			if (!vault) return;
 			const generation = treeLoadGenerationRef.current;
 			void loadVaultTree(vault)
 				.then((nodes) => {
 					if (
-						vaultPathRef.current === vault &&
+						getVaultState().vaultPath === vault &&
 						treeLoadGenerationRef.current === generation
 					) {
 						setTree(nodes);
@@ -1169,7 +1172,7 @@ export default function App() {
 		if (wikiRebuildTimerRef.current) clearTimeout(wikiRebuildTimerRef.current);
 		wikiRebuildTimerRef.current = setTimeout(() => {
 			wikiRebuildTimerRef.current = null;
-			const vault = vaultPathRef.current;
+			const vault = getVaultState().vaultPath;
 			if (!vault) return;
 			void rebuildWikiRef.current(vault);
 		}, 900);
@@ -1205,7 +1208,7 @@ export default function App() {
 			setTree([]);
 			setTreeLoading(true);
 			// Tear down previous remote session so work catalogs are flushed.
-			const prev = vaultPathRef.current;
+			const prev = getVaultState().vaultPath;
 			if (prev && isRemoteVaultHandle(prev) && prev !== path) {
 				const prevId = remoteSessionIdFromHandle(prev);
 				if (prevId) {
@@ -1255,7 +1258,7 @@ export default function App() {
 				const skills = seededSkillIdsFromCreated(result.created);
 				if (skills.length === 0) return;
 				// Path may have changed while ensure was in flight.
-				if (vaultPathRef.current !== path) return;
+				if (getVaultState().vaultPath !== path) return;
 				notifySuccess(
 					t("vault.skillsSeeded", {
 						count: skills.length,
@@ -1408,9 +1411,9 @@ export default function App() {
 					notifyError(st.lastError);
 				}
 				// After the HTTP server starts, re-bind vault (Host may have been unbound).
-				if (settings.connectorEnabled && vaultPathRef.current) {
+				if (settings.connectorEnabled && getVaultState().vaultPath) {
 					try {
-						await connectorSetVault(vaultPathRef.current);
+						await connectorSetVault(getVaultState().vaultPath);
 					} catch (e) {
 						console.warn("[connector] re-bind vault after enable failed", e);
 					}
@@ -1792,7 +1795,7 @@ export default function App() {
 			unsubs.push(
 				await listen<ConnectorItemSaved>("connector:item-saved", (ev) => {
 					const p = ev.payload;
-					const vault = vaultPathRef.current;
+					const vault = getVaultState().vaultPath;
 					if (vault) {
 						void refreshTree(vault);
 						void refreshLibrary();
@@ -2772,7 +2775,7 @@ export default function App() {
 		(folderAbs: string) => {
 			const abs = folderAbs.replace(/\\/g, "/").replace(/\/+$/, "");
 			setTreeSelectedPath(abs);
-			const vault = vaultPathRef.current;
+			const vault = getVaultState().vaultPath;
 			const rel = vault
 				? toVaultRelative(vault, abs)
 						.replace(/\\/g, "/")
