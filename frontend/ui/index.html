@@ -168,6 +168,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
+                  </li>
               </ul>
       </div>
     </div>
@@ -536,7 +538,7 @@
 <li><strong>数据</strong>：Host <code>paper_list</code> → catalog.sqlite。<strong>catalog 权威</strong>；空态「重新扫描 papers/」（<code>paper_rescan</code>）。</li>
 <li><strong>打开文档加载态</strong>：论文、PDF、HTML 或 Markdown tab 资源尚未加载完成时显示内容 shimmer 骨架；不显示论文库空态。</li>
 <li><strong>列</strong>：标题、作者、年份、<strong>标签</strong>、类型、标识符；<strong>单击</strong>单元格复制对应字段（作者复制完整列表，非 et al. 缩写；标题下出版物单独可复制；行内标签 chip 复制该标签；复制<strong>短延迟提交</strong>，双击打开论文时取消，避免与双击冲突）；<strong>双击</strong>行打开对应 paper 文件夹。</li>
-<li><strong>列自定义</strong>（顺序 + 显隐）：<strong>右键表头</strong>弹出上下文菜单勾选显示/隐藏列；<strong>拖拽表头</strong> <code>&lt;th&gt;</code> 改变列顺序（拖拽时列半透明、落点高亮）；菜单底部「重置列」恢复默认。<strong>标题列不可隐藏</strong>（承载阅读热力与出版物副标题，勾选框禁用且 normalize 强制可见）。布局持久化到 <code>settings.json</code> 的 <code>libraryColumns</code>（<code>LibraryColumnPref[] = {key, visible}[]</code>，数组顺序即显示顺序），前后端均 reconcile（去重、丢未知 key、补新列为可见、强制 title 可见）。实现：<code>COLUMN_META</code> + <code>renderCell</code> 按 key 渲染；右键菜单基于 <code>src/components/ui/context-menu.tsx</code>（radix <code>ContextMenu</code>）。</li>
+<li><strong>列自定义</strong>（顺序 + 显隐）：<strong>右键表头</strong>弹出上下文菜单勾选显示/隐藏列；<strong>拖拽表头</strong> <code>&lt;th&gt;</code> 改变列顺序（拖拽时列半透明、落点高亮）；菜单底部「重置列」恢复默认。<strong>标题列不可隐藏</strong>（承载阅读热力与出版物副标题，勾选框禁用且 normalize 强制可见）；表格使用固定布局和各列固定权重，标题列约占 32%，标题正文单行显示，超出以省略号截断，悬浮仍可查看完整标题。布局持久化到 <code>settings.json</code> 的 <code>libraryColumns</code>（<code>LibraryColumnPref[] = {key, visible}[]</code>，数组顺序即显示顺序），前后端均 reconcile（去重、丢未知 key、补新列为可见、强制 title 可见）。实现：<code>COLUMN_META</code> + <code>colgroup</code> + <code>renderCell</code> 按 key 渲染；右键菜单基于 <code>src/components/ui/context-menu.tsx</code>（radix <code>ContextMenu</code>）。</li>
 <li><strong>阅读热力（标题背景）</strong>：聚合该篇 <code>marks/</code>（<code>kind</code>: highlight / ask / translate）的<strong>页码 + 页内 y</strong>，画成<strong>标题文字横向背景脊条</strong>（左=文首、右=文末；局部深浅=该位置交互强度）。颜色为 <strong>Apple system green</strong> 浅色洗（<code>oklch(0.65 0.17 145)</code> ≈ <code>#34C759</code>，与标签 green 同系，低比例 <code>color-mix</code> 保持浅色不抢眼）。悬停标题可看高亮 / 对话 / 翻译分项。可选 <code>reading-meta.json</code> 记录 PDF 总页数以对齐全文跨度。实现：<code>src/lib/reading-heatmap/</code>、<code>ReadingTitleHeat</code>。</li>
 <li><strong>标签筛选</strong>：表上方汇总<strong>当前作用域</strong> tag chip 做筛选；行内 tag 单击复制该标签。标题搜索同时匹配 tag 子串。</li>
 <li><strong>排序</strong>：点击表头升序 / 降序；年份列首次为降序；文字列默认升序。</li>
@@ -822,7 +824,7 @@
 </tr>
 <tr>
 <td>输入</td>
-<td>单层 Composer：当前聚焦论文/文件<strong>默认</strong>加入上下文（实心 chip + 名称，可 X 移除；无虚线加号切换）；chip 展示 <strong>paper-name / 文件名</strong>（最后一段路径或 catalog 论文标题），tooltip 与 prompt 仍用 Vault 相对路径；<code>@</code> 文件提及和 <code>$</code> 本机技能为可移除 context chip；候选列表支持 <code>↑</code> / <code>↓</code>、<code>Enter</code>，当前项仅使用背景高亮；文字与 context chip 按 Vault、Agent、session 独立持久化，发送成功后清空该 session 已发送的一次性 <code>@</code>/<code>$</code> 上下文（当前论文保持默认附带）；发送按钮与 <code>↵</code> 均可提交，输出期间按钮和 <code>Esc</code> 均可中止，<code>⇧↵</code> 换行；Agent 输出期间仍可编辑下一条输入；底栏空闲时使用主要色，仅存在正在输出的 Agent 消息时切换为次要色，Fast 的启用色保持不变；<code>/</code> 文本原样透传给 ACP Agent</td>
+<td>单层 Composer：当前聚焦论文/文件<strong>默认</strong>加入上下文（实心 chip + 名称，可 X 移除；无虚线加号切换）；chip 展示 <strong>paper-name / 文件名</strong>（最后一段路径或 catalog 论文标题），tooltip 与 prompt 仍用 Vault 相对路径；<code>@</code> 文件提及和 <code>$</code> 本机技能为可移除 context chip；候选列表支持 <code>↑</code> / <code>↓</code>、<code>Enter</code>，当前项仅使用背景高亮；文字与 context chip 按 Vault、Agent、session 独立持久化，发送成功后清空该 session 已发送的一次性 <code>@</code>/<code>$</code> 上下文（当前论文保持默认附带）；发送按钮与 <code>↵</code> 均可提交，输出期间按钮和 <code>Esc</code> 均可中止，<code>⇧↵</code> 换行；<strong>IME 组字中 <code>↵</code> 只确认候选、不发送</strong>（见 <a href="../../bug_fix/ime-composition-enter-submit/"><code>../bug_fix/ime-composition-enter-submit.md</code></a>）；Agent 输出期间仍可编辑下一条输入；底栏空闲时使用主要色，仅存在正在输出的 Agent 消息时切换为次要色，Fast 的启用色保持不变；<code>/</code> 文本原样透传给 ACP Agent</td>
 </tr>
 <tr>
 <td>业务壳</td>
@@ -854,7 +856,7 @@ PromptInput → Body / Footer / Submit
 </code></pre>
 
 <p><strong>Agent 切换</strong>：顶栏左侧当前 ACP 后端名打开下拉（列表来自 catalog + 注册表）；选择后设为默认并用于后续 <code>runOnce</code>。下拉 <strong>「ACP backend」标题行最右侧</strong> 齿轮（<code>Settings</code>）→ <strong>设置 → Agent</strong>（<code>onOpenAgentSettings</code>）。</p>
-<p><strong>消息编辑与重发</strong>：会话空闲时（发送成功、停止或失败后）hover 已发送的用户消息会显示 <strong>Edit（铅笔）</strong> 与 <strong>Copy</strong> 两个图标按钮；运行中不显示 Edit，须先按 <code>Esc</code> / 点击停止。点击 Edit 就地把气泡替换为文本框（<code>↵</code> 重新发送、<code>⇧↵</code> 换行、<code>Esc</code> 取消），重发时会丢弃<strong>该消息及其之后的所有内容</strong>（旧回答 / 被中断的运行）并以新文本发起一次全新的 turn，用于修正发错的输入。切换会话 / 标签 / 新建对话会自动取消未完成的编辑。（重发沿用普通发送的 session 续接规则：有 <code>sessionId</code> 时经 ACP <code>session/resume</code> 续接，可见转录被截断但 Agent 侧会话记忆不随之回退。）</p>
+<p><strong>消息编辑与重发</strong>：会话空闲时（发送成功、停止或失败后）hover 已发送的用户消息会显示 <strong>Edit（铅笔）</strong> 与 <strong>Copy</strong> 两个图标按钮；运行中不显示 Edit，须先按 <code>Esc</code> / 点击停止。点击 Edit 就地把气泡替换为文本框（<code>↵</code> 重新发送、<code>⇧↵</code> 换行、<code>Esc</code> 取消；<strong>IME 组字中 <code>↵</code> 不重发</strong>，见 <a href="../../bug_fix/ime-composition-enter-submit/">IME composition race</a>），重发时会丢弃<strong>该消息及其之后的所有内容</strong>（旧回答 / 被中断的运行）并以新文本发起一次全新的 turn，用于修正发错的输入。切换会话 / 标签 / 新建对话会自动取消未完成的编辑。（重发沿用普通发送的 session 续接规则：有 <code>sessionId</code> 时经 ACP <code>session/resume</code> 续接，可见转录被截断但 Agent 侧会话记忆不随之回退。）</p>
 <p><strong>会话标签</strong>：运行中的 Agent session 不会锁定标签栏。用户可随时切换并查看其它已打开的会话，也可在新会话中发起独立运行；同一 session 在运行期间保持只读，避免重入。流式消息、工具调用和最终状态仍只写回它们所属的 session。</p>
 <p><strong>上下文提及</strong>：Composer <strong>默认附带</strong>当前聚焦的论文单元（文件在 paper 内时解析为 paper 文件夹）或其它打开的 Vault 路径，无需点击加号；chip 标签为 <strong>虚拟名称</strong>（论文优先 catalog 标题，否则路径最后一段 / paper-name），完整 Vault 相对路径仅作 tooltip 与发送给 Agent 的引用。输入 <code>@</code> 打开候选菜单：候选为 <strong>论文文件夹 + 其它目录 + paper 外 Markdown</strong>（paper 内 <code>NOTES.md</code> 等折叠为 paper 单元）；<strong>空 <code>@</code></strong> 优先展示最近选用路径与浅层目录树（depth ≤ 2）；行右侧 <strong>›</strong> 可进入子目录（论文单元为叶子、不可再下钻；顶部 ‹ 或 <code>←</code> / <code>Esc</code> 返回上级）；输入关键字按路径或论文显示名筛选。论文候选标签与文件树一致（设置 → 通用 <code>paperTreeLabelMode</code>：标题 · 作者等）。从左侧文件树<strong>拖入</strong>文件/文件夹到输入区同样解析为 chip（<code>text/plain</code> 路径 → <code>mentionedPaths</code>，不插入纯文本路径）。Chip 图标按路径类型选择（<code>src/lib/context-path-icon.ts</code>）：<strong>论文文件夹</strong>用 <code>ScrollText</code>（与文件树 paper 行一致，依据 marker 收集的 <code>vaultPaperPaths</code>）；<strong>其它文件夹</strong>用 <code>Folder</code>；<strong>文件</strong>按扩展名（PDF / 图片 / 代码 / Markdown 等）。发送时 Agentero 将这些 Vault 相对路径追加到 prompt，并将第一个路径传为 <code>target</code>，Agent 仍按自身权限读取文件。</p>
 <blockquote>

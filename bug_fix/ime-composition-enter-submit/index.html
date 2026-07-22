@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>输入法组字 Enter 误发送 - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u8f93\u5165\u6cd5\u7ec4\u5b57 Enter \u8bef\u53d1\u9001";
+        var mkdocs_page_input_path = "bug_fix/ime-composition-enter-submit.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">用户指南</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/">使用指南</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/getting-started/">安装与首次使用</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/import-papers/">导入和管理论文</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/read-and-organize/">阅读、标注与整理</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/agents/">接入 Agent</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/zotero/">使用 Zotero Connector</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/remote-vault/">打开远程 Vault</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/github-project/">GitHub Project</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">输入法组字 Enter 误发送</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 问题现象</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 根因</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#21-enter">2.1 Enter 在组字中的语义</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#22-iscomposing">2.2 仅检查 isComposing 不够</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#23-keycode-229">2.3 遗留信号 keyCode === 229</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#24-onkeydown">2.4 外部 onKeyDown 顺序</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 解决方案</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31">3.1 共享检测与宽限</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32">3.2 接入点</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#33">3.3 预期交互</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4">4. 验收建议</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 边界</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6">6. 参考</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Bug 修复记录</li>
+      <li class="breadcrumb-item active">输入法组字 Enter 误发送</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/bug_fix/ime-composition-enter-submit.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="enter-ime-composition-race">输入法组字时 Enter 误发送（IME composition race）<a class="headerlink" href="#enter-ime-composition-race" title="Permanent link">&para;</a></h1>
+<p><strong>状态</strong>：已修复（<code>isComposing</code> + <code>keyCode 229</code> + compositionend 宽限）<br />
+<strong>影响面</strong>：Agent Composer、消息编辑重发、PDF 批注内联编辑器、划词提问输入<br />
+<strong>相关代码</strong>：</p>
+<ul>
+<li><code>src/lib/ime.ts</code> — <code>isImeKeyboardEvent</code>、<code>IME_KEY_CODE</code>（229）、<code>IME_COMPOSITION_END_GRACE_MS</code></li>
+<li><code>src/hooks/use-ime-guard.ts</code> — composition 状态 + 确认键宽限</li>
+<li><code>src/components/ai-elements/prompt-input.tsx</code> — <code>PromptInputTextarea</code> Enter 提交守卫</li>
+<li><code>src/components/layout/agent-panel.tsx</code> — <code>@</code>/<code>$</code> 菜单 Enter、消息编辑重发</li>
+<li><code>src/components/viewer/pdf-ask/annotation-editor.tsx</code> — 批注 Enter 保存</li>
+<li><code>test/ime.test.ts</code> — 单元测试</li>
+</ul>
+<hr />
+<h2 id="1">1. 问题现象<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>在 Agent 输入框（或其它用 Enter 提交的文本框）里用<strong>中文 / 日文 / 韩文等输入法</strong>打字时：</p>
+<ol>
+<li>拼音或组字候选尚未确认上屏；</li>
+<li>用户按 <strong>Enter</strong> 本意是<strong>确认候选</strong>；</li>
+<li>应用却立刻把当前内容当作消息<strong>发送</strong>出去。</li>
+</ol>
+<p>用户侧观感：输入法还没结束，消息已经发出去了。</p>
+<p>常见英文叫法：<strong>IME composition race</strong> / <strong>Enter during composition</strong>。</p>
+<hr />
+<h2 id="2">2. 根因<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="21-enter">2.1 Enter 在组字中的语义<a class="headerlink" href="#21-enter" title="Permanent link">&para;</a></h3>
+<p>IME 组字期间，<code>Enter</code> 的默认语义是<strong>确认当前候选并上屏</strong>，不是「提交表单 / 发送消息」。<br />
+应用在 <code>keydown</code> 里无条件对 <code>Enter</code> 调用 <code>requestSubmit()</code> 或业务发送逻辑，就会抢在输入法之前（或与之竞态）触发提交。</p>
+<h3 id="22-iscomposing">2.2 仅检查 <code>isComposing</code> 不够<a class="headerlink" href="#22-iscomposing" title="Permanent link">&para;</a></h3>
+<p>常见写法：</p>
+<pre class="codehilite"><code class="language-ts">if (e.key === &quot;Enter&quot;) {
+  if (e.nativeEvent.isComposing) return;
+  form.requestSubmit();
+}
+</code></pre>
+
+<p>在多数浏览器上组字过程中 <code>isComposing === true</code> 可以挡住提交。但在 <strong>macOS + 部分 IME / WebView（含 Tauri）</strong> 上，确认候选时常出现：</p>
+<pre class="codehilite"><code class="language-text">compositionend   →  isComposing 已变为 false
+keydown Enter    →  处理器仍把这次 Enter 当成「发送」
+</code></pre>
+
+<p>即 <strong><code>compositionend</code> 先于确认键的 <code>keydown</code></strong>。此时 React 状态里的 <code>isComposing</code> 和 <code>event.nativeEvent.isComposing</code> 可能都已是 <code>false</code>，单靠该标志会漏判。</p>
+<h3 id="23-keycode-229">2.3 遗留信号 <code>keyCode === 229</code><a class="headerlink" href="#23-keycode-229" title="Permanent link">&para;</a></h3>
+<p>浏览器在 IME 处理按键时，历史上会把 <code>keyCode</code> / <code>which</code> 设为 <strong>229</strong>（<code>IME_KEY_CODE</code>）。<br />
+确认键有时仍带 229，可作为补充信号；不能单独依赖，需与 composition 状态、宽限一起用。</p>
+<h3 id="24-onkeydown">2.4 外部 <code>onKeyDown</code> 顺序<a class="headerlink" href="#24-onkeydown" title="Permanent link">&para;</a></h3>
+<p><code>PromptInputTextarea</code> 原先先调用外部 <code>onKeyDown</code>（如 Agent <code>@</code> / <code>$</code> 菜单），再判断 IME。<br />
+菜单若在组字确认时抢 <code>Enter</code> 做「选中提及」，同样会误操作。修复后：<strong>先</strong> IME 守卫，再交给外部 handler / 内部 submit。</p>
+<hr />
+<h2 id="3">3. 解决方案<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31">3.1 共享检测与宽限<a class="headerlink" href="#31" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>isImeKeyboardEvent(event)</code></td>
+<td><code>isComposing</code>（自身或 <code>nativeEvent</code>）或 <code>keyCode</code>/<code>which</code> === 229</td>
+</tr>
+<tr>
+<td><code>IME_COMPOSITION_END_GRACE_MS</code>（约 100ms）</td>
+<td><code>compositionend</code> 后短窗口内仍视为「刚确认候选」，忽略 Enter 提交</td>
+</tr>
+<tr>
+<td><code>useImeGuard()</code></td>
+<td>维护 composition 状态 + 宽限时间戳；提供 <code>isBlockedByIme</code> 与 <code>compositionProps</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="32">3.2 接入点<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PromptInputTextarea</code></td>
+<td>组字 / 229 / 宽限内 <strong>不</strong> <code>requestSubmit</code>；Enter 在外部 handler <strong>之前</strong>拦截</td>
+</tr>
+<tr>
+<td>Agent <code>@</code> / <code>$</code> 菜单</td>
+<td>Enter 选择前 <code>isImeKeyboardEvent</code></td>
+</tr>
+<tr>
+<td>用户消息编辑重发</td>
+<td><code>useImeGuard</code>；组字中 Enter 不重发</td>
+</tr>
+<tr>
+<td>PDF 批注编辑器</td>
+<td>同上；组字中 Enter 不保存</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33">3.3 预期交互<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
+<ol>
+<li>组字中按 Enter → 仅确认输入法候选，<strong>不发送</strong>。  </li>
+<li>候选已上屏、未在组字 → Enter 照常发送（<code>Shift+Enter</code> 仍换行）。  </li>
+<li>宽限极短，正常连按两次 Enter（确认后再发）仍可用。</li>
+</ol>
+<hr />
+<h2 id="4">4. 验收建议<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Agent Composer：中文输入法组字中按 Enter，只上屏、不发送；再按一次 Enter 才发送。  </li>
+<li>打开 <code>@</code> 菜单时组字确认，不误选路径；<code>$</code> 技能菜单同理。  </li>
+<li>编辑已发送用户消息：组字中 Enter 不触发重发。  </li>
+<li>PDF 批注内联编辑器：组字中 Enter 不保存。  </li>
+<li>英文 / 无 IME 场景：Enter 发送、<code>Shift+Enter</code> 换行不变。  </li>
+<li><code>pnpm exec vitest run test/ime.test.ts</code> 通过。</li>
+</ol>
+<hr />
+<h2 id="5">5. 边界<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<ul>
+<li>宽限约 100ms：过短可能在极慢机器上仍误发；过长会拖慢「确认后立刻再按 Enter 发送」。当前值覆盖常见 macOS IME。  </li>
+<li>菜单 handler 不挂 composition 事件时，主要依赖 <code>isComposing</code> / 229；完整宽限由持有 <code>compositionProps</code> 的 textarea（如 PromptInput）负责。  </li>
+<li>其它自定义 <code>onKeyDown</code> 若自行处理 Enter，也应调用 <code>isImeKeyboardEvent</code> 或 <code>useImeGuard</code>，勿只抄 <code>!e.nativeEvent.isComposing</code>。  </li>
+<li>本修复不改变 ACP 发送协议，只约束前端快捷键语义。</li>
+</ul>
+<hr />
+<h2 id="6">6. 参考<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<ul>
+<li>UI 约定（Composer Enter / 换行）：<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §3.2  </li>
+<li>AI Elements Prompt Input：<a href="../../frontend/components/"><code>../frontend/components.md</code></a>  </li>
+<li>MDN：<a href="https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/isComposing"><code>KeyboardEvent.isComposing</code></a>、<a href="https://developer.mozilla.org/en-US/docs/Web/API/Element/compositionend_event"><code>compositionend</code></a>  </li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../acp-session-resume-id/" class="btn btn-neutral float-left" title="ACP 会话恢复 ID 错误"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+      <span><a href="../acp-session-resume-id/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
