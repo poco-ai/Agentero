@@ -2,8 +2,17 @@
 
 use crate::error::{map_err, ApiResult, AppError};
 use crate::services::catalog::papers::{self, PaperRecord};
+use crate::services::fs::{normalize_rel, path_escapes_root};
 use serde::Deserialize;
 use std::path::PathBuf;
+
+/// Normalize a vault-relative path argument and reject `..` traversal.
+fn rel_path_arg(raw: &str) -> Result<String, AppError> {
+    if path_escapes_root(raw) {
+        return Err(AppError::message("invalid path"));
+    }
+    Ok(normalize_rel(raw))
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,8 +40,10 @@ pub fn paper_get(args: PaperGetArgs) -> ApiResult<PaperRecord> {
         .map(str::trim)
         .filter(|s| !s.is_empty())
     {
-        let path = path.trim_matches('/').replace('\\', "/");
-        papers::get_by_path(&vault, &path)
+        match rel_path_arg(path) {
+            Ok(path) => papers::get_by_path(&vault, &path),
+            Err(e) => return map_err(e),
+        }
     } else if let Some(id) = args.id.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         papers::get_by_id(&vault, id)
     } else {
@@ -88,7 +99,10 @@ pub fn paper_delete(args: PaperDeleteArgs) -> ApiResult<PaperDeleteResult> {
     if !vault.is_dir() {
         return map_err(AppError::message("vault path is not a directory"));
     }
-    let path = args.path.trim().trim_matches('/').replace('\\', "/");
+    let path = match rel_path_arg(&args.path) {
+        Ok(p) => p,
+        Err(e) => return map_err(e),
+    };
     if path.is_empty() {
         return map_err(AppError::message("path is required"));
     }
@@ -114,7 +128,10 @@ pub fn paper_set_is_read(args: PaperSetIsReadArgs) -> ApiResult<PaperRecord> {
     if !vault.is_dir() {
         return map_err(AppError::message("vault path is not a directory"));
     }
-    let path = args.path.trim().trim_matches('/').replace('\\', "/");
+    let path = match rel_path_arg(&args.path) {
+        Ok(p) => p,
+        Err(e) => return map_err(e),
+    };
     if path.is_empty() {
         return map_err(AppError::message("path is required"));
     }
@@ -156,12 +173,8 @@ fn move_inner(args: PaperMoveArgs) -> Result<PaperMoveResult, AppError> {
     if !vault.is_dir() {
         return Err(AppError::message("vault path is not a directory"));
     }
-    let from = args.from_rel.trim().trim_matches('/').replace('\\', "/");
-    let dest_raw = args
-        .dest_parent_rel
-        .trim()
-        .trim_matches('/')
-        .replace('\\', "/");
+    let from = rel_path_arg(&args.from_rel)?;
+    let dest_raw = rel_path_arg(&args.dest_parent_rel)?;
     let dest_parent = if dest_raw.is_empty() {
         "papers".to_string()
     } else {
@@ -172,9 +185,6 @@ fn move_inner(args: PaperMoveArgs) -> Result<PaperMoveResult, AppError> {
     }
     if dest_parent != "papers" && !dest_parent.starts_with("papers/") {
         return Err(AppError::message("destination must be under papers/"));
-    }
-    if from.contains("..") || dest_parent.contains("..") {
-        return Err(AppError::message("invalid path"));
     }
     // Reject moving a folder into itself or its own descendant.
     if dest_parent == from || dest_parent.starts_with(&format!("{from}/")) {
@@ -219,7 +229,10 @@ pub fn paper_set_tags(args: PaperSetTagsArgs) -> ApiResult<PaperRecord> {
     if !vault.is_dir() {
         return map_err(AppError::message("vault path is not a directory"));
     }
-    let path = args.path.trim().trim_matches('/').replace('\\', "/");
+    let path = match rel_path_arg(&args.path) {
+        Ok(p) => p,
+        Err(e) => return map_err(e),
+    };
     if path.is_empty() {
         return map_err(AppError::message("path is required"));
     }
