@@ -324,8 +324,8 @@
 <td>欢迎页 / 侧栏对话框</td>
 <td><code>migrate_zotero</code></td>
 <td><code>zotero.sqlite</code> → <code>map_zotero_item</code></td>
-<td>可选 <strong>拷贝 storage PDF</strong></td>
-<td>对话框进度 + 刷新；<strong>不逐篇 open</strong></td>
+<td>可选 <strong>拷贝 storage PDF</strong>；迁移后批量对 PDF-only 论文运行 liteparse</td>
+<td>对话框进度 + 左下角后台任务显示解析进度；<strong>不逐篇 open</strong></td>
 </tr>
 <tr>
 <td>6</td>
@@ -693,7 +693,7 @@ Download / saveAttachment → paper_attach_assets（结果字段对齐 commit）
 <tr>
 <td>Zotero 迁移</td>
 <td>sqlite 读 + collection path + storage PDF</td>
-<td><code>CopyPdf</code> / <code>None</code> + notes blocks</td>
+<td><code>CopyPdf</code> / <code>None</code> + notes blocks；迁移后对无 TeX 的 PDF 批量 liteparse</td>
 </tr>
 <tr>
 <td>CLI</td>

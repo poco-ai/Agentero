@@ -121,6 +121,8 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#22-agent">2.2 Agent 友好原则（核心）</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#23-desktop-agent-prompt-policy">2.3 Desktop Agent prompt policy</a>
+    </li>
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#3">3. 能力边界</a>
@@ -444,6 +446,19 @@
 5. 入库: agentero import id &lt;arxiv|doi|url&gt; --json
 </code></pre>
 
+<h3 id="23-desktop-agent-prompt-policy">2.3 Desktop Agent prompt policy<a class="headerlink" href="#23-desktop-agent-prompt-policy" title="Permanent link">&para;</a></h3>
+<p>Agentero's built-in Agent panel injects this policy into every workflow, even
+when the user has not explicitly selected the <code>agentero-cli</code> skill:</p>
+<ul>
+<li>Add/import a paper: <code>agentero import id &lt;arxiv|doi|url&gt; --json</code>.</li>
+<li>Download paper assets: <code>agentero paper download &lt;path|id&gt; --json</code>.</li>
+<li>Generate fallback text: <code>agentero paper parse &lt;path|id&gt; --json</code>.</li>
+<li>Discover or update catalog metadata: <code>paper list|get|paths</code>, <code>paper tag</code>, and
+  <code>paper set-read</code>, all with <code>--json</code>.</li>
+</ul>
+<p>The Agent must use returned paths for Markdown/source reading and note editing;
+it must not manually create paper directories or modify catalog data. If the
+binary is unavailable, it reports that fact and falls back to Vault files.</p>
 <hr />
 <h2 id="3">3. 能力边界<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
 <h3 id="31-cli">3.1 纳入 CLI（基础能力）<a class="headerlink" href="#31-cli" title="Permanent link">&para;</a></h3>

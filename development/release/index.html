@@ -5,14 +5,14 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>iPadOS App 上架要求 - Agentero 文档</title>
+    <title>发布流程与 iPadOS App 上架要求 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
     
       <script>
         // Current page data
-        var mkdocs_page_name = "iPadOS App \u4e0a\u67b6\u8981\u6c42";
+        var mkdocs_page_name = "\u53d1\u5e03\u6d41\u7a0b\u4e0e iPadOS App \u4e0a\u67b6\u8981\u6c42";
         var mkdocs_page_input_path = "development/release.md";
         var mkdocs_page_url = null;
       </script>
@@ -141,7 +141,7 @@
         <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
     <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
-      <li class="breadcrumb-item active">iPadOS App 上架要求</li>
+      <li class="breadcrumb-item active">发布流程与 iPadOS App 上架要求</li>
     <li class="wy-breadcrumbs-aside">
           <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/release.md">Edit on poco-ai/agentero</a>
     </li>
@@ -151,12 +151,23 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="ipados-app">iPadOS App 上架要求<a class="headerlink" href="#ipados-app" title="Permanent link">&para;</a></h1>
+                <h1 id="ipados-app">发布流程与 iPadOS App 上架要求<a class="headerlink" href="#ipados-app" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p>调研日期：2026-07-21<br />
 适用场景：将基于 iPadOS 的 App 提交到 Apple App Store，并为“启航”赛道准备可验证的上架或 TestFlight 版本。<br />
 说明：Apple 的审核规则和上传要求会持续更新，正式提交前应再次检查官方页面。</p>
 </blockquote>
+<h2 id="agentero-desktopcli">Agentero Desktop/CLI 版本发布<a class="headerlink" href="#agentero-desktopcli" title="Permanent link">&para;</a></h2>
+<p>桌面安装包由 Tauri 配置和 Rust package 版本决定，CLI 归档文件名由发布 tag 决定。因此发布时不能只创建 <code>v*</code> tag，必须先同步版本并提交。</p>
+<p>推荐流程：</p>
+<ol>
+<li>执行 <code>/bump &lt;version&gt;</code>，同步检查 <code>package.json</code>、<code>src-tauri/tauri.conf.json</code>、<code>src-tauri/Cargo.toml</code>、<code>cli/Cargo.toml</code> 和 <code>Cargo.lock</code>。</li>
+<li>执行 <code>/commit</code>，将版本 bump 作为独立的 <code>chore(release): bump version to &lt;version&gt;</code> commit。</li>
+<li>确认 tag <code>v&lt;version&gt;</code> 指向该版本 bump commit，且 tag 去掉 <code>v</code> 后与所有版本字段一致。</li>
+<li>推送 tag，等待 <code>.github/workflows/release.yml</code> 构建 Tauri installers 和 CLI artifacts。</li>
+<li>发布前确认桌面安装包、应用内版本、CLI <code>--version</code> 和 CLI 文件名没有混用不同版本。</li>
+</ol>
+<p><code>/bump</code> 和 <code>/commit</code> 默认只修改工作区或创建本地 commit，不会自动创建 tag、push 或发布 Release。</p>
 <h2 id="1">1. 结论先看<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <p>要把 App 上架到 iPadOS，至少需要完成以下事项：</p>
 <ul>

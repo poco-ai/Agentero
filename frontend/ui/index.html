@@ -311,6 +311,7 @@
 <li><strong>显示时机</strong>：<strong>有任务时</strong>才出现；全部结束后约 4s 自动消失。</li>
 <li><strong>收起态</strong>：一条状态条——转圈 / 完成勾 + 当前任务标题或「N 个进行中」+ 进度条；点击展开/收起。</li>
 <li><strong>展开态</strong>：任务列表（队列序号、标题、详情、进度）；可清除已完成项。</li>
+<li><strong>取消</strong>：进行中的任务行显示取消图标；点击后任务进入「已取消」状态。下载会中止当前读取流，批量任务和 Agent 工作流在安全检查点停止；取消不显示失败 Toast。</li>
 <li><strong>外观</strong>：<code>bg-popover</code> 实底 + 边框阴影；<strong>hover 使用实色 <code>hover:bg-accent</code></strong>（禁止 <code>accent/40</code> 等半透明，避免底下内容透出）。</li>
 <li><strong>接入任务</strong>：单篇下载、批量下载、魔棒入库、文献库导入/导出、<strong>paper-reader 精读</strong>、<strong>Zotero Connector 附件下载</strong>等长操作经 <code>runBackgroundTask</code> / <code>startBackgroundTask</code> 登记（<code>kind</code> 含 <code>download</code> | <code>downloadAll</code> | <code>lookup</code> | <code>import</code> | <code>export</code> | <code>paperRead</code> | <code>connector</code> | …）。</li>
 <li><strong>进度语义</strong>：下载任务在 Host 读取响应流时按实际 <code>downloaded_bytes / total_bytes</code> 更新；服务端未返回 <code>Content-Length</code> 时显示不确定进度，不显示估算百分比。批量下载 / Zotero 迁移使用实际完成项目数。查询、解析、刷新、Connector 和 paper-reader 仅在有真实百分比来源时显示百分比，否则显示状态文本与不确定进度；失败时 error 写入任务条。</li>
