@@ -151,6 +151,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -200,9 +202,11 @@
 <h2 id="1">1. 主题与设计系统<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>基础组件</strong>：以 <a href="https://ui.shadcn.com/">shadcn/ui</a> 为规范（<code>components.json</code> → <code>style: radix-nova</code>，<code>baseColor: neutral</code>，CSS variables）。</li>
-<li><strong>主题</strong>：tweakcn <strong>modern-minimal</strong>（覆盖 token，不另起皮肤）：
-  <code>bash
-  pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/modern-minimal.json</code></li>
+<li><strong>主题</strong>：tweakcn <strong>modern-minimal</strong>（覆盖 token，不另起皮肤）：</li>
+</ul>
+<p><code>bash
+  pnpm dlx shadcn@latest add https://tweakcn.com/r/themes/modern-minimal.json</code></p>
+<ul>
 <li><strong>Chat / Agent / 文件树 AI UI</strong>：以 <a href="https://elements.ai-sdk.dev/"><strong>AI Elements</strong></a> 为规范（完整约定见 <strong><code>docs/frontend/components.md</code></strong>）：</li>
 <li>落盘：<code>src/components/ai-elements/</code>（<code>conversation</code>、<code>message</code>、<code>prompt-input</code>、<code>sources</code>、<code>file-tree</code> 等）</li>
 <li>安装：<code>pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/&lt;name&gt;.json -y -o</code></li>
@@ -272,11 +276,10 @@
 <li>顶栏单行：左侧 Vault 名称（可截断）+ 右侧 <strong>纯图标操作</strong>。</li>
 <li>图标按钮点击反馈：统一走 <code>Button</code>（<code>variant="ghost"</code> + <code>size="icon-xs"</code> 等）的 <strong>active</strong> 态（背景加深 + 轻微缩放）；文件树行同样有 <code>active:bg-muted/80</code>。</li>
 <li>动作映射（Lucide），从左到右：</li>
-<li><strong>按标识符添加（魔棒）</strong> → <code>WandSparkles</code>（紧挨 <strong>New file 左侧</strong>；Popover 粘贴 arXiv 链接/编号 → Host <code>lookup_import</code>；弹层内 <strong>FileUp</strong> 可多选本地 PDF → <code>paper_import_local_pdf</code>）</li>
-<li>新建文件 → <code>FilePlus2</code>（在选中目录 / 文件父目录下 <strong>树内联命名</strong>，Enter 确认 / Esc 取消，对齐 VS Code）</li>
-<li>新建文件夹 → <code>FolderPlus</code>（同上）</li>
+<li><strong>按标识符添加（魔棒）</strong> → <code>WandSparkles</code>（Popover 粘贴 arXiv 链接/编号 → Host <code>lookup_import</code>；弹层内 <strong>FileUp</strong> 可多选本地 PDF → <code>paper_import_local_pdf</code>）</li>
+<li><strong>新建文件 / 文件夹</strong>：不在侧栏 Header；经文件树 <strong>右键菜单</strong> 启动，在选中目录 / 文件父目录下 <strong>树内联命名</strong>（Enter 确认 / Esc 取消，对齐 VS Code）。</li>
 <li><strong>外部 PDF 拖入入库</strong>（窗口级 <code>preventDefault</code>，避免 WebView 导航/卡死）：非 PDF 或未落到 <code>papers/</code> 组织夹 → 无入库动作；PDF 拖到 <strong><code>papers/</code> 组织夹</strong> → drop 时同步快照 <code>File</code>/<code>items</code> 并开始 <code>arrayBuffer</code>；无 <code>File.path</code> 时经 Host <code>paper_stage_import_file</code>（base64 → <code>~/.agentero/import-tmp/</code>）→ <code>ImportLocalPdfDialog</code> 确认 metadata → <code>paper_import_local_pdf</code> → 刷树 / Library / wiki → <code>openPaper</code> 第一篇。</li>
-<li><strong>内联新建进行中</strong>时，顶栏其它图标（魔棒 / 新建文件 / 新建文件夹）<strong>保持可点</strong>（可切换新建类型或打开魔棒）；仅在全局 <code>busy</code> 或文献导入进行中时禁用。</li>
+<li><strong>内联新建进行中</strong>时，顶栏魔棒 <strong>保持可点</strong>；仅在全局 <code>busy</code> 或文献导入进行中时禁用。</li>
 <li><strong>回收站入口</strong>：文件树中 <strong>Library 下方</strong> 虚拟节点 <code>Trash2</code>（不在侧栏 Header）；点击后中间栏打开 <code>RecycleBinView</code>（见「删除」）。</li>
 <li><strong>刷新文件树</strong>不在侧边栏：使用菜单 <strong>File → Refresh File Tree</strong>（<code>⌘R</code>）。</li>
 <li><strong>在系统文件管理器中显示</strong>（<code>revealItemInDir</code> / <code>src/lib/reveal.ts</code>）：</li>
@@ -295,7 +298,7 @@
 <li><strong>右键</strong>「删除」（旁注 <code>⌘⌫</code>）、<strong><code>⌘⌫</code></strong>、批量条 / 右键「删除 N 项」：均<strong>移入 Vault 回收站</strong> <code>.agentero/.trash/&lt;批次&gt;/</code>，<strong>不弹确认、不弹提示</strong>（随时可从回收站找回）。</li>
 <li><code>papers/</code> 下的项移入回收站时<strong>快照并移除</strong> catalog 对应行（含嵌套 paper），从回收站恢复时一并恢复；随后刷新文件树、Library 与双链索引。</li>
 <li><code>⌘⌫</code> 在编辑器 / 输入框聚焦时不拦截（保留系统删行首行为）。</li>
-<li><strong>回收站浏览</strong>：文件树中 Library 下方虚拟节点 <code>agentero:trash</code> 在<strong>中间栏</strong>打开回收站视图（<code>RecycleBinView</code>，<code>kind:"trash"</code> 虚拟 tab，与论文库同一位置、Zotero 风格；<strong>非弹窗</strong>；中间栏不重复文档级 title/关闭行；视图内 <code>PaneHeader</code> 与侧栏 Header 同高 <code>h-10</code>，右侧「清空回收站」）→ 列出全部已删项（名称 / 原路径 / 删除时间），逐项<strong>恢复</strong>（<code>path_restore_item</code>，恢复文件 + catalog 行）或<strong>永久删除</strong>（<code>path_purge_item</code>），顶部可<strong>清空回收站</strong>（<code>path_purge_trash</code>，不可撤销、需确认）。删除后从这里找回。</li>
+<li><strong>回收站浏览</strong>：文件树中 Library 下方虚拟节点 <code>agentero:trash</code> 在<strong>中间栏</strong>打开回收站视图（<code>RecycleBinView</code>，<code>kind:"trash"</code> 虚拟 tab，与论文库同一位置、Zotero 风格；<strong>非弹窗</strong>；中间栏无独立 header）→ 列出全部已删项（名称 / 原路径 / 删除时间），逐项<strong>恢复</strong>（<code>path_restore_item</code>，恢复文件 + catalog 行）或<strong>永久删除</strong>（<code>path_purge_item</code>）。<strong>清空回收站</strong>在侧栏回收站节点 <strong>右键菜单</strong>（<code>path_purge_trash</code>，不可撤销、需确认）。删除后从这里找回。</li>
 <li>不可删：虚拟 Library、Vault 根。</li>
 <li><strong>多选与批量操作</strong>（<code>file-tree.tsx</code> + 原语 <code>ai-elements/file-tree.tsx</code>）：</li>
 <li>对齐 VS Code / Finder：<strong>无勾选框</strong>，以<strong>行高亮</strong>表达选区。<strong>Ctrl/⌘ 点击</strong>切换单项、<strong>Shift 点击</strong>按可见顺序选区间；普通点击仍为单选并打开。</li>
@@ -481,7 +484,7 @@
 </tr>
 <tr>
 <td>开关类</td>
-<td><code>⌘,</code> 设置、<code>⌘/</code> 快捷键清单、<code>⌘K</code>/<code>⌘P</code> 命令面板、<code>⇧⌘P</code> 命令模式：自身可再按关闭（不依赖 <code>whenSettingsClosed</code>）</td>
+<td><code>⌘,</code> 设置、<code>⌘K</code>/<code>⌘P</code> 命令面板、<code>⇧⌘P</code> 命令模式：自身可再按关闭（不依赖 <code>whenSettingsClosed</code>）</td>
 </tr>
 </tbody>
 </table>
@@ -499,10 +502,6 @@
 <td><code>SettingsWindow</code>（App 内浮层，所有平台）</td>
 </tr>
 <tr>
-<td><code>shortcuts</code></td>
-<td><code>ShortcutsDialog</code></td>
-</tr>
-<tr>
 <td><code>command-palette</code></td>
 <td><code>CommandPalette</code>（Go / Commands 共用）</td>
 </tr>
@@ -517,10 +516,6 @@
 <tr>
 <td><code>agent-permission</code></td>
 <td>Agent 权限询问 Dialog</td>
-</tr>
-<tr>
-<td><code>notes-review</code></td>
-<td>Agent 笔记写后审阅：统一 Diff + Keep/Revert Dialog</td>
 </tr>
 </tbody>
 </table>
@@ -542,7 +537,7 @@
 <li><strong>列</strong>：标题、作者、年份、<strong>标签</strong>、类型、标识符；<strong>单击</strong>单元格复制对应字段（作者复制完整列表，非 et al. 缩写；标题下出版物单独可复制；行内标签 chip 复制该标签；复制<strong>短延迟提交</strong>，双击打开论文时取消，避免与双击冲突）；<strong>双击</strong>行打开对应 paper 文件夹。</li>
 <li><strong>列自定义</strong>（顺序 + 显隐）：<strong>右键表头</strong>弹出上下文菜单勾选显示/隐藏列；<strong>拖拽表头</strong> <code>&lt;th&gt;</code> 改变列顺序（拖拽时列半透明、落点高亮）；菜单底部「重置列」恢复默认。<strong>标题列不可隐藏</strong>（承载阅读热力与出版物副标题，勾选框禁用且 normalize 强制可见）；表格使用固定布局和各列固定权重，标题列约占 32%，标题正文单行显示，超出以省略号截断，悬浮仍可查看完整标题。布局持久化到 <code>settings.json</code> 的 <code>libraryColumns</code>（<code>LibraryColumnPref[] = {key, visible}[]</code>，数组顺序即显示顺序），前后端均 reconcile（去重、丢未知 key、补新列为可见、强制 title 可见）。实现：<code>COLUMN_META</code> + <code>colgroup</code> + <code>renderCell</code> 按 key 渲染；右键菜单基于 <code>src/components/ui/context-menu.tsx</code>（radix <code>ContextMenu</code>）。</li>
 <li><strong>阅读热力（标题背景）</strong>：聚合该篇 <code>marks/</code>（<code>kind</code>: highlight / ask / translate）的<strong>页码 + 页内 y</strong>，画成<strong>标题文字横向背景脊条</strong>（左=文首、右=文末；局部深浅=该位置交互强度）。颜色为 <strong>Apple system green</strong> 浅色洗（<code>oklch(0.65 0.17 145)</code> ≈ <code>#34C759</code>，与标签 green 同系，低比例 <code>color-mix</code> 保持浅色不抢眼）。悬停标题可看高亮 / 对话 / 翻译分项。可选 <code>reading-meta.json</code> 记录 PDF 总页数以对齐全文跨度。实现：<code>src/lib/reading-heatmap/</code>、<code>ReadingTitleHeat</code>。</li>
-<li><strong>标签筛选</strong>：表上方汇总<strong>当前作用域</strong> tag chip 做筛选；行内 tag 单击复制该标签。标题搜索同时匹配 tag 子串。</li>
+<li><strong>标签</strong>：行内 tag 单击复制该标签。标题搜索同时匹配 tag 子串（无表上方 chip 筛选条）。</li>
 <li><strong>排序</strong>：点击表头升序 / 降序；年份列首次为降序；文字列默认升序。</li>
 <li><strong>滚动</strong>：<code>.agentero-scroll-both</code>；表格 <code>w-max min-w-full</code>。</li>
 <li><strong>中间栏 header</strong>：搜索框；全库另有 Zotero 迁移；<strong>导出</strong>（Download 图标）。<ul>
@@ -584,7 +579,7 @@
 <li>左栏（文件树）与右栏（Agent/Backlinks）均为 <strong>常驻 collapsible 面板</strong>（<code>collapsedSize=0</code>），用 <code>expand</code>/<code>collapse</code>/<code>resize</code> 切换，<strong>不要</strong>对右栏做条件卸载整块 <code>ResizablePanel</code>（否则 Group 重排会冲掉左栏折叠态）。</li>
 <li>两侧使用 <code>groupResizeBehavior="preserve-pixel-size"</code>，并把上次展开像素宽记入 ref；中间主栏保持默认相对尺寸。</li>
 <li>Notes 列仍随论文选中条件挂载（需真实 <code>defaultSize</code> 才能出现）；<code>showNotesOnRight</code> 变化后 rAF 再 assert 左右栏宽度/折叠意图，避免 Library ↔ paper 时左栏跳宽。</li>
-<li><strong>文档标签栏位置</strong>：与标题栏右侧禅模式 / Layout / 右栏图标 <strong>同一行</strong>（<code>DocumentTabBar</code> 在 <code>header</code> 中间 flex 区；无 tab 时该区为拖拽空白）。中间栏仅保留 view mode / 文档标题工具行。</li>
+<li><strong>文档标签栏位置</strong>：标题栏<strong>无</strong>文档 tab 条；文档 tab 由中间栏 dockview 原生管理。中间栏仅保留 view mode / 文档标题工具行。</li>
 <li>各栏 header 等高：统一 <code>h-10</code>（<code>PaneHeader</code> / <code>PANE_HEADER_CLASS</code>），水平对齐；全局操作错误走右上角 toast（§2.1.2），不撑高标题栏。</li>
 <li>边距、分割线保持轻量；控件密度偏紧凑（icon-xs / icon-sm）。</li>
 <li><strong>面板分隔（sash）</strong>：对齐 VS Code / Cursor——默认 <strong>1px</strong> 细线，hover / 拖拽时略提亮；可点区域略宽但视觉不占粗条。实现见 <code>src/components/layout/resizable.tsx</code>。</li>
@@ -660,11 +655,6 @@
 <td>恢复 100%（<code>zoomReset</code>）</td>
 </tr>
 <tr>
-<td><code>⌘/</code></td>
-<td>键盘快捷键速查（开关）</td>
-<td>再按关闭；<code>ShortcutsDialog</code></td>
-</tr>
-<tr>
 <td><code>⌘P</code> / <code>⌘K</code></td>
 <td>快速打开（开关）</td>
 <td>论文标题·作者·id 即时 quick-open + 去抖 <code>vault_search</code> 全文；输入 <code>&gt;</code> 可切命令模式（<code>CommandPalette</code> · <code>quickOpen</code>）</td>
@@ -677,7 +667,7 @@
 <tr>
 <td><code>Esc</code></td>
 <td>关闭最顶层弹层</td>
-<td>统一经 <code>overlay-stack</code>：设置 / 快捷键清单 / 命令面板 / Zotero 迁移 / 移动论文 / Agent 权限与笔记审阅等</td>
+<td>统一经 <code>overlay-stack</code>：设置 / 命令面板 / Zotero 迁移 / 移动论文 / Agent 权限等</td>
 </tr>
 <tr>
 <td><code>⌘W</code></td>
@@ -779,12 +769,13 @@
 <ul>
 <li>在编辑区聚焦时同样生效；涉及浏览器保留键时需 <code>preventDefault</code>。</li>
 <li>快捷键清单以设置页 <strong>Keyboard</strong> 为准，实现见 <code>src/lib/shortcuts.ts</code>。</li>
-<li><strong>魔棒</strong>（已落地 v0）：侧栏 <code>WandSparkles</code> Popover；粘贴链接或编号 → Host <code>lookup_import</code> → Translator（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）→ catalog + paper 壳。  </li>
+<li><strong>魔棒</strong>（已落地 v0/v1）：侧栏 <code>WandSparkles</code> Popover；输入框为<strong>可变高度 textarea</strong>（最低约 2 行、最大高度限制，可滚动），支持一次粘贴多个标识符，以空格 / 逗号 <code>,</code> / 分号 <code>;</code> / 中文逗号 <code>，</code> / 中文分号 <code>；</code> / 换行分隔。提交后走 Host <code>lookup_import_batch</code> → Translator（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）→ 逐条解析、去重、入库。  </li>
 <li>目标目录：默认 <code>papers/</code>；当前在 Papers 子文件夹时写入该子路径。  </li>
 <li><strong>始终下载 PDF</strong> 到 <code>{paper}/{id}.pdf</code>（论文文件夹根目录）。  </li>
 <li><strong>arXiv</strong>：另从 <code>https://arxiv.org/e-print/{id}</code> 下载并解压 LaTeX 到 <code>source/</code>。  </li>
-<li><strong>完成后</strong>：刷新文件树 / Library / wiki → <code>openPaper(paperDir)</code>（打开 PDF tab，并 <code>setTreeSelectedPath</code>）→ 左侧树<strong>展开祖先并滚到新论文行</strong>（见 §2.1 选中同步）。本地 PDF 导入同样走 <code>openPaper</code>。  </li>
-<li>详见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>；i18n <code>sidebar:lookup.*</code> / <code>papersLibrary.*</code>；无 Vault 时禁用。</li>
+<li><strong>批量行为</strong>：batch 内自动按 arXiv ID / DOI 等去重；已存在于 catalog 的条目跳过；并发入库（上限可在 <strong>Settings → General → Batch import concurrency</strong> 调整，默认 3、范围 1–10）并在单一后台任务聚合进度；入库结束后把仍缺资源的 paper 逐个加入下载队列，左下角任务列表会显示每一篇独立的下载任务，按并发上限排队执行。<strong>批量入库不自动连跑 paper-reader</strong>。  </li>
+<li><strong>完成后</strong>：刷新文件树 / Library / wiki → 打开<strong>第一篇</strong>成功导入的 paper（<code>openPaper</code>）并左侧树<strong>展开祖先滚到新论文行</strong>（避免 tab 爆炸）；全部失败则不打开。本地 PDF 导入同样走 <code>openPaper</code>。  </li>
+<li>详见 <a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a> / <a href="../../backend/api/"><code>../backend/api.md</code></a> §3.6；i18n <code>sidebar:lookup.*</code> / <code>papersLibrary.*</code>；无 Vault 时禁用。</li>
 <li><strong>论文行 Download</strong>：缺本地 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时显示；hover 列出原因 → <code>paper_download_assets</code>（已有资源跳过）。下载后若仍无 TeX 且有 PDF，Host 自动 liteparse 写 <code>PAPER.md</code>。Library 行可对库内全部不完整 paper <strong>批量</strong> Download。</li>
 <li><strong>论文行 Zap（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Claude 用 <code>/paper-reader</code>，其它（含 Codex）靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。若设置开启 <code>autoPaperReader</code>，魔棒 / 单篇 Download 成功后也会自动跑（批量不连跑）。进度在左下角后台任务条。</li>
 </ul>
@@ -958,7 +949,6 @@ PromptInput → Body / Footer / Submit
 </tr>
 </tbody>
 </table>
-<p><strong>笔记写后审阅（信任闭环）</strong>：BYOA Agent 直接写盘，无法可靠事前拦截。<code>agent_run_once</code> 运行前快照目标笔记（<code>.md</code> target 或论文夹 <code>NOTES.md</code>）；若内容被改写则 emit <code>agent:notes-review</code>。面板弹 <strong>统一 Diff</strong> 对话框（<code>NotesReviewDiff</code>：行级 <code>+</code>/<code>-</code>/<code></code>，红/绿底）：<strong>Keep</strong> 保留 Agent 版本；<strong>Revert</strong> 写回快照（文件监听随后重载打开的编辑器）。</p>
 <p><strong>回答语言</strong>：<strong>设置 → Agent</strong> 提供一个全局「回答语言」下拉（<strong>自动 / English / 简体中文</strong>，存于 app settings，默认 <strong>自动</strong>），<strong>独立于界面语言</strong>，对<strong>所有 Agent</strong> 交互生效（Composer 对话、精读、summary/QA、PDF 划词问答）。前端 <code>runOnce</code> 统一读取该设置并透传，Host 在 <code>build_prompt</code> 为所有 workflow 追加一句语言指令；选 <strong>自动</strong> 时不注入任何指令，交由 Agent 依据内容决定。</p>
 <p><strong>个人偏好提示词</strong>：<strong>设置 → Agent</strong> 提供多行文本框（<code>agentPersonalPrompt</code>，默认空）。非空时，前端 <code>runOnce</code> 透传 <code>personalPrompt</code>，Host 在 <code>build_prompt</code> 的 system envelope 中追加 <code>User preference instructions</code> 块（所有 workflow）。留空不注入；Chat 展示经 <code>strip_prompt_envelope</code> 剥离 envelope，<strong>不</strong>在对话记录中显示该块。</p>
 <p><strong>会话配置控件</strong>：底栏按当前 provider 的 ACP <code>SessionConfigOption</code> 声明显示模型选择、reasoning effort 与 Fast toggle（所有 provider 含 Codex 统一）。选择在下一次 turn 中生效；未声明对应能力的 Agent 不显示也不接收这些偏好。</p>
@@ -1043,8 +1033,8 @@ PromptInput → Body / Footer / Submit
 </table>
 <p><strong>页面职责</strong></p>
 <ul>
-<li><strong>General</strong>：恢复上次 Vault、退出确认；<strong>文件树论文显示</strong>（<code>paperTreeLabelMode</code>，默认 <code>title-author</code>：标题 · 作者；另有标题 / 作者(年)·标题 / 文件夹名）；<strong>文件树论文排序</strong>（<code>paperTreeSortMode</code>，默认 <code>folder</code>：显示名称 A–Z，跟随 <code>paperTreeLabelMode</code>；另有标题 / 作者 / 年份新→旧 / 年份旧→新 / 添加时间新→旧）；<strong>Translator 服务地址</strong>（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）。入库默认下载 PDF（arXiv 含 LaTeX），无「是否本地下载」开关。<strong>Zotero Connector 兼容</strong>开关（<code>connectorEnabled</code>，默认关；与 Zotero 桌面端互斥占用 <code>23119</code>；状态行显示监听地址 / 错误；保存成功后刷新树/Library 并 <strong><code>openPaper</code> 打开论文 tab</strong>；见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>），勿与 Translator 地址混为同一设置项。</li>
-<li><strong>Appearance</strong>：主题、<strong>配色主题</strong>（<code>uiTheme</code>，tweakcn 预设，默认 <code>default</code>，见 §1）、<strong>语言（跟随系统 / English / 简体中文）</strong>、<strong>工具栏按钮大小</strong>（<code>toolbarIconSize</code>，滑块 12–22px，默认 14；驱动标题栏图标按钮的图标与按钮盒尺寸，经 <code>&lt;header&gt;</code> 上的 <code>--tb-icon</code> / <code>--tb-btn</code> CSS 变量级联到 <code>WorkspaceHeader</code> 与 <code>LayoutMenu</code>，为视力不佳用户提供无障碍放大）；其下分组 <strong>Markdown编辑器</strong>（<code>appearance.markdownEditor.section</code>）：编辑字号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，控制 Markdown/Notes 编辑器顶部的 WYSIWYG 工具栏，默认开）。</li>
+<li><strong>General</strong>：恢复上次 Vault、退出确认；<strong>文件树论文显示</strong>（<code>paperTreeLabelMode</code>，默认 <code>title-author</code>：标题 · 作者；另有标题 / 作者 (年)·标题 / 文件夹名）；<strong>文件树论文排序</strong>（<code>paperTreeSortMode</code>，默认 <code>folder</code>：显示名称 A–Z，跟随 <code>paperTreeLabelMode</code>；另有标题 / 作者 / 年份新→旧 / 年份旧→新 / 添加时间新→旧）；<strong>Translator 服务地址</strong>（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）。入库默认下载 PDF（arXiv 含 LaTeX），无「是否本地下载」开关。<strong>Zotero Connector 兼容</strong>开关（<code>connectorEnabled</code>，默认关；与 Zotero 桌面端互斥占用 <code>23119</code>；状态行显示监听地址 / 错误；保存成功后刷新树/Library 并 <strong><code>openPaper</code> 打开论文 tab</strong>；见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>），勿与 Translator 地址混为同一设置项。</li>
+<li><strong>Appearance</strong>：主题、<strong>配色主题</strong>（<code>uiTheme</code>，tweakcn 预设，默认 <code>default</code>，见 §1）、<strong>语言（跟随系统 / English / 简体中文）</strong>、<strong>工具栏按钮大小</strong>（<code>toolbarIconSize</code>，滑块 12–22px，默认 14；驱动标题栏图标按钮的图标与按钮盒尺寸，经 <code>&lt;header&gt;</code> 上的 <code>--tb-icon</code> / <code>--tb-btn</code> CSS 变量级联到 <code>WorkspaceHeader</code> 与 <code>LayoutMenu</code>，为视力不佳用户提供无障碍放大）；其下分组 <strong>Markdown 编辑器</strong>（<code>appearance.markdownEditor.section</code>）：编辑字号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，控制 Markdown/Notes 编辑器顶部的 WYSIWYG 工具栏，默认开）。</li>
 <li><strong>Agent</strong>（BYOA，非模型 BYOK 表单）：</li>
 <li>总开关。</li>
 <li><strong>权限模式</strong>（<code>agentPermissionMode</code>：受限 / 每次询问 / 自动批准，见 §3.2）。</li>

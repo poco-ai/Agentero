@@ -5,15 +5,15 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>Bug - Agentero 文档</title>
+    <title>Tab 内分屏 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
     
       <script>
         // Current page data
-        var mkdocs_page_name = "Bug";
-        var mkdocs_page_input_path = "development/bug.md";
+        var mkdocs_page_name = "Tab \u5185\u5206\u5c4f";
+        var mkdocs_page_input_path = "development/tab-split.md";
         var mkdocs_page_url = null;
       </script>
     
@@ -94,7 +94,7 @@
                   </li>
               </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
-              <ul>
+              <ul class="current">
                   <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../prd/">产品需求</a>
@@ -107,7 +107,25 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
                   </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Tab 内分屏</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 模型选型</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 行为定义</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3-srclibtabsts">3. 数据结构（src/lib/tabs.ts）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#_1">关键纯函数</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4-tabworkspace-dockview">4. 渲染（TabWorkspace = 全局 Dockview）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 标题栏</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6">6. 限制</a>
+    </li>
+    </ul>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
@@ -143,9 +161,10 @@
         <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
     <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
-      <li class="breadcrumb-item active">Bug</li>
+          <li class="breadcrumb-item">开发</li>
+      <li class="breadcrumb-item active">Tab 内分屏</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/bug.md">Edit on poco-ai/agentero</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/tab-split.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -153,22 +172,154 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h2 id="pdf">一、论文入库与 PDF 处理<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h2>
+                <h1 id="dockview">全局 Dockview 工作区<a class="headerlink" href="#dockview" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>V0.6 工作区。中间栏由 <strong>单一全局 Dockview</strong> 管理全部打开文档；标题栏不再放文档 tab 条，PDF/HTML 也不再在中间栏切换。布局、分屏、关闭、重排尽量使用 dockview 原生能力。</p>
+</blockquote>
+<h2 id="1">1. 模型选型<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>标题栏全局 tab + 每 tab 内 Dockview</td>
+<td>已废弃：双轨状态、手写 split 过多</td>
+</tr>
+<tr>
+<td><strong>中间栏全局 Dockview（本方案）</strong></td>
+<td>每个打开文档 = 一个 dockview panel；分屏/网格/tab 栈由 dockview 原生管理</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2">2. 行为定义<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
 <ul>
-<li>重构 paper 入库流程（见 <a href="https://github.com/poco-ai/Agentero/issues/16">#16</a> <code>paper_commit</code>）</li>
-<li>本地 PDF 导入时 metadata 与 note.md 初始化未做（<a href="https://github.com/poco-ai/Agentero/issues/7">#7</a> 剩余）</li>
-<li>[x] 把本地 PDF 直接拖入窗口会跳 PDF 预览器并卡死 → 窗口级 <code>preventDefault</code>；仅拖到 <code>papers/</code> 组织夹时弹 metadata 确认再入库；非 PDF 无反应（<a href="https://github.com/poco-ai/Agentero/issues/7">#7</a> 部分）</li>
-<li>Note MD 在下载有问题时初始化有问题（<a href="https://github.com/poco-ai/Agentero/issues/7">#7</a> 剩余）</li>
+<li><strong>打开文档</strong>：文件树 / 库表 / 命令面板 → <code>openTab(path)</code> → React <code>tabs[]</code> 插入 + <strong><code>workspaceRef.openPanel(tab, placement)</code></strong>（命令式 <code>addPanel</code>，不再经 <code>pendingPlacement</code> state 往返）。</li>
+<li><strong>论文默认</strong>：paper（pdf/html）打开时，再开 <code>NOTES.md</code> 为<strong>同一 group 内的 sibling tab</strong>（<code>openPanel(..., { direction: "within", referencePanelId })</code>），与 PDF 共用 tab 条。</li>
+<li><strong>文件树拖入</strong>：<code>onUnhandledDragOver.accept</code> + <code>onDidDrop</code> → <code>openTab(path, { placement })</code>；方向为 left/right/above/below/within（中心落点 = 同组 tab）。</li>
+<li><strong>关 panel</strong>：dockview 原生 tab X → <code>onDidRemovePanel</code> → React 只删 <code>tabs[]</code> 数据；<strong>焦点完全听 <code>onDidActivePanelChange</code></strong>（不按扁平列表另算 neighbor）。</li>
+<li><strong>循环 panel</strong>（<code>⌥⌘←/→</code>）：<code>workspaceRef.cycleActive</code> 按 <strong><code>api.panels</code> 视觉顺序</strong> 循环，不是 React 插入序。</li>
+<li><strong>NOTES 切换</strong>：Layout 菜单 / 快捷键 → 开/关 NOTES 为同组 tab。</li>
+<li><strong>无 PDF/HTML 切换条</strong>：<code>mode</code> 在 <code>loadTabResources</code> 时按路径与可用资源确定。</li>
 </ul>
-<h2 id="agent">二、Agent / 对话<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h2>
+<h2 id="3-srclibtabsts">3. 数据结构（<code>src/lib/tabs.ts</code>）<a class="headerlink" href="#3-srclibtabsts" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-ts">export type DocTab = {
+  id: string;           // path-derived
+  path: string;
+  kind: &quot;library&quot; | &quot;trash&quot; | &quot;paper&quot; | &quot;file&quot;;
+  title: string;
+  mode: CenterViewMode; // 打开时确定，无 in-pane 切换
+  // … resources / editor seeds …
+};
+
+// 布局不在 DocTab 上嵌套：
+// App 持有 dockLayout: unknown | null  // api.toJSON()
+// 每个 panel 的 params: { panelId, path, mode } 供 layout 单源持久化
+</code></pre>
+
 <ul>
-<li>[x] Update / 打开 Vault 时补种缺失的 bundled skills（<code>vault_ensure</code>，仅新增、不覆盖；<a href="https://github.com/poco-ai/Agentero/issues/9">#9</a>）</li>
-<li>[x] 输入法组字时 Enter 误发送（IME composition race）→ <a href="../../bug_fix/ime-composition-enter-submit/"><code>../bug_fix/ime-composition-enter-submit.md</code></a></li>
-<li>在根目录下放一个 chat 文件做全局对话/对话历史记录 → 讨论见 <a href="https://github.com/poco-ai/Agentero/issues/33">#33</a>（非 Codex 持久化）</li>
+<li>所有打开文档是<strong>扁平 peer</strong>，不再有 <code>DocTab.panes</code> / <code>split</code>。</li>
+<li>单实例：同一 path 只存在一个 panel；再打开则 <code>activatePanel</code>。</li>
+</ul>
+<h3 id="_1">关键纯函数<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>insertPlaceholderTab</code> / <code>removeTab</code> / <code>patchTab</code></td>
+<td>扁平列表增删改（<code>removeTab</code> <strong>不</strong>计算 neighbor active）</td>
+</tr>
+<tr>
+<td><code>createNotesSplitPane</code></td>
+<td>从 paper 派生 NOTES panel</td>
+</tr>
+<tr>
+<td><code>tabHasNotesSplit(tabs, paper)</code></td>
+<td>NOTES 是否已在列表中</td>
+</tr>
+<tr>
+<td><code>extractTabsFromLayout</code> / <code>panelPersistParams</code></td>
+<td>从 layout 反推 tab 列表；写入 panel params</td>
+</tr>
+<tr>
+<td>持久化</td>
+<td><strong>只存 <code>{ layout }</code></strong>；restore 时从 layout.panels 的 params 反推 <code>tabs[]</code> + active</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-tabworkspace-dockview">4. 渲染（<code>TabWorkspace</code> = 全局 Dockview）<a class="headerlink" href="#4-tabworkspace-dockview" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code>中间栏一个 &lt;TabWorkspace ref={workspaceRef}&gt;
+  └─ DockviewReact
+       components.pane → TabCenter（params.panelId）
+       tabComponents.default → DockviewDefaultTab（原生标题/关闭）
+       tabs[] ↔ syncPanels（仅 membership：add 缺失 / remove 多余）
+       title/mode → panel.api.setTitle / updateParameters（独立通道）
+       openPanel(tab, placement) → api.addPanel({ position }) 命令式
+       cycleActive(delta) → api.panels 顺序
+       layout ↔ toJSON（单路 120ms 防抖 onDidLayoutChange）/ fromJSON
+       external DnD: onUnhandledDragOver + onDidDrop（仅文件树路径）
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>能力</th>
+<th>谁负责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tab 标题 / 关闭 / 组内切换</td>
+<td>dockview 原生</td>
+</tr>
+<tr>
+<td>上下左右分屏、多格网格</td>
+<td>dockview 原生 <code>addPanel({ position })</code> + 内部拖拽</td>
+</tr>
+<tr>
+<td>布局持久化</td>
+<td><strong>仅</strong> <code>api.toJSON()</code>（params 含 path/mode）</td>
+</tr>
+<tr>
+<td>打开放置 / 循环焦点</td>
+<td><code>TabWorkspaceHandle</code>（imperative）</td>
+</tr>
+<tr>
+<td>文档内容 / 资源加载</td>
+<td>React <code>DocTab</code> + <code>TabCenter</code></td>
+</tr>
+<tr>
+<td>侧栏 Paper Info / active id</td>
+<td><code>onDidActivePanelChange</code> → React</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5">5. 标题栏<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<ul>
+<li>仅保留侧栏折叠、Layout 菜单、Agent/Backlinks/Annotations、窗口控件。</li>
+<li><strong>无</strong> <code>DocumentTabBar</code>；中间拖拽区为 <code>data-tauri-drag-region</code>。</li>
+</ul>
+<h2 id="6">6. 限制<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<ul>
+<li>浮动窗 / popout 关闭（<code>disableFloatingGroups</code>）。</li>
+<li>文件树拖入开新 panel；dockview 内部 panel 拖拽重组不经 React。</li>
+<li>Library / Trash 也是普通 panel（可与其它文档并排）。</li>
 </ul>
               
             </div>
           </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../translate/" class="btn btn-neutral float-left" title="翻译服务"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../logging/" class="btn btn-neutral float-right" title="运行日志">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
 
   <hr/>
 
@@ -194,6 +345,10 @@
         </span>
     
     
+      <span><a href="../translate/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../logging/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

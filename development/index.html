@@ -117,6 +117,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -234,7 +236,7 @@
 <tr>
 <td>V0.3 Agent</td>
 <td>🟡</td>
-<td>BYOA + ACP / Codex 原生 runtime、流式 UI、Sources、<strong>paper-reader</strong>（Zap + 可选自动默认关）、<strong>权限三档</strong>（含每次询问）、<strong>面板 workflow</strong>、<strong>笔记写后审阅</strong>；<code>AGENTS.md</code> 注入仍待</td>
+<td>BYOA + ACP / Codex 原生 runtime、流式 UI、Sources、<strong>paper-reader</strong>（Zap + 可选自动默认关）、<strong>权限三档</strong>（含每次询问）、<strong>面板 workflow</strong>；<code>AGENTS.md</code> 注入仍待</td>
 </tr>
 <tr>
 <td>V0.4 双链/图谱</td>
@@ -317,6 +319,7 @@
 <li><a href="translate/"><code>translate.md</code></a>：翻译服务（首版已落地；应用级可插拔 <strong>免费 MT + BYOA Agent</strong>；设置 → 翻译页；PDF 划词为首个消费方）。</li>
 <li><a href="logging/"><code>logging.md</code></a>：运行日志（<strong>P0 已落地</strong>；<code>tauri-plugin-log</code> + <code>log</code> + CLI <code>env_logger</code>；关键操作 start/end；与 Toast / <code>ApiResult</code> 分层）。</li>
 <li><a href="command-palette/"><code>command-palette.md</code></a>：全局命令面板 / 快速打开（对照 VS Code ⇧⌘P · ⌘P；现状与分期设计）。</li>
+<li><a href="tab-split/"><code>tab-split.md</code></a>：全局 Dockview 工作区（V0.6）——中间栏单一 dockview 管理全部文档 panel；标题栏无文档 tab；论文默认 PDF | NOTES 并排。</li>
 <li>
 <p><a href="remote-vault/"><code>remote-vault.md</code></a>：远程 Vault（SSH/SFTP）与<strong>远端 BYOA</strong>——文件权威全在服务器、ACP over SSH；含技术栈与开源参考（<strong>MVP 已实现</strong>）。</p>
 </li>

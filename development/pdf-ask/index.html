@@ -151,6 +151,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -198,12 +200,14 @@
               
                 <h1 id="pdf-selection">PDF 划词（Selection：高亮 / 批注 / 提问 / 翻译）<a class="headerlink" href="#pdf-selection" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>⚠️ <strong>EmbedPDF 迁移（2026-07）</strong>：PDF 渲染 / 选中 / 批注引擎已从 <code>react-pdf</code> + <code>pdfjs-dist</code> 全量切换到 <strong><a href="https://www.embedpdf.com">@embedpdf</a>（PDFium / WASM，headless 插件式）</strong>。
-- <strong>新组件</strong>：<code>src/components/viewer/embed/pdf-viewer.tsx</code>（<code>Viewport</code>/<code>Scroller</code>/<code>RenderLayer</code>/<code>TilingLayer</code> + selection / annotation / search / bookmark 插件）；共享 PDFium 引擎在 <code>src/components/viewer/embed/engine-provider.tsx</code>（<code>main.tsx</code> 挂载，<code>worker:false</code> 主线程加载本地 wasm）。
-- <strong>高亮 / 批注 = EmbedPDF 注解</strong>（唯一事实来源），落盘 <code>papers/&lt;id&gt;/marks/annotations.json</code>（<code>exportAnnotations()</code> / <code>importAnnotations()</code> 传输格式；批注 = 注解 <code>contents</code> 非空；调色板键 / quote 存于注解 <code>custom</code>）。首次打开若存在旧版 <code>marks/&lt;id&gt;.json</code>（<code>kind: highlight</code>）会<strong>一次性迁移</strong>到 <code>marks/annotations.json</code> 并删除旧高亮标记；若仍有论文根目录遗留的 <code>annotations.json</code> 也会迁入 <code>marks/</code>（<code>lib/pdf-highlight/annotation-store.ts</code> + <code>migrate-marks.ts</code>）。
-- <strong>提问 / 翻译仍为应用层浮层</strong>，几何来自 selection 插件；成功翻译落盘 <code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code>（<code>kind</code> ∈ <code>ask</code> | <code>translate</code>），翻译失败仅显示当前错误卡片，不生成持久化入口。
-- <strong>查找（⌘F）/ 大纲</strong> 改用 <code>@embedpdf/plugin-search</code> / <code>plugin-bookmark</code>。
-- 下方各节仍描述历史 <code>react-pdf</code> 设计，待完整重写。</p>
+<p>⚠️ <strong>EmbedPDF 迁移（2026-07）</strong>：PDF 渲染 / 选中 / 批注引擎已从 <code>react-pdf</code> + <code>pdfjs-dist</code> 全量切换到 <strong><a href="https://www.embedpdf.com">@embedpdf</a>（PDFium / WASM，headless 插件式）</strong>。</p>
+<ul>
+<li><strong>新组件</strong>：<code>src/components/viewer/embed/pdf-viewer.tsx</code>（<code>Viewport</code>/<code>Scroller</code>/<code>RenderLayer</code>/<code>TilingLayer</code> + selection / annotation / search / bookmark 插件）；共享 PDFium 引擎在 <code>src/components/viewer/embed/engine-provider.tsx</code>（<code>main.tsx</code> 挂载，<code>worker:false</code> 主线程加载本地 wasm）。</li>
+<li><strong>高亮 / 批注 = EmbedPDF 注解</strong>（唯一事实来源），落盘 <code>papers/&lt;id&gt;/marks/annotations.json</code>（<code>exportAnnotations()</code> / <code>importAnnotations()</code> 传输格式；批注 = 注解 <code>contents</code> 非空；调色板键 / quote 存于注解 <code>custom</code>）。首次打开若存在旧版 <code>marks/&lt;id&gt;.json</code>（<code>kind: highlight</code>）会<strong>一次性迁移</strong>到 <code>marks/annotations.json</code> 并删除旧高亮标记；若仍有论文根目录遗留的 <code>annotations.json</code> 也会迁入 <code>marks/</code>（<code>lib/pdf-highlight/annotation-store.ts</code> + <code>migrate-marks.ts</code>）。</li>
+<li><strong>提问 / 翻译仍为应用层浮层</strong>，几何来自 selection 插件；成功翻译落盘 <code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code>（<code>kind</code> ∈ <code>ask</code> | <code>translate</code>），翻译失败仅显示当前错误卡片，不生成持久化入口。</li>
+<li><strong>查找（⌘F）/ 大纲</strong> 改用 <code>@embedpdf/plugin-search</code> / <code>plugin-bookmark</code>。</li>
+<li>下方各节仍描述历史 <code>react-pdf</code> 设计，待完整重写。</li>
+</ul>
 <p>状态：<strong>MVP 已落地（前端 + Vault 文件 IO）</strong>。<br />
 范围：阅读 PDF 时选中文本 → <strong>操作菜单</strong> → 高亮 / 批注 / 提问 / 翻译；共用 <strong><code>activeCard</code> + <code>SelectionCard</code> + <code>SelectionGutter</code></strong>。<br />
 <strong>落盘（唯一）</strong>：<code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code>，<code>kind</code> ∈ <code>highlight</code> | <code>ask</code> | <code>translate</code>（pretty JSON；<strong>无</strong> <code>asks/</code> / <code>highlights/</code> / <code>translates/</code> 兼容路径）。<br />

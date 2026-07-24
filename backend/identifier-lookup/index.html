@@ -163,7 +163,9 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#63-lookupimport">6.3 lookup:import</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#64">6.4 事件</a>
+    <li class="toctree-l3"><a class="reference internal" href="#64-lookup_import_batch">6.4 lookup_import_batch（魔棒批量入库）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#65">6.5 事件</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#65-translatorstatus-translatorrestart">6.5 translator:status / translator:restart（设置页）</a>
     </li>
@@ -206,6 +208,12 @@
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#12_1">12. 测试要点</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#121">12.1 单元测试</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#122">12.2 批量魔棒导入手动测试</a>
+    </li>
+        </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#13_1">13. 验收标准</a>
     </li>
@@ -242,6 +250,8 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/tab-split/">Tab 内分屏</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
                   </li>
@@ -403,16 +413,20 @@
 </tr>
 </tbody>
 </table>
-<p>按需补下（<strong>Download</strong> 图标）：
-- <strong>显示条件</strong>：缺 PDF <strong>或</strong>（既无 TeX 也无 <code>PAPER.md</code>）。可读正文 <strong>TeX 与 PAPER.md 二选一即可，优先 TeX</strong>（有 TeX 不强制 PAPER.md）。<strong>不再</strong>因缺少空 <code>source/</code> 单独显示 Download。hover 说明原因。
-- <strong>点击</strong>：<code>paper_download_assets</code> → PDF 到论文根目录 → arXiv 尽量 TeX 到 <code>source/</code> → 无 TeX 则 liteparse <code>PAPER.md</code>。
-- <strong>Library 行</strong>：库内任一篇不完整时批量同一逻辑。</p>
-<p><strong>精读（Zap 图标 + 自动触发）</strong>：
-- <strong>显示条件（Zap）</strong>：本地资源齐全且 catalog <strong><code>is_read === false</code></strong>（与 Download 互斥）。
-- <strong>自动触发</strong>：<code>lookup_import</code>（魔棒）或单篇 <code>paper_download_assets</code> 成功且 PDF/TeX/<code>PAPER.md</code> 任一可读正文/归档就绪时，前端 <code>maybeAutoRunPaperReader</code> 自动跑同一工作流（批量 Library 导入/批量 Download <strong>不</strong>自动连跑，避免并发炸 Agent）。
-- <strong>手动</strong>：点击 Zap → 同上。
-- <strong>实现</strong>：<code>src/lib/paper-read.ts</code> → <code>agent_run_once</code> + skill（<strong><code>hideFromChatHistory: true</code></strong>，不进 Agent 对话记录）；Codex <code>$paper-reader</code> / Claude <code>/paper-reader</code> / 其它注入 <code>SKILL.md</code> → 写 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>；进度在左下角后台任务条。
-- <strong>进度</strong>：左下角后台任务条——入库/下载阶段 <code>kind=lookup|download</code>（分阶段 detail/progress），随后精读 <code>kind=paperRead</code>。</p>
+<p>按需补下（<strong>Download</strong> 图标）：</p>
+<ul>
+<li><strong>显示条件</strong>：缺 PDF <strong>或</strong>（既无 TeX 也无 <code>PAPER.md</code>）。可读正文 <strong>TeX 与 PAPER.md 二选一即可，优先 TeX</strong>（有 TeX 不强制 PAPER.md）。<strong>不再</strong>因缺少空 <code>source/</code> 单独显示 Download。hover 说明原因。</li>
+<li><strong>点击</strong>：<code>paper_download_assets</code> → PDF 到论文根目录 → arXiv 尽量 TeX 到 <code>source/</code> → 无 TeX 则 liteparse <code>PAPER.md</code>。</li>
+<li><strong>Library 行</strong>：库内任一篇不完整时批量同一逻辑。</li>
+</ul>
+<p><strong>精读（Zap 图标 + 自动触发）</strong>：</p>
+<ul>
+<li><strong>显示条件（Zap）</strong>：本地资源齐全且 catalog <strong><code>is_read === false</code></strong>（与 Download 互斥）。</li>
+<li><strong>自动触发</strong>：<code>lookup_import</code>（魔棒）或单篇 <code>paper_download_assets</code> 成功且 PDF/TeX/<code>PAPER.md</code> 任一可读正文/归档就绪时，前端 <code>maybeAutoRunPaperReader</code> 自动跑同一工作流（批量 Library 导入/批量 Download <strong>不</strong>自动连跑，避免并发炸 Agent）。</li>
+<li><strong>手动</strong>：点击 Zap → 同上。</li>
+<li><strong>实现</strong>：<code>src/lib/paper-read.ts</code> → <code>agent_run_once</code> + skill（<strong><code>hideFromChatHistory: true</code></strong>，不进 Agent 对话记录）；Codex <code>$paper-reader</code> / Claude <code>/paper-reader</code> / 其它注入 <code>SKILL.md</code> → 写 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>；进度在左下角后台任务条。</li>
+<li><strong>进度</strong>：左下角后台任务条——入库/下载阶段 <code>kind=lookup|download</code>（分阶段 detail/progress），随后精读 <code>kind=paperRead</code>。</li>
+</ul>
 <p>UI 阅读：优先 catalog 远程 URL；<code>source/</code> 为 arXiv TeX 归档；<code>PAPER.md</code> 为无 TeX 时的派生正文。</p>
 <h4 id="translator">Translator 服务地址（设置）<a class="headerlink" href="#translator" title="Permanent link">&para;</a></h4>
 <table>
@@ -675,7 +689,7 @@
 </tr>
 </tbody>
 </table>
-<p>批量：空格、逗号、换行分隔；PMID 可在 Runtime 侧按批合并（Zotero 习惯每批 ≤200）。</p>
+<p>批量：魔棒输入框现已支持一次粘贴多个标识符，可用以下分隔符拆分（正则 <code>/[\s,;，；\n\r]+/</code>）：空格、逗号 <code>,</code>、分号 <code>;</code>、中文逗号 <code>，</code>、中文分号 <code>；</code>、换行 / 回车。Parser 会逐 token 调用 <code>extract_primary_identifier</code>，并按去 version 的 arXiv ID / DOI / ISBN / PMID 等做去重。PMID 仍可在 Runtime 侧按批合并（Zotero 习惯每批 ≤200）。</p>
 <h3 id="32-zotero-extractidentifiers">3.2 解析优先级（对齐 Zotero <code>extractIdentifiers</code>）<a class="headerlink" href="#32-zotero-extractidentifiers" title="Permanent link">&para;</a></h3>
 <p>对同一段输入文本，<strong>按序</strong>尝试（命中一类后，Zotero 原逻辑会停止后续类型；Agentero 建议：</p>
 <ul>
@@ -973,7 +987,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <tr>
 <td><code>bibtex_key</code></td>
 <td>生成或沿用</td>
-<td>作者+年+题词</td>
+<td>作者 + 年+题词</td>
 </tr>
 <tr>
 <td><code>path</code></td>
@@ -1087,7 +1101,42 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <li><strong>始终</strong> <code>ensure_paper_assets</code>：PDF → <code>{paper}/{id}.pdf</code>；有 <code>arxiv_id</code> 时 e-print TeX 解压到 <code>source/</code>。</li>
 <li>返回 <code>path</code>；前端刷新并打开 paper。</li>
 </ol>
-<h3 id="64">6.4 事件<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
+<h3 id="64-lookup_import_batch">6.4 <code>lookup_import_batch</code>（魔棒批量入库）<a class="headerlink" href="#64-lookup_import_batch" title="Permanent link">&para;</a></h3>
+<p>一次性解析、去重并入库多个标识符。前端魔棒输入框改为可变高度 textarea，粘贴 <code>1706.03762 1810.04805</code> 或每行一个 URL 后提交即走本命令。</p>
+<ul>
+<li><strong>参数</strong>（invoke 字段名 <code>args</code>）：</li>
+</ul>
+<p><code>ts
+  {
+    vaultPath: string;
+    parentDir: string;              // "papers" | "papers/nlp"
+    texts: string[];                // 用户输入拆分后的原始 token 数组
+    translatorBaseUrl?: string;     // 同 lookup_import
+    taskId?: string;                // 前端后台任务 id
+    concurrency?: number;           // 最大并发入库数，默认 3，范围 1–10
+  }</code></p>
+<ul>
+<li><strong>返回</strong>：</li>
+</ul>
+<p><code>ts
+  {
+    ok: true;
+    data: {
+      imported: LookupImportResult[];
+      skipped: { raw: string; kind: string; value: string; reason: 'duplicate_in_batch' | 'already_in_library' }[];
+      errors: string[];
+    }
+  }</code></p>
+<ul>
+<li><strong>行为</strong>：</li>
+<li>对 <code>texts</code> 逐条调 <code>extract_primary_identifier</code>；未识别则计入 <code>errors</code>。</li>
+<li>按规范化 value（arXiv 去 version、DOI 小写等）去重：同一 batch 内重复 → <code>skipped</code>（<code>duplicate_in_batch</code>）。</li>
+<li>对每条唯一标识符查 catalog：已存在同 <code>arxiv_id</code> / <code>doi</code> / <code>isbn</code> / <code>pmid</code> / <code>id</code> 的 paper → <code>skipped</code>（<code>already_in_library</code>）。</li>
+<li>剩余条目以 <code>concurrency</code>（默认 3，范围 1–10）为上限<strong>并发</strong>调 <code>import_by_identifier_with_progress</code>（共用同一个 <code>taskId</code>，进度事件聚合在单一后台任务）。单条失败继续下一条，错误文本加入 <code>errors</code>。并发上限可在 <strong>Settings → General → Batch import concurrency</strong> 调整。</li>
+<li>返回全部 <code>imported</code> 条目；前端刷新树 / Library / wiki 后，对 <code>imported</code> 中仍缺资源的 paper 逐个加入下载队列，每篇对应一个独立的 <code>download</code> 后台任务，并按并发上限排队执行。</li>
+<li><strong>不自动精读</strong>：批量入库不连跑 <code>paper-reader</code>，避免 Agent 与写笔记开销爆炸；用户可后续单篇手动 Zap 或等设置 <code>autoPaperReader</code> 对单篇触发。</li>
+</ul>
+<h3 id="65">6.5 事件<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -1180,7 +1229,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 </ul>
 <h3 id="82-v1">8.2 主交互流（v1）<a class="headerlink" href="#82-v1" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">点击魔棒
-  → 弹出输入框（单行或小多行）：placeholder 如 “arXiv URL / ID, DOI, …”
+  → 弹出输入框（单行或小多行）：placeholder 如“arXiv URL / ID, DOI, …”
   → 展示目标路径提示：将加入「papers/」或「papers/nlp/」（来自 §1.2）
   → 用户 Enter 或点「添加」
   → lookup:search（Translator）→ 可选极简预览
@@ -1239,7 +1288,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
         └── source/
             ├── {id}.pdf       # 默认下载
             └── …              # arXiv：e-print 解压后的 .tex 工程
-# catalog.papers：path, title, pdf_url, html_url, …
+# catalog.papers: path, title, pdf_url, html_url, …
 # 划词标注运行时写入 marks/*.json（非入库壳）
 </code></pre>
 
@@ -1283,7 +1332,8 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <li>[x] 单篇 / Library 批量补下缺失 PDF 与 arXiv TeX（<code>paper_download_assets</code>）</li>
 <li>[x] 无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动 + <code>paper_parse_body</code>）</li>
 <li>[x] <code>⇧⌘I</code> 魔棒快捷键</li>
-<li>[ ] 重复提示增强、入库任务可取消</li>
+<li>[x] 魔棒批量入库：多标识符粘贴、去重、批量下载、进度聚合</li>
+<li>[ ] 重复提示增强（单条弹层内）、入库任务可取消</li>
 </ul>
 <h3 id="phase-d">Phase D — 可选<a class="headerlink" href="#phase-d" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1294,6 +1344,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 </ul>
 <hr />
 <h2 id="12_1">12. 测试要点<a class="headerlink" href="#12_1" title="Permanent link">&para;</a></h2>
+<h3 id="121">12.1 单元测试<a class="headerlink" href="#121" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -1315,8 +1366,63 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <td>catalog 有 <code>pdf_url</code>；<code>source/</code> 不出现 pdf（设置关时）</td>
 </tr>
 <tr>
-<td>UI</td>
-<td>魔棒无 Vault 禁用；Library 表可见新行；本地 PDF 预览（无本地则下载 / 远程回退）</td>
+<td>单测 settings</td>
+<td><code>batchImportConcurrency</code> 越界时自动恢复为默认值 3</td>
+</tr>
+</tbody>
+</table>
+<h3 id="122">12.2 批量魔棒导入手动测试<a class="headerlink" href="#122" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>场景</th>
+<th>输入示例</th>
+<th>预期现象</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B-1</td>
+<td>多分隔符混合解析</td>
+<td><code>1706.03762, 1810.04805; 2501.12345，2502.67890\n2503.11111 2504.22222</code></td>
+<td>解析出 6 个 token；魔棒任务显示总数 6 并按 <code>current/total</code> 更新；summary toast <code>Imported 6, skipped 0, failed 0</code></td>
+</tr>
+<tr>
+<td>B-2</td>
+<td>Batch 内去重 + 已存在去重</td>
+<td>库中已有 <code>1706.03762</code>；输入 <code>1706.03762\n1706.03762\n1810.04805</code></td>
+<td>第 1 个 <code>1706.03762</code> → <code>skipped</code>（<code>already_in_library</code>）；第 2 个 → <code>skipped</code>（<code>duplicate_in_batch</code>）；<code>1810.04805</code> 导入成功；summary <code>Imported 1, skipped 2, failed 0</code></td>
+</tr>
+<tr>
+<td>B-3</td>
+<td>并发上限生效</td>
+<td>设置 <code>Batch import concurrency = 2</code>，粘贴 5 个不同 ID</td>
+<td>魔棒任务总数显示 5；同时运行的导入任务不超过 2 个；进度显示 <code>2/5</code>、<code>3/5</code>…</td>
+</tr>
+<tr>
+<td>B-4</td>
+<td>非法/无法识别输入</td>
+<td><code>1706.03762\nnot-a-valid-id</code></td>
+<td><code>1706.03762</code> 导入成功；<code>not-a-valid-id</code> 进入 <code>errors</code>；summary <code>Imported 1, skipped 0, failed 1</code> 并走 error toast</td>
+</tr>
+<tr>
+<td>B-5</td>
+<td>导入后逐篇补下缺失资源</td>
+<td>6 个 ID 均缺 PDF/TeX</td>
+<td>导入完成后左下角任务列表出现 <strong>6 个独立的 <code>Download paper assets</code></strong> 任务；默认并发 3 时前 3 个 <code>running</code>、后 3 个 <code>queued</code>；每完成一篇队列中下一篇自动开始</td>
+</tr>
+<tr>
+<td>B-6</td>
+<td>只打开第一篇成功论文</td>
+<td>4 个 ID，其中第 2 个失败</td>
+<td>成功后只打开第 1 篇成功导入的 paper tab；失败条目不打开；文件树展开到新论文路径</td>
+</tr>
+<tr>
+<td>B-7</td>
+<td>设置值越界自动恢复</td>
+<td>手动把 <code>settings.json</code> 的 <code>batchImportConcurrency</code> 改为 <code>20</code> 或 <code>-1</code></td>
+<td>启动后自动 clamp 为默认值 3；UI 中显示 3</td>
 </tr>
 </tbody>
 </table>

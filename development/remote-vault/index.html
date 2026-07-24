@@ -107,6 +107,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">远程 Vault（SSH/SFTP）</a>
@@ -297,7 +299,7 @@
 <tr>
 <td>G5</td>
 <td><strong>复用现有产品契约</strong></td>
-<td>Vault 相对路径、catalog 语义、ACP 事件、权限三档、notes-review 尽量同构</td>
+<td>Vault 相对路径、catalog 语义、ACP 事件、权限三档尽量同构</td>
 </tr>
 </tbody>
 </table>
@@ -527,7 +529,7 @@ mutation（tags / rescan / is_read…）:
   立刻 SFTP PUT（建议 catalog.sqlite.tmp + rename）
   更新 FileMeta；失败则整次操作失败 + toast
 
-写前乐观锁:
+写前乐观锁：
   stat 远端；与打开/上次 push 的 meta 不一致 → Conflict，提示重新打开
 </code></pre>
 
@@ -630,7 +632,7 @@ cd /data/my-vault &amp;&amp; exec opencode acp
 <li>ACP 写入 → channel stdin  </li>
 <li>退出码 / 断开 → <code>agent:completed</code> / <code>agent:failed</code>  </li>
 </ol>
-<p><strong>协议与 UI 复用</strong>：<code>agent:stream</code>、<code>agent:permission-request</code>、<code>agent:notes-review</code>、权限三档、paper-reader skill 触发语法不变；路径展示尽量 strip 为 vault-relative。</p>
+<p><strong>协议与 UI 复用</strong>：<code>agent:stream</code>、<code>agent:permission-request</code>、权限三档、paper-reader skill 触发语法不变；路径展示尽量 strip 为 vault-relative。</p>
 <h3 id="53-provider">5.3 Provider 配置扩展（草案）<a class="headerlink" href="#53-provider" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-ts">// 概念：在现有 AgentDescriptor / 设置模型上扩展
 type RemoteAgentLaunch = {
@@ -696,7 +698,7 @@ type RemoteAgentLaunch = {
 </tr>
 <tr>
 <td>Agent 面板</td>
-<td>远端 transport；Codex+纯 SSH 暂拒</td>
+<td>远端 transport；Codex+ 纯 SSH 暂拒</td>
 </tr>
 <tr>
 <td>设置 → 通用</td>
@@ -784,7 +786,7 @@ type RemoteAgentLaunch = {
 </tr>
 <tr>
 <td><strong>M3</strong></td>
-<td><code>SshStdio</code> ACP、远端 discover/warm、精读 Zap、permission/notes-review</td>
+<td><code>SshStdio</code> ACP、远端 discover/warm、精读 Zap、permission</td>
 <td>远端 BYOA</td>
 </tr>
 <tr>
@@ -1189,7 +1191,7 @@ cargo test --lib live_ssh_remote_vault -- --ignored --nocapture
 <ul>
 <li>Codex App Server 经 SSH  </li>
 <li>更完整设置页远程偏好（默认 identity 等）  </li>
-<li>更广的 <code>std::fs</code> → <code>VaultFs</code> 迁移 </li>
+<li>更广的 <code>std::fs</code> → <code>VaultFs</code> 迁移</li>
 </ul>
               
             </div>

@@ -107,6 +107,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -185,7 +187,7 @@
 <p><strong>产品目标（Agentero）</strong></p>
 <ol>
 <li><strong>全局入口</strong>：任意焦点（编辑器 / PDF / 文件树）均可唤起，模态遮罩；<code>Esc</code> / <code>⌘W</code> 经 <code>overlay-stack</code> 关闭；同键再按亦可关闭。</li>
-<li><strong>双模式心智</strong>：快速打开（资源） vs 执行命令（动作）。</li>
+<li><strong>双模式心智</strong>：快速打开（资源）vs 执行命令（动作）。</li>
 <li><strong>科研场景优先</strong>：论文 / 笔记 / Library 路径优先于「任意工作区文件」。</li>
 <li><strong>可扩展</strong>：新功能以注册命令方式进入面板，而不是硬编码一长串菜单。</li>
 </ol>
@@ -523,7 +525,7 @@ Command Palette（⇧⌘P）走 <strong>CommandService 中所有「面向用户�
 <h3 id="46-vault">4.6 无 Vault / 其它弹层打开时<a class="headerlink" href="#46-vault" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>无 Vault</strong>：Go 模式可展示「打开 Vault / 创建 Vault」类命令；内容搜索禁用。  </li>
-<li><strong>其它弹层</strong>（设置 / 快捷键清单等）：与 Dialog 共用 <a href="../../frontend/ui/"><code>overlay-stack</code></a>（§3.0）。<code>⌘P</code>/<code>⌘K</code>/<code>⇧⌘P</code> 自身可再按关闭；<code>Esc</code> / <code>⌘W</code> 关最顶层。有弹层时 <code>whenSettingsClosed</code> 门控挡住 Vault 树类快捷键，但开关类（设置 / 面板 / 清单）仍可匹配。</li>
+<li><strong>其它弹层</strong>（设置等）：与 Dialog 共用 <a href="../../frontend/ui/"><code>overlay-stack</code></a>（§3.0）。<code>⌘P</code>/<code>⌘K</code>/<code>⇧⌘P</code> 自身可再按关闭；<code>Esc</code> / <code>⌘W</code> 关最顶层。有弹层时 <code>whenSettingsClosed</code> 门控挡住 Vault 树类快捷键，但开关类（设置 / 面板）仍可匹配。</li>
 </ul>
 <hr />
 <h2 id="5">5. 分期实现（建议）<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>

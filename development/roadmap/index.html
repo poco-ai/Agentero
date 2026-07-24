@@ -107,6 +107,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -283,7 +285,7 @@
 <tr>
 <td>V0.3 Agent 工作流（BYOA）</td>
 <td>🟡 进行中</td>
-<td>通用 ACP Client（OpenCode、Gemini、Claude、Codex、Qoder、Grok、自定义）统一 ACP 协议（Codex 经 <code>@agentclientprotocol/codex-acp</code> 适配器）；<strong>统一会话历史</strong>（<code>agent_list_sessions</code> / <code>agent_load_session</code>，ACP <code>session/list</code> + <code>session/load</code>）；<strong>paper-reader 精读</strong>（可选自动 + Zap 手动；<code>is_read</code>）；<strong>全局权限模式</strong>（受限 / <strong>每次询问</strong> / 自动批准）；<strong>面板工作流</strong>（Summarize → <code>summary</code>、Ask library / List claims → <code>qa</code>、Draft Related Work → <code>related_work</code>）；<strong>信任闭环</strong>（<code>agent:permission-request</code> 对话框 + <code>agent:notes-review</code> <strong>统一 Diff</strong> Keep/Revert）；<strong>当前论文默认 context</strong> + <strong><code>agentPersonalPrompt</code></strong>；模型收藏；<strong>AGENTS.md 自动注入仍待</strong>。</td>
+<td>通用 ACP Client（OpenCode、Gemini、Claude、Codex、Qoder、Grok、自定义）统一 ACP 协议（Codex 经 <code>@agentclientprotocol/codex-acp</code> 适配器）；<strong>统一会话历史</strong>（<code>agent_list_sessions</code> / <code>agent_load_session</code>，ACP <code>session/list</code> + <code>session/load</code>）；<strong>paper-reader 精读</strong>（可选自动 + Zap 手动；<code>is_read</code>）；<strong>全局权限模式</strong>（受限 / <strong>每次询问</strong> / 自动批准）；<strong>面板工作流</strong>（Summarize → <code>summary</code>、Ask library / List claims → <code>qa</code>、Draft Related Work → <code>related_work</code>）；<strong>权限询问</strong>（<code>agent:permission-request</code> 对话框）；<strong>当前论文默认 context</strong> + <strong><code>agentPersonalPrompt</code></strong>；模型收藏；<strong>AGENTS.md 自动注入仍待</strong>。</td>
 </tr>
 <tr>
 <td>V0.4 双链、反链与图谱</td>
@@ -297,8 +299,8 @@
 </tr>
 <tr>
 <td>V0.6 工作区标签页与分屏</td>
-<td>🟡 标签页已完成</td>
-<td><strong>文档标签页 + 默认全库 + 文件夹作用域库已落地</strong>；<strong>分屏（split）仍待</strong>；与左右侧栏 collapsible 共存。</td>
+<td>🟢 已完成</td>
+<td><strong>全局 Dockview 工作区 + 默认全库 + 文件夹作用域库 + 上下左右多分屏（PDF|NOTES / 拖文件树并入）已落地</strong>；标题栏无文档 tab；与左右侧栏 collapsible 共存。</td>
 </tr>
 <tr>
 <td>V0.7 引用关系与 Connected Papers</td>
@@ -341,7 +343,7 @@
 <li>[x] 最近 Vault 列表（欢迎页）与主窗口恢复上次 Vault。</li>
 <li>[x] 多窗口：<code>⌘N</code> 新建窗口，session 级 Vault 隔离。</li>
 <li>[x] 树内联新建文件 / 文件夹。</li>
-<li>[x] 文件树：<strong>Finder 显示</strong>（<code>⌥⌘R</code>）；<strong>终端打开</strong>（<code>⌥⌘T</code>）；<strong>多选 + 拖拽移动</strong>；<strong>删除</strong>走回收站（<code>path_trash</code>，无确认 / 无 Undo toast；Library 下虚拟节点 <code>agentero:trash</code> → 中间栏浏览 / 恢复 / 清空；<code>papers/</code> 快照 catalog）；<strong>选中同步 / 定位</strong>（激活文档与魔棒入库后展开祖先并滚到对应行）；<strong>Paper 行标签</strong>默认标题 · 作者（<code>paperTreeLabelMode</code>，设置 → 通用）。</li>
+<li>[x] 文件树：<strong>Finder 显示</strong>（<code>⌥⌘R</code>）；<strong>终端打开</strong>（<code>⌥⌘T</code>）；<strong>多选 + 拖拽移动</strong>；<strong>删除</strong>走回收站（<code>path_trash</code>，无确认 / 无 Undo toast；Library 下虚拟节点 <code>agentero:trash</code> → 中间栏浏览 / 恢复 / 永久删除，侧栏右键清空；<code>papers/</code> 快照 catalog）；<strong>选中同步 / 定位</strong>（激活文档与魔棒入库后展开祖先并滚到对应行）；<strong>Paper 行标签</strong>默认标题 · 作者（<code>paperTreeLabelMode</code>，设置 → 通用）。</li>
 <li>[x] Paper-centric 视图：选中 paper 后中间 PDF（本地优先 / 远程回退）或 HTML，右侧 <code>NOTES.md</code>（<strong>仅具体论文</strong>）。</li>
 <li>[x] Vault <strong>任意路径</strong> PDF / 常见图片中间栏预览（<code>blob:</code>）。</li>
 <li>[x] <strong>PDF 阅读操作</strong>：页码导航；<strong>适应宽度 / 适应整页</strong>；真实 scale 重渲染 + 放大后平移；<strong>大纲</strong>；<strong>⌘F 查找</strong>；<strong>平滑划词覆盖层</strong>；<strong>沉浸式阅读</strong>（全屏 + 限宽居中）；<strong>标注面板</strong>（高亮总览·改色·导出 NOTES）。</li>
@@ -395,6 +397,7 @@
 <li>[x] 入库后刷新 Backlinks/Graph 索引</li>
 <li>[x] 魔棒快捷键 <code>⇧⌘I</code>；</li>
 <li>[x] 非 arxiv 下载 PDF：下载改用浏览器 UA（绕开出版商 403）+ DOI 走 Crossref 取直链 / OA PDF 兜底（如 10.1371/journal.pbio.0040157）。</li>
+<li>[x] 魔棒批量入库：多标识符粘贴、去重、顺序入库、批量下载队列、进度聚合。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -429,7 +432,6 @@
 <li>skill（<strong>provider 分流：Claude <code>/</code> / 其它（含 Codex）注入</strong>）→ 写 <code>NOTES.md</code> → catalog <code>is_read=true</code>；左下角任务条（入库/下载 → 精读衔接）。</li>
 <li>[x] <strong>Skill 提及按 Agent 模板</strong>：Host <code>SkillMentionStyle</code>（<code>skills.rs</code>）；Composer <code>$</code> 仅为 UI 选 skill。</li>
 <li>[x] <strong>面板内置工作流入口</strong>（建议 chips → 后端 workflow）：Summarize → <code>summary</code>；Ask library / List claims → <code>qa</code>；Draft Related Work → <code>related_work</code>；目标为当前聚焦 paper（提及路径或选中路径）。引用类 workflow 见 V0.7。</li>
-<li>[x] <strong>笔记写后审阅（信任闭环）</strong>：运行前快照目标笔记；若 Agent 重写则 <code>agent:notes-review</code>，前端<strong>统一 Diff</strong>（<code>NotesReviewDiff</code>），<strong>Keep / Revert</strong>（BYOA 直接写盘，无法可靠事前拦截）。</li>
 <li>[x] Agent 读取路径回显（Sources）。</li>
 <li>[x] 密钥边界：模型 API Key 由 Agent CLI 管理，Agentero 不要求模型 BYOK 表单。</li>
 </ul>
@@ -453,7 +455,6 @@
 <li>[x] 把“总结当前论文 / 本地库问答 / Related Work”做成 Agent 面板可点击 workflow。</li>
 <li>[ ] 将 <code>AGENTS.md</code> 自动注入 workflow prompt，并在缺失时提示初始化。</li>
 <li>[x] 接入 ACP 权限确认 UI（「每次询问」档）。</li>
-<li>[x] 笔记写后 diff/preview 审阅（Keep / Revert）；写前草稿拦截仍待（若 BYOA 可支持）。</li>
 <li>[x] Codex 会话恢复：经 ACP <code>session/resume</code> 统一恢复，与所有 provider 一致。</li>
 <li>[x] 为通用 ACP provider 定义持久 session 与历史契约：<code>agent_list_sessions</code> / <code>agent_load_session</code>（ACP <code>session/list</code> + <code>session/load</code>）。</li>
 <li>[ ] Agent 输出期间的后续交互：普通 Agent 排队下一条消息，Codex 支持 guide / 引导消息。</li>
@@ -517,7 +518,7 @@
 <p>目标：中间内容区从「当前选中一项即替换」升级为 <strong>标签式多文档工作区</strong>，并支持 <strong>分屏并排阅读/编辑</strong>。</p>
 <p>现状对照：</p>
 <ul>
-<li><strong>标签页 + 默认全库 + 文件夹作用域库已落地</strong>。<strong>分屏（split）仍待实现</strong>。</li>
+<li><strong>标签页 + 默认全库 + 文件夹作用域库 + 分屏（dockview）已落地</strong>（见 <code>docs/development/tab-split.md</code>）。</li>
 <li>左右侧栏已是常驻 collapsible（<code>preserve-pixel-size</code>）；Agent 禅模式是全屏 Agent，不是编辑区分屏。</li>
 <li>Agent 面板内部已有 <strong>会话标签</strong>（多 session），与「文档标签页」是不同概念。</li>
 </ul>
@@ -527,8 +528,8 @@
 <li>[x] <strong>标签状态</strong>：每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；Markdown/NOTES 自动保存（debounce + 卸载 flush），关闭不丢内容。</li>
 <li>[x] <strong>默认页 = 全库 Library</strong>：<code>ensureFullLibraryTab</code>；仅剩全库时 <code>⌘W</code> 关窗。</li>
 <li>[x] <strong>文件夹作用域库</strong>：非 paper 目录 → <code>filterPapersByScope</code> 内存前缀过滤。</li>
-<li>[ ] <strong>分屏（split）</strong>：水平或垂直拆成 2 格（MVP 可先 2 格；后续可扩展 3–4 格），每格独立 tab 栈或共享 tab 池。</li>
-<li>[x] <strong>快捷键</strong>：关闭 tab <code>⌘W</code>（有弹层先关 <code>overlay-stack</code> 顶层；仅剩全库关窗）、下一/上一 tab <code>⌥⌘→ / ⌥⌘←</code>；分屏快捷键随 split 一并补。</li>
+<li>[x] <strong>全局 Dockview</strong>：中间栏管理全部文档 panel；上下左右 + 多格；论文默认 PDF|NOTES；拖文件树 → 任意边。</li>
+<li>[x] <strong>快捷键</strong>：关闭 panel <code>⌘W</code>（弹层 → active panel → 关窗）、下一/上一 panel <code>⌥⌘→ / ⌥⌘←</code>；NOTES 切换见 Layout 菜单。</li>
 <li>[x] <strong>与文件树联动</strong>：树选中 / Library / Graph / Backlinks / wiki 跳转统一走 <code>openTab</code>；同一路径已开则聚焦其 tab。</li>
 <li>[x] <strong>多窗口兼容</strong>：<code>⌘N</code> 窗口各自有独立 tab 集（<code>agentero-open-tabs</code> 按窗口 localStorage 恢复）。</li>
 </ul>
@@ -536,13 +537,13 @@
 <ul>
 <li>[x] 可同时打开至少 3 个文档标签并在其间切换而不丢滚动位置。</li>
 <li>[x] 关光文档 tab 后中间栏为全库；点组织文件夹只看到该路径下论文且不重新 <code>paper_list</code>。</li>
-<li>[ ] 分屏下左格读 PDF、右格写 <code>NOTES.md</code>（或两篇 paper 并排）可用。</li>
+<li>[x] 分屏下左格读 PDF、右格写 <code>NOTES.md</code>（或两篇 paper 并排）可用。</li>
 <li>[x] 关闭 Vault / 关窗不损坏磁盘文件；tab 布局可恢复（localStorage）。</li>
 </ul>
 <p>后续增强：</p>
 <ul>
 <li>[ ] tab 固定（pin）、按 paper 分组、从 Backlinks/Graph 中键新 tab 打开。</li>
-<li>[ ] 超过 2 格的网格分屏与拖拽合并。</li>
+<li>[x] 超过 2 格的网格分屏与拖拽合并（dockview multi-pane）。</li>
 </ul>
 <h2 id="v07-connected-papers">V0.7 引用关系与 Connected Papers<a class="headerlink" href="#v07-connected-papers" title="Permanent link">&para;</a></h2>
 <p>目标：先让用户在本地 PDF 中发现、预览和跳转引用/插图，再扩展为引用关系图和 Agent 工作流。</p>
@@ -777,7 +778,7 @@
 <h3 id="milestone-b">Milestone B：论文可入库 🟡<a class="headerlink" href="#milestone-b" title="Permanent link">&para;</a></h3>
 <p>包含 V0.2。<strong>精确 ID/URL 路径已可用</strong>（魔棒 → catalog + PDF/TeX 归档 + Library）；关键词/Agent 候选与导出仍属本里程碑剩余工作。</p>
 <h3 id="milestone-cagent">Milestone C：Agent 可协作 🟡<a class="headerlink" href="#milestone-cagent" title="Permanent link">&para;</a></h3>
-<p>包含 V0.3。<strong>已可用</strong>：ACP 连接（含 Codex 经 <code>codex-acp</code> 适配器）、统一会话历史、paper-reader、面板 workflow、权限三档、笔记写后审阅。<strong>仍待</strong>：<code>AGENTS.md</code> 自动注入、写前草稿拦截。</p>
+<p>包含 V0.3。<strong>已可用</strong>：ACP 连接（含 Codex 经 <code>codex-acp</code> 适配器）、统一会话历史、paper-reader、面板 workflow、权限三档。<strong>仍待</strong>：<code>AGENTS.md</code> 自动注入。</p>
 <h3 id="milestone-d">Milestone D：知识可导航 ✅<a class="headerlink" href="#milestone-d" title="Permanent link">&para;</a></h3>
 <p>包含 V0.4。完成后，用户可以通过双链、反链、图谱组织研究上下文。</p>
 <h3 id="milestone-e">Milestone E：来源可扩展 ⏳<a class="headerlink" href="#milestone-e" title="Permanent link">&para;</a></h3>
@@ -805,7 +806,6 @@
 <li>[x] paper-reader 精读：可选自动（入库/单篇 Download）+ Zap 手动；<code>is_read</code>；任务条进度。</li>
 <li>[x] Agent 全局权限模式（受限 / <strong>每次询问</strong> / 自动批准）+ 权限对话框。</li>
 <li>[x] Agent 面板 workflow：Summarize / Ask library / Draft Related Work。</li>
-<li>[x] Agent 笔记写后审阅（Keep / Revert）。</li>
 <li>[ ] Agent 关键词候选 / 自然语言入库闭环。</li>
 <li>[ ] workflow prompt 自动注入 Vault <code>AGENTS.md</code>。</li>
 <li>[ ] Tauri Store 替代当前 localStorage 中的最近 Vault / UI 偏好。</li>
@@ -825,7 +825,7 @@
 <li>[ ] <code>[[</code> 补全与 Plate wikilink 内联节点。</li>
 <li>[ ] Graph 全屏/聚焦模式与邻居高亮。</li>
 <li>[x] <strong>工作区标签页</strong>：多文档 tab、关闭/重排、滚动与视图状态保留；<code>⌘W</code> 关 tab / 无 tab 关窗（V0.6 标签页部分）。</li>
-<li>[ ] <strong>分屏</strong>：中间栏 2 格并排（PDF | NOTES 或 paper | paper）（V0.6 余量）。</li>
+<li>[x] <strong>分屏</strong>：中间栏全局 dockview 多格（PDF | NOTES、三分屏等）（扁平 <code>DocTab[]</code> + <code>dockLayout</code>）。</li>
 <li>[ ] <strong>文内引用 hover → 右侧 Paper Info</strong>（库内/远程缓存 + 一键入库）（V0.7-A）。</li>
 <li>[ ] <strong>引用关系图 / Connected Papers 式邻域</strong>（cites / cited_by 缓存 + 列表/简图）（V0.7-B）。</li>
 <li>[ ] <strong>Agent 引用工作流</strong>：Explore citations / Map related work / Ingest neighborhood（V0.7-C）。</li>
@@ -852,7 +852,8 @@
 <li>[ ] HTML iframe 标注（PDF 侧 <code>marks/</code> 已落地）。</li>
 <li>[ ] 多 Agent 并行综述与评估。</li>
 <li>[ ] 作者 / 机构 / 会议关系图谱；更深的 prior–derivative 引用布局。</li>
-<li>[ ] 复杂分屏（&gt;2 格）与命名工作区会话。</li>
+<li>[x] 复杂分屏（&gt;2 格，上下左右）。</li>
+<li>[ ] 命名工作区会话。</li>
 <li>[ ] iPadOS 文件系统与触控布局适配。</li>
 <li>[ ] （可选）从 <code>agentero_lib</code> 抽出无 Agent 的 domain crate，供 CLI 零 tauri 依赖——<strong>非当前 CLI 范围</strong>。</li>
 </ul>

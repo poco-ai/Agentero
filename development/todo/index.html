@@ -107,6 +107,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -305,6 +307,7 @@
 <li>[x] 精读：设置 <code>autoPaperReader</code>（默认关）+ 魔棒/单篇 Download 自动；资源齐全且未读时 Zap 可手动 → <code>is_read</code></li>
 <li>[x] Library 行：库内任一篇仍缺资源 → 批量 Download</li>
 <li>[x] 快捷键 <code>⇧⌘I</code>（打开魔棒）</li>
+<li>[x] 魔棒批量入库：多标识符粘贴（空格 / 逗号 / 分号 / 换行 / 中文标点）、去重、顺序入库、批量下载、进度聚合；不自动连跑 paper-reader</li>
 <li>[ ] 本机 Translator sidecar 捆绑</li>
 </ul>
 <h3 id="2c-ui">2c. 论文库表格 UI<a class="headerlink" href="#2c-ui" title="Permanent link">&para;</a></h3>
@@ -314,7 +317,7 @@
 <li>[x] 表头排序；横向/纵向滚动</li>
 <li>[x] 仅具体论文时显示 Paper Info / Notes（Library 隐藏）</li>
 <li>[x] Library 行批量补资源（与 2b 联动）</li>
-<li>[x] <strong>Tags</strong>：Paper Info 增删 → <code>paper_set_tags</code>；Library 列展示 + chip 筛选</li>
+<li>[x] <strong>Tags</strong>：Paper Info 增删 → <code>paper_set_tags</code>；Library 列展示（搜索匹配标签；无表上方 chip 筛选条）</li>
 <li>[x] <strong>Tags CLI</strong>：<code>paper tag list|set|add|rm</code> / <code>list --tag</code>（与 Host 共用 <code>papers::set_tags</code>）</li>
 <li>[x] <strong>Tags 颜色</strong>：Apple 风格 8 色 id；<code>tags_json</code> 字符串或 <code>{name,color}</code>；Paper Info 色盘；Library 染色 chip（<code>src/lib/tag-colors.ts</code>）</li>
 </ul>
@@ -328,16 +331,16 @@
 <h3 id="2d-ux">2d. 文件树与侧栏 UX<a class="headerlink" href="#2d-ux" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] <strong>文件树与侧栏 UX</strong>（整项）</li>
-<li>[x] <strong>回收站虚拟节点</strong>：Library 下方 <code>agentero:trash</code>（不在侧栏 Header）；<code>RecycleBinView</code> 自持 <code>PaneHeader</code>（与侧栏同高）；中间栏不重复 title/关闭行</li>
+<li>[x] <strong>回收站虚拟节点</strong>：Library 下方 <code>agentero:trash</code>（不在侧栏 Header）；中间栏 <code>RecycleBinView</code> 无独立 header；中间栏不重复 title/关闭行</li>
 <li>[x] <strong>选中同步 / 定位</strong>：激活文档与入库完成后树展开祖先并 <code>scrollToIndex</code></li>
 <li>[x] 在 Finder 中显示：右键 / <code>⌥⌘R</code>（<code>revealItemInDir</code>；无双击）</li>
 <li>[x] 在终端中打开：右键 / <code>⌥⌘T</code>（文件夹 = 自身；文件 = 父目录；Host <code>path_open_in_terminal</code>）</li>
-<li>[x] <strong>回收站删除</strong>：右键 / <code>⌘⌫</code> / 批量 → <code>path_trash</code>（无确认、无 Undo toast）；文件树虚拟节点 <code>agentero:trash</code> → 中间栏 <code>RecycleBinView</code> 恢复 / 永久删除 / 清空</li>
+<li>[x] <strong>回收站删除</strong>：右键 / <code>⌘⌫</code> / 批量 → <code>path_trash</code>（无确认、无 Undo toast）；文件树虚拟节点 <code>agentero:trash</code> → 中间栏 <code>RecycleBinView</code> 恢复 / 永久删除；<strong>清空</strong>在侧栏回收站右键</li>
 <li>[x] 多选（⌘/Shift 行高亮）+ 拖拽移动到 <code>papers/</code> 组织夹 + 批量移动对话框</li>
 <li>[x] 左右侧栏 collapsible 常驻 + <code>preserve-pixel-size</code>（交替 <code>⌥⌘S</code> / <code>⌘L</code> 不重叠）</li>
 <li>[x] 后台任务条（下载 / 入库 / 导入导出 / paper-reader；hover 实色不透明；任务可取消）</li>
 <li>[x] 精读触发图标 <strong>Zap</strong>（非 Eye）；tooltip 单行</li>
-<li>[x] <strong>Paper 行标签预设</strong>：默认标题 · 作者；设置 → 通用 <code>paperTreeLabelMode</code>（标题 / 作者(年)·标题 / 文件夹名）；展示用、不改磁盘名（<code>formatPaperTreeLabel</code>）</li>
+<li>[x] <strong>Paper 行标签预设</strong>：默认标题 · 作者；设置 → 通用 <code>paperTreeLabelMode</code>（标题 / 作者 (年)·标题 / 文件夹名）；展示用、不改磁盘名（<code>formatPaperTreeLabel</code>）</li>
 <li>[x] <strong>文件树论文排序预设</strong>：默认文件夹名 A–Z；设置 → 通用 <code>paperTreeSortMode</code>（标题 / 作者 / 年份新→旧 / 年份旧→新 / 添加时间新→旧）；展示用、不移动磁盘（<code>sortFileTreeNodes</code>）</li>
 </ul>
 <h3 id="2e-pdf">2e. PDF 阅读增强<a class="headerlink" href="#2e-pdf" title="Permanent link">&para;</a></h3>
@@ -372,7 +375,6 @@
 <li>[x] 在 Agent 面板增加“Summarize paper / Ask library / Draft Related Work”（建议按钮接通后端 <code>summary</code>/<code>qa</code>/<code>related_work</code> workflow）</li>
 <li>[ ] workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code></li>
 <li>[x] 输出必须包含 Sources（workflow prompt 已要求 <code>## Sources</code>）</li>
-<li>[x] 写后审阅：<code>agent:notes-review</code> → <strong>统一 Diff</strong>（<code>NotesReviewDiff</code>）Keep / Revert（BYOA 写盘后对照；写前草稿拦截仍待）</li>
 <li>[x] 权限「每次询问」档（<code>agentPermissionMode: ask</code> → <code>agent:permission-request</code> 对话框 + <code>agent_respond_permission</code>）</li>
 </ul>
 <h3 id="4">4. 文件与索引同步<a class="headerlink" href="#4" title="Permanent link">&para;</a></h3>
@@ -462,8 +464,9 @@
 <li>[x] 中间栏文档 <strong>标签栏</strong>：paper / MD / PDF / HTML / 图片 / Library 以 tab 打开，可关闭、切换、拖拽重排</li>
 <li>[x] 每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；MD/NOTES 自动保存，关闭不丢内容</li>
 <li>[x] <strong>默认页全库 + 文件夹作用域库</strong>（2c-2）</li>
-<li>[ ] <strong>分屏</strong>：水平或垂直 2 格；每格独立内容（典型：PDF | NOTES，或两篇 paper 并排）</li>
-<li>[x] 快捷键：关 tab <code>⌘W</code>（有弹层先关顶层；仅剩全库时关窗；File → Close 同源）/ 切 tab <code>⌥⌘→·⌥⌘←</code>；分屏随 split 补</li>
+<li>[x] <strong>全局 Dockview</strong>：中间栏单一工作区管理全部文档 panel；上下左右 + 多格；拖文件树并入任意边</li>
+<li>[x] 快捷键：关 panel <code>⌘W</code>（弹层 → active panel → 关窗；File → Close 同源）/ 切 panel <code>⌥⌘→·⌥⌘←</code></li>
+<li>[x] 去掉标题栏文档 tab 条与中间栏 PDF/HTML 模式切换</li>
 <li>[x] 文件树 / Library / Graph / Backlinks / wiki 跳转统一 <code>openTab</code>；同路径已开则聚焦</li>
 <li>[x] 与 <code>⌘N</code> 多窗口隔离：每窗口独立 tab 集（<code>agentero-open-tabs</code>）；关窗/换 Vault 可恢复布局</li>
 <li>[x] 全局操作错误 Toast（<code>notifyError</code>，右上角；替代侧栏 header 错误条）</li>
@@ -509,7 +512,7 @@
 <li>[x] 按 Zotero collection 还原文件夹层级（可选；collection 名写入 tags）</li>
 <li>[x] 选择性导入指定 collection + 迁移前自愈 catalog 孤儿行（<code>prune_missing</code>）</li>
 <li>[x] 迁移 Zotero 笔记（子笔记 HTML→Markdown 追加进 NOTES.md；<code>htmd</code>）</li>
-<li>[x] 迁移 PDF 批注文本（高亮+评论→NOTES.md）+ 逐条选择/搜索 + 迁移进度 + 记住选项</li>
+<li>[x] 迁移 PDF 批注文本（高亮 + 评论→NOTES.md）+ 逐条选择/搜索 + 迁移进度 + 记住选项</li>
 <li>[x] 批注原位高亮渲染（<code>marks/</code> + 页边针 + 右侧批注面板）</li>
 </ul>
 <h3 id="1b-zotero-connector">1b. Zotero Connector 兼容服务（方案一）<a class="headerlink" href="#1b-zotero-connector" title="Permanent link">&para;</a></h3>
@@ -579,7 +582,8 @@
 </ul>
 <h3 id="7">7. 工作区增强<a class="headerlink" href="#7" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[ ] 超过 2 格的网格分屏；tab 固定（pin）、按 paper 分组</li>
+<li>[x] 超过 2 格的网格分屏（dockview multi-pane + layout 快照）</li>
+<li>[ ] tab 固定（pin）、按 paper 分组</li>
 <li>[ ] 命名工作区会话（保存/恢复一整套 tab + 分屏布局）</li>
 </ul>
 <h3 id="8">8. 多端与协作<a class="headerlink" href="#8" title="Permanent link">&para;</a></h3>
@@ -615,7 +619,7 @@
 <li>[x] Library 表 + <strong>tags</strong> + <strong>Rescan</strong> + <strong>文件夹作用域</strong></li>
 <li>[x] PDF / HTML / 图片 / Markdown WYSIWYG（内嵌图 → <code>./assets/</code>）</li>
 <li>[x] Notes 仅具体论文时显示</li>
-<li>[ ] <strong>分屏</strong>（V0.6 余量）</li>
+<li>[x] <strong>分屏</strong>（V0.6：dockview tab 内上下左右 + 多格；见 <code>tab-split.md</code>）</li>
 </ul>
 <h3 id="_3">查找<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
 <ul>
@@ -644,7 +648,6 @@
 <li>[x] <strong>paper-reader</strong>（Zap + 可选自动默认关；<strong>不进对话历史</strong>）</li>
 <li>[x] <strong>权限三档</strong>（受限 / 每次询问 / 自动批准）</li>
 <li>[x] <strong>面板 workflow</strong>（summary / qa / related_work）</li>
-<li>[x] <strong>笔记写后审阅</strong> Keep/Revert</li>
 <li>[x] 模型收藏、Skill 提及分流、<strong>禅模式左侧历史栏</strong></li>
 <li>[ ] <code>AGENTS.md</code> 自动注入</li>
 <li>[ ] 写前草稿拦截</li>
@@ -680,7 +683,7 @@
 <li>[x] <strong>M0</strong> <code>VaultFs</code> / <code>LocalFs</code> + path 安全；单测（<code>services/fs/</code>）</li>
 <li>[x] <strong>M1</strong> SSH/SFTP + <code>__local_sim__</code>；<code>remote_*</code>；欢迎页；树 / md / mkdir / remove / bytes</li>
 <li>[x] <strong>M2</strong> catalog work mirror；list/get/delete/rescan/tags/is_read + PUT</li>
-<li>[x] <strong>M3</strong> ACP over SSH；skill materialize；notes-review；Codex-SSH 明确拒绝</li>
+<li>[x] <strong>M3</strong> ACP over SSH；skill materialize；Codex-SSH 明确拒绝</li>
 <li>[x] PDF cache + 预览；最近远程 reopen；侧栏远程徽章；禁 Finder/终端</li>
 <li>[x] 切换 Vault 时 disconnect 远程会话</li>
 <li>[x] 侧栏「切换知识库」菜单：<strong>打开远程…</strong> + 最近远程 MRU（共用 <code>RemoteVaultDialog</code>）</li>

@@ -223,6 +223,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -581,16 +583,20 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 </tbody>
 </table>
-<p><strong>选型理由</strong>：
-- <strong>所见即所得</strong>：用户无需在源码和预览之间切换，编辑体验接近 Notion/Obsidian Live Preview。
-- <strong>与 shadcn/ui 原生集成</strong>：Plate 的 UI 组件直接基于 shadcn/ui 构建，与项目现有组件体系无缝配合。
-- <strong>内置 AI 能力</strong>：<code>@platejs/ai</code> 提供编辑器内 AI 交互（补全、改写、内联建议），可通过 ACP 对接 Agent 工作流。
-- <strong>插件架构</strong>：双链、数学公式（KaTeX）、代码高亮等均可通过 Plate 插件扩展。
-- <strong>Markdown 兼容</strong>：通过 <code>@platejs/markdown</code> 实现 Markdown 文件的导入（反序列化为 Slate 文档）和保存（序列化为 Markdown 文本），保持与 Vault 文件的兼容。</p>
-<p><strong>注意事项</strong>：
-- Plate 内部使用 Slate 数据模型，保存时需序列化为 Markdown 再写入磁盘，确保 Vault 文件仍为标准 Markdown。
-- Agent 写入的 Markdown 同样需反序列化为 Slate 文档后展示在编辑器中。
-- 对于习惯源码编辑的用户，后续可考虑提供 CodeMirror 源码模式作为可选切换。</p>
+<p><strong>选型理由</strong>：</p>
+<ul>
+<li><strong>所见即所得</strong>：用户无需在源码和预览之间切换，编辑体验接近 Notion/Obsidian Live Preview。</li>
+<li><strong>与 shadcn/ui 原生集成</strong>：Plate 的 UI 组件直接基于 shadcn/ui 构建，与项目现有组件体系无缝配合。</li>
+<li><strong>内置 AI 能力</strong>：<code>@platejs/ai</code> 提供编辑器内 AI 交互（补全、改写、内联建议），可通过 ACP 对接 Agent 工作流。</li>
+<li><strong>插件架构</strong>：双链、数学公式（KaTeX）、代码高亮等均可通过 Plate 插件扩展。</li>
+<li><strong>Markdown 兼容</strong>：通过 <code>@platejs/markdown</code> 实现 Markdown 文件的导入（反序列化为 Slate 文档）和保存（序列化为 Markdown 文本），保持与 Vault 文件的兼容。</li>
+</ul>
+<p><strong>注意事项</strong>：</p>
+<ul>
+<li>Plate 内部使用 Slate 数据模型，保存时需序列化为 Markdown 再写入磁盘，确保 Vault 文件仍为标准 Markdown。</li>
+<li>Agent 写入的 Markdown 同样需反序列化为 Slate 文档后展示在编辑器中。</li>
+<li>对于习惯源码编辑的用户，后续可考虑提供 CodeMirror 源码模式作为可选切换。</li>
+</ul>
 <p><strong>Markdown 内嵌图片（已落地）</strong>：</p>
 <table>
 <thead>
@@ -674,19 +680,23 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 </tbody>
 </table>
-<p><strong>分工说明</strong>：
-- <strong>渲染层</strong>（<code>react-pdf</code>）：负责在 Webview 中展示 PDF 页面，供用户审阅、缩放、翻页浏览。
-- <strong>解析层</strong>（<code>liteparse</code>，crate <code>2.5+</code>）：在 Rust 端提取 PDF 文本内容，用于生成 <code>PAPER.md</code>、Agent 上下文读取、全文检索索引等。输出支持 Markdown（含标题/表格/列表重建）、JSON（含 bounding box）和纯文本。
-- <strong>当前落地</strong>：无本地 TeX 时，在 <code>lookup_import</code> / <code>paper_download_assets</code> <strong>下载之后</strong>自动 liteparse → <code>PAPER.md</code>；<code>paper_parse_body</code> 亦可手动。有 TeX 不自动生成。Download 图标补资源。精读：<strong>入库/单篇 Download 后自动</strong> paper-reader，资源齐全且未读时 Zap 可手动（catalog <code>is_read</code>；skill 触发：<strong>Codex <code>$paper-reader</code></strong>、<strong>Claude <code>/paper-reader</code></strong>、其它仅注入 <code>SKILL.md</code>，见 Host <code>SkillMentionStyle</code>；前端 <code>src/lib/paper-read.ts</code>）。
-- <code>liteparse</code> 内置 Tesseract OCR，对扫描型 PDF 也能处理；支持多格式（PDF/DOCX/XLSX/PPTX/图片）。
-- PDF 引用/插图解析的落盘契约、TeX/PDF 双路径和交互边界见 <a href="../../backend/pdf-analysis/"><code>../backend/pdf-analysis.md</code></a>。首版只分析本地 paper PDF；sidecar 写入 paper <code>source/</code>，不覆盖原始资产。
-- <strong>HTML 安全</strong>：完整远程/本地 HTML 文档优先用隔离 <code>iframe</code> 或 <code>convertFileSrc</code> 加载；任何会进入主文档 DOM 的不可信 HTML 字符串必须调用 <code>sanitizeHtml</code>（DOMPurify）。许可证 Apache-2.0。</p>
-<p><strong>可插拔 PDF 解析器（<code>PdfParser</code>）</strong>：
-- 抽象 <code>PdfParser</code> trait，提供两个后端：本地 <code>LiteparseBackend</code>（默认，离线开箱即用）与云端 <code>MineruCloudBackend</code>（BYOK，配置 MinerU API Key 后启用）。
-- 选择策略：配置并启用 MinerU 时优先云端（解析质量更高），失败自动降级本地 <code>liteparse</code>；未配置时始终本地。
-- 质量映射：MinerU → <code>body_quality=high</code>；liteparse 文本层 → <code>medium</code>；扫描件 OCR → <code>low</code>，写入 catalog。
-- 隐私：云端 MinerU 需上传 PDF，首次启用时提示；默认本地解析不外传数据。
-- arXiv 入库在无 LaTeX/HTML 时复用同一 <code>PdfParser</code> 做兜底解析。</p>
+<p><strong>分工说明</strong>：</p>
+<ul>
+<li><strong>渲染层</strong>（<code>react-pdf</code>）：负责在 Webview 中展示 PDF 页面，供用户审阅、缩放、翻页浏览。</li>
+<li><strong>解析层</strong>（<code>liteparse</code>，crate <code>2.5+</code>）：在 Rust 端提取 PDF 文本内容，用于生成 <code>PAPER.md</code>、Agent 上下文读取、全文检索索引等。输出支持 Markdown（含标题/表格/列表重建）、JSON（含 bounding box）和纯文本。</li>
+<li><strong>当前落地</strong>：无本地 TeX 时，在 <code>lookup_import</code> / <code>paper_download_assets</code> <strong>下载之后</strong>自动 liteparse → <code>PAPER.md</code>；<code>paper_parse_body</code> 亦可手动。有 TeX 不自动生成。Download 图标补资源。精读：<strong>入库/单篇 Download 后自动</strong> paper-reader，资源齐全且未读时 Zap 可手动（catalog <code>is_read</code>；skill 触发：<strong>Codex <code>$paper-reader</code></strong>、<strong>Claude <code>/paper-reader</code></strong>、其它仅注入 <code>SKILL.md</code>，见 Host <code>SkillMentionStyle</code>；前端 <code>src/lib/paper-read.ts</code>）。</li>
+<li><code>liteparse</code> 内置 Tesseract OCR，对扫描型 PDF 也能处理；支持多格式（PDF/DOCX/XLSX/PPTX/图片）。</li>
+<li>PDF 引用/插图解析的落盘契约、TeX/PDF 双路径和交互边界见 <a href="../../backend/pdf-analysis/"><code>../backend/pdf-analysis.md</code></a>。首版只分析本地 paper PDF；sidecar 写入 paper <code>source/</code>，不覆盖原始资产。</li>
+<li><strong>HTML 安全</strong>：完整远程/本地 HTML 文档优先用隔离 <code>iframe</code> 或 <code>convertFileSrc</code> 加载；任何会进入主文档 DOM 的不可信 HTML 字符串必须调用 <code>sanitizeHtml</code>（DOMPurify）。许可证 Apache-2.0。</li>
+</ul>
+<p><strong>可插拔 PDF 解析器（<code>PdfParser</code>）</strong>：</p>
+<ul>
+<li>抽象 <code>PdfParser</code> trait，提供两个后端：本地 <code>LiteparseBackend</code>（默认，离线开箱即用）与云端 <code>MineruCloudBackend</code>（BYOK，配置 MinerU API Key 后启用）。</li>
+<li>选择策略：配置并启用 MinerU 时优先云端（解析质量更高），失败自动降级本地 <code>liteparse</code>；未配置时始终本地。</li>
+<li>质量映射：MinerU → <code>body_quality=high</code>；liteparse 文本层 → <code>medium</code>；扫描件 OCR → <code>low</code>，写入 catalog。</li>
+<li>隐私：云端 MinerU 需上传 PDF，首次启用时提示；默认本地解析不外传数据。</li>
+<li>arXiv 入库在无 LaTeX/HTML 时复用同一 <code>PdfParser</code> 做兜底解析。</li>
+</ul>
 <blockquote>
 <p>MVP 阅读器以审阅、定位与就地提问为主，不实现完整 Hypothesis 式批注系统。</p>
 </blockquote>
@@ -950,14 +960,16 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 </tbody>
 </table>
-<p><strong>使用原则</strong>：
-- Tauri Store 只存配置和机密，不存论文元数据。
-- 论文集合与 metadata 的权威来源是 <strong>catalog</strong>；根级 <code>PAPERS.md</code> / <code>library.bib</code> <strong>默认不生成</strong>，仅 <code>catalog:export_*</code> 按需写出。
-- 人写笔记（<code>NOTES.md</code>）与 <code>marks/</code>、<code>source/</code> 仍是文件；<code>PAPER.md</code> 仍是可选派生文件。
-- 入库：写 <code>papers/&lt;id&gt;/</code> 文件 + 事务写入 catalog；不维护自动同步的 Markdown 总表。
-- Agent 最终引用必须落回 Vault 相对文件路径；L1 总览可靠应用注入列表或临时导出。
-- 专题：<a href="../../backend/catalog/"><code>docs/backend/catalog.md</code></a>。
-- 魔棒 / Translator：<a href="../../backend/identifier-lookup/"><code>docs/backend/identifier-lookup.md</code></a>（Search Translator 旁路进程，写入 catalog）。</p>
+<p><strong>使用原则</strong>：</p>
+<ul>
+<li>Tauri Store 只存配置和机密，不存论文元数据。</li>
+<li>论文集合与 metadata 的权威来源是 <strong>catalog</strong>；根级 <code>PAPERS.md</code> / <code>library.bib</code> <strong>默认不生成</strong>，仅 <code>catalog:export_*</code> 按需写出。</li>
+<li>人写笔记（<code>NOTES.md</code>）与 <code>marks/</code>、<code>source/</code> 仍是文件；<code>PAPER.md</code> 仍是可选派生文件。</li>
+<li>入库：写 <code>papers/&lt;id&gt;/</code> 文件 + 事务写入 catalog；不维护自动同步的 Markdown 总表。</li>
+<li>Agent 最终引用必须落回 Vault 相对文件路径；L1 总览可靠应用注入列表或临时导出。</li>
+<li>专题：<a href="../../backend/catalog/"><code>docs/backend/catalog.md</code></a>。</li>
+<li>魔棒 / Translator：<a href="../../backend/identifier-lookup/"><code>docs/backend/identifier-lookup.md</code></a>（Search Translator 旁路进程，写入 catalog）。</li>
+</ul>
 <h2 id="5">5. 核心模块搭配与数据流<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
 <h3 id="51-vault">5.1 Vault 初始化与恢复<a class="headerlink" href="#51-vault" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">用户选择目录
@@ -984,17 +996,21 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
   → 可选：生成 PAPER.md、Agent NOTES 深化
 </code></pre>
 
-<p><strong>输入分类与 Agent 解析</strong>：
-- 规则层先用正则识别 arXiv ID（如 <code>1706.03762</code>、<code>arXiv:1706.03762</code>）和 URL。
-- 非精确输入统一交给 Agent，Agent 可调用 arXiv API 进行关键词/摘要搜索，并返回 Top-K 候选。
-- 候选需包含：标题、作者、年份、arXiv ID、摘要片段、与输入意图的匹配理由。
-- 用户可在列表中多选批量入库，或拒绝全部候选后重新输入。</p>
-<p><strong>PAPER.md 生成策略</strong>（魔棒路径已部分落地）：
-- <code>papers/&lt;id&gt;/source/</code> 存 PDF / 可选 LaTeX；Agent 优先读 <code>.tex</code>。
-- <strong>无本地 TeX</strong>：在 PDF（及 e-print 尝试）<strong>下载之后</strong>，Host 用 <strong>liteparse</strong> 写 <code>PAPER.md</code>，并更新 catalog <code>body_source</code> / <code>body_quality</code>；亦可 <code>paper_parse_body</code>（Download 路径内触发）。
-- <strong>有 TeX</strong>：不自动生成 <code>PAPER.md</code>。
-- 可选后续：LaTeX→Markdown（pandoc）、arXiv HTML DOM→Markdown、可插拔 MinerU。
-- <code>PAPER.md</code> 是派生文件，可被删除或重建；<code>source/</code> 中的原始文件才是归档事实来源。</p>
+<p><strong>输入分类与 Agent 解析</strong>：</p>
+<ul>
+<li>规则层先用正则识别 arXiv ID（如 <code>1706.03762</code>、<code>arXiv:1706.03762</code>）和 URL。</li>
+<li>非精确输入统一交给 Agent，Agent 可调用 arXiv API 进行关键词/摘要搜索，并返回 Top-K 候选。</li>
+<li>候选需包含：标题、作者、年份、arXiv ID、摘要片段、与输入意图的匹配理由。</li>
+<li>用户可在列表中多选批量入库，或拒绝全部候选后重新输入。</li>
+</ul>
+<p><strong>PAPER.md 生成策略</strong>（魔棒路径已部分落地）：</p>
+<ul>
+<li><code>papers/&lt;id&gt;/source/</code> 存 PDF / 可选 LaTeX；Agent 优先读 <code>.tex</code>。</li>
+<li><strong>无本地 TeX</strong>：在 PDF（及 e-print 尝试）<strong>下载之后</strong>，Host 用 <strong>liteparse</strong> 写 <code>PAPER.md</code>，并更新 catalog <code>body_source</code> / <code>body_quality</code>；亦可 <code>paper_parse_body</code>（Download 路径内触发）。</li>
+<li><strong>有 TeX</strong>：不自动生成 <code>PAPER.md</code>。</li>
+<li>可选后续：LaTeX→Markdown（pandoc）、arXiv HTML DOM→Markdown、可插拔 MinerU。</li>
+<li><code>PAPER.md</code> 是派生文件，可被删除或重建；<code>source/</code> 中的原始文件才是归档事实来源。</li>
+</ul>
 <h3 id="53-pdf">5.3 本地 PDF 入库闭环<a class="headerlink" href="#53-pdf" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">用户选择或拖拽本地 PDF（可批量）
   → Rust: 复制原始 PDF 到临时目录 &lt;tmp&gt;/source/original.pdf（先入临时，确认后落位）
@@ -1011,10 +1027,12 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
   → Frontend: 展示进度、成功、失败原因；自动打开 NOTES.md
 </code></pre>
 
-<p><strong>与 arXiv 入库的差异</strong>：
-- 目录名用 citekey 而非 arXiv ID；无 arXiv API 提供权威元数据，改由“标识符查询 + Agent 抽取 + 用户确认”混合获取。
-- 无 LaTeX source，<code>PAPER.md</code> 必定生成，是该篇唯一结构化可读正文。
-- 解析器可插拔：默认本地 <code>liteparse</code>，配置 MinerU API Key 后优先云端 MinerU，失败自动降级；arXiv 入库在缺 LaTeX/HTML 时复用同一 <code>PdfParser</code>。</p>
+<p><strong>与 arXiv 入库的差异</strong>：</p>
+<ul>
+<li>目录名用 citekey 而非 arXiv ID；无 arXiv API 提供权威元数据，改由“标识符查询 + Agent 抽取 + 用户确认”混合获取。</li>
+<li>无 LaTeX source，<code>PAPER.md</code> 必定生成，是该篇唯一结构化可读正文。</li>
+<li>解析器可插拔：默认本地 <code>liteparse</code>，配置 MinerU API Key 后优先云端 MinerU，失败自动降级；arXiv 入库在缺 LaTeX/HTML 时复用同一 <code>PdfParser</code>。</li>
+</ul>
 <h3 id="54-markdown">5.4 Markdown 工作台<a class="headerlink" href="#54-markdown" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">文件树点击
   → Frontend: 请求 Rust 读取 Markdown 文件内容
@@ -1049,10 +1067,12 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </ul>
 <h3 id="57-agent-acp-client-byoa">5.7 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#57-agent-acp-client-byoa" title="Permanent link">&para;</a></h3>
 <p>Agent 层统一基于 <strong>ACP（Agent Client Protocol）</strong>：Rust Host 作为 <strong>ACP Client</strong>，通过 <code>agent-client-protocol</code> crate 与用户本机 <strong>已安装</strong> 的 Agent 子进程进行 stdio JSON-RPC 通信。Agentero <strong>不打包</strong> 任何 agent 二进制。</p>
-<p><strong>BYOA 原则</strong>：
-- 用户在设置中添加 / 选择 Agent（预设模板或自定义 <code>command</code> + <code>args</code> + <code>env</code>）。
-- 会话 <code>cwd</code> = 当前 Vault 根目录，使 Agent 直接面对 <code>AGENTS.md</code> / <code>papers/</code> 等本地资产（无默认 PAPERS.md）。
-- 模型与 API Key 完全由 Agent CLI 管理；Agentero 只负责 Client 侧会话、权限 UX 与工作流 prompt。</p>
+<p><strong>BYOA 原则</strong>：</p>
+<ul>
+<li>用户在设置中添加 / 选择 Agent（预设模板或自定义 <code>command</code> + <code>args</code> + <code>env</code>）。</li>
+<li>会话 <code>cwd</code> = 当前 Vault 根目录，使 Agent 直接面对 <code>AGENTS.md</code> / <code>papers/</code> 等本地资产（无默认 PAPERS.md）。</li>
+<li>模型与 API Key 完全由 Agent CLI 管理；Agentero 只负责 Client 侧会话、权限 UX 与工作流 prompt。</li>
+</ul>
 <pre class="codehilite"><code class="language-text">用户首次打开 Agent 面板 / 进入设置
   → Rust: 读取 agent 注册表；对 PATH 做可执行文件探测
   → Frontend: 若无可用 agent → 空状态（安装指引 + 添加自定义 agent）
@@ -1112,16 +1132,21 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 </tbody>
 </table>
-<p><strong>Agent 切换</strong>：
-- 切换只改注册表中的默认 agent id 与启动参数，不改变 Rust 业务逻辑。
-- ACP 保证接口统一；某 agent 不可用时展示探测失败原因与重试，不静默回退到「内置」agent。</p>
-<p><strong>权限与写入</strong>：
-- <strong>全局权限模式</strong>（设置 → Agent，<code>agentPermissionMode</code>）：<strong>受限</strong>（默认）取消 ACP 权限请求 / Codex <code>workspace-write</code>；<strong>每次询问</strong>（<code>ask</code>）经 <code>agent:permission-request</code> + <code>agent_respond_permission</code> 对话框；<strong>自动批准</strong>（<code>auto</code>）选第一项 AllowOnce / Codex <code>danger-full-access</code>。运行经 <code>permissionMode</code> 传入（旧 <code>autoApprove</code> 仍兼容）。
-- <strong>笔记写后审阅</strong>：BYOA 直接写盘，运行前快照目标笔记；重写后 <code>agent:notes-review</code> 统一 Diff + Keep/Revert。写前 dry-run / <code>agent:accept_draft</code> 路径仍可后续加强。</p>
-<p><strong>Agent 输出规范</strong>（工作流 prompt + <code>AGENTS.md</code> 强约束）：
-- 结果末尾必须包含 <code>## Sources</code> 或 <code>读取文件：</code> 列表（相对 Vault 路径）。
-- 涉及双链的内容必须保留 <code>[[...]]</code> 格式。
-- Agent 可先查 SQLite 索引加速路由，但最终引用与展示必须落回本地文件路径。</p>
+<p><strong>Agent 切换</strong>：</p>
+<ul>
+<li>切换只改注册表中的默认 agent id 与启动参数，不改变 Rust 业务逻辑。</li>
+<li>ACP 保证接口统一；某 agent 不可用时展示探测失败原因与重试，不静默回退到「内置」agent。</li>
+</ul>
+<p><strong>权限与写入</strong>：</p>
+<ul>
+<li><strong>全局权限模式</strong>（设置 → Agent，<code>agentPermissionMode</code>）：<strong>受限</strong>（默认）取消 ACP 权限请求 / Codex <code>workspace-write</code>；<strong>每次询问</strong>（<code>ask</code>）经 <code>agent:permission-request</code> + <code>agent_respond_permission</code> 对话框；<strong>自动批准</strong>（<code>auto</code>）选第一项 AllowOnce / Codex <code>danger-full-access</code>。运行经 <code>permissionMode</code> 传入（旧 <code>autoApprove</code> 仍兼容）。</li>
+</ul>
+<p><strong>Agent 输出规范</strong>（工作流 prompt + <code>AGENTS.md</code> 强约束）：</p>
+<ul>
+<li>结果末尾必须包含 <code>## Sources</code> 或 <code>读取文件：</code> 列表（相对 Vault 路径）。</li>
+<li>涉及双链的内容必须保留 <code>[[...]]</code> 格式。</li>
+<li>Agent 可先查 SQLite 索引加速路由，但最终引用与展示必须落回本地文件路径。</li>
+</ul>
 <h3 id="58-agent-byok">5.8 Agent 配置（注册表，非模型 BYOK）<a class="headerlink" href="#58-agent-byok" title="Permanent link">&para;</a></h3>
 <p>Agentero 配置的是 <strong>如何启动本机 Agent</strong>，不是模型 API Key。</p>
 <table>
@@ -1420,7 +1445,7 @@ tempfile = &quot;3&quot;
 </tr>
 <tr>
 <td>V0.3</td>
-<td>BYOA 面板进行中；通用 provider 走 ACP，Codex 走原生 App Server thread；<code>@</code> / <code>$</code> 上下文、<strong>paper-reader</strong>（可选自动 + Zap 手动 + <code>is_read</code>）、<strong>SkillMentionStyle</strong>、<strong>权限三档</strong>（<code>restricted</code> / <code>ask</code> / <code>auto</code> + <code>agent:permission-request</code>）、<strong>面板 workflow</strong>（summary / qa / related_work）、<strong>笔记写后审阅</strong>（<code>agent:notes-review</code> Keep/Revert）、模型收藏已接入；<code>AGENTS.md</code> 自动注入与写前草稿拦截仍待。</td>
+<td>BYOA 面板进行中；通用 provider 走 ACP，Codex 走原生 App Server thread；<code>@</code> / <code>$</code> 上下文、<strong>paper-reader</strong>（可选自动 + Zap 手动 + <code>is_read</code>）、<strong>SkillMentionStyle</strong>、<strong>权限三档</strong>（<code>restricted</code> / <code>ask</code> / <code>auto</code> + <code>agent:permission-request</code>）、<strong>面板 workflow</strong>（summary / qa / related_work）、模型收藏已接入；<code>AGENTS.md</code> 自动注入仍待。</td>
 </tr>
 <tr>
 <td>V0.4</td>
@@ -1467,7 +1492,7 @@ tempfile = &quot;3&quot;
 </tr>
 <tr>
 <td>Agent 输出破坏用户笔记</td>
-<td>BYOA 直接写盘，运行前快照目标笔记；重写后 <code>agent:notes-review</code> 统一 Diff + Keep/Revert。写前 dry-run 拦截仍待。</td>
+<td>BYOA 直接写盘；依赖用户本地版本管理 / 外部 diff。写前 dry-run 拦截仍可后续加强。</td>
 </tr>
 <tr>
 <td>论文列表性能差</td>

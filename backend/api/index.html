@@ -295,6 +295,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -472,11 +474,6 @@ Host (Tauri + Rust)
 <td><code>{ requestId, sessionId, title, kind?, paths, options: { optionId, name, kind }[] }</code></td>
 </tr>
 <tr>
-<td><code>agent:notes-review</code></td>
-<td>运行重写了目标笔记，供保留/还原</td>
-<td><code>{ path, before, after }</code></td>
-</tr>
-<tr>
 <td><code>background-task:progress</code></td>
 <td>下载任务的实际字节进度</td>
 <td><code>{ taskId, phase, downloadedBytes, totalBytes?, progress? }</code>；无 <code>Content-Length</code> 时 <code>progress</code> 为空</td>
@@ -501,10 +498,12 @@ Host (Tauri + Rust)
 <h2 id="3-host-tauri-invoke-api">3. Host 层 Tauri invoke API<a class="headerlink" href="#3-host-tauri-invoke-api" title="Permanent link">&para;</a></h2>
 <h3 id="31-vault">3.1 Vault 与窗口<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
 <blockquote>
-<p><strong>实现状态（V0.1）</strong><br />
-- 已实现：<code>vault_create</code>、<code>vault_ensure</code>（snake_case invoke 名）、<code>vault_allow_fs_scope</code>、<code>path_open_in_terminal</code>、<code>path_trash</code> / <code>path_untrash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。<br />
-- 打开 Vault / 最近列表 / 树加载：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成；打开或恢复时会调用 <code>vault_ensure</code> 补种缺失 bundled skills。Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。<br />
-- 实际 command 注册见 <code>src-tauri/src/lib.rs</code>。</p>
+<p><strong>实现状态（V0.1）</strong>  </p>
+<ul>
+<li>已实现：<code>vault_create</code>、<code>vault_ensure</code>（snake_case invoke 名）、<code>vault_allow_fs_scope</code>、<code>path_open_in_terminal</code>、<code>path_trash</code> / <code>path_untrash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。  </li>
+<li>打开 Vault / 最近列表 / 树加载：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成；打开或恢复时会调用 <code>vault_ensure</code> 补种缺失 bundled skills。Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。  </li>
+<li>实际 command 注册见 <code>src-tauri/src/lib.rs</code>。</li>
+</ul>
 </blockquote>
 <h4 id="vault_create"><code>vault_create</code>（已实现）<a class="headerlink" href="#vault_create" title="Permanent link">&para;</a></h4>
 <p>创建并初始化一个 Vault（前端 dialog 选路径后 <code>invoke("vault_create", { path })</code>）。</p>
@@ -742,7 +741,7 @@ Host (Tauri + Rust)
 </li>
 </ul>
 <h4 id="path_trash-path_untrash"><code>path_trash</code> / <code>path_untrash</code>（已落地）<a class="headerlink" href="#path_trash-path_untrash" title="Permanent link">&para;</a></h4>
-<p>可恢复删除：把项移入 Vault 回收站 <code>.agentero/.trash/&lt;batchId&gt;/</code>（带 <code>manifest.json</code> 记录原路径与被删 catalog 行快照），而非物理删除。<strong>前端不弹 Undo toast</strong>——用户从文件树虚拟节点 <code>agentero:trash</code> 打开的<strong>中间栏回收站视图</strong>（<code>RecycleBinView</code>）浏览 / 恢复 / 永久删除 / 清空。</p>
+<p>可恢复删除：把项移入 Vault 回收站 <code>.agentero/.trash/&lt;batchId&gt;/</code>（带 <code>manifest.json</code> 记录原路径与被删 catalog 行快照），而非物理删除。<strong>前端不弹 Undo toast</strong>——用户从文件树虚拟节点 <code>agentero:trash</code> 打开的<strong>中间栏回收站视图</strong>（<code>RecycleBinView</code>）浏览 / 恢复 / 永久删除；<strong>清空</strong>在侧栏回收站节点右键菜单。</p>
 <ul>
 <li><strong><code>path_trash</code> 参数</strong></li>
 </ul>
@@ -1189,6 +1188,7 @@ Host (Tauri + Rust)
     timeoutMs?: number | null;   // optional; clamped 1s–30s server-side (default 30s); settings probe uses 5000
   }
   ```
+
 - **返回**：`{ ok: true; data: { text: string; provider: string } }`
 - **约束**：单次约 ≤ 5000 字符（CNKI ≤800）；默认超时约 30s。无付费 API Key；免费引擎为非官方网页接口。设置页打开默认服务下拉时，对全部免费引擎并行 probe（`timeoutMs=5000`，不含 Agent）。
 
@@ -1205,6 +1205,7 @@ Host (Tauri + Rust)
 #### `connector_get_status`
 
 - **返回**：`{ ok: true; data: ConnectorStatus }`
+
   ```ts
   type ConnectorStatus = {
     enabled: boolean;
@@ -1250,6 +1251,7 @@ Host (Tauri + Rust)
 #### `vault_search`（已落地）
 
 - **参数**（invoke 字段名 `args`）：
+
   ```ts
   {
     vaultPath: string;
@@ -1257,7 +1259,9 @@ Host (Tauri + Rust)
     limit?: number;     // 默认 60，clamp 1–200
   }
   ```
+
 - **返回**：`{ ok: true; data: { hits: SearchHit[]; truncated: boolean } }`
+
   ```ts
   type SearchHit = {
     path: string;         // Vault 相对 md，如 papers/x/NOTES.md
@@ -1268,7 +1272,8 @@ Host (Tauri + Rust)
     score: number;
   };
   ```
-- **行为**：读文件（&gt;2MB 跳过）；标题优先取 `# ` H1；片段居中于首个命中词；评分 = 标题命中（+50/词）+ 正文出现次数（每词封顶 20）+ NOTES/PAPER.md 加成；按 score 降序、path 升序；截断到 `limit`。命中 `papers/&lt;x&gt;/…` 时 `paperPath=papers/&lt;x&gt;`，供 UI 打开论文而非裸文件。
+
+- **行为**：读文件（&gt;2MB 跳过）；标题优先取 `#` H1；片段居中于首个命中词；评分 = 标题命中（+50/词）+ 正文出现次数（每词封顶 20）+ NOTES/PAPER.md 加成；按 score 降序、path 升序；截断到 `limit`。命中 `papers/&lt;x&gt;/…` 时 `paperPath=papers/&lt;x&gt;`，供 UI 打开论文而非裸文件。
 
 ### 3.6 魔棒 / 标识符入库（已落地 v0）
 
@@ -1285,6 +1290,7 @@ Host (Tauri + Rust)
 #### `lookup_import`
 
 - **参数**（invoke 字段名 `args`）：
+
   ```ts
   {
     vaultPath: string;
@@ -1294,7 +1300,9 @@ Host (Tauri + Rust)
     taskId?: string;                 // 前端后台任务 id；支持取消与进度事件
   }
   ```
+
 - **返回**：
+
   ```ts
   {
     ok: true;
@@ -1308,13 +1316,51 @@ Host (Tauri + Rust)
     }
   }
   ```
+
 - **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` 壳（摘要块优先经免费 MT 译为中文，失败则保留原文；catalog 中 `abstract` 仍为原文）；`metadata.json` 为 catalog 投影同步；**始终下载 PDF** 到 `source/`；**arXiv 另下载 e-print 并解压 LaTeX** 到 `source/`；下载后若**无 TeX 且有 PDF 且无 `PAPER.md`**，用 **liteparse** 生成 `PAPER.md` 并更新 `body_source` / `body_quality`。
+
+#### `lookup_import_batch`（魔棒批量入库）
+
+- **参数**（invoke 字段名 `args`）：
+
+  ```ts
+  {
+    vaultPath: string;
+    parentDir: string;              // &quot;papers&quot; | &quot;papers/nlp&quot;
+    texts: string[];                // 拆分后的原始 token 数组
+    translatorBaseUrl?: string;     // 同 lookup_import
+    taskId?: string;                // 前端后台任务 id；单条进度聚合在该任务下
+    concurrency?: number;           // 最大并发入库数，默认 3，范围 1–10
+  }
+  ```
+
+- **返回**：
+
+  ```ts
+  {
+    ok: true;
+    data: {
+      imported: LookupImportResult[];
+      skipped: { raw: string; kind: string; value: string; reason: 'duplicate_in_batch' | 'already_in_library' }[];
+      errors: string[];
+    }
+  }
+  ```
+
+  其中 `LookupImportResult` 同 `lookup_import` 的 `data` 字段（含 `paperDir`、`path`、`id`、`title`、`usedTranslator`、`translatorBaseUrl`、`pdf?`、`tex?`、`paperMd?`、`assetMessages?`）。
+- **行为**：
+  1. 逐条解析 `texts`；未识别则加入 `errors`。
+  2. 按规范化 value 去重（arXiv 去 version、DOI 小写等）；batch 内重复 → `skipped.reason = 'duplicate_in_batch'`。
+  3. 查 catalog：`arxiv_id` / `doi` / `isbn` / `pmid` / `id` 已存在 → `skipped.reason = 'already_in_library'`。
+  4. 其余以 `concurrency`（默认 3，范围 1–10）为上限并发调 `import_by_identifier_with_progress`，共用 `taskId`；单条失败继续，错误加入 `errors`。并发上限可在 **Settings → General → Batch import concurrency** 调整。
+  5. 前端收到 `imported` 后刷新树 / Library / wiki，并对其中仍缺资源的 paper 逐个入下载队列，每篇一个独立的 `download` 后台任务，按并发上限排队执行。**不**自动连跑 paper-reader。
 
 #### `paper_download_assets`（已落地）
 
 为已有 paper 文件夹补下载缺失的 PDF（及 arXiv LaTeX）。用于文件树单篇 Download，以及 Library 行「下载全部缺失」。下载后若无 TeX，同样尝试生成 `PAPER.md`。
 
 - **参数**（invoke 字段名 `args`）：
+
   ```ts
   {
     vaultPath: string;
@@ -1322,6 +1368,7 @@ Host (Tauri + Rust)
     taskId?: string; // 前端后台任务 id，用于接收 background-task:progress
   }
   ```
+
 - **返回**：`{ ok: true; data: { pdf: boolean; tex: boolean; paperMd: boolean; messages: string[] } }`
 - **行为**：读 catalog 取 `pdf_url` / `arxiv_id` / `doi`；已有对应文件则跳过；PDF → `{paper}/{id}.pdf`（论文根目录）；arXiv e-print TeX → 解压进 `source/`；无 TeX + 有 PDF + 无 `PAPER.md` → liteparse → `PAPER.md`。下载客户端使用**浏览器 UA**（绕开部分出版商 403）；若直链/arXiv 候选都失败且有 `doi`，再查 **Crossref** 取直链 / OA PDF 兜底。打开 paper 预览时若无本地 PDF 也会自动调用本命令（失败则回退远程 `pdf_url`）。当传入 `taskId` 且响应提供 `Content-Length` 时，通过 `background-task:progress` 按实际已接收字节数推送百分比；无法得知总大小时只推送不确定进度。
 
@@ -1341,6 +1388,7 @@ Host (Tauri + Rust)
 把本地 PDF 导入为 paper 文件夹（复制 + catalog + liteparse），**无网络查询**。入口：魔棒弹层原生 PDF 选择器；或将 PDF **拖到左侧树 `papers/` 组织夹** → metadata 确认对话框后再导入。
 
 - **参数**（invoke 字段名 `args`）：
+
   ```ts
   {
     vaultPath: string;
@@ -1355,6 +1403,7 @@ Host (Tauri + Rust)
     }&gt;;
   }
   ```
+
 - **返回**：`{ ok: true; data: { papers: LookupImportResult[]; errors: string[] } }`（`errors` 为 `&quot;&lt;文件&gt;: &lt;原因&gt;&quot;`；仅当**全部**失败才整体 `ok:false`）。
 - **行为**：每个 PDF → 标题/id 优先用 `entries` 覆盖，否则文件名 stem；复制到 `{slug}.pdf`；写 `NOTES.md` 壳 + catalog（type `pdf`，可含 authors/year）；无 TeX → liteparse `PAPER.md`。不覆盖已存在文件夹（slug 去重）。
 
@@ -1365,6 +1414,7 @@ Host (Tauri + Rust)
 &gt; **Zap 图标**现用于 **paper-reader 精读**（资源齐全且未读时显示），不再表示「生成 PAPER.md」。
 
 - **参数**（invoke 字段名 `args`）：
+
   ```ts
   {
     vaultPath: string;
@@ -1372,6 +1422,7 @@ Host (Tauri + Rust)
     force?: boolean; // 默认 false：已有 PAPER.md 则跳过；true 时覆盖
   }
   ```
+
 - **返回**：`{ ok: true; data: { paperMd: boolean; bodySource?: string; bodyQuality?: string; messages: string[] } }`
 - **行为**：
   - 本地已有 `.tex`/`.ltx` → 跳过（不生成）。
@@ -1384,6 +1435,7 @@ Host (Tauri + Rust)
 为本地 paper PDF 生成可重建的引用与插图 sidecar。首版不支持远程 Vault，不自动联网补全库外引用。
 
 - **参数**：
+
   ```ts
   {
     vaultPath: string;
@@ -1392,7 +1444,9 @@ Host (Tauri + Rust)
     taskId?: string;
   }
   ```
+
 - **返回**：
+
   ```ts
   {
     mode: &quot;tex&quot; | &quot;pdf&quot;;
@@ -1404,6 +1458,7 @@ Host (Tauri + Rust)
     messages: string[];
   }
   ```
+
 - **落盘**：`{paper}/source/agentero-cite.json`、`{paper}/source/agentero-figures.json`、`{paper}/source/agentero-figures/*.png`。
 - **行为**：有 TeX 时解析 TeX/Bib 并用 PDF bbox 做定位；无 TeX 时使用 liteparse。不得覆盖原始 PDF、TeX/Bib、`NOTES.md` 或 `PAPER.md`。完整 schema 见 [`pdf-analysis.md`](pdf-analysis.md)。
 
@@ -1412,6 +1467,7 @@ Host (Tauri + Rust)
 导出 catalog 全文：Host 将每行转为 **Zotero API JSON item**，组成 **JSON 数组**，再 `POST {translatorBaseUrl}/export?format=…`（`Content-Type: application/json`）。
 
 - **参数**（`args`）：
+
   ```ts
   {
     vaultPath: string;
@@ -1419,6 +1475,7 @@ Host (Tauri + Rust)
     translatorBaseUrl?: string;
   }
   ```
+
 - **返回**：`{ ok: true; data: { format, content, count, filename } }`
 - **注意**：`/export` **要求 body 为 Zotero items 数组**，不是 Agentero `PaperMetadata` 蛇形字段；转换在 Host `zotero_io::paper_record_to_zotero_item`。
 
@@ -1427,6 +1484,7 @@ Host (Tauri + Rust)
 导入 BibTeX / RIS 等：`POST {translatorBaseUrl}/import`（`Content-Type: text/plain`）→ Zotero items 数组 → map + catalog upsert + paper 壳 + 默认下载资源。
 
 - **参数**（`args`）：
+
   ```ts
   {
     vaultPath: string;
@@ -1435,6 +1493,7 @@ Host (Tauri + Rust)
     translatorBaseUrl?: string;
   }
   ```
+
 - **返回**：`{ ok: true; data: { imported, skipped, paths, titles, errors } }`
 - **行为**：已存在同 path 的 paper（有 NOTES 或 catalog 行）→ **skip**，不覆盖 `NOTES.md`。
 
@@ -1714,9 +1773,8 @@ Host (Tauri + Rust)
 </li>
 <li><code>restricted</code>（默认）：取消所有 ACP 权限请求；</li>
 <li><code>ask</code>（每次询问）：每个权限请求经 <code>agent:permission-request</code> 事件转交前端，用户点选后由 <code>agent_respond_permission</code> 回传（超时 5 分钟未应答则取消）；</li>
-<li><code>auto</code>（自动批准）：选择第一个 AllowOnce 选项（等价旧 <code>autoApprove: true</code>）。</li>
 <li>
-<p><strong>笔记写后审阅（信任闭环）</strong>：运行前快照目标笔记（<code>.md</code> target 或论文夹 <code>NOTES.md</code>），运行结束后若被 Agent 重写则 emit <code>agent:notes-review</code>，前端弹<strong>统一 Diff</strong>（行级增删），可保留或还原。</p>
+<p><code>auto</code>（自动批准）：选择第一个 AllowOnce 选项（等价旧 <code>autoApprove: true</code>）。</p>
 </li>
 <li>
 <p><strong>回答语言</strong>：设置 → Agent 提供全局「回答语言」（自动 / English / 简体中文，独立于界面语言）。前端 <code>runOnce</code> 统一读取该设置并透传 <code>responseLanguage</code>；Host 在 <code>build_prompt</code>（<code>prompts.rs</code>）为所有 workflow 追加一句语言指令，<code>auto</code> 时不注入。</p>
@@ -2051,7 +2109,7 @@ Host (Tauri + Rust)
 </table>
 <ul>
 <li><strong>边</strong>：有向，<code>source</code> / <code>target</code> 为折叠后节点 id；折叠后的自环丢弃。</li>
-<li><strong>邻域</strong>：无向 BFS（出边+入边）从 <code>center</code> 扩展至多 <code>depth</code> 跳，再裁剪 edges。</li>
+<li><strong>邻域</strong>：无向 BFS（出边 + 入边）从 <code>center</code> 扩展至多 <code>depth</code> 跳，再裁剪 edges。</li>
 </ul>
 <h4 id="graph_rebuild-graphrebuild_index"><code>graph_rebuild</code>（实现中；草案名 <code>graph:rebuild_index</code>）<a class="headerlink" href="#graph_rebuild-graphrebuild_index" title="Permanent link">&para;</a></h4>
 <p>全量扫描 Vault 内 Markdown，重建内存 wikilink 索引。</p>
@@ -2323,7 +2381,7 @@ Host (Tauri + Rust)
 </tr>
 <tr>
 <td>V0.3</td>
-<td>ACP Client + BYOA：会话与流式事件；<code>permissionMode</code>（<code>restricted</code>/<code>ask</code>/<code>auto</code>）+ <code>agent_respond_permission</code> / <code>agent:permission-request</code>；<code>agent:notes-review</code>；面板 workflow（<code>summary</code>/<code>qa</code>/<code>related_work</code>）；<code>paper_set_is_read</code> + paper-reader（可选自动/手动）。</td>
+<td>ACP Client + BYOA：会话与流式事件；<code>permissionMode</code>（<code>restricted</code>/<code>ask</code>/<code>auto</code>）+ <code>agent_respond_permission</code> / <code>agent:permission-request</code>；面板 workflow（<code>summary</code>/<code>qa</code>/<code>related_work</code>）；<code>paper_set_is_read</code> + paper-reader（可选自动/手动）。</td>
 </tr>
 <tr>
 <td>V0.4</td>
@@ -2347,13 +2405,15 @@ Host (Tauri + Rust)
 </tr>
 </tbody>
 </table>
-<p>后续扩展：
-- <code>importer:import</code> 统一来源入口。
-- <code>lookup:*</code> 与 PDF prepare 共用元数据管道。
-- <code>citation:fetch</code> / <code>citation:list_neighbors</code>（名称待定）：引用/被引邻域与缓存刷新（V0.7）。
-- ~~<code>search:full_text</code>~~ → 已用 walk 式 <code>vault_search</code>（命令面板）；FTS5 / PDF 正文层仍可替换增强。
-- <code>reader:annotations</code>（历史规划；划词标注现为前端 <code>marks/*.json</code>，不经 Host command）。
-- <code>sync:*</code> 多设备同步（远期）。</p>
+<p>后续扩展：</p>
+<ul>
+<li><code>importer:import</code> 统一来源入口。</li>
+<li><code>lookup:*</code> 与 PDF prepare 共用元数据管道。</li>
+<li><code>citation:fetch</code> / <code>citation:list_neighbors</code>（名称待定）：引用/被引邻域与缓存刷新（V0.7）。</li>
+<li>~~<code>search:full_text</code>~~ → 已用 walk 式 <code>vault_search</code>（命令面板）；FTS5 / PDF 正文层仍可替换增强。</li>
+<li><code>reader:annotations</code>（历史规划；划词标注现为前端 <code>marks/*.json</code>，不经 Host command）。</li>
+<li><code>sync:*</code> 多设备同步（远期）。</li>
+</ul>
               
             </div>
           </div><footer>

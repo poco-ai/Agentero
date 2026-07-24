@@ -105,7 +105,7 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#4-hostpaper_commit">4. Host：paper_commit</a>
+    <li class="toctree-l2"><a class="reference internal" href="#4-hostpaper_commit">4. Host:paper_commit</a>
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#41-paperdraft-papercommitoptions">4.1 输入：PaperDraft + PaperCommitOptions</a>
     </li>
@@ -172,6 +172,8 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/tab-split/">Tab 内分屏</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
                   </li>
@@ -451,7 +453,7 @@
 </ol>
 <h3 id="32">3.2 总览图<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-text">┌──────────── UI / CLI / HTTP Connector ────────────┐
-│  魔棒  Connector  本地PDF  Bib  迁移  CLI  Rescan* │
+│  魔棒  Connector  本地 PDF  Bib  迁移  CLI  Rescan* │
 └───────────────┬───────────────────────────────────┘
                 │  Source adapter → PaperDraft
                 ▼
@@ -469,7 +471,7 @@ Download / saveAttachment → paper_attach_assets（结果字段对齐 commit）
 </code></pre>
 
 <hr />
-<h2 id="4-hostpaper_commit">4. Host：<code>paper_commit</code><a class="headerlink" href="#4-hostpaper_commit" title="Permanent link">&para;</a></h2>
+<h2 id="4-hostpaper_commit">4. Host:<code>paper_commit</code><a class="headerlink" href="#4-hostpaper_commit" title="Permanent link">&para;</a></h2>
 <p>建议模块：<code>src-tauri/src/services/lookup/commit.rs</code>（或新建 <code>services/paper_import/</code>，初期放 lookup 旁即可，避免过早拆 crate）。</p>
 <h3 id="41-paperdraft-papercommitoptions">4.1 输入：<code>PaperDraft</code> + <code>PaperCommitOptions</code><a class="headerlink" href="#41-paperdraft-papercommitoptions" title="Permanent link">&para;</a></h3>
 <p><strong><code>PaperDraft</code>（概念）</strong></p>

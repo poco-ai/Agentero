@@ -123,6 +123,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../development/translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../development/tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../development/logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -250,15 +252,15 @@ pnpm demo:vault:verify -- ~/Downloads/agentero-demo-vault
 </ul>
 <p>测试 Vault 语义时，创建临时 Vault 目录，不要在 <code>src/</code> 中引入全局 mock 数据：</p>
 <pre class="codehilite"><code class="language-ts">const vault = await createTestVault({
-    &quot;notes/Source.md&quot;: &quot;See [[notes/Target]].&quot;,
-    &quot;notes/Target.md&quot;: &quot;# Target&quot;,
+ &quot;notes/Source.md&quot;: &quot;See [[notes/Target]].&quot;,
+ &quot;notes/Target.md&quot;: &quot;# Target&quot;,
 });
 
 try {
-    const files = await vault.listMarkdownFiles();
-    // assertions
+ const files = await vault.listMarkdownFiles();
+ // assertions
 } finally {
-    await vault.cleanup();
+ await vault.cleanup();
 }
 </code></pre>
 
@@ -330,14 +332,6 @@ try {
 <tr>
 <td>打开设置后 <code>⌘W</code> / <code>Esc</code></td>
 <td>先关设置，不关标签</td>
-</tr>
-<tr>
-<td><code>⌘/</code> 打开快捷键清单后再按 <code>⌘/</code></td>
-<td>关闭清单（开关）</td>
-</tr>
-<tr>
-<td>打开设置后再开快捷键清单，连按 <code>Esc</code></td>
-<td>先关清单，再关设置（LIFO）</td>
 </tr>
 <tr>
 <td>命令面板 <code>⌘P</code> / <code>⇧⌘P</code> 打开后再按同键或 <code>⌘W</code></td>

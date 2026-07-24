@@ -155,6 +155,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -557,8 +559,8 @@
 <li><code>idx_papers_arxiv</code> ON <code>papers(arxiv_id)</code> WHERE <code>arxiv_id</code> IS NOT NULL</li>
 <li><code>idx_papers_doi</code> ON <code>papers(doi)</code> WHERE <code>doi</code> IS NOT NULL</li>
 <li><code>idx_papers_bibtex</code> ON <code>papers(bibtex_key)</code> WHERE <code>bibtex_key</code> IS NOT NULL</li>
-<li><code>idx_papers_pmid</code> ON <code>papers(pmid)</code> WHERE <code>pmid</code> IS NOT NULL（v2）</li>
-<li><code>idx_papers_isbn</code> ON <code>papers(isbn)</code> WHERE <code>isbn</code> IS NOT NULL（v2）</li>
+<li><code>idx_papers_pmid</code> ON <code>papers(pmid)</code> WHERE <code>pmid</code> IS NOT NULL (v2)</li>
+<li><code>idx_papers_isbn</code> ON <code>papers(isbn)</code> WHERE <code>isbn</code> IS NOT NULL (v2)</li>
 <li><code>idx_papers_is_read</code> ON <code>papers(is_read)</code>（v3）</li>
 </ul>
 <p>可选后续：</p>

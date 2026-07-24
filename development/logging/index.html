@@ -107,6 +107,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">运行日志</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#1">1. 背景与问题</a>
@@ -139,7 +141,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#52-p0">5.2 操作清单（P0 必覆盖）</a>
         <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#hostrust-command-service">Host（Rust command / service）</a>
+    <li class="toctree-l4"><a class="reference internal" href="#host-rust-command-service">Host (Rust command / service)</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#react-lib">前端（React / lib）</a>
     </li>
@@ -524,7 +526,7 @@ logger.error(`op end openVault ok=false duration_ms=${ms} error=${msg}`);
 </ol>
 <h3 id="52-p0">5.2 操作清单（P0 必覆盖）<a class="headerlink" href="#52-p0" title="Permanent link">&para;</a></h3>
 <p>按「用户可感知、有副作用或长耗时」优先。</p>
-<h4 id="hostrust-command-service">Host（Rust command / service）<a class="headerlink" href="#hostrust-command-service" title="Permanent link">&para;</a></h4>
+<h4 id="host-rust-command-service">Host (Rust command / service)<a class="headerlink" href="#host-rust-command-service" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
 <tr>
@@ -1082,7 +1084,7 @@ export function logOp&lt;T&gt;(name: string, fields: Record&lt;string, unknown&g
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../translate/" class="btn btn-neutral float-left" title="翻译服务"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../tab-split/" class="btn btn-neutral float-left" title="Tab 内分屏"><span class="icon icon-circle-arrow-left"></span> Previous</a>
         <a href="../remote-vault/" class="btn btn-neutral float-right" title="远程 Vault（SSH/SFTP）">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
@@ -1110,7 +1112,7 @@ export function logOp&lt;T&gt;(name: string, fields: Record&lt;string, unknown&g
         </span>
     
     
-      <span><a href="../translate/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../tab-split/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
       <span><a href="../remote-vault/" style="color: #fcfcfc">Next &raquo;</a></span>

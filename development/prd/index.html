@@ -197,6 +197,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -251,7 +253,7 @@
 <li>每次和 Agent 对话都需要重新提供上下文，知识库缺少稳定的路由表。</li>
 <li>PDF 对人眼友好，但对模型有大量排版噪音，公式、表格、引用关系也不够可寻址。</li>
 </ul>
-<p>本产品的核心主张是：让人和 Agent 都可以读、改、链接文献，并且把论文粗读、Idea寻找等工作让 Agent 帮忙。</p>
+<p>本产品的核心主张是：让人和 Agent 都可以读、改、链接文献，并且把论文粗读、Idea 寻找等工作让 Agent 帮忙。</p>
 <h2 id="2">2. 产品目标<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
 <h3 id="21-mvp">2.1 MVP 目标<a class="headerlink" href="#21-mvp" title="Permanent link">&para;</a></h3>
 <p>验证一个 Agent-first 的研究闭环：</p>
@@ -261,7 +263,7 @@
 <li>Agent 完成粗读生成结构化 <code>NOTES.md</code>；metadata 写入 catalog（可选再导出索引）。</li>
 </ol>
 <p>用户部分：
-4. Markdown 工作台里审阅、编辑、补充双链。可以选择预览pdf、html版本，并可以做批注
+4. Markdown 工作台里审阅、编辑、补充双链。可以选择预览 pdf、html 版本，并可以做批注
 5. Agent 基于本地索引和笔记回答问题，并输出读取过的本地文件路径。
 6. 关系图谱展示论文、笔记、概念之间的连接。</p>
 <h3 id="22">2.2 成功标准<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
@@ -343,7 +345,7 @@
 <li>Agentero 作为 <strong>ACP Client</strong> 连接用户本机已安装的 coding agent；<strong>不内置、不捆绑</strong> Agent 二进制或 Claude Agent SDK。</li>
 <li><strong>BYOA（Bring Your Own Agent）</strong>：用户在设置中添加 Agent（预设模板：OpenCode / Gemini CLI / Claude ACP / Codex ACP，或自定义 <code>command</code> + <code>args</code> + <code>env</code>）。模型与 API Key 由各 Agent CLI 自行管理，Agentero 不持有模型密钥。</li>
 <li>会话工作目录为当前 Vault 根目录，使 Agent 直接读写本地 Markdown 资产。</li>
-<li>已落地：<strong>paper-reader 精读</strong>（设置 <code>autoPaperReader</code> 默认关；可选自动 + 文件树 Zap 手动；catalog <code>is_read</code>）；全局 Agent <strong>权限模式</strong>（受限 / <strong>每次询问</strong> / 自动批准）；<strong>面板工作流</strong>（Summarize / Ask library / Draft Related Work → <code>summary</code> / <code>qa</code> / <code>related_work</code>）；<strong>笔记写后审阅</strong>（统一 Diff + Keep / Revert）；<strong>当前论文默认 context</strong> + <strong>个人偏好提示词</strong>（<code>agentPersonalPrompt</code>）。</li>
+<li>已落地：<strong>paper-reader 精读</strong>（设置 <code>autoPaperReader</code> 默认关；可选自动 + 文件树 Zap 手动；catalog <code>is_read</code>）；全局 Agent <strong>权限模式</strong>（受限 / <strong>每次询问</strong> / 自动批准）；<strong>面板工作流</strong>（Summarize / Ask library / Draft Related Work → <code>summary</code> / <code>qa</code> / <code>related_work</code>）；<strong>当前论文默认 context</strong> + <strong>个人偏好提示词</strong>（<code>agentPersonalPrompt</code>）。</li>
 <li>面板空态建议 chips 接通上述 workflow；<code>AGENTS.md</code> 自动注入 workflow prompt 仍待。</li>
 <li>后续（roadmap V0.7）：沿文献引用链的 Explore citations / Map related work / Ingest neighborhood。</li>
 <li>Agent 读取顺序遵循渐进式披露：<code>AGENTS.md</code> →（catalog/列表或可选导出）→ <code>NOTES.md</code> → <code>marks/</code> → <code>PAPER.md</code> → <code>source/</code>，仅在需要时逐层下钻。</li>
@@ -368,7 +370,7 @@
 </ul>
 <h4 id="_4">工作区<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>文档标签页已落地</strong>：中间栏以浏览器式多 tab 管理 Library / PDF / HTML / Markdown / 图片等；常驻挂载，切换保留滚动与编辑状态；<code>⌘W</code> / <code>Esc</code> 优先关最顶层应用弹层（设置、快捷键清单、命令面板、迁移对话框等，见 <code>overlay-stack</code>），否则先关标签，仅剩全库时关窗口。</li>
+<li><strong>文档标签页已落地</strong>：中间栏以浏览器式多 tab 管理 Library / PDF / HTML / Markdown / 图片等；常驻挂载，切换保留滚动与编辑状态；<code>⌘W</code> / <code>Esc</code> 优先关最顶层应用弹层（设置、命令面板、迁移对话框等，见 <code>overlay-stack</code>），否则先关标签，仅剩全库时关窗口。</li>
 <li><strong>规划（roadmap V0.6 余量）</strong>：2 格分屏并排（PDF | NOTES 等）。</li>
 <li><strong>操作错误</strong>：全局右上角 Toast（<code>notifyError</code>），不占用侧栏 header。</li>
 </ul>

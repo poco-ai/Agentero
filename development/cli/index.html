@@ -227,6 +227,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -443,7 +445,7 @@
 2. agentero paper list --json           # L1 索引
 3. agentero paper get &lt;path|id&gt; --json  # 单篇 meta + 建议读取路径
 4. 按需 read_file: NOTES.md → marks/ → PAPER.md → source/
-5. 入库: agentero import id &lt;arxiv|doi|url&gt; --json
+5. 入库：agentero import id &lt;arxiv|doi|url&gt; --json
 </code></pre>
 
 <h3 id="23-desktop-agent-prompt-policy">2.3 Desktop Agent prompt policy<a class="headerlink" href="#23-desktop-agent-prompt-policy" title="Permanent link">&para;</a></h3>
@@ -492,7 +494,7 @@ binary is unavailable, it reports that fact and falls back to Vault files.</p>
 <td><code>lookup_*</code> / <code>paper_*</code> import-export / parse</td>
 </tr>
 <tr>
-<td><strong>双链索引（只读+重建）</strong></td>
+<td><strong>双链索引（只读 + 重建）</strong></td>
 <td>反链查询、图导出、重建</td>
 <td><code>graph_*</code>（不依赖 Agent）</td>
 </tr>
@@ -1372,7 +1374,7 @@ agentero paper paths 1706.03762 | xargs -I{} echo &quot;read {}&quot;
 <tr>
 <td>Q4b</td>
 <td><code>tags</code></td>
-<td>仅字段读写；<code>paper tag list|set|add|rm</code>；<code>set --clear</code> 清空；<code>list --tag</code> AND 精确匹配</td>
+<td>仅字段读写；<code>paper tag list|set|add|rm</code>；<code>set --clear</code>清空；<code>list --tag</code> AND 精确匹配</td>
 </tr>
 <tr>
 <td>Q5</td>
