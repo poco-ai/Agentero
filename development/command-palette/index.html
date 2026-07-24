@@ -157,7 +157,7 @@
 <blockquote>
 <p>状态：<strong>Phase A 已落地</strong>（⌘P/⌘K 快速打开 · ⇧⌘P 命令面板 · <code>&gt;</code> 前缀；命令注册表 Phase B 仍待）<br />
 目标：对齐 VS Code 的 <strong>⌘P 快速打开</strong> 与 <strong>⇧⌘P 命令面板</strong> 交互心智，在 Agentero 中落地「全局搜索框」能力，并给出实现边界与分期。<br />
-相关：现有 <code>src/components/layout/command-palette.tsx</code>、<code>src/lib/vault-search.ts</code>、Host <code>vault_search</code>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §3.0 弹层栈、<a href="../../backend/api/"><code>../backend/api.md</code></a>。</p>
+相关：现有 <code>src/components/layout/dialogs/command-palette.tsx</code>、<code>src/lib/vault-search.ts</code>、Host <code>vault_search</code>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §3.0 弹层栈、<a href="../../backend/api/"><code>../backend/api.md</code></a>。</p>
 </blockquote>
 <hr />
 <h2 id="1">1. 背景与目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
@@ -331,7 +331,7 @@ Command Palette（⇧⌘P）走 <strong>CommandService 中所有「面向用户�
 <tbody>
 <tr>
 <td>全局浮层 UI</td>
-<td><code>src/components/layout/command-palette.tsx</code></td>
+<td><code>src/components/layout/dialogs/command-palette.tsx</code></td>
 <td>shadcn <code>CommandDialog</code> + <code>CommandInput</code> + <code>CommandList</code></td>
 </tr>
 <tr>
@@ -688,7 +688,7 @@ Command Palette（⇧⌘P）走 <strong>CommandService 中所有「面向用户�
   types.ts          # AppCommand, PaletteItem
   registry.ts       # register / list / execute
   builtins.ts       # 内置命令 id 与工厂（注入 deps）
-src/components/layout/
+src/components/layout/dialogs/
   command-palette.tsx   # UI；按 mode 组合 providers
   # 可选拆分：
   # command-palette-go.tsx / command-palette-commands.tsx
