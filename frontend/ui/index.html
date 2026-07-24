@@ -247,7 +247,7 @@
 </table>
 <h3 id="21">2.1 侧边栏文件树<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
 <ul>
-<li>树 UI：<strong>AI Elements</strong> <code>FileTree</code>（业务包装：<code>src/components/layout/sidebar/file-tree.tsx</code>；约定见 <code>docs/frontend/components.md</code>）。</li>
+<li>树 UI：<strong>AI Elements</strong> <code>FileTree</code>（业务包装：<code>src/components/vault/file-tree.tsx</code>；约定见 <code>docs/frontend/components.md</code>）。</li>
 <li><strong>性能（虚拟化）</strong>：树把可见节点<strong>拍平为一维列表 + 窗口化</strong>（<code>@tanstack/react-virtual</code>），只渲染视口内的行；FileTree 自持滚动容器（<code>treeScrollRef</code>），折叠文件夹用扫平行组件 <code>FileTreeFolderRow</code>（<code>ai-elements/file-tree.tsx</code>）。避免大 Vault（成百上千篇）时常驻海量 DOM，以及选中/展开/拖拽时的全树重渲染。</li>
 <li><strong>建树策略（懒加载）</strong>（<code>src/lib/vault.ts</code> <code>loadVaultTree</code> / <code>listVaultDirChildren</code>）：</li>
 <li><strong>全量递归（eager）</strong>：<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agents/</code>（产品面：paper marker、笔记、skill）。</li>
@@ -312,7 +312,7 @@
 </ul>
 <h3 id="211-ide">2.1.1 后台任务（左下角，IDE 风格）<a class="headerlink" href="#211-ide" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>位置</strong>：窗口左下角固定悬浮（<code>BackgroundTasksPanel</code>，<code>src/components/layout/shell/background-tasks-panel.tsx</code>），不占用侧栏布局；禅模式隐藏。</li>
+<li><strong>位置</strong>：窗口左下角固定悬浮（<code>BackgroundTasksPanel</code>，<code>src/components/shell/background-tasks-panel.tsx</code>），不占用侧栏布局；禅模式隐藏。</li>
 <li><strong>显示时机</strong>：<strong>有任务时</strong>才出现；全部结束后约 4s 自动消失。</li>
 <li><strong>收起态</strong>：一条状态条——转圈 / 完成勾 + 当前任务标题或「N 个进行中」+ 进度条；点击展开/收起。</li>
 <li><strong>展开态</strong>：任务列表（队列序号、标题、详情、进度）；可清除已完成项。</li>
@@ -337,7 +337,7 @@
 <li><strong>诊断日志</strong>（非 UX）：<code>src/lib/logger.ts</code> + Host <code>tauri-plugin-log</code>；关键操作 <code>op start</code> / <code>op end</code>。看日志方式见 <a href="../../development/logging/"><code>../development/logging.md</code></a>。失败时仍应 toast，logger 不替代本小节。</li>
 </ul>
 <h3 id="22-vault">2.2 无 Vault 欢迎页<a class="headerlink" href="#22-vault" title="Permanent link">&para;</a></h3>
-<p>当当前窗口未打开 Vault 时，中间栏显示欢迎页（<code>src/components/layout/shell/vault-welcome.tsx</code>）：</p>
+<p>当当前窗口未打开 Vault 时，中间栏显示欢迎页（<code>src/components/shell/vault-welcome.tsx</code>）：</p>
 <ul>
 <li><strong>内容</strong>：图标 + <strong>Create vault</strong> / <strong>Open vault</strong> / <strong>Open remote…</strong> / <strong>Migrate from Zotero</strong> 同一行按钮 + <strong>Recent</strong> 列表。</li>
 <li><strong>Open remote…</strong>：共用 <code>RemoteVaultDialog</code>（SSH host / 可选 user / 远端绝对路径）；成功后进入 <code>remote:&lt;sessionId&gt;</code> 会话。</li>
@@ -348,7 +348,7 @@
 <li>点选最近<strong>本地</strong>路径时若目录不存在：提示错误并从列表剔除。</li>
 </ul>
 <h3 id="221-vault">2.2.1 侧栏切换知识库（有 Vault 时）<a class="headerlink" href="#221-vault" title="Permanent link">&para;</a></h3>
-<p>左侧文件树顶栏标题（<code>VaultSidebarHeader</code>，<code>src/components/layout/sidebar/file-tree.tsx</code>）为下拉菜单：</p>
+<p>左侧文件树顶栏标题（<code>VaultSidebarHeader</code>，<code>src/components/vault/file-tree.tsx</code>）为下拉菜单：</p>
 <table>
 <thead>
 <tr>
@@ -368,7 +368,7 @@
 </tbody>
 </table>
 <ul>
-<li><strong>Open remote…</strong> 与欢迎页共用 <code>RemoteVaultDialog</code>（<code>src/components/layout/dialogs/remote-vault-dialog.tsx</code>）。</li>
+<li><strong>Open remote…</strong> 与欢迎页共用 <code>RemoteVaultDialog</code>（<code>src/components/dialogs/remote-vault-dialog.tsx</code>）。</li>
 <li>远程会话伪路径 <strong><code>remote:&lt;sessionId&gt;</code> 不得</strong>写入本地 recent（见 §2.3 存储表）；每次 SSH 连接都会换新 session id，误写入会导致「同一远端目录出现多条不同建议」。</li>
 </ul>
 <h3 id="23">2.3 原生菜单与多窗口<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
@@ -524,7 +524,7 @@
 <p>单测：<code>test/overlay-stack.test.ts</code>。</p>
 <ul>
 <li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容 + 可选右侧栏（Agent / Backlinks）。中间内容为<strong>文档标签页</strong>（浏览器式多 tab，见 §3.1.1），Notes 随激活文档切换。</li>
-<li><strong>论文库表格</strong>（<code>src/components/layout/workspace/library/papers-library.tsx</code>）：</li>
+<li><strong>论文库表格</strong>（<code>src/components/library/papers-library.tsx</code>）：</li>
 <li><strong>入口</strong>：<ol>
 <li>虚拟节点 <code>agentero:library</code> → <strong>全库</strong>（清除 <code>libraryScopePath</code>）；</li>
 <li>单击<strong>非 paper</strong> 目录 → 聚焦<strong>同一</strong> Library tab，设置 <code>libraryScopePath</code> 做前缀过滤（<strong>不新建 tab</strong>）；</li>
@@ -560,7 +560,7 @@
 </li>
 <li><strong>Notes 显示开关 / 快速打开</strong>：<code>showNotes</code>（默认显示）控制右侧 Notes 栏是否挂载。看 PDF/HTML 时，中间栏 header 右侧提供 <code>NotebookPen</code> 快捷开关（一键显示/隐藏 Notes）；全局入口则在标题栏 <strong>Layout 菜单</strong>（见下）；<code>⌘3</code> 聚焦 Notes（隐藏时先显示再聚焦）。关闭当前标签走标题栏标签页上的 <code>X</code> 或 <code>⌘W</code>（有弹层时 <code>⌘W</code> 先关弹层，见 §3.0）。</li>
 <li><strong>⌘L</strong> 显示 / 隐藏右侧栏；右侧栏入口为 <strong>Agent</strong> 与 <strong>Backlinks</strong>。</li>
-<li><strong>Layout 菜单</strong>（标题栏 <code>PanelsTopLeft</code> 图标，<code>src/components/layout/shell/layout-menu.tsx</code>）：集中式面板可见性开关（对齐 VS Code「Customize Layout」）。以复选项反映并切换 <strong>左侧边栏 / Notes / 右侧边栏 / 禅模式</strong>，各项显示对应快捷键；Notes 项仅在打开论文 PDF/HTML 时可用；切换时菜单保持打开。i18n <code>app:titlebar.layout*</code>。</li>
+<li><strong>Layout 菜单</strong>（标题栏 <code>PanelsTopLeft</code> 图标，<code>src/components/shell/layout-menu.tsx</code>）：集中式面板可见性开关（对齐 VS Code「Customize Layout」）。以复选项反映并切换 <strong>左侧边栏 / Notes / 右侧边栏 / 禅模式</strong>，各项显示对应快捷键；Notes 项仅在打开论文 PDF/HTML 时可用；切换时菜单保持打开。i18n <code>app:titlebar.layout*</code>。</li>
 <li>Backlinks 入口内采用上下分区：上方反链列表，下方 Graph。Graph 不再是独立顶层 tab。</li>
 <li><strong>Agent 禅模式</strong>（quest / Cursor Agents Window 心智，<code>⌥⌘Z</code> 或标题栏 <strong>Layout / 面板</strong> 菜单中的禅模式项）：</li>
 <li>进入后：折叠左栏与中间主栏，右栏 Agent 铺满；系统标题栏仅拖拽区 + <strong>返回</strong>（<code>ArrowLeft</code>，不再用关闭 <code>X</code>）；隐藏后台任务条与 Notes；Agent 面板头<strong>无</strong>重复退出按钮。</li>
@@ -581,7 +581,7 @@
 <li><strong>文档标签栏位置</strong>：标题栏<strong>无</strong>文档 tab 条；文档 tab 由中间栏 dockview 原生管理。中间栏仅保留 view mode / 文档标题工具行。</li>
 <li>各栏 header 等高：统一 <code>h-10</code>（<code>PaneHeader</code> / <code>PANE_HEADER_CLASS</code>），水平对齐；全局操作错误走右上角 toast（§2.1.2），不撑高标题栏。</li>
 <li>边距、分割线保持轻量；控件密度偏紧凑（icon-xs / icon-sm）。</li>
-<li><strong>面板分隔（sash）</strong>：对齐 VS Code / Cursor——默认 <strong>1px</strong> 细线，hover / 拖拽时略提亮；可点区域略宽但视觉不占粗条。实现见 <code>src/components/layout/shell/resizable.tsx</code>。</li>
+<li><strong>面板分隔（sash）</strong>：对齐 VS Code / Cursor——默认 <strong>1px</strong> 细线，hover / 拖拽时略提亮；可点区域略宽但视觉不占粗条。实现见 <code>src/components/shell/resizable.tsx</code>。</li>
 <li><strong>独立滚动</strong>：侧边栏 / 中间内容 / 右侧 Notes <strong>各自</strong>滚动，顶栏固定；禁止整页连带滚动。</li>
 <li>默认竖向：<code>.agentero-scroll</code>（<code>overflow-x: hidden; overflow-y: auto</code>）。</li>
 <li>需双向滚动（论文库表）：<code>.agentero-scroll-both</code>。</li>
@@ -779,7 +779,7 @@
 <li><strong>论文行 Zap（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Claude 用 <code>/paper-reader</code>，其它（含 Codex）靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。若设置开启 <code>autoPaperReader</code>，魔棒 / 单篇 Download 成功后也会自动跑（批量不连跑）。进度在左下角后台任务条。</li>
 </ul>
 <h3 id="311-roadmap-v06">3.1.1 文档标签页（已落地）与分屏（规划，roadmap V0.6）<a class="headerlink" href="#311-roadmap-v06" title="Permanent link">&para;</a></h3>
-<p><strong>浏览器式文档标签页</strong>（<code>src/components/layout/document-tab-bar.tsx</code>、模型 <code>src/lib/tabs.ts</code>）位于<strong>窗口标题栏</strong>（与 Layout / 侧栏图标同行）：</p>
+<p><strong>浏览器式文档标签页</strong>（<code>src/components/workspace/tab-workspace.tsx</code>、模型 <code>src/lib/tabs.ts</code>）位于<strong>窗口标题栏</strong>（与 Layout / 侧栏图标同行）：</p>
 <ul>
 <li><strong>多 tab</strong>：paper / Markdown / PDF / HTML / <strong>Library（全库或文件夹作用域）</strong> 各占一个 tab，可切换、关闭（<code>X</code> / 中键 / <code>⌘W</code>）、拖拽重排；同一路径已开则聚焦其 tab。</li>
 <li><strong>默认页 = 全库 Library</strong>：</li>
@@ -835,7 +835,7 @@
 </tr>
 <tr>
 <td>业务壳</td>
-<td><code>src/components/layout/agent/agent-panel.tsx</code>：注册表、流式事件、默认 Agent</td>
+<td><code>src/components/agent/agent-panel.tsx</code>：注册表、流式事件、默认 Agent</td>
 </tr>
 <tr>
 <td>Sources</td>
@@ -1060,7 +1060,7 @@ PromptInput → Body / Footer / Submit
 <li><strong>Privacy</strong>：分析与崩溃上报（默认关，本地优先）。</li>
 <li><strong>About</strong>：版本与一句话定位。</li>
 </ul>
-<p>实现：<code>src/components/settings-window.tsx</code>（<code>SettingsWindow</code> 浮层 + 共用 <code>SettingsContent</code>）；<code>settings-window-root.tsx</code> / <code>main.tsx</code> <code>?window=settings</code> 为休眠的原生窗口入口（暂不使用）。<strong>应用设置</strong>持久化为 Host 文件（XDG）：</p>
+<p>实现：<code>src/components/settings/settings-window.tsx</code>（<code>SettingsWindow</code> 浮层 + 共用 <code>SettingsContent</code>）；<code>src/components/settings/settings-window-root.tsx</code> / <code>main.tsx</code> <code>?window=settings</code> 为休眠的原生窗口入口（暂不使用）。<strong>应用设置</strong>持久化为 Host 文件（XDG）：</p>
 <table>
 <thead>
 <tr>
@@ -1101,7 +1101,7 @@ PromptInput → Body / Footer / Submit
 <li>语言切换的联动集中在 <code>src/App.tsx</code>：<code>i18n.changeLanguage</code>、<code>document.documentElement.lang</code>、以及 <code>set_locale</code>。</li>
 </ul>
 <h2 id="5">5. 组件基线<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
-<p>目录分层（详情 <strong><code>docs/frontend/components.md</code> §0</strong>）：</p>
+<p>目录分层（详情 <strong><code>docs/frontend/components.md</code> §6</strong>）：</p>
 <table>
 <thead>
 <tr>
@@ -1116,11 +1116,35 @@ PromptInput → Body / Footer / Submit
 </tr>
 <tr>
 <td><code>ai-elements/</code></td>
-<td>AI Elements</td>
+<td>AI Elements registry</td>
 </tr>
 <tr>
-<td><code>layout/</code></td>
-<td>分栏、顶栏、文件树、Chat 面板</td>
+<td><code>icons/</code></td>
+<td>品牌图标（勿并入 <code>ui/</code>）</td>
+</tr>
+<tr>
+<td><code>shell/</code></td>
+<td>真壳 + 共享 chrome（标题栏、sash、欢迎页、后台任务、ErrorBoundary）</td>
+</tr>
+<tr>
+<td><code>vault/</code></td>
+<td>左栏：文件树、Paper Info、侧栏头</td>
+</tr>
+<tr>
+<td><code>wiki/</code></td>
+<td>双链：Backlinks、Graph</td>
+</tr>
+<tr>
+<td><code>agent/</code></td>
+<td>Agent 对话面板</td>
+</tr>
+<tr>
+<td><code>workspace/</code></td>
+<td>Dockview 中间栏（tab 工作区 / 回收站）</td>
+</tr>
+<tr>
+<td><code>library/</code></td>
+<td>论文域（表格、标签 chip、入库/移动对话框）</td>
 </tr>
 <tr>
 <td><code>editor/</code></td>
@@ -1128,11 +1152,15 @@ PromptInput → Body / Footer / Submit
 </tr>
 <tr>
 <td><code>viewer/</code></td>
-<td>PDF / HTML</td>
+<td>PDF / HTML / 图片</td>
 </tr>
 <tr>
-<td><code>settings-window.tsx</code></td>
+<td><code>settings/</code></td>
 <td>设置窗</td>
+</tr>
+<tr>
+<td><code>dialogs/</code></td>
+<td>仅全局/跨域对话框（命令面板、远端 Vault、Zotero 迁移）</td>
 </tr>
 </tbody>
 </table>

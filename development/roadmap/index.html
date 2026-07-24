@@ -524,7 +524,7 @@
 </ul>
 <p>关键交付：</p>
 <ul>
-<li>[x] <strong>文档标签栏</strong>：打开 paper / Markdown / PDF / HTML / Library 时在标题栏（与禅模式图标同行）以 tab 呈现，可关闭、切换、拖拽重排。（<code>src/components/layout/document-tab-bar.tsx</code>、<code>src/lib/tabs.ts</code>）</li>
+<li>[x] <strong>文档标签栏</strong>：打开 paper / Markdown / PDF / HTML / Library 时在标题栏（与禅模式图标同行）以 tab 呈现，可关闭、切换、拖拽重排。（<code>src/components/workspace/tab-workspace.tsx</code>、<code>src/lib/tabs.ts</code>）</li>
 <li>[x] <strong>标签状态</strong>：每 tab 常驻挂载，保留滚动位置、PDF 缩放、视图模式；Markdown/NOTES 自动保存（debounce + 卸载 flush），关闭不丢内容。</li>
 <li>[x] <strong>默认页 = 全库 Library</strong>：<code>ensureFullLibraryTab</code>；仅剩全库时 <code>⌘W</code> 关窗。</li>
 <li>[x] <strong>文件夹作用域库</strong>：非 paper 目录 → <code>filterPapersByScope</code> 内存前缀过滤。</li>

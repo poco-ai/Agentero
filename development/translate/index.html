@@ -250,7 +250,7 @@
 <blockquote>
 <p>状态：<strong>首版已落地</strong>（免费 MT + BYOA Agent；无付费 API）。<br />
 范围：应用级 <strong>文本翻译服务层</strong>（架构对齐 <a href="https://github.com/windingwind/zotero-pdf-translate">zotero-pdf-translate</a>）→ <strong>免费 MT</strong> 与 <strong>BYOA Agent</strong> → <strong>设置 → 翻译</strong> → 消费方经 <code>runTranslate</code> / Agent 流式 prompt。<br />
-实现入口：<code>src/lib/translate/</code>、Host <code>services/translate/</code> + <code>translate_text</code>、<code>src/components/settings-window.tsx</code>（Translate 页）、PDF 划词菜单（<a href="../pdf-ask/"><code>pdf-ask.md</code></a>）。<br />
+实现入口：<code>src/lib/translate/</code>、Host <code>services/translate/</code> + <code>translate_text</code>、<code>src/components/settings/settings-window.tsx</code>（Translate 页）、PDF 划词菜单（<a href="../pdf-ask/"><code>pdf-ask.md</code></a>）。<br />
 相关：<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §4 设置、<a href="../../backend/api/"><code>../backend/api.md</code></a>、<a href="../pdf-ask/"><code>pdf-ask.md</code></a>、<a href="../roadmap/"><code>roadmap.md</code></a>、<a href="../todo/"><code>todo.md</code></a>。</p>
 </blockquote>
 <h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
@@ -1068,7 +1068,7 @@ src-tauri/src/
   commands/translate.rs # translate_text（free）
   services/translate/   # HTTP 客户端、错误映射
 
-src/components/settings-window.tsx  # Translate 导航页
+src/components/settings/settings-window.tsx  # Translate 导航页
 src/lib/settings.ts                 # translate 字段
 src/i18n/locales/{en,zh-CN}/settings.json
 

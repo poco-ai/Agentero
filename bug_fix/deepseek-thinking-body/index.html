@@ -202,7 +202,7 @@
 <strong>相关代码</strong>：</p>
 <ul>
 <li><code>src/lib/agent-stream-parse.ts</code> — 标签拆分与 orphan thought 提升</li>
-<li><code>src/components/layout/agent/agent-panel.tsx</code> — 流式接入与 turn 完成处理</li>
+<li><code>src/components/agent/agent-panel.tsx</code> — 流式接入与 turn 完成处理</li>
 <li><code>test/agent-stream-parse.test.ts</code> — 单测</li>
 <li>Host：<code>src-tauri/src/services/agent/acp.rs</code>（<code>AgentMessageChunk</code> → <code>message</code>，<code>AgentThoughtChunk</code> → <code>thought</code>）</li>
 </ul>
@@ -394,7 +394,7 @@
 <h3 id="_3">本仓库<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
 <ul>
 <li>实现：<code>src/lib/agent-stream-parse.ts</code>  </li>
-<li>UI 接入：<code>src/components/layout/agent/agent-panel.tsx</code>（<code>applyStreamEvent</code>、turn 完成分支中的 <code>promoteOrphanThoughtToText</code>）  </li>
+<li>UI 接入：<code>src/components/agent/agent-panel.tsx</code>（<code>applyStreamEvent</code>、turn 完成分支中的 <code>promoteOrphanThoughtToText</code>）  </li>
 <li>Host 通道映射：<code>src-tauri/src/services/agent/acp.rs</code> → <code>stream_from_update</code>  </li>
 <li>备忘勾选：<code>docs/development/bug.md</code>（对话 / Agent 一节）</li>
 </ul>
