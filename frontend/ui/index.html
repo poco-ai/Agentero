@@ -523,7 +523,7 @@
 <p><strong>新弹层约定</strong>：在 Dialog / 全屏 sheet 内调用 <code>useOverlayRegistration("stable-id", open, () =&gt; onOpenChange(false))</code> 即可自动支持 <code>Esc</code> / <code>⌘W</code>。<strong>不</strong>把普通 Popover / Tooltip / 树内联重命名注册进栈。</p>
 <p>单测：<code>test/overlay-stack.test.ts</code>。</p>
 <ul>
-<li>工作台默认 <strong>三栏</strong>：文件树 + 中间 <strong>Dockview 工作区</strong> + 可选右侧栏（Agent / Backlinks）。文档 panel 由 dockview 管理（见 §3.1.1 / <a href="../../development/tab-split/"><code>../development/tab-split.md</code></a>）；论文 NOTES 为同组 sibling panel，非独立右列。</li>
+<li>工作台默认 <strong>三栏</strong>：文件树 + 中间 <strong>Dockview 工作区</strong> + 可选右侧栏（Agent / Backlinks）。文档 panel 由 dockview 管理（见 §3.1.1 / <a href="../../development/tab-split/"><code>../development/tab-split.md</code></a>）；论文 NOTES 为独立 dockview panel，默认与 PDF <strong>左右分屏</strong>。</li>
 <li><strong>论文库表格</strong>（<code>src/components/library/papers-library.tsx</code>）：</li>
 <li><strong>入口</strong>：<ol>
 <li>虚拟节点 <code>agentero:library</code> → <strong>全库</strong>（清除 <code>libraryScopePath</code>）；</li>
@@ -547,7 +547,7 @@
 <li><strong>从 Zotero 迁移</strong>：仅<strong>全库</strong>视图工具栏。</li>
 <li><strong>Paper Info / Notes——仅具体论文</strong>：</li>
 <li><strong>左侧 Paper Info</strong>（<code>sidebar/paper-info-panel</code>）：仅当存在 <code>paperMeta</code>（选中 paper 文件夹）时渲染；论文库 / 普通笔记时隐藏。展开时顶部边框为<strong>纵向拖拽把手</strong>（可键盘 ↑/↓，Shift 加速），调节内容区高度（120–560px，localStorage <code>agentero.paperInfoHeight</code> 持久化）；作者与摘要不再行数截断，超出滚动。<strong>Tags</strong> 可编辑：输入框在 chip 上方；输入框<strong>右侧圆形色点</strong>打开色盘（Apple 风格 8 色 + 默认）；回车添加、chip 上 × 删除 → Host <code>paper_set_tags</code>（catalog 权威；<code>tags_json</code> 可为 <code>"name"</code> 或 <code>{"name","color"}</code>）。</li>
-<li><strong>Notes（WYSIWYG）</strong>：作为 <strong>dockview panel</strong> 打开 <code>NOTES.md</code>（论文默认与 PDF 同组 sibling tab）；非独立右侧 Notes 列。论文库视图或未选论文时不自动开 NOTES。</li>
+<li><strong>Notes（WYSIWYG）</strong>：作为 <strong>dockview panel</strong> 打开 <code>NOTES.md</code>（论文默认与 PDF <strong>左右分屏</strong>：左 PDF、右 NOTES）；Layout / 快捷键开关。论文库视图或未选论文时不自动开 NOTES。</li>
 <li><strong>格式工具栏（WYSIWYG toolbar）</strong>：<code>MarkdownEditor</code> 顶部可选固定工具栏（<code>editor-toolbar.tsx</code>）：标题、引用、加粗/斜体等、列表、<strong>插入图片</strong>。全局设置 <code>showEditorToolbar</code>（默认开）；只读时不渲染。i18n <code>editor:toolbar.*</code>。</li>
 <li><strong>编辑体验</strong>：Plate list 可编辑；文本选区中性色；文档末与图片后保持 trailing paragraph。</li>
 <li><strong>Markdown 图片</strong>（已落地）：粘贴/工具栏 → <code>{mdDir}/assets/</code> + <code>![](./assets/…)</code>；选中显示源码；删节点且无引用时延迟 GC。实现：<code>src/lib/markdown/image.ts</code>；约定见 <a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>。</li>
@@ -777,7 +777,7 @@
 <li><strong>文档 panel</strong>：paper / Markdown / PDF / HTML / <strong>Library（全库或文件夹作用域）</strong> / 回收站 / <strong>NOTES</strong> 各为一个 dockview panel；原生 tab 切换、关闭（<code>X</code> / <code>⌘W</code>）、组内拖拽重排；同一 path 已开则 <code>activatePanel</code>。</li>
 <li><strong>Tab 右键菜单</strong>：关闭 / 关闭其他 / 关闭全部（<strong>同组</strong>）；新建标签组 / 从标签组移除（<code>getTabContextMenuItems</code>；文案走 i18n）。</li>
 <li><strong>Tab 组</strong>：chip 右键重命名、染色、解散（<code>getTabGroupChipContextMenuItems</code>）；随布局 <code>toJSON()</code> 持久化。</li>
-<li><strong>分屏</strong>：上下左右 + 多格网格（dockview 原生）；文件树路径可拖入任意边；论文打开时默认 PDF 与 <code>NOTES.md</code> <strong>同组 sibling tab</strong>。<code>dropOverlayModel</code> 调大 content 边激活区；未知外部拖拽由 <code>onWillShowOverlay</code> / <code>onWillDrop</code> 否决。</li>
+<li><strong>分屏</strong>：上下左右 + 多格网格（dockview 原生）；文件树路径可拖入任意边；论文打开时默认 PDF 与 <code>NOTES.md</code> <strong>左右分屏</strong>（首篇 <code>right</code>，后续叠到同两栏 <code>within</code>）；切换论文时同步切换其 NOTES tab。<code>dropOverlayModel</code> 调大 content 边激活区；未知外部拖拽由 <code>onWillShowOverlay</code> / <code>onWillDrop</code> 否决。</li>
 <li><strong>默认页 = 全库 Library</strong>：</li>
 <li>打开 Vault 无持久化布局 → <code>ensureFullLibraryTab()</code>。</li>
 <li>关 panel 后列表为空 → 自动打开全库。</li>

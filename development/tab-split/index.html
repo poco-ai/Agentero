@@ -208,11 +208,15 @@
 <h2 id="2">2. 行为定义<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>打开文档</strong>：文件树 / 库表 / 命令面板 → <code>openTab(path)</code> → React <code>tabs[]</code> 插入 + <strong><code>workspaceRef.openPanel(tab, placement)</code></strong>（命令式 <code>addPanel</code>，不再经 <code>pendingPlacement</code> state 往返）。</li>
-<li><strong>论文默认</strong>：paper（pdf/html）打开时，再开 <code>NOTES.md</code> 为<strong>同一 group 内的 sibling tab</strong>（<code>openPanel(..., { direction: "within", referencePanelId })</code>），与 PDF 共用 tab 条。</li>
-<li><strong>文件树拖入</strong>：<code>onUnhandledDragOver.accept</code> + <code>onDidDrop</code> → <code>openTab(path, { placement })</code>；方向为 left/right/above/below/within（中心落点 = 同组 tab）。</li>
-<li><strong>关 panel</strong>：dockview 原生 tab X → <code>onDidRemovePanel</code> → React 只删 <code>tabs[]</code> 数据；<strong>焦点完全听 <code>onDidActivePanelChange</code></strong>（不按扁平列表另算 neighbor）。</li>
+<li><strong>论文默认（阅读布局）</strong>：</li>
+<li>首篇 paper：PDF/HTML 打开后，<code>NOTES.md</code> <strong>右侧分屏</strong>（左 body、右 NOTES）。</li>
+<li>再开新 paper：<strong>叠到同一左右两栏</strong>（body → 左列 <code>within</code>，NOTES → 右列 <code>within</code>），<strong>不</strong>再拆第三列；<code>paperReadingPlacements</code> 选锚点。</li>
+<li><strong>同步切换</strong>：激活某篇 body tab 时，若其 NOTES 已开则同时激活右列对应 NOTES；点 NOTES tab 亦同步左列 body（<code>handleActivePanelChange</code>）。</li>
+<li><strong>同步关闭</strong>：paper body（PDF/HTML）与 NOTES <strong>双向</strong>成对关闭（<code>readingPairCloseIds</code> → <code>closeTab</code>）；任一侧 X 都会摘掉 companion。</li>
+<li><strong>文件树拖入</strong>：<code>onUnhandledDragOver.accept</code> + <code>onDidDrop</code> → <code>openTab(path, { placement })</code>；方向为 left/right/above/below/within（中心落点 = 同组 tab）；带 placement 时不套阅读布局叠放。</li>
+<li><strong>关 panel</strong>：dockview 原生 tab X → <code>onDidRemovePanel</code> → React <code>closeTab</code>；<strong>焦点听 <code>onDidActivePanelChange</code></strong>（并做阅读布局 companion 同步）。</li>
 <li><strong>循环 panel</strong>（<code>⌥⌘←/→</code>）：<code>workspaceRef.cycleActive</code> 按 <strong><code>api.panels</code> 视觉顺序</strong> 循环，不是 React 插入序。</li>
-<li><strong>NOTES 切换</strong>：Layout 菜单 / 快捷键 → 开/关 NOTES 为同组 tab。</li>
+<li><strong>NOTES 切换</strong>：Layout 菜单 / 快捷键 → 开/关 NOTES；开启时优先叠入右列，否则首次右侧分屏。</li>
 <li><strong>无 PDF/HTML 切换条</strong>：<code>mode</code> 在 <code>loadTabResources</code> 时按路径与可用资源确定。</li>
 </ul>
 <h2 id="3-srclibworkspacetabs">3. 数据结构（<code>src/lib/workspace/tabs</code>）<a class="headerlink" href="#3-srclibworkspacetabs" title="Permanent link">&para;</a></h2>

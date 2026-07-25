@@ -235,7 +235,7 @@
 <h2 id="ui">当前 UI 形态<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h2>
 <ul>
 <li>默认工作台：左栏文件树 + 中间 <strong>Dockview 工作区</strong> + 可选右侧栏（Agent / Backlinks）。见 <a href="development/tab-split/"><code>development/tab-split.md</code></a>。</li>
-<li><strong>文档 panel</strong>：中间栏 dockview 原生管理 tab / 关闭 / 上下左右分屏 / 多格网格；<strong>标题栏无文档 tab 条</strong>。打开 paper 时默认 PDF 与 <code>NOTES.md</code> 为同组 sibling tab。布局只存 dockview <code>toJSON()</code>。<code>⌘W</code> / <code>Esc</code> 优先关最顶层弹层（<code>overlay-stack</code>），否则关 active panel，仅剩全库时关窗；<code>⌥⌘←/→</code> 按视觉序循环 panel。</li>
+<li><strong>文档 panel</strong>：中间栏 dockview 原生管理 tab / 关闭 / 上下左右分屏 / 多格网格；<strong>标题栏无文档 tab 条</strong>。打开 paper 时默认 PDF 与 <code>NOTES.md</code> <strong>左右分屏</strong>（左 PDF、右 NOTES）。布局只存 dockview <code>toJSON()</code>。<code>⌘W</code> / <code>Esc</code> 优先关最顶层弹层（<code>overlay-stack</code>），否则关 active panel，仅剩全库时关窗；<code>⌥⌘←/→</code> 按视觉序循环 panel。</li>
 <li>文件树顶部虚拟节点 <strong>Library</strong>；中间栏 catalog <strong>论文库表格</strong>（排序、<strong>tags</strong> 染色 chip、双向滚动），数据来自 <code>paper_list</code>。</li>
 <li>文件树：右键 / <code>⌥⌘R</code> <strong>Finder 显示</strong>；右键 / <code>⌥⌘T</code> <strong>终端打开</strong>；多选 + 拖拽移动；右键 / <code>⌘⌫</code> <strong>移入回收站</strong>（Library 下 <code>agentero:trash</code> → 中间栏恢复 / 永久删除，侧栏右键清空）。Paper 行默认 <strong>标题 · 作者</strong>（设置可切换标签/排序预设）。</li>
 <li><strong>Paper Info</strong> 仅选中具体论文时出现；<strong>Tags</strong> 可编辑并可设 Apple 8 色（<code>paper_set_tags</code>）。Library 空态可 <strong>Rescan</strong>（<code>paper_rescan</code>）。</li>
@@ -350,5 +350,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-07-25 03:01:58.315057+00:00
+Build Date UTC : 2026-07-25 03:16:42.389750+00:00
 -->
