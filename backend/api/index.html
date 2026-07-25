@@ -113,6 +113,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#window_new">window_new（已实现）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#settings_window_open">settings_window_open（已实现）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#fs_watch_start-fs_watch_stop">fs_watch_start / fs_watch_stop（已实现）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#vaultopen">vault:open（规划）</a>
@@ -756,6 +758,25 @@ Host (Tauri + Rust)
 <li>窗口尺寸 / macOS overlay 标题栏与主窗口一致。</li>
 <li>Capability 覆盖 <code>main</code> 与 <code>agentero-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
 <li>菜单点击由 Host 直接调用，不经过前端 event 往返。</li>
+</ul>
+<h4 id="settings_window_open"><code>settings_window_open</code>（已实现）<a class="headerlink" href="#settings_window_open" title="Permanent link">&para;</a></h4>
+<p>打开 Settings 原生单例窗口（菜单 <strong>Agentero → Settings…</strong> / <code>⌘,</code> / 标题栏齿轮）。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<pre class="codehilite"><code class="language-ts">{
+  section: &quot;general&quot; | &quot;appearance&quot; | &quot;agent&quot; | &quot;translate&quot; | &quot;keyboard&quot; | &quot;about&quot;;
+  vaultPath?: string | null; // 当前 Vault 路径，用于远端 Agent 页上下文
+}
+</code></pre>
+
+<ul>
+<li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
+<li><strong>行为</strong></li>
+<li>若 label 为 <code>settings</code> 的窗口已存在，则将其聚焦并返回；否则新建。</li>
+<li>URL 带 <code>?window=settings&amp;section=...&amp;vault_path=...</code>，由 <code>src/main.tsx</code> 分支渲染轻量 Settings 页面（不加载完整 <code>App</code>）。</li>
+<li>macOS 使用 Overlay 标题栏与原生交通灯；Windows / Linux 使用与主窗口一致的无框窗口 + React 自定义标题栏。</li>
+<li>窗口关闭时 Host 向所有窗口 <code>emit("settings_window_closed", ())</code>，便于主窗口同步 Settings 打开状态（实现 <code>⌘,</code> <em>toggle</em>）。</li>
 </ul>
 <h4 id="fs_watch_start-fs_watch_stop"><code>fs_watch_start</code> / <code>fs_watch_stop</code>（已实现）<a class="headerlink" href="#fs_watch_start-fs_watch_stop" title="Permanent link">&para;</a></h4>
 <p>按窗口启停 Vault 文件系统监听（Rust <code>notify</code> 递归监听），用于外部编辑器 / Agent 写盘后自动重载编辑器与文件树。</p>
@@ -2104,7 +2125,8 @@ Host (Tauri + Rust)
 <blockquote>
 <p>设置文件绝对路径已包含在 <code>settings_get</code> 返回的 <code>path</code> 字段中（About / 诊断用），无独立 command。</p>
 </blockquote>
-<p>实现：<code>src-tauri/src/features/settings/</code>（<code>mod.rs</code> + <code>commands.rs</code>）、<code>core/paths.rs</code>。</p>
+<p>UI 入口见 <code>settings_window_open</code>：Settings 现为独立原生单例窗口，<code>?window=settings</code> 路由由 <code>src/main.tsx</code> 分支渲染。</p>
+<p>实现：<code>src-tauri/src/features/settings/</code>（<code>mod.rs</code> + <code>commands.rs</code>）、<code>core/paths.rs</code>、<code>src-tauri/src/features/window/commands.rs</code>。</p>
 <h3 id="311-ui-i18n">3.11 界面与本地化（UI / i18n）<a class="headerlink" href="#311-ui-i18n" title="Permanent link">&para;</a></h3>
 <h4 id="set_locale"><code>set_locale</code>（已实现）<a class="headerlink" href="#set_locale" title="Permanent link">&para;</a></h4>
 <p>渲染层在语言偏好变化时通知 Host 按新 locale 重建原生应用菜单（macOS 菜单栏）。</p>

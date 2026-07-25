@@ -490,7 +490,7 @@
 </tr>
 <tr>
 <td>开关类</td>
-<td><code>⌘,</code> 设置、<code>⌘K</code>/<code>⌘P</code> 命令面板、<code>⇧⌘P</code> 命令模式：自身可再按关闭（不依赖 <code>whenSettingsClosed</code>）</td>
+<td><code>⌘K</code>/<code>⌘P</code> 命令面板、<code>⇧⌘P</code> 命令模式：自身可再按关闭（不依赖 <code>whenSettingsClosed</code>）；<code>⌘,</code> 设置现为原生窗口 toggle，不在 overlay-stack 中</td>
 </tr>
 </tbody>
 </table>
@@ -503,10 +503,6 @@
 </tr>
 </thead>
 <tbody>
-<tr>
-<td><code>settings</code></td>
-<td><code>SettingsWindow</code>（App 内浮层，所有平台）</td>
-</tr>
 <tr>
 <td><code>command-palette</code></td>
 <td><code>CommandPalette</code>（Go / Commands 共用）</td>
@@ -987,9 +983,9 @@ PromptInput → Body / Footer / Submit
 </tbody>
 </table>
 <h2 id="4-settings">4. 设置窗口（Settings）<a class="headerlink" href="#4-settings" title="Permanent link">&para;</a></h2>
-<p>参考 <strong>macOS System Settings / 传统 Preferences</strong> 形态：所有平台均为 App 内<strong>居中浮层 dialog</strong>（<code>SettingsWindow</code> 包 <code>SettingsContent</code>，经 <code>overlay-stack</code> 注册 <code>settings</code>）。</p>
+<p>参考 <strong>macOS System Settings / 传统 Preferences</strong> 形态：所有平台均为<strong>独立原生单例窗口</strong>（Host <code>settings_window_open</code> + <code>?window=settings</code> 路由，<code>SettingsNativeRoot</code> 渲染 <code>SettingsContent</code>）。</p>
 <blockquote>
-<p><strong>注</strong>：曾实现独立原生单例窗口（Host <code>settings_window_open</code> + <code>?window=settings</code> 路由），但该第二 webview 在 <strong>Windows 下白屏卡死</strong>；已改回 App 内浮层。前端路由与 <code>settings-window-root.tsx</code> 已删除，仅 Host 命令暂时保留但不再调用。</p>
+<p><strong>注</strong>：早期版本曾因第二 webview 在 <strong>Windows 下白屏卡死</strong> 而临时改回 App 内浮层；当前实现复用了已验证的多窗口模式（与 <code>window_new</code> 同源），并将 Settings 页面拆分为独立轻量路由，避免在主窗口外加载完整 <code>App</code>。</p>
 </blockquote>
 <table>
 <thead>
@@ -1005,7 +1001,7 @@ PromptInput → Body / Footer / Submit
 </tr>
 <tr>
 <td>结构</td>
-<td>左侧分类导航 + 右侧内容；居中浮层 dialog（backdrop 半透明模糊）</td>
+<td>左侧分类导航 + 右侧内容；独立窗口（macOS 使用 Overlay 标题栏 + 原生交通灯，Windows / Linux 使用与主窗口一致的无框自定义标题栏）</td>
 </tr>
 <tr>
 <td>分类</td>
@@ -1021,7 +1017,7 @@ PromptInput → Body / Footer / Submit
 </tr>
 <tr>
 <td>关闭</td>
-<td>右上角 <code>X</code>、点遮罩、<code>Esc</code>、<code>⌘W</code>、再次 <code>⌘,</code>（均经 <code>overlay-stack</code>）</td>
+<td>窗口标题栏 <code>X</code>、<code>Esc</code>、再次 <code>⌘,</code>（聚焦时若已打开则关闭）</td>
 </tr>
 <tr>
 <td>同步</td>
@@ -1061,7 +1057,7 @@ PromptInput → Body / Footer / Submit
 <li><strong>Keyboard</strong>：只读快捷键表（按 App / Vault / Navigation 分组）。</li>
 <li><strong>About</strong>：版本与一句话定位。</li>
 </ul>
-<p>实现：<code>src/components/settings/settings-window.tsx</code>（<code>SettingsWindow</code> 浮层 + 共用 <code>SettingsContent</code>）。<strong>应用设置</strong>持久化为 Host 文件（XDG）：</p>
+<p>实现：<code>src/components/settings/settings-native-root.tsx</code>（原生窗口 chrome）+ <code>src/components/settings/settings-content.tsx</code>（共用 <code>SettingsContent</code>）。<code>src/main.tsx</code> 通过 <code>?window=settings</code> 路由分支渲染轻量 Settings 页面，避免加载完整 <code>App</code>。<strong>应用设置</strong>持久化为 Host 文件（XDG）：</p>
 <table>
 <thead>
 <tr>
