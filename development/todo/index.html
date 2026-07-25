@@ -95,6 +95,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
                   </li>
               </ul>
+              <p class="caption"><span class="caption-text">调研</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../research/wikilink-heading-reference-stability/">标题双链稳定性与 Metadata Cache</a>
+                  </li>
+              </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul class="current">
                   <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
@@ -244,6 +249,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
+                  </li>
               </ul>
       </div>
     </div>
@@ -387,7 +394,7 @@
 <ul>
 <li>[ ] 将最近 Vault、UI 偏好迁到 Tauri Store</li>
 <li>[x] 文件监听（<code>notify</code> → <code>vault:file-changed</code>）：外部编辑器 / Agent 修改后自动重载当前打开的 <code>.md</code>/<code>NOTES.md</code> 与文件树；有未存改动时提示重载（不静默覆盖）</li>
-<li>[x] 文件变更后防抖重建 wiki 双链 / Backlinks / Graph 索引（<code>scheduleWikiRebuild</code>，仅 <code>.md</code>，~900ms 防抖）</li>
+<li>[x] Markdown、图片与 PDF 变更后防抖重建 wiki 双链 / Backlinks / Graph 索引（<code>scheduleWikiRebuild</code>，~900ms）；嵌入投影按目标路径刷新，不消费全局索引 revision</li>
 <li>[x] 保存冲突检测：写盘前比对上次落盘内容，被外部修改则中止写入 + <code>notifyWarning</code>（<code>diskConflict.saveBlocked</code>），不静默覆盖本地未存改动</li>
 </ul>
 <h3 id="4b-vault">4b. Vault 采纳 / 现有文件夹发现（编程优先）<a class="headerlink" href="#4b-vault" title="Permanent link">&para;</a></h3>
@@ -460,10 +467,14 @@
 </ul>
 <h3 id="3">3. 双链与图谱增强<a class="headerlink" href="#3" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[ ] 源码编辑 <code>[[</code> 补全</li>
-<li>[ ] Plate 内联 wikilink 节点，序列化仍保持 <code>[[...]]</code></li>
+<li>[x] 源码编辑 <code>[[</code> 补全（文件、alias、标题与 block 候选）</li>
+<li>[x] Plate 内联 wikilink 节点，序列化仍保持 <code>[[...]]</code></li>
+<li>[x] Live Preview 稳定节点：selection 进入时显示源码、离开时恢复投影，不替换节点</li>
+<li>[x] <code>![[...]]</code> 只读嵌入 Markdown 全文/标题/block、图片和 PDF；内部跳转、循环/深度门禁、目标级刷新</li>
+<li>[ ] 显式“重命名当前小标题”事务：精确同步普通双链、嵌入、Vault-local Markdown link 与同文件 fragment（见 <a href="../../research/wikilink-heading-reference-stability/"><code>../research/wikilink-heading-reference-stability.md</code></a>）</li>
+<li>[ ] Host 侧持久化、可删除并可重建的 Wiki Metadata Cache；缓存不能成为 Markdown 之外的关系事实来源</li>
 <li>[ ] Graph 增加全屏/聚焦模式、邻居高亮、节点搜索</li>
-<li>[ ] 双链边可写入 catalog 可重建表并支持增量重建</li>
+<li>[ ] 双链边可选写入 catalog 可重建表，并支持边级增量重建（当前为内存全量重建）</li>
 </ul>
 <h3 id="4-roadmap-v06">4. 工作区标签页与分屏（roadmap V0.6）<a class="headerlink" href="#4-roadmap-v06" title="Permanent link">&para;</a></h3>
 <ul>
@@ -670,9 +681,11 @@
 </ul>
 <h3 id="graph">双链 / Graph<a class="headerlink" href="#graph" title="Permanent link">&para;</a></h3>
 <ul>
-<li>[x] <code>[[wikilink]]</code> 跳转、反链、缺失创建、Backlinks 下 Graph</li>
-<li>[x] <strong><code>.md</code> 变更防抖重建索引</strong></li>
-<li>[ ] <code>[[</code> 补全、Plate 内联节点、Graph 全屏/邻居高亮</li>
+<li>[x] Wikilink / Vault-local Markdown link 语义索引、标题与 block 精确跳转、入链/出链、缺失文件创建、Backlinks 下 Graph</li>
+<li>[x] <strong>Markdown、图片与 PDF 变更防抖重建索引；嵌入按目标路径刷新</strong></li>
+<li>[x] <code>[[</code> 文件、alias、标题和 block 补全；Plate 内联节点的规范链接序列化</li>
+<li>[x] <code>![[...]]</code> Markdown/图片/PDF 只读嵌入；稳定 Live Preview 与目标路径级缓存失效</li>
+<li>[ ] Graph 全屏/邻居高亮</li>
 <li>[ ] 边级增量索引</li>
 </ul>
 <h3 id="_5">文献引用图<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>

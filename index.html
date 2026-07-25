@@ -107,6 +107,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="test/release-checklist/">发布前 Checklist</a>
                   </li>
               </ul>
+              <p class="caption"><span class="caption-text">调研</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="research/wikilink-heading-reference-stability/">标题双链稳定性与 Metadata Cache</a>
+                  </li>
+              </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul>
                   <li class="toctree-l1"><a class="reference internal" href="development/">概览</a>
@@ -143,6 +148,8 @@
                   <li class="toctree-l1"><a class="reference internal" href="bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
                   </li>
               </ul>
       </div>
@@ -246,6 +253,8 @@
 <li>无 Vault 时中间栏为欢迎页；有 Vault 时侧栏标题可切换知识库（含 <strong>打开远程…</strong>）；<code>⌘N</code> 多窗口。</li>
 <li>可选右侧栏：Agent 与 Backlinks（常驻 collapsible）。Backlinks 上方反链、下方 <strong>双链</strong> Graph（非文献引用图）。</li>
 <li>魔棒 / Zotero Connector / 补资源 Download / 精读 Zap / Agent 权限与面板工作流 / 命令面板 / PDF 划词 / 翻译 / Markdown 内嵌图 / 外部改盘重载 / 全局 Toast：见下表与对应文档。</li>
+<li><strong>双链与嵌入</strong>：<code>[[...]]</code> Live Preview、标题/block 精确跳转，以及 <code>![[...]]</code> Markdown/图片/PDF 只读投影；普通编辑不会刷新无关嵌入（见 <a href="backend/wikilinks/"><code>backend/wikilinks.md</code></a>）。</li>
+<li><strong>链接稳定性</strong>：Agentero 发起的文件/目录/paper 改名与移动会事务化修复已解析链接；可信外部本地 rename 受 <code>ask</code> / <code>always</code> 设置控制。</li>
 <li><strong>规划中</strong>（roadmap）：<strong>V0.7</strong> 文内引用 hover→Paper Info、Connected Papers 式邻域（<strong>V0.6 标签页 + 多分屏已落地</strong>）。</li>
 <li><strong>远程 Vault（SSH/SFTP）+ 远端 BYOA</strong>：<strong>MVP 已落地</strong>（见 <a href="development/remote-vault/"><code>development/remote-vault.md</code></a>）。</li>
 <li>实现状态与路线图：<a href="development/roadmap/"><code>development/roadmap.md</code></a>。</li>
@@ -354,5 +363,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-07-25 09:36:23.195860+00:00
+Build Date UTC : 2026-07-25 10:42:55.878766+00:00
 -->

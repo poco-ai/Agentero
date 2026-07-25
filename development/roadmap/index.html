@@ -95,6 +95,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
                   </li>
               </ul>
+              <p class="caption"><span class="caption-text">调研</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../research/wikilink-heading-reference-stability/">标题双链稳定性与 Metadata Cache</a>
+                  </li>
+              </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul class="current">
                   <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
@@ -230,6 +235,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
+                  </li>
               </ul>
       </div>
     </div>
@@ -289,12 +296,12 @@
 <tr>
 <td>V0.3 Agent 工作流（BYOA）</td>
 <td>🟡 进行中</td>
-<td>通用 ACP Client（OpenCode、Gemini、Claude、Codex、Qoder、Grok、自定义）统一 ACP 协议（Codex 经 <code>@agentclientprotocol/codex-acp</code> 适配器）；<strong>统一会话历史</strong>（<code>agent_list_sessions</code> / <code>agent_load_session</code>，ACP <code>session/list</code> + <code>session/load</code>）；<strong>paper-reader 精读</strong>（可选自动 + Zap 手动；<code>is_read</code>）；<strong>全局权限模式</strong>（受限 / <strong>每次询问</strong> / 自动批准）；<strong>面板工作流</strong>（Summarize → <code>summary</code>、Ask library / List claims → <code>qa</code>、Draft Related Work → <code>related_work</code>）；<strong>权限询问</strong>（<code>agent:permission-request</code> 对话框）；<strong>当前论文默认 context</strong> + <strong><code>agentPersonalPrompt</code></strong>；模型收藏；<strong>AGENTS.md 自动注入仍待</strong>。</td>
+<td>通用 ACP Client（OpenCode、Gemini、Claude、Codex、Qoder、Grok、自定义）统一 ACP 协议（Codex 经 <code>@agentclientprotocol/codex-acp</code> 适配器）；<strong>统一会话历史</strong>（<code>agent_list_sessions</code> / <code>agent_load_session</code>，ACP <code>session/list</code> + <code>session/load</code>）；<strong>paper-reader 精读</strong>（可选自动 + Zap 手动；<code>is_read</code>）；<strong>全局权限模式</strong>（受限 / <strong>每次询问</strong> / 自动批准）；<strong>面板工作流</strong>（Summarize → <code>summary</code>、Ask library / List claims → <code>qa</code>、Draft Related Work → <code>related_work</code>）；<strong>信任闭环</strong>（<code>agent:permission-request</code> 对话框 + <code>agent:notes-review</code> <strong>统一 Diff</strong> Keep/Revert）；<strong>当前论文默认 context</strong> + <strong><code>agentPersonalPrompt</code></strong>；模型收藏；<strong>AGENTS.md 自动注入仍待</strong>。</td>
 </tr>
 <tr>
 <td>V0.4 双链、反链与图谱</td>
 <td>✅ 基本完成</td>
-<td>反链、预览双链跳转、缺失目标创建、Graph 与 <code>graph_get_graph</code> 已落地；<strong><code>.md</code> 变更防抖重建索引</strong>（<code>scheduleWikiRebuild</code>，~900ms）；<code>[[</code> 补全 / Plate 内联节点可后续增强。</td>
+<td>语义解析、标题/block 精确跳转、入/出链、Graph、Live Preview、<code>[[</code> 文件/alias/标题/block 候选，以及 Markdown/图片/PDF 的 <code>![[...]]</code> 只读嵌入已落地；<strong>链接感知的文件/目录/paper 移动</strong>和可信本地外部 rename 的 <code>ask</code> / <code>always</code> repair 也已落地；文件变更防抖重建索引，嵌入按目标路径精确刷新。</td>
 </tr>
 <tr>
 <td>V0.5 Importer 架构与本地 PDF 入库</td>
@@ -470,7 +477,7 @@
 </ul>
 <h2 id="v04">V0.4 双链、反链与图谱<a class="headerlink" href="#v04" title="Permanent link">&para;</a></h2>
 <p>目标：让知识库从文件集合升级为可导航的研究网络。</p>
-<p><strong>设计文档</strong>：<code>docs/backend/wikilinks.md</code>（Obsidian 兼容模型、开源选型、Phase A–D）。</p>
+<p><strong>设计文档</strong>：<code>docs/backend/wikilinks.md</code>（Obsidian 兼容模型、开源选型、Phase A–F）。</p>
 <p>关键交付：</p>
 <ul>
 <li>[x] <code>[[双链]]</code> 解析（与 Obsidian 兼容）。</li>
@@ -480,7 +487,15 @@
 <li>[x] 图谱视图。</li>
 <li>[x] Paper、Note、Index、Stub 节点类型。</li>
 <li>[x] 图谱节点点击打开文件。</li>
-<li>[x] 当前 UI：Backlinks 入口内上方为反链，下方为 Graph。</li>
+<li>[x] 当前 UI：Backlinks 入口内上方为入链与出链，下方为 Graph。</li>
+<li>[x] 统一解析 Wikilink 与 Vault-local Markdown links：YAML aliases、标题层级、block ID、解析状态和 occurrence 范围均由可重建索引提供。</li>
+<li>[x] 标题/block 精确跳转；Backlinks 入口同时展示入链和出链，Graph 仍在下方。</li>
+<li>[x] Plate 中 <code>[[</code> 候选支持文件、alias、标题和 block，并写入可移植的规范链接。</li>
+<li>[x] Plate Live Preview 使用稳定 non-void inline；selection 进入时编辑原始语法，离开后立即恢复链接/嵌入投影。</li>
+<li>[x] <code>![[...]]</code> 只读嵌入支持 Markdown 全文、标题、block、Vault 图片和 PDF，内部链接可跳转，递归有循环与深度门禁。</li>
+<li>[x] 嵌入按解析后的目标路径刷新；普通文本自动保存与全局 Wiki 索引 revision 不会重载无关嵌入。</li>
+<li>[x] Agentero 发起的文件、目录与 paper 移动通过 pre-rename snapshot 更新已解析内链，并同步 tab、tree、catalog 与索引。</li>
+<li>[x] 可信本地外部 rename 支持默认 <code>ask</code> 确认与严格门禁下的 <code>always</code> repair；remote Vault 不自动修复。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
@@ -491,9 +506,10 @@
 </ul>
 <p>后续增强 TODO：</p>
 <ul>
-<li>[x] 文件变更后防抖重建 wiki / Backlinks / Graph 索引（<code>scheduleWikiRebuild</code>，仅 <code>.md</code>，~900ms）。</li>
-<li>[ ] 源码编辑中的 <code>[[</code> 路径/标题补全。</li>
-<li>[ ] Plate 内联 wikilink 节点与更稳定的 Markdown 序列化。</li>
+<li>[x] Markdown、图片与 PDF 变更后防抖重建 wiki / Backlinks / Graph 索引（<code>scheduleWikiRebuild</code>，~900ms）；嵌入按目标路径精确刷新。</li>
+<li>[x] 源码编辑中的 <code>[[</code> 路径、alias、标题和 block 补全。</li>
+<li>[x] Plate 内联 wikilink 节点与规范链接序列化。</li>
+<li>[x] Markdown、图片与 PDF 的 <code>![[...]]</code> 只读嵌入及目标级刷新。</li>
 <li>[ ] 图谱 hover 时只高亮直接邻居。</li>
 <li>[ ] 增加 Graph 全屏/聚焦模式，保留右侧栏小图作为默认入口。</li>
 <li>[ ] 真正的增量边更新（当前为防抖全量 rebuild，非边级增量）。</li>
@@ -831,7 +847,6 @@
 <li>[x] Catalog 权威存储 + <code>paper_list</code> / <code>paper_get</code> / <code>paper_delete</code> / 入库写路径（FTS / 双链缓存表仍待）。</li>
 <li>[x] Library BibTeX 导入/导出（Translator <code>/import</code> <code>/export</code>）。</li>
 <li>[ ] <code>catalog:export_papers_md</code>（Markdown 表）。</li>
-<li>[ ] <code>[[</code> 补全与 Plate wikilink 内联节点。</li>
 <li>[ ] Graph 全屏/聚焦模式与邻居高亮。</li>
 <li>[x] <strong>工作区标签页</strong>：多文档 tab、关闭/重排、滚动与视图状态保留；<code>⌘W</code> 关 tab / 无 tab 关窗（V0.6 标签页部分）。</li>
 <li>[x] <strong>分屏</strong>：中间栏全局 dockview 多格（PDF | NOTES、三分屏等）（扁平 <code>DocTab[]</code> + <code>dockLayout</code>）。</li>

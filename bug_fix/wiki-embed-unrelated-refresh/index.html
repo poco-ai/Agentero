@@ -5,15 +5,15 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>输入法组字 Enter 误发送 - Agentero 文档</title>
+    <title>普通编辑触发全部 Wiki 嵌入闪烁 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
     
       <script>
         // Current page data
-        var mkdocs_page_name = "\u8f93\u5165\u6cd5\u7ec4\u5b57 Enter \u8bef\u53d1\u9001";
-        var mkdocs_page_input_path = "bug_fix/ime-composition-enter-submit.md";
+        var mkdocs_page_name = "\u666e\u901a\u7f16\u8f91\u89e6\u53d1\u5168\u90e8 Wiki \u5d4c\u5165\u95ea\u70c1";
+        var mkdocs_page_input_path = "bug_fix/wiki-embed-unrelated-refresh.md";
         var mkdocs_page_url = null;
       </script>
     
@@ -135,41 +135,39 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
                   </li>
-                  <li class="toctree-l1 current"><a class="reference internal current" href="#">输入法组字 Enter 误发送</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">普通编辑触发全部 Wiki 嵌入闪烁</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#1">1. 问题现象</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#2">2. 根因</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 修复方案</a>
         <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#21-enter">2.1 Enter 在组字中的语义</a>
+    <li class="toctree-l3"><a class="reference internal" href="#31-revision">3.1 分离两类 revision</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#22-iscomposing">2.2 仅检查 isComposing 不够</a>
+    <li class="toctree-l3"><a class="reference internal" href="#32">3.2 按目标路径订阅</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#23-keycode-229">2.3 遗留信号 keyCode === 229</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#24-onkeydown">2.4 外部 onKeyDown 顺序</a>
+    <li class="toctree-l3"><a class="reference internal" href="#33">3.3 保持投影和附件稳定</a>
     </li>
         </ul>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#3">3. 解决方案</a>
+    <li class="toctree-l2"><a class="reference internal" href="#4">4. 修复后的刷新语义</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 验收与回归</a>
         <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#31">3.1 共享检测与宽限</a>
+    <li class="toctree-l3"><a class="reference internal" href="#51">5.1 手动验收</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#32">3.2 接入点</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#33">3.3 预期交互</a>
+    <li class="toctree-l3"><a class="reference internal" href="#52">5.2 自动化证据</a>
     </li>
         </ul>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#4">4. 验收建议</a>
+    <li class="toctree-l2"><a class="reference internal" href="#6">6. 边界</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#5">5. 边界</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#6">6. 参考</a>
+    <li class="toctree-l2"><a class="reference internal" href="#7">7. 决议记录</a>
     </li>
     </ul>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
                   </li>
               </ul>
       </div>
@@ -187,9 +185,9 @@
   <ul class="wy-breadcrumbs">
     <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
           <li class="breadcrumb-item">Bug 修复记录</li>
-      <li class="breadcrumb-item active">输入法组字 Enter 误发送</li>
+      <li class="breadcrumb-item active">普通编辑触发全部 Wiki 嵌入闪烁</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/agentero/edit/main/docs/bug_fix/ime-composition-enter-submit.md">Edit on poco-ai/agentero</a>
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/bug_fix/wiki-embed-unrelated-refresh.md">Edit on poco-ai/agentero</a>
     </li>
   </ul>
   <hr/>
@@ -197,142 +195,233 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
             <div class="section" itemprop="articleBody">
               
-                <h1 id="enter-ime-composition-race">输入法组字时 Enter 误发送（IME composition race）<a class="headerlink" href="#enter-ime-composition-race" title="Permanent link">&para;</a></h1>
-<p><strong>状态</strong>：已修复（<code>isComposing</code> + <code>keyCode 229</code> + compositionend 宽限）<br />
-<strong>影响面</strong>：Agent Composer、消息编辑重发、PDF 批注内联编辑器、划词提问输入<br />
+                <h1 id="wiki">普通文本编辑触发全部 Wiki 嵌入闪烁<a class="headerlink" href="#wiki" title="Permanent link">&para;</a></h1>
+<p><strong>状态</strong>：已修复（全局索引 revision 与目标级嵌入刷新解耦）<br />
+<strong>影响面</strong>：Markdown 编辑器中的 <code>![[...]]</code> Markdown、图片与 PDF 只读嵌入<br />
 <strong>相关代码</strong>：</p>
 <ul>
-<li><code>src/lib/core/ime.ts</code> — <code>isImeKeyboardEvent</code>、<code>IME_KEY_CODE</code>（229）、<code>IME_COMPOSITION_END_GRACE_MS</code></li>
-<li><code>src/hooks/use-ime-guard.ts</code> — composition 状态 + 确认键宽限</li>
-<li><code>src/components/ai-elements/prompt-input.tsx</code> — <code>PromptInputTextarea</code> Enter 提交守卫</li>
-<li><code>src/components/agent/use-agent-panel.ts</code> — <code>@</code>/<code>$</code> 菜单 Enter、消息编辑重发</li>
-<li><code>src/components/viewer/pdf-ask/annotation-editor.tsx</code> — 批注 Enter 保存</li>
-<li><code>test/ime.test.ts</code> — 单元测试</li>
+<li><code>src/App.tsx</code> — 收集 watcher 批次路径，索引重建后通知实际变化的目标</li>
+<li><code>src/lib/wiki-embed-refresh.ts</code> — 按规范化绝对路径管理嵌入订阅</li>
+<li><code>src/lib/wiki-nav-context.tsx</code> — 不再向所有双链节点广播全局索引 revision</li>
+<li><code>src/components/editor/wiki-embed-node.tsx</code> — 每个嵌入持有目标级 revision 与有界投影缓存</li>
+<li><code>src/components/editor/wiki-attachment-embed.tsx</code> — 图片/PDF 字节缓存与稳定 viewer key</li>
+<li><code>src/components/editor/embedded-markdown-projection.tsx</code> — memo 化只读 Markdown 投影</li>
+<li><code>test/wiki-embed-refresh.test.ts</code> — 目标路径隔离、规范化与退订测试</li>
 </ul>
 <hr />
 <h2 id="1">1. 问题现象<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
-<p>在 Agent 输入框（或其它用 Enter 提交的文本框）里用<strong>中文 / 日文 / 韩文等输入法</strong>打字时：</p>
+<p>一篇笔记已经渲染多个 <code>![[...]]</code> 嵌入后，即使用户只编辑与双链无关的普通文字，也会在自动保存后看到全部嵌入闪烁：</p>
 <ol>
-<li>拼音或组字候选尚未确认上屏；</li>
-<li>用户按 <strong>Enter</strong> 本意是<strong>确认候选</strong>；</li>
-<li>应用却立刻把当前内容当作消息<strong>发送</strong>出去。</li>
+<li>普通文本写入当前 Markdown；</li>
+<li>约 900ms 后 Wiki 索引重建；</li>
+<li>所有 Markdown 投影重新出现 loading，图片重新创建 URL，PDF viewer 重新初始化；</li>
+<li>同一页面的嵌入越多，闪烁和卡顿越明显。</li>
 </ol>
-<p>用户侧观感：输入法还没结束，消息已经发出去了。</p>
-<p>常见英文叫法：<strong>IME composition race</strong> / <strong>Enter during composition</strong>。</p>
+<p>被嵌入的目标文件没有变化，因此这些重新加载没有业务意义。</p>
 <hr />
 <h2 id="2">2. 根因<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
-<h3 id="21-enter">2.1 Enter 在组字中的语义<a class="headerlink" href="#21-enter" title="Permanent link">&para;</a></h3>
-<p>IME 组字期间，<code>Enter</code> 的默认语义是<strong>确认当前候选并上屏</strong>，不是「提交表单 / 发送消息」。<br />
-应用在 <code>keydown</code> 里无条件对 <code>Enter</code> 调用 <code>requestSubmit()</code> 或业务发送逻辑，就会抢在输入法之前（或与之竞态）触发提交。</p>
-<h3 id="22-iscomposing">2.2 仅检查 <code>isComposing</code> 不够<a class="headerlink" href="#22-iscomposing" title="Permanent link">&para;</a></h3>
-<p>常见写法：</p>
-<pre class="codehilite"><code class="language-ts">if (e.key === &quot;Enter&quot;) {
-  if (e.nativeEvent.isComposing) return;
-  form.requestSubmit();
-}
-</code></pre>
-
-<p>在多数浏览器上组字过程中 <code>isComposing === true</code> 可以挡住提交。但在 <strong>macOS + 部分 IME / WebView（含 Tauri）</strong> 上，确认候选时常出现：</p>
-<pre class="codehilite"><code class="language-text">compositionend   →  isComposing 已变为 false
-keydown Enter    →  处理器仍把这次 Enter 当成「发送」
-</code></pre>
-
-<p>即 <strong><code>compositionend</code> 先于确认键的 <code>keydown</code></strong>。此时 React 状态里的 <code>isComposing</code> 和 <code>event.nativeEvent.isComposing</code> 可能都已是 <code>false</code>，单靠该标志会漏判。</p>
-<h3 id="23-keycode-229">2.3 遗留信号 <code>keyCode === 229</code><a class="headerlink" href="#23-keycode-229" title="Permanent link">&para;</a></h3>
-<p>浏览器在 IME 处理按键时，历史上会把 <code>keyCode</code> / <code>which</code> 设为 <strong>229</strong>（<code>IME_KEY_CODE</code>）。<br />
-确认键有时仍带 229，可作为补充信号；不能单独依赖，需与 composition 状态、宽限一起用。</p>
-<h3 id="24-onkeydown">2.4 外部 <code>onKeyDown</code> 顺序<a class="headerlink" href="#24-onkeydown" title="Permanent link">&para;</a></h3>
-<p><code>PromptInputTextarea</code> 原先先调用外部 <code>onKeyDown</code>（如 Agent <code>@</code> / <code>$</code> 菜单），再判断 IME。<br />
-菜单若在组字确认时抢 <code>Enter</code> 做「选中提及」，同样会误操作。修复后：<strong>先</strong> IME 守卫，再交给外部 handler / 内部 submit。</p>
-<hr />
-<h2 id="3">3. 解决方案<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
-<h3 id="31">3.1 共享检测与宽限<a class="headerlink" href="#31" title="Permanent link">&para;</a></h3>
+<p>旧实现用一个全局 <code>wikiIndexRevision</code> 同时承担两种不同职责：</p>
 <table>
 <thead>
 <tr>
-<th>API</th>
-<th>作用</th>
+<th>职责</th>
+<th>正确作用域</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>isImeKeyboardEvent(event)</code></td>
-<td><code>isComposing</code>（自身或 <code>nativeEvent</code>）或 <code>keyCode</code>/<code>which</code> === 229</td>
+<td>通知 Backlinks / Graph 重新查询全局关系索引</td>
+<td>整个 Vault</td>
 </tr>
 <tr>
-<td><code>IME_COMPOSITION_END_GRACE_MS</code>（约 100ms）</td>
-<td><code>compositionend</code> 后短窗口内仍视为「刚确认候选」，忽略 Enter 提交</td>
-</tr>
-<tr>
-<td><code>useImeGuard()</code></td>
-<td>维护 composition 状态 + 宽限时间戳；提供 <code>isBlockedByIme</code> 与 <code>compositionProps</code></td>
+<td>通知某个 <code>![[target]]</code> 重新读取内容</td>
+<td>该 target 的依赖者</td>
 </tr>
 </tbody>
 </table>
-<h3 id="32">3.2 接入点<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
+<p>普通文本自动保存会经过：</p>
+<pre class="codehilite"><code class="language-text">autosave 当前笔记
+  → vault:file-changed
+  → scheduleWikiRebuild
+  → graph_rebuild
+  → wikiIndexRevision + 1
+  → WikiNavContext value 变化
+  → 所有 WikiEmbedElement 收到新 revision
+  → 所有 request key / projection key / attachment key 变化
+  → 全部嵌入进入重新加载
+</code></pre>
+
+<p>虽然嵌入节点已经保持稳定挂载，Markdown 投影也可以 memo 化，但 revision 被放进请求 key 后，React 只能把它视为一份新资源。组件稳定并不能抵消错误的全局缓存失效。</p>
+<hr />
+<h2 id="3">3. 修复方案<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31-revision">3.1 分离两类 revision<a class="headerlink" href="#31-revision" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>wikiIndexRevision</code> 继续只服务 Backlinks 与 Graph，保证全局关系查询在 watcher rebuild 后保持新鲜。</li>
+<li><code>WikiNavContext</code> 不再携带该 revision，普通双链和嵌入不会因为全局索引版本变化而一起重渲染。</li>
+<li>每个 <code>WikiEmbedElement</code> 只维护自己的 <code>targetRevision</code>。</li>
+</ul>
+<h3 id="32">3.2 按目标路径订阅<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
+<p>嵌入完成 Host 解析后，以规范目标的绝对路径订阅：</p>
+<pre class="codehilite"><code class="language-text">![[Target#Heading]]
+  → Host resolver
+  → targetPath
+  → absoluteTarget
+  → subscribeWikiEmbedTarget(absoluteTarget)
+</code></pre>
+
+<p><code>scheduleWikiRebuild</code> 在约 900ms 的 debounce 窗口内收集 watcher 实际触及的路径。重建结束后，<code>notifyWikiEmbedTargets(changedPaths)</code> 只通知路径相同的订阅者。</p>
+<p>路径 key 统一：</p>
+<ul>
+<li><code>\</code> 转成 <code>/</code></li>
+<li>去掉末尾 <code>/</code></li>
+<li>使用大小写无关比较</li>
+<li>同一批重复路径只通知一次</li>
+</ul>
+<h3 id="33">3.3 保持投影和附件稳定<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
-<th>位置</th>
-<th>行为</th>
+<th>层</th>
+<th>稳定策略</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>PromptInputTextarea</code></td>
-<td>组字 / 229 / 宽限内 <strong>不</strong> <code>requestSubmit</code>；Enter 在外部 handler <strong>之前</strong>拦截</td>
+<td>Wikilink / embed 节点</td>
+<td>stable non-void inline；selection 只切换源码与投影的可见性</td>
 </tr>
 <tr>
-<td>Agent <code>@</code> / <code>$</code> 菜单</td>
-<td>Enter 选择前 <code>isImeKeyboardEvent</code></td>
+<td>Markdown 投影</td>
+<td><code>memo</code>；props 未变时不重新建立只读 Plate editor</td>
 </tr>
 <tr>
-<td>用户消息编辑重发</td>
-<td><code>useImeGuard</code>；组字中 Enter 不重发</td>
+<td>Host 投影请求</td>
+<td>resolved request 使用有界缓存，并合并同 key 的并发请求</td>
 </tr>
 <tr>
-<td>PDF 批注编辑器</td>
-<td>同上；组字中 Enter 不保存</td>
+<td>图片 / PDF</td>
+<td>缓存本地字节；只在对应 <code>targetRevision</code> 变化时更新 URL 或 viewer key</td>
+</tr>
+<tr>
+<td>编辑器 tab</td>
+<td>autosave 只同步 seed，不增加 <code>seedKey</code>；外部内容重载才 remount</td>
 </tr>
 </tbody>
 </table>
-<h3 id="33">3.3 预期交互<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
-<ol>
-<li>组字中按 Enter → 仅确认输入法候选，<strong>不发送</strong>。  </li>
-<li>候选已上屏、未在组字 → Enter 照常发送（<code>Shift+Enter</code> 仍换行）。  </li>
-<li>宽限极短，正常连按两次 Enter（确认后再发）仍可用。</li>
-</ol>
 <hr />
-<h2 id="4">4. 验收建议<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Agent Composer：中文输入法组字中按 Enter，只上屏、不发送；再按一次 Enter 才发送。  </li>
-<li>打开 <code>@</code> 菜单时组字确认，不误选路径；<code>$</code> 技能菜单同理。  </li>
-<li>编辑已发送用户消息：组字中 Enter 不触发重发。  </li>
-<li>PDF 批注内联编辑器：组字中 Enter 不保存。  </li>
-<li>英文 / 无 IME 场景：Enter 发送、<code>Shift+Enter</code> 换行不变。  </li>
-<li><code>pnpm exec vitest run test/ime.test.ts</code> 通过。</li>
-</ol>
+<h2 id="4">4. 修复后的刷新语义<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>Backlinks / Graph</th>
+<th>当前嵌入</th>
+<th>其它目标的嵌入</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>编辑普通文本并自动保存</td>
+<td>重建后刷新</td>
+<td>目标未变则保持</td>
+<td>保持</td>
+</tr>
+<tr>
+<td>修改被嵌入的 Markdown</td>
+<td>重建后刷新</td>
+<td>重新读取对应全文/heading/block</td>
+<td>保持</td>
+</tr>
+<tr>
+<td>替换被嵌入的图片或 PDF</td>
+<td>重建后刷新</td>
+<td>重新读取对应附件</td>
+<td>保持</td>
+</tr>
+<tr>
+<td>一个目标被多处嵌入</td>
+<td>重建后刷新</td>
+<td>该目标的所有依赖投影刷新</td>
+<td>其它目标保持</td>
+</tr>
+<tr>
+<td>当前文件嵌入自身内容</td>
+<td>重建后刷新</td>
+<td>当前文件是目标，因此刷新</td>
+<td>其它目标保持</td>
+</tr>
+</tbody>
+</table>
+<p>这条边界保证索引正确性与编辑流畅度同时成立：关系索引仍可全量重建，内容投影不再全局失效。</p>
 <hr />
-<h2 id="5">5. 边界<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<h2 id="5">5. 验收与回归<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<h3 id="51">5.1 手动验收<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
+<ol>
+<li>在同一笔记放置两个以上、指向不同目标的 Markdown/图片/PDF 嵌入。</li>
+<li>在普通段落连续输入，等待 autosave 和约 900ms Wiki rebuild。</li>
+<li>所有未改变目标的嵌入应保持稳定，不出现 loading、图片闪白或 PDF viewer 重置。</li>
+<li>修改其中一个被嵌入目标；返回来源笔记后，只有该目标对应的嵌入更新。</li>
+<li>同一目标存在多个嵌入时，确认这些依赖者均更新。</li>
+</ol>
+<h3 id="52">5.2 自动化证据<a class="headerlink" href="#52" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-bash">pnpm exec vitest run \
+  test/wiki-embed-refresh.test.ts \
+  test/wiki-completion.test.ts \
+  test/wiki-attachment-embed.test.ts \
+  test/wiki-navigation.test.ts \
+  test/wiki.test.ts
+pnpm exec tsc --noEmit
+pnpm build
+git diff --check
+</code></pre>
+
+<p>目标测试共 55 项通过；路径隔离测试明确验证修改 A 不会通知 B。</p>
+<hr />
+<h2 id="6">6. 边界<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
 <ul>
-<li>宽限约 100ms：过短可能在极慢机器上仍误发；过长会拖慢「确认后立刻再按 Enter 发送」。当前值覆盖常见 macOS IME。  </li>
-<li>菜单 handler 不挂 composition 事件时，主要依赖 <code>isComposing</code> / 229；完整宽限由持有 <code>compositionProps</code> 的 textarea（如 PromptInput）负责。  </li>
-<li>其它自定义 <code>onKeyDown</code> 若自行处理 Enter，也应调用 <code>isImeKeyboardEvent</code> 或 <code>useImeGuard</code>，勿只抄 <code>!e.nativeEvent.isComposing</code>。  </li>
-<li>本修复不改变 ACP 发送协议，只约束前端快捷键语义。</li>
+<li>修改真实目标时，相关嵌入会有意重新加载；这属于内容一致性要求。</li>
+<li>Backlinks / Graph 当前仍按约 900ms 防抖全量 rebuild；本修复没有实现边级增量索引。</li>
+<li>远程 Vault 没有本地 watcher 时，目标刷新依赖远端文件事件能力。</li>
+<li>嵌入递归最多 4 层，循环引用显示有界状态，不继续挂载重复投影。</li>
+<li>未支持的 Canvas、音频/视频、远程 URL 与插件自定义 embed 不进入附件渲染路径。</li>
 </ul>
 <hr />
-<h2 id="6">6. 参考<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
-<ul>
-<li>UI 约定（Composer Enter / 换行）：<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §3.2  </li>
-<li>AI Elements Prompt Input：<a href="../../frontend/components/"><code>../frontend/components.md</code></a>  </li>
-<li>MDN：<a href="https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/isComposing"><code>KeyboardEvent.isComposing</code></a>、<a href="https://developer.mozilla.org/en-US/docs/Web/API/Element/compositionend_event"><code>compositionend</code></a>  </li>
-</ul>
+<h2 id="7">7. 决议记录<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>议题</th>
+<th>决议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>全局索引 rebuild 是否保留</td>
+<td>保留；Backlinks / Graph 仍以正确性优先</td>
+</tr>
+<tr>
+<td>嵌入是否消费全局 revision</td>
+<td>否；只消费规范目标路径的局部 revision</td>
+</tr>
+<tr>
+<td>selection 进入时是否卸载预览</td>
+<td>否；仅切换可见性，保持投影组件挂载</td>
+</tr>
+<tr>
+<td>是否轮询所有嵌入目标</td>
+<td>否；复用 watcher 批次并按路径主动通知</td>
+</tr>
+<tr>
+<td>缓存是否无界</td>
+<td>否；Markdown 投影状态 128 项，附件字节 32 项</td>
+</tr>
+</tbody>
+</table>
               
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../acp-session-resume-id/" class="btn btn-neutral float-left" title="ACP 会话恢复 ID 错误"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../wiki-embed-unrelated-refresh/" class="btn btn-neutral float-right" title="普通编辑触发全部 Wiki 嵌入闪烁">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../ime-composition-enter-submit/" class="btn btn-neutral float-left" title="输入法组字 Enter 误发送"><span class="icon icon-circle-arrow-left"></span> Previous</a>
     </div>
 
   <hr/>
@@ -359,10 +448,8 @@ keydown Enter    →  处理器仍把这次 Enter 当成「发送」
         </span>
     
     
-      <span><a href="../acp-session-resume-id/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../ime-composition-enter-submit/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
-    
-      <span><a href="../wiki-embed-unrelated-refresh/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

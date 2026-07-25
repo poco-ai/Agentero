@@ -67,6 +67,8 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#_6">使用双链</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#vault">嵌入 Vault 内容</a>
+    </li>
     </ul>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../agents/">接入 Agent</a>
@@ -111,6 +113,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
                   </li>
               </ul>
+              <p class="caption"><span class="caption-text">调研</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../research/wikilink-heading-reference-stability/">标题双链稳定性与 Metadata Cache</a>
+                  </li>
+              </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
@@ -147,6 +154,8 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
                   </li>
               </ul>
       </div>
@@ -231,9 +240,53 @@
 <h2 id="_6">使用双链<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p>在 Markdown 中使用 Obsidian 兼容的双链连接概念、论文和笔记：</p>
 <pre class="codehilite"><code class="language-markdown">这篇工作扩展了 [[另一个论文]] 中的实验设置。
+具体规则见 [[另一个论文#实验设置]]。
+关键结论见 [[另一个论文#^summary]]。
 </code></pre>
 
-<p>保存后，Agentero 会更新 Backlinks 和 Graph。目标文件被移动或重命名后，建议检查双链是否仍然指向正确文件。</p>
+<p>输入 <code>[[</code> 后可从文件或 alias 候选中选择；继续输入 <code>#</code> 搜索标题，输入 <code>^</code> 搜索 block。存在同名文件时，候选和落盘文本使用 Vault 相对路径区分目标。</p>
+<p>光标进入双链语法时，编辑器显示完整 <code>[[...]]</code>；光标离开后立即恢复链接样式。保存后，Agentero 更新 Backlinks 和 Graph。通过 Agentero 移动或重命名文件时，只改写原先明确解析到该目标的链接；可信的 Finder/Obsidian 外部改名按设置进入确认或自动修复。</p>
+<h2 id="vault">嵌入 Vault 内容<a class="headerlink" href="#vault" title="Permanent link">&para;</a></h2>
+<p>在双链前添加 <code>!</code>，可将目标作为只读内容嵌入当前笔记：</p>
+<pre class="codehilite"><code class="language-markdown">![[另一个论文]]
+![[另一个论文#实验设置]]
+![[另一个论文#^summary]]
+![[assets/figure.png|480]]
+![[papers/example/paper.pdf]]
+</code></pre>
+
+<p>支持的投影：</p>
+<table>
+<thead>
+<tr>
+<th>语法</th>
+<th>显示内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>![[note]]</code></td>
+<td>整篇 Markdown</td>
+</tr>
+<tr>
+<td><code>![[note#heading]]</code></td>
+<td>该标题及其下属区段</td>
+</tr>
+<tr>
+<td><code>![[note#^block-id]]</code></td>
+<td>block 所在行</td>
+</tr>
+<tr>
+<td><code>![[image.png]]</code></td>
+<td>Vault 图片；alias 可写宽度或 <code>宽x高</code></td>
+</tr>
+<tr>
+<td><code>![[document.pdf]]</code></td>
+<td>内嵌 PDF 阅读组件</td>
+</tr>
+</tbody>
+</table>
+<p>嵌入内容只读，顶部来源按钮和内部双链都可以点击跳转。光标进入 <code>![[...]]</code> 时显示源码，离开后恢复嵌入；普通文本自动保存不会重新加载未改变的嵌入目标。循环嵌入或超过 4 层的嵌套会显示有界提示。</p>
               
             </div>
           </div><footer>

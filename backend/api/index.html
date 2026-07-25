@@ -217,11 +217,25 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#38">3.8 双链与图谱</a>
         <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#graph_get_backlinks-graphget_backlinks">graph_get_backlinks（实现中；草案名 graph:get_backlinks）</a>
+    <li class="toctree-l4"><a class="reference internal" href="#graph_get_backlinks">graph_get_backlinks</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#graph_get_graph-graphget_graph">graph_get_graph（草案名 graph:get_graph）</a>
+    <li class="toctree-l4"><a class="reference internal" href="#wiki_get_outgoing">wiki_get_outgoing</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#graph_rebuild-graphrebuild_index">graph_rebuild（实现中；草案名 graph:rebuild_index）</a>
+    <li class="toctree-l4"><a class="reference internal" href="#wiki_resolve">wiki_resolve</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#wiki_embed_read">wiki_embed_read</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#wiki_search">wiki_search</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#wiki_move">wiki_move</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#wiki_external_rename_preview">wiki_external_rename_preview</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#wiki_apply_external_rename_repair">wiki_apply_external_rename_repair</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#graph_get_graph">graph_get_graph</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#graph_rebuild">graph_rebuild</a>
     </li>
         </ul>
     </li>
@@ -279,6 +293,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
                   </li>
               </ul>
+              <p class="caption"><span class="caption-text">调研</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../research/wikilink-heading-reference-stability/">标题双链稳定性与 Metadata Cache</a>
+                  </li>
+              </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
@@ -315,6 +334,8 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
                   </li>
               </ul>
       </div>
@@ -368,7 +389,7 @@ Host (Tauri + Rust)
 <li>所有请求统一通过对象传参。</li>
 <li>返回结构：</li>
 <li>成功：<code>{ "ok": true, "data": T }</code></li>
-<li>失败：<code>{ "ok": false, "error": { "code": "...", "message": "...", "details": {} } }</code></li>
+<li>失败：<code>{ "ok": false, "error": { "code": "...", "message": "...", "details"?: {} } }</code></li>
 <li>流式结果通过 Tauri event 推送，不占用返回通道。</li>
 </ul>
 <h3 id="23">2.3 路径表示<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
@@ -391,7 +412,7 @@ Host (Tauri + Rust)
 <tr>
 <td><code>vault:file-changed</code>（已实现）</td>
 <td>Vault 内文件被外部/Agent 改动（Host <code>notify</code> 监听，按窗口 <code>emit_to</code> 定向）</td>
-<td><code>{ paths: string[], kind: 'create' \| 'modify' \| 'remove' \| 'rename' \| 'other' }</code>（绝对路径；<code>.agentero/</code>、<code>.git/</code>、<code>node_modules/</code> 已过滤）</td>
+<td><code>{ paths: string[], kind: 'create' \| 'modify' \| 'remove' \| 'rename' \| 'other', rename?: { from: string; to: string } }</code>（绝对路径；<code>.agentero/</code>、<code>.git/</code>、<code>node_modules/</code> 已过滤；<code>rename</code> 仅表示单个可信 old/new 配对）</td>
 </tr>
 <tr>
 <td><code>arxiv:progress</code></td>
@@ -784,7 +805,7 @@ Host (Tauri + Rust)
 <li><strong><code>fs_watch_start</code></strong></li>
 <li><strong>参数</strong>：<code>{ vaultPath: string }</code></li>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
-<li><strong>行为</strong>：为当前窗口（label）启动递归监听；若该窗口已有监听则先停止再重建。命中变更时按窗口 <code>emit_to</code> 发送 <code>vault:file-changed</code>（去抖 ~300ms，过滤 <code>.agentero/</code>、<code>.git/</code>、<code>node_modules/</code>）。</li>
+<li><strong>行为</strong>：为当前窗口（label）启动递归监听；若该窗口已有监听则先停止再重建。命中变更时按窗口 <code>emit_to</code> 发送 <code>vault:file-changed</code>（去抖 ~300ms，过滤 <code>.agentero/</code>、<code>.git/</code>、<code>node_modules/</code>）。只有 <code>notify</code> 的单事件 <code>RenameMode::Both</code>、恰有两条不同路径且均未被过滤时，payload 才带按顺序排列的 <code>rename.from</code> / <code>rename.to</code>；其它 rename 事件只用于刷新，绝不能授权改写 Vault 内容。</li>
 <li><strong><code>fs_watch_stop</code></strong></li>
 <li><strong>参数</strong>：无</li>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
@@ -1493,7 +1514,7 @@ Host (Tauri + Rust)
 <p><strong>Catalog 行删除</strong>：不再有独立的 <code>paper_delete</code> command；删除走 <code>path_trash</code>（<code>trashPaths</code>），catalog 行随回收站快照清理（底层 <code>papers::delete_under_path</code>，CLI <code>agentero paper rm</code> 亦复用）。</p>
 </blockquote>
 <h4 id="paper_move"><code>paper_move</code>（已落地）<a class="headerlink" href="#paper_move" title="Permanent link">&para;</a></h4>
-<p>把 paper 文件夹 / <code>papers/</code> 下组织目录（或文件）移动到另一 <code>papers/</code> 目录：磁盘 <code>fs::rename</code>（<strong>不覆盖</strong>已存在目标），并改写 catalog 中受影响行的 <code>path</code> 前缀。</p>
+<p>把 paper 文件夹 / <code>papers/</code> 下组织目录（或文件）移动到另一 <code>papers/</code> 目录：通过共享的链接感知事务执行磁盘 <code>fs::rename</code>（<strong>不覆盖</strong>已存在目标）、已解析内链改写与 catalog path 前缀更新。</p>
 <ul>
 <li><strong>参数</strong>（invoke 字段名 <code>args</code>）：</li>
 </ul>
@@ -1507,8 +1528,8 @@ Host (Tauri + Rust)
 </code></pre>
 
 <ul>
-<li><strong>返回</strong>：<code>{ ok: true; data: { newRel: string } }</code>（移动后的新相对路径）。</li>
-<li><strong>校验</strong>：目标须在 <code>papers/</code> 下；拒绝移入自身 / 子孙；目标已存在则报错。</li>
+<li><strong>返回</strong>：<code>{ ok: true; data: { newRel: string, linkUpdate: WikiRenameResult } }</code>（移动后的新相对路径与链接事务结果）。</li>
+<li><strong>校验</strong>：目标须在 <code>papers/</code> 下；拒绝移入自身 / 子孙；目标已存在、相关编辑器仍有未保存内容、或任一计划来源 hash 已变化时中止。</li>
 <li><strong>SQL</strong>：<code>UPDATE papers SET path = ?to || substr(path, len(?from)+1) WHERE path = ?from OR path LIKE '{from}/%'</code>（字符级 substr，兼容非 ASCII 目录名）。</li>
 <li><strong>单测</strong>：<code>papers.rs::move_under_path</code>（叶子 + 组织目录下多行前缀改写）。</li>
 <li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>movePaperFolder</code>；文件树多选批量移动（<code>MovePapersDialog</code>）。</li>
@@ -1928,9 +1949,9 @@ Host (Tauri + Rust)
 </ul>
 <h3 id="38">3.8 双链与图谱<a class="headerlink" href="#38" title="Permanent link">&para;</a></h3>
 <blockquote>
-<p>产品与索引设计见 <strong><code>docs/backend/wikilinks.md</code></strong>。下列为 Host 接口草案。</p>
+<p>产品与索引设计见 <strong><code>docs/backend/wikilinks.md</code></strong>。下列为已实现的 Host 接口。</p>
 </blockquote>
-<h4 id="graph_get_backlinks-graphget_backlinks"><code>graph_get_backlinks</code>（实现中；草案名 <code>graph:get_backlinks</code>）<a class="headerlink" href="#graph_get_backlinks-graphget_backlinks" title="Permanent link">&para;</a></h4>
+<h4 id="graph_get_backlinks"><code>graph_get_backlinks</code><a class="headerlink" href="#graph_get_backlinks" title="Permanent link">&para;</a></h4>
 <p>获取某个文件的反链列表。若当前 Vault 尚未索引会先全量重建。</p>
 <ul>
 <li><strong>参数</strong></li>
@@ -1948,14 +1969,88 @@ Host (Tauri + Rust)
   ok: true;
   data: {
     path: string; // 规范化后的 Vault 相对路径
-    backlinks: Backlink[]; // { source, targetRaw, alias?, context?, line? }
+    backlinks: ResolvedLink[];
   };
 }
 </code></pre>
 
-<h4 id="graph_get_graph-graphget_graph"><code>graph_get_graph</code>（草案名 <code>graph:get_graph</code>）<a class="headerlink" href="#graph_get_graph-graphget_graph" title="Permanent link">&para;</a></h4>
+<p><code>ResolvedLink</code> 保留 occurrence 的 <code>source</code>、<code>targetRaw</code>、<code>syntax</code>、<code>embed</code>、<code>displayText?</code>、typed <code>fragment?</code>、<code>sourceRange</code>、<code>line</code>、<code>context?</code>，并返回 <code>status</code>（<code>resolved</code> / <code>missing</code> / <code>ambiguous</code> / <code>invalidFragment</code>）、<code>targetPath?</code> 与 <code>candidates?</code>。反链和出链以 occurrence 为单位，不能由 Graph 去重结果反推。</p>
+<h4 id="wiki_get_outgoing"><code>wiki_get_outgoing</code><a class="headerlink" href="#wiki_get_outgoing" title="Permanent link">&para;</a></h4>
+<p>获取一个 Markdown 文件显式写出的全部出链 occurrence，包括可诊断但不可跳转的缺失、歧义和无效 fragment。</p>
+<pre class="codehilite"><code class="language-ts">{ vaultPath: string; path: string }
+// =&gt; { ok: true; data: { path: string; outgoing: ResolvedLink[] } }
+</code></pre>
+
+<h4 id="wiki_resolve"><code>wiki_resolve</code><a class="headerlink" href="#wiki_resolve" title="Permanent link">&para;</a></h4>
+<p>以来源路径上下文解析一个内链文本。生产 UI 使用该接口，而不是复制 Rust resolver。</p>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  sourcePath: string;
+  linkText: string;
+  syntax?: &quot;wikilink&quot; | &quot;markdown&quot;; // 默认 wikilink
+}
+// =&gt; { ok: true; data: { link: ResolvedLink } }
+</code></pre>
+
+<p><code>syntax: "markdown"</code> 将 destination 按来源目录优先解析；若 <code>..</code> 会离开 Vault，返回 <code>missing</code>，不会降级匹配 Vault 根或同名文件。</p>
+<h4 id="wiki_embed_read"><code>wiki_embed_read</code><a class="headerlink" href="#wiki_embed_read" title="Permanent link">&para;</a></h4>
+<p>解析一个 <code>![[...]]</code> 并读取只读投影。目标和 fragment 完全复用 <code>wiki_resolve</code> 的语义；前端不自行猜测文件、标题或 block。</p>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  sourcePath: string;
+  linkText: string; // 不含外层 ![[ ]]
+}
+// =&gt; {
+//   ok: true;
+//   data: {
+//     link: ResolvedLink;
+//     contentKind?: &quot;markdown&quot; | &quot;image&quot; | &quot;pdf&quot; | &quot;unsupported&quot;;
+//     content?: string; // 仅 Markdown 全文、标题区段或 block 投影
+//   }
+// }
+</code></pre>
+
+<ul>
+<li><code>link</code> 始终返回规范解析状态；<code>missing</code>、<code>ambiguous</code>、<code>invalidFragment</code> 不读取猜测目标。</li>
+<li>Markdown heading 投影包含命中的 heading，并持续到下一个同级或更高层级 heading；block 投影只返回索引命中的 block 行。</li>
+<li>图片与 PDF 只返回类型和规范目标路径，前端通过本地文件字节加载既有图片/PDF 组件。</li>
+<li>Canvas、音视频、远程 URL 及其它未支持类型返回 <code>unsupported</code>。</li>
+</ul>
+<h4 id="wiki_search"><code>wiki_search</code><a class="headerlink" href="#wiki_search" title="Permanent link">&para;</a></h4>
+<p>返回可写入的文件、heading 和 block 候选；候选带规范路径与 <code>insertText</code>，重名场景由 UI 显示路径供用户选择。</p>
+<pre class="codehilite"><code class="language-ts">{ vaultPath: string; query: string }
+// =&gt; { ok: true; data: WikiSearchCandidate[] }
+</code></pre>
+
+<h4 id="wiki_move"><code>wiki_move</code><a class="headerlink" href="#wiki_move" title="Permanent link">&para;</a></h4>
+<p>对本地 Vault 的普通文件或目录执行链接感知 rename/move。Host 先重建改名前的索引快照，只重写明确解析到 <code>fromRel</code> 或其子路径的 occurrence，再移动主路径；Markdown link 会按最终来源位置重新相对化。</p>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  fromRel: string;
+  toRel: string;
+  dirtyPaths?: string[];
+}
+// =&gt; { ok: true; data: WikiRenameResult }
+</code></pre>
+
+<p><code>WikiRenameResult</code> 为 <code>{ movedPath, updatedSources, skipped: { path, reason }[], rollback }</code>，其中 <code>rollback</code> 为 <code>notNeeded</code>、<code>completed</code> 或 <code>manualRecoveryRequired</code>。冲突、未保存编辑、来源内容已变、目标已存在或失败回滚均返回错误；remote Vault 不通过该本地命令执行。</p>
+<h4 id="wiki_external_rename_preview"><code>wiki_external_rename_preview</code><a class="headerlink" href="#wiki_external_rename_preview" title="Permanent link">&para;</a></h4>
+<p>为已由 Finder、Obsidian 或 Agent 完成的<strong>可信本地外部 rename</strong>创建只读 repair candidate。调用方传入 watcher 的 old/new Vault 相对路径与当前 dirty path；Host 必须仍持有改名前索引，且验证旧路径已不存在、新路径存在后才返回 candidate。</p>
+<pre class="codehilite"><code class="language-ts">{ vaultPath: string; fromRel: string; toRel: string; dirtyPaths?: string[] }
+// =&gt; { ok: true; data: { candidateId, from, to, affectedSources, skipped } }
+</code></pre>
+
+<p>该命令不写 Markdown、不移动主文件；候选用于 <code>ask</code> 的确认界面，也可由 <code>always</code> 在前端策略允许时直接交给 apply。preview 失败保持零写入；后续 apply 失败以 <code>error.details.rollback</code> 说明是否写入并完成回滚或需要人工恢复。审阅 Dialog 显示 old/new path、已知影响和可处理错误。</p>
+<h4 id="wiki_apply_external_rename_repair"><code>wiki_apply_external_rename_repair</code><a class="headerlink" href="#wiki_apply_external_rename_repair" title="Permanent link">&para;</a></h4>
+<p>执行一个先前 preview 的 candidate。执行前再次验证 dirty path、所有来源内容 hash，以及外部 rename 仍保持旧路径不存在 / 新路径存在；只写入计划中的 Markdown occurrence，绝不反向移动主文件或目录。</p>
+<pre class="codehilite"><code class="language-ts">{ vaultPath: string; candidateId: string; dirtyPaths?: string[] }
+// =&gt; { ok: true; data: WikiRenameResult }
+</code></pre>
+
+<p>失败会移除无效 candidate；仅未保存编辑错误保留 candidate，允许用户先处理编辑后重试。执行失败响应的 <code>error.details</code> 为 <code>{ code: WikiRenameErrorCode, rollback: "not-needed" | "completed" | "manual-recovery-required" }</code>；调用方仅在 <code>rollback === "not-needed"</code> 时可表述为零写入。</p>
+<h4 id="graph_get_graph"><code>graph_get_graph</code><a class="headerlink" href="#graph_get_graph" title="Permanent link">&para;</a></h4>
 <p>获取全量或局部 wikilink 图谱。数据来自内存索引（必要时 <code>ensure_vault</code> 先 rebuild）。<br />
-设计见 <strong><code>docs/backend/wikilinks.md</code> §4.4 / §6.3</strong>。</p>
+设计见 <strong><code>docs/backend/wikilinks.md</code> §4.6 / §6.3</strong>。</p>
 <ul>
 <li><strong>参数</strong></li>
 </ul>
@@ -2018,7 +2113,7 @@ Host (Tauri + Rust)
 <li><strong>边</strong>：有向，<code>source</code> / <code>target</code> 为折叠后节点 id；折叠后的自环丢弃。</li>
 <li><strong>邻域</strong>：无向 BFS（出边 + 入边）从 <code>center</code> 扩展至多 <code>depth</code> 跳，再裁剪 edges。</li>
 </ul>
-<h4 id="graph_rebuild-graphrebuild_index"><code>graph_rebuild</code>（实现中；草案名 <code>graph:rebuild_index</code>）<a class="headerlink" href="#graph_rebuild-graphrebuild_index" title="Permanent link">&para;</a></h4>
+<h4 id="graph_rebuild"><code>graph_rebuild</code><a class="headerlink" href="#graph_rebuild" title="Permanent link">&para;</a></h4>
 <p>全量扫描 Vault 内 Markdown，重建内存 wikilink 索引。</p>
 <ul>
 <li><strong>参数</strong></li>
@@ -2121,6 +2216,7 @@ Host (Tauri + Rust)
 <li><strong>参数</strong>：<code>{ settings: AppSettings }</code>（camelCase，与前端 <code>src/lib/settings</code> 同构）</li>
 <li><strong>返回</strong>：规范化后的 <code>AppSettings</code>（写盘 + 更新 Host 内存）</li>
 <li><strong>事件</strong>：保存成功后向<strong>所有窗口</strong> <code>emit("settings:changed", AppSettings)</code>（规范化后的快照）。前端 <code>initSettingsSync()</code>（<code>src/lib/settings</code>）监听该事件更新各窗口内存缓存并通知订阅者（<code>subscribeSettings</code>），保证各窗口的设置实时一致。</li>
+<li><strong>链接改名策略</strong>：<code>autoUpdateInternalLinks</code> 为 <code>"ask"</code>（默认）或 <code>"always"</code>；未知值规范化为 <code>"ask"</code>。它只控制可信<strong>本地外部</strong> rename 的 repair，Agentero 发起的显式 rename/move 始终走单次事务预检，remote Vault 不自动修复。</li>
 </ul>
 <blockquote>
 <p>设置文件绝对路径已包含在 <code>settings_get</code> 返回的 <code>path</code> 字段中（About / 诊断用），无独立 command。</p>

@@ -95,6 +95,11 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
                   </li>
               </ul>
+              <p class="caption"><span class="caption-text">调研</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../research/wikilink-heading-reference-stability/">标题双链稳定性与 Metadata Cache</a>
+                  </li>
+              </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul class="current">
                   <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
@@ -245,6 +250,8 @@
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
                   </li>
               </ul>
       </div>
@@ -725,7 +732,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </table>
 <p><strong>原因</strong>：产品对照 Obsidian 式「中心 + 辐射」力导向图；右侧栏内 Canvas 性能足够；数据来自 wikilink 索引而非手写布局。<br />
 <strong>壳</strong>：右侧栏只有 <code>agent</code> 与 <code>backlinks</code> 两个顶层 tab；<code>GraphPanel</code> 嵌在 Backlinks 下方，与反链共享上下文。<br />
-<strong>详设</strong>：<code>docs/backend/wikilinks.md</code> §4.4 / §6.3；Host 契约 <code>docs/backend/api.md</code> §3.7 <code>graph_get_graph</code>。</p>
+<strong>详设</strong>：<code>docs/backend/wikilinks.md</code> §4.6 / §6.3；Host 契约 <code>docs/backend/api.md</code> §3.8 <code>graph_get_graph</code>。</p>
 <h3 id="36">3.6 状态管理<a class="headerlink" href="#36" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -1061,7 +1068,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </ul>
 <h3 id="56">5.6 关系图谱<a class="headerlink" href="#56" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>数据来源</strong>：<code>graph_get_graph</code> → <code>{ nodes, edges, center, depth }</code>（<code>docs/backend/api.md</code> §3.7；设计 <code>docs/backend/wikilinks.md</code> §4.4）。</li>
+<li><strong>数据来源</strong>：<code>graph_get_graph</code> → <code>{ nodes, edges, center, depth }</code>（<code>docs/backend/api.md</code> §3.8；设计 <code>docs/backend/wikilinks.md</code> §4.6）。</li>
 <li><strong>节点类型（路径启发）</strong>：<code>paper</code> | <code>note</code> | <code>index</code> | <code>stub</code>。</li>
 <li><strong>边</strong>：wikilink 有向边 <code>source → target</code>（未解析目标为 <code>stub:&lt;raw&gt;</code>）；邻域模式用无向 BFS 裁剪。</li>
 <li><strong>前端渲染</strong>：<code>react-force-graph-2d</code>；<code>GraphPanel</code> 位于 Backlinks 右侧栏下方，点击节点打开文件/paper。</li>
