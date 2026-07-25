@@ -371,7 +371,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 <td><a href="https://elements.ai-sdk.dev/components/queue">Queue</a></td>
 <td><code>queue</code></td>
 <td>消息队列、待办</td>
-<td>📦</td>
+<td>✅ Composer waitlist（运行中继续输入的后续消息）</td>
 </tr>
 <tr>
 <td><a href="https://elements.ai-sdk.dev/components/checkpoint">Checkpoint</a></td>
@@ -650,6 +650,11 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 <td><code>agent/agent-panel</code></td>
 </tr>
 <tr>
+<td><code>queue.tsx</code></td>
+<td>运行中 follow-up waitlist（可折叠列表 + 移除）</td>
+<td><code>agent/agent-composer</code></td>
+</tr>
+<tr>
 <td><code>sources.tsx</code></td>
 <td>Vault 引用</td>
 <td><code>agent/agent-panel</code></td>
@@ -701,7 +706,7 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
 </tr>
 <tr>
 <td>其它已装未接</td>
-<td>chain-of-thought, queue, confirmation, persona, attachments, code-block</td>
+<td>chain-of-thought, confirmation, persona, attachments, code-block</td>
 <td>按需扩展</td>
 </tr>
 </tbody>
@@ -717,11 +722,14 @@ pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json
         MessageResponse                                    // ACP message
     Sources（可选）
   ConversationScrollButton
+Queue（可选，运行中已排队的 follow-up）
+  QueueSection → QueueList → QueueItem
 PromptInput
   PromptInputBody → PromptInputTextarea
   PromptInputFooter → PromptInputTools + PromptInputSubmit
 </code></pre>
 
+<p>运行中仍可输入：有正文时提交进入 waitlist（当前回复结束后自动 <code>runOnce</code>）；空输入时按钮为停止（Esc 同效）。</p>
 <h3 id="42">4.2 流式事件映射<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -753,6 +761,7 @@ PromptInput
 </tr>
 </tbody>
 </table>
+<p><strong>Sources / 行内引用点击</strong>：Vault 相对路径（如 <code>papers/…/NOTES.md</code>）经 <code>onOpenSource</code> → 若属于论文单元则 <code>openPaper</code>（PDF + NOTES），否则打开对应文件 tab；<code>http(s)</code> 用系统浏览器。禅模式下会先退出禅模式再打开论文。</p>
 <p>监听需可取消，避免 Strict Mode 双挂载导致重复气泡。</p>
 <h3 id="43">4.3 传输边界<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
 <table>

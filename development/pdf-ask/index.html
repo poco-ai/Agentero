@@ -240,7 +240,7 @@
 </tr>
 <tr>
 <td><strong>编辑 / 重发</strong></td>
-<td>会话空闲时 hover 用户气泡 <strong>Edit</strong>，或底部输入为空时按 <strong><code>↑</code></strong> → 编辑最后一条用户问题；重发丢弃该条及之后消息再发起新 turn（与 Agent Chat 同语义；<code>src/lib/ui/prompt-recall.ts</code>）</td>
+<td>会话空闲时 hover 用户气泡 <strong>Edit</strong>，或底部输入为空时按 <strong><code>↑</code></strong> → 编辑最后一条用户问题；重发丢弃该条及之后消息再发起新 turn。Agent 侧栏 Chat 的 <strong><code>↑</code>/<code>↓</code></strong> 则是把历史 prompt <strong>回填到输入框</strong>（不回滚气泡；见 <code>src/lib/ui/prompt-recall.ts</code>）</td>
 </tr>
 <tr>
 <td><strong>回访</strong></td>
