@@ -549,7 +549,7 @@
 <li><strong>表头内控件</strong>（无独立中间栏 header 行）：<strong>标题列标题右侧</strong>为无 placeholder 的搜索框；<strong>标签列表头</strong>为筛选图标（Popover 勾选标签）。</li>
 <li><strong>导出</strong>（侧栏 Library 虚拟节点 <strong>右键菜单</strong>）：<code>paper_export</code> → Translator <code>/export?format=bibtex</code> → 保存 <code>.bib</code>（与回收站「清空」同为虚拟节点右键入口）。</li>
 <li><strong>导入</strong>（Upload）：魔棒 Popover 左下角 → <code>paper_import</code>。</li>
-<li><strong>从 Zotero 迁移</strong>：左侧栏 Header <strong>魔杖旁 Zotero 图标</strong>（欢迎页仍有入口）；不在 Library 中间栏。</li>
+<li><strong>从 Zotero 迁移</strong>：魔棒 Popover 左下角，<strong>导入文献图标右侧</strong>（欢迎页仍有入口）；不在 Library 中间栏。</li>
 <li><strong>Paper Info / Notes——仅具体论文</strong>：</li>
 <li><strong>左侧 Paper Info</strong>（<code>sidebar/paper-info-panel</code>）：仅当存在 <code>paperMeta</code>（选中 paper 文件夹）时渲染；论文库 / 普通笔记时隐藏。展开时顶部边框为<strong>纵向拖拽把手</strong>（可键盘 ↑/↓，Shift 加速），调节内容区高度（120–560px，localStorage <code>agentero.paperInfoHeight</code> 持久化）；作者与摘要不再行数截断，超出滚动。<strong>Tags</strong> 可编辑：输入框在 chip 上方；输入框<strong>右侧圆形色点</strong>打开色盘（Apple 风格 8 色 + 默认）；回车添加、chip 上 × 删除 → Host <code>paper_set_tags</code>（catalog 权威；<code>tags_json</code> 可为 <code>"name"</code> 或 <code>{"name","color"}</code>）。</li>
 <li><strong>Notes（WYSIWYG）</strong>：作为 <strong>dockview panel</strong> 打开 <code>NOTES.md</code>（论文默认与 PDF <strong>左右分屏</strong>：左 PDF、右 NOTES）；Layout / 快捷键开关。论文库视图或未选论文时不自动开 NOTES。</li>
