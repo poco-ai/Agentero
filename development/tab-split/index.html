@@ -277,7 +277,7 @@
 <pre class="codehilite"><code>中间栏一个 &lt;DockWorkspace ref={workspaceRef}&gt;
   └─ DockviewReact
        components.pane → DocView（params.panelId）
-       tabComponents.default → DockviewDefaultTab（原生标题/关闭）
+       tabComponents.default → WorkspaceTab（标题 / HTML 切换 / 关闭）
        tabs[] ↔ syncPanels（仅 membership：add 缺失 / remove 多余）
        title/mode → panel.api.setTitle / updateParameters（独立通道）
        openPanel(tab, placement) → api.addPanel({ position }) 命令式
@@ -296,7 +296,7 @@
 <tbody>
 <tr>
 <td>Tab 标题 / 关闭 / 组内切换</td>
-<td>dockview 原生</td>
+<td>dockview 原生；有 <code>htmlUrl</code> 的 PDF/HTML panel 额外显示同 panel 的 HTML 切换图标</td>
 </tr>
 <tr>
 <td>Tab 右键菜单</td>

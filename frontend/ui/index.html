@@ -602,7 +602,7 @@
 </li>
 <li><strong>PDF 引用与插图（规划中）</strong>：本地 paper PDF 由 Host 生成 <code>source/agentero-cite.json</code>、<code>source/agentero-figures.json</code> 和 <code>source/agentero-figures/*.png</code>；右侧 <code>Paper Content</code> 展示 citations/figures。引用 hover 只高亮并预览，点击或侧栏操作跳至参考文献；figure card 跳至 PDF bbox。<code>@</code> 菜单和拖拽支持结构化 citation/figure context。完整契约见 <a href="../../backend/pdf-analysis/"><code>../backend/pdf-analysis.md</code></a>。</li>
 <li><strong>PDF/HTML 时默认同组打开 <code>NOTES.md</code> panel</strong>（可编辑，自动保存 / <code>⌘S</code>；Layout 菜单可关）</li>
-<li><strong>HTML 沙盒</strong>：独立 <code>&lt;iframe&gt;</code>；arXiv 允许 scripts（对方 origin）；布局铺满中间栏</li>
+<li><strong>HTML 沙盒</strong>：独立 <code>&lt;iframe&gt;</code>；arXiv HTML 经受限 <code>agentero-arxiv</code> Host 协议加载，代理同源子资源并隐藏 <code>.desktop_header</code> 与展开目录 <code>nav.ltx_TOC</code>；其它远程 HTML 保持原始沙盒 iframe；布局铺满中间栏</li>
 <li>无障碍：图标按钮必须有可访问名称；焦点环使用主题 <code>ring</code>。</li>
 </ul>
 <h3 id="31-macos-apple-hig">3.1 快捷键（对齐 macOS / Apple HIG 习惯）<a class="headerlink" href="#31-macos-apple-hig" title="Permanent link">&para;</a></h3>
@@ -780,6 +780,7 @@
 <p>中间栏由 <strong>单一全局 Dockview</strong> 管理全部打开文档（<code>src/components/workspace/dock-workspace.tsx</code>、模型 <code>src/lib/workspace/tabs</code>）。<strong>标题栏无文档 tab 条</strong>。完整契约见 <a href="../../development/tab-split/"><code>../development/tab-split.md</code></a>。</p>
 <ul>
 <li><strong>文档 panel</strong>：paper / Markdown / PDF / HTML / <strong>Library（全库或文件夹作用域）</strong> / 回收站 / <strong>NOTES</strong> 各为一个 dockview panel；原生 tab 切换、关闭（<code>X</code> / <code>⌘W</code>）、组内拖拽重排；同一 path 已开则 <code>activatePanel</code>。</li>
+<li><strong>论文 HTML 切换</strong>：PDF tab 仅在 <code>htmlUrl</code> 可用时，于关闭按钮左侧显示 HTML 图标；点击在<strong>同一 panel</strong>内切换 PDF / HTML，不新增 tab；无 HTML 链接时不显示该图标。</li>
 <li><strong>Tab 右键菜单</strong>：关闭 / 关闭其他 / 关闭全部（<strong>同组</strong>）；新建标签组 / 从标签组移除（<code>getTabContextMenuItems</code>；文案走 i18n）。</li>
 <li><strong>Tab 组</strong>：chip <strong>双击</strong>内联重命名（或 <code>F2</code>）；右键重命名 / 染色 / 解散；单击折叠；chip <strong>无底色</strong>（仅图标+名）；<strong>展开</strong>时保留底部分组色线，<strong>折叠</strong>时不显示 chip 下色条。</li>
 <li><strong>分屏</strong>：上下左右 + 多格网格（dockview 原生）；文件树路径可拖入任意边；论文打开时默认 PDF 与 <code>NOTES.md</code> <strong>左右分屏</strong>（首篇 <code>right</code>，后续叠到同两栏 <code>within</code>）；切换论文时同步切换其 NOTES tab。<code>dropOverlayModel</code> 调大 content 边激活区；未知外部拖拽由 <code>onWillShowOverlay</code> / <code>onWillDrop</code> 否决。</li>
