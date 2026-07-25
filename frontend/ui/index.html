@@ -136,6 +136,8 @@
               <ul>
                   <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
+                  </li>
               </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul>
@@ -541,13 +543,13 @@
 <li><strong>列</strong>：标题、作者、年份、<strong>标签</strong>、类型、标识符；<strong>单击</strong>单元格复制对应字段（作者复制完整列表，非 et al. 缩写；标题下出版物单独可复制；行内标签 chip 复制该标签；复制<strong>短延迟提交</strong>，双击打开论文时取消，避免与双击冲突）；<strong>双击</strong>行打开对应 paper 文件夹。</li>
 <li><strong>列自定义</strong>（顺序 + 显隐）：<strong>右键表头</strong>弹出上下文菜单勾选显示/隐藏列；<strong>拖拽表头</strong> <code>&lt;th&gt;</code> 改变列顺序（拖拽时列半透明、落点高亮）；菜单底部「重置列」恢复默认。<strong>标题列不可隐藏</strong>（承载阅读热力与出版物副标题，勾选框禁用且 normalize 强制可见）；表格使用固定布局和各列固定权重，标题列约占 32%，标题正文单行显示，超出以省略号截断，悬浮仍可查看完整标题。布局持久化到 <code>settings.json</code> 的 <code>libraryColumns</code>（<code>LibraryColumnPref[] = {key, visible}[]</code>，数组顺序即显示顺序），前后端均 reconcile（去重、丢未知 key、补新列为可见、强制 title 可见）。实现：<code>COLUMN_META</code> + <code>colgroup</code> + <code>renderCell</code> 按 key 渲染；右键菜单基于 <code>src/components/ui/context-menu.tsx</code>（radix <code>ContextMenu</code>）。</li>
 <li><strong>阅读热力（标题背景）</strong>：聚合该篇 <code>marks/</code>（<code>kind</code>: highlight / ask / translate）的<strong>页码 + 页内 y</strong>，画成<strong>标题文字横向背景脊条</strong>（左=文首、右=文末；局部深浅=该位置交互强度）。颜色为 <strong>Apple system green</strong> 浅色洗（<code>oklch(0.65 0.17 145)</code> ≈ <code>#34C759</code>，与标签 green 同系，低比例 <code>color-mix</code> 保持浅色不抢眼）。悬停标题可看高亮 / 对话 / 翻译分项。可选 <code>reading-meta.json</code> 记录 PDF 总页数以对齐全文跨度。实现：<code>src/lib/paper/reading-heatmap/</code>、<code>ReadingTitleHeat</code>。</li>
-<li><strong>标签</strong>：行内 tag 单击复制该标签。标题搜索同时匹配 tag 子串（无表上方 chip 筛选条）。</li>
+<li><strong>标签</strong>：行内 tag 单击复制该标签。标题列搜索同时匹配 title / tag 子串；<strong>标签列表头</strong>筛选图标可多选标签（OR）过滤行。</li>
 <li><strong>排序</strong>：点击表头升序 / 降序；年份列首次为降序；文字列默认升序。</li>
 <li><strong>滚动</strong>：<code>.agentero-scroll-both</code>；表格 <code>w-max min-w-full</code>。</li>
-<li><strong>中间栏 header</strong>：搜索框；全库另有 Zotero 迁移。</li>
-<li><strong>导出</strong>（侧栏 Library 虚拟节点 <strong>右键菜单</strong>）：<code>paper_export</code> → Translator <code>/export?format=bibtex</code> → 保存 <code>.bib</code>（与回收站「清空」同为虚拟节点右键入口，不在中间栏 header）。</li>
+<li><strong>表头内控件</strong>（无独立中间栏 header 行）：<strong>标题列标题右侧</strong>为无 placeholder 的搜索框；<strong>标签列表头</strong>为筛选图标（Popover 勾选标签）。</li>
+<li><strong>导出</strong>（侧栏 Library 虚拟节点 <strong>右键菜单</strong>）：<code>paper_export</code> → Translator <code>/export?format=bibtex</code> → 保存 <code>.bib</code>（与回收站「清空」同为虚拟节点右键入口）。</li>
 <li><strong>导入</strong>（Upload）：魔棒 Popover 左下角 → <code>paper_import</code>。</li>
-<li><strong>从 Zotero 迁移</strong>：仅<strong>全库</strong>视图工具栏。</li>
+<li><strong>从 Zotero 迁移</strong>：左侧栏 Header <strong>魔杖旁 Zotero 图标</strong>（欢迎页仍有入口）；不在 Library 中间栏。</li>
 <li><strong>Paper Info / Notes——仅具体论文</strong>：</li>
 <li><strong>左侧 Paper Info</strong>（<code>sidebar/paper-info-panel</code>）：仅当存在 <code>paperMeta</code>（选中 paper 文件夹）时渲染；论文库 / 普通笔记时隐藏。展开时顶部边框为<strong>纵向拖拽把手</strong>（可键盘 ↑/↓，Shift 加速），调节内容区高度（120–560px，localStorage <code>agentero.paperInfoHeight</code> 持久化）；作者与摘要不再行数截断，超出滚动。<strong>Tags</strong> 可编辑：输入框在 chip 上方；输入框<strong>右侧圆形色点</strong>打开色盘（Apple 风格 8 色 + 默认）；回车添加、chip 上 × 删除 → Host <code>paper_set_tags</code>（catalog 权威；<code>tags_json</code> 可为 <code>"name"</code> 或 <code>{"name","color"}</code>）。</li>
 <li><strong>Notes（WYSIWYG）</strong>：作为 <strong>dockview panel</strong> 打开 <code>NOTES.md</code>（论文默认与 PDF <strong>左右分屏</strong>：左 PDF、右 NOTES）；Layout / 快捷键开关。论文库视图或未选论文时不自动开 NOTES。</li>
@@ -985,7 +987,7 @@ PromptInput → Body / Footer / Submit
 <h2 id="4-settings">4. 设置窗口（Settings）<a class="headerlink" href="#4-settings" title="Permanent link">&para;</a></h2>
 <p>参考 <strong>macOS System Settings / 传统 Preferences</strong> 形态：所有平台均为 App 内<strong>居中浮层 dialog</strong>（<code>SettingsWindow</code> 包 <code>SettingsContent</code>，经 <code>overlay-stack</code> 注册 <code>settings</code>）。</p>
 <blockquote>
-<p><strong>注</strong>：曾实现独立原生单例窗口（Host <code>settings_window_open</code> + <code>settings-window-root.tsx</code> + <code>main.tsx</code> <code>?window=settings</code> 路由），但该第二 webview 在 <strong>Windows 下白屏卡死</strong>；已改回 App 内浮层。相关 Host 命令与路由代码暂时保留但不再调用，待根因修复后再启用。</p>
+<p><strong>注</strong>：曾实现独立原生单例窗口（Host <code>settings_window_open</code> + <code>?window=settings</code> 路由），但该第二 webview 在 <strong>Windows 下白屏卡死</strong>；已改回 App 内浮层。前端路由与 <code>settings-window-root.tsx</code> 已删除，仅 Host 命令暂时保留但不再调用。</p>
 </blockquote>
 <table>
 <thead>
@@ -1005,7 +1007,7 @@ PromptInput → Body / Footer / Submit
 </tr>
 <tr>
 <td>分类</td>
-<td>General · Appearance · Agent · <strong>Translate</strong> · Keyboard · Privacy · About</td>
+<td>General · Appearance · Agent · <strong>Translate</strong> · Keyboard · About</td>
 </tr>
 <tr>
 <td>行样式</td>
@@ -1031,10 +1033,9 @@ PromptInput → Body / Footer / Submit
 </table>
 <p><strong>页面职责</strong></p>
 <ul>
-<li><strong>General</strong>：恢复上次 Vault、退出确认；<strong>文件树论文显示</strong>（<code>paperTreeLabelMode</code>，默认 <code>title-author</code>：标题 · 作者；另有标题 / 作者 (年)·标题 / 文件夹名）；<strong>文件树论文排序</strong>（<code>paperTreeSortMode</code>，默认 <code>folder</code>：显示名称 A–Z，跟随 <code>paperTreeLabelMode</code>；另有标题 / 作者 / 年份新→旧 / 年份旧→新 / 添加时间新→旧）；<strong>Translator 服务地址</strong>（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）。入库默认下载 PDF（arXiv 含 LaTeX），无「是否本地下载」开关。<strong>Zotero Connector 兼容</strong>开关（<code>connectorEnabled</code>，默认关；与 Zotero 桌面端互斥占用 <code>23119</code>；状态行显示监听地址 / 错误；保存成功后刷新树/Library 并 <strong><code>openPaper</code> 打开论文 tab</strong>；见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>），勿与 Translator 地址混为同一设置项。</li>
+<li><strong>General</strong>：恢复上次 Vault；<strong>文件树论文显示</strong>（<code>paperTreeLabelMode</code>，默认 <code>title-author</code>：标题 · 作者；另有标题 / 作者 (年)·标题 / 文件夹名）；<strong>文件树论文排序</strong>（<code>paperTreeSortMode</code>，默认 <code>folder</code>：显示名称 A–Z，跟随 <code>paperTreeLabelMode</code>；另有标题 / 作者 / 年份新→旧 / 年份旧→新 / 添加时间新→旧）；<strong>Translator 服务地址</strong>（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）。入库默认下载 PDF（arXiv 含 LaTeX），无「是否本地下载」开关。<strong>Zotero Connector 兼容</strong>开关（<code>connectorEnabled</code>，默认关；与 Zotero 桌面端互斥占用 <code>23119</code>；状态行显示监听地址 / 错误；保存成功后刷新树/Library 并 <strong><code>openPaper</code> 打开论文 tab</strong>；见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>），勿与 Translator 地址混为同一设置项。</li>
 <li><strong>Appearance</strong>：主题、<strong>配色主题</strong>（<code>uiTheme</code>，tweakcn 预设，默认 <code>default</code>，见 §1）、<strong>界面缩放</strong>（<code>uiScale</code>：80% / 90% / 100% / 125% / 150%，默认 100%；通过 <code>&lt;html&gt;</code> <code>font-size</code> 全局缩放，旧 <code>toolbarIconSize</code> 仅一次性迁移）、<strong>语言（跟随系统 / English / 简体中文）</strong>；其下分组 <strong>Markdown 编辑器</strong>：编辑字号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，默认开）。</li>
 <li><strong>Agent</strong>（BYOA，非模型 BYOK 表单）：</li>
-<li>总开关。</li>
 <li><strong>权限模式</strong>（<code>agentPermissionMode</code>：受限 / 每次询问 / 自动批准，见 §3.2）。</li>
 <li><strong>回答语言</strong>（自动 / English / 简体中文，独立于界面语言）。</li>
 <li><strong>个人偏好提示词</strong>（<code>agentPersonalPrompt</code>，多行，默认空）：自由文本注入每次 Agent turn 的 prompt envelope；留空关闭。</li>
@@ -1056,10 +1057,9 @@ PromptInput → Body / Footer / Submit
 </li>
 <li>运行时：翻译偏好独立于 Chat 当前选中；未指定则回落 default Agent + 该 Agent 模型偏好。</li>
 <li><strong>Keyboard</strong>：只读快捷键表（按 App / Vault / Navigation 分组）。</li>
-<li><strong>Privacy</strong>：分析与崩溃上报（默认关，本地优先）。</li>
 <li><strong>About</strong>：版本与一句话定位。</li>
 </ul>
-<p>实现：<code>src/components/settings/settings-window.tsx</code>（<code>SettingsWindow</code> 浮层 + 共用 <code>SettingsContent</code>）；<code>src/components/settings/settings-window-root.tsx</code> / <code>main.tsx</code> <code>?window=settings</code> 为休眠的原生窗口入口（暂不使用）。<strong>应用设置</strong>持久化为 Host 文件（XDG）：</p>
+<p>实现：<code>src/components/settings/settings-window.tsx</code>（<code>SettingsWindow</code> 浮层 + 共用 <code>SettingsContent</code>）。<strong>应用设置</strong>持久化为 Host 文件（XDG）：</p>
 <table>
 <thead>
 <tr>
@@ -1070,7 +1070,7 @@ PromptInput → Body / Footer / Submit
 <tbody>
 <tr>
 <td><code>$XDG_CONFIG_HOME/agentero/settings.json</code></td>
-<td>UI 设置（通用 / 外观 / Agent 权限与语言 / 翻译 / 隐私等）；未设 env 时 Unix 默认 <code>~/.config/agentero/settings.json</code></td>
+<td>UI 设置（通用 / 外观 / Agent 权限与语言 / 翻译等）；未设 env 时 Unix 默认 <code>~/.config/agentero/settings.json</code></td>
 </tr>
 <tr>
 <td><code>$XDG_CONFIG_HOME/agentero/agents.json</code></td>

@@ -132,6 +132,8 @@
               <ul>
                   <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
+                  </li>
               </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul>
@@ -230,7 +232,7 @@
 </tr>
 <tr>
 <td>业务壳</td>
-<td><code>agent/agent-panel</code>（Chat；<code>sidebar</code>/<code>zen</code>：禅模式左侧历史 + 全宽 <code>Conversation</code>；无会话数字标签；<code>hideFromChatHistory</code> 过滤后台运行；<strong>权限三档</strong> + <code>agent:permission-request</code> 对话框；<strong>空态 suggestion → workflow</strong>；Composer <strong>当前论文默认 context</strong> + <strong><code>@</code>（最近路径 / 浅层树 / 下钻子目录；论文标签同 <code>paperTreeLabelMode</code>）/ 文件树拖入 → context chip</strong>（展示 paper-name/标题；图标：<code>context-path-icon</code> — paper <code>ScrollText</code> / 文件夹 <code>Folder</code> / 文件按扩展名））、<code>dialogs/command-palette</code>（<code>⌘K</code>/<code>⌘P</code> 论文 quick-open + <code>vault_search</code>）、<code>sidebar/file-tree</code>（Vault 树 + Library + 魔棒 + paper <strong>Download / Zap</strong> + 多选拖拽 + 折叠快捷键 + 回收站入口；<strong>外部 PDF 拖到 <code>papers/</code> 组织夹 → metadata 确认入库</strong>）、<code>library/import-local-pdf-dialog</code>（本地 PDF 元数据确认）、<code>workspace/recycle-bin-view</code>（中间栏回收站）、<code>library/papers-library</code>（catalog 表 + <strong>染色 tags</strong> + <strong>阅读热力 spine</strong> + <strong>Rescan</strong> + 文件夹作用域）、<code>sidebar/paper-info-panel</code>（Tags 色盘）、<code>workspace/dock-workspace</code>、<code>wiki/backlinks-panel</code>、<code>wiki/graph-panel</code>、<code>shell/background-tasks-panel</code>；<code>viewer/pdf-viewer</code>（导航/大纲/查找/平滑划词；批注 <strong>Enter 保存</strong>；划词提问 <code>hideFromChatHistory</code>）</td>
+<td><code>agent/agent-panel</code>（Chat；<code>sidebar</code>/<code>zen</code>：禅模式左侧历史 + 全宽 <code>Conversation</code>；无会话数字标签；<code>hideFromChatHistory</code> 过滤后台运行；<strong>权限三档</strong> + <code>agent:permission-request</code> 对话框；<strong>空态 suggestion → workflow</strong>；Composer <strong>当前论文默认 context</strong> + <strong><code>@</code>（最近路径 / 浅层树 / 下钻子目录；论文标签同 <code>paperTreeLabelMode</code>）/ 文件树拖入 → context chip</strong>（展示 paper-name/标题；图标：<code>context-path-icon</code> — paper <code>ScrollText</code> / 文件夹 <code>Folder</code> / 文件按扩展名））、<code>dialogs/command-palette</code>（<code>⌘K</code>/<code>⌘P</code> 论文 quick-open + <code>vault_search</code>）、<code>sidebar/file-tree</code>（Vault 树 + Library + 魔棒 + paper <strong>Download / Zap</strong> + 多选拖拽 + 折叠快捷键 + 回收站入口；<strong>外部 PDF 拖到 <code>papers/</code> 组织夹 → metadata 确认入库</strong>）、<code>library/import-local-pdf-dialog</code>（本地 PDF 元数据确认）、<code>workspace/recycle-bin-view</code>（中间栏回收站）、<code>library/papers-library</code>（catalog 表 + <strong>标题列表内搜索</strong> + <strong>标签列筛选</strong> + <strong>染色 tags</strong> + <strong>阅读热力 spine</strong> + <strong>Rescan</strong> + 文件夹作用域；Zotero 迁移在侧栏 Library）、<code>sidebar/paper-info-panel</code>（Tags 色盘）、<code>workspace/dock-workspace</code>、<code>wiki/backlinks-panel</code>、<code>wiki/graph-panel</code>、<code>shell/background-tasks-panel</code>；<code>viewer/pdf-viewer</code>（导航/大纲/查找/平滑划词；批注 <strong>Enter 保存</strong>；划词提问 <code>hideFromChatHistory</code>）</td>
 </tr>
 <tr>
 <td>全局通知</td>

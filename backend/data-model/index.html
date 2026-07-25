@@ -146,6 +146,8 @@
               <ul>
                   <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
+                  </li>
               </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul>
@@ -554,7 +556,7 @@ papers/&lt;id&gt;/marks/annotations.json    # EmbedPDF 高亮/批注（export/im
 <tr>
 <td>无 TeX（非 arXiv / e-print 失败 / PDF-only）</td>
 <td><strong>默认下载</strong> PDF</td>
-<td><strong>下载后</strong> liteparse 生成 Markdown（<code>paper_parse_body</code> 亦可手动）</td>
+<td><strong>下载后</strong> liteparse 生成 Markdown（下载后自动）</td>
 </tr>
 <tr>
 <td>扫描件</td>
@@ -563,12 +565,12 @@ papers/&lt;id&gt;/marks/annotations.json    # EmbedPDF 高亮/批注（export/im
 </tr>
 </tbody>
 </table>
-<p><strong>入库下载</strong>（<code>lookup_import</code> / <code>paper_download_assets</code>，见 <a href="../identifier-lookup/"><code>identifier-lookup.md</code></a> §1.3）：</p>
+<p><strong>入库下载</strong>（<code>lookup_import_batch</code> / <code>paper_download_assets</code>，见 <a href="../identifier-lookup/"><code>identifier-lookup.md</code></a> §1.3）：</p>
 <ul>
 <li>PDF → <code>{paper}/{id}.pdf</code>（论文文件夹根目录，不在 <code>source/</code> 下）</li>
 <li>arXiv LaTeX → <code>https://arxiv.org/e-print/{id}</code> → 解压进 <code>source/</code>（拒绝路径穿越）</li>
 <li><strong>无 TeX 且有 PDF</strong>：下载流程结束后用 <strong>liteparse</strong> 写 <code>{paper}/PAPER.md</code>，并更新 catalog <code>body_source</code> / <code>body_quality</code>（文本层 <code>pdf</code>+<code>medium</code>；OCR 主导 <code>ocr</code>+<code>low</code>）</li>
-<li>文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 列原因）；Library 行可批量 Download；解析走 Download 后 liteparse / <code>paper_parse_body</code>；设置 <code>autoPaperReader</code>（默认关）开启时入库/单篇 Download 后可自动精读；资源齐全且 <code>is_read=false</code> → Zap 手动精读</li>
+<li>文件树：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> → Download（hover 列原因）；Library 行可批量 Download；解析走 Download 后 liteparse；设置 <code>autoPaperReader</code>（默认关）开启时入库/单篇 Download 后可自动精读；资源齐全且 <code>is_read=false</code> → Zap 手动精读</li>
 </ul>
 <p>正文来源与质量记录在 <strong>catalog</strong> 的 <code>body_source</code> / <code>body_quality</code> 字段。<code>PAPER.md</code> 可删可重建，<code>source/</code> 中的原始文件才是归档事实来源。中间栏 <strong>PDF 预览</strong>优先本地 <code>{paper}/*.pdf</code>（无本地则先下载，失败再远程 <code>pdf_url</code>）；<strong>HTML 预览</strong>仍走 catalog 远程 <code>html_url</code>。</p>
 <h2 id="3">3. 数据类型<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>

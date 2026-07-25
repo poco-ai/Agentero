@@ -140,6 +140,8 @@
               <ul>
                   <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
+                  </li>
               </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul>
@@ -281,7 +283,7 @@
 <li><strong>笔记与 source 仍是可再生之外的用户资产</strong>；catalog 损坏时，磁盘上的 paper 文件夹仍在，但 meta 字段不可从 NOTES 可靠还原。</li>
 <li><strong>导出是单向投影</strong>：<code>PAPERS.md</code> / <code>library.bib</code> 不是写回入口；改元数据只走 <code>paper:*</code> / 入库命令写 SQLite。</li>
 <li><strong><code>metadata.json</code> 是投影</strong>：读路径走 <code>paper_get</code>（catalog）；每次 <code>upsert</code> 后同步写到对应 paper 文件夹，便于外部工具浏览，<strong>不是</strong> UI 主数据源。</li>
-<li><strong>删除</strong>：文件树删除磁盘后，若路径在 <code>papers/</code> 下，调用 Host <code>paper_delete</code> 清理 catalog 行（<code>path = ? OR path LIKE '{path}/%'</code>），避免 Library 残留幽灵条目。</li>
+<li><strong>删除</strong>：文件树删除走回收站（<code>path_trash</code>）；<code>papers/</code> 下的路径由回收站快照同步清理 catalog 行（底层 <code>papers::delete_under_path</code>，<code>path = ? OR path LIKE '{path}/%'</code>），避免 Library 残留幽灵条目。</li>
 </ol>
 <hr />
 <h2 id="3-vault">3. 文件位置与 Vault 校验<a class="headerlink" href="#3-vault" title="Permanent link">&para;</a></h2>
@@ -709,7 +711,7 @@
 <li>Agent 工作流若需要文件形态 L1：可在 prompt 前 <strong>临时导出到</strong> <code>.agentero/export/PAPERS.md</code>（gitignore 友好）或会话临时目录，而不污染 Vault 根。</li>
 </ul>
 <h3 id="55-importer">5.5 与 importer 的写路径<a class="headerlink" href="#55-importer" title="Permanent link">&para;</a></h3>
-<pre class="codehilite"><code class="language-text">import paper（魔棒 lookup_import）
+<pre class="codehilite"><code class="language-text">import paper（魔棒 lookup_import_batch）
   → 创建 paper 文件夹（默认 `papers/&lt;id&gt;/`，也可 `papers/&lt;org&gt;/…/&lt;id&gt;/`）
   → 事务写入 catalog.papers（path = 该文件夹相对路径）
   → ensure_paper_assets：PDF → 论文根目录；arXiv e-print TeX → 解压到 source/
@@ -835,10 +837,10 @@
 <h2 id="9">9. 验收要点<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
 <ul>
 <li>[x] Create Vault 生成 <code>.agentero/catalog.sqlite</code>（schema 当前版本），<strong>不</strong>生成 <code>PAPERS.md</code> / <code>library.bib</code>。</li>
-<li>[x] 魔棒 / <code>lookup_import</code> 入库后 <code>paper_list</code> 可见新行；UI 论文库表格展示。</li>
+<li>[x] 魔棒 / <code>lookup_import_batch</code> 入库后 <code>paper_list</code> 可见新行；UI 论文库表格展示。</li>
 <li>[x] 读路径走 <code>paper_get</code> / <code>paper_list</code>；<code>metadata.json</code> 仅为 upsert 后投影（非 UI 主源）。</li>
 <li>[x] 入库默认写 PDF（及 arXiv TeX）到 <code>source/</code>；<code>paper_download_assets</code> 可补缺失。</li>
-<li>[x] 无 TeX 时 liteparse 写 <code>PAPER.md</code>，catalog 更新 <code>body_source</code> / <code>body_quality</code>（<code>paper_parse_body</code>）。</li>
+<li>[x] 无 TeX 时 liteparse 写 <code>PAPER.md</code>，catalog 更新 <code>body_source</code> / <code>body_quality</code>（下载后自动）。</li>
 <li>[ ] <code>catalog:export_papers_md</code> / <code>catalog:export_bibtex</code> 能生成与历史格式兼容的文本。</li>
 <li>[ ] 删除导出文件不影响 catalog 与 UI 列表。</li>
 <li>[ ] 打开缺 catalog 的旧目录能 init 或从 <code>metadata.json</code> 迁移。</li>
@@ -847,7 +849,7 @@
 <h2 id="10">10. 相关文档<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../data-model/"><code>data-model.md</code></a> — Vault 分层与类型</li>
-<li><a href="../api/"><code>api.md</code></a> — <code>paper_list</code> / <code>paper_get</code> / <code>lookup_import</code> 等已落地契约 + 规划扩展</li>
+<li><a href="../api/"><code>api.md</code></a> — <code>paper_list</code> / <code>paper_get</code> / <code>lookup_import_batch</code> 等已落地契约 + 规划扩展</li>
 <li><a href="../identifier-lookup/"><code>identifier-lookup.md</code></a> — 魔棒元数据 → catalog 写入路径</li>
 <li><a href="../paper-import-pipeline/"><code>paper-import-pipeline.md</code></a> — 多入口入库统一（<code>paper_commit</code> / 去重 / 前端后置）</li>
 <li><a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> — 论文库表格与虚拟 Library 节点</li>

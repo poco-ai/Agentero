@@ -236,6 +236,8 @@
               <ul>
                   <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
+                  </li>
               </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul>
@@ -302,7 +304,7 @@
               
                 <h1 id="identifier-lookup-translator">魔棒入库（Identifier Lookup）与 Translator 后端<a class="headerlink" href="#identifier-lookup-translator" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>v0 已落地</strong>（侧栏魔棒 + <code>lookup_import</code> + HTTP Translator + 默认 PDF/LaTeX 下载；sidecar/批量/快捷键仍可扩展）<br />
+<p>状态：<strong>v0 已落地</strong>（侧栏魔棒 + <code>lookup_import_batch</code> + HTTP Translator + 默认 PDF/LaTeX 下载；sidecar/批量/快捷键仍可扩展）<br />
 目标：用户点击 <strong>魔棒</strong>，粘贴 <strong>链接或编号</strong> → 用 <strong>Translator</strong> 解析元数据 → <strong>写 catalog + paper 文件夹</strong>（<code>NOTES.md</code> 壳 + <strong>PDF 默认到论文根目录</strong>；arXiv <strong>e-print 解压 LaTeX 到 <code>source/</code></strong>）→ 落到 <code>papers/</code> 或当前 Papers 子文件夹。catalog 仍保留远程 <code>pdf_url</code>/<code>html_url</code>（PDF 预览本地优先，远程作下载候选与回退；HTML 仍远程 iframe）。</p>
 </blockquote>
 <p>相关文档：</p>
@@ -424,7 +426,7 @@
 <p><strong>精读（Zap 图标 + 自动触发）</strong>：</p>
 <ul>
 <li><strong>显示条件（Zap）</strong>：本地资源齐全且 catalog <strong><code>is_read === false</code></strong>（与 Download 互斥）。</li>
-<li><strong>自动触发</strong>：<code>lookup_import</code>（魔棒）或单篇 <code>paper_download_assets</code> 成功且 PDF/TeX/<code>PAPER.md</code> 任一可读正文/归档就绪时，前端 <code>maybeAutoRunPaperReader</code> 自动跑同一工作流（批量 Library 导入/批量 Download <strong>不</strong>自动连跑，避免并发炸 Agent）。</li>
+<li><strong>自动触发</strong>：<code>lookup_import_batch</code>（魔棒，单条）或单篇 <code>paper_download_assets</code> 成功且 PDF/TeX/<code>PAPER.md</code> 任一可读正文/归档就绪时，前端 <code>maybeAutoRunPaperReader</code> 自动跑同一工作流（批量 Library 导入/批量 Download <strong>不</strong>自动连跑，避免并发炸 Agent）。</li>
 <li><strong>手动</strong>：点击 Zap → 同上。</li>
 <li><strong>实现</strong>：<code>src/lib/paper/reader.ts</code> → <code>agent_run_once</code> + skill（<strong><code>hideFromChatHistory: true</code></strong>，不进 Agent 对话记录）；Codex <code>$paper-reader</code> / Claude <code>/paper-reader</code> / 其它注入 <code>SKILL.md</code> → 写 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>；进度在左下角后台任务条。</li>
 <li><strong>进度</strong>：左下角后台任务条——入库/下载阶段 <code>kind=lookup|download</code>（分阶段 detail/progress），随后精读 <code>kind=paperRead</code>。</li>
@@ -454,7 +456,7 @@
 </tbody>
 </table>
 <ul>
-<li>魔棒入库时前端把设置中的 URL 传入 <code>lookup_import.args.translatorBaseUrl</code>。</li>
+<li>魔棒入库时前端把设置中的 URL 传入 <code>lookup_import_batch.args.translatorBaseUrl</code>。</li>
 <li>Host：<code>POST {base}/search</code> 或 <code>/web</code>（<code>Content-Type: text/plain</code>）。</li>
 <li>服务不可达且输入为 arXiv 时，回退 export.arxiv.org。</li>
 </ul>
@@ -1028,7 +1030,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 </ol>
 <h3 id="53">5.3 中间结果<a class="headerlink" href="#53" title="Permanent link">&para;</a></h3>
 <p>入库前 Host 手中只有 <strong><code>PaperMetadata</code>（已 map）</strong>；不必单独长期持有 Zotero Item。调试可选暂存 <code>raw</code> 日志，不进 catalog。</p>
-<pre class="codehilite"><code class="language-ts">// 概念：一次魔棒调用（落地：lookup_import）
+<pre class="codehilite"><code class="language-ts">// 概念：一次魔棒调用（落地：lookup_import_batch）
 const item = await translator.searchOrWeb(input); // Zotero Item
 const metadata = mapZoteroItemToPaperMetadata(item); // → PaperMetadata
 enrichRemoteUrls(metadata); // arxiv/doi 推导
@@ -1094,7 +1096,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 // 或同步：{ ok: true; data: { paths: string[] } }
 </code></pre>
 
-<p><strong>Host 行为</strong>（落地实现：<code>lookup_import</code>）：</p>
+<p><strong>Host 行为</strong>（落地实现：<code>lookup_import_batch</code> 单条路径）：</p>
 <ol>
 <li>规范化 <code>parent_dir</code>（必须位于 <code>papers</code> 下）。</li>
 <li><code>path = {parent_dir}/{id}</code>。</li>
@@ -1113,7 +1115,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
     vaultPath: string;
     parentDir: string;              // "papers" | "papers/nlp"
     texts: string[];                // 用户输入拆分后的原始 token 数组
-    translatorBaseUrl?: string;     // 同 lookup_import
+    translatorBaseUrl?: string;     // 同上
     taskId?: string;                // 前端后台任务 id
     concurrency?: number;           // 最大并发入库数，默认 3，范围 1–10
   }</code></p>
@@ -1235,7 +1237,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
   → 展示目标路径提示：将加入「papers/」或「papers/nlp/」（来自 §1.2）
   → 用户 Enter 或点「添加」
   → lookup:search（Translator）→ 可选极简预览
-  → lookup_import({ parent_dir, text, translatorBaseUrl })
+  → lookup_import_batch({ parent_dir, texts, translatorBaseUrl })
   → 成功：catalog + source/PDF（arXiv 含 TeX）；刷新文件树 / Library / wiki；`openPaper` 打开 paper（PDF 预览优先本地）并 **左侧树展开祖先、滚到新论文行**
   → 失败：全局 Toast（`notifyError`，见 [`../frontend/ui.md`](../frontend/ui.md) §2.1.2）；Popover 内字段校验可仍就地显示
 </code></pre>
@@ -1317,7 +1319,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <li>[x] 文档：交互、目标文件夹、默认下载约定</li>
 <li>[x] 魔棒 Popover + <code>parent_dir</code> 解析 + i18n（侧栏 <code>WandSparkles</code>）</li>
 <li>[x] Host 解析 + arXiv fallback（Translator 失败时）</li>
-<li>[x] <code>lookup_import</code>：catalog upsert + NOTES 壳 + PDF/LaTeX 下载</li>
+<li>[x] 魔棒入库：catalog upsert + NOTES 壳 + PDF/LaTeX 下载</li>
 </ul>
 <h3 id="phase-b-translator">Phase B — Translator 服务<a class="headerlink" href="#phase-b-translator" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1332,7 +1334,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 <li>[x] 与文件树选中态同步目标 <code>parent_dir</code></li>
 <li>[x] 论文库 UI：<code>paper_list</code> 表格 + 虚拟 Library 节点（见 <a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>）</li>
 <li>[x] 单篇 / Library 批量补下缺失 PDF 与 arXiv TeX（<code>paper_download_assets</code>）</li>
-<li>[x] 无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动 + <code>paper_parse_body</code>）</li>
+<li>[x] 无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动）</li>
 <li>[x] <code>⇧⌘I</code> 魔棒快捷键</li>
 <li>[x] 魔棒批量入库：多标识符粘贴、去重、批量下载、进度聚合</li>
 <li>[ ] 重复提示增强（单条弹层内）、入库任务可取消</li>
@@ -1483,7 +1485,7 @@ await ensure_paper_assets(paperDir, metadata); // PDF + arXiv LaTeX → source/
 </tr>
 <tr>
 <td>2026-07-15</td>
-<td>无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动 + <code>paper_parse_body</code>）</td>
+<td>无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动）</td>
 </tr>
 <tr>
 <td>2026-07-16</td>

@@ -92,21 +92,25 @@
               <ul class="current">
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">概览</a>
     <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#_2">目录结构</a>
+    <li class="toctree-l2"><a class="reference internal" href="#_2">发布前验收</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_3">目录结构</a>
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#demo-vault">Demo Vault 脚本</a>
     </li>
         </ul>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_3">前端测试</a>
+    <li class="toctree-l2"><a class="reference internal" href="#_4">前端测试</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#rust">Rust 测试</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_4">手动验证</a>
+    <li class="toctree-l2"><a class="reference internal" href="#_5">手动验证</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_5">文档验证</a>
+    <li class="toctree-l2"><a class="reference internal" href="#_6">文档验证</a>
     </li>
     </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="release-checklist/">发布前 Checklist</a>
                   </li>
               </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
@@ -174,7 +178,12 @@
               
                 <h1 id="_1">测试<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
 <p>当代码依赖 Vault 路径、Markdown 双链或论文元数据时，测试应优先创建真实的临时 Vault 目录和文件。保持 <code>src/</code> 与 <code>test/</code> 解耦：应用代码不能 import 测试 fixture 或 helper。</p>
-<h2 id="_2">目录结构<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h2 id="_2">发布前验收<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>产品发布 / 打 tag / 分发安装包前的完整手工 Checklist 见：</p>
+<ul>
+<li><strong><a href="release-checklist/">发布前测试大纲（Checklist）</a></strong> — 按功能域（Vault、Library、入库、PDF、Agent、远程、CLI、平台矩阵）勾选；含 5 分钟冒烟与明确非目标说明。</li>
+</ul>
+<h2 id="_3">目录结构<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <pre class="codehilite"><code class="language-text">test/
 ├── helpers/
 │   └── create-test-vault.ts
@@ -241,7 +250,7 @@ pnpm demo:vault:verify -- ~/Downloads/agentero-demo-vault
 </tbody>
 </table>
 <p>每次生成会<strong>重建</strong> <code>catalog.sqlite</code>（避免重复跑脚本留下旧 schema）。依赖本机 <code>sqlite3</code> CLI。</p>
-<h2 id="_3">前端测试<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_4">前端测试<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p>运行 TypeScript 单元测试：</p>
 <pre class="codehilite"><code class="language-bash">pnpm test
 </code></pre>
@@ -272,7 +281,7 @@ try {
 </code></pre>
 
 <p>解析器和 resolver 的边界用例可以放在对应 Rust 模块的 <code>#[cfg(test)]</code> 中。依赖 Vault 的 graph/index 测试应创建临时目录和文件，不依赖已提交的缓存文件。</p>
-<h2 id="_4">手动验证<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">手动验证<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p>纯逻辑优先用自动化测试覆盖。涉及 UI 或桌面流程时，还需要启动应用检查受影响路径。如果 dev 端口被占用或无法做浏览器/桌面验证，汇报时需要明确说明。</p>
 <p>建议用 <code>pnpm demo:vault</code> 生成的 Vault 做冒烟：</p>
 <table>
@@ -345,7 +354,7 @@ try {
 </tr>
 </tbody>
 </table>
-<h2 id="_5">文档验证<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">文档验证<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p>修改 docs 或 <code>mkdocs.yml</code> 后运行：</p>
 <pre class="codehilite"><code class="language-bash">mkdocs build --strict
 </code></pre>
@@ -361,7 +370,7 @@ mkdocs build --strict
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
         <a href="../backend/wikilinks/" class="btn btn-neutral float-left" title="双链与图谱"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../development/" class="btn btn-neutral float-right" title="概览">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="release-checklist/" class="btn btn-neutral float-right" title="发布前 Checklist">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -391,7 +400,7 @@ mkdocs build --strict
       <span><a href="../backend/wikilinks/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
-      <span><a href="../development/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <span><a href="release-checklist/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

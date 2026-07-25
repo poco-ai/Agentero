@@ -107,13 +107,11 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#path_open_in_terminal">path_open_in_terminal（已实现）</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#path_trash-path_untrash">path_trash / path_untrash（已落地）</a>
+    <li class="toctree-l4"><a class="reference internal" href="#path_trash">path_trash（已落地）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#path_list_trash-path_restore_item-path_purge_item-path_purge_trash">path_list_trash / path_restore_item / path_purge_item / path_purge_trash（已落地）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#window_new">window_new（已实现）</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#settings_window_open">settings_window_open（已实现，前端暂未调用）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#fs_watch_start-fs_watch_stop">fs_watch_start / fs_watch_stop（已实现）</a>
     </li>
@@ -158,8 +156,6 @@
     <li class="toctree-l4"><a class="reference internal" href="#paper_list">paper_list（已落地）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paper_rescan">paper_rescan（已落地）</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#paper_delete">paper_delete（已落地）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#paper_move">paper_move（已落地）</a>
     </li>
@@ -241,8 +237,6 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#settings_set">settings_set（已实现）</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#settings_path">settings_path（已实现）</a>
-    </li>
         </ul>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#311-ui-i18n">3.11 界面与本地化（UI / i18n）</a>
@@ -279,6 +273,8 @@
               <p class="caption"><span class="caption-text">测试</span></p>
               <ul>
                   <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
                   </li>
               </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
@@ -502,7 +498,7 @@ Host (Tauri + Rust)
 <blockquote>
 <p><strong>实现状态（V0.1）</strong>  </p>
 <ul>
-<li>已实现：<code>vault_create</code>、<code>vault_ensure</code>（snake_case invoke 名）、<code>vault_allow_fs_scope</code>、<code>path_open_in_terminal</code>、<code>path_trash</code> / <code>path_untrash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。  </li>
+<li>已实现：<code>vault_create</code>、<code>vault_ensure</code>（snake_case invoke 名）、<code>vault_allow_fs_scope</code>、<code>path_open_in_terminal</code>、<code>path_trash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。  </li>
 <li>打开 Vault / 最近列表 / 树加载：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成；打开或恢复时会调用 <code>vault_ensure</code> 补种缺失 bundled skills。Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。  </li>
 <li>实际 command 注册见 <code>src-tauri/src/lib.rs</code>。</li>
 </ul>
@@ -588,27 +584,19 @@ Host (Tauri + Rust)
 <td>flush catalog + 拆会话</td>
 </tr>
 <tr>
-<td><code>remote_status</code></td>
-<td>会话信息</td>
-</tr>
-<tr>
-<td><code>remote_list</code> / <code>remote_stat</code></td>
-<td>列目录 / 元数据</td>
+<td><code>remote_list</code></td>
+<td>列目录</td>
 </tr>
 <tr>
 <td><code>remote_read_text</code> / <code>remote_write_text</code> / <code>remote_write_bytes</code></td>
 <td>读写</td>
 </tr>
 <tr>
-<td><code>remote_read_bytes</code></td>
-<td>读二进制</td>
-</tr>
-<tr>
 <td><code>remote_mkdir</code> / <code>remote_remove</code></td>
 <td>建目录 / 删除（可 recursive）</td>
 </tr>
 <tr>
-<td><code>remote_paper_list</code> / <code>remote_paper_get</code> / <code>remote_paper_delete</code></td>
+<td><code>remote_paper_list</code> / <code>remote_paper_get</code></td>
 <td>catalog 工作副本</td>
 </tr>
 <tr>
@@ -626,10 +614,6 @@ Host (Tauri + Rust)
 <tr>
 <td><code>remote_cache_clear</code></td>
 <td><code>{ sessionId? }</code> → <code>{ freedBytes }</code> 清除 blob 缓存</td>
-</tr>
-<tr>
-<td><code>remote_agent_discover</code></td>
-<td>远端 <code>bash -lc 'command -v …'</code></td>
 </tr>
 <tr>
 <td><code>remote_agent_scan</code></td>
@@ -671,18 +655,13 @@ Host (Tauri + Rust)
 <tbody>
 <tr>
 <td>魔棒标识符</td>
-<td><code>lookup_import</code></td>
+<td><code>lookup_import_batch</code></td>
 <td>✅ staging → SFTP → catalog PUT</td>
 </tr>
 <tr>
 <td>补资源 Download</td>
 <td><code>paper_download_assets</code></td>
 <td>✅</td>
-</tr>
-<tr>
-<td>生成本地/远端 PAPER.md</td>
-<td><code>paper_parse_body</code></td>
-<td>✅ 远端 pull PDF → liteparse → put</td>
 </tr>
 <tr>
 <td>本地 PDF</td>
@@ -742,8 +721,8 @@ Host (Tauri + Rust)
 </ul>
 </li>
 </ul>
-<h4 id="path_trash-path_untrash"><code>path_trash</code> / <code>path_untrash</code>（已落地）<a class="headerlink" href="#path_trash-path_untrash" title="Permanent link">&para;</a></h4>
-<p>可恢复删除：把项移入 Vault 回收站 <code>.agentero/.trash/&lt;batchId&gt;/</code>（带 <code>manifest.json</code> 记录原路径与被删 catalog 行快照），而非物理删除。<strong>前端不弹 Undo toast</strong>——用户从文件树虚拟节点 <code>agentero:trash</code> 打开的<strong>中间栏回收站视图</strong>（<code>RecycleBinView</code>）浏览 / 恢复 / 永久删除；<strong>清空</strong>在侧栏回收站节点右键菜单。</p>
+<h4 id="path_trash"><code>path_trash</code>（已落地）<a class="headerlink" href="#path_trash" title="Permanent link">&para;</a></h4>
+<p>可恢复删除：把项移入 Vault 回收站 <code>.agentero/.trash/&lt;batchId&gt;/</code>（带 <code>manifest.json</code> 记录原路径与被删 catalog 行快照），而非物理删除。<strong>前端不弹 Undo toast</strong>——用户从文件树虚拟节点 <code>agentero:trash</code> 打开的<strong>中间栏回收站视图</strong>（<code>RecycleBinView</code>）浏览 / 恢复 / 永久删除；<strong>清空</strong>在侧栏回收站节点右键菜单；恢复走 <code>path_restore_item</code>（按项）。</p>
 <ul>
 <li><strong><code>path_trash</code> 参数</strong></li>
 </ul>
@@ -757,23 +736,7 @@ Host (Tauri + Rust)
 <li><strong><code>path_trash</code> 返回</strong>（<code>ApiResult&lt;{ batchId: string; count: number }&gt;</code>）</li>
 <li><code>batchId</code> 标识批次（浏览/恢复用）；<code>count</code> 为实际移入回收站的项数。</li>
 <li><code>papers/</code> 下的项：<strong>先移文件</strong>，再快照并删除 catalog 行（含嵌套 paper），避免幽灵 catalog。</li>
-<li>
-<p>跳过空 / 含 <code>..</code> / <code>.agentero</code> / <code>papers</code> 根 / 不存在的路径。</p>
-</li>
-<li>
-<p><strong><code>path_untrash</code> 参数</strong></p>
-</li>
-</ul>
-<pre class="codehilite"><code class="language-ts">{
-  vaultPath: string;
-  batchId: string;
-}
-</code></pre>
-
-<ul>
-<li><strong><code>path_untrash</code> 返回</strong>（<code>ApiResult&lt;{ restored: number }&gt;</code>）</li>
-<li>把该批次文件移回原位并 <code>upsert</code> 恢复 catalog 行。</li>
-<li><strong>预检</strong>：若任一原路径已被重新占用，整批中止且不改动任何内容（不覆盖新内容）。</li>
+<li>跳过空 / 含 <code>..</code> / <code>.agentero</code> / <code>papers</code> 根 / 不存在的路径。</li>
 </ul>
 <h4 id="path_list_trash-path_restore_item-path_purge_item-path_purge_trash"><code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>（已落地）<a class="headerlink" href="#path_list_trash-path_restore_item-path_purge_item-path_purge_trash" title="Permanent link">&para;</a></h4>
 <p>回收站浏览：中间栏 <code>RecycleBinView</code>（虚拟 tab <code>agentero:trash</code>）用这些命令列出 / 恢复 / 永久删除已删项。</p>
@@ -793,15 +756,6 @@ Host (Tauri + Rust)
 <li>窗口尺寸 / macOS overlay 标题栏与主窗口一致。</li>
 <li>Capability 覆盖 <code>main</code> 与 <code>agentero-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
 <li>菜单点击由 Host 直接调用，不经过前端 event 往返。</li>
-</ul>
-<h4 id="settings_window_open"><code>settings_window_open</code>（已实现，<strong>前端暂未调用</strong>）<a class="headerlink" href="#settings_window_open" title="Permanent link">&para;</a></h4>
-<p>打开（或聚焦）<strong>单例原生设置窗口</strong>。命令仍注册，但因该第二 webview 在 <strong>Windows 下白屏卡死</strong>，前端已改用 App 内浮层（<code>SettingsWindow</code>，见 <code>../frontend/ui.md</code> §4），暂不调用本命令；代码保留待根因修复后再启用。</p>
-<ul>
-<li><strong>参数</strong>：<code>{ section?: string, vault?: string }</code>（section 深链设置分类；vault 传调用方窗口的 Vault 路径，供远程 Vault 的 Agent 页上下文）</li>
-<li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
-<li><strong>行为</strong></li>
-<li>固定 label <code>agentero-settings</code>（匹配 capability <code>agentero-*</code>）；已存在则 <code>set_focus</code> 并向该窗口 <code>emit("settings:navigate", { section })</code>。</li>
-<li>否则创建 760×600（min 640×480）窗口，URL <code>index.html?window=settings&amp;section=…&amp;vault=…</code>（percent-encoded）；前端 <code>main.tsx</code> 检测 <code>?window=settings</code> 渲染 <code>SettingsWindowRoot</code>。</li>
 </ul>
 <h4 id="fs_watch_start-fs_watch_stop"><code>fs_watch_start</code> / <code>fs_watch_stop</code>（已实现）<a class="headerlink" href="#fs_watch_start-fs_watch_stop" title="Permanent link">&para;</a></h4>
 <p>按窗口启停 Vault 文件系统监听（Rust <code>notify</code> 递归监听），用于外部编辑器 / Agent 写盘后自动重载编辑器与文件树。</p>
@@ -1279,47 +1233,11 @@ Host (Tauri + Rust)
 
 ### 3.6 魔棒 / 标识符入库（已落地 v0）
 
-**交互**：侧边栏魔棒 → 粘贴链接/编号 → Host `lookup_import` → Translator → 写 paper 文件夹。  
+**交互**：侧边栏魔棒 → 粘贴链接/编号 → Host `lookup_import_batch` → Translator → 写 paper 文件夹。  
 详见 [`identifier-lookup.md`](identifier-lookup.md)。
 
 **Translator 默认地址**：`https://translator.philfan.cn`（设置 `translatorBaseUrl` 可改）。  
 `POST {base}/search` 或 `/web`，body 为 plain text。
-
-#### `lookup_translator_config`
-
-- **返回**：`{ ok: true; data: { defaultBaseUrl: &quot;https://translator.philfan.cn&quot; } }`
-
-#### `lookup_import`
-
-- **参数**（invoke 字段名 `args`）：
-
-  ```ts
-  {
-    vaultPath: string;
-    parentDir: string;              // &quot;papers&quot; | &quot;papers/nlp&quot;
-    text: string;
-    translatorBaseUrl?: string;     // 来自设置，默认 https://translator.philfan.cn
-    taskId?: string;                 // 前端后台任务 id；支持取消与进度事件
-  }
-  ```
-
-- **返回**：
-
-  ```ts
-  {
-    ok: true;
-    data: {
-      paperDir: string;
-      path: string;
-      id: string;
-      title: string;
-      usedTranslator: boolean;
-      translatorBaseUrl: string;
-    }
-  }
-  ```
-
-- **行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` 壳（摘要块优先经免费 MT 译为中文，失败则保留原文；catalog 中 `abstract` 仍为原文）；`metadata.json` 为 catalog 投影同步；**始终下载 PDF** 到 `source/`；**arXiv 另下载 e-print 并解压 LaTeX** 到 `source/`；下载后若**无 TeX 且有 PDF 且无 `PAPER.md`**，用 **liteparse** 生成 `PAPER.md` 并更新 `body_source` / `body_quality`。
 
 #### `lookup_import_batch`（魔棒批量入库）
 
@@ -1330,7 +1248,7 @@ Host (Tauri + Rust)
     vaultPath: string;
     parentDir: string;              // &quot;papers&quot; | &quot;papers/nlp&quot;
     texts: string[];                // 拆分后的原始 token 数组
-    translatorBaseUrl?: string;     // 同 lookup_import
+    translatorBaseUrl?: string;     // 来自设置，默认 https://translator.philfan.cn
     taskId?: string;                // 前端后台任务 id；单条进度聚合在该任务下
     concurrency?: number;           // 最大并发入库数，默认 3，范围 1–10
   }
@@ -1349,7 +1267,8 @@ Host (Tauri + Rust)
   }
   ```
 
-  其中 `LookupImportResult` 同 `lookup_import` 的 `data` 字段（含 `paperDir`、`path`、`id`、`title`、`usedTranslator`、`translatorBaseUrl`、`pdf?`、`tex?`、`paperMd?`、`assetMessages?`）。
+  其中 `LookupImportResult` 为单条入库结果（含 `paperDir`、`path`、`id`、`title`、`usedTranslator`、`translatorBaseUrl`、`pdf?`、`tex?`、`paperMd?`、`assetMessages?`）。
+- **单条行为**：Translator 优先；失败且输入为 arXiv 时回退 export.arxiv.org；**catalog upsert**（权威）+ 写 `NOTES.md` 壳（摘要块优先经免费 MT 译为中文，失败则保留原文；catalog 中 `abstract` 仍为原文）；`metadata.json` 为 catalog 投影同步；**始终下载 PDF**；**arXiv 另下载 e-print 并解压 LaTeX** 到 `source/`；下载后若**无 TeX 且有 PDF 且无 `PAPER.md`**，用 **liteparse** 生成 `PAPER.md` 并更新 `body_source` / `body_quality`。
 - **行为**：
   1. 逐条解析 `texts`；未识别则加入 `errors`。
   2. 按规范化 value 去重（arXiv 去 version、DOI 小写等）；batch 内重复 → `skipped.reason = 'duplicate_in_batch'`。
@@ -1409,28 +1328,7 @@ Host (Tauri + Rust)
 - **返回**：`{ ok: true; data: { papers: LookupImportResult[]; errors: string[] } }`（`errors` 为 `&quot;&lt;文件&gt;: &lt;原因&gt;&quot;`；仅当**全部**失败才整体 `ok:false`）。
 - **行为**：每个 PDF → 标题/id 优先用 `entries` 覆盖，否则文件名 stem；复制到 `{slug}.pdf`；写 `NOTES.md` 壳 + catalog（type `pdf`，可含 authors/year）；无 TeX → liteparse `PAPER.md`。不覆盖已存在文件夹（slug 去重）。
 
-#### `paper_parse_body`（已落地）
-
-对**无本地 TeX** 的 paper，用 liteparse 从本地 PDF 生成 `{paper}/PAPER.md`。在 `paper_download_assets` / `lookup_import` 下载后自动触发，亦可手动 `paper_parse_body`。
-
-&gt; **Zap 图标**现用于 **paper-reader 精读**（资源齐全且未读时显示），不再表示「生成 PAPER.md」。
-
-- **参数**（invoke 字段名 `args`）：
-
-  ```ts
-  {
-    vaultPath: string;
-    path: string; // Vault 相对 paper 文件夹
-    force?: boolean; // 默认 false：已有 PAPER.md 则跳过；true 时覆盖
-  }
-  ```
-
-- **返回**：`{ ok: true; data: { paperMd: boolean; bodySource?: string; bodyQuality?: string; messages: string[] } }`
-- **行为**：
-  - 本地已有 `.tex`/`.ltx` → 跳过（不生成）。
-  - 无本地 PDF → 失败。
-  - 已有 `PAPER.md` 且 `force` 非 true → 跳过。
-  - 否则 liteparse（Markdown 输出）写 `PAPER.md`；catalog 写入 `body_source`（`pdf` | `ocr`）与 `body_quality`（`medium` | `low`）。
+&gt; **无 TeX 正文生成**：对无本地 TeX 的 paper，`paper_download_assets` / 魔棒入库在下载后自动用 liteparse 从 PDF 生成 `{paper}/PAPER.md` 并写 catalog `body_source` / `body_quality`；不再有独立的 `paper_parse_body` command（**Zap 图标**现用于 paper-reader 精读）。
 
 #### `paper_analyze_pdf`（规划中）
 
@@ -1570,23 +1468,9 @@ Host (Tauri + Rust)
 <li><strong>行为</strong>：递归遍历 <code>papers/</code>，遇含 <code>metadata.json</code> 的文件夹即为 paper 叶子；反序列化时<strong>回填</strong> <code>path</code>（投影省略），<code>upsert</code> 进 catalog。不删行、不改磁盘文件。</li>
 <li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>rescanPapers</code>；论文库空态「重新扫描 papers/」按钮。</li>
 </ul>
-<h4 id="paper_delete"><code>paper_delete</code>（已落地）<a class="headerlink" href="#paper_delete" title="Permanent link">&para;</a></h4>
-<p>从 <strong>catalog.sqlite</strong> 删除指定路径的 paper 行，以及其下嵌套路径（组织目录批量删）。<strong>不</strong>删除磁盘文件；文件树删除由前端 <code>plugin-fs</code> <code>remove</code> 负责，再调本命令清理索引。</p>
-<ul>
-<li><strong>参数</strong>（invoke 字段名 <code>args</code>）：</li>
-</ul>
-<pre class="codehilite"><code class="language-ts">{
-  vaultPath: string;
-  /** paper 文件夹或 papers/ 下组织目录的 Vault 相对路径 */
-  path: string;
-}
-</code></pre>
-
-<ul>
-<li><strong>返回</strong>：<code>{ ok: true; data: { removed: number } }</code>（删除行数；无匹配时 <code>removed: 0</code>）。</li>
-<li><strong>SQL</strong>：<code>DELETE FROM papers WHERE path = ? OR path LIKE '{path}/%'</code>。</li>
-<li><strong>前端</strong>：删除走 <code>path_trash</code>（<code>trashPaths</code>）；catalog 行随回收站快照清理，不再单独调 <code>paper_delete</code>。</li>
-</ul>
+<blockquote>
+<p><strong>Catalog 行删除</strong>：不再有独立的 <code>paper_delete</code> command；删除走 <code>path_trash</code>（<code>trashPaths</code>），catalog 行随回收站快照清理（底层 <code>papers::delete_under_path</code>，CLI <code>agentero paper rm</code> 亦复用）。</p>
+</blockquote>
 <h4 id="paper_move"><code>paper_move</code>（已落地）<a class="headerlink" href="#paper_move" title="Permanent link">&para;</a></h4>
 <p>把 paper 文件夹 / <code>papers/</code> 下组织目录（或文件）移动到另一 <code>papers/</code> 目录：磁盘 <code>fs::rename</code>（<strong>不覆盖</strong>已存在目标），并改写 catalog 中受影响行的 <code>path</code> 前缀。</p>
 <ul>
@@ -1625,7 +1509,7 @@ Host (Tauri + Rust)
 <li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata }</code>（更新后的整行）。</li>
 <li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>setPaperIsRead</code>；paper-reader 工作流成功结束后置 <code>true</code>。</li>
 <li><strong>说明</strong>：与 <code>status</code>（入库态）无关；默认 <code>false</code>。触发路径：</li>
-<li><strong>自动</strong>：魔棒 <code>lookup_import</code> / 单篇 <code>paper_download_assets</code> 成功且资源就绪时，前端 <code>maybeAutoRunPaperReader</code>（批量导入/批量 Download 不连跑）。</li>
+<li><strong>自动</strong>：魔棒 <code>lookup_import_batch</code>（单条）/ 单篇 <code>paper_download_assets</code> 成功且资源就绪时，前端 <code>maybeAutoRunPaperReader</code>（批量导入/批量 Download 不连跑）。</li>
 <li><strong>手动</strong>：文件树在「资源齐全且 <code>is_read === false</code>」时显示 <strong>Zap</strong> 图标。</li>
 <li>实现：<code>src/lib/paper/reader.ts</code>（进度 <code>kind=paperRead</code>；可与 lookup/download 任务衔接）；skill 触发按当前默认 Agent 的 <code>SkillMentionStyle</code>。</li>
 </ul>
@@ -2215,13 +2099,12 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>参数</strong>：<code>{ settings: AppSettings }</code>（camelCase，与前端 <code>src/lib/settings</code> 同构）</li>
 <li><strong>返回</strong>：规范化后的 <code>AppSettings</code>（写盘 + 更新 Host 内存）</li>
-<li><strong>事件</strong>：保存成功后向<strong>所有窗口</strong> <code>emit("settings:changed", AppSettings)</code>（规范化后的快照）。前端 <code>initSettingsSync()</code>（<code>src/lib/settings</code>）监听该事件更新各窗口内存缓存并通知订阅者（<code>subscribeSettings</code>），保证独立设置窗口与各主窗口的设置实时一致。</li>
+<li><strong>事件</strong>：保存成功后向<strong>所有窗口</strong> <code>emit("settings:changed", AppSettings)</code>（规范化后的快照）。前端 <code>initSettingsSync()</code>（<code>src/lib/settings</code>）监听该事件更新各窗口内存缓存并通知订阅者（<code>subscribeSettings</code>），保证各窗口的设置实时一致。</li>
 </ul>
-<h4 id="settings_path"><code>settings_path</code>（已实现）<a class="headerlink" href="#settings_path" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>返回</strong>：设置文件绝对路径字符串（About / 诊断用）</li>
-</ul>
-<p>实现：<code>src-tauri/src/services/app_settings.rs</code>、<code>services/paths.rs</code>、<code>commands/settings.rs</code>。</p>
+<blockquote>
+<p>设置文件绝对路径已包含在 <code>settings_get</code> 返回的 <code>path</code> 字段中（About / 诊断用），无独立 command。</p>
+</blockquote>
+<p>实现：<code>src-tauri/src/features/settings/</code>（<code>mod.rs</code> + <code>commands.rs</code>）、<code>core/paths.rs</code>。</p>
 <h3 id="311-ui-i18n">3.11 界面与本地化（UI / i18n）<a class="headerlink" href="#311-ui-i18n" title="Permanent link">&para;</a></h3>
 <h4 id="set_locale"><code>set_locale</code>（已实现）<a class="headerlink" href="#set_locale" title="Permanent link">&para;</a></h4>
 <p>渲染层在语言偏好变化时通知 Host 按新 locale 重建原生应用菜单（macOS 菜单栏）。</p>

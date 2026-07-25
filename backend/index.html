@@ -104,6 +104,8 @@
               <ul>
                   <li class="toctree-l1"><a class="reference internal" href="../test/">概览</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../test/release-checklist/">发布前 Checklist</a>
+                  </li>
               </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul>
@@ -240,7 +242,7 @@
 <li>向前端暴露 Tauri invoke commands 与 event streams。</li>
 <li>启动并管理 <strong>ACP-compatible Agent</strong>（现网：本机进程；规划中：远程 Vault 时经 SSH 在<strong>远端</strong>启动），但不托管模型密钥（BYOA）。远程设计见 <a href="../development/remote-vault/"><code>../development/remote-vault.md</code></a>。</li>
 <li>提供 catalog 导出；双链等可重建索引与 catalog 分层清晰。</li>
-<li>标识符魔棒入库：<code>lookup_import</code> 调用 Translator（可配置 base URL）、写 catalog，并<strong>默认下载 PDF</strong>（arXiv 另解压 LaTeX）；<code>paper_download_assets</code> 按需补下；无 TeX 时 <strong>liteparse → <code>PAPER.md</code></strong>（<code>paper_parse_body</code>）；论文库列表 <code>paper_list</code>。</li>
+<li>标识符魔棒入库：<code>lookup_import_batch</code> 调用 Translator（可配置 base URL）、写 catalog，并<strong>默认下载 PDF</strong>（arXiv 另解压 LaTeX）；<code>paper_download_assets</code> 按需补下；无 TeX 时下载后自动 <strong>liteparse → <code>PAPER.md</code></strong>；论文库列表 <code>paper_list</code>。</li>
 <li>精读状态：<code>paper_set_is_read</code>（catalog <code>is_read</code>）；前端入库/单篇 Download 后可自动跑 paper-reader。</li>
 <li>标签：<code>paper_set_tags</code> / <code>papers::set_tags</code>（catalog <code>tags_json</code> 整表替换；元素可为字符串或 <code>{name,color?}</code> Apple 8 色）；Paper Info 增删与选色；Library 染色 chip 与筛选；CLI <code>paper tag list|set|add|rm</code> / <code>list --tag</code>（CLI 仅名称）。</li>
 <li><strong>Zotero Connector 兼容服务</strong>（MVP）：本机 <code>127.0.0.1:23119</code> 兼容官方浏览器扩展保存协议 → 当前 Vault；与 Zotero 桌面端端口互斥、默认关；见 <a href="connector/"><code>connector.md</code></a>。</li>
@@ -270,7 +272,7 @@
   main.rs
 </code></pre>
 
-<p>入库相关在 <strong><code>features/import/</code></strong>（原 <code>lookup</code> + <code>pdf_parse</code> + <code>paper_import</code> + Zotero 迁移命令）。魔棒 Tauri command 名仍为 <code>lookup_import</code> 等（契约不变）。</p>
+<p>入库相关在 <strong><code>features/import/</code></strong>（原 <code>lookup</code> + <code>pdf_parse</code> + <code>paper_import</code> + Zotero 迁移命令）。魔棒 Tauri command 名仍为 <code>lookup_import_batch</code> 等（契约不变）。</p>
 <h2 id="_4">交叉引用<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>前端布局与 Graph 位置：<a href="../frontend/ui/"><code>../frontend/ui.md</code></a></li>

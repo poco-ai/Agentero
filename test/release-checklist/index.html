@@ -1,0 +1,2126 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>发布前 Checklist - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u53d1\u5e03\u524d Checklist";
+        var mkdocs_page_input_path = "test/release-checklist.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">用户指南</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/">使用指南</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/getting-started/">安装与首次使用</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/import-papers/">导入和管理论文</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/read-and-organize/">阅读、标注与整理</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/agents/">接入 Agent</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/zotero/">使用 Zotero Connector</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/remote-vault/">打开远程 Vault</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">发布前 Checklist</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#0-ui">0. 构建与安装（非 UI）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#01">0.1 版本</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#02-ci">0.2 自动化（本机或 CI）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#03">0.3 安装启动</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 五分钟冒烟（必过）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2-vault">2. 欢迎页与 Vault 切换</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 左栏文件树</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#3a">3.A 删除与回收站</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#3b">3.B 外部修改与冲突</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4-dockview">4. 中间栏工作区（Dockview）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5-library">5. Library 与标签</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6">6. 入库</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#61-id">6.1 魔棒（精确 ID）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#62-pdf">6.2 本地 PDF</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#63">6.3 补下载</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#64-zotero-connector">6.4 Zotero Connector（可选）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7-pdf-markdown">7. PDF / 图片 / Markdown</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#71-pdf">7.1 PDF 阅读</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#72">7.2 划词与批注</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#73-md">7.3 图片与 MD 插图</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#8-markdown">8. Markdown、双链、图谱</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#9">9. 命令面板与快捷键</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#10">10. 设置、主题、语言</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#11-agentbyoa">11. Agent（BYOA）</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#110">11.0 空状态</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#111">11.1 对话</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#112">11.2 权限</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#113">11.3 工作流与精读</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#114">11.4 禅模式</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#12-vaultmacos-linux">12. 远程 Vault（macOS / Linux）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#13-cli">13. CLI（终端）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#14">14. 错误与稳定性抽检</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#15">15. 平台矩阵（勾选本轮范围）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#16-release-notes">16. 明确不测（写进 Release notes）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#17">17. 签字</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#90">附录：推荐路径顺序（约 90 分钟完整桌面）</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/tab-split/">Tab 内分屏</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/plaza/">广场 Plaza</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/github-project/">GitHub Project</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">测试</li>
+      <li class="breadcrumb-item active">发布前 Checklist</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/test/release-checklist.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="checklist">发布前测试大纲（操作 Checklist）<a class="headerlink" href="#checklist" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>写法</strong>：每一行都是 <strong>界面 → 操作 → 预期效果</strong>。验收时打开应用，按表逐步点选并勾选。<br />
+<strong>依据</strong>：当前已落地能力；不含 V0.7 引用图、关键词 Agent 候选、Vault 采纳等未交付项。<br />
+<strong>环境</strong>：至少 macOS；发布含 Windows/Linux 时，§0 + §1 各平台各跑一遍。<br />
+<strong>数据</strong>：<code>pnpm demo:vault</code> / <code>pnpm demo:vault:downloads</code>；另备一次 Create Vault 空库。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>标记</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>☐</td>
+<td>未测</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>通过</td>
+</tr>
+<tr>
+<td>❌</td>
+<td>阻塞发布</td>
+</tr>
+<tr>
+<td>⚠️</td>
+<td>已知限制，非阻塞（写进 Release notes）</td>
+</tr>
+<tr>
+<td>N/A</td>
+<td>本平台/本轮不测</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>待发版本 / tag</td>
+<td></td>
+</tr>
+<tr>
+<td>测试人 / 日期</td>
+<td></td>
+</tr>
+<tr>
+<td>阻塞问题</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>界面代号（下文「界面」列）</strong></p>
+<table>
+<thead>
+<tr>
+<th>代号</th>
+<th>在哪里</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>欢迎页</td>
+<td>未打开 Vault 时的中间栏</td>
+</tr>
+<tr>
+<td>标题栏</td>
+<td>窗口顶部菜单 / 布局按钮</td>
+</tr>
+<tr>
+<td>左栏·树</td>
+<td>左侧 Vault 文件树</td>
+</tr>
+<tr>
+<td>左栏·Info</td>
+<td>选中论文时的 Paper Info</td>
+</tr>
+<tr>
+<td>中间栏</td>
+<td>Dockview 工作区（Library / PDF / MD / 回收站等）</td>
+</tr>
+<tr>
+<td>右栏·Agent</td>
+<td>右侧 Agent 面板</td>
+</tr>
+<tr>
+<td>右栏·Backlinks</td>
+<td>右侧 Backlinks + Graph</td>
+</tr>
+<tr>
+<td>设置</td>
+<td><code>⌘,</code> 居中浮层</td>
+</tr>
+<tr>
+<td>命令面板</td>
+<td><code>⌘P</code> / <code>⌘K</code> / <code>⇧⌘P</code></td>
+</tr>
+<tr>
+<td>任务条</td>
+<td>左下角后台任务</td>
+</tr>
+<tr>
+<td>Toast</td>
+<td>右上角 Sonner</td>
+</tr>
+<tr>
+<td>终端</td>
+<td>系统终端（CLI 项）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="0-ui">0. 构建与安装（非 UI）<a class="headerlink" href="#0-ui" title="Permanent link">&para;</a></h2>
+<h3 id="01">0.1 版本<a class="headerlink" href="#01" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.1.1</td>
+<td>仓库 / 终端</td>
+<td>对比 <code>package.json</code>、<code>src-tauri/tauri.conf.json</code>、<code>src-tauri/Cargo.toml</code>、<code>cli/Cargo.toml</code> 版本</td>
+<td>四者一致，且等于 tag 去掉 <code>v</code></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>0.1.2</td>
+<td>应用·设置 / About</td>
+<td>打开设置或关于，看版本号</td>
+<td>与 tag 一致</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>0.1.3</td>
+<td>终端</td>
+<td>运行 Release 里的 <code>agentero --version</code></td>
+<td>与 tag 一致</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="02-ci">0.2 自动化（本机或 CI）<a class="headerlink" href="#02-ci" title="Permanent link">&para;</a></h3>
+<pre class="codehilite"><code class="language-bash">pnpm lint &amp;&amp; pnpm test &amp;&amp; pnpm build
+cargo test --manifest-path src-tauri/Cargo.toml
+cargo test -p agentero-cli
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.2.1</td>
+<td>终端</td>
+<td>跑上列命令</td>
+<td>全部通过</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="03">0.3 安装启动<a class="headerlink" href="#03" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.3.1</td>
+<td>系统</td>
+<td>安装本次产物并首次启动</td>
+<td>无崩溃、无白屏；进入<strong>欢迎页</strong></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>0.3.2</td>
+<td>欢迎页</td>
+<td>不打开 Vault，空看界面</td>
+<td>同一行有 Create / Open / Open remote / Migrate from Zotero + Recent 列表；无大段说明文案</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1">1. 五分钟冒烟（必过）<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>用<strong>全新空目录</strong>走通主路径；任一步 ❌ 则阻塞发布。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.1</td>
+<td>欢迎页</td>
+<td>点 <strong>Create vault</strong>，选空文件夹</td>
+<td>进入工作台；左栏出现 <code>papers/</code> <code>notes/</code> <code>plans/</code>；磁盘有 <code>.agentero/catalog.sqlite</code>、<code>AGENTS.md</code>；<strong>无</strong>根级 <code>PAPERS.md</code></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>1.2</td>
+<td>中间栏</td>
+<td>观察默认中间区</td>
+<td>为 <strong>Library</strong>（可空表或空状态）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>1.3</td>
+<td>左栏·树</td>
+<td>点魔棒图标，或 <code>⇧⌘I</code></td>
+<td>打开魔棒弹层</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>1.4</td>
+<td>魔棒弹层</td>
+<td>粘贴 <code>1706.03762</code>，确认入库</td>
+<td>左下角<strong>任务条</strong>有进度；成功后左栏树<strong>展开并滚到</strong>新论文行；中间打开该 paper</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>1.5</td>
+<td>中间栏</td>
+<td>看 paper 布局</td>
+<td>默认 <strong>左 PDF · 右 NOTES</strong>（左右分屏）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>1.6</td>
+<td>中间栏·NOTES</td>
+<td>在 NOTES 打几个字，等自动保存；用外部编辑器打开磁盘 <code>NOTES.md</code></td>
+<td>磁盘内容已更新</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>1.7</td>
+<td>左栏·树</td>
+<td>点虚拟节点 <strong>Library</strong></td>
+<td>中间表有刚入库的那一行</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>1.8</td>
+<td>系统</td>
+<td>完全退出应用再启动</td>
+<td>若设置开启「恢复上次 Vault」：直接回到该库；否则欢迎页 Recent 可点回</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-vault">2. 欢迎页与 Vault 切换<a class="headerlink" href="#2-vault" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2.1</td>
+<td>欢迎页</td>
+<td>点 <strong>Open vault</strong>，选已有 Vault（如 demo）</td>
+<td>文件树 + Library 加载；无崩溃</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>2.2</td>
+<td>欢迎页</td>
+<td>点 Recent 里一条<strong>本地</strong>路径</td>
+<td>打开该库</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>2.3</td>
+<td>欢迎页</td>
+<td>在 Recent 移除一条</td>
+<td>条目消失；再次打开欢迎页仍不在</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>2.4</td>
+<td>欢迎页</td>
+<td>点一条已删除磁盘路径的 Recent</td>
+<td>Toast 报错；该条从列表剔除</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>2.5</td>
+<td>左栏·树顶栏</td>
+<td>点 Vault 标题下拉 → <strong>Create vault</strong> / <strong>Open vault…</strong></td>
+<td>与欢迎页同类操作，可切换库</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>2.6</td>
+<td>标题栏 / 菜单</td>
+<td>File → <strong>New Window</strong> 或 <code>⌘N</code></td>
+<td>新窗口从<strong>欢迎页</strong>开始，不自动占用旧窗 Vault</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>2.7</td>
+<td>两窗口</td>
+<td>窗口 A 开库 A，窗口 B 开库 B</td>
+<td>互不抢 session；文件树各自独立</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>2.8</td>
+<td>欢迎页</td>
+<td>（可选）<strong>Migrate from Zotero</strong>：先建库再选 Zotero 数据目录</td>
+<td>迁移对话框可走完；Library 有条目；用户已有 NOTES 不被静默抹掉</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3">3. 左栏文件树<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<p><strong>前置</strong>：已打开 demo 或有内容的 Vault。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3.1</td>
+<td>左栏·树</td>
+<td>刚打开库时看默认展开</td>
+<td><code>papers/</code> 展开（及约定一级）；不会整库无限展开</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.2</td>
+<td>左栏·树</td>
+<td>展开 <code>papers/</code> 下论文行</td>
+<td>标签符合设置（默认「标题 · 作者」）；<strong>磁盘文件夹名未改</strong></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.3</td>
+<td>设置 → 通用</td>
+<td>改 <strong>Paper 行标签</strong> / <strong>排序</strong> 各选一档，回看树</td>
+<td>展示标签/顺序变了；磁盘路径不变</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.4</td>
+<td>左栏·树</td>
+<td>在 <code>notes/</code> 右键 → <strong>新建文件</strong>，输入名回车</td>
+<td>出现新 <code>.md</code>；中间可打开编辑</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.5</td>
+<td>左栏·树</td>
+<td>右键 → <strong>新建文件夹</strong></td>
+<td>内联命名成功；树刷新</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.6</td>
+<td>左栏·树</td>
+<td>⌘ 点多选若干项，拖到 <code>papers/</code> 某组织夹</td>
+<td>文件移入目标；树与磁盘一致</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.7</td>
+<td>左栏·树</td>
+<td>选中文件，右键 <strong>在 Finder 中显示</strong> 或 <code>⌥⌘R</code></td>
+<td>系统访达定位到该项</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.8</td>
+<td>左栏·树</td>
+<td>选中文件夹，右键 <strong>在终端中打开</strong> 或 <code>⌥⌘T</code></td>
+<td>系统终端 cwd = 该文件夹</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.9</td>
+<td>左栏·树</td>
+<td>选中文件再 <code>⌥⌘T</code></td>
+<td>终端 cwd = <strong>父目录</strong></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.10</td>
+<td>左栏·树</td>
+<td>选中文件夹，<code>⌘←</code></td>
+<td>该文件夹折叠</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.11</td>
+<td>左栏·树</td>
+<td><code>⇧⌘←</code></td>
+<td>折叠回默认（只留 <code>papers/</code> 等约定展开）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.12</td>
+<td>中间栏</td>
+<td>打开某 paper / md 后看左栏</td>
+<td>树<strong>展开祖先</strong>并滚到对应行</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3a">3.A 删除与回收站<a class="headerlink" href="#3a" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3.A.1</td>
+<td>左栏·树</td>
+<td>右键某非关键文件 → <strong>删除</strong>（或 <code>⌘⌫</code>）</td>
+<td><strong>无</strong>确认框、<strong>无</strong> Undo toast；项从树消失</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.A.2</td>
+<td>左栏·树</td>
+<td>点 Library 下 <strong>Recycle Bin</strong></td>
+<td>中间栏打开回收站列表，可见刚删项</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.A.3</td>
+<td>中间栏·回收站</td>
+<td>点 <strong>恢复</strong></td>
+<td>文件回原路径；树可见</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.A.4</td>
+<td>中间栏·回收站</td>
+<td>再删一次后点 <strong>永久删除</strong></td>
+<td>项消失且无法恢复</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.A.5</td>
+<td>左栏·树</td>
+<td>在 Recycle Bin 节点右键 <strong>清空</strong></td>
+<td>回收站空</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.A.6</td>
+<td>左栏·树</td>
+<td>删除一篇 paper 文件夹</td>
+<td>Library 对应行消失；恢复 paper 后 Library 行回来</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3b">3.B 外部修改与冲突<a class="headerlink" href="#3b" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3.B.1</td>
+<td>中间栏·MD</td>
+<td>打开某 <code>.md</code>，<strong>不</strong>做未存编辑；用外部编辑器改磁盘同文件并保存</td>
+<td>应用内编辑器<strong>自动变成</strong>磁盘内容</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.B.2</td>
+<td>中间栏·MD</td>
+<td>打开同文件，在应用内先改几个字（未落盘），再用外部编辑器改磁盘</td>
+<td>Toast <strong>提示冲突/重载</strong>；<strong>不</strong>静默覆盖你的未存改动</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>3.B.3</td>
+<td>访达 / 终端</td>
+<td>在 Vault 外新建或删除一个文件</td>
+<td>文件树去抖刷新后反映变化</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-dockview">4. 中间栏工作区（Dockview）<a class="headerlink" href="#4-dockview" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4.1</td>
+<td>左栏·树</td>
+<td>点虚拟 <strong>Library</strong></td>
+<td>中间全库表；标题栏<strong>没有</strong>单独文档 tab 条</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.2</td>
+<td>左栏·树</td>
+<td>点一篇 paper</td>
+<td>打开 PDF|NOTES 分屏 panel</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.3</td>
+<td>左栏·树</td>
+<td>再点另一篇 paper</td>
+<td>叠进同一两栏（不强制拆出第三列）；body/NOTES <strong>同步切换</strong></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.4</td>
+<td>左栏·树</td>
+<td>点 <code>notes/</code> 下某 md、再点一张图、再点任意路径 PDF</td>
+<td>各打开对应 panel；切换后滚动/缩放尽量保留</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.5</td>
+<td>中间栏</td>
+<td>对已打开路径的文件再点一次树</td>
+<td><strong>聚焦</strong>已有 panel，不重复开两个</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.6</td>
+<td>中间栏</td>
+<td>打开设置 <code>⌘,</code>，再按 <code>⌘W</code> 或 <code>Esc</code></td>
+<td><strong>先关设置</strong>，不关文档 panel</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.7</td>
+<td>中间栏</td>
+<td>无弹层时连按 <code>⌘W</code></td>
+<td>逐个关 panel；只剩全库后再按 → <strong>关窗口</strong></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.8</td>
+<td>中间栏</td>
+<td>开多个 panel 后 <code>⌥⌘→</code> / <code>⌥⌘←</code></td>
+<td>按视觉顺序循环激活</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.9</td>
+<td>左栏·树</td>
+<td>单击 <code>papers/</code> 下<strong>非 paper 的组织文件夹</strong></td>
+<td>仍是 Library 表，但只显示该 path 前缀下的论文（不新开 tab、不整库重拉）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.10</td>
+<td>标题栏 Layout</td>
+<td>开关 NOTES 相关项 / 快捷键</td>
+<td>NOTES 显示或隐藏符合菜单</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.11</td>
+<td>中间栏</td>
+<td>把 panel 拖成上下或左右分屏；从树拖文件到边</td>
+<td>多分屏网格可用</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.12</td>
+<td>左栏 / 右栏</td>
+<td>点折叠按钮；交替 <code>⌥⌘S</code> / <code>⌘L</code></td>
+<td>侧栏折叠且保留像素宽度；两栏快捷键不「抢成互斥坏掉」</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>4.13</td>
+<td>系统</td>
+<td>关窗再开同一本地库</td>
+<td>布局尽量从 localStorage 恢复</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-library">5. Library 与标签<a class="headerlink" href="#5-library" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5.1</td>
+<td>左栏·树</td>
+<td>点 <strong>Library</strong></td>
+<td>中间表格列出 catalog 论文</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>5.2</td>
+<td>中间栏·Library</td>
+<td>点表头排序</td>
+<td>行序变化</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>5.3</td>
+<td>中间栏·Library</td>
+<td>表头<strong>右键</strong>勾选列显隐；拖拽列序</td>
+<td>标题列不能隐藏；刷新后列配置仍在</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>5.4</td>
+<td>中间栏·Library</td>
+<td>搜索框输入标题片段或 tag 名</td>
+<td>行被过滤</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>5.5</td>
+<td>左栏·树</td>
+<td>选中某 paper</td>
+<td>左下或 Info 区出现 <strong>Paper Info</strong></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>5.6</td>
+<td>左栏·Info</td>
+<td>添加 tag，选一种颜色</td>
+<td>chip 出现；Library tags 列同色；重启后仍在</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>5.7</td>
+<td>左栏·Info</td>
+<td>删除某 tag</td>
+<td>Library 与 Info 同步消失</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>5.8</td>
+<td>中间栏·Library</td>
+<td>点 <strong>Rescan</strong>（空态或工具栏）</td>
+<td>盘上有、表中无的 paper 出现</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>5.9</td>
+<td>左栏·树</td>
+<td>在 Library 节点右键 <strong>导出论文库</strong></td>
+<td>得到可用 BibTeX</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>5.10</td>
+<td>中间栏·Library</td>
+<td>对缺 PDF 的行触发批量 Download</td>
+<td>任务条有进度；缺的资源补齐</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6">6. 入库<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h3 id="61-id">6.1 魔棒（精确 ID）<a class="headerlink" href="#61-id" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>6.1.1</td>
+<td>左栏·树</td>
+<td>先点选 <code>papers/</code> 或某子文件夹；打开魔棒 <code>⇧⌘I</code></td>
+<td>弹层打开</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.1.2</td>
+<td>魔棒</td>
+<td>粘贴 arXiv ID <code>1706.03762</code> 入库</td>
+<td>目标目录下新建论文夹；PDF 在论文根；arXiv 有 <code>source/</code> TeX；有 <code>NOTES.md</code> 壳；catalog 有行</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.1.3</td>
+<td>魔棒</td>
+<td>粘贴 arXiv URL 再入一篇</td>
+<td>同上语义</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.1.4</td>
+<td>魔棒</td>
+<td>粘贴一个可用 DOI</td>
+<td>有 catalog 行；尽量有 PDF；失败则 <strong>Toast</strong>，侧栏无常驻红条</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.1.5</td>
+<td>魔棒</td>
+<td>一次粘贴多个 ID（换行/逗号）</td>
+<td>去重后顺序入库；任务条聚合进度；<strong>不会</strong>对每篇自动连跑精读</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.1.6</td>
+<td>魔棒</td>
+<td>对已有 NOTES 的 paper 再入同一 ID</td>
+<td><strong>不覆盖</strong>用户 <code>NOTES.md</code></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.1.7</td>
+<td>设置 → 通用</td>
+<td>把 Translator URL 改成无效地址，再魔棒入库</td>
+<td>Toast 失败信息可读；改回默认可恢复</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-pdf">6.2 本地 PDF<a class="headerlink" href="#62-pdf" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>6.2.1</td>
+<td>魔棒弹层</td>
+<td>选「本地 PDF / 文件」，多选 2 个 PDF 导入</td>
+<td>各生成 <code>papers/&lt;citekey&gt;/</code>，含 PDF + <code>PAPER.md</code> + catalog</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.2.2</td>
+<td>访达</td>
+<td>把外部 PDF <strong>拖进</strong>左栏 <code>papers/</code> 某组织夹</td>
+<td>弹出 metadata <strong>确认框</strong>；确认后入库</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.2.3</td>
+<td>同上</td>
+<td>再导同名冲突 PDF</td>
+<td>citekey 带 <code>-2</code> / <code>-3</code> 等后缀，不互相覆盖</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63">6.3 补下载<a class="headerlink" href="#63" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>6.3.1</td>
+<td>左栏·树</td>
+<td>找缺 PDF 的 paper 行，hover <strong>Download</strong></td>
+<td>有原因说明</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.3.2</td>
+<td>左栏·树</td>
+<td>点 Download</td>
+<td>任务条进度；PDF 落地；无 TeX 时生成 <code>PAPER.md</code></td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="64-zotero-connector">6.4 Zotero Connector（可选）<a class="headerlink" href="#64-zotero-connector" title="Permanent link">&para;</a></h3>
+<p><strong>前置</strong>：浏览器装官方 Zotero Connector；<strong>关掉</strong> Zotero 桌面（端口 23119）。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>6.4.1</td>
+<td>设置 → 通用</td>
+<td>打开「兼容 Zotero Connector」</td>
+<td>状态为 Listening，且绑定当前 Vault</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.4.2</td>
+<td>系统</td>
+<td>同时开 Zotero 桌面再开开关</td>
+<td>明确端口占用失败提示</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.4.3</td>
+<td>浏览器</td>
+<td>打开论文页，点 Connector 保存</td>
+<td>Agentero 入库；树/Library 刷新；打开或聚焦该 paper</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.4.4</td>
+<td>浏览器</td>
+<td>对登录墙 PDF 触发附件保存（若场景可得）</td>
+<td>附件进入论文目录</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.4.5</td>
+<td>设置</td>
+<td>关闭开关后退出应用</td>
+<td>端口释放；浏览器不再认为 Zotero 在线</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-pdf-markdown">7. PDF / 图片 / Markdown<a class="headerlink" href="#7-pdf-markdown" title="Permanent link">&para;</a></h2>
+<p><strong>建议</strong>：demo vault 中的 paper PDF + <code>assets/sample.pdf</code> + <code>assets/figures/*</code>。</p>
+<h3 id="71-pdf">7.1 PDF 阅读<a class="headerlink" href="#71-pdf" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7.1.1</td>
+<td>左栏·树</td>
+<td>点 paper 下 PDF 或 <code>assets/sample.pdf</code></td>
+<td>中间 <strong>blob 预览</strong>，非系统外部打开</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.1.2</td>
+<td>中间栏·PDF</td>
+<td>底栏改页码 / PageDown / Home</td>
+<td>跳页正确</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.1.3</td>
+<td>中间栏·PDF</td>
+<td>适应宽度、适应整页、滚轮缩放</td>
+<td>重渲染清晰；放大后可平移</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.1.4</td>
+<td>中间栏·PDF</td>
+<td>打开大纲，点书签</td>
+<td>跳到对应位置</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.1.5</td>
+<td>中间栏·PDF</td>
+<td><code>⌘F</code> 输入文中词</td>
+<td>命中高亮；可下一条</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72">7.2 划词与批注<a class="headerlink" href="#72" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7.2.1</td>
+<td>中间栏·PDF</td>
+<td>拖选一段文字</td>
+<td>平滑蓝色选区 + 操作菜单（高亮 / 批注 / 提问 / 翻译）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.2.2</td>
+<td>菜单</td>
+<td>选 <strong>高亮</strong></td>
+<td>高亮保留；磁盘 <code>marks/</code> 有记录；<strong>原始 PDF 字节不变</strong></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.2.3</td>
+<td>菜单</td>
+<td>选 <strong>批注</strong>，写 comment</td>
+<td>页边批注针；右侧批注面板有卡片</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.2.4</td>
+<td>右栏·批注</td>
+<td>点卡片跳转 / 编辑 / 删除</td>
+<td>跳页正确；改删同步</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.2.5</td>
+<td>菜单</td>
+<td><strong>翻译</strong> 一段</td>
+<td>按设置中翻译服务出结果</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.2.6</td>
+<td>菜单</td>
+<td><strong>提问</strong>（已配 Agent）</td>
+<td>进入 Agent 上下文，非静默失败</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73-md">7.3 图片与 MD 插图<a class="headerlink" href="#73-md" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7.3.1</td>
+<td>左栏·树</td>
+<td>点 <code>assets/figures</code> 下 png/jpg 等</td>
+<td>中间图片预览</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.3.2</td>
+<td>中间栏·MD</td>
+<td>打开笔记，粘贴一张图</td>
+<td>磁盘 <code>{mdDir}/assets/</code> 有文件；正文 <code>![](./assets/…)</code>；树可见</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.3.3</td>
+<td>中间栏·MD</td>
+<td>单击选中图片节点</td>
+<td>显示 Markdown 源码而非位图</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.3.4</td>
+<td>中间栏·MD</td>
+<td>删除该图片节点（且无其它引用）</td>
+<td>assets 文件被 GC；树刷新</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-markdown">8. Markdown、双链、图谱<a class="headerlink" href="#8-markdown" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8.1</td>
+<td>中间栏·MD</td>
+<td>编辑标题、列表、代码块、表格，等自动保存</td>
+<td>磁盘一致；重启仍在</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>8.2</td>
+<td>设置 → Appearance</td>
+<td>开关 <strong>格式工具栏</strong></td>
+<td>编辑器顶栏显隐</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>8.3</td>
+<td>中间栏·MD</td>
+<td>写入 <code>[[某已存在笔记]]</code>，点击链接</td>
+<td>跳转到目标文件</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>8.4</td>
+<td>中间栏·MD</td>
+<td>写入不存在的 <code>[[新概念]]</code>，走创建入口</td>
+<td>可新建目标文件</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>8.5</td>
+<td>右栏</td>
+<td>切到 <strong>Backlinks</strong>，打开被引用文件</td>
+<td>上方列出反链来源</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>8.6</td>
+<td>右栏·Backlinks</td>
+<td>看下方 <strong>Graph</strong>，点节点</td>
+<td>打开对应文件；图来自双链非手写库</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>8.7</td>
+<td>中间栏·MD</td>
+<td>新增/删除一条 <code>[[链接]]</code>，等约 1s</td>
+<td>Backlinks/Graph <strong>刷新</strong></td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9">9. 命令面板与快捷键<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>9.1</td>
+<td>任意（有 Vault）</td>
+<td><code>⌘P</code> 或 <code>⌘K</code>，输入论文标题片段</td>
+<td>列表出论文；回车打开 paper</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>9.2</td>
+<td>命令面板</td>
+<td>输入笔记里有的正文关键词</td>
+<td>全文命中可打开对应 md</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>9.3</td>
+<td>任意</td>
+<td><code>⇧⌘P</code> 或输入 <code>&gt;</code>，执行一条内置命令</td>
+<td>命令生效</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>9.4</td>
+<td>命令面板打开时</td>
+<td>再按 <code>⌘P</code> 或 <code>⌘W</code></td>
+<td>面板关闭</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>9.5</td>
+<td>任意</td>
+<td><code>⌘,</code></td>
+<td>设置浮层开关</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>9.6</td>
+<td>任意</td>
+<td><code>⇧⌘I</code></td>
+<td>魔棒打开</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>9.7</td>
+<td>有 Vault</td>
+<td><code>⌥⌘Z</code></td>
+<td>进入 Agent 禅模式（见 §11）</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10">10. 设置、主题、语言<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10.1</td>
+<td>设置</td>
+<td>改一项通用设置并保存，再开设置</td>
+<td>值保持；多窗口应同步</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>10.2</td>
+<td>设置 → Appearance</td>
+<td>切换亮/暗</td>
+<td>界面立刻变</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>10.3</td>
+<td>设置 → Appearance</td>
+<td>换一个 <strong>配色主题</strong>，再改回 default</td>
+<td>颜色变量变化；default 恢复内置</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>10.4</td>
+<td>设置 → Appearance</td>
+<td>改 <strong>界面缩放</strong> 80% / 150%</td>
+<td>全局字号缩放</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>10.5</td>
+<td>设置 → Appearance</td>
+<td>语言改 <strong>简体中文</strong>，再改 English</td>
+<td>菜单/设置/空状态等关键文案切换；无大片漏翻</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>10.6</td>
+<td>设置 → Agent</td>
+<td>确认 <strong>入库后自动精读</strong> 默认关</td>
+<td>默认关闭</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>10.7</td>
+<td>设置 → Agent</td>
+<td>权限模式切 restricted / ask / auto</td>
+<td>选项保存成功（行为见 §11）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>10.8</td>
+<td>设置 → 翻译</td>
+<td>切换 free / Agent 翻译</td>
+<td>保存成功；PDF 划词翻译跟新设置</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="11-agentbyoa">11. Agent（BYOA）<a class="headerlink" href="#11-agentbyoa" title="Permanent link">&para;</a></h2>
+<p><strong>前置</strong>：本机已装并登录至少一个 ACP Agent。未安装时只测 11.0。</p>
+<h3 id="110">11.0 空状态<a class="headerlink" href="#110" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>11.0.1</td>
+<td>右栏·Agent</td>
+<td>未配置 Agent 时打开面板</td>
+<td>有安装/配置指引；<strong>左栏库与 PDF 仍可用</strong></td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="111">11.1 对话<a class="headerlink" href="#111" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>11.1.1</td>
+<td>设置 → Agent</td>
+<td>添加预设或自定义 command，探测</td>
+<td>探测成功；可选为默认</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.1.2</td>
+<td>左栏·树</td>
+<td>打开一篇 paper，再打开右栏 Agent</td>
+<td>Composer 有<strong>当前论文</strong> context chip（可 X 去掉）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.1.3</td>
+<td>右栏·Agent</td>
+<td>输入问题发送</td>
+<td>流式输出；会话 cwd 为当前 Vault</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.1.4</td>
+<td>右栏·Agent</td>
+<td>输出过程中按 <code>Esc</code></td>
+<td>取消当前轮；已输出保留</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.1.5</td>
+<td>右栏·Agent</td>
+<td>Composer 输入 <code>@</code>，键盘选路径</td>
+<td>出现可移除 path chip</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.1.6</td>
+<td>左栏·树</td>
+<td>拖一个文件到 Composer</td>
+<td>增加 path chip</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.1.7</td>
+<td>右栏·Agent</td>
+<td>会话空闲时 hover 用户消息 → Edit → 改完重发</td>
+<td>该消息之后内容丢弃，新 turn 发出</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.1.8</td>
+<td>右栏·Agent</td>
+<td>切换历史会话 / 加载旧会话</td>
+<td>能 list 并恢复（provider 支持时）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.1.9</td>
+<td>右栏·Agent</td>
+<td>看回答中的 Sources（若 Agent 返回）</td>
+<td>展示读过的本地路径</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="112">11.2 权限<a class="headerlink" href="#112" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>11.2.1</td>
+<td>设置 → Agent</td>
+<td>权限 = <strong>每次询问</strong>；让 Agent 做需授权操作</td>
+<td>弹出 Allow once / Always / Reject；拒绝则不执行</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.2.2</td>
+<td>设置 → Agent</td>
+<td>权限 = <strong>自动批准</strong>；再跑同类操作</td>
+<td>不弹窗，直接继续</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.2.3</td>
+<td>设置 → Agent</td>
+<td>权限 = <strong>受限</strong></td>
+<td>危险操作被限制（符合产品文案）</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="113">11.3 工作流与精读<a class="headerlink" href="#113" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>11.3.1</td>
+<td>右栏·Agent（空态）</td>
+<td>点 Summarize / Ask library / Draft Related Work</td>
+<td>对<strong>当前聚焦 paper</strong> 发起对应 workflow</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.3.2</td>
+<td>左栏·树</td>
+<td>找资源齐全且未读 paper，点 <strong>Zap</strong></td>
+<td>任务条 paper-reader 进度；写/更新 <code>NOTES.md</code>；<code>is_read</code> 变已读；Zap 消失</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.3.3</td>
+<td>设置 → Agent</td>
+<td>打开 <strong>入库后自动精读</strong>；魔棒再入一篇未读</td>
+<td>入库/下载完成后<strong>自动</strong>精读；任务条可见</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.3.4</td>
+<td>魔棒</td>
+<td>批量多 ID 入库（自动精读开着）</td>
+<td><strong>不</strong>对批量每篇连跑精读</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.3.5</td>
+<td>右栏·Agent 历史</td>
+<td>精读跑完后翻主对话列表</td>
+<td>精读<strong>不</strong>出现在主 chat 历史</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="114">11.4 禅模式<a class="headerlink" href="#114" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>11.4.1</td>
+<td>任意</td>
+<td><code>⌥⌘Z</code> 或标题栏 Layout → 禅模式</td>
+<td>全屏 Agent；左侧弱对比历史；顶栏简化</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.4.2</td>
+<td>禅模式</td>
+<td>发一条消息后点返回退出</td>
+<td>回到原布局；<strong>会话不丢</strong></td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12-vaultmacos-linux">12. 远程 Vault（macOS / Linux）<a class="headerlink" href="#12-vaultmacos-linux" title="Permanent link">&para;</a></h2>
+<p>本轮不测远程则整节 N/A。Windows 只测 12.9。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>12.1</td>
+<td>欢迎页</td>
+<td>点 <strong>Open remote…</strong>，填 host / user / 远端绝对路径，连接</td>
+<td>成功则进工作台；树显示远端内容</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>12.2</td>
+<td>欢迎页</td>
+<td>故意填错密码或路径</td>
+<td>可读错误；不白屏</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>12.3</td>
+<td>中间栏·MD</td>
+<td>改远端 NOTES 并保存</td>
+<td>远端磁盘更新（本机不是第二权威库）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>12.4</td>
+<td>中间栏·PDF</td>
+<td>打开远端 paper PDF</td>
+<td>可预览（经缓存）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>12.5</td>
+<td>魔棒</td>
+<td>入库一篇到远程库</td>
+<td>文件与 catalog 在<strong>远端</strong></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>12.6</td>
+<td>欢迎页 Recent</td>
+<td>看远程条目</td>
+<td>显示 host:path + <strong>远程</strong>徽章；不是 <code>remote:uuid</code> 伪路径刷屏</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>12.7</td>
+<td>系统</td>
+<td>退出再启动，点远程 Recent</td>
+<td><strong>需重新 SSH</strong>，不能当本地路径直接打开</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>12.8</td>
+<td>设置 → Agent（远程会话）</td>
+<td>远端探测 Agent，发对话</td>
+<td>Agent 在<strong>服务器</strong>跑，cwd 为远端 Vault</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>12.9</td>
+<td>Windows 客户端</td>
+<td>尝试 Open remote</td>
+<td><strong>明确不支持</strong>错误，不崩溃</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>12.10</td>
+<td>远程会话</td>
+<td>右键 Finder / 终端打开</td>
+<td>禁用或明确不可用</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="13-cli">13. CLI（终端）<a class="headerlink" href="#13-cli" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-bash"># 使用本机构建或 Release 二进制
+agentero vault create /tmp/agentero-cli-vault
+agentero --vault /tmp/agentero-cli-vault paper list --json
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>13.1</td>
+<td>终端</td>
+<td><code>agentero --version</code></td>
+<td>版本与发布一致</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>13.2</td>
+<td>终端</td>
+<td><code>vault create &lt;空目录&gt;</code></td>
+<td>脚手架与 GUI Create 一致（含 catalog）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>13.3</td>
+<td>终端</td>
+<td><code>vault which --json</code> / <code>info</code> / <code>check</code></td>
+<td>JSON 可解析；退出码 0</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>13.4</td>
+<td>终端</td>
+<td><code>tree</code>；<code>paper list --json</code></td>
+<td>与 catalog 一致</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>13.5</td>
+<td>终端</td>
+<td><code>paper tag add …</code>；<code>list --tag</code></td>
+<td>标签生效</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>13.6</td>
+<td>终端</td>
+<td><code>import id 1706.03762</code>（需网）</td>
+<td>入库成功或稳定 <code>error.code</code></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>13.7</td>
+<td>终端</td>
+<td><code>export bib</code></td>
+<td>输出 BibTeX</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>13.8</td>
+<td>终端</td>
+<td><code>agentero --help</code></td>
+<td><strong>无</strong> agent run / paper-reader 类 BYOA 命令</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="14">14. 错误与稳定性抽检<a class="headerlink" href="#14" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>14.1</td>
+<td>欢迎页</td>
+<td>无 Vault 时强行触发需库操作（若可达）</td>
+<td>Toast 提示，不崩</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>14.2</td>
+<td>任意失败操作</td>
+<td>例如删只读路径、断网下 DOI 入库</td>
+<td><strong>右上角 Toast</strong>；侧栏 header <strong>无</strong>常驻错误条</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>14.3</td>
+<td>中间栏</td>
+<td>连续打开 ≥5 个 panel 来回切</td>
+<td>不卡死、不丢文件</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>14.4</td>
+<td>中间栏·PDF</td>
+<td>打开较大 PDF（&gt;20MB）翻页缩放</td>
+<td>可接受流畅度</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>14.5</td>
+<td>系统</td>
+<td>断网后打开本地库，读 PDF、写 NOTES</td>
+<td>本地能力可用；仅网络路径失败有 Toast</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="15">15. 平台矩阵（勾选本轮范围）<a class="headerlink" href="#15" title="Permanent link">&para;</a></h2>
+<p>对每个目标平台：至少跑 <strong>§0.3 + §1</strong>；核心平台再跑 §3–§7、§11。</p>
+<table>
+<thead>
+<tr>
+<th>能力</th>
+<th>macOS</th>
+<th>Linux</th>
+<th>Windows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>安装启动 §0.3</td>
+<td>☐</td>
+<td>☐</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>五分钟冒烟 §1</td>
+<td>☐</td>
+<td>☐</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>文件树 + 回收站 §3</td>
+<td>☐</td>
+<td>☐</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>PDF + 划词 §7</td>
+<td>☐</td>
+<td>☐</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>Agent §11</td>
+<td>☐</td>
+<td>☐</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>Connector §6.4</td>
+<td>☐</td>
+<td>☐</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>远程 §12</td>
+<td>☐</td>
+<td>☐</td>
+<td>12.9 拒绝 ☐</td>
+</tr>
+<tr>
+<td>CLI §13</td>
+<td>☐</td>
+<td>☐</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="16-release-notes">16. 明确不测（写进 Release notes）<a class="headerlink" href="#16-release-notes" title="Permanent link">&para;</a></h2>
+<p>验收时不要当成缺陷：</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>引用图 / Connected Papers</td>
+<td>V0.7 未交付</td>
+</tr>
+<tr>
+<td>魔棒关键词/自然语言候选</td>
+<td>未交付</td>
+</tr>
+<tr>
+<td>打开杂乱文件夹自动整理</td>
+<td>Vault 采纳未交付</td>
+</tr>
+<tr>
+<td>与 Zotero 桌面同时占 23119</td>
+<td>端口互斥</td>
+</tr>
+<tr>
+<td>Windows 远程 Vault</td>
+<td>不支持</td>
+</tr>
+<tr>
+<td>应用内填模型 API Key</td>
+<td>BYOA，不收集</td>
+</tr>
+<tr>
+<td>删除时确认框 / Undo toast</td>
+<td>产品设计为无确认进回收站</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="17">17. 签字<a class="headerlink" href="#17" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>结论（通过 / 有条件通过 / 不通过）</th>
+<th>日期</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>功能验收</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>安装包</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>最终放行</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>有条件通过须列出：⚠️ 项、issue 链接、是否写进对外说明。</p>
+<hr />
+<h2 id="90">附录：推荐路径顺序（约 90 分钟完整桌面）<a class="headerlink" href="#90" title="Permanent link">&para;</a></h2>
+<ol>
+<li>§0 安装 + §1 冒烟（空库）  </li>
+<li>Open demo vault → §3 树 / 回收站 → §4 分屏 → §5 Library  </li>
+<li>§6 魔棒 + 本地 PDF → §7 PDF 划词 → §8 双链  </li>
+<li>§9–§10 面板与设置 → §11 Agent  </li>
+<li>按范围 §12 / §13 / §6.4  </li>
+<li>§14 稳定性 → §15 矩阵勾选 → §17 签字  </li>
+</ol>
+<p><strong>相关</strong>：<a href="../"><code>index.md</code></a> · <a href="../../usage/"><code>../usage/index.md</code></a> · <a href="../../development/roadmap/"><code>../development/roadmap.md</code></a></p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../" class="btn btn-neutral float-left" title="概览"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../development/" class="btn btn-neutral float-right" title="概览">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+      <span><a href="../" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../../development/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

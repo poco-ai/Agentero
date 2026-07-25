@@ -216,6 +216,8 @@
               <ul>
                   <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
+                  </li>
               </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
               <ul>
@@ -321,7 +323,7 @@
 </thead>
 <tbody>
 <tr>
-<td>魔棒 <code>lookup_import</code></td>
+<td>魔棒 <code>lookup_import_batch</code></td>
 <td>侧栏 ⇧⌘I</td>
 <td>Host 调 Translator Runtime</td>
 <td><strong>并存</strong>；落盘应对齐同一 paper 单元语义（统一方案见 <a href="../paper-import-pipeline/"><code>paper-import-pipeline.md</code></a>）</td>
@@ -464,7 +466,7 @@ services/connector  →  map_zotero_item（复用 lookup/map）
         │
         ▼
 写 papers/&lt;id&gt;/ + catalog.sqlite
-（对齐 lookup_import：NOTES 壳、尽量 PDF、arXiv TeX…）
+（对齐魔棒入库：NOTES 壳、尽量 PDF、arXiv TeX…）
         │
         ▼
 Tauri event: connector:item-saved / connector:error
@@ -638,7 +640,7 @@ Tauri event: connector:item-saved / connector:error
 <li><code>map_zotero_item</code>（或等价）→ <code>PaperMeta</code>；</li>
 <li><code>meta_source</code> 建议标记为 <code>zotero-connector</code>（或现有枚举扩展）；</li>
 <li>目标 <code>parent_dir</code>：见 §5.2；</li>
-<li>创建 paper 文件夹 + catalog 行（对齐 <code>lookup_import</code> / migration 的去重策略，见 §5.3）；</li>
+<li>创建 paper 文件夹 + catalog 行（对齐魔棒入库 / migration 的去重策略，见 §5.3）；</li>
 <li><strong>尽量</strong>下载 PDF（attachments 中 PDF URL、或 DOI/arXiv 派生 URL）；失败不导致整次 5xx，但 progress 可标失败。</li>
 <li>注册 session，供 <code>sessionProgress</code> 查询。</li>
 <li>尽快返回 <code>201</code>（可先完成元数据落盘，附件异步——若异步，progress 必须反映，避免插件一直转圈）。</li>
