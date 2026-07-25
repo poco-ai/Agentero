@@ -304,7 +304,7 @@
 </tr>
 <tr>
 <td>Tab 组染色 / 命名</td>
-<td>dockview tab groups：chip 右键 <code>rename</code> + <code>colorPicker</code> + 解散；色板复用论文标签 <code>tag-colors</code>（+ grey）；随 <code>toJSON()</code> 持久化。视觉：底部分组线保留；仅组名 chip 浅色底（<code>index.css</code> <code>color-mix</code>）</td>
+<td>dockview tab groups：chip <strong>双击</strong>内联重命名（<code>tabGroupChipComponent</code>）+ 右键 <code>rename</code> / <code>colorPicker</code> / 解散；色板复用论文标签 <code>tag-colors</code>（+ grey）；随 <code>toJSON()</code> 持久化。视觉：chip <strong>无底色</strong>（图标+名）；<strong>展开</strong>保留底部分组色线，<strong>折叠</strong>无 chip 下色条</td>
 </tr>
 <tr>
 <td>键盘分屏导航</td>
@@ -424,10 +424,13 @@
 <h2 id="72-tab">7.2 Tab 组（染色 / 命名）<a class="headerlink" href="#72-tab" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>创建</strong>：tab 右键「新建标签组」→ <code>createTabGroup</code> + <code>addPanelToTabGroup</code>（默认名 i18n、色 <code>blue</code>）。</li>
+<li><strong>重命名</strong>：chip <strong>双击</strong>（或聚焦后 <code>F2</code>）进入内联编辑；Enter / 失焦保存，Esc 取消；空名回退默认名。</li>
 <li><strong>chip 右键</strong>：重命名、调色板、解散（<code>getTabGroupChipContextMenuItems</code>）。</li>
 <li><strong>移出</strong>：tab 已在组内时右键「从标签组移除」。</li>
+<li><strong>单击 chip</strong>：折叠 / 展开组（与双击重命名错开短延时）。</li>
+<li><strong>折叠态</strong>：dockview 底部分组线缩到 0；不在 chip 下补色条；组内 tab 由 dockview 隐藏。</li>
 <li><strong>持久化</strong>：tab groups 含在 dockview <code>toJSON()</code> / <code>fromJSON()</code> 中，无需 React 额外状态。</li>
-<li>典型用途：把同一主题的多篇 PDF + NOTES 编成带色 chip 的逻辑组（仍在同一 dock group 的 tab 条上）。</li>
+<li>典型用途：把同一主题的多篇 PDF + NOTES 编成带色底线的逻辑组（仍在同一 dock group 的 tab 条上）。</li>
 </ul>
 <h2 id="8-pdf-vs">8. PDF 保活策略（壳 vs 引擎）<a class="headerlink" href="#8-pdf-vs" title="Permanent link">&para;</a></h2>
 <p>两层分工，不要混为一谈：</p>
