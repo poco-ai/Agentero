@@ -776,7 +776,7 @@
 <ul>
 <li><strong>文档 panel</strong>：paper / Markdown / PDF / HTML / <strong>Library（全库或文件夹作用域）</strong> / 回收站 / <strong>NOTES</strong> 各为一个 dockview panel；原生 tab 切换、关闭（<code>X</code> / <code>⌘W</code>）、组内拖拽重排；同一 path 已开则 <code>activatePanel</code>。</li>
 <li><strong>Tab 右键菜单</strong>：关闭 / 关闭其他 / 关闭全部（<strong>同组</strong>）；新建标签组 / 从标签组移除（<code>getTabContextMenuItems</code>；文案走 i18n）。</li>
-<li><strong>Tab 组</strong>：chip 右键重命名、染色、解散（<code>getTabGroupChipContextMenuItems</code>）；随布局 <code>toJSON()</code> 持久化。</li>
+<li><strong>Tab 组</strong>：chip 右键重命名、染色、解散（<code>getTabGroupChipContextMenuItems</code>）；色板复用论文标签（<code>tag-colors</code> + grey）；底部分组线保留；仅组名 chip 浅色底（<code>index.css</code> <code>color-mix</code>）。</li>
 <li><strong>分屏</strong>：上下左右 + 多格网格（dockview 原生）；文件树路径可拖入任意边；论文打开时默认 PDF 与 <code>NOTES.md</code> <strong>左右分屏</strong>（首篇 <code>right</code>，后续叠到同两栏 <code>within</code>）；切换论文时同步切换其 NOTES tab。<code>dropOverlayModel</code> 调大 content 边激活区；未知外部拖拽由 <code>onWillShowOverlay</code> / <code>onWillDrop</code> 否决。</li>
 <li><strong>默认页 = 全库 Library</strong>：</li>
 <li>打开 Vault 无持久化布局 → <code>ensureFullLibraryTab()</code>。</li>
