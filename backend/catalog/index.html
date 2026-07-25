@@ -586,15 +586,14 @@
 <hr />
 <h2 id="5-host">5. 实现方式（Host）<a class="headerlink" href="#5-host" title="Permanent link">&para;</a></h2>
 <h3 id="51">5.1 模块划分<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
-<pre class="codehilite"><code class="language-text">src-tauri/src/
-  services/catalog/
+<pre class="codehilite"><code class="language-text">src-tauri/src/features/
+  catalog/
     mod.rs          # 打开/关闭连接、per-vault 连接池（当前 1 vault）
     schema.rs       # DDL + migrations
     papers.rs       # CRUD、列表过滤、按 id 查询
-    export.rs       # → PAPERS.md / library.bib 字符串或写路径
-  commands/
-    catalog.rs      # 或并入 paper.rs：list / get / upsert / export
-    vault.rs        # create/open 时 ensure_catalog
+    commands.rs     # paper_list / get / delete / set_tags / …
+  vault/
+    commands.rs     # create/open 时 ensure_catalog
 </code></pre>
 
 <p>依赖：<strong><code>rusqlite</code></strong>（<code>bundled</code> feature，避免系统 sqlite 差异）。</p>

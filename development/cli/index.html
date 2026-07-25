@@ -171,7 +171,7 @@
         <ul>
     <li class="toctree-l4"><a class="reference internal" href="#_2">分层现状（代码事实）</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#_3">目录布局（已拍板）</a>
+    <li class="toctree-l4"><a class="reference internal" href="#_3">目录布局</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#_4">复用关系</a>
     </li>
@@ -313,7 +313,7 @@
 </tr>
 <tr>
 <td><strong>domain 复用</strong></td>
-<td><strong>不迁 core</strong>；path 依赖 <code>src-tauri</code> 的 <code>agentero_lib</code>，直接 <code>use services::{vault,catalog,lookup,…}</code></td>
+<td>path 依赖 <code>src-tauri</code> 的 <code>agentero_lib</code>，直接 <code>use features::{vault,catalog,import,…}</code> + <code>core::error</code></td>
 </tr>
 <tr>
 <td>实现状态</td>
@@ -478,7 +478,7 @@ binary is unavailable, it reports that fact and falls back to Vault files.</p>
 <tr>
 <td><strong>Vault 生命周期</strong></td>
 <td>创建、识别、校验、摘要</td>
-<td><code>vault_create</code>、<code>services/vault</code></td>
+<td><code>vault_create</code>、<code>features/vault</code></td>
 </tr>
 <tr>
 <td><strong>发现</strong></td>
@@ -493,7 +493,7 @@ binary is unavailable, it reports that fact and falls back to Vault files.</p>
 <tr>
 <td><strong>文献基础</strong></td>
 <td>标识符入库、补 PDF/TeX、<code>PAPER.md</code>、bib 导入导出</td>
-<td><code>lookup_*</code> / <code>paper_*</code> import-export / parse</td>
+<td><code>features/import</code>（Tauri 仍暴露 <code>lookup_*</code> / <code>paper_*</code>）</td>
 </tr>
 <tr>
 <td><strong>双链索引（只读 + 重建）</strong></td>
@@ -934,10 +934,12 @@ translator_base_url = &quot;https://translator.philfan.cn&quot;
 <hr />
 <h2 id="6">6. 技术栈与架构<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
 <h3 id="60">6.0 底层能力能否复用？（结论：<strong>能，且应以复用为主</strong>）<a class="headerlink" href="#60" title="Permanent link">&para;</a></h3>
-<p>当前仓库已是 <strong>「薄 command + 厚 service」</strong>，CLI 应对齐同一 service，<strong>禁止</strong>再写一套 catalog/入库逻辑。</p>
+<p>当前 Host 为 <strong>feature-first</strong>：每域 <code>features/&lt;name&gt;/</code> 内含业务逻辑 + 薄 <code>commands</code> 壳。CLI 对齐同一 feature API，<strong>禁止</strong>再写一套 catalog/入库逻辑。</p>
 <h4 id="_2">分层现状（代码事实）<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h4>
-<pre class="codehilite"><code class="language-text">commands/*     → 参数校验、ApiResult 包装、部分 State/AppHandle
-services/*     → 真正的业务（文件系统、SQLite、HTTP、liteparse、wiki）
+<pre class="codehilite"><code class="language-text">features/&lt;domain&gt;/commands.rs  → 参数校验、ApiResult 包装、部分 State/AppHandle
+features/&lt;domain&gt;/             → 真正的业务（文件系统、SQLite、HTTP、liteparse、wiki）
+core/                          → error、fs、paths、log_util
+app/                           → 装配 / 菜单 / command 注册（仅 Desktop）
 </code></pre>
 
 <table>
@@ -951,55 +953,55 @@ services/*     → 真正的业务（文件系统、SQLite、HTTP、liteparse、
 </thead>
 <tbody>
 <tr>
-<td><code>services/vault</code></td>
+<td><code>features/vault</code></td>
 <td><code>create_vault</code> 等</td>
 <td><strong>否</strong></td>
 <td>✅ 直接 <code>use</code></td>
 </tr>
 <tr>
-<td><code>services/catalog</code></td>
-<td><code>papers::list_all/get/delete/set_is_read/set_tags/add_tags/remove_tags/list_all_tags</code></td>
+<td><code>features/catalog</code></td>
+<td><code>papers::list_all/get/delete/set_is_read/set_tags/…</code></td>
 <td><strong>否</strong></td>
 <td>✅ 直接 <code>use</code></td>
 </tr>
 <tr>
-<td><code>services/lookup</code></td>
+<td><code>features/import</code></td>
 <td><code>import_by_identifier</code>、<code>download_paper_assets</code>、export/import</td>
 <td><strong>否</strong></td>
 <td>✅ 直接 <code>use</code>（async）</td>
 </tr>
 <tr>
-<td><code>services/pdf_parse</code></td>
+<td><code>features/import/pdf_parse</code></td>
 <td><code>parse_paper_body</code></td>
 <td><strong>否</strong></td>
 <td>✅ 直接 <code>use</code></td>
 </tr>
 <tr>
-<td><code>services/wiki</code></td>
+<td><code>features/wiki</code></td>
 <td>索引 / 反链 / 图</td>
-<td><strong>service 本身否</strong>；<code>commands/graph</code> 用 <code>State&lt;WikiIndexState&gt;</code></td>
-<td>✅ 调 service；CLI 自建 <code>WikiIndexState</code> 或每次 rebuild</td>
+<td><strong>feature 本身否</strong>；<code>commands</code> 用 <code>State&lt;WikiIndexState&gt;</code></td>
+<td>✅ 调 feature；CLI 自建 <code>WikiIndexState</code> 或每次 rebuild</td>
 </tr>
 <tr>
-<td><code>error</code> / <code>ApiResult</code></td>
+<td><code>core::error</code> / <code>ApiResult</code></td>
 <td>统一错误</td>
 <td><strong>否</strong></td>
 <td>✅ 可共用；CLI 映射到退出码 + JSON</td>
 </tr>
 <tr>
-<td><code>commands/vault|paper|lookup</code></td>
+<td><code>features/*/commands</code></td>
 <td>薄包装</td>
 <td>仅 <code>#[tauri::command]</code> 宏</td>
-<td>⚠️ 不调用 command；CLI 自己做 argv → 调 service</td>
+<td>⚠️ 不调用 command；CLI 自己做 argv → 调 feature</td>
 </tr>
 <tr>
-<td><code>services/agent/*</code></td>
+<td><code>features/agent/*</code></td>
 <td>ACP / Codex / registry</td>
 <td><strong>是</strong>（<code>AppHandle</code>/<code>Emitter</code>）</td>
 <td>❌ <strong>不复用、不链接</strong>（CLI 无 BYOA）</td>
 </tr>
 <tr>
-<td><code>commands/window</code>、菜单</td>
+<td><code>features/window</code>、菜单</td>
 <td>GUI</td>
 <td><strong>是</strong></td>
 <td>❌</td>
@@ -1008,24 +1010,25 @@ services/*     → 真正的业务（文件系统、SQLite、HTTP、liteparse、
 </table>
 <p>证据要点：</p>
 <ul>
-<li><code>vault_create</code> / <code>paper_list</code> / <code>lookup_import</code> 等 command 本体只是 <code>PathBuf</code> 校验后调用 <code>services::*</code>，<strong>无</strong> <code>AppHandle</code>。</li>
-<li>全仓 <code>services/</code> 里 <strong><code>use tauri</code> 仅出现在 <code>services/agent/events.rs</code> 及 agent 运行时</strong>；vault/catalog/lookup/pdf_parse/wiki 与 Tauri 解耦。</li>
-<li><code>agentero_lib</code> 已是 <code>crate-type = ["staticlib", "cdylib", "rlib"]</code>，可被外部 crate <strong>path 依赖</strong> 并 <code>use agentero_lib::services::…</code>（实现时注意 service 项需 <code>pub</code>，若现为 <code>pub(crate)</code> 则放宽可见性或加 thin re-export）。</li>
+<li><code>vault_create</code> / <code>paper_list</code> / <code>lookup_import</code> 等 command 本体只是 <code>PathBuf</code> 校验后调用 feature API，<strong>无</strong> <code>AppHandle</code>（部分入库命令会传 progress emitter）。</li>
+<li>vault / catalog / import / pdf_parse / wiki 与 Tauri 解耦；<code>agent</code> 与部分 import 进度路径用 <code>AppHandle</code>/<code>Emitter</code>。</li>
+<li><code>agentero_lib</code> 已是 <code>crate-type = ["staticlib", "cdylib", "rlib"]</code>，可被外部 crate <strong>path 依赖</strong> 并 <code>use agentero_lib::features::…</code>。</li>
 </ul>
-<h4 id="_3">目录布局（已拍板）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h4>
-<p><strong>放在仓库根 <code>cli/</code>，不迁 core，不放进 <code>src-tauri</code>。</strong></p>
+<h4 id="_3">目录布局<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h4>
+<p><strong>放在仓库根 <code>cli/</code>，不放进 <code>src-tauri</code>。</strong></p>
 <pre class="codehilite"><code class="language-text">motif/
-├── Cargo.toml                 # workspace（实现时新增）
-│                              # members = [&quot;src-tauri&quot;, &quot;cli&quot;]
-├── cli/                       # ← CLI crate（独立目录）
+├── Cargo.toml                 # workspace members = [&quot;src-tauri&quot;, &quot;cli&quot;]
+├── cli/                       # ← CLI crate
 │   ├── Cargo.toml             # name = &quot;agentero-cli&quot;；bin name = &quot;agentero&quot;
 │   │                          # agentero_lib = { path = &quot;../src-tauri&quot; }
 │   └── src/
-│       └── main.rs            # clap → services::*
-├── src-tauri/                 # 桌面 Host（不变）
-│   └── src/services/          # domain 仍在此；CLI path 复用
-│       ├── vault / catalog / lookup / pdf_parse / wiki
-│       └── agent/             # BYOA：仅桌面；CLI 禁止 use
+│       └── main.rs            # clap → features::*
+├── src-tauri/
+│   └── src/
+│       ├── app/               # 装配（Desktop only）
+│       ├── core/              # error / fs / paths
+│       └── features/          # vault · catalog · import · wiki · …
+│           └── agent/         # BYOA：仅桌面；CLI 禁止 use
 └── src/                       # React 前端
 </code></pre>
 
@@ -1042,8 +1045,8 @@ services/*     → 真正的业务（文件系统、SQLite、HTTP、liteparse、
 <td><strong><code>cli/</code></strong>（与 <code>src-tauri</code>、<code>src</code> 并列）</td>
 </tr>
 <tr>
-<td>core 迁移</td>
-<td><strong>现阶段不做</strong>；domain 继续住在 <code>src-tauri/src/services/*</code></td>
+<td>Host 布局</td>
+<td><strong>feature-first</strong>（<code>features/*</code> + <code>core/</code> + <code>app/</code>）</td>
 </tr>
 <tr>
 <td>依赖方向</td>
@@ -1051,19 +1054,18 @@ services/*     → 真正的业务（文件系统、SQLite、HTTP、liteparse、
 </tr>
 <tr>
 <td>不用</td>
-<td><code>src-tauri/src/bin/*</code>、Node CLI、<code>crates/agentero-core</code>（可留作远期选项）</td>
+<td><code>src-tauri/src/bin/*</code>、Node CLI 作为主路径</td>
 </tr>
 </tbody>
 </table>
-<p><strong>代价（已知且接受）</strong>：CLI 编译会带上 <code>agentero_lib</code> 的依赖图（含 tauri 等），即使不初始化 Tauri、不调用 <code>services/agent</code>。纪律：CLI 源码 <strong>禁止</strong> <code>use agentero_lib::services::agent</code>。</p>
-<p><strong>远期（非现在）</strong>：若体积/边界需要，再把无 Agent 的 service 抽到独立 core；当前文档与排期 <strong>不</strong> 以此为前提。</p>
+<p><strong>代价（已知且接受）</strong>：CLI 编译会带上 <code>agentero_lib</code> 的依赖图（含 tauri 等），即使不初始化 Tauri、不调用 <code>features::agent</code>。纪律：CLI 源码 <strong>禁止</strong> <code>use agentero_lib::features::agent</code>。</p>
 <h4 id="_4">复用关系<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h4>
-<pre class="codehilite"><code class="language-text">┌─ commands/*          (Tauri only)
+<pre class="codehilite"><code class="language-text">┌─ features/*/commands   (Tauri only)
 Desktop ─┤
-         └─ services/{vault,catalog,lookup,wiki,pdf_parse}  ←─┐
-                                                              │ 同一实现（不迁）
-cli/ (clap, bin: agentero) ── path ──► agentero_lib ──────────┘
-Desktop-only: services/agent/*   （CLI 不引用）
+         └─ features/{vault,catalog,import,wiki,…}  ←─┐
+                                                      │ 同一实现
+cli/ (clap, bin: agentero) ── path ──► agentero_lib ──┘
+Desktop-only: features/agent/*   （CLI 不引用）
 </code></pre>
 
 <h4 id="cli">CLI 需要「新写」的部分（非业务重复）<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h4>
@@ -1089,7 +1091,7 @@ Desktop-only: services/agent/*   （CLI 不引用）
 <tr>
 <td><code>tree</code> / <code>suggestedReads</code> 编排</td>
 <td><code>cli/src/</code></td>
-<td>service 结果 + 磁盘 <code>exists</code></td>
+<td>feature 结果 + 磁盘 <code>exists</code></td>
 </tr>
 <tr>
 <td>text 表格、退出码、JSON 包装</td>
@@ -1105,10 +1107,9 @@ Desktop-only: services/agent/*   （CLI 不引用）
 </table>
 <h4 id="_5">语义一致性纪律<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h4>
 <ul>
-<li>入库 / 删 catalog / parse 规则 <strong>只改</strong> <code>src-tauri</code> 的 service；UI 与 CLI 同步受益。</li>
+<li>入库 / 删 catalog / parse 规则 <strong>只改</strong> <code>src-tauri</code> 的 feature；UI 与 CLI 同步受益。</li>
 <li>CLI 的 <code>--json</code> 字段尽量对齐现有 <code>PaperRecord</code> / <code>LookupImportResult</code> 等 serde 形状，避免第三套 DTO。</li>
-<li><strong>禁止</strong> CLI 直接 <code>INSERT</code> catalog 或手写 paper 目录绕过 <code>lookup</code>/<code>catalog</code>。</li>
-<li>service 若当前 <code>pub(crate)</code>，实现 CLI 时改为 <code>pub</code> 或经 <code>lib.rs</code> re-export（<strong>小改可见性，不迁模块</strong>）。</li>
+<li><strong>禁止</strong> CLI 直接 <code>INSERT</code> catalog 或手写 paper 目录绕过 <code>features::import</code> / <code>features::catalog</code>。</li>
 </ul>
 <h3 id="61">6.1 技术栈<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
 <table>
@@ -1177,9 +1178,9 @@ Desktop-only: services/agent/*   （CLI 不引用）
            │                           │ path dep
            ▼                           ▼
 ┌──────────────────────────────────────────────────┐
-│  agentero_lib::services（仍在 src-tauri，不迁）     │
-│  vault · catalog · lookup · wiki · pdf_parse     │
-│  （agent/* 仅 Desktop 使用）                        │
+│  agentero_lib::features + core                   │
+│  vault · catalog · import · wiki · …             │
+│  （features::agent 仅 Desktop 使用）               │
 └──────────────────────────────────────────────────┘
            │
            ▼

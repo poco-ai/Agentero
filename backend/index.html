@@ -79,6 +79,8 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#_3">本分区文档</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#host-feature-first">Host 源码布局（feature-first）</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#_4">交叉引用</a>
     </li>
     </ul>
@@ -255,8 +257,20 @@
 <li><a href="paper-import-pipeline/"><code>paper-import-pipeline.md</code></a>：多入口入库现状、统一 <code>paper_commit</code> / <code>afterPaperImport</code> 设计与分期（<strong>设计已落库</strong>）。</li>
 <li><a href="connector/"><code>connector.md</code></a>：Zotero Connector 兼容 HTTP 服务（方案一：本机 23119；MVP 已落地）。</li>
 <li><a href="wikilinks/"><code>wikilinks.md</code></a>：Obsidian 兼容双链语法、反链查询、图谱模型（与 V0.7 文献引用图边界见文内 §6.5）。</li>
-<li>CLI（MVP）：<a href="../development/cli/"><code>../development/cli.md</code></a> — 代码在 <strong><code>cli/</code></strong>（bin <code>agentero</code>）；不迁 core，复用 <code>services/*</code>；Vault 管理/发现/暴露；无 BYOA。</li>
+<li>CLI（MVP）：<a href="../development/cli/"><code>../development/cli.md</code></a> — 代码在 <strong><code>cli/</code></strong>（bin <code>agentero</code>）；path 复用 <code>features::{vault,catalog,import}</code> + <code>core::error</code>；Vault 管理/发现/暴露；无 BYOA。</li>
 </ul>
+<h2 id="host-feature-first">Host 源码布局（feature-first）<a class="headerlink" href="#host-feature-first" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-text">src-tauri/src/
+  app/           # run()、menu、logging、command 注册
+  core/          # error、fs、paths、log_util
+  features/      # 每域一文件夹（与前端 src/lib 对齐）
+    vault/ catalog/ import/ wiki/ agent/ connector/ remote/ …
+    # 每域：mod.rs 对外 API + commands.rs 薄壳 + 按需 models.rs
+  lib.rs         # mod 声明 + pub 导出
+  main.rs
+</code></pre>
+
+<p>入库相关在 <strong><code>features/import/</code></strong>（原 <code>lookup</code> + <code>pdf_parse</code> + <code>paper_import</code> + Zotero 迁移命令）。魔棒 Tauri command 名仍为 <code>lookup_import</code> 等（契约不变）。</p>
 <h2 id="_4">交叉引用<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>前端布局与 Graph 位置：<a href="../frontend/ui/"><code>../frontend/ui.md</code></a></li>

@@ -619,7 +619,7 @@
 <li>前端：<code>src/lib/wiki/api.ts</code> + <code>BacklinksPanel</code>；Demo 模式纯前端索引。  </li>
 <li><strong>文件变更防抖重建</strong>（已落地）：Vault watcher 报告 <code>.md</code> 变更后，前端 <code>useVaultFileEvents.onWikiChange</code> → <code>scheduleWikiRebuild</code>（约 <strong>900ms</strong> 防抖）触发全量 rebuild，使 Backlinks / Graph 在外部或 Agent 写盘后保持新鲜。非边级增量；SQLite 边缓存仍待。</li>
 </ol>
-<p><strong>代码位置</strong>：<code>src-tauri/src/services/wiki/</code> · <code>src-tauri/src/commands/graph.rs</code> · <code>src/components/wiki/backlinks-panel.tsx</code> · <code>src/hooks/use-vault-file-events.ts</code></p>
+<p><strong>代码位置</strong>：<code>src-tauri/src/features/wiki/</code> · <code>src-tauri/src/features/wiki/commands.rs</code> · <code>src/components/wiki/backlinks-panel.tsx</code> · <code>src/hooks/use-vault-file-events.ts</code></p>
 <h3 id="phase-b">Phase B — 预览可点 ✅<a class="headerlink" href="#phase-b" title="Permanent link">&para;</a></h3>
 <ol>
 <li>预览：<code>rewriteWikilinksForPreview</code> → Plate <code>LinkPlugin</code>。  </li>
@@ -640,9 +640,9 @@
 </ol>
 <p><strong>代码位置</strong>：</p>
 <ul>
-<li><code>src-tauri/src/models/wiki.rs</code>（<code>GraphNode</code> / <code>GraphEdge</code> / <code>GraphResponse</code>）</li>
-<li><code>src-tauri/src/services/wiki/index.rs</code>（<code>get_graph</code>）</li>
-<li><code>src-tauri/src/commands/graph.rs</code>（<code>graph_get_graph</code>）</li>
+<li><code>src-tauri/src/features/wiki/models.rs</code>（<code>GraphNode</code> / <code>GraphEdge</code> / <code>GraphResponse</code>）</li>
+<li><code>src-tauri/src/features/wiki/index.rs</code>（<code>get_graph</code>）</li>
+<li><code>src-tauri/src/features/wiki/commands.rs</code>（<code>graph_get_graph</code>）</li>
 <li><code>src/lib/wiki/api.ts</code>（<code>getGraph</code> / demo）</li>
 <li><code>src/components/wiki/graph-panel.tsx</code></li>
 <li><code>src/App.tsx</code>（Backlinks 右侧栏内接线）</li>

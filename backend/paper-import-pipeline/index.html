@@ -224,7 +224,7 @@
               
                 <h1 id="paper">Paper 入库流水线（统一方案）<a class="headerlink" href="#paper" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>Host 内核已实现（P0 + P2 本地部分）</strong>——<code>services/paper_import::paper_commit</code> 已落地，魔棒单篇 / Connector（本地+远程壳）/ 本地 PDF / Bib 四个本地入口已迁入；路径分配统一为 <code>lookup::allocate_paper_path</code>（盘 + catalog 双查，撞名改写 <code>meta.id</code>）。未完成：Zotero 迁移（P3）、remote 镜像层收敛、前端 <code>afterPaperImport</code>（P1）、统一事件（P4）。<br />
+<p>状态：<strong>Host 内核已实现（P0 + P2 本地部分）</strong>——<code>features/import/paper_import::paper_commit</code> 已落地，魔棒单篇 / Connector（本地+远程壳）/ 本地 PDF / Bib 四个本地入口已迁入；路径分配统一为 <code>import::allocate_paper_path</code>（盘 + catalog 双查，撞名改写 <code>meta.id</code>）。未完成：Zotero 迁移（P3）、remote 镜像层收敛、前端 <code>afterPaperImport</code>（P1）、统一事件（P4）。<br />
 目标：把「创建 paper 单元」收敛为 <strong>Host 唯一落盘内核 + 前端唯一后置策略</strong>；各入口只做元数据 / 来源适配。<br />
 相关：<a href="../identifier-lookup/"><code>identifier-lookup.md</code></a>（魔棒）、<a href="../connector/"><code>connector.md</code></a>（浏览器插件）、<a href="../catalog/"><code>catalog.md</code></a>、<a href="../data-model/"><code>data-model.md</code></a>、<a href="../api/"><code>api.md</code></a>、<a href="../../development/cli/"><code>../development/cli.md</code></a>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>。</p>
 </blockquote>
@@ -474,7 +474,7 @@ Download / saveAttachment → paper_attach_assets（结果字段对齐 commit）
 
 <hr />
 <h2 id="4-hostpaper_commit">4. Host:<code>paper_commit</code><a class="headerlink" href="#4-hostpaper_commit" title="Permanent link">&para;</a></h2>
-<p>建议模块（<strong>尚未抽出</strong>）：<code>src-tauri/src/services/lookup/</code> 旁或新建 <code>services/paper_import/</code> 统一 <code>paper_commit</code>；当前各入口仍分散在 lookup / connector / papers 路径。</p>
+<p>统一内核已在 <strong><code>src-tauri/src/features/import/paper_import/</code></strong>（<code>paper_commit</code>）；入口适配仍在 <code>features/import</code>、<code>features/connector</code>、<code>features/remote</code>。</p>
 <h3 id="41-paperdraft-papercommitoptions">4.1 输入：<code>PaperDraft</code> + <code>PaperCommitOptions</code><a class="headerlink" href="#41-paperdraft-papercommitoptions" title="Permanent link">&para;</a></h3>
 <p><strong><code>PaperDraft</code>（概念）</strong></p>
 <table>
@@ -895,7 +895,7 @@ await afterPaperImport(policy, result, { vaultRoot })
 </table>
 <p>代码锚点（迁移前参考）：</p>
 <ul>
-<li>Host：<code>src-tauri/src/services/lookup/mod.rs</code>、<code>connector/import.rs</code>、<code>lookup/zotero_io.rs</code>、<code>lookup/zotero_db.rs</code></li>
+<li>Host：<code>src-tauri/src/features/import/</code>（含 <code>paper_import</code>、<code>zotero_*</code>）、<code>features/connector/import.rs</code></li>
 <li>前端：<code>src/App.tsx</code>（lookup / connector / local pdf / library import）、<code>src/lib/paper/lookup.ts</code>、<code>src/lib/paper/api.ts</code>、<code>src/lib/paper/import/connector.ts</code></li>
 </ul>
 <hr />
