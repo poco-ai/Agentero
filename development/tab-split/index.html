@@ -467,6 +467,7 @@
 </tbody>
 </table>
 <p><code>fromJSON</code> 恢复布局后按 <code>tab.mode</code> 再 <code>setRenderer</code>，避免旧快照缺 renderer 字段时丢失保活。</p>
+<p>Dockview 7 为尚未测量的 inactive <code>renderer: 'always'</code> panel 创建 <code>.dv-render-overlay</code> 时，只先写入 <code>visibility: hidden</code> 与 <code>pointer-events: none</code>。此时 overlay 还没有 inline <code>left/top/width/height</code>，绝对定位的 static position 可能落在当前内容之后并扩大滚动区。<code>src/index.css</code> 因此在 <code>.agentero-dockview .dv-render-overlay</code> 提供 <code>top: 0; left: 0</code> 初始锚点；panel 完成布局后 Dockview 的 inline 坐标覆盖该 fallback。不得用 <code>display: none</code> 或卸载 overlay 规避空白，否则 PDF 壳保活失效。</p>
 <h2 id="9-dockview-70x">9. 已用 / 刻意未用的 dockview 能力（7.0.x）<a class="headerlink" href="#9-dockview-70x" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

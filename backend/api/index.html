@@ -229,6 +229,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#wiki_move">wiki_move</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#wiki_rename_heading">wiki_rename_heading</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#wiki_external_rename_preview">wiki_external_rename_preview</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#wiki_apply_external_rename_repair">wiki_apply_external_rename_repair</a>
@@ -236,6 +238,8 @@
     <li class="toctree-l4"><a class="reference internal" href="#graph_get_graph">graph_get_graph</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#graph_rebuild">graph_rebuild</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#wiki_cache_rebuild">wiki_cache_rebuild</a>
     </li>
         </ul>
     </li>
@@ -1978,7 +1982,7 @@ Host (Tauri + Rust)
 }
 </code></pre>
 
-<p><code>ResolvedLink</code> 保留 occurrence 的 <code>source</code>、<code>targetRaw</code>、<code>syntax</code>、<code>embed</code>、<code>displayText?</code>、typed <code>fragment?</code>、<code>sourceRange</code>、<code>line</code>、<code>context?</code>，并返回 <code>status</code>（<code>resolved</code> / <code>missing</code> / <code>ambiguous</code> / <code>invalidFragment</code>）、<code>targetPath?</code> 与 <code>candidates?</code>。反链和出链以 occurrence 为单位，不能由 Graph 去重结果反推。</p>
+<p><code>ResolvedLink</code> 保留 occurrence 的 <code>source</code>、<code>targetRaw</code>、<code>syntax</code>、<code>embed</code>、<code>displayText?</code>、typed <code>fragment?</code>、<code>sourceRange</code>、<code>fragmentRange?</code>、<code>line</code>、<code>context?</code>，并返回 <code>status</code>（<code>resolved</code> / <code>missing</code> / <code>ambiguous</code> / <code>invalidFragment</code>）、<code>targetPath?</code> 与 <code>candidates?</code>。<code>fragmentRange</code> 仅覆盖 <code>#</code> 后的 heading/block 正文，供显式标题事务精确改写；反链和出链以 occurrence 为单位，不能由 Graph 去重结果反推。</p>
 <h4 id="wiki_get_outgoing"><code>wiki_get_outgoing</code><a class="headerlink" href="#wiki_get_outgoing" title="Permanent link">&para;</a></h4>
 <p>获取一个 Markdown 文件显式写出的全部出链 occurrence，包括可诊断但不可跳转的缺失、歧义和无效 fragment。</p>
 <pre class="codehilite"><code class="language-ts">{ vaultPath: string; path: string }
@@ -2038,6 +2042,30 @@ Host (Tauri + Rust)
 </code></pre>
 
 <p><code>WikiRenameResult</code> 为 <code>{ movedPath, updatedSources, skipped: { path, reason }[], rollback }</code>，其中 <code>rollback</code> 为 <code>notNeeded</code>、<code>completed</code> 或 <code>manualRecoveryRequired</code>。冲突、未保存编辑、来源内容已变、目标已存在或失败回滚均返回错误；remote Vault 不通过该本地命令执行。</p>
+<h4 id="wiki_rename_heading"><code>wiki_rename_heading</code><a class="headerlink" href="#wiki_rename_heading" title="Permanent link">&para;</a></h4>
+<p>显式重命名一个本地、可写且已保存 Markdown 文档中的标题，并同步所有已解析到该标题或受影响后代的 heading fragment。普通编辑与 autosave 不调用此命令。</p>
+<pre class="codehilite"><code class="language-ts">{
+  vaultPath: string;
+  path: string;
+  headingPath: string[];
+  headingLine: number;
+  expectedContent: string;
+  newText: string;
+  dirtyPaths?: string[];
+}
+// =&gt; {
+//   ok: true;
+//   data: {
+//     path: string;
+//     oldPath: string[];
+//     newPath: string[];
+//     updatedSources: string[];
+//     rollback: &quot;not-needed&quot; | &quot;completed&quot; | &quot;manual-recovery-required&quot;;
+//   }
+// }
+</code></pre>
+
+<p>Host 以 <code>expectedContent + headingPath + headingLine</code> 复核保存态标题身份，只改写 occurrence 的精确 <code>fragmentRange</code>。Wikilink、嵌入、Vault-local Markdown link、同文件 fragment 与多级 heading path 均走同一事务；文件目标、alias、Markdown label 和周围正文保持不变。dirty source、stale content、标题缺失、新标题无效/歧义或重叠编辑会在写入前失败；写入或索引重建失败返回 <code>{ code, rollback }</code> 结构化 details。</p>
 <h4 id="wiki_external_rename_preview"><code>wiki_external_rename_preview</code><a class="headerlink" href="#wiki_external_rename_preview" title="Permanent link">&para;</a></h4>
 <p>为已由 Finder、Obsidian 或 Agent 完成的<strong>可信本地外部 rename</strong>创建只读 repair candidate。调用方传入 watcher 的 old/new Vault 相对路径与当前 dirty path；Host 必须仍持有改名前索引，且验证旧路径已不存在、新路径存在后才返回 candidate。</p>
 <pre class="codehilite"><code class="language-ts">{ vaultPath: string; fromRel: string; toRel: string; dirtyPaths?: string[] }
@@ -2118,7 +2146,7 @@ Host (Tauri + Rust)
 <li><strong>邻域</strong>：无向 BFS（出边 + 入边）从 <code>center</code> 扩展至多 <code>depth</code> 跳，再裁剪 edges。</li>
 </ul>
 <h4 id="graph_rebuild"><code>graph_rebuild</code><a class="headerlink" href="#graph_rebuild" title="Permanent link">&para;</a></h4>
-<p>全量扫描 Vault 内 Markdown，重建内存 wikilink 索引。</p>
+<p>校验当前 Vault 的版本化 Wiki snapshot；完全命中时恢复内存索引，否则全量扫描 Vault target 文件、重建索引并 best-effort 覆盖 snapshot。缓存位于应用 cache 目录，不写入 Vault 或 <code>.agentero/catalog.sqlite</code>。</p>
 <ul>
 <li><strong>参数</strong></li>
 </ul>
@@ -2140,6 +2168,16 @@ Host (Tauri + Rust)
 }
 </code></pre>
 
+<h4 id="wiki_cache_rebuild"><code>wiki_cache_rebuild</code><a class="headerlink" href="#wiki_cache_rebuild" title="Permanent link">&para;</a></h4>
+<p>内部诊断命令。删除当前 Vault 的派生 Wiki snapshot，再从 Vault 文件冷重建并写入新 snapshot；删除或写 cache 失败不改变 Markdown 事实来源。</p>
+<pre class="codehilite"><code class="language-ts">{ vaultPath: string }
+// =&gt; {
+//   ok: true;
+//   data: { indexedFiles: number; edges: number; nodes: number }
+// }
+</code></pre>
+
+<p>snapshot 保存所有 Wiki target 的 size、mtime、SHA-256，以及 documents 与 resolved occurrences。schema/parser version、Vault identity、文件指纹或 snapshot integrity hash 任一不匹配时，普通 rebuild 会丢弃旧 snapshot 并冷重建；cache 写失败只记录 warning，内存 rebuild 仍成功。</p>
 <h3 id="39">3.9 配置<a class="headerlink" href="#39" title="Permanent link">&para;</a></h3>
 <h4 id="configget"><code>config:get</code><a class="headerlink" href="#configget" title="Permanent link">&para;</a></h4>
 <p>获取应用配置。</p>

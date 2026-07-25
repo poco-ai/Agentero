@@ -165,6 +165,8 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#phase-f-live-preview">Phase F — Live Preview 与只读嵌入 ✅</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#phase-g-metadata-cache">Phase G — 标题重命名与 Metadata Cache ✅</a>
+    </li>
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#8">8. 与现有代码的关系</a>
@@ -367,13 +369,14 @@
 </tr>
 </tbody>
 </table>
+<p>编辑器输入 <code>[[#</code> 时只搜索当前文件的标题；输入 <code>[[^</code> 时只搜索当前文件中已有 ID 的 block。选择 block 后按 Obsidian 规范落盘为 <code>[[#^block-id]]</code>，空文件目标始终由 Host 解析为当前来源文件。</p>
 <p>leading YAML frontmatter 的 <code>aliases</code> 列表会参与目标解析；<code>title</code> 不会被当作 alias。</p>
 <h3 id="22">2.2 解析规则（概要）<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
 <ol>
 <li>从 Markdown 源文本提取 Wikilink、embed token 和 Vault-local Markdown links；fenced code、inline code、外部 URL 不产生关系。</li>
 <li>occurrence 保留语法、embed 标记、目标字节范围、alias/label、typed fragment、行号和上下文。</li>
 <li>resolver 先匹配路径（Markdown link 先按来源目录），再匹配唯一后缀、唯一文件名和唯一 YAML alias；任意多命中返回 <code>ambiguous</code>。</li>
-<li>目标文件命中后按 heading 层级或 block ID 验证 fragment，返回 <code>resolved</code>、<code>missing</code>、<code>ambiguous</code> 或 <code>invalidFragment</code>。</li>
+<li>目标文件命中后按 heading 层级或 block ID 验证 fragment，返回 <code>resolved</code>、<code>missing</code>、<code>ambiguous</code> 或 <code>invalidFragment</code>。点击 <code>invalidFragment</code> 链接时仍打开已解析的目标文件，但不继续定位失效 fragment，并保留错误 Toast。</li>
 </ol>
 <h3 id="23">2.3 落盘纪律<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
 <ul>
@@ -481,11 +484,13 @@
 </ul>
 <h3 id="45">4.5 改名与移动稳定性<a class="headerlink" href="#45" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Agentero 发起的文件、目录与 <code>papers/</code> 内移动先从改名前的 <code>WikiIndex</code> 生成精确编辑计划，再执行主路径移动、Markdown 原子写入、catalog path 更新（如适用）与索引重建。只改写此前已明确解析到被移动路径的 occurrence；alias、heading/block fragment、embed 标记及 Markdown link label 保持不变。</li>
+<li>Agentero 发起的文件、目录与 <code>papers/</code> 内移动先从改名前的 <code>WikiIndex</code> 生成精确编辑计划，再执行主路径移动、Markdown 原子写入、catalog path 更新（如适用）与索引重建。只要文件目标仍能唯一解析，就统一改写普通 Wikilink、嵌入和 Vault-local Markdown link 的 target range；<code>invalidFragment</code> 只表示 heading/block 已失效，不阻止文件路径更新。缺失或歧义文件目标仍跳过；alias、heading/block fragment、embed 标记及 Markdown link label 保持不变。</li>
+<li>编辑器右键菜单的“重命名当前标题…”是独立事务：只对本地、可写、已保存且文档中存在标题的 Markdown 启用。光标在标题内时使用该标题；在正文中使用当前章节之前最近的标题；在首个标题之前则使用首个标题。Host 以 <code>expectedContent + headingPath + headingLine</code> 确认标题身份，精确改写已解析到该标题或受影响后代的 Wikilink、嵌入、Vault-local Markdown link 与同文件 fragment；文件目标、alias、label、embed 标记和无关正文保持不变。</li>
+<li>普通手工编辑或 autosave heading 不触发跨文件改写。dirty source、磁盘内容变化、无效/歧义新标题、重叠范围或中途写入失败会在写入前中止，或回滚已写 Markdown 并返回结构化 rollback；成功后打开的目标与来源文档、Backlinks、Outgoing links、Graph 和嵌入投影统一刷新。</li>
 <li>每个来源文件均经过未保存编辑和内容 hash 预检；写入或后续 catalog 更新失败时，事务尽力恢复已写 Markdown 与主路径。结果显式报告 <code>not-needed</code>、<code>completed</code> 或 <code>manual-recovery-required</code> 的 rollback 状态。</li>
 <li>本地外部改名只接受 watcher 提供的单个可靠 old/new 配对。默认 General 设置 <code>autoUpdateInternalLinks: "ask"</code>：先显示旧/新路径、受影响来源和跳过项，确认后才写入。<code>"always"</code> 仍须通过同一配对、dirty path、hash 与最终磁盘状态校验；预检失败不会写 Markdown。apply 在写入后失败时 Host 返回 rollback 状态，审阅 Dialog 据此区分零写入、已回滚和需要人工恢复，避免把部分写入报成未写入。不可信事件只刷新树和索引，不授权 Markdown 改写。</li>
 <li>外部修复只改写引用文件，不会移动已由 Finder、Obsidian 或 Agent 改名的主文件。remote Vault 没有本地 watcher 自动修复；显式 Agentero 改名/移动仍由 Host capability 与事务预检决定是否可执行。</li>
-<li>已知限制：手工修改 Markdown heading 不会同步其它文件中的 <code>#heading</code> fragment。后续应通过显式“重命名当前小标题”事务修正，并将可持久化 Metadata Cache 作为独立的索引加速层；调研与实施边界见 <a href="../../research/wikilink-heading-reference-stability/"><code>../research/wikilink-heading-reference-stability.md</code></a>。</li>
+<li>标题 fragment 没有稳定 UUID；手工修改 Markdown heading 后旧 fragment 仍会失效。需要同步入链时必须使用显式标题重命名命令。设计依据与缓存边界见 <a href="../../research/wikilink-heading-reference-stability/"><code>../research/wikilink-heading-reference-stability.md</code></a>。</li>
 </ul>
 <h3 id="46-backlinks">4.6 图谱（Backlinks 右侧栏下方）<a class="headerlink" href="#46-backlinks" title="Permanent link">&para;</a></h3>
 <p>产品形态：</p>
@@ -497,7 +502,7 @@
 </ul>
 <p>数据：</p>
 <ul>
-<li>唯一事实来源：Markdown 中的 <code>[[wikilink]]</code>（内存索引，可 <code>graph_rebuild</code> 重建）。</li>
+<li>唯一事实来源：Markdown 中的 <code>[[wikilink]]</code>。内存索引可从 Markdown 重建；版本化 SQLite snapshot 仅保存在应用 cache 目录，完整校验后用于 warm restore，删除后不改变语义。</li>
 <li>Host：<code>graph_get_graph</code>（见 <code>docs/backend/api.md</code> §3.8）。</li>
 <li>Demo（无 Tauri）：前端用 demo vault 文件内容现算 nodes/edges。</li>
 </ul>
@@ -545,6 +550,11 @@
 <td><code>{ vaultPath, fromRel, toRel, dirtyPaths? }</code> → 链接感知的本地文件/目录 rename 或 move</td>
 </tr>
 <tr>
+<td><code>wiki_rename_heading</code></td>
+<td>✅</td>
+<td><code>{ vaultPath, path, headingPath, headingLine, expectedContent, newText, dirtyPaths? }</code> → 显式标题改名与入链事务</td>
+</tr>
+<tr>
 <td><code>wiki_external_rename_preview</code></td>
 <td>✅</td>
 <td>可信外部 rename 的只读 repair candidate</td>
@@ -557,7 +567,12 @@
 <tr>
 <td><code>graph_rebuild</code></td>
 <td>✅</td>
-<td>全量重建内存索引</td>
+<td>校验 warm snapshot；未命中时从 Vault 全量重建内存索引并 best-effort 覆盖 cache</td>
+</tr>
+<tr>
+<td><code>wiki_cache_rebuild</code></td>
+<td>✅</td>
+<td>内部诊断：删除当前 Vault snapshot 后从 Vault 全量重建</td>
 </tr>
 <tr>
 <td><code>graph_get_graph</code></td>
@@ -566,7 +581,7 @@
 </tr>
 </tbody>
 </table>
-<p>索引更新：Markdown 保存、Vault 扫描、打开 Vault 后 <code>rebuild</code>；查询侧 <code>ensure_vault</code> 惰性重建。</p>
+<p>索引更新：Markdown 保存、Vault 扫描、打开 Vault 后 <code>rebuild</code>；查询侧 <code>ensure_vault</code> 惰性重建。snapshot 位于 <code>agentero_cache_dir()/wiki/&lt;vault-key&gt;.sqlite</code>，保存完整目标文件指纹、documents 与 resolved occurrences；schema/parser/Vault identity、指纹或完整性哈希任一不匹配即删除并冷重建。cache 读写失败只记录 warning，不阻塞内存查询或 Markdown 事务。</p>
 <hr />
 <h2 id="6">6. 开源参考与选型<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
 <h3 id="61">6.1 可直接依赖（解析 / 渲染）<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
@@ -699,10 +714,10 @@
 <h2 id="7-roadmap-v04">7. 实现分期（与 ROADMAP V0.4 对齐）<a class="headerlink" href="#7-roadmap-v04" title="Permanent link">&para;</a></h2>
 <h3 id="phase-a">Phase A — 索引与反链 ✅<a class="headerlink" href="#phase-a" title="Permanent link">&para;</a></h3>
 <ol>
-<li>Rust：<code>extract_wikilinks(md)</code> + <code>resolve</code> + <strong>内存索引</strong>（全量 <code>graph_rebuild</code>；尚无 SQLite 落盘）。  </li>
+<li>Rust：<code>extract_wikilinks(md)</code> + <code>resolve</code> + <strong>内存索引</strong>；版本化 SQLite snapshot 仅用于通过完整指纹与完整性校验后的 warm restore。</li>
 <li>Tauri：<code>graph_get_backlinks</code> / <code>graph_rebuild</code>（参数 <code>vaultPath</code> + <code>path</code>）。  </li>
 <li>前端：<code>src/lib/wiki/api.ts</code> + <code>BacklinksPanel</code>；Demo 模式纯前端索引。  </li>
-<li><strong>文件变更防抖重建</strong>（已落地）：Vault watcher 报告 Markdown、图片或 PDF 变更后，前端 <code>useVaultFileEvents.onWikiChange</code> → <code>scheduleWikiRebuild</code>（约 <strong>900ms</strong> 防抖）触发全量 rebuild，使 Backlinks / Graph 在外部或 Agent 写盘后保持新鲜；嵌入内容只按 watcher 本批次实际触及的目标路径失效。非边级增量；SQLite 边缓存仍待。</li>
+<li><strong>文件变更防抖重建</strong>（已落地）：Vault watcher 报告 Markdown、图片或 PDF 变更后，前端 <code>useVaultFileEvents.onWikiChange</code> → <code>scheduleWikiRebuild</code>（约 <strong>900ms</strong> 防抖）触发 rebuild，使 Backlinks / Graph 在外部或 Agent 写盘后保持新鲜；嵌入内容只按 watcher 本批次实际触及的目标路径失效。任一目标文件变化都会使 snapshot 失效并全量解析；仍非边级增量。</li>
 </ol>
 <p><strong>代码位置</strong>：<code>src-tauri/src/features/wiki/</code> · <code>src-tauri/src/features/wiki/commands.rs</code> · <code>src/components/wiki/backlinks-panel.tsx</code> · <code>src/hooks/use-vault-file-events.ts</code></p>
 <h3 id="phase-b">Phase B — 精确导航 ✅<a class="headerlink" href="#phase-b" title="Permanent link">&para;</a></h3>
@@ -713,7 +728,7 @@
 <p><strong>代码</strong>：<code>src/lib/wiki/api.ts</code> · <code>src/components/editor/link-node.tsx</code> · <code>src/components/editor/wikilink-node.tsx</code> · <code>src/lib/wiki/nav-context.tsx</code></p>
 <h3 id="phase-c-plate">Phase C — 输入补全 + Plate ✅<a class="headerlink" href="#phase-c-plate" title="Permanent link">&para;</a></h3>
 <ol>
-<li>输入 <code>[[</code> 时从 Host 搜索文件和 alias；<code>#</code> 和 <code>^</code> 仅显示已解析目标内的标题或 block 候选。Esc、方向键和 Enter 均不干扰输入法 composition。</li>
+<li>输入 <code>[[</code> 时从 Host 搜索文件和 alias；<code>[[#</code> / <code>[[^</code> 仅显示当前文件的标题 / block，显式目标后的 <code>#</code> / <code>^</code> 仅显示该目标内的候选。Esc、方向键和 Enter 均不干扰输入法 composition。</li>
 <li>选择 alias 时写入 <code>[[规范路径|alias]]</code>；标题/block 选择写入可跳转的 <code>#heading</code> / <code>#^block-id</code>。Plate 内联节点序列化回 <code>[[...]]</code>。</li>
 </ol>
 <h3 id="phase-d">Phase D — 图谱 ✅<a class="headerlink" href="#phase-d" title="Permanent link">&para;</a></h3>
@@ -744,6 +759,13 @@
 <li><code>wiki_embed_read</code> 复用规范 resolver，支持 Markdown 全文、标题区段、block、图片和 PDF。</li>
 <li>嵌入内容只读、可点击跳转；嵌套投影具有循环检测和深度上限。</li>
 <li>projection/request/附件字节使用有界缓存；watcher 按目标路径精确失效，普通父文档编辑不会刷新无关嵌入。</li>
+</ol>
+<h3 id="phase-g-metadata-cache">Phase G — 标题重命名与 Metadata Cache ✅<a class="headerlink" href="#phase-g-metadata-cache" title="Permanent link">&para;</a></h3>
+<ol>
+<li><code>InternalLinkOccurrence.fragmentRange</code> 精确覆盖 fragment 正文；<code>wiki_rename_heading</code> 以保存态标题身份生成跨文件编辑计划，并复用 dirty/hash/原子写入/回滚纪律。</li>
+<li>Plate 编辑器右键菜单提供受控“重命名当前标题…”Dialog，并按光标所在章节定位保存态标题；成功后重载受影响的打开文档并刷新关系与嵌入投影。普通 heading 编辑不推断 rename。</li>
+<li><code>WikiIndex.rebuild</code> 优先校验应用 cache 下的版本化 SQLite snapshot；文件集合、size、mtime、SHA-256、schema/parser/Vault identity 与 snapshot hash 完全一致才恢复。</li>
+<li>stale/corrupt snapshot 自动删除并从 Vault 重建；store failure 降级为内存索引。<code>wiki_cache_rebuild</code> 提供删除 snapshot 后冷重建的内部诊断路径。</li>
 </ol>
 <hr />
 <h2 id="8">8. 与现有代码的关系<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
@@ -785,7 +807,7 @@
 <tbody>
 <tr>
 <td>大 Vault 全量扫描慢</td>
-<td>当前防抖全量重建优先正确性；边级增量与 SQLite 可重建缓存另立工作</td>
+<td>warm restore 使用 Host SQLite 派生 snapshot；文件变化仍以全量重建优先正确性，边级增量另立工作</td>
 </tr>
 <tr>
 <td>标题歧义（重名笔记）</td>

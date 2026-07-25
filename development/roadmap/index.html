@@ -305,7 +305,7 @@
 <tr>
 <td>V0.4 双链、反链与图谱</td>
 <td>✅ 基本完成</td>
-<td>语义解析、标题/block 精确跳转、入/出链、Graph、Live Preview、<code>[[</code> 文件/alias/标题/block 候选，以及 Markdown/图片/PDF 的 <code>![[...]]</code> 只读嵌入已落地；<strong>链接感知的文件/目录/paper 移动</strong>和可信本地外部 rename 的 <code>ask</code> / <code>always</code> repair 也已落地；文件变更防抖重建索引，嵌入按目标路径精确刷新。</td>
+<td>语义解析、标题/block 精确跳转、入/出链、Graph、Live Preview、<code>[[</code> 文件/alias/标题/block 候选，以及 Markdown/图片/PDF 的 <code>![[...]]</code> 只读嵌入已落地；<strong>链接感知的文件/目录/paper 移动</strong>、可信本地外部 rename repair、<strong>显式标题重命名事务</strong>与 Host SQLite 派生 snapshot 也已落地。</td>
 </tr>
 <tr>
 <td>V0.5 Importer 架构与本地 PDF 入库</td>
@@ -500,12 +500,15 @@
 <li>[x] 嵌入按解析后的目标路径刷新；普通文本自动保存与全局 Wiki 索引 revision 不会重载无关嵌入。</li>
 <li>[x] Agentero 发起的文件、目录与 paper 移动通过 pre-rename snapshot 更新已解析内链，并同步 tab、tree、catalog 与索引。</li>
 <li>[x] 可信本地外部 rename 支持默认 <code>ask</code> 确认与严格门禁下的 <code>always</code> repair；remote Vault 不自动修复。</li>
+<li>[x] 编辑器右键“重命名当前标题…”按光标所在章节定位保存态 heading identity，并通过精确 fragment range 同步普通双链、嵌入、Vault-local Markdown link、同文件与多级标题 fragment；普通手工编辑不推断 rename。</li>
+<li>[x] Host 将可重建 Wiki snapshot 保存到应用 cache 目录；仅在 schema/parser/Vault identity、完整文件指纹与 snapshot hash 全部匹配时 warm restore，损坏/过期/不可写均降级为 Vault 冷重建或内存索引。</li>
 </ul>
 <p>验收标准：</p>
 <ul>
 <li>[x] 双链可以跨 <code>papers/</code>、<code>notes/</code>、<code>plans/</code> 跳转。</li>
 <li>[x] 反链能显示所有引用当前文件的来源。</li>
 <li>[x] 图谱能从 Markdown 重建，不依赖手写数据库。</li>
+<li>[x] 删除 Wiki cache 后能从 Vault 重建相同的索引语义；cache 不写入 Vault 或 catalog。</li>
 <li>[x] 20 个节点以内交互流畅。</li>
 </ul>
 <p>后续增强 TODO：</p>
@@ -514,6 +517,8 @@
 <li>[x] 源码编辑中的 <code>[[</code> 路径、alias、标题和 block 补全。</li>
 <li>[x] Plate 内联 wikilink 节点与规范链接序列化。</li>
 <li>[x] Markdown、图片与 PDF 的 <code>![[...]]</code> 只读嵌入及目标级刷新。</li>
+<li>[x] 显式标题重命名事务与编辑器入口。</li>
+<li>[x] Host 版本化 SQLite Wiki Metadata Cache 与冷重建诊断命令。</li>
 <li>[ ] 图谱 hover 时只高亮直接邻居。</li>
 <li>[ ] 增加 Graph 全屏/聚焦模式，保留右侧栏小图作为默认入口。</li>
 <li>[ ] 真正的增量边更新（当前为防抖全量 rebuild，非边级增量）。</li>
