@@ -5,14 +5,14 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>发布流程与 iPadOS App 上架要求 - Agentero 文档</title>
+    <title>发布流程 - Agentero 文档</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
     
       <script>
         // Current page data
-        var mkdocs_page_name = "\u53d1\u5e03\u6d41\u7a0b\u4e0e iPadOS App \u4e0a\u67b6\u8981\u6c42";
+        var mkdocs_page_name = "\u53d1\u5e03\u6d41\u7a0b";
         var mkdocs_page_input_path = "development/release.md";
         var mkdocs_page_url = null;
       </script>
@@ -101,7 +101,7 @@
                   </li>
               </ul>
               <p class="caption"><span class="caption-text">开发</span></p>
-              <ul>
+              <ul class="current">
                   <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../prd/">产品需求</a>
@@ -121,6 +121,84 @@
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../macos-signing/">macOS 签名与公证</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">发布流程</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#agentero-desktopcli">Agentero Desktop/CLI 版本发布</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#macos">macOS 签名与公证（店外分发）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 结论先看</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2-ipados">2. iPadOS 平台配置</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#21-app-store-connect">2.1 App Store Connect 中的平台</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#22-xcode">2.2 Xcode 项目检查项</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#23-ipad">2.3 iPad 体验要求</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3-app-store-connect">3. App Store Connect 必填信息</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31-app">3.1 App 基础信息</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32">3.2 版本信息</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#33">3.3 审核备注建议写清楚</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4-ipad">4. iPad 商店截图要求</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#41">4.1 基本规则</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#42-13-ipad">4.2 推荐使用的 13 英寸 iPad 截图尺寸</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#43-ipad">4.3 其他常见 iPad 截图尺寸</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#44">4.4 截图内容建议</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 隐私与数据合规</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#51">5.1 必须提供隐私政策</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#52-app-privacy">5.2 App Privacy 数据标签</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#53">5.3 权限用途说明</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6">6. 审核容易拒绝的情况</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#61-app">6.1 App 不完整</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#62">6.2 只是网页包装</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#63">6.3 隐私或权限问题</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#64">6.4 付费方式不符合要求</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#65">6.5 版权和第三方服务</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7">7. 上传和提交流程</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#8">8. 针对“启航”赛道的额外建议</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#9">9. 提交前检查清单</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#10">10. 官方依据</a>
+    </li>
+    </ul>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
                   </li>
@@ -154,7 +232,8 @@
         <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
     <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
-      <li class="breadcrumb-item active">发布流程与 iPadOS App 上架要求</li>
+          <li class="breadcrumb-item">开发</li>
+      <li class="breadcrumb-item active">发布流程</li>
     <li class="wy-breadcrumbs-aside">
           <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/release.md">Edit on poco-ai/agentero</a>
     </li>
@@ -181,6 +260,13 @@
 <li>发布前确认桌面安装包、应用内版本、CLI <code>--version</code> 和 CLI 文件名没有混用不同版本。</li>
 </ol>
 <p><code>/bump</code> 和 <code>/commit</code> 默认只修改工作区或创建本地 commit，不会自动创建 tag、push 或发布 Release。</p>
+<h3 id="macos">macOS 签名与公证（店外分发）<a class="headerlink" href="#macos" title="Permanent link">&para;</a></h3>
+<p>GitHub Release 上的 macOS 安装包应使用 <strong>Developer ID Application</strong> 签名，并由 <strong>notarytool</strong> 公证 + staple，避免用户下载后出现「已损坏 / 无法打开」。</p>
+<ul>
+<li>完整步骤与 secrets 列表：<a href="../macos-signing/"><code>macos-signing.md</code></a></li>
+<li>CI：<code>release.yml</code> 的 macOS job 读取 <code>APPLE_CERTIFICATE*</code> 与公证凭据；未配置 secrets 时仍构建<strong>未签名</strong>包（并打 warning）</li>
+<li>本地验证：导出 <code>APPLE_SIGNING_IDENTITY</code> 与公证变量后执行 <code>pnpm tauri build</code>（见文档第六步）</li>
+</ul>
 <h2 id="1">1. 结论先看<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <p>要把 App 上架到 iPadOS，至少需要完成以下事项：</p>
 <ul>
@@ -470,6 +556,10 @@
               
             </div>
           </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../macos-signing/" class="btn btn-neutral float-left" title="macOS 签名与公证"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../roadmap/" class="btn btn-neutral float-right" title="路线图">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
 
   <hr/>
 
@@ -495,6 +585,10 @@
         </span>
     
     
+      <span><a href="../macos-signing/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../roadmap/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

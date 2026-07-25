@@ -122,6 +122,10 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../macos-signing/">macOS 签名与公证</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../release/">发布流程</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1 current"><a class="reference internal current" href="#">TODO</a>
@@ -526,7 +530,8 @@
 <h3 id="8-release">8. Release 完善<a class="headerlink" href="#8-release" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] tag 构建已完成（<code>v*</code> → 三平台桌面安装包草稿 Release）</li>
-<li>[ ] 签名、公证、自动 changelog</li>
+<li>[x] macOS Developer ID 签名 + notarytool 公证（工程/CI/文档；需配置 secrets）— 见 <code>macos-signing.md</code></li>
+<li>[ ] 自动 changelog</li>
 <li>[ ] 同步 <code>package.json</code>、<code>src-tauri/tauri.conf.json</code> 和 tag 版本号</li>
 <li>[ ] Release artifact 命名规范化，区分 macOS arch / Windows / Linux</li>
 </ul>
@@ -727,7 +732,8 @@
 <h3 id="_6">发布<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] tag → 三平台草稿 Release</li>
-<li>[ ] 签名/公证/changelog</li>
+<li>[x] macOS 签名/公证（待填 secrets 后验证首个 tag）</li>
+<li>[ ] changelog</li>
 <li>[ ] 可选 artifact 命名规范化</li>
 </ul>
               

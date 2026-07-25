@@ -132,6 +132,10 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="remote-vault/">远程 Vault（SSH/SFTP）</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="macos-signing/">macOS 签名与公证</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="release/">发布流程</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="roadmap/">路线图</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="todo/">TODO</a>
@@ -215,7 +219,7 @@
 <tr>
 <td>发布 CI</td>
 <td><a href="https://docs.github.com/actions">GitHub Actions</a> + <a href="https://github.com/tauri-apps/tauri-action"><code>tauri-apps/tauri-action</code></a></td>
-<td><code>v*</code> tag 触发 macOS、Linux、Windows 安装包构建。</td>
+<td><code>v*</code> tag 触发 macOS、Linux、Windows 安装包构建；macOS 可选 Developer ID 签名 + notarytool 公证。</td>
 </tr>
 <tr>
 <td>文档站</td>
@@ -315,6 +319,11 @@
 <td><code>v*</code> tag → <strong>prepare</strong> 草稿 Release；<strong>installers</strong> / <strong>cli</strong> 并行矩阵上传（同草稿）</td>
 </tr>
 <tr>
+<td>macOS 签名/公证</td>
+<td>🟡</td>
+<td>工程与 CI 已接 Developer ID + notarytool；需配置证书与 GitHub secrets（见 <a href="macos-signing/"><code>macos-signing.md</code></a>）</td>
+</tr>
+<tr>
 <td>远程 Vault（SSH/SFTP）</td>
 <td>✅ MVP</td>
 <td>文件权威远端 + 远端 BYOA（ACP over SSH）；见 <a href="remote-vault/"><code>remote-vault.md</code></a></td>
@@ -338,8 +347,10 @@
 <li><a href="command-palette/"><code>command-palette.md</code></a>：全局命令面板 / 快速打开（对照 VS Code ⇧⌘P · ⌘P；现状与分期设计）。</li>
 <li><a href="tab-split/"><code>tab-split.md</code></a>：全局 Dockview 工作区（V0.6）——中间栏单一 dockview 管理全部文档 panel；标题栏无文档 tab；论文默认 PDF | NOTES 左右分屏。</li>
 <li><a href="plaza/"><code>plaza.md</code></a>：广场（Plaza）——侧栏虚拟发现入口；Cool Papers WebView、推荐 v0、播客占位；P0 不做入库。</li>
+<li><a href="remote-vault/"><code>remote-vault.md</code></a>：远程 Vault（SSH/SFTP）与<strong>远端 BYOA</strong>——文件权威全在服务器、ACP over SSH；含技术栈与开源参考（<strong>MVP 已实现</strong>）。</li>
+<li><a href="macos-signing/"><code>macos-signing.md</code></a>：macOS <strong>Developer ID</strong> 签名、<strong>notarytool</strong> 公证与 staple、CI secrets。</li>
 <li>
-<p><a href="remote-vault/"><code>remote-vault.md</code></a>：远程 Vault（SSH/SFTP）与<strong>远端 BYOA</strong>——文件权威全在服务器、ACP over SSH；含技术栈与开源参考（<strong>MVP 已实现</strong>）。</p>
+<p><a href="release/"><code>release.md</code></a>：版本 bump / tag 发布流程；含 iPadOS 上架调研与 macOS 签名入口。</p>
 </li>
 <li>
 <p><a href=".md"><code>.md</code></a>：简短产品假设。</p>
