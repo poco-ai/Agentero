@@ -565,7 +565,7 @@
 <li>左栏与右栏均为 <strong>常驻 collapsible</strong>（<code>collapsedSize=0</code>），用 <code>expand</code>/<code>collapse</code>/<code>resize</code> 切换，<strong>不要</strong>条件卸载整块右栏 <code>ResizablePanel</code>。</li>
 <li><code>groupResizeBehavior="preserve-pixel-size"</code>；上次展开像素宽记入 ref。</li>
 <li><strong>文档 tab 位置</strong>：标题栏<strong>无</strong>文档 tab；由中间栏 dockview 原生管理（见 §3.1.1）。</li>
-<li>各栏 header 等高：<code>h-10</code>（<code>PaneHeader</code>）；操作错误走右上角 toast（§2.1.2）。</li>
+<li>各栏 header 与 Dockview tab strip 等高：<code>h-10</code>（40px，<code>PaneHeader</code>）；操作错误走右上角 toast（§2.1.2）。</li>
 <li><strong>面板分隔（sash）</strong>：默认 <strong>1px</strong> 细线；实现见 <code>src/components/ui/resizable.tsx</code>。</li>
 <li><strong>独立滚动</strong>：侧边栏 / 中间 dockview 内容 <strong>各自</strong>滚动，顶栏固定。</li>
 <li>默认竖向：<code>.agentero-scroll</code>；双向（论文库表）：<code>.agentero-scroll-both</code>。</li>
