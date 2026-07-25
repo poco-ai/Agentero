@@ -282,7 +282,7 @@
 <blockquote>
 <p>状态：<strong>MVP 已落地</strong>（元数据保存 + 文件夹选择 + 超时规避 + <strong>附件二进制上传 <code>saveAttachment</code></strong> + <strong>快照 / cookies / 后台进度</strong> + <strong>远程 Vault（SSH）</strong>）
 范围：Agentero Host 在本机 <strong>模拟 Zotero 桌面端 Connector HTTP Server</strong>，使官方 <a href="https://www.zotero.org/download/connectors">Zotero Connector</a> 浏览器扩展把「保存」请求打到 Agentero，条目落入当前 Vault 的 catalog + paper 文件夹。<br />
-实现入口：<code>src-tauri/src/services/connector/</code>、<code>commands/connector.rs</code>、<code>src/lib/connector.ts</code>、设置 → 通用、<code>App.tsx</code> 监听 <code>connector:*</code>。<br />
+实现入口：<code>src-tauri/src/services/connector/</code>、<code>commands/connector.rs</code>、<code>src/lib/paper/import/connector.ts</code>、设置 → 通用、<code>App.tsx</code> 监听 <code>connector:*</code>。<br />
 <strong>HTTP 覆盖总表</strong>：见本文 <a href="#45-上游-api-覆盖总表实现-vs-缺口">§4.5</a>。<br />
 相关：<a href="../identifier-lookup/"><code>identifier-lookup.md</code></a>（魔棒入库与 <code>map_zotero_item</code>）、<a href="../paper-import-pipeline/"><code>paper-import-pipeline.md</code></a>（与其它入库入口的统一 <code>paper_commit</code> 方案）、<a href="../catalog/"><code>catalog.md</code></a>、<a href="../api/"><code>api.md</code></a>、<a href="../data-model/"><code>data-model.md</code></a>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../development/roadmap/"><code>../development/roadmap.md</code></a>、<a href="../../development/todo/"><code>../development/todo.md</code></a>。</p>
 </blockquote>
@@ -1314,7 +1314,7 @@ listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems 
 </tr>
 <tr>
 <td>前端</td>
-<td><code>settings-window.tsx</code>、settings store、<code>App.tsx</code> 或 layout 事件</td>
+<td><code>settings/settings-window.tsx</code>、settings store、<code>App.tsx</code></td>
 </tr>
 <tr>
 <td>i18n</td>

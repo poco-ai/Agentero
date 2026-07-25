@@ -424,7 +424,7 @@
 <li><strong>显示条件（Zap）</strong>：本地资源齐全且 catalog <strong><code>is_read === false</code></strong>（与 Download 互斥）。</li>
 <li><strong>自动触发</strong>：<code>lookup_import</code>（魔棒）或单篇 <code>paper_download_assets</code> 成功且 PDF/TeX/<code>PAPER.md</code> 任一可读正文/归档就绪时，前端 <code>maybeAutoRunPaperReader</code> 自动跑同一工作流（批量 Library 导入/批量 Download <strong>不</strong>自动连跑，避免并发炸 Agent）。</li>
 <li><strong>手动</strong>：点击 Zap → 同上。</li>
-<li><strong>实现</strong>：<code>src/lib/paper-read.ts</code> → <code>agent_run_once</code> + skill（<strong><code>hideFromChatHistory: true</code></strong>，不进 Agent 对话记录）；Codex <code>$paper-reader</code> / Claude <code>/paper-reader</code> / 其它注入 <code>SKILL.md</code> → 写 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>；进度在左下角后台任务条。</li>
+<li><strong>实现</strong>：<code>src/lib/paper/reader.ts</code> → <code>agent_run_once</code> + skill（<strong><code>hideFromChatHistory: true</code></strong>，不进 Agent 对话记录）；Codex <code>$paper-reader</code> / Claude <code>/paper-reader</code> / 其它注入 <code>SKILL.md</code> → 写 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>；进度在左下角后台任务条。</li>
 <li><strong>进度</strong>：左下角后台任务条——入库/下载阶段 <code>kind=lookup|download</code>（分阶段 detail/progress），随后精读 <code>kind=paperRead</code>。</li>
 </ul>
 <p>UI 阅读：优先 catalog 远程 URL；<code>source/</code> 为 arXiv TeX 归档；<code>PAPER.md</code> 为无 TeX 时的派生正文。</p>

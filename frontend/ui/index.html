@@ -90,7 +90,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#31-macos-apple-hig">3.1 快捷键（对齐 macOS / Apple HIG 习惯）</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#311-roadmap-v06">3.1.1 文档标签页（已落地）与分屏（规划，roadmap V0.6）</a>
+    <li class="toctree-l3"><a class="reference internal" href="#311-dockview-v06">3.1.1 全局 Dockview 工作区（V0.6 已落地）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#312-pdf">3.1.2 规划：PDF 引用与插图</a>
     </li>
@@ -215,7 +215,7 @@
 <li><strong>禁止</strong>用自研 <code>src/components/ai/*</code> 或官方 <code>ui/message</code>+<code>bubble</code> 搭新 Chat。</li>
 <li>视觉原则：<strong>尽量简约，减少不必要的元素</strong>。</li>
 <li>外观跟随 <strong>System / Light / Dark</strong>（<code>next-themes</code>，设置 → Appearance）。</li>
-<li><strong>配色主题（tweakcn 预设）</strong>：设置 → Appearance <code>uiTheme</code>（默认 <code>default</code> = index.css 内置外观）。全部 tweakcn 主题（36 个）打包在 <code>src/themes/tweakcn.json</code>（仅颜色 + radius，不覆盖字体/阴影），运行时经 <code>src/lib/ui-theme.ts</code> <code>applyUiTheme</code> 在 <code>&lt;head&gt;</code> 末尾注入 <code>:root</code> / <code>.dark</code> 变量覆盖；跨窗口经 <code>settings:changed</code> 同步。刷新主题数据：<code>node scripts/fetch-tweakcn-themes.mjs</code>。</li>
+<li><strong>配色主题（tweakcn 预设）</strong>：设置 → Appearance <code>uiTheme</code>（默认 <code>default</code> = index.css 内置外观）。全部 tweakcn 主题（36 个）打包在 <code>src/themes/tweakcn.json</code>（仅颜色 + radius，不覆盖字体/阴影），运行时经 <code>src/lib/ui/theme.ts</code> <code>applyUiTheme</code> 在 <code>&lt;head&gt;</code> 末尾注入 <code>:root</code> / <code>.dark</code> 变量覆盖；跨窗口经 <code>settings:changed</code> 同步。刷新主题数据：<code>node scripts/fetch-tweakcn-themes.mjs</code>。</li>
 <li><strong>界面缩放（UI Scale）</strong>：设置 → Appearance <code>uiScale</code>，提供 5 档预设：80% / 90% / 100% / 125% / 150%（默认 100%）。通过设置 <code>&lt;html&gt;</code> 的 <code>font-size</code> 缩放整个界面（标题栏、侧边栏、内容区、编辑器同步放大/缩小）。工具栏按钮与标题栏随全局缩放一起调整，不再使用单独的 <code>toolbarIconSize</code>。macOS 下新建窗口会根据当前 <code>uiScale</code> 重新计算 traffic light 位置；主窗口仍使用 <code>tauri.conf.json</code> 的固定位置。</li>
 </ul>
 <h2 id="2-vs">2. 文案 vs 图标<a class="headerlink" href="#2-vs" title="Permanent link">&para;</a></h2>
@@ -247,9 +247,9 @@
 </table>
 <h3 id="21">2.1 侧边栏文件树<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
 <ul>
-<li>树 UI：<strong>AI Elements</strong> <code>FileTree</code>（业务包装：<code>src/components/vault/file-tree.tsx</code>；约定见 <code>docs/frontend/components.md</code>）。</li>
+<li>树 UI：<strong>AI Elements</strong> <code>FileTree</code>（业务包装：<code>src/components/sidebar/file-tree.tsx</code>；约定见 <code>docs/frontend/components.md</code>）。</li>
 <li><strong>性能（虚拟化）</strong>：树把可见节点<strong>拍平为一维列表 + 窗口化</strong>（<code>@tanstack/react-virtual</code>），只渲染视口内的行；FileTree 自持滚动容器（<code>treeScrollRef</code>），折叠文件夹用扫平行组件 <code>FileTreeFolderRow</code>（<code>ai-elements/file-tree.tsx</code>）。避免大 Vault（成百上千篇）时常驻海量 DOM，以及选中/展开/拖拽时的全树重渲染。</li>
-<li><strong>建树策略（懒加载）</strong>（<code>src/lib/vault.ts</code> <code>loadVaultTree</code> / <code>listVaultDirChildren</code>）：</li>
+<li><strong>建树策略（懒加载）</strong>（<code>src/lib/vault</code> <code>loadVaultTree</code> / <code>listVaultDirChildren</code>）：</li>
 <li><strong>全量递归（eager）</strong>：<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agents/</code>（产品面：paper marker、笔记、skill）。</li>
 <li><strong>浅层 + 按需</strong>：Vault 根下其它目录（如 <code>src/</code>、<code>thesis/</code>、<code>scripts/</code>）打开时只 list <strong>一层内容</strong>（文件 + 子目录壳），子目录标 <code>childrenPending</code>；<strong>展开子目录</strong>时再 list 一层（可继续下钻）。不展开则不再往下扫。</li>
 <li><strong>永不解析</strong>：<code>TREE_IGNORE_NAMES</code>（<code>.git</code>、<code>.agentero</code>、<code>.venv</code>、<code>node_modules</code>、<code>__pycache__</code>、<code>site-packages</code>、<code>.codex</code> 等）以及其它以 <code>.</code> 开头的项（例外：<code>.agents</code>、<code>.env.example</code>）和 <code>*.egg-info</code> <strong>直接跳过</strong>，不进入树、不发 SFTP list。</li>
@@ -257,7 +257,7 @@
 <li><strong>默认展开</strong>：打开 Vault 时<strong>只</strong>展开 <code>papers/</code> 及其<strong>一级</strong>子目录（组织文件夹），其余（<code>notes/</code>、更深层 org 等）默认折叠；paper 文件夹始终作叶子、不展开。树刷新<strong>不</strong>重置用户展开状态。</li>
 <li><strong>根目录加载态</strong>：打开 Vault 后根目录尚未加载完成时保留虚拟 Library / Recycle Bin，并显示文件夹行 shimmer 骨架；仅在加载完成且 Vault 确实为空时显示「暂无文件夹」。</li>
 <li><strong>选中同步 / 定位</strong>：激活文档变化时（切换标签、从 Library 打开 paper、打开图片或其他文件、<strong>魔棒 / 本地 PDF 入库完成后 <code>openPaper</code></strong>），树将高亮对应行（paper 内任意文件 → 该 paper 叶子；其它路径 → 自身或最近祖先），<strong>自动展开祖先文件夹</strong>并 <code>scrollToIndex</code>（<code>align: "center"</code>）滚入视口。树刷新后若目标行尚未出现在拍平行中，会重新展开祖先再滚一次（覆盖入库刚写入磁盘的竞态）。</li>
-<li><strong>Paper 行标签</strong>（展示用，不改磁盘名）：默认 <strong>标题 · 作者</strong>（catalog <code>title</code> / <code>authors</code>）；设置 → <strong>通用 → 文件树论文显示</strong> 可选：<code>标题 · 作者</code> / <code>标题</code> / <code>作者 (年份) · 标题</code> / <code>文件夹名</code>。无元数据时回退文件夹名。实现：<code>formatPaperTreeLabel</code>（<code>src/lib/paper-metadata.ts</code>），偏好 <code>paperTreeLabelMode</code>（XDG <code>settings.json</code>）。</li>
+<li><strong>Paper 行标签</strong>（展示用，不改磁盘名）：默认 <strong>标题 · 作者</strong>（catalog <code>title</code> / <code>authors</code>）；设置 → <strong>通用 → 文件树论文显示</strong> 可选：<code>标题 · 作者</code> / <code>标题</code> / <code>作者 (年份) · 标题</code> / <code>文件夹名</code>。无元数据时回退文件夹名。实现：<code>formatPaperTreeLabel</code>（<code>src/lib/paper</code>），偏好 <code>paperTreeLabelMode</code>（XDG <code>settings.json</code>）。</li>
 <li>
 <p><strong>文件树排序</strong>（展示用，不改名不移动）：默认 <strong>显示名称 A–Z</strong>（与「论文显示」<code>paperTreeLabelMode</code> 一致，按树中所见标签排序，而非磁盘文件夹名）；设置 → <strong>通用 → 文件树论文排序</strong> 可选：<code>显示名称 A–Z</code> / <code>标题 A–Z</code> / <code>作者 A–Z</code> / <code>年份（新→旧）</code> / <code>年份（旧→新）</code> / <code>添加时间（新→旧）</code>。同目录下目录优先于文件；元数据排序时组织文件夹在前（按名）、paper 按所选键（缺元数据回退显示名，年份/添加时间缺失排最后）。实现：<code>sortFileTreeNodes</code>，偏好 <code>paperTreeSortMode</code> + <code>paperTreeLabelMode</code>。</p>
 </li>
@@ -282,13 +282,13 @@
 <li><strong>内联新建进行中</strong>时，顶栏魔棒 <strong>保持可点</strong>；仅在全局 <code>busy</code> 或文献导入进行中时禁用。</li>
 <li><strong>回收站入口</strong>：文件树中 <strong>Library 下方</strong> 虚拟节点 <code>Trash2</code>（不在侧栏 Header）；点击后中间栏打开 <code>RecycleBinView</code>（见「删除」）。</li>
 <li><strong>刷新文件树</strong>不在侧边栏：使用菜单 <strong>File → Refresh File Tree</strong>（<code>⌘R</code>）。</li>
-<li><strong>在系统文件管理器中显示</strong>（<code>revealItemInDir</code> / <code>src/lib/reveal.ts</code>）：</li>
+<li><strong>在系统文件管理器中显示</strong>（<code>revealItemInDir</code> / <code>src/lib/vault/reveal.ts</code>）：</li>
 <li><strong>右键</strong>真实文件 / 文件夹 / paper 行 → 上下文菜单「在 Finder 中显示」（文案随平台切换；旁注 <code>⌥⌘R</code>）。</li>
 <li><strong><code>⌥⌘R</code></strong>：对当前选中路径执行相同操作（<code>shortcuts.ts</code> → <code>revealInFinder</code>）。</li>
 <li><strong>不</strong>绑定双击（单击选中 / 打开文档；双击不触发 Finder）。</li>
 <li>虚拟节点 <strong>Library</strong>（<code>agentero:library</code>）不提供此操作（Library 右键仅 <strong>导出论文库</strong>）；仅桌面端可用。</li>
 <li><strong>导出论文库</strong>（侧栏虚拟 Library 节点右键）：<code>paper_export</code> → Translator <code>/export?format=bibtex</code> → 保存 <code>.bib</code>。</li>
-<li><strong>在终端中打开</strong>（Host <code>path_open_in_terminal</code> / <code>src/lib/reveal.ts</code> <code>openInTerminal</code>）：</li>
+<li><strong>在终端中打开</strong>（Host <code>path_open_in_terminal</code> / <code>src/lib/vault/reveal.ts</code> <code>openInTerminal</code>）：</li>
 <li><strong>右键</strong>真实文件 / 文件夹 / paper 行 →「在终端中打开」（旁注 <code>⌥⌘T</code>）。</li>
 <li><strong><code>⌥⌘T</code></strong>：对当前选中路径执行相同操作（<code>shortcuts.ts</code> → <code>openInTerminal</code>）。</li>
 <li><strong>文件夹</strong>（含 paper 目录）：终端 cwd 为该目录本身。</li>
@@ -327,14 +327,14 @@
 <ul>
 <li><strong>组件</strong>：shadcn Sonner（<code>src/components/ui/sonner.tsx</code>），在 <code>main.tsx</code> 挂载 <code>&lt;Toaster /&gt;</code>。</li>
 <li><strong>位置</strong>：<code>top-right</code>，<code>offset</code> 避开标题栏；可关闭（<code>closeButton</code>），最多叠 5 条。</li>
-<li><strong>API</strong>：<code>src/lib/notify.ts</code></li>
+<li><strong>API</strong>：<code>src/lib/core/notify.ts</code></li>
 <li><code>notifyError(message)</code> — 操作失败（打开 Vault、删除、入库、下载、设置 Agent 等）</li>
 <li><code>notifyWarning(message)</code> — 软失败 / 部分成功</li>
 <li><code>notifySuccess(message)</code> — 少用（避免成功噪音）</li>
 <li><code>errorMessage(err)</code> — <code>catch</code> 值转可读字符串</li>
 <li><strong>约定</strong>：跨页面的<strong>操作失败</strong>统一 toast；<strong>表单字段校验</strong>（如树内联新建命名、Popover 内输入）仍可就地 <code>text-destructive</code>。</li>
 <li><strong>禁止</strong>再在侧栏 header 下挂常驻 error 条（已移除）。</li>
-<li><strong>诊断日志</strong>（非 UX）：<code>src/lib/logger.ts</code> + Host <code>tauri-plugin-log</code>；关键操作 <code>op start</code> / <code>op end</code>。看日志方式见 <a href="../../development/logging/"><code>../development/logging.md</code></a>。失败时仍应 toast，logger 不替代本小节。</li>
+<li><strong>诊断日志</strong>（非 UX）：<code>src/lib/core/logger.ts</code> + Host <code>tauri-plugin-log</code>；关键操作 <code>op start</code> / <code>op end</code>。看日志方式见 <a href="../../development/logging/"><code>../development/logging.md</code></a>。失败时仍应 toast，logger 不替代本小节。</li>
 </ul>
 <h3 id="22-vault">2.2 无 Vault 欢迎页<a class="headerlink" href="#22-vault" title="Permanent link">&para;</a></h3>
 <p>当当前窗口未打开 Vault 时，中间栏显示欢迎页（<code>src/components/shell/vault-welcome.tsx</code>）：</p>
@@ -348,7 +348,7 @@
 <li>点选最近<strong>本地</strong>路径时若目录不存在：提示错误并从列表剔除。</li>
 </ul>
 <h3 id="221-vault">2.2.1 侧栏切换知识库（有 Vault 时）<a class="headerlink" href="#221-vault" title="Permanent link">&para;</a></h3>
-<p>左侧文件树顶栏标题（<code>VaultSidebarHeader</code>，<code>src/components/vault/file-tree.tsx</code>）为下拉菜单：</p>
+<p>左侧文件树顶栏标题（<code>VaultSidebarHeader</code>，<code>src/components/sidebar/file-tree.tsx</code>）为下拉菜单：</p>
 <table>
 <thead>
 <tr>
@@ -420,7 +420,7 @@
 </tr>
 </tbody>
 </table>
-<p><strong>窗口与路径状态</strong>（<code>src/lib/vault.ts</code>、<code>src/lib/remote-vault.ts</code>）：</p>
+<p><strong>窗口与路径状态</strong>（<code>src/lib/vault</code>、<code>src/lib/vault/remote/remote-vault.ts</code>）：</p>
 <table>
 <thead>
 <tr>
@@ -469,7 +469,7 @@
 <tbody>
 <tr>
 <td>实现</td>
-<td><code>src/lib/overlay-stack.ts</code>；React 接入 <code>src/hooks/use-overlay-registration.ts</code>（<code>useOverlayRegistration</code> / <code>useAnyOverlayOpen</code>）</td>
+<td><code>src/lib/core/overlay-stack.ts</code>；React 接入 <code>src/hooks/use-overlay-registration.ts</code>（<code>useOverlayRegistration</code> / <code>useAnyOverlayOpen</code>）</td>
 </tr>
 <tr>
 <td>注册</td>
@@ -523,7 +523,7 @@
 <p><strong>新弹层约定</strong>：在 Dialog / 全屏 sheet 内调用 <code>useOverlayRegistration("stable-id", open, () =&gt; onOpenChange(false))</code> 即可自动支持 <code>Esc</code> / <code>⌘W</code>。<strong>不</strong>把普通 Popover / Tooltip / 树内联重命名注册进栈。</p>
 <p>单测：<code>test/overlay-stack.test.ts</code>。</p>
 <ul>
-<li>工作台默认 <strong>三栏</strong>：文件树 + 中间内容 + 可选右侧栏（Agent / Backlinks）。中间内容为<strong>文档标签页</strong>（浏览器式多 tab，见 §3.1.1），Notes 随激活文档切换。</li>
+<li>工作台默认 <strong>三栏</strong>：文件树 + 中间 <strong>Dockview 工作区</strong> + 可选右侧栏（Agent / Backlinks）。文档 panel 由 dockview 管理（见 §3.1.1 / <a href="../../development/tab-split/"><code>../development/tab-split.md</code></a>）；论文 NOTES 为同组 sibling panel，非独立右列。</li>
 <li><strong>论文库表格</strong>（<code>src/components/library/papers-library.tsx</code>）：</li>
 <li><strong>入口</strong>：<ol>
 <li>虚拟节点 <code>agentero:library</code> → <strong>全库</strong>（清除 <code>libraryScopePath</code>）；</li>
@@ -537,7 +537,7 @@
 <li><strong>打开文档加载态</strong>：论文、PDF、HTML 或 Markdown tab 资源尚未加载完成时显示内容 shimmer 骨架；不显示论文库空态。</li>
 <li><strong>列</strong>：标题、作者、年份、<strong>标签</strong>、类型、标识符；<strong>单击</strong>单元格复制对应字段（作者复制完整列表，非 et al. 缩写；标题下出版物单独可复制；行内标签 chip 复制该标签；复制<strong>短延迟提交</strong>，双击打开论文时取消，避免与双击冲突）；<strong>双击</strong>行打开对应 paper 文件夹。</li>
 <li><strong>列自定义</strong>（顺序 + 显隐）：<strong>右键表头</strong>弹出上下文菜单勾选显示/隐藏列；<strong>拖拽表头</strong> <code>&lt;th&gt;</code> 改变列顺序（拖拽时列半透明、落点高亮）；菜单底部「重置列」恢复默认。<strong>标题列不可隐藏</strong>（承载阅读热力与出版物副标题，勾选框禁用且 normalize 强制可见）；表格使用固定布局和各列固定权重，标题列约占 32%，标题正文单行显示，超出以省略号截断，悬浮仍可查看完整标题。布局持久化到 <code>settings.json</code> 的 <code>libraryColumns</code>（<code>LibraryColumnPref[] = {key, visible}[]</code>，数组顺序即显示顺序），前后端均 reconcile（去重、丢未知 key、补新列为可见、强制 title 可见）。实现：<code>COLUMN_META</code> + <code>colgroup</code> + <code>renderCell</code> 按 key 渲染；右键菜单基于 <code>src/components/ui/context-menu.tsx</code>（radix <code>ContextMenu</code>）。</li>
-<li><strong>阅读热力（标题背景）</strong>：聚合该篇 <code>marks/</code>（<code>kind</code>: highlight / ask / translate）的<strong>页码 + 页内 y</strong>，画成<strong>标题文字横向背景脊条</strong>（左=文首、右=文末；局部深浅=该位置交互强度）。颜色为 <strong>Apple system green</strong> 浅色洗（<code>oklch(0.65 0.17 145)</code> ≈ <code>#34C759</code>，与标签 green 同系，低比例 <code>color-mix</code> 保持浅色不抢眼）。悬停标题可看高亮 / 对话 / 翻译分项。可选 <code>reading-meta.json</code> 记录 PDF 总页数以对齐全文跨度。实现：<code>src/lib/reading-heatmap/</code>、<code>ReadingTitleHeat</code>。</li>
+<li><strong>阅读热力（标题背景）</strong>：聚合该篇 <code>marks/</code>（<code>kind</code>: highlight / ask / translate）的<strong>页码 + 页内 y</strong>，画成<strong>标题文字横向背景脊条</strong>（左=文首、右=文末；局部深浅=该位置交互强度）。颜色为 <strong>Apple system green</strong> 浅色洗（<code>oklch(0.65 0.17 145)</code> ≈ <code>#34C759</code>，与标签 green 同系，低比例 <code>color-mix</code> 保持浅色不抢眼）。悬停标题可看高亮 / 对话 / 翻译分项。可选 <code>reading-meta.json</code> 记录 PDF 总页数以对齐全文跨度。实现：<code>src/lib/paper/reading-heatmap/</code>、<code>ReadingTitleHeat</code>。</li>
 <li><strong>标签</strong>：行内 tag 单击复制该标签。标题搜索同时匹配 tag 子串（无表上方 chip 筛选条）。</li>
 <li><strong>排序</strong>：点击表头升序 / 降序；年份列首次为降序；文字列默认升序。</li>
 <li><strong>滚动</strong>：<code>.agentero-scroll-both</code>；表格 <code>w-max min-w-full</code>。</li>
@@ -546,53 +546,31 @@
 <li><strong>导入</strong>（Upload）：魔棒 Popover 左下角 → <code>paper_import</code>。</li>
 <li><strong>从 Zotero 迁移</strong>：仅<strong>全库</strong>视图工具栏。</li>
 <li><strong>Paper Info / Notes——仅具体论文</strong>：</li>
-<li><strong>左侧 Paper Info</strong>（<code>paper-info-panel</code>）：仅当存在 <code>paperMeta</code>（选中 paper 文件夹）时渲染；论文库 / 普通笔记时隐藏。展开时顶部边框为<strong>纵向拖拽把手</strong>（可键盘 ↑/↓，Shift 加速），调节内容区高度（120–560px，localStorage <code>agentero.paperInfoHeight</code> 持久化）；作者与摘要不再行数截断，超出滚动。<strong>Tags</strong> 可编辑：输入框在 chip 上方（多标签时无需先滚动）；输入框<strong>右侧圆形色点</strong>打开上方色盘（Apple 风格预置 8 色：<code>red</code>/<code>orange</code>/<code>yellow</code>/<code>green</code>/<code>teal</code>/<code>blue</code>/<code>indigo</code>/<code>purple</code> + 默认）；有色标签前导小圆点且 chip 背景/文字染色，未选色则默认 <code>muted</code>。回车添加、chip 上 × 删除 → Host <code>paper_set_tags</code>（catalog 权威；<code>tags_json</code> 可为 <code>"name"</code> 或 <code>{"name","color"}</code>，同步 <code>metadata.json</code>）。<code>loadPaperMetadata</code> 会注入 vault-relative <code>path</code>（<code>metadata.json</code> 投影本身不含 path），Zotero 导入等路径也可持续编辑。</li>
-<li><strong>Notes（WYSIWYG，无独立预览栏）</strong>：中心切换为 Notes 时全宽编辑 <code>NOTES.md</code>；中心为 PDF/HTML 时右侧栏显示同一篇 <code>NOTES.md</code> 实时编辑。论文库视图或未选论文时隐藏。</li>
-<li><strong>格式工具栏（WYSIWYG toolbar）</strong>：<code>MarkdownEditor</code> 顶部可选的固定工具栏（<code>editor-toolbar.tsx</code>），提供标题（H1–H3）、引用、加粗 / 斜体 / 下划线 / 删除线 / 行内代码 / 高亮、无序 / 有序 / 待办列表、<strong>插入图片</strong>等常用格式按钮，无需手写 Markdown 即可排版。由全局设置 <code>showEditorToolbar</code>（默认开）控制，Notes 面板 header 右侧另有 <code>PanelTop</code> 一键显示 / 隐藏；只读时不渲染。所有按钮均有 <code>aria-label</code> + Tooltip，i18n <code>editor:toolbar.*</code>。</li>
-<li><strong>编辑体验</strong>：有序 / 无序列表经 Plate list 插件可正常编辑；文本选区为中性色（非高饱和系统蓝）；文档末与图片后保持可点 trailing paragraph，便于点到最后一行并继续输入。</li>
-<li><strong>Markdown 图片</strong>（已落地）：<ul>
-<li><strong>插入</strong>：粘贴剪贴板图 / 工具栏「插入图片」→ 二进制写入当前 <code>.md</code> 旁 <code>{mdDir}/assets/</code> → 正文 <code>![alt](./assets/…)</code>（不写 base64）。</li>
-<li><strong>预览</strong>：相对路径解析为 <code>blob:</code> 位图；<strong>选中</strong>时保留位图 + ring，下方显示 monospace Markdown 源码（不再用源码替换图片）。</li>
-<li><strong>删除</strong>：节点离开文档且 managed <code>./assets/</code> 引用计数归零 → <strong>延迟 GC</strong>（~15s，剪切粘贴/撤销可取消；关编辑器 flush）→ 刷新文件树（<code>onAssetsChanged</code>）。</li>
-<li>实现：<code>src/lib/markdown-image.ts</code>、<code>markdown-editor.tsx</code>、<code>image-node.tsx</code>、<code>editor-toolbar.tsx</code>；i18n <code>editor:toolbar.image</code> / <code>editor:image.*</code>。</li>
-<li>数据约定：<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>「Markdown 内嵌图片」。</li>
-</ul>
-</li>
-<li><strong>Notes 显示开关 / 快速打开</strong>：<code>showNotes</code>（默认显示）控制右侧 Notes 栏是否挂载。看 PDF/HTML 时，中间栏 header 右侧提供 <code>NotebookPen</code> 快捷开关（一键显示/隐藏 Notes）；全局入口则在标题栏 <strong>Layout 菜单</strong>（见下）；<code>⌘3</code> 聚焦 Notes（隐藏时先显示再聚焦）。关闭当前标签走标题栏标签页上的 <code>X</code> 或 <code>⌘W</code>（有弹层时 <code>⌘W</code> 先关弹层，见 §3.0）。</li>
+<li><strong>左侧 Paper Info</strong>（<code>sidebar/paper-info-panel</code>）：仅当存在 <code>paperMeta</code>（选中 paper 文件夹）时渲染；论文库 / 普通笔记时隐藏。展开时顶部边框为<strong>纵向拖拽把手</strong>（可键盘 ↑/↓，Shift 加速），调节内容区高度（120–560px，localStorage <code>agentero.paperInfoHeight</code> 持久化）；作者与摘要不再行数截断，超出滚动。<strong>Tags</strong> 可编辑：输入框在 chip 上方；输入框<strong>右侧圆形色点</strong>打开色盘（Apple 风格 8 色 + 默认）；回车添加、chip 上 × 删除 → Host <code>paper_set_tags</code>（catalog 权威；<code>tags_json</code> 可为 <code>"name"</code> 或 <code>{"name","color"}</code>）。</li>
+<li><strong>Notes（WYSIWYG）</strong>：作为 <strong>dockview panel</strong> 打开 <code>NOTES.md</code>（论文默认与 PDF 同组 sibling tab）；非独立右侧 Notes 列。论文库视图或未选论文时不自动开 NOTES。</li>
+<li><strong>格式工具栏（WYSIWYG toolbar）</strong>：<code>MarkdownEditor</code> 顶部可选固定工具栏（<code>editor-toolbar.tsx</code>）：标题、引用、加粗/斜体等、列表、<strong>插入图片</strong>。全局设置 <code>showEditorToolbar</code>（默认开）；只读时不渲染。i18n <code>editor:toolbar.*</code>。</li>
+<li><strong>编辑体验</strong>：Plate list 可编辑；文本选区中性色；文档末与图片后保持 trailing paragraph。</li>
+<li><strong>Markdown 图片</strong>（已落地）：粘贴/工具栏 → <code>{mdDir}/assets/</code> + <code>![](./assets/…)</code>；选中显示源码；删节点且无引用时延迟 GC。实现：<code>src/lib/markdown/image.ts</code>；约定见 <a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>。</li>
+<li><strong>Notes 开关</strong>：Layout 菜单 / 快捷键切换当前论文的 NOTES panel（<code>toggleNotesSplit</code>）；<code>⌘3</code> 聚焦 Notes（未开则先打开）。关闭文档 panel 走 dockview tab <code>X</code> 或 <code>⌘W</code>（有弹层时先关弹层，见 §3.0）。</li>
 <li><strong>⌘L</strong> 显示 / 隐藏右侧栏；右侧栏入口为 <strong>Agent</strong> 与 <strong>Backlinks</strong>。</li>
-<li><strong>Layout 菜单</strong>（标题栏 <code>PanelsTopLeft</code> 图标，<code>src/components/shell/layout-menu.tsx</code>）：集中式面板可见性开关（对齐 VS Code「Customize Layout」）。以复选项反映并切换 <strong>左侧边栏 / Notes / 右侧边栏 / 禅模式</strong>，各项显示对应快捷键；Notes 项仅在打开论文 PDF/HTML 时可用；切换时菜单保持打开。i18n <code>app:titlebar.layout*</code>。</li>
-<li>Backlinks 入口内采用上下分区：上方反链列表，下方 Graph。Graph 不再是独立顶层 tab。</li>
-<li><strong>Agent 禅模式</strong>（quest / Cursor Agents Window 心智，<code>⌥⌘Z</code> 或标题栏 <strong>Layout / 面板</strong> 菜单中的禅模式项）：</li>
-<li>进入后：折叠左栏与中间主栏，右栏 Agent 铺满；系统标题栏仅拖拽区 + <strong>返回</strong>（<code>ArrowLeft</code>，不再用关闭 <code>X</code>）；隐藏后台任务条与 Notes；Agent 面板头<strong>无</strong>重复退出按钮。</li>
-<li><strong>同一</strong> <code>AgentPanel</code> 实例保持挂载（CSS 切换 / 不 remount），会话与流式状态不丢。</li>
-<li><strong>布局</strong>（<code>variant="zen"</code>）：<ul>
-<li><strong>左侧栏</strong>（Quest 式弱对比）：浅灰底；顶部 pill「新建会话」；下方静音分区标题 + <strong>单行</strong>历史标题列表（当前会话高亮；运行中小绿点）。无「外部会话」开关；无 agent/状态/时间元信息堆叠。</li>
-<li><strong>主区顶栏</strong>：仅 <strong>Agent 切换</strong>（<strong>无</strong> 1/2/3 会话数字标签页；历史切换走左侧列表或侧栏 History 弹出层）。</li>
-<li><strong>对话区</strong>（AI Elements）：<code>Conversation</code> 视口<strong>全宽</strong>（滚动条贴主区最右，<code>agentero-scroll</code>）；消息 / Composer 内容 <code>max-w-2xl</code> 居中；空态垂直居中；组件：<code>Message</code> / <code>Reasoning</code> / <code>Plan</code> / <code>Tool</code> / <code>PromptInput</code> / <code>Suggestion</code> / <code>Sources</code> / <code>Checkpoint</code> 等。</li>
-</ul>
-</li>
-<li><strong>侧栏模式</strong>（非禅）：顶栏仍为 Agent 切换 + 新建 + History 弹出层；无 1/2/3 数字标签。</li>
-<li><strong>历史过滤</strong>：精读 <code>paper_reader</code>、PDF 划词提问等非 Composer 工作流传 <code>hideFromChatHistory</code>，不写入会话历史、不出现在对话记录；进度只走左下角后台任务条。</li>
-<li>退出：标题栏 <strong>返回图标</strong>，或再次 <code>⌥⌘Z</code>；恢复进入前左栏折叠意图与右栏默认宽度。</li>
+<li><strong>Layout 菜单</strong>（标题栏 <code>PanelsTopLeft</code>，<code>src/components/shell/layout-menu.tsx</code>）：切换 <strong>左侧边栏 / Notes panel / 右侧边栏 / 禅模式</strong>；Notes 项仅在打开论文 PDF/HTML（或 NOTES 本身）时可用。i18n <code>app:titlebar.layout*</code>。</li>
+<li>Backlinks 入口内上下分区：上方反链，下方 Graph（非独立顶层 tab）。</li>
+<li><strong>Agent 禅模式</strong>（<code>⌥⌘Z</code> 或 Layout 菜单）：折叠左栏与中间主栏，Agent 全屏；标题栏仅拖拽 + 返回；隐藏后台任务条；<strong>同一</strong> <code>AgentPanel</code> 不 remount。禅模式布局见 §3.2 / components.md。</li>
 <li><strong>左右侧栏隔离</strong>（<code>react-resizable-panels</code>）：</li>
-<li>左栏（文件树）与右栏（Agent/Backlinks）均为 <strong>常驻 collapsible 面板</strong>（<code>collapsedSize=0</code>），用 <code>expand</code>/<code>collapse</code>/<code>resize</code> 切换，<strong>不要</strong>对右栏做条件卸载整块 <code>ResizablePanel</code>（否则 Group 重排会冲掉左栏折叠态）。</li>
-<li>两侧使用 <code>groupResizeBehavior="preserve-pixel-size"</code>，并把上次展开像素宽记入 ref；中间主栏保持默认相对尺寸。</li>
-<li>Notes 列仍随论文选中条件挂载（需真实 <code>defaultSize</code> 才能出现）；<code>showNotesOnRight</code> 变化后 rAF 再 assert 左右栏宽度/折叠意图，避免 Library ↔ paper 时左栏跳宽。</li>
-<li><strong>文档标签栏位置</strong>：标题栏<strong>无</strong>文档 tab 条；文档 tab 由中间栏 dockview 原生管理。中间栏仅保留 view mode / 文档标题工具行。</li>
-<li>各栏 header 等高：统一 <code>h-10</code>（<code>PaneHeader</code> / <code>PANE_HEADER_CLASS</code>），水平对齐；全局操作错误走右上角 toast（§2.1.2），不撑高标题栏。</li>
-<li>边距、分割线保持轻量；控件密度偏紧凑（icon-xs / icon-sm）。</li>
-<li><strong>面板分隔（sash）</strong>：对齐 VS Code / Cursor——默认 <strong>1px</strong> 细线，hover / 拖拽时略提亮；可点区域略宽但视觉不占粗条。实现见 <code>src/components/shell/resizable.tsx</code>。</li>
-<li><strong>独立滚动</strong>：侧边栏 / 中间内容 / 右侧 Notes <strong>各自</strong>滚动，顶栏固定；禁止整页连带滚动。</li>
-<li>默认竖向：<code>.agentero-scroll</code>（<code>overflow-x: hidden; overflow-y: auto</code>）。</li>
-<li>需双向滚动（论文库表）：<code>.agentero-scroll-both</code>。</li>
-<li><strong>中间栏视图切换</strong>（纯图标 + Tooltip）：<strong>仅 PDF · HTML</strong>（<code>ViewModeToggle</code>）；无 PDF/HTML 时不显示切换。论文库视图下不显示。</li>
-<li>Notes / 普通 Markdown 文件：<strong>所见即所得富文本编辑</strong>（Plate），在 Notes 侧栏或打开 <code>.md</code> 时编辑；不占中间栏切换卡片。</li>
-<li><strong>保存</strong>：编辑防抖后 <strong>自动写回</strong> 磁盘 <code>.md</code>，<code>⌘S</code> 立即保存；有未保存更改时 pane header 显示小圆点。未发生真实编辑不会写盘（打开文件不触发保存）。</li>
-<li><strong>双链</strong>：<code>[[目标#标题|别名]]</code> 与 <code>![[嵌入]]</code> 由 <code>@flowershow/remark-wiki-link</code> 解析并 <strong>无损回写</strong>；渲染仍复用既有 exists/missing 样式与点击导航。</li>
-<li><strong>YAML frontmatter</strong> 按字节原样保留（不经 Plate 往返）；注意 Plate 会归一化部分 Markdown 风格（列表 <code>-</code>→<code>*</code>、斜体 <code>*</code>→<code>_</code>），内容语义不变。</li>
-<li>PDF / HTML / <strong>图片</strong> <strong>预览</strong>：<ul>
-<li><strong>PDF（任意路径）</strong>：Vault 内任意位置的 <code>.pdf</code>（根目录、<code>notes/</code>、paper 内嵌套文件等）均可直接打开；<code>readFile</code> → <code>blob:</code> → PDF.js（<strong>不用</strong> <code>convertFileSrc</code>/<code>asset://</code>）。</li>
-<li><strong>PDF（论文单元）</strong>额外链路：① 论文文件夹内本地 PDF（根目录 <code>{id}.pdf</code> 优先，兼容 <code>source/</code> 等嵌套）；② <strong>无本地 PDF</strong> 时自动 <code>paper_download_assets</code>；③ 失败回退 catalog 远程 <code>pdf_url</code>（或 <code>arxiv_id</code> 推导 URL）。点开 paper 内某一具体 <code>.pdf</code> 时优先该文件字节。</li>
+<li>左栏与右栏均为 <strong>常驻 collapsible</strong>（<code>collapsedSize=0</code>），用 <code>expand</code>/<code>collapse</code>/<code>resize</code> 切换，<strong>不要</strong>条件卸载整块右栏 <code>ResizablePanel</code>。</li>
+<li><code>groupResizeBehavior="preserve-pixel-size"</code>；上次展开像素宽记入 ref。</li>
+<li><strong>文档 tab 位置</strong>：标题栏<strong>无</strong>文档 tab；由中间栏 dockview 原生管理（见 §3.1.1）。</li>
+<li>各栏 header 等高：<code>h-10</code>（<code>PaneHeader</code>）；操作错误走右上角 toast（§2.1.2）。</li>
+<li><strong>面板分隔（sash）</strong>：默认 <strong>1px</strong> 细线；实现见 <code>src/components/ui/resizable.tsx</code>。</li>
+<li><strong>独立滚动</strong>：侧边栏 / 中间 dockview 内容 <strong>各自</strong>滚动，顶栏固定。</li>
+<li>默认竖向：<code>.agentero-scroll</code>；双向（论文库表）：<code>.agentero-scroll-both</code>。</li>
+<li><strong>中间栏视图</strong>：</li>
+<li>普通 Markdown / NOTES：<strong>Plate WYSIWYG</strong>；防抖自动保存 + <code>⌘S</code>；未真实编辑不写盘。</li>
+<li><strong>双链</strong>：<code>[[…]]</code> / <code>![[…]]</code> 经 remark-wiki-link 解析并无损回写。</li>
+<li><strong>YAML frontmatter</strong> 按字节保留；Plate 会归一化部分 Markdown 风格。</li>
+<li>PDF / HTML / <strong>图片</strong> 预览：<ul>
+<li><strong>PDF（任意路径）</strong>：Vault 内任意 <code>.pdf</code> → <code>readFile</code> → <code>blob:</code> → <strong>EmbedPDF / PDFium</strong>（<strong>不用</strong> <code>convertFileSrc</code>/<code>asset://</code>）。</li>
+<li><strong>PDF（论文单元）</strong>：① 本地根目录 <code>{id}.pdf</code> 优先；② 无本地时 <code>paper_download_assets</code>；③ 失败回退远程 <code>pdf_url</code>。</li>
 <li><strong>HTML</strong>：仍读远程 <code>html_url</code>（iframe）；本地 <code>.html</code> 文件尚无 file 沙盒预览。</li>
 <li><strong>图片</strong>：常见格式 <code>.png</code> / <code>.jpg</code> / <code>.jpeg</code> / <code>.gif</code> / <code>.webp</code> / <code>.bmp</code> / <code>.svg</code> / <code>.avif</code> / <code>.ico</code> → <code>readFile</code> → <code>blob:</code> → 中间栏 <code>ImageViewer</code>（居中 contain、可滚动）；任意 Vault 路径。</li>
 </ul>
@@ -604,13 +582,13 @@
 <li><code>source_url</code>: <code>https://arxiv.org/abs/{id}</code></li>
 </ul>
 </li>
-<li>若只有 <code>arxiv_id</code>，用 <code>src/lib/arxiv.ts</code> 推导远程 URL（作下载候选与 HTML/远程回退）</li>
-<li>PDF：本地经 <code>blob:</code>（fs <code>readFile</code>）/ 远程 <code>https</code> 由 PDF.js 渲染；HTML：独立 iframe 打开远程页；图片：<code>blob:</code> + <code>&lt;img&gt;</code></li>
+<li>若只有 <code>arxiv_id</code>，用 <code>src/lib/paper/arxiv.ts</code> 推导远程 URL（作下载候选与 HTML/远程回退）</li>
+<li>PDF：本地经 <code>blob:</code>（fs <code>readFile</code>）/ 远程 <code>https</code> 由 EmbedPDF（PDFium）渲染；HTML：独立 iframe 打开远程页；图片：<code>blob:</code> + <code>&lt;img&gt;</code></li>
 <li><strong>PDF 缩放</strong>（<code>PdfViewer</code>）：工具栏放大 / 缩小 / 重置 / <strong>适应宽度</strong>（<code>RotateCcw</code>，= 重置到 100%）/ <strong>适应整页</strong>（<code>MoveVertical</code>，缩放到整页高度铺满视口）；<code>⌘/Ctrl</code>+滚轮缩放；范围约 <strong>0.5×–3×</strong>；<strong>100% = 适应中间栏宽度</strong>（非固定 pt）；<strong>放大后</strong>缩放停下 ~160ms 后按<strong>真实比例</strong>重渲染页面（<code>width = 基准宽 × 缩放</code>、transform 归 1），文本层与画布同尺度 → 清晰且<strong>划词/高亮顺滑</strong>（对齐 Zotero），手势中以 transform 比值即时反馈；<strong>缩放后</strong>中间栏可<strong>双向滚动/平移</strong>（横向 + 纵向，<code>agentero-scroll-both</code>），滚轮缩放以光标为锚点。i18n <code>viewer:pdf.zoom*</code>。</li>
-<li><strong>PDF 性能（页面窗口化）</strong>：只给「当前页 ±4」（<code>PAGE_WINDOW</code>）渲染真实 <code>&lt;Page&gt;</code>（canvas + 文本层 + 批注层），其余为等高占位 div；<code>currentPage</code> 由 <code>IntersectionObserver</code> 跟踪、随滚动移动窗口。避免大 PDF（几十上百页）一次性挂载全部 canvas，并把缩放重渲染限制在窗口内。</li>
+<li><strong>PDF 性能</strong>：EmbedPDF Tiling / 视口渲染，按可见区域绘制；缩放与滚动由引擎插件处理。</li>
 <li><strong>PDF 页码导航</strong>：底部居中页码 pill（<code>‹ [当前页] / 总页数 ›</code>，输入数字回车跳页）；当前页用 <code>IntersectionObserver</code> 跟踪；键盘 <code>PageDown/PageUp</code> 翻页、<code>Home/End</code> 首/末页（PDF 区悬停或聚焦时生效，输入框内不拦截）；<strong>续读</strong>：按论文（路径）记住上次页码，重开自动续上（<code>pdf-reading-position.ts</code>，localStorage）。i18n <code>viewer:pdf.prevPage/nextPage/goToPage</code>。</li>
-<li><strong>PDF 大纲（书签）</strong>：有大纲时左上 <code>List</code> 按钮切换<strong>左侧浮层目录</strong>（<code>getOutline()</code> 读书签树；点条目经 <code>getDestination</code>/<code>getPageIndex</code> 解析跳页）；无大纲不显示。i18n <code>viewer:pdf.outline</code>。</li>
-<li><strong>PDF 文档内查找</strong>（<code>⌘/Ctrl+F</code>）：右上查找条（查询 + 命中计数 + 上/下一个 + <code>Esc</code> 关闭；<code>Enter</code>/<code>Shift+Enter</code> 循环）。<code>pdf-find.ts</code> 用 pdfjs <code>getTextContent</code> 逐页搜索（按页缓存）；命中滚动到该页并把该次出现映射回<strong>文本层 rects</strong> 高亮（复用 pdf-ask 归一化覆盖层），文本层未就绪时仅滚动。i18n <code>viewer:pdf.find*</code>。</li>
+<li><strong>PDF 大纲（书签）</strong>：有大纲时左上 <code>List</code> 切换左侧浮层目录（<code>@embedpdf/plugin-bookmark</code>）；点条目跳页；无大纲不显示。i18n <code>viewer:pdf.outline</code>。</li>
+<li><strong>PDF 文档内查找</strong>（<code>⌘/Ctrl+F</code>）：右上查找条（查询 + 命中计数 + 上/下一个 + <code>Esc</code> 关闭；<code>Enter</code>/<code>Shift+Enter</code> 循环）。EmbedPDF <code>/plugin-search</code>：查询条 + 命中计数 + 上/下一个；命中滚动并高亮。i18n <code>viewer:pdf.find*</code>。</li>
 <li><strong>PDF 沉浸式阅读</strong>（工具栏 <code>Maximize2</code> 进入 / <code>Minimize2</code> 或 <code>Esc</code> 退出）：折叠左右侧栏 + 隐藏中间栏头，PDF 铺满窗口；正文<strong>限宽 ≤ 1100px 居中</strong>（舒适阅读 + 两侧留白），缩放 / 页码 / 大纲 / 查找浮层照常；切到非 PDF tab 自动退出。i18n <code>viewer:pdf.zenEnter/zenExit</code>。</li>
 <li><strong>PDF 划词操作菜单</strong>（已落地，见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>）：<ul>
 <li>划词后在选区旁弹出操作菜单（图标 + Tooltip）：<strong>5 色色板 + 复制 / 笔记 / 提问 / 翻译</strong>（点色板 = 该色<strong>高亮</strong>；复制 / 笔记有内联确认）；选区以<strong>平滑蓝色覆盖层</strong>呈现（<code>selectionRectsByPage</code> 按行合并 rects + <code>SELECTION_CSS</code> 隐藏原生 <code>::selection</code>，对齐 Zotero、点掉即消）。双击 / 悬停停留仍直接开问答卡（页码上下文）。</li>
@@ -618,7 +596,7 @@
 </ul>
 </li>
 <li><strong>PDF 引用与插图（规划中）</strong>：本地 paper PDF 由 Host 生成 <code>source/agentero-cite.json</code>、<code>source/agentero-figures.json</code> 和 <code>source/agentero-figures/*.png</code>；右侧 <code>Paper Content</code> 展示 citations/figures。引用 hover 只高亮并预览，点击或侧栏操作跳至参考文献；figure card 跳至 PDF bbox。<code>@</code> 菜单和拖拽支持结构化 citation/figure context。完整契约见 <a href="../../backend/pdf-analysis/"><code>../backend/pdf-analysis.md</code></a>。</li>
-<li><strong>PDF/HTML 时右侧自动加载该篇 <code>NOTES.md</code></strong>（可编辑，自动保存 / <code>⌘S</code>）</li>
+<li><strong>PDF/HTML 时默认同组打开 <code>NOTES.md</code> panel</strong>（可编辑，自动保存 / <code>⌘S</code>；Layout 菜单可关）</li>
 <li><strong>HTML 沙盒</strong>：独立 <code>&lt;iframe&gt;</code>；arXiv 允许 scripts（对方 origin）；布局铺满中间栏</li>
 <li>无障碍：图标按钮必须有可访问名称；焦点环使用主题 <code>ring</code>。</li>
 </ul>
@@ -745,8 +723,23 @@
 </tr>
 <tr>
 <td><code>⌥⌘→</code> / <code>⌥⌘←</code></td>
-<td>下一 / 上一标签（<code>nextTab</code> / <code>prevTab</code>）</td>
-<td>在打开的文档标签间循环</td>
+<td>下一 / 上一 panel</td>
+<td>按 dockview <code>api.panels</code> <strong>全局</strong>视觉序循环（<code>cycleActive</code>）</td>
+</tr>
+<tr>
+<td><code>Ctrl+]</code> / <code>Ctrl+[</code></td>
+<td>组内下一 / 上一 tab</td>
+<td>dockview <code>keyboardNavigation</code>（当前聚焦 <strong>group 内</strong>）</td>
+</tr>
+<tr>
+<td><code>F6</code> / <code>Shift+F6</code></td>
+<td>下一 / 上一分屏 group</td>
+<td>dockview；<code>Ctrl+Shift+方向键</code> 按空间方向聚焦相邻 group</td>
+</tr>
+<tr>
+<td><code>Ctrl+M</code></td>
+<td>键盘停靠 panel</td>
+<td>dockview：武装 → 方向键选目标 → <code>Enter</code> / <code>Esc</code></td>
 </tr>
 <tr>
 <td><code>⌘L</code></td>
@@ -756,18 +749,18 @@
 <tr>
 <td><code>⌥⌘Z</code></td>
 <td>Agent 禅模式</td>
-<td>全屏仅 Agent 对话（quest / Agents Window 心智）；再按退出；<code>toggleAgentZen</code></td>
+<td>全屏仅 Agent 对话；再按退出；<code>toggleAgentZen</code></td>
 </tr>
 <tr>
 <td><code>⇧⌘I</code></td>
 <td>魔棒（按标识符添加）</td>
-<td>打开侧栏魔棒 Popover；<code>shortcuts.ts</code> → <code>magicWand</code>；设置 Keyboard 可见</td>
+<td>打开侧栏魔棒 Popover；<code>shortcuts.ts</code> → <code>magicWand</code></td>
 </tr>
 </tbody>
 </table>
 <ul>
 <li>在编辑区聚焦时同样生效；涉及浏览器保留键时需 <code>preventDefault</code>。</li>
-<li>快捷键清单以设置页 <strong>Keyboard</strong> 为准，实现见 <code>src/lib/shortcuts.ts</code>。</li>
+<li>快捷键清单以设置页 <strong>Keyboard</strong> 为准，实现见 <code>src/lib/shell/shortcuts.ts</code>；上表 dockview 组内 / 组间键由 <code>keyboardNavigation</code> 处理，不进 <code>shortcuts.ts</code>（避免与 App 全局循环双触发）。</li>
 <li><strong>魔棒</strong>（已落地 v0/v1）：侧栏 <code>WandSparkles</code> Popover；输入框为<strong>可变高度 textarea</strong>（最低约 2 行、最大高度限制，可滚动），支持一次粘贴多个标识符，以空格 / 逗号 <code>,</code> / 分号 <code>;</code> / 中文逗号 <code>，</code> / 中文分号 <code>；</code> / 换行分隔。提交后走 Host <code>lookup_import_batch</code> → Translator（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）→ 逐条解析、去重、入库。  </li>
 <li>目标目录：默认 <code>papers/</code>；当前在 Papers 子文件夹时写入该子路径。  </li>
 <li><strong>始终下载 PDF</strong> 到 <code>{paper}/{id}.pdf</code>（论文文件夹根目录）。  </li>
@@ -778,27 +771,30 @@
 <li><strong>论文行 Download</strong>：缺本地 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时显示；hover 列出原因 → <code>paper_download_assets</code>（已有资源跳过）。下载后若仍无 TeX 且有 PDF，Host 自动 liteparse 写 <code>PAPER.md</code>。Library 行可对库内全部不完整 paper <strong>批量</strong> Download。</li>
 <li><strong>论文行 Zap（精读）</strong>：资源齐全且 catalog <code>is_read === false</code> 时显示；点击<strong>手动</strong>启动 paper-reader（<code>agent_run_once</code> + skill；<strong>Claude 用 <code>/paper-reader</code>，其它（含 Codex）靠注入正文</strong>）→ 写/更新 <code>{paper}/NOTES.md</code> → <code>paper_set_is_read(true)</code>。若设置开启 <code>autoPaperReader</code>，魔棒 / 单篇 Download 成功后也会自动跑（批量不连跑）。进度在左下角后台任务条。</li>
 </ul>
-<h3 id="311-roadmap-v06">3.1.1 文档标签页（已落地）与分屏（规划，roadmap V0.6）<a class="headerlink" href="#311-roadmap-v06" title="Permanent link">&para;</a></h3>
-<p><strong>浏览器式文档标签页</strong>（<code>src/components/workspace/tab-workspace.tsx</code>、模型 <code>src/lib/tabs.ts</code>）位于<strong>窗口标题栏</strong>（与 Layout / 侧栏图标同行）：</p>
+<h3 id="311-dockview-v06">3.1.1 全局 Dockview 工作区（V0.6 已落地）<a class="headerlink" href="#311-dockview-v06" title="Permanent link">&para;</a></h3>
+<p>中间栏由 <strong>单一全局 Dockview</strong> 管理全部打开文档（<code>src/components/workspace/dock-workspace.tsx</code>、模型 <code>src/lib/workspace/tabs</code>）。<strong>标题栏无文档 tab 条</strong>。完整契约见 <a href="../../development/tab-split/"><code>../development/tab-split.md</code></a>。</p>
 <ul>
-<li><strong>多 tab</strong>：paper / Markdown / PDF / HTML / <strong>Library（全库或文件夹作用域）</strong> 各占一个 tab，可切换、关闭（<code>X</code> / 中键 / <code>⌘W</code>）、拖拽重排；同一路径已开则聚焦其 tab。</li>
+<li><strong>文档 panel</strong>：paper / Markdown / PDF / HTML / <strong>Library（全库或文件夹作用域）</strong> / 回收站 / <strong>NOTES</strong> 各为一个 dockview panel；原生 tab 切换、关闭（<code>X</code> / <code>⌘W</code>）、组内拖拽重排；同一 path 已开则 <code>activatePanel</code>。</li>
+<li><strong>Tab 右键菜单</strong>：关闭 / 关闭其他 / 关闭全部（<strong>同组</strong>）；新建标签组 / 从标签组移除（<code>getTabContextMenuItems</code>；文案走 i18n）。</li>
+<li><strong>Tab 组</strong>：chip 右键重命名、染色、解散（<code>getTabGroupChipContextMenuItems</code>）；随布局 <code>toJSON()</code> 持久化。</li>
+<li><strong>分屏</strong>：上下左右 + 多格网格（dockview 原生）；文件树路径可拖入任意边；论文打开时默认 PDF 与 <code>NOTES.md</code> <strong>同组 sibling tab</strong>。<code>dropOverlayModel</code> 调大 content 边激活区；未知外部拖拽由 <code>onWillShowOverlay</code> / <code>onWillDrop</code> 否决。</li>
 <li><strong>默认页 = 全库 Library</strong>：</li>
-<li>打开 Vault 无持久化 tab → <code>ensureFullLibraryTab()</code>。</li>
-<li>关 tab 后列表为空 → 自动打开全库（无「无标签」空态）。</li>
-<li><strong><code>⌘W</code> / tab X</strong>：有注册弹层时<strong>先关最顶层</strong>（见 §3.0）；否则仅剩全库 <code>agentero:library</code> 时<strong>关窗</strong>；否则关当前 tab，关空后回全库。</li>
-<li><strong>常驻挂载</strong>：每个 tab 保持 mounted（非激活 <code>hidden</code>）；切换保留 PDF 滚动/缩放与编辑器状态。作用域 / 全库共用 <code>libraryPapers</code> 缓存。</li>
-<li><strong>状态派生</strong>：<code>activeTab</code> 驱动路径 / 模式 / Notes；作用域 Library 的 <code>path</code> 为文件夹绝对路径，树高亮该组织夹。</li>
-<li><strong>持久化</strong>：<code>agentero-open-tabs</code> 按窗口保存；全库与作用域 path 均可恢复。</li>
-<li><strong>NOTES 编辑器</strong>：每篇 paper 的 <code>NOTES.md</code> 编辑器也按 tab 常驻挂载在右侧 Notes 栏；paper-reader / download 写回后按路径 reseed 对应 tab。</li>
-<li><strong>外部/Agent 改动自动重载</strong>：Host <code>notify</code> 监听 Vault，发 <code>vault:file-changed</code>（<code>src/lib/fs-watch.ts</code>、<code>App.tsx</code> 的 <code>applyDiskChange</code>）。打开中的 <code>.md</code>/<code>NOTES.md</code> 若磁盘内容与当前 seed 不同：<strong>无未存改动时</strong>从盘重载（key bump 重挂载）；<strong>有未存改动时不静默覆盖</strong>，弹 toast（<code>diskConflict</code>，操作「载入磁盘版」；忽略则保留本地改动）；内容相等即判定为自身 autosave 回声、跳过；重载期内 <code>reseedGuardRef</code> 阻止旧实例卸载 flush 覆盖新盘内容。结构性变更（create/remove/rename）去抖刷新文件树；纯 <code>modify</code> 不刷新树。</li>
-<li><strong>Wiki 索引刷新</strong>：<code>.md</code> 变更经 <code>useVaultFileEvents.onWikiChange</code> → <code>scheduleWikiRebuild</code>（约 900ms 防抖）重建双链 / Backlinks / Graph，避免外部/Agent 写盘后图谱陈旧。</li>
-<li><strong>保存冲突检测（防丢数据）</strong>：autosave / <code>⌘S</code> / 卸载 flush 写盘前，<code>persistFile</code> 比对磁盘内容与上次落盘内容；若文件已被外部修改则<strong>中止写入</strong>并 <code>notifyWarning</code>（<code>diskConflict.saveBlocked</code>），不静默覆盖外部变更。</li>
+<li>打开 Vault 无持久化布局 → <code>ensureFullLibraryTab()</code>。</li>
+<li>关 panel 后列表为空 → 自动打开全库。</li>
+<li><strong><code>⌘W</code> / tab X</strong>：有注册弹层时<strong>先关最顶层</strong>（见 §3.0）；否则仅剩全库 <code>agentero:library</code> 时<strong>关窗</strong>；否则关 active panel，关空后回全库。</li>
+<li><strong>挂载策略</strong>：PDF panel 壳用 dockview <code>renderer: 'always'</code> 保活；EmbedPDF 引擎由 App <strong>PDF LRU</strong>（默认 4）限流。非 PDF 默认 <code>onlyWhenVisible</code>。作用域 / 全库共用 <code>libraryPapers</code> 缓存。</li>
+<li><strong>焦点</strong>：完全听 dockview <code>onDidActivePanelChange</code>；<code>⌥⌘←/→</code> 按 <code>api.panels</code> <strong>视觉序</strong>循环。</li>
+<li><strong>持久化</strong>：<strong>只存</strong> dockview <code>toJSON()</code>（panel params 含 path/mode）；按窗口恢复。</li>
+<li><strong>NOTES</strong>：<code>createNotesSplitPane</code> 派生独立 panel；paper-reader / download 写回后按路径 reseed。</li>
+<li><strong>外部/Agent 改动自动重载</strong>：Host <code>notify</code> → <code>vault:file-changed</code>（<code>src/lib/vault/fs-watch.ts</code>）。打开中的 <code>.md</code>/<code>NOTES.md</code>：无未存改动则重载；有未存改动 toast 提示不静默覆盖；内容相等抑制自写回声。结构性变更去抖刷新文件树。</li>
+<li><strong>Wiki 索引</strong>：<code>.md</code> 变更 → <code>scheduleWikiRebuild</code>（~900ms 防抖）。</li>
+<li><strong>保存冲突</strong>：写盘前比对上次落盘内容；磁盘已被外部改则中止并 <code>notifyWarning</code>（<code>diskConflict.saveBlocked</code>）。</li>
 </ul>
-<p>规划中（尚未实现）：</p>
+<p>后续增强（未做）：</p>
 <ul>
-<li><strong>2 格分屏</strong>（水平或垂直）：例如 PDF | NOTES、两篇 paper 并排；分屏快捷键随实现补入本表与 <code>shortcuts.ts</code>。</li>
-<li>tab 固定（pin）、按 paper 分组、「当前 tab vs 新 tab 打开」策略可配。</li>
-<li>与 Agent 面板 <strong>会话标签</strong> 分离（不同概念）。</li>
+<li>tab 固定（pin）、按 paper 分组、「当前 panel vs 新 panel 打开」策略可配。</li>
+<li>组最大化（<code>maximizeGroup</code>）、watermark / header actions 等。</li>
+<li>与 Agent 面板 <strong>会话标签</strong> 分离（不同概念，已成立）。</li>
 </ul>
 <h3 id="312-pdf">3.1.2 规划：PDF 引用与插图<a class="headerlink" href="#312-pdf" title="Permanent link">&para;</a></h3>
 <p>首个交付只处理本地 paper PDF：有 TeX 时解析 TeX/Bib/figure declaration，无 TeX 时使用 liteparse；结果写入 <code>source/agentero-*</code> 可重建 sidecar。右侧 <code>Paper Content</code> 展示 citations/figures，PDF 内 hover 高亮并预览，点击跳 reference/figure。库外引用只显示 unresolved 原始信息，不自动导入。详见 <a href="../../backend/pdf-analysis/"><code>../backend/pdf-analysis.md</code></a>。</p>
@@ -835,7 +831,7 @@
 </tr>
 <tr>
 <td>业务壳</td>
-<td><code>src/components/agent/agent-panel.tsx</code>：注册表、流式事件、默认 Agent</td>
+<td><code>src/components/agent/</code>：<code>agent-panel</code> 编排 + <code>use-agent-panel</code>（注册表 / 流式 / 历史）+ Composer / Transcript 子组件</td>
 </tr>
 <tr>
 <td>Sources</td>
@@ -865,7 +861,7 @@ PromptInput → Body / Footer / Submit
 <p><strong>Agent 切换</strong>：顶栏左侧当前 ACP 后端名打开下拉（列表来自 catalog + 注册表）；选择后设为默认并用于后续 <code>runOnce</code>。下拉 <strong>「ACP backend」标题行最右侧</strong> 齿轮（<code>Settings</code>）→ <strong>设置 → Agent</strong>（<code>onOpenAgentSettings</code>）。</p>
 <p><strong>消息编辑与重发</strong>：会话空闲时（发送成功、停止或失败后）hover 已发送的用户消息会显示 <strong>Edit（铅笔）</strong> 与 <strong>Copy</strong> 两个图标按钮；运行中不显示 Edit，须先按 <code>Esc</code> / 点击停止。点击 Edit 就地把气泡替换为文本框（<code>↵</code> 重新发送、<code>⇧↵</code> 换行、<code>Esc</code> 取消；<strong>IME 组字中 <code>↵</code> 不重发</strong>，见 <a href="../../bug_fix/ime-composition-enter-submit/">IME composition race</a>），重发时会丢弃<strong>该消息及其之后的所有内容</strong>（旧回答 / 被中断的运行）并以新文本发起一次全新的 turn，用于修正发错的输入。切换会话 / 标签 / 新建对话会自动取消未完成的编辑。（重发沿用普通发送的 session 续接规则：有 <code>sessionId</code> 时经 ACP <code>session/resume</code> 续接，可见转录被截断但 Agent 侧会话记忆不随之回退。）</p>
 <p><strong>会话标签</strong>：运行中的 Agent session 不会锁定标签栏。用户可随时切换并查看其它已打开的会话，也可在新会话中发起独立运行；同一 session 在运行期间保持只读，避免重入。流式消息、工具调用和最终状态仍只写回它们所属的 session。</p>
-<p><strong>上下文提及</strong>：Composer <strong>默认附带</strong>当前聚焦的论文单元（文件在 paper 内时解析为 paper 文件夹）或其它打开的 Vault 路径，无需点击加号；chip 标签为 <strong>虚拟名称</strong>（论文优先 catalog 标题，否则路径最后一段 / paper-name），完整 Vault 相对路径仅作 tooltip 与发送给 Agent 的引用。输入 <code>@</code> 打开候选菜单：候选为 <strong>论文文件夹 + 其它目录 + paper 外 Markdown</strong>（paper 内 <code>NOTES.md</code> 等折叠为 paper 单元）；<strong>空 <code>@</code></strong> 优先展示最近选用路径与浅层目录树（depth ≤ 2）；行右侧 <strong>›</strong> 可进入子目录（论文单元为叶子、不可再下钻；顶部 ‹ 或 <code>←</code> / <code>Esc</code> 返回上级）；输入关键字按路径或论文显示名筛选。论文候选标签与文件树一致（设置 → 通用 <code>paperTreeLabelMode</code>：标题 · 作者等）。从左侧文件树<strong>拖入</strong>文件/文件夹到输入区同样解析为 chip（<code>text/plain</code> 路径 → <code>mentionedPaths</code>，不插入纯文本路径）。Chip 图标按路径类型选择（<code>src/lib/context-path-icon.ts</code>）：<strong>论文文件夹</strong>用 <code>ScrollText</code>（与文件树 paper 行一致，依据 marker 收集的 <code>vaultPaperPaths</code>）；<strong>其它文件夹</strong>用 <code>Folder</code>；<strong>文件</strong>按扩展名（PDF / 图片 / 代码 / Markdown 等）。发送时 Agentero 将这些 Vault 相对路径追加到 prompt，并将第一个路径传为 <code>target</code>，Agent 仍按自身权限读取文件。</p>
+<p><strong>上下文提及</strong>：Composer <strong>默认附带</strong>当前聚焦的论文单元（文件在 paper 内时解析为 paper 文件夹）或其它打开的 Vault 路径，无需点击加号；chip 标签为 <strong>虚拟名称</strong>（论文优先 catalog 标题，否则路径最后一段 / paper-name），完整 Vault 相对路径仅作 tooltip 与发送给 Agent 的引用。输入 <code>@</code> 打开候选菜单：候选为 <strong>论文文件夹 + 其它目录 + paper 外 Markdown</strong>（paper 内 <code>NOTES.md</code> 等折叠为 paper 单元）；<strong>空 <code>@</code></strong> 优先展示最近选用路径与浅层目录树（depth ≤ 2）；行右侧 <strong>›</strong> 可进入子目录（论文单元为叶子、不可再下钻；顶部 ‹ 或 <code>←</code> / <code>Esc</code> 返回上级）；输入关键字按路径或论文显示名筛选。论文候选标签与文件树一致（设置 → 通用 <code>paperTreeLabelMode</code>：标题 · 作者等）。从左侧文件树<strong>拖入</strong>文件/文件夹到输入区同样解析为 chip（<code>text/plain</code> 路径 → <code>mentionedPaths</code>，不插入纯文本路径）。Chip 图标按路径类型选择（<code>src/lib/agent/context-path-icon.ts</code>）：<strong>论文文件夹</strong>用 <code>ScrollText</code>（与文件树 paper 行一致，依据 marker 收集的 <code>vaultPaperPaths</code>）；<strong>其它文件夹</strong>用 <code>Folder</code>；<strong>文件</strong>按扩展名（PDF / 图片 / 代码 / Markdown 等）。发送时 Agentero 将这些 Vault 相对路径追加到 prompt，并将第一个路径传为 <code>target</code>，Agent 仍按自身权限读取文件。</p>
 <blockquote>
 <p><strong>不</strong>接 AI Elements <code>Attachments</code> 做 Vault 上下文：那套组件面向 <code>FileUIPart</code> 二进制附件（<code>prompt-input</code> 已装未对 ACP 传文件）；本产品上下文是 <strong>路径引用</strong>，与 <code>@</code> chip / <code>composer.contextInstruction</code> 一致。</p>
 </blockquote>
@@ -998,7 +994,7 @@ PromptInput → Body / Footer / Submit
 <tbody>
 <tr>
 <td>入口</td>
-<td>macOS：顶部菜单栏 <strong>agentero → Settings…</strong>，或 <code>⌘,</code>；Windows / Linux 无原生菜单栏，标题栏窗口控制按钮左侧显示 <strong>齿轮图标</strong>（<code>Settings</code>，hover 旋转 90°，Tooltip 含快捷键；<code>workspace-header.tsx</code>，i18n <code>app:titlebar.settings*</code>）。不在侧边栏放设置图标</td>
+<td>macOS：顶部菜单栏 <strong>agentero → Settings…</strong>，或 <code>⌘,</code>；Windows / Linux 无原生菜单栏，标题栏窗口控制按钮左侧显示 <strong>齿轮图标</strong>（<code>Settings</code>，hover 旋转 90°，Tooltip 含快捷键；<code>title-bar.tsx</code>，i18n <code>app:titlebar.settings*</code>）。不在侧边栏放设置图标</td>
 </tr>
 <tr>
 <td>结构</td>
@@ -1033,7 +1029,7 @@ PromptInput → Body / Footer / Submit
 <p><strong>页面职责</strong></p>
 <ul>
 <li><strong>General</strong>：恢复上次 Vault、退出确认；<strong>文件树论文显示</strong>（<code>paperTreeLabelMode</code>，默认 <code>title-author</code>：标题 · 作者；另有标题 / 作者 (年)·标题 / 文件夹名）；<strong>文件树论文排序</strong>（<code>paperTreeSortMode</code>，默认 <code>folder</code>：显示名称 A–Z，跟随 <code>paperTreeLabelMode</code>；另有标题 / 作者 / 年份新→旧 / 年份旧→新 / 添加时间新→旧）；<strong>Translator 服务地址</strong>（<code>translatorBaseUrl</code>，默认 <code>https://translator.philfan.cn</code>）。入库默认下载 PDF（arXiv 含 LaTeX），无「是否本地下载」开关。<strong>Zotero Connector 兼容</strong>开关（<code>connectorEnabled</code>，默认关；与 Zotero 桌面端互斥占用 <code>23119</code>；状态行显示监听地址 / 错误；保存成功后刷新树/Library 并 <strong><code>openPaper</code> 打开论文 tab</strong>；见 <a href="../../backend/connector/"><code>../backend/connector.md</code></a>），勿与 Translator 地址混为同一设置项。</li>
-<li><strong>Appearance</strong>：主题、<strong>配色主题</strong>（<code>uiTheme</code>，tweakcn 预设，默认 <code>default</code>，见 §1）、<strong>语言（跟随系统 / English / 简体中文）</strong>、<strong>工具栏按钮大小</strong>（<code>toolbarIconSize</code>，滑块 12–22px，默认 14；驱动标题栏图标按钮的图标与按钮盒尺寸，经 <code>&lt;header&gt;</code> 上的 <code>--tb-icon</code> / <code>--tb-btn</code> CSS 变量级联到 <code>WorkspaceHeader</code> 与 <code>LayoutMenu</code>，为视力不佳用户提供无障碍放大）；其下分组 <strong>Markdown 编辑器</strong>（<code>appearance.markdownEditor.section</code>）：编辑字号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，控制 Markdown/Notes 编辑器顶部的 WYSIWYG 工具栏，默认开）。</li>
+<li><strong>Appearance</strong>：主题、<strong>配色主题</strong>（<code>uiTheme</code>，tweakcn 预设，默认 <code>default</code>，见 §1）、<strong>界面缩放</strong>（<code>uiScale</code>：80% / 90% / 100% / 125% / 150%，默认 100%；通过 <code>&lt;html&gt;</code> <code>font-size</code> 全局缩放，旧 <code>toolbarIconSize</code> 仅一次性迁移）、<strong>语言（跟随系统 / English / 简体中文）</strong>；其下分组 <strong>Markdown 编辑器</strong>：编辑字号、<strong>格式工具栏</strong>（<code>showEditorToolbar</code>，默认开）。</li>
 <li><strong>Agent</strong>（BYOA，非模型 BYOK 表单）：</li>
 <li>总开关。</li>
 <li><strong>权限模式</strong>（<code>agentPermissionMode</code>：受限 / 每次询问 / 自动批准，见 §3.2）。</li>
@@ -1080,7 +1076,7 @@ PromptInput → Body / Footer / Submit
 </tbody>
 </table>
 <ul>
-<li>前端：<code>src/lib/settings.ts</code>（内存缓存 + <code>settings_get</code> / <code>settings_set</code>）；启动时 <code>ensureSettingsLoaded()</code>，旧 <code>localStorage</code> 键 <code>agentero-settings</code> <strong>一次性迁移后删除</strong>。</li>
+<li>前端：<code>src/lib/settings</code>（内存缓存 + <code>settings_get</code> / <code>settings_set</code>）；启动时 <code>ensureSettingsLoaded()</code>，旧 <code>localStorage</code> 键 <code>agentero-settings</code> <strong>一次性迁移后删除</strong>。</li>
 <li>Host：<code>src-tauri/src/services/app_settings.rs</code>、<code>services/paths.rs</code>（XDG 解析）。</li>
 </ul>
 <p><strong>Host 上下文（本机 / 远端）</strong>：</p>
@@ -1127,7 +1123,7 @@ PromptInput → Body / Footer / Submit
 <td>真壳 + 共享 chrome（标题栏、sash、欢迎页、后台任务、ErrorBoundary）</td>
 </tr>
 <tr>
-<td><code>vault/</code></td>
+<td><code>sidebar/</code></td>
 <td>左栏：文件树、Paper Info、侧栏头</td>
 </tr>
 <tr>
@@ -1167,7 +1163,11 @@ PromptInput → Body / Footer / Submit
 <ul>
 <li>图标：<strong>Lucide React</strong>。</li>
 <li>优先复用 <code>Button</code>（<code>variant="ghost"</code> + <code>size="icon-xs"</code>）、<code>Tooltip</code>、<code>Switch</code>、<code>Select</code>、<code>Input</code>、<code>DropdownMenu</code>。</li>
+<li>
+<ul>
 <li>参考：<a href="https://ui.shadcn.com/">shadcn/ui</a> · <a href="https://elements.ai-sdk.dev/">AI Elements</a> · <code>docs/frontend/components.md</code></li>
+</ul>
+</li>
 </ul>
               
             </div>

@@ -319,7 +319,7 @@
 <li>[x] Library 行批量补资源（与 2b 联动）</li>
 <li>[x] <strong>Tags</strong>：Paper Info 增删 → <code>paper_set_tags</code>；Library 列展示（搜索匹配标签；无表上方 chip 筛选条）</li>
 <li>[x] <strong>Tags CLI</strong>：<code>paper tag list|set|add|rm</code> / <code>list --tag</code>（与 Host 共用 <code>papers::set_tags</code>）</li>
-<li>[x] <strong>Tags 颜色</strong>：Apple 风格 8 色 id；<code>tags_json</code> 字符串或 <code>{name,color}</code>；Paper Info 色盘；Library 染色 chip（<code>src/lib/tag-colors.ts</code>）</li>
+<li>[x] <strong>Tags 颜色</strong>：Apple 风格 8 色 id；<code>tags_json</code> 字符串或 <code>{name,color}</code>；Paper Info 色盘；Library 染色 chip（<code>src/lib/ui/tag-colors.ts</code>）</li>
 </ul>
 <h3 id="2c-2">2c-2. 论文库默认页 + 文件夹作用域库<a class="headerlink" href="#2c-2" title="Permanent link">&para;</a></h3>
 <ul>
@@ -356,7 +356,7 @@
 <h3 id="2f-markdown">2f. Markdown 内嵌图片<a class="headerlink" href="#2f-markdown" title="Permanent link">&para;</a></h3>
 <ul>
 <li>[x] <strong>Markdown 内嵌图片</strong>（整项）</li>
-<li>[x] 粘贴 / 工具栏插入 → <code>{mdDir}/assets/</code> + <code>![](./assets/…)</code>（<code>src/lib/markdown-image.ts</code>）</li>
+<li>[x] 粘贴 / 工具栏插入 → <code>{mdDir}/assets/</code> + <code>![](./assets/…)</code>（<code>src/lib/markdown/image.ts</code>）</li>
 <li>[x] 选中图片节点显示 Markdown 源码；未选中 <code>blob:</code> 预览</li>
 <li>[x] 删除节点且引用计数归零时 GC managed assets 文件并刷新文件树</li>
 <li>[x] 单测 + 文档（data-model / ui / technical-plan / test 冒烟表）</li>
@@ -419,7 +419,7 @@
 <li>[x] 分层：log（诊断）≠ <code>ApiResult</code> / CLI envelope ≠ <code>notifyError</code> / 任务条 / Agent error 行</li>
 <li>[x] 栈：<code>tauri-plugin-log</code> + <code>log</code> + <code>@tauri-apps/plugin-log</code>；CLI <code>env_logger</code> / <code>RUST_LOG</code>；默认无远程遥测</li>
 <li>[x] Host：插件注册、capabilities <code>log:default</code>、dev/release level 与 LogDir</li>
-<li>[x] 前端：<code>src/lib/logger.ts</code> + <code>logOp</code>；ErrorBoundary 打 error</li>
+<li>[x] 前端：<code>src/lib/core/logger.ts</code> + <code>logOp</code>；ErrorBoundary 打 error</li>
 <li>[x] <strong>关键操作成对</strong> <code>op start</code> / <code>op end</code>（<code>ok</code>、<code>duration_ms</code>）；<code>runBackgroundTask</code> 横切自动埋点</li>
 <li>[x] Host 写/长耗时 command（vault、lookup、agent_run、trash、zotero、parse…）与 CLI 每命令 op 对</li>
 <li>[x] 隐私：不写 Vault；不记 NOTES/PDF/prompt 全文（仅 path/id/len）</li>

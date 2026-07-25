@@ -261,7 +261,7 @@
 <p><strong>状态</strong>：<strong>MVP 已落地</strong>（M0–M3）；M4 加固中（远端 trash ✅、入库写远端 ✅、blob LRU ✅、Connector 远程 ✅；Codex-SSH 待办）<br />
 <strong>分支</strong>：<code>docs/remote-vault-ssh</code><br />
 <strong>相关</strong>：<a href="../../backend/data-model/"><code>data-model.md</code></a>、<a href="../../backend/catalog/"><code>catalog.md</code></a>、<a href="../../backend/api/"><code>api.md</code></a>、Agent 运行时 <code>src-tauri/src/services/agent/</code><br />
-<strong>代码</strong>：<code>src-tauri/src/services/fs/</code>、<code>services/remote/</code>、<code>commands/remote.rs</code>；前端 <code>src/lib/remote-vault.ts</code>、<code>vault.ts</code> 远程 IO</p>
+<strong>代码</strong>：<code>src-tauri/src/services/fs/</code>、<code>services/remote/</code>、<code>commands/remote.rs</code>；前端 <code>src/lib/vault/remote/remote-vault.ts</code>、<code>vault.ts</code> 远程 IO</p>
 </blockquote>
 <p>本文定义：如何通过 SSH 打开<strong>服务器上的</strong> Agentero Vault，并在<strong>同一台远端机器</strong>上运行 BYOA Agent（ACP），使文件权威与 Agent 工作目录始终同机。</p>
 <hr />
@@ -886,7 +886,7 @@ type RemoteAgentLaunch = {
 <h3 id="93">9.3 前端<a class="headerlink" href="#93" title="Permanent link">&para;</a></h3>
 <ul>
 <li>无新重视图库；状态：远程 session + caps  </li>
-<li>PDF 仍 <code>blob:</code> / react-pdf  </li>
+<li>PDF 仍 <code>blob:</code> / EmbedPDF  </li>
 <li>设置页：远程条目；i18n <code>en</code> + <code>zh-CN</code></li>
 </ul>
 <h3 id="94-mvp">9.4 明确不采用（MVP）<a class="headerlink" href="#94-mvp" title="Permanent link">&para;</a></h3>

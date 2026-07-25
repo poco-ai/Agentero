@@ -173,7 +173,7 @@
 │   ├── React 19 + TypeScript + Vite
 │   ├── Tailwind CSS 4 + shadcn/ui + AI Elements
 │   ├── Plate Markdown 编辑
-│   ├── react-pdf / iframe 阅读器
+│   ├── EmbedPDF（PDFium）/ iframe 阅读器
 │   └── react-force-graph-2d 图谱面板
 ├── Tauri Host
 │   ├── Rust + Tauri 2 commands/events
@@ -234,27 +234,15 @@
 </table>
 <h2 id="ui">当前 UI 形态<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h2>
 <ul>
-<li>默认工作台：文件树 + <strong>文档标签页</strong>中间内容 +（按需）Notes + 可选右侧栏。</li>
-<li><strong>文档标签</strong>：标题栏浏览器式多 tab（paper / PDF / HTML / Markdown / Library / 图片）；常驻挂载，切换保留 PDF 滚动/缩放与编辑器状态。<code>⌘W</code> / <code>Esc</code> 优先关最顶层弹层（<code>overlay-stack</code>：设置 / 命令面板 / 迁移对话框等），否则逐个关标签，仅剩全库时关窗；<code>⌥⌘←/→</code> 切换。<strong>分屏（split）</strong> 仍规划见 V0.6。</li>
-<li>文件树顶部有虚拟节点 <strong>Library</strong>；中间栏可展示 catalog <strong>论文库表格</strong>（排序、<strong>tags</strong> 染色 chip + 筛选、双向滚动），数据来自 <code>paper_list</code>。</li>
-<li>文件树：右键 / <code>⌥⌘R</code> <strong>Finder 显示</strong>；右键 / <code>⌥⌘T</code> <strong>终端打开</strong>；多选 + 拖拽移动；右键 / <code>⌘⌫</code> <strong>移入回收站</strong>（Library 下虚拟节点 <code>agentero:trash</code> → 中间栏恢复 / 永久删除，侧栏右键清空，无 Undo toast）。Paper 行默认 <strong>标题 · 作者</strong>（设置 → 通用可切换标签/排序预设，不改磁盘文件夹名）。</li>
-<li><strong>Paper Info / Notes</strong> 仅在选中具体论文时出现；论文库视图不显示。Paper Info <strong>Tags</strong> 可编辑并可设 <strong>Apple 8 色</strong>（<code>paper_set_tags</code>，<code>tags_json</code> 字符串或 <code>{name,color}</code>）。Library 空态可 <strong>Rescan</strong>（<code>paper_rescan</code>）从盘补 catalog。</li>
-<li>无 Vault 时中间栏为欢迎页（最近本地/远程 + 打开 / <strong>打开远程</strong> / 创建 / 从 Zotero 迁移）；有 Vault 时侧栏标题可切换知识库（含 <strong>打开远程…</strong>）；<code>⌘N</code> 可开多窗口。</li>
-<li>可选右侧栏只有两个顶层入口：Agent 与 Backlinks（左右侧栏均为 collapsible 常驻面板，交替快捷键互不冲折叠态）。</li>
-<li>Backlinks 视图上方显示反链，下方显示 Graph；Graph 不是独立顶层 tab（<strong>双链图</strong>，非文献引用图）。</li>
-<li>魔棒：侧栏粘贴标识符 → Translator → catalog + <strong>默认下载 PDF</strong>（arXiv 含 LaTeX 解压）。</li>
-<li><strong>Zotero Connector 兼容</strong>（MVP）：设置开启后本机 <code>23119</code> 接收官方浏览器扩展 <code>saveItems</code> + <strong><code>saveAttachment</code></strong> → Vault（与 Zotero 桌面互斥）— 见 <a href="backend/connector/"><code>backend/connector.md</code></a>。</li>
-<li>补资源：paper 行缺 PDF，或既无 TeX 也无 <code>PAPER.md</code> 时 Download；Library 行可<strong>批量</strong>补全部缺失。无 TeX 时下载后 liteparse 生成 <code>PAPER.md</code>。</li>
-<li><strong>精读</strong>：设置 → Agent 可开「入库后自动精读」（默认关）；<strong>Zap</strong> 始终可手动。Skill 按 provider → 写 <code>NOTES.md</code> → <code>is_read=true</code>。</li>
-<li><strong>Agent 权限</strong>：设置 → Agent 全局「权限模式」（受限默认 / <strong>每次询问</strong> / 自动批准）；<code>ask</code> 时弹权限对话框。</li>
-<li><strong>Agent 面板</strong>：空态建议 → summary / qa / related_work。</li>
-<li><strong>命令面板</strong>（<code>⌘K</code> / <code>⌘P</code>）：论文 quick-open + Vault Markdown 全文搜索。</li>
-<li>预览：任意路径 PDF / 图片 <code>blob:</code>；PDF <strong>导航 / 适应宽·整页 / 大纲 / ⌘F / 平滑划词</strong> + 划词操作菜单（见 <a href="development/pdf-ask/"><code>development/pdf-ask.md</code></a>）。</li>
-<li><strong>翻译服务</strong>（首版：免费 MT + BYOA Agent）：见 <a href="development/translate/"><code>development/translate.md</code></a>。</li>
-<li><strong>Markdown 内嵌图片</strong>：<code>./assets/</code> 落盘 + 选中源码 + 删除 GC（见 <a href="backend/data-model/"><code>backend/data-model.md</code></a>）。</li>
-<li><strong>外部改盘自动重载</strong>：<code>notify</code> → <code>vault:file-changed</code> 刷新打开的 Markdown / 文件树；<code>.md</code> 变更防抖重建 wiki 索引；写盘前保存冲突检测（见 <a href="frontend/ui/"><code>frontend/ui.md</code></a>）。</li>
-<li><strong>全局错误 Toast</strong>（右上角 Sonner）：<code>notifyError</code>；表单就地校验除外。</li>
-<li><strong>规划中</strong>（见 roadmap）：<strong>V0.6</strong> 分屏；<strong>V0.7</strong> 文内引用 hover→Paper Info、Connected Papers 式邻域。</li>
+<li>默认工作台：左栏文件树 + 中间 <strong>Dockview 工作区</strong> + 可选右侧栏（Agent / Backlinks）。见 <a href="development/tab-split/"><code>development/tab-split.md</code></a>。</li>
+<li><strong>文档 panel</strong>：中间栏 dockview 原生管理 tab / 关闭 / 上下左右分屏 / 多格网格；<strong>标题栏无文档 tab 条</strong>。打开 paper 时默认 PDF 与 <code>NOTES.md</code> 为同组 sibling tab。布局只存 dockview <code>toJSON()</code>。<code>⌘W</code> / <code>Esc</code> 优先关最顶层弹层（<code>overlay-stack</code>），否则关 active panel，仅剩全库时关窗；<code>⌥⌘←/→</code> 按视觉序循环 panel。</li>
+<li>文件树顶部虚拟节点 <strong>Library</strong>；中间栏 catalog <strong>论文库表格</strong>（排序、<strong>tags</strong> 染色 chip、双向滚动），数据来自 <code>paper_list</code>。</li>
+<li>文件树：右键 / <code>⌥⌘R</code> <strong>Finder 显示</strong>；右键 / <code>⌥⌘T</code> <strong>终端打开</strong>；多选 + 拖拽移动；右键 / <code>⌘⌫</code> <strong>移入回收站</strong>（Library 下 <code>agentero:trash</code> → 中间栏恢复 / 永久删除，侧栏右键清空）。Paper 行默认 <strong>标题 · 作者</strong>（设置可切换标签/排序预设）。</li>
+<li><strong>Paper Info</strong> 仅选中具体论文时出现；<strong>Tags</strong> 可编辑并可设 Apple 8 色（<code>paper_set_tags</code>）。Library 空态可 <strong>Rescan</strong>（<code>paper_rescan</code>）。</li>
+<li>无 Vault 时中间栏为欢迎页；有 Vault 时侧栏标题可切换知识库（含 <strong>打开远程…</strong>）；<code>⌘N</code> 多窗口。</li>
+<li>可选右侧栏：Agent 与 Backlinks（常驻 collapsible）。Backlinks 上方反链、下方 <strong>双链</strong> Graph（非文献引用图）。</li>
+<li>魔棒 / Zotero Connector / 补资源 Download / 精读 Zap / Agent 权限与面板工作流 / 命令面板 / PDF 划词 / 翻译 / Markdown 内嵌图 / 外部改盘重载 / 全局 Toast：见下表与对应文档。</li>
+<li><strong>规划中</strong>（roadmap）：<strong>V0.7</strong> 文内引用 hover→Paper Info、Connected Papers 式邻域（<strong>V0.6 标签页 + 多分屏已落地</strong>）。</li>
 <li><strong>远程 Vault（SSH/SFTP）+ 远端 BYOA</strong>：<strong>MVP 已落地</strong>（见 <a href="development/remote-vault/"><code>development/remote-vault.md</code></a>）。</li>
 <li>实现状态与路线图：<a href="development/roadmap/"><code>development/roadmap.md</code></a>。</li>
 </ul>
@@ -285,7 +273,7 @@
 </tr>
 <tr>
 <td>编辑器与阅读器</td>
-<td><a href="https://platejs.org/">Plate</a>、<a href="https://github.com/wojtekmaj/react-pdf">react-pdf</a>、<a href="https://github.com/mozilla/pdf.js">pdfjs-dist</a></td>
+<td><a href="https://platejs.org/">Plate</a>、<a href="https://www.embedpdf.com/">EmbedPDF</a> + PDFium</td>
 </tr>
 <tr>
 <td>图谱</td>
@@ -362,5 +350,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-07-24 17:17:16.409602+00:00
+Build Date UTC : 2026-07-25 03:01:58.315057+00:00
 -->

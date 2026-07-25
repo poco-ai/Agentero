@@ -191,10 +191,10 @@
 <strong>影响面</strong>：Agent Composer、消息编辑重发、PDF 批注内联编辑器、划词提问输入<br />
 <strong>相关代码</strong>：</p>
 <ul>
-<li><code>src/lib/ime.ts</code> — <code>isImeKeyboardEvent</code>、<code>IME_KEY_CODE</code>（229）、<code>IME_COMPOSITION_END_GRACE_MS</code></li>
+<li><code>src/lib/core/ime.ts</code> — <code>isImeKeyboardEvent</code>、<code>IME_KEY_CODE</code>（229）、<code>IME_COMPOSITION_END_GRACE_MS</code></li>
 <li><code>src/hooks/use-ime-guard.ts</code> — composition 状态 + 确认键宽限</li>
 <li><code>src/components/ai-elements/prompt-input.tsx</code> — <code>PromptInputTextarea</code> Enter 提交守卫</li>
-<li><code>src/components/agent/agent-panel.tsx</code> — <code>@</code>/<code>$</code> 菜单 Enter、消息编辑重发</li>
+<li><code>src/components/agent/use-agent-panel.ts</code> — <code>@</code>/<code>$</code> 菜单 Enter、消息编辑重发</li>
 <li><code>src/components/viewer/pdf-ask/annotation-editor.tsx</code> — 批注 Enter 保存</li>
 <li><code>test/ime.test.ts</code> — 单元测试</li>
 </ul>

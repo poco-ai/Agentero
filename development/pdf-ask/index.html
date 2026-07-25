@@ -200,20 +200,13 @@
               
                 <h1 id="pdf-selection">PDF 划词（Selection：高亮 / 批注 / 提问 / 翻译）<a class="headerlink" href="#pdf-selection" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>⚠️ <strong>EmbedPDF 迁移（2026-07）</strong>：PDF 渲染 / 选中 / 批注引擎已从 <code>react-pdf</code> + <code>pdfjs-dist</code> 全量切换到 <strong><a href="https://www.embedpdf.com">@embedpdf</a>（PDFium / WASM，headless 插件式）</strong>。</p>
-<ul>
-<li><strong>新组件</strong>：<code>src/components/viewer/embed/pdf-viewer.tsx</code>（<code>Viewport</code>/<code>Scroller</code>/<code>RenderLayer</code>/<code>TilingLayer</code> + selection / annotation / search / bookmark 插件）；共享 PDFium 引擎在 <code>src/components/viewer/embed/engine-provider.tsx</code>（<code>main.tsx</code> 挂载，<code>worker:false</code> 主线程加载本地 wasm）。</li>
-<li><strong>高亮 / 批注 = EmbedPDF 注解</strong>（唯一事实来源），落盘 <code>papers/&lt;id&gt;/marks/annotations.json</code>（<code>exportAnnotations()</code> / <code>importAnnotations()</code> 传输格式；批注 = 注解 <code>contents</code> 非空；调色板键 / quote 存于注解 <code>custom</code>）。首次打开若存在旧版 <code>marks/&lt;id&gt;.json</code>（<code>kind: highlight</code>）会<strong>一次性迁移</strong>到 <code>marks/annotations.json</code> 并删除旧高亮标记；若仍有论文根目录遗留的 <code>annotations.json</code> 也会迁入 <code>marks/</code>（<code>lib/pdf-highlight/annotation-store.ts</code> + <code>migrate-marks.ts</code>）。</li>
-<li><strong>提问 / 翻译仍为应用层浮层</strong>，几何来自 selection 插件；成功翻译落盘 <code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code>（<code>kind</code> ∈ <code>ask</code> | <code>translate</code>），翻译失败仅显示当前错误卡片，不生成持久化入口。</li>
-<li><strong>查找（⌘F）/ 大纲</strong> 改用 <code>@embedpdf/plugin-search</code> / <code>plugin-bookmark</code>。</li>
-<li>下方各节仍描述历史 <code>react-pdf</code> 设计，待完整重写。</li>
-</ul>
-<p>状态：<strong>MVP 已落地（前端 + Vault 文件 IO）</strong>。<br />
-范围：阅读 PDF 时选中文本 → <strong>操作菜单</strong> → 高亮 / 批注 / 提问 / 翻译；共用 <strong><code>activeCard</code> + <code>SelectionCard</code> + <code>SelectionGutter</code></strong>。<br />
-<strong>落盘（唯一）</strong>：<code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code>，<code>kind</code> ∈ <code>highlight</code> | <code>ask</code> | <code>translate</code>（pretty JSON；<strong>无</strong> <code>asks/</code> / <code>highlights/</code> / <code>translates/</code> 兼容路径）。<br />
-批注 = <code>kind: highlight</code> 且 <code>comment</code> 非空；提问 / 翻译 / 批注均可页边针回访。<br />
-实现：<code>pdf-viewer.tsx</code>、<code>pdf-ask/*</code>、<code>lib/pdf-selection</code>（路径）、<code>lib/pdf-ask|pdf-highlight|pdf-translate</code>（类型与 IO）、<code>annotations-panel.tsx</code>。<br />
-相关：<a href="../technical-plan/"><code>technical-plan.md</code></a>、<a href="../translate/"><code>translate.md</code></a>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a>（问答复用 <code>agent_run_once</code>）。</p>
+<p>状态：<strong>MVP 已落地</strong>（EmbedPDF / PDFium + Vault 文件 IO）。</p>
+<p><strong>引擎</strong>：<a href="https://www.embedpdf.com">@embedpdf</a>（PDFium / WASM）。组件：<code>src/components/viewer/embed/pdf-viewer.tsx</code>；共享引擎 <code>engine-provider.tsx</code>（<code>main.tsx</code> 挂载）。
+<strong>高亮 / 批注</strong> = EmbedPDF 注解，落盘 <code>papers/&lt;id&gt;/marks/annotations.json</code>（批注 = <code>contents</code> 非空）。旧 highlight json / 根目录 <code>annotations.json</code> 首次打开时一次性迁入。
+<strong>提问 / 翻译</strong> = 应用层浮层；成功翻译落盘 <code>marks/&lt;id&gt;.json</code>（<code>kind</code> ∈ <code>ask</code> | <code>translate</code>）。
+<strong>查找 / 大纲</strong>：<code>@embedpdf/plugin-search</code> / <code>plugin-bookmark</code>。
+实现：<code>viewer/embed/*</code>、<code>viewer/pdf-ask/*</code>、<code>lib/pdf-selection</code>、<code>lib/pdf-ask|pdf-highlight|pdf-translate</code>、<code>annotations-panel.tsx</code>。
+相关：<a href="../technical-plan/"><code>technical-plan.md</code></a>、<a href="../translate/"><code>translate.md</code></a>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/data-model/"><code>../backend/data-model.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a>。</p>
 </blockquote>
 <h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <p>在 <strong>中间栏 PDF 阅读</strong> 场景下，对原文就地 <strong>高亮 / 批注 / 提问 / 翻译</strong>，结果全部落在论文目录的 <code>marks/</code> 下，可重开与回访。</p>
@@ -256,14 +249,15 @@
 <li>在 PDF 二进制内写入注解（不改原始 PDF 文件）。</li>
 </ul>
 <h2 id="2">2. 与现有架构的关系<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
-<pre class="codehilite"><code class="language-text">中间栏 PdfViewer（react-pdf + pdf.js TextLayer）
+<pre class="codehilite"><code class="language-text">中间栏 PdfViewer（EmbedPDF / PDFium + selection / annotation 插件）
         │
         ├─ 划词 → SelectionMenu
         ├─ activeCard: ask | annotate | translate
         │     ├─ AskPopover / AnnotationEditor / TranslateCard（SelectionCard）
         │     └─ 滚动/缩放 → placeActiveCard（不关卡）
         ├─ SelectionGutter → 页边针
-        ├─ marks IO        → papers/&lt;id&gt;/marks/&lt;id&gt;.json
+        ├─ 高亮/批注 IO   → papers/&lt;id&gt;/marks/annotations.json
+        ├─ 提问/翻译 IO    → papers/&lt;id&gt;/marks/&lt;id&gt;.json
         └─ 提问 / Agent 译 → agent_run_once + stream（hideFromChatHistory）
 </code></pre>
 
@@ -276,11 +270,11 @@
 </thead>
 <tbody>
 <tr>
-<td><code>react-pdf</code> TextLayer</td>
-<td>选区与坐标</td>
+<td>EmbedPDF selection / annotation</td>
+<td>选区几何、高亮与批注</td>
 </tr>
 <tr>
-<td><code>PdfViewer</code></td>
+<td><code>viewer/embed/pdf-viewer</code></td>
 <td>菜单 / activeCard / gutter / 落盘</td>
 </tr>
 <tr>
@@ -293,7 +287,7 @@
 </tr>
 <tr>
 <td>Vault 文件</td>
-<td><strong>仅</strong> <code>marks/*.json</code></td>
+<td><code>marks/annotations.json</code> + <code>marks/&lt;id&gt;.json</code></td>
 </tr>
 </tbody>
 </table>
@@ -311,14 +305,14 @@
 <tbody>
 <tr>
 <td>PDF 渲染</td>
-<td><strong>既有</strong> <code>react-pdf</code> + <code>pdfjs-dist</code></td>
-<td>已渲染 TextLayer / AnnotationLayer，适合划词</td>
-<td>否</td>
+<td><strong>EmbedPDF</strong> + PDFium（WASM）</td>
+<td>统一渲染 / 选区 / 注解 / 查找 / 大纲</td>
+<td>已装 <code>@embedpdf/*</code></td>
 </tr>
 <tr>
 <td>选区与几何</td>
-<td><strong>DOM Selection + TextLayer span 几何</strong>；必要时读 <code>page.getTextContent()</code></td>
-<td>浏览器原生选区成本低；bbox 用 <code>getClientRects()</code> 映射到页坐标</td>
+<td>selection 插件 + <code>selection-anchor</code> / geometry</td>
+<td>页内归一化坐标；滚动/缩放后重算</td>
 <td>否</td>
 </tr>
 <tr>
@@ -529,7 +523,7 @@ interface PdfTranslateRecord {
 }
 </code></pre>
 
-<p>实现：<code>src/lib/pdf-selection/marks-io.ts</code>（路径）+ 各 <code>parse*</code> / <code>list*</code> / <code>write*</code>。</p>
+<p>实现：<code>src/lib/pdf/selection/marks-io.ts</code>（路径）+ 各 <code>parse*</code> / <code>list*</code> / <code>write*</code>。</p>
 <h3 id="53">5.3 存储边界<a class="headerlink" href="#53" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -567,8 +561,8 @@ interface PdfTranslateRecord {
     selection-gutter.tsx         # 共用页边针
     ask-popover.tsx | annotation-editor.tsx | translate-card.tsx
     highlight-layer.tsx | highlight-menu.tsx
-src/lib/pdf-selection/           # marks-io + pin + ActiveSelectionCard
-src/lib/pdf-ask|pdf-highlight|pdf-translate/
+src/lib/pdf/selection/           # marks-io + pin + ActiveSelectionCard
+src/lib/pdf/ask|pdf-highlight|pdf-translate/
 </code></pre>
 
 <p><strong>UI</strong>：i18n <code>viewer</code>；图标 + Tooltip；卡片 Esc/收起/删除；滚动重定位。</p>
@@ -578,7 +572,7 @@ src/lib/pdf-ask|pdf-highlight|pdf-translate/
 <ul>
 <li><code>agent_run_once</code>（<code>hideFromChatHistory: true</code>）</li>
 <li><code>agent:stream</code> / <code>agent:completed</code> / <code>agent:failed</code></li>
-<li>提问 prompt：<code>src/lib/pdf-ask/prompt.ts</code>；Agent/模型：<code>settings.pdfAsk</code></li>
+<li>提问 prompt：<code>src/lib/pdf/ask/prompt.ts</code>；Agent/模型：<code>settings.pdfAsk</code></li>
 <li>翻译：应用级 <code>translate</code> 服务（免费 MT 或 BYOA Agent，见 <a href="../translate/"><code>translate.md</code></a>）</li>
 </ul>
 <h2 id="8">8. 页边圆片布局算法<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
@@ -703,12 +697,12 @@ src/lib/pdf-ask|pdf-highlight|pdf-translate/
 </ul>
 <h2 id="13">13. 决策摘要<a class="headerlink" href="#13" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>渲染</strong>：<code>react-pdf</code> TextLayer。  </li>
+<li><strong>渲染</strong>：EmbedPDF / PDFium。  </li>
 <li><strong>交互</strong>：划词菜单 + 统一 activeCard；页边针回访。  </li>
-<li><strong>存储</strong>：<strong>仅</strong> <code>papers/&lt;id&gt;/marks/&lt;id&gt;.json</code> + <code>kind</code>；坐标 0–1 归一化。  </li>
+<li><strong>存储</strong>：高亮/批注 → <code>marks/annotations.json</code>；提问/翻译 → <code>marks/&lt;id&gt;.json</code>；坐标归一化。  </li>
 <li><strong>智能</strong>：ACP BYOA；不在应用内嵌模型 Key。  </li>
 <li><strong>UI</strong>：SelectionCard / Gutter + AI Elements 提问卡。  </li>
-<li><strong>标注层唯一</strong>：<code>marks/*.json</code>（不写 NOTES / 不另建 Markdown 证据文件）。</li>
+<li><strong>标注层</strong>：<code>marks/</code> 下 JSON（不写 NOTES / 不改 PDF 二进制）。</li>
 </ol>
               
             </div>

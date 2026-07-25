@@ -565,7 +565,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>参数</strong>：<code>{ path: string }</code>（本地绝对路径）。<strong>返回</strong>：<code>ApiResult&lt;null&gt;</code>。</li>
 <li><strong>动机</strong>：静态 scope 仅允许 <code>$HOME/**</code> / <code>$DOCUMENT/**</code> / <code>$DESKTOP/**</code> / <code>$DOWNLOAD/**</code>（<code>capabilities/default.json</code>）。dialog 选目录时 Tauri 会为该目录授予运行时 scope，但<strong>不持久化</strong>；重启后恢复位于上述根之外的 Vault（如 <code>D:\…</code>）会让每次 <code>plugin-fs</code> 调用（<code>readDir</code> / <code>readTextFile</code> / <code>exists</code>）报 <strong><code>forbidden path</code></strong>，直到再次用 dialog 打开。</li>
-<li><strong>调用点</strong>：前端 <code>ensureLocalFsScope(root)</code>（<code>src/lib/vault.ts</code>，按根去重、并发共享同一 grant、幂等）在<strong>任何 <code>plugin-fs</code> 读之前</strong>调用 —— <code>loadVaultTree</code>、<code>loadTabResources</code>（恢复的标签页与树并发加载）、启动时校验恢复路径是否存在的 effect。远端 handle / 非 Tauri 环境为 no-op。</li>
+<li><strong>调用点</strong>：前端 <code>ensureLocalFsScope(root)</code>（<code>src/lib/vault</code>，按根去重、并发共享同一 grant、幂等）在<strong>任何 <code>plugin-fs</code> 读之前</strong>调用 —— <code>loadVaultTree</code>、<code>loadTabResources</code>（恢复的标签页与树并发加载）、启动时校验恢复路径是否存在的 effect。远端 handle / 非 Tauri 环境为 no-op。</li>
 </ul>
 <h4 id="vaultsshsftpmvp">远程 Vault（SSH/SFTP，MVP 已实现）<a class="headerlink" href="#vaultsshsftpmvp" title="Permanent link">&para;</a></h4>
 <p>设计见 <a href="../../development/remote-vault/"><code>../development/remote-vault.md</code></a>。前端伪路径 <code>remote:&lt;sessionId&gt;</code>；文件权威在远端。</p>
@@ -812,7 +812,7 @@ Host (Tauri + Rust)
 <li><strong>参数</strong>：无</li>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
 <li><strong>行为</strong>：停止并释放当前窗口的监听（无监听时 no-op）。窗口 <code>Destroyed</code> 时 Host 亦自动停止，避免线程泄漏。</li>
-<li><strong>前端</strong>：<code>src/lib/fs-watch.ts</code> 封装 <code>startVaultWatch</code> / <code>stopVaultWatch</code>；<code>App.tsx</code> 随 <code>vaultPath</code> 生命周期启停，并监听 <code>vault:file-changed</code>。</li>
+<li><strong>前端</strong>：<code>src/lib/vault/fs-watch.ts</code> 封装 <code>startVaultWatch</code> / <code>stopVaultWatch</code>；<code>App.tsx</code> 随 <code>vaultPath</code> 生命周期启停，并监听 <code>vault:file-changed</code>。</li>
 </ul>
 <h4 id="vaultopen"><code>vault:open</code>（规划）<a class="headerlink" href="#vaultopen" title="Permanent link">&para;</a></h4>
 <p>打开一个已存在的 Vault。</p>
@@ -1199,7 +1199,7 @@ Host (Tauri + Rust)
 - **HTTP 契约、安全模型、实现 vs 缺口总表**：见 [`connector.md`](connector.md) **§4.5**（权威）。
 - **与魔棒关系**：元数据映射复用 `map_zotero_item`；入口不同（插件 vs ⇧⌘I）。
 - **设置**：`connectorEnabled` 默认 `false`；与 Zotero 桌面端 **端口互斥**。
-- **实现**：`services/connector/`、`commands/connector.rs`、`src/lib/connector.ts`。
+- **实现**：`services/connector/`、`commands/connector.rs`、`src/lib/paper/import/connector.ts`。
 - **已挂 HTTP**：`ping`、`saveItems`、`sessionProgress`、`attachmentProgress`、`getSelectedCollection`（含子文件夹 targets）、`updateSession`、`delaySync`、`saveAttachment`、`saveSnapshot`、`saveSingleFile`；另有 `detect`、`savePage`、`selectItems`、`getTranslators`、`proxies` 的安全降级兼容路由。
 
 #### `connector_get_status`
@@ -1557,7 +1557,7 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata[] }</code>（数组元素含 <code>path</code>、<code>title</code>、<code>authors</code>、<code>year</code>、<code>type</code>、标识符与远程 URL 等）。</li>
-<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>listPapers</code>；UI 侧本地表头排序（不经由本命令传 sort 参数）。</li>
+<li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>listPapers</code>；UI 侧本地表头排序（不经由本命令传 sort 参数）。</li>
 <li><strong>说明</strong>：当前无 filter/pagination；扩展筛选/FTS 仍可用规划契约 <code>paper:list</code>（见下）。</li>
 </ul>
 <h4 id="paper_rescan"><code>paper_rescan</code>（已落地）<a class="headerlink" href="#paper_rescan" title="Permanent link">&para;</a></h4>
@@ -1566,7 +1566,7 @@ Host (Tauri + Rust)
 <li><strong>参数</strong>（invoke 字段名 <code>args</code>）：<code>{ vaultPath: string }</code>。</li>
 <li><strong>返回</strong>：<code>{ ok: true; data: { count: number } }</code>（重新导入的 paper 数）。</li>
 <li><strong>行为</strong>：递归遍历 <code>papers/</code>，遇含 <code>metadata.json</code> 的文件夹即为 paper 叶子；反序列化时<strong>回填</strong> <code>path</code>（投影省略），<code>upsert</code> 进 catalog。不删行、不改磁盘文件。</li>
-<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>rescanPapers</code>；论文库空态「重新扫描 papers/」按钮。</li>
+<li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>rescanPapers</code>；论文库空态「重新扫描 papers/」按钮。</li>
 </ul>
 <h4 id="paper_delete"><code>paper_delete</code>（已落地）<a class="headerlink" href="#paper_delete" title="Permanent link">&para;</a></h4>
 <p>从 <strong>catalog.sqlite</strong> 删除指定路径的 paper 行，以及其下嵌套路径（组织目录批量删）。<strong>不</strong>删除磁盘文件；文件树删除由前端 <code>plugin-fs</code> <code>remove</code> 负责，再调本命令清理索引。</p>
@@ -1583,7 +1583,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>返回</strong>：<code>{ ok: true; data: { removed: number } }</code>（删除行数；无匹配时 <code>removed: 0</code>）。</li>
 <li><strong>SQL</strong>：<code>DELETE FROM papers WHERE path = ? OR path LIKE '{path}/%'</code>。</li>
-<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>deletePapersUnderPath</code>；侧栏右键删除 / <code>⌘⌫</code>。</li>
+<li><strong>前端</strong>：删除走 <code>path_trash</code>（<code>trashPaths</code>）；catalog 行随回收站快照清理，不再单独调 <code>paper_delete</code>。</li>
 </ul>
 <h4 id="paper_move"><code>paper_move</code>（已落地）<a class="headerlink" href="#paper_move" title="Permanent link">&para;</a></h4>
 <p>把 paper 文件夹 / <code>papers/</code> 下组织目录（或文件）移动到另一 <code>papers/</code> 目录：磁盘 <code>fs::rename</code>（<strong>不覆盖</strong>已存在目标），并改写 catalog 中受影响行的 <code>path</code> 前缀。</p>
@@ -1604,7 +1604,7 @@ Host (Tauri + Rust)
 <li><strong>校验</strong>：目标须在 <code>papers/</code> 下；拒绝移入自身 / 子孙；目标已存在则报错。</li>
 <li><strong>SQL</strong>：<code>UPDATE papers SET path = ?to || substr(path, len(?from)+1) WHERE path = ?from OR path LIKE '{from}/%'</code>（字符级 substr，兼容非 ASCII 目录名）。</li>
 <li><strong>单测</strong>：<code>papers.rs::move_under_path</code>（叶子 + 组织目录下多行前缀改写）。</li>
-<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>movePaperFolder</code>；文件树多选批量移动（<code>MovePapersDialog</code>）。</li>
+<li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>movePaperFolder</code>；文件树多选批量移动（<code>MovePapersDialog</code>）。</li>
 </ul>
 <h4 id="paper_set_is_read"><code>paper_set_is_read</code>（已落地）<a class="headerlink" href="#paper_set_is_read" title="Permanent link">&para;</a></h4>
 <p>更新 catalog 中单篇论文的 <strong><code>is_read</code></strong>（是否已完成 paper-reader 精读）。成功后同步 <code>metadata.json</code> 投影。</p>
@@ -1621,11 +1621,11 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata }</code>（更新后的整行）。</li>
-<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>setPaperIsRead</code>；paper-reader 工作流成功结束后置 <code>true</code>。</li>
+<li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>setPaperIsRead</code>；paper-reader 工作流成功结束后置 <code>true</code>。</li>
 <li><strong>说明</strong>：与 <code>status</code>（入库态）无关；默认 <code>false</code>。触发路径：</li>
 <li><strong>自动</strong>：魔棒 <code>lookup_import</code> / 单篇 <code>paper_download_assets</code> 成功且资源就绪时，前端 <code>maybeAutoRunPaperReader</code>（批量导入/批量 Download 不连跑）。</li>
 <li><strong>手动</strong>：文件树在「资源齐全且 <code>is_read === false</code>」时显示 <strong>Zap</strong> 图标。</li>
-<li>实现：<code>src/lib/paper-read.ts</code>（进度 <code>kind=paperRead</code>；可与 lookup/download 任务衔接）；skill 触发按当前默认 Agent 的 <code>SkillMentionStyle</code>。</li>
+<li>实现：<code>src/lib/paper/reader.ts</code>（进度 <code>kind=paperRead</code>；可与 lookup/download 任务衔接）；skill 触发按当前默认 Agent 的 <code>SkillMentionStyle</code>。</li>
 </ul>
 <h4 id="paper_set_tags"><code>paper_set_tags</code>（已落地）<a class="headerlink" href="#paper_set_tags" title="Permanent link">&para;</a></h4>
 <p>整表替换 catalog 中单篇论文的 <strong><code>tags</code></strong>（<code>tags_json</code>）。成功后同步 <code>metadata.json</code> 投影。</p>
@@ -1649,7 +1649,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata }</code>（更新后的整行；<code>tags</code> 序列化：无色为字符串，有色为 <code>{name,color}</code>）。</li>
 <li><strong>规范化</strong>：trim 空白；丢弃空串；大小写不敏感去重（保留首次出现的写法与颜色；同名后续项仅在先无色时补色）；<code>color</code> 白名单校验。</li>
-<li><strong>前端</strong>：<code>src/lib/papers-api.ts</code> → <code>setPaperTags</code>；Paper Info 增删 + 色盘；Library 染色 chip + 筛选；<code>src/lib/tag-colors.ts</code>。</li>
+<li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>setPaperTags</code>；Paper Info 增删 + 色盘；Library 染色 chip + 筛选；<code>src/lib/ui/tag-colors.ts</code>。</li>
 <li><strong>CLI</strong>：<code>agentero paper tag set|add|rm &lt;ref&gt; …</code>（<code>set</code> 整表替换，<code>--clear</code> 清空；CLI 仅传裸名称，不设色）；<code>paper list --tag</code> 筛选；<code>paper tag list</code> 汇总。见 <a href="../../development/cli/"><code>../development/cli.md</code></a>。</li>
 </ul>
 <h4 id="paperlist"><code>paper:list</code>（扩展规划）<a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
@@ -2211,9 +2211,9 @@ Host (Tauri + Rust)
 </ul>
 <h4 id="settings_set"><code>settings_set</code>（已实现）<a class="headerlink" href="#settings_set" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>参数</strong>：<code>{ settings: AppSettings }</code>（camelCase，与前端 <code>src/lib/settings.ts</code> 同构）</li>
+<li><strong>参数</strong>：<code>{ settings: AppSettings }</code>（camelCase，与前端 <code>src/lib/settings</code> 同构）</li>
 <li><strong>返回</strong>：规范化后的 <code>AppSettings</code>（写盘 + 更新 Host 内存）</li>
-<li><strong>事件</strong>：保存成功后向<strong>所有窗口</strong> <code>emit("settings:changed", AppSettings)</code>（规范化后的快照）。前端 <code>initSettingsSync()</code>（<code>src/lib/settings.ts</code>）监听该事件更新各窗口内存缓存并通知订阅者（<code>subscribeSettings</code>），保证独立设置窗口与各主窗口的设置实时一致。</li>
+<li><strong>事件</strong>：保存成功后向<strong>所有窗口</strong> <code>emit("settings:changed", AppSettings)</code>（规范化后的快照）。前端 <code>initSettingsSync()</code>（<code>src/lib/settings</code>）监听该事件更新各窗口内存缓存并通知订阅者（<code>subscribeSettings</code>），保证独立设置窗口与各主窗口的设置实时一致。</li>
 </ul>
 <h4 id="settings_path"><code>settings_path</code>（已实现）<a class="headerlink" href="#settings_path" title="Permanent link">&para;</a></h4>
 <ul>
@@ -2297,7 +2297,7 @@ Host (Tauri + Rust)
 </tr>
 </tbody>
 </table>
-<p>前端快捷键（非菜单 emit，见 <code>src/lib/shortcuts.ts</code> / <code>docs/frontend/ui.md</code> §3.1）：<code>⌥⌘R</code> 在 Finder 中显示、<code>⌥⌘T</code> 在终端中打开、<code>⌘←</code> 折叠选中文件夹、<code>⇧⌘←</code> 折叠文件树至默认（仅 <code>papers/</code> 展开）、<code>⌘⌫</code> 删除选中树项、<code>⇧⌘I</code> 魔棒、<code>⌥⌘←/→</code> 切换文档标签。<code>⌘W</code> 亦可由渲染层 <code>shortcuts.ts</code> 直接匹配（与菜单同源逻辑，防抖避免双触发）。</p>
+<p>前端快捷键（非菜单 emit，见 <code>src/lib/shell/shortcuts.ts</code> / <code>docs/frontend/ui.md</code> §3.1）：<code>⌥⌘R</code> 在 Finder 中显示、<code>⌥⌘T</code> 在终端中打开、<code>⌘←</code> 折叠选中文件夹、<code>⇧⌘←</code> 折叠文件树至默认（仅 <code>papers/</code> 展开）、<code>⌘⌫</code> 删除选中树项、<code>⇧⌘I</code> 魔棒、<code>⌥⌘←/→</code> 切换文档标签。<code>⌘W</code> 亦可由渲染层 <code>shortcuts.ts</code> 直接匹配（与菜单同源逻辑，防抖避免双触发）。</p>
 <h2 id="3x-headless-cli">3.x Headless CLI（对照）<a class="headerlink" href="#3x-headless-cli" title="Permanent link">&para;</a></h2>
 <blockquote>
 <p>完整语义见 <a href="../../development/cli/"><code>../development/cli.md</code></a>。CLI <strong>不</strong>走 Tauri invoke，直接 path 依赖 <code>agentero_lib::services</code>（无 BYOA）。</p>
@@ -2393,7 +2393,7 @@ Host (Tauri + Rust)
 </tr>
 <tr>
 <td>V0.6</td>
-<td>文档 <strong>tab 已落地</strong>（前端 <code>agentero-open-tabs</code> + 菜单 <code>close_tab_or_window</code>）；<strong>分屏</strong>布局持久化仍待。Host 侧可选 <code>config</code>/Store 扩展，一般无需新 paper API。</td>
+<td><strong>全局 Dockview</strong> 已落地（前端 panel + <code>toJSON()</code> 布局持久化 + 菜单 <code>close_tab_or_window</code>）；Host 侧一般无需新 paper API。见 <a href="../../development/tab-split/"><code>../development/tab-split.md</code></a>。</td>
 </tr>
 <tr>
 <td>V0.7</td>

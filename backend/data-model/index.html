@@ -481,7 +481,7 @@ UI 论文库（<code>paper_list</code>）/ Paper Info / 远程 PDF·HTML URL（<
 </tr>
 <tr>
 <td>实现</td>
-<td><code>src/lib/markdown-image.ts</code>；编辑器 <code>MarkdownEditor</code> + <code>ImageElement</code>；插入/删除后 <code>onAssetsChanged</code> 刷新文件树</td>
+<td><code>src/lib/markdown/image.ts</code>；编辑器 <code>MarkdownEditor</code> + <code>ImageElement</code>；插入/删除后 <code>onAssetsChanged</code> 刷新文件树</td>
 </tr>
 <tr>
 <td>权限</td>
@@ -530,7 +530,7 @@ papers/&lt;id&gt;/marks/annotations.json    # EmbedPDF 高亮/批注（export/im
 <ul>
 <li><strong>不</strong>写 PDF 二进制、<strong>不</strong>进 catalog 正文、<strong>不</strong>默认写 <code>NOTES.md</code>。</li>
 <li>提问 / 翻译坐标为页内归一化 0–1；高亮几何由 EmbedPDF 注解（页点坐标）保存。</li>
-<li>实现：<code>src/lib/pdf-selection/marks-io.ts</code> + <code>pdf-ask</code> / <code>pdf-highlight</code>（含 <code>annotation-store.ts</code>）/ <code>pdf-translate</code> 的 IO；UI 见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>。</li>
+<li>实现：<code>src/lib/pdf/selection/marks-io.ts</code> + <code>pdf-ask</code> / <code>pdf-highlight</code>（含 <code>annotation-store.ts</code>）/ <code>pdf-translate</code> 的 IO；UI 见 <a href="../../development/pdf-ask/"><code>../development/pdf-ask.md</code></a>。</li>
 <li><strong>阅读热力</strong>：聚合 ask / translate mark 与高亮视图的 page + y，Library 标题文字横向背景（左=文首、右=文末）表示位置强度；可选 <code>{paper}/reading-meta.json</code>（<code>pageCount</code>）。</li>
 </ul>
 <h3 id="papermdl3"><code>PAPER.md</code>(L3，派生)<a class="headerlink" href="#papermdl3" title="Permanent link">&para;</a></h3>
@@ -604,7 +604,7 @@ papers/&lt;id&gt;/marks/annotations.json    # EmbedPDF 高亮/批注（export/im
   /**
    * Catalog 标签。序列化兼容：无色为字符串，有色为 `{ name, color }`。
    * `color` 预置 id：red/orange/yellow/green/teal/blue/indigo/purple。
-   * 前端读写经 `coercePaperTags` / `normalizePaperTags`（`src/lib/tag-colors.ts`）。
+   * 前端读写经 `coercePaperTags` / `normalizePaperTags`（`src/lib/ui/tag-colors.ts`）。
    */
   tags: Array&lt;string | { name: string; color?: string }&gt;;
 

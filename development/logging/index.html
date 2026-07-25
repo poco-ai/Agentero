@@ -155,7 +155,7 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#6">6. 前端模块设计</a>
         <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#61-srclibloggerts">6.1 src/lib/logger.ts</a>
+    <li class="toctree-l3"><a class="reference internal" href="#61-srclibcoreloggerts">6.1 src/lib/core/logger.ts</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#62">6.2 初始化</a>
     </li>
@@ -250,7 +250,7 @@
 <blockquote>
 <p>状态：<strong>P0 已落地</strong>（基础设施 + 关键操作 start/end；P1 导出日志 UI 仍待）。<br />
 范围：Tauri Host + React 前端 + 共享 <code>agentero_lib</code> + headless CLI 的 <strong>本地运行日志</strong>；与 <strong>错误契约 / 用户 Toast</strong> 分层，不替代现有 UX。<br />
-实现入口：<code>src-tauri/src/log_util.rs</code>、<code>src-tauri/src/lib.rs</code>（<code>tauri-plugin-log</code>）、<code>src/lib/logger.ts</code>、CLI <code>env_logger</code>（<code>cli/src/main.rs</code>）。<br />
+实现入口：<code>src-tauri/src/log_util.rs</code>、<code>src-tauri/src/lib.rs</code>（<code>tauri-plugin-log</code>）、<code>src/lib/core/logger.ts</code>、CLI <code>env_logger</code>（<code>cli/src/main.rs</code>）。<br />
 相关：<a href="../technical-plan/"><code>technical-plan.md</code></a>、<a href="../../backend/api/"><code>../backend/api.md</code></a>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §2.1.2、<a href="../cli/"><code>cli.md</code></a>、<a href="../roadmap/"><code>roadmap.md</code></a>、<a href="../todo/"><code>todo.md</code></a>。</p>
 </blockquote>
 <h2 id="1">1. 背景与问题<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
@@ -372,7 +372,7 @@
 </tr>
 <tr>
 <td><strong>前端</strong></td>
-<td><code>@tauri-apps/plugin-log</code> + <code>src/lib/logger.ts</code></td>
+<td><code>@tauri-apps/plugin-log</code> + <code>src/lib/core/logger.ts</code></td>
 <td>统一 <code>logger.info/warn/error</code>；浏览器 dev 回退 <code>console</code></td>
 </tr>
 <tr>
@@ -746,7 +746,7 @@ pub struct OpGuard { name: &amp;'static str, start: Instant, /* fields */ }
 </ul>
 <p>若日后调试需要，用 <code>RUST_LOG=agentero::catalog=debug</code> 等打开，而不是默认 Info 刷屏。</p>
 <h2 id="6">6. 前端模块设计<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
-<h3 id="61-srclibloggerts">6.1 <code>src/lib/logger.ts</code><a class="headerlink" href="#61-srclibloggerts" title="Permanent link">&para;</a></h3>
+<h3 id="61-srclibcoreloggerts">6.1 <code>src/lib/core/logger.ts</code><a class="headerlink" href="#61-srclibcoreloggerts" title="Permanent link">&para;</a></h3>
 <pre class="codehilite"><code class="language-ts">// 职责：统一门面；Tauri 用 plugin-log；纯浏览器用 console
 export const logger = {
   trace(msg: string): void;
@@ -837,7 +837,7 @@ export function logOp&lt;T&gt;(name: string, fields: Record&lt;string, unknown&g
 <h3 id="p0">P0 — 基础设施 + 关键操作起止（本方案主交付）<a class="headerlink" href="#p0" title="Permanent link">&para;</a></h3>
 <ol>
 <li>接入 <code>tauri-plugin-log</code> + <code>log</code> + capabilities + Builder（dev/release level/targets）。</li>
-<li>前端 <code>src/lib/logger.ts</code> + <code>logOp</code>；<code>main.tsx</code> 初始化（dev attachConsole 可选）。</li>
+<li>前端 <code>src/lib/core/logger.ts</code> + <code>logOp</code>；<code>main.tsx</code> 初始化（dev attachConsole 可选）。</li>
 <li><code>runBackgroundTask</code> 自动 start/end。</li>
 <li>Host 表 §5.2 中 <strong>写/长耗时 command</strong> 成对 log；替换关键 <code>eprintln!</code>。</li>
 <li>ErrorBoundary → <code>logger.error</code>。</li>
@@ -936,15 +936,15 @@ export function logOp&lt;T&gt;(name: string, fields: Record&lt;string, unknown&g
 </tr>
 <tr>
 <td>前端 logger</td>
-<td><code>src/lib/logger.ts</code></td>
+<td><code>src/lib/core/logger.ts</code></td>
 </tr>
 <tr>
 <td>横切</td>
-<td><code>src/lib/background-tasks.ts</code>、<code>src/main.tsx</code>、<code>src/components/shell/error-boundary.tsx</code></td>
+<td><code>src/lib/core/background-tasks.ts</code>、<code>src/main.tsx</code>、<code>src/components/shell/error-boundary.tsx</code></td>
 </tr>
 <tr>
 <td>业务埋点</td>
-<td><code>src/lib/{vault,lookup,paper-read,agent}.ts</code>、<code>agent-panel</code> 发消息路径等</td>
+<td><code>src/lib/{vault,paper,agent}/…</code>、<code>agent-panel</code> 发消息路径等</td>
 </tr>
 <tr>
 <td>CLI</td>

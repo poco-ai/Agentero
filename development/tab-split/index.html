@@ -113,17 +113,27 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#2">2. 行为定义</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#3-srclibtabsts">3. 数据结构（src/lib/tabs.ts）</a>
+    <li class="toctree-l2"><a class="reference internal" href="#3-srclibworkspacetabs">3. 数据结构（src/lib/workspace/tabs）</a>
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#_1">关键纯函数</a>
     </li>
         </ul>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#4-tabworkspace-dockview">4. 渲染（TabWorkspace = 全局 Dockview）</a>
+    <li class="toctree-l2"><a class="reference internal" href="#4-dockworkspace-dockview">4. 渲染（DockWorkspace = 全局 Dockview）</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#5">5. 标题栏</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#6">6. 限制</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7-dnd">7. 拖拽分屏（DnD）可靠性</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#71-dockview-keyboardnavigation">7.1 键盘导航（dockview keyboardNavigation）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#72-tab">7.2 Tab 组（染色 / 命名）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#8-pdf-vs">8. PDF 保活策略（壳 vs 引擎）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#9-dockview-70x">9. 已用 / 刻意未用的 dockview 能力（7.0.x）</a>
     </li>
     </ul>
                   </li>
@@ -205,7 +215,7 @@
 <li><strong>NOTES 切换</strong>：Layout 菜单 / 快捷键 → 开/关 NOTES 为同组 tab。</li>
 <li><strong>无 PDF/HTML 切换条</strong>：<code>mode</code> 在 <code>loadTabResources</code> 时按路径与可用资源确定。</li>
 </ul>
-<h2 id="3-srclibtabsts">3. 数据结构（<code>src/lib/tabs.ts</code>）<a class="headerlink" href="#3-srclibtabsts" title="Permanent link">&para;</a></h2>
+<h2 id="3-srclibworkspacetabs">3. 数据结构（<code>src/lib/workspace/tabs</code>）<a class="headerlink" href="#3-srclibworkspacetabs" title="Permanent link">&para;</a></h2>
 <pre class="codehilite"><code class="language-ts">export type DocTab = {
   id: string;           // path-derived
   path: string;
@@ -255,10 +265,10 @@
 </tr>
 </tbody>
 </table>
-<h2 id="4-tabworkspace-dockview">4. 渲染（<code>TabWorkspace</code> = 全局 Dockview）<a class="headerlink" href="#4-tabworkspace-dockview" title="Permanent link">&para;</a></h2>
-<pre class="codehilite"><code>中间栏一个 &lt;TabWorkspace ref={workspaceRef}&gt;
+<h2 id="4-dockworkspace-dockview">4. 渲染（<code>DockWorkspace</code> = 全局 Dockview）<a class="headerlink" href="#4-dockworkspace-dockview" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code>中间栏一个 &lt;DockWorkspace ref={workspaceRef}&gt;
   └─ DockviewReact
-       components.pane → TabCenter（params.panelId）
+       components.pane → DocView（params.panelId）
        tabComponents.default → DockviewDefaultTab（原生标题/关闭）
        tabs[] ↔ syncPanels（仅 membership：add 缺失 / remove 多余）
        title/mode → panel.api.setTitle / updateParameters（独立通道）
@@ -281,24 +291,44 @@
 <td>dockview 原生</td>
 </tr>
 <tr>
+<td>Tab 右键菜单</td>
+<td>dockview <code>getTabContextMenuItems</code>（关闭 / 关闭其他 / 关闭全部 / 新建·移出标签组；<strong>同组</strong>；i18n；关闭经 <code>panel.api.close</code> → <code>onDidRemovePanel</code>）</td>
+</tr>
+<tr>
+<td>Tab 组染色 / 命名</td>
+<td>dockview tab groups：chip 右键 <code>rename</code> + <code>colorPicker</code> + 解散；<code>tabGroupColors</code> i18n 标签；随 <code>toJSON()</code> 持久化</td>
+</tr>
+<tr>
+<td>键盘分屏导航</td>
+<td><code>keyboardNavigation</code>（组内 <code>Ctrl+]</code>/<code>[</code>、组间 <code>F6</code>、键盘停靠 <code>Ctrl+M</code>）；与 App <code>⌥⌘←/→</code> 全局循环正交</td>
+</tr>
+<tr>
 <td>上下左右分屏、多格网格</td>
 <td>dockview 原生 <code>addPanel({ position })</code> + 内部拖拽</td>
 </tr>
 <tr>
+<td>落点 overlay</td>
+<td><code>dropOverlayModel</code>（content 25% 边激活）+ <code>onWillShowOverlay</code> / <code>onWillDrop</code> 否决未知外部拖拽</td>
+</tr>
+<tr>
 <td>布局持久化</td>
-<td><strong>仅</strong> <code>api.toJSON()</code>（params 含 path/mode）</td>
+<td><strong>仅</strong> <code>api.toJSON()</code>（params 含 path/mode；含 tab groups）</td>
 </tr>
 <tr>
 <td>打开放置 / 循环焦点</td>
-<td><code>TabWorkspaceHandle</code>（imperative）</td>
+<td><code>DockWorkspaceHandle</code>（imperative）</td>
 </tr>
 <tr>
 <td>文档内容 / 资源加载</td>
-<td>React <code>DocTab</code> + <code>TabCenter</code></td>
+<td>React <code>DocTab</code> + <code>DocView</code></td>
 </tr>
 <tr>
 <td>侧栏 Paper Info / active id</td>
 <td><code>onDidActivePanelChange</code> → React</td>
+</tr>
+<tr>
+<td>PDF panel 壳保活</td>
+<td><code>addPanel({ renderer: 'always' })</code>（仅 <code>mode === 'pdf'</code>；非 PDF 为 <code>onlyWhenVisible</code>）；与 App <code>PDF_TAB_MOUNT_LRU</code> 叠加：壳常驻 + EmbedPDF 最多保活 N 份</td>
 </tr>
 </tbody>
 </table>
@@ -313,6 +343,135 @@
 <li>文件树拖入开新 panel；dockview 内部 panel 拖拽重组不经 React。</li>
 <li>Library / Trash 也是普通 panel（可与其它文档并排）。</li>
 </ul>
+<h2 id="7-dnd">7. 拖拽分屏（DnD）可靠性<a class="headerlink" href="#7-dnd" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>内部 tab 分屏</strong></td>
+<td><code>DockviewReact</code> 使用 <strong><code>dndStrategy="pointer"</code></strong>（非默认 HTML5）。Tauri WKWebView 上 HTML5 DnD 不稳；pointer 用几何 hit-test，不依赖 <code>dragover</code> 冒泡。浮动/popout 已关，无跨窗 HTML5 需求。</td>
+</tr>
+<tr>
+<td><strong>HTML 面板 iframe</strong></td>
+<td><code>HtmlViewer</code> 在 <code>dragstart</code>…<code>dragend</code>/<code>drop</code> 期间给 sandboxed iframe 加 <code>pointer-events: none</code>，避免 HTML5 外部拖拽（文件树路径）经过 iframe 时 <code>dragover</code> 被吞、分屏 overlay 失效。PDF（EmbedPDF）无 iframe，不受影响。</td>
+</tr>
+<tr>
+<td>文件树拖入</td>
+<td>仍走 HTML5 <code>text/plain</code> + <code>onUnhandledDragOver</code> / <code>onDidDrop</code>；路径 payload 见 <code>tab-dnd.ts</code>。</td>
+</tr>
+<tr>
+<td><strong>overlay 几何</strong></td>
+<td><code>dropOverlayModel</code>：<code>content</code> 边激活 25%（默认 20%，宽 panel 更易分屏）；<code>header_space</code> 50%。外缘仍由 <code>dndEdges</code> 24px。</td>
+</tr>
+<tr>
+<td><strong>否决</strong></td>
+<td><code>onWillShowOverlay</code> / <code>onWillDrop</code>：内部 panel 拖拽一律放行；外部仅接受 vault 路径 payload，其它拖拽 <code>preventDefault</code>。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="71-dockview-keyboardnavigation">7.1 键盘导航（dockview <code>keyboardNavigation</code>）<a class="headerlink" href="#71-dockview-keyboardnavigation" title="Permanent link">&para;</a></h2>
+<p>与 App 全局快捷键<strong>并存、职责不同</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>快捷键</th>
+<th>作用域</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>⌥⌘←</code> / <code>⌥⌘→</code></td>
+<td>App（<code>cycleActive</code>）</td>
+<td>按 <code>api.panels</code> <strong>全局</strong>视觉序循环</td>
+</tr>
+<tr>
+<td><code>Ctrl+]</code> / <code>Ctrl+[</code></td>
+<td>dockview</td>
+<td><strong>当前聚焦组内</strong>下一 / 上一 tab</td>
+</tr>
+<tr>
+<td><code>F6</code> / <code>Shift+F6</code></td>
+<td>dockview</td>
+<td>下一 / 上一 <strong>group</strong>（多分屏格子）</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+方向键</code></td>
+<td>dockview</td>
+<td>按空间方向聚焦相邻 group</td>
+</tr>
+<tr>
+<td><code>Ctrl+M</code></td>
+<td>dockview</td>
+<td>武装键盘停靠：方向键选目标 → <code>Enter</code> 停靠 / <code>Esc</code> 取消</td>
+</tr>
+</tbody>
+</table>
+<p>默认避开 <code>Cmd</code>（如 <code>Cmd+M</code> 为 macOS 最小化窗口）。中间栏聚焦时生效。</p>
+<h2 id="72-tab">7.2 Tab 组（染色 / 命名）<a class="headerlink" href="#72-tab" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>创建</strong>：tab 右键「新建标签组」→ <code>createTabGroup</code> + <code>addPanelToTabGroup</code>（默认名 i18n、色 <code>blue</code>）。</li>
+<li><strong>chip 右键</strong>：重命名、调色板、解散（<code>getTabGroupChipContextMenuItems</code>）。</li>
+<li><strong>移出</strong>：tab 已在组内时右键「从标签组移除」。</li>
+<li><strong>持久化</strong>：tab groups 含在 dockview <code>toJSON()</code> / <code>fromJSON()</code> 中，无需 React 额外状态。</li>
+<li>典型用途：把同一主题的多篇 PDF + NOTES 编成带色 chip 的逻辑组（仍在同一 dock group 的 tab 条上）。</li>
+</ul>
+<h2 id="8-pdf-vs">8. PDF 保活策略（壳 vs 引擎）<a class="headerlink" href="#8-pdf-vs" title="Permanent link">&para;</a></h2>
+<p>两层分工，不要混为一谈：</p>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>机制</th>
+<th>目的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dockview panel 壳</td>
+<td>PDF → <code>renderer: 'always'</code>；其它 mode → <code>onlyWhenVisible</code></td>
+<td>同组切 tab 时 PDF 的 React 树不被 dockview 卸掉，LRU 才有机会命中</td>
+</tr>
+<tr>
+<td>EmbedPDF / PDFium</td>
+<td><code>App</code> <code>PDF_TAB_MOUNT_LRU</code>（默认 4）+ <code>DocView</code> <code>if (!active &amp;&amp; !pdfKeepMounted) return null</code></td>
+<td>限制主线程上同时存活的 PDF 文档数</td>
+</tr>
+</tbody>
+</table>
+<p><code>fromJSON</code> 恢复布局后按 <code>tab.mode</code> 再 <code>setRenderer</code>，避免旧快照缺 renderer 字段时丢失保活。</p>
+<h2 id="9-dockview-70x">9. 已用 / 刻意未用的 dockview 能力（7.0.x）<a class="headerlink" href="#9-dockview-70x" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>能力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>已用</td>
+<td><code>dndStrategy: 'pointer'</code>、<code>dndEdges</code>、<code>dropOverlayModel</code>、<code>onWillDrop</code> / <code>onWillShowOverlay</code>、<code>disableFloatingGroups</code>、外部 DnD、<code>getTabContextMenuItems</code>、<code>getTabGroupChipContextMenuItems</code>、<code>tabGroupColors</code> / <code>tabGroupAccent</code>、<code>keyboardNavigation</code>、PDF <code>renderer: 'always'</code></td>
+</tr>
+<tr>
+<td><strong>模块注册</strong></td>
+<td>dockview 7 的 ContextMenu / TabGroup / keyboard-dock 在 <code>dockview</code> 包 <code>registerModules</code>；<code>dock-workspace</code> 必须 <code>import "dockview"</code> 副作用导入，否则只引 <code>dockview-react</code> 时可能 tree-shake 掉注册 → <strong>右键 tab 静默无菜单</strong></td>
+</tr>
+<tr>
+<td>刻意未用</td>
+<td>popout / floating（与 <code>⌘N</code> 多窗口策略一致）、全局 <code>defaultRenderer: 'always'</code>（非 PDF 不需要壳常驻）</td>
+</tr>
+<tr>
+<td>backlog</td>
+<td><code>maximizeGroup</code>、watermark、header actions</td>
+</tr>
+</tbody>
+</table>
               
             </div>
           </div><footer>

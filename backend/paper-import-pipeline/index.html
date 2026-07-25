@@ -472,7 +472,7 @@ Download / saveAttachment → paper_attach_assets（结果字段对齐 commit）
 
 <hr />
 <h2 id="4-hostpaper_commit">4. Host:<code>paper_commit</code><a class="headerlink" href="#4-hostpaper_commit" title="Permanent link">&para;</a></h2>
-<p>建议模块：<code>src-tauri/src/services/lookup/commit.rs</code>（或新建 <code>services/paper_import/</code>，初期放 lookup 旁即可，避免过早拆 crate）。</p>
+<p>建议模块（<strong>尚未抽出</strong>）：<code>src-tauri/src/services/lookup/</code> 旁或新建 <code>services/paper_import/</code> 统一 <code>paper_commit</code>；当前各入口仍分散在 lookup / connector / papers 路径。</p>
 <h3 id="41-paperdraft-papercommitoptions">4.1 输入：<code>PaperDraft</code> + <code>PaperCommitOptions</code><a class="headerlink" href="#41-paperdraft-papercommitoptions" title="Permanent link">&para;</a></h3>
 <p><strong><code>PaperDraft</code>（概念）</strong></p>
 <table>
@@ -708,7 +708,7 @@ Download / saveAttachment → paper_attach_assets（结果字段对齐 commit）
 <hr />
 <h2 id="5-afterpaperimport">5. 前端：<code>afterPaperImport</code><a class="headerlink" href="#5-afterpaperimport" title="Permanent link">&para;</a></h2>
 <h3 id="51">5.1 策略表<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
-<pre class="codehilite"><code class="language-ts">// 概念：src/lib/paper-import.ts（或同类）
+<pre class="codehilite"><code class="language-ts">// 概念：src/lib/paper/import（或同类）
 type AfterImportPolicy = {
   refreshTree: boolean;
   refreshLibrary: boolean;
@@ -894,7 +894,7 @@ await afterPaperImport(policy, result, { vaultRoot })
 <p>代码锚点（迁移前参考）：</p>
 <ul>
 <li>Host：<code>src-tauri/src/services/lookup/mod.rs</code>、<code>connector/import.rs</code>、<code>lookup/zotero_io.rs</code>、<code>lookup/zotero_db.rs</code></li>
-<li>前端：<code>src/App.tsx</code>（lookup / connector / local pdf / library import）、<code>src/lib/lookup.ts</code>、<code>src/lib/papers-api.ts</code>、<code>src/lib/connector.ts</code></li>
+<li>前端：<code>src/App.tsx</code>（lookup / connector / local pdf / library import）、<code>src/lib/paper/lookup.ts</code>、<code>src/lib/paper/api.ts</code>、<code>src/lib/paper/import/connector.ts</code></li>
 </ul>
 <hr />
 <h2 id="9">9. 验收清单（管线统一后）<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>

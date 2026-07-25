@@ -325,9 +325,8 @@
 <h4 id="markdown">Markdown 工作台<a class="headerlink" href="#markdown" title="Permanent link">&para;</a></h4>
 <ul>
 <li>左侧：Vault 文件树与 paper 元信息。</li>
-<li>中间：Markdown / PDF / HTML 视图切换。</li>
-<li>中间栏：论文库表格（Library / vault home）或 Markdown / PDF / HTML。</li>
-<li>右侧 Notes（Preview）：<strong>仅</strong>打开具体论文且 PDF/HTML 时展示该篇 <code>NOTES.md</code>；论文库视图隐藏。</li>
+<li>中间：<strong>Dockview 工作区</strong>——Library / Markdown / PDF / HTML / 图片 / 回收站 / 论文 NOTES 等 panel；可分屏。</li>
+<li>论文 NOTES：打开 paper 时默认与 PDF 为同组 sibling tab（非独立右列预览栏）。</li>
 <li>可选右侧栏：Agent，或 Backlinks+Graph（上方反链，下方图谱）。</li>
 <li>支持打开、编辑、保存 Markdown。</li>
 <li>支持基本标题、列表、代码块、链接、表格预览。</li>
@@ -370,14 +369,13 @@
 </ul>
 <h4 id="_4">工作区<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>文档标签页已落地</strong>：中间栏以浏览器式多 tab 管理 Library / PDF / HTML / Markdown / 图片等；常驻挂载，切换保留滚动与编辑状态；<code>⌘W</code> / <code>Esc</code> 优先关最顶层应用弹层（设置、命令面板、迁移对话框等，见 <code>overlay-stack</code>），否则先关标签，仅剩全库时关窗口。</li>
-<li><strong>规划（roadmap V0.6 余量）</strong>：2 格分屏并排（PDF | NOTES 等）。</li>
+<li><strong>全局 Dockview 已落地（V0.6）</strong>：中间栏管理 Library / PDF / HTML / Markdown / 图片 / 回收站 / NOTES 等文档 panel；dockview 原生 tab、关闭、上下左右/多格分屏；论文默认 PDF 与 <code>NOTES.md</code> 同组 sibling。标题栏<strong>无</strong>文档 tab 条。<code>⌘W</code> / <code>Esc</code> 优先关最顶层应用弹层（<code>overlay-stack</code>），否则关 active panel，仅剩全库时关窗。详见 <a href="../tab-split/"><code>tab-split.md</code></a>。</li>
 <li><strong>操作错误</strong>：全局右上角 Toast（<code>notifyError</code>），不占用侧栏 header。</li>
 </ul>
 <h3 id="42-p1">4.2 P1 暂缓 / 后续版本<a class="headerlink" href="#42-p1" title="Permanent link">&para;</a></h3>
 <ul>
-<li>分屏（V0.6 余量；标签页已完成）。</li>
-<li>文献引用关系探索与 hover Paper Info（升格为 roadmap V0.7）。</li>
+<li>tab 固定（pin）、按 paper 分组等工作区增强（V0.6 后续）。</li>
+<li>文献引用关系探索与 hover Paper Info（roadmap V0.7）。</li>
 <li>Zotero 全量替代能力。</li>
 <li>云同步、多人协作、权限管理。</li>
 <li>浏览器插件。</li>

@@ -201,8 +201,8 @@
 <strong>影响面</strong>：Agent 对话面板（ACP 流式 UI）<br />
 <strong>相关代码</strong>：</p>
 <ul>
-<li><code>src/lib/agent-stream-parse.ts</code> — 标签拆分与 orphan thought 提升</li>
-<li><code>src/components/agent/agent-panel.tsx</code> — 流式接入与 turn 完成处理</li>
+<li><code>src/lib/agent/stream-parse.ts</code> — 标签拆分与 orphan thought 提升</li>
+<li><code>src/components/agent/use-agent-panel.ts</code> — 流式接入与 turn 完成处理</li>
 <li><code>test/agent-stream-parse.test.ts</code> — 单测</li>
 <li>Host：<code>src-tauri/src/services/agent/acp.rs</code>（<code>AgentMessageChunk</code> → <code>message</code>，<code>AgentThoughtChunk</code> → <code>thought</code>）</li>
 </ul>
@@ -294,7 +294,7 @@
   Agentero Host (acp.rs)  →  agent:stream 事件
         │
         ▼
-  agent-panel：classifyStreamChunk / promoteOrphanThoughtToText
+  use-agent-panel：classifyStreamChunk / promoteOrphanThoughtToText
         │
         ▼
   UI：Reasoning 块 + 正文 Markdown
@@ -313,7 +313,7 @@
 <li>标签内 → <code>reasoning</code> part；标签外 → <code>text</code> part</li>
 </ul>
 <p><code>kind=thought</code> <strong>不</strong>再做标签反解为正文（通道语义已是思考）；误标正文的情况交给完成时兜底。</p>
-<p>接入点：<code>agent-panel</code> 的 <code>applyStreamEvent</code> → <code>classifyStreamChunk</code> → <code>appendStreamPart</code>。</p>
+<p>接入点：<code>use-agent-panel</code> 的 <code>applyStreamEvent</code> → <code>classifyStreamChunk</code> → <code>appendStreamPart</code>。</p>
 <h3 id="32-orphan-thought">3.2 完成时兜底：提升 orphan thought<a class="headerlink" href="#32-orphan-thought" title="Permanent link">&para;</a></h3>
 <p>当 turn 结束（<code>agent:result</code>）时，若：</p>
 <ol>
@@ -393,8 +393,8 @@
 </ul>
 <h3 id="_3">本仓库<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
 <ul>
-<li>实现：<code>src/lib/agent-stream-parse.ts</code>  </li>
-<li>UI 接入：<code>src/components/agent/agent-panel.tsx</code>（<code>applyStreamEvent</code>、turn 完成分支中的 <code>promoteOrphanThoughtToText</code>）  </li>
+<li>实现：<code>src/lib/agent/stream-parse.ts</code>  </li>
+<li>UI 接入：<code>src/components/agent/use-agent-panel.ts</code>（<code>applyStreamEvent</code>、turn 完成分支中的 <code>promoteOrphanThoughtToText</code>）  </li>
 <li>Host 通道映射：<code>src-tauri/src/services/agent/acp.rs</code> → <code>stream_from_update</code>  </li>
 <li>备忘勾选：<code>docs/development/bug.md</code>（对话 / Agent 一节）</li>
 </ul>

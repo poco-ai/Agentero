@@ -157,7 +157,7 @@
 <blockquote>
 <p>状态：<strong>Phase A 已落地</strong>（⌘P/⌘K 快速打开 · ⇧⌘P 命令面板 · <code>&gt;</code> 前缀；命令注册表 Phase B 仍待）<br />
 目标：对齐 VS Code 的 <strong>⌘P 快速打开</strong> 与 <strong>⇧⌘P 命令面板</strong> 交互心智，在 Agentero 中落地「全局搜索框」能力，并给出实现边界与分期。<br />
-相关：现有 <code>src/components/dialogs/command-palette.tsx</code>、<code>src/lib/vault-search.ts</code>、Host <code>vault_search</code>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §3.0 弹层栈、<a href="../../backend/api/"><code>../backend/api.md</code></a>。</p>
+相关：现有 <code>src/components/dialogs/command-palette.tsx</code>、<code>src/lib/vault/search.ts</code>、Host <code>vault_search</code>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a> §3.0 弹层栈、<a href="../../backend/api/"><code>../backend/api.md</code></a>。</p>
 </blockquote>
 <hr />
 <h2 id="1">1. 背景与目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
@@ -336,8 +336,8 @@ Command Palette（⇧⌘P）走 <strong>CommandService 中所有「面向用户�
 </tr>
 <tr>
 <td>快捷键</td>
-<td><code>shortcuts.ts</code> → <code>commandPalette</code></td>
-<td><strong>⌘K</strong> 与 <strong>⌘P</strong>（<code>App.tsx</code> 另绑 p）打开<strong>同一面板</strong></td>
+<td><code>shortcuts.ts</code></td>
+<td><strong>⌘P / ⌘K</strong> → 快速打开（<code>quickOpen</code>）；<strong>⇧⌘P</strong> → 命令模式（<code>commandPalette</code>）</td>
 </tr>
 <tr>
 <td>论文 quick-open</td>
@@ -350,13 +350,18 @@ Command Palette（⇧⌘P）走 <strong>CommandService 中所有「面向用户�
 <td>walk <code>*.md</code>，AND 分词，片段 + 行号</td>
 </tr>
 <tr>
+<td>命令模式</td>
+<td>内置命令列表 + <code>&gt;</code> 前缀</td>
+<td>设置 / 侧栏 / Vault / 布局等可执行动作（Phase A）</td>
+</tr>
+<tr>
 <td>打开目标</td>
 <td><code>onOpenPaper</code> / <code>onOpenVaultRel</code></td>
 <td>命中 <code>papers/</code> 打开论文，否则打开笔记路径</td>
 </tr>
 </tbody>
 </table>
-<p><strong>语义上：当前面板 ≈ VS Code 的 ⌘P（资源导航）+ 内容搜索</strong>，<strong>还不是</strong> ⇧⌘P 的「执行任意命令」。</p>
+<p><strong>Phase A</strong>：⌘P 资源导航 + 内容搜索 + ⇧⌘P / <code>&gt;</code> 命令执行。<strong>Phase B</strong> 仍待：统一 <code>src/lib/shell/commands</code> 注册表（现仅有 <code>types.ts</code> / <code>match.ts</code>）、扩展贡献、更丰富 when / MRU。</p>
 <h3 id="32-vs-code">3.2 与 VS Code 的差距<a class="headerlink" href="#32-vs-code" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -370,32 +375,32 @@ Command Palette（⇧⌘P）走 <strong>CommandService 中所有「面向用户�
 <tr>
 <td>快捷键分工</td>
 <td>⌘P 文件 / ⇧⌘P 命令</td>
-<td>⌘K ≈ ⌘P，<strong>无 ⇧⌘P</strong></td>
+<td>✅ 已分工（⌘P/⌘K go · ⇧⌘P commands）</td>
 </tr>
 <tr>
 <td>前缀模式</td>
 <td><code>&gt;</code> <code>@</code> <code>#</code> <code>:</code> <code>?</code></td>
-<td>无</td>
+<td><code>&gt;</code> 命令模式；<code>@</code>/<code>#</code>/<code>:</code> 无</td>
 </tr>
 <tr>
 <td>命令注册表</td>
 <td>全局 CommandService + 扩展贡献</td>
-<td>无统一命令模型；动作散落 App / 菜单 / 快捷键</td>
+<td>内置列表；完整 registry 仍 Phase B</td>
 </tr>
 <tr>
 <td>执行命令</td>
 <td>面板即执行器</td>
-<td>面板只 <strong>打开资源</strong></td>
+<td>✅ 命令模式可执行内置动作</td>
 </tr>
 <tr>
 <td>最近项</td>
 <td>最近文件 / 最近命令</td>
-<td>空查询 ≈ 论文列表前 N 条（非真实 MRU）</td>
+<td>空查询 ≈ 论文列表前 N 条（非完整 MRU）</td>
 </tr>
 <tr>
 <td>上下文 when</td>
 <td>丰富</td>
-<td>仅「有无 Vault」空态</td>
+<td>有限（有无 Vault 等）</td>
 </tr>
 <tr>
 <td>符号 / 行号</td>
@@ -467,7 +472,7 @@ Command Palette（⇧⌘P）走 <strong>CommandService 中所有「面向用户�
 </code></pre>
 
 <h3 id="43-vs-code-commandservice">4.3 命令注册表（核心，对应 VS Code CommandService）<a class="headerlink" href="#43-vs-code-commandservice" title="Permanent link">&para;</a></h3>
-<p>新建轻量模块（建议 <code>src/lib/commands/</code>）：</p>
+<p>新建轻量模块（建议 <code>src/lib/shell/commands/</code>）：</p>
 <pre class="codehilite"><code class="language-ts">type AppCommand = {
   id: string;                    // e.g. &quot;app.openSettings&quot;
   title: string;                 // i18n key or resolved string
@@ -542,7 +547,7 @@ Command Palette（⇧⌘P）走 <strong>CommandService 中所有「面向用户�
 <p><strong>验收</strong>：⇧⌘P 能执行「打开设置 / 切换侧栏」等命令；⌘P 行为与今日一致或更好。</p>
 <h3 id="phase-b-mru">Phase B — 命令注册表与 MRU<a class="headerlink" href="#phase-b-mru" title="Permanent link">&para;</a></h3>
 <ol>
-<li><code>src/lib/commands/registry.ts</code> + 内置命令迁移（从 App 抽出绑定）。  </li>
+<li><code>src/lib/shell/commands/（</code>types.ts<code>/</code>match.ts<code>；完整 registry 仍为 Phase B）</code> + 内置命令迁移（从 App 抽出绑定）。  </li>
 <li>localStorage：<code>command-mru</code>、<code>paper-mru</code>。  </li>
 <li>空查询：最近论文 + 最近命令。  </li>
 <li>可选前缀：<code>&gt;</code> 强制命令模式。</li>
@@ -684,7 +689,7 @@ Command Palette（⇧⌘P）走 <strong>CommandService 中所有「面向用户�
 </ul>
 <hr />
 <h2 id="9">9. 建议的文件布局<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
-<pre class="codehilite"><code class="language-text">src/lib/commands/
+<pre class="codehilite"><code class="language-text">src/lib/shell/commands/
   types.ts          # AppCommand, PaletteItem
   registry.ts       # register / list / execute
   builtins.ts       # 内置命令 id 与工厂（注入 deps）

@@ -744,7 +744,7 @@ resolveTranslateModel(id):
 <h2 id="7">7. 设置 → 翻译页面<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
 <h3 id="71">7.1 信息架构<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
 <p>设置窗左侧导航 <strong>Translate（翻译）</strong>，与 General · Appearance · Agent · Keyboard · Privacy · About 并列。</p>
-<p>实现：<code>settings-window.tsx</code>；持久化 <code>src/lib/settings.ts</code>。</p>
+<p>实现：<code>settings-window.tsx</code>；持久化 <code>src/lib/settings</code>。</p>
 <h3 id="72">7.2 设计原则：最小选择<a class="headerlink" href="#72" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -1069,7 +1069,7 @@ src-tauri/src/
   services/translate/   # HTTP 客户端、错误映射
 
 src/components/settings/settings-window.tsx  # Translate 导航页
-src/lib/settings.ts                 # translate 字段
+src/lib/settings                 # translate 字段
 src/i18n/locales/{en,zh-CN}/settings.json
 
 # 消费方（示例，不独占服务层）
@@ -1171,7 +1171,7 @@ src/components/viewer/pdf-viewer.tsx / pdf-ask/  → 调用 runTranslate
 <ul>
 <li><a href="https://github.com/windingwind/zotero-pdf-translate">zotero-pdf-translate</a> — 服务表、设置 Service 页、可插拔引擎</li>
 <li><a href="https://github.com/LibreTranslate/LibreTranslate">LibreTranslate</a> — 自托管 MT 参考</li>
-<li>本仓库：<a href="../pdf-ask/"><code>pdf-ask.md</code></a>（首个消费方）、<code>src/lib/pdf-ask/prompt.ts</code>（现有 Agent 译 prompt，待迁入 <code>lib/translate</code>）</li>
+<li>本仓库：<a href="../pdf-ask/"><code>pdf-ask.md</code></a>（首个消费方）、<code>src/lib/pdf/ask/prompt.ts</code>（现有 Agent 译 prompt，待迁入 <code>lib/translate</code>）</li>
 </ul>
               
             </div>

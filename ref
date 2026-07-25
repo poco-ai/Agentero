@@ -1,0 +1,7 @@
+# 已迁移
+
+`src/lib` 领域分包布局已落地。权威说明见：
+
+- [`docs/development/lib-layout.md`](development/lib-layout.md)
+
+（本文件保留为重构草稿的跳转入口，避免外链失效。）

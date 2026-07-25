@@ -203,9 +203,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#82-rust">8.2 Rust 依赖</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#83">8.3 安全相关依赖</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#84">8.4 可选依赖</a>
+    <li class="toctree-l3"><a class="reference internal" href="#83">8.3 可选依赖</a>
     </li>
         </ul>
     </li>
@@ -514,17 +512,17 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <tr>
 <td>可伸缩面板</td>
 <td><code>react-resizable-panels</code>（<code>Group</code> / <code>Panel</code> / <code>Separator</code>）</td>
-<td>v4 API；封装见 <code>src/components/shell/resizable.tsx</code>；左右侧栏 <strong>collapsible 常驻</strong> + <code>preserve-pixel-size</code></td>
+<td>v4 API；封装见 <code>src/components/ui/resizable.tsx</code>；左右侧栏 <strong>collapsible 常驻</strong> + <code>preserve-pixel-size</code></td>
 </tr>
 <tr>
 <td>侧边栏文件树</td>
-<td><code>src/components/vault/file-tree.tsx</code></td>
+<td><code>src/components/sidebar/file-tree.tsx</code></td>
 <td>包装 <strong>AI Elements</strong> <code>FileTree</code>；右键 / 快捷键</td>
 </tr>
 <tr>
 <td>Vault IO</td>
-<td><code>src/lib/vault.ts</code></td>
-<td>选目录、建树、读写文本、建目录、删除路径；<code>src/lib/reveal.ts</code> 系统文件管理器定位 / 终端打开</td>
+<td><code>src/lib/vault</code></td>
+<td>选目录、建树、读写文本、建目录、删除路径；<code>src/lib/vault/reveal.ts</code> 系统文件管理器定位 / 终端打开</td>
 </tr>
 <tr>
 <td>Catalog 删除</td>
@@ -624,7 +622,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 <tr>
 <td>代码</td>
-<td><code>src/lib/markdown-image.ts</code>；<code>MarkdownEditor</code> 配置 <code>ImagePlugin</code>；<code>ImageElement</code></td>
+<td><code>src/lib/markdown/image.ts</code>；<code>MarkdownEditor</code> 配置 <code>ImagePlugin</code>；<code>ImageElement</code></td>
 </tr>
 <tr>
 <td>权限</td>
@@ -644,7 +642,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <tbody>
 <tr>
 <td>PDF 渲染（前端）</td>
-<td><strong>已接入</strong> <code>react-pdf</code> + <code>pdfjs-dist</code>：本地优先 <code>blob:</code> → 自动下载 → 远程回退；<strong>真实 scale 重渲染</strong>（缩放停后 <code>width = 基准×缩放</code>）；放大后双向滚动</td>
+<td><strong>已接入</strong> EmbedPDF + PDFium：本地优先 <code>blob:</code> → 自动下载 → 远程回退；<strong>真实 scale 重渲染</strong>（缩放停后 <code>width = 基准×缩放</code>）；放大后双向滚动</td>
 </tr>
 <tr>
 <td>PDF 工具栏</td>
@@ -682,12 +680,12 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </table>
 <p><strong>分工说明</strong>：</p>
 <ul>
-<li><strong>渲染层</strong>（<code>react-pdf</code>）：负责在 Webview 中展示 PDF 页面，供用户审阅、缩放、翻页浏览。</li>
+<li><strong>渲染层</strong>（EmbedPDF / PDFium）：负责在 Webview 中展示 PDF 页面，供用户审阅、缩放、翻页浏览。</li>
 <li><strong>解析层</strong>（<code>liteparse</code>，crate <code>2.5+</code>）：在 Rust 端提取 PDF 文本内容，用于生成 <code>PAPER.md</code>、Agent 上下文读取、全文检索索引等。输出支持 Markdown（含标题/表格/列表重建）、JSON（含 bounding box）和纯文本。</li>
-<li><strong>当前落地</strong>：无本地 TeX 时，在 <code>lookup_import</code> / <code>paper_download_assets</code> <strong>下载之后</strong>自动 liteparse → <code>PAPER.md</code>；<code>paper_parse_body</code> 亦可手动。有 TeX 不自动生成。Download 图标补资源。精读：<strong>入库/单篇 Download 后自动</strong> paper-reader，资源齐全且未读时 Zap 可手动（catalog <code>is_read</code>；skill 触发：<strong>Codex <code>$paper-reader</code></strong>、<strong>Claude <code>/paper-reader</code></strong>、其它仅注入 <code>SKILL.md</code>，见 Host <code>SkillMentionStyle</code>；前端 <code>src/lib/paper-read.ts</code>）。</li>
+<li><strong>当前落地</strong>：无本地 TeX 时，在 <code>lookup_import</code> / <code>paper_download_assets</code> <strong>下载之后</strong>自动 liteparse → <code>PAPER.md</code>；<code>paper_parse_body</code> 亦可手动。有 TeX 不自动生成。Download 图标补资源。精读：<strong>入库/单篇 Download 后自动</strong> paper-reader，资源齐全且未读时 Zap 可手动（catalog <code>is_read</code>；skill 触发：<strong>Codex <code>$paper-reader</code></strong>、<strong>Claude <code>/paper-reader</code></strong>、其它仅注入 <code>SKILL.md</code>，见 Host <code>SkillMentionStyle</code>；前端 <code>src/lib/paper/reader.ts</code>）。</li>
 <li><code>liteparse</code> 内置 Tesseract OCR，对扫描型 PDF 也能处理；支持多格式（PDF/DOCX/XLSX/PPTX/图片）。</li>
 <li>PDF 引用/插图解析的落盘契约、TeX/PDF 双路径和交互边界见 <a href="../../backend/pdf-analysis/"><code>../backend/pdf-analysis.md</code></a>。首版只分析本地 paper PDF；sidecar 写入 paper <code>source/</code>，不覆盖原始资产。</li>
-<li><strong>HTML 安全</strong>：完整远程/本地 HTML 文档优先用隔离 <code>iframe</code> 或 <code>convertFileSrc</code> 加载；任何会进入主文档 DOM 的不可信 HTML 字符串必须调用 <code>sanitizeHtml</code>（DOMPurify）。许可证 Apache-2.0。</li>
+<li><strong>HTML 安全</strong>：完整远程/本地 HTML 文档优先用隔离 <code>iframe</code> 或 <code>convertFileSrc</code> 加载（不注入主文档 DOM）。</li>
 </ul>
 <p><strong>可插拔 PDF 解析器（<code>PdfParser</code>）</strong>：</p>
 <ul>
@@ -1259,7 +1257,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 </tr>
 <tr>
 <td>多窗口自由拖拽</td>
-<td>已支持 <code>⌘N</code> 多窗口与<strong>文档标签页</strong>；<strong>分屏</strong> 规划见 roadmap V0.6 余量</td>
+<td>已支持 <code>⌘N</code> 多窗口与中间栏 <strong>Dockview</strong> 多分屏（V0.6 已落地）</td>
 </tr>
 <tr>
 <td>PDF 阅读器</td>
@@ -1287,7 +1285,7 @@ AI Elements 安装与组件约定见 <strong><code>docs/frontend/components.md</
 <ul>
 <li><strong>共享层</strong>：Rust 业务逻辑（Vault、Markdown 索引、ACP Client）完全跨平台。</li>
 <li><strong>前端适配层</strong>：通过 <code>useMediaQuery</code> / 平台检测（Tauri <code>os</code> API）切换布局组件。</li>
-<li><strong>平台特定代码</strong>：封装在 <code>src/platform/</code> 下，如 <code>desktop.ts</code>、<code>mobile.ts</code>。</li>
+<li><strong>平台特定代码</strong>：按需拆分平台入口（当前无独立 platform 目录）。</li>
 </ul>
 <h2 id="7">7. 开发/构建/部署<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
 <h3 id="71">7.1 本地开发<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
@@ -1331,14 +1329,14 @@ pnpm tauri dev
   &quot;@platejs/markdown&quot;: &quot;^53&quot;,
   &quot;@platejs/basic-nodes&quot;: &quot;^53&quot;,
   &quot;@platejs/ai&quot;: &quot;^53&quot;,
-  &quot;dompurify&quot;: &quot;^3&quot;,
   &quot;lucide-react&quot;: &quot;^1&quot;,
   &quot;remark-gfm&quot;: &quot;^4&quot;,
   &quot;remark-math&quot;: &quot;^6&quot;,
   &quot;remark-emoji&quot;: &quot;^5&quot;,
   &quot;zustand&quot;: &quot;^5&quot;,
   &quot;react-force-graph-2d&quot;: &quot;^1&quot;,
-  &quot;react-pdf&quot;: &quot;^9&quot;,
+  &quot;@embedpdf/*&quot;: &quot;版本见 package.json&quot;,
+  &quot;dockview&quot;: &quot;版本见 package.json&quot;,
   &quot;class-variance-authority&quot;: &quot;^0.7&quot;,
   &quot;clsx&quot;: &quot;^2&quot;,
   &quot;tailwind-merge&quot;: &quot;^3&quot;
@@ -1346,7 +1344,7 @@ pnpm tauri dev
 </code></pre>
 
 <blockquote>
-<p><strong>已落地</strong>：<code>react-resizable-panels</code>、<code>@tauri-apps/plugin-fs</code>、<code>@tauri-apps/plugin-dialog</code>、<code>react-pdf</code>、双链反链、<code>react-force-graph-2d</code> + <code>graph_get_graph</code>。<br />
+<p><strong>已落地</strong>：<code>react-resizable-panels</code>、<code>@tauri-apps/plugin-fs</code>、<code>@tauri-apps/plugin-dialog</code>、EmbedPDF、双链反链、<code>react-force-graph-2d</code> + <code>graph_get_graph</code>。<br />
 <strong>图谱 UI</strong>：Graph 位于 Backlinks 右侧栏下方，支持 Near / All 模式和节点点击打开。<br />
 <strong>仍为计划</strong>：<code>zustand</code>（可选）。</p>
 </blockquote>
@@ -1374,24 +1372,7 @@ walkdir = &quot;2&quot;
 tempfile = &quot;3&quot;
 </code></pre>
 
-<h3 id="83">8.3 安全相关依赖<a class="headerlink" href="#83" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>库</th>
-<th>用途</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>dompurify</code></td>
-<td>HTML XSS 消毒</td>
-<td>已接入；封装见 <code>src/lib/sanitize.ts</code> 的 <code>sanitizeHtml</code>。内联 HTML 渲染前必须调用。</td>
-</tr>
-</tbody>
-</table>
-<h3 id="84">8.4 可选依赖<a class="headerlink" href="#84" title="Permanent link">&para;</a></h3>
+<h3 id="83">8.3 可选依赖<a class="headerlink" href="#83" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -1457,7 +1438,7 @@ tempfile = &quot;3&quot;
 </tr>
 <tr>
 <td>V0.6</td>
-<td><strong>文档标签页已落地</strong>（标题栏多 tab、常驻挂载、<code>⌘W</code> 关 tab / 无 tab 关窗、多窗口独立 tab 集）；<strong>2 格分屏</strong>仍待；与 Agent 会话标签分离。</td>
+<td><strong>全局 Dockview 已落地</strong>：中间栏文档 panel（非标题栏 tab）；上下左右/多格分屏；论文默认 PDF|NOTES sibling；布局 <code>toJSON()</code>；与 Agent 会话标签分离。见 <a href="../tab-split/"><code>tab-split.md</code></a>。</td>
 </tr>
 <tr>
 <td>V0.7</td>
@@ -1469,7 +1450,7 @@ tempfile = &quot;3&quot;
 </tr>
 <tr>
 <td>Later</td>
-<td>iPadOS 构建、完整 PDF 批注、云同步、多 Agent 并行、更深 prior–derivative 引用布局、&gt;2 格分屏。</td>
+<td>iPadOS 构建、完整 PDF 批注、云同步、多 Agent 并行、更深 prior–derivative 引用布局。</td>
 </tr>
 </tbody>
 </table>
