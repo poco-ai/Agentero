@@ -224,7 +224,7 @@
               
                 <h1 id="paper">Paper 入库流水线（统一方案）<a class="headerlink" href="#paper" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>设计已落库，实现未统一</strong>（各入口仍分叉编排；砖块已部分复用）<br />
+<p>状态：<strong>Host 内核已实现（P0 + P2 本地部分）</strong>——<code>services/paper_import::paper_commit</code> 已落地，魔棒单篇 / Connector（本地+远程壳）/ 本地 PDF / Bib 四个本地入口已迁入；路径分配统一为 <code>lookup::allocate_paper_path</code>（盘 + catalog 双查，撞名改写 <code>meta.id</code>）。未完成：Zotero 迁移（P3）、remote 镜像层收敛、前端 <code>afterPaperImport</code>（P1）、统一事件（P4）。<br />
 目标：把「创建 paper 单元」收敛为 <strong>Host 唯一落盘内核 + 前端唯一后置策略</strong>；各入口只做元数据 / 来源适配。<br />
 相关：<a href="../identifier-lookup/"><code>identifier-lookup.md</code></a>（魔棒）、<a href="../connector/"><code>connector.md</code></a>（浏览器插件）、<a href="../catalog/"><code>catalog.md</code></a>、<a href="../data-model/"><code>data-model.md</code></a>、<a href="../api/"><code>api.md</code></a>、<a href="../../development/cli/"><code>../development/cli.md</code></a>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>。</p>
 </blockquote>
@@ -921,6 +921,10 @@ await afterPaperImport(policy, result, { vaultRoot })
 <tr>
 <td>2026-07-19</td>
 <td>初稿：现状盘点 + <code>paper_commit</code> / <code>afterPaperImport</code> 目标架构与分期</td>
+</tr>
+<tr>
+<td>2026-07-25</td>
+<td>落地 <code>services/paper_import::paper_commit</code>（dedupe / path / assets 策略 + <code>PaperCommitResult</code>）；魔棒单篇（改 <code>ByCatalogId</code>，重复不再覆盖 NOTES）、Connector（<code>Deferred</code> assets，本地+远程共用一个后台下载调度器）、本地 PDF（<code>CopyPdf</code>）、Bib（<code>ByPathOrNotes</code>）迁入；4 份路径分配合并为 <code>allocate_paper_path</code>（盘+catalog，撞名同步改写 <code>meta.id</code>，修复迁移 id 不一致）；合并 <code>identifier_kind_*</code> / <code>slug_from_stem</code> / 免费 MT 链 / connector meta 后处理重复实现</td>
 </tr>
 </tbody>
 </table>
