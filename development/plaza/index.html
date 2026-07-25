@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>广场 Plaza - Agentero 文档</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "\u5e7f\u573a Plaza";
+        var mkdocs_page_input_path = "development/plaza.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Agentero 文档
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">用户指南</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/">使用指南</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/getting-started/">安装与首次使用</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/import-papers/">导入和管理论文</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/read-and-organize/">阅读、标注与整理</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/agents/">接入 Agent</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/zotero/">使用 Zotero Connector</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../usage/remote-vault/">打开远程 Vault</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">前端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">后端</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">测试</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">开发</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../prd/">产品需求</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../technical-plan/">技术方案</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI 设计</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../pdf-ask/">PDF 划词提问</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../translate/">翻译服务</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">广场 Plaza</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#0-2026-07-25">0. 产品结论（2026-07-25）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#1">1. 产品动机</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#2">2. 侧栏信息架构</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#3">3. 中间栏呈现</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#31-plazaview">3.1 壳：PlazaView</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#32-cool-papersp0webview">3.2 Cool Papers（P0，WebView）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#33">3.3 播客（占位）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#34-v0p0">3.4 论文推荐 v0（P0）</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#4">4. 与其它模块</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#5">5. 虚拟路径与类型草图</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#6">6. 分阶段</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#7-p0">7. 明确不做（P0）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#8">8. 实现落点（编码时）</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#9">9. 风险与后续确认点</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../roadmap/">路线图</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../todo/">TODO</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../github-project/">GitHub Project</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Agentero 文档</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">开发</li>
+      <li class="breadcrumb-item active">广场 Plaza</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/plaza.md">Edit on poco-ai/agentero</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="plaza">广场（Plaza）— 外部来源发现<a class="headerlink" href="#plaza" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>状态：<strong>设计已定（未实现）</strong><br />
+范围：侧栏虚拟节点 <strong>广场</strong> 及其子来源（Cool Papers / 播客 / 论文推荐）；中间栏发现流。<br />
+相关：<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>、<a href="../roadmap/"><code>roadmap.md</code></a>、<a href="../todo/"><code>todo.md</code></a>。</p>
+</blockquote>
+<h2 id="0-2026-07-25">0. 产品结论（2026-07-25）<a class="headerlink" href="#0-2026-07-25" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>议题</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>树位置</td>
+<td><strong>Library + Recycle Bin 下方、真实 Vault 根目录上方</strong></td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>Cool Papers 呈现</td>
+<td><strong>内嵌 WebView</strong> 打开 <a href="https://papers.cool/">papers.cool</a></td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>入库</td>
+<td><strong>P0 不做入库</strong>（不接魔棒 / <code>lookup_import</code>；后续迭代再开）</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>P0 范围</td>
+<td><strong>Cool Papers 可用（WebView 完整浏览）+ 推荐 v0</strong>；播客仅占位</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1">1. 产品动机<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>Agentero 已是 <strong>local-first 论文工作台</strong>（Library + 文件树 + PDF|NOTES）。用户还需要从 <strong>外部发现流</strong> 找新论文。</p>
+<p><strong>广场</strong> = 「发现入口」集合，与 <strong>Library（已收藏）</strong> 正交：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Library</th>
+<th>广场</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数据权威</td>
+<td>catalog + Vault 文件</td>
+<td>外部站点 / 本地启发式；<strong>P0 不写 Vault</strong></td>
+</tr>
+<tr>
+<td>侧栏</td>
+<td><code>agentero:library</code></td>
+<td><code>agentero:plaza</code> + 子来源</td>
+</tr>
+<tr>
+<td>中间栏</td>
+<td>论文库表格</td>
+<td>来源专属发现 UI</td>
+</tr>
+<tr>
+<td>典型动作</td>
+<td>打开 / 标签 / 导出</td>
+<td>浏览发现（入库后续再做）</td>
+</tr>
+</tbody>
+</table>
+<p>来源：</p>
+<ol>
+<li><strong>Cool Papers</strong>（<a href="https://papers.cool/">papers.cool</a>）— P0：内嵌站点浏览。  </li>
+<li><strong>播客</strong> — 占位，后续。  </li>
+<li><strong>论文推荐</strong> — P0 v0：基于本地库的轻量推荐列表（无云端上传）。</li>
+</ol>
+<h2 id="2">2. 侧栏信息架构<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code>📁 VaultName
+├── 📚 Library                 agentero:library
+├── 🗑️ Recycle Bin             agentero:trash
+├── 🌐 广场                     agentero:plaza              ← 可折叠
+│   ├── ✨ Cool Papers         agentero:plaza/cool-papers
+│   ├── 🎙️ 播客                 agentero:plaza/podcasts      ← 占位
+│   └── 🧭 推荐                 agentero:plaza/recommend
+├── papers/
+├── notes/
+└── …
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>约定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>路径</td>
+<td><code>agentero:plaza</code>、<code>agentero:plaza/&lt;sourceId&gt;</code>；<strong>永不落盘</strong></td>
+</tr>
+<tr>
+<td>位置</td>
+<td>Library 与 Recycle Bin <strong>之下</strong>，真实根目录 <strong>之上</strong></td>
+</tr>
+<tr>
+<td>父节点</td>
+<td>展开/折叠；单击 → 广场首页（三来源卡片）</td>
+</tr>
+<tr>
+<td>子节点</td>
+<td>单击 → 对应来源 panel（dockview 虚拟 tab）</td>
+</tr>
+<tr>
+<td>右键</td>
+<td>Cool Papers：可选「在系统浏览器打开 papers.cool」；无删除/拖拽/Finder</td>
+</tr>
+<tr>
+<td>禁用</td>
+<td>拖入拖出、删除、重命名、终端打开</td>
+</tr>
+</tbody>
+</table>
+<p><strong>图标（建议）</strong></p>
+<table>
+<thead>
+<tr>
+<th>节点</th>
+<th>Lucide</th>
+<th>en</th>
+<th>zh-CN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>广场</td>
+<td><code>Sparkles</code></td>
+<td>Plaza</td>
+<td>广场</td>
+</tr>
+<tr>
+<td>Cool Papers</td>
+<td><code>Flame</code> 或自定义标</td>
+<td>Cool Papers</td>
+<td>Cool Papers</td>
+</tr>
+<tr>
+<td>播客</td>
+<td><code>Podcast</code></td>
+<td>Podcasts</td>
+<td>播客</td>
+</tr>
+<tr>
+<td>推荐</td>
+<td><code>Compass</code></td>
+<td>For You</td>
+<td>推荐</td>
+</tr>
+</tbody>
+</table>
+<p>i18n：<code>sidebar:plaza.*</code>。</p>
+<h2 id="3">3. 中间栏呈现<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31-plazaview">3.1 壳：<code>PlazaView</code><a class="headerlink" href="#31-plazaview" title="Permanent link">&para;</a></h3>
+<ul>
+<li>dockview：<code>kind: "plaza"</code>，<code>path</code> = 虚拟 URI；同一 path 单实例 <code>activatePanel</code>。  </li>
+<li><strong>无</strong>独立应用顶栏（与 Library 一致）；来源工具条做在内容区内。  </li>
+<li>父路径 <code>agentero:plaza</code>：三张来源卡片（Cool Papers 可进；播客「即将推出」；推荐可进 v0）。</li>
+</ul>
+<pre class="codehilite"><code>┌──────────────────────────────────────────────────────┐
+│  广场                                                 │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐        │
+│  │ Cool Papers│ │ 播客       │ │ 推荐       │        │
+│  │ 打开日更流  │ │ 即将推出   │ │ 基于本地库  │        │
+│  └────────────┘ └────────────┘ └────────────┘        │
+└──────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="32-cool-papersp0webview">3.2 Cool Papers（P0，WebView）<a class="headerlink" href="#32-cool-papersp0webview" title="Permanent link">&para;</a></h3>
+<p><strong>主内容</strong>：内嵌 <strong>WebView / 受控 iframe 等价物</strong>（Tauri 下优先 <code>webview</code> 或桌面 WebView 面板）加载 <code>https://papers.cool/</code>（或可配置起始分区 URL）。</p>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主体</td>
+<td>全高 WebView；站点内导航、分区、搜索均由 papers.cool 负责</td>
+</tr>
+<tr>
+<td>顶条（Agentero chrome）</td>
+<td>后退 / 前进 / 刷新 / 主页（papers.cool）/「系统浏览器打开」</td>
+</tr>
+<tr>
+<td>地址</td>
+<td>可选显示当前 URL（只读）；不暴露任意网址栏防滥用</td>
+</tr>
+<tr>
+<td>加载失败</td>
+<td>空态 + 重试 + 外链打开</td>
+</tr>
+<tr>
+<td>入库</td>
+<td><strong>P0 不做</strong>（顶条不放「加入 Library」；文档标明后续迭代）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>工程注意（Tauri）</strong>：</p>
+<ul>
+<li>使用应用内 webview 面板，而非无约束打开外部浏览器标签（外链为次要出口）。  </li>
+<li>Cookie / 第三方脚本：最小权限；不注入用户 API Key。  </li>
+<li>与 PDF iframe 类似：若影响 dockview 拖拽，在拖拽期间 <code>pointer-events: none</code>（参考 HTML viewer 策略）。  </li>
+<li>远程 Vault 会话下同样可用（广场不依赖 vault 文件 IO）。</li>
+</ul>
+<p><strong>后续（非 P0）</strong>：从 URL 解析 arXiv id → 预览抽屉 / 批量入库；届时再增加 Agentero 侧列表层或桥接脚本（需合规评估）。</p>
+<h3 id="33">3.3 播客（占位）<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
+<ul>
+<li>空态文案：订阅源、单集列表与播放将在后续版本提供。  </li>
+<li>侧栏子节点可点，进入占位页（避免「死链」）。</li>
+</ul>
+<h3 id="34-v0p0">3.4 论文推荐 v0（P0）<a class="headerlink" href="#34-v0p0" title="Permanent link">&para;</a></h3>
+<p><strong>目标</strong>：不依赖外部账号，仅用 <strong>本地 catalog + 轻量信号</strong> 给出可解释的「下一步可读」。</p>
+<table>
+<thead>
+<tr>
+<th>信号（v0）</th>
+<th>用法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>最近打开 / 最近入库</td>
+<td>「继续阅读」「新入库未读」</td>
+</tr>
+<tr>
+<td><code>is_read === false</code> 且资源齐全</td>
+<td>「待精读」</td>
+</tr>
+<tr>
+<td>同 tag 聚类</td>
+<td>「与标签 X 相关的本地论文」</td>
+</tr>
+<tr>
+<td>阅读热力为空但已打开</td>
+<td>「打开过但几乎未标注」</td>
+</tr>
+</tbody>
+</table>
+<p><strong>呈现</strong>：分组列表（非 WebView）—</p>
+<pre class="codehilite"><code>推荐
+├── 待精读（未读且有 PDF/TeX）
+├── 最近入库
+└── 标签「…」下的其它论文
+</code></pre>
+
+<ul>
+<li>行点击 → <strong><code>openPaper</code></strong>（本地 PDF|NOTES），因为条目已在库。  </li>
+<li>无足够本地数据：空态引导「用魔棒或 Cool Papers 发现论文，入库后这里会更有用」（Cool Papers 暂不入库时，引导魔棒 / 手动）。  </li>
+<li><strong>隐私</strong>：v0 <strong>不上传</strong>库内容到云端；仅本地计算。</li>
+</ul>
+<blockquote>
+<p>说明：P0 推荐是「本地库导读」，不是 Cool Papers 式外网发现。外网推荐留待入库打通之后。</p>
+</blockquote>
+<h2 id="4">4. 与其它模块<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>关系</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Library</td>
+<td>推荐 v0 只读 <code>paper_list</code> / 热力；不改 catalog schema</td>
+</tr>
+<tr>
+<td>魔棒 / 入库</td>
+<td><strong>P0 不接</strong>；P1 再复用 <code>lookup_import</code></td>
+</tr>
+<tr>
+<td>PDF|NOTES</td>
+<td>推荐打开本地论文时走现有阅读布局</td>
+</tr>
+<tr>
+<td>Agent</td>
+<td>P0 不强制；P1 可做「解释为何推荐」</td>
+</tr>
+<tr>
+<td>命令面板</td>
+<td>P1：<code>Plaza: Cool Papers</code> 等</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5">5. 虚拟路径与类型草图<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<pre class="codehilite"><code class="language-ts">export const PLAZA_VIRTUAL_PATH = &quot;agentero:plaza&quot;;
+
+export const PLAZA_SOURCE_PATHS = {
+  coolPapers: &quot;agentero:plaza/cool-papers&quot;,
+  podcasts: &quot;agentero:plaza/podcasts&quot;,
+  recommend: &quot;agentero:plaza/recommend&quot;,
+} as const;
+
+export function isPlazaVirtualPath(path: string | null | undefined): boolean {
+  return Boolean(path?.startsWith(&quot;agentero:plaza&quot;));
+}
+</code></pre>
+
+<p>DocTab：<code>kind: "plaza"</code>（或 <code>file</code> + mode <code>plaza</code> + path 虚拟 URI——实现时与 Library/Trash 对齐选一种，<strong>推荐独立 kind</strong> 便于 <code>DocView</code> 分支）。</p>
+<h2 id="6">6. 分阶段<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>交付</th>
+<th>验收</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0a 壳</strong></td>
+<td>侧栏广场 + 三子节点；<code>PlazaView</code> 首页 + 路由</td>
+<td>虚拟 path 不写盘；i18n；折叠位置正确</td>
+</tr>
+<tr>
+<td><strong>P0b Cool Papers</strong></td>
+<td>WebView 浏览 papers.cool + 导航 chrome + 外链</td>
+<td>可分区浏览站点；失败可恢复</td>
+</tr>
+<tr>
+<td><strong>P0c 推荐 v0</strong></td>
+<td>本地启发式分组列表 + openPaper</td>
+<td>有库时有分组；无库时空态</td>
+</tr>
+<tr>
+<td><strong>P0d 播客</strong></td>
+<td>占位页</td>
+<td>可进入、文案清晰</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td>入库（解析 arXiv / 魔棒管线）、预览抽屉、批量加入 Library</td>
+<td>与魔棒语义一致</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>播客实体、Agent 推荐、命令面板、@ 广场条目</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7-p0">7. 明确不做（P0）<a class="headerlink" href="#7-p0" title="Permanent link">&para;</a></h2>
+<ul>
+<li>广场 → Vault <strong>入库</strong>（含批量）。  </li>
+<li>把 feed 写入 catalog。  </li>
+<li>播客播放器 / 订阅管理。  </li>
+<li>云端协同过滤或上传本地库。  </li>
+<li>在 WebView 内注入支付/登录 Agentero 账号。</li>
+</ul>
+<h2 id="8">8. 实现落点（编码时）<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>路径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>设计</td>
+<td><code>docs/development/plaza.md</code>（本文）</td>
+</tr>
+<tr>
+<td>UI 规范摘录</td>
+<td><code>docs/frontend/ui.md</code> § 广场</td>
+</tr>
+<tr>
+<td>虚拟 path</td>
+<td><code>src/lib/paper/api.ts</code> 或 <code>src/lib/plaza/</code></td>
+</tr>
+<tr>
+<td>文件树</td>
+<td><code>src/components/sidebar/file-tree.tsx</code></td>
+</tr>
+<tr>
+<td>中间栏</td>
+<td><code>src/components/plaza/*</code> + <code>doc-view</code></td>
+</tr>
+<tr>
+<td>Cool Papers WebView</td>
+<td><code>src/components/plaza/cool-papers-view.tsx</code>（Tauri webview 封装）</td>
+</tr>
+<tr>
+<td>推荐</td>
+<td><code>src/lib/plaza/recommend.ts</code> + <code>src/components/plaza/recommend-view.tsx</code></td>
+</tr>
+<tr>
+<td>i18n</td>
+<td><code>sidebar</code> / 独立 <code>plaza</code> ns</td>
+</tr>
+<tr>
+<td>Roadmap / Todo</td>
+<td>增加「广场 P0」条目</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9">9. 风险与后续确认点<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>缓解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>papers.cool 改版 / 禁止嵌入</td>
+<td>检测 <code>X-Frame-Options</code>；失败则全页降级为「系统浏览器打开」</td>
+</tr>
+<tr>
+<td>WebView 体积与内存</td>
+<td>仅在 plaza cool-papers panel 挂载；关 tab 销毁</td>
+</tr>
+<tr>
+<td>推荐过冷启动</td>
+<td>空态文案；阈值阈值（如 &lt; 3 篇不估标签组）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>仍可再确认（非阻塞 P0a）</strong>：</p>
+<ul>
+<li>Cool Papers 默认落地 URL（首页 vs 某默认分区如 <code>cs.AI</code>）。  </li>
+<li>推荐 v0 是否显示「打开过的非 paper 笔记」——默认 <strong>否</strong>，仅 paper 单元。</li>
+</ul>
+<hr />
+<p><em>修订：2026-07-25 — 采纳 WebView、不做入库、P0 含推荐 v0、树位置在 Library/Trash 下。</em></p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../tab-split/" class="btn btn-neutral float-left" title="Tab 内分屏"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../logging/" class="btn btn-neutral float-right" title="运行日志">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
+        </span>
+    
+    
+      <span><a href="../tab-split/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../logging/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

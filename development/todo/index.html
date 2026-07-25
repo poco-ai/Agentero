@@ -109,6 +109,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../tab-split/">Tab 内分屏</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../plaza/">广场 Plaza</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -162,6 +164,8 @@
     <li class="toctree-l3"><a class="reference internal" href="#3">3. 双链与图谱增强</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#4-roadmap-v06">4. 工作区标签页与分屏（roadmap V0.6）</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#4b-plaza">4b. 广场 Plaza（发现入口）</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#5-connected-papersroadmap-v07">5. 引用关系 / Connected Papers（roadmap V0.7）</a>
     </li>
@@ -471,6 +475,15 @@
 <li>[x] 与 <code>⌘N</code> 多窗口隔离：每窗口独立 tab 集（<code>agentero-open-tabs</code>）；关窗/换 Vault 可恢复布局</li>
 <li>[x] 全局操作错误 Toast（<code>notifyError</code>，右上角；替代侧栏 header 错误条）</li>
 <li>[x] 说明：Agent 面板内的 <strong>会话标签</strong> 已存在，与本项「文档标签」分开</li>
+</ul>
+<h3 id="4b-plaza">4b. 广场 Plaza（发现入口）<a class="headerlink" href="#4b-plaza" title="Permanent link">&para;</a></h3>
+<p>设计见 <a href="../plaza/"><code>plaza.md</code></a>。</p>
+<ul>
+<li>[ ] <strong>P0a 壳</strong>：侧栏虚拟 <code>agentero:plaza</code> + 子节点 Cool Papers / 播客 / 推荐（位于 Library+Trash 下、真实目录上）；<code>PlazaView</code> 首页卡片；i18n</li>
+<li>[ ] <strong>P0b Cool Papers</strong>：中间栏内嵌 WebView 打开 papers.cool；后退/前进/刷新/外链；加载失败降级</li>
+<li>[ ] <strong>P0c 推荐 v0</strong>：本地启发式分组（待精读 / 最近入库 / 同标签）；点击 <code>openPaper</code>；无云端上传</li>
+<li>[ ] <strong>P0d 播客</strong>：占位空态页</li>
+<li>[ ] <strong>P1 入库</strong>：从 Cool Papers URL/arXiv 解析 → 魔棒管线；预览抽屉 / 批量（<strong>当前不做</strong>）</li>
 </ul>
 <h3 id="5-connected-papersroadmap-v07">5. 引用关系 / Connected Papers（roadmap V0.7）<a class="headerlink" href="#5-connected-papersroadmap-v07" title="Permanent link">&para;</a></h3>
 <ul>

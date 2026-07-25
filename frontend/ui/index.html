@@ -153,6 +153,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/tab-split/">Tab 内分屏</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../development/plaza/">广场 Plaza</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -266,6 +268,7 @@
 </li>
 <li><strong>组织文件夹 → 作用域论文库</strong>：单击<strong>非 paper</strong> 目录（如 <code>papers/</code>、<code>papers/nlp/</code>、<code>papers/nlp/pretrain</code>）时 <strong>同时</strong>：(1) 树内展开/折叠子节点；(2) <strong>同一</strong> Library 标签页（<code>agentero:library</code>）就地按路径前缀筛选，<strong>不</strong>为文件夹新建 tab。点顶栏 Library 虚拟节点清除筛选回全库。<strong>paper 文件夹</strong>仍打开该篇 PDF/Notes（叶子、不展开）。</li>
 <li><strong>虚拟节点 Recycle Bin</strong>：紧挨 <strong>Library</strong> 下方固定一项 <strong>Recycle Bin / 回收站</strong>（路径常量 <code>agentero:trash</code>，非真实目录、不写盘）。图标 <code>Trash2</code>。选中后中间栏显示回收站视图（见「删除」）。空 Vault 时仍显示该节点。</li>
+<li><strong>虚拟节点 广场（Plaza）</strong>（<strong>设计中</strong>，见 <a href="../../development/plaza/"><code>../development/plaza.md</code></a>）：位于 Library + Recycle Bin <strong>之下</strong>、真实 Vault 根目录 <strong>之上</strong>。父节点 <code>agentero:plaza</code> 可折叠；子节点 <strong>Cool Papers</strong>（中间栏 WebView 打开 papers.cool）、<strong>播客</strong>（占位）、<strong>推荐</strong>（本地库启发式列表）。<strong>P0 不提供入库</strong>；与 Library 正交（发现 vs 已收藏）。</li>
 <li><strong>Library 行 Download</strong>：当库内<strong>任一</strong> paper 资源不完整时，Library 标题右侧显示 Download；点击<strong>批量</strong> <code>paper_download_assets</code>。</li>
 <li><strong>Paper 行 Download</strong>：下列任一成立即显示，hover 列出原因：</li>
 <li>本地<strong>没有 PDF</strong>（期望在论文根目录 <code>{id}.pdf</code>）；</li>

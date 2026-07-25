@@ -119,6 +119,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="tab-split/">Tab 内分屏</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="plaza/">广场 Plaza</a>
+                  </li>
                   <li class="toctree-l1"><a class="reference internal" href="logging/">运行日志</a>
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="remote-vault/">远程 Vault（SSH/SFTP）</a>
@@ -269,6 +271,11 @@
 <td>Connected Papers 式邻域、文内引用 hover→Info、引用 Agent 工作流（规划中）</td>
 </tr>
 <tr>
+<td>广场（Plaza）</td>
+<td>📋 设计中</td>
+<td>侧栏虚拟「广场」：Cool Papers WebView + 推荐 v0 + 播客占位；<strong>P0 不入库</strong>；见 <a href="plaza/"><code>plaza.md</code></a></td>
+</tr>
+<tr>
 <td>CLI headless</td>
 <td>✅ MVP</td>
 <td><code>cli/</code> + workspace；<code>agentero</code> bin；Vault/catalog/import/export/<code>paper tag *</code>；无 BYOA（见 <a href="cli/"><code>cli.md</code></a>）</td>
@@ -321,6 +328,7 @@
 <li><a href="logging/"><code>logging.md</code></a>：运行日志（<strong>P0 已落地</strong>；<code>tauri-plugin-log</code> + <code>log</code> + CLI <code>env_logger</code>；关键操作 start/end；与 Toast / <code>ApiResult</code> 分层）。</li>
 <li><a href="command-palette/"><code>command-palette.md</code></a>：全局命令面板 / 快速打开（对照 VS Code ⇧⌘P · ⌘P；现状与分期设计）。</li>
 <li><a href="tab-split/"><code>tab-split.md</code></a>：全局 Dockview 工作区（V0.6）——中间栏单一 dockview 管理全部文档 panel；标题栏无文档 tab；论文默认 PDF | NOTES 左右分屏。</li>
+<li><a href="plaza/"><code>plaza.md</code></a>：广场（Plaza）——侧栏虚拟发现入口；Cool Papers WebView、推荐 v0、播客占位；P0 不做入库。</li>
 <li>
 <p><a href="remote-vault/"><code>remote-vault.md</code></a>：远程 Vault（SSH/SFTP）与<strong>远端 BYOA</strong>——文件权威全在服务器、ACP over SSH；含技术栈与开源参考（<strong>MVP 已实现</strong>）。</p>
 </li>
