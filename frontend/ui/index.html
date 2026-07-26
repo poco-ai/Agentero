@@ -586,6 +586,7 @@
 <li>默认竖向：<code>.agentero-scroll</code>；双向（论文库表）：<code>.agentero-scroll-both</code>。</li>
 <li><strong>中间栏视图</strong>：</li>
 <li>普通 Markdown / NOTES：<strong>Plate WYSIWYG</strong>；防抖自动保存 + <code>⌘S</code>；未真实编辑不写盘。</li>
+<li><strong>代码块滚动</strong>：fenced code block 保留独立横向滚动；鼠标或触控板的纵向滚动继续传递给 Markdown 文档容器，不在代码块上截断。</li>
 <li><strong>双链 Live Preview</strong>：<code>[[目标#标题|别名]]</code>、<code>[[#^block-id]]</code>、<code>![[嵌入]]</code> 和 Vault 内 Markdown links 均由 Host 统一解析。Plate 使用稳定的 non-void inline 保存完整源码；selection 进入语法范围时显示可编辑源码，离开后立即恢复链接或嵌入投影。输入 <code>[[</code> 提供文件、alias、标题和 block 候选；<code>[[#</code> 仅列出当前文件标题，<code>[[^</code> 仅列出当前文件中已有 ID 的 block，并将选择结果写成 <code>[[#^block-id]]</code>。Tab 将光标保留在闭合括号前，Enter 完成并离开链接。标题/block 跳转在目标编辑器挂载后执行；fragment 已失效但文件仍存在时降级打开目标文件，不定位 fragment，并显示错误 Toast。</li>
 <li><strong>重命名当前标题</strong>：编辑器右键菜单提供“重命名当前标题…”并打开受控输入 Dialog。光标在标题内时定位该标题；在正文中定位当前章节之前最近的标题；若光标位于首个标题之前则定位首个标题，因此只要文档含标题且其它门禁通过，菜单即可执行。命令仅对本地、可写、无未保存修改且保存态中能以 heading path + line 唯一确认的文档启用；普通直接编辑标题只保存当前文档，不同步入链。成功后重载所有受影响的已打开文档并刷新 Backlinks、Outgoing links、Graph 与嵌入；dirty/stale/歧义或事务失败显示结构化错误，不覆盖编辑器内容。</li>
 <li><strong>只读嵌入</strong>：<code>![[note]]</code>、<code>![[note#heading]]</code> 与 <code>![[note#^block-id]]</code> 分别显示整篇 Markdown、标题区段或 block；<code>![[image.png]]</code>（支持 <code>|宽度</code> / <code>|宽x高</code>）和 <code>![[document.pdf]]</code> 复用现有图片/PDF 组件。投影从当前行之后以块布局显示，内部链接可点击跳转；进入源码时隐藏但不卸载投影。循环嵌入与超过 4 层的嵌套显示有界状态。</li>
