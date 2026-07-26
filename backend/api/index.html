@@ -345,6 +345,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/dockview-sash-pdf-resize-jank/">拖动 Dockview 分隔条时 PDF 卡顿</a>
+                  </li>
               </ul>
       </div>
     </div>
@@ -2065,7 +2067,7 @@ Host (Tauri + Rust)
 // }
 </code></pre>
 
-<p>Host 以 <code>expectedContent + headingPath + headingLine</code> 复核保存态标题身份，只改写 occurrence 的精确 <code>fragmentRange</code>。Wikilink、嵌入、Vault-local Markdown link、同文件 fragment 与多级 heading path 均走同一事务；文件目标、alias、Markdown label 和周围正文保持不变。dirty source、stale content、标题缺失、新标题无效/歧义或重叠编辑会在写入前失败；写入或索引重建失败返回 <code>{ code, rollback }</code> 结构化 details。</p>
+<p>Host 以 <code>expectedContent + headingPath + headingLine</code> 复核保存态标题身份，只改写 occurrence 的精确 <code>fragmentRange</code>。Wikilink、嵌入、Vault-local Markdown link、同文件 fragment 与多级 heading path 均走同一事务；文件目标、alias、Markdown label 和周围正文保持不变。dirty source、stale content、标题缺失、新标题无效/歧义或重叠编辑会在写入前失败；失败返回 <code>{ code, rollback, paths? }</code> 结构化 details，其中 <code>unsavedEdits</code> 的 <code>paths</code> 只列出本次事务实际会改写的未保存 Vault 相对路径。</p>
 <h4 id="wiki_external_rename_preview"><code>wiki_external_rename_preview</code><a class="headerlink" href="#wiki_external_rename_preview" title="Permanent link">&para;</a></h4>
 <p>为已由 Finder、Obsidian 或 Agent 完成的<strong>可信本地外部 rename</strong>创建只读 repair candidate。调用方传入 watcher 的 old/new Vault 相对路径与当前 dirty path；Host 必须仍持有改名前索引，且验证旧路径已不存在、新路径存在后才返回 candidate。</p>
 <pre class="codehilite"><code class="language-ts">{ vaultPath: string; fromRel: string; toRel: string; dirtyPaths?: string[] }
@@ -2079,7 +2081,7 @@ Host (Tauri + Rust)
 // =&gt; { ok: true; data: WikiRenameResult }
 </code></pre>
 
-<p>失败会移除无效 candidate；仅未保存编辑错误保留 candidate，允许用户先处理编辑后重试。执行失败响应的 <code>error.details</code> 为 <code>{ code: WikiRenameErrorCode, rollback: "not-needed" | "completed" | "manual-recovery-required" }</code>；调用方仅在 <code>rollback === "not-needed"</code> 时可表述为零写入。</p>
+<p>失败会移除无效 candidate；仅未保存编辑错误保留 candidate，允许用户先处理编辑后重试。执行失败响应的 <code>error.details</code> 为 <code>{ code: WikiRenameErrorCode, rollback: "not-needed" | "completed" | "manual-recovery-required", paths?: string[] }</code>；<code>unsavedEdits</code> 会返回实际阻塞事务的 Vault 相对路径，调用方仅在 <code>rollback === "not-needed"</code> 时可表述为零写入。</p>
 <h4 id="graph_get_graph"><code>graph_get_graph</code><a class="headerlink" href="#graph_get_graph" title="Permanent link">&para;</a></h4>
 <p>获取全量或局部 wikilink 图谱。数据来自内存索引（必要时 <code>ensure_vault</code> 先 rebuild）。<br />
 设计见 <strong><code>docs/backend/wikilinks.md</code> §4.6 / §6.3</strong>。</p>

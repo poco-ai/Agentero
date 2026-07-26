@@ -233,6 +233,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/dockview-sash-pdf-resize-jank/">拖动 Dockview 分隔条时 PDF 卡顿</a>
+                  </li>
               </ul>
       </div>
     </div>
@@ -763,7 +765,7 @@
 <h3 id="phase-g-metadata-cache">Phase G — 标题重命名与 Metadata Cache ✅<a class="headerlink" href="#phase-g-metadata-cache" title="Permanent link">&para;</a></h3>
 <ol>
 <li><code>InternalLinkOccurrence.fragmentRange</code> 精确覆盖 fragment 正文；<code>wiki_rename_heading</code> 以保存态标题身份生成跨文件编辑计划，并复用 dirty/hash/原子写入/回滚纪律。</li>
-<li>Plate 编辑器右键菜单提供受控“重命名当前标题…”Dialog，并按光标所在章节定位保存态标题；成功后重载受影响的打开文档并刷新关系与嵌入投影。普通 heading 编辑不推断 rename。</li>
+<li>Plate 编辑器右键菜单提供受控“重命名当前标题”Dialog，并按光标所在章节定位保存态标题；成功后重载受影响的打开文档并刷新关系与嵌入投影。普通 heading 编辑不推断 rename；事务被未保存编辑阻塞时，错误详情与 Toast 列出实际受影响的 Vault 相对路径。</li>
 <li><code>WikiIndex.rebuild</code> 优先校验应用 cache 下的版本化 SQLite snapshot；文件集合、size、mtime、SHA-256、schema/parser/Vault identity 与 snapshot hash 完全一致才恢复。</li>
 <li>stale/corrupt snapshot 自动删除并从 Vault 重建；store failure 降级为内存索引。<code>wiki_cache_rebuild</code> 提供删除 snapshot 后冷重建的内部诊断路径。</li>
 </ol>

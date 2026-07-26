@@ -227,6 +227,8 @@
                   </li>
                   <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
                   </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/dockview-sash-pdf-resize-jank/">拖动 Dockview 分隔条时 PDF 卡顿</a>
+                  </li>
               </ul>
       </div>
     </div>
@@ -1199,6 +1201,13 @@ cargo test -p agentero-cli
 <td>中间栏·PDF</td>
 <td>适应宽度、适应整页、滚轮缩放</td>
 <td>重渲染清晰；放大后可平移</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.1.3a</td>
+<td>中间栏·PDF / NOTES 分屏</td>
+<td>PDF 设为手动 125%，先慢速、再快速向左/向右来回拖动中间 divider，然后在一次快速拖动中直接松手</td>
+<td>divider 与 PDF panel 边界按屏幕帧连续跟手，无输入堆积、PDF 蓝色文本选区或松手回跳；页面仅被即时裁剪/扩展，125% 保持，滚动区域与最终尺寸一致</td>
 <td>☐</td>
 </tr>
 <tr>
