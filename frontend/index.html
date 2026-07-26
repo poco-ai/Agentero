@@ -66,11 +66,13 @@
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#_2">技术选型</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_3">布局模型</a>
+    <li class="toctree-l2"><a class="reference internal" href="#_3">状态管理</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_4">本分区文档</a>
+    <li class="toctree-l2"><a class="reference internal" href="#_4">布局模型</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_5">交叉引用</a>
+    <li class="toctree-l2"><a class="reference internal" href="#_5">本分区文档</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#_6">交叉引用</a>
     </li>
     </ul>
                   </li>
@@ -253,9 +255,26 @@
 <td><a href="https://dockview.dev/">dockview</a></td>
 <td>文档 panel 的 tab / 分屏 / 布局持久化（见 <a href="../development/tab-split/"><code>../development/tab-split.md</code></a>）。</td>
 </tr>
+<tr>
+<td>状态管理</td>
+<td><a href="https://zustand.docs.pmnd.rs/">zustand</a> vanilla store</td>
+<td>按域拆分的全局状态（vault / workspace / library / annotations / wiki / ui）；纯模块可直接读写，组件用 selector 订阅切片。</td>
+</tr>
 </tbody>
 </table>
-<h2 id="_3">布局模型<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_3">状态管理<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>全局状态按域拆成 <strong>zustand vanilla store</strong>（<code>src/lib/&lt;域&gt;/store.ts</code>），沿用 <code>lib/core/background-tasks.ts</code> 的范式：store 只存可序列化数据，mutation 与跨域编排是同域 <code>actions.ts</code> 里的<strong>普通函数</strong>（用 <code>getState()</code> 读取，替代旧的 <code>tabsRef</code> / <code>vaultPathRef</code> 等 ref 镜像），React 侧只通过 <code>src/hooks/use-app-stores.ts</code> 的 selector hook 订阅自己消费的切片。</p>
+<ul>
+<li><code>lib/vault/store.ts</code>：<code>vaultPath</code> / <code>tree</code> / 选中路径 / 派生列表（<code>vaultMdFiles</code>、<code>paperFolders</code> 等在 <code>setTree</code> 时一次算好）；树刷新的 generation 守卫与防抖计时器为模块级变量。</li>
+<li><code>lib/workspace/store.ts</code>：dockview 面板 <code>tabs</code> / <code>activeTabId</code> / <code>dockLayout</code> / PDF LRU；命令式 dockview 句柄经 <code>dock-registry.ts</code> 注册。</li>
+<li><code>lib/paper/library-store.ts</code>：论文库行、搜索 <code>query</code>、文件夹 scope、导入导出 busy；搜索按键只重渲染 Library 面板。</li>
+<li><code>lib/pdf/annotations-store.ts</code>：按 tab 的高亮 / Ask；划词只重渲染批注面板。</li>
+<li><code>lib/wiki/store.ts</code>：wiki 索引 revision、重命名 / 外部重命名对话框状态、防抖 rebuild 与内部重命名回声过滤。</li>
+<li><code>lib/shell/ui-store.ts</code>：侧栏折叠 / zen / 命令面板 / 对话框开关与一次性信号；命令式布局（panel ref、zen 进出）经 <code>registerLayoutController</code> 由 <code>hooks/use-zen-layout.ts</code> 提供。</li>
+<li>Settings 仍以 <code>lib/settings</code> 模块 cache 为准，<code>lib/settings/react-store.ts</code> 做 React 镜像并同步跨窗口快照。</li>
+</ul>
+<p><code>App.tsx</code> 仅为薄组装层：三栏布局 + panel ref + 启动 effect（<code>useAppBootstrap</code>）+ 快捷键 / 原生菜单绑定；文件树（<code>shell/vault-sidebar</code>）、工作区（<code>workspace/workspace-host</code>）、右栏（<code>shell/right-sidebar</code>）、对话框（<code>shell/app-dialogs</code>）各自订阅所需切片，布局级变化（切 vault、折叠、zen）之外不整树重渲染。<code>lib/</code> 不得反向依赖 <code>components/</code>（<code>pnpm deps:check</code>）。</p>
+<h2 id="_4">布局模型<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>左侧栏：Vault 文件树（虚拟 <strong>Library</strong> + <strong>Recycle Bin</strong>；魔棒；右键新建 / Finder / 终端 / <strong>删除→回收站</strong>；多选拖拽；Paper 行标签/排序可配）+ 选中论文时 <strong>Paper Info</strong>（Tags 可编辑）。</li>
 <li>中间栏：<strong>全局 Dockview</strong>（<code>workspace/dock-workspace</code>）。无 Vault 时欢迎页；有 Vault 时可开 <strong>Library</strong> / Markdown / PDF / HTML / <strong>图片</strong> / <strong>回收站</strong> / 论文 <strong>NOTES</strong>。</li>
@@ -271,12 +290,12 @@
 <li>paper 行：资源不齐 → Download；齐且未读 → <strong>Zap</strong> 精读；外部改盘 → 编辑器/树自动重载。</li>
 <li>Library：<strong>Rescan</strong> 从磁盘补 catalog。</li>
 </ul>
-<h2 id="_4">本分区文档<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">本分区文档<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="ui/"><code>ui.md</code></a>：布局、快捷键、全局 Toast、设置、可访问性与交互规则。</li>
 <li><a href="components/"><code>components.md</code></a>：AI Elements 组件清单、业务组件目录与接入约定。</li>
 </ul>
-<h2 id="_5">交叉引用<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">交叉引用<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li>后端图谱与反链 API：<a href="../backend/api/"><code>../backend/api.md</code></a></li>
 <li>双链与图谱模型：<a href="../backend/wikilinks/"><code>../backend/wikilinks.md</code></a></li>
