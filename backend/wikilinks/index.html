@@ -766,7 +766,7 @@
 <ol>
 <li><code>InternalLinkOccurrence.fragmentRange</code> 精确覆盖 fragment 正文；<code>wiki_rename_heading</code> 以保存态标题身份生成跨文件编辑计划，并复用 dirty/hash/原子写入/回滚纪律。</li>
 <li>Plate 编辑器右键菜单提供受控“重命名当前标题”Dialog，并按光标所在章节定位保存态标题；成功后重载受影响的打开文档并刷新关系与嵌入投影。普通 heading 编辑不推断 rename；事务被未保存编辑阻塞时，错误详情与 Toast 列出实际受影响的 Vault 相对路径。</li>
-<li><code>WikiIndex.rebuild</code> 优先校验应用 cache 下的版本化 SQLite snapshot；文件集合、size、mtime、SHA-256、schema/parser/Vault identity 与 snapshot hash 完全一致才恢复。</li>
+<li><code>WikiIndex.rebuild</code> 优先校验应用 cache 下的版本化 SQLite snapshot；schema/parser/Vault identity 与 snapshot integrity hash 一致即加载，文件集合与 size+mtime stat 指纹完全一致时直接恢复，否则只重新解析指纹变化的 Markdown 文件（未变文件复用缓存的 documents 与 occurrences），再全量重跑链接解析。</li>
 <li>stale/corrupt snapshot 自动删除并从 Vault 重建；store failure 降级为内存索引。<code>wiki_cache_rebuild</code> 提供删除 snapshot 后冷重建的内部诊断路径。</li>
 </ol>
 <hr />
