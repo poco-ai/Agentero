@@ -103,6 +103,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#vault_allow_fs_scope">vault_allow_fs_scope（已实现）</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#vault_tree_build-vault_tree_children">vault_tree_build / vault_tree_children（已实现）</a>
+    </li>
     <li class="toctree-l4"><a class="reference internal" href="#vaultsshsftpmvp">远程 Vault（SSH/SFTP，MVP 已实现）</a>
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#path_open_in_terminal">path_open_in_terminal（已实现）</a>
@@ -531,8 +533,8 @@ Host (Tauri + Rust)
 <blockquote>
 <p><strong>实现状态（V0.1）</strong>  </p>
 <ul>
-<li>已实现：<code>vault_create</code>、<code>vault_ensure</code>（snake_case invoke 名）、<code>vault_allow_fs_scope</code>、<code>path_open_in_terminal</code>、<code>path_trash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。  </li>
-<li>打开 Vault / 最近列表 / 树加载：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成；打开或恢复时会调用 <code>vault_ensure</code> 补种缺失 bundled skills。Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。  </li>
+<li>已实现：<code>vault_create</code>、<code>vault_ensure</code>（snake_case invoke 名）、<code>vault_allow_fs_scope</code>、<code>vault_tree_build</code> / <code>vault_tree_children</code>、<code>path_open_in_terminal</code>、<code>path_trash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。  </li>
+<li>打开 Vault / 最近列表：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成；本地树加载走 Host <code>vault_tree_build</code>（一次 IPC）；打开或恢复时会调用 <code>vault_ensure</code> 补种缺失 bundled skills。Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。  </li>
 <li>实际 command 注册见 <code>src-tauri/src/lib.rs</code>。</li>
 </ul>
 </blockquote>
@@ -597,6 +599,29 @@ Host (Tauri + Rust)
 <li><strong>参数</strong>：<code>{ path: string }</code>（本地绝对路径）。<strong>返回</strong>：<code>ApiResult&lt;null&gt;</code>。</li>
 <li><strong>动机</strong>：静态 scope 仅允许 <code>$HOME/**</code> / <code>$DOCUMENT/**</code> / <code>$DESKTOP/**</code> / <code>$DOWNLOAD/**</code>（<code>capabilities/default.json</code>）。dialog 选目录时 Tauri 会为该目录授予运行时 scope，但<strong>不持久化</strong>；重启后恢复位于上述根之外的 Vault（如 <code>D:\…</code>）会让每次 <code>plugin-fs</code> 调用（<code>readDir</code> / <code>readTextFile</code> / <code>exists</code>）报 <strong><code>forbidden path</code></strong>，直到再次用 dialog 打开。</li>
 <li><strong>调用点</strong>：前端 <code>ensureLocalFsScope(root)</code>（<code>src/lib/vault</code>，按根去重、并发共享同一 grant、幂等）在<strong>任何 <code>plugin-fs</code> 读之前</strong>调用 —— <code>loadVaultTree</code>、<code>loadTabResources</code>（恢复的标签页与树并发加载）、启动时校验恢复路径是否存在的 effect。远端 handle / 非 Tauri 环境为 no-op。</li>
+</ul>
+<h4 id="vault_tree_build-vault_tree_children"><code>vault_tree_build</code> / <code>vault_tree_children</code>（已实现）<a class="headerlink" href="#vault_tree_build-vault_tree_children" title="Permanent link">&para;</a></h4>
+<p>本地文件树由 Host <strong>一次 IPC</strong> 构建（此前前端用 <code>plugin-fs readDir</code> 逐目录串行递归，目录数 = IPC 往返数）。远端 Vault 仍走 <code>remote_list</code> 的 TS 递归。</p>
+<ul>
+<li><strong><code>vault_tree_build</code></strong>：<code>{ vaultPath: string }</code> → <code>ApiResult&lt;VaultTreeNode[]&gt;</code>，一次递归 walk 返回整棵树。</li>
+<li><strong><code>vault_tree_children</code></strong>：<code>{ vaultPath: string, dirPath: string }</code> → <code>ApiResult&lt;VaultTreeNode[]&gt;</code>，列出单个目录的子节点；用于懒展开与 watcher 触发的<strong>按路径局部刷新</strong>。<code>dirPath</code> 必须在 Vault 内，否则报错。</li>
+</ul>
+<pre class="codehilite"><code class="language-ts">type VaultTreeNode = {
+  name: string;
+  path: string;              // 绝对路径（前端映射为 FileNode，id = path）
+  kind: &quot;file&quot; | &quot;directory&quot;;
+  children?: VaultTreeNode[];
+  childrenPending?: boolean; // 懒目录：未列出，展开时经 vault_tree_children 加载
+};
+</code></pre>
+
+<ul>
+<li><strong>语义</strong>（Rust <code>features/vault/tree.rs</code>，与 <code>src/lib/vault/tree.ts</code> 的远端路径保持一致）：</li>
+<li>eager 根（<code>papers/</code> / <code>notes/</code> / <code>plans/</code> / <code>.agents/</code>）全量递归；其它根目录列一层，子目录 <code>childrenPending</code>。</li>
+<li><strong>论文文件夹内的 <code>source/</code></strong>（含 <code>metadata.json</code> / <code>NOTES.md</code> / <code>PAPER.md</code> 任一 marker 的目录）不再递归 —— arXiv e-print 解压产物动辄上百文件，标记 <code>childrenPending</code> 懒加载。</li>
+<li>忽略名（<code>.git</code> / <code>.venv</code> / <code>node_modules</code> / <code>*.egg-info</code> / 其它 dot 名，白名单 <code>.agents</code> / <code>.env.example</code>）与深度上限 12 同前端规则。</li>
+<li>排序仍在前端（<code>sortNodes</code>，locale 感知）。</li>
+<li><strong>局部刷新</strong>：<code>vault:file-changed</code>（非 <code>modify</code>）携带的路径经 <code>collectTreeRefreshTargets</code>（<code>src/lib/vault/tree.ts</code>）映射到已加载的最近祖先目录节点，防抖 400ms 后仅对这些目录调 <code>vault_tree_children</code> 打补丁；根级变化 / 目标过多（&gt;8）/ 无路径信息时回退整树 <code>vault_tree_build</code>。</li>
 </ul>
 <h4 id="vaultsshsftpmvp">远程 Vault（SSH/SFTP，MVP 已实现）<a class="headerlink" href="#vaultsshsftpmvp" title="Permanent link">&para;</a></h4>
 <p>设计见 <a href="../../development/remote-vault/"><code>../development/remote-vault.md</code></a>。前端伪路径 <code>remote:&lt;sessionId&gt;</code>；文件权威在远端。</p>
