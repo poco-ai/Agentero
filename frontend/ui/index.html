@@ -1022,11 +1022,11 @@ PromptInput → Body / Footer / Submit
 <tbody>
 <tr>
 <td>入口</td>
-<td>macOS：顶部菜单栏 <strong>agentero → Settings…</strong>，或 <code>⌘,</code>；Windows / Linux 无原生菜单栏，标题栏窗口控制按钮左侧显示 <strong>齿轮图标</strong>（<code>Settings</code>，hover 旋转 90°，Tooltip 含快捷键；<code>title-bar.tsx</code>，i18n <code>app:titlebar.settings*</code>）。不在侧边栏放设置图标</td>
+<td>macOS：顶部菜单栏 <strong>agentero → Settings…</strong>，或 <code>⌘,</code>；Windows / Linux 无原生菜单栏，标题栏右侧显示 <strong>齿轮图标</strong>（caption 按钮由 OS 绘制；<code>Settings</code>，hover 旋转 90°，Tooltip 含快捷键；<code>title-bar.tsx</code>，i18n <code>app:titlebar.settings*</code>）。不在侧边栏放设置图标</td>
 </tr>
 <tr>
 <td>结构</td>
-<td>左侧分类导航 + 右侧内容；独立窗口（macOS 使用 Overlay 标题栏 + 原生交通灯，Windows / Linux 使用与主窗口一致的无框自定义标题栏）</td>
+<td>左侧分类导航 + 右侧内容；独立窗口（macOS 使用 Overlay 标题栏 + 原生交通灯，Windows / Linux 使用系统原生窗口边框）</td>
 </tr>
 <tr>
 <td>分类</td>
