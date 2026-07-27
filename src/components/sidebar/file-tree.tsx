@@ -1552,11 +1552,11 @@ export const FileTree = memo(
 		);
 
 		const renderPaperRow = (node: FileNode): ReactNode => {
-			const downloadReasons = paperAssetDownloadReasons(node);
-			const showDownload =
-				Boolean(onDownloadPaperAssets) && downloadReasons.length > 0;
 			const rel = relPathForNode(node.path);
 			const meta = paperMetaByRelPath?.get(rel) ?? null;
+			const downloadReasons = paperAssetDownloadReasons(node, meta);
+			const showDownload =
+				Boolean(onDownloadPaperAssets) && downloadReasons.length > 0;
 			const label = formatPaperTreeLabel(paperTreeLabelMode, meta, node.name);
 			const showRead =
 				Boolean(onReadPaper) && !showDownload && paperNeedsRead(node, meta);

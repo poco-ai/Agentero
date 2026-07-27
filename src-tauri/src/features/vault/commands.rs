@@ -1,5 +1,6 @@
 use crate::core::error::{map_err, ApiResult, AppError};
 use crate::core::log_util::{trunc, OpTimer};
+use crate::features::catalog::papers as catalog_papers;
 use crate::features::vault::tree::VaultTreeNode;
 use crate::features::vault::{self, tree, CreateVaultResult};
 use crate::features::wiki::models::{
@@ -183,7 +184,11 @@ pub fn wiki_move(
         &args.from_rel,
         &args.to_rel,
         &args.dirty_paths,
-        || Ok(()),
+        || {
+            catalog_papers::move_under_path(&vault, &args.from_rel, &args.to_rel)
+                .map(|_| ())
+                .map_err(|error| error.to_string())
+        },
     ) {
         Ok(result) => ApiResult::ok(result),
         Err(error) => map_err(AppError::message(error.to_string())),

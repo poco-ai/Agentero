@@ -64,30 +64,42 @@ export type PaperDownloadReason = "noPdf" | "noBody";
  *
  * Click: download PDF to paper folder root; arXiv TeX into `source/`; if no TeX → liteparse PAPER.md.
  * Note: `source/` is only required for TeX archives — PDF alone does not require `source/`.
+ *
+ * `meta` is optional catalog metadata. When present, its `body_source` field
+ * overrides the file-tree scan: `source/` is lazy‑loaded so TeX files inside it
+ * are never visible to `paperHasLocalTex`.
  */
 export function paperAssetDownloadReasons(
 	node: TreeWalkNode,
+	meta?: { body_source?: string } | null,
 ): PaperDownloadReason[] {
 	const reasons: PaperDownloadReason[] = [];
 	if (!paperHasLocalPdf(node)) reasons.push("noPdf");
-	// Body: TeX wins; only flag when neither TeX nor PAPER.md exists
-	if (!paperHasLocalTex(node) && !paperHasLocalPaperMd(node)) {
+	// Body: trust catalog body_source when set (source/ is lazy‑loaded).
+	const bodyKnown = meta?.body_source != null && meta.body_source !== "";
+	if (!bodyKnown && !paperHasLocalTex(node) && !paperHasLocalPaperMd(node)) {
 		reasons.push("noBody");
 	}
 	return reasons;
 }
 
 /** Show file-tree Download when PDF / source / readable body is incomplete. */
-export function paperNeedsAssetDownload(node: TreeWalkNode): boolean {
-	return paperAssetDownloadReasons(node).length > 0;
+export function paperNeedsAssetDownload(
+	node: TreeWalkNode,
+	meta?: { body_source?: string } | null,
+): boolean {
+	return paperAssetDownloadReasons(node, meta).length > 0;
 }
 
 /**
  * Local assets are complete enough for reading / paper-reader:
  * PDF present, and TeX or PAPER.md as readable body.
  */
-export function paperAssetsComplete(node: TreeWalkNode): boolean {
-	return paperAssetDownloadReasons(node).length === 0;
+export function paperAssetsComplete(
+	node: TreeWalkNode,
+	meta?: { body_source?: string } | null,
+): boolean {
+	return paperAssetDownloadReasons(node, meta).length === 0;
 }
 
 /**
@@ -95,8 +107,8 @@ export function paperAssetsComplete(node: TreeWalkNode): boolean {
  */
 export function paperNeedsRead(
 	node: TreeWalkNode,
-	meta: { is_read?: boolean } | null | undefined,
+	meta: { is_read?: boolean; body_source?: string } | null | undefined,
 ): boolean {
-	if (!paperAssetsComplete(node)) return false;
+	if (!paperAssetsComplete(node, meta)) return false;
 	return !(meta?.is_read === true);
 }

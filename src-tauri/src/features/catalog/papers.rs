@@ -299,7 +299,16 @@ pub fn rebuild_from_disk(vault_root: &Path) -> Result<usize, AppError> {
     while let Some(dir) = stack.pop() {
         if dir.join("metadata.json").is_file() {
             // A paper folder is a leaf: re-import it and do not descend.
-            if let Some(record) = record_from_metadata(vault_root, &dir) {
+            if let Some(mut record) = record_from_metadata(vault_root, &dir) {
+                // When body_source is unknown, scan the local folder for TeX files
+                // so papers with TeX in lazy‑loaded source/ don't show a false
+                // "download TeX" indicator in the frontend.
+                if record.body_source.is_none() && has_local_tex_in_tree(&dir) {
+                    record.body_source = Some("latex".to_string());
+                    if record.body_quality.is_none() {
+                        record.body_quality = Some("high".to_string());
+                    }
+                }
                 if upsert_conn(&conn, &record).is_ok() {
                     count += 1;
                 }
@@ -316,6 +325,34 @@ pub fn rebuild_from_disk(vault_root: &Path) -> Result<usize, AppError> {
         }
     }
     Ok(count)
+}
+
+/// True when a paper folder (or its source/ subdirectory) contains at least one
+/// .tex or .ltx file. Scans the filesystem directly, so it works for lazy‑loaded
+/// directories that the file tree skips.
+fn has_local_tex_in_tree(dir: &Path) -> bool {
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(current) = stack.pop() {
+        if !current.is_dir() {
+            continue;
+        }
+        if let Ok(entries) = fs::read_dir(&current) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    if stack.len() < 64 {
+                        stack.push(path);
+                    }
+                } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    let lower = ext.to_ascii_lowercase();
+                    if lower == "tex" || lower == "ltx" {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Read a paper folder's `metadata.json`, re-injecting the folder path (which

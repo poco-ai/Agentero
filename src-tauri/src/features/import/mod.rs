@@ -483,6 +483,21 @@ pub async fn download_paper_assets_with_progress(
     )
     .await?;
 
+    // When TeX was downloaded into source/, record body_source = "latex" in catalog
+    // so the frontend doesn't show "download TeX" even though source/ is lazy‑loaded.
+    if result.tex {
+        if let Ok(Some(mut row)) = papers::get_by_path(&vault, &path_rel) {
+            let changed = row.body_source.as_deref() != Some("latex");
+            if changed {
+                row.body_source = Some("latex".to_string());
+                row.body_quality = Some("high".to_string());
+                row.updated_at =
+                    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+                let _ = papers::upsert_paper(&vault, &row);
+            }
+        }
+    }
+
     // After download: no TeX + has PDF → liteparse PAPER.md
     let parse = crate::features::import::pdf_parse::maybe_generate_paper_md_after_download(
         &vault, &path_rel, &paper_dir,
