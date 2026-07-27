@@ -1010,7 +1010,7 @@ PromptInput → Body / Footer / Submit
 <h2 id="4-settings">4. 设置窗口（Settings）<a class="headerlink" href="#4-settings" title="Permanent link">&para;</a></h2>
 <p>参考 <strong>macOS System Settings / 传统 Preferences</strong> 形态：所有平台均为<strong>独立原生单例窗口</strong>（Host <code>settings_window_open</code> + <code>?window=settings</code> 路由，<code>SettingsNativeRoot</code> 渲染 <code>SettingsContent</code>）。</p>
 <blockquote>
-<p><strong>注</strong>：早期版本曾因第二 webview 在 <strong>Windows 下白屏卡死</strong> 而临时改回 App 内浮层；当前实现复用了已验证的多窗口模式（与 <code>window_new</code> 同源），并将 Settings 页面拆分为独立轻量路由，避免在主窗口外加载完整 <code>App</code>。</p>
+<p><strong>注</strong>：早期版本曾因第二 webview 在 <strong>Windows 下白屏卡死</strong> 而临时改回 App 内浮层；当前实现复用了已验证的多窗口模式（与 <code>window_new</code> 同源），并将 Settings 页面拆分为独立轻量路由，避免在主窗口外加载完整 <code>App</code>。白屏卡死的真正根因是建窗 command 为同步函数（见 <code>docs/backend/api.md</code> §<code>settings_window_open</code>），已改为 <code>async</code>。</p>
 </blockquote>
 <table>
 <thead>
@@ -1082,7 +1082,7 @@ PromptInput → Body / Footer / Submit
 <li><strong>Keyboard</strong>：只读快捷键表（按 App / Vault / Navigation 分组）。</li>
 <li><strong>About</strong>：版本与一句话定位。</li>
 </ul>
-<p>实现：<code>src/components/settings/settings-native-root.tsx</code>（原生窗口 chrome）+ <code>src/components/settings/settings-content.tsx</code>（共用 <code>SettingsContent</code>）。<code>src/main.tsx</code> 通过 <code>?window=settings</code> 路由分支渲染轻量 Settings 页面，避免加载完整 <code>App</code>。<strong>应用设置</strong>持久化为 Host 文件（XDG）：</p>
+<p>实现：<code>src/components/settings/settings-native-root.tsx</code>（原生窗口 chrome）+ <code>src/components/settings/settings-content.tsx</code>（共用 <code>SettingsContent</code>）。<code>src/main.tsx</code> 通过 <code>?window=settings</code> 路由分支渲染轻量 Settings 页面；<code>App</code> 也改为动态 <code>import()</code>，因此 Settings 窗口不会下载 / 解析工作区 bundle。<code>boot()</code> 失败时会在页面上直接展示错误并绑定 Esc / <code>⌘W</code> 关窗，避免出现“空白且关不掉”的窗口。<strong>应用设置</strong>持久化为 Host 文件（XDG）：</p>
 <table>
 <thead>
 <tr>

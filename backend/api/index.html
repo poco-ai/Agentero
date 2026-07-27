@@ -813,7 +813,8 @@ Host (Tauri + Rust)
 <li>创建 label 为 <code>agentero-&lt;uuid&gt;</code> 的 Webview 窗口，URL 带 <code>?fresh=1</code>（不自动恢复上次 Vault）。</li>
 <li>窗口尺寸 / macOS overlay 标题栏与主窗口一致。</li>
 <li>Capability 覆盖 <code>main</code> 与 <code>agentero-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
-<li>菜单点击由 Host 直接调用，不经过前端 event 往返。</li>
+<li>菜单点击由 Host 直接调用，不经过前端 event 往返（Host 内用 <code>tauri::async_runtime::spawn</code> 调用）。</li>
+<li><strong>必须是 <code>async</code> command</strong>：同步 command 在主线程、且处于调用方 webview 的 IPC 回调内执行，Windows 上从那里 build webview 会卡死（wry 进入嵌套消息循环等 WebView2 controller 回调，而该回调要等当前处理器返回），新窗口表现为空白且无法关闭。</li>
 </ul>
 <h4 id="settings_window_open"><code>settings_window_open</code>（已实现）<a class="headerlink" href="#settings_window_open" title="Permanent link">&para;</a></h4>
 <p>打开 Settings 原生单例窗口（菜单 <strong>Agentero → Settings…</strong> / <code>⌘,</code> / 标题栏齿轮）。</p>
@@ -832,7 +833,8 @@ Host (Tauri + Rust)
 <li>若 label 为 <code>settings</code> 的窗口已存在，则将其聚焦并返回；否则新建。</li>
 <li>URL 带 <code>?window=settings&amp;section=...&amp;vault_path=...</code>，由 <code>src/main.tsx</code> 分支渲染轻量 Settings 页面（不加载完整 <code>App</code>）。</li>
 <li>macOS 使用 Overlay 标题栏与原生交通灯；Windows / Linux 使用系统原生窗口边框（OS 自绘标题栏与 caption 按钮）。</li>
-<li>窗口关闭时 Host 向所有窗口 <code>emit("settings_window_closed", ())</code>，便于主窗口同步 Settings 打开状态（实现 <code>⌘,</code> <em>toggle</em>）。</li>
+<li>窗口关闭时 Host 向所有窗口 <code>emit("settings_window_closed", ())</code>，便于主窗口同步 Settings 打开状态（实现 <code>⌘,</code> <em>toggle</em>）；建窗失败时也会 emit 一次，避免 toggle 卡在“已打开”。</li>
+<li>与 <code>window_new</code> 同理，<strong>必须是 <code>async</code> command</strong>。</li>
 </ul>
 <h4 id="fs_watch_start-fs_watch_stop"><code>fs_watch_start</code> / <code>fs_watch_stop</code>（已实现）<a class="headerlink" href="#fs_watch_start-fs_watch_stop" title="Permanent link">&para;</a></h4>
 <p>按窗口启停 Vault 文件系统监听（Rust <code>notify</code> 递归监听），用于外部编辑器 / Agent 写盘后自动重载编辑器与文件树。</p>
