@@ -589,6 +589,7 @@
 <li><strong>代码块滚动</strong>：fenced code block 保留独立横向滚动；鼠标或触控板的纵向滚动继续传递给 Markdown 文档容器，不在代码块上截断。</li>
 <li><strong>代码块语言</strong>：每个 fenced code block 左上角显示一个语言选择器（hover / focus-within / 展开时显现），弹出面板顶部为搜索框，下方为候选列表（最高 <code>40vh</code>），列出 lowlight <code>common</code> 注册的全部语言 + 「Plain text」（清空 <code>lang</code>）。选中后写入 <code>code_block.lang</code> 并经 <code>@platejs/markdown</code> 序列化为 <code>```lang</code> 围栏，lowlight 据此生成 highlight.js token class，由 <code>src/index.css</code> 的 <code>.agentero-codeblock .hljs-*</code>（GitHub 主题，浅色 / <code>.dark</code> 深色）着色。新建代码块默认无语言（不高亮，避免对纯文本误判）。只读 / 预览态不渲染选择器，但仍按已存 <code>lang</code> 高亮。</li>
 <li><strong>代码块复制</strong>：每个 fenced code block 右上角显示复制按钮（hover / focus-within 时显现），点击经 <code>copyTextToClipboard</code>（<code>src/lib/core/clipboard.ts</code>）复制代码块纯文本（<code>NodeApi.string</code>，去掉围栏与语言标记），成功后短暂切换为 ✓ 并 1.5s 后还原；失败弹右上角 Toast。只读 / 预览态同样可用。</li>
+<li><strong>文档内查找替换</strong>（<code>⌘/Ctrl+F</code> 或工具栏右端放大镜）：右上浮动查找条（<code>find-replace-bar.tsx</code>）：查询 + 命中计数 + 上/下一个（<code>Enter</code>/<code>Shift+Enter</code> 循环）+ 左侧折叠箭头展开替换行（替换当前 / 全部替换）；<code>Esc</code> 关闭并回焦编辑器；打开时若有单行选区自动预填。高亮经 <code>@platejs/find-replace</code> decoration（自定义 decorate 支持含链接/行内公式的段落，当前命中另用强调色，见 <code>plugins/find-replace-kit.tsx</code>）；替换用 editor transforms，大小写不敏感。仅可编辑态启用。i18n <code>editor:findReplace.*</code>。</li>
 <li><strong>双链 Live Preview</strong>：<code>[[目标#标题|别名]]</code>、<code>[[#^block-id]]</code>、<code>![[嵌入]]</code> 和 Vault 内 Markdown links 均由 Host 统一解析。Plate 使用稳定的 non-void inline 保存完整源码；selection 进入语法范围时显示可编辑源码，离开后立即恢复链接或嵌入投影。输入 <code>[[</code> 提供文件、alias、标题和 block 候选；<code>[[#</code> 仅列出当前文件标题，<code>[[^</code> 仅列出当前文件中已有 ID 的 block，并将选择结果写成 <code>[[#^block-id]]</code>。Tab 将光标保留在闭合括号前，Enter 完成并离开链接。标题/block 跳转在目标编辑器挂载后执行；fragment 已失效但文件仍存在时降级打开目标文件，不定位 fragment，并显示错误 Toast。</li>
 <li><strong>重命名当前标题</strong>：编辑器右键菜单提供“重命名当前标题…”并打开受控输入 Dialog。光标在标题内时定位该标题；在正文中定位当前章节之前最近的标题；若光标位于首个标题之前则定位首个标题，因此只要文档含标题且其它门禁通过，菜单即可执行。命令仅对本地、可写、无未保存修改且保存态中能以 heading path + line 唯一确认的文档启用；普通直接编辑标题只保存当前文档，不同步入链。成功后重载所有受影响的已打开文档并刷新 Backlinks、Outgoing links、Graph 与嵌入；dirty/stale/歧义或事务失败显示结构化错误，不覆盖编辑器内容。</li>
 <li><strong>只读嵌入</strong>：<code>![[note]]</code>、<code>![[note#heading]]</code> 与 <code>![[note#^block-id]]</code> 分别显示整篇 Markdown、标题区段或 block；<code>![[image.png]]</code>（支持 <code>|宽度</code> / <code>|宽x高</code>）和 <code>![[document.pdf]]</code> 复用现有图片/PDF 组件。投影从当前行之后以块布局显示，内部链接可点击跳转；进入源码时隐藏但不卸载投影。循环嵌入与超过 4 层的嵌套显示有界状态。</li>
@@ -665,6 +666,11 @@
 <td><code>⇧⌘P</code></td>
 <td>命令面板（开关）</td>
 <td>执行应用命令（设置 / 侧栏 / Vault / 标签…）；与快速打开共用浮层（<code>commandPalette</code>）</td>
+</tr>
+<tr>
+<td><code>⌘F</code></td>
+<td>Markdown 编辑器查找替换</td>
+<td>编辑器聚焦时唤起右上查找条（非全局快捷键，见 §3 中间栏「文档内查找替换」）；PDF 查看器的 <code>⌘F</code> 为文档内查找</td>
 </tr>
 <tr>
 <td><code>Esc</code></td>
