@@ -4,6 +4,7 @@
 //! OpenSSH so `~/.ssh/config`, agent, and ProxyJump work.
 
 use crate::core::error::AppError;
+use crate::core::install_dirs;
 use tokio::process::Command;
 use tokio::time::{timeout, Duration};
 
@@ -15,19 +16,27 @@ const SSH_SERVER_ALIVE_COUNT_MAX: u8 = 3;
 /// Prepend common tool install roots for non-interactive SSH.
 ///
 /// BatchMode `bash -lc` often skips interactive-only brew/nvm snippets in
-/// `.bashrc`, so Linuxbrew (`/home/linuxbrew/.linuxbrew/bin`) is missing from
-/// PATH even when the binary exists — matching interactive `command -v` fails.
-const REMOTE_PATH_BOOTSTRAP: &str = r#"
-# Agentero: non-interactive SSH PATH bootstrap (brew / npm user prefixes / cargo).
+/// `.bashrc`, so Linuxbrew (`/home/linuxbrew/.linuxbrew/bin`) and nvm bins are
+/// missing from PATH even when the binary exists — matching interactive
+/// `command -v` fails. Candidate dirs come from `core::install_dirs` (shared
+/// with the local GUI PATH patch in `features/agent/discover.rs`).
+fn remote_path_bootstrap() -> String {
+    let mut dirs: Vec<String> = install_dirs::HOME_BIN_DIRS
+        .iter()
+        .map(|d| format!("\"$HOME/{d}\""))
+        .collect();
+    dirs.push(format!("\"$HOME/{}\"", install_dirs::LINUXBREW_HOME_BIN));
+    dirs.push(install_dirs::LINUXBREW_ABS_BIN.to_string());
+    dirs.extend(install_dirs::ABS_BIN_DIRS.iter().map(|d| d.to_string()));
+    dirs.push(format!(
+        "\"$HOME\"/{}/*/bin",
+        install_dirs::NVM_VERSIONS_DIR
+    ));
+    format!(
+        r#"
+# Agentero: non-interactive SSH PATH bootstrap (brew / npm user prefixes / nvm / cargo).
 for _d in \
-  "$HOME/.local/bin" \
-  "$HOME/bin" \
-  "$HOME/.npm-global/bin" \
-  "$HOME/.cargo/bin" \
-  /home/linuxbrew/.linuxbrew/bin \
-  "$HOME/.linuxbrew/bin" \
-  /opt/homebrew/bin \
-  /usr/local/bin
+  {dirs}
 do
   [ -d "$_d" ] || continue
   case ":$PATH:" in *":$_d:"*) ;; *) PATH="$_d:$PATH" ;; esac
@@ -38,11 +47,14 @@ elif [ -x "$HOME/.linuxbrew/bin/brew" ]; then
   eval "$("$HOME/.linuxbrew/bin/brew" shellenv 2>/dev/null)" || true
 fi
 export PATH
-"#;
+"#,
+        dirs = dirs.join(" \\\n  "),
+    )
+}
 
 /// Build a remote shell command that `cd`s into the vault and execs the agent.
 ///
-/// Uses `bash -lc` plus {@link REMOTE_PATH_BOOTSTRAP} so non-interactive SSH still
+/// Uses `bash -lc` plus [`remote_path_bootstrap`] so non-interactive SSH still
 /// sees Linuxbrew / `~/.local/bin` (interactive-only profile snippets are skipped).
 ///
 /// Optional `env_exports` (e.g. `HTTP_PROXY`) are applied on the remote before
@@ -75,7 +87,7 @@ pub fn remote_agent_shell_command(
         "{bootstrap}{prefix}cd {} && exec {}",
         shell_quote(remote_cwd),
         cmd,
-        bootstrap = REMOTE_PATH_BOOTSTRAP,
+        bootstrap = remote_path_bootstrap(),
     );
     format!("bash -lc {}", shell_quote(&inner))
 }
@@ -187,6 +199,22 @@ fn map_uname_to_os(uname: &str) -> String {
 /// back to known install roots including `/home/linuxbrew/.linuxbrew/bin`.
 pub async fn remote_which(destination: &str, bin: &str) -> Result<Option<String>, AppError> {
     let bin_q = shell_quote(bin);
+    // Explicit candidates from the shared install-dir list (absolute checks).
+    let mut cands = String::new();
+    for d in install_dirs::HOME_BIN_DIRS {
+        cands.push_str(&format!("cands+=(\"$HOME/{d}/{bin_q}\")\n"));
+    }
+    cands.push_str(&format!(
+        "cands+=(\"$HOME/{}/{bin_q}\")\n",
+        install_dirs::LINUXBREW_HOME_BIN
+    ));
+    cands.push_str(&format!(
+        "cands+=(\"{}/{bin_q}\")\n",
+        install_dirs::LINUXBREW_ABS_BIN
+    ));
+    for d in install_dirs::ABS_BIN_DIRS {
+        cands.push_str(&format!("cands+=(\"{d}/{bin_q}\")\n"));
+    }
     // Keep the remote script free of unquoted user input.
     let script = format!(
         r#"
@@ -196,20 +224,13 @@ if p=$(command -v {bin_q} 2>/dev/null) && [ -n "$p" ]; then
   printf '%s\n' "$p"
   exit 0
 fi
-# Explicit candidates if still missing (absolute checks).
 cands=()
-cands+=("$HOME/.local/bin/{bin_q}")
-cands+=("$HOME/bin/{bin_q}")
-cands+=("$HOME/.npm-global/bin/{bin_q}")
-cands+=("/home/linuxbrew/.linuxbrew/bin/{bin_q}")
-cands+=("$HOME/.linuxbrew/bin/{bin_q}")
-cands+=("/opt/homebrew/bin/{bin_q}")
-cands+=("/usr/local/bin/{bin_q}")
+{cands}
 if np=$(npm prefix -g 2>/dev/null); then
   cands+=("$np/bin/{bin_q}")
 fi
-if [ -d "$HOME/.nvm/versions/node" ]; then
-  for d in "$HOME"/.nvm/versions/node/*/bin; do
+if [ -d "$HOME/{nvm}" ]; then
+  for d in "$HOME"/{nvm}/*/bin; do
     [ -d "$d" ] && cands+=("$d/{bin_q}")
   done
 fi
@@ -221,7 +242,8 @@ for p in "${{cands[@]}}"; do
 done
 exit 1
 "#,
-        bootstrap = REMOTE_PATH_BOOTSTRAP,
+        bootstrap = remote_path_bootstrap(),
+        nvm = install_dirs::NVM_VERSIONS_DIR,
     );
     let remote = format!("bash -lc {}", shell_quote(script.trim()));
     let output = timeout(
@@ -271,8 +293,9 @@ mod tests {
         assert!(s.contains("bash -lc"));
         assert!(s.contains("cd /data/vault"));
         assert!(s.contains("exec opencode acp"));
-        // PATH bootstrap so Linuxbrew bins are found under BatchMode SSH.
+        // PATH bootstrap so Linuxbrew / nvm bins are found under BatchMode SSH.
         assert!(s.contains("linuxbrew"));
+        assert!(s.contains(".nvm/versions/node"));
     }
 
     #[test]

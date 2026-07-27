@@ -23,9 +23,7 @@
 	},
 	"reasoning": {
 		"thinking": "思考中…",
-		"thoughtForFew": "思考了几秒",
-		"thoughtFor_one": "思考了 {{count}} 秒",
-		"thoughtFor_other": "思考了 {{count}} 秒"
+		"thought": "思考过程"
 	},
 	"sources": {
 		"used_one": "引用了 {{count}} 个来源",

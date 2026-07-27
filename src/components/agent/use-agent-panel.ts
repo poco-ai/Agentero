@@ -69,6 +69,7 @@ import {
 	errorChatLine,
 	errorText,
 	isBackgroundWorkflowHistoryTitle,
+	mapToolStatus,
 	nextLineId,
 	nextPartId,
 	type PendingSessionEvent,
@@ -2144,22 +2145,64 @@ export function useAgentPanel({
 							};
 						}
 						const parts: AgentPart[] = [];
-						if (line.reasoning && line.reasoning.trim().length > 0) {
+						if (line.parts && line.parts.length > 0) {
+							line.parts.forEach((part, index) => {
+								const partId = `${line.id}:part-${index}`;
+								if (part.type === "reasoning" || part.type === "text") {
+									if (part.text.trim().length > 0) {
+										parts.push({
+											type: part.type,
+											id: partId,
+											text: part.text,
+										});
+									}
+									return;
+								}
+								if (part.type === "tool") {
+									parts.push({
+										type: "tool",
+										id: partId,
+										tool: {
+											id: part.tool.id,
+											title: part.tool.title,
+											kind: part.tool.kind,
+											status: mapToolStatus(part.tool.status),
+											input: part.tool.input,
+											output: part.tool.output,
+										},
+									});
+									return;
+								}
+								if (part.entries.length > 0) {
+									parts.push({
+										type: "plan",
+										id: partId,
+										entries: part.entries,
+									});
+								}
+							});
+						} else {
+							if (line.reasoning && line.reasoning.trim().length > 0) {
+								parts.push({
+									type: "reasoning",
+									id: `${line.id}:reasoning`,
+									text: line.reasoning,
+								});
+							}
 							parts.push({
-								type: "reasoning",
-								id: `${line.id}:reasoning`,
-								text: line.reasoning,
+								type: "text",
+								id: `${line.id}:text`,
+								text: line.text,
 							});
 						}
-						parts.push({
-							type: "text",
-							id: `${line.id}:text`,
-							text: line.text,
-						});
 						return {
 							id: line.id,
 							kind: "agent" as const,
 							parts,
+							sources:
+								line.sources && line.sources.length > 0
+									? line.sources
+									: undefined,
 						};
 					}),
 				);

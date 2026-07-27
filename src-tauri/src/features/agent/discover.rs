@@ -1,24 +1,16 @@
+use crate::core::install_dirs;
 use std::path::{Path, PathBuf};
 
 /// Extra directories GUI apps often miss when launched outside a login shell.
+/// Shares the candidate list with the remote SSH bootstrap (`core::install_dirs`).
 fn extra_path_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
     if let Some(home) = dirs::home_dir() {
-        dirs.push(home.join(".local/bin"));
-        dirs.push(home.join(".cargo/bin"));
-        dirs.push(home.join("bin"));
-        dirs.push(home.join(".npm-global/bin"));
-        dirs.push(home.join(".volta/bin"));
-        dirs.extend(nvm_bin_dirs(&home));
-        // fnm keeps node versions under its data dir; the `default` alias points
-        // at the active one (session multishell dirs are ephemeral, skip them).
-        for fnm_dir in [
-            home.join("Library/Application Support/fnm"),
-            home.join(".local/share/fnm"),
-            home.join(".fnm"),
-        ] {
-            dirs.push(fnm_dir.join("aliases/default/bin"));
+        for d in install_dirs::HOME_BIN_DIRS {
+            dirs.push(home.join(d));
         }
+        dirs.push(home.join(install_dirs::LINUXBREW_HOME_BIN));
+        dirs.extend(nvm_bin_dirs(&home));
     }
     // Windows: a GUI app often starts without the user's full PATH, and npm/pnpm
     // global bins plus package-manager shims (.cmd) live outside the default PATH.
@@ -38,19 +30,19 @@ fn extra_path_dirs() -> Vec<PathBuf> {
     }
     #[cfg(not(windows))]
     {
-        dirs.push(PathBuf::from("/opt/homebrew/bin"));
-        dirs.push(PathBuf::from("/usr/local/bin"));
+        for d in install_dirs::ABS_BIN_DIRS {
+            dirs.push(PathBuf::from(*d));
+        }
+        dirs.push(PathBuf::from(install_dirs::LINUXBREW_ABS_BIN));
         dirs.push(PathBuf::from("/usr/bin"));
         dirs.push(PathBuf::from("/bin"));
     }
     dirs
 }
 
-/// nvm installs binaries under `~/.nvm/versions/node/<ver>/bin`, which GUI apps
-/// never see (nvm only mutates PATH in interactive shells). Prefer the version
-/// pinned by `~/.nvm/alias/default`, then the rest newest-first.
+/// Prefer the nvm version pinned by the default alias, then the rest newest-first.
 fn nvm_bin_dirs(home: &Path) -> Vec<PathBuf> {
-    let versions_dir = home.join(".nvm/versions/node");
+    let versions_dir = home.join(install_dirs::NVM_VERSIONS_DIR);
     let Ok(entries) = std::fs::read_dir(&versions_dir) else {
         return Vec::new();
     };
@@ -60,7 +52,7 @@ fn nvm_bin_dirs(home: &Path) -> Vec<PathBuf> {
         .filter_map(|e| e.file_name().into_string().ok())
         .collect();
     versions.sort_by_key(|v| std::cmp::Reverse(version_key(v)));
-    if let Ok(alias) = std::fs::read_to_string(home.join(".nvm/alias/default")) {
+    if let Ok(alias) = std::fs::read_to_string(home.join(install_dirs::NVM_DEFAULT_ALIAS_FILE)) {
         let alias = alias.trim();
         if let Some(pos) = versions
             .iter()

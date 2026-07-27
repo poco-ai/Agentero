@@ -1258,11 +1258,12 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 #### `agent_load_session`
 
-按 ACP session id 恢复对话显示。Host 通过 ACP `session/load` 回放历史消息（user、assistant、reasoning）。**用户轮**经 `strip_prompt_envelope_for_display` 去掉 Host 系统信封，只返回人类原文。所有 provider 统一走此命令。
+按 ACP session id 恢复对话显示。Host 通过 ACP `session/load` 回放历史通知，并按 `messageId` 边界重建**多轮** user / agent 行：agent 行携带有序 `parts`（`reasoning` / `text` / `tool` / `plan`，工具卡按 `ToolCall`/`ToolCallUpdate` 合并）与从正文 `## Sources` 重新解析的 `sources`（引用 UI 恢复渲染）；会话标题取自回放的 `SessionInfoUpdate`。思考时长协议无时间戳、不持久化，恢复后统一显示"思考过程"。**用户轮**在前端经 `stripPromptEnvelopeForDisplay` 去掉 Host 系统信封，只显示人类原文。所有 provider 统一走此命令。
 
 ```ts
 { agentId?: string; sessionId: string; vaultPath?: string }
-// -> { ok: true, data: { session: AgentSessionInfo; lines: SessionHistoryLine[] } }
+// -> { ok: true, data: { sessionId; title?: string | null; lines: AcpHistoryLine[] } }
+// AcpHistoryLine: { id; kind: "user" | "agent"; text; reasoning?; parts?: AcpHistoryPart[]; sources?: string[] }
 ```
 
 #### `agent_list_skills`

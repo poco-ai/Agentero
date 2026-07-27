@@ -32,7 +32,6 @@ interface ReasoningContextValue {
 	isStreaming: boolean;
 	isOpen: boolean;
 	setIsOpen: (open: boolean) => void;
-	duration: number | undefined;
 }
 
 const ReasoningContext = createContext<ReasoningContextValue | null>(null);
@@ -50,11 +49,9 @@ export type ReasoningProps = ComponentProps<typeof Collapsible> & {
 	open?: boolean;
 	defaultOpen?: boolean;
 	onOpenChange?: (open: boolean) => void;
-	duration?: number;
 };
 
 const AUTO_CLOSE_DELAY = 1000;
-const MS_IN_S = 1000;
 
 export const Reasoning = memo(
 	({
@@ -63,7 +60,6 @@ export const Reasoning = memo(
 		open,
 		defaultOpen,
 		onOpenChange,
-		duration: durationProp,
 		children,
 		...props
 	}: ReasoningProps) => {
@@ -76,32 +72,15 @@ export const Reasoning = memo(
 			onChange: onOpenChange,
 			prop: open,
 		});
-		const [duration, setDuration] = useControllableState<number | undefined>({
-			defaultProp: undefined,
-			prop: durationProp,
-		});
 
 		const hasEverStreamedRef = useRef(isStreaming);
 		const [hasAutoClosed, setHasAutoClosed] = useState(false);
-		const startTimeRef = useRef<number | null>(null);
 
-		// Track when streaming starts and compute duration
 		useEffect(() => {
 			if (isStreaming) {
 				hasEverStreamedRef.current = true;
-				if (startTimeRef.current === null) {
-					startTimeRef.current = Date.now();
-					// Clear stale duration so a reused instance never keeps "0s Thinking"
-					setDuration(undefined);
-				}
-			} else if (startTimeRef.current !== null) {
-				// At least 1s label; 0 was previously treated as "still thinking"
-				setDuration(
-					Math.max(1, Math.ceil((Date.now() - startTimeRef.current) / MS_IN_S)),
-				);
-				startTimeRef.current = null;
 			}
-		}, [isStreaming, setDuration]);
+		}, [isStreaming]);
 
 		// Auto-open when streaming starts (unless explicitly closed)
 		useEffect(() => {
@@ -135,8 +114,8 @@ export const Reasoning = memo(
 		);
 
 		const contextValue = useMemo(
-			() => ({ duration, isOpen, isStreaming, setIsOpen }),
-			[duration, isOpen, isStreaming, setIsOpen],
+			() => ({ isOpen, isStreaming, setIsOpen }),
+			[isOpen, isStreaming, setIsOpen],
 		);
 
 		return (
@@ -157,7 +136,7 @@ export const Reasoning = memo(
 export type ReasoningTriggerProps = ComponentProps<
 	typeof CollapsibleTrigger
 > & {
-	getThinkingMessage?: (isStreaming: boolean, duration?: number) => ReactNode;
+	getThinkingMessage?: (isStreaming: boolean) => ReactNode;
 };
 
 export const ReasoningTrigger = memo(
@@ -168,26 +147,15 @@ export const ReasoningTrigger = memo(
 		...props
 	}: ReasoningTriggerProps) => {
 		const { t } = useTranslation("aiElements");
-		const { isStreaming, isOpen, duration } = useReasoning();
+		const { isStreaming, isOpen } = useReasoning();
 
-		const defaultGetThinkingMessage = (
-			streaming: boolean,
-			thinkingDuration?: number,
-		) => {
-			// Only the active stream shows the Thinking shimmer.
-			// (duration === 0 used to mean "still thinking", so finished short
-			// thoughts stayed on Thinking forever across every conversation.)
+		// Durations are never persisted (ACP replay has no timestamps), so the
+		// label is two-state only: streaming shimmer vs. a static header.
+		const defaultGetThinkingMessage = (streaming: boolean) => {
 			if (streaming) {
 				return <Shimmer duration={1}>{t("reasoning.thinking")}</Shimmer>;
 			}
-			if (
-				thinkingDuration === undefined ||
-				thinkingDuration <= 0 ||
-				!Number.isFinite(thinkingDuration)
-			) {
-				return <p>{t("reasoning.thoughtForFew")}</p>;
-			}
-			return <p>{t("reasoning.thoughtFor", { count: thinkingDuration })}</p>;
+			return <p>{t("reasoning.thought")}</p>;
 		};
 
 		const renderThinkingMessage =
@@ -204,7 +172,7 @@ export const ReasoningTrigger = memo(
 				{children ?? (
 					<>
 						<BrainIcon className="size-4" />
-						{renderThinkingMessage(isStreaming, duration)}
+						{renderThinkingMessage(isStreaming)}
 						<ChevronDownIcon
 							className={cn(
 								"size-4 transition-transform",

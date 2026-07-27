@@ -23,9 +23,7 @@
 	},
 	"reasoning": {
 		"thinking": "Thinking...",
-		"thoughtForFew": "Thought for a few seconds",
-		"thoughtFor_one": "Thought for {{count}} second",
-		"thoughtFor_other": "Thought for {{count}} seconds"
+		"thought": "Thought process"
 	},
 	"sources": {
 		"used_one": "Used {{count}} source",

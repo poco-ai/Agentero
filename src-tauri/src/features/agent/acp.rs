@@ -2,11 +2,11 @@ use crate::core::error::AppError;
 use crate::features::agent::discover::{path_entries, resolve_command};
 use crate::features::agent::events::AgentEventEmitter;
 use crate::features::agent::models::{
-    AcpHistoryLine, AcpListSessionsResult, AcpLoadSessionResult, AcpSessionCapabilities,
-    AcpSessionInfo, AgentDescriptor, AgentEffortChoice, AgentEffortEvent, AgentFailedEvent,
-    AgentFastModeEvent, AgentModelChoice, AgentModelsEvent, AgentPlanEntry, AgentPlanEvent,
-    AgentResultPayload, AgentStreamEvent, AgentStreamKind, AgentToolEvent, AgentUsageEvent,
-    ProbeResult, PromptImage, WarmResult,
+    AcpHistoryLine, AcpHistoryPart, AcpHistoryTool, AcpListSessionsResult, AcpLoadSessionResult,
+    AcpSessionCapabilities, AcpSessionInfo, AgentDescriptor, AgentEffortChoice, AgentEffortEvent,
+    AgentFailedEvent, AgentFastModeEvent, AgentModelChoice, AgentModelsEvent, AgentPlanEntry,
+    AgentPlanEvent, AgentResultPayload, AgentStreamEvent, AgentStreamKind, AgentToolEvent,
+    AgentUsageEvent, ProbeResult, PromptImage, WarmResult,
 };
 use crate::features::agent::permission::PermissionGate;
 use crate::features::agent::prompts::{build_prompt, extract_sources};
@@ -1433,6 +1433,203 @@ pub async fn list_acp_sessions(
 
 /// Load a session's history from an ACP agent via `session/load`.
 /// The agent replays history as SessionNotification events which we accumulate.
+/// `messageId` boundaries split consecutive same-kind chunks into separate parts.
+#[derive(Default)]
+struct ReplayBuilder {
+    lines: Vec<ReplayLine>,
+    title: Option<String>,
+}
+
+struct ReplayLine {
+    is_user: bool,
+    parts: Vec<AcpHistoryPart>,
+    trailing_msg_id: Option<String>,
+}
+
+impl ReplayLine {
+    fn agent() -> Self {
+        Self {
+            is_user: false,
+            parts: Vec::new(),
+            trailing_msg_id: None,
+        }
+    }
+}
+
+fn msg_id_changed(prev: &Option<String>, next: &Option<String>) -> bool {
+    matches!((prev, next), (Some(a), Some(b)) if a != b)
+}
+
+fn chunk_msg_id(chunk: &agent_client_protocol::schema::v1::ContentChunk) -> Option<String> {
+    chunk.message_id.as_ref().map(|m| m.0.to_string())
+}
+
+impl ReplayBuilder {
+    fn push_user_chunk(&mut self, text: String, msg_id: Option<String>) {
+        let start_new = match self.lines.last() {
+            Some(l) if l.is_user => msg_id_changed(&l.trailing_msg_id, &msg_id),
+            _ => true,
+        };
+        if start_new {
+            self.lines.push(ReplayLine {
+                is_user: true,
+                parts: vec![AcpHistoryPart::Text { text }],
+                trailing_msg_id: msg_id,
+            });
+            return;
+        }
+        let line = self.lines.last_mut().expect("checked non-empty");
+        if let Some(AcpHistoryPart::Text { text: t }) = line.parts.last_mut() {
+            t.push_str(&text);
+        } else {
+            line.parts.push(AcpHistoryPart::Text { text });
+        }
+        if msg_id.is_some() {
+            line.trailing_msg_id = msg_id;
+        }
+    }
+
+    fn current_agent_line(&mut self) -> &mut ReplayLine {
+        if !matches!(self.lines.last(), Some(l) if !l.is_user) {
+            self.lines.push(ReplayLine::agent());
+        }
+        self.lines.last_mut().expect("checked non-empty")
+    }
+
+    fn push_agent_chunk(&mut self, reasoning: bool, text: String, msg_id: Option<String>) {
+        let line = self.current_agent_line();
+        let same_kind_tail = match line.parts.last() {
+            Some(AcpHistoryPart::Reasoning { .. }) => reasoning,
+            Some(AcpHistoryPart::Text { .. }) => !reasoning,
+            _ => false,
+        };
+        if same_kind_tail && !msg_id_changed(&line.trailing_msg_id, &msg_id) {
+            if let Some(AcpHistoryPart::Reasoning { text: t } | AcpHistoryPart::Text { text: t }) =
+                line.parts.last_mut()
+            {
+                t.push_str(&text);
+            }
+        } else if reasoning {
+            line.parts.push(AcpHistoryPart::Reasoning { text });
+        } else {
+            line.parts.push(AcpHistoryPart::Text { text });
+        }
+        if msg_id.is_some() {
+            line.trailing_msg_id = msg_id;
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn apply_tool(
+        &mut self,
+        id: String,
+        title: Option<String>,
+        kind: Option<String>,
+        status: Option<String>,
+        input: Option<serde_json::Value>,
+        output: Option<serde_json::Value>,
+    ) {
+        for line in self.lines.iter_mut().rev() {
+            for part in line.parts.iter_mut().rev() {
+                if let AcpHistoryPart::Tool { tool } = part {
+                    if tool.id == id {
+                        if let Some(t) = title {
+                            tool.title = t;
+                        }
+                        if let Some(k) = kind {
+                            tool.kind = k;
+                        }
+                        if let Some(s) = status {
+                            tool.status = s;
+                        }
+                        if input.is_some() {
+                            tool.input = input;
+                        }
+                        if output.is_some() {
+                            tool.output = output;
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+        self.current_agent_line().parts.push(AcpHistoryPart::Tool {
+            tool: Box::new(AcpHistoryTool {
+                id,
+                title: title.unwrap_or_default(),
+                kind: kind.unwrap_or_else(|| "other".to_string()),
+                status: status.unwrap_or_else(|| "pending".to_string()),
+                input,
+                output,
+            }),
+        });
+    }
+
+    fn apply_plan(&mut self, entries: Vec<AgentPlanEntry>) {
+        let line = self.current_agent_line();
+        if let Some(AcpHistoryPart::Plan { entries: e }) = line
+            .parts
+            .iter_mut()
+            .find(|p| matches!(p, AcpHistoryPart::Plan { .. }))
+        {
+            *e = entries;
+        } else {
+            line.parts.push(AcpHistoryPart::Plan { entries });
+        }
+    }
+
+    fn finish(self) -> (Vec<AcpHistoryLine>, Option<String>) {
+        let mut out = Vec::new();
+        for line in self.lines {
+            let text: String = line
+                .parts
+                .iter()
+                .filter_map(|p| match p {
+                    AcpHistoryPart::Text { text } => Some(text.as_str()),
+                    _ => None,
+                })
+                .collect();
+            let reasoning = line
+                .parts
+                .iter()
+                .filter_map(|p| match p {
+                    AcpHistoryPart::Reasoning { text } => Some(text.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n\n");
+            let has_rich_parts = line
+                .parts
+                .iter()
+                .any(|p| matches!(p, AcpHistoryPart::Tool { .. } | AcpHistoryPart::Plan { .. }));
+            if text.trim().is_empty() && reasoning.trim().is_empty() && !has_rich_parts {
+                continue;
+            }
+            let id = format!("line-{}", out.len() + 1);
+            if line.is_user {
+                out.push(AcpHistoryLine {
+                    id,
+                    kind: "user".to_string(),
+                    text,
+                    reasoning: None,
+                    parts: Vec::new(),
+                    sources: Vec::new(),
+                });
+            } else {
+                out.push(AcpHistoryLine {
+                    id,
+                    kind: "agent".to_string(),
+                    sources: extract_sources(&text),
+                    text,
+                    reasoning: (!reasoning.is_empty()).then_some(reasoning),
+                    parts: line.parts,
+                });
+            }
+        }
+        (out, self.title)
+    }
+}
+
 pub async fn load_acp_session(
     desc: &AgentDescriptor,
     session_id: String,
@@ -1441,33 +1638,70 @@ pub async fn load_acp_session(
 ) -> Result<AcpLoadSessionResult, AppError> {
     let acp = to_acp_agent(desc, remote)?;
 
-    let lines: Arc<Mutex<Vec<AcpHistoryLine>>> = Arc::new(Mutex::new(Vec::new()));
-    let content_buf: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
-    let thought_buf: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
-    let line_counter: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
-
-    let lines_for_notif = lines.clone();
-    let content_for_notif = content_buf.clone();
-    let thought_for_notif = thought_buf.clone();
+    let builder: Arc<Mutex<ReplayBuilder>> = Arc::new(Mutex::new(ReplayBuilder::default()));
+    let builder_for_notif = builder.clone();
 
     let result = agent_client_protocol::Client
         .builder()
         .name("agentero")
         .on_receive_notification(
             async move |notification: SessionNotification, _cx| {
+                let Ok(mut b) = builder_for_notif.lock() else {
+                    return Ok(());
+                };
                 match &notification.update {
+                    SessionUpdate::UserMessageChunk(chunk) => {
+                        if let Some(text) = text_from_content_block(&chunk.content) {
+                            b.push_user_chunk(text, chunk_msg_id(chunk));
+                        }
+                    }
                     SessionUpdate::AgentMessageChunk(chunk) => {
                         if let Some(text) = text_from_content_block(&chunk.content) {
-                            if let Ok(mut buf) = content_for_notif.lock() {
-                                buf.push_str(&text);
-                            }
+                            b.push_agent_chunk(false, text, chunk_msg_id(chunk));
                         }
                     }
                     SessionUpdate::AgentThoughtChunk(chunk) => {
                         if let Some(text) = text_from_content_block(&chunk.content) {
-                            if let Ok(mut buf) = thought_for_notif.lock() {
-                                buf.push_str(&text);
-                            }
+                            b.push_agent_chunk(true, text, chunk_msg_id(chunk));
+                        }
+                    }
+                    SessionUpdate::ToolCall(tc) => {
+                        b.apply_tool(
+                            tc.tool_call_id.to_string(),
+                            Some(tc.title.clone()),
+                            Some(tool_kind_str(tc.kind).to_string()),
+                            Some(tool_status_str(tc.status).to_string()),
+                            tc.raw_input.clone(),
+                            tc.raw_output.clone(),
+                        );
+                    }
+                    SessionUpdate::ToolCallUpdate(upd) => {
+                        let f = &upd.fields;
+                        b.apply_tool(
+                            upd.tool_call_id.to_string(),
+                            f.title.clone(),
+                            f.kind.map(tool_kind_str).map(str::to_string),
+                            f.status.map(tool_status_str).map(str::to_string),
+                            f.raw_input.clone(),
+                            f.raw_output.clone(),
+                        );
+                    }
+                    SessionUpdate::Plan(plan) => {
+                        b.apply_plan(
+                            plan.entries
+                                .iter()
+                                .map(|e| AgentPlanEntry {
+                                    content: e.content.clone(),
+                                    status: plan_status_str(&e.status).to_string(),
+                                    priority: plan_priority_str(&e.priority).to_string(),
+                                })
+                                .collect(),
+                        );
+                    }
+                    SessionUpdate::SessionInfoUpdate(info) => {
+                        if let agent_client_protocol::schema::MaybeUndefined::Value(t) = &info.title
+                        {
+                            b.title = Some(t.clone());
                         }
                     }
                     _ => {}
@@ -1511,39 +1745,15 @@ pub async fn load_acp_session(
 
     match result {
         Ok(()) => {
-            let content = content_buf.lock().map(|g| g.clone()).unwrap_or_default();
-            let reasoning = thought_buf.lock().map(|g| g.clone()).unwrap_or_default();
-
-            let mut result_lines = Vec::new();
-            if !content.is_empty() {
-                let id = {
-                    let mut c = line_counter.lock().unwrap_or_else(|e| e.into_inner());
-                    *c += 1;
-                    format!("line-{c}")
-                };
-                result_lines.push(AcpHistoryLine {
-                    id,
-                    kind: "agent".to_string(),
-                    text: content,
-                    reasoning: if reasoning.is_empty() {
-                        None
-                    } else {
-                        Some(reasoning)
-                    },
-                });
-            }
-
-            // Also include any lines accumulated via notification handler
-            if let Ok(mut accumulated) = lines_for_notif.lock() {
-                if !accumulated.is_empty() {
-                    result_lines = std::mem::take(&mut accumulated);
-                }
-            }
-
+            let taken = builder
+                .lock()
+                .map(|mut g| std::mem::take(&mut *g))
+                .unwrap_or_default();
+            let (lines, title) = taken.finish();
             Ok(AcpLoadSessionResult {
                 session_id,
-                title: None,
-                lines: result_lines,
+                title,
+                lines,
             })
         }
         Err(e) => Err(AppError::Acp(format!("load session: {e}"))),

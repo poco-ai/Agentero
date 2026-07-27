@@ -475,6 +475,31 @@ pub struct AcpListSessionsResult {
     pub supported: bool,
 }
 
+/// Tool call snapshot rebuilt from ACP `session/load` replay.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AcpHistoryTool {
+    pub id: String,
+    pub title: String,
+    pub kind: String,
+    /// pending | in_progress | completed | failed
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output: Option<serde_json::Value>,
+}
+
+/// Ordered slice of a replayed agent turn (mirrors the frontend `AgentPart`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum AcpHistoryPart {
+    Reasoning { text: String },
+    Text { text: String },
+    Tool { tool: Box<AcpHistoryTool> },
+    Plan { entries: Vec<AgentPlanEntry> },
+}
+
 /// A single history line reconstructed from ACP `session/load` replay.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -485,6 +510,11 @@ pub struct AcpHistoryLine {
     pub text: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<String>,
+    /// Ordered parts for agent lines (empty for user lines).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parts: Vec<AcpHistoryPart>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sources: Vec<String>,
 }
 
 /// Response for `agent_load_session`.

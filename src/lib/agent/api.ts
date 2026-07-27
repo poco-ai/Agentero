@@ -97,11 +97,29 @@ export type AcpListSessionsResult = {
 	supported: boolean;
 };
 
+export type AcpHistoryToolCall = {
+	id: string;
+	title: string;
+	kind: string;
+	status: string;
+	input?: unknown;
+	output?: unknown;
+};
+
+export type AcpHistoryPart =
+	| { type: "reasoning"; text: string }
+	| { type: "text"; text: string }
+	| { type: "tool"; tool: AcpHistoryToolCall }
+	| { type: "plan"; entries: AgentPlanEntry[] };
+
 export type AcpHistoryLine = {
 	id: string;
 	kind: "user" | "agent";
 	text: string;
 	reasoning?: string | null;
+	/** Ordered parts for agent lines (reasoning/text/tool/plan). */
+	parts?: AcpHistoryPart[];
+	sources?: string[];
 };
 
 export type AcpLoadSessionResult = {
