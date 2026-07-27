@@ -1,0 +1,2988 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agentero 本地优先 Agent 科研工作台文档">
+      
+      
+      
+      
+        <link rel="prev" href="../remote-vault-tree-lazy/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>macOS 签名与公证 - Agentero 文档</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="grey">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#macos-developer-id-notarization" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="Agentero 文档" class="md-header__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Agentero 文档
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              macOS 签名与公证
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../usage/" class="md-tabs__link">
+          
+  
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../frontend/" class="md-tabs__link">
+          
+  
+  
+  前端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../backend/" class="md-tabs__link">
+          
+  
+  
+  后端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../development/" class="md-tabs__link">
+          
+  
+  
+  开发草稿
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../test/" class="md-tabs__link">
+          
+  
+  
+  测试
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../deepseek-thinking-body/" class="md-tabs__link">
+          
+  
+  
+  Bug 修复记录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Agentero 文档" class="md-nav__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
+
+    </a>
+    Agentero 文档
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速上手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    安装与首次使用
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/import-papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入和管理论文
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/read-and-organize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    阅读、标注与整理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    接入 Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/zotero/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用 Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/remote-vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    打开远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    前端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    前端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/shell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    工作台壳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dockview 工作区
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/vault-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    文件树
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文库 Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入库 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/markdown/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markdown 编辑
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/pdf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 阅读与划词
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent 面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/command-palette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    命令面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置与主题
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/components/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    组件约定
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    后端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    后端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据模型
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault FS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文入库
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/connector/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent Host
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/remote/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    搜索
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    运行日志
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API 全表
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    开发草稿
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    开发草稿
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    路线图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/todo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TODO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/plaza/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    广场 Plaza
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/pdf-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 引用与插图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链调研
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    测试
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    测试
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release-checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布前 Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 修复记录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bug 修复记录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deepseek-thinking-body/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DeepSeek 正文落入 Thinking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../acp-session-resume-id/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ACP 会话恢复 ID 错误
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ime-composition-enter-submit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    输入法组字 Enter 误发送
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../wiki-embed-unrelated-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dockview-sash-pdf-resize-jank/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    拖动 Dockview 分隔条时 PDF 卡顿
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../remote-acp-path-ssh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远端 ACP PATH / SSH
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../remote-vault-tree-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault 文件树懒加载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    macOS 签名与公证
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    macOS 签名与公证
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        总览：要去哪、拿什么
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#csr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第一步：本机生成 CSR（不下载，自己生成）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#developer-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第二步：下载 Developer ID 证书（签名用）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p12-base64-ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第三步：导出 .p12 并生成 base64（给 CI）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-keynotarytool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第四步：下载公证用的 API Key（notarytool）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#github-secrets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第五步：填到 GitHub Secrets（无下载，粘贴）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第六步（可选）：本机验证
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        工程侧已接好的内容
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="工程侧已接好的内容">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tauri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tauri 环境变量摘要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        安全约定
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        常见问题
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        检查清单
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        相关文件
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        总览：要去哪、拿什么
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#csr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第一步：本机生成 CSR（不下载，自己生成）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#developer-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第二步：下载 Developer ID 证书（签名用）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p12-base64-ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第三步：导出 .p12 并生成 base64（给 CI）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-keynotarytool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第四步：下载公证用的 API Key（notarytool）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#github-secrets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第五步：填到 GitHub Secrets（无下载，粘贴）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第六步（可选）：本机验证
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        工程侧已接好的内容
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="工程侧已接好的内容">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tauri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tauri 环境变量摘要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        安全约定
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        常见问题
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        检查清单
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        相关文件
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="macos-developer-id-notarization">macOS Developer ID 签名与公证（Notarization）<a class="headerlink" href="#macos-developer-id-notarization" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>目标：店外分发（GitHub Release / 官网）时，用户下载后 <strong>不再出现「已损坏 / 无法验证开发者」</strong>。<br />
+路径：<strong>Developer ID Application</strong> 签名 + <strong>notarytool</strong> 公证 + <strong>stapler</strong> 装订。<br />
+这与 <strong>Mac App Store 上架</strong> 不是同一条链路（MAS 强制 App Sandbox，需另配）。</p>
+</blockquote>
+<p>未配置 secrets 时，CI <strong>仍会打未签名包</strong>（与历史行为一致），仅打 warning。本地 <code>pnpm tauri dev</code> <strong>不依赖</strong> 这些凭据。</p>
+<p>签名与公证由 <strong>Tauri CLI + CI 环境变量</strong> 完成，仓库内不维护专用脚本。</p>
+<h2 id="_1">总览：要去哪、拿什么<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>去哪里</th>
+<th>下载/得到什么</th>
+<th>干什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>本机「钥匙串访问」</td>
+<td>CSR 文件</td>
+<td>向 Apple 申请证书</td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="https://developer.apple.com/account/resources/certificates/list">Apple Developer → Certificates</a></td>
+<td><strong>Developer ID Application</strong> 的 <code>.cer</code></td>
+<td>装进钥匙串，用于 <strong>codesign</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>本机钥匙串</td>
+<td><code>.p12</code> + base64</td>
+<td>填进 GitHub Secrets，给 CI 签名</td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="https://appstoreconnect.apple.com/access/integrations/api">App Store Connect → API</a></td>
+<td>Issuer ID、Key ID、<code>.p8</code> 私钥</td>
+<td>给 <strong>notarytool</strong> 公证</td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="https://github.com/poco-ai/Agentero/settings/secrets/actions">GitHub Secrets</a></td>
+<td>无下载</td>
+<td>粘贴上面得到的值</td>
+</tr>
+<tr>
+<td>6（可选）</td>
+<td>本机终端</td>
+<td>无</td>
+<td>导出环境变量后 <code>pnpm tauri build</code> 验证</td>
+</tr>
+</tbody>
+</table>
+<p><strong>不必</strong>在 App Store Connect 里创建 Mac App 记录——那是上架用的；店外公证只用 <strong>API Key + Developer ID</strong>。</p>
+<hr />
+<h2 id="csr">第一步：本机生成 CSR（不下载，自己生成）<a class="headerlink" href="#csr" title="Permanent link">&para;</a></h2>
+<ol>
+<li>打开 <strong>钥匙串访问</strong>（Keychain Access）。  </li>
+<li>菜单：<strong>钥匙串访问 → 证书助理 → 从证书颁发机构请求证书…</strong>  </li>
+<li>填邮箱、常用名称；选 <strong>存储到磁盘</strong>。  </li>
+<li>得到类似 <code>CertificateSigningRequest.certSigningRequest</code> 的文件。  </li>
+</ol>
+<p>后面在 Developer 网站 <strong>上传这个 CSR</strong>。</p>
+<hr />
+<h2 id="developer-id">第二步：下载 Developer ID 证书（签名用）<a class="headerlink" href="#developer-id" title="Permanent link">&para;</a></h2>
+<p><strong>地址：</strong> <a href="https://developer.apple.com/account/resources/certificates/list">https://developer.apple.com/account/resources/certificates/list</a></p>
+<ol>
+<li>登录（需 <a href="https://developer.apple.com/programs/">Apple Developer Program</a>，约 $99/年）。  </li>
+<li>点 <strong>+</strong> 新建证书。  </li>
+<li>类型选：<strong>Developer ID Application</strong>  </li>
+<li><strong>不要</strong>选 Apple Development  </li>
+<li><strong>不要</strong>选 Apple Distribution（上架 / MAS 用）  </li>
+<li>上传第一步的 CSR。  </li>
+<li><strong>Download</strong> 得到 <code>.cer</code>。  </li>
+<li><strong>双击 <code>.cer</code></strong>，装入 <strong>login</strong> 钥匙串。  </li>
+</ol>
+<p><strong>本机确认：</strong></p>
+<div class="codehilite"><pre><span></span><code>security<span class="w"> </span>find-identity<span class="w"> </span>-v<span class="w"> </span>-p<span class="w"> </span>codesigning
+</code></pre></div>
+
+<p>应出现一行类似：</p>
+<div class="codehilite"><pre><span></span><code>&quot;Developer ID Application: 你的名字 (TEAMID)&quot;
+</code></pre></div>
+
+<p>若只有 <code>Apple Development: …</code>，说明本步未完成，<strong>还不能</strong>做店外分发签名。<br />
+<strong>只有账号的 Account Holder 才能创建 Developer ID Application 证书。</strong></p>
+<hr />
+<h2 id="p12-base64-ci">第三步：导出 <code>.p12</code> 并生成 base64（给 CI）<a class="headerlink" href="#p12-base64-ci" title="Permanent link">&para;</a></h2>
+<ol>
+<li>打开 <strong>钥匙串访问</strong> → <strong>登录</strong> → <strong>我的证书</strong>。  </li>
+<li>展开 <strong>Developer ID Application: …</strong>，选中下方 <strong>私钥</strong>。  </li>
+<li>右键 → <strong>导出…</strong> → 格式 <strong>个人信息交换 (.p12)</strong>，设密码（即 <code>APPLE_CERTIFICATE_PASSWORD</code>）。  </li>
+<li>终端转 base64（一行）：</li>
+</ol>
+<div class="codehilite"><pre><span></span><code>openssl<span class="w"> </span>base64<span class="w"> </span>-A<span class="w"> </span>-in<span class="w"> </span>/path/to/certificate.p12<span class="w"> </span>-out<span class="w"> </span>certificate-base64.txt
+<span class="c1"># APPLE_CERTIFICATE = certificate-base64.txt 的全文</span>
+<span class="c1"># APPLE_SIGNING_IDENTITY = security find-identity 里那一整串名字</span>
+</code></pre></div>
+
+<p><strong>不要</strong>把 <code>.p12</code> / base64 提交进 git。Secrets 填完后删除本地导出文件。</p>
+<hr />
+<h2 id="api-keynotarytool">第四步：下载公证用的 API Key（notarytool）<a class="headerlink" href="#api-keynotarytool" title="Permanent link">&para;</a></h2>
+<p><strong>地址：</strong> <a href="https://appstoreconnect.apple.com/access/integrations/api">https://appstoreconnect.apple.com/access/integrations/api</a>  </p>
+<p>路径：<strong>用户和访问 → 集成 → App Store Connect API</strong></p>
+<ol>
+<li>点 <strong>生成 API 密钥</strong>（或 <strong>+</strong>）。  </li>
+<li>名称随意；访问权限至少 <strong>开发者 / Developer</strong>。  </li>
+<li>页面上记下来：  </li>
+<li><strong>Issuer ID</strong>（密钥表格上方）  </li>
+<li><strong>Key ID</strong>（表格中的一列）  </li>
+<li>点 <strong>下载</strong> → 得到 <code>AuthKey_XXXXXXXXXX.p8</code>  </li>
+<li><strong>只能下载一次</strong>，立刻保存。  </li>
+</ol>
+<p>建议：</p>
+<div class="codehilite"><pre><span></span><code>mkdir<span class="w"> </span>-p<span class="w"> </span>~/private_keys
+mv<span class="w"> </span>~/Downloads/AuthKey_XXXXXXXXXX.p8<span class="w"> </span>~/private_keys/
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>东西</th>
+<th>对应 Secret / 环境变量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Issuer ID</td>
+<td><code>APPLE_API_ISSUER</code></td>
+</tr>
+<tr>
+<td>Key ID</td>
+<td><code>APPLE_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>.p8</code> 全文</td>
+<td>GitHub：<code>APPLE_API_KEY_P8</code>；本地：<code>APPLE_API_KEY_PATH</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>备选（不用 API Key 时）：</strong> Apple ID + <a href="https://support.apple.com/102654">App 专用密码</a> + <a href="https://developer.apple.com/account#MembershipDetailsCard">Team ID</a> → Secrets <code>APPLE_ID</code> / <code>APPLE_PASSWORD</code> / <code>APPLE_TEAM_ID</code>。</p>
+<hr />
+<h2 id="github-secrets">第五步：填到 GitHub Secrets（无下载，粘贴）<a class="headerlink" href="#github-secrets" title="Permanent link">&para;</a></h2>
+<p><strong>本仓库地址：</strong><br />
+<a href="https://github.com/poco-ai/Agentero/settings/secrets/actions">https://github.com/poco-ai/Agentero/settings/secrets/actions</a>  </p>
+<p>路径：<strong>Settings → Secrets and variables → Actions → New repository secret</strong></p>
+<table>
+<thead>
+<tr>
+<th>Secret 名</th>
+<th>从哪来</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>APPLE_CERTIFICATE</code></td>
+<td><code>certificate-base64.txt</code> 全文（一行 base64）</td>
+</tr>
+<tr>
+<td><code>APPLE_CERTIFICATE_PASSWORD</code></td>
+<td>导出 <code>.p12</code> 时设的密码</td>
+</tr>
+<tr>
+<td><code>APPLE_SIGNING_IDENTITY</code></td>
+<td><code>Developer ID Application: … (TEAMID)</code></td>
+</tr>
+<tr>
+<td><code>APPLE_API_ISSUER</code></td>
+<td>App Store Connect Issuer ID</td>
+</tr>
+<tr>
+<td><code>APPLE_API_KEY</code></td>
+<td>App Store Connect Key ID</td>
+</tr>
+<tr>
+<td><code>APPLE_API_KEY_P8</code></td>
+<td><code>.p8</code> 文件内容（整段 PEM，或 base64）</td>
+</tr>
+</tbody>
+</table>
+<p>填完后，推送 <code>v*</code> tag 时，<code>.github/workflows/release.yml</code> 的 macOS job 会：</p>
+<ol>
+<li>写入 API key 文件（若配置了 <code>APPLE_API_KEY_P8</code>）  </li>
+<li><code>tauri-action</code> 用 <code>APPLE_CERTIFICATE*</code> <strong>codesign（Developer ID）</strong>  </li>
+<li>有公证凭据时自动 <strong>notarytool 提交 + 等待 + staple</strong>  </li>
+</ol>
+<p>Linux / Windows job 不受影响。</p>
+<hr />
+<h2 id="_2">第六步（可选）：本机验证<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>钥匙串里已有 Developer ID 时：</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_SIGNING_IDENTITY</span><span class="o">=</span><span class="s2">&quot;Developer ID Application: 你的名字 (TEAMID)&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_ISSUER</span><span class="o">=</span><span class="s2">&quot;xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY</span><span class="o">=</span><span class="s2">&quot;XXXXXXXXXX&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY_PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">/private_keys/AuthKey_</span><span class="si">${</span><span class="nv">APPLE_API_KEY</span><span class="si">}</span><span class="s2">.p8&quot;</span>
+
+pnpm<span class="w"> </span>tauri<span class="w"> </span>build
+</code></pre></div>
+
+<p>或 CI 式 <code>.p12</code> 导入：再设 <code>APPLE_CERTIFICATE</code> / <code>APPLE_CERTIFICATE_PASSWORD</code>。</p>
+<p>校验产物：</p>
+<div class="codehilite"><pre><span></span><code><span class="nv">APP</span><span class="o">=</span>src-tauri/target/release/bundle/macos/Agentero.app
+codesign<span class="w"> </span>--verify<span class="w"> </span>--deep<span class="w"> </span>--strict<span class="w"> </span>--verbose<span class="o">=</span><span class="m">2</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APP</span><span class="s2">&quot;</span>
+xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APP</span><span class="s2">&quot;</span>
+spctl<span class="w"> </span>--assess<span class="w"> </span>--type<span class="w"> </span>execute<span class="w"> </span>--verbose<span class="o">=</span><span class="m">4</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APP</span><span class="s2">&quot;</span>
+</code></pre></div>
+
+<p>仅签名、跳过 staple：</p>
+<div class="codehilite"><pre><span></span><code>pnpm<span class="w"> </span>tauri<span class="w"> </span>build<span class="w"> </span>--<span class="w"> </span>--skip-stapling
+</code></pre></div>
+
+<p>产物一般在：</p>
+<div class="codehilite"><pre><span></span><code>src-tauri/target/release/bundle/macos/Agentero.app
+src-tauri/target/release/bundle/dmg/…
+</code></pre></div>
+
+<hr />
+<h2 id="_3">工程侧已接好的内容<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bundle ID</td>
+<td><code>com.poco-ai.agentero</code>（<code>src-tauri/tauri.conf.json</code> → <code>identifier</code>）</td>
+</tr>
+<tr>
+<td>Entitlements</td>
+<td><code>src-tauri/Entitlements.plist</code>（Hardened Runtime：JIT 等；<strong>无</strong> App Sandbox）</td>
+</tr>
+<tr>
+<td>Info.plist</td>
+<td><code>src-tauri/Info.plist</code>（<code>ITSAppUsesNonExemptEncryption=false</code>）</td>
+</tr>
+<tr>
+<td>最低系统</td>
+<td>macOS 12.0（<code>bundle.macOS.minimumSystemVersion</code>）</td>
+</tr>
+<tr>
+<td>CI</td>
+<td><code>.github/workflows/release.yml</code> macOS job 读取上表 secrets</td>
+</tr>
+</tbody>
+</table>
+<p><code>signingIdentity</code> <strong>不写死在仓库</strong>，由环境变量 / Secrets 注入。</p>
+<h3 id="tauri">Tauri 环境变量摘要<a class="headerlink" href="#tauri" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>用途</th>
+<th>变量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>签名（本地钥匙串）</td>
+<td><code>APPLE_SIGNING_IDENTITY</code></td>
+</tr>
+<tr>
+<td>签名（CI <code>.p12</code>）</td>
+<td><code>APPLE_CERTIFICATE</code> + <code>APPLE_CERTIFICATE_PASSWORD</code></td>
+</tr>
+<tr>
+<td>公证（推荐）</td>
+<td><code>APPLE_API_ISSUER</code> + <code>APPLE_API_KEY</code> + <code>APPLE_API_KEY_PATH</code>（CI 由 workflow 写出）</td>
+</tr>
+<tr>
+<td>公证（备选）</td>
+<td><code>APPLE_ID</code> + <code>APPLE_PASSWORD</code> + <code>APPLE_TEAM_ID</code></td>
+</tr>
+</tbody>
+</table>
+<p>官方说明：<a href="https://v2.tauri.app/distribute/sign/macos/">Tauri macOS Code Signing</a>。</p>
+<h3 id="_4">安全约定<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>证书、<code>.p12</code>、<code>.p8</code>、App 专用密码 <strong>永不进 git</strong>  </li>
+<li>secrets 未配置时不阻断 Linux / Windows 发布  </li>
+</ul>
+<hr />
+<h2 id="_5">常见问题<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>security find-identity</code> 只有 Apple Development</td>
+<td>完成 <strong>第二步</strong>：创建 Developer ID Application</td>
+</tr>
+<tr>
+<td>无法创建 Developer ID</td>
+<td>确认是否为 <strong>Account Holder</strong></td>
+</tr>
+<tr>
+<td>公证 Invalid / 7000</td>
+<td>新团队可能需联系 Apple 开通 notarization；查 submission log</td>
+</tr>
+<tr>
+<td><code>spctl</code> 仍拒</td>
+<td>是否 staple；是否签成了 Development 而非 Developer ID</td>
+</tr>
+<tr>
+<td>CI 未签名</td>
+<td>检查 <code>APPLE_CERTIFICATE</code>；看 workflow warning</td>
+</tr>
+<tr>
+<td>公证超时</td>
+<td>notary 偶发排队；重跑 job</td>
+</tr>
+<tr>
+<td>签名后 BYOA 异常</td>
+<td>检查 <code>Entitlements.plist</code> 中 library-validation / JIT</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_6">检查清单<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<ul>
+<li>[ ] Developer Program 有效  </li>
+<li>[ ] 第一步 CSR 已生成  </li>
+<li>[ ] 第二步 Developer ID Application <code>.cer</code> 已装入 login 钥匙串  </li>
+<li>[ ] <code>security find-identity</code> 能看到 <code>Developer ID Application: …</code>  </li>
+<li>[ ] 第三步 <code>.p12</code> / base64 已导出  </li>
+<li>[ ] 第四步 API Key（Issuer / Key ID / <code>.p8</code>）已保存  </li>
+<li>[ ] 第五步 <a href="https://github.com/poco-ai/Agentero/settings/secrets/actions">GitHub Secrets</a> 六项已填  </li>
+<li>[ ] （可选）第六步本机 <code>pnpm tauri build</code> + <code>codesign</code> / <code>spctl</code> 通过  </li>
+<li>[ ] 推送 <code>vX.Y.Z</code> tag，Release 中 macOS 产物已签名且可直接打开  </li>
+</ul>
+<hr />
+<h2 id="_7">相关文件<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>src-tauri/Entitlements.plist</code>  </li>
+<li><code>src-tauri/Info.plist</code>  </li>
+<li><code>src-tauri/tauri.conf.json</code>  </li>
+<li><code>.github/workflows/release.yml</code>  </li>
+<li><a href="../../development/release/"><code>release.md</code></a>（版本 bump / tag 流程）  </li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.tracking", "navigation.top", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

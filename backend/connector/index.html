@@ -1,1509 +1,2430 @@
-<!DOCTYPE html>
-<html class="writer-html5" lang="en" >
-<head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>Zotero Connector 兼容 - Agentero 文档</title>
-    <link rel="stylesheet" href="../../css/theme.css" />
-    <link rel="stylesheet" href="../../css/theme_extra.css" />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
     
-      <script>
-        // Current page data
-        var mkdocs_page_name = "Zotero Connector \u517c\u5bb9";
-        var mkdocs_page_input_path = "backend/connector.md";
-        var mkdocs_page_url = null;
-      </script>
-    
-    <!--[if lt IE 9]>
-      <script src="../../js/html5shiv.min.js"></script>
-    <![endif]-->
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-      <script>hljs.highlightAll();</script> 
-</head>
-
-<body class="wy-body-for-nav" role="document">
-
-  <div class="wy-grid-for-nav">
-    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
-    <div class="wy-side-scroll">
-      <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Agentero 文档
-        </a><div role="search">
-  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
-      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
-  </form>
-</div>
-      </div>
-
-      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <ul>
-                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
-                </li>
-              </ul>
-              <p class="caption"><span class="caption-text">用户指南</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/">使用指南</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/getting-started/">安装与首次使用</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/import-papers/">导入和管理论文</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/read-and-organize/">阅读、标注与整理</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/agents/">接入 Agent</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/zotero/">使用 Zotero Connector</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/remote-vault/">打开远程 Vault</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">前端</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/">概览</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/ui/">UI 规范</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../frontend/components/">组件约定</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">后端</span></p>
-              <ul class="current">
-                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../api/">API 契约</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../data-model/">数据模型</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../catalog/">论文目录库</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../identifier-lookup/">魔棒与 Translator</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../paper-import-pipeline/">Paper 入库流水线</a>
-                  </li>
-                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Zotero Connector 兼容</a>
-    <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#1">1. 产品目标</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#11">1.1 要解决的问题</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#12">1.2 用户故事</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#13">1.3 与其它入库路径的边界</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#14">1.4 非目标（首版不做）</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#2">2. 上游协议摘要</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#21">2.1 开源位置</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#22">2.2 请求惯例</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#23">2.3 上游安全模型（实现时必须对齐的部分）</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#3-agentero">3. Agentero 目标架构</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#4-http">4. HTTP 契约（实现规范）</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#41">4.1 版本与兼容策略</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#42-mvp-endpoints">4.2 MVP endpoints（必须）</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#getpost-connectorping">GET|POST /connector/ping</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#post-connectorsaveitems">POST /connector/saveItems</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#post-connectorsessionprogress">POST /connector/sessionProgress</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#_1">已实现的集合与会话</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#43-cookies-endpoints">4.3 快照、cookies 与兼容 endpoints</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#44">4.4 低优先级 / 明确不做</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#45-api-vs">4.5 上游 API 覆盖总表（实现 vs 缺口）</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#5">5. 数据映射与落盘</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#51-item-papermeta">5.1 Item → PaperMeta</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#52-parent_dir">5.2 目标目录 parent_dir</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#53">5.3 去重</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#54-cookie">5.4 附件与 cookie</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#55">5.5 精读自动触发</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#6">6. 生命周期与端口冲突</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#61">6.1 状态机</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#62">6.2 端口</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#63">6.3 多窗口</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#64">6.4 应用退出</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#7-host-apitauri">7. Host API（Tauri）与事件</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#71-commands">7.1 Commands（已落地）</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#72-events">7.2 Events</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#73-apimd">7.3 与 api.md 的关系</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#8-ui">8. 设置与 UI</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#81">8.1 设置项</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#82">8.2 设置页位置</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#83">8.3 成功反馈</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#84">8.4 后台任务条</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#9">9. 实现分期</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#pr1">PR1 — 可保存元数据 ✅</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#pr2">PR2 — 体验与稳健性 ✅</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#pr3-c4bc4cc5a">PR3 — 附件与快照（C4b/C4c/C5a 已做）</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#pr4">PR4 — 兼容降级与端口</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#_2">非目标</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#10">10. 代码与文档落点（预估）</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#11_1">11. 风险与纪律</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#12_1">12. 验收标准（方案一完成定义）</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#13_1">13. 开放问题（实现前可拍板）</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#14_1">14. 参考链接</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_3">修订记录</a>
-    </li>
-    </ul>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../wikilinks/">双链与图谱</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">测试</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">调研</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../research/wikilink-heading-reference-stability/">标题双链稳定性与 Metadata Cache</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">开发</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/tab-split/">Tab 内分屏</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/plaza/">广场 Plaza</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/macos-signing/">macOS 签名与公证</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/release/">发布流程</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/github-project/">GitHub Project</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/dockview-sash-pdf-resize-jank/">拖动 Dockview 分隔条时 PDF 卡顿</a>
-                  </li>
-              </ul>
-      </div>
-    </div>
-    </nav>
-
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
-          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../..">Agentero 文档</a>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agentero 本地优先 Agent 科研工作台文档">
+      
+      
+      
+      
+        <link rel="prev" href="../paper-import/">
+      
+      
+        <link rel="next" href="../wiki/">
+      
+      
         
-      </nav>
-      <div class="wy-nav-content">
-        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
-  <ul class="wy-breadcrumbs">
-    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
-          <li class="breadcrumb-item">后端</li>
-      <li class="breadcrumb-item active">Zotero Connector 兼容</li>
-    <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/agentero/edit/main/docs/backend/connector.md">Edit on poco-ai/agentero</a>
-    </li>
-  </ul>
-  <hr/>
-</div>
-          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
-            <div class="section" itemprop="articleBody">
-              
-                <h1 id="zotero-connector">Zotero Connector 兼容服务（方案一）<a class="headerlink" href="#zotero-connector" title="Permanent link">&para;</a></h1>
-<blockquote>
-<p>状态：<strong>MVP 已落地</strong>（元数据保存 + 文件夹选择 + 超时规避 + <strong>附件二进制上传 <code>saveAttachment</code></strong> + <strong>快照 / cookies / 后台进度</strong> + <strong>远程 Vault（SSH）</strong>）
-范围：Agentero Host 在本机 <strong>模拟 Zotero 桌面端 Connector HTTP Server</strong>，使官方 <a href="https://www.zotero.org/download/connectors">Zotero Connector</a> 浏览器扩展把「保存」请求打到 Agentero，条目落入当前 Vault 的 catalog + paper 文件夹。<br />
-实现入口：<code>src-tauri/src/services/connector/</code>、<code>commands/connector.rs</code>、<code>src/lib/paper/import/connector.ts</code>、设置 → 通用、<code>App.tsx</code> 监听 <code>connector:*</code>。<br />
-<strong>HTTP 覆盖总表</strong>：见本文 <a href="#45-上游-api-覆盖总表实现-vs-缺口">§4.5</a>。<br />
-相关：<a href="../identifier-lookup/"><code>identifier-lookup.md</code></a>（魔棒入库与 <code>map_zotero_item</code>）、<a href="../paper-import-pipeline/"><code>paper-import-pipeline.md</code></a>（与其它入库入口的统一 <code>paper_commit</code> 方案）、<a href="../catalog/"><code>catalog.md</code></a>、<a href="../api/"><code>api.md</code></a>、<a href="../data-model/"><code>data-model.md</code></a>、<a href="../../frontend/ui/"><code>../frontend/ui.md</code></a>、<a href="../../development/roadmap/"><code>../development/roadmap.md</code></a>、<a href="../../development/todo/"><code>../development/todo.md</code></a>。</p>
-</blockquote>
-<hr />
-<h2 id="1">1. 产品目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
-<h3 id="11">1.1 要解决的问题<a class="headerlink" href="#11" title="Permanent link">&para;</a></h3>
-<p>用户已习惯在浏览器里点 <strong>Zotero Connector</strong> 一键保存论文/网页。Agentero 已有：</p>
-<ul>
-<li><strong>魔棒</strong>（粘贴 ID/URL → Translator → 入库）</li>
-<li><strong>从 Zotero 数据目录迁移</strong>（存量 <code>zotero.sqlite</code>）</li>
-</ul>
-<p>仍缺：<strong>浏览网页时与官方插件同一入口的增量捕获</strong>。</p>
-<p>方案一：<strong>不改官方插件</strong>，在 Agentero 内实现与 Zotero 桌面端兼容的本地 HTTP API，<strong>占用（或兼容）<code>127.0.0.1:23119</code></strong>，让 Connector 以为本机 Zotero 在线。</p>
-<h3 id="12">1.2 用户故事<a class="headerlink" href="#12" title="Permanent link">&para;</a></h3>
-<ol>
-<li>用户打开 Agentero，打开某个 Vault（<strong>本地路径</strong>或 <strong>Open Remote Vault</strong>）。</li>
-<li>在 <strong>设置</strong> 中开启「兼容 Zotero Connector」（<strong>默认关</strong>）。</li>
-<li>Host 在 <code>127.0.0.1:23119</code> 启动 Connector 兼容服务；若端口被 Zotero 占用则明确失败提示。</li>
-<li>用户在浏览器使用 <strong>官方 Zotero Connector</strong> 点保存（arXiv、DOI 页、期刊站等）。</li>
-<li>Connector 将 translator 产出的 items JSON POST 到本机；Agentero 写入 <code>papers/…</code> + catalog，并按现有策略尽量下载 PDF。<strong>远程 Vault</strong> 时先 stage 再 SFTP 上传，catalog 经 work mirror PUT。</li>
-<li>Agentero 刷新文件树 / Library；<strong><code>openPaper</code> 打开（或聚焦）该论文标签页</strong>（与魔棒入库一致；附件 <code>saveAttachment</code> / 会话移动再次发出事件时亦会聚焦）；可选 toast 成功摘要。</li>
-<li>用户关闭开关或退出应用时释放端口。</li>
-</ol>
-<p><strong>Vault 绑定</strong>：<code>connector_set_vault</code> 接受本地绝对路径或 <code>remote:&lt;sessionId&gt;</code>。<code>remote_connect</code> 成功时 Host <strong>立即</strong>绑定 Connector；前端在 <code>vaultPath</code> 变化与 Connector 开启时再次同步。设置状态应显示 Listening 且带 vault（远程为 <code>remote:…</code>）；若提示 <em>No vault open</em>，请确认已打开知识库并已开启 Connector，远程场景请重新连接一次远程库。</p>
-<h3 id="13">1.3 与其它入库路径的边界<a class="headerlink" href="#13" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>路径</th>
-<th>入口</th>
-<th>元数据来源</th>
-<th>与本方案关系</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>魔棒 <code>lookup_import_batch</code></td>
-<td>侧栏 ⇧⌘I</td>
-<td>Host 调 Translator Runtime</td>
-<td><strong>并存</strong>；落盘应对齐同一 paper 单元语义（统一方案见 <a href="../paper-import-pipeline/"><code>paper-import-pipeline.md</code></a>）</td>
-</tr>
-<tr>
-<td>本地 PDF 导入</td>
-<td>魔棒弹层多选</td>
-<td>文件名 + liteparse</td>
-<td>并存；目标共用 <code>paper_commit</code></td>
-</tr>
-<tr>
-<td>Zotero 迁移</td>
-<td>欢迎页 / 侧栏</td>
-<td><code>zotero.sqlite</code> + storage</td>
-<td><strong>存量</strong>；本方案是 <strong>增量</strong></td>
-</tr>
-<tr>
-<td>Connector 兼容（本方案）</td>
-<td>官方浏览器插件</td>
-<td>插件侧 Translator → HTTP</td>
-<td>本文件</td>
-</tr>
-<tr>
-<td>自研浏览器扩展</td>
-<td>未来</td>
-<td>任意</td>
-<td>不阻塞；可共用入库核心，不必抢 23119</td>
-</tr>
-</tbody>
-</table>
-<h3 id="14">1.4 非目标（首版不做）<a class="headerlink" href="#14" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>不做</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>与 <strong>同时运行的 Zotero 桌面端</strong> 共用 23119</td>
-<td>端口互斥；不做流量分流/透明代理</td>
-</tr>
-<tr>
-<td>完整复刻 Google Docs / Word 引用集成（<code>/connector/document/*</code>）</td>
-<td>引用插入协议另案</td>
-</tr>
-<tr>
-<td>在 Agentero 内实现 Translator 全量库</td>
-<td>页面识别仍由 <strong>官方 Connector</strong> 完成</td>
-</tr>
-<tr>
-<td>在线 zotero.org 回退路径</td>
-<td>插件在「无桌面」时会走 zotero.org；我们只做本机 server</td>
-</tr>
-<tr>
-<td>修改或再分发官方 Connector 扩展</td>
-<td>协议兼容即可</td>
-</tr>
-<tr>
-<td>复制 AGPL 源码进产品</td>
-<td>按 HTTP 契约 <strong>重写</strong>（Rust）；不 fork 大段 JS</td>
-</tr>
-<tr>
-<td>跨机器 / 非 loopback 暴露</td>
-<td><strong>禁止</strong> <code>0.0.0.0</code> 默认监听</td>
-</tr>
-<tr>
-<td>CLI 独立 connector server</td>
-<td>首版仅桌面 Host；CLI 可后续只读文档对齐</td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="2">2. 上游协议摘要<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
-<h3 id="21">2.1 开源位置<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>角色</th>
-<th>仓库</th>
-<th>关键路径</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>浏览器插件（客户端）</td>
-<td><a href="https://github.com/zotero/zotero-connectors">zotero/zotero-connectors</a></td>
-<td><code>src/common/connector.js</code>（<code>callMethod</code>）、<code>src/common/zotero.js</code>（<code>connector.url</code> 默认 <code>http://127.0.0.1:23119/</code>）</td>
-</tr>
-<tr>
-<td>桌面 HTTP 框架</td>
-<td><a href="https://github.com/zotero/zotero">zotero/zotero</a></td>
-<td><code>chrome/content/zotero/xpcom/server.js</code></td>
-</tr>
-<tr>
-<td>Connector endpoints</td>
-<td>同上</td>
-<td><code>chrome/content/zotero/xpcom/connector/server_connector.js</code></td>
-</tr>
-<tr>
-<td>官方说明</td>
-<td>Zotero Docs</td>
-<td><a href="https://www.zotero.org/support/dev/client_coding/connector_http_server">Connector HTTP Server</a></td>
-</tr>
-</tbody>
-</table>
-<p>通信方向：<strong>仅插件 → 本机 HTTP</strong>；Zotero/Agentero 不会主动推消息给插件。</p>
-<h3 id="22">2.2 请求惯例<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
-<pre class="codehilite"><code class="language-text">POST http://127.0.0.1:23119/connector/{method}
-Content-Type: application/json
-X-Zotero-Version: &lt;plugin version&gt;
-X-Zotero-Connector-API-Version: 3
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Zotero Connector - Agentero 文档</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
 
-Body: JSON（method 相关）
-</code></pre>
 
-<ul>
-<li>默认 base：<code>http://127.0.0.1:23119/</code>（插件 pref <code>connector.url</code>）。</li>
-<li><code>ping</code> 亦支持 GET（浏览器探活页）。</li>
-<li>成功时响应头建议带回：<code>X-Zotero-Version</code>（可用 Agentero 版本或固定兼容串）、<code>X-Zotero-Connector-API-Version</code>。</li>
-</ul>
-<h3 id="23">2.3 上游安全模型（实现时必须对齐的部分）<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
-<p>来自 <code>server.js</code> 的要点（Agentero 应 <strong>等价或更严</strong>）：</p>
-<ol>
-<li><strong>只绑 loopback</strong>（<code>127.0.0.1</code>，可选另绑 <code>::1</code> 视平台；禁止默认 <code>bindAll</code>）。</li>
-<li><strong>Host 头校验</strong>：仅允许 <code>localhost</code> / <code>127.0.0.1</code>（可带端口），防 DNS rebinding。</li>
-<li><strong>浏览器简单请求防护</strong>：对像浏览器的 UA / 带 Origin 的请求，若缺少 <code>X-Zotero-Connector-API-Version</code>（或等价白名单头）且 content-type 为 simple 类型，应 403；<code>application/json</code> 依赖预检，不向任意 Origin 滥发 CORS。</li>
-<li><strong>无 API Key</strong>：本机任意进程可调用——这是协议现实；产品文案需写明风险，且不得把 server 暴露到局域网。</li>
-</ol>
-<hr />
-<h2 id="3-agentero">3. Agentero 目标架构<a class="headerlink" href="#3-agentero" title="Permanent link">&para;</a></h2>
-<pre class="codehilite"><code class="language-text">官方 Zotero Connector（浏览器）
-        │  HTTP POST /connector/*
-        ▼
-Agentero Host  Connector Server（127.0.0.1:23119）
-        │  解析 items / session
-        ▼
-services/connector  →  map_zotero_item（复用 lookup/map）
-        │
-        ▼
-写 papers/&lt;id&gt;/ + catalog.sqlite
-（对齐魔棒入库：NOTES 壳、尽量 PDF、arXiv TeX…）
-        │
-        ▼
-Tauri event: connector:item-saved / connector:error
-        │
-        ▼
-前端：刷新树 / Library；openPaper（打开/聚焦论文 tab）；Toast（成功或失败）
-</code></pre>
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
 
-<table>
-<thead>
-<tr>
-<th>层</th>
-<th>职责</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>HTTP Server</strong></td>
-<td>绑定端口、路由、安全头、JSON 编解码、session 表</td>
-</tr>
-<tr>
-<td><strong>Handlers</strong></td>
-<td><code>ping</code> / <code>saveItems</code> / <code>sessionProgress</code> / stub 集合</td>
-</tr>
-<tr>
-<td><strong>Import core</strong></td>
-<td>Zotero item JSON → <code>PaperMeta</code> → 落盘（优先复用 <code>lookup</code> 管线）</td>
-</tr>
-<tr>
-<td><strong>Lifecycle</strong></td>
-<td>设置开关、Vault 有无、端口冲突、启停</td>
-</tr>
-<tr>
-<td><strong>Frontend</strong></td>
-<td>开关 UI、状态、事件消费</td>
-</tr>
-</tbody>
-</table>
-<p><strong>不</strong>在 Webview 里开 HTTP server；必须在 <strong>Rust Host</strong>，以便后台入库与 fs 权限一致。</p>
-<hr />
-<h2 id="4-http">4. HTTP 契约（实现规范）<a class="headerlink" href="#4-http" title="Permanent link">&para;</a></h2>
-<h3 id="41">4.1 版本与兼容策略<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>项</th>
-<th>约定</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>对外宣称</td>
-<td>兼容 Connector API <strong>v2/v3 常用保存路径</strong>（以官方插件当前主线为准）</td>
-</tr>
-<tr>
-<td>未知 endpoint</td>
-<td><code>404</code> 明文 <code>No endpoint found</code>（与上游风格接近即可）</td>
-</tr>
-<tr>
-<td>不支持的 method</td>
-<td><code>400</code> / <code>501</code> 明确 body</td>
-</tr>
-<tr>
-<td>破坏性差异</td>
-<td>记入本文 §11 与 changelog；避免静默丢附件而不回成功</td>
-</tr>
-</tbody>
-</table>
-<h3 id="42-mvp-endpoints">4.2 MVP endpoints（必须）<a class="headerlink" href="#42-mvp-endpoints" title="Permanent link">&para;</a></h3>
-<h4 id="getpost-connectorping"><code>GET|POST /connector/ping</code><a class="headerlink" href="#getpost-connectorping" title="Permanent link">&para;</a></h4>
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>用途</strong></td>
-<td>插件与用户探活（<code>http://127.0.0.1:23119/connector/ping</code>）</td>
-</tr>
-<tr>
-<td><strong>GET 响应</strong></td>
-<td><code>200</code> <code>text/html</code>，正文含可识别文案，例如 <code>Zotero Connector Server is Available</code>（插件/文档多依赖此语义，<strong>建议保留该英文句</strong>以免探活页误判）</td>
-</tr>
-<tr>
-<td><strong>POST 响应</strong></td>
-<td><code>200</code> <code>application/json</code>，至少：<code>{ "prefs": { "automaticSnapshots": false, "downloadAssociatedFiles": true, … } }</code>（字段可按插件需要逐步补齐）</td>
-</tr>
-<tr>
-<td><strong>实现注意</strong></td>
-<td>GET 可无 JSON body；不要要求 API version 头（上游对 ping 有白名单倾向）</td>
-</tr>
-</tbody>
-</table>
-<h4 id="post-connectorsaveitems"><code>POST /connector/saveItems</code><a class="headerlink" href="#post-connectorsaveitems" title="Permanent link">&para;</a></h4>
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Content-Type</strong></td>
-<td><code>application/json</code></td>
-</tr>
-<tr>
-<td><strong>请求体（概念）</strong></td>
-<td>见下表</td>
-</tr>
-<tr>
-<td><strong>成功</strong></td>
-<td><code>201</code> + JSON：<code>{ "items": [ { id, title, itemType, attachments?: […] } ], "singleFile"?: bool }</code>（字段以插件解析需要为准；可先返回最小集）</td>
-</tr>
-<tr>
-<td><strong>会话冲突</strong></td>
-<td><code>409</code> <code>{ "error": "SESSION_EXISTS" }</code></td>
-</tr>
-<tr>
-<td><strong>无 Vault / 只读</strong></td>
-<td><code>500</code> 或 <code>503</code> + 可读 error；并 <code>connector:error</code> 事件</td>
-</tr>
-</tbody>
-</table>
-<p><strong>请求体关键字段：</strong></p>
-<table>
-<thead>
-<tr>
-<th>字段</th>
-<th>类型</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>sessionID</code></td>
-<td>string</td>
-<td>插件生成；session 表键；冲突则 409</td>
-</tr>
-<tr>
-<td><code>uri</code> / <code>url</code></td>
-<td>string</td>
-<td>来源页；用于 referrer、id 推导、cookie 沙箱语义（首版可只记 <code>source_url</code>）</td>
-</tr>
-<tr>
-<td><code>items</code></td>
-<td>array</td>
-<td><strong>Zotero item 对象数组</strong>（非 Agentero <code>PaperMetadata</code>）</td>
-</tr>
-<tr>
-<td><code>detailedCookies</code></td>
-<td>string?</td>
-<td>附件下载 cookie；MVP 可忽略并仍存元数据</td>
-</tr>
-<tr>
-<td><code>proxy</code></td>
-<td>object?</td>
-<td>首版可忽略</td>
-</tr>
-</tbody>
-</table>
-<p><strong>单个 item 常见字段（子集）：</strong><br />
-<code>itemType</code>, <code>title</code>, <code>creators[]</code>, <code>abstractNote</code>, <code>DOI</code>, <code>url</code>, <code>publicationTitle</code>, <code>date</code>, <code>tags</code>, <code>attachments[]</code>（<code>title</code>, <code>url</code>/<code>mimeType</code>, <code>snapshot</code>…）, 以及插件自定义的临时 <code>id</code>（用于后续 attachment 关联）。</p>
-<p><strong>服务端行为（Agentero）：</strong></p>
-<ol>
-<li>校验：已开启兼容服务、当前窗口/应用有 <strong>活跃 Vault</strong>。</li>
-<li>为每个 top-level item：</li>
-<li><code>map_zotero_item</code>（或等价）→ <code>PaperMeta</code>；</li>
-<li><code>meta_source</code> 建议标记为 <code>zotero-connector</code>（或现有枚举扩展）；</li>
-<li>目标 <code>parent_dir</code>：见 §5.2；</li>
-<li>创建 paper 文件夹 + catalog 行（对齐魔棒入库 / migration 的去重策略，见 §5.3）；</li>
-<li><strong>尽量</strong>下载 PDF（attachments 中 PDF URL、或 DOI/arXiv 派生 URL）；失败不导致整次 5xx，但 progress 可标失败。</li>
-<li>注册 session，供 <code>sessionProgress</code> 查询。</li>
-<li>尽快返回 <code>201</code>（可先完成元数据落盘，附件异步——若异步，progress 必须反映，避免插件一直转圈）。</li>
-<li>emit <code>connector:item-saved</code>（每篇或批量一次，见 §7）。</li>
-</ol>
-<h4 id="post-connectorsessionprogress"><code>POST /connector/sessionProgress</code><a class="headerlink" href="#post-connectorsessionprogress" title="Permanent link">&para;</a></h4>
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>请求</strong></td>
-<td><code>{ "sessionID": "…" }</code></td>
-</tr>
-<tr>
-<td><strong>响应</strong></td>
-<td><code>200</code> <code>{ "items": [ progress… ], "done": bool }</code></td>
-</tr>
-<tr>
-<td><strong>用途</strong></td>
-<td>插件进度条；<code>done: true</code> 后插件停止轮询</td>
-</tr>
-<tr>
-<td><strong>MVP</strong></td>
-<td>元数据写入完成后即可 <code>done: true</code>；附件未完时可阶段性更新百分比</td>
-</tr>
-</tbody>
-</table>
-<h4 id="_1">已实现的集合与会话<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h4>
-<table>
-<thead>
-<tr>
-<th>Endpoint</th>
-<th>行为</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>POST /connector/getSelectedCollection</code></td>
-<td>当前选中父目录 + <strong><code>targets</code></strong>：<code>L1</code>=<code>papers</code>，<code>Dpapers/…</code>=组织子文件夹（跳过 paper 单元：<code>NOTES.md</code> / <code>metadata.json</code> / <code>{id}.pdf</code>）；供插件保存位置下拉</td>
-</tr>
-<tr>
-<td><code>POST /connector/updateSession</code></td>
-<td><code>sessionID</code> + <code>target</code>：解析目标并 <strong>移动</strong> 本 session 已写入的 paper 文件夹 + 更新 catalog path；同时记住默认 <code>parent_dir</code>；<code>tags</code> 支持逗号字符串或字符串数组并写入 catalog</td>
-</tr>
-<tr>
-<td><code>POST /connector/delaySync</code></td>
-<td><code>204</code> 空（无真实 sync）</td>
-</tr>
-</tbody>
-</table>
-<h3 id="43-cookies-endpoints">4.3 快照、cookies 与兼容 endpoints<a class="headerlink" href="#43-cookies-endpoints" title="Permanent link">&para;</a></h3>
-<p><strong>已实现（PR3 C4b）：</strong></p>
-<table>
-<thead>
-<tr>
-<th>Endpoint</th>
-<th>行为</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>POST /connector/saveAttachment</code></td>
-<td>浏览器上传的附件（登录墙 PDF，插件用页面 cookie 拉取）。Body = 原始字节；<code>X-Metadata</code> 头携 <code>{ sessionID, parentItemID, title, url }</code>。按 <code>parentItemID</code> → session item 映射解析目标 paper（无映射时回退本 session 最近一篇），校验 <code>%PDF</code> magic 后写 <code>{paper}/{id}.pdf</code>，触发 <code>PAPER.md</code>（幂等）+ <code>connector:item-saved</code>。<code>ping</code> 回 <code>supportsAttachmentUpload: true</code>；body 上限 200 MiB。</td>
-</tr>
-<tr>
-<td><code>POST /connector/saveSnapshot</code></td>
-<td>创建 <code>webpage</code> paper 条目；若请求带 <code>html</code>，同步写入 <code>{paper}/snapshot.html</code>。</td>
-</tr>
-<tr>
-<td><code>POST /connector/saveSingleFile</code></td>
-<td>接收官方 Connector 的 <code>snapshotContent</code>，写入当前 session 对应 paper 的 <code>snapshot.html</code>。</td>
-</tr>
-<tr>
-<td><code>detailedCookies</code></td>
-<td>在 <code>saveItems</code> / <code>saveSnapshot</code> 内消费；仅用于后台 PDF 下载，不持久化 Cookie。</td>
-</tr>
-<tr>
-<td><code>connector:progress</code></td>
-<td>Rust 后台资源任务发出阶段进度；前端映射到左下角 <code>BackgroundTasksPanel</code>。</td>
-</tr>
-</tbody>
-</table>
-<p><strong>兼容实现 / 安全降级：</strong></p>
-<table>
-<thead>
-<tr>
-<th>Endpoint</th>
-<th>说明</th>
-<th>优先级</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>POST /connector/detect</code></td>
-<td>返回空 translator 列表；不在 Host 执行任意 Translator JavaScript</td>
-<td>P1</td>
-</tr>
-<tr>
-<td><code>POST /connector/savePage</code></td>
-<td>复用网页条目/快照保存路径</td>
-<td>P1</td>
-</tr>
-<tr>
-<td><code>POST /connector/selectItems</code></td>
-<td>回传请求中的 <code>items</code></td>
-<td>P1</td>
-</tr>
-<tr>
-<td><code>POST /connector/attachmentProgress</code></td>
-<td>复用 <code>sessionProgress</code> 返回附件状态</td>
-<td>P1</td>
-</tr>
-</tbody>
-</table>
-<h3 id="44">4.4 低优先级 / 明确不做<a class="headerlink" href="#44" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Endpoint / 能力</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>POST /connector/getTranslators</code></td>
-<td>返回空列表；Translator 代码执行仍由官方 Connector 完成</td>
-</tr>
-<tr>
-<td><code>POST /connector/getTranslatorCode</code></td>
-<td>拉单个 translator 源码</td>
-</tr>
-<tr>
-<td><code>POST /connector/proxies</code></td>
-<td>返回空列表；不暴露本地代理配置</td>
-</tr>
-<tr>
-<td><code>POST /connector/getClientHostnames</code></td>
-<td>本机反解 hostname</td>
-</tr>
-<tr>
-<td><code>POST /connector/import</code></td>
-<td>任意格式导入（与 Library BibTeX 分离）</td>
-</tr>
-<tr>
-<td><code>POST /connector/installStyle</code></td>
-<td>安装 CSL</td>
-</tr>
-<tr>
-<td><code>GET /connector/ieHack</code></td>
-<td>极旧 IE bookmarklet</td>
-</tr>
-<tr>
-<td><code>/connector/document/*</code></td>
-<td>Word / Google Docs <strong>引用插入</strong>（另案）</td>
-</tr>
-<tr>
-<td><code>/api/*</code> Local Read API</td>
-<td>读库；勿与 connector 写路径混在同一开关文案</td>
-</tr>
-</tbody>
-</table>
-<h3 id="45-api-vs">4.5 上游 API 覆盖总表（实现 vs 缺口）<a class="headerlink" href="#45-api-vs" title="Permanent link">&para;</a></h3>
-<p>对照官方桌面端 <code>server_connector.js</code> 与社区常用扩展路径。路由以本机 <code>http://127.0.0.1:23119</code> 为准。</p>
-<table>
-<thead>
-<tr>
-<th>Endpoint</th>
-<th>Agentero</th>
-<th>备注</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>GET/POST /connector/ping</code></td>
-<td>✅</td>
-<td>HTML 探活 + prefs JSON</td>
-</tr>
-<tr>
-<td><code>POST /connector/saveItems</code></td>
-<td>✅ 基本</td>
-<td>元数据同步落盘；PDF URL <strong>后台</strong>下；支持 <code>detailedCookies</code>；NOTES 不做实时 MT（防 15s 超时）</td>
-</tr>
-<tr>
-<td><code>POST /connector/sessionProgress</code></td>
-<td>✅ 简版</td>
-<td>元数据完成后返回 <code>done</code>；附件阶段由 <code>connector:progress</code> 驱动 Agentero 后台任务条</td>
-</tr>
-<tr>
-<td><code>POST /connector/getSelectedCollection</code></td>
-<td>✅</td>
-<td><code>targets</code> 含组织子文件夹</td>
-</tr>
-<tr>
-<td><code>POST /connector/updateSession</code></td>
-<td>✅</td>
-<td>切换 target 移动 paper；tags 写入 catalog</td>
-</tr>
-<tr>
-<td><code>POST /connector/delaySync</code></td>
-<td>✅ stub</td>
-<td><code>204</code></td>
-</tr>
-<tr>
-<td><code>POST /connector/saveAttachment</code></td>
-<td>✅</td>
-<td>登录墙 PDF：浏览器字节上传；<code>parentItemID</code>→paper；<code>%PDF</code> 校验；触发 PAPER.md</td>
-</tr>
-<tr>
-<td><code>POST /connector/saveSnapshot</code></td>
-<td>✅</td>
-<td>创建网页 paper + 可选 <code>snapshot.html</code></td>
-</tr>
-<tr>
-<td><code>POST /connector/saveSingleFile</code></td>
-<td>✅</td>
-<td>写入 SingleFile <code>snapshot.html</code></td>
-</tr>
-<tr>
-<td><code>POST /connector/detect</code></td>
-<td>✅ 降级</td>
-<td>不执行 Host 侧 Translator JS</td>
-</tr>
-<tr>
-<td><code>POST /connector/savePage</code></td>
-<td>✅ 降级</td>
-<td>复用网页保存路径</td>
-</tr>
-<tr>
-<td><code>POST /connector/selectItems</code></td>
-<td>✅ 降级</td>
-<td>原样回传 items</td>
-</tr>
-<tr>
-<td><code>POST /connector/attachmentProgress</code></td>
-<td>✅</td>
-<td>复用 session progress</td>
-</tr>
-<tr>
-<td><code>POST /connector/getTranslators</code></td>
-<td>✅ 降级</td>
-<td>空列表</td>
-</tr>
-<tr>
-<td><code>POST /connector/getTranslatorCode</code></td>
-<td>❌</td>
-<td>同上</td>
-</tr>
-<tr>
-<td><code>POST /connector/proxies</code></td>
-<td>✅ 降级</td>
-<td>空列表</td>
-</tr>
-<tr>
-<td><code>POST /connector/getClientHostnames</code></td>
-<td>❌</td>
-<td>可选</td>
-</tr>
-<tr>
-<td><code>POST /connector/import</code></td>
-<td>❌</td>
-<td>另有 Library 导入</td>
-</tr>
-<tr>
-<td><code>POST /connector/installStyle</code></td>
-<td>❌</td>
-<td>不做</td>
-</tr>
-<tr>
-<td><code>GET /connector/ieHack</code></td>
-<td>❌</td>
-<td>不做</td>
-</tr>
-<tr>
-<td><code>/connector/document/*</code></td>
-<td>❌</td>
-<td>引用集成另案</td>
-</tr>
-<tr>
-<td><code>/api/*</code></td>
-<td>❌</td>
-<td>Local Read 另案</td>
-</tr>
-</tbody>
-</table>
-<p><strong>已实现路径上的行为缺口（有路由但不完整）：</strong></p>
-<table>
-<thead>
-<tr>
-<th>能力</th>
-<th>现状</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>订阅站 / 登录墙 PDF</td>
-<td>✅ <code>saveAttachment</code> 浏览器上传；URL 下载支持 <code>detailedCookies</code></td>
-</tr>
-<tr>
-<td><code>singleFile: true</code></td>
-<td>支持 <code>saveSingleFile</code>，快照写入 <code>snapshot.html</code></td>
-</tr>
-<tr>
-<td>摘要中文 MT</td>
-<td>Connector 路径关闭（超时纪律）</td>
-</tr>
-<tr>
-<td><code>updateSession.tags</code></td>
-<td>支持字符串/数组，追加到 catalog</td>
-</tr>
-<tr>
-<td>附件后台进度</td>
-<td><code>connector:progress</code> 映射到左下角后台任务条</td>
-</tr>
-<tr>
-<td>可配置端口</td>
-<td>设置 → General → Connector port；修改时自动重启 loopback server</td>
-</tr>
-</tbody>
-</table>
-<p><strong>当前边界：</strong> 页面 Translator 检测、translator 列表与代理规则不在 Host 执行；官方 Connector 继续负责页面识别，Agentero 负责兼容接收与 Vault 落盘。</p>
-<hr />
-<h2 id="5">5. 数据映射与落盘<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
-<h3 id="51-item-papermeta">5.1 Item → PaperMeta<a class="headerlink" href="#51-item-papermeta" title="Permanent link">&para;</a></h3>
-<p>优先 <strong>复用</strong> <code>services/lookup/map.rs</code> 的 <code>map_zotero_item</code>（魔棒 Translator 与 Zotero 迁移已用同一形状）。</p>
-<table>
-<thead>
-<tr>
-<th>Zotero / Connector 字段</th>
-<th>Agentero</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>itemType</code></td>
-<td><code>type</code> / <code>zotero_item_type</code></td>
-</tr>
-<tr>
-<td><code>title</code></td>
-<td><code>title</code></td>
-</tr>
-<tr>
-<td><code>creators</code></td>
-<td><code>authors</code> + 可选 <code>creators</code> JSON</td>
-</tr>
-<tr>
-<td><code>DOI</code></td>
-<td><code>doi</code>；参与 id 推导</td>
-</tr>
-<tr>
-<td><code>url</code> / 页面 <code>uri</code></td>
-<td><code>html_url</code> / <code>source_url</code></td>
-</tr>
-<tr>
-<td><code>date</code> / year</td>
-<td><code>date</code> / <code>year</code></td>
-</tr>
-<tr>
-<td><code>abstractNote</code></td>
-<td><code>abstract</code></td>
-</tr>
-<tr>
-<td><code>tags</code></td>
-<td><code>tags</code></td>
-</tr>
-<tr>
-<td>attachment PDF url</td>
-<td><code>pdf_url</code> + 下载到论文根目录</td>
-</tr>
-<tr>
-<td>arXiv 可识别 id</td>
-<td><code>arxiv_id</code> + e-print 策略（与 lookup 一致）</td>
-</tr>
-</tbody>
-</table>
-<p><code>id</code> / 文件夹名：沿用 lookup 的 slug 规则（arxiv id、doi 压缩、title slug 等）；<strong>禁止</strong>路径穿越。</p>
-<h3 id="52-parent_dir">5.2 目标目录 <code>parent_dir</code><a class="headerlink" href="#52-parent_dir" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>策略</th>
-<th>行为</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>默认</strong></td>
-<td><code>papers</code></td>
-</tr>
-<tr>
-<td><strong>插件下拉</strong></td>
-<td><code>getSelectedCollection.targets</code>：<code>L1</code> → <code>papers</code>；<code>Dpapers/nlp</code> → <code>papers/nlp</code>（见 <code>services/connector/targets.rs</code>）</td>
-</tr>
-<tr>
-<td><strong>updateSession</strong></td>
-<td>改 session + 全局默认 parent；已写入 paper <strong>fs rename</strong> + catalog <code>move_under_path</code></td>
-</tr>
-<tr>
-<td><strong>前端同步</strong></td>
-<td>Library 作用域 / <code>connector_set_parent_dir</code> 写入默认 parent</td>
-</tr>
-</tbody>
-</table>
-<p>target id 约定（非 Zotero collection 数字 ID）：</p>
-<ul>
-<li><code>L1</code> = 库根 = <code>papers</code></li>
-<li><code>D</code> + vault 相对路径 = 组织文件夹，如 <code>Dpapers/nlp/pretrain</code></li>
-</ul>
-<h3 id="53">5.3 去重<a class="headerlink" href="#53" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>情况</th>
-<th>建议行为</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>同 <code>doi</code> / <code>arxiv_id</code> / 规范化 <code>url</code> 已在 catalog</td>
-<td><strong>跳过创建</strong>或更新远程 URL；返回 201 但仍用已有 path；事件标明 <code>deduped: true</code></td>
-</tr>
-<tr>
-<td>仅标题相同</td>
-<td>不自动合并；新建 slug 后缀</td>
-</tr>
-<tr>
-<td>重复 <code>sessionID</code></td>
-<td><code>409 SESSION_EXISTS</code></td>
-</tr>
-</tbody>
-</table>
-<p>与魔棒一致：不覆盖用户已有 <code>NOTES.md</code> 手写内容；重复导入以 skip / open 语义为主。</p>
-<h3 id="54-cookie">5.4 附件与 cookie<a class="headerlink" href="#54-cookie" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>当前</strong>：<code>saveItems</code> 元数据返回后，后台 <code>ensure_paper_assets</code>（公开 PDF URL / arXiv）；<strong>不</strong>阻塞 201。</li>
-<li><strong>已做</strong>：<code>saveAttachment</code> 二进制上传（浏览器用页面 cookie 拉取登录墙 PDF → Vault；<code>supportsAttachmentUpload: true</code>；body 上限 200 MiB）。</li>
-<li><strong>未做</strong>：<code>detailedCookies</code> 注入（无 <code>saveAttachment</code> 时校园网 PDF 仍可能失败 → 用户可 Download 补下）。</li>
-<li><strong>纪律</strong>：<code>saveItems</code> 同步路径禁止摘要 MT + 同步大附件，以免官方插件 <strong>15s 超时</strong>。</li>
-</ul>
-<h3 id="55">5.5 精读自动触发<a class="headerlink" href="#55" title="Permanent link">&para;</a></h3>
-<p>与 <strong>批量导入</strong> 一致：<strong>默认不</strong>因 Connector 保存自动跑 paper-reader（避免连点保存打爆 Agent）。用户可手动 Zap；若未来加开关，须独立于 <code>autoPaperReader</code> 或明确复用并写进设置说明。</p>
-<hr />
-<h2 id="6">6. 生命周期与端口冲突<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
-<h3 id="61">6.1 状态机<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
-<pre class="codehilite"><code class="language-text">disabled ──(用户开启 + 有 Vault)──► starting
-starting ──(bind 成功)──► listening
-starting ──(EADDRINUSE / 其它)──► error（保持开关 UI 可关；显示原因）
-listening ──(用户关闭 / 退出应用)──► stopped
-listening ──(Vault 关闭)──► 可选：保持 listening 但 saveItems → 503
-                     或自动 stop（推荐 **save 时校验 Vault**，进程可仍监听以便 ping）
-</code></pre>
-
-<h3 id="62">6.2 端口<a class="headerlink" href="#62" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>项</th>
-<th>约定</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>默认端口</td>
-<td><strong>23119</strong>（与 Zotero 一致，否则官方插件默认连不上）</td>
-</tr>
-<tr>
-<td>可配置</td>
-<td>设置允许改端口 <strong>仅当</strong>用户同时会改 Connector 高级里的 server URL；文案必须说明；MVP 可 <strong>写死 23119</strong> 降复杂度</td>
-</tr>
-<tr>
-<td>冲突</td>
-<td>bind 失败 → 状态 <code>error</code>，i18n 提示「端口被占用（常见：Zotero 正在运行），请退出 Zotero 后重试」</td>
-</tr>
-<tr>
-<td>Zotero 后启动</td>
-<td>Zotero 会无法初始化 HTTP server；用户需二选一——产品说明写清 <strong>互斥</strong></td>
-</tr>
-</tbody>
-</table>
-<h3 id="63">6.3 多窗口<a class="headerlink" href="#63" title="Permanent link">&para;</a></h3>
-<ul>
-<li>HTTP server <strong>进程级单例</strong>（不随每个 Webview 起一份）。</li>
-<li><strong>活跃 Vault</strong>：取「最近聚焦窗口」的 Vault，或「主窗口」Vault；无 Vault 时 <code>saveItems</code> 失败。</li>
-<li>实现可用 <code>Mutex&lt;ConnectorState&gt;</code>：<code>vault_path</code>、<code>parent_dir</code>、sessions。</li>
-</ul>
-<h3 id="64">6.4 应用退出<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>RunEvent::Exit</code> / 窗口全关前 <strong>drop listener</strong>，释放端口。</li>
-<li>不留孤儿线程占 23119。</li>
-</ul>
-<hr />
-<h2 id="7-host-apitauri">7. Host API（Tauri）与事件<a class="headerlink" href="#7-host-apitauri" title="Permanent link">&para;</a></h2>
-<h3 id="71-commands">7.1 Commands（已落地）<a class="headerlink" href="#71-commands" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Command</th>
-<th>方向</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>connector_get_status</code></td>
-<td>读</td>
-<td><code>{ enabled, listening, port, boundAddress, lastError?, vaultPath?, parentDir }</code></td>
-</tr>
-<tr>
-<td><code>connector_set_enabled</code></td>
-<td>写</td>
-<td><code>{ enabled: bool }</code> → 启停 server</td>
-</tr>
-<tr>
-<td><code>connector_set_vault</code></td>
-<td>写</td>
-<td><code>{ vaultPath: string \| null }</code></td>
-</tr>
-<tr>
-<td><code>connector_set_parent_dir</code></td>
-<td>写</td>
-<td><code>{ parentDir: string }</code> — 默认保存父目录</td>
-</tr>
-</tbody>
-</table>
-<p>设置权威：<strong>XDG <code>settings.json</code></strong> 存 <code>connectorEnabled</code>（前端缓存经 <code>settings_get</code> / <code>settings_set</code>）；启动时 <code>App</code> 调 <code>set_enabled</code>；Vault / Library 作用域同步 vault 与 parent。类型细节见 <a href="../api/"><code>api.md</code></a> §3.5b。</p>
-<h3 id="72-events">7.2 Events<a class="headerlink" href="#72-events" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>事件</th>
-<th>payload（概念）</th>
-<th>前端</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>connector:status</code></td>
-<td>与 get_status 同形</td>
-<td>设置页指示灯</td>
-</tr>
-<tr>
-<td><code>connector:item-saved</code></td>
-<td><code>{ path, id, title, deduped?, sessionId }</code></td>
-<td>刷新树、<code>paper_list</code>、<strong><code>openPaper(path)</code> 打开/聚焦论文 tab</strong>、可选 toast</td>
-</tr>
-<tr>
-<td><code>connector:error</code></td>
-<td><code>{ message, sessionId? }</code></td>
-<td><code>notifyError</code></td>
-</tr>
-<tr>
-<td><code>connector:progress</code></td>
-<td>可选，细粒度附件进度</td>
-<td>后台任务条（P1）</td>
-</tr>
-</tbody>
-</table>
-<p>多窗口：<code>emit</code> 广播或 <code>emit_to</code> 所有标签；刷新逻辑需幂等。</p>
-<h3 id="73-apimd">7.3 与 <code>api.md</code> 的关系<a class="headerlink" href="#73-apimd" title="Permanent link">&para;</a></h3>
-<p>落地时在 <a href="../api/"><code>api.md</code></a> 增加 <strong>§ Connector 兼容服务</strong>，列出最终 command/event 蛇形名与类型；<strong>HTTP 细节以本文为准</strong>，避免 api.md 膨胀。</p>
-<hr />
-<h2 id="8-ui">8. 设置与 UI<a class="headerlink" href="#8-ui" title="Permanent link">&para;</a></h2>
-<h3 id="81">8.1 设置项<a class="headerlink" href="#81" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Key</th>
-<th>默认</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>connectorEnabled</code></td>
-<td><code>false</code></td>
-<td>总开关</td>
-</tr>
-<tr>
-<td><code>connectorParentDir</code></td>
-<td><code>"papers"</code></td>
-<td>可选；MVP 可省略硬编码</td>
-</tr>
-<tr>
-<td><code>connectorPort</code></td>
-<td><code>23119</code></td>
-<td>可选；MVP 可省略</td>
-</tr>
-</tbody>
-</table>
-<p><strong>文案原则（i18n，en 源语言）：</strong></p>
-<ul>
-<li>标题类似：<strong>Zotero Connector compatibility</strong></li>
-<li>说明必须包含：<strong>与 Zotero 桌面端互斥（同端口）</strong>；<strong>仅本机 loopback</strong>；开启后使用 <strong>官方浏览器扩展</strong> 保存到当前 Vault。</li>
-<li>不要暗示「官方联合」或替换 Zotero 品牌为必需依赖以外的含义。</li>
-</ul>
-<h3 id="82">8.2 设置页位置<a class="headerlink" href="#82" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>推荐</strong>：设置 → <strong>General</strong> 一节「Connector」，与 <code>translatorBaseUrl</code> 分开（Translator = 魔棒元数据服务；Connector = 收插件保存）。</li>
-<li>展示：Switch + 状态（Listening / Port in use / No vault / Off）+ 可选「复制探活 URL」。</li>
-</ul>
-<h3 id="83">8.3 成功反馈<a class="headerlink" href="#83" title="Permanent link">&para;</a></h3>
-<ul>
-<li>非模态：右上角成功 toast（简短标题）或仅依赖树刷新。</li>
-<li>失败：<code>notifyError</code>，不在侧栏挂常驻错误条。</li>
-</ul>
-<h3 id="84">8.4 后台任务条<a class="headerlink" href="#84" title="Permanent link">&para;</a></h3>
-<p>Connector 的后台 PDF/TeX/PAPER.md 处理创建 <code>kind=connector</code> 任务。任务条显示阶段进度，完成/失败后沿用统一的短暂历史保留与自动收起行为。</p>
-<hr />
-<h2 id="9">9. 实现分期<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
-<h3 id="pr1">PR1 — 可保存元数据 ✅<a class="headerlink" href="#pr1" title="Permanent link">&para;</a></h3>
-<ul>
-<li>[x] <code>services/connector</code>：loopback server + <code>ping</code> + <code>saveItems</code> + <code>sessionProgress</code></li>
-<li>[x] Host 校验 + Host/Origin 安全策略</li>
-<li>[x] 复用 <code>map_zotero_item</code> + catalog/paper 落盘（含 URL 侧 PDF 尽力下载）</li>
-<li>[x] <code>connector_set_enabled</code> / <code>get_status</code> / <code>set_vault</code> + 设置开关</li>
-<li>[x] 前端刷新 + i18n</li>
-<li>[x] 单测：样例 item 映射</li>
-</ul>
-<p><strong>验收：</strong> 关闭 Zotero → 开启开关 → 浏览器打开 arXiv 摘要页 → 官方 Connector 保存 → Vault 出现 paper 行与 <code>NOTES.md</code> 壳。</p>
-<h3 id="pr2">PR2 — 体验与稳健性 ✅<a class="headerlink" href="#pr2" title="Permanent link">&para;</a></h3>
-<ul>
-<li>[x] 端口占用/无 Vault 的完整 UX</li>
-<li>[x] 去重策略落地（catalog <code>id</code>）</li>
-<li>[x] <code>getSelectedCollection</code> 列出组织子文件夹；<code>updateSession</code> 移动 paper</li>
-<li>[x] <code>delaySync</code> stub；退出释放端口；<code>connector:*</code> 事件</li>
-<li>[x] <code>saveItems</code> 防 15s 超时（后台资产、无 NOTES MT）</li>
-<li>[x] Library 作用域 → <code>connector_set_parent_dir</code></li>
-<li>[x] <code>docs/backend/api.md</code> 命令表同步</li>
-</ul>
-<h3 id="pr3-c4bc4cc5a">PR3 — 附件与快照（C4b/C4c/C5a 已做）<a class="headerlink" href="#pr3-c4bc4cc5a" title="Permanent link">&para;</a></h3>
-<ul>
-<li>[x] <strong>C4b</strong> <code>saveAttachment</code> 二进制上传</li>
-<li>[x] <strong>C4c</strong> <code>saveSnapshot</code> / <code>saveSingleFile</code>（写入 <code>snapshot.html</code>）</li>
-<li>[x] <strong>C5a</strong> <code>detailedCookies</code>（仅用于后台附件下载，不持久化）</li>
-<li>[x] Connector 后台任务条（阶段进度、完成/失败）</li>
-</ul>
-<h3 id="pr4">PR4 — 兼容降级与端口<a class="headerlink" href="#pr4" title="Permanent link">&para;</a></h3>
-<ul>
-<li>[x] <strong>C5b</strong> <code>detect</code> / <code>savePage</code> / <code>selectItems</code> / <code>attachmentProgress</code>（安全降级）</li>
-<li>[x] <strong>C5c</strong> <code>getTranslators</code> / proxies（空列表降级）、可配置端口、<code>updateSession.tags</code></li>
-</ul>
-<h3 id="_2">非目标<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>/connector/document/*</code> 引用集成、完整 CSL install、IE hack、自研浏览器扩展为 MVP 前提。</li>
-</ul>
-<hr />
-<h2 id="10">10. 代码与文档落点（预估）<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>区域</th>
-<th>规划路径</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Host</td>
-<td><code>src-tauri/src/services/connector/{mod,server,handlers,session}.rs</code></td>
-</tr>
-<tr>
-<td>Commands</td>
-<td><code>src-tauri/src/commands/connector.rs</code></td>
-</tr>
-<tr>
-<td>注册</td>
-<td><code>lib.rs</code>、<code>services/mod.rs</code>、<code>commands/mod.rs</code>、<code>Cargo.toml</code>（HTTP 依赖，如 <code>hyper</code>/<code>axum</code>/<code>tiny_http</code> + tokio net）</td>
-</tr>
-<tr>
-<td>映射复用</td>
-<td><code>services/lookup/map.rs</code>（可能抽 <code>import_zotero_items</code>）</td>
-</tr>
-<tr>
-<td>前端</td>
-<td><code>settings/settings-content.tsx</code>（General 页开关）、settings store、<code>App.tsx</code></td>
-</tr>
-<tr>
-<td>i18n</td>
-<td><code>en/settings.json</code>、<code>zh-CN/settings.json</code></td>
-</tr>
-<tr>
-<td>文档</td>
-<td>本文、<code>api.md</code> 摘要、<code>roadmap</code> / <code>todo</code>、可选 <code>ui.md</code> §4</td>
-</tr>
-</tbody>
-</table>
-<p><strong>文件数粗估：</strong> MVP ~15–20；可上线含附件 ~25–35（见前期讨论）。</p>
-<hr />
-<h2 id="11_1">11. 风险与纪律<a class="headerlink" href="#11_1" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>风险</th>
-<th>缓解</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>与 Zotero 抢端口</td>
-<td>默认关；冲突明确文案；不静默失败</td>
-</tr>
-<tr>
-<td>无鉴权本机写接口</td>
-<td>仅 127.0.0.1；Host 校验；不写进远程</td>
-</tr>
-<tr>
-<td>AGPL 污染</td>
-<td>行为兼容、自主实现；不粘贴上游大段代码</td>
-</tr>
-<tr>
-<td>插件升级改字段</td>
-<td>契约测例 + 宽松解析；日志可开 debug</td>
-</tr>
-<tr>
-<td>误收非学术网页</td>
-<td>与 Zotero 相同；用户责任；可后续过滤 <code>itemType</code></td>
-</tr>
-<tr>
-<td>覆盖用户笔记</td>
-<td>去重 skip；不覆盖已有 <code>NOTES.md</code> 正文</td>
-</tr>
-<tr>
-<td>多 Vault 写错库</td>
-<td>单例 + 明确「当前 Vault」规则</td>
-</tr>
-<tr>
-<td>Connector <strong>15s 超时</strong></td>
-<td><code>saveItems</code> 仅同步写 catalog + NOTES 壳；PDF/TeX/liteparse <strong>后台</strong>下载；NOTES 摘要不做实时 MT</td>
-</tr>
-<tr>
-<td>系统 HTTP 代理劫持 <code>127.0.0.1</code></td>
-<td>本机 Clash/Surge 等若代理 localhost，探活/保存会 502；需在代理规则中 <strong>绕过 127.0.0.1 / localhost</strong>（与官方 Zotero 相同）</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Local-first：</strong> 落盘仍是普通 Markdown + catalog，可被 Vault 外工具读取。</p>
-<hr />
-<h2 id="12_1">12. 验收标准（方案一完成定义）<a class="headerlink" href="#12_1" title="Permanent link">&para;</a></h2>
-<ul>
-<li>[x] 文档（本文）与 roadmap/todo/索引已挂上。</li>
-<li>[x] 设置默认 <strong>关闭</strong>；开启后 <code>curl</code> 探活 <code>GET /connector/ping</code> 成功（需本机手动验证）。</li>
-<li>[ ] 官方 Connector 在 Zotero 未运行时可保存至少一类页面（如 arXiv）到当前 Vault（端到端待手测）。</li>
-<li>[x] catalog + 文件树刷新；重复 id 去重（<code>deduped</code> toast）。</li>
-<li>[x] 端口被占时有可读错误；关闭开关 / 退出应用释放端口。</li>
-<li>[x] 仅绑 <code>127.0.0.1</code>；Host 校验生效。</li>
-<li>[x] 相关 i18n 中英齐全。</li>
-</ul>
-<hr />
-<h2 id="13_1">13. 开放问题（实现前可拍板）<a class="headerlink" href="#13_1" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>Vault 关闭时</strong> server 是否继续 listen？（建议继续 listen，save 返回 503。）</li>
-<li><strong>去重</strong> 默认 skip 还是「打开已有」？（建议 skip + 事件 <code>deduped</code>。）</li>
-<li><strong>HTTP 栈</strong> 选型：<code>axum</code> vs <code>hyper</code> vs <code>tiny_http</code>（偏好：异步、与现有 tokio 一致、依赖体积可控）。</li>
-<li><strong>是否显示为 Zotero 的 collection UI 目标</strong>：首版固定 <code>papers/</code> 是否足够？</li>
-<li>成功 toast 是否默认开？（建议开，可关。）</li>
-</ol>
-<hr />
-<h2 id="14_1">14. 参考链接<a class="headerlink" href="#14_1" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="https://www.zotero.org/support/dev/client_coding/connector_http_server">Zotero Connector HTTP Server</a></li>
-<li><a href="https://github.com/zotero/zotero-connectors">zotero-connectors README</a></li>
-<li><a href="https://github.com/zotero/zotero-connectors/blob/master/src/common/connector.js">connector.js（callMethod）</a></li>
-<li><a href="https://github.com/zotero/zotero/blob/master/chrome/content/zotero/xpcom/server.js">server.js</a> / <a href="https://github.com/zotero/zotero/blob/master/chrome/content/zotero/xpcom/connector/server_connector.js">server_connector.js</a></li>
-<li>社区 Local API 笔记（非官方）：<a href="https://gist.github.com/x1any/f768fb3d454dfee6c467d7fa69cbf465">gist x1any</a></li>
-<li>本仓库：<a href="../identifier-lookup/"><code>identifier-lookup.md</code></a> § 映射与下载策略</li>
-</ul>
-<hr />
-<h2 id="_3">修订记录<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>日期</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>2026-07-18</td>
-<td>初稿：方案一（兼容官方 Connector / 本机 23119）设计与分期；已挂 mkdocs / roadmap / todo / api §3.5b</td>
-</tr>
-<tr>
-<td>2026-07-18</td>
-<td>MVP 实现：Host axum server、commands、设置开关、事件刷新</td>
-</tr>
-<tr>
-<td>2026-07-18</td>
-<td>防 15s 超时（后台资产）；<code>targets</code> 子文件夹 + <code>updateSession</code> 移动；§4.5 上游 API 覆盖总表</td>
-</tr>
-<tr>
-<td>2026-07-18</td>
-<td><strong>C4b <code>saveAttachment</code></strong>：浏览器上传登录墙 PDF（<code>X-Metadata</code> <code>parentItemID</code>→paper；<code>%PDF</code> 校验；触发 PAPER.md；<code>supportsAttachmentUpload: true</code>；200 MiB body 上限）。仍待：<code>saveSnapshot</code> / <code>saveSingleFile</code> / <code>detailedCookies</code></td>
-</tr>
-<tr>
-<td>2026-07-21</td>
-<td>完成 C4c/C5a/C5b/C5c：网页快照、Cookie 下载、兼容降级路由、tags、端口设置与 Connector 后台任务条。</td>
-</tr>
-</tbody>
-</table>
-              
-            </div>
-          </div><footer>
-    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../paper-import-pipeline/" class="btn btn-neutral float-left" title="Paper 入库流水线"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../wikilinks/" class="btn btn-neutral float-right" title="双链与图谱">Next <span class="icon icon-circle-arrow-right"></span></a>
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="grey">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#zotero-connector" class="md-skip">
+          跳转至
+        </a>
+      
     </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
 
-  <hr/>
+  
 
-  <div role="contentinfo">
-    <!-- Copyright etc -->
-  </div>
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="Agentero 文档" class="md-header__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
 
-  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
-</footer>
-          
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Agentero 文档
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Zotero Connector
+            
+          </span>
         </div>
       </div>
-
-    </section>
-
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../usage/" class="md-tabs__link">
+          
+  
+  
+  教程
 
-  <div class="rst-versions" role="note" aria-label="Versions">
-  <span class="rst-current-version" data-toggle="rst-current-version">
+        </a>
+      </li>
     
-        <span>
-          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
-        </span>
+  
+
+      
+        
+  
+  
+  
+  
     
     
-      <span><a href="../paper-import-pipeline/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <li class="md-tabs__item">
+        <a href="../../frontend/" class="md-tabs__link">
+          
+  
+  
+  前端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
     
     
-      <span><a href="../wikilinks/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  后端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../development/" class="md-tabs__link">
+          
+  
+  
+  开发草稿
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../test/" class="md-tabs__link">
+          
+  
+  
+  测试
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../bug_fix/deepseek-thinking-body/" class="md-tabs__link">
+          
+  
+  
+  Bug 修复记录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Agentero 文档" class="md-nav__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
+
+    </a>
+    Agentero 文档
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
     
   </span>
-</div>
-    <script src="../../js/jquery-3.6.0.min.js"></script>
-    <script>var base_url = "../..";</script>
-    <script src="../../js/theme_extra.js"></script>
-    <script src="../../js/theme.js"></script>
-      <script src="../../search/main.js"></script>
-    <script>
-        jQuery(function () {
-            SphinxRtdTheme.Navigation.enable(true);
-        });
-    </script>
+  
+  
 
-</body>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速上手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    安装与首次使用
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/import-papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入和管理论文
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/read-and-organize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    阅读、标注与整理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    接入 Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/zotero/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用 Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/remote-vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    打开远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    前端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    前端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/shell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    工作台壳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dockview 工作区
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/vault-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    文件树
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文库 Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入库 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/markdown/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markdown 编辑
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/pdf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 阅读与划词
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent 面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/command-palette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    命令面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置与主题
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/components/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    组件约定
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    后端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    后端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据模型
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault FS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文入库
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        命令 / 事件
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        代码
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent Host
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../remote/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    搜索
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    运行日志
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API 全表
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    开发草稿
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    开发草稿
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    路线图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/todo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TODO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/plaza/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    广场 Plaza
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/pdf-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 引用与插图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链调研
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    测试
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    测试
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release-checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布前 Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 修复记录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bug 修复记录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/deepseek-thinking-body/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DeepSeek 正文落入 Thinking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/acp-session-resume-id/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ACP 会话恢复 ID 错误
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/ime-composition-enter-submit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    输入法组字 Enter 误发送
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wiki-embed-unrelated-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/dockview-sash-pdf-resize-jank/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    拖动 Dockview 分隔条时 PDF 卡顿
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-acp-path-ssh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远端 ACP PATH / SSH
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-vault-tree-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault 文件树懒加载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/macos-signing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    macOS 签名与公证
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        命令 / 事件
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        代码
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="zotero-connector">Zotero Connector 兼容<a class="headerlink" href="#zotero-connector" title="Permanent link">&para;</a></h1>
+<p>Host 在 <strong><code>127.0.0.1:23119</code></strong> 模拟 Zotero 桌面 Connector HTTP，官方浏览器扩展无需修改。</p>
+<h2 id="_1">行为<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<ul>
+<li>设置 → 通用：<strong>兼容 Zotero Connector</strong>（<strong>默认关</strong>）。</li>
+<li>与 Zotero 桌面端端口互斥。</li>
+<li>支持 <code>saveItems</code>、目标文件夹选择、<strong><code>saveAttachment</code></strong>（浏览器上传 PDF）。</li>
+<li>绑定当前 Vault（本地路径或 <code>remote:&lt;sessionId&gt;</code>）。</li>
+<li>保存后：catalog + paper 目录；刷新树；<code>openPaper</code> 聚焦。</li>
+<li>远程：stage 后 SFTP；catalog 经 work mirror。</li>
+</ul>
+<h2 id="_2">命令 / 事件<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>connector_start</code> / <code>connector_stop</code> / <code>connector_status</code> / <code>connector_set_vault</code></li>
+<li>前端事件 <code>connector:*</code>（<code>src/lib/paper/import/connector.ts</code>）</li>
+</ul>
+<h2 id="_3">代码<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p><code>src-tauri/src/features/connector/</code><br />
+用户教程：<a href="../../usage/zotero/">../usage/zotero.md</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.tracking", "navigation.top", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
 </html>

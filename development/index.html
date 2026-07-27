@@ -1,426 +1,2451 @@
-<!DOCTYPE html>
-<html class="writer-html5" lang="en" >
-<head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>概览 - Agentero 文档</title>
-    <link rel="stylesheet" href="../css/theme.css" />
-    <link rel="stylesheet" href="../css/theme_extra.css" />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
     
-      <script>
-        // Current page data
-        var mkdocs_page_name = "\u6982\u89c8";
-        var mkdocs_page_input_path = "development/index.md";
-        var mkdocs_page_url = null;
-      </script>
-    
-    <!--[if lt IE 9]>
-      <script src="../js/html5shiv.min.js"></script>
-    <![endif]-->
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-      <script>hljs.highlightAll();</script> 
-</head>
-
-<body class="wy-body-for-nav" role="document">
-
-  <div class="wy-grid-for-nav">
-    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
-    <div class="wy-side-scroll">
-      <div class="wy-side-nav-search">
-          <a href=".." class="icon icon-home"> Agentero 文档
-        </a><div role="search">
-  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
-      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
-  </form>
-</div>
-      </div>
-
-      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <ul>
-                <li class="toctree-l1"><a class="reference internal" href="..">首页</a>
-                </li>
-              </ul>
-              <p class="caption"><span class="caption-text">用户指南</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../usage/">使用指南</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../usage/getting-started/">安装与首次使用</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../usage/import-papers/">导入和管理论文</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../usage/read-and-organize/">阅读、标注与整理</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../usage/agents/">接入 Agent</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../usage/zotero/">使用 Zotero Connector</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../usage/remote-vault/">打开远程 Vault</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">前端</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../frontend/">概览</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../frontend/ui/">UI 规范</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../frontend/components/">组件约定</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">后端</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../backend/">概览</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../backend/api/">API 契约</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../backend/data-model/">数据模型</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../backend/catalog/">论文目录库</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../backend/identifier-lookup/">魔棒与 Translator</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../backend/paper-import-pipeline/">Paper 入库流水线</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../backend/connector/">Zotero Connector 兼容</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../backend/wikilinks/">双链与图谱</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">测试</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../test/">概览</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../test/release-checklist/">发布前 Checklist</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">调研</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../research/wikilink-heading-reference-stability/">标题双链稳定性与 Metadata Cache</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">开发</span></p>
-              <ul class="current">
-                  <li class="toctree-l1 current"><a class="reference internal current" href="#">概览</a>
-    <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#_2">技术与流程选型</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_3">当前实现状态</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_4">本分区文档</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#_5">交叉引用</a>
-    </li>
-    </ul>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="prd/">产品需求</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="technical-plan/">技术方案</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="cli/">CLI 设计</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="pdf-ask/">PDF 划词提问</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="translate/">翻译服务</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="tab-split/">Tab 内分屏</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="plaza/">广场 Plaza</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="logging/">运行日志</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="remote-vault/">远程 Vault（SSH/SFTP）</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="macos-signing/">macOS 签名与公证</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="release/">发布流程</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="roadmap/">路线图</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="todo/">TODO</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="github-project/">GitHub Project</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../bug_fix/dockview-sash-pdf-resize-jank/">拖动 Dockview 分隔条时 PDF 卡顿</a>
-                  </li>
-              </ul>
-      </div>
-    </div>
-    </nav>
-
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
-          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="..">Agentero 文档</a>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agentero 本地优先 Agent 科研工作台文档">
+      
+      
+      
+      
+        <link rel="prev" href="../backend/api/">
+      
+      
+        <link rel="next" href="roadmap/">
+      
+      
         
-      </nav>
-      <div class="wy-nav-content">
-        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
-  <ul class="wy-breadcrumbs">
-    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
-          <li class="breadcrumb-item">开发</li>
-      <li class="breadcrumb-item active">概览</li>
-    <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/agentero/edit/main/docs/development/index.md">Edit on poco-ai/agentero</a>
-    </li>
-  </ul>
-  <hr/>
-</div>
-          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
-            <div class="section" itemprop="articleBody">
-              
-                <h1 id="_1">开发<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>开发分区说明 Agentero 要构建什么、当前完成了什么、还剩什么，以及发布和文档如何维护。</p>
-<h2 id="_2">技术与流程选型<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>领域</th>
-<th>选型</th>
-<th>原因</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>产品文档来源</td>
-<td><code>docs/development/</code> 下的 Markdown</td>
-<td>需求和路线图可以在 Git 中 review、追踪和重构。</td>
-</tr>
-<tr>
-<td>应用包管理</td>
-<td><a href="https://pnpm.io/">pnpm</a></td>
-<td>快速、基于 lockfile 的 Node 依赖管理。</td>
-</tr>
-<tr>
-<td>TypeScript 质量</td>
-<td><a href="https://biomejs.dev/">Biome</a></td>
-<td>前端代码与文档相关文件的格式化和检查。</td>
-</tr>
-<tr>
-<td>Rust 质量</td>
-<td><a href="https://doc.rust-lang.org/cargo/commands/cargo-fmt.html"><code>cargo fmt</code></a> + <a href="https://doc.rust-lang.org/clippy/"><code>cargo clippy</code></a></td>
-<td>Rust 官方格式化与 lint 工具。</td>
-</tr>
-<tr>
-<td>桌面构建</td>
-<td><a href="https://v2.tauri.app/reference/cli/">Tauri CLI</a></td>
-<td>本地和 CI 中构建桌面应用。</td>
-</tr>
-<tr>
-<td>发布 CI</td>
-<td><a href="https://docs.github.com/actions">GitHub Actions</a> + <a href="https://github.com/tauri-apps/tauri-action"><code>tauri-apps/tauri-action</code></a></td>
-<td><code>v*</code> tag 触发 macOS、Linux、Windows 安装包构建；macOS 可选 Developer ID 签名 + notarytool 公证。</td>
-</tr>
-<tr>
-<td>文档站</td>
-<td><a href="https://www.mkdocs.org/">MkDocs</a> + Read the Docs 主题</td>
-<td>静态文档部署到 <code>gh-pages</code> 分支。</td>
-</tr>
-</tbody>
-</table>
-<h2 id="_3">当前实现状态<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>区域</th>
-<th>状态</th>
-<th>摘要</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>V0.1 工作台</td>
-<td>✅</td>
-<td>文件树（Finder / <strong>回收站</strong> / 多选拖拽）、Markdown IO + <strong>内嵌图</strong>、<strong>文件监听</strong>、Library + tags + <strong>Rescan</strong>、多窗口、catalog、后台任务条、全局 Toast</td>
-</tr>
-<tr>
-<td>V0.2 标识符入库</td>
-<td>🟡 精确路径 ✅</td>
-<td>魔棒 + Translator、catalog 权威、<strong>默认 PDF + arXiv TeX</strong>、单篇/Library <strong>补下缺失</strong>；关键词 Agent 候选与 export 仍待</td>
-</tr>
-<tr>
-<td>V0.3 Agent</td>
-<td>🟡</td>
-<td>BYOA + ACP / Codex 原生 runtime、流式 UI、Sources、<strong>paper-reader</strong>（Zap + 可选自动默认关）、<strong>权限三档</strong>（含每次询问）、<strong>面板 workflow</strong>；<code>AGENTS.md</code> 注入仍待</td>
-</tr>
-<tr>
-<td>V0.4 双链/图谱</td>
-<td>✅</td>
-<td>Backlinks + Graph 同栏；<code>graph_get_graph</code>；<strong>文件变更防抖重建索引</strong></td>
-</tr>
-<tr>
-<td>阅读增强</td>
-<td>🟡</td>
-<td>任意路径 PDF/图；<strong>导航·适应整页·大纲·⌘F·真实 scale·平滑划词</strong>；划词菜单 → <code>marks/*.json</code>；无文本层降级仍待</td>
-</tr>
-<tr>
-<td>翻译服务</td>
-<td>✅ 首版</td>
-<td>应用级可插拔 TranslateService（free + BYOA Agent，无付费 API）；设置 → 翻译；见 <a href="translate/"><code>translate.md</code></a></td>
-</tr>
-<tr>
-<td>V0.5 Importer</td>
-<td>🟡 本地 PDF ✅</td>
-<td><strong>本地 PDF 入库</strong>（魔棒多选 / 拖到 <code>papers/</code>）已落地；Importer trait / DOI / MinerU 仍待</td>
-</tr>
-<tr>
-<td>V0.6 标签页与分屏</td>
-<td>✅</td>
-<td><strong>全局 Dockview</strong>：中间栏文档 panel + 上下左右/多格分屏；论文默认 PDF|NOTES <strong>左右分屏</strong>；标题栏无文档 tab（见 <a href="tab-split/"><code>tab-split.md</code></a>）</td>
-</tr>
-<tr>
-<td>V0.7 引用关系</td>
-<td>⏳</td>
-<td>Connected Papers 式邻域、文内引用 hover→Info、引用 Agent 工作流（规划中）</td>
-</tr>
-<tr>
-<td>广场（Plaza）</td>
-<td>📋 设计中</td>
-<td>侧栏虚拟「广场」：Cool Papers WebView + 推荐 v0 + 播客占位；<strong>P0 不入库</strong>；见 <a href="plaza/"><code>plaza.md</code></a></td>
-</tr>
-<tr>
-<td>CLI headless</td>
-<td>✅ MVP</td>
-<td><code>cli/</code> + workspace；<code>agentero</code> bin；Vault/catalog/import/export/<code>paper tag *</code>；无 BYOA（见 <a href="cli/"><code>cli.md</code></a>）</td>
-</tr>
-<tr>
-<td>Vault 采纳</td>
-<td>⏳</td>
-<td>打开已有文件夹时自动发现/整理；编程 + 可选 Skill（见 roadmap）</td>
-</tr>
-<tr>
-<td>Zotero Connector 兼容</td>
-<td>✅ MVP</td>
-<td>本机 <code>23119</code>：<code>saveItems</code> + 子文件夹 targets + <strong><code>saveAttachment</code></strong>；设置开关默认关；见 <a href="../backend/connector/"><code>../backend/connector.md</code></a></td>
-</tr>
-<tr>
-<td>全库搜索 / 命令面板</td>
-<td>✅ Phase A</td>
-<td><code>⌘P</code>/<code>⌘K</code> 快速打开 + <code>⇧⌘P</code> 命令模式；<code>&gt;</code> 前缀；见 <a href="command-palette/"><code>command-palette.md</code></a></td>
-</tr>
-<tr>
-<td>应用弹层栈</td>
-<td>✅</td>
-<td><code>overlay-stack</code>：Esc/<code>⌘W</code> 统一关最顶层 sheet/Dialog；见 <a href="../frontend/ui/"><code>../frontend/ui.md</code></a> §3.0</td>
-</tr>
-<tr>
-<td>Release CI</td>
-<td>✅</td>
-<td><code>v*</code> tag → <strong>prepare</strong> 草稿 Release；<strong>installers</strong> / <strong>cli</strong> 并行矩阵上传（同草稿）</td>
-</tr>
-<tr>
-<td>macOS 签名/公证</td>
-<td>🟡</td>
-<td>工程与 CI 已接 Developer ID + notarytool；需配置证书与 GitHub secrets（见 <a href="macos-signing/"><code>macos-signing.md</code></a>）</td>
-</tr>
-<tr>
-<td>远程 Vault（SSH/SFTP）</td>
-<td>✅ MVP</td>
-<td>文件权威远端 + 远端 BYOA（ACP over SSH）；见 <a href="remote-vault/"><code>remote-vault.md</code></a></td>
-</tr>
-</tbody>
-</table>
-<p>更细的勾选表见 <a href="roadmap/"><code>roadmap.md</code></a>；可执行任务见 <a href="todo/"><code>todo.md</code></a>。</p>
-<h2 id="_4">本分区文档<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="prd/"><code>prd.md</code></a>：产品需求、范围、用户流程、验收标准。</li>
-<li><a href="roadmap/"><code>roadmap.md</code></a>：状态快照、完成项和优先级路线图。</li>
-<li><a href="todo/"><code>todo.md</code></a>：按 P0/P1/P2 拆分的可执行 backlog。</li>
-<li><a href="github-project/"><code>github-project.md</code></a>：GitHub Project「Agentero」结构、标签、Issue 映射（B1–B8 / F1–F18 → #7–#32；B2/B4–B8 已关闭；#33 非 Codex 历史；看板 <a href="https://github.com/orgs/poco-ai/projects/1">orgs/poco-ai/projects/1</a>）。</li>
-<li><a href="bug/"><code>bug.md</code></a>：已知 bug / UX 语料与勾选状态（与 GitHub B1–B8 对齐）。</li>
-<li><a href="technical-plan/"><code>technical-plan.md</code></a>：跨前后端的技术方案和模块设计。</li>
-<li><a href="lib-layout/"><code>lib-layout.md</code></a>：前端 <code>src/lib</code> 领域分包布局与导入约定。</li>
-<li><a href="cli/"><code>cli.md</code></a>：CLI 语义与技术栈——目录 <strong><code>cli/</code></strong>，不迁 core，path 依赖 <code>agentero_lib</code>；Vault 管理/发现/暴露 + 文献基础；无 BYOA；Agent 友好 JSON（<strong>MVP 已落地</strong>）。</li>
-<li><a href="pdf-ask/"><code>pdf-ask.md</code></a>：PDF 划词提问（MVP 已落地；选区/双击/悬停 → 迷你问答 → JSON → 锚点图标）技术栈与数据契约。</li>
-<li><a href="translate/"><code>translate.md</code></a>：翻译服务（首版已落地；应用级可插拔 <strong>免费 MT + BYOA Agent</strong>；设置 → 翻译页；PDF 划词为首个消费方）。</li>
-<li><a href="logging/"><code>logging.md</code></a>：运行日志（<strong>P0 已落地</strong>；<code>tauri-plugin-log</code> + <code>log</code> + CLI <code>env_logger</code>；关键操作 start/end；与 Toast / <code>ApiResult</code> 分层）。</li>
-<li><a href="command-palette/"><code>command-palette.md</code></a>：全局命令面板 / 快速打开（对照 VS Code ⇧⌘P · ⌘P；现状与分期设计）。</li>
-<li><a href="tab-split/"><code>tab-split.md</code></a>：全局 Dockview 工作区（V0.6）——中间栏单一 dockview 管理全部文档 panel；标题栏无文档 tab；论文默认 PDF | NOTES 左右分屏。</li>
-<li><a href="plaza/"><code>plaza.md</code></a>：广场（Plaza）——侧栏虚拟发现入口；Cool Papers WebView、推荐 v0、播客占位；P0 不做入库。</li>
-<li><a href="remote-vault/"><code>remote-vault.md</code></a>：远程 Vault（SSH/SFTP）与<strong>远端 BYOA</strong>——文件权威全在服务器、ACP over SSH；含技术栈与开源参考（<strong>MVP 已实现</strong>）。</li>
-<li><a href="macos-signing/"><code>macos-signing.md</code></a>：macOS <strong>Developer ID</strong> 签名、<strong>notarytool</strong> 公证与 staple、CI secrets。</li>
-<li>
-<p><a href="release/"><code>release.md</code></a>：版本 bump / tag 发布流程；含 iPadOS 上架调研与 macOS 签名入口。</p>
-</li>
-<li>
-<p><a href=".md"><code>.md</code></a>：简短产品假设。</p>
-</li>
-<li>Bug 修复记录：</li>
-<li><a href="../bug_fix/deepseek-thinking-body/"><code>../bug_fix/deepseek-thinking-body.md</code></a>（DeepSeek 正文落入 Thinking）</li>
-<li><a href="../bug_fix/acp-session-resume-id/"><code>../bug_fix/acp-session-resume-id.md</code></a>（ACP 会话恢复使用错误的 provider session ID）</li>
-<li><a href="../bug_fix/ime-composition-enter-submit/"><code>../bug_fix/ime-composition-enter-submit.md</code></a>（输入法组字时 Enter 误发送）</li>
-<li><a href="../bug_fix/remote-acp-path-ssh/"><code>../bug_fix/remote-acp-path-ssh.md</code></a>（远端 ACP：BatchMode SSH PATH / Linuxbrew / Install 引号）</li>
-<li>Paper 入库流水线统一：<a href="../backend/paper-import-pipeline/"><code>../backend/paper-import-pipeline.md</code></a>。</li>
-</ul>
-<h2 id="_5">交叉引用<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<ul>
-<li>前端 UI 细节：<a href="../frontend/"><code>../frontend/index.md</code></a></li>
-<li>后端数据与 API 契约：<a href="../backend/"><code>../backend/index.md</code></a></li>
-<li>论文目录库 Catalog：<a href="../backend/catalog/"><code>../backend/catalog.md</code></a></li>
-<li>魔棒与 Translator：<a href="../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a></li>
-<li>总体技术框架：<a href="../"><code>../index.md</code></a></li>
-</ul>
-              
-            </div>
-          </div><footer>
-    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../research/wikilink-heading-reference-stability/" class="btn btn-neutral float-left" title="标题双链稳定性与 Metadata Cache"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="prd/" class="btn btn-neutral float-right" title="产品需求">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>概览 - Agentero 文档</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="grey">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#_1" class="md-skip">
+          跳转至
+        </a>
+      
     </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
 
-  <hr/>
+  
 
-  <div role="contentinfo">
-    <!-- Copyright etc -->
-  </div>
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href=".." title="Agentero 文档" class="md-header__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../assets/agentero-app-icon.svg" alt="logo">
 
-  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
-</footer>
-          
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Agentero 文档
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              概览
+            
+          </span>
         </div>
       </div>
-
-    </section>
-
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../usage/" class="md-tabs__link">
+          
+  
+  
+  教程
 
-  <div class="rst-versions" role="note" aria-label="Versions">
-  <span class="rst-current-version" data-toggle="rst-current-version">
+        </a>
+      </li>
     
-        <span>
-          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
-        </span>
+  
+
+      
+        
+  
+  
+  
+  
     
     
-      <span><a href="../research/wikilink-heading-reference-stability/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <li class="md-tabs__item">
+        <a href="../frontend/" class="md-tabs__link">
+          
+  
+  
+  前端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
     
     
-      <span><a href="prd/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <li class="md-tabs__item">
+        <a href="../backend/" class="md-tabs__link">
+          
+  
+  
+  后端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  开发草稿
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../test/" class="md-tabs__link">
+          
+  
+  
+  测试
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../bug_fix/deepseek-thinking-body/" class="md-tabs__link">
+          
+  
+  
+  Bug 修复记录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Agentero 文档" class="md-nav__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../assets/agentero-app-icon.svg" alt="logo">
+
+    </a>
+    Agentero 文档
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
     
   </span>
-</div>
-    <script src="../js/jquery-3.6.0.min.js"></script>
-    <script>var base_url = "..";</script>
-    <script src="../js/theme_extra.js"></script>
-    <script src="../js/theme.js"></script>
-      <script src="../search/main.js"></script>
-    <script>
-        jQuery(function () {
-            SphinxRtdTheme.Navigation.enable(true);
-        });
-    </script>
+  
+  
 
-</body>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速上手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    安装与首次使用
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/import-papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入和管理论文
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/read-and-organize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    阅读、标注与整理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    接入 Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/zotero/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用 Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/remote-vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    打开远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    前端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    前端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/shell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    工作台壳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dockview 工作区
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/vault-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    文件树
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文库 Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入库 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/markdown/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markdown 编辑
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/pdf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 阅读与划词
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent 面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/command-palette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    命令面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置与主题
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/components/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    组件约定
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    后端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    后端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据模型
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault FS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文入库
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/connector/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent Host
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/remote/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    搜索
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    运行日志
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API 全表
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    开发草稿
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    开发草稿
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        规划
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        未实现草稿
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    路线图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="todo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TODO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="plaza/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    广场 Plaza
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pdf-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 引用与插图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链调研
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    测试
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    测试
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test/release-checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布前 Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 修复记录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bug 修复记录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug_fix/deepseek-thinking-body/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DeepSeek 正文落入 Thinking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug_fix/acp-session-resume-id/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ACP 会话恢复 ID 错误
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug_fix/ime-composition-enter-submit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    输入法组字 Enter 误发送
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug_fix/wiki-embed-unrelated-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug_fix/dockview-sash-pdf-resize-jank/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    拖动 Dockview 分隔条时 PDF 卡顿
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug_fix/remote-acp-path-ssh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远端 ACP PATH / SSH
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug_fix/remote-vault-tree-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault 文件树懒加载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug_fix/macos-signing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    macOS 签名与公证
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        规划
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        未实现草稿
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="_1">开发草稿<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<p>本目录只放：</p>
+<ol>
+<li><strong>路线图 / TODO / 技术方案 / 发布</strong>（工程规划）</li>
+<li><strong>尚未实现</strong>的功能设计稿</li>
+</ol>
+<p>已实现功能的说明在 <a href="../frontend/"><code>../frontend/</code></a> 与 <a href="../backend/"><code>../backend/</code></a>，按功能分篇。</p>
+<h2 id="_2">规划<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="roadmap/">roadmap.md</a></td>
+<td>自 <strong>0.2.1</strong> 起的未来版本切片（无已实现清单）</td>
+</tr>
+<tr>
+<td><a href="todo/">todo.md</a></td>
+<td><strong>仅未完成</strong> backlog（按 0.3 / 0.4… 分组）</td>
+</tr>
+<tr>
+<td><a href="technical-plan/">technical-plan.md</a></td>
+<td>入口：指向前后端 index（正文已拆分）</td>
+</tr>
+<tr>
+<td><a href="release/">release.md</a></td>
+<td>bump / tag / Release</td>
+</tr>
+<tr>
+<td><a href="bug/">bug.md</a></td>
+<td>已知问题语料（精简）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">未实现草稿<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>主题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="plaza/">plaza.md</a></td>
+<td>广场（Cool Papers / 推荐 / 播客）</td>
+</tr>
+<tr>
+<td><a href="pdf-analysis/">pdf-analysis.md</a></td>
+<td>PDF 引用与插图 sidecar</td>
+</tr>
+<tr>
+<td><a href="wikilink-heading-reference-stability/">wikilink-heading-reference-stability.md</a></td>
+<td>标题双链调研补充</td>
+</tr>
+</tbody>
+</table>
+<p>macOS 签名与公证（已实现流程说明）在 <a href="../bug_fix/macos-signing/"><code>../bug_fix/macos-signing.md</code></a>。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.tracking", "navigation.top", "search.suggest", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
 </html>

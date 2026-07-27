@@ -1,966 +1,2478 @@
-<!DOCTYPE html>
-<html class="writer-html5" lang="en" >
-<head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>组件约定 - Agentero 文档</title>
-    <link rel="stylesheet" href="../../css/theme.css" />
-    <link rel="stylesheet" href="../../css/theme_extra.css" />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
     
-      <script>
-        // Current page data
-        var mkdocs_page_name = "\u7ec4\u4ef6\u7ea6\u5b9a";
-        var mkdocs_page_input_path = "frontend/components.md";
-        var mkdocs_page_url = null;
-      </script>
-    
-    <!--[if lt IE 9]>
-      <script src="../../js/html5shiv.min.js"></script>
-    <![endif]-->
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-      <script>hljs.highlightAll();</script> 
-</head>
-
-<body class="wy-body-for-nav" role="document">
-
-  <div class="wy-grid-for-nav">
-    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
-    <div class="wy-side-scroll">
-      <div class="wy-side-nav-search">
-          <a href="../.." class="icon icon-home"> Agentero 文档
-        </a><div role="search">
-  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
-      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
-  </form>
-</div>
-      </div>
-
-      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <ul>
-                <li class="toctree-l1"><a class="reference internal" href="../..">首页</a>
-                </li>
-              </ul>
-              <p class="caption"><span class="caption-text">用户指南</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/">使用指南</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/getting-started/">安装与首次使用</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/import-papers/">导入和管理论文</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/read-and-organize/">阅读、标注与整理</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/agents/">接入 Agent</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/zotero/">使用 Zotero Connector</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/remote-vault/">打开远程 Vault</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">前端</span></p>
-              <ul class="current">
-                  <li class="toctree-l1"><a class="reference internal" href="../">概览</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../ui/">UI 规范</a>
-                  </li>
-                  <li class="toctree-l1 current"><a class="reference internal current" href="#">组件约定</a>
-    <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#1-agentero">1. 约定（Agentero）</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#2">2. 组件总表（按官网）</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#21-chat">2.1 对话核心（Chat）</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#22-agent">2.2 Agent / 推理 / 工具</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#23">2.3 代码与工程</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#24-artifact">2.4 预览 / Artifact / 沙箱</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#25">2.5 语音 / 音频</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#26">2.6 图 / 工作流画布</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#3-agentero">3. Agentero 已安装明细</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#4-agentero">4. Agentero 集成要点</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#41-chat">4.1 Chat 组合（已接线）</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#42">4.2 流式事件映射</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#43">4.3 传输边界</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#44-import">4.4 推荐 import</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#5">5. 扩展新组件</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#6-ai-elements">6. 仓库目录（非 AI Elements）</a>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#7">7. 参考</a>
-    </li>
-    </ul>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">后端</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../backend/">概览</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../backend/api/">API 契约</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../backend/data-model/">数据模型</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../backend/catalog/">论文目录库</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../backend/identifier-lookup/">魔棒与 Translator</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../backend/paper-import-pipeline/">Paper 入库流水线</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../backend/connector/">Zotero Connector 兼容</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../backend/wikilinks/">双链与图谱</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">测试</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../test/">概览</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../test/release-checklist/">发布前 Checklist</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">调研</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../research/wikilink-heading-reference-stability/">标题双链稳定性与 Metadata Cache</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">开发</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/">概览</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/prd/">产品需求</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/technical-plan/">技术方案</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/cli/">CLI 设计</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/pdf-ask/">PDF 划词提问</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/translate/">翻译服务</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/tab-split/">Tab 内分屏</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/plaza/">广场 Plaza</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/logging/">运行日志</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/remote-vault/">远程 Vault（SSH/SFTP）</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/macos-signing/">macOS 签名与公证</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/release/">发布流程</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/roadmap/">路线图</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/todo/">TODO</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../development/github-project/">GitHub Project</a>
-                  </li>
-              </ul>
-              <p class="caption"><span class="caption-text">Bug 修复记录</span></p>
-              <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/deepseek-thinking-body/">DeepSeek 正文落入 Thinking</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/acp-session-resume-id/">ACP 会话恢复 ID 错误</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/ime-composition-enter-submit/">输入法组字 Enter 误发送</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/wiki-embed-unrelated-refresh/">普通编辑触发全部 Wiki 嵌入闪烁</a>
-                  </li>
-                  <li class="toctree-l1"><a class="reference internal" href="../../bug_fix/dockview-sash-pdf-resize-jank/">拖动 Dockview 分隔条时 PDF 卡顿</a>
-                  </li>
-              </ul>
-      </div>
-    </div>
-    </nav>
-
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
-          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../..">Agentero 文档</a>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agentero 本地优先 Agent 科研工作台文档">
+      
+      
+      
+      
+        <link rel="prev" href="../settings/">
+      
+      
+        <link rel="next" href="../../backend/">
+      
+      
         
-      </nav>
-      <div class="wy-nav-content">
-        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
-  <ul class="wy-breadcrumbs">
-    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
-          <li class="breadcrumb-item">前端</li>
-      <li class="breadcrumb-item active">组件约定</li>
-    <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/poco-ai/agentero/edit/main/docs/frontend/components.md">Edit on poco-ai/agentero</a>
-    </li>
-  </ul>
-  <hr/>
-</div>
-          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
-            <div class="section" itemprop="articleBody">
-              
-                <h1 id="ai-elements">AI Elements 组件目录<a class="headerlink" href="#ai-elements" title="Permanent link">&para;</a></h1>
-<blockquote>
-<p>Agentero 的 Chat / Agent / 文件树等 AI UI <strong>统一使用 <a href="https://elements.ai-sdk.dev/">AI Elements</a></strong>。<br />
-本文档按 <strong><a href="https://elements.ai-sdk.dev/components">elements.ai-sdk.dev/components</a></strong> 的组件目录整理，并标注 Agentero 安装与使用状态。</p>
-</blockquote>
-<p>相关：<code>docs/frontend/ui.md</code> · <code>docs/development/technical-plan.md</code> · 官网 <a href="https://elements.ai-sdk.dev/docs">Docs</a> · <a href="https://elements.ai-sdk.dev/docs/setup">Setup</a></p>
-<hr />
-<h2 id="1-agentero">1. 约定（Agentero）<a class="headerlink" href="#1-agentero" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>项</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>落盘</td>
-<td><code>src/components/ai-elements/&lt;name&gt;.tsx</code></td>
-</tr>
-<tr>
-<td>安装</td>
-<td><code>pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/&lt;name&gt;.json -y -o</code></td>
-</tr>
-<tr>
-<td>通用 UI</td>
-<td>继续 shadcn <code>src/components/ui/</code>（AI Elements 依赖其 peers）</td>
-</tr>
-<tr>
-<td>传输层</td>
-<td>Agentero <strong>ACP Client</strong>（<code>agent_run_once</code> + 事件流），<strong>不是</strong>默认 <code>useChat</code></td>
-</tr>
-<tr>
-<td>业务壳</td>
-<td><code>agent/agent-panel</code>（Chat；<code>sidebar</code>/<code>zen</code>：禅模式左侧历史 + 全宽 <code>Conversation</code>；无会话数字标签；<code>hideFromChatHistory</code> 过滤后台运行；<strong>权限三档</strong> + <code>agent:permission-request</code> 对话框；<strong>空态 suggestion → workflow</strong>；Composer <strong>当前论文默认 context</strong> + <strong><code>@</code>（最近路径 / 浅层树 / 下钻子目录；论文标签同 <code>paperTreeLabelMode</code>）/ 文件树拖入 → context chip</strong>（展示 paper-name/标题；图标：<code>context-path-icon</code> — paper <code>ScrollText</code> / 文件夹 <code>Folder</code> / 文件按扩展名））、<code>dialogs/command-palette</code>（<code>⌘K</code>/<code>⌘P</code> 论文 quick-open + <code>vault_search</code>）、<code>sidebar/file-tree</code>（Vault 树 + Library + 魔棒 + paper <strong>Download / Zap</strong> + 多选拖拽 + 折叠快捷键 + 回收站入口；<strong>外部 PDF 拖到 <code>papers/</code> 组织夹 → metadata 确认入库</strong>）、<code>library/import-local-pdf-dialog</code>（本地 PDF 元数据确认）、<code>workspace/recycle-bin-view</code>（中间栏回收站）、<code>library/papers-library</code>（catalog 表 + <strong>标题列表内搜索</strong> + <strong>标签列筛选</strong> + <strong>染色 tags</strong> + <strong>阅读热力 spine</strong> + <strong>Rescan</strong> + 文件夹作用域；Zotero 迁移在侧栏 Library）、<code>sidebar/paper-info-panel</code>（Tags 色盘）、<code>workspace/dock-workspace</code>、<code>wiki/backlinks-panel</code>、<code>wiki/graph-panel</code>、<code>shell/background-tasks-panel</code>；<code>viewer/pdf-viewer</code>（导航/大纲/查找/平滑划词；批注 <strong>Enter 保存</strong>；划词提问 <code>hideFromChatHistory</code>）</td>
-</tr>
-<tr>
-<td>全局通知</td>
-<td>shadcn <code>ui/sonner</code> + <code>src/lib/core/notify.ts</code>（<code>notifyError</code> / <code>notifyWarning</code>）；右上角操作失败 Toast（见 <a href="../ui/"><code>ui.md</code></a> §2.1.2）</td>
-</tr>
-<tr>
-<td>状态列</td>
-<td>✅ 已装并接线 · 📦 已装未接线 · — 未安装</td>
-</tr>
-</tbody>
-</table>
-<p>安装命令中的 <code>&lt;name&gt;</code> 与下表 <strong>Registry 名</strong>（URL 路径）一致。</p>
-<pre class="codehilite"><code class="language-bash"># 示例：安装 Message
-pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/message.json -y -o
-</code></pre>
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>组件约定 - Agentero 文档</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
 
-<hr />
-<h2 id="2">2. 组件总表（按官网）<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
-<p>官网组件页：<code>https://elements.ai-sdk.dev/components/&lt;name&gt;</code>。<br />
-下表按场景分组；<strong>Registry 名</strong> = 安装 URL 与文件名。</p>
-<h3 id="21-chat">2.1 对话核心（Chat）<a class="headerlink" href="#21-chat" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>组件</th>
-<th>Registry</th>
-<th>说明</th>
-<th>Agentero</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/conversation">Conversation</a></td>
-<td><code>conversation</code></td>
-<td>消息列表容器；贴底滚动、空状态、滚动按钮；<code>scrollClassName</code> 接 <code>agentero-scroll</code>（禅模式全宽视口、滚动条贴右）</td>
-<td>✅ Chat 列表</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/message">Message</a></td>
-<td><code>message</code></td>
-<td>单条消息：<code>from</code>、内容、<code>MessageResponse</code>（Streamdown）、操作/分支</td>
-<td>✅ 用户/助手气泡</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/prompt-input">Prompt Input</a></td>
-<td><code>prompt-input</code></td>
-<td>Composer：输入、附件、提交状态、工具槽</td>
-<td>✅ 底部输入</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/sources">Sources</a></td>
-<td><code>sources</code></td>
-<td>折叠展示引用来源列表</td>
-<td>✅ Vault 路径引用</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/attachments">Attachments</a></td>
-<td><code>attachments</code></td>
-<td>附件网格/列表/预览</td>
-<td>📦（Prompt 已支持，ACP 暂不传文件；Vault 路径上下文用 Composer context chip，见 ui.md）</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/suggestion">Suggestion</a></td>
-<td><code>suggestion</code></td>
-<td>快捷建议 chip</td>
-<td>✅ 空态：Summarize / Ask library / List claims / Draft Related Work → <code>summary</code>/<code>qa</code>/<code>related_work</code></td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/shimmer">Shimmer</a></td>
-<td><code>shimmer</code></td>
-<td>加载占位闪光文案</td>
-<td>✅ 等待正文</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/inline-citation">Inline Citation</a></td>
-<td><code>inline-citation</code></td>
-<td>正文内可悬停引用</td>
-<td>✅ 回复末尾徽章 + Hover 轮播</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/open-in-chat">Open in Chat</a></td>
-<td><code>open-in-chat</code></td>
-<td>「在 Chat 中打开」</td>
-<td>— 非 Chat 栏入口</td>
-</tr>
-</tbody>
-</table>
-<h3 id="22-agent">2.2 Agent / 推理 / 工具<a class="headerlink" href="#22-agent" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>组件</th>
-<th>Registry</th>
-<th>说明</th>
-<th>Agentero</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/reasoning">Reasoning</a></td>
-<td><code>reasoning</code></td>
-<td>思考过程折叠展示</td>
-<td>✅ ACP <code>thought</code> 流</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/chain-of-thought">Chain of Thought</a></td>
-<td><code>chain-of-thought</code></td>
-<td>思维链步骤</td>
-<td>📦（Reasoning + Tool 已覆盖）</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/tool">Tool</a></td>
-<td><code>tool</code></td>
-<td>工具调用：状态、输入、输出</td>
-<td>✅ <code>agent:tool</code></td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/confirmation">Confirmation</a></td>
-<td><code>confirmation</code></td>
-<td>人在环确认</td>
-<td>📦（Host 仍自动选第一项）</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/task">Task</a></td>
-<td><code>task</code></td>
-<td>任务列表 / 进度折叠</td>
-<td>✅ 工具调用摘要</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/plan">Plan</a></td>
-<td><code>plan</code></td>
-<td>计划步骤展示</td>
-<td>✅ <code>agent:plan</code></td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/queue">Queue</a></td>
-<td><code>queue</code></td>
-<td>消息队列、待办</td>
-<td>✅ Composer waitlist（运行中继续输入的后续消息）</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/checkpoint">Checkpoint</a></td>
-<td><code>checkpoint</code></td>
-<td>检查点 / 里程碑</td>
-<td>✅ 系统行</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/agent">Agent</a></td>
-<td><code>agent</code></td>
-<td>Agent 身份 UI</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/context">Context</a></td>
-<td><code>context</code></td>
-<td>上下文窗口/用量</td>
-<td>✅ <code>agent:usage</code></td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/persona">Persona</a></td>
-<td><code>persona</code></td>
-<td>Rive 角色动画</td>
-<td>📦（依赖 WebGL/外链，未接）</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/model-selector">Model Selector</a></td>
-<td><code>model-selector</code></td>
-<td>模型选择</td>
-<td>✅ 输入框旁；列表来自 ACP session config</td>
-</tr>
-</tbody>
-</table>
-<blockquote>
-<p>Agentero BYOA：模型列表与能力由 <strong>ACP Agent</strong> 通过 session <code>config_options</code>（category: model）上报；Agentero 不托管 API Key。Header 切换的是 <strong>ACP 后端</strong>，输入框切换的是 <strong>该 Agent 提供的 model</strong>。</p>
-</blockquote>
-<h3 id="23">2.3 代码与工程<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>组件</th>
-<th>Registry</th>
-<th>说明</th>
-<th>Agentero</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/code-block">Code Block</a></td>
-<td><code>code-block</code></td>
-<td>代码块、复制、语言切换</td>
-<td>📦（<code>MessageResponse</code> 内已有 streamdown 代码）</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/file-tree">File Tree</a></td>
-<td><code>file-tree</code></td>
-<td>可展开文件树</td>
-<td>✅ 侧栏 Vault 树</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/terminal">Terminal</a></td>
-<td><code>terminal</code></td>
-<td>终端输出样式</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/stack-trace">Stack Trace</a></td>
-<td><code>stack-trace</code></td>
-<td>堆栈展示</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/test-results">Test Results</a></td>
-<td><code>test-results</code></td>
-<td>测试结果</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/snippet">Snippet</a></td>
-<td><code>snippet</code></td>
-<td>短代码片段</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/commit">Commit</a></td>
-<td><code>commit</code></td>
-<td>Commit 信息展示</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/package-info">Package Info</a></td>
-<td><code>package-info</code></td>
-<td>包信息</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/schema-display">Schema Display</a></td>
-<td><code>schema-display</code></td>
-<td>Schema 结构展示</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/environment-variables">Environment Variables</a></td>
-<td><code>environment-variables</code></td>
-<td>环境变量展示</td>
-<td>—</td>
-</tr>
-</tbody>
-</table>
-<h3 id="24-artifact">2.4 预览 / Artifact / 沙箱<a class="headerlink" href="#24-artifact" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>组件</th>
-<th>Registry</th>
-<th>说明</th>
-<th>Agentero</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/web-preview">Web Preview</a></td>
-<td><code>web-preview</code></td>
-<td>URL / 网页预览框</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/artifact">Artifact</a></td>
-<td><code>artifact</code></td>
-<td>生成物（文档/代码等）容器</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/sandbox">Sandbox</a></td>
-<td><code>sandbox</code></td>
-<td>沙箱运行环境 UI</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/jsx-preview">JSX Preview</a></td>
-<td><code>jsx-preview</code></td>
-<td>JSX 实时预览</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/image">Image</a></td>
-<td><code>image</code></td>
-<td>图片展示</td>
-<td>—</td>
-</tr>
-</tbody>
-</table>
-<h3 id="25">2.5 语音 / 音频<a class="headerlink" href="#25" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>组件</th>
-<th>Registry</th>
-<th>说明</th>
-<th>Agentero</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/speech-input">Speech Input</a></td>
-<td><code>speech-input</code></td>
-<td>语音输入</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/mic-selector">Mic Selector</a></td>
-<td><code>mic-selector</code></td>
-<td>麦克风设备选择</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/voice-selector">Voice Selector</a></td>
-<td><code>voice-selector</code></td>
-<td>语音/音色选择</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/audio-player">Audio Player</a></td>
-<td><code>audio-player</code></td>
-<td>音频播放</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/transcription">Transcription</a></td>
-<td><code>transcription</code></td>
-<td>转写文本</td>
-<td>—</td>
-</tr>
-</tbody>
-</table>
-<h3 id="26">2.6 图 / 工作流画布<a class="headerlink" href="#26" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>组件</th>
-<th>Registry</th>
-<th>说明</th>
-<th>Agentero</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/canvas">Canvas</a></td>
-<td><code>canvas</code></td>
-<td>画布根容器</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/node">Node</a></td>
-<td><code>node</code></td>
-<td>图节点</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/edge">Edge</a></td>
-<td><code>edge</code></td>
-<td>边</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/connection">Connection</a></td>
-<td><code>connection</code></td>
-<td>连接线/连线交互</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/controls">Controls</a></td>
-<td><code>controls</code></td>
-<td>画布控件</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/panel">Panel</a></td>
-<td><code>panel</code></td>
-<td>画布面板</td>
-<td>—</td>
-</tr>
-<tr>
-<td><a href="https://elements.ai-sdk.dev/components/toolbar">Toolbar</a></td>
-<td><code>toolbar</code></td>
-<td>画布工具栏</td>
-<td>—</td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="3-agentero">3. Agentero 已安装明细<a class="headerlink" href="#3-agentero" title="Permanent link">&para;</a></h2>
-<p>路径：<code>src/components/ai-elements/</code></p>
-<table>
-<thead>
-<tr>
-<th>文件</th>
-<th>主要导出</th>
-<th>接线位置</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>conversation.tsx</code></td>
-<td>列表 / 空态 / 贴底</td>
-<td><code>agent/agent-panel</code></td>
-</tr>
-<tr>
-<td><code>message.tsx</code></td>
-<td>Message + Actions / Response</td>
-<td><code>agent/agent-panel</code></td>
-</tr>
-<tr>
-<td><code>prompt-input.tsx</code></td>
-<td>Composer；<strong>IME 组字中 Enter 不提交</strong>（见 <a href="../../bug_fix/ime-composition-enter-submit/"><code>../bug_fix/ime-composition-enter-submit.md</code></a>）</td>
-<td><code>agent/agent-panel</code></td>
-</tr>
-<tr>
-<td><code>queue.tsx</code></td>
-<td>运行中 follow-up waitlist（可折叠列表 + 移除）</td>
-<td><code>agent/agent-composer</code></td>
-</tr>
-<tr>
-<td><code>sources.tsx</code></td>
-<td>Vault 引用</td>
-<td><code>agent/agent-panel</code></td>
-</tr>
-<tr>
-<td><code>reasoning.tsx</code></td>
-<td>Thought 折叠</td>
-<td><code>agent/agent-panel</code></td>
-</tr>
-<tr>
-<td><code>tool.tsx</code></td>
-<td>ACP tool 调用</td>
-<td><code>agent/agent-panel</code></td>
-</tr>
-<tr>
-<td><code>plan.tsx</code></td>
-<td>ACP plan</td>
-<td><code>agent/agent-panel</code></td>
-</tr>
-<tr>
-<td><code>task.tsx</code></td>
-<td>工具摘要</td>
-<td><code>agent/agent-panel</code></td>
-</tr>
-<tr>
-<td><code>suggestion.tsx</code> / <code>shimmer.tsx</code></td>
-<td>建议 chip / 加载</td>
-<td><code>agent/agent-panel</code></td>
-</tr>
-<tr>
-<td><code>checkpoint.tsx</code></td>
-<td>系统切换行</td>
-<td><code>agent/agent-panel</code></td>
-</tr>
-<tr>
-<td><code>context.tsx</code></td>
-<td>Token 用量</td>
-<td><code>agent/agent-panel</code> header</td>
-</tr>
-<tr>
-<td><code>file-tree.tsx</code></td>
-<td>Vault 树</td>
-<td><code>sidebar/file-tree</code></td>
-</tr>
-<tr>
-<td><code>inline-citation.tsx</code></td>
-<td>正文旁引用徽章</td>
-<td><code>agent/agent-panel</code></td>
-</tr>
-<tr>
-<td>其它已装未接</td>
-<td>chain-of-thought, confirmation, persona, attachments, code-block</td>
-<td>按需扩展</td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="4-agentero">4. Agentero 集成要点<a class="headerlink" href="#4-agentero" title="Permanent link">&para;</a></h2>
-<h3 id="41-chat">4.1 Chat 组合（已接线）<a class="headerlink" href="#41-chat" title="Permanent link">&para;</a></h3>
-<pre class="codehilite"><code class="language-text">Conversation
-  ConversationContent
-    Message from=&quot;user&quot; | &quot;assistant&quot;
-      MessageContent
-        Reasoning → ReasoningTrigger + ReasoningContent   // ACP thought
-        MessageResponse                                    // ACP message
-    Sources（可选）
-  ConversationScrollButton
-Queue（可选，运行中已排队的 follow-up）
-  QueueSection → QueueList → QueueItem
-PromptInput
-  PromptInputBody → PromptInputTextarea
-  PromptInputFooter → PromptInputTools + PromptInputSubmit
-</code></pre>
 
-<p>运行中仍可输入：有正文时提交进入 waitlist（当前回复结束后自动 <code>runOnce</code>）；空输入时按钮为停止（Esc 同效）。</p>
-<h3 id="42">4.2 流式事件映射<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>ACP 事件</th>
-<th>UI</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>发送成功</td>
-<td>追加 user 行 + streaming assistant 行</td>
-</tr>
-<tr>
-<td><code>agent:stream</code> <code>kind=thought</code></td>
-<td>追加到最后一条 agent 的 <code>reasoning</code>，<code>Reasoning isStreaming</code></td>
-</tr>
-<tr>
-<td><code>agent:stream</code> <code>kind=message</code>（默认）</td>
-<td>追加到最后一条 agent 的正文 <code>MessageResponse</code></td>
-</tr>
-<tr>
-<td><code>agent:completed</code></td>
-<td>定稿正文 / reasoning + <code>sources</code></td>
-</tr>
-<tr>
-<td><code>agent:failed</code></td>
-<td>去掉未完成 streaming，追加 error</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Sources / 行内引用点击</strong>：Vault 相对路径（如 <code>papers/…/NOTES.md</code>）经 <code>onOpenSource</code> → 若属于论文单元则 <code>openPaper</code>（PDF + NOTES），否则打开对应文件 tab；<code>http(s)</code> 用系统浏览器。禅模式下会先退出禅模式再打开论文。</p>
-<p>监听需可取消，避免 Strict Mode 双挂载导致重复气泡。</p>
-<h3 id="43">4.3 传输边界<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>能力</th>
-<th>Agentero</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>AI Elements UI</td>
-<td>✅</td>
-</tr>
-<tr>
-<td><code>useChat</code> / HTTP DefaultChatTransport</td>
-<td>❌ 默认不用</td>
-</tr>
-<tr>
-<td>ACP <code>runOnce</code> + events</td>
-<td>✅</td>
-</tr>
-</tbody>
-</table>
-<h3 id="44-import">4.4 推荐 import<a class="headerlink" href="#44-import" title="Permanent link">&para;</a></h3>
-<pre class="codehilite"><code class="language-ts">import {
-  Conversation,
-  ConversationContent,
-  ConversationEmptyState,
-  ConversationScrollButton,
-} from &quot;@/components/ai-elements/conversation&quot;;
-import {
-  Message,
-  MessageContent,
-  MessageResponse,
-} from &quot;@/components/ai-elements/message&quot;;
-import {
-  PromptInput,
-  PromptInputBody,
-  PromptInputFooter,
-  PromptInputSubmit,
-  PromptInputTextarea,
-  PromptInputTools,
-} from &quot;@/components/ai-elements/prompt-input&quot;;
-import {
-  Source,
-  Sources,
-  SourcesContent,
-  SourcesTrigger,
-} from &quot;@/components/ai-elements/sources&quot;;
-import {
-  FileTree,
-  FileTreeFile,
-  FileTreeFolder,
-} from &quot;@/components/ai-elements/file-tree&quot;;
-</code></pre>
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
 
-<hr />
-<h2 id="5">5. 扩展新组件<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
-<ol>
-<li>在 <a href="https://elements.ai-sdk.dev/components">组件目录</a> 确认名称与文档。  </li>
-<li><code>pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/&lt;name&gt;.json -y -o</code>  </li>
-<li>仅在业务域（<code>agent/</code>、<code>sidebar/</code>、<code>workspace/</code> 等）接线；不复制平行实现。  </li>
-<li>更新本文 <strong>§2 状态列</strong> 与 <strong>§3</strong>。  </li>
-<li>传输仍走 ACP，除非产品明确改为 HTTP Agent。</li>
-</ol>
-<hr />
-<h2 id="6-ai-elements">6. 仓库目录（非 AI Elements）<a class="headerlink" href="#6-ai-elements" title="Permanent link">&para;</a></h2>
-<p>业务组件按<strong>域</strong>顶层分目录（勿再挂 <code>layout/</code> 大杂烩；<code>library</code> 顶层，不挂 <code>workspace</code>；双链用 <code>wiki/</code> 而非 <code>feature</code>）：</p>
-<pre class="codehilite"><code class="language-text">src/components/
-├── ui/                  # shadcn only
-├── ai-elements/         # registry only
-├── icons/               # 品牌图标（勿并 ui）
-├── shell/               # 真壳 + 共享 chrome
-│   ├── title-bar.tsx
-│   ├── layout-menu.tsx
-│   ├── pane-header.tsx
-│   ├── resizable.tsx
-│   ├── vault-welcome.tsx
-│   ├── background-tasks-panel.tsx
-│   └── error-boundary.tsx
-├── sidebar/             # 左栏导航
-│   ├── file-tree.tsx
-│   ├── paper-info-panel.tsx
-│   └── vault-sidebar-header.tsx
-├── wiki/                # 双链
-│   ├── backlinks-panel.tsx
-│   └── graph-panel.tsx
-├── agent/               # Chat 业务壳（编排 + 子 UI + 运行时 hook）
-│   ├── agent-panel.tsx          # 薄编排（sidebar / zen）
-│   ├── use-agent-panel.ts       # 注册表 / 流式 / 历史 / send / 上下文
-│   ├── chat-transcript.tsx      # Conversation + 消息行
-│   ├── agent-composer.tsx       # PromptInput + @/$ + model/effort
-│   ├── agent-history.tsx        # 侧栏历史 popover + 禅模式左轨
-│   ├── agent-switcher.tsx
-│   ├── agent-permission-dialog.tsx
-│   ├── context-path-icon.tsx
-│   └── types.ts
-├── workspace/           # dockview 中间栏
-│   ├── dock-workspace.tsx
-│   ├── doc-view.tsx
-│   └── recycle-bin-view.tsx
-├── library/             # 论文域（顶层）
-│   ├── papers-library.tsx
-│   ├── paper-tag-chip.tsx
-│   ├── reading-heatmap.tsx
-│   ├── import-local-pdf-dialog.tsx
-│   └── move-papers-dialog.tsx
-├── editor/              # Plate Markdown 编辑器
-├── viewer/              # PDF / HTML / 图片
-├── settings/
-│   ├── settings-content.tsx
-│   ├── settings-native-root.tsx
-│   └── types.ts
-└── dialogs/             # 仅全局 / 跨域
-    ├── command-palette.tsx
-    ├── remote-vault-dialog.tsx
-    └── zotero-migrate-dialog.tsx
-</code></pre>
-
-<ul>
-<li><strong>Plate</strong>（<code>editor/</code>）：笔记 WYSIWYG，不是 AI Elements。  </li>
-<li><code>markdown-editor.tsx</code>：防抖保存、<code>ImagePlugin.uploadImage</code> → <code>./assets/</code>、引用计数 GC。  </li>
-<li><code>image-node.tsx</code>：相对路径 <code>blob:</code> 预览；选中显示 <code>![alt](url)</code> 源码。  </li>
-<li><code>editor-toolbar.tsx</code>：格式按钮 +「插入图片」。  </li>
-<li><code>src/lib/markdown/image.ts</code>：路径 / 落盘 / GC 工具（单测 <code>test/markdown-image.test.ts</code>）。  </li>
-<li><strong>禁止</strong>把 Chat 塞进 <code>ui/</code> 或与 shadcn Message/Bubble 混用。</li>
-</ul>
-<hr />
-<h2 id="7">7. 参考<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="https://elements.ai-sdk.dev/">AI Elements</a>  </li>
-<li><a href="https://elements.ai-sdk.dev/components">Components</a>  </li>
-<li><a href="https://elements.ai-sdk.dev/docs/setup">Docs / Setup</a>  </li>
-<li><a href="https://elements.ai-sdk.dev/components/conversation">Conversation</a> · <a href="https://elements.ai-sdk.dev/components/message">Message</a> · <a href="https://elements.ai-sdk.dev/components/prompt-input">Prompt Input</a> · <a href="https://elements.ai-sdk.dev/components/sources">Sources</a> · <a href="https://elements.ai-sdk.dev/components/file-tree">File Tree</a>  </li>
-<li>业务：<code>src/components/agent/</code>（<code>agent-panel</code> + <code>use-agent-panel</code> 等）· <code>src/components/sidebar/file-tree.tsx</code></li>
-</ul>
-              
-            </div>
-          </div><footer>
-    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../ui/" class="btn btn-neutral float-left" title="UI 规范"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../../backend/" class="btn btn-neutral float-right" title="概览">Next <span class="icon icon-circle-arrow-right"></span></a>
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="grey">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#_1" class="md-skip">
+          跳转至
+        </a>
+      
     </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
 
-  <hr/>
+  
 
-  <div role="contentinfo">
-    <!-- Copyright etc -->
-  </div>
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="Agentero 文档" class="md-header__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
 
-  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
-</footer>
-          
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Agentero 文档
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              组件约定
+            
+          </span>
         </div>
       </div>
-
-    </section>
-
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../usage/" class="md-tabs__link">
+          
+  
+  
+  教程
 
-  <div class="rst-versions" role="note" aria-label="Versions">
-  <span class="rst-current-version" data-toggle="rst-current-version">
+        </a>
+      </li>
     
-        <span>
-          <a href="https://github.com/poco-ai/agentero" class="fa fa-code-fork" style="color: #fcfcfc"> poco-ai/agentero</a>
-        </span>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
     
     
-      <span><a href="../ui/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  前端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
     
     
-      <span><a href="../../backend/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <li class="md-tabs__item">
+        <a href="../../backend/" class="md-tabs__link">
+          
+  
+  
+  后端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../development/" class="md-tabs__link">
+          
+  
+  
+  开发草稿
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../test/" class="md-tabs__link">
+          
+  
+  
+  测试
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../bug_fix/deepseek-thinking-body/" class="md-tabs__link">
+          
+  
+  
+  Bug 修复记录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Agentero 文档" class="md-nav__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
+
+    </a>
+    Agentero 文档
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
     
   </span>
-</div>
-    <script src="../../js/jquery-3.6.0.min.js"></script>
-    <script>var base_url = "../..";</script>
-    <script src="../../js/theme_extra.js"></script>
-    <script src="../../js/theme.js"></script>
-      <script src="../../search/main.js"></script>
-    <script>
-        jQuery(function () {
-            SphinxRtdTheme.Navigation.enable(true);
-        });
-    </script>
+  
+  
 
-</body>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速上手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    安装与首次使用
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/import-papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入和管理论文
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/read-and-organize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    阅读、标注与整理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    接入 Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/zotero/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用 Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/remote-vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    打开远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    前端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    前端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../shell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    工作台壳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dockview 工作区
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vault-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    文件树
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文库 Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入库 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../markdown/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markdown 编辑
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pdf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 阅读与划词
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent 面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../command-palette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    命令面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置与主题
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    组件约定
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    组件约定
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ai-elements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Elements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        业务组件目录
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        状态订阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    后端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    后端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据模型
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault FS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文入库
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/connector/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent Host
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/remote/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    搜索
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    运行日志
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API 全表
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    开发草稿
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    开发草稿
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    路线图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/todo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TODO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/plaza/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    广场 Plaza
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/pdf-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 引用与插图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链调研
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    测试
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    测试
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release-checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布前 Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 修复记录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bug 修复记录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/deepseek-thinking-body/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DeepSeek 正文落入 Thinking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/acp-session-resume-id/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ACP 会话恢复 ID 错误
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/ime-composition-enter-submit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    输入法组字 Enter 误发送
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wiki-embed-unrelated-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/dockview-sash-pdf-resize-jank/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    拖动 Dockview 分隔条时 PDF 卡顿
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-acp-path-ssh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远端 ACP PATH / SSH
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-vault-tree-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault 文件树懒加载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/macos-signing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    macOS 签名与公证
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ai-elements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Elements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        业务组件目录
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        状态订阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="_1">组件约定<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<h2 id="ai-elements">AI Elements<a class="headerlink" href="#ai-elements" title="Permanent link">&para;</a></h2>
+<p>Chat / Agent / 文件树 AI UI <strong>统一使用</strong> <a href="https://elements.ai-sdk.dev/">AI Elements</a>。</p>
+<ul>
+<li>落盘：<code>src/components/ai-elements/</code></li>
+<li>安装：<code>pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/&lt;name&gt;.json -y -o</code></li>
+<li>主题跟 shadcn token；<strong>不是</strong> Vercel AI SDK <code>useChat</code>（传输层为 ACP）。</li>
+<li><strong>禁止</strong>新建 <code>src/components/ai/*</code> 或用 <code>ui/message</code> 搭 Chat。</li>
+</ul>
+<p>常用：<code>conversation</code>、<code>message</code>、<code>prompt-input</code>、<code>sources</code>、<code>reasoning</code>、<code>file-tree</code>、queue 等。</p>
+<h2 id="_2">业务组件目录<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>目录</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>components/shell/</code></td>
+<td>三栏壳、标题栏、对话框挂载</td>
+</tr>
+<tr>
+<td><code>components/sidebar/</code></td>
+<td>文件树、Paper Info、魔棒</td>
+</tr>
+<tr>
+<td><code>components/workspace/</code></td>
+<td>Dockview 宿主与 panel 内容</td>
+</tr>
+<tr>
+<td><code>components/library/</code></td>
+<td>论文库表</td>
+</tr>
+<tr>
+<td><code>components/editor/</code></td>
+<td>Plate Markdown</td>
+</tr>
+<tr>
+<td><code>components/viewer/</code></td>
+<td>PDF / HTML / 图片</td>
+</tr>
+<tr>
+<td><code>components/agent/</code></td>
+<td>Agent 面板与禅模式</td>
+</tr>
+<tr>
+<td><code>components/wiki/</code></td>
+<td>Backlinks / Graph</td>
+</tr>
+<tr>
+<td><code>components/settings/</code></td>
+<td>设置页</td>
+</tr>
+<tr>
+<td><code>components/dialogs/</code></td>
+<td>命令面板、权限、迁移等</td>
+</tr>
+<tr>
+<td><code>components/ui/</code></td>
+<td>shadcn 基础件</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">状态订阅<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>组件经 <code>hooks/use-app-stores.ts</code> selector 订阅；避免整树重渲染。命令式 dock/布局经 registry，不把 DOM ref 塞进 zustand。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.tracking", "navigation.top", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
 </html>
