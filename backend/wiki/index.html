@@ -2372,7 +2372,8 @@
 <p>从 Vault 内 Markdown 解析 Obsidian 兼容 <code>[[wikilinks]]</code>，构建入/出链与 Graph；<strong>不</strong>使用手工图数据库。</p>
 <h2 id="_2">模型<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
-<li>格式：<code>[[Concept]]</code>、<code>[[papers/…/NOTES]]</code>、<code>[[note#heading]]</code>、<code>[[note#^block]]</code>。</li>
+<li>格式：<code>[[Concept]]</code>、<code>[[papers/…/NOTES]]</code>、<code>[[note#heading]]</code>、<code>[[note#outer#inner#leaf]]</code>、<code>[[note#^block]]</code>；标题路径没有层数限制。</li>
+<li>标题 fragment 以 <code>LinkFragment::Heading { path: Vec&lt;String&gt; }</code> 保存 Markdown 实际写下的完整路径或连续后缀。完整 heading path 是 canonical identity；任意长度的路径后缀仅在唯一命中时解析成功。</li>
 <li><strong>单向写入</strong> Markdown + 索引反查（不做目标文件自动插回链）。</li>
 <li>未解析目标可为 stub 节点。</li>
 <li>与 <strong>文献引用图</strong>（路线图 0.6）分层，边语义不复用。</li>
@@ -2380,12 +2381,15 @@
 <h2 id="host">Host 能力<a class="headerlink" href="#host" title="Permanent link">&para;</a></h2>
 <ul>
 <li>语义解析：文件、标题、block</li>
+<li>标题候选：展示 canonical <code>outer › inner</code> 路径，<code>insert_text</code> 写完整 <code>target#outer#inner</code>；查询中的 <code>#</code> 与 <code>›</code> 会归一到同一路径分隔语义</li>
+<li>逐级补全：尾部 <code>#</code> 保留层级状态，已确认路径按 canonical ancestor path 的后缀匹配，候选只返回其直接子标题；可连续输入任意多个层级</li>
 <li>反链 / 出链查询</li>
 <li><code>graph_get_graph</code> 等（nodes / edges / center / depth）— 见 <a href="../api/">api.md</a></li>
 <li>嵌入目标解析（供前端 <code>![[...]]</code>）</li>
 <li>链接感知重命名/移动；标题重命名事务</li>
 <li>索引：<code>.md</code> 变更防抖重建（前端调度 + Host 重建）</li>
 </ul>
+<p>解析、resolve、嵌入投影、前端导航与显式标题重命名共享“唯一连续后缀”规则。完整路径自然也是自身后缀；不存在或有歧义的 path 保持既有 <code>invalidFragment</code> / <code>ambiguous</code> 结果，不回退到任意同名叶标题。标题重命名根据已解析的 canonical path 计算后缀在完整路径中的偏移，只改写引用实际包含的被改名段。</p>
 <h2 id="_3">数据流（简）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code>Vault Markdown 变更
   → 防抖 scheduleWikiRebuild
