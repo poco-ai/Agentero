@@ -1861,6 +1861,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/ios-remote/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS 远程连接
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/wikilink-heading-reference-stability/" class="md-nav__link">
         
   
@@ -1897,6 +1925,146 @@
     
   
     发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/app-updater/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    应用内更新
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/bug/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 汇总
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/citation-parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考文献解析
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/skill-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    魔棒 GitHub Skill
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/technical-plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    技术方案
   
 
     
@@ -2445,6 +2613,7 @@
 <div class="codehilite"><pre><span></span><code>spawn 用户配置的 agent
   → ACP ready
   → session create / load
+  → available_commands_update → `agent:commands`
   → build_prompt（workflow + 可选 agentPersonalPrompt）
   → 流式 stdout → agent:stream
   → 权限请求 → 前端（ask 模式）
@@ -2482,6 +2651,10 @@
 </tr>
 </tbody>
 </table>
+<p>ACP slash command 不是独立的 <code>session/compact</code> RPC。Host 转发 Agent 广播的
+<code>available_commands_update</code>；前端提交命令时设置 <code>isAcpCommand</code>，Host 跳过
+Agentero prompt envelope、skill/context 注入，并将原始 <code>/command</code> 作为
+<code>session/prompt</code> 发送到当前 provider session。</p>
 <h2 id="_3">权限<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>全局 <code>agentPermissionMode</code>：</p>
 <table>

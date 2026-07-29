@@ -1,0 +1,3990 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agentero 本地优先 Agent 科研工作台文档">
+      
+      
+      
+      
+        <link rel="prev" href="../pdf-analysis/">
+      
+      
+        <link rel="next" href="../wikilink-heading-reference-stability/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>iOS 远程连接 - Agentero 文档</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="grey">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ios-paseo" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="Agentero 文档" class="md-header__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Agentero 文档
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              iOS 远程连接
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../usage/" class="md-tabs__link">
+          
+  
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../frontend/" class="md-tabs__link">
+          
+  
+  
+  前端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../backend/" class="md-tabs__link">
+          
+  
+  
+  后端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  开发草稿
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../test/" class="md-tabs__link">
+          
+  
+  
+  测试
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../bug_fix/deepseek-thinking-body/" class="md-tabs__link">
+          
+  
+  
+  Bug 修复记录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Agentero 文档" class="md-nav__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
+
+    </a>
+    Agentero 文档
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速上手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    安装与首次使用
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/import-papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入和管理论文
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/read-and-organize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    阅读、标注与整理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    接入 Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/zotero/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用 Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/remote-vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    打开远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    前端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    前端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/shell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    工作台壳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dockview 工作区
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/vault-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    文件树
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文库 Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入库 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/markdown/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markdown 编辑
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/pdf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 阅读与划词
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent 面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/command-palette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    命令面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置与主题
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/components/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    组件约定
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    后端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    后端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据模型
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault FS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文入库
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/connector/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent Host
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/remote/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    搜索
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    运行日志
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API 全表
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    开发草稿
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    开发草稿
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    路线图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../todo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TODO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plaza/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    广场 Plaza
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pdf-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 引用与插图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS 远程连接
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS 远程连接
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 背景与决策
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. 背景与决策">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 为什么改方案
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 新定位
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-paseo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. paseo 机制调研摘要
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. paseo 机制调研摘要">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 三方架构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 二维码内容
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-e2ee" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 配对与 E2EE 握手
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 移动端配对实现（源码）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 应用协议与推送
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 借鉴与不照搬
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 总体架构
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 总体架构">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-relay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Relay 服务（自建）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-bridge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 桌面端 Bridge
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. 桌面端 Bridge">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 身份与持久化
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 生命周期
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 与 Vault 的绑定
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 二维码配对
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. 二维码配对">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-offer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Offer 格式
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-ux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 UX 流程
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-paseo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 客户端认证（对 paseo 的安全修正）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-relay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 无 relay 兜底
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-rpc-over-e2ee-ws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 应用协议（RPC over E2EE WS）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 应用协议（RPC over E2EE WS）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 封装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-rpc-tauri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 RPC 方法 = 现有 Tauri 命令面
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 大文件
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 事件转发
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-ios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. iOS 客户端
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. iOS 客户端">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 复用现有前端
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 界面裁剪（手机优先）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-handlersrs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 handlers.rs 收敛
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 离线行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Agent 使用（核心场景）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Agent 使用（核心场景）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 执行位置
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 对话体验
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 权限弹窗
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#84" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.4 通知（分期）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-ssh-vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 与现有 SSH 远程 Vault 的关系
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. 安全模型小结
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. 里程碑
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. 开放问题
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        相关文档
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链调研
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-updater/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    应用内更新
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 汇总
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../citation-parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考文献解析
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skill-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    魔棒 GitHub Skill
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical-plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    技术方案
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    测试
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    测试
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release-checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布前 Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 修复记录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bug 修复记录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/deepseek-thinking-body/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DeepSeek 正文落入 Thinking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/acp-session-resume-id/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ACP 会话恢复 ID 错误
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/ime-composition-enter-submit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    输入法组字 Enter 误发送
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wiki-embed-unrelated-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/dockview-sash-pdf-resize-jank/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    拖动 Dockview 分隔条时 PDF 卡顿
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-acp-path-ssh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远端 ACP PATH / SSH
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-vault-tree-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault 文件树懒加载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/macos-signing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    macOS 签名与公证
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 背景与决策
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. 背景与决策">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 为什么改方案
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 新定位
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-paseo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. paseo 机制调研摘要
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. paseo 机制调研摘要">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 三方架构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 二维码内容
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-e2ee" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 配对与 E2EE 握手
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 移动端配对实现（源码）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 应用协议与推送
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 借鉴与不照搬
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 总体架构
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 总体架构">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-relay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Relay 服务（自建）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-bridge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 桌面端 Bridge
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. 桌面端 Bridge">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 身份与持久化
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 生命周期
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 与 Vault 的绑定
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 二维码配对
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. 二维码配对">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-offer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Offer 格式
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-ux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 UX 流程
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-paseo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 客户端认证（对 paseo 的安全修正）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-relay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 无 relay 兜底
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-rpc-over-e2ee-ws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 应用协议（RPC over E2EE WS）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 应用协议（RPC over E2EE WS）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 封装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-rpc-tauri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 RPC 方法 = 现有 Tauri 命令面
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 大文件
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 事件转发
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-ios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. iOS 客户端
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. iOS 客户端">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 复用现有前端
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 界面裁剪（手机优先）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-handlersrs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 handlers.rs 收敛
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 离线行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Agent 使用（核心场景）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Agent 使用（核心场景）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 执行位置
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 对话体验
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 权限弹窗
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#84" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.4 通知（分期）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-ssh-vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 与现有 SSH 远程 Vault 的关系
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. 安全模型小结
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. 里程碑
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. 开放问题
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        相关文档
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="ios-paseo">iOS 远程连接方案（paseo 式二维码配对）<a class="headerlink" href="#ios-paseo" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>状态：<strong>未实现草稿</strong>。定位在 roadmap 0.7+「平台」切片。
+决策：iOS <strong>不做本地 Vault</strong>，App 是桌面端的纯远程客户端 —— 扫码配对后经 <strong>relay + 端到端加密</strong> 连接电脑上的 Agentero，读写电脑上的库，并驱动电脑上的 BYOA Agent。</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 背景与决策<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<h3 id="11">1.1 为什么改方案<a class="headerlink" href="#11" title="Permanent link">&para;</a></h3>
+<p>原 iOS 预留方案（<code>src-tauri/src/app/handlers.rs</code> 的 <code>common_commands!</code> 集）假设 iOS 设备<strong>本地持有 Vault</strong>：iOS 分支注册了 <code>vault_tree_build</code>、<code>paper_list</code>、<code>vault_search</code> 等本地磁盘命令，但不含 <code>agent_run_once</code>（BYOA 需要 spawn 本机 CLI 子进程，iOS 沙箱做不到）、不含全部 <code>remote_*</code>（SSH 依赖系统 OpenSSH，iOS 没有）。</p>
+<p>这条路线的问题：</p>
+<ul>
+<li>iOS 上没有可用的 ACP Agent（无法 spawn <code>claude</code> / <code>codex</code> 等 CLI）→ 核心能力缺失；</li>
+<li>本地 Vault 需要 iCloud/文件同步方案，与 local-first 的「catalog.sqlite 单写者」冲突；</li>
+<li>手机上维护第二份库，与「电脑是科研工作台」的产品定位不符。</li>
+</ul>
+<h3 id="12">1.2 新定位<a class="headerlink" href="#12" title="Permanent link">&para;</a></h3>
+<p><strong>iOS = 电脑端 Agentero 的远程遥控器 + 阅读器</strong>：</p>
+<ul>
+<li>文件与 catalog 权威<strong>始终在电脑</strong>；iOS 只有缓存，没有事实来源；</li>
+<li>Agent 全部在电脑上运行（复用现有 ACP/BYOA 链路），iOS 只发指令、看流式输出、答权限弹窗；</li>
+<li>配对与连接体验照搬 paseo：<strong>桌面出二维码 → 手机扫码 → relay 中转 + E2EE</strong>，任何网络环境可用，无需公网 IP / 端口转发 / VPN。</li>
+</ul>
+<hr />
+<h2 id="2-paseo">2. paseo 机制调研摘要<a class="headerlink" href="#2-paseo" title="Permanent link">&para;</a></h2>
+<p>调研对象：<strong>源码仓库</strong> <a href="https://github.com/getpaseo/paseo"><code>getpaseo/paseo</code></a>（monorepo，clone 于 <code>~/f/paseo</code>，约 0.2.3）+ 本机 <code>@getpaseo/cli</code> 0.1.53 发行产物 + 本机 <code>~/.paseo/</code> 运行时数据。下文路径均相对 <code>~/f/paseo</code>。</p>
+<blockquote>
+<p><strong>许可证约束（重要）</strong>：paseo 是 <strong>AGPLv3</strong>（<code>LICENSE</code>，Copyright Mohamed Boudra）。Agentero 是 <strong>MIT</strong>（<code>LICENSE</code>）。因此<strong>只能参考其协议设计与交互流程，绝不复制其源码</strong>（含片段、逐行改写）。本方案的所有实现必须独立编写（Rust Host + 现有 React 前端），协议字段名可以兼容/借鉴（接口事实不受版权保护），代码不得搬运。</p>
+</blockquote>
+<h3 id="21">2.1 三方架构<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Client</td>
+<td>移动 App（Expo/React Native，<code>packages/app</code>）/ Web App（<code>app.paseo.sh</code>），协议 <code>role=client</code></td>
+</tr>
+<tr>
+<td>Server（daemon）</td>
+<td>Node 守护进程（<code>packages/server</code>），默认监听 <code>127.0.0.1:6767</code>，同时<strong>主动出站</strong>连 relay</td>
+</tr>
+<tr>
+<td>Relay</td>
+<td>官方 relay 是<strong>独立开源 Elixir 服务</strong> <a href="https://github.com/getpaseo/paseo-relay"><code>getpaseo/paseo-relay</code></a>；monorepo 内另有 Cloudflare Workers + Durable Objects 适配（<code>packages/relay/src/cloudflare-adapter.ts</code>，按 <code>(版本, serverId)</code> 一个 DO 实例）。两者都只做 WS 帧转发，<strong>不持有明文</strong></td>
+</tr>
+</tbody>
+</table>
+<p>选路（<code>public-docs/security.md</code>）：<strong>relay 为推荐路径</strong>（daemon 出站，无需开端口）；直连支持 TCP / Unix socket / named pipe，其中 socket/pipe 仅 CLI 可用，移动端与 Web 必须走网络。直连<strong>不加密</strong>，官方建议配合 Tailscale + 密码认证。</p>
+<h3 id="22">2.2 二维码内容<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<p>daemon 首次启动生成两个长期身份（<code>$PASEO_HOME</code>，默认 <code>~/.paseo/</code>）：</p>
+<ul>
+<li><code>server-id</code>：<code>srv_</code> + 9 随机字节 base64url，兼作 relay 会话 ID；</li>
+<li><code>daemon-keypair.json</code>：Curve25519（NaCl box）静态密钥对，<code>0600</code>。</li>
+</ul>
+<p><code>paseo onboard</code> / <code>paseo daemon pair</code> 组装 <strong>ConnectionOfferV2</strong>（<code>packages/protocol/src/connection-offer.ts:9-17</code>）并渲染二维码：</p>
+<div class="codehilite"><pre><span></span><code>https://app.paseo.sh/#offer=base64url({
+  v: 2,
+  serverId: &quot;srv_…&quot;,
+  daemonPublicKeyB64: &quot;&lt;32B 公钥&gt;&quot;,
+  relay: { endpoint: &quot;relay.paseo.sh:443&quot;, useTls?: true }
+})
+</code></pre></div>
+
+<p>QR = App URL + fragment 中的 offer；解析入口 <code>parseConnectionOfferFromUrl</code>（同文件 :56）。<strong>没有 token、没有挑战值、没有局域网 IP</strong>——offer 是 relay-only。</p>
+<h3 id="23-e2ee">2.3 配对与 E2EE 握手<a class="headerlink" href="#23-e2ee" title="Permanent link">&para;</a></h3>
+<ol>
+<li>App 解析 <code>#offer</code>，连 <code>wss://relay…/ws?serverId=…&amp;role=client&amp;v=2</code>；relay 分配 <code>connectionId</code> 并通过 daemon 的控制通道通知它；</li>
+<li>daemon 为该 connectionId 建一条 <code>role=server&amp;connectionId=…</code> 数据 WS；</li>
+<li>App 生成临时 NaCl 密钥对，发<strong>明文</strong> <code>{"type":"e2ee_hello","key":&lt;clientPub&gt;,"capabilities":{"binaryCiphertext"?}}</code>；双方 X25519 ECDH 得共享密钥，daemon 回 <code>{"type":"e2ee_ready"}</code>（<code>packages/relay/src/encrypted-channel.ts:41-68</code>）；</li>
+<li>之后全部流量 XSalsa20-Poly1305 加密（<code>[24B nonce][密文]</code>，按 capability 走二进制帧或 base64 文本帧）；</li>
+<li>握手可重试：client 未收到 <code>e2ee_ready</code> 时可重发 <code>e2ee_hello</code>，daemon <strong>重发 ready 但不换密钥</strong>（同文件 :44-51 注释）。</li>
+</ol>
+<p><strong>认证模型</strong>（<code>public-docs/security.md</code> 明确承认）：daemon 在握手完成前不处理任何命令，故 relay 无法冒充；但<strong>客户端不被认证</strong>——「QR 码/配对链接就是密码，拿到即可连接」。轮换方式：重启 daemon 生成新会话。直连路径另有可选<strong>密码认证</strong>：bcrypt 存 <code>config.json</code>，HTTP 用 <code>Authorization: Bearer</code>、WS 用 subprotocol 认证，<code>/api/health</code> 豁免。</p>
+<h3 id="24">2.4 移动端配对实现（源码）<a class="headerlink" href="#24" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>关注点</th>
+<th>证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>扫码界面</td>
+<td><code>packages/app/src/app/pair-scan.tsx</code>：<code>expo-camera</code> <code>CameraView</code>，<code>barcodeTypes:["qr"]</code>；只接受含 <code>#offer=</code> 的载荷；扫到后先 <code>connectToDaemon</code> 探活拿 hostname，再 <code>upsertConnectionFromOfferUrl</code> 落库</td>
+</tr>
+<tr>
+<td>三种添加方式</td>
+<td><code>packages/app/src/components/add-host-method-modal.tsx</code>：<strong>直连</strong>（手动 host:port）/ <strong>扫码</strong>（F-Droid 构建下隐藏）/ <strong>粘贴配对链接</strong>（<code>components/pair-link-modal.tsx</code>）。无 mDNS 发现</td>
+</tr>
+<tr>
+<td>多台电脑</td>
+<td><code>packages/app/src/types/host-connection.ts:40-48</code> <code>HostProfile{serverId,label,connections[],preferredConnectionId,...}</code>；一台 host 可有多条通道（<code>relay</code> / <code>directTcp</code> / <code>directSocket</code> / <code>directPipe</code>），按候选顺序回退；<code>orderHostsLocalFirst</code> 本机优先</td>
+</tr>
+<tr>
+<td>持久化</td>
+<td><code>packages/app/src/runtime/host-runtime.ts:1362</code> —— host 列表落 <strong>AsyncStorage</strong>（非 Keychain/SecureStore）；<code>utils/client-id.ts</code> 的 clientId 同样 AsyncStorage</td>
+</tr>
+<tr>
+<td>深链</td>
+<td><code>packages/app/src/app/_layout.tsx:618-655</code> <code>OfferLinkListener</code>：App 外点配对链接可直接入库</td>
+</tr>
+<tr>
+<td>首启</td>
+<td><code>packages/app/src/components/welcome-screen.tsx</code> → <code>pair-scan?source=onboarding</code> → 成功后 <code>router.replace(hostRoot)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="25">2.5 应用协议与推送<a class="headerlink" href="#25" title="Permanent link">&para;</a></h3>
+<ul>
+<li>协议 schema 集中在 <code>packages/protocol/src/messages.ts</code>（zod，被 server/client/app 共享，另有 <code>generated/</code>）：外层 <code>hello</code>（clientId / clientType / protocolVersion / capabilities）+ <code>ping/pong</code> + <code>session</code> 包裹；内层大 discriminated union（agent 流式 timeline、权限请求/应答、文件浏览、终端 PTY、git/PR、schedule/loop…），<code>requestId</code> 关联，<code>clientId</code> 作会话键支持断线恢复。</li>
+<li>传输抽象在 <code>packages/client/src/</code>：<code>daemon-client-websocket-transport.ts</code>（直连）与 <code>daemon-client-relay-e2ee-transport.ts</code>（relay + E2EE）实现同一 <code>daemon-client-transport-types.ts</code> 接口，<code>daemon-client.ts</code> 之上不感知选路。</li>
+<li>推送：App 上报 Expo push token（<code>register_push_token</code>）→ daemon 持久化 <code>push-tokens.json</code> → agent 需关注且<strong>无前台活跃客户端</strong>时，<code>packages/server/src/server/push/push-service.ts</code> 直接 POST Expo Push API。</li>
+</ul>
+<h3 id="26">2.6 借鉴与不照搬<a class="headerlink" href="#26" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>借鉴</th>
+<th>不照搬</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>offer-in-QR（serverId + 公钥 + relay 地址），无账号体系</td>
+<td><strong>代码</strong>：AGPLv3，只参考设计不复制实现</td>
+</tr>
+<tr>
+<td>relay 只转发密文、daemon 出站连接（无公网暴露面）</td>
+<td>客户端零认证（「QR 即密码」）：我们加<strong>配对确认 + 设备密钥</strong>（见 §5.3）</td>
+</tr>
+<tr>
+<td>E2EE：静态 daemon 公钥 + 临时 client 密钥 ECDH，握手前不受理命令</td>
+<td>直连明文 + 可选 bcrypt 密码：我们的直连也走同一套 E2EE</td>
+</tr>
+<tr>
+<td>多 host / 多通道 profile + 候选回退 + 深链配对</td>
+<td>host 凭据存 AsyncStorage：我们存 <strong>iOS Keychain</strong></td>
+</tr>
+<tr>
+<td>双层 WS 协议、requestId 关联、断线会话恢复；transport 接口统一</td>
+<td>Expo 推送与 Node daemon：我们是 Tauri iOS + Rust Host（见 §8.4）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3">3. 总体架构<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<div class="codehilite"><pre><span></span><code>┌─────────────┐   wss (E2EE 密文)   ┌──────────────┐   wss (出站)   ┌───────────────────────┐
+│  iOS App    │ ◄────────────────► │    Relay      │ ◄───────────► │  桌面 Agentero (Host)  │
+│  (Tauri 2,  │                    │ (CF Workers/  │               │  features/bridge/      │
+│   复用 src/) │                    │  自托管, 仅转发)│               │   ├ RPC → 现有命令面    │
+└─────────────┘                    └──────────────┘               │   ├ 事件转发 agent:* 等 │
+      扫码 ▲                                                       │   └ 设备配对/密钥       │
+          └── 桌面 Settings → 远程访问 → 显示二维码 offer            └───────────────────────┘
+</code></pre></div>
+
+<ul>
+<li><strong>桌面 Bridge</strong>（新 feature <code>src-tauri/src/features/bridge/</code>）：桌面 App 内的连接端点，不是独立进程。开关在 Settings → 远程访问（默认关）。开启后向 relay 建立控制通道，并为每个已配对设备的连接建数据通道。</li>
+<li><strong>Relay</strong>：<strong>自建</strong>（决策已定，见 §3.1）。拓扑照 paseo（serverId 路由 + 纯密文转发），代码独立编写（官方 paseo relay 是 AGPL Elixir 服务，不复用）。</li>
+<li><strong>iOS App</strong>：Tauri 2 iOS 壳 + 复用现有 React 前端；不注册任何本地 Vault 命令，所有数据经 Bridge RPC。</li>
+</ul>
+<h3 id="31-relay">3.1 Relay 服务（自建）<a class="headerlink" href="#31-relay" title="Permanent link">&para;</a></h3>
+<p>relay 解决的唯一问题：手机在外网、电脑在 NAT 后面，双方都无法主动连对方 —— relay 是公网<strong>会合点</strong>。它不存数据、不解密、无数据库；因为上层已 E2EE，relay 只见 IP / 时间 / 包大小。本质是一个按 <code>serverId</code> 配对两条 WebSocket 的交换机。</p>
+<p><strong>技术选型</strong>：Cloudflare Workers + Durable Objects。理由：全球 anycast 边缘、原生 WebSocket hibernation、按 DO 名字天然做「每 serverId 一个单点」，无需自己管进程/负载均衡；免费额度对个人与早期用户量级足够。仓库：<strong>独立 repo <a href="https://github.com/poco-ai/agentero-relay"><code>poco-ai/agentero-relay</code></a></strong>（现为 private，实现完成后转公开 MIT 以支持自托管），不进本 monorepo —— 部署节奏（<code>wrangler deploy</code>）与桌面 <code>v*</code> tag 发布无关，CF 凭据也不应进桌面仓库；relay 不解析上层协议，只需共享少量常量（query 参数名、控制消息 type），复制常量比耦合构建更划算。</p>
+<p><strong>路由与角色</strong>（一个 DO 实例 = 一个 <code>serverId</code>）：</p>
+<div class="codehilite"><pre><span></span><code>GET /ws?v=1&amp;serverId=&lt;agt_…&gt;&amp;role=host                       → host-control（每 serverId 唯一）
+GET /ws?v=1&amp;serverId=&lt;agt_…&gt;&amp;role=host&amp;connectionId=&lt;conn_…&gt; → host-data（每设备连接一条）
+GET /ws?v=1&amp;serverId=&lt;agt_…&gt;&amp;role=client                     → client（relay 分配 connectionId）
+</code></pre></div>
+
+<ul>
+<li>client 接入 → DO 分配 <code>conn_&lt;16hex&gt;</code>，经 host-control 下发 <code>{type:"connected",connectionId}</code>；host 建对应 host-data 通道后按 connectionId 一对一转发；</li>
+<li>host-data 未就绪期间 client 帧进环形缓冲（上限 ~200 帧 / 4MB，超限直接关连接，避免 DO 内存放大）；</li>
+<li>断开时向对端发 <code>{type:"disconnected",connectionId}</code>；host-control 重连后经 <code>{type:"sync",connectionIds:[…]}</code> 对账；</li>
+<li>host-control 每 10s 应用层 ping，30s 无响应视为掉线；client 侧指数退避重连（1s→30s，带抖动）。</li>
+</ul>
+<p><strong>relay 自身不做认证</strong>（照 paseo）：<code>serverId</code> 是路由键不是秘密，安全性完全由 Bridge 侧的 E2EE + 设备验签兜底（§5.3）。relay 只做<strong>滥用防护</strong>：每 serverId 并发 client 上限、每 IP 建连速率限制、单帧大小上限、空闲会话回收。</p>
+<p><strong>运维与自托管</strong>：官方实例 <code>bridge.agentero.app</code>（域名待定）；协议与 Worker 源码开源，设置里 relay endpoint 可改（企业/隐私用户自托管）。offer 里携带 <code>relay.endpoint</code>，所以换 relay 只需重新出二维码。日志只记连接元数据（serverId 前缀哈希、时长、字节数），不记内容，不记完整 IP。</p>
+<hr />
+<h2 id="4-bridge">4. 桌面端 Bridge<a class="headerlink" href="#4-bridge" title="Permanent link">&para;</a></h2>
+<h3 id="41">4.1 身份与持久化<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
+<p>存放在 XDG 配置目录（与 <code>settings.json</code> 同级）：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bridge/server-id</code></td>
+<td><code>agt_</code> + 随机 base64url，长期不变</td>
+</tr>
+<tr>
+<td><code>bridge/keypair.json</code></td>
+<td>X25519 静态密钥对（<code>{v, publicKeyB64, secretKeyB64}</code>，0600）</td>
+</tr>
+<tr>
+<td><code>bridge/devices.json</code></td>
+<td>已配对设备列表：<code>{deviceId, name, devicePublicKeyB64, pairedAt, lastSeenAt, revoked}</code></td>
+</tr>
+</tbody>
+</table>
+<p>Rust 侧密码学选型：<code>crypto_box</code>（X25519 + XSalsa20-Poly1305，与 NaCl box 兼容）或 <code>x25519-dalek</code> + <code>chacha20poly1305</code>；nonce 24B 前置，密文走 WS 二进制帧（不做 base64，省流量）。</p>
+<h3 id="42">4.2 生命周期<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Settings 开启「远程访问」→ Bridge 随桌面 App 启动/停止；桌面 App 退出即失联（iOS 端显示「电脑离线」）。</li>
+<li>控制通道：<code>wss://&lt;relay&gt;/ws?serverId=…&amp;role=server</code>，应用层 ping 10s 保活，断线指数退避重连。</li>
+<li>relay 经控制通道下发 <code>{type:"connected", connectionId}</code> → Bridge 建对应数据通道并做 E2EE 握手。</li>
+<li>后续（0.8+）：可选「无界面常驻」模式复用 <code>agentero-cli</code>（<code>agentero bridge serve</code>），电脑不开 GUI 也能连——依赖 CLI 侧补 agent 能力，暂不承诺。</li>
+</ul>
+<h3 id="43-vault">4.3 与 Vault 的绑定<a class="headerlink" href="#43-vault" title="Permanent link">&para;</a></h3>
+<p>Bridge 服务的是<strong>桌面当前打开的 Vault</strong>（多窗口时取发起开关的窗口 session）。切换 Vault 时向已连接设备广播 <code>vault_changed</code>，iOS 端清空面板并重新拉树。不做「iOS 挑选任意历史 Vault」——保持单写者与心智简单。</p>
+<hr />
+<h2 id="5">5. 二维码配对<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<h3 id="51-offer">5.1 Offer 格式<a class="headerlink" href="#51-offer" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// QR 内容：agentero://pair#offer=base64url(JSON)</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="s">&quot;v&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">  </span><span class="s">&quot;serverId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;agt_…&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="s">&quot;hostPublicKeyB64&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;…&quot;</span><span class="p">,</span><span class="w">         </span><span class="c1">// Bridge 静态公钥</span>
+<span class="w">  </span><span class="s">&quot;relay&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;endpoint&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;bridge.agentero.example:443&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="s">&quot;hostName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Phil 的 MacBook Pro&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// 展示用</span>
+<span class="w">  </span><span class="s">&quot;pin&quot;</span><span class="p">:</span><span class="w"> </span><span class="n">false</span><span class="w">                       </span><span class="c1">// 预留：true 时要求确认码</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<ul>
+<li>主 scheme 用 <code>agentero://pair</code>（App 已安装场景，Universal Link 域名后置）；桌面同时提供<strong>可复制配对链接</strong>，iOS 侧支持「粘贴链接」与深链直接入库（照 paseo 的三入口：扫码 / 粘贴 / 手动直连）。</li>
+<li>与 paseo 同构：offer 不含 token、不含局域网 IP；但拿到 offer ≠ 拿到访问权（见 5.3，与 paseo 的关键差异）。</li>
+</ul>
+<h3 id="52-ux">5.2 UX 流程<a class="headerlink" href="#52-ux" title="Permanent link">&para;</a></h3>
+<p>桌面：Settings → 远程访问 → 开启 → 显示二维码 + 可复制配对链接（含「重新生成身份」按钮，等价踢掉所有设备）。</p>
+<p>iOS 首启：</p>
+<ol>
+<li>欢迎页只有一个动作：「扫码连接电脑」（<code>NSCameraUsageDescription</code>）；</li>
+<li>扫码 → 解析 offer → 生成本机长期设备密钥对（存 Keychain）→ 连 relay → E2EE 握手；</li>
+<li>发送 <code>pair_request {deviceId, deviceName, devicePublicKeyB64}</code>；</li>
+<li><strong>桌面弹确认</strong>：「iPhone 15 Pro 请求连接，确认码 483-921」，iOS 同屏显示相同确认码，用户在桌面点允许；</li>
+<li>桌面把设备写入 <code>devices.json</code>，回 <code>pair_ok</code>；iOS 保存 <code>{offer, deviceKeypair}</code>，进入主界面。</li>
+</ol>
+<p>再次启动：直接用保存的 offer + 设备密钥静默重连；失败时显示离线态与「重新扫码」入口。</p>
+<p><strong>多台电脑</strong>：借鉴 paseo 的 <code>HostProfile</code> 模型 —— iOS 侧保存 <code>hosts[]</code>（每台 <code>{serverId, label, connections[], preferredConnectionId}</code>，一台 host 可同时有 relay 与 LAN 两条通道，按候选顺序回退），顶部可切换当前电脑。与 paseo 不同：凭据（设备私钥 + host 公钥）存 <strong>iOS Keychain</strong>，不落 AsyncStorage 明文。</p>
+<h3 id="53-paseo">5.3 客户端认证（对 paseo 的安全修正）<a class="headerlink" href="#53-paseo" title="Permanent link">&para;</a></h3>
+<p>paseo 不认证客户端（见 §2.3），我们补三层：</p>
+<ol>
+<li><strong>配对确认</strong>：首次连接必须桌面侧人工允许 + 双端确认码比对（防 offer 泄露后被静默配对）；</li>
+<li><strong>设备密钥</strong>：E2EE 握手后加一步挑战签名——Bridge 发随机 nonce，设备用长期 Ed25519 设备私钥签名，Bridge 对照 <code>devices.json</code> 中登记的公钥验签；未登记/已吊销设备只允许发 <code>pair_request</code>；</li>
+<li><strong>设备管理</strong>：Settings → 远程访问列出已配对设备（名称 / 最近在线），可单个吊销；「重新生成身份」全量作废。</li>
+</ol>
+<h3 id="54-relay">5.4 无 relay 兜底<a class="headerlink" href="#54-relay" title="Permanent link">&para;</a></h3>
+<p>relay 不可达时（自托管用户 / 断网内网）：offer 的 <code>relay.endpoint</code> 可换成 <code>lan:&lt;host&gt;:&lt;port&gt;</code> 直连桌面 Bridge 本地监听端口，E2EE 与设备认证流程<strong>完全相同</strong>——这优于 paseo（其直连不加密，只有可选 bcrypt 密码，官方建议叠 Tailscale）。iOS 需 <code>NSLocalNetworkUsageDescription</code>；同样支持手动输入 <code>host:port</code>（Tailscale IP 场景）。此项为 P2，不进 MVP。</p>
+<hr />
+<h2 id="6-rpc-over-e2ee-ws">6. 应用协议（RPC over E2EE WS）<a class="headerlink" href="#6-rpc-over-e2ee-ws" title="Permanent link">&para;</a></h2>
+<h3 id="61">6.1 封装<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
+<p>沿用 paseo 双层结构，JSON 编码：</p>
+<div class="codehilite"><pre><span></span><code><span class="o">//</span><span class="w"> </span><span class="err">外层</span>
+<span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;hello&quot;</span><span class="p">,</span><span class="s2">&quot;deviceId&quot;</span><span class="p">:</span><span class="s2">&quot;…&quot;</span><span class="p">,</span><span class="s2">&quot;protocolVersion&quot;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="s2">&quot;appVersion&quot;</span><span class="p">:</span><span class="s2">&quot;0.7.0&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;ping&quot;</span><span class="p">}</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;pong&quot;</span><span class="p">}</span>
+<span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;rpc&quot;</span><span class="p">,</span><span class="s2">&quot;id&quot;</span><span class="p">:</span><span class="s2">&quot;req_42&quot;</span><span class="p">,</span><span class="s2">&quot;method&quot;</span><span class="p">:</span><span class="s2">&quot;paper_list&quot;</span><span class="p">,</span><span class="s2">&quot;params&quot;</span><span class="p">:{</span><span class="err">…</span><span class="p">}}</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">iOS</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="err">桌面</span>
+<span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;rpc_result&quot;</span><span class="p">,</span><span class="s2">&quot;id&quot;</span><span class="p">:</span><span class="s2">&quot;req_42&quot;</span><span class="p">,</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span><span class="bp">true</span><span class="p">,</span><span class="s2">&quot;data&quot;</span><span class="p">:{</span><span class="err">…</span><span class="p">}}</span><span class="w">              </span><span class="o">//</span><span class="w"> </span><span class="err">桌面</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">iOS</span>
+<span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;event&quot;</span><span class="p">,</span><span class="s2">&quot;name&quot;</span><span class="p">:</span><span class="s2">&quot;agent:stream&quot;</span><span class="p">,</span><span class="s2">&quot;payload&quot;</span><span class="p">:{</span><span class="err">…</span><span class="p">}}</span><span class="w">                  </span><span class="o">//</span><span class="w"> </span><span class="err">桌面</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">iOS</span><span class="w"> </span><span class="err">推送</span>
+</code></pre></div>
+
+<p><code>hello</code> 后桌面回 <code>server_info {serverId, hostName, appVersion, vault:{name, root}}</code>。<code>deviceId</code> 作会话键：短暂断线重连不丢 agent 订阅。</p>
+<h3 id="62-rpc-tauri">6.2 RPC 方法 = 现有 Tauri 命令面<a class="headerlink" href="#62-rpc-tauri" title="Permanent link">&para;</a></h3>
+<p>Bridge 不发明新领域 API：<code>method</code> 直接映射到现有 <code>#[tauri::command]</code> 背后的领域函数（<code>features/catalog/papers.rs</code>、<code>features/vault/tree.rs</code>、<code>features/search/mod.rs</code> 均以 <code>&amp;Path</code> 为根、不依赖 Tauri State，天然可复用）。白名单制：</p>
+<table>
+<thead>
+<tr>
+<th>组</th>
+<th>方法（首批）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vault</td>
+<td><code>vault_tree_build</code> / <code>vault_tree_children</code> / <code>vault_read_text</code> / <code>vault_write_text</code> / <code>vault_search</code></td>
+</tr>
+<tr>
+<td>Catalog</td>
+<td><code>paper_list</code> / <code>paper_get</code> / <code>paper_set_tags</code> / <code>paper_set_is_read</code></td>
+</tr>
+<tr>
+<td>文件</td>
+<td><code>bridge_read_bytes</code>（分块拉 PDF/图片，见 6.3）</td>
+</tr>
+<tr>
+<td>Agent</td>
+<td><code>agent_run_once</code> / <code>agent_cancel</code> / <code>agent_respond_permission</code> / <code>agent_list_sessions</code> / <code>agent_load_session</code></td>
+</tr>
+<tr>
+<td>Wiki</td>
+<td><code>wiki_backlinks</code> / <code>wiki_graph</code>（P1）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>不暴露</strong>：<code>remote_*</code>（SSH）、window/terminal/finder、Zotero connector、settings 写入、任意绝对路径读写（所有 path 参数强制 Vault 相对路径 + canonicalize 防逃逸）。</p>
+<h3 id="63">6.3 大文件<a class="headerlink" href="#63" title="Permanent link">&para;</a></h3>
+<p><code>bridge_read_bytes {path, offset, len}</code> 分块（256KB）传输，iOS 端拼装后存 App 沙箱 LRU 缓存（对齐现有 <code>blob_cache.rs</code> 语义），PDF/图片预览走本地 blob。带 <code>{size, mtime, sha256}</code> 头做缓存校验。</p>
+<h3 id="64">6.4 事件转发<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
+<p>桌面 Host 现有按窗口 emit 的事件（<code>events.rs</code>）增加一路 Bridge sink，按订阅转发给设备：</p>
+<ul>
+<li><code>agent:stream</code> / <code>agent:completed</code> / <code>agent:failed</code> / <code>agent:tool</code> / <code>agent:plan</code> / <code>agent:usage</code> / <code>agent:permission-request</code>；</li>
+<li><code>vault:file-changed</code>（驱动 iOS 端打开中的 NOTES.md 自动重载）；</li>
+<li><code>vault_changed</code>（§4.3）。</li>
+</ul>
+<hr />
+<h2 id="7-ios">7. iOS 客户端<a class="headerlink" href="#7-ios" title="Permanent link">&para;</a></h2>
+<h3 id="71">7.1 复用现有前端<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tauri 2 iOS 工程（<code>src-tauri/gen/apple/</code> 已有 <code>tauri ios init</code> 骨架），前端仍是 <code>src/</code> 的 React 代码；</li>
+<li>关键抽象：在 <code>src/lib/core/</code> 加 <strong>transport 层</strong> —— 桌面构建下 <code>invoke</code> 直连本地命令；iOS 构建下同名调用路由到 Bridge RPC（WS 客户端可放 Rust 侧、经本地 <code>invoke("bridge_rpc")</code> 代理，密钥不出 Rust）；</li>
+<li>Vault handle 采用伪路径 <code>bridge:&lt;serverId&gt;</code>，复用现有 <code>isRemoteVaultHandle</code> 式分流经验（远端已有 <code>remote:&lt;sessionId&gt;</code> 先例）：跳过 fs-watch、跳过本地 wiki 索引（wiki 数据改从 RPC 拿）。</li>
+</ul>
+<h3 id="72">7.2 界面裁剪（手机优先）<a class="headerlink" href="#72" title="Permanent link">&para;</a></h3>
+<p>不搬桌面三栏 Dockview。iOS MVP 四个面板：</p>
+<table>
+<thead>
+<tr>
+<th>Tab</th>
+<th>内容</th>
+<th>复用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Library</td>
+<td>论文列表（搜索 / 标签筛选 / 已读态）</td>
+<td><code>paper_list</code> 数据模型</td>
+</tr>
+<tr>
+<td>阅读</td>
+<td>PDF 预览（分块缓存）+ NOTES.md 只读→可编辑</td>
+<td>pdf.js / Markdown 渲染</td>
+</tr>
+<tr>
+<td>Agent</td>
+<td>对话面板，等价桌面禅模式（AgentPanel <code>variant="zen"</code> 思路）</td>
+<td>AI Elements</td>
+</tr>
+<tr>
+<td>设置</td>
+<td>连接状态 / 已配对电脑 / 重新扫码 / 断开</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>iPad 后续可回到双栏（Library + 阅读/Agent 分屏）。</p>
+<h3 id="73-handlersrs">7.3 handlers.rs 收敛<a class="headerlink" href="#73-handlersrs" title="Permanent link">&para;</a></h3>
+<p>原 <code>common_commands!</code> iOS 分支的本地 Vault 命令<strong>移除</strong>；iOS 目标只注册：<code>bridge_pair_scan</code>（相机结果入口）、<code>bridge_connect/disconnect/status</code>、<code>bridge_rpc</code>、<code>settings_get/set</code>（仅 App 本地偏好）、translate（可选，走免费 MT 直连）。桌面命令集不变。</p>
+<h3 id="74">7.4 离线行为<a class="headerlink" href="#74" title="Permanent link">&para;</a></h3>
+<ul>
+<li>已缓存的 PDF / 最近打开的 NOTES 只读可看；</li>
+<li>一切写操作与 Agent 需在线；离线时置灰并提示「电脑离线」；</li>
+<li>不做离线写回队列（单写者原则，避免冲突语义）。</li>
+</ul>
+<hr />
+<h2 id="8-agent">8. Agent 使用（核心场景）<a class="headerlink" href="#8-agent" title="Permanent link">&para;</a></h2>
+<h3 id="81">8.1 执行位置<a class="headerlink" href="#81" title="Permanent link">&para;</a></h3>
+<p>Agent <strong>只在桌面</strong>运行：iOS 发 <code>agent_run_once</code> RPC → 桌面走完全现成的链路（<code>resolve</code> 默认 agent → ACP spawn → <code>build_prompt</code> envelope，含 <code>agentPersonalPrompt</code>）→ 事件经 §6.4 流回 iOS。iOS 不装、不 spawn 任何 CLI。</p>
+<h3 id="82">8.2 对话体验<a class="headerlink" href="#82" title="Permanent link">&para;</a></h3>
+<ul>
+<li>iOS Agent 面板 = 精简禅模式：流式 markdown、tool call 折叠、plan 展示，全部复用 AI Elements 组件；</li>
+<li>上下文 chips：当前打开论文默认加入（与桌面一致）；<code>@</code> 提及数据源改走 <code>vault_tree_children</code> RPC；</li>
+<li>运行中锁屏/切后台：桌面侧继续跑（这是远程执行的天然优势）；回前台经 <code>agent_load_session</code> 补齐时间线。</li>
+</ul>
+<h3 id="83">8.3 权限弹窗<a class="headerlink" href="#83" title="Permanent link">&para;</a></h3>
+<p><code>agent:permission-request</code> 事件转发到 iOS → 原生风格弹窗（Allow / Deny）→ <code>agent_respond_permission</code> RPC 回传。全局权限模式沿用桌面设置（<code>restricted/ask/auto</code>），iOS 只读展示当前模式、不可改（避免手机上误开 auto）。</p>
+<h3 id="84">8.4 通知（分期）<a class="headerlink" href="#84" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>P0</strong>：App 在前台时应用内横幅（agent 完成 / 需权限）；</li>
+<li><strong>P1</strong>：本地通知——iOS 的 WS 后台存活受限，效果有限，明确不承诺；</li>
+<li><strong>P2</strong>：APNs 远程推送。参考 paseo 的 attention 策略（有前台活跃客户端就不推）；需要一个推送微服务（可与 relay 同部署）持有 APNs key，推送体只含「需要你的关注」级别信息，不带正文（保持 E2EE 语义）。</li>
+</ul>
+<hr />
+<h2 id="9-ssh-vault">9. 与现有 SSH 远程 Vault 的关系<a class="headerlink" href="#9-ssh-vault" title="Permanent link">&para;</a></h2>
+<p>两条远程链路<strong>并存、不合并</strong>：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>remote:</code> (现有)</th>
+<th><code>bridge:</code> (本方案)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>拓扑</td>
+<td>桌面 Agentero → SSH → 服务器</td>
+<td>iOS → relay → 桌面 Agentero</td>
+</tr>
+<tr>
+<td>传输</td>
+<td>系统 OpenSSH/SFTP</td>
+<td>WS + E2EE（自实现）</td>
+</tr>
+<tr>
+<td>catalog</td>
+<td>work mirror + push-back</td>
+<td>无镜像，RPC 直查桌面</td>
+</tr>
+<tr>
+<td>Agent</td>
+<td>远端 SSH spawn</td>
+<td>桌面本机 spawn</td>
+</tr>
+<tr>
+<td>客户端</td>
+<td>macOS/Linux 桌面</td>
+<td>iOS</td>
+</tr>
+</tbody>
+</table>
+<p>组合场景天然成立：iOS → 桌面 → （桌面已打开 <code>remote:</code> Vault）→ 服务器。Bridge 的 RPC 打到桌面当前 Vault 的命令面即可，无需感知底层是本地盘还是 SFTP（首版可先限制为本地 Vault，验证后放开）。</p>
+<h2 id="10">10. 安全模型小结<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>relay 零信任</strong>：只见密文与握手公钥；serverId 是路由键不是秘密；</li>
+<li><strong>握手前不受理命令</strong>（与 paseo 一致）：E2EE + 设备验签未完成时，Bridge 只接受 <code>pair_request</code>；</li>
+<li><strong>offer 泄露</strong>：对方最多能发 <code>pair_request</code>，需桌面人工允许 + 确认码（<strong>优于 paseo 的「QR 即密码」</strong>）；</li>
+<li><strong>设备被盗</strong>：桌面端可吊销单个设备；「重新生成身份」全量作废；</li>
+<li><strong>命令面</strong>：白名单 + Vault 相对路径校验，无 shell、无任意文件系统访问；Agent 的写操作仍受桌面权限模式约束；</li>
+<li><strong>密钥存放</strong>：桌面 0600 文件；iOS 设备私钥进 Keychain（<code>kSecAttrAccessibleAfterFirstUnlock</code>），不落明文 storage。</li>
+</ul>
+<h2 id="11_1">11. 里程碑<a class="headerlink" href="#11_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>内容</th>
+<th>验收</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M0 Relay</td>
+<td>独立 repo <code>agentero-relay</code>：CF Workers + DO，三角色路由、缓冲、限流、部署到官方域名</td>
+<td>两个 <code>wscat</code> 客户端经 relay 互通；断线重连与 sync 对账通过</td>
+</tr>
+<tr>
+<td>M1 Bridge 内核</td>
+<td><code>features/bridge/</code>：身份/密钥、relay 控制+数据通道、E2EE、设备配对与验签、RPC 白名单映射；Settings 开关 + 二维码</td>
+<td>桌面↔桌面模拟 client 经<strong>真实 relay</strong> 跑完配对 + RPC + Agent 流式 e2e</td>
+</tr>
+<tr>
+<td>M2 iOS MVP</td>
+<td>扫码配对 + Library / 阅读（PDF+NOTES 只读）/ Agent 对话 + 权限应答</td>
+<td>TestFlight 内测；<code>docs/development/release.md</code> 上架清单</td>
+</tr>
+<tr>
+<td>M3 打磨</td>
+<td>NOTES 编辑（含保存冲突检查）、标签/已读、wiki backlinks、多主机切换、iPad 双栏</td>
+<td>—</td>
+</tr>
+<tr>
+<td>P2 之后</td>
+<td>APNs 推送、LAN 直连兜底（含 Tailscale 手动地址）、headless <code>agentero bridge serve</code>、<code>remote:</code> Vault 透传</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="12_1">12. 开放问题<a class="headerlink" href="#12_1" title="Permanent link">&para;</a></h2>
+<ul>
+<li>relay 域名与免费额度耗尽后的成本分担（官方实例托底 + 自托管开放，已定；定价/限额策略未定）；</li>
+<li>协议 schema 的单一来源：Rust 定义 + 生成 TS 类型（<code>ts-rs</code>/specta），避免手写两份；</li>
+<li>iOS 端 Markdown 编辑器裁剪范围（桌面 CodeMirror 栈在移动端的可用性）；</li>
+<li>多设备同时在线的写并发（MVP：允许多设备连接，写入走桌面现有保存冲突检查即可）。</li>
+</ul>
+<h2 id="_1">相关文档<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<ul>
+<li>调研来源：paseo <code>@getpaseo/{cli,server,relay}</code> 发行产物（§2 有函数/文件级证据）</li>
+<li><a href="../../backend/remote/">../backend/remote.md</a> · <a href="../../backend/agent/">../backend/agent.md</a> · <a href="../../backend/catalog/">../backend/catalog.md</a></li>
+<li><a href="../release/">release.md</a>（iPadOS/iOS 上架清单） · <a href="../roadmap/">roadmap.md</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.tracking", "navigation.top", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

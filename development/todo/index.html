@@ -1839,6 +1839,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../ios-remote/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS 远程连接
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../wikilink-heading-reference-stability/" class="md-nav__link">
         
   
@@ -1875,6 +1903,146 @@
     
   
     发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-updater/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    应用内更新
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 汇总
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../citation-parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考文献解析
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skill-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    魔棒 GitHub Skill
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical-plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    技术方案
   
 
     
@@ -2395,6 +2563,7 @@
 <h2 id="03-agent">0.3 — 入库与 Agent 补强<a class="headerlink" href="#03-agent" title="Permanent link">&para;</a></h2>
 <ul>
 <li>[ ] 关键词/描述 → Agent 候选列表确认后入库</li>
+<li>[ ] 魔棒解析 GitHub / <code>npx skills</code> → Skill 装入 <code>.agents/skills/</code>（<a href="https://github.com/poco-ai/Agentero/issues/118">#118</a>，见 <a href="../skill-import/">skill-import.md</a>）</li>
 <li>[ ] 本机 Translator sidecar 捆绑（可选）</li>
 <li>[ ] 前端 <code>afterPaperImport</code> 策略表统一各入口后置</li>
 <li>[ ] Zotero 迁移走 <code>paper_commit</code>；remote 镜像层收敛；统一 <code>paper:imported</code> 事件</li>
@@ -2421,10 +2590,14 @@
 <li>[ ] 从发现流解析 URL → 魔棒入库（可后置）</li>
 </ul>
 <h2 id="06">0.6 — 引用关系<a class="headerlink" href="#06" title="Permanent link">&para;</a></h2>
-<p>设计稿：<a href="../pdf-analysis/"><code>pdf-analysis.md</code></a></p>
+<p>设计稿：<a href="../pdf-analysis/"><code>pdf-analysis.md</code></a> · <a href="../citation-parsing/"><code>citation-parsing.md</code></a></p>
 <ul>
+<li>[x] 参考文献元数据解析 M1：S2/Crossref 在线 + 本地 bib/bbl → <code>agentero-cite.json</code> sidecar + 库内匹配 + <code>citationOnlineEnabled</code> 开关（Host <code>features/refs/</code>）</li>
+<li>[x] 引用侧栏 References 卡片（右侧栏 tab：编号/标题/作者·年份·venue/DOI·arXiv 徽标/已入库打开/未入库导入/过滤/重解析）</li>
+<li>[ ] 文中 citation ↔ 引用卡片 hover/click 双向联动（依赖 PDF anchors，见 pdf-analysis P1–P3）</li>
 <li>[ ] 本地 PDF citation/figure sidecar + Paper Content 侧栏</li>
 <li>[ ] 文内引用 hover → Paper Info</li>
+<li>[ ] Agent <code>#</code> 编号提及 + 引用卡片拖拽（citation-parsing M3/M5）</li>
 <li>[ ] cites/cited_by 缓存 + Connected Papers 式邻域 UI</li>
 <li>[ ] Agent：Explore citations / Map related work / Ingest neighborhood</li>
 <li>[ ] PDF 正文层检索；搜索历史/过滤；命令注册表 + MRU</li>
@@ -2437,7 +2610,8 @@
 <li>[ ] 翻译：更多 adapter / 消费方 / 词典</li>
 <li>[ ] 更多 Skills（多篇对比、Idea 评估、实验复现清单等）</li>
 <li>[ ] 自动 changelog；多 arch artifact 命名</li>
-<li>[ ] iPad / Git 集成 / 可选云同步</li>
+<li>[ ] iOS/iPad 纯远程客户端：Bridge + 二维码配对 + relay E2EE + 远程 Agent（<a href="../ios-remote/"><code>ios-remote.md</code></a>）</li>
+<li>[ ] Git 集成 / 可选云同步</li>
 <li>[ ] 引用图 deeper（聚类、作者机构图）</li>
 <li>[ ] CLI domain 抽离独立 crate（仅当边界成为问题时）</li>
 </ul>

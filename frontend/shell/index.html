@@ -1861,6 +1861,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/ios-remote/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS 远程连接
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/wikilink-heading-reference-stability/" class="md-nav__link">
         
   
@@ -1897,6 +1925,146 @@
     
   
     发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/app-updater/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    应用内更新
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/bug/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 汇总
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/citation-parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考文献解析
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/skill-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    魔棒 GitHub Skill
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/technical-plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    技术方案
   
 
     
@@ -2439,7 +2607,8 @@
 <ul>
 <li><strong>左栏</strong>：文件树 + 选中论文时 Paper Info（无卡片容器、常驻 collapsible；上边缘可拖拽调整高度，<code>preserve-pixel-size</code>）。</li>
 <li><strong>中间</strong>：无 Vault 欢迎页；有 Vault 时为全局 Dockview（见 <a href="../workspace/">workspace.md</a>）。</li>
-<li><strong>右栏</strong>（可选）：Agent 或 Backlinks（同样 collapsible）。</li>
+<li><strong>右栏</strong>（可选）：Agent / Backlinks / 批注 / <strong>References</strong>（同样 collapsible）。</li>
+<li>References：当前激活 paper 的参考文献卡片（数据来自 <code>agentero-cite.json</code> sidecar，Host <code>paper_refs_list</code> / <code>paper_refs_parse</code>）。卡片含编号 <code>[n]</code>、标题（无标题回退 raw）、首作者 et al. · 年份 · venue、DOI/arXiv 徽标；已入库（<code>localMatch</code>）卡片点击打开库内论文，未入库 hover 出「导入文库」（走魔棒管线）；顶部过滤框 + header 重解析按钮。实现：<code>src/components/viewer/references-panel.tsx</code>、<code>src/lib/paper/refs.ts</code>。</li>
 <li>左右栏折叠：<code>⌥⌘S</code> / <code>⌘L</code>（不重叠）。</li>
 </ul>
 <p>实现：<code>src/components/shell/</code>、<code>src/lib/shell/ui-store.ts</code>、<code>hooks/use-zen-layout.ts</code>。</p>
