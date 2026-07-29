@@ -612,6 +612,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用 Skill
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="使用 Skill">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#skill_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        安装 Skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skill_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        运行 Skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2623,6 +2662,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用 Skill
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="使用 Skill">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#skill_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        安装 Skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skill_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        运行 Skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2813,6 +2891,18 @@
 <li>发起一次测试对话，确认能访问当前 Vault。</li>
 </ol>
 <p>若终端里能跑、应用内探测不到：图形应用的 PATH 可能与 shell 不同，请填写<strong>绝对路径</strong>。远程 Vault 时，Agent 装在<strong>服务器</strong>上，见 <a href="../remote-vault/">打开远程 Vault</a>。</p>
+<h2 id="skill">使用 Skill<a class="headerlink" href="#skill" title="Permanent link">&para;</a></h2>
+<p>Agentero 的 Skill 是放在 Vault <code>.agents/skills/&lt;name&gt;/</code> 下的 prompt 包，含 <code>SKILL.md</code> 与可选的 <code>scripts/</code>、<code>references/</code>、<code>assets/</code>。</p>
+<h3 id="skill_1">安装 Skill<a class="headerlink" href="#skill_1" title="Permanent link">&para;</a></h3>
+<ol>
+<li>复制 GitHub Skill 链接，或 <code>npx skills add &lt;repo&gt; --skill &lt;name&gt;</code> 文本。</li>
+<li>打开魔棒（<code>⇧⌘I</code>）并粘贴。</li>
+<li>在弹出的选择窗口中勾选要安装的 Skill；已安装的会标记出来，不会被覆盖。</li>
+<li>确认后 Skill 写入 <code>.agents/skills/&lt;name&gt;/</code>，即可在 Agent 工作流中使用。</li>
+</ol>
+<p>Skill 来源不受 Agentero 审计，安装第三方 Skill 等于引入外部指令，请自行判断信任度。</p>
+<h3 id="skill_2">运行 Skill<a class="headerlink" href="#skill_2" title="Permanent link">&para;</a></h3>
+<p>在 Agent 面板 Composer 中按 Agent 约定触发：Claude 用 <code>/skill-id</code>，其他 Agent 由 <code>SKILL.md</code> 自动注入。具体写法见 Skill 自身的 <code>SKILL.md</code>。</p>
 <h2 id="_2">第一次对话<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ol>
 <li>打开一篇论文（默认 PDF | NOTES 分屏）。</li>

@@ -546,6 +546,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        同时导入 Skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2585,6 +2596,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        同时导入 Skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2751,6 +2773,10 @@
 <td>魔棒（可批量粘贴）</td>
 </tr>
 <tr>
+<td>GitHub Skill 链接或 <code>npx skills add …</code></td>
+<td>魔棒（Skill 导入）</td>
+</tr>
+<tr>
 <td>浏览器中正在打开的论文网页</td>
 <td><a href="../zotero/">Zotero Connector</a></td>
 </tr>
@@ -2772,11 +2798,24 @@
 <ol>
 <li>打开一个 Vault。</li>
 <li>点击左侧 <strong>魔棒</strong>，或按 <code>⇧⌘I</code>。</li>
-<li>粘贴一个或多个标识符（空格、逗号、分号、换行均可分隔）。</li>
+<li>粘贴一个或多个标识符或 Skill 来源（空格、逗号、分号、换行均可分隔）。</li>
 <li>确认目标文件夹（默认为 <code>papers/</code>，或当前选中的 Papers 子文件夹）。</li>
 <li>开始导入；左下角任务条会显示进度。</li>
 </ol>
 <p>导入成功后，Agentero 会创建论文目录、写入 catalog，并尽量下载 PDF。对 arXiv 论文还会尝试把 e-print LaTeX 解压到 <code>source/</code>。随后会刷新文件树、展开并打开新论文。</p>
+<h3 id="skill">同时导入 Skill<a class="headerlink" href="#skill" title="Permanent link">&para;</a></h3>
+<p>魔棒也支持把 GitHub 上的 Agent Skill 装入当前 Vault：</p>
+<div class="codehilite"><pre><span></span><code>https://github.com/mattpocock/skills
+npx skills add https://github.com/anthropics/skills --skill pptx
+</code></pre></div>
+
+<ol>
+<li>粘贴 Skill 来源后，Agentero 会解析仓库并列出候选 Skill。</li>
+<li>弹出的选择窗口会显示名称与已安装状态；勾选需要的项。</li>
+<li>确认后仅安装选中 Skill 到 <code>.agents/skills/&lt;name&gt;/</code>；已存在的 Skill 不会覆盖。</li>
+<li>取消或关闭窗口会清理本次解析的临时包，不会修改 Vault。</li>
+</ol>
+<p>Skill 导入当前<strong>仅支持本地 Vault</strong>，远程 Vault 会提示暂不支持。</p>
 <div class="codehilite"><pre><span></span><code>papers/&lt;paper-id&gt;/
 ├── NOTES.md              # 笔记壳（不覆盖你已有内容）
 ├── &lt;paper-id&gt;.pdf        # 能下到时
