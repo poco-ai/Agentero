@@ -1184,6 +1184,17 @@
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
+        应用更新
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
         主题
       
     </span>
@@ -1203,7 +1214,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -2071,34 +2082,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/app-updater/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    应用内更新
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -2573,6 +2556,17 @@
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
+        应用更新
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
         主题
       
     </span>
@@ -2592,7 +2586,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -2657,9 +2651,21 @@
 <td>翻译</td>
 <td>服务与语言</td>
 </tr>
+<tr>
+<td>关于</td>
+<td>版本信息与应用更新</td>
+</tr>
 </tbody>
 </table>
-<h2 id="_4">主题<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_4">应用更新<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<ul>
+<li>正式桌面构建的主窗口会在启动后异步检查一次稳定版更新，不阻塞首屏或 Vault 初始化；检查失败只记日志。</li>
+<li>设置 → 关于可手动检查。发现新版后显示版本和 Release notes，用户点击「安装并重启」后才下载、验证、安装并重启；不会静默替换应用。</li>
+<li>更新包由 Tauri Updater 使用内置公钥验证签名，并根据当前系统/架构从 GitHub Release 的 <code>latest.json</code> 选择产物。</li>
+<li>浏览器预览、<code>pnpm tauri dev</code>、移动端不检查更新；设置页会说明该限制。</li>
+<li>只有 GitHub <strong>已发布</strong>的稳定版 Release 可作为更新源；Draft 和 prerelease 不会推送给普通稳定版用户。</li>
+</ul>
+<h2 id="_5">主题<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>uiTheme</code> 默认 <code>default</code>（内置外观）。</li>
 <li>外观设置中的配色主题以紧凑预览网格展示背景、卡片、主色和强调色；点击预览项即可应用主题。</li>
@@ -2672,10 +2678,11 @@
 <li>用户文案一律 <code>t()</code> / <code>react-i18next</code>；en 源语言，同步 <code>zh-CN</code>。</li>
 <li>词条：<code>src/i18n/locales/</code>。</li>
 </ul>
-<h2 id="_5">代码<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">代码<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li>UI：<code>src/components/settings/</code></li>
 <li>状态：<code>src/lib/settings/</code></li>
+<li>更新服务：<code>src/lib/update/</code></li>
 </ul>
 
 

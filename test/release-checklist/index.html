@@ -1964,34 +1964,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/app-updater/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    应用内更新
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -3565,6 +3537,20 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>全部通过</td>
 <td>☐</td>
 </tr>
+<tr>
+<td>0.2.2</td>
+<td>GitHub Actions</td>
+<td>Release job 的 updater secret 校验</td>
+<td><code>TAURI_SIGNING_PRIVATE_KEY</code> 和密码缺失时在创建 Draft 前失败</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>0.2.3</td>
+<td>Draft Release</td>
+<td>检查 updater 资产</td>
+<td>有 <code>latest.json</code>、各平台 updater 包与对应 <code>.sig</code>；<code>latest.json</code> 包含每个平台的 URL 和签名</td>
+<td>☐</td>
+</tr>
 </tbody>
 </table>
 <h3 id="03">0.3 安装启动<a class="headerlink" href="#03" title="Permanent link">&para;</a></h3>
@@ -3591,6 +3577,20 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>欢迎页</td>
 <td>不打开 Vault，空看界面</td>
 <td>同一行有 Create / Open / Open remote / Migrate from Zotero + Recent 列表；无大段说明文案</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>0.3.3</td>
+<td>设置 → 关于</td>
+<td>已安装旧版时检查已发布新版，点「安装并重启」</td>
+<td>有新版提示、下载进度；重启后 About 显示新版本</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>0.3.4</td>
+<td>主窗口</td>
+<td>启动已安装旧版</td>
+<td>首屏不阻塞；有新版时只出现一个「安装并重启」Toast；无更新或离线时不弹错误</td>
 <td>☐</td>
 </tr>
 </tbody>

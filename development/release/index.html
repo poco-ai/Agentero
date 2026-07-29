@@ -14,7 +14,7 @@
         <link rel="prev" href="../wikilink-heading-reference-stability/">
       
       
-        <link rel="next" href="../app-updater/">
+        <link rel="next" href="../bug/">
       
       
         
@@ -2013,6 +2013,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        应用内更新签名
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#macos" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2370,34 +2381,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../app-updater/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    应用内更新
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -2871,6 +2854,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        应用内更新签名
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#macos" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3258,9 +3252,41 @@
 <li>执行 <code>/commit</code>，将版本 bump 作为独立的 <code>chore(release): bump version to &lt;version&gt;</code> commit。</li>
 <li>确认 tag <code>v&lt;version&gt;</code> 指向该版本 bump commit，且 tag 去掉 <code>v</code> 后与所有版本字段一致。</li>
 <li>推送 tag，等待 <code>.github/workflows/release.yml</code> 构建 Tauri installers 和 CLI artifacts。</li>
-<li>发布前确认桌面安装包、应用内版本、CLI <code>--version</code> 和 CLI 文件名没有混用不同版本。</li>
+<li>在 Draft Release 中确认桌面安装包、应用内版本、CLI <code>--version</code> 和 CLI 文件名没有混用不同版本；确认 <code>latest.json</code> 与 updater <code>.sig</code> 资产齐全后才发布 Release。</li>
 </ol>
 <p><code>/bump</code> 和 <code>/commit</code> 默认只修改工作区或创建本地 commit，不会自动创建 tag、push 或发布 Release。</p>
+<h3 id="_1">应用内更新签名<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<p>Tauri Updater 的签名密钥与 Apple Developer ID 签名、公证凭据无关。应用内置的公钥位于 <code>src-tauri/tauri.conf.json</code>，私钥绝不能提交或写入本机项目配置。</p>
+<p>GitHub Actions 必须配置以下 repository secrets；<code>release.yml</code> 会在创建 Draft Release 前显式验证它们，缺失即失败：</p>
+<table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TAURI_SIGNING_PRIVATE_KEY</code></td>
+<td><code>tauri signer generate</code> 产生的完整 minisign 私钥内容</td>
+</tr>
+<tr>
+<td><code>TAURI_SIGNING_PRIVATE_KEY_PASSWORD</code></td>
+<td>生成该私钥时使用的密码</td>
+</tr>
+</tbody>
+</table>
+<p>发布工作流设置 <code>createUpdaterArtifacts</code>，由 <code>tauri-apps/tauri-action@v1</code> 上传签名更新包、<code>.sig</code> 和聚合后的 <code>latest.json</code>。客户端请求 <code>https://github.com/poco-ai/motif/releases/latest/download/latest.json</code>，因此：</p>
+<ul>
+<li>Draft Release 用于验收，发布前不会被客户端读取；</li>
+<li>只有完整、已发布的稳定版 Release 才会成为更新源；</li>
+<li>Windows metadata 优先采用 NSIS updater 包；macOS 与 Linux 使用 Tauri 生成的对应更新产物；</li>
+<li>上述签名只证明更新包完整性，macOS 的 Developer ID 签名和 notarization 仍必须照常完成。</li>
+</ul>
+<p>生成或轮换密钥时，在安全位置执行以下命令，将公钥替换到 <code>tauri.conf.json</code>，并将私钥/密码写入 GitHub Actions Secrets：</p>
+<div class="codehilite"><pre><span></span><code>pnpm<span class="w"> </span>tauri<span class="w"> </span>signer<span class="w"> </span>generate<span class="w"> </span>--password<span class="w"> </span><span class="s1">&#39;&lt;strong password&gt;&#39;</span><span class="w"> </span>--write-keys<span class="w"> </span>/secure/path/agentero-updater.key
+</code></pre></div>
+
 <h3 id="macos">macOS 签名与公证（店外分发）<a class="headerlink" href="#macos" title="Permanent link">&para;</a></h3>
 <p>GitHub Release 上的 macOS 安装包应使用 <strong>Developer ID Application</strong> 签名，并由 <strong>notarytool</strong> 公证 + staple，避免用户下载后出现「已损坏 / 无法打开」。</p>
 <ul>
