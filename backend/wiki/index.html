@@ -1549,7 +1549,7 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        数据流（简）
+        只读完整性检查
       
     </span>
   </a>
@@ -1558,6 +1558,17 @@
       
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        数据流（简）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -2562,7 +2573,7 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        数据流（简）
+        只读完整性检查
       
     </span>
   </a>
@@ -2571,6 +2582,17 @@
       
         <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        数据流（简）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -2609,6 +2631,7 @@
 <li><strong>单向写入</strong> Markdown + 索引反查（不做目标文件自动插回链）。</li>
 <li>未解析目标可为 stub 节点。</li>
 <li>与 <strong>文献引用图</strong>（路线图 0.6）分层，边语义不复用。</li>
+<li><code>PAPER.md</code> 是派生全文：保留 document 与 heading anchors 供其它笔记链接，但不提取其 outgoing occurrences，避免 LiteParse 生成的裸域名和参考文献污染双链诊断与 Graph。</li>
 </ul>
 <h2 id="host">Host 能力<a class="headerlink" href="#host" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2620,16 +2643,27 @@
 <li>嵌入目标解析（供前端 <code>![[...]]</code>）</li>
 <li>链接感知重命名/移动；标题重命名事务</li>
 <li>索引：<code>.md</code> 变更防抖重建（前端调度 + Host 重建）</li>
+<li>只读语义检查：<code>WikiIndex::check_links</code> 按全库、Markdown 文件或目录返回状态计数与问题 occurrence；CLI 暴露为 <code>agentero wiki check [&lt;source&gt;] --json</code></li>
 </ul>
 <p>解析、resolve、嵌入投影、前端导航与显式标题重命名共享“唯一连续后缀”规则。完整路径自然也是自身后缀；不存在或有歧义的 path 保持既有 <code>invalidFragment</code> / <code>ambiguous</code> 结果，不回退到任意同名叶标题。标题重命名根据已解析的 canonical path 计算后缀在完整路径中的偏移，只改写引用实际包含的被改名段。</p>
-<h2 id="_3">数据流（简）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_3">只读完整性检查<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p><code>agentero wiki check</code> 每次先构建或校验 Wiki snapshot，再从解析后的 occurrence 生成报告。它不会新建缺失目标、替用户选择歧义候选或修改 stale fragment。</p>
+<div class="codehilite"><pre><span></span><code>agentero wiki check [Vault 相对文件或目录] --json
+  → WikiIndex rebuild / cache validation
+  → check_links(scope)
+  → resolved / missing / ambiguous / invalidFragment
+  → 有问题时 wikilink_check_failed + error.details
+</code></pre></div>
+
+<p>单文件作用域用于 paper-reader 的写后验收；全库或目录作用域用于 vault-normalizer 的迁移前后对比。CLI 缺失时 Skill 必须明确报告未完成语义校验，不能用 regex 扫描冒充与 Agentero resolver 等价。</p>
+<h2 id="_4">数据流（简）<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code>Vault Markdown 变更
   → 防抖 scheduleWikiRebuild
   → Host 解析 wikilink
-  → 前端 Backlinks / Graph 刷新
+  → 前端 Backlinks / Graph 刷新，或 CLI 只读诊断
 </code></pre></div>
 
-<h2 id="_4">代码<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">代码<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p><code>src-tauri/src/features/wiki/</code><br />
 前端 UI：<a href="../../frontend/wiki/">../frontend/wiki.md</a></p>
 

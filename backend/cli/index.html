@@ -1741,6 +1741,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        双链检查
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2536,6 +2547,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        双链检查
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2557,11 +2579,11 @@
 
 
 <h1 id="cliagentero">CLI（<code>agentero</code>）<a class="headerlink" href="#cliagentero" title="Permanent link">&para;</a></h1>
-<p>Headless Vault / Catalog 接口；<strong>不含</strong> BYOA / paper-reader。</p>
+<p>Headless Vault / Catalog / Wiki 接口；<strong>不含</strong> BYOA / paper-reader。</p>
 <h2 id="_1">位置<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <ul>
 <li>目录：<code>cli/</code>（crate <code>agentero-cli</code>）</li>
-<li>path 依赖 <code>agentero_lib</code>：<code>features::{vault,catalog,import}</code> + <code>core::error</code></li>
+<li>path 依赖 <code>agentero_lib</code>：<code>features::{vault,catalog,import,wiki}</code> + <code>core::{error,fs}</code></li>
 </ul>
 <h2 id="_2">命令组<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
@@ -2596,14 +2618,30 @@
 <td><code>config</code></td>
 <td>配置</td>
 </tr>
+<tr>
+<td><code>wiki</code></td>
+<td>只读双链语义检查</td>
+</tr>
 </tbody>
 </table>
 <p>稳定 <code>--json</code> 输出，供脚本与外部 Agent 组合。</p>
 <div class="codehilite"><pre><span></span><code>cargo<span class="w"> </span>build<span class="w"> </span>-p<span class="w"> </span>agentero-cli
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>vault<span class="w"> </span>which<span class="w"> </span>--json
+cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>wiki<span class="w"> </span>check<span class="w"> </span>papers/demo/NOTES.md<span class="w"> </span>--json
 cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-p<span class="w"> </span>agentero-cli
 </code></pre></div>
 
+<h2 id="_3">双链检查<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p><code>agentero wiki check [&lt;source&gt;] --json</code> 使用桌面端导航、嵌入、反链和重命名事务共用的 <code>WikiIndex</code> resolver，不维护第二套正则解析器。</p>
+<ul>
+<li>不传 <code>source</code>：检查整个 Vault。</li>
+<li>传 Markdown 文件：只检查该文件，适合 paper-reader 写入后的局部验收。</li>
+<li>传目录：检查该目录下的 Markdown。</li>
+<li>输入必须是 Vault 相对路径；命令只读，不创建目标或重写来源。</li>
+<li>派生正文 <code>PAPER.md</code> 保留为可链接目标和标题来源，但不作为出链来源参与检查。</li>
+<li>全部解析成功时退出码为 0；发现 <code>missing</code>、<code>ambiguous</code>、<code>invalidFragment</code> 时返回非零，错误码为 <code>wikilink_check_failed</code>，报告位于 <code>error.details</code>。</li>
+</ul>
+<p>报告包含 <code>checkedFiles</code>、四类状态计数，以及每个问题的 <code>source</code>、<code>line</code>、<code>targetRaw</code>、<code>syntax</code>、<code>embed</code>、<code>targetPath?</code>、<code>candidates</code> 和 <code>context?</code>。指定单文件作用域后，Vault 中其它历史坏链不会影响本次验收。</p>
 <p>Skill 种子：<code>templates/vault/.agents/skills/agentero-cli/</code>。</p>
 
 

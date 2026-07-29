@@ -2737,12 +2737,13 @@
 <h2 id="_2">能力<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
 <li>自动保存；可选顶部格式工具栏（<code>showEditorToolbar</code>）。</li>
+<li><strong>文档目录</strong>：存在标题时在编辑器右侧四分之一高度显示层级标记，一级标题标记最长，后续层级依次缩短；收起时保持紧凑，悬停或键盘聚焦后以动效展开标题；滚动时以当前 UI 主题主色高亮视口对应的标题，点击标题会在当前 Dockview 文档面板内平滑滚动并高亮目标。</li>
 <li><strong>Markdown 粘贴</strong>：普通文本粘贴默认按 Markdown 反序列化，粘贴后光标保持在插入内容之后。</li>
 <li><strong>整理 Markdown 格式</strong>：编辑器右键显式整理当前整篇文档；只读编辑器禁用。</li>
 <li><strong>Slash 格式命令</strong>：在可编辑正文中输入 <code>/</code> 打开轻量命令列表；使用上下方向键选择、Enter 执行、Escape 关闭。Slash 与双链候选会在可视窗口边缘自动翻转并限制高度；滚动编辑器时关闭候选，避免脱离光标。</li>
 <li><strong>美元符号</strong>：<code>\$a\$</code> 是普通文本，<code>$a$</code> 是行内公式；两者经编辑、粘贴、整理和保存后保持不同语义。</li>
 <li><strong>Obsidian Callout</strong>：<code>&gt; [!important]</code> 等标准 marker 渲染为专用块，正文继续使用既有段落、列表、公式与双链节点。</li>
-<li><strong>代码块操作</strong>：编辑态悬停或聚焦代码块时，右上角依次显示语言选择与复制按钮；只读预览只显示复制按钮。选择 Mermaid 语言后，源码上方显示实时预览。</li>
+<li><strong>代码块操作</strong>：编辑态悬停或聚焦代码块时，右上角依次显示语言选择与复制按钮；只读预览只显示复制按钮。选择 Mermaid 语言后，源码下方显示实时预览。</li>
 <li><strong>内嵌图</strong>（见下表）。</li>
 <li><strong>双链 / 嵌入</strong>：见 <a href="../wiki/">wiki.md</a>。</li>
 <li><strong>外部改盘</strong>：无未存改动则重载；有未存则 toast；内容相等抑制自写回声。</li>
@@ -2802,7 +2803,7 @@
 <p>Frontmatter 当前保存在 Plate AST 之外，因此整理时继续字节级保留；这样格式整理产生的实际正文变化可以由一次 Undo 完整撤销。Prettier 固定使用 <code>proseWrap: "preserve"</code>、<code>embeddedLanguageFormatting: "off"</code> 与 <code>htmlWhitespaceSensitivity: "ignore"</code>，避免重排正文段落或 fenced code 内部语言。</p>
 <h3 id="slash">Slash 格式命令<a class="headerlink" href="#slash" title="Permanent link">&para;</a></h3>
 <p>输入 <code>/</code> 后，编辑器根据 <code>/</code> 后的连续文本过滤命令，条目统一显示图标与本地化文案。<code>/</code> 必须位于当前文本叶开头或紧跟空白，URL、转义斜杠、代码块和只读编辑器不会触发；Wiki 双链补全活跃时优先使用 Wiki 菜单，编辑器失焦后关闭菜单。执行前会再次核对当前光标、文本位置与 <code>/query</code>，选区已经移动或文本已变化时不会删除内容。</p>
-<p>首版命令包含一级至三级标题、无序列表、有序列表、待办列表、引用、代码块、Mermaid 图表、添加内部链接、添加外部链接和 Obsidian Callout。<code>/mermaid</code> 会插入带 <code>lang: mermaid</code> 标记的 Plate 代码块，Mermaid 代码块会在源码上方实时显示预览；输入未完成或语法错误时保留源码并提示无法渲染。需要普通代码块时仍使用 <code>/code</code>，也可以在代码块右上角的语言选择器中选择 Mermaid。“添加内部链接”和“添加外部链接”复用右键菜单的模板插入逻辑，分别插入 <code>[[]]</code> 与 <code>[]()</code>，并把光标放到可继续输入的位置；内部链接会继续打开双链候选。其他命令直接调用现有 Plate 块、列表与代码转换；Callout 使用 Agentero 已有的 Obsidian 节点，默认类型为 <code>note</code>，可以保留 <code>/query</code> 前的当前块文本。Callout 内仍可用 Slash 命令调整正文格式，但不会提供嵌套 Callout。完整 Plate SlashKit 中的 AI、Toggle、Columns、TOC、Date、Excalidraw 与通用非 Obsidian Callout 不接入。</p>
+<p>首版命令包含一级至三级标题、无序列表、有序列表、待办列表、引用、代码块、Mermaid 图表、添加内部链接、添加外部链接和 Obsidian Callout。<code>/mermaid</code> 会插入带 <code>lang: mermaid</code> 标记的 Plate 代码块，Mermaid 代码块会在源码下方实时显示预览；输入未完成或语法错误时保留源码并提示无法渲染。需要普通代码块时仍使用 <code>/code</code>，也可以在代码块右上角的语言选择器中选择 Mermaid。“添加内部链接”和“添加外部链接”复用右键菜单的模板插入逻辑，分别插入 <code>[[]]</code> 与 <code>[]()</code>，并把光标放到可继续输入的位置；内部链接会继续打开双链候选。其他命令直接调用现有 Plate 块、列表与代码转换；Callout 使用 Agentero 已有的 Obsidian 节点，默认类型为 <code>note</code>，可以保留 <code>/query</code> 前的当前块文本。Callout 内仍可用 Slash 命令调整正文格式，但不会提供嵌套 Callout。完整 Plate SlashKit 中的 AI、Toggle、Columns、TOC、Date、Excalidraw 与通用非 Obsidian Callout 不接入。</p>
 <p><code>/mermaid</code> 的初始内容为：</p>
 <div class="codehilite"><pre><span></span><code><span class="n">graph</span><span class="w"> </span><span class="n">LR</span>
 <span class="n">A</span><span class="o">[</span><span class="n">Start</span><span class="o">]</span><span class="w"> </span><span class="c1">--&gt; B[Process]</span>
@@ -2829,6 +2830,10 @@
 <tr>
 <td><code>src/components/editor/</code></td>
 <td>Plate 编辑器</td>
+</tr>
+<tr>
+<td><code>src/components/editor/toc-sidebar.tsx</code></td>
+<td>基于 Plate TOC hooks 的悬浮目录、当前标题跟踪与跳转</td>
 </tr>
 <tr>
 <td><code>src/components/editor/code-block-node.tsx</code></td>
