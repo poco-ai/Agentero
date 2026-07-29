@@ -6355,7 +6355,7 @@ Host (Tauri + Rust)
 <li><strong><code>fs_watch_start</code></strong></li>
 <li><strong>参数</strong>：<code>{ vaultPath: string }</code></li>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
-<li><strong>行为</strong>：为当前窗口（label）启动递归监听；若该窗口已有监听则先停止再重建。命中变更时按窗口 <code>emit_to</code> 发送 <code>vault:file-changed</code>（去抖 ~300ms，过滤 <code>.agentero/</code>、<code>.git/</code>、<code>node_modules/</code>）。只有 <code>notify</code> 的单事件 <code>RenameMode::Both</code>、恰有两条不同路径且均未被过滤时，payload 才带按顺序排列的 <code>rename.from</code> / <code>rename.to</code>；其它 rename 事件只用于刷新，绝不能授权改写 Vault 内容。</li>
+<li><strong>行为</strong>：为当前窗口（label）启动递归监听；若该窗口已有监听则先停止再重建。命中变更时按窗口 <code>emit_to</code> 发送 <code>vault:file-changed</code>（去抖 ~300ms，过滤 <code>.agentero/</code>、<code>.git/</code>、<code>node_modules/</code>）。只有 <code>notify</code> 的单事件 <code>RenameMode::Both</code>、恰有两条不同路径且均未被过滤时，payload 才带按顺序排列的 <code>rename.from</code> / <code>rename.to</code>；其它 rename 事件只用于刷新，绝不能授权改写 Vault 内容。前端只将 Markdown、PDF、受支持图片或疑似目录的 rename 交给双链修复/警告；带明确非目标扩展名的 sidecar / 临时文件仅执行常规工作区刷新。</li>
 <li><strong><code>fs_watch_stop</code></strong></li>
 <li><strong>参数</strong>：无</li>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
