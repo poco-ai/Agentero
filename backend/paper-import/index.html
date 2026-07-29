@@ -3067,7 +3067,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 当前显式拒绝 Skill 导入。</p>
 <h2 id="idurl">魔棒（精确 ID/URL）<a class="headerlink" href="#idurl" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code>粘贴 arXiv ID / DOI / URL
-  → Translator（或 arXiv Atom fallback）
+  → arXiv 输入先规范为 `https://arxiv.org/abs/&lt;id&gt;`，再交给 Translator（或 arXiv Atom fallback）
   → PaperMetadata → catalog upsert
   → papers/&lt;id&gt;/ + NOTES.md 壳（不覆盖已有 NOTES）
   → PDF → {paper}/{id}.pdf
@@ -3078,6 +3078,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 
 <ul>
 <li>设置：<code>translatorBaseUrl</code>。</li>
+<li>arXiv 的 <code>abs</code> / <code>pdf</code> / <code>html</code> / <code>src</code> / <code>e-print</code> URL 与裸 ID 都会先提取 ID；不会将 PDF 二进制 URL 交给 Translator 的网页解析器。</li>
 <li>补资源：<code>paper_download_assets</code>（单篇 / Library 批量）。</li>
 <li>错误：全局 Toast；重复不破坏用户 NOTES。</li>
 </ul>
