@@ -2262,6 +2262,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#618-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1.8 魔棒（Skill 导入）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#62-pdf" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3004,6 +3015,17 @@
     <span class="md-ellipsis">
       
         6.1 魔棒（精确 ID）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#618-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1.8 魔棒（Skill 导入）
       
     </span>
   </a>
@@ -4095,6 +4117,62 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>设置 → 通用</td>
 <td>把 Translator URL 改成无效地址，再魔棒入库</td>
 <td>Toast 失败信息可读；改回默认可恢复</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="618-skill">6.1.8 魔棒（Skill 导入）<a class="headerlink" href="#618-skill" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>入口</th>
+<th>操作</th>
+<th>预期</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>6.1.8.1</td>
+<td>魔棒</td>
+<td>粘贴 <code>https://github.com/mattpocock/skills</code></td>
+<td>弹出候选选择窗口；确认后才下载/安装选中的 Skill</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.1.8.2</td>
+<td>魔棒</td>
+<td>粘贴 <code>https://github.com/alchaincyf/nuwa-skill</code></td>
+<td>弹出候选选择窗口；不请求 Translator 论文元数据</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.1.8.3</td>
+<td>魔棒</td>
+<td>粘贴 <code>npx skills add https://github.com/anthropics/skills --skill pptx</code></td>
+<td>窗口只显示匹配的 <code>pptx</code>，确认后保留其附属目录</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.1.8.4</td>
+<td>Skill 选择窗口</td>
+<td>点击取消或关闭</td>
+<td>不写入 <code>.agents/skills/</code>，临时 discovery 被清理</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.1.8.5</td>
+<td>魔棒</td>
+<td>重复导入同一 Skill</td>
+<td>选择窗口标记已安装；确认后跳过且不覆盖已有 <code>SKILL.md</code></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.1.8.6</td>
+<td>远程 Vault</td>
+<td>粘贴任一 Skill 来源</td>
+<td>明确提示远程 Vault 暂不支持 Skill 导入</td>
 <td>☐</td>
 </tr>
 </tbody>

@@ -2040,7 +2040,18 @@
   <a href="#6" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. 分期
+        6. 已验证输入
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 后续
       
     </span>
   </a>
@@ -2587,7 +2598,18 @@
   <a href="#6" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. 分期
+        6. 已验证输入
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 后续
       
     </span>
   </a>
@@ -2614,13 +2636,13 @@
   
 
 
-<h1 id="github-skill-skill-import">魔棒解析 GitHub Skill 入库（Skill Import）设计草稿<a class="headerlink" href="#github-skill-skill-import" title="Permanent link">&para;</a></h1>
+<h1 id="github-skill-skill-import">魔棒解析 GitHub Skill 入库（Skill Import）<a class="headerlink" href="#github-skill-skill-import" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：未实现草稿。对应 <a href="https://github.com/poco-ai/Agentero/issues/118">#118</a>。目标：魔棒（⇧⌘I）除论文标识符外，还能识别 <strong>GitHub 仓库链接 / <code>npx skills add</code> 指令</strong>，把 Agent Skill 下载到当前 Vault 的 <code>.agents/skills/&lt;name&gt;/</code>。相关：<a href="../../backend/paper-import/">../backend/paper-import.md</a>、<a href="../../backend/agent/">../backend/agent.md</a>。</p>
+<p>状态：首版已实现。对应 <a href="https://github.com/poco-ai/Agentero/issues/118">#118</a>。魔棒（⇧⌘I）除论文标识符外，还能识别 <strong>GitHub 仓库链接 / <code>npx skills add</code> 指令</strong>，把 Agent Skill 下载到当前 Vault 的 <code>.agents/skills/&lt;name&gt;/</code>。相关：<a href="../../backend/paper-import/">../backend/paper-import.md</a>、<a href="../../backend/agent/">../backend/agent.md</a>。</p>
 </blockquote>
 <h2 id="1">1. 背景与现状<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <ul>
-<li>魔棒输入的类型识别完全在 Host 侧：<code>src-tauri/src/features/import/parse.rs</code> 的 <code>enum IdentifierKind { Doi, Isbn, Arxiv, Pmid, AdsBibcode, Url }</code> + <code>extract_primary_identifier()</code>。注意 <code>http(s)://</code> 前缀<strong>最先短路为 <code>Url</code></strong>（<code>parse.rs:20</code>），GitHub 链接目前会被丢给 Translator <code>/web</code> 当网页论文解析——Skill 识别必须插在这条规则<strong>之前</strong>。</li>
+<li>魔棒输入的类型识别完全在 Host 侧：<code>src-tauri/src/features/import/parse.rs</code> 的 <code>IdentifierKind::Skill</code>、<code>SkillSource</code> 和 <code>extract_primary_identifier()</code>。Skill 识别发生在普通 URL 分支之前，GitHub 链接不会再被送入 Translator <code>/web</code>。</li>
 <li>前端不做识别，只切分多条输入（<code>src/components/sidebar/vault-sidebar-header.tsx</code> <code>parseLookupTexts()</code>），经 <code>lookup_import_batch</code>（<code>src-tauri/src/features/import/commands.rs:17</code>）进入 <code>import_by_identifier_batch</code>。</li>
 <li>Skill 目录约定已存在：<code>vault/.agents/skills/&lt;id&gt;/SKILL.md</code>（YAML frontmatter <code>name</code> / <code>description</code>，解析见 <code>src-tauri/src/features/agent/skills.rs</code> <code>parse_skill_metadata</code>）；<code>ensure_vault()</code>（<code>features/vault/mod.rs:303</code>）播种 bundled skills，<strong>只补缺失、不覆盖用户修改</strong>。</li>
 <li>文件树中 <code>.agents</code> 是 eager 目录（<code>src/lib/vault/tree.ts</code> <code>TREE_EAGER_ROOT_NAMES</code> / <code>TREE_ALLOWED_DOT_NAMES</code>），写入后 <code>refreshTree</code> 即可见。</li>
@@ -2684,9 +2706,10 @@
 <li><code>GET https://codeload.github.com/{owner}/{repo}/tar.gz/{ref}</code>（ref 缺省时先经 <code>api.github.com/repos/{owner}/{repo}</code> 拿默认分支）；复用 <code>http_get_bytes_with_progress</code> 报进度。</li>
 <li>解压到临时目录（复用 <code>extract_tar_safe</code> 系安全逻辑），递归扫描 <code>**/SKILL.md</code>：</li>
 <li>有子目录约束（tree URL / <code>--skill</code>）→ 只取匹配项；</li>
-<li>repo 根且发现多个 skill → 返回候选列表，前端弹选择（见 §4）；恰好一个则直装。</li>
+<li>repo 根或指定路径发现 Skill → 返回候选列表，前端弹选择（见 §4）。</li>
 <li>校验 frontmatter：<code>name</code> 合法且与目录名一致；不一致时以 <code>name</code> 为准命名目标目录。</li>
-<li>落盘 <code>vault/.agents/skills/&lt;name&gt;/</code>（整目录拷贝，含 <code>references/</code> 等）：</li>
+<li>将归档和候选 metadata 暂存为一次性 discovery，并返回前端选择；此阶段不写入 Vault。</li>
+<li>用户确认后才落盘 <code>vault/.agents/skills/&lt;name&gt;/</code>（整目录拷贝，含 <code>references/</code> 等）：</li>
 <li>目标已存在 → 默认<strong>不覆盖</strong>，报「已存在，是否更新」（沿用 <code>ensure_vault</code> 不覆盖用户文件的原则）；</li>
 <li>在 skill 目录写 <code>agentero-skill.json</code> 来源记录（source URL + ref + 安装时间），为将来「检查更新」留钩子（参考 <code>skills-lock.json</code> / Obsidian BRAT）。</li>
 <li><strong>不落 catalog</strong>（skill 不是论文；<code>Url</code> kind 已有 <code>identifier_kind_column → None</code> 先例），不建 <code>papers/</code> 条目、不跑 <code>paper_commit</code>。</li>
@@ -2696,8 +2719,8 @@
 <ul>
 <li>入口不变：魔棒粘贴 → <code>lookup_import_batch</code>；batch 内论文与 skill 可混合，逐条按 kind 分发。</li>
 <li>进度沿用左下角后台任务条（<code>background-task:progress</code>）。</li>
-<li>多 skill 候选：Host 返回 <code>needs_selection</code> 结果 → 前端弹简单多选对话框（名称 + description）→ 二次调用 <code>skill_install</code>（新命令）安装勾选项。</li>
-<li>成功后：<code>refreshTree</code> + toast「已安装 skill：<name>」（复用 <code>seedVaultSkills</code> 的 toast 风格）；<strong>不</strong> <code>openPaper</code>、不进补资产队列——前端 <code>lookupSubmit</code>（<code>src/lib/paper/import-actions.ts:51</code>）的后置动作需按结果 kind 分支。</li>
+<li>当前实现先返回 <code>LookupImportBatchResult.skillCandidates</code>，前端打开多选 Dialog。<code>--skill &lt;name&gt;</code>、GitHub tree 子目录会缩小候选范围。</li>
+<li>用户取消时删除 discovery 临时包；确认后调用 <code>skill_install</code>，再 <code>refreshTree</code> + toast 汇总安装结果。<strong>不</strong> <code>openPaper</code>、不进补资产队列。论文和 Skill 可混合提交。</li>
 <li>远程 Vault：首版禁用（提示暂不支持），后续经 remote bridge + SFTP 镜像（<code>features/remote/launch.rs</code> 已有 skills 镜像逻辑）。</li>
 </ul>
 <h2 id="5">5. 安全<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
@@ -2706,7 +2729,32 @@
 <li>只下载解包，不执行任何脚本（skill 的 <code>scripts/</code> 仅落盘）；不 shell out 到 <code>npx</code> / <code>git</code>。</li>
 <li>SKILL.md 是注入 Agent prompt 的内容，安装第三方 skill 等于引入外部指令——安装 toast / 选择对话框中提示来源，用户自担信任决策（BYOA 一致原则）。</li>
 </ul>
-<h2 id="6">6. 分期<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h2 id="6">6. 已验证输入<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>输入</th>
+<th>解析结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>https://github.com/mattpocock/skills</code></td>
+<td>GitHub 仓库 <code>mattpocock/skills</code>，默认分支</td>
+</tr>
+<tr>
+<td><code>https://github.com/alchaincyf/nuwa-skill</code></td>
+<td>GitHub 仓库 <code>alchaincyf/nuwa-skill</code>，默认分支</td>
+</tr>
+<tr>
+<td><code>npx skills add https://github.com/anthropics/skills --skill pptx</code></td>
+<td>GitHub 仓库 <code>anthropics/skills</code>，Skill 过滤 <code>pptx</code></td>
+</tr>
+</tbody>
+</table>
+<p>回归测试位于 <code>src-tauri/src/features/import/parse.rs</code> 的
+<code>parses_requested_skill_import_examples</code>。</p>
+<h2 id="7">7. 后续<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -2716,12 +2764,8 @@
 </thead>
 <tbody>
 <tr>
-<td>P1</td>
-<td><code>parse.rs</code> 识别 §2 五种形态；codeload tarball 下载 + 单/多 skill 安装；<code>skill_install</code> 命令；前端结果分支 + 候选选择；文档（frontend/backend paper-import、agent）</td>
-</tr>
-<tr>
 <td>P2</td>
-<td>已装 skill 的「检查更新 / 重装」（基于 <code>agentero-skill.json</code>）；<code>#ref</code> pin</td>
+<td>已装 Skill 的「检查更新 / 重装」（基于 <code>agentero-skill.json</code>）；<code>#ref</code> pin；多候选选择对话框</td>
 </tr>
 <tr>
 <td>P3</td>
