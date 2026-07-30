@@ -2435,6 +2435,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#github-actions-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GitHub Actions (recommended)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#new-machine-setup" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2510,6 +2521,43 @@
 
 
 <h1 id="ios-testflight-release">iOS TestFlight Release<a class="headerlink" href="#ios-testflight-release" title="Permanent link">&para;</a></h1>
+<h2 id="github-actions-recommended">GitHub Actions (recommended)<a class="headerlink" href="#github-actions-recommended" title="Permanent link">&para;</a></h2>
+<p><code>.github/workflows/ios-testflight.yml</code> builds a signed IPA and uploads it to
+App Store Connect. It runs on <code>v*</code> tag pushes (alongside the desktop Release
+workflow) and can be triggered manually from the Actions tab.</p>
+<p>Required secrets (org or repo level):</p>
+<table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>APPLE_DISTRIBUTION_CERTIFICATE</code></td>
+<td>Apple Distribution <code>.p12</code>, base64</td>
+</tr>
+<tr>
+<td><code>APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD</code></td>
+<td><code>.p12</code> export password</td>
+</tr>
+<tr>
+<td><code>IOS_MOBILE_PROVISION</code></td>
+<td>App Store provisioning profile, base64</td>
+</tr>
+<tr>
+<td><code>APPLE_API_KEY</code> / <code>APPLE_API_KEY_P8</code> / <code>APPLE_API_ISSUER</code></td>
+<td>App Store Connect API key (shared with the macOS notarization flow)</td>
+</tr>
+<tr>
+<td><code>APPLE_TEAM_ID</code> or <code>APPLE_SIGNING_IDENTITY</code></td>
+<td>Team ID, or an identity string ending in <code>(TEAMID)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The build number is a <code>yymmddHHMM</code> timestamp, so each run produces a strictly
+increasing build for the same version.</p>
 <h2 id="new-machine-setup">New Machine Setup<a class="headerlink" href="#new-machine-setup" title="Permanent link">&para;</a></h2>
 <p>iOS builds require macOS, Xcode, Node.js, pnpm, and the stable Rust toolchain.
 After cloning the repository, initialize the local Tauri project:</p>
