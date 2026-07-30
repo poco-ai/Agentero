@@ -2525,6 +2525,9 @@
 <p><code>.github/workflows/ios-testflight.yml</code> builds a signed IPA and uploads it to
 App Store Connect. It runs on <code>v*</code> tag pushes (alongside the desktop Release
 workflow) and can be triggered manually from the Actions tab.</p>
+<p>When the signing secrets are not configured, an automatic tag run exits
+successfully with a warning and skips the iOS build. A manually triggered run
+still fails during preflight so missing release configuration is explicit.</p>
 <p>Required secrets (org or repo level):</p>
 <table>
 <thead>

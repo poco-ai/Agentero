@@ -2041,6 +2041,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Release 资产命名
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2882,6 +2893,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Release 资产命名
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3273,7 +3295,7 @@
 说明：Apple 的审核规则和上传要求会持续更新，正式提交前应再次检查官方页面。</p>
 </blockquote>
 <h2 id="agentero-desktopcli">Agentero Desktop/CLI 版本发布<a class="headerlink" href="#agentero-desktopcli" title="Permanent link">&para;</a></h2>
-<p>桌面安装包由 Tauri 配置和 Rust package 版本决定，CLI 归档文件名由发布 tag 决定。因此发布时不能只创建 <code>v*</code> tag，必须先同步版本并提交。</p>
+<p>桌面安装包由 Tauri 配置和 Rust package 版本决定，CLI 归档文件名由发布 tag 和 Rust target 决定。因此发布时不能只创建 <code>v*</code> tag，必须先同步版本并提交。</p>
 <p>推荐流程：</p>
 <ol>
 <li>执行 <code>/bump &lt;version&gt;</code>，同步检查 <code>package.json</code>、<code>src-tauri/tauri.conf.json</code>、<code>src-tauri/Cargo.toml</code>、<code>cli/Cargo.toml</code> 和 <code>Cargo.lock</code>。</li>
@@ -3283,6 +3305,42 @@
 <li>在 Draft Release 中确认桌面安装包、应用内版本、CLI <code>--version</code> 和 CLI 文件名没有混用不同版本；确认 <code>latest.json</code> 与 updater <code>.sig</code> 资产齐全后才发布 Release。</li>
 </ol>
 <p><code>/bump</code> 和 <code>/commit</code> 默认只修改工作区或创建本地 commit，不会自动创建 tag、push 或发布 Release。</p>
+<h3 id="release">Release 资产命名<a class="headerlink" href="#release" title="Permanent link">&para;</a></h3>
+<p>Release 中区分两类资产：</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>命名规范</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>桌面安装包</td>
+<td><code>Agentero_&lt;version&gt;_&lt;arch&gt;.&lt;format&gt;</code></td>
+<td><code>Agentero_0.3.2_aarch64.dmg</code></td>
+</tr>
+<tr>
+<td>CLI 归档</td>
+<td><code>agentero-cli-&lt;version&gt;-&lt;rust-host&gt;.&lt;archive&gt;</code></td>
+<td><code>agentero-cli-0.3.2-aarch64-apple-darwin.tar.gz</code></td>
+</tr>
+<tr>
+<td>CLI 校验文件</td>
+<td><code>&lt;CLI 归档文件名&gt;.sha256</code></td>
+<td><code>agentero-cli-0.3.2-aarch64-apple-darwin.tar.gz.sha256</code></td>
+</tr>
+</tbody>
+</table>
+<p>CLI 的 <code>&lt;rust-host&gt;</code> 来自发布 runner 上 <code>rustc -vV</code> 的 <code>host</code> 字段，不由工作流手写映射。例如：</p>
+<ul>
+<li><code>aarch64-apple-darwin</code>：Apple Silicon macOS；</li>
+<li><code>x86_64-unknown-linux-gnu</code>：x86_64 Linux；</li>
+<li><code>aarch64-unknown-linux-gnu</code>：ARM64 Linux；</li>
+<li><code>x86_64-pc-windows-msvc</code>：Windows MSVC。</li>
+</ul>
+<p>CLI 压缩包内部统一包含名为 <code>agentero</code>（Windows 为 <code>agentero.exe</code>）的可执行文件；外部归档名使用 <code>agentero-cli-</code> 前缀，避免与桌面安装包混淆。</p>
 <h3 id="_1">应用内更新签名<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
 <p>Tauri Updater 的签名密钥与 Apple Developer ID 签名、公证凭据无关。应用内置的公钥位于 <code>src-tauri/tauri.conf.json</code>，私钥绝不能提交或写入本机项目配置。</p>
 <p>GitHub Actions 必须配置以下 repository secrets；<code>release.yml</code> 会在创建 Draft Release 前显式验证它们，缺失即失败：</p>
