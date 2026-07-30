@@ -3482,7 +3482,7 @@
 <h3 id="33">3.3 审核备注建议写清楚<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
 <p>如果 App 有以下情况，应在审核备注中主动说明：</p>
 <ul>
-<li>测试账号、密码、验证码或演示模式进入方式。</li>
+<li>测试账号、密码、验证码或演示模式进入方式（<strong>仅当应用确实需要登录时</strong>）。</li>
 <li>需要扫码、特定硬件、特定地区或特定网络环境的功能。</li>
 <li>付费功能、订阅、App 内购买的测试方式。</li>
 <li>非显而易见的功能入口。</li>
@@ -3490,6 +3490,13 @@
 <li>使用相机、麦克风、定位、蓝牙、健康数据等敏感权限的原因。</li>
 </ul>
 <p>Apple 要求审核人员能够完整访问和验证 App 的核心功能。后端服务在审核期间也必须保持在线。</p>
+<p><strong>Agentero iOS 特有约定（无登录）：</strong></p>
+<ul>
+<li><strong>Sign-in required = No</strong>，演示账号留空；不要为过审单独做假登录页或「输入测试网站账号」流程。</li>
+<li>核心能力依赖桌面端配对：在 <strong>App Review Notes</strong> 中写清扫码 / 粘贴配对链接步骤，并保证中继与（可选）演示桌面在审核窗口可用。</li>
+<li>可复制的元数据与 Notes 全文见 <a href="../ios-testflight/">ios-testflight.md</a> 的
+  <a href="../ios-testflight/#beta-review-no-login-no-fake-test-page">Beta review: no login, no fake test page</a>。</li>
+</ul>
 <h2 id="4-ipad">4. iPad 商店截图要求<a class="headerlink" href="#4-ipad" title="Permanent link">&para;</a></h2>
 <h3 id="41">4.1 基本规则<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
 <ul>

@@ -2529,6 +2529,67 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#beta-review-no-login-no-fake-test-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Beta review: no login, no fake test page
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Beta review: no login, no fake test page">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-to-put-in-app-store-connect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What to put in App Store Connect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-notes-matter-not-a-test-login-page" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why Notes matter (not a test login page)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-help-reviewers-finish-pairing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional: help reviewers finish pairing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testflight-vs-app-store-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TestFlight vs App Store review
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#app-store-connect-metadata" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2715,8 +2776,9 @@ not upload it as part of the selected export flow.</p>
 <li>Complete export-compliance questions. Agentero uses standard TLS plus
   X25519/XSalsa20-Poly1305 and Ed25519 for the remote pairing protocol; do not
   claim the build is exempt without confirming the App Store Connect answers.</li>
-<li>Provide test credentials or an App Review note explaining how to pair an iOS
-  device with the desktop Host at <code>relay.philfan.cn</code>.</li>
+<li>Fill <strong>App Review Information</strong> per
+  <a href="#beta-review-no-login-no-fake-test-page">Beta review: no login, no fake test page</a>
+  (Sign-in required = No; paste pairing Notes; no demo username/password).</li>
 <li>Add beta review contact information and test iPhone and iPad builds before
   inviting external testers.</li>
 </ul>
@@ -2725,6 +2787,102 @@ requires a privacy policy URL and accurate app privacy disclosures. See
 <a href="https://developer.apple.com/documentation/bundleresources/information-property-list/nscamerausagedescription">camera usage description</a>,
 <a href="https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy/">app privacy</a>,
 and <a href="https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds/">upload builds</a>.</p>
+<h2 id="beta-review-no-login-no-fake-test-page">Beta review: no login, no fake test page<a class="headerlink" href="#beta-review-no-login-no-fake-test-page" title="Permanent link">&para;</a></h2>
+<p>Agentero iOS has <strong>no accounts and no in-app sign-in</strong>. Do not invent a login
+screen, a “reviewer password”, or a website where Apple must enter credentials
+just to pass review. That is the wrong fix for a no-account app.</p>
+<h3 id="what-to-put-in-app-store-connect">What to put in App Store Connect<a class="headerlink" href="#what-to-put-in-app-store-connect" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sign-in required</strong></td>
+<td><strong>No</strong></td>
+</tr>
+<tr>
+<td><strong>Demo account (username / password)</strong></td>
+<td><strong>None</strong> — leave blank</td>
+</tr>
+<tr>
+<td><strong>App Review Notes</strong></td>
+<td><strong>Required</strong> — how to pair with a desktop Host (English block below)</td>
+</tr>
+<tr>
+<td><strong>Contact email / phone</strong></td>
+<td>Real contact during Beta and full App Review</td>
+</tr>
+</tbody>
+</table>
+<p>A <strong>TestFlight invite link</strong> (for human testers) is unrelated to “demo login”.
+Internal testers need the invite; Apple reviewers need Notes, not a fake login
+URL.</p>
+<h3 id="why-notes-matter-not-a-test-login-page">Why Notes matter (not a test login page)<a class="headerlink" href="#why-notes-matter-not-a-test-login-page" title="Permanent link">&para;</a></h3>
+<p>The iOS app is a <strong>remote client</strong>: without a paired desktop Vault it stays on
+the Connect screen by design. Reviewers care whether they can reach Library /
+PDF / Notes / Agent — not whether a username exists.</p>
+<p>Provide <strong>App Review Notes</strong> that explain:</p>
+<ol>
+<li>Install desktop Agentero and open a Vault
+   (<code>https://agentero.poco-ai.com</code>).</li>
+<li>Enable Bridge (Settings → Remote Access → Start); keep the QR / 6-digit
+   code visible.</li>
+<li>On iOS: Scan QR, or paste a pairing link (<code>agentero://pair#offer=...</code>).</li>
+<li>Confirm the code; then exercise Library → PDF / Notes → Agent over
+   <code>wss://relay.philfan.cn</code>.</li>
+</ol>
+<p>Paste the full English <strong>App Review notes</strong> block under
+<a href="#app-store-connect-metadata">App Store Connect Metadata</a>. Keep the same
+English Notes for every localization.</p>
+<h3 id="optional-help-reviewers-finish-pairing">Optional: help reviewers finish pairing<a class="headerlink" href="#optional-help-reviewers-finish-pairing" title="Permanent link">&para;</a></h3>
+<p>If you worry reviewers have no desktop:</p>
+<ul>
+<li>Keep a <strong>demo desktop + Bridge</strong> online during review, and put contact info
+  in App Review Information so they can schedule pairing help; and/or</li>
+<li>Offer a <strong>time-limited pairing link</strong> (revocable) in Notes, with step-by-step
+  paste instructions.</li>
+</ul>
+<p>Still <strong>not</strong> a fake in-app login page. A later product choice of a limited
+<strong>offline demo vault</strong> (read-only sample content without desktop) is optional
+and separate — only consider it if review fails under Guideline 2.1 because
+core flows cannot be verified without pairing.</p>
+<h3 id="testflight-vs-app-store-review">TestFlight vs App Store review<a class="headerlink" href="#testflight-vs-app-store-review" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Apple review of the build?</th>
+<th>Demo account?</th>
+<th>What you prepare</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Internal TestFlight</strong></td>
+<td>No (same developer team)</td>
+<td>No</td>
+<td>Invite internal testers; smoke-test Connect → Library → PDF/Notes → Agent</td>
+</tr>
+<tr>
+<td><strong>External TestFlight</strong></td>
+<td>Yes (Beta App Review)</td>
+<td>No</td>
+<td>Same Sign-in = No + pairing Notes; beta contact info</td>
+</tr>
+<tr>
+<td><strong>App Store version</strong></td>
+<td>Yes (full App Review)</td>
+<td>No</td>
+<td>Same fields + privacy, screenshots, export compliance, etc.</td>
+</tr>
+</tbody>
+</table>
+<p>Ensure <code>relay.philfan.cn</code> (or the relay named in Notes) is up for the whole
+review window.</p>
 <h2 id="app-store-connect-metadata">App Store Connect Metadata<a class="headerlink" href="#app-store-connect-metadata" title="Permanent link">&para;</a></h2>
 <p>Ready-to-paste copy for the App Store Connect review form. English is the
 primary localization; the Chinese block goes into a separate <code>zh-CN</code>
@@ -2796,8 +2954,9 @@ names are not translated.</p>
 <strong>Marketing URL:</strong> <code>https://github.com/poco-ai/agentero</code>
 <strong>Privacy policy URL:</strong> <code>https://agentero.poco-ai.com/privacy/</code> (must
 exist before the version can be submitted for review).</p>
-<p><strong>Sign-in required:</strong> No
-<strong>Demo account:</strong> None</p>
+<p><strong>Sign-in required:</strong> No<br />
+<strong>Demo account:</strong> None (leave username and password empty — the app has no
+login; do not create a dummy account form for review)</p>
 <p><strong>App Review notes (paste verbatim):</strong></p>
 <div class="codehilite"><pre><span></span><code><span class="n">Agentero</span><span class="w"> </span><span class="n">iOS</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">remote</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">desktop</span><span class="w"> </span><span class="n">Agentero</span><span class="w"> </span><span class="n">Vault</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">it</span>
 <span class="n">cannot</span><span class="w"> </span><span class="n">create</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">open</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">Vault</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">device</span><span class="o">.</span><span class="w"> </span><span class="n">To</span><span class="w"> </span><span class="n">exercise</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">app</span><span class="p">,</span><span class="w"> </span><span class="n">a</span>
@@ -2931,7 +3090,11 @@ note unchanged across localizations.</p>
 <li>[ ] App Privacy questionnaire completed (all 14 categories →
       "Data Not Collected").</li>
 <li>[ ] Export compliance answered as exempt under Category 5 Part 2.</li>
-<li>[ ] App Review notes field filled with the English block above.</li>
+<li>[ ] <strong>Sign-in required = No</strong>; demo username/password left empty
+      (no fake login or “test website login” for review).</li>
+<li>[ ] App Review notes field filled with the English pairing block above.</li>
+<li>[ ] Review contact email/phone filled; relay reachable for the review window
+      (optional: demo desktop or revocable pairing link if reviewers need help).</li>
 <li>[ ] <code>ios-testflight.yml</code> GitHub Actions run produced the uploaded
       build (or the local <code>bash scripts/ios-testflight.sh</code> produced it
       with a matching build number).</li>
