@@ -2681,6 +2681,7 @@
 <li>不查询或展示本机 hostname / OS 身份。</li>
 <li>保存：<code>settings_set</code> → 广播 <code>settings:changed</code> 跨窗口同步。</li>
 <li>落盘：XDG <code>$XDG_CONFIG_HOME/agentero/settings.json</code>。</li>
+<li>加载策略：设置 webview 不加载完整 <code>App</code>，也不加载 PDF 引擎与 KaTeX（二者随 <code>App</code> 动态 import）。各分区 pane 按 <code>lazy()</code> 分 chunk；<strong>当前分区</strong>的 pane 与外壳并行预热（<code>preloadSettingsPane</code>），避免窗口刚可交互时才去拉 pane 而卡一下；其余分区首次访问才加载，已访问的保持挂载。</li>
 </ul>
 <h2 id="_3">主要分类<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>

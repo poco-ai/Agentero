@@ -2521,7 +2521,8 @@
 <ul>
 <li>与用户 Toast / <code>ApiResult</code> <strong>分层</strong>：日志不替代错误 UX。</li>
 <li>关键操作记录 op start/end。</li>
-<li>日志目录由插件约定；设置内「打开日志文件夹」若未做则仍可用系统日志路径排查。</li>
+<li>前端启动：<code>main.tsx</code> 在 <code>op start/end frontend_boot</code> 之间输出 <code>boot stage=&lt;阶段&gt; ms=&lt;累计&gt;</code>（logger / settings / theme / i18n / 模块加载）。计时基准是 <code>performance.now()</code>，即从页面导航开始，因此包含 HTML 与入口模块本身的加载；多窗口时用末尾的 <code>window=main|settings</code> 区分。</li>
+<li>日志目录由插件约定（Windows 为 <code>%LOCALAPPDATA%\&lt;identifier&gt;\logs\agentero.log</code>）；设置内「打开日志文件夹」若未做则仍可用系统日志路径排查。</li>
 </ul>
 
 
