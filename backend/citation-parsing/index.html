@@ -2830,7 +2830,7 @@
 
 <h1 id="citation-parsing">参考文献解析（Citation Parsing）<a class="headerlink" href="#citation-parsing" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>M1 + M2 + M3(PDF 内交互) 已实现</strong>（M1：Host <code>features/refs/</code> — L1 在线 S2/Crossref + L2 本地 bib/bbl/thebibliography + sidecar + 库内匹配 + 设置 <code>citationOnlineEnabled</code>，命令契约见 <a href="../api/">api.md</a> <code>paper_refs_parse</code> / <code>paper_refs_list</code>；M2：右侧栏 References tab 引用卡片，见 <a href="../../frontend/shell/">../frontend/shell.md</a>；M3：PDF Link annotation 覆盖层 — 点击 GoTo 跳页 / URI 外链、hover 锚文本联动引用卡片高亮，<code>src/components/viewer/embed/citation-links.tsx</code> + <code>src/lib/pdf/citation-hover-store.ts</code>）。剩余草稿：卡片 → PDF 反向 hover 高亮、Agent <code>#</code> 提及。</p>
+<p>状态：<strong>M1 + M2 + M3(PDF 内交互) 已实现</strong>（M1：Host <code>features/refs/</code> — L1 在线 S2/Crossref + L2 本地 bib/bbl/thebibliography + sidecar + 库内匹配，命令契约见 <a href="../api/">api.md</a> <code>paper_refs_parse</code> / <code>paper_refs_list</code>；M2：右侧栏 References tab 引用卡片，见 <a href="../../frontend/shell/">../frontend/shell.md</a>；M3：PDF Link annotation 覆盖层 — 点击 GoTo 跳页 / URI 外链、hover 锚文本联动引用卡片高亮，<code>src/components/viewer/embed/citation-links.tsx</code> + <code>src/lib/pdf/citation-hover-store.ts</code>）。剩余草稿：卡片 → PDF 反向 hover 高亮、Agent <code>#</code> 提及。</p>
 </blockquote>
 <h2 id="1">1. 背景与现状<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <ul>
