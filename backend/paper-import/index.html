@@ -2809,7 +2809,11 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </tr>
 <tr>
 <td>无 TeX 有 PDF</td>
-<td>下载后 liteparse → <code>PAPER.md</code>；可 <code>paper_parse_body</code></td>
+<td>下载后由隔离的 liteparse 子进程生成 <code>PAPER.md</code>；单次解析限时 120 秒</td>
+</tr>
+<tr>
+<td>解析失败或超时</td>
+<td>保留 PDF、<code>NOTES.md</code> 与 catalog；返回诊断消息，后续可重新执行 <code>paper parse</code></td>
 </tr>
 <tr>
 <td>质量字段</td>

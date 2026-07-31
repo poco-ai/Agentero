@@ -2714,11 +2714,11 @@
 <tbody>
 <tr>
 <td>魔棒 FileUp</td>
-<td>多选 → metadata 确认 → <code>paper_import_local_pdf</code></td>
+<td>多选 → metadata 确认 → <code>paper_import_local_pdf</code>；任务条显示 PDF 解析阶段</td>
 </tr>
 <tr>
 <td>拖到 <code>papers/</code> 组织夹</td>
-<td>metadata 确认后入库；无 TeX 时 liteparse → <code>PAPER.md</code></td>
+<td>metadata 确认后入库；无 TeX 时隔离运行 liteparse → <code>PAPER.md</code></td>
 </tr>
 <tr>
 <td>拖到窗口其它区域</td>
@@ -2726,6 +2726,7 @@
 </tr>
 </tbody>
 </table>
+<p>PDF 解析最多等待 120 秒，取消任务会终止当前解析子进程。解析失败或超时时，后台入库任务仍会结束，已复制的 PDF、<code>NOTES.md</code> 与 catalog 记录保持可用；用户可稍后通过 CLI <code>paper parse</code> 重试派生正文。</p>
 <h2 id="zotero">Zotero<a class="headerlink" href="#zotero" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
