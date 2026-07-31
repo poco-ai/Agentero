@@ -3685,7 +3685,8 @@
 <h1 id="ios">移动端前端与 iOS 远程连接<a class="headerlink" href="#ios" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p>状态：<strong>M1 已实现，M2 功能已实现（待 TestFlight 内测）</strong>。当前移动端已包含二维码/配对链接连接、连接状态恢复、论文库搜索、PDF 分块缓存、NOTES 编辑、桌面 Agent 流式输出与权限应答、ACP Agent 切换、历史会话恢复和移动端侧栏；多主机/LAN 回退仍在后续范围。面向用户的操作说明见 <a href="../../usage/mobile/">移动端</a>。
-决策：iOS <strong>不做本地 Vault</strong>，App 是桌面端的纯远程客户端 —— 扫码配对后经 <strong>relay + 端到端加密</strong> 连接电脑上的 Agentero，读写电脑上的库，并驱动电脑上的 BYOA Agent。</p>
+决策：iOS <strong>不做本地 Vault</strong>，App 是桌面端的纯远程客户端 —— 扫码配对后经 <strong>relay + 端到端加密</strong> 连接电脑上的 Agentero，读写电脑上的库，并驱动电脑上的 BYOA Agent。
+Android：已初始化 Tauri Android 目标（<code>src-tauri/gen/android</code>，包名 <code>com.poco_ai.agentero</code>）。定位与 iOS 相同——纯远程客户端，<code>src/main.tsx</code> 经 <code>isMobileApp()</code>（<code>src/lib/core/tauri.ts</code>，iOS/Android UA 检测）加载同一移动壳；liteparse、菜单事件等桌面能力用 <code>cfg(not(any(target_os = "ios", target_os = "android")))</code> 一并排除。本地调试：<code>pnpm tauri android dev</code> / <code>pnpm tauri android build --apk</code>（需 ANDROID_HOME + NDK）。发布：<code>.github/workflows/release.yml</code> 的 <code>android</code> job（与 <code>installers</code>/<code>cli</code> 并行，同一 draft release）在 tag 推送时构建签名 APK <code>Agentero_&lt;版本&gt;_aarch64.apk</code>；需 <code>ANDROID_KEYSTORE*</code> secrets，缺失则跳过该 job 而不阻塞桌面发布。</p>
 </blockquote>
 <hr />
 <h2 id="1">1. 背景与决策<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
