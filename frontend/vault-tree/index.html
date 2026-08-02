@@ -2732,7 +2732,7 @@
 <li>其它根目录只 list 一层，展开再 list。</li>
 <li>忽略：<code>.git</code>、<code>.venv</code>、<code>node_modules</code> 等（<code>TREE_IGNORE_NAMES</code>）。</li>
 <li>默认只展开 <code>papers/</code> 及其一级子目录。</li>
-<li>虚拟化：<code>@tanstack/react-virtual</code> 拍平窗口化。</li>
+<li>虚拟化：<code>@tanstack/react-virtual</code> 拍平窗口化；<code>getItemKey</code> 用行稳定 id，避免内联新建草稿插入/移除后按索引缓存行高留下空隙。</li>
 </ul>
 <h2 id="paper">Paper 行<a class="headerlink" href="#paper" title="Permanent link">&para;</a></h2>
 <table>
