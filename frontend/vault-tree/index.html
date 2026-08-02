@@ -2730,6 +2730,7 @@
 <li>远程：<code>remote_list</code> 前端递归。</li>
 <li><strong>全量递归</strong>：<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agents/</code>；论文内 <code>source/</code> <strong>懒加载</strong>（<code>childrenPending</code> → <code>vault_tree_children</code>）。</li>
 <li>其它根目录只 list 一层，展开再 list。</li>
+<li><strong>缺失目录</strong>：本地 <code>read_dir</code> 失败返回空列表；远程 list 的 <code>NoSuchFile</code> 同样按空处理（<code>isPathMissingError</code>），避免删除后刷新把整棵树清空。删除成功后会先 <code>removeTreeNode</code> 乐观剪枝，再 <code>refreshTree</code>。</li>
 <li>忽略：<code>.git</code>、<code>.venv</code>、<code>node_modules</code> 等（<code>TREE_IGNORE_NAMES</code>）。</li>
 <li>默认只展开 <code>papers/</code> 及其一级子目录。</li>
 <li>虚拟化：<code>@tanstack/react-virtual</code> 拍平窗口化；<code>getItemKey</code> 用行稳定 id，避免内联新建草稿插入/移除后按索引缓存行高留下空隙。</li>
@@ -2772,7 +2773,7 @@
 <tbody>
 <tr>
 <td>新建文件/文件夹</td>
-<td>右键 → 树内联命名；菜单会按实际尺寸在窗口边缘自动翻转或滚动，不会被窗口下沿截断</td>
+<td>右键 → 树内联命名；菜单会按实际尺寸在窗口边缘自动翻转或滚动，不会被窗口下沿截断。<strong>远程 Vault</strong> 的重名预检走 <code>vaultPathExists</code>（<code>remote_list</code> 父目录），不可用本机 <code>plugin-fs</code> <code>exists</code>（伪路径 <code>remote:&lt;id&gt;/…</code> 不在本地 scope）</td>
 </tr>
 <tr>
 <td>Finder 显示</td>
