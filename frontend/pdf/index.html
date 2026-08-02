@@ -2679,7 +2679,7 @@
 </tr>
 </tbody>
 </table>
-<p>任意 Vault 路径 <code>.pdf</code> 可 <code>blob:</code> 预览；论文单元：本地优先 → 自动下载 → 远程 <code>pdf_url</code> 回退。HTML 用远程 <code>html_url</code> iframe（不注入主 DOM）。</p>
+<p>任意 Vault 路径 <code>.pdf</code> 可 <code>blob:</code> 预览；论文单元：本地优先 → 自动下载 → 远程 <code>pdf_url</code> 回退。HTML 用远程 <code>html_url</code> iframe（不注入主 DOM）。普通网页条目打开 HTML 并创建 <code>NOTES.md</code> 分屏；旧条目缺少 <code>html_url</code> 时从 <code>source_url</code> 兜底。</p>
 <p>PDFium engine 由窗口共享并在主线程运行。Engine 宿主位于 React StrictMode 外，异步初始化即使在完成前被卸载也会主动销毁结果，避免 dev reload 遗留孤儿 WASM engine。工作区只挂载当前可见与最近使用的至多两个 PDF viewer；恢复的隐藏 PDF 标签按需 hydrate，退出保留集合的本地 PDF 字节会释放并在再次激活时重新读取。</p>
 <h2 id="_1">阅读能力<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <table>

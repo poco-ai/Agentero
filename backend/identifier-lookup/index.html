@@ -5206,7 +5206,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li>映射：每条<strong>拼装成 Zotero-API-JSON item</strong> → 复用 <code>map_zotero_item</code> + <code>enrich_remote_urls</code> + <code>write_paper_shell</code> + <code>paper_record_from_meta</code> + catalog upsert，落到 <code>{parent_dir}/{id}/</code>（id/citekey 与魔棒 / 文件导入一致）。</li>
 <li>附件 PDF URL：<code>map_zotero_item</code> 未给出 <code>pdf_url</code> 时，采用 Connector <code>attachments[]</code> 里的 PDF 链接（浏览器侧捕获，ACM/IEEE 等常仅经此暴露）。</li>
 <li>中文摘要：为不超 Connector 15s 超时，壳先以原文写入；<strong>后台</strong>三引擎并行竞速翻译摘要，成功则安全替换 <code>NOTES.md</code> 的 <code>&gt;</code> 摘要块（mtime 守卫，用户已编辑或 MT 全失败则跳过）。</li>
-<li>标签：<strong>仅保留手动标签</strong>——Zotero 自动标签（网络翻译器加的来源/状态标签，<code>itemTags.type ≠ 0</code>）在导入时过滤；<code>type = 0</code> 的用户标签保留（旧库无 <code>type</code> 列时回退为全部）。collection 名仍作为组织标签补充。</li>
+<li>标签：用户标签原样保留；Zotero 自动标签（网络翻译器加的来源/状态标签，<code>itemTags.type ≠ 0</code>）保留并加 <code>@zotero:</code> 前缀，因此在 Agentero 的标签界面中隐藏。旧库无 <code>type</code> 列时回退为将全部标签视为用户标签。collection 名仍作为组织标签补充。</li>
 <li>PDF：对话框 <strong>“把 PDF 复制进知识库”</strong> 勾选项（默认开）。勾选时从 <code>storage/&lt;attachmentKey&gt;/</code> 拷到 <code>{paper}/{id}.pdf</code> 并 liteparse <code>PAPER.md</code>；不勾则只留书目，<code>pdf_url</code> 供按需下载。</li>
 <li>去重：按 arXiv id / DOI / 归一化标题跳过重复（re-run 与既有）；不同文献 citekey 相撞时目录追加后缀。<strong>不覆盖</strong> <code>NOTES.md</code>。</li>
 <li>自愈：迁移前 <code>prune_missing</code> 清掉「文件夹已被手动删除」的 catalog 孤儿行，防止幽灵条目占位、去重误跳过导致无法重导（结果含 <code>pruned</code> 计数）。</li>

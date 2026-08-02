@@ -2643,6 +2643,8 @@
 <li>支持 <code>saveItems</code>、目标文件夹选择、<strong><code>saveAttachment</code></strong>（浏览器上传 PDF）。</li>
 <li>绑定当前 Vault（本地路径或 <code>remote:&lt;sessionId&gt;</code>）。</li>
 <li>保存后：catalog + paper 目录；刷新树；<code>openPaper</code> 聚焦。</li>
+<li>Connector 返回的 Zotero 标签会以 <code>@zotero:</code> 前缀保存在 catalog 中，用于保留来源信息；
+  这类内部标签不会显示在 Library、Paper Info 或标签筛选中。</li>
 <li>远程：stage 后 SFTP；catalog 经 work mirror。</li>
 </ul>
 <h2 id="_2">命令 / 事件<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
