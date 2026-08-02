@@ -2668,6 +2668,7 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <li>输入必须是 Vault 相对路径；命令只读，不创建目标或重写来源。</li>
 <li>派生正文 <code>PAPER.md</code> 保留为可链接目标和标题来源，但不作为出链来源参与检查。</li>
 <li>全部解析成功时退出码为 0；发现 <code>missing</code>、<code>ambiguous</code>、<code>invalidFragment</code> 时返回非零，错误码为 <code>wikilink_check_failed</code>，报告位于 <code>error.details</code>。</li>
+<li>批注双链 <code>[[target@id]]</code> / <code>[[target#@id]]</code>：按 path 解析 target，并校验 id 形态；<strong>不</strong>读取 <code>marks/</code> 判断 id 是否仍存在（与桌面 resolve 一致）。</li>
 </ul>
 <p>报告包含 <code>checkedFiles</code>、四类状态计数，以及每个问题的 <code>source</code>、<code>line</code>、<code>targetRaw</code>、<code>syntax</code>、<code>embed</code>、<code>targetPath?</code>、<code>candidates</code> 和 <code>context?</code>。指定单文件作用域后，Vault 中其它历史坏链不会影响本次验收。</p>
 <p>Skill 种子：<code>templates/vault/.agents/skills/agentero-cli/</code>。</p>

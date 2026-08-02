@@ -2851,14 +2851,17 @@
 <div class="codehilite"><pre><span></span><code>这篇工作扩展了 [[另一个论文]] 中的实验设置。
 具体规则见 [[另一个论文#实验设置]]。
 关键结论见 [[另一个论文#^summary]]。
+这条高亮见 [[papers/…/NOTES@批注id|短摘录]]。
 </code></pre></div>
 
-<p>输入 <code>[[</code> 后可从文件 / alias / 标题 / block 候选中选择。保存后更新 Backlinks 与 Graph。通过 Agentero 移动或重命名时，会修复已解析到该目标的链接。</p>
+<p>输入 <code>[[</code> 后可从文件 / 标题 / block / 批注等候选中选择（<code>#</code> 标题 · <code>^</code> 文本块 · <code>|</code> 显示名 · <code>@</code> 批注；↑↓ 循环，tab 补全，enter 确认）。<code>@</code> 用于 PDF 划词或视觉批注；target 用路径，不要只用论文展示标题。保存后更新 Backlinks 与 Graph。通过 Agentero 移动或重命名时，会修复已解析到该目标的链接。</p>
+<p>更细的编辑器语义见 <a href="../../frontend/wiki/">双链 UI</a>。</p>
 <h2 id="vault">嵌入 Vault 内容<a class="headerlink" href="#vault" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code>![[另一个论文]]
 ![[另一个论文#实验设置]]
 ![[assets/figure.png|480]]
 ![[papers/example/paper.pdf]]
+![[papers/example/NOTES@批注id]]
 </code></pre></div>
 
 <table>
@@ -2888,6 +2891,10 @@
 <tr>
 <td><code>![[document.pdf]]</code></td>
 <td>内嵌 PDF</td>
+</tr>
+<tr>
+<td><code>![[…@annotationId]]</code></td>
+<td>划词 / 视觉批注</td>
 </tr>
 </tbody>
 </table>

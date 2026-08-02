@@ -1634,6 +1634,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#fragment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        批注 fragment
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2630,6 +2641,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#fragment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        批注 fragment
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2694,6 +2716,13 @@
 <h2 id="_5">代码<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p><code>src-tauri/src/features/wiki/</code><br />
 前端 UI：<a href="../../frontend/wiki/">../frontend/wiki.md</a></p>
+<h2 id="fragment">批注 fragment<a class="headerlink" href="#fragment" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>LinkFragment::Annotation { id }</code>：<code>[[target@id]]</code> sugar 与 <code>[[target#@id]]</code> 等价；id 允许 nanoid <code>_</code> 与 UUID <code>-</code>（Markdown 转义的 <code>\_</code> 在解析时规范化）。</li>
+<li>解析时不把 annotation id 当 Markdown heading/block；<strong>target 仍走普通文件 resolve</strong>（路径 / 文件名），成功后再由前端按 id 打开 paper PDF 并 <code>scrollToHighlight</code> / <code>scrollToVisualTrace</code>。</li>
+<li><code>![[…@id]]</code> 的 <code>contentKind</code> 为 <code>annotation</code>：Host 只确认 fragment 类型，<strong>quote / 裁剪 / 对话</strong> 由前端读 <code>marks/annotations.json</code> 或 <code>marks/&lt;id&gt;.json</code> 投影。</li>
+<li><code>wiki check</code> / 索引：对 annotation 报告 path 级 <code>resolved|missing|ambiguous</code> 与 id 形态 <code>invalidFragment</code>；<strong>不</strong>打开 marks 验证 id 存活。</li>
+</ul>
 
 
 

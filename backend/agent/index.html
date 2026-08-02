@@ -2709,15 +2709,23 @@
   <a href="../../bug_fix/gemini-login-browser-loop/">bug_fix/gemini-login-browser-loop.md</a>。</li>
 </ul>
 <div class="codehilite"><pre><span></span><code>spawn 用户配置的 agent
-  → ACP ready
-  → session create / load
+  → ACP initialize（读 loadSession / sessionCapabilities.resume）
+  → session/new  或  继续：resume 优先，否则 session/load（Grok 仅 load）
   → available_commands_update → `agent:commands`
   → build_prompt（workflow + 可选 agentPersonalPrompt）
-  → 流式 stdout → agent:stream
+  → session/prompt → 流式 agent:stream
   → 权限请求 → 前端（ask 模式）
-  → 完成 / 失败事件
+  → 完成（含 providerSessionId）/ 失败
 </code></pre></div>
 
+<p>多轮续聊必须传 <strong>provider session id</strong>（不是 Agentero runtime id）。Grok Build ACP
+声明 <code>loadSession: true</code>、<strong>不</strong>声明 <code>resume</code>；对 Grok 调用 <code>session/resume</code> 会
+<code>Method not found</code>，Host 应改走 <code>session/load</code>。</p>
+<p>生成中取消时，只要 provider session 已创建或本轮正在恢复，取消结果仍携带 <code>providerSessionId</code>。前端保留该 ID，并写回视觉批注 mark，使下一条消息和重启后的 pin 续聊继续同一会话；在 <code>session/new</code> 返回前取消时尚无可恢复的 provider session。</p>
+<p><code>session/load</code> 会把历史以 <code>SessionNotification</code> 回放。Host 在
+<code>session/prompt</code> 之前 <strong>suppress</strong> 回放中的 stream/tool/plan（不 <code>agent:stream</code>、
+不写入本轮 content buffer），避免第二轮气泡开头重复上一轮回答；usage /
+commands / config 仍可在 load 期间转发。</p>
 <h2 id="_2">命令（摘要）<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2733,7 +2741,7 @@
 </tr>
 <tr>
 <td><code>agent_run_once</code></td>
-<td>发起一轮（含 workflow / permissionMode）</td>
+<td>发起一轮；<code>sessionId</code> 时按能力 resume 或 load</td>
 </tr>
 <tr>
 <td><code>agent_list_sessions</code> / <code>agent_load_session</code></td>

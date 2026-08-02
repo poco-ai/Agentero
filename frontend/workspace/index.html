@@ -2661,6 +2661,7 @@
 </table>
 <p>标签组 chip 的颜色菜单会将展开/收起 icon 染为对应颜色，并同步用于组内 tab 的强调线；清除颜色后恢复默认颜色。</p>
 <p>布局只存 dockview <code>toJSON()</code>；path/mode 在 panel params。</p>
+<p>启动恢复只 hydrate 每个 Dockview group 当前可见的 panel；隐藏标签在首次切换到前台时再读取资源。PDFium 保留当前可见与最近使用的至多两个 PDF viewer，本地 PDF <code>ArrayBuffer</code> 离开保留集合后释放，避免多标签工作区重启时并发加载全部 PDF 并长期占用 WebContent 内存。</p>
 <h2 id="_2">面板类型<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>Library · Trash · PDF · HTML · 图片 · Markdown · 论文 NOTES。</p>
 <h2 id="_3">代码<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>

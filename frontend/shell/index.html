@@ -2709,6 +2709,7 @@
 <li>无 Vault：最近路径 MRU、打开 / 创建 / 从 Zotero 迁移。</li>
 <li><code>⌘N</code> → Host <code>window_new</code>（<code>?fresh=1</code>）；Vault 与 dock 布局按窗口 session 隔离。</li>
 <li>当前窗口 Vault：<code>sessionStorage</code>；MRU / 上次路径：<code>localStorage</code>。</li>
+<li>桌面窗口在 Webview 页面加载完成后显示；React 首次提交前由 <code>index.html</code> 的零依赖启动壳占位，避免冷启动和 dev 模块加载期间出现空白窗口。</li>
 </ul>
 <h2 id="toast">全局 Toast<a class="headerlink" href="#toast" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2739,6 +2740,10 @@
 <tr>
 <td><code>⌘,</code></td>
 <td>开/关设置窗口</td>
+</tr>
+<tr>
+<td><code>⌘.</code></td>
+<td>PDF 视觉批注框选（当前 PDF 标签）</td>
 </tr>
 <tr>
 <td><code>⌘N</code></td>

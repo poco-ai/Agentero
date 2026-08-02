@@ -5076,6 +5076,7 @@ Host (Tauri + Rust)
 <li><strong>行为</strong></li>
 <li>创建 label 为 <code>agentero-&lt;uuid&gt;</code> 的 Webview 窗口，URL 带 <code>?fresh=1</code>（不自动恢复上次 Vault）。</li>
 <li>窗口尺寸 / macOS overlay 标题栏与主窗口一致。</li>
+<li>窗口初始隐藏，由全局 page-load hook 在页面加载完成后显示；首个 React commit 前显示静态启动壳。</li>
 <li>Capability 覆盖 <code>main</code> 与 <code>agentero-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
 <li>菜单点击由 Host 直接调用，不经过前端 event 往返（Host 内用 <code>tauri::async_runtime::spawn</code> 调用）。</li>
 <li><strong>必须是 <code>async</code> command</strong>：同步 command 在主线程、且处于调用方 webview 的 IPC 回调内执行，Windows 上从那里 build webview 会卡死（wry 进入嵌套消息循环等 WebView2 controller 回调，而该回调要等当前处理器返回），新窗口表现为空白且无法关闭。</li>
@@ -5096,6 +5097,7 @@ Host (Tauri + Rust)
 <li><strong>行为</strong></li>
 <li>若 label 为 <code>settings</code> 的窗口已存在，则将其聚焦并返回；否则新建。</li>
 <li>URL 带 <code>?window=settings&amp;section=...&amp;vault_path=...</code>，由 <code>src/main.tsx</code> 分支渲染轻量 Settings 页面（不加载完整 <code>App</code>）。</li>
+<li>新窗口初始隐藏，由全局 page-load hook 在页面加载完成后显示；首个 React commit 前显示静态启动壳。</li>
 <li>macOS 使用 Overlay 标题栏与原生交通灯；Windows / Linux 使用系统原生窗口边框（OS 自绘标题栏与 caption 按钮）。</li>
 <li>窗口关闭时 Host 向所有窗口 <code>emit("settings_window_closed", ())</code>，便于主窗口同步 Settings 打开状态（实现 <code>⌘,</code> <em>toggle</em>）；建窗失败时也会 emit 一次，避免 toggle 卡在“已打开”。</li>
 <li>与 <code>window_new</code> 同理，<strong>必须是 <code>async</code> command</strong>。</li>
@@ -6032,7 +6034,7 @@ Host (Tauri + Rust)
 <h3 id="37-agent-acp-client-byoa">3.7 Agent 工作流（ACP Client + BYOA）<a class="headerlink" href="#37-agent-acp-client-byoa" title="Permanent link">&para;</a></h3>
 <p>Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（<code>cwd</code> = 当前 Vault），通过 stdio JSON-RPC 会话。<strong>不</strong> 内置 agent 二进制；<strong>不</strong> 在 config 中要求模型 API Key。</p>
 <h4 id="agent_run_once"><code>agent_run_once</code><a class="headerlink" href="#agent_run_once" title="Permanent link">&para;</a></h4>
-<p>通用 ACP provider 创建或恢复会话并发送 prompt。所有 provider（含 Codex）统一使用 ACP <code>session/new</code> 或 <code>session/resume</code> 管理会话；历史经 <code>session/list</code> + <code>session/load</code> 获取。</p>
+<p>通用 ACP provider 创建或恢复会话并发送 prompt。<code>sessionId</code> 省略时走 <code>session/new</code>；提供时按 agent 能力选择恢复方式：<code>sessionCapabilities.resume</code> → <code>session/resume</code>，否则若 <code>loadSession</code> → <code>session/load</code>（Grok Build 实测仅支持 load，不支持 resume）。历史列表经 <code>session/list</code> + <code>session/load</code> 获取。</p>
 <ul>
 <li><strong>参数</strong></li>
 </ul>

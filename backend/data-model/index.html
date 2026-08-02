@@ -2713,7 +2713,7 @@
 <div class="codehilite"><pre><span></span><code>papers/&lt;id&gt;/
 ├── NOTES.md          # 人/Agent 笔记
 ├── &lt;id&gt;.pdf          # 可选
-├── marks/            # 高亮/批注/提问/翻译 JSON
+├── marks/            # 高亮/批注/提问/翻译 JSON 与 mark 自有资产
 ├── source/           # TeX 等（可懒加载）
 │   └── agentero-cite.json  # 参考文献 sidecar（可重建，见 api.md paper_refs_parse）
 ├── PAPER.md          # 无 TeX 时 liteparse 正文
@@ -2725,8 +2725,17 @@
 <ul>
 <li>高亮/批注：<code>annotations.json</code>（含 <code>comment</code> 的为批注）</li>
 <li>提问/翻译：<code>&lt;id&gt;.json</code>（<code>kind</code>）</li>
+<li>视觉批注：<code>&lt;id&gt;.json</code>（<code>kind: agent-trace</code>）保存位置、会话与 <code>image.path</code>；裁剪图片位于 <code>assets/&lt;id&gt;.png</code></li>
 <li>不写 PDF 二进制，不强制写入 NOTES</li>
 </ul>
+<div class="codehilite"><pre><span></span><code>marks/
+├── annotations.json
+├── &lt;id&gt;.json
+└── assets/
+    └── &lt;agent-trace-id&gt;.png
+</code></pre></div>
+
+<p><code>marks/assets/</code> 由 mark 拥有，删除视觉批注时同步删除对应图片。列表与轮询只解析 JSON；悬浮预览、打开 Agent 或 Wiki 嵌入需要图片时才读取二进制。该目录与 Paper 单元根部供 <code>NOTES.md</code> 引用的 <code>assets/</code> 分开。</p>
 <h2 id="markdown">Markdown 内嵌图<a class="headerlink" href="#markdown" title="Permanent link">&para;</a></h2>
 <p><code>{mdDir}/assets/</code> + 相对路径 <code>![](./assets/…)</code>；前端 GC 无引用文件。</p>
 <h2 id="_2">远程<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>

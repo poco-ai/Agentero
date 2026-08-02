@@ -2652,6 +2652,7 @@
 </tbody>
 </table>
 <p>任意 Vault 路径 <code>.pdf</code> 可 <code>blob:</code> 预览；论文单元：本地优先 → 自动下载 → 远程 <code>pdf_url</code> 回退。HTML 用远程 <code>html_url</code> iframe（不注入主 DOM）。</p>
+<p>PDFium engine 由窗口共享并在主线程运行。Engine 宿主位于 React StrictMode 外，异步初始化即使在完成前被卸载也会主动销毁结果，避免 dev reload 遗留孤儿 WASM engine。工作区只挂载当前可见与最近使用的至多两个 PDF viewer；恢复的隐藏 PDF 标签按需 hydrate，退出保留集合的本地 PDF 字节会释放并在再次激活时重新读取。</p>
 <h2 id="_1">阅读能力<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2687,7 +2688,11 @@
 </tr>
 <tr>
 <td>文中链接</td>
-<td>Link annotation 覆盖层：citation / 图表 / 章节 GoTo 点击跳页，URI 开系统浏览器；hover citation 锚文本（<code>[12]</code> / 作者-年份）经 <code>citation-hover-store</code> 联动右侧 References 卡片高亮（<code>embed/citation-links.tsx</code>）</td>
+<td>Link annotation 覆盖层：citation / 图表 / 章节 GoTo 点击跳页，URI 开系统浏览器；hover citation 锚文本（<code>[12]</code> / 作者-年份）显示元数据预览并联动右侧 References 卡片高亮。图表、章节、公式等内部链接只保留导航，不显示引用预览</td>
+</tr>
+<tr>
+<td>视觉批注</td>
+<td>工具栏或 <strong>⌘.</strong> 进入框选。<strong>Enter</strong> → composer 草稿；<strong>⌘/Ctrl+Enter</strong> → 浮层。浮层与右侧 Agent <strong>共用</strong> <code>agentSessionStore</code> 会话（同一 send 管线、同一 <code>lines</code>），不是两套记录。Host 按能力 <code>session/load</code>（Grok）或 <code>session/resume</code> 续聊。多轮会回写同一 <code>marks/&lt;id&gt;.json</code> 的 <code>messages[]</code> / <code>answerSnapshot</code>（草稿 id 用 nanoid，跨重启不覆盖）。活动 PDF 才轮询 marks；切换 Vault 清空 composer 视觉草稿。裁剪最长边 1600 px</td>
 </tr>
 </tbody>
 </table>
@@ -2720,12 +2725,17 @@
 <tr>
 <td>加入对话</td>
 <td>不落盘</td>
-<td>选区固定为 Agent composer 选区 chip，见 <a href="../agent/">agent.md</a></td>
+<td>选区固定为 Agent composer 文本 chip，见 <a href="../agent/">agent.md</a></td>
 </tr>
 <tr>
 <td>翻译</td>
 <td><code>marks/&lt;id&gt;.json</code>（kind translate）</td>
 <td><a href="../translate/">translate.md</a></td>
+</tr>
+<tr>
+<td>视觉批注</td>
+<td><code>marks/&lt;id&gt;.json</code>（kind <code>agent-trace</code>）保存会话与 <code>image.path</code>；裁剪图位于 <code>marks/assets/&lt;id&gt;.png</code>；<code>providerSessionId</code> 为源会话；<code>messages[]</code> 本地多轮 transcript（续聊也会落盘）</td>
+<td>框选 → <strong>Enter</strong> → composer；<strong>⌘↵</strong> → 浮层。多轮续聊走 ACP 同一 session（load/resume），同时 <code>beginTraceContinue</code> + complete 更新 mark。打开 Agent 与 pin 共享 <code>providerSessionId</code> / <code>visualTraceId</code></td>
 </tr>
 </tbody>
 </table>
@@ -2733,6 +2743,10 @@
 <li>不改 PDF 二进制；不自动写入 <code>NOTES.md</code>。</li>
 <li>提问 Agent 可与面板默认 Agent 分开配置。</li>
 <li>坐标归一化；多段 rect 支持双栏。</li>
+<li>旧版 visual Ask（<code>kind: ask</code> + <code>visualKind</code>）仍可读、可打开。</li>
+<li>一次提交可包含多条视觉批注：prompt 按 <code>## Annotation N</code> 分点，图片顺序与 annotation 对齐。</li>
+<li>视觉裁剪不以 base64 写入 mark JSON；活动 PDF 的 marks 轮询只读取 metadata，悬浮卡片、打开 Agent 与 Wiki 嵌入按需读取图片。图片缺失时仍保留位置、批注和多轮 transcript。</li>
+<li><strong>写进笔记</strong>：批注面板复制 / <code>[[@id]]</code> / <code>![[…@id]]</code>，见 <a href="../wiki/">wiki.md</a> 编辑器 <code>@</code> 说明。</li>
 </ul>
 <h2 id="_3">代码<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>
@@ -2748,12 +2762,40 @@
 <td>阅读器</td>
 </tr>
 <tr>
+<td><code>src/components/viewer/embed/pdf-region-select-layer.tsx</code></td>
+<td>图片区域框选覆盖层</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/embed/pdf-region-crop.ts</code></td>
+<td>PDF 区域裁剪与 Agent 图片编码</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf-ask/visual-annotation-editor.tsx</code></td>
+<td>框选后批注编辑器</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf-citation-preview.tsx</code></td>
+<td>文中引用悬浮预览</td>
+</tr>
+<tr>
+<td><code>src/lib/agent/visual-context-store.ts</code></td>
+<td>Agent composer 视觉批注草稿</td>
+</tr>
+<tr>
+<td><code>src/lib/pdf/agent-trace/</code></td>
+<td>agent-trace 契约 / mark 资产 IO / prompt / Open-in-Agent 重建 / 会话回跳 pending</td>
+</tr>
+<tr>
 <td><code>src/lib/pdf/highlight/</code></td>
 <td>高亮 / 批注</td>
 </tr>
 <tr>
 <td><code>src/lib/pdf/ask/</code></td>
 <td>划词提问</td>
+</tr>
+<tr>
+<td><code>src/lib/pdf/region.ts</code></td>
+<td>区域坐标归一化与 PDF rect 转换</td>
 </tr>
 <tr>
 <td><code>src/lib/pdf/translate/</code></td>
@@ -2773,8 +2815,8 @@
 </tr>
 </tbody>
 </table>
-<p>Host 下载/解析：<a href="../../backend/paper-import/">../backend/paper-import.md</a>。<br />
-引用元数据解析与 References 侧栏：<a href="../../backend/citation-parsing/">../backend/citation-parsing.md</a>；插图 sidecar 尚未实现。</p>
+<p>Host 下载/解析：<a href="../../backend/paper-import/">../backend/paper-import.md</a>。</p>
+<p>引用元数据解析与 References 侧栏：<a href="../../backend/citation-parsing/">../backend/citation-parsing.md</a>；插图 sidecar 与自动视觉区域检测尚未实现。</p>
 
 
 
