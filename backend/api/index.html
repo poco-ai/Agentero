@@ -6656,6 +6656,8 @@ Host (Tauri + Rust)
 <li><strong>参数</strong>：<code>{ settings: AppSettings }</code>（camelCase，与前端 <code>src/lib/settings</code> 同构）</li>
 <li><strong>返回</strong>：规范化后的 <code>AppSettings</code>（写盘 + 更新 Host 内存）</li>
 <li><strong>事件</strong>：保存成功后向<strong>所有窗口</strong> <code>emit("settings:changed", AppSettings)</code>（规范化后的快照）。前端 <code>initSettingsSync()</code>（<code>src/lib/settings</code>）监听该事件更新各窗口内存缓存并通知订阅者（<code>subscribeSettings</code>），保证各窗口的设置实时一致。</li>
+<li><code>networkProxyEnabled</code> / <code>networkProxyUrl</code> 是 Host 级网络代理配置；启用后所有 Host
+  创建的 reqwest HTTP(S)/SOCKS 请求和本地/远端 Agent 进程的代理环境使用该配置。</li>
 <li><strong>链接改名策略</strong>：<code>autoUpdateInternalLinks</code> 为 <code>"ask"</code>（默认）或 <code>"always"</code>；未知值规范化为 <code>"ask"</code>。它只控制可信<strong>本地外部</strong> rename 的 repair，Agentero 发起的显式 rename/move 始终走单次事务预检，remote Vault 不自动修复。</li>
 </ul>
 <blockquote>

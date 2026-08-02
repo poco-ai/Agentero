@@ -2710,6 +2710,7 @@
 <li>保存：<code>settings_set</code> → 广播 <code>settings:changed</code> 跨窗口同步。</li>
 <li>落盘：XDG <code>$XDG_CONFIG_HOME/agentero/settings.json</code>。</li>
 <li>加载策略：设置 webview 不加载完整 <code>App</code>，也不加载 PDF 引擎与 KaTeX（二者随 <code>App</code> 动态 import）。各分区 pane 按 <code>lazy()</code> 分 chunk；<strong>当前分区</strong>的 pane 与外壳并行预热（<code>preloadSettingsPane</code>），避免窗口刚可交互时才去拉 pane 而卡一下；其余分区首次访问才加载，已访问的保持挂载。</li>
+<li>通用页的「网络代理」是 Host 级配置，启用后用于 Host 创建的 HTTP(S)/SOCKS 请求，并同步注入本地与远端 Agent 进程的 <code>HTTP_PROXY</code> / <code>HTTPS_PROXY</code> / <code>ALL_PROXY</code>。旧版 Settings → Agent 的代理配置会在首次启动时迁移。</li>
 </ul>
 <h2 id="_3">主要分类<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>
@@ -2757,6 +2758,7 @@
 <li>36 个 tweakcn 预设：<code>src/themes/tweakcn.json</code>；<code>src/lib/ui/theme.ts</code> 注入 CSS 变量。</li>
 <li>刷新主题数据：<code>node scripts/fetch-tweakcn-themes.mjs</code>。</li>
 <li><code>uiScale</code>：80%–150% 五档，改 <code>html</code> font-size。</li>
+<li><code>batchImportConcurrency</code>：魔棒批量导入及后续资源下载的并发上限，范围 1–10，默认 3。</li>
 </ul>
 <h2 id="i18n">i18n<a class="headerlink" href="#i18n" title="Permanent link">&para;</a></h2>
 <ul>

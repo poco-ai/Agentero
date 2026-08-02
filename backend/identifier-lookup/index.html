@@ -4834,8 +4834,11 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li>对 <code>texts</code> 逐条调 <code>extract_primary_identifier</code>；未识别则计入 <code>errors</code>。</li>
 <li>按规范化 value（arXiv 去 version、DOI 小写等）去重：同一 batch 内重复 → <code>skipped</code>（<code>duplicate_in_batch</code>）。</li>
 <li>对每条唯一标识符查 catalog：已存在同 <code>arxiv_id</code> / <code>doi</code> / <code>isbn</code> / <code>pmid</code> / <code>id</code> 的 paper → <code>skipped</code>（<code>already_in_library</code>）。</li>
-<li>剩余条目以 <code>concurrency</code>（默认 3，范围 1–10）为上限<strong>并发</strong>调 <code>import_by_identifier_with_progress</code>（共用同一个 <code>taskId</code>，进度事件聚合在单一后台任务）。单条失败继续下一条，错误文本加入 <code>errors</code>。并发上限可在 <strong>Settings → General → Batch import concurrency</strong> 调整。</li>
+<li>剩余条目以 <code>concurrency</code>（默认 3，范围 1–10）为上限<strong>并发</strong>调 <code>import_by_identifier_with_progress</code>。单条失败继续下一条，错误文本加入 <code>errors</code>。并发上限可在 <strong>Settings → General → Batch import concurrency</strong> 调整。</li>
 <li>返回全部 <code>imported</code> 条目；前端刷新树 / Library / wiki 后，对 <code>imported</code> 中仍缺资源的 paper 逐个加入下载队列，每篇对应一个独立的 <code>download</code> 后台任务，并按并发上限排队执行。</li>
+</ul>
+<p>魔棒界面使用通用的 <code>enqueueBackgroundTask</code> 为每个输入创建一个独立的前端任务。任务面板只展示每个标识符的状态和资源进度，不展示 Host 批处理的内部阶段或聚合计数；并发限制由同类任务共享的信号量执行。</p>
+<ul>
 <li><strong>不自动精读</strong>：批量入库不连跑 <code>paper-reader</code>，避免 Agent 与写笔记开销爆炸；用户可后续单篇手动 Zap 或等设置 <code>autoPaperReader</code> 对单篇触发。</li>
 </ul>
 <h3 id="65">6.5 事件<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
@@ -5088,7 +5091,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <td>B-1</td>
 <td>多分隔符混合解析</td>
 <td><code>1706.03762, 1810.04805; 2501.12345，2502.67890\n2503.11111 2504.22222</code></td>
-<td>解析出 6 个 token；魔棒任务显示总数 6 并按 <code>current/total</code> 更新；summary toast <code>Imported 6, skipped 0, failed 0</code></td>
+<td>解析出 6 个 token；任务面板显示 6 个独立导入任务，各自按条目更新进度；失败条目显示独立错误</td>
 </tr>
 <tr>
 <td>B-2</td>
@@ -5100,7 +5103,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <td>B-3</td>
 <td>并发上限生效</td>
 <td>设置 <code>Batch import concurrency = 2</code>，粘贴 5 个不同 ID</td>
-<td>魔棒任务总数显示 5；同时运行的导入任务不超过 2 个；进度显示 <code>2/5</code>、<code>3/5</code>…</td>
+<td>任务面板显示 5 个独立任务；同时运行的导入任务不超过 2 个，其余任务排队；每个任务独立显示进度</td>
 </tr>
 <tr>
 <td>B-4</td>

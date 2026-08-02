@@ -2646,6 +2646,8 @@
 <li>Connector 返回的 Zotero 标签会以 <code>@zotero:</code> 前缀保存在 catalog 中，用于保留来源信息；
   这类内部标签不会显示在 Library、Paper Info 或标签筛选中。</li>
 <li>远程：stage 后 SFTP；catalog 经 work mirror。</li>
+<li>保存请求只写入 paper 壳和 catalog，PDF/TeX 在后台下载；后台单篇资源阶段最多
+  运行 3 分钟，超时会通过 <code>connector:progress</code> 报错，不会让任务永久挂起。</li>
 </ul>
 <h2 id="_2">命令 / 事件<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
