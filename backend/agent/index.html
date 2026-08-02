@@ -2564,6 +2564,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/import-abstract-mt-timeout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入 NOTES 摘要 MT 超时
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2703,6 +2731,8 @@
 <li>统一接口：OpenCode、Gemini、Claude ACP、Codex ACP、Qoder、Grok、自定义 <code>command</code>/<code>args</code>/<code>env</code>。</li>
 <li>Gemini：spawn 时注入 <code>NO_BROWSER=true</code>（用户显式配置则不覆盖），避免未登录时
   <code>new_session</code> 反复拉起浏览器 OAuth；登录须在终端完成（BYOA）。</li>
+<li>设置页会将 ACP 探测中的认证错误（如 <code>invalid_grant</code> / <code>failed to authenticate</code>）
+  显示为「未登录」，其他握手或进程错误仍显示为「ACP 失败」。</li>
 <li>后台熔断（<code>AgentWarmGate</code>）：<code>agent_warm</code> / <code>agent_list_sessions</code> 失败后进入
   120s 冷却，冷却期内直接返回上次错误、不再 spawn；成功或用户消息
   （<code>agent_run_once</code>）成功后清除。详见

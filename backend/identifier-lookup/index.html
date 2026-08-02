@@ -3203,6 +3203,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/import-abstract-mt-timeout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入 NOTES 摘要 MT 超时
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -4968,7 +4996,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 
 <ol>
 <li><code>path = {parent_dir}/{id}</code>（§1.2 + §6.3）。</li>
-<li>写 <code>NOTES.md</code> 壳（摘要 blockquote 优先经 Host 免费 MT 译为中文，多引擎兜底 googleapi → bing → youdao → 火山 → 腾讯，全失败才保留原文；catalog <code>abstract</code> 仍为原文）。</li>
+<li>写 <code>NOTES.md</code> 壳（摘要 blockquote 经 Host 免费 MT <strong>并行竞速</strong> bing / 火山 / 腾讯，取最先成功；单引擎超时 5s；<strong>全失败则不写摘要块</strong>；catalog <code>abstract</code> 仍为原文）。</li>
 <li><strong>catalog 事务</strong>：有则写入 <code>pdf_url</code> / <code>html_url</code>。</li>
 <li>下载按 §1.3：<strong>始终 PDF</strong>（候选：<code>pdf_url</code> → arXiv → Crossref 直链 → <strong>Unpaywall OA</strong>）；<strong>arXiv 另解压 LaTeX</strong>。</li>
 <li><strong>不</strong>写默认 <code>PAPERS.md</code> / <code>library.bib</code>；<code>metadata.json</code> 仅在 catalog upsert 后作为投影同步。</li>
@@ -5177,7 +5205,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li>读库：把 <code>zotero.sqlite</code>（含 <code>-wal</code>/<code>-shm</code>）<strong>拷到临时目录</strong>再只读打开（容忍 Zotero 正在运行）；查 <code>items</code>/<code>itemData</code>/<code>creators</code>/<code>itemTags</code>/<code>itemAttachments</code>，跳过 <code>deletedItems</code> 与 attachment/note/annotation 类型。</li>
 <li>映射：每条<strong>拼装成 Zotero-API-JSON item</strong> → 复用 <code>map_zotero_item</code> + <code>enrich_remote_urls</code> + <code>write_paper_shell</code> + <code>paper_record_from_meta</code> + catalog upsert，落到 <code>{parent_dir}/{id}/</code>（id/citekey 与魔棒 / 文件导入一致）。</li>
 <li>附件 PDF URL：<code>map_zotero_item</code> 未给出 <code>pdf_url</code> 时，采用 Connector <code>attachments[]</code> 里的 PDF 链接（浏览器侧捕获，ACM/IEEE 等常仅经此暴露）。</li>
-<li>中文摘要：为不超 Connector 15s 超时，壳先以原文写入；<strong>后台</strong>多引擎翻译摘要并安全替换 <code>NOTES.md</code> 的 <code>&gt;</code> 摘要块（mtime 守卫，用户已编辑则跳过）。</li>
+<li>中文摘要：为不超 Connector 15s 超时，壳先以原文写入；<strong>后台</strong>三引擎并行竞速翻译摘要，成功则安全替换 <code>NOTES.md</code> 的 <code>&gt;</code> 摘要块（mtime 守卫，用户已编辑或 MT 全失败则跳过）。</li>
 <li>标签：<strong>仅保留手动标签</strong>——Zotero 自动标签（网络翻译器加的来源/状态标签，<code>itemTags.type ≠ 0</code>）在导入时过滤；<code>type = 0</code> 的用户标签保留（旧库无 <code>type</code> 列时回退为全部）。collection 名仍作为组织标签补充。</li>
 <li>PDF：对话框 <strong>“把 PDF 复制进知识库”</strong> 勾选项（默认开）。勾选时从 <code>storage/&lt;attachmentKey&gt;/</code> 拷到 <code>{paper}/{id}.pdf</code> 并 liteparse <code>PAPER.md</code>；不勾则只留书目，<code>pdf_url</code> 供按需下载。</li>
 <li>去重：按 arXiv id / DOI / 归一化标题跳过重复（re-run 与既有）；不同文献 citekey 相撞时目录追加后缀。<strong>不覆盖</strong> <code>NOTES.md</code>。</li>

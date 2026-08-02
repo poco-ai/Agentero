@@ -11,10 +11,6 @@
       
       
       
-        <link rel="prev" href="../dockview-sash-pdf-resize-jank/">
-      
-      
-        <link rel="next" href="../remote-vault-tree-lazy/">
       
       
         
@@ -25,7 +21,7 @@
     
     
       
-        <title>远端 ACP PATH / SSH - Agentero 文档</title>
+        <title>界面缩放时待办 checkbox 与文字错位（#143） - Agentero 文档</title>
       
     
     
@@ -74,7 +70,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#acpbatchmode-ssh-path" class="md-skip">
+        <a href="#checkbox-143" class="md-skip">
           跳转至
         </a>
       
@@ -109,7 +105,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              远端 ACP PATH / SSH
+              界面缩放时待办 checkbox 与文字错位（#143）
             
           </span>
         </div>
@@ -326,12 +322,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../deepseek-thinking-body/" class="md-tabs__link">
           
   
@@ -2137,29 +2131,24 @@
       
   
   
-    
   
   
-  
     
     
     
     
       
-        
-        
-      
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
           
-          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
             
   
   
@@ -2177,7 +2166,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
@@ -2332,37 +2321,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    远端 ACP PATH / SSH
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../remote-acp-path-ssh/" class="md-nav__link">
         
   
   
@@ -2378,203 +2340,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="目录">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      目录
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. 问题现象
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. 根因
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="2. 根因">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#21-ssh-path-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.1 非交互 SSH 的 PATH ≠ 交互终端 PATH（主因）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#22-claude-claude-agent-acp" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.2 claude ≠ claude-agent-acp
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#23-install-ssh" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.3 远端 Install 脚本 SSH 引号错误（已修）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#24-npm-i-g" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.4 系统 npm i -g 与权限
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#25" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.5 代理
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. 解决方案（已落地）
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3. 解决方案（已落地）">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#31-remote_path_bootstrap" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.1 REMOTE_PATH_BOOTSTRAP
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#32-remote_which" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.2 remote_which 绝对路径回退
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#33-install-acp" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.3 远端 Install ACP
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#34" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.4 远端代理
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#35" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.5 探测错误文案
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. 运维注意点（排障清单）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. 参考
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2749,10 +2514,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#21-ssh-path-path" class="md-nav__link">
+  <a href="#21" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1 非交互 SSH 的 PATH ≠ 交互终端 PATH（主因）
+        2.1 魔法数绝对定位
       
     </span>
   </a>
@@ -2760,43 +2525,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#22-claude-claude-agent-acp" class="md-nav__link">
+  <a href="#22" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.2 claude ≠ claude-agent-acp
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#23-install-ssh" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.3 远端 Install 脚本 SSH 引号错误（已修）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#24-npm-i-g" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.4 系统 npm i -g 与权限
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#25" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.5 代理
+        2.2 缩放机制本身
       
     </span>
   </a>
@@ -2812,19 +2544,19 @@
   <a href="#3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. 解决方案（已落地）
+        3. 修复
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="3. 解决方案（已落地）">
+    <nav class="md-nav" aria-label="3. 修复">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#31-remote_path_bootstrap" class="md-nav__link">
+  <a href="#31-padding" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1 REMOTE_PATH_BOOTSTRAP
+        3.1 首行盒内垂直居中（且不要重复算 padding）
       
     </span>
   </a>
@@ -2832,43 +2564,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#32-remote_which" class="md-nav__link">
+  <a href="#32-marker-rem" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.2 remote_which 绝对路径回退
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#33-install-acp" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.3 远端 Install ACP
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#34" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.4 远端代理
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#35" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.5 探测错误文案
+        3.2 缩进与 marker 共用 rem
       
     </span>
   </a>
@@ -2884,7 +2583,7 @@
   <a href="#4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. 运维注意点（排障清单）
+        4. 相关但未一并改动的点
       
     </span>
   </a>
@@ -2895,7 +2594,7 @@
   <a href="#5" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. 参考
+        5. 验证建议
       
     </span>
   </a>
@@ -2922,175 +2621,81 @@
   
 
 
-<h1 id="acpbatchmode-ssh-path">远端 ACP：BatchMode SSH PATH / 安装 / 探测<a class="headerlink" href="#acpbatchmode-ssh-path" title="Permanent link">&para;</a></h1>
-<p><strong>状态</strong>：已修复（PATH 引导 + 探测候选路径 + 远端 Install ACP 引号 + 代理注入）<br />
-<strong>影响面</strong>：远程 Vault 设置 → Agent；远端 BYOA <code>agent_warm</code> / <code>agent_run_once</code> / <code>remote_agent_probe</code><br />
+<h1 id="checkbox-143">界面缩放时待办 checkbox 与文字错位（#143）<a class="headerlink" href="#checkbox-143" title="Permanent link">&para;</a></h1>
+<p><strong>状态</strong>：已修复（首行 <code>1lh</code> 垂直居中 + 缩进改 <code>rem</code>）<br />
+<strong>影响面</strong>：Markdown 编辑器待办列表（task list）勾选框与正文对齐；列表缩进在 <code>uiScale ≠ 1</code> 时与 marker 间距<br />
 <strong>相关代码</strong>：</p>
 <ul>
-<li><code>src-tauri/src/services/remote/agent_exec.rs</code> — <code>REMOTE_PATH_BOOTSTRAP</code>、<code>remote_which</code>、<code>remote_agent_shell_command</code></li>
-<li><code>src-tauri/src/services/remote/agent_catalog.rs</code> — scan / probe、缺适配器错误文案</li>
-<li><code>src-tauri/src/services/terminal.rs</code> — <code>open_terminal_confirm_remote_install</code>（SSH 安装引号）</li>
-<li><code>src-tauri/src/services/agent/templates.rs</code> — Claude 安装命令（用户 prefix）</li>
-<li><code>src-tauri/src/services/agent/acp.rs</code> — 远端 spawn 注入 proxy env</li>
-<li><code>src/components/settings/settings-content.tsx</code> / <code>agent-pane.tsx</code> — 远端 Agent 页：代理、Install ACP</li>
-<li>设计总览：<a href="../../backend/remote/"><code>../backend/remote.md</code></a> §5 / §11</li>
+<li><code>src/components/editor/block-list.tsx</code> — <code>TodoLi</code> checkbox 定位</li>
+<li><code>src/components/editor/plugins/markdown-editor-kit.tsx</code> — <code>IndentPlugin</code> offset / unit</li>
+<li><code>src/components/editor/paragraph-node.tsx</code> — 段落 <code>py-1</code>（首行对齐依赖）</li>
+<li><code>src/hooks/use-app-bootstrap.ts</code> — <code>uiScale</code> → <code>documentElement.fontSize</code></li>
 </ul>
+<p><strong>Issue</strong>：<a href="https://github.com/agentero-ai/motif/issues/143">#143</a></p>
 <hr />
 <h2 id="1">1. 问题现象<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>交互式 <code>ssh</code> 里</strong> <code>command -v claude-agent-acp</code> 有路径（如 Linuxbrew），<strong>设置 → Agent（远端）</strong> 仍显示未安装 / ACP 失败 / adapter missing。</li>
-<li>点 <strong>Install ACP</strong> 后终端只打印 <code>npm</code> 的 Usage 帮助，安装命令未真正执行。</li>
-<li>远端 Agent 页没有代理开关；本机开代理后远端 probe 仍超时（或误以为不需要代理）。</li>
-<li>用户误以为「装了 Claude Code = 装了 ACP」。</li>
-</ol>
+<p>系统显示缩放或应用 UI 缩放不为 100%（例如 Windows 125%）时，待办列表左侧勾选框与同一行文字垂直错位（文字偏上或偏下）。</p>
+<p>任意含 <code>- [ ]</code> / <code>- [x]</code> 的 Markdown 文件即可复现。</p>
 <hr />
 <h2 id="2">2. 根因<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
-<h3 id="21-ssh-path-path">2.1 非交互 SSH 的 PATH ≠ 交互终端 PATH（主因）<a class="headerlink" href="#21-ssh-path-path" title="Permanent link">&para;</a></h3>
-<p>Agentero 探测 / 启动远端 Agent 使用：</p>
-<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-T<span class="w"> </span>-o<span class="w"> </span><span class="nv">BatchMode</span><span class="o">=</span>yes<span class="w"> </span>&lt;host&gt;<span class="w"> </span><span class="s1">&#39;bash -lc &quot;…&quot;&#39;</span>
+<h3 id="21">2.1 魔法数绝对定位<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<p><code>TodoLi</code> 沿用 Plate playground 模板写法：checkbox 自身 <code>absolute top-1 -left-6</code>。</p>
+<ul>
+<li><code>top-1</code>（0.25rem）只是把框顶「顶」到接近段落 <code>py-1</code> 的位置，<strong>并不</strong>按首行行高居中。</li>
+<li>正文首行盒 = 段落 <code>padding-top</code> + <code>line-height</code>（根上约 1.5 → <code>1lh</code>）；勾选框高度为 <code>1rem</code>。用固定 <code>top</code> 对齐在 100% 下可能「看起来差不多」，在非整数 DPR / 非 100% <code>uiScale</code> 下亚像素取整后错位更明显。</li>
+</ul>
+<h3 id="22">2.2 缩放机制本身<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<p>应用缩放通过改根字号实现：</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">document</span><span class="p">.</span><span class="nx">documentElement</span><span class="p">.</span><span class="nx">style</span><span class="p">.</span><span class="nx">fontSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="mf">16</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">uiScale</span><span class="si">}</span><span class="sb">px`</span><span class="p">;</span>
 </code></pre></div>
 
-<p>特点：</p>
+<p><code>rem</code> 会跟着变；若缩进仍用固定 <code>px</code>，则 checkbox 的 <code>-left-6</code>（1.5rem）与 <code>IndentPlugin</code> 的 <code>offset: 24</code>（px）在缩放后不再一致，嵌套列表时水平方向也会漂。</p>
+<p>系统级显示缩放（Windows 125% 等）还会引入非整数 <code>devicePixelRatio</code>，进一步放大「凭感觉写的 top」的误差。</p>
+<hr />
+<h2 id="3">3. 修复<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31-padding">3.1 首行盒内垂直居中（且不要重复算 padding）<a class="headerlink" href="#31-padding" title="Permanent link">&para;</a></h3>
+<p>Plate 的 <code>belowNodes</code> 包在 <strong>块元素内部</strong>（例如带 <code>py-1</code> 的 <code>&lt;p&gt;</code> 里面），因此：</p>
+<div class="codehilite"><pre><span></span><code>p.py-1          ← padding 已在外层
+  ul &gt; li
+    checkbox    ← 已在 content box 顶边，与文字同一起点
+    text
+</code></pre></div>
+
+<p>槽位必须是 <strong><code>top-0</code> + <code>h-[1lh]</code> + <code>flex items-center</code></strong>。<br />
+若再写 <code>top-1</code>（Plate 模板 / 误以为要对齐 <code>py-1</code>），会把「居中偏移」算两次，勾选框整体偏下、文字显得偏上——缩放后更明显。</p>
+<h3 id="32-marker-rem">3.2 缩进与 marker 共用 rem<a class="headerlink" href="#32-marker-rem" title="Permanent link">&para;</a></h3>
+<p><code>IndentPlugin</code>：<code>offset: 1.5, unit: "rem"</code>（100% 下仍等于原先 24px），与 todo 的 <code>-left-6</code>、有序列表 <code>ps-[1.5em]</code> 同一量级。</p>
+<hr />
+<h2 id="4">4. 相关但未一并改动的点<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>项</th>
-<th>交互 <code>ssh host</code></th>
-<th>Agentero BatchMode</th>
+<th>点</th>
+<th>说明</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>TTY</td>
-<td>有</td>
-<td>无（<code>-T</code>）</td>
+<td>有序 / 无序 marker</td>
+<td>浏览器原生 <code>list-style</code>，一般随字体度量对齐；若仍有个别字体错位可再调 <code>list-outside</code> 间距。</td>
 </tr>
 <tr>
-<td>是否交互</td>
-<td>是</td>
-<td>否</td>
+<td>待办用在 heading 等块</td>
+<td>槽位按段落 <code>py-1</code> + <code>1lh</code> 校准；标题行高/padding 不同时可能略偏，实际任务列表几乎都在段落上。</td>
 </tr>
 <tr>
-<td>PATH</td>
-<td>常含 brew/nvm（<code>.bashrc</code> 交互段）</td>
-<td>常为「瘦」login PATH</td>
+<td>Plate 上游模板</td>
+<td>官方 <code>block-list</code> 仍是 <code>top-1</code>；本仓库已分叉修正。</td>
 </tr>
 </tbody>
 </table>
-<p>许多机器在 <code>~/.bashrc</code> 里：</p>
-<div class="codehilite"><pre><span></span><code><span class="k">case</span><span class="w"> </span><span class="nv">$-</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>*i*<span class="o">)</span><span class="w"> </span><span class="p">;;</span><span class="w"> </span>*<span class="o">)</span><span class="w"> </span><span class="k">return</span><span class="p">;;</span><span class="w"> </span><span class="k">esac</span><span class="w">   </span><span class="c1"># 非交互直接 return</span>
-<span class="c1"># … 之后才有 eval &quot;$(brew shellenv)&quot;</span>
-</code></pre></div>
-
-<p>于是 <strong>Linuxbrew</strong> 下的全局 npm bin：</p>
-<div class="codehilite"><pre><span></span><code>/home/linuxbrew/.linuxbrew/bin/claude-agent-acp
-</code></pre></div>
-
-<p>在交互 shell 可见，在 BatchMode <code>command -v</code> 下不可见。<br />
-这不是「没用用户 PATH」，而是 <strong>同一用户、非交互会话拿到的 PATH 更短</strong>。</p>
-<p>实测（BatchMode）PATH 可能类似：</p>
-<div class="codehilite"><pre><span></span><code>~/.cargo/bin:/usr/local/bin:/usr/bin:…
-# 无 /home/linuxbrew/.linuxbrew/bin
-</code></pre></div>
-
-<p>同时文件已存在：<code>test -x /home/linuxbrew/.linuxbrew/bin/claude-agent-acp</code> → OK。</p>
-<h3 id="22-claude-claude-agent-acp">2.2 <code>claude</code> ≠ <code>claude-agent-acp</code><a class="headerlink" href="#22-claude-claude-agent-acp" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>探测项</th>
-<th>含义</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>detect_command</code> = <code>claude</code></td>
-<td>Claude Code 主机 CLI（「已安装」徽章）</td>
-</tr>
-<tr>
-<td><code>command</code> = <code>claude-agent-acp</code></td>
-<td>ACP 入口（协议 initialize / Chat）</td>
-</tr>
-</tbody>
-</table>
-<p>只装 Claude Code、未装 <code>@agentclientprotocol/claude-agent-acp</code> 时：本机/远端都会 <strong>installed + adapter missing</strong>。</p>
-<h3 id="23-install-ssh">2.3 远端 Install 脚本 SSH 引号错误（已修）<a class="headerlink" href="#23-install-ssh" title="Permanent link">&para;</a></h3>
-<p>错误写法：</p>
-<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-t<span class="w"> </span>host<span class="w"> </span>--<span class="w"> </span>bash<span class="w"> </span>-lc<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CMD</span><span class="s2">&quot;</span>
-<span class="c1"># 远端再分词后 -c 只吃到 &quot;npm&quot;，其余参数丢失 → 打印 npm Usage</span>
-</code></pre></div>
-
-<p>正确：本地用 <code>printf '%q'</code> 把整段命令作为 <strong>一个</strong> <code>-c</code> 脚本：</p>
-<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-t<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEST</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;bash -lc </span><span class="k">$(</span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;%q&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CMD</span><span class="s2">&quot;</span><span class="k">)</span><span class="s2">&quot;</span>
-</code></pre></div>
-
-<h3 id="24-npm-i-g">2.4 系统 <code>npm i -g</code> 与权限<a class="headerlink" href="#24-npm-i-g" title="Permanent link">&para;</a></h3>
-<p>系统 npm <code>prefix=/usr</code> 时，无 root 的 <code>npm i -g</code> 易失败。应使用用户可写 prefix，例如：</p>
-<div class="codehilite"><pre><span></span><code>npm<span class="w"> </span>i<span class="w"> </span>-g<span class="w"> </span>@agentclientprotocol/claude-agent-acp<span class="w"> </span>--prefix<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">/.local&quot;</span>
-</code></pre></div>
-
-<h3 id="25">2.5 代理<a class="headerlink" href="#25" title="Permanent link">&para;</a></h3>
-<p>本机 Settings 代理原先只注入 <strong>本机</strong> agent 子进程 env；远端 <code>ssh … exec agent</code> <strong>未</strong>转发 <code>HTTP_PROXY</code>。<br />
-且代理 URL 必须从 <strong>服务器</strong> 可达（服务器上的 <code>127.0.0.1:7890</code> ≠ 本机代理）。</p>
 <hr />
-<h2 id="3">3. 解决方案（已落地）<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
-<h3 id="31-remote_path_bootstrap">3.1 <code>REMOTE_PATH_BOOTSTRAP</code><a class="headerlink" href="#31-remote_path_bootstrap" title="Permanent link">&para;</a></h3>
-<p>在远端 <code>bash -lc</code> 脚本前统一：</p>
-<ul>
-<li>把 <code>~/.local/bin</code>、<code>/home/linuxbrew/.linuxbrew/bin</code>、cargo/npm 等目录 <strong>prepend 到 PATH</strong></li>
-<li>若存在 brew，尝试 <code>eval "$(brew shellenv)"</code></li>
-</ul>
-<p>用于：<code>remote_which</code>、<code>remote_agent_shell_command</code>（probe / warm / run）。</p>
-<h3 id="32-remote_which">3.2 <code>remote_which</code> 绝对路径回退<a class="headerlink" href="#32-remote_which" title="Permanent link">&para;</a></h3>
-<p><code>command -v</code> 失败时再扫候选绝对路径（含 linuxbrew、nvm、<code>npm prefix -g</code>/bin）。</p>
-<h3 id="33-install-acp">3.3 远端 Install ACP<a class="headerlink" href="#33-install-acp" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>remote_agent_open_install_terminal</code>：本机终端确认 → <code>ssh -t</code> 在远端执行模板 <code>install_command</code></li>
-<li>Claude 默认安装命令改为带 <code>--prefix "$HOME/.local"</code></li>
-<li>UI：与本地一致显示 <strong>ACP adapter missing</strong> + <strong>Install ACP</strong></li>
-</ul>
-<h3 id="34">3.4 远端代理<a class="headerlink" href="#34" title="Permanent link">&para;</a></h3>
-<ul>
-<li>设置远端 Agent 页展示与本地共用的 proxy 开关/URL</li>
-<li>probe / spawn 时在远端 <code>export HTTP_PROXY/HTTPS_PROXY/ALL_PROXY</code></li>
-<li>UI 提示：地址须从服务器可达</li>
-</ul>
-<h3 id="35">3.5 探测错误文案<a class="headerlink" href="#35" title="Permanent link">&para;</a></h3>
-<p>有 <code>claude</code>、无 <code>claude-agent-acp</code> 时，明确提示安装适配器（含 install 命令），而非笼统「not found」。</p>
-<hr />
-<h2 id="4">4. 运维注意点（排障清单）<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<h2 id="5">5. 验证建议<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>先在 BatchMode 下验证</strong>（与 Agentero 一致），不要只看交互终端：</li>
+<li>设置 → 外观 → UI 缩放 100% / 125% / 150%，打开含多行待办的笔记。</li>
+<li>Windows 显示缩放 125% 下再看一眼（与 #143 环境一致）。</li>
+<li>嵌套缩进待办：勾选框与正文水平间距应随缩放保持一致。</li>
 </ol>
-<p><code>bash
-   ssh -T -o BatchMode=yes &lt;host&gt; 'bash -lc "command -v claude-agent-acp; echo PATH=$PATH"'</code></p>
-<ol>
-<li>若文件在 brew 下但上面找不到，确认：</li>
-</ol>
-<p><code>bash
-   ls -la /home/linuxbrew/.linuxbrew/bin/claude-agent-acp</code></p>
-<p>Agentero 新版本应能通过 PATH bootstrap / 绝对路径扫到。</p>
-<ol>
-<li><strong>推荐</strong> 在远端 <code>~/.profile</code> 或非交互也会执行的配置中加入（且不要被「仅交互」return 挡掉）：</li>
-</ol>
-<p><code>bash
-   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"</code></p>
-<ol>
-<li>
-<p>安装后应用内 <strong>Refresh</strong>；改代理后会 force 再 probe。</p>
-</li>
-<li>
-<p>Codex 现已通过 ACP 适配器（<code>codex-acp</code>）支持纯 SSH。</p>
-</li>
-</ol>
-<hr />
-<h2 id="5">5. 参考<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
-<ul>
-<li>OpenSSH 非交互与 login shell：<code>bash -lc</code>、无 TTY</li>
-<li>Linuxbrew 路径：<code>/home/linuxbrew/.linuxbrew</code></li>
-<li>产品设计：<a href="../../backend/remote/"><code>remote.md</code></a> §5 远端 BYOA、§11 风险（nvm/PATH）</li>
-<li>API：<code>remote_agent_scan</code> / <code>remote_agent_probe</code> / <code>remote_agent_open_install_terminal</code>（<a href="../../backend/api/"><code>api.md</code></a>）</li>
-</ul>
 
 
 

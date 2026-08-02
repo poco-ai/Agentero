@@ -2450,6 +2450,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/import-abstract-mt-timeout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入 NOTES 摘要 MT 超时
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2507,6 +2535,28 @@
 <tr>
 <td><code>translate_text</code></td>
 <td>免费 MT 路径（非文献 Translator）</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>通用 <code>timeout_ms</code></td>
+<td>可选；钳制 1s–30s；默认 30s</td>
+</tr>
+<tr>
+<td>导入摘要 <code>free_mt_to_zh</code></td>
+<td><strong>并行竞速</strong> bing / 火山 / 腾讯，取最先成功；单引擎 5s（<code>FREE_MT_ZH_TIMEOUT_MS</code>）；全失败则不写翻译</td>
+</tr>
+<tr>
+<td>设置页探测</td>
+<td>前端 5s / 引擎</td>
 </tr>
 </tbody>
 </table>

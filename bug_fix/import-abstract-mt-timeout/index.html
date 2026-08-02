@@ -11,10 +11,8 @@
       
       
       
-        <link rel="prev" href="../dockview-sash-pdf-resize-jank/">
+        <link rel="prev" href="../gemini-login-browser-loop/">
       
-      
-        <link rel="next" href="../remote-vault-tree-lazy/">
       
       
         
@@ -25,7 +23,7 @@
     
     
       
-        <title>远端 ACP PATH / SSH - Agentero 文档</title>
+        <title>导入 NOTES 摘要 MT 超时 - Agentero 文档</title>
       
     
     
@@ -74,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#acpbatchmode-ssh-path" class="md-skip">
+        <a href="#notes" class="md-skip">
           跳转至
         </a>
       
@@ -109,7 +107,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              远端 ACP PATH / SSH
+              导入 NOTES 摘要 MT 超时
             
           </span>
         </div>
@@ -2332,37 +2330,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    远端 ACP PATH / SSH
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../remote-acp-path-ssh/" class="md-nav__link">
         
   
   
@@ -2378,203 +2349,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="目录">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      目录
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. 问题现象
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. 根因
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="2. 根因">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#21-ssh-path-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.1 非交互 SSH 的 PATH ≠ 交互终端 PATH（主因）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#22-claude-claude-agent-acp" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.2 claude ≠ claude-agent-acp
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#23-install-ssh" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.3 远端 Install 脚本 SSH 引号错误（已修）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#24-npm-i-g" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.4 系统 npm i -g 与权限
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#25" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.5 代理
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. 解决方案（已落地）
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3. 解决方案（已落地）">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#31-remote_path_bootstrap" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.1 REMOTE_PATH_BOOTSTRAP
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#32-remote_which" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.2 remote_which 绝对路径回退
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#33-install-acp" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.3 远端 Install ACP
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#34" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.4 远端代理
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#35" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.5 探测错误文案
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. 运维注意点（排障清单）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. 参考
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2668,10 +2442,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../import-abstract-mt-timeout/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入 NOTES 摘要 MT 超时
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -2687,6 +2488,203 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 问题现象
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 调查过程
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. 调查过程">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-translator-mt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Translator 服务可用性（文献元数据，非 MT）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-260721804" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 单篇导入端到端：2607.21804
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 导入摘要为什么是「谷歌」？
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-mt-bench" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 摘要 MT 专项 bench（改链后）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 根因归纳
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 修复 / 优化
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 更改前后最坏时长对照（实测）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. 更改前后最坏时长对照（实测）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 最坏时长（三引擎全挂 / 全失败）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-wall5s-vs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 成功路径 wall（同机、5s 超时，串行 vs 并行）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 相对导入总时长
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 复现与对照命令
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 后续可选
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-2026-08-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 时间线（调查日 2026-08-02）
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2740,19 +2738,19 @@
   <a href="#2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. 根因
+        2. 调查过程
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="2. 根因">
+    <nav class="md-nav" aria-label="2. 调查过程">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#21-ssh-path-path" class="md-nav__link">
+  <a href="#21-translator-mt" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1 非交互 SSH 的 PATH ≠ 交互终端 PATH（主因）
+        2.1 Translator 服务可用性（文献元数据，非 MT）
       
     </span>
   </a>
@@ -2760,10 +2758,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#22-claude-claude-agent-acp" class="md-nav__link">
+  <a href="#22-260721804" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.2 claude ≠ claude-agent-acp
+        2.2 单篇导入端到端：2607.21804
       
     </span>
   </a>
@@ -2771,10 +2769,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#23-install-ssh" class="md-nav__link">
+  <a href="#23" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.3 远端 Install 脚本 SSH 引号错误（已修）
+        2.3 导入摘要为什么是「谷歌」？
       
     </span>
   </a>
@@ -2782,21 +2780,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#24-npm-i-g" class="md-nav__link">
+  <a href="#24-mt-bench" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.4 系统 npm i -g 与权限
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#25" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.5 代理
+        2.4 摘要 MT 专项 bench（改链后）
       
     </span>
   </a>
@@ -2812,19 +2799,41 @@
   <a href="#3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. 解决方案（已落地）
+        3. 根因归纳
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="3. 解决方案（已落地）">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 修复 / 优化
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 更改前后最坏时长对照（实测）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. 更改前后最坏时长对照（实测）">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#31-remote_path_bootstrap" class="md-nav__link">
+  <a href="#51" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1 REMOTE_PATH_BOOTSTRAP
+        5.1 最坏时长（三引擎全挂 / 全失败）
       
     </span>
   </a>
@@ -2832,10 +2841,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#32-remote_which" class="md-nav__link">
+  <a href="#52-wall5s-vs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.2 remote_which 绝对路径回退
+        5.2 成功路径 wall（同机、5s 超时，串行 vs 并行）
       
     </span>
   </a>
@@ -2843,32 +2852,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#33-install-acp" class="md-nav__link">
+  <a href="#53" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.3 远端 Install ACP
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#34" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.4 远端代理
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#35" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.5 探测错误文案
+        5.3 相对导入总时长
       
     </span>
   </a>
@@ -2881,10 +2868,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4" class="md-nav__link">
+  <a href="#6" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. 运维注意点（排障清单）
+        6. 复现与对照命令
       
     </span>
   </a>
@@ -2892,10 +2879,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5" class="md-nav__link">
+  <a href="#7" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. 参考
+        7. 后续可选
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-2026-08-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 时间线（调查日 2026-08-02）
       
     </span>
   </a>
@@ -2922,175 +2920,530 @@
   
 
 
-<h1 id="acpbatchmode-ssh-path">远端 ACP：BatchMode SSH PATH / 安装 / 探测<a class="headerlink" href="#acpbatchmode-ssh-path" title="Permanent link">&para;</a></h1>
-<p><strong>状态</strong>：已修复（PATH 引导 + 探测候选路径 + 远端 Install ACP 引号 + 代理注入）<br />
-<strong>影响面</strong>：远程 Vault 设置 → Agent；远端 BYOA <code>agent_warm</code> / <code>agent_run_once</code> / <code>remote_agent_probe</code><br />
+<h1 id="notes">导入 NOTES 摘要翻译：回退链与超时<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h1>
+<p><strong>状态</strong>：已优化（回退链改 bing → 火山 → 腾讯；单引擎超时 15s → 5s）<br />
+<strong>影响面</strong>：魔棒 / CLI <code>import id</code> 写 <code>NOTES.md</code> 摘要中译；Connector 后台摘要翻译<br />
 <strong>相关代码</strong>：</p>
 <ul>
-<li><code>src-tauri/src/services/remote/agent_exec.rs</code> — <code>REMOTE_PATH_BOOTSTRAP</code>、<code>remote_which</code>、<code>remote_agent_shell_command</code></li>
-<li><code>src-tauri/src/services/remote/agent_catalog.rs</code> — scan / probe、缺适配器错误文案</li>
-<li><code>src-tauri/src/services/terminal.rs</code> — <code>open_terminal_confirm_remote_install</code>（SSH 安装引号）</li>
-<li><code>src-tauri/src/services/agent/templates.rs</code> — Claude 安装命令（用户 prefix）</li>
-<li><code>src-tauri/src/services/agent/acp.rs</code> — 远端 spawn 注入 proxy env</li>
-<li><code>src/components/settings/settings-content.tsx</code> / <code>agent-pane.tsx</code> — 远端 Agent 页：代理、Install ACP</li>
-<li>设计总览：<a href="../../backend/remote/"><code>../backend/remote.md</code></a> §5 / §11</li>
+<li><code>src-tauri/src/features/translate/mod.rs</code> — <code>ZH_RACE_PROVIDERS</code>、<code>FREE_MT_ZH_TIMEOUT_MS</code>、<code>free_mt_to_zh</code></li>
+<li><code>src-tauri/src/features/import/mod.rs</code> — <code>abstract_for_notes</code> / <code>write_paper_shell_opts</code></li>
+<li><code>src-tauri/src/features/import/paper_import/mod.rs</code> — <code>translate_abstract: true</code></li>
+<li>文档：<a href="../../backend/translate/"><code>../backend/translate.md</code></a>、<a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a></li>
 </ul>
 <hr />
 <h2 id="1">1. 问题现象<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>交互式 <code>ssh</code> 里</strong> <code>command -v claude-agent-acp</code> 有路径（如 Linuxbrew），<strong>设置 → Agent（远端）</strong> 仍显示未安装 / ACP 失败 / adapter missing。</li>
-<li>点 <strong>Install ACP</strong> 后终端只打印 <code>npm</code> 的 Usage 帮助，安装命令未真正执行。</li>
-<li>远端 Agent 页没有代理开关；本机开代理后远端 probe 仍超时（或误以为不需要代理）。</li>
-<li>用户误以为「装了 Claude Code = 装了 ACP」。</li>
+<li><strong>导入一篇 arXiv 论文体感偏慢</strong>（端到端常 17–35s），除 PDF / TeX 下载外，<strong>写 <code>NOTES.md</code> 之前</strong>还要等一段「空档」。</li>
+<li>怀疑瓶颈在 <strong>摘要免费 MT</strong> 或 <strong>Translator 元数据</strong>，但原先缺少分步耗时数据。</li>
+<li>摘要翻译<strong>看起来像在用谷歌</strong>（代码链首为 <code>googleapi</code>），与 Settings → 翻译默认 <strong>bing</strong> 不一致；用户无法在 UI 改导入路径的引擎。</li>
 </ol>
 <hr />
-<h2 id="2">2. 根因<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
-<h3 id="21-ssh-path-path">2.1 非交互 SSH 的 PATH ≠ 交互终端 PATH（主因）<a class="headerlink" href="#21-ssh-path-path" title="Permanent link">&para;</a></h3>
-<p>Agentero 探测 / 启动远端 Agent 使用：</p>
-<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-T<span class="w"> </span>-o<span class="w"> </span><span class="nv">BatchMode</span><span class="o">=</span>yes<span class="w"> </span>&lt;host&gt;<span class="w"> </span><span class="s1">&#39;bash -lc &quot;…&quot;&#39;</span>
+<h2 id="2">2. 调查过程<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="21-translator-mt">2.1 Translator 服务可用性（文献元数据，非 MT）<a class="headerlink" href="#21-translator-mt" title="Permanent link">&para;</a></h3>
+<p>与 PDF 划词 / 摘要中译无关。默认 Base：<code>https://translator.philfan.cn</code>（<code>DEFAULT_TRANSLATOR_BASE_URL</code>）。</p>
+<p>工具：<code>node test/scripts/probe-translator.mjs</code>（<code>pnpm probe:translator</code> 在部分环境因 pnpm 版本问题不可用，可直接 node）。</p>
+<table>
+<thead>
+<tr>
+<th>检查</th>
+<th>结果</th>
+<th>耗时量级</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DNS</td>
+<td>✅ Cloudflare</td>
+<td>~7ms</td>
+</tr>
+<tr>
+<td><code>POST /search</code> arXiv</td>
+<td>✅</td>
+<td>~2s</td>
+</tr>
+<tr>
+<td><code>POST /search</code> DOI</td>
+<td>✅</td>
+<td>~2.7s</td>
+</tr>
+<tr>
+<td><code>POST /web</code> arXiv URL</td>
+<td>✅</td>
+<td>~1.8s</td>
+</tr>
+<tr>
+<td><code>POST /import</code> / <code>export</code></td>
+<td>✅</td>
+<td>~0.4s</td>
+</tr>
+</tbody>
+</table>
+<p><strong>结论</strong>：公网 Translator 当时可用；Critical（search + web）PASS。</p>
+<h3 id="22-260721804">2.2 单篇导入端到端：<code>2607.21804</code><a class="headerlink" href="#22-260721804" title="Permanent link">&para;</a></h3>
+<p>CLI：<code>agentero --json -v &lt;temp-vault&gt; import id 2607.21804</code><br />
+论文：<em>Adversarial Prompts for Acceptance Collapse in Speculative Decoding</em><br />
+结果：<code>usedTranslator=true</code>，PDF ✅，TeX ✅，无 <code>PAPER.md</code>（有 TeX 跳过 liteparse）；<code>NOTES.md</code> 摘要为中文。</p>
+<p><strong>Host 串行流水线</strong>（<code>import_by_identifier</code> → <code>paper_commit</code>）：</p>
+<div class="codehilite"><pre><span></span><code>resolve_metadata (Translator /web)
+  → paper_commit
+       → write_paper_shell（含 abstract free_mt_to_zh）
+       → catalog upsert
+       → ensure_paper_assets：PDF → TeX e-print
+       → liteparse（仅 !tex &amp;&amp; pdf）
 </code></pre></div>
 
-<p>特点：</p>
+<p><strong>多次 wall clock</strong>（临时 Vault，网络有抖动）：</p>
+<table>
+<thead>
+<tr>
+<th>轮次</th>
+<th style="text-align: right;">总耗时</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td style="text-align: right;">~28s</td>
+<td>与其它 probe 并行，网络抢占</td>
+</tr>
+<tr>
+<td>2</td>
+<td style="text-align: right;">~34s</td>
+<td>串行干净环境</td>
+</tr>
+<tr>
+<td>3</td>
+<td style="text-align: right;"><strong>~17s</strong></td>
+<td>带文件 mtime 时间线（主参考）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>第 3 次按 mtime 还原的阶段耗时</strong>（相对进程启动）：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th style="text-align: right;">耗时</th>
+<th style="text-align: right;">占比</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① Translator + 摘要 MT + shell/catalog → <code>NOTES.md</code></td>
+<td style="text-align: right;"><strong>~10.6s</strong></td>
+<td style="text-align: right;"><strong>~62%</strong></td>
+<td>主瓶颈区</td>
+</tr>
+<tr>
+<td>② PDF 下载 → <code>2607.21804.pdf</code>（~0.93MB）</td>
+<td style="text-align: right;"><strong>~3.3s</strong></td>
+<td style="text-align: right;">~19%</td>
+<td><code>arxiv.org/pdf/…</code></td>
+</tr>
+<tr>
+<td>③ TeX e-print + 解压 → <code>source/</code></td>
+<td style="text-align: right;"><strong>~3.3s</strong></td>
+<td style="text-align: right;">~19%</td>
+<td><code>arxiv.org/e-print/…</code> gzip ~659KB</td>
+</tr>
+<tr>
+<td>④ 收尾（liteparse 跳过）</td>
+<td style="text-align: right;">~0s</td>
+<td style="text-align: right;">—</td>
+<td><code>skip: local TeX present</code></td>
+</tr>
+<tr>
+<td><strong>合计</strong></td>
+<td style="text-align: right;"><strong>~17.2s</strong></td>
+<td style="text-align: right;">100%</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>同机另测<strong>隔离网络步骤</strong>（非同一次进程，仅对照）：</p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th style="text-align: right;">耗时</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Translator <code>POST /web</code></td>
+<td style="text-align: right;">~3.4s</td>
+<td>✅ 1051 字摘要</td>
+</tr>
+<tr>
+<td>MT <code>googleapi</code>（旧链首位）</td>
+<td style="text-align: right;">~10.5s</td>
+<td>❌ <code>fetch failed</code></td>
+</tr>
+<tr>
+<td>PDF</td>
+<td style="text-align: right;">~1.7s</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>TeX e-print</td>
+<td style="text-align: right;">~1.1s</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<p>要点：旧链上 <strong>googleapi 失败仍可能空等近 15s</strong>，直接拉长阶段 ①。</p>
+<h3 id="23">2.3 导入摘要为什么是「谷歌」？<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>路径</th>
+<th>引擎来源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>导入 <code>NOTES</code> 摘要</strong></td>
+<td>Host 硬编码 <code>ZH_RACE_PROVIDERS</code> + <code>free_mt_to_zh</code>，<strong>不读</strong> Settings</td>
+</tr>
+<tr>
+<td><strong>PDF 划词翻译</strong></td>
+<td>Settings → 翻译，默认 <code>provider: "bing"</code></td>
+</tr>
+</tbody>
+</table>
+<p>旧回退链：</p>
+<div class="codehilite"><pre><span></span><code>googleapi → bing → youdao → huoshanweb → tencenttransmart
+</code></pre></div>
+
+<p>每个引擎 <code>timeout_ms: Some(15_000)</code>。<br />
+<code>googleapi</code> 在本环境常失败；链会串行试后续引擎，<strong>失败等待累加</strong>。</p>
+<p>Settings 默认 bing 的注释明确写了：比 Google gtx 在更多网络下可用——但<strong>导入路径未复用该默认</strong>。</p>
+<h3 id="24-mt-bench">2.4 摘要 MT 专项 bench（改链后）<a class="headerlink" href="#24-mt-bench" title="Permanent link">&para;</a></h3>
+<p>端点与 Host 一致（Edge Bing auth + translate、火山 crx、腾讯 Transmart）。<br />
+链：<code>bing → huoshanweb → tencenttransmart</code>。<br />
+样本：5 篇 arXiv 摘要（≈0.9–1.8k 字符）。</p>
+<table>
+<thead>
+<tr>
+<th>论文</th>
+<th style="text-align: right;">字数</th>
+<th style="text-align: right;">bing</th>
+<th style="text-align: right;">火山</th>
+<th style="text-align: right;">腾讯</th>
+<th style="text-align: right;">整链（先成功即停）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2607.21804</td>
+<td style="text-align: right;">1051</td>
+<td style="text-align: right;">1.3s</td>
+<td style="text-align: right;">0.9s</td>
+<td style="text-align: right;">0.9s</td>
+<td style="text-align: right;"><strong>0.4s</strong> (bing)</td>
+</tr>
+<tr>
+<td>1706.03762</td>
+<td style="text-align: right;">1136</td>
+<td style="text-align: right;">0.6s</td>
+<td style="text-align: right;">0.5s</td>
+<td style="text-align: right;">0.9s</td>
+<td style="text-align: right;"><strong>0.5s</strong> (bing)</td>
+</tr>
+<tr>
+<td>2303.08774</td>
+<td style="text-align: right;">876</td>
+<td style="text-align: right;">0.5s</td>
+<td style="text-align: right;">0.5s</td>
+<td style="text-align: right;">0.5s</td>
+<td style="text-align: right;"><strong>0.4s</strong> (bing)</td>
+</tr>
+<tr>
+<td>1412.6980</td>
+<td style="text-align: right;">1109</td>
+<td style="text-align: right;">0.6s</td>
+<td style="text-align: right;">0.5s</td>
+<td style="text-align: right;">0.6s</td>
+<td style="text-align: right;"><strong>0.4s</strong> (bing)</td>
+</tr>
+<tr>
+<td>2005.14165</td>
+<td style="text-align: right;">1789</td>
+<td style="text-align: right;">0.6s</td>
+<td style="text-align: right;">0.5s</td>
+<td style="text-align: right;">1.1s</td>
+<td style="text-align: right;"><strong>0.4s</strong> (bing)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>引擎汇总</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>引擎</th>
+<th>成功率</th>
+<th>p50</th>
+<th>max</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bing</td>
+<td>5/5</td>
+<td>~0.6s</td>
+<td><strong>1.3s</strong></td>
+</tr>
+<tr>
+<td>huoshanweb</td>
+<td>5/5</td>
+<td>~0.5s</td>
+<td>0.9s</td>
+</tr>
+<tr>
+<td>tencenttransmart</td>
+<td>5/5</td>
+<td>~0.9s</td>
+<td>1.1s</td>
+</tr>
+<tr>
+<td><strong>整链</strong></td>
+<td><strong>5/5</strong>（均 bing 命中）</td>
+<td><strong>~0.4s</strong></td>
+<td><strong>~0.5s</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>超时选取</strong>：</p>
+<ul>
+<li>成功路径 max ≈ <strong>1.3s</strong>；正常整链 <strong>&lt;0.5s</strong>。</li>
+<li>旧 <strong>15s/引擎</strong> 过宽；三引擎全挂最坏 <strong>45s</strong>，显著拖慢导入。</li>
+<li>取 <strong>5s/引擎</strong>（约 4× 实测最慢成功）：</li>
+<li>慢网 / 稍长摘要仍有余量；</li>
+<li>死引擎少等约 10s；</li>
+<li>整链最坏 <strong>15s</strong>（3×5s）。</li>
+</ul>
+<hr />
+<h2 id="3">3. 根因归纳<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>导入体感慢</strong> = Translator 网络 + <strong>串行摘要 MT</strong> + PDF/TeX 下载；其中 ① 在慢链/失败链时占比可超一半。</li>
+<li><strong>摘要 MT 与设置页解耦</strong>，硬编码旧链首位 <code>googleapi</code>，在不可达环境制造 <strong>~10–15s 无效等待</strong>。</li>
+<li><strong>单引擎 15s 超时</strong>相对实测成功（0.4–1.3s）过大，放大回退成本。</li>
+</ol>
+<hr />
+<h2 id="4">4. 修复 / 优化<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>项</th>
-<th>交互 <code>ssh host</code></th>
-<th>Agentero BatchMode</th>
+<th>旧值</th>
+<th>新值</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>TTY</td>
-<td>有</td>
-<td>无（<code>-T</code>）</td>
+<td>引擎选择</td>
+<td>串行兜底 googleapi → … → 腾讯</td>
+<td><strong>并行竞速</strong> <code>ZH_RACE_PROVIDERS</code>：bing / 火山 / 腾讯，<strong>最先成功</strong></td>
 </tr>
 <tr>
-<td>是否交互</td>
-<td>是</td>
-<td>否</td>
+<td>导入摘要单引擎超时</td>
+<td>15s</td>
+<td><strong>5s</strong>（<code>FREE_MT_ZH_TIMEOUT_MS</code>）</td>
 </tr>
 <tr>
-<td>PATH</td>
-<td>常含 brew/nvm（<code>.bashrc</code> 交互段）</td>
-<td>常为「瘦」login PATH</td>
+<td>全失败 wall</td>
+<td>最长 ≈ 引擎数 × 超时</td>
+<td><strong>≈ 单次超时 5s</strong>（并行）</td>
+</tr>
+<tr>
+<td>全失败 NOTES</td>
+<td>回退英文原文 blockquote</td>
+<td><strong>不写摘要块</strong>（无翻译可显示）</td>
 </tr>
 </tbody>
 </table>
-<p>许多机器在 <code>~/.bashrc</code> 里：</p>
-<div class="codehilite"><pre><span></span><code><span class="k">case</span><span class="w"> </span><span class="nv">$-</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>*i*<span class="o">)</span><span class="w"> </span><span class="p">;;</span><span class="w"> </span>*<span class="o">)</span><span class="w"> </span><span class="k">return</span><span class="p">;;</span><span class="w"> </span><span class="k">esac</span><span class="w">   </span><span class="c1"># 非交互直接 return</span>
-<span class="c1"># … 之后才有 eval &quot;$(brew shellenv)&quot;</span>
-</code></pre></div>
-
-<p>于是 <strong>Linuxbrew</strong> 下的全局 npm bin：</p>
-<div class="codehilite"><pre><span></span><code>/home/linuxbrew/.linuxbrew/bin/claude-agent-acp
-</code></pre></div>
-
-<p>在交互 shell 可见，在 BatchMode <code>command -v</code> 下不可见。<br />
-这不是「没用用户 PATH」，而是 <strong>同一用户、非交互会话拿到的 PATH 更短</strong>。</p>
-<p>实测（BatchMode）PATH 可能类似：</p>
-<div class="codehilite"><pre><span></span><code>~/.cargo/bin:/usr/local/bin:/usr/bin:…
-# 无 /home/linuxbrew/.linuxbrew/bin
-</code></pre></div>
-
-<p>同时文件已存在：<code>test -x /home/linuxbrew/.linuxbrew/bin/claude-agent-acp</code> → OK。</p>
-<h3 id="22-claude-claude-agent-acp">2.2 <code>claude</code> ≠ <code>claude-agent-acp</code><a class="headerlink" href="#22-claude-claude-agent-acp" title="Permanent link">&para;</a></h3>
+<p>未改：</p>
+<ul>
+<li><code>translate_text</code> 通用默认仍 30s（PDF 划词等）；</li>
+<li>设置页探测仍 5s/引擎；</li>
+<li>Settings 默认 provider 仍为 bing（导入不读设置）。</li>
+</ul>
+<p>单测：<code>features::translate::tests::free_providers_listed</code> 断言竞速引擎集合与超时落在 3–8s 合理区间。</p>
+<hr />
+<h2 id="5">5. 更改前后最坏时长对照（实测）<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<p><strong>方法</strong>（2026-08-02）：Node 复现 Host 同序三引擎（bing / 火山 / 腾讯）与超时策略。</p>
+<ul>
+<li><strong>更改前语义</strong>：串行回退——前一个失败/超时后再试下一个；wall ≈ <strong>各引擎耗时之和</strong>。</li>
+<li><strong>更改后语义</strong>：并行竞速——同时发起，<strong>最先非空成功</strong>即返回；全失败 wall ≈ <strong>max(各引擎)</strong> ≈ 单次超时。</li>
+<li><strong>挂死模拟</strong>：引擎直到超时才失败（<code>Promise</code> hang + race abort），用于最坏时长。</li>
+<li><strong>成功路径</strong>：真实 arXiv 摘要 HTTP 调用（与 Host 端点一致）。</li>
+</ul>
+<h3 id="51">5.1 最坏时长（三引擎全挂 / 全失败）<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
-<th>探测项</th>
-<th>含义</th>
+<th>场景</th>
+<th style="text-align: right;">更改前（串行）</th>
+<th style="text-align: right;">更改后（并行）</th>
+<th style="text-align: right;">加速比</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>detect_command</code> = <code>claude</code></td>
-<td>Claude Code 主机 CLI（「已安装」徽章）</td>
+<td>理论：15s/引擎 ×3（历史超时）</td>
+<td style="text-align: right;"><strong>45 000 ms</strong></td>
+<td style="text-align: right;">15 000 ms</td>
+<td style="text-align: right;"><strong>3×</strong></td>
 </tr>
 <tr>
-<td><code>command</code> = <code>claude-agent-acp</code></td>
-<td>ACP 入口（协议 initialize / Chat）</td>
+<td>实测：15s hang ×3</td>
+<td style="text-align: right;"><strong>45 004 ms</strong></td>
+<td style="text-align: right;">15 002 ms</td>
+<td style="text-align: right;"><strong>3×</strong></td>
+</tr>
+<tr>
+<td>理论：5s/引擎 ×3（当前超时）</td>
+<td style="text-align: right;"><strong>15 000 ms</strong></td>
+<td style="text-align: right;"><strong>5 000 ms</strong></td>
+<td style="text-align: right;"><strong>3×</strong></td>
+</tr>
+<tr>
+<td>实测：5s hang ×3</td>
+<td style="text-align: right;"><strong>15 004 ms</strong></td>
+<td style="text-align: right;"><strong>5 001 ms</strong></td>
+<td style="text-align: right;"><strong>3×</strong></td>
+</tr>
+<tr>
+<td>实测：首个秒失败 + 后两路 hang@5s</td>
+<td style="text-align: right;"><strong>10 002 ms</strong></td>
+<td style="text-align: right;"><strong>5 001 ms</strong></td>
+<td style="text-align: right;"><strong>2×</strong></td>
 </tr>
 </tbody>
 </table>
-<p>只装 Claude Code、未装 <code>@agentclientprotocol/claude-agent-acp</code> 时：本机/远端都会 <strong>installed + adapter missing</strong>。</p>
-<h3 id="23-install-ssh">2.3 远端 Install 脚本 SSH 引号错误（已修）<a class="headerlink" href="#23-install-ssh" title="Permanent link">&para;</a></h3>
-<p>错误写法：</p>
-<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-t<span class="w"> </span>host<span class="w"> </span>--<span class="w"> </span>bash<span class="w"> </span>-lc<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CMD</span><span class="s2">&quot;</span>
-<span class="c1"># 远端再分词后 -c 只吃到 &quot;npm&quot;，其余参数丢失 → 打印 npm Usage</span>
+<p>要点：</p>
+<ol>
+<li><strong>历史最坏</strong>（串行 + 15s）：约 <strong>45s</strong> 卡在摘要 MT。  </li>
+<li><strong>仅改超时到 5s 仍串行</strong>：最坏仍 <strong>15s</strong>。  </li>
+<li><strong>并行竞速 + 5s</strong>：最坏约 <strong>5s</strong>（与单引擎超时同阶），相对历史最坏约 <strong>9×</strong>（45s → 5s）。</li>
+</ol>
+<div class="codehilite"><pre><span></span><code>wall_worst_sequential ≈ Σ timeout_i     (或 Σ fail_ms_i)
+wall_worst_parallel   ≈ max(timeout_i)  (全失败时)
+wall_success_parallel ≈ min(success_ms) (取最先成功)
 </code></pre></div>
 
-<p>正确：本地用 <code>printf '%q'</code> 把整段命令作为 <strong>一个</strong> <code>-c</code> 脚本：</p>
-<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-t<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEST</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;bash -lc </span><span class="k">$(</span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;%q&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CMD</span><span class="s2">&quot;</span><span class="k">)</span><span class="s2">&quot;</span>
+<h3 id="52-wall5s-vs">5.2 成功路径 wall（同机、5s 超时，串行 vs 并行）<a class="headerlink" href="#52-wall5s-vs" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>论文</th>
+<th style="text-align: right;">字数</th>
+<th style="text-align: right;">串行</th>
+<th style="text-align: right;">并行</th>
+<th>并行赢家</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2607.21804</td>
+<td style="text-align: right;">1051</td>
+<td style="text-align: right;">1 563 ms (bing)</td>
+<td style="text-align: right;"><strong>458 ms</strong> (bing)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>1706.03762</td>
+<td style="text-align: right;">1136</td>
+<td style="text-align: right;">438 ms (bing)</td>
+<td style="text-align: right;"><strong>200 ms</strong> (huoshanweb)</td>
+<td>火山更快抢先</td>
+</tr>
+<tr>
+<td>1412.6980</td>
+<td style="text-align: right;">1109</td>
+<td style="text-align: right;">1 290 ms (bing)</td>
+<td style="text-align: right;"><strong>227 ms</strong> (huoshanweb)</td>
+<td>火山更快抢先</td>
+</tr>
+<tr>
+<td><strong>平均</strong></td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;"><strong>1 097 ms</strong></td>
+<td style="text-align: right;"><strong>295 ms</strong></td>
+<td>~<strong>3.7×</strong></td>
+</tr>
+<tr>
+<td><strong>最大</strong></td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">1 563 ms</td>
+<td style="text-align: right;"><strong>458 ms</strong></td>
+<td>~<strong>3.4×</strong></td>
+</tr>
+</tbody>
+</table>
+<p>说明：串行在首位 bing 即成功时 wall ≈ bing 单次；并行可被更快的火山/腾讯抢先，成功路径也常 <strong>明显低于</strong> 串行首引擎耗时。</p>
+<h3 id="53">5.3 相对导入总时长<a class="headerlink" href="#53" title="Permanent link">&para;</a></h3>
+<p>结合 §2.2 第 3 次导入 <strong>~17s</strong> 端到端（其中 ① 含 Translator + 摘要 MT ~10.6s）：</p>
+<table>
+<thead>
+<tr>
+<th>摘要 MT 形态</th>
+<th>对 ① 的贡献（量级）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>历史最坏串行 15s×3</td>
+<td>可独占 <strong>~45s</strong>（远超下载）</td>
+</tr>
+<tr>
+<td>串行 5s×3 最坏</td>
+<td>可独占 <strong>~15s</strong></td>
+</tr>
+<tr>
+<td><strong>并行 5s 最坏</strong></td>
+<td>封顶 <strong>~5s</strong></td>
+</tr>
+<tr>
+<td>并行成功（本机）</td>
+<td>常 <strong>0.2–0.5s</strong>，不再是主瓶颈</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6">6. 复现与对照命令<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Translator 可用性</span>
+node<span class="w"> </span>test/scripts/probe-translator.mjs
+
+<span class="c1"># 端到端导入计时（需已 build CLI）</span>
+<span class="nv">VAULT</span><span class="o">=</span><span class="k">$(</span>mktemp<span class="w"> </span>-d<span class="w"> </span>/tmp/agentero-import-XXXXXX<span class="k">)</span>
+cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>vault<span class="w"> </span>create<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$VAULT</span><span class="s2">&quot;</span><span class="w"> </span>-q
+/usr/bin/time<span class="w"> </span>-p<span class="w"> </span>./target/debug/agentero<span class="w"> </span>--json<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$VAULT</span><span class="s2">&quot;</span><span class="w"> </span>import<span class="w"> </span>id<span class="w"> </span><span class="m">2607</span>.21804
 </code></pre></div>
 
-<h3 id="24-npm-i-g">2.4 系统 <code>npm i -g</code> 与权限<a class="headerlink" href="#24-npm-i-g" title="Permanent link">&para;</a></h3>
-<p>系统 npm <code>prefix=/usr</code> 时，无 root 的 <code>npm i -g</code> 易失败。应使用用户可写 prefix，例如：</p>
-<div class="codehilite"><pre><span></span><code>npm<span class="w"> </span>i<span class="w"> </span>-g<span class="w"> </span>@agentclientprotocol/claude-agent-acp<span class="w"> </span>--prefix<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">/.local&quot;</span>
-</code></pre></div>
-
-<h3 id="25">2.5 代理<a class="headerlink" href="#25" title="Permanent link">&para;</a></h3>
-<p>本机 Settings 代理原先只注入 <strong>本机</strong> agent 子进程 env；远端 <code>ssh … exec agent</code> <strong>未</strong>转发 <code>HTTP_PROXY</code>。<br />
-且代理 URL 必须从 <strong>服务器</strong> 可达（服务器上的 <code>127.0.0.1:7890</code> ≠ 本机代理）。</p>
+<p>摘要 MT 可用与 Host 同 URL 的脚本对照串行/并行 wall；或依赖导入后 <code>NOTES.md</code> 是否为中文 + 导入总时长对照。</p>
 <hr />
-<h2 id="3">3. 解决方案（已落地）<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
-<h3 id="31-remote_path_bootstrap">3.1 <code>REMOTE_PATH_BOOTSTRAP</code><a class="headerlink" href="#31-remote_path_bootstrap" title="Permanent link">&para;</a></h3>
-<p>在远端 <code>bash -lc</code> 脚本前统一：</p>
+<h2 id="7">7. 后续可选<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
 <ul>
-<li>把 <code>~/.local/bin</code>、<code>/home/linuxbrew/.linuxbrew/bin</code>、cargo/npm 等目录 <strong>prepend 到 PATH</strong></li>
-<li>若存在 brew，尝试 <code>eval "$(brew shellenv)"</code></li>
+<li>摘要 MT 与 PDF/TeX 下载 <strong>并行</strong>（现在写 shell 在下载前串行完成）。</li>
+<li>导入摘要是否 <strong>跟随 Settings provider</strong>（或提供开关关闭摘要中译）。</li>
+<li>在 <code>import_by_identifier</code> 打分步 <code>duration_ms</code> 日志，避免再靠 mtime 反推。</li>
 </ul>
-<p>用于：<code>remote_which</code>、<code>remote_agent_shell_command</code>（probe / warm / run）。</p>
-<h3 id="32-remote_which">3.2 <code>remote_which</code> 绝对路径回退<a class="headerlink" href="#32-remote_which" title="Permanent link">&para;</a></h3>
-<p><code>command -v</code> 失败时再扫候选绝对路径（含 linuxbrew、nvm、<code>npm prefix -g</code>/bin）。</p>
-<h3 id="33-install-acp">3.3 远端 Install ACP<a class="headerlink" href="#33-install-acp" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>remote_agent_open_install_terminal</code>：本机终端确认 → <code>ssh -t</code> 在远端执行模板 <code>install_command</code></li>
-<li>Claude 默认安装命令改为带 <code>--prefix "$HOME/.local"</code></li>
-<li>UI：与本地一致显示 <strong>ACP adapter missing</strong> + <strong>Install ACP</strong></li>
-</ul>
-<h3 id="34">3.4 远端代理<a class="headerlink" href="#34" title="Permanent link">&para;</a></h3>
-<ul>
-<li>设置远端 Agent 页展示与本地共用的 proxy 开关/URL</li>
-<li>probe / spawn 时在远端 <code>export HTTP_PROXY/HTTPS_PROXY/ALL_PROXY</code></li>
-<li>UI 提示：地址须从服务器可达</li>
-</ul>
-<h3 id="35">3.5 探测错误文案<a class="headerlink" href="#35" title="Permanent link">&para;</a></h3>
-<p>有 <code>claude</code>、无 <code>claude-agent-acp</code> 时，明确提示安装适配器（含 install 命令），而非笼统「not found」。</p>
 <hr />
-<h2 id="4">4. 运维注意点（排障清单）<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<h2 id="8-2026-08-02">8. 时间线（调查日 2026-08-02）<a class="headerlink" href="#8-2026-08-02" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>先在 BatchMode 下验证</strong>（与 Agentero 一致），不要只看交互终端：</li>
+<li>探测 Translator 公网可用性 → 正常。  </li>
+<li>导入 <code>2607.21804</code> 分阶段计时 → ① 元数据+摘要 MT 为主瓶颈。  </li>
+<li>确认导入摘要用硬编码链、首位 googleapi、15s 超时。  </li>
+<li>改引擎集合为 bing / 火山 / 腾讯。  </li>
+<li>五篇摘要 bench → 成功 0.4–1.3s；超时定为 <strong>5s</strong>。  </li>
+<li>文档与本复盘落盘。  </li>
+<li>再改为 <strong>三引擎并行竞速</strong>（非串行回退）；全失败则 NOTES 不写摘要翻译块。  </li>
+<li><strong>串行 vs 并行最坏/成功 wall 实测</strong>写入本节 §5（全挂 15s→5s；成功均值 ~1.1s→~0.3s）。</li>
 </ol>
-<p><code>bash
-   ssh -T -o BatchMode=yes &lt;host&gt; 'bash -lc "command -v claude-agent-acp; echo PATH=$PATH"'</code></p>
-<ol>
-<li>若文件在 brew 下但上面找不到，确认：</li>
-</ol>
-<p><code>bash
-   ls -la /home/linuxbrew/.linuxbrew/bin/claude-agent-acp</code></p>
-<p>Agentero 新版本应能通过 PATH bootstrap / 绝对路径扫到。</p>
-<ol>
-<li><strong>推荐</strong> 在远端 <code>~/.profile</code> 或非交互也会执行的配置中加入（且不要被「仅交互」return 挡掉）：</li>
-</ol>
-<p><code>bash
-   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"</code></p>
-<ol>
-<li>
-<p>安装后应用内 <strong>Refresh</strong>；改代理后会 force 再 probe。</p>
-</li>
-<li>
-<p>Codex 现已通过 ACP 适配器（<code>codex-acp</code>）支持纯 SSH。</p>
-</li>
-</ol>
-<hr />
-<h2 id="5">5. 参考<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
-<ul>
-<li>OpenSSH 非交互与 login shell：<code>bash -lc</code>、无 TTY</li>
-<li>Linuxbrew 路径：<code>/home/linuxbrew/.linuxbrew</code></li>
-<li>产品设计：<a href="../../backend/remote/"><code>remote.md</code></a> §5 远端 BYOA、§11 风险（nvm/PATH）</li>
-<li>API：<code>remote_agent_scan</code> / <code>remote_agent_probe</code> / <code>remote_agent_open_install_terminal</code>（<a href="../../backend/api/"><code>api.md</code></a>）</li>
-</ul>
 
 
 
