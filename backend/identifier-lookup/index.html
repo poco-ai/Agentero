@@ -4815,7 +4815,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
     texts: string[];                // 用户输入拆分后的原始 token 数组
     translatorBaseUrl?: string;     // 同上
     taskId?: string;                // 前端后台任务 id
-    concurrency?: number;           // 最大并发入库数，默认 3，范围 1–10
+    concurrency?: number;           // 最大并发入库数，默认 5，范围 1–10
   }</code></p>
 <ul>
 <li><strong>返回</strong>：</li>
@@ -4834,7 +4834,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li>对 <code>texts</code> 逐条调 <code>extract_primary_identifier</code>；未识别则计入 <code>errors</code>。</li>
 <li>按规范化 value（arXiv 去 version、DOI 小写等）去重：同一 batch 内重复 → <code>skipped</code>（<code>duplicate_in_batch</code>）。</li>
 <li>对每条唯一标识符查 catalog：已存在同 <code>arxiv_id</code> / <code>doi</code> / <code>isbn</code> / <code>pmid</code> / <code>id</code> 的 paper → <code>skipped</code>（<code>already_in_library</code>）。</li>
-<li>剩余条目以 <code>concurrency</code>（默认 3，范围 1–10）为上限<strong>并发</strong>调 <code>import_by_identifier_with_progress</code>。单条失败继续下一条，错误文本加入 <code>errors</code>。并发上限可在 <strong>Settings → General → Batch import concurrency</strong> 调整。</li>
+<li>剩余条目以 <code>concurrency</code>（默认 5，范围 1–10）为上限<strong>并发</strong>调 <code>import_by_identifier_with_progress</code>。单条失败继续下一条，错误文本加入 <code>errors</code>。并发上限可在 <strong>Settings → General → Batch import concurrency</strong> 调整。</li>
 <li>返回全部 <code>imported</code> 条目；前端刷新树 / Library / wiki 后，对 <code>imported</code> 中仍缺资源的 paper 逐个加入下载队列，每篇对应一个独立的 <code>download</code> 后台任务，并按并发上限排队执行。</li>
 </ul>
 <p>魔棒界面使用通用的 <code>enqueueBackgroundTask</code> 为每个输入创建一个独立的前端任务。任务面板只展示每个标识符的状态和资源进度，不展示 Host 批处理的内部阶段或聚合计数；并发限制由同类任务共享的信号量执行。</p>
@@ -5072,7 +5072,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 </tr>
 <tr>
 <td>单测 settings</td>
-<td><code>batchImportConcurrency</code> 越界时自动恢复为默认值 3</td>
+<td><code>batchImportConcurrency</code> 越界时自动恢复为默认值 5</td>
 </tr>
 </tbody>
 </table>
@@ -5115,7 +5115,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <td>B-5</td>
 <td>导入后逐篇补下缺失资源</td>
 <td>6 个 ID 均缺 PDF/TeX</td>
-<td>导入完成后左下角任务列表出现 <strong>6 个独立的 <code>Download paper assets</code></strong> 任务；默认并发 3 时前 3 个 <code>running</code>、后 3 个 <code>queued</code>；每完成一篇队列中下一篇自动开始</td>
+<td>导入完成后左下角任务列表出现 <strong>6 个独立的 <code>Download paper assets</code></strong> 任务；默认并发 5 时前 5 个 <code>running</code>、后 1 个 <code>queued</code>；每完成一篇队列中下一篇自动开始</td>
 </tr>
 <tr>
 <td>B-6</td>
@@ -5127,7 +5127,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <td>B-7</td>
 <td>设置值越界自动恢复</td>
 <td>手动把 <code>settings.json</code> 的 <code>batchImportConcurrency</code> 改为 <code>20</code> 或 <code>-1</code></td>
-<td>启动后自动 clamp 为默认值 3；UI 中显示 3</td>
+<td>启动后自动 clamp 为默认值 5；UI 中显示 5</td>
 </tr>
 </tbody>
 </table>

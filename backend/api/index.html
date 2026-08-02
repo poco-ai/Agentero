@@ -5983,7 +5983,7 @@ Host (Tauri + Rust)
 <li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata }</code>（更新后的整行；<code>tags</code> 序列化：无色为字符串，有色为 <code>{name,color}</code>）。</li>
 <li><strong>规范化</strong>：trim 空白；丢弃空串；大小写不敏感去重（保留首次出现的写法与颜色；同名后续项仅在先无色时补色）；<code>color</code> 白名单校验。</li>
 <li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>setPaperTags</code>；Paper Info 增删 + 色盘；Library 染色 chip + 筛选；<code>src/lib/ui/tag-colors.ts</code>。</li>
-<li><strong>CLI</strong>：<code>agentero paper tag set|add|rm &lt;ref&gt; …</code>（<code>set</code> 整表替换，<code>--clear</code> 清空；CLI 仅传裸名称，不设色）；<code>paper list --tag</code> 筛选；<code>paper tag list</code> 汇总。见 <a href="../cli/"><code>cli.md</code></a>。</li>
+<li><strong>CLI</strong>：<code>agentero paper tag set|add|rm &lt;ref&gt; …</code>（<code>set</code> 整表替换，<code>--clear</code> 清空；支持 <code>name:color</code>，颜色为 Apple 8 色 id）；<code>paper list --tag</code> 默认隐藏 <code>@zotero:</code> 内部标签，<code>--all</code> 包含全部标签；<code>paper tag list</code> 同样支持 <code>--all</code>。另有 <code>paper move</code> 与 <code>trash list|restore|purge</code>。见 <a href="../cli/"><code>cli.md</code></a>。</li>
 </ul>
 <h4 id="paperlist"><code>paper:list</code>（扩展规划）<a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
 <p>带过滤与分页的列表（尚未实现；现网用 <code>paper_list</code>）。</p>

@@ -1798,6 +1798,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        论文与 Tag
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2604,6 +2615,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        论文与 Tag
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2660,7 +2682,11 @@
 </tr>
 <tr>
 <td><code>paper</code></td>
-<td>list/get、tag list/set/add/rm、download/parse…</td>
+<td>list/get、tag list/set/add/rm、move、download/parse…</td>
+</tr>
+<tr>
+<td><code>trash</code></td>
+<td>list / restore / purge 本地回收站</td>
 </tr>
 <tr>
 <td><code>import</code></td>
@@ -2685,6 +2711,30 @@
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>vault<span class="w"> </span>which<span class="w"> </span>--json
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>wiki<span class="w"> </span>check<span class="w"> </span>papers/demo/NOTES.md<span class="w"> </span>--json
 cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-p<span class="w"> </span>agentero-cli
+</code></pre></div>
+
+<h2 id="tag">论文与 Tag<a class="headerlink" href="#tag" title="Permanent link">&para;</a></h2>
+<p>Tag 写入支持桌面端相同的 8 色后缀格式：</p>
+<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w"> </span>add<span class="w"> </span>papers/demo<span class="w"> </span><span class="s2">&quot;survey:blue&quot;</span>
+agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w"> </span><span class="nb">set</span><span class="w"> </span>papers/demo<span class="w"> </span><span class="s2">&quot;nlp:green&quot;</span><span class="w"> </span><span class="s2">&quot;must-read:orange&quot;</span>
+</code></pre></div>
+
+<p>只有合法颜色后缀会被解析为颜色；例如 <code>owner:alice</code> 仍是普通 Tag 名称。</p>
+<p><code>@zotero:</code> 是 Connector 内部标签，默认不参与论文列表筛选和 Tag 汇总；需要包含它们时传 <code>--all</code>：</p>
+<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>list<span class="w"> </span>--tag<span class="w"> </span>topic
+agentero<span class="w"> </span>paper<span class="w"> </span>list<span class="w"> </span>--tag<span class="w"> </span><span class="s2">&quot;@zotero:imported&quot;</span><span class="w"> </span>--all
+agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w"> </span>list<span class="w"> </span>--all
+</code></pre></div>
+
+<p><code>paper delete</code> 默认移入可恢复回收站；明确传 <code>--files</code> 才会物理删除。回收站操作：</p>
+<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>trash<span class="w"> </span>list
+agentero<span class="w"> </span>trash<span class="w"> </span>restore<span class="w"> </span>&lt;batch-id&gt;<span class="w"> </span>&lt;stored&gt;
+agentero<span class="w"> </span>-y<span class="w"> </span>trash<span class="w"> </span>purge<span class="w"> </span>&lt;batch-id&gt;<span class="w"> </span>&lt;stored&gt;
+agentero<span class="w"> </span>-y<span class="w"> </span>trash<span class="w"> </span>purge
+</code></pre></div>
+
+<p>论文移动会更新文件夹和 Catalog 路径：</p>
+<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>move<span class="w"> </span>papers/inbox/demo<span class="w"> </span>papers/archive
 </code></pre></div>
 
 <h2 id="_3">双链检查<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
