@@ -4801,7 +4801,7 @@ Host (Tauri + Rust)
 <tr>
 <td><code>background-task:progress</code></td>
 <td>下载/解析任务进度</td>
-<td><code>{ taskId, phase, downloadedBytes, totalBytes?, progress? }</code>；下载无 <code>Content-Length</code> 或进入 <code>parse</code> 阶段时 <code>progress</code> 为空</td>
+<td><code>{ taskId, phase, downloadedBytes, totalBytes?, progress? }</code>；下载阶段的字节进度由前端聚合为总体进度（PDF 映射到 0–50%，TeX 映射到 50–100%），解析阶段显示为处理中，任务完成时为 100%</td>
 </tr>
 </tbody>
 </table>
