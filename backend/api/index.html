@@ -2016,6 +2016,39 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#feature_window_open" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        feature_window_open（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#feature_window_close" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        feature_window_close（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#doc_window_open" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doc_window_open（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#settings_window_open" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3812,6 +3845,39 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#feature_window_open" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        feature_window_open（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#feature_window_close" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        feature_window_close（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#doc_window_open" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doc_window_open（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#settings_window_open" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5108,6 +5174,54 @@ Host (Tauri + Rust)
 <li>Capability 覆盖 <code>main</code> 与 <code>agentero-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
 <li>菜单点击由 Host 直接调用，不经过前端 event 往返（Host 内用 <code>tauri::async_runtime::spawn</code> 调用）。</li>
 <li><strong>必须是 <code>async</code> command</strong>：同步 command 在主线程、且处于调用方 webview 的 IPC 回调内执行，Windows 上从那里 build webview 会卡死（wry 进入嵌套消息循环等 WebView2 controller 回调，而该回调要等当前处理器返回），新窗口表现为空白且无法关闭。</li>
+</ul>
+<h4 id="feature_window_open"><code>feature_window_open</code>（已实现）<a class="headerlink" href="#feature_window_open" title="Permanent link">&para;</a></h4>
+<p>打开（或聚焦）右侧功能视图的 <strong>单例</strong> 原生窗口（Agent / Backlinks / Annotations / References）。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nx">view</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;agent&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;backlinks&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;annotations&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;references&quot;</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">vaultPath?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">activePath?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span><span class="w">   </span><span class="c1">// initial follow-active path for the popout</span>
+<span class="w">  </span><span class="nx">paperTitle?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">title?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span><span class="w">        </span><span class="c1">// localized OS window caption from frontend t()</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<ul>
+<li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
+<li><strong>行为</strong></li>
+<li>label 为 <code>feature-{view}</code>；已存在则 <code>set_focus</code>。</li>
+<li>URL：<code>index.html?window=feature&amp;view=…&amp;vault_path=…&amp;active_path=…&amp;paper_title=…</code>（轻量 Feature 根，不加载完整 App Dock）。</li>
+<li>窗口关闭时 Host 向所有窗口 <code>emit("feature_window_closed", { view })</code>。</li>
+<li><strong>必须是 <code>async</code> command</strong>（同 <code>window_new</code>）。</li>
+</ul>
+<h4 id="feature_window_close"><code>feature_window_close</code>（已实现）<a class="headerlink" href="#feature_window_close" title="Permanent link">&para;</a></h4>
+<p>关闭指定功能单例窗（不存在则 no-op）。</p>
+<ul>
+<li><strong>参数</strong>：<code>{ view: "agent" | "backlinks" | "annotations" | "references" }</code></li>
+<li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
+</ul>
+<h4 id="doc_window_open"><code>doc_window_open</code>（已实现）<a class="headerlink" href="#doc_window_open" title="Permanent link">&para;</a></h4>
+<p>打开（或聚焦）单个文档的原生窗口。</p>
+<ul>
+<li><strong>参数</strong></li>
+</ul>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">           </span><span class="c1">// absolute vault file / paper path</span>
+<span class="w">  </span><span class="nx">mode?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span><span class="w">   </span><span class="c1">// pdf | html | markdown | image …</span>
+<span class="w">  </span><span class="nx">vaultPath?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">title?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span><span class="w">  </span><span class="c1">// localized OS caption; falls back to file basename</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<ul>
+<li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
+<li><strong>行为</strong></li>
+<li>label 为 <code>doc-</code> + path 的 sha256 前 16 hex；同 path 再开则聚焦。</li>
+<li>URL：<code>index.html?window=doc&amp;path=…&amp;mode=…&amp;vault_path=…</code>。</li>
+<li><strong>必须是 <code>async</code> command</strong>。</li>
 </ul>
 <h4 id="settings_window_open"><code>settings_window_open</code>（已实现）<a class="headerlink" href="#settings_window_open" title="Permanent link">&para;</a></h4>
 <p>打开 Settings 原生单例窗口（菜单 <strong>Agentero → Settings…</strong> / <code>⌘,</code> / 标题栏齿轮）。</p>

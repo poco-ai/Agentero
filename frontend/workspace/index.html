@@ -2651,11 +2651,11 @@
 </tr>
 <tr>
 <td>首篇 paper</td>
-<td>PDF/HTML 左 + <code>NOTES.md</code> 右分屏</td>
+<td>PDF/HTML 默认组 + <code>NOTES.md</code> 右分屏（阅读默认）</td>
 </tr>
 <tr>
 <td>再开 paper</td>
-<td>叠到同一左右两栏（body / NOTES <strong>同步切换</strong>）；不拆第三列</td>
+<td>body 走自由 dock 放置（当前组 / 默认，可再拖分屏）；NOTES 优先叠进已有笔记列；body↔NOTES <strong>焦点仍同步</strong></td>
 </tr>
 <tr>
 <td>同步关闭</td>
@@ -2672,6 +2672,10 @@
 <tr>
 <td>循环</td>
 <td><code>⌥⌘←/→</code> 按 <code>api.panels</code> <strong>视觉序</strong></td>
+</tr>
+<tr>
+<td>移至新窗口</td>
+<td>文档 tab <strong>右键</strong> → <strong>移动至新窗口</strong> → 独立 <code>doc-*</code> Webview；源 panel 关闭（Library / Trash 除外）</td>
 </tr>
 <tr>
 <td>NOTES 开关</td>
@@ -2703,7 +2707,19 @@
 <tbody>
 <tr>
 <td><code>src/components/workspace/dock-workspace.tsx</code></td>
-<td>Dockview 宿主</td>
+<td>Dockview 宿主（tab 右键 → 移至新窗口）</td>
+</tr>
+<tr>
+<td><code>src/lib/shell/leaf.ts</code></td>
+<td>leaf 打开 / <code>moveDocToWindow</code></td>
+</tr>
+<tr>
+<td><code>src/lib/shell/doc-window.ts</code></td>
+<td><code>doc_window_open</code> 前端封装</td>
+</tr>
+<tr>
+<td><code>src/components/shell/doc-window-root.tsx</code></td>
+<td>文档弹出窗根</td>
 </tr>
 <tr>
 <td><code>src/lib/workspace/store.ts</code></td>
