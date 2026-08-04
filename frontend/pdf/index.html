@@ -2707,6 +2707,10 @@
 <td><code>⌘F</code> + 命中高亮</td>
 </tr>
 <tr>
+<td>暗色页</td>
+<td>跟随应用主题（<code>dark</code> class）。EmbedPDF 尚无页面 color-scheme API，仅对 <code>RenderLayer</code> / <code>TilingLayer</code> 做柔和反相（<code>invert(0.88)</code> + <code>hue-rotate(180)</code> + 轻亮度/对比）；选区 / 搜索 / 批注覆盖层与 Agent 裁剪（<code>renderPageRect</code>）不受影响。扫描版/插图会被一并反相</td>
+</tr>
+<tr>
 <td>沉浸</td>
 <td>全屏 + 限宽居中</td>
 </tr>
