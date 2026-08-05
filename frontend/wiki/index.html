@@ -2661,7 +2661,8 @@
 <h2 id="_1">编辑器<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>[[wikilink]]</code> Live Preview；光标进入显示源码。</li>
-<li>输入 <code>[[</code>：文件 / alias / 标题 / block / 批注（<code>@</code>）候选；↑↓ 在列表内循环，不关闭菜单；底部提示 <code>#标题 · ^文本块 · |显示文本 · @批注</code>。</li>
+<li>输入 <code>[[</code>：文件 / frontmatter alias / 标题 / block / 批注（<code>@</code>）候选；↑↓ 在列表内循环，不关闭菜单；底部提示 <code>#标题 · ^文本块 · |显示文本 · @批注</code>。</li>
+<li><strong>Frontmatter <code>aliases</code></strong>：笔记 YAML 中的别名参与 file 搜索与 resolve（与 Obsidian 一致）。按别名命中时<strong>只</strong>出现 alias 候选（主行=别名，副行=vault 相对路径），不再额外挂一条 basename <code>NOTES</code>。选中后写入 canonical 目标（<strong>不</strong>自动补 <code>|显示名</code>），便于继续输入 <code>#</code> / <code>@</code>。同名 alias 多文件时列出多条，不静默选第一条。</li>
 <li>嵌套标题路径没有层数限制：<code>[[2026-W31#07-28 周二#复盘分析#paper 阅读]]</code>、同文件写法与对应 <code>![[...]]</code> 均合法。</li>
 <li>完整路径是标题的 canonical identity；Markdown 引用也可省略开头祖先，使用任意长度的连续路径后缀，例如唯一时 <code>[[2026-W31#复盘分析#paper 阅读]]</code> 合法。后缀命中多个标题时返回歧义，不选择第一个结果。</li>
 <li>每输入一个额外 <code>#</code>，其前面的路径段成为已确认父路径，候选只显示该父标题的直接子标题。父路径本身也按后缀匹配，因此可从省略祖先的标题继续逐级补全，且没有两级或其他固定深度限制。</li>

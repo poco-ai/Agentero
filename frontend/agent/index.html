@@ -2772,6 +2772,12 @@
 </table>
 <p>成功写 <code>NOTES.md</code>，<code>is_read = true</code>；进度在后台任务条。批量导入不连跑。<br />
 Skill 语法由 Host 按 provider 分流（Claude <code>/id</code>，其它注入 <code>SKILL.md</code>）。</p>
+<p><code>NOTES.md</code> 须带 YAML frontmatter：</p>
+<ul>
+<li><code>aliases</code>（至少：<strong>论文全称</strong> + <strong>一个短标题</strong>），以便双链 <code>[[…]]</code> 按标题提示到该 NOTES</li>
+<li><code>created: YYYY-MM-DD</code>（语言中性键；ISO 日期，Properties 按值识别为日期；已有创建日期则不覆盖）</li>
+</ul>
+<p>保留用户已有 frontmatter 键与自定义 alias，不重命名 <code>NOTES.md</code> 文件名。约定见 vault 内 <code>paper-reader</code> skill。</p>
 <h2 id="_3">个人偏好<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p><code>agentPersonalPrompt</code>：非空时经 Host <code>build_prompt</code> 注入 envelope。</p>
 <h2 id="_4">代码<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
