@@ -2676,6 +2676,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/bundled-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置桌面 CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/plaza/" class="md-nav__link">
         
   
@@ -5213,7 +5241,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li>PDF：对话框 <strong>“把 PDF 复制进知识库”</strong> 勾选项（默认开）。勾选时从 <code>storage/&lt;attachmentKey&gt;/</code> 拷到 <code>{paper}/{id}.pdf</code> 并 liteparse <code>PAPER.md</code>；不勾则只留书目，<code>pdf_url</code> 供按需下载。</li>
 <li>去重：按 arXiv id / DOI / 归一化标题跳过重复（re-run 与既有）；不同文献 citekey 相撞时目录追加后缀。<strong>不覆盖</strong> <code>NOTES.md</code>。</li>
 <li>自愈：迁移前 <code>prune_missing</code> 清掉「文件夹已被手动删除」的 catalog 孤儿行，防止幽灵条目占位、去重误跳过导致无法重导（结果含 <code>pruned</code> 计数）。</li>
-<li>分类：对话框 <strong>“按 Zotero 分类建子文件夹”</strong> 勾选项（<strong>默认关</strong>，避免把 Zotero 分组（如 logs/Archive）建成多余子文件夹）→ 勾选时在目标目录下还原 collection 层级（<code>{parent}/&lt;collection 路径&gt;/&lt;id&gt;/</code>），collection 名同时写入 tags（多归属不丢失）；关闭则平铺。条目在多个 collection 时取确定性的单一路径（全路径字典序最小）。</li>
+<li>分类：对话框 <strong>“按 Zotero 分类建子文件夹”</strong> 勾选项（<strong>默认开</strong>，可手动关闭）→ 默认在目标目录下还原 collection 层级（<code>{parent}/&lt;collection 路径&gt;/&lt;id&gt;/</code>），collection 名同时写入 tags（多归属不丢失）；关闭则平铺。条目在多个 collection 时取确定性的单一路径（全路径字典序最小）。</li>
 <li>选择性导入：<code>zotero_scan</code> 预览返回各 collection（含「未分类」= id 0）及条目数，并返回逐条 <code>items</code>（id/title/year/hasPdf/notes/collections）；对话框提供<strong>搜索 + 文件夹筛选 + 逐条勾选</strong>（<code>include_items</code> 优先于 <code>include_collections</code>，缺省 = 全部）；迁移经 Tauri Channel 回传 <code>{current,total}</code> 进度，选项记于 localStorage。</li>
 <li>笔记：对话框「迁移 Zotero 笔记」勾选项（默认开）→ 每篇挂载的子笔记（<code>itemNotes</code>）HTML 经 <code>htmd</code> 转 Markdown，追加进该篇 <code>NOTES.md</code>（以 <code>---</code> 分隔）；<code>zotero_scan</code> 预览显示笔记总数。仅处理有父条目的子笔记。</li>
 <li>批注：对话框「迁移 PDF 高亮批注」勾选项（默认开）→ 读 <code>itemAnnotations</code>（高亮 text + comment + 页码）转 Markdown 引用块追加进 <code>NOTES.md</code>（与笔记共用幂等追加）。<strong>注</strong>：阅读器运行时批注为 <code>marks/*.json</code>；Zotero 导入侧暂只把文本迁入 <code>NOTES.md</code>，不做原位 PDF 高亮还原。</li>
