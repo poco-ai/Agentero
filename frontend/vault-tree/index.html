@@ -954,6 +954,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="建树">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        论文目录识别
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -968,7 +985,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         交互
@@ -979,7 +996,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -990,7 +1007,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
         开发注意
@@ -2662,6 +2679,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="建树">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        论文目录识别
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2676,7 +2710,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         交互
@@ -2687,7 +2721,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -2698,7 +2732,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
         开发注意
@@ -2763,6 +2797,12 @@
 <li>默认只展开 <code>papers/</code> 及其一级子目录。</li>
 <li>虚拟化：<code>@tanstack/react-virtual</code> 拍平窗口化；<code>getItemKey</code> 用行稳定 id，避免内联新建草稿插入/移除后按索引缓存行高留下空隙。文件/文件夹行固定为 <code>h-7</code>，论文资源操作按钮不改变行高。</li>
 </ul>
+<h3 id="_4">论文目录识别<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>papers/</code> 下目录的直接子项含 <code>NOTES.md</code>、<code>PAPER.md</code>、<code>metadata.json</code> 或 <code>source/</code> / <code>assets/</code> / <code>marks/</code> 时，可作为论文单元；<code>NOTES.md</code> 保留用于兼容旧论文目录。</li>
+<li>如果目录自身有索引/概览 <code>NOTES.md</code>，但其子树中还包含论文单元，则优先判定为组织目录，继续收集子论文；组织目录不会被折叠成单篇论文。</li>
+<li>文件树已经得到非空的论文目录列表后，文件路径的论文归属以该列表为准，不再把组织目录的 <code>NOTES.md</code> 通过文件名回退规则猜成论文。</li>
+</ul>
 <h2 id="paper">Paper 行<a class="headerlink" href="#paper" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2790,7 +2830,7 @@
 </tr>
 </tbody>
 </table>
-<h2 id="_4">交互<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">交互<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -2833,13 +2873,13 @@
 </tr>
 </tbody>
 </table>
-<h2 id="_5">代码<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">代码<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li>UI：<code>src/components/sidebar/file-tree.tsx</code>、AI Elements <code>FileTree</code></li>
 <li>逻辑：<code>src/lib/vault/</code>（store、tree、fs-watch、reveal）</li>
 <li>标签/排序：<code>src/lib/paper/tree-label.ts</code>、<code>tree-modes.ts</code></li>
 </ul>
-<h2 id="_6">开发注意<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<h2 id="_7">开发注意<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <p>纯浏览器 <code>pnpm dev</code> 时本地盘 IO 受限；完整文件树/读写需 <code>pnpm tauri dev</code>。</p>
 
 

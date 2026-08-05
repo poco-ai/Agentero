@@ -5007,7 +5007,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>语义</strong>（Rust <code>features/vault/tree.rs</code>，与 <code>src/lib/vault/tree.ts</code> 的远端路径保持一致）：</li>
 <li>eager 根（<code>papers/</code> / <code>notes/</code> / <code>plans/</code> / <code>.agents/</code>）全量递归；其它根目录列一层，子目录 <code>childrenPending</code>。</li>
-<li><strong>论文文件夹内的 <code>source/</code></strong>（含 <code>metadata.json</code> / <code>NOTES.md</code> / <code>PAPER.md</code> 任一 marker 的目录）不再递归 —— arXiv e-print 解压产物动辄上百文件，标记 <code>childrenPending</code> 懒加载；壳上附带 <code>hasTex</code>（Host 扫盘），供前端 Download 判定（<code>paperAssetDownloadReasons</code>）识别被懒加载藏住的 TeX。</li>
+<li><strong>论文文件夹内的 <code>source/</code></strong>（含 <code>metadata.json</code> / <code>NOTES.md</code> / <code>PAPER.md</code> 任一 marker 的目录）不再递归 —— arXiv e-print 解压产物动辄上百文件，标记 <code>childrenPending</code> 懒加载；这里的 marker 只用于 Host 判断 <code>source/</code> 是否懒加载，不单独决定前端是否把目录识别为论文。前端论文识别会优先保留含嵌套论文的组织目录，并在已有论文路径列表时按该列表归属文件。壳上附带 <code>hasTex</code>（Host 扫盘），供前端 Download 判定（<code>paperAssetDownloadReasons</code>）识别被懒加载藏住的 TeX。</li>
 <li>忽略名（<code>.git</code> / <code>.venv</code> / <code>node_modules</code> / <code>*.egg-info</code> / 其它 dot 名，白名单 <code>.agents</code> / <code>.env.example</code>）与深度上限 12 同前端规则。</li>
 <li>排序仍在前端（<code>sortNodes</code>，locale 感知）。</li>
 <li><strong>局部刷新</strong>：<code>vault:file-changed</code>（非 <code>modify</code>）携带的路径经 <code>collectTreeRefreshTargets</code>（<code>src/lib/vault/tree.ts</code>）映射到已加载的最近祖先目录节点，防抖 400ms 后仅对这些目录调 <code>vault_tree_children</code> 打补丁；根级变化 / 目标过多（&gt;8）/ 无路径信息时回退整树 <code>vault_tree_build</code>。</li>
