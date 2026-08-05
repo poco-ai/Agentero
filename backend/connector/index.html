@@ -1563,6 +1563,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#12700123119" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        兼容端点（127.0.0.1:23119）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2621,6 +2632,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#12700123119" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        兼容端点（127.0.0.1:23119）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2669,6 +2691,9 @@
 <li>设置 → 通用：<strong>兼容 Zotero Connector</strong>（<strong>默认关</strong>）。</li>
 <li>与 Zotero 桌面端端口互斥。</li>
 <li>支持 <code>saveItems</code>、目标文件夹选择、<strong><code>saveAttachment</code></strong>（浏览器上传 PDF）。</li>
+<li>支持 <strong><code>saveStandaloneAttachment</code></strong>（在 PDF 标签页直接保存，无父书目条目）。</li>
+<li>支持 <strong><code>hasAttachmentResolvers</code></strong> / <strong><code>saveAttachmentFromResolver</code></strong>：浏览器直连 PDF
+  失败时，用 DOI/arXiv 走 Crossref + Unpaywall 再尝试 OA 副本。</li>
 <li>绑定当前 Vault（本地路径或 <code>remote:&lt;sessionId&gt;</code>）。</li>
 <li>保存后：catalog + paper 目录；刷新树；<code>openPaper</code> 聚焦。</li>
 <li>Connector 返回的 Zotero 标签会以 <code>@zotero:</code> 前缀保存在 catalog 中，用于保留来源信息；
@@ -2677,6 +2702,57 @@
 <li>保存请求只写入 paper 壳和 catalog，PDF/TeX 在后台下载；后台单篇资源阶段最多
   运行 3 分钟，超时会通过 <code>connector:progress</code> 报错，不会让任务永久挂起。</li>
 </ul>
+<h2 id="12700123119">兼容端点（<code>127.0.0.1:23119</code>）<a class="headerlink" href="#12700123119" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>端点</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ping</code></td>
+<td>完整</td>
+</tr>
+<tr>
+<td><code>saveItems</code></td>
+<td>完整</td>
+</tr>
+<tr>
+<td><code>saveAttachment</code></td>
+<td>完整（浏览器上传 PDF）</td>
+</tr>
+<tr>
+<td><code>saveStandaloneAttachment</code></td>
+<td>完整（独立 PDF → 新建 paper；<code>canRecognize: false</code>）</td>
+</tr>
+<tr>
+<td><code>hasAttachmentResolvers</code></td>
+<td>完整（DOI/arXiv 且尚无本地 PDF → true）</td>
+</tr>
+<tr>
+<td><code>saveAttachmentFromResolver</code></td>
+<td>完整（Crossref/Unpaywall 下载）</td>
+</tr>
+<tr>
+<td><code>saveSnapshot</code> / <code>saveSingleFile</code> / <code>savePage</code></td>
+<td>完整</td>
+</tr>
+<tr>
+<td><code>getSelectedCollection</code> / <code>updateSession</code> / <code>delaySync</code></td>
+<td>完整（须返回 <code>filesEditable: true</code>，否则扩展跳过 <code>saveAttachment</code>）</td>
+</tr>
+<tr>
+<td><code>detect</code> / <code>getTranslators</code> / <code>proxies</code> / <code>selectItems</code></td>
+<td>stub（空列表/透传）</td>
+</tr>
+<tr>
+<td><code>getRecognizedItem</code> / <code>import</code> / <code>installStyle</code> / Google Docs</td>
+<td>未实现</td>
+</tr>
+</tbody>
+</table>
 <h2 id="_2">命令 / 事件<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>connector_start</code> / <code>connector_stop</code> / <code>connector_status</code> / <code>connector_set_vault</code></li>

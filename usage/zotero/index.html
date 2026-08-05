@@ -2822,7 +2822,9 @@
 <ul>
 <li>Connector 服务仅监听本机 loopback，不要暴露到局域网或公网。</li>
 <li>不能与 Zotero 桌面端同时占用 <code>23119</code>。</li>
-<li>支持保存条目与 PDF 附件（含浏览器上传登录墙 PDF）；部分站点仍可能需在 Agentero 内手动 Download。</li>
+<li>支持保存条目与 PDF 附件（含浏览器上传登录墙 PDF）；浏览器直连失败时会再尝试 OA resolver（DOI/arXiv → Crossref/Unpaywall）。</li>
+<li>支持在已打开的 PDF 页面用 Connector 图标直接保存（standalone attachment）。</li>
+<li>部分站点仍可能需在 Agentero 内手动 Download。</li>
 <li>远程 Vault 可以使用 Connector，但必须先连接远程会话，并确认状态绑定到该 Vault。</li>
 </ul>
 
