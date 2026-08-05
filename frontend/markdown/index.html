@@ -2815,7 +2815,8 @@
 <h2 id="_2">能力<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
 <li>自动保存；可选顶部格式工具栏（<code>showEditorToolbar</code>）。</li>
-<li><strong>文档目录</strong>：至少存在三个标题时，才在编辑器右侧四分之一高度显示层级标记，一级标题标记最长，后续层级依次缩短；收起时保持紧凑，悬停或键盘聚焦后以动效展开标题；滚动时以中性色高亮视口对应的标题，点击标题会在当前 Dockview 文档面板内平滑滚动并高亮目标。</li>
+<li><strong>文档目录</strong>：至少存在三个标题时，才在编辑器右侧四分之一高度显示层级标记，一级标题标记最长，后续层级依次缩短；收起时保持紧凑，悬停或键盘聚焦后以动效展开标题；展开后标题在目录块内左对齐，depth marker 仍靠右；滚动时以中性色高亮视口对应的标题，点击标题会在当前 Dockview 文档面板内平滑滚动并高亮目标。</li>
+<li><strong>外部链接</strong>：手写或粘贴标准 Markdown <code>[文字](https://…)</code> 会成为链接节点；普通单击打开编辑气泡（改显示文字与 URL），<code>⌘/Ctrl+单击</code>、中键或右键用系统浏览器打开；气泡内也有「打开」。<code>/</code> 菜单「外部链接」或右键「新增外部链接」直接插入链接节点（默认占位文字）并打开同一编辑气泡，而不是插入字面量 <code>[]()</code>。Vault 内相对 <code>.md</code> 链接与 <code>wiki:</code> 双链仍走站内导航。</li>
 <li><strong>Markdown 粘贴</strong>：普通文本粘贴默认按 Markdown 反序列化，粘贴后光标保持在插入内容之后。</li>
 <li><strong>整理 Markdown 格式</strong>：编辑器右键显式整理当前整篇文档；只读编辑器禁用。</li>
 <li><strong>Slash 格式命令</strong>：在可编辑正文中输入 <code>/</code> 打开轻量命令列表；使用上下方向键选择、Enter 执行、Escape 关闭。Slash 与双链候选会在可视窗口边缘自动翻转并限制高度；滚动编辑器时关闭候选，避免脱离光标。</li>
