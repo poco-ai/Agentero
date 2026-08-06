@@ -2071,6 +2071,118 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/plaza/" class="md-nav__link">
         
   
@@ -2796,6 +2908,7 @@
 <li>忽略：<code>.git</code>、<code>.venv</code>、<code>node_modules</code> 等（<code>TREE_IGNORE_NAMES</code>）。</li>
 <li>默认只展开 <code>papers/</code> 及其一级子目录。</li>
 <li>虚拟化：<code>@tanstack/react-virtual</code> 拍平窗口化；<code>getItemKey</code> 用行稳定 id，避免内联新建草稿插入/移除后按索引缓存行高留下空隙。文件/文件夹行固定为 <code>h-7</code>，论文资源操作按钮不改变行高。</li>
+<li>外部工具 / CLI 导入论文时，watcher 会刷新文件树，并在 Catalog 或 <code>papers/</code> 结构变更后去抖刷新 Library 元数据；论文行标签因此可在不重开论文库的情况下从目录 ID 更新为标题/作者。</li>
 </ul>
 <h3 id="_4">论文目录识别<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
 <ul>

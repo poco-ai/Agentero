@@ -2093,6 +2093,118 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/plaza/" class="md-nav__link">
         
   
@@ -2910,7 +3022,7 @@
 
 <p>Frontmatter 当前保存在 Plate AST 之外，因此整理时继续字节级保留；这样格式整理产生的实际正文变化可以由一次 Undo 完整撤销。Prettier 固定使用 <code>proseWrap: "preserve"</code>、<code>embeddedLanguageFormatting: "off"</code> 与 <code>htmlWhitespaceSensitivity: "ignore"</code>，避免重排正文段落或 fenced code 内部语言。</p>
 <h3 id="propertiesfrontmatter">Properties（frontmatter）<a class="headerlink" href="#propertiesfrontmatter" title="Permanent link">&para;</a></h3>
-<p>编辑器正文上方提供可折叠 <strong>Properties</strong> 条（默认收起）：</p>
+<p>编辑器工具栏提供 <strong>Properties</strong> 图标，点击后展开属性填写下拉表格：</p>
 <ul>
 <li><strong>表单模式（默认）</strong>：左侧类型图标切换 <strong>文本 / 列表 / 复选框 / 日期</strong>（列表为 chips，复选框为开关，日期为 <code>YYYY-MM-DD</code>）；可添加属性。磁盘仍为合法 YAML（<code>true</code>/<code>false</code>、ISO 日期、block list）。</li>
 <li><strong>源码模式</strong>：右上角切换为 YAML 正文（不含 <code>---</code> 围栏；保存时自动包回）。复杂 YAML（嵌套 map、多行标量等）自动回退源码。</li>

@@ -14,7 +14,7 @@
         <link rel="prev" href="../todo/">
       
       
-        <link rel="next" href="../plaza/">
+        <link rel="next" href="../zotero-word-integration/">
       
       
         
@@ -2171,6 +2171,118 @@
   
   
     <li class="md-nav__item">
+      <a href="../zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../plaza/" class="md-nav__link">
         
   
@@ -2964,10 +3076,12 @@
 
 <h1 id="cli">内置桌面 CLI 设计（草案）<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h1>
 <p>关联 Issue：<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a>（命令行打开 Vault）与 <a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>（CLI 论文移动）。</p>
+<p><strong>命令能力扩展</strong>（翻译 / 高亮 / 批注等阅读标注进同一 <code>agentero</code> bin）：<a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>，设计见 <a href="../mark-cli-roadmap/">mark-cli-roadmap.md</a>。本篇只管 <strong>分发与 <code>open</code></strong>；#170 管 <strong>子命令与 marks 契约</strong>。两者共用一个 headless 二进制，可并行开发。</p>
 <h2 id="_1">背景与结论<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p>当前 <code>agentero-cli</code> 是独立 release artifact，用户必须另行下载并加入 <code>PATH</code>。桌面 App 与 CLI 又共享 <code>agentero_lib</code> 中的 Vault / Catalog 领域逻辑，分开安装会带来版本不一致和发现成本。</p>
 <p>目标是让<strong>桌面安装包携带同版本的 headless CLI</strong>，对用户只暴露一个 <code>agentero</code> 命令。不把 GUI 可执行文件直接当作 CLI，也不复制一份 Vault/Catalog 业务逻辑。</p>
 <p>这与 VS Code 的产品形态一致：Windows、Linux 安装器提供 PATH；macOS 从应用内显式安装 shell command。Typora 在 macOS 主要提供 App Bundle 可执行文件和 alias，不保证全局命令。Agentero 采用前者的跨平台安装策略，保留后者“CLI 随 App Bundle 交付”的优点。</p>
+<p>装包后的 <code>agentero</code> 应包含 <strong>当时 tag 上已实现的全部 headless 子命令</strong>（含既有 <code>vault</code> / <code>paper</code> / <code>import</code> / <code>wiki</code>，以及 #170 落地后的 <code>mark</code> / <code>translate</code> 等），避免「GUI 能标、CLI 还要另下包」或版本漂移写出桌面不认的 <code>marks/</code>。</p>
 <h2 id="_2">范围<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <h3 id="_3">要做<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2976,6 +3090,7 @@
 <li>保持现有 headless 命令、<code>--json</code> 输出和退出码契约。</li>
 <li>让系统安装渠道把 <code>agentero</code> 暴露到 <code>PATH</code>；DMG 场景提供显式安装入口。</li>
 <li>覆盖既有 <code>paper move</code> 工作流，确保目标父目录不存在时会创建且 Catalog 路径同步。</li>
+<li>Release 验收：内置 CLI 的 <code>--help</code> / 关键子命令（含已合并的 <code>mark</code> 等）与独立 <code>agentero-cli</code> artifact 同源、同版本。</li>
 </ul>
 <h3 id="_4">不做<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2983,6 +3098,7 @@
 <li>不把远程 Vault handle、SSH 凭据放入 CLI URL。</li>
 <li>不在 <code>open</code> 时覆盖用户 Vault 中的文件。既有 <code>vault_ensure</code> 的“仅补缺 / 不覆盖”语义保持不变。</li>
 <li>不承诺 DMG 拖拽安装后，在所有 shell 中无条件立即可找到 <code>agentero</code>；这是 macOS PATH 与权限模型决定的。</li>
+<li>不在本篇实现阅读标注语义或 PDF 定位（见 <a href="../mark-cli-roadmap/">mark-cli-roadmap.md</a>）；内置 CLI <strong>不</strong>内嵌 EmbedPDF / BYOA。</li>
 </ul>
 <h2 id="_5">用户命令契约<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code><span class="c1"># 显式打开本地目录</span>

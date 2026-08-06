@@ -2043,6 +2043,118 @@
   
   
     <li class="md-nav__item">
+      <a href="../zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../plaza/" class="md-nav__link">
         
   
@@ -2711,6 +2823,7 @@
 <h2 id="03-agent">0.3 — 入库与 Agent 补强<a class="headerlink" href="#03-agent" title="Permanent link">&para;</a></h2>
 <ul>
 <li>[x] Markdown 目录：标题数量阈值、中性色高亮与稳定 hover 布局（<a href="https://github.com/poco-ai/Agentero/issues/155">#155</a>）</li>
+<li>[x] Agent <code>AskUserQuestion</code> 工具调用转为可提交的选项回答（<a href="https://github.com/poco-ai/Agentero/issues/203">#203</a>）</li>
 <li>[ ] 关键词/描述 → Agent 候选列表确认后入库</li>
 <li>[x] 魔棒解析 GitHub / <code>npx skills</code> → Skill 装入 <code>.agents/skills/</code>（<a href="https://github.com/poco-ai/Agentero/issues/118">#118</a>，见 <a href="../../backend/skill-import/">../backend/skill-import.md</a>；首版）</li>
 <li>[x] 论文导入资源阶段增加整篇 3 分钟超时，覆盖魔棒 / Connector / Bib-RIS（<a href="https://github.com/poco-ai/Agentero/issues/161">#161</a>）</li>
@@ -2721,10 +2834,13 @@
 <li>[ ] 最近 Vault / UI 偏好与 XDG settings 完全对齐</li>
 <li>[ ] 设置「打开/导出日志文件夹」</li>
 <li>[ ] <code>catalog:export_papers_md</code>（Markdown 表）</li>
-<li>[ ] CLI：<code>graph</code> / <code>doctor</code> / shell completions（只读 <code>wiki check</code> 已实现）</li>
+<li>[x] CLI + 设置：聚合 Doctor 与论文 <code>NOTES.md</code> aliases 安全修复（<a href="https://github.com/poco-ai/Agentero/issues/198">#198</a>）</li>
+<li>[ ] CLI：<code>graph</code> / shell completions（只读 <code>wiki check</code> 与 Doctor 已实现）</li>
 <li>[ ] CLI：<code>export papers-md</code>（随 Host 导出）</li>
 <li>[ ] 桌面安装包内置同版本 <code>agentero</code> CLI；<code>agentero open &lt;PATH&gt;</code> / <code>agentero &lt;PATH&gt;</code> 打开本地 Vault；Windows/Linux PATH、macOS Homebrew/PKG/DMG 安装策略（<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a>，设计：<a href="../bundled-cli/">bundled-cli.md</a>）</li>
 <li>[ ] CLI <code>paper move</code>：补齐目标目录自动创建、Catalog 同步、冲突与越界的集成测试（<a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>，设计：<a href="../bundled-cli/">bundled-cli.md</a>）</li>
+<li>[ ] CLI / Agent：翻译、高亮、批注等阅读标注（<code>mark</code> CRUD、默认惰性定位、Skill）（<a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>，设计：<a href="../mark-cli-roadmap/">mark-cli-roadmap.md</a>、<a href="../mark-locate-lazy/">mark-locate-lazy.md</a>、<a href="../mark-locate-eager/">mark-locate-eager.md</a>）</li>
+<li>[ ] 官方 <code>Zotero.dotm</code> → Agentero provider：先做 macOS <code>:23119</code> HTTP + Word Automation Go/No-Go，通过后交付 Catalog/CSL/Refresh 闭环；Windows <code>WM_COPYDATA</code> + OLE 后置。需完成 AGPL/GPL 与商标审核，不能与 Zotero Desktop 并行（<a href="https://github.com/poco-ai/Agentero/issues/167">#167</a>，设计：<a href="../zotero-word-integration/">zotero-word-integration.md</a>）</li>
 </ul>
 <h2 id="04-vault">0.4 — Vault 采纳与导入加深<a class="headerlink" href="#04-vault" title="Permanent link">&para;</a></h2>
 <ul>

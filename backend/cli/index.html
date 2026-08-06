@@ -1795,6 +1795,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="命令组">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        规划中（未实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1809,10 +1826,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         双链检查
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#doctor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Doctor
       
     </span>
   </a>
@@ -2012,6 +2040,118 @@
     
   
     内置桌面 CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
   
 
     
@@ -2640,6 +2780,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="命令组">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        规划中（未实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2654,10 +2811,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         双链检查
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#doctor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Doctor
       
     </span>
   </a>
@@ -2690,6 +2858,7 @@
 <ul>
 <li>目录：<code>cli/</code>（crate <code>agentero-cli</code>）</li>
 <li>path 依赖 <code>agentero_lib</code>：<code>features::{vault,catalog,import,wiki}</code> + <code>core::{error,fs}</code></li>
+<li>桌面安装包内置同版本 CLI（规划）：<a href="../../development/bundled-cli/">../development/bundled-cli.md</a>（<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a>）</li>
 </ul>
 <h2 id="_2">命令组<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
@@ -2732,12 +2901,20 @@
 <td><code>wiki</code></td>
 <td>只读双链语义检查</td>
 </tr>
+<tr>
+<td><code>doctor</code></td>
+<td>聚合诊断与显式确认的论文 aliases 修复</td>
+</tr>
 </tbody>
 </table>
 <p>稳定 <code>--json</code> 输出，供脚本与外部 Agent 组合。</p>
+<h3 id="_3">规划中（未实现）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<p>阅读标注与翻译进 CLI（<a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>）：<code>mark</code> list/get/add/update/delete、<code>translate</code> 文本等。设计见 <a href="../../development/mark-cli-roadmap/">../development/mark-cli-roadmap.md</a>；文字定位见 <a href="../../development/mark-locate-lazy/">惰性</a> / <a href="../../development/mark-locate-eager/">即时</a>。<br />
+当前 <code>paper get</code> 仅报告 <code>assets.marksDir</code> 是否存在；skill 仍将 marks 作 L2.5 只读，直至命令落地后改 skill。</p>
 <div class="codehilite"><pre><span></span><code>cargo<span class="w"> </span>build<span class="w"> </span>-p<span class="w"> </span>agentero-cli
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>vault<span class="w"> </span>which<span class="w"> </span>--json
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>wiki<span class="w"> </span>check<span class="w"> </span>papers/demo/NOTES.md<span class="w"> </span>--json
+cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>doctor<span class="w"> </span>--json
 cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-p<span class="w"> </span>agentero-cli
 </code></pre></div>
 
@@ -2765,7 +2942,7 @@ agentero<span class="w"> </span>-y<span class="w"> </span>trash<span class="w"> 
 <div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>move<span class="w"> </span>papers/inbox/demo<span class="w"> </span>papers/archive
 </code></pre></div>
 
-<h2 id="_3">双链检查<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_4">双链检查<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p><code>agentero wiki check [&lt;source&gt;] --json</code> 使用桌面端导航、嵌入、反链和重命名事务共用的 <code>WikiIndex</code> resolver，不维护第二套正则解析器。</p>
 <ul>
 <li>不传 <code>source</code>：检查整个 Vault。</li>
@@ -2777,6 +2954,9 @@ agentero<span class="w"> </span>-y<span class="w"> </span>trash<span class="w"> 
 <li>批注双链 <code>[[target@id]]</code> / <code>[[target#@id]]</code>：按 path 解析 target，并校验 id 形态；<strong>不</strong>读取 <code>marks/</code> 判断 id 是否仍存在（与桌面 resolve 一致）。</li>
 </ul>
 <p>报告包含 <code>checkedFiles</code>、四类状态计数，以及每个问题的 <code>source</code>、<code>line</code>、<code>targetRaw</code>、<code>syntax</code>、<code>embed</code>、<code>targetPath?</code>、<code>candidates</code> 和 <code>context?</code>。指定单文件作用域后，Vault 中其它历史坏链不会影响本次验收。</p>
+<h2 id="doctor">Doctor<a class="headerlink" href="#doctor" title="Permanent link">&para;</a></h2>
+<p><code>agentero doctor</code> 只读聚合 Vault 结构、Catalog schema、双链语义与 Catalog 论文 <code>NOTES.md</code> aliases；任一错误存在时返回 <code>doctor_issues</code> 和非零退出码。</p>
+<p><code>agentero doctor fix aliases</code> 在 TTY 中逐篇展示已有 alias，并允许编辑生成的标题 alias / 短 alias，最后进行一次批量确认。<code>-y</code> 接受全部安全默认值；<code>--json</code> 从不提示，未同时传 <code>-y</code> 时返回 <code>needs_confirmation</code>。修复会保留已有自定义 aliases，以内容哈希做竞态检查，并作为一个可回滚批次写入。详见 <a href="../doctor/">doctor.md</a>。</p>
 <p>Skill 种子：<code>templates/vault/.agents/skills/agentero-cli/</code>。</p>
 
 

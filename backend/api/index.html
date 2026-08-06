@@ -2733,6 +2733,56 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#38b-vault-doctor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.8b Vault Doctor
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.8b Vault Doctor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#doctor_check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#doctor_apply_aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_apply_aliases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#doctor_set_dirty_paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_set_dirty_paths
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#39" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3052,6 +3102,118 @@
     
   
     内置桌面 CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
   
 
     
@@ -4590,6 +4752,56 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#38b-vault-doctor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.8b Vault Doctor
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.8b Vault Doctor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#doctor_check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#doctor_apply_aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_apply_aliases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#doctor_set_dirty_paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_set_dirty_paths
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#39" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5278,7 +5490,7 @@ Host (Tauri + Rust)
 <li><strong><code>fs_watch_start</code></strong></li>
 <li><strong>参数</strong>：<code>{ vaultPath: string }</code></li>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
-<li><strong>行为</strong>：为当前窗口（label）启动递归监听；若该窗口已有监听则先停止再重建。命中变更时按窗口 <code>emit_to</code> 发送 <code>vault:file-changed</code>（去抖 ~300ms，过滤 <code>.agentero/</code>、<code>.git/</code>、<code>node_modules/</code>）。只有 <code>notify</code> 的单事件 <code>RenameMode::Both</code>、恰有两条不同路径且均未被过滤时，payload 才带按顺序排列的 <code>rename.from</code> / <code>rename.to</code>；其它 rename 事件只用于刷新，绝不能授权改写 Vault 内容。前端只将 Markdown、PDF、受支持图片或疑似目录的 rename 交给双链修复/警告；带明确非目标扩展名的 sidecar / 临时文件仅执行常规工作区刷新。</li>
+<li><strong>行为</strong>：为当前窗口（label）启动递归监听；若该窗口已有监听则先停止再重建。命中变更时按窗口 <code>emit_to</code> 发送 <code>vault:file-changed</code>（去抖 ~300ms，过滤 <code>.agentero/</code> 内部文件、<code>.git/</code>、<code>node_modules/</code>；但放行 <code>.agentero/catalog.sqlite</code> 及 SQLite sidecar，供前端刷新 Library 元数据）。只有 <code>notify</code> 的单事件 <code>RenameMode::Both</code>、恰有两条不同路径且均未被过滤时，payload 才带按顺序排列的 <code>rename.from</code> / <code>rename.to</code>；其它 rename 事件只用于刷新，绝不能授权改写 Vault 内容。前端只将 Markdown、PDF、受支持图片或疑似目录的 rename 交给双链修复/警告；带明确非目标扩展名的 sidecar / 临时文件仅执行常规工作区刷新。</li>
 <li><strong><code>fs_watch_stop</code></strong></li>
 <li><strong>参数</strong>：无</li>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
@@ -5654,7 +5866,7 @@ Host (Tauri + Rust)
 <span class="w">    </span><span class="n">text</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span>
 <span class="w">    </span><span class="n">sourceLang</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">     </span><span class="o">//</span><span class="w"> </span><span class="n">default</span><span class="w"> </span><span class="s2">&quot;auto&quot;</span>
 <span class="w">    </span><span class="n">targetLang</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">      </span><span class="o">//</span><span class="w"> </span><span class="n">e</span><span class="o">.</span><span class="n">g</span><span class="o">.</span><span class="w"> </span><span class="s2">&quot;zh-CN&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;en&quot;</span>
-<span class="w">    </span><span class="n">provider</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">bing</span><span class="w"> </span><span class="p">(</span><span class="n">default</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">youdao</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">huoshanweb</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">tencenttransmart</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">googleapi</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">google</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">libre</span>
+<span class="w">    </span><span class="n">provider</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">tencenttransmart</span><span class="w"> </span><span class="p">(</span><span class="n">default</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">huoshanweb</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">deeplx</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">bing</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">youdao</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">googleapi</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">google</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">libre</span>
 <span class="w">    </span><span class="n">freeBaseUrl</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">libre</span><span class="w"> </span><span class="err">必填</span>
 <span class="w">    </span><span class="n">timeoutMs</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">number</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="n">optional</span><span class="p">;</span><span class="w"> </span><span class="n">clamped</span><span class="w"> </span><span class="mi">1</span><span class="n">s</span><span class="err">–</span><span class="mi">30</span><span class="n">s</span><span class="w"> </span><span class="n">server</span><span class="o">-</span><span class="n">side</span><span class="w"> </span><span class="p">(</span><span class="n">default</span><span class="w"> </span><span class="mi">30</span><span class="n">s</span><span class="p">);</span><span class="w"> </span><span class="n">settings</span><span class="w"> </span><span class="n">probe</span><span class="w"> </span><span class="n">uses</span><span class="w"> </span><span class="mi">5000</span>
 <span class="w">  </span><span class="p">}</span>
@@ -6718,6 +6930,22 @@ Host (Tauri + Rust)
 </code></pre></div>
 
 <p>snapshot 保存所有 Wiki target 的 size+mtime stat 指纹（不读文件内容），以及 documents 与 resolved occurrences。schema/parser version、Vault identity 或 snapshot integrity hash 不匹配时丢弃旧 snapshot 并冷重建；指纹部分不一致时增量重建（只重新解析变化的 Markdown，未变文件复用缓存解析结果，链接解析全量重跑）；cache 写失败只记录 warning，内存 rebuild 仍成功。</p>
+<h3 id="38b-vault-doctor">3.8b Vault Doctor<a class="headerlink" href="#38b-vault-doctor" title="Permanent link">&para;</a></h3>
+<h4 id="doctor_check"><code>doctor_check</code><a class="headerlink" href="#doctor_check" title="Permanent link">&para;</a></h4>
+<ul>
+<li>参数：<code>{ vaultPath }</code>（本地 Vault 绝对路径）。</li>
+<li>返回：<code>DoctorReport</code>，含 <code>vault</code>、<code>catalog</code>、<code>wikilinks</code>、<code>aliases</code> 四组。</li>
+<li>只读：Catalog 以 read-only connection 打开；不会迁移 schema 或改写 Markdown。</li>
+</ul>
+<h4 id="doctor_apply_aliases"><code>doctor_apply_aliases</code><a class="headerlink" href="#doctor_apply_aliases" title="Permanent link">&para;</a></h4>
+<ul>
+<li>参数：<code>{ vaultPath, changes, dirtyPaths? }</code>；每条 change 含 <code>path</code>、可编辑的 <code>titleAlias</code> / <code>shortAlias</code> 与诊断时 <code>expectedHash</code>。</li>
+<li>仅接受 Catalog paper 对应的 <code>papers/**/NOTES.md</code>。</li>
+<li>批量预检脏路径、哈希、alias 冲突与 YAML 安全范围；全部通过后<strong>原地写入</strong> frontmatter（不改 path），失败按规划内容回滚。不使用 tmp+rename，以免被 watcher 误报为外部改名。</li>
+</ul>
+<h4 id="doctor_set_dirty_paths"><code>doctor_set_dirty_paths</code><a class="headerlink" href="#doctor_set_dirty_paths" title="Permanent link">&para;</a></h4>
+<p>主窗口向 Host 镜像当前 Vault 的未保存 Markdown 相对路径，供独立 Settings Webview 发起 alias 修复时做全批次写前拒绝。它只维护进程内保护状态，不落盘。</p>
+<p>详见 <a href="../doctor/">doctor.md</a>。</p>
 <h3 id="39">3.9 配置<a class="headerlink" href="#39" title="Permanent link">&para;</a></h3>
 <h4 id="configget"><code>config:get</code><a class="headerlink" href="#configget" title="Permanent link">&para;</a></h4>
 <p>获取应用配置。</p>

@@ -1936,6 +1936,118 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/plaza/" class="md-nav__link">
         
   
@@ -2535,17 +2647,6 @@
     <span class="md-ellipsis">
       
         11.3 工作流与精读
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#114" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        11.4 禅模式
       
     </span>
   </a>
@@ -3351,17 +3452,6 @@
     <span class="md-ellipsis">
       
         11.3 工作流与精读
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#114" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        11.4 禅模式
       
     </span>
   </a>
@@ -4548,7 +4638,7 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>7.2.1</td>
 <td>中间栏·PDF</td>
 <td>拖选一段文字</td>
-<td>平滑蓝色选区 + 操作菜单（高亮 / 批注 / 提问 / 翻译）</td>
+<td>仅选中文字显示平滑蓝色选区 + 操作菜单（高亮 / 批注 / 提问 / 加入对话 / 翻译），不出现整页 / 大块 PDF 蓝色矩形框选</td>
 <td>☐</td>
 </tr>
 <tr>
@@ -4583,7 +4673,14 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>7.2.6</td>
 <td>菜单</td>
 <td><strong>提问</strong>（已配 Agent）</td>
-<td>进入 Agent 上下文，非静默失败</td>
+<td>选区旁迷你问答卡片；可发问出结果</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.2.7</td>
+<td>菜单</td>
+<td><strong>加入对话</strong> → 在 Agent 输入问题发送</td>
+<td>Composer 有选区 chip；发送后选区旁出现<strong>对话卡片</strong>页边针（<code>kind: ask</code>，非视觉批注）；悬停/点开可见本轮问答</td>
 <td>☐</td>
 </tr>
 </tbody>
@@ -4775,13 +4872,6 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>任意</td>
 <td><code>⇧⌘I</code></td>
 <td>魔棒打开</td>
-<td>☐</td>
-</tr>
-<tr>
-<td>9.7</td>
-<td>有 Vault</td>
-<td><code>⌥⌘Z</code></td>
-<td>进入 Agent 禅模式（见 §11）</td>
 <td>☐</td>
 </tr>
 </tbody>
@@ -5038,34 +5128,6 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>右栏·Agent 历史</td>
 <td>精读跑完后翻主对话列表</td>
 <td>精读<strong>不</strong>出现在主 chat 历史</td>
-<td>☐</td>
-</tr>
-</tbody>
-</table>
-<h3 id="114">11.4 禅模式<a class="headerlink" href="#114" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>界面</th>
-<th>操作</th>
-<th>预期</th>
-<th>结果</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>11.4.1</td>
-<td>任意</td>
-<td><code>⌥⌘Z</code> 或标题栏 Layout → 禅模式</td>
-<td>全屏 Agent；左侧弱对比历史；顶栏简化</td>
-<td>☐</td>
-</tr>
-<tr>
-<td>11.4.2</td>
-<td>禅模式</td>
-<td>发一条消息后点返回退出</td>
-<td>回到原布局；<strong>会话不丢</strong></td>
 <td>☐</td>
 </tr>
 </tbody>

@@ -2076,6 +2076,118 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/plaza/" class="md-nav__link">
         
   
@@ -2837,7 +2949,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 <div class="codehilite"><pre><span></span><code>粘贴 arXiv ID / DOI / URL
   → arXiv 输入先规范为 `https://arxiv.org/abs/&lt;id&gt;`，再交给 Translator（或 arXiv Atom fallback）
   → PaperMetadata → catalog upsert
-  → papers/&lt;id&gt;/ + NOTES.md 壳（不覆盖已有 NOTES）
+  → papers/&lt;id&gt;/ + 带 aliases frontmatter 的 NOTES.md 壳（不覆盖已有 NOTES）
   → PDF → {paper}/{id}.pdf
   → arXiv e-print → 解压 LaTeX 到 source/
   → 无 TeX：liteparse → PAPER.md
@@ -2853,6 +2965,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
   请求仍使用更短的 reqwest timeout。超时不会回滚已经写入的 paper 壳和 catalog，
   资源错误会保留在导入结果/Connector 进度中，后续可再次执行补资源。</li>
 <li>错误：全局 Toast；重复不破坏用户 NOTES。</li>
+<li>新建壳会写论文全称 alias，并在元数据足够时写确定性短 alias；历史笔记由 <a href="../doctor/">Doctor</a> 诊断和确认迁移。<code>created</code> 不属于入库壳或 Doctor 的职责。</li>
 </ul>
 <h2 id="_3">可读正文<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>

@@ -11,10 +11,6 @@
       
       
       
-        <link rel="prev" href="../skill-import/">
-      
-      
-        <link rel="next" href="../wiki/">
       
       
         
@@ -25,7 +21,7 @@
     
     
       
-        <title>Zotero Connector - Agentero 文档</title>
+        <title>Vault Doctor - Agentero 文档</title>
       
     
     
@@ -74,7 +70,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#zotero-connector" class="md-skip">
+        <a href="#vault-doctor" class="md-skip">
           跳转至
         </a>
       
@@ -109,7 +105,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Zotero Connector
+              Vault Doctor
             
           </span>
         </div>
@@ -266,12 +262,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../" class="md-tabs__link">
           
   
@@ -1210,29 +1204,24 @@
       
   
   
-    
   
   
-  
     
     
     
     
       
-        
-        
-      
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   
@@ -1250,7 +1239,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1489,37 +1478,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Zotero Connector
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../connector/" class="md-nav__link">
         
   
   
@@ -1535,70 +1497,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="目录">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      目录
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        行为
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#12700123119" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        兼容端点（127.0.0.1:23119）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        命令 / 事件
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        代码
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2736,18 +2634,7 @@
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        行为
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#12700123119" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        兼容端点（127.0.0.1:23119）
+        检查范围
       
     </span>
   </a>
@@ -2758,7 +2645,7 @@
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        命令 / 事件
+        安全修复
       
     </span>
   </a>
@@ -2769,7 +2656,7 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        代码
+        入口
       
     </span>
   </a>
@@ -2796,83 +2683,44 @@
   
 
 
-<h1 id="zotero-connector">Zotero Connector 兼容<a class="headerlink" href="#zotero-connector" title="Permanent link">&para;</a></h1>
-<p>Host 在 <strong><code>127.0.0.1:23119</code></strong> 模拟 Zotero 桌面 Connector HTTP，官方浏览器扩展无需修改。</p>
-<h2 id="_1">行为<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<h1 id="vault-doctor">Vault Doctor<a class="headerlink" href="#vault-doctor" title="Permanent link">&para;</a></h1>
+<p>Doctor 聚合本地 Vault 的只读完整性检查，并为 Catalog 论文笔记提供一类显式确认的安全修复。</p>
+<h2 id="_1">检查范围<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p><code>DoctorReport</code> 包含四组结果：</p>
+<ol>
+<li>Vault 目录结构（<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agentero/</code>）；</li>
+<li><code>.agentero/catalog.sqlite</code> 是否存在且 schema 与当前版本一致；</li>
+<li>与桌面导航共用 <code>WikiIndex::check_links</code> 的双链语义结果；</li>
+<li>Catalog 中每篇 <code>papers/**/NOTES.md</code> 的 frontmatter aliases。</li>
+</ol>
+<p>其它 Markdown 不参与论文 aliases 迁移。一次检查不会创建目录、迁移 Catalog 或修改 Markdown；Catalog 以只读 SQLite connection 打开。</p>
+<p>一篇论文笔记至少要有两个按 Wiki resolver 规则归一化后仍不同的非空 alias。Doctor 保留现有自定义 aliases，并提出可编辑的标题 alias 与确定性短 alias：</p>
 <ul>
-<li>设置 → 通用：<strong>兼容 Zotero Connector</strong>（<strong>默认关</strong>）。</li>
-<li>与 Zotero 桌面端端口互斥。</li>
-<li>支持 <code>saveItems</code>、目标文件夹选择、<strong><code>saveAttachment</code></strong>（浏览器上传 PDF）。</li>
-<li>支持 <strong><code>saveStandaloneAttachment</code></strong>（在 PDF 标签页直接保存，无父书目条目）。</li>
-<li>支持 <strong><code>hasAttachmentResolvers</code></strong> / <strong><code>saveAttachmentFromResolver</code></strong>：浏览器直连 PDF
-  失败时，用 DOI/arXiv 走 Crossref + Unpaywall 再尝试 OA 副本。</li>
-<li>绑定当前 Vault（本地路径或 <code>remote:&lt;sessionId&gt;</code>）。</li>
-<li>保存后：catalog + paper 目录；刷新树；<code>openPaper</code> 聚焦。</li>
-<li>Connector 返回的 Zotero 标签会以 <code>@zotero:</code> 前缀保存在 catalog 中，用于保留来源信息；
-  这类内部标签不会显示在 Library、Paper Info 或标签筛选中。</li>
-<li>远程：stage 后 SFTP；catalog 经 work mirror。</li>
-<li>保存请求只写入 paper 壳和 catalog，PDF/TeX 在后台下载；后台单篇资源阶段最多
-  运行 3 分钟，超时会通过 <code>connector:progress</code> 报错，不会让任务永久挂起。</li>
+<li>优先使用冒号或破折号前的有效短标题；</li>
+<li>英文标题使用去掉常见连接词后的首字母缩写；</li>
+<li>中文标题无可靠短标题时使用「第一作者 + 年份」；</li>
+<li>冲突时依次追加年份、第一作者；仍冲突则只报告、默认不选。</li>
 </ul>
-<h2 id="12700123119">兼容端点（<code>127.0.0.1:23119</code>）<a class="headerlink" href="#12700123119" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>端点</th>
-<th>状态</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>ping</code></td>
-<td>完整</td>
-</tr>
-<tr>
-<td><code>saveItems</code></td>
-<td>完整</td>
-</tr>
-<tr>
-<td><code>saveAttachment</code></td>
-<td>完整（浏览器上传 PDF）</td>
-</tr>
-<tr>
-<td><code>saveStandaloneAttachment</code></td>
-<td>完整（独立 PDF → 新建 paper；<code>canRecognize: false</code>）</td>
-</tr>
-<tr>
-<td><code>hasAttachmentResolvers</code></td>
-<td>完整（DOI/arXiv 且尚无本地 PDF → true）</td>
-</tr>
-<tr>
-<td><code>saveAttachmentFromResolver</code></td>
-<td>完整（Crossref/Unpaywall 下载）</td>
-</tr>
-<tr>
-<td><code>saveSnapshot</code> / <code>saveSingleFile</code> / <code>savePage</code></td>
-<td>完整</td>
-</tr>
-<tr>
-<td><code>getSelectedCollection</code> / <code>updateSession</code> / <code>delaySync</code></td>
-<td>完整（须返回 <code>filesEditable: true</code>，否则扩展跳过 <code>saveAttachment</code>）</td>
-</tr>
-<tr>
-<td><code>detect</code> / <code>getTranslators</code> / <code>proxies</code> / <code>selectItems</code></td>
-<td>stub（空列表/透传）</td>
-</tr>
-<tr>
-<td><code>getRecognizedItem</code> / <code>import</code> / <code>installStyle</code> / Google Docs</td>
-<td>未实现</td>
-</tr>
-</tbody>
-</table>
-<h2 id="_2">命令 / 事件<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>重复的正式标题只告警，不修改 Catalog；编辑标题 alias 也不会回写 Catalog 或 <code>metadata.json</code>。</p>
+<h2 id="_2">安全修复<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p><code>doctor_apply_aliases</code> 只接受当前 Catalog 行对应的 <code>NOTES.md</code>。批量写入前会：</p>
 <ul>
-<li><code>connector_start</code> / <code>connector_stop</code> / <code>connector_status</code> / <code>connector_set_vault</code></li>
-<li>前端事件 <code>connector:*</code>（<code>src/lib/paper/import/connector.ts</code>）</li>
+<li>拒绝主窗口报告的未保存编辑路径；</li>
+<li>校验诊断时的 SHA-256 内容哈希；</li>
+<li>拒绝复杂、异常或无法精确定位的 YAML；</li>
+<li>先规划全部文件，再<strong>原地写入</strong>（不改 path / 文件名，只改 frontmatter）；</li>
+<li>任一写入失败时按规划内容回滚本批已写文件。</li>
 </ul>
-<h2 id="_3">代码<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p><code>src-tauri/src/features/connector/</code><br />
-用户教程：<a href="../../usage/zotero/">../usage/zotero.md</a></p>
+<p>不使用 tmp+rename 式原子替换：那样会被 Vault 文件监听器当成「不完整改名」，误报外部改名未修复链接。双链以 path 为主，别名修复本来就不需要改链接。</p>
+<p>无 frontmatter 时只前插一个 YAML 块；简单 frontmatter 缺 aliases 时在关闭 fence 前插入；简单 inline/block aliases 只替换该属性的字节范围。其它键、注释、顺序与正文不重新序列化。</p>
+<h2 id="_3">入口<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<ul>
+<li>桌面：设置 → 知识库诊断；远程 Vault 当前显示不可用。</li>
+<li>CLI：<code>agentero doctor</code>、<code>agentero doctor fix aliases</code>、<code>agentero -y doctor fix aliases</code>。</li>
+<li>Host：<code>doctor_check</code>、<code>doctor_apply_aliases</code>、<code>doctor_set_dirty_paths</code>。</li>
+</ul>
+<p><img alt="Vault Doctor 设置页" src="../../assets/doctor-settings.png" /></p>
+<p>代码：<code>src-tauri/src/features/doctor/</code>、<code>src-tauri/src/features/wiki/frontmatter.rs</code>。</p>
 
 
 

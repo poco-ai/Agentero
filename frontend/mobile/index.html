@@ -2559,6 +2559,118 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/plaza/" class="md-nav__link">
         
   
@@ -4107,7 +4219,7 @@ GET /ws?v=2&amp;serverId=&lt;agt_…&gt;&amp;role=client                       �
 <p>Agent <strong>只在桌面</strong>运行：iOS 发 <code>agent_run_once</code> RPC → 桌面走完全现成的链路（<code>resolve</code> 默认 agent → ACP spawn → <code>build_prompt</code> envelope，含 <code>agentPersonalPrompt</code>）→ 事件经 §6.4 流回 iOS。iOS 不装、不 spawn 任何 CLI。</p>
 <h3 id="82">8.2 对话体验<a class="headerlink" href="#82" title="Permanent link">&para;</a></h3>
 <ul>
-<li>iOS Agent 面板 = 精简禅模式：流式 markdown、Agent 后端选择、tool call 折叠、plan 展示，全部复用 AI Elements 组件；</li>
+<li>iOS Agent 面板：流式 markdown、Agent 后端选择、tool call 折叠、plan 展示，全部复用 AI Elements 组件；</li>
 <li>上下文 chips：当前打开论文默认加入（与桌面一致）；<code>@</code> 提及数据源改走 <code>vault_tree_children</code> RPC；</li>
 <li>运行中锁屏/切后台：桌面侧继续跑（这是远程执行的天然优势）；回前台经 <code>agent_load_session</code> 补齐时间线。</li>
 </ul>

@@ -2032,6 +2032,118 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/plaza/" class="md-nav__link">
         
   
@@ -2735,8 +2847,8 @@
 <td><code>⌘F</code> + 命中高亮</td>
 </tr>
 <tr>
-<td>暗色页</td>
-<td>跟随应用主题（<code>dark</code> class）。EmbedPDF 尚无页面 color-scheme API，仅对 <code>RenderLayer</code> / <code>TilingLayer</code> 做柔和反相（<code>invert(0.88)</code> + <code>hue-rotate(180)</code> + 轻亮度/对比）；选区 / 搜索 / 批注覆盖层与 Agent 裁剪（<code>renderPageRect</code>）不受影响。扫描版/插图会被一并反相</td>
+<td>明暗模式</td>
+<td>PDF 工具栏可单独切换亮色 / 暗色页面，偏好保存在本地，不改变应用全局主题。EmbedPDF 尚无页面 color-scheme API，仅在 PDF 暗色模式下对 <code>RenderLayer</code> / <code>TilingLayer</code> 做柔和反相（<code>invert(0.88)</code> + <code>hue-rotate(180)</code> + 轻亮度/对比）；选区 / 搜索 / 批注覆盖层与 Agent 裁剪（<code>renderPageRect</code>）不受影响。扫描版/插图会被一并反相</td>
 </tr>
 <tr>
 <td>沉浸</td>
@@ -2780,17 +2892,17 @@
 <tr>
 <td>提问</td>
 <td><code>marks/&lt;id&gt;.json</code>（kind ask）</td>
-<td>迷你问答；页边针</td>
+<td>迷你问答；页边针；<strong>hover / 打开卡片时高亮</strong>锚定选区原文；打开时停在用户问题处，不自动滚到回复底部</td>
 </tr>
 <tr>
 <td>加入对话</td>
-<td>不落盘</td>
-<td>选区固定为 Agent composer 文本 chip，见 <a href="../agent/">agent.md</a></td>
+<td>发送该轮后写 <code>marks/&lt;id&gt;.json</code>（kind <code>ask</code>）</td>
+<td>选区固定为 Agent composer 文本 chip；<strong>发送</strong>后在选区旁插入<strong>对话卡片</strong>页边针（与「提问」同一 ask 卡 / 非视觉批注）；hover / 打开同样高亮原文，见 <a href="../agent/">agent.md</a></td>
 </tr>
 <tr>
 <td>翻译</td>
 <td><code>marks/&lt;id&gt;.json</code>（kind translate）</td>
-<td><a href="../translate/">translate.md</a></td>
+<td>浮层结果卡：贴合选区随滚轮重定位；未悬停卡片 / 原文高亮 / 页边针时自动收起（流式中除外）。见 <a href="../translate/">translate.md</a></td>
 </tr>
 <tr>
 <td>视觉批注</td>
@@ -2803,9 +2915,13 @@
 <li>不改 PDF 二进制；不自动写入 <code>NOTES.md</code>。</li>
 <li>提问 Agent 可与面板默认 Agent 分开配置。</li>
 <li>坐标归一化；多段 rect 支持双栏。</li>
+<li>页边针：用 PDFium <code>getPageTextRects</code> 判断是否压字。优先贴选区右侧，有字则试左侧；压字半透明，空白处实心。文字层未加载时保持实心。划词菜单仅在翻到选区下方时半透明。</li>
+<li>对话 / 翻译 / 视觉卡片与<strong>同一侧页边针</strong>对齐（左针开左、右针开右），贴合锚点，避免卡片落到选区另一侧。</li>
+<li>普通划词只启用文本选区；EmbedPDF 默认 marquee 矩形框选关闭，视觉区域批注只通过工具栏 / <strong>⌘.</strong> 显式进入。</li>
 <li>旧版 visual Ask（<code>kind: ask</code> + <code>visualKind</code>）仍可读、可打开。</li>
 <li>一次提交可包含多条视觉批注：prompt 按 <code>## Annotation N</code> 分点，图片顺序与 annotation 对齐。</li>
-<li>视觉裁剪不以 base64 写入 mark JSON；活动 PDF 的 marks 轮询只读取 metadata，悬浮卡片、打开 Agent 与 Wiki 嵌入按需读取图片。图片缺失时仍保留位置、批注和多轮 transcript。</li>
+<li>PDF 内视觉批注草稿 / pin 卡片打开时，原页面显示框选区域；浮层不重复显示页码和裁剪图，裁剪图在 Agent 侧边栏视觉上下文与批注侧边栏视觉批注列表中展示。</li>
+<li>视觉裁剪按用户框选的实际区域生成截图（不隐式外扩），最长边 1600 px；不以 base64 写入 mark JSON。活动 PDF 的 marks 轮询只读取 metadata，悬浮卡片、打开 Agent 与 Wiki 嵌入按需读取图片。图片缺失时仍保留位置、批注和多轮 transcript。</li>
 <li><strong>写进笔记</strong>：批注面板复制 / <code>[[@id]]</code> / <code>![[…@id]]</code>，见 <a href="../wiki/">wiki.md</a> 编辑器 <code>@</code> 说明。</li>
 </ul>
 <h2 id="_3">代码<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>

@@ -2054,6 +2054,118 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/plaza/" class="md-nav__link">
         
   
@@ -2734,6 +2846,7 @@
 <ul>
 <li>格式：<code>[[Concept]]</code>、<code>[[papers/…/NOTES]]</code>、<code>[[note#heading]]</code>、<code>[[note#outer#inner#leaf]]</code>、<code>[[note#^block]]</code>；标题路径没有层数限制。</li>
 <li>Frontmatter <code>aliases</code>（<code>aliases: [A, B]</code> 或 block list）写入 <code>WikiDocument.aliases</code>；搜索可按别名命中，resolve 在路径/stem 之后按唯一 alias 解析，多命中为 <code>ambiguous</code>。</li>
+<li><code>features/wiki/frontmatter.rs</code> 同时提供 Doctor 使用的字节保留型 aliases 检查/patch；复杂 YAML 仍可作为 Markdown 读取，但不会被自动重写。</li>
 <li>标题 fragment 以 <code>LinkFragment::Heading { path: Vec&lt;String&gt; }</code> 保存 Markdown 实际写下的完整路径或连续后缀。完整 heading path 是 canonical identity；任意长度的路径后缀仅在唯一命中时解析成功。</li>
 <li><strong>单向写入</strong> Markdown + 索引反查（不做目标文件自动插回链）。</li>
 <li>未解析目标可为 stub 节点。</li>

@@ -11,10 +11,10 @@
       
       
       
-        <link rel="prev" href="../mark-locate-eager/">
+        <link rel="prev" href="../zotero-word-integration/">
       
       
-        <link rel="next" href="../wikilink-heading-reference-stability/">
+        <link rel="next" href="../mark-locate-lazy/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>广场 Plaza - Agentero 文档</title>
+        <title>标注 CLI 路线 (#170) - Agentero 文档</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#plaza" class="md-skip">
+        <a href="#cli-agent" class="md-skip">
           跳转至
         </a>
       
@@ -109,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              广场 Plaza
+              标注 CLI 路线 (#170)
             
           </span>
         </div>
@@ -1966,10 +1966,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../mark-cli-roadmap/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1985,6 +2012,358 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 目标
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 与「内置桌面 CLI」的关系
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 现状摘要
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 方案选型（为何内置进 CLI 文件层）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. 方案选型（为何内置进 CLI 文件层）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 架构（内置命令面）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 落盘与双轨
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 硬边界（CLI 内置能力边界）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-agentero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 目标命令面（内置到 agentero 后）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 总体实施策略
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 阶段一：基础能力
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. 阶段一：基础能力">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Schema 与共享校验
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-climark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 CLI：mark 命令组（内置子命令）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 只读增强（可选但便宜）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 基础阶段验收
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#55" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.5 基础阶段明确不做
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 阶段二：上层能力
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 阶段二：上层能力">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 文字定位（核心上层）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 显示与高亮投影
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-translate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 翻译（内置 translate 命令）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 提问 / 对话锚点
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 图 / 公式（后置上层）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#66-p0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.6 上层验收（P0 集合）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 阶段三：Skill 开发路线
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 阶段三：Skill 开发路线">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-agentero-cli-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 改现有 agentero-cli skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-paper-annotate-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 新增（建议）paper-annotate skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Skill 验收
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Skill 明确不写进模型的事
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 里程碑与依赖
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2050,37 +2429,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    广场 Plaza
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../plaza/" class="md-nav__link">
         
   
   
@@ -2096,186 +2448,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="目录">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      目录
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#0-2026-07-25" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        0. 产品结论（2026-07-25）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. 产品动机
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. 侧栏信息架构
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. 中间栏呈现
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3. 中间栏呈现">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#31-plazaview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.1 壳：PlazaView
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#32-cool-papersp0webview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.2 Cool Papers（P0，WebView）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#33" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.3 播客（占位）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#34-v0p0" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.4 论文推荐 v0（P0）
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. 与其它模块
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. 虚拟路径与类型草图
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#6" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. 分阶段
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#7-p0" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7. 明确不做（P0）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#8" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        8. 实现落点（编码时）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#9" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        9. 风险与后续确认点
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2849,21 +3021,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#0-2026-07-25" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        0. 产品结论（2026-07-25）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. 产品动机
+        1. 目标
       
     </span>
   </a>
@@ -2871,10 +3032,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2" class="md-nav__link">
+  <a href="#2-cli" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. 侧栏信息架构
+        2. 与「内置桌面 CLI」的关系
       
     </span>
   </a>
@@ -2885,19 +3046,30 @@
   <a href="#3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. 中间栏呈现
+        3. 现状摘要
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="3. 中间栏呈现">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 方案选型（为何内置进 CLI 文件层）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. 方案选型（为何内置进 CLI 文件层）">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#31-plazaview" class="md-nav__link">
+  <a href="#41" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1 壳：PlazaView
+        4.1 架构（内置命令面）
       
     </span>
   </a>
@@ -2905,10 +3077,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#32-cool-papersp0webview" class="md-nav__link">
+  <a href="#42" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.2 Cool Papers（P0，WebView）
+        4.2 落盘与双轨
       
     </span>
   </a>
@@ -2916,10 +3088,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#33" class="md-nav__link">
+  <a href="#43-cli" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.3 播客（占位）
+        4.3 硬边界（CLI 内置能力边界）
       
     </span>
   </a>
@@ -2927,10 +3099,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#34-v0p0" class="md-nav__link">
+  <a href="#44-agentero" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.4 论文推荐 v0（P0）
+        4.4 目标命令面（内置到 agentero 后）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 总体实施策略
       
     </span>
   </a>
@@ -2943,24 +3126,74 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4" class="md-nav__link">
+  <a href="#5" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. 与其它模块
+        5. 阶段一：基础能力
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. 阶段一：基础能力">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Schema 与共享校验
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#5" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#52-climark" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. 虚拟路径与类型草图
+        5.2 CLI：mark 命令组（内置子命令）
       
     </span>
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 只读增强（可选但便宜）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 基础阶段验收
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#55" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.5 基础阶段明确不做
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2968,21 +3201,143 @@
   <a href="#6" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. 分阶段
+        6. 阶段二：上层能力
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 阶段二：上层能力">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 文字定位（核心上层）
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#7-p0" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#62" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. 明确不做（P0）
+        6.2 显示与高亮投影
       
     </span>
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-translate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 翻译（内置 translate 命令）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 提问 / 对话锚点
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 图 / 公式（后置上层）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#66-p0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.6 上层验收（P0 集合）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 阶段三：Skill 开发路线
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 阶段三：Skill 开发路线">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-agentero-cli-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 改现有 agentero-cli skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-paper-annotate-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 新增（建议）paper-annotate skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Skill 验收
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Skill 明确不写进模型的事
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2990,18 +3345,7 @@
   <a href="#8" class="md-nav__link">
     <span class="md-ellipsis">
       
-        8. 实现落点（编码时）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#9" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        9. 风险与后续确认点
+        8. 里程碑与依赖
       
     </span>
   </a>
@@ -3028,445 +3372,783 @@
   
 
 
-<h1 id="plaza">广场（Plaza）— 外部来源发现<a class="headerlink" href="#plaza" title="Permanent link">&para;</a></h1>
+<h1 id="cli-agent">阅读标注开放 CLI / Agent：开发路线<a class="headerlink" href="#cli-agent" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>范围：侧栏虚拟节点 <strong>广场</strong> 及其子来源（Cool Papers / 播客 / 论文推荐）；中间栏发现流。<br />
-相关：<a href="../../frontend/vault-tree/"><code>../frontend/vault-tree.md</code></a>、<a href="../../backend/paper-import/"><code>../backend/paper-import.md</code></a>、<a href="../roadmap/"><code>roadmap.md</code></a>、<a href="../todo/"><code>todo.md</code></a>。</p>
+<p>状态：设计草案。关联 <a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>。<br />
+定位策略详情：<a href="../mark-locate-lazy/">惰性</a> · <a href="../mark-locate-eager/">即时</a><br />
+桌面安装包如何带上同版本 <code>agentero</code>：<a href="../bundled-cli/">内置桌面 CLI</a>（<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a> / <a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>）</p>
 </blockquote>
-<h2 id="0-2026-07-25">0. 产品结论（2026-07-25）<a class="headerlink" href="#0-2026-07-25" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>议题</th>
-<th>结论</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Q1</td>
-<td>树位置</td>
-<td><strong>Library + Recycle Bin 下方、真实 Vault 根目录上方</strong></td>
-</tr>
-<tr>
-<td>Q2</td>
-<td>Cool Papers 呈现</td>
-<td><strong>内嵌 WebView</strong> 打开 <a href="https://papers.cool/">papers.cool</a></td>
-</tr>
-<tr>
-<td>Q3</td>
-<td>入库</td>
-<td><strong>P0 不做入库</strong>（不接魔棒 / <code>lookup_import</code>；后续迭代再开）</td>
-</tr>
-<tr>
-<td>Q4</td>
-<td>P0 范围</td>
-<td><strong>Cool Papers 可用（WebView 完整浏览）+ 推荐 v0</strong>；播客仅占位</td>
-</tr>
-</tbody>
-</table>
-<h2 id="1">1. 产品动机<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
-<p>Agentero 已是 <strong>local-first 论文工作台</strong>（Library + 文件树 + PDF|NOTES）。用户还需要从 <strong>外部发现流</strong> 找新论文。</p>
-<p><strong>广场</strong> = 「发现入口」集合，与 <strong>Library（已收藏）</strong> 正交：</p>
-<table>
-<thead>
-<tr>
-<th></th>
-<th>Library</th>
-<th>广场</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>数据权威</td>
-<td>catalog + Vault 文件</td>
-<td>外部站点 / 本地启发式；<strong>P0 不写 Vault</strong></td>
-</tr>
-<tr>
-<td>侧栏</td>
-<td><code>agentero:library</code></td>
-<td><code>agentero:plaza</code> + 子来源</td>
-</tr>
-<tr>
-<td>中间栏</td>
-<td>论文库表格</td>
-<td>来源专属发现 UI</td>
-</tr>
-<tr>
-<td>典型动作</td>
-<td>打开 / 标签 / 导出</td>
-<td>浏览发现（入库后续再做）</td>
-</tr>
-</tbody>
-</table>
-<p>来源：</p>
+<h2 id="1">1. 目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>把桌面端已有的 <strong>翻译、划词结果、高亮、批注</strong> 等阅读能力，<strong>内置进 headless <code>agentero</code> CLI</strong>（命令契约 + Vault 落盘），供脚本与对话框 Agent 调用；并用 <strong>Skill</strong> 约束正确用法（写什么、何时定位、不编坐标、不越权改 NOTES）。</p>
+<p>Issue 原文诉求拆两层：</p>
 <ol>
-<li><strong>Cool Papers</strong>（<a href="https://papers.cool/">papers.cool</a>）— P0：内嵌站点浏览。  </li>
-<li><strong>播客</strong> — 占位，后续。  </li>
-<li><strong>论文推荐</strong> — P0 v0：基于本地库的轻量推荐列表（无云端上传）。</li>
+<li><strong>CLI 契约</strong>：翻译 / 高亮 / 批注等可被 <code>agentero … --json</code> 稳定读写。  </li>
+<li><strong>Skill 契约</strong>：对话框 Agent 能代劳高亮、在图/公式等位置批注、翻译、对话锚点——<strong>对话仍走 BYOA</strong>，CLI 只落盘与查库。</li>
 </ol>
-<h2 id="2">2. 侧栏信息架构<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span><code><span class="err">📁</span><span class="w"> </span><span class="nx">VaultName</span>
-<span class="err">├──</span><span class="w"> </span><span class="err">📚</span><span class="w"> </span><span class="nx">Library</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="kn">library</span>
-<span class="err">├──</span><span class="w"> </span><span class="err">🗑️</span><span class="w"> </span><span class="nx">Recycle</span><span class="w"> </span><span class="nx">Bin</span><span class="w">             </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">trash</span>
-<span class="err">├──</span><span class="w"> </span><span class="err">🌐</span><span class="w"> </span><span class="nx">广场</span><span class="w">                     </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="w">              </span><span class="err">←</span><span class="w"> </span><span class="nx">可折叠</span>
-<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">✨</span><span class="w"> </span><span class="nx">Cool</span><span class="w"> </span><span class="nx">Papers</span><span class="w">         </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">cool</span><span class="o">-</span><span class="nx">papers</span>
-<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">🎙️</span><span class="w"> </span><span class="nx">播客</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">podcasts</span><span class="w">      </span><span class="err">←</span><span class="w"> </span><span class="nx">占位</span>
-<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">🧭</span><span class="w"> </span><span class="nx">推荐</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">recommend</span>
-<span class="err">├──</span><span class="w"> </span><span class="nx">papers</span><span class="o">/</span>
-<span class="err">├──</span><span class="w"> </span><span class="nx">notes</span><span class="o">/</span>
-<span class="err">└──</span><span class="w"> </span><span class="err">…</span>
+<p><strong>非目标（首版）：</strong> CLI 内 BYOA/ACP、改 PDF 二进制、默认冷启动全文解析每一条标注、手写 EmbedPDF <code>annotations.json</code> blob。</p>
+<h2 id="2-cli">2. 与「内置桌面 CLI」的关系<a class="headerlink" href="#2-cli" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>议题</th>
+<th>Issue</th>
+<th>文档</th>
+<th>和本篇的关系</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>命令能力</strong>：mark / translate 等</td>
+<td><a href="https://github.com/poco-ai/Agentero/issues/170">#170</a></td>
+<td><strong>本文</strong></td>
+<td>在 <code>cli/</code> 实现子命令与 JSON 契约</td>
+</tr>
+<tr>
+<td><strong>分发形态</strong>：安装包携带同版本 <code>agentero</code>、PATH、<code>open</code></td>
+<td><a href="https://github.com/poco-ai/Agentero/issues/165">#165</a></td>
+<td><a href="../bundled-cli/">bundled-cli.md</a></td>
+<td>#170 的命令随 <strong>同一二进制</strong> 交付；不另做一个「标注专用 CLI」</td>
+</tr>
+<tr>
+<td><strong>paper move 等既有契约</strong></td>
+<td><a href="https://github.com/poco-ai/Agentero/issues/166">#166</a></td>
+<td><a href="../bundled-cli/">bundled-cli.md</a></td>
+<td>标注命令与现有 Clap 解析、<code>--vault</code> / <code>--json</code> / <code>-y</code> 一致</td>
+</tr>
+</tbody>
+</table>
+<p>原则：</p>
+<ul>
+<li><strong>一套 bin</strong>：桌面内置的 <code>agentero</code> = headless CLI；用户装 App 后即可 <code>agentero mark …</code>（在 #165 落地后）。  </li>
+<li><strong>开发期</strong>：仍可用 <code>cargo run -p agentero-cli -- …</code> 验收 #170，不阻塞分发工作。  </li>
+<li><strong>版本对齐</strong>：mark/translate 的 schema 与桌面阅读器同一 tag 发布，避免「CLI 写出桌面不认的 mark」。  </li>
+<li><strong>不把 GUI 可执行文件当 CLI</strong>（与 bundled-cli 一致）；定位用的 EmbedPDF 仍在桌面进程，CLI 默认只写 pending。</li>
+</ul>
+<div class="codehilite"><pre><span></span><code>桌面安装包
+  ├── Agentero.app / GUI          ← 划词、EmbedPDF、惰性/即时定位
+  └── agentero (headless CLI)     ← vault/paper/import/wiki + mark/translate（#170）
+         同一 version / 同一 agentero_lib 领域逻辑
 </code></pre></div>
 
+<h2 id="3">3. 现状摘要<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>能力</th>
+<th>现状</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>marks 落盘</td>
+<td>前端写 <code>marks/*.json</code> 与 <code>annotations.json</code>；Host 无统一 marks command（<code>api.md</code> 曾规划 <code>reader:annotations</code>，未做）</td>
+</tr>
+<tr>
+<td>CLI 命令组</td>
+<td><code>vault</code> / <code>tree</code> / <code>paper</code> / <code>trash</code> / <code>import</code> / <code>export</code> / <code>config</code> / <code>wiki</code>；<strong>无</strong> <code>mark</code> / <code>translate</code></td>
+</tr>
+<tr>
+<td>CLI 与 marks</td>
+<td>仅 <code>paper get</code> → <code>assets.marksDir</code> 是否存在；skill 将 marks 列为 L2.5 <strong>只读</strong></td>
+</tr>
+<tr>
+<td>文字 → 框</td>
+<td>EmbedPDF <code>searchAllPages</code> → <code>rects</code> 已用于 ⌘F；<strong>未</strong>接 mark hydrate</td>
+</tr>
+<tr>
+<td>翻译 Host</td>
+<td><code>translate_text</code> 已有；CLI 未暴露</td>
+</tr>
+<tr>
+<td>图/公式</td>
+<td>人框选 + 裁图已有；自动检测未做</td>
+</tr>
+<tr>
+<td>liteparse</td>
+<td>只产 <code>PAPER.md</code> 正文；<strong>不</strong>负责页上定位</td>
+</tr>
+<tr>
+<td>分发</td>
+<td>CLI 现为独立 artifact；内置进桌面包见 <a href="../bundled-cli/">bundled-cli.md</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-cli">4. 方案选型（为何内置进 CLI 文件层）<a class="headerlink" href="#4-cli" title="Permanent link">&para;</a></h2>
+<p>实现「开放给 CLI」可以有多条路；<strong>首版选定 A，定位用 C，翻译用 D，Skill 贯穿</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>做法</th>
+<th>首版</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. CLI 纯文件读写</strong></td>
+<td><code>mark</code> 读写 <code>papers/…/marks/*.json</code>，校验 schema；不跑 PDF 引擎</td>
+<td><strong>采用（基础）</strong></td>
+</tr>
+<tr>
+<td><strong>B. Host command + CLI 薄封装</strong></td>
+<td><code>mark_list</code> / <code>mark_upsert</code> 进 <code>agentero_lib</code>，桌面与 CLI 共用</td>
+<td>中长期；remote/iOS 写 marks 时再抽</td>
+</tr>
+<tr>
+<td><strong>C. quote → 几何</strong></td>
+<td>惰性打开再算 + 可选即时；见两篇定位文档</td>
+<td><strong>采用（上层）</strong></td>
+</tr>
+<tr>
+<td><strong>D. 翻译进 CLI</strong></td>
+<td>复用免费 MT；不跑 BYOA</td>
+<td><strong>采用（上层）</strong></td>
+</tr>
+<tr>
+<td><strong>E. ask / agent-trace</strong></td>
+<td>CLI 可写 ask 壳；对话与裁图仍在 GUI/Agent</td>
+<td>部分；trace 后置</td>
+</tr>
+<tr>
+<td><strong>F. 仅 Skill 直写文件</strong></td>
+<td>Agent <code>write</code> JSON，无 CLI</td>
+<td>仅原型；正式交付必须 A</td>
+</tr>
+</tbody>
+</table>
+<h3 id="41">4.1 架构（内置命令面）<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────┐     ┌──────────────────┐     ┌──────────────────────────┐
+│ 对话框 Agent│────►│ Skill            │────►│ agentero CLI（内置命令）  │
+│ (BYOA/ACP)  │     │ agentero-cli /   │     │ mark · translate · …     │
+└─────────────┘     │ paper-annotate   │     │ --json / --vault / -y    │
+       │            └──────────────────┘     └────────────┬─────────────┘
+       │ 对话/精读（不经 CLI）                           │ 写 marks/
+       ▼                                                 ▼
+  ACP session                              papers/&lt;id&gt;/marks/*.json
+                                           (+ 打开 PDF 时引擎补 rects)
+                                                    ▲
+  桌面 PDF 划词 ────────────────────────────────────┘
+  （annotations.json / 针 / 翻译 UI）
+</code></pre></div>
+
+<h3 id="42">4.2 落盘与双轨<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>存储</th>
+<th>谁写</th>
+<th>CLI 是否写</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>marks/&lt;id&gt;.json</code>（highlight / translate / ask / …）</td>
+<td>桌面 + <strong>CLI</strong></td>
+<td><strong>是</strong>（权威语义 mark）</td>
+</tr>
+<tr>
+<td><code>marks/annotations.json</code>（EmbedPDF 传输 blob）</td>
+<td>仅桌面划词 runtime</td>
+<td><strong>否</strong>（避免与 GUI 冲突）</td>
+</tr>
+<tr>
+<td><code>marks/assets/*.png</code>（视觉批注）</td>
+<td>桌面裁图</td>
+<td>首版否</td>
+</tr>
+<tr>
+<td>PDF 二进制 / <code>NOTES.md</code></td>
+<td>既有规则</td>
+<td>不因 mark 改写 PDF；不强制刷 NOTES</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-cli">4.3 硬边界（CLI 内置能力边界）<a class="headerlink" href="#43-cli" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>做</th>
+<th>不做</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vault 相对路径 + catalog 解析 paper</td>
+<td>在 CLI 内启动 ACP / 填模型 Key</td>
+</tr>
+<tr>
+<td><code>--json</code> 机器可读</td>
+<td>交互式 PDF 渲染</td>
+</tr>
+<tr>
+<td>写 per-id mark、列目录</td>
+<td>默认每次 add 冷启动扒 PDF</td>
+</tr>
+<tr>
+<td>免费 MT 文本翻译（上层）</td>
+<td>BYOA Agent 翻译经 CLI</td>
+</tr>
+<tr>
+<td>与 <code>wiki check</code>、<code>[[@id]]</code> 兼容的 id</td>
+<td>伪造 id、手写 0–1 坐标充 resolved</td>
+</tr>
+</tbody>
+</table>
+<h3 id="44-agentero">4.4 目标命令面（内置到 <code>agentero</code> 后）<a class="headerlink" href="#44-agentero" title="Permanent link">&para;</a></h3>
+<p>在现有命令组旁增加（实现时写入 <a href="../../backend/cli/">backend/cli.md</a>）：</p>
+<table>
+<thead>
+<tr>
+<th>组</th>
+<th>用途</th>
+<th>阶段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mark</code></td>
+<td>list / get / add / update / delete 阅读标注</td>
+<td>M1</td>
+</tr>
+<tr>
+<td><code>translate</code></td>
+<td>纯文本免费 MT（可选写入 translate mark）</td>
+<td>M3</td>
+</tr>
+<tr>
+<td><code>mark add --resolve</code></td>
+<td>显式 headless 定位（可选）</td>
+<td>M4</td>
+</tr>
+</tbody>
+</table>
+<p>示例：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 与现有全局参数一致</span>
+agentero<span class="w"> </span>--vault<span class="w"> </span>~/research<span class="w"> </span>mark<span class="w"> </span>list<span class="w"> </span>papers/1706.03762<span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/1706.03762<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--kind<span class="w"> </span>highlight<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--quote<span class="w"> </span><span class="s2">&quot;Attention is all you need&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--page<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--comment<span class="w"> </span><span class="s2">&quot;核心贡献&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--color<span class="w"> </span>yellow<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--json
+
+agentero<span class="w"> </span>translate<span class="w"> </span><span class="s2">&quot;Hello world&quot;</span><span class="w"> </span>--to<span class="w"> </span>zh<span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/…<span class="w"> </span>--kind<span class="w"> </span>translate<span class="w"> </span>--quote<span class="w"> </span><span class="s2">&quot;…&quot;</span><span class="w"> </span>--result<span class="w"> </span><span class="s2">&quot;…&quot;</span><span class="w"> </span>--json
+</code></pre></div>
+
+<p>全局约定不变：<code>--vault</code> → <code>AGENTERO_VAULT</code> → cwd 上溯 → config <code>default_vault</code>；破坏性操作 <code>-y</code>。</p>
+<h3 id="45">4.5 总体实施策略<a class="headerlink" href="#45" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>基础能力（mark 文件契约 + CLI 内置子命令）
+    → 定位（默认惰性；可读时即时）
+        → 上层能力（翻译 / 显示 / 对话锚点 / 可选 headless）
+            → Skill（教 Agent 组合使用）
+                → 随 [bundled-cli](bundled-cli.md) 进桌面安装包
+</code></pre></div>
+
+<p>定位策略：<strong>能即时则即时，否则 pending + 打开再算</strong>（见两篇定位设计）。<br />
+默认 CLI <strong>不</strong>为每次 <code>mark add</code> 冷读 PDF。</p>
+<hr />
+<h2 id="5">5. 阶段一：基础能力<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<p>目标：把 <strong>mark CRUD 内置进 <code>agentero</code> CLI</strong>；Agent/脚本能稳定读写标注内容，位置可后补；不依赖新 PDF 算法即可交付价值。</p>
+<h3 id="51-schema">5.1 Schema 与共享校验<a class="headerlink" href="#51-schema" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>项</th>
-<th>约定</th>
+<th>说明</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>路径</td>
-<td><code>agentero:plaza</code>、<code>agentero:plaza/&lt;sourceId&gt;</code>；<strong>永不落盘</strong></td>
+<td>统一 per-id mark 字段</td>
+<td><code>version</code> / <code>kind</code> / <code>id</code> / <code>paperPath</code> / 时间戳 / <code>quote</code> / <code>page?</code> / <code>rects</code> / <code>comment?</code> / <code>color?</code></td>
 </tr>
 <tr>
-<td>位置</td>
-<td>Library 与 Recycle Bin <strong>之下</strong>，真实根目录 <strong>之上</strong></td>
+<td><code>geometry</code></td>
+<td><code>pending</code> | <code>resolved</code> | <code>failed</code>（见 <a href="../mark-locate-lazy/">惰性</a>）</td>
 </tr>
 <tr>
-<td>父节点</td>
-<td>展开/折叠；单击 → 广场首页（三来源卡片）</td>
+<td>实现位置</td>
+<td>优先可被 CLI 使用的校验（TS 权威则 CLI 先窄实现 JSON 契约 + 集成测试；中长期 <code>agentero_lib</code> 共享，便于桌面内置 CLI 与 Host 同逻辑）</td>
 </tr>
 <tr>
-<td>子节点</td>
-<td>单击 → 对应来源 panel（dockview 虚拟 tab）</td>
-</tr>
-<tr>
-<td>右键</td>
-<td>Cool Papers：可选「在系统浏览器打开 papers.cool」；无删除/拖拽/Finder</td>
-</tr>
-<tr>
-<td>禁用</td>
-<td>拖入拖出、删除、重命名、终端打开</td>
+<td>双轨约定</td>
+<td>CLI/Agent <strong>只写</strong> per-id <code>marks/&lt;id&gt;.json</code>；<strong>不</strong>手写 EmbedPDF <code>annotations.json</code></td>
 </tr>
 </tbody>
 </table>
-<p><strong>图标（建议）</strong></p>
-<table>
-<thead>
-<tr>
-<th>节点</th>
-<th>Lucide</th>
-<th>en</th>
-<th>zh-CN</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>广场</td>
-<td><code>Sparkles</code></td>
-<td>Plaza</td>
-<td>广场</td>
-</tr>
-<tr>
-<td>Cool Papers</td>
-<td><code>Flame</code> 或自定义标</td>
-<td>Cool Papers</td>
-<td>Cool Papers</td>
-</tr>
-<tr>
-<td>播客</td>
-<td><code>Podcast</code></td>
-<td>Podcasts</td>
-<td>播客</td>
-</tr>
-<tr>
-<td>推荐</td>
-<td><code>Compass</code></td>
-<td>For You</td>
-<td>推荐</td>
-</tr>
-</tbody>
-</table>
-<p>i18n：<code>sidebar:plaza.*</code>。</p>
-<h2 id="3">3. 中间栏呈现<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
-<h3 id="31-plazaview">3.1 壳：<code>PlazaView</code><a class="headerlink" href="#31-plazaview" title="Permanent link">&para;</a></h3>
-<ul>
-<li>dockview：<code>kind: "plaza"</code>，<code>path</code> = 虚拟 URI；同一 path 单实例 <code>activatePanel</code>。  </li>
-<li><strong>无</strong>独立应用顶栏（与 Library 一致）；来源工具条做在内容区内。  </li>
-<li>父路径 <code>agentero:plaza</code>：三张来源卡片（Cool Papers 可进；播客「即将推出」；推荐可进 v0）。</li>
-</ul>
-<div class="codehilite"><pre><span></span><code>┌──────────────────────────────────────────────────────┐
-│  广场                                                 │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐        │
-│  │ Cool Papers│ │ 播客       │ │ 推荐       │        │
-│  │ 打开日更流  │ │ 即将推出   │ │ 基于本地库  │        │
-│  └────────────┘ └────────────┘ └────────────┘        │
-└──────────────────────────────────────────────────────┘
+<h3 id="52-climark">5.2 CLI：<code>mark</code> 命令组（内置子命令）<a class="headerlink" href="#52-climark" title="Permanent link">&para;</a></h3>
+<p>建议契约（名称可微调，需 <code>--json</code>）：</p>
+<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>mark<span class="w"> </span>list<span class="w">   </span>&lt;paper&gt;<span class="w"> </span><span class="o">[</span>--kind<span class="w"> </span>highlight<span class="p">|</span>translate<span class="p">|</span>ask<span class="p">|</span>…<span class="o">]</span><span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>get<span class="w">    </span>&lt;paper&gt;<span class="w"> </span>&lt;id&gt;<span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w">    </span>&lt;paper&gt;<span class="w"> </span>--kind<span class="w"> </span>highlight<span class="w"> </span>--quote<span class="w"> </span><span class="s2">&quot;…&quot;</span><span class="w"> </span><span class="o">[</span>--page<span class="w"> </span>N<span class="o">]</span><span class="w"> </span><span class="o">[</span>--comment<span class="w"> </span>…<span class="o">]</span><span class="w"> </span><span class="o">[</span>--color<span class="w"> </span>…<span class="o">]</span><span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>update<span class="w"> </span>&lt;paper&gt;<span class="w"> </span>&lt;id&gt;<span class="w"> </span><span class="o">[</span>--comment<span class="w"> </span>…<span class="o">]</span><span class="w"> </span><span class="o">[</span>--color<span class="w"> </span>…<span class="o">]</span><span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>delete<span class="w"> </span>&lt;paper&gt;<span class="w"> </span>&lt;id&gt;<span class="w"> </span>-y<span class="w"> </span>--json
 </code></pre></div>
 
-<h3 id="32-cool-papersp0webview">3.2 Cool Papers（P0，WebView）<a class="headerlink" href="#32-cool-papersp0webview" title="Permanent link">&para;</a></h3>
-<p><strong>主内容</strong>：内嵌 <strong>WebView / 受控 iframe 等价物</strong>（Tauri 下优先 <code>webview</code> 或桌面 WebView 面板）加载 <code>https://papers.cool/</code>（或可配置起始分区 URL）。</p>
 <table>
 <thead>
 <tr>
-<th>区域</th>
-<th>行为</th>
+<th>规则</th>
+<th>说明</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>主体</td>
-<td>全高 WebView；站点内导航、分区、搜索均由 papers.cool 负责</td>
+<td>默认 <code>geometry</code></td>
+<td>无 rects 时 <code>pending</code></td>
 </tr>
 <tr>
-<td>顶条（Agentero chrome）</td>
-<td>后退 / 前进 / 刷新 / 主页（papers.cool）/「系统浏览器打开」</td>
+<td>解析 paper</td>
+<td>与 <code>paper get</code> 相同 path/id</td>
 </tr>
 <tr>
-<td>地址</td>
-<td>可选显示当前 URL（只读）；不暴露任意网址栏防滥用</td>
+<td>不调用 EmbedPDF</td>
+<td>基础阶段零 PDF 引擎依赖</td>
 </tr>
 <tr>
-<td>加载失败</td>
-<td>空态 + 重试 + 外链打开</td>
+<td>破坏性删除</td>
+<td><code>-y</code> / <code>--yes</code> 与现有 CLI 一致</td>
 </tr>
 <tr>
-<td>入库</td>
-<td><strong>P0 不做</strong>（顶条不放「加入 Library」；文档标明后续迭代）</td>
+<td>模块位置</td>
+<td><code>cli/src/commands/mark.rs</code>（或等价），挂入 <code>commands/mod.rs</code> 与 clap 根命令</td>
 </tr>
 </tbody>
 </table>
-<p><strong>工程注意（Tauri）</strong>：</p>
+<h3 id="53">5.3 只读增强（可选但便宜）<a class="headerlink" href="#53" title="Permanent link">&para;</a></h3>
 <ul>
-<li>使用应用内 webview 面板，而非无约束打开外部浏览器标签（外链为次要出口）。  </li>
-<li>Cookie / 第三方脚本：最小权限；不注入用户 API Key。  </li>
-<li>与 PDF iframe 类似：若影响 dockview 拖拽，在拖拽期间 <code>pointer-events: none</code>（参考 HTML viewer 策略）。  </li>
-<li>远程 Vault 会话下同样可用（广场不依赖 vault 文件 IO）。</li>
+<li><code>paper get</code> / <code>paths</code> 已暴露 <code>marksDir</code>：可增加 <code>mark list</code> 摘要计数。</li>
+<li><code>wiki check</code> 对 <code>@id</code> 仍可不打开 marks 验存在（保持现状）；文档写清。</li>
 </ul>
-<p><strong>后续（非 P0）</strong>：从 URL 解析 arXiv id → 预览抽屉 / 批量入库；届时再增加 Agentero 侧列表层或桥接脚本（需合规评估）。</p>
-<h3 id="33">3.3 播客（占位）<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
+<h3 id="54">5.4 基础阶段验收<a class="headerlink" href="#54" title="Permanent link">&para;</a></h3>
 <ul>
-<li>空态文案：订阅源、单集列表与播放将在后续版本提供。  </li>
-<li>侧栏子节点可点，进入占位页（避免「死链」）。</li>
+<li>[ ] 无 GUI 下 <code>mark add</code> → 磁盘 JSON 合法。</li>
+<li>[ ] <code>list</code> / <code>get</code> / <code>delete</code> 往返与错误码稳定。</li>
+<li>[ ] 桌面打开同一 paper 不崩溃；pending 至少出现在可扩展的列表数据源（UI 可简陋）。</li>
+<li>[ ] 不覆盖用户 <code>NOTES.md</code>；不碰 PDF 二进制。</li>
+<li>[ ] 与现有全局 flag（<code>--vault</code> / <code>--json</code> / <code>-y</code>）行为一致，便于日后打进桌面安装包。</li>
 </ul>
-<h3 id="34-v0p0">3.4 论文推荐 v0（P0）<a class="headerlink" href="#34-v0p0" title="Permanent link">&para;</a></h3>
-<p><strong>目标</strong>：不依赖外部账号，仅用 <strong>本地 catalog + 轻量信号</strong> 给出可解释的「下一步可读」。</p>
-<table>
-<thead>
-<tr>
-<th>信号（v0）</th>
-<th>用法</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>最近打开 / 最近入库</td>
-<td>「继续阅读」「新入库未读」</td>
-</tr>
-<tr>
-<td><code>is_read === false</code> 且资源齐全</td>
-<td>「待精读」</td>
-</tr>
-<tr>
-<td>同 tag 聚类</td>
-<td>「与标签 X 相关的本地论文」</td>
-</tr>
-<tr>
-<td>阅读热力为空但已打开</td>
-<td>「打开过但几乎未标注」</td>
-</tr>
-</tbody>
-</table>
-<p><strong>呈现</strong>：分组列表（非 WebView）—</p>
-<div class="codehilite"><pre><span></span><code>推荐
-├── 待精读（未读且有 PDF/TeX）
-├── 最近入库
-└── 标签「…」下的其它论文
-</code></pre></div>
-
+<h3 id="55">5.5 基础阶段明确不做<a class="headerlink" href="#55" title="Permanent link">&para;</a></h3>
 <ul>
-<li>行点击 → <strong><code>openPaper</code></strong>（本地 PDF|NOTES），因为条目已在库。  </li>
-<li>无足够本地数据：空态引导「用魔棒或 Cool Papers 发现论文，入库后这里会更有用」（Cool Papers 暂不入库时，引导魔棒 / 手动）。  </li>
-<li><strong>隐私</strong>：v0 <strong>不上传</strong>库内容到云端；仅本地计算。</li>
-</ul>
-<blockquote>
-<p>说明：P0 推荐是「本地库导读」，不是 Cool Papers 式外网发现。外网推荐留待入库打通之后。</p>
-</blockquote>
-<h2 id="4">4. 与其它模块<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>模块</th>
-<th>关系</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Library</td>
-<td>推荐 v0 只读 <code>paper_list</code> / 热力；不改 catalog schema</td>
-</tr>
-<tr>
-<td>魔棒 / 入库</td>
-<td><strong>P0 不接</strong>；P1 再复用 <code>lookup_import</code></td>
-</tr>
-<tr>
-<td>PDF|NOTES</td>
-<td>推荐打开本地论文时走现有阅读布局</td>
-</tr>
-<tr>
-<td>Agent</td>
-<td>P0 不强制；P1 可做「解释为何推荐」</td>
-</tr>
-<tr>
-<td>命令面板</td>
-<td>P1：<code>Plaza: Cool Papers</code> 等</td>
-</tr>
-</tbody>
-</table>
-<h2 id="5">5. 虚拟路径与类型草图<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span><code><span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">PLAZA_VIRTUAL_PATH</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;agentero:plaza&quot;</span><span class="p">;</span>
-
-<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">PLAZA_SOURCE_PATHS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nx">coolPapers</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;agentero:plaza/cool-papers&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">podcasts</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;agentero:plaza/podcasts&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">recommend</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;agentero:plaza/recommend&quot;</span><span class="p">,</span>
-<span class="p">}</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="kd">const</span><span class="p">;</span>
-
-<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">isPlazaVirtualPath</span><span class="p">(</span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">undefined</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nb">Boolean</span><span class="p">(</span><span class="nx">path</span><span class="o">?</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s2">&quot;agentero:plaza&quot;</span><span class="p">));</span>
-<span class="p">}</span>
-</code></pre></div>
-
-<p>DocTab：<code>kind: "plaza"</code>（或 <code>file</code> + mode <code>plaza</code> + path 虚拟 URI——实现时与 Library/Trash 对齐选一种，<strong>推荐独立 kind</strong> 便于 <code>DocView</code> 分支）。</p>
-<h2 id="6">6. 分阶段<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>阶段</th>
-<th>交付</th>
-<th>验收</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>P0a 壳</strong></td>
-<td>侧栏广场 + 三子节点；<code>PlazaView</code> 首页 + 路由</td>
-<td>虚拟 path 不写盘；i18n；折叠位置正确</td>
-</tr>
-<tr>
-<td><strong>P0b Cool Papers</strong></td>
-<td>WebView 浏览 papers.cool + 导航 chrome + 外链</td>
-<td>可分区浏览站点；失败可恢复</td>
-</tr>
-<tr>
-<td><strong>P0c 推荐 v0</strong></td>
-<td>本地启发式分组列表 + openPaper</td>
-<td>有库时有分组；无库时空态</td>
-</tr>
-<tr>
-<td><strong>P0d 播客</strong></td>
-<td>占位页</td>
-<td>可进入、文案清晰</td>
-</tr>
-<tr>
-<td><strong>P1</strong></td>
-<td>入库（解析 arXiv / 魔棒管线）、预览抽屉、批量加入 Library</td>
-<td>与魔棒语义一致</td>
-</tr>
-<tr>
-<td><strong>P2</strong></td>
-<td>播客实体、Agent 推荐、命令面板、@ 广场条目</td>
-<td>—</td>
-</tr>
-</tbody>
-</table>
-<h2 id="7-p0">7. 明确不做（P0）<a class="headerlink" href="#7-p0" title="Permanent link">&para;</a></h2>
-<ul>
-<li>广场 → Vault <strong>入库</strong>（含批量）。  </li>
-<li>把 feed 写入 catalog。  </li>
-<li>播客播放器 / 订阅管理。  </li>
-<li>云端协同过滤或上传本地库。  </li>
-<li>在 WebView 内注入支付/登录 Agentero 账号。</li>
-</ul>
-<h2 id="8">8. 实现落点（编码时）<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>区域</th>
-<th>路径</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>设计</td>
-<td><code>docs/development/plaza.md</code>（本文）</td>
-</tr>
-<tr>
-<td>UI 规范摘录</td>
-<td><code>docs/frontend/shell.md</code> § 广场</td>
-</tr>
-<tr>
-<td>虚拟 path</td>
-<td><code>src/lib/paper/api.ts</code> 或 <code>src/lib/plaza/</code></td>
-</tr>
-<tr>
-<td>文件树</td>
-<td><code>src/components/sidebar/file-tree.tsx</code></td>
-</tr>
-<tr>
-<td>中间栏</td>
-<td><code>src/components/plaza/*</code> + <code>doc-view</code></td>
-</tr>
-<tr>
-<td>Cool Papers WebView</td>
-<td><code>src/components/plaza/cool-papers-view.tsx</code>（Tauri webview 封装）</td>
-</tr>
-<tr>
-<td>推荐</td>
-<td><code>src/lib/plaza/recommend.ts</code> + <code>src/components/plaza/recommend-view.tsx</code></td>
-</tr>
-<tr>
-<td>i18n</td>
-<td><code>sidebar</code> / 独立 <code>plaza</code> ns</td>
-</tr>
-<tr>
-<td>Roadmap / Todo</td>
-<td>增加「广场 P0」条目</td>
-</tr>
-</tbody>
-</table>
-<h2 id="9">9. 风险与后续确认点<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>风险</th>
-<th>缓解</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>papers.cool 改版 / 禁止嵌入</td>
-<td>检测 <code>X-Frame-Options</code>；失败则全页降级为「系统浏览器打开」</td>
-</tr>
-<tr>
-<td>WebView 体积与内存</td>
-<td>仅在 plaza cool-papers panel 挂载；关 tab 销毁</td>
-</tr>
-<tr>
-<td>推荐过冷启动</td>
-<td>空态文案；阈值阈值（如 &lt; 3 篇不估标签组）</td>
-</tr>
-</tbody>
-</table>
-<p><strong>仍可再确认（非阻塞 P0a）</strong>：</p>
-<ul>
-<li>Cool Papers 默认落地 URL（首页 vs 某默认分区如 <code>cs.AI</code>）。  </li>
-<li>推荐 v0 是否显示「打开过的非 paper 笔记」——默认 <strong>否</strong>，仅 paper 单元。</li>
+<li>页上自动黄底、headless <code>--resolve</code>、图公式检测、CLI 翻译。</li>
+<li>不在本阶段改 release 打包（打包见 <a href="../bundled-cli/">bundled-cli.md</a>）。</li>
 </ul>
 <hr />
-<p><em>修订：2026-07-25 — 采纳 WebView、不做入库、P0 含推荐 v0、树位置在 Library/Trash 下。</em></p>
+<h2 id="6">6. 阶段二：上层能力<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<p>在基础读写之上，接 <strong>引擎定位、翻译、显示与对话锚点</strong>。</p>
+<h3 id="61">6.1 文字定位（核心上层）<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>项</th>
+<th>文档</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td><strong>惰性 hydrate</strong>：PDF doc ready → <code>searchAllPages</code> → 写回 rects</td>
+<td><a href="../mark-locate-lazy/">mark-locate-lazy.md</a></td>
+</tr>
+<tr>
+<td>P1</td>
+<td><strong>Viewer 即时</strong>：PDF 已打开时 add 直接 resolved</td>
+<td><a href="../mark-locate-eager/">mark-locate-eager.md</a> §B1</td>
+</tr>
+<tr>
+<td>P2</td>
+<td><strong>Headless <code>--resolve</code></strong>（可选，可进同一 CLI 二进制）</td>
+<td><a href="../mark-locate-eager/">mark-locate-eager.md</a> §B2</td>
+</tr>
+<tr>
+<td>—</td>
+<td>liteparse 继续只服务 <code>PAPER.md</code></td>
+<td>不混入定位主路径</td>
+</tr>
+</tbody>
+</table>
+<p>匹配策略最小集：单命中采用；多命中 + page 过滤；零命中 <code>failed</code>；quote 去重与打开时限流。</p>
+<h3 id="62">6.2 显示与高亮投影<a class="headerlink" href="#62" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>项</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td>resolved → 跳页 + 页边针 + 批注/标注列表</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>投影到 EmbedPDF HIGHLIGHT（<code>annotations.json</code>），接近人手划词</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>failed/pending 的安静 UI 状态（避免 Toast 风暴）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63-translate">6.3 翻译（内置 <code>translate</code> 命令）<a class="headerlink" href="#63-translate" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>项</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td>CLI <code>translate</code> 文本：复用 Host 免费 MT 逻辑（抽到 lib，供 Host command 与 CLI 共用）</td>
+</tr>
+<tr>
+<td>P1</td>
+<td><code>mark add --kind translate</code> + <code>result</code>；可选打开后按 quote 钉位置（同定位管线）</td>
+</tr>
+<tr>
+<td>—</td>
+<td><strong>不做</strong> CLI 内 BYOA Agent 翻译</td>
+</tr>
+</tbody>
+</table>
+<h3 id="64">6.4 提问 / 对话锚点<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>项</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1</td>
+<td>可写 <code>kind: ask</code> 壳（quote/page/pending）；答案仍由对话框 Agent 产生</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>Skill：把已有 mark 的 quote 作为对话上下文，而非 CLI 起 session</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>与「加入对话」chip 模型对齐（桌面）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="65">6.5 图 / 公式（后置上层）<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>项</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0 体验</td>
+<td>Skill 写清：用 comment + 页码/图号；请用户框选</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>大纲/图题 sidecar 粗锚</td>
+</tr>
+<tr>
+<td>P3</td>
+<td>自动区域检测 + 与 <code>agent-trace</code> 裁图结合</td>
+</tr>
+</tbody>
+</table>
+<h3 id="66-p0">6.6 上层验收（P0 集合）<a class="headerlink" href="#66-p0" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] pending mark 在打开可复制文字 PDF 后变为 resolved，可跳页出针。</li>
+<li>[ ] 错误 quote → failed，内容保留。</li>
+<li>[ ] （若做）<code>translate</code> CLI 返回译文且可落 translate mark。</li>
+<li>[ ] 已打开 PDF 时即时 add 可不经二次打开即有框（P1）。</li>
+</ul>
+<hr />
+<h2 id="7-skill">7. 阶段三：Skill 开发路线<a class="headerlink" href="#7-skill" title="Permanent link">&para;</a></h2>
+<p>Skill 是 <strong>约定与工作流</strong>，不是第二套业务逻辑。实现顺序应 <strong>跟在基础 CLI 之后</strong>，并随定位/翻译能力增量改版。</p>
+<h3 id="71-agentero-cli-skill">7.1 改现有 <code>agentero-cli</code> skill<a class="headerlink" href="#71-agentero-cli-skill" title="Permanent link">&para;</a></h3>
+<p>路径：<code>templates/vault/.agents/skills/agentero-cli/SKILL.md</code>（及种子升级策略）。</p>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S0（对齐阶段一）</td>
+<td>L2.5 从只读改为：可用 <code>mark list/get/add/…</code>；禁止编造 rects；默认 pending</td>
+</tr>
+<tr>
+<td>S1（对齐定位 P0）</td>
+<td>说明「打开 PDF 后自动补位置」；教写独特 quote、可选 page</td>
+</tr>
+<tr>
+<td>S2</td>
+<td><code>translate</code> 命令与 translate mark；与划词翻译语义一致</td>
+</tr>
+<tr>
+<td>S3</td>
+<td>与 <code>wiki check</code>、<code>[[@id]]</code> 互链写法；仍不伪造 id</td>
+</tr>
+<tr>
+<td>S4</td>
+<td>若桌面已内置 CLI：说明 PATH / <code>agentero</code> 发现方式（与 <a href="../bundled-cli/">bundled-cli</a> 用户文档对齐）</td>
+</tr>
+</tbody>
+</table>
+<p>Hard boundaries 保持：</p>
+<ul>
+<li>不调用 CLI 起 ACP。</li>
+<li>不强制覆盖用户 NOTES。</li>
+<li>渐进披露 L0→L4 不变；marks 仍在 NOTES 之后、全文之前。</li>
+<li>二进制缺失时：回退读 Vault 文件，不编造 catalog / mark id。</li>
+</ul>
+<h3 id="72-paper-annotate-skill">7.2 新增（建议）<code>paper-annotate</code> skill<a class="headerlink" href="#72-paper-annotate-skill" title="Permanent link">&para;</a></h3>
+<p>当工作流超过「命令表」时，独立 skill 更清晰：</p>
+<table>
+<thead>
+<tr>
+<th>节</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>When to use</td>
+<td>「帮我标黄」「批注这句」「钉翻译」「记下要问的点」</td>
+</tr>
+<tr>
+<td>When not</td>
+<td>长文精读讲义 → <code>paper-reader</code>；库管理 → <code>agentero-cli</code></td>
+</tr>
+<tr>
+<td>Protocol</td>
+<td><code>paper get</code> → 读 NOTES/PAPER → 选定 quote → <code>mark add</code> → 告知用户打开 PDF 可见框</td>
+</tr>
+<tr>
+<td>已打开 PDF</td>
+<td>预期即时 resolved（若产品已实现）</td>
+</tr>
+<tr>
+<td>图/公式</td>
+<td>只写文字锚 + 请用户框选；不假装自动识图</td>
+</tr>
+<tr>
+<td>对话</td>
+<td>在 BYOA 对话内继续；可用 mark id / quote 作引用</td>
+</tr>
+</tbody>
+</table>
+<p>安装：Vault 种子模板 + 现有 skill 播种/升级机制（注意用户改过的 skill 不覆盖，见 skill 升级策略）。</p>
+<h3 id="73-skill">7.3 Skill 验收<a class="headerlink" href="#73-skill" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] 新 Vault 种子含更新后的 skill 文案。</li>
+<li>[ ] 文档站 / usage 有一句「Agent 可经 CLI 写阅读标注」。</li>
+<li>[ ] 人工走通：对话里让 Agent 标一句 → 磁盘有 mark → 打开 PDF 有针/框（在定位 P0 完成后）。</li>
+</ul>
+<h3 id="74-skill">7.4 Skill 明确不写进模型的事<a class="headerlink" href="#74-skill" title="Permanent link">&para;</a></h3>
+<ul>
+<li>不要教 Agent 直接 patch <code>annotations.json</code> EmbedPDF 传输格式。</li>
+<li>不要教 Agent 手算 0–1 坐标。</li>
+<li>不要教用 CLI 替代对话框跑多轮论文 Agent。</li>
+</ul>
+<hr />
+<h2 id="8">8. 里程碑与依赖<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<div class="codehilite"><pre><span></span><code>M1 基础
+  schema + mark CLI 内置子命令
+  agentero-cli skill S0
+       │
+       ▼
+M2 定位 P0
+  惰性 hydrate + 针/跳页
+  skill S1
+       │
+       ├──────────────┐
+       ▼              ▼
+M3a 显示/翻译     M3b Viewer 即时 B1
+  黄底投影 P1       skill 注明「边读边标」
+  translate 内置 CLI
+       │
+       ▼
+M4 可选
+  headless --resolve
+  paper-annotate skill
+  图/公式粗锚
+       │
+       ▼
+分发（可并行，不阻塞 M1）
+  桌面安装包内置同版本 agentero  ← bundled-cli / #165
+  用户 PATH 上只有一个 agentero，含 mark/translate
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>里程碑</th>
+<th>依赖</th>
+<th>用户可感知结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M1</td>
+<td>无引擎</td>
+<td>脚本/Agent 能写标注文件</td>
+</tr>
+<tr>
+<td>M2</td>
+<td>EmbedPDF 搜索已存在</td>
+<td>打开 PDF 后框/针出现</td>
+</tr>
+<tr>
+<td>M3</td>
+<td>M2</td>
+<td>更像人手划词；CLI 能翻译</td>
+</tr>
+<tr>
+<td>M4</td>
+<td>按需</td>
+<td>无 GUI 也可 resolve；专项 skill</td>
+</tr>
+<tr>
+<td>分发</td>
+<td><a href="../bundled-cli/">bundled-cli</a></td>
+<td>装 App 即得含 mark 的 <code>agentero</code></td>
+</tr>
+</tbody>
+</table>
+<h1 id="165-170-mark-cli-release">165 与 #170 <strong>可并行</strong>：先合入 <code>mark</code> 命令到 <code>cli/</code>，再由 release 把该二进制打进安装包。<a class="headerlink" href="#165-170-mark-cli-release" title="Permanent link">&para;</a></h1>
+<h2 id="9">9. 性能与默认行为（决策冻结）<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>决策</th>
+<th>选择</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CLI <code>mark add</code> 默认</td>
+<td><strong>pending</strong>，不读 PDF</td>
+</tr>
+<tr>
+<td>PDF 已打开时的桌面写入</td>
+<td><strong>尽量即时 B1</strong></td>
+</tr>
+<tr>
+<td>打开 PDF</td>
+<td><strong>惰性补全</strong> 所有 pending</td>
+</tr>
+<tr>
+<td>Headless resolve</td>
+<td><strong>显式开关</strong>，非默认</td>
+</tr>
+<tr>
+<td>定位失败</td>
+<td>保留内容，<code>geometry=failed</code></td>
+</tr>
+<tr>
+<td>liteparse</td>
+<td>正文 only，不参与画框</td>
+</tr>
+<tr>
+<td>分发</td>
+<td>与 GUI <strong>同版本单二进制</strong> headless CLI，不另发「标注工具」</td>
+</tr>
+</tbody>
+</table>
+<p>依据见两篇定位文档的性能对比。</p>
+<h2 id="10">10. 测试计划（最小）<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CLI 集成测</td>
+<td>add/list/get/delete；非法 quote；paper 解析</td>
+</tr>
+<tr>
+<td>前端单测</td>
+<td>geometry 解析；命中策略纯函数（多命中/page 过滤）</td>
+</tr>
+<tr>
+<td>手动 / E2E</td>
+<td>写入 pending → 打开样例 PDF → resolved；错误句 failed</td>
+</tr>
+<tr>
+<td>回归</td>
+<td>人手划词、⌘F、既有 ask/translate 针不受损</td>
+</tr>
+<tr>
+<td>分发（#165）</td>
+<td>安装包内 CLI 版本与 App 一致，且 <code>agentero mark --help</code> 可用</td>
+</tr>
+</tbody>
+</table>
+<h2 id="11">11. 文档同步清单（实现时）<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<p>实现落地后迁移/更新：</p>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>动作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../backend/cli/">backend/cli.md</a></td>
+<td>增加 <code>mark</code> / <code>translate</code> 命令组与示例</td>
+</tr>
+<tr>
+<td><a href="../../frontend/pdf/">frontend/pdf.md</a></td>
+<td>hydrate / geometry 行为</td>
+</tr>
+<tr>
+<td><a href="../../backend/data-model/">backend/data-model.md</a></td>
+<td>geometry 字段</td>
+</tr>
+<tr>
+<td><a href="../../backend/api/">backend/api.md</a></td>
+<td>若增加 Host command</td>
+</tr>
+<tr>
+<td><a href="../bundled-cli/">bundled-cli.md</a></td>
+<td>验收列表含 mark/translate 子命令</td>
+</tr>
+<tr>
+<td>usage 阅读整理</td>
+<td>Agent 标注一句流程</td>
+</tr>
+<tr>
+<td>本目录三篇草案</td>
+<td>完成后改为「已实现」或移入 frontend/backend 并改 index</td>
+</tr>
+</tbody>
+</table>
+<h2 id="12">12. 相关链接<a class="headerlink" href="#12" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Issue <a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>（标注开放 CLI + Skill）</li>
+<li>Issue <a href="https://github.com/poco-ai/Agentero/issues/165">#165</a> / <a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>（内置桌面 CLI / paper move）</li>
+<li><a href="../bundled-cli/">内置桌面 CLI 设计</a></li>
+<li><a href="../mark-locate-lazy/">惰性定位设计</a></li>
+<li><a href="../mark-locate-eager/">即时定位设计</a></li>
+<li><a href="../../backend/cli/">既有 CLI 说明</a></li>
+<li>agentero-cli skill 模板：<code>templates/vault/.agents/skills/agentero-cli/SKILL.md</code>（仓库内种子，非文档站页面）</li>
+<li><a href="../todo/">TODO</a> · <a href="../roadmap/">roadmap</a></li>
+</ul>
 
 
 

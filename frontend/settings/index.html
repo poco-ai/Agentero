@@ -2054,6 +2054,118 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/plaza/" class="md-nav__link">
         
   
@@ -2766,11 +2878,16 @@
 <td>服务与语言</td>
 </tr>
 <tr>
+<td>知识库诊断</td>
+<td>Vault / Catalog / 双链 / 论文 aliases；本地 Vault 可确认批量修复</td>
+</tr>
+<tr>
 <td>关于</td>
 <td>版本信息与应用更新</td>
 </tr>
 </tbody>
 </table>
+<p>知识库诊断页调用 Host 的只读 Doctor 报告。四个检查项（Vault 结构 / Catalog / 双链 / 论文别名）各自作为小标题，标题行右侧显示 icon + 问题数；有问题时再展开 border 列表。论文别名支持勾选与编辑标题/短 alias，可修复时在标题行最右侧提供「修复」，确认后批量写入。别名修复只改 frontmatter、不改 path，避免触发外部改名修复误报。主窗口把未保存的 Markdown 路径同步到 Host，因此独立设置 Webview 发起修复时仍能在任何写入前拒绝脏文件。远程 Vault 首版只显示不可用。</p>
 <h2 id="_4">应用更新<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>正式桌面构建的主窗口会在启动后异步检查一次稳定版更新，不阻塞首屏或 Vault 初始化；检查失败只记日志。</li>

@@ -2087,6 +2087,118 @@
   
   
     <li class="md-nav__item">
+      <a href="../zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../plaza/" class="md-nav__link">
         
   
@@ -2806,7 +2918,7 @@
 <li>不静默覆盖用户手写 Vault 文件。</li>
 </ul>
 <h2 id="021">0.2.1 基线（已发布，摘要）<a class="headerlink" href="#021" title="Permanent link">&para;</a></h2>
-<p>工作台 + Dockview 分屏、Catalog/Library/标签、魔棒与本地 PDF 入库、Zotero Connector/迁移、PDF 划词与翻译、BYOA Agent（精读/权限/禅模式）、双链与 Graph、CLI MVP、远程 Vault MVP、Release CI。细节以功能文档为准。</p>
+<p>工作台 + Dockview 分屏、Catalog/Library/标签、魔棒与本地 PDF 入库、Zotero Connector/迁移、PDF 划词与翻译、BYOA Agent（精读/权限）、双链与 Graph、CLI MVP、远程 Vault MVP、Release CI。细节以功能文档为准。</p>
 <hr />
 <h2 id="03-agent">0.3 — 入库与 Agent 补强<a class="headerlink" href="#03-agent" title="Permanent link">&para;</a></h2>
 <p>在 0.2.1 上补齐仍缺口的「输入 → 资产 → Agent」路径。</p>
@@ -2840,7 +2952,11 @@
 </tr>
 <tr>
 <td>CLI</td>
-<td><code>graph</code> / <code>doctor</code> / shell completions；<code>export papers-md</code> 对齐</td>
+<td><code>graph</code> / shell completions；<code>export papers-md</code> 对齐（Doctor 已实现）</td>
+</tr>
+<tr>
+<td>阅读标注 CLI</td>
+<td><code>mark</code> CRUD + 默认惰性文字定位 + Skill（<a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>，设计：<a href="../mark-cli-roadmap/">mark-cli-roadmap.md</a>）</td>
 </tr>
 <tr>
 <td>桌面分发</td>
@@ -2983,6 +3099,10 @@
 <tr>
 <td>PDF / 翻译</td>
 <td>无文本层降级；HTML 标注；更多翻译 adapter/消费方</td>
+</tr>
+<tr>
+<td>Word 引用</td>
+<td>优先兼容用户已安装的官方 Zotero Word 插件：macOS <code>:23119</code> provider + Word Automation，后续 Windows <code>WM_COPYDATA</code> + OLE；本机 Library 检索、CSL 引文/参考文献刷新与文档副本迁移。单 provider、AGPL/GPL/商标审核为发布门槛（设计：<a href="../zotero-word-integration/">zotero-word-integration.md</a>）</td>
 </tr>
 <tr>
 <td>Skills</td>

@@ -11,10 +11,10 @@
       
       
       
-        <link rel="prev" href="../mark-locate-eager/">
+        <link rel="prev" href="../bundled-cli/">
       
       
-        <link rel="next" href="../wikilink-heading-reference-stability/">
+        <link rel="next" href="../mark-cli-roadmap/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>广场 Plaza - Agentero 文档</title>
+        <title>Word 引用集成 - Agentero 文档</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#plaza" class="md-skip">
+        <a href="#zotero-word" class="md-skip">
           跳转至
         </a>
       
@@ -109,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              广场 Plaza
+              Word 引用集成
             
           </span>
         </div>
@@ -1938,10 +1938,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../zotero-word-integration/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1957,6 +1984,320 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        结论与产品决策
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        协议事实与 Connector 边界
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        范围与用户契约
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="范围与用户契约">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#m1-macos-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        M1 要做（macOS 官方插件 provider）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#m1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        M1 不做
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        领域模型与持久化
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        推荐架构
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="推荐架构">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-integration-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 共享 integration engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-macos-ingressm0m1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. macOS ingress（M0/M1）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-windows-ingressm2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Windows ingress（M2）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-catalog-csl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Catalog 到 CSL 的映射
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        文档兼容与迁移
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="文档兼容与迁移">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zotero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zotero 兼容字段
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zotero_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        导入 Zotero 字段
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        实现难度与前置需求
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="实现难度与前置需求">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        平台评估
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        功能与发布前置条件
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#go-no-go" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Go / No-Go
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        实施分期
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        测试与验收
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="测试与验收">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        自动化
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#office" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        手工 Office 矩阵
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        风险与待决项
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        预期改动落点
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2050,37 +2391,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    广场 Plaza
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../plaza/" class="md-nav__link">
         
   
   
@@ -2096,186 +2410,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="目录">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      目录
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#0-2026-07-25" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        0. 产品结论（2026-07-25）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. 产品动机
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. 侧栏信息架构
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. 中间栏呈现
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3. 中间栏呈现">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#31-plazaview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.1 壳：PlazaView
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#32-cool-papersp0webview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.2 Cool Papers（P0，WebView）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#33" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.3 播客（占位）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#34-v0p0" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.4 论文推荐 v0（P0）
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. 与其它模块
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. 虚拟路径与类型草图
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#6" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. 分阶段
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#7-p0" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7. 明确不做（P0）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#8" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        8. 实现落点（编码时）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#9" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        9. 风险与后续确认点
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2849,10 +2983,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#0-2026-07-25" class="md-nav__link">
+  <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        0. 产品结论（2026-07-25）
+        结论与产品决策
       
     </span>
   </a>
@@ -2860,10 +2994,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#1" class="md-nav__link">
+  <a href="#connector" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. 产品动机
+        协议事实与 Connector 边界
       
     </span>
   </a>
@@ -2871,33 +3005,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2" class="md-nav__link">
+  <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. 侧栏信息架构
+        范围与用户契约
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. 中间栏呈现
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3. 中间栏呈现">
+    <nav class="md-nav" aria-label="范围与用户契约">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#31-plazaview" class="md-nav__link">
+  <a href="#m1-macos-provider" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1 壳：PlazaView
+        M1 要做（macOS 官方插件 provider）
       
     </span>
   </a>
@@ -2905,32 +3028,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#32-cool-papersp0webview" class="md-nav__link">
+  <a href="#m1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.2 Cool Papers（P0，WebView）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#33" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.3 播客（占位）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#34-v0p0" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.4 论文推荐 v0（P0）
+        M1 不做
       
     </span>
   </a>
@@ -2943,10 +3044,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. 与其它模块
+        领域模型与持久化
       
     </span>
   </a>
@@ -2954,10 +3055,160 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. 虚拟路径与类型草图
+        推荐架构
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="推荐架构">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-integration-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 共享 integration engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-macos-ingressm0m1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. macOS ingress（M0/M1）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-windows-ingressm2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Windows ingress（M2）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-catalog-csl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Catalog 到 CSL 的映射
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        文档兼容与迁移
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="文档兼容与迁移">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zotero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zotero 兼容字段
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zotero_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        导入 Zotero 字段
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        实现难度与前置需求
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="实现难度与前置需求">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        平台评估
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        功能与发布前置条件
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#go-no-go" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Go / No-Go
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        实施分期
       
     </span>
   </a>
@@ -2965,10 +3216,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6" class="md-nav__link">
+  <a href="#_10" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. 分阶段
+        测试与验收
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="测试与验收">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        自动化
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#office" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        手工 Office 矩阵
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        风险与待决项
       
     </span>
   </a>
@@ -2976,32 +3266,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-p0" class="md-nav__link">
+  <a href="#_13" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. 明确不做（P0）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#8" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        8. 实现落点（编码时）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#9" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        9. 风险与后续确认点
+        预期改动落点
       
     </span>
   </a>
@@ -3028,369 +3296,323 @@
   
 
 
-<h1 id="plaza">广场（Plaza）— 外部来源发现<a class="headerlink" href="#plaza" title="Permanent link">&para;</a></h1>
+<h1 id="zotero-word">Zotero Word 插件兼容与引用工作流（草案）<a class="headerlink" href="#zotero-word" title="Permanent link">&para;</a></h1>
+<p>关联 Issue：<a href="https://github.com/poco-ai/Agentero/issues/167">#167</a>（“支持一下 Zotero Word 插件”）。</p>
 <blockquote>
-<p>范围：侧栏虚拟节点 <strong>广场</strong> 及其子来源（Cool Papers / 播客 / 论文推荐）；中间栏发现流。<br />
-相关：<a href="../../frontend/vault-tree/"><code>../frontend/vault-tree.md</code></a>、<a href="../../backend/paper-import/"><code>../backend/paper-import.md</code></a>、<a href="../roadmap/"><code>roadmap.md</code></a>、<a href="../todo/"><code>todo.md</code></a>。</p>
+<p>状态：未实现。本文先固定产品边界和技术路线；落地后应将已实现部分移至前端/后端功能文档，并从本目录移除。</p>
 </blockquote>
-<h2 id="0-2026-07-25">0. 产品结论（2026-07-25）<a class="headerlink" href="#0-2026-07-25" title="Permanent link">&para;</a></h2>
+<h2 id="_1">结论与产品决策<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>Issue 所说的“Zotero Word 插件”有两层含义，必须分开处理：</p>
 <table>
 <thead>
 <tr>
-<th>#</th>
-<th>议题</th>
+<th>目标</th>
 <th>结论</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Q1</td>
-<td>树位置</td>
-<td><strong>Library + Recycle Bin 下方、真实 Vault 根目录上方</strong></td>
+<td>在 Microsoft Word 中搜索 Agentero Library、插入可刷新引文和参考文献</td>
+<td><strong>做</strong>：在官方插件兼容模式中直接由 Agentero 提供；Agentero 自有 Office Add-in 是后备方案，不是首个交付。</td>
 </tr>
 <tr>
-<td>Q2</td>
-<td>Cool Papers 呈现</td>
-<td><strong>内嵌 WebView</strong> 打开 <a href="https://papers.cool/">papers.cool</a></td>
+<td>让已安装的官方 <code>Zotero.dotm</code> 直接把 Agentero 当成 Zotero Desktop</td>
+<td><strong>做，按平台分期</strong>：macOS 先做（插件已有 HTTP 入口）；Windows 后做（<code>WM_COPYDATA</code> + OLE Automation）。两者均不能与 Zotero Desktop 同时接管插件。</td>
 </tr>
 <tr>
-<td>Q3</td>
-<td>入库</td>
-<td><strong>P0 不做入库</strong>（不接魔棒 / <code>lookup_import</code>；后续迭代再开）</td>
-</tr>
-<tr>
-<td>Q4</td>
-<td>P0 范围</td>
-<td><strong>Cool Papers 可用（WebView 完整浏览）+ 推荐 v0</strong>；播客仅占位</td>
+<td>保留已有 Zotero Word 文档的可读性</td>
+<td><strong>做迁移工具，不改原文档</strong>：识别现有 Zotero field code，尽力读出嵌入的 CSL 引文数据；用户确认后生成副本并以当前 provider 验证的兼容字段重写。</td>
 </tr>
 </tbody>
 </table>
-<h2 id="1">1. 产品动机<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
-<p>Agentero 已是 <strong>local-first 论文工作台</strong>（Library + 文件树 + PDF|NOTES）。用户还需要从 <strong>外部发现流</strong> 找新论文。</p>
-<p><strong>广场</strong> = 「发现入口」集合，与 <strong>Library（已收藏）</strong> 正交：</p>
-<table>
-<thead>
-<tr>
-<th></th>
-<th>Library</th>
-<th>广场</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>数据权威</td>
-<td>catalog + Vault 文件</td>
-<td>外部站点 / 本地启发式；<strong>P0 不写 Vault</strong></td>
-</tr>
-<tr>
-<td>侧栏</td>
-<td><code>agentero:library</code></td>
-<td><code>agentero:plaza</code> + 子来源</td>
-</tr>
-<tr>
-<td>中间栏</td>
-<td>论文库表格</td>
-<td>来源专属发现 UI</td>
-</tr>
-<tr>
-<td>典型动作</td>
-<td>打开 / 标签 / 导出</td>
-<td>浏览发现（入库后续再做）</td>
-</tr>
-</tbody>
-</table>
-<p>来源：</p>
-<ol>
-<li><strong>Cool Papers</strong>（<a href="https://papers.cool/">papers.cool</a>）— P0：内嵌站点浏览。  </li>
-<li><strong>播客</strong> — 占位，后续。  </li>
-<li><strong>论文推荐</strong> — P0 v0：基于本地库的轻量推荐列表（无云端上传）。</li>
-</ol>
-<h2 id="2">2. 侧栏信息架构<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span><code><span class="err">📁</span><span class="w"> </span><span class="nx">VaultName</span>
-<span class="err">├──</span><span class="w"> </span><span class="err">📚</span><span class="w"> </span><span class="nx">Library</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="kn">library</span>
-<span class="err">├──</span><span class="w"> </span><span class="err">🗑️</span><span class="w"> </span><span class="nx">Recycle</span><span class="w"> </span><span class="nx">Bin</span><span class="w">             </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">trash</span>
-<span class="err">├──</span><span class="w"> </span><span class="err">🌐</span><span class="w"> </span><span class="nx">广场</span><span class="w">                     </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="w">              </span><span class="err">←</span><span class="w"> </span><span class="nx">可折叠</span>
-<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">✨</span><span class="w"> </span><span class="nx">Cool</span><span class="w"> </span><span class="nx">Papers</span><span class="w">         </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">cool</span><span class="o">-</span><span class="nx">papers</span>
-<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">🎙️</span><span class="w"> </span><span class="nx">播客</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">podcasts</span><span class="w">      </span><span class="err">←</span><span class="w"> </span><span class="nx">占位</span>
-<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">🧭</span><span class="w"> </span><span class="nx">推荐</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">recommend</span>
-<span class="err">├──</span><span class="w"> </span><span class="nx">papers</span><span class="o">/</span>
-<span class="err">├──</span><span class="w"> </span><span class="nx">notes</span><span class="o">/</span>
-<span class="err">└──</span><span class="w"> </span><span class="err">…</span>
+<p>当用户已安装官方 <code>Zotero.dotm</code> 时，首版优先保持其现有 Ribbon 和按钮不变，由 Agentero 接收同一协议并显示自己的引用选择界面。该模式应显式显示为“使用官方 Zotero Word 插件（Agentero provider）”，不得暗示 Agentero 是 Zotero 或修改 Zotero Desktop；Zotero 商标使用需在发布前走法律审核。</p>
+<p><strong>互斥规则</strong>：同一用户会话中只能有一个 provider。启用 Agentero provider 前必须退出 Zotero Desktop；停用后才可恢复 Zotero Desktop。Windows 的插件通过窗口查找第一个匹配目标，macOS 使用固定本机端口/pipe，双进程并行会造成请求随机路由或端口冲突，不能靠提示“同时使用”解决。</p>
+<p>实际工作量是中高风险的桌面集成功能，而非 Connector 加一个普通端点。推荐的 go/no-go 顺序是：<strong>M0 macOS 官方插件握手与空文档操作 → M1 macOS 可用闭环 → M2 Windows → 评估是否仍需要自有 Office Add-in</strong>。</p>
+<h2 id="connector">协议事实与 Connector 边界<a class="headerlink" href="#connector" title="Permanent link">&para;</a></h2>
+<p>当前 <code>features/connector/</code> 在 <code>127.0.0.1:23119</code> 实现的是浏览器 Zotero Connector 保存协议：网页元数据/PDF 进入 Vault。它不管理 Word 的光标、field code、文档偏好或 CSL 排版。</p>
+<p>官方 Windows <code>Zotero.dotm</code> VBA 宏会查找 <code>ZoteroMessageWindow</code>（Zotero 6）或 <code>Mozilla_zotero_*_RemoteWindow</code>（Zotero 7），以 <code>WM_COPYDATA</code> 发送 <code>-ZoteroIntegrationAgent WinWord</code>、命令、文档路径和 template version；Zotero 再用 C++ OLE Automation bridge 操作 Word。官方 macOS 宏则优先请求 <code>GET http://127.0.0.1:23119/integration/macWordCommand?agent=...&amp;command=...&amp;document=...&amp;templateVersion=...</code>，失败后才读取 <code>ZoteroPort.txt</code> 或写入 <code>.zoteroIntegrationPipe</code>，再由 ObjC/AppleScript bridge 操作 Word。</p>
+<p>因此 <strong>macOS 可以复用同一个 loopback listener 与端口，但不能复用现有 Connector 业务路由</strong>：新增的是 <code>/integration/macWordCommand</code> 和一套 Word integration engine。Windows 则需要一个独立的 native message receiver。两端最终都要实现文字处理器回调（如 <code>Document_getFields</code>、<code>Document_insertField</code>、<code>Document_setDocumentData</code>）、引文选择、CSL 排版和 field code；仅返回 HTTP <code>200</code> 没有任何用户价值。</p>
+<p>参考： <a href="https://github.com/zotero/zotero-word-for-windows-integration/blob/main/build/template/Zotero.dotm/word/vbaProject.bin/Zotero.bas">Windows VBA 宏与 OLE bridge</a> · <a href="https://github.com/zotero/zotero-word-for-mac-integration/blob/main/build/template/Zotero.dotm/word/vbaProject.bin/Zotero.bas">macOS VBA 宏、HTTP 与 pipe fallback</a> · <a href="https://www.zotero.org/support/dev/client_coding/libreoffice_plugin_wire_protocol/">LibreOffice wire protocol</a> · <a href="https://www.zotero.org/support/word_processor_plugin_usage">Zotero Word Plugin</a>。</p>
+<h2 id="_2">范围与用户契约<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h3 id="m1-macos-provider">M1 要做（macOS 官方插件 provider）<a class="headerlink" href="#m1-macos-provider" title="Permanent link">&para;</a></h3>
+<ul>
+<li>支持 Microsoft 365 Word Desktop for macOS 的当前受支持版本；用户继续使用官方 <code>Zotero</code> Ribbon 的 Add/Edit Citation、Add/Edit Bibliography、Document Preferences、Refresh、Unlink Citations。</li>
+<li>Agentero 收到 <code>addEditCitation</code> 等命令后打开自己的原生引用选择窗口，搜索当前已选择的本地 Vault Catalog；支持多条引用、页码/locator、prefix/suffix、suppress author、引文重排。</li>
+<li>至少内置 APA、Chicago author-date、IEEE 三种 CSL 样式及相应 locale；样式随 Agentero release 更新，不在运行时静默联网下载。</li>
+<li>插入/刷新后，文档自身含有恢复和排版所需的 CSL-JSON 快照。关闭 Agentero、移动 Vault、把 <code>.docx</code> 发给他人后，现有引文仍是普通 Word 字段显示的文本；重新编辑需要连接一个可用的 Agentero Vault。</li>
+<li>Agentero 只读使用当前 Vault 的论文元数据；Word 文件的写入只能由 Word automation 完成，不经 Vault 覆盖用户文件。</li>
+</ul>
+<h3 id="m1">M1 不做<a class="headerlink" href="#m1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>不同步或写入 Zotero Desktop 数据库、Zotero Sync 或用户的 Zotero 账号。</li>
+<li>不分发、修改或覆盖官方 <code>Zotero.dotm</code>；用户需自行通过 Zotero 安装它。Agentero 只对其公开可观察的本机调用协议作兼容，具体许可结论见“许可证”。</li>
+<li>不保证 Agentero provider 写出的字段在 Zotero Desktop 中可继续编辑，或反向保证 Zotero 字段能被 Agentero 无损编辑；迁移必须创建副本。</li>
+<li>M1 不支持 Windows Word、Google Docs、Word Online、iOS/Android Word；它们分别需要 Windows native bridge、HTTP citing adapter 或 Office Add-in。</li>
+<li>不做在线下载任意 CSL style，也不覆盖已有 <code>.docx</code>。迁移始终显式确认并输出副本。</li>
+</ul>
+<h2 id="_3">领域模型与持久化<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>Catalog 是“可搜索的当前来源”，不是稿件可重复排版的唯一事实来源。为了让未修改的官方插件能够识别文档，provider 不能另造 <code>agentero.citation/1</code> field schema；必须生成并读取 Zotero 已使用的 document data 与 <code>ADDIN ZOTERO_ITEM</code> / CSL citation payload。每个 citation 仍须嵌入完整可用的 CSL item data，避免文档只引用一个会失效的 Vault 路径。</p>
+<div class="codehilite"><pre><span></span><code>Agentero Catalog (当前 Vault，只读)
+  -&gt; PaperRecord -&gt; Zotero-compatible CSL item snapshot
+  -&gt; official Zotero.dotm -&gt; Agentero provider
+  -&gt; Word ADDIN ZOTERO_ITEM field (payload + rendered text)
+  -&gt; Word document
+
+Zotero document data (style / locale / field mode)
+  -&gt; document-level Zotero-compatible payload
+
+Refresh
+  -&gt; scan document Zotero fields
+  -&gt; optional Catalog match by DOI -&gt; arXiv -&gt; normalized title
+  -&gt; citeproc recomputes all rendered citations and bibliography
 </code></pre></div>
 
-<table>
-<thead>
-<tr>
-<th>项</th>
-<th>约定</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>路径</td>
-<td><code>agentero:plaza</code>、<code>agentero:plaza/&lt;sourceId&gt;</code>；<strong>永不落盘</strong></td>
-</tr>
-<tr>
-<td>位置</td>
-<td>Library 与 Recycle Bin <strong>之下</strong>，真实根目录 <strong>之上</strong></td>
-</tr>
-<tr>
-<td>父节点</td>
-<td>展开/折叠；单击 → 广场首页（三来源卡片）</td>
-</tr>
-<tr>
-<td>子节点</td>
-<td>单击 → 对应来源 panel（dockview 虚拟 tab）</td>
-</tr>
-<tr>
-<td>右键</td>
-<td>Cool Papers：可选「在系统浏览器打开 papers.cool」；无删除/拖拽/Finder</td>
-</tr>
-<tr>
-<td>禁用</td>
-<td>拖入拖出、删除、重命名、终端打开</td>
-</tr>
-</tbody>
-</table>
-<p><strong>图标（建议）</strong></p>
-<table>
-<thead>
-<tr>
-<th>节点</th>
-<th>Lucide</th>
-<th>en</th>
-<th>zh-CN</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>广场</td>
-<td><code>Sparkles</code></td>
-<td>Plaza</td>
-<td>广场</td>
-</tr>
-<tr>
-<td>Cool Papers</td>
-<td><code>Flame</code> 或自定义标</td>
-<td>Cool Papers</td>
-<td>Cool Papers</td>
-</tr>
-<tr>
-<td>播客</td>
-<td><code>Podcast</code></td>
-<td>Podcasts</td>
-<td>播客</td>
-</tr>
-<tr>
-<td>推荐</td>
-<td><code>Compass</code></td>
-<td>For You</td>
-<td>推荐</td>
-</tr>
-</tbody>
-</table>
-<p>i18n：<code>sidebar:plaza.*</code>。</p>
-<h2 id="3">3. 中间栏呈现<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
-<h3 id="31-plazaview">3.1 壳：<code>PlazaView</code><a class="headerlink" href="#31-plazaview" title="Permanent link">&para;</a></h3>
-<ul>
-<li>dockview：<code>kind: "plaza"</code>，<code>path</code> = 虚拟 URI；同一 path 单实例 <code>activatePanel</code>。  </li>
-<li><strong>无</strong>独立应用顶栏（与 Library 一致）；来源工具条做在内容区内。  </li>
-<li>父路径 <code>agentero:plaza</code>：三张来源卡片（Cool Papers 可进；播客「即将推出」；推荐可进 v0）。</li>
-</ul>
-<div class="codehilite"><pre><span></span><code>┌──────────────────────────────────────────────────────┐
-│  广场                                                 │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐        │
-│  │ Cool Papers│ │ 播客       │ │ 推荐       │        │
-│  │ 打开日更流  │ │ 即将推出   │ │ 基于本地库  │        │
-│  └────────────┘ └────────────┘ └────────────┘        │
-└──────────────────────────────────────────────────────┘
-</code></pre></div>
-
-<h3 id="32-cool-papersp0webview">3.2 Cool Papers（P0，WebView）<a class="headerlink" href="#32-cool-papersp0webview" title="Permanent link">&para;</a></h3>
-<p><strong>主内容</strong>：内嵌 <strong>WebView / 受控 iframe 等价物</strong>（Tauri 下优先 <code>webview</code> 或桌面 WebView 面板）加载 <code>https://papers.cool/</code>（或可配置起始分区 URL）。</p>
-<table>
-<thead>
-<tr>
-<th>区域</th>
-<th>行为</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>主体</td>
-<td>全高 WebView；站点内导航、分区、搜索均由 papers.cool 负责</td>
-</tr>
-<tr>
-<td>顶条（Agentero chrome）</td>
-<td>后退 / 前进 / 刷新 / 主页（papers.cool）/「系统浏览器打开」</td>
-</tr>
-<tr>
-<td>地址</td>
-<td>可选显示当前 URL（只读）；不暴露任意网址栏防滥用</td>
-</tr>
-<tr>
-<td>加载失败</td>
-<td>空态 + 重试 + 外链打开</td>
-</tr>
-<tr>
-<td>入库</td>
-<td><strong>P0 不做</strong>（顶条不放「加入 Library」；文档标明后续迭代）</td>
-</tr>
-</tbody>
-</table>
-<p><strong>工程注意（Tauri）</strong>：</p>
-<ul>
-<li>使用应用内 webview 面板，而非无约束打开外部浏览器标签（外链为次要出口）。  </li>
-<li>Cookie / 第三方脚本：最小权限；不注入用户 API Key。  </li>
-<li>与 PDF iframe 类似：若影响 dockview 拖拽，在拖拽期间 <code>pointer-events: none</code>（参考 HTML viewer 策略）。  </li>
-<li>远程 Vault 会话下同样可用（广场不依赖 vault 文件 IO）。</li>
-</ul>
-<p><strong>后续（非 P0）</strong>：从 URL 解析 arXiv id → 预览抽屉 / 批量入库；届时再增加 Agentero 侧列表层或桥接脚本（需合规评估）。</p>
-<h3 id="33">3.3 播客（占位）<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
-<ul>
-<li>空态文案：订阅源、单集列表与播放将在后续版本提供。  </li>
-<li>侧栏子节点可点，进入占位页（避免「死链」）。</li>
-</ul>
-<h3 id="34-v0p0">3.4 论文推荐 v0（P0）<a class="headerlink" href="#34-v0p0" title="Permanent link">&para;</a></h3>
-<p><strong>目标</strong>：不依赖外部账号，仅用 <strong>本地 catalog + 轻量信号</strong> 给出可解释的「下一步可读」。</p>
-<table>
-<thead>
-<tr>
-<th>信号（v0）</th>
-<th>用法</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>最近打开 / 最近入库</td>
-<td>「继续阅读」「新入库未读」</td>
-</tr>
-<tr>
-<td><code>is_read === false</code> 且资源齐全</td>
-<td>「待精读」</td>
-</tr>
-<tr>
-<td>同 tag 聚类</td>
-<td>「与标签 X 相关的本地论文」</td>
-</tr>
-<tr>
-<td>阅读热力为空但已打开</td>
-<td>「打开过但几乎未标注」</td>
-</tr>
-</tbody>
-</table>
-<p><strong>呈现</strong>：分组列表（非 WebView）—</p>
-<div class="codehilite"><pre><span></span><code>推荐
-├── 待精读（未读且有 PDF/TeX）
-├── 最近入库
-└── 标签「…」下的其它论文
-</code></pre></div>
-
-<ul>
-<li>行点击 → <strong><code>openPaper</code></strong>（本地 PDF|NOTES），因为条目已在库。  </li>
-<li>无足够本地数据：空态引导「用魔棒或 Cool Papers 发现论文，入库后这里会更有用」（Cool Papers 暂不入库时，引导魔棒 / 手动）。  </li>
-<li><strong>隐私</strong>：v0 <strong>不上传</strong>库内容到云端；仅本地计算。</li>
-</ul>
-<blockquote>
-<p>说明：P0 推荐是「本地库导读」，不是 Cool Papers 式外网发现。外网推荐留待入库打通之后。</p>
-</blockquote>
-<h2 id="4">4. 与其它模块<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>模块</th>
-<th>关系</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Library</td>
-<td>推荐 v0 只读 <code>paper_list</code> / 热力；不改 catalog schema</td>
-</tr>
-<tr>
-<td>魔棒 / 入库</td>
-<td><strong>P0 不接</strong>；P1 再复用 <code>lookup_import</code></td>
-</tr>
-<tr>
-<td>PDF|NOTES</td>
-<td>推荐打开本地论文时走现有阅读布局</td>
-</tr>
-<tr>
-<td>Agent</td>
-<td>P0 不强制；P1 可做「解释为何推荐」</td>
-</tr>
-<tr>
-<td>命令面板</td>
-<td>P1：<code>Plaza: Cool Papers</code> 等</td>
-</tr>
-</tbody>
-</table>
-<h2 id="5">5. 虚拟路径与类型草图<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span><code><span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">PLAZA_VIRTUAL_PATH</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;agentero:plaza&quot;</span><span class="p">;</span>
-
-<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">PLAZA_SOURCE_PATHS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nx">coolPapers</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;agentero:plaza/cool-papers&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">podcasts</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;agentero:plaza/podcasts&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">recommend</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;agentero:plaza/recommend&quot;</span><span class="p">,</span>
-<span class="p">}</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="kd">const</span><span class="p">;</span>
-
-<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">isPlazaVirtualPath</span><span class="p">(</span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">undefined</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nb">Boolean</span><span class="p">(</span><span class="nx">path</span><span class="o">?</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s2">&quot;agentero:plaza&quot;</span><span class="p">));</span>
+<p>Zotero field/document data 的序列化、版本迁移、citation ID、note index、style/locale 与 bibliography 语义以官方集成测试为兼容基线。不要从零猜一个“看起来像 CSL-JSON”的格式。Agentero 的内部类型可以有显式 schema，但写到 Word 前必须通过一个专用 <code>zotero_field_codec</code> 转成经 fixture 验证的官方格式。</p>
+<p>内部 citation draft 的概念形态如下；它不是文档中最终存储的 JSON：</p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;citationID&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01J...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;citationItems&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;doi:10.0000/example&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;itemData&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;article-journal&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;DOI&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;10.0000/example&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">      </span><span class="nt">&quot;locator&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;12-14&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;page&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;prefix&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;see &quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;suffix&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;suppress-author&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;properties&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;noteIndex&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
 
-<p>DocTab：<code>kind: "plaza"</code>（或 <code>file</code> + mode <code>plaza</code> + path 虚拟 URI——实现时与 Library/Trash 对齐选一种，<strong>推荐独立 kind</strong> 便于 <code>DocView</code> 分支）。</p>
-<h2 id="6">6. 分阶段<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<p><code>itemData</code> 是必要字段，<code>id</code> 只帮助重新连接 Catalog。匹配优先级为 DOI → arXiv → 归一化 title + author + year；不能匹配时仍以嵌入快照重新排版，并在 Agentero 的引用选择窗口标记为“未连接到当前 Vault”。不得把绝对 Vault 路径、远程会话 ID、用户路径或凭据写进 <code>.docx</code>。</p>
+<p>Document Preferences 保持 Zotero-compatible data，保存 <code>styleId</code>、locale、note/author-date 模式、field mode 和 bibliography ID。Bibliography 也以 Zotero 兼容字段定位，刷新时只替换该字段的结果。<code>Unlink Citations</code> 必须二次确认，因为它会把字段转为不可刷新的普通文本。</p>
+<h2 id="_4">推荐架构<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h3 id="1-integration-engine">1. 共享 integration engine<a class="headerlink" href="#1-integration-engine" title="Permanent link">&para;</a></h3>
+<p>Tauri Host 新增 <code>features/word/</code>。它不是一个仅返回元数据的 HTTP bridge，而是对官方插件命令执行完整事务的 orchestration 层：</p>
+<table>
+<thead>
+<tr>
+<th>部件</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>provider</code></td>
+<td>处理 <code>addEditCitation</code>、<code>addEditBibliography</code>、<code>setDocPrefs</code>、<code>refresh</code>、<code>removeCodes</code> 等命令，维护单文档互斥 transaction。</td>
+</tr>
+<tr>
+<td><code>word_document</code> trait</td>
+<td>统一 <code>get/setDocumentData</code>、cursor field、enumerate/insert/update/delete fields、footnote/endnote、alert 与 Undo。</td>
+</tr>
+<tr>
+<td><code>mac_word_driver</code></td>
+<td>通过 macOS Automation/AppleScript/ObjC bridge 实现 <code>word_document</code>；必须处理 Word 未启动、权限拒绝和前台激活。</td>
+</tr>
+<tr>
+<td><code>win_word_driver</code></td>
+<td>通过 Windows OLE Automation 实现相同 trait；仅 M2 引入。</td>
+</tr>
+<tr>
+<td><code>citation_domain</code></td>
+<td>Catalog 映射、Zotero field codec、样式偏好、citation order、refresh plan、bibliography plan。</td>
+</tr>
+<tr>
+<td><code>citeproc</code> adapter</td>
+<td>输入 CSL item + style + locale + 当前文档 citation order，输出 citation/bibliography 富文本；先评估可嵌入 Rust/Tauri 的实现及许可证。</td>
+</tr>
+<tr>
+<td><code>citation_dialog</code></td>
+<td>Agentero 原生窗口；接收官方 Ribbon 命令后给用户搜索、多引文、locator/prefix/suffix 等交互。</td>
+</tr>
+</tbody>
+</table>
+<div class="codehilite"><pre><span></span><code>official Zotero.dotm command
+  -&gt; platform ingress
+  -&gt; Agentero provider transaction
+  -&gt; Word document driver reads fields/data
+  -&gt; Agentero citation dialog + current local Vault Catalog
+  -&gt; citeproc + Zotero field codec
+  -&gt; Word document driver writes fields/bibliography
+</code></pre></div>
+
+<h3 id="2-macos-ingressm0m1">2. macOS ingress（M0/M1）<a class="headerlink" href="#2-macos-ingressm0m1" title="Permanent link">&para;</a></h3>
+<p>在现有 <code>ConnectorController</code> 管理的 <code>127.0.0.1:23119</code> listener 上增加 <code>GET /integration/macWordCommand</code>，但只有启用“官方 Zotero Word 插件 provider”且 Zotero Desktop 未运行时才注册/接受该路由。query 的 <code>agent</code>、<code>command</code>、<code>document</code>、<code>templateVersion</code> 全部视为不可信：</p>
+<ul>
+<li>只接受已知 Word agent 与固定命令 allowlist；拒绝未知 template version、缺失字段、过长值和非本机 <code>Host</code>。</li>
+<li>HTTP 返回只确认“命令已受理”；异步 provider 再验证前台 Word 进程和活动文档，绝不把 query 中的路径当成可读写文件路径。</li>
+<li>未修改的官方宏不能携带 bearer token，因而此端点不能达到 Office Add-in 的 token 安全等级。默认关闭、loopback-only、在 Settings 明确显示风险、只接受固定动作；<code>removeCodes</code>、迁移或影响多字段的操作在 Agentero 中二次确认。</li>
+<li>停用 provider 即移除 integration route；<code>/connector/*</code> 浏览器导入路由可与它同 listener 共存，但任一模式都不得与 Zotero Desktop 共用 <code>23119</code>。</li>
+</ul>
+<p>M0 先验证 Word 的 HTTP 请求确实到达、<code>addEditCitation</code> 能打开 Agentero 空对话框，并能通过 macOS automation 在临时文档读取/插入一个无害 field。任何一步依赖修改 <code>Zotero.dotm</code> 或降低 Host 校验，立即停止 M1。</p>
+<h3 id="3-windows-ingressm2">3. Windows ingress（M2）<a class="headerlink" href="#3-windows-ingressm2" title="Permanent link">&para;</a></h3>
+<p>新增一个隐藏的 Win32 message window，优先注册 <code>ZoteroMessageWindow</code> 以兼容官方宏的稳定 Zotero 6 分支；接收并严格解析 <code>WM_COPYDATA</code> 的 UTF-8 命令行 payload。不要尝试伪造 Zotero 7 的 Mozilla window tree，除非 M2 fixture 证明旧窗口 class 已不被当前 <code>Zotero.dotm</code> 接受。收到 <code>WinWord</code> 命令后走同一 provider，再由 Windows OLE Automation driver 操作活动 Word。</p>
+<p>由于官方宏会寻找第一个匹配窗口，此模式必须在 Host 启动时探测 Zotero Desktop，并在其运行时拒绝启用。Windows 安装器还要处理 x64/ARM64 Word、Office bitness、OLE/COM 权限、UAC、崩溃后的 message window 回收及 Word modal dialog。该平台没有“在 Rust axum 里补一个 endpoint”的捷径。</p>
+<h3 id="4-catalog-csl">4. Catalog 到 CSL 的映射<a class="headerlink" href="#4-catalog-csl" title="Permanent link">&para;</a></h3>
+<p>现有 <code>features/import/zotero_io.rs</code> 已能把 Catalog 行转成 Zotero API JSON 并经 Translator 导出。Word 引用不能把每次击键交给远端 Translator，也不能依赖网络；应新增纯 Rust 的 <code>features/citation/</code> 映射层：</p>
+<ul>
+<li><code>PaperRecord -&gt; CslItem</code>：优先保留 title、author/editor、issued、container-title、volume、issue、page、DOI、URL、publisher、edition、type；类型映射与现有 Zotero import map 对齐。</li>
+<li>生成稳定候选 ID：<code>doi:&lt;normalized&gt;</code> → <code>arxiv:&lt;id&gt;</code> → <code>bib:&lt;bibtexKey&gt;</code> → 本地 UUID。ID 不能仅使用可变的 Vault 相对路径。</li>
+<li>由 provider 生成的 <code>CslItem</code> 必须是值副本；通过 Zotero field codec 立即嵌入当前引用。Catalog 的后续修订只在用户点击 Refresh 时才影响文档。</li>
+</ul>
+<p>CSL style/locale 作为应用内版本化资源交付，记录 <code>styleId</code> 与 bundle version；更新应用后既有文档仍按 <code>styleId</code> 可重排。缺失样式时不得替换 field text，先提示用户恢复对应版本或选择新的样式。</p>
+<h2 id="_5">文档兼容与迁移<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h3 id="zotero">Zotero 兼容字段<a class="headerlink" href="#zotero" title="Permanent link">&para;</a></h3>
+<p>provider 使用 Zotero 兼容字段和 document data。普通读者无需 Agentero 也能看到渲染文字；有兼容 provider 的安装才可编辑或刷新。导出 PDF、另存 <code>.docx</code>、复制粘贴和协作编辑是 M0/M1 的必测行为。</p>
+<h3 id="zotero_1">导入 Zotero 字段<a class="headerlink" href="#zotero_1" title="Permanent link">&para;</a></h3>
+<p>Zotero Word 文档会保留 citation field code，且 Zotero UI 允许已不连接其库的 orphaned item 继续存在。Agentero 的导入器可以利用其中的序列化 CSL citation data 做<strong>尽力</strong>迁移：</p>
+<ol>
+<li>只读扫描 <code>ADDIN ZOTERO_ITEM</code> / Zotero document data，报告可解析、不可解析和缺失 item snapshot 的数量。</li>
+<li>用 DOI → arXiv → title+author+year 匹配当前 Vault；不匹配时保留可得的嵌入元数据，绝不自动入库或猜测论文。</li>
+<li>在用户选择目标文件名并确认后，对副本写入经当前 provider 验证的兼容字段、重新生成 bibliography；原文件不触碰。</li>
+<li>校验副本的 citation 数、字段数和 bibliography 条目数；无法解析的 field 保留原始文本并列出报告，不静默删除。</li>
+</ol>
+<p>迁移不等于双向兼容。若用户需要继续让 Zotero 管理该稿件，应保留原文件并继续使用 Zotero；Agentero 只在用户显式迁移后成为该副本的 provider。</p>
+<h2 id="_6">实现难度与前置需求<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<h3 id="_7">平台评估<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<p>| 平台 | 官方通信方式 | 难度 | 必要实现 | 预估投入 |
+| --- | --- | --- | --- |
+| macOS Word | <code>:23119</code> HTTP command，pipe fallback，AppleScript/ObjC 操作 Word | 中高 | 新 route、provider transaction、macOS Word driver、引用选择 UI、citeproc、Zotero field codec、Automation 权限处理 | M0 约 2-3 人周；M1 约 8-12 人周。 |
+| Windows Word | <code>WM_COPYDATA</code> command + OLE Automation | 高 | 隐藏 Win32 window、严格 payload parser、Windows Word driver、x64/ARM64/Office 版本兼容、同一 provider core | M2 约 10-16 人周。 |
+| LibreOffice | 23116 TCP wire protocol | 中 | frame/transaction transport + 同一 provider core 的 LibreOffice driver | 约 6-10 人周；不阻塞 Word。 |
+| 自有 Office Add-in | Office.js + 自身字段 schema | 中高 | manifest、task pane、文档 adapter、配对 bridge、跨宿主兼容 | 约 10-16 人周；作为官方插件兼容失败时的替代。 |</p>
+<p>投入以一名熟悉 Rust/Tauri 与对应平台原生 Word automation 的工程师为单位，包含实现和平台手工 QA，不包含法律评审、CI 真机授权和后续 Word/Zotero 版本维护。核心共享层未完成前，不得并行开两个平台 driver。</p>
+<h3 id="_8">功能与发布前置条件<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>协议 fixtures</strong>：收集由官方插件生成的空文档、单引文、多引文、author-date、numeric、footnote、bibliography、refresh、unlink 样本；对 field code 与 document data 建字节级或语义级回归测试。</li>
+<li><strong>Word 自动化 spike</strong>：macOS 用用户授权的 Automation 从 Agentero 读取活动 Word 文档、插入 field、写 field code、遍历 fields、更新 bibliography，并验证保存/重开/Undo/Track Changes。没有此证明，不开始 citation UI。</li>
+<li><strong>citeproc 与样式</strong>：选择可再分发的 citeproc 实现和 CSL style/locale bundle，确认许可证、富文本、脚注、locale 与 disambiguation 行为；不能依赖在线 Translator。</li>
+<li><strong>协议安全</strong>：macOS unmodified macro 不带认证 token，需单独威胁建模；路由默认关闭、loopback-only、allowlist、活动 Word 文档复核、破坏性命令二次确认、可见 provider 状态与一键停用都是发布门槛。</li>
+<li><strong>Zotero 共存</strong>：启用前检测 Zotero Desktop/端口/Windows 目标窗口；强制单 provider，明确切换流程。不得修改 Zotero 安装、<code>Zotero.dotm</code> 或用户 Word Startup 文件。</li>
+<li><strong>许可证与商标</strong>：官方 Windows/macOS 集成仓库为 <a href="https://github.com/zotero/zotero-word-for-windows-integration/blob/main/COPYING">AGPLv3</a>，模板内宏标注 GPL；复用、改编、分发模板或将其实现移植进 Agentero 前必须完成法律评审。技术 spike 只允许最小观察与隔离验证，不把官方源码复制进仓库。Zotero 名称/图标不能作为 Agentero 功能品牌使用。</li>
+<li><strong>测试设备</strong>：至少一台受支持 macOS + Microsoft 365 Word；Windows 阶段需 x64 与 ARM64/不同 Office bitness 覆盖。Office 授权、Automation consent 和 Word 更新通道应纳入 release checklist。</li>
+</ol>
+<h3 id="go-no-go">Go / No-Go<a class="headerlink" href="#go-no-go" title="Permanent link">&para;</a></h3>
+<p>M0 的成功标准是：用户不修改官方插件，在 Zotero Desktop 退出时点击现有 Add/Edit Citation，Agentero 能安全接收命令、显示空选择界面，并在用户取消时不改变 Word 文档；再通过 macOS driver 向临时文档写入并读回一个兼容 field。只有这两项和许可证评审均通过，才进入 M1。</p>
+<p>以下任一情况为 <strong>No-Go</strong>：需分发或修改 <code>Zotero.dotm</code> 才能完成基本交互；无法在不放宽 loopback 安全边界的前提下确认命令来源/活动文档；Word Automation 无法稳定保存兼容 fields；或法律结论不允许期望的分发方式。No-Go 后转向自有 Office Add-in，不继续在不稳定的兼容层上投入。</p>
+<h2 id="_9">实施分期<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>阶段</th>
 <th>交付</th>
+<th>完成门槛</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M0：macOS Go/No-Go</td>
+<td><code>macWordCommand</code> ingress、命令 allowlist、空对话框、Word field read/write、许可评审</td>
+<td>未修改官方插件即可安全完成握手；所有 No-Go 条件均未触发。</td>
+</tr>
+<tr>
+<td>M1：macOS 官方插件 provider</td>
+<td>共享 engine、macOS driver、Catalog→CSL、三种样式、单/多引文、locator、Refresh、bibliography、Unlink</td>
+<td>用户在现有 Ribbon 完成“选择论文 → 插入 → 改顺序 → Refresh → 导出 PDF”闭环。</td>
+</tr>
+<tr>
+<td>M1.5：迁移与稳定性</td>
+<td>Zotero fields 扫描、显式副本迁移、未匹配报告、样式/locale 扩展</td>
+<td>原 <code>.docx</code> hash 不变；迁移副本可重新打开并刷新。</td>
+</tr>
+<tr>
+<td>M2：Windows 官方插件 provider</td>
+<td>Win32 receiver、Windows OLE driver、x64/ARM64 QA</td>
+<td>同一份 fixture 在 Windows Word 完成 M1 闭环；Zotero Desktop 共存检测可靠。</td>
+</tr>
+<tr>
+<td>M3：平台扩展</td>
+<td>LibreOffice adapter、remote Vault 只读 provider、更多 CSL styles</td>
+<td>每项独立发布，不阻塞 M1/M2。</td>
+</tr>
+<tr>
+<td>备选：自有 Add-in</td>
+<td>Office Add-in + 自身文档 schema</td>
+<td>仅在 M0 No-Go，或后续需要 Word Online/跨平台独立发行时启动。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_10">测试与验收<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h2>
+<h3 id="_11">自动化<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Rust 单测：<code>PaperRecord -&gt; CslItem</code> 类型、日期、作者、DOI/arXiv ID 和缺失字段映射；Zotero field codec、document data migration、命令 allowlist、Host guard、请求参数上限。</li>
+<li>Provider 集成测试：未启用、无 Vault、未知 command、无效 template version、端口占用、Zotero Desktop 已运行、Word automation 拒绝；业务 API 不写 Catalog/Vault。</li>
+<li>前端单测：citation dialog 的候选检索、多引文、locator/prefix/suffix、取消事务不产生写入；Zotero field parser 的正常/损坏输入。</li>
+<li>fixture <code>.docx</code> 回归：一篇/多篇引用、author-date、numeric、note style、bibliography、refresh、unlink、迁移、截断 payload、重复 citation ID。</li>
+</ul>
+<h3 id="office">手工 Office 矩阵<a class="headerlink" href="#office" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>场景</th>
 <th>验收</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>P0a 壳</strong></td>
-<td>侧栏广场 + 三子节点；<code>PlazaView</code> 首页 + 路由</td>
-<td>虚拟 path 不写盘；i18n；折叠位置正确</td>
+<td>macOS Word Desktop（M1）/ Windows Word Desktop（M2）</td>
+<td>插入、编辑、Refresh、Undo、脚注、bibliography、Unlink 均正常；异常显示 i18n Toast/原生错误而不破坏字段。</td>
 </tr>
 <tr>
-<td><strong>P0b Cool Papers</strong></td>
-<td>WebView 浏览 papers.cool + 导航 chrome + 外链</td>
-<td>可分区浏览站点；失败可恢复</td>
+<td>保存、重开、复制粘贴、Track Changes、协作者无 Agentero</td>
+<td>已有文本不丢失；可重新定位的字段不重复生成 bibliography。</td>
 </tr>
 <tr>
-<td><strong>P0c 推荐 v0</strong></td>
-<td>本地启发式分组列表 + openPaper</td>
-<td>有库时有分组；无库时空态</td>
+<td>Catalog 元数据变更</td>
+<td>只有显式 Refresh 改变排版；未匹配项保持 document snapshot 并明确标记。</td>
 </tr>
 <tr>
-<td><strong>P0d 播客</strong></td>
-<td>占位页</td>
-<td>可进入、文案清晰</td>
+<td>Agentero 停止、provider 停用、端口被占</td>
+<td>Word 不写半个字段；官方 Ribbon 显示其原有“无法通信”错误，Agentero 不留半完成事务。</td>
 </tr>
 <tr>
-<td><strong>P1</strong></td>
-<td>入库（解析 arXiv / 魔棒管线）、预览抽屉、批量加入 Library</td>
-<td>与魔棒语义一致</td>
+<td>Zotero Desktop 正在运行</td>
+<td>Agentero provider 拒绝启用；不抢 <code>23119</code>、不修改 Zotero 配置、不接管 Windows 消息窗口。</td>
 </tr>
 <tr>
-<td><strong>P2</strong></td>
-<td>播客实体、Agent 推荐、命令面板、@ 广场条目</td>
-<td>—</td>
+<td>Zotero 迁移</td>
+<td>原 <code>.docx</code> 不变；副本有完整可刷新的兼容字段，失败项在报告中可见。</td>
 </tr>
 </tbody>
 </table>
-<h2 id="7-p0">7. 明确不做（P0）<a class="headerlink" href="#7-p0" title="Permanent link">&para;</a></h2>
-<ul>
-<li>广场 → Vault <strong>入库</strong>（含批量）。  </li>
-<li>把 feed 写入 catalog。  </li>
-<li>播客播放器 / 订阅管理。  </li>
-<li>云端协同过滤或上传本地库。  </li>
-<li>在 WebView 内注入支付/登录 Agentero 账号。</li>
-</ul>
-<h2 id="8">8. 实现落点（编码时）<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<h2 id="_12">风险与待决项<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>应对</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CSL 排版、富文本和脚注细节复杂</td>
+<td>采用成熟 citeproc 实现；先固定三种样式；把 style/locale bundle 与 engine 版本写进兼容测试。</td>
+</tr>
+<tr>
+<td>未修改 macOS 宏无法携带 bearer token</td>
+<td>默认关闭、loopback、Host/command allowlist、活动 Word 文档复核、二次确认破坏性操作、短生命周期 provider；不提供任意 Vault 查询 endpoint。</td>
+</tr>
+<tr>
+<td>用户误以为可与 Zotero 双向同步/并行使用</td>
+<td>Settings、文档和切换流程强调“单 provider”；provider 启动前强制探测并拒绝 Zotero Desktop。</td>
+</tr>
+<tr>
+<td>官方插件兼容依赖 Windows/macOS 私有自动化与 Zotero 内部格式</td>
+<td>先完成 macOS M0；复用共享 engine，Windows/LibreOffice 独立排期；每次 Zotero/Office 大版本更新跑 fixtures。</td>
+</tr>
+<tr>
+<td>AGPL/GPL 源码与 Zotero 商标</td>
+<td>不复制、不分发官方模板/源码；在公开发布前取得书面法律评审结论。</td>
+</tr>
+<tr>
+<td>Zotero-compatible field payload 过大或格式变化</td>
+<td>M0 量测并用官方 fixtures 回归；超限时停止而不截断，不能改为私有分段格式破坏兼容。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_13">预期改动落点<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -3400,73 +3622,45 @@
 </thead>
 <tbody>
 <tr>
-<td>设计</td>
-<td><code>docs/development/plaza.md</code>（本文）</td>
+<td>本设计</td>
+<td><code>docs/development/zotero-word-integration.md</code></td>
 </tr>
 <tr>
-<td>UI 规范摘录</td>
-<td><code>docs/frontend/shell.md</code> § 广场</td>
+<td>macOS ingress</td>
+<td><code>src-tauri/src/features/connector/server.rs</code>（增加受限 integration route） + <code>src-tauri/src/features/word/</code></td>
 </tr>
 <tr>
-<td>虚拟 path</td>
-<td><code>src/lib/paper/api.ts</code> 或 <code>src/lib/plaza/</code></td>
+<td>Windows ingress</td>
+<td><code>src-tauri/src/features/word/windows/</code>（新增；Win32 message receiver + OLE driver）</td>
 </tr>
 <tr>
-<td>文件树</td>
-<td><code>src/components/sidebar/file-tree.tsx</code></td>
+<td>macOS Word driver</td>
+<td><code>src-tauri/src/features/word/macos/</code>（新增；Automation/ObjC bridge）</td>
 </tr>
 <tr>
-<td>中间栏</td>
-<td><code>src/components/plaza/*</code> + <code>doc-view</code></td>
+<td>CSL 领域映射</td>
+<td><code>src-tauri/src/features/citation/</code>（新增；不与 <code>features/refs/</code> 的论文引用解析混合）</td>
 </tr>
 <tr>
-<td>Cool Papers WebView</td>
-<td><code>src/components/plaza/cool-papers-view.tsx</code>（Tauri webview 封装）</td>
+<td>App 设置/状态</td>
+<td><code>src/lib/settings/*</code>、<code>src-tauri/src/features/settings/*</code></td>
 </tr>
 <tr>
-<td>推荐</td>
-<td><code>src/lib/plaza/recommend.ts</code> + <code>src/components/plaza/recommend-view.tsx</code></td>
+<td>Zotero field codec / fixtures</td>
+<td><code>src-tauri/src/features/word/zotero_codec.rs</code>、<code>src-tauri/tests/fixtures/word/</code>（新增）</td>
 </tr>
 <tr>
 <td>i18n</td>
-<td><code>sidebar</code> / 独立 <code>plaza</code> ns</td>
+<td><code>src/i18n/locales/en/*.json</code> 与对应 <code>zh-CN/*.json</code></td>
 </tr>
 <tr>
-<td>Roadmap / Todo</td>
-<td>增加「广场 P0」条目</td>
+<td>已实现文档</td>
+<td>完成后补 <code>docs/frontend/</code>、<code>docs/backend/</code>、<code>docs/usage/</code>，并将本文改为历史设计或删除</td>
 </tr>
 </tbody>
 </table>
-<h2 id="9">9. 风险与后续确认点<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>风险</th>
-<th>缓解</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>papers.cool 改版 / 禁止嵌入</td>
-<td>检测 <code>X-Frame-Options</code>；失败则全页降级为「系统浏览器打开」</td>
-</tr>
-<tr>
-<td>WebView 体积与内存</td>
-<td>仅在 plaza cool-papers panel 挂载；关 tab 销毁</td>
-</tr>
-<tr>
-<td>推荐过冷启动</td>
-<td>空态文案；阈值阈值（如 &lt; 3 篇不估标签组）</td>
-</tr>
-</tbody>
-</table>
-<p><strong>仍可再确认（非阻塞 P0a）</strong>：</p>
-<ul>
-<li>Cool Papers 默认落地 URL（首页 vs 某默认分区如 <code>cs.AI</code>）。  </li>
-<li>推荐 v0 是否显示「打开过的非 paper 笔记」——默认 <strong>否</strong>，仅 paper 单元。</li>
-</ul>
 <hr />
-<p><em>修订：2026-07-25 — 采纳 WebView、不做入库、P0 含推荐 v0、树位置在 Library/Trash 下。</em></p>
+<p><em>修订：2026-08-05 — 重评官方插件兼容：macOS <code>:23119</code> HTTP provider 优先，Windows <code>WM_COPYDATA</code> + OLE 后置；新增投入、许可证、安全和 Go/No-Go 门槛。</em></p>
 
 
 
