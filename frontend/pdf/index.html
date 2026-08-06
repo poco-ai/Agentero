@@ -14,7 +14,7 @@
         <link rel="prev" href="../markdown/">
       
       
-        <link rel="next" href="../agent/">
+        <link rel="next" href="../pdf-layout-analysis/">
       
       
         
@@ -1090,10 +1090,49 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        版面分析（实验）
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pdf-layout-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 版面分析（实验）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -2776,6 +2815,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        版面分析（实验）
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2822,6 +2872,7 @@
 <p>任意 Vault 路径 <code>.pdf</code> 可 <code>blob:</code> 预览；论文单元：本地优先 → 自动下载 → 远程 <code>pdf_url</code> 回退。HTML 用远程 <code>html_url</code> iframe（不注入主 DOM）。普通网页条目打开 HTML 并创建 <code>NOTES.md</code> 分屏；旧条目缺少 <code>html_url</code> 时从 <code>source_url</code> 兜底。</p>
 <p>PDFium engine 由窗口共享。默认优先 <strong>worker 引擎</strong>（PDFium WASM 跑在 Web Worker，缩放/滚动不阻塞主线程）；启动时经 <code>whenReady()</code> 就绪握手 + 8s 超时探针验证（<code>@embedpdf/engines</code> patch 同时把 worker 侧 <code>wasmError</code> / <code>onerror</code> 暴露为就绪失败，不再静默挂起），失败则自动回退主线程 direct engine 并记住结论（旧版库的 worker 变体在 Tauri WebView 下就绪消息丢失，表现为文档永远“正在加载”）。wasm URL 传给 worker 前先解析为绝对地址（blob worker 不能按页面基址解析相对路径）。Engine 宿主位于 React StrictMode 外，异步初始化即使在完成前被卸载也会主动销毁结果，避免 dev reload 遗留孤儿 WASM engine。工作区只挂载当前可见与最近使用的至多两个 PDF viewer；恢复的隐藏 PDF 标签按需 hydrate，退出保留集合的本地 PDF 字节会释放并在再次激活时重新读取。</p>
 <p>光栅化分辨率按 <code>min(devicePixelRatio, 1.5)</code> 封顶（<code>pdfRasterDpr</code>）：高 DPI 屏全 dpr 光栅会让每次缩放重渲染过重；封顶后 <code>RenderLayer</code> / <code>TilingLayer</code> 都按该 dpr 出图（<code>TilingLayer</code> 的 <code>dpr</code> 属性由 <code>@embedpdf/plugin-tiling</code> patch 提供）。Agent 区域裁剪走 <code>renderPageRect</code>，不受封顶影响。</p>
+<p><code>RenderLayer</code> 只是瓦片下的底图层，其 scale 另按 <code>PDF_BASE_LAYER_SCALE_CAP</code>（1.5）封顶：zoom 超过该值后整页光栅不再重渲染（单 worker 串行渲染下，长文档高倍缩放的整页光栅 + blob 传输是主要开销），清晰层由 <code>TilingLayer</code> 承担。瓦片 <code>tileSize: 1024</code> + <code>extraRings: 1</code>，减少长文档快速滚动时的渲染往返与边缘弹出。</p>
 <p>抗抽动（twitch）措施：瓦片 <code>extraRings: 1</code> 预渲染视口外圈，减少快速滚动时边缘瓦片延迟弹出；<code>TilingLayer</code> patch 在新瓦片集异步光栅到达前保留旧瓦片作拉伸占位（<code>scale/srcScale</code> 重映射，1.5s 超时兜底），消除缩放瞬间的空白闪烁；marks 4s 轮询结果先做 JSON 指纹比对，内容未变不提交 state，避免周期性整 viewer 重渲染。</p>
 <h2 id="_1">阅读能力<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <table>
@@ -2850,11 +2901,11 @@
 </tr>
 <tr>
 <td>明暗模式</td>
-<td>PDF 工具栏可单独切换亮色 / 暗色页面，偏好保存在本地，不改变应用全局主题。EmbedPDF 尚无页面 color-scheme API，仅在 PDF 暗色模式下对 <code>RenderLayer</code> / <code>TilingLayer</code> 做柔和反相（<code>invert(0.88)</code> + <code>hue-rotate(180)</code> + 轻亮度/对比）；选区 / 搜索 / 批注覆盖层与 Agent 裁剪（<code>renderPageRect</code>）不受影响。扫描版/插图会被一并反相</td>
+<td>底部换页栏旁可单独切换亮色 / 暗色页面，偏好保存在本地，不改变应用全局主题。EmbedPDF 尚无页面 color-scheme API，仅在 PDF 暗色模式下对 <code>RenderLayer</code> / <code>TilingLayer</code> 做柔和反相（<code>invert(0.88)</code> + <code>hue-rotate(180)</code> + 轻亮度/对比）；选区 / 搜索 / 批注覆盖层与 Agent 裁剪（<code>renderPageRect</code>）不受影响。扫描版/插图会被一并反相</td>
 </tr>
 <tr>
 <td>沉浸</td>
-<td>全屏 + 限宽居中</td>
+<td>底部换页栏旁切换；全屏 + 限宽居中</td>
 </tr>
 <tr>
 <td>位置</td>
@@ -2952,6 +3003,10 @@
 <td>PDF 区域裁剪与 Agent 图片编码</td>
 </tr>
 <tr>
+<td><code>src/components/viewer/figures-panel.tsx</code></td>
+<td>版面分析入口（右栏 header：分析 / 显示 bbox）</td>
+</tr>
+<tr>
 <td><code>src/components/viewer/pdf-ask/visual-annotation-editor.tsx</code></td>
 <td>框选后批注编辑器</td>
 </tr>
@@ -2974,6 +3029,10 @@
 <tr>
 <td><code>src/lib/pdf/ask/</code></td>
 <td>划词提问</td>
+</tr>
+<tr>
+<td><code>src/lib/pdf/layout/</code></td>
+<td>EmbedPDF layout-analysis：归一化 bbox、<code>source/layout.json</code> raw sidecar、内存 UI store</td>
 </tr>
 <tr>
 <td><code>src/lib/pdf/region.ts</code></td>
@@ -3001,8 +3060,14 @@
 </tr>
 </tbody>
 </table>
+<h2 id="_4">版面分析（实验）<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>右栏 <strong>解析</strong> header（分析 / 叠加层）→ 页内检测 → 列表（image/chart、table、algorithm、<strong>有编号 formula 置底</strong>）。</p>
+<p><strong>完整流水线、14 条核心规则、阈值与代码地图</strong>见：</p>
+<p>→ <strong><a href="../pdf-layout-analysis/">pdf-layout-analysis.md</a></strong></p>
+<p>要点：先文字角色再联图；图题须整框在 figure bbox 内；图无 title 丢弃；默认置信度 30%；Paper PDF 的初步解析结果缓存到 <code>{paper}/source/layout.json</code>，后续 merge/filter 可重复计算。</p>
+<p><strong>Hover 视觉提问：</strong> 指针在插图 / 表 / 算法 / 有编号公式上停留约 600ms 后，自动裁剪该区域并打开 <code>VisualAnnotationEditor</code>（与手动框选相同；不自动发送 Agent）。中途移开取消；框选模式或已有草稿卡时不触发。</p>
 <p>Host 下载/解析：<a href="../../backend/paper-import/">../backend/paper-import.md</a>。</p>
-<p>引用元数据解析与 References 侧栏：<a href="../../backend/citation-parsing/">../backend/citation-parsing.md</a>；插图 sidecar 与自动视觉区域检测尚未实现。</p>
+<p>引用元数据解析与 References 侧栏：<a href="../../backend/citation-parsing/">../backend/citation-parsing.md</a>。</p>
 
 
 

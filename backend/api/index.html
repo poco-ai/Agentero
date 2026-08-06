@@ -1010,6 +1010,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../frontend/pdf-layout-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 版面分析（实验）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../frontend/agent/" class="md-nav__link">
         
   
@@ -2852,8 +2880,41 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="3.10 应用设置（XDG）">
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3101-pp-doclayoutv3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.10.1 版面模型（PP-DocLayoutV3）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.10.1 版面模型（PP-DocLayoutV3）">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layout_model_status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        layout_model_status（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layout_model_ensure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        layout_model_ensure（已实现）
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#settings_get" class="md-nav__link">
@@ -2871,6 +2932,28 @@
     <span class="md-ellipsis">
       
         settings_set（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#telemetry_send_diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        telemetry_send_diagnostics（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#telemetry_report_frontend_errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        telemetry_report_frontend_errors（已实现）
       
     </span>
   </a>
@@ -4893,8 +4976,41 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="3.10 应用设置（XDG）">
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3101-pp-doclayoutv3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.10.1 版面模型（PP-DocLayoutV3）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.10.1 版面模型（PP-DocLayoutV3）">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layout_model_status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        layout_model_status（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layout_model_ensure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        layout_model_ensure（已实现）
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#settings_get" class="md-nav__link">
@@ -4912,6 +5028,28 @@
     <span class="md-ellipsis">
       
         settings_set（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#telemetry_send_diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        telemetry_send_diagnostics（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#telemetry_report_frontend_errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        telemetry_report_frontend_errors（已实现）
       
     </span>
   </a>
@@ -5910,8 +6048,11 @@ Host (Tauri + Rust)
 <span class="w">    </span><span class="n">text</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span>
 <span class="w">    </span><span class="n">sourceLang</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">     </span><span class="o">//</span><span class="w"> </span><span class="n">default</span><span class="w"> </span><span class="s2">&quot;auto&quot;</span>
 <span class="w">    </span><span class="n">targetLang</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">      </span><span class="o">//</span><span class="w"> </span><span class="n">e</span><span class="o">.</span><span class="n">g</span><span class="o">.</span><span class="w"> </span><span class="s2">&quot;zh-CN&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;en&quot;</span>
-<span class="w">    </span><span class="n">provider</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">tencenttransmart</span><span class="w"> </span><span class="p">(</span><span class="n">default</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">huoshanweb</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">deeplx</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">bing</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">youdao</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">googleapi</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">google</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">libre</span>
-<span class="w">    </span><span class="n">freeBaseUrl</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="n">libre</span><span class="w"> </span><span class="err">必填</span>
+<span class="w">    </span><span class="n">provider</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">tencenttransmart</span><span class="w"> </span><span class="p">(</span><span class="n">default</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">huoshanweb</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">deeplx</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">googleapi</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">google</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">deepl</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">azure</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">googleCloud</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">openaiCompatible</span>
+<span class="w">    </span><span class="n">apiKey</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="err">商用</span><span class="w"> </span><span class="n">BYOK</span><span class="err">；可省略或传同长度</span><span class="w"> </span><span class="s2">&quot;*&quot;</span><span class="w"> </span><span class="err">掩码，</span><span class="n">Host</span><span class="w"> </span><span class="err">从</span><span class="w"> </span><span class="n">settings</span><span class="w"> </span><span class="err">注入真实密钥</span>
+<span class="w">    </span><span class="n">baseUrl</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="err">商用</span><span class="w"> </span><span class="n">provider</span><span class="w"> </span><span class="n">endpoint</span><span class="w"> </span><span class="n">override</span><span class="err">（可选）</span>
+<span class="w">    </span><span class="n">region</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">azure</span><span class="w"> </span><span class="err">必填</span>
+<span class="w">    </span><span class="n">model</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="n">openaiCompatible</span><span class="w"> </span><span class="err">必填</span>
 <span class="w">    </span><span class="n">timeoutMs</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">number</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="n">optional</span><span class="p">;</span><span class="w"> </span><span class="n">clamped</span><span class="w"> </span><span class="mi">1</span><span class="n">s</span><span class="err">–</span><span class="mi">30</span><span class="n">s</span><span class="w"> </span><span class="n">server</span><span class="o">-</span><span class="n">side</span><span class="w"> </span><span class="p">(</span><span class="n">default</span><span class="w"> </span><span class="mi">30</span><span class="n">s</span><span class="p">);</span><span class="w"> </span><span class="n">settings</span><span class="w"> </span><span class="n">probe</span><span class="w"> </span><span class="n">uses</span><span class="w"> </span><span class="mi">5000</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="w">  </span><span class="err">```</span>
@@ -7070,9 +7211,34 @@ Host (Tauri + Rust)
 <td>Agent 注册表</td>
 <td><code>$XDG_CONFIG_HOME/agentero/agents.json</code></td>
 </tr>
+<tr>
+<td>版面 ONNX</td>
+<td><code>$XDG_CACHE_HOME/agentero/models/pp-doclayoutv3.onnx</code>（见下节）</td>
+</tr>
 </tbody>
 </table>
 <p>Windows：未设 <code>XDG_CONFIG_HOME</code> 时回退 <code>%APPDATA%/agentero/</code>。旧版 macOS 路径 <code>~/Library/Application Support/agentero/</code> 在首次启动时 <strong>best-effort 复制</strong> 到 XDG 路径。</p>
+<h3 id="3101-pp-doclayoutv3">3.10.1 版面模型（PP-DocLayoutV3）<a class="headerlink" href="#3101-pp-doclayoutv3" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>路径</strong>：<code>$XDG_CACHE_HOME/agentero/models/pp-doclayoutv3.onnx</code></li>
+<li><strong>启动</strong>：<code>setup</code> 在代理配置后 <code>spawn_background_download</code>（固定 task id <code>layout-model</code>）</li>
+<li><strong>下载源</strong>：ModelScope（<code>greatv/oar-ocr</code>）优先，失败则 HuggingFace EmbedPDF <code>model_fp16.onnx</code></li>
+<li><strong>代理</strong>：走 Host 全局 <code>network::client_builder</code>（与设置 Network proxy 一致）</li>
+<li><strong>协议</strong>：<code>agentero-model</code> URI scheme 把本地文件喂给 <code>onnxruntime-web</code></li>
+<li><strong>后台任务</strong>：</li>
+<li><code>emit("layout-model:task", { taskId, status, progress, detail, error, source })</code></li>
+<li><code>emit("background-task:progress", { taskId: "layout-model", phase: "layout-model", … })</code></li>
+<li>取消：<code>background_task_cancel</code> + task id <code>layout-model</code></li>
+</ul>
+<h4 id="layout_model_status"><code>layout_model_status</code>（已实现）<a class="headerlink" href="#layout_model_status" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>返回</strong> <code>ApiResult&lt;LayoutModelStatus&gt;</code>：<code>{ ready, path, sizeBytes, source, fileName }</code></li>
+</ul>
+<h4 id="layout_model_ensure"><code>layout_model_ensure</code>（已实现）<a class="headerlink" href="#layout_model_ensure" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>参数</strong>：<code>{ progressTaskId?: string }</code>（来自 <code>enqueueBackgroundTask</code> 的 id）</li>
+<li><strong>返回</strong>：<code>LayoutModelStatus</code>；未就绪则下载（进程锁；支持取消与字节进度）</li>
+</ul>
 <h4 id="settings_get"><code>settings_get</code>（已实现）<a class="headerlink" href="#settings_get" title="Permanent link">&para;</a></h4>
 <ul>
 <li><strong>返回</strong>（<code>ApiResult</code>）：<code>{ settings: AppSettings, path: string, existed: boolean }</code></li>
@@ -7090,6 +7256,16 @@ Host (Tauri + Rust)
 <blockquote>
 <p>设置文件绝对路径已包含在 <code>settings_get</code> 返回的 <code>path</code> 字段中（About / 诊断用），无独立 command。</p>
 </blockquote>
+<h4 id="telemetry_send_diagnostics"><code>telemetry_send_diagnostics</code>（已实现）<a class="headerlink" href="#telemetry_send_diagnostics" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>返回</strong>（<code>ApiResult</code>）：<code>{ enabled: boolean, sent: boolean }</code></li>
+<li>手动上报诊断信息（设备/系统/版本/已装 Agent + 最近 ERROR 日志）。<code>enabled=false</code> 表示未编译端点或用户已关闭 <code>telemetryEnabled</code>，此时不发送。详见 <a href="../telemetry/">telemetry.md</a>。</li>
+</ul>
+<h4 id="telemetry_report_frontend_errors"><code>telemetry_report_frontend_errors</code>（已实现）<a class="headerlink" href="#telemetry_report_frontend_errors" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>参数</strong>：<code>{ args: { errors: [{ message, stack?, context? }] } }</code>（最多 20 条）</li>
+<li><strong>返回</strong>：<code>()</code>；前端 <code>src/lib/core/telemetry.ts</code> 防抖批量调用，Host 按开关与端点决定是否上传。</li>
+</ul>
 <p>UI 入口见 <code>settings_window_open</code>：Settings 现为独立原生单例窗口，<code>?window=settings</code> 路由由 <code>src/main.tsx</code> 分支渲染。</p>
 <p>实现：<code>src-tauri/src/features/settings/</code>（<code>mod.rs</code> + <code>commands.rs</code>）、<code>core/paths.rs</code>、<code>src-tauri/src/features/window/commands.rs</code>。</p>
 <h3 id="311-ui-i18n">3.11 界面与本地化（UI / i18n）<a class="headerlink" href="#311-ui-i18n" title="Permanent link">&para;</a></h3>

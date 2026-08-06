@@ -1015,6 +1015,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../pdf-layout-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 版面分析（实验）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../agent/" class="md-nav__link">
         
   
@@ -2775,9 +2803,19 @@
 
 
 <h1 id="_1">翻译<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>应用级可插拔翻译：免费 MT + BYOA Agent（无付费 API Key 表单）。</p>
+<p>应用级可插拔翻译：免费 MT + 商用 BYOK + BYOA Agent。</p>
 <h2 id="_2">设置<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>Settings → <strong>翻译</strong>：服务类型、目标语言、Agent 座（跟随默认或指定）。</p>
+<p>Settings → <strong>翻译</strong>：</p>
+<ul>
+<li><strong>默认服务</strong> 下拉：免费 MT 与 Agent 始终可选；商用仅列出已配置者。打开下拉时对免费 MT 与已配置商用并行 probe。</li>
+<li>目标语言、划词自动翻译。</li>
+<li><strong>商用 API</strong> 卡片仅填写 key / endpoint / region / model；点「确定」后：</li>
+<li>将 API key 写入 Host <code>settings.json</code>（Unix 权限 <code>0600</code>）；WebView 只保留同长度 <code>*</code> 掩码，不再回显明文。</li>
+<li>Host <code>settings_get</code> / <code>settings:changed</code> 对 key 按字符 redact 为 <code>*</code>；<code>settings_set</code> 收到纯 <code>*</code> 串时保留原密钥。</li>
+<li><code>translate_text</code> 在 key 缺省或为 <code>*</code> 掩码时从 Host 配置解析真实密钥。</li>
+<li>随后做一次连通性 probe。卡片不承担「设为默认」选择。</li>
+<li>默认服务为 Agent 时展示 Agent / 模型座。</li>
+</ul>
 <h2 id="_3">消费方<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
 <li>PDF 划词菜单「翻译」（首要入口）。</li>
@@ -2796,7 +2834,11 @@
 <tbody>
 <tr>
 <td>免费 MT</td>
-<td>Host <code>translate_text</code>（内置 Google gtx 或 LibreTranslate URL）</td>
+<td>Host <code>translate_text</code>（腾讯交互翻译 / 火山 Web / DeepLX / Google gtx）</td>
+</tr>
+<tr>
+<td>商用 BYOK</td>
+<td>Host <code>translate_text</code>（DeepL / Azure / Google Cloud / OpenAI-compatible）</td>
 </tr>
 <tr>
 <td>Agent</td>

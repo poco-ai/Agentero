@@ -1010,6 +1010,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../frontend/pdf-layout-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 版面分析（实验）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../frontend/agent/" class="md-nav__link">
         
   
@@ -2674,7 +2702,7 @@
 <tbody>
 <tr>
 <td><code>translate_text</code></td>
-<td>免费 MT 路径（非文献 Translator）</td>
+<td>免费 MT + 商用 BYOK 路径（非文献 Translator）</td>
 </tr>
 </tbody>
 </table>
@@ -2689,6 +2717,14 @@
 <tr>
 <td>通用 <code>timeout_ms</code></td>
 <td>可选；钳制 1s–30s；默认 30s</td>
+</tr>
+<tr>
+<td>商用 BYOK</td>
+<td>DeepL / Azure / Google Cloud / OpenAI-compatible；<code>apiKey</code> 可由调用方传入，或由 Host 从 <code>settings.translate.providerConfigs</code> 解析（前端仅持有同长度 <code>*</code> 掩码）</td>
+</tr>
+<tr>
+<td>密钥存储</td>
+<td>明文写在用户本机 <code>settings.json</code>（Unix <code>0600</code>）；<code>settings_get</code> / 广播按字符 redact 为 <code>*</code>；<code>settings_set</code> 对纯 <code>*</code> 串 merge 保留原值</td>
 </tr>
 <tr>
 <td>导入摘要 <code>free_mt_to_zh</code></td>

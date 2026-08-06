@@ -1010,6 +1010,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../frontend/pdf-layout-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 版面分析（实验）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../frontend/agent/" class="md-nav__link">
         
   
@@ -2930,7 +2958,7 @@
   features/      # 与前端 lib 域对齐
     vault/ catalog/ import/ wiki/ doctor/ agent/
     connector/ remote/ search/ settings/
-    translate/ trash/ watcher/ terminal/ window/
+    translate/ trash/ watcher/ terminal/ window/ telemetry/
   lib.rs
   main.rs
 </code></pre></div>
@@ -3038,6 +3066,11 @@
 <td>应用设置</td>
 <td>UI / Agent 注册表 / 偏好</td>
 <td>XDG <code>~/.config/agentero/</code></td>
+</tr>
+<tr>
+<td>版面 ONNX</td>
+<td>PP-DocLayoutV3（ModelScope → HF）</td>
+<td>XDG cache <code>~/.cache/agentero/models/</code></td>
 </tr>
 <tr>
 <td>可重建索引</td>
@@ -3148,6 +3181,10 @@
 <tr>
 <td>日志</td>
 <td><a href="logging/">logging.md</a></td>
+</tr>
+<tr>
+<td>诊断上报</td>
+<td><a href="telemetry/">telemetry.md</a></td>
 </tr>
 <tr>
 <td>CLI</td>
