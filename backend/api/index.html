@@ -2767,6 +2767,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#doctor_plan_wikilinks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_plan_wikilinks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#doctor_apply_wikilinks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_apply_wikilinks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#doctor_set_dirty_paths" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4779,6 +4801,28 @@
     <span class="md-ellipsis">
       
         doctor_apply_aliases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#doctor_plan_wikilinks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_plan_wikilinks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#doctor_apply_wikilinks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_apply_wikilinks
       
     </span>
   </a>
@@ -6943,8 +6987,21 @@ Host (Tauri + Rust)
 <li>仅接受 Catalog paper 对应的 <code>papers/**/NOTES.md</code>。</li>
 <li>批量预检脏路径、哈希、alias 冲突与 YAML 安全范围；全部通过后<strong>原地写入</strong> frontmatter（不改 path），失败按规划内容回滚。不使用 tmp+rename，以免被 watcher 误报为外部改名。</li>
 </ul>
+<h4 id="doctor_plan_wikilinks"><code>doctor_plan_wikilinks</code><a class="headerlink" href="#doctor_plan_wikilinks" title="Permanent link">&para;</a></h4>
+<ul>
+<li>参数：<code>{ vaultPath }</code>。</li>
+<li>返回：<code>{ suggestions, residuals }</code>。  </li>
+<li><code>suggestions</code>：可勾选修复项（<code>deterministic</code> 默认勾选，<code>manual</code> 默认可手改）；含 <code>rangeStart/End</code>、<code>expected</code>、<code>expectedHash</code>、<code>suggestedReplacement</code>、<code>linePrefix</code> / <code>lineSuffix</code>。  </li>
+<li><code>residuals</code>：与 manual 对应的结构化详情（供设置页生成 Agent 提示词），不单独渲染列表。</li>
+</ul>
+<h4 id="doctor_apply_wikilinks"><code>doctor_apply_wikilinks</code><a class="headerlink" href="#doctor_apply_wikilinks" title="Permanent link">&para;</a></h4>
+<ul>
+<li>参数：<code>{ vaultPath, changes, dirtyPaths? }</code>；每条 change 含 <code>source</code>、<code>rangeStart/End</code>、<code>expected</code>、<code>replacement</code>、<code>expectedHash</code>。</li>
+<li>只改链接 target/fragment 的字节范围；脏路径 / 哈希 / 重叠 range 预检；原地写入，失败回滚。</li>
+</ul>
+<p>设置页对 Agent 采用 <strong>提示词 handoff</strong>（复制 / 打开 Agent 预填 composer），不在 Doctor 内批量调用模型。</p>
 <h4 id="doctor_set_dirty_paths"><code>doctor_set_dirty_paths</code><a class="headerlink" href="#doctor_set_dirty_paths" title="Permanent link">&para;</a></h4>
-<p>主窗口向 Host 镜像当前 Vault 的未保存 Markdown 相对路径，供独立 Settings Webview 发起 alias 修复时做全批次写前拒绝。它只维护进程内保护状态，不落盘。</p>
+<p>主窗口向 Host 镜像当前 Vault 的未保存 Markdown 相对路径，供独立 Settings Webview 发起修复时做全批次写前拒绝。它只维护进程内保护状态，不落盘。</p>
 <p>详见 <a href="../doctor/">doctor.md</a>。</p>
 <h3 id="39">3.9 配置<a class="headerlink" href="#39" title="Permanent link">&para;</a></h3>
 <h4 id="configget"><code>config:get</code><a class="headerlink" href="#configget" title="Permanent link">&para;</a></h4>

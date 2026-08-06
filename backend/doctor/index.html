@@ -2650,10 +2650,38 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="安全修复">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        论文 aliases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        双链语义
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         入口
@@ -2684,7 +2712,7 @@
 
 
 <h1 id="vault-doctor">Vault Doctor<a class="headerlink" href="#vault-doctor" title="Permanent link">&para;</a></h1>
-<p>Doctor 聚合本地 Vault 的只读完整性检查，并为 Catalog 论文笔记提供一类显式确认的安全修复。</p>
+<p>Doctor 聚合本地 Vault 的只读完整性检查，并为论文别名与双链提供<strong>显式确认</strong>的安全修复。</p>
 <h2 id="_1">检查范围<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p><code>DoctorReport</code> 包含四组结果：</p>
 <ol>
@@ -2693,7 +2721,7 @@
 <li>与桌面导航共用 <code>WikiIndex::check_links</code> 的双链语义结果；</li>
 <li>Catalog 中每篇 <code>papers/**/NOTES.md</code> 的 frontmatter aliases。</li>
 </ol>
-<p>其它 Markdown 不参与论文 aliases 迁移。一次检查不会创建目录、迁移 Catalog 或修改 Markdown；Catalog 以只读 SQLite connection 打开。</p>
+<p>一次检查不会创建目录、迁移 Catalog 或修改 Markdown；Catalog 以只读 SQLite connection 打开。</p>
 <p>一篇论文笔记至少要有两个按 Wiki resolver 规则归一化后仍不同的非空 alias。Doctor 保留现有自定义 aliases，并提出可编辑的标题 alias 与确定性短 alias：</p>
 <ul>
 <li>优先使用冒号或破折号前的有效短标题；</li>
@@ -2703,6 +2731,7 @@
 </ul>
 <p>重复的正式标题只告警，不修改 Catalog；编辑标题 alias 也不会回写 Catalog 或 <code>metadata.json</code>。</p>
 <h2 id="_2">安全修复<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h3 id="aliases">论文 aliases<a class="headerlink" href="#aliases" title="Permanent link">&para;</a></h3>
 <p><code>doctor_apply_aliases</code> 只接受当前 Catalog 行对应的 <code>NOTES.md</code>。批量写入前会：</p>
 <ul>
 <li>拒绝主窗口报告的未保存编辑路径；</li>
@@ -2711,16 +2740,26 @@
 <li>先规划全部文件，再<strong>原地写入</strong>（不改 path / 文件名，只改 frontmatter）；</li>
 <li>任一写入失败时按规划内容回滚本批已写文件。</li>
 </ul>
-<p>不使用 tmp+rename 式原子替换：那样会被 Vault 文件监听器当成「不完整改名」，误报外部改名未修复链接。双链以 path 为主，别名修复本来就不需要改链接。</p>
-<p>无 frontmatter 时只前插一个 YAML 块；简单 frontmatter 缺 aliases 时在关闭 fence 前插入；简单 inline/block aliases 只替换该属性的字节范围。其它键、注释、顺序与正文不重新序列化。</p>
-<h2 id="_3">入口<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>不使用 tmp+rename 式原子替换：那样会被 Vault 文件监听器当成「不完整改名」，误报外部改名未修复链接。</p>
+<h3 id="_3">双链语义<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>探测</strong> <code>doctor_plan_wikilinks</code>  </li>
+<li>对 unresolved 边做唯一高置信匹配（path / stem / alias 近邻、heading/block 近邻）→ <code>layer=deterministic</code>（默认勾选）  </li>
+<li>无法唯一匹配时仍输出可编辑候选项 → <code>layer=manual</code>（默认不勾选，绿色区可手改）  </li>
+<li>每条 suggestion 含 <code>rangeStart/End</code>、<code>expected</code>、<code>expectedHash</code>、<code>linePrefix</code> / <code>lineSuffix</code>（整行上下文）  </li>
+<li><strong>UI 列表</strong>：git 风格整行展示，核心变更居中高亮，按容器宽度窗口化前后文  </li>
+<li><strong>Agent 协作（不自动跑）</strong>：探测后展示可复制提示词（随 UI 语言 en/zh）；「在 Agent 中打开」关闭设置窗、打开主窗 Agent 并预填 composer；Agent 应先给计划、等用户确认再改文件  </li>
+<li><strong>修复</strong> <code>doctor_apply_wikilinks</code>：用户勾选后原地写入选中 range；脏路径 / 哈希 / 重叠 range 预检，失败回滚  </li>
+</ol>
+<p>设置页流程：探测 → 建议列表（全选 / 修复）→ 下方 Agent 提示词（复制或打开 Agent）。</p>
+<h2 id="_4">入口<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>桌面：设置 → 知识库诊断；远程 Vault 当前显示不可用。</li>
 <li>CLI：<code>agentero doctor</code>、<code>agentero doctor fix aliases</code>、<code>agentero -y doctor fix aliases</code>。</li>
-<li>Host：<code>doctor_check</code>、<code>doctor_apply_aliases</code>、<code>doctor_set_dirty_paths</code>。</li>
+<li>Host：<code>doctor_check</code>、<code>doctor_apply_aliases</code>、<code>doctor_set_dirty_paths</code>、<code>doctor_plan_wikilinks</code>、<code>doctor_apply_wikilinks</code>。</li>
 </ul>
 <p><img alt="Vault Doctor 设置页" src="../../assets/doctor-settings.png" /></p>
-<p>代码：<code>src-tauri/src/features/doctor/</code>、<code>src-tauri/src/features/wiki/frontmatter.rs</code>。</p>
+<p>代码：<code>src-tauri/src/features/doctor/</code>（含 <code>wikilink_repair.rs</code>）、<code>src/lib/doctor/</code>、<code>src/components/settings/panes/doctor-pane.tsx</code>。</p>
 
 
 
