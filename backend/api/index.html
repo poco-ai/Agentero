@@ -5336,7 +5336,7 @@ Host (Tauri + Rust)
 <p><strong>实现状态（V0.1）</strong>  </p>
 <ul>
 <li>已实现：<code>vault_create</code>、<code>vault_ensure</code>（snake_case invoke 名）、<code>vault_allow_fs_scope</code>、<code>vault_tree_build</code> / <code>vault_tree_children</code>、<code>path_open_in_terminal</code>、<code>path_trash</code>（+ <code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code>）、<code>window_new</code>、<code>set_locale</code>。  </li>
-<li>打开 Vault / 最近列表：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成；本地树加载走 Host <code>vault_tree_build</code>（一次 IPC）；打开或恢复时会调用 <code>vault_ensure</code> 补种 bundled skills，并按 hash 安全升级未定制的第一方 Skill。Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。</li>
+<li>打开 Vault / 最近列表：当前主要由前端 <code>plugin-fs</code> + <code>localStorage</code>/<code>sessionStorage</code> 完成；本地树加载走 Host <code>vault_tree_build</code>（一次 IPC）；打开或恢复时会调用 <code>vault_ensure</code> 补种 bundled skills，并按 frontmatter <code>version</code> 安全升级未定制的第一方 Skill。Host 侧 <code>vault:open</code> / <code>vault:recent</code> 仍为规划契约。</li>
 <li>实际 command 注册见 <code>src-tauri/src/lib.rs</code>。</li>
 </ul>
 </blockquote>
@@ -5358,7 +5358,7 @@ Host (Tauri + Rust)
 <span class="w">  </span><span class="nx">data</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
 <span class="w">    </span><span class="nx">created</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span><span class="w"> </span><span class="c1">// 创建的目录/文件相对路径列表</span>
-<span class="w">    </span><span class="nx">updated</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span><span class="w"> </span><span class="c1">// hash 命中已知旧版后安全升级的第一方 Skill</span>
+<span class="w">    </span><span class="nx">updated</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span><span class="w"> </span><span class="c1">// frontmatter version 更低后安全升级的第一方 Skill</span>
 <span class="w">    </span><span class="nx">openPath</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">  </span><span class="c1">// 建议首开，如 AGENTS.md</span>
 <span class="w">  </span><span class="p">};</span>
 <span class="p">}</span>
@@ -5371,7 +5371,7 @@ Host (Tauri + Rust)
 <li>写入默认 <code>AGENTS.md</code>（若不存在）。</li>
 <li>写入 <strong><code>.agents/README.md</code></strong>（若不存在；内容来自仓库 <code>templates/vault/.agents/</code>）。</li>
 <li>种子 <strong>bundled skills</strong>：<code>paper-reader</code>、<code>agentero-cli</code>、<code>vault-normalizer</code>、<code>idea-evaluator</code>、<code>deep-research</code>（后两者含 <code>references/</code>，来自 <a href="https://github.com/HKUSTDial/Supervisor-Skills">Supervisor-Skills</a>，<strong>CC BY-NC-SA 4.0</strong>；另写 <code>skills/README.md</code> 与 <code>LICENSE-Supervisor-Skills.txt</code>）。</li>
-<li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>；已有第一方 <code>SKILL.md</code> 仅在 hash 命中已知旧版 bundled 内容时升级，用户修改与其它 <code>.agents/**</code> 文件保持原样。</li>
+<li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>；已有第一方 <code>SKILL.md</code> 按 frontmatter 整数 <code>version</code> 升级（见 <code>vault_ensure</code>）；用户去掉/抬高 <code>version</code> 的修改与其它 <code>.agents/**</code> 文件保持原样。</li>
 <li>最近列表由前端在成功打开后写入 <code>localStorage</code>（<code>agentero-recent-vaults</code>）。</li>
 </ul>
 <h4 id="vault_ensure"><code>vault_ensure</code>（已实现）<a class="headerlink" href="#vault_ensure" title="Permanent link">&para;</a></h4>
@@ -5392,8 +5392,8 @@ Host (Tauri + Rust)
 <p><strong>策略</strong></p>
 </li>
 <li><strong>补缺失</strong>：目录 / <code>AGENTS.md</code> / 模板里有而盘上没有的 skill 文件。</li>
-<li><strong>安全升级</strong>：第一方 <code>SKILL.md</code> 的 SHA-256 与已知旧版 bundled 内容完全一致时写入新版。</li>
-<li><strong>保留定制</strong>：用户改过的 <code>SKILL.md</code>、第三方 Skill 和 references 保持原样。</li>
+<li><strong>安全升级</strong>（第一方 <code>SKILL.md</code>）：盘上 frontmatter 整数 <code>version</code> <strong>低于</strong> 模板 → 写入新版（后续升级只需 bump <code>version</code>）。同版本 / 更高版本 / 无 <code>version</code> → <strong>不</strong>覆盖。</li>
+<li><strong>保留定制</strong>：去掉或抬高 <code>version</code> 后的用户 <code>SKILL.md</code>、第三方 Skill 和 references 保持原样。</li>
 <li>应用升级新增的 skill（如后续模板里加的 id）会在下次打开 Vault 时自动出现。</li>
 <li>前端：<code>created</code> 与 <code>updated</code> 分别触发新增/升级 success toast；均为空时不打扰。</li>
 </ul>
@@ -5492,7 +5492,7 @@ Host (Tauri + Rust)
 </tr>
 <tr>
 <td><code>remote_vault_ensure</code></td>
-<td><code>{ sessionId }</code> → 通过 SFTP 补种 bundled skills，并按相同 hash 规则安全升级未定制的第一方 Skill</td>
+<td><code>{ sessionId }</code> → 通过 SFTP 补种 bundled skills，并按相同 frontmatter <code>version</code> 规则安全升级第一方 Skill</td>
 </tr>
 </tbody>
 </table>

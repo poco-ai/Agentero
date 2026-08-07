@@ -2932,7 +2932,7 @@
 <ul>
 <li>魔棒输入的类型识别完全在 Host 侧：<code>src-tauri/src/features/import/parse.rs</code> 的 <code>IdentifierKind::Skill</code>、<code>SkillSource</code> 和 <code>extract_primary_identifier()</code>。Skill 识别发生在普通 URL 分支之前，GitHub 链接不会再被送入 Translator <code>/web</code>。</li>
 <li>前端不做识别，只切分多条输入（<code>src/components/sidebar/vault-sidebar-header.tsx</code> <code>parseLookupTexts()</code>），经 <code>lookup_import_batch</code>（<code>src-tauri/src/features/import/commands.rs:17</code>）进入 <code>import_by_identifier_batch</code>。</li>
-<li>Skill 目录约定已存在：<code>vault/.agents/skills/&lt;id&gt;/SKILL.md</code>（YAML frontmatter <code>name</code> / <code>description</code>，解析见 <code>src-tauri/src/features/agent/skills.rs</code> <code>parse_skill_metadata</code>）；<code>ensure_vault()</code> 播种 bundled skills，并只在第一方文件 hash 与已知旧版模板完全一致时升级；用户修改始终保留。</li>
+<li>Skill 目录约定已存在：<code>vault/.agents/skills/&lt;id&gt;/SKILL.md</code>（YAML frontmatter <code>name</code> / <code>description</code>，解析见 <code>src-tauri/src/features/agent/skills.rs</code> <code>parse_skill_metadata</code>）；<code>ensure_vault()</code> 播种 bundled skills，并按 frontmatter 整数 <code>version</code> 升级第一方 Skill（盘上版本低于模板则覆盖；无 <code>version</code> / 同版本 / 更高版本不覆盖）。</li>
 <li>文件树中 <code>.agents</code> 是 eager 目录（<code>src/lib/vault/tree.ts</code> <code>TREE_EAGER_ROOT_NAMES</code> / <code>TREE_ALLOWED_DOT_NAMES</code>），写入后 <code>refreshTree</code> 即可见。</li>
 <li>仓库内<strong>没有任何 git clone / npm 逻辑</strong>；可复用的下载基础在 <code>src-tauri/src/features/import/assets.rs</code>：<code>http_get_bytes_with_progress()</code>（reqwest + 进度事件）与 arXiv e-print 的 <strong>tar/gzip 安全解压</strong>（<code>extract_tar_safe</code> / <code>sanitize_tar_path</code>，防路径穿越）。</li>
 </ul>

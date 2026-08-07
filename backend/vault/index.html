@@ -2930,7 +2930,7 @@
   <code>templates/vault/notes/zh-CN/</code>，写入 Vault 时统一展开到 <code>notes/</code> 根目录；
   不覆盖用户已编辑的同名文件。</li>
 <li><code>vault_create</code> 返回的 <code>openPath</code> 为首篇教程路径；若教程已存在则回退到 <code>AGENTS.md</code>。</li>
-<li>每次打开会补种缺失的 bundled skills；第一方 <code>SKILL.md</code> 只有在内容 hash 与已知旧版模板完全一致时才升级。用户改过的文件保持原样，返回值的 <code>updated</code> 列出本次安全升级路径。</li>
+<li>每次打开会补种缺失的 bundled skills；第一方 <code>SKILL.md</code> 仅通过 frontmatter 整数 <code>version</code> 安全升级（盘上版本低于模板则覆盖并 toast）。无 <code>version</code>、同版本或更高版本的文件保持原样；返回值的 <code>updated</code> 列出本次安全升级路径。</li>
 </ul>
 <h2 id="_3">文件树<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>

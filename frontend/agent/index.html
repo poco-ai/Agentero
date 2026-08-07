@@ -2890,7 +2890,7 @@
 <li>运行中可继续输入 → Queue waitlist；标题保持简洁，条目等宽并可单独移除；Esc / 停止中止。</li>
 <li>会话空闲时 hover 用户消息可 <strong>Edit</strong> 后重发。</li>
 <li><strong>新建对话 / 历史恢复</strong>：新建草稿不会清空刚离开的本地 transcript；历史项同时存在 Agentero runtime id 与 ACP provider id 时，<code>session/load</code> / 后续续聊只使用 <code>providerSessionId</code>；连续续聊产生的新 runtime 行会按 provider id 合并回同一个历史项；加载结果通过一次原子 store 更新写入并激活，避免列表刷新后出现空白会话。详见 <a href="../../bug_fix/codex-history-runtime-session-id/">Codex 历史恢复误用 runtime id</a>。</li>
-<li>Slash 命令完全来自当前 ACP session 的 <code>available_commands_update</code>；Agentero 不再注册本地 action/template。命令以 <code>/name</code> 填入 Composer，并在当前 provider session 中原样发送。</li>
+<li>Slash 命令完全来自当前 ACP session 的 <code>available_commands_update</code>；Agentero 不再注册本地 action/template。映射时剥离名称前导 <code>/</code> 与 <code>$</code>（部分 Agent 把 skill 以 <code>$name</code> 形式广播），再以 <code>/name</code> 填入 Composer，并在当前 provider session 中原样发送。</li>
 </ul>
 <h2 id="ui_1">权限 UI<a class="headerlink" href="#ui_1" title="Permanent link">&para;</a></h2>
 <p>全局模式（设置）：<code>restricted</code> / <code>ask</code> / <code>auto</code>。<br />
