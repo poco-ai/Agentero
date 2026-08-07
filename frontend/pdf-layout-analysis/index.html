@@ -1126,10 +1126,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#a-3" class="md-nav__link">
+  <a href="#a-4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        A. 标签与侧栏（3）
+        A. 标签与侧栏（4）
       
     </span>
   </a>
@@ -1181,10 +1181,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#f-3" class="md-nav__link">
+  <a href="#f-only" class="md-nav__link">
     <span class="md-ellipsis">
       
-        F. 公式编号框聚合（3）— 不解析编号文本
+        F. 公式编号框聚合 — 同行-only，不解析编号文本
       
     </span>
   </a>
@@ -2945,10 +2945,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#a-3" class="md-nav__link">
+  <a href="#a-4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        A. 标签与侧栏（3）
+        A. 标签与侧栏（4）
       
     </span>
   </a>
@@ -3000,10 +3000,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#f-3" class="md-nav__link">
+  <a href="#f-only" class="md-nav__link">
     <span class="md-ellipsis">
       
-        F. 公式编号框聚合（3）— 不解析编号文本
+        F. 公式编号框聚合 — 同行-only，不解析编号文本
       
     </span>
   </a>
@@ -3244,7 +3244,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <hr />
 <h2 id="17">规则清单（现行，共 <strong>17</strong> 条核心规则）<a class="headerlink" href="#17" title="Permanent link">&para;</a></h2>
 <p>按阶段编号。实现常量见 <code>merge-captions.ts</code> → <code>LAYOUT_MERGE</code>。</p>
-<h3 id="a-3">A. 标签与侧栏（3）<a class="headerlink" href="#a-3" title="Permanent link">&para;</a></h3>
+<h3 id="a-4">A. 标签与侧栏（4）<a class="headerlink" href="#a-4" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -3268,6 +3268,11 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <td><strong>A3</strong></td>
 <td>image+chart 同区</td>
 <td>侧栏「插图」分区；NMS 时同属 <code>figure</code> 组；<strong>公式分区固定在列表最下方</strong></td>
+</tr>
+<tr>
+<td><strong>A4</strong></td>
+<td>纯 text/header 不得当图片</td>
+<td>若 image/chart 被 score≥0.3 的 text/header/abstract <strong>覆盖 ≥55%</strong> 且正文置信度不低于图的 ~85%，则 <strong>丢弃</strong> 该 image/chart（双标 / 段落误检）。Eye 叠加层与 merge 共用 <code>suppressSpuriousFigureDetections</code></td>
 </tr>
 </tbody>
 </table>
@@ -3374,7 +3379,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </tr>
 </tbody>
 </table>
-<h3 id="f-3">F. 公式编号框聚合（3）— <strong>不解析编号文本</strong><a class="headerlink" href="#f-3" title="Permanent link">&para;</a></h3>
+<h3 id="f-only">F. 公式编号框聚合 — <strong>同行-only，不解析编号文本</strong><a class="headerlink" href="#f-only" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -3386,22 +3391,35 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <tbody>
 <tr>
 <td><strong>F1</strong></td>
-<td>必须有 formula_number 框</td>
-<td><strong>仅</strong>模型 <code>formula_number</code> 几何锚点可启动合并；无编号框的 formula <strong>不</strong>进侧栏；<strong>不</strong>从 PDF 文字层解析 <code>(1)</code> 等编号</td>
+<td>必须有够分的 formula_number 框</td>
+<td><strong>仅</strong>模型 <code>formula_number</code> 且 <strong>score ≥ 0.3</strong> 可启动合并；无编号框 / 低分噪声编号 <strong>不</strong>进侧栏；<strong>不</strong>解析 <code>(1)</code> 等编号文本</td>
 </tr>
 <tr>
 <td><strong>F2</strong></td>
-<td>不与 text 重叠</td>
-<td><code>formula</code> / <code>formula_number</code> / 合并后 host 若被 <code>text</code>/<code>aside_text</code> 覆盖 ≥ <strong>0.28</strong> 面积 → <strong>丢弃</strong>（行内公式 / 误检）</td>
+<td>主体 seed 够分且够矮</td>
+<td>formula 体 <strong>score ≥ 0.3</strong> 且 <strong>h ≤ 0.055</strong>（拒段落级误检）；优先高分 / 大宽</td>
 </tr>
 <tr>
 <td><strong>F3</strong></td>
+<td><strong>禁止竖向多行 grow</strong></td>
+<td>只并<strong>同一基线带</strong>内、与 seed 竖向重叠 ≥0.35 的碎片；<strong>不</strong>把上下行 / 正文行间公式并进 host</td>
+</tr>
+<tr>
+<td><strong>F4</strong></td>
 <td>侧栏位置</td>
-<td>合并后的 display formula 放在 <strong>插图 / 表 / 算法之后（列表最底）</strong>；侧栏标题用 i18n 回退（如「公式 1」），<code>title</code> 不写编号串；<code>text</code> 永不进侧栏</td>
+<td>合并后 display formula 在 <strong>插图 / 表 / 算法之后（最底）</strong>；标题用 i18n 回退；<code>title</code> 不写编号串</td>
+</tr>
+<tr>
+<td><strong>F5</strong></td>
+<td>排序 = 阅读序 / 序号序</td>
+<td><strong>页 → 左栏 → 右栏 → 栏内自上而下</strong>（以 <code>titleBbox</code>/编号框中心 vs <code>columnMidX=0.5</code> 分栏）；双栏避免纯 y 排序把左右栏交错</td>
 </tr>
 </tbody>
 </table>
-<p>合并为纯几何：编号框左侧竖带内的 formula 体 + 多行竖向邻接扩展（gap 无大块 text）。<code>titleBbox</code> 保留编号框几何，不抽编号字符串。</p>
+<p>竖向 band 只按 <strong>编号框高度</strong> 收紧（<code>bandPad=0.02</code>），不随 body 高度放大。<code>titleBbox</code> 保留编号框几何。</p>
+<p><strong>已废止：</strong>
+- 与 text 重叠 ≥0.28 则丢（旧 F2）— 段落 text / 双标低分 text 会全灭公式
+- 多行竖向邻接扩展（<code>formulaNeighborGap</code>）— 会把正文行间公式连成整段高亮</p>
 <p>半宽并排（Fig7|Fig8）仅在双方都是半宽时做<strong>软</strong>水平分开，并<strong>再并回完整 title</strong>；全宽联图不做 mid-split。</p>
 <hr />
 <h2 id="_2">已收敛 / 视为多余（勿再加分支）<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
@@ -3440,6 +3458,14 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <tr>
 <td><code>looksLikeFigureCaption</code></td>
 <td>兼容别名，等价 <code>captionRoleFromText</code> 主类判断，勿再扩展</td>
+</tr>
+<tr>
+<td>formula 与 text 重叠即丢（旧 F2）</td>
+<td><strong>已废止</strong>（双标 text / 段落包公式 → 侧栏永远为空）</td>
+</tr>
+<tr>
+<td>公式多行竖向 grow</td>
+<td><strong>已废止</strong>（会吞并正文行间公式；现同行-only）</td>
 </tr>
 </tbody>
 </table>
@@ -3501,18 +3527,48 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </tr>
 <tr>
 <td><code>LAYOUT_MERGE.formulaNumberBandPad</code></td>
-<td>0.05</td>
-<td>编号竖带</td>
+<td>0.02</td>
+<td>同行竖带（相对编号框）</td>
 </tr>
 <tr>
-<td><code>LAYOUT_MERGE.formulaNeighborGap</code></td>
-<td>0.06</td>
-<td>多行公式竖向扩展</td>
+<td><code>LAYOUT_MERGE.formulaNumberMinScore</code></td>
+<td>0.3</td>
+<td>formula_number 锚点最低置信度</td>
 </tr>
 <tr>
-<td><code>LAYOUT_MERGE.formulaTextOverlap</code></td>
-<td>0.28</td>
-<td>formula 被 text 覆盖比 → 不合并</td>
+<td><code>LAYOUT_MERGE.formulaBodyMinScore</code></td>
+<td>0.3</td>
+<td>formula 主体 seed 最低置信度</td>
+</tr>
+<tr>
+<td><code>LAYOUT_MERGE.formulaMaxBodyHeight</code></td>
+<td>0.055</td>
+<td>拒绝过高「公式」误检</td>
+</tr>
+<tr>
+<td><code>LAYOUT_MERGE.columnMidX</code></td>
+<td>0.5</td>
+<td>双栏分栏中线（公式排序）</td>
+</tr>
+<tr>
+<td><code>LAYOUT_MERGE.figureTextCover</code></td>
+<td>0.55</td>
+<td>image/chart 被正文覆盖比 → 可能丢弃</td>
+</tr>
+<tr>
+<td><code>LAYOUT_MERGE.figureTextMinScore</code></td>
+<td>0.3</td>
+<td>可否决 image 的 text/header 最低分</td>
+</tr>
+<tr>
+<td>~~<code>formulaNeighborGap</code> / 竖向 grow~~</td>
+<td>—</td>
+<td><strong>已废止</strong></td>
+</tr>
+<tr>
+<td>~~<code>formulaTextOverlap</code>~~</td>
+<td>~~0.28~~</td>
+<td><strong>已废止</strong></td>
 </tr>
 <tr>
 <td>NMS <code>iouThreshold</code></td>
