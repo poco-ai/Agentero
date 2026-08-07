@@ -2931,7 +2931,7 @@
 </tr>
 <tr>
 <td><code>doctor</code></td>
-<td>聚合诊断与显式确认的论文 aliases 修复</td>
+<td>聚合诊断与显式确认的论文 aliases / 视觉批注格式修复</td>
 </tr>
 <tr>
 <td><code>layout</code></td>
@@ -3023,8 +3023,9 @@ agentero<span class="w"> </span>-y<span class="w"> </span>trash<span class="w"> 
 </ul>
 <p>报告包含 <code>checkedFiles</code>、四类状态计数，以及每个问题的 <code>source</code>、<code>line</code>、<code>targetRaw</code>、<code>syntax</code>、<code>embed</code>、<code>targetPath?</code>、<code>candidates</code> 和 <code>context?</code>。指定单文件作用域后，Vault 中其它历史坏链不会影响本次验收。</p>
 <h2 id="doctor">Doctor<a class="headerlink" href="#doctor" title="Permanent link">&para;</a></h2>
-<p><code>agentero doctor</code> 只读聚合 Vault 结构、Catalog schema、双链语义与 Catalog 论文 <code>NOTES.md</code> aliases；任一错误存在时返回 <code>doctor_issues</code> 和非零退出码。诊断会尊重设置页写入的 <code>.agentero/doctor.json</code> 别名忽略列表（这些路径不计入别名错误）。</p>
-<p><code>agentero doctor fix aliases</code> 在 TTY 中逐篇展示已有 alias，并允许编辑生成的标题 alias / 短 alias，最后进行一次批量确认。<code>-y</code> 接受全部安全默认值；<code>--json</code> 从不提示，未同时传 <code>-y</code> 时返回 <code>needs_confirmation</code>。修复会保留已有自定义 aliases，以内容哈希做竞态检查，并作为一个可回滚批次写入。详见 <a href="../doctor/">doctor.md</a>。</p>
+<p><code>agentero doctor</code> 只读聚合 Vault 结构、Catalog schema、双链语义、Catalog 论文 <code>NOTES.md</code> aliases，以及 <code>papers/**/marks/*.json</code> 视觉批注格式；任一错误/待修项存在时返回 <code>doctor_issues</code> 和非零退出码。诊断会尊重设置页写入的 <code>.agentero/doctor.json</code> 别名忽略列表（这些路径不计入别名错误）。</p>
+<p><code>agentero doctor fix aliases</code> 在 TTY 中逐篇展示已有 alias，并允许编辑生成的标题 alias / 短 alias，最后进行一次批量确认。<code>-y</code> 接受全部安全默认值；<code>--json</code> 从不提示，未同时传 <code>-y</code> 时返回 <code>needs_confirmation</code>。修复会保留已有自定义 aliases，以内容哈希做竞态检查，并作为一个可回滚批次写入。</p>
+<p><code>agentero doctor fix visual-marks -y</code> 将旧版 <code>kind: agent-trace</code>（扁平 agent 字段）迁移为 <code>kind: visual</code> v2（可选嵌套 <code>agent</code>），幂等；不改 id 与裁剪图路径。详见 <a href="../doctor/">doctor.md</a>。</p>
 <p>Skill 种子：<code>templates/vault/.agents/skills/agentero-cli/</code>。</p>
 
 

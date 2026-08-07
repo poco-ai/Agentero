@@ -2959,8 +2959,8 @@
 </tr>
 <tr>
 <td>视觉批注</td>
-<td><code>marks/&lt;id&gt;.json</code>（kind <code>agent-trace</code>）保存会话与 <code>image.path</code>；裁剪图位于 <code>marks/assets/&lt;id&gt;.png</code>；<code>providerSessionId</code> 为源会话；<code>messages[]</code> 本地多轮 transcript（续聊也会落盘）</td>
-<td>框选 → <strong>Enter</strong> → composer；<strong>⌘↵</strong> → 浮层。多轮续聊走 ACP 同一 session（load/resume），同时 <code>beginTraceContinue</code> + complete 更新 mark。打开 Agent 与 pin 共享 <code>providerSessionId</code> / <code>visualTraceId</code></td>
+<td><code>marks/&lt;id&gt;.json</code>（kind <code>visual</code> v2）：区域 + 用户批注 + 可选嵌套 <code>agent</code>；裁剪图 <code>marks/assets/&lt;id&gt;.png</code>。默认形态为纯批注（与文字「批注备注」同壳）；有 Agent 会话时可切到对话视图。旧版 <code>agent-trace</code> v1 仍可读，Doctor 可一键升 v2</td>
+<td>框选后：<strong>批注备注</strong> 输入 + 取消/保存；右上角「加入侧边栏对话」。已落盘 pin：纯批注模式可改备注；有对话时右上角切换「编辑备注 / 查看对话」。续聊走 ACP 同一 session</td>
 </tr>
 </tbody>
 </table>
@@ -3028,7 +3028,7 @@
 </tr>
 <tr>
 <td><code>src/lib/pdf/agent-trace/</code></td>
-<td>agent-trace 契约 / mark 资产 IO / prompt / Open-in-Agent 重建 / 会话回跳 pending</td>
+<td>visual mark 契约（v2 + 读兼容 v1）/ mark 资产 IO / prompt / Open-in-Agent / 会话 pending</td>
 </tr>
 <tr>
 <td><code>src/lib/pdf/highlight/</code></td>

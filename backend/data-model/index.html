@@ -2924,7 +2924,7 @@
 <ul>
 <li>高亮/批注：<code>annotations.json</code>（含 <code>comment</code> 的为批注）；CLI 区域批注写 per-id <code>highlight</code>（<code>geometry: resolved</code> + <code>layoutRef</code>）</li>
 <li>提问/翻译：<code>&lt;id&gt;.json</code>（<code>kind</code>）；CLI 可用 <code>mark add --region … --question</code> 写 <code>ask</code> 壳</li>
-<li>视觉批注：<code>&lt;id&gt;.json</code>（<code>kind: agent-trace</code>）保存位置、会话与 <code>image.path</code>；裁剪图片位于 <code>assets/&lt;id&gt;.png</code></li>
+<li>视觉批注：<code>&lt;id&gt;.json</code>（<code>kind: visual</code> v2）保存区域、用户 <code>comment</code>、可选嵌套 <code>agent</code> 与 <code>image.path</code>；裁剪图片位于 <code>assets/&lt;id&gt;.png</code>。旧版 <code>kind: agent-trace</code>（扁平 agent 字段）仍可读，Doctor 可迁移</li>
 <li>不写 PDF 二进制，不强制写入 NOTES</li>
 </ul>
 <div class="codehilite"><pre><span></span><code>marks/
