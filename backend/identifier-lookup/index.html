@@ -4381,13 +4381,12 @@
         │
         ▼
   catalog.papers UPSERT（sqlite，权威）
-  + 同步投影 metadata.json 到 paper 文件夹
   + papers/.../NOTES.md
         │
         ▼
   下载（见 §1.3）：始终 PDF → 论文根目录；arXiv 另 e-print 解压 LaTeX 到 source/
 
-读路径：UI 用 paper_get 读 catalog；不把 metadata.json 当主源。
+读路径：UI 用 paper_get 读 catalog；catalog 为唯一权威。
 </code></pre></div>
 
 <table>
@@ -5170,7 +5169,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li>写 <code>NOTES.md</code> 壳（摘要 blockquote 经 Host 免费 MT <strong>并行竞速</strong> bing / 火山 / 腾讯，取最先成功；单引擎超时 5s；<strong>全失败则不写摘要块</strong>；catalog <code>abstract</code> 仍为原文）。</li>
 <li><strong>catalog 事务</strong>：有则写入 <code>pdf_url</code> / <code>html_url</code>。</li>
 <li>下载按 §1.3：<strong>始终 PDF</strong>（候选：<code>pdf_url</code> → arXiv → Crossref 直链 → <strong>Unpaywall OA</strong>）；<strong>arXiv 另解压 LaTeX</strong>。</li>
-<li><strong>不</strong>写默认 <code>PAPERS.md</code> / <code>library.bib</code>；<code>metadata.json</code> 仅在 catalog upsert 后作为投影同步。</li>
+<li><strong>不</strong>写默认 <code>PAPERS.md</code> / <code>library.bib</code>；元数据仅存于 catalog。</li>
 <li>重复：<code>on_duplicate: skip | open_existing</code>，<strong>不</strong>覆盖用户 <code>NOTES.md</code>。</li>
 </ol>
 <p>arXiv URL 推导：</p>
@@ -5346,7 +5345,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 </tr>
 <tr>
 <td>2026-07-15</td>
-<td>实现进度：<code>lookup_import</code> / 设置 Translator URL / catalog 权威 / <code>paper_list</code> + Library UI；metadata.json 仅为投影</td>
+<td>实现进度：<code>lookup_import</code> / 设置 Translator URL / catalog 权威 / <code>paper_list</code> + Library UI</td>
 </tr>
 <tr>
 <td>2026-07-15</td>

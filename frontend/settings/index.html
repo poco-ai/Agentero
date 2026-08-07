@@ -2918,7 +2918,7 @@
 </table>
 <p>知识库诊断页调用 Host 的只读 Doctor 报告。四个检查项各自作为小标题（带一行检测说明），标题行右侧显示 icon + 问题数；模块间用非通栏次要分隔线。列表过长时（双链 / 别名）<code>max-h</code> 内滚动。</p>
 <ul>
-<li><strong>论文别名</strong>：勾选与编辑标题/短 alias，标题行「修复」→ 确认后批量写入 frontmatter（不改 path）。</li>
+<li><strong>论文别名</strong>：勾选与编辑标题/短 alias，标题行「修复」→ 确认后批量写入 frontmatter（不改 path）。单行「忽略」或「忽略所选」把路径写入 Vault <code>.agentero/doctor.json</code>，下次诊断不再报错；列表底部可恢复。</li>
 <li><strong>双链语义</strong>：</li>
 <li>「探测」→ 自动建议（默认勾选）+ 可手改候选项（默认不勾选）；</li>
 <li>每条 git 风格整行 diff：核心变更居中高亮，按设置窗宽度窗口化前后文；</li>

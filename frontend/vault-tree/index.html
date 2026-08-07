@@ -2940,7 +2940,7 @@
 </ul>
 <h3 id="_4">论文目录识别<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>papers/</code> 下目录的直接子项含 <code>NOTES.md</code>、<code>PAPER.md</code>、<code>metadata.json</code> 或 <code>source/</code> / <code>assets/</code> / <code>marks/</code> 时，可作为论文单元；<code>NOTES.md</code> 保留用于兼容旧论文目录。</li>
+<li><code>papers/</code> 下目录的直接子项含 <code>NOTES.md</code>、<code>PAPER.md</code> 或 <code>source/</code> / <code>assets/</code> / <code>marks/</code> 时，可作为论文单元。</li>
 <li>如果目录自身有索引/概览 <code>NOTES.md</code>，但其子树中还包含论文单元，则优先判定为组织目录，继续收集子论文；组织目录不会被折叠成单篇论文。</li>
 <li>文件树已经得到非空的论文目录列表后，文件路径的论文归属以该列表为准，不再把组织目录的 <code>NOTES.md</code> 通过文件名回退规则猜成论文。</li>
 </ul>

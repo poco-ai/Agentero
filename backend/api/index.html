@@ -2795,6 +2795,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#doctor_ignore_aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_ignore_aliases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#doctor_plan_wikilinks" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4891,6 +4902,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#doctor_ignore_aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        doctor_ignore_aliases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#doctor_plan_wikilinks" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5960,7 +5982,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>行为</strong></li>
 <li>异步任务，通过 <code>arxiv:progress</code> / <code>arxiv:completed</code> / <code>arxiv:failed</code> 事件推送结果。</li>
-<li>创建 paper 文件夹（默认 <code>papers/&lt;id&gt;/</code>，允许 <code>papers/&lt;org&gt;/…/&lt;id&gt;/</code>）与 <code>source/</code>；<strong>元数据写入 catalog</strong>（<code>path</code> = 该文件夹；不写默认 <code>metadata.json</code>）。</li>
+<li>创建 paper 文件夹（默认 <code>papers/&lt;id&gt;/</code>，允许 <code>papers/&lt;org&gt;/…/&lt;id&gt;/</code>）与 <code>source/</code>；<strong>元数据写入 catalog</strong>（<code>path</code> = 该文件夹）。</li>
 <li>下载 LaTeX source、PDF、HTML 到 <code>source/</code>。</li>
 <li>无 tex 源或需要可读结构化正文时，生成 <code>papers/&lt;id&gt;/PAPER.md</code>。</li>
 <li>调用 Agent 生成 <code>papers/&lt;id&gt;/NOTES.md</code>。</li>
@@ -6405,7 +6427,7 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>返回</strong>：<code>{ ok: true; data: PaperMetadata }</code>（含 <code>pdf_url</code> / <code>html_url</code> / <code>arxiv_id</code> 等）；未找到则 <code>ok: false</code>。</li>
-<li><strong>说明</strong>：UI 预览链接从此接口读取；<code>metadata.json</code> 仅作同步投影。</li>
+<li><strong>说明</strong>：UI 预览链接从此接口读取；catalog 为唯一权威。</li>
 </ul>
 <h4 id="paperget"><code>paper:get</code>（扩展规划）<a class="headerlink" href="#paperget" title="Permanent link">&para;</a></h4>
 <p>获取单篇论文完整数据（catalog 行 + 路径附件信息）。</p>
@@ -6447,11 +6469,11 @@ Host (Tauri + Rust)
 <li><strong>说明</strong>：当前无 filter/pagination；扩展筛选/FTS 仍可用规划契约 <code>paper:list</code>（见下）。</li>
 </ul>
 <h4 id="paper_rescan"><code>paper_rescan</code><a class="headerlink" href="#paper_rescan" title="Permanent link">&para;</a></h4>
-<p>扫描 <code>papers/</code> 磁盘目录，用每个 paper 文件夹的 <code>metadata.json</code>（catalog 投影）<strong>重建 / 补齐 catalog 行</strong>——找回“盘上有、catalog 无”的论文（外部拷入，或历史删除顺序 bug 丢失的行）。幂等。</p>
+<p>扫描 <code>papers/</code> 磁盘目录，用每个 paper 文件夹的 <code>NOTES.md</code>（标记文件）<strong>重建 / 补齐 catalog 行</strong>——找回”盘上有、catalog 无”的论文（外部拷入，或历史删除顺序 bug 丢失的行）。幂等。</p>
 <ul>
 <li><strong>参数</strong>（invoke 字段名 <code>args</code>）：<code>{ vaultPath: string }</code>。</li>
 <li><strong>返回</strong>：<code>{ ok: true; data: { count: number } }</code>（重新导入的 paper 数）。</li>
-<li><strong>行为</strong>：递归遍历 <code>papers/</code>，遇含 <code>metadata.json</code> 的文件夹即为 paper 叶子；反序列化时<strong>回填</strong> <code>path</code>（投影省略），<code>upsert</code> 进 catalog。不删行、不改磁盘文件。</li>
+<li><strong>行为</strong>：递归遍历 <code>papers/</code>，遇含 <code>NOTES.md</code> 的文件夹即为 paper 叶子；创建最小化 paper 记录并 <code>upsert</code> 进 catalog。不删行、不改磁盘文件。</li>
 <li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>rescanPapers</code>；论文库空态「重新扫描 papers/」按钮。</li>
 </ul>
 <blockquote>
@@ -6479,7 +6501,7 @@ Host (Tauri + Rust)
 <li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>movePaperFolder</code>；文件树多选批量移动（<code>MovePapersDialog</code>）。</li>
 </ul>
 <h4 id="paper_set_is_read"><code>paper_set_is_read</code><a class="headerlink" href="#paper_set_is_read" title="Permanent link">&para;</a></h4>
-<p>更新 catalog 中单篇论文的 <strong><code>is_read</code></strong>（是否已完成 paper-reader 精读）。成功后同步 <code>metadata.json</code> 投影。</p>
+<p>更新 catalog 中单篇论文的 <strong><code>is_read</code></strong>（是否已完成 paper-reader 精读）。</p>
 <ul>
 <li><strong>参数</strong>（invoke 字段名 <code>args</code>）：</li>
 </ul>
@@ -6500,7 +6522,7 @@ Host (Tauri + Rust)
 <li>实现：<code>src/lib/paper/reader.ts</code>（进度 <code>kind=paperRead</code>；可与 lookup/download 任务衔接）；skill 触发按当前默认 Agent 的 <code>SkillMentionStyle</code>。</li>
 </ul>
 <h4 id="paper_set_tags"><code>paper_set_tags</code><a class="headerlink" href="#paper_set_tags" title="Permanent link">&para;</a></h4>
-<p>整表替换 catalog 中单篇论文的 <strong><code>tags</code></strong>（<code>tags_json</code>）。成功后同步 <code>metadata.json</code> 投影。</p>
+<p>整表替换 catalog 中单篇论文的 <strong><code>tags</code></strong>（<code>tags_json</code>）。</p>
 <ul>
 <li><strong>参数</strong>（invoke 字段名 <code>args</code>）：</li>
 </ul>
@@ -7127,6 +7149,13 @@ Host (Tauri + Rust)
 <li>参数：<code>{ vaultPath, changes, dirtyPaths? }</code>；每条 change 含 <code>path</code>、可编辑的 <code>titleAlias</code> / <code>shortAlias</code> 与诊断时 <code>expectedHash</code>。</li>
 <li>仅接受 Catalog paper 对应的 <code>papers/**/NOTES.md</code>。</li>
 <li>批量预检脏路径、哈希、alias 冲突与 YAML 安全范围；全部通过后<strong>原地写入</strong> frontmatter（不改 path），失败按规划内容回滚。不使用 tmp+rename，以免被 watcher 误报为外部改名。</li>
+</ul>
+<h4 id="doctor_ignore_aliases"><code>doctor_ignore_aliases</code><a class="headerlink" href="#doctor_ignore_aliases" title="Permanent link">&para;</a></h4>
+<ul>
+<li>参数：<code>{ vaultPath, paths, ignore }</code>。<code>paths</code> 为 Vault 相对 <code>papers/**/NOTES.md</code>；<code>ignore: true</code> 写入忽略列表，<code>false</code> 从列表移除。</li>
+<li>落盘：<code>.agentero/doctor.json</code> 的 <code>ignoredAliasPaths</code>。</li>
+<li>返回：更新后的 <code>DoctorVaultState</code>（<code>{ ignoredAliasPaths }</code>）。</li>
+<li>随后 <code>doctor_check</code> 不再把这些路径算作别名错误；报告中的 <code>aliases.ignoredPaths</code> 列出仍不完整且仍被忽略的路径。</li>
 </ul>
 <h4 id="doctor_plan_wikilinks"><code>doctor_plan_wikilinks</code><a class="headerlink" href="#doctor_plan_wikilinks" title="Permanent link">&para;</a></h4>
 <ul>
