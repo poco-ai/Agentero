@@ -1680,6 +1680,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        模型协商
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#byok" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1691,7 +1702,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         远程
@@ -1702,7 +1713,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -2838,6 +2849,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        模型协商
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#byok" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2849,7 +2871,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         远程
@@ -2860,7 +2882,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -2999,12 +3021,18 @@ Agentero prompt envelope、skill/context 注入，并将原始 <code>/command</c
 <li>输出约定：工作流要求 <code>## Sources</code>（相对 Vault 路径）；双链保留 <code>[[...]]</code>。</li>
 <li>规划：自动注入 Vault 根 <code>AGENTS.md</code>（路线图 0.3）。</li>
 </ul>
+<h2 id="_4">模型协商<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>session/new</code>（及 config 更新）中的 <code>SessionConfigOption</code>（category=Model 或 name 回退）解析为 <code>agent:models</code>。</li>
+<li>若 <code>current_value</code> 不在 selector 选项中（第三方网关 / cc-switch 等只改默认 model、目录仍是官方列表），Host <strong>注入</strong>该 current id，避免 UI 丢失。</li>
+<li><code>preferred_model_id</code>（warm / run_once）在与 current 不同时 <strong>始终尝试</strong> <code>session/set_config_option</code>，不要求 id 已在上报列表中；失败仅 debug 日志，不阻断会话。</li>
+</ul>
 <h2 id="byok">注册表（非模型 BYOK）<a class="headerlink" href="#byok" title="Permanent link">&para;</a></h2>
 <p>配置「如何启动本机 Agent」：id、name、template、command、args、env、默认 id。<br />
 持久化在应用配置目录；<strong>不</strong>要求填写模型 API Key。</p>
-<h2 id="_4">远程<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">远程<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p>远程 Vault 时在 <strong>SSH 远端</strong> 启动 Agent。见 <a href="../remote/">remote.md</a>。</p>
-<h2 id="_5">代码<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">代码<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p><code>src-tauri/src/features/agent/</code><br />
 前端：<a href="../../frontend/agent/">../frontend/agent.md</a></p>
 

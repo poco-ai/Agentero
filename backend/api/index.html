@@ -5325,7 +5325,7 @@ Host (Tauri + Rust)
 <tr>
 <td><code>agent:models</code></td>
 <td>Agent 上报可用模型</td>
-<td><code>{ sessionId, agentId, configId, currentId, models: { id, name, group? }[] }</code></td>
+<td><code>{ sessionId, agentId, configId, currentId, models: { id, name, group? }[] }</code>；<code>currentId</code> 若不在 selector 目录中会被 Host 注入到 <code>models</code>（第三方 / 网关默认模型）</td>
 </tr>
 <tr>
 <td><code>agent:effort</code></td>
