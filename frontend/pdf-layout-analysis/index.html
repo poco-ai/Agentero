@@ -3136,13 +3136,25 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points
 ③ 侧栏展示: isSidebarLayoutKind + dedupeLayoutRegions(minScore 默认 0.3)
         │  分区顺序：插图 → 表 → 算法 → **公式（最底）**
         ▼
-右栏 Figures + 聚焦高亮（store.focused）+ 可选 PDF bbox 叠加层
+右栏 Figures + 聚焦高亮（store.focused）+ 可选 PDF bbox 叠加层（Eye，调试）
+        │  叠加层画 **rawRegions**（合并前、全 kind、无 NMS；score ≥ 0.3）
+        │  每框标注分类 + 置信度（如「图片 87%」「摘要 91%」）
+        │  标签映射须覆盖 PP-DocLayoutV3 全量（含 abstract）；未映射 label 会在 normalize 被丢弃
+        │  侧栏 / hover 仍用 **regions**（post-merge；不含 abstract）
+        │  不用 EmbedPDF LayoutAnalysisLayer 画框：sidecar 缓存命中时插件无 page layout
         │
 ④ PDF 页 hover dwell（默认 600ms）→ 视觉批注卡
         │  hit 层用 **post-merge** 区域（与侧栏同源，非插件 raw 框）
         │  插图 / 表 / 算法 / 有编号公式；打开 VisualAnnotationEditor（不自动发送）
         │  移开源区 / 草稿卡后 hide（默认 1000ms，`LAYOUT_HOVER_HIDE_MS`）
         │  实现：`hit-test.ts` + `pdf-viewer` layout hit + `LAYOUT_HOVER_DWELL_MS` / `LAYOUT_HOVER_HIDE_MS`
+        │
+⑤ 正文 / 摘要 / 标题文字抽取（PDF text layer → region.text）
+        │  分析或 sidecar 回填时 enrich；供调试与 bulk 翻译
+        │
+⑥ 工具栏「翻译」icon（视觉批注旁）：按阅读顺序批量翻译文字类区域
+        │  并发 2；每完成一块立刻盖译文图层（`LayoutTranslateOverlay`）
+        │  再次点击：运行中=停止；已有译文=清除
 </code></pre></div>
 
 <p>注册（<code>pdf-viewer.tsx</code>）：</p>
