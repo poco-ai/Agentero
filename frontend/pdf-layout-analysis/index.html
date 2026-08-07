@@ -3141,7 +3141,8 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points
 ④ PDF 页 hover dwell（默认 600ms）→ 视觉批注卡
         │  hit 层用 **post-merge** 区域（与侧栏同源，非插件 raw 框）
         │  插图 / 表 / 算法 / 有编号公式；打开 VisualAnnotationEditor（不自动发送）
-        │  实现：`hit-test.ts` + `pdf-viewer` layout hit + `LAYOUT_HOVER_DWELL_MS`
+        │  移开源区 / 草稿卡后 hide（默认 1000ms，`LAYOUT_HOVER_HIDE_MS`）
+        │  实现：`hit-test.ts` + `pdf-viewer` layout hit + `LAYOUT_HOVER_DWELL_MS` / `LAYOUT_HOVER_HIDE_MS`
 </code></pre></div>
 
 <p>注册（<code>pdf-viewer.tsx</code>）：</p>
