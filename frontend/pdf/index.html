@@ -2901,7 +2901,7 @@
 </tr>
 <tr>
 <td>明暗模式</td>
-<td>底部换页栏旁可单独切换亮色 / 暗色页面，偏好保存在本地，不改变应用全局主题。EmbedPDF 尚无页面 color-scheme API，仅在 PDF 暗色模式下对 <code>RenderLayer</code> / <code>TilingLayer</code> 做柔和反相（<code>invert(0.88)</code> + <code>hue-rotate(180)</code> + 轻亮度/对比）；选区 / 搜索 / 批注覆盖层与 Agent 裁剪（<code>renderPageRect</code>）不受影响。扫描版/插图会被一并反相</td>
+<td>底部换页栏旁可单独切换亮色 / 暗色页面，偏好保存在本地，不改变应用全局主题。EmbedPDF 尚无页面 color-scheme API，仅在 PDF 暗色模式下对 <code>RenderLayer</code> / <code>TilingLayer</code> 做柔和反相（<code>PDF_PAGE_RASTER_DARK_CLASS</code>：<code>invert(0.88)</code> + <code>hue-rotate(180)</code> + 轻亮度/对比）；全文翻译覆盖层同样按浅色纸面绘制后套用同一 filter，以匹配反转后的纸面。选区 / 搜索 / 批注覆盖层与 Agent 裁剪（<code>renderPageRect</code>）不受影响。扫描版/插图会被一并反相</td>
 </tr>
 <tr>
 <td>沉浸</td>
