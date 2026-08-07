@@ -2921,8 +2921,8 @@
 <h2 id="_4">后台任务条<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>左下角：下载、入库、导入导出、paper-reader、版面解析等。</li>
-<li><strong>折叠 = 进度圆环</strong>（无总结 Toast / 无展开图标）；<strong>悬停约 400ms 或点击圆环 → 详情列表</strong>；移出收起。</li>
-<li>详情内可取消进行中任务、清除已完成。</li>
+<li><strong>折叠 = 进度圆环</strong>；<strong>悬停约 400ms 或点击圆环 → 详情列表</strong>；<strong>指针离开即收回圆环</strong>（不常驻详情 Toast）。</li>
+<li>新任务 / 打开页面不自动展开。任务失败时短暂展开详情，未悬停约 5s 后收回；进行中可取消，可清除已完成。</li>
 <li>论文资源下载的总体进度按顺序聚合 PDF 与 TeX：PDF 占前 50%，TeX 占后 50%，避免切换阶段时进度回退。</li>
 <li>实现：<code>src/lib/core/background-tasks.ts</code> + <code>background-tasks-panel.tsx</code>。</li>
 </ul>

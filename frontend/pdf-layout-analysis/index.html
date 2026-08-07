@@ -3120,9 +3120,12 @@
         │  headless EmbedPDF 栈写 `{paper}/source/layout.json`（有缓存则跳过）
         │  实现：`enqueue-paper-layout.ts` + `headless-analyze.ts`
         │
-打开论文 PDF（页数就绪）→ 自动版面分析（兜底）
-        │  有 layout.json → 静默命中缓存（无后台任务条）
-        │  无缓存 → 左下角后台任务显示进度；可取消
+打开论文 PDF（含非 active 的已挂载 tab）→ enqueue 到后台任务队列
+        │  多篇并行打开：都进左下角任务列表；ONNX 串行（concurrency:1）避免抢模型
+        │  实现：viewer mount 调 `enqueuePaperLayoutAnalysis`（与入库后同一路径）
+        │  激活中的 tab：有 layout.json → 静默载入 store（无新任务条）
+        │  尚无缓存 → 轮询 sidecar，headless 写完后再静默载入
+        │  无 paper 目录的散落 PDF：仅 active tab 用 viewer 内分析（asBackgroundTask）
         │  手动：Figures header「分析」→ force 重跑 + 打开 Figures / 可选 Eye
         ▼
 PP-DocLayoutV3  每页: render → detect → map to PDF points
