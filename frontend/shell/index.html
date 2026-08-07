@@ -2920,10 +2920,11 @@
 </ul>
 <h2 id="_4">后台任务条<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
-<li>左下角：下载、入库、导入导出、paper-reader 等。</li>
-<li>Hover 实色不透明；任务可取消。</li>
+<li>左下角：下载、入库、导入导出、paper-reader、版面解析等。</li>
+<li><strong>折叠 = 进度圆环</strong>（无总结 Toast / 无展开图标）；<strong>悬停约 400ms 或点击圆环 → 详情列表</strong>；移出收起。</li>
+<li>详情内可取消进行中任务、清除已完成。</li>
 <li>论文资源下载的总体进度按顺序聚合 PDF 与 TeX：PDF 占前 50%，TeX 占后 50%，避免切换阶段时进度回退。</li>
-<li>实现：<code>src/lib/core/background-tasks.ts</code>。</li>
+<li>实现：<code>src/lib/core/background-tasks.ts</code> + <code>background-tasks-panel.tsx</code>。</li>
 </ul>
 <h2 id="_5">弹层栈<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <ul>
