@@ -1184,7 +1184,7 @@
   <a href="#f-3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        F. 公式编号聚合（3）
+        F. 公式编号框聚合（3）— 不解析编号文本
       
     </span>
   </a>
@@ -3003,7 +3003,7 @@
   <a href="#f-3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        F. 公式编号聚合（3）
+        F. 公式编号框聚合（3）— 不解析编号文本
       
     </span>
   </a>
@@ -3091,7 +3091,7 @@
 
 
 <h1 id="pdf-figures-tables-algorithms-formulas">PDF 版面分析（Figures / Tables / Algorithms / Formulas）<a class="headerlink" href="#pdf-figures-tables-algorithms-formulas" title="Permanent link">&para;</a></h1>
-<p>实验能力：浏览器内 ONNX（PP-DocLayoutV3）检测 PDF 版面 → 应用层 <strong>文字角色 + 联图聚合 + 公式按编号聚合 + 置信度去重</strong> → 右栏 <strong>Figures</strong>。</p>
+<p>实验能力：浏览器内 ONNX（PP-DocLayoutV3）检测 PDF 版面 → 应用层 <strong>文字角色 + 联图聚合 + 公式按编号框几何聚合（不解析编号文本）+ 置信度去重</strong> → 右栏 <strong>Figures</strong>。</p>
 <table>
 <thead>
 <tr>
@@ -3126,21 +3126,24 @@
         │  激活中的 tab：有 layout.json → 静默载入 store（无新任务条）
         │  尚无缓存 → 轮询 sidecar，headless 写完后再静默载入
         │  无 paper 目录的散落 PDF：仅 active tab 用 viewer 内分析（asBackgroundTask）
-        │  手动：Figures header「分析」→ force 重跑 + 打开 Figures / 可选 Eye
+        │  手动：Figures header「分析 / 重新分析」
+        │     · 有 `source/layout.json` → **只** JSON→侧栏归并（不重跑 ONNX / 不重写 sidecar）
+        │     · 无缓存 → 全量 PDF→JSON（PP-DocLayoutV3）再归并
+        │     · 打开 Figures / 可选 Eye；`force` 仅内部/将来「强制刷新模型」用
         ▼
-PP-DocLayoutV3  每页: render → detect → map to PDF points
+PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar 或 force）
         │  LayoutBlock[]（插件全量标签；页上 LayoutAnalysisLayer 仍画原始框）
         ▼
-① 抽 caption / formula_number 文字（PDF text runs）
+① 抽 caption 文字（PDF text runs）
         │  captionRole: figure_main | table_main | algorithm_main | subpanel | other
-        │  formula 右侧条带也可恢复 &quot;(n)&quot; 编号
-        │  写入 {paper}/source/layout.json；再次分析优先读缓存
+        │  formula / formula_number **不**解析编号文本
+        │  写入 {paper}/source/layout.json
         ▼
-①b source/layout.json 缓存命中
-        │  跳过 PP-DocLayoutV3，只从 raw regions 重新归并
+①b source/layout.json 缓存命中（打开论文 / 点「重新分析」默认路径）
+        │  跳过 PP-DocLayoutV3，只从 raw regions 重新 `mergeCaptionsIntoHosts` + 去重
         ▼
-② mergeCaptionsIntoHosts（联图 / 表题 / 算法题 / 公式按编号）
-        │  输出 PdfLayoutRegion[]（图必有完整 title；公式仅保留有编号）
+② mergeCaptionsIntoHosts（联图 / 表题 / 算法题 / 公式按编号框几何合并）
+        │  输出 PdfLayoutRegion[]（图必有完整 title；公式仅保留有 formula_number 锚点）
         ▼
 ③ 侧栏展示: isSidebarLayoutKind + dedupeLayoutRegions(minScore 默认 0.3)
         │  分区顺序：插图 → 表 → 算法 → **公式（最底）**
@@ -3154,7 +3157,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points
         │
 ④ PDF 页 hover dwell（默认 600ms）→ 视觉批注卡
         │  hit 层用 **post-merge** 区域（与侧栏同源，非插件 raw 框）
-        │  插图 / 表 / 算法 / 有编号公式；打开 VisualAnnotationEditor（不自动发送）
+        │  插图 / 表 / 算法 / 有编号框的公式；打开 VisualAnnotationEditor（不自动发送）
         │  移开源区 / 草稿卡后 hide（默认 1000ms，`LAYOUT_HOVER_HIDE_MS`）
         │  实现：`hit-test.ts` + `pdf-viewer` layout hit + `LAYOUT_HOVER_DWELL_MS` / `LAYOUT_HOVER_HIDE_MS`
         │
@@ -3228,7 +3231,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points
 </table>
 <p>实现：<code>src-tauri/src/features/layout_model/</code>、<code>src/lib/pdf/layout/model.ts</code>、<code>ai-runtime.ts</code>。</p>
 <h3 id="layout-sidecar">Layout sidecar<a class="headerlink" href="#layout-sidecar" title="Permanent link">&para;</a></h3>
-<p><code>{paper}/source/layout.json</code> 保存 <strong>初步解析结果</strong>：模型标签映射后的 <code>PdfLayoutRegion[]</code>，并已尽力补充 caption / formula number 文本与 <code>captionRole</code>。它不保存侧栏最终卡片列表，也不保存缩略图；后续 <code>mergeCaptionsIntoHosts</code>、去重和置信度筛选都从该 raw sidecar 重新计算。因此修改联图、公式合并或筛选规则后，不需要重新运行 PP-DocLayoutV3。</p>
+<p><code>{paper}/source/layout.json</code> 保存 <strong>初步解析结果</strong>：模型标签映射后的 <code>PdfLayoutRegion[]</code>，并已尽力补充 caption 文本与 <code>captionRole</code>（公式编号文本不解析）。它不保存侧栏最终卡片列表，也不保存缩略图；后续 <code>mergeCaptionsIntoHosts</code>、去重和置信度筛选都从该 raw sidecar 重新计算。因此修改联图、公式合并或筛选规则后，不需要重新运行 PP-DocLayoutV3。</p>
 <div class="codehilite"><pre><span></span><code><span class="kr">type</span><span class="w"> </span><span class="nx">LayoutSidecar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">schemaVersion</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">source</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;embedpdf-layout&quot;</span><span class="p">;</span><span class="w"> </span><span class="nx">generatedAt</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">};</span>
@@ -3236,7 +3239,8 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points
 <span class="p">};</span>
 </code></pre></div>
 
-<p>缓存只在已知 paper folder 时启用；散落 PDF 没有 <code>{paper}</code> 路径，仍使用当前内存流程。点击重新分析时默认先读 <code>source/layout.json</code>；需要强制刷新模型输出时走 <code>force</code> 路径。</p>
+<p>缓存只在已知 paper folder 时启用；散落 PDF 没有 <code>{paper}</code> 路径，仍使用当前内存流程。</p>
+<p><strong>重新分析按钮</strong>（Figures header）：<code>force: false</code>。有 <code>source/layout.json</code> 时只重跑 JSON→侧栏（<code>mergeCaptionsIntoHosts</code> + NMS），<strong>不</strong>再跑 PP-DocLayoutV3，也<strong>不</strong>覆盖 sidecar。无缓存时才走完整 PDF→JSON。需要强制刷新模型输出时由调用方显式传 <code>force: true</code>（当前 UI 不暴露）。</p>
 <hr />
 <h2 id="17">规则清单（现行，共 <strong>17</strong> 条核心规则）<a class="headerlink" href="#17" title="Permanent link">&para;</a></h2>
 <p>按阶段编号。实现常量见 <code>merge-captions.ts</code> → <code>LAYOUT_MERGE</code>。</p>
@@ -3258,7 +3262,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points
 <tr>
 <td><strong>A2</strong></td>
 <td>侧栏种类</td>
-<td>展示 <strong>image / chart / table / algorithm / formula（有编号）</strong>；<strong>不展示</strong> 无编号 formula / 裸 <code>formula_number</code> / caption</td>
+<td>展示 <strong>image / chart / table / algorithm / formula（有 formula_number 框并成功合并）</strong>；<strong>不展示</strong> 无编号框 formula / 裸 <code>formula_number</code> / caption</td>
 </tr>
 <tr>
 <td><strong>A3</strong></td>
@@ -3370,7 +3374,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points
 </tr>
 </tbody>
 </table>
-<h3 id="f-3">F. 公式编号聚合（3）<a class="headerlink" href="#f-3" title="Permanent link">&para;</a></h3>
+<h3 id="f-3">F. 公式编号框聚合（3）— <strong>不解析编号文本</strong><a class="headerlink" href="#f-3" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -3382,8 +3386,8 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points
 <tbody>
 <tr>
 <td><strong>F1</strong></td>
-<td>必须有 formula_number</td>
-<td><strong>仅</strong>模型 <code>formula_number</code>（formulatitle）可启动合并；无编号框、仅文本恢复的 <code>(n)</code> <strong>不</strong>进侧栏</td>
+<td>必须有 formula_number 框</td>
+<td><strong>仅</strong>模型 <code>formula_number</code> 几何锚点可启动合并；无编号框的 formula <strong>不</strong>进侧栏；<strong>不</strong>从 PDF 文字层解析 <code>(1)</code> 等编号</td>
 </tr>
 <tr>
 <td><strong>F2</strong></td>
@@ -3393,11 +3397,11 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points
 <tr>
 <td><strong>F3</strong></td>
 <td>侧栏位置</td>
-<td>合并后的 display formula 放在 <strong>插图 / 表 / 算法之后（列表最底）</strong>；标题用 <code>(1)</code> 等；<code>text</code> 永不进侧栏</td>
+<td>合并后的 display formula 放在 <strong>插图 / 表 / 算法之后（列表最底）</strong>；侧栏标题用 i18n 回退（如「公式 1」），<code>title</code> 不写编号串；<code>text</code> 永不进侧栏</td>
 </tr>
 </tbody>
 </table>
-<p>编号文本解析：<code>(1)</code> <code>(12a)</code> <code>(A.1)</code> <code>[3]</code> <code>Eq. (2)</code> 等（<code>extractFormulaNumberLabel</code>）；拒绝子图 <code>(a)</code>。多行仅在编号竖带内、邻接且 gap 无大块 text 时扩展。</p>
+<p>合并为纯几何：编号框左侧竖带内的 formula 体 + 多行竖向邻接扩展（gap 无大块 text）。<code>titleBbox</code> 保留编号框几何，不抽编号字符串。</p>
 <p>半宽并排（Fig7|Fig8）仅在双方都是半宽时做<strong>软</strong>水平分开，并<strong>再并回完整 title</strong>；全宽联图不做 mid-split。</p>
 <hr />
 <h2 id="_2">已收敛 / 视为多余（勿再加分支）<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
@@ -3533,8 +3537,8 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points
 <span class="w">  </span><span class="nx">readingOrder</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">rect</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">x</span><span class="p">,</span><span class="w"> </span><span class="nx">y</span><span class="p">,</span><span class="w"> </span><span class="nx">w</span><span class="p">,</span><span class="w"> </span><span class="nx">h</span><span class="w"> </span><span class="p">};</span><span class="w">        </span><span class="c1">// PDF points</span>
 <span class="w">  </span><span class="nx">bbox</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">x</span><span class="p">,</span><span class="w"> </span><span class="nx">y</span><span class="p">,</span><span class="w"> </span><span class="nx">w</span><span class="p">,</span><span class="w"> </span><span class="nx">h</span><span class="w"> </span><span class="p">};</span><span class="w">        </span><span class="c1">// 0–1 页相对</span>
-<span class="w">  </span><span class="nx">title?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">              </span><span class="c1">// 图/表题文字，或公式编号 &quot;(1)&quot;</span>
-<span class="w">  </span><span class="nx">titleBbox</span><span class="o">?:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">x</span><span class="p">,</span><span class="w"> </span><span class="nx">y</span><span class="p">,</span><span class="w"> </span><span class="nx">w</span><span class="p">,</span><span class="w"> </span><span class="nx">h</span><span class="w"> </span><span class="p">};</span><span class="w">  </span><span class="c1">// 完整标题/编号框（须 ⊆ bbox）</span>
+<span class="w">  </span><span class="nx">title?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">              </span><span class="c1">// 图/表题文字（公式不解析编号串）</span>
+<span class="w">  </span><span class="nx">titleBbox</span><span class="o">?:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">x</span><span class="p">,</span><span class="w"> </span><span class="nx">y</span><span class="p">,</span><span class="w"> </span><span class="nx">w</span><span class="p">,</span><span class="w"> </span><span class="nx">h</span><span class="w"> </span><span class="p">};</span><span class="w">  </span><span class="c1">// 完整标题框，或公式的 formula_number 几何</span>
 <span class="w">  </span><span class="nx">captionRole?</span><span class="o">:</span><span class="w"> </span><span class="kt">CaptionRole</span><span class="p">;</span>
 <span class="p">};</span>
 </code></pre></div>
@@ -3560,11 +3564,11 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points
 </tr>
 <tr>
 <td><code>title-text.ts</code></td>
-<td>抽字、captionRole、公式编号解析</td>
+<td>抽字、captionRole（<strong>不含</strong>公式编号文本解析）</td>
 </tr>
 <tr>
 <td><code>merge-captions.ts</code></td>
-<td>联图 / 表 / 算法 / <strong>公式按编号</strong>、标题完整包含</td>
+<td>联图 / 表 / 算法 / <strong>公式按 formula_number 几何合并</strong>、标题完整包含</td>
 </tr>
 <tr>
 <td><code>normalize.ts</code></td>
