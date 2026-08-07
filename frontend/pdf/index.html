@@ -3015,6 +3015,14 @@
 <td>文中引用悬浮预览</td>
 </tr>
 <tr>
+<td><code>src/components/viewer/pdf-ask/formula-annotation-card.tsx</code></td>
+<td>公式 hover「公式解析」符号对照卡</td>
+</tr>
+<tr>
+<td><code>src/lib/pdf/equation-annotation/</code></td>
+<td><code>Annotation.md</code> 符号表解析与加载</td>
+</tr>
+<tr>
 <td><code>src/lib/agent/visual-context-store.ts</code></td>
 <td>Agent composer 视觉批注草稿</td>
 </tr>
@@ -3066,6 +3074,51 @@
 <p>→ <strong><a href="../pdf-layout-analysis/">pdf-layout-analysis.md</a></strong></p>
 <p>要点：先文字角色再联图；图题须整框在 figure bbox 内；图无 title 丢弃；默认置信度 30%；Paper PDF 的初步解析结果缓存到 <code>{paper}/source/layout.json</code>，后续 merge/filter 可重复计算。</p>
 <p><strong>Hover 视觉提问：</strong> 指针在插图 / 表 / 算法 / 有编号公式上停留约 600ms 后，自动裁剪该区域并打开 <code>VisualAnnotationEditor</code>（与手动框选相同；不自动发送 Agent）。中途移开取消；打开后离开源区 / 草稿卡约 1000ms 自动关闭（与 ask / 视觉 pin 卡 hide 一致，便于指针移到卡片）；框选模式或已有草稿卡时不触发。手动框选草稿不会因移开而自动关闭。</p>
+<p><strong>Hover 公式解析：</strong> 当论文目录存在 <code>Annotation.md</code>（由 <code>equation-annotation</code> Skill 生成的符号词典）且解析到符号表时，hover <strong>有编号公式</strong> 不打开视觉提问，改为弹出「公式解析」卡片：展示符号 / 含义 / 通俗理解对照（符号列 KaTeX 渲染）。卡片可打开 <code>Annotation.md</code>。</p>
+<p>Hover UX（与视觉提问分离）：</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>打开 dwell</td>
+<td>~280ms（无裁图，比视觉提问 600ms 更短）</td>
+</tr>
+<tr>
+<td>移走关闭</td>
+<td>离开公式 hit 或卡片后 ~320ms（够穿越到卡片空隙；比 1s 更利落）</td>
+</tr>
+<tr>
+<td>回到公式 / 卡片</td>
+<td>取消关闭；同一公式重新进入立即保持打开</td>
+</tr>
+<tr>
+<td>切换公式</td>
+<td>图例已开时 hover 另一公式立即切换（无二次 dwell）</td>
+</tr>
+<tr>
+<td>滚动 / 缩放</td>
+<td>卡片随 bbox 重定位</td>
+</tr>
+<tr>
+<td>Escape</td>
+<td>立即关闭</td>
+</tr>
+<tr>
+<td>hit 层</td>
+<td>图例打开时仍挂载，负责 leave/enter，不依赖第二层 hover surface</td>
+</tr>
+<tr>
+<td>页上框</td>
+<td>与视觉提问相同的 primary 描边框，标出当前公式区域</td>
+</tr>
+</tbody>
+</table>
+<p>无 <code>Annotation.md</code> 或表为空时，公式仍走上述视觉提问 hover。实现：<code>src/lib/pdf/equation-annotation/</code>、<code>formula-annotation-card.tsx</code>、<code>LAYOUT_FORMULA_HOVER_*</code>。</p>
 <p>Host 下载/解析：<a href="../../backend/paper-import/">../backend/paper-import.md</a>。</p>
 <p>引用元数据解析与 References 侧栏：<a href="../../backend/citation-parsing/">../backend/citation-parsing.md</a>。</p>
 
