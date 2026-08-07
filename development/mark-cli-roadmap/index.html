@@ -2293,7 +2293,7 @@
   <a href="#65" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.5 图 / 公式（后置上层）
+        6.5 图 / 公式（侧栏索引路径 — 已部分落地）
       
     </span>
   </a>
@@ -3285,7 +3285,7 @@
   <a href="#65" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.5 图 / 公式（后置上层）
+        6.5 图 / 公式（侧栏索引路径 — 已部分落地）
       
     </span>
   </a>
@@ -3868,26 +3868,40 @@ agentero<span class="w"> </span>mark<span class="w"> </span>delete<span class="w
 </tr>
 </tbody>
 </table>
-<h3 id="65">6.5 图 / 公式（后置上层）<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
+<h3 id="65">6.5 图 / 公式（侧栏索引路径 — 已部分落地）<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>优先级</th>
 <th>项</th>
+<th>状态</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>P0 体验</td>
-<td>Skill 写清：用 comment + 页码/图号；请用户框选</td>
+<td>P0</td>
+<td>写出 <code>source/layout-index.json</code>（与侧栏同源）</td>
+<td><strong>已实现</strong>（layout 分析 merge 后）</td>
+</tr>
+<tr>
+<td>P0</td>
+<td>CLI <code>layout list\|get</code> + <code>mark add --region</code></td>
+<td><strong>已实现</strong></td>
+</tr>
+<tr>
+<td>P1</td>
+<td>Skill 教 Agent：<code>layout list</code> → <code>mark add --region</code></td>
+<td><strong>已改 agentero-cli v2</strong></td>
 </tr>
 <tr>
 <td>P2</td>
-<td>大纲/图题 sidecar 粗锚</td>
+<td>桌面打开时对 <code>layoutRef</code> mark 稳定出针/黄底</td>
+<td>依赖现有 rects；可再打磨</td>
 </tr>
 <tr>
 <td>P3</td>
-<td>自动区域检测 + 与 <code>agent-trace</code> 裁图结合</td>
+<td>自动裁图 + <code>agent-trace</code></td>
+<td>仍后置</td>
 </tr>
 </tbody>
 </table>

@@ -1106,6 +1106,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Layout sidecar">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        侧栏索引（CLI）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
       </ul>
@@ -2925,6 +2942,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Layout sidecar">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        侧栏索引（CLI）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
       </ul>
@@ -3110,7 +3144,7 @@
 </tr>
 <tr>
 <td>持久化</td>
-<td>Paper PDF 写入 <code>{paper}/source/layout.json</code>（raw text-enriched regions）；<code>layoutAnalysisStore</code> 仍是运行时 UI store</td>
+<td>Paper PDF 写入 <code>{paper}/source/layout.json</code>（raw text-enriched regions）+ <code>{paper}/source/layout-index.json</code>（侧栏同构，供 CLI）；<code>layoutAnalysisStore</code> 仍是运行时 UI store</td>
 </tr>
 </tbody>
 </table>
@@ -3233,14 +3267,23 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <h3 id="layout-sidecar">Layout sidecar<a class="headerlink" href="#layout-sidecar" title="Permanent link">&para;</a></h3>
 <p><code>{paper}/source/layout.json</code> 保存 <strong>初步解析结果</strong>：模型标签映射后的 <code>PdfLayoutRegion[]</code>，并已尽力补充 caption 文本与 <code>captionRole</code>（公式编号文本不解析）。它不保存侧栏最终卡片列表，也不保存缩略图；后续 <code>mergeCaptionsIntoHosts</code>、去重和置信度筛选都从该 raw sidecar 重新计算。因此修改联图、公式合并或筛选规则后，不需要重新运行 PP-DocLayoutV3。</p>
 <div class="codehilite"><pre><span></span><code><span class="kr">type</span><span class="w"> </span><span class="nx">LayoutSidecar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nx">schemaVersion</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">schemaVersion</span><span class="o">:</span><span class="w"> </span><span class="kt">2</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">source</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;embedpdf-layout&quot;</span><span class="p">;</span><span class="w"> </span><span class="nx">generatedAt</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">};</span>
 <span class="w">  </span><span class="nx">regions</span><span class="o">:</span><span class="w"> </span><span class="kt">PdfLayoutRegion</span><span class="p">[];</span><span class="w"> </span><span class="c1">// raw, pre-merge</span>
 <span class="p">};</span>
 </code></pre></div>
 
-<p>缓存只在已知 paper folder 时启用；散落 PDF 没有 <code>{paper}</code> 路径，仍使用当前内存流程。</p>
-<p><strong>重新分析按钮</strong>（Figures header）：<code>force: false</code>。有 <code>source/layout.json</code> 时只重跑 JSON→侧栏（<code>mergeCaptionsIntoHosts</code> + NMS），<strong>不</strong>再跑 PP-DocLayoutV3，也<strong>不</strong>覆盖 sidecar。无缓存时才走完整 PDF→JSON。需要强制刷新模型输出时由调用方显式传 <code>force: true</code>（当前 UI 不暴露）。</p>
+<h4 id="cli">侧栏索引（CLI）<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h4>
+<p><code>{paper}/source/layout-index.json</code> 在 <strong>每次 merge 后</strong>（含缓存命中只重算 merge）写出，与 Figures 轨 / hover 目标同源：</p>
+<ul>
+<li>过滤：<code>isSidebarLayoutKind</code> + <code>LAYOUT_SIDEBAR_MIN_SCORE</code> + NMS（<code>dedupeLayoutRegions</code>）</li>
+<li>分区：figure（image+chart）→ table → algorithm → formula</li>
+<li>字段：<code>id</code>（如 <code>figure-3</code>）、<code>stableKey</code>、<code>kind</code>、<code>section</code>、<code>page</code>（<strong>1-based</strong>）、<code>pageIndex</code>、<code>bbox</code>（0–1）、<code>score</code>、<code>title?</code>、<code>layoutRegionId</code></li>
+<li>代码：<code>src/lib/pdf/layout/layout-index.ts</code>、<code>writeLayoutIndexFromRaw</code>（<code>io.ts</code>）</li>
+<li>CLI：<code>agentero layout list|get</code>、<code>agentero mark add --region &lt;id&gt;</code>（见 <a href="../../backend/cli/">../backend/cli.md</a>）</li>
+</ul>
+<p>缓存只在已知 paper folder 时启用；散落 PDF 没有 <code>{paper}</code> 路径，仍使用当前内存流程（也不写 index）。</p>
+<p><strong>重新分析按钮</strong>（Figures header）：<code>force: false</code>。有 <code>source/layout.json</code> 时只重跑 JSON→侧栏（<code>mergeCaptionsIntoHosts</code> + NMS），<strong>不</strong>再跑 PP-DocLayoutV3，也<strong>不</strong>覆盖 raw sidecar；<strong>会</strong>刷新 <code>layout-index.json</code>。无缓存时才走完整 PDF→JSON。需要强制刷新模型输出时由调用方显式传 <code>force: true</code>（当前 UI 不暴露）。</p>
 <hr />
 <h2 id="17">规则清单（现行，共 <strong>17</strong> 条核心规则）<a class="headerlink" href="#17" title="Permanent link">&para;</a></h2>
 <p>按阶段编号。实现常量见 <code>merge-captions.ts</code> → <code>LAYOUT_MERGE</code>。</p>

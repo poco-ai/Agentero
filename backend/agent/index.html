@@ -2953,6 +2953,14 @@ commands / config 仍可在 load 期间转发。</p>
 <td><code>agent_respond_permission</code></td>
 <td>回答权限请求</td>
 </tr>
+<tr>
+<td><code>agent_run_tool_lifecycle</code></td>
+<td>静默安装/升级 catalog CLI（及 Claude/Codex ACP 适配器）；见 <a href="../api/">api.md</a> 与 <a href="https://github.com/poco-ai/Agentero/issues/225">#225</a></td>
+</tr>
+<tr>
+<td><code>agent_tool_lifecycle_supported</code> / <code>agent_tool_install_commands</code></td>
+<td>是否支持静默安装；平台手动安装文案</td>
+</tr>
 </tbody>
 </table>
 <p>ACP slash command 不是独立的 <code>session/compact</code> RPC。Host 转发 Agent 广播的

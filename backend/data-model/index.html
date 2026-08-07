@@ -2913,15 +2913,17 @@
 ├── marks/            # 高亮/批注/提问/翻译 JSON 与 mark 自有资产
 ├── source/           # TeX 等（可懒加载）
 │   ├── agentero-cite.json  # 参考文献 sidecar（可重建，见 api.md paper_refs_parse）
-│   └── layout.json         # PDF 版面 raw sidecar（可重建；merge/filter 可重复）
+│   ├── layout.json         # PDF 版面 raw sidecar（可重建；merge/filter 可重复）
+│   └── layout-index.json   # 侧栏同构索引（CLI/Agent；post-merge figure/table/…）
 ├── PAPER.md          # 无 TeX 时 liteparse 正文
 └── assets/           # NOTES 内嵌图等
 </code></pre></div>
 
+<p><code>layout-index.json</code> 与侧栏 Figures 同源（merge + score/NMS 后），供 <code>agentero layout list</code> / <code>mark add --region</code> 使用；<strong>可从</strong> <code>layout.json</code> 重算，分析完成或缓存命中时由桌面写入。详见 <a href="../../frontend/pdf-layout-analysis/">../frontend/pdf-layout-analysis.md</a>。</p>
 <h2 id="marks">marks/<a class="headerlink" href="#marks" title="Permanent link">&para;</a></h2>
 <ul>
-<li>高亮/批注：<code>annotations.json</code>（含 <code>comment</code> 的为批注）</li>
-<li>提问/翻译：<code>&lt;id&gt;.json</code>（<code>kind</code>）</li>
+<li>高亮/批注：<code>annotations.json</code>（含 <code>comment</code> 的为批注）；CLI 区域批注写 per-id <code>highlight</code>（<code>geometry: resolved</code> + <code>layoutRef</code>）</li>
+<li>提问/翻译：<code>&lt;id&gt;.json</code>（<code>kind</code>）；CLI 可用 <code>mark add --region … --question</code> 写 <code>ask</code> 壳</li>
 <li>视觉批注：<code>&lt;id&gt;.json</code>（<code>kind: agent-trace</code>）保存位置、会话与 <code>image.path</code>；裁剪图片位于 <code>assets/&lt;id&gt;.png</code></li>
 <li>不写 PDF 二进制，不强制写入 NOTES</li>
 </ul>

@@ -2530,10 +2530,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#agent_open_install_terminal" class="md-nav__link">
+  <a href="#agent_run_tool_lifecycle225" class="md-nav__link">
     <span class="md-ellipsis">
       
-        agent_open_install_terminal（已实现）
+        agent_run_tool_lifecycle（已实现，#225）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent_tool_lifecycle_supported" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_tool_lifecycle_supported（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent_tool_install_commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_tool_install_commands（已实现）
       
     </span>
   </a>
@@ -4637,10 +4659,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#agent_open_install_terminal" class="md-nav__link">
+  <a href="#agent_run_tool_lifecycle225" class="md-nav__link">
     <span class="md-ellipsis">
       
-        agent_open_install_terminal（已实现）
+        agent_run_tool_lifecycle（已实现，#225）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent_tool_lifecycle_supported" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_tool_lifecycle_supported（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent_tool_install_commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_tool_install_commands（已实现）
       
     </span>
   </a>
@@ -6767,16 +6811,40 @@ Host (Tauri + Rust)
 <span class="p">}</span>
 </code></pre></div>
 
-<h4 id="agent_open_install_terminal"><code>agent_open_install_terminal</code>（已实现）<a class="headerlink" href="#agent_open_install_terminal" title="Permanent link">&para;</a></h4>
-<p>打开系统终端，展示指定 catalog 模板的 <strong>安装命令</strong>，并 <strong>等待用户按 Enter（Windows：任意键）后才执行</strong>。不静默安装；UI 不得传入任意 shell——仅允许模板内置的 <code>install_command</code>。</p>
+<h4 id="agent_run_tool_lifecycle225"><code>agent_run_tool_lifecycle</code>（已实现，<a href="https://github.com/poco-ai/Agentero/issues/225">#225</a>）<a class="headerlink" href="#agent_run_tool_lifecycle225" title="Permanent link">&para;</a></h4>
+<p><strong>静默</strong>安装或升级 catalog Agent CLI（需要时一并装 ACP 适配器）。不弹终端、不写临时确认脚本；命令由 Host 按平台拼装，UI 不得传入任意 shell。</p>
+<blockquote>
+<p>已取代旧的 <code>agent_open_install_terminal</code>（打开系统终端、Enter 确认后再装）。远端仍用 <code>remote_agent_open_install_terminal</code>（SSH 确认安装）。</p>
+</blockquote>
 <ul>
-<li><strong>参数</strong>：<code>{ templateId: string }</code>（如 <code>claude-acp</code>）</li>
-<li><strong>返回</strong>：<code>{ ok: true; data: null }</code></li>
+<li><strong>参数</strong>：<code>{ templateId: string, action: "install" | "update" }</code></li>
+<li>支持的 <code>templateId</code>：<code>opencode</code> · <code>claude-acp</code> · <code>codex-acp</code> · <code>gemini</code> · <code>grok-build</code>（不含 <code>qodercli</code> / <code>custom</code>）</li>
+<li><strong>返回</strong>：<code>{ ok: true; data: null }</code> 或错误（stderr/stdout 末尾若干行）</li>
 <li><strong>行为</strong></li>
-<li>查找内置模板的 <code>installCommand</code>；无则报错。</li>
-<li>写入临时脚本 → 打开系统默认终端运行该脚本（打印命令 → 确认 → 执行 → 提示回到 Settings 点 Refresh）。</li>
-<li>Claude：<code>npm i -g @agentclientprotocol/claude-agent-acp</code>（需本机已装 Claude Code 与 npm）。</li>
-<li><strong>Catalog 扫描字段</strong>（<code>agent_scan_catalog</code>）：<code>detect</code> 对 Claude 使用 <code>claude</code>；<code>command</code> 仍为 <code>claude-agent-acp</code>。当 <code>binaryAvailable &amp;&amp; !acpCommandAvailable &amp;&amp; installCommand</code> 时 <code>offerInstall: true</code>。</li>
+<li><code>install</code>：未装 host 时走官方 installer（POSIX curl→临时文件再 bash，非 <code>curl|bash</code>）或 npm；Claude/Codex 在 host 已存在但 ACP 缺失时只装适配器；两者都缺则 host &amp;&amp; adapter。</li>
+<li><code>update</code>：优先 <code>tool update</code> / 官方链，失败再 npm；Codex 固定 npm（避免假成功）；Windows 上 OpenCode 不用交互式 <code>upgrade</code>。</li>
+<li>macOS/Linux：注入 login shell 的 <code>PATH</code>（GUI 窄 PATH）。</li>
+<li>Windows：写临时 <code>.bat</code> + <code>CREATE_NO_WINDOW</code> + <code>call</code> 前缀。</li>
+<li>在 <code>spawn_blocking</code> 中执行，避免卡住 async runtime。</li>
+<li><strong>实现</strong>：<code>src-tauri/src/features/agent/tool_lifecycle.rs</code></li>
+<li><strong>Catalog 两层检测</strong>（<code>agent_scan_catalog</code> / 远端 scan）：</li>
+<li><strong>Agent</strong>：<code>binaryAvailable</code>（<code>detect_command</code>，如 <code>claude</code> / <code>codex</code> / <code>opencode</code>）</li>
+<li><strong>ACP</strong>：<code>acpCommandAvailable</code>（<code>command</code>，如 <code>claude-agent-acp</code>；原生 ACP 时与 Agent 同二进制）</li>
+<li><code>adapterDistinct</code>：host 与 ACP 入口不同</li>
+<li><code>canInstall</code>：本机支持静默安装</li>
+<li><code>offerInstall</code>：Agent 已装但 ACP 缺失 → 设置页「安装 ACP」</li>
+<li>Agent 未装且 <code>canInstall</code> → 设置页「安装」</li>
+</ul>
+<h4 id="agent_tool_lifecycle_supported"><code>agent_tool_lifecycle_supported</code>（已实现）<a class="headerlink" href="#agent_tool_lifecycle_supported" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>参数</strong>：<code>{ templateId: string }</code></li>
+<li><strong>返回</strong>：<code>{ ok: true; data: boolean }</code></li>
+</ul>
+<h4 id="agent_tool_install_commands"><code>agent_tool_install_commands</code>（已实现）<a class="headerlink" href="#agent_tool_install_commands" title="Permanent link">&para;</a></h4>
+<p>平台相关的一键手动安装文案（复制用，无副作用）。</p>
+<ul>
+<li><strong>参数</strong>：无</li>
+<li><strong>返回</strong>：<code>{ ok: true; data: string }</code></li>
 </ul>
 <h4 id="agentlist_sessions"><code>agent:list_sessions</code><a class="headerlink" href="#agentlist_sessions" title="Permanent link">&para;</a></h4>
 <p>列出当前 Vault 中的 Agent 会话。</p>

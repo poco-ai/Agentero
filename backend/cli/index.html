@@ -1830,7 +1830,7 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        规划中（未实现）
+        版面索引与区域批注（已实现）
       
     </span>
   </a>
@@ -2815,7 +2815,7 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        规划中（未实现）
+        版面索引与区域批注（已实现）
       
     </span>
   </a>
@@ -2933,16 +2933,56 @@
 <td><code>doctor</code></td>
 <td>聚合诊断与显式确认的论文 aliases 修复</td>
 </tr>
+<tr>
+<td><code>layout</code></td>
+<td>侧栏同构版面索引：<code>list</code> / <code>get</code>（figure / table / algorithm / formula）</td>
+</tr>
+<tr>
+<td><code>mark</code></td>
+<td>阅读标注：<code>list</code> / <code>get</code> / <code>add --region</code> / <code>delete</code>（区域锚点优先）</td>
+</tr>
 </tbody>
 </table>
 <p>稳定 <code>--json</code> 输出，供脚本与外部 Agent 组合。</p>
-<h3 id="_3">规划中（未实现）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
-<p>阅读标注与翻译进 CLI（<a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>）：<code>mark</code> list/get/add/update/delete、<code>translate</code> 文本等。设计见 <a href="../../development/mark-cli-roadmap/">../development/mark-cli-roadmap.md</a>；文字定位见 <a href="../../development/mark-locate-lazy/">惰性</a> / <a href="../../development/mark-locate-eager/">即时</a>。<br />
-当前 <code>paper get</code> 仅报告 <code>assets.marksDir</code> 是否存在；skill 仍将 marks 作 L2.5 只读，直至命令落地后改 skill。</p>
+<h3 id="_3">版面索引与区域批注（已实现）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<p>侧栏 Figures 同源列表落在 <code>{paper}/source/layout-index.json</code>（由桌面版面分析在 merge 后写入；raw 仍为 <code>source/layout.json</code>）。</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 列出图 / 表 / 算法 / 公式（--kind 可重复，OR）</span>
+agentero<span class="w"> </span>layout<span class="w"> </span>list<span class="w"> </span>papers/demo<span class="w"> </span>--json
+agentero<span class="w"> </span>layout<span class="w"> </span>list<span class="w"> </span>papers/demo<span class="w"> </span>--kind<span class="w"> </span>figure<span class="w"> </span>--kind<span class="w"> </span>formula<span class="w"> </span>--json
+agentero<span class="w"> </span>layout<span class="w"> </span>get<span class="w">  </span>papers/demo<span class="w"> </span>figure-3<span class="w"> </span>--json
+
+<span class="c1"># 按区域钉批注（geometry=resolved，拷贝 bbox；不写 annotations.json）</span>
+agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/demo<span class="w"> </span>--region<span class="w"> </span>figure-3<span class="w"> </span>--comment<span class="w"> </span><span class="s2">&quot;核心图&quot;</span><span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/demo<span class="w"> </span>--region<span class="w"> </span>formula-p3-…<span class="w"> </span>--question<span class="w"> </span><span class="s2">&quot;推导？&quot;</span><span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>list<span class="w"> </span>papers/demo<span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>delete<span class="w"> </span>papers/demo<span class="w"> </span>&lt;id&gt;<span class="w"> </span>-y<span class="w"> </span>--json
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th><code>--kind</code>（layout list）</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>figure</code></td>
+<td>侧栏插图分区（image + chart）</td>
+</tr>
+<tr>
+<td><code>image</code> / <code>chart</code> / <code>table</code> / <code>algorithm</code> / <code>formula</code></td>
+<td>精确 kind</td>
+</tr>
+</tbody>
+</table>
+<p>无 <code>layout-index.json</code> 时返回 <code>layout_index_missing</code>（提示先在 App 打开论文跑版面分析）。<br />
+正文句子高亮 / <code>translate</code> 命令见规划 <a href="https://github.com/poco-ai/Agentero/issues/170">#170</a> 与 <a href="../../development/mark-cli-roadmap/">mark-cli-roadmap.md</a>。</p>
 <div class="codehilite"><pre><span></span><code>cargo<span class="w"> </span>build<span class="w"> </span>-p<span class="w"> </span>agentero-cli
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>vault<span class="w"> </span>which<span class="w"> </span>--json
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>wiki<span class="w"> </span>check<span class="w"> </span>papers/demo/NOTES.md<span class="w"> </span>--json
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>doctor<span class="w"> </span>--json
+cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>layout<span class="w"> </span>list<span class="w"> </span>papers/demo<span class="w"> </span>--json
 cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-p<span class="w"> </span>agentero-cli
 </code></pre></div>
 
