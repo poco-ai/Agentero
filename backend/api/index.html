@@ -6833,7 +6833,7 @@ Host (Tauri + Rust)
 <div class="codehilite"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nx">id?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="c1">// 省略则新建</span>
 <span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
-<span class="w">  </span><span class="nx">template</span><span class="o">?:</span><span class="w"> </span><span class="s1">&#39;opencode&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;gemini&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;claude-acp&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;codex-acp&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;qodercli&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;custom&#39;</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">template</span><span class="o">?:</span><span class="w"> </span><span class="s1">&#39;opencode&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;openclaw&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;gemini&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;hermes&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;claude-acp&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;codex-acp&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;qodercli&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;grok-build&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;custom&#39;</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">command</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">args?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span>
 <span class="w">  </span><span class="nx">env?</span><span class="o">:</span><span class="w"> </span><span class="kt">Record</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="o">&gt;</span><span class="p">;</span>
@@ -6879,17 +6879,17 @@ Host (Tauri + Rust)
 </blockquote>
 <ul>
 <li><strong>参数</strong>：<code>{ templateId: string, action: "install" | "update" }</code></li>
-<li>支持的 <code>templateId</code>：<code>opencode</code> · <code>claude-acp</code> · <code>codex-acp</code> · <code>gemini</code> · <code>grok-build</code>（不含 <code>qodercli</code> / <code>custom</code>）</li>
+<li>支持的 <code>templateId</code>：<code>opencode</code> · <code>openclaw</code> · <code>claude-acp</code> · <code>codex-acp</code> · <code>gemini</code> · <code>hermes</code> · <code>grok-build</code>（不含 <code>qodercli</code> / <code>custom</code>）</li>
 <li><strong>返回</strong>：<code>{ ok: true; data: null }</code> 或错误（stderr/stdout 末尾若干行）</li>
 <li><strong>行为</strong></li>
-<li><code>install</code>：未装 host 时走官方 installer（POSIX curl→临时文件再 bash，非 <code>curl|bash</code>）或 npm；Claude/Codex 在 host 已存在但 ACP 缺失时只装适配器；两者都缺则 host &amp;&amp; adapter。</li>
-<li><code>update</code>：优先 <code>tool update</code> / 官方链，失败再 npm；Codex 固定 npm（避免假成功）；Windows 上 OpenCode 不用交互式 <code>upgrade</code>。</li>
+<li><code>install</code>：未装 host 时走官方 installer（POSIX curl→临时文件再 bash，非 <code>curl|bash</code>）或 npm；Claude/Codex 在 host 已存在但 ACP 缺失时只装适配器；两者都缺则 host &amp;&amp; adapter；Hermes 走官方 installer；OpenClaw 走 npm。</li>
+<li><code>update</code>：优先 <code>tool update</code> / 官方链，失败再 npm；Codex 固定 npm（避免假成功）；OpenClaw 使用 <code>openclaw update --yes</code> 后 fallback npm；Windows 上 OpenCode 不用交互式 <code>upgrade</code>。</li>
 <li>macOS/Linux：注入 login shell 的 <code>PATH</code>（GUI 窄 PATH）。</li>
 <li>Windows：写临时 <code>.bat</code> + <code>CREATE_NO_WINDOW</code> + <code>call</code> 前缀。</li>
 <li>在 <code>spawn_blocking</code> 中执行，避免卡住 async runtime。</li>
 <li><strong>实现</strong>：<code>src-tauri/src/features/agent/tool_lifecycle.rs</code></li>
 <li><strong>Catalog 两层检测</strong>（<code>agent_scan_catalog</code> / 远端 scan）：</li>
-<li><strong>Agent</strong>：<code>binaryAvailable</code>（<code>detect_command</code>，如 <code>claude</code> / <code>codex</code> / <code>opencode</code>）</li>
+<li><strong>Agent</strong>：<code>binaryAvailable</code>（<code>detect_command</code>，如 <code>claude</code> / <code>codex</code> / <code>opencode</code> / <code>openclaw</code> / <code>hermes</code>）</li>
 <li><strong>ACP</strong>：<code>acpCommandAvailable</code>（<code>command</code>，如 <code>claude-agent-acp</code>；原生 ACP 时与 Agent 同二进制）</li>
 <li><code>adapterDistinct</code>：host 与 ACP 入口不同</li>
 <li><code>canInstall</code>：本机支持静默安装</li>
