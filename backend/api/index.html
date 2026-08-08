@@ -5406,6 +5406,11 @@ Host (Tauri + Rust)
 <td><code>{ sessionId, agentId, configId, currentId, models: { id, name, group? }[] }</code>；<code>currentId</code> 若不在 selector 目录中会被 Host 注入到 <code>models</code>（第三方 / 网关默认模型）</td>
 </tr>
 <tr>
+<td><code>agent:collaboration</code></td>
+<td>会话模式（UI「模式」；Codex <code>collaboration_mode</code> Default/Plan）</td>
+<td><code>{ sessionId, agentId, configId, currentId, modes: { id, name, description? }[] }</code>（无上报则不 emit；UI 仅显示 name）</td>
+</tr>
+<tr>
 <td><code>agent:effort</code></td>
 <td>ACP 上报 reasoning effort 选项</td>
 <td><code>{ sessionId, agentId, configId, currentId, efforts: { id, name, description? }[] }</code></td>
@@ -5431,6 +5436,16 @@ Host (Tauri + Rust)
 <td><code>{ requestId, sessionId, title, kind?, paths, options: { optionId, name, kind }[] }</code></td>
 </tr>
 <tr>
+<td><code>agent:elicitation-request</code></td>
+<td>form elicitation（Codex request_user_input）</td>
+<td><code>{ requestId, sessionId, message, toolCallId?, fields: { id, title, description?, required, kind, options[] }[] }</code></td>
+</tr>
+<tr>
+<td><code>agent:ask-user-request</code></td>
+<td>Grok <code>_x.ai/ask_user_question</code></td>
+<td><code>{ requestId, sessionId, toolCallId?, mode, questions: { question, options[{label,description?}], multiSelect, allowOther }[] }</code></td>
+</tr>
+<tr>
 <td><code>background-task:progress</code></td>
 <td>下载/解析任务进度</td>
 <td><code>{ taskId, phase, downloadedBytes, totalBytes?, progress? }</code>；下载阶段的字节进度由前端聚合为总体进度（PDF 映射到 0–50%，TeX 映射到 50–100%），解析阶段显示为处理中，任务完成时为 100%</td>
@@ -5446,6 +5461,7 @@ Host (Tauri + Rust)
 <span class="w">  </span><span class="nx">agentId?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">vaultPath?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">modelId?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="c1">// preferred ACP model config value</span>
+<span class="w">  </span><span class="nx">collaborationModeId?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="c1">// preferred session mode (default / plan)</span>
 <span class="p">}</span>
 </code></pre></div>
 
@@ -6762,6 +6778,7 @@ Host (Tauri + Rust)
 <span class="w">  </span><span class="nx">workflow?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">target?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">modelId?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">collaborationModeId?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="c1">// 会话模式 default / plan（Plan 下可用 request_user_input）</span>
 <span class="w">  </span><span class="nx">reasoningEffort?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="c1">// 仅写入当前 ACP 会话声明的 thought_level 选项</span>
 <span class="w">  </span><span class="nx">fastMode?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="p">;</span><span class="w"> </span><span class="c1">// 仅写入当前 ACP 会话声明的 fast model_config 选项</span>
 <span class="w">  </span><span class="nx">skillIds?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span><span class="w"> </span><span class="c1">// 已发现的本机 SKILL.md id，最多 5 个</span>

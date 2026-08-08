@@ -1136,6 +1136,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#elicitation-askuserquestion-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        表单 Elicitation / AskUserQuestion（同一 UI）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#paper-reader" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2872,6 +2883,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#elicitation-askuserquestion-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        表单 Elicitation / AskUserQuestion（同一 UI）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#paper-reader" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2942,17 +2964,57 @@
 <li><strong>图片附件</strong>：Composer 支持粘贴 / 点选 / 拖入图片（<code>image/*</code>，最多 8 张、单张 ≤ 10 MiB）。提交时转为 ACP <code>ContentBlock::Image</code>（与 PDF 视觉批注同一 <code>runOnce.images</code> 通路）；会话气泡以缩略 chip 展示，纯图消息无文字气泡。图片仅会话本地保留，不随 <code>session/load</code> 历史回放。工具：<code>src/lib/agent/prompt-image.ts</code>。</li>
 <li><code>@</code>：空时优先最近路径与浅层目录；› 进入子目录；论文标签与 <code>paperTreeLabelMode</code> 一致。<code>@</code>、<code>$</code> 与 <code>/</code> 候选菜单由 viewport 碰撞处理定位，空间不足时翻转并在可用高度内滚动。</li>
 <li>ACP <code>plan</code> 事件使用 AI Elements <code>Plan</code> / <code>PlanStep</code> 展示，可折叠查看步骤；步骤状态由图标、完成态和无障碍文案表达。</li>
-<li>ACP <code>AskUserQuestion</code> 工具调用会解析为 AI Elements <code>Tool</code> 内的可选回答；完成选择后以正常的下一用户轮提交，并继续同一 ACP 会话。</li>
+<li>ACP 结构化提问工具会解析为 AI Elements <code>Tool</code> 内的可选回答；完成选择后以正常的下一用户轮提交，并继续同一 ACP 会话。支持多 harness 的 rawInput 形状（见下表）。</li>
 <li>运行中可继续输入 → Queue waitlist；标题保持简洁，条目等宽并可单独移除；Esc / 停止中止。</li>
 <li>右侧栏 composer 顶部有竖向拖拽分隔条，可压低输入区高度；低于紧凑阈值后，当前文件 / <code>@</code> 提及 / 选区 / 视觉草稿 / skill / 图片附件都变为图标圆片，隐藏建议 prompts 与模型、推理强度、上下文用量、Fast 等常驻工具，只保留输入、图片附件和发送。</li>
 <li>会话空闲时 hover 用户消息可 <strong>Edit</strong> 后重发。</li>
 <li><strong>新建对话 / 历史恢复</strong>：新建草稿不会清空刚离开的本地 transcript；历史项同时存在 Agentero runtime id 与 ACP provider id 时，<code>session/load</code> / 后续续聊只使用 <code>providerSessionId</code>；连续续聊产生的新 runtime 行会按 provider id 合并回同一个历史项；加载结果通过一次原子 store 更新写入并激活，避免列表刷新后出现空白会话。详见 <a href="../../bug_fix/codex-history-runtime-session-id/">Codex 历史恢复误用 runtime id</a>。</li>
 <li>Slash 命令完全来自当前 ACP session 的 <code>available_commands_update</code>；Agentero 不再注册本地 action/template。映射时剥离名称前导 <code>/</code> 与 <code>$</code>（部分 Agent 把 skill 以 <code>$name</code> 形式广播），再以 <code>/name</code> 填入 Composer，并在当前 provider session 中原样发送。</li>
 <li><strong>模型选择（含第三方）</strong>：列表来自 ACP <code>agent:models</code>；若 Agent 当前模型或用户偏好不在固定目录中（如 Codex + 中转 / cc-switch DeepSeek），仍会并入可选列表，并支持在搜索框输入任意 model id 作为自定义模型（<code>warm</code> / <code>run_once</code> 会尝试 <code>SetSessionConfigOption</code>，即使 id 未出现在上报目录中）。偏好按 agent 持久化。</li>
+<li><strong>会话模式（capability-driven）</strong>：Codex <code>collaboration_mode</code>（Default / Plan 等）。Plan 下才开放 <code>request_user_input</code>。事件 <code>agent:collaboration</code>；<code>warm</code> / <code>run_once</code> 携带 <code>collaborationModeId</code>。Composer 有上报时显示「模式」下拉（仅模式名，不展示 description）；偏好按 agent 持久化。不暴露 ACP <code>category: mode</code> 沙箱档（Read-only / Agent 等）。</li>
 </ul>
 <h2 id="ui_1">权限 UI<a class="headerlink" href="#ui_1" title="Permanent link">&para;</a></h2>
 <p>全局模式（设置）：<code>restricted</code> / <code>ask</code> / <code>auto</code>。<br />
 <code>ask</code> 时弹权限对话框 → <code>agent_respond_permission</code>。</p>
+<h2 id="elicitation-askuserquestion-ui">表单 Elicitation / AskUserQuestion（同一 UI）<a class="headerlink" href="#elicitation-askuserquestion-ui" title="Permanent link">&para;</a></h2>
+<p>「Agent 向用户结构化提问」<strong>共用</strong> <code>AskUserQuestionForm</code>（AI Elements <code>Suggestion</code> 选项芯片）。</p>
+<p><strong>背景</strong>：ACP 无统一 ask-user tool 格式。Client 先声明交互能力（<code>elicitation.form</code>），再用 adapter 解析各 harness 的 tool / elicitation / ext；个别 provider 还需 Host 侧 RPC（Grok）或 spawn env（OpenCode <code>OPENCODE_ENABLE_QUESTION_TOOL</code>）。详见 <a href="../../backend/agent/">backend/agent.md</a>「结构化提问」。</p>
+<p>各 harness 经 client adapter 落到同一表单：</p>
+<table>
+<thead>
+<tr>
+<th>来源</th>
+<th>协议 / rawInput</th>
+<th>UI 位置</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Codex tool / Claude / OpenCode <code>question</code></td>
+<td><code>agent:tool</code> + 可解析 questions</td>
+<td><strong>底部问卷</strong>（从 tool 提升）</td>
+<td>Transcript 只留 tool 行 +「请在下方问卷中作答」；不嵌表单</td>
+</tr>
+<tr>
+<td>Codex <code>request_user_input</code></td>
+<td><code>elicitation/create</code> → <code>agent:elicitation-request</code></td>
+<td><strong>底部问卷</strong></td>
+<td>Client 须声明 <code>elicitation.form</code></td>
+</tr>
+<tr>
+<td>Grok <code>_x.ai/ask_user_question</code></td>
+<td>ACP <strong>ext method</strong> → <code>agent:ask-user-request</code></td>
+<td><strong>底部问卷</strong></td>
+<td>提交 → <code>agent_respond_ask_user</code>；若同时有 tool 镜像则<strong>抑制</strong> tool 表单</td>
+</tr>
+</tbody>
+</table>
+<p><strong>单一交互面</strong>：优先级 <code>elicitation</code> &gt; Grok ext &gt; tool 提升；任意时刻只显示一张表单。表单在 <strong><code>AgentAskUserSurface</code></strong>（transcript 下方）。问卷与 free-text <strong>composer 互斥</strong>：有可渲染问卷时隐藏 resize 手柄与 <code>AgentComposer</code>（草稿状态仍由 session composer state 保留），提交或取消后恢复输入壳。解析：<code>parseAskUserQuestions</code> / <code>questionsFromElicitationFields</code> / <code>questionsFromAskUserDtos</code>。</p>
+<p>多题为 <strong>翻页</strong>：一页一题，上一题 / 下一题，末题显示「提交」；单选且无 Other 时选项点击后自动进下一题。多选（<code>multiSelect</code> / <code>multiple</code>）可点多个芯片，答案以 <code>,</code> 拼接。单题仅「提交」。底部「取消」右对齐。</p>
+<p>键盘（焦点在问卷区、非自由文本框）：<code>↑</code>/<code>↓</code> 移动选项焦点，<code>Space</code> 勾选/切换，<code>Enter</code> 确认当前焦点并下一题（末题提交），<code>←</code>/<code>→</code> 切题。</p>
+<p>Client 声明 <code>elicitation.form</code>；用户提交 elicitation → <code>agent_respond_elicitation</code>（accept + content）或 cancel。映射：<code>elicitationContentFromAnswers</code>。</p>
+<p>Tool 提升的作答：<code>formatAskUserAnswers</code> 后作为下一用户轮。若当前 turn 仍 <code>running</code>（OpenCode 等阻塞在 question tool），会先入队再 <strong>取消该 turn</strong>，以便队列立刻排空发送——避免卡在「等待发送」还要点停止。Grok ext / elicitation 不走此路径。</p>
 <h2 id="paper-reader">精读（paper-reader）<a class="headerlink" href="#paper-reader" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
