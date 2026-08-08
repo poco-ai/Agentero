@@ -5591,7 +5591,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <ul>
 <li><strong>预检</strong>：<code>BEGIN IMMEDIATE</code> 写锁探测，SQLITE_BUSY → 报错「请先关闭 Zotero」。</li>
 <li><strong>备份</strong>：每次推送前复制 <code>zotero.sqlite</code>（+wal/shm）到 <code>&lt;zoteroDir&gt;/agentero-backups/zotero-&lt;时间戳&gt;.sqlite</code>，保留最近 5 份。</li>
-<li><strong>标记块协议</strong>：NOTES.md → <code>pulldown-cmark</code> 转 HTML，包裹 <code>&lt;!-- agentero:sync paper=&lt;id&gt; --&gt;…&lt;!-- /agentero:sync --&gt;</code>；按标记精确匹配该父条目下的已有标记笔记 → 整块替换，无则新建子笔记（<code>items</code> note 行：同 libraryID + 8 位 base32 key + <code>itemNotes</code> 行）。<strong>永不触碰无标记的用户笔记</strong>。</li>
+<li><strong>标记块协议</strong>：NOTES.md → <code>pulldown-cmark</code> 转 HTML（先净化 Obsidian 语法：剥离 YAML frontmatter、<code>&gt; [!type]</code> callout 转加粗标签、<code>[[双链]]</code> 转纯文本，避免在 Zotero 富文本笔记中显示为生 Markdown），包裹 <code>&lt;!-- agentero:sync paper=&lt;id&gt; --&gt;…&lt;!-- /agentero:sync --&gt;</code>；按标记精确匹配该父条目下的已有标记笔记 → 整块替换，无则新建子笔记（<code>items</code> note 行：同 libraryID + 8 位 base32 key + <code>itemNotes</code> 行）。<strong>永不触碰无标记的用户笔记</strong>。</li>
 <li><strong>事务</strong>：整轮单事务，任一条失败整体回滚（备份可恢复）。</li>
 <li><strong>已知边界</strong>（已对真实 Zotero 7 库验证触发器）：<code>items</code>/<code>itemNotes</code> 无写入 <code>syncQueue</code> 的触发器 → 推送的笔记<strong>本地 Zotero 可见</strong>，但需在 Zotero 内编辑过才会被其云同步上传。UI 推送警示中明示。彻底方案（伴生 Zotero 插件经官方 JS API 读写）为后续升级路径。</li>
 </ul>
