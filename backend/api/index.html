@@ -2541,6 +2541,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#agent_set_user_agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_set_user_agent（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#agent_tool_lifecycle_supported" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4726,6 +4737,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#agent_set_user_agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_set_user_agent（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#agent_tool_lifecycle_supported" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6895,6 +6917,14 @@ Host (Tauri + Rust)
 <li><code>canInstall</code>：本机支持静默安装</li>
 <li><code>offerInstall</code>：Agent 已装但 ACP 缺失 → 设置页「安装 ACP」</li>
 <li>Agent 未装且 <code>canInstall</code> → 设置页「安装」</li>
+<li>另回传 <code>userAgent</code> / <code>userAgentProviderIds</code>（见下）</li>
+</ul>
+<h4 id="agent_set_user_agent"><code>agent_set_user_agent</code>（已实现）<a class="headerlink" href="#agent_set_user_agent" title="Permanent link">&para;</a></h4>
+<p>可选 HTTP User-Agent，注入 Codex ACP 出站请求（中转站 Codex 亲和）。</p>
+<ul>
+<li><strong>参数</strong>：<code>{ userAgent: string; userAgentProviderIds: string }</code>（<code>userAgent</code> 空 = 关闭；<code>userAgentProviderIds</code> 为逗号分隔 provider id，空 = 自动）</li>
+<li><strong>返回</strong>：<code>{ userAgent, userAgentProviderIds }</code></li>
+<li><strong>行为</strong>：见 <a href="../agent/">agent.md § User-Agent</a></li>
 </ul>
 <h4 id="agent_tool_lifecycle_supported"><code>agent_tool_lifecycle_supported</code>（已实现）<a class="headerlink" href="#agent_tool_lifecycle_supported" title="Permanent link">&para;</a></h4>
 <ul>
