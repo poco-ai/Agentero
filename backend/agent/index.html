@@ -3055,7 +3055,7 @@ commands / config 仍可在 load 期间转发。</p>
 </tr>
 <tr>
 <td><code>agent_run_tool_lifecycle</code></td>
-<td>静默安装/升级 catalog CLI（及 Claude/Codex ACP 适配器）；见 <a href="../api/">api.md</a> 与 <a href="https://github.com/poco-ai/Agentero/issues/225">#225</a></td>
+<td>静默安装/升级 catalog CLI（及 Claude/Codex ACP 适配器）；本机 lifecycle 串行执行，Windows 使用唯一临时 <code>.bat</code> 并按 UTF-8/GBK 解码错误输出；见 <a href="../api/">api.md</a> 与 <a href="https://github.com/poco-ai/Agentero/issues/225">#225</a></td>
 </tr>
 <tr>
 <td><code>agent_tool_lifecycle_supported</code> / <code>agent_tool_install_commands</code></td>
