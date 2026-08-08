@@ -3158,7 +3158,10 @@
   
 
 
-<h1 id="cli">内置桌面 CLI 设计（草案）<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h1>
+<h1 id="cli">内置桌面 CLI 设计<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>状态（2026-08）</strong>：M1–M3 主路径已实现（<code>open</code> + deep link、<code>paper move</code> 测试、externalBin 打包、设置 → 关于安装 CLI）。平台安装器自动 PATH（NSIS/deb 完整脚本）与 Homebrew Cask link 仍可按渠道加深。实现说明亦见 <a href="../../backend/cli/">../backend/cli.md</a>。</p>
+</blockquote>
 <p>关联 Issue：<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a>（命令行打开 Vault）与 <a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>（CLI 论文移动）。</p>
 <p><strong>命令能力扩展</strong>（翻译 / 高亮 / 批注等阅读标注进同一 <code>agentero</code> bin）：<a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>，设计见 <a href="../mark-cli-roadmap/">mark-cli-roadmap.md</a>。本篇只管 <strong>分发与 <code>open</code></strong>；#170 管 <strong>子命令与 marks 契约</strong>。两者共用一个 headless 二进制，可并行开发。</p>
 <h2 id="_1">背景与结论<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>

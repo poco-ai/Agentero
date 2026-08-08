@@ -1851,6 +1851,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="论文与 Tag">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#app" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        从命令行打开桌面 App
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2892,6 +2909,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="论文与 Tag">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#app" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        从命令行打开桌面 App
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2942,7 +2976,8 @@
 <ul>
 <li>目录：<code>cli/</code>（crate <code>agentero-cli</code>）</li>
 <li>path 依赖 <code>agentero_lib</code>：<code>features::{vault,catalog,import,wiki}</code> + <code>core::{error,fs}</code></li>
-<li>桌面安装包内置同版本 CLI（规划）：<a href="../../development/bundled-cli/">../development/bundled-cli.md</a>（<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a>）</li>
+<li>桌面安装包内置同版本 CLI：<a href="../../development/bundled-cli/">../development/bundled-cli.md</a>（<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a> / <a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>）</li>
+<li>设置 → 关于：显示 CLI 版本、是否已安装 PATH 入口，并支持手动安装 / 卸载（不静默改 shell rc）</li>
 </ul>
 <h2 id="_2">命令组<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
@@ -2953,6 +2988,10 @@
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>open</code></td>
+<td>在桌面 App 打开本地目录为 Vault（<code>agentero open &lt;PATH&gt;</code>；简写 <code>agentero &lt;PATH&gt;</code>）</td>
+</tr>
 <tr>
 <td><code>vault</code></td>
 <td>create / which / info 等</td>
@@ -3062,10 +3101,19 @@ agentero<span class="w"> </span>-y<span class="w"> </span>trash<span class="w"> 
 agentero<span class="w"> </span>-y<span class="w"> </span>trash<span class="w"> </span>purge
 </code></pre></div>
 
-<p>论文移动会更新文件夹和 Catalog 路径：</p>
+<p>论文移动会更新文件夹和 Catalog 路径。目标父目录不存在时会自动创建；目标已存在或路径逃出 <code>papers/</code> 时失败且不改 Catalog：</p>
 <div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>move<span class="w"> </span>papers/inbox/demo<span class="w"> </span>papers/archive
+<span class="c1"># 目标父目录可尚未存在：</span>
+agentero<span class="w"> </span>paper<span class="w"> </span>move<span class="w"> </span>papers/inbox/demo<span class="w"> </span>papers/new-shelf
 </code></pre></div>
 
+<h3 id="app">从命令行打开桌面 App<a class="headerlink" href="#app" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>open<span class="w"> </span>~/research
+agentero<span class="w"> </span>~/research<span class="w">    </span><span class="c1"># 路径简写（已知子命令名优先）</span>
+agentero<span class="w"> </span>.<span class="w">             </span><span class="c1"># 当前目录</span>
+</code></pre></div>
+
+<p>CLI 通过 <code>agentero://open?path=…</code> 深链唤起已安装的桌面 App；无参数时仍打印 help，不会隐式打开最近 Vault。</p>
 <h2 id="_4">双链检查<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p><code>agentero wiki check [&lt;source&gt;] --json</code> 使用桌面端导航、嵌入、反链和重命名事务共用的 <code>WikiIndex</code> resolver，不维护第二套正则解析器。</p>
 <ul>
