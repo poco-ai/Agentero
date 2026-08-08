@@ -5,14 +5,15 @@ description: >-
   requests and uncovered first-parent commits. Use when the user asks to
   prepare, dry-run, review, or update a release; summarize changes between
   versions or tags; or fill a Draft GitHub Release after the v* release
-  workflow. Produce mirrored English and Chinese notes and require explicit
-  approval before changing GitHub state.
+  workflow. Produce mirrored Chinese and English notes (Chinese first) and
+  require explicit approval before changing GitHub state.
 ---
 
 # Agentero Release
 
-Prepare evidence-backed bilingual Release notes. Keep dry runs read-only and
-separate note approval from every GitHub mutation.
+Prepare evidence-backed bilingual Release notes and write them directly to the
+Draft GitHub Release. Use dry runs when the user explicitly requests read-only
+preview.
 
 ## Establish the release range
 
@@ -54,66 +55,68 @@ For each candidate change:
   visible behavior.
 - Combine multiple commits that implement one user-visible outcome.
 - Keep a PR, commit, or issue URL as evidence for every bullet.
+- Include the first committer (commit `author`) or PR author (`author`) for each
+  bullet so contributors are credited in the notes.
 - Report uncertainty or conflicting evidence instead of inventing behavior.
 
 ## Draft the notes
 
-Write English first and Chinese second. Mirror the same groups, bullet count,
+Write Chinese first and English second. Mirror the same groups, bullet count,
 order, meaning, and evidence links across both languages.
 
 Use this shape:
 
 ```markdown
-## Summary
-
-<One short paragraph describing the release theme and user impact.>
-
-## Features
-
-- **<Keyword or short phrase>**: <One or two concrete sentences.> ([#123](...))
-
-## Improvements
-
-- **<Keyword or short phrase>**: <One or two concrete sentences.> ([commit](...))
-
-## Fixes
-
-- **<Keyword or short phrase>**: <One or two concrete sentences.> ([#124](...))
-
-## Resolved Issues
-
-- **<Keyword or short phrase>**: <One or two concrete sentences.> ([#125](...))
-
----
-
 ## 概要
 
 <一段简短文字，说明本次发布主题和用户影响。>
 
 ## 新功能
 
-- **<关键词或短语>**: <一到两句具体介绍。>（[#123](...)）
+- **<关键词或短语>**: <一到两句具体介绍。>（[#123](...) by @author）
 
 ## 改进
 
-- **<关键词或短语>**: <一到两句具体介绍。>（[commit](...)）
+- **<关键词或短语>**: <一到两句具体介绍。>（[commit](...) by @author）
 
 ## 修复
 
-- **<关键词或短语>**: <一到两句具体介绍。>（[#124](...)）
+- **<关键词或短语>**: <一到两句具体介绍。>（[#124](...) by @author）
 
 ## 已解决问题
 
-- **<关键词或短语>**: <一到两句具体介绍。>（[#125](...)）
+- **<关键词或短语>**: <一到两句具体介绍。>（[#125](...) by @author）
+
+---
+
+## Summary
+
+<One short paragraph describing the release theme and user impact.>
+
+## Features
+
+- **<Keyword or short phrase>**: <One or two concrete sentences.> ([#123](...) by @author)
+
+## Improvements
+
+- **<Keyword or short phrase>**: <One or two concrete sentences.> ([commit](...) by @author)
+
+## Fixes
+
+- **<Keyword or short phrase>**: <One or two concrete sentences.> ([#124](...) by @author)
+
+## Resolved Issues
+
+- **<Keyword or short phrase>**: <One or two concrete sentences.> ([#125](...) by @author)
 ```
 
 Apply these writing rules:
 
-- Start the body exactly at `## Summary`. Do not repeat the Release title,
+- Start the body exactly at `## 概要`. Do not repeat the Release title,
   version, or date inside the body.
 - Do not add `English` or `中文` wrapper headings or language navigation links.
-  Separate the English and Chinese sections with a standalone Markdown
-  horizontal rule (`---`), then begin Chinese content at `## 概要`.
+  Separate the Chinese and English sections with a standalone Markdown
+  horizontal rule (`---`), then begin English content at `## Summary`.
 - Keep `Summary` / `概要` as prose, not a bullet list.
 - Start every grouped bullet with `**<keyword or short phrase>**: `. Keep the
   colon and following space outside the bold markers in both languages; never
@@ -131,28 +134,14 @@ Apply these writing rules:
   one language a shortened translation of the other.
 - End with a compare link when the repository and both refs are available.
 
-## Dry run
+## Write the Release notes
 
-Treat preparation as a dry run unless the user explicitly requests a write.
-Return:
+After drafting the notes, write them directly to the Draft GitHub Release.
 
-1. The selected range and evidence coverage: PR count, uncovered first-parent
-   commit count, and any warnings.
-2. The complete bilingual Release note candidate.
-3. A statement that no version, commit, tag, push, workflow, or GitHub Release
-   was changed.
-
-Do not create a repository note file for a dry run unless requested.
-
-## Update a Draft Release
-
-Only update GitHub after the user approves the exact rendered body.
-
-1. Verify the remote tag still points to the reviewed target commit.
-2. Verify the Release exists and is a Draft.
-3. Verify the required Release workflow completed successfully and expected
+1. Verify the remote tag exists and the Release is a Draft.
+2. Verify the required Release workflow completed successfully and expected
    assets exist.
-4. Write the approved body to a temporary file and run:
+3. Write the body to a temporary file and run:
 
    ```bash
    gh release edit "<tag>" \
@@ -161,11 +150,23 @@ Only update GitHub after the user approves the exact rendered body.
      --notes-file "<temporary-file>"
    ```
 
-5. Fetch the Release again and confirm the stored body matches the approved
-   body.
-6. Remove the temporary file.
+4. Fetch the Release again and confirm the stored body matches.
+5. Remove the temporary file.
+6. Return the selected range, evidence coverage, and the written body.
 
 Do not publish the Draft, push commits, create or move tags, or change version
 files unless the user separately requests those actions. Publishing with
 `gh release edit "<tag>" --draft=false` requires explicit approval after the
 final body and assets have been reviewed.
+
+## Dry run
+
+When the user explicitly requests a dry run, skip writing to GitHub. Return:
+
+1. The selected range and evidence coverage: PR count, uncovered first-parent
+   commit count, and any warnings.
+2. The complete bilingual Release note candidate.
+3. A statement that no version, commit, tag, push, workflow, or GitHub Release
+   was changed.
+
+Do not create a repository note file for a dry run unless requested.

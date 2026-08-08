@@ -74,7 +74,7 @@ function parseFirstParentCommits(baseRef, targetRef, repository) {
 		"log",
 		"--first-parent",
 		"--date=short",
-		"--format=%H%x1f%h%x1f%cs%x1f%s%x1f%b%x1e",
+		"--format=%H%x1f%h%x1f%cs%x1f%an%x1f%s%x1f%b%x1e",
 		`${baseRef}..${targetRef}`,
 	]);
 
@@ -87,7 +87,8 @@ function parseFirstParentCommits(baseRef, targetRef, repository) {
 		.map((record) => record.replace(/^\n+/, "").trimEnd())
 		.filter(Boolean)
 		.map((record) => {
-			const [sha, shortSha, date, subject, ...bodyParts] = record.split("\x1f");
+			const [sha, shortSha, date, author, subject, ...bodyParts] =
+				record.split("\x1f");
 			const files = run(
 				"git",
 				["diff-tree", "--no-commit-id", "--name-only", "-r", sha],
@@ -97,6 +98,7 @@ function parseFirstParentCommits(baseRef, targetRef, repository) {
 				sha,
 				shortSha,
 				date,
+				author,
 				subject,
 				body: bodyParts.join("\x1f").trim(),
 				files: files ? files.split("\n").filter(Boolean) : [],
@@ -145,6 +147,8 @@ function pullRequestSummary(pullRequest, coveredCommit) {
 		title: pullRequest.title,
 		body: pullRequest.body ?? "",
 		url: pullRequest.html_url,
+		author: pullRequest.user?.login ?? null,
+		createdAt: pullRequest.created_at,
 		mergedAt: pullRequest.merged_at,
 		mergeCommitSha: pullRequest.merge_commit_sha,
 		baseRefName: pullRequest.base?.ref ?? null,
