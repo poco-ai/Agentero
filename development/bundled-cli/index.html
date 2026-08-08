@@ -3226,6 +3226,13 @@ agentero<span class="w"> </span>--vault<span class="w"> </span>~/research<span c
 <h2 id="_7">打包与安装<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <h3 id="artifact">Artifact 内容<a class="headerlink" href="#artifact" title="Permanent link">&para;</a></h3>
 <p>release workflow 先编译 desktop App 和目标平台的 <code>agentero-cli</code>，再把 CLI 作为 App Bundle 的 executable resource（内部文件名可为 <code>agentero-cli</code>，避免与 GUI 主程序重名）。CLI 的构建目标必须和 desktop App 相同，且使用同一 tag / version。</p>
+<p><strong>仅 desktop</strong>。iOS / Android 是远端客户端，不内置 headless CLI：</p>
+<ul>
+<li><code>tauri.conf.json</code>：<code>bundle.externalBin = ["binaries/agentero-cli"]</code>，<code>beforeBuildCommand</code> 含 <code>pnpm cli:bundle:release</code></li>
+<li><code>tauri.ios.conf.json</code> / <code>tauri.android.conf.json</code>：覆盖 <code>beforeBuildCommand</code> 为仅 <code>pnpm build</code>，并清空 <code>externalBin</code></li>
+<li>独立 CLI job / <code>cargo build -p agentero-cli</code>：须先 seed <code>src-tauri/binaries/agentero-cli-$TRIPLE</code> stub（<code>pnpm cli:bundle:stub</code> 或 release workflow 中的 shell 步骤），否则 <code>tauri-build</code> 会因 missing resource 失败</li>
+<li><code>scripts/prepare-bundled-cli.mjs</code> 在 <code>TAURI_ENV_PLATFORM</code> 为 android/ios 时只写 stub、不编译 desktop CLI</li>
+</ul>
 <p>外部 <code>agentero</code> 是指向或调用该内置 CLI 的轻量 shim；它不携带第二个版本，也不从网络下载组件。App 更新替换 Bundle 后，shim 继续定位同一 Bundle 内的新版 CLI；App 被卸载或移动导致不可定位时，shim 给出可操作错误。</p>
 <h3 id="_8">平台策略<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
 <table>
