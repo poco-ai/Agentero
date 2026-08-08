@@ -14,7 +14,7 @@
         <link rel="prev" href="../development/bug/">
       
       
-        <link rel="next" href="release-checklist/">
+        <link rel="next" href="release/">
       
       
         
@@ -2104,62 +2104,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/wikilink-heading-reference-stability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    标题双链调研
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../development/release/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    发布流程
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../development/bug/" class="md-nav__link">
         
   
@@ -2408,6 +2352,62 @@
   
   
     <li class="md-nav__item">
+      <a href="release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ios-testflight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS TestFlight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="release-checklist/" class="md-nav__link">
         
   
@@ -2585,6 +2585,34 @@
     
   
     普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链稳定性
   
 
     
@@ -2905,8 +2933,10 @@
 <h1 id="_1">测试<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
 <p>当代码依赖 Vault 路径、Markdown 双链或论文元数据时，测试应优先创建真实的临时 Vault 目录和文件。保持 <code>src/</code> 与 <code>test/</code> 解耦：应用代码不能 import 测试 fixture 或 helper。</p>
 <h2 id="_2">发布前验收<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>产品发布 / 打 tag / 分发安装包前的完整手工 Checklist 见：</p>
+<p>产品发布 / 打 tag / 分发安装包前的完整流程与 Checklist：</p>
 <ul>
+<li><strong><a href="release/">发布流程</a></strong> — 桌面版与 iPadOS 版的 bump、tag、Release 资产、签名与公证要求。</li>
+<li><strong><a href="ios-testflight/">iOS TestFlight</a></strong> — iOS 签名、上传、App Store Connect 元数据与审核说明（无登录、配对 Notes）。</li>
 <li><strong><a href="release-checklist/">发布前测试大纲（Checklist）</a></strong> — 按功能域（Vault、Library、入库、PDF、Agent、远程、CLI、平台矩阵）勾选；含 5 分钟冒烟与明确非目标说明。</li>
 </ul>
 <h2 id="_3">目录结构<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>

@@ -2049,7 +2049,7 @@
   <a href="#9-host" class="md-nav__link">
     <span class="md-ellipsis">
       
-        9. Host 模块布局（规划）
+        9. Host 模块布局（早期规划，仅供参考）
       
     </span>
   </a>
@@ -2872,62 +2872,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/wikilink-heading-reference-stability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    标题双链调研
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../development/release/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    发布流程
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -3021,6 +2965,62 @@
     
   
     概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/ios-testflight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS TestFlight
   
 
     
@@ -3218,6 +3218,34 @@
     
   
     普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链稳定性
   
 
     
@@ -3986,7 +4014,7 @@
   <a href="#9-host" class="md-nav__link">
     <span class="md-ellipsis">
       
-        9. Host 模块布局（规划）
+        9. Host 模块布局（早期规划，仅供参考）
       
     </span>
   </a>
@@ -5118,7 +5146,10 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li>用户切换文件树选中项后再次打开魔棒，目标随之更新（打开弹层时快照一次即可）。</li>
 </ul>
 <hr />
-<h2 id="9-host">9. Host 模块布局（规划）<a class="headerlink" href="#9-host" title="Permanent link">&para;</a></h2>
+<h2 id="9-host">9. Host 模块布局（早期规划，仅供参考）<a class="headerlink" href="#9-host" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>实际落地时相关逻辑并入了 <code>src-tauri/src/features/import/</code>（<code>parse.rs</code>、<code>map.rs</code>、<code>assets.rs</code>、<code>paper_import/mod.rs</code> 等），没有独立的 <code>commands/</code> / <code>services/</code> 分层。下列结构保留为设计阶段参考。</p>
+</blockquote>
 <div class="codehilite"><pre><span></span><code>src-tauri/src/
   commands/
     lookup.rs

@@ -2234,12 +2234,12 @@
   <a href="#33-arxiv" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.3 arXiv 入库
+        3.3 arXiv 入库（规划命令）
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="3.3 arXiv 入库">
+    <nav class="md-nav" aria-label="3.3 arXiv 入库（规划命令）">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -3400,62 +3400,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/wikilink-heading-reference-stability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    标题双链调研
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../development/release/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    发布流程
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -3549,6 +3493,62 @@
     
   
     概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/ios-testflight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS TestFlight
   
 
     
@@ -3746,6 +3746,34 @@
     
   
     普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链稳定性
   
 
     
@@ -4363,12 +4391,12 @@
   <a href="#33-arxiv" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.3 arXiv 入库
+        3.3 arXiv 入库（规划命令）
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="3.3 arXiv 入库">
+    <nav class="md-nav" aria-label="3.3 arXiv 入库（规划命令）">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -5947,7 +5975,10 @@ Host (Tauri + Rust)
 <span class="p">}</span>
 </code></pre></div>
 
-<h3 id="33-arxiv">3.3 arXiv 入库<a class="headerlink" href="#33-arxiv" title="Permanent link">&para;</a></h3>
+<h3 id="33-arxiv">3.3 arXiv 入库（规划命令）<a class="headerlink" href="#33-arxiv" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p>当前未以独立 <code>arxiv:*</code> 命令实现。arXiv 输入统一走 §3.6 的 <code>lookup_import_batch</code>（含 arXiv Atom fallback）。下列命令保留为后续统一 importer 的参考契约。</p>
+</blockquote>
 <h4 id="arxivclassify_input"><code>arxiv:classify_input</code><a class="headerlink" href="#arxivclassify_input" title="Permanent link">&para;</a></h4>
 <p>对用户输入进行分类与意图解析。</p>
 <ul>
@@ -6032,20 +6063,22 @@ Host (Tauri + Rust)
 <li>调用 Agent 生成 <code>papers/&lt;id&gt;/NOTES.md</code>。</li>
 <li><strong>不</strong>自动更新根级 <code>PAPERS.md</code> / <code>library.bib</code>（需要时由用户触发 <code>catalog:export_*</code>）。</li>
 </ul>
-<div class="codehilite"><pre><span></span><code><span class="err">###</span><span class="w"> </span><span class="nt">3</span><span class="p">.</span><span class="nc">4</span><span class="w"> </span><span class="nt">本地</span><span class="w"> </span><span class="nt">PDF</span><span class="w"> </span><span class="nt">入库</span>
+<div class="codehilite"><pre><span></span><code><span class="c1">### 3.4 本地 PDF 入库（规划命令）</span>
 
-<span class="nt">本地</span><span class="w"> </span><span class="nt">PDF</span><span class="w"> </span><span class="nt">通过统一</span><span class="w"> </span><span class="nt">Importer</span><span class="w"> </span><span class="nt">接入</span><span class="err">，</span><span class="nt">与</span><span class="w"> </span><span class="nt">arXiv</span><span class="w"> </span><span class="nt">共用</span><span class="w"> </span><span class="err">`</span><span class="nt">papers</span><span class="o">/&lt;</span><span class="nt">id</span><span class="o">&gt;/</span><span class="err">`</span><span class="w"> </span><span class="nt">输出结构</span><span class="err">。</span><span class="nt">入库分两步</span><span class="err">：</span><span class="nt">先解析并混合获取元数据供用户确认</span><span class="err">，</span><span class="nt">再正式入库</span><span class="err">。</span>
+<span class="o">&gt;</span><span class="w"> </span><span class="n">当前未以独立</span><span class="w"> </span><span class="n n-Quoted">`pdf:*`</span><span class="w"> </span><span class="n">命令实现。本地</span><span class="w"> </span><span class="n">PDF</span><span class="w"> </span><span class="n">统一走</span><span class="w"> </span><span class="n">§3</span><span class="mf">.6</span><span class="w"> </span><span class="n">的</span><span class="w"> </span><span class="n n-Quoted">`paper_import_local_pdf`</span><span class="n">（含</span><span class="w"> </span><span class="n">metadata</span><span class="w"> </span><span class="n">确认对话框）。下列命令保留为后续统一</span><span class="w"> </span><span class="n">importer</span><span class="w"> </span><span class="n">的参考契约。</span>
 
-<span class="err">####</span><span class="w"> </span><span class="err">`</span><span class="nt">pdf</span><span class="p">:</span><span class="nd">prepare</span><span class="err">`</span>
+<span class="n">本地</span><span class="w"> </span><span class="n">PDF</span><span class="w"> </span><span class="n">通过统一</span><span class="w"> </span><span class="n">Importer</span><span class="w"> </span><span class="n">接入，与</span><span class="w"> </span><span class="n">arXiv</span><span class="w"> </span><span class="n">共用</span><span class="w"> </span><span class="n n-Quoted">`papers/&lt;id&gt;/`</span><span class="w"> </span><span class="n">输出结构。入库分两步：先解析并混合获取元数据供用户确认，再正式入库。</span>
 
-<span class="nt">对本地</span><span class="w"> </span><span class="nt">PDF</span><span class="w"> </span><span class="nt">做轻量解析并混合获取候选元数据</span><span class="err">，</span><span class="nt">供入库前确认</span><span class="err">，</span><span class="nt">不落盘</span><span class="err">。</span>
+<span class="c1">#### `pdf:prepare`</span>
 
-<span class="nt">-</span><span class="w"> </span><span class="o">**</span><span class="nt">参数</span><span class="o">**</span>
+<span class="n">对本地</span><span class="w"> </span><span class="n">PDF</span><span class="w"> </span><span class="n">做轻量解析并混合获取候选元数据，供入库前确认，不落盘。</span>
 
-<span class="err">```</span><span class="nt">ts</span>
-<span class="p">{</span>
-<span class="w">  </span><span class="n">paths</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="cp">[]</span><span class="p">;</span><span class="w"> </span><span class="err">//</span><span class="w"> </span><span class="err">本地</span><span class="w"> </span><span class="err">PDF</span><span class="w"> </span><span class="err">绝对路径，可批量</span>
-<span class="p">}</span>
+<span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="n">参数</span><span class="o">**</span>
+
+<span class="n n-Quoted">`</span><span class="n n-Quoted n-Quoted-Escape">``</span><span class="n n-Quoted">ts</span>
+<span class="n n-Quoted">{</span>
+<span class="n n-Quoted">  paths: string[]; // 本地 PDF 绝对路径，可批量</span>
+<span class="n n-Quoted">}</span>
 </code></pre></div>
 
 <ul>
@@ -6228,7 +6261,7 @@ Host (Tauri + Rust)
 <span class="w">    </span><span class="n">texts</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">[];</span><span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="err">拆分后的原始</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="err">数组</span>
 <span class="w">    </span><span class="n">translatorBaseUrl</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">     </span><span class="o">//</span><span class="w"> </span><span class="err">来自设置，默认</span><span class="w"> </span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">translator</span><span class="o">.</span><span class="n">philfan</span><span class="o">.</span><span class="n">cn</span>
 <span class="w">    </span><span class="n">taskId</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">                </span><span class="o">//</span><span class="w"> </span><span class="err">前端后台任务</span><span class="w"> </span><span class="n">id</span><span class="err">；单条进度聚合在该任务下</span>
-<span class="w">    </span><span class="n">concurrency</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">number</span><span class="p">;</span><span class="w">           </span><span class="o">//</span><span class="w"> </span><span class="err">最大并发入库数，默认</span><span class="w"> </span><span class="mi">3</span><span class="err">，范围</span><span class="w"> </span><span class="mi">1</span><span class="err">–</span><span class="mi">10</span>
+<span class="w">    </span><span class="n">concurrency</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">number</span><span class="p">;</span><span class="w">           </span><span class="o">//</span><span class="w"> </span><span class="err">最大并发入库数，默认</span><span class="w"> </span><span class="mi">5</span><span class="err">，范围</span><span class="w"> </span><span class="mi">1</span><span class="err">–</span><span class="mi">10</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="w">  </span><span class="err">```</span>
 
@@ -6255,7 +6288,7 @@ Host (Tauri + Rust)
 <span class="w">  </span><span class="mf">1.</span><span class="w"> </span><span class="err">逐条解析</span><span class="w"> </span><span class="err">`</span><span class="n">texts</span><span class="err">`；未识别则加入</span><span class="w"> </span><span class="err">`</span><span class="n">errors</span><span class="err">`；</span><span class="n">Skill</span><span class="w"> </span><span class="err">来源进入</span><span class="w"> </span><span class="err">`</span><span class="n">skillCandidates</span><span class="err">`（或唯一命中时直接入</span><span class="w"> </span><span class="err">`</span><span class="n">skills</span><span class="err">`）。</span>
 <span class="w">  </span><span class="mf">2.</span><span class="w"> </span><span class="err">按规范化</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="err">去重（</span><span class="n">arXiv</span><span class="w"> </span><span class="err">去</span><span class="w"> </span><span class="n">version</span><span class="err">、</span><span class="n">DOI</span><span class="w"> </span><span class="err">小写等）；</span><span class="n">batch</span><span class="w"> </span><span class="err">内重复</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="err">`</span><span class="n">skipped</span><span class="o">.</span><span class="n">reason</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;duplicate_in_batch&#39;</span><span class="err">`。</span>
 <span class="w">  </span><span class="mf">3.</span><span class="w"> </span><span class="err">查</span><span class="w"> </span><span class="n">catalog</span><span class="err">：`</span><span class="n">arxiv_id</span><span class="err">`</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">`</span><span class="n">doi</span><span class="err">`</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">`</span><span class="n">isbn</span><span class="err">`</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">`</span><span class="n">pmid</span><span class="err">`</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">`</span><span class="n">id</span><span class="err">`</span><span class="w"> </span><span class="err">已存在</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="err">`</span><span class="n">skipped</span><span class="o">.</span><span class="n">reason</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;already_in_library&#39;</span><span class="err">`。</span>
-<span class="w">  </span><span class="mf">4.</span><span class="w"> </span><span class="err">其余以</span><span class="w"> </span><span class="err">`</span><span class="n">concurrency</span><span class="err">`（默认</span><span class="w"> </span><span class="mi">3</span><span class="err">，范围</span><span class="w"> </span><span class="mi">1</span><span class="err">–</span><span class="mi">10</span><span class="err">）为上限并发调</span><span class="w"> </span><span class="err">`</span><span class="n">import_by_identifier_with_progress</span><span class="err">`，共用</span><span class="w"> </span><span class="err">`</span><span class="n">taskId</span><span class="err">`；单条失败继续，错误加入</span><span class="w"> </span><span class="err">`</span><span class="n">errors</span><span class="err">`。并发上限可在</span><span class="w"> </span><span class="o">**</span><span class="n">Settings</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">General</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Batch</span><span class="w"> </span><span class="n">import</span><span class="w"> </span><span class="n">concurrency</span><span class="o">**</span><span class="w"> </span><span class="err">调整。</span>
+<span class="w">  </span><span class="mf">4.</span><span class="w"> </span><span class="err">其余以</span><span class="w"> </span><span class="err">`</span><span class="n">concurrency</span><span class="err">`（默认</span><span class="w"> </span><span class="mi">5</span><span class="err">，范围</span><span class="w"> </span><span class="mi">1</span><span class="err">–</span><span class="mi">10</span><span class="err">）为上限并发调</span><span class="w"> </span><span class="err">`</span><span class="n">import_by_identifier_with_progress</span><span class="err">`，共用</span><span class="w"> </span><span class="err">`</span><span class="n">taskId</span><span class="err">`；单条失败继续，错误加入</span><span class="w"> </span><span class="err">`</span><span class="n">errors</span><span class="err">`。并发上限可在</span><span class="w"> </span><span class="o">**</span><span class="n">Settings</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">General</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Batch</span><span class="w"> </span><span class="n">import</span><span class="w"> </span><span class="n">concurrency</span><span class="o">**</span><span class="w"> </span><span class="err">调整。</span>
 <span class="w">  </span><span class="mf">5.</span><span class="w"> </span><span class="err">前端收到</span><span class="w"> </span><span class="err">`</span><span class="n">imported</span><span class="err">`</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">`</span><span class="n">skills</span><span class="err">`</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">`</span><span class="n">skillCandidates</span><span class="err">`</span><span class="w"> </span><span class="err">后刷新树</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">Library</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">wiki</span><span class="err">，并对其中仍缺资源的</span><span class="w"> </span><span class="n">paper</span><span class="w"> </span><span class="err">逐个入下载队列，每篇一个独立的</span><span class="w"> </span><span class="err">`</span><span class="n">download</span><span class="err">`</span><span class="w"> </span><span class="err">后台任务，按并发上限排队执行。</span><span class="o">**</span><span class="err">不</span><span class="o">**</span><span class="err">自动连跑</span><span class="w"> </span><span class="n">paper</span><span class="o">-</span><span class="n">reader</span><span class="err">。若存在</span><span class="w"> </span><span class="err">`</span><span class="n">skillCandidates</span><span class="err">`，前端打开选择弹窗；用户取消时调用</span><span class="w"> </span><span class="err">`</span><span class="n">skill_discard</span><span class="err">`</span><span class="w"> </span><span class="err">清理临时</span><span class="w"> </span><span class="n">discovery</span><span class="err">。</span>
 
 <span class="c1">#### `skill_install`</span>
@@ -7537,8 +7570,8 @@ Host (Tauri + Rust)
 <td>抽象 importer，落地 arxiv 与本地 PDF；新增 <code>pdf:*</code> 命令与可插拔 <code>PdfParser</code>（liteparse 默认 + 云端 MinerU）。</td>
 </tr>
 <tr>
-<td>≤0.2.1</td>
-<td>全局 Dockview 等已发布能力见功能文档；Host 侧一般无需新 paper API。见 <a href="../../frontend/workspace/"><code>../frontend/workspace.md</code></a>。</td>
+<td>≤0.5.0</td>
+<td>全局 Dockview、视觉批注、版面分析、公式解析卡、阅读热力条、Zotero collection tree 迁移、Agent 自动安装/升级、自由模型选择等已发布能力见功能文档；Host 侧一般无需新 paper API。见 <a href="../../frontend/workspace/"><code>../frontend/workspace.md</code></a>。</td>
 </tr>
 <tr>
 <td>0.6</td>

@@ -2244,62 +2244,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/wikilink-heading-reference-stability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    标题双链调研
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../development/release/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    发布流程
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -2393,6 +2337,62 @@
     
   
     概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/ios-testflight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS TestFlight
   
 
     
@@ -2590,6 +2590,34 @@
     
   
     普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链稳定性
   
 
     
@@ -3019,7 +3047,8 @@ Agentero prompt envelope、skill/context 注入，并将原始 <code>/command</c
 <li>Skill：Claude 倾向 <code>/id</code>；其它注入 <code>SKILL.md</code> 文本（<code>SkillMentionStyle</code>）。</li>
 <li>paper-reader：写 NOTES + <code>paper_set_is_read</code>；前端任务条编排。</li>
 <li>输出约定：工作流要求 <code>## Sources</code>（相对 Vault 路径）；双链保留 <code>[[...]]</code>。</li>
-<li>规划：自动注入 Vault 根 <code>AGENTS.md</code>（路线图 0.3）。</li>
+<li><code>AGENTS.md</code> 已作为 progressive disclosure 系统上下文注入所有工作流 prompt（优先级：Vault 根 <code>AGENTS.md</code> → 当前 paper <code>NOTES.md</code> → marks）。</li>
+<li>自由模型选择：<code>preferred_model_id</code> 可指向 ACP catalog 外的任意模型 id；Warm / Run 时始终尝试 <code>session/set_config_option</code>，失败不阻断会话。</li>
 </ul>
 <h2 id="_4">模型协商<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>

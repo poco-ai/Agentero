@@ -2394,62 +2394,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/wikilink-heading-reference-stability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    标题双链调研
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../development/release/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    发布流程
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../development/bug/" class="md-nav__link">
         
   
@@ -2543,6 +2487,62 @@
     
   
     概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test/ios-testflight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS TestFlight
   
 
     
@@ -2740,6 +2740,34 @@
     
   
     普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链稳定性
   
 
     
@@ -3260,7 +3288,7 @@
 </tr>
 <tr>
 <td>右侧栏</td>
-<td>Agent / Backlinks</td>
+<td>Agent / Backlinks / 批注 / References / Figures</td>
 <td>可选，同样 collapsible</td>
 </tr>
 </tbody>
@@ -3281,7 +3309,7 @@
 <li><strong>Zotero Connector</strong>：Host 在 <code>127.0.0.1:23119</code> 收浏览器扩展 <code>saveItems</code> + <code>saveAttachment</code>。详见 <a href="../backend/connector/">backend/connector.md</a>。</li>
 </ul>
 <h3 id="_6">论文库<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
-<p><code>paper_list</code> 读 catalog 一次进内存。表头排序/右键选列/拖拽排序（持久化到 <code>settings.json</code> 的 <code>libraryColumns</code>，标题列不可隐藏）。tags 列展示，搜索框可匹配标签子串。文件夹作用域仅对 <code>papers/</code> 下目录按 <code>paper.path</code> 前缀过滤（不扫盘）；<code>notes/</code> / <code>.agents/</code> 等非 papers 目录显示全库。详见 <a href="../frontend/library/">frontend/library.md</a> / <a href="../backend/catalog/">backend/catalog.md</a>。</p>
+<p><code>paper_list</code> 读 catalog 一次进内存。表头排序/右键选列/拖拽排序（持久化到 <code>settings.json</code> 的 <code>libraryColumns</code>，标题列不可隐藏）。tags 列展示，搜索框可匹配标签子串；标题列左侧显示阅读进度热力条。文件夹作用域仅对 <code>papers/</code> 下目录按 <code>paper.path</code> 前缀过滤（不扫盘）；<code>notes/</code> / <code>.agents/</code> 等非 papers 目录显示全库。详见 <a href="../frontend/library/">frontend/library.md</a> / <a href="../backend/catalog/">backend/catalog.md</a>。</p>
 <h3 id="_7">标签<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
 <p>Apple 风格 8 色 → Host <code>paper_set_tags</code>（catalog <code>tags_json</code> 权威）。Library 染色 chip 与筛选。CLI <code>paper tag list|set|add|rm</code>。</p>
 <h3 id="paper-reader">精读（paper-reader）<a class="headerlink" href="#paper-reader" title="Permanent link">&para;</a></h3>
@@ -3297,7 +3325,7 @@
 <li><strong>个人偏好</strong>：<code>agentPersonalPrompt</code> 非空时经 Host <code>build_prompt</code> 注入 envelope。</li>
 </ul>
 <h3 id="pdf">PDF 阅读<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h3>
-<p>Vault 任意路径 <code>.pdf</code> → <code>blob:</code> 预览。页码导航/适应宽·整页/大纲/⌘F 查找。真实 scale 渲染 + 平滑划词覆盖层。划词菜单：高亮/批注/提问/翻译。详见 <a href="../frontend/pdf/">frontend/pdf.md</a>。</p>
+<p>Vault 任意路径 <code>.pdf</code> → <code>blob:</code> 预览。页码导航/适应宽·整页/大纲/⌘F 查找。真实 scale 渲染 + 平滑划词覆盖层。划词菜单：高亮/批注/提问/翻译。支持视觉区域批注（框选插图/表/算法/公式，可写备注或向 Agent 提问）、版面分析（Figures 侧栏列出检测到的图/表/算法/公式）、有编号公式 hover 符号解析卡。详见 <a href="../frontend/pdf/">frontend/pdf.md</a> / <a href="../frontend/pdf-layout-analysis/">frontend/pdf-layout-analysis.md</a>。</p>
 <h3 id="markdown">Markdown 编辑<a class="headerlink" href="#markdown" title="Permanent link">&para;</a></h3>
 <p>Plate + <code>@platejs/markdown</code>。普通文本粘贴默认按 Markdown 解析。右键「整理 Markdown 格式」执行 Prettier round-trip。<code>\$a\$</code> 保持普通文本、<code>$a$</code> 保持公式。Obsidian Callout（<code>&gt; [!type]</code>）结构化渲染并原样写回。内嵌图片粘贴到 <code>{mdDir}/assets/</code>，删节点且无引用时 GC。详见 <a href="../frontend/markdown/">frontend/markdown.md</a>。</p>
 <h3 id="_8">双链与图谱<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
@@ -3323,6 +3351,21 @@
 <td><code>.agentero/catalog.sqlite</code></td>
 </tr>
 <tr>
+<td>阅读标注</td>
+<td>高亮、划词问答、翻译、视觉批注</td>
+<td><code>{paper}/marks/</code></td>
+</tr>
+<tr>
+<td>版面分析</td>
+<td>原始 layout regions / 侧栏索引</td>
+<td><code>{paper}/source/layout.json</code> / <code>layout-index.json</code></td>
+</tr>
+<tr>
+<td>引用解析</td>
+<td>参考文献元数据</td>
+<td><code>{paper}/source/agentero-cite.json</code></td>
+</tr>
+<tr>
 <td>设置</td>
 <td>UI/Agent 偏好</td>
 <td>XDG <code>~/.config/agentero/settings.json</code></td>
@@ -3336,7 +3379,7 @@
 </table>
 <h2 id="_10">跨领域关注点<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h2>
 <h3 id="_11">国际化<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h3>
-<p>所有面向用户文案经 <code>t()</code> 走 <code>react-i18next</code>。en 源语言 → 同步 <code>zh-CN</code>（<code>src/i18n/locales/</code>）。详见 <a href="../frontend/shell/#i18n">frontend/shell.md</a>。</p>
+<p>所有面向用户文案经 <code>t()</code> 走 <code>react-i18next</code>。en 源语言 → 同步 <code>zh-CN</code>（<code>src/i18n/locales/</code>）。详见 <a href="../frontend/settings/#i18n">frontend/settings.md</a>。</p>
 <h3 id="_12">外部改动自动重载<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h3>
 <p>Host <code>notify</code> → <code>vault:file-changed</code>。打开的 <code>.md</code>/<code>NOTES.md</code> 磁盘变化：无未存改动则重载；有未存改动则 toast 提示；内容相等抑制自写回声。create/remove/rename 去抖刷新文件树。</p>
 <h3 id="_13">保存冲突<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h3>

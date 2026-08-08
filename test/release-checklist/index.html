@@ -11,7 +11,7 @@
       
       
       
-        <link rel="prev" href="../">
+        <link rel="prev" href="../ios-testflight/">
       
       
         <link rel="next" href="../../bug_fix/deepseek-thinking-body/">
@@ -2104,62 +2104,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/wikilink-heading-reference-stability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    标题双链调研
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../development/release/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    发布流程
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -2258,6 +2202,62 @@
     
   
     概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ios-testflight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS TestFlight
   
 
     
@@ -2577,10 +2577,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#73-md" class="md-nav__link">
+  <a href="#73" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7.3 图片与 MD 插图
+        7.3 视觉批注与版面分析
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-md" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 图片与 MD 插图
       
     </span>
   </a>
@@ -2928,6 +2939,34 @@
     
   
     普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链稳定性
   
 
     
@@ -3382,10 +3421,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#73-md" class="md-nav__link">
+  <a href="#73" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7.3 图片与 MD 插图
+        7.3 视觉批注与版面分析
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-md" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 图片与 MD 插图
       
     </span>
   </a>
@@ -3591,7 +3641,7 @@
 <h1 id="checklist">发布前测试大纲（操作 Checklist）<a class="headerlink" href="#checklist" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p><strong>写法</strong>：每一行都是 <strong>界面 → 操作 → 预期效果</strong>。验收时打开应用，按表逐步点选并勾选。<br />
-<strong>依据</strong>：当前已落地能力（发布线 <strong>0.2.1</strong>）；不含路线图 0.3+（关键词入库、Vault 采纳、引用图等）未交付项。<br />
+<strong>依据</strong>：当前已落地能力（发布线 <strong>0.5.0</strong>）；不含路线图 0.6+（Connected Papers 邻域、引用图反向高亮、Vault 采纳等）未交付项。<br />
 <strong>环境</strong>：至少 macOS；发布含 Windows/Linux 时，§0 + §1 各平台各跑一遍。<br />
 <strong>数据</strong>：<code>pnpm demo:vault</code> / <code>pnpm demo:vault:downloads</code>；另备一次 Create Vault 空库。</p>
 </blockquote>
@@ -4355,6 +4405,13 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>任务条有进度；缺的资源补齐</td>
 <td>☐</td>
 </tr>
+<tr>
+<td>5.11</td>
+<td>中间栏·Library</td>
+<td>打开有阅读记录的 paper，回到 Library</td>
+<td>标题列左侧出现阅读热力条；未读论文无热力条</td>
+<td>☐</td>
+</tr>
 </tbody>
 </table>
 <hr />
@@ -4713,7 +4770,7 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 </tr>
 </tbody>
 </table>
-<h3 id="73-md">7.3 图片与 MD 插图<a class="headerlink" href="#73-md" title="Permanent link">&para;</a></h3>
+<h3 id="73">7.3 视觉批注与版面分析<a class="headerlink" href="#73" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -4727,27 +4784,69 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <tbody>
 <tr>
 <td>7.3.1</td>
+<td>中间栏·PDF</td>
+<td>按 <code>⌘.</code> 框选某插图/表/算法区域，输入备注保存</td>
+<td><code>marks/&lt;id&gt;.json</code> 写入 <code>kind: visual</code> v2；页边针出现；可再次编辑备注</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.3.2</td>
+<td>中间栏·PDF</td>
+<td>框选区域后按 <code>⌘Enter</code> 向 Agent 提问</td>
+<td>视觉上下文进入 Agent 会话；回答后同一 mark 可续聊</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.3.3</td>
+<td>右栏·Figures</td>
+<td>打开带插图的 paper，点「分析」</td>
+<td>列出 figure/table/algorithm/formula；点击跳转到对应位置</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.3.4</td>
+<td>中间栏·PDF</td>
+<td>论文目录有 <code>Annotation.md</code> 时，悬停有编号公式</td>
+<td>弹出「公式解析」卡片；符号列可渲染；点击可打开 <code>Annotation.md</code></td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="74-md">7.4 图片与 MD 插图<a class="headerlink" href="#74-md" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>界面</th>
+<th>操作</th>
+<th>预期</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7.4.1</td>
 <td>左栏·树</td>
 <td>点 <code>assets/figures</code> 下 png/jpg 等</td>
 <td>中间图片预览</td>
 <td>☐</td>
 </tr>
 <tr>
-<td>7.3.2</td>
+<td>7.4.2</td>
 <td>中间栏·MD</td>
 <td>打开笔记，粘贴一张图</td>
 <td>磁盘 <code>{mdDir}/assets/</code> 有文件；正文 <code>![](./assets/…)</code>；树可见</td>
 <td>☐</td>
 </tr>
 <tr>
-<td>7.3.3</td>
+<td>7.4.3</td>
 <td>中间栏·MD</td>
 <td>单击选中图片节点</td>
 <td>显示 Markdown 源码而非位图</td>
 <td>☐</td>
 </tr>
 <tr>
-<td>7.3.4</td>
+<td>7.4.4</td>
 <td>中间栏·MD</td>
 <td>删除该图片节点（且无其它引用）</td>
 <td>assets 文件被 GC；树刷新</td>
@@ -4995,6 +5094,20 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>右栏·Agent</td>
 <td>未配置 Agent 时打开面板</td>
 <td>有安装/配置指引；<strong>左栏库与 PDF 仍可用</strong></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.0.2</td>
+<td>设置 → Agent</td>
+<td>本机未装 Claude/Codex/OpenCode/Gemini 等预设 Agent 时，点「安装」/「安装 ACP」</td>
+<td>静默执行官方 installer；安装成功后探测状态变绿</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.0.3</td>
+<td>设置 → Agent</td>
+<td>已装 Agent 有可用更新时，点「升级」</td>
+<td>升级成功；版本号或探测状态更新</td>
 <td>☐</td>
 </tr>
 </tbody>

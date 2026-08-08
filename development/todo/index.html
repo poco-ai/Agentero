@@ -2211,62 +2211,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../wikilink-heading-reference-stability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    标题双链调研
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../release/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    发布流程
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../bug/" class="md-nav__link">
         
   
@@ -2360,6 +2304,62 @@
     
   
     概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/ios-testflight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS TestFlight
   
 
     
@@ -2557,6 +2557,34 @@
     
   
     普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链稳定性
   
 
     
@@ -2847,7 +2875,7 @@
 
 
 <h1 id="agentero-todo">Agentero TODO<a class="headerlink" href="#agentero-todo" title="Permanent link">&para;</a></h1>
-<p>仅列<strong>未完成</strong>项。当前发布 <strong><code>0.2.1</code></strong>。版本切片见 <a href="../roadmap/"><code>roadmap.md</code></a>；已实现能力见 <a href="../../frontend/"><code>../frontend/</code></a> · <a href="../../backend/"><code>../backend/</code></a>。</p>
+<p>仅列<strong>未完成</strong>项。当前发布 <strong><code>0.5.0</code></strong>。版本切片见 <a href="../roadmap/"><code>roadmap.md</code></a>；已实现能力见 <a href="../../frontend/"><code>../frontend/</code></a> · <a href="../../backend/"><code>../backend/</code></a>。</p>
 <h2 id="03-agent">0.3 — 入库与 Agent 补强<a class="headerlink" href="#03-agent" title="Permanent link">&para;</a></h2>
 <ul>
 <li>[x] Markdown 目录：标题数量阈值、中性色高亮与稳定 hover 布局（<a href="https://github.com/poco-ai/Agentero/issues/155">#155</a>）</li>
@@ -2859,7 +2887,7 @@
 <li>[ ] 本机 Translator sidecar 捆绑（可选）</li>
 <li>[ ] 前端 <code>afterPaperImport</code> 策略表统一各入口后置</li>
 <li>[ ] Zotero 迁移走 <code>paper_commit</code>；remote 镜像层收敛；统一 <code>paper:imported</code> 事件</li>
-<li>[ ] workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code></li>
+<li>[x] workflow prompt 自动注入 Vault 内 <code>AGENTS.md</code>（Host <code>build_prompt</code> 已将 <code>AGENTS.md</code> 作为 progressive disclosure 系统上下文注入）</li>
 <li>[ ] 最近 Vault / UI 偏好与 XDG settings 完全对齐</li>
 <li>[ ] 设置「打开/导出日志文件夹」</li>
 <li>[ ] <code>catalog:export_papers_md</code>（Markdown 表）</li>
@@ -2910,7 +2938,7 @@
 <li>[ ] 更多 Skills（多篇对比、Idea 评估、实验复现清单等）</li>
 <li>[ ] 自动 changelog；多 arch artifact 命名</li>
 <li>[x] iOS/iPad 纯远程客户端 M2：Bridge + 二维码/链接配对 + relay E2EE + Library/阅读/NOTES + 远程 Agent（见 <a href="../../frontend/mobile/">移动端前端与远程架构</a>）</li>
-<li>[ ] iOS/iPad M3：TestFlight 内测、多主机切换、iPad 双栏、wiki backlinks、离线体验打磨</li>
+<li>[ ] iOS/iPad M3：TestFlight 内测推进、多主机切换、iPad 双栏、wiki backlinks、离线体验打磨（M2 已提交 TestFlight）</li>
 <li>[ ] Git 集成 / 可选云同步</li>
 <li>[ ] 引用图 deeper（聚类、作者机构图）</li>
 <li>[ ] CLI domain 抽离独立 crate（仅当边界成为问题时）</li>

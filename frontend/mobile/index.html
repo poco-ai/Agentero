@@ -2727,62 +2727,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/wikilink-heading-reference-stability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    标题双链调研
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../development/release/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    发布流程
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -2876,6 +2820,62 @@
     
   
     概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/ios-testflight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS TestFlight
   
 
     
@@ -3073,6 +3073,34 @@
     
   
     普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链稳定性
   
 
     
@@ -3880,7 +3908,7 @@
 
 <h1 id="ios">移动端前端与 iOS 远程连接<a class="headerlink" href="#ios" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>M1 已实现，M2 功能已实现（待 TestFlight 内测）</strong>。当前移动端已包含二维码/配对链接连接、连接状态恢复、论文库搜索、PDF 分块缓存、NOTES 编辑、桌面 Agent 流式输出与权限应答、ACP Agent 切换、历史会话恢复和移动端侧栏；多主机/LAN 回退仍在后续范围。面向用户的操作说明见 <a href="../../usage/mobile/">移动端</a>。
+<p>状态：<strong>M1 已实现，M2 已提交 TestFlight（内测中）</strong>。当前移动端已包含二维码/配对链接连接、连接状态恢复、论文库搜索、PDF 分块缓存、NOTES 编辑、桌面 Agent 流式输出与权限应答、ACP Agent 切换、历史会话恢复和移动端侧栏；多主机/LAN 回退仍在后续范围。面向用户的操作说明见 <a href="../../usage/mobile/">移动端</a>。
 决策：iOS <strong>不做本地 Vault</strong>，App 是桌面端的纯远程客户端 —— 扫码配对后经 <strong>relay + 端到端加密</strong> 连接电脑上的 Agentero，读写电脑上的库，并驱动电脑上的 BYOA Agent。
 Android：已初始化 Tauri Android 目标（<code>src-tauri/gen/android</code>，包名 <code>com.poco_ai.agentero</code>）。定位与 iOS 相同——纯远程客户端，<code>src/main.tsx</code> 经 <code>isMobileApp()</code>（<code>src/lib/core/tauri.ts</code>，iOS/Android UA 检测）加载同一移动壳；liteparse、菜单事件等桌面能力用 <code>cfg(not(any(target_os = "ios", target_os = "android")))</code> 一并排除。本地调试：<code>pnpm tauri android dev</code> / <code>pnpm tauri android build --apk</code>（需 ANDROID_HOME + NDK）。发布：<code>.github/workflows/release.yml</code> 的 <code>android</code> job（与 <code>installers</code>/<code>cli</code> 并行，同一 draft release）在 tag 推送时构建签名 APK <code>Agentero_&lt;版本&gt;_aarch64.apk</code>；需 <code>ANDROID_KEYSTORE*</code> secrets，缺失则跳过该 job 而不阻塞桌面发布。</p>
 </blockquote>
@@ -4391,14 +4419,14 @@ pnpm<span class="w"> </span>tauri<span class="w"> </span>ios<span class="w"> </s
 </code></pre></div>
 
 <p>TestFlight 的签名、构建号和上传流程见
-<a href="../../development/ios-testflight/">iOS TestFlight Release</a>。应用无账号、不需要演示登录页；
+<a href="../../test/ios-testflight/">iOS TestFlight Release</a>。应用无账号、不需要演示登录页；
 审核侧填 <strong>Sign-in required = No</strong>，用 <strong>App Review Notes</strong> 说明如何与桌面端配对
-（见该文档 <a href="../../development/ios-testflight/#beta-review-no-login-no-fake-test-page">Beta review: no login, no fake test page</a>）。</p>
+（见该文档 <a href="../../test/ios-testflight/#beta-review-no-login-no-fake-test-page">Beta review: no login, no fake test page</a>）。</p>
 <h2 id="_1">相关文档<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <ul>
 <li>调研来源：paseo <code>@getpaseo/{cli,server,relay}</code> 发行产物（§2 有函数/文件级证据）</li>
 <li><a href="../../backend/remote/">../backend/remote.md</a> · <a href="../../backend/agent/">../backend/agent.md</a> · <a href="../../backend/catalog/">../backend/catalog.md</a></li>
-<li><a href="../../development/release/">release.md</a>（iPadOS/iOS 上架清单） · <a href="../../development/roadmap/">roadmap.md</a></li>
+<li><a href="../../test/release/">release.md</a>（iPadOS/iOS 上架清单） · <a href="../../development/roadmap/">roadmap.md</a></li>
 </ul>
 
 

@@ -2200,62 +2200,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/wikilink-heading-reference-stability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    标题双链调研
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../development/release/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    发布流程
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -2349,6 +2293,62 @@
     
   
     概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/ios-testflight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS TestFlight
   
 
     
@@ -2546,6 +2546,34 @@
     
   
     普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链稳定性
   
 
     
@@ -2828,8 +2856,8 @@
 <p>Host 在 <strong><code>127.0.0.1:23119</code></strong> 模拟 Zotero 桌面 Connector HTTP，官方浏览器扩展无需修改。</p>
 <h2 id="_1">行为<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <ul>
-<li>设置 → 通用：<strong>兼容 Zotero Connector</strong>（<strong>默认关</strong>）。</li>
-<li>与 Zotero 桌面端端口互斥。</li>
+<li>设置 → 通用：<strong>兼容 Zotero Connector</strong>（<code>connectorEnabled</code>，<strong>默认关</strong>）。</li>
+<li>与 Zotero 桌面端端口互斥；端口可在设置中修改（默认 <code>23119</code>）。</li>
 <li>支持 <code>saveItems</code>、目标文件夹选择、<strong><code>saveAttachment</code></strong>（浏览器上传 PDF）。</li>
 <li>支持 <strong><code>saveStandaloneAttachment</code></strong>（在 PDF 标签页直接保存，无父书目条目）。</li>
 <li>支持 <strong><code>hasAttachmentResolvers</code></strong> / <strong><code>saveAttachmentFromResolver</code></strong>：浏览器直连 PDF
@@ -2895,7 +2923,11 @@
 </table>
 <h2 id="_2">命令 / 事件<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>connector_start</code> / <code>connector_stop</code> / <code>connector_status</code> / <code>connector_set_vault</code></li>
+<li><code>connector_get_status</code>：获取监听状态、端口、绑定地址、当前 Vault。</li>
+<li><code>connector_set_enabled</code>：开启或关闭 Connector HTTP 服务。</li>
+<li><code>connector_set_vault</code>：绑定当前目标 Vault。</li>
+<li><code>connector_set_parent_dir</code>：设置默认保存父目录（如 <code>papers</code> 或 <code>papers/子目录</code>）。</li>
+<li><code>connector_set_port</code>：修改监听端口（默认 <code>23119</code>）。</li>
 <li>前端事件 <code>connector:*</code>（<code>src/lib/paper/import/connector.ts</code>）</li>
 </ul>
 <h2 id="_3">代码<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
