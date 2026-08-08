@@ -2211,6 +2211,67 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#17-zotero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. Zotero 双向同步（映射层）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="17. Zotero 双向同步（映射层）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#catalog-schema-v4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        关联与水位（catalog schema v4）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zotero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        拉取（只读，Zotero 运行时也安全）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zotero_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        推送（离线直写，Zotero 必须关闭）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        命令 / 事件
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4204,6 +4265,67 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#17-zotero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. Zotero 双向同步（映射层）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="17. Zotero 双向同步（映射层）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#catalog-schema-v4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        关联与水位（catalog schema v4）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zotero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        拉取（只读，Zotero 运行时也安全）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zotero_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        推送（离线直写，Zotero 必须关闭）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        命令 / 事件
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5445,6 +5567,37 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li>批注：对话框「迁移 PDF 高亮批注」勾选项（默认开）→ 读 <code>itemAnnotations</code>（高亮 text + comment + 页码）转 Markdown 引用块追加进 <code>NOTES.md</code>（与笔记共用幂等追加）。<strong>注</strong>：阅读器运行时批注为 <code>marks/*.json</code>；Zotero 导入侧暂只把文本迁入 <code>NOTES.md</code>，不做原位 PDF 高亮还原。</li>
 <li>非目标（v1）：Zotero 批注的<strong>原位高亮渲染</strong>（现仅迁移文本入 NOTES.md）、独立笔记（无父条目）、群组库。
 | 2026-07-16 | 精读：入库/单篇 Download 后自动 paper-reader + Zap 手动；任务条 lookup/download → paperRead 衔接 |</li>
+</ul>
+<hr />
+<h2 id="17-zotero">17. Zotero 双向同步（映射层）<a class="headerlink" href="#17-zotero" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>状态：<strong>已落地</strong>。<code>zotero_sync</code> 命令（魔棒弹层「与 Zotero 同步」按钮）：拉取 Zotero 变更 + 把 NOTES.md 推送回 Zotero。两边数据模型都不改：Vault 保持 Markdown-first、catalog 权威；Zotero 保持自己的 sqlite。</p>
+</blockquote>
+<h3 id="catalog-schema-v4">关联与水位（catalog schema v4）<a class="headerlink" href="#catalog-schema-v4" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>papers.zotero_item_id</code>：Zotero itemID。迁移落库时写入；旧行在同步/重迁移时按 DOI → arXiv → 归一化标题回退匹配后回填。</li>
+<li><code>papers.zotero_last_synced</code>：ISO 8601 同步水位。拉取处理完一篇即推进；推送候选用<strong>拉取前</strong>的水位快照选择（否则同轮拉取推进水位会掩盖所有笔记变更）。</li>
+</ul>
+<h3 id="zotero">拉取（只读，Zotero 运行时也安全）<a class="headerlink" href="#zotero" title="Permanent link">&para;</a></h3>
+<ul>
+<li>沿用「拷 <code>zotero.sqlite</code>+WAL/SHM 到临时目录」方案（<code>copy_zotero_sqlite</code>）。</li>
+<li><strong>元数据</strong>：仅填补空字段（year/doi/arxiv/abstract/publication/creators 等），永不覆盖已有值。</li>
+<li><strong>笔记</strong>：只拉取<strong>非 Agentero 标记</strong>的子笔记（用户手写的），<code>htmd</code> 转 MD 后幂等追加进 NOTES.md。</li>
+<li><strong>批注</strong>：<code>itemAnnotations</code> 转 MD 块幂等追加（与迁移同格式，内容级去重）。</li>
+<li><strong>冲突</strong>：水位之后两侧都变更（Zotero 笔记 dateModified 与 NOTES.md mtime 都新于水位）→ 跳过该篇笔记拉取并计入 conflicts 列表报告，不自动合并。</li>
+<li><strong>不做</strong>：不自动导入 Zotero 新增条目（那是迁移的职责）；Zotero 侧删除不联动删 paper。</li>
+</ul>
+<h3 id="zotero_1">推送（离线直写，Zotero 必须关闭）<a class="headerlink" href="#zotero_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>预检</strong>：<code>BEGIN IMMEDIATE</code> 写锁探测，SQLITE_BUSY → 报错「请先关闭 Zotero」。</li>
+<li><strong>备份</strong>：每次推送前复制 <code>zotero.sqlite</code>（+wal/shm）到 <code>&lt;zoteroDir&gt;/agentero-backups/zotero-&lt;时间戳&gt;.sqlite</code>，保留最近 5 份。</li>
+<li><strong>标记块协议</strong>：NOTES.md → <code>pulldown-cmark</code> 转 HTML，包裹 <code>&lt;!-- agentero:sync paper=&lt;id&gt; --&gt;…&lt;!-- /agentero:sync --&gt;</code>；按标记精确匹配该父条目下的已有标记笔记 → 整块替换，无则新建子笔记（<code>items</code> note 行：同 libraryID + 8 位 base32 key + <code>itemNotes</code> 行）。<strong>永不触碰无标记的用户笔记</strong>。</li>
+<li><strong>事务</strong>：整轮单事务，任一条失败整体回滚（备份可恢复）。</li>
+<li><strong>已知边界</strong>（已对真实 Zotero 7 库验证触发器）：<code>items</code>/<code>itemNotes</code> 无写入 <code>syncQueue</code> 的触发器 → 推送的笔记<strong>本地 Zotero 可见</strong>，但需在 Zotero 内编辑过才会被其云同步上传。UI 推送警示中明示。彻底方案（伴生 Zotero 插件经官方 JS API 读写）为后续升级路径。</li>
+</ul>
+<h3 id="_2">命令 / 事件<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>zotero_sync</code>（Channel 进度 <code>{current,total,phase}</code>，phase = read/pull/push）；前端 <code>src/lib/paper/import/zotero-sync.ts</code>，对话框 <code>zotero-sync-dialog.tsx</code>（选项与目录记 localStorage，<code>zoteroSyncDir</code> 设置可预设目录）。</li>
 </ul>
 
 
