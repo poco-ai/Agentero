@@ -130,6 +130,30 @@ export function usePdfSelectionTranslate({
 	const [translateError, setTranslateError] = useState<string | null>(null);
 	/** ACP session of the running translate turn (null for provider translate). */
 	const translateSessionRef = useRef<string | null>(null);
+	/** Per-run IPC unlisteners of the in-flight translate turn (null when idle). */
+	const translateUnsubsRef = useRef<UnlistenFn[] | null>(null);
+	/** True once the viewer unmounts; guards runs accepted after teardown. */
+	const translateDisposedRef = useRef(false);
+
+	// Closing the viewer must not strand the run's IPC listeners (or the run
+	// itself): terminal events never arrive for a hung run, so teardown cannot
+	// rely on the completed/failed handlers alone.
+	useEffect(() => {
+		translateDisposedRef.current = false;
+		return () => {
+			translateDisposedRef.current = true;
+			const unsubs = translateUnsubsRef.current;
+			translateUnsubsRef.current = null;
+			if (unsubs) for (const u of unsubs) u();
+			const sid = translateSessionRef.current;
+			if (sid) {
+				translateSessionRef.current = null;
+				if (activeSessionRef.current === sid) activeSessionRef.current = null;
+				void cancelAgentRun(sid).catch(() => undefined);
+			}
+			translateStreamingRef.current = false;
+		};
+	}, [activeSessionRef, translateStreamingRef]);
 
 	const stopTranslateSession = useCallback(() => {
 		const sid = translateSessionRef.current;
@@ -249,12 +273,20 @@ export function usePdfSelectionTranslate({
 							autoApprove: true,
 							hideFromChatHistory: true,
 						});
+						if (translateDisposedRef.current) {
+							// Viewer unmounted while the run was being accepted: drop it.
+							void cancelAgentRun(accepted.sessionId).catch(() => undefined);
+							return;
+						}
 						const sessionId = accepted.sessionId;
 						translateSessionRef.current = sessionId;
 						activeSessionRef.current = sessionId;
 						const unsubs: UnlistenFn[] = [];
+						translateUnsubsRef.current = unsubs;
 						const cleanup = () => {
 							for (const u of unsubs) u();
+							if (translateUnsubsRef.current === unsubs)
+								translateUnsubsRef.current = null;
 							if (translateSessionRef.current === sessionId)
 								translateSessionRef.current = null;
 							if (activeSessionRef.current === sessionId)
@@ -302,6 +334,11 @@ export function usePdfSelectionTranslate({
 								cleanup();
 							}),
 						);
+						if (translateDisposedRef.current) {
+							// Viewer unmounted while the listeners were being attached.
+							cleanup();
+							return;
+						}
 					} catch (e) {
 						const message = e instanceof Error ? e.message : String(e);
 						notifyError(message);

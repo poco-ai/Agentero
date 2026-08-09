@@ -30,6 +30,8 @@ import {
 	type RefObject,
 	type SetStateAction,
 	useCallback,
+	useEffect,
+	useRef,
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -125,6 +127,28 @@ export function usePdfAskThreads({
 	const { t } = useTranslation("viewer");
 	const [streaming, setStreaming] = useState(false);
 	const [askError, setAskError] = useState<string | null>(null);
+	/** Per-run IPC unlisteners of the in-flight ask turn (null when idle). */
+	const runUnsubsRef = useRef<UnlistenFn[] | null>(null);
+	/** True once the viewer unmounts; guards runs accepted after teardown. */
+	const runDisposedRef = useRef(false);
+
+	// Closing the viewer must not strand the run's IPC listeners (or the run
+	// itself): terminal events never arrive for a hung run, so teardown cannot
+	// rely on the completed/failed handlers alone.
+	useEffect(() => {
+		runDisposedRef.current = false;
+		return () => {
+			runDisposedRef.current = true;
+			const unsubs = runUnsubsRef.current;
+			runUnsubsRef.current = null;
+			if (unsubs) for (const u of unsubs) u();
+			const sid = activeSessionRef.current;
+			if (sid) {
+				activeSessionRef.current = null;
+				void cancelAgentRun(sid).catch(() => undefined);
+			}
+		};
+	}, [activeSessionRef]);
 
 	const persist = useCallback(
 		async (thread: PdfAskThread) => {
@@ -227,6 +251,11 @@ export function usePdfAskThreads({
 					autoApprove: true,
 					hideFromChatHistory: true,
 				});
+				if (runDisposedRef.current) {
+					// Viewer unmounted while the run was being accepted: drop it.
+					void cancelAgentRun(accepted.sessionId).catch(() => undefined);
+					return;
+				}
 				activeSessionRef.current = accepted.sessionId;
 				const withAssistant: PdfAskThread = {
 					...withUser,
@@ -244,8 +273,10 @@ export function usePdfAskThreads({
 				upsertThread(withAssistant);
 				const sessionId = accepted.sessionId;
 				const unsubs: UnlistenFn[] = [];
+				runUnsubsRef.current = unsubs;
 				const cleanup = () => {
 					for (const u of unsubs) u();
+					if (runUnsubsRef.current === unsubs) runUnsubsRef.current = null;
 					if (activeSessionRef.current === sessionId)
 						activeSessionRef.current = null;
 					setStreaming(false);
@@ -312,6 +343,11 @@ export function usePdfAskThreads({
 						cleanup();
 					}),
 				);
+				if (runDisposedRef.current) {
+					// Viewer unmounted while the listeners were being attached.
+					cleanup();
+					return;
+				}
 			} catch (e) {
 				setStreaming(false);
 				setAskError(e instanceof Error ? e.message : t("pdfAsk.agentFailed"));
