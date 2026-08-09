@@ -1,8 +1,8 @@
 /**
  * Wiki / rename state (zustand vanilla): index revision signal, in-app rename
  * dialog draft, and external-rename repair flow. Also owns the debounced wiki
- * rebuild scheduler and the internal-rename watcher-echo filter (module-level
- * timers replace the old App refs).
+ * rebuild scheduler and the watcher-echo filters (internal rename transactions
+ * and self-writes; module-level timers replace the old App refs).
  */
 
 import { createStore } from "zustand/vanilla";
@@ -113,6 +113,8 @@ export async function rebuildWikiAndNotify(path: string): Promise<void> {
 let wikiRebuildTimer: ReturnType<typeof setTimeout> | null = null;
 /** Watcher paths collected for the current debounced Wiki rebuild. */
 const wikiRebuildPaths = new Set<string>();
+/** Self-write echoes that only refresh mounted embeds, skipping the rebuild. */
+const wikiEchoEmbedPaths = new Set<string>();
 
 /**
  * Markdown files carry references; images and PDFs are canonical targets
@@ -121,18 +123,58 @@ const wikiRebuildPaths = new Set<string>();
  */
 export function scheduleWikiRebuild(absPath: string): void {
 	if (!isWikiTargetPath(absPath)) return;
-	wikiRebuildPaths.add(absPath);
+	// Autosave/⌘S echo: the app already knows about this write, so a full
+	// rebuild would just re-index content it wrote itself (#270).
+	if (isSelfWrittenPath(absPath)) wikiEchoEmbedPaths.add(absPath);
+	else wikiRebuildPaths.add(absPath);
 	if (wikiRebuildTimer) clearTimeout(wikiRebuildTimer);
 	wikiRebuildTimer = setTimeout(() => {
 		wikiRebuildTimer = null;
 		const changedPaths = [...wikiRebuildPaths];
 		wikiRebuildPaths.clear();
+		const echoPaths = [...wikiEchoEmbedPaths];
+		wikiEchoEmbedPaths.clear();
 		const vault = getVaultPath();
 		if (!vault) return;
+		if (changedPaths.length === 0) {
+			notifyWikiEmbedTargets(echoPaths);
+			return;
+		}
 		void rebuildWikiAndNotify(vault).finally(() =>
-			notifyWikiEmbedTargets(changedPaths),
+			notifyWikiEmbedTargets([...changedPaths, ...echoPaths]),
 		);
 	}, 900);
+}
+
+/** Paths this app just wrote to disk; their watcher echoes skip the rebuild. */
+const selfWrittenPaths = new Map<string, number>();
+
+/** Watcher echoes of an app write settle well within this window. */
+const SELF_WRITE_ECHO_TTL_MS = 4000;
+
+/**
+ * Remember a path this app wrote to disk so its watcher echo does not
+ * re-trigger a full Wiki rebuild on every autosave. Only gates the rebuild
+ * trigger; every other watcher consumer still sees the event.
+ */
+export function trackSelfWrittenPath(path: string): void {
+	selfWrittenPaths.set(
+		normalizeTabPath(path),
+		Date.now() + SELF_WRITE_ECHO_TTL_MS,
+	);
+}
+
+function isSelfWrittenPath(absPath: string): boolean {
+	const now = Date.now();
+	const normalized = normalizeTabPath(absPath);
+	for (const [path, expiresAt] of selfWrittenPaths) {
+		if (expiresAt <= now) {
+			selfWrittenPaths.delete(path);
+			continue;
+		}
+		if (normalized === path) return true;
+	}
+	return false;
 }
 
 /** Host watcher paths caused by a committed rename transaction. */

@@ -50,7 +50,7 @@ import {
 	type WikiNavTarget,
 	wikiNavigationDestination,
 } from "@/lib/wiki";
-import { rebuildWikiAndNotify } from "@/lib/wiki/store";
+import { rebuildWikiAndNotify, trackSelfWrittenPath } from "@/lib/wiki/store";
 import { dockHandle } from "@/lib/workspace/dock-registry";
 import {
 	getActiveTabId,
@@ -779,6 +779,9 @@ export function persistFile(
 			}
 			try {
 				await writeVaultFile(path, md);
+				// The watcher echo of this write must not re-trigger a full Wiki
+				// rebuild on every autosave (#270).
+				trackSelfWrittenPath(path);
 				// Advance the owning tab's seed only after the write is confirmed.
 				setTabs((prev) => syncTabSeedsForPath(prev, path, md));
 				return true;

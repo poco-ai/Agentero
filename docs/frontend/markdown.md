@@ -51,7 +51,7 @@ Plate WYSIWYG；用于普通笔记与论文 `NOTES.md`。磁盘上始终是标�
 保存
   → 序列化为 Markdown 文本
   → Host 写盘
-  → watcher → 按需重建 wiki 索引
+  → watcher → 自写回声只刷新嵌入投影，不重建索引；外部变更按需重建 wiki 索引
 ```
 
 ### 显式格式整理
