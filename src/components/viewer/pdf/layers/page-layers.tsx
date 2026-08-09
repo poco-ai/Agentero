@@ -70,7 +70,10 @@ export type PdfPageLayoutSlice = {
 	hoverableRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
 	rawRegionsByPage: ReadonlyMap<number, PdfLayoutRegion[]>;
 	layoutOverlayVisible: boolean;
-	layoutTranslateItems: LayoutTranslateItem[];
+	layoutTranslateItemsByPage: ReadonlyMap<
+		number,
+		readonly LayoutTranslateItem[]
+	>;
 	equationSymbolCount: number;
 	/** Layout-hover drafts auto-hide, so their frame needs a hover surface. */
 	visualDraftEphemeral: boolean;
@@ -145,6 +148,8 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			? marks.focusedLayoutRegion
 			: null;
 	const pins = marks.pinsByPage.get(pageNumber) ?? EMPTY_PINS;
+	const layoutTranslateOnPage =
+		layout.layoutTranslateItemsByPage.get(pageIndex);
 	// Page shell: paper-white in light mode; near-black when PDF dark mode is on
 	// so loading gaps match inverted page rasters.
 	return (
@@ -255,10 +260,9 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						})
 					: null}
 				{/* Bulk layout translate: progressive text overlays over body blocks. */}
-				{layout.layoutTranslateItems.length > 0 ? (
+				{layoutTranslateOnPage && layoutTranslateOnPage.length > 0 ? (
 					<LayoutTranslateOverlay
-						items={layout.layoutTranslateItems}
-						pageIndex={pageIndex}
+						items={layoutTranslateOnPage}
 						pageWidthPx={width}
 						pageHeightPx={height}
 						pdfDark={pdfDark}

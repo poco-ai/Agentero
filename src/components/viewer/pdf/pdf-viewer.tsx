@@ -772,7 +772,7 @@ function PdfViewerInner({
 	});
 
 	const {
-		layoutTranslateJob,
+		layoutTranslateItemsByPage,
 		layoutTranslateRunning,
 		layoutTranslateActive,
 		layoutTranslateLabel,
@@ -1095,7 +1095,7 @@ function PdfViewerInner({
 			hoverableRegionsByPage,
 			rawRegionsByPage,
 			layoutOverlayVisible,
-			layoutTranslateItems: layoutTranslateJob.items,
+			layoutTranslateItemsByPage,
 			equationSymbolCount: equationSymbols.length,
 			visualDraftEphemeral: Boolean(visualDraftEditor?.ephemeral),
 		}),
@@ -1103,7 +1103,7 @@ function PdfViewerInner({
 			hoverableRegionsByPage,
 			rawRegionsByPage,
 			layoutOverlayVisible,
-			layoutTranslateJob.items,
+			layoutTranslateItemsByPage,
 			equationSymbols.length,
 			visualDraftEditor?.ephemeral,
 		],

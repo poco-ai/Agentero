@@ -11,8 +11,8 @@ import type { LayoutTranslateItem } from "@/lib/pdf/layout/layout-translate";
 import { PDF_PAGE_RASTER_DARK_CLASS } from "@/lib/pdf/page-theme";
 
 type LayoutTranslateOverlayProps = {
+	/** Items already bucketed for this one page (groupLayoutTranslateItemsByPage). */
 	items: readonly LayoutTranslateItem[];
-	pageIndex: number;
 	/** Page pixel size (for font-size heuristic). */
 	pageWidthPx: number;
 	pageHeightPx: number;
@@ -133,21 +133,87 @@ export function fontSizeForLayoutTranslateBox(
 }
 
 /**
+ * Fit-result cache. Streaming job updates repaint every mounted page, but the
+ * fitted size only depends on (item, box pixel size, source, text), so
+ * unchanged blocks reuse their last result instead of re-running the
+ * binary-search fit on every render. Inner maps use raw strings as keys
+ * (value equality), so cache hits build no large key strings. Bounded:
+ * oldest item entries are evicted first; per-item maps hold only the few
+ * text variants a block goes through (placeholder → final).
+ */
+const FONT_SIZE_CACHE_MAX_ITEMS = 1024;
+const FONT_SIZE_CACHE_MAX_SOURCES = 8;
+const FONT_SIZE_CACHE_MAX_TEXTS = 32;
+
+type FontSizeCacheEntry = {
+	boxWidthPx: number;
+	boxHeightPx: number;
+	bySource: Map<string, Map<string, number>>;
+};
+
+const fontSizeCache = new Map<string, FontSizeCacheEntry>();
+
+function fontSizeForLayoutTranslateItem(
+	item: LayoutTranslateItem,
+	pageWidthPx: number,
+	pageHeightPx: number,
+	text: string,
+): number {
+	const boxWidthPx = item.bbox.w * pageWidthPx;
+	const boxHeightPx = item.bbox.h * pageHeightPx;
+	let entry = fontSizeCache.get(item.id);
+	if (!entry) {
+		if (fontSizeCache.size >= FONT_SIZE_CACHE_MAX_ITEMS) {
+			const oldest = fontSizeCache.keys().next().value;
+			if (oldest !== undefined) fontSizeCache.delete(oldest);
+		}
+		entry = { boxWidthPx, boxHeightPx, bySource: new Map() };
+		fontSizeCache.set(item.id, entry);
+	} else if (
+		entry.boxWidthPx !== boxWidthPx ||
+		entry.boxHeightPx !== boxHeightPx
+	) {
+		// Zoom or region geometry changed: cached sizes no longer apply.
+		entry.boxWidthPx = boxWidthPx;
+		entry.boxHeightPx = boxHeightPx;
+		entry.bySource.clear();
+	}
+	let byText = entry.bySource.get(item.source);
+	if (!byText) {
+		if (entry.bySource.size >= FONT_SIZE_CACHE_MAX_SOURCES) {
+			entry.bySource.clear();
+		}
+		byText = new Map();
+		entry.bySource.set(item.source, byText);
+	}
+	const hit = byText.get(text);
+	if (hit !== undefined) return hit;
+	const fontSize = fontSizeForLayoutTranslateBox(
+		item.bbox,
+		pageWidthPx,
+		pageHeightPx,
+		item.source,
+		text,
+	);
+	if (byText.size >= FONT_SIZE_CACHE_MAX_TEXTS) byText.clear();
+	byText.set(text, fontSize);
+	return fontSize;
+}
+
+/**
  * Paint translated (or in-flight) blocks for one PDF page.
  */
 export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 	items,
-	pageIndex,
 	pageWidthPx,
 	pageHeightPx,
 	pdfDark = false,
 }: LayoutTranslateOverlayProps) {
 	const onPage = items.filter(
 		(it) =>
-			it.pageIndex === pageIndex &&
-			(it.status === "done" ||
-				it.status === "running" ||
-				(it.status === "error" && it.translated)),
+			it.status === "done" ||
+			it.status === "running" ||
+			(it.status === "error" && it.translated),
 	);
 	if (onPage.length === 0) return null;
 
@@ -159,11 +225,10 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 						? (item.translated ?? "…")
 						: (item.translated ?? "");
 				const isHeading = isLayoutTranslateHeadingKind(item.kind);
-				const fontSize = fontSizeForLayoutTranslateBox(
-					item.bbox,
+				const fontSize = fontSizeForLayoutTranslateItem(
+					item,
 					pageWidthPx,
 					pageHeightPx,
-					item.source,
 					text,
 				);
 				return (

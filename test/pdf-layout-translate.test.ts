@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { fontSizeForLayoutTranslateBox } from "@/components/viewer/pdf/layers/layout-translate-overlay";
 import {
+	groupLayoutTranslateItemsByPage,
+	type LayoutTranslateItem,
+	type LayoutTranslateItemStatus,
 	layoutRegionSourceText,
 	listTranslatableLayoutRegions,
 	toLayoutTranslateItems,
@@ -246,5 +249,52 @@ describe("fontSizeForLayoutTranslateBox", () => {
 		// Denser CN may use a larger size to fill the same box, but not unbounded.
 		expect(withZh).toBeGreaterThanOrEqual(paperLike * 0.95);
 		expect(withZh).toBeLessThanOrEqual(paperLike * 1.25 + 0.5);
+	});
+});
+
+describe("groupLayoutTranslateItemsByPage", () => {
+	function translateItem(
+		id: string,
+		pageIndex: number,
+		status: LayoutTranslateItemStatus = "pending",
+	): LayoutTranslateItem {
+		return {
+			id,
+			pageIndex,
+			bbox: { x: 0.1, y: 0.1, w: 0.5, h: 0.05 },
+			kind: "text",
+			readingOrder: 0,
+			source: `source ${id}`,
+			status,
+		};
+	}
+
+	it("buckets items by page, keeping job order within a page", () => {
+		const grouped = groupLayoutTranslateItemsByPage([
+			translateItem("b", 1),
+			translateItem("a", 0),
+			translateItem("c", 1),
+		]);
+		expect([...grouped.keys()]).toEqual([1, 0]);
+		expect(grouped.get(0)?.map((it) => it.id)).toEqual(["a"]);
+		expect(grouped.get(1)?.map((it) => it.id)).toEqual(["b", "c"]);
+	});
+
+	it("reuses previous bucket identity for unchanged pages", () => {
+		const before = groupLayoutTranslateItemsByPage([
+			{ ...translateItem("a", 0, "done"), translated: "甲" },
+			translateItem("b", 1, "running"),
+		]);
+		// Fresh item objects (streaming publish copies everything); only page 1 advanced.
+		const after = groupLayoutTranslateItemsByPage(
+			[
+				{ ...translateItem("a", 0, "done"), translated: "甲" },
+				{ ...translateItem("b", 1, "done"), translated: "乙" },
+			],
+			before,
+		);
+		expect(after.get(0)).toBe(before.get(0));
+		expect(after.get(1)).not.toBe(before.get(1));
+		expect(after.get(1)?.map((it) => it.status)).toEqual(["done"]);
 	});
 });

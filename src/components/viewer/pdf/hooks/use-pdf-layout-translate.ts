@@ -6,10 +6,11 @@
  * and the toolbar button's three-phase label (start → stop → clear).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { notifyError } from "@/lib/core/notify";
 import {
+	groupLayoutTranslateItemsByPage,
 	type LayoutTranslateItem,
 	type LayoutTranslateJobStatus,
 	listTranslatableLayoutRegions,
@@ -25,11 +26,11 @@ export type UsePdfLayoutTranslateOptions = {
 };
 
 export type PdfLayoutTranslate = {
-	/** Progressive bulk-translate overlays (body text / abstract / header). */
-	layoutTranslateJob: {
-		status: LayoutTranslateJobStatus;
-		items: LayoutTranslateItem[];
-	};
+	/** Progressive bulk-translate overlays (body text / abstract / header), bucketed by page. */
+	layoutTranslateItemsByPage: ReadonlyMap<
+		number,
+		readonly LayoutTranslateItem[]
+	>;
 	layoutTranslateRunning: boolean;
 	/** Running, or finished with overlays still painted. */
 	layoutTranslateActive: boolean;
@@ -149,6 +150,21 @@ export function usePdfLayoutTranslate({
 		};
 	}, [docId]);
 
+	// Bucket once per job update (not per page); unchanged buckets keep their
+	// previous array identity so memoized page overlays bail out while another
+	// page streams.
+	const layoutTranslateByPageRef = useRef<
+		ReadonlyMap<number, readonly LayoutTranslateItem[]>
+	>(new Map());
+	const layoutTranslateItemsByPage = useMemo(() => {
+		const grouped = groupLayoutTranslateItemsByPage(
+			layoutTranslateJob.items,
+			layoutTranslateByPageRef.current,
+		);
+		layoutTranslateByPageRef.current = grouped;
+		return grouped;
+	}, [layoutTranslateJob.items]);
+
 	const layoutTranslateRunning = layoutTranslateJob.status === "running";
 	const layoutTranslateActive =
 		layoutTranslateRunning ||
@@ -160,7 +176,7 @@ export function usePdfLayoutTranslate({
 			: t("pdf.layoutTranslate.start");
 
 	return {
-		layoutTranslateJob,
+		layoutTranslateItemsByPage,
 		layoutTranslateRunning,
 		layoutTranslateActive,
 		layoutTranslateLabel,
