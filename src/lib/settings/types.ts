@@ -125,6 +125,11 @@ export type AppSettings = {
 	 * built with a telemetry endpoint.
 	 */
 	telemetryEnabled: boolean;
+	/**
+	 * Prefill the Markdown export dialog's "Agentero watermark" checkbox.
+	 * Default **off**; per-export choice can still override.
+	 */
+	exportWatermarkEnabled: boolean;
 	// Appearance
 	theme: ThemePreference;
 	/**

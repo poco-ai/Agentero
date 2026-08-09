@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	zoteroSyncDir: "",
 	batchImportConcurrency: 5,
 	telemetryEnabled: true,
+	exportWatermarkEnabled: false,
 	theme: "system",
 	uiTheme: DEFAULT_UI_THEME,
 	locale: "system",

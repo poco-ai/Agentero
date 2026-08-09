@@ -89,6 +89,13 @@
 			"sent": "诊断信息已发送，感谢！",
 			"sendFailed": "诊断信息发送失败",
 			"disabledHint": "请先开启「共享诊断信息」。"
+		},
+		"export": {
+			"section": "笔记导出",
+			"watermark": {
+				"label": "默认添加 Agentero 水印",
+				"description": "预填 Markdown 导出对话框，使新导出默认带有小号 “Made with Agentero” 标记。单次导出仍可关闭。"
+			}
 		}
 	},
 	"appearance": {

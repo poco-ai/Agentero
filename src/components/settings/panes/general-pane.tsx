@@ -166,6 +166,7 @@ export function GeneralPane({
 			</SettingsGroup>
 			<ConnectorSettingsBlock settings={settings} patch={patch} />
 			<RemoteCacheSettingsBlock />
+			<ExportSettingsBlock settings={settings} patch={patch} />
 			<TelemetrySettingsBlock settings={settings} patch={patch} />
 		</>
 	);
@@ -243,6 +244,42 @@ function TelemetrySettingsBlock({
 							? t("general.telemetry.sending")
 							: t("general.telemetry.send")}
 					</Button>
+				</SettingsRow>
+			</SettingsGroup>
+		</div>
+	);
+}
+
+function ExportSettingsBlock({
+	settings,
+	patch,
+}: {
+	settings: AppSettings;
+	patch: (p: Partial<AppSettings>) => void;
+}) {
+	const { t } = useTranslation("settings");
+	return (
+		<div className="mt-4">
+			<p className="mb-2 px-0.5 font-medium text-[13px]">
+				{t("general.export.section")}
+			</p>
+			<SettingsGroup>
+				<SettingsRow
+					label={
+						<span className="inline-flex flex-col gap-0.5">
+							{t("general.export.watermark.label")}
+							<span className="text-[11px] font-normal leading-snug text-muted-foreground/70">
+								{t("general.export.watermark.description")}
+							</span>
+						</span>
+					}
+					htmlFor="export-watermark-enabled"
+				>
+					<Switch
+						id="export-watermark-enabled"
+						checked={settings.exportWatermarkEnabled}
+						onCheckedChange={(v) => patch({ exportWatermarkEnabled: v })}
+					/>
 				</SettingsRow>
 			</SettingsGroup>
 		</div>

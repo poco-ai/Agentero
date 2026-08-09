@@ -317,6 +317,9 @@ function normalizePartial(
 	if (typeof parsed.connectorEnabled !== "boolean") {
 		merged.connectorEnabled = DEFAULT_SETTINGS.connectorEnabled;
 	}
+	if (typeof parsed.exportWatermarkEnabled !== "boolean") {
+		merged.exportWatermarkEnabled = DEFAULT_SETTINGS.exportWatermarkEnabled;
+	}
 	if (
 		!Number.isInteger(merged.batchImportConcurrency) ||
 		merged.batchImportConcurrency < 1 ||

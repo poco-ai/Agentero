@@ -24,6 +24,7 @@ import {
 	type LucideIcon,
 	Quote,
 	Search,
+	Share,
 	Strikethrough,
 	Underline,
 } from "lucide-react";
@@ -165,10 +166,13 @@ function useImageAction(label: string): ToolbarAction {
  */
 export function MarkdownEditorToolbar({
 	onOpenFind,
+	onExport,
 	propertiesPanel,
 }: {
 	/** Show the Search button at the right end; opens the find & replace bar. */
 	onOpenFind?: () => void;
+	/** Export the current note as PDF / PNG. */
+	onExport?: () => void;
 	/** Content rendered in the Properties toolbar popover. */
 	propertiesPanel?: ReactNode;
 }) {
@@ -278,6 +282,15 @@ export function MarkdownEditorToolbar({
 								{propertiesPanel}
 							</PopoverContent>
 						</Popover>
+					) : null}
+					{onExport ? (
+						<ToolbarButton
+							tooltip={t("export.toolbar")}
+							aria-label={t("export.toolbar")}
+							onClick={onExport}
+						>
+							<Share />
+						</ToolbarButton>
 					) : null}
 					{onOpenFind ? (
 						<ToolbarButton

@@ -96,6 +96,13 @@
 			"sent": "Diagnostics sent, thank you!",
 			"sendFailed": "Failed to send diagnostics",
 			"disabledHint": "Enable “Share diagnostics” first."
+		},
+		"export": {
+			"section": "Note export",
+			"watermark": {
+				"label": "Agentero watermark by default",
+				"description": "Prefill the Markdown export dialog so new exports include a small “Made with Agentero” mark. You can still turn it off per export."
+			}
 		}
 	},
 	"appearance": {
