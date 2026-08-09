@@ -2891,6 +2891,8 @@
 <li><code>tags_json</code>：字符串或 <code>{name,color}</code>（Apple 8 色）</li>
 <li><code>paper_rescan</code>：盘上有、库内无则补齐</li>
 <li>删除：回收站快照；恢复 upsert</li>
+<li>连接启用 WAL + <code>busy_timeout</code>，写入不阻塞列表读取</li>
+<li><code>pdf_page_counts</code>：PDF 页数缓存表（随移动/删除同步），阅读热力图不再整文件打开 PDF 数页</li>
 </ul>
 <h2 id="_3">命令（摘要）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>
@@ -2916,6 +2918,10 @@
 <tr>
 <td><code>paper_export</code> / <code>paper_import</code></td>
 <td>Bib 等</td>
+</tr>
+<tr>
+<td><code>paper_page_counts</code> / <code>paper_set_page_counts</code></td>
+<td>页数缓存读写</td>
 </tr>
 </tbody>
 </table>
