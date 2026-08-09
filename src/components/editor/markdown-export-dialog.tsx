@@ -1,7 +1,7 @@
 "use client";
 
 import { FileImage, FileText, Loader2 } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,13 +13,28 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { useOverlayRegistration } from "@/hooks/use-overlay-registration";
-import { cn } from "@/lib/core/utils";
 import type {
 	MarkdownExportFormat,
 	MarkdownExportOptions,
 	MarkdownExportPaperHeader,
 } from "@/lib/markdown/export/types";
+
+const FORMAT_OPTIONS: {
+	value: MarkdownExportFormat;
+	icon: typeof FileText;
+	labelKey: "export.formatPdf" | "export.formatPng";
+}[] = [
+	{ value: "pdf", icon: FileText, labelKey: "export.formatPdf" },
+	{ value: "png", icon: FileImage, labelKey: "export.formatPng" },
+];
 
 export type MarkdownExportDialogProps = {
 	open: boolean;
@@ -71,24 +86,37 @@ export function MarkdownExportDialog({
 				</DialogHeader>
 
 				<div className="flex flex-col gap-4 py-1">
-					<div className="flex flex-col gap-2">
-						<span className="font-medium text-sm">{t("export.format")}</span>
-						<div className="grid grid-cols-2 gap-2">
-							<FormatButton
-								active={format === "pdf"}
-								disabled={busy}
-								icon={<FileText className="size-4" aria-hidden />}
-								label={t("export.formatPdf")}
-								onClick={() => setFormat("pdf")}
-							/>
-							<FormatButton
-								active={format === "png"}
-								disabled={busy}
-								icon={<FileImage className="size-4" aria-hidden />}
-								label={t("export.formatPng")}
-								onClick={() => setFormat("png")}
-							/>
-						</div>
+					<div className="flex items-center gap-3">
+						<span
+							className="shrink-0 font-medium text-sm"
+							id="export-format-label"
+						>
+							{t("export.format")}
+						</span>
+						<Select
+							value={format}
+							disabled={busy}
+							onValueChange={(value) => {
+								if (value === "pdf" || value === "png") setFormat(value);
+							}}
+						>
+							<SelectTrigger aria-labelledby="export-format-label">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent position="popper" align="start">
+								{FORMAT_OPTIONS.map((opt) => {
+									const Icon = opt.icon;
+									return (
+										<SelectItem key={opt.value} value={opt.value}>
+											<span className="flex items-center gap-1.5">
+												<Icon className="size-4" aria-hidden />
+												{t(opt.labelKey)}
+											</span>
+										</SelectItem>
+									);
+								})}
+							</SelectContent>
+						</Select>
 					</div>
 
 					<div className="flex flex-col gap-3">
@@ -106,9 +134,7 @@ export function MarkdownExportDialog({
 								checked={includePaperHeader}
 								disabled={busy}
 								label={t("export.includePaperHeader")}
-								description={t("export.includePaperHeaderHint", {
-									title: paperHeader.title,
-								})}
+								description={t("export.includePaperHeaderHint")}
 								onCheckedChange={setIncludePaperHeader}
 							/>
 						) : null}
@@ -156,39 +182,6 @@ export function MarkdownExportDialog({
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
-	);
-}
-
-function FormatButton({
-	active,
-	disabled,
-	icon,
-	label,
-	onClick,
-}: {
-	active: boolean;
-	disabled: boolean;
-	icon: ReactNode;
-	label: string;
-	onClick: () => void;
-}) {
-	return (
-		<button
-			type="button"
-			disabled={disabled}
-			onClick={onClick}
-			className={cn(
-				"flex items-center justify-center gap-2 rounded-md border px-3 py-2.5 text-sm transition-colors",
-				active
-					? "border-primary bg-primary/10 text-foreground"
-					: "border-border bg-background text-muted-foreground hover:bg-muted/60",
-				disabled && "pointer-events-none opacity-60",
-			)}
-			aria-pressed={active}
-		>
-			{icon}
-			{label}
-		</button>
 	);
 }
 
