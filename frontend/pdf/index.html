@@ -3017,7 +3017,7 @@
 <tr>
 <td>视觉批注</td>
 <td><code>marks/&lt;id&gt;.json</code>（kind <code>visual</code> v2）：区域 + 用户批注 + 可选嵌套 <code>agent</code>；裁剪图 <code>marks/assets/&lt;id&gt;.png</code>。默认形态为纯批注（与文字「批注备注」同壳）；有 Agent 会话时可切到对话视图。旧版 <code>agent-trace</code> v1 仍可读，Doctor 可一键升 v2</td>
-<td>框选后：<strong>批注备注</strong> 输入 + 取消/保存；右上角「加入侧边栏对话」。已落盘 pin：纯批注模式可改备注；有对话时右上角切换「编辑备注 / 查看对话」。续聊走 ACP 同一 session</td>
+<td>框选后：<strong>批注备注</strong> 输入 + 取消/保存；右上角「加入侧边栏对话」。已落盘 pin：纯批注模式可改备注；有对话时右上角切换「编辑备注 / 查看对话」。续聊走 ACP 同一 session；<code>marks/annotations.json</code> 读写会按 annotation id 去重，避免重复导入脏数据</td>
 </tr>
 </tbody>
 </table>
@@ -3045,120 +3045,140 @@
 </thead>
 <tbody>
 <tr>
-<td><code>src/components/viewer/embed/pdf-viewer.tsx</code></td>
+<td><code>src/components/viewer/index.ts</code></td>
+<td>对外唯一出口（<code>PdfViewer</code> / <code>PdfViewerHandle</code> / 面板 / registry）；lazy <code>import()</code> 例外走具体模块</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/pdf-viewer.tsx</code></td>
 <td>阅读器外壳：插件注册、EmbedPDF capability、按域 hook 组装、JSX 拼装</td>
 </tr>
 <tr>
-<td><code>src/components/viewer/embed/pdf-viewer-types.ts</code></td>
-<td>对外契约（<code>PdfViewerHandle</code> / <code>PdfViewerProps</code>）与各卡片 / 编辑器状态类型</td>
+<td><code>src/components/viewer/pdf/types.ts</code></td>
+<td>对外契约与各卡片 / 编辑器状态类型，含共用 <code>ScreenPoint</code></td>
 </tr>
 <tr>
-<td><code>src/components/viewer/embed/pdf-page-constants.ts</code></td>
+<td><code>src/components/viewer/pdf/constants.ts</code></td>
 <td>光栅 dpr / 底图 scale 封顶、页层样式与空集合单例（memo 依赖稳定性）</td>
 </tr>
 <tr>
-<td><code>src/components/viewer/embed/pdf-color-scheme.ts</code></td>
+<td><code>src/components/viewer/pdf/coords.ts</code></td>
+<td>页↔屏坐标：页元素查找、rect→屏幕点、选区→归一化 anchor</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/color-scheme.ts</code></td>
 <td>PDF 页面明暗偏好持久化与跨窗广播</td>
 </tr>
 <tr>
-<td><code>src/components/viewer/embed/pdf-host-dom.ts</code></td>
+<td><code>src/components/viewer/pdf/host-dom.ts</code></td>
 <td>宿主 DOM 判定：可编辑目标、原生选区归属、文档关闭竞态错误</td>
 </tr>
 <tr>
-<td><code>src/components/viewer/embed/pdf-page-layers.tsx</code></td>
-<td>单页图层栈（memo）：光栅 / 瓦片 / 选区 / 批注 / 链接 / 命中框 / 页边针</td>
+<td><code>src/components/viewer/pdf/region-crop.ts</code></td>
+<td>PDF 区域裁剪与 Agent 图片编码</td>
 </tr>
 <tr>
-<td><code>src/components/viewer/embed/dockview-viewport.tsx</code></td>
-<td>视口注册 + sash 拖拽期 resize 门控 + 滚动指标按帧提交</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/wheel-zoom-handler.tsx</code></td>
-<td>⌘滚轮缩放绑定（passive 切换 + 每帧合并）</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/active-card-scroll-sync.tsx</code></td>
-<td>滚动时按帧重锚浮动卡片</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/outline-tree.tsx</code></td>
-<td>大纲（书签）递归列表</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/citation-links.tsx</code></td>
-<td>文中链接命中层与目标预览解析</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/layout-translate-overlay.tsx</code></td>
-<td>全文翻译逐块覆盖层与字号自适应</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/chrome/</code></td>
-<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code> / <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-cards.ts</code></td>
-<td>浮动卡生命周期：打开 / 定位（虚拟化重试）/ hover 收起</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-highlights.ts</code></td>
-<td>EmbedPDF 标注桥：高亮视图模型、页边针锚点、链接分页图、导入迁移与防抖导出</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-marks-io.ts</code></td>
-<td><code>marks/</code> 读取与文件监听刷新（指纹比对后再提交 state）</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-text-selection.ts</code></td>
-<td>选区检测、划词菜单状态与复制拦截</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-ask-threads.ts</code></td>
-<td>划词提问工作流：建/续/停、ACP 流监听、<code>marks/&lt;id&gt;.json</code> 落盘</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-selection-translate.ts</code></td>
-<td>划词翻译工作流与结果卡状态</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-visual-marks.ts</code></td>
-<td>框选裁剪与 visual mark 工作流（批注 / 加入对话 / 续聊）</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-layout-analysis.ts</code></td>
-<td>版面分析、图/公式 hover（<code>visualDraftEditor</code> 与 <code>formulaAnnotationPreview</code> 互斥的唯一 owner）、<code>Annotation.md</code> 符号表、全文翻译任务</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-page-text.ts</code></td>
-<td>按需加载页文字矩形（页边针是否压字）</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-citations.ts</code></td>
-<td>文中引用 hover 预览与跳转</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-find.ts</code></td>
-<td><code>⌘F</code> 查找</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-outline.ts</code></td>
-<td>书签大纲加载</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/use-pdf-viewer-handle.ts</code></td>
-<td>注册命令式 handle（跨簇，唯一入口）</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/embed/engine-provider.tsx</code></td>
+<td><code>src/components/viewer/pdf/engine-provider.tsx</code></td>
 <td>PDFium engine 宿主：worker 优先 + 就绪探针 + 主线程回退</td>
 </tr>
 <tr>
-<td><code>src/components/viewer/embed/pdf-region-select-layer.tsx</code></td>
-<td>图片区域框选覆盖层</td>
+<td><code>src/components/viewer/pdf/layers/</code></td>
+<td>页内绘制层：<code>page-layers</code>（memo 单页栈）/ <code>citation-links</code> / <code>layout-translate-overlay</code> / <code>region-select-layer</code> / <code>selection-gutter</code></td>
 </tr>
 <tr>
-<td><code>src/components/viewer/embed/pdf-region-crop.ts</code></td>
-<td>PDF 区域裁剪与 Agent 图片编码</td>
+<td><code>src/components/viewer/pdf/chrome/</code></td>
+<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/cards/</code></td>
+<td>划词与 mark 卡片：<code>selection-menu</code> / <code>selection-card</code>（共用壳）/ <code>ask-popover</code> / <code>translate-card</code> / <code>visual-trace-card</code> / <code>visual-annotation-editor</code> / <code>annotation-editor</code> / <code>formula-annotation-card</code> / <code>citation-preview</code></td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/viewport/</code></td>
+<td>宿主接线：<code>dockview-viewport</code>（resize 门控 + 滚动指标按帧提交）/ <code>wheel-zoom-handler</code> / <code>active-card-scroll-sync</code></td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-cards.ts</code></td>
+<td>浮动卡生命周期：打开 / 定位（虚拟化重试）/ hover 收起</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-highlights.ts</code></td>
+<td>EmbedPDF 标注桥：高亮视图模型、页边针锚点、链接分页图、导入迁移与防抖导出</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-marks-io.ts</code></td>
+<td><code>marks/</code> 读取与文件监听刷新（指纹比对后再提交 state）</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-text-selection.ts</code></td>
+<td>选区检测、划词菜单状态与复制拦截</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-ask-threads.ts</code></td>
+<td>划词提问工作流：建/续/停、ACP 流监听、<code>marks/&lt;id&gt;.json</code> 落盘</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-selection-translate.ts</code></td>
+<td>划词翻译工作流与结果卡状态</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-region-framing.ts</code></td>
+<td>⌘. 框选模式与单次裁剪（产出草稿交给 hover hook）</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-visual-marks.ts</code></td>
+<td>visual mark 工作流：草稿落盘 / 加入对话 / 续聊 / pin 卡片</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-layout-regions.ts</code></td>
+<td>layout store 订阅与按页分桶（hover 命中框 / Eye 叠加层）</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-layout-run.ts</code></td>
+<td>版面分析运行：sidecar 优先、headless 队列、可中止任务</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-layout-hover.ts</code></td>
+<td>图/公式 hover 与两张卡（<code>visualDraftEditor</code> 与 <code>formulaAnnotationPreview</code> 互斥的唯一 owner）、<code>Annotation.md</code> 符号表</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-layout-translate.ts</code></td>
+<td>全文翻译任务与工具栏三态标签</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-page-text.ts</code></td>
+<td>按需加载页文字矩形（页边针是否压字）</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-citations.ts</code></td>
+<td>文中引用 hover 预览与跳转</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-navigation.ts</code></td>
+<td>页码输入、跳页与阅读位置恢复/持久化</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-zoom-controls.ts</code></td>
+<td>缩放百分比输入（focus 期不被观测值覆盖）</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-color-scheme.ts</code></td>
+<td>页面明暗状态与跨窗同步</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-note-editor.ts</code></td>
+<td>文字批注编辑器（按标注 id 打开，占用 hover surface）</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-find.ts</code></td>
+<td><code>⌘F</code> 查找</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-outline.ts</code></td>
+<td>书签大纲加载</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-viewer-handle.ts</code></td>
+<td>注册命令式 handle（跨簇，唯一入口）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/panels/figures-panel.tsx</code></td>
@@ -3171,18 +3191,6 @@
 <tr>
 <td><code>src/components/viewer/panels/references-panel.tsx</code></td>
 <td>参考文献解析与入库（右栏）</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/pdf-ask/visual-annotation-editor.tsx</code></td>
-<td>框选后批注编辑器</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/pdf-citation-preview.tsx</code></td>
-<td>文中引用悬浮预览</td>
-</tr>
-<tr>
-<td><code>src/components/viewer/pdf-ask/formula-annotation-card.tsx</code></td>
-<td>公式 hover「公式解析」符号对照卡</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf-viewer-registry.ts</code></td>
@@ -3242,7 +3250,7 @@
 </tr>
 </tbody>
 </table>
-<p>组织约定：<code>embed/</code> 放阅读器实现（外壳 + 按域 <code>use-pdf-*</code> hook + 单页图层 + 纯展示 <code>chrome/</code>），<code>panels/</code> 放右栏面板（只被 shell 引用），<code>pdf-ask/</code> 放划词与 mark 卡片。<code>src/components</code> 下不设 <code>index.ts</code> barrel。</p>
+<p>组织约定：<code>pdf/</code> 放阅读器实现（外壳 + <code>hooks/</code> 按域状态 + <code>layers/</code> 页内绘制 + <code>chrome/</code> 工具栏浮层 + <code>cards/</code> 划词卡片 + <code>viewport/</code> 宿主接线），<code>panels/</code> 放右栏面板（只被 shell 引用）。folder 外部只从 <code>@/components/viewer</code> 导入；folder 内部一律用具体路径，且不得反向导入该 barrel。</p>
 <h2 id="figures">版面分析（Figures 侧栏）<a class="headerlink" href="#figures" title="Permanent link">&para;</a></h2>
 <p>右栏 <strong>Figures</strong>（原「解析」header：分析 / 叠加层）→ 页内检测 → 列表（image/chart、table、algorithm、<strong>有编号 formula 置底</strong>）。</p>
 <p><strong>完整流水线、14 条核心规则、阈值与代码地图</strong>见：</p>
