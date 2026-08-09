@@ -3142,10 +3142,10 @@
 <tbody>
 <tr>
 <td><code>src/components/editor/</code></td>
-<td>Plate 编辑器</td>
+<td>Plate 编辑器；<code>index.ts</code> 是唯一对外出口，内部分 <code>nodes/</code> <code>plugins/</code> <code>embeds/</code> <code>toolbar/</code> <code>overlays/</code></td>
 </tr>
 <tr>
-<td><code>src/components/editor/frontmatter-panel.tsx</code></td>
+<td><code>src/components/editor/overlays/frontmatter-panel.tsx</code></td>
 <td>可折叠 Properties / YAML frontmatter 编辑</td>
 </tr>
 <tr>
@@ -3153,23 +3153,23 @@
 <td>frontmatter 围栏拆装与属性计数</td>
 </tr>
 <tr>
-<td><code>src/components/editor/toc-sidebar.tsx</code></td>
+<td><code>src/components/editor/overlays/toc-sidebar.tsx</code></td>
 <td>基于 Plate TOC hooks 的悬浮目录、当前标题跟踪与跳转</td>
 </tr>
 <tr>
-<td><code>src/components/editor/code-block-node.tsx</code></td>
+<td><code>src/components/editor/nodes/block/code-block-node.tsx</code></td>
 <td>代码语言选择、复制与 Mermaid 预览</td>
 </tr>
 <tr>
-<td><code>src/components/editor/plugins/callout-actions.ts</code></td>
-<td>Callout 类型与标题的校验和 AST 更新</td>
+<td><code>src/lib/markdown/callout.ts</code></td>
+<td>Callout marker 解析、portable rules 与类型/标题的 AST 更新</td>
 </tr>
 <tr>
-<td><code>src/components/editor/plugins/slash-command.ts</code></td>
+<td><code>src/lib/markdown/slash-command.ts</code></td>
 <td>Slash trigger、过滤、stale guard 与格式转换</td>
 </tr>
 <tr>
-<td><code>src/components/editor/slash-command-menu.tsx</code></td>
+<td><code>src/components/editor/overlays/slash-command-menu.tsx</code></td>
 <td>图标列表、键盘选择与浮层交互</td>
 </tr>
 <tr>
