@@ -1,4 +1,6 @@
+export type { PdfExportOptions } from "@/lib/markdown/export/capture";
 export {
+	applyPngWatermark,
 	captureElementPng,
 	dataUrlToUint8Array,
 	pngDataUrlToPdfBytes,

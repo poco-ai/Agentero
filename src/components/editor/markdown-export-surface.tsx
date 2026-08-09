@@ -4,7 +4,6 @@ import { MarkdownPlugin } from "@platejs/markdown";
 import { ImagePlugin } from "@platejs/media/react";
 import { Plate, usePlateEditor } from "platejs/react";
 import { useEffect, useMemo, useRef } from "react";
-import { useTranslation } from "react-i18next";
 import { Editor } from "@/components/editor/editor";
 import { EmbeddedMarkdownProjection } from "@/components/editor/embedded-markdown-projection";
 import { ImageElement } from "@/components/editor/image-node";
@@ -24,17 +23,14 @@ export function MarkdownExportSurface({
 	filePath,
 	expandEmbeds,
 	paperHeader,
-	watermark,
 	onMounted,
 }: {
 	markdown: string;
 	filePath: string | null;
 	expandEmbeds: boolean;
 	paperHeader: MarkdownExportPaperHeader | null;
-	watermark: boolean;
 	onMounted: (el: HTMLElement) => void;
 }) {
-	const { t } = useTranslation("editor");
 	const surfaceRef = useRef<HTMLDivElement | null>(null);
 	const exportMode = useMemo<MarkdownExportMode>(
 		() => ({
@@ -70,7 +66,13 @@ export function MarkdownExportSurface({
 			className="bg-background text-foreground"
 			style={{ width: 800, boxSizing: "border-box" }}
 		>
-			<div className="relative px-10 py-8">
+			{/*
+			  Outer surface is edge-to-edge (page bg fills PDF; no white letterbox).
+			  Inner inset mirrors the live editor `default` variant horizontal padding
+			  (`px-16` / 64px) and top (`pt-4`); bottom uses a modest export tail instead
+			  of editor `pb-72` (that gap is only for scroll room while typing).
+			*/}
+			<div className="px-16 pt-4 pb-10">
 				{paperHeader ? (
 					<header className="mb-6 border-border border-b pb-4">
 						<h1 className="font-semibold text-xl leading-snug tracking-tight">
@@ -112,15 +114,6 @@ export function MarkdownExportSurface({
 						</MarkdownDocProvider>
 					</WikiEmbedProjectionProvider>
 				</MarkdownExportModeProvider>
-
-				{watermark ? (
-					<div
-						aria-hidden
-						className="pointer-events-none absolute right-6 bottom-4 select-none font-medium text-[11px] text-muted-foreground/45 tracking-wide"
-					>
-						{t("export.watermark")}
-					</div>
-				) : null}
 			</div>
 		</div>
 	);

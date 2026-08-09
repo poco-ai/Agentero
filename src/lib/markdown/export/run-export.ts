@@ -1,8 +1,10 @@
 import { createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MarkdownExportSurface } from "@/components/editor/markdown-export-surface";
+import i18n from "@/i18n";
 import { isTauri } from "@/lib/core/tauri";
 import {
+	applyPngWatermark,
 	captureElementPng,
 	dataUrlToUint8Array,
 	pngDataUrlToPdfBytes,
@@ -71,7 +73,6 @@ export async function runMarkdownExport(
 						paperHeader: request.options.includePaperHeader
 							? request.paperHeader
 							: null,
-						watermark: request.options.watermark,
 						onMounted: (el: HTMLElement) => {
 							surfaceRef.current = el;
 							window.clearTimeout(timeout);
@@ -87,12 +88,24 @@ export async function runMarkdownExport(
 
 		await waitForExportReady(surface);
 
-		const pngDataUrl = await captureElementPng(surface);
+		let pngDataUrl = await captureElementPng(surface);
 		const format = request.options.format;
+		const watermarkText = request.options.watermark
+			? i18n.t("editor:export.watermark")
+			: "";
+
+		// Watermark is drawn after capture so PDF can stamp every page (not only
+		// the last slice of a long raster that had a single DOM watermark).
+		if (format === "png" && watermarkText) {
+			pngDataUrl = await applyPngWatermark(pngDataUrl, watermarkText);
+		}
+
 		const bytes =
 			format === "png"
 				? dataUrlToUint8Array(pngDataUrl)
-				: await pngDataUrlToPdfBytes(pngDataUrl);
+				: await pngDataUrlToPdfBytes(pngDataUrl, {
+						watermarkText: watermarkText || undefined,
+					});
 
 		const ext = format === "png" ? "png" : "pdf";
 		const filterName = format === "png" ? "PNG" : "PDF";
