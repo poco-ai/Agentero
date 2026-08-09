@@ -74,6 +74,7 @@ import { usePdfTextSelection } from "@/components/viewer/pdf/hooks/use-pdf-text-
 import { usePdfViewerHandle } from "@/components/viewer/pdf/hooks/use-pdf-viewer-handle";
 import { usePdfVisualMarks } from "@/components/viewer/pdf/hooks/use-pdf-visual-marks";
 import { usePdfZoomControls } from "@/components/viewer/pdf/hooks/use-pdf-zoom-controls";
+import { useStableDerived } from "@/components/viewer/pdf/hooks/use-stable-derived";
 import {
 	type PdfPageHandlers,
 	PdfPageLayers,
@@ -95,8 +96,7 @@ import {
 import { cn } from "@/lib/core/utils";
 import { isPdfViewerSource } from "@/lib/paper";
 import { isVisualMarkKind, tracePreview } from "@/lib/pdf/agent-trace";
-import { toSummaries } from "@/lib/pdf/ask";
-import { threadHasUserQuestion } from "@/lib/pdf/ask/schema";
+import { threadHasUserQuestion, threadPreview } from "@/lib/pdf/ask/schema";
 import type { PdfAskNormalizedRect, PdfAskThread } from "@/lib/pdf/ask/types";
 import { equationAnnotationPath } from "@/lib/pdf/equation-annotation";
 import {
@@ -111,6 +111,7 @@ import {
 	pinObscuresBodyText,
 	type SelectionPin,
 } from "@/lib/pdf/selection";
+import type { PdfTranslateRect } from "@/lib/pdf/translate/types";
 import { PDF_ZOOM_MAX, PDF_ZOOM_MIN } from "@/lib/pdf/zoom";
 import { openRightTab } from "@/lib/shell/ui-store";
 import { openPath } from "@/lib/workspace/actions";
@@ -119,6 +120,37 @@ export type {
 	PdfViewerHandle,
 	PdfViewerProps,
 } from "@/components/viewer/pdf/types";
+
+/**
+ * Geometry-only projection of a mark for gutter pins. Extracted from the ask /
+ * translate arrays with a stable identity (see {@link useStableDerived}) so the
+ * per-chunk streaming message bodies cannot invalidate `pinsByPage` (and with it
+ * every mounted page).
+ */
+type AskPinAnchor = {
+	id: string;
+	/** 1-based page number */
+	page: number;
+	rects: PdfAskNormalizedRect[];
+	preview: string;
+	ended: boolean;
+};
+
+type TranslatePinAnchor = {
+	id: string;
+	/** 1-based page number */
+	page: number;
+	rects: PdfTranslateRect[];
+	preview: string;
+	hasError: boolean;
+};
+
+/** Compact value fingerprint of normalized rects (pin geometry input). */
+function rectsKey(
+	rects: ReadonlyArray<{ x: number; y: number; w: number; h: number }>,
+): string {
+	return rects.map((r) => `${r.x},${r.y},${r.w},${r.h}`).join("~");
+}
 
 /**
  * PDF viewer built on EmbedPDF (headless, PDFium/WASM). The engine is shared
@@ -620,9 +652,45 @@ function PdfViewerInner({
 		handleCitationLinkHover,
 	} = usePdfCitations({ docId, annotationCap, hostRef, zoomRef });
 
-	const askSummaries = useMemo(
-		() => toSummaries(threads.filter(threadHasUserQuestion)),
-		[threads],
+	/**
+	 * Pin geometry is anchor data only. While an answer / translation streams,
+	 * every chunk replaces the whole threads / translates array, but none of the
+	 * fields fingerprinted below change — so these projections keep their
+	 * identity and `pinsByPage` (and thus every mounted page) skips re-rendering
+	 * per chunk. The translate pin preview therefore uses the source quote, not
+	 * the streamed result (the open card shows the live text).
+	 */
+	const askPinAnchors = useStableDerived<AskPinAnchor[]>(
+		() =>
+			threads.filter(threadHasUserQuestion).map((th) => ({
+				id: th.id,
+				page: th.anchor.page,
+				rects: th.anchor.rects,
+				preview: threadPreview(th),
+				ended: th.status === "ended",
+			})),
+		threads
+			.map(
+				(th) =>
+					`${th.id}|${threadHasUserQuestion(th) ? 1 : 0}|${th.anchor.page}|${th.status}|${threadPreview(th)}|${rectsKey(th.anchor.rects)}`,
+			)
+			.join(";"),
+	);
+	const translatePinAnchors = useStableDerived<TranslatePinAnchor[]>(
+		() =>
+			translates.map((tr) => ({
+				id: tr.id,
+				page: tr.page,
+				rects: tr.rects,
+				preview: tr.quote?.trim() || tr.id,
+				hasError: Boolean(tr.error),
+			})),
+		translates
+			.map(
+				(tr) =>
+					`${tr.id}|${tr.page}|${tr.error ? 1 : 0}|${tr.quote ?? ""}|${rectsKey(tr.rects)}`,
+			)
+			.join(";"),
 	);
 
 	/**
@@ -654,34 +722,30 @@ function PdfViewerInner({
 				side: pin.side,
 			});
 		}
-		for (const summary of askSummaries) {
-			const pageText = pageTextMap.get(summary.page - 1);
-			const thread = threads.find((th) => th.id === summary.id);
-			const pin = thread
-				? pinFromRects(thread.anchor.rects, pageText)
-				: { x: summary.x, y: summary.y, side: "right" as const };
-			add(summary.page, {
-				id: summary.id,
+		for (const anchor of askPinAnchors) {
+			const pageText = pageTextMap.get(anchor.page - 1);
+			const pin = pinFromRects(anchor.rects, pageText);
+			add(anchor.page, {
+				id: anchor.id,
 				kind: "ask",
 				x: pin.x,
 				y: pin.y,
-				preview: summary.preview,
-				ended: summary.status === "ended",
+				preview: anchor.preview,
+				ended: anchor.ended,
 				overText: pinObscuresBodyText(pin, pageText),
 				side: pin.side,
 			});
 		}
-		for (const translate of translates) {
-			if (translate.error) continue;
-			const pageText = pageTextMap.get(translate.page - 1);
-			const pin = pinFromRects(translate.rects, pageText);
-			add(translate.page, {
-				id: translate.id,
+		for (const anchor of translatePinAnchors) {
+			if (anchor.hasError) continue;
+			const pageText = pageTextMap.get(anchor.page - 1);
+			const pin = pinFromRects(anchor.rects, pageText);
+			add(anchor.page, {
+				id: anchor.id,
 				kind: "translate",
 				x: pin.x,
 				y: pin.y,
-				preview:
-					translate.result?.trim() || translate.quote?.trim() || translate.id,
+				preview: anchor.preview,
 				overText: pinObscuresBodyText(pin, pageText),
 				side: pin.side,
 			});
@@ -705,9 +769,8 @@ function PdfViewerInner({
 	}, [
 		highlights,
 		highlightAnchors,
-		askSummaries,
-		threads,
-		translates,
+		askPinAnchors,
+		translatePinAnchors,
 		visualTraces,
 		pageTextMap,
 	]);
@@ -724,6 +787,39 @@ function PdfViewerInner({
 		if (!isVisualMarkKind(activeCard?.kind)) return null;
 		return visualTraces.find((tr) => tr.id === activeCard.id) ?? null;
 	}, [visualTraces, activeCard]);
+	/**
+	 * On-page source frame of the active ask / translate card: anchor geometry
+	 * only. The page layers never read the streaming body, and the rects
+	 * reference survives chunk updates (updaters spread the record and replace
+	 * `messages` / `result` only), so these keep their identity while streaming
+	 * — unlike the full records the card stack consumes.
+	 */
+	const activeAskId = activeThread?.id ?? null;
+	const activeAskPage = activeThread?.anchor.page ?? null;
+	const activeAskRects = activeThread?.anchor.rects ?? null;
+	const activeAskAnchor = useMemo(
+		() =>
+			activeAskId !== null && activeAskPage !== null && activeAskRects !== null
+				? { id: activeAskId, page: activeAskPage, rects: activeAskRects }
+				: null,
+		[activeAskId, activeAskPage, activeAskRects],
+	);
+	const activeTranslateId = activeTranslate?.id ?? null;
+	const activeTranslatePage = activeTranslate?.page ?? null;
+	const activeTranslateRects = activeTranslate?.rects ?? null;
+	const activeTranslateAnchor = useMemo(
+		() =>
+			activeTranslateId !== null &&
+			activeTranslatePage !== null &&
+			activeTranslateRects !== null
+				? {
+						id: activeTranslateId,
+						page: activeTranslatePage,
+						rects: activeTranslateRects,
+					}
+				: null,
+		[activeTranslateId, activeTranslatePage, activeTranslateRects],
+	);
 	// ---- Layout analysis ----
 	// Four hooks: region buckets, the analysis run, hover (sole owner of the two
 	// mutually exclusive hover cards) and the bulk-translate job.
@@ -1067,8 +1163,8 @@ function PdfViewerInner({
 
 	const pageMarks = useMemo<PdfPageMarksSlice>(
 		() => ({
-			activeThread,
-			activeTranslate,
+			activeAskAnchor,
+			activeTranslateAnchor,
 			activeVisualTrace,
 			visualDraftRegion,
 			formulaAnnotationRegion,
@@ -1078,8 +1174,8 @@ function PdfViewerInner({
 			activeCardId: activeCard?.id ?? null,
 		}),
 		[
-			activeThread,
-			activeTranslate,
+			activeAskAnchor,
+			activeTranslateAnchor,
 			activeVisualTrace,
 			visualDraftRegion,
 			formulaAnnotationRegion,

@@ -25,6 +25,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useStableDerived } from "@/components/viewer/pdf/hooks/use-stable-derived";
 import type { PdfViewerProps } from "@/components/viewer/pdf/types";
 import { isTauri } from "@/lib/core/tauri";
 import {
@@ -32,7 +33,7 @@ import {
 	type PdfVisualSessionTrace,
 } from "@/lib/pdf/agent-trace";
 import { listPdfAskThreads } from "@/lib/pdf/ask";
-import { threadHasUserQuestion } from "@/lib/pdf/ask/schema";
+import { threadHasUserQuestion, threadPreview } from "@/lib/pdf/ask/schema";
 import type { PdfAskThread } from "@/lib/pdf/ask/types";
 import { marksDir } from "@/lib/pdf/selection";
 import { listPdfTranslates } from "@/lib/pdf/translate";
@@ -215,9 +216,24 @@ export function usePdfMarksIo({
 	}, [paperAbsPath, isActive]);
 
 	// Publish ask threads (with a real question) to the annotations panel.
+	// Gated on a fingerprint of the fields the panel renders (question preview,
+	// page, status, message count): streaming gives `threads` a fresh identity on
+	// every chunk, and republishing each chunk rewrote annotationsStore and
+	// re-rendered the panel several times per second.
+	const asksFingerprint = threads
+		.filter(threadHasUserQuestion)
+		.map(
+			(th) =>
+				`${th.id}|${th.status}|${th.anchor.page}|${th.anchor.rects[0]?.y ?? 0}|${th.messages.length}|${threadPreview(th)}`,
+		)
+		.join(";");
+	const publishedAsks = useStableDerived(
+		() => threads.filter(threadHasUserQuestion),
+		asksFingerprint,
+	);
 	useEffect(() => {
-		onAsksChangeRef.current?.(threads.filter(threadHasUserQuestion));
-	}, [threads, onAsksChangeRef]);
+		onAsksChangeRef.current?.(publishedAsks);
+	}, [publishedAsks, onAsksChangeRef]);
 
 	// Publish visual agent-trace marks to the annotations panel.
 	useEffect(() => {

@@ -14,7 +14,7 @@
 
 import type { PdfEngine } from "@embedpdf/models";
 import type { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import { threadHasUserQuestion } from "@/lib/pdf/ask/schema";
 import type { PdfAskThread } from "@/lib/pdf/ask/types";
@@ -69,7 +69,28 @@ export function usePdfPageText({
 	const pageTextMapRef = useRef(pageTextMap);
 	pageTextMapRef.current = pageTextMap;
 
+	// Which off-screen pages carry a mark and must load their text geometry.
+	// Keyed on the resulting page set (a primitive), not the mark arrays: while a
+	// reply / translation streams, those arrays get a fresh identity on every
+	// chunk although no anchor page changes, and re-running the fetch effect per
+	// chunk is pure waste.
+	const markPagesKey = useMemo(() => {
+		const pages = new Set<number>();
+		for (const tr of translates) {
+			if (!tr.error) pages.add(tr.page - 1);
+		}
+		for (const th of threads) {
+			if (threadHasUserQuestion(th)) pages.add(th.anchor.page - 1);
+		}
+		for (const h of highlights) {
+			if (h.comment?.trim()) pages.add(h.page - 1);
+		}
+		for (const v of visualTraces) pages.add(v.page - 1);
+		return [...pages].sort((a, b) => a - b).join(",");
+	}, [translates, threads, highlights, visualTraces]);
+
 	// Load real page text geometry for pages that have pins (or near the viewport).
+	// biome-ignore lint/correctness/useExhaustiveDependencies: mark arrays are intentionally represented by markPagesKey — the anchor page set is the only input the fetch consumes
 	useEffect(() => {
 		if (!engine || !docCap || totalPages <= 0) return;
 		const doc = docCap.getDocument(docId);
@@ -119,17 +140,7 @@ export function usePdfPageText({
 					pageTextPendingRef.current.delete(pageIndex);
 				});
 		}
-	}, [
-		engine,
-		docCap,
-		docId,
-		totalPages,
-		currentPage,
-		translates,
-		threads,
-		highlights,
-		visualTraces,
-	]);
+	}, [engine, docCap, docId, totalPages, currentPage, markPagesKey]);
 
 	return { pageTextMap, pageTextMapRef };
 }

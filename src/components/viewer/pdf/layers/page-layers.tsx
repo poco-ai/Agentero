@@ -35,7 +35,7 @@ import { PdfRegionSelectLayer } from "@/components/viewer/pdf/layers/region-sele
 import { SelectionGutter } from "@/components/viewer/pdf/layers/selection-gutter";
 import { cn } from "@/lib/core/utils";
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
-import type { PdfAskNormalizedRect, PdfAskThread } from "@/lib/pdf/ask/types";
+import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
 import {
 	isFormulaLayoutKind,
 	type LayoutTranslateItem,
@@ -47,15 +47,26 @@ import {
 } from "@/lib/pdf/layout";
 import { PDF_PAGE_RASTER_DARK_CLASS } from "@/lib/pdf/page-theme";
 import type { SelectionPin } from "@/lib/pdf/selection";
-import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
 
 /** A mark region pinned to a page (visual draft frame / formula legend frame). */
 type PageRegion = { page: number; region: PdfAskNormalizedRect } | null;
 
+/**
+ * Anchor geometry of an open ask / translate card. Anchor-only: it keeps its
+ * identity while the card body streams, so the page layers skip re-rendering
+ * per streamed chunk.
+ */
+export type PdfActiveCardAnchor = {
+	id: string;
+	/** 1-based page number */
+	page: number;
+	rects: PdfAskNormalizedRect[];
+};
+
 /** Marks and mark-derived overlays. Whole-document work, bucketed by page. */
 export type PdfPageMarksSlice = {
-	activeThread: PdfAskThread | null;
-	activeTranslate: PdfTranslateRecord | null;
+	activeAskAnchor: PdfActiveCardAnchor | null;
+	activeTranslateAnchor: PdfActiveCardAnchor | null;
 	activeVisualTrace: PdfVisualSessionTrace | null;
 	visualDraftRegion: PageRegion;
 	formulaAnnotationRegion: PageRegion;
@@ -125,9 +136,11 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	const { t } = useTranslation("viewer");
 	const pageNumber = pageIndex + 1;
 	const activeAskOnPage =
-		marks.activeThread?.anchor.page === pageNumber ? marks.activeThread : null;
+		marks.activeAskAnchor?.page === pageNumber ? marks.activeAskAnchor : null;
 	const activeTranslateOnPage =
-		marks.activeTranslate?.page === pageNumber ? marks.activeTranslate : null;
+		marks.activeTranslateAnchor?.page === pageNumber
+			? marks.activeTranslateAnchor
+			: null;
 	const activeVisualOnPage =
 		marks.activeVisualTrace?.page === pageNumber
 			? marks.activeVisualTrace
@@ -302,7 +315,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 					: null}
 				{/* Open ask conversation card: highlight the anchored selection. */}
 				{activeAskOnPage
-					? activeAskOnPage.anchor.rects.map((rect) => (
+					? activeAskOnPage.rects.map((rect) => (
 							<div
 								key={`${activeAskOnPage.id}-source-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
 								className="pointer-events-auto absolute z-[1] rounded-[2px] bg-amber-300/45 dark:bg-amber-400/35"
