@@ -2930,6 +2930,7 @@
 <p>光栅化分辨率按 <code>min(devicePixelRatio, 1.5)</code> 封顶（<code>pdfRasterDpr</code>）：高 DPI 屏全 dpr 光栅会让每次缩放重渲染过重；封顶后 <code>RenderLayer</code> / <code>TilingLayer</code> 都按该 dpr 出图（<code>TilingLayer</code> 的 <code>dpr</code> 属性由 <code>@embedpdf/plugin-tiling</code> patch 提供）。Agent 区域裁剪走 <code>renderPageRect</code>，不受封顶影响。</p>
 <p><code>RenderLayer</code> 只是瓦片下的底图层，其 scale 另按 <code>PDF_BASE_LAYER_SCALE_CAP</code>（1.5）封顶：zoom 超过该值后整页光栅不再重渲染（单 worker 串行渲染下，长文档高倍缩放的整页光栅 + blob 传输是主要开销），清晰层由 <code>TilingLayer</code> 承担。瓦片 <code>tileSize: 1024</code> + <code>extraRings: 1</code>，减少长文档快速滚动时的渲染往返与边缘弹出。</p>
 <p>抗抽动（twitch）措施：瓦片 <code>extraRings: 1</code> 预渲染视口外圈，减少快速滚动时边缘瓦片延迟弹出；<code>TilingLayer</code> patch 在新瓦片集异步光栅到达前保留旧瓦片作拉伸占位（<code>scale/srcScale</code> 重映射，1.5s 超时兜底），消除缩放瞬间的空白闪烁；marks 4s 轮询结果先做 JSON 指纹比对，内容未变不提交 state，避免周期性整 viewer 重渲染。</p>
+<p>滚动路径开销（触控板一帧内可触发多次 scroll）另有两处收敛：viewport 滚动指标按动画帧合并后再 <code>setViewportScrollMetrics</code>（每次提交都会推出新的 scroller layout 对象，令所有挂载页重渲染）；layout hover 命中框与 Eye 调试框按 <code>hoverableLayoutRegionsByPage</code> / <code>rawLayoutRegionsByPage</code> 预先分页缓存，页渲染只做 <code>Map.get</code>，不再每页重跑一遍全文档 NMS。</p>
 <h2 id="_1">阅读能力<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2941,7 +2942,7 @@
 <tbody>
 <tr>
 <td>缩放</td>
-<td>可输入 50%–300% 精确比例；支持 +/-、⌘滚轮；适应宽度 / 适应整页放在底部栏的沉浸式按钮左侧；真实 scale 重渲染。⌘滚轮步进按动画帧合并（<code>createWheelZoomCoalescer</code>）：一帧内多个 wheel 事件先累加抵消，再一次性应用净步进，避免触控板高频事件逐事件触发整页重光栅</td>
+<td>可输入 50%–300% 精确比例；支持 +/-、⌘滚轮；适应宽度 / 适应整页放在底部栏的沉浸式按钮左侧；真实 scale 重渲染。⌘滚轮步进按动画帧合并（<code>createWheelZoomCoalescer</code>）：一帧内多个 wheel 事件先累加抵消，再一次性应用净步进，避免触控板高频事件逐事件触发整页重光栅。wheel 监听不常驻 non-passive（<code>bindWheelZoomGesture</code>）：普通滚动手势期间切成 passive，滚轮静默后再换回 non-passive，保证捏合缩放仍可 <code>preventDefault</code>，同时普通滚动不被主线程阻塞</td>
 </tr>
 <tr>
 <td>导航</td>
@@ -3113,7 +3114,7 @@
 </tr>
 <tr>
 <td><code>src/lib/pdf/wheel-zoom.ts</code></td>
-<td>⌘滚轮缩放 delta 累加与每帧合并步进</td>
+<td>⌘滚轮缩放 delta 累加与每帧合并步进；wheel 监听 passive / non-passive 切换</td>
 </tr>
 <tr>
 <td><code>src/lib/pdf/annotations-store.ts</code></td>
