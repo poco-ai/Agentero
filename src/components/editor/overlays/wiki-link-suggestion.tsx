@@ -77,6 +77,9 @@ type CandidateState = {
 	items: WikiSearchCandidate[];
 };
 
+/** Refinements to a Host-backed search wait for a pause in typing. */
+const WIKI_SEARCH_DEBOUNCE_MS = 200;
+
 function completionRequestKey(
 	request: ReturnType<typeof parseWikiCompletionQuery>,
 ): string | null {
@@ -230,12 +233,33 @@ export function WikiLinkSuggestion({
 		[draftRaw],
 	);
 	const requestKey = completionRequestKey(request);
+	/**
+	 * Host-backed searches (file / heading / annotation) are debounced so a
+	 * keystroke burst fires one `wiki_search` instead of one per key. The
+	 * initial trigger (empty query) and local alias completion stay immediate
+	 * so the menu opens without lag.
+	 */
+	const [fetchRequest, setFetchRequest] = useState(request);
+	useEffect(() => {
+		if (!request || request.kind === "alias" || request.query === "") {
+			setFetchRequest(request);
+			return;
+		}
+		const timer = window.setTimeout(
+			() => setFetchRequest(request),
+			WIKI_SEARCH_DEBOUNCE_MS,
+		);
+		return () => window.clearTimeout(timer);
+	}, [request]);
+	const fetchRequestKey = completionRequestKey(fetchRequest);
+	/** True while a debounced refinement has not been fetched yet. */
+	const fetchPending = requestKey !== fetchRequestKey;
 	const [candidateState, setCandidateState] = useState<CandidateState>({
 		requestKey: null,
 		items: [],
 	});
 	const candidates =
-		candidateState.requestKey === requestKey ? candidateState.items : [];
+		candidateState.requestKey === fetchRequestKey ? candidateState.items : [];
 	const candidatesRef = useRef(candidates);
 	candidatesRef.current = candidates;
 	const [recentCandidates, setRecentCandidates] = useState<
@@ -243,22 +267,22 @@ export function WikiLinkSuggestion({
 	>([]);
 	const [loading, setLoading] = useState(false);
 	useEffect(() => {
-		if (!request) {
+		if (!fetchRequest) {
 			setCandidateState({ requestKey: null, items: [] });
 			setLoading(false);
 			return;
 		}
-		if (request.kind === "alias") {
+		if (fetchRequest.kind === "alias") {
 			setCandidateState({
-				requestKey,
+				requestKey: fetchRequestKey,
 				items: [
 					{
 						kind: "alias",
-						path: request.target,
-						insertText: request.target,
-						label: request.query,
-						detail: request.target,
-						alias: request.query || undefined,
+						path: fetchRequest.target,
+						insertText: fetchRequest.target,
+						label: fetchRequest.query,
+						detail: fetchRequest.target,
+						alias: fetchRequest.query || undefined,
 					},
 				],
 			});
@@ -275,16 +299,16 @@ export function WikiLinkSuggestion({
 		setLoading(true);
 		void (async () => {
 			try {
-				if (request.kind === "file") {
-					const results = await searchWikiLinks(vaultPath, request.query, {
+				if (fetchRequest.kind === "file") {
+					const results = await searchWikiLinks(vaultPath, fetchRequest.query, {
 						kind: "file",
 					});
 					if (!cancelled) {
 						const matching = narrowExactWikiFileCandidates(
 							results.filter((candidate) => candidate.kind === "file"),
-							request.query,
+							fetchRequest.query,
 						);
-						if (!request.query) {
+						if (!fetchRequest.query) {
 							const byKey = new Map(
 								matching.map((candidate) => [
 									wikiCompletionCandidateKey(candidate),
@@ -298,26 +322,26 @@ export function WikiLinkSuggestion({
 								return current ? [current] : [];
 							});
 							setCandidateState({
-								requestKey,
+								requestKey: fetchRequestKey,
 								items: recent.length ? recent : matching,
 							});
 							return;
 						}
-						setCandidateState({ requestKey, items: matching });
+						setCandidateState({ requestKey: fetchRequestKey, items: matching });
 					}
 					return;
 				}
 				// Annotation completion is frontend-backed (marks live outside the
 				// Markdown wiki index). Resolve paper from target or NOTES path,
 				// then list from PDF-tab store or disk.
-				if (request.kind === "annotation") {
+				if (fetchRequest.kind === "annotation") {
 					let paperAbs: string | null = null;
 					let pathHint = filePath;
-					if (request.target) {
+					if (fetchRequest.target) {
 						const resolved = await resolveWikiReference(
 							vaultPath,
 							filePath,
-							request.target,
+							fetchRequest.target,
 						);
 						if (resolved?.targetPath) {
 							pathHint = resolved.targetPath;
@@ -342,13 +366,13 @@ export function WikiLinkSuggestion({
 						if (tab?.paperMeta?.path) pathHint = tab.paperMeta.path;
 					}
 					const items = await buildAnnotationCandidates(
-						request.query,
-						request.target,
+						fetchRequest.query,
+						fetchRequest.target,
 						paperAbs,
 						pathHint,
 					);
 					if (!cancelled) {
-						setCandidateState({ requestKey, items });
+						setCandidateState({ requestKey: fetchRequestKey, items });
 					}
 					return;
 				}
@@ -359,7 +383,7 @@ export function WikiLinkSuggestion({
 				const resolved = await resolveWikiReference(
 					vaultPath,
 					filePath,
-					request.target,
+					fetchRequest.target,
 				);
 				if (
 					cancelled ||
@@ -367,26 +391,27 @@ export function WikiLinkSuggestion({
 					resolved.status === "ambiguous"
 				) {
 					if (!cancelled) {
-						setCandidateState({ requestKey, items: [] });
+						setCandidateState({ requestKey: fetchRequestKey, items: [] });
 					}
 					return;
 				}
-				const results = await searchWikiLinks(vaultPath, request.query, {
+				const results = await searchWikiLinks(vaultPath, fetchRequest.query, {
 					path: resolved.targetPath,
-					kind: request.kind,
+					kind: fetchRequest.kind,
 				});
 				if (!cancelled) {
 					setCandidateState({
-						requestKey,
+						requestKey: fetchRequestKey,
 						items: results.filter(
 							(candidate) =>
-								candidate.kind === request.kind &&
+								candidate.kind === fetchRequest.kind &&
 								sameWikiPath(candidate.path, resolved.targetPath ?? ""),
 						),
 					});
 				}
 			} catch {
-				if (!cancelled) setCandidateState({ requestKey, items: [] });
+				if (!cancelled)
+					setCandidateState({ requestKey: fetchRequestKey, items: [] });
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
@@ -394,7 +419,13 @@ export function WikiLinkSuggestion({
 		return () => {
 			cancelled = true;
 		};
-	}, [filePath, recentCandidates, request, requestKey, wikiNav?.vaultPath]);
+	}, [
+		filePath,
+		recentCandidates,
+		fetchRequest,
+		fetchRequestKey,
+		wikiNav?.vaultPath,
+	]);
 
 	const selectCandidateRef = useRef<
 		(candidate: WikiSearchCandidate, submitKey: "Enter" | "Tab") => boolean
@@ -561,12 +592,12 @@ export function WikiLinkSuggestion({
 				role="listbox"
 				aria-label={t("wikiCompletion.label")}
 			>
-				{loading ? (
+				{loading || fetchPending ? (
 					<p className="px-2 py-1.5 text-muted-foreground text-xs">
 						{t("wikiCompletion.loading")}
 					</p>
 				) : null}
-				{!loading && !candidates.length ? (
+				{!loading && !fetchPending && !candidates.length ? (
 					<p className="px-2 py-1.5 text-muted-foreground text-xs">
 						{t("wikiCompletion.empty")}
 					</p>
