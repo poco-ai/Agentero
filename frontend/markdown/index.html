@@ -3142,7 +3142,15 @@
 <tbody>
 <tr>
 <td><code>src/components/editor/</code></td>
-<td>Plate 编辑器；<code>index.ts</code> 是唯一对外出口，内部分 <code>nodes/</code> <code>plugins/</code> <code>embeds/</code> <code>toolbar/</code> <code>overlays/</code></td>
+<td>Plate 编辑器；<code>index.ts</code> 是唯一对外出口，内部分 <code>nodes/</code> <code>plugins/</code> <code>hooks/</code> <code>embeds/</code> <code>toolbar/</code> <code>overlays/</code></td>
+</tr>
+<tr>
+<td><code>src/components/editor/markdown-editor.tsx</code></td>
+<td>编排容器：组合各 hook、keydown 派发与整体布局</td>
+</tr>
+<tr>
+<td><code>src/components/editor/hooks/</code></td>
+<td>有状态逻辑：自动保存、双链编辑语义、补全菜单、右键菜单、选区发布</td>
 </tr>
 <tr>
 <td><code>src/components/editor/overlays/frontmatter-panel.tsx</code></td>
