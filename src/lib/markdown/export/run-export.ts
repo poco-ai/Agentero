@@ -2,14 +2,17 @@ import { createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MarkdownExportSurface } from "@/components/editor/markdown-export-surface";
 import i18n from "@/i18n";
+import { invokeApi } from "@/lib/core/ipc";
 import { isTauri } from "@/lib/core/tauri";
 import {
 	applyPngWatermark,
 	captureElementPng,
 	dataUrlToUint8Array,
-	pngDataUrlToPdfBytes,
+	resolveMutedForegroundRgb,
 } from "@/lib/markdown/export/capture";
 import { waitForExportReady } from "@/lib/markdown/export/ready";
+import { buildSearchablePdf } from "@/lib/markdown/export/searchable-pdf";
+import { collectExportTextLayer } from "@/lib/markdown/export/text-layer";
 import type {
 	MarkdownExportRequest,
 	MarkdownExportResult,
@@ -18,6 +21,26 @@ import { writeVaultBytes } from "@/lib/vault/fs";
 import { WikiNavContext } from "@/lib/wiki/nav-context";
 
 const EXPORT_WIDTH_PX = 800;
+
+async function loadSystemCjkFontBytes(): Promise<Uint8Array | null> {
+	try {
+		const payload = await invokeApi<{ path: string; bytesBase64: string }>(
+			"export_system_cjk_font",
+			undefined,
+			{ fallback: "export_system_cjk_font failed" },
+		);
+		if (!payload?.bytesBase64) return null;
+		const binary = atob(payload.bytesBase64);
+		const bytes = new Uint8Array(binary.length);
+		for (let i = 0; i < binary.length; i++) {
+			bytes[i] = binary.charCodeAt(i);
+		}
+		return bytes;
+	} catch {
+		// Fall back to Helvetica (Latin only) inside the PDF builder.
+		return null;
+	}
+}
 
 /**
  * Render the note offscreen, wait for embeds, capture PNG/PDF, open save dialog.
@@ -88,14 +111,14 @@ export async function runMarkdownExport(
 
 		await waitForExportReady(surface);
 
+		// Geometry for text/links must match the painted surface used for capture.
+		const textLayer = collectExportTextLayer(surface);
 		let pngDataUrl = await captureElementPng(surface);
 		const format = request.options.format;
 		const watermarkText = request.options.watermark
 			? i18n.t("editor:export.watermark")
 			: "";
 
-		// Watermark is drawn after capture so PDF can stamp every page (not only
-		// the last slice of a long raster that had a single DOM watermark).
 		if (format === "png" && watermarkText) {
 			pngDataUrl = await applyPngWatermark(pngDataUrl, watermarkText);
 		}
@@ -103,8 +126,12 @@ export async function runMarkdownExport(
 		const bytes =
 			format === "png"
 				? dataUrlToUint8Array(pngDataUrl)
-				: await pngDataUrlToPdfBytes(pngDataUrl, {
+				: await buildSearchablePdf({
+						pngDataUrl,
+						textLayer,
 						watermarkText: watermarkText || undefined,
+						fontBytes: await loadSystemCjkFontBytes(),
+						mutedRgb: resolveMutedForegroundRgb(),
 					});
 
 		const ext = format === "png" ? "png" : "pdf";
