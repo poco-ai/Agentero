@@ -267,8 +267,18 @@ export function MarkdownEditor({
 	const [exportPaperHeader, setExportPaperHeader] =
 		useState<MarkdownExportPaperHeader | null>(null);
 	const [exportDefaultWatermark, setExportDefaultWatermark] = useState(false);
+	/** Bumped on unmount so in-flight export does not setState after leave. */
+	const exportGenerationRef = useRef(0);
+	const exportInFlightRef = useRef(false);
 	const wikiNav = useWikiNav();
 	const paperMetaByRelPath = useLibraryStore((s) => s.paperMetaByRelPath);
+
+	useEffect(
+		() => () => {
+			exportGenerationRef.current += 1;
+		},
+		[],
+	);
 
 	useEffect(
 		() => () => {
@@ -1618,27 +1628,43 @@ export function MarkdownEditor({
 
 	const handleExportConfirm = useCallback(
 		async (options: MarkdownExportOptions) => {
+			if (exportInFlightRef.current) return;
+			exportInFlightRef.current = true;
+			const gen = exportGenerationRef.current;
 			setExportBusy(true);
 			try {
 				const result = await runMarkdownExport({
 					markdown: serialize(),
 					filePath: filePath ?? null,
+					vaultPath: wikiNav?.vaultPath ?? null,
+					mdFiles: wikiNav?.mdFiles,
 					defaultName: exportDefaultName(filePath ?? null, exportPaperHeader),
 					options,
 					paperHeader: exportPaperHeader,
 				});
+				if (gen !== exportGenerationRef.current) return;
 				if (result.status === "cancelled") return;
 				notifySuccess(i18n.t("editor:export.success"));
 				setExportOpen(false);
 			} catch (error) {
+				if (gen !== exportGenerationRef.current) return;
 				notifyError(i18n.t("editor:export.failed"), {
 					description: errorMessage(error),
 				});
 			} finally {
-				setExportBusy(false);
+				exportInFlightRef.current = false;
+				if (gen === exportGenerationRef.current) {
+					setExportBusy(false);
+				}
 			}
 		},
-		[exportPaperHeader, filePath, serialize],
+		[
+			exportPaperHeader,
+			filePath,
+			serialize,
+			wikiNav?.mdFiles,
+			wikiNav?.vaultPath,
+		],
 	);
 
 	const contextMenuCapabilities = editorContextMenuCapabilities({

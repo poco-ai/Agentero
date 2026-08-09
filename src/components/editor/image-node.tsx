@@ -10,6 +10,7 @@ import {
 import { useEffect, useState } from "react";
 
 import { useMarkdownDoc } from "@/components/editor/markdown-doc-context";
+import { useMarkdownExportMode } from "@/components/editor/markdown-export-mode-context";
 import { cn } from "@/lib/core/utils";
 import {
 	formatMarkdownImageSyntax,
@@ -23,6 +24,7 @@ export function ImageElement(props: PlateElementProps<TImageElement>) {
 	const url = props.element.url ?? "";
 	const alt = (props.element as { alt?: string }).alt ?? "";
 	const { filePath } = useMarkdownDoc();
+	const exportMode = useMarkdownExportMode();
 	const selected = useSelected();
 	const focused = useFocused();
 	const active = selected && focused;
@@ -83,7 +85,11 @@ export function ImageElement(props: PlateElementProps<TImageElement>) {
 			 * conflicted with void-node selection. Show a selection ring + caption
 			 * instead so the image stays visible.
 			 */}
-			<figure className="m-0" contentEditable={false}>
+			<figure
+				className="m-0"
+				contentEditable={false}
+				data-export-pending={url && !src ? "true" : undefined}
+			>
 				{src ? (
 					<img
 						src={src}
@@ -92,7 +98,7 @@ export function ImageElement(props: PlateElementProps<TImageElement>) {
 							"max-w-full rounded-sm",
 							active && "ring-2 ring-ring ring-offset-2 ring-offset-background",
 						)}
-						loading="lazy"
+						loading={exportMode ? "eager" : "lazy"}
 						draggable={false}
 					/>
 				) : url ? (

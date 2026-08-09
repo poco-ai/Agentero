@@ -13,6 +13,7 @@ import type {
 	MarkdownExportResult,
 } from "@/lib/markdown/export/types";
 import { writeVaultBytes } from "@/lib/vault/fs";
+import { WikiNavContext } from "@/lib/wiki/nav-context";
 
 const EXPORT_WIDTH_PX = 800;
 
@@ -29,6 +30,8 @@ export async function runMarkdownExport(
 
 	const host = document.createElement("div");
 	host.setAttribute("data-markdown-export-host", "true");
+	// Keep in-viewport (opacity 0) so lazy images still load; capture clones the
+	// surface node (not the host), so host opacity does not blank the PNG.
 	host.style.cssText = [
 		"position:fixed",
 		"left:0",
@@ -46,26 +49,36 @@ export async function runMarkdownExport(
 	try {
 		const surfaceRef: { current: HTMLElement | null } = { current: null };
 		root = createRoot(host);
+		// Separate React root: re-provide WikiNav so embeds can resolve vault paths.
+		const wikiNavValue = {
+			onWikiNavigate: () => {},
+			vaultPath: request.vaultPath,
+			mdFiles: request.mdFiles,
+		};
 		await new Promise<void>((resolve, reject) => {
 			const timeout = window.setTimeout(
 				() => reject(new Error("export-mount-timeout")),
 				15_000,
 			);
 			root?.render(
-				createElement(MarkdownExportSurface, {
-					markdown: request.markdown,
-					filePath: request.filePath,
-					expandEmbeds: request.options.expandEmbeds,
-					paperHeader: request.options.includePaperHeader
-						? request.paperHeader
-						: null,
-					watermark: request.options.watermark,
-					onMounted: (el: HTMLElement) => {
-						surfaceRef.current = el;
-						window.clearTimeout(timeout);
-						resolve();
-					},
-				}),
+				createElement(
+					WikiNavContext.Provider,
+					{ value: wikiNavValue },
+					createElement(MarkdownExportSurface, {
+						markdown: request.markdown,
+						filePath: request.filePath,
+						expandEmbeds: request.options.expandEmbeds,
+						paperHeader: request.options.includePaperHeader
+							? request.paperHeader
+							: null,
+						watermark: request.options.watermark,
+						onMounted: (el: HTMLElement) => {
+							surfaceRef.current = el;
+							window.clearTimeout(timeout);
+							resolve();
+						},
+					}),
+				),
 			);
 		});
 

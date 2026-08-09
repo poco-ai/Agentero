@@ -4,11 +4,22 @@ function sleep(ms: number): Promise<void> {
 	});
 }
 
+function hasPendingExportContent(root: HTMLElement): boolean {
+	if (root.querySelector('[data-wiki-embed="loading"]')) return true;
+	// Attachment / annotation / image placeholders set this while async work runs
+	// (parent wiki-embed may already be `ready` before bytes/object URLs exist).
+	if (root.querySelector("[data-export-pending]")) return true;
+	const images = Array.from(root.querySelectorAll("img"));
+	return images.some((img) => !img.complete);
+}
+
 /**
  * Wait until export surface embeds and images settle.
  * - no `[data-wiki-embed="loading"]`
+ * - no `[data-export-pending]`
  * - all `<img>` complete (or errored)
  * - document fonts ready when available
+ * - re-check after a short settle so late-mounted embeds are not missed
  */
 export async function waitForExportReady(
 	root: HTMLElement,
@@ -19,8 +30,11 @@ export async function waitForExportReady(
 	const start = Date.now();
 
 	while (Date.now() - start < timeoutMs) {
-		const loading = root.querySelector('[data-wiki-embed="loading"]');
-		if (loading) {
+		if (root.querySelector('[data-wiki-embed="loading"]')) {
+			await sleep(40);
+			continue;
+		}
+		if (root.querySelector("[data-export-pending]")) {
 			await sleep(40);
 			continue;
 		}
@@ -62,6 +76,9 @@ export async function waitForExportReady(
 			});
 		});
 		await sleep(settleMs);
+
+		// Embeds/images may mount during settle — only exit when still quiet.
+		if (hasPendingExportContent(root)) continue;
 		return;
 	}
 

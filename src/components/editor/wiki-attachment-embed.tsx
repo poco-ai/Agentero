@@ -218,7 +218,10 @@ export function WikiAttachmentEmbed({
 
 	if (state.kind === "loading") {
 		return (
-			<span className="block px-4 py-3 text-muted-foreground text-sm">
+			<span
+				data-export-pending="true"
+				className="block px-4 py-3 text-muted-foreground text-sm"
+			>
 				{t("embed.loading")}
 			</span>
 		);
@@ -252,7 +255,10 @@ export function WikiAttachmentEmbed({
 	}
 	if (kind === "image" && state.kind === "ready") {
 		return (
-			<span className="block px-4 py-3 text-muted-foreground text-sm">
+			<span
+				data-export-pending="true"
+				className="block px-4 py-3 text-muted-foreground text-sm"
+			>
 				{t("embed.loading")}
 			</span>
 		);

@@ -30,6 +30,13 @@ export type MarkdownExportRequest = {
 	markdown: string;
 	/** Absolute path of the source note (asset / wiki resolve). */
 	filePath: string | null;
+	/**
+	 * Active Vault root for wiki embed resolution.
+	 * Required because export mounts a separate React root without app providers.
+	 */
+	vaultPath: string | null;
+	/** Vault wiki target files (annotation recovery / link resolve helpers). */
+	mdFiles?: string[];
 	/** Suggested filename stem (no extension). */
 	defaultName: string;
 	options: MarkdownExportOptions;

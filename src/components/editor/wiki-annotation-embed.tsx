@@ -254,6 +254,7 @@ export const WikiAnnotationEmbed = memo(function WikiAnnotationEmbed({
 	if (state.kind === "loading") {
 		return (
 			<span
+				data-export-pending="true"
 				className={cn(
 					"block px-3 py-2 text-muted-foreground text-sm",
 					className,
