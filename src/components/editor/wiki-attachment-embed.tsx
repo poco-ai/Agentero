@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useMarkdownExportMode } from "@/components/editor/markdown-export-mode-context";
 import { PdfViewer } from "@/components/viewer/embed/pdf-viewer";
+import { cn } from "@/lib/core/utils";
 import { localFileToArrayBuffer } from "@/lib/paper/media";
 import { imageMimeFromPath } from "@/lib/workspace/viewer";
 
@@ -131,6 +133,8 @@ export function WikiAttachmentEmbed({
 	imageSize,
 }: WikiAttachmentEmbedProps) {
 	const { t } = useTranslation("editor");
+	const exportMode = useMarkdownExportMode();
+	const expandEmbeds = exportMode?.expandEmbeds === true;
 	const dimensions = parseWikiImageEmbedDimensions(imageSize);
 	const requestKey = attachmentRequestKey(kind, absoluteTarget, revision);
 	const [load, setLoad] = useState<CachedAttachmentLoad>(() => {
@@ -168,6 +172,14 @@ export function WikiAttachmentEmbed({
 			: null;
 
 	useEffect(() => {
+		// Export mode only needs a path placeholder for PDF attachments.
+		if (kind === "pdf" && exportMode) {
+			setLoad({
+				requestKey,
+				state: { kind: "ready", bytes: new ArrayBuffer(0) },
+			});
+			return;
+		}
 		let cancelled = false;
 		const cached = cachedAttachmentBytes(requestKey);
 		if (cached) {
@@ -192,7 +204,7 @@ export function WikiAttachmentEmbed({
 		return () => {
 			cancelled = true;
 		};
-	}, [absoluteTarget, requestKey]);
+	}, [absoluteTarget, exportMode, kind, requestKey]);
 
 	useEffect(() => {
 		if (!imageResourceKey || !attachmentBytes) {
@@ -224,12 +236,15 @@ export function WikiAttachmentEmbed({
 				<img
 					src={imageSource}
 					alt={targetPath}
-					className="max-h-96 max-w-full rounded-sm object-contain"
+					className={cn(
+						"max-w-full rounded-sm object-contain",
+						expandEmbeds ? "max-h-none" : "max-h-96",
+					)}
 					style={{
 						width: dimensions?.width,
 						height: dimensions?.height,
 					}}
-					loading="lazy"
+					loading={expandEmbeds ? "eager" : "lazy"}
 					draggable={false}
 				/>
 			</span>
@@ -243,6 +258,14 @@ export function WikiAttachmentEmbed({
 		);
 	}
 	if (state.kind !== "ready") return null;
+	// Full PDF viewer is heavy and poorly paginated for note export — show a path placeholder.
+	if (exportMode) {
+		return (
+			<span className="block px-4 py-3 text-muted-foreground text-sm">
+				{t("export.pdfEmbedPlaceholder", { path: targetPath })}
+			</span>
+		);
+	}
 	return (
 		<PdfViewer
 			source={null}
