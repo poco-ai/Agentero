@@ -109,26 +109,6 @@ export async function deleteManagedMarkdownAsset(
 }
 
 /**
- * Diff image URL counts; delete managed assets whose count dropped to zero.
- * Returns how many files were removed.
- */
-export async function deleteRemovedManagedAssets(
-	mdFilePath: string,
-	prev: Map<string, number>,
-	next: Map<string, number>,
-): Promise<number> {
-	let removed = 0;
-	for (const [url, prevCount] of prev) {
-		if (prevCount <= 0) continue;
-		const nextCount = next.get(url) ?? 0;
-		if (nextCount > 0) continue;
-		if (!isManagedMarkdownAssetUrl(url)) continue;
-		if (await deleteManagedMarkdownAsset(mdFilePath, url)) removed += 1;
-	}
-	return removed;
-}
-
-/**
  * Grace period before deleting a managed asset after its last document ref
  * disappears. Cut → paste / undo must still find the file on disk.
  */

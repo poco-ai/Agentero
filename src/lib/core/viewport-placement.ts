@@ -1,3 +1,5 @@
+import { clamp } from "@/lib/core/math";
+
 export type ViewportPoint = {
 	x: number;
 	y: number;
@@ -26,10 +28,6 @@ type PlaceViewportFloatingOptions = {
 	offset?: number;
 	edge?: number;
 };
-
-function clamp(value: number, min: number, max: number) {
-	return Math.min(Math.max(value, min), max);
-}
 
 /**
  * Position a measured floating element inside the current viewport. When the

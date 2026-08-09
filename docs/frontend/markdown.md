@@ -112,17 +112,19 @@ B --> C[End]
 
 | 路径 | 职责 |
 |---|---|
-| `src/components/editor/` | Plate 编辑器 |
+| `src/components/editor/` | Plate 编辑器；`index.ts` 是唯一对外出口，内部分 `nodes/` `plugins/` `hooks/` `embeds/` `toolbar/` `overlays/` |
+| `src/components/editor/markdown-editor.tsx` | 编排容器：组合各 hook、keydown 派发、导出入口与整体布局 |
+| `src/components/editor/hooks/` | 有状态逻辑：自动保存、双链编辑语义、补全菜单、右键菜单、选区发布 |
 | `src/components/editor/markdown-export-dialog.tsx` | 导出格式与选项对话框 |
 | `src/components/editor/markdown-export-surface.tsx` | 离屏只读导出渲染（export mode） |
-| `src/lib/markdown/export/` | 论文页眉解析、就绪等待、截图 / PDF 分页、保存 |
-| `src/components/editor/frontmatter-panel.tsx` | 可折叠 Properties / YAML frontmatter 编辑 |
+| `src/lib/markdown/export/` | 论文页眉解析、就绪等待、截图 / 可检索 PDF、保存 |
+| `src/components/editor/overlays/frontmatter-panel.tsx` | 可折叠 Properties / YAML frontmatter 编辑 |
 | `src/lib/markdown/frontmatter.ts` | frontmatter 围栏拆装与属性计数 |
-| `src/components/editor/toc-sidebar.tsx` | 基于 Plate TOC hooks 的悬浮目录、当前标题跟踪与跳转 |
-| `src/components/editor/code-block-node.tsx` | 代码语言选择、复制与 Mermaid 预览 |
-| `src/components/editor/plugins/callout-actions.ts` | Callout 类型与标题的校验和 AST 更新 |
-| `src/components/editor/plugins/slash-command.ts` | Slash trigger、过滤、stale guard 与格式转换 |
-| `src/components/editor/slash-command-menu.tsx` | 图标列表、键盘选择与浮层交互 |
+| `src/components/editor/overlays/toc-sidebar.tsx` | 基于 Plate TOC hooks 的悬浮目录、当前标题跟踪与跳转 |
+| `src/components/editor/nodes/block/code-block-node.tsx` | 代码语言选择、复制与 Mermaid 预览 |
+| `src/lib/markdown/callout.ts` | Callout marker 解析、portable rules 与类型/标题的 AST 更新 |
+| `src/lib/markdown/slash-command.ts` | Slash trigger、过滤、stale guard 与格式转换 |
+| `src/components/editor/overlays/slash-command-menu.tsx` | 图标列表、键盘选择与浮层交互 |
 | `src/components/editor/plugins/markdown-kit.tsx` | Markdown 解析、序列化、粘贴与 Callout portable rules |
 | `src/lib/markdown/format.ts` | 按需加载的 Prettier Markdown 纯函数 |
 | `src/lib/markdown/editor-format.ts` | stale guard、frontmatter 保留、selection bookmark 与单次 Undo 事务 |

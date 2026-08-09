@@ -2,9 +2,8 @@ import { BaseListPlugin } from "@platejs/list";
 import { MarkdownPlugin } from "@platejs/markdown";
 import { createSlateEditor, createSlatePlugin, KEYS } from "platejs";
 import { describe, expect, it } from "vitest";
-
-import { inlineMathInputRule } from "@/components/editor/plugins/inline-math-input-rule";
 import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
+import { inlineMathInputRule } from "@/lib/markdown/inline-math-input-rule";
 
 const TestParagraphPlugin = createSlatePlugin({
 	key: KEYS.p,

@@ -1,11 +1,11 @@
 import { FolderOpen, FolderPlus, Server, Trash2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SiZotero } from "react-icons/si";
 import {
 	type OpenRemoteVaultArgs,
 	RemoteVaultDialog,
 } from "@/components/dialogs/remote-vault-dialog";
-import { ZoteroIcon } from "@/components/icons/zotero-icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/core/utils";
 import { vaultDisplayName } from "@/lib/vault";
@@ -160,7 +160,7 @@ export function VaultWelcome({
 						disabled={busy}
 						onClick={onMigrateZotero}
 					>
-						<ZoteroIcon className="size-3.5" />
+						<SiZotero className="size-3.5 text-[#CC2936]" />
 						{t("sidebar:zoteroMigrate.button")}
 					</Button>
 				</div>

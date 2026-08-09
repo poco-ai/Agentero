@@ -1,6 +1,6 @@
 import type { Point, TRange, Value } from "platejs";
 import type { PlateEditor } from "platejs/react";
-import { joinFrontmatter, splitFrontmatter } from "@/lib/markdown/doc";
+import { joinFrontmatter, splitFrontmatter } from "@/lib/markdown/frontmatter";
 
 const CONTEXT_RADIUS = 16;
 

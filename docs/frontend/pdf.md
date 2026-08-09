@@ -63,14 +63,42 @@ PDFium engine 由窗口共享。默认优先 **worker 引擎**（PDFium WASM 跑
 
 | 路径 | 职责 |
 |---|---|
-| `src/components/viewer/embed/pdf-viewer.tsx` | 阅读器 |
+| `src/components/viewer/embed/pdf-viewer.tsx` | 阅读器外壳：插件注册、EmbedPDF capability、按域 hook 组装、JSX 拼装 |
+| `src/components/viewer/embed/pdf-viewer-types.ts` | 对外契约（`PdfViewerHandle` / `PdfViewerProps`）与各卡片 / 编辑器状态类型 |
+| `src/components/viewer/embed/pdf-page-constants.ts` | 光栅 dpr / 底图 scale 封顶、页层样式与空集合单例（memo 依赖稳定性） |
+| `src/components/viewer/embed/pdf-color-scheme.ts` | PDF 页面明暗偏好持久化与跨窗广播 |
+| `src/components/viewer/embed/pdf-host-dom.ts` | 宿主 DOM 判定：可编辑目标、原生选区归属、文档关闭竞态错误 |
+| `src/components/viewer/embed/pdf-page-layers.tsx` | 单页图层栈（memo）：光栅 / 瓦片 / 选区 / 批注 / 链接 / 命中框 / 页边针 |
+| `src/components/viewer/embed/dockview-viewport.tsx` | 视口注册 + sash 拖拽期 resize 门控 + 滚动指标按帧提交 |
+| `src/components/viewer/embed/wheel-zoom-handler.tsx` | ⌘滚轮缩放绑定（passive 切换 + 每帧合并） |
+| `src/components/viewer/embed/active-card-scroll-sync.tsx` | 滚动时按帧重锚浮动卡片 |
+| `src/components/viewer/embed/outline-tree.tsx` | 大纲（书签）递归列表 |
+| `src/components/viewer/embed/citation-links.tsx` | 文中链接命中层与目标预览解析 |
+| `src/components/viewer/embed/layout-translate-overlay.tsx` | 全文翻译逐块覆盖层与字号自适应 |
+| `src/components/viewer/embed/chrome/` | 纯展示 chrome：`pdf-toolbar` / `pdf-find-bar` / `pdf-outline-panel` / `pdf-bottom-bar` / `pdf-card-stack`（portal 卡片栈） |
+| `src/components/viewer/embed/use-pdf-cards.ts` | 浮动卡生命周期：打开 / 定位（虚拟化重试）/ hover 收起 |
+| `src/components/viewer/embed/use-pdf-highlights.ts` | EmbedPDF 标注桥：高亮视图模型、页边针锚点、链接分页图、导入迁移与防抖导出 |
+| `src/components/viewer/embed/use-pdf-marks-io.ts` | `marks/` 读取与文件监听刷新（指纹比对后再提交 state） |
+| `src/components/viewer/embed/use-pdf-text-selection.ts` | 选区检测、划词菜单状态与复制拦截 |
+| `src/components/viewer/embed/use-pdf-ask-threads.ts` | 划词提问工作流：建/续/停、ACP 流监听、`marks/<id>.json` 落盘 |
+| `src/components/viewer/embed/use-pdf-selection-translate.ts` | 划词翻译工作流与结果卡状态 |
+| `src/components/viewer/embed/use-pdf-visual-marks.ts` | 框选裁剪与 visual mark 工作流（批注 / 加入对话 / 续聊） |
+| `src/components/viewer/embed/use-pdf-layout-analysis.ts` | 版面分析、图/公式 hover（`visualDraftEditor` 与 `formulaAnnotationPreview` 互斥的唯一 owner）、`Annotation.md` 符号表、全文翻译任务 |
+| `src/components/viewer/embed/use-pdf-page-text.ts` | 按需加载页文字矩形（页边针是否压字） |
+| `src/components/viewer/embed/use-pdf-citations.ts` | 文中引用 hover 预览与跳转 |
+| `src/components/viewer/embed/use-pdf-find.ts` | `⌘F` 查找 |
+| `src/components/viewer/embed/use-pdf-outline.ts` | 书签大纲加载 |
+| `src/components/viewer/embed/use-pdf-viewer-handle.ts` | 注册命令式 handle（跨簇，唯一入口） |
 | `src/components/viewer/embed/engine-provider.tsx` | PDFium engine 宿主：worker 优先 + 就绪探针 + 主线程回退 |
 | `src/components/viewer/embed/pdf-region-select-layer.tsx` | 图片区域框选覆盖层 |
 | `src/components/viewer/embed/pdf-region-crop.ts` | PDF 区域裁剪与 Agent 图片编码 |
-| `src/components/viewer/figures-panel.tsx` | 版面分析入口（右栏 header：分析 / 显示 bbox） |
+| `src/components/viewer/panels/figures-panel.tsx` | 版面分析入口（右栏 header：分析 / 显示 bbox） |
+| `src/components/viewer/panels/annotations-panel.tsx` | 批注 / 提问 / visual mark 总览（右栏） |
+| `src/components/viewer/panels/references-panel.tsx` | 参考文献解析与入库（右栏） |
 | `src/components/viewer/pdf-ask/visual-annotation-editor.tsx` | 框选后批注编辑器 |
 | `src/components/viewer/pdf-citation-preview.tsx` | 文中引用悬浮预览 |
 | `src/components/viewer/pdf-ask/formula-annotation-card.tsx` | 公式 hover「公式解析」符号对照卡 |
+| `src/components/viewer/pdf-viewer-registry.ts` | 按 tab 注册 `PdfViewerHandle`，供 shell / 命令面板调用 |
 | `src/lib/pdf/equation-annotation/` | `Annotation.md` 符号表解析与加载 |
 | `src/lib/agent/visual-context-store.ts` | Agent composer 视觉批注草稿 |
 | `src/lib/pdf/agent-trace/` | visual mark 契约（v2 + 读兼容 v1）/ mark 资产 IO / prompt / Open-in-Agent / 会话 pending |
@@ -83,6 +111,9 @@ PDFium engine 由窗口共享。默认优先 **worker 引擎**（PDFium WASM 跑
 | `src/lib/pdf/wheel-zoom.ts` | ⌘滚轮缩放 delta 累加与每帧合并步进；wheel 监听 passive / non-passive 切换 |
 | `src/lib/pdf/annotations-store.ts` | 按 tab 状态 |
 | `src/lib/pdf/selection/` | 选区与 marks IO |
+| `src/lib/core/math.ts` | `clamp01` / `clamp`（几何与放置的唯一实现） |
+
+组织约定：`embed/` 放阅读器实现（外壳 + 按域 `use-pdf-*` hook + 单页图层 + 纯展示 `chrome/`），`panels/` 放右栏面板（只被 shell 引用），`pdf-ask/` 放划词与 mark 卡片。`src/components` 下不设 `index.ts` barrel。
 
 ## 版面分析（Figures 侧栏）
 

@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-
-import { joinFrontmatter, splitFrontmatter } from "@/lib/markdown/doc";
 import {
 	convertPropertyKind,
 	countFrontmatterProperties,
 	createEmptyProperty,
 	frontmatterInterior,
 	inferScalarKind,
+	joinFrontmatter,
 	parseFrontmatterProperties,
 	serializeFrontmatterProperties,
+	splitFrontmatter,
 	wrapFrontmatter,
 } from "@/lib/markdown/frontmatter";
 

@@ -1,13 +1,13 @@
 import { ElementApi, KEYS, NodeApi } from "platejs";
 import { createPlatePlugin } from "platejs/react";
 
-import { LinkElement } from "@/components/editor/link-node";
+import { LinkElement } from "@/components/editor/nodes/inline/link-node";
 import {
 	convertCompleteMarkdownLinkAtCaret,
 	convertMarkdownLinkBeforeClosingParen,
 	isClosingParen,
 	markdownLinkInputRule,
-} from "@/components/editor/plugins/markdown-link-input-rule";
+} from "@/lib/markdown/link-input-rule";
 
 /**
  * Inline link nodes produced by MarkdownPlugin (`type: a`).

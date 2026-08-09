@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { HeadingElement } from "@/components/editor/heading-node";
+import { HeadingElement } from "@/components/editor/nodes/block/heading-node";
 
 describe("Markdown table of contents", () => {
 	it("mirrors each Plate heading node id to its DOM id for scroll tracking", () => {
@@ -30,7 +30,10 @@ describe("Markdown table of contents", () => {
 
 	it("renders the observed heading with the active UI theme color", () => {
 		const tocComponent = readFileSync(
-			new URL("../src/components/editor/toc-sidebar.tsx", import.meta.url),
+			new URL(
+				"../src/components/editor/overlays/toc-sidebar.tsx",
+				import.meta.url,
+			),
 			"utf8",
 		);
 
@@ -52,7 +55,10 @@ describe("Markdown table of contents", () => {
 
 	it("uses a compact quarter-height layout with visible heading depth", () => {
 		const tocComponent = readFileSync(
-			new URL("../src/components/editor/toc-sidebar.tsx", import.meta.url),
+			new URL(
+				"../src/components/editor/overlays/toc-sidebar.tsx",
+				import.meta.url,
+			),
 			"utf8",
 		);
 

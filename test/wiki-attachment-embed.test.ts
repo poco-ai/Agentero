@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	createWikiImageObjectUrlLease,
 	parseWikiImageEmbedDimensions,
-} from "@/components/editor/wiki-attachment-embed";
+} from "@/components/editor/embeds/wiki-attachment-embed";
 import type { WikiEmbedResponse } from "@/lib/wiki";
 import { wikiEmbedResponseKind } from "@/lib/wiki-embed";
 

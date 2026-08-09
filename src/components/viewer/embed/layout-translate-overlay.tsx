@@ -10,7 +10,7 @@ import { isLayoutTranslateHeadingKind } from "@/lib/pdf/layout/labels";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/layout-translate";
 import { PDF_PAGE_RASTER_DARK_CLASS } from "@/lib/pdf/page-theme";
 
-export type LayoutTranslateOverlayProps = {
+type LayoutTranslateOverlayProps = {
 	items: readonly LayoutTranslateItem[];
 	pageIndex: number;
 	/** Page pixel size (for font-size heuristic). */

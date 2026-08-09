@@ -8,15 +8,15 @@ import { KEYS } from "platejs";
 import remarkEmoji from "remark-emoji";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { MarkdownPastePlugin } from "@/components/editor/plugins/markdown-paste-plugin";
 import {
 	obsidianCalloutRules,
 	remarkObsidianCallout,
-} from "@/components/editor/plugins/callout-model";
-import { MarkdownPastePlugin } from "@/components/editor/plugins/markdown-paste-plugin";
+} from "@/lib/markdown/callout";
 import {
 	remarkWikiLinkLiteralPaths,
 	wikiLinkRules,
-} from "@/components/editor/plugins/wikilink-model";
+} from "@/lib/wiki/wikilink-model";
 
 export const MarkdownKit = [
 	BaseFootnoteReferencePlugin.configure({

@@ -3,11 +3,6 @@ import { createSlateEditor, createSlatePlugin, KEYS } from "platejs";
 import { describe, expect, it } from "vitest";
 
 import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
-import {
-	parseWikiLinkMarkdown,
-	wikiLinkRules,
-	wikiLinkToMarkdown,
-} from "@/components/editor/plugins/wikilink-model";
 import { WikiLinkPlugin } from "@/components/editor/plugins/wikilink-plugin";
 import {
 	annotationWikilinkAlias,
@@ -24,6 +19,11 @@ import {
 	resolveWikiTarget,
 	splitAnnotationSugar,
 } from "@/lib/wiki";
+import {
+	parseWikiLinkMarkdown,
+	wikiLinkRules,
+	wikiLinkToMarkdown,
+} from "@/lib/wiki/wikilink-model";
 import { parseWikiCompletionQuery } from "@/lib/wiki-completion";
 
 describe("annotation wikilink parse", () => {

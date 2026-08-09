@@ -5,7 +5,7 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@/components/ui/button";
 import { SelectionCard } from "@/components/viewer/pdf-ask/selection-card";
 
-export type TranslateCardProps = {
+type TranslateCardProps = {
 	screen: { x: number; y: number };
 	preferRight?: boolean;
 	/** Translation text (may stream in) */

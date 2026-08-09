@@ -1,7 +1,7 @@
 import { CodeBlockPlugin, CodeLinePlugin } from "@platejs/code-block/react";
 import { createSlateEditor, createSlatePlugin, KEYS } from "platejs";
 import { describe, expect, it } from "vitest";
-import { handleCodeBlockDeleteBackward } from "@/components/editor/plugins/code-block-delete";
+import { handleCodeBlockDeleteBackward } from "@/lib/markdown/code-block-delete";
 
 const TestParagraphPlugin = createSlatePlugin({
 	key: KEYS.p,

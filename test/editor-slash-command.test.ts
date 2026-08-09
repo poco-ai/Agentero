@@ -7,7 +7,6 @@ import {
 	type TElement,
 } from "platejs";
 import { describe, expect, it } from "vitest";
-import { editorCompletionHasFocus } from "@/components/editor/plugins/completion-focus";
 import { LinkPlugin } from "@/components/editor/plugins/link-plugin";
 import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
 import {
@@ -16,7 +15,7 @@ import {
 	findSlashCommandTrigger,
 	isSlashCommandSubmitKey,
 	type SlashCommandTarget,
-} from "@/components/editor/plugins/slash-command";
+} from "@/lib/markdown/slash-command";
 
 const TestPlugins = [
 	KEYS.p,
@@ -67,18 +66,6 @@ function currentSlashTarget(
 }
 
 describe("slash command trigger", () => {
-	it("requires focus to remain inside the editor before reopening completion UI", () => {
-		const editorElement = {} as Element;
-		const toolbarElement = {} as Element;
-		const container = {
-			contains: (element: Node | null) => element === editorElement,
-		};
-
-		expect(editorCompletionHasFocus(container, editorElement)).toBe(true);
-		expect(editorCompletionHasFocus(container, toolbarElement)).toBe(false);
-		expect(editorCompletionHasFocus(container, null)).toBe(false);
-	});
-
 	it("matches a slash at the leaf start or after whitespace", () => {
 		expect(findSlashCommandTrigger("/", 1)).toEqual({
 			query: "",

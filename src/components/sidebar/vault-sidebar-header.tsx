@@ -17,11 +17,11 @@ import {
 } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SiZotero } from "react-icons/si";
 import {
 	type OpenRemoteVaultArgs,
 	RemoteVaultDialog,
 } from "@/components/dialogs/remote-vault-dialog";
-import { ZoteroIcon } from "@/components/icons/zotero-icon";
 import { PaneHeader } from "@/components/shell/pane-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -314,7 +314,7 @@ export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 																onMigrateZotero();
 															}}
 														>
-															<ZoteroIcon className="size-3.5" />
+															<SiZotero className="size-3.5 text-[#CC2936]" />
 														</Button>
 													</TooltipTrigger>
 													<TooltipContent side="bottom">

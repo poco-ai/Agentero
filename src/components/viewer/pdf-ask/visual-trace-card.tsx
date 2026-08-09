@@ -48,7 +48,6 @@ type VisualTraceCardProps = {
 	trace: PdfVisualSessionTrace;
 	screen: { x: number; y: number };
 	preferRight?: boolean;
-	streaming?: boolean;
 	error?: string | null;
 	/**
 	 * Start expanded chat (e.g. just created via Agent). Pin hover stays
@@ -210,7 +209,6 @@ export const VisualTraceCard = memo(function VisualTraceCard({
 	trace,
 	screen,
 	preferRight = true,
-	streaming: streamingProp = false,
 	error = null,
 	initialExpanded = false,
 	initialMode,
@@ -270,7 +268,6 @@ export const VisualTraceCard = memo(function VisualTraceCard({
 	const storeSubmitting = useAgentSessionStore((s) => s.submitting);
 	const activeTabId = useAgentSessionStore((s) => s.activeTabId);
 	const streaming =
-		streamingProp ||
 		boundStatus === "running" ||
 		(storeSubmitting &&
 			boundSessionId !== null &&

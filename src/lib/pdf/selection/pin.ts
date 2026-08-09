@@ -2,6 +2,8 @@
 
 import type { PdfTextRectObject, Size } from "@embedpdf/models";
 
+import { clamp01 } from "@/lib/core/math";
+
 export type NormalizedRect = {
 	x: number;
 	y: number;
@@ -25,11 +27,6 @@ const PIN_W = 0.04;
 const PIN_H = 0.032;
 /** Min fraction of the pin area that must cover glyphs to count as over text. */
 const MIN_TEXT_COVERAGE = 0.12;
-
-function clamp01(n: number): number {
-	if (!Number.isFinite(n)) return 0;
-	return Math.min(1, Math.max(0, n));
-}
 
 /**
  * Convert EmbedPDF page text rects (PDF points) into 0–1 page fractions.

@@ -4,11 +4,11 @@ import { ParagraphPlugin } from "platejs/react";
 import { describe, expect, it } from "vitest";
 import { LinkPlugin } from "@/components/editor/plugins/link-plugin";
 import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
+import { prepareMarkdownForDeserialize } from "@/lib/markdown/deserialize";
 import {
 	convertMarkdownLinkBeforeClosingParen,
 	isUnfinishedMarkdownLinkContext,
-} from "@/components/editor/plugins/markdown-link-input-rule";
-import { prepareMarkdownForDeserialize } from "@/lib/markdown/deserialize";
+} from "@/lib/markdown/link-input-rule";
 
 const plugins = [ParagraphPlugin, LinkPlugin, ...MarkdownKit];
 

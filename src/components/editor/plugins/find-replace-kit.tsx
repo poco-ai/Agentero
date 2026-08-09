@@ -14,7 +14,7 @@ import { createPlatePlugin } from "platejs/react";
 import {
 	SearchHighlightActiveLeaf,
 	SearchHighlightLeaf,
-} from "@/components/editor/search-highlight-leaf";
+} from "@/components/editor/nodes/leaf";
 
 /** Lowest-level block: contains text / inline children only. */
 function isLeafBlock(editor: SlateEditor, node: TNode): node is TElement {

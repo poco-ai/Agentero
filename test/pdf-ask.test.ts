@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
 	appendAskAssistantMessage,
-	clientRectsToNormalized,
 	createAskThreadFromAgentSelection,
 	createEmptyThread,
 	parsePdfAskThread,
@@ -152,44 +151,6 @@ describe("pdf-ask schema", () => {
 		const thread = parsePdfAskThread(raw);
 		expect(thread?.anchor.trigger).toBe("region");
 		expect(thread?.anchor.visualKind).toBe("figure");
-	});
-});
-
-describe("pdf-ask geometry", () => {
-	it("normalizes client rects against page box", () => {
-		const pageEl = {
-			getBoundingClientRect: () =>
-				({
-					left: 100,
-					top: 50,
-					width: 200,
-					height: 400,
-					right: 300,
-					bottom: 450,
-					x: 100,
-					y: 50,
-					toJSON: () => ({}),
-				}) as DOMRect,
-		} as HTMLElement;
-
-		const rects = clientRectsToNormalized(pageEl, [
-			{
-				left: 120,
-				top: 90,
-				width: 40,
-				height: 20,
-				right: 160,
-				bottom: 110,
-				x: 120,
-				y: 90,
-				toJSON: () => ({}),
-			} as DOMRect,
-		]);
-		expect(rects).toHaveLength(1);
-		expect(rects[0].x).toBeCloseTo(0.1);
-		expect(rects[0].y).toBeCloseTo(0.1);
-		expect(rects[0].w).toBeCloseTo(0.2);
-		expect(rects[0].h).toBeCloseTo(0.05);
 	});
 });
 

@@ -4,19 +4,19 @@ import { MarkdownPlugin } from "@platejs/markdown";
 import { ImagePlugin } from "@platejs/media/react";
 import { Plate, usePlateEditor } from "platejs/react";
 import { useEffect, useMemo, useRef } from "react";
-import { Editor } from "@/components/editor/editor";
-import { EmbeddedMarkdownProjection } from "@/components/editor/embedded-markdown-projection";
-import { ImageElement } from "@/components/editor/image-node";
-import { MarkdownDocProvider } from "@/components/editor/markdown-doc-context";
+import { MarkdownDocProvider } from "@/components/editor/context/markdown-doc-context";
+import { Editor } from "@/components/editor/editor-surface";
+import { EmbeddedMarkdownProjection } from "@/components/editor/embeds/embedded-markdown-projection";
+import { WikiEmbedProjectionProvider } from "@/components/editor/embeds/projection-context";
 import {
 	type MarkdownExportMode,
 	MarkdownExportModeProvider,
 } from "@/components/editor/markdown-export-mode-context";
+import { ImageElement } from "@/components/editor/nodes/block/image-node";
 import { MarkdownEditorKit } from "@/components/editor/plugins/markdown-editor-kit";
-import { WikiEmbedProjectionProvider } from "@/components/editor/wiki-embed-projection-context";
 import { prepareMarkdownForDeserialize } from "@/lib/markdown/deserialize";
-import { splitFrontmatter } from "@/lib/markdown/doc";
 import type { MarkdownExportPaperHeader } from "@/lib/markdown/export/types";
+import { splitFrontmatter } from "@/lib/markdown/frontmatter";
 
 export function MarkdownExportSurface({
 	markdown,
@@ -106,7 +106,6 @@ export function MarkdownExportSurface({
 						<MarkdownDocProvider value={{ filePath }}>
 							<Plate editor={editor}>
 								<Editor
-									variant="none"
 									readOnly
 									className="min-h-0 w-full min-w-0 cursor-default break-words text-base leading-relaxed [&>*:first-child]:mt-0"
 								/>

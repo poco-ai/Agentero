@@ -4,6 +4,7 @@ import type {
 	PageLayout,
 } from "@embedpdf/plugin-layout-analysis";
 
+import { clamp01 } from "@/lib/core/math";
 import { layoutLabelToKind } from "@/lib/pdf/layout/labels";
 import { mergeCaptionsIntoHosts } from "@/lib/pdf/layout/merge-captions";
 import type {
@@ -11,11 +12,6 @@ import type {
 	PdfLayoutKind,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
-
-function clamp01(value: number): number {
-	if (!Number.isFinite(value)) return 0;
-	return Math.min(1, Math.max(0, value));
-}
 
 function emptyCounts(): Record<PdfLayoutKind, number> {
 	return {

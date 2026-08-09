@@ -6,7 +6,7 @@ import {
 	convertCompleteMarkdownLinkAtCaret,
 	convertMarkdownLinkBeforeClosingParen,
 	markdownLinkInputRule,
-} from "@/components/editor/plugins/markdown-link-input-rule";
+} from "@/lib/markdown/link-input-rule";
 
 const TestParagraphPlugin = createSlatePlugin({
 	key: KEYS.p,

@@ -9,7 +9,7 @@ import {
 } from "react";
 import { logger } from "@/lib/core/logger";
 
-export type PdfEngineContextValue = {
+type PdfEngineContextValue = {
 	engine: PdfEngine | null;
 	isLoading: boolean;
 	error: Error | null;

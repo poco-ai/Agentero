@@ -1,0 +1,25 @@
+diff --git a/dist/web/index.js b/dist/web/index.js
+index 015ad15dcf6a199260d73c8f5afe7d2a87870dca..fa48f0aba9446c7942d6e80bf48bfe4f706719e5 100644
+--- a/dist/web/index.js
++++ b/dist/web/index.js
+@@ -5,9 +5,9 @@ class WebPlatformAdapter {
+     this.wasmPaths = wasmPaths;
+     this.ort = null;
+   }
+-  async getOrt() {
++  async getOrt(backend) {
+     if (!this.ort) {
+-      this.ort = await import("onnxruntime-web/webgpu");
++      this.ort = backend === "webgpu" ? await import("onnxruntime-web/webgpu") : await import("onnxruntime-web/wasm");
+       if (this.wasmPaths) {
+         this.ort.env.wasm.wasmPaths = this.wasmPaths;
+       }
+@@ -33,7 +33,7 @@ class WebPlatformAdapter {
+     return "wasm";
+   }
+   async loadModel(url, options, config, onProgress) {
+-    const ort = await this.getOrt();
++    const ort = await this.getOrt(options.backend);
+     if (options.backend === "wasm" || options.backend === "cpu") {
+       ort.env.wasm.proxy = true;
+     }

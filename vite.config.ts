@@ -40,6 +40,11 @@ export default defineConfig(async () => ({
 	test: {
 		environment: "node",
 		include: ["test/**/*.test.ts"],
+		server: {
+			deps: {
+				inline: [/@embedpdf\/ai/],
+			},
+		},
 	},
 
 	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

@@ -4,15 +4,15 @@ import { ParagraphPlugin } from "platejs/react";
 import { describe, expect, it } from "vitest";
 
 import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
+import { WikiLinkPlugin } from "@/components/editor/plugins/wikilink-plugin";
 import {
 	isWikiLinkDraftEditingOffset,
 	parseWikiLinkMarkdown,
-	WikiLinkPlugin,
 	wikiLinkDraftEditableBounds,
 	wikiLinkDraftExteriorPlacement,
 	wikiLinkRules,
 	wikiLinkToMarkdown,
-} from "@/components/editor/plugins/wikilink-plugin";
+} from "@/lib/wiki/wikilink-model";
 import {
 	addRecentWikiCandidate,
 	findWikiCompletionMatch,

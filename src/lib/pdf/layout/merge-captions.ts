@@ -1,3 +1,4 @@
+import { clamp01 } from "@/lib/core/math";
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
 import {
 	isAlgorithmLayoutKind,
@@ -172,11 +173,6 @@ export function suppressSpuriousFigureDetections(
 		}
 		return true;
 	});
-}
-
-function clamp01(value: number): number {
-	if (!Number.isFinite(value)) return 0;
-	return Math.min(1, Math.max(0, value));
 }
 
 export function unionBbox(

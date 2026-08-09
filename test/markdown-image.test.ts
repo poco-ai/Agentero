@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
 	collectImageUrlCounts,
 	createManagedAssetGc,
-	deleteRemovedManagedAssets,
 	formatMarkdownImageSyntax,
 	isManagedMarkdownAssetUrl,
 	isRemoteOrInlineImageUrl,
@@ -117,14 +116,6 @@ describe("markdown-image path helpers", () => {
 		]);
 		expect(counts.get("./assets/a.png")).toBe(2);
 		expect(counts.get("https://example.com/b.png")).toBe(1);
-	});
-
-	it("deleteRemovedManagedAssets skips when ref-count remains", async () => {
-		const prev = new Map([["./assets/a.png", 2]]);
-		const next = new Map([["./assets/a.png", 1]]);
-		// no Tauri → managed delete returns 0
-		const n = await deleteRemovedManagedAssets("/vault/notes/x.md", prev, next);
-		expect(n).toBe(0);
 	});
 });
 

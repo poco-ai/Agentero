@@ -1,16 +1,12 @@
 import type { Size } from "@embedpdf/models";
 import type { FormattedSelection } from "@embedpdf/plugin-selection/react";
 
+import { clamp01 } from "@/lib/core/math";
 import type {
 	PdfAskAnchor,
 	PdfAskNormalizedRect,
 	PdfAskTrigger,
 } from "@/lib/pdf/ask/types";
-
-function clamp01(n: number): number {
-	if (!Number.isFinite(n)) return 0;
-	return Math.min(1, Math.max(0, n));
-}
 
 /**
  * Build a normalized {@link PdfAskAnchor} from an EmbedPDF text selection.

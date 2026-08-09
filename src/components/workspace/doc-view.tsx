@@ -22,7 +22,7 @@ const PdfViewer = lazy(() =>
 	})),
 );
 const MarkdownEditor = lazy(() =>
-	import("@/components/editor/markdown-editor").then((m) => ({
+	import("@/components/editor").then((m) => ({
 		default: m.MarkdownEditor,
 	})),
 );

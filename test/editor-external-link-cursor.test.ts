@@ -4,13 +4,13 @@ import { ParagraphPlugin } from "platejs/react";
 import { describe, expect, it } from "vitest";
 import { LinkPlugin } from "@/components/editor/plugins/link-plugin";
 import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
-import { convertMarkdownLinkBeforeClosingParen } from "@/components/editor/plugins/markdown-link-input-rule";
+import { insertExternalLinkNode } from "@/lib/markdown/external-link-insert";
+import { convertMarkdownLinkBeforeClosingParen } from "@/lib/markdown/link-input-rule";
 import {
 	executeSlashCommand,
 	findSlashCommandTrigger,
 	type SlashCommandTarget,
-} from "@/components/editor/plugins/slash-command";
-import { insertExternalLinkNode } from "@/lib/markdown/external-link-insert";
+} from "@/lib/markdown/slash-command";
 
 const TestPlugins = [
 	KEYS.p,

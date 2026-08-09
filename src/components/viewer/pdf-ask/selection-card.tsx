@@ -12,16 +12,17 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { clamp } from "@/lib/core/math";
 import { cn } from "@/lib/core/utils";
 
 /** Minimum inset from the viewport edges (px). */
 export const SELECTION_CARD_EDGE = 12;
 /** Default preferred max height when callers omit `height` (px). */
-export const SELECTION_CARD_DEFAULT_MAX_HEIGHT = 420;
+const SELECTION_CARD_DEFAULT_MAX_HEIGHT = 420;
 /** Floor so a clipped card remains usable on short viewports (px). */
 const SELECTION_CARD_MIN_HEIGHT = 120;
 
-export type SelectionCardAction = {
+type SelectionCardAction = {
 	label: string;
 	onClick: () => void;
 	icon: ReactNode;
@@ -29,7 +30,7 @@ export type SelectionCardAction = {
 	destructive?: boolean;
 };
 
-export type PlaceSelectionCardOptions = {
+type PlaceSelectionCardOptions = {
 	/** Preferred card width used for edge-flip (px). */
 	width: number;
 	/** Preferred max height; clamped to remaining viewport (px). */
@@ -57,7 +58,7 @@ export type PlaceSelectionCardOptions = {
 	gap?: number;
 };
 
-export type PlaceSelectionCardResult = {
+type PlaceSelectionCardResult = {
 	left: number;
 	top: number;
 	/** Dynamic max height so the card never extends past the viewport. */
@@ -108,7 +109,7 @@ export function placeSelectionCard(
 		// Not enough room on the left — flip right of the pin.
 		left = Math.min(vw - edge - planWidth, screen.x + gap);
 	}
-	left = Math.min(Math.max(edge, left), Math.max(edge, vw - planWidth - edge));
+	left = clamp(left, edge, Math.max(edge, vw - planWidth - edge));
 
 	const viewportCap = Math.max(SELECTION_CARD_MIN_HEIGHT, vh - edge * 2);
 
@@ -157,7 +158,7 @@ export function placeSelectionCard(
 	return { left, top, maxHeight };
 }
 
-export type SelectionCardProps = {
+type SelectionCardProps = {
 	screen: { x: number; y: number };
 	/** Visual width class / clamp target (px number for placement). */
 	width?: number;

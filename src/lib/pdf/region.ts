@@ -1,14 +1,11 @@
 import type { Rect, Size } from "@embedpdf/models";
 
+import { clamp01 } from "@/lib/core/math";
+
 import type { PdfAskNormalizedRect } from "@/lib/pdf/ask/types";
 
 const MIN_REGION_SIZE = 0.005;
 const DEFAULT_REGION_PADDING = 0.015;
-
-function clamp01(value: number): number {
-	if (!Number.isFinite(value)) return 0;
-	return Math.min(1, Math.max(0, value));
-}
 
 export function normalizedRegionFromPoints(
 	start: { x: number; y: number },

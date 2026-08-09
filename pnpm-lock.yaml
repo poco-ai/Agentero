@@ -12,6 +12,7 @@ overrides:
   '@types/react-dom': 19.2.3
 
 patchedDependencies:
+  '@embedpdf/ai@0.0.1': a6b2b0295114a7b189d832890228c861b9fda9da2174f2b5b55e6c06891dfee8
   '@embedpdf/engines@2.14.4': bc0d2773fea0f499e15b55418c7f33e71990cad176e35da219d7aea9784f3989
   '@embedpdf/plugin-tiling@2.14.4': 967f8ac96c02c1cee69b5f87f3117c9e0bbe5ba11ac3ce1f37e27a74a6876eb0
 
@@ -21,7 +22,7 @@ importers:
     dependencies:
       '@embedpdf/ai':
         specifier: 0.0.1
-        version: 0.0.1(onnxruntime-web@1.27.0)
+        version: 0.0.1(patch_hash=a6b2b0295114a7b189d832890228c861b9fda9da2174f2b5b55e6c06891dfee8)(onnxruntime-web@1.27.0)
       '@embedpdf/core':
         specifier: 2.14.4
         version: 2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3))
@@ -5821,7 +5822,7 @@ snapshots:
 
   '@dotenvx/primitives@0.8.0': {}
 
-  '@embedpdf/ai@0.0.1(onnxruntime-web@1.27.0)':
+  '@embedpdf/ai@0.0.1(patch_hash=a6b2b0295114a7b189d832890228c861b9fda9da2174f2b5b55e6c06891dfee8)(onnxruntime-web@1.27.0)':
     dependencies:
       '@embedpdf/models': 2.6.1
     optionalDependencies:
@@ -5876,7 +5877,7 @@ snapshots:
 
   '@embedpdf/plugin-ai-manager@0.0.1(@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3)))(onnxruntime-web@1.27.0)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3))':
     dependencies:
-      '@embedpdf/ai': 0.0.1(onnxruntime-web@1.27.0)
+      '@embedpdf/ai': 0.0.1(patch_hash=a6b2b0295114a7b189d832890228c861b9fda9da2174f2b5b55e6c06891dfee8)(onnxruntime-web@1.27.0)
       '@embedpdf/core': 2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3))
       '@embedpdf/models': 2.6.1
       preact: 10.29.7
@@ -5945,7 +5946,7 @@ snapshots:
 
   '@embedpdf/plugin-layout-analysis@0.0.1(@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3)))(@embedpdf/plugin-ai-manager@0.0.1(@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3)))(onnxruntime-web@1.27.0)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3)))(@embedpdf/plugin-render@2.14.4(@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3)))(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3)))(onnxruntime-web@1.27.0)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3))':
     dependencies:
-      '@embedpdf/ai': 0.0.1(onnxruntime-web@1.27.0)
+      '@embedpdf/ai': 0.0.1(patch_hash=a6b2b0295114a7b189d832890228c861b9fda9da2174f2b5b55e6c06891dfee8)(onnxruntime-web@1.27.0)
       '@embedpdf/core': 2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3))
       '@embedpdf/models': 2.6.1
       '@embedpdf/plugin-ai-manager': 0.0.1(@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3)))(onnxruntime-web@1.27.0)(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.40(typescript@5.8.3))

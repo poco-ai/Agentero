@@ -59,18 +59,16 @@ import {
 import { common, createLowlight } from "lowlight";
 import { KEYS, TrailingBlockPlugin } from "platejs";
 import { ParagraphPlugin } from "platejs/react";
-import { BlockList } from "@/components/editor/block-list";
-import { BlockquoteElement } from "@/components/editor/blockquote-node";
+import { BlockquoteElement } from "@/components/editor/nodes/block/blockquote-node";
 import {
 	CodeBlockElement,
 	CodeLineElement,
 	CodeSyntaxLeaf,
-} from "@/components/editor/code-block-node";
-import { CodeLeaf } from "@/components/editor/code-leaf";
+} from "@/components/editor/nodes/block/code-block-node";
 import {
 	EquationElement,
 	InlineEquationElement,
-} from "@/components/editor/equation-node";
+} from "@/components/editor/nodes/block/equation-node";
 import {
 	H1Element,
 	H2Element,
@@ -78,26 +76,30 @@ import {
 	H4Element,
 	H5Element,
 	H6Element,
-} from "@/components/editor/heading-node";
-import { HighlightLeaf } from "@/components/editor/highlight-leaf";
-import { HrElement } from "@/components/editor/hr-node";
-import { KbdLeaf } from "@/components/editor/kbd-leaf";
-import { MentionElement } from "@/components/editor/mention-node";
-import { ParagraphElement } from "@/components/editor/paragraph-node";
-import { CalloutPlugin } from "@/components/editor/plugins/callout-plugin";
-import { handleCodeBlockDeleteBackward } from "@/components/editor/plugins/code-block-delete";
-import { FindReplaceKit } from "@/components/editor/plugins/find-replace-kit";
-import { inlineMathInputRule } from "@/components/editor/plugins/inline-math-input-rule";
-import { LinkPlugin } from "@/components/editor/plugins/link-plugin";
-import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
-import { WikiBlockIdPlugin } from "@/components/editor/plugins/wiki-block-id-plugin";
-import { WikiLinkPlugin } from "@/components/editor/plugins/wikilink-plugin";
+} from "@/components/editor/nodes/block/heading-node";
+import { HrElement } from "@/components/editor/nodes/block/hr-node";
+import { BlockList } from "@/components/editor/nodes/block/list-node";
+import { ParagraphElement } from "@/components/editor/nodes/block/paragraph-node";
 import {
 	TableCellElement,
 	TableCellHeaderElement,
 	TableElement,
 	TableRowElement,
-} from "@/components/editor/table-node";
+} from "@/components/editor/nodes/block/table-node";
+import { MentionElement } from "@/components/editor/nodes/inline/mention-node";
+import {
+	CodeLeaf,
+	HighlightLeaf,
+	KbdLeaf,
+} from "@/components/editor/nodes/leaf";
+import { CalloutPlugin } from "@/components/editor/plugins/callout-plugin";
+import { FindReplaceKit } from "@/components/editor/plugins/find-replace-kit";
+import { LinkPlugin } from "@/components/editor/plugins/link-plugin";
+import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
+import { WikiBlockIdPlugin } from "@/components/editor/plugins/wiki-block-id-plugin";
+import { WikiLinkPlugin } from "@/components/editor/plugins/wikilink-plugin";
+import { handleCodeBlockDeleteBackward } from "@/lib/markdown/code-block-delete";
+import { inlineMathInputRule } from "@/lib/markdown/inline-math-input-rule";
 
 const lowlight = createLowlight(common);
 

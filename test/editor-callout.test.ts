@@ -14,22 +14,22 @@ import {
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { describe, expect, it } from "vitest";
-import { updateCalloutMetadata } from "@/components/editor/plugins/callout-actions";
-import {
-	obsidianCalloutRules,
-	parseCalloutMarker,
-	remarkObsidianCallout,
-} from "@/components/editor/plugins/callout-model";
 import {
 	CalloutPlugin,
 	convertBlockquoteMarkerToCallout,
 } from "@/components/editor/plugins/callout-plugin";
 import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
+import { WikiLinkPlugin } from "@/components/editor/plugins/wikilink-plugin";
+import {
+	obsidianCalloutRules,
+	parseCalloutMarker,
+	remarkObsidianCallout,
+	updateCalloutMetadata,
+} from "@/lib/markdown/callout";
 import {
 	remarkWikiLinkLiteralPaths,
-	WikiLinkPlugin,
 	wikiLinkRules,
-} from "@/components/editor/plugins/wikilink-plugin";
+} from "@/lib/wiki/wikilink-model";
 
 const TestParagraphPlugin = createSlatePlugin({
 	key: KEYS.p,

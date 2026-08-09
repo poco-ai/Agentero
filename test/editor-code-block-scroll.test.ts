@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 describe("Markdown code block scrolling", () => {
 	it("keeps horizontal overflow local without trapping vertical wheel input", () => {
 		const component = readFileSync(
-			new URL("../src/components/editor/code-block-node.tsx", import.meta.url),
+			new URL(
+				"../src/components/editor/nodes/block/code-block-node.tsx",
+				import.meta.url,
+			),
 			"utf8",
 		);
 		const css = readFileSync(
@@ -23,7 +26,10 @@ describe("Markdown code block scrolling", () => {
 
 	it("places the language selector immediately before copy in the top-right actions", () => {
 		const component = readFileSync(
-			new URL("../src/components/editor/code-block-node.tsx", import.meta.url),
+			new URL(
+				"../src/components/editor/nodes/block/code-block-node.tsx",
+				import.meta.url,
+			),
 			"utf8",
 		);
 		const actions = component.indexOf(
