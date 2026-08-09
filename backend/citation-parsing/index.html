@@ -3133,6 +3133,7 @@
 <li><code>[12]</code> 编号徽标 + 标题（两行截断；无标题时显示 raw 前两行）；</li>
 <li>第二行：首作者 et al. · 年份 · venue；</li>
 <li>角标：DOI / arXiv 外链徽标、<strong>已入库</strong>标记（点击打开库内论文）；未入库 hover 出 <strong>导入</strong>（走 <code>paper_commit</code> 管线；注意不<strong>自动</strong>导入，此处为用户显式点击）。</li>
+<li><strong>打开论文时自动解析</strong>：论文标签页加载后，前台会在后台自动调用 <code>paper_refs_parse(force=false)</code>；若 sidecar 已存在且 fingerprint 未变则直接命中缓存，否则开始 L1/L2 解析。解析结果写入 <code>{paper}/source/agentero-cite.json</code>，PDF 查看器和 References 侧栏共享同一结果，无需用户先点开侧栏再点击「Parse references」。</li>
 <li><strong>hover 预览与联动</strong>：hover 文中 citation anchor → 显示编号、标题、作者、年份、venue 和已入库状态；同时发布 hover marker，侧栏对应卡片高亮并 <code>scrollIntoView</code>。预览内放大镜打开 References 侧栏。引用识别只接受数字引用或作者-年份形式，并排除 Figure、Section、Table、Equation 等内部交叉引用；未能识别的链接只保留点击导航。</li>
 <li><strong>反向联动（待实现）</strong>：hover 引用卡片 → PDF 高亮 anchors。</li>
 <li><strong>点击</strong>：文中 citation 点击跳 References 条目；卡片点击跳第一个 anchor。</li>
