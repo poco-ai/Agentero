@@ -10,6 +10,7 @@ pub mod catalog;
 pub mod cli_install;
 pub mod connector;
 pub mod doctor;
+pub mod export;
 pub mod import;
 pub mod layout_model;
 pub mod network;
