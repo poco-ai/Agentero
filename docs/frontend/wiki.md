@@ -14,6 +14,7 @@
 - `@` 批注与 `#` / `^` 同属 fragment：`[[@id]]`、`[[papers/…/NOTES@id|alias]]`、`[[paper.pdf@id]]`、`[[…#@id]]`（与 `@id` 等价）。target 必须是可解析路径/文件名，**不要**单独用论文展示标题；面板复制默认 `[[papers/…/NOTES@id|论文标题]]`。id 来自高亮 `annotations.json` 或视觉 mark（`kind: visual`，旧 `agent-trace` 仍认；nanoid 可含 `_`）。
 - 序列化必须写回 `[[...]]`（Obsidian 兼容）。
 - `![[...]]`：嵌入 Markdown 区段、图片、PDF、批注（只读）；普通编辑不刷新无关嵌入。批注嵌入（`contentKind: annotation`）与其它 embed 共用 `max-h` 滚动壳；位置优先大纲路径否则页码。视觉批注：备注以图标 + 文字显示在裁剪图上方；仅当有 Agent 对话时才展示下方 transcript（无对话不显示空状态）；**正文不可点跳转**，仅顶栏 ExternalLink 打开 PDF。Host `wiki check` 校验 path + id 形态，不读 `marks/` 验存活。
+- **导出模式**（笔记导出 PDF/PNG）：`MarkdownExportModeProvider` 下展开 `max-h`、去掉打开源按钮；图片/批注裁剪图取消高度上限；完整 PDF 附件改为路径占位。见 [markdown.md](markdown.md)。
 
 ## Graph
 
