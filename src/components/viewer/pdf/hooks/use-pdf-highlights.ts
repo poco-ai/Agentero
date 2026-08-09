@@ -5,7 +5,8 @@
  * bridge between that plugin scope and the React tree.
  *
  * It owns three derived states that share exactly one writer — `rebuildHighlights`,
- * which runs on every annotation event:
+ * which runs once per coalesced annotation-event burst (a batch import emits
+ * one event per annotation):
  * - `highlights`: the view models published to the annotations panel;
  * - `highlightAnchors`: normalized 0–1 rects for gutter-pin placement, computed
  *   here (where the raw objects and page sizes are already in hand) so pin
@@ -165,6 +166,18 @@ export function usePdfHighlights({
 		setCitationLinks(links);
 	}, [annotationCap, docCap, docId, paperKey, onHighlightsChangeRef]);
 
+	// A batch import emits one event per annotation within a single task;
+	// coalesce the burst into one rebuild (n events → O(n²) full walks → O(n)).
+	const rebuildPendingRef = useRef(false);
+	const scheduleRebuild = useCallback(() => {
+		if (rebuildPendingRef.current) return;
+		rebuildPendingRef.current = true;
+		queueMicrotask(() => {
+			rebuildPendingRef.current = false;
+			rebuildHighlights();
+		});
+	}, [rebuildHighlights]);
+
 	const scheduleSave = useCallback(() => {
 		if (!paperAbsPath || !annotationCap) return;
 		if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -185,12 +198,12 @@ export function usePdfHighlights({
 		if (!annotationCap) return;
 		const scope = annotationCap.forDocument(docId);
 		const off = scope.onAnnotationEvent((event) => {
-			rebuildHighlights();
+			scheduleRebuild();
 			if (event.type !== "loaded" && !importingRef.current) scheduleSave();
 		});
 		rebuildHighlights();
 		return () => off();
-	}, [annotationCap, docId, rebuildHighlights, scheduleSave]);
+	}, [annotationCap, docId, rebuildHighlights, scheduleRebuild, scheduleSave]);
 
 	useEffect(() => {
 		if (importedRef.current || !annotationCap || !docCap || totalPages <= 0)

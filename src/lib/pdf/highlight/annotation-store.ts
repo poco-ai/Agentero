@@ -10,7 +10,11 @@ import {
 	highlightColorFromHex,
 } from "@/lib/pdf/highlight/palette";
 import type { PdfHighlight } from "@/lib/pdf/highlight/types";
-import { ANNOTATIONS_JSON, MARKS_FOLDER } from "@/lib/pdf/selection/marks-io";
+import {
+	ANNOTATIONS_JSON,
+	MARKS_FOLDER,
+	markSelfWrite,
+} from "@/lib/pdf/selection/marks-io";
 import { joinVaultPath, readVaultFile, writeVaultFile } from "@/lib/vault";
 
 /**
@@ -93,10 +97,9 @@ export async function loadAnnotationItems(
 			await saveAnnotationItems(paperAbsPath, items);
 		} else {
 			// Empty file still belongs under marks/ once discovered.
-			await writeVaultFile(
-				annotationsPath(paperAbsPath),
-				`${JSON.stringify([], null, 2)}\n`,
-			);
+			const path = annotationsPath(paperAbsPath);
+			markSelfWrite(path);
+			await writeVaultFile(path, `${JSON.stringify([], null, 2)}\n`);
 		}
 		await removeFileIfExists(legacyAnnotationsPath(paperAbsPath));
 		return items;
@@ -115,10 +118,9 @@ export async function saveAnnotationItems(
 		memoryStore.set(paperAbsPath, next);
 		return;
 	}
-	await writeVaultFile(
-		annotationsPath(paperAbsPath),
-		`${JSON.stringify(next, null, 2)}\n`,
-	);
+	const path = annotationsPath(paperAbsPath);
+	markSelfWrite(path);
+	await writeVaultFile(path, `${JSON.stringify(next, null, 2)}\n`);
 	// Drop legacy root copy if present so marks/ is the only location.
 	await removeFileIfExists(legacyAnnotationsPath(paperAbsPath));
 }

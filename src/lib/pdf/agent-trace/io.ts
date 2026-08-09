@@ -16,6 +16,7 @@ import type {
 } from "@/lib/pdf/agent-trace/types";
 import { VISUAL_MARK_KIND } from "@/lib/pdf/agent-trace/types";
 import { createMarkStore } from "@/lib/pdf/marks/io";
+import { markSelfWrite } from "@/lib/pdf/selection/marks-io";
 import { removeVaultPath, writeVaultBytes } from "@/lib/vault";
 
 const store = createMarkStore<PdfVisualSessionTrace>({
@@ -444,6 +445,7 @@ export async function writePdfVisualTrace(
 			prepared.asset.path,
 		);
 		if (!assetPath) throw new Error("invalid visual trace asset path");
+		markSelfWrite(assetPath);
 		await writeVaultBytes(assetPath, prepared.asset.bytes);
 	}
 	await store.write(paperAbsPath, {
@@ -467,6 +469,7 @@ export async function deletePdfVisualTrace(
 		trace?.image?.path &&
 		visualTraceImageAssetPath(paperAbsPath, trace.image.path);
 	if (!assetPath) return;
+	markSelfWrite(assetPath);
 	try {
 		await removeVaultPath(assetPath);
 	} catch {

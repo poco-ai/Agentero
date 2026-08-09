@@ -5,11 +5,12 @@
  *
  * One hook because all three arrays share a single IO lifecycle: one `list*`
  * fan-out on open, one Vault-watcher subscription, and one publish path to the
- * annotations panel. Listing re-reads every mark file over serial IPC, so the
+ * annotations panel. Listing re-reads every mark file over IPC, so the
  * refresh must stay event-driven (never a timer), is coalesced over a 200 ms
- * burst (one Agent turn rewrites several files), and is fingerprint-guarded:
- * `list*` always returns fresh array identity, and committing an unchanged array
- * re-renders the whole viewer, which makes the pages visibly twitch.
+ * burst (one Agent turn rewrites several files), skips echoes of this app's
+ * own marks/ writes, and is fingerprint-guarded: `list*` always returns fresh
+ * array identity, and committing an unchanged array re-renders the whole
+ * viewer, which makes the pages visibly twitch.
  *
  * Only pure state updaters live here. Anything that writes a mark to disk as
  * part of an ask / translate / visual workflow stays with that workflow, so the
@@ -35,6 +36,7 @@ import { listPdfAskThreads } from "@/lib/pdf/ask";
 import { threadHasUserQuestion } from "@/lib/pdf/ask/schema";
 import type { PdfAskThread } from "@/lib/pdf/ask/types";
 import { marksDir } from "@/lib/pdf/selection";
+import { isRecentSelfWrite } from "@/lib/pdf/selection/marks-io";
 import { listPdfTranslates } from "@/lib/pdf/translate";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
 import {
@@ -142,10 +144,12 @@ export function usePdfMarksIo({
 	// avoid N× listMarkRaw reads). Covers Agent-panel writes that create ask
 	// threads from 「加入对话」 selections while this tab was open.
 	//
-	// Driven by the Vault watcher: listing re-reads every mark file over serial
-	// IPC, so it must not run on a timer. Results always carry fresh array
-	// identity; only commit state when the content actually changed — otherwise
-	// a refresh re-renders the whole viewer and the pages visibly twitch.
+	// Driven by the Vault watcher: listing re-reads every mark file over IPC,
+	// so it must not run on a timer, and watcher echoes of this app's own
+	// marks/ writes are skipped (the writer already updated state). Results
+	// always carry fresh array identity; only commit state when the content
+	// actually changed — otherwise a refresh re-renders the whole viewer and
+	// the pages visibly twitch.
 	const lastMarksPollRef = useRef("{asks:[],traces:[]}");
 	useEffect(() => {
 		if (!paperAbsPath || !marksLoadedRef.current || !isActive) return;
@@ -198,10 +202,15 @@ export function usePdfMarksIo({
 						if (payload.rename) {
 							paths.push(payload.rename.from, payload.rename.to);
 						}
-						const hit = paths.some((p) =>
+						const marksPaths = paths.filter((p) =>
 							normalizePathKey(p).startsWith(marksKey),
 						);
-						if (hit) scheduleRefresh();
+						if (!marksPaths.length) return;
+						// Our own writes already updated in-memory state; skip
+						// their watcher echo unless an external change landed in
+						// the same batch.
+						if (marksPaths.every((p) => isRecentSelfWrite(p))) return;
+						scheduleRefresh();
 					},
 				);
 			})();
