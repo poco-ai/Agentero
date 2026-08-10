@@ -2902,8 +2902,12 @@
 <td>文档 tab <strong>右键</strong> → <strong>移动至新窗口</strong> → 独立 <code>doc-*</code> Webview；源 panel 关闭（Library / Trash 除外）</td>
 </tr>
 <tr>
+<td>Split pane</td>
+<td><code>⌘\</code> / <code>Ctrl+\</code> 向右新增 pane；当前论文未开 NOTES 时默认打开 NOTES，否则复制当前 pane；横向 pane 重新等宽</td>
+</tr>
+<tr>
 <td>NOTES 开关</td>
-<td>Layout 菜单 / 快捷键；优先叠右列</td>
+<td>Layout 菜单；优先叠右列</td>
 </tr>
 <tr>
 <td>打开笔记</td>
@@ -2916,7 +2920,7 @@
 </tbody>
 </table>
 <p>标签组 chip 的颜色菜单会将展开/收起 icon 染为对应颜色，并同步用于组内 tab 的强调线；清除颜色后恢复默认颜色。</p>
-<p>布局只存 dockview <code>toJSON()</code>；path/mode 在 panel params。</p>
+<p>布局只存 dockview <code>toJSON()</code>；path/mode 在 panel params。同一路径可存在多个 split pane，panel id 保留 pane 实例后缀用于恢复布局。</p>
 <p>启动恢复只 hydrate 每个 Dockview group 当前可见的 panel；隐藏标签在首次切换到前台时再读取资源。PDFium 保留当前可见与最近使用的至多两个 PDF viewer，本地 PDF <code>ArrayBuffer</code> 离开保留集合后释放，避免多标签工作区重启时并发加载全部 PDF 并长期占用 WebContent 内存。</p>
 <h2 id="_2">面板类型<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>Library · Trash · PDF · HTML · 图片 · Markdown · 论文 NOTES。</p>
