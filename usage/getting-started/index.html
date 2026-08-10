@@ -606,6 +606,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="准备工作">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        系统要求
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linuxlibwebkit2gtk-41-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux：libwebkit2gtk-4.1-0 无法满足
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -631,7 +659,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         认识工作台
@@ -642,7 +670,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         第一次检查
@@ -653,7 +681,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         数据位置和备份
@@ -664,7 +692,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
         下一步
@@ -2858,6 +2886,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="准备工作">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        系统要求
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linuxlibwebkit2gtk-41-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux：libwebkit2gtk-4.1-0 无法满足
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2883,7 +2939,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         认识工作台
@@ -2894,7 +2950,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         第一次检查
@@ -2905,7 +2961,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         数据位置和备份
@@ -2916,7 +2972,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
         下一步
@@ -2949,6 +3005,30 @@
 <h1 id="_1">安装与首次使用<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
 <p>本教程带你完成第一次打开 Agentero、创建 Vault，并确认工作区可用。</p>
 <h2 id="_2">准备工作<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h3 id="_3">系统要求<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>平台</th>
+<th>最低要求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS</td>
+<td>12.0+</td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>发布页 x64 安装包</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td>Ubuntu <strong>22.04+</strong>（需 <strong>webkit2gtk 4.1</strong>，包名常见 <code>libwebkit2gtk-4.1-0</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>Linux 桌面包在 Ubuntu 22.04 上构建。更旧的发行版（如 Ubuntu 20.04，仅有 webkit2gtk 4.0）请先升级系统。</p>
 <p>从 <a href="https://github.com/poco-ai/agentero/releases">发布页</a> 或官网下载与系统匹配的桌面版本。macOS 也可用 Homebrew：</p>
 <div class="codehilite"><pre><span></span><code>brew<span class="w"> </span>tap<span class="w"> </span>poco-ai/agentero
 brew<span class="w"> </span>install<span class="w"> </span>--cask<span class="w"> </span>agentero
@@ -2960,6 +3040,8 @@ pnpm<span class="w"> </span>tauri<span class="w"> </span>dev
 </code></pre></div>
 
 <p>首次使用<strong>不需要</strong>先安装 Zotero 或 Agent。只有在浏览器导入或 AI 辅助阅读时，才需要继续配置对应软件。</p>
+<h3 id="linuxlibwebkit2gtk-41-0">Linux：<code>libwebkit2gtk-4.1-0</code> 无法满足<a class="headerlink" href="#linuxlibwebkit2gtk-41-0" title="Permanent link">&para;</a></h3>
+<p>安装 <code>.deb</code> 时若缺少 <code>libwebkit2gtk-4.1-0</code>（常见于 Ubuntu 20.04）：请升级到 <strong>22.04+</strong>，或尝试发布页的 <strong>AppImage</strong>。见 <a href="https://github.com/poco-ai/Agentero/issues/253">#253</a>。</p>
 <h2 id="vault">创建第一个 Vault<a class="headerlink" href="#vault" title="Permanent link">&para;</a></h2>
 <ol>
 <li>启动 Agentero。</li>
@@ -2997,7 +3079,7 @@ pnpm<span class="w"> </span>tauri<span class="w"> </span>dev
 <li>等待扫描完成后重新查看论文列表。</li>
 </ol>
 <p>有 Zotero 文库时，欢迎页也可选择 <strong>从 Zotero 迁移</strong>（迁移前会先创建 Vault）。详见 <a href="../import-papers/">导入和管理论文</a>。</p>
-<h2 id="_3">认识工作台<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_4">认识工作台<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -3029,7 +3111,7 @@ pnpm<span class="w"> </span>tauri<span class="w"> </span>dev
 </tbody>
 </table>
 <p>打开论文时，默认会 <strong>左右分屏</strong>：左侧 PDF（或 HTML），右侧 <code>NOTES.md</code>。可用 Layout 菜单或快捷键开关 NOTES。</p>
-<h2 id="_4">第一次检查<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">第一次检查<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p>打开 Vault 后，建议依次确认：</p>
 <ol>
 <li>左侧文件树能展开 <code>papers/</code>。</li>
@@ -3038,7 +3120,7 @@ pnpm<span class="w"> </span>tauri<span class="w"> </span>dev
 <li>若有 PDF，打开后可翻页和 <code>⌘F</code> 搜索。</li>
 <li><code>⌘P</code> / <code>⌘K</code> 能打开快速打开面板。</li>
 </ol>
-<h2 id="_5">数据位置和备份<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">数据位置和备份<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -3070,7 +3152,7 @@ pnpm<span class="w"> </span>tauri<span class="w"> </span>dev
 </tbody>
 </table>
 <p>建议定期备份整个 Vault。若使用 Git，优先提交 Markdown、JSON、TeX 和其它源文件；<code>catalog.sqlite</code> 也应随 Vault 一起备份，以保留 Library 元数据。</p>
-<h2 id="_6">下一步<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<h2 id="_7">下一步<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../import-papers/">导入和管理论文</a></li>
 <li><a href="../read-and-organize/">阅读、标注与整理</a></li>

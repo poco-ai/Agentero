@@ -2305,6 +2305,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux 支持边界
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3184,6 +3195,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux 支持边界
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3621,6 +3643,12 @@
 <li><code>x86_64-pc-windows-msvc</code>：Windows MSVC。</li>
 </ul>
 <p>CLI 压缩包内部统一包含名为 <code>agentero</code>（Windows 为 <code>agentero.exe</code>）的可执行文件；外部归档名使用 <code>agentero-cli-</code> 前缀，避免与桌面安装包混淆。</p>
+<h3 id="linux">Linux 支持边界<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
+<ul>
+<li>CI：<code>ubuntu-22.04</code> / <code>ubuntu-24.04-arm</code>，依赖 <code>libwebkit2gtk-4.1-dev</code>。</li>
+<li>用户侧最低：Ubuntu <strong>22.04+</strong>（webkit2gtk 4.1）。20.04 不支持。</li>
+<li>用户文档：<a href="../../usage/getting-started/"><code>../usage/getting-started.md</code></a>（<a href="https://github.com/poco-ai/Agentero/issues/253">#253</a>）。</li>
+</ul>
 <h3 id="_1">应用内更新签名<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
 <p>Tauri Updater 的签名密钥与 Apple Developer ID 签名、公证凭据无关。应用内置的公钥位于 <code>src-tauri/tauri.conf.json</code>，私钥绝不能提交或写入本机项目配置。</p>
 <p>GitHub Actions 必须配置以下 repository secrets；<code>release.yml</code> 会在创建 Draft Release 前显式验证它们，缺失即失败：</p>
