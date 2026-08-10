@@ -3050,6 +3050,7 @@
 <li><strong>代码块操作</strong>：编辑态悬停或聚焦代码块时，右上角依次显示语言选择与复制按钮；只读预览只显示复制按钮。选择 Mermaid 语言后，源码下方显示实时预览。</li>
 <li><strong>内嵌图</strong>（见下表）。</li>
 <li><strong>双链 / 嵌入</strong>：见 <a href="../wiki/">wiki.md</a>。</li>
+<li><strong>导出 PDF / PNG</strong>（桌面端）：工具栏分享按钮或右键「导出为 PDF / 图片…」。离屏只读渲染当前序列化内容（含未保存改动）。页面背景贴边；正文内边距对齐编辑器 <code>default</code>（<code>px-16 pt-4</code>，底边 <code>pb-10</code>）。默认完整展开 <code>![[…]]</code> 嵌入，就绪后用 <code>html-to-image</code> 截视觉层。<strong>PDF</strong>（<code>pdf-lib</code>）在位图上叠 <strong>不可见可选中文字层</strong>（DOM 测量 + Host <code>export_system_cjk_font</code>）与 <strong>http(s)/mailto 链接注解</strong>，再按 A4 分页；<strong>PNG</strong> 仍为纯位图。可选论文页眉、每页水印（logo + <code>muted-foreground</code>）。完整 PDF 附件嵌入为路径占位。默认水印见设置 → 通用。</li>
 <li><strong>外部改盘</strong>：无未存改动则重载；有未存则 toast；内容相等抑制自写回声。</li>
 <li><strong>保存冲突</strong>：写盘前比对上次落盘内容；磁盘已被外部改则中止并警告。</li>
 </ul>
@@ -3146,11 +3147,23 @@
 </tr>
 <tr>
 <td><code>src/components/editor/markdown-editor.tsx</code></td>
-<td>编排容器：组合各 hook、keydown 派发与整体布局</td>
+<td>编排容器：组合各 hook、keydown 派发、导出入口与整体布局</td>
 </tr>
 <tr>
 <td><code>src/components/editor/hooks/</code></td>
 <td>有状态逻辑：自动保存、双链编辑语义、补全菜单、右键菜单、选区发布</td>
+</tr>
+<tr>
+<td><code>src/components/editor/markdown-export-dialog.tsx</code></td>
+<td>导出格式与选项对话框</td>
+</tr>
+<tr>
+<td><code>src/components/editor/markdown-export-surface.tsx</code></td>
+<td>离屏只读导出渲染（export mode）</td>
+</tr>
+<tr>
+<td><code>src/lib/markdown/export/</code></td>
+<td>论文页眉解析、就绪等待、截图 / 可检索 PDF、保存</td>
 </tr>
 <tr>
 <td><code>src/components/editor/overlays/frontmatter-panel.tsx</code></td>
