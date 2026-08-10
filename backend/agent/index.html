@@ -3068,6 +3068,9 @@
 <code>session/prompt</code> 之前 <strong>suppress</strong> 回放中的 stream/tool/plan（不 <code>agent:stream</code>、
 不写入本轮 content buffer），避免第二轮气泡开头重复上一轮回答；usage /
 commands / config 仍可在 load 期间转发。</p>
+<p><code>agent_load_session</code> 在 <code>session/load</code> 返回后等待回放通知<strong>静默</strong>（200ms 无新
+通知即返回，最长仍封顶 800ms），替代此前的固定 800ms sleep；回放通常在
+response 前/后很快推完，空会话与短会话因此显著更快（#271）。</p>
 <h2 id="_2">命令（摘要）<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -3204,6 +3207,7 @@ Agentero prompt envelope、skill/context 注入，并将原始 <code>/command</c
 <li>若 <code>current_value</code> 不在 selector 选项中（第三方网关 / cc-switch 等只改默认 model、目录仍是官方列表），Host <strong>注入</strong>该 current id，避免 UI 丢失。</li>
 <li><code>preferred_model_id</code>（warm / run_once）在与 current 不同时 <strong>始终尝试</strong> <code>session/set_config_option</code>，不要求 id 已在上报列表中；失败仅 debug 日志，不阻断会话。</li>
 <li>Codex <code>collaboration_mode</code>（Default / Plan 等）解析为 <code>agent:collaboration</code>；<code>collaboration_mode_id</code> 在选项内且与 current 不同时尝试 <code>session/set_config_option</code>。UI 称「模式」。Plan 才能用 <code>request_user_input</code>。不解析 / 不暴露 ACP <code>category: mode</code> 沙箱档。</li>
+<li>Fast 开关（<code>fast-mode</code> model_config 选项）与上述一致：仅当会话当前值与请求值不同时才发 <code>session/set_config_option</code>，未变化的配置不再每轮重复下发（#271）。</li>
 </ul>
 <h2 id="user-agent">User-Agent（中转站亲和）<a class="headerlink" href="#user-agent" title="Permanent link">&para;</a></h2>
 <p>部分中转站用 <code>User-Agent</code> 做客户端亲和（new-api Codex 通道常见 <code>codex-cli/&lt;version&gt;</code>；Claude 侧常见 <code>claude-cli/*</code> / <code>claude-code/*</code>）。</p>
