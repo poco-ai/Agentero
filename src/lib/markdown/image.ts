@@ -11,8 +11,13 @@ import { writeVaultBytes } from "@/lib/vault";
 import { imageMimeFromPath } from "@/lib/workspace/viewer";
 
 /** Relative link prefix written into Markdown (Obsidian-friendly). */
-export const MARKDOWN_ASSETS_DIR = "assets";
-export const MARKDOWN_ASSETS_REL = `./${MARKDOWN_ASSETS_DIR}`;
+const MARKDOWN_ASSETS_DIR = "assets";
+const MARKDOWN_ASSETS_REL = `./${MARKDOWN_ASSETS_DIR}`;
+/** Derived from the constant above so renaming the folder cannot miss a spot. */
+const MANAGED_ASSET_URL_RE = new RegExp(
+	`^(?:\\./)?${MARKDOWN_ASSETS_DIR}/`,
+	"i",
+);
 
 const DATA_URL_RE = /^data:([^;,]+)?(?:;charset=[^;,]+)?;base64,(.+)$/i;
 
@@ -39,8 +44,7 @@ export function isRemoteOrInlineImageUrl(url: string): boolean {
  * (not remote URLs or arbitrary relative paths outside `assets/`).
  */
 export function isManagedMarkdownAssetUrl(url: string): boolean {
-	const n = url.trim().replace(/\\/g, "/");
-	return /^(?:\.\/)?assets\//i.test(n);
+	return MANAGED_ASSET_URL_RE.test(url.trim().replace(/\\/g, "/"));
 }
 
 /** Serialize an image node as portable Markdown syntax. */
@@ -112,7 +116,7 @@ export async function deleteManagedMarkdownAsset(
  * Grace period before deleting a managed asset after its last document ref
  * disappears. Cut → paste / undo must still find the file on disk.
  */
-export const ASSET_GC_DEBOUNCE_MS = 15_000;
+const ASSET_GC_DEBOUNCE_MS = 15_000;
 
 function assetGcKey(mdFilePath: string, url: string): string {
 	return `${mdFilePath}\0${url}`;
@@ -216,8 +220,6 @@ export function createManagedAssetGc(options?: {
 		},
 	};
 }
-
-export type ManagedAssetGc = ReturnType<typeof createManagedAssetGc>;
 
 /** Parent directory of a file path (preserves path separator style). */
 export function parentDir(filePath: string): string {

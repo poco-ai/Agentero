@@ -7,14 +7,6 @@ import {
 } from "@platejs/markdown";
 import type { SlateEditor, TElement } from "platejs";
 
-export type CalloutSlateNode = {
-	type: "callout";
-	calloutType: string;
-	calloutTypeRaw: string;
-	title?: string;
-	children: unknown[];
-};
-
 type MdNode = {
 	type: string;
 	value?: string;
@@ -32,7 +24,7 @@ type RemarkFile = {
 	value?: unknown;
 };
 
-export type CalloutMarker = {
+type CalloutMarker = {
 	type: string;
 	typeRaw: string;
 	title?: string;

@@ -1,7 +1,6 @@
 "use client";
 
 import { PlateElement, type PlateElementProps } from "platejs/react";
-import { cn } from "@/lib/core/utils";
 
 export function TableElement(props: PlateElementProps) {
 	return (
@@ -24,7 +23,7 @@ export function TableCellElement(props: PlateElementProps) {
 		<PlateElement
 			{...props}
 			as="td"
-			className={cn("border border-border px-3 py-1.5 align-top")}
+			className="border border-border px-3 py-1.5 align-top"
 		>
 			{props.children}
 		</PlateElement>
@@ -36,9 +35,7 @@ export function TableCellHeaderElement(props: PlateElementProps) {
 		<PlateElement
 			{...props}
 			as="th"
-			className={cn(
-				"border border-border bg-muted/50 px-3 py-1.5 text-left align-top font-semibold",
-			)}
+			className="border border-border bg-muted/50 px-3 py-1.5 text-left align-top font-semibold"
 		>
 			{props.children}
 		</PlateElement>

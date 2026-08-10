@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	SELECTION_CARD_EDGE as EDGE,
 	placeSelectionCard,
-} from "@/components/viewer/pdf-ask/selection-card";
+} from "@/components/viewer/pdf/cards/selection-card";
 
 /**
  * placeSelectionCard falls back to 1200×800 when `window` is missing

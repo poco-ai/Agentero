@@ -3,7 +3,7 @@
  * annotations panel can drive the active viewer without React prop threading).
  */
 
-import type { PdfViewerHandle } from "@/components/viewer/embed/pdf-viewer";
+import type { PdfViewerHandle } from "@/components/viewer/pdf/pdf-viewer";
 import {
 	paperAbsFromWorkspaceTab,
 	pdfTabIdForPaper,

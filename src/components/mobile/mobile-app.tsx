@@ -98,7 +98,7 @@ import { cn } from "@/lib/core/utils";
 import type { PaperMetadata } from "@/lib/paper/types";
 
 const MobilePdfViewer = lazy(() =>
-	import("@/components/viewer/embed/pdf-viewer").then((module) => ({
+	import("@/components/viewer/pdf/pdf-viewer").then((module) => ({
 		default: module.PdfViewer,
 	})),
 );

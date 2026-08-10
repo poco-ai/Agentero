@@ -15,7 +15,7 @@ PDFium engine 由窗口共享。默认优先 **worker 引擎**（PDFium WASM 跑
 
 `RenderLayer` 只是瓦片下的底图层，其 scale 另按 `PDF_BASE_LAYER_SCALE_CAP`（1.5）封顶：zoom 超过该值后整页光栅不再重渲染（单 worker 串行渲染下，长文档高倍缩放的整页光栅 + blob 传输是主要开销），清晰层由 `TilingLayer` 承担。瓦片 `tileSize: 1024` + `extraRings: 1`，减少长文档快速滚动时的渲染往返与边缘弹出。
 
-抗抽动（twitch）措施：瓦片 `extraRings: 1` 预渲染视口外圈，减少快速滚动时边缘瓦片延迟弹出；`TilingLayer` patch 在新瓦片集异步光栅到达前保留旧瓦片作拉伸占位（`scale/srcScale` 重映射，1.5s 超时兜底），消除缩放瞬间的空白闪烁；marks 不再定时轮询，改由 Vault 文件监听（`vault:file-changed`，命中 `{paper}/marks/` 前缀，200ms 合并突发）触发刷新，配合激活时与窗口 focus 兜底，读取结果仍做 JSON 指纹比对，内容未变不提交 state，避免整 viewer 重渲染。
+抗抽动（twitch）措施：瓦片 `extraRings: 1` 预渲染视口外圈，减少快速滚动时边缘瓦片延迟弹出；`TilingLayer` patch 在新瓦片集异步光栅到达前保留旧瓦片作拉伸占位（`scale/srcScale` 重映射，1.5s 超时兜底），消除缩放瞬间的空白闪烁；marks 不再定时轮询，改由 Vault 文件监听（`vault:file-changed`，命中 `{paper}/marks/` 前缀，200ms 合并突发）触发刷新，配合激活时与窗口 focus 兜底；应用自身对 `marks/` 的写入会登记路径（3s TTL），其 watcher 回声直接跳过（写入方已更新内存态），mark 文件并发读取，读取结果仍做 JSON 指纹比对，内容未变不提交 state，避免整 viewer 重渲染。高亮派生态（视图模型 / 页边针锚点 / 链接分页图）的 annotation 事件按微任务合并后重建一次，批量导入 n 条不再逐事件 O(n²) 重建。
 
 滚动路径开销（触控板一帧内可触发多次 scroll）另有两处收敛：viewport 滚动指标按动画帧合并后再 `setViewportScrollMetrics`（每次提交都会推出新的 scroller layout 对象，令所有挂载页重渲染）；layout hover 命中框与 Eye 调试框按 `hoverableLayoutRegionsByPage` / `rawLayoutRegionsByPage` 预先分页缓存，页渲染只做 `Map.get`，不再每页重跑一遍全文档 NMS。
 
@@ -44,7 +44,7 @@ PDFium engine 由窗口共享。默认优先 **worker 引擎**（PDFium WASM 跑
 | 提问 | `marks/<id>.json`（kind ask） | 迷你问答；页边针；**hover / 打开卡片时高亮**锚定选区原文；打开时停在用户问题处，不自动滚到回复底部 |
 | 加入对话 | 发送该轮后写 `marks/<id>.json`（kind `ask`） | 选区固定为 Agent composer 文本 chip；**发送**后在选区旁插入**对话卡片**页边针（与「提问」同一 ask 卡 / 非视觉批注）；hover / 打开同样高亮原文，见 [agent.md](agent.md) |
 | 翻译 | `marks/<id>.json`（kind translate） | 浮层结果卡：贴合选区随滚轮重定位；未悬停卡片 / 原文高亮 / 页边针时自动收起（流式中除外）。见 [translate.md](translate.md) |
-| 视觉批注 | `marks/<id>.json`（kind `visual` v2）：区域 + 用户批注 + 可选嵌套 `agent`；裁剪图 `marks/assets/<id>.png`。默认形态为纯批注（与文字「批注备注」同壳）；有 Agent 会话时可切到对话视图。旧版 `agent-trace` v1 仍可读，Doctor 可一键升 v2 | 框选后：**批注备注** 输入 + 取消/保存；右上角「加入侧边栏对话」。已落盘 pin：纯批注模式可改备注；有对话时右上角切换「编辑备注 / 查看对话」。续聊走 ACP 同一 session |
+| 视觉批注 | `marks/<id>.json`（kind `visual` v2）：区域 + 用户批注 + 可选嵌套 `agent`；裁剪图 `marks/assets/<id>.png`。默认形态为纯批注（与文字「批注备注」同壳）；有 Agent 会话时可切到对话视图。旧版 `agent-trace` v1 仍可读，Doctor 可一键升 v2 | 框选后：**批注备注** 输入 + 取消/保存；右上角「加入侧边栏对话」。已落盘 pin：纯批注模式可改备注；有对话时右上角切换「编辑备注 / 查看对话」。续聊走 ACP 同一 session；`marks/annotations.json` 读写会按 annotation id 去重，避免重复导入脏数据 |
 
 - 不改 PDF 二进制；不自动写入 `NOTES.md`。
 - 提问 Agent 可与面板默认 Agent 分开配置。
@@ -63,41 +63,43 @@ PDFium engine 由窗口共享。默认优先 **worker 引擎**（PDFium WASM 跑
 
 | 路径 | 职责 |
 |---|---|
-| `src/components/viewer/embed/pdf-viewer.tsx` | 阅读器外壳：插件注册、EmbedPDF capability、按域 hook 组装、JSX 拼装 |
-| `src/components/viewer/embed/pdf-viewer-types.ts` | 对外契约（`PdfViewerHandle` / `PdfViewerProps`）与各卡片 / 编辑器状态类型 |
-| `src/components/viewer/embed/pdf-page-constants.ts` | 光栅 dpr / 底图 scale 封顶、页层样式与空集合单例（memo 依赖稳定性） |
-| `src/components/viewer/embed/pdf-color-scheme.ts` | PDF 页面明暗偏好持久化与跨窗广播 |
-| `src/components/viewer/embed/pdf-host-dom.ts` | 宿主 DOM 判定：可编辑目标、原生选区归属、文档关闭竞态错误 |
-| `src/components/viewer/embed/pdf-page-layers.tsx` | 单页图层栈（memo）：光栅 / 瓦片 / 选区 / 批注 / 链接 / 命中框 / 页边针 |
-| `src/components/viewer/embed/dockview-viewport.tsx` | 视口注册 + sash 拖拽期 resize 门控 + 滚动指标按帧提交 |
-| `src/components/viewer/embed/wheel-zoom-handler.tsx` | ⌘滚轮缩放绑定（passive 切换 + 每帧合并） |
-| `src/components/viewer/embed/active-card-scroll-sync.tsx` | 滚动时按帧重锚浮动卡片 |
-| `src/components/viewer/embed/outline-tree.tsx` | 大纲（书签）递归列表 |
-| `src/components/viewer/embed/citation-links.tsx` | 文中链接命中层与目标预览解析 |
-| `src/components/viewer/embed/layout-translate-overlay.tsx` | 全文翻译逐块覆盖层与字号自适应 |
-| `src/components/viewer/embed/chrome/` | 纯展示 chrome：`pdf-toolbar` / `pdf-find-bar` / `pdf-outline-panel` / `pdf-bottom-bar` / `pdf-card-stack`（portal 卡片栈） |
-| `src/components/viewer/embed/use-pdf-cards.ts` | 浮动卡生命周期：打开 / 定位（虚拟化重试）/ hover 收起 |
-| `src/components/viewer/embed/use-pdf-highlights.ts` | EmbedPDF 标注桥：高亮视图模型、页边针锚点、链接分页图、导入迁移与防抖导出 |
-| `src/components/viewer/embed/use-pdf-marks-io.ts` | `marks/` 读取与文件监听刷新（指纹比对后再提交 state） |
-| `src/components/viewer/embed/use-pdf-text-selection.ts` | 选区检测、划词菜单状态与复制拦截 |
-| `src/components/viewer/embed/use-pdf-ask-threads.ts` | 划词提问工作流：建/续/停、ACP 流监听、`marks/<id>.json` 落盘 |
-| `src/components/viewer/embed/use-pdf-selection-translate.ts` | 划词翻译工作流与结果卡状态 |
-| `src/components/viewer/embed/use-pdf-visual-marks.ts` | 框选裁剪与 visual mark 工作流（批注 / 加入对话 / 续聊） |
-| `src/components/viewer/embed/use-pdf-layout-analysis.ts` | 版面分析、图/公式 hover（`visualDraftEditor` 与 `formulaAnnotationPreview` 互斥的唯一 owner）、`Annotation.md` 符号表、全文翻译任务 |
-| `src/components/viewer/embed/use-pdf-page-text.ts` | 按需加载页文字矩形（页边针是否压字） |
-| `src/components/viewer/embed/use-pdf-citations.ts` | 文中引用 hover 预览与跳转 |
-| `src/components/viewer/embed/use-pdf-find.ts` | `⌘F` 查找 |
-| `src/components/viewer/embed/use-pdf-outline.ts` | 书签大纲加载 |
-| `src/components/viewer/embed/use-pdf-viewer-handle.ts` | 注册命令式 handle（跨簇，唯一入口） |
-| `src/components/viewer/embed/engine-provider.tsx` | PDFium engine 宿主：worker 优先 + 就绪探针 + 主线程回退 |
-| `src/components/viewer/embed/pdf-region-select-layer.tsx` | 图片区域框选覆盖层 |
-| `src/components/viewer/embed/pdf-region-crop.ts` | PDF 区域裁剪与 Agent 图片编码 |
+| `src/components/viewer/index.ts` | 对外唯一出口（`PdfViewer` / `PdfViewerHandle` / 面板 / registry）；lazy `import()` 例外走具体模块 |
+| `src/components/viewer/pdf/pdf-viewer.tsx` | 阅读器外壳：插件注册、EmbedPDF capability、按域 hook 组装、JSX 拼装 |
+| `src/components/viewer/pdf/types.ts` | 对外契约与各卡片 / 编辑器状态类型，含共用 `ScreenPoint` |
+| `src/components/viewer/pdf/constants.ts` | 光栅 dpr / 底图 scale 封顶、页层样式与空集合单例（memo 依赖稳定性） |
+| `src/components/viewer/pdf/coords.ts` | 页↔屏坐标：页元素查找、rect→屏幕点、选区→归一化 anchor |
+| `src/components/viewer/pdf/color-scheme.ts` | PDF 页面明暗偏好持久化与跨窗广播 |
+| `src/components/viewer/pdf/host-dom.ts` | 宿主 DOM 判定：可编辑目标、原生选区归属、文档关闭竞态错误 |
+| `src/components/viewer/pdf/region-crop.ts` | PDF 区域裁剪与 Agent 图片编码 |
+| `src/components/viewer/pdf/engine-provider.tsx` | PDFium engine 宿主：worker 优先 + 就绪探针 + 主线程回退 |
+| `src/components/viewer/pdf/layers/` | 页内绘制层：`page-layers`（memo 单页栈）/ `citation-links` / `layout-translate-overlay` / `region-select-layer` / `selection-gutter` |
+| `src/components/viewer/pdf/chrome/` | 纯展示 chrome：`pdf-toolbar` / `pdf-find-bar` / `pdf-outline-panel`（+`outline-tree`）/ `pdf-bottom-bar` / `pdf-card-stack`（portal 卡片栈） |
+| `src/components/viewer/pdf/cards/` | 划词与 mark 卡片：`selection-menu` / `selection-card`（共用壳）/ `ask-popover` / `translate-card` / `visual-trace-card` / `visual-annotation-editor` / `annotation-editor` / `formula-annotation-card` / `citation-preview` |
+| `src/components/viewer/pdf/viewport/` | 宿主接线：`dockview-viewport`（resize 门控 + 滚动指标按帧提交）/ `wheel-zoom-handler` / `active-card-scroll-sync` |
+| `src/components/viewer/pdf/hooks/use-pdf-cards.ts` | 浮动卡生命周期：打开 / 定位（虚拟化重试）/ hover 收起 |
+| `src/components/viewer/pdf/hooks/use-pdf-highlights.ts` | EmbedPDF 标注桥：高亮视图模型、页边针锚点、链接分页图、导入迁移与防抖导出；annotation 事件按微任务合并重建 |
+| `src/components/viewer/pdf/hooks/use-pdf-marks-io.ts` | `marks/` 并发读取与文件监听刷新（自写回声跳过；指纹比对后再提交 state） |
+| `src/components/viewer/pdf/hooks/use-pdf-text-selection.ts` | 选区检测、划词菜单状态与复制拦截 |
+| `src/components/viewer/pdf/hooks/use-pdf-ask-threads.ts` | 划词提问工作流：建/续/停、ACP 流监听、`marks/<id>.json` 落盘 |
+| `src/components/viewer/pdf/hooks/use-pdf-selection-translate.ts` | 划词翻译工作流与结果卡状态 |
+| `src/components/viewer/pdf/hooks/use-pdf-region-framing.ts` | ⌘. 框选模式与单次裁剪（产出草稿交给 hover hook） |
+| `src/components/viewer/pdf/hooks/use-pdf-visual-marks.ts` | visual mark 工作流：草稿落盘 / 加入对话 / 续聊 / pin 卡片 |
+| `src/components/viewer/pdf/hooks/use-pdf-layout-regions.ts` | layout store 订阅与按页分桶（hover 命中框 / Eye 叠加层） |
+| `src/components/viewer/pdf/hooks/use-pdf-layout-run.ts` | 版面分析运行：sidecar 优先、headless 队列、可中止任务 |
+| `src/components/viewer/pdf/hooks/use-pdf-layout-hover.ts` | 图/公式 hover 与两张卡（`visualDraftEditor` 与 `formulaAnnotationPreview` 互斥的唯一 owner）、`Annotation.md` 符号表 |
+| `src/components/viewer/pdf/hooks/use-pdf-layout-translate.ts` | 全文翻译任务与工具栏三态标签 |
+| `src/components/viewer/pdf/hooks/use-pdf-page-text.ts` | 按需加载页文字矩形（页边针是否压字） |
+| `src/components/viewer/pdf/hooks/use-pdf-citations.ts` | 文中引用 hover 预览与跳转 |
+| `src/components/viewer/pdf/hooks/use-pdf-navigation.ts` | 页码输入、跳页与阅读位置恢复/持久化 |
+| `src/components/viewer/pdf/hooks/use-pdf-zoom-controls.ts` | 缩放百分比输入（focus 期不被观测值覆盖） |
+| `src/components/viewer/pdf/hooks/use-pdf-color-scheme.ts` | 页面明暗状态与跨窗同步 |
+| `src/components/viewer/pdf/hooks/use-pdf-note-editor.ts` | 文字批注编辑器（按标注 id 打开，占用 hover surface） |
+| `src/components/viewer/pdf/hooks/use-pdf-find.ts` | `⌘F` 查找 |
+| `src/components/viewer/pdf/hooks/use-pdf-outline.ts` | 书签大纲加载 |
+| `src/components/viewer/pdf/hooks/use-pdf-viewer-handle.ts` | 注册命令式 handle（跨簇，唯一入口） |
 | `src/components/viewer/panels/figures-panel.tsx` | 版面分析入口（右栏 header：分析 / 显示 bbox） |
 | `src/components/viewer/panels/annotations-panel.tsx` | 批注 / 提问 / visual mark 总览（右栏） |
 | `src/components/viewer/panels/references-panel.tsx` | 参考文献解析与入库（右栏） |
-| `src/components/viewer/pdf-ask/visual-annotation-editor.tsx` | 框选后批注编辑器 |
-| `src/components/viewer/pdf-citation-preview.tsx` | 文中引用悬浮预览 |
-| `src/components/viewer/pdf-ask/formula-annotation-card.tsx` | 公式 hover「公式解析」符号对照卡 |
 | `src/components/viewer/pdf-viewer-registry.ts` | 按 tab 注册 `PdfViewerHandle`，供 shell / 命令面板调用 |
 | `src/lib/pdf/equation-annotation/` | `Annotation.md` 符号表解析与加载 |
 | `src/lib/agent/visual-context-store.ts` | Agent composer 视觉批注草稿 |
@@ -113,7 +115,7 @@ PDFium engine 由窗口共享。默认优先 **worker 引擎**（PDFium WASM 跑
 | `src/lib/pdf/selection/` | 选区与 marks IO |
 | `src/lib/core/math.ts` | `clamp01` / `clamp`（几何与放置的唯一实现） |
 
-组织约定：`embed/` 放阅读器实现（外壳 + 按域 `use-pdf-*` hook + 单页图层 + 纯展示 `chrome/`），`panels/` 放右栏面板（只被 shell 引用），`pdf-ask/` 放划词与 mark 卡片。`src/components` 下不设 `index.ts` barrel。
+组织约定：`pdf/` 放阅读器实现（外壳 + `hooks/` 按域状态 + `layers/` 页内绘制 + `chrome/` 工具栏浮层 + `cards/` 划词卡片 + `viewport/` 宿主接线），`panels/` 放右栏面板（只被 shell 引用）。folder 外部只从 `@/components/viewer` 导入；folder 内部一律用具体路径，且不得反向导入该 barrel。
 
 ## 版面分析（Figures 侧栏）
 

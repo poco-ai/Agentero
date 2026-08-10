@@ -16,19 +16,13 @@ import {
 	Workflow,
 } from "lucide-react";
 import { useEditorRef } from "platejs/react";
-import type {
-	MutableRefObject,
-	KeyboardEvent as ReactKeyboardEvent,
-} from "react";
-import {
-	useCallback,
-	useEffect,
-	useLayoutEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import type { MutableRefObject } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import {
+	type CompletionMenuController,
+	useCompletionMenu,
+} from "@/components/editor/hooks/use-completion-menu";
 import { ViewportFloating } from "@/components/ui/viewport-floating";
 import {
 	executeSlashCommand,
@@ -48,9 +42,7 @@ export type SlashCommandDraft = {
 	allowCallout: boolean;
 };
 
-export type SlashCommandController = {
-	handleKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => boolean;
-};
+export type SlashCommandController = CompletionMenuController;
 
 type SlashCommandMenuProps = {
 	draft: SlashCommandDraft | null;
@@ -87,8 +79,6 @@ export function SlashCommandMenu({
 }: SlashCommandMenuProps) {
 	const { t } = useTranslation("editor");
 	const editor = useEditorRef();
-	const [selectedIndex, setSelectedIndex] = useState(0);
-	const listRef = useRef<HTMLDivElement>(null);
 	const commands = useMemo(
 		() =>
 			draft
@@ -98,33 +88,8 @@ export function SlashCommandMenu({
 				: [],
 		[draft, t],
 	);
-	const commandsRef = useRef(commands);
-	commandsRef.current = commands;
 	const draftQuery = draft?.query ?? null;
 	const draftAllowCallout = draft?.allowCallout ?? false;
-
-	useEffect(() => {
-		if (draftQuery == null) return;
-		void draftAllowCallout;
-		setSelectedIndex(0);
-	}, [draftQuery, draftAllowCallout]);
-
-	// Scroll only the menu list — avoid ancestor scroll dismissing UI.
-	useEffect(() => {
-		const list = listRef.current;
-		if (!list || !commands[selectedIndex]) return;
-		const option = list.querySelector<HTMLElement>(
-			'[role="option"][aria-selected="true"]',
-		);
-		if (!option) return;
-		const listRect = list.getBoundingClientRect();
-		const optionRect = option.getBoundingClientRect();
-		if (optionRect.bottom > listRect.bottom) {
-			list.scrollTop += optionRect.bottom - listRect.bottom;
-		} else if (optionRect.top < listRect.top) {
-			list.scrollTop -= listRect.top - optionRect.top;
-		}
-	}, [commands, selectedIndex]);
 
 	const selectCommand = useCallback(
 		(command: SlashCommand) => {
@@ -154,58 +119,24 @@ export function SlashCommandMenu({
 		[draft, editor, onClose, onCommandExecuted],
 	);
 
-	const selectedIndexRef = useRef(selectedIndex);
-	selectedIndexRef.current = selectedIndex;
-	const draftRef = useRef(draft);
-	draftRef.current = draft;
-	const selectCommandRef = useRef(selectCommand);
-	selectCommandRef.current = selectCommand;
-	const onCloseRef = useRef(onClose);
-	onCloseRef.current = onClose;
-
-	useLayoutEffect(() => {
-		controllerRef.current = {
-			handleKeyDown: (event) => {
-				if (!draftRef.current) return false;
-				if (event.key === "Escape") {
-					event.preventDefault();
-					onCloseRef.current();
-					return true;
-				}
-				if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-					event.preventDefault();
-					event.stopPropagation();
-					const items = commandsRef.current;
-					if (items.length) {
-						const delta = event.key === "ArrowDown" ? 1 : -1;
-						setSelectedIndex(
-							(index) => (index + delta + items.length) % items.length,
-						);
-					}
-					return true;
-				}
-				const items = commandsRef.current;
-				const index = selectedIndexRef.current;
-				if (isSlashCommandSubmitKey(event.key) && items[index]) {
-					if (selectCommandRef.current(items[index])) {
-						event.preventDefault();
-						event.stopPropagation();
-						// Stop the event from reaching Slate's default Enter handler.
-						if (
-							typeof event.nativeEvent?.stopImmediatePropagation === "function"
-						) {
-							event.nativeEvent.stopImmediatePropagation();
-						}
-						return true;
-					}
-				}
-				return false;
-			},
-		};
-		return () => {
-			controllerRef.current = null;
-		};
-	}, [controllerRef]);
+	const { selectedIndex, setSelectedIndex, listRef } = useCompletionMenu({
+		items: commands,
+		open: Boolean(draft),
+		resetKey: `${draftQuery}|${draftAllowCallout}`,
+		onClose,
+		controllerRef,
+		onSubmitKey: (event, command) => {
+			if (!command || !isSlashCommandSubmitKey(event.key)) return false;
+			if (!selectCommand(command)) return false;
+			event.preventDefault();
+			event.stopPropagation();
+			// Stop the event from reaching Slate's default Enter handler.
+			if (typeof event.nativeEvent?.stopImmediatePropagation === "function") {
+				event.nativeEvent.stopImmediatePropagation();
+			}
+			return true;
+		},
+	});
 
 	if (!draft) return null;
 	return (

@@ -118,7 +118,7 @@ async function boot() {
 		// Doc windows may show PDF — need PDFium host; KaTeX for markdown notes.
 		const [{ DocWindowRoot }, { PdfEngineHost }] = await Promise.all([
 			import("@/components/shell/doc-window-root"),
-			import("@/components/viewer/embed/engine-provider"),
+			import("@/components/viewer/pdf/engine-provider"),
 			import("katex/dist/katex.min.css"),
 		]);
 		bootStage("doc-window-module");
@@ -150,7 +150,7 @@ async function boot() {
 	// initialize a second PDFium instance.
 	const [{ default: App }, { PdfEngineHost }] = await Promise.all([
 		import(isMobileApp() ? "./components/mobile/mobile-app" : "./App"),
-		import("@/components/viewer/embed/engine-provider"),
+		import("@/components/viewer/pdf/engine-provider"),
 		import("katex/dist/katex.min.css"),
 	]);
 	bootStage("app-module");

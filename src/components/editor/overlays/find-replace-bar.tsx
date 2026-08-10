@@ -26,6 +26,23 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+/**
+ * `findSearchMatches` returns a fresh array each run, so the default reference
+ * equality would mark matches as changed on every keystroke and force a full
+ * re-decorate. Compare the match positions instead.
+ */
+function matchesKey(ranges: TRange[]): string {
+	return ranges
+		.map(
+			(range) =>
+				`${range.anchor.path.join(".")}:${range.anchor.offset}-${range.focus.offset}`,
+		)
+		.join("|");
+}
+
+/** Query typing settles before the document is walked and re-decorated. */
+const FIND_DEBOUNCE_MS = 150;
+
 /** All six bar buttons are the same ghost icon button with a bottom tooltip. */
 function IconAction({
 	label,
@@ -91,22 +108,37 @@ export function FindReplaceBar({
 	const [activeIndex, setActiveIndex] = useState(0);
 	const searchInputRef = useRef<HTMLInputElement>(null);
 
+	/**
+	 * The input stays on the live query; matching waits for a pause so a
+	 * keystroke burst costs one full-document walk + redecorate, not one
+	 * per key.
+	 */
+	const [debouncedQuery, setDebouncedQuery] = useState("");
+	useEffect(() => {
+		const timer = window.setTimeout(
+			() => setDebouncedQuery(query),
+			FIND_DEBOUNCE_MS,
+		);
+		return () => window.clearTimeout(timer);
+	}, [query]);
+
 	// Recompute matches on every editor change while the bar is open.
 	const matches = useEditorSelector(
-		(e) => findSearchMatches(e, query),
-		[query],
+		(e) => findSearchMatches(e, debouncedQuery),
+		[debouncedQuery],
+		{ equalityFn: (a, b) => matchesKey(a) === matchesKey(b) },
 	);
 	const index = matches.length ? Math.min(activeIndex, matches.length - 1) : -1;
 
 	useEffect(() => {
-		editor.setOption(FindReplacePlugin, "search", query);
+		editor.setOption(FindReplacePlugin, "search", debouncedQuery);
 		editor.setOption(
 			ActiveSearchHighlightPlugin,
 			"activeMatch",
 			index >= 0 ? matches[index] : null,
 		);
 		editor.api.redecorate();
-	}, [editor, query, matches, index]);
+	}, [editor, debouncedQuery, matches, index]);
 
 	useEffect(
 		() => () => {
@@ -130,16 +162,16 @@ export function FindReplaceBar({
 
 	const scrolledQueryRef = useRef("");
 	useEffect(() => {
-		if (!query) {
+		if (!debouncedQuery) {
 			scrolledQueryRef.current = "";
 			return;
 		}
-		if (matches.length && scrolledQueryRef.current !== query) {
-			scrolledQueryRef.current = query;
+		if (matches.length && scrolledQueryRef.current !== debouncedQuery) {
+			scrolledQueryRef.current = debouncedQuery;
 			setActiveIndex(0);
 			scrollToMatch(editor, matches[0]);
 		}
-	}, [editor, query, matches]);
+	}, [editor, debouncedQuery, matches]);
 
 	const goTo = (target: number) => {
 		if (!matches.length) return;
@@ -151,12 +183,12 @@ export function FindReplaceBar({
 	const replaceCurrent = () => {
 		if (index < 0) return;
 		replaceRange(editor, matches[index], replacement);
-		const next = findSearchMatches(editor, query);
+		const next = findSearchMatches(editor, debouncedQuery);
 		if (!next.length) return;
 		// A replacement containing the query re-matches in place; skip past it.
 		const stillMatches = replacement
 			.toLowerCase()
-			.includes(query.toLowerCase());
+			.includes(debouncedQuery.toLowerCase());
 		const nextIndex =
 			((stillMatches ? index + 1 : index) + next.length) % next.length;
 		setActiveIndex(nextIndex);
@@ -218,7 +250,7 @@ export function FindReplaceBar({
 						}}
 					/>
 					<span className="min-w-11 shrink-0 px-1 text-center text-muted-foreground text-xs tabular-nums">
-						{query
+						{debouncedQuery
 							? matches.length
 								? `${index + 1}/${matches.length}`
 								: t("findReplace.noResults")

@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { registerPdfHandle } from "@/components/viewer/pdf-viewer-registry";
+import { registerPdfHandle } from "@/components/viewer";
 import {
 	DockWorkspace,
 	type WorkspaceExternalDrop,

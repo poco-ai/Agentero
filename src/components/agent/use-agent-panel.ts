@@ -194,6 +194,13 @@ import {
 } from "@/lib/ui/prompt-recall";
 import { toVaultRelative } from "@/lib/wiki";
 
+/**
+ * Debounce before the Chat-open / agent-switch warm spawns its ACP process.
+ * `warm_agent` has no cancellation path, so every superseded spawn would run
+ * to completion as an orphan; settling the switch first avoids that (Fix #274).
+ */
+const WARM_SPAWN_DEBOUNCE_MS = 300;
+
 export type UseAgentPanelArgs = Pick<
 	AgentPanelProps,
 	| "vaultPath"
@@ -718,23 +725,29 @@ export function useAgentPanel({
 	// When Chat opens (or agent/vault changes), warm ACP in the background for models/context.
 	useEffect(() => {
 		if (!isTauri() || !selectedAgentId || !agentListenersReady) return;
+		// Supersede any in-flight warm immediately (its results are dropped)…
 		const gen = ++warmGenRef.current;
 		let cancelled = false;
-		const agentId = selectedAgentId;
-		const requestVaultPath = vaultPath;
-		void runWarmAgent({
-			agentId,
-			vaultPath: requestVaultPath,
-			modelId: loadModelPref(agentId) ?? undefined,
-			collaborationModeId: loadCollaborationPref(agentId) ?? undefined,
-			generation: gen,
-			stillValid: () =>
-				!cancelled &&
-				selectedAgentIdRef.current === agentId &&
-				vaultPathRef.current === requestVaultPath,
-		});
+		// …but debounce the spawn itself: warm_agent cannot be cancelled, so a
+		// rapid agent/vault switch must not start one ACP process per change.
+		const timer = setTimeout(() => {
+			const agentId = selectedAgentId;
+			const requestVaultPath = vaultPath;
+			void runWarmAgent({
+				agentId,
+				vaultPath: requestVaultPath,
+				modelId: loadModelPref(agentId) ?? undefined,
+				collaborationModeId: loadCollaborationPref(agentId) ?? undefined,
+				generation: gen,
+				stillValid: () =>
+					!cancelled &&
+					selectedAgentIdRef.current === agentId &&
+					vaultPathRef.current === requestVaultPath,
+			});
+		}, WARM_SPAWN_DEBOUNCE_MS);
 		return () => {
 			cancelled = true;
+			clearTimeout(timer);
 		};
 	}, [selectedAgentId, vaultPath, runWarmAgent, agentListenersReady]);
 

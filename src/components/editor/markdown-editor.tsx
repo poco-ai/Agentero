@@ -29,6 +29,7 @@ import { HeadingRenameDialog } from "@/components/editor/overlays/heading-rename
 import { SlashCommandMenu } from "@/components/editor/overlays/slash-command-menu";
 import {
 	MINIMUM_TOC_HEADINGS,
+	queryTocHeadings,
 	TocSidebar,
 } from "@/components/editor/overlays/toc-sidebar";
 import { WikiLinkSuggestion } from "@/components/editor/overlays/wiki-link-suggestion";
@@ -213,7 +214,9 @@ export function MarkdownEditor({
 	const plugins = useMemo(
 		() => [
 			...MarkdownEditorKit,
-			TocPlugin,
+			TocPlugin.configure({
+				options: { queryHeading: queryTocHeadings },
+			}),
 			ImagePlugin.configure({
 				options: {
 					uploadImage: async (dataUrl: ArrayBuffer | string) => {

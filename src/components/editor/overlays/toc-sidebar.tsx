@@ -1,10 +1,12 @@
 "use client";
 
+import { type Heading, isHeading } from "@platejs/toc";
 import {
 	type TocSideBarProps,
 	useTocSideBar,
 	useTocSideBarState,
 } from "@platejs/toc/react";
+import { NodeApi, type SlateEditor } from "platejs";
 import i18n from "@/i18n";
 import { cn } from "@/lib/core/utils";
 
@@ -16,6 +18,76 @@ const markerWidthByDepth = {
 	5: "w-2.5",
 	6: "w-2",
 } as const;
+
+const headingDepthByType: Record<string, number> = {
+	h1: 1,
+	h2: 2,
+	h3: 3,
+	h4: 4,
+	h5: 5,
+	h6: 6,
+};
+
+type TocHeadingCacheEntry = {
+	/** `editor.children` reference the cache was computed for. */
+	children: unknown;
+	/** Signature of the cached list (id/depth/title per heading). */
+	key: string;
+	list: Heading[];
+};
+
+/** Per-editor cache; editors are keyed weakly so tabs can be GC'd. */
+const tocHeadingCache = new WeakMap<object, TocHeadingCacheEntry>();
+
+/**
+ * `TocPlugin` `queryHeading` override.
+ *
+ * The library's `getHeadingList` walks the whole document and returns a fresh
+ * array on every call — and both `useTocSideBarState` and its content observer
+ * select it, so each edit cost two full walks plus an IntersectionObserver
+ * rebuild (the observer effect depends on the list reference). Memoizing on
+ * `editor.children` shares one walk between the two selectors per edit, and
+ * keeping the array reference stable while heading id/depth/title are
+ * unchanged means edits elsewhere neither re-render the sidebar nor rebuild
+ * the observer.
+ */
+export function queryTocHeadings(editor: SlateEditor): Heading[] {
+	let entry = tocHeadingCache.get(editor);
+	if (entry && entry.children === editor.children) return entry.list;
+
+	const list: Heading[] = [];
+	for (const [node, path] of editor.api.nodes({
+		at: [],
+		match: (n) => isHeading(n),
+	})) {
+		const title = NodeApi.string(node);
+		if (!title) continue;
+		const { id, type } = node as { id?: string; type: string };
+		list.push({
+			id: id ?? "",
+			depth: headingDepthByType[type] ?? 6,
+			path,
+			title,
+			type,
+		});
+	}
+	const key = list
+		.map(
+			(heading) => `${heading.id}\u0000${heading.depth}\u0000${heading.title}`,
+		)
+		.join("\u0001");
+
+	if (!entry) {
+		entry = { children: null, key: "", list: [] };
+		tocHeadingCache.set(editor, entry);
+	}
+	entry.children = editor.children;
+	if (key !== entry.key) {
+		entry.key = key;
+		entry.list = list;
+	}
+	return entry.list;
+}
 
 /**
  * Mounting this component costs two full-document walks per edit (both

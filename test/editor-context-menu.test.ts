@@ -5,7 +5,6 @@ import { LinkPlugin } from "@/components/editor/plugins/link-plugin";
 import { WikiLinkPlugin } from "@/components/editor/plugins/wikilink-plugin";
 import {
 	editorContextMenuCapabilities,
-	editorLinkTemplate,
 	insertEditorLinkTemplate,
 } from "@/lib/markdown/editor-context-menu";
 import {
@@ -14,32 +13,24 @@ import {
 } from "@/lib/markdown/external-link-insert";
 
 describe("Markdown editor context menu", () => {
-	it("places an empty internal-link caret between the brackets", () => {
-		expect(editorLinkTemplate("wiki")).toEqual({
-			text: "[[]]",
-			selectionStart: 2,
-			selectionEnd: 2,
+	it("preserves a selected label inside the wiki draft and keeps it selected", () => {
+		const editor = createSlateEditor({
+			plugins: [WikiLinkPlugin],
+			value: [{ type: "p", children: [{ text: "Before Target after" }] }],
+		});
+		const selection = {
+			anchor: { path: [0, 0], offset: 7 },
+			focus: { path: [0, 0], offset: 13 },
+		};
+
+		expect(insertEditorLinkTemplate(editor, "wiki", selection)).toEqual({
 			wikiLinkDraft: true,
 		});
-	});
 
-	it("marks external templates as node inserts", () => {
-		expect(editorLinkTemplate("external")).toMatchObject({
-			wikiLinkDraft: false,
-			externalLinkNode: true,
-		});
-	});
-
-	it("preserves selected text and selects it inside each link", () => {
-		expect(editorLinkTemplate("wiki", "Target")).toEqual({
-			text: "[[Target]]",
-			selectionStart: 2,
-			selectionEnd: 8,
-			wikiLinkDraft: true,
-		});
-		expect(editorLinkTemplate("external", "Label")).toMatchObject({
-			externalLinkNode: true,
-			wikiLinkDraft: false,
+		expect(editor.api.string([])).toBe("Before [[Target]] after");
+		expect(editor.selection).toEqual({
+			anchor: { path: [0, 1], offset: 2 },
+			focus: { path: [0, 1], offset: 8 },
 		});
 	});
 
@@ -78,7 +69,7 @@ describe("Markdown editor context menu", () => {
 
 		const result = insertEditorLinkTemplate(editor, "external", selection);
 
-		expect(result.externalLinkNode).toBe(true);
+		expect(result.wikiLinkDraft).toBe(false);
 		const children = (
 			editor.children[0] as { children: Array<Record<string, unknown>> }
 		).children;

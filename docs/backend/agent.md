@@ -38,6 +38,10 @@ spawn 用户配置的 agent
 不写入本轮 content buffer），避免第二轮气泡开头重复上一轮回答；usage /
 commands / config 仍可在 load 期间转发。
 
+`agent_load_session` 在 `session/load` 返回后等待回放通知**静默**（200ms 无新
+通知即返回，最长仍封顶 800ms），替代此前的固定 800ms sleep；回放通常在
+response 前/后很快推完，空会话与短会话因此显著更快（#271）。
+
 ## 命令（摘要）
 
 | Command | 说明 |
@@ -107,6 +111,7 @@ ACP **没有**统一的 ask-user tool 规范：各 harness 的字段名、挂载
 - 若 `current_value` 不在 selector 选项中（第三方网关 / cc-switch 等只改默认 model、目录仍是官方列表），Host **注入**该 current id，避免 UI 丢失。
 - `preferred_model_id`（warm / run_once）在与 current 不同时 **始终尝试** `session/set_config_option`，不要求 id 已在上报列表中；失败仅 debug 日志，不阻断会话。
 - Codex `collaboration_mode`（Default / Plan 等）解析为 `agent:collaboration`；`collaboration_mode_id` 在选项内且与 current 不同时尝试 `session/set_config_option`。UI 称「模式」。Plan 才能用 `request_user_input`。不解析 / 不暴露 ACP `category: mode` 沙箱档。
+- Fast 开关（`fast-mode` model_config 选项）与上述一致：仅当会话当前值与请求值不同时才发 `session/set_config_option`，未变化的配置不再每轮重复下发（#271）。
 
 ## User-Agent（中转站亲和）
 

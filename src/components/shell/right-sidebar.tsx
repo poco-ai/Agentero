@@ -12,16 +12,16 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import type { PdfViewerHandle } from "@/components/viewer/embed/pdf-viewer";
+import type { PdfViewerHandle } from "@/components/viewer";
 import {
 	type AnnotationRow,
 	AnnotationsPanel,
 	type AskRow,
+	FiguresPanel,
+	pdfHandleFor,
+	ReferencesPanel,
 	type VisualTraceRow,
-} from "@/components/viewer/panels/annotations-panel";
-import { FiguresPanel } from "@/components/viewer/panels/figures-panel";
-import { ReferencesPanel } from "@/components/viewer/panels/references-panel";
-import { pdfHandleFor } from "@/components/viewer/pdf-viewer-registry";
+} from "@/components/viewer";
 import { BacklinksPanel } from "@/components/wiki/backlinks-panel";
 import { GraphPanel } from "@/components/wiki/graph-panel";
 import {

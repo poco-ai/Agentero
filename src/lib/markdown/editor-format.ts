@@ -100,11 +100,11 @@ function capturePoint(value: Value, point: Point): MarkdownPointBookmark {
 		.reduce((sum, leaf) => sum + leaf.text.length, 0);
 	const leaf = leafIndex >= 0 ? leaves[leafIndex] : undefined;
 	const offset = Math.max(0, Math.min(point.offset, leaf?.text.length ?? 0));
+	const text = blockText(leaves);
 	const blockOffset =
 		leafIndex >= 0
 			? precedingLength + offset
-			: Math.max(0, Math.min(point.offset, blockText(leaves).length));
-	const text = blockText(leaves);
+			: Math.max(0, Math.min(point.offset, text.length));
 
 	return {
 		path: [...point.path],
@@ -148,22 +148,33 @@ function pointAtBlockOffset(
 	return last ? { path: [...last.path], offset: last.text.length } : null;
 }
 
-function matchingOffsets(
+/**
+ * Offset in `text` whose surrounding context matches and which sits closest to
+ * `target`. Returns null when the bookmark carries no context to match.
+ */
+function bestOffsetInText(
 	text: string,
 	before: string,
 	after: string,
-): number[] {
-	if (!before && !after) return [];
-	const offsets: number[] = [];
+	target: number,
+): number | null {
+	if (!before && !after) return null;
+	let best: number | null = null;
+	let bestDistance = Number.POSITIVE_INFINITY;
 	for (let offset = 0; offset <= text.length; offset += 1) {
 		if (
-			text.slice(Math.max(0, offset - before.length), offset) === before &&
-			text.slice(offset, offset + after.length) === after
+			text.slice(Math.max(0, offset - before.length), offset) !== before ||
+			text.slice(offset, offset + after.length) !== after
 		) {
-			offsets.push(offset);
+			continue;
+		}
+		const distance = Math.abs(offset - target);
+		if (distance < bestDistance) {
+			bestDistance = distance;
+			best = offset;
 		}
 	}
-	return offsets;
+	return best;
 }
 
 function resolvePoint(
@@ -178,19 +189,27 @@ function resolvePoint(
 		  }
 		| undefined;
 
+	// textLeaves rebuilds a block's leaf array on every call, so memoise per block.
+	const blockTexts: (string | undefined)[] = [];
+	const textOf = (blockIndex: number): string =>
+		(blockTexts[blockIndex] ??= blockText(textLeaves(value, blockIndex)));
+
 	for (let blockIndex = 0; blockIndex < value.length; blockIndex += 1) {
-		const text = blockText(textLeaves(value, blockIndex));
-		for (const offset of matchingOffsets(
-			text,
+		// Block distance dominates the score, so a block already further away than
+		// the current best cannot win — skip building its text at all.
+		const blockPenalty = Math.abs(blockIndex - bookmark.blockIndex) * 1_000_000;
+		if (contextual && blockPenalty >= contextual.score) continue;
+
+		const offset = bestOffsetInText(
+			textOf(blockIndex),
 			bookmark.before,
 			bookmark.after,
-		)) {
-			const score =
-				Math.abs(blockIndex - bookmark.blockIndex) * 1_000_000 +
-				Math.abs(offset - bookmark.blockOffset);
-			if (!contextual || score < contextual.score) {
-				contextual = { blockIndex, offset, score };
-			}
+			bookmark.blockOffset,
+		);
+		if (offset === null) continue;
+		const score = blockPenalty + Math.abs(offset - bookmark.blockOffset);
+		if (!contextual || score < contextual.score) {
+			contextual = { blockIndex, offset, score };
 		}
 	}
 	if (contextual) {

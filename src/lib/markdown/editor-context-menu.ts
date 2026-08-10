@@ -5,12 +5,8 @@ import { insertExternalLinkNode } from "@/lib/markdown/external-link-insert";
 export type EditorLinkTemplateKind = "wiki" | "external";
 
 export type EditorLinkTemplate = {
-	text: string;
-	selectionStart: number;
-	selectionEnd: number;
+	/** True when the insert produced `[[…]]` draft text the completion menu owns. */
 	wikiLinkDraft: boolean;
-	/** External inserts create a real link node (not raw `[]()` text). */
-	externalLinkNode?: boolean;
 };
 
 export type EditorContextMenuCapabilities = {
@@ -47,38 +43,6 @@ export function editorContextMenuCapabilities({
 }
 
 /**
- * Build the literal Markdown inserted by the editor context menu (wiki only
- * for raw text). External links insert a real link node — see
- * {@link insertExternalLinkNode}.
- *
- * A selected single-line label is preserved and remains selected after the
- * insertion. With a collapsed caret, the selection lands in the empty target
- * (`[[|]]`), ready for typing.
- */
-export function editorLinkTemplate(
-	kind: EditorLinkTemplateKind,
-	selectedText = "",
-): EditorLinkTemplate {
-	if (kind === "wiki") {
-		return {
-			text: `[[${selectedText}]]`,
-			selectionStart: 2,
-			selectionEnd: 2 + selectedText.length,
-			wikiLinkDraft: true,
-		};
-	}
-	// Kept for callers that only need the conceptual shape; insert path no
-	// longer writes this as plain text.
-	return {
-		text: `[${selectedText}]()`,
-		selectionStart: 1,
-		selectionEnd: 1 + selectedText.length,
-		wikiLinkDraft: false,
-		externalLinkNode: true,
-	};
-}
-
-/**
  * Replace the supplied editor selection with a link:
  * - wiki → `[[…]]` draft text (completion opens)
  * - external → real `a` node + edit popover (slash / context menu)
@@ -89,41 +53,33 @@ export function insertEditorLinkTemplate(
 	selection: TRange,
 ): EditorLinkTemplate {
 	if (kind === "external") {
-		const result = insertExternalLinkNode(editor as PlateEditor, selection, {
+		insertExternalLinkNode(editor as PlateEditor, selection, {
 			openEdit: true,
 		});
-		return {
-			text: `[${result.label}](${result.url})`,
-			selectionStart: 1,
-			selectionEnd: 1 + result.label.length,
-			wikiLinkDraft: false,
-			externalLinkNode: true,
-		};
+		return { wikiLinkDraft: false };
 	}
 
 	const selectedText = RangeApi.isCollapsed(selection)
 		? ""
 		: editor.api.string(selection);
-	const template = editorLinkTemplate("wiki", selectedText);
 	editor.tf.select(selection);
 	editor.tf.withoutNormalizing(() => {
 		if (!RangeApi.isCollapsed(selection)) {
 			editor.tf.deleteFragment();
 		}
 		editor.tf.insertNodes({
-			text: template.text,
+			text: `[[${selectedText}]]`,
 			wikiLinkDraft: true,
 		});
-		const suffixLength = template.text.length - template.selectionEnd;
-		if (suffixLength > 0) {
-			editor.tf.move({ distance: suffixLength, reverse: true });
-		}
-		const selectedLength = template.selectionEnd - template.selectionStart;
+		// The caret lands after the node; step back over the two closing brackets
+		// so a collapsed insert reads `[[|]]`.
+		editor.tf.move({ distance: 2, reverse: true });
 		const focus = editor.selection?.anchor;
+		// A preserved label stays selected, ready to be overtyped.
 		const anchor =
-			focus && selectedLength > 0
+			focus && selectedText
 				? editor.api.before(focus, {
-						distance: selectedLength,
+						distance: selectedText.length,
 						unit: "character",
 					})
 				: null;
@@ -131,5 +87,5 @@ export function insertEditorLinkTemplate(
 			editor.tf.select({ anchor, focus });
 		}
 	});
-	return template;
+	return { wikiLinkDraft: true };
 }

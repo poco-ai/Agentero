@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Agentero",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "identifier": "com.poco-ai.agentero",
   "build": {
     "beforeDevCommand": "pnpm cli:ensure && pnpm dev",

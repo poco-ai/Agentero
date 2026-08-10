@@ -23,7 +23,7 @@ import {
 	ResizableHandle,
 	ResizablePanel,
 } from "@/components/ui/resizable";
-import { resolveActivePdfHandle } from "@/components/viewer/pdf-viewer-registry";
+import { resolveActivePdfHandle } from "@/components/viewer";
 import { WorkspaceHost } from "@/components/workspace/workspace-host";
 import { useAppBootstrap } from "@/hooks/use-app-bootstrap";
 import { useAppShortcuts } from "@/hooks/use-app-shortcuts";

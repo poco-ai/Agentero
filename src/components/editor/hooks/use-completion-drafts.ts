@@ -47,7 +47,7 @@ function probeCursor(
 	container: HTMLElement | null,
 ): CursorProbe | null {
 	// A menu must not reopen once focus left the editor (e.g. moved to a toolbar).
-	if (!container || !container.contains(document.activeElement)) return null;
+	if (!container?.contains(document.activeElement)) return null;
 	const slateSelection = editor.selection;
 	if (!slateSelection || !RangeApi.isCollapsed(slateSelection)) return null;
 

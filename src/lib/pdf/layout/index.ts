@@ -80,6 +80,7 @@ export {
 	slugFromTitle,
 } from "@/lib/pdf/layout/layout-index";
 export {
+	groupLayoutTranslateItemsByPage,
 	LAYOUT_TRANSLATE_CONCURRENCY,
 	LAYOUT_TRANSLATE_MAX_CHARS,
 	type LayoutTranslateItem,

@@ -10,7 +10,7 @@
 
 const FRONTMATTER_RE = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
 
-export type MarkdownDoc = {
+type MarkdownDoc = {
 	/** Leading YAML frontmatter block, verbatim (incl. delimiters and trailing newline). Empty when absent. */
 	frontmatter: string;
 	/** Markdown body after the frontmatter. */
@@ -35,7 +35,7 @@ export function joinFrontmatter(frontmatter: string, body: string): string {
 }
 
 /** Keys that are always list-valued in Agentero / Obsidian conventions. */
-export const FRONTMATTER_LIST_KEYS = new Set(["aliases", "tags", "cssclasses"]);
+const FRONTMATTER_LIST_KEYS = new Set(["aliases", "tags", "cssclasses"]);
 
 export type FrontmatterPropertyKind = "scalar" | "list" | "checkbox" | "date";
 
@@ -85,8 +85,11 @@ export function wrapFrontmatter(interior: string): string {
 }
 
 /** Count top-level `key:` lines for the collapsed Properties badge. */
-export function countFrontmatterProperties(interior: string): number {
-	const parsed = parseFrontmatterProperties(interior);
+export function countFrontmatterProperties(
+	interior: string,
+	/** Pass an existing parse to avoid parsing the same source twice. */
+	parsed: FrontmatterParseResult = parseFrontmatterProperties(interior),
+): number {
 	if (parsed.ok) return parsed.properties.length;
 	let count = 0;
 	for (const line of interior.split(/\r?\n/)) {
@@ -196,11 +199,11 @@ export function inferScalarKind(value: string): FrontmatterPropertyKind {
 	return "scalar";
 }
 
-export function normalizeCheckboxValue(value: string): "true" | "false" {
+function normalizeCheckboxValue(value: string): "true" | "false" {
 	return /^(true|yes|1)$/i.test(value.trim()) ? "true" : "false";
 }
 
-export function isIsoDate(value: string): boolean {
+function isIsoDate(value: string): boolean {
 	if (!ISO_DATE_RE.test(value.trim())) return false;
 	const [y, m, d] = value.trim().split("-").map(Number);
 	const dt = new Date(Date.UTC(y, m - 1, d));
@@ -367,7 +370,7 @@ export function serializeFrontmatterProperties(
 }
 
 /** Prefer list kind for known multi-value keys when creating a row. */
-export function defaultPropertyKind(key: string): FrontmatterPropertyKind {
+function defaultPropertyKind(key: string): FrontmatterPropertyKind {
 	return FRONTMATTER_LIST_KEYS.has(key.trim()) ? "list" : "scalar";
 }
 

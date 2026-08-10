@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { EmbedStatus } from "@/components/editor/embeds/embed-status";
 import { useMarkdownExportMode } from "@/components/editor/markdown-export-mode-context";
-import { PdfViewer } from "@/components/viewer/embed/pdf-viewer";
+import { PdfViewer } from "@/components/viewer";
+import { createKeyedCache } from "@/lib/core/keyed-cache";
 import { cn } from "@/lib/core/utils";
 import { localFileToArrayBuffer } from "@/lib/paper/media";
 import { imageMimeFromPath } from "@/lib/workspace/viewer";
@@ -33,9 +35,10 @@ export type WikiImageObjectUrlLease = {
 	release: () => void;
 };
 
-const ATTACHMENT_CACHE_LIMIT = 32;
-const attachmentBytesCache = new Map<string, ArrayBuffer>();
-const attachmentRequestCache = new Map<string, Promise<ArrayBuffer | null>>();
+const attachmentCache = createKeyedCache<ArrayBuffer | null>({
+	limit: 32,
+	shouldRetain: (bytes) => bytes !== null,
+});
 
 function attachmentRequestKey(
 	kind: "image" | "pdf",
@@ -45,36 +48,13 @@ function attachmentRequestKey(
 	return JSON.stringify([kind, absoluteTarget, revision]);
 }
 
-function cachedAttachmentBytes(key: string): ArrayBuffer | undefined {
-	return attachmentBytesCache.get(key);
-}
-
 function loadAttachmentBytes(
 	key: string,
 	absoluteTarget: string,
 ): Promise<ArrayBuffer | null> {
-	const cached = cachedAttachmentBytes(key);
-	if (cached) return Promise.resolve(cached);
-	const pending = attachmentRequestCache.get(key);
-	if (pending) return pending;
-
-	const request = localFileToArrayBuffer(absoluteTarget)
-		.then((bytes) => {
-			if (!bytes) return null;
-			attachmentBytesCache.delete(key);
-			attachmentBytesCache.set(key, bytes);
-			while (attachmentBytesCache.size > ATTACHMENT_CACHE_LIMIT) {
-				const oldest = attachmentBytesCache.keys().next().value;
-				if (typeof oldest !== "string") break;
-				attachmentBytesCache.delete(oldest);
-			}
-			return bytes;
-		})
-		.finally(() => {
-			attachmentRequestCache.delete(key);
-		});
-	attachmentRequestCache.set(key, request);
-	return request;
+	return attachmentCache.load(key, () =>
+		localFileToArrayBuffer(absoluteTarget),
+	);
 }
 
 export type WikiImageEmbedDimensions = {
@@ -138,7 +118,7 @@ export function WikiAttachmentEmbed({
 	const dimensions = parseWikiImageEmbedDimensions(imageSize);
 	const requestKey = attachmentRequestKey(kind, absoluteTarget, revision);
 	const [load, setLoad] = useState<CachedAttachmentLoad>(() => {
-		const bytes = cachedAttachmentBytes(requestKey);
+		const bytes = attachmentCache.get(requestKey);
 		return {
 			requestKey,
 			state: bytes ? { kind: "ready", bytes } : { kind: "loading" },
@@ -147,7 +127,7 @@ export function WikiAttachmentEmbed({
 	const fallbackBytes =
 		load.requestKey === requestKey
 			? undefined
-			: cachedAttachmentBytes(requestKey);
+			: attachmentCache.get(requestKey);
 	const state =
 		load.requestKey === requestKey
 			? load.state
@@ -181,7 +161,7 @@ export function WikiAttachmentEmbed({
 			return;
 		}
 		let cancelled = false;
-		const cached = cachedAttachmentBytes(requestKey);
+		const cached = attachmentCache.get(requestKey);
 		if (cached) {
 			setLoad((previous) =>
 				previous.requestKey === requestKey &&
@@ -217,21 +197,10 @@ export function WikiAttachmentEmbed({
 	}, [attachmentBytes, imageResourceKey, targetPath]);
 
 	if (state.kind === "loading") {
-		return (
-			<span
-				data-export-pending="true"
-				className="block px-4 py-3 text-muted-foreground text-sm"
-			>
-				{t("embed.loading")}
-			</span>
-		);
+		return <EmbedStatus exportPending message={t("embed.loading")} />;
 	}
 	if (state.kind === "error") {
-		return (
-			<span className="block px-4 py-3 text-muted-foreground text-sm">
-				{t("embed.error")}
-			</span>
-		);
+		return <EmbedStatus message={t("embed.error")} />;
 	}
 	if (kind === "image" && state.kind === "ready" && imageSource) {
 		return (
@@ -254,14 +223,7 @@ export function WikiAttachmentEmbed({
 		);
 	}
 	if (kind === "image" && state.kind === "ready") {
-		return (
-			<span
-				data-export-pending="true"
-				className="block px-4 py-3 text-muted-foreground text-sm"
-			>
-				{t("embed.loading")}
-			</span>
-		);
+		return <EmbedStatus exportPending message={t("embed.loading")} />;
 	}
 	if (state.kind !== "ready") return null;
 	// Full PDF viewer is heavy and poorly paginated for note export — show a path placeholder.

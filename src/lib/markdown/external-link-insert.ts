@@ -28,7 +28,7 @@ export function clearExternalLinkEditRequest(
 	}
 }
 
-export type InsertExternalLinkResult = {
+type InsertExternalLinkResult = {
 	label: string;
 	url: string;
 	path: number[] | null;

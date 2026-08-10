@@ -239,6 +239,44 @@ function convertOpenParenPlusAutolink(editor: SlateEditor): boolean {
 	return true;
 }
 
+type LinkMatchAtCaret = {
+	deleteRange: Range;
+	label: string;
+	url: string;
+};
+
+/**
+ * Match `[label](url…)` ending at the caret and resolve the exact range to
+ * replace. Shared by both conversion entry points and the input rule, which
+ * differ only in the pattern they match.
+ */
+function matchLinkAtCaret(
+	editor: SlateEditor,
+	pattern: RegExp,
+): LinkMatchAtCaret | null {
+	if (!editor.selection || !editor.api.isCollapsed()) return null;
+	if (isCodeOrEquationBlocked(editor)) return null;
+	// Inside an existing link this would steal the caret's `)`.
+	if (editor.api.above({ match: { type: editor.getType(KEYS.a) } })) {
+		return null;
+	}
+
+	const end = editor.selection.anchor;
+	const match = pattern.exec(blockPrefixBeforeCaret(editor, end));
+	if (!match) return null;
+
+	const full = match[0];
+	const label = match[1] ?? "";
+	const url = match[2] ?? "";
+	if (!label.trim() || !url.trim()) return null;
+
+	const deleteRange = rangeBeforeEnd(editor, end, full.length);
+	if (!deleteRange) return null;
+	if (editor.api.string(deleteRange) !== full) return null;
+
+	return { deleteRange, label, url };
+}
+
 /**
  * Convert trailing `[label](url` before the caret into a link (caller is about
  * to type the closing paren — do not insert the paren).
@@ -254,30 +292,9 @@ export function convertMarkdownLinkBeforeClosingParen(
 	// Paste bare URL → autolink node after `[label](`.
 	if (convertOpenParenPlusAutolink(editor)) return true;
 
-	// Pure-text path: do not run while inside a normal link (would steal `)`).
-	if (
-		editor.api.above({
-			match: { type: editor.getType(KEYS.a) },
-		})
-	) {
-		return false;
-	}
-
-	const end = editor.selection.anchor;
-	const prefix = blockPrefixBeforeCaret(editor, end);
-	const match = MARKDOWN_LINK_BEFORE_CLOSE_RE.exec(prefix);
+	const match = matchLinkAtCaret(editor, MARKDOWN_LINK_BEFORE_CLOSE_RE);
 	if (!match) return false;
-
-	const full = match[0];
-	const label = match[1] ?? "";
-	const url = match[2] ?? "";
-	if (!label.trim() || !url.trim()) return false;
-
-	const deleteRange = rangeBeforeEnd(editor, end, full.length);
-	if (!deleteRange) return false;
-	if (editor.api.string(deleteRange) !== full) return false;
-
-	return insertLinkNode(editor, deleteRange, label, url);
+	return insertLinkNode(editor, match.deleteRange, match.label, match.url);
 }
 
 /**
@@ -286,31 +303,9 @@ export function convertMarkdownLinkBeforeClosingParen(
 export function convertCompleteMarkdownLinkAtCaret(
 	editor: SlateEditor,
 ): boolean {
-	if (!editor.selection || !editor.api.isCollapsed()) return false;
-	if (isCodeOrEquationBlocked(editor)) return false;
-	if (
-		editor.api.above({
-			match: { type: editor.getType(KEYS.a) },
-		})
-	) {
-		return false;
-	}
-
-	const end = editor.selection.anchor;
-	const prefix = blockPrefixBeforeCaret(editor, end);
-	const match = MARKDOWN_LINK_COMPLETE_RE.exec(prefix);
+	const match = matchLinkAtCaret(editor, MARKDOWN_LINK_COMPLETE_RE);
 	if (!match) return false;
-
-	const full = match[0];
-	const label = match[1] ?? "";
-	const url = match[2] ?? "";
-	if (!label.trim() || !url.trim()) return false;
-
-	const deleteRange = rangeBeforeEnd(editor, end, full.length);
-	if (!deleteRange) return false;
-	if (editor.api.string(deleteRange) !== full) return false;
-
-	return insertLinkNode(editor, deleteRange, label, url);
+	return insertLinkNode(editor, match.deleteRange, match.label, match.url);
 }
 
 /**
@@ -323,31 +318,10 @@ export const markdownLinkInputRule = defineInputRule({
 	trigger: ")",
 	resolve: (context) => {
 		if (context.text !== ")" || context.options?.at) return;
-		const editor = context.editor;
-		if (!editor.selection || !editor.api.isCollapsed()) return;
-		if (
-			editor.api.above({
-				match: { type: editor.getType(KEYS.a) },
-			})
-		) {
-			return;
-		}
-
-		const end = editor.selection.anchor;
-		const prefix = blockPrefixBeforeCaret(editor, end);
-		const match = MARKDOWN_LINK_BEFORE_CLOSE_RE.exec(prefix);
-		if (!match) return;
-
-		const full = match[0];
-		const label = match[1] ?? "";
-		const url = match[2] ?? "";
-		if (!label.trim() || !url.trim()) return;
-
-		const deleteRange = rangeBeforeEnd(editor, end, full.length);
-		if (!deleteRange) return;
-		if (editor.api.string(deleteRange) !== full) return;
-
-		return { deleteRange, label, url };
+		return (
+			matchLinkAtCaret(context.editor, MARKDOWN_LINK_BEFORE_CLOSE_RE) ??
+			undefined
+		);
 	},
 	apply: ({ editor }, match) =>
 		insertLinkNode(editor, match.deleteRange, match.label, match.url),

@@ -517,6 +517,25 @@ fn fast_mode_from_config_options(
     })
 }
 
+/// Value to write for the fast-mode option, or `None` when the session already
+/// holds the requested value. Mirrors the `pref != current_id` guards used for
+/// model/collaboration/effort so unchanged config skips the set_config RPC.
+fn fast_mode_value_to_set(
+    opt: &SessionConfigOption,
+    enabled: bool,
+) -> Option<SessionConfigOptionValue> {
+    let target_id = if enabled { "on" } else { "off" };
+    match &opt.kind {
+        SessionConfigKind::Boolean(current) if current.current_value != enabled => {
+            Some(SessionConfigOptionValue::boolean(enabled))
+        }
+        SessionConfigKind::Select(current) if current.current_value.0.as_ref() != target_id => {
+            Some(SessionConfigOptionValue::value_id(target_id))
+        }
+        _ => None,
+    }
+}
+
 fn emit_session_config_options(
     app: &AgentEventEmitter,
     session_id: &str,
@@ -1666,20 +1685,7 @@ pub async fn run_once(
                 }
                 if let Some(enabled) = fast_mode {
                     if let Some(opt) = config_options.iter().find(|opt| is_fast_option(opt)) {
-                        let value = match &opt.kind {
-                            SessionConfigKind::Boolean(_) => {
-                                Some(SessionConfigOptionValue::boolean(enabled))
-                            }
-                            SessionConfigKind::Select(_) => {
-                                Some(SessionConfigOptionValue::value_id(if enabled {
-                                    "on"
-                                } else {
-                                    "off"
-                                }))
-                            }
-                            _ => None,
-                        };
-                        if let Some(value) = value {
+                        if let Some(value) = fast_mode_value_to_set(opt, enabled) {
                             let response = tokio::select! {
                                 result = timed_acp_request(
                                     "set fast mode",
@@ -2327,6 +2333,14 @@ impl ReplayBuilder {
     }
 }
 
+/// Settle limits for `session/load` history replay. Agents push replayed turns
+/// as `session/update` notifications without a completion marker, so wait until
+/// they quiet down (`REPLAY_SETTLE_QUIET`) instead of always sleeping a fixed
+/// 800 ms; `REPLAY_SETTLE_CAP` keeps the previous worst-case capture window.
+const REPLAY_SETTLE_CAP: std::time::Duration = std::time::Duration::from_millis(800);
+const REPLAY_SETTLE_QUIET: std::time::Duration = std::time::Duration::from_millis(200);
+const REPLAY_SETTLE_POLL: std::time::Duration = std::time::Duration::from_millis(50);
+
 pub async fn load_acp_session(
     desc: &AgentDescriptor,
     session_id: String,
@@ -2337,12 +2351,20 @@ pub async fn load_acp_session(
 
     let builder: Arc<Mutex<ReplayBuilder>> = Arc::new(Mutex::new(ReplayBuilder::default()));
     let builder_for_notif = builder.clone();
+    // Last time a replay notification arrived; lets the settle loop below wait
+    // on actual replay activity instead of a fixed sleep.
+    let last_replay: Arc<Mutex<std::time::Instant>> =
+        Arc::new(Mutex::new(std::time::Instant::now()));
+    let last_replay_for_notif = last_replay.clone();
 
     let result = agent_client_protocol::Client
         .builder()
         .name("agentero")
         .on_receive_notification(
             async move |notification: SessionNotification, _cx| {
+                if let Ok(mut at) = last_replay_for_notif.lock() {
+                    *at = std::time::Instant::now();
+                }
                 let Ok(mut b) = builder_for_notif.lock() else {
                     return Ok(());
                 };
@@ -2416,6 +2438,7 @@ pub async fn load_acp_session(
         )
         .connect_with(acp, {
             let sid = session_id.clone();
+            let last_replay = last_replay.clone();
             move |connection: ConnectionTo<Agent>| async move {
                 timed_acp_request(
                     "initialize",
@@ -2436,8 +2459,21 @@ pub async fn load_acp_session(
                 )
                 .await?;
 
-                // Brief settle so the agent can push replayed notifications.
-                tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+                // Settle until replayed notifications quiet down instead of always
+                // sleeping 800 ms; the capture window stays capped at 800 ms.
+                let settle_start = std::time::Instant::now();
+                loop {
+                    tokio::time::sleep(REPLAY_SETTLE_POLL).await;
+                    let last = last_replay
+                        .lock()
+                        .map(|at| *at)
+                        .unwrap_or_else(|_| std::time::Instant::now());
+                    if last.elapsed() >= REPLAY_SETTLE_QUIET
+                        || settle_start.elapsed() >= REPLAY_SETTLE_CAP
+                    {
+                        break;
+                    }
+                }
                 Ok(())
             }
         })
@@ -2490,10 +2526,11 @@ mod cancelled_payload_tests {
 mod config_option_tests {
     use super::{
         collaboration_from_config_options, effort_from_config_options,
-        fast_mode_from_config_options, models_from_config_options,
+        fast_mode_from_config_options, fast_mode_value_to_set, models_from_config_options,
     };
     use agent_client_protocol::schema::v1::{
-        SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectOption,
+        SessionConfigOption, SessionConfigOptionCategory, SessionConfigOptionValue,
+        SessionConfigSelectOption,
     };
 
     #[test]
@@ -2601,6 +2638,38 @@ mod config_option_tests {
         let fast = fast_mode_from_config_options("session", "codex", &options)
             .expect("Codex fast mode should be exposed");
         assert!(fast.enabled);
+    }
+
+    #[test]
+    fn skips_fast_mode_set_when_select_already_matches() {
+        let option = SessionConfigOption::select(
+            "fast-mode",
+            "Fast mode",
+            "on",
+            vec![
+                SessionConfigSelectOption::new("off", "Off"),
+                SessionConfigSelectOption::new("on", "On"),
+            ],
+        )
+        .category(SessionConfigOptionCategory::ModelConfig);
+
+        assert_eq!(fast_mode_value_to_set(&option, true), None);
+        assert_eq!(
+            fast_mode_value_to_set(&option, false),
+            Some(SessionConfigOptionValue::value_id("off"))
+        );
+    }
+
+    #[test]
+    fn skips_fast_mode_set_when_boolean_already_matches() {
+        let option = SessionConfigOption::boolean("fast-mode", "Fast mode", true)
+            .category(SessionConfigOptionCategory::ModelConfig);
+
+        assert_eq!(fast_mode_value_to_set(&option, true), None);
+        assert_eq!(
+            fast_mode_value_to_set(&option, false),
+            Some(SessionConfigOptionValue::boolean(false))
+        );
     }
 
     #[test]

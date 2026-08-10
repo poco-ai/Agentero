@@ -9,10 +9,10 @@ import {
 	type AnnotationRow,
 	AnnotationsPanel,
 	type AskRow,
+	FiguresPanel,
+	ReferencesPanel,
 	type VisualTraceRow,
-} from "@/components/viewer/panels/annotations-panel";
-import { FiguresPanel } from "@/components/viewer/panels/figures-panel";
-import { ReferencesPanel } from "@/components/viewer/panels/references-panel";
+} from "@/components/viewer";
 import { BacklinksPanel } from "@/components/wiki/backlinks-panel";
 import { GraphPanel } from "@/components/wiki/graph-panel";
 import {

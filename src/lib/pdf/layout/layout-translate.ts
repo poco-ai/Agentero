@@ -167,6 +167,51 @@ export function toLayoutTranslateItems(
 	return regions.map((r) => ({ ...r, status: "pending" as const }));
 }
 
+/** Paint-relevant identity of one bucket slot (id, progress, partial text). */
+function sameLayoutTranslateBucketSlot(
+	before: LayoutTranslateItem | undefined,
+	after: LayoutTranslateItem,
+): boolean {
+	return (
+		before !== undefined &&
+		before.id === after.id &&
+		before.status === after.status &&
+		before.translated === after.translated
+	);
+}
+
+/**
+ * Bucket job items by page so each page overlay reads its own list instead of
+ * filtering the whole job. When `previous` is given, a bucket whose
+ * paint-relevant contents are unchanged reuses the previous array identity, so
+ * memoized page overlays bail out while the streaming job only touches the
+ * page currently translating.
+ */
+export function groupLayoutTranslateItemsByPage(
+	items: readonly LayoutTranslateItem[],
+	previous?: ReadonlyMap<number, readonly LayoutTranslateItem[]>,
+): ReadonlyMap<number, readonly LayoutTranslateItem[]> {
+	const grouped = new Map<number, LayoutTranslateItem[]>();
+	for (const item of items) {
+		const bucket = grouped.get(item.pageIndex);
+		if (bucket) bucket.push(item);
+		else grouped.set(item.pageIndex, [item]);
+	}
+	if (!previous) return grouped;
+	const next: Map<number, readonly LayoutTranslateItem[]> = new Map(grouped);
+	for (const [pageIndex, bucket] of grouped) {
+		const prev = previous.get(pageIndex);
+		if (
+			prev &&
+			prev.length === bucket.length &&
+			bucket.every((item, i) => sameLayoutTranslateBucketSlot(prev[i], item))
+		) {
+			next.set(pageIndex, prev);
+		}
+	}
+	return next;
+}
+
 /** Non-streaming Agent runner for bulk layout translate (settings provider=agent). */
 async function resolveLayoutTranslateAgentOpts(): Promise<
 	TranslateRunOptions | undefined

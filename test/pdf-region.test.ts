@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { renderPdfRegionPromptImage } from "@/components/viewer/embed/pdf-region-crop";
+import { renderPdfRegionPromptImage } from "@/components/viewer/pdf/region-crop";
 import {
 	expandNormalizedRegion,
 	normalizedRegionFromPoints,

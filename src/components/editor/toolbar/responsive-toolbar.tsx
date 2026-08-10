@@ -14,8 +14,12 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/core/utils";
 
-import { FixedToolbar } from "./fixed-toolbar";
-import { ToolbarButton } from "./primitives";
+import { Toolbar, ToolbarButton } from "./primitives";
+
+/* shrink-0 in the flex editor column — avoid sticky+z-50 so the bar cannot
+ * paint over dockview tab chrome if content height overflows. */
+const fixedBarClassName =
+	"h-10 w-full shrink-0 items-center justify-between rounded-none border-b border-b-border bg-background/95 p-1 backdrop-blur-sm supports-backdrop-blur:bg-background/60";
 
 export type ToolbarAction = {
 	id: string;
@@ -105,7 +109,7 @@ export function ResponsiveFixedToolbar({
 	const hidden = actions.slice(visibleCount);
 
 	return (
-		<FixedToolbar className={cn("overflow-hidden", className)}>
+		<Toolbar className={cn(fixedBarClassName, "overflow-hidden", className)}>
 			<div
 				ref={containerRef}
 				className="flex min-w-0 flex-1 items-center overflow-hidden"
@@ -183,6 +187,6 @@ export function ResponsiveFixedToolbar({
 					</ToolbarButton>
 				</div>
 			</div>
-		</FixedToolbar>
+		</Toolbar>
 	);
 }

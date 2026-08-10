@@ -1,4 +1,8 @@
-import type { ResolvedLink, WikiEmbedResponse } from "@/lib/wiki";
+import {
+	type ResolvedLink,
+	type WikiEmbedResponse,
+	wikiFragmentSuffix,
+} from "@/lib/wiki";
 
 export const MAX_WIKI_EMBED_DEPTH = 4;
 
@@ -9,16 +13,8 @@ export type WikiEmbedResponseKind =
 	| "invalidFragment"
 	| "unsupported";
 
-function fragmentKey(link: ResolvedLink): string {
-	const fragment = link.occurrence.fragment;
-	if (!fragment) return "";
-	if (fragment.kind === "block") return `#^${fragment.id}`;
-	if (fragment.kind === "annotation") return `@${fragment.id}`;
-	return `#${fragment.path.join("#")}`;
-}
-
 export function wikiEmbedKey(link: ResolvedLink): string {
-	return `${link.targetPath ?? link.occurrence.targetRaw}${fragmentKey(link)}`;
+	return `${link.targetPath ?? link.occurrence.targetRaw}${wikiFragmentSuffix(link.occurrence.fragment)}`;
 }
 
 export function wikiEmbedResponseKind(

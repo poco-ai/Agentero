@@ -20,7 +20,7 @@ Chat / Agent / 文件树 AI UI **统一使用** [AI Elements](https://elements.a
 | `components/workspace/` | Dockview 宿主与 panel 内容 |
 | `components/library/` | 论文库表 |
 | `components/editor/` | Plate Markdown |
-| `components/viewer/` | PDF / HTML / 图片；`embed/`（阅读器外壳 + `use-pdf-*` hook + 单页图层 + 纯展示 `chrome/`）、`panels/`（右栏面板）、`pdf-ask/`（划词与 mark 卡片） |
+| `components/viewer/` | PDF / HTML / 图片。对外只经 `viewer/index.ts`；内部 `pdf/`（外壳 + `hooks/` + `layers/` + `chrome/` + `cards/` + `viewport/`）、`panels/`（右栏面板） |
 | `components/agent/` | Agent 面板 |
 | `components/wiki/` | Backlinks / Graph |
 | `components/settings/` | 设置页 |

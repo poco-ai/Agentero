@@ -8,21 +8,16 @@ import {
 	ScanSearch,
 	TextQuote,
 } from "lucide-react";
+import { RangeApi } from "platejs";
 import { useEditorRef } from "platejs/react";
-import type {
-	MutableRefObject,
-	KeyboardEvent as ReactKeyboardEvent,
-} from "react";
-import {
-	useCallback,
-	useEffect,
-	useLayoutEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import type { MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMarkdownDoc } from "@/components/editor/context/markdown-doc-context";
+import {
+	type CompletionMenuController,
+	useCompletionMenu,
+} from "@/components/editor/hooks/use-completion-menu";
 import { ViewportFloating } from "@/components/ui/viewport-floating";
 import {
 	annotationSnippet,
@@ -68,9 +63,7 @@ export type WikiCompletionDraft = {
 	top: number;
 };
 
-export type WikiCompletionController = {
-	handleKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => boolean;
-};
+export type WikiCompletionController = CompletionMenuController;
 
 type WikiLinkSuggestionProps = {
 	draft: WikiCompletionDraft | null;
@@ -83,6 +76,9 @@ type CandidateState = {
 	requestKey: string | null;
 	items: WikiSearchCandidate[];
 };
+
+/** Refinements to a Host-backed search wait for a pause in typing. */
+const WIKI_SEARCH_DEBOUNCE_MS = 200;
 
 function completionRequestKey(
 	request: ReturnType<typeof parseWikiCompletionQuery>,
@@ -237,62 +233,56 @@ export function WikiLinkSuggestion({
 		[draftRaw],
 	);
 	const requestKey = completionRequestKey(request);
+	/**
+	 * Host-backed searches (file / heading / annotation) are debounced so a
+	 * keystroke burst fires one `wiki_search` instead of one per key. The
+	 * initial trigger (empty query) and local alias completion stay immediate
+	 * so the menu opens without lag.
+	 */
+	const [fetchRequest, setFetchRequest] = useState(request);
+	useEffect(() => {
+		if (!request || request.kind === "alias" || request.query === "") {
+			setFetchRequest(request);
+			return;
+		}
+		const timer = window.setTimeout(
+			() => setFetchRequest(request),
+			WIKI_SEARCH_DEBOUNCE_MS,
+		);
+		return () => window.clearTimeout(timer);
+	}, [request]);
+	const fetchRequestKey = completionRequestKey(fetchRequest);
+	/** True while a debounced refinement has not been fetched yet. */
+	const fetchPending = requestKey !== fetchRequestKey;
 	const [candidateState, setCandidateState] = useState<CandidateState>({
 		requestKey: null,
 		items: [],
 	});
 	const candidates =
-		candidateState.requestKey === requestKey ? candidateState.items : [];
+		candidateState.requestKey === fetchRequestKey ? candidateState.items : [];
 	const candidatesRef = useRef(candidates);
 	candidatesRef.current = candidates;
 	const [recentCandidates, setRecentCandidates] = useState<
 		WikiSearchCandidate[]
 	>([]);
 	const [loading, setLoading] = useState(false);
-	const [selectedIndex, setSelectedIndex] = useState(0);
-	const listRef = useRef<HTMLDivElement>(null);
-
-	// Keep highlight inside the listbox only — scrollIntoView can scroll the
-	// editor container and onScrollCapture closes the completion popup.
 	useEffect(() => {
-		const list = listRef.current;
-		if (!list || !candidates[selectedIndex]) return;
-		const option = list.querySelector<HTMLElement>(
-			'[role="option"][aria-selected="true"]',
-		);
-		if (!option) return;
-		const listRect = list.getBoundingClientRect();
-		const optionRect = option.getBoundingClientRect();
-		if (optionRect.bottom > listRect.bottom) {
-			list.scrollTop += optionRect.bottom - listRect.bottom;
-		} else if (optionRect.top < listRect.top) {
-			list.scrollTop -= listRect.top - optionRect.top;
-		}
-	}, [candidates, selectedIndex]);
-
-	useEffect(() => {
-		// Reset highlight only when the completion query identity changes.
-		void requestKey;
-		setSelectedIndex(0);
-	}, [requestKey]);
-
-	useEffect(() => {
-		if (!request) {
+		if (!fetchRequest) {
 			setCandidateState({ requestKey: null, items: [] });
 			setLoading(false);
 			return;
 		}
-		if (request.kind === "alias") {
+		if (fetchRequest.kind === "alias") {
 			setCandidateState({
-				requestKey,
+				requestKey: fetchRequestKey,
 				items: [
 					{
 						kind: "alias",
-						path: request.target,
-						insertText: request.target,
-						label: request.query,
-						detail: request.target,
-						alias: request.query || undefined,
+						path: fetchRequest.target,
+						insertText: fetchRequest.target,
+						label: fetchRequest.query,
+						detail: fetchRequest.target,
+						alias: fetchRequest.query || undefined,
 					},
 				],
 			});
@@ -309,16 +299,16 @@ export function WikiLinkSuggestion({
 		setLoading(true);
 		void (async () => {
 			try {
-				if (request.kind === "file") {
-					const results = await searchWikiLinks(vaultPath, request.query, {
+				if (fetchRequest.kind === "file") {
+					const results = await searchWikiLinks(vaultPath, fetchRequest.query, {
 						kind: "file",
 					});
 					if (!cancelled) {
 						const matching = narrowExactWikiFileCandidates(
 							results.filter((candidate) => candidate.kind === "file"),
-							request.query,
+							fetchRequest.query,
 						);
-						if (!request.query) {
+						if (!fetchRequest.query) {
 							const byKey = new Map(
 								matching.map((candidate) => [
 									wikiCompletionCandidateKey(candidate),
@@ -332,26 +322,26 @@ export function WikiLinkSuggestion({
 								return current ? [current] : [];
 							});
 							setCandidateState({
-								requestKey,
+								requestKey: fetchRequestKey,
 								items: recent.length ? recent : matching,
 							});
 							return;
 						}
-						setCandidateState({ requestKey, items: matching });
+						setCandidateState({ requestKey: fetchRequestKey, items: matching });
 					}
 					return;
 				}
 				// Annotation completion is frontend-backed (marks live outside the
 				// Markdown wiki index). Resolve paper from target or NOTES path,
 				// then list from PDF-tab store or disk.
-				if (request.kind === "annotation") {
+				if (fetchRequest.kind === "annotation") {
 					let paperAbs: string | null = null;
 					let pathHint = filePath;
-					if (request.target) {
+					if (fetchRequest.target) {
 						const resolved = await resolveWikiReference(
 							vaultPath,
 							filePath,
-							request.target,
+							fetchRequest.target,
 						);
 						if (resolved?.targetPath) {
 							pathHint = resolved.targetPath;
@@ -376,13 +366,13 @@ export function WikiLinkSuggestion({
 						if (tab?.paperMeta?.path) pathHint = tab.paperMeta.path;
 					}
 					const items = await buildAnnotationCandidates(
-						request.query,
-						request.target,
+						fetchRequest.query,
+						fetchRequest.target,
 						paperAbs,
 						pathHint,
 					);
 					if (!cancelled) {
-						setCandidateState({ requestKey, items });
+						setCandidateState({ requestKey: fetchRequestKey, items });
 					}
 					return;
 				}
@@ -393,7 +383,7 @@ export function WikiLinkSuggestion({
 				const resolved = await resolveWikiReference(
 					vaultPath,
 					filePath,
-					request.target,
+					fetchRequest.target,
 				);
 				if (
 					cancelled ||
@@ -401,26 +391,27 @@ export function WikiLinkSuggestion({
 					resolved.status === "ambiguous"
 				) {
 					if (!cancelled) {
-						setCandidateState({ requestKey, items: [] });
+						setCandidateState({ requestKey: fetchRequestKey, items: [] });
 					}
 					return;
 				}
-				const results = await searchWikiLinks(vaultPath, request.query, {
+				const results = await searchWikiLinks(vaultPath, fetchRequest.query, {
 					path: resolved.targetPath,
-					kind: request.kind,
+					kind: fetchRequest.kind,
 				});
 				if (!cancelled) {
 					setCandidateState({
-						requestKey,
+						requestKey: fetchRequestKey,
 						items: results.filter(
 							(candidate) =>
-								candidate.kind === request.kind &&
+								candidate.kind === fetchRequest.kind &&
 								sameWikiPath(candidate.path, resolved.targetPath ?? ""),
 						),
 					});
 				}
 			} catch {
-				if (!cancelled) setCandidateState({ requestKey, items: [] });
+				if (!cancelled)
+					setCandidateState({ requestKey: fetchRequestKey, items: [] });
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
@@ -428,20 +419,51 @@ export function WikiLinkSuggestion({
 		return () => {
 			cancelled = true;
 		};
-	}, [filePath, recentCandidates, request, requestKey, wikiNav?.vaultPath]);
+	}, [
+		filePath,
+		recentCandidates,
+		fetchRequest,
+		fetchRequestKey,
+		wikiNav?.vaultPath,
+	]);
+
+	const selectCandidateRef = useRef<
+		(candidate: WikiSearchCandidate, submitKey: "Enter" | "Tab") => boolean
+	>(() => false);
+
+	const { selectedIndex, setSelectedIndex, listRef } = useCompletionMenu({
+		items: candidates,
+		open: Boolean(draft),
+		resetKey: requestKey,
+		onClose,
+		controllerRef,
+		onSubmitKey: (event, candidate) => {
+			if (!isWikiCompletionSubmitKey(event.key) || !candidate) return false;
+			if (
+				selectCandidateRef.current(
+					candidate,
+					event.key === "Tab" ? "Tab" : "Enter",
+				)
+			) {
+				event.preventDefault();
+				return true;
+			}
+			// An alias trigger with an empty query has nothing to confirm, but the
+			// key must not reach the editor and split the token.
+			if (request?.kind === "alias" && !request.query) {
+				event.preventDefault();
+				return true;
+			}
+			return false;
+		},
+	});
 
 	const selectCandidate = useCallback(
 		(candidate: WikiSearchCandidate, submitKey: "Enter" | "Tab" = "Enter") => {
 			if (!draft || !request || candidate.kind !== request.kind) return false;
 			if (request.kind === "alias" && !request.query) return false;
 			const selection = editor.selection;
-			if (
-				!selection ||
-				selection.anchor.path.join(",") !== selection.focus.path.join(",") ||
-				selection.anchor.offset !== selection.focus.offset
-			) {
-				return false;
-			}
+			if (!selection || !RangeApi.isCollapsed(selection)) return false;
 			const entry = editor.api.node(selection.anchor.path);
 			const leaf = entry?.[0];
 			if (!leaf || typeof (leaf as { text?: unknown }).text !== "string") {
@@ -553,69 +575,9 @@ export function WikiLinkSuggestion({
 			);
 			return true;
 		},
-		[draft, editor, onClose, onContinue, request],
+		[draft, editor, onClose, onContinue, request, setSelectedIndex],
 	);
-
-	const selectedIndexRef = useRef(selectedIndex);
-	selectedIndexRef.current = selectedIndex;
-	const draftRef = useRef(draft);
-	draftRef.current = draft;
-	const requestRef = useRef(request);
-	requestRef.current = request;
-	const selectCandidateRef = useRef(selectCandidate);
 	selectCandidateRef.current = selectCandidate;
-	const onCloseRef = useRef(onClose);
-	onCloseRef.current = onClose;
-
-	// Stable controller identity: re-binding on every highlight change used to
-	// briefly null `controllerRef` in layout cleanup, and selection re-renders
-	// could race with the next keydown.
-	useLayoutEffect(() => {
-		controllerRef.current = {
-			handleKeyDown: (event) => {
-				if (!draftRef.current) return false;
-				if (event.key === "Escape") {
-					event.preventDefault();
-					onCloseRef.current();
-					return true;
-				}
-				// Always consume vertical arrows while the menu is open so the caret
-				// cannot leave the `[[` token (which would dismiss the popup). Cycle
-				// selection when there are items; still swallow keys when empty/loading.
-				if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-					event.preventDefault();
-					event.stopPropagation();
-					const items = candidatesRef.current;
-					if (items.length) {
-						const delta = event.key === "ArrowDown" ? 1 : -1;
-						setSelectedIndex(
-							(index) => (index + delta + items.length) % items.length,
-						);
-					}
-					return true;
-				}
-				const items = candidatesRef.current;
-				const index = selectedIndexRef.current;
-				if (isWikiCompletionSubmitKey(event.key) && items[index]) {
-					if (selectCandidateRef.current(items[index], event.key)) {
-						event.preventDefault();
-						return true;
-					}
-					if (
-						requestRef.current?.kind === "alias" &&
-						!requestRef.current.query
-					) {
-						event.preventDefault();
-						return true;
-					}
-				}
-				return false;
-			},
-		};
-		return () => {
-			controllerRef.current = null;
-		};
-	}, [controllerRef]);
 
 	if (!draft || !request) return null;
 	return (
@@ -630,12 +592,12 @@ export function WikiLinkSuggestion({
 				role="listbox"
 				aria-label={t("wikiCompletion.label")}
 			>
-				{loading ? (
+				{loading || fetchPending ? (
 					<p className="px-2 py-1.5 text-muted-foreground text-xs">
 						{t("wikiCompletion.loading")}
 					</p>
 				) : null}
-				{!loading && !candidates.length ? (
+				{!loading && !fetchPending && !candidates.length ? (
 					<p className="px-2 py-1.5 text-muted-foreground text-xs">
 						{t("wikiCompletion.empty")}
 					</p>

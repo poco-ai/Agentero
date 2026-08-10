@@ -86,7 +86,10 @@ export function FrontmatterPanel({
 	const [mode, setMode] = useState<EditorMode>("form");
 	const panelId = useId();
 	const parsed = useMemo(() => parseFrontmatterProperties(value), [value]);
-	const propertyCount = countFrontmatterProperties(value);
+	const propertyCount = useMemo(
+		() => countFrontmatterProperties(value, parsed),
+		[parsed, value],
+	);
 	const hasContent = value.trim().length > 0;
 	const formAvailable = parsed.ok;
 	const showSource = mode === "source" || !formAvailable;
@@ -319,6 +322,12 @@ function propertyTypeIcon(kind: FrontmatterPropertyKind) {
 	return PROPERTY_TYPES.find((item) => item.kind === kind)?.icon ?? Type;
 }
 
+/** Shared chrome for the inline key / value inputs (transparent until hovered). */
+const propertyInputClassName = cn(
+	"h-8 w-full min-w-0 rounded-md border border-transparent bg-transparent px-2",
+	"outline-none hover:border-border focus-visible:border-ring focus-visible:bg-background",
+);
+
 function PropertyRow({
 	property,
 	readOnly,
@@ -409,9 +418,8 @@ function PropertyRow({
 				placeholder={t("frontmatter.keyPlaceholder")}
 				aria-label={t("frontmatter.keyPlaceholder")}
 				className={cn(
-					"h-8 min-w-0 w-full rounded-md border border-transparent bg-transparent px-2",
-					"font-mono text-xs text-muted-foreground outline-none",
-					"hover:border-border focus-visible:border-ring focus-visible:bg-background",
+					propertyInputClassName,
+					"font-mono text-muted-foreground text-xs",
 					readOnly && "cursor-default",
 				)}
 				onChange={(event) => {
@@ -506,9 +514,8 @@ function PropertyRow({
 						readOnly={readOnly}
 						aria-label={t("frontmatter.typeDate")}
 						className={cn(
-							"h-8 w-full min-w-0 rounded-md border border-transparent bg-transparent px-2",
-							"text-xs text-foreground outline-none",
-							"hover:border-border focus-visible:border-ring focus-visible:bg-background",
+							propertyInputClassName,
+							"text-foreground text-xs",
 							readOnly && "cursor-default",
 							// Native date control is dark-mode awkward; keep compact.
 							"[color-scheme:light] dark:[color-scheme:dark]",
@@ -530,9 +537,8 @@ function PropertyRow({
 						placeholder={t("frontmatter.valuePlaceholder")}
 						aria-label={t("frontmatter.valuePlaceholder")}
 						className={cn(
-							"h-8 w-full rounded-md border border-transparent bg-transparent px-2",
-							"text-xs text-foreground outline-none",
-							"hover:border-border focus-visible:border-ring focus-visible:bg-background",
+							propertyInputClassName,
+							"text-foreground text-xs",
 							readOnly && "cursor-default",
 						)}
 						onChange={(event) =>

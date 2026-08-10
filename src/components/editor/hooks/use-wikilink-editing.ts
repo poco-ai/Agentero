@@ -73,6 +73,12 @@ export function useWikilinkEditing({
 	const composingWikiLinkDraftRef = useRef(false);
 	const wikiLinkPresentationFrameRef = useRef<number | null>(null);
 	const wikiLinkPresentationMarkdownRef = useRef<string | null>(null);
+	/**
+	 * Selection seen by the previous `syncWikiLinkPresentation`. A draft can
+	 * only become "abandoned" when the selection moves, so the region it left
+	 * is the only place a newly stale draft can be.
+	 */
+	const previousSelectionRef = useRef<PlateEditor["selection"]>(null);
 	const activeWikiLinkPathRef = useRef<{
 		current: number[] | null;
 		unref: () => number[] | null;
@@ -244,18 +250,36 @@ export function useWikilinkEditing({
 			) {
 				return;
 			}
-			// Push the predicate into the traversal: materialising every node (text
-			// leaves included) three times over ran on each caret move.
+			// Drafts only form under the caret (completion / template insert),
+			// and the selection change that abandons one is exactly what runs
+			// this sync — so only the region the selection just left or just
+			// entered can hold a draft to reify. Scan those two regions instead
+			// of the whole document on every caret move; the blur-time
+			// `finalizeWikiLinkDrafts` keeps a full-document safety net.
 			const draftRefs: ReturnType<typeof editor.api.pathRef>[] = [];
-			for (const [node, path] of editor.api.nodes({
-				at: [],
-				match: isWikiLinkDraftText,
-			})) {
-				if (!isWikiLinkDraftText(node)) continue;
-				if (parseWikiLinkMarkdown(node.text) === null) continue;
-				if (isSelectionEditingWikiLinkDraft(path, node.text, selection))
-					continue;
-				draftRefs.push(editor.api.pathRef(path, { affinity: "forward" }));
+			const seenDraftKeys = new Set<string>();
+			const regions = [previousSelectionRef.current, selection];
+			previousSelectionRef.current = selection;
+			for (const region of regions) {
+				if (!region) continue;
+				try {
+					for (const [node, path] of editor.api.nodes({
+						at: region,
+						match: isWikiLinkDraftText,
+					})) {
+						if (!isWikiLinkDraftText(node)) continue;
+						const key = path.join(",");
+						if (seenDraftKeys.has(key)) continue;
+						seenDraftKeys.add(key);
+						if (parseWikiLinkMarkdown(node.text) === null) continue;
+						if (isSelectionEditingWikiLinkDraft(path, node.text, selection))
+							continue;
+						draftRefs.push(editor.api.pathRef(path, { affinity: "forward" }));
+					}
+				} catch {
+					// The region's nodes were deleted before this sync ran; a
+					// deleted region cannot hold a draft left to reify.
+				}
 			}
 			const selectedPath = selectedWikiLinkPath(selection);
 			const activeRef = activeWikiLinkPathRef.current;
@@ -479,7 +503,6 @@ export function useWikilinkEditing({
 			editor,
 			getWikiLinkExteriorBoundary,
 			prepareWikiLinkBoundaryInput,
-			suppressNextEditorBreakRef.current,
 			suppressNextEditorBreakRef,
 		],
 	);
@@ -489,11 +512,7 @@ export function useWikilinkEditing({
 			const direction = wikiLinkArrowDirection(event);
 			if (!direction) return false;
 			const selection = editor.selection;
-			if (
-				!selection ||
-				selection.anchor.offset !== selection.focus.offset ||
-				selection.anchor.path.join(",") !== selection.focus.path.join(",")
-			) {
+			if (!selection || !RangeApi.isCollapsed(selection)) {
 				return false;
 			}
 			const entry = editor.api.node(selection.anchor.path);
@@ -575,11 +594,7 @@ export function useWikilinkEditing({
 		(event: KeyboardEvent<HTMLDivElement>) => {
 			if (event.key !== "Enter") return false;
 			const selection = editor.selection;
-			if (
-				!selection ||
-				selection.anchor.offset !== selection.focus.offset ||
-				selection.anchor.path.join(",") !== selection.focus.path.join(",")
-			) {
+			if (!selection || !RangeApi.isCollapsed(selection)) {
 				return false;
 			}
 			const entry = editor.api.node(selection.anchor.path);
