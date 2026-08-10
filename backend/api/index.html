@@ -3411,6 +3411,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/usage-analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用记录总结 (#239)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -6548,6 +6576,48 @@ Host (Tauri + Rust)
 <span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">参数</span><span class="o">**</span><span class="err">（`</span><span class="n">args</span><span class="err">`）：`</span><span class="p">{</span><span class="w"> </span><span class="n">vaultPath</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w"> </span><span class="n">path</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="p">}</span><span class="err">`</span>
 <span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">返回</span><span class="o">**</span><span class="err">：`</span><span class="p">{</span><span class="w"> </span><span class="n">ok</span><span class="p">:</span><span class="w"> </span><span class="bp">true</span><span class="p">;</span><span class="w"> </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">CiteSidecar</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="w"> </span><span class="p">}</span><span class="err">`</span>
 
+<span class="c1">#### `paper_refs_graph`</span>
+
+<span class="err">从已有引用</span><span class="w"> </span><span class="n">sidecar</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">catalog</span><span class="w"> </span><span class="err">`</span><span class="n">localMatch</span><span class="err">`</span><span class="w"> </span><span class="err">构建</span><span class="o">**</span><span class="err">文献引用关系图</span><span class="o">**</span><span class="err">（与双链</span><span class="w"> </span><span class="err">`</span><span class="n">graph_get_graph</span><span class="err">`</span><span class="w"> </span><span class="err">分层，边语义不复用）。不解析缺失</span><span class="w"> </span><span class="n">sidecar</span><span class="err">；前端邻近模式会先</span><span class="w"> </span><span class="err">`</span><span class="n">paper_refs_parse</span><span class="err">`</span><span class="o">/</span><span class="err">`</span><span class="n">loadPaperRefsAuto</span><span class="err">`</span><span class="w"> </span><span class="err">补当前论文。</span>
+
+<span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">参数</span><span class="o">**</span><span class="err">（`</span><span class="n">args</span><span class="err">`）：</span>
+
+<span class="w">  </span><span class="err">```</span><span class="n">ts</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="n">vaultPath</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span>
+<span class="w">    </span><span class="o">/**</span><span class="w"> </span><span class="err">论文文件夹或其中文件；省略</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">空</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">全库库内引用边</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">    </span><span class="n">center</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">    </span><span class="o">/**</span><span class="w"> </span><span class="err">库内边无向</span><span class="w"> </span><span class="n">BFS</span><span class="w"> </span><span class="err">跳数；默认</span><span class="w"> </span><span class="mi">1</span><span class="err">。全图时忽略</span><span class="w"> </span><span class="o">*/</span>
+<span class="w">    </span><span class="n">depth</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">number</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="err">```</span>
+
+<span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">返回</span><span class="o">**</span><span class="err">：`</span><span class="p">{</span><span class="w"> </span><span class="n">ok</span><span class="p">:</span><span class="w"> </span><span class="bp">true</span><span class="p">;</span><span class="w"> </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">CiteGraphResponse</span><span class="w"> </span><span class="p">}</span><span class="err">`，其中：</span>
+
+<span class="w">  </span><span class="err">```</span><span class="n">ts</span>
+<span class="w">  </span><span class="n">type</span><span class="w"> </span><span class="n">CiteGraphResponse</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">nodes</span><span class="p">:</span><span class="w"> </span><span class="nb nb-Type">Array</span><span class="o">&lt;</span><span class="p">{</span>
+<span class="w">      </span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">           </span><span class="o">//</span><span class="w"> </span><span class="err">库内</span><span class="w"> </span><span class="n">paper</span><span class="w"> </span><span class="n">path</span><span class="err">，或</span><span class="w"> </span><span class="n">stub</span><span class="p">:</span><span class="n">doi</span><span class="p">:</span><span class="err">…</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">stub</span><span class="p">:</span><span class="n">arxiv</span><span class="p">:</span><span class="err">…</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">stub</span><span class="p">:</span><span class="n">title</span><span class="p">:</span><span class="err">…</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">stub</span><span class="p">:</span><span class="n">cite</span><span class="o">-</span><span class="err">…</span>
+<span class="w">      </span><span class="n">label</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="n">catalog</span><span class="w"> </span><span class="n">title</span><span class="w"> </span><span class="err">或引用标题</span><span class="o">/</span><span class="err">编号</span>
+<span class="w">      </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;paper&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;stub&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;note&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;index&quot;</span><span class="p">;</span>
+<span class="w">      </span><span class="n">path</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="err">仅</span><span class="w"> </span><span class="n">paper</span><span class="err">：</span><span class="n">Vault</span><span class="w"> </span><span class="err">相对路径</span>
+<span class="w">    </span><span class="p">}</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">edges</span><span class="p">:</span><span class="w"> </span><span class="nb nb-Type">Array</span><span class="o">&lt;</span><span class="p">{</span>
+<span class="w">      </span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span>
+<span class="w">      </span><span class="n">source</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span>
+<span class="w">      </span><span class="n">target</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span>
+<span class="w">      </span><span class="n">targetRaw</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="err">引用</span><span class="w"> </span><span class="n">display</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">title</span><span class="w"> </span><span class="err">提示</span>
+<span class="w">    </span><span class="p">}</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">center</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="err">规范化</span><span class="w"> </span><span class="n">paper</span><span class="w"> </span><span class="n">path</span><span class="err">；全图为</span><span class="w"> </span><span class="nb nb-Type">null</span>
+<span class="w">    </span><span class="n">depth</span><span class="p">:</span><span class="w"> </span><span class="n">number</span><span class="p">;</span>
+<span class="w">  </span><span class="p">};</span>
+<span class="w">  </span><span class="err">```</span>
+
+<span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">行为</span><span class="o">**</span>
+<span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">邻近</span><span class="o">**</span><span class="err">：当前论文的全部出边（含未入库</span><span class="w"> </span><span class="n">stub</span><span class="err">）</span><span class="o">+</span><span class="w"> </span><span class="err">经</span><span class="w"> </span><span class="err">`</span><span class="n">localMatch</span><span class="err">`</span><span class="w"> </span><span class="err">的库内边无向</span><span class="w"> </span><span class="n">BFS</span><span class="w"> </span><span class="err">至多</span><span class="w"> </span><span class="err">`</span><span class="n">depth</span><span class="err">`</span><span class="w"> </span><span class="err">跳（含被引）。</span>
+<span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">全图</span><span class="o">**</span><span class="err">：仅库内</span><span class="w"> </span><span class="err">`</span><span class="n">localMatch</span><span class="err">`</span><span class="w"> </span><span class="err">边；节点为参与至少一条边的</span><span class="w"> </span><span class="n">paper</span><span class="err">；不含</span><span class="w"> </span><span class="n">stub</span><span class="err">。</span>
+<span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="err">中心路径可传</span><span class="w"> </span><span class="err">`</span><span class="n">papers</span><span class="o">/</span><span class="err">…</span><span class="o">/</span><span class="n">NOTES</span><span class="o">.</span><span class="n">md</span><span class="err">`</span><span class="w"> </span><span class="err">等，</span><span class="n">Host</span><span class="w"> </span><span class="err">归一到</span><span class="w"> </span><span class="n">catalog</span><span class="w"> </span><span class="n">paper</span><span class="w"> </span><span class="n">folder</span><span class="err">。</span>
+
 <span class="c1">### 3.6 论文</span>
 
 <span class="err">论文</span><span class="o">**</span><span class="err">集合与元数据</span><span class="o">**</span><span class="err">存于</span><span class="w"> </span><span class="err">`</span><span class="o">.</span><span class="n">agentero</span><span class="o">/</span><span class="n">catalog</span><span class="o">.</span><span class="n">sqlite</span><span class="err">`；本组命令读写</span><span class="w"> </span><span class="n">catalog</span><span class="err">，并附带</span><span class="w"> </span><span class="n">Vault</span><span class="w"> </span><span class="err">相对路径字段。详见</span><span class="w"> </span><span class="p">[</span><span class="err">`</span><span class="n">catalog</span><span class="o">.</span><span class="n">md</span><span class="err">`</span><span class="p">](</span><span class="n">catalog</span><span class="o">.</span><span class="n">md</span><span class="p">)</span><span class="err">、</span><span class="p">[</span><span class="err">`</span><span class="n">data</span><span class="o">-</span><span class="n">model</span><span class="o">.</span><span class="n">md</span><span class="err">`</span><span class="p">](</span><span class="n">data</span><span class="o">-</span><span class="n">model</span><span class="o">.</span><span class="n">md</span><span class="p">)</span><span class="err">。</span>
@@ -6917,13 +6987,16 @@ Host (Tauri + Rust)
 <p>已取代旧的 <code>agent_open_install_terminal</code>（打开系统终端、Enter 确认后再装）。远端仍用 <code>remote_agent_open_install_terminal</code>（SSH 确认安装）。</p>
 </blockquote>
 <ul>
-<li><strong>参数</strong>：<code>{ templateId: string, action: "install" | "update" }</code></li>
+<li><strong>参数</strong>：<code>{ templateId: string, action: "install" | "update", taskId?: string }</code></li>
 <li>支持的 <code>templateId</code>：<code>opencode</code> · <code>openclaw</code> · <code>claude-acp</code> · <code>codex-acp</code> · <code>gemini</code> · <code>hermes</code> · <code>grok-build</code>（不含 <code>qodercli</code> / <code>custom</code>）</li>
+<li><code>taskId</code> 来自设置页 Agent 行内安装进度条；用于匹配 Host progress tick 与接收协作取消信号。</li>
 <li><strong>返回</strong>：<code>{ ok: true; data: null }</code> 或错误（stderr/stdout 末尾若干行）</li>
 <li><strong>行为</strong></li>
 <li><code>install</code>：未装 host 时走官方 installer（POSIX curl→临时文件再 bash，非 <code>curl|bash</code>）或 npm；Claude/Codex 在 host 已存在但 ACP 缺失时只装适配器；两者都缺则 host &amp;&amp; adapter；Hermes 走官方 installer；OpenClaw 走 npm。</li>
 <li><code>update</code>：优先 <code>tool update</code> / 官方链，失败再 npm；Codex 固定 npm（避免假成功）；OpenClaw 使用 <code>openclaw update --yes</code> 后 fallback npm；Windows 上 OpenCode 不用交互式 <code>upgrade</code>。</li>
-<li>本机 lifecycle 全局串行执行，避免多个 npm 全局安装/升级任务并发抢锁或互相覆盖临时脚本。</li>
+<li>本机 lifecycle 全局串行执行，避免多个 npm 全局安装/升级任务并发抢锁或互相覆盖临时脚本；设置页在对应 Agent 卡片内展示安装 / 扫描 / 探测阶段进度（#250）。</li>
+<li>安装子进程运行期间，Host 以 <code>agent-lifecycle:progress</code> 推送 <code>agent-lifecycle-*</code> phase tick，供设置页行内进度条消费，避免快捷下载脚本长时间停在无进度状态。</li>
+<li>若传入 <code>taskId</code>，等待 lifecycle 锁和执行安装子进程时会检查 <code>background_task_cancel</code>；取消是尽力而为，不回滚已完成的包管理器写入。</li>
 <li>macOS/Linux：注入 login shell 的 <code>PATH</code>（GUI 窄 PATH）。</li>
 <li>Windows：写唯一临时 <code>.bat</code> + <code>CREATE_NO_WINDOW</code> + <code>call</code> 前缀；安装进程 PATH 合并 npm/pnpm/WinGet/Scoop shim；批处理切到 UTF-8，错误输出按 UTF-8 优先、GBK 回退解码。</li>
 <li>在 <code>spawn_blocking</code> 中执行，避免卡住 async runtime。</li>
@@ -7657,7 +7730,7 @@ Host (Tauri + Rust)
 </tr>
 <tr>
 <td>0.6</td>
-<td>引用关系：<code>citation:*</code> 或 catalog 扩展表（cites / cited_by 缓存）、远程元数据补全、文内引用解析；与 <code>graph:*</code> 双链 API 并存。</td>
+<td>引用关系：<code>paper_refs_*</code>（含 <code>paper_refs_graph</code> 引用图谱）、可选 catalog <code>paper_refs</code> 表 / Connected Papers 邻域加深；与 <code>graph:*</code> 双链 API 并存。</td>
 </tr>
 <tr>
 <td>V0.x</td>
@@ -7669,7 +7742,7 @@ Host (Tauri + Rust)
 <ul>
 <li><code>importer:import</code> 统一来源入口。</li>
 <li><code>lookup:*</code> 与 PDF prepare 共用元数据管道。</li>
-<li><code>citation:fetch</code> / <code>citation:list_neighbors</code>（名称待定）：引用/被引邻域与缓存刷新（路线图 0.6）。</li>
+<li>~~<code>citation:list_neighbors</code>~~ → 已用 <code>paper_refs_graph</code>（sidecar + localMatch）；全库 cites/cited_by 持久缓存与 Connected Papers 式布局仍可加深。</li>
 <li>~~<code>search:full_text</code>~~ → 已用 walk 式 <code>vault_search</code>（命令面板）；FTS5 / PDF 正文层仍可替换增强。</li>
 <li><code>reader:annotations</code>（历史规划；划词标注现为前端 <code>marks/*.json</code>，不经 Host command）。</li>
 <li><code>sync:*</code> 多设备同步（远期）。</li>

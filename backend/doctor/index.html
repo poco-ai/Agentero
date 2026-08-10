@@ -2098,6 +2098,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/usage-analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用记录总结 (#239)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -2738,6 +2766,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Catalog 重复行
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#aliases" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2830,6 +2869,7 @@
 <ol>
 <li>Vault 目录结构（<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agentero/</code>）；</li>
 <li><code>.agentero/catalog.sqlite</code> 是否存在且 schema 与当前版本一致；</li>
+<li>Catalog 中是否存在重复行：同一 <code>id</code> 出现在多条记录，或同一 <code>path</code> 出现多次（后者为 schema 完整性校验）；</li>
 <li>与桌面导航共用 <code>WikiIndex::check_links</code> 的双链语义结果；</li>
 <li>Catalog 中每篇 <code>papers/**/NOTES.md</code> 的 frontmatter aliases；</li>
 <li><code>papers/**/marks/*.json</code> 视觉批注格式（旧版 <code>agent-trace</code> → <code>visual</code> v2）。</li>
@@ -2844,6 +2884,14 @@
 </ul>
 <p>重复的正式标题只告警，不修改 Catalog；编辑标题 alias 也不会回写 Catalog。</p>
 <h2 id="_2">安全修复<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h3 id="catalog">Catalog 重复行<a class="headerlink" href="#catalog" title="Permanent link">&para;</a></h3>
+<p><code>doctor_fix_catalog_duplicates</code> / CLI <code>agentero doctor fix catalog-duplicates</code>：</p>
+<ul>
+<li>对每组重复 <code>id</code>，按「路径存在磁盘 &gt; <code>updated_at</code> 最新 &gt; 路径最短 &gt; 字典序最小」保留一条 canonical 记录，删除其余行；</li>
+<li>对重复 <code>path</code>（schema 完整性校验），保留 <code>updated_at</code> 最新的一条；</li>
+<li>返回 <code>removedRows</code>、<code>removedPaths</code>、<code>keptPaths</code>；</li>
+<li>桌面端在 Doctor 设置页的 Catalog 区显示「去重」按钮。</li>
+</ul>
 <h3 id="aliases">论文 aliases<a class="headerlink" href="#aliases" title="Permanent link">&para;</a></h3>
 <p><code>doctor_apply_aliases</code> 只接受当前 Catalog 行对应的 <code>NOTES.md</code>。批量写入前会：</p>
 <ul>
@@ -2884,8 +2932,8 @@
 <h2 id="_6">入口<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li>桌面：设置 → 知识库诊断；远程 Vault 当前显示不可用。</li>
-<li>CLI：<code>agentero doctor</code>、<code>agentero doctor fix aliases</code>、<code>agentero doctor fix visual-marks</code>、<code>agentero -y doctor fix …</code>（CLI 诊断同样尊重 <code>.agentero/doctor.json</code> 忽略列表）。</li>
-<li>Host：<code>doctor_check</code>、<code>doctor_apply_aliases</code>、<code>doctor_ignore_aliases</code>、<code>doctor_set_dirty_paths</code>、<code>doctor_plan_wikilinks</code>、<code>doctor_apply_wikilinks</code>、<code>doctor_apply_visual_marks</code>。</li>
+<li>CLI：<code>agentero doctor</code>、<code>agentero doctor fix aliases</code>、<code>agentero doctor fix visual-marks</code>、<code>agentero doctor fix catalog-duplicates</code>、<code>agentero -y doctor fix …</code>（CLI 诊断同样尊重 <code>.agentero/doctor.json</code> 忽略列表）。</li>
+<li>Host：<code>doctor_check</code>、<code>doctor_apply_aliases</code>、<code>doctor_ignore_aliases</code>、<code>doctor_set_dirty_paths</code>、<code>doctor_plan_wikilinks</code>、<code>doctor_apply_wikilinks</code>、<code>doctor_apply_visual_marks</code>、<code>doctor_fix_catalog_duplicates</code>。</li>
 </ul>
 <p><img alt="Vault Doctor 设置页" src="../../assets/doctor-settings.png" /></p>
 <p>代码：<code>src-tauri/src/features/doctor/</code>（含 <code>wikilink_repair.rs</code>、<code>visual_marks_repair.rs</code>）、<code>src/lib/doctor/</code>、<code>src/components/settings/panes/doctor-pane.tsx</code>。</p>

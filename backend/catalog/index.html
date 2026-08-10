@@ -2189,6 +2189,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/usage-analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用记录总结 (#239)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -2889,10 +2917,12 @@
 <li>主键：论文 <code>path</code>（Vault 相对路径）</li>
 <li>字段以 <code>features/catalog/schema.rs</code> 为准</li>
 <li><code>tags_json</code>：字符串或 <code>{name,color}</code>（Apple 8 色）</li>
+<li><code>paper_list</code> 对前端 Library 返回按 <code>id</code> 去重的视图：同一逻辑论文若因历史原因出现在多个路径，只保留一条（优先存在磁盘的路径，其次 <code>updated_at</code> 最新、路径最短/字典序最小）</li>
 <li><code>paper_rescan</code>：盘上有、库内无则补齐</li>
 <li>删除：回收站快照；恢复 upsert</li>
 <li>连接启用 WAL + <code>busy_timeout</code>，写入不阻塞列表读取</li>
 <li><code>pdf_page_counts</code>：PDF 页数缓存表（随移动/删除同步），阅读热力图不再整文件打开 PDF 数页</li>
+<li>重复行检测与修复：<code>catalog::papers::find_duplicates</code> / <code>repair_duplicates</code>，并在 Vault Doctor 中暴露</li>
 </ul>
 <h2 id="_3">命令（摘要）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>

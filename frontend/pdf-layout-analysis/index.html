@@ -2350,6 +2350,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/usage-analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用记录总结 (#239)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -3218,6 +3246,7 @@
         │  实现：viewer mount 调 `enqueuePaperLayoutAnalysis`（与入库后同一路径）
         │  后台 ONNX 不依赖当前 active 论文窗口：headless EmbedPDF 独立打开本地 PDF
         │  激活中的 tab：有 layout.json → 静默载入 store（无新任务条）
+        │  viewer-bound 分析在每个异步边界检查 document 是否仍 open；关闭/切换竞态按取消处理
         │  尚无缓存 → 轮询 sidecar，headless 写完后再静默载入
         │  无 paper 目录的散落 PDF：仅 active tab 用 viewer 内分析（asBackgroundTask）
         │  手动：Figures header「分析 / 重新分析」

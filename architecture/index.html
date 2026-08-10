@@ -2394,6 +2394,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../development/usage-analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用记录总结 (#239)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../development/bug/" class="md-nav__link">
         
   
@@ -3358,7 +3386,7 @@
 <h3 id="markdown">Markdown 编辑<a class="headerlink" href="#markdown" title="Permanent link">&para;</a></h3>
 <p>Plate + <code>@platejs/markdown</code>。普通文本粘贴默认按 Markdown 解析。右键「整理 Markdown 格式」执行 Prettier round-trip。<code>\$a\$</code> 保持普通文本、<code>$a$</code> 保持公式。Obsidian Callout（<code>&gt; [!type]</code>）结构化渲染并原样写回。内嵌图片粘贴到 <code>{mdDir}/assets/</code>，删节点且无引用时 GC。详见 <a href="../frontend/markdown/">frontend/markdown.md</a>。</p>
 <h3 id="_8">双链与图谱<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
-<p>嵌套标题双链：<code>[[文件#外层标题#内层标题]]</code>。Wiki 索引 <code>.md</code> 变更防抖重建（~900ms）。Backlinks 右侧栏上方 Backlinks、下方 Graph（双链图，非文献引用图）。数据来自 Markdown 双链索引。详见 <a href="../frontend/wiki/">frontend/wiki.md</a> / <a href="../backend/wiki/">backend/wiki.md</a>。</p>
+<p>嵌套标题双链：<code>[[文件#外层标题#内层标题]]</code>。Wiki 索引 <code>.md</code> 变更防抖重建（~900ms）。反链见编辑器状态栏；<strong>文献引用图谱</strong>嵌在右侧 <strong>References</strong> 下方约 35% 高度（<code>agentero-cite.json</code> + catalog <code>localMatch</code>），入库后自动解析。与 Markdown 双链索引分层、不共用边语义。详见 <a href="../frontend/wiki/">frontend/wiki.md</a> / <a href="../backend/wiki/">backend/wiki.md</a> / <a href="../backend/citation-parsing/">backend/citation-parsing.md</a>。</p>
 <h2 id="_9">数据流<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -3401,8 +3429,13 @@
 </tr>
 <tr>
 <td>索引</td>
-<td>双链图</td>
+<td>双链图（编辑器/反链）</td>
 <td>内存，可重建</td>
+</tr>
+<tr>
+<td>引用图</td>
+<td>文献 cites（sidecar + localMatch）</td>
+<td>按需扫描 sidecar，可重建</td>
 </tr>
 </tbody>
 </table>

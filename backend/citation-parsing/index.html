@@ -2300,6 +2300,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/usage-analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用记录总结 (#239)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/bug/" class="md-nav__link">
         
   
@@ -3082,7 +3110,7 @@
 
 <h1 id="citation-parsing">参考文献解析（Citation Parsing）<a class="headerlink" href="#citation-parsing" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>M1 + M2 + M3(PDF 内交互) 已实现</strong>（M1：Host <code>features/refs/</code> — L1 在线 S2/Crossref + L2 本地 bib/bbl/thebibliography + sidecar + 库内匹配，命令契约见 <a href="../api/">api.md</a> <code>paper_refs_parse</code> / <code>paper_refs_list</code>；M2：右侧栏 References tab 引用卡片，见 <a href="../../frontend/shell/">../frontend/shell.md</a>；M3：PDF Link annotation 覆盖层 — 点击 GoTo 跳页 / URI 外链、hover 引用锚文本显示元数据预览并联动引用卡片高亮，<code>src/components/viewer/embed/citation-links.tsx</code> + <code>src/components/viewer/pdf-citation-preview.tsx</code> + <code>src/lib/pdf/citation-hover-store.ts</code>）。剩余草稿：卡片 → PDF 反向 hover 高亮、Agent <code>#</code> 提及。</p>
+<p>状态：<strong>M1 + M2 + M3(PDF 内交互) + M4(引用图谱 MVP) 已实现</strong>（M1：Host <code>features/refs/</code> — L1 在线 S2/Crossref + L2 本地 bib/bbl/thebibliography + sidecar + 库内匹配，命令契约见 <a href="../api/">api.md</a> <code>paper_refs_parse</code> / <code>paper_refs_list</code> / <code>paper_refs_graph</code>；M2：右侧栏 References tab 引用卡片，见 <a href="../../frontend/shell/">../frontend/shell.md</a>；M3：PDF Link annotation 覆盖层 — 点击 GoTo 跳页 / URI 外链、hover 引用锚文本显示元数据预览并联动引用卡片高亮；M4：右侧 Graph 改用引用图谱，非双链图）。剩余草稿：卡片 → PDF 反向 hover 高亮、Agent <code>#</code> 提及、Connected Papers 式布局。</p>
 </blockquote>
 <h2 id="1">1. 背景与现状<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <ul>
@@ -3123,7 +3151,8 @@
 <ul>
 <li><strong>事实来源：<code>{paper}/source/agentero-cite.json</code> sidecar</strong>，可重建、可删除、不碰用户文件——这同时回答「没有 bib 文件时的持久化」：L1 在线结果与 L3 的 raw + 尽力字段都写入 sidecar，重开应用不重解析、不重复请求 API（fingerprint 判断；<code>source</code> 字段记 <code>s2 | crossref | bib | bbl | tex | pdf-text</code>）。</li>
 <li>库内匹配（<code>localMatch</code>）：DOI → arXiv id → 归一化 title+author+year，只查本地 catalog。</li>
-<li><strong>catalog 建 <code>paper_refs</code> 索引表</strong>推迟到需要跨论文查询（引用图谱、被引统计）时再评估，避免双写；MVP 单论文场景 sidecar 足够。</li>
+<li><strong>catalog 建 <code>paper_refs</code> 索引表</strong>推迟到需要大规模跨论文查询 / 被引统计时再评估，避免双写；MVP 单论文 sidecar 足够。</li>
+<li><strong>引用图谱（MVP）</strong>：Host <code>paper_refs_graph</code> 扫描各 paper 的 sidecar + <code>localMatch</code> 构图（邻近含 stub，全图仅库内边）。嵌在 <strong>References 侧栏下方约 35%</strong>，<strong>不再</strong>使用双链 <code>graph_get_graph</code>。入库 <code>paper_commit</code>（Created）后后台自动解析 sidecar。见 <a href="../api/">api.md</a> / <a href="../../frontend/wiki/">../frontend/wiki.md</a>。</li>
 <li>导出：右键论文提供 <strong>导出 references.bib</strong>（本地 BibTeX 序列化 sidecar 条目），非默认落盘。</li>
 </ul>
 <h2 id="4-citation">4. 文中 citation 交互与引用侧栏<a class="headerlink" href="#4-citation" title="Permanent link">&para;</a></h2>
@@ -3183,6 +3212,11 @@
 </tr>
 <tr>
 <td>M4</td>
+<td>引用图谱 UI：<code>paper_refs_graph</code> + 右侧 Graph 换源（双链图 → 引用图）</td>
+<td>已实现（MVP）</td>
+</tr>
+<tr>
+<td>M5</td>
 <td>L3 文本层切分 + Crossref raw string 富化 + references.bib 导出 + 未入库一键导入</td>
 <td>延后</td>
 </tr>
