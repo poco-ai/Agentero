@@ -2947,7 +2947,7 @@
 </tr>
 <tr>
 <td>模式</td>
-<td>Near：当前论文邻域（出边含 stub + 库内 BFS）；All：全库库内引用边</td>
+<td>全库库内引用边；不再提供当前论文近邻图</td>
 </tr>
 <tr>
 <td>壳</td>
@@ -2959,7 +2959,7 @@
 </tr>
 </tbody>
 </table>
-<p>入库成功（<code>paper_commit</code> Created）后 Host 后台自动 <code>paper_refs_parse</code>。打开论文 / References 时前端 <code>loadPaperRefsAuto</code> 再兜底。全图只读已有 sidecar，不批量解析。</p>
+<p>入库成功（<code>paper_commit</code> Created）后 Host 后台自动 <code>paper_refs_parse</code>。打开论文 / References 时前端 <code>loadPaperRefsAuto</code> 再兜底。引用图谱只读已有 sidecar，不批量解析，也不按当前论文构建近邻图。</p>
 <p>与 <strong>Markdown 双链</strong>（<code>graph_get_graph</code> / 反链）分层；双链索引仍服务编辑器补全、嵌入与状态栏反链，不驱动关系图。</p>
 <h2 id="_2">链接修复（前端触发）<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>

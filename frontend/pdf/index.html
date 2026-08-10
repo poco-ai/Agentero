@@ -3246,7 +3246,7 @@
 </tr>
 <tr>
 <td><code>src/lib/pdf/layout/</code></td>
-<td>EmbedPDF layout-analysis：归一化 bbox、<code>source/layout.json</code> raw sidecar、内存 UI store</td>
+<td>EmbedPDF layout-analysis：归一化 bbox、<code>source/layout.json</code> raw sidecar、<code>source/layout-translate.json</code> 全文翻译缓存、内存 UI store</td>
 </tr>
 <tr>
 <td><code>src/lib/pdf/region.ts</code></td>
@@ -3283,7 +3283,7 @@
 <p>右栏 <strong>Figures</strong>（原「解析」header：分析 / 叠加层）→ 页内检测 → 列表（image/chart、table、algorithm、<strong>有编号 formula 置底</strong>）。</p>
 <p><strong>完整流水线、14 条核心规则、阈值与代码地图</strong>见：</p>
 <p>→ <strong><a href="../pdf-layout-analysis/">pdf-layout-analysis.md</a></strong></p>
-<p>要点：先文字角色再联图；图题须整框在 figure bbox 内；图无 title 丢弃；默认置信度 30%；Paper PDF 的初步解析结果缓存到 <code>{paper}/source/layout.json</code>，后续 merge/filter 可重复计算。</p>
+<p>要点：先文字角色再联图；图题须整框在 figure bbox 内；图无 title 丢弃；默认置信度 30%；Paper PDF 的初步解析结果缓存到 <code>{paper}/source/layout.json</code>，后续 merge/filter 可重复计算。全文翻译缓存独立写入 <code>{paper}/source/layout-translate.json</code>，按 provider / 语言 / region 原文校验后复用。</p>
 <p><strong>Hover 视觉提问：</strong> 指针在插图 / 表 / 算法 / 有编号公式上停留约 600ms 后，自动裁剪该区域并打开 <code>VisualAnnotationEditor</code>（与手动框选相同；不自动发送 Agent）。中途移开取消；打开后离开源区 / 草稿卡约 1000ms 自动关闭（与 ask / 视觉 pin 卡 hide 一致，便于指针移到卡片）；框选模式或已有草稿卡时不触发。手动框选草稿不会因移开而自动关闭。</p>
 <p><strong>Hover 公式解析：</strong> 当论文目录存在 <code>Annotation.md</code>（由 <code>equation-annotation</code> Skill 生成的符号词典）且解析到符号表时，hover <strong>有编号公式</strong> 不打开视觉提问，改为弹出「公式解析」卡片：展示符号 / 含义 / 通俗理解对照（符号列 KaTeX 渲染）。卡片可打开 <code>Annotation.md</code>。</p>
 <p>Hover UX（与视觉提问分离）：</p>
