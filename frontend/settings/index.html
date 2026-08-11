@@ -2982,7 +2982,7 @@
 <li>下方 Agent 提示词（随 UI 语言 en/zh）：复制，或「在 Agent 中打开」（关设置、打开主窗 Agent 并预填 composer）。</li>
 </ul>
 <p>主窗口把未保存的 Markdown 路径同步到 Host，因此独立设置 Webview 发起修复时仍能在任何写入前拒绝脏文件。远程 Vault 首版只显示不可用。</p>
-<p>相关代码：<code>src/lib/doctor/</code>、<code>src/lib/agent/composer-seed.ts</code>、<code>src/components/settings/panes/doctor-pane.tsx</code>。</p>
+<p>相关代码：<code>src/lib/doctor/</code>、<code>src/lib/agent/composer-seed.ts</code>。诊断页外壳 <code>src/components/settings/panes/doctor-pane.tsx</code> 只做报告拉取与分区编排，各检查项在同目录拆分：<code>doctor-vault-catalog-sections.tsx</code>、<code>doctor-wikilink-section.tsx</code>、<code>doctor-alias-section.tsx</code>、<code>doctor-visual-marks-section.tsx</code>；共用展示件（小标题、问题行、git 风格 diff）在 <code>doctor-sections.tsx</code>，整行 diff 的文本测量与窗口化在 <code>doctor-line-fit.ts</code>（单测 <code>test/doctor-line-fit.test.ts</code>）。</p>
 <h2 id="_4">应用更新<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>正式桌面构建的主窗口会在启动后异步检查一次稳定版更新，不阻塞首屏或 Vault 初始化；检查失败只记日志。</li>
