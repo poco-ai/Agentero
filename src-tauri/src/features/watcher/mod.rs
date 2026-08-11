@@ -92,6 +92,9 @@ impl FsWatchController {
                     log::error!(target: "agentero::watcher", "vault watcher watch failed: {e}");
                     return;
                 }
+                debouncer
+                    .cache()
+                    .add_root(std::path::Path::new(&watch_root), RecursiveMode::Recursive);
                 // Keep the debouncer alive for the lifetime of this loop.
                 loop {
                     if stop_thread.load(Ordering::Relaxed) {
