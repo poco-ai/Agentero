@@ -1,5 +1,6 @@
 import { Languages, MinusIcon, Settings2Icon, Trash2Icon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { MessageResponse } from "@/components/ai-elements/message";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@/components/ui/button";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
@@ -77,9 +78,9 @@ export function TranslateCard({
 			) : null}
 
 			{showResult ? (
-				<p className="min-w-0 whitespace-pre-wrap break-words text-[13px] text-foreground leading-relaxed">
+				<MessageResponse className="min-w-0 whitespace-pre-wrap break-words text-[13px] text-foreground leading-relaxed">
 					{result}
-				</p>
+				</MessageResponse>
 			) : null}
 
 			{!showLoading && !showResult && !error ? (
