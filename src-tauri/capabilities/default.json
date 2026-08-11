@@ -12,6 +12,7 @@
 		"core:window:allow-toggle-maximize",
 		"core:window:allow-close",
 		"core:window:allow-is-maximized",
+		"core:window:allow-is-visible",
 		"core:webview:allow-create-webview-window",
 		"core:webview:allow-get-all-webviews",
 		"opener:default",

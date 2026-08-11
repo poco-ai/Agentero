@@ -101,7 +101,13 @@ pub fn run() {
         builder = builder.on_page_load(|webview, payload| {
             if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
                 // The HTML boot shell is ready now; reveal it while React hydrates.
-                let _ = webview.window().show();
+                // On Linux/GTK, calling show() on an already-visible window can
+                // corrupt the native titlebar hit-test (buttons become dead until
+                // a resize/double-click). Only show if currently hidden.
+                let win = webview.window();
+                if !win.is_visible().unwrap_or(false) {
+                    let _ = win.show();
+                }
             }
         });
     }
