@@ -1,0 +1,4478 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agentero 本地优先 Agent 科研工作台文档">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>打开论文与后台流水线编排 - Agentero 文档</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="grey">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#_1" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="Agentero 文档" class="md-header__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Agentero 文档
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              打开论文与后台流水线编排
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  首页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  架构总览
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../usage/" class="md-tabs__link">
+          
+  
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../frontend/" class="md-tabs__link">
+          
+  
+  
+  前端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../backend/" class="md-tabs__link">
+          
+  
+  
+  后端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  开发草稿
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../test/" class="md-tabs__link">
+          
+  
+  
+  测试
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../bug_fix/deepseek-thinking-body/" class="md-tabs__link">
+          
+  
+  
+  Bug 修复记录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Agentero 文档" class="md-nav__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
+
+    </a>
+    Agentero 文档
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    首页
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    架构总览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速上手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    安装与首次使用
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/import-papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入和管理论文
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/read-and-organize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    阅读、标注与整理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    接入 Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/mobile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    移动端
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/zotero/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用 Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/remote-vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    打开远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    前端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    前端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/shell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    工作台壳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dockview 工作区
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/vault-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    文件树
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文库 Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入库 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/markdown/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markdown 编辑
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/pdf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 阅读与划词
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/pdf-layout-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 版面分析（实验）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent 面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/mobile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    移动端
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/command-palette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    命令面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置与主题
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/components/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    组件约定
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    后端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    后端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据模型
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault FS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文入库
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/identifier-lookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Identifier Lookup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/citation-parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考文献解析
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/skill-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skill 导入
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/connector/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent Host
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/remote/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    搜索
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    运行日志
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API 全表
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    开发草稿
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    开发草稿
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    路线图
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../todo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TODO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plaza/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    广场 Plaza
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage-analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用记录总结 (#239)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bug/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 汇总
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    测试
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    测试
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/ios-testflight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS TestFlight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release-checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布前 Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 修复记录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bug 修复记录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/deepseek-thinking-body/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DeepSeek 正文落入 Thinking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/acp-session-resume-id/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ACP 会话恢复 ID 错误
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/ime-composition-enter-submit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    输入法组字 Enter 误发送
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wiki-embed-unrelated-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链稳定性
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/dockview-sash-pdf-resize-jank/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    拖动 Dockview 分隔条时 PDF 卡顿
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/pdf-switch-visual-crop-layout-onnx/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 切换视觉截图与后台 ONNX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-acp-path-ssh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远端 ACP PATH / SSH
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-vault-tree-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault 文件树懒加载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/macos-signing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    macOS 签名与公证
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/gemini-login-browser-loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gemini 登录弹窗循环
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/import-abstract-mt-timeout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入 NOTES 摘要 MT 超时
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 一句话
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 背景与动机
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. 背景与动机">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 关键路径过长
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 触发点散落
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 轮询、全量重写、自回声
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 连接与锁
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 范围
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 范围">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        要做
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        不做（本篇）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 硬约束
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 三条时间轴（纪律）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 现状流水线清单
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 现状流水线清单">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-rust-pdftex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 下载资产（Rust，串行 PDF→TeX）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-liteparserust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 liteparse（Rust，子进程隔离）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-rust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 引用解析（Rust，指纹幂等）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 图谱（两套，一套是死的）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65-layout-onnx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 layout 分析（渲染进程 ONNX）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#66-sidecar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.6 sidecar 一览
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 目标编排
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 目标编排">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-t04-ipc-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 T0：4 个串行 IPC 压成 1 个
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-t0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 T0 时间线
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-job-centerrust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Job Center（内存，Rust）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7.3 Job Center（内存，Rust）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        执行位置与并发
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        渲染进程如何领活
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#in-flight-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        重启丢失 in-flight job —— 不需要处理
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-11-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 触发时机：11 处收敛到 3 个入口
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7.4 触发时机：11 处收敛到 3 个入口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-paper_commit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        入口 ① 导入完成 —— paper_commit 尾部，一次建链
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-job_focus_paperpaperpath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        入口 ② 打开论文 —— job_focus_paper(paperPath)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-watcher-debounced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        入口 ③ watcher 变更 —— debounced，指纹驱动
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#75" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.5 完整时间线
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#76-background-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.6 与既有 background-tasks 的合并
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7.6 与既有 background-tasks 的合并">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        判定规则
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        投影机制已经现成
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        三个必须同时处理的细节
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kind" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        kind 映射
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 配套基础设施
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. 配套基础设施">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-sidecar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 统一 sidecar 写入器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 缓存命中就真的什么都不做
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-cataloghandle-state-sql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 CatalogHandle 进 State（零新增 SQL）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#84-capscache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.4 CapsCache 内存能力位
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#85-primitive-job-framework" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.5 依赖选型：复用 primitive，不引 job framework
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 落地顺序
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. 函数审计与清理
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. 函数审计与清理">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 重复的「下载后处理」尾巴（5 处，每处都不一样）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#102-downloadallmissingassets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.2 downloadAllMissingAssets 应整个消失
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#103-auto-quiet-maybe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.3 auto / quiet / maybe 类函数逐个审计
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#104" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.4 死代码
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. 验收指标
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. 未决问题
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="_1">打开论文与后台流水线编排<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>状态：设计草案。零 schema 变更（不新增表 / 列 / migration）。
+关联：<a href="../../architecture/">architecture</a> · <a href="../../backend/catalog/">catalog</a> · <a href="../../backend/paper-import/">import</a> · <a href="../../frontend/pdf/">pdf</a></p>
+</blockquote>
+<h2 id="1">1. 一句话<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>把「打开论文」的关键路径压到 <strong>1 个聚合 IPC + 1 次 PDF 读取</strong>，其余五条流水线（下载 / liteparse / 引用 / 图谱 / layout）统一交给 Rust 侧一个<strong>内存 Job Center</strong> 按 <code>focus / normal / idle</code> 三档优先级调度，用 <code>job:changed</code> 事件取代轮询。</p>
+<div class="codehilite"><pre><span></span><code>T0 交互轴  paper_open_bundle → readFile(PDF) → 骨架屏消失
+              ↓ job_focus_paper（fire &amp; forget）
+T1 就近轴  Job Center 把当前论文的待办提到 focus lane → job:changed → 局部刷新
+T2 idle轴  reconcile 扫描补齐全库缺失产物
+</code></pre></div>
+
+<h2 id="2">2. 背景与动机<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="21">2.1 关键路径过长<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<p><code>loadTabResources</code>（<code>src/lib/workspace/tabs/resources.ts:178</code>）<strong>全程串行</strong>四个 round-trip：</p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>位置</th>
+<th>成本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vault_allow_fs_scope</code></td>
+<td><code>:217</code></td>
+<td>~1ms</td>
+</tr>
+<tr>
+<td><code>detectPaperDirectory</code> 读 NOTES.md</td>
+<td><code>:220</code></td>
+<td>~2ms</td>
+</tr>
+<tr>
+<td><code>paper_get</code></td>
+<td><code>:263</code></td>
+<td>5–15ms，每次重开连接 + 重跑 migration 阶梯</td>
+</tr>
+<tr>
+<td><code>findLocalPdfPath</code>（<code>readDir</code> 递归 4 层）</td>
+<td><code>src/lib/paper/media.ts:120-210</code></td>
+<td>2–30ms</td>
+</tr>
+<tr>
+<td><code>readFile(PDF)</code> + <code>Uint8Array</code> 全量拷贝</td>
+<td><code>src/lib/vault/fs.ts:41-60</code></td>
+<td>100–400ms</td>
+</tr>
+<tr>
+<td><code>readVaultFile(NOTES.md)</code></td>
+<td><code>:287</code></td>
+<td>~2ms</td>
+</tr>
+</tbody>
+</table>
+<p>metadata / PDF 发现 / notes seed 三者互不依赖却串行等待。</p>
+<h3 id="22">2.2 触发点散落<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>流水线</th>
+<th>enqueue 点数</th>
+<th>位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>layout</td>
+<td><strong>6</strong></td>
+<td><code>import-actions.ts:145,188,302</code>、<code>library-actions.ts:171,279</code>、<code>resources.ts:89,145</code>、<code>use-pdf-layout-run.ts:278</code></td>
+</tr>
+<tr>
+<td>refs</td>
+<td><strong>3</strong></td>
+<td><code>paper_import/mod.rs:192</code>、<code>import/mod.rs:391</code>、<code>import/mod.rs:540</code></td>
+</tr>
+<tr>
+<td>download</td>
+<td><strong>2</strong></td>
+<td><code>lookup_import_batch</code> 内的 <code>SyncDownload</code> + <code>import-actions.ts:158-200</code> 事后重新 enqueue</td>
+</tr>
+</tbody>
+</table>
+<p>去重全靠 module-level <code>Set</code>（<code>enqueue-paper-layout.ts:19</code>、<code>resources.ts:52,55</code>、<code>refs.ts:121</code>），<strong>重启即失忆</strong>，且 <code>enqueue-paper-layout.ts:120</code> 在 <code>finally</code> 里 <code>delete</code>，同一篇会被反复重排。</p>
+<h3 id="23">2.3 轮询、全量重写、自回声<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>轮询</strong>：<code>use-pdf-layout-run.ts:285-380</code> 每 1.5s 全量读 + <code>JSON.parse</code> + 校验 <code>layout.json</code>，最长 15 分钟（<code>:295,322,331</code>）。而 <code>vault:file-changed</code> 事件早已存在（<code>src/lib/vault/fs-watch.ts:17</code>）。</li>
+<li><strong>全量重写</strong>：<code>layout-translate.json</code> 每译完一块就整文件 <code>JSON.stringify(…, null, 2)</code> 重写（<code>use-pdf-layout-translate.ts:117</code> → <code>layout-translate.ts:396</code>）。40 页论文 400+ 次全量写，字节数二次增长，无 temp+rename——写一半崩溃即毁缓存。</li>
+<li><strong>缓存命中仍做真活</strong>：<code>run-analysis.ts:336</code> 每次都重跑 <code>mergeCaptionsIntoHosts</code>（41KB 几何逻辑），<code>:359</code> 每次都重写 <code>layout-index.json</code> → <strong>每次打开论文必产生一次无意义磁盘写</strong>，进而触发 watcher。</li>
+<li><strong>自回声</strong>：<code>catalog.sqlite*</code> 未被 watcher 忽略（<code>src-tauri/src/features/watcher/mod.rs:142-152</code>）+ <code>use-vault-file-events.ts:111-119</code> 判定影响库 → <code>paper_set_page_counts</code> 写页数即触发全量 <code>paper_list</code>。</li>
+</ul>
+<h3 id="24">2.4 连接与锁<a class="headerlink" href="#24" title="Permanent link">&para;</a></h3>
+<ul>
+<li>每个 catalog 命令都走 <code>ensure_catalog</code>（<code>src-tauri/src/features/catalog/schema.rs:109-129</code>）：<code>create_dir_all</code> + <code>Connection::open</code> + 4 个 PRAGMA + <strong>5 次 <code>schema_version</code> 探测</strong>（<code>:132-222</code>）。</li>
+<li>所有 <code>wiki_*</code> 命令串在一把全局 <code>std::sync::Mutex</code> 上，连纯读也 <code>let mut guard</code>（<code>wiki/commands.rs:31,52,68,92</code>）；rebuild 与 <code>wiki_embed_read</code> 的文件读也在锁内（<code>index.rs:708-711</code>）。poison 只报不恢复。</li>
+</ul>
+<h2 id="3">3. 范围<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="_2">要做<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>聚合命令 <code>paper_open_bundle</code>，收敛 T0 的多次 IPC。</li>
+<li>Rust 侧内存 <code>JobCenter</code>：三档优先级 lane、指纹去重、依赖顺序、并发上限、<code>job:changed</code> 事件。</li>
+<li>渲染进程降级为 layout / translate 的 executor（<code>job:offer</code> → <code>job_report</code>）。</li>
+<li>enqueue 点从 11 处收敛到 3 个入口。</li>
+<li>内存 <code>CapsCache</code> 能力位缓存，消灭重复目录遍历。</li>
+<li><code>CatalogHandle</code> 进 Tauri <code>State</code>，migration 只在 setup 跑一次。</li>
+<li>统一 sidecar 写入器：debounce + 原子写 + 自写抑制。</li>
+</ul>
+<h3 id="_3">不做（本篇）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>不新增表 / 列 / migration。能力位与 job 队列都是<strong>内存派生态</strong>。</li>
+<li>不把 layout 推理搬去 Rust（见 §4 约束）。</li>
+<li>不改 sidecar 的 schema 与文件名。</li>
+<li>不改 PDF 字节的读取方（仍是前端 <code>plugin-fs</code>，PDFium 需要 <code>ArrayBuffer</code>）。</li>
+<li>不重写 wiki 解析算法本身（只记录成本，见 §6.4）。</li>
+</ul>
+<h2 id="4">4. 硬约束<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>layout 推理必须留在渲染进程</strong>。引擎是 PP-DocLayoutV3 ONNX，跑在 <code>@embedpdf/plugin-layout-analysis</code> + onnxruntime-web（WebGPU/WASM）。Rust 只负责下载模型（<code>layout_model/mod.rs:29-37</code>）并通过自定义协议 <code>agentero-model://</code> 供给（<code>app/mod.rs:50</code>、<code>src/lib/pdf/layout/model.ts:34</code>）。因此目标不是「全搬去 Rust」，而是<strong>队列语义全归 Rust，渲染进程只做 executor</strong>。</li>
+<li><strong>零 schema 变更</strong>。能力位与 job 状态一律内存态 + 磁盘重建。</li>
+<li><strong>local-first 不破</strong>：磁盘上的 Markdown / sidecar 始终可被外部工具读写，任何内存缓存都必须能从磁盘无损重建。</li>
+</ol>
+<h2 id="5">5. 三条时间轴（纪律）<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>轴</th>
+<th>预算</th>
+<th>允许做的事</th>
+<th>判据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>T0 交互轴</strong></td>
+<td>0–300ms</td>
+<td>只做「没有它就看不到内容」的事</td>
+<td>阻塞骨架屏消失的都在这</td>
+</tr>
+<tr>
+<td><strong>T1 就近轴</strong></td>
+<td>0.3s–数秒</td>
+<td>当前这篇论文的增强</td>
+<td>用户正看着，值得抢优先级</td>
+</tr>
+<tr>
+<td><strong>T2 idle 轴</strong></td>
+<td>分钟级</td>
+<td>全库 backfill</td>
+<td>只在 idle 跑，可随时中断</td>
+</tr>
+</tbody>
+</table>
+<p>现状问题正是三轴混杂：<code>loadTabResources</code> 里塞了 T1 的活（<code>maybeTriggerDeferredParse</code>、<code>loadPaperRefsAuto</code>），而 T2 的活（页数 backfill）又通过 watcher 自回声打回 T0。</p>
+<h2 id="6">6. 现状流水线清单<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h3 id="61-rust-pdftex">6.1 下载资产（Rust，串行 PDF→TeX）<a class="headerlink" href="#61-rust-pdftex" title="Permanent link">&para;</a></h3>
+<p>命令 <code>lookup_import_batch</code> / <code>paper_download_assets</code> / <code>paper_import_local_pdf</code> / <code>paper_parse_body</code> / <code>paper_import</code>（<code>app/handlers.rs:66-74</code>）。唯一事件 <code>background-task:progress</code>，phase = <code>pdf|tex|parse|import</code>（<code>import/assets.rs:30-43</code>），前端监听 <code>src/lib/core/background-tasks.ts:334-360</code>。</p>
+<div class="codehilite"><pre><span></span><code>lookupSubmit (import-actions.ts:69)
+ → lookup_import_batch → buffer_unordered(5)        // import/mod.rs:356
+   → resolve_metadata(Translator) → enrich_remote_urls
+   → paper_commit (paper_import/mod.rs:94)
+      ├ allocate_paper_path + mkdir
+      ├ 写 NOTES.md（标题 + 摘要 zh-CN 机翻，import/mod.rs:1040-1076）
+      ├ papers::upsert_paper                        // sqlite 为事实来源
+      ├ ensure_paper_assets  ← 180s 总超时，PDF 完再 TeX，串行
+      └ refs::spawn_parse_after_import
+</code></pre></div>
+
+<ul>
+<li><strong>PDF 候选链</strong>（<code>assets.rs:301</code>）：<code>meta.pdf_url</code> → <code>arxiv.org/pdf/{id}</code> → <code>/{id}.pdf</code> → <code>export.arxiv.org</code> → Crossref links（<code>:388</code>）→ Unpaywall <code>best_oa_location</code>（<code>:338</code>）。落地前校验 <code>%PDF</code> 魔数 + 反 HTML（<code>:472-488</code>）。<strong>无 per-URL 重试</strong>，候选链本身即兜底。</li>
+<li><strong>TeX</strong>：仅有 <code>arxiv_id</code> 时拉 <code>arxiv.org/e-print/{id}</code> → <code>flate2::GzDecoder</code> → <code>tar::Archive</code> → <code>extract_tar_safe</code>（防路径穿越，<code>:582-638</code>）。</li>
+<li><strong>取消</strong>：逐 chunk 轮询 <code>is_cancelled</code>。</li>
+<li><strong>远程 SFTP</strong>：<code>remote/import_bridge.rs:114</code> 暂存到 <code>session.work_root</code> → 复用同一批本地 helper → <code>upload_tree</code> → <code>catalog.push</code>。<strong>严格串行且不发进度</strong>（<code>:90-102</code>）。</li>
+</ul>
+<p><strong>磁盘布局</strong> <code>{vault}/papers[/sub]/{id}/</code>：</p>
+<div class="codehilite"><pre><span></span><code>NOTES.md              用户笔记（导入时写入标题 + 机翻摘要）
+{id}.pdf              规范 PDF —— 在根目录，不在 source/
+PAPER.md              liteparse 产物
+source/**             解压后的 LaTeX
+source/agentero-cite.json    引用 sidecar
+source/layout.json           layout 原始 region
+source/layout-index.json     layout post-merge 索引
+source/layout-translate.json layout 译文缓存
+</code></pre></div>
+
+<blockquote>
+<p><code>metadata.json</code> 只被读取（legacy / rescan，<code>catalog/commands.rs:242</code>），本流水线不写它。</p>
+</blockquote>
+<h3 id="62-liteparserust">6.2 liteparse（Rust，子进程隔离）<a class="headerlink" href="#62-liteparserust" title="Permanent link">&para;</a></h3>
+<p>crates.io <code>liteparse = "2.5"</code>（<code>src-tauri/Cargo.toml:79</code>），PDFium + OCR，仅桌面（移动端返回「在配对的桌面主机上运行」，<code>pdf_parse/mod.rs:456</code>）。</p>
+<p><strong>关键设计</strong>：不在进程内调用，而是 <strong>re-spawn 应用自身二进制</strong>当 worker——<code>--agentero-internal-pdf-parse-worker &lt;pdf&gt; &lt;response.json&gt;</code>，<code>kill_on_drop</code>，120s 超时，100ms 轮询取消（<code>pdf_parse/mod.rs:263,304</code>）。worker 分支在 Tauri init 之前执行。目的是隔离 liteparse 可能的 crash / OOM，<strong>这个设计保留</strong>。</p>
+<ul>
+<li>守卫（<code>:150</code>）：有本地 TeX 就跳过 → <code>PAPER.md</code> 已存在且非 <code>force</code> 就返回。天然幂等。</li>
+<li>配置（<code>:408</code>）：<code>ocr_enabled</code>、<code>ocr_failure_fatal:false</code>、Markdown、<code>ImageMode::Off</code>、<code>max_pages:500</code>、<code>extract_links</code>。</li>
+<li>产物：<code>PAPER.md</code> + catalog 的 <code>body_source</code>(<code>pdf|ocr|latex</code>) / <code>body_quality</code>(<code>medium|low|high</code>)，经 <code>update_catalog_body</code>（<code>:466</code>）写入。</li>
+<li>调用方：<code>paper_parse_body</code>（<code>force:false</code>）有两个入口——前端 <code>enqueuePaperPdfParse</code>（<code>src/lib/paper/enqueue-paper-pdf-parse.ts:56</code>）与 CLI（<code>cli/src/commands/paper.rs:650</code>）。</li>
+<li>懒触发：<code>maybeTriggerDeferredParse</code>（<code>resources.ts:58-83</code>）在「有 PDF、无 TeX、无 <code>PAPER.md</code>」时调 <code>enqueuePaperPdfParse</code>（<code>:78</code>）——已是正确的轻量路径。</li>
+<li>⚠️ <strong><code>PAPER.md</code> 不由 Rust 的导入/下载命令生成</strong>：<code>paper_commit</code>（<code>paper_import/mod.rs:94-204</code>）与 <code>download_paper_assets_with_progress</code>（<code>import/mod.rs:458-522</code>）都只做「资产 + refs spawn」，均无 liteparse 调用。只有 Connector 路径在 Rust 内联生成（<code>connector/import.rs:174,356,733,797,887,925</code>、<code>connector/state.rs:536</code>）。identifier / 本地 PDF / BibTeX 三条入口<strong>完全依赖前端</strong> <code>enqueuePaperPdfParse</code>。详见 <a href="../paper-behavior-dag/">paper-behavior-dag.md</a> §3.1。</li>
+</ul>
+<h3 id="63-rust">6.3 引用解析（Rust，指纹幂等）<a class="headerlink" href="#63-rust" title="Permanent link">&para;</a></h3>
+<p><code>paper_refs_parse</code> / <code>paper_refs_list</code> / <code>paper_refs_graph</code>（<code>refs/commands.rs:39,57,83</code>）。</p>
+<ul>
+<li><strong>本地源优先级</strong>（<code>mod.rs:670</code>）：<code>.bbl</code>（提供编号顺序 → <code>display:"[n]"</code>）→ <code>.tex</code> 内联 <code>\begin{thebibliography}</code> → <code>.bib</code>；<code>.bib</code> 始终按 cite key 反向补全 <code>.bbl</code> 条目（<code>enrich_from_bib</code>，<code>:806</code>）。<strong>完全不解析 PDF 文本。</strong></li>
+<li><strong>幂等</strong>：<code>fingerprint</code> = SHA-256(schemaVersion + DOI + arXiv + online 标志 + 每文件 path/len/mtime)（<code>:640</code>）。命中且非 <code>force</code> 直接返回既有 sidecar（<code>:136-142</code>）。</li>
+<li><strong>在线</strong>：仅当本文有 DOI / arXiv（<code>:150</code>）→ Semantic Scholar <code>references?limit=1000</code>（<code>online.rs:86</code>）→ Crossref <code>works/{doi}</code> 兜底（<code>:142</code>）。合并顺序 DOI → arXiv → 归一标题（精确后包含）→ year + 首作者姓氏模糊（<code>mod.rs:834-907</code>）。mode 标为 <code>bbl+s2</code> 这类。</li>
+<li><strong>关联本地库</strong>：<code>attach_local_matches</code>（<code>:992</code>）用 <code>papers::list_all</code> 建 DOI / arXiv / 标题（≥15 字符）索引 → <code>LocalMatch{paperPath, matchBy}</code>。</li>
+<li><strong>写盘</strong>：故意用 plain <code>fs::write</code>（<code>:594</code>）而非 temp+rename，为了不触发 watcher 的 "unverified rename" 提示。</li>
+</ul>
+<blockquote>
+<p>⚠️ <strong>零限流</strong>：每次 HTTP 新建 <code>reqwest::Client</code>（<code>online.rs:60</code> 在 <code>get_json:69</code> 内），无池化、无 backoff、无 semaphore。<code>spawn_parse_after_import</code>（<code>mod.rs:210</code>）每篇一个无界 task，批量导入 N 篇 = N 个并发 S2 请求，稳定吃 429。唯一节流是前端 dedupe map（<code>refs.ts:121-151</code>）。</p>
+</blockquote>
+<p><strong>PDF 内引用跳转是完全独立的路径</strong>：<code>use-pdf-citations.ts</code> + <code>layers/citation-links.tsx:107</code> 靠 PDFium text rects 在 GoTo 目标处就地拼装条目（<code>mergeBibliographyEntryAtY:149</code>），按 <code>page:y</code> 缓存，<strong>不读 sidecar</strong>。<code>refs.ts:167,192</code> 的 marker 匹配函数只有测试在用——sidecar ↔ 正文标记的桥设计了但没接上。</p>
+<h3 id="64">6.4 图谱（两套，一套是死的）<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>引用图</th>
+<th>wiki 图</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>命令</td>
+<td><code>paper_refs_graph</code>（<code>refs/commands.rs:83</code>）</td>
+<td><code>graph_get_graph</code></td>
+</tr>
+<tr>
+<td>UI</td>
+<td><code>GraphPanel</code> 实际渲染的就是这个</td>
+<td><strong>零调用方，死代码</strong></td>
+</tr>
+<tr>
+<td>成本</td>
+<td>每次调用读<strong>全库每篇</strong>的 sidecar（<code>mod.rs:306</code>），O(catalog) 次文件读 + JSON parse，无内存态</td>
+<td>走磁盘 <code>discover_paper_folders</code>（<code>index.rs:981,1040</code>）+ 每节点读 <code>metadata.json</code>（<code>:1105</code>），全在锁内</td>
+</tr>
+</tbody>
+</table>
+<p><code>graph-panel.tsx:185</code> 调用时不传 <code>center</code>，所以 <code>selectedPath</code> prop 白传，<code>mod.rs:340-385</code> 的邻域 BFS 分支 UI 不可达。</p>
+<p><strong>wiki index</strong>（<code>wiki/index.rs:206</code>）：<code>edges: Vec&lt;ResolvedLink&gt;</code> + <code>reverse: HashMap</code> + <code>files</code> + <code>documents</code>，状态 <code>WikiIndexState{Mutex&lt;WikiIndex&gt;}</code>（<code>:1193</code>，<code>app/mod.rs:82</code>）。</p>
+<p>构建：全量扫 vault（深度 24，<code>:161</code>）→ <code>fingerprint_files</code>（size + mtime_ns，<code>cache.rs:85</code>）→ 从 <code>cache/agentero/wiki/{sha256(vault)}.sqlite</code> 读快照（<code>:114</code>）→ 指纹一致即热启（<code>index.rs:298</code>），否则 <code>rebuild_from</code>（<code>:343</code>）增量重读变更文件但<strong>重新 resolve 全部 occurrence</strong>（<code>:417</code>）。</p>
+<p>重建触发：<code>ensure_vault</code> 仅在 vault 路径变化时（<code>:481</code>）；显式 <code>graph_rebuild</code>（<code>commands.rs:178</code>）/ <code>wiki_cache_rebuild</code>（<code>:208</code>）；重命名与标题重命名事务（<code>rename.rs:582,591,623</code>、<code>heading_rename.rs:361,423,452</code>）。前端 watcher 900ms trailing debounce + 4s 自写回声抑制（<code>src/lib/wiki/store.ts:90-119</code>）。<strong>打开论文不触发重建——这点现状正确，保留。</strong></p>
+<p>成本：<code>get_backlinks</code>（<code>:488-502</code>）遍历所有 reverse key 做 <code>eq_ignore_ascii_case</code>（本应 hash lookup）；<code>get_outgoing</code>（<code>:523</code>）/ <code>check_links</code>（<code>:564</code>）O(全部边)；<code>resolve_document</code>（<code>resolve.rs:86-141</code>）线性扫 documents → 冷启动近似 O(edges × documents)。</p>
+<h3 id="65-layout-onnx">6.5 layout 分析（渲染进程 ONNX）<a class="headerlink" href="#65-layout-onnx" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>enqueuePaperLayoutAnalysis                  // 6 个调用点
+ → queuedPapers Set 去重 (enqueue-paper-layout.ts:19,35)
+ → readLayoutSidecar 预检 (:41)
+ → enqueueBackgroundTask(kind:&quot;parse&quot;, concurrency:1) (:56,111)
+ → analyzePaperLayoutHeadless (headless-analyze.ts:109)
+    ├ 每篇新建 PluginRegistry (:145-246)
+    ├ PDFium 模块级 singleton worker engine (:35)，8s ready 超时 → 掉回主线程 direct engine (:78)
+    ├ ensureLayoutModel → layout_model_ensure（单飞，model.ts:111-160）
+    └ scope.analyzeAllPages (run-analysis.ts:423)
+ → mergeCaptionsIntoHosts + NMS dedupe
+ → writeLayoutSidecar + writeLayoutIndexFromRaw (run-analysis.ts:517-540)
+</code></pre></div>
+
+<ul>
+<li><strong>region 类型</strong>（<code>src/lib/pdf/layout/types.ts:33</code>）：<code>image/table/algorithm/formula/formula_number/chart/figure_title/header/abstract/text</code> + <code>score</code> + <code>readingOrder</code> + <code>rect</code>(PDF 点) / <code>bbox</code>(归一 0–1)。</li>
+<li><strong>文字来自 PDFium text layer 而非 OCR</strong>：<code>scope.getPageTextRuns</code> 填充 <code>text</code>/<code>title</code>（<code>run-analysis.ts:189,250</code>）。</li>
+<li><code>tableStructure: false</code>（<code>headless-analyze.ts:154</code>）→ 不抽表格单元结构。</li>
+<li><strong>队列</strong>：<code>enqueueBackgroundTask</code> 是 zustand store + per-kind <code>Semaphore</code>（<code>background-tasks.ts:384-430</code>）。<code>concurrency</code> 按 kind 计，<code>"parse"</code> 与其他 parse 任务共用一条道。</li>
+<li><strong>消费</strong>：<code>layoutAnalysisStore</code>（<code>store.ts:31</code>，按 EmbedPDF <code>documentId</code> 索引）→ <code>usePdfLayoutRegions</code> → 图表侧栏（<code>figures-panel.tsx:230-384</code>）、overlay（<code>page-layers.tsx:265,299-301,316</code>）、命中测试（<code>hit-test.ts:107</code>，最小面积优先，同面积比 score）。<strong>文本选择 / 复制不消费 layout</strong>，仍走 PDFium selection。</li>
+</ul>
+<p><strong>翻译路径</strong>：工具栏 toggle 才启动（<code>use-pdf-layout-translate.ts:83</code>）。<code>listTranslatableLayoutRegions</code>（<code>layout-translate.ts:158</code>）是<strong>整文档粒度</strong>，跳过 algorithm 正文 / <code>reference</code> / <code>aside_text</code> / "Algorithm N" 标题 / "References" 标题，单块截断 <code>LAYOUT_TRANSLATE_MAX_CHARS = 2500</code>（<code>:39</code>）。cache key = <code>{providerId, sourceLang, targetLang, serviceKey}</code>（<code>:260</code>），命中的 item 直接标 <code>done</code>（<code>:378-386</code>，即 commit <code>6dcd1b61</code>）。并发 <code>LAYOUT_TRANSLATE_CONCURRENCY = 2</code>（<code>:42</code>），Agent provider 强制 1（<code>:580</code>）。<strong>一 region 一请求，无 batch、无同文本去重</strong>；Agent provider 绕过 Rust 走 ACP <code>runOnce</code>（<code>:522-556</code>），其余经 <code>bindings.ts:8</code> → <code>translate_text</code>（<code>translate/commands.rs:10</code>）。</p>
+<h3 id="66-sidecar">6.6 sidecar 一览<a class="headerlink" href="#66-sidecar" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>文件（均在 <code>{paper}/source/</code>）</th>
+<th>常量</th>
+<th>ver</th>
+<th>失效条件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agentero-cite.json</code></td>
+<td><code>SIDECAR_FILE</code>（<code>refs/mod.rs:23</code>）</td>
+<td>—</td>
+<td>fingerprint 不符</td>
+</tr>
+<tr>
+<td><code>layout.json</code></td>
+<td><code>LAYOUT_SIDECAR_FILE</code>（<code>io.ts:13</code>）</td>
+<td>2</td>
+<td><code>schemaVersion</code> 不符；<strong>单个坏 region 整文件作废</strong>（<code>io.ts:121,128</code>）</td>
+</tr>
+<tr>
+<td><code>layout-index.json</code></td>
+<td><code>LAYOUT_INDEX_FILE</code>（<code>layout-index.ts:23</code>）</td>
+<td>1</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>layout-translate.json</code></td>
+<td><code>LAYOUT_TRANSLATE_SIDECAR_FILE</code>（<code>layout-translate.ts:45</code>）</td>
+<td>1</td>
+<td>cacheKey 不符整文件弃（<code>:346</code>），再按 <code>id</code> + 源文本逐条校验（<code>:386</code>）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>全部为整文件 <code>JSON.stringify(…, null, 2)</code> 重写</strong>，经 <code>writeVaultFile</code> → <code>plugin-fs writeTextFile</code>（<code>vault/fs.ts:88</code>），无 temp+rename。</p>
+<h2 id="7">7. 目标编排<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<h3 id="71-t04-ipc-1">7.1 T0：4 个串行 IPC 压成 1 个<a class="headerlink" href="#71-t04-ipc-1" title="Permanent link">&para;</a></h3>
+<p>新增聚合命令 <strong><code>paper_open_bundle(paperPath)</code></strong>：</p>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">PaperOpenBundle</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">paper</span><span class="p">:</span><span class="w"> </span><span class="nc">PaperRow</span><span class="p">,</span><span class="w">            </span><span class="c1">// 现有表，不加列</span>
+<span class="w">    </span><span class="n">pdf</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">PdfLocator</span><span class="o">&gt;</span><span class="p">,</span><span class="w">    </span><span class="c1">// { abs_path, size, page_count } —— 取自 CapsCache，不 walk</span>
+<span class="w">    </span><span class="n">notes</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w">              </span><span class="c1">// NOTES.md 内容</span>
+<span class="w">    </span><span class="n">marks</span><span class="p">:</span><span class="w"> </span><span class="nc">MarksSnapshot</span><span class="p">,</span><span class="w">       </span><span class="c1">// asks + translates + visualTraces，一次目录读 + 批量读</span>
+<span class="w">    </span><span class="n">sidecars</span><span class="p">:</span><span class="w"> </span><span class="nc">SidecarStatus</span><span class="p">,</span><span class="w">    </span><span class="c1">// 只回状态位，不回内容</span>
+<span class="p">}</span>
+
+<span class="k">enum</span><span class="w"> </span><span class="nc">Freshness</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Missing</span><span class="p">,</span><span class="w"> </span><span class="n">Stale</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fingerprint</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="n">Fresh</span><span class="w"> </span><span class="p">}</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">SidecarStatus</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">refs</span><span class="p">:</span><span class="w"> </span><span class="nc">Freshness</span><span class="p">,</span><span class="w">              </span><span class="c1">// 比 refs fingerprint</span>
+<span class="w">    </span><span class="n">layout</span><span class="p">:</span><span class="w"> </span><span class="nc">Freshness</span><span class="p">,</span><span class="w">            </span><span class="c1">// 比 schemaVersion</span>
+<span class="w">    </span><span class="n">layout_translate</span><span class="p">:</span><span class="w"> </span><span class="nc">Freshness</span><span class="p">,</span><span class="w">  </span><span class="c1">// 比 cacheKey</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><code>sidecars</code> 只回「有没有 / 新不新」，让前端立刻知道该不该等，无需读内容。</p>
+<p><strong>替掉</strong>：<code>resources.ts:217-287</code> 的 4 个串行 round-trip、<code>media.ts:120-210</code> 的 4 层递归、<code>use-pdf-marks-io.ts:132</code> 的 3 次 <code>readDir</code>（<code>marks-io.ts:51-82</code>）。</p>
+<h3 id="72-t0">7.2 T0 时间线<a class="headerlink" href="#72-t0" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>t=0ms      同步：placeholder tab + openPanel + 1 次 store 写（现状 5 次）
+t=0~15ms   paper_open_bundle(path)                    ← 唯一阻塞 IPC
+t=15ms     readFile(pdfPath) → ArrayBuffer            ← 唯一大 IO，100~400ms
+           并行 fire&amp;forget：job_focus_paper(path)     ← 不 await
+t≈200ms    updateTab 一次落盘 → 骨架屏消失，NOTES 立刻可编辑
+t+150ms    PDFium parse → totalPages
+t+200ms    并发：outline ∥ 阅读位恢复 ∥ annotations import ∥ pageTextRects
+           （marks 已在 bundle 里，不再读盘）
+</code></pre></div>
+
+<p>PDF 字节读取<strong>仍留在前端</strong>：PDFium 需要 <code>ArrayBuffer</code>，走 Rust 反而多一次跨进程拷贝。</p>
+<h3 id="73-job-centerrust">7.3 Job Center（内存，Rust）<a class="headerlink" href="#73-job-centerrust" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src-tauri/src/features/jobs/</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">JobKind</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">DownloadAssets</span><span class="p">,</span><span class="w"> </span><span class="n">ParseBody</span><span class="p">,</span><span class="w"> </span><span class="n">ParseRefs</span><span class="p">,</span>
+<span class="w">    </span><span class="n">LayoutAnalyze</span><span class="p">,</span><span class="w"> </span><span class="n">LayoutTranslate</span><span class="p">,</span><span class="w"> </span><span class="n">PageCount</span><span class="p">,</span><span class="w"> </span><span class="n">WikiReindex</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Job</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="nc">JobId</span><span class="p">,</span>
+<span class="w">    </span><span class="n">kind</span><span class="p">:</span><span class="w"> </span><span class="nc">JobKind</span><span class="p">,</span>
+<span class="w">    </span><span class="n">paper</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">PathKey</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">fingerprint</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="w">    </span><span class="n">depends_on</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">JobId</span><span class="o">&gt;</span><span class="p">,</span><span class="w">   </span><span class="c1">// 取代嵌套 tokio::spawn</span>
+<span class="w">    </span><span class="n">attempts</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
+<span class="w">    </span><span class="n">progress</span><span class="p">:</span><span class="w"> </span><span class="kt">f32</span><span class="p">,</span>
+<span class="w">    </span><span class="n">phase</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">JobCenter</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">lanes</span><span class="p">:</span><span class="w"> </span><span class="nc">Mutex</span><span class="o">&lt;</span><span class="p">[</span><span class="n">VecDeque</span><span class="o">&lt;</span><span class="n">Job</span><span class="o">&gt;</span><span class="p">;</span><span class="w"> </span><span class="mi">3</span><span class="p">]</span><span class="o">&gt;</span><span class="p">,</span><span class="w">                  </span><span class="c1">// focus / normal / idle</span>
+<span class="w">    </span><span class="n">seen</span><span class="p">:</span><span class="w"> </span><span class="nc">Mutex</span><span class="o">&lt;</span><span class="n">HashSet</span><span class="o">&lt;</span><span class="p">(</span><span class="n">JobKind</span><span class="p">,</span><span class="w"> </span><span class="n">PathKey</span><span class="p">,</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w">  </span><span class="c1">// kind + path + fingerprint 去重</span>
+<span class="w">    </span><span class="n">running</span><span class="p">:</span><span class="w"> </span><span class="nc">Mutex</span><span class="o">&lt;</span><span class="n">HashMap</span><span class="o">&lt;</span><span class="n">JobId</span><span class="p">,</span><span class="w"> </span><span class="n">RunningJob</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">permits</span><span class="p">:</span><span class="w"> </span><span class="nc">HashMap</span><span class="o">&lt;</span><span class="n">JobKind</span><span class="p">,</span><span class="w"> </span><span class="n">Arc</span><span class="o">&lt;</span><span class="n">Semaphore</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>三条 lane 而非优先级堆</strong>：<code>job_focus_paper</code> 切换时只需把 job 从 <code>normal</code> lane 挪到 <code>focus</code> lane，比堆里改 key 简单。</p>
+<p>去重用会话内 <code>HashSet</code>，替掉现有的 <code>queuedPapers</code>（<code>enqueue-paper-layout.ts:19</code>）、<code>paperParseTried</code> / <code>pdfAutoDownloadTried</code>（<code>resources.ts:52,55</code>）、refs in-flight map（<code>refs.ts:121</code>）。</p>
+<h4 id="_4">执行位置与并发<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>kind</th>
+<th>执行位置</th>
+<th>并发</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DownloadAssets</code></td>
+<td>Rust</td>
+<td>3</td>
+<td>现成实现改为从 lane 领活</td>
+</tr>
+<tr>
+<td><code>ParseBody</code>（liteparse）</td>
+<td>Rust 子进程</td>
+<td><strong>1</strong></td>
+<td>CPU + 内存重，子进程隔离保留</td>
+</tr>
+<tr>
+<td><code>ParseRefs</code></td>
+<td>Rust</td>
+<td>2 + <strong>HTTP semaphore(2)</strong></td>
+<td>修掉现在 N 并发打 S2 的 429</td>
+</tr>
+<tr>
+<td><code>LayoutAnalyze</code></td>
+<td><strong>渲染进程</strong></td>
+<td>1</td>
+<td>ONNX，只能在这</td>
+</tr>
+<tr>
+<td><code>LayoutTranslate</code></td>
+<td><strong>渲染进程</strong></td>
+<td>2</td>
+<td>需 BYOK provider / ACP</td>
+</tr>
+<tr>
+<td><code>PageCount</code></td>
+<td>Rust</td>
+<td>4</td>
+<td>别再在前端起 PDFium 数页数</td>
+</tr>
+<tr>
+<td><code>WikiReindex</code></td>
+<td>Rust</td>
+<td>1</td>
+<td>debounce 900ms，沿用现状</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_5">渲染进程如何领活<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h4>
+<div class="codehilite"><pre><span></span><code>Rust      --job:offer {jobId, kind, paperPath}--&gt;   渲染进程
+渲染进程   跑 ONNX / 调 translate provider
+渲染进程   --job_report(jobId, ok|err)--&gt;            Rust
+Rust      --job:changed {jobId, paperPath, kind, state, progress}--&gt; 所有窗口
+</code></pre></div>
+
+<p>队列语义、幂等、重试、优先级、取消<strong>全在一处</strong>；渲染进程退化为纯 executor。附带收益：多窗口不会各跑一份（现状 <code>layoutAnalysisStore.ui</code> 是全局单例，<code>store.ts:16</code>，多 tab 进度互串）。</p>
+<p><code>job:changed</code> 事件（节流 100ms 批量发）<strong>直接干掉 <code>use-pdf-layout-run.ts:285-380</code> 的 1.5s × 15min 轮询</strong>。</p>
+<h4 id="in-flight-job">重启丢失 in-flight job —— 不需要处理<a class="headerlink" href="#in-flight-job" title="Permanent link">&para;</a></h4>
+<p><strong>每个 job 本身就是幂等的收敛操作</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>kind</th>
+<th>幂等守卫</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ParseBody</code></td>
+<td>见 <code>PAPER.md</code> 即返回（<code>pdf_parse/mod.rs:150</code>）</td>
+</tr>
+<tr>
+<td><code>ParseRefs</code></td>
+<td>fingerprint 一致即返回（<code>refs/mod.rs:136</code>）</td>
+</tr>
+<tr>
+<td><code>LayoutAnalyze</code></td>
+<td><code>schemaVersion</code> 匹配即返回（<code>io.ts:121</code>）</td>
+</tr>
+<tr>
+<td><code>DownloadAssets</code></td>
+<td>有本地 PDF 即跳过（<code>assets.rs:191</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>因此启动后跑一次 <strong><code>reconcile</code> 扫描</strong>（<code>idle</code> lane、分批、低并发）：遍历 catalog，对能力位缺失的补 enqueue。重扫安全，代价只是一遍 <code>caps_for</code>。</p>
+<blockquote>
+<p><strong>真相始终在磁盘 sidecar + catalog 里，jobs 只是「待收敛清单」</strong>——一个可以随时从磁盘重算的派生物，本就不该持久化。故不做 <code>jobs.json</code>：少一个持久状态就少一个不一致来源。</p>
+</blockquote>
+<h3 id="74-11-3">7.4 触发时机：11 处收敛到 3 个入口<a class="headerlink" href="#74-11-3" title="Permanent link">&para;</a></h3>
+<h4 id="1-paper_commit">入口 ① 导入完成 —— <code>paper_commit</code> 尾部，一次建链<a class="headerlink" href="#1-paper_commit" title="Permanent link">&para;</a></h4>
+<div class="codehilite"><pre><span></span><code>DownloadAssets
+   ├→ ParseBody      (depends_on)
+   │    └→ ParseRefs
+   ├→ PageCount
+   └→ LayoutAnalyze
+</code></pre></div>
+
+<p><strong>只在这一处 enqueue</strong>。删除 <code>import/mod.rs:391</code>、<code>:540</code> 的重复 spawn；删除 <code>import-actions.ts:158-200</code> 那段「导入完成后再对同一批路径 enqueue <code>paper_download_assets</code>」的往返。</p>
+<h4 id="2-job_focus_paperpaperpath">入口 ② 打开论文 —— <code>job_focus_paper(paperPath)</code><a class="headerlink" href="#2-job_focus_paperpaperpath" title="Permanent link">&para;</a></h4>
+<p><strong>不产生新 job</strong>，只做两件事：</p>
+<ol>
+<li>把该论文的 <code>queued</code> job 从 <code>normal</code> lane 移到 <code>focus</code> lane，并把上一篇降回 <code>normal</code>（tab 切换即重排）。</li>
+<li>仅对 <code>CapsCache</code> 显示<strong>缺失</strong>的产物补 enqueue。</li>
+</ol>
+<p>于是删除 <code>use-pdf-layout-run.ts:278</code>（每次打开都 enqueue）、<code>resources.ts:89,145</code>、<code>library-actions.ts:171,279</code>。</p>
+<h4 id="3-watcher-debounced">入口 ③ watcher 变更 —— debounced，指纹驱动<a class="headerlink" href="#3-watcher-debounced" title="Permanent link">&para;</a></h4>
+<p>文件指纹真的变了才 enqueue 对应 kind。同时 watcher <strong>必须忽略</strong> <code>catalog.sqlite*</code>（<code>watcher/mod.rs:142-152</code> 现状故意不忽略）与自身刚写的 sidecar，掐死 <code>paper_set_page_counts</code> → <code>vault:file-changed</code> → 全量 <code>paper_list</code> 的自回声。</p>
+<h3 id="75">7.5 完整时间线<a class="headerlink" href="#75" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>═══ T0 交互轴 ═══════════════════════════════════════════
+0ms       placeholder tab + panel（1 次 store 写）
+0-15ms    paper_open_bundle                    ← 唯一阻塞 IPC
+15ms      readFile(PDF) ∥ job_focus_paper(fire &amp; forget)
+~200ms    updateTab → 骨架屏消失，NOTES 可编辑
+~350ms    PDFium parse → totalPages
+~400ms    outline ∥ 阅读位恢复 ∥ annotations ∥ pageTextRects
+
+═══ T1 就近轴（focus lane 抢占）═════════════════════════
++0.5s     Rust: ParseRefs（缺失/过期时）
+            → job:changed → 引用面板局部刷新
++1s       Rust: job:offer(LayoutAnalyze) → 渲染进程 ONNX
+            → 进度经 job:changed 推送（无轮询）
++Ns       layout 完成 → 图表侧栏填充
+用户点翻译 → LayoutTranslate job（唯一「仅用户显式触发」的 kind）
+
+═══ T2 idle 轴（idle lane）══════════════════════════════
+idle      reconcile 扫描（启动后一次）
+idle      PageCount backfill（Rust，并发 4）
+idle      缺失 PAPER.md 的 ParseBody（并发 1）
+idle      refs 指纹过期重解析（HTTP semaphore 2）
+idle      WikiReindex（debounce 900ms，沿用现状）
+</code></pre></div>
+
+<p><strong>idle 判定</strong>：无 <code>focus</code> lane job in-flight，且用户 N 秒无输入。任一条件破裂即暂停 T2，把 CPU 让给 T1。</p>
+<h3 id="76-background-tasks">7.6 与既有 background-tasks 的合并<a class="headerlink" href="#76-background-tasks" title="Permanent link">&para;</a></h3>
+<p><strong>Rust 侧目前没有任务系统</strong>：<code>features/agent/background_tasks.rs</code> 只有 24 行，是个 <code>CANCELLED: Mutex&lt;HashSet&lt;String&gt;&gt;</code> 取消标志位，由 worker 轮询 <code>is_cancelled</code>。队列完全活在渲染进程的 <code>src/lib/core/background-tasks.ts</code>——它实际是「UI 进度台账」+ 外挂的 per-kind Semaphore（<code>:385-431</code>）。</p>
+<p>现有系统装不下 Job 的三个缺口，正好解释了 layout / pdfParse 为什么各自造轮子：</p>
+<table>
+<thead>
+<tr>
+<th>缺口</th>
+<th>后果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>无指纹去重</td>
+<td><code>enqueue-paper-layout.ts:19</code> 与 <code>enqueue-paper-pdf-parse.ts:15</code> 各自维护 <code>queuedPapers</code> Set，且都在 <code>finally</code> 里 <code>delete</code>，重启即失忆</td>
+</tr>
+<tr>
+<td><code>Promise&lt;T&gt;</code> 只对 enqueue 方兑现</td>
+<td>另一 tab / CLI 写完 sidecar 对本 tab 不可见 → 退化成 1.5s 轮询（<code>use-pdf-layout-run.ts:331</code>）</td>
+</tr>
+<tr>
+<td>无优先级</td>
+<td><code>getSemaphore</code> 是 FIFO，T2 的 idle backfill 会挡在 T1 的 focus 任务前。附带隐患：<code>sem.setMax(concurrency)</code>（<code>:428</code>）让<strong>最后一个调用者决定并发度</strong></td>
+</tr>
+</tbody>
+</table>
+<h4 id="_6">判定规则<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>有人 <code>await</code> 它的返回值 → <strong>Operation</strong>，留前端。
+没人等结果、跑两遍无害 → <strong>Job</strong>，进 JobCenter。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>归属</th>
+<th>项</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Operation</strong></td>
+<td><code>export</code> <code>import</code> <code>lookup</code> <code>paperRead</code> <code>connector</code></td>
+<td>调用方要结果、非幂等。<code>lookup_import_batch</code> 本身是一个批操作（内部已 <code>buffer_unordered(5)</code>），它<strong>产出的</strong>后续任务才归 Job</td>
+</tr>
+<tr>
+<td><strong>Job</strong></td>
+<td><code>LayoutAnalyze</code> <code>ParseBody</code> <code>ParseRefs</code> <code>PageCount</code> <code>WikiReindex</code></td>
+<td>全部有幂等守卫（见 §7.3）</td>
+</tr>
+<tr>
+<td><strong>Operation</strong></td>
+<td><code>resources.ts:132</code> 的 download</td>
+<td>打开论文缺 PDF 时下载在关键路径上，调用方要 PDF 字节</td>
+</tr>
+<tr>
+<td><strong>Job × N</strong></td>
+<td><code>downloadAllMissingAssets</code></td>
+<td>见 §10.2，整个函数应消失</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_7">投影机制已经现成<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h4>
+<p><code>startBackgroundTask({ id: 稳定id, kind })</code> + <code>updateBackgroundTask</code> 就是为 Host 驱动任务设计的，<code>layout-model</code>（<code>src/lib/pdf/layout/model.ts:50</code>，事件 <code>layout-model:task</code>）与 <code>connector</code>（<code>use-connector-sync.ts:118</code>）已经在这么用。JobCenter 只需沿用同一条路：<code>job:changed</code> → 同一组 store 函数。<strong>不新增 UI 概念，不重建面板</strong>（<code>background-tasks-panel.tsx</code>）。</p>
+<h4 id="_8">三个必须同时处理的细节<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>idle 噪音不能淹没面板</strong>。<code>PageCount</code> / <code>WikiReindex</code> / <code>reconcile</code> 若每项一行，面板会常驻转圈。这类 job 默认<strong>不投影</strong>，仅失败时露出，或聚合成一条「后台索引 N 项」。</li>
+<li><strong>取消收口</strong>。现在两条路：前端 <code>AbortController</code> map（<code>:113</code>）+ Rust <code>CANCELLED</code> HashSet。那个 24 行的 HashSet 就是 JobCenter 的雏形，直接由它接管；<code>background_task_cancel</code> 命令语义不变。</li>
+<li><strong>listener 泄漏</strong>。<code>attachProgressListener</code>（<code>:335</code>）为每个任务 <code>listen("background-task:progress")</code> 一次再按 <code>taskId</code> 过滤 → N 个任务 N 个 listener 且全收所有事件。改为一个全局 listener + 按 id 路由。</li>
+</ol>
+<h4 id="kind">kind 映射<a class="headerlink" href="#kind" title="Permanent link">&para;</a></h4>
+<p>复用现有 <code>BackgroundTaskKind</code>，只补一个：</p>
+<table>
+<thead>
+<tr>
+<th>JobKind</th>
+<th>BackgroundTaskKind</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DownloadAssets</code></td>
+<td><code>download</code></td>
+</tr>
+<tr>
+<td><code>ParseBody</code></td>
+<td><code>pdfParse</code></td>
+</tr>
+<tr>
+<td><code>ParseRefs</code></td>
+<td><code>parse</code></td>
+</tr>
+<tr>
+<td><code>LayoutAnalyze</code></td>
+<td><strong>新增 <code>layout</code></strong></td>
+</tr>
+<tr>
+<td><code>PageCount</code> / <code>WikiReindex</code></td>
+<td>不投影（见上）</td>
+</tr>
+</tbody>
+</table>
+<p>新增 <code>layout</code> 是因为现在 layout 借用 <code>parse</code>（<code>enqueue-paper-layout.ts:58</code>），会与 refs 撞同一个 semaphore；i18n key <code>app:tasks.layoutAnalysis</code> 已存在。</p>
+<h2 id="8">8. 配套基础设施<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<h3 id="81-sidecar">8.1 统一 sidecar 写入器<a class="headerlink" href="#81-sidecar" title="Permanent link">&para;</a></h3>
+<p><code>debounce(500ms)</code> + <code>temp + rename</code> 原子写 + 写完主动 suppress watcher。</p>
+<p>治掉 <code>layout-translate.json</code> 每块译完即整文件重写的问题（<code>use-pdf-layout-translate.ts:117</code>）。</p>
+<blockquote>
+<p>注意：refs 现在故意用 plain <code>fs::write</code>（<code>refs/mod.rs:594</code>）来避开 watcher 的 rename 告警。加了主动 suppress 之后即可统一改回原子写。</p>
+</blockquote>
+<h3 id="82">8.2 缓存命中就真的什么都不做<a class="headerlink" href="#82" title="Permanent link">&para;</a></h3>
+<p><code>run-analysis.ts:336</code> 现状每次都重跑 <code>mergeCaptionsIntoHosts</code>，<code>:359</code> 每次都重写 <code>layout-index.json</code>。命中路径应直接从 <code>layout-index.json</code> 反序列化，零写盘。同时消除 <code>:353</code> 的 <code>needsText</code> 回写（它会从 viewer 侧改写 <code>layout.json</code>，与 headless writer 抢同一文件）。</p>
+<h3 id="83-cataloghandle-state-sql">8.3 <code>CatalogHandle</code> 进 State（零新增 SQL）<a class="headerlink" href="#83-cataloghandle-state-sql" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src-tauri/src/features/catalog/handle.rs</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">CatalogHandle</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">inner</span><span class="p">:</span><span class="w"> </span><span class="nc">RwLock</span><span class="o">&lt;</span><span class="nb">Option</span><span class="o">&lt;</span><span class="p">(</span><span class="n">PathBuf</span><span class="p">,</span><span class="w"> </span><span class="n">Connection</span><span class="p">)</span><span class="o">&gt;&gt;</span><span class="p">,</span><span class="w">   </span><span class="c1">// vault 切换时重开</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>setup 时建连接 + 跑一次现有 migration 阶梯；<code>ensure_catalog</code>（<code>schema.rs:109</code>）退化为 <code>handle.conn()</code>。vault 切换时比对 <code>PathBuf</code>，不同则重开并重跑 migration（migration 本身幂等）。</p>
+<blockquote>
+<p>⚠️ <strong>必须成对做</strong>：单连接会让 <code>paper_list</code> 的全表扫描（<code>papers.rs:417</code>）阻塞 <code>paper_get</code>。所以同一步要把 <code>paper_list</code> / <code>paper_rescan</code> / <code>paper_refs_list</code> / <code>wiki_*</code> 从同步 <code>fn</code> 改成 <code>spawn_blocking</code>，否则可能比现状更卡。</p>
+</blockquote>
+<h3 id="84-capscache">8.4 <code>CapsCache</code> 内存能力位<a class="headerlink" href="#84-capscache" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src-tauri/src/features/catalog/caps.rs</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Caps</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">pdf_path</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">PathBuf</span><span class="o">&gt;</span><span class="p">,</span><span class="w">     </span><span class="c1">// 已解析的规范 PDF 路径</span>
+<span class="w">    </span><span class="n">has_tex</span><span class="p">:</span><span class="w"> </span><span class="kt">bool</span><span class="p">,</span>
+<span class="w">    </span><span class="n">has_paper_md</span><span class="p">:</span><span class="w"> </span><span class="kt">bool</span><span class="p">,</span>
+<span class="w">    </span><span class="n">page_count</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">refs_fingerprint</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">layout_schema</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">translate_key</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">CapsCache</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">inner</span><span class="p">:</span><span class="w"> </span><span class="nc">RwLock</span><span class="o">&lt;</span><span class="n">HashMap</span><span class="o">&lt;</span><span class="n">PathKey</span><span class="p">,</span><span class="w"> </span><span class="n">Caps</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+
+<ul>
+<li><strong>懒填</strong>：<code>caps_for(path)</code> miss → 一次目录 walk（复用现有 <code>find_local_pdf</code>）+ 读 sidecar 头部 → 落缓存。</li>
+<li><strong>失效</strong>：watcher 事件命中某 paper 目录 → <code>remove(key)</code>；vault 切换 → <code>clear()</code>。</li>
+<li><code>RwLock</code> 而非 <code>Mutex</code>（读远多于写）。</li>
+</ul>
+<p><strong>为什么内存缓存比加 DB 列更对</strong>：能力位是磁盘状态的派生量，塞进 catalog 表就有 stale 风险——而 local-first 恰恰要求文件可被外部工具随意读写。内存缓存 + watcher 失效永远可以从磁盘重建，不存在「两份真相打架」。</p>
+<p>收益：一次导入 5+ 次目录遍历（<code>assets.rs:191,289</code>、<code>paper_import/mod.rs:128,240</code>、<code>pdf_parse/mod.rs:159</code>）→ 1 次；打开论文的 4 层递归 <code>readDir</code> → 命中即 0 次。重启后首次打开某篇多付一次 walk（几 ms），可忽略。</p>
+<h3 id="85-primitive-job-framework">8.5 依赖选型：复用 primitive，不引 job framework<a class="headerlink" href="#85-primitive-job-framework" title="Permanent link">&para;</a></h3>
+<p>AGENTS.md 要求「尽可能复用能力」，因此先调研了现成框架。结论是<strong>没有可直接复用的</strong>，原因是三处不匹配：</p>
+<ol>
+<li><strong>执行体在渲染进程</strong>。<code>LayoutAnalyze</code> 必须在 webview 里跑 ONNX。所有 Rust job framework 的 worker 都是 Rust <code>async fn</code>，「派活给 JS 客户端并等它回报」不在任何框架的模型里。</li>
+<li><strong>去重键来自磁盘状态</strong>。fingerprint = 文件 mtime/size + sidecar <code>schemaVersion</code>（refs 已如此，<code>refs/mod.rs:640</code>）。框架提供的是「job id 唯一」，不是「输入指纹一致则跳过」。</li>
+<li><strong>明确不要持久化</strong>（§4 约束 2）。而所有 OSS job framework 的核心价值恰恰是 storage backend 带来的 durability；去掉它之后框架剩下的就是 Semaphore + 队列。</li>
+</ol>
+<p>调研记录（截至 2026-08）：</p>
+<table>
+<thead>
+<tr>
+<th>候选</th>
+<th>版本</th>
+<th>总下载</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/apalis-dev/apalis"><code>apalis</code></a></td>
+<td>1.0.0-rc.9</td>
+<td>~100 万</td>
+<td>最成熟，但仍 RC；面向 server worker，后端 Redis/SQL；无原生 priority / 依赖链 / 指纹去重</td>
+</tr>
+<tr>
+<td><code>tauri-queue</code></td>
+<td>0.3.0</td>
+<td><strong>20</strong></td>
+<td>2026-07-05 首发，crates.io 未填 repository。不能作为核心调度依赖</td>
+</tr>
+<tr>
+<td><code>agent-queue</code></td>
+<td>0.2.0</td>
+<td><strong>35</strong></td>
+<td>同上，同作者同日发布</td>
+</tr>
+<tr>
+<td><code>fang</code> / <code>backie</code> / <code>underway</code></td>
+<td>—</td>
+<td>—</td>
+<td>Postgres 强绑定</td>
+</tr>
+<tr>
+<td><code>rusty-celery</code></td>
+<td>—</td>
+<td>—</td>
+<td>需 AMQP / Redis broker</td>
+</tr>
+</tbody>
+</table>
+<p>应复用的 primitive（多数已在树里）：</p>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>复用什么</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>per-kind 并发上限</td>
+<td><code>tokio::sync::Semaphore</code></td>
+<td>✅ 已是直接依赖</td>
+</tr>
+<tr>
+<td>批内并发</td>
+<td><code>futures_util::stream::buffer_unordered</code></td>
+<td>✅ 已用于 <code>import/mod.rs:356</code></td>
+</tr>
+<tr>
+<td>结构化取消</td>
+<td><code>tokio_util::sync::CancellationToken</code></td>
+<td>⚠️ 已在 <code>Cargo.lock</code>（传递依赖），提为直接依赖零编译成本；替掉 <code>features/agent/background_tasks.rs</code> 的 24 行 HashSet</td>
+</tr>
+<tr>
+<td>job 状态扇出（取代轮询）</td>
+<td><code>tokio::sync::broadcast</code></td>
+<td>✅ 已有</td>
+</tr>
+<tr>
+<td>HTTP 限流（治 §6.3 的 S2 429）</td>
+<td><code>governor</code></td>
+<td>❌ <strong>需新增，是唯一真正值得加的依赖</strong></td>
+</tr>
+<tr>
+<td><code>CapsCache</code></td>
+<td><code>RwLock&lt;HashMap&gt;</code></td>
+<td>标准库够用；<code>moka</code> 的 TTL / 容量淘汰在此无用，失效由 watcher 负责</td>
+</tr>
+<tr>
+<td>三档 lane</td>
+<td><code>[VecDeque&lt;Job&gt;; 3]</code></td>
+<td>标准库；<code>priority-queue</code> 反而更难实现「focus 切换时重排」</td>
+</tr>
+</tbody>
+</table>
+<p>量级判断：JobCenter 核心约 <strong>300–400 行 Rust</strong>（lanes + seen + permits + tick loop + <code>job_offer</code>/<code>job_report</code> 两个命令 + 一个 broadcast 事件）。给任何框架写 adapter 都不会更短，还得绕开其持久化假设。</p>
+<p>前端不需要引 <code>p-queue</code>：调度移到 Rust 后，<code>background-tasks.ts:385-431</code> 那个手写 <code>Semaphore</code> 基本可以删除。</p>
+<p>值得<strong>读源码而非依赖</strong>的是 apalis 用 <code>tower</code> layer 叠加 concurrency / retry / timeout 的组织方式——若将来 <code>JobKind</code> 数量显著增长可以借鉴；当前 7 个 kind 不值得引入 <code>tower</code> 的抽象成本（尽管它也已在 <code>Cargo.lock</code> 中）。</p>
+<h2 id="9">9. 落地顺序<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<p>全程零 migration。每步一个独立 Conventional Commit。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>改动</th>
+<th>风险</th>
+<th>收益</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>函数清理</strong>：删 <code>enqueue-paper-pdf-parse.ts:67-68</code> 内联刷新、给 <code>resources.ts:120-135</code> 补 <code>enqueuePaperPdfParse</code> 对齐行为、<code>refreshTreeQuiet</code> 合并进 <code>refreshTree</code>、<code>refreshAll</code> 改并发</td>
+<td>低</td>
+<td>一次下载少 2–3 次全量树重建；补上 <code>PAPER.md</code> 缺口</td>
+<td>完成（<code>c794c19e</code>、<code>4fd4b1a7</code>）</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>死代码删除</strong>（§10.4）+ <code>is_complex()</code> 去掉 buffer 克隆</td>
+<td>低</td>
+<td>减面积；每篇少一次完整 PDF parse</td>
+<td>死代码已删（<code>8481cfe1</code>）；<code>is_complex()</code> 克隆<strong>无法去除</strong>——liteparse 的 <code>is_complex</code> 与 <code>parse_input</code> 各自消费 owned <code>PdfInput::Bytes</code>，且 <code>ParseResult</code> 不暴露 <code>needs_ocr</code>，质量标签必须靠独立预检</td>
+</tr>
+<tr>
+<td>3</td>
+<td>sidecar 统一写入器（debounce + 原子写 + 自写抑制）</td>
+<td>低</td>
+<td>治 400+ 次全量写与缓存损坏风险</td>
+<td>部分：layout-translate debounce 完成（<code>36987514</code>）；原子写 + 自写抑制未做（与 watcher rename 行为耦合，需联调）</td>
+</tr>
+<tr>
+<td>4</td>
+<td>缓存命中跳过 <code>mergeCaptionsIntoHosts</code> + <code>layout-index.json</code> 重写</td>
+<td>低</td>
+<td>每次打开省一次无意义写</td>
+<td>完成（<code>21863560</code>，缓存命中零写盘；merge 仍内存执行以保留算法热更新）</td>
+</tr>
+<tr>
+<td>5</td>
+<td>watcher 忽略 <code>catalog.sqlite*</code></td>
+<td>低</td>
+<td>掐死自回声全量 <code>paper_list</code></td>
+<td>完成（<code>caed3e6f</code>）</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>CatalogHandle</code> 进 State + 重命令改 <code>spawn_blocking</code></td>
+<td>低</td>
+<td>每个 catalog 命令省 5 次 <code>schema_version</code> 探测</td>
+<td>暂缓：共享 <code>Mutex&lt;Connection&gt;</code> 会串行化 catalog 访问，且 <code>papers::*</code> 若嵌套 <code>ensure_catalog</code> 会死锁（非重入锁）；会话级「跳过 migrate 探测」缓存又有「db 中途被删重建→误跳过建表」的边缘情况。两者收益（省 open + 探测）有限，需实机验证并发与边界后再做</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>CapsCache</code> 内存能力位 + 删 <code>collectPapersNeedingAssetDownload</code></td>
+<td>中</td>
+<td>消灭所有目录 walk</td>
+<td>完成：<code>CapsCache</code>（<code>ff5756be</code>）+ <code>job_papers_needing_assets</code> 查询取代前端树走（<code>58f5481d</code>/<code>9489ff1a</code>），谓词落入 <code>PaperCaps::needs_asset_download</code> 并有单测</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>paper_open_bundle</code> 聚合命令</td>
+<td>中</td>
+<td>T0 从 4 IPC → 1 IPC</td>
+<td>完成（<code>ac17af96</code>）</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>JobCenter</code> 内存队列 + <code>job:changed</code> 事件 + <code>governor</code> 限流</td>
+<td>高</td>
+<td>轮询消失，队列语义统一，S2 不再 429</td>
+<td>完成：调度器（<code>61938b50</code>）、ParseBody / ParseRefs / LayoutAnalyze executor（<code>2952c686</code>）、per-kind 并发上限 + finish 后 drain（<code>aab07bd4</code>，§7.3）；在线引用以 <code>Semaphore(2)</code> 限流（<code>online.rs</code>）替代 <code>governor</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td>enqueue 点收敛到 3 入口 + <code>reconcile</code> 扫描 + 删 <code>downloadAllMissingAssets</code> / <code>loadPaperRefsAuto</code></td>
+<td>高</td>
+<td>重复触发消失（依赖 9）</td>
+<td>完成：投影(layout/parseRefs/parseBody/download)+取消收口+running 取消、layout/<code>enqueuePaperPdfParse</code> 委托、per-paper/vault-wide/open reconcile（含 ParseBody+ParseRefs）、<code>DownloadAssets</code> runner；已删 <code>maybeTriggerDeferredParse</code>、<code>collectPapersNeedingAssetDownload</code>、<code>loadPaperRefsAuto</code>（引用面板事件驱动 <code>03622080</code>），<code>downloadAllMissingAssets</code>/post-import 改 enqueue job</td>
+</tr>
+</tbody>
+</table>
+<p>1–6 互相独立且全为低风险，可先行兑现收益。9 的投入较大（约 300–400 行，见 §8.5），做完 1–8 后再评估。10 必须跟在 9 之后。</p>
+<blockquote>
+<p>已额外兑现：§7.6 细节 3（<code>background-task:progress</code> 单一全局 listener 按 taskId 路由，<code>a0149774</code>）、§8.2（缓存命中只读——viewer 不再回写 <code>layout.json</code>，<code>fc943551</code>；配合索引未变更跳过，缓存命中零写盘）、§11「layout sidecar 轮询 → 0」（<code>use-pdf-layout-run.ts</code> 已改为 watcher 事件驱动）。</p>
+<p>剩余未竟项：<strong>6（<code>CatalogHandle</code> + <code>spawn_blocking</code>）</strong> 与 <strong>10（enqueue 收敛 + reconcile driver + <code>job:changed</code>→任务面板投影 + 取消收口 + 删前端 wrapper）</strong>。§7.3 的 per-kind 并发已落入 JobCenter（<code>aab07bd4</code>），前端 wrapper 的 <code>{concurrency}</code> 门因此可安全移除，但仍须与任务面板投影 + 取消收口一并切换，避免进度/取消 UX 回退。3 仅剩「原子写 + 自写抑制」，因 sidecar 读时已校验可重建、缓存命中已零写，边际收益低。上述改动会改变 SQLite 连接线程模型 / 打开论文关键路径 / 任务面板取消语义的运行时行为，单测难以覆盖，建议在 <code>pnpm tauri dev</code> 下逐项验证后提交。</p>
+</blockquote>
+<h2 id="10">10. 函数审计与清理<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<h3 id="101-5">10.1 重复的「下载后处理」尾巴（5 处，每处都不一样）<a class="headerlink" href="#101-5" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>勘误</strong>：本节此前断言「三处 <code>enqueuePaperPdfParse</code> 是保证空转、应删除」。核实后<strong>结论反转</strong>——Rust 的 <code>paper_commit</code> 与 <code>download_paper_assets_with_progress</code> 都不生成 <code>PAPER.md</code>，这些前端调用是 identifier 路径上唯一的生成环节。完整分析见 <a href="../paper-behavior-dag/">paper-behavior-dag.md</a> §3.1。</p>
+</blockquote>
+<p>同一段「下载完要做什么」被复制了五遍：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th><code>downloadPaperAssets</code></th>
+<th>刷新树</th>
+<th><code>refreshLibrary</code></th>
+<th><code>LayoutAnalysis</code></th>
+<th><code>PdfParse</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>library-actions.ts:174-188</code>（单篇下载）</td>
+<td>✅</td>
+<td><code>refreshTree</code></td>
+<td>✅</td>
+<td><code>:182</code></td>
+<td><code>:185</code></td>
+</tr>
+<tr>
+<td><code>library-actions.ts:289-300</code>（<code>downloadAll</code>）</td>
+<td>✅</td>
+<td>循环外 <code>:309</code></td>
+<td>循环外</td>
+<td><code>:294</code></td>
+<td><code>:297</code></td>
+</tr>
+<tr>
+<td><code>import-actions.ts:190-203</code>（导入尾部）</td>
+<td>✅</td>
+<td><code>refreshTree</code></td>
+<td>✅</td>
+<td><code>:197</code></td>
+<td><code>:200</code></td>
+</tr>
+<tr>
+<td><code>resources.ts:120-135</code>（<code>resolvePaperPdfSource</code>）</td>
+<td>✅</td>
+<td>调用方 <code>actions.ts:312</code> 用 <code>refreshTreeQuiet</code></td>
+<td>❌</td>
+<td><code>:133</code></td>
+<td><strong>❌</strong></td>
+</tr>
+<tr>
+<td><code>resources.ts:58-83</code>（<code>maybeTriggerDeferredParse</code>）</td>
+<td>❌（只补 parse）</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+<td><code>:78</code></td>
+</tr>
+</tbody>
+</table>
+<p>仍然成立的两个问题：</p>
+<ol>
+<li><strong>五处互不一致</strong>。<code>resources.ts:120-135</code> 缺 <code>enqueuePaperPdfParse</code> 是真实缺口——从「打开论文时补下载」这条路进来的论文不会生成 <code>PAPER.md</code>，只能等下次打开由 <code>maybeTriggerDeferredParse</code> 兜（而它有会话内 <code>paperParseTried</code> Set，同一会话内只兜一次）。</li>
+<li><strong>刷新风暴</strong>。<code>enqueue-paper-pdf-parse.ts:67-68</code> 在任务体内联 <code>refreshTree</code> + <code>refreshLibrary</code>，而调用方（<code>library-actions.ts:180-181</code>、<code>import-actions.ts:195-196</code>）自己也刷 → 一次单篇下载触发 3–4 次全量 <code>vault_tree_build</code> + <code>paper_list</code>。</li>
+</ol>
+<p>清理动作（修正后）：</p>
+<ul>
+<li><strong>不删</strong> <code>enqueuePaperPdfParse</code> 调用——先把 <code>ParseBody</code> 变成 Rust 侧 DAG 节点（落地清单第 7 项），再一次性删掉全部 5 处前端调用。</li>
+<li><strong>可立即做</strong>：删除 <code>enqueue-paper-pdf-parse.ts:67-68</code> 的内联 <code>refreshTree</code> / <code>refreshLibrary</code>；刷新交给 watcher。</li>
+<li><strong>可立即做</strong>：给 <code>resources.ts:120-135</code> 补 <code>enqueuePaperPdfParse</code>，先把行为对齐（临时措施，第 7 项落地后一并删除）。</li>
+</ul>
+<p>落到 §7.4 入口①后，这个尾巴由 <code>depends_on</code> 表达（<code>DownloadPdf</code> + <code>DownloadTex</code> → <code>ParseBody</code>），<strong>五处复制归零</strong>。</p>
+<h3 id="102-downloadallmissingassets">10.2 <code>downloadAllMissingAssets</code> 应整个消失<a class="headerlink" href="#102-downloadallmissingassets" title="Permanent link">&para;</a></h3>
+<p><code>library-actions.ts:259-315</code>，唯一触发点是文件树按钮（<code>file-tree.tsx:1814</code>）。三个问题：</p>
+<ol>
+<li><strong>串行</strong>：<code>for</code> 循环逐篇 <code>await</code>（<code>:278</code>），无并发。而 <code>import-actions.ts:205</code> 的同类下载却用了 <code>concurrency: settings.batchImportConcurrency</code>——同一件事两种行为。</li>
+<li><strong>进度打架</strong>：外层 <code>setProgress(i/total)</code>，内层 <code>downloadPaperAssets</code> 又用同一个 <code>progressTaskId: id</code>（<code>:292</code>）往同一个 task 发 <code>background-task:progress</code>（单篇字节百分比）。两者交替覆盖同一 <code>progress</code> 字段；<code>updateBackgroundTask</code> 的 <code>Math.max</code> 钳制（<code>background-tasks.ts:251</code>）掩盖了数值回退，但 <code>detail</code> 文案会闪。</li>
+<li><strong>本质是 N 个 Job</strong>，不是一个批操作。</li>
+</ol>
+<p>清理动作：函数删除，按钮改为「enqueue N 个 <code>DownloadAssets</code> job（<code>idle</code> lane）」，UI 由 §7.6 的聚合行呈现。并发上限由 <code>JobKind</code> 配置统一决定，不再各处自带一个 <code>concurrency</code> 参数。</p>
+<p>顺带：<code>BackgroundTaskKind</code> 的 <code>downloadAll</code>（<code>background-tasks.ts:16</code>、<code>background-tasks-panel.tsx:51</code>）随之删除，i18n key <code>app:tasks.downloadAll</code> 一并清理。</p>
+<h3 id="103-auto-quiet-maybe">10.3 <code>auto</code> / <code>quiet</code> / <code>maybe</code> 类函数逐个审计<a class="headerlink" href="#103-auto-quiet-maybe" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>位置</th>
+<th>判定</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>loadPaperRefsAuto</code></td>
+<td><code>refs.ts:132</code></td>
+<td>「list → 若 null 则 parse」的读时兜底，正是 Job 的定义</td>
+<td><strong>删除</strong>。前端只读 <code>paper_open_bundle</code> 里的 refs 状态位；补齐交给 <code>ParseRefs</code> job。附带消掉 <code>autoParseKey</code>（<code>:123</code>）与 in-flight Map（<code>:121</code>）以及 <code>references-panel.tsx:125</code> 的重复触发</td>
+</tr>
+<tr>
+<td><code>maybeTriggerDeferredParse</code></td>
+<td><code>resources.ts:58-83</code></td>
+<td>调的已经是正确的轻量路径 <code>enqueuePaperPdfParse</code>（<code>:78</code>）。真实问题是它是 <code>PAPER.md</code> 的<strong>唯一兜底</strong>，却只在打开论文时触发、且被会话内 <code>paperParseTried</code> Set（<code>:56</code>）限制为一次</td>
+<td><strong>保留至第 7 项落地</strong>。<code>ParseBody</code> 成为 Rust DAG 节点后整个删除，兜底由 <code>reconcile</code> 扫描承担</td>
+</tr>
+<tr>
+<td><code>refreshAll</code></td>
+<td><code>vault/actions.ts:241-249</code></td>
+<td>5 个调用点（命令面板 <code>palette-commands.ts:70</code>、两个对话框 <code>app-dialogs.tsx:51,57</code>、<code>App.tsx:320,361</code>）。是用户显式的「刷新全部」Operation，非死代码</td>
+<td><strong>保留，改并发</strong>：<code>await refreshTree</code> 后 <code>Promise.all([rebuildWikiAndNotify, refreshLibrary])</code>。现状三个串行 await 中间卡着全量 wiki 重建，论文库行迟迟不更新。另记：<code>App.tsx:320</code> 把它绑给名为 <code>refreshTree</code> 的 prop，易误读</td>
+</tr>
+<tr>
+<td><code>enqueuePaperPdfParse</code></td>
+<td><code>enqueue-paper-pdf-parse.ts:31</code></td>
+<td>与 <code>enqueue-paper-layout.ts</code> 近乎复制（注释自称 "Mirrors the layout-analysis queue pattern"），各自维护 <code>queuedPapers</code> Set</td>
+<td><strong>合并</strong>：两者都退化为「向 JobCenter 提交一个 job」。这对复制品的存在本身就是缺统一抽象的证据</td>
+</tr>
+<tr>
+<td><code>maybeAutoRunPaperReader</code></td>
+<td><code>reader.ts:300</code></td>
+<td>Operation（跑 Agent 工作流、用户可见结果），但触发时机藏在 <code>downloadPaperAssetsAction</code> 尾部（<code>library-actions.ts:202</code>）</td>
+<td><strong>保留函数，移出下载路径</strong>。当前后果：手动点下载会顺带跑 Agent 精读，而打开论文触发的下载不会——同一设置项 <code>autoPaperReader</code> 表现不一致。应改为独立触发点</td>
+</tr>
+<tr>
+<td><code>refreshTreeQuiet</code></td>
+<td><code>vault/store.ts:212</code></td>
+<td>与 <code>refreshTree</code> 的唯一差别是不设 <code>treeLoading/busy</code>、不弹 <code>notifyError</code>；仅 <code>workspace/actions.ts:312</code> 用一次</td>
+<td><strong>合并</strong>为 <code>refreshTree(path, { quiet?: boolean })</code>。两个近同函数并存容易选错，<code>:180</code> 与 <code>:312</code> 就选了不同的</td>
+</tr>
+<tr>
+<td><code>collectPapersNeedingAssetDownload</code></td>
+<td><code>detect.ts:273</code></td>
+<td>走前端 <code>FileNode</code> 树探测「缺 PDF/TeX」，与 Rust 侧 <code>has_local_pdf</code>/<code>has_local_tex</code> 是两套并行实现</td>
+<td><strong>删除</strong>。<code>CapsCache</code>（§8.4）已经知道能力位，改为 Rust 查询。它还隐含要求调用方先 <code>refreshTree</code>——<code>import-actions.ts:169</code> 正是这么做的，属时序耦合</td>
+</tr>
+</tbody>
+</table>
+<h3 id="104">10.4 死代码<a class="headerlink" href="#104" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>目标</th>
+<th>位置</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>graph_get_graph</code> / <code>getGraph</code></td>
+<td><code>wiki/index.rs:850-1190</code>、<code>src/lib/wiki/api.ts:1026</code></td>
+<td>零调用方；<code>GraphPanel</code> 渲染的是引用图</td>
+</tr>
+<tr>
+<td><code>discover_paper_folders</code> / <code>collapse_graph_id</code> / <code>graph_node_from_id</code> / <code>paper_title_from_metadata</code></td>
+<td><code>wiki/index.rs:981,1040,1105</code></td>
+<td>仅被 <code>get_graph</code> 使用</td>
+</tr>
+<tr>
+<td><code>paper_refs_graph</code> 的邻域 BFS 分支</td>
+<td><code>refs/mod.rs:340-385</code></td>
+<td><code>graph-panel.tsx:185</code> 不传 <code>center</code>，UI 不可达</td>
+</tr>
+<tr>
+<td><code>looksLikeCitationMarker</code> / <code>matchCitationByMarker</code></td>
+<td><code>src/lib/paper/refs.ts:167,192</code></td>
+<td>仅测试引用；sidecar ↔ 正文标记的桥未接通</td>
+</tr>
+<tr>
+<td><code>is_complex()</code> 的 buffer 克隆</td>
+<td><code>pdf_parse/mod.rs:434-443</code></td>
+<td>克隆整个 PDF 只为打 quality 标签，多一次完整 parse</td>
+</tr>
+</tbody>
+</table>
+<p><code>paper_parse_body</code>（<code>catalog/commands.rs:147</code>）<strong>不删</strong>——前端 <code>enqueuePaperPdfParse</code> 与 CLI（<code>cli/src/commands/paper.rs:650</code>）都在用；清理的是它的<strong>调用位置</strong>（见 §10.1）。</p>
+<h2 id="11">11. 验收指标<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>现状</th>
+<th>目标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>打开论文的阻塞 IPC 次数</td>
+<td>4（串行）</td>
+<td>1</td>
+</tr>
+<tr>
+<td>打开论文的 <code>setTabs</code> 次数</td>
+<td>5</td>
+<td>1–2</td>
+</tr>
+<tr>
+<td>打开论文产生的磁盘写</td>
+<td>≥1（<code>layout-index.json</code>）</td>
+<td>0</td>
+</tr>
+<tr>
+<td>一次导入的目录遍历次数</td>
+<td>5+</td>
+<td>1</td>
+</tr>
+<tr>
+<td>一次单篇下载触发的全量树重建</td>
+<td>3–4</td>
+<td>1（watcher 驱动）</td>
+</tr>
+<tr>
+<td>「下载后处理」重复代码处数</td>
+<td>5（且互不一致）</td>
+<td>0（<code>depends_on</code> 表达）</td>
+</tr>
+<tr>
+<td>layout sidecar 轮询</td>
+<td>1.5s × 最长 15min</td>
+<td>0（事件驱动）</td>
+</tr>
+<tr>
+<td>翻译一篇 40 页论文的 sidecar 写次数</td>
+<td>400+</td>
+<td>≤ 页数（debounce 后）</td>
+</tr>
+<tr>
+<td>catalog 命令的 <code>schema_version</code> 探测</td>
+<td>每次调用 5 次</td>
+<td>启动一次</td>
+</tr>
+<tr>
+<td>批量导入 20 篇的并发 S2 请求</td>
+<td>20</td>
+<td>≤2</td>
+</tr>
+</tbody>
+</table>
+<p>观测手段：沿用现有 <code>OpTimer</code>（见 <code>translate/commands.rs:10</code> 用法）与 <code>docs/backend/logging.md</code> 的日志约定，在 <code>paper_open_bundle</code> 与各 <code>JobKind</code> 上打点。</p>
+<h2 id="12">12. 未决问题<a class="headerlink" href="#12" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>maybeAutoRunPaperReader</code>（<code>reader.ts:300</code>）移出下载路径后，<code>autoPaperReader</code> 设置项应挂在哪个触发点？候选：<code>DownloadAssets</code> job 完成事件、还是「打开论文且资产齐备」。前者更接近现状语义，但 Agent 工作流是 Operation 而非 Job，不宜由 JobCenter 直接拉起。</li>
+<li><code>downloadAllMissingAssets</code> 删除后，文件树按钮的进度如何呈现？N 个 job 各占一行会淹没面板（§7.6 细节 1），需要一个「批次」概念把同批 job 聚合成一条——但这又给 JobCenter 引入了 batch 字段，需权衡是否值得。</li>
+<li><code>refreshAll</code>（<code>vault/actions.ts:241</code>）与 <code>refreshTree</code> + <code>refreshLibrary</code> 的关系待查，可能是第三条并行的刷新路径。</li>
+<li><code>MarksSnapshot</code> 塞进 <code>paper_open_bundle</code> 后，右侧栏的重复读盘（<code>right-sidebar.tsx:263-269</code>）如何复用同一份数据——需要一个 per-paper marks store 作为单一来源。</li>
+<li><code>FiguresSidebar</code> 的 <code>setInterval(400ms)</code> handle 探测（<code>right-sidebar.tsx:154</code>）应换成 <code>registerPdfHandle</code> 的订阅回调，属独立小改动。</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.tracking", "navigation.top", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1941,34 +1941,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../bundled-cli/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    内置桌面 CLI
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../zotero-word-integration/" class="md-nav__link">
         
   
@@ -3488,7 +3460,7 @@
 <blockquote>
 <p>状态：设计草案。关联 <a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>。<br />
 定位策略详情：<a href="../mark-locate-lazy/">惰性</a> · <a href="../mark-locate-eager/">即时</a><br />
-桌面安装包如何带上同版本 <code>agentero</code>：<a href="../bundled-cli/">内置桌面 CLI</a>（<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a> / <a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>）</p>
+桌面安装包如何带上同版本 <code>agentero</code>：<a href="../../backend/cli/">CLI 文档</a>（<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a> / <a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>）</p>
 </blockquote>
 <h2 id="1">1. 目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <p>把桌面端已有的 <strong>翻译、划词结果、高亮、批注</strong> 等阅读能力，<strong>内置进 headless <code>agentero</code> CLI</strong>（命令契约 + Vault 落盘），供脚本与对话框 Agent 调用；并用 <strong>Skill</strong> 约束正确用法（写什么、何时定位、不编坐标、不越权改 NOTES）。</p>
@@ -3518,13 +3490,13 @@
 <tr>
 <td><strong>分发形态</strong>：安装包携带同版本 <code>agentero</code>、PATH、<code>open</code></td>
 <td><a href="https://github.com/poco-ai/Agentero/issues/165">#165</a></td>
-<td><a href="../bundled-cli/">bundled-cli.md</a></td>
+<td><a href="../../backend/cli/">CLI 文档</a></td>
 <td>#170 的命令随 <strong>同一二进制</strong> 交付；不另做一个「标注专用 CLI」</td>
 </tr>
 <tr>
 <td><strong>paper move 等既有契约</strong></td>
 <td><a href="https://github.com/poco-ai/Agentero/issues/166">#166</a></td>
-<td><a href="../bundled-cli/">bundled-cli.md</a></td>
+<td><a href="../../backend/cli/">CLI 文档</a></td>
 <td>标注命令与现有 Clap 解析、<code>--vault</code> / <code>--json</code> / <code>-y</code> 一致</td>
 </tr>
 </tbody>
@@ -3581,7 +3553,7 @@
 </tr>
 <tr>
 <td>分发</td>
-<td>CLI 现为独立 artifact；内置进桌面包见 <a href="../bundled-cli/">bundled-cli.md</a></td>
+<td>CLI 现为独立 artifact；内置进桌面包见 <a href="../../backend/cli/">CLI 文档</a></td>
 </tr>
 </tbody>
 </table>
@@ -3755,7 +3727,7 @@ agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> 
     → 定位（默认惰性；可读时即时）
         → 上层能力（翻译 / 显示 / 对话锚点 / 可选 headless）
             → Skill（教 Agent 组合使用）
-                → 随 [bundled-cli](bundled-cli.md) 进桌面安装包
+                → 随 [CLI 文档](../backend/cli.md) 进桌面安装包
 </code></pre></div>
 
 <p>定位策略：<strong>能即时则即时，否则 pending + 打开再算</strong>（见两篇定位设计）。<br />
@@ -3845,7 +3817,7 @@ agentero<span class="w"> </span>mark<span class="w"> </span>delete<span class="w
 <h3 id="55">5.5 基础阶段明确不做<a class="headerlink" href="#55" title="Permanent link">&para;</a></h3>
 <ul>
 <li>页上自动黄底、headless <code>--resolve</code>、图公式检测、CLI 翻译。</li>
-<li>不在本阶段改 release 打包（打包见 <a href="../bundled-cli/">bundled-cli.md</a>）。</li>
+<li>不在本阶段改 release 打包（打包见 <a href="../../backend/cli/">CLI 文档</a>）。</li>
 </ul>
 <hr />
 <h2 id="6">6. 阶段二：上层能力<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
@@ -4027,7 +3999,7 @@ agentero<span class="w"> </span>mark<span class="w"> </span>delete<span class="w
 </tr>
 <tr>
 <td>S4</td>
-<td>若桌面已内置 CLI：说明 PATH / <code>agentero</code> 发现方式（与 <a href="../bundled-cli/">bundled-cli</a> 用户文档对齐）</td>
+<td>若桌面已内置 CLI：说明 PATH / <code>agentero</code> 发现方式（与 <a href="../../backend/cli/">CLI 文档</a> 用户文档对齐）</td>
 </tr>
 </tbody>
 </table>
@@ -4147,7 +4119,7 @@ M4 可选
 </tr>
 <tr>
 <td>分发</td>
-<td><a href="../bundled-cli/">bundled-cli</a></td>
+<td><a href="../../backend/cli/">CLI 文档</a></td>
 <td>装 App 即得含 mark 的 <code>agentero</code></td>
 </tr>
 </tbody>
@@ -4251,7 +4223,7 @@ M4 可选
 <td>若增加 Host command</td>
 </tr>
 <tr>
-<td><a href="../bundled-cli/">bundled-cli.md</a></td>
+<td><a href="../../backend/cli/">CLI 文档</a></td>
 <td>验收列表含 mark/translate 子命令</td>
 </tr>
 <tr>
@@ -4268,7 +4240,7 @@ M4 可选
 <ul>
 <li>Issue <a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>（标注开放 CLI + Skill）</li>
 <li>Issue <a href="https://github.com/poco-ai/Agentero/issues/165">#165</a> / <a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>（内置桌面 CLI / paper move）</li>
-<li><a href="../bundled-cli/">内置桌面 CLI 设计</a></li>
+<li><a href="../../backend/cli/">内置桌面 CLI 设计</a></li>
 <li><a href="../mark-locate-lazy/">惰性定位设计</a></li>
 <li><a href="../mark-locate-eager/">即时定位设计</a></li>
 <li><a href="../../backend/cli/">既有 CLI 说明</a></li>

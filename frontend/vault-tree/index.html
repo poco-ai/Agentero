@@ -2071,34 +2071,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/bundled-cli/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    内置桌面 CLI
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../development/zotero-word-integration/" class="md-nav__link">
         
   
@@ -3014,8 +2986,8 @@
 <ul>
 <li>本地：Host <code>vault_tree_build</code> <strong>一次 IPC</strong> 递归（<code>features/vault/tree.rs</code>）。</li>
 <li>远程：<code>remote_list</code> 前端递归。</li>
-<li><strong>全量递归</strong>：<code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agents/</code>；论文内 <code>source/</code> <strong>懒加载</strong>（<code>childrenPending</code> → <code>vault_tree_children</code>）。</li>
-<li>其它根目录只 list 一层，展开再 list。</li>
+<li><strong>全量递归</strong>：<code>papers/</code>、<code>notes/</code>、<code>.agents/</code>；论文内 <code>source/</code> <strong>懒加载</strong>（<code>childrenPending</code> → <code>vault_tree_children</code>）。</li>
+<li>其它根目录（包括旧 Vault 中可能存在的 <code>plans/</code>）只 list 一层，展开再 list。</li>
 <li><strong>缺失目录</strong>：本地 <code>read_dir</code> 失败返回空列表；远程 list 的 <code>NoSuchFile</code> 同样按空处理（<code>isPathMissingError</code>），避免删除后刷新把整棵树清空。删除成功后会先 <code>removeTreeNode</code> 乐观剪枝，再 <code>refreshTree</code>。</li>
 <li>忽略：<code>.git</code>、<code>.venv</code>、<code>node_modules</code> 等（<code>TREE_IGNORE_NAMES</code>）。</li>
 <li>默认只展开 <code>papers/</code> 及其一级子目录。</li>
@@ -3100,7 +3072,8 @@
 </table>
 <h2 id="_6">代码<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
-<li>UI：<code>src/components/sidebar/file-tree.tsx</code>、AI Elements <code>FileTree</code></li>
+<li>UI：<code>src/components/sidebar/file-tree/</code>（barrel <code>index.ts</code>；<code>file-tree.tsx</code> 仅装配，行/菜单/输入/选中条/虚拟列表为独立子模块）、AI Elements <code>FileTree</code></li>
+<li>树内状态：<code>src/components/sidebar/file-tree/hooks/</code>（<code>use-tree-model</code> 路径索引与扁平行、<code>use-tree-expansion</code> 展开与懒加载、<code>use-tree-selection</code> 多选、<code>use-tree-reveal</code> 虚拟化与定位、<code>use-tree-drag-drop</code>、<code>use-paper-row-actions</code>、<code>use-tree-context-menu</code>、<code>use-move-picker</code>）</li>
 <li>逻辑：<code>src/lib/vault/</code>（store、tree、fs-watch、reveal）</li>
 <li>标签/排序：<code>src/lib/paper/tree-label.ts</code>、<code>tree-modes.ts</code></li>
 </ul>

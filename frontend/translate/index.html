@@ -2021,34 +2021,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/bundled-cli/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    内置桌面 CLI
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../development/zotero-word-integration/" class="md-nav__link">
         
   
@@ -2909,7 +2881,9 @@
 <li>依赖版面分析 + PDF 文字层；翻译 <code>text</code> / <code>abstract</code> / <code>header</code> / <code>figure_title</code>（图题·表题）区域（score ≥ 30%）。</li>
 <li><strong>不翻译</strong>：算法框及其内部文字；<code>reference</code> / <code>reference_content</code> 文献条目；“References / Bibliography / 参考文献” 标题；侧栏 <code>aside_text</code>。</li>
 <li>按阅读顺序启动，并发 2；<strong>每块完成立刻</strong>在 bbox 上盖译文层（非整页等齐）。</li>
+<li>每页纸张右上角外侧常驻窄页签可只翻译本页；页签 hover 不弹出额外文字；本页已有可见译文时，页签切换为隐藏本页译文。隐藏只影响当前 UI 覆盖层，不删除磁盘缓存。</li>
 <li>译文按论文写入 <code>{paper}/source/layout-translate.json</code>。缓存命中需匹配 provider / 源语言 / 目标语言 / 非密钥服务配置，并逐块校验 region id + 原文；版面或目标语言变化时只复用仍匹配的块。</li>
+<li>单页翻译写缓存时按同一 cache key 增量合并，避免只翻译一页时覆盖其它页已经落盘的译文。</li>
 <li>运行中再点=停止；有译文再点=清除。实现：<code>layout-translate.ts</code> + <code>layout-translate-overlay.tsx</code>。</li>
 <li>覆盖层按浅色纸面绘制（白底深字）；PDF 暗色模式下套用与页面栅格相同的 invert filter（<code>PDF_PAGE_RASTER_DARK_CLASS</code>），使盖住原文的底色与反转后的纸面一致。</li>
 <li>API：<code>runTranslate(task)</code>（<code>src/lib/translate/</code>）。</li>

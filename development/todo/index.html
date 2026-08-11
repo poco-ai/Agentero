@@ -14,7 +14,7 @@
         <link rel="prev" href="../roadmap/">
       
       
-        <link rel="next" href="../bundled-cli/">
+        <link rel="next" href="../zotero-word-integration/">
       
       
         
@@ -2043,34 +2043,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../bundled-cli/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    内置桌面 CLI
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../zotero-word-integration/" class="md-nav__link">
         
   
@@ -2950,8 +2922,8 @@
 <li>[x] CLI + 设置：聚合 Doctor 与论文 <code>NOTES.md</code> aliases 安全修复（<a href="https://github.com/poco-ai/Agentero/issues/198">#198</a>）</li>
 <li>[ ] CLI：<code>graph</code> / shell completions（只读 <code>wiki check</code> 与 Doctor 已实现）</li>
 <li>[ ] CLI：<code>export papers-md</code>（随 Host 导出）</li>
-<li>[x] 桌面安装包内置同版本 <code>agentero</code> CLI；<code>agentero open &lt;PATH&gt;</code> / <code>agentero &lt;PATH&gt;</code> 打开本地 Vault；设置内安装 PATH shim（<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a>，设计：<a href="../bundled-cli/">bundled-cli.md</a>）</li>
-<li>[x] CLI <code>paper move</code>：目标目录自动创建、Catalog 同步、冲突与越界集成测试（<a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>，设计：<a href="../bundled-cli/">bundled-cli.md</a>）</li>
+<li>[x] 桌面安装包内置同版本 <code>agentero</code> CLI；<code>agentero open &lt;PATH&gt;</code> / <code>agentero &lt;PATH&gt;</code> 打开本地 Vault；设置内安装 PATH shim（<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a>，设计：<a href="../../backend/cli/">../backend/cli.md</a>）</li>
+<li>[x] CLI <code>paper move</code>：目标目录自动创建、Catalog 同步、冲突与越界集成测试（<a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>，设计：<a href="../../backend/cli/">../backend/cli.md</a>）</li>
 <li>[x] CLI：侧栏版面索引 <code>layout list|get</code> + <code>mark add --region</code>（figure/table/algorithm/formula；<code>source/layout-index.json</code>）（<a href="https://github.com/poco-ai/Agentero/issues/170">#170</a> 区域路径）</li>
 <li>[ ] CLI / Agent：正文句子高亮 / 翻译 mark（pending hydrate）+ Skill 全量（<a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>，设计：<a href="../mark-cli-roadmap/">mark-cli-roadmap.md</a>、<a href="../mark-locate-lazy/">mark-locate-lazy.md</a>、<a href="../mark-locate-eager/">mark-locate-eager.md</a>）</li>
 <li>[ ] 官方 <code>Zotero.dotm</code> → Agentero provider：先做 macOS <code>:23119</code> HTTP + Word Automation Go/No-Go，通过后交付 Catalog/CSL/Refresh 闭环；Windows <code>WM_COPYDATA</code> + OLE 后置。需完成 AGPL/GPL 与商标审核，不能与 Zotero Desktop 并行（<a href="https://github.com/poco-ai/Agentero/issues/167">#167</a>，设计：<a href="../zotero-word-integration/">zotero-word-integration.md</a>）</li>

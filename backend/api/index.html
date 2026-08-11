@@ -3243,34 +3243,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/bundled-cli/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    内置桌面 CLI
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../development/zotero-word-integration/" class="md-nav__link">
         
   
@@ -5532,7 +5504,7 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>行为</strong></li>
-<li>确保目录存在；脚手架 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>、<code>.agentero/</code>、<strong><code>.agents/</code></strong>、<strong><code>.agents/skills/</code></strong>。</li>
+<li>确保目录存在；脚手架 <code>papers/</code>、<code>notes/</code>、<code>.agentero/</code>、<strong><code>.agents/</code></strong>、<strong><code>.agents/skills/</code></strong>。</li>
 <li>初始化 <code>.agentero/catalog.sqlite</code>（schema 当前版本，含 Translator 元数据列）。详见 <a href="../catalog/"><code>catalog.md</code></a>。</li>
 <li>写入默认 <code>AGENTS.md</code>（若不存在）。</li>
 <li>写入 <strong><code>.agents/README.md</code></strong>（若不存在；内容来自仓库 <code>templates/vault/.agents/</code>）。</li>
@@ -5588,7 +5560,7 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>语义</strong>（Rust <code>features/vault/tree.rs</code>，与 <code>src/lib/vault/tree.ts</code> 的远端路径保持一致）：</li>
-<li>eager 根（<code>papers/</code> / <code>notes/</code> / <code>plans/</code> / <code>.agents/</code>）全量递归；其它根目录列一层，子目录 <code>childrenPending</code>。</li>
+<li>eager 根（<code>papers/</code> / <code>notes/</code> / <code>.agents/</code>）全量递归；其它根目录列一层，子目录 <code>childrenPending</code>。</li>
 <li><strong>论文文件夹内的 <code>source/</code></strong>（含 <code>metadata.json</code> / <code>NOTES.md</code> / <code>PAPER.md</code> 任一 marker 的目录）不再递归 —— arXiv e-print 解压产物动辄上百文件，标记 <code>childrenPending</code> 懒加载；这里的 marker 只用于 Host 判断 <code>source/</code> 是否懒加载，不单独决定前端是否把目录识别为论文。前端论文识别会优先保留含嵌套论文的组织目录，并在已有论文路径列表时按该列表归属文件。壳上附带 <code>hasTex</code>（Host 扫盘），供前端 Download 判定（<code>paperAssetDownloadReasons</code>）识别被懒加载藏住的 TeX。</li>
 <li>忽略名（<code>.git</code> / <code>.venv</code> / <code>node_modules</code> / <code>*.egg-info</code> / 其它 dot 名，白名单 <code>.agents</code> / <code>.env.example</code>）与深度上限 12 同前端规则。</li>
 <li>排序仍在前端（<code>sortNodes</code>，locale 感知）。</li>
@@ -5891,7 +5863,7 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>行为</strong></li>
-<li>校验 Vault 结构（至少存在 <code>papers/</code>、<code>notes/</code>、<code>plans/</code>；确保 <code>.agentero/catalog.sqlite</code> 可打开或可初始化）。</li>
+<li>校验 Vault 结构（至少存在 <code>papers/</code>、<code>notes/</code>；确保 <code>.agentero/catalog.sqlite</code> 可打开或可初始化）。</li>
 <li>打开 catalog、执行 schema migration；若存在历史 <code>papers/*/metadata.json</code> 且 catalog 为空则导入（见 catalog 迁移）。</li>
 <li>文件监听由前端打开 Vault 后调用 <code>fs_watch_start</code>（已落地；见上），非本命令内隐式启动。</li>
 <li>返回完整文件树。</li>

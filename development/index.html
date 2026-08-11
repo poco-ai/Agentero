@@ -2010,34 +2010,6 @@
   
   
     <li class="md-nav__item">
-      <a href="bundled-cli/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    内置桌面 CLI
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="zotero-word-integration/" class="md-nav__link">
         
   
@@ -2904,6 +2876,14 @@
 </thead>
 <tbody>
 <tr>
+<td><a href="paper-pipeline-orchestration/">paper-pipeline-orchestration.md</a></td>
+<td>打开论文的三条时间轴（T0/T1/T2）、<code>paper_open_bundle</code> 聚合命令、内存 Job Center 与五条流水线（下载 / liteparse / 引用 / 图谱 / layout）编排；含 Operation/Job 判定、<code>auto</code>/<code>all</code> 类函数审计、依赖选型。零 schema 变更</td>
+</tr>
+<tr>
+<td><a href="paper-behavior-dag/">paper-behavior-dag.md</a></td>
+<td>导入（identifier / Connector / 本地 PDF / BibTeX 四条入口）与打开论文的行为 DAG、现状不合理之处（<code>PAPER.md</code> 生成责任在前端、refs 重复 spawn、PDF/TeX 串行）与目标 DAG</td>
+</tr>
+<tr>
 <td><a href="plaza/">plaza.md</a></td>
 <td>广场（Cool Papers / 推荐 / 播客）</td>
 </tr>
@@ -2912,16 +2892,12 @@
 <td>#239 使用记录总结：<code>.agentero/usage.sqlite</code> 事件与画像、Agent 习惯 context 三层接入、继续阅读 / 周回顾 / 库内推荐</td>
 </tr>
 <tr>
-<td><a href="bundled-cli/">bundled-cli.md</a></td>
-<td>桌面安装包内置 CLI、命令行打开 Vault 与跨平台 PATH 策略</td>
-</tr>
-<tr>
 <td><a href="zotero-word-integration/">zotero-word-integration.md</a></td>
 <td>官方 Zotero Word 插件 provider 兼容、文档迁移与平台实现评估</td>
 </tr>
 <tr>
 <td><a href="mark-cli-roadmap/">mark-cli-roadmap.md</a></td>
-<td>#170 阅读标注<strong>内置进 CLI</strong>（方案/命令面/边界）+ 基础→上层→Skill；与 <a href="bundled-cli/">bundled-cli</a> 分发衔接</td>
+<td>#170 阅读标注<strong>内置进 CLI</strong>（方案/命令面/边界）+ 基础→上层→Skill；与 <a href="../backend/cli/">CLI 文档</a> 分发衔接</td>
 </tr>
 <tr>
 <td><a href="mark-locate-lazy/">mark-locate-lazy.md</a></td>
