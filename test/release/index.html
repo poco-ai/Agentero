@@ -3643,6 +3643,7 @@
 <li><code>x86_64-pc-windows-msvc</code>：Windows MSVC。</li>
 </ul>
 <p>CLI 压缩包内部统一包含名为 <code>agentero</code>（Windows 为 <code>agentero.exe</code>）的可执行文件；外部归档名使用 <code>agentero-cli-</code> 前缀，避免与桌面安装包混淆。</p>
+<p>桌面安装包 <strong>不</strong> 嵌入真实 CLI（<a href="https://github.com/poco-ai/Agentero/issues/285">#285</a>）：<code>beforeBuildCommand</code> 仅 seed <code>externalBin</code> stub。用户从 <strong>设置 → 关于 → 安装 CLI</strong> 下载与 App 同版本的上述归档（Host 校验 sibling <code>.sha256</code>）。独立 CLI 归档仍须随 Release 上传，供 headless 与应用内安装共用。</p>
 <h3 id="linux">Linux 支持边界<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
 <ul>
 <li>CI：<code>ubuntu-22.04</code> / <code>ubuntu-24.04-arm</code>，依赖 <code>libwebkit2gtk-4.1-dev</code>。</li>
