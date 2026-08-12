@@ -3088,6 +3088,7 @@
 </tbody>
 </table>
 <p>动效约定：<code>index.css</code> <code>:root</code> 定义 motion token（<code>--motion-duration-fast: 150ms</code> 浮层进出、<code>--motion-duration-normal: 200ms</code> 布局编排、<code>--motion-ease-out</code>）；组件类对应 100=微反馈 / 150=浮层 / 200=布局。全局 <code>prefers-reduced-motion</code> 兜底关闭所有动效（<code>animate-spin</code> 除外）。</p>
+<p>该 CSS 兜底只覆盖 CSS transition/keyframes；JS 驱动的动效（<code>scrollIntoView</code> / 虚拟列表滚动 / <code>use-stick-to-bottom</code> 贴底 / <code>motion/react</code>）必须自行询问 <code>src/lib/core/motion.ts</code> 的 <code>prefersReducedMotion()</code> / <code>scrollBehavior()</code>，<code>motion/react</code> 组件用其 <code>useReducedMotion()</code>。</p>
 <h3 id="_5">领域库<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
