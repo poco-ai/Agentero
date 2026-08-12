@@ -3256,7 +3256,50 @@
 <p><strong>完整流水线、14 条核心规则、阈值与代码地图</strong>见：</p>
 <p>→ <strong><a href="../pdf-layout-analysis/">pdf-layout-analysis.md</a></strong></p>
 <p>要点：先文字角色再联图；图题须整框在 figure bbox 内；图无 title 丢弃；默认置信度 30%；Paper PDF 的初步解析结果缓存到 <code>{paper}/source/layout.json</code>，后续 merge/filter 可重复计算。全文翻译缓存独立写入 <code>{paper}/source/layout-translate.json</code>，按 provider / 语言 / region 原文校验后复用。</p>
-<p><strong>单击视觉批注：</strong> hover 插图 / 表 / 算法 / 无符号表公式的命中框时，框右上角显示「单击进行批注」提示；单击裁剪该区域并打开 <code>VisualAnnotationEditor</code>（与手动框选相同；不自动发送 Agent），草稿卡保持打开直到手动关闭。框选模式或已有草稿卡时命中框不挂载。</p>
+<p><strong>单击视觉批注：</strong> hover 插图 / 表 / 算法 / 无符号表公式的命中框时，框上出现 primary 描边（即将裁剪的确切 bbox）与右上角「单击进行批注」提示；单击裁剪该区域并打开 <code>VisualAnnotationEditor</code>（与手动框选相同；不自动发送 Agent），草稿卡保持打开直到手动关闭。框选模式或已有草稿卡时命中框不挂载。</p>
+<p>交互细节（均有对应实现约束）：</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>行为</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>拖拽容差</td>
+<td>pointerdown 到 click 位移 &gt; 6px 视为拖拽，不裁剪（<code>LAYOUT_REGION_CLICK_MOVE_TOLERANCE_PX</code>）</td>
+<td>浏览器只要 down/up 落在同一元素就派发 <code>click</code>，起手在图区内的选字或平移会误触发</td>
+</tr>
+<tr>
+<td>键盘</td>
+<td>命中框在 Tab 序列内，Enter / Space 裁剪；<code>MouseEvent.detail === 0</code> 直接放行容差判定</td>
+<td>键盘激活没有指针位移可测</td>
+</tr>
+<tr>
+<td>焦点</td>
+<td>描边与提示同时响应 <code>group-hover</code> 与 <code>group-focus-visible</code></td>
+<td>半透明 UA 焦点环压在不可预测的页面内容上不可靠</td>
+</tr>
+<tr>
+<td>提示阈值</td>
+<td>区域实际尺寸小于 <code>LAYOUT_HINT_MIN_REGION_W/H_PX</code>（120×28）时不画 chip，并配 <code>max-w</code> + <code>truncate</code> 兜底</td>
+<td>chip 是固定字号标签，容器随缩放变化，小区域下会溢出压住邻近内容</td>
+</tr>
+<tr>
+<td>光标</td>
+<td>图 / 表 / 算法用 <code>cursor-crosshair</code>，公式图例用 <code>cursor-help</code></td>
+<td>pointer 光标留给会跳转的引用链接</td>
+</tr>
+<tr>
+<td>裁剪中</td>
+<td><code>visualCropRegion</code> 在页上画描边 + spinner（<code>role="status"</code>）</td>
+<td>PDFium <code>renderPageRect</code> 是异步的，否则单击后到卡片出现之间毫无反馈</td>
+</tr>
+</tbody>
+</table>
+<p>公式图例命中框没有单击动作，因此 <code>onFocus</code> / <code>onBlur</code> 承担键盘可达性（聚焦即走同一 dwell 逻辑）。</p>
 <p><strong>Hover 公式解析：</strong> 当论文目录存在 <code>Annotation.md</code>（由 <code>equation-annotation</code> Skill 生成的符号词典）且解析到符号表时，hover <strong>有编号公式</strong> 不打开视觉批注，改为弹出「公式解析」卡片：展示符号 / 含义 / 通俗理解对照（符号列 KaTeX 渲染）。卡片可打开 <code>Annotation.md</code>。</p>
 <p>Hover UX（与单击批注分离）：</p>
 <table>
