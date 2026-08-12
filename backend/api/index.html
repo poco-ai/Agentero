@@ -2960,6 +2960,45 @@
   
 </li>
         
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3102-onnx-paddle-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.10.2 版面解析后端（本地 ONNX / Paddle API）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.10.2 版面解析后端（本地 ONNX / Paddle API）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layout_remote_analyze_pdf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        layout_remote_analyze_pdf（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layout_remote_probe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        layout_remote_probe（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
           <li class="md-nav__item">
   <a href="#settings_get" class="md-nav__link">
     <span class="md-ellipsis">
@@ -5128,6 +5167,45 @@
     <span class="md-ellipsis">
       
         layout_model_ensure（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3102-onnx-paddle-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.10.2 版面解析后端（本地 ONNX / Paddle API）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.10.2 版面解析后端（本地 ONNX / Paddle API）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#layout_remote_analyze_pdf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        layout_remote_analyze_pdf（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layout_remote_probe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        layout_remote_probe（已实现）
       
     </span>
   </a>
@@ -7471,6 +7549,38 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>参数</strong>：<code>{ progressTaskId?: string }</code>（来自 <code>enqueueBackgroundTask</code> 的 id）</li>
 <li><strong>返回</strong>：<code>LayoutModelStatus</code>；未就绪则下载（进程锁；支持取消与字节进度）</li>
+</ul>
+<h3 id="3102-onnx-paddle-api">3.10.2 版面解析后端（本地 ONNX / Paddle API）<a class="headerlink" href="#3102-onnx-paddle-api" title="Permanent link">&para;</a></h3>
+<p><code>settings.json</code> 新增 <code>layout</code> 段（camelCase，<code>settings_get</code> / <code>settings_set</code> 同构）：</p>
+<div class="codehilite"><pre><span></span><code>{
+  &quot;layout&quot;: {
+    &quot;backend&quot;: &quot;local&quot;, // &quot;local&quot;（默认，ONNX）| &quot;paddle&quot;（AI Studio 异步任务）
+    &quot;providerConfigs&quot;: {
+      &quot;paddle&quot;: { &quot;apiKey&quot;: &quot;***&quot; }
+    }
+  }
+}
+</code></pre></div>
+
+<ul>
+<li><code>apiKey</code> 与翻译 BYOK 同一套掩码机制：<code>settings_get</code> 返回 <code>*</code> 掩码，<code>settings_set</code> 收到掩码时保留已存密钥。Key 在 AI Studio PaddleOCR 任务页获取。</li>
+<li>设置 UI：Settings →「版面解析 / Layout」（后端选择 + Paddle API Key / 端点 + 连通性测试）。</li>
+</ul>
+<h4 id="layout_remote_analyze_pdf"><code>layout_remote_analyze_pdf</code>（已实现）<a class="headerlink" href="#layout_remote_analyze_pdf" title="Permanent link">&para;</a></h4>
+<p>整份 PDF 的 <strong>异步</strong> PP-StructureV3 解析（无同步逐页接口）：</p>
+<ul>
+<li><strong>参数</strong>：<code>{ args: { pdfBase64, fileName?, apiKey? } }</code></li>
+<li>端点固定为 <code>https://paddleocr.aistudio-app.com/api/v2/ocr/jobs</code>；<code>apiKey</code> 为空 / 掩码时由 Host 从设置注入（WebView 不持有明文）。</li>
+<li><strong>流程</strong>：multipart 提交任务 <code>POST /api/v2/ocr/jobs</code>（<code>model: PP-StructureV3</code>，<code>Authorization: bearer &lt;token&gt;</code>）→ 每 3s 轮询 <code>GET /api/v2/ocr/jobs/{jobId}</code>（总时限 10 分钟）→ 完成后下载 <code>resultUrl.jsonUrl</code>（JSONL）并提取每页 <code>prunedResult.layout_det_res.boxes</code>。</li>
+<li><strong>进度</strong>：轮询期间 emit <code>layout-remote:progress</code>，payload <code>{ phase, extractedPages, totalPages }</code>（phase：<code>uploading</code> / <code>pending</code> / <code>running</code> / <code>downloading</code> / <code>done</code>）。</li>
+<li><strong>返回</strong>：<code>{ pages: [{ boxes: [{ clsId, label, score, coordinate }], widthPx, heightPx }] }</code>；渲染像素尺寸优先取 <code>dataInfo</code> / <code>inputImage</code> JPEG 头，缺失为 <code>null</code>（前端按 200 DPI 估算）。</li>
+<li><strong>超时 / 代理</strong>：单请求 120s；走 Host 全局代理（<code>network::client_builder</code>）。</li>
+<li>实现：<code>src-tauri/src/features/layout_remote/</code>；前端 <code>src/lib/pdf/layout/paddle.ts</code>。</li>
+</ul>
+<h4 id="layout_remote_probe"><code>layout_remote_probe</code>（已实现）<a class="headerlink" href="#layout_remote_probe" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>参数</strong>：<code>{ args: { imageBase64, apiKey? } }</code></li>
+<li><strong>行为</strong>：用同一异步任务通路提交一张小图任务，返回 <code>{ jobId }</code> 即端点 + token 有效。走 Host（无 WebView CORS 限制、遵循代理），供设置页「测试连接」使用。</li>
 </ul>
 <h4 id="settings_get"><code>settings_get</code>（已实现）<a class="headerlink" href="#settings_get" title="Permanent link">&para;</a></h4>
 <ul>

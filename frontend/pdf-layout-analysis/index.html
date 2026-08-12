@@ -1098,6 +1098,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#onnx-paddle-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        后端选择（本地 ONNX / Paddle API）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#layout-sidecar" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2990,6 +3001,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#onnx-paddle-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        后端选择（本地 ONNX / Paddle API）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#layout-sidecar" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3181,7 +3203,7 @@
 
 
 <h1 id="pdf-figures-tables-algorithms-formulas">PDF 版面分析（Figures / Tables / Algorithms / Formulas）<a class="headerlink" href="#pdf-figures-tables-algorithms-formulas" title="Permanent link">&para;</a></h1>
-<p>浏览器内 ONNX（PP-DocLayoutV3）检测 PDF 版面 → 应用层 <strong>文字角色 + 联图聚合 + 公式按编号框几何聚合（不解析编号文本）+ 置信度去重</strong> → 右栏 <strong>Figures</strong>。</p>
+<p>版面检测（默认浏览器内 ONNX PP-DocLayoutV3，可选远程 Paddle PP-StructureV3 API）→ 应用层 <strong>文字角色 + 联图聚合 + 公式按编号框几何聚合（不解析编号文本）+ 置信度去重</strong> → 右栏 <strong>Figures</strong>。</p>
 <blockquote>
 <p>该能力已落地并可随论文打开自动运行；大模型推理在低端设备上可能卡顿，分析结果仅写入可重建 sidecar，不改 PDF 二进制。</p>
 </blockquote>
@@ -3329,11 +3351,50 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </tbody>
 </table>
 <p>实现：<code>src-tauri/src/features/layout_model/</code>、<code>src/lib/pdf/layout/model.ts</code>、<code>ai-runtime.ts</code>。</p>
+<h3 id="onnx-paddle-api">后端选择（本地 ONNX / Paddle API）<a class="headerlink" href="#onnx-paddle-api" title="Permanent link">&para;</a></h3>
+<p>设置 →「版面解析」可选择检测后端（<code>settings.layout.backend</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>后端</th>
+<th>值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本地推理（默认）</td>
+<td><code>local</code></td>
+<td>浏览器内 ONNX PP-DocLayoutV3，完全离线</td>
+</tr>
+<tr>
+<td>Paddle API</td>
+<td><code>paddle</code></td>
+<td>AI Studio 托管 PP-StructureV3 <strong>异步任务</strong> API，<strong>整份 PDF 会上传到云端</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Paddle 后端流程（<code>src/lib/pdf/layout/paddle.ts</code> + <code>run-analysis.ts</code> 的 <code>startPaddleLayoutAnalysis</code>）：</p>
+<ol>
+<li>读取本地 PDF，整份 base64 交给 Host 命令 <code>layout_remote_analyze_pdf</code>（<code>src-tauri/src/features/layout_remote/</code>）；</li>
+<li>Host 以 multipart 提交异步任务 <code>POST https://paddleocr.aistudio-app.com/api/v2/ocr/jobs</code>（端点固定；<code>model: PP-StructureV3</code>，<code>Authorization: bearer &lt;token&gt;</code>，token 由 Host 从设置注入，WebView 只持有 <code>*</code> 掩码），随后每 3s 轮询 <code>GET …/jobs/{jobId}</code>（总时限 10 分钟），期间通过 <code>layout-remote:progress</code> 事件回报 <code>extractedPages / totalPages</code> 进度；</li>
+<li>任务完成后下载 <code>resultUrl.jsonUrl</code>（JSONL），提取每页 <code>prunedResult.layout_det_res.boxes</code>（像素坐标 + <code>label</code> + <code>score</code>）；渲染像素尺寸优先取响应 <code>dataInfo</code> / <code>inputImage</code> JPEG 头，缺失时按 200 DPI 估算（归一化 <code>bbox</code> 不受影响，仅 points <code>rect</code> 可能有轻微偏差）；</li>
+<li>
+<p>后续与本地路径完全共用：PDF text runs 补文字 / captionRole → <code>mergeCaptionsIntoHosts</code> → sidecar / index。</p>
+</li>
+<li>
+<p>标签词表与本地一致（PP-DocLayoutV3 <code>id2label</code>），<code>labels.ts</code> 映射直接复用；阈值同为 0.3。</p>
+</li>
+<li>sidecar <code>source.mode</code> 记为 <code>paddle-layout</code>（本地为 <code>embedpdf-layout</code>），两者均可被解析。</li>
+<li>进度 / 取消沿用 <code>LayoutTask</code> 形状（<code>PaddleLayoutTask</code>）；JobCenter <code>layoutAnalyze</code> 任务无需改动。</li>
+<li>无 paper 目录（拿不到 PDF 字节）或页数未知时自动回退本地 ONNX。</li>
+<li>端点固定为 <code>https://paddleocr.aistudio-app.com/api/v2/ocr/jobs</code>；API Key 在 <a href="https://aistudio.baidu.com/paddleocr/task/new">AI Studio PaddleOCR 任务页</a> 获取。</li>
+</ol>
 <h3 id="layout-sidecar">Layout sidecar<a class="headerlink" href="#layout-sidecar" title="Permanent link">&para;</a></h3>
 <p><code>{paper}/source/layout.json</code> 保存 <strong>初步解析结果</strong>：模型标签映射后的 <code>PdfLayoutRegion[]</code>，并已尽力补充 caption 文本与 <code>captionRole</code>（公式编号文本不解析）。它不保存侧栏最终卡片列表，也不保存缩略图；后续 <code>mergeCaptionsIntoHosts</code>、去重和置信度筛选都从该 raw sidecar 重新计算。因此修改联图、公式合并或筛选规则后，不需要重新运行 PP-DocLayoutV3。</p>
 <div class="codehilite"><pre><span></span><code><span class="kr">type</span><span class="w"> </span><span class="nx">LayoutSidecar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">schemaVersion</span><span class="o">:</span><span class="w"> </span><span class="kt">2</span><span class="p">;</span>
-<span class="w">  </span><span class="nx">source</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;embedpdf-layout&quot;</span><span class="p">;</span><span class="w"> </span><span class="nx">generatedAt</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">};</span>
+<span class="w">  </span><span class="nx">source</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;embedpdf-layout&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;paddle-layout&quot;</span><span class="p">;</span><span class="w"> </span><span class="nx">generatedAt</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">};</span>
 <span class="w">  </span><span class="nx">regions</span><span class="o">:</span><span class="w"> </span><span class="kt">PdfLayoutRegion</span><span class="p">[];</span><span class="w"> </span><span class="c1">// raw, pre-merge</span>
 <span class="p">};</span>
 </code></pre></div>
