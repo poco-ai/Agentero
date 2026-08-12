@@ -1519,6 +1519,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#76" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.6 前端组件结构
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3732,6 +3743,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#76" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.6 前端组件结构
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4297,6 +4319,63 @@ GET /ws?v=2&amp;serverId=&lt;agt_…&gt;&amp;role=client                       �
 <li>一切写操作与 Agent 需在线；离线时置灰并提示「电脑离线」；</li>
 <li>不做离线写回队列（单写者原则，避免冲突语义）。</li>
 </ul>
+<h3 id="76">7.6 前端组件结构<a class="headerlink" href="#76" title="Permanent link">&para;</a></h3>
+<p>移动壳位于 <code>src/components/mobile/</code>，入口 <code>mobile-app.tsx</code> 是薄容器：持有 tab 路由、配对门禁与壳布局，业务逻辑全部下沉到 hooks 与页面组件。</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mobile-app.tsx</code></td>
+<td>根容器：tab/侧栏/阅读器状态、header 装配、配对门禁</td>
+</tr>
+<tr>
+<td><code>mobile-pairing.tsx</code></td>
+<td>配对首屏：扫码（zxing）、粘贴配对链接、进度 toast、待确认验证码</td>
+</tr>
+<tr>
+<td><code>mobile-agent-page.tsx</code></td>
+<td>Agent 聊天页 + 历史会话/权限弹窗</td>
+</tr>
+<tr>
+<td><code>mobile-library-page.tsx</code> / <code>mobile-reader-page.tsx</code></td>
+<td>论文列表 / PDF+NOTES 阅读页</td>
+</tr>
+<tr>
+<td><code>mobile-header.tsx</code> / <code>mobile-header-actions.tsx</code> / <code>mobile-nav.tsx</code> / <code>mobile-sidebar.tsx</code> / <code>mobile-gestures.tsx</code></td>
+<td>header 壳、header 动作区（阅读模式切换、Agent 后端切换）、导航、侧栏、手势</td>
+</tr>
+<tr>
+<td><code>hooks/use-bridge-status.ts</code></td>
+<td>bridge 状态订阅、启动恢复、回前台重连</td>
+</tr>
+<tr>
+<td><code>hooks/use-pair-offer-links.ts</code></td>
+<td><code>agentero://pair</code> deep-link 配对入口</td>
+</tr>
+<tr>
+<td><code>hooks/use-mobile-papers.ts</code></td>
+<td>论文列表拉取与轮询</td>
+</tr>
+<tr>
+<td><code>hooks/use-mobile-agents.ts</code></td>
+<td>Agent 列表合并（注册列表 + catalog 扫描）与默认选择</td>
+</tr>
+<tr>
+<td><code>hooks/use-mobile-agent-chat.ts</code></td>
+<td>聊天状态机：事件订阅、时间线恢复、发送与权限应答</td>
+</tr>
+<tr>
+<td><code>agent-sources.ts</code> / <code>chat-lines.ts</code> / <code>types.ts</code></td>
+<td>纯逻辑（可单测）与 bridge agent 协议类型</td>
+</tr>
+</tbody>
+</table>
+<p>约定：历史会话弹窗的开关由根容器经 props 下传（header 按钮与聊天页共享）；切换 Agent 后端时根容器清空会话 id，聊天页经 <code>key</code> 重挂载。纯逻辑模块的回归网在 <code>test/mobile-*.test.ts</code>。</p>
 <hr />
 <h2 id="8-agent">8. Agent 使用（核心场景）<a class="headerlink" href="#8-agent" title="Permanent link">&para;</a></h2>
 <h3 id="81">8.1 执行位置<a class="headerlink" href="#81" title="Permanent link">&para;</a></h3>
