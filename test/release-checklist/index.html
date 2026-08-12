@@ -4596,6 +4596,20 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>citekey 带 <code>-2</code> / <code>-3</code> 等后缀，不互相覆盖</td>
 <td>☐</td>
 </tr>
+<tr>
+<td>6.2.4</td>
+<td>终端 + 应用</td>
+<td><strong>用安装包装的应用</strong>（非 <code>tauri dev</code>），先确认 PDFium 已随包：macOS <code>ls "/Applications/Agentero.app/Contents/Frameworks/libpdfium.dylib"</code>，Windows/Linux 查 exe 同级 <code>pdfium/</code>。再临时移走构建期缓存 <code>~/Library/Caches/pdfium-rs</code>（Linux <code>~/.cache/pdfium-rs</code>），导入一个本地 PDF</td>
+<td>仍生成 <code>PAPER.md</code>，catalog 写入 <code>body_source</code>；测完恢复缓存目录（回归 #303）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>6.2.5</td>
+<td>同上</td>
+<td>把包内 PDFium 临时改名，再导入一个本地 PDF</td>
+<td>任务面板出现 <strong>失败</strong> 的「解析 PDF 正文」，详情含找不到 PDFium 的真实原因，而不是显示“已完成”</td>
+<td>☐</td>
+</tr>
 </tbody>
 </table>
 <h3 id="63">6.3 补下载<a class="headerlink" href="#63" title="Permanent link">&para;</a></h3>

@@ -1512,6 +1512,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#pdfium" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDFium 随包分发
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#pdf" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2905,6 +2916,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#pdfium" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDFium 随包分发
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#pdf" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3070,7 +3092,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </tr>
 <tr>
 <td>解析失败或超时</td>
-<td>保留 PDF、<code>NOTES.md</code> 与 catalog；返回诊断消息，后续可重新执行 <code>paper parse</code></td>
+<td>保留 PDF、<code>NOTES.md</code> 与 catalog；<code>paper_parse_body</code> 返回 <code>error</code>，对应 job 标记 <code>Failed</code> 并在任务面板展示原因，后续可重新执行 <code>paper parse</code></td>
 </tr>
 <tr>
 <td>质量字段</td>
@@ -3079,6 +3101,48 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </tbody>
 </table>
 <p><code>PAPER.md</code> 是派生文件，可删可重建；<code>source/</code> 与 PDF 才是归档事实来源。</p>
+<h2 id="pdfium">PDFium 随包分发<a class="headerlink" href="#pdfium" title="Permanent link">&para;</a></h2>
+<p>liteparse 在<strong>运行时 <code>dlopen</code></strong> PDFium，而 <code>liteparse-pdfium-sys</code> 的 build script 只
+把<strong>构建机</strong>的下载缓存绝对路径 bake 进二进制。用户机上那个路径不存在，加载失败会
+直接 panic（子进程退出码 101），表现为“一直解析中 / 解析失败”。因此 PDFium 必须
+随安装包一起分发。</p>
+<table>
+<thead>
+<tr>
+<th>环节</th>
+<th>位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>暂存</td>
+<td><code>scripts/prepare-pdfium.mjs</code> → <code>src-tauri/pdfium/{libpdfium.dylib \| pdfium.dll \| libpdfium.so}</code>（gitignore；<code>beforeDevCommand</code> / <code>beforeBuildCommand</code> 都会跑 <code>pnpm pdfium:stage</code>）</td>
+</tr>
+<tr>
+<td>来源优先级</td>
+<td><code>PDFIUM_LIB_PATH</code> → 平台缓存 <code>&lt;cache&gt;/pdfium-rs/&lt;tag&gt;/&lt;asset&gt;/</code> → 从 pdfium-binaries release 下载</td>
+</tr>
+<tr>
+<td>macOS 打包</td>
+<td><code>bundle.macOS.frameworks</code> → <code>Contents/Frameworks/libpdfium.dylib</code>（tauri-bundler 会把它登记为 codesign target，公证需要）</td>
+</tr>
+<tr>
+<td>Windows / Linux 打包</td>
+<td><code>bundle.resources: ["pdfium/*"]</code> → exe 同级 <code>pdfium/</code>，deb/AppImage 为 <code>/usr/lib/agentero/pdfium/</code></td>
+</tr>
+<tr>
+<td>运行时定位</td>
+<td><code>pdf_parse::bundled_pdfium_dir()</code> 从 <code>current_exe</code> 探测上述位置，作为 <code>PDFIUM_LIB_PATH</code> 传给解析子进程；外部已设置该环境变量时不覆盖</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>iOS/Android 不打包 PDFium：正文解析走配对的桌面 Host，平台 config 已清空 <code>resources</code>。</li>
+<li>子进程 stderr 落到 worker 临时目录的 <code>stderr.log</code>；拿不到 response 时其尾部会拼进错误消息。</li>
+<li><strong>升级 <code>liteparse</code> 依赖时</strong>，必须同步 <code>scripts/prepare-pdfium.mjs</code> 里的
+  <code>PDFIUM_RELEASE_TAG</code> 与 <code>.github/workflows/ci.yml</code> 的 Provision PDFium 步骤，
+  保持与 <code>liteparse-pdfium-sys</code> build script 的 tag 一致。</li>
+</ul>
 <h2 id="pdf">本地 PDF<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h2>
 <ul>
 <li>魔棒多选或拖到 <code>papers/</code> 组织夹 → metadata 确认 → 复制 PDF + catalog + 通常生成 <code>PAPER.md</code>。</li>
