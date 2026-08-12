@@ -2935,7 +2935,6 @@
 <li>落盘：XDG <code>$XDG_CONFIG_HOME/agentero/settings.json</code>。</li>
 <li>加载策略：设置 webview 不加载完整 <code>App</code>，也不加载 PDF 引擎与 KaTeX（二者随 <code>App</code> 动态 import）。各分区 pane 按 <code>lazy()</code> 分 chunk；<strong>当前分区</strong>的 pane 与外壳并行预热（<code>preloadSettingsPane</code>），避免窗口刚可交互时才去拉 pane 而卡一下；其余分区首次访问才加载，已访问的保持挂载。</li>
 <li>通用页的「网络代理」是 Host 级配置，启用后用于 Host 创建的 HTTP(S)/SOCKS 请求，并同步注入本地与远端 Agent 进程的 <code>HTTP_PROXY</code> / <code>HTTPS_PROXY</code> / <code>ALL_PROXY</code>。旧版 Settings → Agent 的代理配置会在首次启动时迁移。</li>
-<li>通用页「隐私」区块：<code>telemetryEnabled</code> 开关（默认开，opt-out）+「立即发送诊断信息」手动按钮。上报内容/时机与编译期端点见 <a href="../../backend/telemetry/">../backend/telemetry.md</a>；前端错误采集在 <code>src/lib/core/telemetry.ts</code>（<code>window.onerror</code> / <code>unhandledrejection</code> / ErrorBoundary，防抖批量 invoke）。</li>
 </ul>
 <h2 id="_3">主要分类<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>
@@ -2948,7 +2947,7 @@
 <tbody>
 <tr>
 <td>通用</td>
-<td>Translator URL、Connector 开关、文件树标签/排序、打开行为、笔记导出默认水印、诊断上报开关与手动发送</td>
+<td>Translator URL、Connector 开关、文件树标签/排序、打开行为、笔记导出默认水印</td>
 </tr>
 <tr>
 <td>Appearance</td>

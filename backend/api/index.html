@@ -2982,28 +2982,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#telemetry_send_diagnostics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        telemetry_send_diagnostics（已实现）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#telemetry_report_frontend_errors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        telemetry_report_frontend_errors（已实现）
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -5172,28 +5150,6 @@
     <span class="md-ellipsis">
       
         settings_set（已实现）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#telemetry_send_diagnostics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        telemetry_send_diagnostics（已实现）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#telemetry_report_frontend_errors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        telemetry_report_frontend_errors（已实现）
       
     </span>
   </a>
@@ -7533,16 +7489,6 @@ Host (Tauri + Rust)
 <blockquote>
 <p>设置文件绝对路径已包含在 <code>settings_get</code> 返回的 <code>path</code> 字段中（About / 诊断用），无独立 command。</p>
 </blockquote>
-<h4 id="telemetry_send_diagnostics"><code>telemetry_send_diagnostics</code>（已实现）<a class="headerlink" href="#telemetry_send_diagnostics" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>返回</strong>（<code>ApiResult</code>）：<code>{ enabled: boolean, sent: boolean }</code></li>
-<li>手动上报诊断信息（设备/系统/版本/已装 Agent + 最近 ERROR 日志）。<code>enabled=false</code> 表示未编译端点或用户已关闭 <code>telemetryEnabled</code>，此时不发送。详见 <a href="../telemetry/">telemetry.md</a>。</li>
-</ul>
-<h4 id="telemetry_report_frontend_errors"><code>telemetry_report_frontend_errors</code>（已实现）<a class="headerlink" href="#telemetry_report_frontend_errors" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>参数</strong>：<code>{ args: { errors: [{ message, stack?, context? }] } }</code>（最多 20 条）</li>
-<li><strong>返回</strong>：<code>()</code>；前端 <code>src/lib/core/telemetry.ts</code> 防抖批量调用，Host 按开关与端点决定是否上传。</li>
-</ul>
 <p>UI 入口见 <code>settings_window_open</code>：Settings 现为独立原生单例窗口，<code>?window=settings</code> 路由由 <code>src/main.tsx</code> 分支渲染。</p>
 <p>实现：<code>src-tauri/src/features/settings/</code>（<code>mod.rs</code> + <code>commands.rs</code>）、<code>core/paths.rs</code>、<code>src-tauri/src/features/window/commands.rs</code>。</p>
 <h3 id="311-ui-i18n">3.11 界面与本地化（UI / i18n）<a class="headerlink" href="#311-ui-i18n" title="Permanent link">&para;</a></h3>

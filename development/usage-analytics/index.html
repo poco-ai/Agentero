@@ -3371,7 +3371,7 @@
 <h1 id="usage-analytics">使用记录与习惯总结（Usage Analytics）<a class="headerlink" href="#usage-analytics" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p>状态：设计草案。关联 <a href="https://github.com/poco-ai/Agentero/issues/239">#239</a>。
-相关：<a href="../../backend/catalog/"><code>../backend/catalog.md</code></a>、<a href="../../backend/agent/"><code>../backend/agent.md</code></a>、<a href="../../backend/logging/"><code>../backend/logging.md</code></a>、<a href="../../backend/telemetry/"><code>../backend/telemetry.md</code></a>、<a href="../../frontend/library/"><code>../frontend/library.md</code></a>、<a href="../plaza/"><code>plaza.md</code></a></p>
+相关：<a href="../../backend/catalog/"><code>../backend/catalog.md</code></a>、<a href="../../backend/agent/"><code>../backend/agent.md</code></a>、<a href="../../backend/logging/"><code>../backend/logging.md</code></a>、<a href="../../frontend/library/"><code>../frontend/library.md</code></a>、<a href="../plaza/"><code>plaza.md</code></a></p>
 </blockquote>
 <h2 id="1">1. 目标与非目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <p>Issue 三条诉求拆成三层：</p>
@@ -3410,7 +3410,7 @@
 <p><strong>非目标（首版）</strong></p>
 <ul>
 <li>不做 embedding / 向量库 / 语义相似度（推荐用图 + 标签 + 时长，见 §7.3）。</li>
-<li>不上传任何行为数据；与 <code>features::telemetry</code> 的诊断上报<strong>完全隔离</strong>。</li>
+<li>不上传任何行为数据。</li>
 <li>不跨设备同步使用记录（习惯是设备本地事实，见 §4.1）。</li>
 <li>不重复记录已能从 Vault 产物派生的信号（见 §3.1）。</li>
 </ul>
@@ -3433,11 +3433,6 @@
 <td><code>papers</code> 表</td>
 <td>有 <code>is_read</code> / <code>added_at</code> / <code>updated_at</code>；<strong>无</strong> <code>opened_at</code> / 访问计数</td>
 <td><code>ATTACH</code> 后 join 取 title/tags</td>
-</tr>
-<tr>
-<td>诊断上报</td>
-<td><code>features/telemetry</code>：install/session/error → 远端，<code>AppSettings::telemetry_enabled</code> 开关</td>
-<td><strong>只借队列与 flush 模式</strong>，数据不进该通道</td>
 </tr>
 <tr>
 <td>结构化日志</td>
@@ -3743,8 +3738,8 @@ agentero<span class="w"> </span>usage<span class="w"> </span>timeline<span class
 <p>排序 <code>score = 衰减时长贡献 × 标签亲和度 × 未读加成</code>，去掉已读与近期打开过的。每条附理由。与 <a href="../plaza/"><code>plaza.md</code></a> 的「论文推荐 v0」是同一件事的库内版本——<strong>plaza 面向库外发现，本节面向库内重拾</strong>，两者共用 <code>tagAffinity</code>。</p>
 <h2 id="8">8. 隐私与开关<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
 <ul>
-<li>新增 <code>AppSettings::usage_tracking_enabled</code>（<code>serde(default = "default_true")</code>，与 <code>telemetry_enabled</code> 同构）。关闭后<strong>不写库</strong>（不是写了不用）。</li>
-<li><strong>数据绝不进 <code>features::telemetry</code></strong>。在 <code>telemetry/mod.rs</code> 的 <code>sanitize()</code> 附近加注释说明边界，并在 <code>docs/backend/telemetry.md</code> 写明。</li>
+<li>新增 <code>AppSettings::usage_tracking_enabled</code>（<code>serde(default = "default_true")</code>）。关闭后<strong>不写库</strong>（不是写了不用）。</li>
+<li>使用记录只存本地，不经任何网络通道上报。</li>
 <li>保留期 180 天，<code>ensure_usage</code> 时 prune <code>usage_events</code>；<code>usage_daily</code> 保留 2 年（体积极小，支撑年度回顾）。</li>
 <li><code>usage_clear()</code> 命令 + 设置页「清除使用记录」按钮。</li>
 <li><code>search.query</code> 存原文（否则推荐无从利用），受同一开关与保留期约束，须在设置页文案与文档中明示。</li>
@@ -3822,7 +3817,7 @@ agentero<span class="w"> </span>usage<span class="w"> </span>timeline<span class
 <ul>
 <li>本文（草案）：<code>docs/development/usage-analytics.md</code>，登记进 <code>development/index.md</code> 与 <code>mkdocs.yml</code></li>
 <li>实现后：<code>docs/backend/usage.md</code>（schema / 命令 / CLI）+ <code>docs/frontend/library.md</code>（继续阅读卡片）</li>
-<li>需同步：<code>docs/backend/data-model.md</code>（新库与表）、<code>docs/backend/agent.md</code>（注入块）、<code>docs/backend/telemetry.md</code>（边界声明）、<code>docs/backend/remote.md</code>（不同步）、<code>docs/backend/cli.md</code>（<code>usage</code> 命令组）、<code>docs/development/roadmap.md</code> + <code>todo.md</code></li>
+<li>需同步：<code>docs/backend/data-model.md</code>（新库与表）、<code>docs/backend/agent.md</code>（注入块）、<code>docs/backend/remote.md</code>（不同步）、<code>docs/backend/cli.md</code>（<code>usage</code> 命令组）、<code>docs/development/roadmap.md</code> + <code>todo.md</code></li>
 </ul>
 
 
