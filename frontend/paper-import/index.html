@@ -3002,6 +3002,10 @@
 <td>metadata 确认后入库；无 TeX 时隔离运行 liteparse → <code>PAPER.md</code></td>
 </tr>
 <tr>
+<td>拖到 Library 表</td>
+<td>仅一个或多个 PDF 时显示虚线 overlay；松手后同一确认框。目标：当前文件夹作用域，或全库时的树选中 Papers 夹 / <code>papers/</code>（<a href="https://github.com/poco-ai/Agentero/issues/309">#309</a>）</td>
+</tr>
+<tr>
 <td>拖到窗口其它区域</td>
 <td>不入库（窗口级 <code>preventDefault</code> 防 WebView 导航）</td>
 </tr>
@@ -3036,6 +3040,7 @@
 <ul>
 <li><code>src/lib/paper/lookup.ts</code>、<code>import-actions.ts</code>、<code>import/</code></li>
 <li><code>src/components/sidebar/</code> 魔棒 Popover、本地 PDF 对话框</li>
+<li><code>src/components/library/library-pdf-drop-surface.tsx</code> Library 拖入</li>
 </ul>
 
 

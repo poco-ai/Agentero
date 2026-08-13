@@ -2932,6 +2932,10 @@
 <td>导入/导出</td>
 <td>Library 工具栏；导出 BibTeX 亦可在 Library 节点右键</td>
 </tr>
+<tr>
+<td>拖入 PDF</td>
+<td>Finder / 其它 App 把一个或多个 PDF 拖到 Library 表：虚线 overlay（仅 PDF），松手后走与文件树相同的 metadata 确认框。文件夹作用域导入到当前 <code>papers/…</code>；全库则落到树选中的 Papers 夹（否则 <code>papers/</code>）。非 PDF 不显示 overlay、不入库</td>
+</tr>
 </tbody>
 </table>
 <h2 id="tags">Tags（前端）<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h2>
@@ -2943,9 +2947,9 @@
 </ul>
 <h2 id="_3">代码<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
-<li>UI：<code>src/components/library/</code></li>
-<li>状态：<code>src/lib/paper/library-store.ts</code>、<code>library-actions.ts</code></li>
-<li>单测：<code>test/library-scope.test.ts</code></li>
+<li>UI：<code>src/components/library/</code>（拖入：<code>library-pdf-drop-surface.tsx</code>）</li>
+<li>状态：<code>src/lib/paper/library-store.ts</code>、<code>library-actions.ts</code>、<code>import-actions.ts</code>（<code>dropLocalPdfs</code>）</li>
+<li>单测：<code>test/library-scope.test.ts</code>、<code>test/prompt-image.test.ts</code>（<code>dataTransferLooksLikePdfs</code>）</li>
 </ul>
 
 

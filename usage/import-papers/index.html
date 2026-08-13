@@ -3126,7 +3126,7 @@
 </tr>
 <tr>
 <td>本地 PDF 文件</td>
-<td>魔棒本地导入，或拖到 <code>papers/</code> 组织夹</td>
+<td>魔棒本地导入，拖到 Library 表，或拖到 <code>papers/</code> 组织夹</td>
 </tr>
 <tr>
 <td>已有 Zotero 文库</td>
@@ -3183,13 +3183,20 @@ npx skills add https://github.com/anthropics/skills --skill pptx
 <li>选择一个或多个 PDF。</li>
 <li>确认元数据后写入目标目录。</li>
 </ol>
-<p><strong>方式 B — 拖拽</strong></p>
+<p><strong>方式 B — 拖到 Library</strong></p>
+<ol>
+<li>打开中间栏论文库（全库或某个 <code>papers/</code> 子文件夹作用域）。</li>
+<li>把一个或多个 PDF 从访达拖到表格上；仅 PDF 会显示「松开以导入」overlay。</li>
+<li>在弹出的元数据确认框中检查标题等信息后确认。</li>
+</ol>
+<p>文件夹作用域下会导入到当前文件夹；全库则落到左侧选中的 Papers 组织夹，否则 <code>papers/</code>。</p>
+<p><strong>方式 C — 拖到文件树</strong></p>
 <ol>
 <li>把 PDF 拖到文件树中的 <code>papers/</code> 或其组织子文件夹。</li>
 <li>在弹出的元数据确认框中检查标题等信息。</li>
 <li>确认后复制 PDF 并写入 catalog；无 TeX 时会尝试生成 <code>PAPER.md</code>。</li>
 </ol>
-<p>注意：拖到窗口空白处只会触发预览相关逻辑；<strong>入库请拖到 <code>papers/</code> 组织夹</strong>。</p>
+<p>注意：拖到窗口其它区域不会入库（仅取消 WebView 导航）。图片等非 PDF 拖到 Library 不会出现 overlay。</p>
 <p>本地 PDF 文件名不一定含完整信息。导入后请在 Paper Info 中检查标题、作者、年份和标签。</p>
 <h2 id="zotero">从 Zotero 迁移<a class="headerlink" href="#zotero" title="Permanent link">&para;</a></h2>
 <p>适合把已有 Zotero 文库整体迁到新 Vault：</p>

@@ -3337,7 +3337,7 @@
 <li><strong>Zotero Connector</strong>：Host 在 <code>127.0.0.1:23119</code> 收浏览器扩展 <code>saveItems</code> + <code>saveAttachment</code>。详见 <a href="../backend/connector/">backend/connector.md</a>。</li>
 </ul>
 <h3 id="_6">论文库<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
-<p><code>paper_list</code> 读 catalog 一次进内存。表头排序/右键选列/拖拽排序（持久化到 <code>settings.json</code> 的 <code>libraryColumns</code>，标题列不可隐藏）。tags 列展示，搜索框可匹配标签子串；标题列左侧显示阅读进度热力条。文件夹作用域仅对 <code>papers/</code> 下目录按 <code>paper.path</code> 前缀过滤（不扫盘）；<code>notes/</code> / <code>.agents/</code> 等非 papers 目录显示全库。详见 <a href="../frontend/library/">frontend/library.md</a> / <a href="../backend/catalog/">backend/catalog.md</a>。</p>
+<p><code>paper_list</code> 读 catalog 一次进内存。表头排序/右键选列/拖拽排序（持久化到 <code>settings.json</code> 的 <code>libraryColumns</code>，标题列不可隐藏）。tags 列展示，搜索框可匹配标签子串；标题列左侧显示阅读进度热力条。文件夹作用域仅对 <code>papers/</code> 下目录按 <code>paper.path</code> 前缀过滤（不扫盘）；<code>notes/</code> / <code>.agents/</code> 等非 papers 目录显示全库。可从访达把 PDF 拖到 Library 表入库（仅 PDF overlay）。详见 <a href="../frontend/library/">frontend/library.md</a> / <a href="../backend/catalog/">backend/catalog.md</a>。</p>
 <h3 id="_7">标签<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
 <p>Apple 风格 8 色 → Host <code>paper_set_tags</code>（catalog <code>tags_json</code> 权威）。Library 染色 chip 与筛选。CLI <code>paper tag list|set|add|rm</code>。</p>
 <h3 id="paper-reader">精读（paper-reader）<a class="headerlink" href="#paper-reader" title="Permanent link">&para;</a></h3>
