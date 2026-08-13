@@ -3040,7 +3040,7 @@
 <ul>
 <li>Crate：<code>agent-client-protocol</code>（及 Codex 的 npm ACP 适配器进程）。</li>
 <li>会话 <code>cwd</code> = 当前 Vault 根（远程则为远端 Vault 根）。</li>
-<li>统一接口：OpenCode、OpenClaw、Hermes、Gemini、Claude ACP、Codex ACP、Qoder、Grok、Pi、Dsh（DeepSeek Harness）、自定义 <code>command</code>/<code>args</code>/<code>env</code>。</li>
+<li>统一接口：OpenCode、OpenClaw、Hermes、Gemini、Claude ACP、Codex ACP、Qoder、Grok、Pi、Dsh（DeepSeek Harness）、Kimi Code、自定义 <code>command</code>/<code>args</code>/<code>env</code>。</li>
 <li>Dsh：ACP 服务端是 <code>@deepseek-ai/dsh-acp-demo</code>（npm 包），与依赖插件一起固定
   <code>0.1.0-rc.6</code>。安装/启动三处入口，检测按序回退：</li>
 <li>App 管理目录 <code>~/.agentero/dsh-acp/node_modules/.bin/dsh-acp-demo</code>（设置页「安装」按钮，
@@ -3060,6 +3060,11 @@
     凭据存储（<code>.credentials.yaml</code> 需在 <code>cordis.yml</code> 挂载 credentials provider，
     <code>~/.dsh/.env</code> 的 user-env 层只有官方 <code>dsh</code> CLI 的 <code>loadLayeredEnv</code> 加载），
     所以官方 CLI/Web UI 里配过的 key 对 ACP 服务不可见，须复制到 launcher <code>.env</code>。</li>
+<li>Kimi Code：原生 ACP（<code>kimi acp</code>）。官方 installer（<code>code.kimi.com/kimi-code/install.sh</code>）
+  是单二进制、默认装入 <code>~/.kimi-code</code> 并写 PATH 进 shell rc；npm 包
+  <code>@moonshot-ai/kimi-code</code>（需 Node 22.19+）作回退。<code>kimi upgrade</code> 是交互式的，静默
+  <code>update</code> 重跑幂等的官方 installer。登录在终端完成（<code>kimi</code> → <code>/login</code>，OAuth 或
+  Moonshot API key），skill 走 slash mention。</li>
 <li>Pi：无原生 ACP，走社区适配器 <code>pi-acp</code>（内部 spawn <code>pi --mode rpc</code>）；detect 用 host <code>pi</code>、
   ACP 入口用 <code>pi-acp</code>。pi 的 skill 以 <code>/skill:&lt;name&gt;</code> 暴露，故 Agentero 不发 <code>/&lt;name&gt;</code>
   mention，只注入 <code>SKILL.md</code> 正文。</li>
@@ -3069,7 +3074,8 @@
   避免它出现在回答之前。</li>
 <li>Gemini：spawn 时注入 <code>NO_BROWSER=true</code>（用户显式配置则不覆盖），避免未登录时
   <code>new_session</code> 反复拉起浏览器 OAuth；登录须在终端完成（BYOA）。</li>
-<li>设置页会将 ACP 探测中的认证错误（如 <code>invalid_grant</code> / <code>failed to authenticate</code>）
+<li>设置页会将 ACP 探测中的认证错误（如 <code>invalid_grant</code> / <code>failed to authenticate</code> /
+  <code>authentication required</code> / <code>not logged in</code>）
   显示为「未登录」，其他握手或进程错误仍显示为「ACP 失败」。</li>
 <li>后台熔断（<code>AgentWarmGate</code>）：<code>agent_warm</code> / <code>agent_list_sessions</code> 失败后进入
   120s 冷却，冷却期内直接返回上次错误、不再 spawn；成功或用户消息
