@@ -1,13 +1,17 @@
 /**
- * OS file drops on the webview (dragDropEnabled: false so HTML5 DnD works).
- * Without preventDefault, dropping a PDF navigates the webview to the native
- * PDF viewer and freezes the SPA.
+ * OS file drops on the webview. `dragDropEnabled: true` so Tauri emits
+ * `onDragDropEvent` with Finder paths; HTML5 FileList is often empty on
+ * macOS WKWebView. Path-less File bytes are staged via Host
+ * `paper_stage_import_file` into `~/.agentero/import-tmp/`.
  *
- * macOS WKWebView usually does **not** expose `File.path`. We materialize
- * File bytes via Host `paper_stage_import_file` into `~/.agentero/import-tmp/`.
+ * Without preventDefault, dropping a PDF can navigate the webview to the
+ * native viewer and freeze the SPA.
  */
 
-import { dataTransferLooksLikeOsFiles } from "@/lib/core/file-accept";
+import {
+	dataTransferLooksLikeOsFiles,
+	hasPdfExtension,
+} from "@/lib/core/file-accept";
 import { invokeApi } from "@/lib/core/ipc";
 import { basenameOf } from "@/lib/core/path";
 import { isTauri } from "@/lib/core/tauri";
@@ -26,7 +30,7 @@ export function dataTransferHasFiles(dt: DataTransfer | null): boolean {
 }
 
 export function isPdfFileName(name: string): boolean {
-	return /\.pdf$/i.test(name.trim());
+	return hasPdfExtension(name);
 }
 
 /** Absolute paths for local files in a Drop/Drag event, when the host exposes them. */

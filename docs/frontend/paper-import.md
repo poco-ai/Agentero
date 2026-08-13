@@ -32,6 +32,7 @@
 |---|---|
 | 魔棒 FileUp | 多选 → metadata 确认 → `paper_import_local_pdf`；任务条显示 PDF 解析阶段 |
 | 拖到 `papers/` 组织夹 | metadata 确认后入库；无 TeX 时隔离运行 liteparse → `PAPER.md` |
+| 拖到 Library 表 | 仅一个或多个 PDF 时显示虚线 overlay；松手后同一确认框。目标：当前文件夹作用域，或全库时的树选中 Papers 夹 / `papers/`（[#309](https://github.com/poco-ai/Agentero/issues/309)） |
 | 拖到窗口其它区域 | 不入库（窗口级 `preventDefault` 防 WebView 导航） |
 
 PDF 解析最多等待 120 秒，取消任务会终止当前解析子进程。解析失败或超时时，后台入库任务仍会结束，已复制的 PDF、`NOTES.md` 与 catalog 记录保持可用；用户可稍后通过 CLI `paper parse` 重试派生正文。
@@ -52,3 +53,4 @@ PDF 解析最多等待 120 秒，取消任务会终止当前解析子进程。�
 
 - `src/lib/paper/lookup.ts`、`import-actions.ts`、`import/`
 - `src/components/sidebar/` 魔棒 Popover、本地 PDF 对话框
+- `src/components/library/library-pdf-drop-surface.tsx` Library 拖入

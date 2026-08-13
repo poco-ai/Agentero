@@ -329,7 +329,7 @@ export async function importLocalPdf(opts?: {
 	}
 }
 
-/** OS PDF drop onto a papers/ folder → metadata confirm dialog. */
+/** OS PDF drop onto a papers/ folder or the Library → metadata confirm dialog. */
 export function dropLocalPdfs(
 	items: Array<{ path: string; sourceName: string }>,
 	parentDir: string,

@@ -27,6 +27,7 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { LibraryPdfDropSurface } from "@/components/library/library-pdf-drop-surface";
 import { PaperTagChip } from "@/components/library/paper-tag-chip";
 import { ReadingTitleHeat } from "@/components/library/reading-heatmap";
 import { Button } from "@/components/ui/button";
@@ -1126,8 +1127,8 @@ export function PapersLibrary({
 	}
 
 	return (
-		<div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", className)}>
+		<LibraryPdfDropSurface scopePath={scopePath} className={className}>
 			{body}
-		</div>
+		</LibraryPdfDropSurface>
 	);
 }

@@ -10,9 +10,11 @@ import {
 import { isPhysicalPointInRect } from "@/lib/agent/tauri-file-drop";
 import {
 	dataTransferLooksLikeImages,
+	dataTransferLooksLikePdfs,
 	fileMatchesAccept,
 	filesFromDataTransfer,
 	isImageMimeOrUti,
+	isPdfMimeOrUti,
 } from "@/lib/core/file-accept";
 
 function fakeFile(name: string, type: string): File {
@@ -238,6 +240,106 @@ describe("dataTransferLooksLikeImages", () => {
 				type === "text/plain" ? "/Users/me/Desktop/shot.png" : "",
 		} as DataTransfer;
 		expect(dataTransferLooksLikeImages(dt)).toBe(true);
+	});
+});
+
+describe("dataTransferLooksLikePdfs", () => {
+	function fakeDt(opts: {
+		items?: Array<{ kind: string; type: string }>;
+		files?: Array<{ name: string; type?: string }>;
+		uriList?: string;
+	}): DataTransfer {
+		const files = (opts.files ?? []).map(
+			(f) =>
+				({
+					name: f.name,
+					type: f.type ?? "",
+				}) as File,
+		);
+		return {
+			types: opts.uriList ? ["Files", "text/uri-list"] : ["Files"],
+			items: (opts.items ?? []) as unknown as DataTransferItemList,
+			files: files as unknown as FileList,
+			getData: (type: string) =>
+				type === "text/uri-list" ? (opts.uriList ?? "") : "",
+		} as DataTransfer;
+	}
+
+	it("returns false without Files type", () => {
+		const dt = { types: ["text/plain"], items: [] } as unknown as DataTransfer;
+		expect(dataTransferLooksLikePdfs(dt)).toBe(false);
+	});
+
+	it("returns false when MIME/names are unknown (do not flash over images)", () => {
+		expect(
+			dataTransferLooksLikePdfs(
+				fakeDt({ items: [{ kind: "file", type: "" }] }),
+			),
+		).toBe(false);
+	});
+
+	it("returns true for application/pdf and macOS PDF UTIs", () => {
+		expect(isPdfMimeOrUti("application/pdf")).toBe(true);
+		expect(isPdfMimeOrUti("com.adobe.pdf")).toBe(true);
+		expect(isPdfMimeOrUti("public.pdf")).toBe(true);
+		expect(isPdfMimeOrUti("image/png")).toBe(false);
+		expect(
+			dataTransferLooksLikePdfs(
+				fakeDt({ items: [{ kind: "file", type: "application/pdf" }] }),
+			),
+		).toBe(true);
+		expect(
+			dataTransferLooksLikePdfs(
+				fakeDt({ items: [{ kind: "file", type: "com.adobe.pdf" }] }),
+			),
+		).toBe(true);
+	});
+
+	it("returns true for .pdf via file name when MIME empty", () => {
+		expect(
+			dataTransferLooksLikePdfs(
+				fakeDt({
+					items: [{ kind: "file", type: "" }],
+					files: [{ name: "paper.PDF" }],
+				}),
+			),
+		).toBe(true);
+	});
+
+	it("returns false for images and markdown", () => {
+		expect(
+			dataTransferLooksLikePdfs(
+				fakeDt({ items: [{ kind: "file", type: "image/png" }] }),
+			),
+		).toBe(false);
+		expect(
+			dataTransferLooksLikePdfs(
+				fakeDt({
+					items: [{ kind: "file", type: "" }],
+					files: [{ name: "shot.png" }],
+				}),
+			),
+		).toBe(false);
+		expect(
+			dataTransferLooksLikePdfs(
+				fakeDt({
+					uriList: "file:///Users/me/docs/README.en.md",
+				}),
+			),
+		).toBe(false);
+	});
+
+	it("returns true for mixed PDF + non-PDF", () => {
+		expect(
+			dataTransferLooksLikePdfs(
+				fakeDt({
+					items: [
+						{ kind: "file", type: "application/pdf" },
+						{ kind: "file", type: "image/png" },
+					],
+				}),
+			),
+		).toBe(true);
 	});
 });
 

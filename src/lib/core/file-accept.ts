@@ -13,9 +13,21 @@ const IMAGE_EXT_RE =
 const IMAGE_UTI_RE =
 	/^(public\.(png|jpe?g|jpeg-2000|tiff|heic|heif|gif|svg-image|image|camera-raw-image)|com\.compuserve\.gif|org\.webmproject\.webp|com\.microsoft\.(bmp|ico))$/i;
 
+const PDF_EXT_RE = /\.pdf$/i;
+
+/**
+ * macOS WKWebView may report Adobe / public PDF UTIs instead of MIME.
+ */
+const PDF_UTI_RE = /^(com\.adobe\.pdf|public\.pdf)$/i;
+
 /** True when the basename has a known image extension. */
 export function hasImageExtension(name: string): boolean {
 	return IMAGE_EXT_RE.test(name.trim());
+}
+
+/** True when the basename (or path) ends with `.pdf`. */
+export function hasPdfExtension(name: string): boolean {
+	return PDF_EXT_RE.test(name.trim());
 }
 
 /** True for `image/*` MIME types or macOS image UTIs. */
@@ -23,6 +35,13 @@ export function isImageMimeOrUti(type: string | undefined | null): boolean {
 	const trimmed = (type || "").trim().toLowerCase();
 	if (!trimmed) return false;
 	return trimmed.startsWith("image/") || IMAGE_UTI_RE.test(trimmed);
+}
+
+/** True for `application/pdf` or macOS PDF UTIs. */
+export function isPdfMimeOrUti(type: string | undefined | null): boolean {
+	const trimmed = (type || "").trim().toLowerCase();
+	if (!trimmed) return false;
+	return trimmed === "application/pdf" || PDF_UTI_RE.test(trimmed);
 }
 
 /**
@@ -270,4 +289,47 @@ export function dataTransferLooksLikeImages(
 	if (sawNonImage) return false;
 	// Unknown payload (no MIME, no names) — typical macOS window image drag.
 	return true;
+}
+
+/**
+ * Best-effort check while a PDF drag is in progress (before drop).
+ *
+ * Unlike images, unknown empty MIME/names return **false**: Library must not
+ * flash a "drop PDF" overlay when the user is dragging a Finder image (or
+ * other non-PDF). Finder PDF drags expose paths via Tauri `onDragDropEvent`.
+ */
+export function dataTransferLooksLikePdfs(
+	dt: DataTransfer | null | undefined,
+): boolean {
+	if (!dt || !dataTransferLooksLikeOsFiles(dt)) return false;
+
+	let sawPdf = false;
+	let sawNonPdf = false;
+
+	const items = dt.items;
+	if (items?.length) {
+		for (const item of items) {
+			if (item.kind !== "file") continue;
+			const type = (item.type || "").trim().toLowerCase();
+			if (!type) continue;
+			if (isPdfMimeOrUti(type)) {
+				sawPdf = true;
+			} else {
+				sawNonPdf = true;
+			}
+		}
+	}
+
+	const names = fileNamesFromDataTransfer(dt);
+	for (const name of names) {
+		if (hasPdfExtension(name)) {
+			sawPdf = true;
+		} else if (/\.[a-z0-9]+$/i.test(name)) {
+			sawNonPdf = true;
+		}
+	}
+
+	if (sawPdf) return true;
+	if (sawNonPdf) return false;
+	return false;
 }

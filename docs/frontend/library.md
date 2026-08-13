@@ -23,6 +23,7 @@
 | Rescan | `paper_rescan`：盘上有、catalog 无则补齐 |
 | Download | 库内任一篇缺资源时批量补下 |
 | 导入/导出 | Library 工具栏；导出 BibTeX 亦可在 Library 节点右键 |
+| 拖入 PDF | Finder / 其它 App 把一个或多个 PDF 拖到 Library 表：虚线 overlay（仅 PDF），松手后走与文件树相同的 metadata 确认框。文件夹作用域导入到当前 `papers/…`；全库则落到树选中的 Papers 夹（否则 `papers/`）。非 PDF 不显示 overlay、不入库 |
 
 ## Tags（前端）
 
@@ -33,6 +34,6 @@
 
 ## 代码
 
-- UI：`src/components/library/`
-- 状态：`src/lib/paper/library-store.ts`、`library-actions.ts`
-- 单测：`test/library-scope.test.ts`
+- UI：`src/components/library/`（拖入：`library-pdf-drop-surface.tsx`）
+- 状态：`src/lib/paper/library-store.ts`、`library-actions.ts`、`import-actions.ts`（`dropLocalPdfs`）
+- 单测：`test/library-scope.test.ts`、`test/prompt-image.test.ts`（`dataTransferLooksLikePdfs`）

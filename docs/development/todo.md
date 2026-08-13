@@ -7,6 +7,7 @@
 - [x] Markdown 目录：标题数量阈值、中性色高亮与稳定 hover 布局（[#155](https://github.com/poco-ai/Agentero/issues/155)）
 - [x] Agent `AskUserQuestion` 工具调用转为可提交的选项回答（[#203](https://github.com/poco-ai/Agentero/issues/203)）
 - [x] 快捷安装 Agent CLI（静默 `agent_run_tool_lifecycle`，[#225](https://github.com/poco-ai/Agentero/issues/225)）；已移除本机终端确认安装，并在 Agent 卡片内展示安装进度（[#250](https://github.com/poco-ai/Agentero/issues/250)）
+- [x] Library 拖入 PDF 入库：仅 PDF overlay + 与文件树相同的确认框（[#309](https://github.com/poco-ai/Agentero/issues/309)）
 - [ ] 关键词/描述 → Agent 候选列表确认后入库
 - [x] 魔棒解析 GitHub / `npx skills` → Skill 装入 `.agents/skills/`（[#118](https://github.com/poco-ai/Agentero/issues/118)，见 [../backend/skill-import.md](../backend/skill-import.md)；首版）
 - [x] 论文导入资源阶段增加整篇 3 分钟超时，覆盖魔棒 / Connector / Bib-RIS（[#161](https://github.com/poco-ai/Agentero/issues/161)）

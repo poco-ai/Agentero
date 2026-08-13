@@ -215,6 +215,8 @@ cargo test -p agentero-cli
 |---|---|---|---|---|
 | 6.2.1 | 魔棒弹层 | 选「本地 PDF / 文件」，多选 2 个 PDF 导入 | 各生成 `papers/<citekey>/`，含 PDF + `PAPER.md` + catalog | ☐ |
 | 6.2.2 | 访达 | 把外部 PDF **拖进**左栏 `papers/` 某组织夹 | 弹出 metadata **确认框**；确认后入库 | ☐ |
+| 6.2.2.1 | 访达 | 把 1 个或多个 PDF **拖到**中间栏 Library 表 | 出现虚线 overlay「松开以导入 PDF」；松手后同一确认框；确认后入库。文件夹作用域导入到该夹 | ☐ |
+| 6.2.2.2 | 访达 | 把 PNG / `.md` 拖到 Library 表 | **无** overlay、不入库 | ☐ |
 | 6.2.3 | 同上 | 再导同名冲突 PDF | citekey 带 `-2` / `-3` 等后缀，不互相覆盖 | ☐ |
 | 6.2.4 | 终端 + 应用 | **用安装包装的应用**（非 `tauri dev`），先确认 PDFium 已随包：macOS `ls "/Applications/Agentero.app/Contents/Frameworks/libpdfium.dylib"`，Windows/Linux 查 exe 同级 `pdfium/`。再临时移走构建期缓存 `~/Library/Caches/pdfium-rs`（Linux `~/.cache/pdfium-rs`），导入一个本地 PDF | 仍生成 `PAPER.md`，catalog 写入 `body_source`；测完恢复缓存目录（回归 #303） | ☐ |
 | 6.2.5 | 同上 | 把包内 PDFium 临时改名，再导入一个本地 PDF | 任务面板出现 **失败** 的「解析 PDF 正文」，详情含找不到 PDFium 的真实原因，而不是显示“已完成” | ☐ |

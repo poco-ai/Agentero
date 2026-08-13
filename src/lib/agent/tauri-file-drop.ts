@@ -1,7 +1,7 @@
 /**
- * Single subscriber hub for Tauri OS file-drag events.
- * HTML5 DataTransfer is often empty for Finder / Preview / other-app drops
- * on macOS WKWebView; these events carry absolute paths instead.
+ * Single subscriber hub for Tauri OS file-drag events (composer images,
+ * Library PDFs, …). HTML5 DataTransfer is often empty for Finder / Preview
+ * / other-app drops on macOS WKWebView; these events carry absolute paths.
  */
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import type { DragDropEvent } from "@tauri-apps/api/webview";

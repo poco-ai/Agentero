@@ -4,6 +4,7 @@ import {
 	filterPapersByScope,
 	isPapersLibraryScope,
 	LIBRARY_VIRTUAL_PATH,
+	libraryDropParentDir,
 	normalizeLibraryScope,
 	paperInLibraryScope,
 	resolveLibraryScopePath,
@@ -57,6 +58,20 @@ describe("isPapersLibraryScope / resolveLibraryScopePath", () => {
 		expect(resolveLibraryScopePath(".agents/skills")).toBe(null);
 		expect(resolveLibraryScopePath("plans/week")).toBe(null);
 		expect(resolveLibraryScopePath("")).toBe(null);
+	});
+});
+
+describe("libraryDropParentDir", () => {
+	it("uses the papers folder scope as the import dest", () => {
+		expect(libraryDropParentDir("papers/nlp", "papers")).toBe("papers/nlp");
+		expect(libraryDropParentDir("papers", "papers/other")).toBe("papers");
+	});
+
+	it("falls back for full library / non-papers scopes", () => {
+		expect(libraryDropParentDir(null, "papers/cv")).toBe("papers/cv");
+		expect(libraryDropParentDir("", "papers")).toBe("papers");
+		expect(libraryDropParentDir("notes", "papers")).toBe("papers");
+		expect(libraryDropParentDir(undefined, "")).toBe("papers");
 	});
 });
 

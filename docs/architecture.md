@@ -48,7 +48,7 @@ Agentero 基于 Tauri 2 + React 19，本地优先，Vault 文件与 Catalog SQLi
 
 ### 论文库
 
-`paper_list` 读 catalog 一次进内存。表头排序/右键选列/拖拽排序（持久化到 `settings.json` 的 `libraryColumns`，标题列不可隐藏）。tags 列展示，搜索框可匹配标签子串；标题列左侧显示阅读进度热力条。文件夹作用域仅对 `papers/` 下目录按 `paper.path` 前缀过滤（不扫盘）；`notes/` / `.agents/` 等非 papers 目录显示全库。详见 [frontend/library.md](frontend/library.md) / [backend/catalog.md](backend/catalog.md)。
+`paper_list` 读 catalog 一次进内存。表头排序/右键选列/拖拽排序（持久化到 `settings.json` 的 `libraryColumns`，标题列不可隐藏）。tags 列展示，搜索框可匹配标签子串；标题列左侧显示阅读进度热力条。文件夹作用域仅对 `papers/` 下目录按 `paper.path` 前缀过滤（不扫盘）；`notes/` / `.agents/` 等非 papers 目录显示全库。可从访达把 PDF 拖到 Library 表入库（仅 PDF overlay）。详见 [frontend/library.md](frontend/library.md) / [backend/catalog.md](backend/catalog.md)。
 
 ### 标签
 

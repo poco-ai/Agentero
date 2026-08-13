@@ -47,7 +47,7 @@ function draftsFromItems(items: ImportLocalPdfDraftItem[]): DraftRow[] {
 
 /**
  * Confirm parent folder + per-PDF metadata before `paper_import_local_pdf`.
- * Opened when the user drops PDFs onto a `papers/` org folder in the file tree.
+ * Opened when the user drops PDFs onto a `papers/` org folder or the Library.
  */
 export function ImportLocalPdfDialog({
 	open,

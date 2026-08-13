@@ -63,6 +63,24 @@ export function resolveLibraryScopePath(
 }
 
 /**
+ * Destination folder for a PDF dropped on the Library table.
+ * Folder-scoped Library (`papers/nlp`) imports there; full library uses
+ * `fallback` (tree selection / `papers`).
+ */
+export function libraryDropParentDir(
+	scopePath: string | null | undefined,
+	fallback = "papers",
+): string {
+	const cleaned = (scopePath ?? "")
+		.replace(/\\/g, "/")
+		.replace(/^\/+|\/+$/g, "");
+	if (!cleaned || !isPapersLibraryScope(cleaned)) {
+		return fallback.trim() || "papers";
+	}
+	return cleaned;
+}
+
+/**
  * Whether a catalog paper path falls under a folder scope (recursive).
  * `scopeRel` is vault-relative (e.g. `papers/nlp`); empty/null = full library.
  * Scopes outside `papers/` are treated as full library (#160).
