@@ -3075,7 +3075,8 @@ agentero<span class="w"> </span>mark<span class="w"> </span>delete<span class="w
 </table>
 <p>无 <code>layout-index.json</code> 时返回 <code>layout_index_missing</code>（提示先在 App 打开论文跑版面分析）。<br />
 正文句子高亮 / <code>translate</code> 命令见规划 <a href="https://github.com/poco-ai/Agentero/issues/170">#170</a> 与 <a href="../../development/mark-cli-roadmap/">mark-cli-roadmap.md</a>。</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 首次/干净树：tauri-build 需要 externalBin 占位，否则 build-script 失败</span>
+<div class="codehilite"><pre><span></span><code><span class="c1"># CLI 以 `default-features = false` 依赖 `agentero_lib`，headless 构建不走 tauri-build，无需 externalBin 占位。</span>
+<span class="c1"># 但桌面 `pnpm tauri dev` / `pnpm tauri build` 仍要求 src-tauri/binaries 存在，首次/干净树需先占位：</span>
 pnpm<span class="w"> </span>cli:bundle:stub<span class="w">   </span><span class="c1"># 或 pnpm cli:bundle</span>
 cargo<span class="w"> </span>build<span class="w"> </span>-p<span class="w"> </span>agentero-cli
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>vault<span class="w"> </span>which<span class="w"> </span>--json
