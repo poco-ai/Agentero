@@ -72,7 +72,6 @@
 	"importLocalPdf": {
 		"title": "导入 {{count}} 个 PDF",
 		"parentDir": "目标文件夹",
-		"parentHint": "Vault 相对路径（来自拖放落点，位于 papers/ 下）。",
 		"fieldTitle": "标题",
 		"fieldAuthors": "作者",
 		"authorsPlaceholder": "逗号分隔",

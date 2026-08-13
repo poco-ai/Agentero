@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useOverlayRegistration } from "@/hooks/use-overlay-registration";
 import { basenameOf } from "@/lib/core/path";
 import { slugFromPdfPath, titleFromPdfPath } from "@/lib/paper/local-pdf-meta";
@@ -113,16 +112,16 @@ export function ImportLocalPdfDialog({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
-				className="flex max-h-[85vh] flex-col gap-3 sm:max-w-lg"
+				className="flex! max-h-[60vh] min-h-0 flex-col gap-3 overflow-hidden sm:max-w-lg"
 				aria-describedby={undefined}
 			>
-				<DialogHeader>
+				<DialogHeader className="shrink-0">
 					<DialogTitle>
 						{t("importLocalPdf.title", { count: items.length })}
 					</DialogTitle>
 				</DialogHeader>
 
-				<div className="space-y-1.5">
+				<div className="shrink-0 space-y-1.5">
 					<Label htmlFor="import-pdf-parent" className="text-xs">
 						{t("importLocalPdf.parentDir")}
 					</Label>
@@ -134,25 +133,22 @@ export function ImportLocalPdfDialog({
 						spellCheck={false}
 						className="font-mono text-xs"
 					/>
-					<p className="text-muted-foreground text-xs">
-						{t("importLocalPdf.parentHint")}
-					</p>
 				</div>
 
-				<ScrollArea className="min-h-0 max-h-[50vh] flex-1 pr-2">
-					<div className="space-y-4">
-						{rows.map((row, index) => (
-							<div
-								key={row.filePath}
-								className="space-y-2 rounded-lg border border-border/80 p-3"
+				<ul className="min-h-0 flex-1 list-none space-y-2 overflow-y-auto overscroll-contain pr-1">
+					{rows.map((row, index) => (
+						<li
+							key={row.filePath}
+							className="space-y-2 rounded-lg border border-border/80 p-2.5"
+						>
+							<p
+								className="truncate font-medium text-muted-foreground text-xs"
+								title={row.filePath}
 							>
-								<p
-									className="truncate font-medium text-muted-foreground text-xs"
-									title={row.filePath}
-								>
-									{row.sourceName || basenameOf(row.filePath)}
-								</p>
-								<div className="space-y-1.5">
+								{row.sourceName || basenameOf(row.filePath)}
+							</p>
+							<div className="grid grid-cols-[1fr_5.5rem] gap-2">
+								<div className="space-y-1">
 									<Label className="text-xs">
 										{t("importLocalPdf.fieldTitle")}
 									</Label>
@@ -164,36 +160,34 @@ export function ImportLocalPdfDialog({
 										disabled={busy}
 									/>
 								</div>
-								<div className="grid grid-cols-2 gap-2">
-									<div className="space-y-1.5">
-										<Label className="text-xs">
-											{t("importLocalPdf.fieldAuthors")}
-										</Label>
-										<Input
-											value={row.authors}
-											onChange={(e) =>
-												updateRow(index, { authors: e.target.value })
-											}
-											placeholder={t("importLocalPdf.authorsPlaceholder")}
-											disabled={busy}
-										/>
-									</div>
-									<div className="space-y-1.5">
-										<Label className="text-xs">
-											{t("importLocalPdf.fieldYear")}
-										</Label>
-										<Input
-											value={row.year}
-											onChange={(e) =>
-												updateRow(index, { year: e.target.value })
-											}
-											inputMode="numeric"
-											placeholder="2024"
-											disabled={busy}
-										/>
-									</div>
+								<div className="space-y-1">
+									<Label className="text-xs">
+										{t("importLocalPdf.fieldYear")}
+									</Label>
+									<Input
+										value={row.year}
+										onChange={(e) => updateRow(index, { year: e.target.value })}
+										inputMode="numeric"
+										placeholder="2024"
+										disabled={busy}
+									/>
 								</div>
-								<div className="space-y-1.5">
+							</div>
+							<div className="grid grid-cols-[1fr_1fr] gap-2">
+								<div className="space-y-1">
+									<Label className="text-xs">
+										{t("importLocalPdf.fieldAuthors")}
+									</Label>
+									<Input
+										value={row.authors}
+										onChange={(e) =>
+											updateRow(index, { authors: e.target.value })
+										}
+										placeholder={t("importLocalPdf.authorsPlaceholder")}
+										disabled={busy}
+									/>
+								</div>
+								<div className="space-y-1">
 									<Label className="text-xs">
 										{t("importLocalPdf.fieldId")}
 									</Label>
@@ -206,11 +200,11 @@ export function ImportLocalPdfDialog({
 									/>
 								</div>
 							</div>
-						))}
-					</div>
-				</ScrollArea>
+						</li>
+					))}
+				</ul>
 
-				<DialogFooter className="gap-2 sm:gap-0">
+				<DialogFooter className="shrink-0 gap-2">
 					<Button
 						type="button"
 						variant="outline"

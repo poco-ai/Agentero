@@ -72,7 +72,6 @@
 	"importLocalPdf": {
 		"title": "Import {{count}} PDF(s)",
 		"parentDir": "Destination folder",
-		"parentHint": "Vault-relative path under papers/ (from the drop target).",
 		"fieldTitle": "Title",
 		"fieldAuthors": "Authors",
 		"authorsPlaceholder": "Comma-separated",
