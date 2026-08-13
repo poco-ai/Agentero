@@ -3055,7 +3055,11 @@
 <li>会话在进程内，进程退出即失效，且不声明 <code>session/resume</code> / <code>session/load</code>：
     多轮续聊降级为<strong>每轮新会话</strong>（单发式），Host 不再报「不支持继续会话」。</li>
 <li>API Key：在 launcher 目录 <code>.env</code> 写 <code>DEEPSEEK_API_KEY</code>，或在注册项 env 中
-    export。缺少时 prompt 报 <code>no API key for provider route "deepseek-official"</code>。</li>
+    export。缺少时 prompt 报 <code>no API key for provider route "deepseek-official"</code>。
+    <code>dsh-acp-demo</code> 只读启动 cwd 的 <code>.env</code> + 启动环境：它<strong>不读</strong> <code>~/.dsh</code> 的
+    凭据存储（<code>.credentials.yaml</code> 需在 <code>cordis.yml</code> 挂载 credentials provider，
+    <code>~/.dsh/.env</code> 的 user-env 层只有官方 <code>dsh</code> CLI 的 <code>loadLayeredEnv</code> 加载），
+    所以官方 CLI/Web UI 里配过的 key 对 ACP 服务不可见，须复制到 launcher <code>.env</code>。</li>
 <li>Pi：无原生 ACP，走社区适配器 <code>pi-acp</code>（内部 spawn <code>pi --mode rpc</code>）；detect 用 host <code>pi</code>、
   ACP 入口用 <code>pi-acp</code>。pi 的 skill 以 <code>/skill:&lt;name&gt;</code> 暴露，故 Agentero 不发 <code>/&lt;name&gt;</code>
   mention，只注入 <code>SKILL.md</code> 正文。</li>
