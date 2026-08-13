@@ -1,8 +1,9 @@
 /**
- * OS file drops on the webview. `dragDropEnabled: true` so Tauri emits
- * `onDragDropEvent` with Finder paths; HTML5 FileList is often empty on
- * macOS WKWebView. Path-less File bytes are staged via Host
- * `paper_stage_import_file` into `~/.agentero/import-tmp/`.
+ * OS file drops on the webview. `dragDropEnabled: false` so HTML5 DnD
+ * stays available (Windows WebView2 otherwise swallows it). Path-less
+ * File bytes are staged via Host `paper_stage_import_file` into
+ * `~/.agentero/import-tmp/`. Tauri `onDragDropEvent` is a no-op extra
+ * if a platform still emits it.
  *
  * Without preventDefault, dropping a PDF can navigate the webview to the
  * native viewer and freeze the SPA.

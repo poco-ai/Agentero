@@ -310,7 +310,7 @@ export function dataTransferLooksLikeImages(
  *
  * Unlike images, unknown empty MIME/names return **false**: Library must not
  * flash a "drop PDF" overlay when the user is dragging a Finder image (or
- * other non-PDF). Finder PDF drags expose paths via Tauri `onDragDropEvent`.
+ * other non-PDF). Proven PDFs come from MIME, `.pdf` names, or drop paths.
  */
 export function dataTransferLooksLikePdfs(
 	dt: DataTransfer | null | undefined,
