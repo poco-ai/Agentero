@@ -3142,11 +3142,11 @@ response 前/后很快推完，空会话与短会话因此显著更快（#271）
 </tr>
 <tr>
 <td><code>agent_run_tool_lifecycle</code></td>
-<td>静默安装/升级 catalog CLI（及 Claude/Codex ACP 适配器）；本机 lifecycle 串行执行，设置页在对应 Agent 行内展示安装 / 扫描 / 探测进度（#250），Windows 使用唯一临时 <code>.bat</code> 并按 UTF-8/GBK 解码错误输出；见 <a href="../api/">api.md</a> 与 <a href="https://github.com/poco-ai/Agentero/issues/225">#225</a></td>
+<td>静默安装/升级/卸载 catalog CLI（及 Claude/Codex ACP 适配器）；本机 lifecycle 串行执行，设置页在对应 Agent 行内展示安装 / 扫描 / 探测进度（#250），Windows 使用唯一临时 <code>.bat</code> 并按 UTF-8/GBK 解码错误输出；<code>uninstall</code> 做 best-effort npm 卸载 + 受管目录删除（不改 shell rc），成功后联动删除 catalog 注册项；见 <a href="../api/">api.md</a> 与 <a href="https://github.com/poco-ai/Agentero/issues/225">#225</a></td>
 </tr>
 <tr>
-<td><code>agent_tool_lifecycle_supported</code> / <code>agent_tool_install_commands</code></td>
-<td>是否支持静默安装；平台手动安装文案</td>
+<td><code>agent_tool_lifecycle_supported</code> / <code>agent_tool_install_commands</code> / <code>agent_tool_uninstall_info</code></td>
+<td>是否支持静默安装；平台手动安装文案；卸载清理项清单（确认对话框展示）</td>
 </tr>
 </tbody>
 </table>

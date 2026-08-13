@@ -2574,6 +2574,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#agent_tool_uninstall_info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_tool_uninstall_info（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#agentlist_sessions" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4780,6 +4791,17 @@
     <span class="md-ellipsis">
       
         agent_tool_install_commands（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent_tool_uninstall_info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_tool_uninstall_info（已实现）
       
     </span>
   </a>
@@ -6994,7 +7016,7 @@ Host (Tauri + Rust)
 </code></pre></div>
 
 <h4 id="agentremove_agent"><code>agent:remove_agent</code><a class="headerlink" href="#agentremove_agent" title="Permanent link">&para;</a></h4>
-<p>删除注册项（不卸载用户本机 CLI）。</p>
+<p>删除注册项（<strong>不</strong>卸载用户本机 CLI、不动 shell 配置）。设置页「卸载」按钮做彻底清理时走 <code>agent_run_tool_lifecycle</code> 的 <code>uninstall</code>（成功后会联动删除 catalog 注册项）；仅想移除注册项的 UI 场景仍用本命令。</p>
 <ul>
 <li><strong>参数</strong>：<code>{ id: string }</code></li>
 <li><strong>返回</strong>：<code>{ ok: true; data: null }</code></li>
@@ -7014,18 +7036,19 @@ Host (Tauri + Rust)
 </code></pre></div>
 
 <h4 id="agent_run_tool_lifecycle225"><code>agent_run_tool_lifecycle</code>（已实现，<a href="https://github.com/poco-ai/Agentero/issues/225">#225</a>）<a class="headerlink" href="#agent_run_tool_lifecycle225" title="Permanent link">&para;</a></h4>
-<p><strong>静默</strong>安装或升级 catalog Agent CLI（需要时一并装 ACP 适配器）。不弹终端、不写临时确认脚本；命令由 Host 按平台拼装，UI 不得传入任意 shell。</p>
+<p><strong>静默</strong>安装、升级或卸载 catalog Agent CLI（需要时一并装/卸 ACP 适配器）。不弹终端、不写临时确认脚本；命令由 Host 按平台拼装，UI 不得传入任意 shell。</p>
 <blockquote>
 <p>已取代旧的 <code>agent_open_install_terminal</code>（打开系统终端、Enter 确认后再装）。远端仍用 <code>remote_agent_open_install_terminal</code>（SSH 确认安装）。</p>
 </blockquote>
 <ul>
-<li><strong>参数</strong>：<code>{ templateId: string, action: "install" | "update", taskId?: string }</code></li>
+<li><strong>参数</strong>：<code>{ templateId: string, action: "install" | "update" | "uninstall", taskId?: string }</code></li>
 <li>支持的 <code>templateId</code>：<code>opencode</code> · <code>openclaw</code> · <code>claude-acp</code> · <code>codex-acp</code> · <code>gemini</code> · <code>hermes</code> · <code>grok-build</code> · <code>pi</code> · <code>dsh</code> · <code>kimi-code</code>（不含 <code>qodercli</code> / <code>custom</code>）</li>
 <li><code>taskId</code> 来自设置页 Agent 行内安装进度条；用于匹配 Host progress tick 与接收协作取消信号。</li>
 <li><strong>返回</strong>：<code>{ ok: true; data: null }</code> 或错误（stderr/stdout 末尾若干行）</li>
 <li><strong>行为</strong></li>
 <li><code>install</code>：未装 host 时走官方 installer（POSIX curl→临时文件再 bash，非 <code>curl|bash</code>）或 npm；Claude/Codex/Pi 在 host 已存在但 ACP 缺失时只装适配器；两者都缺则 host &amp;&amp; adapter；Hermes 走官方 installer；OpenClaw 走 npm。Pi 无原生 ACP，ACP 入口是社区适配器 <code>pi-acp</code>（detect 用 host <code>pi</code>）；host 与 adapter 两层都走 npm，因为 <code>pi.dev/install.sh</code> 是交互式 TUI installer，不能静默执行。Dsh 是目录级 npm 项目安装：Host 先在 <code>~/.agentero/dsh-acp</code> 写入默认 <code>cordis.yml</code> 与最小 <code>package.json</code>（已存在则不覆盖），再 <code>npm i</code> 固定版本的 <code>dsh-acp-demo</code> + 插件栈；launcher、home npm 根或 PATH 已有入口时 <code>install</code> 跳过下载，<code>update</code> 仍刷新 launcher 副本。Kimi Code 优先官方 installer（<code>code.kimi.com</code>，单二进制装入 <code>~/.kimi-code</code>），失败回退 <code>npm i -g @moonshot-ai/kimi-code</code>。</li>
 <li><code>update</code>：优先 <code>tool update</code> / 官方链，失败再 npm；Codex 固定 npm（避免假成功）；OpenClaw 使用 <code>openclaw update --yes</code> 后 fallback npm；Pi 使用 <code>pi update --self</code> 后 fallback npm；Windows 上 OpenCode 不用交互式 <code>upgrade</code>。Kimi 的 <code>kimi upgrade</code> 是交互式，静默 update 直接重跑官方 installer（幂等）。</li>
+<li><code>uninstall</code>：镜像安装矩阵做 best-effort 清理（先 <code>resolve_command("npm")</code> 预检，缺失即报错而非假成功）——npm 全局包逐个 <code>npm uninstall -g</code>（unix 上适配器带 <code>--prefix "$HOME/.local"</code>，与安装一致）；dsh 删除受管目录 <code>~/.agentero/dsh-acp</code>，kimi-code 在 npm 卸载后删除 <code>~/.kimi-code</code>（Windows 为 <code>%USERPROFILE%\.kimi-code</code>）；<strong>不改 shell rc</strong>（官方 installer 写入的 PATH 行保留）、不处理官方脚本/brew 安装的 CLI（无法可靠定位）。Hermes 无 npm 包/受管目录 → 仅移除注册项（不跑命令）。成功后同命令联动删除该模板的 catalog 注册项（<code>catalog-{templateId}</code>，或 command+args 匹配），避免二进制已删而注册项残留；phase 用 <code>agent-lifecycle-uninstall</code> 推送进度。</li>
 <li>本机 lifecycle 全局串行执行，避免多个 npm 全局安装/升级任务并发抢锁或互相覆盖临时脚本；设置页在对应 Agent 卡片内展示安装 / 扫描 / 探测阶段进度（#250）。</li>
 <li>安装子进程运行期间，Host 以 <code>agent-lifecycle:progress</code> 推送 <code>agent-lifecycle-*</code> phase tick，供设置页行内进度条消费，避免快捷下载脚本长时间停在无进度状态。</li>
 <li>若传入 <code>taskId</code>，等待 lifecycle 锁和执行安装子进程时会检查 <code>background_task_cancel</code>；取消是尽力而为，不回滚已完成的包管理器写入。</li>
@@ -7061,6 +7084,18 @@ Host (Tauri + Rust)
 <li><strong>参数</strong>：无</li>
 <li><strong>返回</strong>：<code>{ ok: true; data: string }</code></li>
 </ul>
+<h4 id="agent_tool_uninstall_info"><code>agent_tool_uninstall_info</code>（已实现）<a class="headerlink" href="#agent_tool_uninstall_info" title="Permanent link">&para;</a></h4>
+<p>返回某模板「彻底卸载」将执行的清理项清单，供设置页确认对话框展示。无副作用的纯查询；与 <code>agent_run_tool_lifecycle</code> 的 <code>uninstall</code> 矩阵一致。</p>
+<ul>
+<li><strong>参数</strong>：<code>{ templateId: string }</code></li>
+<li><strong>返回</strong>：<code>{ ok: true; data: UninstallInfo | null }</code>（<code>null</code> = 无可管理卸载，仅注册项移除，如 <code>hermes</code> / <code>qodercli</code> / <code>custom</code>）</li>
+</ul>
+<div class="codehilite"><pre><span></span><code><span class="kd">interface</span><span class="w"> </span><span class="nx">UninstallInfo</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">npmCommands</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span><span class="w"> </span><span class="c1">// 完整 `npm uninstall -g ...` 命令串（含 prefix）</span>
+<span class="w">  </span><span class="nx">dirs</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span><span class="w"> </span><span class="c1">// 将 remove_dir_all 的受管目录</span>
+<span class="p">}</span>
+</code></pre></div>
+
 <h4 id="agentlist_sessions"><code>agent:list_sessions</code><a class="headerlink" href="#agentlist_sessions" title="Permanent link">&para;</a></h4>
 <p>列出当前 Vault 中的 Agent 会话。</p>
 <ul>

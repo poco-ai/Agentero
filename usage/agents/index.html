@@ -704,6 +704,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#agent_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        卸载 Agent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#skill" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -765,7 +776,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#agent_2" class="md-nav__link">
+  <a href="#agent_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         让 Agent 精读论文
@@ -838,7 +849,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#agent_3" class="md-nav__link">
+  <a href="#agent_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         不想让 Agent 改笔记
@@ -2989,6 +3000,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#agent_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        卸载 Agent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#skill" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3050,7 +3072,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#agent_2" class="md-nav__link">
+  <a href="#agent_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         让 Agent 精读论文
@@ -3123,7 +3145,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#agent_3" class="md-nav__link">
+  <a href="#agent_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         不想让 Agent 改笔记
@@ -3202,6 +3224,20 @@
 <li>发起一次测试对话，确认能访问当前 Vault。</li>
 </ol>
 <p>若终端里能跑、应用内探测不到：图形应用的 PATH 可能与 shell 不同，请填写<strong>绝对路径</strong>。远程 Vault 时，Agent 装在<strong>服务器</strong>上，见 <a href="../remote-vault/">打开远程 Vault</a>。</p>
+<h2 id="agent_2">卸载 Agent<a class="headerlink" href="#agent_2" title="Permanent link">&para;</a></h2>
+<ol>
+<li>打开 <strong>Settings → Agent</strong>，在已安装或已注册的 Agent 行点 <strong>Trash</strong> 按钮。</li>
+<li>确认对话框展示该 Agent 的 logo 与将要执行的清理项：</li>
+<li>Agentero 静默安装的 npm 全局包（如 <code>opencode-ai</code>、<code>@anthropic-ai/claude-code</code> 等）逐个 <code>npm uninstall -g</code>；</li>
+<li>Agentero 管理的目录（dsh 的 <code>~/.agentero/dsh-acp</code>、Kimi Code 的 <code>~/.kimi-code</code>）整体删除。</li>
+<li>确认后行内显示卸载进度，完成后注册项一并移除，行回到「未安装」状态。</li>
+</ol>
+<p>清理范围与保留项：</p>
+<ul>
+<li><strong>不清理</strong>：官方安装器或 Homebrew 安装的 CLI、shell 配置中官方 installer 写入的 PATH 行、Agent 会话历史。这些无法可靠定位或属于用户数据，均保留。</li>
+<li><strong>仅移除注册项</strong>：对没有可管理卸载路径的 Agent（如 Hermes、纯 PATH 探测到的 CLI），对话框会注明只删 Agentero 注册项，磁盘文件不动。</li>
+<li><strong>自定义 Agent</strong>：走同一确认对话框，但只移除注册项（自定义 Agent 的二进制由用户自管）。</li>
+</ul>
 <h2 id="skill">使用 Skill<a class="headerlink" href="#skill" title="Permanent link">&para;</a></h2>
 <p>Agentero 的 Skill 是放在 Vault <code>.agents/skills/&lt;name&gt;/</code> 下的 prompt 包，含 <code>SKILL.md</code> 与可选的 <code>scripts/</code>、<code>references/</code>、<code>assets/</code>。</p>
 <h3 id="skill_1">安装 Skill<a class="headerlink" href="#skill_1" title="Permanent link">&para;</a></h3>
@@ -3249,7 +3285,7 @@
 </tbody>
 </table>
 <p>建议第一次用 <strong>每次询问</strong>，确认行为后再切换。</p>
-<h2 id="agent_2">让 Agent 精读论文<a class="headerlink" href="#agent_2" title="Permanent link">&para;</a></h2>
+<h2 id="agent_3">让 Agent 精读论文<a class="headerlink" href="#agent_3" title="Permanent link">&para;</a></h2>
 <p>前提：本地 PDF，且有 TeX 或 <code>PAPER.md</code> 等可读正文。</p>
 <h3 id="_4">手动精读<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
 <ol>
@@ -3265,7 +3301,7 @@
 <p>确认命令已安装、当前用户可在终端执行，并在设置中填正确路径。Node 全局安装时检查全局 bin 是否在应用 PATH 中。</p>
 <h3 id="notesmd">能回答但不能写 NOTES.md<a class="headerlink" href="#notesmd" title="Permanent link">&para;</a></h3>
 <p>检查权限模式与工作目录。远程 Vault 上 Agent 必须以远端 Vault 根为 cwd。</p>
-<h3 id="agent_3">不想让 Agent 改笔记<a class="headerlink" href="#agent_3" title="Permanent link">&para;</a></h3>
+<h3 id="agent_4">不想让 Agent 改笔记<a class="headerlink" href="#agent_4" title="Permanent link">&para;</a></h3>
 <p>用受限模式，或在每次询问时拒绝写入。写入后可走 Diff 审阅。</p>
 <h3 id="_8">消息发不出去 / 输入法<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
 <p>中文等输入法组字时按 Enter 不应误发送；若仍异常，请更新到最新版本。</p>
