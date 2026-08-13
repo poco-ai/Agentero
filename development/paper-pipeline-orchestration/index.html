@@ -3757,6 +3757,7 @@ Rust      --job:changed {jobId, paperPath, kind, state, progress}--&gt; 所有�
 </code></pre></div>
 
 <p>队列语义、幂等、重试、优先级、取消<strong>全在一处</strong>；渲染进程退化为纯 executor。附带收益：多窗口不会各跑一份（现状 <code>layoutAnalysisStore.ui</code> 是全局单例，<code>store.ts:16</code>，多 tab 进度互串）。</p>
+<p><code>job:offer</code> 的 payload 是平铺的 <code>{jobId, kind, vaultPath, paperPath, force}</code>（注意 <code>job:changed</code> 包了一层 <code>{job}</code>），且发出去就不管：渲染进程重载、或 offer 早于 listener 挂上，这一份就丢了，而 Rust 还在等它的 <code>job_report</code>（<code>LayoutAnalyze</code> 15min），cap=1 的车道同时被占死。因此 listener 挂上后 <code>job_list</code> 一次，把仍是 <code>running</code> 的可执行 kind 重新认领；executor 抛错时由 dispatch 兜底上报 <code>failed</code>，让 Rust 立刻释放额度而不是等超时。</p>
 <p><code>job:changed</code> 事件（节流 100ms 批量发）<strong>直接干掉 <code>use-pdf-layout-run.ts:285-380</code> 的 1.5s × 15min 轮询</strong>。</p>
 <h4 id="in-flight-job">重启丢失 in-flight job —— 不需要处理<a class="headerlink" href="#in-flight-job" title="Permanent link">&para;</a></h4>
 <p><strong>每个 job 本身就是幂等的收敛操作</strong>：</p>
