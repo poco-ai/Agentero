@@ -36,9 +36,11 @@ pub async fn window_new(app: AppHandle) -> Result<(), String> {
     let op = OpTimer::start("window_new");
     let label = format!("agentero-{}", uuid::Uuid::new_v4().simple());
 
-    // Main window uses tauri.conf.json `dragDropEnabled: false` so HTML5 DnD
-    // works (vault moves / agent chips). OS file drops are cancelled in the
-    // frontend so the webview never navigates to a dropped PDF.
+    // Main window uses tauri.conf.json `dragDropEnabled: true` so macOS OS
+    // file drops emit `onDragDropEvent` (HTML5 FileList is often empty).
+    // In-app HTML5 vault moves (text/plain) still work. Frontend also
+    // preventDefaults leftover HTML5 file drops so the webview never
+    // navigates to a dropped PDF.
     // WebviewWindowBuilder in this Tauri version has no drag_drop_enabled();
     // secondary windows inherit platform defaults — frontend still preventDefaults.
     #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]

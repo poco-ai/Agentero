@@ -259,6 +259,7 @@ export const AgentPanel = memo(function AgentPanel({
 
 	return (
 		<section
+			data-agent-panel
 			className={cn("flex h-full min-h-0 flex-col bg-background", className)}
 			aria-label={title}
 		>

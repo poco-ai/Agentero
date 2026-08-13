@@ -8,9 +8,10 @@
 import type { FileUIPart } from "ai";
 
 import type { PromptImage } from "@/lib/agent/api";
-import { fileMatchesAccept } from "@/lib/core/file-accept";
+import { fileMatchesAccept, hasImageExtension } from "@/lib/core/file-accept";
 import { basenameOf } from "@/lib/core/path";
 import { isTauri } from "@/lib/core/tauri";
+import { pathsFromDataTransfer } from "@/lib/shell/external-file-drop";
 import { imageMimeFromPath } from "@/lib/workspace/viewer";
 
 /** Extensions for Tauri `dialog.open` filters (no leading dots). */
@@ -64,7 +65,6 @@ export async function pickComposerImageFiles(opts?: {
 	if (remaining <= 0) return [];
 
 	const { open } = await import("@tauri-apps/plugin-dialog");
-	const { readFile } = await import("@tauri-apps/plugin-fs");
 	const selected = await open({
 		multiple: true,
 		title: opts?.title,
@@ -79,21 +79,57 @@ export async function pickComposerImageFiles(opts?: {
 	const paths = (Array.isArray(selected) ? selected : [selected]).filter(
 		Boolean,
 	);
-	const capped = paths.slice(0, remaining);
+	return readComposerImageFiles(paths, remaining);
+}
+
+/** Absolute image paths in a drop payload (Finder / Preview often omit FileList). */
+export function imagePathsFromDataTransfer(
+	dt: DataTransfer | null | undefined,
+): string[] {
+	if (!dt) return [];
+	return pathsFromDataTransfer(dt).filter((path) => hasImageExtension(path));
+}
+
+/**
+ * Read local image paths into browser `File` objects (Tauri only).
+ * Used when a macOS drop exposes `text/plain` / `text/uri-list` paths but
+ * no `FileList` (common WKWebView case).
+ */
+export async function readComposerImageFiles(
+	paths: string[],
+	remainingSlots: number = COMPOSER_IMAGE_MAX_FILES,
+): Promise<File[]> {
+	if (!isTauri()) return [];
+	const remaining = Math.max(0, remainingSlots);
+	if (remaining <= 0) return [];
+
+	const { readFile } = await import("@tauri-apps/plugin-fs");
+	const capped = paths
+		.filter((path) => hasImageExtension(path))
+		.slice(0, remaining);
 	const files: File[] = [];
+	const errors: string[] = [];
 	for (const path of capped) {
-		const bytes = await readFile(path);
-		const name = basenameOf(path) || "image.png";
-		const mime = imageMimeFromPath(path);
-		// Copy into a plain ArrayBuffer-backed view for File/Blob constructors.
-		const copy = new Uint8Array(bytes.byteLength);
-		copy.set(bytes);
-		files.push(
-			new File([copy], name, {
-				type: mime.startsWith("image/") ? mime : "image/png",
-				lastModified: Date.now(),
-			}),
-		);
+		try {
+			const bytes = await readFile(path);
+			const name = basenameOf(path) || "image.png";
+			const mime = imageMimeFromPath(path);
+			const copy = new Uint8Array(bytes.byteLength);
+			copy.set(bytes);
+			files.push(
+				new File([copy], name, {
+					type: mime.startsWith("image/") ? mime : "image/png",
+					lastModified: Date.now(),
+				}),
+			);
+		} catch (error) {
+			errors.push(
+				`${basenameOf(path) || path}: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+	}
+	if (!files.length && errors.length) {
+		throw new Error(errors[0]);
 	}
 	return files;
 }

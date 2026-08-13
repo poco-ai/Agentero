@@ -7,6 +7,7 @@
  * File bytes via Host `paper_stage_import_file` into `~/.agentero/import-tmp/`.
  */
 
+import { dataTransferLooksLikeOsFiles } from "@/lib/core/file-accept";
 import { invokeApi } from "@/lib/core/ipc";
 import { basenameOf } from "@/lib/core/path";
 import { isTauri } from "@/lib/core/tauri";
@@ -21,10 +22,7 @@ export type ResolvedDropPdf = {
 
 /** True when the drag payload includes OS files (not in-app text/plain moves). */
 export function dataTransferHasFiles(dt: DataTransfer | null): boolean {
-	if (!dt?.types) return false;
-	return [...dt.types].some(
-		(t) => t === "Files" || t === "application/x-moz-file",
-	);
+	return dataTransferLooksLikeOsFiles(dt);
 }
 
 export function isPdfFileName(name: string): boolean {

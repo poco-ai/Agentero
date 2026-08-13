@@ -4,9 +4,9 @@ import { dataTransferHasFiles } from "@/lib/shell/external-file-drop";
 /**
  * Block OS file drops from navigating the webview away from the SPA.
  *
- * Required while `dragDropEnabled` is false (HTML5 DnD for vault moves /
- * agent path chips). Without this, dropping a PDF opens the system PDF
- * viewer inside the webview and freezes Agentero.
+ * Safety net if an OS file drop still reaches HTML5 (Tauri also emits
+ * `onDragDropEvent` when `dragDropEnabled` is true). Without preventDefault,
+ * dropping a PDF can navigate the webview to the system viewer and freeze.
  *
  * Non-PDF drops: no app reaction (only navigation cancelled).
  * PDF drops onto a `papers/` folder: handled by the file tree → confirm dialog.

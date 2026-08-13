@@ -74,7 +74,11 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useImeGuard } from "@/hooks/use-ime-guard";
-import { fileMatchesAccept } from "@/lib/core/file-accept";
+import {
+	dataTransferLooksLikeOsFiles,
+	fileMatchesAccept,
+	filesFromDataTransfer,
+} from "@/lib/core/file-accept";
 import { cn } from "@/lib/core/utils";
 
 // ============================================================================
@@ -765,16 +769,17 @@ export const PromptInput = ({
 		}
 
 		const onDragOver = (e: DragEvent) => {
-			if (e.dataTransfer?.types?.includes("Files")) {
+			if (dataTransferLooksLikeOsFiles(e.dataTransfer)) {
 				e.preventDefault();
 			}
 		};
 		const onDrop = (e: DragEvent) => {
-			if (e.dataTransfer?.types?.includes("Files")) {
+			if (dataTransferLooksLikeOsFiles(e.dataTransfer)) {
 				e.preventDefault();
 			}
-			if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-				add(e.dataTransfer.files);
+			const dropped = filesFromDataTransfer(e.dataTransfer);
+			if (dropped.length > 0) {
+				add(dropped);
 			}
 		};
 		form.addEventListener("dragover", onDragOver);
@@ -791,16 +796,17 @@ export const PromptInput = ({
 		}
 
 		const onDragOver = (e: DragEvent) => {
-			if (e.dataTransfer?.types?.includes("Files")) {
+			if (dataTransferLooksLikeOsFiles(e.dataTransfer)) {
 				e.preventDefault();
 			}
 		};
 		const onDrop = (e: DragEvent) => {
-			if (e.dataTransfer?.types?.includes("Files")) {
+			if (dataTransferLooksLikeOsFiles(e.dataTransfer)) {
 				e.preventDefault();
 			}
-			if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-				add(e.dataTransfer.files);
+			const dropped = filesFromDataTransfer(e.dataTransfer);
+			if (dropped.length > 0) {
+				add(dropped);
 			}
 		};
 		document.addEventListener("dragover", onDragOver);

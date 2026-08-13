@@ -1,34 +1,113 @@
 /**
- * Image drop highlight for the composer shell: nested enter/leave counter so
- * moving over chips/textarea does not flicker the drop ring.
+ * Image drop highlight for the composer shell.
+ *
+ * HTML5 dragenter on the form is unreliable for macOS OS file drags, so we
+ * hit-test the shell on document dragover plus Tauri `onDragDropEvent`.
  */
-import type { DragEvent as ReactDragEvent } from "react";
+import type { DragEvent as ReactDragEvent, RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { dataTransferLooksLikeImages } from "@/lib/core/file-accept";
+import {
+	isClientPointInRect,
+	isPhysicalPointInRect,
+	subscribeTauriFileDrop,
+} from "@/lib/agent/tauri-file-drop";
+import {
+	dataTransferLooksLikeImages,
+	dataTransferLooksLikeOsFiles,
+	hasImageExtension,
+} from "@/lib/core/file-accept";
 
 export function useComposerFileDrag() {
-	const fileDragDepthRef = useRef(0);
+	const shellRef = useRef<HTMLDivElement>(null);
+	const tauriPathsRef = useRef<string[]>([]);
 	const [isFileDragOver, setIsFileDragOver] = useState(false);
 
 	const resetFileDragHighlight = useCallback(() => {
-		fileDragDepthRef.current = 0;
 		setIsFileDragOver(false);
 	}, []);
 
+	const overShell = useCallback((x: number, y: number) => {
+		const el = shellRef.current;
+		if (!el) return false;
+		return isClientPointInRect(x, y, el.getBoundingClientRect());
+	}, []);
+
+	useEffect(() => {
+		const onDragOver = (event: DragEvent) => {
+			if (!dataTransferLooksLikeOsFiles(event.dataTransfer)) {
+				return;
+			}
+			if (!overShell(event.clientX, event.clientY)) {
+				setIsFileDragOver(false);
+				return;
+			}
+			if (!dataTransferLooksLikeImages(event.dataTransfer)) {
+				setIsFileDragOver(false);
+				return;
+			}
+			event.preventDefault();
+			if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+			setIsFileDragOver(true);
+		};
+		const onDragLeave = (event: DragEvent) => {
+			if (event.relatedTarget) return;
+			setIsFileDragOver(false);
+		};
+		const clear = () => setIsFileDragOver(false);
+		document.addEventListener("dragover", onDragOver);
+		document.addEventListener("dragleave", onDragLeave);
+		window.addEventListener("dragend", clear);
+		window.addEventListener("drop", clear, true);
+		return () => {
+			document.removeEventListener("dragover", onDragOver);
+			document.removeEventListener("dragleave", onDragLeave);
+			window.removeEventListener("dragend", clear);
+			window.removeEventListener("drop", clear, true);
+		};
+	}, [overShell]);
+
+	useEffect(() => {
+		return subscribeTauriFileDrop((payload) => {
+			if (payload.type === "leave" || payload.type === "drop") {
+				tauriPathsRef.current = [];
+				setIsFileDragOver(false);
+				return;
+			}
+			if (payload.type === "enter") {
+				tauriPathsRef.current = payload.paths;
+			}
+			const paths = tauriPathsRef.current;
+			const imageLike =
+				paths.length === 0 || paths.some((path) => hasImageExtension(path));
+			if (!imageLike) {
+				setIsFileDragOver(false);
+				return;
+			}
+			const el = shellRef.current;
+			const panel = document.querySelector("[data-agent-panel]");
+			const overShell =
+				el != null &&
+				isPhysicalPointInRect(payload.position, el.getBoundingClientRect());
+			const overPanel =
+				panel instanceof HTMLElement &&
+				isPhysicalPointInRect(payload.position, panel.getBoundingClientRect());
+			// Coordinates may miss the input box; still hint while an image is
+			// dragged over this window and the composer is mounted.
+			setIsFileDragOver(Boolean(overShell || overPanel || el));
+		});
+	}, []);
+
 	const onFileDragEnter = useCallback((event: ReactDragEvent) => {
-		// Only highlight when we can tell the payload is image-like.
 		if (!dataTransferLooksLikeImages(event.dataTransfer)) return;
 		event.preventDefault();
-		fileDragDepthRef.current += 1;
 		setIsFileDragOver(true);
 	}, []);
 
 	const onFileDragLeave = useCallback((event: ReactDragEvent) => {
-		if (!dataTransferLooksLikeImages(event.dataTransfer)) return;
-		fileDragDepthRef.current = Math.max(0, fileDragDepthRef.current - 1);
-		if (fileDragDepthRef.current === 0) {
-			setIsFileDragOver(false);
+		if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+			return;
 		}
+		setIsFileDragOver(false);
 	}, []);
 
 	const onFileDragOver = useCallback((event: ReactDragEvent) => {
@@ -38,23 +117,11 @@ export function useComposerFileDrag() {
 	}, []);
 
 	const onFileDropHighlightEnd = useCallback(() => {
-		// Drop fires before PromptInput's native listener consumes files; only clear UI.
 		resetFileDragHighlight();
 	}, [resetFileDragHighlight]);
 
-	// Clear stuck highlight if the drag ends outside the composer (leave app, Esc, etc.).
-	useEffect(() => {
-		if (!isFileDragOver) return;
-		const clear = () => resetFileDragHighlight();
-		window.addEventListener("dragend", clear);
-		window.addEventListener("drop", clear);
-		return () => {
-			window.removeEventListener("dragend", clear);
-			window.removeEventListener("drop", clear);
-		};
-	}, [isFileDragOver, resetFileDragHighlight]);
-
 	return {
+		shellRef: shellRef as RefObject<HTMLDivElement>,
 		isFileDragOver,
 		onFileDragEnter,
 		onFileDragLeave,

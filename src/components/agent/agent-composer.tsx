@@ -9,6 +9,7 @@ import {
 	ComposerContextChips,
 	ComposerSkillChips,
 } from "@/components/agent/composer/composer-context-chips";
+import { ComposerDropTarget } from "@/components/agent/composer/composer-drop-target";
 import { ComposerMentionMenu } from "@/components/agent/composer/composer-mention-menu";
 import { ComposerModelSelector } from "@/components/agent/composer/composer-model-selector";
 import { ComposerQueue } from "@/components/agent/composer/composer-queue";
@@ -157,6 +158,7 @@ export function AgentComposer(props: AgentComposerProps) {
 	const canSubmitBase = hasComposerText || hasVisualDrafts;
 	const composerMenuOpen = showMentionMenu || showSkillMenu || showSlashMenu;
 	const {
+		shellRef,
 		isFileDragOver,
 		onFileDragEnter,
 		onFileDragLeave,
@@ -192,7 +194,11 @@ export function AgentComposer(props: AgentComposerProps) {
 				messageQueue={props.messageQueue}
 				onRemoveQueuedMessage={props.onRemoveQueuedMessage}
 			/>
-			<div className="relative min-h-0 flex-1">
+			<div
+				ref={shellRef}
+				data-composer-drop-shell
+				className="relative min-h-0 flex-1"
+			>
 				<PromptInput
 					className={cn(
 						"h-full w-full rounded-xl border-border bg-background shadow-none transition-[background-color,box-shadow,border-color] duration-150",
@@ -235,15 +241,15 @@ export function AgentComposer(props: AgentComposerProps) {
 							}}
 						>
 							<PopoverAnchor asChild>
-								<div
+								<ComposerDropTarget
 									className={cn(
 										"relative flex min-h-0 w-full flex-1 overflow-hidden",
 										compact
 											? "flex-row items-start gap-1 px-2 pt-2"
 											: "flex-col px-3 pt-3",
 									)}
-									onDragOverCapture={onComposerDragOver}
-									onDropCapture={onComposerDrop}
+									onVaultPathDragOver={onComposerDragOver}
+									onVaultPathDrop={onComposerDrop}
 								>
 									<ComposerImageAttachments compact={compact} />
 									<ComposerContextChips
@@ -342,7 +348,7 @@ export function AgentComposer(props: AgentComposerProps) {
 												: t("composer.placeholder")
 										}
 									/>
-								</div>
+								</ComposerDropTarget>
 							</PopoverAnchor>
 						</Popover>
 					</PromptInputBody>

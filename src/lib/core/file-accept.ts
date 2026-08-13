@@ -6,9 +6,23 @@
 const IMAGE_EXT_RE =
 	/\.(png|jpe?g|webp|gif|bmp|heic|heif|avif|svg|ico|tif|tiff)$/i;
 
+/**
+ * macOS WKWebView sometimes reports Uniform Type Identifiers instead of MIME
+ * (`public.png`, `public.image`, …). Treat those as image types.
+ */
+const IMAGE_UTI_RE =
+	/^(public\.(png|jpe?g|jpeg-2000|tiff|heic|heif|gif|svg-image|image|camera-raw-image)|com\.compuserve\.gif|org\.webmproject\.webp|com\.microsoft\.(bmp|ico))$/i;
+
 /** True when the basename has a known image extension. */
 export function hasImageExtension(name: string): boolean {
 	return IMAGE_EXT_RE.test(name.trim());
+}
+
+/** True for `image/*` MIME types or macOS image UTIs. */
+export function isImageMimeOrUti(type: string | undefined | null): boolean {
+	const trimmed = (type || "").trim().toLowerCase();
+	if (!trimmed) return false;
+	return trimmed.startsWith("image/") || IMAGE_UTI_RE.test(trimmed);
 }
 
 /**
@@ -38,11 +52,13 @@ export function fileMatchesAccept(
 		if (pattern.endsWith("/*")) {
 			const prefix = pattern.slice(0, -1); // e.g. "image/"
 			if (type.startsWith(prefix)) return true;
+			if (prefix === "image/" && isImageMimeOrUti(type)) return true;
 			// Empty MIME + image/* → allow known image extensions
 			if (!type && prefix === "image/" && IMAGE_EXT_RE.test(name)) return true;
 			return false;
 		}
 		if (type && type === pattern) return true;
+		if (pattern.startsWith("image/") && isImageMimeOrUti(type)) return true;
 		// MIME listed but File.type empty: map common image types via extension
 		if (!type && pattern.startsWith("image/") && IMAGE_EXT_RE.test(name)) {
 			return true;
@@ -66,6 +82,57 @@ function basenameFromPathOrUrl(raw: string): string {
 	return parts.at(-1) || "";
 }
 
+/** Safe copy of `dataTransfer.types` (DOMStringList has no `.includes` on some WebKits). */
+export function dataTransferTypes(
+	dt: DataTransfer | null | undefined,
+): string[] {
+	if (!dt?.types) return [];
+	try {
+		return [...dt.types];
+	} catch {
+		const list = dt.types as unknown as {
+			length: number;
+			item?: (index: number) => string | null;
+			[index: number]: string | undefined;
+		};
+		const out: string[] = [];
+		for (let i = 0; i < (list.length ?? 0); i++) {
+			const item = typeof list.item === "function" ? list.item(i) : list[i];
+			if (item) out.push(item);
+		}
+		return out;
+	}
+}
+
+const OS_FILE_TYPES = new Set([
+	"Files",
+	"application/x-moz-file",
+	"text/uri-list",
+	"public.file-url",
+	"public.file-url-name",
+]);
+
+/** True when the payload looks like an OS file drag (not in-app text/plain). */
+export function dataTransferLooksLikeOsFiles(
+	dt: DataTransfer | null | undefined,
+): boolean {
+	if (!dt) return false;
+	if (dataTransferTypes(dt).some((type) => OS_FILE_TYPES.has(type))) {
+		return true;
+	}
+	try {
+		const items = dt.items;
+		if (items?.length) {
+			for (let i = 0; i < items.length; i++) {
+				if (items[i]?.kind === "file") return true;
+			}
+		}
+	} catch {
+		// ignore
+	}
+	return false;
+}
+
 /** Collect best-effort file names available during drag (before drop). */
 export function fileNamesFromDataTransfer(
 	dt: DataTransfer | null | undefined,
@@ -78,21 +145,8 @@ export function fileNamesFromDataTransfer(
 	};
 
 	try {
-		for (const file of dt.files ?? []) {
-			if (file?.name) push(file.name);
-		}
-	} catch {
-		// ignore
-	}
-
-	try {
-		const items = dt.items;
-		if (items) {
-			for (const item of items) {
-				if (item.kind !== "file") continue;
-				const file = item.getAsFile?.();
-				if (file?.name) push(file.name);
-			}
+		for (const file of filesFromDataTransfer(dt)) {
+			if (file.name) push(file.name);
 		}
 	} catch {
 		// ignore
@@ -127,21 +181,63 @@ export function fileNamesFromDataTransfer(
 }
 
 /**
+ * Collect `File` objects from a drop. Some WebViews populate `items` but leave
+ * `files` empty (or the reverse); take both and dedupe.
+ */
+export function filesFromDataTransfer(
+	dt: DataTransfer | null | undefined,
+): File[] {
+	if (!dt) return [];
+	const out: File[] = [];
+	const seen = new Set<string>();
+	const push = (file: File | null | undefined) => {
+		if (!file) return;
+		const key = `${file.name}\0${file.size}\0${file.lastModified}`;
+		if (seen.has(key)) return;
+		seen.add(key);
+		out.push(file);
+	};
+
+	try {
+		const items = dt.items;
+		if (items?.length) {
+			for (let i = 0; i < items.length; i++) {
+				const item = items[i];
+				if (item?.kind === "file") push(item.getAsFile?.() ?? null);
+			}
+		}
+	} catch {
+		// ignore
+	}
+
+	try {
+		const list = dt.files;
+		if (list?.length) {
+			for (let i = 0; i < list.length; i++) {
+				const file = typeof list.item === "function" ? list.item(i) : list[i];
+				push(file ?? null);
+			}
+		}
+	} catch {
+		// ignore
+	}
+
+	return out;
+}
+
+/**
  * Best-effort check while a drag is in progress (before drop).
  *
- * Prefer **no false positives**: when MIME/names prove non-image (PDF, .md, …)
- * return false. When everything is unknown (empty MIME + no names — common on
- * some macOS image drags), return false so arbitrary files do not flash the
- * "drop image" overlay; image drops still work without the highlight.
+ * When MIME/names prove non-image (PDF, .md, …) return false so the composer
+ * does not flash the "drop image" overlay. When everything is unknown (empty
+ * MIME + no names — common on macOS Finder / Preview / other-app image drags
+ * during `dragover`), return true: the overlay is the only feedback, and
+ * non-images are still rejected on drop.
  */
 export function dataTransferLooksLikeImages(
 	dt: DataTransfer | null | undefined,
 ): boolean {
-	if (!dt?.types) return false;
-	const hasFiles = [...dt.types].some(
-		(t) => t === "Files" || t === "application/x-moz-file",
-	);
-	if (!hasFiles) return false;
+	if (!dt || !dataTransferLooksLikeOsFiles(dt)) return false;
 
 	let sawImage = false;
 	let sawNonImage = false;
@@ -152,7 +248,7 @@ export function dataTransferLooksLikeImages(
 			if (item.kind !== "file") continue;
 			const type = (item.type || "").trim().toLowerCase();
 			if (!type) continue;
-			if (type.startsWith("image/")) {
+			if (isImageMimeOrUti(type)) {
 				sawImage = true;
 			} else {
 				sawNonImage = true;
@@ -172,6 +268,6 @@ export function dataTransferLooksLikeImages(
 
 	if (sawImage) return true;
 	if (sawNonImage) return false;
-	// Unknown payload (no MIME, no names) — do not show image drop chrome.
-	return false;
+	// Unknown payload (no MIME, no names) — typical macOS window image drag.
+	return true;
 }

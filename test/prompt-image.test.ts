@@ -4,11 +4,15 @@ import { describe, expect, it } from "vitest";
 import {
 	dataUrlToPromptImage,
 	fileUiPartsToPromptImages,
+	imagePathsFromDataTransfer,
 	isImageFile,
 } from "@/lib/agent/prompt-image";
+import { isPhysicalPointInRect } from "@/lib/agent/tauri-file-drop";
 import {
 	dataTransferLooksLikeImages,
 	fileMatchesAccept,
+	filesFromDataTransfer,
+	isImageMimeOrUti,
 } from "@/lib/core/file-accept";
 
 function fakeFile(name: string, type: string): File {
@@ -94,6 +98,15 @@ describe("isImageFile / fileMatchesAccept", () => {
 		expect(fileMatchesAccept(bare, accept)).toBe(true);
 	});
 
+	it("accepts macOS image UTIs when MIME is not image/*", () => {
+		expect(isImageMimeOrUti("public.png")).toBe(true);
+		expect(isImageMimeOrUti("public.image")).toBe(true);
+		expect(isImageMimeOrUti("application/pdf")).toBe(false);
+		expect(fileMatchesAccept(fakeFile("shot", "public.png"), accept)).toBe(
+			true,
+		);
+	});
+
 	it("rejects non-image extensions even with empty MIME", () => {
 		const bare = fakeFile("notes.pdf", "");
 		expect(isImageFile(bare)).toBe(false);
@@ -128,12 +141,20 @@ describe("dataTransferLooksLikeImages", () => {
 		expect(dataTransferLooksLikeImages(dt)).toBe(false);
 	});
 
-	it("returns false when MIME/names are unknown (avoid false positive on .md)", () => {
+	it("returns true when MIME/names are unknown (macOS dragover has no File metadata)", () => {
 		expect(
 			dataTransferLooksLikeImages(
 				fakeDt({ items: [{ kind: "file", type: "" }] }),
 			),
-		).toBe(false);
+		).toBe(true);
+	});
+
+	it("returns true for macOS image UTIs", () => {
+		expect(
+			dataTransferLooksLikeImages(
+				fakeDt({ items: [{ kind: "file", type: "public.png" }] }),
+			),
+		).toBe(true);
 	});
 
 	it("returns true for image MIME items", () => {
@@ -195,5 +216,72 @@ describe("dataTransferLooksLikeImages", () => {
 				}),
 			),
 		).toBe(true);
+	});
+
+	it("returns true for text/uri-list without a Files type", () => {
+		const dt = {
+			types: ["text/uri-list"],
+			items: [] as unknown as DataTransferItemList,
+			files: [] as unknown as FileList,
+			getData: (type: string) =>
+				type === "text/uri-list" ? "file:///Users/me/Desktop/shot.png" : "",
+		} as DataTransfer;
+		expect(dataTransferLooksLikeImages(dt)).toBe(true);
+	});
+
+	it("returns true for an image path in text/plain (Finder drop)", () => {
+		const dt = {
+			types: ["Files", "text/plain"],
+			items: [{ kind: "file", type: "" }] as unknown as DataTransferItemList,
+			files: [] as unknown as FileList,
+			getData: (type: string) =>
+				type === "text/plain" ? "/Users/me/Desktop/shot.png" : "",
+		} as DataTransfer;
+		expect(dataTransferLooksLikeImages(dt)).toBe(true);
+	});
+});
+
+describe("filesFromDataTransfer", () => {
+	it("reads File objects from items when FileList is empty", () => {
+		const file = fakeFile("shot.png", "image/png");
+		const dt = {
+			types: ["Files"],
+			items: [
+				{ kind: "file", type: "image/png", getAsFile: () => file },
+			] as unknown as DataTransferItemList,
+			files: [] as unknown as FileList,
+		} as DataTransfer;
+		expect(filesFromDataTransfer(dt)).toEqual([file]);
+	});
+});
+
+describe("imagePathsFromDataTransfer", () => {
+	it("keeps absolute image paths and drops non-images", () => {
+		const dt = {
+			types: ["Files", "text/plain"],
+			items: [] as unknown as DataTransferItemList,
+			files: [] as unknown as FileList,
+			getData: (type: string) =>
+				type === "text/plain"
+					? "/Users/me/Desktop/shot.png\n/Users/me/Desktop/notes.md"
+					: "",
+		} as DataTransfer;
+		expect(imagePathsFromDataTransfer(dt)).toEqual([
+			"/Users/me/Desktop/shot.png",
+		]);
+	});
+});
+
+describe("isPhysicalPointInRect", () => {
+	const rect = {
+		left: 900,
+		right: 1200,
+		top: 600,
+		bottom: 850,
+	} as DOMRect;
+
+	it("accepts CSS-pixel positions as-is", () => {
+		expect(isPhysicalPointInRect({ x: 1000, y: 700 }, rect)).toBe(true);
+		expect(isPhysicalPointInRect({ x: 10, y: 10 }, rect)).toBe(false);
 	});
 });

@@ -49,6 +49,7 @@ import {
 	filterSlashCommands,
 } from "@/lib/agent/slash-commands";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
+import { dataTransferLooksLikeImages } from "@/lib/core/file-accept";
 import { isImeKeyboardEvent } from "@/lib/core/ime";
 import {
 	collectUserPromptTexts,
@@ -439,12 +440,9 @@ export function useAgentComposer({
 		const hasText =
 			[...types].includes("text/plain") || [...types].includes("Text");
 		const hasFiles = [...types].includes("Files");
-		// Prefer vault path drops; leave pure OS file drops to PromptInput if any.
+		// In-app file-tree drags are text/plain only. OS file drops (often
+		// text/plain path + Files) belong to PromptInput / image attach.
 		if (hasText && !hasFiles) {
-			e.preventDefault();
-			e.dataTransfer.dropEffect = "copy";
-		} else if (hasText && hasFiles) {
-			// Some platforms advertise both; still accept path payload.
 			e.preventDefault();
 			e.dataTransfer.dropEffect = "copy";
 		}
@@ -452,6 +450,9 @@ export function useAgentComposer({
 
 	const handleComposerDrop = useCallback(
 		(e: ReactDragEvent) => {
+			// Finder / Preview / other-app image drops include text/plain paths
+			// AND Files. Those belong to PromptInput, not @ context chips.
+			if (dataTransferLooksLikeImages(e.dataTransfer)) return;
 			const text = e.dataTransfer?.getData("text/plain")?.trim();
 			if (!text) return;
 			// Ignore non-path payloads (e.g. plain prose selection).
