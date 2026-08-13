@@ -44,7 +44,7 @@
 | Finder 显示 | 右键 / `⌥⌘R` |
 | 终端打开 | 右键 / `⌥⌘T`（文件夹=自身，文件=父目录） |
 | 删除 | 右键 / `⌘⌫` → 回收站（无确认） |
-| 多选拖拽 | ⌘/Shift + 拖到 `papers/` 组织夹 |
+| 多选拖拽 | ⌘/Shift + 拖到 `papers/` 组织夹（内部拖动带 `application/x-agentero-vault-paths`，Composer / Library 不抢成图片或 PDF 导入） |
 | 外部 PDF | 拖到 `papers/` 组织夹，或拖到中间栏 Library 表（[#309](https://github.com/poco-ai/Agentero/issues/309)） |
 | 折叠 | `⌘←` 选中夹；`⇧⌘←` 折叠至默认 |
 | 定位 | 激活文档 / 入库后展开祖先并 `scrollToIndex` |

@@ -14,8 +14,10 @@ import {
 import {
 	dataTransferLooksLikeImages,
 	dataTransferLooksLikeOsFiles,
+	dataTransferLooksLikeVaultMove,
 	hasImageExtension,
 } from "@/lib/core/file-accept";
+import { isVaultFileDragActive } from "@/lib/shell/vault-file-drag";
 
 export function useComposerFileDrag() {
 	const shellRef = useRef<HTMLDivElement>(null);
@@ -34,6 +36,13 @@ export function useComposerFileDrag() {
 
 	useEffect(() => {
 		const onDragOver = (event: DragEvent) => {
+			if (
+				isVaultFileDragActive() ||
+				dataTransferLooksLikeVaultMove(event.dataTransfer)
+			) {
+				setIsFileDragOver(false);
+				return;
+			}
 			if (!dataTransferLooksLikeOsFiles(event.dataTransfer)) {
 				return;
 			}
@@ -68,6 +77,10 @@ export function useComposerFileDrag() {
 
 	useEffect(() => {
 		return subscribeTauriFileDrop((payload) => {
+			if (isVaultFileDragActive()) {
+				setIsFileDragOver(false);
+				return;
+			}
 			if (payload.type === "leave" || payload.type === "drop") {
 				tauriPathsRef.current = [];
 				setIsFileDragOver(false);
@@ -77,27 +90,25 @@ export function useComposerFileDrag() {
 				tauriPathsRef.current = payload.paths;
 			}
 			const paths = tauriPathsRef.current;
-			const imageLike =
-				paths.length === 0 || paths.some((path) => hasImageExtension(path));
-			if (!imageLike) {
+			// Empty paths are in-app HTML5 drags or unknown — do not flash overlay.
+			if (!paths.some((path) => hasImageExtension(path))) {
 				setIsFileDragOver(false);
 				return;
 			}
 			const el = shellRef.current;
 			const panel = document.querySelector("[data-agent-panel]");
-			const overShell =
+			const overComposer =
 				el != null &&
 				isPhysicalPointInRect(payload.position, el.getBoundingClientRect());
 			const overPanel =
 				panel instanceof HTMLElement &&
 				isPhysicalPointInRect(payload.position, panel.getBoundingClientRect());
-			// Coordinates may miss the input box; still hint while an image is
-			// dragged over this window and the composer is mounted.
-			setIsFileDragOver(Boolean(overShell || overPanel || el));
+			setIsFileDragOver(Boolean(overComposer || overPanel));
 		});
 	}, []);
 
 	const onFileDragEnter = useCallback((event: ReactDragEvent) => {
+		if (dataTransferLooksLikeVaultMove(event.dataTransfer)) return;
 		if (!dataTransferLooksLikeImages(event.dataTransfer)) return;
 		event.preventDefault();
 		setIsFileDragOver(true);
@@ -111,6 +122,7 @@ export function useComposerFileDrag() {
 	}, []);
 
 	const onFileDragOver = useCallback((event: ReactDragEvent) => {
+		if (dataTransferLooksLikeVaultMove(event.dataTransfer)) return;
 		if (!dataTransferLooksLikeImages(event.dataTransfer)) return;
 		event.preventDefault();
 		event.dataTransfer.dropEffect = "copy";

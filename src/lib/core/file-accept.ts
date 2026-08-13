@@ -3,6 +3,11 @@
  * Supports MIME types, `type/*` wildcards, and `.ext` extensions.
  */
 
+import {
+	isVaultFileDragActive,
+	VAULT_FILE_DRAG_TYPE,
+} from "@/lib/shell/vault-file-drag";
+
 const IMAGE_EXT_RE =
 	/\.(png|jpe?g|webp|gif|bmp|heic|heif|avif|svg|ico|tif|tiff)$/i;
 
@@ -244,18 +249,27 @@ export function filesFromDataTransfer(
 	return out;
 }
 
+/** True for an in-app vault path drag (tree move or composer @ chip). */
+export function dataTransferLooksLikeVaultMove(
+	dt: DataTransfer | null | undefined,
+): boolean {
+	if (isVaultFileDragActive()) return true;
+	if (!dt) return false;
+	return dataTransferTypes(dt).includes(VAULT_FILE_DRAG_TYPE);
+}
+
 /**
  * Best-effort check while a drag is in progress (before drop).
  *
- * When MIME/names prove non-image (PDF, .md, …) return false so the composer
- * does not flash the "drop image" overlay. When everything is unknown (empty
- * MIME + no names — common on macOS Finder / Preview / other-app image drags
- * during `dragover`), return true: the overlay is the only feedback, and
- * non-images are still rejected on drop.
+ * In-app file-tree moves are never images. When MIME/names prove non-image
+ * (PDF, .md, …) return false so the composer does not flash the overlay.
+ * When everything is unknown (empty MIME + no names — common on macOS
+ * Finder / Preview image drags during `dragover`), return true.
  */
 export function dataTransferLooksLikeImages(
 	dt: DataTransfer | null | undefined,
 ): boolean {
+	if (dataTransferLooksLikeVaultMove(dt)) return false;
 	if (!dt || !dataTransferLooksLikeOsFiles(dt)) return false;
 
 	let sawImage = false;
@@ -301,6 +315,7 @@ export function dataTransferLooksLikeImages(
 export function dataTransferLooksLikePdfs(
 	dt: DataTransfer | null | undefined,
 ): boolean {
+	if (dataTransferLooksLikeVaultMove(dt)) return false;
 	if (!dt || !dataTransferLooksLikeOsFiles(dt)) return false;
 
 	let sawPdf = false;

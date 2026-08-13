@@ -49,7 +49,11 @@ import {
 	filterSlashCommands,
 } from "@/lib/agent/slash-commands";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
-import { dataTransferLooksLikeImages } from "@/lib/core/file-accept";
+import {
+	dataTransferLooksLikeImages,
+	dataTransferLooksLikeVaultMove,
+	dataTransferTypes,
+} from "@/lib/core/file-accept";
 import { isImeKeyboardEvent } from "@/lib/core/ime";
 import {
 	collectUserPromptTexts,
@@ -435,14 +439,16 @@ export function useAgentComposer({
 	 * (those are FileUIPart blobs; ACP context is path-based).
 	 */
 	const handleComposerDragOver = useCallback((e: ReactDragEvent) => {
-		const types = e.dataTransfer?.types;
-		if (!types) return;
-		const hasText =
-			[...types].includes("text/plain") || [...types].includes("Text");
-		const hasFiles = [...types].includes("Files");
-		// In-app file-tree drags are text/plain only. OS file drops (often
+		const types = dataTransferTypes(e.dataTransfer);
+		if (!types.length) return;
+		const hasText = types.includes("text/plain") || types.includes("Text");
+		const hasFiles = types.includes("Files");
+		// In-app file-tree drags stay path chips. OS file drops (often
 		// text/plain path + Files) belong to PromptInput / image attach.
-		if (hasText && !hasFiles) {
+		if (
+			dataTransferLooksLikeVaultMove(e.dataTransfer) ||
+			(hasText && !hasFiles)
+		) {
 			e.preventDefault();
 			e.dataTransfer.dropEffect = "copy";
 		}
@@ -452,7 +458,13 @@ export function useAgentComposer({
 		(e: ReactDragEvent) => {
 			// Finder / Preview / other-app image drops include text/plain paths
 			// AND Files. Those belong to PromptInput, not @ context chips.
-			if (dataTransferLooksLikeImages(e.dataTransfer)) return;
+			// In-app tree moves always stay path chips.
+			if (
+				!dataTransferLooksLikeVaultMove(e.dataTransfer) &&
+				dataTransferLooksLikeImages(e.dataTransfer)
+			) {
+				return;
+			}
 			const text = e.dataTransfer?.getData("text/plain")?.trim();
 			if (!text) return;
 			// Ignore non-path payloads (e.g. plain prose selection).

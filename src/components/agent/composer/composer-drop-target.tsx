@@ -16,13 +16,18 @@ import {
 	imagePathsFromDataTransfer,
 	readComposerImageFiles,
 } from "@/lib/agent/prompt-image";
-import { subscribeTauriFileDrop } from "@/lib/agent/tauri-file-drop";
+import {
+	isPhysicalPointInRect,
+	subscribeTauriFileDrop,
+} from "@/lib/agent/tauri-file-drop";
 import {
 	dataTransferLooksLikeImages,
+	dataTransferLooksLikeVaultMove,
 	filesFromDataTransfer,
 	hasImageExtension,
 } from "@/lib/core/file-accept";
 import { notifyError } from "@/lib/core/notify";
+import { isVaultFileDragActive } from "@/lib/shell/vault-file-drag";
 
 export const ComposerDropTarget = forwardRef<
 	HTMLDivElement,
@@ -69,14 +74,20 @@ export const ComposerDropTarget = forwardRef<
 	useEffect(() => {
 		return subscribeTauriFileDrop((payload) => {
 			if (payload.type !== "drop") return;
+			if (isVaultFileDragActive()) return;
 			const imagePaths = payload.paths.filter((path) =>
 				hasImageExtension(path),
 			);
 			if (!imagePaths.length) return;
 			const shell = document.querySelector("[data-composer-drop-shell]");
-			if (!(shell instanceof HTMLElement)) return;
-			// Coordinates from Tauri are unreliable (physical vs CSS, title bar).
-			// If the composer is mounted, accept Finder image drops on this window.
+			const panel = document.querySelector("[data-agent-panel]");
+			const overShell =
+				shell instanceof HTMLElement &&
+				isPhysicalPointInRect(payload.position, shell.getBoundingClientRect());
+			const overPanel =
+				panel instanceof HTMLElement &&
+				isPhysicalPointInRect(payload.position, panel.getBoundingClientRect());
+			if (!overShell && !overPanel) return;
 			attachFromPaths(imagePaths);
 		});
 	}, [attachFromPaths]);
@@ -85,6 +96,10 @@ export const ComposerDropTarget = forwardRef<
 		const dt =
 			(event.nativeEvent as DragEvent | undefined)?.dataTransfer ??
 			event.dataTransfer;
+		if (dataTransferLooksLikeVaultMove(dt) || isVaultFileDragActive()) {
+			onVaultPathDrop(event);
+			return;
+		}
 		const imagePaths = imagePathsFromDataTransfer(dt);
 		if (dataTransferLooksLikeImages(dt) || imagePaths.length > 0) {
 			const files = filesFromDataTransfer(dt);

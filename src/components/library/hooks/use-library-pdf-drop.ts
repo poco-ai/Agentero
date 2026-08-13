@@ -18,6 +18,7 @@ import {
 import {
 	dataTransferLooksLikeOsFiles,
 	dataTransferLooksLikePdfs,
+	dataTransferLooksLikeVaultMove,
 	hasPdfExtension,
 	isPdfMimeOrUti,
 } from "@/lib/core/file-accept";
@@ -31,6 +32,7 @@ import {
 	resolveDroppedPdfPaths,
 	snapshotDataTransfer,
 } from "@/lib/shell/external-file-drop";
+import { isVaultFileDragActive } from "@/lib/shell/vault-file-drag";
 
 function snapshotLooksLikePdf(
 	snap: ReturnType<typeof snapshotDataTransfer>,
@@ -69,6 +71,13 @@ export function useLibraryPdfDrop(scopePath: string | null | undefined) {
 
 	useEffect(() => {
 		const onDragOver = (event: DragEvent) => {
+			if (
+				isVaultFileDragActive() ||
+				dataTransferLooksLikeVaultMove(event.dataTransfer)
+			) {
+				setIsPdfDragOver(false);
+				return;
+			}
 			if (!dataTransferLooksLikeOsFiles(event.dataTransfer)) return;
 			if (!overShell(event.clientX, event.clientY)) {
 				setIsPdfDragOver(false);
@@ -101,6 +110,10 @@ export function useLibraryPdfDrop(scopePath: string | null | undefined) {
 
 	useEffect(() => {
 		return subscribeTauriFileDrop((payload) => {
+			if (isVaultFileDragActive()) {
+				setIsPdfDragOver(false);
+				return;
+			}
 			if (payload.type === "leave" || payload.type === "drop") {
 				if (payload.type === "drop") {
 					const pdfPaths = payload.paths.filter((path) =>
@@ -141,6 +154,7 @@ export function useLibraryPdfDrop(scopePath: string | null | undefined) {
 	}, [importPdfs]);
 
 	const onPdfDragEnter = useCallback((event: ReactDragEvent) => {
+		if (dataTransferLooksLikeVaultMove(event.dataTransfer)) return;
 		if (!dataTransferLooksLikePdfs(event.dataTransfer)) return;
 		event.preventDefault();
 		setIsPdfDragOver(true);
@@ -154,6 +168,7 @@ export function useLibraryPdfDrop(scopePath: string | null | undefined) {
 	}, []);
 
 	const onPdfDragOver = useCallback((event: ReactDragEvent) => {
+		if (dataTransferLooksLikeVaultMove(event.dataTransfer)) return;
 		if (!dataTransferLooksLikePdfs(event.dataTransfer)) return;
 		event.preventDefault();
 		event.dataTransfer.dropEffect = "copy";
@@ -164,6 +179,9 @@ export function useLibraryPdfDrop(scopePath: string | null | undefined) {
 			const dt =
 				(event.nativeEvent as DragEvent | undefined)?.dataTransfer ??
 				event.dataTransfer;
+			if (dataTransferLooksLikeVaultMove(dt) || isVaultFileDragActive()) {
+				return;
+			}
 			if (!dataTransferLooksLikeOsFiles(dt) && !dataTransferLooksLikePdfs(dt)) {
 				return;
 			}

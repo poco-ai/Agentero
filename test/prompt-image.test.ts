@@ -1,5 +1,5 @@
 import type { FileUIPart } from "ai";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
 	dataUrlToPromptImage,
@@ -11,11 +11,17 @@ import { isPhysicalPointInRect } from "@/lib/agent/tauri-file-drop";
 import {
 	dataTransferLooksLikeImages,
 	dataTransferLooksLikePdfs,
+	dataTransferLooksLikeVaultMove,
 	fileMatchesAccept,
 	filesFromDataTransfer,
 	isImageMimeOrUti,
 	isPdfMimeOrUti,
 } from "@/lib/core/file-accept";
+import {
+	beginVaultFileDrag,
+	endVaultFileDrag,
+	VAULT_FILE_DRAG_TYPE,
+} from "@/lib/shell/vault-file-drag";
 
 function fakeFile(name: string, type: string): File {
 	return new File([new Uint8Array([1, 2, 3])], name, { type });
@@ -340,6 +346,37 @@ describe("dataTransferLooksLikePdfs", () => {
 				}),
 			),
 		).toBe(true);
+	});
+});
+
+describe("in-app vault file drag", () => {
+	afterEach(() => {
+		endVaultFileDrag();
+	});
+
+	it("treats the custom MIME as a vault move, not an image", () => {
+		const dt = {
+			types: ["Files", VAULT_FILE_DRAG_TYPE, "text/plain"],
+			items: [{ kind: "file", type: "" }] as unknown as DataTransferItemList,
+			files: [] as unknown as FileList,
+			getData: (type: string) =>
+				type === "text/plain" ? "/vault/notes/a.md" : "",
+		} as DataTransfer;
+		expect(dataTransferLooksLikeVaultMove(dt)).toBe(true);
+		expect(dataTransferLooksLikeImages(dt)).toBe(false);
+		expect(dataTransferLooksLikePdfs(dt)).toBe(false);
+	});
+
+	it("treats an active tree-drag session as a vault move even without MIME", () => {
+		beginVaultFileDrag();
+		const dt = {
+			types: ["Files"],
+			items: [{ kind: "file", type: "" }] as unknown as DataTransferItemList,
+			files: [] as unknown as FileList,
+			getData: () => "",
+		} as DataTransfer;
+		expect(dataTransferLooksLikeVaultMove(dt)).toBe(true);
+		expect(dataTransferLooksLikeImages(dt)).toBe(false);
 	});
 });
 
