@@ -3040,7 +3040,22 @@
 <ul>
 <li>Crate：<code>agent-client-protocol</code>（及 Codex 的 npm ACP 适配器进程）。</li>
 <li>会话 <code>cwd</code> = 当前 Vault 根（远程则为远端 Vault 根）。</li>
-<li>统一接口：OpenCode、OpenClaw、Hermes、Gemini、Claude ACP、Codex ACP、Qoder、Grok、Pi、自定义 <code>command</code>/<code>args</code>/<code>env</code>。</li>
+<li>统一接口：OpenCode、OpenClaw、Hermes、Gemini、Claude ACP、Codex ACP、Qoder、Grok、Pi、Dsh（DeepSeek Harness）、自定义 <code>command</code>/<code>args</code>/<code>env</code>。</li>
+<li>Dsh：ACP 服务端是 <code>@deepseek-ai/dsh-acp-demo</code>（npm 包），与依赖插件一起固定
+  <code>0.1.0-rc.6</code>。安装/启动三处入口，检测按序回退：</li>
+<li>App 管理目录 <code>~/.agentero/dsh-acp/node_modules/.bin/dsh-acp-demo</code>（设置页「安装」按钮，
+     Rust 写入默认 <code>cordis.yml</code> + 最小 <code>package.json</code> 后执行 <code>npm i</code>；<code>package.json</code>
+     防止 npm 沿目录树向上找到用户 <code>~/package.json</code> 把包装进 <code>~/node_modules</code>）；</li>
+<li>用户 home npm 根 <code>~/node_modules/.bin/dsh-acp-demo</code>（手动 <code>npm i</code> 且 home 有
+     <code>package.json</code> 时）；</li>
+<li>PATH 上的全局 <code>dsh-acp-demo</code>（<code>npm i -g</code>）。注意：<code>npm i -g @deepseek-ai/dsh</code>
+     是 umbrella CLI，<strong>不带</strong> ACP 服务端，不作为检测目标。</li>
+<li>启动走 shell 包装（<code>bash -c</code> / <code>cmd /C</code>）<code>cd</code> 进 launcher 目录后 exec——ACP stdio
+    spawn 无 cwd 字段，而 <code>cordis.yml</code>、<code>.env</code>、session 持久化都相对该目录解析。</li>
+<li>会话在进程内，进程退出即失效，且不声明 <code>session/resume</code> / <code>session/load</code>：
+    多轮续聊降级为<strong>每轮新会话</strong>（单发式），Host 不再报「不支持继续会话」。</li>
+<li>API Key：在 launcher 目录 <code>.env</code> 写 <code>DEEPSEEK_API_KEY</code>，或在注册项 env 中
+    export。缺少时 prompt 报 <code>no API key for provider route "deepseek-official"</code>。</li>
 <li>Pi：无原生 ACP，走社区适配器 <code>pi-acp</code>（内部 spawn <code>pi --mode rpc</code>）；detect 用 host <code>pi</code>、
   ACP 入口用 <code>pi-acp</code>。pi 的 skill 以 <code>/skill:&lt;name&gt;</code> 暴露，故 Agentero 不发 <code>/&lt;name&gt;</code>
   mention，只注入 <code>SKILL.md</code> 正文。</li>
