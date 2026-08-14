@@ -8,6 +8,7 @@ pub mod commands;
 pub mod discover;
 pub mod elicitation;
 mod events;
+mod hidden_sessions;
 pub mod models;
 pub mod permission;
 pub mod prompts;
@@ -24,6 +25,7 @@ pub use acp::{
 pub use ask_user::AskUserGate;
 pub use elicitation::ElicitationGate;
 pub use events::AgentEventEmitter;
+pub use hidden_sessions::{HiddenAgentSessionStore, HiddenSessionScope};
 pub use permission::PermissionGate;
 pub use registry::AgentRegistry;
 pub use runtime::{AgentRunController, AgentWarmGate};

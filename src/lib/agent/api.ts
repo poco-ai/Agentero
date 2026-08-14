@@ -567,6 +567,18 @@ export async function cancelAgentRun(sessionId: string): Promise<void> {
 	await invokeAgentApi<boolean>("agent_cancel_run", { sessionId });
 }
 
+/** True while the Host still owns the ACP runtime wrapper for this run. */
+export async function isAgentRunActive(sessionId: string): Promise<boolean> {
+	return invokeAgentApi<boolean>("agent_run_is_active", { sessionId });
+}
+
+/** True while the Host owns any ACP runtime registered for this workflow. */
+export async function isAgentWorkflowActive(
+	workflow: string,
+): Promise<boolean> {
+	return invokeAgentApi<boolean>("agent_workflow_is_active", { workflow });
+}
+
 /** Answer a pending ACP permission request (ask mode). `optionId = null` cancels. */
 export async function respondPermission(
 	requestId: string,

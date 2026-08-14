@@ -98,6 +98,17 @@ mod acp_live {
         assert_eq!(codex.command, "codex-acp");
         assert_eq!(codex.args, Vec::<String>::new());
         assert_eq!(codex.detect_command.as_deref(), Some("codex"));
+        if cfg!(windows) {
+            assert_eq!(
+                codex.install_command.as_deref(),
+                Some("npm i -g @agentclientprotocol/codex-acp")
+            );
+        } else {
+            assert_eq!(
+                codex.install_command.as_deref(),
+                Some("npm i -g @agentclientprotocol/codex-acp --prefix \"$HOME/.local\"")
+            );
+        }
     }
 
     #[test]

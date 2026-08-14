@@ -937,6 +937,7 @@ async fn dispatch_agent_rpc(
                 app.state::<PermissionGate>(),
                 app.state::<crate::features::agent::ElicitationGate>(),
                 app.state::<crate::features::agent::AskUserGate>(),
+                app.state::<crate::features::agent::HiddenAgentSessionStore>(),
                 app.state::<std::sync::Arc<RemoteRegistry>>(),
                 request,
             )
@@ -979,6 +980,7 @@ async fn dispatch_agent_rpc(
                 app.state::<AgentRegistry>(),
                 app.state::<std::sync::Arc<RemoteRegistry>>(),
                 app.state::<crate::features::agent::AgentWarmGate>(),
+                app.state::<crate::features::agent::HiddenAgentSessionStore>(),
                 optional_string(&params, "agentId"),
                 vault_path,
                 optional_string(&params, "cursor"),

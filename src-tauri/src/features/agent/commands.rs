@@ -7,11 +7,14 @@ use crate::features::agent::models::{
 };
 use crate::features::agent::{
     list_agent_skills, new_ids, probe_agent, run_once, warm_agent, AgentEventEmitter,
-    AgentRegistry, AgentRunController, AgentWarmGate, AskUserGate, ElicitationGate, PermissionGate,
-    PermissionPolicy,
+    AgentRegistry, AgentRunController, AgentWarmGate, AskUserGate, ElicitationGate,
+    HiddenAgentSessionStore, PermissionGate, PermissionPolicy,
 };
-use crate::features::remote::{materialize_skills_to_work, resolve_remote_target, RemoteRegistry};
+use crate::features::remote::{
+    materialize_skills_to_work, resolve_remote_target, RemoteAgentTarget, RemoteRegistry,
+};
 use serde::Serialize;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{Manager, State};
@@ -47,6 +50,37 @@ fn list_from_state(state: crate::features::agent::models::AgentRegistryState) ->
         agents: state.agents,
         default_id: state.default_id,
         enabled: state.enabled,
+    }
+}
+
+/// Fetch past pages only when hidden sessions emptied the current page.
+///
+/// The returned cursor always comes from the page returned to the caller, so
+/// normal ACP pagination remains unchanged once a visible session is found.
+async fn list_visible_sessions(
+    desc: &AgentDescriptor,
+    cwd: PathBuf,
+    cursor: Option<String>,
+    remote: Option<&RemoteAgentTarget>,
+    hidden_sessions: &HiddenAgentSessionStore,
+) -> Result<crate::features::agent::models::AcpListSessionsResult, AppError> {
+    let mut cursor = cursor;
+    let mut seen_cursors = HashSet::new();
+    if let Some(initial_cursor) = cursor.as_ref() {
+        seen_cursors.insert(initial_cursor.clone());
+    }
+
+    loop {
+        let result =
+            crate::features::agent::list_acp_sessions(desc, cwd.clone(), cursor.clone(), remote)
+                .await?;
+        let filtered = hidden_sessions.filter(&desc.id, &cwd, result)?;
+        let Some(next_cursor) =
+            hidden_sessions.next_cursor_after_hidden_page(&filtered, &mut seen_cursors)
+        else {
+            return Ok(filtered);
+        };
+        cursor = Some(next_cursor);
     }
 }
 
@@ -300,6 +334,7 @@ pub async fn agent_run_once(
     gate: State<'_, PermissionGate>,
     elicitation_gate: State<'_, ElicitationGate>,
     ask_user_gate: State<'_, AskUserGate>,
+    hidden_sessions: State<'_, HiddenAgentSessionStore>,
     remote_registry: State<'_, Arc<RemoteRegistry>>,
     request: RunOnceRequest,
 ) -> Result<ApiResult<RunOnceAccepted>, String> {
@@ -316,6 +351,11 @@ pub async fn agent_run_once(
     );
     if request.prompt.trim().is_empty() && request.images.is_empty() {
         let err = AppError::message("prompt or images are required");
+        op.finish_err(&err);
+        return Ok(map_err(err));
+    }
+    if request.hide_from_chat_history && request.session_id.is_some() {
+        let err = AppError::message("hidden Agent runs must create a new provider session");
         op.finish_err(&err);
         return Ok(map_err(err));
     }
@@ -343,7 +383,7 @@ pub async fn agent_run_once(
         agent_id: desc.id.clone(),
     };
 
-    let cancellation = match runs.register(&session_id) {
+    let cancellation = match runs.register(&session_id, request.workflow.as_deref()) {
         Ok(cancellation) => cancellation,
         Err(error) => {
             op.finish_err(&error);
@@ -367,6 +407,12 @@ pub async fn agent_run_once(
     let log_agent_id = desc.id.clone();
     let session_agent_id = log_agent_id.clone();
     let remote_for_spawn = remote_target_early;
+    let hidden_session_scope = request.hide_from_chat_history.then(|| {
+        hidden_sessions.inner().scope(
+            session_agent_id.clone(),
+            resolve_agent_cwd(request.vault_path.as_deref(), remote_for_spawn.as_ref()),
+        )
+    });
     tauri::async_runtime::spawn(async move {
         let run_result = run_once(
             events.clone(),
@@ -393,6 +439,7 @@ pub async fn agent_run_once(
             cancellation,
             remote_for_spawn,
             request.session_id.clone(),
+            hidden_session_scope,
         )
         .await;
         if run_result.is_ok() {
@@ -421,6 +468,7 @@ pub async fn agent_list_sessions(
     registry: State<'_, AgentRegistry>,
     remote_registry: State<'_, Arc<RemoteRegistry>>,
     warm_gate: State<'_, AgentWarmGate>,
+    hidden_sessions: State<'_, HiddenAgentSessionStore>,
     agent_id: Option<String>,
     vault_path: Option<String>,
     cursor: Option<String>,
@@ -437,16 +485,15 @@ pub async fn agent_list_sessions(
             Ok(t) => t,
             Err(e) => return Ok(map_err(e)),
         };
-    let cwd = if let Some(ref rt) = remote_target {
-        rt.agent_cwd()
-    } else {
-        vault_path
-            .map(PathBuf::from)
-            .filter(|p| p.is_dir())
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
-    };
-    match crate::features::agent::list_acp_sessions(&desc, cwd, cursor, remote_target.as_ref())
-        .await
+    let cwd = resolve_agent_cwd(vault_path.as_deref(), remote_target.as_ref());
+    match list_visible_sessions(
+        &desc,
+        cwd,
+        cursor,
+        remote_target.as_ref(),
+        hidden_sessions.inner(),
+    )
+    .await
     {
         Ok(result) => {
             warm_gate.clear(&desc.id);
@@ -477,19 +524,26 @@ pub async fn agent_load_session(
             Ok(t) => t,
             Err(e) => return Ok(map_err(e)),
         };
-    let cwd = if let Some(ref rt) = remote_target {
-        rt.agent_cwd()
-    } else {
-        vault_path
-            .map(PathBuf::from)
-            .filter(|p| p.is_dir())
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
-    };
+    let cwd = resolve_agent_cwd(vault_path.as_deref(), remote_target.as_ref());
     match crate::features::agent::load_acp_session(&desc, session_id, cwd, remote_target.as_ref())
         .await
     {
         Ok(result) => Ok(ApiResult::ok(result)),
         Err(error) => Ok(map_err(error)),
+    }
+}
+
+fn resolve_agent_cwd(
+    vault_path: Option<&str>,
+    remote_target: Option<&RemoteAgentTarget>,
+) -> PathBuf {
+    if let Some(remote_target) = remote_target {
+        remote_target.agent_cwd()
+    } else {
+        vault_path
+            .map(PathBuf::from)
+            .filter(|path| path.is_dir())
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
     }
 }
 
@@ -502,6 +556,32 @@ pub fn agent_cancel_run(
     match runs.cancel(&session_id) {
         Ok(()) => ApiResult::ok(true),
         Err(e) => map_err(e),
+    }
+}
+
+/// Read-only lifecycle gate for callers that must wait until the ACP spawn
+/// wrapper has completed cleanup after receiving a terminal event.
+#[tauri::command]
+pub fn agent_run_is_active(
+    runs: State<'_, AgentRunController>,
+    session_id: String,
+) -> ApiResult<bool> {
+    match runs.is_active(&session_id) {
+        Ok(active) => ApiResult::ok(active),
+        Err(error) => map_err(error),
+    }
+}
+
+/// Read-only Host barrier for workflows whose child sessions must all finish
+/// before another subsystem (for example realtime Voice) can start.
+#[tauri::command]
+pub fn agent_workflow_is_active(
+    runs: State<'_, AgentRunController>,
+    workflow: String,
+) -> ApiResult<bool> {
+    match runs.is_workflow_active(&workflow) {
+        Ok(active) => ApiResult::ok(active),
+        Err(error) => map_err(error),
     }
 }
 

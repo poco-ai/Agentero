@@ -1,7 +1,7 @@
 # Codex 历史恢复误用 runtime session id
 
-**状态**：已修复
-**Issue**：[#209](https://github.com/poco-ai/Agentero/issues/209)
+**状态**：已修复  
+**Issue**：[#209](https://github.com/poco-ai/Agentero/issues/209)  
 **影响面**：Agent 面板中新建对话后打开刚结束的 Codex 历史会话
 
 ## 现象

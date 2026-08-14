@@ -33,6 +33,15 @@ spawn 用户配置的 agent
 
 生成中取消时，只要 provider session 已创建或本轮正在恢复，取消结果仍携带 `providerSessionId`。前端保留该 ID，并写回视觉批注 mark，使下一条消息和重启后的 pin 续聊继续同一会话；在 `session/new` 返回前取消时尚无可恢复的 provider session。
 
+`hideFromChatHistory: true` 的非 Composer 运行在 `session/new` 返回
+`providerSessionId` 的同一时刻，将
+`(agentId, cwd, providerSessionId)` 写入本地
+`hidden-agent-sessions.sqlite`。索引使用 SQLite 事务与 WAL，应用重启后仍有效；
+`agent_list_sessions` 只过滤当前 Agent 与当前 Vault/cwd 的精确命中项。默认
+`false` 的普通会话不写该索引，也不会因其它 Agent 或其它 Vault 的记录被过滤。
+隐藏后台运行必须创建新 provider session，Host 拒绝用
+`hideFromChatHistory: true` 恢复普通可见会话；完成事件前再次记录是幂等兜底。
+
 `session/load` 会把历史以 `SessionNotification` 回放。Host 在
 `session/prompt` 之前 **suppress** 回放中的 stream/tool/plan（不 `agent:stream`、
 不写入本轮 content buffer），避免第二轮气泡开头重复上一轮回答；usage /
@@ -43,8 +52,9 @@ commands / config 仍可在 load 期间转发。
 | Command | 说明 |
 |---|---|
 | `agent_probe` / `agent_warm` | 探测与预热 |
-| `agent_run_once` | 发起一轮；`sessionId` 时按能力 resume 或 load；可选 `images[]`（base64 + mime）→ ACP `ContentBlock::Image` |
-| `agent_list_sessions` / `agent_load_session` | 会话历史 |
+| `agent_run_once` | 发起一轮；`sessionId` 时按能力 resume 或 load；可选 `images[]`（base64 + mime）→ ACP `ContentBlock::Image`；隐藏运行在完成事件前持久记录 provider session |
+| `agent_list_sessions` / `agent_load_session` | 会话历史；列表按 Agent + Vault/cwd 过滤已持久化的隐藏 provider session |
+| `agent_run_is_active` | 只读查询 runtime 是否仍由 spawn wrapper 持有；终态事件后等待 `false` 可确认 ACP child 已完成 Host 清理 |
 | `agent_list_skills` | Vault skill 列表 |
 | `agent_respond_permission` | 回答权限请求 |
 | `agent_respond_elicitation` | 回答 form elicitation（Codex `request_user_input`） |
@@ -100,6 +110,42 @@ ACP **没有**统一的 ask-user tool 规范：各 harness 的字段名、挂载
 - 输出约定：工作流要求 `## Sources`（相对 Vault 路径）；双链保留 `[[...]]`。
 - `AGENTS.md` 已作为 progressive disclosure 系统上下文注入所有工作流 prompt（优先级：Vault 根 `AGENTS.md` → 当前 paper `NOTES.md` → marks）。
 - 自由模型选择：`preferred_model_id` 可指向 ACP catalog 外的任意模型 id；Warm / Run 时始终尝试 `session/set_config_option`，失败不阻断会话。
+
+## 会前答辩准备
+
+首版协调器位于前端领域模块 `src/lib/voice-defense/preparation/`，采用固定
+fan-out/fan-in，不是通用工作流引擎：
+
+```text
+论文快照
+  ├─ paper-analysis ───────┐
+  └─ adversarial-review ───┼─ synthesis ─ 用户确认 ─ Voice
+```
+
+- 两个分析节点并发上限 2；所有论文的 preparation 后台任务使用独立 kind，队列并发 1；
+- Worker 复用 `agent_run_once`，固定 `restricted`、`autoApprove: false`、
+  `hideFromChatHistory: true`，并透传当前 Agent/model/reasoning effort；
+- 每个分析节点最多自动重试一次；手动恢复创建新的 immutable attempt；一路成功允许
+  partial 整合，两路失败或整合失败以真实失败结束；
+- Host `vault_file_fingerprint` 流式计算输入 SHA-256，协调器在 fan-out、整合前后和确认前
+  重验 snapshot；变化后标记 stale；
+- JSON artifact 先做 schema、证据路径和 Vault 边界校验，再原子写入。整合前回读 artifact，
+  重验 envelope、payload schema 与内容 hash，并把验证后的 payload 内嵌给 synthesis；
+- 论文分析 schema 强制覆盖研究问题、贡献、方法、假设、实验、结果、消融/鲁棒性/误差、
+  局限/未来工作和关键元素九类主题；审稿 schema 强制覆盖六类质疑、基础与高级难度，
+  且每题至少一个追问；
+- manifest、artifact 和 `defense-brief.md` 通过 `vault_write_text_atomic` 提交。不会写论文、
+  `PAPER.md` 或 `NOTES.md`；
+- 排队等待接受 `AbortSignal`，因此未开始的任务也可立即取消；运行中取消会停止全部 runtime，
+  并轮询 `agent_run_is_active=false` 后移除 child；
+- `AgentRunController` 同时记录 runtime 所属 workflow。Voice 启动前查询
+  `agent_workflow_is_active("voice_defense_preparation")` 与
+  `agent_workflow_is_active("voice_defense_review")` 作为 Host 屏障，即使 WebView 重载后
+  前端内存状态丢失，也不会在准备或会后评价 ACP 仍存活时进入通话；
+- 会后评价走同一套隐藏 ACP（`voice_defense_review`，restricted、不进聊天历史），产物写入
+  `voice-defense/<stem>-review.md`，不覆盖论文或用户手写笔记；
+- manifest 记录节点时间、Agent/provider session、stop reason、provider 可用的 usage、
+  partial/stale、用户确认/编辑/完成状态；不保存 reasoning。
 
 ## 模型协商
 

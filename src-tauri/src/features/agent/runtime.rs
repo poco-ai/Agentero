@@ -9,47 +9,86 @@ use tokio::sync::watch;
 /// ACP connections are intentionally short-lived today, so cancellation state is
 /// runtime-only and is removed as soon as the corresponding session finishes.
 pub struct AgentRunController {
-    cancellations: Mutex<HashMap<String, watch::Sender<bool>>>,
+    runs: Mutex<HashMap<String, ActiveAgentRun>>,
+}
+
+struct ActiveAgentRun {
+    cancellation: watch::Sender<bool>,
+    workflow: Option<String>,
 }
 
 impl AgentRunController {
     pub fn new() -> Self {
         Self {
-            cancellations: Mutex::new(HashMap::new()),
+            runs: Mutex::new(HashMap::new()),
         }
     }
 
-    pub fn register(&self, session_id: &str) -> Result<watch::Receiver<bool>, AppError> {
+    pub fn register(
+        &self,
+        session_id: &str,
+        workflow: Option<&str>,
+    ) -> Result<watch::Receiver<bool>, AppError> {
         let (sender, receiver) = watch::channel(false);
-        let mut cancellations = self
-            .cancellations
+        let mut runs = self
+            .runs
             .lock()
             .map_err(|_| AppError::message("agent run controller lock poisoned"))?;
-        if cancellations.contains_key(session_id) {
+        if runs.contains_key(session_id) {
             return Err(AppError::message("agent run is already active"));
         }
-        cancellations.insert(session_id.to_string(), sender);
+        runs.insert(
+            session_id.to_string(),
+            ActiveAgentRun {
+                cancellation: sender,
+                workflow: workflow
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string),
+            },
+        );
         Ok(receiver)
     }
 
     pub fn cancel(&self, session_id: &str) -> Result<(), AppError> {
         let sender = self
-            .cancellations
+            .runs
             .lock()
             .map_err(|_| AppError::message("agent run controller lock poisoned"))?
             .get(session_id)
-            .cloned()
+            .map(|run| run.cancellation.clone())
             .ok_or_else(|| AppError::message("agent run is no longer active"))?;
         sender.send_replace(true);
         Ok(())
     }
 
     pub fn finish(&self, session_id: &str) -> Result<(), AppError> {
-        self.cancellations
+        self.runs
             .lock()
             .map_err(|_| AppError::message("agent run controller lock poisoned"))?
             .remove(session_id);
         Ok(())
+    }
+
+    pub fn is_active(&self, session_id: &str) -> Result<bool, AppError> {
+        Ok(self
+            .runs
+            .lock()
+            .map_err(|_| AppError::message("agent run controller lock poisoned"))?
+            .contains_key(session_id))
+    }
+
+    pub fn is_workflow_active(&self, workflow: &str) -> Result<bool, AppError> {
+        let workflow = workflow.trim();
+        if workflow.is_empty() {
+            return Err(AppError::message("agent workflow is required"));
+        }
+        Ok(self
+            .runs
+            .lock()
+            .map_err(|_| AppError::message("agent run controller lock poisoned"))?
+            .values()
+            .any(|run| run.workflow.as_deref() == Some(workflow)))
     }
 }
 
@@ -146,7 +185,9 @@ mod tests {
     #[test]
     fn cancellation_is_signalled_only_while_the_run_is_registered() {
         let controller = AgentRunController::new();
-        let receiver = controller.register("session-1").expect("register run");
+        let receiver = controller
+            .register("session-1", None)
+            .expect("register run");
 
         controller.cancel("session-1").expect("cancel run");
         assert!(*receiver.borrow());
@@ -158,10 +199,71 @@ mod tests {
     #[test]
     fn duplicate_registration_does_not_replace_the_active_run() {
         let controller = AgentRunController::new();
-        let receiver = controller.register("session-1").expect("register run");
+        let receiver = controller
+            .register("session-1", None)
+            .expect("register run");
 
-        assert!(controller.register("session-1").is_err());
+        assert!(controller.register("session-1", None).is_err());
         controller.cancel("session-1").expect("cancel original run");
         assert!(*receiver.borrow());
+    }
+
+    #[test]
+    fn active_state_clears_only_after_finish() {
+        let controller = AgentRunController::new();
+        let _receiver = controller
+            .register("session-1", None)
+            .expect("register run");
+
+        assert!(controller.is_active("session-1").expect("query active run"));
+        controller.finish("session-1").expect("finish run");
+        assert!(!controller
+            .is_active("session-1")
+            .expect("query finished run"));
+        assert!(!controller.is_active("unknown").expect("query unknown run"));
+    }
+
+    #[test]
+    fn workflow_queries_are_independent() {
+        let controller = AgentRunController::new();
+        let _preparation = controller
+            .register("prep", Some("voice_defense_preparation"))
+            .expect("register preparation");
+
+        assert!(controller
+            .is_workflow_active("voice_defense_preparation")
+            .expect("query preparation"));
+        assert!(!controller
+            .is_workflow_active("paper_read")
+            .expect("query unrelated workflow"));
+    }
+
+    #[test]
+    fn workflow_stays_active_until_its_last_run_finishes() {
+        let controller = AgentRunController::new();
+        let _first = controller
+            .register("prep-1", Some("voice_defense_preparation"))
+            .expect("register first preparation");
+        let _second = controller
+            .register("prep-2", Some("voice_defense_preparation"))
+            .expect("register second preparation");
+
+        controller.finish("prep-1").expect("finish first run");
+        assert!(controller
+            .is_workflow_active("voice_defense_preparation")
+            .expect("query remaining run"));
+
+        controller.finish("prep-2").expect("finish second run");
+        assert!(!controller
+            .is_workflow_active("voice_defense_preparation")
+            .expect("query finished workflow"));
+    }
+
+    #[test]
+    fn empty_workflow_queries_are_rejected() {
+        let controller = AgentRunController::new();
+
+        assert!(controller.is_workflow_active("").is_err());
+        assert!(controller.is_workflow_active("   ").is_err());
     }
 }

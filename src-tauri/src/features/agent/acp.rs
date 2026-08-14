@@ -6,6 +6,7 @@ use crate::features::agent::ask_user::{
 use crate::features::agent::discover::{path_entries, resolve_command};
 use crate::features::agent::elicitation::{ElicitationAnswer, ElicitationGate};
 use crate::features::agent::events::AgentEventEmitter;
+use crate::features::agent::hidden_sessions::HiddenSessionScope;
 use crate::features::agent::models::{
     AcpHistoryLine, AcpHistoryPart, AcpHistoryTool, AcpListSessionsResult, AcpLoadSessionResult,
     AcpSessionCapabilities, AcpSessionInfo, AgentCollaborationEvent, AgentCommand,
@@ -58,9 +59,9 @@ fn to_acp_agent_local(desc: &AgentDescriptor) -> Result<AcpAgent, AppError> {
         }
     }
     // Gemini CLI launches a browser OAuth flow from `new_session` when it has no
-    // cached credentials; our 15s ACP timeout kills the child before login can
-    // finish, so the browser would pop up on every spawn. Sign-in must happen in
-    // a terminal instead (BYOA).
+    // cached credentials; our ACP session timeout kills the child before login
+    // can finish, so the browser would pop up on every spawn. Sign-in must
+    // happen in a terminal instead (BYOA).
     if matches!(desc.template, AgentTemplate::Gemini) && !child_env.contains_key("NO_BROWSER") {
         child_env.insert("NO_BROWSER".to_string(), "true".to_string());
     }
@@ -125,8 +126,28 @@ async fn wait_for_cancellation(cancellation: &mut watch::Receiver<bool>) {
     let _ = cancellation.changed().await;
 }
 
-/// Shared budget for ACP initialize / session RPCs and settings probe.
+/// Shared budget for ACP initialize / control RPCs and settings probe.
 const ACP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// Opening a session can cold-start the provider (runtime boot, MCP servers,
+/// auth checks) and gets slower when several agents spawn in parallel, e.g.
+/// the two defense-preparation workers. Give session/new-resume-load a longer
+/// budget than lightweight control RPCs.
+const ACP_SESSION_OPEN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
+async fn timed_acp_request_with<T, E>(
+    label: &str,
+    budget: std::time::Duration,
+    request: impl std::future::Future<Output = Result<T, E>>,
+) -> Result<T, agent_client_protocol::Error>
+where
+    E: std::fmt::Display,
+{
+    tokio::time::timeout(budget, request)
+        .await
+        .map_err(|_| acp_err(format!("{label} timed out after {}s", budget.as_secs())))?
+        .map_err(|error| acp_err(format!("{label}: {error}")))
+}
 
 async fn timed_acp_request<T, E>(
     label: &str,
@@ -135,15 +156,7 @@ async fn timed_acp_request<T, E>(
 where
     E: std::fmt::Display,
 {
-    tokio::time::timeout(ACP_TIMEOUT, request)
-        .await
-        .map_err(|_| {
-            acp_err(format!(
-                "{label} timed out after {}s",
-                ACP_TIMEOUT.as_secs()
-            ))
-        })?
-        .map_err(|error| acp_err(format!("{label}: {error}")))
+    timed_acp_request_with(label, ACP_TIMEOUT, request).await
 }
 
 fn cancelled_payload(
@@ -1186,6 +1199,22 @@ pub async fn probe_agent(
     }
 }
 
+fn complete_run(
+    app: &AgentEventEmitter,
+    hidden_session_scope: Option<&HiddenSessionScope>,
+    payload: AgentResultPayload,
+) -> Result<AgentResultPayload, agent_client_protocol::Error> {
+    // Persist the provider id before notifying the UI. A history refresh caused
+    // by agent:completed must never race ahead of hidden-session registration.
+    if let Some(scope) = hidden_session_scope {
+        scope
+            .record_completed(&payload)
+            .map_err(|error| acp_err(format!("persist hidden Agent session: {error}")))?;
+    }
+    let _ = app.emit("agent:completed", payload.clone());
+    Ok(payload)
+}
+
 /// One-shot prompt: spawn → initialize → session → prompt → stream events → completed/failed.
 #[allow(clippy::too_many_arguments)]
 pub async fn run_once(
@@ -1213,6 +1242,7 @@ pub async fn run_once(
     mut cancellation: watch::Receiver<bool>,
     remote: Option<crate::features::remote::RemoteAgentTarget>,
     resume_session_id: Option<String>,
+    hidden_session_scope: Option<HiddenSessionScope>,
 ) -> Result<AgentResultPayload, AppError> {
     let skill_style = skill_mention_style(&desc.template);
     let skill_instructions = if is_acp_command {
@@ -1435,6 +1465,7 @@ pub async fn run_once(
             let live_stream = live_stream.clone();
             let content_for_conn = content_for_conn.clone();
             let thought_for_conn = thought_for_conn.clone();
+            let hidden_session_scope = hidden_session_scope.clone();
             move |connection: ConnectionTo<Agent>| async move {
                 let init = tokio::select! {
                     result = timed_acp_request(
@@ -1451,8 +1482,11 @@ pub async fn run_once(
                             &content_for_conn,
                             &thought_for_conn,
                         );
-                        let _ = app_for_conn.emit("agent:completed", payload.clone());
-                        return Ok(payload);
+                        return complete_run(
+                            &app_for_conn,
+                            hidden_session_scope.as_ref(),
+                            payload,
+                        );
                     }
                 };
 
@@ -1468,8 +1502,9 @@ pub async fn run_once(
                 let (acp_session_id, mut config_options) = if let Some(ref rid) = resume_id {
                     if can_resume {
                         let resp = tokio::select! {
-                            result = timed_acp_request(
+                            result = timed_acp_request_with(
                                 "session/resume",
+                                ACP_SESSION_OPEN_TIMEOUT,
                                 connection
                                     .send_request(ResumeSessionRequest::new(
                                         SessionId::new(rid.as_str()),
@@ -1485,8 +1520,11 @@ pub async fn run_once(
                                     &content_for_conn,
                                     &thought_for_conn,
                                 );
-                                let _ = app_for_conn.emit("agent:completed", payload.clone());
-                                return Ok(payload);
+                                return complete_run(
+                                    &app_for_conn,
+                                    hidden_session_scope.as_ref(),
+                                    payload,
+                                );
                             }
                         };
                         (
@@ -1497,8 +1535,9 @@ pub async fn run_once(
                         // Grok and similar: continue across process restarts via
                         // session/load (requires mcpServers; schema defaults to []).
                         let resp = tokio::select! {
-                            result = timed_acp_request(
+                            result = timed_acp_request_with(
                                 "session/load",
+                                ACP_SESSION_OPEN_TIMEOUT,
                                 connection
                                     .send_request(
                                         LoadSessionRequest::new(
@@ -1517,8 +1556,11 @@ pub async fn run_once(
                                     &content_for_conn,
                                     &thought_for_conn,
                                 );
-                                let _ = app_for_conn.emit("agent:completed", payload.clone());
-                                return Ok(payload);
+                                return complete_run(
+                                    &app_for_conn,
+                                    hidden_session_scope.as_ref(),
+                                    payload,
+                                );
                             }
                         };
                         (
@@ -1533,8 +1575,9 @@ pub async fn run_once(
                     }
                 } else {
                     let new_session = tokio::select! {
-                        result = timed_acp_request(
+                        result = timed_acp_request_with(
                             "new_session",
+                            ACP_SESSION_OPEN_TIMEOUT,
                             connection.send_request(NewSessionRequest::new(cwd)).block_task(),
                         ) => result?,
                         () = wait_for_cancellation(&mut cancellation) => {
@@ -1545,8 +1588,11 @@ pub async fn run_once(
                                 &content_for_conn,
                                 &thought_for_conn,
                             );
-                            let _ = app_for_conn.emit("agent:completed", payload.clone());
-                            return Ok(payload);
+                            return complete_run(
+                                &app_for_conn,
+                                hidden_session_scope.as_ref(),
+                                payload,
+                            );
                         }
                     };
                     (
@@ -1554,6 +1600,14 @@ pub async fn run_once(
                         new_session.config_options.unwrap_or_default(),
                     )
                 };
+                if let Some(scope) = hidden_session_scope.as_ref() {
+					let provider_session_id = acp_session_id.to_string();
+                    scope
+						.record_provider_session(&provider_session_id)
+                        .map_err(|error| {
+                            acp_err(format!("persist hidden Agent session: {error}"))
+                        })?;
+                }
                 macro_rules! return_cancelled {
                     () => {{
                         let payload = cancelled_payload(
@@ -1563,8 +1617,11 @@ pub async fn run_once(
                             &content_for_conn,
                             &thought_for_conn,
                         );
-                        let _ = app_for_conn.emit("agent:completed", payload.clone());
-                        return Ok(payload);
+                        return complete_run(
+                            &app_for_conn,
+                            hidden_session_scope.as_ref(),
+                            payload,
+                        );
                     }};
                 }
                 if let Some(ev) = models_from_config_options(
@@ -1716,8 +1773,11 @@ pub async fn run_once(
                         &content_for_conn,
                         &thought_for_conn,
                     );
-                    let _ = app_for_conn.emit("agent:completed", payload.clone());
-                    return Ok(payload);
+                    return complete_run(
+                        &app_for_conn,
+                        hidden_session_scope.as_ref(),
+                        payload,
+                    );
                 }
 
                 // After session/load|resume, drop any history-replay chunks that
@@ -1762,8 +1822,11 @@ pub async fn run_once(
                             &content_for_conn,
                             &thought_for_conn,
                         );
-                        let _ = app_for_conn.emit("agent:completed", payload.clone());
-                        return Ok(payload);
+                        return complete_run(
+                            &app_for_conn,
+                            hidden_session_scope.as_ref(),
+                            payload,
+                        );
                     }
                 };
 
@@ -1793,8 +1856,11 @@ pub async fn run_once(
                     stop_reason: stop_for_conn.lock().ok().and_then(|g| g.clone()),
                     provider_session_id: Some(acp_session_id.to_string()),
                 };
-                let _ = app_for_conn.emit("agent:completed", payload.clone());
-                Ok(payload)
+                complete_run(
+                    &app_for_conn,
+                    hidden_session_scope.as_ref(),
+                    payload,
+                )
             }
         })
         .await;
@@ -1926,8 +1992,9 @@ pub async fn warm_agent(
                 )
                 .await?;
 
-                let new_session = timed_acp_request(
+                let new_session = timed_acp_request_with(
                     "new_session",
+                    ACP_SESSION_OPEN_TIMEOUT,
                     connection
                         .send_request(NewSessionRequest::new(cwd))
                         .block_task(),
