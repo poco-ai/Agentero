@@ -3666,49 +3666,51 @@
 <li>远程 Vault 会话下同样可用（广场不依赖 vault 文件 IO）。</li>
 </ul>
 <h3 id="321">3.2.1 入库（已实现）<a class="headerlink" href="#321" title="Permanent link">&para;</a></h3>
-<p>代理注入的桥接脚本给每行论文标题追加 <code>[入库]</code>，与站点自带的 <code>[PDF] [Copy] [Kimi] [REL]</code> 同排。点击后把 <code>{ id, url, title }</code> 交给面板，面板调用现成的 <code>lookupSubmit</code> → <code>lookup_import_batch</code>，结果再回传给该行显示 <code>[已入库]</code>。</p>
-<p><strong>关键点：喂给魔棒的是每行 <code>#N</code> 序号链接的 href</strong>，也就是上游权威页面。四种分区形态一致：</p>
+<p>代理注入的桥接脚本给每行论文标题追加 <code>[入库]</code>，与站点自带的 <code>[PDF] [Copy] [Kimi] [REL]</code> 同排。点击后把 <code>{ id, branch, url, title }</code> 交给面板，结果回传给该行显示 <code>[已入库]</code>。</p>
+<p><strong>分两条路，因为质量不对等：</strong></p>
 <table>
 <thead>
 <tr>
-<th>分区</th>
-<th>papers.cool id</th>
-<th><code>#N</code> href</th>
+<th>行类型</th>
+<th>路线</th>
+<th>理由</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>arxiv</td>
-<td><code>2608.13558</code></td>
-<td><code>arxiv.org/abs/2608.13558</code></td>
+<td>arXiv</td>
+<td>现成魔棒，喂 <code>arxiv.org/abs/{id}</code></td>
+<td>原生 arXiv 路径还能多拿 <code>arxiv_id</code> 与 LaTeX 源码</td>
 </tr>
 <tr>
-<td>AAAI</td>
-<td><code>36958@AAAI</code></td>
-<td><code>ojs.aaai.org/…/article/view/36958</code></td>
-</tr>
-<tr>
-<td>NeurIPS</td>
-<td><code>aVh9KRZdRk@OpenReview</code></td>
-<td><code>openreview.net/forum?id=aVh9KRZdRk</code></td>
-</tr>
-<tr>
-<td>ACL</td>
-<td><code>2026.acl-long.1@ACL</code></td>
-<td><code>aclanthology.org/2026.acl-long.1/</code></td>
+<td>其余（venue）</td>
+<td><code>paper_coolpapers_import</code>，读该行自己的 papers.cool 页面</td>
+<td>不经 Translator；见下</td>
 </tr>
 </tbody>
 </table>
-<p>因此<strong>零后端改动</strong>：<code>extract_primary_identifier</code> 把任何 http(s) 串判为 <code>IdentifierKind::Url</code>，<code>translator_request</code> 再路由到 Translator 的 <code>/web</code>（arxiv.org 另有原生特判，归一到 abs 页）。这也是 venue 论文唯一可行的入库路径——它们既没有 arXiv id 也没有 DOI，<code>lookup_import_batch</code> 直接吃 id 是吃不下的。</p>
+<p><strong>为什么 venue 不走 Translator。</strong> papers.cool 的论文页自带 Highwire <code>citation_*</code>（title / authors / abstract / publisher / date，<strong>以及 <code>citation_pdf_url</code></strong>），实测覆盖它聚合的全部 11 种出版商形态。而把出版商 URL 送去 Translator：</p>
 <ul>
-<li><strong>venue 行硬依赖 Translator</strong>（arXiv 有原生兜底，venue 没有）。Translator 不可用时必须明确报错，不能静默失败。</li>
-<li>只做<strong>单条入库</strong>，不提供全选批量：<code>/web</code> 是逐条抓取出版商页面，批量既慢又容易被对方限流。</li>
-<li>注入的 <code>[入库]</code> <strong>不带 href</strong>，否则会被上面的跨源链接拦截器当成外链送去系统浏览器。</li>
-<li>行是滚动加载的（<code>loadMorePapers</code> 追加 <code>.panel.paper</code>），所以除首屏遍历外还挂了 <code>MutationObserver</code>。</li>
-<li><code>lookupSubmit</code> 内部是 fire-and-forget 后台任务，异常不会冒泡，因此入库按钮另设超时兜底，避免永远停在 <code>[入库中]</code>；重复点击安全（Host 按 arXiv id / DOI / 归一标题去重）。</li>
-<li>入库后<strong>不自动打开论文</strong>，否则会把正在连续浏览的用户拽出广场面板。</li>
+<li><code>openreview.net</code>（COLM / CoRL / ICLR / ICML / MLSYS / NeurIPS / UAI <strong>共 7 个 venue</strong>）抓到的是 Cloudflare 人机验证页，0 作者；</li>
+<li><code>ojs.aaai.org</code>（AAAI）HTTP 500；</li>
+<li><code>www.ecva.net</code>（ECCV）HTTP 300 多选；</li>
+<li><code>papers.miccai.org</code> / <code>www.ndss-symposium.org</code> 退化成 <code>webpage</code> / <code>blogPost</code>；</li>
+<li><strong>且 11/11 都不返回 PDF 附件。</strong></li>
 </ul>
-<p><strong>后续（非 P0）</strong>：批量入库、预览抽屉。</p>
+<p>也就是说 Translator 那条路「一半站点坏、还全都缺 PDF、又多一跳依赖用户自建服务」，唯一净胜的只有 DOI（当前不填）。详见 <a href="https://github.com/poco-ai/Agentero/issues/333">#333</a>。</p>
+<p><strong>catalog id 用 papers.cool 原生 id</strong>（如 <code>36962@AAAI</code>、<code>2026.acl-long.1@ACL</code>）。<code>allocate_paper_path</code> 不清洗 id、直接当目录名，<code>@</code> <code>.</code> 三平台合法。选它而非默认派生链是因为它全局唯一、去重精确；派生链的 <code>citekey_fallback</code>（<code>{姓}{年}{标题首词}</code>）会撞，而 <code>DedupePolicy::ByCatalogId</code> 撞了会<strong>静默当重复吞掉</strong>。代价是同一篇论文日后从 BibTeX / Zotero 进来 id 不同、会重复——已知取舍，原生 id 另存进 <code>source_url</code> 保留可追溯性。</p>
+<p><strong>其它约定</strong></p>
+<ul>
+<li>复用共享的 <code>paper_commit</code>：catalog 插入、NOTES.md 播种、PDF 下载、去重全部沿用，不新增管线。</li>
+<li><code>paper_type</code> 不是 Zotero itemType，取值只有 <code>arxiv</code> / <code>doi</code> / <code>html</code> / <code>other</code>；无 DOI 时为 <code>other</code>。</li>
+<li>元数据解析复用 <code>map_zotero_item</code>（先拼一个 Zotero 形状的值），避免第二套字段映射。</li>
+<li>注入的 <code>[入库]</code> <strong>不带 href</strong>，否则会被跨源链接拦截器当外链送去系统浏览器。</li>
+<li>行是滚动加载的（<code>loadMorePapers</code> 追加 <code>.panel.paper</code>），除首屏遍历外挂 <code>MutationObserver</code>。</li>
+<li>只做<strong>单条入库</strong>，不提供批量。</li>
+<li>入库后<strong>不自动打开论文</strong>，否则会把连续浏览的用户拽出面板。</li>
+<li>PDF 没取到时提示「已导入（未取到 PDF）」，不谎报干净成功。</li>
+</ul>
+<p><strong>后续（非 P0）</strong>：批量入库、预览抽屉；DOI 可按需回补（AAAI / IJCAI 的出版商页有 <code>citation_doi</code>，<code>/search</code> 按 DOI 的元数据质量最高）。</p>
 <h3 id="33">3.3 播客（占位）<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
 <ul>
 <li>空态文案：订阅源、单集列表与播放将在后续版本提供。  </li>
