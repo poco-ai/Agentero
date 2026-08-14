@@ -30,6 +30,10 @@ export type AgentPanelProps = {
 	selectedPaperTitle?: string | null;
 	vaultMarkdownPaths?: string[];
 	/**
+	 * Vault-relative files supported by the voice-defense snapshot pipeline.
+	 */
+	vaultDefenseMaterialPaths?: string[];
+	/**
 	 * Vault-relative directory paths from the file tree.
 	 * Used so context chips show a folder icon for org / notes dirs.
 	 */

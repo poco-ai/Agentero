@@ -9,5 +9,7 @@
 <dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Agentero uses the microphone during a live paper defense.</string>
 </dict>
 </plist>

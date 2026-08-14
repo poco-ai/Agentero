@@ -17,6 +17,7 @@
 		"demo:vault:empty": "node test/scripts/create-demo-vault.mjs --empty",
 		"demo:vault:verify": "node test/scripts/create-demo-vault.mjs --verify",
 		"probe:translator": "node test/scripts/probe-translator.mjs",
+		"voice-defense:eval": "node scripts/evaluate-voice-defense.mjs",
 		"tauri": "tauri",
 		"cli:bundle": "node scripts/prepare-bundled-cli.mjs",
 		"cli:bundle:release": "node scripts/prepare-bundled-cli.mjs --release",

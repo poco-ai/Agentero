@@ -44,7 +44,8 @@
 		"tabClose": "关闭标签",
 		"tabNext": "下一标签",
 		"tabPrev": "上一标签",
-		"wandOpen": "魔棒（按标识符入库）"
+		"wandOpen": "魔棒（按标识符入库）",
+		"vivaOpen": "进入答辩间"
 	},
 	"titlebar": {
 		"showLeftSidebar": "显示左侧边栏",
@@ -121,7 +122,8 @@
 		"titleAnnotations": "批注",
 		"titleReferences": "参考文献",
 		"titleFigures": "解析",
-		"titleDocument": "文档"
+		"titleDocument": "文档",
+		"titleViva": "答辩间"
 	},
 	"errors": {
 		"openVaultDesktopOnly": "打开知识库需要 Tauri 桌面应用（pnpm tauri dev）。",
@@ -236,6 +238,15 @@
 		"paperReadMarking": "正在标记为已读…",
 		"paperReadDone": "精读完成",
 		"paperReadFailed": "精读失败",
+		"voiceDefensePreparation": "准备答辩材料",
+		"voiceDefensePreparationQueued": "正在等待准备答辩材料…",
+		"voiceDefensePreparationRunning": "Agent 正在准备答辩材料…",
+		"voiceDefensePreparationSnapshotting": "正在创建论文快照…",
+		"voiceDefensePreparationAnalyzing": "正在分析论文并检查可能的质疑…",
+		"voiceDefensePreparationSynthesizing": "正在整理答辩材料…",
+		"voiceDefensePreparationAwaitingReview": "答辩材料已生成，等待检查",
+		"voiceDefenseReview": "生成答辩评价",
+		"voiceDefenseReviewRunning": "Agent 正在撰写答辩评价…",
 		"connector": "正在保存 Connector 附件",
 		"connectorComplete": "Connector 附件已就绪",
 		"connectorFailed": "Connector 附件失败"

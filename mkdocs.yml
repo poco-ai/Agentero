@@ -102,6 +102,10 @@ nav:
       - 拖动 Dockview 分隔条时 PDF 卡顿: bug_fix/dockview-sash-pdf-resize-jank.md
       - PDF 切换视觉截图与后台 ONNX: bug_fix/pdf-switch-visual-crop-layout-onnx.md
       - PDF 版面解析 WebView 崩溃循环: bug_fix/pdf-layout-webview-crash-loop.md
+      - 语音答辩语境漂移与字幕串台: bug_fix/voice-defense-context-drift.md
+      - 语音答辩开场噪声字幕与重启: bug_fix/voice-defense-opening-noise-captions.md
+      - 语音答辩开场回执把答辩重启: bug_fix/voice-defense-opening-ack-gate.md
+      - 答辩总结页底栏按钮叠层: bug_fix/voice-defense-ended-footer-overlap.md
       - 远端 ACP PATH / SSH: bug_fix/remote-acp-path-ssh.md
       - 远程 Vault 文件树懒加载: bug_fix/remote-vault-tree-lazy.md
       - macOS 签名与公证: bug_fix/macos-signing.md

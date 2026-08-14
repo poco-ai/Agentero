@@ -24,6 +24,228 @@
 	},
 	"missing": " (missing)",
 	"switchAgent": "Switch ACP agent",
+	"voiceDefense": {
+		"open": "Enter the viva",
+		"title": "Viva",
+		"untitled": "Untitled paper",
+		"contextLabel": "Defense material",
+		"contextPlaceholder": "Material the committee will use.",
+		"materials": {
+			"title": "Defense materials",
+			"bundleTitle": "Defense with {{count}} materials",
+			"selected": "{{count}} selected",
+			"current": "Open",
+			"search": "Search Vault materials",
+			"remove": "Remove {{name}}",
+			"optionalHint": "Optional",
+			"empty": "No materials selected. Pick papers or notes the committee should use.",
+			"emptyOptions": "No matching materials in this Vault.",
+			"useCurrent": "Use open paper",
+			"instruction": "Defense instructions",
+			"instructionPlaceholder": "For example: focus on experimental design, ask in Chinese, and simulate a master's thesis defense."
+		},
+		"preparation": {
+			"loading": "Loading defense material",
+			"notPrepared": "Defense material has not been prepared",
+			"running": "Preparing defense material",
+			"ready": "Defense material is ready for review",
+			"partial": "Partial analysis",
+			"stale": "Selected material changed",
+			"selectionChanged": "Material selection changed",
+			"interrupted": "Preparation was interrupted",
+			"failedStatus": "Preparation failed",
+			"cancelled": "Preparation was cancelled",
+			"briefLabel": "Prepared defense brief",
+			"briefPlaceholder": "The multi-Agent defense brief will appear here.",
+			"prepare": "Prepare defense",
+			"useCurrent": "Use current material",
+			"cancel": "Cancel preparation",
+			"update": "Update material",
+			"usePrevious": "Use previous version",
+			"useExisting": "Use generated material",
+			"useReusable": "Use last outline",
+			"reprepare": "Prepare again",
+			"reusableHint": "Materials are unchanged since {{time}}",
+			"reusablePartial": "Partial analysis",
+			"retryFailed": "Retry failed steps",
+			"progressTitle": "Preparation",
+			"loadFailed": "Could not load defense preparation.",
+			"failed": "Could not prepare defense material.",
+			"completed": "Defense material is ready for review.",
+			"cancelFailed": "Could not cancel defense preparation.",
+			"saveBriefFailed": "Could not confirm defense material.",
+			"completeFailed": "Could not update the preparation record.",
+			"stillRunning": "Wait for defense preparation to finish before entering the viva.",
+			"reviewRunning": "Wait for the defense review to finish before entering the viva.",
+			"stage": {
+				"analysis": "Analyzing materials",
+				"review": "Checking objections",
+				"synthesis": "Organizing material"
+			},
+			"readyShort": "Ready",
+			"staleNotice": "The materials changed after preparation. Prepare again before entering the defense.",
+			"selectionChangedNotice": "You changed the material selection. Prepare again before entering the defense.",
+			"narrative": {
+				"analysis": {
+					"pending": "The first committee member will read your materials",
+					"running": "The first committee member is reading your materials…",
+					"done": "The first committee member has read your materials"
+				},
+				"review": {
+					"pending": "The second committee member will look for weak points",
+					"running": "The second committee member is looking for weak points…",
+					"done": "The second committee member has drafted their objections"
+				},
+				"synthesis": {
+					"pending": "The committee will assemble the questioning outline",
+					"running": "Assembling the questioning outline…",
+					"done": "The questioning outline is ready"
+				}
+			}
+		},
+		"committee": {
+			"analysis": "Close reading",
+			"review": "Drafting objections",
+			"synthesis": "Question outline"
+		},
+		"auth": {
+			"account": "ChatGPT",
+			"connected": "Connected",
+			"connecting": "Signing in…",
+			"notConnected": "Not connected",
+			"connect": "Connect",
+			"cancel": "Cancel",
+			"disconnect": "Disconnect",
+			"windowTitle": "Connect ChatGPT",
+			"connectFailed": "Could not connect ChatGPT.",
+			"disconnectFailed": "Could not disconnect ChatGPT.",
+			"disconnected": "ChatGPT disconnected."
+		},
+		"start": "Start defense",
+		"mute": "Mute",
+		"unmute": "Unmute",
+		"interrupt": "Interrupt",
+		"end": "End defense",
+		"cancelConnecting": "Cancel connection",
+		"retry": "Try again",
+		"close": "Close",
+		"openTranscript": "Open transcript",
+		"waitingCaption": "Waiting for captions…",
+		"startFailed": "Could not start the defense.",
+		"endFailed": "Could not end the voice session cleanly.",
+		"saveFailed": "Could not save the transcript.",
+		"saved": "Transcript saved to {{path}}",
+		"error": {
+			"microphoneUnavailable": "Microphone capture is unavailable.",
+			"microphoneDenied": "Microphone access was denied. Allow it in system settings.",
+			"microphoneNotFound": "No microphone was found.",
+			"microphoneBusy": "The microphone is in use by another application.",
+			"dataChannelTimeout": "The realtime data connection timed out.",
+			"dataChannelFailed": "The realtime data connection failed.",
+			"networkOffline": "The network connection was lost.",
+			"connectionLost": "The voice connection was interrupted.",
+			"webrtcFailed": "The realtime voice connection failed."
+		},
+		"role": {
+			"user": "You",
+			"assistant": "Committee"
+		},
+		"status": {
+			"connecting": "Connecting",
+			"live": "Connected",
+			"listening": "Listening",
+			"speaking": "Speaking",
+			"ending": "Ending",
+			"ended": "Ended",
+			"error": "Error"
+		},
+		"enter": "Enter the defense",
+		"connectFirst": "Connect ChatGPT to enter",
+		"setup": {
+			"editMaterials": "Add materials…",
+			"pickMaterials": "Choose papers or notes…"
+		},
+		"brief": {
+			"edit": "Edit",
+			"done": "Done"
+		},
+		"stage": {
+			"entering": "Entering the viva…",
+			"transcript": "Transcript",
+			"hideTranscript": "Hide transcript",
+			"timeUp": "Planned defense time is up",
+			"timeUpHint": "The clock now shows overtime. End the defense whenever you are ready."
+		},
+		"scenario": {
+			"title": "Scenario",
+			"defense": "Thesis defense",
+			"seminar": "Lab seminar",
+			"review": "Peer review",
+			"interview": "Interview"
+		},
+		"duration": {
+			"title": "Defense length",
+			"none": "Untimed",
+			"minutes": "{{count}} min",
+			"custom": "Custom",
+			"customAria": "Custom duration in minutes",
+			"unit": "min",
+			"increase": "Increase duration",
+			"decrease": "Decrease duration"
+		},
+		"language": {
+			"title": "Spoken language",
+			"en": "English",
+			"zh": "Chinese"
+		},
+		"difficulty": {
+			"title": "Question difficulty",
+			"adaptive": "Adaptive",
+			"basic": "Foundational",
+			"advanced": "Advanced"
+		},
+		"history": {
+			"title": "Previous defenses",
+			"coverage": "{{asked}} / {{total}} covered",
+			"open": "Open {{date}}"
+		},
+		"patch": {
+			"title": "Add material",
+			"placeholder": "A short factual note for the committee.",
+			"send": "Send",
+			"close": "Close composer",
+			"sent": "Supplementary material sent",
+			"blocked": "Wait until the first question before sending notes."
+		},
+		"refocus": "Stay on topic",
+		"refocusSent": "Asked the committee to stay on topic",
+		"ended": {
+			"title": "Defense ended",
+			"durationLabel": "Duration",
+			"questionsLabel": "Committee turns",
+			"coverageLabel": "Challenges covered",
+			"missedTitle": "Challenges not raised ({{count}} to revisit)",
+			"allCoveredTitle": "Every prepared challenge came up",
+			"allCoveredHint": "The committee covered every direction in the prepared outline.",
+			"debriefSaveHint": "Saving the transcript includes the full debrief: each challenge, what was asked, your answer, and the prepared outline.",
+			"again": "Run it again",
+			"previewTitle": "Transcript preview",
+			"previewMore": "{{count}} more in the full transcript",
+			"save": "Save transcript",
+			"evaluate": "Write review",
+			"evaluating": "Writing review…",
+			"evaluateFailed": "Could not write the defense review.",
+			"evaluateDone": "Review saved to {{path}}",
+			"overallLabel": "Overall",
+			"overall": {
+				"strong": "Strong",
+				"adequate": "Adequate",
+				"weak": "Weak"
+			},
+			"weakAreasTitle": "Weak areas",
+			"openReview": "Open review"
+		}
+	},
 	"suggestions": {
 		"summarizePaper": "Summarize the open paper",
 		"askLibrary": "Ask a question across my library",

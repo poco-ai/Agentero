@@ -19,6 +19,8 @@ export type BackgroundTaskKind =
 	| "export"
 	| "parse"
 	| "paperRead"
+	| "voiceDefensePreparation"
+	| "voiceDefenseReview"
 	| "connector"
 	| "other";
 
@@ -399,12 +401,25 @@ class Semaphore {
 		}
 	}
 
-	async acquire(): Promise<void> {
+	async acquire(signal?: AbortSignal): Promise<void> {
+		if (signal?.aborted) throw new BackgroundTaskCancelledError();
 		if (this.running < this.max) {
 			this.running++;
 			return;
 		}
-		await new Promise<void>((resolve) => this.queue.push(resolve));
+		await new Promise<void>((resolve, reject) => {
+			const start = () => {
+				signal?.removeEventListener("abort", cancel);
+				resolve();
+			};
+			const cancel = () => {
+				const index = this.queue.indexOf(start);
+				if (index >= 0) this.queue.splice(index, 1);
+				reject(new BackgroundTaskCancelledError());
+			};
+			this.queue.push(start);
+			signal?.addEventListener("abort", cancel, { once: true });
+		});
 	}
 
 	release(): void {
@@ -438,7 +453,7 @@ function getSemaphore(
 export async function enqueueBackgroundTask<T>(
 	input: BackgroundTaskInput,
 	fn: BackgroundTaskFn<T>,
-	options?: { concurrency?: number },
+	options?: { concurrency?: number; signal?: AbortSignal },
 ): Promise<T> {
 	const concurrency = options?.concurrency;
 	const id = startBackgroundTask({
@@ -449,6 +464,12 @@ export async function enqueueBackgroundTask<T>(
 	});
 	const controller = new AbortController();
 	controllers.set(id, controller);
+	const abortFromExternal = () => controller.abort();
+	if (options?.signal?.aborted) controller.abort();
+	else
+		options?.signal?.addEventListener("abort", abortFromExternal, {
+			once: true,
+		});
 	const unlisten = await attachProgressListener(id);
 	logger.info(
 		`op enqueue background_task kind=${input.kind} task_id=${id} title=${input.title} concurrency=${concurrency ?? "unlimited"}`,
@@ -457,7 +478,7 @@ export async function enqueueBackgroundTask<T>(
 	try {
 		throwIfTaskCancelled(id, controller.signal);
 		if (concurrency != null) {
-			await getSemaphore(input.kind, concurrency).acquire();
+			await getSemaphore(input.kind, concurrency).acquire(controller.signal);
 			acquired = true;
 		}
 		throwIfTaskCancelled(id, controller.signal);
@@ -496,6 +517,7 @@ export async function enqueueBackgroundTask<T>(
 			getSemaphore(input.kind, concurrency as number).release();
 		}
 		controllers.delete(id);
+		options?.signal?.removeEventListener("abort", abortFromExternal);
 		unlisten?.();
 	}
 }

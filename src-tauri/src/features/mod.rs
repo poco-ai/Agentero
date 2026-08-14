@@ -23,6 +23,7 @@ pub mod terminal;
 pub mod translate;
 pub mod trash;
 pub mod vault;
+pub mod voice;
 pub mod watcher;
 pub mod wiki;
 pub mod window;

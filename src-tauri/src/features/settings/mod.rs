@@ -272,6 +272,17 @@ impl AppSettingsStore {
         let path = settings_path();
         paths::migrate_legacy_file("settings.json", &path);
         let (settings, _existed) = read_file(&path);
+        // Phase 2 migration: the built-in single-user Voice sidecar no longer
+        // uses the external Gateway URL/API key. Rewrite once so the retired
+        // secret does not remain in the user's local settings file.
+        if contains_legacy_voice_settings(&path) {
+            if let Err(error) = persist(&path, &settings) {
+                log::warn!(
+                    target: "agentero::settings",
+                    "could not remove retired Voice gateway settings: {error}"
+                );
+            }
+        }
         Self {
             inner: Mutex::new(settings),
             path,
@@ -290,7 +301,7 @@ impl AppSettingsStore {
             .clone();
         let existed = self.path.is_file();
         Ok(SettingsGetResult {
-            settings: redact_translate_secrets(settings),
+            settings: redact_secrets(settings),
             path: self.path.to_string_lossy().into_owned(),
             existed,
         })
@@ -302,7 +313,7 @@ impl AppSettingsStore {
                 .inner
                 .lock()
                 .map_err(|_| AppError::message("settings lock poisoned"))?;
-            merge_translate_secrets(&mut settings, &previous);
+            merge_secrets(&mut settings, &previous);
         }
         normalize(&mut settings);
         persist(&self.path, &settings)?;
@@ -311,8 +322,8 @@ impl AppSettingsStore {
             .lock()
             .map_err(|_| AppError::message("settings lock poisoned"))?;
         *guard = settings.clone();
-        // Never echo raw API keys back to the WebView / settings:changed.
-        Ok(redact_translate_secrets(settings))
+        // Never echo raw translation API keys back to the WebView / settings:changed.
+        Ok(redact_secrets(settings))
     }
 
     /// Resolve a commercial MT API key by provider id (case-insensitive).
@@ -328,6 +339,18 @@ impl AppSettingsStore {
             Some(api_key.to_string())
         }
     }
+}
+
+fn contains_legacy_voice_settings(path: &PathBuf) -> bool {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .and_then(|value| {
+            value
+                .as_object()
+                .map(|object| object.contains_key("voiceDefense"))
+        })
+        .unwrap_or(false)
 }
 
 fn read_file(path: &PathBuf) -> (AppSettings, bool) {
@@ -392,7 +415,7 @@ pub fn commercial_provider_settings_key(provider: &str) -> Option<&'static str> 
 }
 
 /// Replace non-empty commercial API keys with same-length `*` masks.
-fn redact_translate_secrets(mut settings: AppSettings) -> AppSettings {
+fn redact_secrets(mut settings: AppSettings) -> AppSettings {
     for cfg in settings.translate.provider_configs.values_mut() {
         if !cfg.api_key.trim().is_empty() {
             cfg.api_key = mask_translate_api_key(&cfg.api_key);
@@ -402,7 +425,7 @@ fn redact_translate_secrets(mut settings: AppSettings) -> AppSettings {
 }
 
 /// Apply incoming commercial configs while preserving secrets when the UI sends the mask.
-fn merge_translate_secrets(incoming: &mut AppSettings, previous: &AppSettings) {
+fn merge_secrets(incoming: &mut AppSettings, previous: &AppSettings) {
     for (id, cfg) in incoming.translate.provider_configs.iter_mut() {
         if is_translate_api_key_mask(&cfg.api_key) {
             if let Some(prev) = previous.translate.provider_configs.get(id) {
@@ -592,7 +615,7 @@ mod tests {
             },
         );
 
-        let redacted = redact_translate_secrets(previous.clone());
+        let redacted = redact_secrets(previous.clone());
         assert_eq!(
             redacted
                 .translate
@@ -605,7 +628,7 @@ mod tests {
         assert!(!is_translate_api_key_mask("sk-secret"));
 
         let mut incoming = redacted;
-        merge_translate_secrets(&mut incoming, &previous);
+        merge_secrets(&mut incoming, &previous);
         assert_eq!(
             incoming
                 .translate
@@ -623,7 +646,7 @@ mod tests {
             .unwrap()
             .api_key
             .clear();
-        merge_translate_secrets(&mut incoming, &previous);
+        merge_secrets(&mut incoming, &previous);
         assert_eq!(
             incoming
                 .translate

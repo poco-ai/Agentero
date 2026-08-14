@@ -24,6 +24,228 @@
 	},
 	"missing": "（缺失）",
 	"switchAgent": "切换 ACP Agent",
+	"voiceDefense": {
+		"open": "进入答辩间",
+		"title": "答辩间",
+		"untitled": "未命名论文",
+		"contextLabel": "答辩材料",
+		"contextPlaceholder": "答辩委员将参考的材料",
+		"materials": {
+			"title": "答辩材料",
+			"bundleTitle": "{{count}} 项材料答辩",
+			"selected": "已选择 {{count}} 项",
+			"current": "当前打开",
+			"search": "搜索 Vault 中的材料",
+			"remove": "移除 {{name}}",
+			"optionalHint": "可选",
+			"empty": "尚未选择材料。可从 Vault 中挑选论文或笔记供委员参考。",
+			"emptyOptions": "当前 Vault 中没有匹配的材料。",
+			"useCurrent": "使用当前打开的论文",
+			"instruction": "答辩要求与批注",
+			"instructionPlaceholder": "例如：重点质疑实验设计，使用中文提问，模拟硕士毕业答辩。"
+		},
+		"preparation": {
+			"loading": "正在加载答辩材料",
+			"notPrepared": "尚未准备答辩材料",
+			"running": "正在准备答辩材料",
+			"ready": "答辩材料已生成，等待检查",
+			"partial": "部分分析",
+			"stale": "所选材料已变化",
+			"selectionChanged": "材料选择已变更",
+			"interrupted": "准备任务已中断",
+			"failedStatus": "准备失败",
+			"cancelled": "准备已取消",
+			"briefLabel": "已准备的答辩材料",
+			"briefPlaceholder": "多 Agent 生成的答辩材料会显示在这里。",
+			"prepare": "准备答辩",
+			"useCurrent": "直接使用当前材料",
+			"cancel": "取消准备",
+			"update": "更新答辩材料",
+			"usePrevious": "使用上一版本",
+			"useExisting": "使用已生成材料",
+			"useReusable": "使用上次提纲",
+			"reprepare": "重新准备",
+			"reusableHint": "材料自 {{time}} 以来未改动",
+			"reusablePartial": "部分分析",
+			"retryFailed": "重试失败步骤",
+			"progressTitle": "准备进度",
+			"loadFailed": "无法加载答辩准备状态。",
+			"failed": "答辩材料准备失败。",
+			"completed": "答辩材料已生成，可以检查了。",
+			"cancelFailed": "无法取消答辩准备。",
+			"saveBriefFailed": "无法确认答辩材料。",
+			"completeFailed": "无法更新答辩准备记录。",
+			"stillRunning": "请等待答辩准备结束后再入场。",
+			"reviewRunning": "请等待答辩评价结束后再入场。",
+			"stage": {
+				"analysis": "正在分析所选材料",
+				"review": "正在检查可能的质疑",
+				"synthesis": "正在整理答辩材料"
+			},
+			"readyShort": "已就绪",
+			"staleNotice": "材料在准备后有改动，建议重新准备后再入场。",
+			"selectionChangedNotice": "你更改了材料选择，请重新准备后再入场。",
+			"narrative": {
+				"analysis": {
+					"pending": "第一位委员将精读你的材料",
+					"running": "第一位委员正在精读你的材料…",
+					"done": "第一位委员已读完你的材料"
+				},
+				"review": {
+					"pending": "第二位委员将寻找可以质疑的漏洞",
+					"running": "第二位委员正在寻找可以质疑的漏洞…",
+					"done": "第二位委员已拟好质疑意见"
+				},
+				"synthesis": {
+					"pending": "委员会将整理质询提纲",
+					"running": "正在整理质询提纲…",
+					"done": "质询提纲已就绪"
+				}
+			}
+		},
+		"committee": {
+			"analysis": "精读材料",
+			"review": "拟定质疑",
+			"synthesis": "质询提纲"
+		},
+		"auth": {
+			"account": "ChatGPT",
+			"connected": "已连接",
+			"connecting": "登录中…",
+			"notConnected": "未连接",
+			"connect": "连接",
+			"cancel": "取消",
+			"disconnect": "断开",
+			"windowTitle": "连接 ChatGPT",
+			"connectFailed": "无法连接 ChatGPT。",
+			"disconnectFailed": "无法断开 ChatGPT。",
+			"disconnected": "已断开 ChatGPT。"
+		},
+		"start": "开始答辩",
+		"mute": "静音",
+		"unmute": "取消静音",
+		"interrupt": "打断",
+		"end": "结束答辩",
+		"cancelConnecting": "取消连接",
+		"retry": "重试",
+		"close": "关闭",
+		"openTranscript": "打开转写",
+		"waitingCaption": "等待字幕…",
+		"startFailed": "答辩启动失败。",
+		"endFailed": "结束语音会话时出错。",
+		"saveFailed": "转写保存失败。",
+		"saved": "转写已保存到 {{path}}",
+		"error": {
+			"microphoneUnavailable": "当前设备无法使用麦克风。",
+			"microphoneDenied": "麦克风权限被拒绝，请在系统设置中允许。",
+			"microphoneNotFound": "未找到可用的麦克风。",
+			"microphoneBusy": "麦克风正在被其他应用占用。",
+			"dataChannelTimeout": "实时数据连接超时。",
+			"dataChannelFailed": "实时数据连接失败。",
+			"networkOffline": "网络连接已断开。",
+			"connectionLost": "语音连接已中断。",
+			"webrtcFailed": "实时语音连接失败。"
+		},
+		"role": {
+			"user": "你",
+			"assistant": "答辩委员"
+		},
+		"status": {
+			"connecting": "连接中",
+			"live": "已连接",
+			"listening": "聆听中",
+			"speaking": "回答中",
+			"ending": "正在结束",
+			"ended": "已结束",
+			"error": "错误"
+		},
+		"enter": "入场答辩",
+		"connectFirst": "连接 ChatGPT 后入场",
+		"setup": {
+			"editMaterials": "添加材料…",
+			"pickMaterials": "选择论文或笔记…"
+		},
+		"brief": {
+			"edit": "编辑",
+			"done": "完成"
+		},
+		"stage": {
+			"entering": "正在进入答辩间…",
+			"transcript": "转写",
+			"hideTranscript": "收起转写",
+			"timeUp": "已到预定答辩时长",
+			"timeUpHint": "时钟已转为超时显示，你可以随时结束答辩。"
+		},
+		"scenario": {
+			"title": "答辩场景",
+			"defense": "毕业答辩",
+			"seminar": "组会预演",
+			"review": "审稿质询",
+			"interview": "面试模拟"
+		},
+		"duration": {
+			"title": "答辩时长",
+			"none": "不限时",
+			"minutes": "{{count}} 分钟",
+			"custom": "自定义",
+			"customAria": "自定义时长（分钟）",
+			"unit": "分钟",
+			"increase": "增加时长",
+			"decrease": "减少时长"
+		},
+		"language": {
+			"title": "答辩语言",
+			"en": "英文",
+			"zh": "中文"
+		},
+		"difficulty": {
+			"title": "提问难度",
+			"adaptive": "自适应",
+			"basic": "基础",
+			"advanced": "进阶"
+		},
+		"history": {
+			"title": "以往答辩",
+			"coverage": "覆盖 {{asked}} / {{total}}",
+			"open": "打开 {{date}}"
+		},
+		"patch": {
+			"title": "补充资料",
+			"placeholder": "给委员的简短事实说明。",
+			"send": "发送",
+			"close": "收起输入",
+			"sent": "已发送补充资料",
+			"blocked": "请等到第一问后再补充资料。"
+		},
+		"refocus": "拉回主题",
+		"refocusSent": "已请委员抓住当前主题",
+		"ended": {
+			"title": "答辩结束",
+			"durationLabel": "答辩时长",
+			"questionsLabel": "委员发言",
+			"coverageLabel": "预期质疑覆盖",
+			"missedTitle": "未问到的预期质疑（{{count}} 条，建议复习）",
+			"allCoveredTitle": "预期质疑全部被问到",
+			"allCoveredHint": "委员会覆盖了准备提纲中的全部质疑方向。",
+			"debriefSaveHint": "保存转写时会附带完整复盘：每条质疑的实际提问、你的回答与准备的应答要点。",
+			"again": "再来一场",
+			"previewTitle": "转写预览",
+			"previewMore": "完整转写还有 {{count}} 条",
+			"save": "保存转写",
+			"evaluate": "生成评价",
+			"evaluating": "正在生成评价…",
+			"evaluateFailed": "无法生成答辩评价。",
+			"evaluateDone": "评价已保存到 {{path}}",
+			"overallLabel": "总评",
+			"overall": {
+				"strong": "扎实",
+				"adequate": "尚可",
+				"weak": "薄弱"
+			},
+			"weakAreasTitle": "薄弱环节",
+			"openReview": "打开评价"
+		}
+	},
 	"suggestions": {
 		"summarizePaper": "总结当前论文",
 		"askLibrary": "就我的文献库提问",

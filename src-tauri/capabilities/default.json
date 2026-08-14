@@ -1,8 +1,8 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "default",
-	"description": "Capability for Agentero windows (main + ⌘N + settings + feature/doc popouts)",
-	"windows": ["main", "agentero-*", "settings", "feature-*", "doc-*"],
+	"description": "Capability for Agentero windows (main + ⌘N + settings + viva + feature/doc popouts)",
+	"windows": ["main", "agentero-*", "settings", "viva", "feature-*", "doc-*"],
 	"permissions": [
 		"core:default",
 		"core:window:allow-start-dragging",

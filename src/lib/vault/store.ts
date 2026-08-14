@@ -10,6 +10,7 @@ import { notifyError } from "@/lib/core/notify";
 import { isTauri } from "@/lib/core/tauri";
 import { collectPaperFoldersFromTree } from "@/lib/paper";
 import {
+	collectDefenseMaterialRelPaths,
 	collectDirectoryRelPaths,
 	collectMarkdownRelPaths,
 	collectTreeRefreshTargets,
@@ -34,6 +35,7 @@ export type TreeCreateDraft = {
 };
 
 type VaultTreeDerived = {
+	vaultDefenseMaterialFiles: string[];
 	vaultMdFiles: string[];
 	vaultWikiTargetFiles: string[];
 	/** Directory paths for Agent context chip folder icons. */
@@ -62,6 +64,7 @@ function deriveFromTree(
 ): VaultTreeDerived {
 	const paperFolders = collectPaperFoldersFromTree(tree);
 	return {
+		vaultDefenseMaterialFiles: collectDefenseMaterialRelPaths(tree, vaultPath),
 		vaultMdFiles: collectMarkdownRelPaths(tree, vaultPath),
 		vaultWikiTargetFiles: collectWikiTargetRelPaths(tree, vaultPath),
 		vaultDirPaths: collectDirectoryRelPaths(tree, vaultPath),

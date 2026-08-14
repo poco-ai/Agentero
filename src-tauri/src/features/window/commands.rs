@@ -21,6 +21,7 @@ const TRAFFIC_LIGHT_X: f64 = 14.0;
 const SETTINGS_TRAFFIC_LIGHT_Y: f64 = 16.0;
 
 pub const SETTINGS_WINDOW_LABEL: &str = "settings";
+pub const VIVA_WINDOW_LABEL: &str = "viva";
 
 /// Open a fresh Agentero window without restoring the last vault (`?fresh=1`).
 ///
@@ -150,6 +151,84 @@ pub async fn settings_window_open(
     Ok(())
 }
 
+/// Open (or focus) the singleton viva / voice-defense window.
+///
+/// See [`window_new`] for why this must stay `async`.
+#[tauri::command]
+pub async fn viva_window_open(
+    app: AppHandle,
+    vault_path: Option<String>,
+    active_path: Option<String>,
+    paper_title: Option<String>,
+    // Localized caption from the frontend (`t()`); English fallback below.
+    title: Option<String>,
+) -> Result<(), String> {
+    let op = OpTimer::start("viva_window_open");
+
+    if let Some(win) = app.get_webview_window(VIVA_WINDOW_LABEL) {
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+        op.finish_ok_extra("existing");
+        return Ok(());
+    }
+
+    let mut url = "index.html?window=viva".to_string();
+    if let Some(path) = vault_path {
+        url.push_str(&format!("&vault_path={}", urlencoding::encode(&path)));
+    }
+    if let Some(path) = active_path.filter(|s| !s.is_empty()) {
+        url.push_str(&format!("&active_path={}", urlencoding::encode(&path)));
+    }
+    if let Some(pt) = paper_title.filter(|s| !s.is_empty()) {
+        url.push_str(&format!("&paper_title={}", urlencoding::encode(&pt)));
+    }
+
+    let window_title = title
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "Viva".into());
+
+    #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
+    let mut builder =
+        WebviewWindowBuilder::new(&app, VIVA_WINDOW_LABEL, WebviewUrl::App(url.into()))
+            .title(window_title)
+            .inner_size(1080.0, 780.0)
+            .min_inner_size(800.0, 560.0)
+            .center()
+            .visible(false)
+            .resizable(true);
+
+    #[cfg(target_os = "macos")]
+    {
+        let scale = app
+            .state::<AppSettingsStore>()
+            .get()
+            .map(|r| r.settings.ui_scale)
+            .unwrap_or(1.0);
+        let y = if scale.is_finite() && (0.8..=1.5).contains(&scale) {
+            TRAFFIC_LIGHT_Y_DEFAULT * scale
+        } else {
+            TRAFFIC_LIGHT_Y_DEFAULT
+        };
+        builder = builder
+            .hidden_title(true)
+            .title_bar_style(tauri::TitleBarStyle::Overlay)
+            .traffic_light_position(tauri::LogicalPosition::new(TRAFFIC_LIGHT_X, y));
+    }
+
+    let window = match builder.build() {
+        Ok(w) => w,
+        Err(e) => {
+            op.finish_err_msg("viva", &e);
+            return Err(e.to_string());
+        }
+    };
+    let _ = window.set_focus();
+
+    op.finish_ok_extra("new");
+    Ok(())
+}
+
 /// Valid right-rail feature views that may open as a singleton native window.
 const FEATURE_VIEWS: &[&str] = &["agent", "backlinks", "annotations", "references", "figures"];
 
@@ -267,6 +346,43 @@ pub async fn feature_window_open(
 
     op.finish_ok_extra(format!("new view={view}"));
     Ok(())
+}
+
+/// Hidden singleton webview that runs PDF layout analysis (PDFium wasm +
+/// ONNX). Isolating it keeps an analysis OOM from taking down the main
+/// window's WebContent process.
+pub const LAYOUT_WORKER_WINDOW_LABEL: &str = "layout-worker";
+
+/// Ensure the hidden layout-analysis worker window exists.
+///
+/// See [`window_new`] for why this must stay `async`.
+#[tauri::command]
+pub async fn layout_worker_window_ensure(app: AppHandle) -> Result<(), String> {
+    let op = OpTimer::start("layout_worker_window_ensure");
+    if app.get_webview_window(LAYOUT_WORKER_WINDOW_LABEL).is_some() {
+        op.finish_ok_extra("existing");
+        return Ok(());
+    }
+    let builder = WebviewWindowBuilder::new(
+        &app,
+        LAYOUT_WORKER_WINDOW_LABEL,
+        WebviewUrl::App("index.html?window=layout-worker".into()),
+    )
+    .title("Layout Analysis")
+    .inner_size(320.0, 200.0)
+    .visible(false)
+    .skip_taskbar(true)
+    .resizable(false);
+    match builder.build() {
+        Ok(_) => {
+            op.finish_ok_extra("new");
+            Ok(())
+        }
+        Err(e) => {
+            op.finish_err_msg("layout-worker", &e);
+            Err(e.to_string())
+        }
+    }
 }
 
 /// Close a singleton feature window if open.

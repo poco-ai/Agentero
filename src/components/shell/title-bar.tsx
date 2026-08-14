@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
+import { VoiceDefenseTrigger } from "@/components/agent/voice-defense-trigger";
 import { LayoutMenu } from "@/components/shell/layout-menu";
 import { UpdateIndicator } from "@/components/shell/update-indicator";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ type TitleBarProps = {
 		tab: "agent" | "backlinks" | "annotations" | "references" | "figures",
 	) => void;
 	onOpenSettings: () => void;
+	showViva?: boolean;
 };
 
 /**
@@ -74,6 +76,7 @@ export const TitleBar = memo(function TitleBar({
 	onToggleRightSidebar,
 	onOpenRightTab,
 	onOpenSettings,
+	showViva = false,
 }: TitleBarProps) {
 	const { t } = useTranslation(["app"]);
 
@@ -134,8 +137,10 @@ export const TitleBar = memo(function TitleBar({
 						rightSidebarOpen={rightSidebarOpen}
 						onToggleRightSidebar={onToggleRightSidebar}
 					/>
-					{rightSidebarOpen
-						? (
+					{rightSidebarOpen ? (
+						<>
+							{showViva ? <VoiceDefenseTrigger /> : null}
+							{(
 								[
 									{
 										id: "agent" as const,
@@ -201,8 +206,9 @@ export const TitleBar = memo(function TitleBar({
 										</ContextMenuItem>
 									</ContextMenuContent>
 								</ContextMenu>
-							))
-						: null}
+							))}
+						</>
+					) : null}
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button

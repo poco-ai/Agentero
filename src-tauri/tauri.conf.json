@@ -61,7 +61,8 @@
     "targets": "all",
     "category": "Productivity",
     "externalBin": [
-      "binaries/agentero-cli"
+      "binaries/agentero-cli",
+      "binaries/agentero-voice-sidecar"
     ],
     "icon": [
       "icons/32x32.png",

@@ -51,6 +51,13 @@ pub fn build_prompt(
                  under papers/; open PAPER.md/source only when needed. Keep [[wikilinks]] and end with `## Sources`.{skill_hint}"
             )
         }
+		"voice_defense_preparation" | "voice_defense_review" => {
+            "You are a read-only worker in Agentero's fixed defense workflow. \
+             Read only the exact snapshot source paths, transcript, and brief listed in the user request. \
+             Do not discover other Vault files, run Agentero CLI mutations, edit any file, or access \
+             the network. Return only the structured artifact requested by the user prompt."
+                .to_string()
+        }
         _ => {
             format!(
                 "You are an assistant working inside a Agentero research Vault (cwd is the vault root). \
@@ -59,9 +66,14 @@ pub fn build_prompt(
         }
     };
 
+    let cli_directive =
+        if workflow == "voice_defense_preparation" || workflow == "voice_defense_review" {
+            ""
+        } else {
+            agentero_cli_directive()
+        };
     let system = format!(
-        "{system}{}{}{}",
-        agentero_cli_directive(),
+        "{system}{cli_directive}{}{}",
         language_directive(response_language),
         personal_preference_directive(personal_prompt)
     );
@@ -162,6 +174,8 @@ pub fn strip_prompt_envelope_for_display(text: &str) -> String {
         "You are an assistant working inside a Agentero research Vault",
         "You are an assistant working inside a Motif research Vault",
         "You are running the Agentero paper-reader workflow",
+        "You are a read-only worker in Agentero's fixed defense workflow",
+        "You are a read-only worker in Agentero's fixed defense-preparation workflow",
         "You are helping with a research vault",
         "You are answering questions about a local research vault",
         "Draft a Related Work section from local papers",

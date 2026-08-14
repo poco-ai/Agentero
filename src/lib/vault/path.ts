@@ -110,6 +110,27 @@ export function collectMarkdownRelPaths(
 	return out;
 }
 
+/** Files the defense snapshot pipeline can fingerprint and expose to ACP workers. */
+export function collectDefenseMaterialRelPaths(
+	nodes: FileNode[],
+	vaultPath: string | null,
+): string[] {
+	const supported =
+		/\.(md|mdx|markdown|txt|rst|org|pdf|tex|ltx|bib|bbl|png|jpe?g|webp|gif|bmp|tiff?|svg|csv|tsv|jsonl?|ya?ml|xml|parquet|arrow|npy|npz)$/i;
+	const out: string[] = [];
+	const walk = (list: FileNode[]) => {
+		for (const node of list) {
+			if (node.kind === "directory") {
+				if (node.children) walk(node.children);
+			} else if (supported.test(node.path)) {
+				out.push(toVaultRelative(vaultPath, node.path));
+			}
+		}
+	};
+	walk(nodes);
+	return out;
+}
+
 /**
  * Flatten the tree to vault-relative **directory** paths
  * (Agent composer context chips / drop targets use this for folder icons).

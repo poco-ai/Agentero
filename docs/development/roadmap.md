@@ -98,6 +98,7 @@
 
 | 方向 | 示例 |
 |---|---|
+| 论文答辩 | 单账号内置 Voice MVP 与“会前多 Agent、会中单 Voice”协同 MVP 已完成：用户选择材料并填写要求，固定分析/质疑 fan-out、本地合成可编辑 brief；材料指纹未变时可确认复用上次提纲，未准备不可进入 Voice。支持答辩语言/难度、会中补资料与拉回主题、转写 YAML 与历史场次、会后隐藏 ACP 评价。支持排队/运行取消、重试/恢复/stale、隐藏 ACP session、token lease 与 Host workflow 屏障；无 Docker、账号池、管理后台、Gateway URL 或 API Key。下一步是执行真实质量评估及 Windows/Linux 安装包 smoke test（设计：[Voice MVP](chatgpt-web-voice-defense-mvp.md) · [多 Agent 准备](multi-agent-voice-defense-preparation.md) · [质量评估](voice-defense-quality-evaluation.md)） |
 | 双链 / Graph | 全屏聚焦、邻居高亮、节点搜索；边级增量索引 |
 | 工作区 | tab pin、命名工作区会话 |
 | PDF / 翻译 | 无文本层降级；HTML 标注；更多翻译 adapter/消费方 |

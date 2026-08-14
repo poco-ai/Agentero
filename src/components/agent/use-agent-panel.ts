@@ -3431,6 +3431,7 @@ export function useAgentPanel({
 		handleComposerDrop,
 		currentFilePath,
 		currentFileLabel,
+		focusedMaterialPath: selectedVaultPath,
 		mentionChipPaths,
 		selectionChips,
 		visualDrafts,

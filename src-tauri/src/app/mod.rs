@@ -4,7 +4,7 @@ mod handlers;
 mod logging;
 pub mod menu;
 
-use crate::features::agent::{AgentRegistry, AgentRunController};
+use crate::features::agent::{AgentRegistry, AgentRunController, HiddenAgentSessionStore};
 #[cfg(not(target_os = "ios"))]
 use crate::features::connector::ConnectorController;
 #[cfg(not(target_os = "ios"))]
@@ -73,12 +73,15 @@ pub fn run() {
         .manage(AppSettingsStore::load())
         .manage(AgentRegistry::load())
         .manage(AgentRunController::new())
+        .manage(HiddenAgentSessionStore::load())
         .manage(crate::features::agent::AgentWarmGate::new())
         .manage(crate::features::agent::PermissionGate::new())
         .manage(crate::features::agent::ElicitationGate::new())
         .manage(crate::features::agent::AskUserGate::new())
         .manage(crate::features::bridge::BridgeController::new())
         .manage(crate::features::bridge::BridgeClientController::new())
+        .manage(crate::features::voice::auth::VoiceAuthController::new())
+        .manage(crate::features::voice::commands::VoiceSidecarController::new())
         .manage(WikiIndexState::new())
         .manage(crate::features::doctor::DoctorDirtyPathsState::default())
         .manage(ExternalRenameRepairStore::new())
@@ -207,6 +210,14 @@ pub fn run() {
                         return;
                     }
                 }
+                if let Some(viva) =
+                    app.get_webview_window(crate::features::window::commands::VIVA_WINDOW_LABEL)
+                {
+                    if viva.is_focused().unwrap_or(false) {
+                        let _ = viva.close();
+                        return;
+                    }
+                }
             }
             if id == "new_window" {
                 // `window_new` is async so webview creation never runs inside this
@@ -228,6 +239,10 @@ pub fn run() {
         builder = builder.on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 window.state::<FsWatchController>().stop(window.label());
+                crate::features::voice::auth::handle_window_destroyed(
+                    window.app_handle(),
+                    window.label(),
+                );
                 if window.label() == crate::features::window::commands::SETTINGS_WINDOW_LABEL {
                     let _ = window.app_handle().emit("settings_window_closed", ());
                 }

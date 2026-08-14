@@ -25,6 +25,7 @@ const windowKind = searchParams.get("window");
 const isSettingsWindow = windowKind === "settings";
 const isFeatureWindow = windowKind === "feature";
 const isDocWindow = windowKind === "doc";
+const isVivaWindow = windowKind === "viva";
 const isLayoutWorkerWindow = windowKind === "layout-worker";
 
 // `performance.now()` is measured from navigation start, so these numbers cover
@@ -88,6 +89,29 @@ async function boot() {
 		);
 		logger.info(
 			`op end frontend_boot ok=true duration_ms=${bootElapsed()} window=settings`,
+		);
+		return;
+	}
+
+	if (isVivaWindow) {
+		const { VivaWindowRoot } = await import(
+			"@/components/shell/viva-window-root"
+		);
+		bootStage("viva-window-module");
+		ReactDOM.createRoot(root).render(
+			<React.StrictMode>
+				<I18nextProvider i18n={i18n}>
+					<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+						<TooltipProvider delayDuration={300}>
+							<VivaWindowRoot />
+							<Toaster />
+						</TooltipProvider>
+					</ThemeProvider>
+				</I18nextProvider>
+			</React.StrictMode>,
+		);
+		logger.info(
+			`op end frontend_boot ok=true duration_ms=${bootElapsed()} window=viva`,
 		);
 		return;
 	}

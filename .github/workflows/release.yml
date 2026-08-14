@@ -382,23 +382,10 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      # agentero package runs tauri-build which requires externalBin on disk
-      # even when only building the headless CLI (chicken-and-egg with bundling).
+      # agentero package runs tauri-build which requires every externalBin on
+      # disk even when only building the headless CLI.
       - name: Stub externalBin for Tauri build-script
-        shell: bash
-        run: |
-          set -euo pipefail
-          HOST="$(rustc -vV | sed -n 's/^host: //p')"
-          mkdir -p src-tauri/binaries
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            dest="src-tauri/binaries/agentero-cli-${HOST}.exe"
-            printf '@echo off\r\necho agentero-cli stub\r\nexit /b 1\r\n' > "$dest"
-          else
-            dest="src-tauri/binaries/agentero-cli-${HOST}"
-            printf '#!/bin/sh\necho agentero-cli stub >&2\nexit 1\n' > "$dest"
-            chmod +x "$dest"
-          fi
-          echo "Seeded stub: $dest"
+        run: node scripts/prepare-bundled-cli.mjs --stub
 
       - name: Build agentero CLI (release)
         run: cargo build -p agentero-cli --release

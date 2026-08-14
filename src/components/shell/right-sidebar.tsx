@@ -468,6 +468,9 @@ export function RightSidebar() {
 	const featurePoppedOut = useUiStore((s) => s.featurePoppedOut);
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const vaultMdFiles = useVaultStore((s) => s.vaultMdFiles);
+	const vaultDefenseMaterialFiles = useVaultStore(
+		(s) => s.vaultDefenseMaterialFiles,
+	);
 	const vaultDirPaths = useVaultStore((s) => s.vaultDirPaths);
 	const vaultPaperPaths = useVaultStore((s) => s.vaultPaperPaths);
 	const paperMetaByRelPath = useLibraryStore((s) => s.paperMetaByRelPath);
@@ -507,6 +510,7 @@ export function RightSidebar() {
 								selectedPath={selectedPath}
 								selectedPaperTitle={selectedPaperTitle}
 								vaultMarkdownPaths={vaultMdFiles}
+								vaultDefenseMaterialPaths={vaultDefenseMaterialFiles}
 								vaultDirectoryPaths={vaultDirPaths}
 								vaultPaperPaths={vaultPaperPaths}
 								paperMetaByRelPath={paperMetaByRelPath}

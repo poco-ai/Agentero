@@ -13,6 +13,7 @@ import {
 	LayoutGrid,
 	ListOrdered,
 	Loader2,
+	Mic,
 	Package,
 	Plug,
 	Search,
@@ -60,6 +61,9 @@ function kindIcon(kind: BackgroundTaskKind | undefined) {
 			return <LayoutGrid className={cls} aria-hidden />;
 		case "paperRead":
 			return <BookOpen className={cls} aria-hidden />;
+		case "voiceDefensePreparation":
+		case "voiceDefenseReview":
+			return <Mic className={cls} aria-hidden />;
 		case "connector":
 			return <Plug className={cls} aria-hidden />;
 		default:

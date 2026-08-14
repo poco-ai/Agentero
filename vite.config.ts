@@ -61,8 +61,10 @@ export default defineConfig(async () => ({
 				}
 			: undefined,
 		watch: {
-			// 3. tell Vite to ignore watching `src-tauri`
-			ignored: ["**/src-tauri/**"],
+			// 3. Rust builds write generated HTML and bundled sidecars below the
+			// workspace target directories. Watching those files makes Vite issue a
+			// full-page reload while long-running frontend tasks are active.
+			ignored: ["**/src-tauri/**", "**/target/**"],
 		},
 	},
 }));

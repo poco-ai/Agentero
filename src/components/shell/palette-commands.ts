@@ -26,6 +26,7 @@ import {
 	revealSelectedInFinder,
 } from "@/lib/vault/actions";
 import { getVaultPath } from "@/lib/vault/store";
+import { requestOpenViva } from "@/lib/voice-defense/open-request";
 import {
 	closeTabOrWindow,
 	cycleActiveTab,
@@ -164,5 +165,15 @@ export const paletteCommands: AppCommand[] = [
 		keywords: ["import", "arxiv", "doi", "lookup"],
 		when: hasVault,
 		run: () => openMagicWand(),
+	},
+	{
+		id: "viva.open",
+		titleKey: "commands.vivaOpen",
+		categoryKey: "commands.catApp",
+		keywords: ["viva", "defense", "voice", "答辩", "答辩间"],
+		when: hasVault,
+		run: () => {
+			requestOpenViva();
+		},
 	},
 ];

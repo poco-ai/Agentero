@@ -60,7 +60,43 @@
 
 ## 0.7+ — 体验与平台
 
+- [x] ChatGPT Web Voice 论文答辩 MVP：单账号内置登录、按需 Sidecar、WebRTC/DataChannel、当前材料注入、字幕、打断与 Vault 转写（[#237](https://github.com/poco-ai/Agentero/issues/237)，设计：[chatgpt-web-voice-defense-mvp.md](chatgpt-web-voice-defense-mvp.md)）
+- [x] 修复语音答辩内部 bootstrap 被显示为“你”并写入转写：客户端追踪消息 ID，字幕层过滤内部回显（复盘：[voice-defense-bootstrap-caption.md](../bug_fix/voice-defense-bootstrap-caption.md)）
+- [x] 修复 macOS WebKit 启动语音答辩时报 `Invalid SDP line`：Host 统一 answer SDP 为 CRLF、补终止 CRLF 并校验行格式（复盘：[voice-defense-invalid-sdp-line.md](../bug_fix/voice-defense-invalid-sdp-line.md)）
 - [x] 修复 macOS 文件保存反复提示“不完整改名”：单边 FSEvents 只静默刷新，不再进入外部改名 Toast，可信 old/new 配对仍保持链接修复（复盘：[watcher-unpaired-rename-toast.md](../bug_fix/watcher-unpaired-rename-toast.md)）
+- [x] ChatGPT Web Voice 单用户内置迁移 Phase 1：按需原生 WebView 登录、仅 `chatgpt.com` 同源会话捕获、系统凭证库存储、成功后销毁窗口
+- [x] 删除 ChatGPT Web Voice 的旧 Gateway 设置产品面：设置区、连接测试和答辩弹窗“配置 Gateway”入口；开始答辩改为依赖账号连接状态
+- [x] ChatGPT Web Voice 单用户内置迁移 Phase 2：无账号池/无管理后台/无数据库的按需 Rust Voice Sidecar，Host 通过 stdin 注入系统凭证，随机 loopback 端口与单次会话密钥
+- [x] ChatGPT Web Voice 单用户内置迁移 Phase 3：内置 Sidecar 接管会话，删除底层 Gateway URL/API Key 字段、兼容命令与外部部署步骤
+- [x] ChatGPT Web Voice token 失效恢复：上游 401 后删除系统凭证并通知前端重新连接
+- [x] ChatGPT Web Voice macOS Phase 4 验收：最新打包版 UI、真实账号完整答辩、Sidecar 崩溃幂等回收、麦克风拒绝与断网处理
+- [x] 多材料强制多 Agent 答辩入口：多文件/目录选择、文字要求、不可变快照；每次新答辩创建 preparation run，不提供直接绕过路径
+- [x] 语音答辩 UI 精修：通话页以正计时时钟为中心（替换圆球，音量柱可视化）、字幕双行稳定展示、准备页卡片化布局与提纲展开式阅读、结束页统计卡；转写改为总结页手动保存，不再自动写入 Vault
+- [x] 语音答辩 UI 二次重构：准备页改双栏工作台（左配置右提纲主阅读区，复用 shadcn/ui Card/Badge/Separator/Skeleton），字幕与提纲切换接入 motion 过渡动效，结束页 Card 化 + 渐次入场
+- [x] 语音答辩准备页三次重构：弃用双栏（右栏空态每次会话必现，观感差），改单栏纵向流三状态（配置表单 → 摘要条 + 时间线 + Skeleton → 摘要条 + 提纲文档），时长在提纲态经下拉即改
+- [x] 语音答辩定时模式：准备页选择 10/20/30/45 分钟或不限时（localStorage 记忆），通话页倒计时、尾段变色、到时 Toast 提醒并转为超时显示，不自动结束
+- [x] 修复语音答辩语境漂移与字幕串台：bootstrap 三明治结构（规则置于材料后 recency 窗口）、显式回声消除采集约束、字幕流式槽抢占保护（复盘：[voice-defense-context-drift.md](../bug_fix/voice-defense-context-drift.md)）
+- [x] 多 Agent 答辩准备提速：整理步骤改为本地确定性合成（`local-synthesis.ts`），删除第三次 ACP 调用，产物仍过同一 schema 校验，三阶段 UI 与恢复语义不变
+- [x] 答辩间答后复盘：`debrief.ts` 本地确定性匹配（拉丁按词 / CJK 按字符 bigram 的 Dice 相似度）对照准备提纲与委员实际提问，总结页展示覆盖率与未问到清单，保存转写附带完整复盘章节（实际提问/用户回答/应答要点/证据双链）
+- [x] 答辩间场景 preset 与时长注入：bootstrap 人设支持毕业答辩/组会预演/审稿质询/面试模拟（localStorage 记忆），计划时长注入 recency 窗口让委员控节奏收尾；命令面板新增「进入答辩间」（挂起式打开请求）；`[viva]` 本地漏斗日志与上游协议漂移告警
+- [x] 答辩间通话页时钟改为特大号红色翻页时钟：vendored split-flap 组件（`src/components/ui/flip-clock.tsx`，em 缩放，正计时/倒计时/超时上翻/连接预览共用），取代原细体文本时钟与琥珀尾段配色；移除时钟上方音量柱，压迫感分级（计时常驻红色底晕 → 末分钟光晕增强 + 心跳 + 舞台四周红色渐晕 → 超时最强）；时钟下方只保留呼吸灯与状态字
+- [x] 答辩间字幕双锚位重构：废除"上一句/最新句"单列交替（角色互相顶替、popLayout 位移与 text-balance 令流式字幕漂移），改为委员主槽 + 用户次槽双固定锚位（`CaptionSlot`：槽位定高、底部锚定向上溢出、顶部渐隐，token 追加零动画、仅消息更替时交叉淡入，非说话方降透明度），回答时委员问题保持可见
+- [x] 修复语音答辩开场噪声字幕与委员重启答辩：委员首句字幕前到达的用户字幕整条丢弃（不上台不进转写）、开麦兜底 8s→15s、字幕剔除 U+FFFD 乱码、bootstrap 新增"答辩开始只宣布一次"规则；时钟红光晕与舞台渐晕同步降档（复盘：[voice-defense-opening-noise-captions.md](../bug_fix/voice-defense-opening-noise-captions.md)）
+- [x] 压制答辩委员对注入 prompt 的确认回执（"明白了/收到"先应答再正式开场导致问题重复问两遍）：bootstrap 规则第 8 条禁止确认收到规则/材料与点评材料类型，收口指令强约束第一条回复必须直接以宣布开场语开头（复盘同上"后续"节）
+- [x] 答辩间开场改为状态机门控：不再把 bootstrap 回执或 `speaking` 当成开场完成；麦克风与用户字幕要等到真正的第一问说完（listening/idle）才放开，填充回执不上台；20s 兜底不打断正在说的第一轮（复盘：[voice-defense-opening-ack-gate.md](../bug_fix/voice-defense-opening-ack-gate.md)）
+- [x] 修复答辩委员把「答辩开始」（无「现在」）误判成回执后再发「请开始答辩」、导致连宣两次开场：开场检测与重启抑制共用宣布句式；已上台的重复开场字幕会撤回（复盘：[voice-defense-opening-ack-gate.md](../bug_fix/voice-defense-opening-ack-gate.md)）
+- [x] 修复开场门控打开后噪声 ASR 被当成假回答、委员以「我问第一个问题」重问：丢弃口癖字幕、尚未正经作答时打断重问、开麦延迟 400ms，并增加 `[viva] wire` DataChannel 抓包（复盘：[voice-defense-opening-ack-gate.md](../bug_fix/voice-defense-opening-ack-gate.md)）
+- [x] 开场宣布前保持委员远端静音：无「答辩开始」的前奏提问不上台、截断音频，字幕出现宣布后再放声（复盘同上）
+- [x] 重写答辩间 bootstrap 会话规则提升提问质量：问题必须点名材料中的章节/公式/结论/例题（内容锚定）、先基础后加深、随回答自适应（答得好升级难度追边界反例，答错先一句话点破再抓薄弱点）、禁评判材料类型/价值/"新意"（考察理解而非审查文档，材料自身有主张则要求辩护）、禁填充语开头，中英双语同步
+- [x] 修复答辩总结页长字幕被两行省略，并把通话计时起点从连接前移到委员首次 `speaking`（可见字幕兜底），连接与信令耗时不再计入答辩时长
+- [x] 修复答辩总结页底栏「打开转写」与「正在生成评价」叠层：评价中改为状态字，胶囊关闭按下缩放并允许换行（复盘：[voice-defense-ended-footer-overlap.md](../bug_fix/voice-defense-ended-footer-overlap.md)）
+- [x] 答辩间改为独立原生单例窗口（`viva`），不再全屏覆盖主工作台；通话中关窗先进入总结页
+- [x] 答辩准备页实时思考背景墙：`lib/voice-defense/thought-stream.ts` 按子会话把 `agent:stream` thought 与 `agent:tool` 事件路由到两位委员的滚动行缓冲（节流、封顶、仅内存，快照工作区绝对路径清洗回 Vault 相对路径），`thought-backdrop.tsx` 以双列文字墙渲染在 hero 背后（透明度按行新旧递退、最新行为思考前沿，浅色主题可读；中心径向遮罩留白、静默变暗、reduced-motion 降级），让"模型真的在工作"可被看见且不落盘
+- [x] 答辩间产品缺口：材料指纹未变时可确认复用上次提纲；转写 YAML frontmatter 与准备页历史场次；会后隐藏 ACP 评价（不阻塞结束）；答辩语言/难度、会中补资料与拉回主题、委员已问轮次
+- [ ] ChatGPT Web Voice 跨平台 smoke test：Windows/Linux 实机登录、系统凭证库、WebRTC 通话与安装包
+- [ ] 答辩间备用实时后端：OpenAI Realtime API（BYOK 可选项，不作默认），摆脱对 ChatGPT 网页私有协议与 UA 伪装的单点依赖；协议适配层已具备防腐结构（`protocol.ts`）
+- [ ] 答辩间编排层重构：`voice-defense-dialog.tsx`（~1500 行）抽取 `useVoiceSession`/`usePreparationRecovery` hooks，为 phase × lease × operation 状态机补单元测试
+- [ ] 多 Agent 答辩准备 Phase 3 真实质量评估：固定论文集对比单 Agent artifact 与多 Agent brief 的覆盖率、证据准确率、无依据结论、编辑比例和耗时；据结果决定保留协同、退回单 Agent 或增加证据核查节点（本地评分/汇总工具已实现；设计：[multi-agent-voice-defense-preparation.md](multi-agent-voice-defense-preparation.md) · [评估方法](voice-defense-quality-evaluation.md)）
 - [x] 修复 PDF 版面解析把 WebView 压崩后无限重跑的崩溃循环：`localStorage` 崩溃守卫，两次中途崩溃后暂停自动解析，手动重试重置（复盘：[pdf-layout-webview-crash-loop.md](../bug_fix/pdf-layout-webview-crash-loop.md)）
 - [x] 版面解析移出主 `WebContent` 进程：隐藏 `layout-worker` 窗口独立进程跑 PDFium/ONNX（事件协议 + 无进度看门狗，浏览器环境回退本进程），大 PDF 解析 OOM 不再拖垮主窗口
 - [ ] Graph 全屏/聚焦、邻居高亮、节点搜索；边级增量索引

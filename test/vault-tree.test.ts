@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { paperAssetDownloadReasons } from "@/lib/paper/assets";
 import {
+	collectDefenseMaterialRelPaths,
 	collectMarkdownRelPaths,
 	collectTreeRefreshTargets,
 	collectWikiTargetRelPaths,
@@ -83,6 +84,17 @@ describe("collectMarkdownRelPaths", () => {
 		expect(collectMarkdownRelPaths(tree, "/v").sort()).toEqual([
 			"notes/todo.md",
 			"papers/x/NOTES.md",
+		]);
+	});
+});
+
+describe("collectDefenseMaterialRelPaths", () => {
+	it("includes supported defense files and excludes unrelated files", () => {
+		expect(collectDefenseMaterialRelPaths(tree, "/v").sort()).toEqual([
+			"notes/todo.md",
+			"papers/x/NOTES.md",
+			"papers/x/a.pdf",
+			"readme.txt",
 		]);
 	});
 });

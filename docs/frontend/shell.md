@@ -9,7 +9,7 @@
   - **Figures**：版面分析后的插图（image+chart）/ 表 / 算法 / 有编号公式；**分析与 bbox 叠加层按钮在侧栏 header**；固定置信度 ≥30%（无滑条）；联图与标题规则见 [pdf-layout-analysis.md](pdf-layout-analysis.md)。实现：`figures-panel.tsx` + `src/lib/pdf/layout/`（raw 结果缓存到 `{paper}/source/layout.json`）。
   - **移至新窗口**：标题栏右栏功能图标 **右键** →「移动至新窗口」→ 单例 `feature-{view}` Webview；主窗右栏收起。工具视图默认 **跟随主窗当前激活文档**（`workspace:active-changed`）。
 - 左右栏折叠：`⌥⌘S` / `⌘L`（不重叠）。
-- 标题栏右侧：布局菜单、右栏 tab 切换；有新版本可更新时显示更新指示器按钮（见 [settings.md](settings.md) 「应用更新」）。
+- 标题栏右侧：布局菜单、右栏 tab 切换；右栏展开时在 tab 前显示**答辩间（麦克风）**；有新版本可更新时显示更新指示器按钮（见 [settings.md](settings.md) 「应用更新」）。答辩间在桌面端打开独立单例窗口（`viva`，`?window=viva`），不覆盖主工作台、不占用右栏。浏览器预览仍为全屏弹层。右栏收起时只保留布局与右栏开关，不显示麦克风。
 
 实现：`src/components/shell/`、`src/lib/shell/ui-store.ts`、`src/lib/shell/leaf.ts`、`src/lib/shell/feature-window.ts`、`hooks/use-shell-layout.ts`。
 
@@ -18,6 +18,7 @@
 - 无 Vault：最近路径 MRU、打开 / 创建 / 从 Zotero 迁移。
 - `⌘N` → Host `window_new`（`?fresh=1`）；Vault 与 dock 布局按窗口 session 隔离。
 - **功能单例窗**：`feature_window_open` → `?window=feature&view=…`（`FeatureWindowRoot`）。
+- **答辩间单例窗**：`viva_window_open` → `?window=viva`（`VivaWindowRoot`）；已存在则聚焦。主窗口保持可继续阅读/编辑。
 - **文档弹出窗**：文档 tab 右键「移动至新窗口」→ `doc_window_open` → `?window=doc&path=…`（`DocWindowRoot`）；同 path 再开则聚焦。
 - 当前窗口 Vault：`sessionStorage`；MRU / 上次路径：`localStorage`。
 - 桌面窗口在 Webview 页面加载完成后显示；React 首次提交前由 `index.html` 的零依赖启动壳占位，避免冷启动和 dev 模块加载期间出现空白窗口。

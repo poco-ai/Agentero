@@ -7,7 +7,7 @@
  */
 
 import { FolderOpen } from "lucide-react";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { AppDialogs } from "@/components/shell/app-dialogs";
 import { BackgroundTasksPanel } from "@/components/shell/background-tasks-panel";
@@ -101,6 +101,12 @@ import {
 	tabNotesEligible,
 } from "@/lib/workspace/tabs";
 
+const VoiceDefenseHost = lazy(() =>
+	import("@/components/agent/voice-defense-host").then((m) => ({
+		default: m.VoiceDefenseHost,
+	})),
+);
+
 // macOS keeps native traffic lights (Overlay title bar) and a native menu bar.
 // Other desktop platforms also use native decorations, but have no native menu
 // bar, so the title bar shows a Settings gear as the entry point.
@@ -135,6 +141,7 @@ function AppTitleBar() {
 	const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
 	const rightSidebarOpen = useUiStore((s) => s.rightSidebarOpen);
 	const rightSidebarTab = useUiStore((s) => s.rightSidebarTab);
+	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const tabs = useWorkspaceStore((s) => s.tabs);
 	const activeTabId = useWorkspaceStore((s) => s.activeTabId);
 
@@ -173,6 +180,7 @@ function AppTitleBar() {
 			onToggleRightSidebar={toggleRightSidebar}
 			onOpenRightTab={openRightTab}
 			onOpenSettings={openSettingsWindow}
+			showViva={Boolean(vaultPath)}
 		/>
 	);
 }
@@ -446,6 +454,12 @@ export default function App() {
 				</ErrorBoundary>
 
 				<AppDialogs />
+
+				{vaultPath && !isTauri() ? (
+					<Suspense fallback={null}>
+						<VoiceDefenseHost />
+					</Suspense>
+				) : null}
 
 				<BackgroundTasksPanel />
 			</div>

@@ -26,6 +26,37 @@
 	animation: library-shimmer 1.8s ease-in-out infinite;
 }
 
+@keyframes flip-clock-top {
+	from {
+		transform: rotateX(0deg);
+	}
+	to {
+		transform: rotateX(-90deg);
+	}
+}
+
+@keyframes flip-clock-bottom {
+	from {
+		transform: rotateX(90deg);
+	}
+	78% {
+		transform: rotateX(-8deg);
+	}
+	to {
+		transform: rotateX(0deg);
+	}
+}
+
+@keyframes flip-clock-heartbeat {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.02);
+	}
+}
+
 @theme inline {
 	--font-heading: var(--font-sans);
 	--font-sans: "Geist Variable", sans-serif;
@@ -159,6 +190,8 @@
 	}
 	html {
 		@apply font-sans;
+		/* 14px root: rem-based UI reads one notch quieter than the default 16. */
+		font-size: 14px;
 	}
 }
 

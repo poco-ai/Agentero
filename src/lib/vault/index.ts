@@ -1,16 +1,22 @@
+export type { VaultFileFingerprint } from "@/lib/vault/fs";
 export {
 	createVaultDirectory,
+	createVaultSnapshotWorkspace,
+	fingerprintVaultFile,
 	isMarkdownPath,
 	isTextOpenable,
 	readVaultBytes,
 	readVaultFile,
+	releaseVaultSnapshotWorkspace,
 	removeVaultPath,
 	splitVaultRel,
 	vaultPathExists,
 	writeVaultBytes,
 	writeVaultFile,
+	writeVaultFileAtomic,
 } from "@/lib/vault/fs";
 export {
+	collectDefenseMaterialRelPaths,
 	collectDirectoryRelPaths,
 	collectMarkdownRelPaths,
 	isValidVaultEntryName,

@@ -5,6 +5,8 @@
 
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { VoiceDefenseTrigger } from "@/components/agent/voice-defense-trigger";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
 	type AnnotationRow,
 	AnnotationsPanel,
@@ -297,6 +299,9 @@ export function FeatureWindowRoot() {
 
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const vaultMdFiles = useVaultStore((s) => s.vaultMdFiles);
+	const vaultDefenseMaterialFiles = useVaultStore(
+		(s) => s.vaultDefenseMaterialFiles,
+	);
 	const vaultDirPaths = useVaultStore((s) => s.vaultDirPaths);
 	const vaultPaperPaths = useVaultStore((s) => s.vaultPaperPaths);
 	const paperMetaByRelPath = useLibraryStore((s) => s.paperMetaByRelPath);
@@ -415,20 +420,29 @@ export function FeatureWindowRoot() {
 
 	return (
 		<div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-			{isMac ? (
-				<header className="flex h-8 shrink-0 items-center border-b bg-muted/40 select-none">
+			<header className="flex h-8 shrink-0 items-center border-b bg-muted/40 select-none">
+				{isMac ? (
 					<div
 						className="w-[92px] shrink-0 self-stretch"
 						data-tauri-drag-region
 					/>
-					<div
-						className="min-w-0 flex-1 truncate px-2 text-xs font-medium text-muted-foreground"
-						data-tauri-drag-region
-					>
-						{title}
-					</div>
-				</header>
-			) : null}
+				) : (
+					<div className="w-2 shrink-0 self-stretch" data-tauri-drag-region />
+				)}
+				<div
+					className="min-w-0 flex-1 truncate px-2 text-xs font-medium text-muted-foreground"
+					data-tauri-drag-region
+				>
+					{title}
+				</div>
+				{view === "agent" && vaultPath ? (
+					<TooltipProvider delayDuration={250}>
+						<div className="flex shrink-0 items-center pr-2">
+							<VoiceDefenseTrigger />
+						</div>
+					</TooltipProvider>
+				) : null}
+			</header>
 
 			<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 				{!ready ? (
@@ -442,6 +456,7 @@ export function FeatureWindowRoot() {
 							selectedPath={selectedPath}
 							selectedPaperTitle={selectedPaperTitle}
 							vaultMarkdownPaths={vaultMdFiles}
+							vaultDefenseMaterialPaths={vaultDefenseMaterialFiles}
 							vaultDirectoryPaths={vaultDirPaths}
 							vaultPaperPaths={vaultPaperPaths}
 							paperMetaByRelPath={paperMetaByRelPath}

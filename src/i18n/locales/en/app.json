@@ -44,7 +44,8 @@
 		"tabClose": "Close Tab",
 		"tabNext": "Next Tab",
 		"tabPrev": "Previous Tab",
-		"wandOpen": "Magic Wand (Import by ID)"
+		"wandOpen": "Magic Wand (Import by ID)",
+		"vivaOpen": "Enter the viva"
 	},
 	"titlebar": {
 		"showLeftSidebar": "Show left sidebar",
@@ -121,7 +122,8 @@
 		"titleAnnotations": "Annotations",
 		"titleReferences": "References",
 		"titleFigures": "Analysis",
-		"titleDocument": "Document"
+		"titleDocument": "Document",
+		"titleViva": "Viva"
 	},
 	"errors": {
 		"openVaultDesktopOnly": "Open vault requires the Tauri desktop app (pnpm tauri dev).",
@@ -236,6 +238,15 @@
 		"paperReadMarking": "Marking as read…",
 		"paperReadDone": "Read complete",
 		"paperReadFailed": "Paper reading failed",
+		"voiceDefensePreparation": "Prepare defense material",
+		"voiceDefensePreparationQueued": "Waiting to prepare defense material…",
+		"voiceDefensePreparationRunning": "Agent is preparing defense material…",
+		"voiceDefensePreparationSnapshotting": "Capturing the paper snapshot…",
+		"voiceDefensePreparationAnalyzing": "Analyzing the paper and likely objections…",
+		"voiceDefensePreparationSynthesizing": "Organizing the defense material…",
+		"voiceDefensePreparationAwaitingReview": "Defense material is ready for review",
+		"voiceDefenseReview": "Grade the defense",
+		"voiceDefenseReviewRunning": "Agent is writing the defense review…",
 		"connector": "Saving Connector attachment",
 		"connectorComplete": "Connector attachment ready",
 		"connectorFailed": "Connector attachment failed"

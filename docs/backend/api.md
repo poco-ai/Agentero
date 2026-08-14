@@ -358,6 +358,29 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
   - 窗口关闭时 Host 向所有窗口 `emit("settings_window_closed", ())`，便于主窗口同步 Settings 打开状态（实现 `⌘,` _toggle_）；建窗失败时也会 emit 一次，避免 toggle 卡在“已打开”。
   - 与 `window_new` 同理，**必须是 `async` command**。
 
+#### `viva_window_open`（已实现）
+
+打开（或聚焦）答辩间 **单例** 原生窗口，避免全屏弹层盖住主工作台。
+
+- **参数**
+
+```ts
+{
+  vaultPath?: string | null;
+  activePath?: string | null;
+  paperTitle?: string | null;
+  title?: string | null;        // localized OS caption from frontend t()
+}
+```
+
+- **返回**：`Result<(), String>`
+- **行为**
+  - label 为 `viva`；已存在则 `unminimize` + `show` + `set_focus`。
+  - URL：`index.html?window=viva&vault_path=…&active_path=…&paper_title=…`（`VivaWindowRoot`，不加载完整 App Dock）。
+  - 约 1080×780，居中；macOS Overlay 标题栏。
+  - 通话中点关闭会先进入总结页（前端 `onCloseRequested`），准备/总结页再关才销毁窗口。
+  - **必须是 `async` command**（同 `window_new`）。
+
 #### `fs_watch_start` / `fs_watch_stop`（已实现）
 
 按窗口启停 Vault 文件系统监听（Rust `notify` 递归监听），用于外部编辑器 / Agent 写盘后自动重载编辑器与文件树。
@@ -442,6 +465,34 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 ```
 
 ### 3.2 文件操作
+
+#### `vault_file_fingerprint`（已实现，Desktop）
+
+在 Host 内计算本地或远端 Vault 文件的稳定指纹。前端调用
+`fingerprintVaultFile(vaultRoot, vaultRelativePath)`，不读取文件内容。
+
+- **参数**：`{ vaultRoot: string, vaultRelativePath: string }`。`vaultRoot` 为本地绝对
+  Vault 路径或 `remote:<sessionId>`；`vaultRelativePath` 必须是严格的 Vault 相对路径。
+- **返回**：`ApiResult<{ path: string; size: number; mtime: number; hash: string }>`，
+  `mtime` 为 Unix 秒，`hash` 为小写 SHA-256 hex。
+- **本地文件**：Rust 使用固定缓冲区流式计算 SHA-256，并在计算前后核对 metadata；
+  适用于大 PDF，不把 PDF bytes 发送到 WebView。
+- **远端文件**：通过当前 session 的 `VaultFs` 在 Host 内读取、校验并 hash；原始 bytes
+  同样不会跨 IPC。
+- **安全边界**：拒绝空路径、绝对路径、UNC、Windows drive prefix、`..` 和经 symlink
+  解析后落到 Vault 外的本地路径。
+
+#### `vault_write_text_atomic`（已实现，Desktop）
+
+前端 `writeVaultFileAtomic(vaultRoot, vaultRelativePath, content)` 统一写本地或远端 UTF-8
+产物，供 manifest、结构化 Agent 产物等需要完整提交语义的文件使用。
+
+- 在目标目录写唯一的 `.agentero-rename-*.tmp`，完成后 rename 到目标；
+- 本地临时文件使用 `create_new`、`flush` 和 `sync_all`，Windows 使用 replace-existing
+  原子移动语义；
+- 任一步失败都会清理临时文件；rename 失败时保留旧目标，不采用先删除目标的降级；
+- 本地逐级解析/创建父目录并检查 canonical path，拒绝目标 symlink 和目录；
+- 远端通过 session 内 `VaultFs.write` + `VaultFs.rename` 完成，不绕过远端能力边界。
 
 #### `file:read_text`
 
@@ -1357,13 +1408,13 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
   permissionMode?: string; // "restricted" | "ask" | "auto"；"ask" 时每个 ACP 权限请求转交用户（agent:permission-request）
   responseLanguage?: string; // 强制回答/笔记语言（如 zh-CN）；省略或 auto 时不注入
   personalPrompt?: string; // 用户个人偏好提示词；省略或空时不注入
-  hideFromChatHistory?: boolean; // 默认 false；true 时不写入 Vault Codex 会话索引（精读 / PDF 划词提问等）
+  hideFromChatHistory?: boolean; // 默认 false；true 时持久隐藏该次 ACP provider session（精读 / PDF 划词提问等）
 }
 ```
 
 - **返回**：`{ ok: true, data: { sessionId, messageId, agentId } }`
 
-- **`hideFromChatHistory`**：为 `true` 时，该次运行不记入会话历史（`agent_list_sessions` 不列出）；前端 Agent 面板也不会把这类流式事件并入对话记录。用于 **paper-reader 精读**、**PDF 划词提问** 等非 Composer 发起的运行。Composer 对话保持默认 `false`。
+- **`hideFromChatHistory`**：为 `true` 时，Host 在 `session/new` 取得 `providerSessionId` 后立即以 `(agentId, cwd/vault, providerSessionId)` 写入本地 SQLite 隐藏索引，完成事件前再做幂等兜底；因此 prompt/config 失败也不会把后台 session 暴露给历史列表。隐藏运行必须创建新 provider session，和 `sessionId` 同传会被拒绝，避免把普通会话改成隐藏。`agent_list_sessions` 按同一三元组过滤，因此跨应用重启仍不列出，且不会误伤其它 Agent、其它 Vault 或默认 `false` 的普通会话。前端 Agent 面板也不会把这类流式事件并入对话记录。用于 **paper-reader 精读**、**PDF 划词提问**、**答辩准备**等非 Composer 运行。
 
 - **技能上下文**：`agent_list_skills` 列出 `~/.agents/skills`、`${CODEX_HOME:-~/.codex}/skills`、`~/.claude/skills` 和当前 Vault `.agents/skills`。运行时重新解析 id，只读取 `SKILL.md`，单个文件上限 64 KiB，最多加载 5 个。
 - **技能提及按 provider 分流**（`SkillMentionStyle`，见 Host `skills.rs`）：
@@ -1381,6 +1432,29 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 - **能力边界**：所有 provider（含 Codex）根据 ACP `SessionConfigOption` 协商模型目录、reasoning effort 与 Fast 等能力。`ProbeResult` 含 `sessionCapabilities` 字段。Composer 只为当前 provider 已声明的能力显示对应控件。
 
+#### `agent_run_is_active`
+
+只读查询 Agentero runtime id 是否仍在 Host 的 `AgentRunController` 中。终态
+`agent:completed` / `agent:failed` 可能先于 spawn wrapper 的最后清理到达；需要证明
+ACP child 已释放的协调器应在终态后轮询到 `false`，再移除 child 或进入 Voice。
+
+```ts
+{ sessionId: string }
+// -> { ok: true, data: boolean }
+```
+
+#### `agent_workflow_is_active`
+
+只读查询指定 workflow 是否仍有至少一个 runtime 注册在 Host。`agent_run_once` 在 spawn 前
+把可选 `workflow` 与 runtime 一起注册，并在 wrapper 完成全部清理后统一移除。该命令用于
+跨 WebView 生命周期的子系统屏障；答辩 Voice 在建立 WebRTC 前固定查询
+`voice_defense_preparation` 与 `voice_defense_review`，不能只依赖前端内存中的 child 列表。
+
+```ts
+{ workflow: string } // 非空；首尾空白会被去除
+// -> { ok: true, data: boolean }
+```
+
 #### `agent_respond_permission`
 
 应答「每次询问」档下的 ACP 权限请求（`agent:permission-request`）。
@@ -1390,7 +1464,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 #### `agent_list_sessions`
 
-列出当前 Vault 的 Agent 会话历史（所有 provider 统一）。Host 通过 ACP `session/list` 获取会话列表，按最近活跃时间排序。`hideFromChatHistory` 的后台运行不出现在列表中。
+列出当前 Vault 的 Agent 会话历史（所有 provider 统一）。Host 通过 ACP `session/list` 获取会话列表，按最近活跃时间排序，再按当前 `agentId + cwd/vault + providerSessionId` 查询持久化隐藏索引；`hideFromChatHistory` 的后台运行不出现在列表中，普通会话及其它作用域的同名 provider session 保持不变。
 
 ```ts
 { agentId?: string; vaultPath?: string }
@@ -1671,6 +1745,33 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 ```
 
 - **返回**：`{ ok: true; data: null }`
+
+### 3.7b ChatGPT Web Voice（单用户内置 Sidecar）
+
+桌面端答辩界面持有麦克风、`RTCPeerConnection`、协商式 `oai-events` DataChannel 和远端音轨；Rust Host 负责启动随应用打包的最小 Voice Sidecar，Sidecar 只代理 `chatgpt.com/realtime/wm` SDP 信令。
+
+Host 仅在创建会话时从系统凭证库（macOS Keychain、Windows Credential Manager、Linux Secret Service）读取 ChatGPT Web token，通过子进程 stdin 注入。Sidecar 监听随机 `127.0.0.1` 端口，要求每次进程启动随机生成的会话密钥；token 不进入 React、设置 JSON、环境变量、命令行、URL 或日志。旧 `settings.voiceDefense` 字段会在 Host 首次加载时迁移删除。
+
+| Command | 参数 | 返回 | 行为 |
+|---|---|---|---|
+| `voice_config` | 无 | 内置 WebRTC/DataChannel 能力文档 | 不启动 Sidecar。 |
+| `voice_session_create` | `{ request: { offerSdp, voice, voiceMode, languageCode } }` | `{ answerSdp, voiceSessionId }` | 按需启动 Sidecar，注入系统凭证库 token，完成上游 SDP 交换。 |
+| `voice_session_release` | `{ voiceSessionId }` | `{ released }` | 释放会话并立即终止 Sidecar；重复释放视为成功。 |
+
+三个命令都返回通用 `ApiResult` envelope。Host 会在 answer SDP 跨 IPC 返回前统一换行为 CRLF、补终止 CRLF 并校验每一行，避免 macOS WebKit 因混合换行报 `Invalid SDP line`。Sidecar 不包含账号池、数据库、静态页面、管理后台、Docker 运行时或下游 API Key；单次只服务当前答辩，启动失败和会话创建失败都会回收子进程。父进程通过保持 stdin 打开声明存活，stdin EOF 或五分钟空闲会触发 Sidecar 自行退出。
+
+前端在 DataChannel 打开后一次性发送 `relay_message`，包裹为 `{ type: "data_message", data: "..." }`；用户打断发送 `action_request/stop_speaking`。它解析 `state_update` 和 `chat_message_delta`，对其它上游元数据事件保持容错，将实时转写保留在弹窗内存，结束时由前端写入 Vault Markdown，不新增数据库表或会话恢复 API。上游返回 401 时，Host 删除失效的系统凭证并广播 `voice-auth:changed`，准备弹窗回到重新连接状态。持续 WebRTC/DataChannel 故障会停止媒体并调用幂等释放；Sidecar 已退出时 Host 直接视为释放成功，下一次会话重新按需启动。
+
+#### 单用户登录（macOS）
+
+| command | 输入 | 返回 | 说明 |
+|---|---|---|---|
+| `voice_auth_status` | 无 | `{ connected, connecting, error }` | 只返回脱敏状态，不返回 token。 |
+| `voice_auth_connect` | `{ title }` | 同上 | 创建临时 `voice-auth` 原生 WebView 并打开 `https://chatgpt.com/`。 |
+| `voice_auth_cancel` | 无 | 同上 | 销毁登录窗口并取消本次连接。 |
+| `voice_auth_disconnect` | 无 | 同上 | 删除系统凭证库中的单用户凭证。 |
+
+登录 WebView 不在应用 capability 窗口列表中，远程页面不能调用 Agentero IPC。Host 只在加载完成的 `https://chatgpt.com/*` 顶层页面执行同源 `/api/auth/session` 请求，通过 Wry 原生 evaluate callback 接收结果，并只提取 `accessToken` 写入系统凭证库。token 不进入 React、设置 JSON、URL、localhost 回调或日志；保存成功后 Host 直接 `destroy()` 登录窗口。
 
 ### 3.8 双链与图谱
 
