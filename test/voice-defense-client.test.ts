@@ -13,7 +13,17 @@ type VoiceDefenseClientHarness = {
 	localStream: MediaStream | null;
 	remoteStream: MediaStream | null;
 	onDataMessage: (raw: unknown) => void;
-	opening: { phase: string; heardOpening: boolean; voiceState: string | null };
+	applyOpening: (next: {
+		phase: "awaiting" | "open";
+		heardOpening: boolean;
+		voiceState: string | null;
+	}) => void;
+	handleOpeningTimeout: () => void;
+	opening: {
+		phase: "awaiting" | "open";
+		heardOpening: boolean;
+		voiceState: string | null;
+	};
 };
 
 function voiceState(state: string) {
@@ -111,7 +121,7 @@ describe("voice defense client opening handshake", () => {
 		harness.onDataMessage(
 			assistantCaption(
 				"opening-1",
-				"好的,我们开始答辩。你作为作者,先用两句话概括。我的第一个问题:你认为这项工作最关键的优势是什么?",
+				"答辩现在开始。你作为作者,先用两句话概括。我的第一个问题:你认为这项工作最关键的优势是什么?",
 			),
 		);
 		vi.advanceTimersByTime(2_000);
@@ -141,7 +151,7 @@ describe("voice defense client opening handshake", () => {
 		expect(sent).toEqual([]);
 		vi.advanceTimersByTime(2_000);
 		expect(sent).toHaveLength(1);
-		expect(sent[0]).toContain("请开始答辩");
+		expect(sent[0]).toContain("答辩现在开始");
 	});
 
 	it("cancels a pending trigger when a filler caption grows into the opening", () => {
@@ -164,12 +174,12 @@ describe("voice defense client opening handshake", () => {
 		};
 
 		harness.onDataMessage(voiceState("speaking"));
-		harness.onDataMessage(assistantCaption("opening-1", "好的"));
+		harness.onDataMessage(assistantCaption("opening-1", "答辩"));
 		harness.onDataMessage(voiceState("listening"));
 		vi.advanceTimersByTime(500);
 		harness.onDataMessage(
 			appendAssistantCaption(
-				",我们开始答辩。我的第一个问题:这项工作的关键优势是什么?",
+				"现在开始。我的第一个问题:这项工作的关键优势是什么?",
 			),
 		);
 		vi.advanceTimersByTime(2_000);
@@ -179,7 +189,7 @@ describe("voice defense client opening handshake", () => {
 		expect(captions[0]?.text).toContain("第一个问题");
 	});
 
-	it("does not send a recovery trigger after 答辩开始 without 现在", () => {
+	it("nudges 答辩开始 without 现在 into the canonical first sentence", () => {
 		const sent: string[] = [];
 		const client = new VoiceDefenseClient({
 			onStatus: () => undefined,
@@ -198,7 +208,10 @@ describe("voice defense client opening handshake", () => {
 		harness.onDataMessage(voiceState("listening"));
 		vi.advanceTimersByTime(2_000);
 
-		expect(sent).toEqual([]);
+		expect(sent.some((payload) => payload.includes("stop_speaking"))).toBe(
+			true,
+		);
+		expect(sent.some((payload) => payload.includes("答辩现在开始"))).toBe(true);
 	});
 
 	it("interrupts and retracts a second opening announcement from a live session", () => {
@@ -222,7 +235,7 @@ describe("voice defense client opening handshake", () => {
 		harness.onDataMessage(
 			assistantCaption(
 				"opening-1",
-				"好的，答辩开始。一个问题:你们为什么认为可以完全去掉循环和卷积/卷积的瓶颈?或者说在非常长的序列上,自注意力的二次复杂度是O(n ²·d);长序列会削弱优势会被长序列挑战,但论文给出了可复现的细节,复现实验的",
+				"答辩现在开始。第一个问题:你们为什么认为可以完全去掉循环和卷积/卷积的瓶颈?或者说在非常长的序列上,自注意力的二次复杂度是O(n ²·d);长序列会削弱优势会被长序列挑战,但论文给出了可复现的细节,复现实验的",
 			),
 		);
 		harness.onDataMessage(voiceState("listening"));
@@ -236,11 +249,13 @@ describe("voice defense client opening handshake", () => {
 
 		expect(captions).toHaveLength(1);
 		expect(captions[0]?.id).toBe("opening-1");
-		expect(captions[0]?.text).toContain("答辩开始");
+		expect(captions[0]?.text).toContain("答辩现在开始");
 		expect(sent.some((payload) => payload.includes("stop_speaking"))).toBe(
 			true,
 		);
-		expect(sent.some((payload) => payload.includes("请开始答辩"))).toBe(false);
+		expect(sent.some((payload) => payload.includes("答辩现在开始。"))).toBe(
+			false,
+		);
 	});
 
 	it("refuses sendUserText until the opening gate is open", () => {
@@ -309,22 +324,82 @@ describe("voice defense client opening handshake", () => {
 
 		harness.onDataMessage(voiceState("listening"));
 		vi.advanceTimersByTime(1_000);
-		expect(sent.some((payload) => payload.includes("请开始答辩"))).toBe(true);
+		expect(
+			sent.some((payload) => payload.includes("请用「答辩现在开始。」")),
+		).toBe(true);
 		expect(remoteTrack.enabled).toBe(false);
 
 		harness.onDataMessage(voiceState("speaking"));
-		expect(remoteTrack.enabled).toBe(true);
+		expect(remoteTrack.enabled).toBe(false);
 		expect(captions).toEqual([]);
 
 		harness.onDataMessage(
 			assistantCaption(
 				"opening",
-				"答辩开始。第一个问题:为什么注意力就足以替代循环和卷积网络？",
+				"答辩现在开始。第一个问题:为什么注意力就足以替代循环和卷积网络？",
 			),
 		);
 		expect(captions).toHaveLength(1);
 		expect(captions[0]?.id).toBe("opening");
+		expect(remoteTrack.enabled).toBe(true);
 		expect(playback.at(-1)).toBe(true);
+	});
+
+	it("does not surface a stale noncanonical first turn when the blind timeout expires", () => {
+		const sent: string[] = [];
+		const playback: boolean[] = [];
+		let captions: VoiceCaption[] = [];
+		const remoteTrack = { enabled: true };
+		const client = new VoiceDefenseClient({
+			onStatus: () => undefined,
+			onCaption: (caption) => {
+				captions = upsertVoiceCaption(captions, caption);
+			},
+			onRemoteStream: () => undefined,
+			onCommitteePlayback: (enabled) => playback.push(enabled),
+			onError: () => undefined,
+		});
+		const harness = client as unknown as VoiceDefenseClientHarness;
+		harness.channel = {
+			readyState: "open",
+			send: (data) => sent.push(String(data)),
+		};
+		harness.remoteStream = {
+			getAudioTracks: () => [remoteTrack],
+			getTracks: () => [remoteTrack],
+		} as unknown as MediaStream;
+
+		harness.onDataMessage(voiceState("speaking"));
+		harness.onDataMessage(
+			assistantCaption(
+				"real-preamble",
+				"好的,我们来聚焦他们的核心主张。我想问,你在形式化范式层面如何看待它对跨组件依赖的处理。",
+			),
+		);
+		expect(captions).toEqual([]);
+		expect(remoteTrack.enabled).toBe(false);
+
+		harness.handleOpeningTimeout();
+		harness.onDataMessage(voiceState("listening"));
+
+		expect(harness.opening.phase).toBe("awaiting");
+		expect(captions).toEqual([]);
+		expect(remoteTrack.enabled).toBe(false);
+		expect(playback.at(-1)).not.toBe(true);
+		expect(sent.some((payload) => payload.includes("stop_speaking"))).toBe(
+			true,
+		);
+		expect(sent.some((payload) => payload.includes("答辩现在开始"))).toBe(true);
+
+		harness.onDataMessage(
+			assistantCaption(
+				"prefixed-recovery",
+				"嗯。答辩现在开始。第一个问题：请解释时间可组合性。",
+			),
+		);
+		expect(harness.opening.phase).toBe("awaiting");
+		expect(captions).toEqual([]);
+		expect(remoteTrack.enabled).toBe(false);
 	});
 
 	it("drops noise ASR and interrupts a first-question reask before any real answer", () => {
@@ -348,7 +423,7 @@ describe("voice defense client opening handshake", () => {
 		harness.onDataMessage(
 			assistantCaption(
 				"q1",
-				"答辩开始。机制的设计理由是什么？为什么注意力就足以替代循环和卷积网络？",
+				"答辩现在开始。机制的设计理由是什么？为什么注意力就足以替代循环和卷积网络？",
 			),
 		);
 		harness.onDataMessage(voiceState("listening"));
@@ -367,7 +442,9 @@ describe("voice defense client opening handshake", () => {
 		expect(sent.some((payload) => payload.includes("stop_speaking"))).toBe(
 			true,
 		);
-		expect(sent.some((payload) => payload.includes("请开始答辩"))).toBe(false);
+		expect(
+			sent.some((payload) => payload.includes("请用「答辩现在开始。」")),
+		).toBe(false);
 	});
 
 	it("keeps a first-question follow-up after a real spoken answer", () => {
@@ -391,7 +468,7 @@ describe("voice defense client opening handshake", () => {
 		harness.onDataMessage(
 			assistantCaption(
 				"q1",
-				"答辩开始。机制的设计理由是什么？为什么注意力就足以替代循环和卷积网络？",
+				"答辩现在开始。机制的设计理由是什么？为什么注意力就足以替代循环和卷积网络？",
 			),
 		);
 		harness.onDataMessage(voiceState("listening"));
@@ -435,7 +512,7 @@ describe("voice defense client opening handshake", () => {
 		harness.onDataMessage(
 			assistantCaption(
 				"q1",
-				"答辩开始。机制的设计理由是什么？为什么注意力就足以替代循环和卷积网络？",
+				"答辩现在开始。机制的设计理由是什么？为什么注意力就足以替代循环和卷积网络？",
 			),
 		);
 		harness.onDataMessage(voiceState("listening"));

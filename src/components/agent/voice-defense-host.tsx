@@ -21,7 +21,7 @@ import { toVaultRelative } from "@/lib/core/path";
 import { isTauri } from "@/lib/core/tauri";
 import { isLibraryVirtualPath, isTrashVirtualPath } from "@/lib/paper/api";
 import { paperDirFromPath } from "@/lib/paper/detect";
-import { openDocWindow } from "@/lib/shell/doc-window";
+import { broadcastWorkspaceOpenPath } from "@/lib/shell/workspace-broadcast";
 import { openGraphPath } from "@/lib/workspace/actions";
 
 function handleOpenSource(source: string, windowMode: boolean): void {
@@ -36,7 +36,7 @@ function handleOpenSource(source: string, windowMode: boolean): void {
 		return;
 	}
 	if (windowMode) {
-		void openDocWindow(trimmed);
+		broadcastWorkspaceOpenPath(trimmed);
 		return;
 	}
 	openGraphPath(trimmed);

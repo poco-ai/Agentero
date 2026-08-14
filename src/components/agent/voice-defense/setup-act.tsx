@@ -50,6 +50,10 @@ import type {
 	VoiceScenario,
 } from "@/lib/voice-defense";
 import {
+	clampPlannedDurationMinutes,
+	PLANNED_DURATION_CHOICES,
+} from "@/lib/voice-defense/preferences";
+import {
 	VOICE_DIFFICULTIES,
 	VOICE_SCENARIOS,
 } from "@/lib/voice-defense/protocol";
@@ -59,9 +63,6 @@ type MaterialItem = { path: string; kind: "file" | "directory"; title: string };
 
 type PreparationNodeStatus =
 	DefensePreparationManifest["nodes"]["paper-analysis"]["status"];
-
-/** Quick presets; the clock stepper also allows any 5-minute value. */
-const DURATION_PRESETS = [null, 10, 20, 30, 45] as const;
 
 /** The three committee members and the preparation node each one embodies. */
 const COMMITTEE_DEFS = [
@@ -284,13 +285,6 @@ function AccountChip({
 	);
 }
 
-function clampCustomMinutes(value: number): number | null {
-	if (!Number.isFinite(value)) return null;
-	const rounded = Math.round(value);
-	if (rounded < 1 || rounded > 240) return null;
-	return rounded;
-}
-
 export function SetupAct({
 	title,
 	authStatus,
@@ -336,7 +330,6 @@ export function SetupAct({
 	onRetry,
 	onCancelPreparation,
 	onStart,
-	onClose,
 }: {
 	title: string;
 	authStatus: VoiceAuthStatus | null;
@@ -391,14 +384,13 @@ export function SetupAct({
 	onRetry: () => void;
 	onCancelPreparation: () => void;
 	onStart: () => void;
-	onClose: () => void;
 }) {
 	const { t } = useTranslation("agent");
 	const [editingBrief, setEditingBrief] = useState(false);
 	const [customDraft, setCustomDraft] = useState(() =>
 		plannedMinutes !== null &&
-		!DURATION_PRESETS.includes(
-			plannedMinutes as (typeof DURATION_PRESETS)[number],
+		!PLANNED_DURATION_CHOICES.includes(
+			plannedMinutes as (typeof PLANNED_DURATION_CHOICES)[number],
 		)
 			? String(plannedMinutes)
 			: "",
@@ -406,8 +398,8 @@ export function SetupAct({
 	const [customOpen, setCustomOpen] = useState(
 		() =>
 			plannedMinutes !== null &&
-			!DURATION_PRESETS.includes(
-				plannedMinutes as (typeof DURATION_PRESETS)[number],
+			!PLANNED_DURATION_CHOICES.includes(
+				plannedMinutes as (typeof PLANNED_DURATION_CHOICES)[number],
 			),
 	);
 	const macDesktop = useMemo(() => isTauri() && isMacOS(), []);
@@ -428,11 +420,20 @@ export function SetupAct({
 		Boolean(brief.trim());
 	const showBrief = canEnter;
 	const connected = Boolean(authStatus?.connected);
+	const preparationRunning =
+		preparationActive &&
+		!preparationFailed &&
+		!preparationStale &&
+		!selectionChanged;
+	const preparationWorking =
+		!preparationStale &&
+		!selectionChanged &&
+		(preparationRunning || preparationLoading);
 	// The page grows through three stages: configure → prepare → read.
 	// One centred column, no reserved empty regions.
 	const stage: "brief" | "working" | "config" = showBrief
 		? "brief"
-		: preparationActive || preparationLoading
+		: preparationWorking
 			? "working"
 			: "config";
 
@@ -443,8 +444,8 @@ export function SetupAct({
 	useEffect(() => {
 		const isCustom =
 			plannedMinutes !== null &&
-			!DURATION_PRESETS.includes(
-				plannedMinutes as (typeof DURATION_PRESETS)[number],
+			!PLANNED_DURATION_CHOICES.includes(
+				plannedMinutes as (typeof PLANNED_DURATION_CHOICES)[number],
 			);
 		if (isCustom) {
 			setCustomOpen(true);
@@ -452,7 +453,7 @@ export function SetupAct({
 		}
 	}, [plannedMinutes]);
 
-	const primaryAction = preparationActive
+	const primaryAction = preparationRunning
 		? {
 				key: "cancel",
 				label: t("voiceDefense.preparation.cancel"),
@@ -538,7 +539,7 @@ export function SetupAct({
 
 	const applyCustomMinutes = (raw: string) => {
 		setCustomDraft(raw);
-		const parsed = clampCustomMinutes(Number(raw));
+		const parsed = clampPlannedDurationMinutes(Number(raw));
 		if (parsed !== null) onPlannedMinutesChange(parsed);
 	};
 
@@ -873,7 +874,7 @@ export function SetupAct({
 						className="flex items-center rounded-full bg-muted/60 p-1"
 						aria-label={t("voiceDefense.duration.title")}
 					>
-						{DURATION_PRESETS.map((choice) => {
+						{PLANNED_DURATION_CHOICES.map((choice) => {
 							const selected = plannedMinutes === choice;
 							return (
 								<button
@@ -1091,7 +1092,7 @@ export function SetupAct({
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="start" className="min-w-44">
-						{DURATION_PRESETS.map((choice) => (
+						{PLANNED_DURATION_CHOICES.map((choice) => (
 							<DropdownMenuItem
 								key={choice ?? "none"}
 								onSelect={() => selectPreset(choice)}
@@ -1200,8 +1201,6 @@ export function SetupAct({
 					<p className="shrink-0 font-medium text-sm">
 						{t("voiceDefense.title")}
 					</p>
-					<span className="h-4 w-px shrink-0 bg-border" aria-hidden />
-					<p className="truncate text-muted-foreground text-sm">{title}</p>
 				</div>
 				<div className="flex shrink-0 items-center gap-1">
 					<AccountChip
@@ -1212,16 +1211,6 @@ export function SetupAct({
 						onCancel={onCancelAccountConnection}
 						onDisconnect={onDisconnectAccount}
 					/>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-sm"
-						className="relative z-10 shrink-0 rounded-full"
-						aria-label={t("voiceDefense.close")}
-						onClick={onClose}
-					>
-						<X aria-hidden />
-					</Button>
 				</div>
 			</header>
 
@@ -1266,7 +1255,7 @@ export function SetupAct({
 								{...stageFade}
 								className="my-auto space-y-10 py-10"
 							>
-								{hero}
+								{!preparationStale && !selectionChanged ? hero : null}
 								{configForm}
 							</motion.div>
 						)}
@@ -1292,12 +1281,12 @@ export function SetupAct({
 						{primaryAction.label}
 					</Button>
 					{(preparationReady &&
-						!preparationActive &&
+						!preparationRunning &&
 						!preparationStale &&
 						!selectionChanged) ||
 					(reusable &&
 						!preparationReady &&
-						!preparationActive &&
+						!preparationRunning &&
 						!preparationFailed) ? (
 						<Button
 							type="button"

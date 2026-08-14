@@ -38,4 +38,20 @@ describe("voice defense transcript preview", () => {
 		expect(footer).toContain('aria-live="polite"');
 		expect(footer).not.toContain("disabled={saving || reviewing}");
 	});
+
+	it("keeps a labeled close action in the footer after saving the transcript", () => {
+		const component = readFileSync(
+			new URL(
+				"../src/components/agent/voice-defense/ended-act.tsx",
+				import.meta.url,
+			),
+			"utf8",
+		);
+		const footerIndex = component.indexOf("In-flow footer");
+		const footer = component.slice(footerIndex);
+
+		expect(component).toContain("hasTranscriptAction");
+		expect(footer).toContain('{t("voiceDefense.close")}');
+		expect(footer).toContain("onClick={onClose}");
+	});
 });

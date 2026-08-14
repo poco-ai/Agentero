@@ -16,6 +16,7 @@ import {
 	buildVoiceRelayEvent,
 	createVoiceOpeningState,
 	encodeVoiceEvent,
+	isCanonicalDefenseAnnouncementCaption,
 	isDefenseAnnouncementCaption,
 	isDefenseOpeningCaption,
 	isDefenseRestartCaption,
@@ -264,12 +265,11 @@ describe("voice defense protocol", () => {
 			'"Please begin the defense." as a separate message',
 		);
 		expect(untimed).toContain('Never say "Understood" as an acknowledgment');
-		expect(untimed).toContain(
-			"Your first response to this message must announce the defense directly",
-		);
+		expect(untimed).toContain("The first words you speak must be exactly");
 		expect(untimed).toContain("name the section, formula, claim, or example");
 		expect(untimed).toContain("Never judge the material's type");
-		expect(untimed).toContain('"The defense begins now. First question: ..."');
+		expect(untimed).toContain('"The defense begins now."');
+		expect(untimed).not.toContain("for example:");
 		expect(untimed).toContain("no announcing that you entered any mode");
 	});
 
@@ -316,14 +316,16 @@ describe("voice defense protocol", () => {
 			language: "zh-CN",
 		});
 		expect(bootstrap).toContain("每一轮只提出一个问题");
-		expect(bootstrap).toContain("宣布答辩开始");
+		expect(bootstrap).toContain("答辩现在开始");
 		expect(bootstrap).toContain("答辩开始只宣布一次");
 		expect(bootstrap).not.toContain("只说两个字：“明白”");
 		expect(bootstrap).not.toContain("之后我会单独发来“请开始答辩”");
 		expect(bootstrap).toContain("不要用“明白”作确认回执");
-		expect(bootstrap).toContain("这一条回复必须直接宣布答辩开始");
-		expect(bootstrap).toContain("例如：“答辩现在开始。第一个问题：……”");
-		expect(bootstrap).toContain("禁止宣布你进入了某种模式");
+		expect(bootstrap).toContain(
+			"你开口的第一句话必须一字不差是「答辩现在开始。」",
+		);
+		expect(bootstrap).not.toContain("例如：“答辩现在开始");
+		expect(bootstrap).toContain("禁止宣布进入某种模式");
 		expect(bootstrap).toContain("不要当作我的回答");
 		expect(bootstrap).toContain("点名章节、公式、结论或例题");
 		expect(bootstrap).toContain("不要评判这份材料本身");
@@ -404,9 +406,45 @@ describe("voice defense protocol", () => {
 				text: "答辩现在开始。第一个问题：二次函数的顶点公式是什么？",
 			}),
 		).toMatchObject({ id: "q1" });
+		expect(
+			visibleAssistantCaptionDuringOpening({
+				id: "paraphrase",
+				role: "assistant",
+				text: "好的，答辩开始。一个问题:你们为什么认为可以完全去掉循环和卷积",
+			}),
+		).toBeNull();
+		expect(
+			isCanonicalDefenseAnnouncementCaption(
+				"答辩现在开始。第一个问题：为什么？",
+			),
+		).toBe(true);
+		expect(
+			isCanonicalDefenseAnnouncementCaption(
+				"嗯。答辩现在开始。第一个问题：为什么？",
+			),
+		).toBe(false);
+		expect(
+			isCanonicalDefenseAnnouncementCaption(
+				"嗯答辩现在开始。第一个问题：为什么？",
+			),
+		).toBe(false);
+		expect(
+			isCanonicalDefenseAnnouncementCaption(
+				"The defense begins now. First question: why?",
+			),
+		).toBe(true);
+		expect(
+			isCanonicalDefenseAnnouncementCaption(
+				"Um, the defense begins now. First question: why?",
+			),
+		).toBe(false);
+		expect(isCanonicalDefenseAnnouncementCaption("好的，答辩开始")).toBe(false);
+		expect(
+			isCanonicalDefenseAnnouncementCaption("好的,我们开始答辩。你作为作者"),
+		).toBe(false);
 		// Models often drop 现在 and say "答辩开始". That prefix must count as
-		// the opening — otherwise the 16-char filler heuristic treats it as an
-		// acknowledgment and the recovery trigger restarts the defense.
+		// an announcement for restart suppression, but it is not the canonical
+		// first sentence — otherwise the recovery trigger never fires.
 		expect(isDefenseOpeningCaption("好的，答辩开始")).toBe(true);
 		expect(isOpeningFillerCaption("好的，答辩开始")).toBe(false);
 		expect(
@@ -507,8 +545,10 @@ describe("voice defense protocol", () => {
 	});
 
 	it("builds the two-phase opening trigger per language", () => {
-		expect(buildDefenseOpeningTrigger("zh-CN")).toBe("请开始答辩。");
-		expect(buildDefenseOpeningTrigger("en")).toBe("Please begin the defense.");
+		expect(buildDefenseOpeningTrigger("zh-CN")).toContain("答辩现在开始。");
+		expect(buildDefenseOpeningTrigger("en")).toContain(
+			"The defense begins now.",
+		);
 	});
 
 	it("keeps the microphone closed until a real first question finishes", () => {
@@ -534,6 +574,12 @@ describe("voice defense protocol", () => {
 		expect(opening.heardOpening).toBe(false);
 		opening = reduceVoiceOpening(opening, {
 			type: "assistant-text",
+			text: "好的，答辩开始。一个问题:为什么去掉循环?",
+		});
+		expect(opening.phase).toBe("awaiting");
+		expect(opening.heardOpening).toBe(false);
+		opening = reduceVoiceOpening(opening, {
+			type: "assistant-text",
 			text: "答辩现在开始。第一个问题：请你说明材料里提到的作者的创新性",
 		});
 		expect(opening.phase).toBe("awaiting");
@@ -547,10 +593,10 @@ describe("voice defense protocol", () => {
 		expect(opening.phase).toBe("open");
 	});
 
-	it("opens on timeout only when the committee is not still speaking", () => {
+	it("never treats a timeout as proof that the canonical opening was spoken", () => {
 		let idle = createVoiceOpeningState();
 		idle = reduceVoiceOpening(idle, { type: "timeout" });
-		expect(idle.phase).toBe("open");
+		expect(idle).toMatchObject({ phase: "awaiting", heardOpening: false });
 
 		let speaking = reduceVoiceOpening(createVoiceOpeningState(), {
 			type: "voice-state",
@@ -558,11 +604,11 @@ describe("voice defense protocol", () => {
 		});
 		speaking = reduceVoiceOpening(speaking, { type: "timeout" });
 		expect(speaking.phase).toBe("awaiting");
-		expect(speaking.heardOpening).toBe(true);
+		expect(speaking.heardOpening).toBe(false);
 		speaking = reduceVoiceOpening(speaking, {
 			type: "voice-state",
 			state: "listening",
 		});
-		expect(speaking.phase).toBe("open");
+		expect(speaking.phase).toBe("awaiting");
 	});
 });

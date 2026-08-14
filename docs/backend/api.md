@@ -378,7 +378,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
   - label 为 `viva`；已存在则 `unminimize` + `show` + `set_focus`。
   - URL：`index.html?window=viva&vault_path=…&active_path=…&paper_title=…`（`VivaWindowRoot`，不加载完整 App Dock）。
   - 约 1080×780，居中；macOS Overlay 标题栏。
-  - 通话中点关闭会先进入总结页（前端 `onCloseRequested`），准备/总结页再关才销毁窗口。
+  - 委员已经开始播放后点关闭会先进入总结页（前端 `onCloseRequested`）；开场门控失败或播放尚未开始时，错误页与系统关闭按钮直接销毁窗口；准备/总结页同样直接销毁窗口。
   - **必须是 `async` command**（同 `window_new`）。
 
 #### `fs_watch_start` / `fs_watch_stop`（已实现）

@@ -14,6 +14,11 @@ import { motion } from "motion/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { isMacOS, isTauri } from "@/lib/core/tauri";
 import { cn } from "@/lib/core/utils";
 import type {
@@ -53,6 +58,7 @@ const footerGhost = cn(
  * deliberate action here, and closing without it discards the session.
  */
 export function EndedAct({
+	windowMode,
 	title,
 	durationSeconds,
 	questionCount,
@@ -71,6 +77,8 @@ export function EndedAct({
 	onRestart,
 	onClose,
 }: {
+	/** Native Viva windows use the system title-bar close control. */
+	windowMode: boolean;
 	title: string;
 	durationSeconds: number | null;
 	questionCount: number;
@@ -92,9 +100,13 @@ export function EndedAct({
 }) {
 	const { t } = useTranslation("agent");
 	const macDesktop = useMemo(() => isTauri() && isMacOS(), []);
+	const showCustomClose = !windowMode;
 	const preview = captions.slice(0, 4);
 	const missedQuestions =
 		debrief?.questions.filter((entry) => !entry.asked) ?? [];
+	const hasTranscriptAction = Boolean(
+		(savedPath && onOpenTranscript) || onSaveTranscript,
+	);
 	const roleLabel = (role: VoiceCaption["role"]) =>
 		t(
 			role === "assistant"
@@ -110,16 +122,23 @@ export function EndedAct({
 				)}
 			>
 				<div className="h-full min-w-0 flex-1" data-tauri-drag-region />
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon-sm"
-					className="relative z-10 shrink-0 rounded-full"
-					aria-label={t("voiceDefense.close")}
-					onClick={onClose}
-				>
-					<X aria-hidden />
-				</Button>
+				{showCustomClose ? (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								className="relative z-10 shrink-0 rounded-full"
+								aria-label={t("voiceDefense.close")}
+								onClick={onClose}
+							>
+								<X aria-hidden />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>{t("voiceDefense.close")}</TooltipContent>
+					</Tooltip>
+				) : null}
 			</div>
 			<div className="agentero-scroll min-h-0 flex-1 overflow-y-auto">
 				<div className="mx-auto flex w-full max-w-2xl flex-col px-6 pt-8 pb-10">
@@ -304,11 +323,11 @@ export function EndedAct({
 							)}
 							{t("voiceDefense.ended.save")}
 						</Button>
-					) : (
+					) : showCustomClose ? (
 						<Button type="button" onClick={onClose} className={footerPrimary}>
 							{t("voiceDefense.close")}
 						</Button>
-					)}
+					) : null}
 					{reviewPath && onOpenReview ? (
 						<Button
 							type="button"
@@ -349,6 +368,17 @@ export function EndedAct({
 						>
 							<RotateCcw aria-hidden />
 							{t("voiceDefense.ended.again")}
+						</Button>
+					) : null}
+					{showCustomClose && hasTranscriptAction ? (
+						<Button
+							type="button"
+							variant="ghost"
+							onClick={onClose}
+							className={footerGhost}
+						>
+							<X aria-hidden />
+							{t("voiceDefense.close")}
 						</Button>
 					) : null}
 				</div>

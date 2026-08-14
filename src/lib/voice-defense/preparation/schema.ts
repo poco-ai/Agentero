@@ -18,6 +18,14 @@ export type DefensePreparationStatus =
 	| "failed"
 	| "cancelled";
 
+/** Statuses that still own ACP children and must be recovered, not restarted. */
+export const RUNNING_PREPARATION_STATUSES = new Set<DefensePreparationStatus>([
+	"created",
+	"snapshotting",
+	"analyzing",
+	"synthesizing",
+]);
+
 export type DefenseNodeStatus =
 	| "pending"
 	| "running"

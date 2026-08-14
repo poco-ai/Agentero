@@ -3,6 +3,7 @@ export type VoiceDefenseErrorCode =
 	| "microphoneDenied"
 	| "microphoneNotFound"
 	| "microphoneBusy"
+	| "openingTimeout"
 	| "dataChannelTimeout"
 	| "dataChannelFailed"
 	| "networkOffline"

@@ -65,6 +65,7 @@ import {
 	toggleRightSidebar,
 	toggleSidebar,
 } from "@/lib/shell/ui-store";
+import { listenWorkspaceOpenPath } from "@/lib/shell/workspace-broadcast";
 import {
 	createNewVault,
 	deleteSelectedPath,
@@ -91,6 +92,7 @@ import {
 	closeTabOrWindow,
 	cycleActiveTab,
 	dirtyVaultPaths,
+	openGraphPath,
 	toggleNotesSplit,
 } from "@/lib/workspace/actions";
 import { workspaceStore } from "@/lib/workspace/store";
@@ -261,6 +263,33 @@ export default function App() {
 		return () => {
 			unsubscribeWorkspace();
 			unsubscribeVault();
+		};
+	}, []);
+
+	// Popout surfaces (for example Viva history) open their target in the
+	// main workbench instead of creating an empty document window.
+	useEffect(() => {
+		if (!isTauri()) return;
+		let cancelled = false;
+		let unlisten: (() => void) | undefined;
+		void listenWorkspaceOpenPath(({ path }) => {
+			if (cancelled) return;
+			openGraphPath(path);
+			void (async () => {
+				try {
+					const { getCurrentWindow } = await import("@tauri-apps/api/window");
+					await getCurrentWindow().setFocus();
+				} catch {
+					// Main window may already be focused or unavailable during shutdown.
+				}
+			})();
+		}).then((off) => {
+			if (cancelled) off();
+			else unlisten = off;
+		});
+		return () => {
+			cancelled = true;
+			unlisten?.();
 		};
 	}, []);
 

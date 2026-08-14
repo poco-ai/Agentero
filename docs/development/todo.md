@@ -89,13 +89,15 @@
 - [x] 开场宣布前保持委员远端静音：无「答辩开始」的前奏提问不上台、截断音频，字幕出现宣布后再放声（复盘同上）
 - [x] 重写答辩间 bootstrap 会话规则提升提问质量：问题必须点名材料中的章节/公式/结论/例题（内容锚定）、先基础后加深、随回答自适应（答得好升级难度追边界反例，答错先一句话点破再抓薄弱点）、禁评判材料类型/价值/"新意"（考察理解而非审查文档，材料自身有主张则要求辩护）、禁填充语开头，中英双语同步
 - [x] 修复答辩总结页长字幕被两行省略，并把通话计时起点从连接前移到委员首次 `speaking`（可见字幕兜底），连接与信令耗时不再计入答辩时长
+- [x] 修复开场 20 秒盲兜底泄露上一轮字幕、非规范首句和跨轮声画错配：超时保持 fail-closed 并打断后发送精确恢复指令，只在字幕从首字命中「答辩现在开始」时放声；计时进一步改为远端播放实际启用时起表（复盘：[voice-defense-opening-ack-gate.md](../bug_fix/voice-defense-opening-ack-gate.md)）
 - [x] 修复答辩总结页底栏「打开转写」与「正在生成评价」叠层：评价中改为状态字，胶囊关闭按下缩放并允许换行（复盘：[voice-defense-ended-footer-overlap.md](../bug_fix/voice-defense-ended-footer-overlap.md)）
+- [x] 修复答辩总结页保存转写后底栏没有关闭：保留带文案的「关闭」，不只靠标题栏叉号（复盘：[voice-defense-ended-missing-close.md](../bug_fix/voice-defense-ended-missing-close.md)）
 - [x] 答辩间改为独立原生单例窗口（`viva`），不再全屏覆盖主工作台；通话中关窗先进入总结页
 - [x] 答辩准备页实时思考背景墙：`lib/voice-defense/thought-stream.ts` 按子会话把 `agent:stream` thought 与 `agent:tool` 事件路由到两位委员的滚动行缓冲（节流、封顶、仅内存，快照工作区绝对路径清洗回 Vault 相对路径），`thought-backdrop.tsx` 以双列文字墙渲染在 hero 背后（透明度按行新旧递退、最新行为思考前沿，浅色主题可读；中心径向遮罩留白、静默变暗、reduced-motion 降级），让"模型真的在工作"可被看见且不落盘
 - [x] 答辩间产品缺口：材料指纹未变时可确认复用上次提纲；转写 YAML frontmatter 与准备页历史场次；会后隐藏 ACP 评价（不阻塞结束）；答辩语言/难度、会中补资料与拉回主题、委员已问轮次
 - [ ] ChatGPT Web Voice 跨平台 smoke test：Windows/Linux 实机登录、系统凭证库、WebRTC 通话与安装包
 - [ ] 答辩间备用实时后端：OpenAI Realtime API（BYOK 可选项，不作默认），摆脱对 ChatGPT 网页私有协议与 UA 伪装的单点依赖；协议适配层已具备防腐结构（`protocol.ts`）
-- [ ] 答辩间编排层重构：`voice-defense-dialog.tsx`（~1500 行）抽取 `useVoiceSession`/`usePreparationRecovery` hooks，为 phase × lease × operation 状态机补单元测试
+- [x] 答辩间编排层重构：`voice-defense-dialog.tsx` 抽 `useVoiceDefense`（对齐 `use-agent-panel` 单编排 hook，不拆成互相抢 lease 的两个 hook），偏好/恢复/`VoiceStartGate` 纯模块补单测；`client.ts` 开场门控仍与协议私有字段耦合，留待备用实时后端时再拆
 - [ ] 多 Agent 答辩准备 Phase 3 真实质量评估：固定论文集对比单 Agent artifact 与多 Agent brief 的覆盖率、证据准确率、无依据结论、编辑比例和耗时；据结果决定保留协同、退回单 Agent 或增加证据核查节点（本地评分/汇总工具已实现；设计：[multi-agent-voice-defense-preparation.md](multi-agent-voice-defense-preparation.md) · [评估方法](voice-defense-quality-evaluation.md)）
 - [x] 修复 PDF 版面解析把 WebView 压崩后无限重跑的崩溃循环：`localStorage` 崩溃守卫，两次中途崩溃后暂停自动解析，手动重试重置（复盘：[pdf-layout-webview-crash-loop.md](../bug_fix/pdf-layout-webview-crash-loop.md)）
 - [x] 版面解析移出主 `WebContent` 进程：隐藏 `layout-worker` 窗口独立进程跑 PDFium/ONNX（事件协议 + 无进度看门狗，浏览器环境回退本进程），大 PDF 解析 OOM 不再拖垮主窗口

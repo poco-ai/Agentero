@@ -80,7 +80,10 @@ export async function closeCurrentVivaWindow(): Promise<void> {
 	if (!isTauri()) return;
 	try {
 		const { getCurrentWindow } = await import("@tauri-apps/api/window");
-		await getCurrentWindow().close();
+		// The user has already chosen to close. Force-destroy avoids re-entering
+		// `onCloseRequested`, whose conditional handoff is only for native close
+		// requests initiated from the system title bar.
+		await getCurrentWindow().destroy();
 	} catch {
 		// The window may already be closing.
 	}

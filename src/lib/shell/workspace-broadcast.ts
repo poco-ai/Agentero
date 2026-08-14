@@ -8,6 +8,8 @@ import type { ChatLine } from "@/lib/agent/chat-state";
 import { isTauri } from "@/lib/core/tauri";
 
 export const WORKSPACE_ACTIVE_CHANGED_EVENT = "workspace:active-changed";
+/** Popout → main: open a Vault path in the main workbench. */
+export const WORKSPACE_OPEN_PATH_EVENT = "workspace:open-path";
 export const AGENT_OPEN_SESSION_EVENT = "agent:open-session";
 /** Main → new Agent feature window: full session snapshot for continuity. */
 export const AGENT_SESSION_HANDOFF_EVENT = "agent:session-handoff";
@@ -17,6 +19,11 @@ export type WorkspaceActiveChangedPayload = {
 	vaultPath: string | null;
 	/** Paper title when known (Agent header etc.). */
 	paperTitle?: string | null;
+};
+
+export type WorkspaceOpenPathPayload = {
+	/** Vault-relative path accepted by `openGraphPath`. */
+	path: string;
 };
 
 /** Serializable Agent panel state for a newly opened feature window. */
@@ -53,6 +60,38 @@ export async function listenWorkspaceActive(
 		WORKSPACE_ACTIVE_CHANGED_EVENT,
 		(event) => {
 			handler(event.payload);
+		},
+	);
+	return unlisten;
+}
+
+/** Ask the main workbench to open a Vault path and bring itself to the front. */
+export function broadcastWorkspaceOpenPath(path: string): void {
+	const trimmed = path.trim();
+	if (!isTauri() || !trimmed) return;
+	void (async () => {
+		try {
+			const { emit } = await import("@tauri-apps/api/event");
+			await emit(WORKSPACE_OPEN_PATH_EVENT, { path: trimmed });
+		} catch {
+			// non-fatal
+		}
+	})();
+}
+
+/** Main-window listener for paths requested by a popout surface. */
+export async function listenWorkspaceOpenPath(
+	handler: (payload: WorkspaceOpenPathPayload) => void,
+): Promise<() => void> {
+	if (!isTauri()) return () => {};
+	const { listen } = await import("@tauri-apps/api/event");
+	const unlisten = await listen<WorkspaceOpenPathPayload>(
+		WORKSPACE_OPEN_PATH_EVENT,
+		(event) => {
+			const path = event.payload?.path;
+			if (typeof path === "string" && path.trim()) {
+				handler({ path: path.trim() });
+			}
 		},
 	);
 	return unlisten;

@@ -16,11 +16,13 @@ import {
 	buildVoiceRelayEvent,
 	createVoiceOpeningState,
 	encodeVoiceEvent,
+	isCanonicalDefenseAnnouncementCaption,
 	isDefenseAnnouncementCaption,
 	isDefenseOpeningCaption,
 	isDefenseRestartCaption,
 	isFirstQuestionReaskCaption,
 	isNoiseUserCaption,
+	isOpeningFillerCaption,
 	isSubstantialUserCaption,
 	reduceVoiceOpening,
 	type VoiceCaption,
@@ -50,6 +52,7 @@ export type VoiceDefenseClientEvents = {
 // reaches the DataChannel. Give that transcript a short settlement window so
 // a direct opening can cancel the phase-two trigger before it is sent.
 const OPENING_CAPTION_SETTLE_MS = 1_000;
+const OPENING_RECOVERY_TIMEOUT_MS = 20_000;
 /** Wait for committee audio tail / AEC to settle before unmuting. */
 const MICROPHONE_OPEN_SETTLE_MS = 400;
 const WIRE_TEXT_PREFIX = 40;
@@ -130,7 +133,6 @@ export class VoiceDefenseClient {
 	private assistantTurnSeen = false;
 	private openingAssistantCaption: VoiceCaption | null = null;
 	private openingCaptionShown = false;
-	private lastHiddenOpeningCaption: VoiceCaption | null = null;
 	private openingAnnouncementId: string | null = null;
 	private emittedCaptionIds = new Set<string>();
 	private suppressedAssistantMessageIds = new Set<string>();
@@ -145,7 +147,6 @@ export class VoiceDefenseClient {
 	private microphoneSettled = false;
 	private microphoneOpenTimer: number | null = null;
 	private committeePlaybackEnabled = false;
-	private pendingOpeningPlayback = false;
 	private interruptedPreambleIds = new Set<string>();
 	private wireStartedAt = 0;
 	private openingOpenedAt: number | null = null;
@@ -179,7 +180,6 @@ export class VoiceDefenseClient {
 		this.assistantTurnSeen = false;
 		this.openingAssistantCaption = null;
 		this.openingCaptionShown = false;
-		this.lastHiddenOpeningCaption = null;
 		this.openingAnnouncementId = null;
 		this.emittedCaptionIds.clear();
 		this.suppressedAssistantMessageIds.clear();
@@ -322,14 +322,12 @@ export class VoiceDefenseClient {
 				drop: "internal",
 				textLen: bootstrap.length,
 			});
-			// Blind fallback only. The opening gate stays closed until a real
-			// first question finishes; unmuting on the acknowledgment turn lets
-			// ambient ASR derail the defense into a restart.
+			// Recovery watchdog only. Elapsed time never opens the playback gate:
+			// it interrupts a noncanonical turn and requests the exact opening.
 			this.initialAssistantTimer = window.setTimeout(() => {
-				this.applyOpening(
-					reduceVoiceOpening(this.opening, { type: "timeout" }),
-				);
-			}, 20_000);
+				this.initialAssistantTimer = null;
+				this.handleOpeningTimeout();
+			}, OPENING_RECOVERY_TIMEOUT_MS);
 			this.events.onStatus("listening");
 		} catch (error) {
 			this.events.onStatus("error");
@@ -400,14 +398,12 @@ export class VoiceDefenseClient {
 		this.assistantTurnSeen = false;
 		this.openingAssistantCaption = null;
 		this.openingCaptionShown = false;
-		this.lastHiddenOpeningCaption = null;
 		this.openingAnnouncementId = null;
 		this.emittedCaptionIds.clear();
 		this.suppressedAssistantMessageIds.clear();
 		this.heardSubstantialUserAnswer = false;
 		this.microphoneSettled = false;
 		this.committeePlaybackEnabled = false;
-		this.pendingOpeningPlayback = false;
 		this.interruptedPreambleIds.clear();
 		this.internalCaptionMessageIds.clear();
 		this.internalCaptionTexts = [];
@@ -432,19 +428,9 @@ export class VoiceDefenseClient {
 			);
 			this.logWire({ dir: "in", kind: "voice-state", state });
 			if (state === "listening" || state === "idle") {
-				if (
-					this.opening.phase === "awaiting" &&
-					!this.committeePlaybackEnabled &&
-					(this.openingTriggerSent || this.interruptedPreambleIds.size > 0)
-				) {
-					this.pendingOpeningPlayback = true;
-				}
 				this.scheduleOpeningTrigger();
 			} else if (state === "speaking" || state === "responding") {
 				this.clearOpeningTriggerTimer();
-				if (this.pendingOpeningPlayback && !this.committeePlaybackEnabled) {
-					this.enableCommitteePlayback("opening-turn");
-				}
 			}
 		}
 		if (state === "listening" || state === "idle")
@@ -502,11 +488,10 @@ export class VoiceDefenseClient {
 					this.maybeInterruptPreamble(visible);
 					const deduped = this.assistantCaptionForStage(visible);
 					const shown = deduped
-						? visibleAssistantCaptionDuringOpening(deduped)
+						? this.stageAssistantCaptionDuringOpening(deduped)
 						: null;
 					if (shown?.text) {
 						this.openingCaptionShown = true;
-						this.lastHiddenOpeningCaption = null;
 						this.enableCommitteePlayback("announcement");
 						const playable = this.captionForPlayback(shown);
 						if (playable?.text) {
@@ -520,7 +505,6 @@ export class VoiceDefenseClient {
 							this.emitCaption(playable);
 						}
 					} else if (deduped) {
-						this.lastHiddenOpeningCaption = deduped;
 						this.logWire({
 							dir: "in",
 							kind: "caption",
@@ -644,7 +628,7 @@ export class VoiceDefenseClient {
 		}
 		if (
 			this.openingAnnouncementId === null &&
-			isDefenseAnnouncementCaption(visible.text)
+			isCanonicalDefenseAnnouncementCaption(visible.text)
 		) {
 			this.openingAnnouncementId = visible.id;
 			this.enableCommitteePlayback("announcement");
@@ -675,7 +659,7 @@ export class VoiceDefenseClient {
 		if (this.openingTriggerSent || !this.assistantTurnSeen) return;
 		if (
 			!this.openingAssistantCaption?.text ||
-			isDefenseAnnouncementCaption(this.openingAssistantCaption.text)
+			isCanonicalDefenseAnnouncementCaption(this.openingAssistantCaption.text)
 		)
 			return;
 		if (
@@ -696,7 +680,7 @@ export class VoiceDefenseClient {
 		if (this.openingTriggerSent || !this.assistantTurnSeen) return;
 		if (
 			!this.openingAssistantCaption?.text ||
-			isDefenseAnnouncementCaption(this.openingAssistantCaption.text)
+			isCanonicalDefenseAnnouncementCaption(this.openingAssistantCaption.text)
 		)
 			return;
 		if (
@@ -705,8 +689,14 @@ export class VoiceDefenseClient {
 		)
 			return;
 		if (this.channel?.readyState !== "open") return;
+		this.dispatchOpeningTrigger();
+	}
+
+	private dispatchOpeningTrigger(): void {
+		if (this.opening.phase !== "awaiting") return;
+		if (this.opening.heardOpening || this.openingTriggerSent) return;
+		if (this.channel?.readyState !== "open") return;
 		this.openingTriggerSent = true;
-		this.pendingOpeningPlayback = true;
 		const trigger = buildDefenseOpeningTrigger(this.openingLanguage);
 		const messageId = crypto.randomUUID();
 		this.internalCaptionMessageIds.add(messageId);
@@ -723,12 +713,33 @@ export class VoiceDefenseClient {
 			text: trigger,
 		});
 		logger.info(
-			"[viva] opening trigger dispatched after committee acknowledgment",
+			"[viva] canonical opening recovery trigger dispatched after noncanonical response",
 		);
 		this.clearInitialAssistantTimer();
 		this.initialAssistantTimer = window.setTimeout(() => {
+			this.initialAssistantTimer = null;
+			this.handleOpeningTimeout();
+		}, OPENING_RECOVERY_TIMEOUT_MS);
+	}
+
+	private handleOpeningTimeout(): void {
+		if (this.opening.phase === "open") return;
+		if (this.opening.heardOpening) {
 			this.applyOpening(reduceVoiceOpening(this.opening, { type: "timeout" }));
-		}, 20_000);
+			return;
+		}
+		if (this.openingTriggerSent) {
+			logger.warn(
+				"[viva] canonical opening not received after recovery trigger",
+			);
+			this.fail(new VoiceDefenseError("openingTimeout"));
+			return;
+		}
+		// Voice state is not trustworthy enough to prove that the old response
+		// has ended. Interrupt unconditionally so a long preamble cannot leak
+		// when the recovery turn begins.
+		this.interrupt();
+		this.dispatchOpeningTrigger();
 	}
 
 	/**
@@ -760,12 +771,9 @@ export class VoiceDefenseClient {
 		}
 	}
 
-	private enableCommitteePlayback(
-		reason: "announcement" | "opening-turn" | "gate",
-	): void {
+	private enableCommitteePlayback(reason: "announcement" | "gate"): void {
 		if (this.committeePlaybackEnabled) return;
 		this.committeePlaybackEnabled = true;
-		this.pendingOpeningPlayback = false;
 		this.applyRemotePlaybackState();
 		logger.info(`[viva] wire committee playback enabled reason=${reason}`);
 	}
@@ -787,17 +795,39 @@ export class VoiceDefenseClient {
 		this.events.onCommitteePlayback?.(enabled);
 	}
 
+	private stageAssistantCaptionDuringOpening(
+		caption: VoiceCaption,
+	): VoiceCaption | null {
+		const canonical = visibleAssistantCaptionDuringOpening(caption);
+		if (canonical) return canonical;
+		if (
+			this.committeePlaybackEnabled &&
+			!isOpeningFillerCaption(caption.text)
+		) {
+			return caption;
+		}
+		return null;
+	}
+
 	private maybeInterruptPreamble(caption: VoiceCaption): void {
 		if (this.opening.phase !== "awaiting") return;
 		if (this.committeePlaybackEnabled || this.openingTriggerSent) return;
-		if (isDefenseAnnouncementCaption(caption.text)) return;
-		if (!isDefenseOpeningCaption(caption.text)) return;
-		const compact = caption.text.replace(/\s+/g, "").trim();
-		if (compact.length < 16) return;
+		if (isCanonicalDefenseAnnouncementCaption(caption.text)) return;
+		const paraphrased = isDefenseAnnouncementCaption(caption.text);
+		if (!paraphrased && !isDefenseOpeningCaption(caption.text)) return;
+		const compact = caption.text
+			.replace(/\s+/g, "")
+			.replace(/[，。,.!！？?:：；;]/g, "")
+			.trim();
+		if (paraphrased) {
+			if (compact.length < 6) return;
+		} else if (compact.length < 16) {
+			return;
+		}
 		if (this.interruptedPreambleIds.has(caption.id)) return;
 		this.interruptedPreambleIds.add(caption.id);
 		logger.info(
-			"[viva] wire preamble without announcement muted and interrupted",
+			"[viva] wire preamble without canonical announcement muted and interrupted",
 		);
 		this.interrupt();
 	}
@@ -813,20 +843,6 @@ export class VoiceDefenseClient {
 			this.openingOpenedAt = performance.now();
 			this.scheduleMicrophoneOpen();
 			this.enableCommitteePlayback("gate");
-			// Fallback path (e.g. timeout): if nothing ever qualified as the
-			// opening, surface the last hidden committee caption so the stage
-			// is not empty when the microphone finally opens.
-			if (!this.openingCaptionShown && this.lastHiddenOpeningCaption?.text) {
-				this.openingCaptionShown = true;
-				if (
-					this.openingAnnouncementId === null &&
-					isDefenseAnnouncementCaption(this.lastHiddenOpeningCaption.text)
-				) {
-					this.openingAnnouncementId = this.lastHiddenOpeningCaption.id;
-				}
-				this.emitCaption(this.lastHiddenOpeningCaption);
-			}
-			this.lastHiddenOpeningCaption = null;
 		}
 		this.applyMicrophoneState();
 		this.applyRemotePlaybackState();
@@ -874,7 +890,6 @@ export class VoiceDefenseClient {
 		this.heardSubstantialUserAnswer = false;
 		this.microphoneSettled = false;
 		this.committeePlaybackEnabled = false;
-		this.pendingOpeningPlayback = false;
 		this.interruptedPreambleIds.clear();
 		this.wireStartedAt = performance.now();
 		this.openingOpenedAt = null;

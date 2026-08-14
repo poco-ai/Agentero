@@ -2,27 +2,27 @@ import { describe, expect, it } from "vitest";
 import { nextVoiceSessionStartedAt } from "@/lib/voice-defense/timing";
 
 describe("voice defense session timing", () => {
-	it("starts on the first spoken activity instead of connection setup", () => {
+	it("starts when committee playback is actually enabled", () => {
 		const connectingAt = new Date("2026-08-14T01:00:00.000Z");
-		const speakingAt = new Date("2026-08-14T01:00:08.000Z");
+		const playbackAt = new Date("2026-08-14T01:00:08.000Z");
 
 		expect(
 			nextVoiceSessionStartedAt(null, "connecting", connectingAt),
 		).toBeNull();
-		expect(nextVoiceSessionStartedAt(null, "speaking", speakingAt)).toBe(
-			speakingAt,
+		expect(nextVoiceSessionStartedAt(null, "playback", playbackAt)).toBe(
+			playbackAt,
 		);
 	});
 
-	it("uses a visible caption as a fallback and never restarts the clock", () => {
-		const captionAt = new Date("2026-08-14T01:00:09.000Z");
+	it("never restarts the clock after playback begins", () => {
+		const playbackAt = new Date("2026-08-14T01:00:09.000Z");
 		const laterAt = new Date("2026-08-14T01:00:20.000Z");
 
-		expect(nextVoiceSessionStartedAt(null, "caption", captionAt)).toBe(
-			captionAt,
+		expect(nextVoiceSessionStartedAt(null, "playback", playbackAt)).toBe(
+			playbackAt,
 		);
-		expect(nextVoiceSessionStartedAt(captionAt, "speaking", laterAt)).toBe(
-			captionAt,
+		expect(nextVoiceSessionStartedAt(playbackAt, "playback", laterAt)).toBe(
+			playbackAt,
 		);
 	});
 });

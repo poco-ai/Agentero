@@ -193,6 +193,19 @@ export class DefensePreparationFailedError extends Error {
 	}
 }
 
+/** Latest failed node attempt only; earlier cancellations and retries are noise. */
+export function preparationFailureDescription(error: unknown): string {
+	if (!(error instanceof DefensePreparationFailedError)) {
+		return error instanceof Error ? error.message : String(error);
+	}
+	const causes = Object.values(error.manifest.nodes)
+		.map((node) => node.attempts.at(-1))
+		.flatMap((attempt) =>
+			attempt?.status === "failed" && attempt.error ? [attempt.error] : [],
+		);
+	return [...new Set(causes)].join("\n") || error.message;
+}
+
 type ActiveRun = {
 	runId: string;
 	vaultRoot: string;

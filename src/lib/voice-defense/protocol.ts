@@ -118,9 +118,9 @@ export function upsertVoiceCaption(
  * that acknowledgment; upstream ASR then turns noise into a fake answer and
  * the committee restarts the defense.
  *
- * The gate stays closed until a caption looks like a real first question
- * *and* the assistant has returned to listening/idle. Filler acknowledgments
- * are hidden from the stage and the transcript.
+ * The gate stays closed until the assistant caption starts with the canonical
+ * announcement and the assistant has returned to listening/idle. Filler and
+ * noncanonical turns are hidden from the stage and the transcript.
  */
 export type VoiceOpeningPhase = "awaiting" | "open";
 
@@ -155,6 +155,18 @@ const OPENING_FILLER_EN =
  */
 const DEFENSE_ANNOUNCEMENT =
 	/答辩(?:现在|正式)?(?:重新)?开始|现在开始答辩|我们(?:现在|重新)?开始答辩|(?:the )?defense (?:begins|starts)|(?:begin|start) the defense/i;
+const CANONICAL_ANNOUNCEMENT_ZH = /^答辩现在开始/;
+const CANONICAL_ANNOUNCEMENT_EN = /^the defense begins now\b/i;
+
+function canonicalAnnouncementBodies(text: string): {
+	compact: string;
+	spaced: string;
+} {
+	return {
+		compact: text.replace(/\s+/g, "").trim(),
+		spaced: text.replace(/\s+/g, " ").trim(),
+	};
+}
 
 function captionForms(text: string): string[] {
 	return [text.replace(/\s+/g, ""), text.replace(/\s+/g, " ").trim()];
@@ -181,6 +193,19 @@ export function isDefenseAnnouncementCaption(text: string): boolean {
 	return matchNearStart(text, DEFENSE_ANNOUNCEMENT);
 }
 
+/**
+ * The spoken first sentence we actually want. Broader paraphrases
+ * ("答辩开始", "好的，我们开始答辩") still count as *an* announcement for
+ * restart suppression, but they are not the opening the user should hear.
+ */
+export function isCanonicalDefenseAnnouncementCaption(text: string): boolean {
+	const { compact, spaced } = canonicalAnnouncementBodies(text);
+	return (
+		CANONICAL_ANNOUNCEMENT_ZH.test(compact) ||
+		CANONICAL_ANNOUNCEMENT_EN.test(spaced)
+	);
+}
+
 export function isDefenseOpeningCaption(text: string): boolean {
 	const trimmed = text.replace(/\s+/g, " ").trim();
 	if (trimmed.length < 4) return false;
@@ -204,10 +229,10 @@ export function visibleAssistantCaptionDuringOpening(
 	if (caption.role !== "assistant") return caption;
 	const text = caption.text.trim();
 	if (!text) return null;
-	// Before the gate opens, only the announcement itself reaches the stage.
-	// A question-shaped preamble without "答辩开始" is the model answering the
-	// injected bootstrap; keep it off the stage until it actually starts.
-	return isDefenseAnnouncementCaption(text) ? caption : null;
+	// Before the gate opens, only the canonical first sentence reaches the
+	// stage. Paraphrases and question-shaped preambles stay off-stage so the
+	// recovery turn can start with "答辩现在开始".
+	return isCanonicalDefenseAnnouncementCaption(text) ? caption : null;
 }
 
 /**
@@ -272,7 +297,9 @@ export function isSubstantialUserCaption(text: string): boolean {
  * bootstrap with acknowledgment filler instead of opening the defense.
  */
 export function buildDefenseOpeningTrigger(language: "en" | "zh-CN"): string {
-	return language === "en" ? "Please begin the defense." : "请开始答辩。";
+	return language === "en"
+		? "Your first spoken words must be exactly: The defense begins now. Then ask the first question."
+		: "请用「答辩现在开始。」作为你说的第一句话，然后立刻问第一个问题。";
 }
 
 export function reduceVoiceOpening(
@@ -282,19 +309,21 @@ export function reduceVoiceOpening(
 	if (state.phase === "open") return state;
 	let next = state;
 	if (event.type === "assistant-text") {
-		if (isDefenseAnnouncementCaption(event.text)) {
+		if (isCanonicalDefenseAnnouncementCaption(event.text)) {
 			next = { ...state, heardOpening: true };
 		}
 	} else if (event.type === "voice-state") {
 		next = { ...state, voiceState: event.state };
+	} else if (!state.heardOpening) {
+		// Elapsed wall time is never evidence that the required sentence was
+		// spoken. The client uses this edge to interrupt and request a canonical
+		// recovery turn while the gate stays closed.
+		return state;
 	} else if (
-		state.voiceState === "speaking" ||
-		state.voiceState === "responding"
+		state.voiceState !== "speaking" &&
+		state.voiceState !== "responding"
 	) {
-		// Timeout must not unmute in the middle of the first committee turn.
-		next = { ...state, heardOpening: true };
-	} else {
-		return { ...state, phase: "open", heardOpening: true };
+		return { ...state, phase: "open" };
 	}
 	return completeVoiceOpeningIfReady(next);
 }
@@ -524,7 +553,7 @@ export function buildDefenseBootstrap(input: {
 			"Speak English only.",
 			"",
 			'Never say "Understood" as an acknowledgment, and never append an acknowledgment before or after a question.',
-			'Your first response to this message must announce the defense directly, for example: "The defense begins now. First question: ...". No greeting such as "hello", no announcing that you entered any mode or role, and no remarks about the material — announce exactly once, ask your first question, then stop and wait for my spoken answer.',
+			'The first words you speak must be exactly: "The defense begins now." Do not paraphrase as "the defense starts" or "let\'s begin", and do not prefix "okay", "hello", or "understood". The next sentence must start with "First question:" and ask exactly one question, then stop. No greeting, no announcing that you entered any mode or role, and no remarks about the material.',
 		].join("\n");
 	}
 	return [
@@ -553,7 +582,7 @@ export function buildDefenseBootstrap(input: {
 		"全程使用中文。",
 		"",
 		"不要用“明白”作确认回执，也不要在问题前后补一句确认或填充语。",
-		"这一条回复必须直接宣布答辩开始，例如：“答辩现在开始。第一个问题：……”。禁止问候（如“你好”）、禁止宣布你进入了某种模式或角色、禁止评论材料——只宣布一次，随即提出第一个问题，然后停下等待我的回答。",
+		"你开口的第一句话必须一字不差是「答辩现在开始。」（含句号）。禁止改成「答辩开始」「我们开始答辩」，禁止在前面加「好的」「各位」「明白」。第二句话用「第一个问题：」提出唯一一个问题，然后停下。禁止问候、禁止宣布进入某种模式或角色、禁止评论材料。",
 	].join("\n");
 }
 

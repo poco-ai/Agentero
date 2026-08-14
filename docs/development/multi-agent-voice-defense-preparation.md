@@ -9,6 +9,7 @@
 **范围**：会前多材料理解与答辩材料生成；不修改实时 Voice 传输协议
 
 **实现位置**：`src/lib/voice-defense/preparation/`、
+`src/components/agent/use-voice-defense.ts`、
 `src/components/agent/voice-defense-dialog.tsx`、
 `src-tauri/src/features/agent/hidden_sessions.rs`、
 `src-tauri/src/features/vault/host_fs.rs`
