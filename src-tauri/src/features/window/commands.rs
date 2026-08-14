@@ -49,7 +49,6 @@ pub async fn window_new(app: AppHandle) -> Result<(), String> {
             .title("Agentero")
             .inner_size(1280.0, 800.0)
             .min_inner_size(800.0, 520.0)
-            .visible(false)
             .resizable(true);
 
     #[cfg(target_os = "macos")]
@@ -65,6 +64,7 @@ pub async fn window_new(app: AppHandle) -> Result<(), String> {
             TRAFFIC_LIGHT_Y_DEFAULT
         };
         builder = builder
+            .visible(false)
             .hidden_title(true)
             .title_bar_style(tauri::TitleBarStyle::Overlay)
             .traffic_light_position(tauri::LogicalPosition::new(TRAFFIC_LIGHT_X, y));
@@ -121,7 +121,6 @@ pub async fn settings_window_open(
             .title("Settings")
             .inner_size(720.0, 560.0)
             .min_inner_size(640.0, 480.0)
-            .visible(false)
             .resizable(true);
 
     #[cfg(target_os = "macos")]
@@ -129,6 +128,7 @@ pub async fn settings_window_open(
         // The 32px header (Tailwind h-8) does not scale with `ui_scale`, so the
         // y position stays at the constant that vertically centers the buttons.
         builder = builder
+            .visible(false)
             .hidden_title(true)
             .title_bar_style(tauri::TitleBarStyle::Overlay)
             .traffic_light_position(tauri::LogicalPosition::new(
@@ -236,7 +236,6 @@ pub async fn feature_window_open(
         .title(window_title)
         .inner_size(420.0, 720.0)
         .min_inner_size(320.0, 400.0)
-        .visible(false)
         .resizable(true);
 
     #[cfg(target_os = "macos")]
@@ -252,6 +251,7 @@ pub async fn feature_window_open(
             TRAFFIC_LIGHT_Y_DEFAULT
         };
         builder = builder
+            .visible(false)
             .hidden_title(true)
             .title_bar_style(tauri::TitleBarStyle::Overlay)
             .traffic_light_position(tauri::LogicalPosition::new(TRAFFIC_LIGHT_X, y));
@@ -331,7 +331,6 @@ pub async fn doc_window_open(
         .title(window_title)
         .inner_size(960.0, 720.0)
         .min_inner_size(480.0, 360.0)
-        .visible(false)
         .resizable(true);
 
     #[cfg(target_os = "macos")]
@@ -347,6 +346,7 @@ pub async fn doc_window_open(
             TRAFFIC_LIGHT_Y_DEFAULT
         };
         builder = builder
+            .visible(false)
             .hidden_title(true)
             .title_bar_style(tauri::TitleBarStyle::Overlay)
             .traffic_light_position(tauri::LogicalPosition::new(TRAFFIC_LIGHT_X, y));
