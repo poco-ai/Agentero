@@ -14,7 +14,7 @@
         <link rel="prev" href="../plaza/">
       
       
-        <link rel="next" href="../bug/">
+        <link rel="next" href="../../test/">
       
       
         
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#usage-analytics" class="md-skip">
+        <a href="#memory" class="md-skip">
           跳转至
         </a>
       
@@ -1206,6 +1206,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../frontend/onboarding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    新手引导
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../frontend/components/" class="md-nav__link">
         
   
@@ -1683,6 +1711,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../backend/usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用记录
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../backend/translate/" class="md-nav__link">
         
   
@@ -1719,6 +1775,62 @@
     
   
     运行日志
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/doctor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault Doctor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    遥测
   
 
     
@@ -1865,62 +1977,6 @@
     
   
     概览
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../roadmap/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    路线图
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../todo/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    TODO
   
 
     
@@ -2178,7 +2234,7 @@
   <a href="#31" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1 原则：只记录不可反推的行为
+        3.1 原则：记动作，不记内容
       
     </span>
   </a>
@@ -2189,7 +2245,7 @@
   <a href="#32" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.2 事件表
+        3.2 统一总线
       
     </span>
   </a>
@@ -2200,10 +2256,143 @@
   <a href="#33" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.3 上报路径
+        3.3 事件表
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="3.3 事件表">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-239" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. 阅读与库（#239 原范围）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. 翻译
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. 版面分析
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D. Skill 导入
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E. 批注 / 划词产物
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F. 其它高信号动作（「等」的首版清单）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Registry 形状
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-p0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 候选事件（未纳入 P0）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.5 候选事件（未纳入 P0）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#p1-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        建议下一波（P1，对 Memory 或采用率都有用）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        可后置（有信号，但漏斗散或和已有事件重叠）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        明确不记
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -2225,10 +2414,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#41-agenterousagesqlite" class="md-nav__link">
+  <a href="#41-xdg_data_homeagenterousagesqlite" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4.1 为什么另起 .agentero/usage.sqlite
+        4.1 $XDG_DATA_HOME/agentero/usage.sqlite
       
     </span>
   </a>
@@ -2236,32 +2425,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#42-schema" class="md-nav__link">
+  <a href="#42" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4.2 Schema
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#43" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4.3 路径重命名
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#44" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4.4 需要更新的忽略列表
+        4.2 路径与忽略
       
     </span>
   </a>
@@ -2274,13 +2441,52 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-usageprofile" class="md-nav__link">
+  <a href="#5-memory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. UsageProfile
+        5. Memory
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="5. Memory">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-usageprofile800-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 UsageProfile（≤800 tokens）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 注入语气
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-p3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 声明式记忆（P3）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2288,49 +2494,10 @@
   <a href="#6-agent" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Agent 接入：三层，按需取用
+        6. Agent 接入
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="6. Agent 接入：三层，按需取用">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#61" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.1 被动注入（默认，轻量）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#62" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.2 主动查询（详细）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#63-skill" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.3 Skill 编排
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -2342,45 +2509,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="7. 上层功能">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#71-agent" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7.1 继续阅读（纯本地，零 Agent 成本）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#72" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7.2 周回顾
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#73-v0-embedding" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7.3 推荐（v0，无 embedding）
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -2432,34 +2560,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../bug/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Bug 汇总
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -3027,6 +3127,230 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/cli-import-library-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI 导入后论文标题不刷新
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/codex-history-runtime-session-id/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Codex 历史恢复误用 session id
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/local-pdf-parse-missing-pdfium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入 PDF 无法生成 PAPER.md
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/paper-folder-marker-conflict/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    组织目录被识别成单篇论文
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/paper-import-timeout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文导入超时
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-create-folder-exists/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault 无法新建文件
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-delete-list-nosuchfile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程删除后 list 报 NoSuchFile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/todo-checkbox-scale-align/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    缩放时待办 checkbox 错位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3098,7 +3422,7 @@
   <a href="#31" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1 原则：只记录不可反推的行为
+        3.1 原则：记动作，不记内容
       
     </span>
   </a>
@@ -3109,7 +3433,7 @@
   <a href="#32" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.2 事件表
+        3.2 统一总线
       
     </span>
   </a>
@@ -3120,10 +3444,143 @@
   <a href="#33" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.3 上报路径
+        3.3 事件表
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="3.3 事件表">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-239" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. 阅读与库（#239 原范围）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. 翻译
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. 版面分析
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D. Skill 导入
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E. 批注 / 划词产物
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F. 其它高信号动作（「等」的首版清单）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Registry 形状
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-p0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 候选事件（未纳入 P0）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.5 候选事件（未纳入 P0）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#p1-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        建议下一波（P1，对 Memory 或采用率都有用）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        可后置（有信号，但漏斗散或和已有事件重叠）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        明确不记
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -3145,10 +3602,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#41-agenterousagesqlite" class="md-nav__link">
+  <a href="#41-xdg_data_homeagenterousagesqlite" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4.1 为什么另起 .agentero/usage.sqlite
+        4.1 $XDG_DATA_HOME/agentero/usage.sqlite
       
     </span>
   </a>
@@ -3156,32 +3613,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#42-schema" class="md-nav__link">
+  <a href="#42" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4.2 Schema
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#43" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4.3 路径重命名
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#44" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4.4 需要更新的忽略列表
+        4.2 路径与忽略
       
     </span>
   </a>
@@ -3194,13 +3629,52 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-usageprofile" class="md-nav__link">
+  <a href="#5-memory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. UsageProfile
+        5. Memory
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="5. Memory">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-usageprofile800-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 UsageProfile（≤800 tokens）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 注入语气
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-p3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 声明式记忆（P3）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -3208,49 +3682,10 @@
   <a href="#6-agent" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Agent 接入：三层，按需取用
+        6. Agent 接入
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="6. Agent 接入：三层，按需取用">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#61" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.1 被动注入（默认，轻量）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#62" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.2 主动查询（详细）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#63-skill" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.3 Skill 编排
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3262,45 +3697,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="7. 上层功能">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#71-agent" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7.1 继续阅读（纯本地，零 Agent 成本）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#72" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7.2 周回顾
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#73-v0-embedding" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7.3 推荐（v0，无 embedding）
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3368,13 +3764,13 @@
   
 
 
-<h1 id="usage-analytics">使用记录与习惯总结（Usage Analytics）<a class="headerlink" href="#usage-analytics" title="Permanent link">&para;</a></h1>
+<h1 id="memory">使用记录、Memory 与产品分析<a class="headerlink" href="#memory" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：设计草案。关联 <a href="https://github.com/poco-ai/Agentero/issues/239">#239</a>。
-相关：<a href="../../backend/catalog/"><code>../backend/catalog.md</code></a>、<a href="../../backend/agent/"><code>../backend/agent.md</code></a>、<a href="../../backend/logging/"><code>../backend/logging.md</code></a>、<a href="../../frontend/library/"><code>../frontend/library.md</code></a>、<a href="../plaza/"><code>plaza.md</code></a></p>
+<p>状态：<strong>P0 存储已落地</strong>（XDG <code>usage.sqlite</code> schema v2 + <code>track()</code> + CLI <code>usage</code>），漏斗与画像仍按本文推进。关联 <a href="https://github.com/poco-ai/Agentero/issues/239">#239</a>。实现契约见 <a href="../../backend/usage/"><code>../backend/usage.md</code></a>。
+相关：<a href="../../backend/catalog/"><code>../backend/catalog.md</code></a>、<a href="../../backend/agent/"><code>../backend/agent.md</code></a>、<a href="../../backend/telemetry/"><code>../backend/telemetry.md</code></a>、<a href="../../backend/translate/"><code>../backend/translate.md</code></a>、<a href="../../backend/skill-import/"><code>../backend/skill-import.md</code></a>、<a href="../../frontend/pdf/"><code>../frontend/pdf.md</code></a>、<a href="../../frontend/pdf-layout-analysis/"><code>../frontend/pdf-layout-analysis.md</code></a>、<a href="../plaza/"><code>plaza.md</code></a></p>
 </blockquote>
 <h2 id="1">1. 目标与非目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
-<p>Issue 三条诉求拆成三层：</p>
+<p>Issue 三条诉求 + 产品分析，落在同一条 Activity 总线上：</p>
 <table>
 <thead>
 <tr>
@@ -3386,33 +3782,40 @@
 <tbody>
 <tr>
 <td>1</td>
-<td>记录浏览 / 下载 / 阅读记录</td>
+<td>记录浏览 / 下载 / 阅读，以及翻译、版面、Skill、批注等操作</td>
 <td>§3 事件模型 + §4 存储</td>
 </tr>
 <tr>
 <td>2</td>
 <td>让 Agent 拿到用户操作习惯</td>
-<td>§5 UsageProfile + §6 Agent 三层接入</td>
+<td>§5 Memory + §6 Agent 接入</td>
 </tr>
 <tr>
 <td>3</td>
 <td>基于额外 context 做总结、推荐</td>
 <td>§7 上层功能</td>
 </tr>
+<tr>
+<td>4</td>
+<td>部分行为投影到 PostHog</td>
+<td>§3.4 Registry + §8 隐私</td>
+</tr>
 </tbody>
 </table>
 <p><strong>目标</strong></p>
 <ul>
-<li>本地记录<strong>无法从产物反推</strong>的行为事件，形成可查询的使用画像。</li>
-<li>让 BYOA Agent 以「被动注入 + 主动查询」两种方式获得习惯 context。</li>
-<li>在画像之上提供<strong>继续阅读 / 周回顾 / 本地推荐</strong>三个可验证功能。</li>
+<li>本地记录<strong>用户意图动作</strong>的时间线（何时、对哪篇、用什么方式），形成可查询画像。</li>
+<li>BYOA Agent 以「被动注入 + 主动查询」获得习惯 context。</li>
+<li>同一条事件按白名单投影到 PostHog，做功能采用率，不含论文身份与正文。</li>
+<li>在画像之上提供继续阅读 / 周回顾 / 库内推荐。</li>
 </ul>
 <p><strong>非目标（首版）</strong></p>
 <ul>
-<li>不做 embedding / 向量库 / 语义相似度（推荐用图 + 标签 + 时长，见 §7.3）。</li>
-<li>不上传任何行为数据。</li>
-<li>不跨设备同步使用记录（习惯是设备本地事实，见 §4.1）。</li>
-<li>不重复记录已能从 Vault 产物派生的信号（见 §3.1）。</li>
+<li>不做 embedding / 向量库。</li>
+<li>不把检索词、论文标题、划词原文、译文、批注正文、Skill 仓库 URL 发给 PostHog。</li>
+<li>不跨设备同步使用记录。</li>
+<li>不自动抽取 ChatGPT 式「记忆短句」（P3 需用户确认）。</li>
+<li>不记录纯 UI 噪音（缩放、大纲展开、滚动、命令面板打开）。</li>
 </ul>
 <h2 id="2">2. 现状盘点<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
 <table>
@@ -3425,359 +3828,858 @@
 </thead>
 <tbody>
 <tr>
+<td>PostHog</td>
+<td><code>features/telemetry</code>：仅 <code>app started</code> / <code>app exited</code>；无私有 <code>capture()</code></td>
+<td>扩 <code>Telemetry::capture</code>，业务禁止直连</td>
+</tr>
+<tr>
 <td>Catalog SQLite</td>
-<td><code>features/catalog/schema.rs</code>：<code>SCHEMA_VERSION</code> + <code>MIGRATE_Vn_TO_Vn+1</code> + <code>schema_meta</code></td>
-<td><strong>复用迁移范式</strong>，不复用同一个库（§4.1）</td>
+<td><code>SCHEMA_VERSION</code> + 迁移；<code>is_read</code> / <code>added_at</code>；无 opened_at</td>
+<td>复用迁移范式；不共用库</td>
 </tr>
 <tr>
-<td><code>papers</code> 表</td>
-<td>有 <code>is_read</code> / <code>added_at</code> / <code>updated_at</code>；<strong>无</strong> <code>opened_at</code> / 访问计数</td>
-<td><code>ATTACH</code> 后 join 取 title/tags</td>
+<td>阅读产物</td>
+<td><code>marks/</code>、<code>reading-heatmap</code>、<code>reading-position</code></td>
+<td>空间分布仍派生；<strong>动作时间线另记事件</strong></td>
 </tr>
 <tr>
-<td>结构化日志</td>
-<td><code>core/log_util.rs</code> 的 <code>OpTimer</code> → <code>op start\|end &lt;name&gt; k=v</code></td>
-<td>沿用字段风格，便于排查；日志不作为数据源</td>
+<td>翻译</td>
+<td><code>runTranslate</code> + 划词 mark + <code>layout-translate.json</code></td>
+<td>在消费方记 1 次会话，不在每块 MT 调用上打点</td>
 </tr>
 <tr>
-<td>阅读产物派生</td>
-<td><code>src/lib/paper/reading-heatmap/</code>：从高亮/提问/翻译派生热力图</td>
-<td><strong>先例</strong>：能派生的不落库（§3.1）</td>
+<td>版面</td>
+<td><code>enqueuePaperLayoutAnalysis</code> / <code>run-analysis</code>；sidecar 可重建</td>
+<td>只记真实分析，跳过 cache hit 静默载入</td>
+</tr>
+<tr>
+<td>Skill 导入</td>
+<td><code>lookup_import_batch</code> → <code>confirmSkillImport</code> → <code>skill_install</code></td>
+<td>确认安装后记一条</td>
+</tr>
+<tr>
+<td>批注</td>
+<td>高亮走 <code>annotations.json</code>；ask/translate/visual 走 <code>marks/&lt;id&gt;.json</code></td>
+<td>在用户提交处打点，不在防抖导出处</td>
 </tr>
 <tr>
 <td>已有 recents</td>
-<td><code>agent/mention.ts</code> 的 <code>pushRecentMentionPath</code>、<code>vault/session.ts</code> 的 <code>rememberRecentVault</code>、<code>pdf/reading-position.ts</code></td>
-<td>后续可由 usage 库统一供数，首版并存</td>
+<td><code>@</code> MRU、最近 Vault、<code>reading-position</code></td>
+<td>首版并存</td>
 </tr>
 <tr>
-<td>双链图</td>
-<td><code>features/wiki/</code>（<code>graph_get_graph</code> / <code>graph_get_backlinks</code>）</td>
-<td>推荐候选集来源</td>
-</tr>
-<tr>
-<td>搜索</td>
-<td><code>features/search</code>：walk 式无索引</td>
-<td>只在此埋 <code>search.query</code> 事件</td>
-</tr>
-<tr>
-<td>相似度 / 推荐</td>
-<td><strong>不存在任何实现</strong></td>
-<td>从零起，见 §7.3</td>
+<td>Agent 上下文</td>
+<td><code>agentPersonalPrompt</code> + <code>AGENTS.md</code> + 会话 chip</td>
+<td>无习惯 Memory；见 §5</td>
 </tr>
 </tbody>
 </table>
 <h2 id="3">3. 事件模型<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
-<h3 id="31">3.1 原则：只记录不可反推的行为<a class="headerlink" href="#31" title="Permanent link">&para;</a></h3>
-<p>Vault 产物本身已经是最好的行为记录。高亮、批注、翻译、<code>is_read</code>、PDF 阅读页码都已落盘，<code>reading-heatmap</code> 已证明可从产物派生统计。<strong>重复落一份事件只会引入不一致。</strong></p>
+<h3 id="31">3.1 原则：记动作，不记内容<a class="headerlink" href="#31" title="Permanent link">&para;</a></h3>
+<p>旧草案「能从产物派生的一律不记」对<strong>空间热力</strong>仍然成立，但对 <strong>Memory / 产品分析</strong> 不够：</p>
 <table>
 <thead>
 <tr>
-<th>信号</th>
-<th>来源</th>
-<th>是否记事件</th>
+<th>产物能回答</th>
+<th>产物答不好</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>高亮 / 批注 / 划词提问 / 翻译</td>
-<td><code>marks/*.json</code>、NOTES</td>
-<td>❌ 派生（<code>reading-heatmap</code>）</td>
+<td>这篇有没有高亮、译过哪一段</td>
+<td>何时开始密集翻译、用哪个 provider</td>
 </tr>
 <tr>
-<td>是否已读</td>
-<td><code>papers.is_read</code></td>
-<td>❌ 直接查 catalog</td>
+<td><code>layout.json</code> 是否存在</td>
+<td>是入库自动跑的还是用户点了「重新分析」</td>
 </tr>
 <tr>
-<td>PDF 阅读进度</td>
-<td><code>pdf/reading-position.ts</code></td>
-<td>❌ 直接读</td>
+<td><code>.agents/skills/pptx</code> 在不在</td>
+<td>什么时候从 GitHub 装的、装了几个</td>
 </tr>
 <tr>
-<td>打开了什么 / 何时 / 停留多久</td>
-<td>无痕迹</td>
-<td>✅</td>
-</tr>
-<tr>
-<td>下载了哪些附件</td>
-<td>只留文件，无时间线</td>
-<td>✅</td>
-</tr>
-<tr>
-<td>搜过什么词</td>
-<td>无痕迹</td>
-<td>✅</td>
-</tr>
-<tr>
-<td>调用了哪个 Agent workflow</td>
-<td>无痕迹</td>
-<td>✅</td>
+<td><code>is_read</code></td>
+<td>是人点的还是 paper-reader 写的</td>
 </tr>
 </tbody>
 </table>
-<h3 id="32">3.2 事件表<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
+<p>因此：</p>
+<ol>
+<li><strong>事件 = 用户意图动作的时间线</strong>（kind + 类别字段 + 可选 path）。</li>
+<li><strong>不把动作内容写入事件</strong>（划词原文、译文、批注正文、检索词对 PostHog 禁用；本地仅 <code>search.query</code> 保留 <code>q</code>）。</li>
+<li><strong>空间分布继续从产物派生</strong>（<code>reading-heatmap</code>）。删掉一条高亮不会改写历史事件——「用过这个功能」仍在。</li>
+<li><strong>自动后台任务要降噪</strong>：版面 cache hit、全文翻译的逐 region <code>runTranslate</code>、EmbedPDF 标注防抖回写，都不单独成事件。</li>
+</ol>
+<h3 id="32">3.2 统一总线<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>UI / Host 动作
+      │
+      ▼
+ track(kind, payload)          ← 唯一入口
+      │
+      ▼
+ Event Registry                ← 本地 schema + PostHog 投影白名单
+      │
+      ├──────────────┬─────────────────┐
+      ▼              ▼                 ▼
+ LocalSink      TelemetrySink     UsageProfile
+ usage.sqlite   PostHog 投影      Agent / 继续阅读
+</code></pre></div>
+
+<p>前端缓冲：5s / window blur / beforeunload / 满 50 条 → <code>activity_record_events</code>。同一 <code>(kind, path, mode)</code> 1s 去重。Host 一事务写本地（schema v2）。<code>app.started</code> / <code>app.exited</code> 由 <code>Telemetry::start</code> / <code>shutdown</code> 直写本地，不走 <code>track()</code>。其它 kind 的 PostHog 投影（<code>Telemetry::capture</code>）<strong>尚未接线</strong>。</p>
+<p>业务代码禁止直接 <code>posthog_rs::Event</code> 或手写 <code>INSERT usage_events</code>。</p>
+<h3 id="33">3.3 事件表<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
+<h4 id="a-239">A. 阅读与库（#239 原范围）<a class="headerlink" href="#a-239" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
 <tr>
 <th><code>kind</code></th>
-<th>载荷</th>
-<th>埋点位置</th>
+<th>本地载荷</th>
+<th>PostHog</th>
+<th>漏斗</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>paper.open</code></td>
-<td><code>path</code>, <code>mode</code>(pdf/html)</td>
-<td><code>src/lib/workspace/actions.ts</code> <code>openTab</code>（唯一漏斗，会分类 <code>kind</code>/<code>mode</code>）</td>
-</tr>
-<tr>
-<td><code>note.open</code></td>
-<td><code>path</code></td>
-<td>同上</td>
+<td><code>paper.open</code> / <code>note.open</code></td>
+<td><code>path</code>, <code>mode</code></td>
+<td><code>paper_opened</code> / <code>note_opened</code>：<code>mode</code></td>
+<td><code>openTab</code></td>
 </tr>
 <tr>
 <td><code>paper.focus</code> / <code>paper.blur</code></td>
 <td><code>path</code>, <code>dur_ms</code></td>
-<td><code>actions.ts</code> <code>handleActivePanelChange</code>、<code>closeTab</code></td>
+<td><strong>不上报</strong></td>
+<td><code>handleActivePanelChange</code> / <code>closeTab</code></td>
+</tr>
+<tr>
+<td><code>paper.session</code></td>
+<td><code>path</code>, <code>dur_ms</code></td>
+<td><code>paper_session</code>：<code>dur_bucket</code>（仅 ≥10s）</td>
+<td>blur 结算</td>
 </tr>
 <tr>
 <td><code>asset.download</code></td>
-<td><code>path</code>, <code>asset</code>(pdf/tex/…)</td>
-<td><code>src/lib/paper/library-actions.ts</code> <code>downloadPaperAssetsAction</code> / <code>downloadAllMissingAssets</code></td>
+<td><code>path</code>, <code>asset</code></td>
+<td><code>asset_downloaded</code>：<code>asset</code></td>
+<td><code>downloadPaperAssetsAction</code></td>
 </tr>
 <tr>
 <td><code>paper.import</code></td>
-<td><code>path</code>, <code>source</code>(arxiv/doi/url/zotero)</td>
+<td><code>path</code>, <code>source</code></td>
+<td><code>paper_imported</code>：<code>source</code></td>
 <td>入库 action</td>
 </tr>
 <tr>
 <td><code>search.query</code></td>
 <td><code>q</code>, <code>hits</code></td>
-<td><code>src/lib/vault/search.ts</code></td>
+<td><code>search_performed</code>：<code>hits_bucket</code>（无 <code>q</code>）</td>
+<td><code>vault/search.ts</code></td>
 </tr>
 <tr>
 <td><code>agent.run</code></td>
 <td><code>workflow</code>, <code>path?</code></td>
-<td><code>src/lib/agent/api.ts</code> <code>runOnce</code></td>
+<td><code>agent_run</code>：<code>workflow</code></td>
+<td><code>runOnce</code></td>
 </tr>
 </tbody>
 </table>
-<p><strong>停留时长</strong>用 focus/blur 配对而非 <code>open</code>→<code>close</code> 差值：Dockview 多面板下同时打开多篇是常态，只有获得焦点的面板才计时。单次 focus 段设上限（如 30min）以吸收「开着页面去吃饭」。</p>
-<h3 id="33">3.3 上报路径<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
-<p>前端<strong>缓冲批量上报</strong>，避免每次点击一次 IPC：</p>
-<div class="codehilite"><pre><span></span><code><span class="err">埋点</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">usage</span><span class="o">-</span><span class="n">buffer</span><span class="err">（内存数组）</span>
-<span class="w">      </span><span class="err">→</span><span class="w"> </span><span class="n">flush</span><span class="w"> </span><span class="err">触发：</span><span class="mi">5</span><span class="n">s</span><span class="w"> </span><span class="err">定时</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">window</span><span class="w"> </span><span class="n">blur</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">beforeunload</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">满</span><span class="w"> </span><span class="mi">50</span><span class="w"> </span><span class="err">条</span>
-<span class="w">      </span><span class="err">→</span><span class="w"> </span><span class="n">usage_record_events</span><span class="p">(</span><span class="n">events</span><span class="p">[])</span><span class="w">   </span><span class="err">单条命令，一次事务</span>
-</code></pre></div>
-
-<p>同一 <code>(kind, path)</code> 在 1s 内去重（Dockview 重挂载会重复触发 open）。</p>
-<h2 id="4">4. 存储<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
-<h3 id="41-agenterousagesqlite">4.1 为什么另起 <code>.agentero/usage.sqlite</code><a class="headerlink" href="#41-agenterousagesqlite" title="Permanent link">&para;</a></h3>
-<p>不放进 <code>catalog.sqlite</code>，两个理由：</p>
-<ol>
-<li><strong>远程 Vault 会整文件镜像 catalog</strong>（<code>features/remote/catalog_mirror.rs</code>，<code>CATALOG_REL = ".agentero/catalog.sqlite"</code>）。高频行为写入会把镜像推送变成持续抖动，甚至让「谁的 catalog 更新」判定失真。</li>
-<li><strong>使用记录是设备本地事实</strong>。同一 Vault 在台式机和 iPad 上的阅读节奏不该互相覆盖；合并两台设备的 focus 段也没有语义。</li>
-</ol>
-<p>代价是跨库 join，用 <code>ATTACH catalog.sqlite AS cat</code> 解决（同目录、同进程，成本可忽略）。</p>
-<h3 id="42-schema">4.2 Schema<a class="headerlink" href="#42-schema" title="Permanent link">&para;</a></h3>
-<p>新建 <code>src-tauri/src/features/usage/{mod,schema,events,profile,commands}.rs</code>，<code>schema.rs</code> 复用 catalog 的迁移范式（独立的 <code>schema_meta</code> + <code>SCHEMA_VERSION</code> 从 1 起）。</p>
-<div class="codehilite"><pre><span></span><code><span class="c1">-- 原始事件，append-only</span>
-<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">usage_events</span><span class="w"> </span><span class="p">(</span>
-<span class="w">  </span><span class="n">id</span><span class="w">       </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="n">AUTOINCREMENT</span><span class="p">,</span>
-<span class="w">  </span><span class="n">ts</span><span class="w">       </span><span class="nb">TEXT</span><span class="w">    </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">          </span><span class="c1">-- RFC3339 UTC</span>
-<span class="w">  </span><span class="n">kind</span><span class="w">     </span><span class="nb">TEXT</span><span class="w">    </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
-<span class="w">  </span><span class="n">path</span><span class="w">     </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">                      </span><span class="c1">-- vault 相对路径，可空（如 search.query）</span>
-<span class="w">  </span><span class="k">mode</span><span class="w">     </span><span class="nb">TEXT</span><span class="p">,</span>
-<span class="w">  </span><span class="n">dur_ms</span><span class="w">   </span><span class="nb">INTEGER</span><span class="p">,</span>
-<span class="w">  </span><span class="n">extra</span><span class="w">    </span><span class="nb">TEXT</span><span class="w">                       </span><span class="c1">-- JSON，低频字段不开新列</span>
-<span class="p">);</span>
-<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_usage_events_ts</span><span class="w">   </span><span class="k">ON</span><span class="w"> </span><span class="n">usage_events</span><span class="p">(</span><span class="n">ts</span><span class="p">);</span>
-<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_usage_events_path</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">usage_events</span><span class="p">(</span><span class="n">path</span><span class="p">,</span><span class="w"> </span><span class="n">ts</span><span class="p">);</span>
-<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_usage_events_kind</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">usage_events</span><span class="p">(</span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="n">ts</span><span class="p">);</span>
-
-<span class="c1">-- 日聚合，画像查询只读这张表</span>
-<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">usage_daily</span><span class="w"> </span><span class="p">(</span>
-<span class="w">  </span><span class="k">day</span><span class="w">    </span><span class="nb">TEXT</span><span class="w">    </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">            </span><span class="c1">-- 本地日期 YYYY-MM-DD</span>
-<span class="w">  </span><span class="n">kind</span><span class="w">   </span><span class="nb">TEXT</span><span class="w">    </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
-<span class="w">  </span><span class="n">path</span><span class="w">   </span><span class="nb">TEXT</span><span class="w">    </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">,</span>
-<span class="w">  </span><span class="k">count</span><span class="w">  </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
-<span class="w">  </span><span class="n">dur_ms</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
-<span class="w">  </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="k">day</span><span class="p">,</span><span class="w"> </span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">)</span>
-<span class="p">);</span>
-</code></pre></div>
-
-<p><code>usage_daily</code> 在写入事件的同一事务里 upsert（<code>ON CONFLICT DO UPDATE</code>），保证聚合与原始一致，画像查询不必扫全表。</p>
-<p>同 catalog：WAL、<code>busy_timeout</code>、<code>foreign_keys</code>。</p>
-<h3 id="43">4.3 路径重命名<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
-<p><code>paper_move</code> 改路径时，catalog 的 <code>papers.path</code> 会更新；usage 侧需同步。做法：<code>usage_rename_path(old, new)</code> 在 <code>catalog/commands.rs::paper_move</code> 成功后调用，<code>UPDATE usage_events / usage_daily SET path = new WHERE path = old OR path LIKE old || '/%'</code>。失配的历史事件不清理，画像查询 join 不到 title 时降级只显示路径。</p>
-<h3 id="44">4.4 需要更新的忽略列表<a class="headerlink" href="#44" title="Permanent link">&para;</a></h3>
-<p>新增 <code>.agentero/usage.sqlite</code> 后必须排除，否则会触发 wiki 重建 / 搜索命中 / watcher 风暴：</p>
+<p>停留用 focus/blur 配对。单段上限 30min；window blur 立刻结算。</p>
+<h4 id="b">B. 翻译<a class="headerlink" href="#b" title="Permanent link">&para;</a></h4>
+<p><code>runTranslate</code> 是执行引擎，<strong>不是</strong>埋点漏斗：版面全文翻译会对每个 region 调一次，若在此处打点会爆炸。</p>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>本地载荷</th>
+<th>PostHog</th>
+<th>漏斗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>translate.selection</code></td>
+<td><code>path</code>, <code>provider</code>, <code>target_lang</code>, <code>chars</code>, <code>auto</code></td>
+<td><code>translate_ran</code>：<code>surface=selection</code>, <code>provider_family</code>, <code>target_lang</code>, <code>chars_bucket</code></td>
+<td><code>use-pdf-selection-translate</code> 一次划词结束</td>
+</tr>
+<tr>
+<td><code>translate.layout</code></td>
+<td><code>path</code>, <code>scope</code>(doc|page), <code>provider</code>, <code>target_lang</code>, <code>region_count</code>, <code>ok_count</code></td>
+<td><code>translate_ran</code>：<code>surface=layout</code>, <code>scope</code>, <code>provider_family</code>, <code>target_lang</code>, <code>region_bucket</code></td>
+<td><code>use-pdf-layout-translate</code> <strong>整次</strong> doc/page 任务结束（不是每块）</td>
+</tr>
+</tbody>
+</table>
 <ul>
-<li><code>features/vault/tree.rs</code>（<code>.agentero</code> 已整体隐藏，确认即可）</li>
-<li><code>features/wiki/index.rs</code></li>
-<li><code>features/search/mod.rs</code></li>
-<li><code>features/watcher/mod.rs</code>（注意：catalog 是<strong>故意不忽略</strong>以触发刷新；usage 必须忽略）</li>
-<li><code>features/remote/catalog_mirror.rs</code>（确认不会连带镜像）</li>
+<li><code>provider_family</code>：<code>free</code> / <code>commercial</code> / <code>agent</code>。本地可存具体 <code>provider</code> id（<code>deepl</code> / <code>tencent</code>…）；PostHog 只传 family，避免把商用配置当画像。</li>
+<li>不记原文、译文。</li>
+<li><code>auto=true</code> 仅当「划词自动翻译」触发；手动点菜单为 <code>false</code>。</li>
+<li>停止 / 清除覆盖层不记成功事件；可记 <code>translate.layout</code> + <code>ok_count</code> 反映部分完成。</li>
 </ul>
-<h2 id="5-usageprofile">5. UsageProfile<a class="headerlink" href="#5-usageprofile" title="Permanent link">&para;</a></h2>
-<p>单个命令 <code>usage_profile_get(window_days)</code> 输出紧凑 JSON，目标 <strong>≤800 tokens</strong>（要塞进 prompt）。</p>
+<h4 id="c">C. 版面分析<a class="headerlink" href="#c" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>本地载荷</th>
+<th>PostHog</th>
+<th>漏斗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>layout.analyze</code></td>
+<td><code>path</code>, <code>trigger</code>(import|open|manual), <code>backend</code>(onnx|paddle), <code>cache</code>(miss|force), <code>region_count</code>, <code>dur_ms</code></td>
+<td><code>layout_analyzed</code>：<code>trigger</code>, <code>backend</code>, <code>cache</code>, <code>dur_bucket</code></td>
+<td><code>run-analysis</code> / headless executor <strong>实际跑模型成功后</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>跳过</strong>：sidecar cache hit 的静默 JSON→侧栏（打开论文时的常态）。那不是用户动作，会淹没画像。</p>
+<p>用户点 Figures「分析 / 重新分析」：</p>
+<ul>
+<li>有 sidecar 且非 force → 只是再归并，<strong>不记</strong>（与打开时相同）。</li>
+<li>无缓存或内部 <code>force</code> → 记 <code>cache=miss|force</code>。</li>
+</ul>
+<h4 id="d-skill">D. Skill 导入<a class="headerlink" href="#d-skill" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>本地载荷</th>
+<th>PostHog</th>
+<th>漏斗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>skill.install</code></td>
+<td><code>skill_id[]</code>, <code>source_kind</code>(github|npx|skills_sh), <code>installed</code>, <code>skipped</code></td>
+<td><code>skill_installed</code>：<code>source_kind</code>, <code>count_bucket</code></td>
+<td><code>confirmSkillImport</code> 任务成功</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>一次确认装多个 → <strong>一条</strong>事件，带数量。</li>
+<li>本地可存 <code>skill_id</code>（给 Agent：「你装过 pptx」）。</li>
+<li>PostHog <strong>不传</strong> owner/repo、URL、skill 名。</li>
+<li>仅发现、用户取消 → 不记。远程 Vault 禁用安装，无事件。</li>
+</ul>
+<h4 id="e">E. 批注 / 划词产物<a class="headerlink" href="#e" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>本地载荷</th>
+<th>PostHog</th>
+<th>漏斗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mark.create</code></td>
+<td><code>path</code>, <code>type</code>(highlight|comment|ask|translate|visual), <code>source</code>(selection|region|formula), <code>page?</code></td>
+<td><code>mark_created</code>：<code>type</code>, <code>source</code></td>
+<td>见下</td>
+</tr>
+<tr>
+<td><code>mark.update</code></td>
+<td><code>path</code>, <code>type</code></td>
+<td>不上报（编辑备注噪音）</td>
+<td>改 comment / 续写 ask</td>
+</tr>
+<tr>
+<td><code>mark.delete</code></td>
+<td><code>path</code>, <code>type</code></td>
+<td><code>mark_deleted</code>：<code>type</code></td>
+<td>删除 pin / 高亮</td>
+</tr>
+</tbody>
+</table>
+<p><strong>漏斗必须在用户提交，禁止挂在防抖导出上：</strong></p>
+<table>
+<thead>
+<tr>
+<th>type</th>
+<th>写入</th>
+<th>打点处</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>highlight</code> / <code>comment</code></td>
+<td><code>marks/annotations.json</code>（<code>saveAnnotationItems</code> 会整表回写）</td>
+<td>划词菜单「高亮 / 批注」确认、批注编辑器首次保存；对 annotations 做 <strong>id diff</strong>，只对新增 id 打 <code>create</code></td>
+</tr>
+<tr>
+<td><code>ask</code></td>
+<td><code>marks/&lt;id&gt;.json</code></td>
+<td>划词「提问」提交，或选区 chip <strong>发送后</strong>落盘对话卡（与现有 ask 卡同一路径）</td>
+</tr>
+<tr>
+<td><code>translate</code>（划词卡）</td>
+<td><code>marks/&lt;id&gt;.json</code></td>
+<td>与 <code>translate.selection</code> <strong>成对</strong>：一次划词既有翻译会话，也有 mark 落盘。允许两条，kind 不同</td>
+</tr>
+<tr>
+<td><code>visual</code></td>
+<td><code>marks/&lt;id&gt;.json</code> + <code>assets/</code></td>
+<td>视觉批注编辑器「保存」；仅草稿不记</td>
+</tr>
+</tbody>
+</table>
+<p><code>ask</code> / 带 Agent 的 <code>visual</code> 另外会走 <code>agent.run</code>。两条都记：一条是「做了批注」，一条是「叫了 Agent」。</p>
+<p>不记：quote、comment 正文、裁剪图、公式符号表内容。</p>
+<h4 id="f">F. 其它高信号动作（「等」的首版清单）<a class="headerlink" href="#f" title="Permanent link">&para;</a></h4>
+<p>只收<strong>有明确漏斗、对习惯或采用率有用</strong>的。滚动 / 缩放 / 大纲 / 命令面板开合排除。</p>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>本地载荷</th>
+<th>PostHog</th>
+<th>漏斗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>paper.tag</code></td>
+<td><code>path</code>, <code>op</code>(set|add|rm), <code>tags?</code></td>
+<td><code>paper_tagged</code>：<code>op</code>, <code>tag_count_bucket</code></td>
+<td><code>paper_set_tags</code> 前端 action</td>
+</tr>
+<tr>
+<td><code>paper.read</code></td>
+<td><code>path</code>, <code>is_read</code>, <code>via</code>(user|paper_reader)</td>
+<td><code>paper_read_set</code>：<code>is_read</code>, <code>via</code></td>
+<td><code>paper_set_is_read</code></td>
+</tr>
+<tr>
+<td><code>refs.parse</code></td>
+<td><code>path</code>, <code>trigger</code>(auto|manual)</td>
+<td><code>refs_parsed</code>：<code>trigger</code></td>
+<td><code>paper_refs_parse</code> 成功</td>
+</tr>
+<tr>
+<td><code>refs.import</code></td>
+<td><code>path</code>（目标论文）</td>
+<td><code>refs_imported</code></td>
+<td>References 卡「入库」</td>
+</tr>
+<tr>
+<td><code>zotero.save</code></td>
+<td><code>count</code></td>
+<td><code>zotero_saved</code>：<code>count_bucket</code></td>
+<td>Connector <code>saveItems</code> 提交成功</td>
+</tr>
+<tr>
+<td><code>vault.open</code></td>
+<td>（无 path 出站）</td>
+<td><code>vault_opened</code></td>
+<td>打开 / 切换 Vault</td>
+</tr>
+<tr>
+<td><code>onboarding.complete</code></td>
+<td>—</td>
+<td><code>onboarding_completed</code></td>
+<td>向导最后一步</td>
+</tr>
+</tbody>
+</table>
+<p>标签名可进本地（喂 <code>tagAffinity</code>）；PostHog 只传操作类型与数量桶。</p>
+<h3 id="34-registry">3.4 Registry 形状<a class="headerlink" href="#34-registry" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="s1">&#39;translate.selection&#39;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">local</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;string&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">provider</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;string&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">target_lang</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;string&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">chars</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;number&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">auto</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;boolean&#39;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nx">posthog</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;translate_ran&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">props</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s1">&#39;surface&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;provider_family&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;target_lang&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;chars_bucket&#39;</span><span class="p">],</span>
+<span class="w">    </span><span class="nx">map</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">surface</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="s1">&#39;selection&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">provider_family</span><span class="o">:</span><span class="w"> </span><span class="kt">fromProvider</span><span class="p">,</span><span class="w"> </span><span class="nx">chars_bucket</span><span class="o">:</span><span class="w"> </span><span class="kt">bucketChars</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">},</span>
+<span class="s1">&#39;layout.analyze&#39;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">local</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;string&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">trigger</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;import&#39;</span><span class="o">|</span><span class="s1">&#39;open&#39;</span><span class="o">|</span><span class="s1">&#39;manual&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">backend</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;onnx&#39;</span><span class="o">|</span><span class="s1">&#39;paddle&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">cache</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;miss&#39;</span><span class="o">|</span><span class="s1">&#39;force&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">region_count</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;number&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">dur_ms</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;number&#39;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nx">posthog</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;layout_analyzed&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">props</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s1">&#39;trigger&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;backend&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;cache&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;dur_bucket&#39;</span><span class="p">]</span><span class="w"> </span><span class="p">},</span>
+<span class="p">},</span>
+</code></pre></div>
+
+<p>没登记的 kind 不能发出。新增事件先改 Registry，再在漏斗调用 <code>track()</code>。</p>
+<h3 id="35-p0">3.5 候选事件（未纳入 P0）<a class="headerlink" href="#35-p0" title="Permanent link">&para;</a></h3>
+<p>首版故意不收下面这些。按「值 / 噪音 / 隐私」分成三档，需要时再进 Registry。</p>
+<h4 id="p1-memory">建议下一波（P1，对 Memory 或采用率都有用）<a class="headerlink" href="#p1-memory" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>为什么值得</th>
+<th>漏斗</th>
+<th>PostHog 投影</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>library.export</code> / <code>library.import</code></td>
+<td>文献工作流是否闭环</td>
+<td><code>exportLibraryToFile</code> / <code>importLibraryFromFile</code></td>
+<td><code>format</code>（bibtex/ris/…）、<code>count_bucket</code></td>
+</tr>
+<tr>
+<td><code>library.rescan</code></td>
+<td>Doctor/盘漂是否被用</td>
+<td><code>rescanLibraryPapers</code></td>
+<td><code>added_bucket</code></td>
+</tr>
+<tr>
+<td><code>paper.parse</code></td>
+<td>liteparse 是否在补正文</td>
+<td><code>enqueuePaperPdfParse</code> <strong>成功写出 PAPER.md</strong>（跳过 cache）</td>
+<td><code>trigger</code>(import|manual)</td>
+</tr>
+<tr>
+<td><code>paper.reader</code></td>
+<td>精读触发面</td>
+<td><code>runPaperReaderWorkflow</code> 开始；与 <code>agent.run</code>+<code>paper.read</code> 互补</td>
+<td><code>via</code>(zap|auto)</td>
+</tr>
+<tr>
+<td><code>skill.use</code></td>
+<td>装了不等于用了</td>
+<td>Composer 提交时 <code>skillIds</code></td>
+<td><code>count_bucket</code>（无 skill 名出站）</td>
+</tr>
+<tr>
+<td><code>agent.session</code></td>
+<td>续聊 vs 新开</td>
+<td>新建草稿 / <code>loadSession</code></td>
+<td><code>op</code>(new|load|cancel)</td>
+</tr>
+<tr>
+<td><code>agent.fail</code></td>
+<td>产品质量</td>
+<td><code>agent:failed</code></td>
+<td><code>workflow</code>（无错误正文）</td>
+</tr>
+<tr>
+<td><code>note.export</code></td>
+<td>笔记离开应用</td>
+<td>Markdown 导出 PDF/PNG</td>
+<td><code>format</code></td>
+</tr>
+<tr>
+<td><code>note.format</code></td>
+<td>编辑习惯</td>
+<td>右键「整理 Markdown」</td>
+<td>仅计数</td>
+</tr>
+<tr>
+<td><code>wiki.follow</code></td>
+<td>双链是否在被走</td>
+<td><code>navigateWiki</code></td>
+<td>不上报 path</td>
+</tr>
+<tr>
+<td><code>refs.graph.click</code></td>
+<td>引用图是否驱动打开</td>
+<td>Graph 节点点击</td>
+<td><code>node</code>(paper|stub)</td>
+</tr>
+<tr>
+<td><code>zotero.sync</code></td>
+<td>双向同步采用</td>
+<td><code>zotero_sync</code> 成功</td>
+<td><code>direction</code>/<code>count_bucket</code></td>
+</tr>
+<tr>
+<td><code>zotero.migrate</code></td>
+<td>欢迎页迁移</td>
+<td><code>migrateZoteroFromWelcome</code></td>
+<td><code>count_bucket</code></td>
+</tr>
+<tr>
+<td><code>vault.create</code></td>
+<td>激活漏斗</td>
+<td><code>vault_create</code></td>
+<td>仅计数</td>
+</tr>
+<tr>
+<td><code>command.run</code></td>
+<td>哪些命令真有人用</td>
+<td>命令面板 <code>run()</code></td>
+<td><code>command_id</code>（稳定 id，如 <code>settings.open</code>）</td>
+</tr>
+<tr>
+<td><code>doctor.run</code> / <code>doctor.fix</code></td>
+<td>诊断是否被用</td>
+<td>Doctor pane</td>
+<td><code>section</code>（alias|wiki|visual）</td>
+</tr>
+<tr>
+<td><code>update.install</code></td>
+<td>版本采纳</td>
+<td>关于页「安装并重启」</td>
+<td><code>from_version</code> 已在 person</td>
+</tr>
+</tbody>
+</table>
+<p><code>skill.use</code> 对 Memory 比 <code>skill.install</code> 更重要：画像应说「常用 pptx」，而不是「曾经装过」。</p>
+<h4 id="_1">可后置（有信号，但漏斗散或和已有事件重叠）<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>import.fail</code></td>
+<td>魔棒失败原因类别（识别失败 / 超时 / 限流），无 URL</td>
+</tr>
+<tr>
+<td><code>asset.download.fail</code></td>
+<td>与成功对称，看补下健康度</td>
+</tr>
+<tr>
+<td><code>search.surface</code></td>
+<td>把 <code>search.query</code> 拆成 palette / library / vault；首版一个 kind 即可</td>
+</tr>
+<tr>
+<td><code>library.scope</code></td>
+<td>进入文件夹作用域；弱信号</td>
+</tr>
+<tr>
+<td><code>file.create</code> / <code>file.rename</code> / <code>file.move</code> / <code>file.trash</code> / <code>file.restore</code></td>
+<td>组织习惯；和 <code>paper.import</code>/<code>paper.tag</code> 部分重叠</td>
+</tr>
+<tr>
+<td><code>workspace.split</code> / <code>note.split</code></td>
+<td>分屏是否为核心读法</td>
+</tr>
+<tr>
+<td><code>window.new</code></td>
+<td>多窗采用</td>
+</tr>
+<tr>
+<td><code>pdf.find</code></td>
+<td>⌘F；采用率有用，对 Memory 弱</td>
+</tr>
+<tr>
+<td><code>pdf.outline</code> / <code>pdf.immersive</code> / <code>pdf.page_theme</code></td>
+<td>阅读 chrome</td>
+</tr>
+<tr>
+<td><code>formula.card</code></td>
+<td>公式解析卡打开；<code>source=formula</code> 的 mark 已覆盖「批注公式」</td>
+</tr>
+<tr>
+<td><code>citation.goto</code></td>
+<td>文中引用跳页 / 外链</td>
+</tr>
+<tr>
+<td><code>layout.figure.focus</code></td>
+<td>侧栏点开图/表</td>
+</tr>
+<tr>
+<td><code>agent.permission</code></td>
+<td>ask 模式回应；<code>option_kind</code></td>
+</tr>
+<tr>
+<td><code>agent.ask_user</code></td>
+<td>结构化问卷提交/取消</td>
+</tr>
+<tr>
+<td><code>agent.model</code> / <code>agent.mode</code></td>
+<td>换模型、Plan/Default；出站只传是否第三方，不传 model id</td>
+</tr>
+<tr>
+<td><code>agent.context</code></td>
+<td><code>@</code> / 选区固定 / 图片附件；易噪，应用「每轮发送时汇总」而不是每次点 chip</td>
+</tr>
+<tr>
+<td><code>agent.install</code></td>
+<td>设置页安装/升级/卸载 CLI</td>
+</tr>
+<tr>
+<td><code>settings.change</code></td>
+<td>只传 <strong>allowlist 键名</strong>（<code>telemetryEnabled</code>、<code>uiTheme</code>、<code>translate.provider</code>…），永不传值</td>
+</tr>
+<tr>
+<td><code>onboarding.step</code></td>
+<td>比只记 complete 更能看流失；P0 有 complete 即可</td>
+</tr>
+<tr>
+<td><code>remote.open</code> / <code>bridge.pair</code></td>
+<td>远程 / iOS 采用；移动端本身无 PostHog</td>
+</tr>
+<tr>
+<td><code>cli.invoke</code></td>
+<td><code>agentero</code> 子命令名；看 Agent 是否真走 CLI</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_2">明确不记<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>动作</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>滚动、缩放、翻页、大纲展开</td>
+<td>高频、无意图</td>
+</tr>
+<tr>
+<td>命令面板 / 设置窗 <strong>打开</strong></td>
+<td>打开 ≠ 使用</td>
+</tr>
+<tr>
+<td>Markdown 自动保存、每次按键</td>
+<td>爆炸</td>
+</tr>
+<tr>
+<td>EmbedPDF 标注防抖导出、layout cache hit、逐 region <code>runTranslate</code></td>
+<td>机器回声</td>
+</tr>
+<tr>
+<td>citation hover、公式 dwell 未点开</td>
+<td>试探不是动作</td>
+</tr>
+<tr>
+<td>剪贴板复制、Finder / 终端打开</td>
+<td>OS chrome</td>
+</tr>
+<tr>
+<td>错误 toast 原文、Agent 回复正文、检索词出站</td>
+<td>隐私</td>
+</tr>
+<tr>
+<td>主题预览 hover、列宽拖拽</td>
+<td>无分析价值</td>
+</tr>
+</tbody>
+</table>
+<p>判定口诀：<strong>有明确提交/成功边界、一天不会上百次、对「习惯」或「这功能有没有人用」有增量</strong> 才进 Registry。</p>
+<h2 id="4">4. 存储<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<h3 id="41-xdg_data_homeagenterousagesqlite">4.1 <code>$XDG_DATA_HOME/agentero/usage.sqlite</code><a class="headerlink" href="#41-xdg_data_homeagenterousagesqlite" title="Permanent link">&para;</a></h3>
+<p><strong>P0 已落地。</strong> 不放进 Vault、也不放进 <code>catalog.sqlite</code>：远程会镜像 catalog；使用记录是设备本地事实。一台机器上的多个 Vault 用 <code>vault</code> 列（绝对路径）区分。</p>
+<p>路径、列定义与 <code>kind</code>↔<code>facet</code> 对照见 <a href="../../backend/usage/"><code>../backend/usage.md</code></a>（schema v1）。</p>
+<div class="codehilite"><pre><span></span><code><span class="n">usage_vaults</span><span class="w">    </span><span class="c1">-- 本机 Vault 身份（path UNIQUE）</span>
+<span class="n">usage_events</span><span class="w">    </span><span class="c1">-- append-only：ts, vault, kind, path, paper_path, mode, facet, status, dur_ms, qty, extra</span>
+<span class="n">usage_daily</span><span class="w">     </span><span class="c1">-- PRIMARY KEY (day, vault, kind, paper_path, facet)</span>
+<span class="n">usage_memories</span><span class="w">  </span><span class="c1">-- 声明式短句（P3 再写）</span>
+</code></pre></div>
+
+<p><code>paper_path</code> / <code>facet</code> / <code>qty</code> 由 Host 写入时从 path + extra 抽出，画像只读 <code>usage_daily</code>。WAL + <code>busy_timeout</code> + <code>foreign_keys</code>。</p>
+<h3 id="42">4.2 路径与忽略<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>paper_move</code> 成功后 <code>usage_rename_path</code>。</li>
+<li>必须忽略：wiki / search / watcher（catalog 故意不忽略；usage 必须忽略）/ remote catalog 镜像。</li>
+<li>保留期：事件 180 天；日聚合 2 年。<code>usage_clear()</code> + 设置页清除。</li>
+</ul>
+<h2 id="5-memory">5. Memory<a class="headerlink" href="#5-memory" title="Permanent link">&para;</a></h2>
+<p>没有第四套「ChatGPT Memory」库。三层：</p>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>是什么</th>
+<th>持久化</th>
+<th>注入</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>情节</td>
+<td><code>usage_events</code></td>
+<td>usage.sqlite</td>
+<td>CLI 按需</td>
+</tr>
+<tr>
+<td>语义</td>
+<td><code>UsageProfile</code></td>
+<td>由 daily 算出</td>
+<td><code>build_prompt</code></td>
+</tr>
+<tr>
+<td>声明</td>
+<td><code>agentPersonalPrompt</code>（已有）+ 可选 <code>usage_memories</code></td>
+<td>settings / sqlite</td>
+<td>现有 preference 块</td>
+</tr>
+<tr>
+<td>工作</td>
+<td>当前论文 / <code>@</code> / 选区</td>
+<td>会话</td>
+<td>已有，不动</td>
+</tr>
+</tbody>
+</table>
+<h3 id="51-usageprofile800-tokens">5.1 UsageProfile（≤800 tokens）<a class="headerlink" href="#51-usageprofile800-tokens" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>字段</th>
-<th>含义</th>
 <th>算法</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>topPapers</code></td>
-<td>最投入的 N 篇</td>
-<td>时间衰减停留时长 <code>Σ dur_ms × 0.5^(age_days/14)</code>，取 Top 8，带 title/tags</td>
+<td><code>Σ dur_ms × 0.5^(age/14)</code> Top 8 + title/tags</td>
 </tr>
 <tr>
 <td><code>continueReading</code></td>
-<td>该接着读的</td>
-<td><code>is_read=0</code> 且有 <code>reading-position</code> 进度，按最后 focus 时间排序</td>
+<td>未读 + 有 <code>reading-position</code>，按最后 focus</td>
 </tr>
 <tr>
 <td><code>stalled</code></td>
-<td>卡住的</td>
-<td>下载后从未 open，或累计 focus &lt; 60s 且 ≥7 天未碰</td>
+<td>已下载未 open，或 focus &lt; 60s 且 ≥7 天未碰</td>
 </tr>
 <tr>
 <td><code>tagAffinity</code></td>
-<td>兴趣分布</td>
-<td>按 <code>cat.papers.tags</code> 聚合衰减时长，归一化 Top 8</td>
+<td>catalog tags + 本地 <code>paper.tag</code> 事件</td>
 </tr>
 <tr>
 <td><code>rhythm</code></td>
-<td>节奏</td>
-<td>活跃时段直方图（3h 桶）、日均时长、本周 vs 上周</td>
+<td>3h 桶、日均、本周 vs 上周</td>
 </tr>
 <tr>
 <td><code>agentUsage</code></td>
-<td>Agent 习惯</td>
-<td>各 workflow 调用次数与占比</td>
+<td>workflow 次数</td>
+</tr>
+<tr>
+<td><code>toolAffinity</code></td>
+<td><strong>新增</strong>：翻译 / 版面 / 批注 / Skill 的频次与近况</td>
 </tr>
 </tbody>
 </table>
-<p>半衰期 14 天：既让「上周在啃的论文」仍占权重，又不让三个月前的旧课题长期霸榜。</p>
-<h2 id="6-agent">6. Agent 接入：三层，按需取用<a class="headerlink" href="#6-agent" title="Permanent link">&para;</a></h2>
-<h3 id="61">6.1 被动注入（默认，轻量）<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
-<p><code>src-tauri/src/features/agent/prompts.rs</code> 的 <code>build_prompt</code> 是唯一 prompt 组装点。在现有 <code>personal_preference_directive()</code> 旁边加可选块：</p>
+<p><code>toolAffinity</code> 示例：</p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;translate&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;selection&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">24</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;layout&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;providerFamily&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;free&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;targetLang&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zh-CN&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;layout&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;analyzed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;manual&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;backend&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;onnx&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;marks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;highlight&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;comment&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;ask&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;visual&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;translate&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;skills&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;installed&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;pptx&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;frontend-design&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;lastAt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-08-10&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>半衰期 14 天。超出 800 tokens 先截 <code>topPapers</code>，再截 <code>skills.installed</code>。</p>
+<h3 id="52">5.2 注入语气<a class="headerlink" href="#52" title="Permanent link">&para;</a></h3>
+<p>画像是<strong>观察，不是指令</strong>。<code>agentPersonalPrompt</code> 仍是「必须遵守」。</p>
 <div class="codehilite"><pre><span></span><code><span class="o">&lt;</span><span class="n">user_usage_profile</span><span class="o">&gt;</span>
 <span class="n">近</span><span class="w"> </span><span class="mi">30</span><span class="w"> </span><span class="n">天</span><span class="err">：</span><span class="n">日均</span><span class="w"> </span><span class="mi">42</span><span class="n">min</span><span class="err">，</span><span class="n">活跃</span><span class="w"> </span><span class="mi">21</span><span class="o">:</span><span class="mo">00</span><span class="mi">-24</span><span class="o">:</span><span class="mo">00</span><span class="err">。</span>
-<span class="n">主要方向</span><span class="err">（</span><span class="n">时长占比</span><span class="err">）：</span><span class="n">diffusion</span><span class="w"> </span><span class="mi">38</span><span class="o">%</span><span class="w"> </span><span class="err">·</span><span class="w"> </span><span class="mi">3</span><span class="n">D</span><span class="w"> </span><span class="mi">22</span><span class="o">%</span><span class="w"> </span><span class="err">·</span><span class="w"> </span><span class="n">RL</span><span class="w"> </span><span class="mi">11</span><span class="o">%</span>
-<span class="n">在读</span><span class="err">：</span><span class="p">[[</span><span class="n">Flow</span><span class="w"> </span><span class="n">Matching</span><span class="p">]]</span><span class="err">（</span><span class="n">p12</span><span class="o">/</span><span class="mi">24</span><span class="err">，</span><span class="mi">2</span><span class="w"> </span><span class="n">天前</span><span class="err">）·</span><span class="w"> </span><span class="p">[[</span><span class="n">DiT</span><span class="p">]]</span><span class="err">（</span><span class="n">p3</span><span class="o">/</span><span class="mi">18</span><span class="err">，</span><span class="n">昨天</span><span class="err">）</span>
+<span class="n">主要方向</span><span class="err">：</span><span class="n">diffusion</span><span class="w"> </span><span class="mi">38</span><span class="o">%</span><span class="w"> </span><span class="err">·</span><span class="w"> </span><span class="mi">3</span><span class="n">D</span><span class="w"> </span><span class="mi">22</span><span class="o">%</span>
+<span class="n">在读</span><span class="err">：</span><span class="p">[[</span><span class="n">Flow</span><span class="w"> </span><span class="n">Matching</span><span class="p">]]</span><span class="err">（</span><span class="n">p12</span><span class="o">/</span><span class="mi">24</span><span class="err">，</span><span class="mi">2</span><span class="w"> </span><span class="n">天前</span><span class="err">）</span>
+<span class="n">工具</span><span class="err">：</span><span class="n">划词翻译较多</span><span class="err">（</span><span class="n">免费</span><span class="w"> </span><span class="n">MT</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">zh</span><span class="o">-</span><span class="n">CN</span><span class="err">）；</span><span class="n">视觉批注</span><span class="w"> </span><span class="mi">6</span><span class="err">；</span><span class="n">提问</span><span class="w"> </span><span class="mi">12</span>
+<span class="n">已装</span><span class="w"> </span><span class="n">Skill</span><span class="err">：</span><span class="n">pptx</span><span class="err">、</span><span class="n">frontend</span><span class="o">-</span><span class="n">design</span>
 <span class="n">搁置</span><span class="err">：</span><span class="p">[[</span><span class="n">NeRF</span><span class="w"> </span><span class="n">Survey</span><span class="p">]]</span><span class="err">（</span><span class="n">下载</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="n">天未打开</span><span class="err">）</span>
 <span class="o">&lt;/</span><span class="n">user_usage_profile</span><span class="o">&gt;</span>
 </code></pre></div>
 
-<p>注入策略按 workflow 区分：</p>
 <table>
 <thead>
 <tr>
 <th>workflow</th>
 <th>注入</th>
-<th>理由</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>summary</code></td>
-<td>✅</td>
-<td>摘要可按用户方向调整侧重</td>
-</tr>
-<tr>
-<td><code>qa</code> / <code>free</code></td>
-<td>✅</td>
-<td>通用对话最需要背景</td>
-</tr>
-<tr>
-<td><code>related_work</code></td>
-<td>✅</td>
-<td>相关工作应贴合已读范围</td>
+<td><code>summary</code> / <code>qa</code> / <code>free</code> / <code>related_work</code></td>
+<td>是</td>
 </tr>
 <tr>
 <td><code>paper_reader</code></td>
-<td>❌</td>
-<td>精读要忠于原文，习惯 context 是噪声</td>
+<td>否（忠于原文）</td>
+</tr>
+<tr>
+<td>ACP slash（<code>isAcpCommand</code>）</td>
+<td>否（本就跳过 envelope）</td>
 </tr>
 </tbody>
 </table>
-<h3 id="62">6.2 主动查询（详细）<a class="headerlink" href="#62" title="Permanent link">&para;</a></h3>
-<p>给 headless CLI 加 <code>usage</code> 子命令组（<code>cli/src/commands/usage.rs</code>，与 <code>paper.rs</code> / <code>mark.rs</code> 同构，沿用 <code>--vault</code> / <code>--json</code>）：</p>
-<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>usage<span class="w"> </span>summary<span class="w"> </span>--days<span class="w"> </span><span class="m">30</span><span class="w"> </span>--json
-agentero<span class="w"> </span>usage<span class="w"> </span>top<span class="w"> </span>--days<span class="w"> </span><span class="m">30</span><span class="w"> </span>--limit<span class="w"> </span><span class="m">20</span><span class="w"> </span>--json
+<p>细节走 CLI，不塞 prompt。已落地：</p>
+<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>usage<span class="w"> </span>which<span class="w"> </span>--json
+agentero<span class="w"> </span>usage<span class="w"> </span>summary<span class="w"> </span>--days<span class="w"> </span><span class="m">30</span><span class="w"> </span>--json
 agentero<span class="w"> </span>usage<span class="w"> </span>timeline<span class="w"> </span>--path<span class="w"> </span>papers/xxx<span class="w"> </span>--json
 </code></pre></div>
 
-<p>BYOA Agent 本来就有 shell，这条路<strong>不需要新增 MCP 或 Host command</strong>，与既有 <code>agentero-cli</code> skill 的用法一致。被动注入给概览，需要细节时 Agent 自己拉。</p>
-<h3 id="63-skill">6.3 Skill 编排<a class="headerlink" href="#63-skill" title="Permanent link">&para;</a></h3>
-<p>新增内置 vault skill <code>templates/vault/.agents/skills/usage-reviewer/SKILL.md</code>（frontmatter <code>version: 1</code>），约定：</p>
-<ul>
-<li>何时该跑 <code>agentero usage summary</code>，何时只用注入的概览</li>
-<li>周回顾输出格式（写 <code>notes/Reviews/YYYY-WW.md</code>，双链指向论文）</li>
-<li>推荐输出必须给「因为你在读 X」的理由，不许凭空推荐库外论文</li>
-<li>不许改写用户手写笔记，只在 <code>Reviews/</code> 下新建</li>
-</ul>
-<p>同步 <code>src-tauri/src/features/vault/mod.rs</code> 的 seed 常量列表（<code>include_str!</code> + <code>ensure_vault</code> 时补齐）。</p>
+<p><code>usage top</code> / <code>usage tools</code> 仍是规划，画像未做前先用 <code>timeline</code> + <code>summary</code>。</p>
+<h3 id="53-p3">5.3 声明式记忆（P3）<a class="headerlink" href="#53-p3" title="Permanent link">&para;</a></h3>
+<p>周回顾 skill <strong>提议</strong>短句 → 设置页确认 → <code>usage_memories</code>。不自动写入。可删。关本地开关则不注入。</p>
+<h2 id="6-agent">6. Agent 接入<a class="headerlink" href="#6-agent" title="Permanent link">&para;</a></h2>
+<p>与 §5.2 相同：<code>prompts.rs::build_prompt</code> 在 <code>personal_preference_directive</code> 旁加可选块；Host 在组装时读 Profile（不要让前端把画像塞进 <code>personalPrompt</code>）。</p>
+<p>内置 skill <code>templates/vault/.agents/skills/usage-reviewer/SKILL.md</code>（<code>version: 1</code>）：何时用 CLI、周回顾写 <code>notes/Reviews/YYYY-WW.md</code>、推荐必须给「因为你在读 X」、不改用户手写笔记。</p>
 <h2 id="7">7. 上层功能<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
-<h3 id="71-agent">7.1 继续阅读（纯本地，零 Agent 成本）<a class="headerlink" href="#71-agent" title="Permanent link">&para;</a></h3>
-<p>论文库顶部一行卡片：<code>continueReading</code> 前 3 + <code>stalled</code> 前 2。点击直接 <code>openPaper</code> 并跳到 <code>reading-position</code> 的页码。这是投入产出比最高的一项，先做。</p>
-<h3 id="72">7.2 周回顾<a class="headerlink" href="#72" title="Permanent link">&para;</a></h3>
-<p>手动触发（论文库工具栏 / 命令面板）→ 以 <code>usage-reviewer</code> skill 跑一次 → 产出 <code>notes/Reviews/YYYY-WW.md</code>：本周读了什么、时长分布、新增标签、卡住的论文、下周建议。不做自动定时触发（避免无声消耗 Agent 额度）。</p>
-<h3 id="73-v0-embedding">7.3 推荐（v0，无 embedding）<a class="headerlink" href="#73-v0-embedding" title="Permanent link">&para;</a></h3>
-<p>候选集三路并集，全部来自<strong>本地已有信号</strong>：</p>
-<ol>
-<li><code>topPapers</code> 在双链图中的邻居（<code>graph_get_graph</code>）</li>
-<li>与 <code>tagAffinity</code> 高分标签同标签的未读论文</li>
-<li><code>topPapers</code> 参考文献中已入库的条目（<code>features/refs</code>）</li>
-</ol>
-<p>排序 <code>score = 衰减时长贡献 × 标签亲和度 × 未读加成</code>，去掉已读与近期打开过的。每条附理由。与 <a href="../plaza/"><code>plaza.md</code></a> 的「论文推荐 v0」是同一件事的库内版本——<strong>plaza 面向库外发现，本节面向库内重拾</strong>，两者共用 <code>tagAffinity</code>。</p>
-<h2 id="8">8. 隐私与开关<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
 <ul>
-<li>新增 <code>AppSettings::usage_tracking_enabled</code>（<code>serde(default = "default_true")</code>）。关闭后<strong>不写库</strong>（不是写了不用）。</li>
-<li>使用记录只存本地，不经任何网络通道上报。</li>
-<li>保留期 180 天，<code>ensure_usage</code> 时 prune <code>usage_events</code>；<code>usage_daily</code> 保留 2 年（体积极小，支撑年度回顾）。</li>
-<li><code>usage_clear()</code> 命令 + 设置页「清除使用记录」按钮。</li>
-<li><code>search.query</code> 存原文（否则推荐无从利用），受同一开关与保留期约束，须在设置页文案与文档中明示。</li>
-<li>使用记录<strong>不随远程 Vault 同步</strong>（§4.1），需在 <code>docs/backend/remote.md</code> 说明。</li>
+<li><strong>继续阅读</strong>：Library 顶栏 <code>continueReading</code> 前 3 + <code>stalled</code> 前 2。</li>
+<li><strong>周回顾</strong>：手动触发，不自动跑 Agent。</li>
+<li><strong>库内推荐 v0</strong>：双链邻居 ∪ 同标签未读 ∪ 已入库参考文献；plaza 管库外。</li>
 </ul>
+<h2 id="8">8. 隐私与开关<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>开关</th>
+<th>默认</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>usageTrackingEnabled</code></td>
+<td>true</td>
+<td>写本地、生成画像、注入 Agent</td>
+</tr>
+<tr>
+<td><code>telemetryEnabled</code></td>
+<td>true（已有）</td>
+<td>投影到 PostHog</td>
+</tr>
+</tbody>
+</table>
+<p>独立：可「本地 Memory 开、PostHog 关」。关本地则<strong>不写库</strong>。</p>
+<p>PostHog 硬约束：无路径、标题、paper id、DOI、检索词、划词/译文/批注正文、Skill URL/名称、Vault 路径。已有 <code>app started</code> / <code>app exited</code> 保留；新事件用 <code>object_verb</code>。</p>
+<p>设置 → 隐私：两行开关 +「清除使用记录」；文案写明本地检索词与 Skill id 不出站。</p>
+<p>iOS / TestFlight 仍无遥测。debug / 无 key 构建不上报。</p>
 <h2 id="9">9. 分期<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>阶段</th>
 <th>内容</th>
-<th>可验证产出</th>
+<th>可验证</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>P0</strong></td>
-<td><code>features/usage</code> + schema + 前端埋点 + 批量上报 + 开关 + prune</td>
-<td><code>agentero usage timeline --json</code> 能 dump 出真实事件</td>
+<td>Registry + <code>track()</code> + usage.sqlite v2 + 双开关 + CLI <code>usage which\|timeline\|summary\|clear</code></td>
+<td><strong>已落地</strong>（漏斗见 <a href="../../backend/usage/">usage.md</a>「前端漏斗」；翻译 / 版面 / 批注尚未接线）</td>
+</tr>
+<tr>
+<td><strong>P0 余</strong></td>
+<td>补翻译 / 版面 / 批注漏斗；<code>Telemetry::capture</code> 投影</td>
+<td>CLI dump 含这些 kind；关开关分别停本地 / PostHog；cache hit 与逐 region 翻译不刷屏</td>
 </tr>
 <tr>
 <td><strong>P1</strong></td>
-<td><code>usage_profile_get</code> + 论文库「继续阅读」卡片</td>
-<td>UI 上能看到该接着读哪篇并跳对页码</td>
+<td>Profile（含 <code>toolAffinity</code>）+ 继续阅读</td>
+<td>顶栏能跳对页</td>
 </tr>
 <tr>
 <td><strong>P2</strong></td>
-<td><code>build_prompt</code> 注入 + CLI <code>usage summary</code> / <code>top</code></td>
-<td>Agent 回答体现方向偏好；关闭开关后注入消失</td>
+<td><code>build_prompt</code> 注入（CLI 查询面已有）</td>
+<td>问答能提到工具习惯；关本地后注入消失</td>
 </tr>
 <tr>
 <td><strong>P3</strong></td>
-<td><code>usage-reviewer</code> skill + 周回顾 + 推荐 v0</td>
-<td>生成 <code>Reviews/YYYY-WW.md</code>；推荐列表带理由</td>
+<td>usage-reviewer、周回顾、推荐、可选 memories</td>
+<td><code>Reviews/YYYY-WW.md</code></td>
 </tr>
 </tbody>
 </table>
-<p>P0/P1 完全不依赖 Agent，可独立交付价值；P2 起才涉及 prompt 与额度。</p>
 <h2 id="10">10. 风险<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -3788,36 +4690,35 @@ agentero<span class="w"> </span>usage<span class="w"> </span>timeline<span class
 </thead>
 <tbody>
 <tr>
-<td>埋点散落各处，日后漏埋</td>
-<td>只在 <code>openTab</code> 这一个漏斗埋 open；其余 6 类事件集中在 3 个文件</td>
+<td>漏斗挂错层（<code>runTranslate</code> / <code>saveAnnotationItems</code>）导致事件爆炸</td>
+<td>消费方打点；高亮用 id diff；layout 跳过 cache hit</td>
 </tr>
 <tr>
-<td>focus 计时把挂机算成阅读</td>
-<td>单段上限 30min；<code>window blur</code> 立即结算</td>
-</tr>
-<tr>
-<td>prompt 注入把 context 撑爆</td>
-<td>画像输出硬上限 ≤800 tokens，超出截断 <code>topPapers</code></td>
+<td>翻译双记（<code>translate.selection</code> + <code>mark.create</code>）</td>
+<td>允许，语义不同；Profile 分别统计</td>
 </tr>
 <tr>
 <td>用户觉得被监视</td>
-<td>设置页显式开关 + 一键清除 + 文档写明本地不上传</td>
+<td>双开关 + 清除 + 文档写明本地 / 出站边界</td>
 </tr>
 <tr>
-<td>usage.sqlite 触发 watcher 风暴</td>
-<td>§4.4 忽略列表逐项确认</td>
+<td>prompt 被工具习惯撑爆</td>
+<td>800 token 硬顶；Skill 列表截断</td>
 </tr>
 <tr>
-<td>与 <code>plaza.md</code> 推荐重复实现</td>
-<td>共用 <code>tagAffinity</code>，plaza 管库外、本文管库内</td>
+<td>usage.sqlite 触发 watcher</td>
+<td>§4.2 忽略列表逐项确认</td>
+</tr>
+<tr>
+<td>与 heatmap 重复</td>
+<td>heatmap 继续只读产物；事件不存坐标</td>
 </tr>
 </tbody>
 </table>
 <h2 id="11">11. 文档落点<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
 <ul>
-<li>本文（草案）：<code>docs/development/usage-analytics.md</code>，登记进 <code>development/index.md</code> 与 <code>mkdocs.yml</code></li>
-<li>实现后：<code>docs/backend/usage.md</code>（schema / 命令 / CLI）+ <code>docs/frontend/library.md</code>（继续阅读卡片）</li>
-<li>需同步：<code>docs/backend/data-model.md</code>（新库与表）、<code>docs/backend/agent.md</code>（注入块）、<code>docs/backend/remote.md</code>（不同步）、<code>docs/backend/cli.md</code>（<code>usage</code> 命令组）、<code>docs/development/roadmap.md</code> + <code>todo.md</code></li>
+<li>本文（草案）：<code>docs/development/usage-analytics.md</code></li>
+<li>实现后：<code>docs/backend/usage.md</code> + 同步 <code>telemetry.md</code> / <code>data-model.md</code> / <code>agent.md</code> / <code>cli.md</code> / <code>remote.md</code> / <code>library.md</code> / <code>roadmap.md</code> + <code>todo.md</code></li>
 </ul>
 
 
