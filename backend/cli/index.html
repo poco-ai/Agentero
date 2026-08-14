@@ -1983,6 +1983,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shell 自动补全
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3181,6 +3192,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shell 自动补全
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3244,6 +3266,10 @@
 <tr>
 <td><code>open</code></td>
 <td>在桌面 App 打开本地目录为 Vault（<code>agentero open &lt;PATH&gt;</code>；简写 <code>agentero &lt;PATH&gt;</code>）</td>
+</tr>
+<tr>
+<td><code>completion</code></td>
+<td>生成 / 安装 shell 自动补全（bash / zsh / fish / powershell / elvish）</td>
 </tr>
 <tr>
 <td><code>vault</code></td>
@@ -3339,6 +3365,7 @@ cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </spa
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>wiki<span class="w"> </span>check<span class="w"> </span>papers/demo/NOTES.md<span class="w"> </span>--json
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>doctor<span class="w"> </span>--json
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>layout<span class="w"> </span>list<span class="w"> </span>papers/demo<span class="w"> </span>--json
+cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>completion<span class="w"> </span>zsh
 cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-p<span class="w"> </span>agentero-cli
 </code></pre></div>
 
@@ -3375,6 +3402,65 @@ agentero<span class="w"> </span>.<span class="w">             </span><span class
 </code></pre></div>
 
 <p>CLI 通过 <code>agentero://open?path=…</code> 深链唤起已安装的桌面 App；无参数时仍打印 help，不会隐式打开最近 Vault。</p>
+<h2 id="shell">Shell 自动补全<a class="headerlink" href="#shell" title="Permanent link">&para;</a></h2>
+<p><code>agentero completion &lt;SHELL&gt;</code> 向 stdout 打印补全脚本（始终是原始脚本，即使带了 <code>--json</code>）。<code>--install</code> 把脚本写入用户目录，<strong>不</strong>改 shell rc。</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 打印脚本</span>
+agentero<span class="w"> </span>completion<span class="w"> </span>zsh
+agentero<span class="w"> </span>completion<span class="w"> </span>bash
+agentero<span class="w"> </span>completion<span class="w"> </span>fish
+
+<span class="c1"># 写入用户补全目录（不改 rc）</span>
+agentero<span class="w"> </span>completion<span class="w"> </span>zsh<span class="w"> </span>--install
+agentero<span class="w"> </span>completion<span class="w"> </span>bash<span class="w"> </span>--install
+agentero<span class="w"> </span>completion<span class="w"> </span>fish<span class="w"> </span>--install
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Shell</th>
+<th><code>--install</code> 路径</th>
+<th>是否自动加载</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bash</td>
+<td><code>~/.local/share/bash-completion/completions/agentero</code></td>
+<td>bash-completion 2.8+ 会自动加载</td>
+</tr>
+<tr>
+<td>zsh</td>
+<td><code>~/.zfunc/_agentero</code></td>
+<td>需把 <code>~/.zfunc</code> 加进 <code>fpath</code> 后 <code>compinit</code></td>
+</tr>
+<tr>
+<td>fish</td>
+<td><code>~/.config/fish/completions/agentero.fish</code></td>
+<td>自动</td>
+</tr>
+<tr>
+<td>powershell</td>
+<td><code>~/.config/powershell/Completions/agentero-cli.ps1</code></td>
+<td>需在 <code>$PROFILE</code> 里 <code>.</code> source</td>
+</tr>
+<tr>
+<td>elvish</td>
+<td><code>~/.config/elvish/lib/agentero.elv</code></td>
+<td>需在 <code>rc.elv</code> 里 <code>use agentero</code></td>
+</tr>
+</tbody>
+</table>
+<p>zsh 若尚未配置 <code>fpath</code>，在 <code>~/.zshrc</code> 加：</p>
+<div class="codehilite"><pre><span></span><code><span class="nv">fpath</span><span class="o">=(</span>~/.zfunc<span class="w"> </span><span class="nv">$fpath</span><span class="o">)</span>
+autoload<span class="w"> </span>-Uz<span class="w"> </span>compinit<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>compinit
+</code></pre></div>
+
+<p>Windows 安装后命令名是 <code>agentero-cli</code>，可显式指定：</p>
+<div class="codehilite"><pre><span></span><code><span class="n">agentero-cli</span> <span class="n">completion</span> <span class="n">powershell</span> <span class="p">-</span><span class="n">-install</span> <span class="p">-</span><span class="n">-bin-name</span> <span class="n">agentero-cli</span>
+</code></pre></div>
+
+<p>补全会带上子命令、全局 flag，以及已声明的枚举值（如 <code>layout --kind</code>、<code>mark --mark-color</code>）。路径参数带 <code>ValueHint</code>，由 shell 按目录/文件补全。</p>
 <h2 id="_4">双链检查<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p><code>agentero wiki check [&lt;source&gt;] --json</code> 使用桌面端导航、嵌入、反链和重命名事务共用的 <code>WikiIndex</code> resolver，不维护第二套正则解析器。</p>
 <ul>

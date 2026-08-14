@@ -2169,10 +2169,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#0-2026-07-25" class="md-nav__link">
+  <a href="#0-2026-07-252026-08-14" class="md-nav__link">
     <span class="md-ellipsis">
       
-        0. 产品结论（2026-07-25）
+        0. 产品结论（2026-07-25，2026-08-14 修订）
       
     </span>
   </a>
@@ -2229,6 +2229,17 @@
     <span class="md-ellipsis">
       
         3.2 Cool Papers（P0，WebView）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#321" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2.1 入库（已实现）
       
     </span>
   </a>
@@ -3185,10 +3196,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#0-2026-07-25" class="md-nav__link">
+  <a href="#0-2026-07-252026-08-14" class="md-nav__link">
     <span class="md-ellipsis">
       
-        0. 产品结论（2026-07-25）
+        0. 产品结论（2026-07-25，2026-08-14 修订）
       
     </span>
   </a>
@@ -3245,6 +3256,17 @@
     <span class="md-ellipsis">
       
         3.2 Cool Papers（P0，WebView）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#321" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2.1 入库（已实现）
       
     </span>
   </a>
@@ -3367,9 +3389,9 @@
 <h1 id="plaza">广场（Plaza）— 外部来源发现<a class="headerlink" href="#plaza" title="Permanent link">&para;</a></h1>
 <blockquote>
 <p>范围：侧栏虚拟节点 <strong>广场</strong> 及其子来源（Cool Papers / 播客 / 论文推荐）；中间栏发现流。<br />
-相关：<a href="../../frontend/vault-tree/"><code>../frontend/vault-tree.md</code></a>、<a href="../../backend/paper-import/"><code>../backend/paper-import.md</code></a>。</p>
+相关：<a href="../../frontend/vault-tree/"><code>../frontend/vault-tree.md</code></a>、<a href="../../backend/paper-import/"><code>../backend/paper-import.md</code></a>、<a href="../../backend/"><code>../backend/index.md</code></a>。</p>
 </blockquote>
-<h2 id="0-2026-07-25">0. 产品结论（2026-07-25）<a class="headerlink" href="#0-2026-07-25" title="Permanent link">&para;</a></h2>
+<h2 id="0-2026-07-252026-08-14">0. 产品结论（2026-07-25，2026-08-14 修订）<a class="headerlink" href="#0-2026-07-252026-08-14" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -3382,25 +3404,64 @@
 <tr>
 <td>Q1</td>
 <td>树位置</td>
-<td><strong>Library + Recycle Bin 下方、真实 Vault 根目录上方</strong></td>
+<td><strong>Library + Recycle Bin 下方、真实 Vault 根目录上方</strong>（已实现）</td>
 </tr>
 <tr>
 <td>Q2</td>
 <td>Cool Papers 呈现</td>
-<td><strong>内嵌 WebView</strong> 打开 <a href="https://papers.cool/">papers.cool</a></td>
+<td><strong>内嵌 iframe + Host 代理协议</strong> <code>agentero-coolpapers://</code>（已实现；见 §3.2）</td>
 </tr>
 <tr>
 <td>Q3</td>
 <td>入库</td>
-<td><strong>P0 不做入库</strong>（不接魔棒 / <code>lookup_import</code>；后续迭代再开）</td>
+<td><strong>已实现</strong>：每行注入 <code>[入库]</code>，复用现成魔棒（见 §3.2.1）</td>
 </tr>
 <tr>
 <td>Q4</td>
 <td>P0 范围</td>
-<td><strong>Cool Papers 可用（WebView 完整浏览）+ 推荐 v0</strong>；播客仅占位</td>
+<td><strong>已交付：广场壳 + Cool Papers 完整浏览 + 单条入库</strong>；播客 / 推荐尚未实现</td>
 </tr>
 </tbody>
 </table>
+<p><strong>已实现落点（2026-08-14）</strong></p>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>路径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>来源注册表</td>
+<td><code>src/lib/plaza/sources.ts</code>（新增来源 = 一条数组项）</td>
+</tr>
+<tr>
+<td>中间栏</td>
+<td><code>src/components/plaza/plaza-view.tsx</code>、<code>plaza-web-frame.tsx</code></td>
+</tr>
+<tr>
+<td>入库</td>
+<td><code>src/lib/plaza/import.ts</code></td>
+</tr>
+<tr>
+<td>侧栏行</td>
+<td><code>src/components/sidebar/file-tree/tree-rows.tsx</code>（<code>PlazaRow</code> / <code>PlazaSourceRow</code>）</td>
+</tr>
+<tr>
+<td>Tab kind</td>
+<td><code>src/lib/workspace/tabs/types.ts</code> 的 <code>"plaza"</code> + <code>doc-view.tsx</code> 分支</td>
+</tr>
+<tr>
+<td>站点代理</td>
+<td><code>src-tauri/src/features/coolpapers/proxy.rs</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Kimi 解析没有走广场入库，而是作为论文侧的独立能力落在 Paper Info 面板的
+「获取笔记」按钮上（<code>paper_coolpapers_notes</code> → 追加 <code>NOTES.md</code>）。</p>
+</blockquote>
 <h2 id="1">1. 产品动机<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <p>Agentero 已是 <strong>local-first 论文工作台</strong>（Library + 文件树 + PDF|NOTES）。用户还需要从 <strong>外部发现流</strong> 找新论文。</p>
 <p><strong>广场</strong> = 「发现入口」集合，与 <strong>Library（已收藏）</strong> 正交：</p>
@@ -3431,7 +3492,7 @@
 <tr>
 <td>典型动作</td>
 <td>打开 / 标签 / 导出</td>
-<td>浏览发现（入库后续再做）</td>
+<td>浏览发现 + 单条入库</td>
 </tr>
 </tbody>
 </table>
@@ -3543,7 +3604,7 @@
 </code></pre></div>
 
 <h3 id="32-cool-papersp0webview">3.2 Cool Papers（P0，WebView）<a class="headerlink" href="#32-cool-papersp0webview" title="Permanent link">&para;</a></h3>
-<p><strong>主内容</strong>：内嵌 <strong>WebView / 受控 iframe 等价物</strong>（Tauri 下优先 <code>webview</code> 或桌面 WebView 面板）加载 <code>https://papers.cool/</code>（或可配置起始分区 URL）。</p>
+<p><strong>主内容</strong>：内嵌 iframe，经 Host 代理协议 <code>agentero-coolpapers://localhost</code>（Windows 为 <code>https://agentero-coolpapers.localhost</code>）加载 papers.cool。</p>
 <table>
 <thead>
 <tr>
@@ -3554,34 +3615,100 @@
 <tbody>
 <tr>
 <td>主体</td>
-<td>全高 WebView；站点内导航、分区、搜索均由 papers.cool 负责</td>
+<td>全高 iframe；站点内导航、分区、搜索均由 papers.cool 负责</td>
 </tr>
 <tr>
 <td>顶条（Agentero chrome）</td>
-<td>后退 / 前进 / 刷新 / 主页（papers.cool）/「系统浏览器打开」</td>
+<td>后退 / 前进 / 重新载入 / 当前路径（只读）/「系统浏览器打开」</td>
 </tr>
 <tr>
-<td>地址</td>
-<td>可选显示当前 URL（只读）；不暴露任意网址栏防滥用</td>
+<td>站内链接</td>
+<td>在 iframe 内直接跳转</td>
+</tr>
+<tr>
+<td>站外链接</td>
+<td>交给系统浏览器（arxiv.org 等一律拒绝被嵌套）</td>
 </tr>
 <tr>
 <td>加载失败</td>
-<td>空态 + 重试 + 外链打开</td>
+<td>代理返回 502 文案</td>
 </tr>
 <tr>
 <td>入库</td>
-<td><strong>P0 不做</strong>（顶条不放「加入 Library」；文档标明后续迭代）</td>
+<td>每行 <code>[入库]</code>，见 §3.2.1</td>
 </tr>
 </tbody>
 </table>
-<p><strong>工程注意（Tauri）</strong>：</p>
+<p><strong>为什么要代理（<code>src-tauri/src/features/coolpapers/proxy.rs</code>）</strong></p>
+<p>papers.cool 给几乎所有链接都加了 <code>target="_blank"</code>（单个分区页实测 238 处）。直接跨源嵌套时：</p>
 <ul>
-<li>使用应用内 webview 面板，而非无约束打开外部浏览器标签（外链为次要出口）。  </li>
-<li>Cookie / 第三方脚本：最小权限；不注入用户 API Key。  </li>
-<li>与 PDF iframe 类似：若影响 dockview 拖拽，在拖拽期间 <code>pointer-events: none</code>（参考 HTML viewer 策略）。  </li>
+<li>链接要么弹出独立窗口、要么静默失效——<strong>点了没反应</strong>；</li>
+<li>跨源 iframe 的 <code>location</code> / <code>history</code> 都读不到，<strong>无法实现后退</strong>。</li>
+</ul>
+<p>因此改为在 Host 侧以自有 scheme 转发（沿用 <code>arxiv_proxy.rs</code> 的既有模式），同源后即可改写与观测：</p>
+<ul>
+<li><code>target="_blank"</code> → <code>_self</code>，站内链接原地跳转；</li>
+<li><strong>同时改写 <code>window.open</code></strong>。仅改 HTML 不够：cool.js 的所有脚本式跳转都走 <code>window.open</code>（搜索、<code>[REL]</code> 相关论文、排序、feed、导出收藏、arXiv 日历共 7 处），且多数传 <code>_blank</code>；sandbox 去掉 <code>allow-popups</code> 后这些调用会被<strong>静默丢弃</strong>，表现为「搜索点了没反应」。补丁在 <code>&lt;head&gt;</code> 安装，早于 body 末尾的 cool.js。</li>
+<li>统一的三档跳转规则（链接与脚本共用）：<strong>站内页面</strong> → 原地 <code>location.assign</code>；<strong>Atom feed</strong> → 交系统浏览器（面板里渲染裸 XML 没有意义）；<strong>跨源</strong> → 交系统浏览器。</li>
+<li>feed 与站内 handoff 必须<strong>换算回上游 origin</strong> 再交出去——系统浏览器解析不了我们的私有 scheme（消息用 <code>externalPath</code>，由面板对 <code>homeUrl</code> 求解）。</li>
+<li>绝对自链接 <code>https://papers.cool/…</code> → <code>/…</code>，导航不会掉出代理；</li>
+<li>注入桥接脚本：<code>postMessage</code> 上报每次导航路径（前端据此维护 Back/Forward 栈），并拦截跨源链接交给系统浏览器；</li>
+<li>上游 origin 在 Rust 侧<strong>硬编码</strong>，避免代理退化成任意 URL 中继（SSRF）。</li>
+<li><strong>只对完整 HTML 文档注入</strong>（首字节是 <code>&lt;!doctype</code> / <code>&lt;html</code>）。<code>togglePdf</code> / <code>toggleKimi</code> 用 XHR 取的是 <strong>同样标着 <code>text/html</code> 的片段</strong>——Kimi 解析是裸 <code>&lt;p class="faq-q"&gt;</code>，<code>POST /star</code> 是裸计数——cool.js 直接把响应文本塞进 DOM，一旦注入就会把脚本源码和计数当文本显示出来（现象：点 PDF / Kimi 弹出一段 <code>&lt;script&gt;…&lt;/script&gt;0</code>）。</li>
+<li><strong>桥接脚本在嵌套 frame 内自我禁用</strong>。pdf.js viewer 也是完整文档，会被一并注入；那里的 <code>parent</code> 是 papers.cool 页面而非应用，消息没人收，且点击拦截会把 PDF 内的链接 <code>preventDefault</code> 掉。判定方式：读 <code>parent.location.href</code>——面板自身的父窗口是跨源的应用会抛异常，嵌套 frame 的父窗口同源可读。</li>
+</ul>
+<p><strong>其它工程注意</strong></p>
+<ul>
+<li>前端不用 iframe 自身 history：一旦跳到第三方源就再次不可读；后退改为「按记录的路径重挂载 iframe」，因此也不会污染应用自身的 session history。</li>
+<li><strong>只有 后退 / 前进 / 重新载入 可以改变 iframe 的 <code>key</code></strong>（用单独的 <code>epoch</code> 计数器）。若把 <code>key</code> 挂到「观测到的导航」状态上（如 history 长度 / 游标），站内每次点击都会重挂载并重新加载<strong>挂载时那个旧路径</strong>，表现为「点子页面闪回首页」。venue 尤其明显：<code>&lt;a onclick="listVenueDetail('AAAI')"&gt;</code> 无 href（只做 show/hide + <code>pushState('/')</code>），但其中的年份 / 分组是真链接 <code>href="/venue/AAAI.2026"</code>。</li>
+<li>sandbox 去掉 <code>allow-popups</code>，确保没有链接能逃到新窗口。</li>
+<li>与 PDF iframe 一样，拖拽期间置 <code>pointer-events: none</code>，否则 dockview 收不到 dragover。</li>
 <li>远程 Vault 会话下同样可用（广场不依赖 vault 文件 IO）。</li>
 </ul>
-<p><strong>后续（非 P0）</strong>：从 URL 解析 arXiv id → 预览抽屉 / 批量入库；届时再增加 Agentero 侧列表层或桥接脚本（需合规评估）。</p>
+<h3 id="321">3.2.1 入库（已实现）<a class="headerlink" href="#321" title="Permanent link">&para;</a></h3>
+<p>代理注入的桥接脚本给每行论文标题追加 <code>[入库]</code>，与站点自带的 <code>[PDF] [Copy] [Kimi] [REL]</code> 同排。点击后把 <code>{ id, url, title }</code> 交给面板，面板调用现成的 <code>lookupSubmit</code> → <code>lookup_import_batch</code>，结果再回传给该行显示 <code>[已入库]</code>。</p>
+<p><strong>关键点：喂给魔棒的是每行 <code>#N</code> 序号链接的 href</strong>，也就是上游权威页面。四种分区形态一致：</p>
+<table>
+<thead>
+<tr>
+<th>分区</th>
+<th>papers.cool id</th>
+<th><code>#N</code> href</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>arxiv</td>
+<td><code>2608.13558</code></td>
+<td><code>arxiv.org/abs/2608.13558</code></td>
+</tr>
+<tr>
+<td>AAAI</td>
+<td><code>36958@AAAI</code></td>
+<td><code>ojs.aaai.org/…/article/view/36958</code></td>
+</tr>
+<tr>
+<td>NeurIPS</td>
+<td><code>aVh9KRZdRk@OpenReview</code></td>
+<td><code>openreview.net/forum?id=aVh9KRZdRk</code></td>
+</tr>
+<tr>
+<td>ACL</td>
+<td><code>2026.acl-long.1@ACL</code></td>
+<td><code>aclanthology.org/2026.acl-long.1/</code></td>
+</tr>
+</tbody>
+</table>
+<p>因此<strong>零后端改动</strong>：<code>extract_primary_identifier</code> 把任何 http(s) 串判为 <code>IdentifierKind::Url</code>，<code>translator_request</code> 再路由到 Translator 的 <code>/web</code>（arxiv.org 另有原生特判，归一到 abs 页）。这也是 venue 论文唯一可行的入库路径——它们既没有 arXiv id 也没有 DOI，<code>lookup_import_batch</code> 直接吃 id 是吃不下的。</p>
+<ul>
+<li><strong>venue 行硬依赖 Translator</strong>（arXiv 有原生兜底，venue 没有）。Translator 不可用时必须明确报错，不能静默失败。</li>
+<li>只做<strong>单条入库</strong>，不提供全选批量：<code>/web</code> 是逐条抓取出版商页面，批量既慢又容易被对方限流。</li>
+<li>注入的 <code>[入库]</code> <strong>不带 href</strong>，否则会被上面的跨源链接拦截器当成外链送去系统浏览器。</li>
+<li>行是滚动加载的（<code>loadMorePapers</code> 追加 <code>.panel.paper</code>），所以除首屏遍历外还挂了 <code>MutationObserver</code>。</li>
+<li><code>lookupSubmit</code> 内部是 fire-and-forget 后台任务，异常不会冒泡，因此入库按钮另设超时兜底，避免永远停在 <code>[入库中]</code>；重复点击安全（Host 按 arXiv id / DOI / 归一标题去重）。</li>
+<li>入库后<strong>不自动打开论文</strong>，否则会把正在连续浏览的用户拽出广场面板。</li>
+</ul>
+<p><strong>后续（非 P0）</strong>：批量入库、预览抽屉。</p>
 <h3 id="33">3.3 播客（占位）<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
 <ul>
 <li>空态文案：订阅源、单集列表与播放将在后续版本提供。  </li>
@@ -3645,7 +3772,7 @@
 </tr>
 <tr>
 <td>魔棒 / 入库</td>
-<td><strong>P0 不接</strong>；P1 再复用 <code>lookup_import</code></td>
+<td><strong>已复用</strong> <code>lookup_import_batch</code>：喂上游 URL，见 §3.2.1</td>
 </tr>
 <tr>
 <td>PDF|NOTES</td>
@@ -3720,11 +3847,11 @@
 </table>
 <h2 id="7-p0">7. 明确不做（P0）<a class="headerlink" href="#7-p0" title="Permanent link">&para;</a></h2>
 <ul>
-<li>广场 → Vault <strong>入库</strong>（含批量）。  </li>
+<li>广场 → Vault <strong>批量入库</strong>（单条已实现，见 §3.2.1）。  </li>
 <li>把 feed 写入 catalog。  </li>
 <li>播客播放器 / 订阅管理。  </li>
 <li>云端协同过滤或上传本地库。  </li>
-<li>在 WebView 内注入支付/登录 Agentero 账号。</li>
+<li>注入脚本只做导航上报与 <code>[入库]</code>；<strong>不注入任何凭据 / API Key / 登录态</strong>。</li>
 </ul>
 <h2 id="8">8. 实现落点（编码时）<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
 <table>
@@ -3802,7 +3929,8 @@
 <li>推荐 v0 是否显示「打开过的非 paper 笔记」——默认 <strong>否</strong>，仅 paper 单元。</li>
 </ul>
 <hr />
-<p><em>修订：2026-07-25 — 采纳 WebView、不做入库、P0 含推荐 v0、树位置在 Library/Trash 下。</em></p>
+<p><em>修订：2026-07-25 — 采纳 WebView、不做入库、P0 含推荐 v0、树位置在 Library/Trash 下。</em>
+<em>修订：2026-08-14 — 改为代理协议嵌入；壳 + Cool Papers 浏览 + 单条入库已落地；推荐 / 播客未实现。</em></p>
 
 
 
