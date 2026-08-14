@@ -3135,7 +3135,7 @@ agentero<span class="w"> </span>.<span class="w">             </span><span class
 <p><code>agentero doctor</code> 只读聚合 Vault 结构、Catalog schema、双链语义、Catalog 论文 <code>NOTES.md</code> aliases，以及 <code>papers/**/marks/*.json</code> 视觉批注格式；任一错误/待修项存在时返回 <code>doctor_issues</code> 和非零退出码。诊断会尊重设置页写入的 <code>.agentero/doctor.json</code> 别名忽略列表（这些路径不计入别名错误）。</p>
 <p><code>agentero doctor fix aliases</code> 在 TTY 中逐篇展示已有 alias，并允许编辑生成的标题 alias / 短 alias，最后进行一次批量确认。<code>-y</code> 接受全部安全默认值；<code>--json</code> 从不提示，未同时传 <code>-y</code> 时返回 <code>needs_confirmation</code>。修复会保留已有自定义 aliases，以内容哈希做竞态检查，并作为一个可回滚批次写入。</p>
 <p><code>agentero doctor fix visual-marks -y</code> 将旧版 <code>kind: agent-trace</code>（扁平 agent 字段）迁移为 <code>kind: visual</code> v2（可选嵌套 <code>agent</code>），幂等；不改 id 与裁剪图路径。详见 <a href="../doctor/">doctor.md</a>。</p>
-<p>Skill 种子：<code>templates/vault/.agents/skills/agentero-cli/</code>。</p>
+<p>Skill 种子：<code>templates/vault/.agents/skills/agentero-cli/</code>，含两个平台变体——<code>SKILL.md</code>（POSIX，命令 <code>agentero</code>）与 <code>SKILL-windows.md</code>（Windows，命令 <code>agentero-cli</code>、PowerShell/cmd 语法）。播种时按宿主平台选择变体写入同一个 skill id，skill 目录不随平台变化。</p>
 
 
 
