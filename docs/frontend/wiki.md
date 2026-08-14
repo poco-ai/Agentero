@@ -33,7 +33,7 @@
 
 - Agentero 内重命名/移动：事务化修复已解析链接。
 - 外部本地 rename：按设置 `ask` / `always`。
-- 外部 rename 的双链修复与警告只关注 Markdown、PDF、受支持图片和疑似目录；JSON sidecar、临时文件等明确非链接目标仍刷新工作区，但不进入双链处理。
+- 外部 rename 只有在 watcher 提供可信 old/new 路径对时才进入双链修复；macOS FSEvents 等产生的不完整 name event 只静默刷新工作区和索引。Markdown、PDF、受支持图片和疑似目录才进入双链处理，JSON sidecar、临时文件等明确非链接目标只执行常规刷新。
 - 显式标题重命名事务。
 
 标题重命名、跳转和嵌入继续消费同一个结构化 `LinkFragment.path: string[]`。该数组保存 Markdown 中实际写下的完整路径或连续后缀；解析成功后再映射到唯一 canonical heading path。显式标题重命名只改写引用中实际包含的被改名路径段，省略该祖先的后缀引用保持原文。

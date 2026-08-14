@@ -40,7 +40,7 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
 
 | 事件名 | 触发时机 | payload 关键字段 |
 |---|---|---|
-| `vault:file-changed`（已实现） | Vault 内文件被外部/Agent 改动（Host `notify` 监听，按窗口 `emit_to` 定向） | `{ paths: string[], kind: 'create' \| 'modify' \| 'remove' \| 'rename' \| 'other', rename?: { from: string; to: string } }`（绝对路径；`.agentero/`、`.git/`、`node_modules/` 已过滤；`rename` 仅表示单个可信 old/new 配对） |
+| `vault:file-changed`（已实现） | Vault 内文件被外部/Agent 改动（Host `notify` 监听，按窗口 `emit_to` 定向） | `{ paths: string[], kind: 'create' \| 'modify' \| 'remove' \| 'rename' \| 'other', rename?: { from: string; to: string } }`（绝对路径；`.agentero/`、`.git/`、`node_modules/` 已过滤；`kind: 'rename'` 与 `rename` 仅用于单个可信 old/new 配对，不完整 name event 以 `other` 静默刷新） |
 | `arxiv:progress` | arXiv 入库进度更新 | `{ job_id: string, stage: string, progress?: number, message?: string }` |
 | `arxiv:completed` | 入库完成 | `{ job_id: string, paper: Paper, created_paths: string[] }` |
 | `arxiv:failed` | 入库失败 | `{ job_id: string, error: AppError }` |
@@ -365,7 +365,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 - **`fs_watch_start`**
   - **参数**：`{ vaultPath: string }`
   - **返回**：`Result<(), String>`
-  - **行为**：为当前窗口（label）启动递归监听；若该窗口已有监听则先停止再重建。命中变更时按窗口 `emit_to` 发送 `vault:file-changed`（去抖 ~300ms，过滤 `.agentero/` 内部文件、`.git/`、`node_modules/`；但放行 `.agentero/catalog.sqlite` 及 SQLite sidecar，供前端刷新 Library 元数据）。只有 `notify` 的单事件 `RenameMode::Both`、恰有两条不同路径且均未被过滤时，payload 才带按顺序排列的 `rename.from` / `rename.to`；其它 rename 事件只用于刷新，绝不能授权改写 Vault 内容。前端只将 Markdown、PDF、受支持图片或疑似目录的 rename 交给双链修复/警告；带明确非目标扩展名的 sidecar / 临时文件仅执行常规工作区刷新。
+  - **行为**：为当前窗口（label）启动递归监听；若该窗口已有监听则先停止再重建。命中变更时按窗口 `emit_to` 发送 `vault:file-changed`（去抖 ~300ms，过滤 `.agentero/` 内部文件、`.git/`、`node_modules/`；但放行 `.agentero/catalog.sqlite` 及 SQLite sidecar，供前端刷新 Library 元数据）。只有 `notify` 的单事件 `RenameMode::Both`、恰有两条不同路径且均未被过滤时，payload 才使用 `kind: 'rename'` 并带按顺序排列的 `rename.from` / `rename.to`；其它 name event 使用 `kind: 'other'`，只静默刷新文件树与索引，绝不能授权改写 Vault 内容。前端只将 Markdown、PDF、受支持图片或疑似目录的可信 rename 交给双链修复；带明确非目标扩展名的 sidecar / 临时文件仅执行常规工作区刷新。
 - **`fs_watch_stop`**
   - **参数**：无
   - **返回**：`Result<(), String>`

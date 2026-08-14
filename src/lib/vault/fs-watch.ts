@@ -9,7 +9,7 @@ export type VaultFileChangedPayload = {
 	paths: string[];
 	/** Coarse change kind. */
 	kind: "create" | "modify" | "remove" | "rename" | "other";
-	/** Reliable old/new pair only; incomplete watcher events omit this field. */
+	/** Present for every `rename`; incomplete name events are emitted as `other`. */
 	rename?: { from: string; to: string };
 };
 

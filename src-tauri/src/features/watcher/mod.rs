@@ -20,7 +20,7 @@ use tauri::{AppHandle, Emitter, EventTarget};
 pub struct FileChangedPayload {
     /// Absolute paths touched by this (debounced) batch.
     pub paths: Vec<String>,
-    /// Coarse change kind: "create" | "modify" | "remove" | "other".
+    /// Coarse change kind. `rename` is reserved for a trustworthy old/new pair.
     pub kind: String,
     /// Present only when the OS delivered one trustworthy old/new rename pair.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -167,7 +167,9 @@ fn kind_label(kind: &EventKind) -> &'static str {
     match kind {
         EventKind::Create(_) => "create",
         EventKind::Remove(_) => "remove",
-        EventKind::Modify(ModifyKind::Name(_)) => "rename",
+        // FSEvents commonly emits one-sided name events for atomic saves.
+        // They remain structural changes, but cannot authorize link repair.
+        EventKind::Modify(ModifyKind::Name(_)) => "other",
         EventKind::Modify(_) => "modify",
         _ => "other",
     }
@@ -214,15 +216,17 @@ fn payloads_from_events(
         if paths.is_empty() {
             continue;
         }
-        let kind = if from_atomic_write {
-            "modify"
-        } else {
-            kind_label(&event.kind)
-        };
         let rename = if from_atomic_write {
             None
         } else {
             verified_rename_pair(&event.kind, &paths)
+        };
+        let kind = if from_atomic_write {
+            "modify"
+        } else if rename.is_some() {
+            "rename"
+        } else {
+            kind_label(&event.kind)
         };
         out.push(FileChangedPayload {
             paths,
@@ -251,6 +255,22 @@ mod tests {
         )
         .is_none());
         assert!(verified_rename_pair(&kind, &paths[..1]).is_none());
+    }
+
+    #[test]
+    fn unpaired_name_event_is_structural_without_rename_repair_signal() {
+        let event = notify_debouncer_full::DebouncedEvent::from(
+            notify_debouncer_full::notify::Event::new(EventKind::Modify(ModifyKind::Name(
+                RenameMode::Any,
+            )))
+            .add_path("/vault/notes/Source.md".into()),
+        );
+
+        let payloads = payloads_from_events(vec![event]);
+
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0].kind, "other");
+        assert!(payloads[0].rename.is_none());
     }
 
     #[test]

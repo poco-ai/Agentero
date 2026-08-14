@@ -93,6 +93,7 @@ nav:
       - 发布前 Checklist: test/release-checklist.md
 
   - Bug 修复记录:
+      - macOS 文件保存反复提示不完整改名: bug_fix/watcher-unpaired-rename-toast.md
       - DeepSeek 正文落入 Thinking: bug_fix/deepseek-thinking-body.md
       - ACP 会话恢复 ID 错误: bug_fix/acp-session-resume-id.md
       - 输入法组字 Enter 误发送: bug_fix/ime-composition-enter-submit.md

@@ -60,6 +60,7 @@
 
 ## 0.7+ — 体验与平台
 
+- [x] 修复 macOS 文件保存反复提示“不完整改名”：单边 FSEvents 只静默刷新，不再进入外部改名 Toast，可信 old/new 配对仍保持链接修复（复盘：[watcher-unpaired-rename-toast.md](../bug_fix/watcher-unpaired-rename-toast.md)）
 - [ ] Graph 全屏/聚焦、邻居高亮、节点搜索；边级增量索引
 - [ ] tab pin、命名工作区会话
 - [ ] PDF 无文本层降级；HTML 标注统一模型
