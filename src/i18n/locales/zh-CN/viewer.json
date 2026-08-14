@@ -42,6 +42,7 @@
 			"done": "版面完成 — {{summary}}",
 			"failed": "版面分析失败",
 			"cancelled": "已取消版面分析",
+			"crashLoopSkipped": "版面解析多次中断，已暂停这篇论文的自动解析。可点击「检测配图、表格与公式」手动重试。",
 			"rerunHint": "重新运行版面分析。上次：{{summary}}",
 			"toggleOverlay": "切换版面框",
 			"showOverlay": "显示版面框",

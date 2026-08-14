@@ -42,6 +42,7 @@
 			"done": "Layout ready — {{summary}}",
 			"failed": "Layout analysis failed",
 			"cancelled": "Layout analysis cancelled",
+			"crashLoopSkipped": "Layout analysis was interrupted repeatedly, so automatic parsing is paused for this paper. Use \"Detect figures, tables, and formulas\" to retry.",
 			"rerunHint": "Re-run layout analysis. Last: {{summary}}",
 			"toggleOverlay": "Toggle layout boxes",
 			"showOverlay": "Show layout boxes",

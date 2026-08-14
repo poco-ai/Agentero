@@ -25,6 +25,7 @@ const windowKind = searchParams.get("window");
 const isSettingsWindow = windowKind === "settings";
 const isFeatureWindow = windowKind === "feature";
 const isDocWindow = windowKind === "doc";
+const isLayoutWorkerWindow = windowKind === "layout-worker";
 
 // `performance.now()` is measured from navigation start, so these numbers cover
 // index.html + main.tsx module loading too, not just the boot chain. `boot` is a
@@ -87,6 +88,21 @@ async function boot() {
 		);
 		logger.info(
 			`op end frontend_boot ok=true duration_ms=${bootElapsed()} window=settings`,
+		);
+		return;
+	}
+
+	if (isLayoutWorkerWindow) {
+		// Headless analysis runtime: no React tree, just the event loop. Runs in
+		// its own WebContent process so PDFium/ONNX memory pressure cannot crash
+		// the main window.
+		const { startLayoutWorker } = await import(
+			"@/lib/pdf/layout/worker-window"
+		);
+		bootStage("layout-worker-module");
+		await startLayoutWorker();
+		logger.info(
+			`op end frontend_boot ok=true duration_ms=${bootElapsed()} window=layout-worker`,
 		);
 		return;
 	}

@@ -5,7 +5,14 @@ import type {
 	LayoutTask,
 } from "@embedpdf/plugin-layout-analysis";
 
+import i18n from "@/i18n";
 import { logger } from "@/lib/core/logger";
+import {
+	beginLayoutAnalysisAttempt,
+	finishLayoutAnalysisAttempt,
+	resetLayoutAnalysisCrashGuard,
+	shouldSkipAutoLayoutAnalysis,
+} from "@/lib/pdf/layout/crash-guard";
 import {
 	readLayoutSidecar,
 	writeLayoutIndexFromRaw,
@@ -38,6 +45,12 @@ export type RunLayoutAnalysisOptions = {
 	 * merge/filter into the sidebar store (JSON→regions).
 	 */
 	force?: boolean;
+	/**
+	 * Who asked for the analysis. Automatic paths (default) refuse to re-run
+	 * after repeated mid-analysis WebView crashes; a manual run resets the
+	 * crash guard and always proceeds.
+	 */
+	trigger?: "auto" | "manual";
 	/** Paper folder path; when present, raw layout persists to source/layout.json. */
 	paperAbsPath?: string | null;
 	/** PDF page count for progress bar before the first page-complete event. */
@@ -258,6 +271,22 @@ export async function runDocumentLayoutAnalysis(
 		}
 	}
 
+	// ONNX path (cache miss). Repeated mid-analysis WebView crashes must not
+	// loop forever: automatic callers back off, manual runs reset the guard.
+	if (options.paperAbsPath) {
+		if (options.trigger === "manual") {
+			resetLayoutAnalysisCrashGuard(options.paperAbsPath);
+		} else if (shouldSkipAutoLayoutAnalysis(options.paperAbsPath)) {
+			const message = i18n.t("viewer:pdf.layout.crashLoopSkipped");
+			logger.warn("layout analysis auto-run skipped after repeated crashes", {
+				paperAbsPath: options.paperAbsPath,
+			});
+			setLayoutAnalysisUi({ stage: "error", message }, documentId);
+			options.onError?.(message, false);
+			return null;
+		}
+	}
+
 	setLayoutAnalysisUi(
 		{
 			stage: "running",
@@ -299,6 +328,10 @@ export async function runDocumentLayoutAnalysis(
 		documentId,
 	);
 
+	// From here rendering + inference can exhaust the WebContent process; the
+	// in-flight record below is only cleared by a normal outcome, so a reload
+	// that finds it knows the previous run crashed the WebView.
+	if (options.paperAbsPath) beginLayoutAnalysisAttempt(options.paperAbsPath);
 	const task = scope.analyzeAllPages({ force: options.force });
 
 	task.onProgress((p) => {
@@ -364,6 +397,9 @@ export async function runDocumentLayoutAnalysis(
 
 	task.wait(
 		(docLayout) => {
+			if (options.paperAbsPath) {
+				finishLayoutAnalysisAttempt(options.paperAbsPath);
+			}
 			setLayoutAnalysisUi(
 				{
 					stage: "running",
@@ -413,6 +449,9 @@ export async function runDocumentLayoutAnalysis(
 				});
 		},
 		(error) => {
+			if (options.paperAbsPath) {
+				finishLayoutAnalysisAttempt(options.paperAbsPath);
+			}
 			if (error.type === "abort") {
 				setLayoutAnalysisUi({ stage: "cancelled" }, documentId);
 				options.onError?.("cancelled", true);

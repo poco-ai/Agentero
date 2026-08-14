@@ -3617,6 +3617,8 @@ function PdfViewerInner({
 	const startLayoutAnalysis = useCallback(
 		(opts?: {
 			force?: boolean;
+			/** "manual" resets the crash guard; automatic runs back off after crashes. */
+			trigger?: "auto" | "manual";
 			openFigures?: boolean;
 			showOverlay?: boolean;
 			asBackgroundTask?: boolean;
@@ -3665,6 +3667,7 @@ function PdfViewerInner({
 						paperAbsPath,
 						totalPages: pages > 0 ? pages : null,
 						force: opts?.force === true,
+						trigger: opts?.trigger,
 						onDone: () => {
 							layoutTaskRef.current = null;
 							if (opts?.showOverlay) {
@@ -3956,6 +3959,7 @@ function PdfViewerInner({
 				// only when there is no sidecar (or force is set elsewhere).
 				startLayoutAnalysisRef.current({
 					force: false,
+					trigger: "manual",
 					openFigures: true,
 					showOverlay: true,
 					asBackgroundTask: true,

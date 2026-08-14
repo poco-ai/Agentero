@@ -30,6 +30,16 @@
         │     · 有 `source/layout.json` → **只** JSON→侧栏归并（不重跑 ONNX / 不重写 sidecar）
         │     · 无缓存 → 全量 PDF→JSON（PP-DocLayoutV3）再归并
         │     · 打开 Figures / 可选 Eye；`force` 仅内部/将来「强制刷新模型」用
+        │  进程隔离：Tauri 桌面端 headless 分析派发到隐藏 `layout-worker` 窗口
+        │     · 独立 WebContent 进程跑 PDFium wasm + ONNX，OOM 不再拖垮主窗口
+        │     · 事件协议 analyze/progress/done/failed + 5 分钟无进度看门狗
+        │     · 实现：`worker-window.ts`（worker 侧）/ `worker-client.ts`（主窗口）
+        │     · Rust：`layout_worker_window_ensure`；纯浏览器环境回退本进程执行
+        │  崩溃守卫：ONNX 开跑前记 localStorage in-flight，正常结束清除；
+        │     · 同一论文两次中途崩溃 → 自动路径暂停（7 天过期）；同源 localStorage
+        │       跨窗口共享，worker 崩溃后主窗口入队前即可拦截
+        │     · 手动「分析」重置守卫照常执行；实现：`crash-guard.ts`
+        │     · 复盘：../bug_fix/pdf-layout-webview-crash-loop.md
         ▼
 PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar 或 force）
         │  LayoutBlock[]（插件全量标签；页上 LayoutAnalysisLayer 仍画原始框）

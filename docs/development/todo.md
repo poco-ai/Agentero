@@ -61,6 +61,8 @@
 ## 0.7+ — 体验与平台
 
 - [x] 修复 macOS 文件保存反复提示“不完整改名”：单边 FSEvents 只静默刷新，不再进入外部改名 Toast，可信 old/new 配对仍保持链接修复（复盘：[watcher-unpaired-rename-toast.md](../bug_fix/watcher-unpaired-rename-toast.md)）
+- [x] 修复 PDF 版面解析把 WebView 压崩后无限重跑的崩溃循环：`localStorage` 崩溃守卫，两次中途崩溃后暂停自动解析，手动重试重置（复盘：[pdf-layout-webview-crash-loop.md](../bug_fix/pdf-layout-webview-crash-loop.md)）
+- [x] 版面解析移出主 `WebContent` 进程：隐藏 `layout-worker` 窗口独立进程跑 PDFium/ONNX（事件协议 + 无进度看门狗，浏览器环境回退本进程），大 PDF 解析 OOM 不再拖垮主窗口
 - [ ] Graph 全屏/聚焦、邻居高亮、节点搜索；边级增量索引
 - [ ] tab pin、命名工作区会话
 - [ ] PDF 无文本层降级；HTML 标注统一模型
