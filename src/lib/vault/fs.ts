@@ -1,5 +1,6 @@
 import { readFile, readTextFile } from "@tauri-apps/plugin-fs";
 import i18n from "@/i18n";
+import { invokeApi } from "@/lib/core/ipc";
 import { isTauri } from "@/lib/core/tauri";
 import {
 	parseRemoteJoinedPath,
@@ -11,6 +12,66 @@ import {
 	remoteWriteBytes,
 	remoteWriteText,
 } from "@/lib/vault/remote/remote-vault";
+
+export type VaultFileFingerprint = {
+	/** Normalized Vault-relative path. */
+	path: string;
+	size: number;
+	/** Modified time in Unix seconds. */
+	mtime: number;
+	/** Lowercase SHA-256 hex. */
+	hash: string;
+};
+
+/**
+ * Hash a local or remote Vault file entirely inside the Host. Large local
+ * files are streamed and their bytes never cross the WebView IPC boundary.
+ */
+export function fingerprintVaultFile(
+	vaultRoot: string,
+	vaultRelativePath: string,
+): Promise<VaultFileFingerprint> {
+	return invokeApi<VaultFileFingerprint>("vault_file_fingerprint", {
+		vaultRoot,
+		vaultRelativePath,
+	});
+}
+
+/** Atomically replace one UTF-8 file under a local or remote Vault root. */
+export async function writeVaultFileAtomic(
+	vaultRoot: string,
+	vaultRelativePath: string,
+	content: string,
+): Promise<void> {
+	await invokeApi<null>("vault_write_text_atomic", {
+		vaultRoot,
+		vaultRelativePath,
+		content,
+	});
+}
+
+/** Materialize a Host-owned read-only local snapshot for an ACP workflow. */
+export function createVaultSnapshotWorkspace(
+	vaultRoot: string,
+	workspaceId: string,
+	sourcePaths: string[],
+): Promise<string | null> {
+	if (!isTauri() || vaultRoot.startsWith("remote:"))
+		return Promise.resolve(null);
+	return invokeApi<string>("vault_snapshot_workspace_create", {
+		vaultRoot,
+		workspaceId,
+		sourcePaths,
+	});
+}
+
+/** Release a previously materialized Host-owned snapshot workspace. */
+export async function releaseVaultSnapshotWorkspace(
+	workspacePath: string,
+): Promise<void> {
+	if (!isTauri() || !workspacePath) return;
+	await invokeApi<null>("vault_snapshot_workspace_release", { workspacePath });
+}
 
 export function isMarkdownPath(path: string): boolean {
 	return /\.(md|mdx|markdown)$/i.test(path);

@@ -1,6 +1,8 @@
 use crate::core::error::{map_err, ApiResult, AppError};
 use crate::core::log_util::{trunc, OpTimer};
 use crate::features::catalog::papers as catalog_papers;
+use crate::features::remote::RemoteRegistry;
+use crate::features::vault::host_fs::{self, VaultFileFingerprint};
 use crate::features::vault::tree::VaultTreeNode;
 use crate::features::vault::{self, tree, CreateVaultResult};
 use crate::features::wiki::models::{
@@ -12,6 +14,7 @@ use crate::features::wiki::rename::{
 };
 use crate::features::wiki::WikiIndexState;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tauri::{AppHandle, Runtime, State};
 use tauri_plugin_fs::FsExt;
 
@@ -84,6 +87,85 @@ pub fn vault_allow_fs_scope<R: Runtime>(app: AppHandle<R>, path: String) -> ApiR
             map_err(err)
         }
     }
+}
+
+/// Hash a local or remote Vault file without sending its bytes through IPC.
+#[tauri::command]
+pub async fn vault_file_fingerprint(
+    registry: State<'_, Arc<RemoteRegistry>>,
+    vault_root: String,
+    vault_relative_path: String,
+) -> Result<ApiResult<VaultFileFingerprint>, String> {
+    Ok(
+        match host_fs::fingerprint_vault_file(
+            registry.inner().as_ref(),
+            &vault_root,
+            &vault_relative_path,
+        )
+        .await
+        {
+            Ok(fingerprint) => ApiResult::ok(fingerprint),
+            Err(error) => map_err(error),
+        },
+    )
+}
+
+/// Atomically replace a UTF-8 file under a local or remote Vault root.
+#[tauri::command]
+pub async fn vault_write_text_atomic(
+    registry: State<'_, Arc<RemoteRegistry>>,
+    vault_root: String,
+    vault_relative_path: String,
+    content: String,
+) -> Result<ApiResult<()>, String> {
+    Ok(
+        match host_fs::write_vault_file_atomic(
+            registry.inner().as_ref(),
+            &vault_root,
+            &vault_relative_path,
+            &content,
+        )
+        .await
+        {
+            Ok(()) => ApiResult::ok(()),
+            Err(error) => map_err(error),
+        },
+    )
+}
+
+/// Materialize a read-only local paper snapshot outside the Vault so ACP
+/// preparation workers cannot observe concurrent Vault edits.
+#[tauri::command]
+pub async fn vault_snapshot_workspace_create(
+    vault_root: String,
+    workspace_id: String,
+    source_paths: Vec<String>,
+) -> Result<ApiResult<String>, String> {
+    Ok(
+        match host_fs::materialize_local_snapshot_workspace(
+            &vault_root,
+            &workspace_id,
+            &source_paths,
+        )
+        .await
+        {
+            Ok(path) => ApiResult::ok(path),
+            Err(error) => map_err(error),
+        },
+    )
+}
+
+/// Remove a previously materialized Host-owned paper snapshot workspace.
+#[tauri::command]
+pub async fn vault_snapshot_workspace_release(
+    workspace_path: String,
+) -> Result<ApiResult<()>, String> {
+    Ok(
+        match host_fs::release_local_snapshot_workspace(&workspace_path).await {
+            Ok(()) => ApiResult::ok(()),
+            Err(error) => map_err(error),
+        },
+    )
 }
 
 /// Build the whole vault file tree in one pass (single IPC).

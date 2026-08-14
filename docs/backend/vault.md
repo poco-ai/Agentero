@@ -28,10 +28,18 @@
 |---|---|
 | `vault_tree_build` | 本地一次 IPC 整树 |
 | `vault_tree_children` | 懒加载（如 `source/`） |
+| `vault_file_fingerprint` | Host 内统一计算本地/远端文件 SHA-256；大 PDF bytes 不跨 IPC |
+| `vault_write_text_atomic` | 本地/远端同目录临时文件 + rename，失败保留旧目标并清理临时文件 |
 | 路径读写 | `path_read_text` / `path_write_text` / `path_mkdir` / 移动等 |
 
 规则：产品目录全量递归；`source/` 与其它根子目录懒加载；忽略 `.git`/`node_modules`/…  
 前端：[../frontend/vault-tree.md](../frontend/vault-tree.md)。
+
+`vault_file_fingerprint` 与 `vault_write_text_atomic` 是后台工作流使用的 Host-owned
+边界：调用者只能提供严格 Vault 相对路径。前者只向 WebView 返回
+`{ path, size, mtime, hash }`，后者只接收 UTF-8 内容，不暴露临时文件路径。远端由
+`remote:<sessionId>` 解析到现有 `VaultFs`；本地会 canonicalize Vault 根和目标父目录，
+阻止绝对路径、`..`、UNC/drive prefix 与 symlink 逃逸。
 
 ## 回收站
 
@@ -55,7 +63,7 @@
 ## 其它
 
 - `path_open_in_terminal`：系统默认终端。
-- 多窗口：`window_new`、`settings_window_open`。
+- 多窗口：`window_new`、`settings_window_open`、`viva_window_open`。
 
 ## 代码
 
