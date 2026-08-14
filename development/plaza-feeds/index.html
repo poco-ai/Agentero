@@ -3182,8 +3182,8 @@
 
 <h1 id="feeds-mvp">广场订阅（Feeds）— MVP<a class="headerlink" href="#feeds-mvp" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>未实现</strong>（设计稿，2026-08-15）<br />
-范围：广场下新增一个原生「订阅」面板；本地拉取 RSS / Atom / JSON Feed；论文条目一键入库。<br />
+<p>状态：<strong>MVP 已落地</strong>（2026-08-15）  </p>
+<p>范围：广场下新增一个原生「订阅」面板；本地拉取 RSS / Atom / JSON Feed；论文条目一键入库。<br />
 相关：<a href="../plaza/"><code>plaza.md</code></a>、<a href="../../backend/settings/"><code>../backend/settings.md</code></a>、<a href="../../backend/identifier-lookup/"><code>../backend/identifier-lookup.md</code></a>、<a href="../../frontend/vault-tree/"><code>../frontend/vault-tree.md</code></a>。</p>
 </blockquote>
 <h2 id="0">0. 产品结论<a class="headerlink" href="#0" title="Permanent link">&para;</a></h2>
@@ -3328,19 +3328,19 @@
 <tbody>
 <tr>
 <td>左栏</td>
-<td>「全部」+ 订阅列表；选中过滤右栏。行：标题、失败时一行错误。右键：重命名 / 删除 / 复制 URL / 立即刷新</td>
+<td>有订阅后才出现：固定 <code>w-52</code>（约 13rem）。「全部」+ 订阅列表；选中过滤右栏。右键：重命名 / 删除 / 复制 URL / 立即刷新</td>
 </tr>
 <tr>
 <td>右栏</td>
-<td>时间倒序。<code>@tanstack/react-virtual</code> 窗口化。按日分组（「今天」「昨天」或日期）可选，MVP 不做未读徽章</td>
+<td>时间倒序。<code>@tanstack/react-virtual</code> 窗口化。MVP 不做未读徽章，也<strong>不做</strong>「全部 / 论文 / 其它」顶栏</td>
 </tr>
 <tr>
 <td>顶条</td>
-<td>过滤芯片「全部 / 论文 / 其它」；手动刷新（当前源或全部）</td>
+<td>有订阅后：全宽输入 + 添加 + 刷新。无订阅：输入与芯片画在中间空态，不占顶栏</td>
 </tr>
 <tr>
 <td>空态（无订阅）</td>
-<td>一句说明 + 添加框；三行提示：任意 feed URL；arXiv 芯片；X / Scholar 需先有 RSS</td>
+<td>居中添加框 + arXiv 芯片 + 一句提示；点芯片即订阅</td>
 </tr>
 <tr>
 <td>空态（有订阅无条目）</td>
@@ -3348,7 +3348,7 @@
 </tr>
 <tr>
 <td>分栏</td>
-<td><code>ResizablePanel</code>；左栏默认约 220px，可拖</td>
+<td>不用 <code>ResizablePanel</code>（百分比分栏会把左栏挤成一条）</td>
 </tr>
 </tbody>
 </table>
@@ -3514,15 +3514,21 @@
 </tr>
 <tr>
 <td><code>feeds_refresh</code></td>
-<td><code>{ id? }</code></td>
+<td><code>{ id?, staleOnly? }</code></td>
 <td><code>{ subscriptions, fetched, failed }</code></td>
-<td><code>id</code> 空 = 全部（并发 4）</td>
+<td><code>id</code> 空 = 全部（并发 4）；<code>staleOnly</code> 只拉超过 15 分钟的源</td>
 </tr>
 <tr>
 <td><code>feeds_items</code></td>
-<td><code>{ subscriptionId?, filter?: "all"\|"paper"\|"other", limit?, before? }</code></td>
+<td><code>{ subscriptionId?, filter?: "all"\|"paper"\|"other", limit?, beforePublishedAt?, beforeId? }</code></td>
 <td><code>{ items: FeedItem[] }</code></td>
-<td><code>before</code> = <code>(published_at, id)</code> 游标；默认 limit 100</td>
+<td>游标为 <code>(published_at, id)</code>；默认 limit 100</td>
+</tr>
+<tr>
+<td><code>feeds_mark_imported</code></td>
+<td><code>{ id }</code></td>
+<td><code>FeedItem</code></td>
+<td>写入 <code>importedAt</code>，刷新不丢</td>
 </tr>
 </tbody>
 </table>
@@ -3680,14 +3686,14 @@
 </table>
 <h2 id="9">9. 验收清单（实现后）<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
 <ul>
-<li>[ ] 侧栏与广场首页能进「订阅」；path 不落盘。</li>
-<li>[ ] 粘 <code>https://rss.arxiv.org/rss/cs.LG</code> 后时间线出现当日论文。</li>
-<li>[ ] 论文卡入库走魔棒；成功不打开论文；刷新后仍为已入库。</li>
-<li>[ ] 无 arXiv/DOI 的博客条目只有「打开原文」。</li>
-<li>[ ] 删订阅后条目从时间线消失。</li>
-<li>[ ] 关掉订阅 tab 后 Host <strong>不再</strong>拉源。</li>
-<li>[ ] en / zh-CN 齐；图标按钮有 Tooltip。</li>
-<li>[ ] <code>feeds.sqlite</code> 只出现在 XDG data，Vault 与 catalog 无新表。</li>
+<li>[x] 侧栏与广场首页能进「订阅」；path 不落盘。</li>
+<li>[x] 粘 <code>https://rss.arxiv.org/rss/cs.LG</code> 后时间线出现当日论文。</li>
+<li>[x] 论文卡入库走魔棒；成功不打开论文；刷新后仍为已入库。</li>
+<li>[x] 无 arXiv/DOI 的博客条目只有「打开原文」。</li>
+<li>[x] 删订阅后条目从时间线消失。</li>
+<li>[x] 关掉订阅 tab 后 Host <strong>不再</strong>拉源。</li>
+<li>[x] en / zh-CN 齐；图标按钮有 Tooltip。</li>
+<li>[x] <code>feeds.sqlite</code> 只出现在 XDG data，Vault 与 catalog 无新表。</li>
 </ul>
 <hr />
 <p><em>起草：2026-08-15 — 轻量本地 RSS，广场一个原生节点；X / Scholar 当适配器留到有 URL 之后。</em></p>

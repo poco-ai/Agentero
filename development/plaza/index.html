@@ -3434,7 +3434,8 @@
 <blockquote>
 <p>范围：侧栏虚拟节点 <strong>广场</strong> 及其子来源（Cool Papers / ModelScope 论文 / Skill 推荐 / 订阅 / 播客 / 论文推荐）；中间栏发现流。<br />
 相关：<a href="../../frontend/vault-tree/"><code>../frontend/vault-tree.md</code></a>、<a href="../../backend/paper-import/"><code>../backend/paper-import.md</code></a>、<a href="../../backend/"><code>../backend/index.md</code></a>。<br />
-订阅 MVP（未实现）：<a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>。</p>
+订阅 MVP（已落地）：<a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>。<br />
+开关：设置 → 通用 → <strong>广场</strong>（<code>plazaEnabled</code>，默认开）；关闭后不显示、不加载。</p>
 </blockquote>
 <h2 id="0-2026-07-252026-08-14">0. 产品结论（2026-07-25，2026-08-14 修订）<a class="headerlink" href="#0-2026-07-252026-08-14" title="Permanent link">&para;</a></h2>
 <table>
@@ -3474,7 +3475,7 @@
 <tr>
 <td>Q6</td>
 <td>订阅</td>
-<td><strong>未实现</strong>：广场下单一原生节点，本地 RSS/Atom；见 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a></td>
+<td><strong>已落地</strong>：广场下单一原生节点，本地 RSS/Atom；见 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a></td>
 </tr>
 </tbody>
 </table>
@@ -3564,7 +3565,7 @@
 <li><strong>Cool Papers</strong>（<a href="https://papers.cool/">papers.cool</a>）— P0：内嵌站点浏览。  </li>
 <li><strong>ModelScope 论文</strong>（<a href="https://modelscope.cn/papers">modelscope.cn/papers</a>）— 内嵌站点浏览；魔搭每日读论文带中文摘要与评分。  </li>
 <li><strong>Skill 推荐</strong> — 原生面板：按论文阅读 / 写作 / 绘图 / 复现 / 投稿精选 GitHub Skill 仓库；点卡片走魔棒 Skill 导入。  </li>
-<li><strong>订阅</strong> — 未实现：用户自己的 RSS / Atom / JSON Feed；论文条目入库。规格见 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>。  </li>
+<li><strong>订阅</strong> — 用户自己的 RSS / Atom / JSON Feed；论文条目入库。见 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>。  </li>
 <li><strong>播客</strong> — 占位，后续。  </li>
 <li><strong>论文推荐</strong> — P0 v0：基于本地库的轻量推荐列表（无云端上传）。</li>
 </ol>
@@ -3576,7 +3577,7 @@
 <span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">✨</span><span class="w"> </span><span class="nx">Cool</span><span class="w"> </span><span class="nx">Papers</span><span class="w">         </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">cool</span><span class="o">-</span><span class="nx">papers</span>
 <span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">✨</span><span class="w"> </span><span class="nx">ModelScope</span><span class="w"> </span><span class="nx">论文</span><span class="w">      </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">modelscope</span>
 <span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">✨</span><span class="w"> </span><span class="nx">Skill</span><span class="w"> </span><span class="nx">推荐</span><span class="w">           </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">skills</span>
-<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">📡</span><span class="w"> </span><span class="nx">订阅</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">feeds</span><span class="w">         </span><span class="err">←</span><span class="w"> </span><span class="nx">未实现</span><span class="err">，</span><span class="nx">见</span><span class="w"> </span><span class="nx">plaza</span><span class="o">-</span><span class="nx">feeds</span><span class="p">.</span><span class="nx">md</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">📡</span><span class="w"> </span><span class="nx">订阅</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">feeds</span>
 <span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">🎙️</span><span class="w"> </span><span class="nx">播客</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">podcasts</span><span class="w">      </span><span class="err">←</span><span class="w"> </span><span class="nx">占位</span>
 <span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">🧭</span><span class="w"> </span><span class="nx">推荐</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">recommend</span>
 <span class="err">├──</span><span class="w"> </span><span class="nx">papers</span><span class="o">/</span>
@@ -3994,7 +3995,7 @@
 <ul>
 <li>广场 → Vault <strong>批量入库</strong>（单条已实现，见 §3.2.1）。  </li>
 <li>把 feed 写入 catalog（订阅条目缓存走 XDG，见 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>）。  </li>
-<li>播客播放器。订阅管理按 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a> 另做，不进本篇 P0。  </li>
+<li>播客播放器。订阅管理见 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>，不进本篇原 P0。  </li>
 <li>云端协同过滤或上传本地库。  </li>
 <li>注入脚本只做导航上报与 <code>[入库]</code>；<strong>不注入任何凭据 / API Key / 登录态</strong>。</li>
 </ul>
@@ -4085,7 +4086,8 @@
 <p><em>修订：2026-07-25 — 采纳 WebView、不做入库、P0 含推荐 v0、树位置在 Library/Trash 下。</em>
 <em>修订：2026-08-14 — 改为代理协议嵌入；壳 + Cool Papers 浏览 + 单条入库已落地；推荐 / 播客未实现。</em>
 <em>修订：2026-08-15 — 新增 ModelScope 论文来源；请求管道抽到 <code>site_proxy.rs</code> 并转发 method + body。</em><br />
-<em>修订：2026-08-15 — 订阅列为广场来源，规格拆到 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>。</em></p>
+<em>修订：2026-08-15 — 订阅列为广场来源，规格拆到 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>。</em><br />
+<em>修订：2026-08-15 — 订阅 MVP 落地（XDG <code>feeds.sqlite</code> + 原生双栏 + 论文入库）。</em></p>
 
 
 

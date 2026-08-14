@@ -3273,6 +3273,7 @@
     modelscope_proxy/ # modelscope.cn/papers 广场来源
     telemetry/  # 桌面端，PostHog 匿名遥测
     usage/      # XDG usage.sqlite 本地活动日志
+    feeds/      # 广场订阅：XDG feeds.sqlite + RSS/Atom 拉取
   lib.rs
   main.rs
 </code></pre></div>
@@ -3385,6 +3386,11 @@
 <td>使用记录</td>
 <td>打开 / 下载 / Agent 等活动</td>
 <td>XDG data <code>~/.local/share/agentero/usage.sqlite</code></td>
+</tr>
+<tr>
+<td>广场订阅</td>
+<td>订阅名单 + 条目缓存</td>
+<td>XDG data <code>feeds.sqlite</code>（不进 catalog）</td>
 </tr>
 <tr>
 <td>版面 ONNX</td>

@@ -3222,6 +3222,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#3104-xdg-feedssqlite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.10.4 广场订阅（XDG feeds.sqlite）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#311-ui-i18n" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5658,6 +5669,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#3104-xdg-feedssqlite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.10.4 广场订阅（XDG feeds.sqlite）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#311-ui-i18n" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8074,6 +8096,42 @@ Host (Tauri + Rust)
 <li><strong>返回</strong>：删除的事件条数。</li>
 </ul>
 <p>CLI 对照：<code>agentero usage which|timeline|summary|clear</code>（见 <a href="../cli/">cli.md</a>）。前端入口：<code>src/lib/activity/</code>。</p>
+<h3 id="3104-xdg-feedssqlite">3.10.4 广场订阅（XDG <code>feeds.sqlite</code>）<a class="headerlink" href="#3104-xdg-feedssqlite" title="Permanent link">&para;</a></h3>
+<p>用户 RSS / Atom / JSON Feed 订阅与条目缓存。<strong>不写 catalog / Vault</strong>。规格见 <a href="../../development/plaza-feeds/">../development/plaza-feeds.md</a>。</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>feeds_list</code></td>
+<td>订阅列表</td>
+</tr>
+<tr>
+<td><code>feeds_add</code></td>
+<td>添加（HTML 自动发现 + 首拉）</td>
+</tr>
+<tr>
+<td><code>feeds_remove</code> / <code>feeds_rename</code></td>
+<td>删除 / 改显示名</td>
+</tr>
+<tr>
+<td><code>feeds_refresh</code></td>
+<td><code>{ id?, staleOnly? }</code> 拉源</td>
+</tr>
+<tr>
+<td><code>feeds_items</code></td>
+<td>时间线；<code>filter</code>: all / paper / other</td>
+</tr>
+<tr>
+<td><code>feeds_mark_imported</code></td>
+<td>标记本机已入库</td>
+</tr>
+</tbody>
+</table>
 <h3 id="311-ui-i18n">3.11 界面与本地化（UI / i18n）<a class="headerlink" href="#311-ui-i18n" title="Permanent link">&para;</a></h3>
 <h4 id="set_locale"><code>set_locale</code>（已实现）<a class="headerlink" href="#set_locale" title="Permanent link">&para;</a></h4>
 <p>渲染层在语言偏好变化时通知 Host 按新 locale 重建原生应用菜单（macOS 菜单栏）。</p>
