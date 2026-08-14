@@ -96,7 +96,11 @@ ssh -t "$DEST" "bash -lc $(printf '%q' "$CMD")"
 
 ```bash
 npm i -g @agentclientprotocol/claude-agent-acp --prefix "$HOME/.local"
+npm i -g @agentclientprotocol/codex-acp --prefix "$HOME/.local"
 ```
+
+本机设置页打开的 ACP 安装终端也遵循同一策略；否则系统 npm 的
+`/usr/local` prefix 会使无 root 用户在安装 Codex adapter 时收到 `EACCES`。
 
 ### 2.5 代理
 

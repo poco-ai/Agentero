@@ -4,7 +4,7 @@ use crate::features::agent::models::{AgentTemplate, AgentTemplateInfo};
 ///
 /// `detect_command` is used for "installed on PATH" status when the ACP entrypoint
 /// differs (e.g. Claude/Codex via npx adapters still want to show the host CLI).
-/// Official Claude Code ACP adapter install command.
+/// Official ACP adapter install commands.
 ///
 /// Unix: a user-prefix install (`~/.local/bin`) avoids sudo and keeps the bin on
 /// the login PATH — system `npm i -g` often needs sudo and still leaves the bin
@@ -16,6 +16,11 @@ pub const CLAUDE_ACP_INSTALL_COMMAND: &str = if cfg!(windows) {
     "npm i -g @agentclientprotocol/claude-agent-acp"
 } else {
     "npm i -g @agentclientprotocol/claude-agent-acp --prefix \"$HOME/.local\""
+};
+pub const CODEX_ACP_INSTALL_COMMAND: &str = if cfg!(windows) {
+    "npm i -g @agentclientprotocol/codex-acp"
+} else {
+    "npm i -g @agentclientprotocol/codex-acp --prefix \"$HOME/.local\""
 };
 
 pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
@@ -67,9 +72,8 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             command: "codex-acp".to_string(),
             args: vec![],
             detect_command: Some("codex".to_string()),
-            install_hint: "npm i -g @agentclientprotocol/codex-acp  ·  needs Codex CLI auth"
-                .to_string(),
-            install_command: Some("npm i -g @agentclientprotocol/codex-acp".to_string()),
+            install_hint: format!("{CODEX_ACP_INSTALL_COMMAND}  ·  needs Codex CLI auth"),
+            install_command: Some(CODEX_ACP_INSTALL_COMMAND.to_string()),
         },
         AgentTemplateInfo {
             id: AgentTemplate::Hermes.as_str().to_string(),
