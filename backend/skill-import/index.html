@@ -3313,7 +3313,7 @@
 <p>私有 repo / 浅 clone 回退、GitLab 支持均延后。</p>
 <h2 id="4">4. 交互流程<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
 <ul>
-<li>入口不变：魔棒粘贴 → <code>lookup_import_batch</code>；batch 内论文与 skill 可混合，逐条按 kind 分发。</li>
+<li>入口：魔棒粘贴 → <code>lookup_import_batch</code>；广场 <strong>Skill 推荐</strong> 卡片点击同一条路（<code>importPlazaSkillRepo</code> → <code>lookupSubmit</code>）。batch 内论文与 skill 可混合，逐条按 kind 分发。</li>
 <li>进度沿用左下角后台任务条（<code>background-task:progress</code>）。</li>
 <li>当前实现先返回 <code>LookupImportBatchResult.skillCandidates</code>，前端打开多选 Dialog。<code>--skill &lt;name&gt;</code>、GitHub tree 子目录会缩小候选范围。</li>
 <li>用户取消时删除 discovery 临时包；确认后调用 <code>skill_install</code>，再 <code>refreshTree</code> + toast 汇总安装结果。<strong>不</strong> <code>openPaper</code>、不进补资产队列。论文和 Skill 可混合提交。</li>
