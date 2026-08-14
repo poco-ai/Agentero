@@ -3368,6 +3368,10 @@
   → 序列化为 Markdown 文本
   → Host 写盘
   → watcher → 自写回声只刷新嵌入投影，不重建索引；外部变更按需重建 wiki 索引
+
+外部/Agent 写盘（文件已打开）
+  → 未保存改动时先提示；接受后打开中的编辑器就地重载新内容
+  → 不重挂载编辑器（插件与 DOM 保留，滚动位置不丢），Agent 流式写入不再反复重建
 </code></pre></div>
 
 <h3 id="_5">显式格式整理<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>

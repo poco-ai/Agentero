@@ -3170,7 +3170,7 @@
 </tr>
 <tr>
 <td>阅读热力</td>
-<td>标题列左侧显示该论文阅读进度热力条；基于 <code>marks/</code> 中逐页标注与阅读位置聚合</td>
+<td>标题列左侧显示该论文阅读进度热力条；基于 <code>marks/</code> 中逐页标注与阅读位置聚合。激活 Library 时经 <code>paper_reading_activity_batch</code> 一次批量 IPC 刷新全部活动点（缓存保温，不再逐论文 3 次 IPC）；PDF 页数走 catalog <code>pdf_page_counts</code> 缓存，缺缓存时仅对可视行懒加载并回写</td>
 </tr>
 <tr>
 <td>Rescan</td>

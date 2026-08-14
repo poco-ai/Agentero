@@ -2027,6 +2027,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#25-io-command-async" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 执行线程约定（重 IO command 必须 async）
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4452,6 +4463,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#25-io-command-async" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 执行线程约定（重 IO command 必须 async）
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5813,12 +5835,12 @@ Host (Tauri + Rust)
 <tr>
 <td><code>agent:stream</code></td>
 <td>Agent 流式输出</td>
-<td><code>{ sessionId, chunk, kind: "message" \| "thought" }</code>（<code>thought</code> = reasoning）</td>
+<td><code>{ sessionId, chunk, kind: "message" \| "thought" }</code>（<code>thought</code> = reasoning）；Host 按 ~40ms 窗口合并连续同 kind chunk 再 emit（kind 切换、tool/plan、完成/失败前先 flush 保序），payload 结构不变</td>
 </tr>
 <tr>
 <td><code>agent:tool</code></td>
 <td>Agent tool call 创建/更新</td>
-<td><code>{ sessionId, toolCallId, title?, kind?, status?, input?, output?, full? }</code></td>
+<td><code>{ sessionId, toolCallId, title?, kind?, status?, input?, output?, full? }</code>；<code>input</code>/<code>output</code> 超过 32KB 时 Host 截断为「头部 + truncated 标记」字符串（前端仅做预览展示）</td>
 </tr>
 <tr>
 <td><code>agent:plan</code></td>
@@ -5878,7 +5900,7 @@ Host (Tauri + Rust)
 <tr>
 <td><code>background-task:progress</code></td>
 <td>下载/解析任务进度</td>
-<td><code>{ taskId, phase, downloadedBytes, totalBytes?, progress? }</code>；下载阶段的字节进度由前端聚合为总体进度（PDF 映射到 0–50%，TeX 映射到 50–100%），解析阶段显示为处理中，任务完成时为 100%</td>
+<td><code>{ taskId, phase, downloadedBytes, totalBytes?, progress? }</code>；下载阶段的字节进度由前端聚合为总体进度（PDF 映射到 0–50%，TeX 映射到 50–100%），解析阶段显示为处理中，任务完成时为 100%。Host 对字节级进度做节流：百分比变化 ≥1 个点或距上次 emit ≥100ms 才发事件，下载完成时必发最终值</td>
 </tr>
 </tbody>
 </table>
@@ -5897,6 +5919,13 @@ Host (Tauri + Rust)
 
 <ul>
 <li><strong>返回</strong> <code>WarmResult</code>：<code>{ agentId, ok, models?, usageUsed?, usageSize?, error? }</code></li>
+</ul>
+<h3 id="25-io-command-async">2.5 执行线程约定（重 IO command 必须 async）<a class="headerlink" href="#25-io-command-async" title="Permanent link">&para;</a></h3>
+<ul>
+<li>同步 <code>#[tauri::command]</code> 在主线程内执行；Windows 主线程即 UI 消息泵，重 IO 同步 command 执行期间整窗冻结。</li>
+<li><strong>重 IO command（扫盘、SQLite、全库索引、字体/大文件读取等）必须写成 <code>async fn</code></strong>，阻塞体统一用 <code>core::blocking::run_blocking</code>（内部 <code>tauri::async_runtime::spawn_blocking</code>）移出调用线程；对外返回 JSON 结构不变，前端 invoke 透明。</li>
+<li>使用 <code>State&lt;'_, T&gt;</code> 的 async command 受 Tauri 限制必须返回 <code>Result</code>（惯例 <code>Result&lt;ApiResult&lt;T&gt;, String&gt;</code>，恒为 <code>Ok(...)</code>）。<code>std::sync::Mutex</code> guard 不能跨 <code>await</code>：把「拿锁 + 干活」整体放进 <code>run_blocking</code> 闭包，State 先 clone 出可 <code>Send + 'static</code> 的 Arc 句柄（如 <code>WikiIndexState::handle()</code>、<code>CapsCache</code>、<code>ExternalRenameRepairStore</code>）。</li>
+<li>已按此约定改造：<code>vault_*</code>（create/ensure/tree_build/tree_children）、<code>wiki_*</code> 全部、<code>graph_*</code>、<code>vault_search</code>、<code>paper_*</code>（catalog）、<code>usage_*</code>/<code>activity_record_events</code>、<code>zotero_sync</code>/<code>zotero_scan</code>、<code>doctor_*</code>（除纯内存的 <code>doctor_set_dirty_paths</code>）、<code>list_system_fonts</code>（另有进程级缓存）、<code>export_system_cjk_font</code>、<code>paper_stage_import_file</code>、<code>paper_refs_list</code>/<code>paper_refs_graph</code>、<code>connector_set_enabled</code>/<code>connector_set_port</code>（bind 改真 async，不再 <code>block_on</code>）。</li>
 </ul>
 <h2 id="3-host-tauri-invoke-api">3. Host 层 Tauri invoke API<a class="headerlink" href="#3-host-tauri-invoke-api" title="Permanent link">&para;</a></h2>
 <h3 id="31-vault">3.1 Vault 与窗口<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
@@ -5991,7 +6020,7 @@ Host (Tauri + Rust)
 <ul>
 <li><strong>语义</strong>（Rust <code>features/vault/tree.rs</code>，与 <code>src/lib/vault/tree.ts</code> 的远端路径保持一致）：</li>
 <li>eager 根（<code>papers/</code> / <code>notes/</code> / <code>.agents/</code>）全量递归；其它根目录列一层，子目录 <code>childrenPending</code>。</li>
-<li><strong>论文文件夹内的 <code>source/</code></strong>（含 <code>metadata.json</code> / <code>NOTES.md</code> / <code>PAPER.md</code> 任一 marker 的目录）不再递归 —— arXiv e-print 解压产物动辄上百文件，标记 <code>childrenPending</code> 懒加载；这里的 marker 只用于 Host 判断 <code>source/</code> 是否懒加载，不单独决定前端是否把目录识别为论文。前端论文识别会优先保留含嵌套论文的组织目录，并在已有论文路径列表时按该列表归属文件。壳上附带 <code>hasTex</code>（Host 扫盘），供前端 Download 判定（<code>paperAssetDownloadReasons</code>）识别被懒加载藏住的 TeX。</li>
+<li><strong>论文文件夹内的 <code>source/</code></strong>（含 <code>metadata.json</code> / <code>NOTES.md</code> / <code>PAPER.md</code> 任一 marker 的目录）不再递归 —— arXiv e-print 解压产物动辄上百文件，标记 <code>childrenPending</code> 懒加载；这里的 marker 只用于 Host 判断 <code>source/</code> 是否懒加载，不单独决定前端是否把目录识别为论文。前端论文识别会优先保留含嵌套论文的组织目录，并在已有论文路径列表时按该列表归属文件。壳上附带 <code>hasTex</code>，供前端 Download 判定（<code>paperAssetDownloadReasons</code>）识别被懒加载藏住的 TeX；探测复用按论文目录键控的 <code>CapsCache</code>（watcher 对能力相关文件失效缓存），避免每次整树构建都递归 walk 每篇论文的 <code>source/</code>（NTFS 上尤其昂贵）。</li>
 <li>忽略名（<code>.git</code> / <code>.venv</code> / <code>node_modules</code> / <code>*.egg-info</code> / 其它 dot 名，白名单 <code>.agents</code> / <code>.env.example</code>）与深度上限 12 同前端规则。</li>
 <li>排序仍在前端（<code>sortNodes</code>，locale 感知）。</li>
 <li><strong>局部刷新</strong>：<code>vault:file-changed</code>（非 <code>modify</code>）携带的路径经 <code>collectTreeRefreshTargets</code>（<code>src/lib/vault/tree.ts</code>）映射到已加载的最近祖先目录节点，防抖 400ms 后仅对这些目录调 <code>vault_tree_children</code> 打补丁；根级变化 / 目标过多（&gt;8）/ 无路径信息时回退整树 <code>vault_tree_build</code>。</li>

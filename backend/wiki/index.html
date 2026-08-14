@@ -1661,7 +1661,7 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        只读完整性检查
+        重建与缓存
       
     </span>
   </a>
@@ -1672,7 +1672,7 @@
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        数据流（简）
+        只读完整性检查
       
     </span>
   </a>
@@ -1681,6 +1681,17 @@
       
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        数据流（简）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3116,7 +3127,7 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        只读完整性检查
+        重建与缓存
       
     </span>
   </a>
@@ -3127,7 +3138,7 @@
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        数据流（简）
+        只读完整性检查
       
     </span>
   </a>
@@ -3136,6 +3147,17 @@
       
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        数据流（简）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3202,7 +3224,15 @@
 <li>只读语义检查：<code>WikiIndex::check_links</code> 按全库、Markdown 文件或目录返回状态计数与问题 occurrence；CLI 暴露为 <code>agentero wiki check [&lt;source&gt;] --json</code></li>
 </ul>
 <p>解析、resolve、嵌入投影、前端导航与显式标题重命名共享“唯一连续后缀”规则。完整路径自然也是自身后缀；不存在或有歧义的 path 保持既有 <code>invalidFragment</code> / <code>ambiguous</code> 结果，不回退到任意同名叶标题。标题重命名根据已解析的 canonical path 计算后缀在完整路径中的偏移，只改写引用实际包含的被改名段。</p>
-<h2 id="_3">只读完整性检查<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_3">重建与缓存<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p><code>WikiIndex::rebuild</code> 是增量流水线，语义与全量重建等价：</p>
+<ul>
+<li><strong>指纹热路径</strong>：每次 rebuild 先 walk + stat 出全库 <code>(path, size, mtime)</code> 指纹。若与内存中上一次构建完全一致，直接返回上次结果；若部分变化，仅重读变更文件，未变文件复用内存中的解析产物（documents + occurrences）。rename 事务前后的两次 rebuild 因此在生产中都是廉价的新鲜度检查。</li>
+<li><strong>Resolve 查找表</strong>：<code>resolve.rs::DocumentLookup</code> 按精确路径 / ASCII 小写路径 / 路径段后缀 / stem / alias 预分桶，把逐 occurrence 的线性扫描（O(E×D)）降到哈希查找（≈O(E)），解析优先级与线性实现逐字节等价（有对照测试）。</li>
+<li><strong>快照只存解析产物</strong>：<code>.sqlite</code> 缓存（schema v3）按文件粒度存 documents 与 occurrences（<code>(source, ordinal)</code> 主键），行级 SHA-256 校验替代整份 JSON 快照哈希。resolve 结果<strong>不</strong>入库——加载时对完整文档集重跑解析，因此“别的文件改变了某条链接的解析结果”不会让缓存变脏。</li>
+<li><strong>增量写盘</strong>：磁盘缓存与内存快照同步时，持久化只 upsert/delete 变更文件的行；缓存缺失、schema/parser 版本不符或上次写盘失败则整体重写。</li>
+</ul>
+<h2 id="_4">只读完整性检查<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p><code>agentero wiki check</code> 每次先构建或校验 Wiki snapshot，再从解析后的 occurrence 生成报告。它不会新建缺失目标、替用户选择歧义候选或修改 stale fragment。</p>
 <div class="codehilite"><pre><span></span><code>agentero wiki check [Vault 相对文件或目录] --json
   → WikiIndex rebuild / cache validation
@@ -3212,14 +3242,14 @@
 </code></pre></div>
 
 <p>单文件作用域用于 paper-reader 的写后验收；全库或目录作用域用于 vault-normalizer 的迁移前后对比。CLI 缺失时 Skill 必须明确报告未完成语义校验，不能用 regex 扫描冒充与 Agentero resolver 等价。</p>
-<h2 id="_4">数据流（简）<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">数据流（简）<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code>Vault Markdown 变更
   → 防抖 scheduleWikiRebuild
   → Host 解析 wikilink
   → 前端状态栏反链刷新，或 CLI 只读诊断
 </code></pre></div>
 
-<h2 id="_5">代码<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">代码<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p><code>src-tauri/src/features/wiki/</code><br />
 前端 UI：<a href="../../frontend/wiki/">../frontend/wiki.md</a></p>
 <h2 id="fragment">批注 fragment<a class="headerlink" href="#fragment" title="Permanent link">&para;</a></h2>

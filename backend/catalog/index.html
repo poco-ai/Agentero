@@ -3144,8 +3144,9 @@
 <li><code>paper_list</code> 对前端 Library 返回按 <code>id</code> 去重的视图：同一逻辑论文若因历史原因出现在多个路径，只保留一条（优先存在磁盘的路径，其次 <code>updated_at</code> 最新、路径最短/字典序最小）</li>
 <li><code>paper_rescan</code>：盘上有、库内无则补齐</li>
 <li>删除：回收站快照；恢复 upsert</li>
-<li>连接启用 WAL + <code>busy_timeout</code>，写入不阻塞列表读取</li>
-<li><code>pdf_page_counts</code>：PDF 页数缓存表（随移动/删除同步），阅读热力图不再整文件打开 PDF 数页</li>
+<li>连接启用 WAL + <code>busy_timeout</code>，写入不阻塞列表读取；每个 Vault 维护一条常驻连接（<code>schema.rs::with_catalog</code>，进程级缓存，Mutex 串行化 <code>spawn_blocking</code> 并发），PRAGMA/迁移只在首次打开执行；数据库文件被外部删除时自动丢弃旧句柄并重建</li>
+<li><code>pdf_page_counts</code>：PDF 页数缓存表（随移动/删除同步），阅读热力图不再整文件打开 PDF 数页；缺缓存时仅对可视行按需补数并回写</li>
+<li><code>paper_reading_activity_batch</code>：批量读取 <code>papers/&lt;id&gt;/marks/*.json</code> 侧车（highlight/ask/translate），一次 IPC 返回热力图所需最小活动点（kind/page/y/weight），替代前端逐论文 3 次 IPC 的读取风暴（<code>features/catalog/reading_activity.rs</code>）</li>
 <li>重复行检测与修复：<code>catalog::papers::find_duplicates</code> / <code>repair_duplicates</code>，并在 Vault Doctor 中暴露</li>
 </ul>
 <h2 id="_3">命令（摘要）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
@@ -3176,6 +3177,10 @@
 <tr>
 <td><code>paper_page_counts</code> / <code>paper_set_page_counts</code></td>
 <td>页数缓存读写</td>
+</tr>
+<tr>
+<td><code>paper_reading_activity_batch</code></td>
+<td>批量读 marks 活动点（热力图）</td>
 </tr>
 </tbody>
 </table>
