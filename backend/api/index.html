@@ -8108,7 +8108,7 @@ Host (Tauri + Rust)
 <tbody>
 <tr>
 <td><code>feeds_list</code></td>
-<td>订阅列表</td>
+<td>订阅列表（置顶在前）</td>
 </tr>
 <tr>
 <td><code>feeds_add</code></td>
@@ -8117,6 +8117,10 @@ Host (Tauri + Rust)
 <tr>
 <td><code>feeds_remove</code> / <code>feeds_rename</code></td>
 <td>删除 / 改显示名</td>
+</tr>
+<tr>
+<td><code>feeds_set_pinned</code></td>
+<td><code>{ id, pinned }</code> 钉到列表最上</td>
 </tr>
 <tr>
 <td><code>feeds_refresh</code></td>
@@ -8129,6 +8133,10 @@ Host (Tauri + Rust)
 <tr>
 <td><code>feeds_mark_imported</code></td>
 <td>标记本机已入库</td>
+</tr>
+<tr>
+<td><code>feeds_resolve_body</code></td>
+<td>打开详情时抓全文 → Markdown</td>
 </tr>
 </tbody>
 </table>

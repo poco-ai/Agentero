@@ -3328,7 +3328,7 @@
 <tbody>
 <tr>
 <td>左栏</td>
-<td>有订阅后才出现：固定 <code>w-52</code>（约 13rem）。「全部」+ 订阅列表；选中过滤右栏。右键：重命名 / 删除 / 复制 URL / 立即刷新</td>
+<td>有订阅后才出现：固定 <code>w-52</code>（约 13rem）。「全部」+ 订阅列表；选中过滤右栏。右键：重命名 / 复制 URL / 立即刷新 / 置顶 / <strong>删除</strong>。置顶的源钉在列表最上</td>
 </tr>
 <tr>
 <td>右栏</td>
@@ -3360,7 +3360,7 @@
 <li>标题默认用 feed <code>&lt;title&gt;</code>；用户可随后重命名。</li>
 <li><strong>arXiv 芯片</strong>（输入框下方）：<code>cs.AI</code> <code>cs.CL</code> <code>cs.LG</code> <code>cs.CV</code> <code>stat.ML</code> → <code>https://rss.arxiv.org/rss/{cat}</code>。不是新源类型，只是填 URL。</li>
 <li>重复 URL（归一化后）拒绝并 Toast，不建第二条。</li>
-<li>添加成功后立即拉一次；失败仍保存订阅，行上显示错误，不回滚。</li>
+<li>添加时先拉源：解析失败或 <strong>0 条条目</strong> 则不写入订阅，前端 Toast（<code>feeds.empty</code> / <code>feeds.fetch</code>）。</li>
 </ul>
 <p>MVP <strong>不做</strong>：<code>@handle</code> 展开、OPML、登录态、RSSHub 拼接。</p>
 <h3 id="32">3.2 两种卡片<a class="headerlink" href="#32" title="Permanent link">&para;</a></h3>
@@ -3375,16 +3375,16 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>论文卡</strong></td>
-<td>Host 从 link / title / summary 抽出 arXiv 或 DOI</td>
-<td>标题、来源名、日期、可选一行摘要</td>
-<td><strong>入库</strong>（不自动打开论文）</td>
+<td><strong>列表卡</strong></td>
+<td>全部条目</td>
+<td>标题；「全部」下显示来源+日期，单源下日期与标题同行。摘要去掉 arXiv 编号 / Announce Type</td>
+<td>点卡片进详情</td>
 </tr>
 <tr>
-<td><strong>短讯卡</strong></td>
-<td>其余</td>
-<td>标题、来源名、日期、最多 3 行纯文本摘要</td>
-<td><strong>打开原文</strong>（<code>openExternalUrl</code>）</td>
+<td><strong>详情</strong></td>
+<td>同上</td>
+<td>打开时解析全文（RSS 摘要不够则抓 <code>item.url</code> → HTML→Markdown），用 <code>MessageResponse</code> 渲染标题 / 公式；入库 / 打开原文在详情顶栏</td>
+<td>返回列表</td>
 </tr>
 </tbody>
 </table>
@@ -3392,7 +3392,7 @@
 <li>入库复用 <code>importPlazaPaper</code> / <code>lookupSubmit</code>：arXiv 喂 <code>https://arxiv.org/abs/{id}</code>；DOI 喂 <code>https://doi.org/{doi}</code>。<code>openImported: false</code>。</li>
 <li>入库中按钮 busy；成功 Toast + 该行变为「已入库」（本机缓存记 <code>importedAt</code>，刷新不丢）。</li>
 <li>失败 <code>notifyError</code>，不在侧栏挂错误条。</li>
-<li>摘要若来自 HTML：Host 存原文，前端渲染走 <code>sanitizeEmbeddedHtml</code>；卡片默认只示纯文本 3 行，不展开全文阅读器。</li>
+<li>列表卡摘要只示纯文本 3 行。详情打开时走 <code>feeds_resolve_body</code>：已缓存 <code>bodyMarkdown</code> 则直接用；否则若 RSS 已是全文（或 arXiv / DOI 落地页）转 Markdown；博客摘要带 <code>[...]</code> 则抓原文 HTML，抽 <code>&lt;article&gt;</code> / 常见正文容器后 <code>htmd</code> 成 Markdown。渲染复用 <code>MessageResponse</code>（Streamdown + <code>$…$</code>）。</li>
 <li>点标题 = 主操作。另给一个外链图标，论文卡也可打开原文。</li>
 </ul>
 <p>不做第三种「提醒卡」、图墙、视频墙、全文阅读栏（经典三栏的第三栏）。</p>
@@ -3430,7 +3430,9 @@
 <span class="w">  </span><span class="n">last_fetched_at</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
 <span class="w">  </span><span class="n">last_error</span><span class="w">    </span><span class="nb">TEXT</span><span class="p">,</span>
 <span class="w">  </span><span class="n">etag</span><span class="w">          </span><span class="nb">TEXT</span><span class="p">,</span>
-<span class="w">  </span><span class="n">last_modified</span><span class="w"> </span><span class="nb">TEXT</span>
+<span class="w">  </span><span class="n">last_modified</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
+<span class="w">  </span><span class="n">pinned</span><span class="w">        </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">  </span><span class="n">pinned_at</span><span class="w">     </span><span class="nb">TEXT</span>
 <span class="p">);</span>
 
 <span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">items</span><span class="w"> </span><span class="p">(</span>
@@ -3445,6 +3447,7 @@
 <span class="w">  </span><span class="n">paper_url</span><span class="w">     </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">               </span><span class="c1">-- 抽出的 arXiv abs / doi.org，可空</span>
 <span class="w">  </span><span class="n">imported_at</span><span class="w">   </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">               </span><span class="c1">-- 本机入库成功时间，可空</span>
 <span class="w">  </span><span class="n">first_seen_at</span><span class="w"> </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n">body_markdown</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">               </span><span class="c1">-- 详情页全文（打开时解析，可空）</span>
 <span class="w">  </span><span class="k">UNIQUE</span><span class="w"> </span><span class="p">(</span><span class="n">subscription_id</span><span class="p">,</span><span class="w"> </span><span class="n">guid</span><span class="p">)</span>
 <span class="p">);</span>
 
@@ -3492,7 +3495,7 @@
 <td><code>feeds_list</code></td>
 <td>—</td>
 <td><code>{ subscriptions: FeedSub[] }</code></td>
-<td>含 <code>lastError</code> / <code>lastFetchedAt</code> / <code>itemCount</code></td>
+<td>含 <code>lastError</code> / <code>lastFetchedAt</code> / <code>itemCount</code> / <code>pinned</code>；置顶在前</td>
 </tr>
 <tr>
 <td><code>feeds_add</code></td>
@@ -3513,6 +3516,12 @@
 <td>只改显示名</td>
 </tr>
 <tr>
+<td><code>feeds_set_pinned</code></td>
+<td><code>{ id, pinned }</code></td>
+<td><code>FeedSub</code></td>
+<td>钉到列表最上；再钉的排在已钉的前面</td>
+</tr>
+<tr>
 <td><code>feeds_refresh</code></td>
 <td><code>{ id?, staleOnly? }</code></td>
 <td><code>{ subscriptions, fetched, failed }</code></td>
@@ -3530,9 +3539,15 @@
 <td><code>FeedItem</code></td>
 <td>写入 <code>importedAt</code>，刷新不丢</td>
 </tr>
+<tr>
+<td><code>feeds_resolve_body</code></td>
+<td><code>{ id }</code></td>
+<td><code>FeedItem</code></td>
+<td>打开详情时解析全文，写入 <code>bodyMarkdown</code></td>
+</tr>
 </tbody>
 </table>
-<p><code>FeedItem</code> 至少：<code>id, subscriptionId, subscriptionTitle, title, url, publishedAt, summaryText, paperUrl, importedAt</code>。<code>contentHtml</code> 列表接口不返回（卡片用不到）。</p>
+<p><code>FeedItem</code> 至少：<code>id, subscriptionId, subscriptionTitle, title, url, publishedAt, summaryText, paperUrl, importedAt, bodyMarkdown</code>。<code>contentHtml</code> 留给 Host 转 Markdown，卡片不用。</p>
 <p>远程 Vault 会话同样可用（不碰 Vault IO）。</p>
 <p>错误：单源失败写 <code>last_error</code> 并继续；<code>feeds_add</code> 的发现/首拉失败不删行。用户可见字符串走 i18n key，Host 回稳定 error code。</p>
 <h2 id="6">6. 前端落点<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
@@ -3590,7 +3605,7 @@
 <ul>
 <li>图标按钮有 aria-label + Tooltip。</li>
 <li>无常驻解释文案；空态那几行是唯一例外。</li>
-<li>不引 AI Elements 对话件，不用 Library 表格。</li>
+<li>详情正文复用 <code>MessageResponse</code>（只当 Markdown 渲染，不当对话件）。不用 Library 表格。</li>
 <li><code>prefers-reduced-motion</code> 下虚拟列表瞬间定位。</li>
 </ul>
 <h2 id="7-mvp">7. 分阶段（本篇 = MVP）<a class="headerlink" href="#7-mvp" title="Permanent link">&para;</a></h2>
