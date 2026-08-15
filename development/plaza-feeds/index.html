@@ -3383,7 +3383,7 @@
 <tr>
 <td><strong>详情</strong></td>
 <td>同上</td>
-<td>打开时解析全文（RSS 摘要不够则抓 <code>item.url</code> → HTML→Markdown），用 <code>MessageResponse</code> 渲染标题 / 公式；入库 / 打开原文在详情顶栏</td>
+<td>打开时解析全文（RSS 摘要不够则抓 <code>item.url</code> → HTML→Markdown）。整篇是一份 Markdown：<code># 标题</code> + 正文，走 <code>MessageResponse</code>。文末 <code>[...]</code> 会剥掉。入库 / 打开原文在顶栏</td>
 <td>返回列表</td>
 </tr>
 </tbody>
