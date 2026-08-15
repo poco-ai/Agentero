@@ -8035,10 +8035,12 @@ Host (Tauri + Rust)
 <h4 id="layout_remote_analyze_pdf"><code>layout_remote_analyze_pdf</code>（已实现）<a class="headerlink" href="#layout_remote_analyze_pdf" title="Permanent link">&para;</a></h4>
 <p>整份 PDF 的 <strong>异步</strong> PP-StructureV3 解析（无同步逐页接口）：</p>
 <ul>
-<li><strong>参数</strong>：<code>{ args: { pdfBase64, fileName?, apiKey? } }</code></li>
+<li><strong>参数</strong>：<code>{ args: { pdfBase64, fileName?, apiKey?, requestId? } }</code></li>
 <li>端点固定为 <code>https://paddleocr.aistudio-app.com/api/v2/ocr/jobs</code>；<code>apiKey</code> 为空 / 掩码时由 Host 从设置注入（WebView 不持有明文）。</li>
+<li><code>requestId</code> 用于并行任务把 <code>layout-remote:progress</code> 对回调用方。</li>
 <li><strong>流程</strong>：multipart 提交任务 <code>POST /api/v2/ocr/jobs</code>（<code>model: PP-StructureV3</code>，<code>Authorization: bearer &lt;token&gt;</code>）→ 每 3s 轮询 <code>GET /api/v2/ocr/jobs/{jobId}</code>（总时限 10 分钟）→ 完成后下载 <code>resultUrl.jsonUrl</code>（JSONL）并提取每页 <code>prunedResult.layout_det_res.boxes</code>。</li>
-<li><strong>进度</strong>：轮询期间 emit <code>layout-remote:progress</code>，payload <code>{ phase, extractedPages, totalPages }</code>（phase：<code>uploading</code> / <code>pending</code> / <code>running</code> / <code>downloading</code> / <code>done</code>）。</li>
+<li><strong>进度</strong>：轮询期间 emit <code>layout-remote:progress</code>，payload <code>{ phase, extractedPages, totalPages, requestId? }</code>（phase：<code>uploading</code> / <code>pending</code> / <code>running</code> / <code>downloading</code> / <code>done</code>）。</li>
+<li><strong>并发</strong>：<code>settings.layout.backend === "paddle"</code> 时 JobCenter <code>layoutAnalyze</code> <strong>无并发上限</strong>；本地 ONNX 仍 cap=1。</li>
 <li><strong>返回</strong>：<code>{ pages: [{ boxes: [{ clsId, label, score, coordinate }], widthPx, heightPx }] }</code>；渲染像素尺寸优先取 <code>dataInfo</code> / <code>inputImage</code> JPEG 头，缺失为 <code>null</code>（前端按 200 DPI 估算）。</li>
 <li><strong>超时 / 代理</strong>：单请求 120s；走 Host 全局代理（<code>network::client_builder</code>）。</li>
 <li>实现：<code>src-tauri/src/features/layout_remote/</code>；前端 <code>src/lib/pdf/layout/paddle.ts</code>。</li>

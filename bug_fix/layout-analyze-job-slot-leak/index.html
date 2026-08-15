@@ -3024,7 +3024,7 @@
 <h2 id="_1">问题<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p>打开多篇论文或连续触发版面解析时，左下角任务条里只有第一篇会跑，后面的一直停在「排队」。点取消：进行中的条目有时弹回来，排队的取消后新任务依然排队。重启应用后队列恢复，说明不是磁盘 sidecar，而是进程内调度状态坏了。</p>
 <h2 id="_2">根因<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p><code>layoutAnalyze</code> 的并发上限是 1。前端 executor 跑完 ONNX 后通过 <code>job_report(state: succeeded|failed|cancelled)</code> 上报终态；Rust runner 用 <code>wait_for_terminal</code> 看到终态再调 <code>finish()</code>。</p>
+<p><code>layoutAnalyze</code> 本地 ONNX 的并发上限是 1（Paddle API 不设上限）。前端 executor 跑完后通过 <code>job_report(state: succeeded|failed|cancelled)</code> 上报终态；Rust runner 用 <code>wait_for_terminal</code> 看到终态再调 <code>finish()</code>。</p>
 <p><code>job_report</code> 以前只改 <code>job.state</code>，<strong>不释放</strong> <code>running_by_kind</code>。<code>finish()</code> 见到已经是终态就直接返回，避免覆盖用户取消，也因此<strong>不会补释放槽位</strong>。第一篇一结束，计数永远停在 1，后续全部 <code>Waiting</code>。</p>
 <p>取消看起来「没取消掉」有两层叠加：</p>
 <ol>
