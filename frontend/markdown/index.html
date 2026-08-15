@@ -3312,7 +3312,7 @@
 <p>原则：所见即所得；与 shadcn/ui 工具栏风格一致；Agent 写回的 Markdown 经反序列化再展示。编辑期间的权威状态是 Plate AST，保存时再序列化为 Markdown；应用不会在每次渲染时重新读取一份隐藏的 Markdown 源字符串。</p>
 <h2 id="_2">能力<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
-<li>自动保存；可选顶部格式工具栏（<code>showEditorToolbar</code>）。论文 <code>NOTES.md</code> 工具栏右侧多一个「笔记」按钮（Cool Papers 图标 + 文案；悬停显示「获取 Cool Paper 笔记」），把 papers.cool 的 Kimi 解析追加进当前笔记。</li>
+<li>自动保存；可选顶部格式工具栏（<code>showEditorToolbar</code>）。论文 <code>NOTES.md</code> 工具栏右侧多一个「笔记」按钮（Cool Papers 图标 + 文案；悬停显示「获取 Cool Paper 笔记」），把 papers.cool 的 Kimi 解析追加进当前笔记。从广场 venue 入库的论文优先用已保存的 Cool Papers id / <code>source_url</code>（如 <code>38818@AAAI</code>），不再只靠标题精确搜索。</li>
 <li><strong>文档目录</strong>：至少存在三个标题时，才在编辑器右侧四分之一高度显示层级标记，一级标题标记最长，后续层级依次缩短；收起时保持紧凑，悬停或键盘聚焦后以动效展开标题；展开后标题在目录块内左对齐，depth marker 仍靠右；滚动时以中性色高亮视口对应的标题，点击标题会在当前 Dockview 文档面板内平滑滚动并高亮目标。面板宽度小于 18rem 时隐藏目录条，正文同时收回为目录预留的右侧留白。</li>
 <li><strong>状态栏</strong>：编辑器底部单行显示反向链接（悬停查看列表）、词数、字符数；按面板宽度逐级降级（小于 18rem 隐藏反向链接，小于 11rem 再隐藏词数，字符数始终保留），避免窄面板下换行溢出。</li>
 <li><strong>窄面板标题</strong>：一至三级标题字号随面板宽度分两档递减（小于 24rem、小于 18rem），避免窄面板下单个标题占满整屏并逐字换行。</li>

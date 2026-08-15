@@ -3524,7 +3524,9 @@
 </table>
 <blockquote>
 <p>Kimi 解析没有走广场入库，而是作为论文侧的独立能力落在 Markdown 工具栏的
-「获取 Cool Paper 笔记」按钮上（<code>paper_coolpapers_notes</code> → 追加 <code>NOTES.md</code>）。</p>
+「获取 Cool Paper 笔记」按钮上（<code>paper_coolpapers_notes</code> → 追加 <code>NOTES.md</code>）。
+解析顺序：<code>source_url</code> 上的 papers.cool 链接 → venue 形 catalog id（<code>38818@AAAI</code>）
+→ arXiv id → 标题（允许搜索结果截断后的长前缀）。</p>
 </blockquote>
 <h2 id="1">1. 产品动机<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <p>Agentero 已是 <strong>local-first 论文工作台</strong>（Library + 文件树 + PDF|NOTES）。用户还需要从 <strong>外部发现流</strong> 找新论文。</p>
