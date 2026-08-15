@@ -3159,7 +3159,7 @@
 
 <h1 id="s3">云同步（S3）设计草稿<a class="headerlink" href="#s3" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：Phase 0–1 已落地（实现说明见 <a href="../../backend/sync/">../backend/sync.md</a>），Phase 2+ 为草稿。多设备间同步整个 Vault，存储后端只做 S3 兼容对象存储（AWS S3 / Cloudflare R2 / 阿里 OSS / MinIO / B2）。同一套引擎同时服务两种模式：用户自带 bucket（BYO）与将来的官方托管服务。</p>
+<p>状态：Phase 0–2（自动同步部分）已落地（实现说明见 <a href="../../backend/sync/">../backend/sync.md</a>），Phase 2+ 为草稿。多设备间同步整个 Vault，存储后端只做 S3 兼容对象存储（AWS S3 / Cloudflare R2 / 阿里 OSS / MinIO / B2）。同一套引擎同时服务两种模式：用户自带 bucket（BYO）与将来的官方托管服务。</p>
 </blockquote>
 <h2 id="_1">目标与非目标<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p><strong>目标</strong></p>
@@ -3317,8 +3317,8 @@
 <td>两台设备经 MinIO/R2 双向同步收敛</td>
 </tr>
 <tr>
-<td>2</td>
-<td>自动同步（debounce+定时）、状态栏指示、GC、multipart</td>
+<td>2 🚧</td>
+<td>自动同步 ✅（打开/静置 30s/定时 + 退出尽力推送）；状态栏指示、GC、multipart 未做</td>
 <td>日常使用无感同步</td>
 </tr>
 <tr>
