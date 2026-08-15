@@ -11,28 +11,24 @@
       
       
       
-        <link rel="prev" href="../backend/api/">
-      
-      
-        <link rel="next" href="zotero-word-integration/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
-        <title>概览 - Agentero 文档</title>
+        <title>云同步（S3）设计草稿 - Agentero 文档</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -51,7 +47,7 @@
       
     
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -74,7 +70,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#_1" class="md-skip">
+        <a href="#s3" class="md-skip">
           跳转至
         </a>
       
@@ -90,9 +86,9 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="页眉">
-    <a href=".." title="Agentero 文档" class="md-header__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+    <a href="../.." title="Agentero 文档" class="md-header__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
       
-  <img src="../assets/agentero-app-icon.svg" alt="logo">
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -109,7 +105,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              概览
+              云同步（S3）设计草稿
             
           </span>
         </div>
@@ -190,7 +186,7 @@
   
   
     <li class="md-tabs__item">
-      <a href=".." class="md-tabs__link">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -209,7 +205,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../architecture/" class="md-tabs__link">
+      <a href="../../architecture/" class="md-tabs__link">
         
   
   
@@ -230,7 +226,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../usage/" class="md-tabs__link">
+        <a href="../../usage/" class="md-tabs__link">
           
   
   
@@ -250,7 +246,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../frontend/" class="md-tabs__link">
+        <a href="../../frontend/" class="md-tabs__link">
           
   
   
@@ -270,7 +266,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../backend/" class="md-tabs__link">
+        <a href="../../backend/" class="md-tabs__link">
           
   
   
@@ -286,13 +282,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../" class="md-tabs__link">
           
   
   
@@ -312,7 +306,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../test/" class="md-tabs__link">
+        <a href="../../test/" class="md-tabs__link">
           
   
   
@@ -332,7 +326,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../bug_fix/deepseek-thinking-body/" class="md-tabs__link">
+        <a href="../../bug_fix/deepseek-thinking-body/" class="md-tabs__link">
           
   
   
@@ -372,9 +366,9 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Agentero 文档" class="md-nav__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+    <a href="../.." title="Agentero 文档" class="md-nav__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
       
-  <img src="../assets/agentero-app-icon.svg" alt="logo">
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
 
     </a>
     Agentero 文档
@@ -401,7 +395,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -428,7 +422,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../architecture/" class="md-nav__link">
+      <a href="../../architecture/" class="md-nav__link">
         
   
   
@@ -505,7 +499,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/" class="md-nav__link">
+      <a href="../../usage/" class="md-nav__link">
         
   
   
@@ -533,7 +527,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/getting-started/" class="md-nav__link">
+      <a href="../../usage/getting-started/" class="md-nav__link">
         
   
   
@@ -561,7 +555,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/import-papers/" class="md-nav__link">
+      <a href="../../usage/import-papers/" class="md-nav__link">
         
   
   
@@ -589,7 +583,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/read-and-organize/" class="md-nav__link">
+      <a href="../../usage/read-and-organize/" class="md-nav__link">
         
   
   
@@ -617,7 +611,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/agents/" class="md-nav__link">
+      <a href="../../usage/agents/" class="md-nav__link">
         
   
   
@@ -645,7 +639,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/mobile/" class="md-nav__link">
+      <a href="../../usage/mobile/" class="md-nav__link">
         
   
   
@@ -673,7 +667,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/zotero/" class="md-nav__link">
+      <a href="../../usage/zotero/" class="md-nav__link">
         
   
   
@@ -701,7 +695,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/remote-vault/" class="md-nav__link">
+      <a href="../../usage/remote-vault/" class="md-nav__link">
         
   
   
@@ -786,7 +780,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/" class="md-nav__link">
+      <a href="../../frontend/" class="md-nav__link">
         
   
   
@@ -814,7 +808,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/shell/" class="md-nav__link">
+      <a href="../../frontend/shell/" class="md-nav__link">
         
   
   
@@ -842,7 +836,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/workspace/" class="md-nav__link">
+      <a href="../../frontend/workspace/" class="md-nav__link">
         
   
   
@@ -870,7 +864,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/vault-tree/" class="md-nav__link">
+      <a href="../../frontend/vault-tree/" class="md-nav__link">
         
   
   
@@ -898,7 +892,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/library/" class="md-nav__link">
+      <a href="../../frontend/library/" class="md-nav__link">
         
   
   
@@ -926,7 +920,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/paper-import/" class="md-nav__link">
+      <a href="../../frontend/paper-import/" class="md-nav__link">
         
   
   
@@ -954,7 +948,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/markdown/" class="md-nav__link">
+      <a href="../../frontend/markdown/" class="md-nav__link">
         
   
   
@@ -982,7 +976,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/pdf/" class="md-nav__link">
+      <a href="../../frontend/pdf/" class="md-nav__link">
         
   
   
@@ -1010,7 +1004,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/pdf-layout-analysis/" class="md-nav__link">
+      <a href="../../frontend/pdf-layout-analysis/" class="md-nav__link">
         
   
   
@@ -1038,7 +1032,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/agent/" class="md-nav__link">
+      <a href="../../frontend/agent/" class="md-nav__link">
         
   
   
@@ -1066,7 +1060,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/mobile/" class="md-nav__link">
+      <a href="../../frontend/mobile/" class="md-nav__link">
         
   
   
@@ -1094,7 +1088,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/wiki/" class="md-nav__link">
+      <a href="../../frontend/wiki/" class="md-nav__link">
         
   
   
@@ -1122,7 +1116,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/command-palette/" class="md-nav__link">
+      <a href="../../frontend/command-palette/" class="md-nav__link">
         
   
   
@@ -1150,7 +1144,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/translate/" class="md-nav__link">
+      <a href="../../frontend/translate/" class="md-nav__link">
         
   
   
@@ -1178,7 +1172,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/settings/" class="md-nav__link">
+      <a href="../../frontend/settings/" class="md-nav__link">
         
   
   
@@ -1206,7 +1200,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/onboarding/" class="md-nav__link">
+      <a href="../../frontend/onboarding/" class="md-nav__link">
         
   
   
@@ -1234,7 +1228,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/components/" class="md-nav__link">
+      <a href="../../frontend/components/" class="md-nav__link">
         
   
   
@@ -1319,7 +1313,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/" class="md-nav__link">
+      <a href="../../backend/" class="md-nav__link">
         
   
   
@@ -1347,7 +1341,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/data-model/" class="md-nav__link">
+      <a href="../../backend/data-model/" class="md-nav__link">
         
   
   
@@ -1375,7 +1369,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/catalog/" class="md-nav__link">
+      <a href="../../backend/catalog/" class="md-nav__link">
         
   
   
@@ -1403,7 +1397,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/vault/" class="md-nav__link">
+      <a href="../../backend/vault/" class="md-nav__link">
         
   
   
@@ -1431,7 +1425,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/paper-import/" class="md-nav__link">
+      <a href="../../backend/paper-import/" class="md-nav__link">
         
   
   
@@ -1459,7 +1453,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/identifier-lookup/" class="md-nav__link">
+      <a href="../../backend/identifier-lookup/" class="md-nav__link">
         
   
   
@@ -1487,7 +1481,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/citation-parsing/" class="md-nav__link">
+      <a href="../../backend/citation-parsing/" class="md-nav__link">
         
   
   
@@ -1515,7 +1509,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/skill-import/" class="md-nav__link">
+      <a href="../../backend/skill-import/" class="md-nav__link">
         
   
   
@@ -1543,7 +1537,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/connector/" class="md-nav__link">
+      <a href="../../backend/connector/" class="md-nav__link">
         
   
   
@@ -1571,7 +1565,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/wiki/" class="md-nav__link">
+      <a href="../../backend/wiki/" class="md-nav__link">
         
   
   
@@ -1599,7 +1593,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/agent/" class="md-nav__link">
+      <a href="../../backend/agent/" class="md-nav__link">
         
   
   
@@ -1627,7 +1621,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/remote/" class="md-nav__link">
+      <a href="../../backend/remote/" class="md-nav__link">
         
   
   
@@ -1655,7 +1649,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/search/" class="md-nav__link">
+      <a href="../../backend/search/" class="md-nav__link">
         
   
   
@@ -1683,7 +1677,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/settings/" class="md-nav__link">
+      <a href="../../backend/settings/" class="md-nav__link">
         
   
   
@@ -1711,7 +1705,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/usage/" class="md-nav__link">
+      <a href="../../backend/usage/" class="md-nav__link">
         
   
   
@@ -1739,7 +1733,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/translate/" class="md-nav__link">
+      <a href="../../backend/translate/" class="md-nav__link">
         
   
   
@@ -1767,7 +1761,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/logging/" class="md-nav__link">
+      <a href="../../backend/logging/" class="md-nav__link">
         
   
   
@@ -1795,7 +1789,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/doctor/" class="md-nav__link">
+      <a href="../../backend/doctor/" class="md-nav__link">
         
   
   
@@ -1823,7 +1817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/telemetry/" class="md-nav__link">
+      <a href="../../backend/telemetry/" class="md-nav__link">
         
   
   
@@ -1851,7 +1845,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/cli/" class="md-nav__link">
+      <a href="../../backend/cli/" class="md-nav__link">
         
   
   
@@ -1879,7 +1873,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/api/" class="md-nav__link">
+      <a href="../../backend/api/" class="md-nav__link">
         
   
   
@@ -1911,29 +1905,24 @@
       
   
   
-    
   
   
-  
     
     
     
     
       
-        
-        
-      
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   
@@ -1951,7 +1940,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1966,37 +1955,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    概览
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -2012,37 +1974,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="目录">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      目录
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        未实现草稿
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2055,7 +1986,7 @@
   
   
     <li class="md-nav__item">
-      <a href="zotero-word-integration/" class="md-nav__link">
+      <a href="../zotero-word-integration/" class="md-nav__link">
         
   
   
@@ -2083,7 +2014,7 @@
   
   
     <li class="md-nav__item">
-      <a href="mark-cli-roadmap/" class="md-nav__link">
+      <a href="../mark-cli-roadmap/" class="md-nav__link">
         
   
   
@@ -2111,7 +2042,7 @@
   
   
     <li class="md-nav__item">
-      <a href="mark-locate-lazy/" class="md-nav__link">
+      <a href="../mark-locate-lazy/" class="md-nav__link">
         
   
   
@@ -2139,7 +2070,7 @@
   
   
     <li class="md-nav__item">
-      <a href="mark-locate-eager/" class="md-nav__link">
+      <a href="../mark-locate-eager/" class="md-nav__link">
         
   
   
@@ -2167,7 +2098,7 @@
   
   
     <li class="md-nav__item">
-      <a href="plaza/" class="md-nav__link">
+      <a href="../plaza/" class="md-nav__link">
         
   
   
@@ -2195,7 +2126,7 @@
   
   
     <li class="md-nav__item">
-      <a href="usage-analytics/" class="md-nav__link">
+      <a href="../usage-analytics/" class="md-nav__link">
         
   
   
@@ -2280,7 +2211,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test/" class="md-nav__link">
+      <a href="../../test/" class="md-nav__link">
         
   
   
@@ -2308,7 +2239,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test/release/" class="md-nav__link">
+      <a href="../../test/release/" class="md-nav__link">
         
   
   
@@ -2336,7 +2267,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test/ios-testflight/" class="md-nav__link">
+      <a href="../../test/ios-testflight/" class="md-nav__link">
         
   
   
@@ -2364,7 +2295,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test/release-checklist/" class="md-nav__link">
+      <a href="../../test/release-checklist/" class="md-nav__link">
         
   
   
@@ -2449,7 +2380,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/deepseek-thinking-body/" class="md-nav__link">
+      <a href="../../bug_fix/deepseek-thinking-body/" class="md-nav__link">
         
   
   
@@ -2477,7 +2408,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/acp-session-resume-id/" class="md-nav__link">
+      <a href="../../bug_fix/acp-session-resume-id/" class="md-nav__link">
         
   
   
@@ -2505,7 +2436,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/ime-composition-enter-submit/" class="md-nav__link">
+      <a href="../../bug_fix/ime-composition-enter-submit/" class="md-nav__link">
         
   
   
@@ -2533,7 +2464,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/wiki-embed-unrelated-refresh/" class="md-nav__link">
+      <a href="../../bug_fix/wiki-embed-unrelated-refresh/" class="md-nav__link">
         
   
   
@@ -2561,7 +2492,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+      <a href="../../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
         
   
   
@@ -2589,7 +2520,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/dockview-sash-pdf-resize-jank/" class="md-nav__link">
+      <a href="../../bug_fix/dockview-sash-pdf-resize-jank/" class="md-nav__link">
         
   
   
@@ -2617,7 +2548,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/pdf-switch-visual-crop-layout-onnx/" class="md-nav__link">
+      <a href="../../bug_fix/pdf-switch-visual-crop-layout-onnx/" class="md-nav__link">
         
   
   
@@ -2645,7 +2576,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/remote-acp-path-ssh/" class="md-nav__link">
+      <a href="../../bug_fix/remote-acp-path-ssh/" class="md-nav__link">
         
   
   
@@ -2673,7 +2604,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/remote-vault-tree-lazy/" class="md-nav__link">
+      <a href="../../bug_fix/remote-vault-tree-lazy/" class="md-nav__link">
         
   
   
@@ -2701,7 +2632,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/macos-signing/" class="md-nav__link">
+      <a href="../../bug_fix/macos-signing/" class="md-nav__link">
         
   
   
@@ -2729,7 +2660,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/gemini-login-browser-loop/" class="md-nav__link">
+      <a href="../../bug_fix/gemini-login-browser-loop/" class="md-nav__link">
         
   
   
@@ -2757,7 +2688,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/import-abstract-mt-timeout/" class="md-nav__link">
+      <a href="../../bug_fix/import-abstract-mt-timeout/" class="md-nav__link">
         
   
   
@@ -2785,7 +2716,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/cli-import-library-refresh/" class="md-nav__link">
+      <a href="../../bug_fix/cli-import-library-refresh/" class="md-nav__link">
         
   
   
@@ -2813,7 +2744,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/codex-history-runtime-session-id/" class="md-nav__link">
+      <a href="../../bug_fix/codex-history-runtime-session-id/" class="md-nav__link">
         
   
   
@@ -2841,7 +2772,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/local-pdf-parse-missing-pdfium/" class="md-nav__link">
+      <a href="../../bug_fix/local-pdf-parse-missing-pdfium/" class="md-nav__link">
         
   
   
@@ -2869,7 +2800,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/paper-folder-marker-conflict/" class="md-nav__link">
+      <a href="../../bug_fix/paper-folder-marker-conflict/" class="md-nav__link">
         
   
   
@@ -2897,7 +2828,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/paper-import-timeout/" class="md-nav__link">
+      <a href="../../bug_fix/paper-import-timeout/" class="md-nav__link">
         
   
   
@@ -2925,7 +2856,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/remote-create-folder-exists/" class="md-nav__link">
+      <a href="../../bug_fix/remote-create-folder-exists/" class="md-nav__link">
         
   
   
@@ -2953,7 +2884,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/remote-delete-list-nosuchfile/" class="md-nav__link">
+      <a href="../../bug_fix/remote-delete-list-nosuchfile/" class="md-nav__link">
         
   
   
@@ -2981,7 +2912,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/todo-checkbox-scale-align/" class="md-nav__link">
+      <a href="../../bug_fix/todo-checkbox-scale-align/" class="md-nav__link">
         
   
   
@@ -3036,10 +2967,170 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        目标与非目标
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#catalog-sidecar-phase-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        前置：catalog 权威字段 sidecar 化（Phase 0）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#blob-cas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        同步模型：内容寻址 blob + 版本清单 + CAS 指针
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="同步模型：内容寻址 blob + 版本清单 + CAS 指针">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#remote" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remote 布局
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        未实现草稿
+        本地状态
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sync_now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        同步流程（一次 sync_now）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        冲突策略
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        触发时机
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GC
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#s3_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S3 客户端
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        端到端加密（Phase 3）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        模块与侵入点
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        前端
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        分期
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        风险与对策
       
     </span>
   </a>
@@ -3066,57 +3157,190 @@
   
 
 
-<h1 id="_1">开发草稿<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>本目录只放：</p>
+<h1 id="s3">云同步（S3）设计草稿<a class="headerlink" href="#s3" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>状态：Phase 0–1 已落地（实现说明见 <a href="../../backend/sync/">../backend/sync.md</a>），Phase 2+ 为草稿。多设备间同步整个 Vault，存储后端只做 S3 兼容对象存储（AWS S3 / Cloudflare R2 / 阿里 OSS / MinIO / B2）。同一套引擎同时服务两种模式：用户自带 bucket（BYO）与将来的官方托管服务。</p>
+</blockquote>
+<h2 id="_1">目标与非目标<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p><strong>目标</strong></p>
+<ul>
+<li>多设备同步同一 Vault：Markdown 笔记、论文 PDF、TeX 源码、marks、assets、attachments。</li>
+<li>引擎与现有代码低耦合：新增 <code>features/sync/</code> 一个模块，对外只暴露命令 + 事件；对现有代码的侵入点控制在 3 处以内（见「侵入点清单」）。</li>
+<li>冲突可预期：不丢数据，不需要用户理解版本控制。</li>
+<li>为官方托管服务预留凭据形态，不提前建设控制面。</li>
+</ul>
+<p><strong>非目标</strong></p>
+<ul>
+<li>实时协同编辑（OT/CRDT）。</li>
+<li>与 <code>features/remote/</code>（SSH 远程 Vault）合并——那是「数据在服务器、本机是 UI」，本方案是「每台设备都有完整副本」，二者并存。</li>
+<li>同步 XDG 侧数据（<code>usage.sqlite</code>、应用设置）。</li>
+</ul>
+<h2 id="catalog-sidecar-phase-0">前置：catalog 权威字段 sidecar 化（Phase 0）<a class="headerlink" href="#catalog-sidecar-phase-0" title="Permanent link">&para;</a></h2>
+<p>当前 <code>catalog.sqlite</code> 中 tags / is_read / url 等字段是<strong>权威数据</strong>（<code>paper_rescan</code> 无法恢复），而 SQLite WAL 文件不可按文件同步。方案：把 per-paper 权威字段落成 sidecar 文件，让 catalog 退化为<strong>可重建缓存</strong>，同步引擎从此只处理普通文件。</p>
+<ul>
+<li>位置：<code>papers/&lt;id&gt;/.meta.json</code>（隐藏文件，不进文件树，不算论文身份 marker）。</li>
+<li>内容：<code>PaperRecord</code> 中不可从盘上重建的字段（tags、is_read、url、title/authors 覆写、added_at、updated_at 等），带 <code>updatedAt</code> 时间戳。</li>
+<li>写路径：<code>catalog/commands.rs</code> 的每个 mutation（<code>paper_set_tags</code>、<code>paper_set_is_read</code>、<code>upsert_paper</code> 等）成功后写 sidecar。收敛为 <code>catalog/sidecar.rs</code> 一个 <code>write_sidecar(vault, &amp;PaperRecord)</code> 入口。</li>
+<li>读路径：<code>paper_rescan</code> 发现 sidecar 的 <code>updatedAt</code> 新于库内 <code>updated_at</code> 时，以 sidecar 为准回灌 DB。同步拉取改动 <code>.meta.json</code> 后触发一次对应论文的回灌（或整库 rescan，MVP 可接受）。</li>
+<li>兼容：首次升级时全量导出一遍 sidecar；老 Vault 无 sidecar 不报错。</li>
+</ul>
+<p>Phase 0 独立可交付：即便不做同步，它也兑现「离开应用数据仍可读」的 local-first 承诺，并让 Vault 可被任意文件级备份工具安全备份。</p>
+<p>另需引入 <strong>Vault UUID</strong>：新增 <code>.agentero/vault.json</code>（<code>{ "id": "&lt;uuid&gt;", "createdAt": ... }</code>），首次访问时生成。同步用它防止两个不同 Vault 误绑同一 remote。</p>
+<h2 id="blob-cas">同步模型：内容寻址 blob + 版本清单 + CAS 指针<a class="headerlink" href="#blob-cas" title="Permanent link">&para;</a></h2>
+<p>不做 oplog，不做逐文件远端比对。整体是 <strong>state-based 快照同步</strong>（remotely-save / rsync-with-manifest 模型），正确性只依赖 S3 的一个能力：<strong>条件写（<code>If-Match</code> / <code>If-None-Match</code>）</strong>，S3、R2、MinIO 均已支持。</p>
+<h3 id="remote">Remote 布局<a class="headerlink" href="#remote" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code>s3://&lt;bucket&gt;/&lt;prefix&gt;/
+├── vault.json               # { vaultId, formatVersion, encryption: &quot;none&quot;|&quot;e2ee&quot; }
+├── HEAD                     # { version: 42, manifest: &quot;manifests/000042.json&quot;, deviceId, ts }
+├── manifests/000042.json.gz # relPath -&gt; { hash, size, mtime }
+└── blobs/ab/&lt;sha256&gt;        # gzip（+可选加密）后的文件内容，内容寻址，天然去重
+</code></pre></div>
+
+<ul>
+<li><code>HEAD</code> 是唯一的可变对象，推进时用 <code>If-Match: &lt;etag&gt;</code> CAS；首次创建用 <code>If-None-Match: *</code>。</li>
+<li>manifest 不可变、保留最近 N 份，免费获得粗粒度历史版本。</li>
+<li>blob 内容寻址：同一 PDF 在多篇笔记引用、或重命名，都不重复上传。</li>
+</ul>
+<h3 id="_2">本地状态<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<p><code>.agentero/sync/</code>（watcher 已忽略 <code>.agentero/</code>，不会造成事件回环）：</p>
+<ul>
+<li><code>base.json</code>：上次同步成功时的 manifest（三方合并的 base）。</li>
+<li><code>state.json</code>：remote 绑定信息、HEAD etag、上次同步时间。</li>
+</ul>
+<p>凭据<strong>不放 Vault 内</strong>（Vault 本身会被同步），见「配置与凭据」。</p>
+<h3 id="sync_now">同步流程（一次 <code>sync_now</code>）<a class="headerlink" href="#sync_now" title="Permanent link">&para;</a></h3>
 <ol>
-<li><strong>工程规划</strong>（版本切片、发布）</li>
-<li><strong>尚未实现</strong>的功能设计稿</li>
+<li><strong>扫描</strong>：walkdir 全量扫 Vault（排除 <code>.agentero/</code>、<code>.trash</code>、<code>.git</code> 等，规则与 watcher <code>is_ignored</code> 对齐），用 <code>size+mtime</code> 与 <code>base.json</code> 快速比对，变化的文件才算 sha256 → 得到 <code>local</code> 清单。</li>
+<li><strong>拉取</strong>：GET <code>HEAD</code>，若 <code>version</code> &gt; base 的 version，GET 对应 manifest → <code>remote</code> 清单。</li>
+<li><strong>三方合并</strong>（base / local / remote 逐路径）：</li>
+<li>仅一侧改动 → 直接采纳；</li>
+<li>双侧同改 → 冲突策略（见下）；</li>
+<li>删除 vs 修改 → 保留修改（复活文件）。</li>
+<li><strong>应用远端</strong>：下载缺失 blob，写入本地（临时文件 + rename 原子落盘）。</li>
+<li><strong>上传本地</strong>：新 blob PUT（<code>If-None-Match: *</code>，已存在即跳过）；写新 manifest；<code>If-Match</code> CAS 推进 <code>HEAD</code>。</li>
+<li><strong>CAS 失败</strong>（他端并发推进）：丢弃本次 manifest，回到第 2 步重来。blob 已上传的不浪费。</li>
+<li>成功后更新 <code>base.json</code>，emit <code>sync:state</code>。</li>
 </ol>
-<p>已实现功能的说明在 <a href="../frontend/"><code>../frontend/</code></a> 与 <a href="../backend/"><code>../backend/</code></a>，按功能分篇。</p>
-<h2 id="_2">未实现草稿<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h3 id="_3">冲突策略<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
-<th>文档</th>
-<th>主题</th>
+<th>文件类型</th>
+<th>策略</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><a href="plaza/">plaza.md</a></td>
-<td>广场（Cool Papers / ModelScope 论文 / 推荐 / 播客）。<strong>壳 + 两个站点来源浏览与入库已落地</strong>（<code>agentero-coolpapers</code> / <code>agentero-modelscope</code> 站点代理）；推荐 / 播客仍为草稿</td>
+<td><code>*.md</code> 等文本</td>
+<td>保留 mtime 较新版本，较旧版本另存为 <code>&lt;name&gt; (conflict &lt;device&gt; &lt;date&gt;).md</code>，emit 事件提示</td>
 </tr>
 <tr>
-<td><a href="plaza-feeds/">plaza-feeds.md</a></td>
-<td>广场订阅 MVP：本地 RSS/Atom 时间线 + 论文入库。<strong>已落地</strong></td>
+<td><code>.meta.json</code> sidecar / <code>marks/*.json</code></td>
+<td>按文件 LWW（<code>updatedAt</code> 新者胜），不产生冲突副本</td>
 </tr>
 <tr>
-<td><a href="usage-analytics/">usage-analytics.md</a></td>
-<td>#239 Activity 总线。P0 存储已落地：XDG <code>usage.sqlite</code>（见 <a href="../backend/usage/">../backend/usage.md</a>）</td>
-</tr>
-<tr>
-<td><a href="zotero-word-integration/">zotero-word-integration.md</a></td>
-<td>官方 Zotero Word 插件 provider 兼容、文档迁移与平台实现评估</td>
-</tr>
-<tr>
-<td><a href="cloud-sync-s3/">cloud-sync-s3.md</a></td>
-<td>云同步（S3 兼容）：catalog sidecar 化前置 + 内容寻址 blob/manifest/CAS 同步引擎。<strong>Phase 0–1 已落地</strong>（见 <a href="../backend/sync/">../backend/sync.md</a>）；自动同步 / GC / E2EE / 官方托管仍为草稿</td>
-</tr>
-<tr>
-<td><a href="mark-cli-roadmap/">mark-cli-roadmap.md</a></td>
-<td>#170 阅读标注<strong>内置进 CLI</strong>（方案/命令面/边界）+ 基础→上层→Skill；与 <a href="../backend/cli/">CLI 文档</a> 分发衔接</td>
-</tr>
-<tr>
-<td><a href="mark-locate-lazy/">mark-locate-lazy.md</a></td>
-<td>文字定位：打开 PDF 再算（惰性，默认主路径）</td>
-</tr>
-<tr>
-<td><a href="mark-locate-eager/">mark-locate-eager.md</a></td>
-<td>文字定位：标注时算（即时 B1 viewer / 可选 B2 headless）</td>
+<td>PDF / 二进制</td>
+<td>LWW（实际几乎不可变，冲突概率≈0）</td>
 </tr>
 </tbody>
 </table>
-<p>macOS 签名与公证（已实现流程说明）在 <a href="../bug_fix/macos-signing/"><code>../bug_fix/macos-signing.md</code></a>。</p>
+<h3 id="_4">触发时机<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>手动：设置面板 / 状态栏「立即同步」。</li>
+<li>自动：<code>features/sync/</code> 自持一个 <code>notify_debouncer_full</code> 实例（debounce 30s，与前端 watcher 各自独立、互不改动）+ 定时兜底（默认 5 min）+ 应用启动后一次。</li>
+<li>串行化：同一 Vault 全局互斥锁，同步中再触发只置 dirty 标记。</li>
+</ul>
+<h3 id="gc">GC<a class="headerlink" href="#gc" title="Permanent link">&para;</a></h3>
+<p>blob 无引用即可删：客户端同步成功后低频（如每周）执行一次「列出最近 N 份 manifest 引用集合，删除孤儿 blob + 更老的 manifest」。托管模式下也可由服务端离线做。</p>
+<h2 id="s3_1">S3 客户端<a class="headerlink" href="#s3_1" title="Permanent link">&para;</a></h2>
+<p>只需要 6 个操作：<code>GET</code> / <code>PUT</code>（含条件头）/ <code>HEAD</code> / <code>DELETE</code> / <code>ListObjectsV2</code> / （大文件可选 multipart）。不引入 <code>aws-sdk-s3</code>（依赖树过重）；基于现有 <strong>reqwest 0.12 + sha2</strong> 手写 SigV4 签名（新增 <code>hmac</code> 一个小依赖），收敛在 <code>features/sync/s3.rs</code>（约 300 行）。兼容 path-style（MinIO）与 virtual-host style。</p>
+<p>凭据形态设计为枚举，为托管模式预留：</p>
+<div class="codehilite"><pre><span></span><code><span class="k">enum</span><span class="w"> </span><span class="nc">SyncCredentials</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// BYO：用户自填 endpoint / region / bucket / prefix / AK / SK</span>
+<span class="w">    </span><span class="n">Custom</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">endpoint</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="n">region</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="n">bucket</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="n">prefix</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="n">access_key</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="n">secret_key</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="sd">/// 官方托管（将来）：控制面签发限定 prefix 的临时凭据，engine 无感</span>
+<span class="w">    </span><span class="n">Managed</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">token</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>托管模式落地时只需实现一个「用 token 换临时 STS 凭据」的 provider，engine 与 remote 布局零改动。</p>
+<h2 id="phase-3">端到端加密（Phase 3）<a class="headerlink" href="#phase-3" title="Permanent link">&para;</a></h2>
+<ul>
+<li>blob 与 manifest 用 XChaCha20-Poly1305 对称加密（新增 <code>chacha20poly1305</code>，已在 crypto_box 依赖树内）；密钥由用户口令经 Argon2id 派生（新增 <code>argon2</code>），加密后的 key-check 块存 remote <code>vault.json</code>。</li>
+<li>文件名不外泄（内容寻址 + manifest 加密），远端只见随机 hash。</li>
+<li>BYO 模式可选，官方托管服务上线前必须默认开启（「我们也读不到你的数据」是核心卖点）。</li>
+<li>MVP（Phase 1–2）先不做，但 remote <code>vault.json</code> 的 <code>encryption</code> 字段从第一天就存在，<code>formatVersion</code> 预留迁移。</li>
+</ul>
+<h2 id="_5">模块与侵入点<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<div class="codehilite"><pre><span></span><code>src-tauri/src/features/sync/
+├── mod.rs        # SyncConfig / SyncState / SyncService（含互斥锁、调度）
+├── commands.rs   # sync_configure / sync_now / sync_status / sync_disconnect
+├── s3.rs         # SigV4 + reqwest 最小客户端
+├── snapshot.rs   # Vault 扫描 → Manifest
+├── engine.rs     # 三方合并、计划、应用、CAS 循环
+└── local.rs      # .agentero/sync/ 状态读写
+</code></pre></div>
+
+<p>事件（参照 <code>zotero_sync</code> 长任务 + 进度先例）：<code>sync:progress</code>（阶段/文件计数/字节）、<code>sync:state</code>（idle / syncing / error / conflict）。</p>
+<p><strong>侵入点清单</strong>（全部改动）：</p>
+<ol>
+<li><code>app/handlers.rs</code>：<code>common_commands!</code> 注册 sync 命令。</li>
+<li><code>features/catalog/</code>：Phase 0 的 <code>sidecar.rs</code> + mutation 后调用 + rescan 回灌。</li>
+<li><code>features/settings/</code>：<code>AppSettings</code> 增加 <code>sync: HashMap&lt;VaultId, SyncCredentials&gt;</code>（存 XDG <code>settings.json</code>；SK 掩码遵循 translate API key 先例：<code>settings_get</code> 返回 <code>***</code>，<code>settings_set</code> 收到全掩码保留旧值）。</li>
+</ol>
+<p>watcher、vault、import、remote 均不改。</p>
+<h2 id="_6">前端<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<ul>
+<li>设置面板：<code>src/components/settings/panes/sync.tsx</code>（参照 <code>remote-access</code> pane）——绑定表单（endpoint/bucket/AK/SK/prefix）、连接测试、自动同步开关、立即同步、解绑。</li>
+<li>状态：<code>src/lib/sync/store.ts</code>（zustand，订阅 <code>sync:state</code> / <code>sync:progress</code>）。</li>
+<li>状态指示：shell 状态栏一个图标按钮（idle/syncing/error/conflict 四态），带 Tooltip 与可访问名称；错误走 <code>notifyError</code>。</li>
+<li>i18n：<code>src/i18n/locales/{en,zh-CN}/settings.json</code> 增加 <code>sync.*</code> 键。</li>
+</ul>
+<h2 id="_7">分期<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>内容</th>
+<th>交付判断</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0 ✅</td>
+<td>catalog sidecar 化 + <code>.agentero/vault.json</code> UUID</td>
+<td>删库后 rescan 能恢复 tags/is_read</td>
+</tr>
+<tr>
+<td>1 ✅</td>
+<td>sync 模块 MVP：配置 UI、手动同步、manifest/blob/CAS、冲突副本</td>
+<td>两台设备经 MinIO/R2 双向同步收敛</td>
+</tr>
+<tr>
+<td>2</td>
+<td>自动同步（debounce+定时）、状态栏指示、GC、multipart</td>
+<td>日常使用无感同步</td>
+</tr>
+<tr>
+<td>3</td>
+<td>E2EE（口令派生密钥、blob/manifest 加密）</td>
+<td>远端只见密文</td>
+</tr>
+<tr>
+<td>4</td>
+<td>官方托管：控制面（账号/配额/临时凭据签发）+ <code>Managed</code> provider</td>
+<td>应用侧仅新增 provider，engine 不动</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_8">风险与对策<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>大量小对象的请求费</strong>（S3 按请求计费）：manifest 一次一个对象已摊薄；若 marks/sidecar 碎文件成为成本问题，Phase 2 再考虑小文件 packfile，MVP 不做。</li>
+<li><strong>时钟偏差影响 LWW</strong>：冲突窗口本就极小；文本类有冲突副本兜底，不丢数据。</li>
+<li><strong>同步中途崩溃</strong>：blob/manifest 均不可变、HEAD 原子 CAS，半途状态只留孤儿 blob，由 GC 回收；本地应用远端时先写临时文件再 rename。</li>
+<li><strong>Windows 路径</strong>：manifest 内统一 <code>/</code> 分隔的相对路径，落盘经 <code>joinVaultPath</code> 归一（AGENTS.md #181 教训）。</li>
+<li><strong>误绑其他 Vault 的 remote</strong>：<code>vault.json</code> 的 vaultId 不匹配时拒绝并要求显式确认覆盖方向。</li>
+</ul>
 
 
 
@@ -3172,10 +3396,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.tracking", "navigation.top", "search.suggest", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.tracking", "navigation.top", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
