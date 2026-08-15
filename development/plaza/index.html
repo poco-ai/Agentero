@@ -3754,6 +3754,7 @@
 <li>sandbox 去掉 <code>allow-popups</code>，确保没有链接能逃到新窗口。</li>
 <li>与 PDF iframe 一样，拖拽期间置 <code>pointer-events: none</code>，否则 dockview 收不到 dragover。</li>
 <li>远程 Vault 会话下同样可用（广场不依赖 vault 文件 IO）。</li>
+<li>Host 用进程级复用的 HTTP 客户端转发（<code>network::shared_client</code>），否则每张图 / 每段 JS 都要重新握手代理 TLS，papers.cool 会明显卡。</li>
 </ul>
 <h3 id="321">3.2.1 入库（已实现）<a class="headerlink" href="#321" title="Permanent link">&para;</a></h3>
 <p>代理注入的桥接脚本给每行论文标题追加 <code>[入库]</code>，与站点自带的 <code>[PDF] [Copy] [Kimi] [REL]</code> 同排。点击后把 <code>{ id, branch, url, title }</code> 交给面板，结果回传给该行显示 <code>[已入库]</code>。</p>

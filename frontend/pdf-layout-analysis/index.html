@@ -3488,8 +3488,9 @@
         │  实现：`enqueue-paper-layout.ts` + `headless-analyze.ts`
         │
 打开论文 PDF（含非 active 的已挂载 tab）→ enqueue 到后台任务队列
-        │  多篇并行打开：都进左下角任务列表；ONNX 串行（concurrency:1）避免抢模型
+        │  多篇并行打开：都进左下角任务列表；ONNX 串行（JobCenter layoutAnalyze cap=1）避免抢模型
         │  实现：viewer mount 调 `enqueuePaperLayoutAnalysis`（与入库后同一路径）
+        │  终态 `job_report` / 取消必须释放该 cap，否则后续任务会一直排队
         │  后台 ONNX 不依赖当前 active 论文窗口：headless EmbedPDF 独立打开本地 PDF
         │  激活中的 tab：有 layout.json → 静默载入 store（无新任务条）
         │  viewer-bound 分析在每个异步边界检查 document 是否仍 open；关闭/切换竞态按取消处理
