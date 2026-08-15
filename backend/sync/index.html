@@ -3025,6 +3025,17 @@
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
+        安全约束
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
         边界（后续分期）
       
     </span>
@@ -3053,7 +3064,7 @@
 
 
 <h1 id="s3">云同步（S3）<a class="headerlink" href="#s3" title="Permanent link">&para;</a></h1>
-<p>多设备间同步整个 Vault 到 S3 兼容对象存储（R2 / MinIO / AWS S3 / OSS / B2）。设计草稿与分期：<a href="../../development/cloud-sync-s3/">../development/cloud-sync-s3.md</a>。当前已落地 Phase 0–1（sidecar 化 + 手动同步 MVP）。</p>
+<p>多设备间同步整个 Vault 到 S3 兼容对象存储（R2 / MinIO / AWS S3 / OSS / B2）。设计草稿与分期：<a href="../../development/cloud-sync-s3/">../development/cloud-sync-s3.md</a>。当前已落地 Phase 0–1 与 Phase 2 的自动同步（状态栏指示、GC、multipart 除外）。</p>
 <h2 id="_1">模块<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p><code>src-tauri/src/features/sync/</code>（desktop-only）：</p>
 <table>
@@ -3112,7 +3123,15 @@
 <p>设置窗口「同步」pane：<code>src/components/settings/panes/sync-pane.tsx</code>；命令封装 <code>src/lib/sync/api.ts</code>。仅本地 Vault 可配置（<code>remote:</code> 句柄显示提示）。</p>
 <h2 id="_3">自动同步<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>配置项 <code>autoSync</code>（默认开）与 <code>intervalMinutes</code>（15/30/60，默认 30）随凭据存 <code>sync.json</code>。调度任务在 <code>sync_configure</code> 后（重新）启动、<code>sync_disconnect</code> 时停止、应用启动时按配置恢复；每次触发都重读凭据，改配置无需重启。触发器：调度启动即同步一次（≈打开 Vault）、Vault 改动静置 30s、定时间隔兜底；<code>RunEvent::Exit</code> 时对所有自动同步 Vault 尽力推送（超时 5s/Vault）。</p>
-<h2 id="_4">边界（后续分期）<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_4">安全约束<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>远端对象视为不可信输入，引擎在应用前统一校验：</p>
+<ul>
+<li><strong>manifest 路径净化</strong>（<code>engine.rs</code> <code>validate_manifest</code>）：relPath 必须非空、非绝对、仅 <code>/</code> 分隔、无空段 / <code>.</code> / <code>..</code>，否则整个 pass 失败——杜绝经 <code>vault.join</code> 越界写/删文件。</li>
+<li><strong>hash 校验</strong>：manifest 中 hash 必须是 64 位小写 hex（sha256），防止畸形 key  panic 或索引到 <code>blobs/</code> 之外。</li>
+<li><strong>解压限流</strong>：blob 解压上限为 manifest 声明 size + 1MiB（sha256 校验兜底），manifest 解压上限 256MiB，防 gzip bomb。</li>
+<li><strong>强制 TLS</strong>：<code>validate()</code> 要求 endpoint 为 https；仅 loopback（<code>localhost</code> / <code>127.0.0.1</code> / <code>::1</code>）放行 http（本地 MinIO 测试场景），避免 SigV4 凭据明文传输。</li>
+</ul>
+<h2 id="_5">边界（后续分期）<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p>状态栏指示、孤儿 blob GC、E2EE、官方托管凭据 provider 均未实现，见设计草稿分期表。</p>
 
 
