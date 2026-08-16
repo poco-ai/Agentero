@@ -9,23 +9,24 @@ import {
 	VoiceDefenseError,
 	voiceTransportErrorCode,
 } from "@/lib/voice-defense/errors";
+import { trackViva } from "@/lib/voice-defense/metrics";
 import {
-	applyVoiceCaptionDelta,
 	buildDefenseOpeningTrigger,
 	buildVoiceInterruptEvent,
 	buildVoiceRelayEvent,
 	createVoiceOpeningState,
 	encodeVoiceEvent,
-	isCanonicalDefenseAnnouncementCaption,
-	isDefenseAnnouncementCaption,
+	isAcceptableDefenseAnnouncementCaption,
+	isAcceptableDefenseOpeningCaption,
 	isDefenseOpeningCaption,
 	isDefenseRestartCaption,
 	isFirstQuestionReaskCaption,
+	isGrowingDefenseAnnouncementCaption,
 	isNoiseUserCaption,
-	isOpeningFillerCaption,
 	isSubstantialUserCaption,
 	reduceVoiceOpening,
 	type VoiceCaption,
+	VoiceCaptionStream,
 	type VoiceOpeningState,
 	visibleAssistantCaptionDuringOpening,
 	visibleVoiceCaption,
@@ -53,14 +54,15 @@ export type VoiceDefenseClientEvents = {
 // a direct opening can cancel the phase-two trigger before it is sent.
 const OPENING_CAPTION_SETTLE_MS = 1_000;
 const OPENING_RECOVERY_TIMEOUT_MS = 20_000;
-/** Wait for committee audio tail / AEC to settle before unmuting. */
-const MICROPHONE_OPEN_SETTLE_MS = 400;
+/** Wait for the first committee turn to stop growing before unmuting. */
+const MICROPHONE_OPEN_SETTLE_MS = 1_200;
 const WIRE_TEXT_PREFIX = 40;
 
 type WireDropReason =
 	| "awaiting-user"
 	| "internal"
 	| "restart"
+	| "hold"
 	| "noise"
 	| "filler"
 	| "preamble";
@@ -122,6 +124,7 @@ export class VoiceDefenseClient {
 	private localStream: MediaStream | null = null;
 	private remoteStream: MediaStream | null = null;
 	private voiceSessionId: string | null = null;
+	private readonly captionStream = new VoiceCaptionStream();
 	private streamingCaption: VoiceCaption | null = null;
 	private internalCaptionMessageIds = new Set<string>();
 	private internalCaptionTexts: string[] = [];
@@ -147,13 +150,18 @@ export class VoiceDefenseClient {
 	private microphoneSettled = false;
 	private microphoneOpenTimer: number | null = null;
 	private committeePlaybackEnabled = false;
+	private lastPlaybackNotification: boolean | null = null;
 	private interruptedPreambleIds = new Set<string>();
 	private wireStartedAt = 0;
 	private openingOpenedAt: number | null = null;
 	private unmuteDelayMs: number | null = null;
+	private lastAssistantCaptionId: string | null = null;
+	private assistantCaptionFirstSeenAt = 0;
 	private firstUserCaptionPrefix: string | null = null;
 	private noiseDroppedCount = 0;
 	private restartSuppressedCount = 0;
+	private recoveryAwaitingTurn = false;
+	private recoveryIgnoredCaptionId: string | null = null;
 	private readonly onOffline = () => {
 		this.scheduleConnectionFailure("networkOffline", 1_500);
 	};
@@ -177,6 +185,7 @@ export class VoiceDefenseClient {
 		this.openingLanguage = options?.language ?? "zh-CN";
 		this.openingTriggerSent = false;
 		this.clearOpeningTriggerTimer();
+		this.resetRecoveryTurn();
 		this.assistantTurnSeen = false;
 		this.openingAssistantCaption = null;
 		this.openingCaptionShown = false;
@@ -185,6 +194,7 @@ export class VoiceDefenseClient {
 		this.suppressedAssistantMessageIds.clear();
 		this.clearInitialAssistantTimer();
 		this.resetWireSession();
+		this.captionStream.reset();
 		this.internalCaptionMessageIds.clear();
 		this.internalCaptionTexts = [];
 		this.events.onStatus("connecting");
@@ -192,6 +202,7 @@ export class VoiceDefenseClient {
 			if (!navigator.mediaDevices?.getUserMedia) {
 				throw new VoiceDefenseError("microphoneUnavailable");
 			}
+			trackViva("session_start_requested", { step: "config" });
 			const config = await getVoiceConfig();
 			this.assertActive();
 			let localStream: MediaStream;
@@ -200,6 +211,7 @@ export class VoiceDefenseClient {
 				// the committee's own playback re-enters the microphone, upstream
 				// treats it as the user speaking, and the conversation "jumps" to a
 				// context nobody asked for.
+				trackViva("session_start_requested", { step: "mic" });
 				localStream = await navigator.mediaDevices.getUserMedia({
 					audio: {
 						echoCancellation: true,
@@ -287,6 +299,7 @@ export class VoiceDefenseClient {
 			await waitForIceGathering(peer);
 			const offerSdp = peer.localDescription?.sdp;
 			if (!offerSdp) throw new Error("Voice WebRTC offer is empty");
+			trackViva("session_start_requested", { step: "session" });
 			const session = await createVoiceSession({
 				offerSdp,
 				voice: config.defaults?.voice || "cove",
@@ -323,7 +336,7 @@ export class VoiceDefenseClient {
 				textLen: bootstrap.length,
 			});
 			// Recovery watchdog only. Elapsed time never opens the playback gate:
-			// it interrupts a noncanonical turn and requests the exact opening.
+			// it interrupts a turn that still is not an acceptable opening.
 			this.initialAssistantTimer = window.setTimeout(() => {
 				this.initialAssistantTimer = null;
 				this.handleOpeningTimeout();
@@ -392,9 +405,11 @@ export class VoiceDefenseClient {
 		this.localStream = null;
 		this.remoteStream = null;
 		this.streamingCaption = null;
+		this.captionStream.reset();
 		this.opening = createVoiceOpeningState();
 		this.openingTriggerSent = false;
 		this.clearOpeningTriggerTimer();
+		this.resetRecoveryTurn();
 		this.assistantTurnSeen = false;
 		this.openingAssistantCaption = null;
 		this.openingCaptionShown = false;
@@ -404,6 +419,7 @@ export class VoiceDefenseClient {
 		this.heardSubstantialUserAnswer = false;
 		this.microphoneSettled = false;
 		this.committeePlaybackEnabled = false;
+		this.lastPlaybackNotification = null;
 		this.interruptedPreambleIds.clear();
 		this.internalCaptionMessageIds.clear();
 		this.internalCaptionTexts = [];
@@ -437,16 +453,60 @@ export class VoiceDefenseClient {
 			this.events.onStatus("listening");
 		if (state === "speaking" || state === "responding")
 			this.events.onStatus("speaking");
-		const caption = applyVoiceCaptionDelta(this.streamingCaption, raw);
+		const caption = this.captionStream.apply(raw, {
+			voiceState: state ?? this.opening.voiceState,
+			// While the local mic is closed, a user-looking caption is almost
+			// certainly echo/ambient ASR. Keep id-less assistant patches attached
+			// to the committee stream even if a noisy user slot arrived first.
+			preferAssistant: !this.microphoneEnabled(),
+		});
 		this.trackProtocolRecognition(
 			state !== null || (caption !== null && caption !== this.streamingCaption),
 		);
 		if (caption && caption !== this.streamingCaption) {
+			if (
+				caption.role === "assistant" &&
+				caption.id !== this.lastAssistantCaptionId
+			) {
+				this.lastAssistantCaptionId = caption.id;
+				this.assistantCaptionFirstSeenAt = performance.now();
+			}
 			this.streamingCaption = caption;
 			const visible = visibleVoiceCaption(caption, {
 				messageIds: this.internalCaptionMessageIds,
 				texts: this.internalCaptionTexts,
+				suppressFragments: !this.heardSubstantialUserAnswer,
 			});
+			if (
+				visible?.role === "assistant" &&
+				this.openingTriggerSent &&
+				!this.opening.heardOpening &&
+				!isAcceptableDefenseAnnouncementCaption(visible.text)
+			) {
+				this.logWire({
+					dir: "in",
+					kind: "caption",
+					captionId: visible.id,
+					role: "assistant",
+					text: visible.text,
+					drop: "preamble",
+				});
+				return;
+			}
+			if (
+				visible?.role === "assistant" &&
+				this.isRecoveredPreamble(visible.id)
+			) {
+				this.logWire({
+					dir: "in",
+					kind: "caption",
+					captionId: visible.id,
+					role: "assistant",
+					text: visible.text,
+					drop: "preamble",
+				});
+				return;
+			}
 			if (this.opening.phase === "awaiting") {
 				// Drop every user caption until the first real question has
 				// finished. Bootstrap acknowledgments are not that question.
@@ -475,6 +535,7 @@ export class VoiceDefenseClient {
 				if (visible?.role === "assistant" && visible.text) {
 					this.assistantTurnSeen = true;
 					this.openingAssistantCaption = visible;
+					this.maybeEnableRecoveryPlaybackFromCaption(visible);
 					this.applyOpening(
 						reduceVoiceOpening(this.opening, {
 							type: "assistant-text",
@@ -575,6 +636,7 @@ export class VoiceDefenseClient {
 				this.emitCaption(visible);
 				return;
 			}
+			this.maybeEnableRecoveryPlaybackFromCaption(visible);
 			const finalCaption = this.assistantCaptionForStage(visible);
 			if (finalCaption?.text) {
 				const playable = this.captionForPlayback(finalCaption);
@@ -605,40 +667,82 @@ export class VoiceDefenseClient {
 	 * Duplicate-opening guard. The model sometimes answers the injected
 	 * bootstrap twice: a rambling hybrid first, then a second message that
 	 * re-announces the defense with a fresh question. Once an opening exists,
-	 * any later message that re-announces gets its audio interrupted and its
+	 * a later message that re-announces gets its audio interrupted and its
 	 * caption suppressed from the stage and the transcript.
+	 *
+	 * Only a *confirmed* restart (the full announcement phrase, or an explicit
+	 * first-question reask before any real answer) is ever interrupted.
+	 * Suspect prefixes ("嗯", a growing "嗯…答辩") are just as likely to open
+	 * a normal follow-up, and interrupting them makes the model restart the
+	 * defense itself — the exact failure this guard exists to prevent. A
+	 * confirmed re-announcement still leaks at most its first syllable or two
+	 * before the interrupt lands.
 	 */
 	private assistantCaptionForStage(visible: VoiceCaption): VoiceCaption | null {
 		if (this.suppressedAssistantMessageIds.has(visible.id)) return null;
+		if (this.isRecoveredPreamble(visible.id)) return null;
+		if (
+			this.openingTriggerSent &&
+			isAcceptableDefenseAnnouncementCaption(visible.text)
+		) {
+			if (this.openingAnnouncementId === null) {
+				this.openingAnnouncementId = visible.id;
+			}
+			this.enableCommitteePlayback("recovery-turn");
+			return visible;
+		}
 		if (
 			this.openingAnnouncementId !== null &&
 			visible.id !== this.openingAnnouncementId &&
-			(isDefenseRestartCaption(visible.text) ||
-				(!this.heardSubstantialUserAnswer &&
-					isFirstQuestionReaskCaption(visible.text)))
+			!(this.openingTriggerSent && !this.opening.heardOpening)
 		) {
-			this.suppressedAssistantMessageIds.add(visible.id);
-			this.restartSuppressedCount += 1;
-			logger.warn(
-				"[viva] duplicate defense-opening announcement suppressed; interrupting committee audio",
-			);
-			this.interrupt();
-			this.retractCaption(visible.id);
-			return null;
+			// A re-announcement is never legitimate, even after the user has
+			// answered; restating the first question can be a legitimate
+			// follow-up once the discussion is underway, so it is only
+			// suppressed before a real answer exists.
+			const confirmed =
+				isDefenseRestartCaption(visible.text) ||
+				(!this.heardSubstantialUserAnswer &&
+					isFirstQuestionReaskCaption(visible.text));
+			if (confirmed) {
+				this.suppressedAssistantMessageIds.add(visible.id);
+				this.restartSuppressedCount += 1;
+				this.disableCommitteePlayback("restart");
+				this.interrupt();
+				logger.warn(
+					"[viva] duplicate defense-opening announcement suppressed; interrupting committee audio",
+				);
+				this.retractCaption(visible.id);
+				return null;
+			}
 		}
 		if (
 			this.openingAnnouncementId === null &&
-			isCanonicalDefenseAnnouncementCaption(visible.text)
+			isAcceptableDefenseOpeningCaption(visible.text)
 		) {
 			this.openingAnnouncementId = visible.id;
 			this.enableCommitteePlayback("announcement");
+		}
+		if (visible.id === this.openingAnnouncementId) {
+			this.noteOpeningCaptionGrowth();
+		}
+		if (this.opening.phase === "open" && !this.committeePlaybackEnabled) {
+			// Playback is only ever disabled after a suppressed restart; the
+			// committee's next live turn must be audible again.
+			this.enableCommitteePlayback("follow-up");
 		}
 		return visible;
 	}
 
 	private emitCaption(caption: VoiceCaption): void {
 		this.emittedCaptionIds.add(caption.id);
-		this.events.onCaption(caption);
+		this.events.onCaption(
+			caption.role === "assistant" &&
+				caption.id === this.lastAssistantCaptionId &&
+				this.assistantCaptionFirstSeenAt > 0
+				? { ...caption, firstDeltaAt: this.assistantCaptionFirstSeenAt }
+				: caption,
+		);
 	}
 
 	private retractCaption(id: string): void {
@@ -648,9 +752,9 @@ export class VoiceDefenseClient {
 	}
 
 	/**
-	 * Recovery path for an unexpected acknowledgment-only first turn. The
-	 * bootstrap normally asks the committee to open directly; when it ignores
-	 * that rule, wait for the filler caption to settle before asking it to begin.
+	 * Recovery path for a pure acknowledgment. An acceptable opening (答辩开始
+	 * or 第一个问题) must not be interrupted or asked a second time. Wait until
+	 * the same caption id stops growing before sending the trigger.
 	 */
 	private scheduleOpeningTrigger(): void {
 		this.clearOpeningTriggerTimer();
@@ -659,7 +763,7 @@ export class VoiceDefenseClient {
 		if (this.openingTriggerSent || !this.assistantTurnSeen) return;
 		if (
 			!this.openingAssistantCaption?.text ||
-			isCanonicalDefenseAnnouncementCaption(this.openingAssistantCaption.text)
+			isAcceptableDefenseOpeningCaption(this.openingAssistantCaption.text)
 		)
 			return;
 		if (
@@ -680,7 +784,7 @@ export class VoiceDefenseClient {
 		if (this.openingTriggerSent || !this.assistantTurnSeen) return;
 		if (
 			!this.openingAssistantCaption?.text ||
-			isCanonicalDefenseAnnouncementCaption(this.openingAssistantCaption.text)
+			isAcceptableDefenseOpeningCaption(this.openingAssistantCaption.text)
 		)
 			return;
 		if (
@@ -689,6 +793,7 @@ export class VoiceDefenseClient {
 		)
 			return;
 		if (this.channel?.readyState !== "open") return;
+		this.interrupt();
 		this.dispatchOpeningTrigger();
 	}
 
@@ -697,6 +802,8 @@ export class VoiceDefenseClient {
 		if (this.opening.heardOpening || this.openingTriggerSent) return;
 		if (this.channel?.readyState !== "open") return;
 		this.openingTriggerSent = true;
+		this.recoveryAwaitingTurn = true;
+		this.recoveryIgnoredCaptionId = this.openingAssistantCaption?.id ?? null;
 		const trigger = buildDefenseOpeningTrigger(this.openingLanguage);
 		const messageId = crypto.randomUUID();
 		this.internalCaptionMessageIds.add(messageId);
@@ -713,7 +820,7 @@ export class VoiceDefenseClient {
 			text: trigger,
 		});
 		logger.info(
-			"[viva] canonical opening recovery trigger dispatched after noncanonical response",
+			"[viva] opening recovery trigger dispatched after a settled acknowledgment",
 		);
 		this.clearInitialAssistantTimer();
 		this.initialAssistantTimer = window.setTimeout(() => {
@@ -730,9 +837,14 @@ export class VoiceDefenseClient {
 		}
 		if (this.openingTriggerSent) {
 			logger.warn(
-				"[viva] canonical opening not received after recovery trigger",
+				"[viva] acceptable opening not received after recovery trigger",
 			);
 			this.fail(new VoiceDefenseError("openingTimeout"));
+			return;
+		}
+		const current = this.openingAssistantCaption?.text ?? "";
+		if (isGrowingDefenseAnnouncementCaption(current)) {
+			this.scheduleOpeningTrigger();
 			return;
 		}
 		// Voice state is not trustworthy enough to prove that the old response
@@ -771,11 +883,43 @@ export class VoiceDefenseClient {
 		}
 	}
 
-	private enableCommitteePlayback(reason: "announcement" | "gate"): void {
+	private resetRecoveryTurn(): void {
+		this.recoveryAwaitingTurn = false;
+		this.recoveryIgnoredCaptionId = null;
+	}
+
+	private isRecoveredPreamble(captionId: string): boolean {
+		return (
+			this.recoveryIgnoredCaptionId !== null &&
+			captionId === this.recoveryIgnoredCaptionId
+		);
+	}
+
+	private maybeEnableRecoveryPlaybackFromCaption(caption: VoiceCaption): void {
+		if (!this.recoveryAwaitingTurn || this.committeePlaybackEnabled) return;
+		if (this.isRecoveredPreamble(caption.id)) return;
+		if (!isAcceptableDefenseAnnouncementCaption(caption.text)) return;
+		this.enableCommitteePlayback("recovery-turn");
+		this.recoveryAwaitingTurn = false;
+	}
+
+	private enableCommitteePlayback(
+		reason: "announcement" | "gate" | "recovery-turn" | "follow-up",
+	): void {
 		if (this.committeePlaybackEnabled) return;
 		this.committeePlaybackEnabled = true;
 		this.applyRemotePlaybackState();
 		logger.info(`[viva] wire committee playback enabled reason=${reason}`);
+	}
+
+	private disableCommitteePlayback(reason: "restart"): void {
+		if (!this.committeePlaybackEnabled) {
+			this.applyRemotePlaybackState();
+			return;
+		}
+		this.committeePlaybackEnabled = false;
+		this.applyRemotePlaybackState();
+		logger.info(`[viva] wire committee playback held reason=${reason}`);
 	}
 
 	private captionForPlayback(caption: VoiceCaption): VoiceCaption | null {
@@ -787,47 +931,41 @@ export class VoiceDefenseClient {
 	}
 
 	private applyRemotePlaybackState(): void {
-		const enabled =
-			this.committeePlaybackEnabled || this.opening.phase === "open";
+		const enabled = this.committeePlaybackEnabled;
 		for (const track of this.remoteStream?.getAudioTracks() ?? []) {
 			track.enabled = enabled;
 		}
+		if (this.lastPlaybackNotification === enabled) return;
+		this.lastPlaybackNotification = enabled;
 		this.events.onCommitteePlayback?.(enabled);
 	}
 
 	private stageAssistantCaptionDuringOpening(
 		caption: VoiceCaption,
 	): VoiceCaption | null {
-		const canonical = visibleAssistantCaptionDuringOpening(caption);
-		if (canonical) return canonical;
-		if (
-			this.committeePlaybackEnabled &&
-			!isOpeningFillerCaption(caption.text)
-		) {
+		// Once the user can hear the committee, hiding the caption is
+		// "sound without subtitles". Filler/preamble filters only apply
+		// while playback is still muted.
+		if (this.committeePlaybackEnabled || this.opening.phase === "open") {
 			return caption;
 		}
-		return null;
+		return visibleAssistantCaptionDuringOpening(caption);
 	}
 
 	private maybeInterruptPreamble(caption: VoiceCaption): void {
 		if (this.opening.phase !== "awaiting") return;
 		if (this.committeePlaybackEnabled || this.openingTriggerSent) return;
-		if (isCanonicalDefenseAnnouncementCaption(caption.text)) return;
-		const paraphrased = isDefenseAnnouncementCaption(caption.text);
-		if (!paraphrased && !isDefenseOpeningCaption(caption.text)) return;
+		if (isAcceptableDefenseOpeningCaption(caption.text)) return;
+		if (!isDefenseOpeningCaption(caption.text)) return;
 		const compact = caption.text
 			.replace(/\s+/g, "")
 			.replace(/[，。,.!！？?:：；;]/g, "")
 			.trim();
-		if (paraphrased) {
-			if (compact.length < 6) return;
-		} else if (compact.length < 16) {
-			return;
-		}
+		if (compact.length < 16) return;
 		if (this.interruptedPreambleIds.has(caption.id)) return;
 		this.interruptedPreambleIds.add(caption.id);
 		logger.info(
-			"[viva] wire preamble without canonical announcement muted and interrupted",
+			"[viva] wire preamble without announcement or first question muted and interrupted",
 		);
 		this.interrupt();
 	}
@@ -860,6 +998,11 @@ export class VoiceDefenseClient {
 		this.openingTriggerTimer = null;
 	}
 
+	private noteOpeningCaptionGrowth(): void {
+		if (this.opening.phase !== "open" || this.microphoneSettled) return;
+		this.scheduleMicrophoneOpen();
+	}
+
 	private scheduleMicrophoneOpen(): void {
 		this.clearMicrophoneOpenTimer();
 		this.microphoneSettled = false;
@@ -890,10 +1033,14 @@ export class VoiceDefenseClient {
 		this.heardSubstantialUserAnswer = false;
 		this.microphoneSettled = false;
 		this.committeePlaybackEnabled = false;
+		this.lastPlaybackNotification = null;
+		this.resetRecoveryTurn();
 		this.interruptedPreambleIds.clear();
 		this.wireStartedAt = performance.now();
 		this.openingOpenedAt = null;
 		this.unmuteDelayMs = null;
+		this.lastAssistantCaptionId = null;
+		this.assistantCaptionFirstSeenAt = 0;
 		this.firstUserCaptionPrefix = null;
 		this.noiseDroppedCount = 0;
 		this.restartSuppressedCount = 0;

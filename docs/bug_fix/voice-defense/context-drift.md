@@ -17,10 +17,12 @@
 - **bootstrap 三明治结构**（`protocol.ts`）：角色 → 材料 → 会话规则。规则移到材料之后的 recency 窗口内，并新增两条针对性约束：只围绕材料提问、不切换场景；听到噪声或含糊片段时要求用户重复，而不是自行猜测展开新话题；
 - **显式音频约束**（`client.ts`）：`echoCancellation` / `noiseSuppression` / `autoGainControl` 全部显式开启；
 - **字幕流保护**（`protocol.ts`）：不同消息的空文本首帧不再抢占当前流式槽，同一消息的空刷新帧保留已累计文本；带实际文本的帧照常接管。
+- **交错 patch 防护**（`protocol.ts`）：`VoiceCaptionStream` 为委员和答辩人分别维护活动流；延迟的无 ID patch 会结合语音状态/麦克风门控选目标，带未知明确 ID 的 patch 直接丢弃，连续重放的 append 不会再次落字。
+- **乱序快照防回退**（`protocol.ts`）：同一消息的完整字幕快照不会用较短旧帧覆盖已经收到的文本，避免字幕长度非单调地抖动或重复。
 
 ## 回归
 
-- `test/voice-defense-protocol.test.ts` 新增交错空帧测试（append 仍落在原字幕、有文本的用户帧正常接管），bootstrap 断言改为验证三明治顺序与新规则文案；
+- `test/voice-defense-protocol.test.ts` 新增交错空帧、延迟 patch、显式 ID、乱序快照和重放 append 测试，bootstrap 断言改为验证三明治顺序与新规则文案；
 - 前端全量测试与 TypeScript 类型检查通过。
 
 ## 边界

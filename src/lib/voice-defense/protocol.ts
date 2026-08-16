@@ -4,6 +4,25 @@ export type VoiceCaption = {
 	id: string;
 	role: VoiceCaptionRole;
 	text: string;
+	/**
+	 * `performance.now()` when the first delta of this assistant caption
+	 * reached the DataChannel. The gate may hold emission for seconds while
+	 * the audio keeps playing; without this anchor the stage pacer would
+	 * reveal the caption from its first glyph and lag the voice for the
+	 * rest of the turn.
+	 */
+	firstDeltaAt?: number;
+};
+
+export type ParsedVoiceCaptionDelta =
+	| { kind: "message"; caption: VoiceCaption }
+	| { kind: "append"; text: string; messageId: string | null };
+
+export type VoiceCaptionStreamHint = {
+	/** Current upstream turn state, used when an append patch has no id. */
+	voiceState?: string | null;
+	/** Prefer the assistant while its audio is still being played/muted. */
+	preferAssistant?: boolean;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -78,6 +97,8 @@ export function visibleVoiceCaption(
 	internal: {
 		messageIds: ReadonlySet<string>;
 		texts: readonly string[];
+		/** Hide plausible material echoes before the user has answered. */
+		suppressFragments?: boolean;
 	},
 ): VoiceCaption | null {
 	if (caption?.role !== "user") return caption;
@@ -90,7 +111,17 @@ export function visibleVoiceCaption(
 			expected === text || (text.length >= 32 && expected.startsWith(text))
 		);
 	});
-	return matchesInternalText ? null : caption;
+	if (matchesInternalText) return null;
+	if (internal.suppressFragments === false) return caption;
+	const compactText = text.toLocaleLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "");
+	if (compactText.length < 10) return caption;
+	const embeddedInInternalText = internal.texts.some((value) =>
+		value
+			.toLocaleLowerCase()
+			.replace(/[\s\p{P}\p{S}]+/gu, "")
+			.includes(compactText),
+	);
+	return embeddedInInternalText ? null : caption;
 }
 
 /** Insert, replace, or retract a streaming caption in the on-stage list. */
@@ -118,9 +149,10 @@ export function upsertVoiceCaption(
  * that acknowledgment; upstream ASR then turns noise into a fake answer and
  * the committee restarts the defense.
  *
- * The gate stays closed until the assistant caption starts with the canonical
- * announcement and the assistant has returned to listening/idle. Filler and
- * noncanonical turns are hidden from the stage and the transcript.
+ * The gate stays closed until an acceptable opening is heard — an
+ * announcement or a first question, after stripping ASR junk and a short
+ * leading filler — and the assistant has returned to listening/idle. Pure
+ * acknowledgments stay off-stage. Elapsed time never opens the gate.
  */
 export type VoiceOpeningPhase = "awaiting" | "open";
 
@@ -157,6 +189,37 @@ const DEFENSE_ANNOUNCEMENT =
 	/答辩(?:现在|正式)?(?:重新)?开始|现在开始答辩|我们(?:现在|重新)?开始答辩|(?:the )?defense (?:begins|starts)|(?:begin|start) the defense/i;
 const CANONICAL_ANNOUNCEMENT_ZH = /^答辩现在开始/;
 const CANONICAL_ANNOUNCEMENT_EN = /^the defense begins now\b/i;
+const ACCEPTABLE_ANNOUNCEMENT_ZH =
+	/^答辩(?:现在|正式)?(?:重新)?开始|^现在开始答辩|^我们(?:现在|重新)?开始答辩/u;
+const ACCEPTABLE_ANNOUNCEMENT_EN =
+	/^(?:the )?defense (?:begins|starts)\b|^(?:begin|start) the defense\b/i;
+/** Leading ack limited to the first ~8 compact characters. */
+const LEADING_OPENING_FILLER =
+	/^(?:好的?|嗯+|哦+|啊+|明白了|了解了|Understood|Okay|Ok|Um+|Uh+|Hmm+|Alright|Got it|Sure)\s*[,，.。…、]*\s*/iu;
+const GROWING_ANNOUNCEMENT_ZH = [
+	"答辩现在开始",
+	"答辩正式开始",
+	"答辩重新开始",
+	"答辩开始",
+	"现在开始答辩",
+	"我们现在开始答辩",
+	"我们重新开始答辩",
+	"我们开始答辩",
+] as const;
+
+function stripCaptionReplacementChars(text: string): string {
+	return text.replace(/\uFFFD/g, "");
+}
+
+function peelLeadingOpeningFiller(text: string): string {
+	const cleaned = stripCaptionReplacementChars(text)
+		.replace(/\s+/g, " ")
+		.trim();
+	const match = LEADING_OPENING_FILLER.exec(cleaned);
+	if (!match) return cleaned;
+	if (match[0].replace(/\s+/g, "").length > 8) return cleaned;
+	return cleaned.slice(match[0].length).trim();
+}
 
 function canonicalAnnouncementBodies(text: string): {
 	compact: string;
@@ -194,9 +257,9 @@ export function isDefenseAnnouncementCaption(text: string): boolean {
 }
 
 /**
- * The spoken first sentence we actually want. Broader paraphrases
- * ("答辩开始", "好的，我们开始答辩") still count as *an* announcement for
- * restart suppression, but they are not the opening the user should hear.
+ * Exact first-sentence form requested by the recovery trigger. Broader
+ * paraphrases still count as an acceptable opening for the gate; this
+ * helper only documents the bootstrap example.
  */
 export function isCanonicalDefenseAnnouncementCaption(text: string): boolean {
 	const { compact, spaced } = canonicalAnnouncementBodies(text);
@@ -204,6 +267,71 @@ export function isCanonicalDefenseAnnouncementCaption(text: string): boolean {
 		CANONICAL_ANNOUNCEMENT_ZH.test(compact) ||
 		CANONICAL_ANNOUNCEMENT_EN.test(spaced)
 	);
+}
+
+/**
+ * Opening the user should hear once: an announcement (「答辩开始」 with or
+ * without 「现在」, after peeling a short 好的/嗯 prefix) or a first
+ * question. Does not accept a long preamble that never announces and never
+ * says 「第一个问题」.
+ */
+export function isAcceptableDefenseOpeningCaption(text: string): boolean {
+	const cleaned = stripCaptionReplacementChars(text)
+		.replace(/\s+/g, " ")
+		.trim();
+	if (cleaned.length < 4) return false;
+	const peeled = peelLeadingOpeningFiller(cleaned);
+	const compact = peeled.replace(/\s+/g, "");
+	if (compact.length < 4) return false;
+	if (isAcceptableDefenseAnnouncementCaption(text)) return true;
+	if (compact.length < 8) return false;
+	return matchNearStart(peeled, OPENING_QUESTION_MARK);
+}
+
+/**
+ * Recovery asked for 「答辩现在开始」. A late "第一个问题" from the previous
+ * turn must not lock the announcement or the requested opening is dropped
+ * as a restart.
+ */
+export function isAcceptableDefenseAnnouncementCaption(text: string): boolean {
+	const cleaned = stripCaptionReplacementChars(text)
+		.replace(/\s+/g, " ")
+		.trim();
+	if (cleaned.length < 4) return false;
+	const peeled = peelLeadingOpeningFiller(cleaned);
+	const compact = peeled.replace(/\s+/g, "");
+	if (compact.length < 4) return false;
+	return (
+		ACCEPTABLE_ANNOUNCEMENT_ZH.test(compact) ||
+		ACCEPTABLE_ANNOUNCEMENT_EN.test(peeled)
+	);
+}
+
+/**
+ * Caption has started the announcement body but has not finished the
+ * keyword yet (「嗯。答辩」 → 「嗯。答辩现在开始」). The 20s watchdog
+ * must not recover in the middle of that growth.
+ */
+export function isGrowingDefenseAnnouncementCaption(text: string): boolean {
+	if (isAcceptableDefenseAnnouncementCaption(text)) return false;
+	const cleaned = stripCaptionReplacementChars(text)
+		.replace(/\s+/g, " ")
+		.trim();
+	if (!cleaned) return false;
+	const peeled = peelLeadingOpeningFiller(cleaned);
+	const compact = peeled.replace(/\s+/g, "");
+	if (compact.length < 1) return false;
+	return GROWING_ANNOUNCEMENT_ZH.some(
+		(target) => target.startsWith(compact) && compact.length < target.length,
+	);
+}
+
+/** Short ack with no question — stay muted; may recover after it settles. */
+export function isPureOpeningAckCaption(text: string): boolean {
+	if (isAcceptableDefenseOpeningCaption(text)) return false;
+	if (/[？?]/.test(text) || OPENING_QUESTION_MARK.test(text)) return false;
+	if (/请你说明/.test(text)) return false;
+	return isOpeningFillerCaption(text);
 }
 
 export function isDefenseOpeningCaption(text: string): boolean {
@@ -229,10 +357,10 @@ export function visibleAssistantCaptionDuringOpening(
 	if (caption.role !== "assistant") return caption;
 	const text = caption.text.trim();
 	if (!text) return null;
-	// Before the gate opens, only the canonical first sentence reaches the
-	// stage. Paraphrases and question-shaped preambles stay off-stage so the
-	// recovery turn can start with "答辩现在开始".
-	return isCanonicalDefenseAnnouncementCaption(text) ? caption : null;
+	// Before the gate opens, only an acceptable opening reaches the stage.
+	// Pure acks and question-shaped preambles without 答辩开始 / 第一个问题
+	// stay off-stage.
+	return isAcceptableDefenseOpeningCaption(text) ? caption : null;
 }
 
 /**
@@ -261,15 +389,18 @@ export function isFirstQuestionReaskCaption(text: string): boolean {
 }
 
 const NOISE_FILLER_TOKEN =
-	/^(you|so|mm+|uh+|um+|ah+|oh+|tsk+|hmm+|huh+|yeah|yep|ok|okay|like|well|er+|eh+|a|the|and)$/i;
+	/^(you|so|mm+|uh+|um+|ah+|oh+|tsk+|hmm+|huh+|yeah|yep|ok|okay|like|well|er+|eh+|a|the|and|what|fuck|shit|damn|no|nah|hey|hi|hello|bye|yes|sure|right|wow|whoa|ooh+|hah+|mhm+|nope|hm+|ha+|oh?k)$/i;
 const CJK_CHAR = /[\u4e00-\u9fff]/;
-const CJK_FILLER_ONLY = /^(嗯+|啊+|哦+|呃+|哈+|唔+|嘿+|唉+|呵+)$/u;
+const CJK_FILLER_ONLY =
+	/^(嗯+|啊+|哦+|呃+|哈+|唔+|嘿+|唉+|呵+|好|对|是|行|嗯嗯|哦哦|啊啊)$/u;
 
 /**
  * Upstream ASR of mouth clicks, echo tails, or ambient noise. Used after the
  * opening gate is open, until the user has given a real answer — hiding these
  * from the stage does not unsay the audio, but it keeps the transcript clean
- * and lets the first-question reask guard stay armed.
+ * and lets the first-question reask guard stay armed. Short captions
+ * (<=8 Latin chars, <=5 CJK chars) are also treated as noise — echo from the
+ * committee speaker often produces short nonsensical fragments.
  */
 export function isNoiseUserCaption(text: string): boolean {
 	if (/\uFFFD/.test(text)) return true;
@@ -281,15 +412,18 @@ export function isNoiseUserCaption(text: string): boolean {
 	if (tokens.length === 0) return true;
 	if (CJK_CHAR.test(trimmed)) {
 		const compact = tokens.join("");
-		return CJK_FILLER_ONLY.test(compact) && compact.length <= 4;
+		if (CJK_FILLER_ONLY.test(compact)) return true;
+		return compact.length <= 5;
 	}
-	return tokens.every((token) => NOISE_FILLER_TOKEN.test(token));
+	if (tokens.every((token) => NOISE_FILLER_TOKEN.test(token))) return true;
+	return trimmed.length <= 8;
 }
 
 export function isSubstantialUserCaption(text: string): boolean {
 	const trimmed = text.replace(/\s+/g, " ").trim();
 	if (!trimmed) return false;
-	return !isNoiseUserCaption(trimmed);
+	if (isNoiseUserCaption(trimmed)) return false;
+	return trimmed.length > 8;
 }
 
 /**
@@ -309,7 +443,7 @@ export function reduceVoiceOpening(
 	if (state.phase === "open") return state;
 	let next = state;
 	if (event.type === "assistant-text") {
-		if (isCanonicalDefenseAnnouncementCaption(event.text)) {
+		if (isAcceptableDefenseOpeningCaption(event.text)) {
 			next = { ...state, heardOpening: true };
 		}
 	} else if (event.type === "voice-state") {
@@ -620,58 +754,71 @@ function roleFromMessage(
 }
 
 function textFromParts(parts: unknown[]): string {
-	return (
-		parts
-			.map((part) => {
-				if (typeof part === "string") return part;
-				if (!isObject(part)) return "";
-				return (
-					stringAt(part, "text") ||
-					stringAt(part, "content") ||
-					stringAt(part, "transcript")
-				);
-			})
-			.filter(Boolean)
-			.join("\n")
-			// Upstream ASR sometimes emits U+FFFD for undecodable audio.
-			.replace(/\uFFFD/g, "")
-			.trim()
-	);
+	const joined = parts
+		.map((part) => {
+			if (typeof part === "string") return part;
+			if (!isObject(part)) return "";
+			return (
+				stringAt(part, "text") ||
+				stringAt(part, "content") ||
+				stringAt(part, "transcript")
+			);
+		})
+		.filter(Boolean)
+		.join("\n");
+	return stripCaptionReplacementChars(joined).trim();
 }
 
-/** Apply one `chat_message_delta` to the previous streaming caption. */
-export function applyVoiceCaptionDelta(
-	previous: VoiceCaption | null,
+function firstStringAt(value: unknown, keys: readonly string[]): string | null {
+	if (!isObject(value)) return null;
+	for (const key of keys) {
+		const candidate = value[key];
+		if (typeof candidate === "string" && candidate.trim()) return candidate;
+	}
+	return null;
+}
+
+/**
+ * Some upstream revisions include the target message id on a patch, while
+ * older ones only send `/message/content/...` operations. Keep the optional
+ * id when it is available without making the parser depend on one revision.
+ */
+function messageIdFromDelta(value: unknown): string | null {
+	if (!isObject(value)) return null;
+	const direct = firstStringAt(value, ["message_id", "messageId"]);
+	if (direct) return direct;
+	const message = objectAt(value, "message");
+	return firstStringAt(message, ["id", "message_id", "messageId"]);
+}
+
+/** Parse one caption-bearing event without selecting an append target. */
+export function parseVoiceCaptionDelta(
 	raw: unknown,
-): VoiceCaption | null {
+): ParsedVoiceCaptionDelta | null {
 	const unwrapped = unwrapVoiceMessage(raw);
-	if (!unwrapped) return previous;
+	if (!unwrapped) return null;
 	const payload = objectAt(unwrapped, "payload");
 	const event = payload?.type === "chat_message_delta" ? payload : unwrapped;
-	if (event.type !== "chat_message_delta") return previous;
+	if (event.type !== "chat_message_delta") return null;
 	const delta =
 		objectAt(event, "delta") ?? objectAt(objectAt(event, "payload"), "delta");
-	if (!delta) return previous;
+	if (!delta) return null;
 	const value = delta.v;
 	const message = isObject(value) ? objectAt(value, "message") : null;
 	if (message) {
 		const content = objectAt(message, "content");
 		const parts = Array.isArray(content?.parts) ? content.parts : [];
 		const role = roleFromMessage(message, parts);
-		if (!role) return previous;
-		const id = stringAt(message, "id") || previous?.id || crypto.randomUUID();
-		const text = textFromParts(parts);
-		// Interleaved streams: an empty first frame for a *different* message
-		// (e.g. a user transcription slot opening mid-answer) must not steal the
-		// append target — later append patches would land on the wrong caption
-		// and captions would visibly jump between speakers.
-		if (!text && previous && previous.id !== id) return previous;
-		// An empty refresh frame for the same message keeps accumulated text.
-		if (!text && previous && previous.id === id) return previous;
-		return { id, role, text };
+		if (!role) return null;
+		const id = stringAt(message, "id") || crypto.randomUUID();
+		return {
+			kind: "message",
+			caption: { id, role, text: textFromParts(parts) },
+		};
 	}
-	if (!Array.isArray(value) || !previous) return previous;
+	if (!Array.isArray(value)) return null;
 	let appended = "";
+	let messageId: string | null = messageIdFromDelta(delta);
 	for (const operation of value) {
 		if (!isObject(operation) || operation.o !== "append") continue;
 		if (
@@ -679,6 +826,135 @@ export function applyVoiceCaptionDelta(
 		)
 			continue;
 		appended += typeof operation.v === "string" ? operation.v : "";
+		messageId ??= messageIdFromDelta(operation);
 	}
-	return appended ? { ...previous, text: previous.text + appended } : previous;
+	if (!appended) return null;
+	return {
+		kind: "append",
+		text: stripCaptionReplacementChars(appended),
+		messageId,
+	};
+}
+
+function mergeCaptionText(previous: string, incoming: string): string {
+	if (!previous) return incoming;
+	if (!incoming) return previous;
+	// Full snapshots are not guaranteed to arrive in order. Never let an older
+	// shorter snapshot erase words that were already shown. Same-length
+	// snapshots are allowed to correct ASR, while longer snapshots are the
+	// normal monotonic growth path.
+	return incoming.length >= previous.length ? incoming : previous;
+}
+
+/**
+ * Maintains independent assistant and user streams. ChatGPT's private voice
+ * protocol can interleave a non-empty user ASR frame while an assistant turn
+ * is still emitting; subsequent append patches often carry no message id.
+ * A single `previous` caption cannot recover that association and will append
+ * committee text to the user's line. This small stateful seam keeps both
+ * streams and uses the current voice state only for the id-less patch case.
+ */
+export class VoiceCaptionStream {
+	private readonly captions = new Map<string, VoiceCaption>();
+	private readonly activeByRole = new Map<VoiceCaptionRole, string>();
+	private readonly lastAppendByTarget = new Map<string, string>();
+	private lastTargetId: string | null = null;
+	private lastRole: VoiceCaptionRole | null = null;
+
+	reset(): void {
+		this.captions.clear();
+		this.activeByRole.clear();
+		this.lastAppendByTarget.clear();
+		this.lastTargetId = null;
+		this.lastRole = null;
+	}
+
+	apply(raw: unknown, hint: VoiceCaptionStreamHint = {}): VoiceCaption | null {
+		const parsed = parseVoiceCaptionDelta(raw);
+		if (!parsed) return null;
+		if (parsed.kind === "message") {
+			const incoming = parsed.caption;
+			// Empty message-open frames announce a new slot but carry no text;
+			// leave the previous append target intact until a text frame arrives.
+			if (!incoming.text) return null;
+			const existing = this.captions.get(incoming.id);
+			const caption = existing
+				? { ...incoming, text: mergeCaptionText(existing.text, incoming.text) }
+				: incoming;
+			this.captions.set(caption.id, caption);
+			this.lastAppendByTarget.delete(caption.id);
+			this.activeByRole.set(caption.role, caption.id);
+			this.lastTargetId = caption.id;
+			this.lastRole = caption.role;
+			return caption;
+		}
+
+		const targetId = this.resolveAppendTarget(hint, parsed.messageId);
+		if (!targetId) return null;
+		const previous = this.captions.get(targetId);
+		if (!previous) return null;
+		if (this.lastAppendByTarget.get(targetId) === parsed.text) {
+			// DataChannel retries can replay the same append operation. Returning
+			// the current object keeps the caller from emitting a duplicate glyph.
+			return previous;
+		}
+		const caption = {
+			...previous,
+			text: `${previous.text}${parsed.text}`,
+		};
+		this.captions.set(targetId, caption);
+		this.lastAppendByTarget.set(targetId, parsed.text);
+		this.lastTargetId = targetId;
+		this.lastRole = caption.role;
+		return caption;
+	}
+
+	private resolveAppendTarget(
+		hint: VoiceCaptionStreamHint,
+		explicitId: string | null,
+	): string | null {
+		// An explicit but not-yet-known id is safer to drop than to attach to the
+		// other speaker's active stream. A later full snapshot can recreate it.
+		if (explicitId) return this.captions.has(explicitId) ? explicitId : null;
+		const speaking =
+			hint.voiceState === "speaking" || hint.voiceState === "responding";
+		if (
+			(speaking || hint.preferAssistant) &&
+			this.activeByRole.has("assistant")
+		) {
+			return this.activeByRole.get("assistant") ?? null;
+		}
+		if (this.lastTargetId && this.captions.has(this.lastTargetId)) {
+			return this.lastTargetId;
+		}
+		if (this.lastRole && this.activeByRole.has(this.lastRole)) {
+			return this.activeByRole.get(this.lastRole) ?? null;
+		}
+		return null;
+	}
+}
+
+/** Apply one `chat_message_delta` to the previous streaming caption. */
+export function applyVoiceCaptionDelta(
+	previous: VoiceCaption | null,
+	raw: unknown,
+	options?: { appendTarget?: VoiceCaption | null },
+): VoiceCaption | null {
+	const parsed = parseVoiceCaptionDelta(raw);
+	if (!parsed) return previous;
+	if (parsed.kind === "message") {
+		const { caption } = parsed;
+		if (!caption.text) return previous;
+		if (previous?.id === caption.id) {
+			return {
+				...caption,
+				text: mergeCaptionText(previous.text, caption.text),
+			};
+		}
+		return caption;
+	}
+	const target = options?.appendTarget ?? previous;
+	if (!target) return previous;
+	if (parsed.messageId && parsed.messageId !== target.id) return target;
+	return { ...target, text: `${target.text}${parsed.text}` };
 }
