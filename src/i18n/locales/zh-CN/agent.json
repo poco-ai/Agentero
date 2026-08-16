@@ -76,6 +76,7 @@
 			"saveBriefFailed": "无法确认答辩材料。",
 			"startUnavailable": "答辩材料还在加载，请稍后再试。",
 			"startBlocked": "已有答辩连接正在启动或进行中，请稍候。",
+			"startTimeout": "无法进入答辩间。请检查麦克风权限后重试。",
 			"startScopeChanged": "答辩准备状态已变化，请重新打开答辩间后再入场。",
 			"completeFailed": "无法更新答辩准备记录。",
 			"stillRunning": "请等待答辩准备结束后再入场。",
@@ -122,7 +123,8 @@
 			"windowTitle": "连接 ChatGPT",
 			"connectFailed": "无法连接 ChatGPT。",
 			"disconnectFailed": "无法断开 ChatGPT。",
-			"disconnected": "已断开 ChatGPT。"
+			"disconnected": "已断开 ChatGPT。",
+			"credentialOwnerConflict": "另一份 Agentero 构建占用了这条钥匙串。打开「钥匙串访问」，搜索 com.agentero.desktop.voice，删除 chatgpt-access-token。"
 		},
 		"start": "开始答辩",
 		"mute": "静音",

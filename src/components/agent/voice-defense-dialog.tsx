@@ -70,6 +70,7 @@ export function VoiceDefenseDialog(props: VoiceDefenseDialogProps) {
 					preparationStale={Boolean(viva.preparation?.stale)}
 					selectionChanged={viva.selectionChanged}
 					voiceStarting={viva.voiceStarting}
+					startError={viva.startError}
 					brief={viva.context}
 					onBriefChange={viva.setContext}
 					briefSource={viva.source}
@@ -124,6 +125,7 @@ export function VoiceDefenseDialog(props: VoiceDefenseDialogProps) {
 					phase={viva.phase}
 					connectionStatus={viva.connectionStatus}
 					captions={viva.captions}
+					stageCaptions={viva.stageCaptions}
 					muted={viva.muted}
 					errorText={viva.errorText}
 					title={viva.defenseTitle}

@@ -76,6 +76,7 @@
 			"saveBriefFailed": "Could not confirm defense material.",
 			"startUnavailable": "The defense material is still loading. Try again in a moment.",
 			"startBlocked": "A defense connection is already starting or active. Please wait.",
+			"startTimeout": "Could not reach the viva. Check the microphone permission and try again.",
 			"startScopeChanged": "The defense preparation changed. Reopen the viva before entering.",
 			"completeFailed": "Could not update the preparation record.",
 			"stillRunning": "Wait for defense preparation to finish before entering the viva.",
@@ -122,7 +123,8 @@
 			"windowTitle": "Connect ChatGPT",
 			"connectFailed": "Could not connect ChatGPT.",
 			"disconnectFailed": "Could not disconnect ChatGPT.",
-			"disconnected": "ChatGPT disconnected."
+			"disconnected": "ChatGPT disconnected.",
+			"credentialOwnerConflict": "Another Agentero build owns this Keychain item. Open Keychain Access, search for com.agentero.desktop.voice, and delete chatgpt-access-token."
 		},
 		"start": "Start defense",
 		"mute": "Mute",

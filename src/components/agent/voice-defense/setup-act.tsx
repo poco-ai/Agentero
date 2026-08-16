@@ -323,6 +323,7 @@ export function SetupAct({
 	preparationStale,
 	selectionChanged,
 	voiceStarting,
+	startError,
 	brief,
 	onBriefChange,
 	briefSource,
@@ -377,6 +378,7 @@ export function SetupAct({
 	/** Selected materials no longer match the prepared snapshot. */
 	selectionChanged: boolean;
 	voiceStarting: boolean;
+	startError?: string;
 	brief: string;
 	onBriefChange: (value: string) => void;
 	briefSource: string;
@@ -1027,7 +1029,24 @@ export function SetupAct({
 		</div>
 	);
 
-	/** Centred hero: title + committee rail + one narrative line. */
+	const statusLine = railLine ? (
+		<p
+			className={cn(
+				"flex max-w-md items-start justify-center gap-1.5 text-balance text-center text-sm leading-relaxed",
+				railLine.tone === "amber" && "text-amber-600 dark:text-amber-300/90",
+				railLine.tone === "red" && "text-red-600 dark:text-red-300/90",
+				railLine.tone === "active" && "animate-pulse text-muted-foreground",
+				railLine.tone === "muted" && "text-muted-foreground/70",
+			)}
+		>
+			{railLine.tone === "amber" || railLine.tone === "red" ? (
+				<AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+			) : null}
+			{railLine.text}
+		</p>
+	) : null;
+
+	/** Working hero only: the config landing does not know a paper yet. */
 	const hero = (
 		<div className="flex flex-col items-center gap-6">
 			<h1 className="line-clamp-2 max-w-lg text-balance text-center font-semibold text-xl leading-snug tracking-tight">
@@ -1035,24 +1054,7 @@ export function SetupAct({
 			</h1>
 			<CommitteeRail manifest={preparation} active={preparationActive} />
 			<div className="flex min-h-5 items-center justify-center">
-				{railLine ? (
-					<p
-						className={cn(
-							"flex max-w-md items-start justify-center gap-1.5 text-balance text-center text-sm leading-relaxed",
-							railLine.tone === "amber" &&
-								"text-amber-600 dark:text-amber-300/90",
-							railLine.tone === "red" && "text-red-600 dark:text-red-300/90",
-							railLine.tone === "active" &&
-								"animate-pulse text-muted-foreground",
-							railLine.tone === "muted" && "text-muted-foreground/70",
-						)}
-					>
-						{railLine.tone === "amber" || railLine.tone === "red" ? (
-							<AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-						) : null}
-						{railLine.text}
-					</p>
-				) : null}
+				{statusLine}
 			</div>
 		</div>
 	);
@@ -1255,7 +1257,9 @@ export function SetupAct({
 								{...stageFade}
 								className="my-auto space-y-10 py-10"
 							>
-								{!preparationStale && !selectionChanged ? hero : null}
+								{statusLine ? (
+									<div className="flex justify-center">{statusLine}</div>
+								) : null}
 								{configForm}
 							</motion.div>
 						)}
@@ -1264,7 +1268,15 @@ export function SetupAct({
 			</div>
 
 			{/* In-flow footer: the actions never cover the form. */}
-			<footer className="relative shrink-0 border-border/50 border-t px-6 py-3.5">
+			<footer className="relative z-10 shrink-0 border-border/50 border-t px-6 py-3.5">
+				{startError ? (
+					<p
+						role="alert"
+						className="mx-auto mb-2 max-w-2xl text-center text-destructive text-sm"
+					>
+						{startError}
+					</p>
+				) : null}
 				<div className="mx-auto flex w-full max-w-2xl items-center justify-center gap-2">
 					<Button
 						type="button"

@@ -124,6 +124,7 @@ export function LiveAct({
 	phase,
 	connectionStatus,
 	captions,
+	stageCaptions = captions,
 	muted,
 	errorText,
 	title,
@@ -142,6 +143,8 @@ export function LiveAct({
 	phase: LiveActPhase;
 	connectionStatus: VoiceConnectionStatus;
 	captions: VoiceCaption[];
+	/** Speech-paced view for the on-stage slots. Transcript uses `captions`. */
+	stageCaptions?: VoiceCaption[];
 	muted: boolean;
 	errorText: string;
 	title: string;
@@ -256,16 +259,18 @@ export function LiveAct({
 	const { latestAssistant, latestUser } = useMemo(() => {
 		let assistant: VoiceCaption | null = null;
 		let user: VoiceCaption | null = null;
-		for (let index = captions.length - 1; index >= 0; index -= 1) {
-			const caption = captions[index];
+		for (let index = stageCaptions.length - 1; index >= 0; index -= 1) {
+			const caption = stageCaptions[index];
 			if (caption.role === "assistant" && !assistant) assistant = caption;
 			if (caption.role === "user" && !user) user = caption;
 			if (assistant && user) break;
 		}
 		return { latestAssistant: assistant, latestUser: user };
-	}, [captions]);
+	}, [stageCaptions]);
 	const speakingRole: VoiceCaption["role"] =
-		captions.length > 0 ? captions[captions.length - 1].role : "assistant";
+		stageCaptions.length > 0
+			? stageCaptions[stageCaptions.length - 1].role
+			: "assistant";
 	const mode: StageMode =
 		phase === "connecting"
 			? "connecting"

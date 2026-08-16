@@ -5,7 +5,6 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { isAgentWorkflowActive } from "@/lib/agent";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import { isBackgroundTaskCancelledError } from "@/lib/core/background-tasks";
 import { notifyError, notifySuccess } from "@/lib/core/notify";
@@ -31,6 +30,7 @@ import {
 	canRecoverPreparation,
 	clampPlannedDurationMinutes,
 	clearPreparationRecovery,
+	clearVoiceDefenseSessionLease,
 	closeCurrentVivaWindow,
 	completeDefensePreparation,
 	confirmDefensePreparation,
@@ -43,12 +43,11 @@ import {
 	type DefensePreparationManifest,
 	type DefenseQuestion,
 	type DefenseSessionReview,
+	describeVoiceAuthError,
 	disconnectVoiceAuth,
 	findLatestReusableDefensePreparationForPaper,
 	findReusableDefensePreparation,
 	getVoiceAuthStatus,
-	hasActiveDefensePreparations,
-	hasActivePreparationChildren,
 	isDefenseReviewActive,
 	isVoiceDefenseSessionActive,
 	listDefensePreparations,
@@ -56,7 +55,9 @@ import {
 	loadDefenseArtifact,
 	loadDefensePreparation,
 	nextVoiceSessionStartedAt,
+	planPreparedDefenseEnter,
 	preparationFailureDescription,
+	preparedDefenseEnterPhase,
 	RUNNING_PREPARATION_STATUSES,
 	readPlannedDurationMinutes,
 	readPreparationRecovery,
@@ -66,6 +67,7 @@ import {
 	refreshDefensePreparation,
 	releaseVoiceDefenseSession,
 	resumeDefensePreparation,
+	runPreparedDefenseEnter,
 	shouldHandoffVoiceSession,
 	startDefensePreparation,
 	startDefenseReview,
@@ -76,6 +78,7 @@ import {
 	VOICE_AUTH_CHANGED_EVENT,
 	type VoiceAuthStatus,
 	type VoiceCaption,
+	VoiceCaptionPacer,
 	type VoiceConnectionStatus,
 	VoiceDefenseClient,
 	type VoiceDefenseClosePhase,
@@ -180,7 +183,7 @@ export function useVoiceDefense({
 	onOpenSource,
 }: VoiceDefenseDialogProps) {
 	const { t, i18n } = useTranslation("agent");
-	const [open, setOpen] = useState(false);
+	const [open, setOpen] = useState(windowMode);
 	const [phase, setPhase] = useState<VoiceDialogPhase>("prepare");
 	const [connectionStatus, setConnectionStatus] =
 		useState<VoiceConnectionStatus>("connecting");
@@ -194,6 +197,7 @@ export function useVoiceDefense({
 	const [preparationLoading, setPreparationLoading] = useState(false);
 	const [preparationError, setPreparationError] = useState(false);
 	const [voiceStarting, setVoiceStarting] = useState(false);
+	const [startError, setStartError] = useState("");
 	const [preparation, setPreparation] =
 		useState<DefensePreparationManifest | null>(null);
 	const [recoveryRunId] = useState<string | null>(
@@ -203,6 +207,7 @@ export function useVoiceDefense({
 		string | null
 	>(null);
 	const [captions, setCaptions] = useState<VoiceCaption[]>([]);
+	const [stageCaptions, setStageCaptions] = useState<VoiceCaption[]>([]);
 	const [muted, setMuted] = useState(false);
 	const [errorText, setErrorText] = useState("");
 	const [savedPath, setSavedPath] = useState<string | null>(null);
@@ -236,12 +241,15 @@ export function useVoiceDefense({
 	const clientRef = useRef<VoiceDefenseClient | null>(null);
 	const audioRef = useRef<HTMLAudioElement>(null);
 	const captionsRef = useRef<VoiceCaption[]>([]);
+	const captionPacerRef = useRef(new VoiceCaptionPacer());
+	const committeePlaybackRef = useRef(false);
 	const startedAtRef = useRef<Date | null>(null);
 	const finishingRef = useRef<number | null>(null);
 	const authErrorRef = useRef<string | null>(null);
 	const loadedBriefKeyRef = useRef<string | null>(null);
 	const voicePreparationRunIdRef = useRef<string | null>(null);
 	const openRef = useRef(false);
+	openRef.current = open;
 	const startGateRef = useRef(new VoiceStartGate());
 	const reopenBackgroundPreparationRef = useRef(false);
 	const recoveryAutoOpenAttemptedRef = useRef(false);
@@ -498,9 +506,10 @@ export function useVoiceDefense({
 		};
 	}, [open, selectedMaterialPaths, vaultPath]);
 
+	// Unmount only: a callback identity change must not cancel an in-flight start.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: unmount-only cleanup
 	useEffect(() => {
 		return () => {
-			openRef.current = false;
 			const leaseId = startGateRef.current.leaseId;
 			startGateRef.current.invalidate(Boolean(clientRef.current));
 			const client = clientRef.current;
@@ -513,7 +522,7 @@ export function useVoiceDefense({
 				releaseOwnedVoiceSession(leaseId);
 			}
 		};
-	}, [releaseOwnedVoiceSession]);
+	}, []);
 
 	useEffect(() => {
 		if (!open || !isTauri()) return;
@@ -527,7 +536,10 @@ export function useVoiceDefense({
 			if (next.error && next.error !== authErrorRef.current) {
 				authErrorRef.current = next.error;
 				notifyError(t("voiceDefense.auth.connectFailed"), {
-					description: next.error,
+					description: describeVoiceAuthError(
+						next.error,
+						t("voiceDefense.auth.credentialOwnerConflict"),
+					),
 				});
 			} else if (!next.error) {
 				authErrorRef.current = null;
@@ -578,6 +590,9 @@ export function useVoiceDefense({
 		loadedBriefKeyRef.current = null;
 		setCaptions([]);
 		captionsRef.current = [];
+		captionPacerRef.current.reset();
+		setStageCaptions([]);
+		committeePlaybackRef.current = false;
 		setMuted(false);
 		setErrorText("");
 		setSavedPath(null);
@@ -727,7 +742,7 @@ export function useVoiceDefense({
 	const openDialogRef = useRef(openDialog);
 	openDialogRef.current = openDialog;
 	useEffect(() => {
-		if (open) trackViva("dialog_opened");
+		if (open) trackViva("dialog_opened", { enter: "immediate" });
 	}, [open]);
 	useEffect(() => {
 		if (!windowMode) return;
@@ -764,20 +779,45 @@ export function useVoiceDefense({
 		preparationScopeRef.current.vaultPath === vaultRoot &&
 		preparationScopeRef.current.runId === runId;
 
-	const beginVoiceStart = (): number | null => {
+	const reportStartFailure = (
+		reason: string,
+		message: string,
+		title = t("voiceDefense.startFailed"),
+	) => {
+		trackViva("session_start_failed", { reason, message });
+		setStartError(message);
+		setErrorText(message);
+		notifyError(title, { description: message });
+	};
+
+	const isDialogOpen = () => windowMode || openRef.current;
+
+	const beginVoiceStart = (options?: {
+		takeoverStaleLease?: boolean;
+	}): number | null => {
 		const operation = startGateRef.current.begin({
-			open: openRef.current,
+			open: isDialogOpen(),
 			hasClient: Boolean(clientRef.current),
 			sessionActive: isVoiceDefenseSessionActive(),
 			acquire: acquireVoiceDefenseSession,
+			takeoverStaleLease: options?.takeoverStaleLease,
+			releaseStale: options?.takeoverStaleLease
+				? clearVoiceDefenseSessionLease
+				: undefined,
 		});
-		if (operation === null) return null;
+		if (operation === null) {
+			trackViva("session_start_requested", {
+				blocked: true,
+				open: isDialogOpen(),
+				hasClient: Boolean(clientRef.current),
+				sessionActive: isVoiceDefenseSessionActive(),
+				starting: startGateRef.current.isStarting,
+			});
+			return null;
+		}
 		setVoiceStarting(true);
 		return operation;
 	};
-
-	const isCurrentVoiceStart = (operation: number) =>
-		startGateRef.current.isCurrent(operation, openRef.current);
 
 	const releaseVoiceStart = (operation: number) => {
 		const leaseToDrop = startGateRef.current.release(
@@ -803,6 +843,7 @@ export function useVoiceDefense({
 		if (!input) return;
 		let runId: string | null = null;
 		setPreparationError(false);
+		setStartError("");
 		trackViva("preparation_started", {
 			resume,
 			materials: input.materials?.length ?? 0,
@@ -924,62 +965,38 @@ export function useVoiceDefense({
 		preparationRunId: string | null,
 		operation: number,
 	): Promise<boolean> => {
-		if (!isCurrentVoiceStart(operation)) return false;
+		trackViva("session_start_requested", {
+			step: "voice",
+			operation,
+			open: isDialogOpen(),
+			starting: startGateRef.current.isStarting,
+		});
+		setPhase("connecting");
 		const leaseId = startGateRef.current.leaseId;
 		if (!leaseId) {
-			notifyError(t("voiceDefense.startFailed"), {
-				description: t("voiceDefense.preparation.startBlocked"),
-			});
+			reportStartFailure("blocked", t("voiceDefense.preparation.startBlocked"));
+			setPhase("error");
 			return false;
 		}
 		if (!vaultPath || !material.trim() || !authStatus?.connected) {
-			notifyError(t("voiceDefense.startFailed"), {
-				description: t("voiceDefense.preparation.startUnavailable"),
-			});
+			reportStartFailure(
+				"unavailable",
+				t("voiceDefense.preparation.startUnavailable"),
+			);
+			setPhase("error");
 			return false;
 		}
 		if (!isTauri()) {
-			notifyError(t("voiceDefense.startFailed"), {
-				description: t("voiceDefense.preparation.startUnavailable"),
-			});
-			return false;
-		}
-		if (
-			hasActiveDefensePreparations() ||
-			hasActivePreparationChildren() ||
-			isDefenseReviewActive()
-		) {
-			notifyError(t("voiceDefense.preparation.stillRunning"));
+			reportStartFailure(
+				"unavailable",
+				t("voiceDefense.preparation.startUnavailable"),
+			);
+			setPhase("error");
 			return false;
 		}
 		if (clientRef.current) {
-			notifyError(t("voiceDefense.startFailed"), {
-				description: t("voiceDefense.preparation.startBlocked"),
-			});
-			return false;
-		}
-		try {
-			if (
-				(await isAgentWorkflowActive("voice_defense_preparation")) ||
-				(await isAgentWorkflowActive("voice_defense_review"))
-			) {
-				notifyError(t("voiceDefense.preparation.stillRunning"));
-				return false;
-			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			notifyError(t("voiceDefense.startFailed"), { description: message });
-			return false;
-		}
-		if (
-			!isCurrentVoiceStart(operation) ||
-			startGateRef.current.leaseId !== leaseId
-		) {
-			if (isCurrentVoiceStart(operation)) {
-				notifyError(t("voiceDefense.startFailed"), {
-					description: t("voiceDefense.preparation.startScopeChanged"),
-				});
-			}
+			reportStartFailure("blocked", t("voiceDefense.preparation.startBlocked"));
+			setPhase("error");
 			return false;
 		}
 		setContext(material);
@@ -992,6 +1009,9 @@ export function useVoiceDefense({
 		setErrorText("");
 		setCaptions([]);
 		captionsRef.current = [];
+		captionPacerRef.current.reset();
+		setStageCaptions([]);
+		committeePlaybackRef.current = false;
 		setSavedPath(null);
 		setEndedAt(null);
 		setDebrief(null);
@@ -1016,6 +1036,11 @@ export function useVoiceDefense({
 					return;
 				}
 				setConnectionStatus(status);
+				if (status === "speaking") {
+					captionPacerRef.current.markSpeaking(performance.now());
+				} else if (status === "listening") {
+					captionPacerRef.current.markIdle(performance.now());
+				}
 				if (
 					status === "listening" ||
 					status === "speaking" ||
@@ -1031,6 +1056,9 @@ export function useVoiceDefense({
 				) {
 					return;
 				}
+				captionPacerRef.current.push(caption, performance.now());
+				const stagedNow = captionPacerRef.current.tick(performance.now());
+				setStageCaptions(stagedNow);
 				setCaptions((previous) => {
 					const next = upsertVoiceCaption(previous, caption);
 					captionsRef.current = next;
@@ -1046,7 +1074,7 @@ export function useVoiceDefense({
 				}
 				if (!audioRef.current) return;
 				audioRef.current.srcObject = stream;
-				audioRef.current.muted = true;
+				audioRef.current.muted = !committeePlaybackRef.current;
 				void audioRef.current.play().catch(() => undefined);
 			},
 			onCommitteePlayback: (enabled) => {
@@ -1056,6 +1084,7 @@ export function useVoiceDefense({
 				) {
 					return;
 				}
+				committeePlaybackRef.current = enabled;
 				if (enabled) markVoiceStarted("playback");
 				if (audioRef.current) audioRef.current.muted = !enabled;
 			},
@@ -1103,11 +1132,7 @@ export function useVoiceDefense({
 			await client.close().catch(() => undefined);
 			if (clientRef.current === client) clientRef.current = null;
 			releaseOwnedVoiceSession(leaseId);
-			if (
-				message === "Voice connection cancelled" ||
-				startGateRef.current.currentOperation !== operation ||
-				!openRef.current
-			) {
+			if (message === "Voice connection cancelled") {
 				return false;
 			}
 			setErrorText(message);
@@ -1152,70 +1177,99 @@ export function useVoiceDefense({
 	}, [preparation, selectedMaterialPaths]);
 
 	const startWithPreparedMaterial = async () => {
-		if (!vaultPath || !preparation || !context.trim()) {
-			notifyError(t("voiceDefense.startFailed"), {
-				description: t("voiceDefense.preparation.startUnavailable"),
-			});
-			return;
-		}
-		if (preparation.stale || !materialsMatchSnapshot) {
-			notifyError(
-				preparation.stale
+		setStartError("");
+		trackViva("session_start_requested", {
+			ready: Boolean(preparation),
+			connected: Boolean(authStatus?.connected),
+			path: "immediate",
+		});
+		const plan = planPreparedDefenseEnter({
+			vaultPath,
+			preparation,
+			context,
+			materialsMatchSnapshot,
+		});
+		if (plan.action === "reject") {
+			reportStartFailure(
+				plan.reason,
+				plan.reason === "stale"
 					? t("voiceDefense.preparation.staleNotice")
-					: t("voiceDefense.preparation.selectionChangedNotice"),
+					: plan.reason === "selection_changed"
+						? t("voiceDefense.preparation.selectionChangedNotice")
+						: t("voiceDefense.preparation.startUnavailable"),
 			);
 			return;
 		}
-		const operation = beginVoiceStart();
-		if (operation === null) {
-			notifyError(t("voiceDefense.startFailed"), {
-				description: t("voiceDefense.preparation.startBlocked"),
-			});
+		if (!vaultPath) {
+			reportStartFailure(
+				"unavailable",
+				t("voiceDefense.preparation.startUnavailable"),
+			);
 			return;
 		}
-		const runId = preparation.runId;
-		preparationScopeRef.current = { vaultPath, runId };
+		setPhase(preparedDefenseEnterPhase(plan));
+		trackViva("session_start_requested", { step: "connecting" });
+		const runId = plan.runId;
+		const vaultRoot = vaultPath;
+		preparationScopeRef.current = { vaultPath: vaultRoot, runId };
+		let operation: number | null = null;
 		let started = false;
+		const connectingWatchdog = window.setTimeout(() => {
+			if (phaseRef.current !== "connecting") return;
+			const client = clientRef.current;
+			if (clientRef.current === client) clientRef.current = null;
+			void client?.close().catch(() => undefined);
+			invalidateVoiceStart();
+			setPhase("error");
+			reportStartFailure("timeout", t("voiceDefense.preparation.startTimeout"));
+		}, 45_000);
 		try {
-			const confirmed = await confirmDefensePreparation(
-				vaultPath,
-				preparation.runId,
-				context,
-				{ current: preparationCurrent },
-			);
-			if (
-				!isCurrentVoiceStart(operation) ||
-				preparationScopeRef.current.vaultPath !== vaultPath ||
-				preparationScopeRef.current.runId !== runId ||
-				confirmed.runId !== runId
-			) {
-				notifyError(t("voiceDefense.startFailed"), {
-					description: t("voiceDefense.preparation.startScopeChanged"),
-				});
+			operation = beginVoiceStart({ takeoverStaleLease: true });
+			trackViva("session_start_requested", {
+				step: "lease",
+				operation: operation ?? 0,
+				blocked: operation === null,
+			});
+			if (operation === null) {
+				setPhase("error");
+				reportStartFailure(
+					"blocked",
+					t("voiceDefense.preparation.startBlocked"),
+				);
 				return;
 			}
-			setPreparation(confirmed);
-			// Confirmation already wrote the brief and manifest atomically; tree refresh is best effort.
-			void refreshTreeQuiet(vaultPath);
-			void loadReviewQuestions(vaultPath, confirmed);
-			if (!isCurrentVoiceStart(operation)) return;
-			started = await startVoice(
-				context,
-				confirmed.briefPath ?? preparation.briefPath ?? "",
-				confirmed.runId,
-				operation,
-			);
+			const leaseOperation = operation;
+			started = await runPreparedDefenseEnter({
+				connect: () =>
+					startVoice(plan.material, plan.source, runId, leaseOperation),
+				confirm: () => {
+					void confirmDefensePreparation(vaultRoot, runId, plan.material, {
+						skipSnapshotFreshness: true,
+						force: true,
+					})
+						.then((confirmed) => {
+							if (confirmed.runId !== runId) return;
+							setPreparation(confirmed);
+							void refreshTreeQuiet(vaultRoot);
+							void loadReviewQuestions(vaultRoot, confirmed);
+						})
+						.catch((error) => {
+							trackViva("session_start_failed", {
+								reason: "confirm_background",
+								message: error instanceof Error ? error.message : String(error),
+							});
+						});
+				},
+			});
 		} catch (error) {
-			if (
-				startGateRef.current.currentOperation === operation &&
-				openRef.current
-			) {
-				notifyError(t("voiceDefense.preparation.saveBriefFailed"), {
-					description: error instanceof Error ? error.message : String(error),
-				});
-			}
+			setPhase("error");
+			reportStartFailure(
+				"start_threw",
+				error instanceof Error ? error.message : String(error),
+			);
 		} finally {
-			if (!started) releaseVoiceStart(operation);
+			window.clearTimeout(connectingWatchdog);
+			if (operation !== null && !started) releaseVoiceStart(operation);
 		}
 	};
 
@@ -1444,13 +1498,22 @@ export function useVoiceDefense({
 		vaultPath,
 	]);
 
+	useEffect(() => {
+		if (phase !== "live" && phase !== "connecting") return;
+		const tick = () => {
+			setStageCaptions(captionPacerRef.current.tick(performance.now()));
+		};
+		tick();
+		const timer = window.setInterval(tick, 80);
+		return () => window.clearInterval(timer);
+	}, [phase]);
+
 	const handleOpenChange = (next: boolean) => {
 		if (next) {
 			openRef.current = true;
 			setOpen(true);
 			return;
 		}
-		openRef.current = false;
 		if (preparationActive) reopenBackgroundPreparationRef.current = true;
 		clearPreparationRecovery(preparation?.runId ?? recoveryRunId ?? undefined);
 		invalidateVoiceStart();
@@ -1476,9 +1539,17 @@ export function useVoiceDefense({
 		}
 		if (windowMode) {
 			closingNativeRef.current = true;
-			void closeCurrentVivaWindow();
+			void closeCurrentVivaWindow().then((closed) => {
+				if (closed) {
+					openRef.current = false;
+					return;
+				}
+				closingNativeRef.current = false;
+				openRef.current = true;
+			});
 			return;
 		}
+		openRef.current = false;
 		setOpen(false);
 	};
 	const handleOpenChangeRef = useRef(handleOpenChange);
@@ -1603,7 +1674,10 @@ export function useVoiceDefense({
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			notifyError(t("voiceDefense.auth.connectFailed"), {
-				description: message,
+				description: describeVoiceAuthError(
+					message,
+					t("voiceDefense.auth.credentialOwnerConflict"),
+				),
 			});
 			setAuthBusy(false);
 		}
@@ -1628,7 +1702,10 @@ export function useVoiceDefense({
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			notifyError(t("voiceDefense.auth.disconnectFailed"), {
-				description: message,
+				description: describeVoiceAuthError(
+					message,
+					t("voiceDefense.auth.credentialOwnerConflict"),
+				),
 			});
 		} finally {
 			setAuthBusy(false);
@@ -1738,6 +1815,7 @@ export function useVoiceDefense({
 		preparationFailed,
 		selectionChanged,
 		voiceStarting,
+		startError,
 		context,
 		setContext,
 		source,
@@ -1747,6 +1825,7 @@ export function useVoiceDefense({
 		durationSeconds,
 		questionCount,
 		captions,
+		stageCaptions,
 		debrief,
 		review,
 		reviewPath,

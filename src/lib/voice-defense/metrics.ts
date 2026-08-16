@@ -10,6 +10,8 @@ export type VivaMetricEvent =
 	| "preparation_started"
 	| "preparation_completed"
 	| "preparation_failed"
+	| "session_start_requested"
+	| "session_start_failed"
 	| "session_connected"
 	| "session_ended"
 	| "transcript_saved";
