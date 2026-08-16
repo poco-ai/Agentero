@@ -1,0 +1,63 @@
+# Preview builds for the in-development voice-defense (viva) feature branch.
+#
+# Deliberately separate from release.yml: no tags, no signing, no updater
+# channel, no Homebrew. Produces an unsigned macOS debug DMG as a workflow
+# artifact so testers can try the branch without a local toolchain.
+name: Viva preview build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/viva]
+
+concurrency:
+  group: viva-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos-dmg:
+    name: Unsigned macOS debug DMG
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      # beforeBuildCommand also runs cli:bundle:release; this pre-step makes
+      # the triple-suffixed binary available for tauri-build early checks
+      # (same rationale as release.yml).
+      - name: Prepare bundled CLI
+        run: pnpm cli:bundle:release
+
+      - name: Build unsigned debug bundle
+        # Updater artifacts require TAURI_SIGNING_PRIVATE_KEY; a preview build
+        # has no updater channel, so drop them instead of depending on secrets.
+        run: >
+          pnpm tauri build --debug
+          --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Agentero-viva-macos-arm64-unsigned
+          path: target/debug/bundle/dmg/*.dmg
+          if-no-files-found: error
