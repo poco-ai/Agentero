@@ -19,6 +19,8 @@ use security_framework::passwords::{
 };
 #[cfg(target_os = "macos")]
 use security_framework_sys::base::errSecItemNotFound;
+#[cfg(target_os = "macos")]
+use std::process::Stdio;
 
 pub const VOICE_AUTH_WINDOW_LABEL: &str = "voice-auth";
 pub const VOICE_AUTH_CHANGED_EVENT: &str = "voice-auth:changed";
@@ -26,6 +28,8 @@ pub const VOICE_AUTH_CHANGED_EVENT: &str = "voice-auth:changed";
 const CREDENTIAL_SERVICE: &str = "com.agentero.desktop.voice";
 const CREDENTIAL_ACCOUNT: &str = "chatgpt-access-token";
 const CHATGPT_URL: &str = "https://chatgpt.com/";
+/// Apple `errSecInvalidOwnerEdit`. Not exported by security-framework-sys 2.17.
+const ERR_SEC_INVALID_OWNER_EDIT: i32 = -25240;
 
 #[derive(Debug, Default)]
 struct VoiceAuthInner {
@@ -180,11 +184,62 @@ pub(crate) fn access_token() -> Result<String, AppError> {
     Err(AppError::message("embedded ChatGPT login is desktop-only"))
 }
 
+fn is_keychain_owner_conflict(code: i32) -> bool {
+    code == ERR_SEC_INVALID_OWNER_EDIT
+}
+
+fn security_delete_generic_password_args() -> [&'static str; 5] {
+    [
+        "delete-generic-password",
+        "-s",
+        CREDENTIAL_SERVICE,
+        "-a",
+        CREDENTIAL_ACCOUNT,
+    ]
+}
+
+#[cfg(target_os = "macos")]
+fn delete_access_token_via_security_cli() -> Result<(), AppError> {
+    let status = std::process::Command::new("security")
+        .args(security_delete_generic_password_args())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|error| AppError::message(format!("could not invoke Keychain: {error}")))?;
+
+    match get_generic_password(CREDENTIAL_SERVICE, CREDENTIAL_ACCOUNT) {
+        Err(error) if error.code() == errSecItemNotFound => Ok(()),
+        Ok(_) => Err(AppError::message(
+            "could not remove the ChatGPT credential: keychain owner conflict",
+        )),
+        Err(error) if status.success() => Err(AppError::message(format!(
+            "could not verify ChatGPT credential removal: {error}"
+        ))),
+        Err(error) => Err(AppError::message(format!(
+            "could not remove the ChatGPT credential: {error}"
+        ))),
+    }
+}
+
 #[cfg(target_os = "macos")]
 fn store_access_token(token: &str) -> Result<(), AppError> {
-    set_generic_password(CREDENTIAL_SERVICE, CREDENTIAL_ACCOUNT, token.as_bytes()).map_err(
-        |error| AppError::message(format!("could not save the ChatGPT credential: {error}")),
-    )
+    match set_generic_password(CREDENTIAL_SERVICE, CREDENTIAL_ACCOUNT, token.as_bytes()) {
+        Ok(()) => Ok(()),
+        Err(error) if is_keychain_owner_conflict(error.code()) => {
+            delete_access_token_via_security_cli()?;
+            set_generic_password(CREDENTIAL_SERVICE, CREDENTIAL_ACCOUNT, token.as_bytes()).map_err(
+                |retry_error| {
+                    AppError::message(format!(
+                        "could not save the ChatGPT credential: {retry_error}"
+                    ))
+                },
+            )
+        }
+        Err(error) => Err(AppError::message(format!(
+            "could not save the ChatGPT credential: {error}"
+        ))),
+    }
 }
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -204,9 +259,13 @@ fn delete_access_token() -> Result<(), AppError> {
     match delete_generic_password(CREDENTIAL_SERVICE, CREDENTIAL_ACCOUNT) {
         Ok(()) => Ok(()),
         Err(error) if error.code() == errSecItemNotFound => Ok(()),
-        Err(error) => Err(AppError::message(format!(
-            "could not remove the ChatGPT credential: {error}"
-        ))),
+        Err(error) => match delete_access_token_via_security_cli() {
+            Ok(()) => Ok(()),
+            Err(fallback_error) if is_keychain_owner_conflict(error.code()) => Err(fallback_error),
+            Err(_) => Err(AppError::message(format!(
+                "could not remove the ChatGPT credential: {error}"
+            ))),
+        },
     }
 }
 
@@ -471,6 +530,26 @@ mod tests {
             &"https://accounts.google.com/".parse().unwrap()
         ));
         assert!(!is_chatgpt_page(&"http://chatgpt.com/".parse().unwrap()));
+    }
+
+    #[test]
+    fn classifies_keychain_owner_edit() {
+        assert!(is_keychain_owner_conflict(ERR_SEC_INVALID_OWNER_EDIT));
+        assert!(!is_keychain_owner_conflict(-25300));
+    }
+
+    #[test]
+    fn security_cli_targets_voice_credential() {
+        assert_eq!(
+            security_delete_generic_password_args(),
+            [
+                "delete-generic-password",
+                "-s",
+                "com.agentero.desktop.voice",
+                "-a",
+                "chatgpt-access-token",
+            ]
+        );
     }
 
     #[test]

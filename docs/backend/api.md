@@ -1769,7 +1769,7 @@ Host 仅在创建会话时从系统凭证库（macOS Keychain、Windows Credenti
 | `voice_auth_status` | 无 | `{ connected, connecting, error }` | 只返回脱敏状态，不返回 token。 |
 | `voice_auth_connect` | `{ title }` | 同上 | 创建临时 `voice-auth` 原生 WebView 并打开 `https://chatgpt.com/`。 |
 | `voice_auth_cancel` | 无 | 同上 | 销毁登录窗口并取消本次连接。 |
-| `voice_auth_disconnect` | 无 | 同上 | 删除系统凭证库中的单用户凭证。 |
+| `voice_auth_disconnect` | 无 | 同上 | 删除系统凭证库中的单用户凭证。macOS 在 `SecItemDelete` 因 ACL（`errSecInvalidOwnerEdit`）失败时，回退 `security delete-generic-password` 并再读确认。 |
 
 登录 WebView 不在应用 capability 窗口列表中，远程页面不能调用 Agentero IPC。Host 只在加载完成的 `https://chatgpt.com/*` 顶层页面执行同源 `/api/auth/session` 请求，通过 Wry 原生 evaluate callback 接收结果，并只提取 `accessToken` 写入系统凭证库。token 不进入 React、设置 JSON、URL、localhost 回调或日志；保存成功后 Host 直接 `destroy()` 登录窗口。
 

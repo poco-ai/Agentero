@@ -66,6 +66,17 @@ export async function disconnectVoiceAuth(): Promise<VoiceAuthStatus> {
 	});
 }
 
+export function describeVoiceAuthError(
+	message: string,
+	ownerConflict: string,
+): string {
+	return /invalid attempt to change the owner of this item|keychain owner conflict/i.test(
+		message,
+	)
+		? ownerConflict
+		: message;
+}
+
 export async function getVoiceConfig(): Promise<VoiceConfig> {
 	return invokeApi<VoiceConfig>("voice_config", undefined, {
 		fallback: "Voice configuration failed",
