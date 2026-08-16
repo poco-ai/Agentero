@@ -96,20 +96,37 @@ nav:
       - macOS 文件保存反复提示不完整改名: bug_fix/watcher-unpaired-rename-toast.md
       - DeepSeek 正文落入 Thinking: bug_fix/deepseek-thinking-body.md
       - ACP 会话恢复 ID 错误: bug_fix/acp-session-resume-id.md
+      - Codex 历史恢复误用 runtime id: bug_fix/codex-history-runtime-session-id.md
       - 输入法组字 Enter 误发送: bug_fix/ime-composition-enter-submit.md
       - 普通编辑触发全部 Wiki 嵌入闪烁: bug_fix/wiki-embed-unrelated-refresh.md
       - 标题双链稳定性: bug_fix/wikilink-heading-reference-stability.md
       - 拖动 Dockview 分隔条时 PDF 卡顿: bug_fix/dockview-sash-pdf-resize-jank.md
       - PDF 切换视觉截图与后台 ONNX: bug_fix/pdf-switch-visual-crop-layout-onnx.md
       - PDF 版面解析 WebView 崩溃循环: bug_fix/pdf-layout-webview-crash-loop.md
-      - 语音答辩语境漂移与字幕串台: bug_fix/voice-defense-context-drift.md
-      - 语音答辩开场噪声字幕与重启: bug_fix/voice-defense-opening-noise-captions.md
-      - 语音答辩开场回执把答辩重启: bug_fix/voice-defense-opening-ack-gate.md
-      - 答辩总结页底栏按钮叠层: bug_fix/voice-defense-ended-footer-overlap.md
-      - 答辩总结页没有关闭按钮: bug_fix/voice-defense-ended-missing-close.md
-      - 答辩开场失败关闭无响应: bug_fix/voice-defense-close-before-playback.md
+      - 答辩间:
+          - 概览: bug_fix/voice-defense/index.md
+          - 声音和字幕不同步: bug_fix/voice-defense/caption-av-sync.md
+          - 无法断开 ChatGPT: bug_fix/voice-defense/chatgpt-disconnect-owner.md
+          - 入场按钮无反应: bug_fix/voice-defense/enter-button.md
+          - 开场回执把答辩重启: bug_fix/voice-defense/opening-ack-gate.md
+          - 开场噪声字幕与重启: bug_fix/voice-defense/opening-noise-captions.md
+          - 开场失败关闭无响应: bug_fix/voice-defense/close-before-playback.md
+          - 语境漂移与字幕串台: bug_fix/voice-defense/context-drift.md
+          - 内部材料显示为用户字幕: bug_fix/voice-defense/bootstrap-caption.md
+          - 材料被截断: bug_fix/voice-defense/context-truncation.md
+          - WebKit Invalid SDP line: bug_fix/voice-defense/invalid-sdp-line.md
+          - 传输故障回收: bug_fix/voice-defense/transport-failures.md
+          - ACP 警告误判准备失败: bug_fix/voice-defense/acp-warning-json.md
+          - 总结页底栏按钮叠层: bug_fix/voice-defense/ended-footer-overlap.md
+          - 总结页没有关闭按钮: bug_fix/voice-defense/ended-missing-close.md
       - 远端 ACP PATH / SSH: bug_fix/remote-acp-path-ssh.md
       - 远程 Vault 文件树懒加载: bug_fix/remote-vault-tree-lazy.md
+      - 远程 Vault 删除后 list 报错: bug_fix/remote-delete-list-nosuchfile.md
+      - 远程 Vault 无法新建文件夹: bug_fix/remote-create-folder-exists.md
+      - 组织目录被识别成单篇论文: bug_fix/paper-folder-marker-conflict.md
+      - 论文导入超时: bug_fix/paper-import-timeout.md
+      - CLI 导入后标题不刷新: bug_fix/cli-import-library-refresh.md
+      - 缩放时待办 checkbox 错位: bug_fix/todo-checkbox-scale-align.md
       - macOS 签名与公证: bug_fix/macos-signing.md
       - Gemini 登录弹窗循环: bug_fix/gemini-login-browser-loop.md
       - 导入 NOTES 摘要 MT 超时: bug_fix/import-abstract-mt-timeout.md

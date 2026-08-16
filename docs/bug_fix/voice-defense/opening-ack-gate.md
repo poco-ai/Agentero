@@ -161,7 +161,7 @@ ChatGPT Web Voice **没有 system 通道**。会前 brief 只能以 `relay_messa
 ## 回归（第五轮）
 
 - `test/voice-defense-protocol.test.ts`：`You So Mmm. Tsk` 为噪声，「对」/含汉字短句不是；截图中的「我问第一个问题:…」为重问，不是 `isDefenseRestartCaption`；「回到第一个问题，你刚才…」仍不是重启。
-- `test/voice-defense-client.test.ts`：重放截图三条字幕后舞台只留第一问并发送 `stop_speaking`；用户正经作答后的追问仍上台；门控打开后 400ms 内麦克风保持关闭。
+- `test/voice-defense-client.test.ts`：重放截图三条字幕后舞台只留第一问并发送 `stop_speaking`；用户正经作答后的追问仍上台；第一问字幕停更 1.2s 前麦克风保持关闭。重复开场从首个口癖 token 起关音轨。
 
 ## 边界（第五轮）
 
@@ -211,3 +211,47 @@ ChatGPT Web Voice **没有 system 通道**。会前 brief 只能以 `relay_messa
 ## 边界（第七轮）
 
 远端声音使用 WebRTC RTP，流式字幕使用 DataChannel，当前私有协议没有提供两者共享的逐字时间戳；即使连接健康，抓包也观察到字幕增量间隔约 3.6 秒。网络抖动可能放大字幕的 token 级延迟，但不能解释本次“上一轮字幕 + 下一轮声音”的稳定错配。第七轮消除了跨消息错配；在不缓存并重放整段远端音频的前提下，不承诺卡拉 OK 式逐字同步。
+
+> 第七轮把「不够字面」的开场从放行改成失败，是针对跨轮错配的正确收口；它把「已经在问第一问」也当成了需要恢复的失败。第八轮只放宽这一条，20 秒 fail-closed 仍保留。
+
+## 后续：规范句过严把第一问掐掉再问一遍
+
+开发版 `~/Library/Logs/com.poco-ai.agentero/agentero.log`（21:02–21:08，文案已是第七轮 `canonical opening recovery trigger`）给出可重复的证据链。典型会话 21:02:20：
+
+1. 连接后 `voiceState` 一直是 `listening`，从未出现 `speaking`。
+2. 委员流式字幕：`答` → `答�开始。` → `答�开始。第一个问题: 你认为,用纯注意力替代RNN…`（`辩` 被 ASR 打成 U+FFFD）。
+3. 对不上 `/^答辩现在开始/`，整段被标 `drop=preamble`，客户端发 `stop_speaking`，舞台静音。
+4. 字幕仍继续涨了约 13 秒（interrupt 无效：上游已是 listening）。
+5. 1 秒静置后发出内部 user 消息：「请用「答辩现在开始。」作为你说的第一句话，然后立刻问第一个问题。」
+6. 委员再来一轮：`嗯我看一下` → `答辩现在开始。第一个问题: 论文为什么认为仅用注意力替代循环和卷积是值得做的?`
+
+用户听到/看到的就是：**第一问被掐掉，再问一遍。** 同晚另几场恢复后仍不是字面首句，走到 `canonical opening not received after recovery trigger` 错误页（21:04:32、21:07:17、21:08:27）。当时的单测 `nudges 答辩开始 without 现在 into the canonical first sentence` 把这条路径写成了正确行为。
+
+根因仍是 ChatGPT Web Voice 没有 system 通道，brief 只能当 `author.role=user` 注入，模型倾向先应答再执行。第七轮没有根治这件事。叠加三条应用层误判：
+
+1. **规范句过严。** `isCanonicalDefenseAnnouncementCaption` 要求从第一个字起是 `答辩现在开始` / `The defense begins now`。实机第一句几乎总是 `答辩开始`（丢掉「现在」），或带 `好的/` `嗯。` 前缀。
+2. **流式 U+FFFD 没剥干净。** `textFromParts` 会去掉 U+FFFD，但 `applyVoiceCaptionDelta` 的 append 分支直接拼接，所以 `答辩` → `答�开始`，连宽松的 `答辩开始` 也匹配不上。
+3. **恢复指令是又一轮 user 消息。** 已有第一问、只是宣布不规范时仍会发；模型忠实执行 → 再宣布、再问。
+
+20 秒 fail-closed（不伪造 `heardOpening`、不回放隐藏字幕）仍然正确。错的是把「已经在问第一问」当成需要恢复的失败。
+
+第八轮改为两档判定：
+
+1. **可接受开场**（放声、上台、开麦、不恢复）：去掉 U+FFFD 后剥掉句首短口癖，以 `答辩(现在)?开始` / `the defense begins` 开头，或已出现 `第一个问题` / `First question`（沿用 `回到/下一个` 否定前缀）。
+2. **纯回执**（继续静音）：短填充且没有问号 /「请你说明」/「第一个问题」。仅当该 `caption.id` 停止增长 ≥1s 且仍无问题，才发一次恢复。正在变长的同一条消息禁止 recover / interrupt。
+3. **长前奏**：始终没有宣布也没有第一问的独白仍打断；「好的，我们来聚焦核心主张。我想问…」仍不上台。20 秒超时路径与第七轮相同。
+
+不在这一轮上 Realtime API，也不把 `speaking` 立刻放声改回来。
+
+## 回归（第八轮）
+
+- `test/voice-defense-protocol.test.ts`：`答�开始。第一个问题: 你认为…`、`好的，答辩开始`、带 `嗯。` 前缀的宣布均为可接受开场；「好的,我们来聚焦…我想问…」和纯问句前奏仍不是；append 路径去掉 U+FFFD。
+- `test/voice-defense-client.test.ts`：重放 21:02 字幕（`listening` 全程 + U+FFFD）后远端音轨打开且不发恢复；流式 `答` → `答辩现在` → `答辩现在开始。第一个问题` 中途不 interrupt、不 recover；`好的，我已了解背景` 静置后仍发一次恢复；第七轮 20 秒超时夹具仍不回放「好的,我们来聚焦他们的核心主张…」。删除「答辩开始必须 nudge」断言。
+
+## 边界（第八轮）
+
+宣布用词可以不完美，用户应只听到一个第一问。流式字幕在「答辩现在」处停住超过 1 秒仍会走纯回执恢复——那是模型真的没说完开场，不是误伤正在涨的第一问。根治回执音频本身仍依赖官方 Realtime API 备用后端（真正的 system instructions，见 todo）。
+
+## 后续：恢复轮中段放声 + 字幕整段抢跑
+
+第七轮「等字幕证明再放声」让 2026-08-15 的恢复开场从句子中段起听，舞台却一次铺开全文。第九轮把恢复指令后的放声改回立刻启用，并把舞台揭示交给语速节流。第十轮改回「新轮上升沿才放声」，避免残响与新开场叠说。见 [caption-av-sync.md](caption-av-sync.md)。

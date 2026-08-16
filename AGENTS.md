@@ -66,7 +66,7 @@ cargo test -p agentero-cli
 | **教程** | 快速上手、导入论文、阅读整理、接入 Agent、Zotero | [docs/usage/](docs/usage/index.md) |
 | **开发** | 路线图、TODO、设计记录 | [docs/development/](docs/development/index.md) |
 | **测试** | 测试策略、发布 Checklist | [docs/test/](docs/test/index.md) |
-| **Bug 复盘** | 历史 Bug 分析（不删除） | [docs/bug_fix/](docs/bug_fix/) |
+| **Bug 复盘** | 历史 Bug 分析（不删除）；答辩间见 [docs/bug_fix/voice-defense/](docs/bug_fix/voice-defense/) | [docs/bug_fix/](docs/bug_fix/) |
 
 约定：已实现按功能写在 `docs/frontend/` / `docs/backend/`；未实现草稿在 `docs/development/`。
 
