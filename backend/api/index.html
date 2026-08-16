@@ -3100,15 +3100,15 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3102-onnx-paddle-api" class="md-nav__link">
+  <a href="#3102-onnx-provider" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.10.2 版面解析后端（本地 ONNX / Paddle API）
+        3.10.2 版面解析后端（本地 ONNX / 远程 Provider）
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="3.10.2 版面解析后端（本地 ONNX / Paddle API）">
+    <nav class="md-nav" aria-label="3.10.2 版面解析后端（本地 ONNX / 远程 Provider）">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -5547,15 +5547,15 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3102-onnx-paddle-api" class="md-nav__link">
+  <a href="#3102-onnx-provider" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.10.2 版面解析后端（本地 ONNX / Paddle API）
+        3.10.2 版面解析后端（本地 ONNX / 远程 Provider）
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="3.10.2 版面解析后端（本地 ONNX / Paddle API）">
+    <nav class="md-nav" aria-label="3.10.2 版面解析后端（本地 ONNX / 远程 Provider）">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -8016,39 +8016,43 @@ Host (Tauri + Rust)
 <li><strong>参数</strong>：<code>{ progressTaskId?: string }</code>（来自 <code>enqueueBackgroundTask</code> 的 id）</li>
 <li><strong>返回</strong>：<code>LayoutModelStatus</code>；未就绪则下载（进程锁；支持取消与字节进度）</li>
 </ul>
-<h3 id="3102-onnx-paddle-api">3.10.2 版面解析后端（本地 ONNX / Paddle API）<a class="headerlink" href="#3102-onnx-paddle-api" title="Permanent link">&para;</a></h3>
+<h3 id="3102-onnx-provider">3.10.2 版面解析后端（本地 ONNX / 远程 Provider）<a class="headerlink" href="#3102-onnx-provider" title="Permanent link">&para;</a></h3>
 <p><code>settings.json</code> 新增 <code>layout</code> 段（camelCase，<code>settings_get</code> / <code>settings_set</code> 同构）：</p>
 <div class="codehilite"><pre><span></span><code>{
   &quot;layout&quot;: {
-    &quot;backend&quot;: &quot;local&quot;, // &quot;local&quot;（默认，ONNX）| &quot;paddle&quot;（AI Studio 异步任务）
+    &quot;backend&quot;: &quot;local&quot;, // &quot;local&quot;（默认，ONNX）| &quot;paddle&quot;（AI Studio 异步任务）| &quot;mineru&quot;（MinerU 云 API）
     &quot;providerConfigs&quot;: {
-      &quot;paddle&quot;: { &quot;apiKey&quot;: &quot;***&quot; }
+      &quot;paddle&quot;: { &quot;apiKey&quot;: &quot;***&quot;, &quot;baseUrl&quot;: &quot;&quot; },
+      &quot;mineru&quot;: { &quot;apiKey&quot;: &quot;***&quot;, &quot;baseUrl&quot;: &quot;&quot; } // baseUrl 空 → 官方 https://mineru.net
     }
   }
 }
 </code></pre></div>
 
 <ul>
-<li><code>apiKey</code> 与翻译 BYOK 同一套掩码机制：<code>settings_get</code> 返回 <code>*</code> 掩码，<code>settings_set</code> 收到掩码时保留已存密钥。Key 在 AI Studio PaddleOCR 任务页获取。</li>
-<li>设置 UI：Settings →「版面解析 / Layout」（后端选择 + Paddle API Key / 端点 + 连通性测试）。</li>
+<li><code>apiKey</code> 与翻译 BYOK 同一套掩码机制：<code>settings_get</code> 返回 <code>*</code> 掩码，<code>settings_set</code> 收到掩码时保留已存密钥。Paddle key 在 AI Studio 访问令牌页获取；MinerU token 在 mineru.net API 管理页获取（前端 <code>LAYOUT_PROVIDER_DOCS_URLS</code>）。</li>
+<li><code>baseUrl</code> 为可选端点覆盖：paddle 端点固定（不支持覆盖）；mineru 支持覆盖且强制 https（loopback <code>http://localhost</code> 等除外）。</li>
+<li>设置 UI：Settings →「版面解析 / Layout」（后端选择由前端 <code>LAYOUT_PROVIDERS</code> 注册表驱动；按 provider 的 <code>requiresApiKey</code> / <code>supportsBaseUrl</code> 显隐 API Key / Base URL 输入 + 连通性测试）。</li>
 </ul>
 <h4 id="layout_remote_analyze_pdf"><code>layout_remote_analyze_pdf</code>（已实现）<a class="headerlink" href="#layout_remote_analyze_pdf" title="Permanent link">&para;</a></h4>
-<p>整份 PDF 的 <strong>异步</strong> PP-StructureV3 解析（无同步逐页接口）：</p>
+<p>整份 PDF 的 <strong>异步</strong> 远程解析（无同步逐页接口），按 <code>provider</code> 分发到对应 engine：</p>
 <ul>
-<li><strong>参数</strong>：<code>{ args: { pdfBase64, fileName?, apiKey?, requestId? } }</code></li>
-<li>端点固定为 <code>https://paddleocr.aistudio-app.com/api/v2/ocr/jobs</code>；<code>apiKey</code> 为空 / 掩码时由 Host 从设置注入（WebView 不持有明文）。</li>
+<li><strong>参数</strong>：<code>{ args: { provider?, pdfBase64, fileName?, apiKey?, requestId? } }</code></li>
+<li><code>provider</code>：<code>"paddle"</code> | <code>"mineru"</code>，缺省 <code>"paddle"</code>（向后兼容）；未知 provider 返回错误。</li>
+<li><code>apiKey</code> 为空 / 掩码时由 Host 从设置注入（WebView 不持有明文）；<code>baseUrl</code> 一律由 Host 从设置读取。</li>
 <li><code>requestId</code> 用于并行任务把 <code>layout-remote:progress</code> 对回调用方。</li>
-<li><strong>流程</strong>：multipart 提交任务 <code>POST /api/v2/ocr/jobs</code>（<code>model: PP-StructureV3</code>，<code>Authorization: bearer &lt;token&gt;</code>）→ 每 3s 轮询 <code>GET /api/v2/ocr/jobs/{jobId}</code>（总时限 10 分钟）→ 完成后下载 <code>resultUrl.jsonUrl</code>（JSONL）并提取每页 <code>prunedResult.layout_det_res.boxes</code>。</li>
+<li><strong>Paddle 流程</strong>：multipart 提交任务 <code>POST /api/v2/ocr/jobs</code>（<code>model: PP-StructureV3</code>，<code>Authorization: bearer &lt;token&gt;</code>，端点固定 <code>https://paddleocr.aistudio-app.com</code>）→ 每 3s 轮询 <code>GET /api/v2/ocr/jobs/{jobId}</code>（总时限 10 分钟）→ 完成后下载 <code>resultUrl.jsonUrl</code>（JSONL）并提取每页 <code>prunedResult.layout_det_res.boxes</code>。</li>
+<li><strong>MinerU 流程</strong>：<code>POST {base}/api/v4/file-urls/batch</code> 申请预签名上传 URL → <code>PUT</code> 上传 PDF 字节 → 每 3s 轮询 <code>GET {base}/api/v4/extract-results/batch/{batchId}</code>（总时限 10 分钟）→ 下载结果 zip，解析 <code>*content_list.json</code>（bbox 为 0–1000 归一化，Host 换算回页面像素）+ <code>*middle.json</code>（每页尺寸），label 映射到与 PP-DocLayoutV3 统一的词表。不受信 zip 设下载（256 MB）与单条目解压（128 MB）上限。</li>
 <li><strong>进度</strong>：轮询期间 emit <code>layout-remote:progress</code>，payload <code>{ phase, extractedPages, totalPages, requestId? }</code>（phase：<code>uploading</code> / <code>pending</code> / <code>running</code> / <code>downloading</code> / <code>done</code>）。</li>
-<li><strong>并发</strong>：<code>settings.layout.backend === "paddle"</code> 时 JobCenter <code>layoutAnalyze</code> <strong>无并发上限</strong>；本地 ONNX 仍 cap=1。</li>
-<li><strong>返回</strong>：<code>{ pages: [{ boxes: [{ clsId, label, score, coordinate }], widthPx, heightPx }] }</code>；渲染像素尺寸优先取 <code>dataInfo</code> / <code>inputImage</code> JPEG 头，缺失为 <code>null</code>（前端按 200 DPI 估算）。</li>
+<li><strong>并发</strong>：<code>settings.layout.backend</code> 为远程 provider 时 JobCenter <code>layoutAnalyze</code> <strong>无并发上限</strong>（远端排队）；本地 ONNX 仍 cap=1。</li>
+<li><strong>返回</strong>：<code>{ pages: [{ boxes: [{ clsId, label, score, coordinate }], widthPx, heightPx }] }</code>；渲染像素尺寸优先取服务端报告（Paddle：<code>dataInfo</code> / <code>inputImage</code> JPEG 头；MinerU：<code>middle.json</code> 页尺寸），缺失为 <code>null</code>（前端按 200 DPI 估算）。</li>
 <li><strong>超时 / 代理</strong>：单请求 120s；走 Host 全局代理（<code>network::client_builder</code>）。</li>
-<li>实现：<code>src-tauri/src/features/layout_remote/</code>；前端 <code>src/lib/pdf/layout/paddle.ts</code>。</li>
+<li>实现：<code>src-tauri/src/features/layout_remote/</code>（<code>commands.rs</code> 命令壳 + <code>engine.rs</code> <code>RemoteLayoutEngine</code> trait / 注册 + <code>paddle.rs</code> + <code>mineru.rs</code>）；前端 <code>src/lib/pdf/layout/paddle.ts</code>（IPC 封装）+ <code>providers.ts</code>（<code>LAYOUT_PROVIDERS</code> 注册表）。</li>
 </ul>
 <h4 id="layout_remote_probe"><code>layout_remote_probe</code>（已实现）<a class="headerlink" href="#layout_remote_probe" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>参数</strong>：<code>{ args: { imageBase64, apiKey? } }</code></li>
-<li><strong>行为</strong>：用同一异步任务通路提交一张小图任务，返回 <code>{ jobId }</code> 即端点 + token 有效。走 Host（无 WebView CORS 限制、遵循代理），供设置页「测试连接」使用。</li>
+<li><strong>参数</strong>：<code>{ args: { provider?, imageBase64, apiKey? } }</code>（<code>provider</code> 缺省 <code>"paddle"</code>）</li>
+<li><strong>行为</strong>：按 provider 走各自最小请求验证端点 + token（paddle 提交一张小图任务返回 <code>{ jobId }</code>；mineru 调 <code>file-urls/batch</code> 空列表验证鉴权）。走 Host（无 WebView CORS 限制、遵循代理），供设置页 / Onboarding「测试连接」使用。</li>
 </ul>
 <h4 id="settings_get"><code>settings_get</code>（已实现）<a class="headerlink" href="#settings_get" title="Permanent link">&para;</a></h4>
 <ul>

@@ -1098,10 +1098,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#onnx-paddle-api" class="md-nav__link">
+  <a href="#onnx-provider" class="md-nav__link">
     <span class="md-ellipsis">
       
-        后端选择（本地 ONNX / Paddle API）
+        后端选择（本地 ONNX / 远程 Provider）
       
     </span>
   </a>
@@ -3253,10 +3253,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#onnx-paddle-api" class="md-nav__link">
+  <a href="#onnx-provider" class="md-nav__link">
     <span class="md-ellipsis">
       
-        后端选择（本地 ONNX / Paddle API）
+        后端选择（本地 ONNX / 远程 Provider）
       
     </span>
   </a>
@@ -3455,7 +3455,7 @@
 
 
 <h1 id="pdf-figures-tables-algorithms-formulas">PDF 版面分析（Figures / Tables / Algorithms / Formulas）<a class="headerlink" href="#pdf-figures-tables-algorithms-formulas" title="Permanent link">&para;</a></h1>
-<p>版面检测（默认浏览器内 ONNX PP-DocLayoutV3，可选远程 Paddle PP-StructureV3 API）→ 应用层 <strong>文字角色 + 联图聚合 + 公式按编号框几何聚合（不解析编号文本）+ 置信度去重</strong> → 右栏 <strong>Figures</strong>。</p>
+<p>版面检测（默认浏览器内 ONNX PP-DocLayoutV3，可选远程 Provider：Paddle PP-StructureV3 / MinerU 云 API）→ 应用层 <strong>文字角色 + 联图聚合 + 公式按编号框几何聚合（不解析编号文本）+ 置信度去重</strong> → 右栏 <strong>Figures</strong>。</p>
 <blockquote>
 <p>该能力已落地并可随论文打开自动运行；大模型推理在低端设备上可能卡顿，分析结果仅写入可重建 sidecar，不改 PDF 二进制。</p>
 </blockquote>
@@ -3490,7 +3490,7 @@
 打开论文 PDF（含非 active 的已挂载 tab）→ enqueue 到后台任务队列
         │  多篇并行打开：都进左下角任务列表
         │  本地 ONNX：JobCenter layoutAnalyze cap=1（避免抢模型）
-        │  Paddle API：无 JobCenter 并发上限（远端排队）；进度事件用 requestId 隔离
+        │  远程 Provider（Paddle / MinerU）：无 JobCenter 并发上限（远端排队）；进度事件用 requestId 隔离
         │  实现：viewer mount 调 `enqueuePaperLayoutAnalysis`（与入库后同一路径）
         │  终态 `job_report` / 取消必须释放该 cap，否则后续任务会一直排队
         │  后台 ONNX 不依赖当前 active 论文窗口：headless EmbedPDF 独立打开本地 PDF
@@ -3606,8 +3606,8 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </tbody>
 </table>
 <p>实现：<code>src-tauri/src/features/layout_model/</code>、<code>src/lib/pdf/layout/model.ts</code>、<code>ai-runtime.ts</code>。</p>
-<h3 id="onnx-paddle-api">后端选择（本地 ONNX / Paddle API）<a class="headerlink" href="#onnx-paddle-api" title="Permanent link">&para;</a></h3>
-<p>设置 →「版面解析」可选择检测后端（<code>settings.layout.backend</code>）：</p>
+<h3 id="onnx-provider">后端选择（本地 ONNX / 远程 Provider）<a class="headerlink" href="#onnx-provider" title="Permanent link">&para;</a></h3>
+<p>设置 →「版面解析」可选择检测后端（<code>settings.layout.backend</code>），选项由前端注册表 <code>LAYOUT_PROVIDERS</code>（<code>src/lib/pdf/layout/providers.ts</code>）驱动：</p>
 <table>
 <thead>
 <tr>
@@ -3625,31 +3625,36 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <tr>
 <td>Paddle API</td>
 <td><code>paddle</code></td>
-<td>AI Studio 托管 PP-StructureV3 <strong>异步任务</strong> API，<strong>整份 PDF 会上传到云端</strong></td>
+<td>AI Studio 托管 PP-StructureV3 <strong>异步任务</strong> API，<strong>整份 PDF 会上传到云端</strong>；端点固定（<code>supportsBaseUrl: false</code>）</td>
+</tr>
+<tr>
+<td>MinerU（云端 API）</td>
+<td><code>mineru</code></td>
+<td>mineru.net 批量解析 API，<strong>整份 PDF 会上传到云端</strong>；支持 Base URL 覆盖（https-only，loopback 例外）</td>
 </tr>
 </tbody>
 </table>
-<p>Paddle 后端流程（<code>src/lib/pdf/layout/paddle.ts</code> + <code>run-analysis.ts</code> 的 <code>startPaddleLayoutAnalysis</code>）：</p>
+<p>每个 provider 描述符带 <code>kind</code> / <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>sidecarMode</code>：设置面板与 Onboarding 据此显隐 API Key / Base URL 输入（保存 / 掩码 / 连通性测试逻辑共用 <code>provider-config.ts</code>）；<code>run-analysis.ts</code> 用 <code>layoutProviderFor(backend)</code> + <code>isRemoteLayoutProvider</code> 判定走远程分支（<code>startRemoteLayoutAnalysis</code>，按 <code>provider.id</code> 分发到 Host engine 注册表）。</p>
+<p>远程 provider 共用流程（<code>src/lib/pdf/layout/paddle.ts</code> IPC 封装 + <code>run-analysis.ts</code>）：</p>
 <ol>
-<li>读取本地 PDF，整份 base64 交给 Host 命令 <code>layout_remote_analyze_pdf</code>（<code>src-tauri/src/features/layout_remote/</code>）；</li>
-<li>Host 以 multipart 提交异步任务 <code>POST https://paddleocr.aistudio-app.com/api/v2/ocr/jobs</code>（端点固定；<code>model: PP-StructureV3</code>，<code>Authorization: bearer &lt;token&gt;</code>，token 由 Host 从设置注入，WebView 只持有 <code>*</code> 掩码），随后每 3s 轮询 <code>GET …/jobs/{jobId}</code>（总时限 10 分钟），期间通过 <code>layout-remote:progress</code> 事件回报 <code>extractedPages / totalPages</code> 进度；</li>
-<li>任务完成后下载 <code>resultUrl.jsonUrl</code>（JSONL），提取每页 <code>prunedResult.layout_det_res.boxes</code>（像素坐标 + <code>label</code> + <code>score</code>）；渲染像素尺寸优先取响应 <code>dataInfo</code> / <code>inputImage</code> JPEG 头，缺失时按 200 DPI 估算（归一化 <code>bbox</code> 不受影响，仅 points <code>rect</code> 可能有轻微偏差）；</li>
-<li>
-<p>后续与本地路径完全共用：PDF text runs 补文字 / captionRole → <code>mergeCaptionsIntoHosts</code> → sidecar / index。</p>
-</li>
-<li>
-<p>标签词表与本地一致（PP-DocLayoutV3 <code>id2label</code>），<code>labels.ts</code> 映射直接复用；阈值同为 0.3。</p>
-</li>
-<li>sidecar <code>source.mode</code> 记为 <code>paddle-layout</code>（本地为 <code>embedpdf-layout</code>），两者均可被解析。</li>
-<li>进度 / 取消沿用 <code>LayoutTask</code> 形状（<code>PaddleLayoutTask</code>）。JobCenter 对 Paddle <strong>不设并发上限</strong>；<code>layout-remote:progress</code> 带 <code>requestId</code>，并行任务互不串进度。</li>
-<li>无 paper 目录（拿不到 PDF 字节）或页数未知时自动回退本地 ONNX。</li>
-<li>端点固定为 <code>https://paddleocr.aistudio-app.com/api/v2/ocr/jobs</code>；API Key 在 <a href="https://aistudio.baidu.com/paddleocr/task/new">AI Studio PaddleOCR 任务页</a> 获取。</li>
+<li>读取本地 PDF，整份 base64 交给 Host 命令 <code>layout_remote_analyze_pdf</code>（<code>provider</code> 参数分发到 <code>src-tauri/src/features/layout_remote/</code> 的 <code>RemoteLayoutEngine</code> 实现：<code>paddle.rs</code> / <code>mineru.rs</code>）；token 由 Host 从设置注入，WebView 只持有 <code>*</code> 掩码；</li>
+<li>Host 轮询远端任务（总时限 10 分钟），期间通过 <code>layout-remote:progress</code> 事件回报进度（<code>requestId</code> 隔离并行任务）；</li>
+<li>每页返回统一的 <code>boxes</code>（像素坐标 + <code>label</code> + <code>score</code>）；</li>
+<li>后续与本地路径完全共用：PDF text runs 补文字 / captionRole → <code>mergeCaptionsIntoHosts</code> → sidecar / index。</li>
 </ol>
+<p><strong>Paddle</strong>（<code>paddle.rs</code>）：multipart 提交 <code>POST https://paddleocr.aistudio-app.com/api/v2/ocr/jobs</code>（<code>model: PP-StructureV3</code>，<code>Authorization: bearer &lt;token&gt;</code>）→ 每 3s 轮询 <code>GET …/jobs/{jobId}</code> → 下载 <code>resultUrl.jsonUrl</code>（JSONL），提取每页 <code>prunedResult.layout_det_res.boxes</code>；渲染像素尺寸优先取响应 <code>dataInfo</code> / <code>inputImage</code> JPEG 头，缺失时按 200 DPI 估算（归一化 <code>bbox</code> 不受影响，仅 points <code>rect</code> 可能有轻微偏差）。API Key 在 <a href="https://aistudio.baidu.com/account/accessToken">AI Studio 访问令牌页</a> 获取。</p>
+<p><strong>MinerU</strong>（<code>mineru.rs</code>）：<code>POST {base}/api/v4/file-urls/batch</code> 申请预签名上传 URL → <code>PUT</code> 上传 PDF 字节 → 轮询 <code>GET {base}/api/v4/extract-results/batch/{batchId}</code> → 下载结果 zip，解析 <code>*content_list.json</code> + <code>*middle.json</code>（每页尺寸）。<code>content_list</code> 的 bbox 是 <strong>0–1000 归一化</strong> 坐标，Host 按 <code>middle.json</code> 页尺寸换算回像素；<code>type</code>（<code>image</code> / <code>table</code> / <code>equation</code> / <code>code</code> / <code>title</code>…）在 Rust 侧映射到与 PP-DocLayoutV3 统一的 label 词表（<code>labels.ts</code> 直接复用），无置信度字段 → score 固定 1.0（通过前端 0.3 阈值、不扭曲排序）。Base URL 可覆盖（默认 <code>https://mineru.net</code>，强制 https，loopback 例外）；不受信 zip 有下载 / 解压上限。API Token 在 <a href="https://mineru.net/apiManage/token">mineru.net API 管理页</a> 获取。</p>
+<ul>
+<li>标签词表与本地一致，阈值同为 0.3。</li>
+<li>sidecar <code>source.mode</code> 按 provider 记为 <code>paddle-layout</code> / <code>mineru-layout</code>（本地为 <code>embedpdf-layout</code>），均可被解析。</li>
+<li>进度 / 取消沿用 <code>LayoutTask</code> 形状。JobCenter 对远程 provider <strong>不设并发上限</strong>；<code>layout-remote:progress</code> 带 <code>requestId</code>，并行任务互不串进度。</li>
+<li>无 paper 目录（拿不到 PDF 字节）或页数未知时自动回退本地 ONNX。</li>
+</ul>
 <h3 id="layout-sidecar">Layout sidecar<a class="headerlink" href="#layout-sidecar" title="Permanent link">&para;</a></h3>
 <p><code>{paper}/source/layout.json</code> 保存 <strong>初步解析结果</strong>：模型标签映射后的 <code>PdfLayoutRegion[]</code>，并已尽力补充 caption 文本与 <code>captionRole</code>（公式编号文本不解析）。它不保存侧栏最终卡片列表，也不保存缩略图；后续 <code>mergeCaptionsIntoHosts</code>、去重和置信度筛选都从该 raw sidecar 重新计算。因此修改联图、公式合并或筛选规则后，不需要重新运行 PP-DocLayoutV3。</p>
 <div class="codehilite"><pre><span></span><code><span class="kr">type</span><span class="w"> </span><span class="nx">LayoutSidecar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">schemaVersion</span><span class="o">:</span><span class="w"> </span><span class="kt">2</span><span class="p">;</span>
-<span class="w">  </span><span class="nx">source</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;embedpdf-layout&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;paddle-layout&quot;</span><span class="p">;</span><span class="w"> </span><span class="nx">generatedAt</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">};</span>
+<span class="w">  </span><span class="nx">source</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;embedpdf-layout&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;paddle-layout&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;mineru-layout&quot;</span><span class="p">;</span><span class="w"> </span><span class="nx">generatedAt</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">};</span>
 <span class="w">  </span><span class="nx">regions</span><span class="o">:</span><span class="w"> </span><span class="kt">PdfLayoutRegion</span><span class="p">[];</span><span class="w"> </span><span class="c1">// raw, pre-merge</span>
 <span class="p">};</span>
 </code></pre></div>
@@ -4037,6 +4042,14 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <tr>
 <td><code>run-analysis.ts</code></td>
 <td>分析 → 文字 → merge → store</td>
+</tr>
+<tr>
+<td><code>providers.ts</code> / <code>provider-config.ts</code></td>
+<td>Provider 注册表（kind / requiresApiKey / supportsBaseUrl / sidecarMode）与设置 UI 共用的保存 / 探测逻辑</td>
+</tr>
+<tr>
+<td><code>paddle.ts</code></td>
+<td>远程分析 / probe 的 IPC 封装（provider 参数分发）</td>
 </tr>
 <tr>
 <td><code>io.ts</code></td>
