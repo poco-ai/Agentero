@@ -3219,7 +3219,7 @@
 <tbody>
 <tr>
 <td>⭐ <code>app:ready</code></td>
-<td>前端 bootstrap 完成（store 初始化、vault 校验后）</td>
+<td>前端 bootstrap 完成（store 初始化、vault 校验后）。已预埋 emit、暂无消费者</td>
 </tr>
 <tr>
 <td>○ <code>app:will-quit</code></td>
@@ -3292,7 +3292,7 @@
 <tbody>
 <tr>
 <td>⭐ <code>paper:opened</code></td>
-<td>openPaper/openTab 完成（layout enqueue、activity 打点挂载点）</td>
+<td>openPaper/openTab 完成（layout enqueue、activity 打点挂载点）。已预埋 emit、暂无消费者</td>
 </tr>
 <tr>
 <td>○ <code>paper:closed</code></td>
@@ -3338,7 +3338,7 @@
 <tbody>
 <tr>
 <td>⭐ <code>job:completed</code> / <code>job:failed</code></td>
-<td>由 <code>job:changed</code> 状态机单点派生，payload 带 <code>JobKind</code>（ParseRefs / ParseBody / LayoutAnalyze / LayoutTranslate / DownloadAssets / PageCount / WikiReindex）</td>
+<td>由 <code>job:changed</code> 状态机单点派生，payload 带 <code>JobKind</code>（ParseRefs / ParseBody / LayoutAnalyze / LayoutTranslate / DownloadAssets / PageCount / WikiReindex）。已预埋 emit、暂无消费者</td>
 </tr>
 </tbody>
 </table>
@@ -3356,7 +3356,7 @@
 <li><code>bus.ts</code>：极简 typed emitter（on/off/emit，无第三方依赖）</li>
 <li><code>tauri-bridge.ts</code>：集中 <code>listen()</code> wire 事件并转发进 bus；在 bootstrap 初始化一次</li>
 <li><strong>Rust 端不做 observer 抽象</strong>：仅在关键节点（<code>paper_commit</code> 后、jobs 状态机单点、assets 完成后）直接 emit 语义事件；当前只有前端一个消费者，不过度设计。</li>
-<li><strong>顺序约束显式化</strong>：handler 按注册顺序串行 await（如导入后 openPaper 依赖 refreshLibrary），不引入优先级系统，靠注册文件内的显式顺序表达。</li>
+<li><strong>顺序约束显式化</strong>：handler 按注册顺序串行 await，不引入优先级系统，靠注册文件内的显式顺序表达。（注：openPaper 直接用导入结果里的绝对路径打开，不依赖 refreshLibrary 完成。）</li>
 </ul>
 <h2 id="_7">落地批次<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <ol>

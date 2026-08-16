@@ -5924,6 +5924,26 @@ Host (Tauri + Rust)
 <td>下载/解析任务进度</td>
 <td><code>{ taskId, phase, downloadedBytes, totalBytes?, progress? }</code>；下载阶段的字节进度由前端聚合为总体进度（PDF 映射到 0–50%，TeX 映射到 50–100%），解析阶段显示为处理中，任务完成时为 100%。Host 对字节级进度做节流：百分比变化 ≥1 个点或距上次 emit ≥100ms 才发事件，下载完成时必发最终值</td>
 </tr>
+<tr>
+<td><code>paper:imported</code>（已实现）</td>
+<td><code>paper_commit</code> 成功（catalog 已写入、NOTES 已建）；本地与远程导入路径统一发</td>
+<td><code>{ vaultId, paperId, timestamp }</code>（<code>vaultId</code> 为 vault 根路径，远程为 <code>remote:&lt;sessionId&gt;</code>）</td>
+</tr>
+<tr>
+<td><code>paper:assets-ready</code>（已实现）</td>
+<td>论文资产就绪：同步下载完成 / 本地 PDF 拷贝完成 / <code>DownloadAssets</code> job 成功</td>
+<td><code>{ vaultId, paperId, timestamp }</code></td>
+</tr>
+<tr>
+<td><code>job:completed</code>（已实现）</td>
+<td>job 状态机真实迁移到 <code>Succeeded</code> 时由 <code>job:changed</code> 单点派生</td>
+<td><code>{ jobId, kind, paperId?, timestamp }</code></td>
+</tr>
+<tr>
+<td><code>job:failed</code>（已实现）</td>
+<td>job 状态机真实迁移到 <code>Failed</code> 时由 <code>job:changed</code> 单点派生</td>
+<td><code>{ jobId, kind, paperId?, error?, timestamp }</code></td>
+</tr>
 </tbody>
 </table>
 <h4 id="agent_warm"><code>agent_warm</code><a class="headerlink" href="#agent_warm" title="Permanent link">&para;</a></h4>
