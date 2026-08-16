@@ -8,7 +8,10 @@ import { joinVaultPath, readVaultFile, writeVaultFile } from "@/lib/vault";
 import type { DefenseDebrief } from "@/lib/voice-defense/debrief";
 import { createDefaultAgentRunner } from "@/lib/voice-defense/preparation/coordinator";
 import type { DefenseQuestion } from "@/lib/voice-defense/preparation/schema";
-import { DefenseOutputValidationError } from "@/lib/voice-defense/preparation/schema";
+import {
+	DefenseOutputValidationError,
+	isDeterministicDefenseProviderDiagnostic,
+} from "@/lib/voice-defense/preparation/schema";
 import type { VoiceCaption } from "@/lib/voice-defense/protocol";
 import { buildDefenseReviewMarkdown } from "@/lib/voice-defense/review/markdown";
 import { buildSessionReviewPrompt } from "@/lib/voice-defense/review/prompts";
@@ -173,6 +176,7 @@ export async function startDefenseReview(
 						}
 						if (
 							!(error instanceof DefenseOutputValidationError) ||
+							isDeterministicDefenseProviderDiagnostic(error) ||
 							attempt === 1
 						) {
 							throw error;

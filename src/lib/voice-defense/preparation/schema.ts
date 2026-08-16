@@ -292,6 +292,74 @@ export class DefenseOutputValidationError extends Error {
 	}
 }
 
+export type DefenseProviderDiagnostic = {
+	statusCode: number;
+	message: string;
+};
+
+/**
+ * ACP adapters can surface an upstream HTTP failure as an Agent message rather
+ * than a failed terminal event. Keep it distinct from malformed model JSON so
+ * the coordinator can avoid retrying deterministic provider rejections.
+ */
+export class DefenseProviderDiagnosticError extends DefenseOutputValidationError {
+	readonly statusCode: number;
+
+	constructor(diagnostic: DefenseProviderDiagnostic) {
+		super(diagnostic.message);
+		this.name = "DefenseProviderDiagnosticError";
+		this.statusCode = diagnostic.statusCode;
+	}
+}
+
+const RETRYABLE_PROVIDER_STATUS_CODES = new Set([408, 409, 425, 429]);
+
+/** HTTP diagnostics that will not become different by repeating the same run. */
+export function isDeterministicDefenseProviderDiagnostic(
+	error: unknown,
+): error is DefenseProviderDiagnosticError {
+	return (
+		error instanceof DefenseProviderDiagnosticError &&
+		error.statusCode >= 400 &&
+		error.statusCode < 500 &&
+		!RETRYABLE_PROVIDER_STATUS_CODES.has(error.statusCode)
+	);
+}
+
+const PROVIDER_STATUS_LINE =
+	/^(?:error:\s*)?(?:(?:unexpected\s+)?(?:http\s+)?status(?:\s+code)?|http(?:\s+error)?)\s*:?\s*([45]\d{2})\b/i;
+const MAX_PROVIDER_DIAGNOSTIC_LENGTH = 4_000;
+
+/**
+ * Extract only a leading provider HTTP diagnostic, optionally preceded by ACP
+ * warning lines. This deliberately does not scan arbitrary model prose for a
+ * status number, and the raw output remains available in the invalid artifact.
+ */
+export function extractDefenseProviderDiagnostic(
+	rawOutput: string,
+): DefenseProviderDiagnostic | undefined {
+	const lines = rawOutput.replace(/\r\n?/g, "\n").split("\n");
+	let index = 0;
+	while (index < lines.length) {
+		const line = lines[index].trim();
+		if (!line || /^(?:warning|config warning):/i.test(line)) {
+			index += 1;
+			continue;
+		}
+		break;
+	}
+
+	const diagnostic = lines.slice(index).join("\n").trim();
+	const status = diagnostic.match(PROVIDER_STATUS_LINE);
+	if (!status) return undefined;
+	const statusCode = Number(status[1]);
+	const message =
+		diagnostic.length <= MAX_PROVIDER_DIAGNOSTIC_LENGTH
+			? diagnostic
+			: `${diagnostic.slice(0, MAX_PROVIDER_DIAGNOSTIC_LENGTH).trimEnd()}…`;
+	return { statusCode, message };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -429,8 +497,14 @@ function evidenceArray(
 	);
 }
 
-function embeddedStructuredJsonObject(
+/**
+ * Find one or more balanced JSON objects embedded in ACP text and return the
+ * one accepted by the caller's schema predicate. The scan is deliberately
+ * string-aware so braces in quoted diagnostics do not corrupt the balance.
+ */
+export function extractEmbeddedJsonObject(
 	rawOutput: string,
+	isCandidate: (value: Record<string, unknown>) => boolean,
 ): Record<string, unknown> | undefined {
 	const candidates: Record<string, unknown>[] = [];
 	let searchFrom = 0;
@@ -470,11 +544,7 @@ function embeddedStructuredJsonObject(
 		if (end > start) {
 			try {
 				const parsed = JSON.parse(rawOutput.slice(start, end)) as unknown;
-				if (
-					isRecord(parsed) &&
-					parsed.schemaVersion === DEFENSE_PREPARATION_SCHEMA_VERSION &&
-					typeof parsed.kind === "string"
-				) {
+				if (isRecord(parsed) && isCandidate(parsed)) {
 					candidates.push(parsed);
 				}
 			} catch {
@@ -492,6 +562,17 @@ function embeddedStructuredJsonObject(
 	return candidates[0];
 }
 
+function embeddedStructuredJsonObject(
+	rawOutput: string,
+): Record<string, unknown> | undefined {
+	return extractEmbeddedJsonObject(
+		rawOutput,
+		(parsed) =>
+			parsed.schemaVersion === DEFENSE_PREPARATION_SCHEMA_VERSION &&
+			typeof parsed.kind === "string",
+	);
+}
+
 function parseJsonObject(rawOutput: string): Record<string, unknown> {
 	const trimmed = rawOutput.trim();
 	const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
@@ -500,6 +581,10 @@ function parseJsonObject(rawOutput: string): Record<string, unknown> {
 	try {
 		parsed = JSON.parse(json);
 	} catch (error) {
+		const providerDiagnostic = extractDefenseProviderDiagnostic(trimmed);
+		if (providerDiagnostic) {
+			throw new DefenseProviderDiagnosticError(providerDiagnostic);
+		}
 		const embedded = embeddedStructuredJsonObject(trimmed);
 		if (embedded) return embedded;
 		throw new DefenseOutputValidationError(

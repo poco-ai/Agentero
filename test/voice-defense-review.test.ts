@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { DefenseOutputValidationError } from "@/lib/voice-defense/preparation/schema";
+import {
+	DefenseOutputValidationError,
+	DefenseProviderDiagnosticError,
+} from "@/lib/voice-defense/preparation/schema";
 import { buildDefenseReviewMarkdown } from "@/lib/voice-defense/review/markdown";
 import { buildSessionReviewPrompt } from "@/lib/voice-defense/review/prompts";
 import { parseDefenseSessionReview } from "@/lib/voice-defense/review/schema";
@@ -52,6 +55,37 @@ describe("defense session review schema", () => {
 				[SOURCE],
 			),
 		).toThrow(/overall/);
+	});
+
+	it("surfaces an ACP provider HTTP diagnostic instead of a JSON parser error", () => {
+		const raw = [
+			"Warning: Skill descriptions were shortened to fit the context budget.",
+			"",
+			'unexpected status 403 Forbidden: provider rejected the ACP client body={"error":"denied"}',
+		].join("\n");
+		expect(() => parseDefenseSessionReview(raw, [SOURCE])).toThrow(
+			DefenseProviderDiagnosticError,
+		);
+		try {
+			parseDefenseSessionReview(raw, [SOURCE]);
+		} catch (error) {
+			expect(error).toMatchObject({ statusCode: 403 });
+			expect((error as Error).message).toContain("403 Forbidden");
+			expect((error as Error).message).not.toMatch(
+				/Unexpected (?:identifier|token)/,
+			);
+		}
+	});
+
+	it("recovers a review object embedded after warning text with braces", () => {
+		const raw = [
+			"Warning: adapter metadata {not JSON} was emitted before the result.",
+			JSON.stringify(reviewPayload()),
+		].join("\n");
+		expect(parseDefenseSessionReview(raw, [SOURCE])).toMatchObject({
+			kind: "session-review",
+			overall: "adequate",
+		});
 	});
 
 	it("renders a Vault review note with transcript and brief wikilinks", () => {

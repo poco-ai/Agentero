@@ -1,6 +1,9 @@
 import {
 	DefenseOutputValidationError,
+	DefenseProviderDiagnosticError,
 	type EvidenceRef,
+	extractDefenseProviderDiagnostic,
+	extractEmbeddedJsonObject,
 	isSafeVaultRelativePath,
 } from "@/lib/voice-defense/preparation/schema";
 
@@ -123,19 +126,22 @@ function parseJsonObject(rawOutput: string): Record<string, unknown> {
 	const trimmed = rawOutput.trim();
 	const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
 	const json = fenced ? fenced[1] : trimmed;
+	const providerDiagnostic = extractDefenseProviderDiagnostic(trimmed);
+	if (providerDiagnostic) {
+		throw new DefenseProviderDiagnosticError(providerDiagnostic);
+	}
 	try {
 		const parsed = JSON.parse(json) as unknown;
 		if (isRecord(parsed)) return parsed;
 	} catch {
-		const start = trimmed.indexOf("{");
-		const end = trimmed.lastIndexOf("}");
-		if (start >= 0 && end > start) {
-			try {
-				const parsed = JSON.parse(trimmed.slice(start, end + 1)) as unknown;
-				if (isRecord(parsed)) return parsed;
-			} catch {
-				// Fall through.
-			}
+		const embedded = extractEmbeddedJsonObject(
+			trimmed,
+			(parsed) =>
+				parsed.schemaVersion === DEFENSE_REVIEW_SCHEMA_VERSION &&
+				parsed.kind === "session-review",
+		);
+		if (embedded) {
+			return embedded;
 		}
 	}
 	throw new DefenseOutputValidationError("agent output is not valid JSON");
