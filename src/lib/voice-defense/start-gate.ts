@@ -23,17 +23,23 @@ export class VoiceStartGate {
 		hasClient: boolean;
 		sessionActive: boolean;
 		acquire: (leaseId: string) => boolean;
+		/**
+		 * Prepare-page enter may steal a lease held with no Voice client.
+		 * A live client must still be rejected.
+		 */
+		takeoverStaleLease?: boolean;
+		releaseStale?: () => void;
 		nextLeaseId?: () => string;
 	}): number | null {
-		if (
-			!input.open ||
-			this.starting ||
-			input.hasClient ||
-			input.sessionActive
-		) {
+		if (!input.open || this.starting || input.hasClient) {
 			return null;
 		}
-		const leaseId = (input.nextLeaseId ?? crypto.randomUUID)();
+		if (input.sessionActive) {
+			if (!input.takeoverStaleLease) return null;
+			input.releaseStale?.();
+			this.leaseId = null;
+		}
+		const leaseId = input.nextLeaseId?.() ?? crypto.randomUUID();
 		if (!input.acquire(leaseId)) return null;
 		this.leaseId = leaseId;
 		this.starting = true;

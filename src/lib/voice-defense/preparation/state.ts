@@ -225,6 +225,11 @@ export function releaseVoiceDefenseSession(leaseId: string): void {
 	}
 }
 
+/** Drop a lease that has no attached Voice client so prepare-page enter can proceed. */
+export function clearVoiceDefenseSessionLease(): void {
+	voiceDefenseSessionLease = null;
+}
+
 export function registerDefensePreparationRuntime(
 	state: DefensePreparationRuntimeState,
 ): void {

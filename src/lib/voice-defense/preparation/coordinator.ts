@@ -35,6 +35,7 @@ import {
 	type DefensePreparationManifest,
 	type DefensePreparationRole,
 	type DefensePreparationSummary,
+	isDeterministicDefenseProviderDiagnostic,
 	parseDefenseStructuredOutput,
 	selectLatestReusablePreparationForPaper,
 	selectReusablePreparation,
@@ -641,6 +642,20 @@ export class DefensePreparationCoordinator {
 		return artifacts;
 	}
 
+	private async releaseInactiveChildSessions(runId: string): Promise<void> {
+		const leftover =
+			getDefensePreparationRuntimeState(runId)?.activeChildSessionIds ?? [];
+		for (const sessionId of leftover) {
+			if (await this.deps.isAgentRunActive(sessionId)) continue;
+			removeChildSession(runId, sessionId);
+		}
+		if (
+			!getDefensePreparationRuntimeState(runId)?.activeChildSessionIds.length
+		) {
+			unregisterDefensePreparationRuntime(runId);
+		}
+	}
+
 	private async assertManifestSessionsInactive(
 		manifest: DefensePreparationManifest,
 	): Promise<void> {
@@ -930,6 +945,8 @@ export class DefensePreparationCoordinator {
 		options: {
 			current?: Omit<PaperSnapshotInput, "vaultRoot" | "paperPath">;
 			allowStale?: boolean;
+			skipSnapshotFreshness?: boolean;
+			force?: boolean;
 		} = {},
 	): Promise<DefensePreparationManifest> {
 		const storage = this.storage(vaultRoot);
@@ -949,21 +966,28 @@ export class DefensePreparationCoordinator {
 		) {
 			throw new Error(`preparation is not awaiting review: ${manifest.status}`);
 		}
-		if (
-			getDefensePreparationRuntimeState(runId)?.activeChildSessionIds.length
-		) {
-			throw new Error("preparation ACP runtime is still active");
+		if (options.force) {
+			unregisterDefensePreparationRuntime(runId);
+		} else {
+			await this.releaseInactiveChildSessions(runId);
+			if (
+				getDefensePreparationRuntimeState(runId)?.activeChildSessionIds.length
+			) {
+				throw new Error("preparation ACP runtime is still active");
+			}
+			await this.assertManifestSessionsInactive(manifest);
 		}
-		await this.assertManifestSessionsInactive(manifest);
-		try {
-			await this.assertSnapshotFresh(storage, manifest, {
-				vaultRoot,
-				paperPath: manifest.paperPath,
-				...(options.current ?? {}),
-			});
-		} catch (error) {
-			if (!(error instanceof PreparationStaleError) || !options.allowStale) {
-				throw error;
+		if (!options.force && !options.skipSnapshotFreshness) {
+			try {
+				await this.assertSnapshotFresh(storage, manifest, {
+					vaultRoot,
+					paperPath: manifest.paperPath,
+					...(options.current ?? {}),
+				});
+			} catch (error) {
+				if (!(error instanceof PreparationStaleError) || !options.allowStale) {
+					throw error;
+				}
 			}
 		}
 		let edited = false;
@@ -1347,6 +1371,8 @@ export class DefensePreparationCoordinator {
 			const cancelled = isCancelled(active.controller.signal, error);
 			const message = asError(error).message;
 			const invalid = error instanceof DefenseOutputValidationError;
+			const deterministicProviderRejection =
+				isDeterministicDefenseProviderDiagnostic(error);
 			if (invalid && !cancelled) {
 				const artifact: DefenseArtifact = {
 					schemaVersion: DEFENSE_PREPARATION_SCHEMA_VERSION,
@@ -1389,7 +1415,11 @@ export class DefensePreparationCoordinator {
 						active.runId,
 					)?.activeChildSessionIds.includes(acceptedSessionId),
 			);
-			if (autoRetryRemaining > 0 && !childStillActive) {
+			if (
+				autoRetryRemaining > 0 &&
+				!childStillActive &&
+				!deterministicProviderRejection
+			) {
 				await this.runNode(
 					input,
 					manifest,
@@ -1486,6 +1516,8 @@ export function confirmDefensePreparation(
 	options?: {
 		current?: Omit<PaperSnapshotInput, "vaultRoot" | "paperPath">;
 		allowStale?: boolean;
+		skipSnapshotFreshness?: boolean;
+		force?: boolean;
 	},
 ): Promise<DefensePreparationManifest> {
 	return defaultDefensePreparationCoordinator.confirm(

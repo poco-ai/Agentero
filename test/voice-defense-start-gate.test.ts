@@ -18,6 +18,9 @@ function leaseBox() {
 		sessionActive() {
 			return held !== null;
 		},
+		forceClear() {
+			held = null;
+		},
 	};
 }
 
@@ -38,6 +41,23 @@ describe("voice start gate", () => {
 		expect(gate.isStarting).toBe(true);
 		expect(gate.isCurrent(1, true)).toBe(true);
 		expect(leases.held).toBe("lease-1");
+	});
+
+	it("issues a UUID lease when nextLeaseId is omitted", () => {
+		const leases = leaseBox();
+		const gate = new VoiceStartGate();
+		const operation = gate.begin({
+			open: true,
+			hasClient: false,
+			sessionActive: false,
+			acquire: (leaseId) => leases.acquire(leaseId),
+		});
+
+		expect(operation).toBe(1);
+		expect(gate.leaseId).toMatch(
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+		);
+		expect(leases.held).toBe(gate.leaseId);
 	});
 
 	it("rejects a second start while one is in flight", () => {
@@ -157,5 +177,67 @@ describe("voice start gate", () => {
 			nextLeaseId: () => "lease-1",
 		});
 		expect(gate.isCurrent(1, false)).toBe(false);
+	});
+
+	it("takes over a lease held with no Voice client", () => {
+		const leases = leaseBox();
+		expect(leases.acquire("orphan")).toBe(true);
+		const gate = new VoiceStartGate();
+		const operation = gate.begin({
+			open: true,
+			hasClient: false,
+			sessionActive: leases.sessionActive(),
+			acquire: (leaseId) => leases.acquire(leaseId),
+			takeoverStaleLease: true,
+			releaseStale: () => leases.forceClear(),
+			nextLeaseId: () => "lease-2",
+		});
+
+		expect(operation).toBe(1);
+		expect(gate.leaseId).toBe("lease-2");
+		expect(leases.held).toBe("lease-2");
+	});
+
+	it("does not steal a lease while a Voice client is attached", () => {
+		const leases = leaseBox();
+		expect(leases.acquire("live")).toBe(true);
+		const gate = new VoiceStartGate();
+		const operation = gate.begin({
+			open: true,
+			hasClient: true,
+			sessionActive: true,
+			acquire: (leaseId) => leases.acquire(leaseId),
+			takeoverStaleLease: true,
+			releaseStale: () => leases.forceClear(),
+			nextLeaseId: () => "lease-2",
+		});
+
+		expect(operation).toBeNull();
+		expect(leases.held).toBe("live");
+	});
+
+	it("does not take over while another start is in flight", () => {
+		const leases = leaseBox();
+		const gate = new VoiceStartGate();
+		const first = gate.begin({
+			open: true,
+			hasClient: false,
+			sessionActive: false,
+			acquire: (leaseId) => leases.acquire(leaseId),
+			nextLeaseId: () => "lease-1",
+		});
+		const second = gate.begin({
+			open: true,
+			hasClient: false,
+			sessionActive: leases.sessionActive(),
+			acquire: (leaseId) => leases.acquire(leaseId),
+			takeoverStaleLease: true,
+			releaseStale: () => leases.forceClear(),
+			nextLeaseId: () => "lease-2",
+		});
+
+		expect(first).toBe(1);
+		expect(second).toBeNull();
+		expect(leases.held).toBe("lease-1");
 	});
 });

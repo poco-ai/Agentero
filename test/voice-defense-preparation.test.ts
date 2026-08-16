@@ -7,6 +7,8 @@ import {
 	DefensePreparationFailedError,
 	type PreparationAgentResult,
 	type PreparationAgentRunInput,
+	PreparationStaleError,
+	preparationFailureDescription,
 } from "@/lib/voice-defense/preparation/coordinator";
 import {
 	buildAnalysisPrompt,
@@ -16,6 +18,7 @@ import {
 	DEFENSE_PREPARATION_SCHEMA_VERSION,
 	DefenseOutputValidationError,
 	type DefensePreparationManifest,
+	DefenseProviderDiagnosticError,
 	isSafeVaultRelativePath,
 	type PaperSnapshot,
 	parseDefenseStructuredOutput,
@@ -29,10 +32,12 @@ import {
 } from "@/lib/voice-defense/preparation/snapshot";
 import {
 	acquireVoiceDefenseSession,
+	clearVoiceDefenseSessionLease,
 	createDefensePreparationManifest,
 	hasActiveDefensePreparations,
 	hasActivePreparationChildren,
 	isVoiceDefenseSessionActive,
+	registerDefensePreparationRuntime,
 	releaseVoiceDefenseSession,
 	resetDefensePreparationRuntimeForTests,
 } from "@/lib/voice-defense/preparation/state";
@@ -45,6 +50,12 @@ import {
 } from "@/lib/voice-defense/preparation/storage";
 
 const SOURCE = "papers/demo/PAPER.md";
+
+const ACP_PROVIDER_403_OUTPUT = [
+	"Warning: Skill descriptions were shortened to fit the 2% skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.",
+	"",
+	"unexpected status 403 Forbidden: 该渠道不允许当前客户端使用（检测到：@agentclientprotocol/codex-acp/0.146.1 (Mac OS 26.3.1; arm64) unknown (@agentclientprotocol/codex-acp; 1.1.10)）, url: https://ai.centos.hk/v1/responses, request id: req-test",
+].join("\n");
 
 const ANALYSIS_TOPICS = [
 	"research-problem",
@@ -313,6 +324,14 @@ describe("Voice defense session lease", () => {
 		expect(acquireVoiceDefenseSession("   ")).toBe(false);
 		expect(isVoiceDefenseSessionActive()).toBe(false);
 	});
+
+	it("clears a stuck lease so a later acquire can proceed", () => {
+		expect(acquireVoiceDefenseSession("orphan")).toBe(true);
+		clearVoiceDefenseSessionLease();
+		expect(isVoiceDefenseSessionActive()).toBe(false);
+		expect(acquireVoiceDefenseSession("next")).toBe(true);
+		releaseVoiceDefenseSession("next");
+	});
 });
 
 describe("paper snapshot", () => {
@@ -496,6 +515,25 @@ describe("structured output schema", () => {
 		expect(
 			parseDefenseStructuredOutput("paper-analysis", raw, [SOURCE]).kind,
 		).toBe("paper-analysis");
+	});
+
+	it.each([
+		[ACP_PROVIDER_403_OUTPUT, 403],
+		["Config warning: ignored option.\n\nHTTP 503 Service Unavailable", 503],
+	])("preserves an ACP provider HTTP diagnostic instead of a JSON parser error", (raw, expectedStatus) => {
+		let failure: unknown;
+		try {
+			parseDefenseStructuredOutput("paper-analysis", raw, [SOURCE]);
+		} catch (error) {
+			failure = error;
+		}
+
+		expect(failure).toBeInstanceOf(DefenseProviderDiagnosticError);
+		expect(failure).toMatchObject({ statusCode: expectedStatus });
+		expect((failure as Error).message).toContain(String(expectedStatus));
+		expect((failure as Error).message).not.toMatch(
+			/Unexpected (?:identifier|token)/,
+		);
 	});
 
 	it("accepts explicit-selection evidence and rejects paths outside the snapshot", () => {
@@ -847,6 +885,47 @@ describe("defense preparation coordinator", () => {
 		expect(briefArtifact.payload.partial).toBe(true);
 	});
 
+	it("preserves provider 403 diagnostics without retrying deterministic rejections", async () => {
+		const harness = coordinatorHarness(async () => ACP_PROVIDER_403_OUTPUT);
+		const handle = harness.coordinator.start({
+			vaultRoot: "/vault",
+			paperPath: "papers/demo",
+		});
+		let failure: unknown;
+		try {
+			await handle.completion;
+		} catch (error) {
+			failure = error;
+		}
+
+		expect(failure).toBeInstanceOf(DefensePreparationFailedError);
+		const description = preparationFailureDescription(failure);
+		expect(description).toContain("unexpected status 403 Forbidden");
+		expect(description).toContain("该渠道不允许当前客户端使用");
+		expect(description).not.toMatch(/Unexpected (?:identifier|token)/);
+		expect(harness.calls).toHaveLength(2);
+
+		const manifest = (failure as DefensePreparationFailedError).manifest;
+		for (const role of ["paper-analysis", "adversarial-review"] as const) {
+			expect(manifest.nodes[role].attempts).toHaveLength(1);
+			expect(manifest.nodes[role].attempts[0]?.error).toContain(
+				"unexpected status 403 Forbidden",
+			);
+			const artifact = JSON.parse(
+				harness.storage.files.get(
+					preparationArtifactPath(handle.runId, role, 1),
+				) ?? "{}",
+			);
+			expect(artifact).toMatchObject({
+				attempt: 1,
+				status: "invalid",
+				rawOutput: ACP_PROVIDER_403_OUTPUT,
+			});
+			expect(artifact.error).toContain("unexpected status 403 Forbidden");
+			expect(artifact.error).not.toMatch(/Unexpected (?:identifier|token)/);
+		}
+	});
+
 	it("records an ACP timeout as failed and retries the analysis node", async () => {
 		const harness = coordinatorHarness(async (input, attempt) => {
 			if (input.role === "paper-analysis" && attempt === 1) {
@@ -1164,6 +1243,130 @@ describe("defense preparation coordinator", () => {
 		await expect(
 			harness.coordinator.confirm("/vault", handle.runId, "# Confirmed"),
 		).resolves.toMatchObject({ status: "ready" });
+	});
+
+	it("confirms a ready brief without re-hashing when skipSnapshotFreshness is set", async () => {
+		let current = snapshot();
+		const harness = coordinatorHarness(
+			async (input) => {
+				if (input.role === "paper-analysis") return analysisOutput();
+				if (input.role === "adversarial-review") return reviewOutput();
+				return briefOutput("# Draft", false);
+			},
+			() => current,
+		);
+		const handle = harness.coordinator.start({
+			vaultRoot: "/vault",
+			paperPath: "papers/demo",
+		});
+		await handle.completion;
+		current = snapshot("9".repeat(64));
+		await expect(
+			harness.coordinator.confirm("/vault", handle.runId, "# Confirmed"),
+		).rejects.toBeInstanceOf(PreparationStaleError);
+		await expect(
+			harness.coordinator.confirm("/vault", handle.runId, "# Confirmed", {
+				skipSnapshotFreshness: true,
+			}),
+		).resolves.toMatchObject({ status: "ready" });
+	});
+
+	it("drops leftover child sessions that Host already finished before confirming", async () => {
+		const harness = coordinatorHarness(async (input) => {
+			if (input.role === "paper-analysis") return analysisOutput();
+			if (input.role === "adversarial-review") return reviewOutput();
+			return briefOutput("# Draft", false);
+		});
+		const handle = harness.coordinator.start({
+			vaultRoot: "/vault",
+			paperPath: "papers/demo",
+		});
+		await handle.completion;
+		await vi.waitFor(() => expect(hasActiveDefensePreparations()).toBe(false));
+		registerDefensePreparationRuntime({
+			runId: handle.runId,
+			vaultRoot: "/vault",
+			paperPath: "papers/demo",
+			manifest: null,
+			activeChildSessionIds: ["ghost-session"],
+			cancelRequested: false,
+			startedAt: "2026-01-01T00:00:00.000Z",
+		});
+		expect(hasActiveDefensePreparations()).toBe(true);
+		expect(hasActivePreparationChildren()).toBe(true);
+		await expect(
+			harness.coordinator.confirm("/vault", handle.runId, "# Confirmed"),
+		).resolves.toMatchObject({ status: "ready" });
+		expect(hasActiveDefensePreparations()).toBe(false);
+		expect(hasActivePreparationChildren()).toBe(false);
+	});
+
+	it("still refuses confirmation when leftover children are Host-active", async () => {
+		let hostActive = false;
+		const harness = coordinatorHarness(
+			async (input) => {
+				if (input.role === "paper-analysis") return analysisOutput();
+				if (input.role === "adversarial-review") return reviewOutput();
+				return briefOutput("# Draft", false);
+			},
+			snapshot(),
+			{
+				isAgentRunActive: async (sessionId) =>
+					hostActive && sessionId === "ghost-session",
+			},
+		);
+		const handle = harness.coordinator.start({
+			vaultRoot: "/vault",
+			paperPath: "papers/demo",
+		});
+		await handle.completion;
+		await vi.waitFor(() => expect(hasActiveDefensePreparations()).toBe(false));
+		registerDefensePreparationRuntime({
+			runId: handle.runId,
+			vaultRoot: "/vault",
+			paperPath: "papers/demo",
+			manifest: null,
+			activeChildSessionIds: ["ghost-session"],
+			cancelRequested: false,
+			startedAt: "2026-01-01T00:00:00.000Z",
+		});
+		hostActive = true;
+		await expect(
+			harness.coordinator.confirm("/vault", handle.runId, "# Confirmed"),
+		).rejects.toThrow(/ACP runtime is still active/);
+	});
+
+	it("force-confirms even when leftover children are still Host-active", async () => {
+		const harness = coordinatorHarness(
+			async (input) => {
+				if (input.role === "paper-analysis") return analysisOutput();
+				if (input.role === "adversarial-review") return reviewOutput();
+				return briefOutput("# Draft", false);
+			},
+			snapshot(),
+			{ isAgentRunActive: async () => true },
+		);
+		const handle = harness.coordinator.start({
+			vaultRoot: "/vault",
+			paperPath: "papers/demo",
+		});
+		await handle.completion;
+		await vi.waitFor(() => expect(hasActiveDefensePreparations()).toBe(false));
+		registerDefensePreparationRuntime({
+			runId: handle.runId,
+			vaultRoot: "/vault",
+			paperPath: "papers/demo",
+			manifest: null,
+			activeChildSessionIds: ["ghost-session"],
+			cancelRequested: false,
+			startedAt: "2026-01-01T00:00:00.000Z",
+		});
+		await expect(
+			harness.coordinator.confirm("/vault", handle.runId, "# Forced", {
+				force: true,
+			}),
+		).resolves.toMatchObject({ status: "ready" });
+		expect(hasActiveDefensePreparations()).toBe(false);
 	});
 
 	it("recovers a completed brief whose awaiting-review checkpoint was interrupted", async () => {
