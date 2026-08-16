@@ -3202,8 +3202,8 @@
 </ol>
 <h3 id="_3">历史违规与清理<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>settings_window_closed</code> / <code>feature_window_closed</code>（snake_case 无前缀）→ <code>window:closed</code>，payload 带 <code>kind</code></li>
-<li>菜单裸 id 事件（<code>open_vault</code>、<code>toggle_sidebar</code> 等）→ <code>menu:invoked</code>，payload 带 <code>action</code></li>
+<li>✅ <code>settings_window_closed</code> / <code>feature_window_closed</code>（snake_case 无前缀）→ <code>window:closed</code>，payload <code>{ kind: "settings" | "feature", view? }</code></li>
+<li>✅ 菜单裸 id 事件（<code>open_vault</code>、<code>toggle_sidebar</code> 等）→ <code>menu:invoked</code>，payload <code>{ action }</code></li>
 <li><code>job:changed</code> 保留为内部状态机事件，对外暴露派生的 <code>job:completed</code> / <code>job:failed</code></li>
 </ul>
 <h2 id="_4">事件清单<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>

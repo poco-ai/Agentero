@@ -6257,7 +6257,7 @@ Host (Tauri + Rust)
 <li><strong>行为</strong></li>
 <li>label 为 <code>feature-{view}</code>；已存在则 <code>set_focus</code>。</li>
 <li>URL：<code>index.html?window=feature&amp;view=…&amp;vault_path=…&amp;active_path=…&amp;paper_title=…</code>（轻量 Feature 根，不加载完整 App Dock）。</li>
-<li>窗口关闭时 Host 向所有窗口 <code>emit("feature_window_closed", { view })</code>。</li>
+<li>窗口关闭时 Host 向所有窗口 <code>emit("window:closed", { kind: "feature", view })</code>。</li>
 <li><strong>必须是 <code>async</code> command</strong>（同 <code>window_new</code>）。</li>
 </ul>
 <h4 id="feature_window_close"><code>feature_window_close</code>（已实现）<a class="headerlink" href="#feature_window_close" title="Permanent link">&para;</a></h4>
@@ -6304,7 +6304,7 @@ Host (Tauri + Rust)
 <li>URL 带 <code>?window=settings&amp;section=...&amp;vault_path=...</code>，由 <code>src/main.tsx</code> 分支渲染轻量 Settings 页面（不加载完整 <code>App</code>）。</li>
 <li>新窗口初始隐藏，由全局 page-load hook 在页面加载完成后显示；首个 React commit 前显示静态启动壳。</li>
 <li>macOS 使用 Overlay 标题栏与原生交通灯；Windows / Linux 使用系统原生窗口边框（OS 自绘标题栏与 caption 按钮）。</li>
-<li>窗口关闭时 Host 向所有窗口 <code>emit("settings_window_closed", ())</code>，便于主窗口同步 Settings 打开状态（实现 <code>⌘,</code> <em>toggle</em>）；建窗失败时也会 emit 一次，避免 toggle 卡在“已打开”。</li>
+<li>窗口关闭时 Host 向所有窗口 <code>emit("window:closed", { kind: "settings" })</code>，便于主窗口同步 Settings 打开状态（实现 <code>⌘,</code> <em>toggle</em>）；建窗失败时也会 emit 一次，避免 toggle 卡在“已打开”。</li>
 <li>与 <code>window_new</code> 同理，<strong>必须是 <code>async</code> command</strong>。</li>
 </ul>
 <h4 id="fs_watch_start-fs_watch_stop"><code>fs_watch_start</code> / <code>fs_watch_stop</code>（已实现）<a class="headerlink" href="#fs_watch_start-fs_watch_stop" title="Permanent link">&para;</a></h4>
@@ -8162,11 +8162,11 @@ Host (Tauri + Rust)
 <li><strong>说明</strong>：locale 偏好存于 XDG <code>settings.json</code>（<code>settings_get</code> / <code>settings_set</code>）。Host 启动时以英文兜底构建菜单；前端在 <code>ensureSettingsLoaded</code> 后及每次语言切换时调用 <code>set_locale</code> 同步。实现见 <code>src-tauri/src/lib.rs</code>（<code>build_menu</code> + <code>set_locale</code>）与 <code>src-tauri/src/i18n.rs</code>（菜单词条）。</li>
 </ul>
 <h4 id="_1">菜单事件<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h4>
-<p>原生菜单项点击后 Host 通过 <code>emit(id, ())</code> 广播，前端在 <code>src/App.tsx</code> 监听。事件名（id）稳定、不随语言变化；仅菜单显示文案随 <code>set_locale</code> 本地化。</p>
+<p>原生菜单项点击后 Host 通过 <code>emit("menu:invoked", { action: id })</code> 广播（<code>new_window</code> 除外），前端在 <code>src/hooks/use-native-menu-events.ts</code> 单监听按 <code>action</code> 分发。action（菜单 id）稳定、不随语言变化；仅菜单显示文案随 <code>set_locale</code> 本地化。</p>
 <table>
 <thead>
 <tr>
-<th>事件名</th>
+<th>action</th>
 <th>菜单项</th>
 <th>快捷键</th>
 <th>说明</th>
