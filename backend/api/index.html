@@ -5926,7 +5926,7 @@ Host (Tauri + Rust)
 </tr>
 <tr>
 <td><code>paper:imported</code>（已实现）</td>
-<td><code>paper_commit</code> 成功（catalog 已写入、NOTES 已建）；本地与远程导入路径统一发</td>
+<td><code>paper_commit</code> 成功（catalog 已写入、NOTES 已建）；本地与远程导入路径统一发；<code>paper_download_assets</code> 为孤儿文件夹补建 catalog 行时也发</td>
 <td><code>{ vaultId, paperId, timestamp }</code>（<code>vaultId</code> 为 vault 根路径，远程为 <code>remote:&lt;sessionId&gt;</code>）</td>
 </tr>
 <tr>
