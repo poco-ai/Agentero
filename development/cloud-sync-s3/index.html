@@ -3190,8 +3190,8 @@
 <p>不做 oplog，不做逐文件远端比对。整体是 <strong>state-based 快照同步</strong>（remotely-save / rsync-with-manifest 模型），正确性只依赖 S3 的一个能力：<strong>条件写（<code>If-Match</code> / <code>If-None-Match</code>）</strong>，S3、R2、MinIO 均已支持。</p>
 <h3 id="remote">Remote 布局<a class="headerlink" href="#remote" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code>s3://&lt;bucket&gt;/&lt;prefix&gt;/
-├── vault.json               # { vaultId, formatVersion, encryption: &quot;none&quot;|&quot;e2ee&quot; }
-├── HEAD                     # { version: 42, manifest: &quot;manifests/000042.json&quot;, deviceId, ts }
+├── vault.json               # { vaultId, formatVersion, encryption: "none"|"e2ee" }
+├── HEAD                     # { version: 42, manifest: "manifests/000042.json", deviceId, ts }
 ├── manifests/000042.json.gz # relPath -&gt; { hash, size, mtime }
 └── blobs/ab/&lt;sha256&gt;        # gzip（+可选加密）后的文件内容，内容寻址，天然去重
 </code></pre></div>

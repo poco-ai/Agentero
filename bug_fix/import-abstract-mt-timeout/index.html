@@ -3898,8 +3898,8 @@ node<span class="w"> </span>test/scripts/probe-translator.mjs
 
 <span class="c1"># 端到端导入计时（需已 build CLI）</span>
 <span class="nv">VAULT</span><span class="o">=</span><span class="k">$(</span>mktemp<span class="w"> </span>-d<span class="w"> </span>/tmp/agentero-import-XXXXXX<span class="k">)</span>
-cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>vault<span class="w"> </span>create<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$VAULT</span><span class="s2">&quot;</span><span class="w"> </span>-q
-/usr/bin/time<span class="w"> </span>-p<span class="w"> </span>./target/debug/agentero<span class="w"> </span>--json<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$VAULT</span><span class="s2">&quot;</span><span class="w"> </span>import<span class="w"> </span>id<span class="w"> </span><span class="m">2607</span>.21804
+cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>vault<span class="w"> </span>create<span class="w"> </span><span class="s2">"</span><span class="nv">$VAULT</span><span class="s2">"</span><span class="w"> </span>-q
+/usr/bin/time<span class="w"> </span>-p<span class="w"> </span>./target/debug/agentero<span class="w"> </span>--json<span class="w"> </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$VAULT</span><span class="s2">"</span><span class="w"> </span>import<span class="w"> </span>id<span class="w"> </span><span class="m">2607</span>.21804
 </code></pre></div>
 
 <p>摘要 MT 可用与 Host 同 URL 的脚本对照串行/并行 wall；或依赖导入后 <code>NOTES.md</code> 是否为中文 + 导入总时长对照。</p>

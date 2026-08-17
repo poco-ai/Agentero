@@ -3423,7 +3423,7 @@
 <h2 id="2">2. 根因<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
 <h3 id="21-ssh-path-path">2.1 非交互 SSH 的 PATH ≠ 交互终端 PATH（主因）<a class="headerlink" href="#21-ssh-path-path" title="Permanent link">&para;</a></h3>
 <p>Agentero 探测 / 启动远端 Agent 使用：</p>
-<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-T<span class="w"> </span>-o<span class="w"> </span><span class="nv">BatchMode</span><span class="o">=</span>yes<span class="w"> </span>&lt;host&gt;<span class="w"> </span><span class="s1">&#39;bash -lc &quot;…&quot;&#39;</span>
+<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-T<span class="w"> </span>-o<span class="w"> </span><span class="nv">BatchMode</span><span class="o">=</span>yes<span class="w"> </span>&lt;host&gt;<span class="w"> </span><span class="s1">'bash -lc "…"'</span>
 </code></pre></div>
 
 <p>特点：</p>
@@ -3455,7 +3455,7 @@
 </table>
 <p>许多机器在 <code>~/.bashrc</code> 里：</p>
 <div class="codehilite"><pre><span></span><code><span class="k">case</span><span class="w"> </span><span class="nv">$-</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>*i*<span class="o">)</span><span class="w"> </span><span class="p">;;</span><span class="w"> </span>*<span class="o">)</span><span class="w"> </span><span class="k">return</span><span class="p">;;</span><span class="w"> </span><span class="k">esac</span><span class="w">   </span><span class="c1"># 非交互直接 return</span>
-<span class="c1"># … 之后才有 eval &quot;$(brew shellenv)&quot;</span>
+<span class="c1"># … 之后才有 eval "$(brew shellenv)"</span>
 </code></pre></div>
 
 <p>于是 <strong>Linuxbrew</strong> 下的全局 npm bin：</p>
@@ -3492,17 +3492,17 @@
 <p>只装 Claude Code、未装 <code>@agentclientprotocol/claude-agent-acp</code> 时：本机/远端都会 <strong>installed + adapter missing</strong>。</p>
 <h3 id="23-install-ssh">2.3 远端 Install 脚本 SSH 引号错误（已修）<a class="headerlink" href="#23-install-ssh" title="Permanent link">&para;</a></h3>
 <p>错误写法：</p>
-<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-t<span class="w"> </span>host<span class="w"> </span>--<span class="w"> </span>bash<span class="w"> </span>-lc<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CMD</span><span class="s2">&quot;</span>
-<span class="c1"># 远端再分词后 -c 只吃到 &quot;npm&quot;，其余参数丢失 → 打印 npm Usage</span>
+<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-t<span class="w"> </span>host<span class="w"> </span>--<span class="w"> </span>bash<span class="w"> </span>-lc<span class="w"> </span><span class="s2">"</span><span class="nv">$CMD</span><span class="s2">"</span>
+<span class="c1"># 远端再分词后 -c 只吃到 "npm"，其余参数丢失 → 打印 npm Usage</span>
 </code></pre></div>
 
 <p>正确：本地用 <code>printf '%q'</code> 把整段命令作为 <strong>一个</strong> <code>-c</code> 脚本：</p>
-<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-t<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEST</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;bash -lc </span><span class="k">$(</span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;%q&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CMD</span><span class="s2">&quot;</span><span class="k">)</span><span class="s2">&quot;</span>
+<div class="codehilite"><pre><span></span><code>ssh<span class="w"> </span>-t<span class="w"> </span><span class="s2">"</span><span class="nv">$DEST</span><span class="s2">"</span><span class="w"> </span><span class="s2">"bash -lc </span><span class="k">$(</span><span class="nb">printf</span><span class="w"> </span><span class="s1">'%q'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$CMD</span><span class="s2">"</span><span class="k">)</span><span class="s2">"</span>
 </code></pre></div>
 
 <h3 id="24-npm-i-g">2.4 系统 <code>npm i -g</code> 与权限<a class="headerlink" href="#24-npm-i-g" title="Permanent link">&para;</a></h3>
 <p>系统 npm <code>prefix=/usr</code> 时，无 root 的 <code>npm i -g</code> 易失败。应使用用户可写 prefix，例如：</p>
-<div class="codehilite"><pre><span></span><code>npm<span class="w"> </span>i<span class="w"> </span>-g<span class="w"> </span>@agentclientprotocol/claude-agent-acp<span class="w"> </span>--prefix<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">/.local&quot;</span>
+<div class="codehilite"><pre><span></span><code>npm<span class="w"> </span>i<span class="w"> </span>-g<span class="w"> </span>@agentclientprotocol/claude-agent-acp<span class="w"> </span>--prefix<span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/.local"</span>
 </code></pre></div>
 
 <h3 id="25">2.5 代理<a class="headerlink" href="#25" title="Permanent link">&para;</a></h3>

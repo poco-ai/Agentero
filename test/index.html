@@ -3299,8 +3299,8 @@ pnpm<span class="w"> </span>demo:vault:verify<span class="w"> </span>--<span cla
 </ul>
 <p>测试 Vault 语义时，创建临时 Vault 目录，不要在 <code>src/</code> 中引入全局 mock 数据：</p>
 <div class="codehilite"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">vault</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">createTestVault</span><span class="p">({</span>
-<span class="w"> </span><span class="s2">&quot;notes/Source.md&quot;</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;See [[notes/Target]].&quot;</span><span class="p">,</span>
-<span class="w"> </span><span class="s2">&quot;notes/Target.md&quot;</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;# Target&quot;</span><span class="p">,</span>
+<span class="w"> </span><span class="s2">"notes/Source.md"</span><span class="o">:</span><span class="w"> </span><span class="s2">"See [[notes/Target]]."</span><span class="p">,</span>
+<span class="w"> </span><span class="s2">"notes/Target.md"</span><span class="o">:</span><span class="w"> </span><span class="s2">"# Target"</span><span class="p">,</span>
 <span class="p">});</span>
 
 <span class="k">try</span><span class="w"> </span><span class="p">{</span>

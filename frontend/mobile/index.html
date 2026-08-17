@@ -4270,9 +4270,9 @@ Android：已初始化 Tauri Android 目标（<code>src-tauri/gen/android</code>
 <p><code>paseo onboard</code> / <code>paseo daemon pair</code> 组装 <strong>ConnectionOfferV2</strong>（<code>packages/protocol/src/connection-offer.ts:9-17</code>）并渲染二维码：</p>
 <div class="codehilite"><pre><span></span><code>https://app.paseo.sh/#offer=base64url({
   v: 2,
-  serverId: &quot;srv_…&quot;,
-  daemonPublicKeyB64: &quot;&lt;32B 公钥&gt;&quot;,
-  relay: { endpoint: &quot;relay.paseo.sh:443&quot;, useTls?: true }
+  serverId: "srv_…",
+  daemonPublicKeyB64: "&lt;32B 公钥&gt;",
+  relay: { endpoint: "relay.paseo.sh:443", useTls?: true }
 })
 </code></pre></div>
 
@@ -4431,12 +4431,12 @@ GET /ws?v=2&amp;serverId=&lt;agt_…&gt;&amp;role=client                       �
 <h3 id="51-offer">5.1 Offer 格式<a class="headerlink" href="#51-offer" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="c1">// QR 内容：agentero://pair#offer=base64url(JSON)</span>
 <span class="p">{</span>
-<span class="w">  </span><span class="s">&quot;v&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
-<span class="w">  </span><span class="s">&quot;serverId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;agt_…&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="s">&quot;hostPublicKeyB64&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;…&quot;</span><span class="p">,</span><span class="w">         </span><span class="c1">// Bridge 静态公钥</span>
-<span class="w">  </span><span class="s">&quot;relay&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;endpoint&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;relay.philfan.cn:443&quot;</span><span class="w"> </span><span class="p">},</span>
-<span class="w">  </span><span class="s">&quot;hostName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Phil 的 MacBook Pro&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// 展示用</span>
-<span class="w">  </span><span class="s">&quot;pin&quot;</span><span class="p">:</span><span class="w"> </span><span class="n">false</span><span class="w">                       </span><span class="c1">// 预留：true 时要求确认码</span>
+<span class="w">  </span><span class="s">"v"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">  </span><span class="s">"serverId"</span><span class="p">:</span><span class="w"> </span><span class="s">"agt_…"</span><span class="p">,</span>
+<span class="w">  </span><span class="s">"hostPublicKeyB64"</span><span class="p">:</span><span class="w"> </span><span class="s">"…"</span><span class="p">,</span><span class="w">         </span><span class="c1">// Bridge 静态公钥</span>
+<span class="w">  </span><span class="s">"relay"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">"endpoint"</span><span class="p">:</span><span class="w"> </span><span class="s">"relay.philfan.cn:443"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="s">"hostName"</span><span class="p">:</span><span class="w"> </span><span class="s">"Phil 的 MacBook Pro"</span><span class="p">,</span><span class="w"> </span><span class="c1">// 展示用</span>
+<span class="w">  </span><span class="s">"pin"</span><span class="p">:</span><span class="w"> </span><span class="n">false</span><span class="w">                       </span><span class="c1">// 预留：true 时要求确认码</span>
 <span class="p">}</span>
 </code></pre></div>
 
@@ -4470,11 +4470,11 @@ GET /ws?v=2&amp;serverId=&lt;agt_…&gt;&amp;role=client                       �
 <h3 id="61">6.1 封装<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
 <p>沿用 paseo 双层结构，JSON 编码：</p>
 <div class="codehilite"><pre><span></span><code><span class="o">//</span><span class="w"> </span><span class="err">外层</span>
-<span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;hello&quot;</span><span class="p">,</span><span class="s2">&quot;deviceId&quot;</span><span class="p">:</span><span class="s2">&quot;…&quot;</span><span class="p">,</span><span class="s2">&quot;protocolVersion&quot;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="s2">&quot;appVersion&quot;</span><span class="p">:</span><span class="s2">&quot;0.7.0&quot;</span><span class="p">}</span>
-<span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;ping&quot;</span><span class="p">}</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;pong&quot;</span><span class="p">}</span>
-<span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;rpc&quot;</span><span class="p">,</span><span class="s2">&quot;id&quot;</span><span class="p">:</span><span class="s2">&quot;req_42&quot;</span><span class="p">,</span><span class="s2">&quot;method&quot;</span><span class="p">:</span><span class="s2">&quot;paper_list&quot;</span><span class="p">,</span><span class="s2">&quot;params&quot;</span><span class="p">:{</span><span class="err">…</span><span class="p">}}</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">iOS</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="err">桌面</span>
-<span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;rpc_result&quot;</span><span class="p">,</span><span class="s2">&quot;id&quot;</span><span class="p">:</span><span class="s2">&quot;req_42&quot;</span><span class="p">,</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span><span class="bp">true</span><span class="p">,</span><span class="s2">&quot;data&quot;</span><span class="p">:{</span><span class="err">…</span><span class="p">}}</span><span class="w">              </span><span class="o">//</span><span class="w"> </span><span class="err">桌面</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">iOS</span>
-<span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;event&quot;</span><span class="p">,</span><span class="s2">&quot;name&quot;</span><span class="p">:</span><span class="s2">&quot;agent:stream&quot;</span><span class="p">,</span><span class="s2">&quot;payload&quot;</span><span class="p">:{</span><span class="err">…</span><span class="p">}}</span><span class="w">                  </span><span class="o">//</span><span class="w"> </span><span class="err">桌面</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">iOS</span><span class="w"> </span><span class="err">推送</span>
+<span class="p">{</span><span class="s2">"type"</span><span class="p">:</span><span class="s2">"hello"</span><span class="p">,</span><span class="s2">"deviceId"</span><span class="p">:</span><span class="s2">"…"</span><span class="p">,</span><span class="s2">"protocolVersion"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span><span class="s2">"appVersion"</span><span class="p">:</span><span class="s2">"0.7.0"</span><span class="p">}</span>
+<span class="p">{</span><span class="s2">"type"</span><span class="p">:</span><span class="s2">"ping"</span><span class="p">}</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">{</span><span class="s2">"type"</span><span class="p">:</span><span class="s2">"pong"</span><span class="p">}</span>
+<span class="p">{</span><span class="s2">"type"</span><span class="p">:</span><span class="s2">"rpc"</span><span class="p">,</span><span class="s2">"id"</span><span class="p">:</span><span class="s2">"req_42"</span><span class="p">,</span><span class="s2">"method"</span><span class="p">:</span><span class="s2">"paper_list"</span><span class="p">,</span><span class="s2">"params"</span><span class="p">:{</span><span class="err">…</span><span class="p">}}</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">iOS</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="err">桌面</span>
+<span class="p">{</span><span class="s2">"type"</span><span class="p">:</span><span class="s2">"rpc_result"</span><span class="p">,</span><span class="s2">"id"</span><span class="p">:</span><span class="s2">"req_42"</span><span class="p">,</span><span class="s2">"ok"</span><span class="p">:</span><span class="bp">true</span><span class="p">,</span><span class="s2">"data"</span><span class="p">:{</span><span class="err">…</span><span class="p">}}</span><span class="w">              </span><span class="o">//</span><span class="w"> </span><span class="err">桌面</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">iOS</span>
+<span class="p">{</span><span class="s2">"type"</span><span class="p">:</span><span class="s2">"event"</span><span class="p">,</span><span class="s2">"name"</span><span class="p">:</span><span class="s2">"agent:stream"</span><span class="p">,</span><span class="s2">"payload"</span><span class="p">:{</span><span class="err">…</span><span class="p">}}</span><span class="w">                  </span><span class="o">//</span><span class="w"> </span><span class="err">桌面</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">iOS</span><span class="w"> </span><span class="err">推送</span>
 </code></pre></div>
 
 <p><code>hello</code> 后桌面回 <code>server_info {serverId, hostName, appVersion, vault:{name, root}}</code>。<code>deviceId</code> 作会话键：短暂断线重连不丢 agent 订阅。</p>
@@ -4754,7 +4754,7 @@ pnpm<span class="w"> </span>tauri<span class="w"> </span>ios<span class="w"> </s
 <code>libapp.a</code>、开发者 Team 和 scheme 噪声。</p>
 <h3 id="132">13.2 模拟器开发<a class="headerlink" href="#132" title="Permanent link">&para;</a></h3>
 <p>启动指定的 iOS Simulator：</p>
-<div class="codehilite"><pre><span></span><code>pnpm<span class="w"> </span>tauri<span class="w"> </span>ios<span class="w"> </span>dev<span class="w"> </span><span class="s2">&quot;iPhone 17 Pro&quot;</span>
+<div class="codehilite"><pre><span></span><code>pnpm<span class="w"> </span>tauri<span class="w"> </span>ios<span class="w"> </span>dev<span class="w"> </span><span class="s2">"iPhone 17 Pro"</span>
 </code></pre></div>
 
 <p>开发模式使用 Vite 的 <code>http://localhost:1420</code>。开发服务器必须在 App
@@ -4762,11 +4762,11 @@ pnpm<span class="w"> </span>tauri<span class="w"> </span>ios<span class="w"> </s
 首次启动时，如果 iOS 请求本地网络权限，需要允许 Agentero 访问本地网络。</p>
 <h3 id="133">13.3 真机开发<a class="headerlink" href="#133" title="Permanent link">&para;</a></h3>
 <p>真机不能访问 Mac 的 <code>localhost</code>，需要使用 Mac 的局域网地址：</p>
-<div class="codehilite"><pre><span></span><code>pnpm<span class="w"> </span>tauri<span class="w"> </span>ios<span class="w"> </span>dev<span class="w"> </span>--host<span class="w"> </span>&lt;Mac局域网IP&gt;<span class="w"> </span><span class="s2">&quot;&lt;设备名称&gt;&quot;</span>
+<div class="codehilite"><pre><span></span><code>pnpm<span class="w"> </span>tauri<span class="w"> </span>ios<span class="w"> </span>dev<span class="w"> </span>--host<span class="w"> </span>&lt;Mac局域网IP&gt;<span class="w"> </span><span class="s2">"&lt;设备名称&gt;"</span>
 </code></pre></div>
 
 <p>例如：</p>
-<div class="codehilite"><pre><span></span><code>pnpm<span class="w"> </span>tauri<span class="w"> </span>ios<span class="w"> </span>dev<span class="w"> </span>--host<span class="w"> </span><span class="m">192</span>.168.1.20<span class="w"> </span><span class="s2">&quot;Philfan iPhone&quot;</span>
+<div class="codehilite"><pre><span></span><code>pnpm<span class="w"> </span>tauri<span class="w"> </span>ios<span class="w"> </span>dev<span class="w"> </span>--host<span class="w"> </span><span class="m">192</span>.168.1.20<span class="w"> </span><span class="s2">"Philfan iPhone"</span>
 </code></pre></div>
 
 <p>Mac 和 iPhone 必须处于可互通的网络中。真机调试还需要在 Xcode 中配置

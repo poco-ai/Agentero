@@ -3931,7 +3931,7 @@
 <li>上述签名只证明更新包完整性，macOS 的 Developer ID 签名和 notarization 仍必须照常完成。</li>
 </ul>
 <p>生成或轮换密钥时，在安全位置执行以下命令，将公钥替换到 <code>tauri.conf.json</code>，并将私钥/密码写入 GitHub Actions Secrets：</p>
-<div class="codehilite"><pre><span></span><code>pnpm<span class="w"> </span>tauri<span class="w"> </span>signer<span class="w"> </span>generate<span class="w"> </span>--password<span class="w"> </span><span class="s1">&#39;&lt;strong password&gt;&#39;</span><span class="w"> </span>--write-keys<span class="w"> </span>/secure/path/agentero-updater.key
+<div class="codehilite"><pre><span></span><code>pnpm<span class="w"> </span>tauri<span class="w"> </span>signer<span class="w"> </span>generate<span class="w"> </span>--password<span class="w"> </span><span class="s1">'&lt;strong password&gt;'</span><span class="w"> </span>--write-keys<span class="w"> </span>/secure/path/agentero-updater.key
 </code></pre></div>
 
 <h3 id="macos">macOS 签名与公证（店外分发）<a class="headerlink" href="#macos" title="Permanent link">&para;</a></h3>

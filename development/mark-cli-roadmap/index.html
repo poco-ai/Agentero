@@ -3963,14 +3963,14 @@
 agentero<span class="w"> </span>--vault<span class="w"> </span>~/research<span class="w"> </span>mark<span class="w"> </span>list<span class="w"> </span>papers/1706.03762<span class="w"> </span>--json
 agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/1706.03762<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--kind<span class="w"> </span>highlight<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--quote<span class="w"> </span><span class="s2">&quot;Attention is all you need&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--quote<span class="w"> </span><span class="s2">"Attention is all you need"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--page<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--comment<span class="w"> </span><span class="s2">&quot;核心贡献&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--comment<span class="w"> </span><span class="s2">"核心贡献"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--color<span class="w"> </span>yellow<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--json
 
-agentero<span class="w"> </span>translate<span class="w"> </span><span class="s2">&quot;Hello world&quot;</span><span class="w"> </span>--to<span class="w"> </span>zh<span class="w"> </span>--json
-agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/…<span class="w"> </span>--kind<span class="w"> </span>translate<span class="w"> </span>--quote<span class="w"> </span><span class="s2">&quot;…&quot;</span><span class="w"> </span>--result<span class="w"> </span><span class="s2">&quot;…&quot;</span><span class="w"> </span>--json
+agentero<span class="w"> </span>translate<span class="w"> </span><span class="s2">"Hello world"</span><span class="w"> </span>--to<span class="w"> </span>zh<span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/…<span class="w"> </span>--kind<span class="w"> </span>translate<span class="w"> </span>--quote<span class="w"> </span><span class="s2">"…"</span><span class="w"> </span>--result<span class="w"> </span><span class="s2">"…"</span><span class="w"> </span>--json
 </code></pre></div>
 
 <p>全局约定不变：<code>--vault</code> → <code>AGENTERO_VAULT</code> → cwd 上溯 → config <code>default_vault</code>；破坏性操作 <code>-y</code>。</p>
@@ -4018,7 +4018,7 @@ agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> 
 <p>建议契约（名称可微调，需 <code>--json</code>）：</p>
 <div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>mark<span class="w"> </span>list<span class="w">   </span>&lt;paper&gt;<span class="w"> </span><span class="o">[</span>--kind<span class="w"> </span>highlight<span class="p">|</span>translate<span class="p">|</span>ask<span class="p">|</span>…<span class="o">]</span><span class="w"> </span>--json
 agentero<span class="w"> </span>mark<span class="w"> </span>get<span class="w">    </span>&lt;paper&gt;<span class="w"> </span>&lt;id&gt;<span class="w"> </span>--json
-agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w">    </span>&lt;paper&gt;<span class="w"> </span>--kind<span class="w"> </span>highlight<span class="w"> </span>--quote<span class="w"> </span><span class="s2">&quot;…&quot;</span><span class="w"> </span><span class="o">[</span>--page<span class="w"> </span>N<span class="o">]</span><span class="w"> </span><span class="o">[</span>--comment<span class="w"> </span>…<span class="o">]</span><span class="w"> </span><span class="o">[</span>--color<span class="w"> </span>…<span class="o">]</span><span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w">    </span>&lt;paper&gt;<span class="w"> </span>--kind<span class="w"> </span>highlight<span class="w"> </span>--quote<span class="w"> </span><span class="s2">"…"</span><span class="w"> </span><span class="o">[</span>--page<span class="w"> </span>N<span class="o">]</span><span class="w"> </span><span class="o">[</span>--comment<span class="w"> </span>…<span class="o">]</span><span class="w"> </span><span class="o">[</span>--color<span class="w"> </span>…<span class="o">]</span><span class="w"> </span>--json
 agentero<span class="w"> </span>mark<span class="w"> </span>update<span class="w"> </span>&lt;paper&gt;<span class="w"> </span>&lt;id&gt;<span class="w"> </span><span class="o">[</span>--comment<span class="w"> </span>…<span class="o">]</span><span class="w"> </span><span class="o">[</span>--color<span class="w"> </span>…<span class="o">]</span><span class="w"> </span>--json
 agentero<span class="w"> </span>mark<span class="w"> </span>delete<span class="w"> </span>&lt;paper&gt;<span class="w"> </span>&lt;id&gt;<span class="w"> </span>-y<span class="w"> </span>--json
 </code></pre></div>

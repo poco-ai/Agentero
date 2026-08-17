@@ -3427,7 +3427,7 @@
 </code></pre></div>
 
 <p>应出现一行类似：</p>
-<div class="codehilite"><pre><span></span><code>&quot;Developer ID Application: 你的名字 (TEAMID)&quot;
+<div class="codehilite"><pre><span></span><code>"Developer ID Application: 你的名字 (TEAMID)"
 </code></pre></div>
 
 <p>若只有 <code>Apple Development: …</code>，说明本步未完成，<strong>还不能</strong>做店外分发签名。<br />
@@ -3536,10 +3536,10 @@ mv<span class="w"> </span>~/Downloads/AuthKey_XXXXXXXXXX.p8<span class="w"> </sp
 <hr />
 <h2 id="_2">第六步（可选）：本机验证<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>钥匙串里已有 Developer ID 时：</p>
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_SIGNING_IDENTITY</span><span class="o">=</span><span class="s2">&quot;Developer ID Application: 你的名字 (TEAMID)&quot;</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_ISSUER</span><span class="o">=</span><span class="s2">&quot;xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx&quot;</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY</span><span class="o">=</span><span class="s2">&quot;XXXXXXXXXX&quot;</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY_PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">/private_keys/AuthKey_</span><span class="si">${</span><span class="nv">APPLE_API_KEY</span><span class="si">}</span><span class="s2">.p8&quot;</span>
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_SIGNING_IDENTITY</span><span class="o">=</span><span class="s2">"Developer ID Application: 你的名字 (TEAMID)"</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_ISSUER</span><span class="o">=</span><span class="s2">"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY</span><span class="o">=</span><span class="s2">"XXXXXXXXXX"</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">APPLE_API_KEY_PATH</span><span class="o">=</span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/private_keys/AuthKey_</span><span class="si">${</span><span class="nv">APPLE_API_KEY</span><span class="si">}</span><span class="s2">.p8"</span>
 
 pnpm<span class="w"> </span>tauri<span class="w"> </span>build
 </code></pre></div>
@@ -3547,9 +3547,9 @@ pnpm<span class="w"> </span>tauri<span class="w"> </span>build
 <p>或 CI 式 <code>.p12</code> 导入：再设 <code>APPLE_CERTIFICATE</code> / <code>APPLE_CERTIFICATE_PASSWORD</code>。</p>
 <p>校验产物：</p>
 <div class="codehilite"><pre><span></span><code><span class="nv">APP</span><span class="o">=</span>src-tauri/target/release/bundle/macos/Agentero.app
-codesign<span class="w"> </span>--verify<span class="w"> </span>--deep<span class="w"> </span>--strict<span class="w"> </span>--verbose<span class="o">=</span><span class="m">2</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APP</span><span class="s2">&quot;</span>
-xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APP</span><span class="s2">&quot;</span>
-spctl<span class="w"> </span>--assess<span class="w"> </span>--type<span class="w"> </span>execute<span class="w"> </span>--verbose<span class="o">=</span><span class="m">4</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$APP</span><span class="s2">&quot;</span>
+codesign<span class="w"> </span>--verify<span class="w"> </span>--deep<span class="w"> </span>--strict<span class="w"> </span>--verbose<span class="o">=</span><span class="m">2</span><span class="w"> </span><span class="s2">"</span><span class="nv">$APP</span><span class="s2">"</span>
+xcrun<span class="w"> </span>stapler<span class="w"> </span>validate<span class="w"> </span><span class="s2">"</span><span class="nv">$APP</span><span class="s2">"</span>
+spctl<span class="w"> </span>--assess<span class="w"> </span>--type<span class="w"> </span>execute<span class="w"> </span>--verbose<span class="o">=</span><span class="m">4</span><span class="w"> </span><span class="s2">"</span><span class="nv">$APP</span><span class="s2">"</span>
 </code></pre></div>
 
 <p>仅签名、跳过 staple：</p>

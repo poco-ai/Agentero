@@ -5005,7 +5005,7 @@
 </ol>
 <p>解析失败：返回 <code>lookup.failure_to_id</code>，不调用网络。</p>
 <h3 id="33-parsedidentifier">3.3 输出：<code>ParsedIdentifier</code><a class="headerlink" href="#33-parsedidentifier" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span><code><span class="kr">type</span><span class="w"> </span><span class="nx">IdentifierKind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;doi&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;isbn&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;pmid&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;arxiv&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;ads_bibcode&#39;</span><span class="p">;</span>
+<div class="codehilite"><pre><span></span><code><span class="kr">type</span><span class="w"> </span><span class="nx">IdentifierKind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'doi'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'isbn'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'pmid'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'arxiv'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'ads_bibcode'</span><span class="p">;</span>
 
 <span class="kd">interface</span><span class="w"> </span><span class="nx">ParsedIdentifier</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="kt">IdentifierKind</span><span class="p">;</span>
@@ -5047,7 +5047,7 @@
 </table>
 <p>设置项（应用配置 / Tauri Store，<strong>非</strong> Vault）：</p>
 <div class="codehilite"><pre><span></span><code><span class="kd">interface</span><span class="w"> </span><span class="nx">TranslatorRuntimeConfig</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;bundled&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;external&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;off&#39;</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="s1">'bundled'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'external'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'off'</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">base_url?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">           </span><span class="c1">// external 时必填，如 http://127.0.0.1:1969</span>
 <span class="w">  </span><span class="nx">auto_start?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="p">;</span><span class="w">        </span><span class="c1">// bundled 时默认 true</span>
 <span class="w">  </span><span class="nx">user_agent_suffix?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w">  </span><span class="c1">// 追加到请求 UA，便于站点联系</span>
@@ -5064,8 +5064,8 @@
   Body：单个标识符字符串，或实现约定的多 ID 文本。</li>
 <li><strong>Response</strong>：<code>200</code> + Zotero API JSON 数组（items）。</li>
 </ul>
-<div class="codehilite"><pre><span></span><code>curl<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;10.2307/4486062&#39;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s1">&#39;Content-Type: text/plain&#39;</span><span class="w"> </span><span class="se">\</span>
+<div class="codehilite"><pre><span></span><code>curl<span class="w"> </span>-d<span class="w"> </span><span class="s1">'10.2307/4486062'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s1">'Content-Type: text/plain'</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>http://127.0.0.1:1969/search
 </code></pre></div>
 
@@ -5339,7 +5339,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <h3 id="61-lookupparse">6.1 <code>lookup:parse</code><a class="headerlink" href="#61-lookupparse" title="Permanent link">&para;</a></h3>
 <p>从文本提取标识符，<strong>不访问网络</strong>。</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">// 参数</span>
-<span class="p">{</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">mode</span><span class="o">?:</span><span class="w"> </span><span class="s1">&#39;zotero&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;line_by_line&#39;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">{</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">mode</span><span class="o">?:</span><span class="w"> </span><span class="s1">'zotero'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'line_by_line'</span><span class="w"> </span><span class="p">}</span>
 
 <span class="c1">// 返回</span>
 <span class="p">{</span>
@@ -5353,7 +5353,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <div class="codehilite"><pre><span></span><code><span class="c1">// 参数</span>
 <span class="p">{</span>
 <span class="w">  </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
-<span class="w">  </span><span class="nx">mode</span><span class="o">?:</span><span class="w"> </span><span class="s1">&#39;zotero&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;line_by_line&#39;</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">mode</span><span class="o">?:</span><span class="w"> </span><span class="s1">'zotero'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'line_by_line'</span><span class="p">;</span>
 <span class="w">  </span><span class="cm">/** 强制只用 fallback，用于调试 */</span>
 <span class="w">  </span><span class="nx">force_fallback?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="p">;</span>
 <span class="p">}</span>
@@ -5364,7 +5364,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <span class="w">  </span><span class="nx">data</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">drafts</span><span class="o">:</span><span class="w"> </span><span class="kt">LookupDraft</span><span class="p">[];</span>
 <span class="w">    </span><span class="nx">failures</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">raw</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">code</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">message</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">}[];</span>
-<span class="w">    </span><span class="nx">runtime</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">used</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;translator&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;fallback&#39;</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="nx">runtime</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mode</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">used</span><span class="o">:</span><span class="w"> </span><span class="s1">'translator'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'fallback'</span><span class="w"> </span><span class="p">};</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
@@ -5378,7 +5378,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <span class="w">  </span><span class="nx">items</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">draft_id?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
 <span class="w">    </span><span class="nx">metadata</span><span class="o">:</span><span class="w"> </span><span class="kt">PaperMetadata</span><span class="p">;</span><span class="w"> </span><span class="c1">// 可含 pdf_url / html_url / source_url</span>
-<span class="w">    </span><span class="nx">on_duplicate</span><span class="o">?:</span><span class="w"> </span><span class="s1">&#39;skip&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;open_existing&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">on_duplicate</span><span class="o">?:</span><span class="w"> </span><span class="s1">'skip'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'open_existing'</span><span class="p">;</span>
 <span class="w">  </span><span class="p">}[];</span>
 <span class="w">  </span><span class="nx">options</span><span class="o">?:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="cm">/** Agent 生成 NOTES；默认 false 写占位模板 */</span>

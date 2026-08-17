@@ -3143,7 +3143,7 @@
 </ul>
 <h2 id="_2">根因<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p><code>confirmCreate</code>（<code>src/lib/vault/actions.ts</code>）在创建前用 <code>@tauri-apps/plugin-fs</code> 的 <code>exists(full)</code> 判断重名：</p>
-<div class="codehilite"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">exists</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="k">import</span><span class="p">(</span><span class="s2">&quot;@tauri-apps/plugin-fs&quot;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">exists</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="k">import</span><span class="p">(</span><span class="s2">"@tauri-apps/plugin-fs"</span><span class="p">);</span>
 <span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">await</span><span class="w"> </span><span class="nx">exists</span><span class="p">(</span><span class="nx">full</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 

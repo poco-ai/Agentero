@@ -3334,8 +3334,8 @@ agentero<span class="w"> </span>layout<span class="w"> </span>list<span class="w
 agentero<span class="w"> </span>layout<span class="w"> </span>get<span class="w">  </span>papers/demo<span class="w"> </span>figure-3<span class="w"> </span>--json
 
 <span class="c1"># 按区域钉批注（geometry=resolved，拷贝 bbox；不写 annotations.json）</span>
-agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/demo<span class="w"> </span>--region<span class="w"> </span>figure-3<span class="w"> </span>--comment<span class="w"> </span><span class="s2">&quot;核心图&quot;</span><span class="w"> </span>--json
-agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/demo<span class="w"> </span>--region<span class="w"> </span>formula-p3-…<span class="w"> </span>--question<span class="w"> </span><span class="s2">&quot;推导？&quot;</span><span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/demo<span class="w"> </span>--region<span class="w"> </span>figure-3<span class="w"> </span>--comment<span class="w"> </span><span class="s2">"核心图"</span><span class="w"> </span>--json
+agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/demo<span class="w"> </span>--region<span class="w"> </span>formula-p3-…<span class="w"> </span>--question<span class="w"> </span><span class="s2">"推导？"</span><span class="w"> </span>--json
 agentero<span class="w"> </span>mark<span class="w"> </span>list<span class="w"> </span>papers/demo<span class="w"> </span>--json
 agentero<span class="w"> </span>mark<span class="w"> </span>delete<span class="w"> </span>papers/demo<span class="w"> </span>&lt;id&gt;<span class="w"> </span>-y<span class="w"> </span>--json
 </code></pre></div>
@@ -3375,14 +3375,14 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 
 <h2 id="tag">论文与 Tag<a class="headerlink" href="#tag" title="Permanent link">&para;</a></h2>
 <p>Tag 写入支持桌面端相同的 8 色后缀格式：</p>
-<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w"> </span>add<span class="w"> </span>papers/demo<span class="w"> </span><span class="s2">&quot;survey:blue&quot;</span>
-agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w"> </span><span class="nb">set</span><span class="w"> </span>papers/demo<span class="w"> </span><span class="s2">&quot;nlp:green&quot;</span><span class="w"> </span><span class="s2">&quot;must-read:orange&quot;</span>
+<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w"> </span>add<span class="w"> </span>papers/demo<span class="w"> </span><span class="s2">"survey:blue"</span>
+agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w"> </span><span class="nb">set</span><span class="w"> </span>papers/demo<span class="w"> </span><span class="s2">"nlp:green"</span><span class="w"> </span><span class="s2">"must-read:orange"</span>
 </code></pre></div>
 
 <p>只有合法颜色后缀会被解析为颜色；例如 <code>owner:alice</code> 仍是普通 Tag 名称。</p>
 <p><code>@zotero:</code> 是 Connector 内部标签，默认不参与论文列表筛选和 Tag 汇总；需要包含它们时传 <code>--all</code>：</p>
 <div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>list<span class="w"> </span>--tag<span class="w"> </span>topic
-agentero<span class="w"> </span>paper<span class="w"> </span>list<span class="w"> </span>--tag<span class="w"> </span><span class="s2">&quot;@zotero:imported&quot;</span><span class="w"> </span>--all
+agentero<span class="w"> </span>paper<span class="w"> </span>list<span class="w"> </span>--tag<span class="w"> </span><span class="s2">"@zotero:imported"</span><span class="w"> </span>--all
 agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w"> </span>list<span class="w"> </span>--all
 </code></pre></div>
 

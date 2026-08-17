@@ -3164,7 +3164,7 @@
 <li>UI 弹出：</li>
 </ol>
 <div class="codehilite"><pre><span></span><code>无法截取所选 PDF 区域。
-Task rejected: {&quot;code&quot;:14,&quot;message&quot;:&quot;document does not open&quot;}
+Task rejected: {"code":14,"message":"document does not open"}
 </code></pre></div>
 
 <p>这不是 PDF 文件本身损坏，也不是 ONNX 模型失败。错误来自 EmbedPDF/PDFium 渲染任务：前端把一个已经关闭或正在关闭的 PDF document 传给了 <code>renderPageRect</code>。</p>
@@ -3180,7 +3180,7 @@ Task rejected: {&quot;code&quot;:14,&quot;message&quot;:&quot;document does not 
 <h2 id="2-pdf">2. 当前 PDF 打开与渲染链路<a class="headerlink" href="#2-pdf" title="Permanent link">&para;</a></h2>
 <h3 id="21-workspace-pdf">2.1 Workspace 如何挂载 PDF<a class="headerlink" href="#21-workspace-pdf" title="Permanent link">&para;</a></h3>
 <p><code>DocView</code> 根据 tab mode 渲染 PDF：</p>
-<div class="codehilite"><pre><span></span><code>DocView(tab.mode === &quot;pdf&quot;)
+<div class="codehilite"><pre><span></span><code>DocView(tab.mode === "pdf")
   → PdfViewer(source / sourceBytes / docId)
   → EmbedPDF plugins
   → DocumentContent(documentId=docId)
@@ -3258,7 +3258,7 @@ Task rejected: {&quot;code&quot;:14,&quot;message&quot;:&quot;document does not 
   → getHeadlessPdfEngine()
   → new PluginRegistry(engine)
   → register DocumentManager / Render / AiManager / LayoutAnalysis
-  → openDocumentBuffer({ documentId: &quot;headless-layout-...&quot; })
+  → openDocumentBuffer({ documentId: "headless-layout-..." })
   → runDocumentLayoutAnalysis(scope, documentId)
   → write source/layout.json + source/layout-index.json
   → closeDocument(documentId)
@@ -3289,7 +3289,7 @@ await engine.renderPageRect(document, page, rect).toPromise()
 
 <p>在 <code>getDocument</code> 和 <code>renderPageRect</code> 完成之间，用户可能切换 PDF，Dockview/App LRU 可能让旧 PDF unmount，DocumentManager 随之关闭旧 document。此时 <code>document</code> 引用在 TypeScript 层仍是对象，但底层 PDFium document 已不再 open。</p>
 <p>于是 EmbedPDF task reject：</p>
-<div class="codehilite"><pre><span></span><code>{&quot;code&quot;:14,&quot;message&quot;:&quot;document does not open&quot;}
+<div class="codehilite"><pre><span></span><code>{"code":14,"message":"document does not open"}
 </code></pre></div>
 
 <p>原代码把这个 reject 当成普通截图失败展示给用户，所以切换 PDF 时会看到错误 toast。</p>

@@ -3383,7 +3383,7 @@
 应用在 <code>keydown</code> 里无条件对 <code>Enter</code> 调用 <code>requestSubmit()</code> 或业务发送逻辑，就会抢在输入法之前（或与之竞态）触发提交。</p>
 <h3 id="22-iscomposing">2.2 仅检查 <code>isComposing</code> 不够<a class="headerlink" href="#22-iscomposing" title="Permanent link">&para;</a></h3>
 <p>常见写法：</p>
-<div class="codehilite"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">key</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">&quot;Enter&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">key</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"Enter"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">nativeEvent</span><span class="p">.</span><span class="nx">isComposing</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">form</span><span class="p">.</span><span class="nx">requestSubmit</span><span class="p">();</span>
 <span class="p">}</span>
