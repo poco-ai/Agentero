@@ -25,6 +25,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { contextPathIcon } from "@/lib/agent/context-path-icon";
+import { getPlatformOS } from "@/lib/core/tauri";
 import { cn } from "@/lib/core/utils";
 import { LIBRARY_VIRTUAL_PATH, TRASH_VIRTUAL_PATH } from "@/lib/paper/api";
 import {
@@ -80,7 +81,7 @@ export function PaperTreeRow({
 			className={cn(isCut && "opacity-50")}
 		>
 			{expandable ? (
-				<Tooltip>
+				<Tooltip disableHoverableContent>
 					<TooltipTrigger asChild>
 						<button
 							type="button"
@@ -107,7 +108,9 @@ export function PaperTreeRow({
 							/>
 						</button>
 					</TooltipTrigger>
-					<TooltipContent side="right">{expandLabel}</TooltipContent>
+					<TooltipContent side="right" className="select-none cursor-default">
+						{expandLabel}
+					</TooltipContent>
 				</Tooltip>
 			) : (
 				<span className="size-4 shrink-0" />
@@ -120,14 +123,17 @@ export function PaperTreeRow({
 			</FileTreeName>
 			{showActions ? (
 				<FileTreeActions
-					className="shrink-0"
+					// Linux (WebKitGTK) and macOS (WKWebView) draw overlay scrollbars
+					// that float over content with an 8px-wide hit area; Windows
+					// WebView2 uses classic scrollbars that reserve layout space.
+					className={cn("shrink-0", getPlatformOS() !== "windows" && "pr-2")}
 					onClick={(e) => {
 						e.stopPropagation();
 					}}
 					onKeyDown={(e) => e.stopPropagation()}
 				>
 					{showDownload ? (
-						<Tooltip>
+						<Tooltip disableHoverableContent>
 							<TooltipTrigger asChild>
 								<Button
 									type="button"
@@ -148,7 +154,10 @@ export function PaperTreeRow({
 									)}
 								</Button>
 							</TooltipTrigger>
-							<TooltipContent side="right" className="max-w-xs">
+							<TooltipContent
+								side="right"
+								className="max-w-xs select-none cursor-default"
+							>
 								<p className="font-medium">{t("fileTree.downloadAssets")}</p>
 								<ul className="mt-1 list-disc space-y-0.5 pl-3 text-xs opacity-90">
 									{downloadReasons.map((r) => (
@@ -159,7 +168,7 @@ export function PaperTreeRow({
 						</Tooltip>
 					) : null}
 					{showRead ? (
-						<Tooltip>
+						<Tooltip disableHoverableContent>
 							<TooltipTrigger asChild>
 								<Button
 									type="button"
@@ -180,7 +189,10 @@ export function PaperTreeRow({
 									)}
 								</Button>
 							</TooltipTrigger>
-							<TooltipContent side="right" className="max-w-xs">
+							<TooltipContent
+								side="right"
+								className="max-w-xs select-none cursor-default"
+							>
 								<p className="font-medium">{t("fileTree.readPaper")}</p>
 							</TooltipContent>
 						</Tooltip>
@@ -260,11 +272,11 @@ export function LibraryRow({
 			</FileTreeName>
 			{showDownload ? (
 				<FileTreeActions
-					className="shrink-0"
+					className={cn("shrink-0", getPlatformOS() !== "windows" && "pr-2")}
 					onClick={(e) => e.stopPropagation()}
 					onKeyDown={(e) => e.stopPropagation()}
 				>
-					<Tooltip>
+					<Tooltip disableHoverableContent>
 						<TooltipTrigger asChild>
 							<Button
 								type="button"
@@ -285,7 +297,10 @@ export function LibraryRow({
 								)}
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent side="right" className="max-w-xs">
+						<TooltipContent
+							side="right"
+							className="max-w-xs select-none cursor-default"
+						>
 							{t("fileTree.downloadAllMissing")}
 						</TooltipContent>
 					</Tooltip>
