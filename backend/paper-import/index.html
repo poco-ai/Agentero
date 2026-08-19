@@ -1559,6 +1559,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="本地 PDF">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pdf-recognize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDF 元数据识别（recognize 链路）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3187,6 +3204,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="本地 PDF">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pdf-recognize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDF 元数据识别（recognize 链路）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3401,6 +3435,24 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 <ul>
 <li>魔棒多选或拖到 <code>papers/</code> 组织夹 → metadata 确认 → 复制 PDF + catalog + 通常生成 <code>PAPER.md</code>。</li>
 <li>窗口其它区域拖入不入库（防 WebView 导航）。</li>
+</ul>
+<h3 id="pdf-recognize">PDF 元数据识别（recognize 链路）<a class="headerlink" href="#pdf-recognize" title="Permanent link">&para;</a></h3>
+<p>文件名推导只是兜底；确认对话框打开时（以及魔棒直选导入时）会跑一条识别链路补全 DOI/arXiv/标题/作者：</p>
+<div class="codehilite"><pre><span></span><code><span class="err">本地</span><span class="w"> </span><span class="n">liteparse</span><span class="w"> </span><span class="n">probe</span><span class="err">（隔离</span><span class="w"> </span><span class="n">worker</span><span class="err">，前</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="err">页投影行</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">词级字号</span><span class="o">/</span><span class="err">坐标，</span><span class="o">~</span><span class="err">秒级）</span>
+<span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="n">Zotero</span><span class="w"> </span><span class="n">recognizer</span><span class="w"> </span><span class="err">服务（</span><span class="n">POST</span><span class="w"> </span><span class="err">词级布局</span><span class="w"> </span><span class="n">JSON</span><span class="err">，非</span><span class="w"> </span><span class="n">PDF</span><span class="w"> </span><span class="err">文件本身，</span><span class="o">~</span><span class="mi">50</span><span class="o">-</span><span class="mi">250</span><span class="n">ms</span><span class="err">）</span>
+<span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="err">命中</span><span class="w"> </span><span class="n">DOI</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Translator</span><span class="w"> </span><span class="o">/</span><span class="n">search</span><span class="w"> </span><span class="err">解析；失败回退</span><span class="w"> </span><span class="n">Crossref</span><span class="w"> </span><span class="n">works</span><span class="o">/</span><span class="p">{</span><span class="n">doi</span><span class="p">}</span><span class="w"> </span><span class="err">直连</span>
+<span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="err">命中</span><span class="w"> </span><span class="n">arXiv</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="k">export</span><span class="o">.</span><span class="n">arxiv</span><span class="o">.</span><span class="n">org</span><span class="w"> </span><span class="n">Atom</span><span class="w"> </span><span class="err">直连</span>
+<span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="err">仅命中</span><span class="w"> </span><span class="n">title</span><span class="o">/</span><span class="n">authors</span><span class="err">（无标识符）→</span><span class="w"> </span><span class="err">直接采用识别结果（</span><span class="n">Zotero</span><span class="w"> </span><span class="err">同款兜底）</span>
+<span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="err">任何一步失败静默降级为文件名元数据，绝不阻塞导入</span>
+</code></pre></div>
+
+<ul>
+<li>实现：<code>src-tauri/src/features/import/pdf_recognize.rs</code>（payload 组装 + HTTP client + <code>map_crossref_work</code>）；probe worker 变体在 <code>pdf_parse/mod.rs</code>（<code>--agentero-internal-pdf-recognize-worker</code>）。</li>
+<li>payload 结构复刻 Zotero document-worker <code>getRecognizerData</code>：<code>word = [xMin,yMin,xMax,yMax,fontSize,spaceAfter,baseline,rotation,0,bold,italic,0,fontIndex,text]</code>，行来自 liteparse 投影行（竖排 arXiv stamp 落到独立行，服务端可重建）。</li>
+<li>确认对话框（<code>import-local-pdf-dialog.tsx</code>）打开时批量 <code>paper_probe_pdf_ident</code> 预填，并支持手填 DOI/arXiv 后 Fetch（<code>paper_resolve_identifier</code>）；entries 扩展 <code>doi</code>/<code>arxivId</code>/<code>extra</code>，用户确认的值 <code>meta_source=manual</code>。</li>
+<li>魔棒直选（无对话框）路径在 <code>import_one_local_pdf</code> 内联跑同一链路，<code>meta_source=recognize</code>，识别出的 arXiv/DOI slug 作为文件夹 id（与标识符导入命名一致）。</li>
+<li>隐私：上传的是前 5 页文本布局 JSON（~200KB），不是 PDF 文件；服务为 Zotero 托管的未公开 API，仅作尽力而为识别，失败无感知。</li>
+<li>live 验证：<code>AGENTERO_RECOGNIZE_LIVE_PDF=&lt;pdf&gt; cargo test -p agentero --lib -- live_recognize --include-ignored --nocapture</code>。</li>
 </ul>
 <h2 id="catalog-command">Catalog 相关 command（摘要）<a class="headerlink" href="#catalog-command" title="Permanent link">&para;</a></h2>
 <p><code>paper_list</code> / <code>paper_get</code> / <code>paper_rescan</code> / <code>paper_set_tags</code> / <code>paper_set_is_read</code> / <code>paper_export</code> / <code>paper_import</code><br />
