@@ -6082,6 +6082,10 @@ Host (Tauri + Rust)
 <td><code>{ host, user?, remotePath }</code> → <code>RemoteSessionInfo</code>（含 <code>vaultHandle</code>、<code>caps</code>）</td>
 </tr>
 <tr>
+<td><code>remote_ssh_config_hosts</code></td>
+<td><code>()</code> → <code>[{ alias, user?, hostname?, port? }]</code>，解析 <code>~/.ssh/config</code>（含 <code>Include</code>），供连接对话框联想</td>
+</tr>
+<tr>
 <td><code>remote_disconnect</code></td>
 <td>flush catalog + 拆会话</td>
 </tr>
