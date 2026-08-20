@@ -385,22 +385,29 @@ async fn save_items(
 
         match import_result {
             Ok(r) => {
-                if !r.deduped {
-                    state.ctrl.record_session_paper(&session_id, &r.path);
-                }
-                // Remember connector item id → paper so saveAttachment / resolvers resolve.
-                state.ctrl.record_session_item_paper(
-                    &session_id,
-                    &connector_item_key(&r.connector_item_id),
-                    &r.path,
-                );
-                state.ctrl.emit_item_saved(ConnectorItemSaved {
+                let item_key = connector_item_key(&r.connector_item_id);
+                let saved = ConnectorItemSaved {
                     path: r.path.clone(),
                     id: r.id.clone(),
                     title: r.title.clone(),
                     deduped: r.deduped,
                     session_id: session_id.clone(),
-                });
+                };
+                if let Err(error) =
+                    state
+                        .ctrl
+                        .record_session_import(&session_id, &item_key, saved.clone(), true)
+                {
+                    state.ctrl.emit_error(&error.to_string(), Some(&session_id));
+                    state.ctrl.mark_session_done(&session_id);
+                    return json_response(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        json!({ "error": error.to_string() }),
+                    );
+                }
+                if r.deduped {
+                    state.ctrl.emit_item_saved(saved);
+                }
                 let mut atts = Vec::new();
                 if let Some(arr) = item.get("attachments").and_then(|v| v.as_array()) {
                     for (ai, a) in arr.iter().enumerate() {
@@ -585,12 +592,6 @@ async fn save_snapshot(
             );
         }
     };
-    state.ctrl.record_session_paper(&session_id, &result.path);
-    state.ctrl.record_session_item_paper(
-        &session_id,
-        &connector_item_key(&item["id"]),
-        &result.path,
-    );
     if let Some(html) = body.html.as_deref().filter(|s| !s.is_empty()) {
         let write_result = if let Some(sid) = parse_remote_handle(&handle) {
             match state.ctrl.remote_registry() {
@@ -608,13 +609,32 @@ async fn save_snapshot(
         }
     }
     state.ctrl.mark_session_done(&session_id);
-    state.ctrl.emit_item_saved(ConnectorItemSaved {
+    let saved = ConnectorItemSaved {
         path: result.path.clone(),
         id: result.id.clone(),
         title: result.title.clone(),
         deduped: result.deduped,
         session_id: session_id.clone(),
-    });
+    };
+    if let Err(error) = state.ctrl.record_session_import(
+        &session_id,
+        &connector_item_key(&item["id"]),
+        saved.clone(),
+        false,
+    ) {
+        return json_response(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            json!({ "error": error.to_string() }),
+        );
+    }
+    if result.deduped {
+        state.ctrl.emit_item_saved(saved);
+    } else if let Err(error) = state.ctrl.finalize_session_if_ready(&session_id).await {
+        return json_response(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            json!({ "error": error.to_string() }),
+        );
+    }
     json_response(StatusCode::CREATED, json!({ "singleFile": false }))
 }
 
@@ -835,11 +855,64 @@ async fn save_attachment(
         })
         .filter(|s| !s.is_empty());
 
-    match state
+    if let Err(error) = state
         .ctrl
-        .write_attachment_pdf(&session_id, parent_item_id.as_deref(), &body)
+        .begin_browser_attachment(&session_id, parent_item_id.as_deref())
         .await
     {
+        return json_response(
+            StatusCode::BAD_REQUEST,
+            json!({ "error": error.to_string() }),
+        );
+    }
+    state.ctrl.emit_attachment_progress(
+        &session_id,
+        parent_item_id.as_deref(),
+        "running",
+        "Saving browser PDF",
+        None,
+    );
+    let write_result = state
+        .ctrl
+        .write_attachment_pdf(&session_id, parent_item_id.as_deref(), &body)
+        .await;
+    match &write_result {
+        Ok(_) => state.ctrl.emit_attachment_progress(
+            &session_id,
+            parent_item_id.as_deref(),
+            "completed",
+            "Browser PDF saved",
+            None,
+        ),
+        Err(error) => state.ctrl.emit_attachment_progress(
+            &session_id,
+            parent_item_id.as_deref(),
+            "failed",
+            "Browser PDF save failed",
+            Some(error.to_string()),
+        ),
+    }
+    let finalize_result = state
+        .ctrl
+        .complete_attachment(
+            &session_id,
+            parent_item_id.as_deref(),
+            write_result.is_ok(),
+            true,
+        )
+        .await;
+    let result = match (write_result, finalize_result) {
+        (Ok(path), Ok(())) => Ok(state
+            .ctrl
+            .session_item_paper(&session_id, parent_item_id.as_deref())
+            .unwrap_or(path)),
+        (Err(error), Ok(())) | (Ok(_), Err(error)) => Err(error),
+        (Err(write_error), Err(finalize_error)) => Err(AppError::message(format!(
+            "{write_error}; finalizer: {finalize_error}"
+        ))),
+    };
+
+    match result {
         Ok(path) => json_response(StatusCode::CREATED, json!({ "path": path })),
         Err(e) => {
             let msg = e.to_string();
@@ -977,7 +1050,25 @@ async fn has_attachment_resolvers(
         );
     };
     match session_has_attachment_resolvers(state.ctrl.as_ref(), &session_id, &item_id).await {
-        Ok(has) => json_response(StatusCode::OK, json!(has)),
+        Ok(has) => {
+            if !has {
+                state.ctrl.emit_attachment_progress(
+                    &session_id,
+                    Some(&item_id),
+                    "failed",
+                    "Browser PDF failed and no fallback resolver is available",
+                    Some("Failed to save an attachment".into()),
+                );
+                if let Err(error) = state
+                    .ctrl
+                    .complete_attachment(&session_id, Some(&item_id), false, false)
+                    .await
+                {
+                    state.ctrl.emit_error(&error.to_string(), Some(&session_id));
+                }
+            }
+            json_response(StatusCode::OK, json!(has))
+        }
         Err(e) => {
             let msg = e.to_string();
             if msg.contains("SESSION_NOT_FOUND") {
@@ -987,6 +1078,20 @@ async fn has_attachment_resolvers(
                 )
             } else {
                 // Soft-fail: tell the extension there are no resolvers.
+                state.ctrl.emit_attachment_progress(
+                    &session_id,
+                    Some(&item_id),
+                    "failed",
+                    "Fallback resolver check failed",
+                    Some(msg),
+                );
+                if let Err(error) = state
+                    .ctrl
+                    .complete_attachment(&session_id, Some(&item_id), false, false)
+                    .await
+                {
+                    state.ctrl.emit_error(&error.to_string(), Some(&session_id));
+                }
                 json_response(StatusCode::OK, json!(false))
             }
         }
@@ -1019,7 +1124,54 @@ async fn save_attachment_from_resolver_handler(
             json!({ "error": "ITEM_ID_NOT_PROVIDED" }),
         );
     };
-    match save_attachment_from_resolver(state.ctrl.clone(), &session_id, &item_id).await {
+    if let Err(error) = state
+        .ctrl
+        .begin_fallback_attachment(&session_id, &item_id)
+        .await
+    {
+        return json_response(
+            StatusCode::BAD_REQUEST,
+            json!({ "error": error.to_string() }),
+        );
+    }
+    state.ctrl.emit_attachment_progress(
+        &session_id,
+        Some(&item_id),
+        "running",
+        "Downloading PDF from DOI/arXiv fallback",
+        None,
+    );
+    let save_result =
+        save_attachment_from_resolver(state.ctrl.clone(), &session_id, &item_id).await;
+    match &save_result {
+        Ok(_) => state.ctrl.emit_attachment_progress(
+            &session_id,
+            Some(&item_id),
+            "completed",
+            "Fallback PDF saved",
+            None,
+        ),
+        Err(error) => state.ctrl.emit_attachment_progress(
+            &session_id,
+            Some(&item_id),
+            "failed",
+            "Fallback PDF save failed",
+            Some(error.to_string()),
+        ),
+    }
+    let finalize_result = state
+        .ctrl
+        .complete_attachment(&session_id, Some(&item_id), save_result.is_ok(), true)
+        .await;
+    let result = match (save_result, finalize_result) {
+        (Ok(title), Ok(())) => Ok(title),
+        (Err(error), Ok(())) | (Ok(_), Err(error)) => Err(error),
+        (Err(save_error), Err(finalize_error)) => Err(AppError::message(format!(
+            "{save_error}; finalizer: {finalize_error}"
+        ))),
+    };
+
+    match result {
         Ok(title) => text_response(StatusCode::CREATED, "text/plain", &title),
         Err(e) => {
             let msg = e.to_string();

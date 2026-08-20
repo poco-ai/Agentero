@@ -839,7 +839,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 | 事件 | payload |
 |---|---|
 | `connector:status` | `ConnectorStatus` |
-| `connector:item-saved` | `{ path, id, title, deduped, sessionId }` — 前端刷新树/Library 并 `openPaper` |
+| `connector:item-saved` | `{ path, id, title, deduped, sessionId }` — 新条目在附件成功/失败终结且 latest target 移动完成后仅发一次；`path` 已稳定，前端刷新树/Library 并 `openPaper` |
 | `connector:error` | `{ message, sessionId? }` |
 | `connector:progress` | `{ key, sessionId, path, title, status, progress, detail, error? }` — 映射到左下角后台任务条 |
 

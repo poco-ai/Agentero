@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter};
-use tokio::sync::oneshot;
+use tauri::{AppHandle, Emitter, Manager};
+use tokio::sync::{oneshot, Mutex as AsyncMutex};
 
 /// Default Zotero Connector port (must match official extension default).
 pub const DEFAULT_CONNECTOR_PORT: u16 = 23119;
@@ -67,17 +67,43 @@ pub struct ProgressItem {
     pub attachments: Vec<ProgressAttachment>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AttachmentPhase {
+    AwaitingBrowserOrResolver,
+    WritingBrowser,
+    WritingFallback,
+    TerminalSuccess,
+    TerminalFailure,
+}
+
+impl AttachmentPhase {
+    fn is_terminal(self) -> bool {
+        matches!(self, Self::TerminalSuccess | Self::TerminalFailure)
+    }
+}
+
 #[derive(Debug)]
 pub struct SaveSession {
     pub created: std::time::Instant,
     pub items: Vec<ProgressItem>,
     pub done: bool,
-    /// Vault-relative parent (`papers` or `papers/…`) for this save session.
+    /// Immutable initial Vault-relative parent copied from the current Library scope.
     pub parent_dir: String,
+    /// Latest collection-picker target waiting to be applied after attachment IO.
+    pub desired_parent: Option<String>,
     /// Paper folders created in this session (vault-relative), for updateSession moves.
     pub paper_paths: Vec<String>,
     /// Connector item id (stringified) → paper folder path; resolves `saveAttachment` `parentItemID`.
     pub item_map: HashMap<String, String>,
+    /// Per-item primary attachment acquisition state. Deduped items are excluded.
+    pub attachment_phase: HashMap<String, AttachmentPhase>,
+    /// Attachment handlers currently writing into session-owned paper folders.
+    pub active_writers: usize,
+    /// Completion events held until every new item has a stable final path.
+    pub pending_saved: Vec<ConnectorItemSaved>,
+    pub initial_finalized: bool,
+    /// Serializes finalization and collection moves without blocking browser downloads.
+    pub io_gate: Arc<AsyncMutex<()>>,
 }
 
 struct Inner {
@@ -399,9 +425,15 @@ impl ConnectorController {
                 created: std::time::Instant::now(),
                 items,
                 done: false,
-                parent_dir,
+                parent_dir: parent_dir.clone(),
+                desired_parent: Some(parent_dir),
                 paper_paths: Vec::new(),
                 item_map: HashMap::new(),
+                attachment_phase: HashMap::new(),
+                active_writers: 0,
+                pending_saved: Vec::new(),
+                initial_finalized: false,
+                io_gate: Arc::new(AsyncMutex::new(())),
             },
         );
         Ok(())
@@ -416,12 +448,47 @@ impl ConnectorController {
             .unwrap_or_else(|| g.parent_dir.clone())
     }
 
-    pub fn record_session_paper(&self, session_id: &str, paper_path: &str) {
-        if let Ok(mut g) = self.inner.lock() {
-            if let Some(s) = g.sessions.get_mut(session_id) {
-                s.paper_paths.push(paper_path.replace('\\', "/"));
-            }
+    /// Record one imported item. New papers remain pending until their primary
+    /// attachment path is terminal; deduped papers are mapped but never moved.
+    pub fn record_session_import(
+        &self,
+        session_id: &str,
+        connector_item_id: &str,
+        mut payload: ConnectorItemSaved,
+        waits_for_attachment: bool,
+    ) -> Result<(), AppError> {
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        let session = g
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| AppError::message("SESSION_NOT_FOUND"))?;
+        payload.path = payload.path.replace('\\', "/");
+        let item_key = if connector_item_id.is_empty() {
+            payload.id.clone()
+        } else {
+            connector_item_id.to_string()
+        };
+        if !item_key.is_empty() {
+            session
+                .item_map
+                .insert(item_key.clone(), payload.path.clone());
         }
+        if payload.deduped {
+            return Ok(());
+        }
+        if !session.paper_paths.contains(&payload.path) {
+            session.paper_paths.push(payload.path.clone());
+        }
+        session.attachment_phase.insert(
+            item_key,
+            if waits_for_attachment {
+                AttachmentPhase::AwaitingBrowserOrResolver
+            } else {
+                AttachmentPhase::TerminalSuccess
+            },
+        );
+        session.pending_saved.push(payload);
+        Ok(())
     }
 
     /// Map a Connector item id (stringified) to its paper folder, so a later
@@ -468,6 +535,111 @@ impl ConnectorController {
         Ok(session.item_map.get(item_id).cloned())
     }
 
+    fn session_io_gate(&self, session_id: &str) -> Result<Arc<AsyncMutex<()>>, AppError> {
+        let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        g.sessions
+            .get(session_id)
+            .map(|session| Arc::clone(&session.io_gate))
+            .ok_or_else(|| AppError::message("SESSION_NOT_FOUND"))
+    }
+
+    fn attachment_key(session: &SaveSession, item_id: Option<&str>) -> Option<String> {
+        if let Some(item_id) = item_id.filter(|id| !id.is_empty()) {
+            if session.attachment_phase.contains_key(item_id) {
+                return Some(item_id.to_string());
+            }
+            if let Some(path) = session.item_map.get(item_id) {
+                if let Some(key) = session.attachment_phase.keys().find(|key| {
+                    session
+                        .item_map
+                        .get(*key)
+                        .is_some_and(|candidate| candidate == path)
+                }) {
+                    return Some(key.clone());
+                }
+            }
+        }
+        if session.attachment_phase.len() == 1 {
+            return session.attachment_phase.keys().next().cloned();
+        }
+        None
+    }
+
+    fn set_attachment_writing(
+        &self,
+        session_id: &str,
+        item_id: Option<&str>,
+        phase: AttachmentPhase,
+    ) -> Result<(), AppError> {
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        let session = g
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| AppError::message("SESSION_NOT_FOUND"))?;
+        session.active_writers += 1;
+        if let Some(key) = Self::attachment_key(session, item_id) {
+            session.attachment_phase.insert(key, phase);
+        }
+        Ok(())
+    }
+
+    pub async fn begin_browser_attachment(
+        &self,
+        session_id: &str,
+        item_id: Option<&str>,
+    ) -> Result<(), AppError> {
+        let gate = self.session_io_gate(session_id)?;
+        let _guard = gate.lock().await;
+        self.set_attachment_writing(session_id, item_id, AttachmentPhase::WritingBrowser)
+    }
+
+    pub async fn begin_fallback_attachment(
+        &self,
+        session_id: &str,
+        item_id: &str,
+    ) -> Result<(), AppError> {
+        let gate = self.session_io_gate(session_id)?;
+        let _guard = gate.lock().await;
+        self.set_attachment_writing(session_id, Some(item_id), AttachmentPhase::WritingFallback)
+    }
+
+    pub fn emit_attachment_progress(
+        &self,
+        session_id: &str,
+        item_id: Option<&str>,
+        status: &str,
+        detail: &str,
+        error: Option<String>,
+    ) {
+        let context = {
+            let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+            g.sessions.get(session_id).and_then(|session| {
+                let key = Self::attachment_key(session, item_id)?;
+                let path = session.item_map.get(&key)?.clone();
+                let title = session
+                    .pending_saved
+                    .iter()
+                    .find(|saved| saved.path == path)
+                    .map(|saved| saved.title.clone())
+                    .unwrap_or_else(|| key.clone());
+                Some((path, title))
+            })
+        };
+        let Some((path, title)) = context else {
+            return;
+        };
+        self.emit_progress(ConnectorProgress {
+            key: format!("{session_id}:{path}"),
+            session_id: session_id.to_string(),
+            path,
+            title,
+            status: status.to_string(),
+            progress: None,
+            detail: Some(detail.to_string()),
+            error,
+        });
+    }
+
     /// Resolve paper rel for a `saveAttachment` upload (session map / last paper).
     fn resolve_attachment_rel(
         &self,
@@ -510,16 +682,7 @@ impl ConnectorController {
                 .remote_registry()
                 .ok_or_else(|| AppError::message("remote registry unavailable"))?;
             let session = reg.get(sid).await?;
-            let rel = super::import::write_attachment_pdf_remote(session, &rel, bytes).await?;
-            let id = rel.rsplit('/').next().unwrap_or("paper").to_string();
-            self.emit_item_saved(ConnectorItemSaved {
-                path: rel.clone(),
-                id: id.clone(),
-                title: id,
-                deduped: false,
-                session_id: session_id.to_string(),
-            });
-            return Ok(rel);
+            return super::import::write_attachment_pdf_remote(session, &rel, bytes).await;
         }
 
         let vault = PathBuf::from(&handle);
@@ -529,23 +692,6 @@ impl ConnectorController {
         }
         let id = rel.rsplit('/').next().unwrap_or("paper").to_string();
         std::fs::write(paper_dir.join(format!("{id}.pdf")), bytes)?;
-
-        self.emit_item_saved(ConnectorItemSaved {
-            path: rel.clone(),
-            id: id.clone(),
-            title: id.clone(),
-            deduped: false,
-            session_id: session_id.to_string(),
-        });
-
-        let rel_bg = rel.clone();
-        let dir_bg = paper_dir;
-        tauri::async_runtime::spawn(async move {
-            let _ = crate::features::import::pdf_parse::maybe_generate_paper_md_after_download(
-                &vault, &rel_bg, &dir_bg,
-            )
-            .await;
-        });
         Ok(rel)
     }
 
@@ -557,7 +703,184 @@ impl ConnectorController {
         }
     }
 
-    /// Apply Connector collection picker change: remember parent + move papers already saved.
+    fn path_is_in_parent(path: &str, parent: &str) -> bool {
+        path.rsplit_once('/')
+            .is_some_and(|(current_parent, _)| current_parent == parent)
+    }
+
+    fn rebase_path(value: &str, from: &str, to: &str) -> String {
+        if value == from {
+            return to.to_string();
+        }
+        value
+            .strip_prefix(from)
+            .filter(|suffix| suffix.starts_with('/'))
+            .map(|suffix| format!("{to}{suffix}"))
+            .unwrap_or_else(|| value.to_string())
+    }
+
+    fn rebase_session_path(&self, session_id: &str, from: &str, to: &str) {
+        if from == to {
+            return;
+        }
+        if let Ok(mut g) = self.inner.lock() {
+            if let Some(session) = g.sessions.get_mut(session_id) {
+                for path in &mut session.paper_paths {
+                    *path = Self::rebase_path(path, from, to);
+                }
+                for path in session.item_map.values_mut() {
+                    *path = Self::rebase_path(path, from, to);
+                }
+                for saved in &mut session.pending_saved {
+                    saved.path = Self::rebase_path(&saved.path, from, to);
+                }
+            }
+        }
+    }
+
+    async fn move_paper_to_parent(
+        &self,
+        vault_handle: &str,
+        from: &str,
+        parent: &str,
+    ) -> Result<String, AppError> {
+        if Self::path_is_in_parent(from, parent) {
+            return Ok(from.to_string());
+        }
+        if let Some(sid) = crate::features::remote::parse_remote_handle(vault_handle) {
+            let reg = self
+                .remote_registry()
+                .ok_or_else(|| AppError::message("remote registry unavailable"))?;
+            let session = reg.get(sid).await?;
+            return super::import::move_paper_folder_remote(&session, from, parent).await;
+        }
+
+        let app = self
+            .app_handle()
+            .ok_or_else(|| AppError::message("Connector app handle unavailable"))?;
+        let index = app
+            .state::<crate::features::wiki::WikiIndexState>()
+            .handle();
+        let result = crate::features::catalog::commands::paper_move_service(
+            crate::features::catalog::commands::PaperMoveArgs {
+                vault_path: vault_handle.to_string(),
+                from_rel: from.to_string(),
+                dest_parent_rel: parent.to_string(),
+                dirty_paths: Vec::new(),
+            },
+            index,
+        )
+        .await?;
+        Ok(result.new_rel)
+    }
+
+    /// Apply a ready desired target while the caller holds this session's IO gate.
+    async fn apply_ready_session_target(&self, session_id: &str) -> Result<(), AppError> {
+        let (vault_handle, desired_parent, paths) = {
+            let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+            let session = g
+                .sessions
+                .get(session_id)
+                .ok_or_else(|| AppError::message("SESSION_NOT_FOUND"))?;
+            if session.active_writers != 0
+                || session.attachment_phase.is_empty()
+                || session
+                    .attachment_phase
+                    .values()
+                    .any(|phase| !phase.is_terminal())
+            {
+                return Ok(());
+            }
+            let Some(parent) = session.desired_parent.clone() else {
+                return Ok(());
+            };
+            let handle = g
+                .vault_handle
+                .clone()
+                .ok_or_else(|| AppError::message("No vault open"))?;
+            (handle, parent, session.paper_paths.clone())
+        };
+
+        for from in paths {
+            let new_rel = match self
+                .move_paper_to_parent(&vault_handle, &from, &desired_parent)
+                .await
+            {
+                Ok(path) => path,
+                Err(error) => {
+                    self.emit_error(
+                        &format!("move {from} to {desired_parent}: {error}"),
+                        Some(session_id),
+                    );
+                    return Err(error);
+                }
+            };
+            self.rebase_session_path(session_id, &from, &new_rel);
+        }
+
+        let pending = {
+            let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+            let session = g
+                .sessions
+                .get_mut(session_id)
+                .ok_or_else(|| AppError::message("SESSION_NOT_FOUND"))?;
+            session.desired_parent = None;
+            if session.initial_finalized {
+                Vec::new()
+            } else {
+                session.initial_finalized = true;
+                std::mem::take(&mut session.pending_saved)
+            }
+        };
+        for saved in pending {
+            self.emit_item_saved(saved);
+        }
+        Ok(())
+    }
+
+    pub async fn complete_attachment(
+        &self,
+        session_id: &str,
+        item_id: Option<&str>,
+        success: bool,
+        writer_finished: bool,
+    ) -> Result<(), AppError> {
+        let gate = self.session_io_gate(session_id)?;
+        let _guard = gate.lock().await;
+        {
+            let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+            let session = g
+                .sessions
+                .get_mut(session_id)
+                .ok_or_else(|| AppError::message("SESSION_NOT_FOUND"))?;
+            if writer_finished {
+                session.active_writers =
+                    session.active_writers.checked_sub(1).ok_or_else(|| {
+                        AppError::message("attachment writer completion without a matching start")
+                    })?;
+            }
+            if let Some(key) = Self::attachment_key(session, item_id) {
+                session.attachment_phase.insert(
+                    key,
+                    if success {
+                        AttachmentPhase::TerminalSuccess
+                    } else {
+                        AttachmentPhase::TerminalFailure
+                    },
+                );
+            }
+        }
+        self.apply_ready_session_target(session_id).await
+    }
+
+    pub async fn finalize_session_if_ready(&self, session_id: &str) -> Result<(), AppError> {
+        let gate = self.session_io_gate(session_id)?;
+        let _guard = gate.lock().await;
+        self.apply_ready_session_target(session_id).await
+    }
+
+    /// Remember the latest collection picker target. Pending attachment IO only
+    /// changes desired state; terminal sessions use the shared paper move.
     pub async fn update_session_target(
         &self,
         session_id: &str,
@@ -567,69 +890,29 @@ impl ConnectorController {
             AppError::message(format!("unknown or invalid save target: {target}"))
         })?;
 
-        let (handle, paths_to_move) = {
+        let gate = {
             let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             g.parent_dir = parent.clone();
-            let handle = g
-                .vault_handle
-                .clone()
-                .ok_or_else(|| AppError::message("No vault open"))?;
+            if g.vault_handle.is_none() {
+                return Err(AppError::message("No vault open"));
+            }
+            let session = g
+                .sessions
+                .get(session_id)
+                .ok_or_else(|| AppError::message("SESSION_NOT_FOUND"))?;
+            Arc::clone(&session.io_gate)
+        };
+
+        let _guard = gate.lock().await;
+        {
+            let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             let session = g
                 .sessions
                 .get_mut(session_id)
                 .ok_or_else(|| AppError::message("SESSION_NOT_FOUND"))?;
-            session.parent_dir = parent.clone();
-            let paths = session.paper_paths.clone();
-            (handle, paths)
-        };
-
-        let mut new_paths = Vec::new();
-        if let Some(sid) = crate::features::remote::parse_remote_handle(&handle) {
-            let reg = self
-                .remote_registry()
-                .ok_or_else(|| AppError::message("remote registry unavailable"))?;
-            let session = reg.get(sid).await?;
-            for from in &paths_to_move {
-                match super::import::move_paper_folder_remote(&session, from, &parent).await {
-                    Ok(new_rel) => new_paths.push(new_rel),
-                    Err(e) => {
-                        self.emit_error(&format!("move {from}: {e}"), Some(session_id));
-                        new_paths.push(from.clone());
-                    }
-                }
-            }
-        } else {
-            let vault = PathBuf::from(&handle);
-            for from in &paths_to_move {
-                match crate::features::catalog::move_paper_under(&vault, from, &parent) {
-                    Ok(new_rel) => new_paths.push(new_rel),
-                    Err(e) => {
-                        self.emit_error(&format!("move {from}: {e}"), Some(session_id));
-                        new_paths.push(from.clone());
-                    }
-                }
-            }
+            session.desired_parent = Some(parent.clone());
         }
-
-        if !new_paths.is_empty() {
-            if let Ok(mut g) = self.inner.lock() {
-                if let Some(s) = g.sessions.get_mut(session_id) {
-                    s.paper_paths = new_paths.clone();
-                }
-            }
-            for path in &new_paths {
-                if let Some(id) = path.rsplit('/').next() {
-                    self.emit_item_saved(ConnectorItemSaved {
-                        path: path.clone(),
-                        id: id.to_string(),
-                        title: id.to_string(),
-                        deduped: false,
-                        session_id: session_id.to_string(),
-                    });
-                }
-            }
-        }
-
+        self.apply_ready_session_target(session_id).await?;
         Ok(parent)
     }
 
@@ -880,6 +1163,16 @@ impl ConnectorController {
 mod tests {
     use super::*;
 
+    fn saved(session_id: &str, path: &str) -> ConnectorItemSaved {
+        ConnectorItemSaved {
+            path: path.to_string(),
+            id: path.rsplit('/').next().unwrap_or("paper").to_string(),
+            title: "Paper".into(),
+            deduped: false,
+            session_id: session_id.to_string(),
+        }
+    }
+
     #[test]
     fn set_vault_accepts_remote_handle() {
         let ctrl = ConnectorController::new();
@@ -916,5 +1209,214 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn session_keeps_initial_parent_and_tracks_desired_parent_separately() {
+        let ctrl = ConnectorController::new();
+        ctrl.set_parent_dir("papers/inbox".into());
+        ctrl.create_session("s1", Vec::new()).expect("session");
+        ctrl.set_parent_dir("papers/later".into());
+
+        let g = ctrl.inner.lock().expect("state");
+        let session = g.sessions.get("s1").expect("saved session");
+        assert_eq!(session.parent_dir, "papers/inbox");
+        assert_eq!(session.desired_parent.as_deref(), Some("papers/inbox"));
+        assert_eq!(g.parent_dir, "papers/later");
+    }
+
+    #[tokio::test]
+    async fn target_change_while_browser_download_is_pending_only_updates_desired_parent() {
+        let vault = std::env::temp_dir().join(format!(
+            "agentero-connector-pending-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let ctrl = ConnectorController::new();
+        ctrl.set_vault(Some(vault.to_string_lossy().to_string()));
+        ctrl.set_parent_dir("papers/inbox".into());
+        ctrl.create_session("s2", Vec::new()).expect("session");
+        ctrl.record_session_import("s2", "item-1", saved("s2", "papers/inbox/paper-1"), true)
+            .expect("record import");
+
+        ctrl.update_session_target("s2", "Dpapers/final")
+            .await
+            .expect("remember target");
+        ctrl.update_session_target("s2", "Dpapers/latest")
+            .await
+            .expect("replace target");
+
+        let g = ctrl.inner.lock().expect("state");
+        let session = g.sessions.get("s2").expect("saved session");
+        assert_eq!(session.parent_dir, "papers/inbox");
+        assert_eq!(session.desired_parent.as_deref(), Some("papers/latest"));
+        assert_eq!(session.paper_paths, ["papers/inbox/paper-1"]);
+        assert_eq!(
+            session.attachment_phase.get("item-1"),
+            Some(&AttachmentPhase::AwaitingBrowserOrResolver)
+        );
+        assert!(!session.initial_finalized);
+    }
+
+    #[test]
+    fn deduped_import_is_mapped_but_never_owned_by_the_session() {
+        let ctrl = ConnectorController::new();
+        ctrl.create_session("s-dedupe", Vec::new())
+            .expect("session");
+        let mut payload = saved("s-dedupe", "papers/existing");
+        payload.deduped = true;
+
+        ctrl.record_session_import("s-dedupe", "item-1", payload, true)
+            .expect("record dedupe");
+
+        let g = ctrl.inner.lock().expect("state");
+        let session = g.sessions.get("s-dedupe").expect("saved session");
+        assert_eq!(
+            session.item_map.get("item-1").map(String::as_str),
+            Some("papers/existing")
+        );
+        assert!(session.paper_paths.is_empty());
+        assert!(session.attachment_phase.is_empty());
+        assert!(session.pending_saved.is_empty());
+    }
+
+    #[tokio::test]
+    async fn failed_attachment_still_finalizes_shell_when_target_is_unchanged() {
+        let vault = std::env::temp_dir().join(format!(
+            "agentero-connector-failed-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let ctrl = ConnectorController::new();
+        ctrl.set_vault(Some(vault.to_string_lossy().to_string()));
+        ctrl.create_session("s3", Vec::new()).expect("session");
+        ctrl.record_session_import("s3", "item-1", saved("s3", "papers/paper-1"), true)
+            .expect("record import");
+        ctrl.begin_browser_attachment("s3", Some("item-1"))
+            .await
+            .expect("begin browser write");
+
+        ctrl.complete_attachment("s3", Some("item-1"), false, true)
+            .await
+            .expect("failure finalizer");
+        ctrl.finalize_session_if_ready("s3")
+            .await
+            .expect("idempotent finalizer");
+
+        let g = ctrl.inner.lock().expect("state");
+        let session = g.sessions.get("s3").expect("saved session");
+        assert_eq!(
+            session.attachment_phase.get("item-1"),
+            Some(&AttachmentPhase::TerminalFailure)
+        );
+        assert!(session.initial_finalized);
+        assert!(session.desired_parent.is_none());
+        assert!(session.pending_saved.is_empty());
+    }
+
+    #[tokio::test]
+    async fn overlapping_attachment_writers_finalize_only_after_the_last_writer() {
+        let ctrl = ConnectorController::new();
+        let vault = std::env::temp_dir().join(format!(
+            "agentero-connector-writers-{}",
+            uuid::Uuid::new_v4()
+        ));
+        ctrl.set_vault(Some(vault.to_string_lossy().to_string()));
+        ctrl.create_session("s-writers", Vec::new())
+            .expect("session");
+        ctrl.record_session_import(
+            "s-writers",
+            "item-1",
+            saved("s-writers", "papers/paper-1"),
+            true,
+        )
+        .expect("record import");
+        ctrl.begin_browser_attachment("s-writers", Some("item-1"))
+            .await
+            .expect("first writer");
+        ctrl.begin_browser_attachment("s-writers", Some("item-1"))
+            .await
+            .expect("second writer");
+
+        ctrl.complete_attachment("s-writers", Some("item-1"), true, true)
+            .await
+            .expect("first completion");
+        {
+            let g = ctrl.inner.lock().expect("state");
+            let session = g.sessions.get("s-writers").expect("saved session");
+            assert_eq!(session.active_writers, 1);
+            assert!(!session.initial_finalized);
+            assert_eq!(session.pending_saved.len(), 1);
+        }
+
+        ctrl.complete_attachment("s-writers", Some("item-1"), true, true)
+            .await
+            .expect("last completion");
+        let g = ctrl.inner.lock().expect("state");
+        let session = g.sessions.get("s-writers").expect("saved session");
+        assert_eq!(session.active_writers, 0);
+        assert!(session.initial_finalized);
+        assert!(session.pending_saved.is_empty());
+    }
+
+    #[tokio::test]
+    async fn late_attachment_begin_waits_for_the_session_move_gate() {
+        let ctrl = Arc::new(ConnectorController::new());
+        ctrl.create_session("s-late", Vec::new()).expect("session");
+        ctrl.record_session_import("s-late", "item-1", saved("s-late", "papers/paper-1"), true)
+            .expect("record import");
+        let gate = ctrl.session_io_gate("s-late").expect("gate");
+        let guard = gate.lock().await;
+        let ctrl_bg = Arc::clone(&ctrl);
+        let begin = tokio::spawn(async move {
+            ctrl_bg
+                .begin_browser_attachment("s-late", Some("item-1"))
+                .await
+        });
+        tokio::task::yield_now().await;
+        assert!(
+            !begin.is_finished(),
+            "attachment begin bypassed the move gate"
+        );
+
+        drop(guard);
+        begin.await.expect("join").expect("begin attachment");
+        let g = ctrl.inner.lock().expect("state");
+        assert_eq!(
+            g.sessions
+                .get("s-late")
+                .and_then(|session| session.attachment_phase.get("item-1")),
+            Some(&AttachmentPhase::WritingBrowser)
+        );
+    }
+
+    #[test]
+    fn rebasing_updates_every_session_path_owner() {
+        let ctrl = ConnectorController::new();
+        ctrl.create_session("s4", Vec::new()).expect("session");
+        ctrl.record_session_import("s4", "item-1", saved("s4", "papers/inbox/paper-1"), true)
+            .expect("record import");
+        ctrl.record_session_item_paper("s4", "alias", "papers/inbox/paper-1");
+
+        ctrl.rebase_session_path("s4", "papers/inbox/paper-1", "papers/final/paper-1");
+
+        let g = ctrl.inner.lock().expect("state");
+        let session = g.sessions.get("s4").expect("saved session");
+        assert_eq!(session.paper_paths, ["papers/final/paper-1"]);
+        assert_eq!(
+            session.item_map.get("item-1").map(String::as_str),
+            Some("papers/final/paper-1")
+        );
+        assert_eq!(
+            session.item_map.get("alias").map(String::as_str),
+            Some("papers/final/paper-1")
+        );
+        assert_eq!(session.pending_saved[0].path, "papers/final/paper-1");
+    }
+
+    #[test]
+    fn connector_does_not_start_parser_before_item_saved_handoff() {
+        let parser_entrypoint = ["maybe_generate_paper_md_", "after_download"].concat();
+        assert!(!include_str!("state.rs").contains(&parser_entrypoint));
+        assert!(!include_str!("import.rs").contains(&parser_entrypoint));
+        assert!(!include_str!("server.rs").contains(&parser_entrypoint));
     }
 }

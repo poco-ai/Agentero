@@ -4,7 +4,7 @@ use super::state::ProgressItem;
 use crate::core::error::AppError;
 use crate::core::fs::WriteOpts;
 use crate::features::catalog::papers;
-use crate::features::connector::{ConnectorController, ConnectorProgress};
+use crate::features::connector::ConnectorController;
 use crate::features::import::{
     enrich_remote_urls, ensure_paper_assets_with_cookies, map_zotero_item, normalize_parent_dir,
     paper_record_from_meta, write_paper_shell_opts, PaperMeta, ZOTERO_INTERNAL_TAG_PREFIX,
@@ -30,12 +30,12 @@ pub struct ConnectorImportResult {
 
 pub async fn import_connector_item_with_cookies(
     ctrl: Arc<ConnectorController>,
-    session_id: &str,
+    _session_id: &str,
     vault: &Path,
     parent_dir: &str,
     item: &Value,
     page_uri: Option<&str>,
-    cookies: Option<&str>,
+    _cookies: Option<&str>,
 ) -> Result<ConnectorImportResult, AppError> {
     use crate::features::import::paper_import::{
         paper_commit, AssetsPolicy, CommitStatus, DedupePolicy, PaperCommitOptions,
@@ -49,12 +49,7 @@ pub async fn import_connector_item_with_cookies(
         .to_string();
 
     let meta = connector_paper_meta(item, page_uri)?;
-    let (abstract_text, arxiv_id, pdf_url, doi) = (
-        meta.abstract_text.clone(),
-        meta.arxiv_id.clone(),
-        meta.pdf_url.clone(),
-        meta.doi.clone(),
-    );
+    let abstract_text = meta.abstract_text.clone();
 
     // No abstract MT and no awaited downloads — the browser extension's HTTP
     // request must finish within ~15s, so assets stay Deferred.
@@ -103,21 +98,6 @@ pub async fn import_connector_item_with_cookies(
         }
     }
 
-    schedule_asset_download_with_cookies(
-        Some(ctrl),
-        session_id,
-        &commit.title,
-        vault.to_path_buf(),
-        commit.path.clone(),
-        paper_dir,
-        commit.id.clone(),
-        arxiv_id,
-        pdf_url,
-        doi,
-        cookies.map(str::to_string),
-        None,
-    );
-
     Ok(ConnectorImportResult {
         path: commit.path,
         id: commit.id,
@@ -128,85 +108,15 @@ pub async fn import_connector_item_with_cookies(
     })
 }
 
-/// Background asset download + liteparse with connector progress events.
-/// With `remote` set, the staged tree is uploaded after parsing (remote vault).
-#[allow(clippy::too_many_arguments)]
-fn schedule_asset_download_with_cookies(
-    ctrl: Option<Arc<ConnectorController>>,
-    session_id: &str,
-    title: &str,
-    vault_root: PathBuf,
-    path_rel: String,
-    paper_dir: PathBuf,
-    id: String,
-    arxiv_id: Option<String>,
-    pdf_url: Option<String>,
-    doi: Option<String>,
-    cookies: Option<String>,
-    remote: Option<Arc<RemoteSession>>,
-) {
-    let session_id = session_id.to_string();
-    let title = title.to_string();
-    let path_key = path_rel.clone();
-    tauri::async_runtime::spawn(async move {
-        let emit = |status: &str, detail: &str, error: Option<String>| {
-            if let Some(ctrl) = ctrl.as_ref() {
-                ctrl.emit_progress(ConnectorProgress {
-                    key: format!("{session_id}:{path_key}"),
-                    session_id: session_id.clone(),
-                    path: path_key.clone(),
-                    title: title.clone(),
-                    status: status.into(),
-                    progress: None,
-                    detail: Some(detail.into()),
-                    error,
-                });
-            }
-        };
-        emit("running", "Downloading paper assets", None);
-        let assets = ensure_paper_assets_with_cookies(
-            &paper_dir,
-            &id,
-            arxiv_id.as_deref(),
-            pdf_url.as_deref(),
-            doi.as_deref(),
-            cookies.as_deref(),
-        )
-        .await;
-        emit("running", "Generating readable paper text", None);
-        let parse = crate::features::import::pdf_parse::maybe_generate_paper_md_after_download(
-            &vault_root,
-            &path_rel,
-            &paper_dir,
-        )
-        .await;
-        let upload = match &remote {
-            Some(session) => upload_tree(session.fs.as_ref(), &paper_dir, &path_rel).await,
-            None => Ok(()),
-        };
-        let error = match (&assets, &parse, &upload) {
-            (Err(e), _, _) => Some(e.to_string()),
-            (_, p, _) if !p.messages.is_empty() && !p.paper_md => Some(p.messages.join("; ")),
-            (_, _, Err(e)) => Some(e.to_string()),
-            _ => None,
-        };
-        if error.is_some() {
-            emit("failed", "Asset download failed", error);
-        } else {
-            emit("completed", "Assets ready", None);
-        }
-    });
-}
-
-/// Remote vault variant: stage shell → SFTP → catalog push; assets in background.
+/// Remote vault variant: stage the shell, upload it, and push the catalog.
 pub async fn import_connector_item_remote_with_cookies(
-    ctrl: Arc<ConnectorController>,
-    session_id: &str,
+    _ctrl: Arc<ConnectorController>,
+    _session_id: &str,
     session: Arc<RemoteSession>,
     parent_dir: &str,
     item: &Value,
     page_uri: Option<&str>,
-    cookies: Option<&str>,
+    _cookies: Option<&str>,
 ) -> Result<ConnectorImportResult, AppError> {
     let parent_rel = normalize_parent_dir(parent_dir)?;
     let connector_item_id = item.get("id").cloned().unwrap_or(Value::Null);
@@ -256,21 +166,6 @@ pub async fn import_connector_item_remote_with_cookies(
         let mut cat = session.catalog.lock().await;
         cat.push(session.fs.clone()).await?;
     }
-
-    schedule_asset_download_with_cookies(
-        Some(ctrl),
-        session_id,
-        &meta.title,
-        session.work_root.clone(),
-        path_rel.clone(),
-        staging,
-        meta.id.clone(),
-        meta.arxiv_id.clone(),
-        meta.pdf_url.clone(),
-        meta.doi.clone(),
-        cookies.map(str::to_string),
-        Some(session.clone()),
-    );
 
     Ok(ConnectorImportResult {
         path: path_rel,
@@ -323,7 +218,7 @@ pub async fn write_snapshot_html_remote(
     Ok(path)
 }
 
-/// Write browser-uploaded PDF into a remote paper folder and best-effort PAPER.md.
+/// Write a browser-uploaded PDF into a remote paper folder.
 pub async fn write_attachment_pdf_remote(
     session: Arc<RemoteSession>,
     paper_rel: &str,
@@ -348,36 +243,6 @@ pub async fn write_attachment_pdf_remote(
             },
         )
         .await?;
-
-    // Stage for liteparse then push PAPER.md if generated.
-    let staging = session.work_root.join(&rel);
-    let _ = fs::create_dir_all(&staging);
-    let _ = fs::write(staging.join(format!("{id}.pdf")), bytes);
-    let session_bg = session.clone();
-    let rel_bg = rel.clone();
-    tauri::async_runtime::spawn(async move {
-        let _ = crate::features::import::pdf_parse::maybe_generate_paper_md_after_download(
-            &session_bg.work_root,
-            &rel_bg,
-            &session_bg.work_root.join(&rel_bg),
-        )
-        .await;
-        let paper_md = session_bg.work_root.join(&rel_bg).join("PAPER.md");
-        if paper_md.is_file() {
-            if let Ok(md) = fs::read(&paper_md) {
-                let _ = session_bg
-                    .fs
-                    .write(
-                        &format!("{rel_bg}/PAPER.md"),
-                        &md,
-                        WriteOpts {
-                            create_parents: true,
-                        },
-                    )
-                    .await;
-            }
-        }
-    });
 
     Ok(rel)
 }
@@ -599,8 +464,8 @@ fn decode_connector_title(raw: &str) -> String {
 /// Browser-uploaded **standalone** PDF (no parent bibliographic item).
 /// Used when the user saves an open PDF tab via the Connector icon.
 ///
-/// Creates a session + paper shell, writes `{id}.pdf`, schedules liteparse in
-/// the background, and returns metadata for the HTTP 201 body.
+/// Creates a session + paper shell, writes `{id}.pdf`, and returns metadata for
+/// the HTTP 201 body. Parsing is triggered only after `connector:item-saved`.
 /// Official Zotero returns `{ canRecognize }`; we return `canRecognize: false`
 /// because `/connector/getRecognizedItem` is not implemented yet.
 pub async fn import_standalone_attachment(
@@ -680,20 +545,29 @@ pub async fn import_standalone_attachment(
         .await?
     };
 
-    ctrl.record_session_paper(session_id, &result.path);
-    // Map by URL (official uses attachment URL as connector key for standalone).
-    if let Some(u) = url.map(str::trim).filter(|s| !s.is_empty()) {
-        ctrl.record_session_item_paper(session_id, u, &result.path);
-    }
-    ctrl.record_session_item_paper(session_id, &result.id, &result.path);
-    ctrl.emit_item_saved(crate::features::connector::ConnectorItemSaved {
+    let item_key = url
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(&result.id);
+    let saved = crate::features::connector::ConnectorItemSaved {
         path: result.path.clone(),
         id: result.id.clone(),
         title: result.title.clone(),
         deduped: result.deduped,
         session_id: session_id.to_string(),
-    });
+    };
+    ctrl.record_session_import(session_id, item_key, saved.clone(), false)?;
+    // Official standalone saves may address the item by URL or resolved id.
+    if let Some(u) = url.map(str::trim).filter(|value| !value.is_empty()) {
+        ctrl.record_session_item_paper(session_id, u, &result.path);
+    }
+    ctrl.record_session_item_paper(session_id, &result.id, &result.path);
     ctrl.mark_session_done(session_id);
+    if result.deduped {
+        ctrl.emit_item_saved(saved);
+    } else {
+        ctrl.finalize_session_if_ready(session_id).await?;
+    }
     Ok(result)
 }
 
@@ -708,8 +582,7 @@ async fn import_standalone_local(
         paper_commit, AssetsPolicy, CommitStatus, DedupePolicy, PaperCommitOptions,
     };
 
-    // Avoid blocking the Connector HTTP request on liteparse (can exceed 60s).
-    // Deferred + manual PDF write; liteparse runs in the background.
+    // Keep commit deferred; parser jobs are requested after connector:item-saved.
     let title = meta.title.clone();
     let commit = paper_commit(
         meta,
@@ -738,16 +611,6 @@ async fn import_standalone_local(
 
     let paper_dir = PathBuf::from(&commit.paper_dir);
     fs::write(paper_dir.join(format!("{}.pdf", commit.id)), bytes)?;
-
-    let vault_bg = vault.to_path_buf();
-    let path_rel = commit.path.clone();
-    let dir_bg = paper_dir;
-    tauri::async_runtime::spawn(async move {
-        let _ = crate::features::import::pdf_parse::maybe_generate_paper_md_after_download(
-            &vault_bg, &path_rel, &dir_bg,
-        )
-        .await;
-    });
 
     Ok(ConnectorImportResult {
         path: commit.path,
@@ -803,32 +666,6 @@ async fn import_standalone_remote(
         let mut cat = session.catalog.lock().await;
         cat.push(session.fs.clone()).await?;
     }
-
-    let session_bg = session.clone();
-    let rel_bg = path_rel.clone();
-    tauri::async_runtime::spawn(async move {
-        let _ = crate::features::import::pdf_parse::maybe_generate_paper_md_after_download(
-            &session_bg.work_root,
-            &rel_bg,
-            &session_bg.work_root.join(&rel_bg),
-        )
-        .await;
-        let paper_md = session_bg.work_root.join(&rel_bg).join("PAPER.md");
-        if paper_md.is_file() {
-            if let Ok(md) = fs::read(&paper_md) {
-                let _ = session_bg
-                    .fs
-                    .write(
-                        &format!("{rel_bg}/PAPER.md"),
-                        &md,
-                        WriteOpts {
-                            create_parents: true,
-                        },
-                    )
-                    .await;
-            }
-        }
-    });
 
     Ok(ConnectorImportResult {
         path: path_rel,
@@ -897,24 +734,11 @@ pub async fn save_attachment_from_resolver(
         if !assets.pdf && !crate::features::import::has_local_pdf(&paper_dir) {
             return Err(AppError::message("Failed to save an attachment"));
         }
-        let _ = crate::features::import::pdf_parse::maybe_generate_paper_md_after_download(
-            &session.work_root,
-            &paper_rel,
-            &paper_dir,
-        )
-        .await;
         upload_tree(session.fs.as_ref(), &paper_dir, &paper_rel).await?;
         {
             let mut cat = session.catalog.lock().await;
             cat.push(session.fs.clone()).await?;
         }
-        ctrl.emit_item_saved(crate::features::connector::ConnectorItemSaved {
-            path: paper_rel.clone(),
-            id: id.clone(),
-            title: id,
-            deduped: false,
-            session_id: session_id.to_string(),
-        });
         return Ok("Full Text PDF".into());
     }
 
@@ -935,17 +759,6 @@ pub async fn save_attachment_from_resolver(
     if !assets.pdf && !crate::features::import::has_local_pdf(&paper_dir) {
         return Err(AppError::message("Failed to save an attachment"));
     }
-    let _ = crate::features::import::pdf_parse::maybe_generate_paper_md_after_download(
-        &vault, &paper_rel, &paper_dir,
-    )
-    .await;
-    ctrl.emit_item_saved(crate::features::connector::ConnectorItemSaved {
-        path: paper_rel.clone(),
-        id: id.clone(),
-        title: id,
-        deduped: false,
-        session_id: session_id.to_string(),
-    });
     Ok("Full Text PDF".into())
 }
 

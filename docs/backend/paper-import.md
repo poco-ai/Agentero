@@ -53,9 +53,12 @@ Skill 不写入 catalog、不创建 `papers/` 条目、不执行 `scripts/`。�
 - 失败回滚：文件夹创建后，若 PDF 复制 / NOTES 壳 / catalog 写入任一失败，删除刚建的论文文件夹，避免出现树里有、catalog 无的"半篇论文"；资源下载阶段的错误不回滚（壳与 catalog 已落地）。
 - 孤儿文件夹自愈：`paper_download_assets` 发现盘上论文文件夹缺 catalog 行（历史失败导入的残留）时，按 `metadata.json` sidecar 重建 catalog 行（无 sidecar 退化为文件夹名最小记录）并发 `paper:imported`，Library / 树随之刷新。
 - 网络资源阶段有整篇论文 `3 分钟`截止时间（`PAPER_ASSET_TIMEOUT`），覆盖 PDF
-  fallback、DOI 元数据查询、arXiv e-print 及 Connector 后台下载；单个 HTTP
+  fallback、DOI 元数据查询及 arXiv e-print；单个 HTTP
   请求仍使用更短的 reqwest timeout。超时不会回滚已经写入的 paper 壳和 catalog，
-  资源错误会保留在导入结果/Connector 进度中，后续可再次执行补资源。
+  资源错误会保留在导入结果中，后续可再次执行补资源。
+- Connector 不启动这条后台资源或解析管线：Chrome 先上传附件，DOI/arXiv Host 下载仅作
+  fallback；附件成功或失败的 finalizer 先将 paper 移到 latest target，再通过稳定路径的
+  `connector:item-saved` 交给现有 open/reconcile 解析流程。
 - 错误：全局 Toast；重复不破坏用户 NOTES。
 - 新建壳会写论文全称 alias，并在元数据足够时写确定性短 alias；历史笔记由 [Doctor](doctor.md) 诊断和确认迁移。`created` 不属于入库壳或 Doctor 的职责。
 

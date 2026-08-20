@@ -30,7 +30,7 @@ Agentero Connector 服务默认监听本机 `127.0.0.1:23119`。它只接受本�
 4. 确认保存。
 5. 回到 Agentero，等待 Library 和文件树刷新。
 
-保存成功后，Agentero 会创建或更新论文目录，并尽量下载 PDF。部分站点的 PDF 需要登录，Connector 会尝试通过浏览器上传附件；如果仍然失败，可以在论文行上手动选择 Download。
+保存时 Chrome Connector 会先使用当前浏览器登录状态取得并上传 PDF；浏览器未取得附件时，Agentero 才会尝试 DOI/arXiv OA fallback。无论附件成功或失败，已有论文内容都会在保存流程终结时落到保存对话框最后选择的目标目录；如果仍然缺少 PDF，可以在论文行上手动选择 Download。
 
 ## 保存到子文件夹
 

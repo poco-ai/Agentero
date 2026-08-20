@@ -16,6 +16,7 @@ use crate::features::wiki::WikiIndexState;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tauri::State;
 
 #[derive(Debug, Deserialize)]
@@ -252,18 +253,27 @@ pub async fn paper_move(
     args: PaperMoveArgs,
     index: State<'_, WikiIndexState>,
 ) -> Result<ApiResult<PaperMoveResult>, String> {
-    let index = index.handle();
-    Ok(run_blocking(move || {
+    Ok(match paper_move_service(args, index.handle()).await {
+        Ok(result) => ApiResult::ok(result),
+        Err(error) => map_err(error),
+    })
+}
+
+/// Shared application service for callers that need the same complete
+/// filesystem/catalog/wiki transaction as the Tauri command.
+pub(crate) async fn paper_move_service(
+    args: PaperMoveArgs,
+    index: Arc<Mutex<crate::features::wiki::index::WikiIndex>>,
+) -> Result<PaperMoveResult, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
         let mut guard = match index.lock() {
             Ok(guard) => guard,
-            Err(error) => return map_err(AppError::message(format!("wiki index lock: {error}"))),
+            Err(error) => return Err(AppError::message(format!("wiki index lock: {error}"))),
         };
-        match move_inner(args, &mut guard) {
-            Ok(r) => ApiResult::ok(r),
-            Err(e) => map_err(e),
-        }
+        move_inner(args, &mut guard)
     })
-    .await)
+    .await
+    .map_err(|error| AppError::message(format!("blocking task failed: {error}")))?
 }
 
 fn move_inner(
@@ -327,6 +337,32 @@ mod move_tests {
         assert!(result.link_update.updated_sources.is_empty());
         assert!(!source.exists());
         assert!(vault.join(&result.new_rel).exists());
+        let _ = fs::remove_dir_all(vault);
+    }
+
+    #[tokio::test]
+    async fn shared_paper_move_service_uses_the_same_transaction() {
+        let vault =
+            std::env::temp_dir().join(format!("agentero-shared-paper-move-{}", Uuid::new_v4()));
+        let source = vault.join("papers/inbox/paper-1/NOTES.md");
+        fs::create_dir_all(source.parent().expect("source parent")).expect("create source parent");
+        fs::write(&source, "# Paper\n").expect("write source");
+
+        let result = paper_move_service(
+            PaperMoveArgs {
+                vault_path: vault.to_string_lossy().to_string(),
+                from_rel: "papers/inbox/paper-1".into(),
+                dest_parent_rel: "papers/final".into(),
+                dirty_paths: Vec::new(),
+            },
+            Arc::new(Mutex::new(WikiIndex::default())),
+        )
+        .await
+        .expect("shared move succeeds");
+
+        assert_eq!(result.new_rel, "papers/final/paper-1");
+        assert!(!vault.join("papers/inbox/paper-1").exists());
+        assert!(vault.join("papers/final/paper-1/NOTES.md").is_file());
         let _ = fs::remove_dir_all(vault);
     }
 }
