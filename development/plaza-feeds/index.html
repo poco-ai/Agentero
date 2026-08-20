@@ -3392,7 +3392,7 @@
 <li>入库复用 <code>importPlazaPaper</code> / <code>lookupSubmit</code>：arXiv 喂 <code>https://arxiv.org/abs/{id}</code>；DOI 喂 <code>https://doi.org/{doi}</code>。<code>openImported: false</code>。</li>
 <li>入库中按钮 busy；成功 Toast + 该行变为「已入库」（本机缓存记 <code>importedAt</code>，刷新不丢）。</li>
 <li>失败 <code>notifyError</code>，不在侧栏挂错误条。</li>
-<li>列表卡摘要只示纯文本 3 行。详情打开时走 <code>feeds_resolve_body</code>：已缓存 <code>bodyMarkdown</code> 则直接用；否则若 RSS 已是全文（或 arXiv / DOI 落地页）转 Markdown；博客摘要带 <code>[...]</code> 则抓原文 HTML，抽 <code>&lt;article&gt;</code> / 常见正文容器后 <code>htmd</code> 成 Markdown。渲染复用 <code>MessageResponse</code>（Streamdown + <code>$…$</code>）。</li>
+<li>列表卡摘要只示纯文本 3 行。详情打开时走 <code>feeds_resolve_body</code>：已缓存 <code>bodyMarkdown</code> 则直接用；否则若 RSS 已是全文（或 arXiv / DOI 落地页）转 Markdown；博客摘要带 <code>[...]</code> 或 <code>paper_url</code> 为空（可能从落地页 metadata 确认论文身份）则抓原文 HTML，抽 <code>&lt;article&gt;</code> / 常见正文容器后 <code>htmd</code> 成 Markdown，并顺手解析 <code>citation_doi</code> 等回填 <code>paper_url</code>。渲染复用 <code>MessageResponse</code>（Streamdown + <code>$…$</code>）。</li>
 <li>点标题 = 主操作。另给一个外链图标，论文卡也可打开原文。</li>
 </ul>
 <p>不做第三种「提醒卡」、图墙、视频墙、全文阅读栏（经典三栏的第三栏）。</p>
@@ -3477,8 +3477,10 @@
 <li>条目 <code>url</code> / <code>id</code> / 标题里的 <code>arxiv.org/abs/{id}</code> 或 <code>arXiv:{id}</code></li>
 <li><code>doi.org/{doi}</code> 或 <code>doi:{doi}</code></li>
 <li>摘要纯文本里的同上模式（防 HTML 实体）</li>
+<li><code>nature.com/articles/&lt;slug&gt;</code> 确定性兜底：<code>&lt;slug&gt;</code> 即 DOI 后缀（<code>s41467-026-76837-1</code> / 旧式 <code>nature12373</code>），映射为 <code>https://doi.org/10.1038/&lt;slug&gt;</code>；仅限研究论文 slug，新闻页（<code>d41586-…</code>）不命中</li>
+<li>详情打开抓原文页时，解析 Highwire <code>citation_doi</code> → <code>prism.doi</code> / <code>dc.identifier</code>（剥 <code>doi:</code> 前缀）回填 <code>paper_url</code>（见 <code>feeds_resolve_body</code>）</li>
 </ol>
-<p>抽不到就留空，UI 当短讯卡。</p>
+<p>抽不到就留空，UI 当短讯卡。刷新 upsert 用 <code>COALESCE(旧值, excluded.paper_url)</code>：无 DOI 字段的 feed 刷新不会抹掉已回填的 <code>paper_url</code>。</p>
 <h2 id="5-host-api">5. Host API<a class="headerlink" href="#5-host-api" title="Permanent link">&para;</a></h2>
 <p>新 feature：<code>src-tauri/src/features/feeds/</code>。命令前缀 <code>feeds_</code>。</p>
 <table>
@@ -3543,7 +3545,7 @@
 <td><code>feeds_resolve_body</code></td>
 <td><code>{ id }</code></td>
 <td><code>FeedItem</code></td>
-<td>打开详情时解析全文，写入 <code>bodyMarkdown</code></td>
+<td>打开详情时解析全文，写入 <code>bodyMarkdown</code>；同时从落地页 <code>&lt;meta&gt;</code>（<code>citation_doi</code> / <code>prism.doi</code> / <code>dc.identifier</code>）回填 <code>paperUrl</code>（已有值不覆盖；<code>bodyMarkdown</code> 已缓存则直接返回不重抓）</td>
 </tr>
 </tbody>
 </table>
