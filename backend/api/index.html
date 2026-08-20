@@ -8112,13 +8112,13 @@ Host (Tauri + Rust)
 <p>UI 入口见 <code>settings_window_open</code>：Settings 现为独立原生单例窗口，<code>?window=settings</code> 路由由 <code>src/main.tsx</code> 分支渲染。</p>
 <p>实现：<code>src-tauri/src/features/settings/</code>（<code>mod.rs</code> + <code>commands.rs</code>）、<code>core/paths.rs</code>、<code>src-tauri/src/features/window/commands.rs</code>。</p>
 <h3 id="3103-xdg-usagesqlite">3.10.3 使用记录（XDG <code>usage.sqlite</code>）<a class="headerlink" href="#3103-xdg-usagesqlite" title="Permanent link">&para;</a></h3>
-<p>设备本地活动日志，<strong>不在 Vault 内</strong>。schema v2、列定义与 <code>kind</code>/<code>facet</code> 对照见 <a href="../usage/">usage.md</a>。<code>usageTrackingEnabled === false</code> 时写入命令直接返回 <code>0</code>、不碰库。</p>
+<p>设备本地活动日志，<strong>不在 Vault 内</strong>。schema v2、列定义与 <code>kind</code>/<code>facet</code> 对照见 <a href="../usage/">usage.md</a>。本地记录始终开启（无开关）；非移动端还会按 <code>telemetry_projection</code> 白名单把登记的 kind 脱敏投影到 PostHog（受 <code>telemetryEnabled</code> 约束，见 <a href="../telemetry/">telemetry.md</a>）。</p>
 <h4 id="activity_record_events"><code>activity_record_events</code>（已实现）<a class="headerlink" href="#activity_record_events" title="Permanent link">&para;</a></h4>
-<p>前端 <code>track()</code> 缓冲后批量写入。Host 从 <code>path</code> / <code>mode</code> / <code>extra</code> 推导 <code>paper_path</code>、<code>facet</code>、<code>qty</code>、<code>status</code>，并同事务 upsert <code>usage_daily</code> / <code>usage_vaults</code>。</p>
+<p>前端 <code>track()</code> 缓冲后批量写入。Host 从 <code>path</code> / <code>mode</code> / <code>extra</code> 推导 <code>paper_path</code>、<code>facet</code>、<code>qty</code>、<code>status</code>，并同事务 upsert <code>usage_daily</code> / <code>usage_vaults</code>；写库前先把登记的 kind 脱敏转发到 PostHog。</p>
 <ul>
 <li><strong>参数</strong>（<code>args</code>）：<code>{ events: ActivityRecord[] }</code></li>
 <li><strong><code>ActivityRecord</code></strong>：<code>{ ts?, vault?, kind, path?, mode?, durMs?, extra? }</code>。调用方不要自己填 <code>paper_path</code> / <code>facet</code> / <code>qty</code> / <code>status</code>。</li>
-<li><strong>返回</strong>：写入条数（<code>number</code>）。开关关闭或空数组为 <code>0</code>。单批上限 200。</li>
+<li><strong>返回</strong>：写入条数（<code>number</code>）。空数组为 <code>0</code>。单批上限 200。</li>
 <li><strong>说明</strong>：浏览器预览（非 Tauri）前端短路为 <code>0</code>。</li>
 </ul>
 <h4 id="usage_list"><code>usage_list</code>（已实现）<a class="headerlink" href="#usage_list" title="Permanent link">&para;</a></h4>

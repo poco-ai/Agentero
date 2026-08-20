@@ -3925,7 +3925,7 @@
  usage.sqlite   PostHog 投影      Agent / 继续阅读
 </code></pre></div>
 
-<p>前端缓冲：5s / window blur / beforeunload / 满 50 条 → <code>activity_record_events</code>。同一 <code>(kind, path, mode)</code> 1s 去重。Host 一事务写本地（schema v2）。<code>app.started</code> / <code>app.exited</code> 由 <code>Telemetry::start</code> / <code>shutdown</code> 直写本地，不走 <code>track()</code>。其它 kind 的 PostHog 投影（<code>Telemetry::capture</code>）<strong>尚未接线</strong>。</p>
+<p>前端缓冲：5s / window blur / beforeunload / 满 50 条 → <code>activity_record_events</code>。同一 <code>(kind, path, mode)</code> 1s 去重。Host 一事务写本地（schema v2）。<code>app.started</code> / <code>app.exited</code> 由 <code>Telemetry::start</code> / <code>shutdown</code> 直写本地，不走 <code>track()</code>。其它 kind 的 PostHog 投影（<code>Telemetry::capture_activity</code>）<strong>已接线</strong>：写本地前按白名单脱敏转发。</p>
 <p>业务代码禁止直接 <code>posthog_rs::Event</code> 或手写 <code>INSERT usage_events</code>。</p>
 <h3 id="33">3.3 事件表<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
 <h4 id="a-239">A. 阅读与库（#239 原范围）<a class="headerlink" href="#a-239" title="Permanent link">&para;</a></h4>
@@ -4628,20 +4628,15 @@ agentero<span class="w"> </span>usage<span class="w"> </span>timeline<span class
 </thead>
 <tbody>
 <tr>
-<td><code>usageTrackingEnabled</code></td>
-<td>true</td>
-<td>写本地、生成画像、注入 Agent</td>
-</tr>
-<tr>
 <td><code>telemetryEnabled</code></td>
 <td>true（已有）</td>
-<td>投影到 PostHog</td>
+<td>投影行为事件到 PostHog（下次启动生效）</td>
 </tr>
 </tbody>
 </table>
-<p>独立：可「本地 Memory 开、PostHog 关」。关本地则<strong>不写库</strong>。</p>
+<p>本地记录始终开启、无开关：行为事件恒写 <code>usage.sqlite</code>（生成画像、注入 Agent、供 CLI 查询）。是否上报 PostHog 由 <code>telemetryEnabled</code> 单独控制；关闭后本地照常记录，仅停止投影。可一键清除本地记录。<code>Telemetry::capture_activity</code> 投影<strong>已接线</strong>。</p>
 <p>PostHog 硬约束：无路径、标题、paper id、DOI、检索词、划词/译文/批注正文、Skill URL/名称、Vault 路径。已有 <code>app started</code> / <code>app exited</code> 保留；新事件用 <code>object_verb</code>。</p>
-<p>设置 → 隐私：两行开关 +「清除使用记录」；文案写明本地检索词与 Skill id 不出站。</p>
+<p>设置 → 隐私：<code>telemetryEnabled</code> 开关 +「清除使用记录」；文案写明本地检索词与 Skill id 不出站。</p>
 <p>iOS / TestFlight 仍无遥测。debug / 无 key 构建不上报。</p>
 <h2 id="9">9. 分期<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
 <table>
@@ -4660,8 +4655,8 @@ agentero<span class="w"> </span>usage<span class="w"> </span>timeline<span class
 </tr>
 <tr>
 <td><strong>P0 余</strong></td>
-<td>补翻译 / 版面 / 批注漏斗；<code>Telemetry::capture</code> 投影</td>
-<td>CLI dump 含这些 kind；关开关分别停本地 / PostHog；cache hit 与逐 region 翻译不刷屏</td>
+<td>补翻译 / 版面 / 批注漏斗；<code>Telemetry::capture_activity</code> 投影</td>
+<td>已接线行为事件投影（<a href="../../backend/telemetry/">telemetry.md</a> 映射表）；关 <code>telemetryEnabled</code> 停投影但本地照记；cache hit 与逐 region 翻译不刷屏；翻译 / 版面 / 批注漏斗仍待接线</td>
 </tr>
 <tr>
 <td><strong>P1</strong></td>

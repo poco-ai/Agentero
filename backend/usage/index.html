@@ -3366,7 +3366,7 @@
 </table>
 <p>代码：<code>src-tauri/src/features/usage/</code>。前端入口 <code>src/lib/activity/track.ts</code>（<code>track()</code> 缓冲批量上报）。</p>
 <h2 id="_2">开关<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p><code>AppSettings.usageTrackingEnabled</code>（设置 → 通用 → 隐私）。关闭后 Host 命令直接返回 0、不写库。与 PostHog <code>telemetryEnabled</code> 独立。</p>
+<p>本地活动记录<strong>始终开启</strong>、无独立开关：<code>activity_record_events</code> 无条件写库。是否投影到 PostHog 由 <code>telemetryEnabled</code> 单独控制（见 <a href="../telemetry/">telemetry.md</a>）。</p>
 <p>设置页可一键清除全部记录。</p>
 <h2 id="schema-v1">数据模型（schema v1）<a class="headerlink" href="#schema-v1" title="Permanent link">&para;</a></h2>
 <p>四张表，职责分开。WAL + <code>busy_timeout</code> + <code>foreign_keys</code>。</p>

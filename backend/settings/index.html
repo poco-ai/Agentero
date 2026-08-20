@@ -3020,7 +3020,7 @@
 </table>
 <ul>
 <li>路径：<code>$XDG_CONFIG_HOME/agentero/settings.json</code>（macOS 通常 <code>~/.config/agentero/</code>）。</li>
-<li><code>usageTrackingEnabled</code>：是否写入 XDG <code>usage.sqlite</code>（见 <a href="../usage/">usage.md</a>）。与 <code>telemetryEnabled</code>（PostHog）独立。</li>
+<li><code>telemetryEnabled</code>：是否把行为事件脱敏投影到 PostHog（见 <a href="../telemetry/">telemetry.md</a>）。本地 <code>usage.sqlite</code> 记录始终开启、无开关。</li>
 <li><code>plazaEnabled</code>：是否显示并加载广场（默认开）。关闭后侧栏不渲染广场节点，已开的广场 tab 关闭，且不挂载 <code>PlazaView</code>（含站点代理 iframe / 订阅轮询）。</li>
 <li>旧 localStorage 键一次性迁移。</li>
 <li>Agent 注册表等同目录管理。</li>
