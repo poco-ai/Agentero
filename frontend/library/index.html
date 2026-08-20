@@ -3254,12 +3254,10 @@
 <p>核心字段（标题/作者/年份/DOI/arXiv/期刊）直接展示，卷期页、出版社、摘要、URL 折叠在"更多字段"。作者每行一位；仅提交变更字段（patch）→ <code>paper_update_meta</code> → 返回行原地同步 Library 表与所有打开 tab（<code>paperMetaChange</code>）。远程 Vault 暂不支持，入口隐藏。后端语义见 <a href="../../backend/catalog/">../backend/catalog.md</a>。</p>
 <p>DOI 旁有 <strong>刷新</strong> 按钮：按当前 DOI（或 arXiv ID）拉取权威元数据（<code>paper_resolve_identifier</code> → Translator/Crossref/arXiv），只填充表单供确认，保存仍走 patch。</p>
 <h2 id="pdf">导入 PDF 识别<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h2>
-<p>拖入/魔棒导入 PDF 的确认对话框（<code>import-local-pdf-dialog.tsx</code>）打开时自动识别（liteparse probe → Zotero recognizer → 标识符解析，见 <a href="../../backend/paper-import/">../backend/paper-import.md</a>）：</p>
+<p>拖入/魔棒导入 PDF 直接进入后台导入任务，无确认对话框；识别链路（liteparse probe → Zotero recognizer → 标识符解析，见 <a href="../../backend/paper-import/">../backend/paper-import.md</a>）在导入任务内自动补全：</p>
 <ul>
-<li>识别成功预填 标题/作者/年份/DOI/arXiv ID，行尾显示"已识别元数据"；</li>
-<li>每行可手填 DOI 或 arXiv ID 后点 <strong>Fetch</strong> 拉取完整元数据（识别失败时的手动通道）；</li>
-<li>文件夹 id 无输入框：Host 按 arXiv ID → DOI slug → 文件名 slug 自动派生；</li>
-<li>魔棒直选（无确认对话框）导入同样在后台跑识别链路。</li>
+<li>识别成功自动填充 标题/作者/年份/DOI/arXiv ID，文件夹 id 按 arXiv ID → DOI slug → 文件名 slug 自动派生；</li>
+<li>识别失败静默回退文件名派生元数据，用户在 Edit Metadata 中修正（DOI 旁刷新按钮拉取权威元数据）。</li>
 </ul>
 <h2 id="_4">代码<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
