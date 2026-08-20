@@ -3225,7 +3225,7 @@
 <li>确认保存。</li>
 <li>回到 Agentero，等待 Library 和文件树刷新。</li>
 </ol>
-<p>保存成功后，Agentero 会创建或更新论文目录，并尽量下载 PDF。部分站点的 PDF 需要登录，Connector 会尝试通过浏览器上传附件；如果仍然失败，可以在论文行上手动选择 Download。</p>
+<p>保存时 Chrome Connector 会先使用当前浏览器登录状态取得并上传 PDF；浏览器未取得附件时，Agentero 才会尝试 DOI/arXiv OA fallback。无论附件成功或失败，已有论文内容都会在保存流程终结时落到保存对话框最后选择的目标目录；如果仍然缺少 PDF，可以在论文行上手动选择 Download。</p>
 <h2 id="_3">保存到子文件夹<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>在 Connector 保存对话框中选择目标目录。Agentero 会提供 <code>papers/</code> 和符合论文组织规则的子目录；不要选择论文单元内部的 <code>NOTES.md</code>、PDF 等文件作为目标。</p>
 <h2 id="connector-zotero">Connector 与 Zotero 的分工<a class="headerlink" href="#connector-zotero" title="Permanent link">&para;</a></h2>
