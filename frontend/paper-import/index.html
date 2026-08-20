@@ -3218,14 +3218,14 @@
 <li>粘贴一个或多个论文标识符或 Skill 来源（空格/逗号/分号/换行）；去重后顺序处理。</li>
 <li>目标：<code>papers/</code> 或当前选中的 Papers 子文件夹。</li>
 <li>弹层内 <strong>FileUp</strong>：多选本地 PDF。</li>
-<li>成功后：刷新树、展开并滚到新论文、<code>openPaper</code>；批量<strong>不</strong>自动连跑精读。</li>
-<li>同一条 identifier lookup 管线可由其它入口复用；调用侧可通过 <code>lookupSubmit(texts, { openImported: false })</code> 关闭导入后自动打开。</li>
+<li>成功后：局部刷新 <code>papers/</code> 子树、Wiki、Library；<strong>不</strong>自动打开论文（并行入库时抢焦点会让文件树反复跳转），批量也<strong>不</strong>自动连跑精读。</li>
+<li>同一条 identifier lookup 管线可由其它入口复用（References 面板、Plaza 入库、Zotero 迁移）。</li>
 <li>Host：<code>lookup_import_batch</code> 等。</li>
 </ul>
 <h2 id="references">References 侧栏导入<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
 <ul>
 <li>入口：打开论文后的右侧 <strong>References</strong> 面板，未入库引用卡片上的 Import 按钮。</li>
-<li>复用魔棒 identifier lookup 管线，但显式关闭导入后 <code>openPaper</code>。</li>
+<li>复用魔棒 identifier lookup 管线（与其它入口一样，入库后不打开新论文）。</li>
 <li>成功后：刷新 Vault 树、Wiki 索引、Library，并重解析当前论文 references 以更新 <code>localMatch</code>；当前阅读的论文保持打开。</li>
 </ul>
 <h3 id="skill">Skill 导入<a class="headerlink" href="#skill" title="Permanent link">&para;</a></h3>
