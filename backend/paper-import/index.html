@@ -3449,7 +3449,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 <ul>
 <li>实现：<code>src-tauri/src/features/import/pdf_recognize.rs</code>（payload 组装 + HTTP client + <code>map_crossref_work</code>）；probe worker 变体在 <code>pdf_parse/mod.rs</code>（<code>--agentero-internal-pdf-recognize-worker</code>）。</li>
 <li>payload 结构复刻 Zotero document-worker <code>getRecognizerData</code>：<code>word = [xMin,yMin,xMax,yMax,fontSize,spaceAfter,baseline,rotation,0,bold,italic,0,fontIndex,text]</code>，行来自 liteparse 投影行（竖排 arXiv stamp 落到独立行，服务端可重建）。</li>
-<li>确认对话框（<code>import-local-pdf-dialog.tsx</code>）打开时批量 <code>paper_probe_pdf_ident</code> 预填，并支持手填 DOI/arXiv 后 Fetch（<code>paper_resolve_identifier</code>）；entries 扩展 <code>doi</code>/<code>arxivId</code>/<code>extra</code>，用户确认的值 <code>meta_source=manual</code>。</li>
+<li>确认对话框（<code>import-local-pdf-dialog.tsx</code>）打开时批量 <code>paper_probe_pdf_ident</code> 预填，并支持手填 DOI/arXiv 后 Fetch（<code>paper_resolve_identifier</code>）；entries 扩展 <code>doi</code>/<code>arxivId</code>/<code>extra</code>，用户确认的值 <code>meta_source=manual</code>。文件夹 id 不可手填：Host 按 arXiv ID slug → DOI slug → 文件名 stem 派生（与标识符导入命名一致）。</li>
 <li>魔棒直选（无对话框）路径在 <code>import_one_local_pdf</code> 内联跑同一链路，<code>meta_source=recognize</code>，识别出的 arXiv/DOI slug 作为文件夹 id（与标识符导入命名一致）。</li>
 <li>隐私：上传的是前 5 页文本布局 JSON（~200KB），不是 PDF 文件；服务为 Zotero 托管的未公开 API，仅作尽力而为识别，失败无感知。</li>
 <li>live 验证：<code>AGENTERO_RECOGNIZE_LIVE_PDF=&lt;pdf&gt; cargo test -p agentero --lib -- live_recognize --include-ignored --nocapture</code>。</li>
