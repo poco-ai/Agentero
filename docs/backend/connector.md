@@ -13,15 +13,18 @@ Host 在 **`127.0.0.1:23119`** 模拟 Zotero 桌面 Connector HTTP，官方浏�
 - 绑定当前 Vault（本地路径或 `remote:<sessionId>`）。
 - `saveItems` 只在 session 创建时记录的 Library 作用域中写 paper 壳与 catalog；Chrome
   先通过 `saveAttachment` 上传 PDF，只有浏览器未取得附件时才进入 DOI/arXiv fallback。
-- Connector 保存对话框后续发送的 `updateSession` 只更新该 session 的 latest target；附件
-  仍未终结时不移动，成功或失败终结后本地 Vault 统一通过共享 `paper_move` 事务移动一次。
+- 路径术语：`parent_dir` 是初始父目录；`desired_parent` 是请求父目录（该 session 最近一次
+  有效的文件夹选择）；`paper_paths` / `item_map` 保存当前实际论文路径。
+- Connector 保存对话框后续发送的 `updateSession` 只更新该 session 的 `desired_parent`；附件
+  仍未终结时不移动，成功或失败终结后，本地 Vault 统一通过共享 `paper_move` 事务移动一次。
 - `connector:item-saved` 只在初次 finalizer 得到稳定路径后发出；前端随后刷新并打开该路径，
   现有 open/reconcile 流程再按需启动 backend parser。Connector 本身不主动解析。
 - Connector 返回的 Zotero 标签会以 `@zotero:` 前缀保存在 catalog 中，用于保留来源信息；
   这类内部标签不会显示在 Library、Paper Info 或标签筛选中。
 - 远程：stage 后 SFTP；catalog 经 work mirror。
 - PDF 保存失败会通过 `connector:progress` 报错，但仍无条件进入 finalizer，使已有 paper
-  壳和资源到达 latest target。移动失败时保留 `desired_parent`，不发送错误的稳定路径事件。
+  壳和资源到达 `desired_parent`。移动失败时保留 `desired_parent`；错误与回滚语义沿用共享
+  `paper_move` 事务。
 
 ## 兼容端点（`127.0.0.1:23119`）
 
