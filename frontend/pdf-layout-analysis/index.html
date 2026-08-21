@@ -3527,15 +3527,11 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
         │  侧栏 / hover 仍用 **regions**（post-merge；不含 abstract）
         │  不用 EmbedPDF LayoutAnalysisLayer 画框：sidecar 缓存命中时插件无 page layout
         │
-④ PDF 页交互 → 视觉批注卡 / 公式解析卡
+④ PDF 页交互 → 视觉批注卡
         │  hit 层用 **post-merge** 区域（与侧栏同源，非插件 raw 框）
-        │  插图 / 表 / 算法：hover 框右上角提示「单击进行批注」；单击 → VisualAnnotationEditor
-        │  有编号公式 + Annotation.md 符号表：280ms dwell →「公式解析」卡；hide 320ms
-        │    · hit 保持挂载（可切换公式 / leave→hide）
-        │    · 滚动/缩放重定位；Escape 关闭
-        │  有编号公式但无符号表：同视觉批注卡
-        │  实现：`hit-test.ts` + `pdf-viewer` + `equation-annotation/` +
-        │        `LAYOUT_FORMULA_HOVER_*`
+        │  插图 / 表 / 算法 / 有编号公式：hover 框右上角提示「单击进行批注」；
+        │    单击 → VisualAnnotationEditor
+        │  实现：`hit-test.ts` + `pdf-viewer`
         │
 ⑤ 正文 / 摘要 / 标题文字抽取（PDF text layer → region.text）
         │  分析或 sidecar 回填时 enrich；供调试与 bulk 翻译
