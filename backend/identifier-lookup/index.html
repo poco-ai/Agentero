@@ -4709,7 +4709,7 @@
 </tr>
 <tr>
 <td><strong><code>PAPER.md</code>（无 TeX 时）</strong></td>
-<td>下载结束后：若<strong>无</strong>本地 <code>.tex</code>/<code>.ltx</code>、<strong>有</strong> PDF、且尚无 <code>PAPER.md</code> → <strong>liteparse</strong> 解析 PDF 写 <code>{paper}/PAPER.md</code>，并写 catalog <code>body_source</code> / <code>body_quality</code>。有 TeX 则不自动生成</td>
+<td>下载结束后：若<strong>无</strong>本地 <code>.tex</code>/<code>.ltx</code>、<strong>有</strong> PDF、且尚无 <code>PAPER.md</code> → 用选定正文解析引擎（默认 <strong>liteparse</strong>，见 paper-import.md § 正文解析引擎）写 <code>{paper}/PAPER.md</code>，并写 catalog <code>body_source</code> / <code>body_quality</code>。有 TeX 则不自动生成</td>
 </tr>
 </tbody>
 </table>

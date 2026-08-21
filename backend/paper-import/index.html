@@ -1537,6 +1537,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="可读正文">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        正文解析引擎（可插拔）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1590,7 +1607,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         规划中的增强（非现状）
@@ -1601,7 +1618,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3182,6 +3199,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="可读正文">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        正文解析引擎（可插拔）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3235,7 +3269,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         规划中的增强（非现状）
@@ -3246,7 +3280,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3379,7 +3413,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </tr>
 <tr>
 <td>无 TeX 有 PDF</td>
-<td>下载后由隔离的 liteparse 子进程生成 <code>PAPER.md</code>；单次解析限时 120 秒</td>
+<td>下载后由选定的正文解析引擎生成 <code>PAPER.md</code>（默认本地 liteparse 隔离子进程，单次解析限时 120 秒）</td>
 </tr>
 <tr>
 <td>解析失败或超时</td>
@@ -3392,6 +3426,49 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </tbody>
 </table>
 <p><code>PAPER.md</code> 是派生文件，可删可重建；<code>source/</code> 与 PDF 才是归档事实来源。</p>
+<h3 id="_4">正文解析引擎（可插拔）<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<p><code>settings.layout.parserBackend</code> 选择 PAPER.md 的生成引擎（Settings →「版面解析」），凭据与版面分析共用 <code>layout.providerConfigs</code>：</p>
+<table>
+<thead>
+<tr>
+<th>backend</th>
+<th>流程</th>
+<th><code>body_source</code></th>
+<th><code>body_quality</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>local</code>（默认）</td>
+<td>liteparse worker 子进程 + PDFium</td>
+<td><code>pdf</code> / <code>ocr</code></td>
+<td><code>medium</code> / <code>low</code></td>
+</tr>
+<tr>
+<td><code>mineru</code></td>
+<td>复用 MinerU 批量提取（上传 → 轮询 → 结果 zip），读取 zip 内 <code>full.md</code></td>
+<td><code>mineru</code></td>
+<td><code>high</code></td>
+</tr>
+<tr>
+<td><code>paddle</code></td>
+<td>复用 PP-StructureV3 异步任务，拼接 JSONL 中每页 <code>markdown.text</code></td>
+<td><code>paddle</code></td>
+<td><code>high</code></td>
+</tr>
+<tr>
+<td><code>openaiCompatible</code></td>
+<td>渲染 worker 逐页出 150 DPI PNG（上限 100 页）→ OpenAI 兼容 <code>/chat/completions</code> 多模态 OCR（预设硅基流动；<code>PaddlePaddle/PaddleOCR-VL-1.5</code> 提示词 <code>OCR:</code>，<code>deepseek-ai/DeepSeek-OCR</code> 用 grounding 提示词，按 model id 自动选择）</td>
+<td><code>vlm</code></td>
+<td><code>medium</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>回退</strong>：云端引擎失败或产出空 markdown 时自动回退本地 liteparse，原因追加进 <code>messages</code>；用户取消不回退。<code>body_source</code> 始终记录实际来源。</li>
+<li><strong>凭据注入</strong>：引擎配置以进程级快照持有（启动与 <code>settings_set</code> 时从 <code>AppSettingsStore</code> 刷新，模式同 <code>network::configure_proxy</code>），明文 key 不出 Host。</li>
+<li><strong>实现</strong>：<code>src-tauri/src/features/import/pdf_parse/engines/</code>（<code>BodyParseEngine</code> trait + local / mineru / paddle / openai_vlm）；云端上传/轮询复用 <code>layout_remote</code> 的 <code>run_mineru_extract</code> / <code>run_paddle_ocr_job</code>。</li>
+</ul>
 <h2 id="pdfium">PDFium 随包分发<a class="headerlink" href="#pdfium" title="Permanent link">&para;</a></h2>
 <p>liteparse 在<strong>运行时 <code>dlopen</code></strong> PDFium，而 <code>liteparse-pdfium-sys</code> 的 build script 只
 把<strong>构建机</strong>的下载缓存绝对路径 bake 进二进制。用户机上那个路径不存在，加载失败会
@@ -3459,13 +3536,12 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 <h2 id="catalog-command">Catalog 相关 command（摘要）<a class="headerlink" href="#catalog-command" title="Permanent link">&para;</a></h2>
 <p><code>paper_list</code> / <code>paper_get</code> / <code>paper_rescan</code> / <code>paper_set_tags</code> / <code>paper_set_is_read</code> / <code>paper_export</code> / <code>paper_import</code><br />
 详见 <a href="../catalog/">catalog.md</a>、<a href="../api/">api.md</a>。</p>
-<h2 id="_4">规划中的增强（非现状）<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">规划中的增强（非现状）<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <ul>
 <li>关键词/描述 → Agent 候选确认后入库（路线图 0.3）。</li>
-<li>可插拔 <code>PdfParser</code>（liteparse 默认 + 可选 MinerU BYOK）（路线图 0.4）。</li>
 <li>统一 <code>afterPaperImport</code> / <code>paper:imported</code> 事件（路线图 0.3）。</li>
 </ul>
-<h2 id="_5">代码<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">代码<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p><code>src-tauri/src/features/import/</code><br />
 前端 UI：<a href="../../frontend/paper-import/">../frontend/paper-import.md</a></p>
 
