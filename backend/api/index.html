@@ -8068,9 +8068,9 @@ Host (Tauri + Rust)
     "backend": "local", // "local"（默认，ONNX）| "paddle"（AI Studio 异步任务）| "mineru"（MinerU 云 API）
     "parserBackend": "local", // PAPER.md 正文解析引擎："local"（默认）| "paddle" | "mineru" | "openaiCompatible"
     "providerConfigs": {
-      "paddle": { "apiKey": "***", "baseUrl": "", "model": "" },
-      "mineru": { "apiKey": "***", "baseUrl": "", "model": "" }, // baseUrl 空 → 官方 https://mineru.net
-      "openaiCompatible": { "apiKey": "***", "baseUrl": "", "model": "" } // baseUrl 空 → https://api.siliconflow.cn/v1
+      "paddle": { "apiKey": "***", "baseUrl": "", "model": "", "prompt": "" },
+      "mineru": { "apiKey": "***", "baseUrl": "", "model": "", "prompt": "" }, // baseUrl 空 → 官方 https://mineru.net
+      "openaiCompatible": { "apiKey": "***", "baseUrl": "", "model": "", "prompt": "" } // baseUrl 空 → https://api.siliconflow.cn/v1
     }
   }
 }
@@ -8079,9 +8079,10 @@ Host (Tauri + Rust)
 <ul>
 <li><code>apiKey</code> 与翻译 BYOK 同一套掩码机制：<code>settings_get</code> 返回 <code>*</code> 掩码，<code>settings_set</code> 收到掩码时保留已存密钥。Paddle key 在 AI Studio 访问令牌页获取；MinerU token 在 mineru.net API 管理页获取；OpenAI 兼容 key 在服务商控制台获取（如硅基流动，前端 <code>LAYOUT_PROVIDER_DOCS_URLS</code>）。</li>
 <li><code>baseUrl</code> 为可选端点覆盖：paddle 端点固定（不支持覆盖）；mineru 支持覆盖且强制 https（loopback <code>http://localhost</code> 等除外）；openaiCompatible 默认硅基流动。</li>
-<li><code>model</code> 供正文解析引擎使用：openaiCompatible 预设 <code>PaddlePaddle/PaddleOCR-VL-1.5</code> / <code>deepseek-ai/DeepSeek-OCR</code>（空 → 前者）；paddle 正文默认 <code>PaddleOCR-VL-1.6</code>（版面分析固定用 <code>PP-StructureV3</code>，不读该字段）。</li>
+<li><code>model</code> 供正文解析引擎使用：openaiCompatible 预设 <code>PaddlePaddle/PaddleOCR-VL-1.5</code> / <code>deepseek-ai/DeepSeek-OCR</code>（空 → 前者）；paddle 正文预设 <code>PaddleOCR-VL-1.6</code> / <code>PaddleOCR-VL-1.5</code>（空 → 前者；版面分析固定用 <code>PP-StructureV3</code>，不读该字段）。</li>
+<li><code>prompt</code> 仅 openaiCompatible 使用：OCR 提示词覆盖，空 → 按 model id 自动选择。注意 <code>PaddleOCR-VL</code> 只接受固定任务提示词，自定义提示词请配指令型 VLM（详见 <a href="../paper-import/">paper-import.md</a> § 正文解析引擎）。</li>
 <li><code>parserBackend</code> 与版面 <code>backend</code> 独立选择，但共用 <code>providerConfigs</code> 凭据池；正文引擎详见 <a href="../paper-import/">paper-import.md</a> § 正文解析引擎。</li>
-<li>设置 UI：Settings →「版面解析 / Layout」（版面后端由前端 <code>LAYOUT_PROVIDERS</code>、正文引擎由 <code>PARSER_PROVIDERS</code> 注册表驱动；按 provider 的 <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>requiresModel</code> 显隐 API Key / Base URL / Model 输入 + 连通性测试）。</li>
+<li>设置 UI：Settings →「版面解析 / Layout」（版面后端由前端 <code>LAYOUT_PROVIDERS</code>、正文引擎由 <code>PARSER_PROVIDERS</code> 注册表驱动；两者指向同一 provider 时 <code>mergeProviderCards</code> 合并为一张卡片，按 <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>supportsModel</code> / <code>supportsPrompt</code> 显隐 API Key / Base URL / Model / Prompt 输入 + 连通性测试）。</li>
 </ul>
 <h4 id="layout_remote_analyze_pdf"><code>layout_remote_analyze_pdf</code>（已实现）<a class="headerlink" href="#layout_remote_analyze_pdf" title="Permanent link">&para;</a></h4>
 <p>整份 PDF 的 <strong>异步</strong> 远程解析（无同步逐页接口），按 <code>provider</code> 分发到对应 engine：</p>

@@ -3452,7 +3452,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </tr>
 <tr>
 <td><code>paddle</code></td>
-<td>复用 AI Studio 异步任务，拼接 JSONL 中每页 <code>markdown.text</code>。正文模型默认 <code>PaddleOCR-VL-1.6</code>（<code>PP-StructureV3</code> 只产出版面框，不产 markdown），可用 <code>providerConfigs.paddle.model</code> 覆盖</td>
+<td>复用 AI Studio 异步任务，拼接 JSONL 中每页 <code>markdown.text</code>。正文模型默认 <code>PaddleOCR-VL-1.6</code>，可在设置里改（版面分析固定 <code>PP-StructureV3</code>，不受影响）</td>
 <td><code>paddle</code></td>
 <td><code>high</code></td>
 </tr>
@@ -3467,12 +3467,14 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 <ul>
 <li><strong>回退</strong>：云端引擎失败或产出空 markdown 时自动回退本地 liteparse，原因追加进 <code>messages</code>；用户取消不回退。<code>body_source</code> 始终记录实际来源。</li>
 <li><strong>凭据注入</strong>：引擎配置以进程级快照持有（启动与 <code>settings_set</code> 时从 <code>AppSettingsStore</code> 刷新，模式同 <code>network::configure_proxy</code>），明文 key 不出 Host。</li>
-<li><strong>DeepSeek grounding 清洗</strong>：grounding 输出形如 <code>&lt;|ref|&gt;label&lt;|/ref|&gt;&lt;|det|&gt;[[box]]&lt;|/det|&gt;\n正文</code>，<code>&lt;|ref|&gt;</code> 内是版面<strong>类别名</strong>（<code>text</code> / <code>title</code>）而非正文，两段都整体丢弃，否则正文里会混入 <code>text</code> / <code>sub_title</code> 噪声行。</li>
+<li><strong>提示词</strong>：默认按 model id 自动选择（含 <code>deepseek-ocr</code> → grounding 提示词；含 <code>paddleocr</code> → <code>OCR:</code>；其余 → 通用指令）。设置里的 Prompt 输入框可覆盖，留空即走自动。</li>
+<li>⚠️ <code>PaddleOCR-VL</code> 是<strong>任务提示词</strong>模型，只认它自己那几个固定提示词；换成自由指令会退化成检测模式并吐出 <code>&lt;|LOC_n|&gt;</code> 坐标 token。自定义提示词请配指令型 VLM（如 DeepSeek-OCR 去掉 <code>&lt;|grounding|&gt;</code>、Qwen-VL 等）。</li>
+<li><strong>输出清洗</strong>：grounding 输出形如 <code>&lt;|ref|&gt;label&lt;|/ref|&gt;&lt;|det|&gt;[[box]]&lt;|/det|&gt;\n正文</code>，<code>&lt;|ref|&gt;</code> 内是版面<strong>类别名</strong>（<code>text</code> / <code>title</code>）而非正文，两段都整体丢弃，否则正文里会混入 <code>text</code> / <code>sub_title</code> 噪声行；<code>&lt;|LOC_n|&gt;</code> 同样剥离。</li>
 <li><strong>实现</strong>：<code>src-tauri/src/features/import/pdf_parse/engines/</code>（<code>BodyParseEngine</code> trait + local / mineru / paddle / openai_vlm）；云端上传/轮询复用 <code>layout_remote</code> 的 <code>run_mineru_extract</code> / <code>run_paddle_ocr_job</code>。</li>
 <li><strong>Live 验证</strong>（<code>#[ignore]</code>，需自备 key，密钥只走环境变量）：</li>
 </ul>
 <p><code>bash
-  AGENTERO_VLM_LIVE_PDF=&lt;pdf&gt; AGENTERO_VLM_API_KEY=&lt;key&gt; [AGENTERO_VLM_MODEL=…] \
+  AGENTERO_VLM_LIVE_PDF=&lt;pdf&gt; AGENTERO_VLM_API_KEY=&lt;key&gt; [AGENTERO_VLM_MODEL=… AGENTERO_VLM_PROMPT=…] \
     cargo test -p agentero --lib -- live_openai_vlm --ignored --nocapture
   AGENTERO_MINERU_LIVE_PDF=&lt;pdf&gt; AGENTERO_MINERU_API_KEY=&lt;key&gt; \
     cargo test -p agentero --lib -- live_mineru --ignored --nocapture
