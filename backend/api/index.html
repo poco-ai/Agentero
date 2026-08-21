@@ -8079,7 +8079,7 @@ Host (Tauri + Rust)
 <ul>
 <li><code>apiKey</code> 与翻译 BYOK 同一套掩码机制：<code>settings_get</code> 返回 <code>*</code> 掩码，<code>settings_set</code> 收到掩码时保留已存密钥。Paddle key 在 AI Studio 访问令牌页获取；MinerU token 在 mineru.net API 管理页获取；OpenAI 兼容 key 在服务商控制台获取（如硅基流动，前端 <code>LAYOUT_PROVIDER_DOCS_URLS</code>）。</li>
 <li><code>baseUrl</code> 为可选端点覆盖：paddle 端点固定（不支持覆盖）；mineru 支持覆盖且强制 https（loopback <code>http://localhost</code> 等除外）；openaiCompatible 默认硅基流动。</li>
-<li><code>model</code> 仅 openaiCompatible 正文引擎使用（预设 <code>PaddlePaddle/PaddleOCR-VL-1.5</code> / <code>deepseek-ai/DeepSeek-OCR</code>，空 → 前者）。</li>
+<li><code>model</code> 供正文解析引擎使用：openaiCompatible 预设 <code>PaddlePaddle/PaddleOCR-VL-1.5</code> / <code>deepseek-ai/DeepSeek-OCR</code>（空 → 前者）；paddle 正文默认 <code>PaddleOCR-VL-1.6</code>（版面分析固定用 <code>PP-StructureV3</code>，不读该字段）。</li>
 <li><code>parserBackend</code> 与版面 <code>backend</code> 独立选择，但共用 <code>providerConfigs</code> 凭据池；正文引擎详见 <a href="../paper-import/">paper-import.md</a> § 正文解析引擎。</li>
 <li>设置 UI：Settings →「版面解析 / Layout」（版面后端由前端 <code>LAYOUT_PROVIDERS</code>、正文引擎由 <code>PARSER_PROVIDERS</code> 注册表驱动；按 provider 的 <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>requiresModel</code> 显隐 API Key / Base URL / Model 输入 + 连通性测试）。</li>
 </ul>

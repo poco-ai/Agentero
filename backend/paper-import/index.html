@@ -3452,7 +3452,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </tr>
 <tr>
 <td><code>paddle</code></td>
-<td>复用 PP-StructureV3 异步任务，拼接 JSONL 中每页 <code>markdown.text</code></td>
+<td>复用 AI Studio 异步任务，拼接 JSONL 中每页 <code>markdown.text</code>。正文模型默认 <code>PaddleOCR-VL-1.6</code>（<code>PP-StructureV3</code> 只产出版面框，不产 markdown），可用 <code>providerConfigs.paddle.model</code> 覆盖</td>
 <td><code>paddle</code></td>
 <td><code>high</code></td>
 </tr>
@@ -3467,8 +3467,18 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 <ul>
 <li><strong>回退</strong>：云端引擎失败或产出空 markdown 时自动回退本地 liteparse，原因追加进 <code>messages</code>；用户取消不回退。<code>body_source</code> 始终记录实际来源。</li>
 <li><strong>凭据注入</strong>：引擎配置以进程级快照持有（启动与 <code>settings_set</code> 时从 <code>AppSettingsStore</code> 刷新，模式同 <code>network::configure_proxy</code>），明文 key 不出 Host。</li>
+<li><strong>DeepSeek grounding 清洗</strong>：grounding 输出形如 <code>&lt;|ref|&gt;label&lt;|/ref|&gt;&lt;|det|&gt;[[box]]&lt;|/det|&gt;\n正文</code>，<code>&lt;|ref|&gt;</code> 内是版面<strong>类别名</strong>（<code>text</code> / <code>title</code>）而非正文，两段都整体丢弃，否则正文里会混入 <code>text</code> / <code>sub_title</code> 噪声行。</li>
 <li><strong>实现</strong>：<code>src-tauri/src/features/import/pdf_parse/engines/</code>（<code>BodyParseEngine</code> trait + local / mineru / paddle / openai_vlm）；云端上传/轮询复用 <code>layout_remote</code> 的 <code>run_mineru_extract</code> / <code>run_paddle_ocr_job</code>。</li>
+<li><strong>Live 验证</strong>（<code>#[ignore]</code>，需自备 key，密钥只走环境变量）：</li>
 </ul>
+<p><code>bash
+  AGENTERO_VLM_LIVE_PDF=&lt;pdf&gt; AGENTERO_VLM_API_KEY=&lt;key&gt; [AGENTERO_VLM_MODEL=…] \
+    cargo test -p agentero --lib -- live_openai_vlm --ignored --nocapture
+  AGENTERO_MINERU_LIVE_PDF=&lt;pdf&gt; AGENTERO_MINERU_API_KEY=&lt;key&gt; \
+    cargo test -p agentero --lib -- live_mineru --ignored --nocapture
+  AGENTERO_PADDLE_LIVE_PDF=&lt;pdf&gt; AGENTERO_PADDLE_API_KEY=&lt;key&gt; [AGENTERO_PADDLE_MODEL=…] \
+    cargo test -p agentero --lib -- live_paddle --ignored --nocapture</code></p>
+<p>VLM live 测试在进程内直接渲染（worker 子进程会重入 test 二进制），其余与线上路径一致。</p>
 <h2 id="pdfium">PDFium 随包分发<a class="headerlink" href="#pdfium" title="Permanent link">&para;</a></h2>
 <p>liteparse 在<strong>运行时 <code>dlopen</code></strong> PDFium，而 <code>liteparse-pdfium-sys</code> 的 build script 只
 把<strong>构建机</strong>的下载缓存绝对路径 bake 进二进制。用户机上那个路径不存在，加载失败会
