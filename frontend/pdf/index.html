@@ -1080,6 +1080,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cli-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI / Agent 写入的标注
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3113,6 +3124,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cli-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI / Agent 写入的标注
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3287,6 +3309,18 @@
 <li>视觉裁剪按用户框选的实际区域生成截图（不隐式外扩），最长边 1600 px；不以 base64 写入 mark JSON。活动 PDF 的 marks 轮询只读取 metadata，悬浮卡片、打开 Agent 与 Wiki 嵌入按需读取图片。图片缺失时仍保留位置、批注和多轮 transcript。</li>
 <li><strong>写进笔记</strong>：批注面板复制 / <code>[[@id]]</code> / <code>![[…@id]]</code>，见 <a href="../wiki/">wiki.md</a> 编辑器 <code>@</code> 说明。</li>
 </ul>
+<h2 id="cli-agent">CLI / Agent 写入的标注<a class="headerlink" href="#cli-agent" title="Permanent link">&para;</a></h2>
+<p><code>agentero mark add</code> 用 PDFium 文字引擎按 quote 定位后直接写盘（见 <a href="../../backend/cli/">backend/cli.md</a>）：
+高亮/批注追加到 <code>marks/annotations.json</code>，ask / translate 落 per-id <code>marks/&lt;id&gt;.json</code>。</p>
+<p>阅读器两条吸收路径：</p>
+<ul>
+<li><code>annotations.json</code>：挂载时导入一次；此外监听 Vault watcher 对该文件的<strong>外部</strong>变更
+  （跳过本应用自身写入的 echo，200ms 合并），只导入内存里还没有的 annotation id。
+  没有这一步，论文开着时 CLI 追加的高亮既看不见，还会被下一次 debounce 导出覆盖。</li>
+<li>per-id mark：活动 tab 的 marks 刷新同时重读 ask / visual / translate。</li>
+</ul>
+<p>历史遗留的 per-id <code>kind: highlight</code> mark 仍由 <code>migrateHighlightMarks</code> 在 <code>annotations.json</code>
+缺失/为空时一次性投影并删除源文件；新写入不再走这条路。</p>
 <h2 id="_3">代码<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

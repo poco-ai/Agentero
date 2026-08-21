@@ -3235,7 +3235,7 @@
 <p><code>layout-index.json</code> 与侧栏 Figures 同源（merge + score/NMS 后），供 <code>agentero layout list</code> / <code>mark add --region</code> 使用；<strong>可从</strong> <code>layout.json</code> 重算，分析完成或缓存命中时由桌面写入。详见 <a href="../../frontend/pdf-layout-analysis/">../frontend/pdf-layout-analysis.md</a>。</p>
 <h2 id="marks">marks/<a class="headerlink" href="#marks" title="Permanent link">&para;</a></h2>
 <ul>
-<li>高亮/批注：<code>annotations.json</code>（含 <code>comment</code> 的为批注）；CLI 区域批注写 per-id <code>highlight</code>（<code>geometry: resolved</code> + <code>layoutRef</code>）</li>
+<li>高亮/批注：<code>annotations.json</code>（含 <code>contents</code> 的为批注）。桌面划词与 CLI（<code>mark add --quote</code> / <code>--region</code>）都写这里；CLI 按 annotation id 去重后原子替换，阅读器监听外部变更增量导入。历史 per-id <code>kind: highlight</code> mark 仍可读（Doctor / 首次打开时投影）</li>
 <li>提问/翻译：<code>&lt;id&gt;.json</code>（<code>kind</code>）；CLI 可用 <code>mark add --region … --question</code> 写 <code>ask</code> 壳</li>
 <li>视觉批注：<code>&lt;id&gt;.json</code>（<code>kind: visual</code> v2）保存区域、用户 <code>comment</code>、可选嵌套 <code>agent</code> 与 <code>image.path</code>；裁剪图片位于 <code>assets/&lt;id&gt;.png</code>。旧版 <code>kind: agent-trace</code>（扁平 agent 字段）仍可读，Doctor 可迁移</li>
 <li>不写 PDF 二进制，不强制写入 NOTES</li>

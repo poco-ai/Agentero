@@ -3710,7 +3710,8 @@
 
 <h1 id="cli-agent">阅读标注开放 CLI / Agent：开发路线<a class="headerlink" href="#cli-agent" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：设计草案。关联 <a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>。<br />
+<p>状态：M1–M3 主要能力已实现（引擎定位 + 高亮/批注/翻译 CLI），本文保留决策脉络。
+实现说明见 <a href="../../backend/cli/">backend/cli.md</a> 与 <a href="../../frontend/pdf/">frontend/pdf.md</a>。关联 <a href="https://github.com/poco-ai/Agentero/issues/170">#170</a>。<br />
 定位策略详情：<a href="../mark-locate-lazy/">惰性</a> · <a href="../mark-locate-eager/">即时</a><br />
 桌面安装包如何带上同版本 <code>agentero</code>：<a href="../../backend/cli/">CLI 文档</a>（<a href="https://github.com/poco-ai/Agentero/issues/165">#165</a> / <a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>）</p>
 </blockquote>
@@ -3789,11 +3790,11 @@
 </tr>
 <tr>
 <td>文字 → 框</td>
-<td>EmbedPDF <code>searchAllPages</code> → <code>rects</code> 已用于 ⌘F；<strong>未</strong>接 mark hydrate</td>
+<td>阅读器用 EmbedPDF <code>searchAllPages</code>（⌘F）；CLI 用 <code>features/pdf_locate</code> 直调 PDFium 文本引擎（同源），<strong>已</strong>接 mark 写入</td>
 </tr>
 <tr>
 <td>翻译 Host</td>
-<td><code>translate_text</code> 已有；CLI 未暴露</td>
+<td><code>translate_text</code> 已有；CLI <code>translate</code> 已暴露（仅免费引擎）</td>
 </tr>
 <tr>
 <td>图/公式</td>
@@ -3801,7 +3802,7 @@
 </tr>
 <tr>
 <td>liteparse</td>
-<td>只产 <code>PAPER.md</code> 正文；<strong>不</strong>负责页上定位</td>
+<td>只产 <code>PAPER.md</code> 正文；页上定位由同一 PDFium 的文本 API 负责（<code>liteparse-pdfium</code>），不走 liteparse 的排版重建</td>
 </tr>
 <tr>
 <td>分发</td>
@@ -3884,8 +3885,8 @@
 </tr>
 <tr>
 <td><code>marks/annotations.json</code>（EmbedPDF 传输 blob）</td>
-<td>仅桌面划词 runtime</td>
-<td><strong>否</strong>（避免与 GUI 冲突）</td>
+<td>桌面划词 runtime + <strong>CLI</strong></td>
+<td><strong>是</strong>（决策修订：见 §9；按 id 去重 + 原子写，阅读器监听外部变更增量导入）</td>
 </tr>
 <tr>
 <td><code>marks/assets/*.png</code>（视觉批注）</td>
@@ -4383,40 +4384,53 @@ M4 可选
 <tr>
 <th>决策</th>
 <th>选择</th>
+<th>备注</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>CLI <code>mark add</code> 默认</td>
-<td><strong>pending</strong>，不读 PDF</td>
+<td><strong>即时定位</strong>（PDFium 文本引擎）</td>
+<td>修订自「默认 pending」：<code>liteparse-pdfium</code> 已在依赖树里，进程内即可用引擎，Agent 一条命令就得到可见标注</td>
 </tr>
 <tr>
-<td>PDF 已打开时的桌面写入</td>
-<td><strong>尽量即时 B1</strong></td>
+<td>定位实现</td>
+<td><code>features/pdf_locate</code> 直调 <code>FPDFText_*</code>，隔离 worker + 30s 超时</td>
+<td>与阅读器 <code>searchInPage</code> 同一 PDFium</td>
 </tr>
 <tr>
-<td>打开 PDF</td>
-<td><strong>惰性补全</strong> 所有 pending</td>
+<td>高亮落盘</td>
+<td><strong>CLI 直接写 <code>annotations.json</code></strong></td>
+<td>修订自「CLI 不写 annotations.json」：黄底的唯一真源就是该文件；阅读器加了外部变更增量导入以避免覆盖</td>
 </tr>
 <tr>
-<td>Headless resolve</td>
-<td><strong>显式开关</strong>，非默认</td>
+<td>批注</td>
+<td>= highlight 的 <code>contents</code>，不新增 kind</td>
+<td>与桌面划词评论同一模型</td>
 </tr>
 <tr>
 <td>定位失败</td>
-<td>保留内容，<code>geometry=failed</code></td>
+<td>报 <code>mark_locate_failed</code>，<strong>不落盘</strong></td>
+<td>修订自「保留内容 + geometry=failed」：translate/highlight schema 都要求 rects，无坐标的 mark 前端读不出</td>
+</tr>
+<tr>
+<td>打开 PDF</td>
+<td>惰性 hydrate 仅用于历史 pending mark</td>
+<td>新写入不再产生 pending</td>
 </tr>
 <tr>
 <td>liteparse</td>
 <td>正文 only，不参与画框</td>
+<td>未变（画框走 PDFium 文本 API，不走 liteparse 排版）</td>
 </tr>
 <tr>
 <td>分发</td>
 <td>与 GUI <strong>同版本单二进制</strong> headless CLI，不另发「标注工具」</td>
+<td>未变</td>
 </tr>
 </tbody>
 </table>
-<p>依据见两篇定位文档的性能对比。</p>
+<p>原始取舍与性能对比见两篇定位文档；上表为落地后的实际选择。</p>
 <h2 id="10">10. 测试计划（最小）<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
