@@ -1688,7 +1688,90 @@
   <a href="#7" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. 风险与开放问题
+        7. 反向引用发现（谁引用了我的库）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 反向引用发现（谁引用了我的库）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-semantic-scholar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 数据源：只能用 Semantic Scholar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 三层过滤
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 排序与预算
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 缓存与增量
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#75" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.5 生命周期与进度
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#76-53-vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.6 实测（53 篇 vault）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 风险与开放问题
       
     </span>
   </a>
@@ -3305,7 +3388,90 @@
   <a href="#7" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. 风险与开放问题
+        7. 反向引用发现（谁引用了我的库）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 反向引用发现（谁引用了我的库）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-semantic-scholar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 数据源：只能用 Semantic Scholar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 三层过滤
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 排序与预算
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 缓存与增量
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#75" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.5 生命周期与进度
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#76-53-vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.6 实测（53 篇 vault）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 风险与开放问题
       
     </span>
   </a>
@@ -3334,7 +3500,7 @@
 
 <h1 id="citation-parsing">参考文献解析（Citation Parsing）<a class="headerlink" href="#citation-parsing" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>M1 + M2 + M3(PDF 内交互) + M4(引用图谱 MVP) 已实现</strong>（M1：Host <code>features/refs/</code> — L1 在线 S2/Crossref + L2 本地 bib/bbl/thebibliography + sidecar + 库内匹配，命令契约见 <a href="../api/">api.md</a> <code>paper_refs_parse</code> / <code>paper_refs_list</code> / <code>paper_refs_graph</code>；M2：右侧栏 References tab 引用卡片，见 <a href="../../frontend/shell/">../frontend/shell.md</a>；M3：PDF Link annotation 覆盖层 — 点击 GoTo 跳页 / URI 外链、hover 引用锚文本显示元数据预览并联动引用卡片高亮；M4：右侧 Graph 改用引用图谱，非双链图）。剩余草稿：卡片 → PDF 反向 hover 高亮、Agent <code>#</code> 提及、Connected Papers 式布局。</p>
+<p>状态：<strong>M1 + M2 + M3(PDF 内交互) + M4(引用图谱 MVP) + 反向引用发现 已实现</strong>（M1：Host <code>features/refs/</code> — L1 在线 S2/Crossref + L2 本地 bib/bbl/thebibliography + sidecar + 库内匹配，命令契约见 <a href="../api/">api.md</a> <code>paper_refs_parse</code> / <code>paper_refs_list</code> / <code>paper_refs_graph</code>；M2：右侧栏 References tab 引用卡片，见 <a href="../../frontend/shell/">../frontend/shell.md</a>；M3：PDF Link annotation 覆盖层 — 点击 GoTo 跳页 / URI 外链、hover 引用锚文本显示元数据预览并联动引用卡片高亮；M4：右侧 Graph 改用引用图谱，非双链图；反向引用发现：<code>library_citing_scan</code>，见 §7）。剩余草稿：卡片 → PDF 反向 hover 高亮、Agent <code>#</code> 提及、Connected Papers 式布局。</p>
 </blockquote>
 <h2 id="1">1. 背景与现状<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <ul>
@@ -3446,7 +3612,120 @@
 </tr>
 </tbody>
 </table>
-<h2 id="7">7. 风险与开放问题<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<h2 id="7">7. 反向引用发现（谁引用了我的库）<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>状态：<strong>已实现</strong>（Host <code>features/refs/citing.rs</code>，命令 <code>library_citing_scan</code>，入口在文件树 Library 节点右键）。</p>
+</blockquote>
+<p>方向与本文其余部分<strong>相反</strong>：不是「这篇论文引了谁」，而是「库里的论文被哪些<strong>新论文</strong>引用了、且这些新论文还没入库」。和 M5 的「未入库一键导入」不是同一件事——那个是正向引用的批量版。</p>
+<h3 id="71-semantic-scholar">7.1 数据源：只能用 Semantic Scholar<a class="headerlink" href="#71-semantic-scholar" title="Permanent link">&para;</a></h3>
+<p>OpenAlex 的引用图几乎不含 arXiv 预印本之间的引用边。实测同一个 53 篇 vault：2026 年的 37 篇里只有 1 篇在 OpenAlex 有任何引用记录，按文件夹扫 7/10 返回 0；唯一非零的那个文件夹全是跨领域噪音（引用者是结直肠疾病 transformer、嵌段共聚物乳液），因为该文件夹装的是 Attention/GPT-3/BERT/ResNet/Adam 这些经典。</p>
+<p>同一批论文在 S2 有数据：</p>
+<table>
+<thead>
+<tr>
+<th>论文</th>
+<th>OpenAlex <code>cited_by</code></th>
+<th>S2 <code>citationCount</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DFlash (2602.06036)</td>
+<td>0</td>
+<td>70</td>
+</tr>
+<tr>
+<td>Dynamic Early Exit (2504.15895)</td>
+<td>1</td>
+<td>216</td>
+</tr>
+<tr>
+<td>Your LLM Knows the Future (2507.11851)</td>
+<td>0</td>
+<td>40</td>
+</tr>
+</tbody>
+</table>
+<p>S2 的接口形状本身不适合批量（<code>citations</code> 端点无日期过滤、无排序、<code>offset+limit &lt; 10000</code> 硬顶、每篇一个请求），靠两步绕开：</p>
+<ol>
+<li>一个 <code>POST /paper/batch</code> 请求拿全库 <code>citationCount</code> + SPECTER2 向量（≤500 ids/请求）</li>
+<li>只对合格种子逐篇 <code>GET /paper/{id}/citations</code>，<code>limit=1000</code>，8 路并发</li>
+</ol>
+<p>8 路并发实测比串行快 4.6 倍且无持续 429。53 篇 vault 全扫 <strong>40 个请求 / 约 50 秒 / 免费无 key</strong>。</p>
+<h3 id="72">7.2 三层过滤<a class="headerlink" href="#72" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>手段</th>
+<th>额外请求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L0</td>
+<td>跳过被引 &gt; 2000 的经典种子（噪音源头）、被引为 0 的种子；候选按时间窗、已入库（DOI/arXiv 双路 + arXiv DOI 别名）、无可导入标识过滤</td>
+<td>0</td>
+</tr>
+<tr>
+<td>L1</td>
+<td>IDF 加权重叠 <code>Σ 1/log10(种子被引 + 10)</code>——引 Attention（18.9 万）权重 0.19，引刚发的新论文权重 1.0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>L2</td>
+<td>SPECTER2 语义门槛：<strong>先减背景均值再算余弦</strong>（裸余弦全挤在 0.80–0.96，绝对阈值无区分度），取「对我任意一篇的 max-sim」而非质心相似度（库是多主题的），阈值用「我自己论文 leave-one-out max-sim 的 p10」自校准</td>
+<td>1–2</td>
+</tr>
+</tbody>
+</table>
+<p>L2 方案实测对比（阈值统一取自己论文 p10）：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>同主题池通过</th>
+<th>GPT-3 引用者噪音池</th>
+<th>ResNet 引用者噪音池</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>裸余弦 → 质心</td>
+<td>62%</td>
+<td>6%</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>中心化余弦 → 质心</td>
+<td>57%</td>
+<td>9%</td>
+<td>0%</td>
+</tr>
+<tr>
+<td><strong>中心化 max-sim → 任一篇</strong></td>
+<td><strong>80%</strong></td>
+<td><strong>3%</strong></td>
+<td><strong>0%</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="73">7.3 排序与预算<a class="headerlink" href="#73" title="Permanent link">&para;</a></h3>
+<p>过门槛后按 <code>0.65·(w/wmax) + 0.35·(sim/smax)</code> 排序，取前 150 做 MMR（λ=0.7）多样化，最终截到预算 20 条。</p>
+<p><strong>用固定预算而不是 A/B/C 分级阈值</strong>：预算直接控制用户要看的条数，且省掉按文件夹调阈值——实测阈值会在 0.238~0.597 间漂移。MMR 的作用是防止 20 条被单一方向占满（实测把 Tool 方向的覆盖从 1 条提到 3 条，代价是挤掉 4 条同质论文）。</p>
+<h3 id="74">7.4 缓存与增量<a class="headerlink" href="#74" title="Permanent link">&para;</a></h3>
+<p><code>.agentero/citing-scan.json</code>（参照 <code>features/doctor/mod.rs</code> 的 <code>DOCTOR_STATE_REL</code> 先例）存每个种子的 <code>s2Id</code> / <code>citationCount</code> / <code>fetchedAt</code> / 引用者元数据，外加上次结果供 UI 直接复用。下次扫描先用 1 个 batch 请求拿最新 <code>citationCount</code>，<strong>只重抓被引数变化的种子</strong>，稳态约 10 秒。SPECTER2 向量不落盘（每次 1–2 个请求重取），避免几 MB 的 JSON。</p>
+<p>写入是普通 <code>fs::write</code> 而非 tmp+rename，原因同 <code>write_sidecar</code>：rename 会被 vault watcher 报成「未验证重命名」。缓存可重建，不值得为原子性换这个噪音。</p>
+<h3 id="75">7.5 生命周期与进度<a class="headerlink" href="#75" title="Permanent link">&para;</a></h3>
+<p>前端 <code>enqueueBackgroundTask</code> 建任务行（<code>discoverCitingPapers</code>，<code>src/lib/paper/library-actions.ts</code>），把任务 id 作为 <code>taskId</code> 传给命令，Host 用它做两件事：</p>
+<ul>
+<li><strong>进度</strong>：抓取阶段按完成数 emit <code>background-task:progress</code>（带 <code>currentCount</code>/<code>totalCount</code>），面板显示「引用 · 12/38」。只有带计数的阶段才 emit——没有计数的阶段会掉进面板的字节格式化分支</li>
+<li><strong>取消</strong>：每个种子请求前轮询 <code>agent::background_tasks::is_cancelled</code>，命中即返回且不写缓存；命令出口无条件 <code>finish()</code> 清标记，否则残留的取消标记会秒杀下一个复用该 id 的任务</li>
+</ul>
+<p>库级 I/O 互斥复用 <code>libraryStore.ioBusy</code>。结果属于扫描时那个 vault，完成回调比对 <code>getVaultPath()</code> 不一致就不弹窗。</p>
+<h3 id="76-53-vault">7.6 实测（53 篇 vault）<a class="headerlink" href="#76-53-vault" title="Permanent link">&para;</a></h3>
+<p><code>53 篇 → 38 个种子</code>（跳过 5 篇经典、9 篇未被引、1 篇无标识）<code>→ 1163 篇引用者 → L0 后 445 → 过语义门槛 319 → 展示 20</code>，自校准阈值 0.376。头部候选是 DeLS-Spec（引用库内 6 篇）、Bastion（5）、DominoTree / D-cut / D²SD（各 4），无跨领域噪音。</p>
+<h2 id="8">8. 风险与开放问题<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
 <ul>
 <li>L1 依赖外部服务可用性与限速（S2 共享池很挤）：失败必须静默落 L2，不弹错误；缓存进 sidecar 避免重复请求。</li>
 <li>S2 references 顺序与文中 <code>[n]</code> 编号可能不一致：编号真相来自 L2 的 bbl/tex 顺序或 L3 文本；纯 L1（无 TeX 的 DOI 论文，M1 阶段无 L3）时卡片可暂无编号、仅按 API 顺序列出。</li>

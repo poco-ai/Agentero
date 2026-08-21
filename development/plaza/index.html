@@ -2269,10 +2269,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#34-v0p0" class="md-nav__link">
+  <a href="#34-arxiv-daily" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.4 论文推荐 v0（P0）
+        3.4 arXiv Daily（已实现）
       
     </span>
   </a>
@@ -3318,10 +3318,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#34-v0p0" class="md-nav__link">
+  <a href="#34-arxiv-daily" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.4 论文推荐 v0（P0）
+        3.4 arXiv Daily（已实现）
       
     </span>
   </a>
@@ -3465,7 +3465,7 @@
 <tr>
 <td>Q4</td>
 <td>P0 范围</td>
-<td><strong>已交付：广场壳 + Cool Papers 浏览入库 + Skill 推荐</strong>；播客 / 论文推荐尚未实现</td>
+<td><strong>已交付：广场壳 + Cool Papers 浏览入库 + Skill 推荐 + 订阅 + arXiv Daily</strong>；播客尚未实现</td>
 </tr>
 <tr>
 <td>Q5</td>
@@ -3581,7 +3581,7 @@
 <span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">✨</span><span class="w"> </span><span class="nx">Skill</span><span class="w"> </span><span class="nx">推荐</span><span class="w">           </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">skills</span>
 <span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">📡</span><span class="w"> </span><span class="nx">订阅</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">feeds</span>
 <span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">🎙️</span><span class="w"> </span><span class="nx">播客</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">podcasts</span><span class="w">      </span><span class="err">←</span><span class="w"> </span><span class="nx">占位</span>
-<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">🧭</span><span class="w"> </span><span class="nx">推荐</span><span class="w">                 </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">recommend</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">🔭</span><span class="w"> </span><span class="nx">arXiv</span><span class="w"> </span><span class="nx">Daily</span><span class="w">            </span><span class="nx">agentero</span><span class="p">:</span><span class="nx">plaza</span><span class="o">/</span><span class="nx">arxiv</span><span class="o">-</span><span class="nx">rec</span>
 <span class="err">├──</span><span class="w"> </span><span class="nx">papers</span><span class="o">/</span>
 <span class="err">├──</span><span class="w"> </span><span class="nx">notes</span><span class="o">/</span>
 <span class="err">└──</span><span class="w"> </span><span class="err">…</span>
@@ -3669,10 +3669,10 @@
 <td>播客</td>
 </tr>
 <tr>
-<td>推荐</td>
-<td><code>Compass</code></td>
-<td>For You</td>
-<td>推荐</td>
+<td>arXiv Daily</td>
+<td><code>Telescope</code></td>
+<td>arXiv Daily</td>
+<td>arXiv Daily</td>
 </tr>
 </tbody>
 </table>
@@ -3809,49 +3809,75 @@
 <li>空态文案：订阅源、单集列表与播放将在后续版本提供。  </li>
 <li>侧栏子节点可点，进入占位页（避免「死链」）。</li>
 </ul>
-<h3 id="34-v0p0">3.4 论文推荐 v0（P0）<a class="headerlink" href="#34-v0p0" title="Permanent link">&para;</a></h3>
-<p><strong>目标</strong>：不依赖外部账号，仅用 <strong>本地 catalog + 轻量信号</strong> 给出可解释的「下一步可读」。</p>
+<h3 id="34-arxiv-daily">3.4 arXiv Daily（已实现）<a class="headerlink" href="#34-arxiv-daily" title="Permanent link">&para;</a></h3>
+<p><strong>目标</strong>：用 Vault 论文库当「兴趣语料」，对当天 arXiv 新论文排序，给出「今天该读什么」。思路对齐 <a href="https://github.com/TideDra/zotero-arxiv-daily">zotero-arxiv-daily</a>，但语料是本地 catalog 而非 Zotero 云端。</p>
+<p><strong>管线</strong>（<code>src-tauri/src/features/recommend/mod.rs</code>）</p>
 <table>
 <thead>
 <tr>
-<th>信号（v0）</th>
-<th>用法</th>
+<th>步骤</th>
+<th>做法</th>
+<th>复用</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>最近打开 / 最近入库</td>
-<td>「继续阅读」「新入库未读」</td>
+<td>候选</td>
+<td>逐个分类 GET <code>https://rss.arxiv.org/rss/&lt;cat&gt;</code>，按 arXiv id 去重，丢弃空摘要</td>
+<td><code>feeds::parse::parse_feed_bytes</code>（已 <code>clean_summary_text</code> + <code>extract_paper_url</code>）</td>
 </tr>
 <tr>
-<td><code>is_read === false</code> 且资源齐全</td>
-<td>「待精读」</td>
+<td>语料</td>
+<td>catalog 中有 abstract 的论文，按 <code>added_at</code> 倒序，上限 2000 篇</td>
+<td><code>papers::list_all_unique_by_id</code></td>
 </tr>
 <tr>
-<td>同 tag 聚类</td>
-<td>「与标签 X 相关的本地论文」</td>
+<td>向量</td>
+<td><code>POST {baseUrl}/embeddings</code>（batch，OpenAI 兼容），凭据取自设置 → Agent → Embedding</td>
+<td><code>network::client_builder</code>；请求形状抄 <code>translate_openai_compatible</code></td>
 </tr>
 <tr>
-<td>阅读热力为空但已打开</td>
-<td>「打开过但几乎未标注」</td>
+<td>打分</td>
+<td>归一化后 cosine；语料权重 <code>w_i = 1/(1+log10(i+1))</code> 归一化 → <code>score = Σ sim·w</code>，降序取 Top-20</td>
+<td>—</td>
 </tr>
 </tbody>
 </table>
-<p><strong>呈现</strong>：分组列表（非 WebView）—</p>
-<div class="codehilite"><pre><span></span><code>推荐
-├── 待精读（未读且有 PDF/TeX）
-├── 最近入库
-└── 标签「…」下的其它论文
-</code></pre></div>
-
+<p><strong>缓存进 <code>catalog.sqlite</code>（schema v6）</strong>，不新建库：</p>
+<table>
+<thead>
+<tr>
+<th>表</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>embed_cache(text_hash, model, dim, vector)</code></td>
+<td>摘要向量，key = sha256(title+abstract) + model；<strong>语料只 embed 一次</strong>，之后每天只为新增摘要付费。<code>vector</code> 是小端 f32</td>
+</tr>
+<tr>
+<td><code>arxiv_rec_state(id=1, computed_at, categories_json, results_json)</code></td>
+<td>上次运行结果，页面/vault 打开可直接渲染</td>
+</tr>
+</tbody>
+</table>
+<p><strong>陈旧判定</strong>：非 <code>force</code> 且 <code>computed_at</code> 是<strong>当天</strong>且分类集合未变 → 直接返回存量，完全不碰网络。换分类、跨天、或点刷新才重算。</p>
+<p><strong>命令</strong>：<code>recommend_arxiv</code>（算，含 stale 短路）、<code>recommend_arxiv_last</code>（只读存量）。<code>AppSettingsStore</code> 必须在 <code>.await</code> 之前读（managed state 不能跨 await）。</p>
+<p><strong>vault 打开自动刷新</strong>：<code>src/lib/lifecycle/register.ts</code> 的 <code>vault:opened</code> handler 里 fire-and-forget 调 <code>recommendArxiv</code>，仅本地 vault。因为命令自身 stale-only + 未配置早退，这里不做任何判断——作用是<strong>预热当天结果</strong>，让面板下次秒开。</p>
+<p><strong>页面</strong>（<code>src/components/plaza/plaza-arxiv-rec-view.tsx</code>）</p>
 <ul>
-<li>行点击 → <strong><code>openPaper</code></strong>（本地 PDF|NOTES），因为条目已在库。  </li>
-<li>无足够本地数据：空态引导「用魔棒或 Cool Papers 发现论文，入库后这里会更有用」（Cool Papers 暂不入库时，引导魔棒 / 手动）。  </li>
-<li><strong>隐私</strong>：v0 <strong>不上传</strong>库内容到云端；仅本地计算。</li>
+<li><strong>header</strong>：分类 chip 多选（默认 <code>ARXIV_FEED_CHIPS</code>，与订阅共用常量）+ 上次计算时间 + 刷新按钮。<strong>不进 app settings</strong> —— 分类就是页面状态，持久化在 <code>arxiv_rec_state</code>。</li>
+<li><strong>body</strong>：卡片列表（标题 / arXiv id / 分数 / 摘要三行截断），右上角外链 + 一键入库（走 <code>lookupSubmit</code>，与订阅同一条魔棒路线）。</li>
+<li><strong>空态分三种</strong>并给对应出路：未配置 embedding → 「打开 Agent 设置」按钮；库里没摘要 → 引导先导入论文；分类下无新论文 → 提示换分类。</li>
 </ul>
-<blockquote>
-<p>说明：P0 推荐是「本地库导读」，不是 Cool Papers 式外网发现。外网推荐留待入库打通之后。</p>
-</blockquote>
+<p><strong>取舍</strong></p>
+<ul>
+<li>首次或大库的整库 embedding 会慢一次（上千篇），之后靠 <code>embed_cache</code> 只增量；候选每天仅数十篇。接受首启一次性成本，换掉「每次都重算」。</li>
+<li>分类/Top-N 不做设置项：Top-20 是常量，分类留在 header。少一层配置面板。</li>
+<li>模型换了会导致缓存维度不一致；打分时按维度不匹配记 0 分，不会崩，但建议换模型后点一次刷新。</li>
+<li><strong>隐私</strong>：摘要会发给用户自己配置的 embedding 端点（BYOK）。未配置则整个功能静默不跑。</li>
+</ul>
 <h3 id="35-modelscope">3.5 ModelScope 论文（已实现）<a class="headerlink" href="#35-modelscope" title="Permanent link">&para;</a></h3>
 <p><strong>主内容</strong>：内嵌 iframe，经 <code>agentero-modelscope://localhost</code> 加载 <a href="https://modelscope.cn/papers">modelscope.cn/papers</a>。顶条 chrome、拖拽护盾、Back / Forward 全部复用 <code>PlazaWebFrame</code>，前端只多了 <code>PLAZA_SOURCES</code> 一条。</p>
 <p><strong>必须代理</strong>：站点回 <code>X-Frame-Options: SAMEORIGIN</code>，直接 iframe 会被拒。代理重建响应时只保留 <code>Content-Type</code>，XFO 顺带被丢掉。</p>
@@ -3908,7 +3934,7 @@
 <tbody>
 <tr>
 <td>Library</td>
-<td>推荐 v0 只读 <code>paper_list</code> / 热力；不改 catalog schema</td>
+<td>arXiv Daily 读 <code>paper_list</code> 当语料；缓存表 <code>embed_cache</code> / <code>arxiv_rec_state</code> 落在 catalog（schema v6），不动 <code>papers</code> 表</td>
 </tr>
 <tr>
 <td>魔棒 / 入库</td>
@@ -3968,9 +3994,9 @@
 <td>可分区浏览站点；失败可恢复</td>
 </tr>
 <tr>
-<td><strong>P0c 推荐 v0</strong></td>
-<td>本地启发式分组列表 + openPaper</td>
-<td>有库时有分组；无库时空态</td>
+<td><strong>P0c arXiv Daily</strong></td>
+<td>embedding 相似度 + 时间衰减排序 + 一键入库（已交付）</td>
+<td>配好 embedding 后有排序结果；未配置有引导空态</td>
 </tr>
 <tr>
 <td><strong>P0d 播客</strong></td>
@@ -3999,7 +4025,7 @@
 <li>广场 → Vault <strong>批量入库</strong>（单条已实现，见 §3.2.1）。  </li>
 <li>把 feed 写入 catalog（订阅条目缓存走 XDG，见 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>）。  </li>
 <li>播客播放器。订阅管理见 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>，不进本篇原 P0。  </li>
-<li>云端协同过滤或上传本地库。  </li>
+<li>云端协同过滤，或把本地库上传到 Agentero 自有服务。arXiv Daily 只把摘要发给<strong>用户自己配置的</strong> BYOK embedding 端点；未配置则整个功能不跑。  </li>
 <li>注入脚本只做导航上报与 <code>[入库]</code>；<strong>不注入任何凭据 / API Key / 登录态</strong>。</li>
 </ul>
 <h2 id="8">8. 实现落点（编码时）<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
@@ -4032,8 +4058,8 @@
 <td><code>src/components/plaza/plaza-web-frame.tsx</code>（代理 iframe，两个站点来源共用；没有 Tauri 子 webview 封装）</td>
 </tr>
 <tr>
-<td>推荐</td>
-<td><code>src/lib/plaza/recommend.ts</code> + <code>src/components/plaza/recommend-view.tsx</code></td>
+<td>arXiv Daily</td>
+<td><code>src-tauri/src/features/recommend/</code>（管线 + 命令）、<code>src/lib/recommend/index.ts</code>、<code>src/components/plaza/plaza-arxiv-rec-view.tsx</code>；缓存表见 <code>catalog/schema.rs</code> v6</td>
 </tr>
 <tr>
 <td>订阅</td>
@@ -4090,7 +4116,8 @@
 <em>修订：2026-08-14 — 改为代理协议嵌入；壳 + Cool Papers 浏览 + 单条入库已落地；推荐 / 播客未实现。</em>
 <em>修订：2026-08-15 — 新增 ModelScope 论文来源；请求管道抽到 <code>site_proxy.rs</code> 并转发 method + body。</em><br />
 <em>修订：2026-08-15 — 订阅列为广场来源，规格拆到 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>。</em><br />
-<em>修订：2026-08-15 — 订阅 MVP 落地（XDG <code>feeds.sqlite</code> + 原生双栏 + 论文入库）。</em></p>
+<em>修订：2026-08-15 — 订阅 MVP 落地（XDG <code>feeds.sqlite</code> + 原生双栏 + 论文入库）。</em><br />
+<em>修订：2026-08-21 — arXiv 推荐落地（embedding + 时间衰减；缓存进 catalog schema v6；<code>vault:opened</code> 预热）。</em></p>
 
 
 

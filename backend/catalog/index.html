@@ -3147,6 +3147,7 @@
 <li>连接启用 WAL + <code>busy_timeout</code>，写入不阻塞列表读取；每个 Vault 维护一条常驻连接（<code>schema.rs::with_catalog</code>，进程级缓存，Mutex 串行化 <code>spawn_blocking</code> 并发），PRAGMA/迁移只在首次打开执行；数据库文件被外部删除时自动丢弃旧句柄并重建</li>
 <li>连接缓存生命期：切走 / 关闭 vault 时由前端 <code>vault:opened</code> 作用域的 teardown 调 <code>vault_release</code> 驱逐（<code>evict_catalog_conn</code>）。否则一次会话中访问过的每个 Vault 都会把 SQLite 句柄与 WAL 留到进程退出。驱逐对进行中的操作安全 —— 它们持有连接的 <code>Arc</code> 克隆</li>
 <li><code>pdf_page_counts</code>：PDF 页数缓存表（随移动/删除同步），阅读热力图不再整文件打开 PDF 数页；缺缓存时仅对可视行按需补数并回写</li>
+<li><code>embed_cache</code> / <code>arxiv_rec_state</code>（schema v6）：广场 arXiv 推荐的摘要向量缓存与上次运行结果。前者按 sha256(title+abstract)+model 存小端 f32，使论文库语料只 embed 一次；后者单行，供页面与 <code>vault:opened</code> 预热直接读取。均不触碰 <code>papers</code> 表；规格见 <a href="../../development/plaza/">../development/plaza.md</a> §3.4</li>
 <li><code>paper_reading_activity_batch</code>：批量读取 <code>papers/&lt;id&gt;/marks/*.json</code> 侧车（highlight/ask/translate），一次 IPC 返回热力图所需最小活动点（kind/page/y/weight），替代前端逐论文 3 次 IPC 的读取风暴（<code>features/catalog/reading_activity.rs</code>）</li>
 <li>重复行检测与修复：<code>catalog::papers::find_duplicates</code> / <code>repair_duplicates</code>，并在 Vault Doctor 中暴露</li>
 </ul>

@@ -1014,6 +1014,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        标题搜索
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#skill" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1052,7 +1063,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         补资源 / 精读触发
@@ -1063,7 +1074,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3131,6 +3142,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        标题搜索
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#skill" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3169,7 +3191,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         补资源 / 精读触发
@@ -3180,7 +3202,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3215,7 +3237,7 @@
 <h2 id="_1">魔棒<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <ul>
 <li>入口：侧栏 <code>WandSparkles</code> / <code>⇧⌘I</code>。</li>
-<li>粘贴一个或多个论文标识符或 Skill 来源（空格/逗号/分号/换行）；去重后顺序处理。</li>
+<li>粘贴一个或多个论文标识符、Skill 来源，或直接输入论文标题（按逗号/分号/换行分隔；空格不再分隔，留给标题与 <code>npx skills add …</code>）；去重后顺序处理。</li>
 <li>目标：<code>papers/</code> 或当前选中的 Papers 子文件夹。</li>
 <li>弹层内 <strong>FileUp</strong>：多选本地 PDF。</li>
 <li>成功后：局部刷新 <code>papers/</code> 子树、Wiki、Library；<strong>不</strong>自动打开论文（并行入库时抢焦点会让文件树反复跳转），批量也<strong>不</strong>自动连跑精读。</li>
@@ -3227,6 +3249,14 @@
 <li>入口：打开论文后的右侧 <strong>References</strong> 面板，未入库引用卡片上的 Import 按钮。</li>
 <li>复用魔棒 identifier lookup 管线（与其它入口一样，入库后不打开新论文）。</li>
 <li>成功后：刷新 Vault 树、Wiki 索引、Library，并重解析当前论文 references 以更新 <code>localMatch</code>；当前阅读的论文保持打开。</li>
+</ul>
+<h3 id="_2">标题搜索<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>输入识别不到标识符时自动走标题/关键词搜索（Semantic Scholar → arXiv 兜底，见 <a href="../../backend/identifier-lookup/">../backend/identifier-lookup.md</a> § 3.4）。</li>
+<li>弹出<strong>单选</strong>窗口列 Top 3：标题、作者 · 年份 · 出处、arXiv/DOI 徽标与被引数。确认后按候选的标识符走常规入库管线，落回发起搜索时的目标文件夹。</li>
+<li>取消直接丢弃，无 Host 侧临时态需要清理。</li>
+<li>一次粘贴多个标题时按队列逐个弹窗，处理完一个自动显示下一个。</li>
+<li>无匹配结果时不弹窗，走错误 Toast。</li>
 </ul>
 <h3 id="skill">Skill 导入<a class="headerlink" href="#skill" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3283,15 +3313,16 @@
 </tr>
 </tbody>
 </table>
-<h2 id="_2">补资源 / 精读触发<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h2 id="_3">补资源 / 精读触发<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Download：缺 PDF 或无正文资源时。</li>
 <li>Zap / 自动精读：见 <a href="../agent/">agent.md</a>。</li>
 </ul>
-<h2 id="_3">代码<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_4">代码<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>src/lib/paper/lookup.ts</code>、<code>import-actions.ts</code>、<code>import/</code></li>
 <li><code>src/components/sidebar/</code> 魔棒 Popover</li>
+<li><code>src/components/dialogs/paper-search-dialog.tsx</code> 标题搜索候选单选窗</li>
 <li><code>src/components/library/library-pdf-drop-surface.tsx</code> Library 拖入</li>
 </ul>
 

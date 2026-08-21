@@ -1724,6 +1724,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#34" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 标题搜索回退
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4002,6 +4013,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#34" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 标题搜索回退
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4988,7 +5010,17 @@
 </tr>
 </tbody>
 </table>
-<p>批量：魔棒输入框现已支持一次粘贴多个标识符，可用以下分隔符拆分（正则 <code>/[\s,;，；\n\r]+/</code>）：空格、逗号 <code>,</code>、分号 <code>;</code>、中文逗号 <code>，</code>、中文分号 <code>；</code>、换行 / 回车。Parser 会逐 token 调用 <code>extract_primary_identifier</code>，并按去 version 的 arXiv ID / DOI / ISBN / PMID 等做去重。PMID 仍可在 Runtime 侧按批合并（Zotero 习惯每批 ≤200）。</p>
+<p>批量：魔棒输入框支持一次粘贴多个标识符，按<strong>换行 / 回车、逗号 <code>,</code>、分号 <code>;</code>、中文逗号 <code>，</code>、中文分号 <code>；</code></strong>拆分（正则 <code>/[\n\r,;，；]+/</code>）。空格<strong>不再</strong>是分隔符 —— 论文标题与 <code>npx skills add …</code> 都含空格，必须整段送到 Host。Host 侧 <code>classify_segment</code>（<code>src-tauri/src/features/import/batch.rs</code>）按以下顺序判定每一段：</p>
+<ol>
+<li>单 token → <code>extract_primary_identifier</code>，命中即标识符，否则转标题搜索。</li>
+<li>多 token 且整段是 Skill 来源（<code>npx skills add …</code>）→ 单条 Skill。</li>
+<li>多 token 且<strong>每个</strong> token 都能解析出标识符 → 展开为多条（保住"空格分隔多个 ID"的粘贴习惯）。</li>
+<li>其余 → 标题/关键词查询（见 3.4）。</li>
+</ol>
+<blockquote>
+<p>多 token 不做整段匹配：<code>clean_doi</code> / <code>clean_isbn</code> 会扫描整个字符串，整段匹配会把列表其余部分或整句标题一起吞掉。</p>
+</blockquote>
+<p>去重按去 version 的 arXiv ID / DOI / ISBN / PMID 等进行。PMID 仍可在 Runtime 侧按批合并（Zotero 习惯每批 ≤200）。</p>
 <h3 id="32-zotero-extractidentifiers">3.2 解析优先级（对齐 Zotero <code>extractIdentifiers</code>）<a class="headerlink" href="#32-zotero-extractidentifiers" title="Permanent link">&para;</a></h3>
 <p>对同一段输入文本，<strong>按序</strong>尝试（命中一类后，Zotero 原逻辑会停止后续类型；Agentero 建议：</p>
 <ul>
@@ -5016,6 +5048,21 @@
 <span class="p">}</span>
 </code></pre></div>
 
+<h3 id="34">3.4 标题搜索回退<a class="headerlink" href="#34" title="Permanent link">&para;</a></h3>
+<p><strong>Zotero translator 无法承担这一步。</strong> translation-server 的 <code>POST /search</code>（§4.2）是标识符入口，Zotero Search Translators 只做「标识符 → 元数据」，没有自由文本检索能力；Agentero 本地也没有 JS runtime 来跑 translator。因此标题搜索必须直连检索 API。</p>
+<p>兼容性通过分工保留：<strong>搜索只负责「文本 → 候选标识符」</strong>，用户选中后把 <code>identifier</code>（arXiv ID 优先，其次 DOI）重新提交 <code>lookup_import_batch</code>，Translator 仍是元数据的唯一事实来源，入库管道不分叉。</p>
+<ul>
+<li>实现：<code>src-tauri/src/features/import/title_search.rs</code></li>
+<li>数据源：Semantic Scholar Graph API <code>/paper/search</code> 为主；报错或 0 结果时回退 <strong>arXiv</strong> <code>search_query=ti:"…"&amp;sortBy=relevance</code>。两者均免 key，复用 <code>features::network::client_builder()</code> 与信号量限流（并发 2）。<blockquote>
+<p><strong>S2 无 key 的搜索接口限流极严（实测连续 3 次均 429）</strong>，所以 arXiv 才是线上的常走路径。不选 Crossref 兜底：NeurIPS proceedings 之类没有 Crossref DOI，搜 "Attention is all you need" 时正确论文<strong>根本不在</strong> Crossref 结果集里，只会返回一堆同名论文。
+arXiv 的 Atom 需要按 <code>&lt;entry&gt;</code> 切块解析 —— <code>map::map_arxiv_atom</code> 只处理单条响应，不能复用。</p>
+</blockquote>
+</li>
+<li>排序：保留 provider 的相关度顺序，但把<strong>标题与 query 归一化后完全相等</strong>的条目提到最前（归一化 = 小写、去非字母数字、压空格）。同名论文很多，这一步防止真正那篇被埋掉。</li>
+<li><strong>过滤掉既无 DOI 也无 arXiv ID 的条目</strong> —— 没有标识符就无法入库，不能出现在候选里。</li>
+<li>Top 3 返回给前端（<code>SEARCH_CANDIDATE_LIMIT</code>）；无结果或搜索失败写入 <code>errors</code>，不静默。单源失败走 <code>log::warn!</code>，否则 S2 的 429 完全不可见。</li>
+<li>副作用：拼错的标识符（如 <code>1706.0376</code>）现在会走搜索并得到「无结果」，比原来的 <code>unrecognized identifier</code> 更可读。</li>
+</ul>
 <hr />
 <h2 id="4-translator-runtime">4. Translator Runtime 契约<a class="headerlink" href="#4-translator-runtime" title="Permanent link">&para;</a></h2>
 <h3 id="41">4.1 部署形态<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
@@ -5638,6 +5685,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li>[x] 无 TeX 时 liteparse → <code>PAPER.md</code>（下载后自动）</li>
 <li>[x] <code>⇧⌘I</code> 魔棒快捷键</li>
 <li>[x] 魔棒批量入库：多标识符粘贴、去重、批量下载、进度聚合</li>
+<li>[x] 标题/关键词搜索回退：Top 3 候选单选弹窗 → 回填标识符入库（#326）</li>
 <li>[ ] 重复提示增强（单条弹层内）、入库任务可取消</li>
 </ul>
 <h3 id="phase-d">Phase D — 可选<a class="headerlink" href="#phase-d" title="Permanent link">&para;</a></h3>
