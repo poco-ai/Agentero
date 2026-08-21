@@ -2970,7 +2970,7 @@
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        背景与现状
+        背景（改造前的状态）
       
     </span>
   </a>
@@ -3108,6 +3108,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="架构设计">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scoped-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        生命期作用域（scoped events）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tauri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        订阅 Tauri 事件的约定
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3154,9 +3182,9 @@
 
 <h1 id="lifecycle-events">生命周期事件系统（Lifecycle Events）<a class="headerlink" href="#lifecycle-events" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：设计稿 → 分批落地中。目标：把散落在启动链、导入链、打开链里的硬编码副作用，统一为"语义事件 + 注册式 handler"，并统一全项目事件命名规范。</p>
+<p>状态：已落地（批次 1–4 + 生命期作用域）。目标：把散落在启动链、导入链、打开链里的硬编码副作用，统一为"语义事件 + 注册式 handler"，并统一全项目事件命名规范。</p>
 </blockquote>
-<h2 id="_1">背景与现状<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<h2 id="_1">背景（改造前的状态）<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p>生命周期点在代码里已经存在，但全是硬编码顺序调用：</p>
 <table>
 <thead>
@@ -3199,6 +3227,9 @@
 <li><strong>payload</strong>：统一 envelope <code>{ vaultId, timestamp, ...data }</code>；paper 相关必带 <code>paperId</code>。</li>
 <li><strong>Tauri wire 事件名 = lifecycle 事件名</strong>，不做两套映射。</li>
 <li><strong>前端 API</strong>：<code>lifecycle.on('paper:imported', handler)</code>；事件类型集中定义于 <code>LifecycleEventMap</code>（单一事实来源）。</li>
+<li><strong>事件分两类</strong>（<code>events.ts</code> 在类型层面区分）：</li>
+<li><strong>Scoped（有生命期）</strong>：目前只有 <code>vault:opened</code>。handler 可返回 teardown；用 <code>lifecycle.emitScoped()</code> 开启作用域，它<strong>同步</strong>返回 release 函数，直接交给 React effect 的 cleanup。</li>
+<li><strong>Fact（一次性事实）</strong>：其余全部。用 <code>lifecycle.emit()</code>；返回值被忽略（TS 对 <code>void</code> 返回类型的赋值规则宽松，编译器拦不住，靠约定与 bus 行为保证）。</li>
 </ol>
 <h3 id="_3">历史违规与清理<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3219,15 +3250,15 @@
 <tbody>
 <tr>
 <td>⭐ <code>app:ready</code></td>
-<td>前端 bootstrap 完成（store 初始化、vault 校验后）。已预埋 emit、暂无消费者</td>
+<td>前端 bootstrap 完成（store 已在 <code>boot()</code> 种子化、restored vault 校验 settle 后）。已预埋 emit、暂无消费者</td>
 </tr>
 <tr>
-<td>○ <code>app:will-quit</code></td>
-<td>退出前（Rust <code>RunEvent::Exit</code>）</td>
+<td>⏸ <code>app:will-quit</code></td>
+<td><strong>延后</strong>。从 <code>RunEvent::Exit</code> 发前端事件修不了真实需求（退出前 flush debounce 写盘）：那时 webview 已销毁，写盘是异步 invoke。正确做法是 <code>WindowEvent::CloseRequested</code> → <code>api.prevent_close()</code> → emit → 等前端 ack → <code>window.destroy()</code>，属独立特性。Rust 侧 teardown 已直接放在 run closure 里</td>
 </tr>
 <tr>
-<td>○ <code>window:opened</code> / <code>window:closed</code></td>
-<td>子窗口生命周期（替换 snake_case 旧事件）</td>
+<td>⭐ <code>window:closed</code></td>
+<td>子窗口销毁（Host <code>on_window_event(Destroyed)</code>）。payload <code>{ kind: "settings" \| "feature", view? }</code>。消费者：settings 回写 ui store、feature popout 清 <code>featurePoppedOut</code></td>
 </tr>
 </tbody>
 </table>
@@ -3242,15 +3273,15 @@
 <tbody>
 <tr>
 <td>⭐ <code>vault:opened</code></td>
-<td>打开/切换 vault 完成（refreshTree、refreshLibrary、seedVaultSkills、job reconcile 挂载点）</td>
+<td><strong>scoped</strong>。打开/切换 vault（refreshTree、refreshLibrary、seedVaultSkills、job reconcile 挂载点）；其 teardown 负责各 store 的 vault 级清理与 <code>vault_release</code></td>
 </tr>
 <tr>
 <td>○ <code>vault:created</code></td>
 <td>新建 vault</td>
 </tr>
 <tr>
-<td>○ <code>vault:closed</code></td>
-<td>切走/关闭前</td>
+<td>✅ ~~<code>vault:closed</code>~~</td>
+<td><strong>不再需要</strong>，由 <code>vault:opened</code> 的作用域 teardown 承担</td>
 </tr>
 <tr>
 <td>保留 <code>vault:file-changed</code></td>
@@ -3352,18 +3383,44 @@
 
 <ul>
 <li><strong><code>src/lib/lifecycle/</code></strong>：</li>
-<li><code>events.ts</code>：<code>LifecycleEventMap</code> 类型定义（事件名 → payload 类型）</li>
-<li><code>bus.ts</code>：极简 typed emitter（on/off/emit，无第三方依赖）</li>
+<li><code>events.ts</code>：<code>LifecycleEventMap</code> 类型定义（事件名 → payload 类型），以及 <code>ScopedLifecycleEvent</code> / <code>FactLifecycleEvent</code> 的划分</li>
+<li><code>bus.ts</code>：极简 typed emitter（<code>on</code> / <code>emit</code> / <code>emitScoped</code>，无第三方依赖）</li>
 <li><code>tauri-bridge.ts</code>：集中 <code>listen()</code> wire 事件并转发进 bus；在 bootstrap 初始化一次</li>
+<li><code>register.ts</code>：<strong>唯一</strong>的 handler 注册处</li>
 <li><strong>Rust 端不做 observer 抽象</strong>：仅在关键节点（<code>paper_commit</code> 后、jobs 状态机单点、assets 完成后）直接 emit 语义事件；当前只有前端一个消费者，不过度设计。</li>
 <li><strong>顺序约束显式化</strong>：handler 按注册顺序串行 await，不引入优先级系统，靠注册文件内的显式顺序表达。（注：openPaper 直接用导入结果里的绝对路径打开，不依赖 refreshLibrary 完成。）</li>
 </ul>
+<h3 id="scoped-events">生命期作用域（scoped events）<a class="headerlink" href="#scoped-events" title="Permanent link">&para;</a></h3>
+<p><code>vault:opened</code> 的 handler 可以返回 teardown，"打开时做什么"和"关闭时撤销什么"因此写在同一个闭包里 —— 这正是 <code>useEffect</code> 的形状，也是此前 <code>vault:closed</code> 长期停在"预留"的根因：接口里没有地方写它。</p>
+<p>关键决策：<strong>作用域由 emitter 持有，不由 bus 从"重复 emit"推断</strong>。</p>
+<p><code>emitScoped()</code> 同步返回 release 函数，<code>use-app-bootstrap.ts</code> 把它直接当作 effect cleanup 返回。于是 vault→vault 切换、vault→null 关闭、组件卸载三种情况都由 React 自身的语义免费覆盖。若改成"再次 emit 即销毁上一次"，有三个必然缺口：</p>
+<ol>
+<li><code>vaultPath</code> 为 null 的分支不 emit，切到"无 vault"时 teardown 永不执行</li>
+<li><code>validateRestoredVault</code> 校验失败时直接 <code>setVaultPath(null)</code>，同上</li>
+<li><strong>StrictMode 会用相同 payload 触发两次 effect</strong>，变成 setup→teardown→setup，而那次 teardown 打在<strong>当前活跃</strong>的 vault 上（会掐断正在用的 remote 会话）</li>
+</ol>
+<p>其余语义：</p>
+<ul>
+<li>teardown 按<strong>注册逆序</strong>执行（栈式，与 React 一致）</li>
+<li>scoped 事件的 setup/teardown <strong>按事件串行化</strong>：setup 是异步的，快速连切两次 vault 否则会让旧作用域的 teardown 与新作用域的 setup 交错</li>
+<li>作用域在 setup 排到队之前就被 release（StrictMode 挂载即卸载）时<strong>直接跳过 setup</strong>，而不是做完再撤销</li>
+<li>注册项以记录对象为身份，同一个 handler 注册两次可独立注销</li>
+<li>handler 与 teardown 抛错只记日志，不中断其余项</li>
+</ul>
+<h3 id="tauri">订阅 Tauri 事件的约定<a class="headerlink" href="#tauri" title="Permanent link">&para;</a></h3>
+<p>一律用 <code>listenSafe()</code>（<code>src/lib/core/tauri-events.ts</code>）或组件内的 <code>useTauriEvent()</code>，<strong>不要</strong>手写 <code>let off; void (async () =&gt; { off = await listen(...) })(); return () =&gt; off?.()</code>：<code>listen()</code> 需要一次 Host 往返，在它 resolve 前 dispose 会让 <code>off</code> 仍是 undefined，清理成为空操作、监听器永久泄漏 —— StrictMode 每次开发挂载都会命中。非 Tauri wire 的 promise 式订阅（bridge、workspace-broadcast）用 <code>toSafeDisposer()</code>。</p>
 <h2 id="_7">落地批次<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>前端 lifecycle 模块</strong>：types + bus + bridge，bootstrap 接入</li>
-<li><strong>Rust 语义事件</strong>：<code>paper:imported</code>、<code>paper:assets-ready</code>、<code>job:completed/failed</code> 派生</li>
-<li><strong>迁移硬编码链</strong>：<code>vault:opened</code>（bootstrap）、<code>paper:imported</code> 后处理（import-actions）、<code>paper:opened</code>（openTab）</li>
-<li><strong>命名清理</strong>：<code>window:closed</code>、<code>menu:invoked</code></li>
+<li>✅ <strong>前端 lifecycle 模块</strong>：types + bus + bridge，bootstrap 接入</li>
+<li>✅ <strong>Rust 语义事件</strong>：<code>paper:imported</code>、<code>paper:assets-ready</code>、<code>job:completed/failed</code> 派生</li>
+<li>✅ <strong>迁移硬编码链</strong>：<code>vault:opened</code>（bootstrap）、<code>paper:imported</code> 后处理（import-actions）、<code>paper:opened</code>（openTab）</li>
+<li>✅ <strong>命名清理</strong>：<code>window:closed</code>、<code>menu:invoked</code></li>
+<li>✅ <strong>生命期作用域与 teardown</strong>：</li>
+<li>bus 支持返回 cleanup 的 scoped handler + <code>emitScoped</code></li>
+<li><code>listenSafe</code> / <code>useTauriEvent</code>，替掉全部 20 处 leaky 订阅</li>
+<li>bootstrap：store 种子移入 <code>boot()</code>（不再在 render 期做副作用）、JobCenter 订阅补 disposer、<code>app:ready</code> 等校验 settle、<code>window:closed</code> 收进 bus</li>
+<li>各 store 的 vault 级 clear + <code>vault_release</code>（驱逐 Host catalog 连接）</li>
+<li>退出时 <code>BridgeController::stop()</code></li>
 <li>后续（本稿不含）：hook 表用户可配置（settings / <code>.agentero/</code>），动作接 JobCenter 执行</li>
 </ol>
 <h2 id="_8">非目标<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
@@ -3371,6 +3428,8 @@
 <li>不做 Rust 内部 plugin/observer trait</li>
 <li>不做用户可配置 hook（等事件层稳定后另立设计）</li>
 <li>不改 <code>xxx:progress</code> / <code>xxx:request</code> 类事件的既有语义</li>
+<li>不为"零消费者"而新增事件。<code>paper:moved</code> / <code>paper:deleted</code> 曾被考虑用来归一各处 <code>refreshTree → refreshLibrary → rebuildWiki</code> 尾巴，实测那些差异是<strong>有意的</strong>：调过 <code>syncMovedPaths</code> 的路径（move / rename / 外部重命名修复）已增量更新链接并 bump 了 revision，不需要全量重建；未调的路径（trash / restore / paste / drop）才需要。归一反而会加上多余的重建。</li>
+<li>退出前 flush debounce 写盘不走事件层，见上文 <code>app:will-quit</code></li>
 </ul>
 
 

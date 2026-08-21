@@ -3031,6 +3031,10 @@
 <td>DeepL / Azure / Google Cloud / OpenAI-compatible；<code>apiKey</code> 可由调用方传入，或由 Host 从 <code>settings.translate.providerConfigs</code> 解析（前端仅持有同长度 <code>*</code> 掩码）</td>
 </tr>
 <tr>
+<td>OpenAI-compatible prompt</td>
+<td><code>openai_translate_prompt</code>：学术译者 system prompt + 规则块（按意思重组语序、公式/符号/引用/<code>⟦n⟧</code> 占位符原样、术语一致、只输出译文、批量保留 <code>[[n]]</code>）；<code>temperature</code> 0.2。与前端 <code>buildTranslatePrompt</code> 保持同步</td>
+</tr>
+<tr>
 <td>密钥存储</td>
 <td>明文写在用户本机 <code>settings.json</code>（Unix <code>0600</code>）；<code>settings_get</code> / 广播按字符 redact 为 <code>*</code>；<code>settings_set</code> 对纯 <code>*</code> 串 merge 保留原值</td>
 </tr>

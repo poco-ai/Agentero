@@ -2233,10 +2233,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#vaultclose" class="md-nav__link">
+  <a href="#vault_release" class="md-nav__link">
     <span class="md-ellipsis">
       
-        vault:close（规划）
+        vault_release
       
     </span>
   </a>
@@ -4680,10 +4680,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#vaultclose" class="md-nav__link">
+  <a href="#vault_release" class="md-nav__link">
     <span class="md-ellipsis">
       
-        vault:close（规划）
+        vault_release
       
     </span>
   </a>
@@ -5944,6 +5944,11 @@ Host (Tauri + Rust)
 <td>job 状态机真实迁移到 <code>Failed</code> 时由 <code>job:changed</code> 单点派生</td>
 <td><code>{ jobId, kind, paperId?, error?, timestamp }</code></td>
 </tr>
+<tr>
+<td><code>window:closed</code>（已实现）</td>
+<td>子窗口销毁（<code>on_window_event(Destroyed)</code>）。经 lifecycle bridge 转发进前端 bus，消费者集中在 <code>lifecycle/register.ts</code></td>
+<td><code>{ kind: 'settings' \| 'feature', view? }</code>（无 <code>timestamp</code>）</td>
+</tr>
 </tbody>
 </table>
 <h4 id="agent_warm"><code>agent_warm</code><a class="headerlink" href="#agent_warm" title="Permanent link">&para;</a></h4>
@@ -6009,7 +6014,7 @@ Host (Tauri + Rust)
 <li>初始化 <code>.agentero/catalog.sqlite</code>（schema 当前版本，含 Translator 元数据列）。详见 <a href="../catalog/"><code>catalog.md</code></a>。</li>
 <li>写入默认 <code>AGENTS.md</code>（若不存在）。</li>
 <li>写入 <strong><code>.agents/README.md</code></strong>（若不存在；内容来自仓库 <code>templates/vault/.agents/</code>）。</li>
-<li>种子 <strong>bundled skills</strong>：<code>paper-reader</code>、<code>agentero-cli</code>、<code>vault-normalizer</code>、<code>idea-evaluator</code>、<code>deep-research</code>（后两者含 <code>references/</code>，来自 <a href="https://github.com/HKUSTDial/Supervisor-Skills">Supervisor-Skills</a>，<strong>CC BY-NC-SA 4.0</strong>；另写 <code>skills/README.md</code> 与 <code>LICENSE-Supervisor-Skills.txt</code>）。</li>
+<li>种子 <strong>bundled skills</strong>：<code>paper-reader</code>、<code>author-lookup</code>、<code>agentero-cli</code>、<code>vault-normalizer</code>、<code>idea-evaluator</code>、<code>deep-research</code>（后两者含 <code>references/</code>，来自 <a href="https://github.com/HKUSTDial/Supervisor-Skills">Supervisor-Skills</a>，<strong>CC BY-NC-SA 4.0</strong>；另写 <code>skills/README.md</code> 与 <code>LICENSE-Supervisor-Skills.txt</code>）。</li>
 <li><strong>不</strong>创建根级 <code>PAPERS.md</code> / <code>library.bib</code>；已有第一方 <code>SKILL.md</code> 按 frontmatter 整数 <code>version</code> 升级（见 <code>vault_ensure</code>）；用户去掉/抬高 <code>version</code> 的修改与其它 <code>.agents/**</code> 文件保持原样。</li>
 <li>最近列表由前端在成功打开后写入 <code>localStorage</code>（<code>agentero-recent-vaults</code>）。</li>
 </ul>
@@ -6373,12 +6378,14 @@ Host (Tauri + Rust)
 <li>文件监听由前端打开 Vault 后调用 <code>fs_watch_start</code>（已落地；见上），非本命令内隐式启动。</li>
 <li>返回完整文件树。</li>
 </ul>
-<h4 id="vaultclose"><code>vault:close</code>（规划）<a class="headerlink" href="#vaultclose" title="Permanent link">&para;</a></h4>
-<p>关闭当前 Vault。</p>
+<h4 id="vault_release"><code>vault_release</code><a class="headerlink" href="#vault_release" title="Permanent link">&para;</a></h4>
+<p>释放 Host 侧为某个 vault 持有的资源。前端在释放 <code>vault:opened</code> 作用域时调用（remote handle 跳过）。</p>
 <ul>
-<li><strong>参数</strong>：无</li>
+<li><strong>参数</strong>：<code>{ path: string }</code></li>
 <li><strong>返回</strong>：<code>{ ok: true; data: null }</code></li>
-<li><strong>行为</strong>：停止文件监听，释放资源，不删除数据。</li>
+<li><strong>行为</strong>：驱逐该 vault 的 catalog 连接缓存条目。该缓存是进程级、按 vault 根路径索引的，此前唯一的驱逐路径是 <code>with_catalog</code> 发现数据库文件消失，因此一次会话中访问过的每个 vault 都会把 SQLite 句柄与 WAL 留到进程退出。对正在进行的 catalog 操作安全：它们持有连接的 <code>Arc</code> 克隆，这里只移除缓存条目。</li>
+<li><strong>不负责</strong>：文件监听。<code>fs_watch_start</code> 本身就会替换该窗口的既有 watcher，窗口销毁时由 Host 的 <code>on_window_event(Destroyed)</code> 停止。</li>
+<li><strong>没有 <code>vault:close</code> 命令</strong>：vault 的生命期由前端 <code>vault:opened</code> 作用域的 teardown 表达，见 <a href="../../development/lifecycle-events/">../development/lifecycle-events.md</a>。</li>
 </ul>
 <h4 id="vaultrecent"><code>vault:recent</code>（规划；前端已临时实现）<a class="headerlink" href="#vaultrecent" title="Permanent link">&para;</a></h4>
 <p>获取最近打开的 Vault 列表。</p>

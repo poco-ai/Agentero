@@ -1237,6 +1237,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3080,6 +3091,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompt
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3132,13 +3154,26 @@
 <li>PDF <strong>全文翻译</strong>（工具栏 Languages，在视觉批注旁）：</li>
 <li>依赖版面分析 + PDF 文字层；翻译 <code>text</code> / <code>abstract</code> / <code>header</code> / <code>figure_title</code>（图题·表题）区域（score ≥ 30%）。</li>
 <li><strong>不翻译</strong>：算法框及其内部文字；<code>reference</code> / <code>reference_content</code> 文献条目；“References / Bibliography / 参考文献” 标题；侧栏 <code>aside_text</code>。</li>
-<li>按阅读顺序把段落<strong>分批</strong>翻译（<code>buildTranslateBatches</code>）：批内 payload ≤ 4500 字符（约一页双栏正文），用 <code>[[n]]</code> 编号拼成一次请求，让引擎看到上下文；译文按 <code>[[n]]</code> 标记切回、逐块写回原 bbox 位置。标记解析不一致时该批<strong>回退为逐段翻译</strong>，保证不丢块。并发 2（Agent 串行）；<strong>每批完成立刻</strong>在 bbox 上盖译文层（非整页等齐）。</li>
+<li><strong>译前归一化</strong>（<code>normalizeLayoutSourceText</code>）：文字层是空白折叠后的单行串，先合并行末连字符断词（<code>repre- sentation</code> → <code>representation</code>，<code>pre- and</code> 这类并列保留）、展开 ligature / 去 soft hyphen、清掉落在正文 bbox 里的 arXiv 戳与会议 boilerplate、剥掉句末后粘着的页码与续段前的行号（<code>Table 2</code> 这类交叉引用不动，<code>header</code> 不做数字剥离）。</li>
+<li><strong>跨页/跨栏段落合并</strong>（#340）：一个段落被分栏、分页或图表切开时是多个 region。末尾无句末标点、下一片段以小写开头则判为续段，拼成一个 chain 作为<strong>原子翻译单元</strong>（≤ 4 片段 / 4000 字符），译文再按各片段原文长度加权、在句末→分句→空白边界切回各自 bbox。图题不打断 chain，<code>header</code> 打断。chain 内任一片段缺译文即整条重译。</li>
+<li><strong>占位符保护</strong>（<code>src/lib/translate/mask.ts</code>）：行内公式 / LaTeX 命令 / URL / DOI 先换成 <code>⟦n⟧</code> 再发引擎，回填时还原；引擎吞掉占位符则该 chain 用原文重译一次。</li>
+<li>按阅读顺序把 chain <strong>分批</strong>翻译（<code>buildTranslateBatches</code>）：批内 payload ≤ 4500 字符（约一页双栏正文），用 <code>[[n]]</code> 编号拼成一次请求，让引擎看到上下文；译文按 <code>[[n]]</code> 标记切回、逐块写回原 bbox 位置。标记解析不一致时该批<strong>回退为逐段翻译</strong>，保证不丢块。并发 2（Agent 串行）；<strong>每批完成立刻</strong>在 bbox 上盖译文层（非整页等齐）。</li>
 <li>每页纸张右上角外侧常驻窄页签可只翻译本页；页签 hover 不弹出额外文字；本页已有可见译文时，页签切换为隐藏本页译文。隐藏只影响当前 UI 覆盖层，不删除磁盘缓存。</li>
-<li>译文按论文写入 <code>{paper}/source/layout-translate.json</code>。缓存命中需匹配 provider / 源语言 / 目标语言 / 非密钥服务配置，并逐块校验 region id + 原文；版面或目标语言变化时只复用仍匹配的块。</li>
+<li>译文按论文写入 <code>{paper}/source/layout-translate.json</code>。缓存命中需匹配 provider / 源语言 / 目标语言 / 非密钥服务配置，并逐块校验 region id + 原文（存的是归一化后的原文，归一化规则变化时旧缓存会 miss 一次并重译）；版面或目标语言变化时只复用仍匹配的块。</li>
 <li>单页翻译写缓存时按同一 cache key 增量合并，避免只翻译一页时覆盖其它页已经落盘的译文。</li>
-<li>运行中再点=停止；有译文再点=清除。实现：<code>layout-translate.ts</code> + <code>layout-translate-overlay.tsx</code>。</li>
+<li>运行中再点=停止；有译文再点=清除。实现：<code>layout-translate.ts</code> + <code>layout-translate-source.ts</code> + <code>layout-translate-overlay.tsx</code>。</li>
 <li>覆盖层按浅色纸面绘制（白底深字）；PDF 暗色模式下套用与页面栅格相同的 invert filter（<code>PDF_PAGE_RASTER_DARK_CLASS</code>），使盖住原文的底色与反转后的纸面一致。</li>
 <li>API：<code>runTranslate(task)</code>（<code>src/lib/translate/</code>）。</li>
+</ul>
+<h2 id="prompt">Prompt<a class="headerlink" href="#prompt" title="Permanent link">&para;</a></h2>
+<p><code>buildTranslatePrompt</code>（Agent 路径）与 Host <code>openai_translate_prompt</code>（OpenAI-compatible 路径）共用同一套约束，改一处要同步另一处：</p>
+<ul>
+<li>定位为学术论文译者；要求<strong>按意思重组语序</strong>（可拆长句），而不是逐词直译。</li>
+<li>公式 / 符号 / 变量 / 单位 / 行内代码 / URL / 引用标记 / 图表公式编号 / <code>⟦n⟧</code> 占位符原样保留。</li>
+<li>术语用领域惯用译法并保持一致，首次出现补原文，如 <code>注意力机制（attention）</code>。</li>
+<li>不增删、不解释、不加译注和 markdown 围栏；只输出译文。</li>
+<li>批量 payload 额外要求保留 <code>[[n]]</code> 标记、顺序与段数，不合并段落。</li>
+<li>OpenAI-compatible 的 <code>temperature</code> 用 0.2（0.0 的直译感太强）。</li>
 </ul>
 <h2 id="_4">路径<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <table>

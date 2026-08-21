@@ -3507,7 +3507,7 @@
 <p>右栏 <strong>Figures</strong>（原「解析」header：分析 / 叠加层）→ 页内检测 → 列表（image/chart、table、algorithm、<strong>有编号 formula 置底</strong>）。</p>
 <p><strong>完整流水线、14 条核心规则、阈值与代码地图</strong>见：</p>
 <p>→ <strong><a href="../pdf-layout-analysis/">pdf-layout-analysis.md</a></strong></p>
-<p>要点：先文字角色再联图；图题须整框在 figure bbox 内；图无 title 丢弃；默认置信度 30%；Paper PDF 的初步解析结果缓存到 <code>{paper}/source/layout.json</code>，后续 merge/filter 可重复计算。全文翻译按阅读顺序<strong>分批</strong>请求（<code>buildTranslateBatches</code>，批内 <code>[[n]]</code> 标记保上下文，解析失败回退逐段），缓存独立写入 <code>{paper}/source/layout-translate.json</code>，按 provider / 语言 / region 原文校验后复用。详见 <a href="../translate/">translate.md</a>。</p>
+<p>要点：先文字角色再联图；图题须整框在 figure bbox 内；图无 title 丢弃；默认置信度 30%；Paper PDF 的初步解析结果缓存到 <code>{paper}/source/layout.json</code>，后续 merge/filter 可重复计算。全文翻译先归一化文字层原文（断词 / ligature / 页眉页脚残留），把跨栏跨页的续段合并成一个翻译单元，再按阅读顺序<strong>分批</strong>请求（<code>buildTranslateBatches</code>，批内 <code>[[n]]</code> 标记保上下文，解析失败回退逐段），缓存独立写入 <code>{paper}/source/layout-translate.json</code>，按 provider / 语言 / region 原文校验后复用。详见 <a href="../translate/">translate.md</a>。</p>
 <p><strong>单击视觉批注：</strong> hover 插图 / 表 / 算法 / 无符号表公式的命中框时，框上出现 primary 描边（即将裁剪的确切 bbox）与右上角「单击进行批注」提示；单击裁剪该区域并打开 <code>VisualAnnotationEditor</code>（与手动框选相同；不自动发送 Agent），草稿卡保持打开直到手动关闭。框选模式或已有草稿卡时命中框不挂载。</p>
 <p>交互细节（均有对应实现约束）：</p>
 <table>

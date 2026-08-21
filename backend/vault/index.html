@@ -1493,7 +1493,7 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        文件树
+        关闭 / 切换
       
     </span>
   </a>
@@ -1504,7 +1504,7 @@
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        回收站
+        文件树
       
     </span>
   </a>
@@ -1513,6 +1513,17 @@
       
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        回收站
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         文件监听
@@ -1534,7 +1545,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
         其它
@@ -1545,7 +1556,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_7" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3138,7 +3149,7 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        文件树
+        关闭 / 切换
       
     </span>
   </a>
@@ -3149,7 +3160,7 @@
   <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        回收站
+        文件树
       
     </span>
   </a>
@@ -3158,6 +3169,17 @@
       
         <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        回收站
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         文件监听
@@ -3179,7 +3201,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
         其它
@@ -3190,7 +3212,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_7" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3240,7 +3262,17 @@
 <li><code>vault_create</code> 返回的 <code>openPath</code> 为首篇教程路径；若教程已存在则回退到 <code>AGENTS.md</code>。</li>
 <li>每次打开会补种缺失的 bundled skills；第一方 <code>SKILL.md</code> 仅通过 frontmatter 整数 <code>version</code> 安全升级（盘上版本低于模板则覆盖并 toast）。无 <code>version</code>、同版本或更高版本的文件保持原样；返回值的 <code>updated</code> 列出本次安全升级路径。</li>
 </ul>
-<h2 id="_3">文件树<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_3">关闭 / 切换<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>没有 <code>vault_close</code> 命令。vault 的生命期由前端 <code>vault:opened</code> 作用域的 teardown 表达（见 <a href="../../development/lifecycle-events/">../development/lifecycle-events.md</a>）：</p>
+<div class="codehilite"><pre><span></span><code>切换 / 关闭 vault
+  → 释放 vault:opened 作用域
+  → 各 store 的 vault 级 clear（catalog 行、wiki 重命名流程、
+     agent 会话、标注、layout 结果、相关弹窗）
+  → vault_release：驱逐该 vault 的 catalog 连接缓存条目（remote handle 跳过）
+</code></pre></div>
+
+<p>文件监听不需要显式停止：<code>fs_watch_start</code> 会替换该窗口的既有 watcher，窗口销毁时由 <code>on_window_event(Destroyed)</code> 停止。</p>
+<h2 id="_4">文件树<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -3265,7 +3297,7 @@
 </table>
 <p>规则：产品目录全量递归；<code>source/</code> 与其它根子目录懒加载；忽略 <code>.git</code>/<code>node_modules</code>/…<br />
 前端：<a href="../../frontend/vault-tree/">../frontend/vault-tree.md</a>。</p>
-<h2 id="_4">回收站<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">回收站<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -3292,7 +3324,7 @@
 </tr>
 </tbody>
 </table>
-<h2 id="_5">文件监听<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">文件监听<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Host <code>notify</code> → <code>vault:file-changed</code>。</li>
 <li>前端：打开 md 自动重载（有未存则提示）；结构变化局部刷树。</li>
@@ -3300,12 +3332,12 @@
 </ul>
 <h2 id="capabilities">Capabilities（摘要）<a class="headerlink" href="#capabilities" title="Permanent link">&para;</a></h2>
 <p><code>src-tauri/capabilities/default.json</code>：<code>fs:*</code> 读写/dir、<code>dialog</code>、<code>opener</code>（含 reveal）、scope 覆盖 <code>$HOME/**</code> 等用户可选目录。</p>
-<h2 id="_6">其它<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<h2 id="_7">其它<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>path_open_in_terminal</code>：系统默认终端。</li>
 <li>多窗口：<code>window_new</code>、<code>settings_window_open</code>。</li>
 </ul>
-<h2 id="_7">代码<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<h2 id="_8">代码<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
 <p><code>features/vault/</code> · <code>trash/</code> · <code>watcher/</code> · <code>terminal/</code> · <code>window/</code></p>
 
 

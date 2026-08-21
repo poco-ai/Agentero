@@ -3349,6 +3349,10 @@
 <ul>
 <li>工具栏优先图标 + <code>aria-label</code> + Tooltip；避免常驻解释文案。</li>
 <li>基础组件 shadcn/ui；Chat/树 AI UI 用 AI Elements（<a href="../components/">components.md</a>）。</li>
+<li><strong>启动种子放 <code>boot()</code></strong>（<code>src/main.tsx</code>），不要在 render 期做副作用。<code>initSettingsStore</code> / <code>initVaultStore</code> / <code>initWorkspaceStore</code> 在 <code>createRoot</code> 前调用：既保证首帧前完成，又不依赖 <code>useState</code> 初始化器（StrictMode 下可能跑两次）。</li>
+<li><strong>订阅 Host 事件一律用 <code>listenSafe()</code>（<code>src/lib/core/tauri-events.ts</code>）或 <code>useTauriEvent()</code></strong>；非 Tauri wire 的 promise 式订阅（bridge、workspace-broadcast）用 <code>toSafeDisposer()</code>。手写 <code>let off; void (async () =&gt; { off = await listen(...) })(); return () =&gt; off?.()</code> 会在 <code>listen</code> resolve 前 dispose 时泄漏监听器 —— StrictMode 每次开发挂载都会命中。</li>
+<li><strong>注册全局订阅的 <code>init*</code> / <code>start*</code> 必须返回 disposer</strong>，并由调用方 effect 返回。</li>
+<li>每个 vault 的副作用挂在 <code>vault:opened</code> 作用域上，清理写在同一 handler 的 teardown 里，见 <a href="../../development/lifecycle-events/">../development/lifecycle-events.md</a>。</li>
 </ul>
 
 
