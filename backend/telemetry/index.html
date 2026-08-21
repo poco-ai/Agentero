@@ -3240,17 +3240,17 @@
 <td><code>tauri::VERSION</code></td>
 </tr>
 <tr>
-<td><code>session_id</code></td>
-<td>本次运行生成的 UUID</td>
+<td><code>$session_id</code></td>
+<td>本次运行生成的 UUID（PostHog 保留属性，Sessions 口径依赖它）</td>
 </tr>
 </tbody>
 </table>
 <p>Person 属性：<code>$set</code> → <code>app_version</code> / <code>os_name</code> / <code>os_version</code> / <code>arch</code> / <code>device_model</code>；<code>$set_once</code> → <code>first_app_version</code>。</p>
 <h3 id="app-exitedruneventexit-flush"><code>app exited</code>（<code>RunEvent::Exit</code> 回调中发送并 flush）<a class="headerlink" href="#app-exitedruneventexit-flush" title="Permanent link">&para;</a></h3>
-<p><code>session_id</code>、<code>session_duration_ms</code>、<code>app_version</code>。</p>
+<p><code>$session_id</code>、<code>session_duration_ms</code>、<code>app_version</code>。</p>
 <p><code>app started</code> / <code>app exited</code> 与本机 <a href="../usage/">usage.md</a> 同源：<code>Telemetry::start</code> / <code>shutdown</code> <strong>始终</strong>写入本地 <code>app.started</code> / <code>app.exited</code>（本地记录无开关），在 <code>telemetryEnabled</code> 且 release + 有 key 时再发 PostHog。出站事件名保持空格形式，以免断历史。</p>
 <h3 id="telemetrycapture_activity">行为事件投影（<code>Telemetry::capture_activity</code>）<a class="headerlink" href="#telemetrycapture_activity" title="Permanent link">&para;</a></h3>
-<p>前端行为事件经 <code>activity_record_events</code> 落本地库后，Host 用 <code>usage::telemetry_projection</code> 把<strong>登记的 kind</strong> 投影成脱敏 PostHog 事件（非移动端；<code>telemetryEnabled</code> 关或无 key 时整体 no-op）。投影<strong>只</strong>携带 <code>kind</code>→事件名、<code>facet</code> / <code>status</code> / <code>qty</code>（均由 <code>usage/events.rs::project_extra</code> 分桶/截断/白名单产出）与分桶后的 <code>dur_bucket</code>，外加 <code>distinct_id</code> / <code>session_id</code> / <code>app_version</code>。未登记的 kind 一律不发（安全默认）。</p>
+<p>前端行为事件经 <code>activity_record_events</code> 落本地库后，Host 用 <code>usage::telemetry_projection</code> 把<strong>登记的 kind</strong> 投影成脱敏 PostHog 事件（非移动端；<code>telemetryEnabled</code> 关或无 key 时整体 no-op）。投影<strong>只</strong>携带 <code>kind</code>→事件名、<code>facet</code> / <code>status</code> / <code>qty</code>（均由 <code>usage/events.rs::project_extra</code> 分桶/截断/白名单产出）与分桶后的 <code>dur_bucket</code>，外加 <code>distinct_id</code> / <code>$session_id</code> / <code>app_version</code>。未登记的 kind 一律不发（安全默认）。</p>
 <table>
 <thead>
 <tr>
@@ -3319,6 +3319,7 @@
 </table>
 <p>不投影：<code>paper.focus</code> / <code>paper.blur</code>、<code>paper.edit-meta</code>，以及尚未接线的 kind。</p>
 <p><strong>DAU 口径</strong>：不设心跳事件。DAU = 当天产生任意上述行为事件或 <code>app started</code> 的 unique <code>distinct_id</code>。桌面常驻应用只要当天有真实操作即计入；完全零操作的一天不计（可接受）。</p>
+<p><strong>Sessions 口径</strong>：出站事件统一携带 PostHog 保留属性 <code>$session_id</code>（每次启动生成的新 UUID，随所有事件发送），PostHog 的 Sessions insight / Trends "Sessions" 指标据此聚合。本地 usage 库的 extra 字段仍为 <code>session_id</code>，两者互不影响。</p>
 <h2 id="_3">隐私边界<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
 <li>不含 Vault 路径、文件名、论文标题、DOI、检索词原文、划词/译文/批注正文、Skill URL/名称、Agent 配置。</li>
