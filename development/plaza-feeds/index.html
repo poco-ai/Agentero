@@ -3422,7 +3422,9 @@
 <p>macOS 上即 <code>~/Library/Application Support/agentero/feeds.sqlite</code>（与 <code>usage.sqlite</code> 同一 XDG data 约定，见 <a href="../../backend/usage/"><code>../backend/usage.md</code></a>）。</p>
 <p><strong>不</strong>把订阅塞进 <code>AppSettings</code>：那是 UI 偏好，订阅是用户数据，条目还会涨。</p>
 <h3 id="41">4.1 表<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
-<div class="codehilite"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">subscriptions</span><span class="w"> </span><span class="p">(</span>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- 时间戳统一 `core/time.rs::now_rfc3339_millis()`（RFC 3339 毫秒 + Z）；</span>
+<span class="c1">-- schema v3 已把存量时间列规范化为该格式（字符串 ORDER BY 依赖固定宽度）</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">subscriptions</span><span class="w"> </span><span class="p">(</span>
 <span class="w">  </span><span class="n">id</span><span class="w">            </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span><span class="w">   </span><span class="c1">-- uuid</span>
 <span class="w">  </span><span class="n">url</span><span class="w">           </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">UNIQUE</span><span class="p">,</span>
 <span class="w">  </span><span class="n">title</span><span class="w">         </span><span class="nb">TEXT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
