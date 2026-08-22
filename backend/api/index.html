@@ -8130,7 +8130,7 @@ Host (Tauri + Rust)
 <li><strong>路径</strong>：<code>$XDG_CACHE_HOME/agentero/models/pp-doclayoutv3.onnx</code></li>
 <li><strong>启动</strong>：<code>setup</code> 在代理配置后 <code>spawn_background_download</code>（固定 task id <code>layout-model</code>）</li>
 <li><strong>下载源</strong>：ModelScope（<code>greatv/oar-ocr</code>）优先，失败则 HuggingFace EmbedPDF <code>model_fp16.onnx</code></li>
-<li><strong>代理</strong>：走 Host 全局 <code>network::client_builder</code>（与设置 Network proxy 一致）</li>
+<li><strong>代理</strong>：走 Host 全局 <code>core::http::client_builder</code>（与设置 Network proxy 一致）</li>
 <li><strong>协议</strong>：<code>agentero-model</code> URI scheme 把本地文件喂给 <code>onnxruntime-web</code></li>
 <li><strong>后台任务</strong>：</li>
 <li><code>emit("layout-model:task", { taskId, status, progress, detail, error, source })</code></li>
@@ -8181,7 +8181,7 @@ Host (Tauri + Rust)
 <li><strong>进度</strong>：轮询期间 emit <code>layout-remote:progress</code>，payload <code>{ phase, extractedPages, totalPages, requestId? }</code>（phase：<code>uploading</code> / <code>pending</code> / <code>running</code> / <code>downloading</code> / <code>done</code>）。</li>
 <li><strong>并发</strong>：<code>settings.layout.backend</code> 为远程 provider 时 JobCenter <code>layoutAnalyze</code> <strong>无并发上限</strong>（远端排队）；本地 ONNX 仍 cap=1。</li>
 <li><strong>返回</strong>：<code>{ pages: [{ boxes: [{ clsId, label, score, coordinate }], widthPx, heightPx }] }</code>；渲染像素尺寸优先取服务端报告（Paddle：<code>dataInfo</code> / <code>inputImage</code> JPEG 头；MinerU：<code>middle.json</code> 页尺寸），缺失为 <code>null</code>（前端按 200 DPI 估算）。</li>
-<li><strong>超时 / 代理</strong>：单请求 120s；走 Host 全局代理（<code>network::client_builder</code>）。</li>
+<li><strong>超时 / 代理</strong>：单请求 120s；走 Host 全局代理（<code>core::http::client_builder</code>）。</li>
 <li>实现：<code>src-tauri/src/features/layout_remote/</code>（<code>commands.rs</code> 命令壳 + <code>engine.rs</code> <code>RemoteLayoutEngine</code> trait / 注册 + <code>paddle.rs</code> + <code>mineru.rs</code>）；前端 <code>src/lib/pdf/layout/paddle.ts</code>（IPC 封装）+ <code>providers.ts</code>（<code>LAYOUT_PROVIDERS</code> 注册表）。</li>
 </ul>
 <h4 id="layout_remote_probe"><code>layout_remote_probe</code>（已实现）<a class="headerlink" href="#layout_remote_probe" title="Permanent link">&para;</a></h4>

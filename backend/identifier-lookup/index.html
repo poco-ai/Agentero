@@ -5053,7 +5053,7 @@
 <p>兼容性通过分工保留：<strong>搜索只负责「文本 → 候选标识符」</strong>，用户选中后把 <code>identifier</code>（arXiv ID 优先，其次 DOI）重新提交 <code>lookup_import_batch</code>，Translator 仍是元数据的唯一事实来源，入库管道不分叉。</p>
 <ul>
 <li>实现：<code>src-tauri/src/features/import/title_search.rs</code></li>
-<li>数据源：Semantic Scholar Graph API <code>/paper/search</code> 为主；报错或 0 结果时回退 <strong>arXiv</strong> <code>search_query=ti:"…"&amp;sortBy=relevance</code>。两者均免 key，复用 <code>features::network::client_builder()</code> 与信号量限流（并发 2）。<blockquote>
+<li>数据源：Semantic Scholar Graph API <code>/paper/search</code> 为主；报错或 0 结果时回退 <strong>arXiv</strong> <code>search_query=ti:"…"&amp;sortBy=relevance</code>。两者均免 key，复用 <code>core::http::client_builder()</code> 与信号量限流（并发 2）。<blockquote>
 <p><strong>S2 无 key 的搜索接口限流极严（实测连续 3 次均 429）</strong>，所以 arXiv 才是线上的常走路径。不选 Crossref 兜底：NeurIPS proceedings 之类没有 Crossref DOI，搜 "Attention is all you need" 时正确论文<strong>根本不在</strong> Crossref 结果集里，只会返回一堆同名论文。
 arXiv 的 Atom 需要按 <code>&lt;entry&gt;</code> 切块解析 —— <code>map::map_arxiv_atom</code> 只处理单条响应，不能复用。</p>
 </blockquote>
