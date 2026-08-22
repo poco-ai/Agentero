@@ -1697,6 +1697,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1713,6 +1731,36 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        耦合契约（schema 无关配置层）
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -2981,6 +3029,25 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        耦合契约（schema 无关配置层）
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -3024,6 +3091,17 @@
 <li><code>plazaEnabled</code>：是否显示并加载广场（默认开）。关闭后侧栏不渲染广场节点，已开的广场 tab 关闭，且不挂载 <code>PlazaView</code>（含站点代理 iframe / 订阅轮询）。</li>
 <li>旧 localStorage 键一次性迁移。</li>
 <li>Agent 注册表等同目录管理。</li>
+</ul>
+<h2 id="schema">耦合契约（schema 无关配置层）<a class="headerlink" href="#schema" title="Permanent link">&para;</a></h2>
+<p>settings 只提供读/写/持久化/广播能力，<strong>不 import 任何域 feature</strong>（出边仅 <code>core/*</code>）：</p>
+<ul>
+<li><code>settings_set</code> 只做：proxy 校验 → <code>store.set</code>（merge 密钥/normalize/原子落盘）→ 广播 <code>settings:changed</code>。</li>
+<li>域侧反应通过 <code>AppSettingsStore::subscribe</code> 在 app 装配（<code>app/mod.rs</code> setup）注册，<code>set</code> 成功后以 redacted 快照触发（模式同 P2-12 JobCenter runner 注册制）：</li>
+<li>agent：<code>set_proxy</code>（网络代理同步）</li>
+<li>import：<code>refresh_parser_config</code>（正文解析引擎凭据快照，桌面端）</li>
+<li>connector：<code>set_port</code>（端口变更重绑监听）</li>
+<li>jobs：<code>apply_layout_backend</code> + <code>drain_and_spawn</code>（layout 并发上限）</li>
+<li>反序列化期需要的域默认值（如 <code>DEFAULT_CONNECTOR_PORT</code>）定义在 settings，由属主域 re-export（方向 <code>connector → settings</code>，不成环）。</li>
 </ul>
 <p>前端：<a href="../../frontend/settings/">../frontend/settings.md</a><br />
 代码：<code>src-tauri/src/features/settings/</code></p>

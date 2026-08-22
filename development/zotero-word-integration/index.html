@@ -3787,7 +3787,7 @@ Refresh
 <p>新增一个隐藏的 Win32 message window，优先注册 <code>ZoteroMessageWindow</code> 以兼容官方宏的稳定 Zotero 6 分支；接收并严格解析 <code>WM_COPYDATA</code> 的 UTF-8 命令行 payload。不要尝试伪造 Zotero 7 的 Mozilla window tree，除非 M2 fixture 证明旧窗口 class 已不被当前 <code>Zotero.dotm</code> 接受。收到 <code>WinWord</code> 命令后走同一 provider，再由 Windows OLE Automation driver 操作活动 Word。</p>
 <p>由于官方宏会寻找第一个匹配窗口，此模式必须在 Host 启动时探测 Zotero Desktop，并在其运行时拒绝启用。Windows 安装器还要处理 x64/ARM64 Word、Office bitness、OLE/COM 权限、UAC、崩溃后的 message window 回收及 Word modal dialog。该平台没有“在 Rust axum 里补一个 endpoint”的捷径。</p>
 <h3 id="4-catalog-csl">4. Catalog 到 CSL 的映射<a class="headerlink" href="#4-catalog-csl" title="Permanent link">&para;</a></h3>
-<p>现有 <code>features/import/zotero_io.rs</code> 已能把 Catalog 行转成 Zotero API JSON 并经 Translator 导出。Word 引用不能把每次击键交给远端 Translator，也不能依赖网络；应新增纯 Rust 的 <code>features/citation/</code> 映射层：</p>
+<p>现有 <code>features/zotero/io.rs</code> 已能把 Catalog 行转成 Zotero API JSON 并经 Translator 导出。Word 引用不能把每次击键交给远端 Translator，也不能依赖网络；应新增纯 Rust 的 <code>features/citation/</code> 映射层：</p>
 <ul>
 <li><code>PaperRecord -&gt; CslItem</code>：优先保留 title、author/editor、issued、container-title、volume、issue、page、DOI、URL、publisher、edition、type；类型映射与现有 Zotero import map 对齐。</li>
 <li>生成稳定候选 ID：<code>doi:&lt;normalized&gt;</code> → <code>arxiv:&lt;id&gt;</code> → <code>bib:&lt;bibtexKey&gt;</code> → 本地 UUID。ID 不能仅使用可变的 Vault 相对路径。</li>

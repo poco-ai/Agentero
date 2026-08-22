@@ -5852,7 +5852,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li><strong>无 Vault 欢迎页</strong>：与 Create / Open vault 同一行的 <strong>Migrate from Zotero</strong>（先创建 Vault，再打开对话框）；</li>
 <li><strong>论文库工具栏</strong>（已打开 Vault 时）：图标按钮。
   共用 <code>ZoteroMigrateDialog</code>。打开时自动探测默认 <code>~/Zotero</code> 目录（否则手动选含 <code>zotero.sqlite</code> + <code>storage/</code> 的目录）；扫描预览以 chips 显示文献 / PDF / 笔记数，迁移后展示结果小结（导入 / 补笔记 / 拷 PDF / 清理）。</li>
-<li>Host：<code>zotero_scan</code>（只读预览：文献数 / 有本地 PDF 数）、<code>zotero_migrate</code>（执行）；实现在 <code>services/lookup/zotero_db.rs</code>。</li>
+<li>Host：<code>zotero_scan</code>（只读预览：文献数 / 有本地 PDF 数）、<code>zotero_migrate</code>（执行）；实现在 <code>features/zotero/db.rs</code>。</li>
 <li>读库：把 <code>zotero.sqlite</code>（含 <code>-wal</code>/<code>-shm</code>）<strong>拷到临时目录</strong>再只读打开（容忍 Zotero 正在运行）；查 <code>items</code>/<code>itemData</code>/<code>creators</code>/<code>itemTags</code>/<code>itemAttachments</code>，跳过 <code>deletedItems</code> 与 attachment/note/annotation 类型，并排除插件产生的 <code>computerProgram</code> 垃圾条目（如标题为 "Addon Item" 的项）。</li>
 <li>映射：每条<strong>拼装成 Zotero-API-JSON item</strong> → 复用 <code>map_zotero_item</code> + <code>enrich_remote_urls</code> + <code>write_paper_shell</code> + <code>paper_record_from_meta</code> + catalog upsert，落到 <code>{parent_dir}/{id}/</code>（id/citekey 与魔棒 / 文件导入一致）。</li>
 <li>附件 PDF URL：<code>map_zotero_item</code> 未给出 <code>pdf_url</code> 时，采用 Connector <code>attachments[]</code> 里的 PDF 链接（浏览器侧捕获，ACM/IEEE 等常仅经此暴露）。</li>

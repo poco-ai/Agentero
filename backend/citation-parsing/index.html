@@ -3720,7 +3720,7 @@
 <p>前端 <code>enqueueBackgroundTask</code> 建任务行（<code>discoverCitingPapers</code>，<code>src/lib/paper/library-actions.ts</code>），把任务 id 作为 <code>taskId</code> 传给命令，Host 用它做两件事：</p>
 <ul>
 <li><strong>进度</strong>：抓取阶段按完成数 emit <code>background-task:progress</code>（带 <code>currentCount</code>/<code>totalCount</code>），面板显示「引用 · 12/38」。只有带计数的阶段才 emit——没有计数的阶段会掉进面板的字节格式化分支</li>
-<li><strong>取消</strong>：每个种子请求前轮询 <code>agent::background_tasks::is_cancelled</code>，命中即返回且不写缓存；命令出口无条件 <code>finish()</code> 清标记，否则残留的取消标记会秒杀下一个复用该 id 的任务</li>
+<li><strong>取消</strong>：每个种子请求前轮询 <code>core::background_tasks::is_cancelled</code>，命中即返回且不写缓存；命令出口无条件 <code>finish()</code> 清标记，否则残留的取消标记会秒杀下一个复用该 id 的任务</li>
 </ul>
 <p>库级 I/O 互斥复用 <code>libraryStore.ioBusy</code>。结果属于扫描时那个 vault，完成回调比对 <code>getVaultPath()</code> 不一致就不弹窗。</p>
 <h3 id="76-53-vault">7.6 实测（53 篇 vault）<a class="headerlink" href="#76-53-vault" title="Permanent link">&para;</a></h3>
