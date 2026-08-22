@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/core/utils";
 
+import { ExternalLink } from "./external-link";
 import { Shimmer } from "./shimmer";
 
 interface ReasoningContextValue {
@@ -204,7 +205,13 @@ export const ReasoningContent = memo(
 			)}
 			{...props}
 		>
-			<Streamdown plugins={streamdownPlugins}>{children}</Streamdown>
+			<Streamdown
+				components={{ a: ExternalLink }}
+				linkSafety={{ enabled: false }}
+				plugins={streamdownPlugins}
+			>
+				{children}
+			</Streamdown>
 		</CollapsibleContent>
 	),
 );

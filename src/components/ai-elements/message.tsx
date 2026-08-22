@@ -29,6 +29,8 @@ import {
 import { cn } from "@/lib/core/utils";
 import { normalizeMarkdownMath } from "@/lib/markdown/math-normalize";
 
+import { ExternalLink } from "./external-link";
+
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
 	from: UIMessage["role"];
 };
@@ -351,6 +353,8 @@ export const MessageResponse = memo(
 					"w-full min-w-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
 					className,
 				)}
+				components={{ a: ExternalLink }}
+				linkSafety={{ enabled: false }}
 				plugins={streamdownPlugins}
 				{...props}
 			>
