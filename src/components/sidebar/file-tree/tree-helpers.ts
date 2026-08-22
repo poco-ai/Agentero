@@ -46,10 +46,9 @@ export function pathKey(path: string): string {
 
 /**
  * Default open folders when a Vault is first opened:
- * expand `papers/` and its first-level children (org folders) so papers one
- * level down are visible. Deeper nesting, `notes/`, etc. stay collapsed.
- * Paper folders stay collapsed even when they have attachments.
- * 广场 also starts open so its sources are discoverable.
+ * expand `papers/` only so its first-level children (org folders) are listed,
+ * but keep those subfolders collapsed. Deeper nesting, `notes/`, etc. stay
+ * collapsed. 广场 also starts open so its sources are discoverable.
  */
 export function collectDefaultExpanded(
 	nodes: FileNode[],
@@ -59,12 +58,6 @@ export function collectDefaultExpanded(
 	for (const n of nodes) {
 		if (n.kind !== "directory" || !isPapersRoot(n.path)) continue;
 		into.add(n.path);
-		for (const child of n.children ?? []) {
-			if (child.kind !== "directory") continue;
-			// Paper units stay collapsed until the user opens attachments.
-			if (isPaperDirectory(child.path, child.children)) continue;
-			into.add(child.path);
-		}
 		return;
 	}
 }
