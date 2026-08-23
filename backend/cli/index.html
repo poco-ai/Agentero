@@ -3351,7 +3351,8 @@
 </tr>
 </tbody>
 </table>
-<p>稳定 <code>--json</code> 输出，供脚本与外部 Agent 组合。</p>
+<p>稳定 <code>--json</code> 输出，供脚本与外部 Agent 组合。JSON 默认 <strong>compact 单行</strong>（省 token），<code>--pretty</code> 恢复缩进美化（<a href="https://github.com/poco-ai/Agentero/issues/367">#367</a>）。</p>
+<p><code>paper list --json</code> 默认每行只含 <code>id/path/title</code>；用 <code>--fields year,tags,abstract,…</code>（逗号分隔、可重复）按需加字段，或 <code>--full</code> 输出完整 <code>PaperRecord</code>。未知字段报 <code>usage</code> 错误并列出合法字段。text 表格输出不受影响。</p>
 <h3 id="_3">版面索引与区域批注（已实现）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
 <p>侧栏 Figures 同源列表落在 <code>{paper}/source/layout-index.json</code>（由桌面版面分析在 merge 后写入；raw 仍为 <code>source/layout.json</code>）。</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># 列出图 / 表 / 算法 / 公式（--kind 可重复，OR）</span>

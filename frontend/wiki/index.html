@@ -1170,17 +1170,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#graph" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Graph（引用图谱）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3080,17 +3069,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#graph" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Graph（引用图谱）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3133,7 +3111,7 @@
 
 
 <h1 id="ui">双链 UI<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h1>
-<p>编辑器状态栏展示反链数量与列表。右侧 <strong>References</strong> 下方的图为<strong>文献引用图谱</strong>（非 Markdown 双链图）；数据来自参考文献 sidecar 与库内匹配，见 <a href="../../backend/citation-parsing/">../backend/citation-parsing.md</a>。</p>
+<p>编辑器状态栏展示反链数量与列表。右侧 <strong>References</strong> 展示当前论文的参考文献卡片；数据来自参考文献 sidecar 与库内匹配，见 <a href="../../backend/citation-parsing/">../backend/citation-parsing.md</a>。</p>
 <h2 id="_1">编辑器<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>[[wikilink]]</code> Live Preview；光标进入显示源码。</li>
@@ -3148,46 +3126,6 @@
 <li><code>![[...]]</code>：嵌入 Markdown 区段、图片、PDF、批注（只读）；普通编辑不刷新无关嵌入。批注嵌入（<code>contentKind: annotation</code>）与其它 embed 共用 <code>max-h</code> 滚动壳；位置优先大纲路径否则页码。视觉批注：备注以图标 + 文字显示在裁剪图上方；仅当有 Agent 对话时才展示下方 transcript（无对话不显示空状态）；<strong>正文不可点跳转</strong>，仅顶栏 ExternalLink 打开 PDF。Host <code>wiki check</code> 校验 path + id 形态，不读 <code>marks/</code> 验存活。</li>
 <li><strong>导出模式</strong>（笔记导出 PDF/PNG）：<code>MarkdownExportModeProvider</code> 下展开 <code>max-h</code>、去掉打开源按钮；图片/批注裁剪图取消高度上限；完整 PDF 附件改为路径占位。见 <a href="../markdown/">markdown.md</a>。</li>
 </ul>
-<h2 id="graph">Graph（引用图谱）<a class="headerlink" href="#graph" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>项</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>库</td>
-<td><code>react-force-graph-2d</code>（Canvas 力导向）</td>
-</tr>
-<tr>
-<td>数据</td>
-<td>Host <code>paper_refs_graph</code> → nodes / edges（<code>agentero-cite.json</code> + <code>localMatch</code>）</td>
-</tr>
-<tr>
-<td>节点</td>
-<td>四级编码：<strong>本论文</strong> <code>role=center</code>（brand 圆 + 描边环）/ <strong>本文引用·库内</strong> <code>role=reference</code>（foreground 圆）/ <strong>引用本文·库内</strong> <code>role=citedBy</code>（chart-3 方形）/ <strong>库外引用</strong> <code>type=stub</code>（highlight 菱形，不可打开）</td>
-</tr>
-<tr>
-<td>模式</td>
-<td>默认<strong>当前论文近邻图</strong>（出边含库外 stub + 入边被引）；header 图标按钮可切换<strong>全库</strong>库内引用边（全库下当前论文仍高亮）</td>
-</tr>
-<tr>
-<td>边</td>
-<td>方向箭头指向被引文献</td>
-</tr>
-<tr>
-<td>壳</td>
-<td><strong>References 侧栏下方约 35% 高度</strong>（与引用卡片同 tab；无独立 Graph 轨）；近邻模式底部显示图例</td>
-</tr>
-<tr>
-<td>交互</td>
-<td>缩放、拖拽、点击打开库内 paper；stub 不可打开</td>
-</tr>
-</tbody>
-</table>
-<p>入库成功（<code>paper_commit</code> Created）后 Host 后台自动 <code>paper_refs_parse</code>。打开论文 / References 时前端 <code>loadPaperRefsAuto</code> 再兜底。引用图谱只读已有 sidecar，不批量解析；近邻深度固定 1（直接引用）。</p>
 <p>与 <strong>Markdown 双链</strong>（<code>graph_get_graph</code> / 反链）分层；双链索引仍服务编辑器补全、嵌入与状态栏反链，不驱动关系图。</p>
 <h2 id="_2">链接修复（前端触发）<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
