@@ -3300,6 +3300,7 @@
 <li>提问 Agent 可与面板默认 Agent 分开配置。</li>
 <li>坐标归一化；多段 rect 支持双栏。</li>
 <li>页边针：用 PDFium <code>getPageTextRects</code> 判断是否压字。优先贴选区右侧，有字则试左侧；压字半透明，空白处实心。文字层未加载时保持实心。划词菜单仅在翻到选区下方时半透明。</li>
+<li>页右缘控件使用固定 CSS px 尺寸：逐页翻译页签和批注评论列只随 PDF 缩放更新锚点位置，不随页面放大/缩小改变自身宽高。</li>
 <li>对话 / 翻译 / 视觉卡片与<strong>同一侧页边针</strong>对齐（左针开左、右针开右），贴合锚点，避免卡片落到选区另一侧。</li>
 <li>普通划词只启用文本选区；EmbedPDF 默认 marquee 矩形框选关闭，视觉区域批注只通过工具栏 / <strong>⌘.</strong> 显式进入。</li>
 <li>普通划词后可通过浮动菜单或系统复制快捷键（macOS <strong>⌘C</strong> / Windows/Linux <strong>Ctrl+C</strong>）复制选中文本；输入框和 Markdown 编辑器复制保持原生行为。</li>
