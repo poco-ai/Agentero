@@ -5897,6 +5897,11 @@ Host (Tauri + Rust)
 <td><code>{ sessionId, used, size }</code></td>
 </tr>
 <tr>
+<td><code>agent:session-info</code></td>
+<td>ACP <code>session_info_update</code> 通知：Agent 推送会话元数据（标题/最近活动时间）</td>
+<td><code>{ sessionId, agentId, providerSessionId?, title?, updatedAt? }</code>；仅当 title/updatedAt 至少一个非空时 emit，前端按 sessionId 或 providerSessionId 匹配会话记录并更新标题</td>
+</tr>
+<tr>
 <td><code>agent:models</code></td>
 <td>Agent 上报可用模型</td>
 <td><code>{ sessionId, agentId, configId, currentId, models: { id, name, group? }[] }</code>；<code>currentId</code> 若不在 selector 目录中会被 Host 注入到 <code>models</code>（第三方 / 网关默认模型）</td>
