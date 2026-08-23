@@ -3208,7 +3208,7 @@
 <li><strong>Figures</strong>：版面分析后的插图（image+chart）/ 表 / 算法 / 有编号公式；<strong>分析与 bbox 叠加层按钮在侧栏 header</strong>；固定置信度 ≥30%（无滑条）；联图与标题规则见 <a href="../pdf-layout-analysis/">pdf-layout-analysis.md</a>。实现：<code>viewer/panels/figures-panel.tsx</code> + <code>src/lib/pdf/layout/</code>（raw 结果缓存到 <code>{paper}/source/layout.json</code>）。</li>
 <li><strong>移至新窗口</strong>：标题栏右栏功能图标 <strong>右键</strong> →「移动至新窗口」→ 单例 <code>feature-{view}</code> Webview；主窗右栏收起。工具视图默认 <strong>跟随主窗当前激活文档</strong>（<code>workspace:active-changed</code>）。</li>
 <li>左右栏折叠：<code>⌥⌘S</code> / <code>⌘L</code>（不重叠）。折叠/展开带 200ms <code>flex-grow</code> 过渡（<code>data-rail-animating</code>，见 <code>index.css</code>）；过渡中拖动分隔条立即接管（可打断）；<code>prefers-reduced-motion</code> 下直接切换。</li>
-<li>标题栏右侧：布局菜单、右栏 tab 切换；有新版本可更新时显示更新指示器按钮（见 <a href="../settings/">settings.md</a> 「应用更新」）。</li>
+<li>标题栏右侧：右栏 tab 切换；有新版本可更新时显示更新指示器按钮（见 <a href="../settings/">settings.md</a> 「应用更新」）。</li>
 </ul>
 <p>实现：<code>src/components/shell/</code>、<code>src/lib/shell/ui-store.ts</code>、<code>src/lib/shell/leaf.ts</code>、<code>src/lib/shell/feature-window.ts</code>、<code>hooks/use-shell-layout.ts</code>。</p>
 <h2 id="_3">欢迎页与多窗口<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>

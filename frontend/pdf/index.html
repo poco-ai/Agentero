@@ -3223,8 +3223,8 @@
 <td>底部页码 pill、PageUp/Down、Home/End</td>
 </tr>
 <tr>
-<td>大纲</td>
-<td>左侧书签浮层</td>
+<td>大纲 / 参考文献</td>
+<td>左侧书签浮层；参考文献同侧浮层（紧凑列表，无过滤）</td>
 </tr>
 <tr>
 <td>查找</td>
@@ -3372,7 +3372,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/chrome/</code></td>
-<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）</td>
+<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-references-panel</code> / <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/cards/</code></td>
@@ -3476,7 +3476,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/panels/references-panel.tsx</code></td>
-<td>参考文献解析与入库（右栏）</td>
+<td>参考文献解析与入库（右栏）；<code>compact</code> 模式用于 PDF 内浮层，隐藏 header 与过滤</td>
 </tr>
 <tr>
 <td><code>src/lib/workspace/viewer/pdf-viewer-registry.ts</code></td>
