@@ -2989,6 +2989,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sync-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        同步范围（Sync Scope）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#oss" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3088,7 +3099,7 @@
 <tbody>
 <tr>
 <td><code>config.rs</code></td>
-<td>凭据存 XDG <code>agentero/sync.json</code>（按 Vault 路径分键，0600）；<code>secretKey</code> 出站掩码 / 回传掩码保留旧值（同 translate API key 先例）；<code>conditionalWrites</code> 持久化连接测试的条件写探测结果</td>
+<td>凭据存 XDG <code>agentero/sync.json</code>（按 Vault 路径分键，0600）；<code>secretKey</code> 出站掩码 / 回传掩码保留旧值（同 translate API key 先例）；<code>conditionalWrites</code> 持久化连接测试的条件写探测结果；<code>scope</code> 同步范围（见下）</td>
 </tr>
 <tr>
 <td><code>s3.rs</code></td>
@@ -3096,7 +3107,7 @@
 </tr>
 <tr>
 <td><code>snapshot.rs</code></td>
-<td>Vault 扫描 → <code>Manifest</code>（relPath → sha256/size/mtime）；<code>size+mtime</code> 未变复用 base 哈希；忽略 <code>.agentero</code> <code>.git</code> <code>node_modules</code> <code>.DS_Store</code> <code>*.tmp</code></td>
+<td>Vault 扫描 → <code>Manifest</code>（relPath → sha256/size/mtime）；<code>size+mtime</code> 未变复用 base 哈希；忽略 <code>.agentero</code> <code>.git</code> <code>node_modules</code> <code>.DS_Store</code> <code>*.tmp</code>；<code>SyncScope</code> 与分类谓词（见「同步范围」）</td>
 </tr>
 <tr>
 <td><code>local.rs</code></td>
@@ -3108,7 +3119,7 @@
 </tr>
 <tr>
 <td><code>commands.rs</code></td>
-<td><code>sync_get_status</code> / <code>sync_configure</code> / <code>sync_disconnect</code> / <code>sync_now</code>；广播 <code>sync:state</code> / <code>sync:progress</code> 事件</td>
+<td><code>sync_get_status</code> / <code>sync_configure</code> / <code>sync_disconnect</code> / <code>sync_now</code> / <code>sync_scope_sizes</code>（本地各附件分类体积，供设置页展示）；广播 <code>sync:state</code> / <code>sync:progress</code> 事件</td>
 </tr>
 <tr>
 <td><code>scheduler.rs</code></td>
@@ -3125,6 +3136,19 @@
 
 <p>一次 <code>sync_now</code>：扫描 → GET HEAD/manifest → 与本地 base（上次同步清单）三方合并 → 应用远端改动（临时文件 + rename 原子落盘，blob 校验 sha256）→ 上传新 blob（<code>If-None-Match: *</code>，跨设备重复上传为廉价 no-op）→ 发布新 manifest → <code>If-Match</code> CAS 推进 HEAD。CAS 失败（他端并发推进）则以对方 manifest 为新 base 重跑，最多 5 次。</p>
 <p>合并规则：单侧改动直接采纳；双侧同改 <code>*.md</code> 保留 mtime 较新者、较旧者存为 <code>&lt;name&gt; (conflict &lt;时间).md</code>；其余文件（sidecar/marks/二进制）按 mtime LWW；删除 vs 修改保留修改。</p>
+<h2 id="sync-scope">同步范围（Sync Scope）<a class="headerlink" href="#sync-scope" title="Permanent link">&para;</a></h2>
+<p>论文库中体积大且<strong>可再生</strong>的附件可以按设备排除，节省云端空间；笔记、<code>metadata.json</code> sidecar、<code>marks/</code>、<code>assets/</code> 永远同步（小且不可再生）。</p>
+<ul>
+<li><strong>分类</strong>（<code>snapshot.rs</code> <code>scope_category</code>，仅识别约定论文布局）：</li>
+<li><code>pdf</code> — <code>papers/&lt;id&gt;/&lt;id&gt;.pdf</code>（论文根级 PDF；<code>source/</code>、<code>attachments/</code> 内的 PDF 跟随所在分类）</li>
+<li><code>source</code> — <code>papers/&lt;id&gt;/source/</code>（LaTeX / e-print）</li>
+<li><code>attachments</code> — <code>papers/&lt;id&gt;/attachments/</code>（支撑材料）</li>
+<li><strong>对称过滤</strong>：同一谓词同时作用于本地扫描、base 与远端 manifest——被过滤的文件「双向失明」：不上传、不下载，也<strong>绝不因缺失而被当作删除</strong>。</li>
+<li><strong>manifest 携带 scope</strong>：发布端把自己过滤掉的分类写进 manifest（<code>scope</code> 字段，全量同步时省略）。合并时：远端失明的路径不触发 <code>delete_local</code>，本地仍可见该分类时以本地条目为准并继续上传，否则携带 base 条目供其他设备可见；本地失明的路径完全惰性（不下载、不传播删除）。</li>
+<li><strong>边界</strong>：所有设备都过滤某分类时，该分类条目会从 manifest 消失（blob 仍在，待孤儿 GC）；重新启用后本地仍有文件则自动重新上传，本地没有则需从来源重取。</li>
+<li><strong>重取</strong>：PDF/TeX 可从 <code>metadata.json</code> 的来源字段（arXiv ID / DOI / <code>pdf_url</code>）重新下载——<code>paper_download_assets</code> 命令（库表格右键「从来源下载 PDF」、打开论文时自动补下均走此路径）。库列表的 <code>has_pdf</code> 由 <code>paper_list</code> 经 CapsCache 投影。</li>
+<li><strong>配置</strong>：<code>SyncBackendConfig.scope</code>（缺省全量，兼容旧配置）；设置页提供「完整同步 / 仅笔记与元数据」预设与逐类开关（附本地体积 <code>sync_scope_sizes</code>）。</li>
+</ul>
 <h2 id="oss">条件写降级（OSS 等后端）<a class="headerlink" href="#oss" title="Permanent link">&para;</a></h2>
 <p>阿里云 OSS 的 PutObject 不支持任何条件请求头（<code>If-Match</code> / <code>If-None-Match</code> 等，带则返回 <code>400 NotImplemented</code>），S3 / R2 / MinIO 均支持。处理：</p>
 <ul>
@@ -3138,7 +3162,7 @@
 <li>论文权威字段已 sidecar 化：每次 <code>upsert_paper</code> 同步投影到 <code>papers/&lt;id&gt;/metadata.json</code>；<code>paper_rescan</code> 优先从 sidecar 恢复（sidecar 较新则回灌 DB）。因此同步只处理普通文件，<code>catalog.sqlite</code> 不出 Vault；拉取后引擎自动 <code>rebuild_from_disk</code> + <code>prune_missing</code>。</li>
 </ul>
 <h2 id="_2">前端<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>设置窗口「同步」pane：<code>src/components/settings/panes/sync-pane.tsx</code>；命令封装 <code>src/lib/sync/api.ts</code>。仅本地 Vault 可配置（<code>remote:</code> 句柄显示提示）。</p>
+<p>设置窗口「同步」pane：<code>src/components/settings/panes/sync-pane.tsx</code>；命令封装 <code>src/lib/sync/api.ts</code>。仅本地 Vault 可配置（<code>remote:</code> 句柄显示提示）。同步范围（见上）在同一 pane：预设按钮 + 逐类开关（行内显示本地体积）。</p>
 <h2 id="_3">自动同步<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <p>配置项 <code>autoSync</code>（默认开）与 <code>intervalMinutes</code>（15/30/60，默认 30）随凭据存 <code>sync.json</code>。调度任务在 <code>sync_configure</code> 后（重新）启动、<code>sync_disconnect</code> 时停止、应用启动时按配置恢复；每次触发都重读凭据，改配置无需重启。触发器：调度启动即同步一次（≈打开 Vault）、Vault 改动静置 30s、定时间隔兜底；<code>RunEvent::Exit</code> 时对所有自动同步 Vault 尽力推送（超时 5s/Vault）。</p>
 <h2 id="_4">安全约束<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
