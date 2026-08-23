@@ -3350,6 +3350,12 @@
 （message ↔ thought）、tool/plan 等有序事件、<code>agent:completed</code> / <code>agent:failed</code>
 之前都会先 flush，保证顺序与文本无损。<code>agent:tool</code> 的 <code>input</code>/<code>output</code> 超过
 32KB 时截断为「头部 + truncated 标记」（前端只做预览渲染）。</p>
+<p>ACP <code>terminal</code> 能力：Host 在 initialize 时声明 <code>terminal: true</code>，并本地实现
+<code>terminal/create</code>、<code>terminal/output</code>、<code>terminal/release</code>、<code>terminal/wait_for_exit</code>、
+<code>terminal/kill</code>。每个 ACP 连接持有独立的 <code>AcpTerminalManager</code>，按 <code>TerminalId</code>
+管理子进程；输出按 <code>outputByteLimit</code> 从头部截断并保证 UTF-8 字符边界。该能力
+让 Kimi Code 等需要执行 shell 命令的 Agent 可以在 Vault 工作目录下运行命令并
+读取结果。</p>
 <p>多轮续聊必须传 <strong>provider session id</strong>（不是 Agentero runtime id）。Grok Build ACP
 声明 <code>loadSession: true</code>、<strong>不</strong>声明 <code>resume</code>；对 Grok 调用 <code>session/resume</code> 会
 <code>Method not found</code>，Host 应改走 <code>session/load</code>。</p>
