@@ -3271,7 +3271,7 @@
 <tr>
 <td>批注</td>
 <td>高亮 + <code>comment</code></td>
-<td>页右缘外侧常驻评论列（飞书式：色点 + quote + 评论卡，相邻卡片纵向避让；点击卡片开编辑器，hover 出复制链接/嵌入/删除）；视口窄于 960px 时回退为页边针</td>
+<td>页右缘外侧常驻评论列（飞书式：色点 + quote + 评论卡，相邻卡片纵向避让；点击卡片开编辑器，hover 出复制链接/嵌入/删除）；视口窄于 640px 时回退为页边针</td>
 </tr>
 <tr>
 <td>提问</td>
@@ -3380,7 +3380,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/viewport/</code></td>
-<td>宿主接线：<code>dockview-viewport</code>（resize 门控 + 滚动指标按帧提交 + <code>rightGutter</code> 为评论列预留页外空间）/ <code>wheel-zoom-handler</code> / <code>active-card-scroll-sync</code></td>
+<td>宿主接线：<code>dockview-viewport</code>（resize 门控 + 滚动指标按帧提交；<code>rightGutter</code> 为评论列预留页外空间，并向 EmbedPDF 报告缩减后的 width/clientWidth 使 fitWidth 页面让出该空间）/ <code>wheel-zoom-handler</code> / <code>active-card-scroll-sync</code></td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-cards.ts</code></td>
