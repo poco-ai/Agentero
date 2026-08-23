@@ -1105,7 +1105,7 @@
   <a href="#figures" class="md-nav__link">
     <span class="md-ellipsis">
       
-        版面分析（Figures 侧栏）
+        版面分析（Figures 浮层）
       
     </span>
   </a>
@@ -3149,7 +3149,7 @@
   <a href="#figures" class="md-nav__link">
     <span class="md-ellipsis">
       
-        版面分析（Figures 侧栏）
+        版面分析（Figures 浮层）
       
     </span>
   </a>
@@ -3223,8 +3223,8 @@
 <td>底部页码 pill、PageUp/Down、Home/End</td>
 </tr>
 <tr>
-<td>大纲 / 参考文献</td>
-<td>左侧书签浮层；参考文献同侧浮层（紧凑列表，无过滤）</td>
+<td>大纲 / 参考文献 / 版面解析</td>
+<td>左侧浮层：书签、参考文献（紧凑列表）、版面解析结果（图/表/算法/公式）</td>
 </tr>
 <tr>
 <td>查找</td>
@@ -3271,7 +3271,7 @@
 <tr>
 <td>批注</td>
 <td>高亮 + <code>comment</code></td>
-<td>页边针 + 右侧批注面板</td>
+<td>页右缘外侧常驻评论列（飞书式：色点 + quote + 评论卡，相邻卡片纵向避让；点击卡片开编辑器，hover 出复制链接/嵌入/删除）；视口窄于 960px 时回退为页边针</td>
 </tr>
 <tr>
 <td>提问</td>
@@ -3307,7 +3307,7 @@
 <li>一次提交可包含多条视觉批注：prompt 按 <code>## Annotation N</code> 分点，图片顺序与 annotation 对齐。</li>
 <li>PDF 内视觉批注草稿 / pin 卡片打开时，原页面显示框选区域；浮层不重复显示页码和裁剪图，裁剪图在 Agent 侧边栏视觉上下文与批注侧边栏视觉批注列表中展示。</li>
 <li>视觉裁剪按用户框选的实际区域生成截图（不隐式外扩），最长边 1600 px；不以 base64 写入 mark JSON。活动 PDF 的 marks 轮询只读取 metadata，悬浮卡片、打开 Agent 与 Wiki 嵌入按需读取图片。图片缺失时仍保留位置、批注和多轮 transcript。</li>
-<li><strong>写进笔记</strong>：批注面板复制 / <code>[[@id]]</code> / <code>![[…@id]]</code>，见 <a href="../wiki/">wiki.md</a> 编辑器 <code>@</code> 说明。</li>
+<li><strong>写进笔记</strong>：评论卡 / 批注面板复制 / <code>[[@id]]</code> / <code>![[…@id]]</code>，见 <a href="../wiki/">wiki.md</a> 编辑器 <code>@</code> 说明。</li>
 </ul>
 <h2 id="cli-agent">CLI / Agent 写入的标注<a class="headerlink" href="#cli-agent" title="Permanent link">&para;</a></h2>
 <p><code>agentero mark add</code> 用 PDFium 文字引擎按 quote 定位后直接写盘（见 <a href="../../backend/cli/">backend/cli.md</a>）：
@@ -3368,11 +3368,11 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/layers/</code></td>
-<td>页内绘制层：<code>page-layers</code>（memo 单页栈）/ <code>citation-links</code> / <code>layout-translate-overlay</code> / <code>region-select-layer</code> / <code>selection-gutter</code></td>
+<td>页内绘制层：<code>page-layers</code>（memo 单页栈）/ <code>citation-links</code> / <code>layout-translate-overlay</code> / <code>region-select-layer</code> / <code>selection-gutter</code> / <code>comment-cards-layer</code>（批注评论列：页右缘常驻卡片 + <code>layoutCommentCards</code> 纵向避让）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/chrome/</code></td>
-<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-references-panel</code> / <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）</td>
+<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-references-panel</code> / <code>pdf-figures-panel</code> / <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/cards/</code></td>
@@ -3380,7 +3380,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/viewport/</code></td>
-<td>宿主接线：<code>dockview-viewport</code>（resize 门控 + 滚动指标按帧提交）/ <code>wheel-zoom-handler</code> / <code>active-card-scroll-sync</code></td>
+<td>宿主接线：<code>dockview-viewport</code>（resize 门控 + 滚动指标按帧提交 + <code>rightGutter</code> 为评论列预留页外空间）/ <code>wheel-zoom-handler</code> / <code>active-card-scroll-sync</code></td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-cards.ts</code></td>
@@ -3468,15 +3468,15 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/panels/figures-panel.tsx</code></td>
-<td>版面分析入口（右栏 header：分析 / 显示 bbox）</td>
+<td>版面分析入口（PDF 左侧浮层按钮触发；PDF 内浮层复用同一组件）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/panels/annotations-panel.tsx</code></td>
-<td>批注 / 提问 / visual mark 总览（右栏）</td>
+<td>提问 / visual mark 总览（右栏；文字批注已迁移到 PDF 页右缘评论列）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/panels/references-panel.tsx</code></td>
-<td>参考文献解析与入库（右栏）；<code>compact</code> 模式用于 PDF 内浮层，隐藏 header 与过滤</td>
+<td>参考文献解析与入库（PDF 左侧浮层面板）；<code>compact</code> 模式隐藏 header 与过滤</td>
 </tr>
 <tr>
 <td><code>src/lib/workspace/viewer/pdf-viewer-registry.ts</code></td>
@@ -3537,8 +3537,8 @@
 </tbody>
 </table>
 <p>组织约定：<code>pdf/</code> 放阅读器实现（外壳 + <code>hooks/</code> 按域状态 + <code>layers/</code> 页内绘制 + <code>chrome/</code> 工具栏浮层 + <code>cards/</code> 划词卡片 + <code>viewport/</code> 宿主接线），<code>panels/</code> 放右栏面板（只被 shell 引用）。folder 外部只从 <code>@/components/viewer</code> 导入；folder 内部一律用具体路径，且不得反向导入该 barrel。</p>
-<h2 id="figures">版面分析（Figures 侧栏）<a class="headerlink" href="#figures" title="Permanent link">&para;</a></h2>
-<p>右栏 <strong>Figures</strong>（原「解析」header：分析 / 叠加层）→ 页内检测 → 列表（image/chart、table、algorithm、<strong>有编号 formula 置底</strong>）。</p>
+<h2 id="figures">版面分析（Figures 浮层）<a class="headerlink" href="#figures" title="Permanent link">&para;</a></h2>
+<p>PDF 左侧 <strong>Figures</strong> 按钮 → 页内浮层（原「解析」：分析 / 叠加层）→ 列表（image/chart、table、algorithm、<strong>有编号 formula 置底</strong>）。</p>
 <p><strong>完整流水线、14 条核心规则、阈值与代码地图</strong>见：</p>
 <p>→ <strong><a href="../pdf-layout-analysis/">pdf-layout-analysis.md</a></strong></p>
 <p>要点：先文字角色再联图；图题须整框在 figure bbox 内；图无 title 丢弃；默认置信度 30%；Paper PDF 的初步解析结果缓存到 <code>{paper}/source/layout.json</code>，后续 merge/filter 可重复计算。全文翻译先归一化文字层原文（断词 / ligature / 页眉页脚残留），把跨栏跨页的续段合并成一个翻译单元，再按阅读顺序<strong>分批</strong>请求（<code>buildTranslateBatches</code>，批内 <code>[[n]]</code> 标记保上下文，解析失败回退逐段），缓存独立写入 <code>{paper}/source/layout-translate.json</code>，按 provider / 语言 / region 原文校验后复用。详见 <a href="../translate/">translate.md</a>。</p>
@@ -3586,7 +3586,7 @@
 </tbody>
 </table>
 <p>Host 下载/解析：<a href="../../backend/paper-import/">../backend/paper-import.md</a>。</p>
-<p>引用元数据解析与 References 侧栏：<a href="../../backend/citation-parsing/">../backend/citation-parsing.md</a>。</p>
+<p>引用元数据解析与 References 面板：<a href="../../backend/citation-parsing/">../backend/citation-parsing.md</a>。</p>
 
 
 
