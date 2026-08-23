@@ -2989,6 +2989,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#oss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        条件写降级（OSS 等后端）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#catalog" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3077,11 +3088,11 @@
 <tbody>
 <tr>
 <td><code>config.rs</code></td>
-<td>凭据存 XDG <code>agentero/sync.json</code>（按 Vault 路径分键，0600）；<code>secretKey</code> 出站掩码 / 回传掩码保留旧值（同 translate API key 先例）</td>
+<td>凭据存 XDG <code>agentero/sync.json</code>（按 Vault 路径分键，0600）；<code>secretKey</code> 出站掩码 / 回传掩码保留旧值（同 translate API key 先例）；<code>conditionalWrites</code> 持久化连接测试的条件写探测结果</td>
 </tr>
 <tr>
 <td><code>s3.rs</code></td>
-<td>最小 S3 客户端：GET / 条件 PUT（<code>If-Match</code> / <code>If-None-Match</code>）/ ListObjectsV2，reqwest + 手写 SigV4（HMAC-SHA256 自实现，RFC 4231 向量测试）</td>
+<td>最小 S3 客户端：GET / 条件 PUT（<code>If-Match</code> / <code>If-None-Match</code>）/ DELETE / ListObjectsV2，reqwest + 手写 SigV4（HMAC-SHA256 自实现，RFC 4231 向量测试）；条件写探测与降级（见下）</td>
 </tr>
 <tr>
 <td><code>snapshot.rs</code></td>
@@ -3113,7 +3124,14 @@
 </code></pre></div>
 
 <p>一次 <code>sync_now</code>：扫描 → GET HEAD/manifest → 与本地 base（上次同步清单）三方合并 → 应用远端改动（临时文件 + rename 原子落盘，blob 校验 sha256）→ 上传新 blob（<code>If-None-Match: *</code>，跨设备重复上传为廉价 no-op）→ 发布新 manifest → <code>If-Match</code> CAS 推进 HEAD。CAS 失败（他端并发推进）则以对方 manifest 为新 base 重跑，最多 5 次。</p>
-<p>合并规则：单侧改动直接采纳；双侧同改 <code>*.md</code> 保留 mtime 较新者、较旧者存为 <code>&lt;name&gt; (conflict &lt;时间&gt;).md</code>；其余文件（sidecar/marks/二进制）按 mtime LWW；删除 vs 修改保留修改。</p>
+<p>合并规则：单侧改动直接采纳；双侧同改 <code>*.md</code> 保留 mtime 较新者、较旧者存为 <code>&lt;name&gt; (conflict &lt;时间).md</code>；其余文件（sidecar/marks/二进制）按 mtime LWW；删除 vs 修改保留修改。</p>
+<h2 id="oss">条件写降级（OSS 等后端）<a class="headerlink" href="#oss" title="Permanent link">&para;</a></h2>
+<p>阿里云 OSS 的 PutObject 不支持任何条件请求头（<code>If-Match</code> / <code>If-None-Match</code> 等，带则返回 <code>400 NotImplemented</code>），S3 / R2 / MinIO 均支持。处理：</p>
+<ul>
+<li><strong>连接测试探测</strong>：<code>sync_configure</code> 在 ListObjects 之后用一次性 key（<code>.sync-probe-&lt;uuid&gt;</code>）带 <code>If-None-Match: *</code> 试写并删除；<code>400 NotImplemented</code> → <code>conditionalWrites=false</code> 持久化到 <code>sync.json</code>，探测无结论时按支持处理（fail open）。</li>
+<li><strong>运行时兜底</strong>：旧配置未探测过时，首个条件 PUT 收到 <code>400 NotImplemented</code> 即在客户端内标记并立即以无条件 PUT 重试，同一 pass 内后续写入全部降级。</li>
+<li><strong>降级语义</strong>：blobs / manifests 内容寻址或 key 唯一，无条件 PUT 幂等无害；HEAD 指针退化为 GET → PUT，牺牲严格 CAS，靠三方合并与重试收敛（单用户场景最终一致）。设置页对 <code>conditionalWrites=false</code> 显示一行小字提示。</li>
+</ul>
 <h2 id="catalog">身份与 Catalog 联动<a class="headerlink" href="#catalog" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>vault.json</code>（远端）与 <code>.agentero/vault.json</code>（本地）配对：从未同步过的 Vault 可加入既有 remote（采纳其 id）；有同步历史的 Vault 拒绝外来 remote。</li>
