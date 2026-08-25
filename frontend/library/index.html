@@ -3222,7 +3222,7 @@
 </tr>
 <tr>
 <td>行右键</td>
-<td>打开 / 编辑元数据（远程 Vault 隐藏编辑项）；单击复制、双击打开保持不变</td>
+<td>打开 / 编辑元数据（远程 Vault 隐藏编辑项）/ 添加到对话 / 在 Finder 中显示（仅本地）/ 删除→回收站；单击复制、双击打开保持不变</td>
 </tr>
 <tr>
 <td>Download</td>
@@ -3250,10 +3250,11 @@
 <li>CLI 标签见 <a href="../../backend/catalog/">../backend/catalog.md</a>。</li>
 </ul>
 <h2 id="_3">编辑元数据<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>误识别/缺失的论文元数据可手动修正，两个入口共享同一对话框（<code>edit-paper-meta-dialog.tsx</code>，挂在 <code>app-dialogs.tsx</code>，经 <code>libraryStore.editMetaDraft</code> 打开）：</p>
+<p>误识别/缺失的论文元数据可手动修正，三个入口共享同一对话框（<code>edit-paper-meta-dialog.tsx</code>，挂在 <code>app-dialogs.tsx</code>，经 <code>libraryStore.editMetaDraft</code> 打开）：</p>
 <ul>
 <li>Paper Info 面板头部铅笔按钮；</li>
-<li>Library 表格行右键"编辑元数据"。</li>
+<li>Library 表格行右键"编辑元数据"；</li>
+<li>文件树论文行右键"编辑元数据"。</li>
 </ul>
 <p>核心字段（标题/作者/年份/DOI/arXiv/期刊）直接展示，卷期页、出版社、摘要、URL 折叠在"更多字段"。作者每行一位；仅提交变更字段（patch）→ <code>paper_update_meta</code> → 返回行原地同步 Library 表与所有打开 tab（<code>paperMetaChange</code>）。远程 Vault 暂不支持，入口隐藏。后端语义见 <a href="../../backend/catalog/">../backend/catalog.md</a>。</p>
 <p>DOI 旁有 <strong>刷新</strong> 按钮：按当前 DOI（或 arXiv ID）拉取权威元数据（<code>paper_resolve_identifier</code> → Translator/Crossref/arXiv），只填充表单供确认，保存仍走 patch。</p>
