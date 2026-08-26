@@ -3397,6 +3397,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
   <code>connector:item-saved</code> 交给现有 open/reconcile 解析流程。</li>
 <li>错误：全局 Toast；重复不破坏用户 NOTES。</li>
 <li>新建壳会写论文全称 alias，并在元数据足够时写确定性短 alias；历史笔记由 <a href="../doctor/">Doctor</a> 诊断和确认迁移。<code>created</code> 不属于入库壳或 Doctor 的职责。</li>
+<li>壳内容由设置 <code>paper_note_mode</code> 决定（<code>standard</code> / <code>title-only</code> / <code>blank</code> / <code>custom</code>，默认 <code>standard</code>，见 <a href="../../frontend/settings/">settings.md</a>）；<code>custom</code> 模板位于 <code>{vault}/.agentero/templates/NOTES.md</code>，缺失或不可读时回退 standard 并 warn。任何模式的产物都会补齐 aliases frontmatter（模板 frontmatter 不可安全改写时留给 Doctor）。Connector 的后台摘要机翻仅对 standard 壳生效，避免改写 custom 模板渲染的原文摘要。</li>
 </ul>
 <h2 id="_3">可读正文<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>
