@@ -710,10 +710,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#_1" class="md-nav__link">
+  <a href="#1-agentero-mcp" class="md-nav__link">
     <span class="md-ellipsis">
       
-        打开服务器
+        1. 打开 Agentero MCP
       
     </span>
   </a>
@@ -721,10 +721,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#chatgptsecure-mcp-tunnel" class="md-nav__link">
+  <a href="#2-tunnel-client" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ChatGPT（Secure MCP Tunnel）
+        2. 安装 tunnel-client
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 官方设置页和三个值
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-agentero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 接到 Agentero
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-chatgpt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 接到 ChatGPT
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        能做什么
       
     </span>
   </a>
@@ -735,7 +779,7 @@
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        能做什么
+        常见问题
       
     </span>
   </a>
@@ -3114,10 +3158,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#_1" class="md-nav__link">
+  <a href="#1-agentero-mcp" class="md-nav__link">
     <span class="md-ellipsis">
       
-        打开服务器
+        1. 打开 Agentero MCP
       
     </span>
   </a>
@@ -3125,10 +3169,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#chatgptsecure-mcp-tunnel" class="md-nav__link">
+  <a href="#2-tunnel-client" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ChatGPT（Secure MCP Tunnel）
+        2. 安装 tunnel-client
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 官方设置页和三个值
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-agentero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 接到 Agentero
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-chatgpt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 接到 ChatGPT
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        能做什么
       
     </span>
   </a>
@@ -3139,7 +3227,7 @@
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        能做什么
+        常见问题
       
     </span>
   </a>
@@ -3168,31 +3256,217 @@
 
 <h1 id="mcp-agent">用 MCP 连接外部 Agent<a class="headerlink" href="#mcp-agent" title="Permanent link">&para;</a></h1>
 <p>设置里打开 <strong>MCP server</strong> 后，ChatGPT / Codex / MCP Inspector 可以调用当前 Vault 的论文库（列表、入库、写 NOTES），不必把 MCP 暴露到公网。</p>
-<p>应用必须开着。远端 Vault 不可用。</p>
-<h2 id="_1">打开服务器<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>应用必须开着。远端 Vault 不可用。应用内 Agent 面板走 ACP（<a href="../agents/">接入 Agent</a>）；本篇是给 <strong>外部</strong> MCP 客户端用的。</p>
+<p>把本机 MCP 接到 ChatGPT / Codex，用官方 <strong>tunnel-client</strong> 出站隧道，不要用 ngrok 或其他临时公网隧道。装好后先跑 <code>tunnel-client help quickstart</code>。协议与工具表：<a href="../../backend/mcp/">backend/mcp.md</a>。</p>
+<h2 id="1-agentero-mcp">1. 打开 Agentero MCP<a class="headerlink" href="#1-agentero-mcp" title="Permanent link">&para;</a></h2>
 <ol>
 <li>打开一个<strong>本地</strong> Vault。</li>
 <li><strong>Settings → General → MCP server</strong> 打开开关。</li>
 <li>默认地址 <code>http://127.0.0.1:8765/mcp</code>。绿点表示正在监听；点击地址可复制。</li>
 </ol>
-<h2 id="chatgptsecure-mcp-tunnel">ChatGPT（Secure MCP Tunnel）<a class="headerlink" href="#chatgptsecure-mcp-tunnel" title="Permanent link">&para;</a></h2>
-<p>本机再跑 <code>tunnel-client</code>，把 loopback MCP 接到 ChatGPT：</p>
-<div class="codehilite"><pre><span></span><code>tunnel-client<span class="w"> </span>init<span class="w"> </span>--profile<span class="w"> </span>agentero<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--tunnel-id<span class="w"> </span>tunnel_…<span class="w"> </span><span class="se">\</span>
+<p>本机 Inspector、能打 loopback 的客户端可以直接用这个 URL。ChatGPT 在云端，需要 tunnel-client。</p>
+<p>Agentero 是 <strong>无 OAuth 的 loopback HTTP MCP</strong>，对应 quickstart 的 sample 2（<code>sample_mcp_remote_no_auth</code>），不是 stdio、也不是 <code>--embedded-mcp-stub</code>。</p>
+<h2 id="2-tunnel-client">2. 安装 tunnel-client<a class="headerlink" href="#2-tunnel-client" title="Permanent link">&para;</a></h2>
+<p>仓库：<a href="https://github.com/openai/tunnel-client">openai/tunnel-client</a>。不要装 Homebrew 核心的 <code>brew install tunnel</code>。</p>
+<p>PATH 上已有二进制：</p>
+<div class="codehilite"><pre><span></span><code>tunnel-client<span class="w"> </span><span class="nb">help</span><span class="w"> </span>quickstart
+</code></pre></div>
+
+<p>macOS 推荐：</p>
+<div class="codehilite"><pre><span></span><code>brew<span class="w"> </span>install<span class="w"> </span>openai/tools/tunnel-client
+tunnel-client<span class="w"> </span>--version
+tunnel-client<span class="w"> </span><span class="nb">help</span><span class="w"> </span>quickstart
+</code></pre></div>
+
+<p>其它方式：</p>
+<table>
+<thead>
+<tr>
+<th>来源</th>
+<th>做法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://platform.openai.com/settings/organization/tunnels">Platform Tunnels</a></td>
+<td>页面下载，指向 latest</td>
+</tr>
+<tr>
+<td><a href="https://github.com/openai/tunnel-client/releases/latest">GitHub Releases</a></td>
+<td>选 <strong>full client</strong> zip（<code>darwin-arm64</code> / <code>darwin-amd64</code> / <code>linux-*</code> / <code>windows-*</code>），不要只含 <code>run</code> 的 <code>runtime</code> 包</td>
+</tr>
+<tr>
+<td>Docker</td>
+<td><code>docker pull ghcr.io/openai/tunnel-client:latest</code>（生产 pin tag）</td>
+</tr>
+<tr>
+<td>源码</td>
+<td><code>make admin-ui &amp;&amp; go build -o bin/tunnel-client ./cmd/client</code>，再 <code>./bin/tunnel-client help quickstart</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="3">3. 官方设置页和三个值<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>用途</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>建 / 看隧道</td>
+<td><a href="https://platform.openai.com/settings/organization/tunnels">Tunnels</a></td>
+</tr>
+<tr>
+<td>组织角色</td>
+<td><a href="https://platform.openai.com/settings/organization/people/roles">Roles</a></td>
+</tr>
+<tr>
+<td>组织组</td>
+<td><a href="https://platform.openai.com/settings/organization/people/groups">Groups</a></td>
+</tr>
+<tr>
+<td><strong>Runtime API keys</strong>（daemon 用）</td>
+<td><a href="https://platform.openai.com/settings/organization/api-keys">API keys</a></td>
+</tr>
+<tr>
+<td>Admin API keys（仅 CRUD 隧道）</td>
+<td><a href="https://platform.openai.com/settings/organization/admin-keys">Admin keys</a></td>
+</tr>
+<tr>
+<td>ChatGPT connector</td>
+<td><a href="https://chatgpt.com/#settings/Connectors">Connectors</a></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>从哪来</th>
+<th>给谁</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CONTROL_PLANE_TUNNEL_ID</code></td>
+<td>Tunnels 页创建/查看，或 <code>tunnel-client admin tunnels create\|list\|get</code>（要 <code>OPENAI_ADMIN_KEY</code>）</td>
+<td><code>init</code> / <code>run</code></td>
+</tr>
+<tr>
+<td><code>CONTROL_PLANE_API_KEY</code></td>
+<td><strong>Runtime API keys</strong> 页新建 Restricted key</td>
+<td><code>doctor</code> / <code>run</code></td>
+</tr>
+<tr>
+<td><code>OPENAI_ADMIN_KEY</code></td>
+<td>Admin API keys</td>
+<td>仅 <code>admin tunnels list\|create\|update\|delete</code>，<strong>不要</strong>给长期 daemon</td>
+</tr>
+</tbody>
+</table>
+<p><code>tunnel_id</code> 形如 <code>tunnel_</code> + 32 位小写十六进制。</p>
+<p>Runtime key：在 <a href="https://platform.openai.com/settings/organization/api-keys">API keys</a> 建 <strong>Restricted</strong>，勾 Tunnels <strong>Read + Use</strong>。不要用 All，不要把 Admin key 交给 <code>tunnel-client run</code>。</p>
+<p>权限是 organization 级，和 ChatGPT Developer mode（workspace）无关：</p>
+<ul>
+<li>Runtime 用户、以及创建 <code>CONTROL_PLANE_API_KEY</code> 的主体：Tunnels <strong>Read + Use</strong></li>
+<li>创建/编辑/删除隧道：Tunnels <strong>Read + Manage</strong></li>
+<li>创建 Admin key：另需 Platform admin-key 权限</li>
+</ul>
+<p>隧道要关联<strong>目标 ChatGPT workspace</strong>，否则 Connectors 列表里看不到。</p>
+<p>只读隧道元数据（Runtime 或 Admin key 均可）：</p>
+<div class="codehilite"><pre><span></span><code>tunnel-client<span class="w"> </span>admin<span class="w"> </span>tunnels<span class="w"> </span>get<span class="w"> </span>tunnel_...
+tunnel-client<span class="w"> </span>admin<span class="w"> </span>--json<span class="w"> </span>tunnels<span class="w"> </span>get<span class="w"> </span>tunnel_...<span class="w">   </span><span class="c1"># 看 organization_ids / workspace_ids</span>
+</code></pre></div>
+
+<h2 id="4-agentero">4. 接到 Agentero<a class="headerlink" href="#4-agentero" title="Permanent link">&para;</a></h2>
+<p>Agentero MCP 开关保持打开：</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTROL_PLANE_API_KEY</span><span class="o">=</span><span class="s2">"sk-..."</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">CONTROL_PLANE_TUNNEL_ID</span><span class="o">=</span><span class="s2">"tunnel_0123456789abcdef0123456789abcdef"</span>
+
+tunnel-client<span class="w"> </span>init<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--sample<span class="w"> </span>sample_mcp_remote_no_auth<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--profile<span class="w"> </span>agentero<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--tunnel-id<span class="w"> </span><span class="s2">"</span><span class="nv">$CONTROL_PLANE_TUNNEL_ID</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--mcp-server-url<span class="w"> </span>http://127.0.0.1:8765/mcp
+
+tunnel-client<span class="w"> </span>doctor<span class="w"> </span>--profile<span class="w"> </span>agentero<span class="w"> </span>--explain
 tunnel-client<span class="w"> </span>run<span class="w"> </span>--profile<span class="w"> </span>agentero
 </code></pre></div>
 
-<p>然后在 ChatGPT 开发者模式 App 的 Connection 选 <strong>Tunnel</strong>。详见 <a href="https://developers.openai.com/api/docs/guides/secure-mcp-tunnels">Secure MCP Tunnel</a>。</p>
-<h2 id="_2">能做什么<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>外部 Agent 应先读资源 <code>agentero://vault</code>，再用：</p>
+<p>监督方式：</p>
+<ul>
+<li>当前终端前台：<code>tunnel-client run ...</code>（推荐本机手测）</li>
+<li>Codex 管的长期 runtime：<code>tunnel-client runtimes connect ...</code>，成功前先 <code>tunnel-client runtimes status &lt;alias&gt;</code>（<code>--json</code> 看 <code>process_running</code> / <code>healthy</code> / <code>ready</code>）</li>
+<li><strong>不要</strong>用 <code>nohup</code> / <code>disown</code></li>
+</ul>
+<p><code>run</code> 要一直开着。关掉 Agentero、关掉 MCP 开关、或停掉 tunnel-client，ChatGPT 的发现和每次 MCP 调用都会失败。</p>
+<p>本机确认：</p>
+<ul>
+<li>tunnel-client 默认 <code>http://127.0.0.1:8080/readyz</code> 和 <code>/ui</code>（若用 <code>--health.listen-addr 127.0.0.1:0</code>，以 <code>--health.url-file</code> 里的 URL 为准）</li>
+<li>Agentero 设置页 MCP 仍是绿点</li>
+</ul>
+<p>可选：先不接 Agentero，用内嵌 stub 验证隧道本身：</p>
+<div class="codehilite"><pre><span></span><code>tunnel-client<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--embedded-mcp-stub<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--control-plane.tunnel-id<span class="w"> </span><span class="s2">"</span><span class="nv">$CONTROL_PLANE_TUNNEL_ID</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--health.listen-addr<span class="w"> </span><span class="m">127</span>.0.0.1:0<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--health.url-file<span class="w"> </span>/tmp/tunnel-client-health.url
+curl<span class="w"> </span>-fsS<span class="w"> </span><span class="s2">"</span><span class="k">$(</span>cat<span class="w"> </span>/tmp/tunnel-client-health.url<span class="k">)</span><span class="s2">/readyz"</span>
+open<span class="w"> </span><span class="s2">"</span><span class="k">$(</span>cat<span class="w"> </span>/tmp/tunnel-client-health.url<span class="k">)</span><span class="s2">/ui"</span>
+</code></pre></div>
+
+<p>其它官方 sample（stdio、企业代理、OAuth/DCR）见 <code>tunnel-client help samples</code>，Agentero 用不到。</p>
+<h2 id="5-chatgpt">5. 接到 ChatGPT<a class="headerlink" href="#5-chatgpt" title="Permanent link">&para;</a></h2>
+<p><strong>只在 tunnel-client 正在跑的时候</strong> 去 ChatGPT 里建或核对 connector。</p>
+<ol>
+<li>ChatGPT <strong>Settings → Security and login</strong> 打开 Developer mode。</li>
+<li><a href="https://chatgpt.com/#settings/Connectors">Connectors</a>（或 <a href="https://chatgpt.com/plugins">Plugins</a>）点 <code>+</code>。</li>
+<li><strong>Connection</strong> 选 <strong>Tunnel</strong>，选列表里的隧道或粘贴 <code>tunnel_id</code>。</li>
+<li>发现 tools 后，先读资源 <code>agentero://vault</code>，再 <code>paper_list</code>。</li>
+</ol>
+<p>官方：<a href="https://developers.openai.com/api/docs/guides/secure-mcp-tunnels">Secure MCP Tunnel</a>。</p>
+<p>列表没有隧道：关联了目标 workspace、有 Tunnels <strong>Use</strong>、<code>/readyz</code> 为 200。</p>
+<h2 id="_1">能做什么<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>paper_list</code> / <code>paper_get</code> — 论文 metadata</li>
-<li><code>import_id</code> — 用 arXiv / DOI / URL 入库</li>
+<li><code>import_id</code> — arXiv / DOI / URL 入库</li>
 <li><code>paper_notes_get</code> / <code>paper_notes_write</code> — 读写该篇 <code>NOTES.md</code></li>
 <li><code>paper_tag_add</code> / <code>paper_tag_rm</code> — 标签</li>
 </ul>
-<p>协议细节：<a href="../../backend/mcp/">backend/mcp.md</a>。</p>
+<h2 id="_2">常见问题<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agentero 没有绿点</td>
+<td>先打开本地 Vault，再开 MCP 开关；端口占用则换 <code>mcpPort</code></td>
+</tr>
+<tr>
+<td><code>doctor</code> 缺 Key</td>
+<td><a href="https://platform.openai.com/settings/organization/api-keys">Runtime API keys</a> 建 Restricted key，export <code>CONTROL_PLANE_API_KEY</code>；不要用 Admin key 跑 daemon</td>
+</tr>
+<tr>
+<td>ChatGPT 看不到隧道</td>
+<td>workspace 关联 + <strong>Use</strong>；connector 必须在 <code>run</code> 健康时创建</td>
+</tr>
+<tr>
+<td>工具调用失败</td>
+<td>Agentero 和 <code>tunnel-client run</code> 都要在；先 <code>/readyz</code> 和绿点</td>
+</tr>
+<tr>
+<td>Homebrew 装错包</td>
+<td><code>openai/tools/tunnel-client</code>，不是 <code>tunnel</code></td>
+</tr>
+</tbody>
+</table>
+<p>官方帮助：<code>tunnel-client help oauth</code>、<code>help plugin</code>、<code>help troubleshooting</code>。</p>
 
 
 

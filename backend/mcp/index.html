@@ -3260,15 +3260,10 @@
 </table>
 <p>监听 URL：<code>http://127.0.0.1:{port}/mcp</code>。设置页端口旁绿点表示正在听；点击 URL 复制。</p>
 <p>Host commands：<code>mcp_get_status</code> / <code>mcp_set_enabled</code> / <code>mcp_set_port</code> / <code>mcp_set_vault</code> / <code>mcp_set_parent_dir</code>。状态事件 <code>mcp:status</code>。</p>
+<p><code>initialize.serverInfo</code> 带 <code>title</code>、<code>websiteUrl</code> 和 <code>icons</code>（应用 PNG 的 data URI）。客户端可以忽略不画。</p>
 <p>无鉴权。不要把端口绑到非 loopback。</p>
 <h2 id="chatgpt-secure-mcp-tunnel">ChatGPT Secure MCP Tunnel<a class="headerlink" href="#chatgpt-secure-mcp-tunnel" title="Permanent link">&para;</a></h2>
-<p>App 开着且开关打开后：</p>
-<div class="codehilite"><pre><span></span><code>tunnel-client<span class="w"> </span>init<span class="w"> </span>--profile<span class="w"> </span>agentero<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--tunnel-id<span class="w"> </span>tunnel_…<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--mcp-server-url<span class="w"> </span>http://127.0.0.1:8765/mcp
-tunnel-client<span class="w"> </span>run<span class="w"> </span>--profile<span class="w"> </span>agentero
-</code></pre></div>
-
+<p>App 开着且开关打开后，用 OpenAI <code>tunnel-client</code> 把 <code>http://127.0.0.1:{port}/mcp</code> 接到 ChatGPT。安装、建隧道、Key、ChatGPT Connection 的逐步教程见 <a href="../../usage/mcp/">用 MCP 连接外部 Agent</a>。</p>
 <p>Codex / Inspector 也可直接打该 URL。stdio 子进程不是这条通路。</p>
 <h2 id="resource">Resource<a class="headerlink" href="#resource" title="Permanent link">&para;</a></h2>
 <p>Vault 概况不是 tool，是文档：</p>
@@ -3301,34 +3296,20 @@ tunnel-client<span class="w"> </span>run<span class="w"> </span>--profile<span c
 <tbody>
 <tr>
 <td><code>paper_list</code></td>
-<td>列表 metadata：<code>id/path/title/authors/year/tags/doi/arxivId/publication/status/isRead</code>。<code>query?</code>、<code>tag[]?</code>、<code>unread?</code>、<code>limit?</code>（默认 50，封顶 200）。abstract 只在 <code>paper_get</code>。</td>
+<td>列表 metadata：<code>{ items: [{ id, path, title, authors, year, tags, doi, arxivId, publication, status, isRead }] }</code>。<code>query?</code>、<code>tag[]?</code>、<code>unread?</code>、<code>limit?</code>（默认 50，封顶 200）。abstract 只在 <code>paper_get</code>。</td>
 </tr>
 <tr>
 <td><code>paper_get</code></td>
-<td>单篇完整 catalog 行</td>
-</tr>
-<tr>
-<td><code>import_id</code></td>
-<td>魔棒入库（arxiv / DOI / URL）。<code>parent?</code> 默认当前 Library 作用域或 <code>papers</code></td>
-</tr>
-<tr>
-<td><code>paper_notes_get</code></td>
-<td>读 <code>{paper}/NOTES.md</code>（文件不存在则空字符串）</td>
-</tr>
-<tr>
-<td><code>paper_notes_write</code></td>
-<td>写 <code>NOTES.md</code>。<code>mode</code>: <code>replace</code>（默认）或 <code>append</code></td>
-</tr>
-<tr>
-<td><code>paper_tag_add</code></td>
-<td>加标签；可用 <code>topic:blue</code> 色后缀</td>
-</tr>
-<tr>
-<td><code>paper_tag_rm</code></td>
-<td>删标签</td>
+<td>单篇 metadata（含 abstract）</td>
 </tr>
 </tbody>
 </table>
+<p>每个 tool 都声明 <code>outputSchema</code>，成功时走 MCP <code>structuredContent</code>（ChatGPT 需要这份才能理解结果）。
+| <code>import_id</code> | 魔棒入库（arxiv / DOI / URL）。<code>parent?</code> 默认当前 Library 作用域或 <code>papers</code> |
+| <code>paper_notes_get</code> | 读 <code>{paper}/NOTES.md</code>（文件不存在则空字符串） |
+| <code>paper_notes_write</code> | 写 <code>NOTES.md</code>。<code>mode</code>: <code>replace</code>（默认）或 <code>append</code> |
+| <code>paper_tag_add</code> | 加标签；可用 <code>topic:blue</code> 色后缀 |
+| <code>paper_tag_rm</code> | 删标签 |</p>
 <p><code>paper_notes_write</code>：</p>
 <ul>
 <li>只写 <code>NOTES.md</code>，不动 <code>PAPER.md</code> / <code>source/</code> / <code>marks/</code></li>
