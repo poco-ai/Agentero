@@ -3141,7 +3141,7 @@
 <li>主键：论文 <code>path</code>（Vault 相对路径）</li>
 <li>字段以 <code>features/catalog/schema.rs</code> 为准</li>
 <li>时间戳统一走 <code>core/time.rs::now_rfc3339_millis()</code>（RFC 3339 毫秒 + <code>Z</code>，固定宽度）。<code>updated_at</code> 参与 SQL 字符串 <code>ORDER BY</code>，Secs/<code>+00:00</code> 变体与毫秒格式混排会排错序（<code>'+' &lt; '.' &lt; 'Z'</code>）；schema v7 迁移已把存量 <code>papers.updated_at</code> / <code>added_at</code>、<code>arxiv_rec_state.computed_at</code> 重写为规范格式（不可解析值原样保留，幂等）</li>
-<li><code>tags_json</code>：字符串或 <code>{name,color}</code>（Apple 8 色）</li>
+<li><code>tags_json</code>：字符串或 <code>{name,color}</code>（Apple 8 色）。<code>@zotero:</code> / <code>@arxiv:</code> 前缀为内部隐标签（Connector 来源 / arXiv 学科分类），UI 与 CLI 默认不展示</li>
 <li><code>paper_list</code> 对前端 Library 返回按 <code>id</code> 去重的视图：同一逻辑论文若因历史原因出现在多个路径，只保留一条（优先存在磁盘的路径，其次 <code>updated_at</code> 最新、路径最短/字典序最小）</li>
 <li><code>paper_rescan</code>：盘上有、库内无则补齐</li>
 <li>删除：回收站快照；恢复 upsert</li>

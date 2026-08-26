@@ -3385,6 +3385,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 <ul>
 <li>设置：<code>translatorBaseUrl</code>。</li>
 <li>arXiv 的 <code>abs</code> / <code>pdf</code> / <code>html</code> / <code>src</code> / <code>e-print</code> URL 与裸 ID 都会先提取 ID；不会将 PDF 二进制 URL 交给 Translator 的网页解析器。</li>
+<li>Translator 带回的 arXiv 学科分类（<code>Computer Science - Machine Learning</code> 这类 <code>"Archive - Sub-Field"</code> 标签）写入 catalog 时加 <code>@arxiv:</code> 前缀，作为隐标签保留来源、不出现在 Library / Paper Info / 标签筛选。用户自己加的普通标签不受影响。</li>
 <li>补资源：<code>paper_download_assets</code>（单篇 / Library 批量）。</li>
 <li>失败回滚：文件夹创建后，若 PDF 复制 / NOTES 壳 / catalog 写入任一失败，删除刚建的论文文件夹，避免出现树里有、catalog 无的"半篇论文"；资源下载阶段的错误不回滚（壳与 catalog 已落地）。</li>
 <li>孤儿文件夹自愈：<code>paper_download_assets</code> 发现盘上论文文件夹缺 catalog 行（历史失败导入的残留）时，按 <code>metadata.json</code> sidecar 重建 catalog 行（无 sidecar 退化为文件夹名最小记录）并发 <code>paper:imported</code>，Library / 树随之刷新。</li>

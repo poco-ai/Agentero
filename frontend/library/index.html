@@ -3210,7 +3210,7 @@
 </tr>
 <tr>
 <td>tags</td>
-<td>染色 chip；搜索框匹配用户标签子串；<code>@zotero:</code> Connector 内部标签不显示</td>
+<td>染色 chip；搜索框匹配用户标签子串；<code>@zotero:</code> / <code>@arxiv:</code> 内部标签不显示</td>
 </tr>
 <tr>
 <td>阅读热力</td>
@@ -3246,6 +3246,7 @@
 <ul>
 <li>Paper Info 增删 + Apple 8 色色盘 → <code>paper_set_tags</code>。</li>
 <li><code>@zotero:</code> 前缀标签属于 Connector 来源标记，只保留在 catalog 中，不参与展示、搜索和筛选；编辑普通标签时会保留这些内部标签。</li>
+<li>arXiv 入库带来的学科分类（如 <code>Computer Science - Machine Learning</code>）以 <code>@arxiv:</code> 前缀保存为隐标签，同样不参与展示、搜索和筛选；已入库、尚未加前缀的同形标签也按隐标签处理。</li>
 <li>标签类型与语义（normalize / coerce / 可见性）：<code>src/lib/paper/tags.ts</code>（类型在 <code>src/lib/paper/types.ts</code>）；色板映射：<code>src/lib/ui/tag-colors.ts</code>。</li>
 <li>CLI 标签见 <a href="../../backend/catalog/">../backend/catalog.md</a>。</li>
 </ul>

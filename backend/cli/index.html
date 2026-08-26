@@ -3457,7 +3457,7 @@ agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w">
 </code></pre></div>
 
 <p>只有合法颜色后缀会被解析为颜色；例如 <code>owner:alice</code> 仍是普通 Tag 名称。</p>
-<p><code>@zotero:</code> 是 Connector 内部标签，默认不参与论文列表筛选和 Tag 汇总；需要包含它们时传 <code>--all</code>：</p>
+<p><code>@zotero:</code>（Connector）和 <code>@arxiv:</code>（arXiv 学科分类，如 <code>Computer Science - Machine Learning</code>）是内部标签，默认不参与论文列表筛选和 Tag 汇总；需要包含它们时传 <code>--all</code>：</p>
 <div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>list<span class="w"> </span>--tag<span class="w"> </span>topic
 agentero<span class="w"> </span>paper<span class="w"> </span>list<span class="w"> </span>--tag<span class="w"> </span><span class="s2">"@zotero:imported"</span><span class="w"> </span>--all
 agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w"> </span>list<span class="w"> </span>--all
