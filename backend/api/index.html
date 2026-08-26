@@ -8185,7 +8185,7 @@ Host (Tauri + Rust)
 <li><code>model</code> 供正文解析引擎使用：openaiCompatible 预设 <code>PaddlePaddle/PaddleOCR-VL-1.5</code> / <code>deepseek-ai/DeepSeek-OCR</code>（空 → 前者）；paddle 正文预设 <code>PaddleOCR-VL-1.6</code> / <code>PaddleOCR-VL-1.5</code>（空 → 前者；版面分析固定用 <code>PP-StructureV3</code>，不读该字段）。</li>
 <li><code>prompt</code> 仅 openaiCompatible 使用：OCR 提示词覆盖，空 → 按 model id 自动选择。注意 <code>PaddleOCR-VL</code> 只接受固定任务提示词，自定义提示词请配指令型 VLM（详见 <a href="../paper-import/">paper-import.md</a> § 正文解析引擎）。</li>
 <li><code>parserBackend</code> 与版面 <code>backend</code> 独立选择，但共用 <code>providerConfigs</code> 凭据池；正文引擎详见 <a href="../paper-import/">paper-import.md</a> § 正文解析引擎。</li>
-<li>设置 UI：Settings →「版面解析 / Layout」（版面后端由前端 <code>LAYOUT_PROVIDERS</code>、正文引擎由 <code>PARSER_PROVIDERS</code> 注册表驱动；两者指向同一 provider 时 <code>mergeProviderCards</code> 合并为一张卡片，按 <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>supportsModel</code> / <code>supportsPrompt</code> 显隐 API Key / Base URL / Model / Prompt 输入 + 连通性测试）。</li>
+<li>设置 UI：Settings →「版面解析 / Layout」（版面后端由前端 <code>LAYOUT_PROVIDERS</code>、正文引擎由 <code>PARSER_PROVIDERS</code> 注册表驱动；所有远程 provider 平铺为配置卡，<code>mergeProviderCards</code> 按 provider 合并、按 <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>supportsModel</code> / <code>supportsPrompt</code> 显隐 API Key / Base URL / Model / Prompt 输入 + 连通性测试；Model / Base URL 空值时预填引擎默认值。两个 backend 下拉只提供本地 + 已配置（apiKey 非空）的 provider）。</li>
 </ul>
 <h4 id="layout_remote_analyze_pdf"><code>layout_remote_analyze_pdf</code>（已实现）<a class="headerlink" href="#layout_remote_analyze_pdf" title="Permanent link">&para;</a></h4>
 <p>整份 PDF 的 <strong>异步</strong> 远程解析（无同步逐页接口），按 <code>provider</code> 分发到对应 engine：</p>
