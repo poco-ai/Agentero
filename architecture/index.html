@@ -946,6 +946,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../usage/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    用 MCP 连接外部 Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../usage/mobile/" class="md-nav__link">
         
   
@@ -1852,6 +1880,34 @@
     
   
     Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
   
 
     
@@ -3609,6 +3665,7 @@
 <li><strong>补下载</strong>：paper 行缺 PDF 或既无 TeX 也无 <code>PAPER.md</code> 时显示 Download（hover 说明原因）；Library 行可批量补下。</li>
 <li><strong>Rescan</strong>：<code>paper_rescan</code> 从 <code>papers/</code> 目录（以 <code>NOTES.md</code> 为标记）补齐盘上有、catalog 无的条目。</li>
 <li><strong>Zotero Connector</strong>：Host 在 <code>127.0.0.1:23119</code> 收浏览器扩展 <code>saveItems</code> + <code>saveAttachment</code>。详见 <a href="../backend/connector/">backend/connector.md</a>。</li>
+<li><strong>MCP Server</strong>：设置开关打开后 Host 在 <code>127.0.0.1:8765/mcp</code> 提供 Streamable HTTP MCP（论文 metadata / 入库 / NOTES）。详见 <a href="../backend/mcp/">backend/mcp.md</a>。</li>
 </ul>
 <h3 id="_6">论文库<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
 <p><code>paper_list</code> 读 catalog 一次进内存。表头排序/右键选列/拖拽排序（持久化到 <code>settings.json</code> 的 <code>libraryColumns</code>，标题列不可隐藏）。tags 列展示，搜索框可匹配标签子串；标题列左侧显示阅读进度热力条。文件夹作用域仅对 <code>papers/</code> 下目录按 <code>paper.path</code> 前缀过滤（不扫盘）；<code>notes/</code> / <code>.agents/</code> 等非 papers 目录显示全库。可从访达把 PDF 拖到 Library 表入库（仅 PDF overlay）。详见 <a href="../frontend/library/">frontend/library.md</a> / <a href="../backend/catalog/">backend/catalog.md</a>。</p>

@@ -645,6 +645,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../usage/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    用 MCP 连接外部 Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../usage/mobile/" class="md-nav__link">
         
   
@@ -1702,6 +1730,34 @@
     
   
     Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
   
 
     
@@ -3265,7 +3321,7 @@
   core/          # error、fs、paths、log_util
   features/      # 与前端 lib 域对齐
     vault/ catalog/ import/ wiki/ doctor/ agent/
-    connector/ remote/ search/ settings/
+    connector/ mcp/ remote/ search/ settings/
     translate/ trash/ watcher/ terminal/ window/
     bridge/ layout_model/ refs/ arxiv_proxy/
     jobs/       # JobCenter 纯调度器：lanes/去重/并发上限；runner 由业务域启动时注册
@@ -3337,6 +3393,10 @@
 <tr>
 <td><code>rusqlite</code>（bundled）</td>
 <td>catalog.sqlite</td>
+</tr>
+<tr>
+<td><code>rmcp</code></td>
+<td>设置开关启停的 loopback Streamable HTTP MCP</td>
 </tr>
 <tr>
 <td><code>notify</code></td>

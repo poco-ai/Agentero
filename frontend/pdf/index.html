@@ -645,6 +645,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../usage/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    用 MCP 连接外部 Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../usage/mobile/" class="md-nav__link">
         
   
@@ -1669,6 +1697,34 @@
     
   
     Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
   
 
     
@@ -3369,7 +3425,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/layers/</code></td>
-<td>页内绘制层：<code>page-layers</code>（memo 单页栈）/ <code>citation-links</code> / <code>layout-translate-overlay</code> / <code>region-select-layer</code> / <code>selection-gutter</code> / <code>comment-cards-layer</code>（批注评论列：页右缘常驻卡片 + <code>layoutCommentCards</code> 纵向避让；点击就地编辑）</td>
+<td>页内绘制层：<code>page-layers</code>（memo 单页栈）/ <code>citation-links</code> / <code>layout-translate-overlay</code> / <code>region-select-layer</code> / <code>selection-gutter</code> / <code>comment-cards-layer</code>（批注评论列：页右缘常驻卡片 + <code>layoutCommentCards</code> 纵向避让；点击就地编辑；hover 卡片时页内高亮区域叠半透明强调层）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/chrome/</code></td>
@@ -3377,7 +3433,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/cards/</code></td>
-<td>划词与 mark 卡片：<code>selection-menu</code> / <code>selection-card</code>（共用壳）/ <code>ask-popover</code> / <code>translate-card</code> / <code>visual-trace-card</code> / <code>visual-annotation-editor</code> / <code>annotation-editor</code> / <code>formula-annotation-card</code> / <code>citation-preview</code></td>
+<td>划词与 mark 卡片：<code>selection-menu</code> / <code>selection-card</code>（共用壳）/ <code>ask-popover</code> / <code>translate-card</code> / <code>visual-trace-card</code> / <code>visual-annotation-editor</code> / <code>formula-annotation-card</code> / <code>citation-preview</code></td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/viewport/</code></td>
@@ -3453,7 +3509,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-note-editor.ts</code></td>
-<td>文字 / 视觉批注编辑：宽宿主走评论列就地编辑，窄宿主走浮动 <code>AnnotationEditor</code></td>
+<td>文字 / 视觉批注编辑：统一走页右缘评论列就地编辑，不再使用浮动 <code>AnnotationEditor</code></td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-find.ts</code></td>

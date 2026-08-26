@@ -11,6 +11,10 @@
       
       
       
+        <link rel="prev" href="../agents/">
+      
+      
+        <link rel="next" href="../mobile/">
       
       
         
@@ -21,7 +25,7 @@
     
     
       
-        <title>云同步（S3） - Agentero 文档</title>
+        <title>用 MCP 连接外部 Agent - Agentero 文档</title>
       
     
     
@@ -70,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#s3" class="md-skip">
+        <a href="#mcp-agent" class="md-skip">
           跳转至
         </a>
       
@@ -105,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              云同步（S3）
+              用 MCP 连接外部 Agent
             
           </span>
         </div>
@@ -222,11 +226,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../usage/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
           
   
   
@@ -266,7 +272,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../" class="md-tabs__link">
+        <a href="../../backend/" class="md-tabs__link">
           
   
   
@@ -446,24 +452,29 @@
       
   
   
+    
   
   
+  
     
     
     
     
-      
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
@@ -481,7 +492,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -499,7 +510,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -527,7 +538,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/getting-started/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
@@ -555,7 +566,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/import-papers/" class="md-nav__link">
+      <a href="../import-papers/" class="md-nav__link">
         
   
   
@@ -583,7 +594,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/read-and-organize/" class="md-nav__link">
+      <a href="../read-and-organize/" class="md-nav__link">
         
   
   
@@ -611,7 +622,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/agents/" class="md-nav__link">
+      <a href="../agents/" class="md-nav__link">
         
   
   
@@ -636,10 +647,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../usage/mcp/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    用 MCP 连接外部 Agent
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -655,6 +693,59 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        打开服务器
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chatgptsecure-mcp-tunnel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ChatGPT（Secure MCP Tunnel）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        能做什么
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -667,7 +758,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/mobile/" class="md-nav__link">
+      <a href="../mobile/" class="md-nav__link">
         
   
   
@@ -695,7 +786,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/zotero/" class="md-nav__link">
+      <a href="../zotero/" class="md-nav__link">
         
   
   
@@ -723,7 +814,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/remote-vault/" class="md-nav__link">
+      <a href="../remote-vault/" class="md-nav__link">
         
   
   
@@ -1341,7 +1432,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+      <a href="../../backend/" class="md-nav__link">
         
   
   
@@ -1369,7 +1460,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../data-model/" class="md-nav__link">
+      <a href="../../backend/data-model/" class="md-nav__link">
         
   
   
@@ -1397,7 +1488,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../catalog/" class="md-nav__link">
+      <a href="../../backend/catalog/" class="md-nav__link">
         
   
   
@@ -1425,7 +1516,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../vault/" class="md-nav__link">
+      <a href="../../backend/vault/" class="md-nav__link">
         
   
   
@@ -1453,7 +1544,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../paper-import/" class="md-nav__link">
+      <a href="../../backend/paper-import/" class="md-nav__link">
         
   
   
@@ -1481,7 +1572,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../identifier-lookup/" class="md-nav__link">
+      <a href="../../backend/identifier-lookup/" class="md-nav__link">
         
   
   
@@ -1509,7 +1600,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../citation-parsing/" class="md-nav__link">
+      <a href="../../backend/citation-parsing/" class="md-nav__link">
         
   
   
@@ -1537,7 +1628,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../skill-import/" class="md-nav__link">
+      <a href="../../backend/skill-import/" class="md-nav__link">
         
   
   
@@ -1565,7 +1656,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connector/" class="md-nav__link">
+      <a href="../../backend/connector/" class="md-nav__link">
         
   
   
@@ -1593,7 +1684,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../mcp/" class="md-nav__link">
+      <a href="../../backend/mcp/" class="md-nav__link">
         
   
   
@@ -1621,7 +1712,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../wiki/" class="md-nav__link">
+      <a href="../../backend/wiki/" class="md-nav__link">
         
   
   
@@ -1649,7 +1740,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../agent/" class="md-nav__link">
+      <a href="../../backend/agent/" class="md-nav__link">
         
   
   
@@ -1677,7 +1768,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../remote/" class="md-nav__link">
+      <a href="../../backend/remote/" class="md-nav__link">
         
   
   
@@ -1705,7 +1796,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../search/" class="md-nav__link">
+      <a href="../../backend/search/" class="md-nav__link">
         
   
   
@@ -1733,7 +1824,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../settings/" class="md-nav__link">
+      <a href="../../backend/settings/" class="md-nav__link">
         
   
   
@@ -1761,7 +1852,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/" class="md-nav__link">
+      <a href="../../backend/usage/" class="md-nav__link">
         
   
   
@@ -1789,7 +1880,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../translate/" class="md-nav__link">
+      <a href="../../backend/translate/" class="md-nav__link">
         
   
   
@@ -1817,7 +1908,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../logging/" class="md-nav__link">
+      <a href="../../backend/logging/" class="md-nav__link">
         
   
   
@@ -1845,7 +1936,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../doctor/" class="md-nav__link">
+      <a href="../../backend/doctor/" class="md-nav__link">
         
   
   
@@ -1873,7 +1964,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../telemetry/" class="md-nav__link">
+      <a href="../../backend/telemetry/" class="md-nav__link">
         
   
   
@@ -1901,7 +1992,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli/" class="md-nav__link">
+      <a href="../../backend/cli/" class="md-nav__link">
         
   
   
@@ -1929,7 +2020,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/" class="md-nav__link">
+      <a href="../../backend/api/" class="md-nav__link">
         
   
   
@@ -3026,7 +3117,7 @@
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        模块
+        打开服务器
       
     </span>
   </a>
@@ -3034,43 +3125,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#remote" class="md-nav__link">
+  <a href="#chatgptsecure-mcp-tunnel" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Remote 布局与一次同步
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sync-scope" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        同步范围（Sync Scope）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#oss" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        条件写降级（OSS 等后端）
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#catalog" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        身份与 Catalog 联动
+        ChatGPT（Secure MCP Tunnel）
       
     </span>
   </a>
@@ -3081,40 +3139,7 @@
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        前端
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        自动同步
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        安全约束
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        边界（后续分期）
+        能做什么
       
     </span>
   </a>
@@ -3141,98 +3166,33 @@
   
 
 
-<h1 id="s3">云同步（S3）<a class="headerlink" href="#s3" title="Permanent link">&para;</a></h1>
-<p>多设备间同步整个 Vault 到 S3 兼容对象存储（AWS S3 / R2 / MinIO / OSS / BOS 等）。设计草稿与分期：<a href="../../development/cloud-sync-s3/">../development/cloud-sync-s3.md</a>。当前已落地 Phase 0–1 与 Phase 2 的自动同步（状态栏指示、GC、multipart 除外）。</p>
-<p>设置页顶部提供常见 S3 兼容服务商的官方配置入口。当前同步引擎只接收 S3 API 的 endpoint / bucket / access key / secret key；Azure Blob、百度网盘、坚果云等非 S3 凭据模型不能直接作为后端接入。</p>
-<h2 id="_1">模块<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
-<p><code>src-tauri/src/features/sync/</code>（desktop-only）：</p>
-<table>
-<thead>
-<tr>
-<th>文件</th>
-<th>职责</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>config.rs</code></td>
-<td>凭据存 XDG <code>agentero/sync.json</code>（按 Vault 路径分键，0600）；<code>secretKey</code> 出站掩码 / 回传掩码保留旧值（同 translate API key 先例）；<code>conditionalWrites</code> 持久化连接测试的条件写探测结果；<code>scope</code> 同步范围（见下）</td>
-</tr>
-<tr>
-<td><code>s3.rs</code></td>
-<td>最小 S3 客户端：GET / 条件 PUT（<code>If-Match</code> / <code>If-None-Match</code>）/ DELETE / ListObjectsV2，reqwest + 手写 SigV4（HMAC-SHA256 自实现，RFC 4231 向量测试）；条件写探测与降级（见下）</td>
-</tr>
-<tr>
-<td><code>snapshot.rs</code></td>
-<td>Vault 扫描 → <code>Manifest</code>（relPath → sha256/size/mtime）；<code>size+mtime</code> 未变复用 base 哈希；忽略 <code>.agentero</code> <code>.git</code> <code>node_modules</code> <code>.DS_Store</code> <code>*.tmp</code>；<code>SyncScope</code> 与分类谓词（见「同步范围」）</td>
-</tr>
-<tr>
-<td><code>local.rs</code></td>
-<td><code>.agentero/vault.json</code>（Vault UUID）、<code>.agentero/sync/{base,state}.json</code>（watcher 忽略 <code>.agentero/</code>，无事件回环）</td>
-</tr>
-<tr>
-<td><code>engine.rs</code></td>
-<td>三方合并 + 应用 + 发布（见下）</td>
-</tr>
-<tr>
-<td><code>commands.rs</code></td>
-<td><code>sync_get_status</code> / <code>sync_configure</code> / <code>sync_disconnect</code> / <code>sync_now</code> / <code>sync_scope_sizes</code>（本地各附件分类体积，供设置页展示）；广播 <code>sync:state</code> / <code>sync:progress</code> 事件</td>
-</tr>
-<tr>
-<td><code>scheduler.rs</code></td>
-<td>自动同步：每 Vault 一个后台任务——启动时同步一次、改动静置 30s 后同步、按 <code>intervalMinutes</code>（15/30/60）定时兜底；退出时尽力推送（每 Vault 限 5s）</td>
-</tr>
-</tbody>
-</table>
-<h2 id="remote">Remote 布局与一次同步<a class="headerlink" href="#remote" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span><code>&lt;prefix&gt;/vault.json                  { vaultId, formatVersion, encryption }
-&lt;prefix&gt;/HEAD                        { version, manifestKey, updatedAt } ← 唯一可变对象，CAS 推进
-&lt;prefix&gt;/manifests/&lt;v&gt;-&lt;nonce&gt;.json.gz
-&lt;prefix&gt;/blobs/&lt;aa&gt;/&lt;sha256&gt;         gzip(内容)，内容寻址天然去重
+<h1 id="mcp-agent">用 MCP 连接外部 Agent<a class="headerlink" href="#mcp-agent" title="Permanent link">&para;</a></h1>
+<p>设置里打开 <strong>MCP server</strong> 后，ChatGPT / Codex / MCP Inspector 可以调用当前 Vault 的论文库（列表、入库、写 NOTES），不必把 MCP 暴露到公网。</p>
+<p>应用必须开着。远端 Vault 不可用。</p>
+<h2 id="_1">打开服务器<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<ol>
+<li>打开一个<strong>本地</strong> Vault。</li>
+<li><strong>Settings → General → MCP server</strong> 打开开关。</li>
+<li>默认地址 <code>http://127.0.0.1:8765/mcp</code>。绿点表示正在监听；点击地址可复制。</li>
+</ol>
+<h2 id="chatgptsecure-mcp-tunnel">ChatGPT（Secure MCP Tunnel）<a class="headerlink" href="#chatgptsecure-mcp-tunnel" title="Permanent link">&para;</a></h2>
+<p>本机再跑 <code>tunnel-client</code>，把 loopback MCP 接到 ChatGPT：</p>
+<div class="codehilite"><pre><span></span><code>tunnel-client<span class="w"> </span>init<span class="w"> </span>--profile<span class="w"> </span>agentero<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--tunnel-id<span class="w"> </span>tunnel_…<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--mcp-server-url<span class="w"> </span>http://127.0.0.1:8765/mcp
+tunnel-client<span class="w"> </span>run<span class="w"> </span>--profile<span class="w"> </span>agentero
 </code></pre></div>
 
-<p>一次 <code>sync_now</code>：扫描 → GET HEAD/manifest → 与本地 base（上次同步清单）三方合并 → 应用远端改动（临时文件 + rename 原子落盘，blob 校验 sha256）→ 上传新 blob（<code>If-None-Match: *</code>，跨设备重复上传为廉价 no-op）→ 发布新 manifest → <code>If-Match</code> CAS 推进 HEAD。CAS 失败（他端并发推进）则以对方 manifest 为新 base 重跑，最多 5 次。</p>
-<p>合并规则：单侧改动直接采纳；双侧同改 <code>*.md</code> 保留 mtime 较新者、较旧者存为 <code>&lt;name&gt; (conflict &lt;时间).md</code>；其余文件（sidecar/marks/二进制）按 mtime LWW；删除 vs 修改保留修改。</p>
-<h2 id="sync-scope">同步范围（Sync Scope）<a class="headerlink" href="#sync-scope" title="Permanent link">&para;</a></h2>
-<p>论文库中体积大且<strong>可再生</strong>的附件可以按设备排除，节省云端空间；笔记、<code>metadata.json</code> sidecar、<code>marks/</code>、<code>assets/</code> 永远同步（小且不可再生）。</p>
+<p>然后在 ChatGPT 开发者模式 App 的 Connection 选 <strong>Tunnel</strong>。详见 <a href="https://developers.openai.com/api/docs/guides/secure-mcp-tunnels">Secure MCP Tunnel</a>。</p>
+<h2 id="_2">能做什么<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>外部 Agent 应先读资源 <code>agentero://vault</code>，再用：</p>
 <ul>
-<li><strong>分类</strong>（<code>snapshot.rs</code> <code>scope_category</code>，仅识别约定论文布局）：</li>
-<li><code>pdf</code> — <code>papers/&lt;id&gt;/&lt;id&gt;.pdf</code>（论文根级 PDF；<code>source/</code>、<code>attachments/</code> 内的 PDF 跟随所在分类）</li>
-<li><code>source</code> — <code>papers/&lt;id&gt;/source/</code>（LaTeX / e-print）</li>
-<li><code>attachments</code> — <code>papers/&lt;id&gt;/attachments/</code>（支撑材料）</li>
-<li><strong>对称过滤</strong>：同一谓词同时作用于本地扫描、base 与远端 manifest——被过滤的文件「双向失明」：不上传、不下载，也<strong>绝不因缺失而被当作删除</strong>。</li>
-<li><strong>manifest 携带 scope</strong>：发布端把自己过滤掉的分类写进 manifest（<code>scope</code> 字段，全量同步时省略）。合并时：远端失明的路径不触发 <code>delete_local</code>，本地仍可见该分类时以本地条目为准并继续上传，否则携带 base 条目供其他设备可见；本地失明的路径完全惰性（不下载、不传播删除）。</li>
-<li><strong>边界</strong>：所有设备都过滤某分类时，该分类条目会从 manifest 消失（blob 仍在，待孤儿 GC）；重新启用后本地仍有文件则自动重新上传，本地没有则需从来源重取。</li>
-<li><strong>重取</strong>：PDF/TeX 可从 <code>metadata.json</code> 的来源字段（arXiv ID / DOI / <code>pdf_url</code>）重新下载——<code>paper_download_assets</code> 命令（库表格右键「从来源下载 PDF」、打开论文时自动补下均走此路径）。库列表的 <code>has_pdf</code> 由 <code>paper_list</code> 经 CapsCache 投影。</li>
-<li><strong>配置</strong>：<code>SyncBackendConfig.scope</code>（缺省全量，兼容旧配置）；设置页以「同步范围」小标题分组展示逐类开关（附本地体积 <code>sync_scope_sizes</code>），默认全部开启。</li>
+<li><code>paper_list</code> / <code>paper_get</code> — 论文 metadata</li>
+<li><code>import_id</code> — 用 arXiv / DOI / URL 入库</li>
+<li><code>paper_notes_get</code> / <code>paper_notes_write</code> — 读写该篇 <code>NOTES.md</code></li>
+<li><code>paper_tag_add</code> / <code>paper_tag_rm</code> — 标签</li>
 </ul>
-<h2 id="oss">条件写降级（OSS 等后端）<a class="headerlink" href="#oss" title="Permanent link">&para;</a></h2>
-<p>阿里云 OSS 的 PutObject 不支持任何条件请求头（<code>If-Match</code> / <code>If-None-Match</code> 等，带则返回 <code>400 NotImplemented</code>），S3 / R2 / MinIO 均支持。处理：</p>
-<ul>
-<li><strong>连接测试探测</strong>：<code>sync_configure</code> 在 ListObjects 之后用一次性 key（<code>.sync-probe-&lt;uuid&gt;</code>）带 <code>If-None-Match: *</code> 试写并删除；<code>400 NotImplemented</code> → <code>conditionalWrites=false</code> 持久化到 <code>sync.json</code>，探测无结论时按支持处理（fail open）。</li>
-<li><strong>命令面</strong>：当前没有独立 <code>sync_probe</code>；配置保存即执行连接探测，失败则不保存，成功后设置页按已连接展示。</li>
-<li><strong>运行时兜底</strong>：旧配置未探测过时，首个条件 PUT 收到 <code>400 NotImplemented</code> 即在客户端内标记并立即以无条件 PUT 重试，同一 pass 内后续写入全部降级。</li>
-<li><strong>降级语义</strong>：blobs / manifests 内容寻址或 key 唯一，无条件 PUT 幂等无害；HEAD 指针退化为 GET → PUT，牺牲严格 CAS，靠三方合并与重试收敛（单用户场景最终一致）。设置页对 <code>conditionalWrites=false</code> 显示一行小字提示。</li>
-</ul>
-<h2 id="catalog">身份与 Catalog 联动<a class="headerlink" href="#catalog" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>vault.json</code>（远端）与 <code>.agentero/vault.json</code>（本地）配对：从未同步过的 Vault 可加入既有 remote（采纳其 id）；有同步历史的 Vault 拒绝外来 remote。</li>
-<li>论文权威字段已 sidecar 化：每次 <code>upsert_paper</code> 同步投影到 <code>papers/&lt;id&gt;/metadata.json</code>；<code>paper_rescan</code> 优先从 sidecar 恢复（sidecar 较新则回灌 DB）。因此同步只处理普通文件，<code>catalog.sqlite</code> 不出 Vault；拉取后引擎自动 <code>rebuild_from_disk</code> + <code>prune_missing</code>。</li>
-</ul>
-<h2 id="_2">前端<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>设置窗口「同步」pane：<code>src/components/settings/panes/sync-pane.tsx</code>；命令封装 <code>src/lib/sync/api.ts</code>。仅本地 Vault 可配置（<code>remote:</code> 句柄显示提示）。标题旁用小色点展示连接状态（灰=未连接，绿=已连接，蓝=同步中，红=最近一次同步/连接失败）。表单顶部的服务商 logo 按钮打开官方 S3 配置指南，用于创建 bucket / endpoint / access key；不会通过外链自动创建或回填凭据。同步范围（见上）在同一 pane：小标题 + 逐类开关（行内显示本地体积，默认全开）。</p>
-<h2 id="_3">自动同步<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>配置项 <code>autoSync</code>（默认开）与 <code>intervalMinutes</code>（15/30/60，默认 30）随凭据存 <code>sync.json</code>。调度任务在 <code>sync_configure</code> 后（重新）启动、<code>sync_disconnect</code> 时停止、应用启动时按配置恢复；每次触发都重读凭据，改配置无需重启。触发器：调度启动即同步一次（≈打开 Vault）、Vault 改动静置 30s、定时间隔兜底；<code>RunEvent::Exit</code> 时对所有自动同步 Vault 尽力推送（超时 5s/Vault）。</p>
-<h2 id="_4">安全约束<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<p>远端对象视为不可信输入，引擎在应用前统一校验：</p>
-<ul>
-<li><strong>manifest 路径净化</strong>（<code>engine.rs</code> <code>validate_manifest</code>）：relPath 必须非空、非绝对、仅 <code>/</code> 分隔、无空段 / <code>.</code> / <code>..</code>，否则整个 pass 失败——杜绝经 <code>vault.join</code> 越界写/删文件。</li>
-<li><strong>hash 校验</strong>：manifest 中 hash 必须是 64 位小写 hex（sha256），防止畸形 key  panic 或索引到 <code>blobs/</code> 之外。</li>
-<li><strong>解压限流</strong>：blob 解压上限为 manifest 声明 size + 1MiB（sha256 校验兜底），manifest 解压上限 256MiB，防 gzip bomb。</li>
-<li><strong>强制 TLS</strong>：<code>validate()</code> 要求 endpoint 为 https；仅 loopback（<code>localhost</code> / <code>127.0.0.1</code> / <code>::1</code>）放行 http（本地 MinIO 测试场景），避免 SigV4 凭据明文传输。</li>
-</ul>
-<h2 id="_5">边界（后续分期）<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<p>状态栏指示、孤儿 blob GC、E2EE、官方托管凭据 provider 均未实现，见设计草稿分期表。</p>
+<p>协议细节：<a href="../../backend/mcp/">backend/mcp.md</a>。</p>
 
 
 
