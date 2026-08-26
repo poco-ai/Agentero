@@ -3351,8 +3351,8 @@
 <ol>
 <li>在 PDF 中拖选一段文本。</li>
 <li>在选区菜单中选择颜色，创建高亮。</li>
-<li>需要写解释时添加批注（带评论的高亮会在页边显示批注针）。</li>
-<li>右侧 <strong>批注</strong> 面板可列出当前 PDF 的批注卡（跳转 / 编辑 / 删除）。</li>
+<li>需要写解释时添加批注（带评论的高亮会在页右缘显示评论卡，点击卡片即可就地修改；窗口较窄时回退为页边针）。</li>
+<li>右侧 <strong>批注</strong> 面板可列出当前 PDF 的提问与视觉批注（跳转 / 删除）。</li>
 </ol>
 <p>标注保存在论文目录的 <code>marks/</code> 中，<strong>不</strong>写进原始 PDF，也<strong>不</strong>自动追加到 <code>NOTES.md</code>。</p>
 <h2 id="_4">视觉批注（插图 / 表 / 算法 / 公式）<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
@@ -3363,7 +3363,7 @@
 <li>输入批注备注保存；或按 <code>⌘Enter</code> 直接针对该区域向 Agent 提问。</li>
 <li>批注写入 <code>marks/&lt;id&gt;.json</code>（<code>kind: visual</code> v2），裁剪图存入 <code>marks/assets/</code>。</li>
 </ol>
-<p>已保存的视觉批注会显示页边针，点击可查看备注或继续同一 Agent 会话。也可在笔记中用 <code>[[论文@id]]</code> 或 <code>![[论文@id]]</code> 引用。</p>
+<p>已保存的纯视觉批注会出现在页右缘评论列，点击卡片即可就地修改备注；若该批注已有 Agent 会话，页边针仍可打开对话。也可在笔记中用 <code>[[论文@id]]</code> 或 <code>![[论文@id]]</code> 引用。</p>
 <h2 id="figures">版面分析（Figures 侧栏）<a class="headerlink" href="#figures" title="Permanent link">&para;</a></h2>
 <p>打开论文后，右侧栏切换到 <strong>Figures</strong>：</p>
 <ul>
