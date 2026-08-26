@@ -254,6 +254,8 @@ enum Commands {
         #[command(subcommand)]
         cmd: commands::feed::FeedCmd,
     },
+    /// Start a Model Context Protocol server over stdio for external AI clients.
+    Mcp,
     /// Open a local directory as a Vault in the desktop App.
     ///
     /// Shorthand: bare `agentero <PATH>` rewrites to this when `<PATH>` looks like
@@ -373,6 +375,19 @@ fn main() -> StdExitCode {
         }
     };
 
+    // MCP owns stdout for JSON-RPC messages, so never send it through the CLI
+    // result envelope. Stderr remains available for diagnostics.
+    if matches!(&cli.command, Commands::Mcp) {
+        return match rt.block_on(commands::mcp::serve(&globals)) {
+            Ok(()) => StdExitCode::SUCCESS,
+            Err(err) => {
+                log::error!("MCP server stopped with error: {err}");
+                eprintln!("{err}");
+                StdExitCode::from(err.exit_code() as u8)
+            }
+        };
+    }
+
     let result = rt.block_on(run(cli.command, &globals));
     match result {
         Ok(value) => finish_ok(cmd_name, start, &globals, &value),
@@ -444,6 +459,7 @@ fn command_label(cmd: &Commands) -> &'static str {
         Commands::Translate { .. } => "cli.translate",
         Commands::Usage { .. } => "cli.usage",
         Commands::Feed { .. } => "cli.feed",
+        Commands::Mcp => "cli.mcp",
         Commands::Open { .. } => "cli.open",
         Commands::Completion { .. } => "cli.completion",
     }
@@ -487,6 +503,7 @@ async fn run(command: Commands, globals: &GlobalOpts) -> Result<serde_json::Valu
         } => commands::translate::run(&text, &to, &from, provider.as_deref(), globals).await,
         Commands::Usage { cmd } => commands::usage::run(cmd, globals),
         Commands::Feed { cmd } => commands::feed::run(cmd, globals).await,
+        Commands::Mcp => unreachable!("handled before normal CLI result emission"),
         Commands::Open { path } => commands::open::run(&path, globals),
         Commands::Completion { .. } => unreachable!("handled before async runtime"),
     }

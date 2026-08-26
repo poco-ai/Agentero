@@ -6,6 +6,7 @@ pub mod feed;
 pub mod import;
 pub mod layout;
 pub mod mark;
+pub mod mcp;
 pub mod open;
 pub mod paper;
 pub mod translate;

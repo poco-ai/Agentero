@@ -30,10 +30,37 @@ Headless Vault / Catalog / Wiki 接口；**不含** BYOA / paper-reader。
 | `translate` | 免费机器翻译纯文本（无需 API Key，不读桌面 settings） |
 | `usage` | 本机活动日志：`which` / `timeline` / `summary` / `clear`（XDG `usage.sqlite`） |
 | `feed` | 广场订阅：`add` / `list` / `remove`（XDG `feeds.sqlite`，与 UI 共用） |
+| `mcp` | 面向外部 AI 客户端的标准输入/输出 MCP 服务：论文入库、论文检索与仅追加式笔记写入 |
 
 稳定 `--json` 输出，供脚本与外部 Agent 组合。JSON 默认 **compact 单行**（省 token），`--pretty` 恢复缩进美化（[#367](https://github.com/poco-ai/Agentero/issues/367)）。
 
 `paper list --json` 默认每行只含 `id/path/title`；用 `--fields year,tags,abstract,…`（逗号分隔、可重复）按需加字段，或 `--full` 输出完整 `PaperRecord`。未知字段报 `usage` 错误并列出合法字段。text 表格输出不受影响。
+
+## MCP：让 ChatGPT 等客户端使用本地 Vault
+
+`agentero mcp` 会在 **stdio** 上运行 Model Context Protocol 服务。该模式的 stdout 只输出 newline-delimited JSON-RPC 消息，适合由支持 stdio MCP 的桌面客户端或本地桥接器启动；不要在同一 stdout 通道中混入 shell 提示、调试输出或普通 CLI JSON。
+
+将命令配置为 MCP server 时，必须传入目标 Vault 的绝对路径，避免客户端在错误的工作目录中解析 Vault。命令名沿用平台安装形式：POSIX 通常为 `agentero`，Windows 安装后的命令为 `agentero-cli`。
+
+```json
+{
+  "mcpServers": {
+    "agentero": {
+      "command": "agentero",
+      "args": ["--vault", "/absolute/path/to/research-vault", "mcp"]
+    }
+  }
+}
+```
+
+| MCP 工具 | 功能 | 写入语义 |
+|---|---|---|
+| `agentero_import_paper` | 从 arXiv ID、DOI、URL 或其他支持的标识符导入论文 | 复用既有入库与 Catalog 管线，创建论文单元与可用资源 |
+| `agentero_list_papers` | 按关键词、标签、阅读状态或 Catalog 状态检索论文 | 只读 |
+| `agentero_get_paper` | 读取一篇论文的结构化 metadata 与本地资源可用性 | 只读，不返回论文或笔记全文 |
+| `agentero_append_note` | 向论文 `NOTES.md` 写入一段完整 Markdown | **只追加**；绝不替换已有文字；相同内容重复调用会返回成功但不再写入 |
+
+`agentero_append_note` 专为“笔记代写”设计：客户端应先让用户确认目标论文和写入内容，再调用工具。工具返回的业务失败放在 MCP 的 `isError: true` 工具结果中，并保留 Agentero 的稳定错误码，方便模型更正参数或请求用户澄清。
 
 ### 版面索引与区域批注（已实现）
 
