@@ -3580,7 +3580,7 @@
 </tr>
 <tr>
 <td>文中链接</td>
-<td>Link annotation 覆盖层：citation / 图表 / 章节 GoTo 点击跳页，URI 开系统浏览器；hover citation 锚文本显示参考文献卡片（编号 + BibTeX key + 标题 + 作者/年份/venue）。解析走<strong>精确路径</strong>：hyperref 把每条 in-text 引用写成命名目标 <code>cite.&lt;bibtexKey&gt;</code>，与 sidecar 的 <code>rawKey</code> 同 key；因 PDFium 只返回解析后的 <code>pageIndex + y</code>，打开论文后（主线程空闲时）建 <code>pageIndex:pdfY → bibtexKey</code> 索引（<code>lib/pdf/citation-dest-keys.ts</code>），hover 时按目标坐标查表命中。pdf-lib 无懒解析、大 PDF 解析耗时数秒，因此解析跑在实体文件 Worker 里（<code>lib/pdf/citation-dest-keys.worker.ts</code>，buffer transfer 零拷贝；blob-URL worker 在 WebView2 可能失败，须用实体文件）；字节优先复用 viewer 已持有的 <code>tab.pdfBytes</code>（拷贝一份代替二次全量读盘），结果按 <code>pdfPath:size</code> 内存缓存（<code>lib/pdf/citation-dest-map.ts</code>），同一 PDF 重开不重复解析；索引就绪前 hover 不弹卡片。31 篇真实论文 / 3703 条 in-text 链接实测：95% 命中、0 误配；无法解析的链接（无 hyperref 目标 / 坐标歧义 / sidecar 缺 key）不显示卡片。图表、章节、公式等内部链接只保留导航</td>
+<td>Link annotation 覆盖层：citation / 图表·公式交叉引用 / 章节 GoTo 点击跳页，URI 开系统浏览器。打开论文后（主线程空闲时）在 Worker 里解析命名目标（<code>lib/pdf/citation-dest-keys.ts</code>），字节优先复用 <code>tab.pdfBytes</code>，按 <code>pdfPath:size</code> 缓存。<strong>Citation hover</strong>：hyperref <code>cite.&lt;key&gt;</code> 走 <code>pageIndex:pdfY → key → sidecar.rawKey</code>；ACS <code>mk:refN</code> 因 <code>/FitR</code> 整页冲突改走 <strong>Link rect → mk:refN → sidecar id <code>ref-N</code></strong>。同一上标簇内按间距区分逗号与连字符：<code>14-18</code> 展开为 14…18 多条列表，<code>7,9</code> 保持两条。<strong>Crossref hover</strong>（<code>Fig. 3</code> / <code>Table 1</code> / <code>Eq. (2)</code>）：同理先 dest 坐标，冲突时 <strong>Link rect → mk:tbl1 / mk:fig3</strong>，再配 layout region 裁剪。索引 / layout / sidecar 未就绪或无法消歧时不弹卡片；章节等非 float 内部链接只保留导航</td>
 </tr>
 <tr>
 <td>视觉批注</td>
