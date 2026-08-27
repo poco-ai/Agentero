@@ -3709,7 +3709,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/chrome/</code></td>
-<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-references-panel</code> / <code>pdf-figures-panel</code> / <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）</td>
+<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-left-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-references-panel</code> / <code>pdf-figures-panel</code> / <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）。顶部两条工具栏自动显隐（<code>use-pdf-chrome-visibility</code>）：滚动中或指针靠近顶部区域时显示，静读时淡出；面板打开 / ⌘F / 框选 / 缩放输入聚焦时保持可见</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/cards/</code></td>
@@ -3782,6 +3782,10 @@
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-zoom-controls.ts</code></td>
 <td>缩放百分比输入（focus 期不被观测值覆盖）</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-chrome-visibility.ts</code></td>
+<td>顶部工具栏自动显隐：滚动事件 + 指针靠近顶部区域触发显示，空闲定时淡出</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-color-scheme.ts</code></td>

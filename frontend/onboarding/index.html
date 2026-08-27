@@ -3501,6 +3501,7 @@
 <h2 id="feature-tour">功能导引（Feature tour）<a class="headerlink" href="#feature-tour" title="Permanent link">&para;</a></h2>
 <p>Vault 首次打开后，<code>useFeatureTour</code> 用 driver.js 高亮侧栏 / 魔棒 / 工作区 / Agent / 标题栏。<code>featureTourDone === false</code> 时自动开始；完成或跳过写入 <code>featureTourDone: true</code>。设置侧栏可手动重放（<code>onboarding:tour</code>）。</p>
 <h2 id="_2">步骤<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>每个步骤头部显示标题 + 一句人话说明（<code>&lt;id&gt;.title</code> / <code>&lt;id&gt;.desc</code>，welcome 除外）。</p>
 <table>
 <thead>
 <tr>
@@ -3532,14 +3533,14 @@
 <tr>
 <td>翻译</td>
 <td><code>translate</code></td>
-<td>直接内嵌 <code>TranslatePane</code></td>
-<td>设置窗口同一组件，配置即落盘</td>
+<td>选择「用自己的翻译 API」或「内置免费翻译」，选前者则填 Key 并测试</td>
+<td><code>probeCommercialMtProvider</code></td>
 </tr>
 <tr>
-<td>版面解析</td>
+<td>图表公式</td>
 <td><code>layout</code></td>
-<td>直接内嵌 <code>LayoutPane</code></td>
-<td>设置窗口同一组件，配置即落盘</td>
+<td>选择「配置云端服务」或「本地免费模型」，选前者则填 Key 并测试</td>
+<td><code>probeLayoutProvider</code></td>
 </tr>
 <tr>
 <td>收尾</td>

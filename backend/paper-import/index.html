@@ -3733,6 +3733,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
   fallback；附件成功或失败的 finalizer 先将 paper 移到 latest target，再通过稳定路径的
   <code>connector:item-saved</code> 交给现有 open/reconcile 解析流程。</li>
 <li>错误：全局 Toast；重复不破坏用户 NOTES。</li>
+<li>标识符去重（#406）：批量预检之外，commit 阶段再按 <code>id</code> / <code>arxiv_id</code> / <code>doi</code> / <code>pmid</code> / <code>isbn</code> 查 catalog（<code>DedupePolicy::ByIdentifiers</code>），任一命中即 <code>Deduped</code>，不新建文件夹。</li>
 <li>新建壳会写论文全称 alias，并在元数据足够时写确定性短 alias；历史笔记由 <a href="../doctor/">Doctor</a> 诊断和确认迁移。<code>created</code> 不属于入库壳或 Doctor 的职责。</li>
 <li>壳内容由设置 <code>paper_note_mode</code> 决定（<code>standard</code> / <code>title-only</code> / <code>blank</code> / <code>custom</code>，默认 <code>standard</code>，见 <a href="../../frontend/settings/">settings.md</a>）；<code>custom</code> 模板位于 <code>{vault}/.agentero/templates/NOTES.md</code>，缺失或不可读时回退 standard 并 warn。任何模式的产物都会补齐 aliases frontmatter（模板 frontmatter 不可安全改写时留给 Doctor）。Connector 的后台摘要机翻仅对 standard 壳生效，避免改写 custom 模板渲染的原文摘要。</li>
 </ul>
@@ -3865,6 +3866,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 <ul>
 <li>魔棒多选或拖到 <code>papers/</code> 组织夹 → 直接后台导入（无确认对话框）：复制 PDF + catalog + 通常生成 <code>PAPER.md</code>，识别链路在导入任务内自动补全元数据，识别有误由用户在 Edit Metadata 中修正。</li>
 <li>窗口其它区域拖入不入库（防 WebView 导航）。</li>
+<li>标识符去重与合并（#406）：导入前按识别/对话框给出的 <code>id</code> / DOI / arXiv / PMID / ISBN 查 catalog；命中已有条目时不新建文件夹——原条目缺主 PDF <code>{id}.pdf</code> 时，本 PDF 直接成为主 PDF（常见于 PMID 入库后手动补全文）；否则放入 <code>{paper}/attachments/</code>（同名自动 <code>-2</code> 后缀），并回填 catalog 缺失的标识符列；前端返回 <code>status: "deduped"</code> 并 Toast 提示。</li>
 </ul>
 <h3 id="pdf-recognize">PDF 元数据识别（recognize 链路）<a class="headerlink" href="#pdf-recognize" title="Permanent link">&para;</a></h3>
 <p>文件名推导只是兜底；导入（拖入与魔棒直选）会在导入任务内跑一条识别链路补全 DOI/arXiv/标题/作者：</p>
