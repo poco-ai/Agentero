@@ -3314,7 +3314,7 @@
 <li>文件树论文行右键"编辑元数据"。</li>
 </ul>
 <p>核心字段（标题/作者/年份/DOI/arXiv/期刊）直接展示，卷期页、出版社、摘要、URL 折叠在"更多字段"。作者每行一位；仅提交变更字段（patch）→ <code>paper_update_meta</code> → 返回行原地同步 Library 表与所有打开 tab（<code>paperMetaChange</code>）。远程 Vault 暂不支持，入口隐藏。后端语义见 <a href="../../backend/catalog/">../backend/catalog.md</a>。</p>
-<p>DOI 旁有 <strong>刷新</strong> 按钮：按当前 DOI（或 arXiv ID）拉取权威元数据（<code>paper_resolve_identifier</code> → Translator/Crossref/arXiv），只填充表单供确认，保存仍走 patch。</p>
+<p>DOI 旁有 <strong>刷新</strong> 按钮：按当前 DOI（或 arXiv ID）拉取权威元数据（<code>paper_resolve_identifier</code> → Translator/Crossref/arXiv Atom，再用 S2 <code>publicationVenue</code> 补期刊/会议名），只填充表单供确认，保存仍走 patch。venue 源优先级见 <a href="../../backend/academic-search-apis/">../backend/academic-search-apis.md</a> §2.5。</p>
 <h2 id="pdf">导入 PDF 识别<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h2>
 <p>拖入/魔棒导入 PDF 直接进入后台导入任务，无确认对话框；识别链路（liteparse probe → Zotero recognizer → 标识符解析，见 <a href="../../backend/paper-import/">../backend/paper-import.md</a>）在导入任务内自动补全：</p>
 <ul>

@@ -3101,10 +3101,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#26-arxiv-venue" class="md-nav__link">
+  <a href="#26-arxiv-doi-venue" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.6 arXiv Venue 回填
+        2.6 arXiv / DOI Venue 回填
       
     </span>
   </a>
@@ -3254,8 +3254,8 @@
 </tr>
 <tr>
 <td><strong>Semantic Scholar Graph API</strong></td>
-<td><code>GET /graph/v1/paper/ARXIV:{id}</code></td>
-<td>arXiv 论文 venue 回填</td>
+<td><code>GET /graph/v1/paper/ARXIV:{id}</code> / <code>DOI:{doi}</code></td>
+<td>venue 回填（<code>publicationVenue.name</code>）</td>
 <td><code>features/import/title_search.rs</code></td>
 </tr>
 <tr>
@@ -3320,7 +3320,7 @@
 <p>当前主路径按以下顺序尝试：</p>
 <ol>
 <li><strong>标题/关键词搜索</strong>（<code>features/import/title_search.rs::search_papers</code>）</li>
-<li>先请求 Semantic Scholar <code>GET /graph/v1/paper/search?query=...&amp;fields=title,authors,year,venue,externalIds,citationCount,url</code>。</li>
+<li>先请求 Semantic Scholar <code>GET /graph/v1/paper/search?query=...&amp;fields=title,authors,year,venue,publicationVenue,journal,externalIds,citationCount,url</code>。venue 取 <code>publicationVenue.name</code>（跳过 <code>type=repository</code>），其次 <code>journal.name</code>，再次 <code>venue</code>。</li>
 <li>S2 失败或空结果时，fallback 到 arXiv Atom <code>GET export.arxiv.org/api/query?search_query=ti:"..."</code>。</li>
 <li>仅保留带 DOI 或 arXiv id 的候选；返回结果会按精确标题匹配重新排序。</li>
 <li><strong>Translator Runtime</strong>（<code>features/import/mod.rs::resolve_metadata</code>）</li>
@@ -3357,19 +3357,58 @@
 </ul>
 <h3 id="25-venue-publication">2.5 Venue / Publication 回填<a class="headerlink" href="#25-venue-publication" title="Permanent link">&para;</a></h3>
 <p>入口：<code>features/catalog/commands.rs::paper_backfill_publication</code>。</p>
-<p>用于 Library 的 publication 列批量补全，顺序：</p>
+<p>用于 Library 的 publication 列批量补全。实测各源准确度：</p>
+<table>
+<thead>
+<tr>
+<th>源</th>
+<th>适合</th>
+<th>缺陷</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>arXiv <code>&lt;arxiv:journal_ref&gt;</code></td>
+<td>作者已回填的发表信息，最完整（含年/卷）</td>
+<td>大量已发表论文仍为空（如 Attention Is All You Need）</td>
+</tr>
+<tr>
+<td>S2 <code>publicationVenue.name</code></td>
+<td>会议 + 期刊的规范化全名</td>
+<td>免费端点限流；<code>venue</code> 字段常为空或缩写</td>
+</tr>
+<tr>
+<td>Crossref <code>container-title</code></td>
+<td>期刊（Nature 等）准确</td>
+<td>ACL/NAACL 等会议名会被截断（<code>Proceedings of the 2019 Conference of the North</code>）</td>
+</tr>
+<tr>
+<td>OpenAlex / DBLP</td>
+<td>—</td>
+<td>OpenAlex 对 CS arXiv 常无 venue；DBLP 只有缩写（<code>NIPS</code> / <code>NAACL-HLT</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>因此顺序是：</p>
 <ol>
-<li>DOI → Crossref <code>api.crossref.org/works/{doi}</code>，取 <code>container-title</code>。</li>
-<li>arXiv id → arXiv Atom <code>export.arxiv.org/api/query?id_list={id}</code>，取 <code>&lt;arxiv:journal_ref&gt;</code>；若不存在则 fallback <code>fetch_s2_venue_by_arxiv</code>。</li>
-<li>仅 title → Semantic Scholar <code>search_papers(title, 1)</code>，取 <code>venue</code>。</li>
+<li>arXiv id → arXiv Atom <code>export.arxiv.org/api/query?id_list={id}</code>，取 <code>&lt;arxiv:journal_ref&gt;</code>；缺失则 <code>GET /graph/v1/paper/ARXIV:{id}?fields=venue,publicationVenue,journal</code>（<code>s2_venue_from_paper</code>）。丢弃 <code>arXiv</code> / <code>CoRR</code> 等仓储名。</li>
+<li>DOI → 取 S2 <code>publicationVenue</code> 与 Crossref <code>container-title</code> 中更长的可用名（S2 赢截断的 ACL/NAACL；Crossref 赢完整 proceedings 标题）。跳过 <code>10.48550/arXiv.…</code>。</li>
+<li>仅 title → Semantic Scholar <code>search_papers(title, 1)</code>，同样走 <code>publicationVenue</code>。</li>
 </ol>
-<p>UI 上单行刷新按钮最终也会走到类似链路（<code>paper_resolve_identifier</code> 优先走 title search）。</p>
-<h3 id="26-arxiv-venue">2.6 arXiv Venue 回填<a class="headerlink" href="#26-arxiv-venue" title="Permanent link">&para;</a></h3>
-<p>入口：<code>features/import/title_search.rs::fetch_s2_venue_by_arxiv</code>。</p>
-<p>请求 <code>GET /graph/v1/paper/ARXIV:{id}?fields=venue</code>，用于：</p>
+<p>UI 刷新（<code>paper_resolve_identifier</code>）对 DOI/arXiv/URL <strong>先走标识符解析</strong>，再用 S2 补全空缺或 Crossref 截断的 proceedings 标题；自由文本才走 title search。</p>
+<h3 id="26-arxiv-doi-venue">2.6 arXiv / DOI Venue 回填<a class="headerlink" href="#26-arxiv-doi-venue" title="Permanent link">&para;</a></h3>
+<p>入口：<code>features/import/title_search.rs::fetch_s2_venue_by_arxiv</code> / <code>fetch_s2_venue_by_doi</code>。</p>
+<p>请求 <code>GET /graph/v1/paper/{ARXIV:id\|DOI:doi}?fields=venue,publicationVenue,journal</code>。取值顺序：</p>
+<ol>
+<li><code>publicationVenue.name</code>（<code>type=repository</code> 跳过）</li>
+<li><code>journal.name</code></li>
+<li>遗留 <code>venue</code> 字符串</li>
+</ol>
+<p>用于：</p>
 <ul>
 <li><code>map_arxiv_atom</code> 中当 <code>&lt;arxiv:journal_ref&gt;</code> 缺失时补 venue。</li>
-<li>旧版 title search 候选的 venue 字段。</li>
+<li>批量 publication 回填与 Edit Metadata 刷新。</li>
+<li>title search 候选的 venue 字段。</li>
 </ul>
 <h3 id="27">2.7 推荐与订阅<a class="headerlink" href="#27" title="Permanent link">&para;</a></h3>
 <p>入口：<code>features/recommend/mod.rs</code>。</p>
@@ -3539,8 +3578,8 @@
 </tr>
 <tr>
 <td>补全 publication</td>
-<td>Crossref (DOI)</td>
-<td>arXiv Atom → S2 venue</td>
+<td>arXiv journal_ref / S2 <code>publicationVenue</code></td>
+<td>S2 <code>DOI:{doi}</code> → Crossref <code>container-title</code></td>
 <td>S2 title search</td>
 </tr>
 <tr>
