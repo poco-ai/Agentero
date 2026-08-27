@@ -3329,7 +3329,7 @@
 <li>目录：<code>cli/</code>（crate <code>agentero-cli</code>）</li>
 <li>path 依赖 <code>agentero_lib</code>：<code>features::{vault,catalog,import,wiki}</code> + <code>core::{error,fs}</code></li>
 <li>可选同版本 CLI 安装（不随桌面安装包打入，减小体积 <a href="https://github.com/poco-ai/Agentero/issues/285">#285</a>；open/deep-link 仍见 <a href="https://github.com/poco-ai/Agentero/issues/165">#165</a> / <a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>）</li>
-<li>设置 → 关于：<strong>安装 CLI</strong> 从 GitHub Release 下载与 App <strong>同版本</strong> 的 <code>agentero-cli-{ver}-{triple}</code> 归档，校验 <code>.sha256</code> 后写入用户目录并创建 PATH shim。POSIX 写 <code>~/.local/bin/agentero</code> 软链（不静默改 shell rc）；Windows 写 <code>agentero-cli.cmd</code> 并<strong>自动把安装目录加入用户 PATH</strong>（<code>HKCU\Environment</code>，广播 <code>WM_SETTINGCHANGE</code>），新开终端即可用 <code>agentero-cli</code></li>
+<li>设置 → 关于：<strong>安装 CLI</strong> 从 GitHub Release 下载与 App <strong>同版本</strong> 的 <code>agentero-cli-{ver}-{triple}</code> 归档，校验 <code>.sha256</code> 后写入用户目录并创建 PATH shim。POSIX 写 <code>~/.local/bin/agentero</code> 软链（不静默改 shell rc）；Windows 写 <code>agentero-cli.cmd</code> 并<strong>自动把安装目录加入用户 PATH</strong>（<code>HKCU\Environment</code>，广播 <code>WM_SETTINGCHANGE</code>，无需重启，新开终端即可用 <code>agentero-cli</code>）。下载 404 的错误文案会带上完整资产 URL（含宿主 triple），架构/版本不匹配时自解释；<code>CliInstallStatus.commandName</code> 供前端按平台展示验证命令</li>
 <li>独立 CLI 归档仍随每次 Release 发布，供无桌面的 headless 机器使用；macOS 亦可通过 Homebrew tap <code>poco-ai/agentero</code> 安装 headless CLI</li>
 </ul>
 <h2 id="_2">命令组<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
