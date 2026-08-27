@@ -4475,8 +4475,8 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <tr>
 <td>0.3.1b</td>
 <td>终端</td>
-<td>检查产物内置 CLI 体积（macOS：<code>ls -l Agentero.app/Contents/MacOS/agentero-cli</code>）</td>
-<td>为 stub（&lt; 1KB，非 ~30MB 真二进制）；DMG 不应因 CLI 变大（#320）</td>
+<td>检查产物不含 CLI（macOS：<code>ls Agentero.app/Contents/MacOS/ | grep agentero-cli</code>；Windows：安装目录 <code>dir agentero-cli*</code>）</td>
+<td>应<strong>无</strong>任何 agentero-cli 文件（不内置真二进制，也不再有占位 stub；#320）</td>
 <td>☐</td>
 </tr>
 <tr>
