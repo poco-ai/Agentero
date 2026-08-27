@@ -3962,11 +3962,11 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <tr>
 <td>MinerU（云端 API）</td>
 <td><code>mineru</code></td>
-<td>mineru.net 批量解析 API，<strong>整份 PDF 会上传到云端</strong>；支持 Base URL 覆盖（https-only，loopback 例外）</td>
+<td>mineru.net 批量解析 API，<strong>整份 PDF 会上传到云端</strong>；支持 Base URL 覆盖（https-only，loopback 例外）、语言（默认 <code>ch</code> 中英文，可选纯英文）与强制 OCR 选项（<code>supportsLanguage</code> / <code>supportsOcr</code>）</td>
 </tr>
 </tbody>
 </table>
-<p>每个 provider 描述符带 <code>kind</code> / <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>sidecarMode</code>：设置面板与 Onboarding 据此显隐 API Key / Base URL 输入（保存 / 掩码 / 连通性测试逻辑共用 <code>provider-config.ts</code>）；<code>run-analysis.ts</code> 用 <code>layoutProviderFor(backend)</code> + <code>isRemoteLayoutProvider</code> 判定走远程分支（<code>startRemoteLayoutAnalysis</code>，按 <code>provider.id</code> 分发到 Host engine 注册表）。</p>
+<p>每个 provider 描述符带 <code>kind</code> / <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>sidecarMode</code>（MinerU 另有 <code>supportsLanguage</code> / <code>supportsOcr</code>）：设置面板与 Onboarding 据此显隐 API Key / Base URL / 语言 / 强制 OCR 输入（保存 / 掩码 / 连通性测试逻辑共用 <code>provider-config.ts</code>）；<code>run-analysis.ts</code> 用 <code>layoutProviderFor(backend)</code> + <code>isRemoteLayoutProvider</code> 判定走远程分支（<code>startRemoteLayoutAnalysis</code>，按 <code>provider.id</code> 分发到 Host engine 注册表）。</p>
 <p>远程 provider 共用流程（<code>src/lib/pdf/layout/paddle.ts</code> IPC 封装 + <code>run-analysis.ts</code>）：</p>
 <ol>
 <li>读取本地 PDF，整份 base64 交给 Host 命令 <code>layout_remote_analyze_pdf</code>（<code>provider</code> 参数分发到 <code>src-tauri/src/features/layout_remote/</code> 的 <code>RemoteLayoutEngine</code> 实现：<code>paddle.rs</code> / <code>mineru.rs</code>）；token 由 Host 从设置注入，WebView 只持有 <code>*</code> 掩码；</li>
