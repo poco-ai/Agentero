@@ -3614,11 +3614,11 @@
 <tbody>
 <tr>
 <td>魔棒 FileUp</td>
-<td>多选 → <code>paper_import_local_pdf</code> 后台导入；任务条显示 PDF 解析阶段</td>
+<td>多选 → <code>paper_import_local_pdf</code> <strong>即时导入</strong>（秒级，文件名元数据占位）；任务条随后出现 per-paper 的「识别论文元数据」行（可取消）</td>
 </tr>
 <tr>
 <td>拖到 <code>papers/</code> 组织夹</td>
-<td>直接后台导入（无确认对话框），Host 自动识别元数据；无 TeX 时隔离运行 liteparse → <code>PAPER.md</code></td>
+<td>直接后台导入（无确认对话框），同上；识别完成后目录自动改名为规范 id（如 <code>papers/1706.03762</code>），树/库/tab 路径无缝迁移</td>
 </tr>
 <tr>
 <td>拖到 Library 表</td>
@@ -3630,7 +3630,11 @@
 </tr>
 </tbody>
 </table>
-<p>PDF 解析最多等待 120 秒，取消任务会终止当前解析子进程。解析失败或超时时，后台入库任务仍会结束，已复制的 PDF、<code>NOTES.md</code> 与 catalog 记录保持可用；用户可稍后通过 CLI <code>paper parse</code> 重试派生正文。</p>
+<ul>
+<li>即时导入：<code>paper_commit</code> 立刻复制 PDF + 建目录 + 落 catalog，<code>paper:imported</code> 让论文马上出现在树/论文库；<code>RecognizeMetadata</code> job 在后台跑识别链路（见 <a href="../../backend/paper-import/">../backend/paper-import.md</a>），返回值 <code>recognizePending=true</code> 时前端跳过自己的 layout enqueue（runner 统一在改名后编排 PAPER.md / refs / layout）。</li>
+<li>识别落地：改名/合并通过 <code>paper:renamed</code> 事件通知前端 —— handler 抑制 watcher 的外部 rename 修复（<code>trackInternalRenamePaths</code>）、remap 打开的 tab/标注、定向刷新树（新旧两个路径）与 Library；<code>outcome=merged</code> 时 Toast「识别后的 PDF 已合入已有条目」。仅元数据更新走 <code>job:changed</code> 终态 → Library 刷新，树行标签随 <code>paperMetaByRelPath</code> 自动更新。</li>
+<li>PDF 解析最多等待 120 秒，取消任务会终止当前解析子进程。解析失败或超时时，后台入库任务仍会结束，已复制的 PDF、<code>NOTES.md</code> 与 catalog 记录保持可用；用户可稍后通过 CLI <code>paper parse</code> 重试派生正文。</li>
+</ul>
 <h2 id="zotero">Zotero<a class="headerlink" href="#zotero" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

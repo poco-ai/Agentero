@@ -3865,24 +3865,33 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </ul>
 <h2 id="pdf">本地 PDF<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h2>
 <ul>
-<li>魔棒多选或拖到 <code>papers/</code> 组织夹 → 直接后台导入（无确认对话框）：复制 PDF + catalog + 通常生成 <code>PAPER.md</code>，识别链路在导入任务内自动补全元数据，识别有误由用户在 Edit Metadata 中修正。</li>
+<li>魔棒多选或拖到 <code>papers/</code> 组织夹 → <strong>即时导入</strong>：复制 PDF + catalog + NOTES shell 立刻完成（秒级），论文马上出现在树/论文库；元数据识别在后台进行（见下），识别完成后自动改名/补全。</li>
 <li>窗口其它区域拖入不入库（防 WebView 导航）。</li>
-<li>标识符去重与合并（#406）：导入前按识别/对话框给出的 <code>id</code> / DOI / arXiv / PMID / ISBN 查 catalog；命中已有条目时不新建文件夹——原条目缺主 PDF <code>{id}.pdf</code> 时，本 PDF 直接成为主 PDF（常见于 PMID 入库后手动补全文）；否则放入 <code>{paper}/attachments/</code>（同名自动 <code>-2</code> 后缀），并回填 catalog 缺失的标识符列；前端返回 <code>status: "deduped"</code> 并 Toast 提示。</li>
+<li>标识符去重与合并（#406）：导入前按对话框给出的 <code>id</code> / DOI / arXiv / PMID / ISBN 查 catalog；命中已有条目时不新建文件夹——原条目缺主 PDF <code>{id}.pdf</code> 时，本 PDF 直接成为主 PDF（常见于 PMID 入库后手动补全文）；否则放入 <code>{paper}/attachments/</code>（同名自动 <code>-2</code> 后缀），并回填 catalog 缺失的标识符列；前端返回 <code>status: "deduped"</code> 并 Toast 提示。</li>
 </ul>
 <h3 id="pdf-recognize">PDF 元数据识别（recognize 链路）<a class="headerlink" href="#pdf-recognize" title="Permanent link">&para;</a></h3>
-<p>文件名推导只是兜底；导入（拖入与魔棒直选）会在导入任务内跑一条识别链路补全 DOI/arXiv/标题/作者：</p>
+<p>文件名推导只是占位；本地 PDF 导入（拖入与魔棒直选）先以文件名 slug 建目录落库（<code>meta_source=local</code>），随后由 JobCenter 的 <code>RecognizeMetadata</code> job（并发 2，任务栏可见可取消）在后台跑识别链路补全 DOI/arXiv/标题/作者：</p>
 <div class="codehilite"><pre><span></span><code><span class="err">本地</span><span class="w"> </span><span class="n">liteparse</span><span class="w"> </span><span class="n">probe</span><span class="err">（隔离</span><span class="w"> </span><span class="n">worker</span><span class="err">，前</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="err">页投影行</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">词级字号</span><span class="o">/</span><span class="err">坐标，</span><span class="o">~</span><span class="err">秒级）</span>
 <span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="n">Zotero</span><span class="w"> </span><span class="n">recognizer</span><span class="w"> </span><span class="err">服务（</span><span class="n">POST</span><span class="w"> </span><span class="err">词级布局</span><span class="w"> </span><span class="n">JSON</span><span class="err">，非</span><span class="w"> </span><span class="n">PDF</span><span class="w"> </span><span class="err">文件本身，</span><span class="o">~</span><span class="mi">50</span><span class="o">-</span><span class="mi">250</span><span class="n">ms</span><span class="err">）</span>
 <span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="err">命中</span><span class="w"> </span><span class="n">DOI</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Translator</span><span class="w"> </span><span class="o">/</span><span class="n">search</span><span class="w"> </span><span class="err">解析；失败回退</span><span class="w"> </span><span class="n">Crossref</span><span class="w"> </span><span class="n">works</span><span class="o">/</span><span class="p">{</span><span class="n">doi</span><span class="p">}</span><span class="w"> </span><span class="err">直连</span>
 <span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="err">命中</span><span class="w"> </span><span class="n">arXiv</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="k">export</span><span class="o">.</span><span class="n">arxiv</span><span class="o">.</span><span class="n">org</span><span class="w"> </span><span class="n">Atom</span><span class="w"> </span><span class="err">直连</span>
 <span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="err">仅命中</span><span class="w"> </span><span class="n">title</span><span class="o">/</span><span class="n">authors</span><span class="err">（无标识符）→</span><span class="w"> </span><span class="err">直接采用识别结果（</span><span class="n">Zotero</span><span class="w"> </span><span class="err">同款兜底）</span>
-<span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="err">任何一步失败静默降级为文件名元数据，绝不阻塞导入</span>
+<span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="err">任何一步失败静默降级为文件名元数据，绝不影响已完成的导入</span>
 </code></pre></div>
 
+<p>识别结果由 <code>src-tauri/src/features/import/recognize_apply.rs</code> 落地：</p>
 <ul>
-<li>实现：<code>src-tauri/src/features/import/pdf_recognize.rs</code>（payload 组装 + HTTP client + <code>map_crossref_work</code>）；probe worker 变体在 <code>pdf_parse/mod.rs</code>（<code>--agentero-internal-pdf-recognize-worker</code>）。</li>
+<li><strong>命中标识符（<code>ok</code>）</strong> → 目录经 wiki rename 事务改名为规范 id（<code>papers/&lt;文件名slug&gt;</code> → <code>papers/1706.03762</code>，含 <code>{id}.pdf</code> 改名、catalog path/id 重写、<code>[[...]]</code> 链接重写、失败回滚），<code>meta_source=recognize</code>，emit <code>paper:renamed</code>。</li>
+<li><strong>规范 id 已在库中</strong> → 占位条目并入已有条目（PDF 成为对方主 PDF 或进 <code>attachments/</code>），删除占位目录/行，emit <code>paper:renamed</code>（<code>outcome=merged</code>）。</li>
+<li><strong>仅命中标题（<code>title</code>）</strong> → 只 upsert catalog 元数据，不改目录名。</li>
+<li><strong>未命中（<code>no-match</code>/<code>error</code>）</strong> → <code>meta_source=local-unresolved</code>，用户可在 Edit Metadata 手填 DOI/arXiv 并刷新（<code>paper_resolve_identifier</code>）。</li>
+<li><strong>用户抢先编辑</strong>：识别完成时若 <code>meta_source</code> 已非 <code>local</code>（如 <code>manual</code>），识别结果整体放弃。</li>
+</ul>
+<p>时序约定：<code>paper_commit</code> 以 <code>defer_parse_jobs: true</code> 跳过 commit 期的 ParseBody/ParseRefs spawn，由 RecognizeMetadata runner 在目录名尘埃落定后统一编排 PAPER.md / refs / layout（<code>LookupImportResult.recognize_pending=true</code> 时前端也跳过自己的 layout enqueue）。</p>
+<ul>
+<li>实现：识别链路 <code>src-tauri/src/features/import/pdf_recognize.rs</code>（payload 组装 + HTTP client + <code>map_crossref_work</code>）；probe worker 变体在 <code>pdf_parse/mod.rs</code>（<code>--agentero-internal-pdf-recognize-worker</code>）；job 编排 <code>import/job_runners.rs::recognize_metadata_runner</code>。</li>
 <li>payload 结构复刻 Zotero document-worker <code>getRecognizerData</code>：<code>word = [xMin,yMin,xMax,yMax,fontSize,spaceAfter,baseline,rotation,0,bold,italic,0,fontIndex,text]</code>，行来自 liteparse 投影行（竖排 arXiv stamp 落到独立行，服务端可重建）。</li>
-<li>拖入与魔棒直选统一在 <code>import_one_local_pdf</code> 内联跑同一链路，<code>meta_source=recognize</code>，识别出的 arXiv/DOI slug 作为文件夹 id（与标识符导入命名一致）；Host 侧 entries 仍支持 <code>title</code>/<code>doi</code>/<code>arxivId</code>/<code>extra</code> 覆盖（<code>meta_source=manual</code>），供 CLI 等调用方使用。导入后可在 Edit Metadata 中手填 DOI/arXiv 并刷新（<code>paper_resolve_identifier</code>）。</li>
+<li>Host 侧 entries 仍支持 <code>title</code>/<code>doi</code>/<code>arxivId</code>/<code>extra</code> 覆盖（<code>meta_source=manual</code>，走原有同步路径不触发后台识别），供确认对话框/CLI 等调用方使用。</li>
 <li>隐私：上传的是前 5 页文本布局 JSON（~200KB），不是 PDF 文件；服务为 Zotero 托管的未公开 API，仅作尽力而为识别，失败无感知。</li>
 <li>live 验证：<code>AGENTERO_RECOGNIZE_LIVE_PDF=&lt;pdf&gt; cargo test -p agentero --lib -- live_recognize --include-ignored --nocapture</code>。</li>
 </ul>
