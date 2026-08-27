@@ -3360,6 +3360,10 @@
 <td>图片等节点</td>
 </tr>
 <tr>
+<td><code>@platejs/selection</code> + <code>@platejs/dnd</code></td>
+<td>仅 live editor：块选与拖拽换位；内部块 id 不写盘</td>
+</tr>
+<tr>
 <td>自定义双链插件</td>
 <td><code>[[...]]</code> 输入、高亮、跳转；序列化必须写回 <code>[[...]]</code></td>
 </tr>
@@ -3376,6 +3380,7 @@
 <li><strong>外部链接</strong>：手写或粘贴标准 Markdown <code>[文字](https://…)</code> 会成为链接节点；普通单击打开编辑气泡（改显示文字与 URL），<code>⌘/Ctrl+单击</code>、中键或右键用系统浏览器打开；气泡内也有「打开」。<code>/</code> 菜单「外部链接」或右键「新增外部链接」直接插入链接节点（默认占位文字）并打开同一编辑气泡，而不是插入字面量 <code>[]()</code>。Vault 内相对 <code>.md</code> 链接与 <code>wiki:</code> 双链仍走站内导航。</li>
 <li><strong>Markdown 粘贴</strong>：普通文本粘贴默认按 Markdown 反序列化，粘贴后光标保持在插入内容之后。</li>
 <li><strong>整理 Markdown 格式</strong>：编辑器右键显式整理当前整篇文档；只读编辑器禁用。</li>
+<li><strong>块选与拖拽</strong>：编辑态悬停顶层块时左侧出现六点手柄（Notion 同款）。<strong>悬停或点击手柄</strong>打开操作列表（复制 / 剪切 / 创建副本 / 删除）；<strong>按住拖动手柄</strong>在块之间换位（拖拽中禁止划词）。左 gutter 拖出虚线框可框选相邻块；多选后每个选中块保持显示手柄，任一手柄对整组复制 / 剪切 / 移动。空段落（Markdown 空行、文末 TrailingBlock）不是内容块：不显示手柄、也不画选中底色，但仍可随相邻块一起被框选移动以保留间距。在文字上拖仍是划词。<code>⌘A</code> / <code>Ctrl+A</code> 第一次选中当前块，再按一次选中全部块。复制块写入 Markdown 纯文本。只读、导出面和 <code>![[…]]</code> 嵌入不显示手柄。内部 Plate 块 id 不写回磁盘。块拖拽用指针后端（非 HTML5）：macOS 上 wry 会吞掉 DOM <code>drop</code>，和文件树一样。</li>
 <li><strong>Slash 格式命令</strong>：在可编辑正文中输入 <code>/</code> 打开轻量命令列表；使用上下方向键选择、Enter 执行、Escape 关闭。Slash 与双链候选会在可视窗口边缘自动翻转并限制高度；滚动编辑器时关闭候选，避免脱离光标。</li>
 <li><strong>美元符号</strong>：<code>\$a\$</code> 是普通文本，<code>$a$</code> 是行内公式；行内公式两侧可直接接普通文字（如 <code>第一段$x_0$第三段</code>），编辑时继续输入不会吞掉公式；两者经编辑、粘贴、整理和保存后保持不同语义。</li>
 <li><strong>公式错误恢复</strong>：未闭合的独立 <code>$$</code> 不会吞掉其后的 Markdown；围栏内的错误内容按普通文本保留，后续段落和标题继续正常解析。</li>
@@ -3574,6 +3579,22 @@
 <tr>
 <td><code>src/components/editor/overlays/slash-command-menu.tsx</code></td>
 <td>图标列表、键盘选择与浮层交互</td>
+</tr>
+<tr>
+<td><code>src/components/editor/plugins/block-selection-kit.tsx</code></td>
+<td>仅 live editor：块选插件与选中叠层</td>
+</tr>
+<tr>
+<td><code>src/components/editor/plugins/dnd-kit.tsx</code></td>
+<td>仅 live editor：块拖拽换位（指针后端；不接手 OS 文件 drop）</td>
+</tr>
+<tr>
+<td><code>src/components/editor/nodes/block/block-draggable.tsx</code></td>
+<td>左侧拖动手柄与 drop line</td>
+</tr>
+<tr>
+<td><code>src/lib/markdown/block-selection.ts</code></td>
+<td>块选查询与 Markdown 序列化</td>
 </tr>
 <tr>
 <td><code>src/components/editor/plugins/markdown-kit.tsx</code></td>
