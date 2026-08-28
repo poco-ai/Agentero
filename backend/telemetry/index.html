@@ -3576,12 +3576,20 @@
 <td><code>tauri::VERSION</code></td>
 </tr>
 <tr>
+<td><code>installed_agents</code></td>
+<td>已注册 Agent 的 template id 数组（如 <code>["claude-acp","gemini"]</code>，排序去重；<code>AgentRegistry::telemetry_summary()</code>，只读注册表、无 PATH 探测）</td>
+</tr>
+<tr>
+<td><code>custom_agent_count</code></td>
+<td>已注册的自定义 Agent 数量（不含名称/命令）</td>
+</tr>
+<tr>
 <td><code>$session_id</code></td>
 <td>本次运行生成的 UUID（PostHog 保留属性，Sessions 口径依赖它）</td>
 </tr>
 </tbody>
 </table>
-<p>Person 属性：<code>$set</code> → <code>app_version</code> / <code>os_name</code> / <code>os_version</code> / <code>arch</code> / <code>device_model</code>；<code>$set_once</code> → <code>first_app_version</code>。</p>
+<p>Person 属性：<code>$set</code> → <code>app_version</code> / <code>os_name</code> / <code>os_version</code> / <code>arch</code> / <code>device_model</code> / <code>installed_agents</code> / <code>custom_agent_count</code>；<code>$set_once</code> → <code>first_app_version</code>。<code>installed_agents</code> 随每次启动更新，可直接在 PostHog 按 Agent 过滤 / 分群。</p>
 <h3 id="app-exitedruneventexit-flush"><code>app exited</code>（<code>RunEvent::Exit</code> 回调中发送并 flush）<a class="headerlink" href="#app-exitedruneventexit-flush" title="Permanent link">&para;</a></h3>
 <p><code>$session_id</code>、<code>session_duration_ms</code>、<code>app_version</code>。</p>
 <p><code>app started</code> / <code>app exited</code> 与本机 <a href="../usage/">usage.md</a> 同源：<code>Telemetry::start</code> / <code>shutdown</code> <strong>始终</strong>写入本地 <code>app.started</code> / <code>app.exited</code>（本地记录无开关），在 <code>telemetryEnabled</code> 且 release + 有 key 时再发 PostHog。出站事件名保持空格形式，以免断历史。</p>
@@ -3658,7 +3666,8 @@
 <p><strong>Sessions 口径</strong>：出站事件统一携带 PostHog 保留属性 <code>$session_id</code>（每次启动生成的新 UUID，随所有事件发送），PostHog 的 Sessions insight / Trends "Sessions" 指标据此聚合。本地 usage 库的 extra 字段仍为 <code>session_id</code>，两者互不影响。</p>
 <h2 id="_3">隐私边界<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
-<li>不含 Vault 路径、文件名、论文标题、DOI、检索词原文、划词/译文/批注正文、Skill URL/名称、Agent 配置。</li>
+<li>不含 Vault 路径、文件名、论文标题、DOI、检索词原文、划词/译文/批注正文、Skill URL/名称。</li>
+<li>Agent 只上报已知 template id（如 <code>claude-acp</code>）与自定义 Agent 的数量；不含 Agent 名称、命令、参数、env 等配置。</li>
 <li>上报失败只记日志，绝不影响启动与退出。</li>
 <li>使用 <code>posthog-rs</code> blocking client：<code>capture()</code> 非阻塞（后台批量发送），退出回调中同步 <code>flush()</code>。</li>
 </ul>
