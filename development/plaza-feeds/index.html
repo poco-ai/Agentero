@@ -3980,8 +3980,9 @@
 <li>入库复用 <code>importPlazaPaper</code> / <code>lookupSubmit</code>：arXiv 喂 <code>https://arxiv.org/abs/{id}</code>；DOI 喂 <code>https://doi.org/{doi}</code>。入库不自动打开论文。</li>
 <li>入库中按钮 busy；成功 Toast + 该行变为「已入库」（本机缓存记 <code>importedAt</code>，刷新不丢）。</li>
 <li>失败 <code>notifyError</code>，不在侧栏挂错误条。</li>
-<li>列表卡摘要只示纯文本 3 行。详情打开时走 <code>feeds_resolve_body</code>：已缓存 <code>bodyMarkdown</code> 则直接用；否则若 RSS 已是全文（或 arXiv / DOI 落地页）转 Markdown；博客摘要带 <code>[...]</code> 或 <code>paper_url</code> 为空（可能从落地页 metadata 确认论文身份）则抓原文 HTML，抽 <code>&lt;article&gt;</code> / 常见正文容器后 <code>htmd</code> 成 Markdown，并顺手解析 <code>citation_doi</code> 等回填 <code>paper_url</code>。渲染复用 <code>MessageResponse</code>（Streamdown + <code>$…$</code>）。</li>
+<li>列表卡摘要只示纯文本 3 行。详情打开时走 <code>feeds_resolve_body</code>：已缓存 <code>bodyMarkdown</code> 则直接用；否则若 RSS 已是全文（或 arXiv / DOI 落地页）转 Markdown；博客摘要带 <code>[...]</code> 或 <code>paper_url</code> 为空（可能从落地页 metadata 确认论文身份）则抓原文 HTML，抽 <code>&lt;article&gt;</code> / 常见正文容器后 <code>htmd</code> 成 Markdown，并顺手解析 <code>citation_doi</code> 等回填 <code>paper_url</code>。渲染复用 <code>MessageResponse</code>（Streamdown + <code>$…$</code>）。<code>\begin{equation}</code> 等块环境归一成 <code>$$…$$</code> 显示公式：抓取侧（<code>body.rs</code>）与渲染侧（<code>math-normalize.ts</code>）都剥掉 KaTeX 不支持的 <code>equation</code> / <code>multline</code> / <code>flalign</code> 外壳，<code>align</code> / <code>gather</code> 等保留；环境内的 HTML 残留（<code>&lt;br /&gt;</code> 换行、实体）在抽取时清理。占位符定宽编号，防 <code>LATEXBLOCK1</code> 前缀误替换 <code>LATEXBLOCK10</code>。</li>
 <li>点标题 = 主操作。另给一个外链图标，论文卡也可打开原文。</li>
+<li>抓原文页用浏览器 UA + cookie store 的 client：部分站点（如 spaces.ac.cn 的 WAF）首访回 403 + Set-Cookie + <code>window.location</code> 重定向壳页，<code>fetch_article</code> 检测到这类挑战页会带 Cookie 自动重发一次。抓取失败记 <code>agentero::feeds</code> warn 日志，回退 RSS 摘要。</li>
 </ul>
 <p>不做第三种「提醒卡」、图墙、视频墙、全文阅读栏（经典三栏的第三栏）。</p>
 <h2 id="4">4. 数据与存储<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
@@ -4048,6 +4049,7 @@
 <li>无 <code>kind</code> 列：论文 / 其它由 <code>paper_url IS NOT NULL</code> 过滤。</li>
 <li>每源只保留最近 <strong>200</strong> 条（刷新后按 <code>published_at</code> 裁）。够用，避免库膨胀。</li>
 <li><code>etag</code> / <code>last_modified</code>：有则带条件请求；304 不当错误。</li>
+<li>schema v4：正文转换（公式清理）变更后迁移清空 <code>body_markdown</code> 缓存，下次打开重解析；<code>paper_url</code> 保留。</li>
 </ul>
 <h3 id="42">4.2 拉取<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
 <ul>
