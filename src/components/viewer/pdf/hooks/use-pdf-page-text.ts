@@ -15,6 +15,10 @@
 import type { PdfEngine } from "@embedpdf/models";
 import type { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
 import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import {
+	detectPdfTextLinks,
+	type PdfTextLink,
+} from "@/components/viewer/pdf/layers/citation-links";
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import { threadHasUserQuestion } from "@/lib/pdf/ask/schema";
 import type { PdfAskThread } from "@/lib/pdf/ask/types";
@@ -47,6 +51,8 @@ export type UsePdfPageTextOptions = {
 export type PdfPageText = {
 	/** 0-based page index → normalized text rects (missing while unloaded). */
 	pageTextMap: Map<number, NormalizedRect[]>;
+	/** 0-based page index → external links detected from plain PDF text. */
+	pageTextLinkMap: Map<number, PdfTextLink[]>;
 	/** Mirror for callbacks that must not re-create on every fetch. */
 	pageTextMapRef: RefObject<Map<number, NormalizedRect[]>>;
 };
@@ -64,6 +70,9 @@ export function usePdfPageText({
 }: UsePdfPageTextOptions): PdfPageText {
 	const [pageTextMap, setPageTextMap] = useState(
 		() => new Map<number, NormalizedRect[]>(),
+	);
+	const [pageTextLinkMap, setPageTextLinkMap] = useState(
+		() => new Map<number, PdfTextLink[]>(),
 	);
 	const pageTextPendingRef = useRef(new Set<number>());
 	const pageTextMapRef = useRef(pageTextMap);
@@ -126,10 +135,16 @@ export function usePdfPageText({
 				.toPromise()
 				.then((rects) => {
 					const norm = normalizePageTextRects(rects, page.size);
+					const textLinks = detectPdfTextLinks(rects);
 					setPageTextMap((prev) => {
 						if (prev.get(pageIndex) === norm) return prev;
 						const next = new Map(prev);
 						next.set(pageIndex, norm);
+						return next;
+					});
+					setPageTextLinkMap((prev) => {
+						const next = new Map(prev);
+						next.set(pageIndex, textLinks);
 						return next;
 					});
 				})
@@ -142,5 +157,5 @@ export function usePdfPageText({
 		}
 	}, [engine, docCap, docId, totalPages, currentPage, markPagesKey]);
 
-	return { pageTextMap, pageTextMapRef };
+	return { pageTextMap, pageTextLinkMap, pageTextMapRef };
 }

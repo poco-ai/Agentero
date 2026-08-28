@@ -1,7 +1,14 @@
 import type { PdfDestinationObject, PdfLinkTarget } from "@embedpdf/models";
 import { PdfActionType, PdfZoomMode } from "@embedpdf/models";
+import { type ComponentType, createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { getLinkDestination } from "@/components/viewer/pdf/layers/citation-links";
+import {
+	CitationLinkLayer,
+	detectPdfTextLinks,
+	excludeOverlappingPdfTextLinks,
+	getLinkDestination,
+} from "@/components/viewer/pdf/layers/citation-links";
 
 function dest(mode: PdfZoomMode, view: number[]): PdfDestinationObject {
 	return {
@@ -75,5 +82,139 @@ describe("getLinkDestination", () => {
 	it("falls back to pdfY 0 when /FitR view is incomplete", () => {
 		const d = dest(PdfZoomMode.FitRectangle, [0, 10]);
 		expect(getLinkDestination(target(d))).toEqual({ pageIndex: 2, pdfY: 0 });
+	});
+});
+
+describe("detectPdfTextLinks", () => {
+	it("turns a plain HTTPS text rectangle into an external link", () => {
+		expect(
+			detectPdfTextLinks([
+				{
+					content: "https://github.com/microsoft/microxcaling",
+					rect: {
+						origin: { x: 322, y: 766 },
+						size: { width: 152, height: 9 },
+					},
+					font: { family: "NimbusRomNo9L-Regu", size: 9 },
+				},
+			]),
+		).toEqual([
+			{
+				url: "https://github.com/microsoft/microxcaling",
+				rect: {
+					origin: { x: 322, y: 766 },
+					size: { width: 152, height: 9 },
+				},
+			},
+		]);
+	});
+
+	it("turns an arXiv identifier into its abstract URL without sentence punctuation", () => {
+		const links = detectPdfTextLinks([
+			{
+				content: "arXiv:2505.22375.",
+				rect: {
+					origin: { x: 170, y: 734 },
+					size: { width: 74, height: 7 },
+				},
+				font: { family: "Times-Roman", size: 7 },
+			},
+		]);
+
+		expect(links).toHaveLength(1);
+		expect(links[0]?.url).toBe("https://arxiv.org/abs/2505.22375");
+	});
+
+	it("removes sentence punctuation from a plain HTTPS URL", () => {
+		const links = detectPdfTextLinks([
+			{
+				content: "https://example.com/paper.",
+				rect: {
+					origin: { x: 10, y: 20 },
+					size: { width: 100, height: 10 },
+				},
+				font: { family: "Times-Roman", size: 10 },
+			},
+		]);
+
+		expect(links).toHaveLength(1);
+		expect(links[0]?.url).toBe("https://example.com/paper");
+	});
+
+	it("limits the hit rectangle to the matched part of a text rectangle", () => {
+		expect(
+			detectPdfTextLinks([
+				{
+					content: "See https://example.com now",
+					rect: {
+						origin: { x: 0, y: 20 },
+						size: { width: 270, height: 10 },
+					},
+					font: { family: "Times-Roman", size: 10 },
+				},
+			]),
+		).toEqual([
+			{
+				url: "https://example.com",
+				rect: {
+					origin: { x: 40, y: 20 },
+					size: { width: 190, height: 10 },
+				},
+			},
+		]);
+	});
+});
+
+describe("excludeOverlappingPdfTextLinks", () => {
+	it("keeps only detected links without an intersecting native annotation", () => {
+		const overlappingRect = {
+			origin: { x: 10, y: 20 },
+			size: { width: 100, height: 10 },
+		};
+		const separateRect = {
+			origin: { x: 10, y: 40 },
+			size: { width: 100, height: 10 },
+		};
+
+		expect(
+			excludeOverlappingPdfTextLinks(
+				[
+					{ url: "https://example.com/annotated", rect: overlappingRect },
+					{ url: "https://example.com/plain", rect: separateRect },
+				],
+				[{ rect: overlappingRect }],
+			),
+		).toEqual([{ url: "https://example.com/plain", rect: separateRect }]);
+	});
+});
+
+describe("CitationLinkLayer", () => {
+	it("renders a hit target for a detected text link without native annotations", () => {
+		const html = renderToStaticMarkup(
+			createElement(
+				CitationLinkLayer as unknown as ComponentType<Record<string, unknown>>,
+				{
+					links: [],
+					textLinks: [
+						{
+							url: "https://example.com",
+							rect: {
+								origin: { x: 10, y: 20 },
+								size: { width: 100, height: 10 },
+							},
+						},
+					],
+					pageWidthPt: 200,
+					pageHeightPt: 100,
+					label: "PDF link",
+					onActivate: () => undefined,
+					onTextActivate: () => undefined,
+					onHover: () => undefined,
+				},
+			),
+		);
+
+		expect(html).toContain('aria-label="https://example.com"');
+		expect(html).toContain('title="https://example.com"');
 	});
 });

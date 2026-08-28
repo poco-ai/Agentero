@@ -32,6 +32,7 @@ import {
 	pdfTileDpr,
 } from "@/components/viewer/pdf/constants";
 import { EMBED_PAGE_ATTR } from "@/components/viewer/pdf/coords";
+import type { PdfTextLink } from "@/components/viewer/pdf/layers/citation-links";
 import { CitationLinkLayer } from "@/components/viewer/pdf/layers/citation-links";
 import { CommentCardsLayer } from "@/components/viewer/pdf/layers/comment-cards-layer";
 import { HighlightAnnotationMenu } from "@/components/viewer/pdf/layers/highlight-annotation-menu";
@@ -101,6 +102,7 @@ export type PdfPageMarksSlice = {
 	/** Resolvable wiki target for comment copy-link/copy-embed; null hides them. */
 	commentWikiTarget: string | null;
 	citationLinks: ReadonlyMap<number, PdfLinkAnnoObject[]>;
+	textLinks: ReadonlyMap<number, PdfTextLink[]>;
 	activeCardId: string | null;
 	/** Id of the comment-rail card currently being hovered; null when idle. */
 	hoveredCommentId: string | null;
@@ -133,6 +135,7 @@ export type PdfPageHandlers = {
 	onCardHoverEnter: () => void;
 	onCardHoverLeave: () => void;
 	onCitationActivate: (link: PdfLinkAnnoObject) => void;
+	onTextLinkActivate: (url: string) => void;
 	onCitationHover: (link: PdfLinkAnnoObject | null) => void;
 	onRegionSelect: (page: number, region: PdfAskNormalizedRect) => void;
 	/** Click a figure / table / algorithm / formula hit target → crop + draft card. */
@@ -382,10 +385,12 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				/>
 				<CitationLinkLayer
 					links={marks.citationLinks.get(pageIndex) ?? EMPTY_CITATION_LINKS}
+					textLinks={marks.textLinks.get(pageIndex) ?? []}
 					pageWidthPt={width / zoomRef.current}
 					pageHeightPt={height / zoomRef.current}
 					label={t("pdf.linkAria")}
 					onActivate={handlers.onCitationActivate}
+					onTextActivate={handlers.onTextLinkActivate}
 					onHover={handlers.onCitationHover}
 				/>
 				<PdfRegionSelectLayer
