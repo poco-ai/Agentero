@@ -20,6 +20,7 @@ import {
 	PdfZoomMode,
 } from "@embedpdf/models";
 import { memo } from "react";
+import { normalizeArxivId } from "@/lib/paper/arxiv";
 
 export function isLinkObject(
 	object: PdfAnnotationObject,
@@ -56,35 +57,35 @@ export function detectPdfTextLinks(
 	textRects: readonly PdfTextRectObject[],
 ): PdfTextLink[] {
 	return textRects.flatMap(({ content, rect }) => {
-		const url = content.match(/https?:\/\/\S+/i);
-		if (url) {
-			const normalized = url[0].replace(/[.,;:!?]+$/, "");
-			return [
-				{
-					url: normalized,
+		const links: { index: number; link: PdfTextLink }[] = [];
+		for (const match of content.matchAll(/https?:\/\/\S+/gi)) {
+			const url = match[0].replace(/[.,;:!?]+$/, "");
+			links.push({
+				index: match.index,
+				link: {
+					url,
+					rect: matchedTextRect(rect, content.length, match.index, url.length),
+				},
+			});
+		}
+		for (const match of content.matchAll(/\barxiv\s*:\s*(\S+)/gi)) {
+			const matchedText = match[0].replace(/[.,;:!?]+$/, "");
+			const id = normalizeArxivId(match[1]?.replace(/[.,;:!?]+$/, "") ?? "");
+			if (!id) continue;
+			links.push({
+				index: match.index,
+				link: {
+					url: `https://arxiv.org/abs/${id}`,
 					rect: matchedTextRect(
 						rect,
 						content.length,
-						url.index ?? 0,
-						normalized.length,
+						match.index,
+						matchedText.length,
 					),
 				},
-			];
+			});
 		}
-		const arxiv = content.match(/\barxiv\s*:\s*(\d{4}\.\d{4,5}(?:v\d+)?)/i);
-		return arxiv
-			? [
-					{
-						url: `https://arxiv.org/abs/${arxiv[1]}`,
-						rect: matchedTextRect(
-							rect,
-							content.length,
-							arxiv.index ?? 0,
-							arxiv[0].length,
-						),
-					},
-				]
-			: [];
+		return links.sort((a, b) => a.index - b.index).map(({ link }) => link);
 	});
 }
 

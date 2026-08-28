@@ -125,6 +125,43 @@ describe("detectPdfTextLinks", () => {
 		expect(links[0]?.url).toBe("https://arxiv.org/abs/2505.22375");
 	});
 
+	it("detects every URL and arXiv identifier in one text rectangle", () => {
+		const links = detectPdfTextLinks([
+			{
+				content:
+					"https://example.com/one arXiv:2505.22375 https://example.com/two",
+				rect: {
+					origin: { x: 0, y: 20 },
+					size: { width: 690, height: 10 },
+				},
+				font: { family: "Times-Roman", size: 10 },
+			},
+		]);
+
+		expect(links.map(({ url }) => url)).toEqual([
+			"https://example.com/one",
+			"https://arxiv.org/abs/2505.22375",
+			"https://example.com/two",
+		]);
+	});
+
+	it("turns a legacy arXiv identifier into its abstract URL", () => {
+		const links = detectPdfTextLinks([
+			{
+				content: "arXiv:hep-th/9901001",
+				rect: {
+					origin: { x: 10, y: 20 },
+					size: { width: 100, height: 10 },
+				},
+				font: { family: "Times-Roman", size: 10 },
+			},
+		]);
+
+		expect(links.map(({ url }) => url)).toEqual([
+			"https://arxiv.org/abs/hep-th/9901001",
+		]);
+	});
+
 	it("removes sentence punctuation from a plain HTTPS URL", () => {
 		const links = detectPdfTextLinks([
 			{
