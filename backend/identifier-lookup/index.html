@@ -5371,6 +5371,9 @@
 <li>ADS Bibcode</li>
 <li>PMID（1–9 位数字，最后匹配）</li>
 </ol>
+<blockquote>
+<p>实现上，优先级由 <code>src-tauri/src/features/import/resolver.rs</code> 的静态 resolver 表驱动：Url / Doi / Arxiv / Isbn / Pmid / Ads 各实现 <code>PaperResolver</code>（<code>priority</code> 探测顺序、<code>catalog_column</code> 查重列、<code>translator_target</code> 构造 Translator 请求、<code>fetch_fallback</code> Translator 失败后的直连回退——arXiv→Atom、DOI→Crossref）。Skill 不入表，由 <code>parse::extract_skill_source</code> 前置分流。新增导入源只需实现一个 resolver 并登记进表（表按 <code>priority</code> 排序，有测试守护）。</p>
+</blockquote>
 <p>解析失败：返回 <code>lookup.failure_to_id</code>，不调用网络。</p>
 <h3 id="33-parsedidentifier">3.3 输出：<code>ParsedIdentifier</code><a class="headerlink" href="#33-parsedidentifier" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="kr">type</span><span class="w"> </span><span class="nx">IdentifierKind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'doi'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'isbn'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'pmid'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'arxiv'</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">'ads_bibcode'</span><span class="p">;</span>
