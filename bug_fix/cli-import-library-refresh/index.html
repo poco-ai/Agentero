@@ -3026,6 +3026,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        后续清理
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3448,6 +3459,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        后续清理
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3491,6 +3513,11 @@
 <li><code>pnpm exec tsc --noEmit</code></li>
 </ul>
 <p>手动预期：应用打开 Vault 后运行 <code>agentero --json -v &lt;vault&gt; import id &lt;arxiv-or-doi&gt;</code>，新论文行应自动从目录 ID 更新为标题/作者，无需重开论文库。</p>
+<h2 id="_5">后续清理<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<ul>
+<li>前端 <code>isCatalogStoragePath</code>（catalog.sqlite 事件分支）已在后续清理中删除：Host watcher 忽略所有 <code>.agentero/</code> 路径，该分支收不到事件，属死代码。</li>
+<li>CLI 导入触发 Library 刷新的主路径是结构事件（<code>payloadAffectsLibrary</code> 检测 <code>papers/</code> 下的新增/删除/重命名），不依赖 catalog.sqlite 文件事件。</li>
+</ul>
 
 
 
