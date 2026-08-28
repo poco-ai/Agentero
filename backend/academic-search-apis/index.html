@@ -3876,7 +3876,7 @@
 <li>内部有 L0/L1/L2 三层过滤与 SPECTER2 相似度排序，分页上限受 S2 <code>offset + limit &lt; 10000</code> 限制。</li>
 </ul>
 <h3 id="25-venue-publication">2.5 Venue / Publication 回填<a class="headerlink" href="#25-venue-publication" title="Permanent link">&para;</a></h3>
-<p>入口：<code>features/catalog/commands.rs::paper_backfill_publication</code>。</p>
+<p>入口：<code>features/import/commands.rs::paper_backfill_publication</code>。</p>
 <p>用于 Library 的 publication 列批量补全。实测各源准确度：</p>
 <table>
 <thead>
