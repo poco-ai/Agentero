@@ -3536,15 +3536,27 @@
 <td><code>8765</code></td>
 <td>只绑 <code>127.0.0.1</code></td>
 </tr>
+<tr>
+<td><code>mcpTunnelId</code></td>
+<td><code>""</code></td>
+<td>OpenAI Secure MCP Tunnel ID（<code>tunnel_</code> + 32 hex）</td>
+</tr>
+<tr>
+<td><code>mcpTunnelApiKey</code></td>
+<td><code>""</code></td>
+<td>Runtime（Restricted）API key；回显为 mask</td>
+</tr>
 </tbody>
 </table>
 <p>监听 URL：<code>http://127.0.0.1:{port}/mcp</code>。设置页端口旁绿点表示正在听；点击 URL 复制。</p>
-<p>Host commands：<code>mcp_get_status</code> / <code>mcp_set_enabled</code> / <code>mcp_set_port</code> / <code>mcp_set_vault</code> / <code>mcp_set_parent_dir</code>。状态事件 <code>mcp:status</code>。</p>
+<p>Host commands：<code>mcp_get_status</code> / <code>mcp_set_enabled</code> / <code>mcp_set_port</code> / <code>mcp_set_vault</code> / <code>mcp_set_parent_dir</code>，以及隧道相关 <code>mcp_tunnel_status</code> / <code>mcp_tunnel_start</code> / <code>mcp_tunnel_stop</code>。状态事件 <code>mcp:status</code>、<code>mcp:tunnel-status</code>。</p>
 <p><code>initialize.serverInfo</code> 带 <code>title</code>、<code>websiteUrl</code> 和 <code>icons</code>（应用 PNG 的 data URI）。客户端可以忽略不画。</p>
 <p>无鉴权。不要把端口绑到非 loopback。</p>
 <h2 id="chatgpt-secure-mcp-tunnel">ChatGPT Secure MCP Tunnel<a class="headerlink" href="#chatgpt-secure-mcp-tunnel" title="Permanent link">&para;</a></h2>
-<p>App 开着且开关打开后，用 OpenAI <code>tunnel-client</code> 把 <code>http://127.0.0.1:{port}/mcp</code> 接到 ChatGPT。安装、建隧道、Key、ChatGPT Connection 的逐步教程见 <a href="../../usage/mcp/">用 MCP 连接外部 Agent</a>。</p>
-<p>Codex / Inspector 也可直接打该 URL。stdio 子进程不是这条通路。</p>
+<p>App 开着且 MCP 开关打开后，可在同一设置区填写 Tunnel ID 与 Runtime API key，点 <strong>Start</strong> 让 Agentero 直接 spawn 并持有 <code>tunnel-client run</code>。按钮旁绿点表示隧道已连通控制平面；<strong>注意 <code>/readyz</code> 返回 200 不代表认证成功</strong>，真正的 ready 信号是 <code>tunnel-client health --require-control-plane-poll</code> 的 <code>control_plane_poll.ok=true</code>。</p>
+<p>隧道子进程随 Agentero 退出而停止（<code>RunEvent::Exit</code> 里 kill）。找不到 <code>tunnel-client</code> 时按钮禁用，并提示可复制安装命令 <code>brew install openai/tools/tunnel-client</code>，不会自动安装。</p>
+<p>Agentero 用独立 <code>--profile-dir</code>（<code>$XDG_CACHE_HOME/agentero/mcp-tunnel</code>）运行 tunnel-client，避免串到用户已有的 <code>~/.config/tunnel-client/*.yaml</code>；API key 只通过子进程 env <code>CONTROL_PLANE_API_KEY</code> 注入，不出现在命令行参数或 UI 日志。</p>
+<p>Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通路。详细逐步教程见 <a href="../../usage/mcp/">用 MCP 连接外部 Agent</a>。</p>
 <h2 id="resource">Resource<a class="headerlink" href="#resource" title="Permanent link">&para;</a></h2>
 <p>Vault 概况不是 tool，是文档：</p>
 <table>

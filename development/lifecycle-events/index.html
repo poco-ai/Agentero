@@ -3966,7 +3966,7 @@
 </tbody>
 </table>
 <h3 id="_5">已符合规范、直接纳入<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
-<p><code>settings:changed</code>、<code>connector:item-saved</code>、<code>agent:completed</code>、<code>agent:failed</code>、<code>agent:registry-changed</code>（Host 在 probe / 安装 / 增删 / 改默认后广播，Agent 面板防抖刷新切换器）、<code>sync:state</code>（后续可补 <code>sync:completed</code>）。</p>
+<p><code>settings:changed</code>、<code>connector:item-saved</code>、<code>agent:completed</code>、<code>agent:failed</code>、<code>agent:registry-changed</code>（Host 在 probe / 安装 / 增删 / 改默认后广播，Agent 面板防抖刷新切换器）、<code>sync:state</code>（后续可补 <code>sync:completed</code>）、<code>mcp:status</code> / <code>mcp:tunnel-status</code>。</p>
 <h2 id="_6">架构设计<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code>Rust 关键节点 ──emit──▶ Tauri wire 事件 ──┐
                                           ├──▶ src/lib/lifecycle/（typed bus）──▶ 注册 handler
