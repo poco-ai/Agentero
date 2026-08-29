@@ -3580,7 +3580,7 @@
 </tr>
 <tr>
 <td>文中链接</td>
-<td>Link annotation 覆盖层：citation / 图表·公式交叉引用 / 章节 GoTo 点击跳页，URI 开系统浏览器。打开论文后（主线程空闲时）在 Worker 里解析命名目标（<code>lib/pdf/citation-dest-keys.ts</code>），字节优先复用 <code>tab.pdfBytes</code>，按 <code>pdfPath:size</code> 缓存。<strong>Citation hover</strong>：hyperref <code>cite.&lt;key&gt;</code> 走 <code>pageIndex:pdfY → key → sidecar.rawKey</code>；ACS <code>mk:refN</code> 因 <code>/FitR</code> 整页冲突改走 <strong>Link rect → mk:refN → sidecar id <code>ref-N</code></strong>。同一上标簇内按间距区分逗号与连字符：<code>14-18</code> 展开为 14…18 多条列表，<code>7,9</code> 保持两条。<strong>Crossref hover</strong>（<code>Fig. 3</code> / <code>Table 1</code> / <code>Eq. (2)</code>）：同理先 dest 坐标，冲突时 <strong>Link rect → mk:tbl1 / mk:fig3</strong>，再配 layout region 裁剪。索引 / layout / sidecar 未就绪或无法消歧时不弹卡片；章节等非 float 内部链接只保留导航</td>
+<td>Link annotation 覆盖层：citation / 图表·公式交叉引用 / 章节 GoTo 点击跳页，URI 开系统浏览器；未带 Link annotation 的纯文本 <code>http(s)</code> URL 与 <code>arXiv:&lt;id&gt;</code> 也会根据现有 PDFium 文字矩形生成外链命中区，并跳过与原生链接重叠的区域。打开论文后（主线程空闲时）在 Worker 里解析命名目标（<code>lib/pdf/citation-dest-keys.ts</code>），字节优先复用 <code>tab.pdfBytes</code>，按 <code>pdfPath:size</code> 缓存。<strong>Citation hover</strong>：hyperref <code>cite.&lt;key&gt;</code> 走 <code>pageIndex:pdfY → key → sidecar.rawKey</code>；ACS <code>mk:refN</code> 因 <code>/FitR</code> 整页冲突改走 <strong>Link rect → mk:refN → sidecar id <code>ref-N</code></strong>。同一上标簇内按间距区分逗号与连字符：<code>14-18</code> 展开为 14…18 多条列表，<code>7,9</code> 保持两条。<strong>Crossref hover</strong>（<code>Fig. 3</code> / <code>Table 1</code> / <code>Eq. (2)</code>）：同理先 dest 坐标，冲突时 <strong>Link rect → mk:tbl1 / mk:fig3</strong>，再配 layout region 裁剪。索引 / layout / sidecar 未就绪或无法消歧时不弹卡片；章节等非 float 内部链接只保留导航</td>
 </tr>
 <tr>
 <td>视觉批注</td>
