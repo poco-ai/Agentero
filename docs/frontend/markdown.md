@@ -134,9 +134,7 @@ Markdown 已能表达的语法不做 HTML 语义化转换，只处理 Markdown �
 
 渲染前经 `DOMPurify` 净化：剥离 `script` / `style` / 表单与内联事件，`iframe` 强制 `sandbox` + `referrerpolicy="no-referrer"` 且仅允许 http(s) `src`，链接强制 `target="_blank" rel="noopener noreferrer"`。应用未启用 CSP，因此净化是唯一防线——Markdown 文件始终保存作者原文，只收窄进入 DOM 的部分。
 
-`@platejs/markdown` 解析前会把 `class` / `for` 改写成 JSX 拼写，取回源码切片时会还原；void 元素会被补成自闭合（`<img …>` → `<img … />`），这是一次性归一化，之后保持稳定。
-
-已知上游缺陷：该改写作用于整份源码字符串，代码围栏内的 HTML 示例里 `class=` 也会被改成 `className=`，与本节无关，需另行修复。
+`@platejs/markdown` 解析前会把 `class` / `for` 改写成 JSX 拼写；编辑器会在取回源码切片和 HTML 代码围栏时还原。void 元素会被补成自闭合（`<img …>` → `<img … />`），这是一次性归一化，之后保持稳定。
 
 ## 代码
 

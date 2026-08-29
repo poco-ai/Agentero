@@ -4,6 +4,7 @@ type MdNode = {
 	type: string;
 	name?: string;
 	value?: string;
+	lang?: string;
 	children?: MdNode[];
 	attributes?: { type?: string; name?: string; value?: unknown }[];
 	position?: {
@@ -101,6 +102,9 @@ function expand(node: MdNode, source: string): MdNode[] | null {
 function transformTree(node: MdNode, source: string): void {
 	if (!node.children) return;
 	node.children = node.children.flatMap((child) => {
+		if (child.type === "code" && child.lang?.toLowerCase() === "html") {
+			child.value = toHtmlSource(child.value ?? "");
+		}
 		const next = expand(child, source);
 		if (next) return next;
 		transformTree(child, source);
