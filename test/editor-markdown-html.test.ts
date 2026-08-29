@@ -120,7 +120,8 @@ describe("HTML in Markdown", () => {
 	});
 
 	it("leaves fenced html samples untouched", () => {
-		const source = '```html\n<label class="field" for="email">Email</label>\n```';
+		const source =
+			'```html\n<label class="field" for="email">Email</label>\n```';
 		expect(roundTrip(source)).toBe(source);
 	});
 });
