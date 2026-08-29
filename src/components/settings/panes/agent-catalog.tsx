@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import type {
+	AgentDescriptor,
 	AgentTemplate,
 	CatalogEntry,
 	CatalogScanResponse,
@@ -66,6 +67,33 @@ export function catalogNeedsProbe(
 	if (!entry.acpCommandAvailable) return false;
 	if (force) return true;
 	return entry.acpStatus === "not-probed" || entry.acpStatus === "failed";
+}
+
+/**
+ * Row badge is "probing": its own probe key is in flight, or the host cleared a
+ * not-probed status while a batch (scan / any probe) is running.
+ */
+export function isCatalogEntryProbing(
+	entry: CatalogEntry,
+	rowProbing: boolean,
+	batchActive: boolean,
+): boolean {
+	return (
+		rowProbing ||
+		(entry.acpCommandAvailable &&
+			entry.acpStatus === "not-probed" &&
+			batchActive)
+	);
+}
+
+/** Same inference for custom agents (available but never probed + batch running). */
+export function isCustomAgentProbing(
+	agent: AgentDescriptor,
+	rowProbing: boolean,
+	batchActive: boolean,
+): boolean {
+	const notProbedYet = agent.available && agent.lastProbeOk == null;
+	return rowProbing || (notProbedYet && batchActive);
 }
 
 /** Local silent install of the host Agent CLI (and adapter when needed). */

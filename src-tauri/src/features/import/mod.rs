@@ -16,6 +16,7 @@ pub(crate) mod map;
 pub(crate) mod parse;
 pub(crate) mod pdf_recognize;
 pub(crate) mod recognize_apply;
+pub(crate) mod resolver;
 mod skill_import;
 pub(crate) mod title_search;
 
@@ -51,6 +52,8 @@ pub use pdf_parse::engines::refresh_parser_config;
 #[cfg(feature = "desktop")]
 pub(crate) use pdf_parse::CANCELLED_MESSAGE;
 
+#[cfg(not(feature = "desktop"))]
+use crate::core::app_handle::AppHandle;
 use crate::core::error::AppError;
 use crate::features::catalog::{
     papers::{self, PaperRecord},
@@ -60,7 +63,7 @@ use crate::features::catalog::{
 use crate::features::import::assets::AssetDownloadProgress;
 use futures_util::StreamExt;
 use map::local_pdf_meta;
-use parse::{extract_primary_identifier, IdentifierKind};
+use parse::extract_primary_identifier;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -69,8 +72,6 @@ use std::sync::Arc;
 use std::time::Duration;
 #[cfg(feature = "desktop")]
 use tauri::{AppHandle, Emitter};
-#[cfg(not(feature = "desktop"))]
-pub struct AppHandle;
 use tokio::sync::Mutex;
 
 /// Public helper for remote PDF import staging.
@@ -558,30 +559,6 @@ fn emit_batch_progress(
     }
 }
 
-pub(crate) fn identifier_kind_str(kind: IdentifierKind) -> String {
-    match kind {
-        IdentifierKind::Doi => "doi",
-        IdentifierKind::Isbn => "isbn",
-        IdentifierKind::Arxiv => "arxiv",
-        IdentifierKind::Pmid => "pmid",
-        IdentifierKind::AdsBibcode => "ads",
-        IdentifierKind::Url => "url",
-        IdentifierKind::Skill => "skill",
-    }
-    .to_string()
-}
-
-pub(crate) fn identifier_kind_column(kind: IdentifierKind) -> Option<&'static str> {
-    match kind {
-        IdentifierKind::Arxiv => Some("arxiv_id"),
-        IdentifierKind::Doi => Some("doi"),
-        IdentifierKind::Isbn => Some("isbn"),
-        IdentifierKind::Pmid => Some("pmid"),
-        IdentifierKind::AdsBibcode => Some("id"),
-        IdentifierKind::Url | IdentifierKind::Skill => None,
-    }
-}
-
 /// On-demand download of PDF (+ arXiv LaTeX) for an existing paper folder.
 pub async fn download_paper_assets(
     args: PaperDownloadAssetsArgs,
@@ -1046,15 +1023,17 @@ pub(crate) async fn resolve_metadata(
             Ok((meta, true))
         }
         Err(e) => {
-            // Fall back for arXiv so local dev works without sidecar
-            if let Some(aid) = parse::extract_arxiv_id(text) {
-                let meta = fetch_arxiv_metadata(&aid, task_id).await?;
-                check_task_not_cancelled(task_id)?;
-                Ok((meta, false))
-            } else {
-                Err(AppError::message(format!(
-                    "translator unreachable at {translator_base} ({e}); only arXiv fallback is available without Runtime"
-                )))
+            // Direct-connect fallbacks from the resolver table (arXiv Atom,
+            // DOI → Crossref) so local dev works without the Runtime sidecar.
+            match resolver::fetch_direct_fallback(text, task_id).await {
+                Some(Ok(meta)) => {
+                    check_task_not_cancelled(task_id)?;
+                    Ok((meta, false))
+                }
+                Some(Err(err)) => Err(err),
+                None => Err(AppError::message(format!(
+                    "translator unreachable at {translator_base} ({e}); only arXiv/Crossref fallbacks are available without Runtime"
+                ))),
             }
         }
     }
@@ -1125,19 +1104,21 @@ async fn translator_fetch(
 ///
 /// arXiv's PDF endpoints are binary resources, which the Translator Runtime
 /// cannot parse as web pages. Canonicalizing every recognized arXiv form to
-/// its abstract page also gives direct IDs and URLs the same metadata path.
+/// its abstract page (the arXiv resolver's target) also gives direct IDs and
+/// URLs the same metadata path — so it runs ahead of the generic table probe,
+/// where arXiv URLs would classify as `url`.
 fn translator_request(text: &str, base: &str) -> (String, String) {
     if let Some(arxiv_id) = parse::extract_arxiv_id(text) {
-        return (
-            format!("{base}/web"),
-            format!("https://arxiv.org/abs/{arxiv_id}"),
-        );
+        return resolver::find(resolver::ARXIV_KIND)
+            .expect("arxiv resolver is registered")
+            .translator_target(&arxiv_id, base);
     }
 
     let ident = extract_primary_identifier(text);
-    match &ident {
-        Some((IdentifierKind::Url, url)) => (format!("{base}/web"), url.clone()),
-        Some((_, value)) => (format!("{base}/search"), value.clone()),
+    match ident {
+        Some(ident) => resolver::find(ident.kind)
+            .map(|r| r.translator_target(&ident.value, base))
+            .unwrap_or_else(|| (format!("{base}/search"), ident.value.clone())),
         None => {
             // Treat as search raw text / possible URL.
             if text.starts_with("http://") || text.starts_with("https://") {
@@ -1215,38 +1196,6 @@ async fn translator_import(content: &str, base: &str) -> Result<Vec<serde_json::
         return Err(AppError::message("import returned no items"));
     }
     Ok(arr)
-}
-
-pub(crate) async fn fetch_arxiv_metadata(
-    arxiv_id: &str,
-    task_id: Option<&str>,
-) -> Result<PaperMeta, AppError> {
-    let bare = parse::strip_arxiv_version(arxiv_id);
-    let api = format!(
-        "https://export.arxiv.org/api/query?id_list={}",
-        urlencoding_encode(&bare)
-    );
-    let client = crate::core::http::client_builder()
-        .timeout(Duration::from_secs(30))
-        .user_agent("agentero-lookup/0.1")
-        .build()
-        .map_err(|e| AppError::message(format!("http client: {e}")))?;
-    let xml = client
-        .get(&api)
-        .send()
-        .await
-        .map_err(|e| AppError::message(format!("arXiv API: {e}")))?
-        .text()
-        .await
-        .map_err(|e| AppError::message(format!("arXiv body: {e}")))?;
-    check_task_not_cancelled(task_id)?;
-
-    map::map_arxiv_atom(&xml, &bare).await
-}
-
-fn urlencoding_encode(s: &str) -> String {
-    // minimal encode for arxiv ids
-    s.replace('/', "%2F")
 }
 
 pub(crate) fn paper_record_from_meta(path: &str, meta: &PaperMeta) -> PaperRecord {
@@ -1522,7 +1471,7 @@ fn render_note_template(template: &str, meta: &PaperMeta) -> String {
 
 /// Aliases guarantee for a rendered (Custom) shell: when the frontmatter has
 /// no aliases, merge in the title + short alias following the same logic as
-/// `catalog::papers::append_title_alias_best_effort`.
+/// `wiki::append_title_alias_best_effort`.
 fn ensure_note_aliases(notes: &str, aliases: &[String]) -> String {
     use crate::features::wiki::frontmatter::{self as fm, AliasEdit};
     let inspection = fm::inspect_aliases(notes);

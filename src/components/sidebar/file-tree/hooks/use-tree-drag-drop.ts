@@ -19,17 +19,17 @@ import { errorText } from "@/lib/core/error";
 import { dataTransferTypes } from "@/lib/core/file-accept";
 import { notifyError } from "@/lib/core/notify";
 import { dirnameOf } from "@/lib/core/path";
+import {
+	beginVaultFileDrag,
+	endVaultFileDrag,
+	VAULT_FILE_DRAG_TYPE,
+} from "@/lib/core/vault-file-drag";
 import { isPaperAssetPath, isPaperDirectory } from "@/lib/paper";
 import {
 	dataTransferHasFiles,
 	resolveDroppedPdfPaths,
 	snapshotDataTransfer,
 } from "@/lib/shell/external-file-drop";
-import {
-	beginVaultFileDrag,
-	endVaultFileDrag,
-	VAULT_FILE_DRAG_TYPE,
-} from "@/lib/shell/vault-file-drag";
 import type { FileNode } from "@/lib/vault";
 import { isVirtualTreePath } from "../tree-helpers";
 import type { TreeCreateDraft, TreeRenameDraft } from "../types";

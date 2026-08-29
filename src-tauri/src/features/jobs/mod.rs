@@ -13,7 +13,7 @@ pub const JOB_OFFER_EVENT: &str = "job:offer";
 
 const LAYOUT_ANALYZE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15 * 60);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobOfferPayload {
     pub job_id: String,
@@ -27,7 +27,7 @@ pub struct JobOfferPayload {
 #[serde(transparent)]
 pub struct JobId(pub String);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum JobKind {
     ParseRefs,
@@ -65,7 +65,9 @@ impl JobKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default, specta::Type,
+)]
 #[serde(rename_all = "camelCase")]
 pub enum JobLane {
     Focus,
@@ -74,7 +76,7 @@ pub enum JobLane {
     Idle,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum JobState {
     Queued,
@@ -85,14 +87,14 @@ pub enum JobState {
     Skipped,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum DepPolicy {
     AllSettled,
     AllSucceeded,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobSnapshot {
     pub id: String,
@@ -110,7 +112,7 @@ pub struct JobSnapshot {
     pub force: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobChangedPayload {
     pub job: JobSnapshot,

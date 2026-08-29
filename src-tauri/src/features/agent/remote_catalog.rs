@@ -1,15 +1,13 @@
 //! Discover and ACP-probe agents on a remote vault host (SSH).
 
-use super::agent_exec;
-use super::launch::resolve_remote_target;
-use super::session::{RemoteRegistry, RemoteSession, LOCAL_SIM_HOST};
+use super::models::{AgentDescriptor, CatalogAcpStatus, CatalogEntry, ProbeResult};
+use super::probe_agent;
+use super::templates::{catalog_templates, template_from_id, template_info};
+use super::tool_lifecycle;
 use crate::core::error::AppError;
-use crate::features::agent::models::{
-    AgentDescriptor, CatalogAcpStatus, CatalogEntry, ProbeResult,
-};
-use crate::features::agent::probe_agent;
-use crate::features::agent::templates::{catalog_templates, template_from_id, template_info};
-use crate::features::agent::tool_lifecycle;
+use crate::features::remote::agent_exec;
+use crate::features::remote::launch::resolve_remote_target;
+use crate::features::remote::session::{RemoteRegistry, RemoteSession, LOCAL_SIM_HOST};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -3,7 +3,7 @@
 //! @see docs/development/lifecycle-events.md
 
 #[cfg(not(feature = "desktop"))]
-use crate::features::import::AppHandle;
+use crate::core::app_handle::AppHandle;
 use serde::Serialize;
 use std::path::Path;
 #[cfg(feature = "desktop")]

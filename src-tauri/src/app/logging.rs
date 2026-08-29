@@ -20,9 +20,10 @@ pub fn build_log_plugin() -> tauri_plugin_log::Builder {
         .level_for("agentero::op", log::LevelFilter::Info)
         // Third-party crates flood Debug with per-token / per-frame
         // traces (html5ever parsing, rustls handshakes); keep dev readable.
-        .level_for("html5ever", log::LevelFilter::Warn)
+        .level_for("html5ever", log::LevelFilter::Error)
         .level_for("rustls", log::LevelFilter::Info)
         .level_for("reqwest", log::LevelFilter::Info)
+        .level_for("selectors", log::LevelFilter::Warn)
         .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
         .max_file_size(5_000_000)
         .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)

@@ -354,6 +354,12 @@ function normalizePartial(
 	) {
 		merged.mcpPort = DEFAULT_SETTINGS.mcpPort;
 	}
+	if (typeof merged.mcpTunnelId !== "string") {
+		merged.mcpTunnelId = DEFAULT_SETTINGS.mcpTunnelId;
+	}
+	if (typeof merged.mcpTunnelApiKey !== "string") {
+		merged.mcpTunnelApiKey = DEFAULT_SETTINGS.mcpTunnelApiKey;
+	}
 	if (typeof parsed.exportWatermarkEnabled !== "boolean") {
 		merged.exportWatermarkEnabled = DEFAULT_SETTINGS.exportWatermarkEnabled;
 	}

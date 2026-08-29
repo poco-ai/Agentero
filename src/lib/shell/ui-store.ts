@@ -208,48 +208,12 @@ export function toggleSidebar(): void {
  * Expand the right rail on `tab` (main window only). Callers must have already
  * ruled out an open singleton feature window for this tab.
  */
-function openRightTabInRail(tab: RightSidebarTab): void {
+export function openRightTabInRail(tab: RightSidebarTab): void {
 	setRightSidebarTab(tab);
 	if (tab === "agent") setAgentPanelMounted(true);
 	if (!uiStore.getState().rightSidebarOpen) {
 		layout()?.setRightCollapsed(false, { focusAgent: tab === "agent" });
 	}
-}
-
-/** Title-bar toggle: mounts the Agent panel when opening (unless agent is popped out). */
-export function toggleRightSidebar(): void {
-	const { rightSidebarOpen, rightSidebarTab } = uiStore.getState();
-	if (rightSidebarOpen) {
-		layout()?.setRightCollapsed(true);
-		return;
-	}
-	// Opening: prefer singleton window for the active feature tab.
-	void import("@/lib/shell/feature-window").then(
-		async ({ preferFeatureWindow }) => {
-			if (await preferFeatureWindow(rightSidebarTab)) return;
-			if (rightSidebarTab === "agent") setAgentPanelMounted(true);
-			layout()?.setRightCollapsed(false, {
-				focusAgent: rightSidebarTab === "agent",
-			});
-		},
-	);
-}
-
-/** ⌘L — toggle right sidebar (defaults to agent). */
-export function toggleChat(): void {
-	const { rightSidebarOpen, rightSidebarTab } = uiStore.getState();
-	if (rightSidebarOpen) {
-		layout()?.setRightCollapsed(true);
-		return;
-	}
-	void import("@/lib/shell/feature-window").then(
-		async ({ preferFeatureWindow }) => {
-			if (await preferFeatureWindow(rightSidebarTab)) return;
-			layout()?.setRightCollapsed(false, {
-				focusAgent: rightSidebarTab === "agent",
-			});
-		},
-	);
 }
 
 export function setFeaturePoppedOut(
@@ -262,50 +226,6 @@ export function setFeaturePoppedOut(
 			[tab]: poppedOut,
 		},
 	}));
-}
-
-/**
- * Open a feature view. If its singleton native window is open, focus that
- * window and do not host a second copy in the main right rail (same policy for
- * Agent and Annotations).
- */
-export function openRightTab(tab: RightSidebarTab): void {
-	void import("@/lib/shell/feature-window").then(
-		async ({ preferFeatureWindow }) => {
-			if (await preferFeatureWindow(tab)) return;
-			openRightTabInRail(tab);
-		},
-	);
-}
-
-let agentSessionOpenNonce = 0;
-
-/** Request Agent panel to open a runtime/provider session (PDF pin click). */
-export function requestOpenAgentSession(
-	input: Omit<AgentSessionOpenRequest, "nonce">,
-): void {
-	agentSessionOpenNonce += 1;
-	const request: AgentSessionOpenRequest = {
-		...input,
-		nonce: agentSessionOpenNonce,
-	};
-	uiStore.setState({
-		agentSessionOpenRequest: request,
-	});
-	// Always try the agent singleton window first (live probe, not only flag).
-	void import("@/lib/shell/feature-window").then(
-		async ({ preferFeatureWindow }) => {
-			const inWindow = await preferFeatureWindow("agent");
-			if (inWindow) {
-				const { broadcastAgentOpenSession } = await import(
-					"@/lib/shell/workspace-broadcast"
-				);
-				broadcastAgentOpenSession(request);
-				return;
-			}
-			openRightTabInRail("agent");
-		},
-	);
 }
 
 export function clearAgentSessionOpenRequest(): void {

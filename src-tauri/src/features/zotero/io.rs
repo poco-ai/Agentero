@@ -3,10 +3,10 @@
 //! Export body must be a **JSON array of Zotero items** (`Content-Type: application/json`).
 //! Import body is plain text (BibTeX / RIS / …) → returns the same item array shape.
 
+#[cfg(not(feature = "desktop"))]
+use crate::core::app_handle::AppHandle;
 use crate::core::error::AppError;
 use crate::features::catalog::papers::{self, PaperRecord};
-#[cfg(not(feature = "desktop"))]
-use crate::features::import::AppHandle;
 use crate::features::import::{
     enrich_remote_urls, map_zotero_item, normalize_parent_dir, translator_import_items,
     PaperImportArgs, PaperImportResult, DEFAULT_TRANSLATOR_BASE_URL,

@@ -113,7 +113,26 @@
 			"portLabel": "MCP 端口",
 			"invalidPort": "端口必须在 1 到 65535 之间。",
 			"copyUrl": "复制 MCP 地址",
-			"copied": "已复制"
+			"copied": "已复制",
+			"tunnel": {
+				"tunnelIdLabel": "隧道 ID",
+				"apiKeyLabel": "Runtime API Key",
+				"invalidTunnelId": "隧道 ID 形如 tunnel_ 加 32 位十六进制。",
+				"label": "ChatGPT 隧道",
+				"start": "启动",
+				"stop": "停止",
+				"starting": "启动中…",
+				"ready": "已连接",
+				"error": "未连接",
+				"stopped": "已停止",
+				"binaryMissing": "未找到 tunnel-client",
+				"installHint": "安装后重新打开设置：",
+				"copyCommand": "复制安装命令",
+				"copied": "已复制",
+				"openTunnels": "打开隧道列表",
+				"openApiKeys": "打开 API Key 页面",
+				"mcpOff": "请先打开 MCP 服务器开关。"
+			}
 		},
 		"export": {
 			"section": "笔记导出",

@@ -1,5 +1,6 @@
 //! Cross-cutting foundations shared by Host features and the headless CLI.
 
+pub mod app_handle;
 pub mod background_tasks;
 #[cfg(feature = "desktop")]
 pub mod blocking;

@@ -10,7 +10,7 @@ use super::{
 
 /// Shared enqueue args for kinds that take no extra parameters
 /// (ParseRefs / LayoutAnalyze / DownloadAssets).
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobEnqueueArgs {
     pub vault_path: String,
@@ -21,7 +21,7 @@ pub struct JobEnqueueArgs {
     pub force: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobParseBodyEnqueueArgs {
     pub vault_path: String,
@@ -34,14 +34,14 @@ pub struct JobParseBodyEnqueueArgs {
     pub task_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobFocusPaperArgs {
     pub vault_path: String,
     pub path: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobListArgs {
     #[serde(default)]
@@ -50,7 +50,7 @@ pub struct JobListArgs {
     pub path: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobReportArgs {
     pub job_id: String,
@@ -81,6 +81,7 @@ async fn start_or_hold(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn job_parse_refs_enqueue(
     app: tauri::AppHandle,
     center: State<'_, JobCenter>,
@@ -97,6 +98,7 @@ pub async fn job_parse_refs_enqueue(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn job_parse_body_enqueue(
     app: tauri::AppHandle,
     center: State<'_, JobCenter>,
@@ -118,7 +120,7 @@ pub async fn job_parse_body_enqueue(
     Ok(ApiResult::ok(start_or_hold(&app, &center, snapshot).await))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobReconcilePaperArgs {
     pub vault_path: String,
@@ -146,6 +148,7 @@ where
 /// a `ParseRefs` job when the cite sidecar is absent. Returns the enqueued
 /// jobs (empty when nothing needs doing).
 #[tauri::command]
+#[specta::specta]
 pub async fn job_reconcile_paper(
     app: tauri::AppHandle,
     center: State<'_, JobCenter>,
@@ -182,7 +185,7 @@ pub async fn job_reconcile_paper(
     Ok(ApiResult::ok(enqueued))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobReconcileVaultArgs {
     pub vault_path: String,
@@ -192,6 +195,7 @@ pub struct JobReconcileVaultArgs {
 /// that has a PDF but no TeX and no `PAPER.md`. Jobs enqueue on the idle lane;
 /// the per-kind cap (ParseBody = 1) throttles execution. Returns the count.
 #[tauri::command]
+#[specta::specta]
 pub async fn job_reconcile_vault(
     app: tauri::AppHandle,
     center: State<'_, JobCenter>,
@@ -228,7 +232,7 @@ pub async fn job_reconcile_vault(
     Ok(ApiResult::ok(enqueued))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct JobPapersNeedingAssetsArgs {
     pub vault_path: String,
@@ -239,6 +243,7 @@ pub struct JobPapersNeedingAssetsArgs {
 /// paper needs a download when it has no PDF, or its body is unknown (no
 /// catalog `body_source`) and it has neither TeX nor `PAPER.md`.
 #[tauri::command]
+#[specta::specta]
 pub async fn job_papers_needing_assets(
     caps: State<'_, crate::features::catalog::CapsCache>,
     args: JobPapersNeedingAssetsArgs,
@@ -268,6 +273,7 @@ pub async fn job_papers_needing_assets(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn job_layout_analyze_enqueue(
     app: tauri::AppHandle,
     center: State<'_, JobCenter>,
@@ -285,6 +291,7 @@ pub async fn job_layout_analyze_enqueue(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn job_download_assets_enqueue(
     app: tauri::AppHandle,
     center: State<'_, JobCenter>,
@@ -301,6 +308,7 @@ pub async fn job_download_assets_enqueue(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn job_focus_paper(
     app: tauri::AppHandle,
     center: State<'_, JobCenter>,
@@ -318,6 +326,7 @@ pub async fn job_focus_paper(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn job_cancel(
     app: tauri::AppHandle,
     center: State<'_, JobCenter>,
@@ -336,6 +345,7 @@ pub async fn job_cancel(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn job_report(
     app: tauri::AppHandle,
     center: State<'_, JobCenter>,
@@ -368,6 +378,7 @@ pub async fn job_report(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn job_list(
     center: State<'_, JobCenter>,
     args: JobListArgs,

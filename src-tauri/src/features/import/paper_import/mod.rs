@@ -5,10 +5,10 @@
 //!
 //! @see docs/backend/paper-import-pipeline.md
 
+#[cfg(not(feature = "desktop"))]
+use crate::core::app_handle::AppHandle;
 use crate::core::error::AppError;
 use crate::features::catalog::{papers, probe_paper_caps, CapsCache};
-#[cfg(not(feature = "desktop"))]
-use crate::features::import::AppHandle;
 use crate::features::import::{
     allocate_paper_path, ensure_paper_assets_with_progress, normalize_parent_dir,
     paper_record_from_meta, write_paper_shell_opts, AssetDownloadResult, AssetProgressContext,

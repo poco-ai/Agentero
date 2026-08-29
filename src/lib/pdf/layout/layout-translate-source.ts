@@ -8,8 +8,10 @@
  * and chain continuation fragments into one translation unit (#340).
  */
 
-import type { LayoutTranslateItem } from "@/lib/pdf/layout/layout-translate";
-import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
+import type {
+	LayoutTranslateItem,
+	PdfLayoutRegion,
+} from "@/lib/pdf/layout/types";
 
 /** Members of one chain are translated together, then split back per bbox. */
 export type LayoutTranslateChain = {

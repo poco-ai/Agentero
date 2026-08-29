@@ -17,7 +17,7 @@ import {
 	dataTransferLooksLikeVaultMove,
 	hasImageExtension,
 } from "@/lib/core/file-accept";
-import { isVaultFileDragActive } from "@/lib/shell/vault-file-drag";
+import { isVaultFileDragActive } from "@/lib/core/vault-file-drag";
 
 export function useComposerFileDrag() {
 	const shellRef = useRef<HTMLDivElement>(null);

@@ -678,7 +678,7 @@ async fn fetch_article(url: &str, title: &str) -> Result<FetchedArticle, AppErro
     let body = String::from_utf8_lossy(&raw.body);
     if looks_like_html(&raw.content_type, &body) {
         let paper_url = extract_paper_doi(&body).map(|doi| format!("https://doi.org/{doi}"));
-        let article = extract_article_html(&body);
+        let article = extract_article_html(&body, Some(url));
         let md = html_to_markdown(&article);
         if md.trim().is_empty() {
             return Err(AppError::message("feeds.body"));
@@ -712,7 +712,7 @@ fn looks_like_js_challenge(body: &[u8]) -> bool {
 ///
 /// Always attempts to fetch the original article page when `item.url` is a
 /// fetchable HTTP URL, regardless of whether the RSS already ships a summary.
-/// The fetched HTML is run through DOM-based Readability scoring and converted
+/// The fetched HTML is run through Readability (dom_smoothie) and converted
 /// to Markdown.  While the page is open anyway, a DOI scraped from the
 /// publisher's `<meta>` tags backfills `items.paper_url` so feeds without
 /// explicit DOIs (e.g. nature.com subject feeds) still offer the paper import

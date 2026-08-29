@@ -420,7 +420,7 @@ pub fn spawn_parse_after_import(app: Option<&tauri::AppHandle>, vault: &Path, pa
 
 #[cfg(not(feature = "desktop"))]
 pub fn spawn_parse_after_import(
-    _app: Option<&crate::features::import::AppHandle>,
+    _app: Option<&crate::core::app_handle::AppHandle>,
     vault: &Path,
     path_rel: &str,
 ) {

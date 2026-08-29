@@ -79,6 +79,14 @@ pub struct AppSettings {
     pub mcp_enabled: bool,
     #[serde(default = "default_mcp_port")]
     pub mcp_port: u16,
+    /// OpenAI Secure MCP Tunnel id (`tunnel_` + 32 hex) for the built-in
+    /// `tunnel-client` supervisor. Empty = never configured.
+    #[serde(default)]
+    pub mcp_tunnel_id: String,
+    /// Runtime (Restricted) control-plane API key. Masked on read like the
+    /// other commercial keys; the WebView never sees the plaintext.
+    #[serde(default)]
+    pub mcp_tunnel_api_key: String,
     #[serde(default = "default_batch_import_concurrency")]
     pub batch_import_concurrency: u32,
     #[serde(default = "default_theme")]
@@ -281,6 +289,8 @@ impl Default for AppSettings {
             connector_port: default_connector_port(),
             mcp_enabled: false,
             mcp_port: default_mcp_port(),
+            mcp_tunnel_id: String::new(),
+            mcp_tunnel_api_key: String::new(),
             batch_import_concurrency: default_batch_import_concurrency(),
             theme: default_theme(),
             ui_theme: default_ui_theme(),
@@ -469,7 +479,7 @@ impl AppSettingsStore {
             .clone();
         let existed = self.path.is_file();
         Ok(SettingsGetResult {
-            settings: redact_translate_secrets(settings),
+            settings: redact_secrets(settings),
             path: self.path.to_string_lossy().into_owned(),
             existed,
         })
@@ -481,7 +491,7 @@ impl AppSettingsStore {
                 .inner
                 .lock()
                 .map_err(|_| AppError::message("settings lock poisoned"))?;
-            merge_translate_secrets(&mut settings, &previous);
+            merge_secrets(&mut settings, &previous);
         }
         normalize(&mut settings);
         persist(&self.path, &settings)?;
@@ -492,7 +502,7 @@ impl AppSettingsStore {
                 .lock()
                 .map_err(|_| AppError::message("settings lock poisoned"))?;
             *guard = settings.clone();
-            redact_translate_secrets(settings)
+            redact_secrets(settings)
         };
         // Fire domain reactions with the store lock released: listeners read
         // back into the store (e.g. import::refresh_parser_config).
@@ -632,6 +642,19 @@ impl AppSettingsStore {
         };
         Some((base_url.to_string(), key, model.to_string()))
     }
+
+    /// Raw `(tunnel_id, api_key)` for the built-in ChatGPT tunnel supervisor.
+    /// Returns None unless both are set; a UI mask counts as unset so a
+    /// `settings_get` → `settings_set` round-trip never leaks or wipes the key.
+    pub fn mcp_tunnel_config(&self) -> Option<(String, String)> {
+        let guard = self.inner.lock().ok()?;
+        let id = guard.mcp_tunnel_id.trim().to_string();
+        let key = guard.mcp_tunnel_api_key.trim();
+        if id.is_empty() || key.is_empty() || is_translate_api_key_mask(key) {
+            return None;
+        }
+        Some((id, key.to_string()))
+    }
 }
 
 fn read_file(path: &PathBuf) -> (AppSettings, bool) {
@@ -692,8 +715,8 @@ pub fn layout_provider_settings_key(provider: &str) -> Option<&'static str> {
     }
 }
 
-/// Replace non-empty commercial API keys with same-length `*` masks.
-fn redact_translate_secrets(mut settings: AppSettings) -> AppSettings {
+/// Replace non-empty secrets with same-length `*` masks.
+fn redact_secrets(mut settings: AppSettings) -> AppSettings {
     for cfg in settings.translate.provider_configs.values_mut() {
         if !cfg.api_key.trim().is_empty() {
             cfg.api_key = mask_translate_api_key(&cfg.api_key);
@@ -707,11 +730,14 @@ fn redact_translate_secrets(mut settings: AppSettings) -> AppSettings {
     if !settings.embedding.api_key.trim().is_empty() {
         settings.embedding.api_key = mask_translate_api_key(&settings.embedding.api_key);
     }
+    if !settings.mcp_tunnel_api_key.trim().is_empty() {
+        settings.mcp_tunnel_api_key = mask_translate_api_key(&settings.mcp_tunnel_api_key);
+    }
     settings
 }
 
-/// Apply incoming commercial configs while preserving secrets when the UI sends the mask.
-fn merge_translate_secrets(incoming: &mut AppSettings, previous: &AppSettings) {
+/// Apply incoming configs while preserving secrets when the UI sends the mask.
+fn merge_secrets(incoming: &mut AppSettings, previous: &AppSettings) {
     for (id, cfg) in incoming.translate.provider_configs.iter_mut() {
         if is_translate_api_key_mask(&cfg.api_key) {
             if let Some(prev) = previous.translate.provider_configs.get(id) {
@@ -734,6 +760,9 @@ fn merge_translate_secrets(incoming: &mut AppSettings, previous: &AppSettings) {
     if is_translate_api_key_mask(&incoming.embedding.api_key) {
         incoming.embedding.api_key = previous.embedding.api_key.clone();
     }
+    if is_translate_api_key_mask(&incoming.mcp_tunnel_api_key) {
+        incoming.mcp_tunnel_api_key = previous.mcp_tunnel_api_key.clone();
+    }
 }
 
 fn normalize(s: &mut AppSettings) {
@@ -743,6 +772,12 @@ fn normalize(s: &mut AppSettings) {
     if s.mcp_port == 0 {
         s.mcp_port = default_mcp_port();
     }
+    s.mcp_tunnel_id = s
+        .mcp_tunnel_id
+        .split_whitespace()
+        .collect::<String>()
+        .to_ascii_lowercase();
+    s.mcp_tunnel_api_key = s.mcp_tunnel_api_key.trim().to_string();
     if s.batch_import_concurrency < 1 || s.batch_import_concurrency > 10 {
         s.batch_import_concurrency = default_batch_import_concurrency();
     }
@@ -1020,7 +1055,7 @@ mod tests {
     }
 
     #[test]
-    fn redact_and_merge_translate_api_keys() {
+    fn redact_and_merge_api_keys() {
         let mut previous = AppSettings::default();
         previous.translate.provider_configs.insert(
             "deepl".into(),
@@ -1030,7 +1065,7 @@ mod tests {
             },
         );
 
-        let redacted = redact_translate_secrets(previous.clone());
+        let redacted = redact_secrets(previous.clone());
         assert_eq!(
             redacted
                 .translate
@@ -1043,7 +1078,7 @@ mod tests {
         assert!(!is_translate_api_key_mask("sk-secret"));
 
         let mut incoming = redacted;
-        merge_translate_secrets(&mut incoming, &previous);
+        merge_secrets(&mut incoming, &previous);
         assert_eq!(
             incoming
                 .translate
@@ -1061,7 +1096,7 @@ mod tests {
             .unwrap()
             .api_key
             .clear();
-        merge_translate_secrets(&mut incoming, &previous);
+        merge_secrets(&mut incoming, &previous);
         assert_eq!(
             incoming
                 .translate
@@ -1070,6 +1105,24 @@ mod tests {
                 .map(|c| c.api_key.as_str()),
             Some("")
         );
+
+        // MCP tunnel runtime key follows the same mask round-trip.
+        let mut with_tunnel = AppSettings {
+            mcp_tunnel_id: " Tunnel_ABC ".into(),
+            mcp_tunnel_api_key: "  sk-tunnel-secret ".into(),
+            ..AppSettings::default()
+        };
+        normalize(&mut with_tunnel);
+        assert_eq!(with_tunnel.mcp_tunnel_id, "tunnel_abc");
+        assert_eq!(with_tunnel.mcp_tunnel_api_key, "sk-tunnel-secret");
+
+        let redacted_tunnel = redact_secrets(with_tunnel.clone());
+        assert!(is_translate_api_key_mask(
+            &redacted_tunnel.mcp_tunnel_api_key
+        ));
+        let mut echoed = redacted_tunnel;
+        merge_secrets(&mut echoed, &with_tunnel);
+        assert_eq!(echoed.mcp_tunnel_api_key, "sk-tunnel-secret");
     }
 
     #[test]

@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { toVaultRelative } from "@/lib/core/path";
 import { isTauri } from "@/lib/core/tauri";
 import { listenSafe } from "@/lib/core/tauri-events";
 import { isPaperAssetPath, isUnderPapers } from "@/lib/paper/paths";
@@ -66,7 +65,7 @@ export function useVaultFileEvents({
 			VAULT_FILE_CHANGED_EVENT,
 			async (payload) => {
 				if (shouldIgnoreEvent?.(payload)) return;
-				if (onLibraryChange && payloadAffectsLibrary(vaultPath, payload)) {
+				if (onLibraryChange && payloadAffectsLibrary(payload)) {
 					onLibraryChange();
 				}
 				if (payload.rename) {
@@ -90,34 +89,15 @@ export function useVaultFileEvents({
 		onStructuralChange,
 		onWikiChange,
 		shouldIgnoreEvent,
-		vaultPath,
 	]);
 }
 
-function payloadAffectsLibrary(
-	vaultPath: string | null,
-	payload: VaultFileChangedPayload,
-): boolean {
-	if (payload.paths.some((p) => isCatalogStoragePath(vaultPath, p)))
-		return true;
+function payloadAffectsLibrary(payload: VaultFileChangedPayload): boolean {
 	// CLI/import tools materialize paper folders and metadata under papers/.
 	// Plain content edits to NOTES.md should not hit the catalog path, and
 	// asset writes (marks/source/assets) never change catalog rows at all.
 	return (
 		payload.kind !== "modify" &&
 		payload.paths.some((p) => isUnderPapers(p) && !isPaperAssetPath(p))
-	);
-}
-
-function isCatalogStoragePath(
-	vaultPath: string | null,
-	absPath: string,
-): boolean {
-	const rel = toVaultRelative(vaultPath, absPath).toLowerCase();
-	return (
-		rel === ".agentero/catalog.sqlite" ||
-		rel === ".agentero/catalog.sqlite-wal" ||
-		rel === ".agentero/catalog.sqlite-shm" ||
-		rel === ".agentero/catalog.sqlite-journal"
 	);
 }

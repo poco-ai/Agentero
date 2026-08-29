@@ -44,7 +44,7 @@ import {
 	ZoomMode,
 	ZoomPluginPackage,
 } from "@embedpdf/plugin-zoom/react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
 import { PdfBottomBar } from "@/components/viewer/pdf/chrome/pdf-bottom-bar";
@@ -57,6 +57,7 @@ import { PdfReferencesPanel } from "@/components/viewer/pdf/chrome/pdf-reference
 import { PdfToolbar } from "@/components/viewer/pdf/chrome/pdf-toolbar";
 
 import { usePdfEngineContext } from "@/components/viewer/pdf/engine-provider";
+import { usePdfActiveAnchors } from "@/components/viewer/pdf/hooks/use-pdf-active-anchors";
 import { usePdfAskThreads } from "@/components/viewer/pdf/hooks/use-pdf-ask-threads";
 import { usePdfCards } from "@/components/viewer/pdf/hooks/use-pdf-cards";
 import { usePdfChromeVisibility } from "@/components/viewer/pdf/hooks/use-pdf-chrome-visibility";
@@ -65,9 +66,8 @@ import { usePdfColorScheme } from "@/components/viewer/pdf/hooks/use-pdf-color-s
 import { usePdfCrossrefPreview } from "@/components/viewer/pdf/hooks/use-pdf-crossref-preview";
 import { usePdfFind } from "@/components/viewer/pdf/hooks/use-pdf-find";
 import { usePdfHighlights } from "@/components/viewer/pdf/hooks/use-pdf-highlights";
-import { usePdfLayoutRegions } from "@/components/viewer/pdf/hooks/use-pdf-layout-regions";
-import { usePdfLayoutRun } from "@/components/viewer/pdf/hooks/use-pdf-layout-run";
-import { usePdfLayoutTranslate } from "@/components/viewer/pdf/hooks/use-pdf-layout-translate";
+import { usePdfLayoutCluster } from "@/components/viewer/pdf/hooks/use-pdf-layout-cluster";
+import { usePdfMarkActions } from "@/components/viewer/pdf/hooks/use-pdf-mark-actions";
 import { usePdfMarksIo } from "@/components/viewer/pdf/hooks/use-pdf-marks-io";
 import { usePdfNavigation } from "@/components/viewer/pdf/hooks/use-pdf-navigation";
 import {
@@ -76,14 +76,15 @@ import {
 } from "@/components/viewer/pdf/hooks/use-pdf-note-editor";
 import { usePdfOutline } from "@/components/viewer/pdf/hooks/use-pdf-outline";
 import { usePdfPageText } from "@/components/viewer/pdf/hooks/use-pdf-page-text";
+import { usePdfPinAnchors } from "@/components/viewer/pdf/hooks/use-pdf-pin-anchors";
 import { usePdfRegionFraming } from "@/components/viewer/pdf/hooks/use-pdf-region-framing";
+import { usePdfSelectionActions } from "@/components/viewer/pdf/hooks/use-pdf-selection-actions";
 import { usePdfSelectionTranslate } from "@/components/viewer/pdf/hooks/use-pdf-selection-translate";
+import { usePdfSidebarPanels } from "@/components/viewer/pdf/hooks/use-pdf-sidebar-panels";
 import { usePdfTextSelection } from "@/components/viewer/pdf/hooks/use-pdf-text-selection";
 import { usePdfViewerHandle } from "@/components/viewer/pdf/hooks/use-pdf-viewer-handle";
-import { usePdfVisualDraft } from "@/components/viewer/pdf/hooks/use-pdf-visual-draft";
 import { usePdfVisualMarks } from "@/components/viewer/pdf/hooks/use-pdf-visual-marks";
 import { usePdfZoomControls } from "@/components/viewer/pdf/hooks/use-pdf-zoom-controls";
-import { useStableDerived } from "@/components/viewer/pdf/hooks/use-stable-derived";
 import { excludeOverlappingPdfTextLinks } from "@/components/viewer/pdf/layers/citation-links";
 import { COMMENT_RAIL_WIDTH_PX } from "@/components/viewer/pdf/layers/comment-cards-layer";
 import {
@@ -93,7 +94,7 @@ import {
 	type PdfPageMarksSlice,
 	type PdfPageModeSlice,
 } from "@/components/viewer/pdf/layers/page-layers";
-import { renderPdfRegionPromptImage } from "@/components/viewer/pdf/region-crop";
+import { buildMarksIndex } from "@/components/viewer/pdf/marks-index";
 import type {
 	PageAnnotationComment,
 	PdfViewerInnerProps,
@@ -103,81 +104,29 @@ import { ActiveCardScrollSync } from "@/components/viewer/pdf/viewport/active-ca
 import { DockviewViewport } from "@/components/viewer/pdf/viewport/dockview-viewport";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
 import { useLibraryStore } from "@/hooks/use-app-stores";
-import {
-	pinActiveSelection,
-	publishSelection,
-} from "@/lib/agent/selection-store";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
 import { isPdfViewerSource } from "@/lib/paper";
 import { arxivUrls } from "@/lib/paper/arxiv";
-import { isVisualMarkKind, tracePreview } from "@/lib/pdf/agent-trace";
+import { isVisualMarkKind } from "@/lib/pdf/agent-trace";
 import {
-	annotationSnippet,
-	annotationWikilinkAlias,
 	annotationWikilinkMarkdown,
 	wikiTargetForPaper,
 } from "@/lib/pdf/annotation-ref";
-import { threadHasUserQuestion, threadPreview } from "@/lib/pdf/ask/schema";
-import type { PdfAskNormalizedRect, PdfAskThread } from "@/lib/pdf/ask/types";
-import {
-	DEFAULT_HIGHLIGHT_COLOR,
-	HIGHLIGHT_HEX_LIST,
-	type HighlightColor,
-	normalizeHighlightColor,
-} from "@/lib/pdf/highlight/palette";
+import { HIGHLIGHT_HEX_LIST } from "@/lib/pdf/highlight/palette";
 import {
 	getPdfAiRuntime,
 	layoutAnalysisStore,
 	type PdfLayoutRegion,
-	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
-import {
-	type ActiveSelectionCard,
-	pinFromRects,
-	pinObscuresBodyText,
-	type SelectionPin,
-} from "@/lib/pdf/selection";
-import type { PdfTranslateRect } from "@/lib/pdf/translate/types";
+import type { ActiveSelectionCard } from "@/lib/pdf/selection";
 import { PDF_ZOOM_MAX, PDF_ZOOM_MIN } from "@/lib/pdf/zoom";
-import { openRightTab } from "@/lib/shell/ui-store";
 
 export type {
 	PdfViewerHandle,
 	PdfViewerProps,
 } from "@/components/viewer/pdf/types";
-
-/**
- * Geometry-only projection of a mark for gutter pins. Extracted from the ask /
- * translate arrays with a stable identity (see {@link useStableDerived}) so the
- * per-chunk streaming message bodies cannot invalidate `pinsByPage` (and with it
- * every mounted page).
- */
-type AskPinAnchor = {
-	id: string;
-	/** 1-based page number */
-	page: number;
-	rects: PdfAskNormalizedRect[];
-	preview: string;
-	ended: boolean;
-};
-
-type TranslatePinAnchor = {
-	id: string;
-	/** 1-based page number */
-	page: number;
-	rects: PdfTranslateRect[];
-	preview: string;
-	hasError: boolean;
-};
-
-/** Compact value fingerprint of normalized rects (pin geometry input). */
-function rectsKey(
-	rects: ReadonlyArray<{ x: number; y: number; w: number; h: number }>,
-): string {
-	return rects.map((r) => `${r.x},${r.y},${r.w},${r.h}`).join("~");
-}
 
 /**
  * PDF viewer built on EmbedPDF (headless, PDFium/WASM). The engine is shared
@@ -678,25 +627,15 @@ function PdfViewerInner({
 		paperRelPath,
 	});
 
-	const [showReferences, setShowReferences] = useState(false);
-	const [showFigures, setShowFigures] = useState(false);
-	const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null);
-
-	const handleToggleOutline = useCallback(() => {
-		if (showReferences) setShowReferences(false);
-		if (showFigures) setShowFigures(false);
-		toggleOutline();
-	}, [showReferences, showFigures, toggleOutline]);
-	const handleToggleReferences = useCallback(() => {
-		if (showOutline) toggleOutline();
-		if (showFigures) setShowFigures(false);
-		setShowReferences((v) => !v);
-	}, [showOutline, showFigures, toggleOutline]);
-	const handleToggleFigures = useCallback(() => {
-		if (showOutline) toggleOutline();
-		if (showReferences) setShowReferences(false);
-		setShowFigures((v) => !v);
-	}, [showOutline, showReferences, toggleOutline]);
+	const {
+		showReferences,
+		showFigures,
+		hoveredCommentId,
+		setHoveredCommentId,
+		handleToggleOutline,
+		handleToggleReferences,
+		handleToggleFigures,
+	} = usePdfSidebarPanels({ showOutline, toggleOutline });
 
 	// ---- In-text citation / internal PDF links ----
 
@@ -745,283 +684,60 @@ function PdfViewerInner({
 		[handleCitationLinkHover, handleCrossrefLinkHover],
 	);
 
-	/**
-	 * Pin geometry is anchor data only. While an answer / translation streams,
-	 * every chunk replaces the whole threads / translates array, but none of the
-	 * fields fingerprinted below change — so these projections keep their
-	 * identity and `pinsByPage` (and thus every mounted page) skips re-rendering
-	 * per chunk. The translate pin preview therefore uses the source quote, not
-	 * the streamed result (the open card shows the live text).
-	 */
-	const askPinAnchors = useStableDerived<AskPinAnchor[]>(
-		() =>
-			threads.filter(threadHasUserQuestion).map((th) => ({
-				id: th.id,
-				page: th.anchor.page,
-				rects: th.anchor.rects,
-				preview: threadPreview(th),
-				ended: th.status === "ended",
-			})),
-		threads
-			.map(
-				(th) =>
-					`${th.id}|${threadHasUserQuestion(th) ? 1 : 0}|${th.anchor.page}|${th.status}|${threadPreview(th)}|${rectsKey(th.anchor.rects)}`,
-			)
-			.join(";"),
-	);
-	const translatePinAnchors = useStableDerived<TranslatePinAnchor[]>(
-		() =>
-			translates.map((tr) => ({
-				id: tr.id,
-				page: tr.page,
-				rects: tr.rects,
-				preview: tr.quote?.trim() || tr.id,
-				hasError: Boolean(tr.error),
-			})),
-		translates
-			.map(
-				(tr) =>
-					`${tr.id}|${tr.page}|${tr.error ? 1 : 0}|${tr.quote ?? ""}|${rectsKey(tr.rects)}`,
-			)
-			.join(";"),
-	);
+	const { askPinAnchors, translatePinAnchors } = usePdfPinAnchors({
+		threads,
+		translates,
+	});
 
 	/**
 	 * Gutter pins per page (1-based). Built once per mark/text change: pin
 	 * placement walks the page's whole text-rect list, so doing it inside
 	 * renderPage cost that walk for every mounted page on every scroll frame.
 	 */
-	const { pinsByPage, commentsByPage: commentsByPageBase } = useMemo(() => {
-		const pins = new Map<number, SelectionPin[]>();
-		const comments = new Map<number, PageAnnotationComment[]>();
-		const add = (page: number, pin: SelectionPin) => {
-			const list = pins.get(page);
-			if (list) list.push(pin);
-			else pins.set(page, [pin]);
-		};
-		for (const highlight of highlights) {
-			const comment = highlight.comment?.trim();
-			if (!comment) continue;
-			const anchor = highlightAnchors.get(highlight.id);
-			if (!anchor) continue;
-			// Highlight notes always live in the right-edge comment rail.
-			const entry: PageAnnotationComment = {
-				id: highlight.id,
-				pageIndex: highlight.page - 1,
-				anchorY: anchor.y,
-				rects: highlight.rects,
-				quote: highlight.quote,
-				comment,
-				color: normalizeHighlightColor(highlight.color),
-				kind: "highlight",
-				linkAlias:
-					annotationWikilinkAlias(
-						paperTitle,
-						annotationSnippet({ comment, quote: highlight.quote }),
-					) ?? null,
-			};
-			const list = comments.get(highlight.page);
-			if (list) list.push(entry);
-			else comments.set(highlight.page, [entry]);
-		}
-		for (const anchor of askPinAnchors) {
-			const pageText = pageTextMap.get(anchor.page - 1);
-			const pin = pinFromRects(anchor.rects, pageText);
-			add(anchor.page, {
-				id: anchor.id,
-				kind: "ask",
-				x: pin.x,
-				y: pin.y,
-				preview: anchor.preview,
-				ended: anchor.ended,
-				overText: pinObscuresBodyText(pin, pageText),
-				side: pin.side,
-			});
-		}
-		for (const anchor of translatePinAnchors) {
-			if (anchor.hasError) continue;
-			const pageText = pageTextMap.get(anchor.page - 1);
-			const pin = pinFromRects(anchor.rects, pageText);
-			add(anchor.page, {
-				id: anchor.id,
-				kind: "translate",
-				x: pin.x,
-				y: pin.y,
-				preview: anchor.preview,
-				overText: pinObscuresBodyText(pin, pageText),
-				side: pin.side,
-			});
-		}
-		for (const trace of visualTraces) {
-			const hasAgent = Boolean(trace.agent);
-			const note = trace.comment.trim();
-			// Note-only visual marks (and visual marks that already have a
-			// comment) live in the comment rail.
-			if (!hasAgent || note) {
-				const entry: PageAnnotationComment = {
-					id: trace.id,
-					pageIndex: trace.page - 1,
-					anchorY: trace.rects[0]?.y ?? 0,
-					rects: trace.rects,
-					quote: "",
-					comment: trace.comment,
-					color: DEFAULT_HIGHLIGHT_COLOR,
-					kind: "visual",
-					linkAlias:
-						annotationWikilinkAlias(
-							paperTitle,
-							annotationSnippet({ comment: trace.comment }),
-						) ?? null,
-				};
-				const list = comments.get(trace.page);
-				if (list) list.push(entry);
-				else comments.set(trace.page, [entry]);
-				if (!hasAgent) continue;
-			}
-			const pageText = pageTextMap.get(trace.page - 1);
-			const pin = pinFromRects(trace.rects, pageText);
-			add(trace.page, {
-				id: trace.id,
-				kind: "visual",
-				x: pin.x,
-				y: pin.y,
-				preview: tracePreview(trace),
-				ended: trace.agent?.status !== "running",
-				traceId: trace.id,
-				overText: pinObscuresBodyText(pin, pageText),
-				side: pin.side,
-			});
-		}
-		return { pinsByPage: pins, commentsByPage: comments };
-	}, [
-		highlights,
-		highlightAnchors,
-		askPinAnchors,
-		translatePinAnchors,
-		visualTraces,
-		pageTextMap,
-		paperTitle,
-	]);
+	const { pinsByPage, commentsByPage: commentsByPageBase } = useMemo(
+		() =>
+			buildMarksIndex({
+				highlights,
+				highlightAnchors,
+				askPinAnchors,
+				translatePinAnchors,
+				visualTraces,
+				pageTextMap,
+				paperTitle,
+			}),
+		[
+			highlights,
+			highlightAnchors,
+			askPinAnchors,
+			translatePinAnchors,
+			visualTraces,
+			pageTextMap,
+			paperTitle,
+		],
+	);
 
-	const activeThread = useMemo(() => {
-		if (activeCard?.kind !== "ask") return null;
-		return threads.find((th) => th.id === activeCard.id) ?? null;
-	}, [threads, activeCard]);
-	const activeTranslate = useMemo(() => {
-		if (activeCard?.kind !== "translate") return null;
-		return translates.find((tr) => tr.id === activeCard.id) ?? null;
-	}, [translates, activeCard]);
-	const activeVisualTrace = useMemo(() => {
-		if (!isVisualMarkKind(activeCard?.kind)) return null;
-		return visualTraces.find((tr) => tr.id === activeCard.id) ?? null;
-	}, [visualTraces, activeCard]);
-	/**
-	 * On-page source frame of the active ask / translate card: anchor geometry
-	 * only. The page layers never read the streaming body, and the rects
-	 * reference survives chunk updates (updaters spread the record and replace
-	 * `messages` / `result` only), so these keep their identity while streaming
-	 * — unlike the full records the card stack consumes.
-	 */
-	const activeAskId = activeThread?.id ?? null;
-	const activeAskPage = activeThread?.anchor.page ?? null;
-	const activeAskRects = activeThread?.anchor.rects ?? null;
-	const activeAskAnchor = useMemo(
-		() =>
-			activeAskId !== null && activeAskPage !== null && activeAskRects !== null
-				? { id: activeAskId, page: activeAskPage, rects: activeAskRects }
-				: null,
-		[activeAskId, activeAskPage, activeAskRects],
-	);
-	const activeTranslateId = activeTranslate?.id ?? null;
-	const activeTranslatePage = activeTranslate?.page ?? null;
-	const activeTranslateRects = activeTranslate?.rects ?? null;
-	const activeTranslateAnchor = useMemo(
-		() =>
-			activeTranslateId !== null &&
-			activeTranslatePage !== null &&
-			activeTranslateRects !== null
-				? {
-						id: activeTranslateId,
-						page: activeTranslatePage,
-						rects: activeTranslateRects,
-					}
-				: null,
-		[activeTranslateId, activeTranslatePage, activeTranslateRects],
-	);
+	const {
+		activeThread,
+		activeTranslate,
+		activeVisualTrace,
+		activeAskAnchor,
+		activeTranslateAnchor,
+	} = usePdfActiveAnchors({ activeCard, threads, translates, visualTraces });
+
 	// ---- Layout analysis ----
-	// Four hooks: region buckets, the analysis run, hover (sole owner of the two
-	// mutually exclusive hover cards) and the bulk-translate job.
 	const {
 		layoutOverlayVisible,
-		layoutRawRegions,
 		hoverableRegionsByPage,
 		rawRegionsByPage,
-	} = usePdfLayoutRegions(docId);
-
-	const { startLayoutAnalysisRef, layoutTaskRef } = usePdfLayoutRun({
-		docId,
-		paperAbsPath,
-		paperRelPath,
-		isActive,
-		totalPages,
-		layoutCap,
-		layoutCapRef,
-		docCap,
-		docCapRef,
-	});
-
-	const handleAnalyzeLayout = useCallback(() => {
-		startLayoutAnalysisRef.current({
-			force: false,
-			openFigures: true,
-			showOverlay: true,
-			asBackgroundTask: true,
-			notifyOnError: true,
-		});
-	}, [startLayoutAnalysisRef]);
-	const handleJumpToLayoutRegion = useCallback(
-		(region: PdfLayoutRegion) => {
-			scrollRef.current?.scrollToPage({
-				pageNumber: region.pageIndex + 1,
-				behavior: "instant",
-			});
-			setFocusedLayoutRegion(docId, region.id);
-		},
-		[docId],
-	);
-	const handleRenderLayoutThumb = useCallback(
-		async (region: PdfLayoutRegion) => {
-			const eng = engineRef.current;
-			const docs = docCapRef.current;
-			if (!eng || !docs) return null;
-			if (!docs.isDocumentOpen(docId)) return null;
-			const document = docs.getDocument(docId);
-			if (!document) return null;
-			try {
-				const image = await renderPdfRegionPromptImage({
-					engine: eng,
-					document,
-					pageIndex: region.pageIndex,
-					region: region.bbox,
-					maxEdgePx: 360,
-				});
-				if (!docs.isDocumentOpen(docId)) return null;
-				return image;
-			} catch {
-				return null;
-			}
-		},
-		[docId],
-	);
-
-	const {
+		startLayoutAnalysisRef,
+		layoutTaskRef,
+		handleAnalyzeLayout,
+		handleJumpToLayoutRegion,
+		handleRenderLayoutThumb,
 		visualDraftEditor,
 		openVisualDraftEditor,
 		closeVisualDraftEditor,
 		screenPointForRegion,
-	} = usePdfVisualDraft({ hostRef });
-
-	const {
 		layoutTranslateItemsByPage,
 		layoutTranslatePageStateByPage,
 		layoutTranslateRunning,
@@ -1029,24 +745,23 @@ function PdfViewerInner({
 		layoutTranslateLabel,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
-	} = usePdfLayoutTranslate({
+		visualDraftRegion,
+	} = usePdfLayoutCluster({
 		docId,
-		layoutRawRegions,
+		totalPages,
+		isActive,
 		paperAbsPath,
+		paperRelPath,
 		paperKey,
 		vaultPath,
+		layoutCap,
+		layoutCapRef,
+		docCap,
+		docCapRef,
+		engineRef,
+		scrollRef,
+		hostRef,
 	});
-
-	const visualDraftRegion = useMemo(
-		() =>
-			visualDraftEditor
-				? {
-						page: visualDraftEditor.page,
-						region: visualDraftEditor.region,
-					}
-				: null,
-		[visualDraftEditor],
-	);
 
 	// ---- Region framing (⌘. marquee → crop) ----
 
@@ -1165,160 +880,48 @@ function PdfViewerInner({
 		return { page: tr.page, rects: tr.rects };
 	}, [railEdit, visualTraces]);
 
-	const handleOpenPin = useCallback(
-		(pin: SelectionPin) => {
-			if (pin.kind === "ask") {
-				const thread = threadsRef.current.find((th) => th.id === pin.id);
-				if (!thread) return;
-				const open: PdfAskThread = { ...thread, status: "open" };
-				upsertThread(open);
-				openThread(open);
-				return;
-			}
-			if (pin.kind === "translate") openCard({ kind: "translate", id: pin.id });
-			if (pin.kind === "annotate") openEditorForAnnotation(pin.id);
-			if (isVisualMarkKind(pin.kind)) {
-				const markId = pin.traceId || pin.id;
-				const tr = visualTracesRef.current.find((item) => item.id === markId);
-				if (!tr) return;
-				// Pin hover: page is already on-screen; openCard places beside the mark.
-				openCard({ kind: "visual", id: tr.id });
-			}
-		},
-		[
-			upsertThread,
-			openThread,
-			openCard,
-			openEditorForAnnotation,
-			threadsRef,
-			visualTracesRef,
-		],
-	);
+	const {
+		handleOpenPin,
+		handleEditHighlightAnnotation,
+		handleDeleteHighlightAnnotation,
+		handleChangeHighlightColor,
+	} = usePdfMarkActions({
+		threadsRef,
+		visualTracesRef,
+		upsertThread,
+		openThread,
+		openCard,
+		openEditorForAnnotation,
+		annotationCap,
+		docId,
+		deleteHighlightAnnotation,
+		updateHighlightColor,
+	});
 
 	// ---- Selection action menu ----
 
-	const handleHighlight = useCallback(
-		(color: HighlightColor) => {
-			if (!selectionMenu) return;
-			createHighlights(
-				selectionMenu.pages,
-				color,
-				selectionMenu.anchor.quote ?? "",
-			);
-			closeSelectionMenu();
-		},
-		[selectionMenu, createHighlights, closeSelectionMenu],
-	);
-
-	const handleNote = useCallback(() => {
-		if (!selectionMenu) return;
-		const quote = selectionMenu.anchor.quote ?? "";
-		const anchorPage = selectionMenu.pages[0];
-		const created = createHighlights(
-			selectionMenu.pages,
-			DEFAULT_HIGHLIGHT_COLOR,
-			quote,
-		);
-		const first = created[0];
-		setSelectionMenu(null);
-		selectionCap?.clear(docId);
-		if (!first || !anchorPage) return;
-		beginRailEdit({
-			id: first.id,
-			pageIndex: first.pageIndex,
-			kind: "highlight",
-			comment: "",
-			quote,
-			color: DEFAULT_HIGHLIGHT_COLOR,
-			anchorY: selectionMenu.anchor.rects[0]?.y ?? 0,
-			rects: selectionMenu.anchor.rects,
-		});
-	}, [
+	const {
+		handleHighlight,
+		handleNote,
+		handleCopy,
+		handleMenuAsk,
+		handleMenuAddToChat,
+		handleMenuTranslate,
+	} = usePdfSelectionActions({
 		selectionMenu,
+		setSelectionMenu,
+		closeSelectionMenu,
 		createHighlights,
 		selectionCap,
 		docId,
-		setSelectionMenu,
 		beginRailEdit,
-	]);
-
-	const handleCopy = useCallback(() => {
-		selectionCap?.copyToClipboard(docId);
-	}, [selectionCap, docId]);
-
-	const handleMenuAsk = useCallback(() => {
-		if (!selectionMenu) return;
-		const anchor = selectionMenu.anchor;
-		setSelectionMenu(null);
-		selectionCap?.clear(docId);
-		startFromAnchor(anchor);
-	}, [selectionMenu, startFromAnchor, selectionCap, docId, setSelectionMenu]);
-
-	const handleMenuAddToChat = useCallback(() => {
-		if (!selectionMenu) return;
-		const anchor = selectionMenu.anchor;
-		const quote = anchor.quote?.trim();
-		setSelectionMenu(null);
-		selectionCap?.clear(docId);
-		if (!quote) return;
-		// Re-publish after clear: clearing the PDF selection also drops the live chip.
-		// Keep page geometry so the next Agent turn can write a conversation card pin.
-		publishSelection({
-			text: quote,
-			sourcePath: paperRelPath ?? paperAbsPath ?? "PDF",
-			origin: "pdf",
-			page: anchor.page,
-			rects: anchor.rects,
-			paperAbsPath: paperAbsPath ?? undefined,
-		});
-		pinActiveSelection();
-		openRightTab("agent");
-	}, [
-		selectionMenu,
-		selectionCap,
-		docId,
+		startFromAnchor,
+		translateSelection,
 		paperRelPath,
 		paperAbsPath,
-		setSelectionMenu,
-	]);
-
-	const handleMenuTranslate = useCallback(() => {
-		if (!selectionMenu) return;
-		const anchor = selectionMenu.anchor;
-		setSelectionMenu(null);
-		selectionCap?.clear(docId);
-		translateSelection(anchor);
-	}, [
-		selectionMenu,
-		selectionCap,
-		docId,
-		setSelectionMenu,
-		translateSelection,
-	]);
+	});
 
 	// ---- In-PDF highlight selection menu ----
-
-	const handleEditHighlightAnnotation = useCallback(
-		(id: string) => {
-			annotationCap?.forDocument(docId).deselectAnnotation();
-			openEditorForAnnotation(id);
-		},
-		[annotationCap, docId, openEditorForAnnotation],
-	);
-
-	const handleDeleteHighlightAnnotation = useCallback(
-		(pageIndex: number, id: string) => {
-			deleteHighlightAnnotation(pageIndex, id);
-		},
-		[deleteHighlightAnnotation],
-	);
-
-	const handleChangeHighlightColor = useCallback(
-		(pageIndex: number, id: string, color: HighlightColor) => {
-			updateHighlightColor(pageIndex, id, color);
-		},
-		[updateHighlightColor],
-	);
 
 	// Re-anchor the active pin modal on scroll + zoom. zoomLevel forces
 	// re-placement after zoom. Use scrollReady (boolean) — not `scroll` —
@@ -1517,6 +1120,7 @@ function PdfViewerInner({
 			deleteRailComment,
 			handleCopyCommentLink,
 			handleCopyCommentEmbed,
+			setHoveredCommentId,
 		],
 	);
 

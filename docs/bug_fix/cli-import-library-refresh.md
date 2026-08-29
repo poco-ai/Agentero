@@ -25,3 +25,8 @@
 - `pnpm exec tsc --noEmit`
 
 手动预期：应用打开 Vault 后运行 `agentero --json -v <vault> import id <arxiv-or-doi>`，新论文行应自动从目录 ID 更新为标题/作者，无需重开论文库。
+
+## 后续清理
+
+- 前端 `isCatalogStoragePath`（catalog.sqlite 事件分支）已在后续清理中删除：Host watcher 忽略所有 `.agentero/` 路径，该分支收不到事件，属死代码。
+- CLI 导入触发 Library 刷新的主路径是结构事件（`payloadAffectsLibrary` 检测 `papers/` 下的新增/删除/重命名），不依赖 catalog.sqlite 文件事件。

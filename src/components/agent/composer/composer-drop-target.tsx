@@ -27,7 +27,7 @@ import {
 	hasImageExtension,
 } from "@/lib/core/file-accept";
 import { notifyError } from "@/lib/core/notify";
-import { isVaultFileDragActive } from "@/lib/shell/vault-file-drag";
+import { isVaultFileDragActive } from "@/lib/core/vault-file-drag";
 
 export const ComposerDropTarget = forwardRef<
 	HTMLDivElement,

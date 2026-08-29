@@ -3,8 +3,9 @@ use std::path::Path;
 
 use crate::features::catalog::papers;
 
-use super::parse::{self, extract_primary_identifier, IdentifierKind, SkillSource};
-use super::{identifier_kind_column, identifier_kind_str, SkippedImport};
+use super::parse::{self, extract_primary_identifier, SkillSource};
+use super::resolver::ResolvedIdentifier;
+use super::SkippedImport;
 
 pub(crate) enum SkillBatchMode {
     Collect,
@@ -56,33 +57,31 @@ pub(crate) fn preflight_identifier_batch(
             }
         };
 
-        for (raw, kind, value) in units {
+        for (raw, ident) in units {
             let raw = raw.as_str();
-            if kind == IdentifierKind::Skill && matches!(skill_mode, SkillBatchMode::RejectRemote) {
+            // Skill 分流不在 resolver 表内：由 extract_skill_source 判定。
+            let skill = parse::extract_skill_source(raw);
+            if skill.is_some() && matches!(skill_mode, SkillBatchMode::RejectRemote) {
                 errors.push(format!(
                     "{raw}: skill import is not supported for remote vaults"
                 ));
                 continue;
             }
 
-            let kind_str = identifier_kind_str(kind);
-            let dedup_key = format!("{kind_str}:{value}");
+            let kind_str = ident.kind.to_string();
+            let dedup_key = format!("{kind_str}:{}", ident.value);
             if seen.contains_key(&dedup_key) {
                 skipped.push(SkippedImport {
                     raw: raw.to_string(),
                     kind: kind_str,
-                    value: value.clone(),
+                    value: ident.value.clone(),
                     reason: "duplicate_in_batch".to_string(),
                 });
                 continue;
             }
             seen.insert(dedup_key, raw.to_string());
 
-            if kind == IdentifierKind::Skill {
-                let Some(source) = parse::extract_skill_source(raw) else {
-                    errors.push(format!("{raw}: invalid skill source"));
-                    continue;
-                };
+            if let Some(source) = skill {
                 skills.push(PendingSkillImport {
                     raw: raw.to_string(),
                     source,
@@ -90,13 +89,13 @@ pub(crate) fn preflight_identifier_batch(
                 continue;
             }
 
-            if let Some(column) = identifier_kind_column(kind) {
-                match papers::find_by_identifier(catalog_root, column, &value) {
+            if let Some(column) = ident.catalog_column {
+                match papers::find_by_identifier(catalog_root, column, &ident.value) {
                     Ok(Some(_record)) => {
                         skipped.push(SkippedImport {
                             raw: raw.to_string(),
-                            kind: kind_str,
-                            value: value.clone(),
+                            kind: kind_str.clone(),
+                            value: ident.value.clone(),
                             reason: "already_in_library".to_string(),
                         });
                         continue;
@@ -104,9 +103,9 @@ pub(crate) fn preflight_identifier_batch(
                     Ok(None) => {}
                     Err(e) => {
                         if remote_catalog {
-                            log::warn!("remote catalog lookup failed for {value}: {e}");
+                            log::warn!("remote catalog lookup failed for {}: {e}", ident.value);
                         } else {
-                            log::warn!("catalog lookup failed for {value}: {e}");
+                            log::warn!("catalog lookup failed for {}: {e}", ident.value);
                         }
                     }
                 }
@@ -128,40 +127,36 @@ pub(crate) fn preflight_identifier_batch(
 }
 
 enum Segment {
-    Identifiers(Vec<(String, IdentifierKind, String)>),
+    Identifiers(Vec<(String, ResolvedIdentifier)>),
     Query(String),
 }
 
 /// Classify one input segment. Space-separated identifier lists still expand
 /// (`"1706.03762 10.1038/…"`); anything else with no identifier is free text.
 ///
-/// Only single tokens are matched as a whole: `clean_doi` / `clean_isbn` scan
+/// Only single tokens are matched as a whole: the DOI / ISBN resolvers scan
 /// the entire string, so a whole-segment match on multi-word input would
 /// swallow the rest of a list or a title.
 fn classify_segment(input: &str) -> Segment {
     let tokens: Vec<&str> = input.split_whitespace().collect();
     if tokens.len() <= 1 {
         return match extract_primary_identifier(input) {
-            Some((kind, value)) => Segment::Identifiers(vec![(input.to_string(), kind, value)]),
+            Some(ident) => Segment::Identifiers(vec![(input.to_string(), ident)]),
             None => Segment::Query(input.to_string()),
         };
     }
 
     // Skill sources (`npx skills add …`) are the only identifiers with spaces.
-    if let Some(source) = parse::extract_skill_source(input) {
-        return Segment::Identifiers(vec![(
-            input.to_string(),
-            IdentifierKind::Skill,
-            source.source,
-        )]);
+    if let Some(ident) = parse::skill_identifier(input) {
+        return Segment::Identifiers(vec![(input.to_string(), ident)]);
     }
 
     let mut units = Vec::with_capacity(tokens.len());
     for token in &tokens {
-        let Some((kind, value)) = extract_primary_identifier(token) else {
+        let Some(ident) = extract_primary_identifier(token) else {
             return Segment::Query(input.to_string());
         };
-        units.push((token.to_string(), kind, value));
+        units.push((token.to_string(), ident));
     }
     Segment::Identifiers(units)
 }
@@ -170,9 +165,9 @@ fn classify_segment(input: &str) -> Segment {
 mod tests {
     use super::*;
 
-    fn kinds(input: &str) -> Option<Vec<IdentifierKind>> {
+    fn kinds(input: &str) -> Option<Vec<&'static str>> {
         match classify_segment(input) {
-            Segment::Identifiers(units) => Some(units.into_iter().map(|(_, k, _)| k).collect()),
+            Segment::Identifiers(units) => Some(units.into_iter().map(|(_, i)| i.kind).collect()),
             Segment::Query(_) => None,
         }
     }
@@ -181,7 +176,7 @@ mod tests {
     fn keeps_multi_word_skill_command_intact() {
         assert_eq!(
             kinds("npx skills add anthropics/skills --skill pptx"),
-            Some(vec![IdentifierKind::Skill])
+            Some(vec!["skill"])
         );
     }
 
@@ -189,7 +184,7 @@ mod tests {
     fn expands_space_separated_identifiers() {
         assert_eq!(
             kinds("1706.03762 10.1038/nature12373"),
-            Some(vec![IdentifierKind::Arxiv, IdentifierKind::Doi])
+            Some(vec!["arxiv", "doi"])
         );
     }
 

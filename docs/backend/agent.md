@@ -213,7 +213,7 @@ Agentero 是 ACP **Client**：模型 HTTP **不**经 Host 转发，因此只能�
 
 ## 远程
 
-远程 Vault 时在 **SSH 远端** 启动 Agent。见 [remote.md](remote.md)。
+远程 Vault 时在 **SSH 远端** 启动 Agent。见 [remote.md](remote.md)。远程 agent catalog 的扫描/探测/安装命令属 agent 域（`remote_catalog.rs` + `remote_catalog_commands.rs`），复用 `agent::models` / `probe_agent` / `templates`，通过 remote 域的 `RemoteRegistry` / `agent_exec` 走 SSH。
 
 ## 代码
 

@@ -254,6 +254,8 @@ UI 阅读：优先 catalog 远程 URL；`source/` 为 arXiv TeX 归档；`PAPER.
 4. ADS Bibcode
 5. PMID（1–9 位数字，最后匹配）
 
+> 实现上，优先级由 `src-tauri/src/features/import/resolver.rs` 的静态 resolver 表驱动：Url / Doi / Arxiv / Isbn / Pmid / Ads 各实现 `PaperResolver`（`priority` 探测顺序、`catalog_column` 查重列、`translator_target` 构造 Translator 请求、`fetch_fallback` Translator 失败后的直连回退——arXiv→Atom、DOI→Crossref）。Skill 不入表，由 `parse::extract_skill_source` 前置分流。新增导入源只需实现一个 resolver 并登记进表（表按 `priority` 排序，有测试守护）。
+
 解析失败：返回 `lookup.failure_to_id`，不调用网络。
 
 ### 3.3 输出：`ParsedIdentifier`

@@ -8,6 +8,7 @@ mod paper;
 mod resources;
 mod server;
 mod tools;
+pub mod tunnel;
 
 pub mod commands;
 
@@ -84,6 +85,13 @@ impl McpController {
 
     pub fn app_handle(&self) -> Option<AppHandle> {
         self.inner.lock().ok().and_then(|g| g.app.clone())
+    }
+
+    pub fn port(&self) -> u16 {
+        self.inner
+            .lock()
+            .map(|g| g.port)
+            .unwrap_or(DEFAULT_MCP_PORT)
     }
 
     pub fn status(&self) -> McpStatus {
@@ -279,7 +287,7 @@ impl McpController {
         self.emit_status();
     }
 
-    fn stop_server(&self) {
+    pub fn stop_server(&self) {
         self.stop_server_internal();
         if let Ok(mut g) = self.inner.lock() {
             g.listening = false;

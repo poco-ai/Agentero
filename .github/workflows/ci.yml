@@ -52,6 +52,7 @@ jobs:
             quality)
               pnpm exec biome ci .
               pnpm typecheck
+              pnpm deps:check
               ;;
             test-1)
               pnpm exec vitest run --shard=1/2

@@ -113,7 +113,26 @@
 			"portLabel": "MCP port",
 			"invalidPort": "Port must be between 1 and 65535.",
 			"copyUrl": "Copy MCP URL",
-			"copied": "Copied"
+			"copied": "Copied",
+			"tunnel": {
+				"tunnelIdLabel": "Tunnel ID",
+				"apiKeyLabel": "Runtime API key",
+				"invalidTunnelId": "Tunnel ID should look like `tunnel_` + 32 hex characters.",
+				"label": "ChatGPT tunnel",
+				"start": "Start",
+				"stop": "Stop",
+				"starting": "Starting…",
+				"ready": "Connected",
+				"error": "Not connected",
+				"stopped": "Stopped",
+				"binaryMissing": "tunnel-client not found",
+				"installHint": "Install it, then reopen Settings:",
+				"copyCommand": "Copy install command",
+				"copied": "Copied",
+				"openTunnels": "Open tunnels",
+				"openApiKeys": "Open API keys",
+				"mcpOff": "Turn on the MCP server first."
+			}
 		},
 		"export": {
 			"section": "Note export",

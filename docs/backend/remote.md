@@ -10,7 +10,7 @@
 | 文件 | SFTP list/read/write/mkdir/remove/bytes |
 | Catalog | work mirror（本机查询，写回远端） |
 | PDF | blob 缓存（`remote_cache_*`） |
-| Agent | ACP over SSH：`remote_agent_probe` / scan / 与 `agent_run_once` 集成 |
+| Agent | ACP over SSH：`remote_agent_probe` / scan / 与 `agent_run_once` 集成（命令实现属 agent 域 `features/agent/remote_catalog_commands.rs`，复用 remote 域的 SSH session/exec） |
 | 入库 / 回收站 | 远端写路径与 trash bridge |
 | Connector | 可绑定 `remote:<sessionId>` |
 

@@ -6,13 +6,14 @@
 
 把本机 MCP 接到 ChatGPT / Codex，用官方 **tunnel-client** 出站隧道，不要用 ngrok 或其他临时公网隧道。装好后先跑 `tunnel-client help quickstart`。协议与工具表：[backend/mcp.md](../backend/mcp.md)。
 
-## 1. 打开 Agentero MCP
+## 1. 打开 Agentero MCP 与隧道
 
 1. 打开一个**本地** Vault。
-2. **Settings → General → MCP server** 打开开关。
-3. 默认地址 `http://127.0.0.1:8765/mcp`。绿点表示正在监听；点击地址可复制。
+2. **Settings → General → MCP server** 打开开关。默认地址 `http://127.0.0.1:8765/mcp`；端口旁绿点表示正在监听。
+3. 在同一设置区填写 **Runtime API key** 和 **Tunnel ID**（见 §2-3 获取），然后点 **Start**。
+4. 按钮旁绿点变 **Connected** 后，去 ChatGPT 建 connector（§5）。
 
-本机 Inspector、能打 loopback 的客户端可以直接用这个 URL。ChatGPT 在云端，需要 tunnel-client。
+本机 Inspector、能打 loopback 的客户端可以直接用 `http://127.0.0.1:8765/mcp`。ChatGPT 在云端，需要 tunnel-client。
 
 Agentero 是 **无 OAuth 的 loopback HTTP MCP**，对应 quickstart 的 sample 2（`sample_mcp_remote_no_auth`），不是 stdio、也不是 `--embedded-mcp-stub`。
 
@@ -81,7 +82,20 @@ tunnel-client admin --json tunnels get tunnel_...   # 看 organization_ids / wor
 
 ## 4. 接到 Agentero
 
-Agentero MCP 开关保持打开：
+在 **Settings → General → MCP server** 里：
+
+1. 确认 MCP 开关已打开（端口行绿点）。
+2. 填入 §3 获取的 **Runtime API key** 和 **Tunnel ID**。
+3. 点 **Start**。按钮旁状态从 **Stopped** → **Starting…** → **Connected**（≤30 秒）。
+4. 点 **Stop** 或退出 Agentero 都会停掉隧道；改 MCP 端口时也会自动停隧道，需要再点一次 Start。
+
+如果按钮禁用并提示 "tunnel-client not found"，先安装（§2），然后重新打开 Settings 页即可。
+
+**注意**：`/readyz` 返回 200 不代表真的连上了；设置页显示 **Connected** 的依据是 `tunnel-client health --require-control-plane-poll` 成功，所以 bogus key 会显示 **Not connected**。
+
+### 手动方式（可选）
+
+如果你更喜欢自己持有 tunnel-client 进程，可以在终端里跑：
 
 ```bash
 export CONTROL_PLANE_API_KEY="sk-..."
@@ -97,30 +111,7 @@ tunnel-client doctor --profile agentero --explain
 tunnel-client run --profile agentero
 ```
 
-监督方式：
-
-- 当前终端前台：`tunnel-client run ...`（推荐本机手测）
-- Codex 管的长期 runtime：`tunnel-client runtimes connect ...`，成功前先 `tunnel-client runtimes status <alias>`（`--json` 看 `process_running` / `healthy` / `ready`）
-- **不要**用 `nohup` / `disown`
-
 `run` 要一直开着。关掉 Agentero、关掉 MCP 开关、或停掉 tunnel-client，ChatGPT 的发现和每次 MCP 调用都会失败。
-
-本机确认：
-
-- tunnel-client 默认 `http://127.0.0.1:8080/readyz` 和 `/ui`（若用 `--health.listen-addr 127.0.0.1:0`，以 `--health.url-file` 里的 URL 为准）
-- Agentero 设置页 MCP 仍是绿点
-
-可选：先不接 Agentero，用内嵌 stub 验证隧道本身：
-
-```bash
-tunnel-client run \
-  --embedded-mcp-stub \
-  --control-plane.tunnel-id "$CONTROL_PLANE_TUNNEL_ID" \
-  --health.listen-addr 127.0.0.1:0 \
-  --health.url-file /tmp/tunnel-client-health.url
-curl -fsS "$(cat /tmp/tunnel-client-health.url)/readyz"
-open "$(cat /tmp/tunnel-client-health.url)/ui"
-```
 
 其它官方 sample（stdio、企业代理、OAuth/DCR）见 `tunnel-client help samples`，Agentero 用不到。
 
@@ -149,9 +140,10 @@ open "$(cat /tmp/tunnel-client-health.url)/ui"
 | 现象 | 处理 |
 |---|---|
 | Agentero 没有绿点 | 先打开本地 Vault，再开 MCP 开关；端口占用则换 `mcpPort` |
-| `doctor` 缺 Key | [Runtime API keys](https://platform.openai.com/settings/organization/api-keys) 建 Restricted key，export `CONTROL_PLANE_API_KEY`；不要用 Admin key 跑 daemon |
-| ChatGPT 看不到隧道 | workspace 关联 + **Use**；connector 必须在 `run` 健康时创建 |
-| 工具调用失败 | Agentero 和 `tunnel-client run` 都要在；先 `/readyz` 和绿点 |
+| Start 按钮禁用 / 显示 "tunnel-client not found" | 按提示安装 `brew install openai/tools/tunnel-client`，重新打开 Settings |
+| 绿点一直 **Starting…** / **Not connected** | 检查 Runtime API key 是否有 Tunnels **Use**、Tunnel ID 是否正确、隧道是否关联目标 workspace；注意 `/readyz` 不能作为连通依据 |
+| ChatGPT 看不到隧道 | workspace 关联 + **Use**；connector 必须在 `Connected` 时创建 |
+| 工具调用失败 | Agentero 开关、隧道 **Connected** 都要在 |
 | Homebrew 装错包 | `openai/tools/tunnel-client`，不是 `tunnel` |
 
 官方帮助：`tunnel-client help oauth`、`help plugin`、`help troubleshooting`。

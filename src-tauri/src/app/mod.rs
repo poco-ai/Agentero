@@ -1,5 +1,7 @@
 //! Application assembly: plugins, managed state, setup, and event wiring.
 
+#[cfg(test)]
+mod bindings_test;
 mod handlers;
 mod logging;
 pub mod menu;
@@ -7,6 +9,8 @@ pub mod menu;
 use crate::features::agent::{AgentRegistry, AgentRunController};
 #[cfg(not(target_os = "ios"))]
 use crate::features::connector::ConnectorController;
+#[cfg(not(target_os = "ios"))]
+use crate::features::mcp::tunnel::McpTunnelController;
 #[cfg(not(target_os = "ios"))]
 use crate::features::mcp::McpController;
 #[cfg(not(target_os = "ios"))]
@@ -109,6 +113,7 @@ pub fn run() {
             .manage(FsWatchController::new())
             .manage(Arc::new(ConnectorController::new()))
             .manage(Arc::new(McpController::new()))
+            .manage(Arc::new(McpTunnelController::new()))
             .manage(Arc::new(RemoteRegistry::new()));
     }
 
@@ -210,8 +215,25 @@ pub fn run() {
                     let note_mode = s.paper_note_mode.clone();
                     ctrl.set_translator_url(Some(translator));
                     ctrl.set_paper_note_mode(note_mode);
+                    // `set_port` stops and restarts the listener even when the
+                    // port is unchanged; doing that on every settings change
+                    // (e.g. editing the tunnel ID) would briefly hide the MCP
+                    // status dot and disable the tunnel Start button.
+                    if port != ctrl.port() {
+                        tauri::async_runtime::spawn(async move {
+                            let _ = ctrl.set_port(port).await;
+                        });
+                    }
+                });
+            }
+            #[cfg(not(target_os = "ios"))]
+            {
+                let handle = app.handle().clone();
+                settings_store.subscribe(move |s| {
+                    let tunnel = Arc::clone(handle.state::<Arc<McpTunnelController>>().inner());
+                    let mcp_url = format!("http://127.0.0.1:{}/mcp", s.mcp_port);
                     tauri::async_runtime::spawn(async move {
-                        let _ = ctrl.set_port(port).await;
+                        let _ = tunnel.mcp_url_changed(mcp_url).await;
                     });
                 });
             }
@@ -268,6 +290,11 @@ pub fn run() {
             mcp.set_app_handle(app.handle().clone());
             mcp.set_translator_url(Some(settings.translator_base_url.clone()));
             mcp.set_paper_note_mode(settings.paper_note_mode.clone());
+        }
+        #[cfg(not(target_os = "ios"))]
+        {
+            let tunnel = app.state::<Arc<McpTunnelController>>();
+            tunnel.set_app_handle(app.handle().clone());
         }
         log::info!(
             target: "agentero::op",
@@ -401,6 +428,14 @@ pub fn run() {
             ) {
                 #[cfg(not(target_os = "ios"))]
                 app.state::<Arc<ConnectorController>>().stop();
+                // The MCP HTTP listener and the ChatGPT tunnel child are both
+                // desktop-only; stop them here so port 8765/8080 are released
+                // when the app quits. This matches Connector/Bridge behavior.
+                #[cfg(not(target_os = "ios"))]
+                {
+                    app.state::<Arc<McpController>>().stop_server();
+                    app.state::<Arc<McpTunnelController>>().stop();
+                }
                 // Close the mobile relay rather than letting the socket die with
                 // the process, so paired clients see a clean shutdown. `stop`
                 // takes the runtime, so the second call in this arm is a no-op.

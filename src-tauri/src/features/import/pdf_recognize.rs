@@ -12,6 +12,7 @@
 
 use crate::core::error::AppError;
 use crate::features::import::pdf_parse::{run_liteparse_probe, ProbePage, ProbeWord};
+use crate::features::import::resolver::fetch_arxiv_metadata;
 use crate::features::import::{map, resolve_metadata, PaperMeta};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -375,7 +376,7 @@ pub(crate) async fn recognize_and_resolve(
 
     // Identifier hits are leads: re-resolve against authoritative sources.
     if let Some(doi) = hit.doi.as_deref().map(str::trim).filter(|d| !d.is_empty()) {
-        match resolve_identifier_full(doi, translator_base, task_id).await {
+        match resolve_metadata(doi, translator_base, task_id).await {
             Ok((meta, used_translator)) => {
                 let source = if used_translator {
                     "translator"
@@ -399,7 +400,7 @@ pub(crate) async fn recognize_and_resolve(
         .map(str::trim)
         .filter(|a| !a.is_empty())
     {
-        match crate::features::import::fetch_arxiv_metadata(arxiv, task_id).await {
+        match fetch_arxiv_metadata(arxiv, task_id).await {
             Ok(meta) => return PdfIdentProbe::from_meta(&file_path, &meta, "arxiv"),
             Err(e) => {
                 log::debug!(target: "agentero::recognize", "arXiv {arxiv} resolve failed: {e}");
@@ -426,63 +427,6 @@ fn title_fallback(file_path: &str, hit: &RecognizeHit) -> PdfIdentProbe {
     } else {
         PdfIdentProbe::no_match(file_path)
     }
-}
-
-/// Resolve a DOI/arXiv identifier to authoritative metadata:
-/// Translator first, Crossref (DOI) or arXiv Atom direct as fallback.
-pub(crate) async fn resolve_identifier_full(
-    text: &str,
-    translator_base: &str,
-    task_id: Option<&str>,
-) -> Result<(PaperMeta, bool), AppError> {
-    match resolve_metadata(text, translator_base, task_id).await {
-        Ok(out) => Ok(out),
-        Err(translator_err) => {
-            let doi = crate::features::import::parse::clean_doi(text);
-            if let Some(doi) = doi.as_deref().filter(|d| !d.trim().is_empty()) {
-                let meta = fetch_crossref_metadata(doi).await?;
-                return Ok((meta, false));
-            }
-            // resolve_metadata already falls back to arXiv Atom internally;
-            // nothing else to try.
-            Err(AppError::message(format!(
-                "{translator_err}; Crossref lookup unavailable for non-DOI text"
-            )))
-        }
-    }
-}
-
-/// `GET https://api.crossref.org/works/{doi}` → `PaperMeta`.
-pub(crate) async fn fetch_crossref_metadata(doi: &str) -> Result<PaperMeta, AppError> {
-    let url = format!(
-        "https://api.crossref.org/works/{}",
-        urlencoding::encode(doi.trim())
-    );
-    let client = crate::core::http::client_builder()
-        .timeout(Duration::from_secs(30))
-        .user_agent(concat!(
-            "Agentero/",
-            env!("CARGO_PKG_VERSION"),
-            " (+https://github.com/poco-ai/agentero)"
-        ))
-        .build()
-        .map_err(|e| AppError::message(format!("crossref http client: {e}")))?;
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| AppError::message(format!("crossref request failed: {e}")))?;
-    if !response.status().is_success() {
-        return Err(AppError::message(format!(
-            "crossref HTTP {} for {doi}",
-            response.status()
-        )));
-    }
-    let value: Value = response
-        .json()
-        .await
-        .map_err(|e| AppError::message(format!("crossref body: {e}")))?;
-    map::map_crossref_work(value.pointer("/message").unwrap_or(&Value::Null), doi)
 }
 
 /// Best-effort metadata from a recognizer hit when no identifier resolved:

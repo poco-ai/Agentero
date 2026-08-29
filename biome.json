@@ -7,7 +7,15 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!public", "!src-tauri", "!dist", "!tmp", "!target"]
+		"includes": [
+			"**",
+			"!public",
+			"!src-tauri",
+			"!dist",
+			"!tmp",
+			"!target",
+			"!src/lib/core/bindings.ts"
+		]
 	},
 	"formatter": {
 		"enabled": true,

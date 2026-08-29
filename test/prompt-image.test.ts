@@ -21,7 +21,7 @@ import {
 	beginVaultFileDrag,
 	endVaultFileDrag,
 	VAULT_FILE_DRAG_TYPE,
-} from "@/lib/shell/vault-file-drag";
+} from "@/lib/core/vault-file-drag";
 
 function fakeFile(name: string, type: string): File {
 	return new File([new Uint8Array([1, 2, 3])], name, { type });

@@ -5,8 +5,9 @@
  * intents focus that window and the main right-rail must not host
  * a second instance of the same view.
  *
- * Note: do not statically import `@/lib/shell/ui-store` — that module dynamically
- * imports this file for preferFeatureWindow (would form a cycle).
+ * Note: do not statically import `@/lib/shell/ui-store` — that store module is
+ * read here; the opening actions that import this file live in
+ * `ui-window-actions` (ui-window-actions → feature-window → ui-store).
  */
 
 import i18n from "@/i18n";

@@ -14,11 +14,11 @@
 //! Every failure degrades to the metadata upsert — a paper is never lost or
 //! left half-renamed because recognition could not be applied.
 
+use super::AppHandle;
 use crate::core::error::AppError;
 use crate::features::catalog::papers::{self, PaperRecord};
 use crate::features::catalog::CapsCache;
 use crate::features::import::pdf_recognize::PdfIdentProbe;
-use crate::features::import::AppHandle;
 use crate::features::import::{map, slug_from_stem};
 use crate::features::lifecycle::{emit_paper_renamed, PaperRenamedEvent};
 use crate::features::rename::{run_local_rename_transaction, WikiIndex};
@@ -108,7 +108,7 @@ fn meta_update_in_place(
     apply_probe_fields(record, probe, meta_source);
     papers::upsert_paper(vault, record)?;
     if record.title != old_title {
-        papers::append_title_alias_best_effort(vault, &path, &record.title);
+        crate::features::wiki::append_title_alias_best_effort(vault, &path, &record.title);
     }
     Ok(())
 }
@@ -252,7 +252,7 @@ async fn rename_to_canonical(
                     "post-rename metadata upsert failed: {e}");
             }
             if record.title != old_title {
-                papers::append_title_alias_best_effort(vault, to_rel, &record.title);
+                crate::features::wiki::append_title_alias_best_effort(vault, to_rel, &record.title);
             }
             if let Some(c) = cache {
                 c.invalidate(vault, from_rel);

@@ -127,7 +127,10 @@ impl AgentRegistry {
             .map_err(|_| AppError::message("agent registry lock poisoned"))?;
         if let Some(ref agent_id) = id {
             if !guard.agents.iter().any(|a| a.id == *agent_id) {
-                return Err(AppError::AgentNotFound(agent_id.clone()));
+                return Err(AppError::domain(
+                    "agent_not_found",
+                    format!("agent not found: {agent_id}"),
+                ));
             }
         }
         guard.default_id = id;
@@ -272,7 +275,10 @@ impl AgentRegistry {
         let before = guard.agents.len();
         guard.agents.retain(|a| a.id != id);
         if guard.agents.len() == before {
-            return Err(AppError::AgentNotFound(id.to_string()));
+            return Err(AppError::domain(
+                "agent_not_found",
+                format!("agent not found: {id}"),
+            ));
         }
         if guard.default_id.as_deref() == Some(id) {
             guard.default_id = guard.agents.first().map(|a| a.id.clone());
@@ -351,7 +357,7 @@ impl AgentRegistry {
             .agents
             .into_iter()
             .find(|a| a.id == id)
-            .ok_or_else(|| AppError::AgentNotFound(id.to_string()))
+            .ok_or_else(|| AppError::domain("agent_not_found", format!("agent not found: {id}")))
     }
 
     pub fn apply_probe_result(&self, id: &str, result: &ProbeResult) -> Result<(), AppError> {
@@ -363,7 +369,7 @@ impl AgentRegistry {
             .agents
             .iter_mut()
             .find(|a| a.id == id)
-            .ok_or_else(|| AppError::AgentNotFound(id.to_string()))?;
+            .ok_or_else(|| AppError::domain("agent_not_found", format!("agent not found: {id}")))?;
         let now = chrono_like_now();
         agent.last_probe_ok = Some(result.available);
         agent.last_probe_agent_name = result.agent_name.clone();
@@ -568,11 +574,20 @@ impl AgentRegistry {
             .agents
             .into_iter()
             .find(|a| a.id == id)
-            .ok_or(AppError::AgentNotFound(id))?;
+            .ok_or(AppError::domain(
+                "agent_not_found",
+                format!("agent not found: {id}"),
+            ))?;
         if !agent.available {
-            return Err(AppError::AgentUnavailable(agent.last_error.unwrap_or_else(
-                || format!("command `{}` not available", agent.command),
-            )));
+            return Err(AppError::domain(
+                "agent_unavailable",
+                format!(
+                    "agent unavailable: {}",
+                    agent
+                        .last_error
+                        .unwrap_or_else(|| format!("command `{}` not available", agent.command))
+                ),
+            ));
         }
         Ok(agent)
     }

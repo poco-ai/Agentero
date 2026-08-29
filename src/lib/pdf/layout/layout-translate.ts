@@ -24,7 +24,12 @@ import {
 	splitChainTranslation,
 } from "@/lib/pdf/layout/layout-translate-source";
 import { bboxCoveredBy } from "@/lib/pdf/layout/merge-captions";
-import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
+import type {
+	LayoutTranslateItem,
+	LayoutTranslateItemStatus,
+	LayoutTranslateRegion,
+	PdfLayoutRegion,
+} from "@/lib/pdf/layout/types";
 import {
 	evictAgentTranslateSessionId,
 	getAgentTranslateSessionId,
@@ -77,29 +82,11 @@ const translateSidecarWriteTimers = new Map<
 	ReturnType<typeof setTimeout>
 >();
 
-export type LayoutTranslateRegion = {
-	id: string;
-	pageIndex: number;
-	bbox: PdfLayoutRegion["bbox"];
-	kind: PdfLayoutRegion["kind"];
-	readingOrder: number;
-	/** Source PDF text (trimmed, possibly truncated for the API). */
-	source: string;
-};
-
-export type LayoutTranslateItemStatus =
-	| "pending"
-	| "running"
-	| "done"
-	| "error"
-	| "skipped";
-
-export type LayoutTranslateItem = LayoutTranslateRegion & {
-	status: LayoutTranslateItemStatus;
-	/** Translated text when status is done (or partial). */
-	translated?: string;
-	error?: string;
-};
+export type {
+	LayoutTranslateItem,
+	LayoutTranslateItemStatus,
+	LayoutTranslateRegion,
+} from "@/lib/pdf/layout/types";
 
 export type LayoutTranslateJobStatus =
 	| "idle"

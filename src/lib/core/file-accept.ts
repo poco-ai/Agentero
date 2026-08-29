@@ -6,7 +6,7 @@
 import {
 	isVaultFileDragActive,
 	VAULT_FILE_DRAG_TYPE,
-} from "@/lib/shell/vault-file-drag";
+} from "@/lib/core/vault-file-drag";
 
 const IMAGE_EXT_RE =
 	/\.(png|jpe?g|webp|gif|bmp|heic|heif|avif|svg|ico|tif|tiff)$/i;

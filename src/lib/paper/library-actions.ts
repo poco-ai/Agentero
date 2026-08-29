@@ -11,6 +11,7 @@ import { errorText } from "@/lib/core/error";
 import { invokeApi } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
 import { notifyError, notifySuccess, notifyWarning } from "@/lib/core/notify";
+import { mapLimit } from "@/lib/core/utils";
 import {
 	detectPaperDirectory,
 	notesPathForPaper,
@@ -25,12 +26,14 @@ import {
 	importLibraryFromFile,
 	type PaperMetaPatch,
 	rescanPapers,
+	resolveIdentifierMetadata,
 	setPaperTags,
 	updatePaperMeta,
 } from "@/lib/paper/api";
 import {
 	libraryStore,
 	refreshLibrary,
+	scheduleLibraryRefresh,
 	setCitingScanDraft,
 	setEditMetaDraft,
 	setLibraryIoBusy,
@@ -493,4 +496,87 @@ export async function paperMetaChange(
 		notifyError(errorText(e));
 		return null;
 	}
+}
+
+/**
+ * Re-resolve the `publication` field for the given papers via identifier
+ * lookup (library header refresh button). Online-only and slow enough to
+ * surface in the background-tasks panel with progress + partial-failure
+ * reporting; concurrency 3 to stay polite with metadata providers.
+ */
+export async function refreshLibraryPublications(
+	vaultPath: string | null | undefined,
+	targets: PaperMetadata[],
+): Promise<void> {
+	if (!vaultPath || isRemoteVaultHandle(vaultPath)) return;
+	const papers = targets.filter(
+		(p) => p.path && (p.doi?.trim() || p.arxiv_id?.trim() || p.title?.trim()),
+	);
+	if (papers.length === 0) {
+		notifyError(i18n.t("sidebar:papersLibrary.refreshPublicationNoTargets"));
+		return;
+	}
+	await enqueueBackgroundTask(
+		{
+			kind: "other",
+			title: i18n.t("sidebar:papersLibrary.refreshPublicationTaskTitle"),
+			detail: i18n.t("sidebar:papersLibrary.refreshPublicationTaskDetail", {
+				current: 0,
+				total: papers.length,
+			}),
+		},
+		async ({ signal, setProgress, setDetail }) => {
+			const stats = { updated: 0, empty: 0, failed: 0, processed: 0 };
+			setProgress(0);
+			const updateStats = () => {
+				setProgress(Math.round((stats.processed / papers.length) * 100));
+				setDetail(
+					i18n.t("sidebar:papersLibrary.refreshPublicationTaskDetail", {
+						current: stats.processed,
+						total: papers.length,
+						updated: stats.updated,
+						failed: stats.failed,
+						empty: stats.empty,
+					}),
+				);
+			};
+			await mapLimit(papers, 3, async (paper) => {
+				if (signal.aborted) return;
+				const text =
+					paper.doi?.trim() || paper.arxiv_id?.trim() || paper.title?.trim();
+				try {
+					const meta = await resolveIdentifierMetadata(text ?? "");
+					const publication = meta.publication?.trim();
+					if (publication && paper.path) {
+						await updatePaperMeta(vaultPath, paper.path, {
+							publication,
+						});
+						stats.updated++;
+						scheduleLibraryRefresh();
+					} else {
+						stats.empty++;
+					}
+				} catch (e) {
+					stats.failed++;
+					logger.error("refresh publication failed", {
+						path: paper.path,
+						error: String(e),
+					});
+				} finally {
+					stats.processed++;
+					updateStats();
+				}
+			});
+			await refreshLibrary();
+			if (stats.failed > 0) {
+				throw new Error(
+					i18n.t("sidebar:papersLibrary.refreshPublicationPartial", {
+						updated: stats.updated,
+						failed: stats.failed,
+						empty: stats.empty,
+					}),
+				);
+			}
+		},
+	);
 }

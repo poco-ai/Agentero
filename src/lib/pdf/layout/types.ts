@@ -91,6 +91,31 @@ export type PdfLayoutDocumentResult = {
 	counts: Record<PdfLayoutKind, number>;
 };
 
+/** Reading-order region extracted as one translatable source unit. */
+export type LayoutTranslateRegion = {
+	id: string;
+	pageIndex: number;
+	bbox: PdfLayoutRegion["bbox"];
+	kind: PdfLayoutRegion["kind"];
+	readingOrder: number;
+	/** Source PDF text (trimmed, possibly truncated for the API). */
+	source: string;
+};
+
+export type LayoutTranslateItemStatus =
+	| "pending"
+	| "running"
+	| "done"
+	| "error"
+	| "skipped";
+
+export type LayoutTranslateItem = LayoutTranslateRegion & {
+	status: LayoutTranslateItemStatus;
+	/** Translated text when status is done (or partial). */
+	translated?: string;
+	error?: string;
+};
+
 export type LayoutAnalysisUiStatus =
 	| { stage: "idle" }
 	| {

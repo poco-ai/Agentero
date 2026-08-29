@@ -64,12 +64,11 @@ import {
 import {
 	layout,
 	openPalette,
-	openRightTab,
 	setRightSidebarOpenState,
 	setSidebarCollapsedState,
-	toggleChat,
 	toggleSidebar,
 } from "@/lib/shell/ui-store";
+import { openRightTab, toggleChat } from "@/lib/shell/ui-window-actions";
 import {
 	createNewVault,
 	deleteSelectedPath,

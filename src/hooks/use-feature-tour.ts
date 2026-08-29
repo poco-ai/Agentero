@@ -15,7 +15,8 @@ import { isMobileApp, isTauri } from "@/lib/core/tauri";
 import { listenTourRequest } from "@/lib/onboarding/api";
 import { patchSettings } from "@/lib/settings/react-store";
 import { formatShortcutById } from "@/lib/shell/shortcuts";
-import { layout, openRightTab } from "@/lib/shell/ui-store";
+import { layout } from "@/lib/shell/ui-store";
+import { openRightTab } from "@/lib/shell/ui-window-actions";
 
 const MAGIC_WAND_SHORTCUT = formatShortcutById("magicWand");
 const SETTINGS_SHORTCUT = formatShortcutById("settings");

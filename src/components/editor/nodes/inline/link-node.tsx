@@ -6,6 +6,7 @@ import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useMarkdownDoc } from "@/components/editor/context/markdown-doc-context";
 import { ExternalLinkElement } from "@/components/editor/nodes/inline/external-link-popover";
+import { linkClassName } from "@/components/editor/nodes/inline/link-styles";
 import { cn } from "@/lib/core/utils";
 import {
 	isVaultLocalMarkdownLink,
@@ -22,9 +23,6 @@ type LinkEl = TElement & {
 	/** Set on slash/context-menu insert; cleared after the edit popover opens. */
 	agenteroEditId?: string;
 };
-
-export const linkClassName =
-	"cursor-pointer font-medium text-primary underline decoration-primary/40 underline-offset-2";
 
 export function LinkElement(props: PlateElementProps) {
 	const { t } = useTranslation("editor");

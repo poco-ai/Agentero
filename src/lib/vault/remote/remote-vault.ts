@@ -3,6 +3,7 @@
  * Design: `docs/development/remote-vault.md`
  */
 
+import type { CatalogEntry, ProbeResult } from "@/lib/agent/api-types";
 import { invokeApi } from "@/lib/core/ipc";
 import { readJsonStorage, writeJsonStorage } from "@/lib/core/storage";
 import { isTauri } from "@/lib/core/tauri";
@@ -306,7 +307,7 @@ export async function remotePaperRescan(
 export type RemoteAgentScanResponse = {
 	sessionId: string;
 	destination: string;
-	entries: import("@/lib/agent/api").CatalogEntry[];
+	entries: CatalogEntry[];
 };
 
 export async function remoteAgentScan(
@@ -327,8 +328,8 @@ export async function remoteAgentScan(
 export async function remoteAgentProbe(
 	sessionId: string,
 	templateId: string,
-): Promise<import("@/lib/agent/api").ProbeResult> {
-	return invokeApi<import("@/lib/agent/api").ProbeResult>(
+): Promise<ProbeResult> {
+	return invokeApi<ProbeResult>(
 		"remote_agent_probe",
 		{
 			args: { sessionId, templateId },

@@ -90,6 +90,12 @@ pub fn agentero_models_dir() -> PathBuf {
     agentero_cache_dir().join("models")
 }
 
+/// Owned by the built-in ChatGPT tunnel supervisor:
+/// `$XDG_CACHE_HOME/agentero/mcp-tunnel` (private `--profile-dir`, health url, log).
+pub fn mcp_tunnel_dir() -> PathBuf {
+    agentero_cache_dir().join("mcp-tunnel")
+}
+
 /// App settings file: `…/agentero/settings.json`.
 pub fn settings_path() -> PathBuf {
     agentero_config_dir().join("settings.json")
@@ -189,6 +195,13 @@ mod tests {
     fn models_dir_under_cache() {
         let p = agentero_models_dir();
         assert_eq!(p.file_name().and_then(|s| s.to_str()), Some("models"));
+        assert_eq!(p.parent(), Some(agentero_cache_dir().as_path()));
+    }
+
+    #[test]
+    fn mcp_tunnel_dir_under_cache() {
+        let p = mcp_tunnel_dir();
+        assert_eq!(p.file_name().and_then(|s| s.to_str()), Some("mcp-tunnel"));
         assert_eq!(p.parent(), Some(agentero_cache_dir().as_path()));
     }
 

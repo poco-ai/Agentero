@@ -1,15 +1,10 @@
 //! Identifier extraction (subset of Zotero extractIdentifiers).
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IdentifierKind {
-    Doi,
-    Isbn,
-    Arxiv,
-    Pmid,
-    AdsBibcode,
-    Url,
-    Skill,
-}
+use super::resolver::{self, ResolvedIdentifier};
+
+/// Machine kind tag for the Skill side-channel. Skills are deliberately not
+/// resolver-table driven (see [`extract_skill_source`]).
+pub(crate) const SKILL_KIND: &str = "skill";
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SkillSource {
@@ -22,37 +17,29 @@ pub struct SkillSource {
 }
 
 /// Returns the first recognized identifier in `text`.
-pub fn extract_primary_identifier(text: &str) -> Option<(IdentifierKind, String)> {
+///
+/// Skill sources are diverted up front (front-dispatch outside the resolver
+/// table); everything else is probed through [`resolver::resolvers`] in
+/// priority order.
+pub fn extract_primary_identifier(text: &str) -> Option<ResolvedIdentifier> {
     let t = text.trim();
     if t.is_empty() {
         return None;
     }
+    if let Some(ident) = skill_identifier(t) {
+        return Some(ident);
+    }
+    resolver::extract(t)
+}
 
-    if let Some(source) = extract_skill_source(t) {
-        return Some((IdentifierKind::Skill, source.source));
-    }
-
-    if t.starts_with("http://") || t.starts_with("https://") {
-        return Some((IdentifierKind::Url, t.to_string()));
-    }
-
-    if let Some(doi) = clean_doi(t) {
-        return Some((IdentifierKind::Doi, doi));
-    }
-    if let Some(id) = extract_arxiv_id(t) {
-        return Some((IdentifierKind::Arxiv, id));
-    }
-    if let Some(isbn) = clean_isbn(t) {
-        return Some((IdentifierKind::Isbn, isbn));
-    }
-    // PMID: 1–9 digits
-    if let Some(caps) = regex_pmid(t) {
-        return Some((IdentifierKind::Pmid, caps));
-    }
-    if let Some(ads) = regex_ads(t) {
-        return Some((IdentifierKind::AdsBibcode, ads));
-    }
-    None
+/// Skill identifier for a skill-looking `text` (the multi-token batch path
+/// cannot reuse [`extract_primary_identifier`] because free text would win).
+pub(crate) fn skill_identifier(text: &str) -> Option<ResolvedIdentifier> {
+    extract_skill_source(text).map(|source| ResolvedIdentifier {
+        kind: SKILL_KIND,
+        value: source.source,
+        catalog_column: None,
+    })
 }
 
 pub fn extract_skill_source(text: &str) -> Option<SkillSource> {
@@ -247,70 +234,6 @@ pub(crate) fn strip_arxiv_version(id: &str) -> String {
     s.to_string()
 }
 
-pub(crate) fn clean_doi(s: &str) -> Option<String> {
-    let mut x = s.trim().to_string();
-    if x.starts_with("https://doi.org/") {
-        x = x["https://doi.org/".len()..].to_string();
-    } else if x.starts_with("http://doi.org/") {
-        x = x["http://doi.org/".len()..].to_string();
-    } else if x.starts_with("doi:") {
-        x = x["doi:".len()..].trim().to_string();
-    }
-    // 10.xxxx/...
-    if let Some(start) = x.find("10.") {
-        let cand = &x[start..];
-        let end = cand
-            .find(|c: char| c.is_whitespace() || c == ',' || c == ';')
-            .unwrap_or(cand.len());
-        let doi = cand[..end].trim_end_matches(['.', ',', ')']).to_string();
-        if doi.contains('/') {
-            return Some(doi);
-        }
-    }
-    None
-}
-
-fn clean_isbn(s: &str) -> Option<String> {
-    let digits: String = s
-        .chars()
-        .filter(|c| c.is_ascii_digit() || *c == 'X' || *c == 'x')
-        .collect();
-    let upper = digits.to_uppercase();
-    if upper.len() == 13 && (upper.starts_with("978") || upper.starts_with("979")) {
-        return Some(upper);
-    }
-    if upper.len() == 10 {
-        return Some(upper);
-    }
-    None
-}
-
-fn regex_pmid(s: &str) -> Option<String> {
-    let t = s
-        .trim()
-        .trim_start_matches("PMID:")
-        .trim_start_matches("pmid:");
-    let t = t.trim();
-    if !t.is_empty() && t.len() <= 9 && t.chars().all(|c| c.is_ascii_digit()) {
-        return Some(t.to_string());
-    }
-    None
-}
-
-fn regex_ads(s: &str) -> Option<String> {
-    // 2015ApJ...810...89S — 19 chars-ish
-    let t = s.trim();
-    if t.len() == 19
-        && t.as_bytes()[0].is_ascii_digit()
-        && t.as_bytes()[1].is_ascii_digit()
-        && t.as_bytes()[2].is_ascii_digit()
-        && t.as_bytes()[3].is_ascii_digit()
-    {
-        return Some(t.to_string());
-    }
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -358,14 +281,6 @@ mod tests {
     }
 
     #[test]
-    fn doi_clean() {
-        assert_eq!(
-            clean_doi("https://doi.org/10.1038/nature12373").as_deref(),
-            Some("10.1038/nature12373")
-        );
-    }
-
-    #[test]
     fn parses_skill_sources() {
         let source =
             extract_skill_source("npx skills add vercel-labs/agent-skills --skill frontend-design")
@@ -384,20 +299,71 @@ mod tests {
     }
 
     #[test]
+    fn extract_primary_identifier_priority_order() {
+        // Locks the detection order: Skill → URL → DOI → arXiv → ISBN →
+        // PMID → ADS. Same input hitting multiple sources must resolve to
+        // the higher-priority kind.
+        let cases: &[(&str, &'static str, &str)] = &[
+            // Skill wins over the URL branch (GitHub repo URL is not a paper URL).
+            (
+                "https://github.com/openai/skills",
+                SKILL_KIND,
+                "https://github.com/openai/skills",
+            ),
+            // URL wins over the DOI embedded in it.
+            (
+                "https://doi.org/10.1038/nature12373",
+                "url",
+                "https://doi.org/10.1038/nature12373",
+            ),
+            // DOI wins over the arXiv id embedded in it.
+            (
+                "10.48550/arXiv.1706.03762",
+                "doi",
+                "10.48550/arXiv.1706.03762",
+            ),
+            ("1706.03762", "arxiv", "1706.03762"),
+            ("978-0-262-03384-8", "isbn", "9780262033848"),
+            ("PMID:24297125", "pmid", "24297125"),
+            ("2015ApJ...810...89S", "ads", "2015ApJ...810...89S"),
+        ];
+        for (input, want_kind, want_value) in cases {
+            let ident =
+                extract_primary_identifier(input).unwrap_or_else(|| panic!("no match: {input}"));
+            assert_eq!(ident.kind, *want_kind, "kind for {input}");
+            assert_eq!(ident.value, *want_value, "value for {input}");
+        }
+    }
+
+    #[test]
+    fn extract_primary_identifier_does_not_swallow_titles() {
+        // Titles containing an identifier-looking fragment stay unrecognized
+        // (multi-token input must go through batch classification instead).
+        assert_eq!(
+            extract_primary_identifier("Attention is all you need"),
+            None
+        );
+        assert_eq!(
+            extract_primary_identifier("Revisiting 1706.03762 and friends"),
+            None
+        );
+    }
+
+    #[test]
     fn parses_requested_skill_import_examples() {
         for input in [
             "https://github.com/mattpocock/skills",
             "https://github.com/alchaincyf/nuwa-skill",
         ] {
-            let (kind, value) = extract_primary_identifier(input).unwrap();
-            assert_eq!(kind, IdentifierKind::Skill);
-            assert_eq!(value, input);
+            let ident = extract_primary_identifier(input).unwrap();
+            assert_eq!(ident.kind, SKILL_KIND);
+            assert_eq!(ident.value, input);
         }
 
         let input = "npx skills add https://github.com/anthropics/skills --skill pptx";
-        let (kind, value) = extract_primary_identifier(input).unwrap();
-        assert_eq!(kind, IdentifierKind::Skill);
-        assert_eq!(value, input);
+        let ident = extract_primary_identifier(input).unwrap();
+        assert_eq!(ident.kind, SKILL_KIND);
+        assert_eq!(ident.value, input);
         let source = extract_skill_source(input).unwrap();
         assert_eq!(source.owner, "anthropics");
         assert_eq!(source.repo, "skills");

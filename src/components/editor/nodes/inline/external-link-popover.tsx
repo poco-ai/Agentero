@@ -12,7 +12,7 @@ import {
 import type { KeyboardEvent, MouseEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { linkClassName } from "@/components/editor/nodes/inline/link-node";
+import { linkClassName } from "@/components/editor/nodes/inline/link-styles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

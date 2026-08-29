@@ -1,18 +1,24 @@
 //! Magic-wand / identifier import commands.
 
-use crate::core::error::{ApiResult, AppError};
-use crate::core::fs::WriteOpts;
+use crate::core::blocking::run_blocking;
+use crate::core::error::{map_err, ApiResult, AppError};
+use crate::core::fs::{resolve_vault, WriteOpts};
 use crate::core::log_util::{trunc, OpTimer};
 use crate::features::catalog::CapsCache;
 use crate::features::import::pdf_parse::{PaperParseBodyArgs, PaperParseResult};
+use crate::features::import::resolver::{fetch_arxiv_metadata, fetch_crossref_metadata};
+use crate::features::import::title_search::{
+    better_publication, fetch_s2_venue_by_doi, is_usable_publication, search_papers,
+};
 use crate::features::import::{
     AssetDownloadResult, ImportLocalPdfArgs, ImportLocalPdfResult, LookupImportBatchArgs,
     LookupImportBatchResult, PaperDownloadAssetsArgs, SkillImportResult, StageImportFileArgs,
     StageImportFileResult,
 };
 use crate::features::remote::{import_bridge, parse_remote_handle, RemoteRegistry};
-use serde::Deserialize;
-use std::sync::Arc;
+use futures_util::stream::{self, StreamExt};
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
 use tauri::State;
 
 /// Batch resolve identifiers and write papers into vault.
@@ -272,17 +278,16 @@ pub async fn paper_resolve_identifier(
     let text = trunc(args.text.trim(), 60);
     let op = OpTimer::start_with("paper_resolve_identifier", format!("text={text}"));
 
-    let ident = super::parse::extract_primary_identifier(&args.text);
-    let try_identifier = ident
-        .as_ref()
-        .is_some_and(|(kind, _)| *kind != super::parse::IdentifierKind::Skill);
+    // Skill 分流不在 resolver 表内：由 extract_skill_source 判定。
+    let try_identifier = super::parse::extract_skill_source(&args.text).is_none()
+        && super::parse::extract_primary_identifier(&args.text).is_some();
 
     if try_identifier {
         let base = args
             .translator_base_url
             .clone()
             .unwrap_or_else(|| super::DEFAULT_TRANSLATOR_BASE_URL.to_string());
-        match super::pdf_recognize::resolve_identifier_full(&args.text, &base, None).await {
+        match super::resolve_metadata(&args.text, &base, None).await {
             Ok((mut meta, _used_translator)) => {
                 enrich_publication_from_s2(&mut meta).await;
                 super::enrich_remote_urls(&mut meta);
@@ -342,8 +347,188 @@ pub fn notes_template_seed(vault_path: String) -> ApiResult<NotesTemplateSeedRes
         "notes_template_seed",
         format!("vault={}", trunc(&vault_path, 120)),
     );
-    let result = crate::core::fs::resolve_vault(&vault_path)
+    let result = resolve_vault(&vault_path)
         .and_then(|vault| super::seed_notes_template(&vault))
         .map(|created| NotesTemplateSeedResult { created });
     op.finish_result(result)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaperBackfillPublicationArgs {
+    pub vault_path: String,
+    /// Optional Translator base URL; left empty for direct Crossref/arXiv/S2.
+    #[serde(default)]
+    pub translator_base_url: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaperBackfillPublicationResult {
+    pub total: usize,
+    pub updated: usize,
+    pub failed: usize,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub errors: Vec<String>,
+}
+
+/// Resolve and fill missing `publication` values for papers in the catalog.
+/// Uses arXiv journal_ref / S2 `publicationVenue`, then DOI → S2 then Crossref,
+/// then title → Semantic Scholar. Crossref is last among identifier sources
+/// because its `container-title` truncates many conference proceedings.
+#[tauri::command]
+pub async fn paper_backfill_publication(
+    args: PaperBackfillPublicationArgs,
+) -> Result<ApiResult<PaperBackfillPublicationResult>, String> {
+    let vault = match resolve_vault(&args.vault_path) {
+        Ok(vault) => vault,
+        Err(e) => return Ok(map_err(e)),
+    };
+
+    let vault_for_list = vault.clone();
+    let rows =
+        match run_blocking(
+            move || match crate::features::catalog::papers::list_missing_publication(
+                &vault_for_list,
+            ) {
+                Ok(rows) => ApiResult::ok(rows),
+                Err(e) => map_err(e),
+            },
+        )
+        .await
+        {
+            ApiResult {
+                ok: true,
+                data: Some(rows),
+                ..
+            } => rows,
+            ApiResult {
+                error: Some(err), ..
+            } => return Ok(map_err(AppError::message(err.message))),
+            _ => {
+                return Ok(map_err(AppError::message(
+                    "failed to list papers missing publication",
+                )))
+            }
+        };
+
+    const CONCURRENCY: usize = 10;
+
+    let updated = Arc::new(Mutex::new(0usize));
+    let failed = Arc::new(Mutex::new(0usize));
+    let errors = Arc::new(Mutex::new(Vec::new()));
+
+    stream::iter(rows.into_iter().map(|row| {
+        let vault = vault.clone();
+        let updated = updated.clone();
+        let failed = failed.clone();
+        let errors = errors.clone();
+        async move {
+            let publication = resolve_publication_for_backfill(
+                row.doi.as_deref(),
+                row.arxiv_id.as_deref(),
+                &row.title,
+            )
+            .await;
+
+            match publication {
+                Some(pub_value) => {
+                    let patch = crate::features::catalog::papers::PaperMetaPatch {
+                        publication: Some(pub_value),
+                        ..Default::default()
+                    };
+                    let path = row.path.clone();
+                    match run_blocking(move || match crate::features::catalog::papers::update_meta(
+                        &vault, &path, &patch,
+                    ) {
+                        Ok(_) => ApiResult::ok(()),
+                        Err(e) => map_err(e),
+                    })
+                    .await
+                    {
+                        ApiResult { ok: true, .. } => {
+                            *updated.lock().unwrap() += 1;
+                        }
+                        ApiResult {
+                            error: Some(err), ..
+                        } => {
+                            *failed.lock().unwrap() += 1;
+                            errors
+                                .lock()
+                                .unwrap()
+                                .push(format!("{}: {}", row.path, err.message));
+                        }
+                        _ => {
+                            *failed.lock().unwrap() += 1;
+                            errors
+                                .lock()
+                                .unwrap()
+                                .push(format!("{}: update failed", row.path));
+                        }
+                    }
+                }
+                None => {
+                    *failed.lock().unwrap() += 1;
+                }
+            }
+        }
+    }))
+    .buffer_unordered(CONCURRENCY)
+    .collect::<()>()
+    .await;
+
+    let updated = Arc::try_unwrap(updated).unwrap().into_inner().unwrap();
+    let failed = Arc::try_unwrap(failed).unwrap().into_inner().unwrap();
+    let errors = Arc::try_unwrap(errors).unwrap().into_inner().unwrap();
+
+    Ok(ApiResult::ok(PaperBackfillPublicationResult {
+        total: updated + failed,
+        updated,
+        failed,
+        errors,
+    }))
+}
+
+async fn resolve_publication_for_backfill(
+    doi: Option<&str>,
+    arxiv_id: Option<&str>,
+    title: &str,
+) -> Option<String> {
+    // 1. arXiv Atom journal_ref (most complete when present), then S2
+    //    publicationVenue via map_arxiv_atom. Skip generic "arXiv".
+    if let Some(arxiv) = arxiv_id.map(str::trim).filter(|s| !s.is_empty()) {
+        if let Ok(meta) = fetch_arxiv_metadata(arxiv, None).await {
+            if let Some(pub_value) = meta.publication.filter(|p| is_usable_publication(p)) {
+                return Some(pub_value);
+            }
+        }
+    }
+
+    // 2. DOI → pick the longer usable of S2 publicationVenue and Crossref
+    //    container-title. S2 wins on truncated ACL/NAACL titles; Crossref
+    //    wins when it has the full proceedings string (ACL 2026 Long Papers).
+    if let Some(doi) = doi.map(str::trim).filter(|s| !s.is_empty()) {
+        let s2 = fetch_s2_venue_by_doi(doi).await;
+        let crossref = match fetch_crossref_metadata(doi).await {
+            Ok(meta) => meta.publication.filter(|p| is_usable_publication(p)),
+            Err(_) => None,
+        };
+        if let Some(best) = better_publication(s2.as_deref(), crossref.as_deref()) {
+            return Some(best);
+        }
+    }
+
+    // 3. Title → Semantic Scholar (last resort; also uses publicationVenue).
+    if let Ok(candidates) = search_papers(title, 1).await {
+        if let Some(venue) = candidates
+            .into_iter()
+            .next()
+            .and_then(|c| c.venue)
+            .filter(|p| is_usable_publication(p))
+        {
+            return Some(venue);
+        }
+    }
+
+    None
 }

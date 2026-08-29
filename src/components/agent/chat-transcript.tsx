@@ -1,12 +1,24 @@
 import { Check, CopyIcon, Pencil } from "lucide-react";
 import type { RefObject } from "react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	Fragment,
+	memo,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
 	ChatAttachedImages,
 	ChatVisualAnnotations,
 	formatUserLineForCopy,
 } from "@/components/agent/chat-visual-annotations";
+import {
+	transcriptLineKey,
+	useTranscriptVirtualizer,
+} from "@/components/agent/hooks/use-transcript-virtualizer";
 import {
 	Checkpoint,
 	CheckpointIcon,
@@ -158,6 +170,8 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 	editingText,
 	editTextareaRef,
 	handlers,
+	partOpenState,
+	onPartOpenChange,
 }: {
 	line: ChatLine;
 	activeTabId: string;
@@ -170,6 +184,12 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 	editingText: string;
 	editTextareaRef: RefObject<HTMLTextAreaElement | null>;
 	handlers: RowHandlers;
+	/**
+	 * Lifted Reasoning/Tool/Plan open state (key = `${rowKey}:${part.id}`) so
+	 * virtualized rows keep their fold state across unmount/remount.
+	 */
+	partOpenState: Record<string, boolean>;
+	onPartOpenChange: (key: string, open: boolean) => void;
 }) {
 	const { t } = useTranslation("agent");
 	const { onOpenSource } = handlers;
@@ -302,8 +322,13 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 										isStreaming={streaming}
 										// Collapsed by default so the transcript stays
 										// scannable; expand on click. Also collapsed
-										// while streaming (no auto-expand).
+										// while streaming (no auto-expand). Open state
+										// is lifted to ChatTranscript so virtualized
+										// rows survive unmount; defaultOpen={false}
+										// still suppresses streaming auto-open.
 										defaultOpen={false}
+										open={partOpenState[partKey] ?? false}
+										onOpenChange={(open) => onPartOpenChange(partKey, open)}
 									>
 										<ReasoningTrigger />
 										<ReasoningContent>{part.text}</ReasoningContent>
@@ -320,8 +345,9 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 									<Plan
 										key={partKey}
 										className="mb-2"
-										defaultOpen
 										isStreaming={planStreaming}
+										open={partOpenState[partKey] ?? true}
+										onOpenChange={(open) => onPartOpenChange(partKey, open)}
 									>
 										<PlanHeader>
 											<div className="min-w-0 flex-1 space-y-1">
@@ -370,7 +396,11 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 									Boolean(askUserQuestion) &&
 									isPendingAskUserToolStatus(tool.status);
 								return (
-									<Tool key={partKey} defaultOpen={askPending}>
+									<Tool
+										key={partKey}
+										open={partOpenState[partKey] ?? askPending}
+										onOpenChange={(open) => onPartOpenChange(partKey, open)}
+									>
 										<ToolHeader
 											title={tool.title || t("tool.defaultTitle")}
 											type={`tool-${tool.kind}`}
@@ -467,11 +497,116 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 	);
 });
 
+/**
+ * Renders transcript rows. Must live inside <Conversation> so it can reach
+ * the StickToBottom scroll viewport via context. Long transcripts switch to
+ * windowed rendering (absolute rows inside a totalSize container); short ones
+ * keep the plain flex/gap layout.
+ */
+function TranscriptBody({
+	lines,
+	activeTabId,
+	agentName,
+	activeTabIsRunning,
+	submitting,
+	switching,
+	editingLineId,
+	editingText,
+	editTextareaRef,
+	handlers,
+	partOpenState,
+	onPartOpenChange,
+	forceVirtualize,
+}: {
+	lines: ChatLine[];
+	activeTabId: string;
+	agentName: string;
+	activeTabIsRunning: boolean;
+	submitting: boolean;
+	switching: boolean;
+	editingLineId: string | null;
+	editingText: string;
+	editTextareaRef: RefObject<HTMLTextAreaElement | null>;
+	handlers: RowHandlers;
+	partOpenState: Record<string, boolean>;
+	onPartOpenChange: (key: string, open: boolean) => void;
+	forceVirtualize?: boolean;
+}) {
+	const { rowVirtualizer, virtualized } = useTranscriptVirtualizer({
+		lines,
+		activeTabId,
+		forceVirtualize,
+	});
+
+	// The edit button can target turns far above the viewport; bring the row
+	// into the mounted window when windowed rendering is active.
+	useEffect(() => {
+		if (!virtualized || !editingLineId) return;
+		const index = lines.findIndex((line) => line.id === editingLineId);
+		if (index >= 0) {
+			rowVirtualizer.scrollToIndex(index, { align: "auto" });
+		}
+	}, [editingLineId, virtualized, lines, rowVirtualizer]);
+
+	const renderRow = (line: ChatLine) => {
+		const isEditing = editingLineId === line.id;
+		return (
+			<ChatTranscriptRow
+				line={line}
+				activeTabId={activeTabId}
+				agentName={agentName}
+				activeTabIsRunning={activeTabIsRunning}
+				submitting={submitting}
+				switching={switching}
+				isEditing={isEditing}
+				editingText={isEditing ? editingText : ""}
+				editTextareaRef={editTextareaRef}
+				handlers={handlers}
+				partOpenState={partOpenState}
+				onPartOpenChange={onPartOpenChange}
+			/>
+		);
+	};
+
+	if (!virtualized) {
+		return (
+			<div className="flex w-full flex-col gap-8">
+				{lines.map((line) => (
+					<Fragment key={transcriptLineKey(line, activeTabId)}>
+						{renderRow(line)}
+					</Fragment>
+				))}
+			</div>
+		);
+	}
+
+	return (
+		<div
+			className="relative w-full"
+			style={{ height: rowVirtualizer.getTotalSize() }}
+		>
+			{rowVirtualizer.getVirtualItems().map((virtualRow) => (
+				// pb-8 replaces the flex gap-8 spacing (absolute rows have no gap).
+				<div
+					key={virtualRow.key}
+					className="absolute top-0 left-0 w-full pb-8"
+					style={{ transform: `translateY(${virtualRow.start}px)` }}
+					ref={rowVirtualizer.measureElement}
+					data-index={virtualRow.index}
+				>
+					{renderRow(lines[virtualRow.index])}
+				</div>
+			))}
+		</div>
+	);
+}
+
 export function ChatTranscript({
 	lines,
 	activeTabId,
 	agentName,
 	compact = false,
+	forceVirtualize = false,
 	activeTabIsRunning,
 	submitting,
 	switching,
@@ -491,6 +626,8 @@ export function ChatTranscript({
 	activeTabId: string;
 	agentName: string;
 	compact?: boolean;
+	/** Storybook / tests: windowed rendering even below the line threshold. */
+	forceVirtualize?: boolean;
 	activeTabIsRunning: boolean;
 	submitting: boolean;
 	switching: boolean;
@@ -511,6 +648,22 @@ export function ChatTranscript({
 	onOpenSource?: (source: string) => void;
 }) {
 	const { t } = useTranslation("agent");
+
+	// Lifted Reasoning/Tool/Plan open state so virtualized rows keep their
+	// fold state across unmount/remount. Keyed by `${rowKey}:${part.id}`.
+	const [partOpenState, setPartOpenState] = useState<Record<string, boolean>>(
+		{},
+	);
+	// Tab switch resets the table (non-agent line ids can collide across tabs).
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset on tab switch
+	useEffect(() => {
+		setPartOpenState({});
+	}, [activeTabId]);
+	const handlePartOpenChange = useCallback((key: string, open: boolean) => {
+		setPartOpenState((prev) =>
+			prev[key] === open ? prev : { ...prev, [key]: open },
+		);
+	}, []);
 
 	// Latest-callback ref + identity-stable wrappers: parents may pass inline
 	// closures, but memoized rows must not re-render on every parent render.
@@ -571,8 +724,8 @@ export function ChatTranscript({
 						: undefined
 				}
 			>
-				<div className="flex w-full flex-col gap-8">
-					{lines.length === 0 ? (
+				{lines.length === 0 ? (
+					<div className="flex w-full flex-col gap-8">
 						<ConversationEmptyState
 							title={t("empty.title")}
 							description={t("empty.description")}
@@ -600,31 +753,24 @@ export function ChatTranscript({
 								)}
 							</div>
 						</ConversationEmptyState>
-					) : (
-						lines.map((line) => {
-							const isEditing = editingLineId === line.id;
-							return (
-								<ChatTranscriptRow
-									key={
-										line.kind === "agent"
-											? `${activeTabId}:${line.id}`
-											: line.id
-									}
-									line={line}
-									activeTabId={activeTabId}
-									agentName={agentName}
-									activeTabIsRunning={activeTabIsRunning}
-									submitting={submitting}
-									switching={switching}
-									isEditing={isEditing}
-									editingText={isEditing ? editingText : ""}
-									editTextareaRef={editTextareaRef}
-									handlers={rowHandlers}
-								/>
-							);
-						})
-					)}
-				</div>
+					</div>
+				) : (
+					<TranscriptBody
+						lines={lines}
+						activeTabId={activeTabId}
+						agentName={agentName}
+						activeTabIsRunning={activeTabIsRunning}
+						submitting={submitting}
+						switching={switching}
+						editingLineId={editingLineId}
+						editingText={editingText}
+						editTextareaRef={editTextareaRef}
+						handlers={rowHandlers}
+						partOpenState={partOpenState}
+						onPartOpenChange={handlePartOpenChange}
+						forceVirtualize={forceVirtualize}
+					/>
+				)}
 			</ConversationContent>
 			<ConversationScrollButton />
 		</Conversation>

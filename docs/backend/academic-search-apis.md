@@ -71,7 +71,7 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 
 ### 2.5 Venue / Publication 回填
 
-入口：`features/catalog/commands.rs::paper_backfill_publication`。
+入口：`features/import/commands.rs::paper_backfill_publication`。
 
 用于 Library 的 publication 列批量补全。实测各源准确度：
 

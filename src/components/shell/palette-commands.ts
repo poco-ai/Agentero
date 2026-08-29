@@ -14,13 +14,8 @@ import {
 	closeSettingsWindow,
 	openSettingsWindow,
 } from "@/lib/shell/settings-window";
-import {
-	layout,
-	openRightTab,
-	toggleChat,
-	toggleSidebar,
-	uiStore,
-} from "@/lib/shell/ui-store";
+import { layout, toggleSidebar, uiStore } from "@/lib/shell/ui-store";
+import { openRightTab, toggleChat } from "@/lib/shell/ui-window-actions";
 import {
 	createNewVault,
 	openSelectedInTerminal,

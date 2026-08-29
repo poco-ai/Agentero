@@ -155,6 +155,14 @@ export type AppSettings = {
 	mcpEnabled: boolean;
 	mcpPort: number;
 	/**
+	 * OpenAI Secure MCP Tunnel id (`tunnel_` + 32 hex). Empty = not configured.
+	 */
+	mcpTunnelId: string;
+	/**
+	 * OpenAI control-plane Runtime API key. Masked on read like other keys.
+	 */
+	mcpTunnelApiKey: string;
+	/**
 	 * Zotero data directory (contains `zotero.sqlite` + `storage/`) used by
 	 * bidirectional sync. Empty = auto-detect `~/Zotero` or pick in the dialog.
 	 */

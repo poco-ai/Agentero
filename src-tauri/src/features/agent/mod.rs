@@ -11,6 +11,8 @@ pub mod models;
 pub mod permission;
 pub mod prompts;
 pub mod registry;
+pub mod remote_catalog;
+pub mod remote_catalog_commands;
 pub mod runtime;
 pub mod skills;
 pub mod stream_coalesce;

@@ -2086,7 +2086,7 @@ pub async fn run_once(params: RunOnceParams) -> Result<AgentResultPayload, AppEr
             let msg = e.to_string();
             state.coalescer.flush();
             emit_run_failed(&state.app, &state.session_id, &msg);
-            Err(AppError::Acp(msg))
+            Err(AppError::domain("acp", format!("acp: {msg}")))
         }
     }
 }
@@ -2459,7 +2459,7 @@ pub async fn list_acp_sessions(
 
     match result {
         Ok(r) => Ok(r),
-        Err(e) => Err(AppError::Acp(format!("list sessions: {e}"))),
+        Err(e) => Err(AppError::domain("acp", format!("acp: list sessions: {e}"))),
     }
 }
 
@@ -2842,7 +2842,7 @@ pub async fn load_acp_session(
                 lines,
             })
         }
-        Err(e) => Err(AppError::Acp(format!("load session: {e}"))),
+        Err(e) => Err(AppError::domain("acp", format!("acp: load session: {e}"))),
     }
 }
 

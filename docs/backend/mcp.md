@@ -12,10 +12,12 @@
 |---|---|---|
 | `mcpEnabled` | `false` | 启停 listener |
 | `mcpPort` | `8765` | 只绑 `127.0.0.1` |
+| `mcpTunnelId` | `""` | OpenAI Secure MCP Tunnel ID（`tunnel_` + 32 hex） |
+| `mcpTunnelApiKey` | `""` | Runtime（Restricted）API key；回显为 mask |
 
 监听 URL：`http://127.0.0.1:{port}/mcp`。设置页端口旁绿点表示正在听；点击 URL 复制。
 
-Host commands：`mcp_get_status` / `mcp_set_enabled` / `mcp_set_port` / `mcp_set_vault` / `mcp_set_parent_dir`。状态事件 `mcp:status`。
+Host commands：`mcp_get_status` / `mcp_set_enabled` / `mcp_set_port` / `mcp_set_vault` / `mcp_set_parent_dir`，以及隧道相关 `mcp_tunnel_status` / `mcp_tunnel_start` / `mcp_tunnel_stop`。状态事件 `mcp:status`、`mcp:tunnel-status`。
 
 `initialize.serverInfo` 带 `title`、`websiteUrl` 和 `icons`（应用 PNG 的 data URI）。客户端可以忽略不画。
 
@@ -23,9 +25,13 @@ Host commands：`mcp_get_status` / `mcp_set_enabled` / `mcp_set_port` / `mcp_set
 
 ## ChatGPT Secure MCP Tunnel
 
-App 开着且开关打开后，用 OpenAI `tunnel-client` 把 `http://127.0.0.1:{port}/mcp` 接到 ChatGPT。安装、建隧道、Key、ChatGPT Connection 的逐步教程见 [用 MCP 连接外部 Agent](../usage/mcp.md)。
+App 开着且 MCP 开关打开后，可在同一设置区填写 Tunnel ID 与 Runtime API key，点 **Start** 让 Agentero 直接 spawn 并持有 `tunnel-client run`。按钮旁绿点表示隧道已连通控制平面；**注意 `/readyz` 返回 200 不代表认证成功**，真正的 ready 信号是 `tunnel-client health --require-control-plane-poll` 的 `control_plane_poll.ok=true`。
 
-Codex / Inspector 也可直接打该 URL。stdio 子进程不是这条通路。
+隧道子进程随 Agentero 退出而停止（`RunEvent::Exit` 里 kill）。找不到 `tunnel-client` 时按钮禁用，并提示可复制安装命令 `brew install openai/tools/tunnel-client`，不会自动安装。
+
+Agentero 用独立 `--profile-dir`（`$XDG_CACHE_HOME/agentero/mcp-tunnel`）运行 tunnel-client，避免串到用户已有的 `~/.config/tunnel-client/*.yaml`；API key 只通过子进程 env `CONTROL_PLANE_API_KEY` 注入，不出现在命令行参数或 UI 日志。
+
+Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通路。详细逐步教程见 [用 MCP 连接外部 Agent](../usage/mcp.md)。
 
 ## Resource
 

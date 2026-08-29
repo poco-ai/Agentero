@@ -20,7 +20,7 @@ describe("normalizeMarkdownMath", () => {
 			"see $\\pi_\\theta$ here",
 		);
 		expect(normalizeMarkdownMath("block\n\\[E=mc^2\\]\nok")).toBe(
-			"block\n$$E=mc^2$$\nok",
+			"block\n$$\nE=mc^2\n$$\nok",
 		);
 	});
 

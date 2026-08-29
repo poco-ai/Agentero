@@ -24,6 +24,7 @@ import {
 } from "@/lib/core/file-accept";
 import { notifyError } from "@/lib/core/notify";
 import { basenameOf } from "@/lib/core/path";
+import { isVaultFileDragActive } from "@/lib/core/vault-file-drag";
 import { libraryDropParentDir } from "@/lib/paper/api";
 import { dropLocalPdfs } from "@/lib/paper/import-actions";
 import { currentLookupParentDir } from "@/lib/paper/library-actions";
@@ -32,7 +33,6 @@ import {
 	resolveDroppedPdfPaths,
 	snapshotDataTransfer,
 } from "@/lib/shell/external-file-drop";
-import { isVaultFileDragActive } from "@/lib/shell/vault-file-drag";
 
 function snapshotLooksLikePdf(
 	snap: ReturnType<typeof snapshotDataTransfer>,

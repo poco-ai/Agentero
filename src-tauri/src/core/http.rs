@@ -173,9 +173,10 @@ fn system_proxy_cached() -> Option<String> {
     detected
 }
 
-/// Explicit app proxy setting, else the OS system proxy as a fallback so
-/// Clash / V2RayN "system proxy" modes work with zero configuration.
-fn effective_proxy_url() -> Option<String> {
+/// The proxy every Host-created client should use: the explicit setting when
+/// enabled, otherwise the detected system proxy. Also the value forwarded to
+/// Host-spawned subprocesses so in-app and CLI network behavior match.
+pub fn effective_proxy_url() -> Option<String> {
     if let Ok(guard) = proxy_slot().read() {
         if guard.is_some() {
             return guard.clone();

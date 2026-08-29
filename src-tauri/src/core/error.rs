@@ -5,20 +5,14 @@ pub enum AppError {
     #[error("{0}")]
     Message(String),
 
-    #[error("agent not found: {0}")]
-    AgentNotFound(String),
-
-    #[error("agent unavailable: {0}")]
-    AgentUnavailable(String),
+    #[error("{message}")]
+    Domain { code: &'static str, message: String },
 
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
 
     #[error("json: {0}")]
     Json(#[from] serde_json::Error),
-
-    #[error("acp: {0}")]
-    Acp(String),
 
     #[error("sqlite: {0}")]
     Sqlite(String),
@@ -35,14 +29,20 @@ impl AppError {
         Self::Message(msg.into())
     }
 
+    /// Feature-domain error with a stable wire code, keeping core free of business variants.
+    pub fn domain(code: &'static str, message: impl Into<String>) -> Self {
+        Self::Domain {
+            code,
+            message: message.into(),
+        }
+    }
+
     pub fn code(&self) -> &'static str {
         match self {
             Self::Message(_) => "message",
-            Self::AgentNotFound(_) => "agent_not_found",
-            Self::AgentUnavailable(_) => "agent_unavailable",
+            Self::Domain { code, .. } => code,
             Self::Io(_) => "io",
             Self::Json(_) => "json",
-            Self::Acp(_) => "acp",
             Self::Sqlite(_) => "sqlite",
         }
     }
@@ -123,5 +123,12 @@ mod tests {
             value["error"]["details"]["rollback"],
             "manual-recovery-required"
         );
+    }
+
+    #[test]
+    fn domain_error_preserves_code_and_display() {
+        let err = AppError::domain("x_y", "msg");
+        assert_eq!(err.code(), "x_y");
+        assert_eq!(err.to_string(), "msg");
     }
 }

@@ -59,11 +59,11 @@ import {
 import { loadPdfVisualTraceImage } from "@/lib/pdf/agent-trace/image";
 import type { ActiveSelectionCard } from "@/lib/pdf/selection";
 import { newTraceMessageId } from "@/lib/pdf-visual/ids";
+import { setAgentPanelMounted } from "@/lib/shell/ui-store";
 import {
 	openRightTab,
 	requestOpenAgentSession,
-	setAgentPanelMounted,
-} from "@/lib/shell/ui-store";
+} from "@/lib/shell/ui-window-actions";
 
 export type UsePdfVisualMarksOptions = {
 	/** Sidecar root for `marks/<id>.json` (null for loose PDFs — nothing persists). */

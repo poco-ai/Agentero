@@ -20,36 +20,20 @@ import {
 	startBackgroundTask,
 	updateBackgroundTask,
 } from "@/lib/core/background-tasks";
+import type {
+	JobChangedPayload,
+	JobKind,
+	JobOfferPayload,
+	JobReportArgs,
+	JobSnapshot,
+	JobState,
+} from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { invokeApi } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
 import { listenSafe } from "@/lib/core/tauri-events";
 
-export type JobState =
-	| "queued"
-	| "running"
-	| "succeeded"
-	| "failed"
-	| "cancelled"
-	| "skipped";
-
-export type JobOfferPayload = {
-	jobId: string;
-	kind: JobKind;
-	vaultPath: string;
-	paperPath?: string | null;
-	force: boolean;
-};
-
-export type JobKind =
-	| "parseRefs"
-	| "parseBody"
-	| "layoutAnalyze"
-	| "layoutTranslate"
-	| "downloadAssets"
-	| "pageCount"
-	| "wikiReindex"
-	| "recognizeMetadata";
+export type { JobKind, JobOfferPayload, JobState };
 
 export type JobExecutor = (offer: JobOfferPayload) => Promise<void>;
 
@@ -157,24 +141,17 @@ export async function jobReport(args: {
 				phase: args.phase ?? undefined,
 				error: args.error ?? undefined,
 				state: args.state ?? undefined,
-			},
+			} satisfies JobReportArgs,
 		},
 		{ allowVoid: true },
 	);
 }
 
-/** Snapshot shape shared by the `job:changed` payload and `job_list`. */
-export type JobChangedSnapshot = {
-	id: string;
-	kind: JobKind;
-	state: JobState;
-	vaultPath: string;
-	paperPath?: string | null;
-	progress?: number | null;
-	phase?: string | null;
-	error?: string | null;
-	force?: boolean;
-};
+/**
+ * Snapshot shape shared by the `job:changed` payload and `job_list`.
+ * Bridge alias: the generated Rust type is `JobSnapshot`.
+ */
+export type JobChangedSnapshot = JobSnapshot;
 
 /**
  * Job kinds projected into the background-tasks panel (§7.6). Kinds absent
@@ -217,7 +194,7 @@ const wiredJobCancels = new Set<string>();
  */
 export function startJobTaskProjection(): void {
 	if (projectionSubscription) return;
-	projectionSubscription = listenSafe<{ job: JobChangedSnapshot }>(
+	projectionSubscription = listenSafe<JobChangedPayload>(
 		"job:changed",
 		({ job }) => {
 			projectJobToBackgroundTask(job);

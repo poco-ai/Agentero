@@ -87,7 +87,7 @@
 
 ### 已符合规范、直接纳入
 
-`settings:changed`、`connector:item-saved`、`agent:completed`、`agent:failed`、`agent:registry-changed`（Host 在 probe / 安装 / 增删 / 改默认后广播，Agent 面板防抖刷新切换器）、`sync:state`（后续可补 `sync:completed`）。
+`settings:changed`、`connector:item-saved`、`agent:completed`、`agent:failed`、`agent:registry-changed`（Host 在 probe / 安装 / 增删 / 改默认后广播，Agent 面板防抖刷新切换器）、`sync:state`（后续可补 `sync:completed`）、`mcp:status` / `mcp:tunnel-status`。
 
 ## 架构设计
 
