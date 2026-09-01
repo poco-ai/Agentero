@@ -3612,6 +3612,7 @@
 <ul>
 <li>用户文案一律 <code>t()</code> / <code>react-i18next</code>；en 源语言，同步 <code>zh-CN</code>。</li>
 <li>词条：<code>src/i18n/locales/</code>。</li>
+<li>Appearance → Language：<code>applyLocale</code> 在设置窗本地立即切语种（设置 webview 不挂 <code>useAppBootstrap</code>）；<code>settings:changed</code> 广播时各窗口 <code>subscribeSettings</code> 也会再应用一次，主窗另经 bootstrap 同步原生菜单。</li>
 </ul>
 <h2 id="_6">代码<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
