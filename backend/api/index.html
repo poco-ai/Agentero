@@ -6382,9 +6382,14 @@ Host (Tauri + Rust)
 <li>最近列表由前端在成功打开后写入 <code>localStorage</code>（<code>agentero-recent-vaults</code>）。</li>
 </ul>
 <h4 id="vault_ensure"><code>vault_ensure</code>（已实现）<a class="headerlink" href="#vault_ensure" title="Permanent link">&para;</a></h4>
-<p>幂等脚手架 / 同步 bundled skills（Host <code>ensure_vault</code>，与 <code>vault_create</code> 同一实现）。<strong>打开或恢复 Vault 时</strong>前端调用，以便应用更新后补充新 Skill，并安全升级未定制的第一方 Skill。</p>
+<p>幂等脚手架 / 同步 bundled skills（Host <code>ensure_vault</code>）。<strong>打开或恢复 Vault 时</strong>前端调用，以便应用更新后补充新 Skill，并安全升级未定制的第一方 Skill。</p>
 <ul>
-<li><strong>参数</strong></li>
+<li>
+<p><strong>路径必须已存在</strong>：目录不存在（被移动/删除）时直接报错 <code>vault path not found: …</code>，<strong>不会</strong>在旧路径静默重建空 Vault；新建目录只允许走 <code>vault_create</code>。前端 <code>seedVaultSkills</code> 在调用前会先检查路径存在性。</p>
+</li>
+<li>
+<p><strong>参数</strong></p>
+</li>
 </ul>
 <div class="codehilite"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="c1">// 本地绝对路径</span>
@@ -8711,7 +8716,7 @@ Host (Tauri + Rust)
 </tr>
 <tr>
 <td><code>vault create</code></td>
-<td><code>services::vault::create_vault</code> / <code>vault_create</code>（与 GUI <code>vault_ensure</code> 同幂等实现）</td>
+<td><code>services::vault::create_vault</code> / <code>vault_create</code>（幂等脚手架；缺失根目录仅 <code>create</code> 会新建，<code>vault_ensure</code> 对缺失路径报错）</td>
 </tr>
 <tr>
 <td><code>vault which\|info\|check\|use</code></td>
