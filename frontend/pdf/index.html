@@ -3590,6 +3590,7 @@
 </table>
 <h2 id="_2">划词菜单<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>选区后：高亮 / 批注 / 提问 / 加入对话 / 翻译。</p>
+<p><strong>远程 PDF</strong>（<code>agentero:arxiv:*</code>，如 arXiv Daily 预览）：无本地 sidecar。划词菜单只保留 <strong>复制 / 提问 / 加入对话</strong>（Ask 内存 ephemeral，关 tab 即丢，不写 <code>marks/</code>）；高亮 / 批注 / 翻译隐藏。底栏显示 Remote mode 徽标（<code>SiArxiv</code>，与 Info 面板同色）。引用 hover 可从 PDF dest key 生成只读条目，导入按钮走整篇入库。</p>
 <table>
 <thead>
 <tr>
@@ -3611,12 +3612,12 @@
 </tr>
 <tr>
 <td>提问</td>
-<td><code>marks/&lt;id&gt;.json</code>（kind ask）</td>
+<td><code>marks/&lt;id&gt;.json</code>（kind ask）；远程仅内存</td>
 <td>迷你问答；页边针；<strong>hover / 打开卡片时高亮</strong>锚定选区原文；打开时停在用户问题处，不自动滚到回复底部；卡片右上角 ChatGPT / Claude 图标可把 论文标题 + 页码 + 划选文本 发送到对应外部 AI</td>
 </tr>
 <tr>
 <td>加入对话</td>
-<td>发送该轮后写 <code>marks/&lt;id&gt;.json</code>（kind <code>ask</code>）</td>
+<td>发送该轮后写 <code>marks/&lt;id&gt;.json</code>（kind <code>ask</code>）；远程无 pin 落盘</td>
 <td>选区固定为 Agent composer 文本 chip；<strong>发送</strong>后在选区旁插入<strong>对话卡片</strong>页边针（与「提问」同一 ask 卡 / 非视觉批注）；hover / 打开同样高亮原文，见 <a href="../agent/">agent.md</a></td>
 </tr>
 <tr>

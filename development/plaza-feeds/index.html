@@ -3971,12 +3971,13 @@
 <tr>
 <td><strong>详情</strong></td>
 <td>同上</td>
-<td>打开时解析全文（RSS 摘要不够则抓 <code>item.url</code> → HTML→Markdown）。整篇是一份 Markdown：<code># 标题</code> + 正文，走 <code>MessageResponse</code>。文末 <code>[...]</code> 会剥掉。入库 / 打开原文在顶栏</td>
+<td>打开时解析全文（RSS 摘要不够则抓 <code>item.url</code> → HTML→Markdown）。整篇是一份 Markdown：<code># 标题</code> + 正文，走 <code>MessageResponse</code>。文末 <code>[...]</code> 会剥掉。入库 / 打开原文在顶栏。正文可划词：<strong>提问</strong>（浮层 Ask 卡，会话内 ephemeral，不写 <code>marks/</code>）/ <strong>加入对话</strong>（pin 到 Agent composer）/ 复制</td>
 <td>返回列表</td>
 </tr>
 </tbody>
 </table>
 <ul>
+<li><strong>划词与 Agent（#421）</strong>：详情正文 DOM 选区后浮出 Copy / Ask / Add to chat（<code>PlazaSelectionMenu</code>）。Ask 复用 PDF <code>AskPopover</code> + 内存 <code>PdfAskThread</code>（空 rects），<code>runOnce({ hideFromChatHistory: true })</code>，Agent 取自设置里的划词提问席位；关闭即丢，不落盘。Add to chat：<code>publishSelection({ origin: "markdown" })</code> → pin → 打开右侧 Agent。实现：<code>plaza-feeds-item.tsx</code>、<code>use-plaza-feed-selection.ts</code>、<code>plaza-selection-menu.tsx</code>、<code>lib/plaza/ask-prompt.ts</code>。</li>
 <li>入库复用 <code>importPlazaPaper</code> / <code>lookupSubmit</code>：arXiv 喂 <code>https://arxiv.org/abs/{id}</code>；DOI 喂 <code>https://doi.org/{doi}</code>。入库不自动打开论文。</li>
 <li>入库中按钮 busy；成功 Toast + 该行变为「已入库」（本机缓存记 <code>importedAt</code>，刷新不丢）。</li>
 <li>失败 <code>notifyError</code>，不在侧栏挂错误条。</li>

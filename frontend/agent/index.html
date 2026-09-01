@@ -3555,13 +3555,14 @@
 <li>ACP <code>plan</code> 事件使用 AI Elements <code>Plan</code> / <code>PlanStep</code> 展示，可折叠查看步骤；步骤状态由图标、完成态和无障碍文案表达。</li>
 <li>ACP 结构化提问工具会解析为 AI Elements <code>Tool</code> 内的可选回答；完成选择后以正常的下一用户轮提交，并继续同一 ACP 会话。支持多 harness 的 rawInput 形状（见下表）。</li>
 <li>运行中可继续输入 → Queue waitlist；标题保持简洁，条目等宽并可单独移除；Esc / 停止中止。</li>
-<li>右侧栏 composer 顶部有竖向拖拽分隔条，可压低输入区高度；低于紧凑阈值后，当前文件 / <code>@</code> 提及 / 选区 / 视觉草稿 / skill / 图片附件都变为图标圆片，隐藏建议 prompts 与模型、推理强度、上下文用量、Fast 等常驻工具，只保留输入、图片附件和发送。</li>
+<li><strong>会话配置条</strong>（Header 下方）：模型选择、协作模式（有上报时）、推理强度（有上报时）、Fast（有上报时）。从 Composer 工具栏上移，压低输入区时也不再被隐藏。</li>
+<li>引用上下文 chip（当前文件 / <code>@</code> 提及 / 选区 / 视觉草稿 / skill）在<strong>输入框上方</strong>单独一行，不进边框内；图片附件仍在输入框内部。右侧栏 composer 顶部有竖向拖拽分隔条，可压低输入区高度；低于紧凑阈值后进入一行模式：上述 chip 与图片附件变为图标圆片，隐藏底部工具栏，圆形向上箭头发送按钮与输入框同一行（无内容时置灰）。</li>
 <li>会话空闲时 hover 用户消息可 <strong>Edit</strong> 后重发。</li>
 <li><strong>长会话虚拟化</strong>：transcript 行数 ≥ 80（<code>use-transcript-virtualizer</code> 的 <code>VIRTUALIZE_MIN_LINES</code>）时切换 <code>@tanstack/react-virtual</code> 窗口化渲染，复用 use-stick-to-bottom 的 scrollRef（贴底与滚动按钮行为不变）；Reasoning / Tool / Plan 折叠态提升到 <code>ChatTranscript</code> 统一管理，行卸载不丢。</li>
 <li><strong>新建对话 / 历史恢复</strong>：新建草稿不会清空刚离开的本地 transcript；历史项同时存在 Agentero runtime id 与 ACP provider id 时，<code>session/load</code> / 后续续聊只使用 <code>providerSessionId</code>；连续续聊产生的新 runtime 行会按 provider id 合并回同一个历史项；加载结果通过一次原子 store 更新写入并激活，避免列表刷新后出现空白会话。详见 <a href="../../bug_fix/codex-history-runtime-session-id/">Codex 历史恢复误用 runtime id</a>。会话标题优先用 ACP <code>session/list</code> / <code>session/load</code> 返回的 title，缺失时回退首条用户消息；运行中 Agent 经 <code>session_info_update</code> 推送的新标题由 <code>agent:session-info</code> 事件实时写回历史项（按 runtime id 或 providerSessionId 匹配；视觉批注会话标题不被覆盖）。</li>
 <li>Slash 命令完全来自当前 ACP session 的 <code>available_commands_update</code>；Agentero 不再注册本地 action/template。映射时剥离名称前导 <code>/</code> 与 <code>$</code>（部分 Agent 把 skill 以 <code>$name</code> 形式广播），再以 <code>/name</code> 填入 Composer，并在当前 provider session 中原样发送。</li>
 <li><strong>模型选择（含第三方）</strong>：列表来自 ACP <code>agent:models</code>；若 Agent 当前模型或用户偏好不在固定目录中（如 Codex + 中转 / cc-switch DeepSeek），仍会并入可选列表，并支持在搜索框输入任意 model id 作为自定义模型（<code>warm</code> / <code>run_once</code> 会尝试 <code>SetSessionConfigOption</code>，即使 id 未出现在上报目录中）。偏好按 agent 持久化。</li>
-<li><strong>会话模式（capability-driven）</strong>：Codex <code>collaboration_mode</code>（Default / Plan 等）。Plan 下才开放 <code>request_user_input</code>。事件 <code>agent:collaboration</code>；<code>warm</code> / <code>run_once</code> 携带 <code>collaborationModeId</code>。Composer 有上报时显示「模式」下拉（仅模式名，不展示 description）；偏好按 agent 持久化。不暴露 ACP <code>category: mode</code> 沙箱档（Read-only / Agent 等）。</li>
+<li><strong>会话模式（capability-driven）</strong>：Codex <code>collaboration_mode</code>（Default / Plan 等）。Plan 下才开放 <code>request_user_input</code>。事件 <code>agent:collaboration</code>；<code>warm</code> / <code>run_once</code> 携带 <code>collaborationModeId</code>。Header 下配置条有上报时显示「模式」下拉（仅模式名，不展示 description）；偏好按 agent 持久化。不暴露 ACP <code>category: mode</code> 沙箱档（Read-only / Agent 等）。</li>
 </ul>
 <h2 id="ui_1">权限 UI<a class="headerlink" href="#ui_1" title="Permanent link">&para;</a></h2>
 <p>全局模式（设置）：<code>restricted</code> / <code>ask</code> / <code>auto</code>。<br />
@@ -3637,7 +3638,7 @@ Skill 语法由 Host 按 provider 分流（Claude <code>/id</code>，其它注�
 <p><code>agentPersonalPrompt</code>：非空时经 Host <code>build_prompt</code> 注入 envelope。</p>
 <h2 id="_3">代码<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
-<li>UI：<code>src/components/agent/</code>（<code>agent-panel.tsx</code> / <code>agent-composer.tsx</code> 外壳、<code>hooks/</code> 面板与 composer 状态、<code>composer/</code> 输入区子件：附件 / 队列 / context chip / @ 与 $ 与 / 菜单 / 模型选择 / 工具条）</li>
+<li>UI：<code>src/components/agent/</code>（<code>agent-panel.tsx</code> / <code>agent-composer.tsx</code> / <code>agent-config-bar.tsx</code> 外壳、<code>hooks/</code> 面板与 composer 状态、<code>composer/</code> 输入区子件：附件 / 队列 / context chip / @ 与 $ 与 / 菜单 / 模型选择 / 工具条）</li>
 <li>状态：<code>src/lib/agent/</code>（chat-state、composer-state、stream-parse、mention）</li>
 <li>精读编排：<code>src/lib/paper/reader.ts</code></li>
 </ul>
