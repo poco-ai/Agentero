@@ -3660,6 +3660,7 @@
 </tr>
 </tbody>
 </table>
+<p>本地 <code>path_trash</code> 成功后会取消被删论文的全部排队/运行中 JobCenter 任务（<code>JobCenter::cancel_for_paper</code>），避免已删论文继续下载 / 解析。</p>
 <h2 id="_6">文件监听<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Host <code>notify</code> → <code>vault:file-changed</code>。</li>

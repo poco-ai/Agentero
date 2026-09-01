@@ -6604,10 +6604,11 @@ Host (Tauri + Rust)
 </code></pre></div>
 
 <ul>
-<li><strong><code>path_trash</code> 返回</strong>（<code>ApiResult&lt;{ batchId: string; count: number }&gt;</code>）</li>
-<li><code>batchId</code> 标识批次（浏览/恢复用）；<code>count</code> 为实际移入回收站的项数。</li>
+<li><strong><code>path_trash</code> 返回</strong>（<code>ApiResult&lt;{ batchId: string; count: number; rels: string[] }&gt;</code>）</li>
+<li><code>batchId</code> 标识批次（浏览/恢复用）；<code>count</code> 为实际移入回收站的项数；<code>rels</code> 为实际移入的相对路径（请求 <code>rels</code> 的子集）。</li>
 <li><code>papers/</code> 下的项：<strong>先移文件</strong>，再快照并删除 catalog 行（含嵌套 paper），避免幽灵 catalog。</li>
 <li>跳过空 / 含 <code>..</code> / <code>.agentero</code> / <code>papers</code> 根 / 不存在的路径。</li>
+<li>本地 Vault：删除成功后立即取消被删路径（含嵌套论文）的所有排队/运行中 JobCenter 任务（<code>JobCenter::cancel_for_paper</code>），逐个发 <code>job:changed(cancelled)</code> 并 <code>drain_and_spawn</code> 释放槽位——已删论文不会继续下载 / 解析 / 版面分析，任务面板对应行随之置为已取消。</li>
 </ul>
 <h4 id="path_list_trash-path_restore_item-path_purge_item-path_purge_trash"><code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_item</code> / <code>path_purge_trash</code><a class="headerlink" href="#path_list_trash-path_restore_item-path_purge_item-path_purge_trash" title="Permanent link">&para;</a></h4>
 <p>回收站浏览：中间栏 <code>RecycleBinView</code>（虚拟 tab <code>agentero:trash</code>）用这些命令列出 / 恢复 / 永久删除已删项。</p>
