@@ -4500,6 +4500,20 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>首屏不阻塞；有新版时只出现一个「安装并重启」Toast；无更新或离线时不弹错误</td>
 <td>☐</td>
 </tr>
+<tr>
+<td>0.3.5</td>
+<td>访达（macOS）</td>
+<td>安装后启动一次，右键任意文件夹 → 快捷操作</td>
+<td>出现 <strong>Open with Agentero</strong>；点击后打开为 Vault（运行中/未运行各测一次）；含空格/中文目录名正常；设置 → 关于 移除后菜单消失且重启不再自动恢复</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>0.3.6</td>
+<td>资源管理器（Windows）</td>
+<td>安装后右键文件夹及文件夹空白处</td>
+<td>均有 <strong>Open with Agentero</strong>（Win11 在「显示更多选项」）；含空格/<code>&amp;</code>/中文的目录可打开；卸载后 <code>reg query</code> 无 <code>OpenWithAgentero</code> 残留</td>
+<td>☐</td>
+</tr>
 </tbody>
 </table>
 <hr />
@@ -6226,6 +6240,12 @@ agentero<span class="w"> </span>--vault<span class="w"> </span>/tmp/agentero-cli
 <td>CLI §13</td>
 <td>☐</td>
 <td>☐</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>外壳右键集成 §0.3.5/0.3.6</td>
+<td>☐</td>
+<td>N/A</td>
 <td>☐</td>
 </tr>
 </tbody>

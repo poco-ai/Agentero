@@ -2100,6 +2100,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#agentero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        系统外壳集成（右键「用 Agentero 打开」）
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3544,6 +3555,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#agentero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        系统外壳集成（右键「用 Agentero 打开」）
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3820,6 +3842,13 @@ agentero<span class="w"> </span>.<span class="w">             </span><span class
 </code></pre></div>
 
 <p>CLI 通过 <code>agentero://open?path=…</code> 深链唤起已安装的桌面 App；无参数时仍打印 help，不会隐式打开最近 Vault。</p>
+<h3 id="agentero">系统外壳集成（右键「用 Agentero 打开」）<a class="headerlink" href="#agentero" title="Permanent link">&para;</a></h3>
+<p>除 CLI 外，文件夹也可以直接从系统外壳作为 Vault 打开。两条路径最终都走
+<code>features::open_request::collect_open_args</code>（GUI argv 支持 <code>agentero://</code> URL 与<strong>裸目录路径</strong>，裸路径对空格、<code>&amp;</code>、<code>%</code>、中文路径无损）：</p>
+<ul>
+<li><strong>Windows 资源管理器</strong>：NSIS 安装钩子（<code>src-tauri/nsis/hooks.nsh</code>，经 <code>bundle.windows.nsis.installerHooks</code> 引入）在 <code>Software\Classes\Directory\shell</code> 与 <code>Directory\Background\shell</code> 下写入 <code>OpenWithAgentero</code> 条目，命令为 <code>"$INSTDIR\agentero.exe" "%1"</code>；卸载时仅清理指向本安装位置的条目。Win11 新式菜单中条目位于「显示更多选项」。</li>
+<li><strong>macOS 访达</strong>：Finder 对目录没有「打开方式」，改用 Quick Action。桌面 App 启动时自动安装/刷新 <code>~/Library/Services/Open with Agentero.workflow</code>（<code>features::finder_service</code>，shell 动作直接调用当前 App 二进制并传裸路径）；用户显式移除后写入配置标记（<code>finder-service.removed</code>），启动时不再自动恢复。设置 → 关于 提供安装/更新/移除入口；App 移动位置后状态显示为过期，可一键更新。</li>
+</ul>
 <h2 id="shell">Shell 自动补全<a class="headerlink" href="#shell" title="Permanent link">&para;</a></h2>
 <p><code>agentero completion &lt;SHELL&gt;</code> 向 stdout 打印补全脚本（始终是原始脚本，即使带了 <code>--json</code>）。<code>--install</code> 把脚本写入用户目录，<strong>不</strong>改 shell rc。</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># 打印脚本</span>
