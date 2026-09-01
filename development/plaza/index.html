@@ -4205,7 +4205,7 @@
 <p><strong>页面</strong>（<code>src/components/plaza/plaza-arxiv-rec-view.tsx</code>）</p>
 <ul>
 <li><strong>header</strong>：分类 chip 多选（默认 <code>ARXIV_FEED_CHIPS</code>，与订阅共用常量）+ 上次计算时间 + 刷新按钮。<strong>不进 app settings</strong> —— 分类就是页面状态，持久化在 <code>arxiv_rec_state</code>。</li>
-<li><strong>body</strong>：卡片列表（标题 / arXiv id / 分数 / 摘要三行截断），右上角外链 + 一键入库（走 <code>lookupSubmit</code>，与订阅同一条魔棒路线）。</li>
+<li><strong>body</strong>：卡片列表（标题 / arXiv id / 分数 / 摘要三行截断），右上角<strong>阅读</strong>（在应用内打开远程 PDF，不写盘）+ 外链 + 一键入库（走 <code>lookupSubmit</code>，与订阅同一条魔棒路线）。</li>
 <li><strong>空态分三种</strong>并给对应出路：未配置 embedding → 「打开 Agent 设置」按钮；库里没摘要 → 引导先导入论文；分类下无新论文 → 提示换分类。</li>
 </ul>
 <p><strong>取舍</strong></p>

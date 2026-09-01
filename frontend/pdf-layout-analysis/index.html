@@ -3939,7 +3939,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </table>
 <p>实现：<code>src-tauri/src/features/layout_model/</code>、<code>src/lib/pdf/layout/model.ts</code>、<code>ai-runtime.ts</code>。</p>
 <h3 id="onnx-provider">后端选择（本地 ONNX / 远程 Provider）<a class="headerlink" href="#onnx-provider" title="Permanent link">&para;</a></h3>
-<p>设置 →「版面解析」可选择检测后端（<code>settings.layout.backend</code>），选项由前端注册表 <code>LAYOUT_PROVIDERS</code>（<code>src/lib/pdf/layout/providers.ts</code>）驱动：</p>
+<p>设置 →「版面解析」可选择检测后端（<code>settings.layout.backend</code>），选项由前端注册表 <code>LAYOUT_PROVIDERS</code>（<code>src/lib/pdf/layout/providers.ts</code>）驱动；下拉只列出本地 + 已配置（apiKey 非空）的 provider，可选项 ≤1 时保留 Select 外观但 disabled、不弹出菜单（正文解析引擎 <code>parserBackend</code> 同理，避免换成纯文本导致布局抖动）。配置卡里清空 API Key 会立即清除已存密钥（无需点确认）；若当前后端指向该 provider 则回退本地：</p>
 <table>
 <thead>
 <tr>
