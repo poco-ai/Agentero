@@ -3543,7 +3543,7 @@
 <li>参考文献与版面解析已移入 PDF 阅读器左侧浮层面板（见 <a href="../pdf/">pdf.md</a>），不再占用右栏。</li>
 <li><strong>移至新窗口</strong>：标题栏右栏功能图标 <strong>右键</strong> →「移动至新窗口」→ 单例 <code>feature-{view}</code> Webview；主窗右栏收起。工具视图默认 <strong>跟随主窗当前激活文档</strong>（<code>workspace:active-changed</code>）。</li>
 <li>左右栏折叠：<code>⌥⌘S</code> / <code>⌘L</code>（不重叠）。折叠/展开带 200ms <code>flex-grow</code> 过渡（<code>data-rail-animating</code>，见 <code>index.css</code>）；过渡中拖动分隔条立即接管（可打断）；<code>prefers-reduced-motion</code> 下直接切换。</li>
-<li>标题栏右侧：右栏 tab 切换；有新版本可更新时显示更新指示器按钮（见 <a href="../settings/">settings.md</a> 「应用更新」）。</li>
+<li>标题栏右侧：更新指示器、窗口布局菜单、Agent 切换；有新版本可更新时显示更新指示器按钮（见 <a href="../settings/">settings.md</a> 「应用更新」）。布局菜单提供 <strong>Agent</strong>（PDF / Agent <code>1:1</code>）、<strong>笔记</strong>（PDF / Notes / Agent <code>1:1:1</code>）和 <strong>阅读</strong>（仅 PDF）三种预设。预设只调整 panel 宽度并开关当前论文的 Notes / Agent，不关闭其它 PDF tab。</li>
 </ul>
 <p>实现：<code>src/components/shell/</code>、<code>src/lib/shell/ui-store.ts</code>、<code>src/lib/shell/leaf.ts</code>、<code>src/lib/shell/feature-window.ts</code>、<code>hooks/use-shell-layout.ts</code>。</p>
 <h2 id="_3">欢迎页与多窗口<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>

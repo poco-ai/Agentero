@@ -3584,7 +3584,7 @@
 </tr>
 <tr>
 <td>视觉批注</td>
-<td>工具栏或 <strong>⌘.</strong> 进入框选，框定/单击 layout 区域后裁剪直接保存为 <code>marks/&lt;id&gt;.json</code>，并在页右缘评论列打开就地编辑。评论卡 hover 显示「加入侧边栏对话」图标，点击后将裁剪图送入 Agent composer 草稿。视觉批注的 Agent 会话继续通过右侧 Agent 面板进行；面板与 mark 共用 <code>agentSessionStore</code> 会话（同一 send 管线、同一 <code>lines</code>）。多轮会回写同一 <code>marks/&lt;id&gt;.json</code> 的 <code>messages[]</code> / <code>answerSnapshot</code>。活动 PDF 才轮询 marks；切换 Vault 清空 composer 视觉草稿。裁剪最长边 1600 px</td>
+<td>工具栏或 <strong>⌘.</strong> 进入框选，框定/单击 layout 区域后裁剪直接保存为 <code>marks/&lt;id&gt;.json</code>，并在页右缘评论列打开就地编辑。评论卡 hover 显示「加入侧边栏对话」图标，点击后将裁剪图送入 Agent composer 草稿。视觉批注的 Agent 会话继续通过右侧 Agent 面板进行；没有用户备注但已有 Agent 会话的视觉批注，点击页边针会在针旁打开浮动对话卡查看 transcript。面板与 mark 共用 <code>agentSessionStore</code> 会话（同一 send 管线、同一 <code>lines</code>）。多轮会回写同一 <code>marks/&lt;id&gt;.json</code> 的 <code>messages[]</code> / <code>answerSnapshot</code>。活动 PDF 才轮询 marks；切换 Vault 清空 composer 视觉草稿。裁剪最长边 1600 px</td>
 </tr>
 </tbody>
 </table>
@@ -3628,7 +3628,7 @@
 <tr>
 <td>视觉批注</td>
 <td><code>marks/&lt;id&gt;.json</code>（kind <code>visual</code> v2）：区域 + 用户批注 + 可选嵌套 <code>agent</code>；裁剪图 <code>marks/assets/&lt;id&gt;.png</code>。默认形态为纯批注（与文字「批注备注」同壳）；有 Agent 会话时仍保留页边针以便定位。旧版 <code>agent-trace</code> v1 仍可读，Doctor 可一键升 v2</td>
-<td>框选或单击 layout 区域后裁剪直接落盘，并在页右缘评论列打开就地编辑。评论卡 hover 工具栏含「加入侧边栏对话」图标，点击将裁剪送入 Agent sidebar composer；删除图标也在卡上。有 Agent 会话时可通过页边针定位并重新打开评论卡，续聊统一在右侧 Agent 面板进行。视口窄于 640px 时评论列回退为页边针。<code>marks/annotations.json</code> 读写会按 annotation id 去重，避免重复导入脏数据</td>
+<td>框选或单击 layout 区域后裁剪直接落盘，并在页右缘评论列打开就地编辑。评论卡 hover 工具栏含「加入侧边栏对话」图标，点击将裁剪送入 Agent sidebar composer；删除图标也在卡上。没有用户备注但已有 Agent 会话时，点击页边针在针旁打开浮动对话卡，展示已保存 transcript，并可隐藏或删除该视觉批注；其余续聊统一在右侧 Agent 面板进行。视口窄于 640px 时评论列回退为页边针。<code>marks/annotations.json</code> 读写会按 annotation id 去重，避免重复导入脏数据</td>
 </tr>
 </tbody>
 </table>
@@ -3710,7 +3710,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/chrome/</code></td>
-<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-left-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-references-panel</code> / <code>pdf-figures-panel</code> / <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）。顶部两条工具栏自动显隐（<code>use-pdf-chrome-visibility</code>）：滚动中或指针靠近顶部区域时显示，静读时淡出；面板打开 / ⌘F / 框选 / 缩放输入聚焦时保持可见</td>
+<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-left-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-references-panel</code> / <code>pdf-figures-panel</code> / <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）。顶部两条工具栏自动显隐（<code>use-pdf-chrome-visibility</code>）：滚动中或指针靠近顶部区域时显示，静读时淡出；面板打开 / ⌘F / 框选 / 缩放输入聚焦时保持可见；底部页码条按页数位数扩展输入宽度，并限制在视口内以适配窄面板</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/cards/</code></td>

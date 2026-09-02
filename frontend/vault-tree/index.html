@@ -3618,6 +3618,7 @@
 <li>其它根目录（包括旧 Vault 中可能存在的 <code>plans/</code>）只 list 一层，展开再 list。</li>
 <li><strong>缺失目录</strong>：本地 <code>read_dir</code> 失败返回空列表；远程 list 的 <code>NoSuchFile</code> 同样按空处理（<code>isPathMissingError</code>），避免删除后刷新把整棵树清空。删除成功后会先 <code>removeTreeNode</code> 乐观剪枝，再 <code>refreshTree</code>。</li>
 <li>忽略：<code>.git</code>、<code>.venv</code>、<code>node_modules</code> 等（<code>TREE_IGNORE_NAMES</code>）。</li>
+<li>基础顺序：目录在文件前；同类按数字感知的自然顺序排序（如 <code>9-...</code> 在 <code>10-...</code> 前）。</li>
 <li>默认只展开 <code>papers/</code> 及其一级子目录。</li>
 <li>虚拟化：<code>@tanstack/react-virtual</code> 拍平窗口化；<code>getItemKey</code> 用行稳定 id，避免内联新建草稿插入/移除后按索引缓存行高留下空隙。文件/文件夹行固定为 <code>h-7</code>，论文资源操作按钮不改变行高。</li>
 <li>外部工具 / CLI 导入论文时，watcher 会刷新文件树，并在 Catalog 或 <code>papers/</code> 结构变更后去抖刷新 Library 元数据；论文行标签因此可在不重开论文库的情况下从目录 ID 更新为标题/作者。</li>

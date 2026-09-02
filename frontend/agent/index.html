@@ -3555,7 +3555,7 @@
 <li>ACP <code>plan</code> 事件使用 AI Elements <code>Plan</code> / <code>PlanStep</code> 展示，可折叠查看步骤；步骤状态由图标、完成态和无障碍文案表达。</li>
 <li>ACP 结构化提问工具会解析为 AI Elements <code>Tool</code> 内的可选回答；完成选择后以正常的下一用户轮提交，并继续同一 ACP 会话。支持多 harness 的 rawInput 形状（见下表）。</li>
 <li>运行中可继续输入 → Queue waitlist；标题保持简洁，条目等宽并可单独移除；Esc / 停止中止。</li>
-<li><strong>会话配置条</strong>（Header 下方）：模型选择、协作模式（有上报时）、推理强度（有上报时）、Fast（有上报时）。从 Composer 工具栏上移，压低输入区时也不再被隐藏。</li>
+<li><strong>会话配置条</strong>（Header 下方）：模型选择、协作模式（有上报时）、推理强度（有上报时）、Fast（有上报时）。从 Composer 工具栏上移，压低输入区时也不再被隐藏；窄侧栏中保持单行，过长的模型 / 模式名称以省略号截断。</li>
 <li>引用上下文 chip（当前文件 / <code>@</code> 提及 / 选区 / 视觉草稿 / skill）在<strong>输入框上方</strong>单独一行，不进边框内；图片附件仍在输入框内部。右侧栏 composer 顶部有竖向拖拽分隔条，可压低输入区高度；低于紧凑阈值后进入一行模式：上述 chip 与图片附件变为图标圆片，隐藏底部工具栏，圆形向上箭头发送按钮与输入框同一行（无内容时置灰）。</li>
 <li>会话空闲时 hover 用户消息可 <strong>Edit</strong> 后重发。</li>
 <li><strong>长会话虚拟化</strong>：transcript 行数 ≥ 80（<code>use-transcript-virtualizer</code> 的 <code>VIRTUALIZE_MIN_LINES</code>）时切换 <code>@tanstack/react-virtual</code> 窗口化渲染，复用 use-stick-to-bottom 的 scrollRef（贴底与滚动按钮行为不变）；Reasoning / Tool / Plan 折叠态提升到 <code>ChatTranscript</code> 统一管理，行卸载不丢。</li>
