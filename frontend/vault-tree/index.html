@@ -3620,6 +3620,7 @@
 <li>忽略：<code>.git</code>、<code>.venv</code>、<code>node_modules</code> 等（<code>TREE_IGNORE_NAMES</code>）。</li>
 <li>基础顺序：目录在文件前；同类按数字感知的自然顺序排序（如 <code>9-...</code> 在 <code>10-...</code> 前）。</li>
 <li>默认只展开 <code>papers/</code> 及其一级子目录。</li>
+<li>所有节点图标统一位于行首并使用一致的左右边距；文件夹与广场行悬停或键盘聚焦时，在同一位置将自身图标替换为展开/收缩箭头，保持行宽稳定并提示该行可展开。</li>
 <li>虚拟化：<code>@tanstack/react-virtual</code> 拍平窗口化；<code>getItemKey</code> 用行稳定 id，避免内联新建草稿插入/移除后按索引缓存行高留下空隙。文件/文件夹行固定为 <code>h-7</code>，论文资源操作按钮不改变行高。</li>
 <li>外部工具 / CLI 导入论文时，watcher 会刷新文件树，并在 Catalog 或 <code>papers/</code> 结构变更后去抖刷新 Library 元数据；论文行标签因此可在不重开论文库的情况下从目录 ID 更新为标题/作者。</li>
 </ul>

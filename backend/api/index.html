@@ -6630,7 +6630,7 @@ Host (Tauri + Rust)
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
 <li><strong>行为</strong></li>
 <li>创建 label 为 <code>agentero-&lt;uuid&gt;</code> 的 Webview 窗口，URL 带 <code>?fresh=1</code>（不自动恢复上次 Vault）。</li>
-<li>窗口尺寸 / macOS overlay 标题栏与主窗口一致。</li>
+<li>窗口尺寸 / macOS overlay 标题栏与主窗口一致；主应用窗口最小宽度为 <code>960px</code>。</li>
 <li>窗口初始隐藏，由全局 page-load hook 在页面加载完成后显示；首个 React commit 前显示静态启动壳。</li>
 <li>Capability 覆盖 <code>main</code> 与 <code>agentero-*</code>（见 <code>src-tauri/capabilities/default.json</code>）。</li>
 <li>菜单点击由 Host 直接调用，不经过前端 event 往返（Host 内用 <code>tauri::async_runtime::spawn</code> 调用）。</li>
