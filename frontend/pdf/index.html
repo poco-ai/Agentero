@@ -3560,7 +3560,7 @@
 </tr>
 <tr>
 <td>平移</td>
-<td>放大后拖拽平移（临时抓手，与 Acrobat / Preview 一致）：按住<strong>鼠标中键</strong>拖拽，或按住<strong>空格</strong> + 左键拖拽；页面 1:1 跟随光标（含横向与斜向），armed 时 <code>grab</code>、拖拽中 <code>grabbing</code>。空格是无修饰裸键，只在事件目标属于本 viewer（或焦点在 body 且指针悬停本 viewer）时接管，输入框 / 按钮 / 链接聚焦时保持原生行为；<code>⌘.</code> 框选模式下左键拖拽让位给 marquee，中键仍可平移；空格+左键起手落在按钮 / 链接（工具栏、文中引用命中区）时不接管，保留点击，中键除输入框外任意位置起手都可平移。<code>bindPanDragGesture</code> 在滚动容器 capture 阶段拦截并抑制兼容 <code>mousedown</code>，因此不会触发 EmbedPDF 划词、链接点击或 WebKit / Windows 中键自动滚动</td>
+<td>放大后拖拽平移（临时抓手，与 Acrobat / Preview 一致）：按住<strong>鼠标中键</strong>拖拽，或按住<strong>空格</strong> + 左键拖拽；页面 1:1 跟随光标（含横向与斜向），armed 时 <code>grab</code>、拖拽中 <code>grabbing</code>。空格是无修饰裸键，归属规则与 <code>⌘F</code> 一致：<strong>指针悬停的 viewer 优先接管</strong>（阅读时焦点常落在 tab / 侧栏 / 笔记面板，不要求它是 dockview 的 active panel），否则由 active viewer 接管（焦点在 host 内，或点击页面后焦点仍停在 body）；输入框 / 按钮 / 链接，以及 <code>tab</code> / <code>option</code> / <code>checkbox</code> / <code>treeitem</code> 等可被空格激活的角色聚焦时保持原生行为；<code>⌘.</code> 框选模式下左键拖拽让位给 marquee，中键仍可平移；一旦 armed，左键与中键<strong>完全等价</strong>：除输入框等可编辑区域外，任意位置起手都平移，期间工具栏按钮与文中引用命中区的点击被暂时挂起（与 Acrobat 抓手一致），松开空格即恢复；<code>bindPanDragGesture</code> 在滚动容器 capture 阶段拦截并抑制兼容 <code>mousedown</code>，因此不会触发 EmbedPDF 划词、链接点击或 WebKit / Windows 中键自动滚动</td>
 </tr>
 <tr>
 <td>大纲 / 参考文献 / 版面解析</td>
@@ -3906,7 +3906,7 @@
 </tr>
 <tr>
 <td><code>src/lib/pdf/pan-drag.ts</code></td>
-<td>拖拽平移（临时抓手）手势：capture 阶段拦截中键 / 空格+左键，1:1 写 viewport <code>scrollLeft</code> / <code>scrollTop</code>，并抑制兼容 <code>mousedown</code></td>
+<td>拖拽平移（临时抓手）手势：capture 阶段拦截中键 / 空格+左键，1:1 写 viewport <code>scrollLeft</code> / <code>scrollTop</code>，并抑制兼容 <code>mousedown</code>。pointer capture 只作尽力而为（WebKit 会在 <code>preventDefault</code> 过的 <code>pointerdown</code> 之后立刻释放，<code>lostpointercapture</code> 因此不能当结束信号），move / up 靠页面层冒泡回滚动容器，<code>pan-handler</code> 再挂一层 document 级抬手兜底</td>
 </tr>
 <tr>
 <td><code>src/lib/pdf/annotations-store.ts</code></td>
