@@ -3772,7 +3772,7 @@
 相关：<a href="../../frontend/vault-tree/"><code>../frontend/vault-tree.md</code></a>、<a href="../../backend/paper-import/"><code>../backend/paper-import.md</code></a>、<a href="../../backend/"><code>../backend/index.md</code></a>。<br />
 订阅 MVP（已落地）：<a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>。<br />
 开关：设置 → 通用 → <strong>广场</strong>（<code>plazaEnabled</code>，默认开）；关闭后不显示、不加载。
-单来源显隐：<code>plazaHiddenSources</code>（默认空）。右键来源行 →「在侧栏隐藏」；右键广场父节点列出全部来源逐条切换显隐（眼睛图标=恢复，划线眼睛=隐藏，菜单保持打开可连续操作）。侧栏子行与广场首页卡片同步过滤。</p>
+单来源显隐：<code>plazaHiddenSources</code>（默认空）。右键广场父节点列出全部来源逐条勾选显隐（菜单保持打开可连续操作）；侧栏子行按此过滤。</p>
 </blockquote>
 <h2 id="0-2026-07-252026-08-14">0. 产品结论（2026-07-25，2026-08-14 修订）<a class="headerlink" href="#0-2026-07-252026-08-14" title="Permanent link">&para;</a></h2>
 <table>
@@ -3942,7 +3942,7 @@
 </tr>
 <tr>
 <td>父节点</td>
-<td>单击 → 切换展开/收起并打开广场首页（与文件夹行相同）</td>
+<td>单击 → 只切换展开/收起（纯虚拟文件夹，无广场首页）</td>
 </tr>
 <tr>
 <td>子节点</td>
@@ -3950,7 +3950,7 @@
 </tr>
 <tr>
 <td>右键</td>
-<td>来源行：「在侧栏隐藏」（写入 <code>plazaHiddenSources</code>）；父节点：列出全部来源逐条切换显隐；Cool Papers：可选「在系统浏览器打开 papers.cool」；无删除/拖拽/Finder</td>
+<td>父节点：列出全部来源逐条勾选显隐（写入 <code>plazaHiddenSources</code>，菜单保持打开）；来源行无菜单；无删除/拖拽/Finder</td>
 </tr>
 <tr>
 <td>禁用</td>
@@ -4019,17 +4019,8 @@
 <ul>
 <li>dockview：<code>kind: "plaza"</code>，<code>path</code> = 虚拟 URI；同一 path 单实例 <code>activatePanel</code>。  </li>
 <li><strong>无</strong>独立应用顶栏（与 Library 一致）；来源工具条做在内容区内。  </li>
-<li>父路径 <code>agentero:plaza</code>：三张来源卡片（Cool Papers 可进；播客「即将推出」；推荐可进 v0）。</li>
+<li>父路径 <code>agentero:plaza</code> <strong>没有页面</strong>：广场根只是文件树里的虚拟文件夹，单击只切换展开/收起；每个来源面板由子节点各自打开。</li>
 </ul>
-<div class="codehilite"><pre><span></span><code>┌──────────────────────────────────────────────────────┐
-│  广场                                                 │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐        │
-│  │ Cool Papers│ │ 播客       │ │ 推荐       │        │
-│  │ 打开日更流  │ │ 即将推出   │ │ 基于本地库  │        │
-│  └────────────┘ └────────────┘ └────────────┘        │
-└──────────────────────────────────────────────────────┘
-</code></pre></div>
-
 <h3 id="32-cool-papersp0webview">3.2 Cool Papers（P0，WebView）<a class="headerlink" href="#32-cool-papersp0webview" title="Permanent link">&para;</a></h3>
 <p><strong>主内容</strong>：内嵌 iframe，经 Host 代理协议 <code>agentero-coolpapers://localhost</code>（Windows 为 <code>http://agentero-coolpapers.localhost</code>）加载 papers.cool。</p>
 <table>
@@ -4322,7 +4313,7 @@
 <tbody>
 <tr>
 <td><strong>P0a 壳</strong></td>
-<td>侧栏广场 + 三子节点；<code>PlazaView</code> 首页 + 路由</td>
+<td>侧栏广场 + 三子节点；<code>PlazaView</code> 按来源路由</td>
 <td>虚拟 path 不写盘；i18n；折叠位置正确</td>
 </tr>
 <tr>
