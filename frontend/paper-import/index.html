@@ -3589,10 +3589,10 @@
 </ul>
 <h3 id="_2">标题搜索<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
 <ul>
-<li>输入识别不到标识符时自动走标题/关键词搜索（Semantic Scholar → arXiv 兜底，见 <a href="../../backend/identifier-lookup/">../backend/identifier-lookup.md</a> § 3.4）。</li>
+<li>输入识别不到标识符时自动走标题/关键词搜索（Semantic Scholar 与 arXiv <strong>并行</strong>发起，5s 预算内 S2 非空优先，见 <a href="../../backend/identifier-lookup/">../backend/identifier-lookup.md</a> § 3.4）。</li>
 <li>前端对疑似标题的输入<strong>立刻</strong>弹出单选窗并显示 shimmer 占位（#438）；Host 返回后替换为 Top 3 候选：标题、作者 · 年份 · 出处、arXiv/DOI 徽标与被引数。长标题在卡片内换行，不撑破对话框。</li>
 <li>确认后按候选的标识符走常规入库管线，落回发起搜索时的目标文件夹。</li>
-<li>取消直接丢弃（含仍在加载的 pending）；无 Host 侧临时态需要清理。</li>
+<li>取消/关闭卡片会同时取消仍在进行的后台搜索任务：任务卡立即标记已取消，Host 跳过剩余查询；候选直接丢弃，无 Vault 侧临时态需要清理。</li>
 <li>一次粘贴多个标题时按队列逐个弹窗，处理完一个自动显示下一个。</li>
 <li>无匹配结果时关闭 pending 弹窗，走错误 Toast。</li>
 </ul>

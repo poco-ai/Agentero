@@ -3692,7 +3692,7 @@
 
 <h1 id="enter-ime-composition-race">输入法组字时 Enter 误发送（IME composition race）<a class="headerlink" href="#enter-ime-composition-race" title="Permanent link">&para;</a></h1>
 <p><strong>状态</strong>：已修复（<code>isComposing</code> + <code>keyCode 229</code> + compositionend 宽限）<br />
-<strong>影响面</strong>：Agent Composer、消息编辑重发、PDF 批注内联编辑器、划词提问输入<br />
+<strong>影响面</strong>：Agent Composer、消息编辑重发、PDF 批注内联编辑器、划词提问输入、魔棒入库输入框（#457）<br />
 <strong>相关代码</strong>：</p>
 <ul>
 <li><code>src/lib/core/ime.ts</code> — <code>isImeKeyboardEvent</code>、<code>IME_KEY_CODE</code>（229）、<code>IME_COMPOSITION_END_GRACE_MS</code></li>
@@ -3700,6 +3700,7 @@
 <li><code>src/components/ai-elements/prompt-input.tsx</code> — <code>PromptInputTextarea</code> Enter 提交守卫</li>
 <li><code>src/components/agent/use-agent-panel.ts</code> — <code>@</code>/<code>$</code> 菜单 Enter、消息编辑重发</li>
 <li><code>src/components/viewer/pdf-ask/annotation-editor.tsx</code> — 批注 Enter 保存</li>
+<li><code>src/components/sidebar/vault-sidebar-header.tsx</code> — 魔棒标题搜索 Enter 提交守卫</li>
 <li><code>test/ime.test.ts</code> — 单元测试</li>
 </ul>
 <hr />
@@ -3787,6 +3788,10 @@ keydown Enter    →  处理器仍把这次 Enter 当成「发送」
 <td>PDF 批注编辑器</td>
 <td>同上；组字中 Enter 不保存</td>
 </tr>
+<tr>
+<td>魔棒入库输入框（#457）</td>
+<td><code>useImeGuard</code>；组字中 Enter 不触发标题搜索/导入</td>
+</tr>
 </tbody>
 </table>
 <h3 id="33">3.3 预期交互<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
@@ -3802,6 +3807,7 @@ keydown Enter    →  处理器仍把这次 Enter 当成「发送」
 <li>打开 <code>@</code> 菜单时组字确认，不误选路径；<code>$</code> 技能菜单同理。  </li>
 <li>编辑已发送用户消息：组字中 Enter 不触发重发。  </li>
 <li>PDF 批注内联编辑器：组字中 Enter 不保存。  </li>
+<li>魔棒入库：中文输入法组字中按 Enter，只上屏、不触发标题搜索；再按一次 Enter 才提交。  </li>
 <li>英文 / 无 IME 场景：Enter 发送、<code>Shift+Enter</code> 换行不变。  </li>
 <li><code>pnpm exec vitest run test/ime.test.ts</code> 通过。</li>
 </ol>

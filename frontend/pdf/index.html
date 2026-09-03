@@ -3559,6 +3559,10 @@
 <td>底部页码 pill、PageUp/Down、Home/End</td>
 </tr>
 <tr>
+<td>平移</td>
+<td>放大后拖拽平移（临时抓手，与 Acrobat / Preview 一致）：按住<strong>鼠标中键</strong>拖拽，或按住<strong>空格</strong> + 左键拖拽；页面 1:1 跟随光标（含横向与斜向），armed 时 <code>grab</code>、拖拽中 <code>grabbing</code>。空格是无修饰裸键，只在事件目标属于本 viewer（或焦点在 body 且指针悬停本 viewer）时接管，输入框 / 按钮 / 链接聚焦时保持原生行为；<code>⌘.</code> 框选模式下左键拖拽让位给 marquee，中键仍可平移；空格+左键起手落在按钮 / 链接（工具栏、文中引用命中区）时不接管，保留点击，中键除输入框外任意位置起手都可平移。<code>bindPanDragGesture</code> 在滚动容器 capture 阶段拦截并抑制兼容 <code>mousedown</code>，因此不会触发 EmbedPDF 划词、链接点击或 WebKit / Windows 中键自动滚动</td>
+</tr>
+<tr>
 <td>大纲 / 参考文献 / 版面解析</td>
 <td>左侧浮层：书签、参考文献（紧凑列表）、版面解析结果（图/表/算法/公式）</td>
 </tr>
@@ -3718,7 +3722,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/viewport/</code></td>
-<td>宿主接线：<code>dockview-viewport</code>（resize 门控 + 滚动指标按帧提交；<code>rightGutter</code> 为评论列预留页外空间，并向 EmbedPDF 报告缩减后的 width/clientWidth 使 fitWidth 页面让出该空间）/ <code>wheel-zoom-handler</code> / <code>active-card-scroll-sync</code></td>
+<td>宿主接线：<code>dockview-viewport</code>（resize 门控 + 滚动指标按帧提交；<code>rightGutter</code> 为评论列预留页外空间，并向 EmbedPDF 报告缩减后的 width/clientWidth 使 fitWidth 页面让出该空间）/ <code>wheel-zoom-handler</code> / <code>pan-handler</code>（中键 / 空格拖拽平移的空格归属判定与光标 class）/ <code>active-card-scroll-sync</code></td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/floating-hover.ts</code></td>
@@ -3899,6 +3903,10 @@
 <tr>
 <td><code>src/lib/pdf/wheel-zoom.ts</code></td>
 <td>⌘滚轮缩放 delta 累加与每帧合并步进；wheel 监听 passive / non-passive 切换；WebKit 捏合手势（gesture*）换算为等价 wheel delta</td>
+</tr>
+<tr>
+<td><code>src/lib/pdf/pan-drag.ts</code></td>
+<td>拖拽平移（临时抓手）手势：capture 阶段拦截中键 / 空格+左键，1:1 写 viewport <code>scrollLeft</code> / <code>scrollTop</code>，并抑制兼容 <code>mousedown</code></td>
 </tr>
 <tr>
 <td><code>src/lib/pdf/annotations-store.ts</code></td>

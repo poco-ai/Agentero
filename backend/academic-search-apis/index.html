@@ -3840,9 +3840,9 @@
 <p>当前主路径按以下顺序尝试：</p>
 <ol>
 <li><strong>标题/关键词搜索</strong>（<code>features/import/title_search.rs::search_papers</code>）</li>
-<li>先请求 Semantic Scholar <code>GET /graph/v1/paper/search?query=...&amp;fields=title,authors,year,venue,publicationVenue,journal,externalIds,citationCount,url</code>。venue 取 <code>publicationVenue.name</code>（跳过 <code>type=repository</code>），其次 <code>journal.name</code>，再次 <code>venue</code>。</li>
-<li>S2 失败或空结果时，fallback 到 arXiv Atom <code>GET export.arxiv.org/api/query?search_query=ti:"..."</code>。</li>
+<li>Semantic Scholar <code>GET /graph/v1/paper/search?query=...&amp;fields=title,authors,year,venue,publicationVenue,journal,externalIds,citationCount,url</code> 与 arXiv Atom <code>GET export.arxiv.org/api/query?search_query=ti:"..."</code> <strong>并行</strong>发起。S2 在 5s 预算（<code>S2_SEARCH_BUDGET</code>）内返回非空则优先（venue 取 <code>publicationVenue.name</code>（跳过 <code>type=repository</code>），其次 <code>journal.name</code>，再次 <code>venue</code>），否则取已在途的 arXiv 结果；最坏耗时 ≈ max(预算, 单请求 20s 超时)。</li>
 <li>仅保留带 DOI 或 arXiv id 的候选；返回结果会按精确标题匹配重新排序。</li>
+<li><code>resolve_search_queries</code> 接收前端 <code>task_id</code>：关闭搜索卡片取消任务后，剩余查询直接跳过。</li>
 <li><strong>Translator Runtime</strong>（<code>features/import/mod.rs::resolve_metadata</code>）</li>
 <li>若用户输入被识别为 arXiv id / DOI / URL，会构造 <code>{base}/web</code> 或 <code>{base}/search</code> 请求。</li>
 <li>arXiv 的各类输入（<code>2508.05004</code>、<code>arXiv:2508.05004v2</code>、<code>https://arxiv.org/pdf/...</code>、<code>https://arxiv.org/html/...</code>）都会被规范化为 <code>https://arxiv.org/abs/{id}</code> 再走 <code>/web</code>。</li>
@@ -3970,7 +3970,7 @@
 <tr>
 <td>标题/关键词搜索</td>
 <td><code>SEARCH_CONCURRENCY = 2</code>（Semaphore）</td>
-<td>S2 免费搜索端点限流严格，arXiv Atom 也有速率限制</td>
+<td>S2 免费搜索端点限流严格，arXiv Atom 也有速率限制；单条查询并行占用至多 2 个 permit（S2 + arXiv）</td>
 </tr>
 <tr>
 <td>在线参考文献</td>
@@ -4050,8 +4050,8 @@
 <tbody>
 <tr>
 <td>用户输入 title/关键词</td>
-<td>S2 title search</td>
-<td>arXiv title search</td>
+<td>S2 ∥ arXiv 并行竞速（5s 预算内 S2 优先）</td>
+<td>已在途的 arXiv 结果</td>
 <td>无</td>
 </tr>
 <tr>
