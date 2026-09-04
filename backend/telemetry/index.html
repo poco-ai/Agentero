@@ -3525,7 +3525,7 @@
 
 
 <h1 id="posthog">遥测（PostHog）<a class="headerlink" href="#posthog" title="Permanent link">&para;</a></h1>
-<p>匿名产品分析：仅上报应用版本与设备级信息，用于版本采用率、平台分布、会话时长统计。代码在 <code>src-tauri/src/core/telemetry/</code>，仅桌面端编译。</p>
+<p>匿名产品分析：仅上报应用版本与设备级信息，用于版本采用率、平台分布、会话时长统计。代码在 <code>src-tauri/src/core/telemetry/</code>，仅桌面端编译。启动载荷由 app 层组装为 <code>TelemetryStartContext</code>（settings 快照 + <code>AgentRegistry::telemetry_summary()</code> 匿名摘要）注入 <code>Telemetry::start</code>，<code>core::telemetry</code> 不反向依赖 features 层。</p>
 <h2 id="_1">开关语义<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p>三层门控，任一不满足即整体 no-op：</p>
 <ol>
