@@ -3558,7 +3558,7 @@
 <li><code>src/components/onboarding/steps/*</code> — 各步骤组件。</li>
 <li><code>src/components/onboarding/onboarding-store.ts</code> — 手动重开的 <code>forceOpen</code> 标志（zustand vanilla）。</li>
 <li><code>src/lib/onboarding/api.ts</code> — 跨窗口 <code>onboarding:request</code> 事件。</li>
-<li><code>src/lib/settings/*</code> — <code>AppSettings.onboardingDone</code> / <code>featureTourDone</code>（默认 <code>false</code>）。Host <code>src-tauri/src/features/settings/mod.rs</code> 必须同步这两个 camelCase 字段，否则落盘后丢失。</li>
+<li><code>src/lib/settings/*</code> — <code>AppSettings.onboardingDone</code> / <code>featureTourDone</code>（默认 <code>false</code>）。Host <code>src-tauri/src/features/system/settings/mod.rs</code> 必须同步这两个 camelCase 字段，否则落盘后丢失。</li>
 </ul>
 <h2 id="i18n">i18n<a class="headerlink" href="#i18n" title="Permanent link">&para;</a></h2>
 <p>独立命名空间 <code>onboarding</code>：<code>src/i18n/locales/{en,zh-CN}/onboarding.json</code>。</p>

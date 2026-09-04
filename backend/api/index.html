@@ -7784,7 +7784,7 @@ Host (Tauri + Rust)
 <li>
 <p><strong>技能上下文</strong>：<code>agent_list_skills</code> 列出 <code>~/.agents/skills</code>、<code>${CODEX_HOME:-~/.codex}/skills</code>、<code>~/.claude/skills</code> 和当前 Vault <code>.agents/skills</code>。运行时重新解析 id，只读取 <code>SKILL.md</code>，单个文件上限 64 KiB，最多加载 5 个。</p>
 </li>
-<li><strong>技能提及按 provider 分流</strong>（<code>SkillMentionStyle</code>，见 Host <code>skills.rs</code>）：</li>
+<li><strong>技能提及按 provider 分流</strong>（<code>SkillMentionStyle</code>，见 Host <code>prompt/skills.rs</code>）：</li>
 <li><strong>Claude ACP</strong> → <code>/skill-id</code> 前缀 + 注入正文；</li>
 <li><strong>其它（含 Codex）</strong> → 仅注入正文（<code>skill:id</code> 标签），prompt 明确写明不要依赖 <code>$</code>/<code>/</code> 运行时命令。</li>
 <li>
@@ -7799,7 +7799,7 @@ Host (Tauri + Rust)
 <p><code>auto</code>（自动批准）：选择第一个 AllowOnce 选项（等价旧 <code>autoApprove: true</code>）。</p>
 </li>
 <li>
-<p><strong>回答语言</strong>：设置 → Agent 提供全局「回答语言」（自动 / English / 简体中文，独立于界面语言）。前端 <code>runOnce</code> 统一读取该设置并透传 <code>responseLanguage</code>；Host 在 <code>build_prompt</code>（<code>prompts.rs</code>）为所有 workflow 追加一句语言指令，<code>auto</code> 时不注入。</p>
+<p><strong>回答语言</strong>：设置 → Agent 提供全局「回答语言」（自动 / English / 简体中文，独立于界面语言）。前端 <code>runOnce</code> 统一读取该设置并透传 <code>responseLanguage</code>；Host 在 <code>build_prompt</code>（<code>prompt/envelope.rs</code>）为所有 workflow 追加一句语言指令，<code>auto</code> 时不注入。</p>
 </li>
 <li>
 <p><strong>个人偏好提示词</strong>：设置 → Agent 多行文本（<code>agentPersonalPrompt</code>，默认空）。非空时前端 <code>runOnce</code> 透传 <code>personalPrompt</code>；Host 在 <code>build_prompt</code> system envelope 追加 <code>User preference instructions</code> 块（所有 workflow）。留空不注入；Chat 展示剥离 envelope，不出现在对话记录。</p>
@@ -7915,7 +7915,7 @@ Host (Tauri + Rust)
 <li>macOS/Linux：注入 login shell 的 <code>PATH</code>（GUI 窄 PATH）。</li>
 <li>Windows：写唯一临时 <code>.bat</code> + <code>CREATE_NO_WINDOW</code> + <code>call</code> 前缀；安装进程 PATH 合并 npm/pnpm/WinGet/Scoop shim；批处理切到 UTF-8，错误输出按 UTF-8 优先、GBK 回退解码。</li>
 <li>在 <code>spawn_blocking</code> 中执行，避免卡住 async runtime。</li>
-<li><strong>实现</strong>：<code>src-tauri/src/features/agent/tool_lifecycle.rs</code></li>
+<li><strong>实现</strong>：<code>src-tauri/src/features/agent/registry/lifecycle.rs</code></li>
 <li><strong>Catalog 两层检测</strong>（<code>agent_scan_catalog</code> / 远端 scan）：</li>
 <li><strong>Agent</strong>：<code>binaryAvailable</code>（<code>detect_command</code>，如 <code>claude</code> / <code>codex</code> / <code>opencode</code> / <code>openclaw</code> / <code>hermes</code> / <code>kimi</code>）</li>
 <li><strong>ACP</strong>：<code>acpCommandAvailable</code>（<code>command</code>，如 <code>claude-agent-acp</code>；原生 ACP 时与 Agent 同二进制）</li>
@@ -8488,7 +8488,7 @@ Host (Tauri + Rust)
 <li><strong>并发</strong>：<code>settings.layout.backend</code> 为远程 provider 时 JobCenter <code>layoutAnalyze</code> <strong>无并发上限</strong>（远端排队）；本地 ONNX 仍 cap=1。</li>
 <li><strong>返回</strong>：<code>{ pages: [{ boxes: [{ clsId, label, score, coordinate }], widthPx, heightPx }] }</code>；渲染像素尺寸优先取服务端报告（Paddle：<code>dataInfo</code> / <code>inputImage</code> JPEG 头；MinerU：中间结果 <code>middle.json</code> / <code>layout.json</code> 页尺寸），缺失为 <code>null</code>（前端按 200 DPI 估算）。</li>
 <li><strong>超时 / 代理</strong>：单请求 120s；走 Host 全局代理（<code>core::http::client_builder</code>）。</li>
-<li>实现：<code>src-tauri/src/features/layout_remote/</code>（<code>commands.rs</code> 命令壳 + <code>engine.rs</code> <code>RemoteLayoutEngine</code> trait / 注册 + <code>paddle.rs</code> + <code>mineru.rs</code>）；前端 <code>src/lib/pdf/layout/paddle.ts</code>（IPC 封装）+ <code>providers.ts</code>（<code>LAYOUT_PROVIDERS</code> 注册表）。</li>
+<li>实现：<code>src-tauri/src/features/paper/analyze/layout/hosted/</code>（<code>commands.rs</code> 命令壳 + <code>engine.rs</code> <code>RemoteLayoutEngine</code> trait / 注册 + <code>paddle.rs</code> + <code>mineru.rs</code>）；前端 <code>src/lib/pdf/layout/paddle.ts</code>（IPC 封装）+ <code>providers.ts</code>（<code>LAYOUT_PROVIDERS</code> 注册表）。</li>
 </ul>
 <h4 id="layout_remote_probe"><code>layout_remote_probe</code>（已实现）<a class="headerlink" href="#layout_remote_probe" title="Permanent link">&para;</a></h4>
 <ul>
@@ -8513,7 +8513,7 @@ Host (Tauri + Rust)
 <p>设置文件绝对路径已包含在 <code>settings_get</code> 返回的 <code>path</code> 字段中（About / 诊断用），无独立 command。</p>
 </blockquote>
 <p>UI 入口见 <code>settings_window_open</code>：Settings 现为独立原生单例窗口，<code>?window=settings</code> 路由由 <code>src/main.tsx</code> 分支渲染。</p>
-<p>实现：<code>src-tauri/src/features/settings/</code>（<code>mod.rs</code> + <code>commands.rs</code>）、<code>core/paths.rs</code>、<code>src-tauri/src/features/window/commands.rs</code>。</p>
+<p>实现：<code>src-tauri/src/features/system/settings/</code>（<code>mod.rs</code> + <code>commands.rs</code>）、<code>core/paths.rs</code>、<code>src-tauri/src/app/window/commands.rs</code>。</p>
 <h3 id="3103-xdg-usagesqlite">3.10.3 使用记录（XDG <code>usage.sqlite</code>）<a class="headerlink" href="#3103-xdg-usagesqlite" title="Permanent link">&para;</a></h3>
 <p>设备本地活动日志，<strong>不在 Vault 内</strong>。schema v2、列定义与 <code>kind</code>/<code>facet</code> 对照见 <a href="../usage/">usage.md</a>。本地记录始终开启（无开关）；非移动端还会按 <code>telemetry_projection</code> 白名单把登记的 kind 脱敏投影到 PostHog（受 <code>telemetryEnabled</code> 约束，见 <a href="../telemetry/">telemetry.md</a>）。</p>
 <h4 id="activity_record_events"><code>activity_record_events</code>（已实现）<a class="headerlink" href="#activity_record_events" title="Permanent link">&para;</a></h4>

@@ -3684,7 +3684,7 @@
   → 完成（含 providerSessionId）/ 失败
 </code></pre></div>
 
-<p>流式 chunk 合并（<code>stream_coalesce.rs</code>）：agent 通常每秒推 20–100 个小 chunk，
+<p>流式 chunk 合并（<code>runtime/stream.rs</code>）：agent 通常每秒推 20–100 个小 chunk，
 逐条 emit 会让 webview 每 token 重渲染一次（Windows 卡顿主因）。Host 用
 ~40ms 窗口合并连续同 kind 的文本 chunk 再发 <code>agent:stream</code>；kind 切换
 （message ↔ thought）、tool/plan 等有序事件、<code>agent:completed</code> / <code>agent:failed</code>
@@ -3810,7 +3810,7 @@ Agentero prompt envelope、skill/context 注入，并将原始 <code>/command</c
 <ol>
 <li><strong>打开交互能力</strong>：<code>initialize</code> 声明 <code>elicitation.form</code>（依赖 crate feature <code>unstable_elicitation</code>）；否则 Codex 等对 <code>request_user_input</code> 会直接空答。</li>
 <li><strong>Client adapter 归一</strong>：把不同 rawInput / 事件解析成同一套 <code>AskUserQuestion</code> 页（<code>parseAskUserQuestions</code> 等），前端只渲染一张表。</li>
-<li><strong>Harness 特例</strong>：OpenCode spawn 时注入 <code>OPENCODE_ENABLE_QUESTION_TOOL=1</code>；Grok 的 <code>_x.ai/ask_user_question</code> 由 Host JSON-RPC 处理（<code>ask_user.rs</code>），再经 <code>agent:ask-user-request</code> / <code>agent_respond_ask_user</code> 与前端对齐；tool 镜像与 ext 去重。</li>
+<li><strong>Harness 特例</strong>：OpenCode spawn 时注入 <code>OPENCODE_ENABLE_QUESTION_TOOL=1</code>；Grok 的 <code>_x.ai/ask_user_question</code> 由 Host JSON-RPC 处理（<code>acp/ask_user.rs</code>），再经 <code>agent:ask-user-request</code> / <code>agent_respond_ask_user</code> 与前端对齐；tool 镜像与 ext 去重。</li>
 </ol>
 <table>
 <thead>
@@ -3889,7 +3889,7 @@ Agentero prompt envelope、skill/context 注入，并将原始 <code>/command</c
 <p>配置「如何启动本机 Agent」：id、name、template、command、args、env、默认 id、可选 User-Agent。<br />
 持久化在应用配置目录；<strong>不</strong>要求填写模型 API Key。</p>
 <h2 id="_5">远程<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<p>远程 Vault 时在 <strong>SSH 远端</strong> 启动 Agent。见 <a href="../remote/">remote.md</a>。远程 agent catalog 的扫描/探测/安装命令属 agent 域（<code>remote_catalog.rs</code> + <code>remote_catalog_commands.rs</code>），复用 <code>agent::models</code> / <code>probe_agent</code> / <code>templates</code>，通过 remote 域的 <code>RemoteRegistry</code> / <code>agent_exec</code> 走 SSH。</p>
+<p>远程 Vault 时在 <strong>SSH 远端</strong> 启动 Agent。见 <a href="../remote/">remote.md</a>。远程 agent catalog 的扫描/探测/安装命令属 agent 域（<code>registry/remote.rs</code> + <code>commands/remote.rs</code>），复用 <code>agent::models</code> / <code>probe_agent</code> / <code>templates</code>，通过 remote 域的 <code>RemoteRegistry</code> / <code>agent_exec</code> 走 SSH。</p>
 <h2 id="_6">代码<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p><code>src-tauri/src/features/agent/</code><br />
 前端：<a href="../../frontend/agent/">../frontend/agent.md</a></p>

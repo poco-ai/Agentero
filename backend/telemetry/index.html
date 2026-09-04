@@ -3525,7 +3525,7 @@
 
 
 <h1 id="posthog">遥测（PostHog）<a class="headerlink" href="#posthog" title="Permanent link">&para;</a></h1>
-<p>匿名产品分析：仅上报应用版本与设备级信息，用于版本采用率、平台分布、会话时长统计。代码在 <code>src-tauri/src/features/telemetry/</code>，仅桌面端编译。</p>
+<p>匿名产品分析：仅上报应用版本与设备级信息，用于版本采用率、平台分布、会话时长统计。代码在 <code>src-tauri/src/core/telemetry/</code>，仅桌面端编译。</p>
 <h2 id="_1">开关语义<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p>三层门控，任一不满足即整体 no-op：</p>
 <ol>
@@ -3594,7 +3594,7 @@
 <p><code>$session_id</code>、<code>session_duration_ms</code>、<code>app_version</code>。</p>
 <p><code>app started</code> / <code>app exited</code> 与本机 <a href="../usage/">usage.md</a> 同源：<code>Telemetry::start</code> / <code>shutdown</code> <strong>始终</strong>写入本地 <code>app.started</code> / <code>app.exited</code>（本地记录无开关），在 <code>telemetryEnabled</code> 且 release + 有 key 时再发 PostHog。出站事件名保持空格形式，以免断历史。</p>
 <h3 id="telemetrycapture_activity">行为事件投影（<code>Telemetry::capture_activity</code>）<a class="headerlink" href="#telemetrycapture_activity" title="Permanent link">&para;</a></h3>
-<p>前端行为事件经 <code>activity_record_events</code> 落本地库后，Host 用 <code>usage::telemetry_projection</code> 把<strong>登记的 kind</strong> 投影成脱敏 PostHog 事件（非移动端；<code>telemetryEnabled</code> 关或无 key 时整体 no-op）。投影<strong>只</strong>携带 <code>kind</code>→事件名、<code>facet</code> / <code>status</code> / <code>qty</code>（均由 <code>usage/events.rs::project_extra</code> 分桶/截断/白名单产出）与分桶后的 <code>dur_bucket</code>，外加 <code>distinct_id</code> / <code>$session_id</code> / <code>app_version</code>。未登记的 kind 一律不发（安全默认）。</p>
+<p>前端行为事件经 <code>activity_record_events</code> 落本地库后，Host 用 <code>usage::telemetry_projection</code> 把<strong>登记的 kind</strong> 投影成脱敏 PostHog 事件（非移动端；<code>telemetryEnabled</code> 关或无 key 时整体 no-op）。投影<strong>只</strong>携带 <code>kind</code>→事件名、<code>facet</code> / <code>status</code> / <code>qty</code>（均由 <code>usage/record.rs::project_extra</code> 分桶/截断/白名单产出）与分桶后的 <code>dur_bucket</code>，外加 <code>distinct_id</code> / <code>$session_id</code> / <code>app_version</code>。未登记的 kind 一律不发（安全默认）。</p>
 <table>
 <thead>
 <tr>

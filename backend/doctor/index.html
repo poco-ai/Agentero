@@ -3653,7 +3653,7 @@
 <li>CLI：<code>agentero doctor</code>、<code>agentero doctor fix aliases</code>、<code>agentero doctor fix visual-marks</code>、<code>agentero doctor fix catalog-duplicates</code>、<code>agentero -y doctor fix …</code>（CLI 诊断同样尊重 <code>.agentero/doctor.json</code> 忽略列表）。</li>
 <li>Host：<code>doctor_check</code>、<code>doctor_apply_aliases</code>、<code>doctor_ignore_aliases</code>、<code>doctor_set_dirty_paths</code>、<code>doctor_plan_wikilinks</code>、<code>doctor_apply_wikilinks</code>、<code>doctor_apply_visual_marks</code>、<code>doctor_fix_catalog_duplicates</code>。</li>
 </ul>
-<p>代码：<code>src-tauri/src/features/doctor/</code>（含 <code>wikilink_repair.rs</code>、<code>visual_marks_repair.rs</code>）、<code>src/lib/doctor/</code>、<code>src/components/settings/panes/doctor-pane.tsx</code>。</p>
+<p>代码：<code>src-tauri/src/features/vault/doctor/</code>（聚合入口）、<code>src-tauri/src/features/markdown/wiki/doctor.rs</code>（双链修复）、<code>src-tauri/src/features/pdf/marks/doctor.rs</code>（视觉批注修复）、<code>src/lib/doctor/</code>、<code>src/components/settings/panes/doctor-pane.tsx</code>。</p>
 
 
 

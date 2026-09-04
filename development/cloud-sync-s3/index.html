@@ -3850,8 +3850,8 @@
 <p><strong>侵入点清单</strong>（全部改动）：</p>
 <ol>
 <li><code>app/handlers.rs</code>：<code>common_commands!</code> 注册 sync 命令。</li>
-<li><code>features/catalog/</code>：Phase 0 的 <code>sidecar.rs</code> + mutation 后调用 + rescan 回灌。</li>
-<li><code>features/settings/</code>：<code>AppSettings</code> 增加 <code>sync: HashMap&lt;VaultId, SyncCredentials&gt;</code>（存 XDG <code>settings.json</code>；SK 掩码遵循 translate API key 先例：<code>settings_get</code> 返回 <code>***</code>，<code>settings_set</code> 收到全掩码保留旧值）。</li>
+<li><code>features/paper/catalog/</code>：Phase 0 的 <code>sidecar.rs</code> + mutation 后调用 + rescan 回灌。</li>
+<li><code>features/system/settings/</code>：<code>AppSettings</code> 增加 <code>sync: HashMap&lt;VaultId, SyncCredentials&gt;</code>（存 XDG <code>settings.json</code>；SK 掩码遵循 translate API key 先例：<code>settings_get</code> 返回 <code>***</code>，<code>settings_set</code> 收到全掩码保留旧值）。</li>
 </ol>
 <p>watcher、vault、import、remote 均不改。</p>
 <h2 id="_6">前端<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>

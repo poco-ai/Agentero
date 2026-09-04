@@ -3841,7 +3841,7 @@
 <h2 id="1">1. 背景与现状<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <ul>
 <li>arXiv 入库时 e-print 已完整解压到 <code>{paper}/source/</code>（<code>src-tauri/src/features/import/assets.rs</code> <code>unpack_arxiv_eprint</code>），其中<strong>天然包含 <code>.bbl</code>、偶有 <code>.bib</code></strong>。</li>
-<li>非 arXiv PDF 入库后由 liteparse 生成 <code>PAPER.md</code>（<code>src-tauri/src/features/import/pdf_parse/mod.rs</code>），References 段以纯文本存在，<code>extract_links: true</code> 已开启。</li>
+<li>非 arXiv PDF 入库后由 liteparse 生成 <code>PAPER.md</code>（<code>src-tauri/src/features/paper/analyze/parse/mod.rs</code>），References 段以纯文本存在，<code>extract_links: true</code> 已开启。</li>
 <li>catalog（v3）没有 references 存储，仅有标量 <code>citation_count</code>。</li>
 <li>PDF 查看器（EmbedPDF / PDFium）已加载页内 Link annotation，文中 citation 点击可跳转；<code>goToPage</code> 与 destination 解析（<code>src/lib/pdf/bookmark.ts</code>）已有基础。</li>
 <li>右侧栏新增 tab 的三处扩展点：<code>src/lib/shell/ui-store.ts</code>、<code>src/components/shell/title-bar.tsx</code>、<code>src/components/shell/right-sidebar.tsx</code>。</li>
@@ -4044,7 +4044,7 @@
 <p>过门槛后按 <code>0.65·(w/wmax) + 0.35·(sim/smax)</code> 排序，取前 150 做 MMR（λ=0.7）多样化，最终截到预算 20 条。</p>
 <p><strong>用固定预算而不是 A/B/C 分级阈值</strong>：预算直接控制用户要看的条数，且省掉按文件夹调阈值——实测阈值会在 0.238~0.597 间漂移。MMR 的作用是防止 20 条被单一方向占满（实测把 Tool 方向的覆盖从 1 条提到 3 条，代价是挤掉 4 条同质论文）。</p>
 <h3 id="74">7.4 缓存与增量<a class="headerlink" href="#74" title="Permanent link">&para;</a></h3>
-<p><code>.agentero/citing-scan.json</code>（参照 <code>features/doctor/mod.rs</code> 的 <code>DOCTOR_STATE_REL</code> 先例）存每个种子的 <code>s2Id</code> / <code>citationCount</code> / <code>fetchedAt</code> / 引用者元数据，外加上次结果供 UI 直接复用。下次扫描先用 1 个 batch 请求拿最新 <code>citationCount</code>，<strong>只重抓被引数变化的种子</strong>，稳态约 10 秒。SPECTER2 向量不落盘（每次 1–2 个请求重取），避免几 MB 的 JSON。</p>
+<p><code>.agentero/citing-scan.json</code>（参照 <code>features/vault/doctor/mod.rs</code> 的 <code>DOCTOR_STATE_REL</code> 先例）存每个种子的 <code>s2Id</code> / <code>citationCount</code> / <code>fetchedAt</code> / 引用者元数据，外加上次结果供 UI 直接复用。下次扫描先用 1 个 batch 请求拿最新 <code>citationCount</code>，<strong>只重抓被引数变化的种子</strong>，稳态约 10 秒。SPECTER2 向量不落盘（每次 1–2 个请求重取），避免几 MB 的 JSON。</p>
 <p>写入是普通 <code>fs::write</code> 而非 tmp+rename，原因同 <code>write_sidecar</code>：rename 会被 vault watcher 报成「未验证重命名」。缓存可重建，不值得为原子性换这个噪音。</p>
 <h3 id="75">7.5 生命周期与进度<a class="headerlink" href="#75" title="Permanent link">&para;</a></h3>
 <p>前端 <code>enqueueBackgroundTask</code> 建任务行（<code>discoverCitingPapers</code>，<code>src/lib/paper/library-actions.ts</code>），把任务 id 作为 <code>taskId</code> 传给命令，Host 用它做两件事：</p>

@@ -4815,7 +4815,7 @@ GET /ws?v=2&amp;serverId=&lt;agt_…&gt;&amp;role=client                       �
 
 <p><code>hello</code> 后桌面回 <code>server_info {serverId, hostName, appVersion, vault:{name, root}}</code>。<code>deviceId</code> 作会话键：短暂断线重连不丢 agent 订阅。</p>
 <h3 id="62-rpc-tauri">6.2 RPC 方法 = 现有 Tauri 命令面<a class="headerlink" href="#62-rpc-tauri" title="Permanent link">&para;</a></h3>
-<p>Bridge 不发明新领域 API：<code>method</code> 直接映射到现有 <code>#[tauri::command]</code> 背后的领域函数（<code>features/catalog/papers.rs</code>、<code>features/vault/tree.rs</code>、<code>features/search/mod.rs</code> 均以 <code>&amp;Path</code> 为根、不依赖 Tauri State，天然可复用）。白名单制：</p>
+<p>Bridge 不发明新领域 API：<code>method</code> 直接映射到现有 <code>#[tauri::command]</code> 背后的领域函数（<code>features/paper/catalog/papers.rs</code>、<code>features/vault/tree.rs</code>、<code>features/markdown/search/mod.rs</code> 均以 <code>&amp;Path</code> 为根、不依赖 Tauri State，天然可复用）。白名单制：</p>
 <table>
 <thead>
 <tr>

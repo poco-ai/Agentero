@@ -3700,7 +3700,7 @@
 </tr>
 </tbody>
 </table>
-<p>代码：<code>src-tauri/src/features/usage/</code>。前端入口 <code>src/lib/activity/track.ts</code>（<code>track()</code> 缓冲批量上报）。</p>
+<p>代码：<code>src-tauri/src/core/usage/</code>。前端入口 <code>src/lib/activity/track.ts</code>（<code>track()</code> 缓冲批量上报）。</p>
 <h2 id="_2">开关<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>本地活动记录<strong>始终开启</strong>、无独立开关：<code>activity_record_events</code> 无条件写库。是否投影到 PostHog 由 <code>telemetryEnabled</code> 单独控制（见 <a href="../telemetry/">telemetry.md</a>）。</p>
 <p>设置页可一键清除全部记录。</p>
@@ -4048,7 +4048,7 @@ agentero<span class="w"> </span>usage<span class="w"> </span>clear<span class="w
 <h2 id="_6">隐私<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li>本地可含路径与搜索词；不上传。</li>
-<li>PostHog 仍只走 <code>features/telemetry</code> 的匿名启动/退出，本库不直接出站。投影只用 <code>kind</code> + <code>facet</code> + 桶，不用 <code>path</code> / <code>extra.q</code>。</li>
+<li>PostHog 仍只走 <code>core/telemetry</code> 的匿名启动/退出，本库不直接出站。投影只用 <code>kind</code> + <code>facet</code> + 桶，不用 <code>path</code> / <code>extra.q</code>。</li>
 </ul>
 
 

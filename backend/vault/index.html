@@ -3604,7 +3604,8 @@
   → 释放 vault:opened 作用域
   → 各 store 的 vault 级 clear（catalog 行、wiki 重命名流程、
      agent 会话、标注、layout 结果、相关弹窗）
-  → vault_release：驱逐该 vault 的 catalog 连接缓存条目（remote handle 跳过）
+  → app::vault_session::vault_release：取消该 vault 的 JobCenter 任务、
+     清 paper caps cache、驱逐该 vault 的 catalog 连接缓存条目
 </code></pre></div>
 
 <p>文件监听不需要显式停止：<code>fs_watch_start</code> 会替换该窗口的既有 watcher，窗口销毁时由 <code>on_window_event(Destroyed)</code> 停止。</p>
@@ -3665,7 +3666,7 @@
 <ul>
 <li>Host <code>notify</code> → <code>vault:file-changed</code>。</li>
 <li>前端：打开 md 自动重载（有未存则提示）；结构变化局部刷树。</li>
-<li>代码：<code>features/watcher/</code>、<code>src/lib/vault/fs-watch.ts</code>。</li>
+<li>代码：<code>features/vault/watcher/</code>、<code>src/lib/vault/fs-watch.ts</code>。</li>
 </ul>
 <h2 id="capabilities">Capabilities（摘要）<a class="headerlink" href="#capabilities" title="Permanent link">&para;</a></h2>
 <p><code>src-tauri/capabilities/default.json</code>：<code>fs:*</code> 读写/dir、<code>dialog</code>、<code>opener</code>（含 reveal）、scope 覆盖 <code>$HOME/**</code> 等用户可选目录。</p>
@@ -3675,7 +3676,7 @@
 <li>多窗口：<code>window_new</code>、<code>settings_window_open</code>。</li>
 </ul>
 <h2 id="_8">代码<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
-<p><code>features/vault/</code> · <code>trash/</code> · <code>watcher/</code> · <code>terminal/</code> · <code>window/</code></p>
+<p><code>features/vault/</code> · <code>app/vault_session/</code> · <code>app/terminal/</code> · <code>app/window/</code></p>
 
 
 

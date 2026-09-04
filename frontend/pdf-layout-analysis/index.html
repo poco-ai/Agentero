@@ -3937,7 +3937,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </tr>
 </tbody>
 </table>
-<p>实现：<code>src-tauri/src/features/layout_model/</code>、<code>src/lib/pdf/layout/model.ts</code>、<code>ai-runtime.ts</code>。</p>
+<p>实现：<code>src-tauri/src/features/paper/analyze/layout/model_assets/</code>、<code>src/lib/pdf/layout/model.ts</code>、<code>ai-runtime.ts</code>。</p>
 <h3 id="onnx-provider">后端选择（本地 ONNX / 远程 Provider）<a class="headerlink" href="#onnx-provider" title="Permanent link">&para;</a></h3>
 <p>设置 →「版面解析」可选择检测后端（<code>settings.layout.backend</code>），选项由前端注册表 <code>LAYOUT_PROVIDERS</code>（<code>src/lib/pdf/layout/providers.ts</code>）驱动；下拉只列出本地 + 已配置（apiKey 非空）的 provider，可选项 ≤1 时保留 Select 外观但 disabled、不弹出菜单（正文解析引擎 <code>parserBackend</code> 同理，避免换成纯文本导致布局抖动）。配置卡里清空 API Key 会立即清除已存密钥（无需点确认）；若当前后端指向该 provider 则回退本地：</p>
 <table>
@@ -3969,7 +3969,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <p>每个 provider 描述符带 <code>kind</code> / <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>sidecarMode</code>（MinerU 另有 <code>supportsLanguage</code> / <code>supportsOcr</code>）：设置面板与 Onboarding 据此显隐 API Key / Base URL / 语言 / 强制 OCR 输入（保存 / 掩码 / 连通性测试逻辑共用 <code>provider-config.ts</code>）；<code>run-analysis.ts</code> 用 <code>layoutProviderFor(backend)</code> + <code>isRemoteLayoutProvider</code> 判定走远程分支（<code>startRemoteLayoutAnalysis</code>，按 <code>provider.id</code> 分发到 Host engine 注册表）。</p>
 <p>远程 provider 共用流程（<code>src/lib/pdf/layout/paddle.ts</code> IPC 封装 + <code>run-analysis.ts</code>）：</p>
 <ol>
-<li>读取本地 PDF，整份 base64 交给 Host 命令 <code>layout_remote_analyze_pdf</code>（<code>provider</code> 参数分发到 <code>src-tauri/src/features/layout_remote/</code> 的 <code>RemoteLayoutEngine</code> 实现：<code>paddle.rs</code> / <code>mineru.rs</code>）；token 由 Host 从设置注入，WebView 只持有 <code>*</code> 掩码；</li>
+<li>读取本地 PDF，整份 base64 交给 Host 命令 <code>layout_remote_analyze_pdf</code>（<code>provider</code> 参数分发到 <code>src-tauri/src/features/paper/analyze/layout/hosted/</code> 的 <code>RemoteLayoutEngine</code> 实现：<code>paddle.rs</code> / <code>mineru.rs</code>）；token 由 Host 从设置注入，WebView 只持有 <code>*</code> 掩码；</li>
 <li>Host 轮询远端任务（总时限 10 分钟），期间通过 <code>layout-remote:progress</code> 事件回报进度（<code>requestId</code> 隔离并行任务）；</li>
 <li>每页返回统一的 <code>boxes</code>（像素坐标 + <code>label</code> + <code>score</code>）；</li>
 <li>后续与本地路径完全共用：PDF text runs 补文字 / captionRole → <code>mergeCaptionsIntoHosts</code> → sidecar / index。</li>
