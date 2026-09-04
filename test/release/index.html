@@ -4188,7 +4188,7 @@
 <p>桌面安装包由 Tauri 配置和 Rust package 版本决定，CLI 归档文件名由发布 tag 和 Rust target 决定。因此发布时不能只创建 <code>v*</code> tag，必须先同步版本并提交。</p>
 <p>推荐流程：</p>
 <ol>
-<li>执行 <code>/bump &lt;version&gt;</code>，同步检查 <code>package.json</code>、<code>src-tauri/tauri.conf.json</code>、<code>src-tauri/Cargo.toml</code>、<code>cli/Cargo.toml</code>、<code>src-tauri/ios-project.yml</code> 和 <code>Cargo.lock</code>。</li>
+<li>执行 <code>/bump &lt;version&gt;</code>，同步检查 <code>package.json</code>、<code>src-tauri/tauri.conf.json</code>、<code>src-tauri/Cargo.toml</code>、<code>crates/agentero-core/Cargo.toml</code>、<code>cli/Cargo.toml</code>、<code>src-tauri/ios-project.yml</code> 和 <code>Cargo.lock</code>。</li>
 <li>执行 <code>/commit</code>，将版本 bump 作为独立的 <code>chore(release): bump version to &lt;version&gt;</code> commit。</li>
 <li>确认 tag <code>v&lt;version&gt;</code> 指向该版本 bump commit，且 tag 去掉 <code>v</code> 后与所有版本字段一致。</li>
 <li>推送 tag，等待 <code>.github/workflows/release.yml</code> 构建 Tauri installers 和 CLI artifacts。</li>
