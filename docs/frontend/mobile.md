@@ -239,7 +239,7 @@ relay 不可达时（自托管用户 / 断网内网）：offer 的 `relay.endpoi
 
 ### 6.2 RPC 方法 = 现有 Tauri 命令面
 
-Bridge 不发明新领域 API：`method` 直接映射到现有 `#[tauri::command]` 背后的领域函数（`features/catalog/papers.rs`、`features/vault/tree.rs`、`features/search/mod.rs` 均以 `&Path` 为根、不依赖 Tauri State，天然可复用）。白名单制：
+Bridge 不发明新领域 API：`method` 直接映射到现有 `#[tauri::command]` 背后的领域函数（`features/paper/catalog/papers.rs`、`features/vault/tree.rs`、`features/markdown/search/mod.rs` 均以 `&Path` 为根、不依赖 Tauri State，天然可复用）。白名单制：
 
 | 组 | 方法（首批） |
 |---|---|

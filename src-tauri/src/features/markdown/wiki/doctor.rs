@@ -16,7 +16,7 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 use uuid::Uuid;
 
-use super::DoctorRepairError;
+use crate::features::doctor::DoctorRepairError;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]

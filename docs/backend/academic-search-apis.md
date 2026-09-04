@@ -14,7 +14,7 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 | **Semantic Scholar Graph API** | `GET /graph/v1/paper/{id}/citations` | "谁引用了我" 候选发现 | `features/refs/citing.rs` |
 | **arXiv Atom API** | `GET https://export.arxiv.org/api/query` | 按 ID 取元数据 / 按标题搜索 | `features/import/mod.rs`, `features/import/title_search.rs` |
 | **arXiv 二进制端点** | `https://arxiv.org/pdf/{id}` / `https://arxiv.org/e-print/{id}` / `https://arxiv.org/src/{id}` | PDF / TeX 源码下载 | `features/import/assets.rs` |
-| **Crossref REST API** | `GET https://api.crossref.org/works/{doi}` | DOI → 元数据 / 参考文献 | `features/import/pdf_recognize.rs`, `features/refs/online.rs`, `features/catalog/commands.rs` |
+| **Crossref REST API** | `GET https://api.crossref.org/works/{doi}` | DOI → 元数据 / 参考文献 | `features/paper/import/pdf_recognize.rs`, `features/paper/analyze/refs/online.rs`, `features/paper/catalog/commands.rs` |
 | **Unpaywall** | `GET https://api.unpaywall.org/v2/{doi}` | DOI → 开放获取 PDF | `features/import/assets.rs` |
 | **Zotero Recognizer** | `POST https://services.zotero.org/recognizer/recognize` | PDF 首页文字几何识别 | `features/import/pdf_recognize.rs` |
 | **Translator Runtime** | `POST {base}/web`, `POST {base}/search`, `POST {base}/import` | 通用 URL/标识符/题录解析 | `features/import/mod.rs` |
@@ -154,7 +154,7 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 
 | 配置项 | 位置 | 默认值 | 说明 |
 |---|---|---|---|
-| `translatorBaseUrl` | `features/settings/mod.rs` | `https://translator.philfan.cn` | 可替换为自托管 Translator Runtime |
+| `translatorBaseUrl` | `features/system/settings/mod.rs` | `https://translator.philfan.cn` | 可替换为自托管 Translator Runtime |
 | `LookupImportArgs.translator_base_url` | 单次请求参数 | 空则使用设置值 | CLI/批量导入可临时覆盖 |
 | `ImportLocalPdfArgs.translator_base_url` | 本地 PDF 导入参数 | 空则使用设置值 | 背景识别阶段使用 |
 

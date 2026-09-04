@@ -31,4 +31,4 @@ settings 只提供读/写/持久化/广播能力，**不 import 任何域 featur
 - 反序列化期需要的域默认值（如 `DEFAULT_CONNECTOR_PORT`）定义在 settings，由属主域 re-export（方向 `connector → settings`，不成环）。
 
 前端：[../frontend/settings.md](../frontend/settings.md)  
-代码：`src-tauri/src/features/settings/`
+代码：`src-tauri/src/features/system/settings/`

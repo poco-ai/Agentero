@@ -23,18 +23,14 @@ src-tauri/src/
   app/           # run()、menu、logging、command 注册
   core/          # error、fs、paths、log_util
   features/      # 与前端 lib 域对齐
-    vault/ catalog/ import/ wiki/ doctor/ agent/
-    connector/ mcp/ remote/ search/ settings/
-    translate/ trash/ watcher/ terminal/ window/
-    bridge/ layout_model/ refs/ arxiv_proxy/
-    jobs/       # JobCenter 纯调度器：lanes/去重/并发上限；runner 由业务域启动时注册
-    rename/     # 链接感知改名编排：搬文件 + 修双链 + catalog 联动，单向调用 vault/wiki/catalog 原子能力
-    coolpapers/ # papers.cool：Kimi 解析写入 NOTES.md + 广场站点代理
-    site_proxy/     # 广场站点代理共享管道（转发 + HTML 注入闸门）
-    modelscope_proxy/ # modelscope.cn/papers 广场来源
-    telemetry/  # 桌面端，PostHog 匿名遥测
-    usage/      # XDG usage.sqlite 本地活动日志
-    feeds/      # 广场订阅：XDG feeds.sqlite + RSS/Atom 拉取
+    vault/      # 创建、树、trash、watcher、rename、doctor 聚合
+    paper/      # catalog、import、discovery、refs、paper move
+    pdf/        # export、locate、parse、marks
+    markdown/   # wiki、search
+    system/     # settings
+    layout/     # model_assets、hosted providers
+    agent/ jobs/ translate/
+  core/usage/    # XDG usage.sqlite 本地活动日志
   lib.rs
   main.rs
 ```
@@ -51,7 +47,7 @@ src-tauri/src/
 | `tauri-plugin-log` | 运行日志 |
 | shell / 子进程 | spawn ACP agent（及 SSH 相关） |
 
-应用设置走 XDG `settings.json`（`features/settings`），不依赖把论文 meta 放进 Store。
+应用设置走 XDG `settings.json`（`features/system/settings`），不依赖把论文 meta 放进 Store。
 
 ## 主要 Rust crates
 

@@ -8,8 +8,8 @@ pub mod commands;
 #[cfg(feature = "desktop")]
 pub mod job_runners;
 pub mod paper_import;
-#[path = "../analyze/parse/mod.rs"]
-pub mod pdf_parse;
+pub mod sources;
+pub use crate::features::paper::analyze::parse as pdf_parse;
 
 mod api_mapper;
 pub(crate) use api_mapper::api_paper_to_meta;
@@ -26,10 +26,12 @@ pub(crate) mod chain_resolve;
 pub(crate) mod pdf_recognize;
 #[cfg(feature = "desktop")]
 pub(crate) mod recognize_apply;
+#[cfg(feature = "desktop")]
+pub mod site_proxy;
 mod skill_import;
 pub(crate) mod title_search;
 
-pub use crate::features::catalog::{has_local_pdf, has_local_tex};
+pub use crate::features::paper::capabilities::{has_local_pdf, has_local_tex};
 pub use assets::{
     ensure_paper_assets, ensure_paper_assets_with_cookies, ensure_paper_assets_with_progress,
     AssetDownloadResult, AssetProgressContext,

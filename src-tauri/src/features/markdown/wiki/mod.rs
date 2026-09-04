@@ -1,6 +1,7 @@
 mod cache;
 #[cfg(feature = "desktop")]
 pub mod commands;
+pub mod doctor;
 pub mod embed;
 pub mod extract;
 pub mod frontmatter;

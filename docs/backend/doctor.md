@@ -84,4 +84,4 @@ Doctor 聚合本地 Vault 的只读完整性检查，并为论文别名、双链
 - CLI：`agentero doctor`、`agentero doctor fix aliases`、`agentero doctor fix visual-marks`、`agentero doctor fix catalog-duplicates`、`agentero -y doctor fix …`（CLI 诊断同样尊重 `.agentero/doctor.json` 忽略列表）。
 - Host：`doctor_check`、`doctor_apply_aliases`、`doctor_ignore_aliases`、`doctor_set_dirty_paths`、`doctor_plan_wikilinks`、`doctor_apply_wikilinks`、`doctor_apply_visual_marks`、`doctor_fix_catalog_duplicates`。
 
-代码：`src-tauri/src/features/doctor/`（含 `wikilink_repair.rs`、`visual_marks_repair.rs`）、`src/lib/doctor/`、`src/components/settings/panes/doctor-pane.tsx`。
+代码：`src-tauri/src/features/vault/doctor/`（聚合入口）、`src-tauri/src/features/markdown/wiki/doctor.rs`（双链修复）、`src-tauri/src/features/pdf/marks/doctor.rs`（视觉批注修复）、`src/lib/doctor/`、`src/components/settings/panes/doctor-pane.tsx`。

@@ -158,7 +158,7 @@ liteparse 在**运行时 `dlopen`** PDFium，而 `liteparse-pdfium-sys` 的 buil
 
 时序约定：`paper_commit` 以 `defer_parse_jobs: true` 跳过 commit 期的 ParseBody/ParseRefs spawn，由 RecognizeMetadata runner 在目录名尘埃落定后统一编排 PAPER.md / refs / layout（`LookupImportResult.recognize_pending=true` 时前端也跳过自己的 layout enqueue）。
 
-- 实现：识别链路 `src-tauri/src/features/paper/import/pdf_recognize.rs`（payload 组装 + HTTP client + `map_crossref_work`）；probe worker 变体在 `paper/analyze/parse/mod.rs`（`--agentero-internal-pdf-recognize-worker`）；job 编排 `paper/import/job_runners.rs::recognize_metadata_runner`。
+- 实现：识别链路 `src-tauri/src/features/import/pdf_recognize.rs`（payload 组装 + HTTP client + `map_crossref_work`）；probe worker 变体在 `pdf_parse/mod.rs`（`--agentero-internal-pdf-recognize-worker`）；job 编排 `import/job_runners.rs::recognize_metadata_runner`。
 - payload 结构复刻 Zotero document-worker `getRecognizerData`：`word = [xMin,yMin,xMax,yMax,fontSize,spaceAfter,baseline,rotation,0,bold,italic,0,fontIndex,text]`，行来自 liteparse 投影行（竖排 arXiv stamp 落到独立行，服务端可重建）。
 - Host 侧 entries 仍支持 `title`/`doi`/`arxivId`/`extra` 覆盖（`meta_source=manual`，走原有同步路径不触发后台识别），供确认对话框/CLI 等调用方使用。
 - 隐私：上传的是前 5 页文本布局 JSON（~200KB），不是 PDF 文件；服务为 Zotero 托管的未公开 API，仅作尽力而为识别，失败无感知。

@@ -244,7 +244,7 @@ M0 的成功标准是：用户不修改官方插件，在 Zotero Desktop 退出�
 | Windows ingress | `src-tauri/src/features/word/windows/`（新增；Win32 message receiver + OLE driver） |
 | macOS Word driver | `src-tauri/src/features/word/macos/`（新增；Automation/ObjC bridge） |
 | CSL 领域映射 | `src-tauri/src/features/citation/`（新增；不与 `features/refs/` 的论文引用解析混合） |
-| App 设置/状态 | `src/lib/settings/*`、`src-tauri/src/features/settings/*` |
+| App 设置/状态 | `src/lib/settings/*`、`src-tauri/src/features/system/settings/*` |
 | Zotero field codec / fixtures | `src-tauri/src/features/word/zotero_codec.rs`、`src-tauri/tests/fixtures/word/`（新增） |
 | i18n | `src/i18n/locales/en/*.json` 与对应 `zh-CN/*.json` |
 | 已实现文档 | 完成后补 `docs/frontend/`、`docs/backend/`、`docs/usage/`，并将本文改为历史设计或删除 |

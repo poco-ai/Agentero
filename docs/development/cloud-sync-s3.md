@@ -130,8 +130,8 @@ src-tauri/src/features/sync/
 **侵入点清单**（全部改动）：
 
 1. `app/handlers.rs`：`common_commands!` 注册 sync 命令。
-2. `features/catalog/`：Phase 0 的 `sidecar.rs` + mutation 后调用 + rescan 回灌。
-3. `features/settings/`：`AppSettings` 增加 `sync: HashMap<VaultId, SyncCredentials>`（存 XDG `settings.json`；SK 掩码遵循 translate API key 先例：`settings_get` 返回 `***`，`settings_set` 收到全掩码保留旧值）。
+2. `features/paper/catalog/`：Phase 0 的 `sidecar.rs` + mutation 后调用 + rescan 回灌。
+3. `features/system/settings/`：`AppSettings` 增加 `sync: HashMap<VaultId, SyncCredentials>`（存 XDG `settings.json`；SK 掩码遵循 translate API key 先例：`settings_get` 返回 `***`，`settings_set` 收到全掩码保留旧值）。
 
 watcher、vault、import、remote 均不改。
 

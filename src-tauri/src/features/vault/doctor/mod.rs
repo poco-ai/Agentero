@@ -2,16 +2,14 @@
 
 #[cfg(feature = "desktop")]
 pub mod commands;
-pub mod visual_marks_repair;
-pub mod wikilink_repair;
 
-pub use visual_marks_repair::{
-    apply_visual_mark_repairs, scan_visual_marks, VisualMarkCandidate, VisualMarkRepairChange,
-    VisualMarkRepairResult, VisualMarksDoctorSection,
-};
-pub use wikilink_repair::{
+pub use crate::features::markdown::wiki::doctor::{
     apply_wikilink_repairs, plan_wikilink_repairs, WikilinkRepairChange, WikilinkRepairPlan,
     WikilinkRepairResidual, WikilinkRepairResult, WikilinkRepairSuggestion,
+};
+pub use crate::features::pdf::marks::doctor::{
+    apply_visual_mark_repairs, scan_visual_marks, VisualMarkCandidate, VisualMarkRepairChange,
+    VisualMarkRepairResult, VisualMarksDoctorSection,
 };
 
 use crate::core::error::AppError;
@@ -243,7 +241,7 @@ pub struct DoctorRepairError {
 }
 
 impl DoctorRepairError {
-    fn new(code: &str, message: impl Into<String>, paths: Vec<String>) -> Self {
+    pub(crate) fn new(code: &str, message: impl Into<String>, paths: Vec<String>) -> Self {
         Self {
             code: code.into(),
             message: message.into(),
@@ -259,7 +257,7 @@ impl fmt::Display for DoctorRepairError {
     }
 }
 
-fn issue(
+pub(crate) fn issue(
     code: &str,
     message: impl Into<String>,
     severity: DoctorSeverity,

@@ -31,7 +31,8 @@
   → 释放 vault:opened 作用域
   → 各 store 的 vault 级 clear（catalog 行、wiki 重命名流程、
      agent 会话、标注、layout 结果、相关弹窗）
-  → vault_release：驱逐该 vault 的 catalog 连接缓存条目（remote handle 跳过）
+  → app::vault_session::vault_release：取消该 vault 的 JobCenter 任务、
+     清 paper caps cache、驱逐该 vault 的 catalog 连接缓存条目
 ```
 
 文件监听不需要显式停止：`fs_watch_start` 会替换该窗口的既有 watcher，窗口销毁时由 `on_window_event(Destroyed)` 停止。
@@ -62,7 +63,7 @@
 
 - Host `notify` → `vault:file-changed`。
 - 前端：打开 md 自动重载（有未存则提示）；结构变化局部刷树。
-- 代码：`features/watcher/`、`src/lib/vault/fs-watch.ts`。
+- 代码：`features/vault/watcher/`、`src/lib/vault/fs-watch.ts`。
 
 ## Capabilities（摘要）
 
@@ -75,4 +76,4 @@
 
 ## 代码
 
-`features/vault/` · `trash/` · `watcher/` · `terminal/` · `window/`
+`features/vault/` · `app/vault_session/` · `app/terminal/` · `app/window/`

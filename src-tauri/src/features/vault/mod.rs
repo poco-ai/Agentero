@@ -819,4 +819,9 @@ mod tests {
 /// Tauri command shells for this feature.
 #[cfg(feature = "desktop")]
 pub mod commands;
+pub mod doctor;
+pub mod rename;
+pub mod trash;
 pub mod tree;
+#[cfg(feature = "desktop")]
+pub mod watcher;

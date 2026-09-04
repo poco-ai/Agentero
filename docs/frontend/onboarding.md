@@ -35,7 +35,7 @@ Vault 首次打开后，`useFeatureTour` 用 driver.js 高亮侧栏 / 魔棒 / �
 - `src/components/onboarding/steps/*` — 各步骤组件。
 - `src/components/onboarding/onboarding-store.ts` — 手动重开的 `forceOpen` 标志（zustand vanilla）。
 - `src/lib/onboarding/api.ts` — 跨窗口 `onboarding:request` 事件。
-- `src/lib/settings/*` — `AppSettings.onboardingDone` / `featureTourDone`（默认 `false`）。Host `src-tauri/src/features/settings/mod.rs` 必须同步这两个 camelCase 字段，否则落盘后丢失。
+- `src/lib/settings/*` — `AppSettings.onboardingDone` / `featureTourDone`（默认 `false`）。Host `src-tauri/src/features/system/settings/mod.rs` 必须同步这两个 camelCase 字段，否则落盘后丢失。
 
 ## i18n
 

@@ -2245,7 +2245,7 @@ Windows：未设 `XDG_CONFIG_HOME` 时回退 `%APPDATA%/agentero/`。旧版 macO
 
 UI 入口见 `settings_window_open`：Settings 现为独立原生单例窗口，`?window=settings` 路由由 `src/main.tsx` 分支渲染。
 
-实现：`src-tauri/src/features/settings/`（`mod.rs` + `commands.rs`）、`core/paths.rs`、`src-tauri/src/features/window/commands.rs`。
+实现：`src-tauri/src/features/system/settings/`（`mod.rs` + `commands.rs`）、`core/paths.rs`、`src-tauri/src/app/window/commands.rs`。
 
 ### 3.10.3 使用记录（XDG `usage.sqlite`）
 

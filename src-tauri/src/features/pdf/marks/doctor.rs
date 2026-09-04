@@ -1,8 +1,8 @@
 //! Migrate legacy visual marks (`kind: agent-trace`, flat agent fields)
 //! to v2 nested shape (`kind: visual`, optional `agent` object).
 
-use super::{issue, DoctorIssue, DoctorSeverity};
 use crate::core::error::AppError;
+use crate::features::doctor::{issue, DoctorIssue, DoctorSeverity};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::fs;

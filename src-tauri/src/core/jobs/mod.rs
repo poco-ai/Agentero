@@ -726,6 +726,35 @@ impl JobCenter {
         cancelled
     }
 
+    /// Cancel every queued/running job for one vault, e.g. when the app
+    /// switches away from that vault and releases its session resources.
+    /// Returns the snapshots of the cancelled jobs so callers can emit
+    /// `job:changed` and drain freed slots.
+    pub async fn cancel_for_vault(&self, vault: &Path) -> Vec<JobSnapshot> {
+        let vault = normalize_vault_path(vault.to_path_buf());
+        let ids: Vec<JobId> = {
+            let inner = self.inner.lock().await;
+            inner
+                .jobs
+                .iter()
+                .filter(|(_, job)| {
+                    job.vault_path == vault
+                        && matches!(job.state, JobState::Queued | JobState::Running)
+                })
+                .map(|(id, _)| id.clone())
+                .collect()
+        };
+        let mut cancelled = Vec::new();
+        for id in ids {
+            if self.cancel(&id.0).await {
+                if let Some(snapshot) = self.snapshot(&id.0).await {
+                    cancelled.push(snapshot);
+                }
+            }
+        }
+        cancelled
+    }
+
     /// Current snapshot for a job id, if it exists.
     pub async fn snapshot(&self, job_id: &str) -> Option<JobSnapshot> {
         let inner = self.inner.lock().await;
@@ -1400,6 +1429,30 @@ mod tests {
         );
         // Idempotent: nothing left to cancel for that paper.
         assert!(center.cancel_for_paper(&vault, "papers/a").await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn cancel_for_vault_cancels_only_matching_active_jobs() {
+        let center = JobCenter::new();
+        let vault_a = vault("cancel-vault-a");
+        let vault_b = vault("cancel-vault-b");
+        let a = center
+            .enqueue_parse_refs(vault_a.clone(), "papers/a", JobLane::Normal, false)
+            .await;
+        let b = center
+            .enqueue_parse_refs(vault_b.clone(), "papers/b", JobLane::Normal, false)
+            .await;
+        assert_eq!(a.state, JobState::Queued);
+        assert_eq!(b.state, JobState::Queued);
+
+        let cancelled = center.cancel_for_vault(&vault_a).await;
+        assert_eq!(cancelled.len(), 1);
+        assert_eq!(cancelled[0].vault_path, vault_a.to_string_lossy());
+        assert_eq!(cancelled[0].state, JobState::Cancelled);
+        assert_eq!(
+            center.snapshot(&b.id).await.expect("other job").state,
+            JobState::Queued
+        );
     }
 
     #[test]

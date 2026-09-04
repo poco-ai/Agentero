@@ -5,6 +5,7 @@ mod bindings_test;
 mod handlers;
 mod logging;
 pub mod menu;
+pub mod vault_session;
 
 #[cfg(not(target_os = "ios"))]
 pub mod finder_service;
