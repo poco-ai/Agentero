@@ -3889,7 +3889,7 @@ Agentero prompt envelope、skill/context 注入，并将原始 <code>/command</c
 <p>配置「如何启动本机 Agent」：id、name、template、command、args、env、默认 id、可选 User-Agent。<br />
 持久化在应用配置目录；<strong>不</strong>要求填写模型 API Key。</p>
 <h2 id="_5">远程<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<p>远程 Vault 时在 <strong>SSH 远端</strong> 启动 Agent。见 <a href="../remote/">remote.md</a>。远程 agent catalog 的扫描/探测/安装命令属 agent 域（<code>registry/remote.rs</code> + <code>commands/remote.rs</code>），复用 <code>agent::models</code> / <code>probe_agent</code> / <code>templates</code>，通过 remote 域的 <code>RemoteRegistry</code> / <code>agent_exec</code> 走 SSH。</p>
+<p>远程 Vault 时在 <strong>SSH 远端</strong> 启动 Agent。见 <a href="../remote/">remote.md</a>。远程 agent catalog 的扫描/探测/安装命令属 agent 域（<code>registry/remote.rs</code> + <code>commands/remote.rs</code>），复用 <code>agent::models</code> / <code>probe_agent</code> / <code>templates</code>；agent 域不直接依赖 <code>integration::remote</code>，而是经反转 trait <code>agent::remote_host::{RemoteAgentHosts, RemoteAgentLaunch}</code>（由 remote 域 <code>RemoteRegistry</code> / <code>RemoteSession</code> 实现，app 启动时注册为 State）走 SSH。命令壳与 bridge RPC 共用 <code>agent::service</code> 门面。</p>
 <h2 id="_6">代码<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <p><code>src-tauri/src/features/agent/</code><br />
 前端：<a href="../../frontend/agent/">../frontend/agent.md</a></p>

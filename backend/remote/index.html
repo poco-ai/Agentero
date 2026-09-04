@@ -3475,11 +3475,11 @@
 </tr>
 <tr>
 <td>Agent</td>
-<td>ACP over SSH：<code>remote_agent_probe</code> / scan / 与 <code>agent_run_once</code> 集成（命令实现属 agent 域 <code>features/agent/commands/remote.rs</code>，复用 remote 域的 SSH session/exec）</td>
+<td>ACP over SSH：<code>remote_agent_probe</code> / scan / 与 <code>agent_run_once</code> 集成（命令实现属 agent 域 <code>features/agent/commands/remote.rs</code>，经反转 trait <code>agent::remote_host::{RemoteAgentHosts, RemoteAgentLaunch}</code> 复用 remote 域的 SSH session/exec）</td>
 </tr>
 <tr>
 <td>入库 / 回收站</td>
-<td>远端写路径与 trash bridge</td>
+<td>远端写路径与 trash bridge；features 命令经反转 trait <code>import::RemoteImportOps</code> / <code>trash::remote_ops::RemoteTrashOps</code> 调用（<code>integration::remote</code> 实现并在 app 启动时注册为 State）</td>
 </tr>
 <tr>
 <td>Connector</td>
@@ -3487,11 +3487,11 @@
 </tr>
 </tbody>
 </table>
-<p>前端伪路径 <code>remote:&lt;sessionId&gt;</code>。客户端：<strong>macOS / Linux</strong>（Windows 客户端暂不支持打开远程 Vault）。</p>
+<p>前端伪路径 <code>remote:&lt;sessionId&gt;</code>（解析在 <code>core/remote.rs</code>，纯字符串工具，features/integration 共用）。客户端：<strong>macOS / Linux</strong>（Windows 客户端暂不支持打开远程 Vault）。</p>
 <h2 id="_2">超时<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>建连与校验约 15s；SFTP 操作约 30s；SSH ServerAlive；不自动重连、不重放写。</p>
 <h2 id="_3">代码<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p><code>src-tauri/src/features/remote/</code><br />
+<p><code>src-tauri/src/integration/remote/</code>（handle 解析：<code>src-tauri/src/core/remote.rs</code>）<br />
 教程：<a href="../../usage/remote-vault/">../usage/remote-vault.md</a></p>
 
 
