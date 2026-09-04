@@ -8700,7 +8700,7 @@ Host (Tauri + Rust)
 <p>前端快捷键（非菜单 emit，见 <code>src/lib/shell/shortcuts.ts</code> / <code>docs/frontend/shell.md</code> §3.1）：<code>⌥⌘R</code> 在 Finder 中显示、<code>⌥⌘T</code> 在终端中打开、<code>⌘←</code> 折叠选中文件夹、<code>⇧⌘←</code> 折叠文件树至默认（仅 <code>papers/</code> 展开）、<code>⌘⌫</code> 删除选中树项、<code>⇧⌘I</code> 魔棒、<code>⌥⌘←/→</code> 切换文档标签。<code>⌘W</code> 亦可由渲染层 <code>shortcuts.ts</code> 直接匹配（与菜单同源逻辑，防抖避免双触发）。</p>
 <h2 id="3x-headless-cli">3.x Headless CLI（对照）<a class="headerlink" href="#3x-headless-cli" title="Permanent link">&para;</a></h2>
 <blockquote>
-<p>完整语义见 <a href="../cli/"><code>cli.md</code></a>。CLI <strong>不</strong>走 Tauri invoke，直接 path 依赖 <code>agentero_lib::services</code>（无 BYOA）。</p>
+<p>完整语义见 <a href="../cli/"><code>cli.md</code></a>。CLI <strong>不</strong>走 Tauri invoke，直接 path 依赖 <code>agentero_core::features</code>（无 BYOA、无 tauri）。</p>
 </blockquote>
 <table>
 <thead>

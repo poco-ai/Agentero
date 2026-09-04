@@ -11,28 +11,24 @@
       
       
       
-        <link rel="prev" href="..">
-      
-      
-        <link rel="next" href="../usage/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
-        <title>架构总览 - Agentero 文档</title>
+        <title>Crate 拆分路线图（agentero-core） - Agentero 文档</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -51,7 +47,7 @@
       
     
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -74,7 +70,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#_1" class="md-skip">
+        <a href="#crate-agentero-core" class="md-skip">
           跳转至
         </a>
       
@@ -90,9 +86,9 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="页眉">
-    <a href=".." title="Agentero 文档" class="md-header__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+    <a href="../.." title="Agentero 文档" class="md-header__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
       
-  <img src="../assets/agentero-app-icon.svg" alt="logo">
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -109,7 +105,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              架构总览
+              Crate 拆分路线图（agentero-core）
             
           </span>
         </div>
@@ -190,7 +186,7 @@
   
   
     <li class="md-tabs__item">
-      <a href=".." class="md-tabs__link">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -207,11 +203,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
         
   
   
@@ -232,7 +226,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../usage/" class="md-tabs__link">
+        <a href="../../usage/" class="md-tabs__link">
           
   
   
@@ -252,7 +246,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../frontend/" class="md-tabs__link">
+        <a href="../../frontend/" class="md-tabs__link">
           
   
   
@@ -272,7 +266,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../backend/" class="md-tabs__link">
+        <a href="../../backend/" class="md-tabs__link">
           
   
   
@@ -292,7 +286,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../development/" class="md-tabs__link">
+        <a href="../" class="md-tabs__link">
           
   
   
@@ -312,7 +306,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../test/" class="md-tabs__link">
+        <a href="../../test/" class="md-tabs__link">
           
   
   
@@ -332,7 +326,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../bug_fix/deepseek-thinking-body/" class="md-tabs__link">
+        <a href="../../bug_fix/deepseek-thinking-body/" class="md-tabs__link">
           
   
   
@@ -372,9 +366,9 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Agentero 文档" class="md-nav__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+    <a href="../.." title="Agentero 文档" class="md-nav__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
       
-  <img src="../assets/agentero-app-icon.svg" alt="logo">
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
 
     </a>
     Agentero 文档
@@ -401,7 +395,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -425,37 +419,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    架构总览
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
         
   
   
@@ -471,280 +438,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="目录">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      目录
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        整体架构
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        工作台布局
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        核心工作流
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="核心工作流">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        论文入库
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        论文库
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_7" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        标签
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#paper-reader" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        精读（paper-reader）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#agent" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Agent 面板
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pdf" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        PDF 阅读
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#markdown" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Markdown 编辑
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_8" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        双链与图谱
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_9" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        数据流
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_10" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        跨领域关注点
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="跨领域关注点">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#_11" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        生命周期
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_12" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        国际化
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_13" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        外部改动自动重载
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_14" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        保存冲突
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_15" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        多窗口
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_16" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        配色主题
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_17" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        日志
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_18" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        命令面板
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_19" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        翻译服务
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -806,7 +499,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/" class="md-nav__link">
+      <a href="../../usage/" class="md-nav__link">
         
   
   
@@ -834,7 +527,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/getting-started/" class="md-nav__link">
+      <a href="../../usage/getting-started/" class="md-nav__link">
         
   
   
@@ -862,7 +555,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/import-papers/" class="md-nav__link">
+      <a href="../../usage/import-papers/" class="md-nav__link">
         
   
   
@@ -890,7 +583,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/read-and-organize/" class="md-nav__link">
+      <a href="../../usage/read-and-organize/" class="md-nav__link">
         
   
   
@@ -918,7 +611,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/agents/" class="md-nav__link">
+      <a href="../../usage/agents/" class="md-nav__link">
         
   
   
@@ -946,7 +639,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/mcp/" class="md-nav__link">
+      <a href="../../usage/mcp/" class="md-nav__link">
         
   
   
@@ -974,7 +667,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/mobile/" class="md-nav__link">
+      <a href="../../usage/mobile/" class="md-nav__link">
         
   
   
@@ -1002,7 +695,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/zotero/" class="md-nav__link">
+      <a href="../../usage/zotero/" class="md-nav__link">
         
   
   
@@ -1030,7 +723,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/remote-vault/" class="md-nav__link">
+      <a href="../../usage/remote-vault/" class="md-nav__link">
         
   
   
@@ -1115,7 +808,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/" class="md-nav__link">
+      <a href="../../frontend/" class="md-nav__link">
         
   
   
@@ -1143,7 +836,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/shell/" class="md-nav__link">
+      <a href="../../frontend/shell/" class="md-nav__link">
         
   
   
@@ -1171,7 +864,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/workspace/" class="md-nav__link">
+      <a href="../../frontend/workspace/" class="md-nav__link">
         
   
   
@@ -1199,7 +892,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/vault-tree/" class="md-nav__link">
+      <a href="../../frontend/vault-tree/" class="md-nav__link">
         
   
   
@@ -1227,7 +920,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/library/" class="md-nav__link">
+      <a href="../../frontend/library/" class="md-nav__link">
         
   
   
@@ -1255,7 +948,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/paper-import/" class="md-nav__link">
+      <a href="../../frontend/paper-import/" class="md-nav__link">
         
   
   
@@ -1283,7 +976,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/markdown/" class="md-nav__link">
+      <a href="../../frontend/markdown/" class="md-nav__link">
         
   
   
@@ -1311,7 +1004,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/pdf/" class="md-nav__link">
+      <a href="../../frontend/pdf/" class="md-nav__link">
         
   
   
@@ -1339,7 +1032,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/pdf-layout-analysis/" class="md-nav__link">
+      <a href="../../frontend/pdf-layout-analysis/" class="md-nav__link">
         
   
   
@@ -1367,7 +1060,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/agent/" class="md-nav__link">
+      <a href="../../frontend/agent/" class="md-nav__link">
         
   
   
@@ -1395,7 +1088,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/mobile/" class="md-nav__link">
+      <a href="../../frontend/mobile/" class="md-nav__link">
         
   
   
@@ -1423,7 +1116,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/wiki/" class="md-nav__link">
+      <a href="../../frontend/wiki/" class="md-nav__link">
         
   
   
@@ -1451,7 +1144,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/command-palette/" class="md-nav__link">
+      <a href="../../frontend/command-palette/" class="md-nav__link">
         
   
   
@@ -1479,7 +1172,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/translate/" class="md-nav__link">
+      <a href="../../frontend/translate/" class="md-nav__link">
         
   
   
@@ -1507,7 +1200,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/settings/" class="md-nav__link">
+      <a href="../../frontend/settings/" class="md-nav__link">
         
   
   
@@ -1535,7 +1228,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/onboarding/" class="md-nav__link">
+      <a href="../../frontend/onboarding/" class="md-nav__link">
         
   
   
@@ -1563,7 +1256,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/components/" class="md-nav__link">
+      <a href="../../frontend/components/" class="md-nav__link">
         
   
   
@@ -1648,7 +1341,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/" class="md-nav__link">
+      <a href="../../backend/" class="md-nav__link">
         
   
   
@@ -1676,7 +1369,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/data-model/" class="md-nav__link">
+      <a href="../../backend/data-model/" class="md-nav__link">
         
   
   
@@ -1704,7 +1397,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/catalog/" class="md-nav__link">
+      <a href="../../backend/catalog/" class="md-nav__link">
         
   
   
@@ -1732,7 +1425,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/vault/" class="md-nav__link">
+      <a href="../../backend/vault/" class="md-nav__link">
         
   
   
@@ -1760,7 +1453,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/paper-import/" class="md-nav__link">
+      <a href="../../backend/paper-import/" class="md-nav__link">
         
   
   
@@ -1788,7 +1481,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/identifier-lookup/" class="md-nav__link">
+      <a href="../../backend/identifier-lookup/" class="md-nav__link">
         
   
   
@@ -1816,7 +1509,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/academic-search-apis/" class="md-nav__link">
+      <a href="../../backend/academic-search-apis/" class="md-nav__link">
         
   
   
@@ -1844,7 +1537,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/citation-parsing/" class="md-nav__link">
+      <a href="../../backend/citation-parsing/" class="md-nav__link">
         
   
   
@@ -1872,7 +1565,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/skill-import/" class="md-nav__link">
+      <a href="../../backend/skill-import/" class="md-nav__link">
         
   
   
@@ -1900,7 +1593,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/connector/" class="md-nav__link">
+      <a href="../../backend/connector/" class="md-nav__link">
         
   
   
@@ -1928,7 +1621,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/mcp/" class="md-nav__link">
+      <a href="../../backend/mcp/" class="md-nav__link">
         
   
   
@@ -1956,7 +1649,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/wiki/" class="md-nav__link">
+      <a href="../../backend/wiki/" class="md-nav__link">
         
   
   
@@ -1984,7 +1677,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/agent/" class="md-nav__link">
+      <a href="../../backend/agent/" class="md-nav__link">
         
   
   
@@ -2012,7 +1705,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/remote/" class="md-nav__link">
+      <a href="../../backend/remote/" class="md-nav__link">
         
   
   
@@ -2040,7 +1733,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/search/" class="md-nav__link">
+      <a href="../../backend/search/" class="md-nav__link">
         
   
   
@@ -2068,7 +1761,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/settings/" class="md-nav__link">
+      <a href="../../backend/settings/" class="md-nav__link">
         
   
   
@@ -2096,7 +1789,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/usage/" class="md-nav__link">
+      <a href="../../backend/usage/" class="md-nav__link">
         
   
   
@@ -2124,7 +1817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/translate/" class="md-nav__link">
+      <a href="../../backend/translate/" class="md-nav__link">
         
   
   
@@ -2152,7 +1845,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/logging/" class="md-nav__link">
+      <a href="../../backend/logging/" class="md-nav__link">
         
   
   
@@ -2180,7 +1873,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/doctor/" class="md-nav__link">
+      <a href="../../backend/doctor/" class="md-nav__link">
         
   
   
@@ -2208,7 +1901,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/telemetry/" class="md-nav__link">
+      <a href="../../backend/telemetry/" class="md-nav__link">
         
   
   
@@ -2236,7 +1929,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/sync/" class="md-nav__link">
+      <a href="../../backend/sync/" class="md-nav__link">
         
   
   
@@ -2264,7 +1957,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/cli/" class="md-nav__link">
+      <a href="../../backend/cli/" class="md-nav__link">
         
   
   
@@ -2292,7 +1985,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backend/api/" class="md-nav__link">
+      <a href="../../backend/api/" class="md-nav__link">
         
   
   
@@ -2377,7 +2070,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -2405,7 +2098,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/zotero-word-integration/" class="md-nav__link">
+      <a href="../zotero-word-integration/" class="md-nav__link">
         
   
   
@@ -2433,7 +2126,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/mark-cli-roadmap/" class="md-nav__link">
+      <a href="../mark-cli-roadmap/" class="md-nav__link">
         
   
   
@@ -2461,7 +2154,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/mark-locate-lazy/" class="md-nav__link">
+      <a href="../mark-locate-lazy/" class="md-nav__link">
         
   
   
@@ -2489,7 +2182,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/mark-locate-eager/" class="md-nav__link">
+      <a href="../mark-locate-eager/" class="md-nav__link">
         
   
   
@@ -2517,7 +2210,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/plaza/" class="md-nav__link">
+      <a href="../plaza/" class="md-nav__link">
         
   
   
@@ -2545,7 +2238,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/plaza-feeds/" class="md-nav__link">
+      <a href="../plaza-feeds/" class="md-nav__link">
         
   
   
@@ -2573,7 +2266,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/usage-analytics/" class="md-nav__link">
+      <a href="../usage-analytics/" class="md-nav__link">
         
   
   
@@ -2601,7 +2294,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/lifecycle-events/" class="md-nav__link">
+      <a href="../lifecycle-events/" class="md-nav__link">
         
   
   
@@ -2629,7 +2322,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/cloud-sync-s3/" class="md-nav__link">
+      <a href="../cloud-sync-s3/" class="md-nav__link">
         
   
   
@@ -2714,7 +2407,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test/" class="md-nav__link">
+      <a href="../../test/" class="md-nav__link">
         
   
   
@@ -2742,7 +2435,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test/release/" class="md-nav__link">
+      <a href="../../test/release/" class="md-nav__link">
         
   
   
@@ -2770,7 +2463,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test/ios-testflight/" class="md-nav__link">
+      <a href="../../test/ios-testflight/" class="md-nav__link">
         
   
   
@@ -2798,7 +2491,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test/release-checklist/" class="md-nav__link">
+      <a href="../../test/release-checklist/" class="md-nav__link">
         
   
   
@@ -2883,7 +2576,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/deepseek-thinking-body/" class="md-nav__link">
+      <a href="../../bug_fix/deepseek-thinking-body/" class="md-nav__link">
         
   
   
@@ -2911,7 +2604,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/acp-session-resume-id/" class="md-nav__link">
+      <a href="../../bug_fix/acp-session-resume-id/" class="md-nav__link">
         
   
   
@@ -2939,7 +2632,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/ime-composition-enter-submit/" class="md-nav__link">
+      <a href="../../bug_fix/ime-composition-enter-submit/" class="md-nav__link">
         
   
   
@@ -2967,7 +2660,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/wiki-embed-unrelated-refresh/" class="md-nav__link">
+      <a href="../../bug_fix/wiki-embed-unrelated-refresh/" class="md-nav__link">
         
   
   
@@ -2995,7 +2688,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+      <a href="../../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
         
   
   
@@ -3023,7 +2716,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/dockview-sash-pdf-resize-jank/" class="md-nav__link">
+      <a href="../../bug_fix/dockview-sash-pdf-resize-jank/" class="md-nav__link">
         
   
   
@@ -3051,7 +2744,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/pdf-switch-visual-crop-layout-onnx/" class="md-nav__link">
+      <a href="../../bug_fix/pdf-switch-visual-crop-layout-onnx/" class="md-nav__link">
         
   
   
@@ -3079,7 +2772,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/remote-acp-path-ssh/" class="md-nav__link">
+      <a href="../../bug_fix/remote-acp-path-ssh/" class="md-nav__link">
         
   
   
@@ -3107,7 +2800,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/remote-vault-tree-lazy/" class="md-nav__link">
+      <a href="../../bug_fix/remote-vault-tree-lazy/" class="md-nav__link">
         
   
   
@@ -3135,7 +2828,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/macos-signing/" class="md-nav__link">
+      <a href="../../bug_fix/macos-signing/" class="md-nav__link">
         
   
   
@@ -3163,7 +2856,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/gemini-login-browser-loop/" class="md-nav__link">
+      <a href="../../bug_fix/gemini-login-browser-loop/" class="md-nav__link">
         
   
   
@@ -3191,7 +2884,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/import-abstract-mt-timeout/" class="md-nav__link">
+      <a href="../../bug_fix/import-abstract-mt-timeout/" class="md-nav__link">
         
   
   
@@ -3219,7 +2912,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/cli-import-library-refresh/" class="md-nav__link">
+      <a href="../../bug_fix/cli-import-library-refresh/" class="md-nav__link">
         
   
   
@@ -3247,7 +2940,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/codex-history-runtime-session-id/" class="md-nav__link">
+      <a href="../../bug_fix/codex-history-runtime-session-id/" class="md-nav__link">
         
   
   
@@ -3275,7 +2968,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/local-pdf-parse-missing-pdfium/" class="md-nav__link">
+      <a href="../../bug_fix/local-pdf-parse-missing-pdfium/" class="md-nav__link">
         
   
   
@@ -3303,7 +2996,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/paper-folder-marker-conflict/" class="md-nav__link">
+      <a href="../../bug_fix/paper-folder-marker-conflict/" class="md-nav__link">
         
   
   
@@ -3331,7 +3024,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/paper-import-timeout/" class="md-nav__link">
+      <a href="../../bug_fix/paper-import-timeout/" class="md-nav__link">
         
   
   
@@ -3359,7 +3052,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/remote-create-folder-exists/" class="md-nav__link">
+      <a href="../../bug_fix/remote-create-folder-exists/" class="md-nav__link">
         
   
   
@@ -3387,7 +3080,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/remote-delete-list-nosuchfile/" class="md-nav__link">
+      <a href="../../bug_fix/remote-delete-list-nosuchfile/" class="md-nav__link">
         
   
   
@@ -3415,7 +3108,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/todo-checkbox-scale-align/" class="md-nav__link">
+      <a href="../../bug_fix/todo-checkbox-scale-align/" class="md-nav__link">
         
   
   
@@ -3443,7 +3136,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/agent-external-source-blank-window/" class="md-nav__link">
+      <a href="../../bug_fix/agent-external-source-blank-window/" class="md-nav__link">
         
   
   
@@ -3471,7 +3164,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/coolpapers-entity-utf8-panic/" class="md-nav__link">
+      <a href="../../bug_fix/coolpapers-entity-utf8-panic/" class="md-nav__link">
         
   
   
@@ -3499,7 +3192,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/layout-analyze-job-slot-leak/" class="md-nav__link">
+      <a href="../../bug_fix/layout-analyze-job-slot-leak/" class="md-nav__link">
         
   
   
@@ -3527,7 +3220,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/publication-venue-api/" class="md-nav__link">
+      <a href="../../bug_fix/publication-venue-api/" class="md-nav__link">
         
   
   
@@ -3555,7 +3248,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bug_fix/skill-import-description-length/" class="md-nav__link">
+      <a href="../../bug_fix/skill-import-description-length/" class="md-nav__link">
         
   
   
@@ -3610,10 +3303,60 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        目标
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-1tauri" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1（已完成）：tauri 无关基座
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-2cli-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2（已完成）：CLI 消费的数据域迁入 core
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2（已完成）：CLI 消费的数据域迁入 core">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        事件抽象（Phase 2 引入，窄面）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        整体架构
+        留守域及耦合原因
       
     </span>
   </a>
@@ -3621,10 +3364,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#phase-3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        工作台布局
+        下一步（Phase 3 建议）
       
     </span>
   </a>
@@ -3632,234 +3375,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#phase-2_1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        核心工作流
+        验收快照（Phase 2 完成时）
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="核心工作流">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        论文入库
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        论文库
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_7" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        标签
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#paper-reader" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        精读（paper-reader）
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#agent" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Agent 面板
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pdf" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        PDF 阅读
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#markdown" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Markdown 编辑
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_8" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        双链与图谱
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_9" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        数据流
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_10" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        跨领域关注点
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="跨领域关注点">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#_11" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        生命周期
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_12" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        国际化
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_13" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        外部改动自动重载
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_14" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        保存冲突
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_15" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        多窗口
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_16" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        配色主题
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_17" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        日志
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_18" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        命令面板
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#_19" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        翻译服务
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3883,175 +3405,181 @@
   
 
 
-<h1 id="_1">架构总览<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
-<p>Agentero 基于 Tauri 2 + React 19，本地优先，Vault 文件与 Catalog SQLite 为事实来源。</p>
-<h2 id="_2">整体架构<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────┐
-│  React 19 Webview (src/)                        │
-│  zustand vanilla stores → AI Elements UI        │
-├─────────────────────────────────────────────────┤
-│  Tauri IPC (invoke / events)                    │
-├─────────────────────────────────────────────────┤
-│  Rust Host (src-tauri/)                         │
-│  feature-first: vault/paper/pdf/markdown/system │
-├─────────────────────────────────────────────────┤
-│  Vault + Catalog SQLite + XDG 设置 / 使用记录   │
-└─────────────────────────────────────────────────┘
-</code></pre></div>
-
+<h1 id="crate-agentero-core">Crate 拆分路线图（agentero-core）<a class="headerlink" href="#crate-agentero-core" title="Permanent link">&para;</a></h1>
+<p>状态：<strong>Phase 1 / Phase 2 已落地</strong>。本文记录已完成的模块边界、留守域及耦合原因、事件抽象方案与后续步骤。</p>
+<h2 id="_1">目标<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>前端</strong>：<a href="../frontend/"><code>docs/frontend/index.md</code></a> — React 19、TypeScript、Tailwind CSS 4、shadcn/ui、AI Elements。按域 zustand vanilla store（<code>src/lib/&lt;域&gt;/store.ts</code> + <code>actions.ts</code>）；React 经 <code>hooks/use-app-stores.ts</code> selector 订阅。</li>
-<li><strong>Host</strong>：<a href="../backend/"><code>docs/backend/index.md</code></a> — Rust、Tauri commands、文件系统、Wiki 索引、ACP Client。<code>app/</code> 装配、<code>core/</code> 基础、<code>features/&lt;域&gt;/</code>（<code>mod</code> + <code>commands</code> + 按需 <code>models</code>）。</li>
-<li><strong>CLI</strong>：<a href="../backend/cli/"><code>docs/backend/cli.md</code></a> — <code>agentero</code> headless Vault/Catalog，只依赖 tauri 无关的 <code>agentero-core</code> crate。</li>
+<li><code>agentero-core</code>（<code>crates/agentero-core/</code>）：tauri 无关的基座 + 数据域服务，desktop Host 与 headless CLI 共用一份实现。</li>
+<li><code>agentero</code>（<code>src-tauri/</code>，lib 名 <code>agentero_lib</code>）：Tauri 壳 —— <code>#[tauri::command]</code>、JobCenter、watcher、agent、integration、窗口装配。</li>
+<li><code>agentero-cli</code>（<code>cli/</code>）：<strong>只依赖 <code>agentero-core</code></strong>，依赖树中不再出现 <code>agentero</code> / <code>tauri</code> / <code>wry</code> / <code>tao</code>。</li>
 </ul>
-<h2 id="_3">工作台布局<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="phase-1tauri">Phase 1（已完成）：tauri 无关基座<a class="headerlink" href="#phase-1tauri" title="Permanent link">&para;</a></h2>
+<p><code>agentero_core</code> 顶层 13 个模块：<code>background_tasks</code>、<code>blocking</code>、<code>error</code>、<code>frontmatter</code>、<code>fs</code>、<code>http</code>、<code>install_dirs</code>、<code>log_util</code>、<code>paths</code>、<code>process</code>、<code>remote</code>、<code>sqlite</code>、<code>time</code>、<code>usage</code>（存储层）。<code>src-tauri/src/core/mod.rs</code> 以 <code>pub use agentero_core::{…}</code> 桥接，全仓 <code>crate::core::X</code> 路径零改动。</p>
+<h2 id="phase-2cli-core">Phase 2（已完成）：CLI 消费的数据域迁入 core<a class="headerlink" href="#phase-2cli-core" title="Permanent link">&para;</a></h2>
+<p><code>agentero_core::features::*</code> 镜像 Host 的语义树（<code>crate::features::X</code> 旧路径在 Host 侧全部经桥接可用；迁入代码内部路径零改写）：</p>
 <table>
 <thead>
 <tr>
-<th>区域</th>
+<th>core 模块</th>
 <th>内容</th>
-<th>详情</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>左侧栏</td>
-<td>文件树 + Paper Info</td>
-<td>常驻 collapsible，<code>preserve-pixel-size</code></td>
+<td><code>features::paper::catalog</code>（别名 <code>features::catalog</code>）</td>
+<td>catalog.sqlite schema、papers 存取、sidecar、<code>move_paper_under</code></td>
 </tr>
 <tr>
-<td>中间</td>
-<td>Dockview 工作区</td>
-<td>Library / PDF / HTML / 图片 / Markdown / Trash</td>
+<td><code>features::paper::capabilities</code></td>
+<td><code>probe_paper_caps</code> / <code>CapsCache</code> / 本地 pdf·tex·PAPER.md 探测</td>
 </tr>
 <tr>
-<td>右侧栏</td>
-<td>Agent / 批注 / References（引用卡片 + 近邻图）/ Figures</td>
-<td>可选，同样 collapsible</td>
+<td><code>features::paper::import</code>（别名 <code>features::import</code>）</td>
+<td>魔棒入库主管线：<code>import_by_identifier*</code>、<code>download_paper_assets*</code>、<code>import_local_pdfs</code>、<code>paper_import::paper_commit</code>、assets 下载、batch/map/parse/resolver、skill_import、title_search、api_mapper</td>
+</tr>
+<tr>
+<td><code>features::paper::import::sources::zotero</code>（别名 <code>features::zotero</code>）</td>
+<td>codec（NOTES ↔ Zotero HTML）、io（Translator <code>/export</code> <code>/import</code>）</td>
+</tr>
+<tr>
+<td><code>features::paper::scholar_api</code></td>
+<td>arXiv / Crossref / OpenAlex / S2 / Unpaywall / EasyScholar / Translator 客户端与评分</td>
+</tr>
+<tr>
+<td><code>features::paper::analyze::parse</code>（别名 <code>features::pdf_parse</code>、<code>features::import::pdf_parse</code>）</td>
+<td>liteparse worker、<code>parse_paper_body</code>、<code>run_pdf_locate</code>、probe/render、engine 框架（trait + 注册表 + 本地引擎）</td>
+</tr>
+<tr>
+<td><code>features::paper::analyze::refs</code>（别名 <code>features::refs</code>)</td>
+<td>引用解析（bbl/bib/latex/online/citing）与 <code>agentero-cite.json</code> sidecar</td>
+</tr>
+<tr>
+<td><code>features::paper::discovery::feeds</code>（别名 <code>features::feeds</code>）</td>
+<td>广场订阅（RSS/Atom/JSON Feed + 正文抽取）</td>
+</tr>
+<tr>
+<td><code>features::vault</code></td>
+<td>Vault 创建（模板/技能内嵌）、路径服务、tree</td>
+</tr>
+<tr>
+<td><code>features::vault::{doctor,rename,trash}</code></td>
+<td>诊断聚合、双链重命名事务、回收站</td>
+</tr>
+<tr>
+<td><code>features::markdown::wiki</code>（别名 <code>features::wiki</code>）</td>
+<td>双链索引、解析、cache、rename、doctor、embed/extract/frontmatter</td>
+</tr>
+<tr>
+<td><code>features::pdf::locate</code>（别名 <code>features::pdf_locate</code>）</td>
+<td>划词定位 + marks 标注存储（annotations）</td>
+</tr>
+<tr>
+<td><code>features::pdf::marks</code></td>
+<td>阅读标注 activity / doctor</td>
+</tr>
+<tr>
+<td><code>features::translate</code></td>
+<td>翻译 provider（free MT + LLM）</td>
+</tr>
+<tr>
+<td><code>features::lifecycle</code></td>
+<td>paper 事实事件（<code>paper:imported</code> / <code>paper:assets-ready</code> / <code>paper:renamed</code>）的 payload 与 emit 入口</td>
+</tr>
+<tr>
+<td><code>features::open_request</code></td>
+<td>deep-link/CLI open-request 的解析、校验与请求文件读写</td>
+</tr>
+<tr>
+<td><code>app_handle</code></td>
+<td><code>AppHandle</code> + <code>HostHooks</code>：宿主回调抽象（见下）</td>
 </tr>
 </tbody>
 </table>
+<p>Host 侧桥接策略：原目录留 <code>mod.rs</code> 薄壳（<code>pub use agentero_core::…::*;</code> + 本地 desktop 子模块），<code>commands.rs</code> 等 tauri 壳留守原位；显式定义项遮蔽 glob（如 desktop 版 <code>refs::spawn_parse_after_import</code>）。</p>
+<h3 id="phase-2">事件抽象（Phase 2 引入，窄面）<a class="headerlink" href="#phase-2" title="Permanent link">&para;</a></h3>
+<p><code>agentero_core::app_handle::HostHooks</code>：</p>
 <ul>
-<li><strong>文件树</strong>：顶部虚拟 Library + Recycle Bin、魔棒按钮。论文默认是叶子；<code>{paper}/attachments/</code> 非空时行上出现 chevron，子项直接挂在论文下。右键新建/删除/在 Finder 中显示/终端打开。多选（⌘/Shift）+ 拖拽移动。详见 <a href="../frontend/vault-tree/">vault-tree.md</a>。</li>
-<li><strong>Dockview</strong>：每个打开文档一个 panel，支持 tab、上下左右分屏、多格网格。布局 <code>toJSON()</code> 持久化，path/mode 在 panel params。详见 <a href="../frontend/workspace/">workspace.md</a>。</li>
-<li><strong>论文 NOTES</strong>：默认左右分屏（PDF/HTML 左、<code>NOTES.md</code> 右）；多篇 paper 叠到同一两栏；body/NOTES tab 同步切换。</li>
-<li><strong>错误 Toast</strong>：右上角 Sonner，经 <code>notifyError</code>（<code>src/lib/core/notify.ts</code>）；表单就地校验不走 Toast。</li>
+<li><code>emit(event, payload_json)</code> —— lifecycle paper 事件、<code>background-task:progress</code>（批量导入 / 资产下载节流进度）。</li>
+<li><code>spawn_parse_body_after_assets</code> / <code>spawn_parse_after_import</code>（返回 <code>true</code> 表示宿主接管调度）/ <code>spawn_recognize_metadata</code> —— JobCenter 跟随任务。</li>
 </ul>
-<h2 id="_4">核心工作流<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
-<h3 id="_5">论文入库<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
-<p>魔棒入库 → 下载 PDF 到 <code>{paper}/{id}.pdf</code>；arXiv 另解压 LaTeX 到 <code>source/</code>。成功后刷新树并 <code>openPaper</code>，展开并滚到新论文。详见 <a href="../frontend/paper-import/">paper-import.md</a> / <a href="../backend/paper-import/">backend/paper-import.md</a>。</p>
-<ul>
-<li><strong>可读正文</strong>：TeX 与 <code>PAPER.md</code> 有其一即可（优先 TeX）。无 TeX 时下载后 liteparse 生成 <code>PAPER.md</code>。</li>
-<li><strong>补下载</strong>：paper 行缺 PDF 或既无 TeX 也无 <code>PAPER.md</code> 时显示 Download（hover 说明原因）；Library 行可批量补下。</li>
-<li><strong>Rescan</strong>：<code>paper_rescan</code> 从 <code>papers/</code> 目录（以 <code>NOTES.md</code> 为标记）补齐盘上有、catalog 无的条目。</li>
-<li><strong>Zotero Connector</strong>：Host 在 <code>127.0.0.1:23119</code> 收浏览器扩展 <code>saveItems</code> + <code>saveAttachment</code>。详见 <a href="../backend/connector/">backend/connector.md</a>。</li>
-<li><strong>MCP Server</strong>：设置开关打开后 Host 在 <code>127.0.0.1:8765/mcp</code> 提供 Streamable HTTP MCP（论文 metadata / 入库 / NOTES）。详见 <a href="../backend/mcp/">backend/mcp.md</a>。</li>
-</ul>
-<h3 id="_6">论文库<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
-<p><code>paper_list</code> 读 catalog 一次进内存。表头排序/右键选列/拖拽排序（持久化到 <code>settings.json</code> 的 <code>libraryColumns</code>，标题列不可隐藏）。tags 列展示，搜索框可匹配标签子串；标题列左侧显示阅读进度热力条。文件夹作用域仅对 <code>papers/</code> 下目录按 <code>paper.path</code> 前缀过滤（不扫盘）；<code>notes/</code> / <code>.agents/</code> 等非 papers 目录显示全库。可从访达把 PDF 拖到 Library 表入库（仅 PDF overlay）。详见 <a href="../frontend/library/">frontend/library.md</a> / <a href="../backend/catalog/">backend/catalog.md</a>。</p>
-<h3 id="_7">标签<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
-<p>Apple 风格 8 色 → Host <code>paper_set_tags</code>（catalog <code>tags_json</code> 权威）。Library 染色 chip 与筛选。CLI <code>paper tag list|set|add|rm</code>。</p>
-<h3 id="paper-reader">精读（paper-reader）<a class="headerlink" href="#paper-reader" title="Permanent link">&para;</a></h3>
-<p>设置 → Agent <code>autoPaperReader</code>（默认关）。开启后魔棒入库/单篇 Download 资源就绪且未读时自动运行。资源齐全且 <code>is_read === false</code> 时文件树 Zap 可手动。写入 <code>NOTES.md</code>，成功后 <code>is_read = true</code>。进度在左下角后台任务条。Skill 运行时语法：Claude <code>/id</code>，其它仅注入 <code>SKILL.md</code>。详见 <a href="../frontend/agent/">frontend/agent.md</a>。</p>
-<h3 id="agent">Agent 面板<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h3>
-<p>BYOA，连接本机 ACP Agent。详见 <a href="../frontend/agent/">frontend/agent.md</a> / <a href="../backend/agent/">backend/agent.md</a>。</p>
-<ul>
-<li><strong>空态</strong>：建议 chips → <code>summary</code> / <code>qa</code> / <code>related_work</code>。</li>
-<li><strong>上下文</strong>：当前论文默认加入（实心 chip，可 X 移除）。<code>@</code> 提及与文件树拖入为可移除 context chip。</li>
-<li><strong>选区上下文</strong>：Markdown/PDF 选中文字 → 瞬时选区 chip（虚线）；<code>⌘L</code> 或「加入对话」固定为 chip。发送时以引用块消费；PDF 带几何的选区在发送后插入 <code>kind: ask</code> 对话卡片页边针（非视觉批注）。</li>
-<li><strong>运行中继续输入</strong>：后续消息进 Queue waitlist，当前回复结束后自动发送。</li>
-<li><strong>权限</strong>：全局模式 <code>restricted</code>（默认）/ <code>ask</code> / <code>auto</code>。<code>ask</code> 时弹权限对话框。</li>
-<li><strong>结构化提问</strong>：各 harness 的 ask-user / elicitation / Grok ext 归一为底部问卷（与 free-text composer 互斥）。详见 <a href="../frontend/agent/">frontend/agent.md</a> / <a href="../backend/agent/">backend/agent.md</a>。</li>
-<li><strong>个人偏好</strong>：<code>agentPersonalPrompt</code> 非空时经 Host <code>build_prompt</code> 注入 envelope。</li>
-</ul>
-<h3 id="pdf">PDF 阅读<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h3>
-<p>Vault 任意路径 <code>.pdf</code> → <code>blob:</code> 预览。页码导航/适应宽·整页/大纲/⌘F 查找。真实 scale 渲染 + 平滑划词覆盖层。划词菜单：高亮/批注/提问/翻译。支持视觉区域批注（框选插图/表/算法/公式，可写备注或向 Agent 提问）、版面分析（Figures 侧栏列出检测到的图/表/算法/公式）、有编号公式 hover 符号解析卡。详见 <a href="../frontend/pdf/">frontend/pdf.md</a> / <a href="../frontend/pdf-layout-analysis/">frontend/pdf-layout-analysis.md</a>。</p>
-<h3 id="markdown">Markdown 编辑<a class="headerlink" href="#markdown" title="Permanent link">&para;</a></h3>
-<p>Plate + <code>@platejs/markdown</code>。普通文本粘贴默认按 Markdown 解析。右键「整理 Markdown 格式」执行 Prettier round-trip。<code>\$a\$</code> 保持普通文本、<code>$a$</code> 保持公式。Obsidian Callout（<code>&gt; [!type]</code>）结构化渲染并原样写回。内嵌图片粘贴到 <code>{mdDir}/assets/</code>，删节点且无引用时 GC。详见 <a href="../frontend/markdown/">frontend/markdown.md</a>。</p>
-<h3 id="_8">双链与图谱<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
-<p>嵌套标题双链：<code>[[文件#外层标题#内层标题]]</code>。Wiki 索引 <code>.md</code> 变更防抖重建（~900ms）。反链见编辑器状态栏；文献引用解析入库后自动生成 <code>{paper}/source/agentero-cite.json</code>，与 Markdown 双链索引分层、不共用边语义。详见 <a href="../frontend/wiki/">frontend/wiki.md</a> / <a href="../backend/wiki/">backend/wiki.md</a> / <a href="../backend/citation-parsing/">backend/citation-parsing.md</a>。</p>
-<h2 id="_9">数据流<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<p>desktop 在 <code>src-tauri/src/core/app_handle.rs</code> 用 <code>TauriHostHooks(tauri::AppHandle)</code> 实现，<code>wrap(&amp;app)</code> 生成 core <code>AppHandle</code>；命令壳/JobCenter/Connector/MCP/Remote 在调用迁移后的服务时包一层。headless（CLI）传 <code>None</code> → 全部 no-op，与迁移前 <code>cfg(not(desktop))</code> 行为一致（refs 的 tokio 直跑 fallback 保留）。</p>
+<p>parse 引擎同理：远端引擎（MinerU/Paddle/OpenAI-compatible，依赖 <code>layout::hosted</code> 与设置库）留守 <code>features/paper/analyze/remote_engines/</code>，经 core 的 <code>register_engine</code> / <code>set_provider_resolver</code> 注册表接入 <code>engine_for</code> 派发；注册发生在 <code>refresh_parser_config</code>（启动 + settings 变更时）。</p>
+<h2 id="_2">留守域及耦合原因<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>层</th>
-<th>内容</th>
-<th>位置</th>
+<th>留守模块</th>
+<th>耦合点</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>文件</td>
-<td>NOTES、PDF、TeX、Markdown、assets、attachments</td>
-<td>Vault 内</td>
+<td><code>features/jobs</code>（JobCenter）</td>
+<td><code>tauri::AppHandle</code> state、<code>tauri::async_runtime::spawn</code>、job 事件 emit</td>
 </tr>
 <tr>
-<td>Catalog</td>
-<td>论文集合 + metadata</td>
-<td><code>.agentero/catalog.sqlite</code></td>
+<td><code>features/agent</code>、<code>cli_install</code></td>
+<td>ACP 子进程 + tauri shell/state/事件，全 desktop</td>
 </tr>
 <tr>
-<td>阅读标注</td>
-<td>高亮、划词问答、翻译、视觉批注</td>
-<td><code>{paper}/marks/</code></td>
+<td><code>features/vault/watcher</code>、<code>markdown/search</code>、<code>pdf/export</code>、<code>system/settings</code>、<code>paper::move</code></td>
+<td>notify/AppHandle/tauri command/settings store</td>
 </tr>
 <tr>
-<td>版面分析</td>
-<td>原始 layout regions / 侧栏索引</td>
-<td><code>{paper}/source/layout.json</code> / <code>layout-index.json</code></td>
+<td><code>features/paper/import</code>：<code>commands</code>、<code>job_runners</code>、<code>remote_ops</code>、<code>chain_resolve</code>、<code>pdf_recognize</code>、<code>recognize_apply</code>、<code>site_proxy</code></td>
+<td>tauri command/State、JobCenter、<code>tauri::http</code>（自定义协议代理）、AppHandle 事件</td>
 </tr>
 <tr>
-<td>引用解析</td>
-<td>参考文献元数据</td>
-<td><code>{paper}/source/agentero-cite.json</code></td>
+<td><code>features/paper/import/sources/zotero</code>：<code>db</code>、<code>commands</code>；<code>zotero_sync</code></td>
+<td><code>tauri::AppHandle</code>（jobs spawn）、Channel IPC</td>
 </tr>
 <tr>
-<td>设置</td>
-<td>UI/Agent 偏好</td>
-<td>XDG <code>~/.config/agentero/settings.json</code></td>
+<td><code>features/paper/analyze/layout</code>（hosted/model_assets）、<code>remote_engines</code></td>
+<td>settings store 凭据、模型资产下载任务、tauri command</td>
 </tr>
 <tr>
-<td>使用记录</td>
-<td>打开 / 下载 / Agent 等</td>
-<td>XDG <code>~/.local/share/agentero/usage.sqlite</code></td>
+<td><code>features/paper/discovery</code>：<code>coolpapers</code>、<code>recommend</code>、<code>arxiv_proxy</code>、<code>modelscope_proxy</code></td>
+<td>tauri command / <code>tauri::http</code> 站点代理</td>
 </tr>
 <tr>
-<td>索引</td>
-<td>双链图（编辑器/反链）</td>
-<td>内存，可重建</td>
+<td><code>markdown/wiki</code>：<code>commands</code>、<code>heading_rename</code></td>
+<td>tauri State（<code>WikiIndexState</code> manage）、watcher 协同</td>
 </tr>
 <tr>
-<td>引用图</td>
-<td>文献 cites（sidecar + localMatch）</td>
-<td>按需扫描 sidecar，可重建</td>
+<td><code>features/lifecycle</code> desktop 部分</td>
+<td><code>job:completed/failed</code> 依赖 JobSnapshot</td>
+</tr>
+<tr>
+<td><code>core/telemetry</code>、<code>core/usage::commands</code>、<code>app/open_request</code> desktop 部分</td>
+<td>posthog-rs、tauri command、fs scope/窗口聚焦</td>
+</tr>
+<tr>
+<td><code>integration/*</code>（connector、mcp、remote、bridge、sync）</td>
+<td>axum/rmcp/openssh/tauri runtime，全 desktop</td>
+</tr>
+<tr>
+<td><code>app/*</code>（handlers、window、menu、finder_service…）</td>
+<td>Tauri 装配</td>
 </tr>
 </tbody>
 </table>
-<h2 id="_10">跨领域关注点<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h2>
-<h3 id="_11">生命周期<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h3>
-<p>三层：</p>
+<h2 id="phase-3">下一步（Phase 3 建议）<a class="headerlink" href="#phase-3" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>事件抽象扩展</strong>：把 <code>HostHooks</code> 泛化为完整宿主面（vault:open-request、connector、job 事件、window 聚焦），消灭 <code>wrap()</code> 手工转换点；命令壳统一在入口构造一次 core <code>AppHandle</code>。</li>
+<li><strong>留守域瘦身</strong>：<code>jobs</code>（JobCenter 调度核心可下沉，tauri spawn/emit 走 hooks）、<code>site_proxy</code>（<code>tauri::http</code> → 纯 axum/hyper 内核）、<code>heading_rename</code>（watcher 协同改回调）。</li>
+<li><strong>core 内路径扁平化</strong>（可选）：<code>agentero_core::features::X</code> → <code>agentero_core::X</code>，与 Phase 1 顶层模块风格统一；Host 桥接不受影响。</li>
+<li><strong>reqwest 双版本对齐</strong>：锁文件中同时存在 <code>reqwest 0.12.28</code>（agentero-core / agentero 直接使用）与 <code>reqwest 0.13.4</code>（传递依赖引入，如 rmcp 等）。两份 TLS/连接池栈增大包体与审计面；待依赖链（rmcp / tauri 生态）稳定后统一到一个大版本，core 与 Host 必须同步升级以避免 feature 漂移。</li>
+<li><strong>src-tauri 依赖清理</strong>（保守未删）：迁移后 <code>feed-rs</code>、<code>dom_smoothie</code>、<code>pulldown-cmark</code>、<code>bitflags</code> 在 <code>src-tauri/src</code> 已无直接引用，可在确认无 build 脚本/宏隐式依赖后从 <code>src-tauri/Cargo.toml</code> 移除。</li>
+<li><strong>iOS/Android 目标</strong>：core 的 <code>not(ios/android)</code> 门（parse/locate/liteparse）与 Host 侧别名门需保持同步；mobile 构建恢复时验证 remote bridge 路径。</li>
+</ol>
+<h2 id="phase-2_1">验收快照（Phase 2 完成时）<a class="headerlink" href="#phase-2_1" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>启动</strong>：<code>src/main.tsx</code> <code>boot()</code> 串行完成设置加载、主题/字体、i18n、store 种子，再按窗口种类 <code>createRoot</code>；Rust 侧 <code>app/mod.rs</code> 的顺序同样有约束（单实例插件必须最先装，settings 要在 builder 之前读出）。</li>
-<li><strong>语义事件</strong>：Rust 在关键节点 emit（<code>paper:imported</code>、<code>paper:assets-ready</code>、job 终态、<code>window:closed</code>），经 <code>src/lib/lifecycle/tauri-bridge.ts</code> 转发进前端 typed bus；handler 集中注册在 <code>lifecycle/register.ts</code>。</li>
-<li><strong>作用域释放</strong>：<code>vault:opened</code> 是 scoped 事件，handler 返回 teardown，"打开时做什么"和"切走时撤销什么"写在同一闭包里 —— 各 store 的 vault 级 clear 与 app 层 <code>vault_release</code>（取消该 vault 的后台 jobs、清 paper caps cache、驱逐 Host catalog 连接）都挂在这里。退出时 run closure 关闭 connector、telemetry、sync 与 Bridge relay。</li>
+<li><code>cargo tree -p agentero-core | grep -icE "tauri|wry|tao"</code> → 0</li>
+<li><code>cargo tree -p agentero-cli | grep -icE "tauri|wry|tao|agentero "</code> → 0（不再依赖 <code>agentero_lib</code>）</li>
+<li><code>cargo test --workspace</code>：745 通过（agentero 365 + core 351 + cli 29），与拆分前总数守恒</li>
+<li><code>src/lib/core/bindings.ts</code>、<code>src/</code>（前端）、<code>app/handlers.rs</code> 零 diff</li>
+<li><code>src-tauri/src</code> 的 <code>cfg(feature = "desktop")</code> 门：124 → 93（迁移代码中的无意义门已清理）</li>
 </ul>
-<p>细节与取舍（为何不需要 <code>vault:closed</code>、为何 <code>app:will-quit</code> 延后）见 <a href="../development/lifecycle-events/">development/lifecycle-events.md</a>。</p>
-<h3 id="_12">国际化<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h3>
-<p>所有面向用户文案经 <code>t()</code> 走 <code>react-i18next</code>。en 源语言 → 同步 <code>zh-CN</code>（<code>src/i18n/locales/</code>）。详见 <a href="../frontend/settings/#i18n">frontend/settings.md</a>。</p>
-<h3 id="_13">外部改动自动重载<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h3>
-<p>Host <code>notify</code> → <code>vault:file-changed</code>。打开的 <code>.md</code>/<code>NOTES.md</code> 磁盘变化：无未存改动则重载；有未存改动则 toast 提示；内容相等抑制自写回声。create/remove/rename 去抖刷新文件树。</p>
-<h3 id="_14">保存冲突<a class="headerlink" href="#_14" title="Permanent link">&para;</a></h3>
-<p>写盘前比对上次落盘内容；磁盘已被外部改则中止写入并警告（<code>diskConflict.saveBlocked</code>）。</p>
-<h3 id="_15">多窗口<a class="headerlink" href="#_15" title="Permanent link">&para;</a></h3>
-<p><code>⌘N</code> → Host <code>window_new</code>。Vault 按窗口 session 隔离，最近列表在 localStorage。设置窗口独立原生单例。</p>
-<h3 id="_16">配色主题<a class="headerlink" href="#_16" title="Permanent link">&para;</a></h3>
-<p>设置 → Appearance <code>uiTheme</code>（默认 <code>default</code>）。36 个 tweakcn 预设打包于 <code>src/themes/tweakcn.json</code>，<code>src/lib/ui/theme.ts</code> 运行时注入 CSS 变量。详见 <a href="../frontend/settings/">frontend/settings.md</a>。</p>
-<h3 id="_17">日志<a class="headerlink" href="#_17" title="Permanent link">&para;</a></h3>
-<p>Host <code>tauri-plugin-log</code> + 前端 <code>logger</code> + CLI <code>env_logger</code>。详见 <a href="../backend/logging/">backend/logging.md</a>。</p>
-<h3 id="_18">命令面板<a class="headerlink" href="#_18" title="Permanent link">&para;</a></h3>
-<p><code>⌘P</code>/<code>⌘K</code> 快速打开（论文 + <code>vault_search</code> 全文）；<code>⇧⌘P</code>/<code>&gt;</code> 执行内置命令。</p>
-<h3 id="_19">翻译服务<a class="headerlink" href="#_19" title="Permanent link">&para;</a></h3>
-<p>可插拔 <code>TranslateService</code>（免费 MT + BYOA Agent）。详见 <a href="../frontend/translate/">frontend/translate.md</a> / <a href="../backend/translate/">backend/translate.md</a>。</p>
 
 
 
@@ -4107,10 +3635,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.tracking", "navigation.top", "search.suggest", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.tracking", "navigation.top", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
