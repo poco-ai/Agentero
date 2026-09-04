@@ -33,7 +33,7 @@ Issue 三条诉求 + 产品分析，落在同一条 Activity 总线上：
 
 | 能力 | 现状 | 复用方式 |
 |---|---|---|
-| PostHog | `features/telemetry`：仅 `app started` / `app exited`；无私有 `capture()` | 扩 `Telemetry::capture`，业务禁止直连 |
+| PostHog | `core/telemetry`：仅 `app started` / `app exited`；无私有 `capture()` | 扩 `Telemetry::capture`，业务禁止直连 |
 | Catalog SQLite | `SCHEMA_VERSION` + 迁移；`is_read` / `added_at`；无 opened_at | 复用迁移范式；不共用库 |
 | 阅读产物 | `marks/`、`reading-heatmap`、`reading-position` | 空间分布仍派生；**动作时间线另记事件** |
 | 翻译 | `runTranslate` + 划词 mark + `layout-translate.json` | 在消费方记 1 次会话，不在每块 MT 调用上打点 |

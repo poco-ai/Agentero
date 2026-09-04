@@ -18,5 +18,4 @@ pub mod sqlite;
 #[cfg(feature = "desktop")]
 pub mod telemetry;
 pub mod time;
-#[path = "telemetry/usage/mod.rs"]
 pub mod usage;

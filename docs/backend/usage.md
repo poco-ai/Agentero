@@ -11,7 +11,7 @@
 | macOS / Linux | `~/.local/share/agentero/usage.sqlite` |
 | Windows | `%APPDATA%\agentero\usage.sqlite`（`dirs::data_dir`） |
 
-代码：`src-tauri/src/features/usage/`。前端入口 `src/lib/activity/track.ts`（`track()` 缓冲批量上报）。
+代码：`src-tauri/src/core/usage/`。前端入口 `src/lib/activity/track.ts`（`track()` 缓冲批量上报）。
 
 ## 开关
 
@@ -157,4 +157,4 @@ agentero usage clear --all -y    # 本机全部
 ## 隐私
 
 - 本地可含路径与搜索词；不上传。
-- PostHog 仍只走 `features/telemetry` 的匿名启动/退出，本库不直接出站。投影只用 `kind` + `facet` + 桶，不用 `path` / `extra.q`。
+- PostHog 仍只走 `core/telemetry` 的匿名启动/退出，本库不直接出站。投影只用 `kind` + `facet` + 桶，不用 `path` / `extra.q`。

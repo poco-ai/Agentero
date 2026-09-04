@@ -5,7 +5,7 @@
 
 use crate::core::blocking::run_blocking;
 use crate::core::error::{map_err, ApiResult};
-use crate::core::usage::events::{
+use crate::core::usage::{
     clear_default, list_default, record_default, summarize_default, ListFilter, UsageEvent,
     UsageKindCount, UsageRecord,
 };

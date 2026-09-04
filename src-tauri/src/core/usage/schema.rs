@@ -3,7 +3,6 @@
 //! First shipped shape: vaults + typed events + daily rollup + reserved memories.
 
 use crate::core::error::AppError;
-use crate::core::paths;
 use rusqlite::Connection;
 use std::fs;
 use std::path::Path;
@@ -74,16 +73,6 @@ CREATE TABLE IF NOT EXISTS usage_memories (
 );
 CREATE INDEX IF NOT EXISTS idx_usage_memories_vault ON usage_memories(vault, enabled);
 "#;
-
-/// Default on-disk path: `$XDG_DATA_HOME/agentero/usage.sqlite`.
-pub fn usage_db_path() -> std::path::PathBuf {
-    paths::usage_db_path()
-}
-
-/// Open the process default usage database, creating it if needed.
-pub fn ensure_usage() -> Result<Connection, AppError> {
-    ensure_usage_at(&usage_db_path())
-}
 
 /// Open (or create) a usage database at `db_path`.
 pub fn ensure_usage_at(db_path: &Path) -> Result<Connection, AppError> {

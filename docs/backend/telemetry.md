@@ -1,6 +1,6 @@
 # 遥测（PostHog）
 
-匿名产品分析：仅上报应用版本与设备级信息，用于版本采用率、平台分布、会话时长统计。代码在 `src-tauri/src/features/telemetry/`，仅桌面端编译。
+匿名产品分析：仅上报应用版本与设备级信息，用于版本采用率、平台分布、会话时长统计。代码在 `src-tauri/src/core/telemetry/`，仅桌面端编译。
 
 ## 开关语义
 
@@ -42,7 +42,7 @@ Person 属性：`$set` → `app_version` / `os_name` / `os_version` / `arch` / `
 
 ### 行为事件投影（`Telemetry::capture_activity`）
 
-前端行为事件经 `activity_record_events` 落本地库后，Host 用 `usage::telemetry_projection` 把**登记的 kind** 投影成脱敏 PostHog 事件（非移动端；`telemetryEnabled` 关或无 key 时整体 no-op）。投影**只**携带 `kind`→事件名、`facet` / `status` / `qty`（均由 `usage/events.rs::project_extra` 分桶/截断/白名单产出）与分桶后的 `dur_bucket`，外加 `distinct_id` / `$session_id` / `app_version`。未登记的 kind 一律不发（安全默认）。
+前端行为事件经 `activity_record_events` 落本地库后，Host 用 `usage::telemetry_projection` 把**登记的 kind** 投影成脱敏 PostHog 事件（非移动端；`telemetryEnabled` 关或无 key 时整体 no-op）。投影**只**携带 `kind`→事件名、`facet` / `status` / `qty`（均由 `usage/record.rs::project_extra` 分桶/截断/白名单产出）与分桶后的 `dur_bucket`，外加 `distinct_id` / `$session_id` / `app_version`。未登记的 kind 一律不发（安全默认）。
 
 | kind | 事件名 | 出站属性 |
 |---|---|---|
