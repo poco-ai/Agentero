@@ -93,6 +93,7 @@ dependencies = [
  "async-trait",
  "axum",
  "base64 0.22.1",
+ "bitflags 2.13.1",
  "chrono",
  "crypto_box",
  "dirs",

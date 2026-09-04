@@ -14,6 +14,9 @@ pub mod core;
 /// `use agentero_lib::features::{vault, catalog, import, …}`;
 /// it must **not** use `features::agent` (BYOA is desktop-only).
 pub mod features;
+/// Academic metadata/identifier/metrics API abstraction layer.
+/// Used by import, refs, recommend, and other features.
+pub mod scholar_api;
 
 #[cfg(feature = "desktop")]
 pub use app::run;
