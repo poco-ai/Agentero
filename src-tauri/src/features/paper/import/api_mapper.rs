@@ -2,6 +2,7 @@
 
 use crate::features::import::map::{doi_slug, enrich_remote_urls, local_pdf_meta};
 use crate::features::import::{slug_from_stem, PaperMeta};
+#[cfg(feature = "desktop")]
 use crate::features::scholar_api::scoring::{normalize_title, title_similarity};
 use crate::features::scholar_api::ApiPaper;
 
@@ -51,6 +52,7 @@ pub fn api_paper_to_meta(paper: &ApiPaper) -> PaperMeta {
 /// Merge `other` into `base`, preferring non-empty fields from `other`.
 /// The returned `PaperMeta` keeps `base.source` unless `other` contributes
 /// identifiers or bibliographic fields.
+#[cfg(feature = "desktop")]
 pub fn merge_api_papers(base: &ApiPaper, other: &ApiPaper) -> PaperMeta {
     let mut merged = api_paper_to_meta(base);
 
@@ -93,11 +95,13 @@ pub fn merge_api_papers(base: &ApiPaper, other: &ApiPaper) -> PaperMeta {
 }
 
 /// Compute a title-similarity score between a query and a candidate.
+#[cfg(feature = "desktop")]
 pub fn score_against_query(paper: &ApiPaper, norm_query: &str) -> i32 {
     title_similarity(norm_query, &normalize_title(&paper.title))
 }
 
 /// Pick the candidate with the highest title similarity.
+#[cfg(feature = "desktop")]
 pub fn best_match<'a>(candidates: &'a [ApiPaper], norm_query: &str) -> Option<&'a ApiPaper> {
     candidates
         .iter()

@@ -16,12 +16,16 @@ pub(crate) use api_mapper::api_paper_to_meta;
 
 mod assets;
 pub(crate) mod batch;
-pub(crate) mod chain_resolve;
 pub(crate) mod map;
 pub(crate) mod parse;
-pub(crate) mod pdf_recognize;
-pub(crate) mod recognize_apply;
 pub(crate) mod resolver;
+
+#[cfg(feature = "desktop")]
+pub(crate) mod chain_resolve;
+#[cfg(feature = "desktop")]
+pub(crate) mod pdf_recognize;
+#[cfg(feature = "desktop")]
+pub(crate) mod recognize_apply;
 mod skill_import;
 pub(crate) mod title_search;
 

@@ -157,6 +157,7 @@ pub(crate) fn normalize_title(s: &str) -> String {
 }
 
 /// True when the current `publication` value should be replaced from S2.
+#[cfg(feature = "desktop")]
 pub fn needs_s2_venue_enrichment(publication: Option<&str>) -> bool {
     use crate::features::scholar_api::sources::semantic_scholar::is_usable_publication;
     match publication {
