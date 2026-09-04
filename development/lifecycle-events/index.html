@@ -4000,7 +4000,7 @@
 <li>handler 与 teardown 抛错只记日志，不中断其余项</li>
 </ul>
 <h3 id="tauri">订阅 Tauri 事件的约定<a class="headerlink" href="#tauri" title="Permanent link">&para;</a></h3>
-<p>一律用 <code>listenSafe()</code>（<code>src/lib/core/tauri-events.ts</code>）或组件内的 <code>useTauriEvent()</code>，<strong>不要</strong>手写 <code>let off; void (async () =&gt; { off = await listen(...) })(); return () =&gt; off?.()</code>：<code>listen()</code> 需要一次 Host 往返，在它 resolve 前 dispose 会让 <code>off</code> 仍是 undefined，清理成为空操作、监听器永久泄漏 —— StrictMode 每次开发挂载都会命中。非 Tauri wire 的 promise 式订阅（bridge、workspace-broadcast）用 <code>toSafeDisposer()</code>。</p>
+<p>一律用类型化事件绑定（<code>src/lib/core/bindings.ts</code> 的 <code>events.*</code>）：组件内 <code>useTauriEvent(events.x, cb)</code>，非 UI 模块 <code>listenEventSafe(events.x, cb)</code>（<code>src/lib/core/tauri-events.ts</code>），<strong>不要</strong>手写 <code>let off; void (async () =&gt; { off = await listen(...) })(); return () =&gt; off?.()</code>：<code>listen()</code> 需要一次 Host 往返，在它 resolve 前 dispose 会让 <code>off</code> 仍是 undefined，清理成为空操作、监听器永久泄漏 —— StrictMode 每次开发挂载都会命中。字符串事件名订阅仅限前端窗口间广播（<code>workspace:*</code> 等）与 iOS bridge client 事件；非 Tauri wire 的 promise 式订阅（bridge、workspace-broadcast）用 <code>toSafeDisposer()</code>。</p>
 <h2 id="_7">落地批次<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <ol>
 <li>✅ <strong>前端 lifecycle 模块</strong>：types + bus + bridge，bootstrap 接入</li>
