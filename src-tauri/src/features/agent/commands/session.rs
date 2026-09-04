@@ -1,9 +1,7 @@
 //! Session run / list / load / warm / cancel Tauri commands.
 
 use crate::core::error::{map_err, ApiResult, AppError};
-use crate::features::agent::models::{
-    RunOnceAccepted, RunOnceRequest, WarmRequest, WarmResult,
-};
+use crate::features::agent::models::{RunOnceAccepted, RunOnceRequest, WarmRequest, WarmResult};
 use crate::features::agent::runtime::gates::AskUserGate;
 use crate::features::agent::{
     new_ids, run_once, warm_agent, AgentEventEmitter, AgentRegistry, AgentRunController,
@@ -249,7 +247,6 @@ pub fn agent_cancel_run(
         Err(e) => map_err(e),
     }
 }
-
 
 /// Background ACP start when Chat opens — loads models/context without a user prompt.
 #[tauri::command]

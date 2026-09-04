@@ -13,7 +13,7 @@ pub use models::AgentTelemetrySummary;
 pub use prompt::skills::list_agent_skills;
 pub use registry::{builtin_templates, catalog_templates, AgentRegistry};
 pub use runtime::{
-    AskUserGate, AgentEventEmitter, AgentRunController, AgentWarmGate, ElicitationGate,
+    AgentEventEmitter, AgentRunController, AgentWarmGate, AskUserGate, ElicitationGate,
     PermissionGate,
 };
 pub use session::{

@@ -1,6 +1,7 @@
 //! Single-turn ACP run orchestration (prompt → session → stream → complete).
 
 use crate::core::error::AppError;
+use crate::features::agent::acp::ask_user::GrokAskUserRequest;
 use crate::features::agent::acp::client::{
     acp_err, cancelled_payload, client_initialize_request, timed_acp_request, to_acp_agent,
     wait_for_cancellation,
@@ -15,7 +16,6 @@ use crate::features::agent::acp::updates::{
     emit_session_config_options, fast_mode_value_to_set, is_fast_option, is_pi_startup_banner,
     models_from_config_options, stream_from_update,
 };
-use crate::features::agent::acp::ask_user::GrokAskUserRequest;
 use crate::features::agent::models::{
     AgentDescriptor, AgentFailedEvent, AgentResultPayload, AgentStreamEvent, AgentStreamKind,
     AgentTemplate, PromptImage,
@@ -25,9 +25,7 @@ use crate::features::agent::prompt::skills::{
     load_skill_instructions, skill_activation_prefix, skill_mention_style,
 };
 use crate::features::agent::runtime::events::AgentEventEmitter;
-use crate::features::agent::runtime::gates::{
-    AskUserGate, ElicitationGate, PermissionGate,
-};
+use crate::features::agent::runtime::gates::{AskUserGate, ElicitationGate, PermissionGate};
 use crate::features::agent::runtime::stream::{StreamCoalescer, STREAM_COALESCE_WINDOW};
 use crate::features::agent::session::config::RunPreferences;
 use agent_client_protocol::schema::v1::{

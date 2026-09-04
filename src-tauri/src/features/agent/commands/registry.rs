@@ -1,6 +1,8 @@
 //! Registry / catalog / lifecycle Tauri commands.
 
-use super::{emit_registry_changed, list_from_state, AgentOnly, AgentUserAgentResponse, EnabledResponse};
+use super::{
+    emit_registry_changed, list_from_state, AgentOnly, AgentUserAgentResponse, EnabledResponse,
+};
 use crate::core::error::{map_err, ApiResult, AppError};
 use crate::features::agent::models::{
     AgentListResponse, AgentSkill, CatalogScanResponse, ProbeResult, UpsertAgentRequest,
@@ -286,4 +288,3 @@ pub async fn agent_probe_catalog(
     emit_registry_changed(&app);
     Ok(ApiResult::ok(result))
 }
-

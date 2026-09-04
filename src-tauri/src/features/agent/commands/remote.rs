@@ -3,11 +3,11 @@
 //! Async commands return `Result<ApiResult<T>, String>` so `State` borrows are valid
 //! (same pattern as `agent_probe`).
 
-use crate::features::agent::models::ProbeResult;
-use crate::features::agent::AgentRegistry;
 use crate::core::error::{map_err, ApiResult, AppError};
 use crate::core::log_util::{trunc, OpTimer};
+use crate::features::agent::models::ProbeResult;
 use crate::features::agent::registry::remote::{self as remote_catalog, RemoteAgentScanResponse};
+use crate::features::agent::AgentRegistry;
 use crate::integration::remote::RemoteRegistry;
 use serde::Deserialize;
 use std::sync::Arc;

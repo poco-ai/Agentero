@@ -10,8 +10,6 @@ use serde_json::{json, Value};
 /// Wire methods Grok (and compatible clients) may use.
 pub const GROK_ASK_USER_METHODS: &[&str] = &["_x.ai/ask_user_question", "x.ai/ask_user_question"];
 
-
-
 /// One option on a Grok question.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

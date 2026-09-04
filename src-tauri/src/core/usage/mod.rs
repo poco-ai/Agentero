@@ -65,9 +65,17 @@ pub fn clear_default(vault: Option<&str>) -> Result<u64, AppError> {
 
 #[cfg(test)]
 pub(super) fn temp_db() -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    // Parallel test threads can draw the same clock tick, and each test deletes
+    // its whole directory at the end — a shared name means one test removes
+    // another's live database ("database is locked"). The counter makes the name
+    // unique per call; pid + timestamp still separate concurrent processes.
+    static SEQ: AtomicU64 = AtomicU64::new(0);
     let dir = std::env::temp_dir().join(format!(
-        "agentero-usage-{}-{}",
+        "agentero-usage-{}-{}-{}",
         std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()

@@ -259,11 +259,7 @@ async fn rename_to_canonical(
                 c.invalidate(vault, to_rel);
             }
             #[cfg(feature = "desktop")]
-            crate::core::usage::rename_path_best_effort(
-                &vault.to_string_lossy(),
-                from_rel,
-                to_rel,
-            );
+            crate::core::usage::rename_path_best_effort(&vault.to_string_lossy(), from_rel, to_rel);
             emit_paper_renamed(
                 app,
                 vault,
