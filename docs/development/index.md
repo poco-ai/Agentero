@@ -19,6 +19,7 @@
 | [cloud-sync-s3.md](cloud-sync-s3.md) | 云同步（S3 兼容）：catalog sidecar 化前置 + 内容寻址 blob/manifest/CAS 同步引擎。**Phase 0–1 已落地**（见 [../backend/sync.md](../backend/sync.md)）；自动同步 / GC / E2EE / 官方托管仍为草稿 |
 | [mark-cli-roadmap.md](mark-cli-roadmap.md) | \#170 阅读标注**内置进 CLI**（方案/命令面/边界）+ 基础→上层→Skill；与 [CLI 文档](../backend/cli.md) 分发衔接 |
 | [mark-locate-lazy.md](mark-locate-lazy.md) | 文字定位：打开 PDF 再算（惰性，默认主路径） |
+| [import-api-abstraction.md](import-api-abstraction.md) | Import 学术 API 抽象层：统一论文元数据、期刊指标、PDF URL 与题录批处理的 trait 与数据结构 |
 | [mark-locate-eager.md](mark-locate-eager.md) | 文字定位：标注时算（即时 B1 viewer / 可选 B2 headless） |
 
 macOS 签名与公证（已实现流程说明）在 [`../bug_fix/macos-signing.md`](../bug_fix/macos-signing.md)。
