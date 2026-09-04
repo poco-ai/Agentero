@@ -3581,6 +3581,7 @@
 <h2 id="tags">Tags（前端）<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Paper Info 增删 + Apple 8 色色盘 → <code>paper_set_tags</code>。</li>
+<li>配置 EasyScholar Key 后，Library 表头 Tags 列的筛选按钮左侧显示奖牌图标，点击后会为当前 Library 范围内的全部论文拉取期刊分区、影响因子、JCI 等数据并生成 <code>#easyscholar:</code> 命名空间标签；重复获取会替换该命名空间标签，不影响用户普通标签。</li>
 <li><code>@zotero:</code> 前缀标签属于 Connector 来源标记，只保留在 catalog 中，不参与展示、搜索和筛选；编辑普通标签时会保留这些内部标签。</li>
 <li>arXiv 入库带来的学科分类（如 <code>Computer Science - Machine Learning</code>）以 <code>@arxiv:</code> 前缀保存为隐标签，同样不参与展示、搜索和筛选；已入库、尚未加前缀的同形标签也按隐标签处理。</li>
 <li>标签类型与语义（normalize / coerce / 可见性）：<code>src/lib/paper/tags.ts</code>（类型在 <code>src/lib/paper/types.ts</code>）；色板映射：<code>src/lib/ui/tag-colors.ts</code>。</li>
