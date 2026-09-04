@@ -14,7 +14,7 @@ use crate::features::import::{
     StageImportFileResult,
 };
 use crate::features::remote::{import_bridge, parse_remote_handle, RemoteRegistry};
-use crate::scholar_api::sources::semantic_scholar::{
+use crate::features::scholar_api::sources::semantic_scholar::{
     better_publication, is_usable_publication, SemanticScholarApi,
 };
 use futures_util::stream::{self, StreamExt};

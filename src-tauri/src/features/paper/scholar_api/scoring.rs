@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use crate::scholar_api::ApiPaper;
+use crate::features::scholar_api::ApiPaper;
 
 /// Normalize a title for comparison: lowercase, drop punctuation, collapse whitespace.
 pub fn normalize_title(s: &str) -> String {

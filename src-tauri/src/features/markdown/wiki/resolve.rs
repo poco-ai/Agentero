@@ -635,7 +635,7 @@ mod tests {
     #[test]
     fn shared_semantic_fixture_has_deterministic_results() {
         let fixture: SemanticFixture = serde_json::from_str(include_str!(
-            "../../../../test/fixtures/wikilinks/semantic-cases.json"
+            "../../../../../test/fixtures/wikilinks/semantic-cases.json"
         ))
         .expect("semantic fixture must be valid JSON");
         let documents = fixture

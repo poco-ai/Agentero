@@ -6,67 +6,114 @@
 #[cfg(feature = "desktop")]
 pub mod agent;
 #[cfg(feature = "desktop")]
-pub mod arxiv_proxy;
-#[cfg(feature = "desktop")]
 pub mod bridge;
-pub mod catalog;
 #[cfg(feature = "desktop")]
+#[path = "agent/install/mod.rs"]
 pub mod cli_install;
+
 #[cfg(feature = "desktop")]
-pub mod connector;
-#[cfg(feature = "desktop")]
-pub mod coolpapers;
-pub mod doctor;
-#[cfg(feature = "desktop")]
-pub mod export;
-pub mod feeds;
-#[cfg(feature = "desktop")]
-pub mod finder_service;
-pub mod import;
-#[cfg(feature = "desktop")]
-pub mod jobs;
-#[cfg(feature = "desktop")]
+#[path = "layout/layout_model/mod.rs"]
 pub mod layout_model;
 #[cfg(feature = "desktop")]
+#[path = "layout/layout_remote/mod.rs"]
 pub mod layout_remote;
+
 pub mod lifecycle;
+
 #[cfg(feature = "desktop")]
 pub mod mcp;
-#[cfg(feature = "desktop")]
-pub mod modelscope_proxy;
-pub mod open_request;
-#[cfg(not(any(target_os = "ios", target_os = "android")))]
-pub mod pdf_locate;
-#[cfg(feature = "desktop")]
-pub mod recommend;
-pub mod refs;
+
 #[cfg(feature = "desktop")]
 pub mod remote;
-pub mod rename;
-#[cfg(feature = "desktop")]
-pub mod search;
-#[cfg(feature = "desktop")]
-pub mod settings;
-#[cfg(feature = "desktop")]
-pub mod site_proxy;
+
 #[cfg(feature = "desktop")]
 pub mod sync;
-#[cfg(all(
-    feature = "desktop",
-    not(any(target_os = "android", target_os = "ios"))
-))]
+
+#[cfg(feature = "desktop")]
 pub mod telemetry;
-#[cfg(feature = "desktop")]
-pub mod terminal;
+
 pub mod translate;
-pub mod trash;
-pub mod usage;
 pub mod vault;
+
+// Moved into semantic directories while keeping the historical `features::`
+// path stable for now. `#[path]` is a temporary shim until the refactor is
+// complete and call-sites are migrated.
+
+#[path = "vault/catalog/mod.rs"]
+pub mod catalog;
+#[path = "vault/doctor/mod.rs"]
+pub mod doctor;
 #[cfg(feature = "desktop")]
+#[path = "pdf/export/mod.rs"]
+pub mod export;
+#[cfg(feature = "desktop")]
+#[path = "system/finder_service/mod.rs"]
+pub mod finder_service;
+#[path = "paper/import/mod.rs"]
+pub mod import;
+#[cfg(feature = "desktop")]
+#[path = "system/open_request/mod.rs"]
+pub mod open_request;
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+#[path = "pdf/locate/mod.rs"]
+pub mod pdf_locate;
+#[path = "paper/analyze/refs/mod.rs"]
+pub mod refs;
+#[path = "vault/rename/mod.rs"]
+pub mod rename;
+#[cfg(feature = "desktop")]
+#[path = "markdown/search/mod.rs"]
+pub mod search;
+#[cfg(feature = "desktop")]
+#[path = "vault/settings/mod.rs"]
+pub mod settings;
+#[cfg(feature = "desktop")]
+#[path = "system/terminal/mod.rs"]
+pub mod terminal;
+#[path = "vault/trash/mod.rs"]
+pub mod trash;
+#[path = "telemetry/usage/mod.rs"]
+pub mod usage;
+#[cfg(feature = "desktop")]
+#[path = "vault/watcher/mod.rs"]
 pub mod watcher;
+#[path = "markdown/wiki/mod.rs"]
 pub mod wiki;
 #[cfg(feature = "desktop")]
+#[path = "vault/window/mod.rs"]
 pub mod window;
+
+#[path = "paper/scholar_api/mod.rs"]
+pub mod scholar_api;
+
+// Import-related source modules physically grouped under `paper/import/sources/`
+// but kept at the historical `features::` level for now.
+
+#[cfg(feature = "desktop")]
+#[path = "paper/import/sources/arxiv_proxy.rs"]
+pub mod arxiv_proxy;
+#[cfg(feature = "desktop")]
+#[path = "paper/import/sources/connector/mod.rs"]
+pub mod connector;
+#[cfg(feature = "desktop")]
+#[path = "paper/import/sources/coolpapers/mod.rs"]
+pub mod coolpapers;
+#[path = "paper/import/sources/feeds/mod.rs"]
+pub mod feeds;
+#[cfg(feature = "desktop")]
+#[path = "paper/import/sources/modelscope_proxy.rs"]
+pub mod modelscope_proxy;
+#[cfg(feature = "desktop")]
+#[path = "paper/import/sources/recommend/mod.rs"]
+pub mod recommend;
+#[cfg(feature = "desktop")]
+#[path = "paper/import/site_proxy.rs"]
+pub mod site_proxy;
+#[path = "paper/import/sources/zotero/mod.rs"]
 pub mod zotero;
 #[cfg(feature = "desktop")]
+#[path = "paper/import/sources/zotero_sync/mod.rs"]
 pub mod zotero_sync;
+
+#[cfg(feature = "desktop")]
+pub mod jobs;

@@ -326,9 +326,9 @@ fn regex_ads(s: &str) -> Option<String> {
     None
 }
 
-use crate::scholar_api::sources::{arxiv::ArxivApi, crossref::CrossrefApi};
-use crate::scholar_api::traits::AcademicApi;
-use crate::scholar_api::ApiQuery;
+use crate::features::scholar_api::sources::{arxiv::ArxivApi, crossref::CrossrefApi};
+use crate::features::scholar_api::traits::AcademicApi;
+use crate::features::scholar_api::ApiQuery;
 
 // --- Direct-connect clients (fallbacks behind the trait) ---
 

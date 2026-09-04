@@ -733,7 +733,7 @@ mod tests {
     #[test]
     fn shared_fixture_preserves_fragments_while_rewriting_targets() {
         let fixture: SharedFixture = serde_json::from_str(include_str!(
-            "../../../../test/fixtures/wikilinks/semantic-cases.json"
+            "../../../../../test/fixtures/wikilinks/semantic-cases.json"
         ))
         .expect("shared fixture must parse");
         let root = temp_vault();

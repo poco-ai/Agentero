@@ -11,7 +11,7 @@ use serde_json::Value;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 use crate::core::error::AppError;
-use crate::scholar_api::ApiError;
+use crate::features::scholar_api::ApiError;
 
 /// Default timeout for one metadata HTTP request.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(20);

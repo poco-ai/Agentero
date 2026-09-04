@@ -8,9 +8,11 @@ use std::time::Duration;
 use serde::Serialize;
 
 use crate::core::error::AppError;
-use crate::scholar_api::sources::{arxiv::ArxivApi, semantic_scholar::SemanticScholarApi};
-use crate::scholar_api::traits::AcademicApi;
-use crate::scholar_api::ApiQuery;
+use crate::features::scholar_api::sources::{
+    arxiv::ArxivApi, semantic_scholar::SemanticScholarApi,
+};
+use crate::features::scholar_api::traits::AcademicApi;
+use crate::features::scholar_api::ApiQuery;
 
 /// How long Semantic Scholar gets before the already-in-flight arXiv result
 /// decides the search. Healthy S2 answers land sub-second and rate-limit
@@ -34,8 +36,8 @@ pub struct PaperSearchCandidate {
     pub source: &'static str,
 }
 
-impl From<crate::scholar_api::ApiPaper> for PaperSearchCandidate {
-    fn from(p: crate::scholar_api::ApiPaper) -> Self {
+impl From<crate::features::scholar_api::ApiPaper> for PaperSearchCandidate {
+    fn from(p: crate::features::scholar_api::ApiPaper) -> Self {
         let identifier = p
             .identifiers
             .arxiv_id
@@ -127,7 +129,7 @@ pub async fn search_papers(
 /// Keep the provider's relevance order, but float exact title matches to the
 /// top — same-named papers otherwise bury the one the user meant.
 fn rank(
-    mut hits: Vec<crate::scholar_api::ApiPaper>,
+    mut hits: Vec<crate::features::scholar_api::ApiPaper>,
     query: &str,
     limit: usize,
 ) -> Vec<PaperSearchCandidate> {
@@ -156,7 +158,7 @@ pub(crate) fn normalize_title(s: &str) -> String {
 
 /// True when the current `publication` value should be replaced from S2.
 pub fn needs_s2_venue_enrichment(publication: Option<&str>) -> bool {
-    use crate::scholar_api::sources::semantic_scholar::is_usable_publication;
+    use crate::features::scholar_api::sources::semantic_scholar::is_usable_publication;
     match publication {
         None => true,
         Some(s) => !is_usable_publication(s),
@@ -177,7 +179,7 @@ mod tests {
 
     #[test]
     fn floats_exact_title_match_to_top() {
-        use crate::scholar_api::{ApiPaper, PaperIdentifiers, PaperUrls};
+        use crate::features::scholar_api::{ApiPaper, PaperIdentifiers, PaperUrls};
         let hits = vec![
             ApiPaper {
                 title: "Not Attention".into(),

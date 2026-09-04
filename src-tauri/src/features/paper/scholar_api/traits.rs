@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use serde_json::Value;
 
-use crate::scholar_api::{
+use crate::features::scholar_api::{
     ApiCapability, ApiError, ApiPaper, ApiQuery, VenueIdentifiers, VenueMetrics,
 };
 

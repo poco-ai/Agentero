@@ -16,13 +16,13 @@ use crate::features::import::api_mapper::{
     api_paper_to_meta, best_match, merge_api_papers, score_against_query,
 };
 use crate::features::import::map::{enrich_remote_urls, PaperMeta};
-use crate::scholar_api::scoring::{is_same_paper, normalize_title};
-use crate::scholar_api::sources::{
+use crate::features::scholar_api::scoring::{is_same_paper, normalize_title};
+use crate::features::scholar_api::sources::{
     arxiv::ArxivApi, crossref::CrossrefApi, openalex::OpenAlexApi,
     semantic_scholar::SemanticScholarApi,
 };
-use crate::scholar_api::traits::AcademicApi;
-use crate::scholar_api::{ApiPaper, ApiQuery};
+use crate::features::scholar_api::traits::AcademicApi;
+use crate::features::scholar_api::{ApiPaper, ApiQuery};
 
 const MATCH_THRESHOLD: i32 = 70;
 

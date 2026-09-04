@@ -1,4 +1,4 @@
-//! Concrete implementations of [`crate::scholar_api::traits`] for external
+//! Concrete implementations of [`crate::features::scholar_api::traits`] for external
 //! scholarly services.
 
 pub mod arxiv;

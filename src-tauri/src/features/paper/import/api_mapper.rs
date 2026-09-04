@@ -2,8 +2,8 @@
 
 use crate::features::import::map::{doi_slug, enrich_remote_urls, local_pdf_meta};
 use crate::features::import::{slug_from_stem, PaperMeta};
-use crate::scholar_api::scoring::{normalize_title, title_similarity};
-use crate::scholar_api::ApiPaper;
+use crate::features::scholar_api::scoring::{normalize_title, title_similarity};
+use crate::features::scholar_api::ApiPaper;
 
 /// Convert a single API candidate into a `PaperMeta`, choosing an id and
 /// paper type from the available identifiers.

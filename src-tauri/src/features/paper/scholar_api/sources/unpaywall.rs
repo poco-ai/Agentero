@@ -2,9 +2,9 @@
 
 use async_trait::async_trait;
 
-use crate::scholar_api::client;
-use crate::scholar_api::traits::PdfUrlSource;
-use crate::scholar_api::{ApiError, ApiQuery};
+use crate::features::scholar_api::client;
+use crate::features::scholar_api::traits::PdfUrlSource;
+use crate::features::scholar_api::{ApiError, ApiQuery};
 
 /// Unpaywall PDF URL resolver.
 #[derive(Debug, Clone, Default)]

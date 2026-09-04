@@ -443,9 +443,9 @@ fn pdf_url_candidates(id: &str, arxiv_id: Option<&str>, pdf_url: Option<&str>) -
 
 /// Query Unpaywall for a DOI's best open-access PDF location.
 async fn unpaywall_pdf_url(doi: &str) -> Option<String> {
-    use crate::scholar_api::sources::unpaywall::UnpaywallApi;
-    use crate::scholar_api::traits::PdfUrlSource;
-    use crate::scholar_api::ApiQuery;
+    use crate::features::scholar_api::sources::unpaywall::UnpaywallApi;
+    use crate::features::scholar_api::traits::PdfUrlSource;
+    use crate::features::scholar_api::ApiQuery;
 
     let source = UnpaywallApi::new("agentero@users.noreply.github.com");
     source

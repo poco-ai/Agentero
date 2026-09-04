@@ -100,7 +100,7 @@ pub fn settings_set(
 /// rejects the key (non-200 / non-200 code).
 #[tauri::command]
 pub async fn easy_scholar_probe(app: AppHandle) -> ApiResult<bool> {
-    use crate::scholar_api::sources::easy_scholar::EasyScholarApi;
+    use crate::features::scholar_api::sources::easy_scholar::EasyScholarApi;
 
     let store = app.state::<AppSettingsStore>();
     let Some(key) = store.easy_scholar_key() else {
@@ -122,7 +122,7 @@ pub async fn easy_scholar_probe(app: AppHandle) -> ApiResult<bool> {
 /// and build namespaced tags.
 #[tauri::command]
 pub async fn easy_scholar_get_rank(app: AppHandle, publication_name: String) -> ApiResult<Value> {
-    use crate::scholar_api::sources::easy_scholar::EasyScholarApi;
+    use crate::features::scholar_api::sources::easy_scholar::EasyScholarApi;
 
     let store = app.state::<AppSettingsStore>();
     let Some(key) = store.easy_scholar_key() else {

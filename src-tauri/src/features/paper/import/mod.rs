@@ -8,6 +8,7 @@ pub mod commands;
 #[cfg(feature = "desktop")]
 pub mod job_runners;
 pub mod paper_import;
+#[path = "../../pdf/parse/mod.rs"]
 pub mod pdf_parse;
 
 mod api_mapper;
@@ -65,8 +66,8 @@ use crate::features::catalog::{
 };
 #[cfg(feature = "desktop")]
 use crate::features::import::assets::AssetDownloadProgress;
-use crate::scholar_api::sources::translator::TranslatorApi;
-use crate::scholar_api::traits::BibliographySource;
+use crate::features::scholar_api::sources::translator::TranslatorApi;
+use crate::features::scholar_api::traits::BibliographySource;
 use futures_util::StreamExt;
 use map::local_pdf_meta;
 use parse::extract_primary_identifier;

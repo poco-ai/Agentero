@@ -2,9 +2,9 @@
 
 use async_trait::async_trait;
 
-use crate::scholar_api::client;
-use crate::scholar_api::traits::AcademicApi;
-use crate::scholar_api::{
+use crate::features::scholar_api::client;
+use crate::features::scholar_api::traits::AcademicApi;
+use crate::features::scholar_api::{
     ApiCapability, ApiError, ApiPaper, ApiQuery, PaperIdentifiers, PaperUrls,
 };
 

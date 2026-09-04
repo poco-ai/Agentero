@@ -3,9 +3,9 @@
 use async_trait::async_trait;
 use serde_json::Value;
 
-use crate::scholar_api::client;
-use crate::scholar_api::traits::VenueMetricsSource;
-use crate::scholar_api::{ApiError, VenueIdentifiers, VenueMetrics, VenueRank};
+use crate::features::scholar_api::client;
+use crate::features::scholar_api::traits::VenueMetricsSource;
+use crate::features::scholar_api::{ApiError, VenueIdentifiers, VenueMetrics, VenueRank};
 
 /// EasyScholar metrics source.
 #[derive(Debug, Clone)]
