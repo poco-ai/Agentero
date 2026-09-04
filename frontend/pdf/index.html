@@ -3571,8 +3571,8 @@
 <td><code>⌘F</code> + 命中高亮</td>
 </tr>
 <tr>
-<td>明暗模式</td>
-<td>底部换页栏旁可单独切换亮色 / 暗色页面，偏好保存在本地，不改变应用全局主题。EmbedPDF 尚无页面 color-scheme API，仅在 PDF 暗色模式下对 <code>RenderLayer</code> / <code>TilingLayer</code> 做柔和反相（<code>PDF_PAGE_RASTER_DARK_CLASS</code>：<code>invert(0.88)</code> + <code>hue-rotate(180)</code> + 轻亮度/对比）；全文翻译覆盖层同样按浅色纸面绘制后套用同一 filter，以匹配反转后的纸面。选区 / 搜索 / 批注覆盖层与 Agent 裁剪（<code>renderPageRect</code>）不受影响。扫描版/插图会被一并反相</td>
+<td>页面背景</td>
+<td>底部换页栏旁的调色板 popover 单选：<strong>白纸 / 米色 <code>#faf9de</code> / 护眼绿 <code>#e3edcd</code> / 暗色</strong>，偏好保存在本地（key 仍为 <code>agentero-pdf-color-scheme</code>，旧值 <code>light</code> 读作白纸），经 <code>agentero:pdf-color-scheme</code> 事件跨窗同步，不改变应用全局主题。EmbedPDF 尚无页面 color-scheme API：浅色 tone 在 <code>RenderLayer</code> / <code>TilingLayer</code> 之上叠一层 <code>mix-blend-multiply</code> tint（页面 shell 加 <code>isolate</code>，避免混到阅读区底色），白纸 × tint 精确落到目标色、黑字不变、插图仅轻微偏色，比 filter 更能保住图表饱和度；暗色仍对光栅做柔和反相（<code>PDF_PAGE_RASTER_DARK_CLASS</code>：<code>invert(0.84)</code> + <code>hue-rotate(180)</code> + 轻亮度/对比）。tint 层绘制在选区 / 搜索 / 批注层之下，高亮颜色与 Agent 裁剪（<code>renderPageRect</code>）均不受影响；全文翻译覆盖层按当前 tone 绘制纸面底色。扫描版/插图在暗色下会被一并反相</td>
 </tr>
 <tr>
 <td>沉浸</td>
@@ -3693,8 +3693,8 @@
 <td>页↔屏坐标：页元素查找、rect→屏幕点、选区→归一化 anchor</td>
 </tr>
 <tr>
-<td><code>src/components/viewer/pdf/color-scheme.ts</code></td>
-<td>PDF 页面明暗偏好持久化与跨窗广播</td>
+<td><code>src/components/viewer/pdf/paper-tone.ts</code></td>
+<td>PDF 页面背景 tone 偏好持久化与跨窗广播</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/host-dom.ts</code></td>
@@ -3801,8 +3801,8 @@
 <td>顶部工具栏自动显隐：滚动事件 + 指针靠近顶部区域触发显示，空闲定时淡出</td>
 </tr>
 <tr>
-<td><code>src/components/viewer/pdf/hooks/use-pdf-color-scheme.ts</code></td>
-<td>页面明暗状态与跨窗同步</td>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-paper-tone.ts</code></td>
+<td>页面背景 tone 状态与跨窗同步</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-note-editor.ts</code></td>

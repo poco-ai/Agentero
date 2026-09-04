@@ -3498,7 +3498,7 @@
 <li>译文按论文写入 <code>{paper}/source/layout-translate.json</code>。缓存命中需匹配 provider / 源语言 / 目标语言 / 非密钥服务配置，并逐块校验 region id + 原文（存的是归一化后的原文，归一化规则变化时旧缓存会 miss 一次并重译）；版面或目标语言变化时只复用仍匹配的块。</li>
 <li>单页翻译写缓存时按同一 cache key 增量合并，避免只翻译一页时覆盖其它页已经落盘的译文。</li>
 <li>运行中再点=停止；有译文再点=清除。实现：<code>layout-translate.ts</code> + <code>layout-translate-source.ts</code> + <code>layout-translate-overlay.tsx</code>。</li>
-<li>覆盖层按浅色纸面绘制（白底深字）；PDF 暗色模式下套用与页面栅格相同的 invert filter（<code>PDF_PAGE_RASTER_DARK_CLASS</code>），使盖住原文的底色与反转后的纸面一致。</li>
+<li>覆盖层按当前 PDF 页面背景 tone 绘制纸面底色（深字）；暗色下套用与页面栅格相同的 invert filter（<code>PDF_PAGE_RASTER_DARK_CLASS</code>），使盖住原文的底色与反转后的纸面一致。</li>
 <li>API：<code>runTranslate(task)</code>（<code>src/lib/translate/</code>）。</li>
 </ul>
 <h2 id="prompt">Prompt<a class="headerlink" href="#prompt" title="Permanent link">&para;</a></h2>
