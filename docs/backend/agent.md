@@ -63,7 +63,7 @@ spawn 用户配置的 agent
   → 完成（含 providerSessionId）/ 失败
 ```
 
-流式 chunk 合并（`stream_coalesce.rs`）：agent 通常每秒推 20–100 个小 chunk，
+流式 chunk 合并（`runtime/stream.rs`）：agent 通常每秒推 20–100 个小 chunk，
 逐条 emit 会让 webview 每 token 重渲染一次（Windows 卡顿主因）。Host 用
 ~40ms 窗口合并连续同 kind 的文本 chunk 再发 `agent:stream`；kind 切换
 （message ↔ thought）、tool/plan 等有序事件、`agent:completed` / `agent:failed`
@@ -217,7 +217,7 @@ Agentero 是 ACP **Client**：模型 HTTP **不**经 Host 转发，因此只能�
 
 ## 远程
 
-远程 Vault 时在 **SSH 远端** 启动 Agent。见 [remote.md](remote.md)。远程 agent catalog 的扫描/探测/安装命令属 agent 域（`remote_catalog.rs` + `remote_catalog_commands.rs`），复用 `agent::models` / `probe_agent` / `templates`，通过 remote 域的 `RemoteRegistry` / `agent_exec` 走 SSH。
+远程 Vault 时在 **SSH 远端** 启动 Agent。见 [remote.md](remote.md)。远程 agent catalog 的扫描/探测/安装命令属 agent 域（`registry/remote.rs` + `remote_catalog_commands.rs`），复用 `agent::models` / `probe_agent` / `templates`，通过 remote 域的 `RemoteRegistry` / `agent_exec` 走 SSH。
 
 ## 代码
 

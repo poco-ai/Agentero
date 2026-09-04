@@ -13,6 +13,7 @@ pub mod install_dirs;
 pub mod jobs;
 pub mod log_util;
 pub mod paths;
+pub mod process;
 pub mod sqlite;
 #[cfg(feature = "desktop")]
 pub mod telemetry;

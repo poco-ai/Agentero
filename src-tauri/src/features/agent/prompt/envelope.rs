@@ -1,4 +1,4 @@
-use crate::features::agent::skills::{format_skill_mention, SkillMentionStyle};
+use crate::features::agent::prompt::skills::{format_skill_mention, SkillMentionStyle};
 
 /// Build a workflow-oriented prompt. Vault-relative guidance is progressive-disclosure oriented.
 ///
@@ -456,7 +456,7 @@ pub fn extract_sources(content: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::agent::skills::SkillMentionStyle;
+    use crate::features::agent::prompt::skills::SkillMentionStyle;
 
     #[test]
     fn extracts_sources_section() {

@@ -1488,7 +1488,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 - **`hideFromChatHistory`**：为 `true` 时，该次运行不记入会话历史（`agent_list_sessions` 不列出）；前端 Agent 面板也不会把这类流式事件并入对话记录。用于 **paper-reader 精读**、**PDF 划词提问** 等非 Composer 发起的运行。Composer 对话保持默认 `false`。
 
 - **技能上下文**：`agent_list_skills` 列出 `~/.agents/skills`、`${CODEX_HOME:-~/.codex}/skills`、`~/.claude/skills` 和当前 Vault `.agents/skills`。运行时重新解析 id，只读取 `SKILL.md`，单个文件上限 64 KiB，最多加载 5 个。
-- **技能提及按 provider 分流**（`SkillMentionStyle`，见 Host `skills.rs`）：
+- **技能提及按 provider 分流**（`SkillMentionStyle`，见 Host `prompt/skills.rs`）：
   - **Claude ACP** → `/skill-id` 前缀 + 注入正文；
   - **其它（含 Codex）** → 仅注入正文（`skill:id` 标签），prompt 明确写明不要依赖 `$`/`/` 运行时命令。
   - Composer 的 `$` 仅是 Agentero UI 选 skill 的方式，不等于每个 Agent 的运行时语法。
@@ -1498,7 +1498,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
   - `ask`（每次询问）：每个权限请求经 `agent:permission-request` 事件转交前端，用户点选后由 `agent_respond_permission` 回传（超时 5 分钟未应答则取消）；
   - `auto`（自动批准）：选择第一个 AllowOnce 选项（等价旧 `autoApprove: true`）。
 
-- **回答语言**：设置 → Agent 提供全局「回答语言」（自动 / English / 简体中文，独立于界面语言）。前端 `runOnce` 统一读取该设置并透传 `responseLanguage`；Host 在 `build_prompt`（`prompts.rs`）为所有 workflow 追加一句语言指令，`auto` 时不注入。
+- **回答语言**：设置 → Agent 提供全局「回答语言」（自动 / English / 简体中文，独立于界面语言）。前端 `runOnce` 统一读取该设置并透传 `responseLanguage`；Host 在 `build_prompt`（`prompt/envelope.rs`）为所有 workflow 追加一句语言指令，`auto` 时不注入。
 - **个人偏好提示词**：设置 → Agent 多行文本（`agentPersonalPrompt`，默认空）。非空时前端 `runOnce` 透传 `personalPrompt`；Host 在 `build_prompt` system envelope 追加 `User preference instructions` 块（所有 workflow）。留空不注入；Chat 展示剥离 envelope，不出现在对话记录。
 
 - **能力边界**：所有 provider（含 Codex）根据 ACP `SessionConfigOption` 协商模型目录、reasoning effort 与 Fast 等能力。`ProbeResult` 含 `sessionCapabilities` 字段。Composer 只为当前 provider 已声明的能力显示对应控件。
@@ -1625,7 +1625,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
   - macOS/Linux：注入 login shell 的 `PATH`（GUI 窄 PATH）。
   - Windows：写唯一临时 `.bat` + `CREATE_NO_WINDOW` + `call` 前缀；安装进程 PATH 合并 npm/pnpm/WinGet/Scoop shim；批处理切到 UTF-8，错误输出按 UTF-8 优先、GBK 回退解码。
   - 在 `spawn_blocking` 中执行，避免卡住 async runtime。
-- **实现**：`src-tauri/src/features/agent/tool_lifecycle.rs`
+- **实现**：`src-tauri/src/features/agent/registry/lifecycle.rs`
 - **Catalog 两层检测**（`agent_scan_catalog` / 远端 scan）：
   - **Agent**：`binaryAvailable`（`detect_command`，如 `claude` / `codex` / `opencode` / `openclaw` / `hermes` / `kimi`）
   - **ACP**：`acpCommandAvailable`（`command`，如 `claude-agent-acp`；原生 ACP 时与 Agent 同二进制）

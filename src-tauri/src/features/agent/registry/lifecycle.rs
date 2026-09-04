@@ -5,9 +5,9 @@
 //! Scoped to Motif catalog templates.
 
 #[cfg(target_os = "windows")]
-use crate::features::agent::discover::path_entries;
-use crate::features::agent::discover::resolve_command;
-use crate::features::agent::templates::{
+use crate::features::agent::registry::discovery::path_entries;
+use crate::features::agent::registry::discovery::resolve_command;
+use crate::features::agent::registry::templates::{
     dsh_entrypoint_exists, dsh_launcher_dir, kimi_launcher_dir, template_info,
     CLAUDE_ACP_INSTALL_COMMAND, PI_ACP_INSTALL_COMMAND, PI_HOST_INSTALL_COMMAND,
 };

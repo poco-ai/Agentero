@@ -1,10 +1,10 @@
 use crate::core::error::{map_err, ApiResult, AppError};
 use crate::features::agent::ask_user::AskUserAnswer;
-use crate::features::agent::elicitation::ElicitationAnswer;
 use crate::features::agent::models::{
     AgentDescriptor, AgentListResponse, AgentSkill, CatalogScanResponse, ProbeResult,
     RunOnceAccepted, RunOnceRequest, UpsertAgentRequest, WarmRequest, WarmResult,
 };
+use crate::features::agent::runtime::gates::ElicitationAnswer;
 use crate::features::agent::{
     list_agent_skills, new_ids, probe_agent, run_once, warm_agent, AgentEventEmitter,
     AgentRegistry, AgentRunController, AgentWarmGate, AskUserGate, ElicitationGate, PermissionGate,
@@ -232,7 +232,9 @@ pub async fn agent_run_tool_lifecycle(
     action: String,
     task_id: Option<String>,
 ) -> Result<ApiResult<serde_json::Value>, String> {
-    use crate::features::agent::tool_lifecycle::{run_template_lifecycle, ToolLifecycleAction};
+    use crate::features::agent::registry::lifecycle::{
+        run_template_lifecycle, ToolLifecycleAction,
+    };
 
     let action_label = action.clone();
     let action = match ToolLifecycleAction::parse(&action) {
@@ -287,8 +289,8 @@ pub async fn agent_run_tool_lifecycle(
 #[tauri::command]
 pub fn agent_tool_uninstall_info(
     template_id: String,
-) -> ApiResult<Option<crate::features::agent::tool_lifecycle::UninstallInfo>> {
-    ApiResult::ok(crate::features::agent::tool_lifecycle::uninstall_info(
+) -> ApiResult<Option<crate::features::agent::registry::lifecycle::UninstallInfo>> {
+    ApiResult::ok(crate::features::agent::registry::lifecycle::uninstall_info(
         &template_id,
     ))
 }

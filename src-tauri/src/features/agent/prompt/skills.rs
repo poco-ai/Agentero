@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn parses_bundled_folded_description() {
         let bundled =
-            include_str!("../../../../templates/vault/.agents/skills/paper-reader/SKILL.md");
+            include_str!("../../../../../templates/vault/.agents/skills/paper-reader/SKILL.md");
         let (name, description) = parse_skill_metadata(bundled, "paper-reader");
         assert_eq!(name, "paper-reader");
         assert!(description.starts_with("Read and explain a research paper"));

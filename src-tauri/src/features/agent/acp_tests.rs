@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod acp_live {
     use crate::features::agent::acp::permission_response;
-    use crate::features::agent::discover::resolve_command;
     use crate::features::agent::list_acp_sessions;
     use crate::features::agent::models::{AgentDescriptor, AgentTemplate, CatalogAcpStatus};
-    use crate::features::agent::templates::catalog_templates;
+    use crate::features::agent::registry::discovery::resolve_command;
+    use crate::features::agent::registry::templates::catalog_templates;
     use crate::features::agent::AgentRegistry;
     use agent_client_protocol::schema::v1::{
         PermissionOption, PermissionOptionId, PermissionOptionKind, RequestPermissionOutcome,
@@ -263,7 +263,7 @@ mod acp_live {
 
 #[cfg(test)]
 mod tool_payload {
-    use crate::features::agent::acp::{cap_tool_payload, TOOL_PAYLOAD_MAX_BYTES};
+    use crate::features::agent::acp::updates::{cap_tool_payload, TOOL_PAYLOAD_MAX_BYTES};
     use serde_json::{json, Value};
 
     #[test]
@@ -314,7 +314,7 @@ mod tool_payload {
 
 #[cfg(test)]
 mod list_sessions_paging {
-    use crate::features::agent::acp::{
+    use crate::features::agent::session::{
         list_sessions_page_done, LIST_SESSIONS_BUDGET, LIST_SESSIONS_MAX, LIST_SESSIONS_MAX_PAGES,
     };
     use std::time::Duration;

@@ -15,7 +15,7 @@ Windows 11 安装 exe 后，打开 Chat 面板 / 设置页时应用不断拉起�
 ## 修复
 
 1. **注入 `NO_BROWSER=true`**（`acp.rs` `to_acp_agent_local`）：Gemini 模板 spawn 时注入该环境变量（用户显式配置则不覆盖），Gemini CLI 不再拉起浏览器；登录须在终端运行 `gemini` 完成（符合 BYOA 设计）。
-2. **后台熔断 `AgentWarmGate`**（`runtime.rs`，app state）：`agent_warm` / `agent_list_sessions` 失败后记录该 agent，120s 冷却期内直接返回上次错误、不再 spawn；这两个命令成功、或用户消息（`agent_run_once`）成功后清除记录。
+2. **后台熔断 `AgentWarmGate`**（`runtime/control.rs`，app state）：`agent_warm` / `agent_list_sessions` 失败后记录该 agent，120s 冷却期内直接返回上次错误、不再 spawn；这两个命令成功、或用户消息（`agent_run_once`）成功后清除记录。
 
 ## 经验
 

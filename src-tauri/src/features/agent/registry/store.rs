@@ -1,14 +1,14 @@
 use crate::core::error::AppError;
-use crate::features::agent::discover::{probe_command, resolve_command};
 use crate::features::agent::models::{
     default_agent_proxy_url, AgentDescriptor, AgentRegistryState, AgentTelemetrySummary,
     AgentTemplate, CatalogAcpStatus, CatalogEntry, CatalogScanResponse, ProbeResult,
     UpsertAgentRequest,
 };
-use crate::features::agent::templates::{
+use crate::features::agent::registry::discovery::{probe_command, resolve_command};
+use crate::features::agent::registry::lifecycle;
+use crate::features::agent::registry::templates::{
     catalog_templates, dsh_entrypoint_exists, dsh_launcher_dir, template_from_id, template_info,
 };
-use crate::features::agent::tool_lifecycle;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -221,7 +221,7 @@ impl AgentRegistry {
         // dsh needs its launcher dir (cordis.yml / package.json) even when the
         // server itself is already installed elsewhere (home npm root / PATH).
         if template_id == "dsh" {
-            tool_lifecycle::prepare_dsh_launcher().map_err(AppError::message)?;
+            lifecycle::prepare_dsh_launcher().map_err(AppError::message)?;
         }
 
         let env = catalog_env(&info);
@@ -491,7 +491,7 @@ impl AgentRegistry {
                 .detect_command
                 .as_ref()
                 .is_some_and(|d| d != &info.command);
-            let can_install = tool_lifecycle::supports_lifecycle(&info.id);
+            let can_install = lifecycle::supports_lifecycle(&info.id);
             // Offer ACP install when host is present but ACP entry is missing.
             let offer_install = binary_available
                 && !acp_command_available
