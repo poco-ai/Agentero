@@ -3692,8 +3692,12 @@
 <td>Paper 行右键（仅本地 Vault；查 <code>paperMetaByRelPath</code> 打开与 Library 相同的编辑对话框）</td>
 </tr>
 <tr>
+<td>多选与批量操作</td>
+<td>⌘/Ctrl 单击切换、Shift 单击范围选择；选择后复用 Vault 的固定 <code>PaneHeader</code> 显示数量、移动、删除与清除，不在树内插入或悬浮工具条，因此树的高度、滚动位置和可见范围不变。右键已选行作用于整组；右键未选行会先收敛为该单项。Esc 清除，Enter/Space 可用键盘激活。父目录与后代同时进入范围时只保留父目录这个语义目标，避免重复移动/删除。</td>
+</tr>
+<tr>
 <td>多选拖拽</td>
-<td>⌘/Shift + 拖到目标文件夹（内部拖动带 <code>application/x-agentero-vault-paths</code>，Composer / Library 不抢成图片或 PDF 导入）；拖动时高亮落点夹。论文单元是叶子，拖到论文行 = 落到它的父目录（<code>dropDirFor</code>）；两端都在 <code>papers/</code> 下走 <code>paper_move</code>，否则 <code>wiki_move</code></td>
+<td>从已选行拖动整组到目标文件夹（内部拖动带 <code>application/x-agentero-vault-paths</code>，Composer / Library 不抢成图片或 PDF 导入）；拖动时高亮落点夹。论文单元是叶子，拖到论文行 = 落到它的父目录（<code>dropDirFor</code>）；两端都在 <code>papers/</code> 下走 <code>paper_move</code>，否则 <code>wiki_move</code></td>
 </tr>
 <tr>
 <td>外部 PDF</td>
@@ -3722,7 +3726,7 @@
 </ul>
 <h2 id="_7">代码<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <ul>
-<li>UI：<code>src/components/sidebar/file-tree/</code>（barrel <code>index.ts</code>；<code>file-tree.tsx</code> 仅装配，行/菜单/输入/选中条/虚拟列表为独立子模块）、AI Elements <code>FileTree</code></li>
+<li>UI：<code>src/components/sidebar/file-tree/</code>（barrel <code>index.ts</code>；<code>file-tree.tsx</code> 仅装配，行/菜单/输入/虚拟列表为独立子模块）、<code>vault-sidebar-header.tsx</code>（普通 / 多选标题栏）、AI Elements <code>FileTree</code></li>
 <li>树内状态：<code>src/components/sidebar/file-tree/hooks/</code>（<code>use-tree-model</code> 路径索引与扁平行、<code>use-tree-expansion</code> 展开与懒加载、<code>use-tree-selection</code> 多选、<code>use-tree-reveal</code> 虚拟化与定位、<code>use-tree-drag-drop</code>、<code>use-paper-row-actions</code>、<code>use-tree-context-menu</code>、<code>use-move-picker</code>）</li>
 <li>逻辑：<code>src/lib/vault/</code>（store、tree、fs-watch、reveal）</li>
 <li>附件：<code>src/lib/paper/attachments.ts</code>、<code>paths.ts</code>（<code>attachments/</code> 约定）</li>
