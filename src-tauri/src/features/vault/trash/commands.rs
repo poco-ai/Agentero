@@ -1,10 +1,10 @@
 //! Recycle-bin commands: undoable delete + restore (local + remote).
 
 use crate::core::error::{map_err, ApiResult};
+use crate::core::jobs::{emit_job_changed, JobCenter};
 use crate::core::log_util::{trunc, OpTimer};
-use crate::features::jobs::{emit_job_changed, JobCenter};
-use crate::features::remote::{parse_remote_handle, trash_bridge, RemoteRegistry};
 use crate::features::trash;
+use crate::integration::remote::{parse_remote_handle, trash_bridge, RemoteRegistry};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::sync::Arc;

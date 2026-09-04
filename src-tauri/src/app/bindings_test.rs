@@ -13,23 +13,23 @@ fn export_typescript_bindings() {
     let builder = tauri_specta::Builder::<tauri::Wry>::new()
         .commands(tauri_specta::collect_commands![
             crate::features::translate::commands::translate_text,
-            crate::features::jobs::commands::job_parse_refs_enqueue,
-            crate::features::jobs::commands::job_parse_body_enqueue,
-            crate::features::jobs::commands::job_layout_analyze_enqueue,
-            crate::features::jobs::commands::job_download_assets_enqueue,
-            crate::features::jobs::commands::job_reconcile_paper,
-            crate::features::jobs::commands::job_reconcile_vault,
-            crate::features::jobs::commands::job_papers_needing_assets,
-            crate::features::jobs::commands::job_focus_paper,
-            crate::features::jobs::commands::job_cancel,
-            crate::features::jobs::commands::job_report,
-            crate::features::jobs::commands::job_list,
+            crate::core::jobs::commands::job_parse_refs_enqueue,
+            crate::core::jobs::commands::job_parse_body_enqueue,
+            crate::core::jobs::commands::job_layout_analyze_enqueue,
+            crate::core::jobs::commands::job_download_assets_enqueue,
+            crate::core::jobs::commands::job_reconcile_paper,
+            crate::core::jobs::commands::job_reconcile_vault,
+            crate::core::jobs::commands::job_papers_needing_assets,
+            crate::core::jobs::commands::job_focus_paper,
+            crate::core::jobs::commands::job_cancel,
+            crate::core::jobs::commands::job_report,
+            crate::core::jobs::commands::job_list,
         ])
         // `job:offer` / `job:changed` payloads are emitted via `app.emit`
         // (plain events, not tauri-specta events); register their types so
         // the frontend can consume them from bindings.ts.
-        .typ::<crate::features::jobs::JobOfferPayload>()
-        .typ::<crate::features::jobs::JobChangedPayload>();
+        .typ::<crate::core::jobs::JobOfferPayload>()
+        .typ::<crate::core::jobs::JobChangedPayload>();
 
     let out_path = Path::new("../src/lib/core/bindings.ts");
     let update = std::env::var("AGENTERO_UPDATE_BINDINGS").is_ok();

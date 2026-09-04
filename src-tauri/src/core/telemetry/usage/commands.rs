@@ -5,7 +5,7 @@
 
 use crate::core::blocking::run_blocking;
 use crate::core::error::{map_err, ApiResult};
-use crate::features::usage::events::{
+use crate::core::usage::events::{
     clear_default, list_default, record_default, summarize_default, ListFilter, UsageEvent,
     UsageKindCount, UsageRecord,
 };
@@ -39,8 +39,8 @@ pub async fn activity_record_events(
 /// unless product analytics is enabled; unmapped kinds are dropped.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn forward_to_telemetry(app: &AppHandle, events: &[UsageRecord]) {
-    use crate::features::telemetry::Telemetry;
-    use crate::features::usage::telemetry_projection;
+    use crate::core::telemetry::Telemetry;
+    use crate::core::usage::telemetry_projection;
     use std::sync::Arc;
     use tauri::Manager;
 

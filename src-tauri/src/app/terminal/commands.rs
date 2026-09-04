@@ -1,5 +1,5 @@
+use crate::app::terminal;
 use crate::core::error::{map_err, ApiResult, AppError};
-use crate::features::terminal;
 use serde::Serialize;
 use std::path::PathBuf;
 

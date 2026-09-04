@@ -1,7 +1,7 @@
 //! Tauri commands for the Zotero Connector–compatible local server.
 
 use crate::core::error::ApiResult;
-use crate::features::connector::{ConnectorController, ConnectorStatus};
+use crate::integration::connector::{ConnectorController, ConnectorStatus};
 use serde::Deserialize;
 use std::sync::Arc;
 use tauri::State;

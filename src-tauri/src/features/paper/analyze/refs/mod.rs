@@ -341,8 +341,8 @@ async fn parse_paper_refs_prepared(
 /// startup. Dependency inversion: the scheduler dispatches, refs owns the
 /// execution (no jobs→refs edge).
 #[cfg(feature = "desktop")]
-pub fn register_job_runners(center: &crate::features::jobs::JobCenter) {
-    use crate::features::jobs::JobKind;
+pub fn register_job_runners(center: &crate::core::jobs::JobCenter) {
+    use crate::core::jobs::JobKind;
     center.register_runner(JobKind::ParseRefs, Arc::new(parse_refs_runner));
     // Reconcile backfill: a paper needs ParseRefs when its cite sidecar is absent.
     center.register_backfill_probe(JobKind::ParseRefs, |vault, path| {
@@ -350,15 +350,15 @@ pub fn register_job_runners(center: &crate::features::jobs::JobCenter) {
     });
 }
 
-/// Runner for [`crate::features::jobs::JobKind::ParseRefs`]: parse the cite
+/// Runner for [`crate::core::jobs::JobKind::ParseRefs`]: parse the cite
 /// sidecar; online reference lookup is always enabled.
 #[cfg(feature = "desktop")]
 fn parse_refs_runner(
-    center: crate::features::jobs::JobCenter,
+    center: crate::core::jobs::JobCenter,
     app: tauri::AppHandle,
-    started: crate::features::jobs::StartedJob,
+    started: crate::core::jobs::StartedJob,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
-    use crate::features::jobs::{RunOutcome, StartedJob};
+    use crate::core::jobs::{RunOutcome, StartedJob};
     center.run_job(app, started, |_center, _app, started| async move {
         let StartedJob {
             vault_path: vault,
@@ -383,24 +383,19 @@ pub fn spawn_parse_after_import(app: Option<&tauri::AppHandle>, vault: &Path, pa
     if let Some(app) = app {
         let app = app.clone();
         tauri::async_runtime::spawn(async move {
-            let center = app.state::<crate::features::jobs::JobCenter>().handle();
+            let center = app.state::<crate::core::jobs::JobCenter>().handle();
             let snapshot = center
-                .enqueue_parse_refs(
-                    &vault,
-                    &path_rel,
-                    crate::features::jobs::JobLane::Normal,
-                    false,
-                )
+                .enqueue_parse_refs(&vault, &path_rel, crate::core::jobs::JobLane::Normal, false)
                 .await;
-            crate::features::jobs::emit_job_changed(&app, snapshot.clone());
+            crate::core::jobs::emit_job_changed(&app, snapshot.clone());
             match center.try_start(&snapshot.id).await {
-                crate::features::jobs::StartOutcome::Started(started) => {
+                crate::core::jobs::StartOutcome::Started(started) => {
                     center.run_started(&app, started).await;
                 }
-                crate::features::jobs::StartOutcome::Skipped(skipped) => {
-                    crate::features::jobs::emit_job_changed(&app, skipped);
+                crate::core::jobs::StartOutcome::Skipped(skipped) => {
+                    crate::core::jobs::emit_job_changed(&app, skipped);
                 }
-                crate::features::jobs::StartOutcome::Waiting => {}
+                crate::core::jobs::StartOutcome::Waiting => {}
             }
         });
         return;

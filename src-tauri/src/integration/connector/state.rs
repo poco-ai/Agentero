@@ -128,7 +128,7 @@ pub struct ConnectorController {
     /// Fast path for handlers without locking the full struct for vault checks.
     running: AtomicBool,
     /// Remote vault registry (injected at app start) for `remote:…` saves.
-    remote_registry: Mutex<Option<Arc<crate::features::remote::RemoteRegistry>>>,
+    remote_registry: Mutex<Option<Arc<crate::integration::remote::RemoteRegistry>>>,
 }
 
 impl Default for ConnectorController {
@@ -166,13 +166,13 @@ impl ConnectorController {
         self.inner.lock().ok().and_then(|g| g.app.clone())
     }
 
-    pub fn set_remote_registry(&self, registry: Arc<crate::features::remote::RemoteRegistry>) {
+    pub fn set_remote_registry(&self, registry: Arc<crate::integration::remote::RemoteRegistry>) {
         if let Ok(mut g) = self.remote_registry.lock() {
             *g = Some(registry);
         }
     }
 
-    pub fn remote_registry(&self) -> Option<Arc<crate::features::remote::RemoteRegistry>> {
+    pub fn remote_registry(&self) -> Option<Arc<crate::integration::remote::RemoteRegistry>> {
         self.remote_registry.lock().ok().and_then(|g| g.clone())
     }
 
@@ -679,7 +679,7 @@ impl ConnectorController {
                 .ok_or_else(|| AppError::message("No vault open"))?
         };
 
-        if let Some(sid) = crate::features::remote::parse_remote_handle(&handle) {
+        if let Some(sid) = crate::integration::remote::parse_remote_handle(&handle) {
             let reg = self
                 .remote_registry()
                 .ok_or_else(|| AppError::message("remote registry unavailable"))?;
@@ -749,7 +749,7 @@ impl ConnectorController {
         if Self::path_is_in_parent(from, parent) {
             return Ok(from.to_string());
         }
-        if let Some(sid) = crate::features::remote::parse_remote_handle(vault_handle) {
+        if let Some(sid) = crate::integration::remote::parse_remote_handle(vault_handle) {
             let reg = self
                 .remote_registry()
                 .ok_or_else(|| AppError::message("remote registry unavailable"))?;
@@ -939,7 +939,7 @@ impl ConnectorController {
         };
         let paper_tags: Vec<crate::features::catalog::papers::PaperTag> =
             tags.iter().cloned().map(Into::into).collect();
-        if let Some(sid) = crate::features::remote::parse_remote_handle(&handle) {
+        if let Some(sid) = crate::integration::remote::parse_remote_handle(&handle) {
             let reg = self
                 .remote_registry()
                 .ok_or_else(|| AppError::message("remote registry unavailable"))?;
@@ -1001,7 +1001,7 @@ impl ConnectorController {
         };
 
         let targets = if let Some(h) = handle.as_deref() {
-            if let Some(sid) = crate::features::remote::parse_remote_handle(h) {
+            if let Some(sid) = crate::integration::remote::parse_remote_handle(h) {
                 if let Some(reg) = self.remote_registry() {
                     match reg.get(sid).await {
                         Ok(session) => super::import::list_save_targets_remote(&session).await,

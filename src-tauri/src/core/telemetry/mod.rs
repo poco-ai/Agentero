@@ -11,9 +11,9 @@
 //! random UUID persisted in the config directory.
 
 use crate::core::paths;
+use crate::core::usage::ActivityProjection;
 use crate::features::agent::AgentTelemetrySummary;
 use crate::features::settings::AppSettings;
-use crate::features::usage::ActivityProjection;
 use serde_json::json;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -276,7 +276,7 @@ impl Telemetry {
 }
 
 fn record_usage(kind: &str, dur_ms: Option<i64>, extra: serde_json::Value) {
-    use crate::features::usage::{record_events, usage_db_path, UsageRecord};
+    use crate::core::usage::{record_events, usage_db_path, UsageRecord};
     if let Err(e) = record_events(
         &usage_db_path(),
         &[UsageRecord {

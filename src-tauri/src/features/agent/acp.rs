@@ -192,15 +192,15 @@ fn to_acp_agent_local(desc: &AgentDescriptor, cwd: Option<&Path>) -> Result<AcpA
 fn to_acp_agent(
     desc: &AgentDescriptor,
     cwd: Option<&Path>,
-    remote: Option<&crate::features::remote::RemoteAgentTarget>,
+    remote: Option<&crate::integration::remote::RemoteAgentTarget>,
 ) -> Result<AcpAgent, AppError> {
     if let Some(r) = remote {
         if r.is_ssh() {
-            use crate::features::remote::agent_exec::remote_agent_shell_command;
+            use crate::integration::remote::agent_exec::remote_agent_shell_command;
             if r.destination.is_empty() {
                 return Err(AppError::message("remote SSH destination is empty"));
             }
-            use crate::features::remote::agent_exec::proxy_env_from_map;
+            use crate::integration::remote::agent_exec::proxy_env_from_map;
             let proxy_pairs = proxy_env_from_map(&desc.env);
             let env_refs: Vec<(&str, &str)> = proxy_pairs
                 .iter()
@@ -1284,7 +1284,7 @@ async fn await_user_permission(
 /// When `remote` is set, the agent process is launched on the remote host (SSH).
 pub async fn probe_agent(
     desc: &AgentDescriptor,
-    remote: Option<&crate::features::remote::RemoteAgentTarget>,
+    remote: Option<&crate::integration::remote::RemoteAgentTarget>,
 ) -> ProbeResult {
     let agent_id = desc.id.clone();
     let acp = match to_acp_agent(desc, None, remote) {
@@ -1422,7 +1422,7 @@ pub struct RunOnceParams {
     pub response_language: Option<String>,
     pub personal_prompt: Option<String>,
     pub cancellation: watch::Receiver<bool>,
-    pub remote: Option<crate::features::remote::RemoteAgentTarget>,
+    pub remote: Option<crate::integration::remote::RemoteAgentTarget>,
     pub resume_session_id: Option<String>,
 }
 
@@ -1489,7 +1489,8 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
     } else {
         // Skills: local vault path, or remote work_root after materializing SKILL.md from SFTP.
         let skill_vault = if let Some(ref r) = params.remote {
-            if let Err(e) = crate::features::remote::materialize_skills_to_work(&r.session).await {
+            if let Err(e) = crate::integration::remote::materialize_skills_to_work(&r.session).await
+            {
                 log::warn!(target: "agentero::agent", "materialize remote skills: {e}");
             }
             Some(r.work_root.to_string_lossy().into_owned())
@@ -2211,7 +2212,7 @@ pub async fn warm_agent(
     vault_path: Option<String>,
     preferred_model_id: Option<String>,
     preferred_collaboration_mode_id: Option<String>,
-    remote: Option<crate::features::remote::RemoteAgentTarget>,
+    remote: Option<crate::integration::remote::RemoteAgentTarget>,
 ) -> WarmResult {
     let agent_id = desc.id.clone();
     let session_id = Uuid::new_v4().to_string();
@@ -2472,7 +2473,7 @@ pub async fn list_acp_sessions(
     desc: &AgentDescriptor,
     cwd: PathBuf,
     cursor: Option<String>,
-    remote: Option<&crate::features::remote::RemoteAgentTarget>,
+    remote: Option<&crate::integration::remote::RemoteAgentTarget>,
 ) -> Result<AcpListSessionsResult, AppError> {
     let acp = to_acp_agent(desc, Some(&cwd), remote)?;
     let terminals = Arc::new(tokio::sync::Mutex::new(AcpTerminalManager::new()));
@@ -2801,7 +2802,7 @@ pub async fn load_acp_session(
     desc: &AgentDescriptor,
     session_id: String,
     cwd: PathBuf,
-    remote: Option<&crate::features::remote::RemoteAgentTarget>,
+    remote: Option<&crate::integration::remote::RemoteAgentTarget>,
 ) -> Result<AcpLoadSessionResult, AppError> {
     let acp = to_acp_agent(desc, Some(&cwd), remote)?;
 

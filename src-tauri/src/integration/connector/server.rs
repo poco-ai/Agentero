@@ -7,7 +7,7 @@ use super::import::{
 };
 use super::state::{ConnectorController, ConnectorItemSaved, ProgressAttachment, ProgressItem};
 use crate::core::error::AppError;
-use crate::features::remote::parse_remote_handle;
+use crate::integration::remote::parse_remote_handle;
 use axum::body::{Body, Bytes};
 use axum::extract::{DefaultBodyLimit, Query, State};
 use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};

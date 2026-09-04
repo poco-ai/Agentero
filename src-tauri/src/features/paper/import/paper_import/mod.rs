@@ -274,9 +274,7 @@ pub async fn paper_commit(
     if !opts.defer_parse_jobs {
         if assets.pdf && !assets.tex && !assets.paper_md {
             #[cfg(feature = "desktop")]
-            crate::features::jobs::spawn_parse_body_after_assets(
-                parse_app, vault, &path_rel, false,
-            );
+            crate::core::jobs::spawn_parse_body_after_assets(parse_app, vault, &path_rel, false);
         }
 
         // Background reference parse so the References panel has a sidecar soon
@@ -421,7 +419,7 @@ async fn merge_pdf_into_existing(
 
     if became_main && caps.has_pdf() && !caps.has_tex && !caps.has_paper_md {
         #[cfg(feature = "desktop")]
-        crate::features::jobs::spawn_parse_body_after_assets(app, vault, &existing.path, false);
+        crate::core::jobs::spawn_parse_body_after_assets(app, vault, &existing.path, false);
         crate::features::refs::spawn_parse_after_import(app, vault, &existing.path);
     }
 

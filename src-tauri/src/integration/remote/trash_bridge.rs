@@ -374,7 +374,7 @@ async fn copy_tree(fs: &dyn VaultFs, from: &str, to: &str) -> Result<(), AppErro
 mod tests {
     use super::*;
     use crate::core::fs::WriteOpts;
-    use crate::features::remote::session::{RemoteRegistry, LOCAL_SIM_HOST};
+    use crate::integration::remote::session::{RemoteRegistry, LOCAL_SIM_HOST};
     use std::env;
 
     fn sample_record(path: &str, id: &str) -> PaperRecord {

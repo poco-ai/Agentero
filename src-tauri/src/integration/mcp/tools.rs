@@ -398,7 +398,7 @@ impl ServerHandler for AgenteroMcp {
 #[cfg(test)]
 mod schema_tests {
     use super::AgenteroMcp;
-    use crate::features::mcp::McpController;
+    use crate::integration::mcp::McpController;
     use rmcp::ServerHandler;
 
     #[test]

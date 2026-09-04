@@ -6,20 +6,29 @@ mod handlers;
 mod logging;
 pub mod menu;
 
+#[cfg(not(target_os = "ios"))]
+pub mod finder_service;
+#[cfg(not(target_os = "ios"))]
+pub use crate::features::open_request;
+#[cfg(not(target_os = "ios"))]
+pub mod terminal;
+#[cfg(not(target_os = "ios"))]
+pub mod window;
+
 use crate::features::agent::{AgentRegistry, AgentRunController};
-#[cfg(not(target_os = "ios"))]
-use crate::features::connector::ConnectorController;
-#[cfg(not(target_os = "ios"))]
-use crate::features::mcp::tunnel::McpTunnelController;
-#[cfg(not(target_os = "ios"))]
-use crate::features::mcp::McpController;
-#[cfg(not(target_os = "ios"))]
-use crate::features::remote::RemoteRegistry;
 use crate::features::rename::ExternalRenameRepairStore;
 use crate::features::settings::AppSettingsStore;
 #[cfg(not(target_os = "ios"))]
 use crate::features::watcher::FsWatchController;
 use crate::features::wiki::WikiIndexState;
+#[cfg(not(target_os = "ios"))]
+use crate::integration::connector::ConnectorController;
+#[cfg(not(target_os = "ios"))]
+use crate::integration::mcp::tunnel::McpTunnelController;
+#[cfg(not(target_os = "ios"))]
+use crate::integration::mcp::McpController;
+#[cfg(not(target_os = "ios"))]
+use crate::integration::remote::RemoteRegistry;
 #[cfg(not(target_os = "ios"))]
 use std::sync::Arc;
 #[cfg(not(target_os = "ios"))]
@@ -38,7 +47,7 @@ pub fn run() {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            crate::features::open_request::handle_argv_urls(app, &argv);
+            crate::app::open_request::handle_argv_urls(app, &argv);
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.show();
                 let _ = win.unminimize();
@@ -95,17 +104,17 @@ pub fn run() {
         .manage(crate::features::agent::PermissionGate::new())
         .manage(crate::features::agent::ElicitationGate::new())
         .manage(crate::features::agent::AskUserGate::new())
-        .manage(crate::features::bridge::BridgeController::new())
-        .manage(crate::features::bridge::BridgeClientController::new())
-        .manage(crate::features::jobs::JobCenter::with_layout_backend(
+        .manage(crate::integration::bridge::BridgeController::new())
+        .manage(crate::integration::bridge::BridgeClientController::new())
+        .manage(crate::core::jobs::JobCenter::with_layout_backend(
             &layout_backend,
         ))
         .manage(crate::features::catalog::CapsCache::new())
         .manage(WikiIndexState::new())
         .manage(crate::features::doctor::DoctorDirtyPathsState::default())
         .manage(ExternalRenameRepairStore::new())
-        .manage(crate::features::sync::SyncService::default())
-        .manage(crate::features::open_request::PendingVaultOpen::new());
+        .manage(crate::integration::sync::SyncService::default())
+        .manage(crate::app::open_request::PendingVaultOpen::new());
 
     #[cfg(not(target_os = "ios"))]
     {
@@ -119,7 +128,7 @@ pub fn run() {
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
-        builder = builder.manage(Arc::new(crate::features::telemetry::Telemetry::new()));
+        builder = builder.manage(Arc::new(crate::core::telemetry::Telemetry::new()));
     }
 
     builder = handlers::attach_handlers(builder);
@@ -145,7 +154,7 @@ pub fn run() {
         // register them here, so jobs stays a pure scheduler with no edges
         // into import/refs/settings/agent (P2 runner-registry refactor).
         {
-            let center = app.state::<crate::features::jobs::JobCenter>();
+            let center = app.state::<crate::core::jobs::JobCenter>();
             crate::features::refs::register_job_runners(&center);
             crate::features::import::job_runners::register_job_runners(&center);
             let handle = app.handle().clone();
@@ -241,7 +250,7 @@ pub fn run() {
                 let handle = app.handle().clone();
                 settings_store.subscribe(move |s| {
                     let center = handle
-                        .state::<crate::features::jobs::JobCenter>()
+                        .state::<crate::core::jobs::JobCenter>()
                         .inner()
                         .clone();
                     let backend = s.layout.backend.clone();
@@ -305,7 +314,7 @@ pub fn run() {
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         {
             let telemetry = Arc::clone(
-                app.state::<Arc<crate::features::telemetry::Telemetry>>()
+                app.state::<Arc<crate::core::telemetry::Telemetry>>()
                     .inner(),
             );
             let telemetry_settings = settings.clone();
@@ -329,21 +338,21 @@ pub fn run() {
             }
             if let Ok(Some(urls)) = app.deep_link().get_current() {
                 let list: Vec<String> = urls.into_iter().map(|u| u.to_string()).collect();
-                crate::features::open_request::handle_deep_link_urls(app.handle(), &list);
+                crate::app::open_request::handle_deep_link_urls(app.handle(), &list);
             }
             // Dev / direct spawn: CLI may pass agentero://… as argv when the
             // OS scheme is not registered (common with `tauri dev`).
             let argv: Vec<String> = std::env::args().collect();
-            crate::features::open_request::handle_argv_urls(app.handle(), &argv);
+            crate::app::open_request::handle_argv_urls(app.handle(), &argv);
             // Consume a request file left by `agentero open` before we listened.
-            if let Some(path) = crate::features::open_request::take_cli_open_request_file() {
-                let _ = crate::features::open_request::handle_open_path(app.handle(), &path);
+            if let Some(path) = crate::app::open_request::take_cli_open_request_file() {
+                let _ = crate::app::open_request::handle_open_path(app.handle(), &path);
             }
-            crate::features::open_request::spawn_cli_open_request_watcher(app.handle().clone());
+            crate::app::open_request::spawn_cli_open_request_watcher(app.handle().clone());
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 let list: Vec<String> = event.urls().into_iter().map(|u| u.to_string()).collect();
-                crate::features::open_request::handle_deep_link_urls(&handle, &list);
+                crate::app::open_request::handle_deep_link_urls(&handle, &list);
             });
         }
 
@@ -352,12 +361,12 @@ pub fn run() {
         #[cfg(target_os = "macos")]
         {
             tauri::async_runtime::spawn_blocking(|| {
-                crate::features::finder_service::ensure_installed();
+                crate::app::finder_service::ensure_installed();
             });
         }
 
         // Auto sync: resume background schedulers for configured vaults.
-        app.state::<crate::features::sync::SyncService>()
+        app.state::<crate::integration::sync::SyncService>()
             .start_all(app.handle());
 
         Ok(())
@@ -372,7 +381,7 @@ pub fn run() {
                 // that native window instead of forwarding the command to the
                 // main renderer, where it would close the active document tab.
                 if let Some(settings) =
-                    app.get_webview_window(crate::features::window::commands::SETTINGS_WINDOW_LABEL)
+                    app.get_webview_window(crate::app::window::commands::SETTINGS_WINDOW_LABEL)
                 {
                     if settings.is_focused().unwrap_or(false) {
                         let _ = settings.close();
@@ -385,7 +394,7 @@ pub fn run() {
                 // main-thread menu callback (see its doc comment).
                 let app = app.clone();
                 tauri::async_runtime::spawn(async move {
-                    if let Err(e) = crate::features::window::commands::window_new(app).await {
+                    if let Err(e) = crate::app::window::commands::window_new(app).await {
                         log::error!(target: "agentero::op", "op end window_new ok=false error={e}");
                     }
                 });
@@ -406,17 +415,17 @@ pub fn run() {
         builder = builder.on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 window.state::<FsWatchController>().stop(window.label());
-                if window.label() == crate::features::window::commands::SETTINGS_WINDOW_LABEL {
-                    crate::features::window::commands::emit_window_closed(
+                if window.label() == crate::app::window::commands::SETTINGS_WINDOW_LABEL {
+                    crate::app::window::commands::emit_window_closed(
                         window.app_handle(),
                         "settings",
                         None,
                     );
                 }
                 if let Some(view) =
-                    crate::features::window::commands::feature_view_from_label(window.label())
+                    crate::app::window::commands::feature_view_from_label(window.label())
                 {
-                    crate::features::window::commands::emit_window_closed(
+                    crate::app::window::commands::emit_window_closed(
                         window.app_handle(),
                         "feature",
                         Some(view),
@@ -449,15 +458,15 @@ pub fn run() {
                 // the process, so paired clients see a clean shutdown. `stop`
                 // takes the runtime, so the second call in this arm is a no-op.
                 let _ = app
-                    .state::<crate::features::bridge::BridgeController>()
+                    .state::<crate::integration::bridge::BridgeController>()
                     .stop();
                 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-                app.state::<Arc<crate::features::telemetry::Telemetry>>()
+                app.state::<Arc<crate::core::telemetry::Telemetry>>()
                     .shutdown();
             }
             // Best-effort final push (bounded); only on Exit so it runs once.
             if matches!(event, tauri::RunEvent::Exit) {
-                app.state::<crate::features::sync::SyncService>()
+                app.state::<crate::integration::sync::SyncService>()
                     .flush_on_exit();
             }
         });

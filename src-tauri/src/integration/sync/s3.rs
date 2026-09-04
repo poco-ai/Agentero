@@ -9,7 +9,7 @@
 
 use crate::core::error::AppError;
 use crate::core::http;
-use crate::features::sync::config::SyncBackendConfig;
+use crate::integration::sync::config::SyncBackendConfig;
 use chrono::Utc;
 use sha2::{Digest, Sha256};
 use std::sync::atomic::{AtomicBool, Ordering};

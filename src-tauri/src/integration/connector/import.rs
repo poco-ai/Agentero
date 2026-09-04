@@ -5,15 +5,15 @@ use crate::core::error::AppError;
 use crate::core::fs::WriteOpts;
 use crate::features::catalog::papers;
 use crate::features::catalog::papers::is_internal_tag_name;
-use crate::features::connector::ConnectorController;
 use crate::features::import::{
     enrich_remote_urls, ensure_paper_assets_with_cookies, map_zotero_item, normalize_parent_dir,
     paper_record_from_meta, write_paper_shell_opts, NoteShellMode, PaperMeta,
 };
-use crate::features::remote::import_bridge::{unique_remote_paper_path, upload_tree};
-use crate::features::remote::{parse_remote_handle, RemoteSession};
 use crate::features::translate::{free_mt_to_zh, looks_mostly_cjk};
 use crate::features::zotero::ZOTERO_INTERNAL_TAG_PREFIX;
+use crate::integration::connector::ConnectorController;
+use crate::integration::remote::import_bridge::{unique_remote_paper_path, upload_tree};
+use crate::integration::remote::{parse_remote_handle, RemoteSession};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -270,8 +270,8 @@ pub async fn write_attachment_pdf_remote(
 /// List org folders under remote `papers/` for the Connector collection picker.
 pub async fn list_save_targets_remote(
     session: &RemoteSession,
-) -> Vec<crate::features::connector::targets::SaveTarget> {
-    use crate::features::connector::targets::SaveTarget;
+) -> Vec<crate::integration::connector::targets::SaveTarget> {
+    use crate::integration::connector::targets::SaveTarget;
     let mut out = vec![SaveTarget {
         id: "L1".into(),
         name: "papers".into(),
@@ -285,7 +285,7 @@ async fn walk_remote_org(
     session: &RemoteSession,
     rel: &str,
     level: u32,
-    out: &mut Vec<crate::features::connector::targets::SaveTarget>,
+    out: &mut Vec<crate::integration::connector::targets::SaveTarget>,
 ) {
     if level > 12 {
         return;
@@ -320,7 +320,7 @@ async fn walk_remote_org(
         if is_paper {
             continue;
         }
-        out.push(crate::features::connector::targets::SaveTarget {
+        out.push(crate::integration::connector::targets::SaveTarget {
             id: format!("D{child}"),
             name: name.clone(),
             level,
@@ -577,7 +577,7 @@ pub async fn import_standalone_attachment(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .unwrap_or(&result.id);
-    let saved = crate::features::connector::ConnectorItemSaved {
+    let saved = crate::integration::connector::ConnectorItemSaved {
         path: result.path.clone(),
         id: result.id.clone(),
         title: result.title.clone(),

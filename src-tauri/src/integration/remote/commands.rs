@@ -7,8 +7,8 @@ use crate::core::error::{map_err, ApiResult, AppError};
 use crate::core::fs::{FsDirEntry, WriteOpts};
 use crate::core::log_util::{trunc, OpTimer};
 use crate::features::catalog::papers::{self, PaperRecord};
-use crate::features::remote::{ensure_remote_vault_skills, RemoteRegistry, RemoteSessionInfo};
 use crate::features::vault::CreateVaultResult;
+use crate::integration::remote::{ensure_remote_vault_skills, RemoteRegistry, RemoteSessionInfo};
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ pub struct RemoteConnectArgs {
 #[tauri::command]
 pub async fn remote_connect(
     registry: State<'_, Arc<RemoteRegistry>>,
-    connector: State<'_, Arc<crate::features::connector::ConnectorController>>,
+    connector: State<'_, Arc<crate::integration::connector::ConnectorController>>,
     args: RemoteConnectArgs,
 ) -> Result<ApiResult<RemoteSessionInfo>, String> {
     let op = OpTimer::start_with(
@@ -63,9 +63,9 @@ pub async fn remote_connect(
 /// Host entries from `~/.ssh/config` for the connect dialog's suggestions (#339).
 #[tauri::command]
 pub async fn remote_ssh_config_hosts(
-) -> Result<ApiResult<Vec<crate::features::remote::ssh_config::SshConfigHost>>, String> {
+) -> Result<ApiResult<Vec<crate::integration::remote::ssh_config::SshConfigHost>>, String> {
     Ok(ApiResult::ok(
-        crate::features::remote::ssh_config::ssh_config_hosts(),
+        crate::integration::remote::ssh_config::ssh_config_hosts(),
     ))
 }
 
@@ -80,7 +80,7 @@ pub struct RemoteSessionArgs {
 #[tauri::command]
 pub async fn remote_disconnect(
     registry: State<'_, Arc<RemoteRegistry>>,
-    connector: State<'_, Arc<crate::features::connector::ConnectorController>>,
+    connector: State<'_, Arc<crate::integration::connector::ConnectorController>>,
     args: RemoteSessionArgs,
 ) -> Result<ApiResult<()>, String> {
     let op = OpTimer::start_with(
@@ -427,7 +427,7 @@ pub async fn remote_cache_file(
         Ok(m) => m,
         Err(e) => return Ok(map_err(e)),
     };
-    let dest = crate::features::remote::blob_cache::ensure_cached(
+    let dest = crate::integration::remote::blob_cache::ensure_cached(
         &session.blob_root,
         &rel,
         meta.size,
@@ -455,8 +455,8 @@ pub struct RemoteCacheStatsArgs {
 pub async fn remote_cache_stats(
     registry: State<'_, Arc<RemoteRegistry>>,
     args: RemoteCacheStatsArgs,
-) -> Result<ApiResult<crate::features::remote::blob_cache::BlobCacheStats>, String> {
-    use crate::features::remote::blob_cache;
+) -> Result<ApiResult<crate::integration::remote::blob_cache::BlobCacheStats>, String> {
+    use crate::integration::remote::blob_cache;
     if let Some(sid) = args
         .session_id
         .as_deref()
@@ -494,7 +494,7 @@ pub async fn remote_cache_clear(
     registry: State<'_, Arc<RemoteRegistry>>,
     args: RemoteCacheClearArgs,
 ) -> Result<ApiResult<RemoteCacheClearResult>, String> {
-    use crate::features::remote::blob_cache;
+    use crate::integration::remote::blob_cache;
     let op = OpTimer::start("remote_cache_clear");
     let result = if let Some(sid) = args
         .session_id
@@ -547,7 +547,7 @@ pub async fn remote_paper_rescan(
 }
 
 async fn remote_rescan_impl(
-    session: &crate::features::remote::RemoteSession,
+    session: &crate::integration::remote::RemoteSession,
 ) -> Result<RemotePaperRescanResult, AppError> {
     use papers::PaperRecord;
 

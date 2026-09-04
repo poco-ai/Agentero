@@ -106,7 +106,7 @@ fn emit_paper_event(app: Option<&AppHandle>, event: &str, vault: &Path, paper_id
 #[serde(rename_all = "camelCase")]
 struct JobEventPayload {
     job_id: String,
-    kind: crate::features::jobs::JobKind,
+    kind: crate::core::jobs::JobKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     paper_id: Option<String>,
     timestamp: i64,
@@ -116,8 +116,8 @@ struct JobEventPayload {
 
 /// Derive `job:completed` / `job:failed` when a job snapshot is terminal.
 #[cfg(feature = "desktop")]
-pub fn emit_job_terminal(app: &AppHandle, job: &crate::features::jobs::JobSnapshot) {
-    use crate::features::jobs::JobState;
+pub fn emit_job_terminal(app: &AppHandle, job: &crate::core::jobs::JobSnapshot) {
+    use crate::core::jobs::JobState;
     let (event, error) = match job.state {
         JobState::Succeeded => (JOB_COMPLETED_EVENT, None),
         JobState::Failed => (JOB_FAILED_EVENT, job.error.clone()),
@@ -129,9 +129,7 @@ pub fn emit_job_terminal(app: &AppHandle, job: &crate::features::jobs::JobSnapsh
         .and_then(|p| p.rsplit(['/', '\\']).next())
         .filter(|s| !s.is_empty())
         .map(str::to_string);
-    if job.kind == crate::features::jobs::JobKind::DownloadAssets
-        && job.state == JobState::Succeeded
-    {
+    if job.kind == crate::core::jobs::JobKind::DownloadAssets && job.state == JobState::Succeeded {
         if let Some(pid) = paper_id.as_deref() {
             emit_paper_assets_ready(Some(app), Path::new(&job.vault_path), pid);
         }

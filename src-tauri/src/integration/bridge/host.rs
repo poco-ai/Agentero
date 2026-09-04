@@ -14,10 +14,10 @@ use crate::features::agent::models::RunOnceRequest;
 #[cfg(not(target_os = "ios"))]
 use crate::features::agent::{AgentRegistry, AgentRunController, PermissionGate};
 use crate::features::catalog::papers;
-#[cfg(not(target_os = "ios"))]
-use crate::features::remote::RemoteRegistry;
 use crate::features::search::{self, VaultSearchArgs};
 use crate::features::vault::tree;
+#[cfg(not(target_os = "ios"))]
+use crate::integration::remote::RemoteRegistry;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use chrono::Utc;

@@ -259,7 +259,7 @@ async fn rename_to_canonical(
                 c.invalidate(vault, to_rel);
             }
             #[cfg(feature = "desktop")]
-            crate::features::usage::events::rename_path_best_effort(
+            crate::core::usage::events::rename_path_best_effort(
                 &vault.to_string_lossy(),
                 from_rel,
                 to_rel,

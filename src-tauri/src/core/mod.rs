@@ -9,7 +9,13 @@ pub mod frontmatter;
 pub mod fs;
 pub mod http;
 pub mod install_dirs;
+#[cfg(feature = "desktop")]
+pub mod jobs;
 pub mod log_util;
 pub mod paths;
 pub mod sqlite;
+#[cfg(feature = "desktop")]
+pub mod telemetry;
 pub mod time;
+#[path = "telemetry/usage/mod.rs"]
+pub mod usage;

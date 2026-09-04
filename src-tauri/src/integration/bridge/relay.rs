@@ -15,7 +15,7 @@ pub enum RelayFrame {
 }
 
 /// Connect to a Paseo-compatible Relay. The caller builds role-specific URLs
-/// with [`crate::features::bridge::RelayEndpoint::connection_url`].
+/// with [`crate::integration::bridge::RelayEndpoint::connection_url`].
 pub async fn connect_relay(url: Url) -> Result<RelaySocket, AppError> {
     let (socket, response) = connect_async(url.as_str())
         .await

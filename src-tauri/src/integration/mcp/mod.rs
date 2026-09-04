@@ -319,8 +319,8 @@ impl McpController {
 mod tests {
     use super::*;
     use crate::features::catalog::papers::{self, PaperRecord, PaperTag};
-    use crate::features::mcp::notes::WriteMode;
     use crate::features::vault;
+    use crate::integration::mcp::notes::WriteMode;
     use tempfile::tempdir;
 
     fn sample_record(path: &str, id: &str, title: &str) -> PaperRecord {

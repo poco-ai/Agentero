@@ -8,7 +8,7 @@ use super::remote_catalog::{self, RemoteAgentScanResponse};
 use super::AgentRegistry;
 use crate::core::error::{map_err, ApiResult, AppError};
 use crate::core::log_util::{trunc, OpTimer};
-use crate::features::remote::RemoteRegistry;
+use crate::integration::remote::RemoteRegistry;
 use serde::Deserialize;
 use std::sync::Arc;
 use tauri::State;
@@ -106,7 +106,7 @@ pub async fn remote_agent_open_install_terminal(
     args: RemoteAgentInstallArgs,
 ) -> Result<ApiResult<serde_json::Value>, String> {
     use super::templates::template_info;
-    use crate::features::terminal;
+    use crate::app::terminal;
 
     let info = match template_info(&args.template_id) {
         Some(t) => t,

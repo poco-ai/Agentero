@@ -647,7 +647,7 @@ pub async fn download_paper_assets_with_progress(
 
     if result.pdf && !result.tex && !result.paper_md {
         #[cfg(feature = "desktop")]
-        crate::features::jobs::spawn_parse_body_after_assets(app, &vault, &path_rel, false);
+        crate::core::jobs::spawn_parse_body_after_assets(app, &vault, &path_rel, false);
     }
 
     crate::features::refs::spawn_parse_after_import(app, &vault, &path_rel);
@@ -946,7 +946,7 @@ async fn import_one_local_pdf(
     let recognize_pending = recognize_deferred && commit.status == CommitStatus::Created;
     if recognize_pending {
         #[cfg(feature = "desktop")]
-        crate::features::jobs::spawn_recognize_metadata(ctx.app, vault, &commit.path);
+        crate::core::jobs::spawn_recognize_metadata(ctx.app, vault, &commit.path);
     }
 
     Ok(LookupImportResult {

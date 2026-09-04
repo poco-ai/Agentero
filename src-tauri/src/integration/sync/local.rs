@@ -6,7 +6,7 @@
 //! - `.agentero/sync/state.json` — last sync time / version for status UI
 
 use crate::core::error::AppError;
-use crate::features::sync::snapshot::Manifest;
+use crate::integration::sync::snapshot::Manifest;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -82,7 +82,7 @@ pub async fn wiki_move(
             },
         ) {
             Ok(result) => {
-                crate::features::usage::events::rename_path_best_effort(
+                crate::core::usage::events::rename_path_best_effort(
                     args.vault_path.trim(),
                     &args.from_rel,
                     &args.to_rel,
@@ -267,11 +267,7 @@ fn move_inner(args: PaperMoveArgs, index: &mut WikiIndex) -> Result<PaperMoveRes
                 .map_err(|error| error.to_string())
         })
         .map_err(|error| AppError::message(error.to_string()))?;
-    crate::features::usage::events::rename_path_best_effort(
-        args.vault_path.trim(),
-        &from,
-        &new_rel,
-    );
+    crate::core::usage::events::rename_path_best_effort(args.vault_path.trim(), &from, &new_rel);
     Ok(PaperMoveResult {
         new_rel,
         link_update,

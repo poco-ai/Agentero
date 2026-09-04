@@ -7,10 +7,10 @@
 //! the `RecognizeMetadata` runner owns the deferred-recognition pipeline
 //! (probe → metadata/rename/merge → PAPER.md + refs + layout).
 
-use crate::features::catalog::CapsCache;
-use crate::features::jobs::{
+use crate::core::jobs::{
     emit_job_changed, JobCenter, JobKind, JobLane, RunOutcome, StartOutcome, StartedJob,
 };
+use crate::features::catalog::CapsCache;
 use std::sync::Arc;
 use tauri::Manager;
 

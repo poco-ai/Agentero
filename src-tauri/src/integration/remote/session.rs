@@ -257,7 +257,7 @@ mod tests {
     #[ignore = "set AGENTERO_REMOTE_SSH_HOST + AGENTERO_REMOTE_SSH_PATH for live SSH"]
     async fn live_ssh_remote_vault() {
         use crate::core::fs::WriteOpts;
-        use crate::features::remote::agent_exec;
+        use crate::integration::remote::agent_exec;
 
         let host = std::env::var("AGENTERO_REMOTE_SSH_HOST")
             .expect("AGENTERO_REMOTE_SSH_HOST (ssh config Host alias)");
@@ -453,7 +453,7 @@ mod tests {
     async fn live_paper_features() {
         use crate::core::fs::WriteOpts;
         use crate::features::catalog::papers::{self, PaperRecord, PaperTag};
-        use crate::features::remote::catalog_mirror::CatalogMirror;
+        use crate::integration::remote::catalog_mirror::CatalogMirror;
 
         let host = std::env::var("AGENTERO_REMOTE_SSH_HOST").expect("AGENTERO_REMOTE_SSH_HOST");
         let path = std::env::var("AGENTERO_REMOTE_SSH_PATH").expect("AGENTERO_REMOTE_SSH_PATH");
@@ -745,7 +745,7 @@ mod tests {
         );
 
         // --- 12. remote_which agents ---
-        use crate::features::remote::agent_exec;
+        use crate::integration::remote::agent_exec;
         let claude = agent_exec::remote_which(&host, "claude")
             .await
             .ok()
@@ -772,7 +772,7 @@ mod tests {
     #[tokio::test]
     async fn local_sim_remote_import_arxiv() {
         use crate::features::import::{LookupImportArgs, PaperDownloadAssetsArgs};
-        use crate::features::remote::import_bridge;
+        use crate::integration::remote::import_bridge;
         use std::time::{SystemTime, UNIX_EPOCH};
 
         let n = SystemTime::now()
@@ -861,7 +861,7 @@ mod tests {
         use crate::features::import::{
             ImportLocalPdfArgs, LookupImportArgs, PaperDownloadAssetsArgs, PaperImportArgs,
         };
-        use crate::features::remote::import_bridge;
+        use crate::integration::remote::import_bridge;
         use std::time::{SystemTime, UNIX_EPOCH};
 
         let n = SystemTime::now()
@@ -1082,7 +1082,7 @@ mod tests {
     #[ignore = "set AGENTERO_REMOTE_SSH_HOST + AGENTERO_REMOTE_SSH_PATH for live SSH"]
     async fn live_ssh_import_arxiv() {
         use crate::features::import::LookupImportArgs;
-        use crate::features::remote::import_bridge;
+        use crate::integration::remote::import_bridge;
         let host = std::env::var("AGENTERO_REMOTE_SSH_HOST").unwrap();
         let path = std::env::var("AGENTERO_REMOTE_SSH_PATH").unwrap();
         let reg = RemoteRegistry::new();

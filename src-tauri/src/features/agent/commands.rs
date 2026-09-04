@@ -10,7 +10,9 @@ use crate::features::agent::{
     AgentRegistry, AgentRunController, AgentWarmGate, AskUserGate, ElicitationGate, PermissionGate,
     PermissionPolicy, RunOnceParams,
 };
-use crate::features::remote::{materialize_skills_to_work, resolve_remote_target, RemoteRegistry};
+use crate::integration::remote::{
+    materialize_skills_to_work, resolve_remote_target, RemoteRegistry,
+};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -70,7 +72,7 @@ pub async fn agent_list_skills(
         };
     if let Some(remote) = remote_target {
         if let Err(e) =
-            crate::features::remote::ensure_remote_vault_skills(&remote.session, None).await
+            crate::integration::remote::ensure_remote_vault_skills(&remote.session, None).await
         {
             return Ok(map_err(e));
         }

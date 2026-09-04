@@ -7,7 +7,7 @@
 //! The task re-reads credentials on every pass, so config edits apply
 //! without a restart; toggling auto sync off aborts the task.
 
-use crate::features::sync::config;
+use crate::integration::sync::config;
 use notify_debouncer_full::notify::{RecursiveMode, Watcher};
 use notify_debouncer_full::{new_debouncer, DebouncedEvent};
 use std::collections::HashMap;

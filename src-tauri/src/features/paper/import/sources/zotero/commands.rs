@@ -9,7 +9,7 @@ use super::{
 use crate::core::blocking::run_blocking;
 use crate::core::error::ApiResult;
 use crate::features::import::{PaperImportArgs, PaperImportResult};
-use crate::features::remote::{import_bridge, parse_remote_handle, RemoteRegistry};
+use crate::integration::remote::{import_bridge, parse_remote_handle, RemoteRegistry};
 use std::sync::Arc;
 use tauri::ipc::Channel;
 use tauri::State;

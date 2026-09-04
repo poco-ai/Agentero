@@ -355,7 +355,7 @@ pub async fn migrate_zotero(
 
     progress(total, total, "migrate");
     for path in &out.paths {
-        crate::features::jobs::spawn_parse_body_after_assets(app, &vault, path, false);
+        crate::core::jobs::spawn_parse_body_after_assets(app, &vault, path, false);
     }
     Ok(out)
 }

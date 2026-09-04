@@ -15,10 +15,10 @@
 //! CAS `HEAD`. A lost CAS re-runs the merge against the winner's manifest.
 
 use crate::core::error::AppError;
-use crate::features::sync::config::SyncBackendConfig;
-use crate::features::sync::local::{self, SyncMeta};
-use crate::features::sync::s3::{PutCondition, PutOutcome, S3Client};
-use crate::features::sync::snapshot::{self, FileEntry, Manifest};
+use crate::integration::sync::config::SyncBackendConfig;
+use crate::integration::sync::local::{self, SyncMeta};
+use crate::integration::sync::s3::{PutCondition, PutOutcome, S3Client};
+use crate::integration::sync::snapshot::{self, FileEntry, Manifest};
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use serde::{Deserialize, Serialize};
@@ -745,7 +745,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "requires a local MinIO (see doc comment)"]
     async fn two_device_roundtrip_against_minio() {
-        use crate::features::sync::config::SyncBackendConfig;
+        use crate::integration::sync::config::SyncBackendConfig;
         use uuid::Uuid;
 
         let cfg = SyncBackendConfig {

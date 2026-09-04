@@ -14,5 +14,8 @@ pub mod core;
 /// `use agentero_lib::features::{vault, catalog, import, …}`;
 /// it must **not** use `features::agent` (BYOA is desktop-only).
 pub mod features;
+/// External integrations (bridge, MCP, remote vault, cloud sync).
+/// Desktop-only; CLI must not depend on these.
+pub mod integration;
 #[cfg(feature = "desktop")]
 pub use app::run;

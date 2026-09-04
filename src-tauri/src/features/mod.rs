@@ -6,8 +6,6 @@
 #[cfg(feature = "desktop")]
 pub mod agent;
 #[cfg(feature = "desktop")]
-pub mod bridge;
-#[cfg(feature = "desktop")]
 #[path = "agent/install/mod.rs"]
 pub mod cli_install;
 
@@ -20,17 +18,8 @@ pub mod layout_remote;
 
 pub mod lifecycle;
 
-#[cfg(feature = "desktop")]
-pub mod mcp;
-
-#[cfg(feature = "desktop")]
-pub mod remote;
-
-#[cfg(feature = "desktop")]
-pub mod sync;
-
-#[cfg(feature = "desktop")]
-pub mod telemetry;
+#[path = "../app/open_request/mod.rs"]
+pub mod open_request;
 
 pub mod translate;
 pub mod vault;
@@ -46,14 +35,8 @@ pub mod doctor;
 #[cfg(feature = "desktop")]
 #[path = "pdf/export/mod.rs"]
 pub mod export;
-#[cfg(feature = "desktop")]
-#[path = "system/finder_service/mod.rs"]
-pub mod finder_service;
 #[path = "paper/import/mod.rs"]
 pub mod import;
-#[cfg(feature = "desktop")]
-#[path = "system/open_request/mod.rs"]
-pub mod open_request;
 #[cfg(not(any(target_os = "ios", target_os = "android")))]
 #[path = "pdf/locate/mod.rs"]
 pub mod pdf_locate;
@@ -67,44 +50,33 @@ pub mod search;
 #[cfg(feature = "desktop")]
 #[path = "vault/settings/mod.rs"]
 pub mod settings;
-#[cfg(feature = "desktop")]
-#[path = "system/terminal/mod.rs"]
-pub mod terminal;
 #[path = "vault/trash/mod.rs"]
 pub mod trash;
-#[path = "telemetry/usage/mod.rs"]
-pub mod usage;
 #[cfg(feature = "desktop")]
 #[path = "vault/watcher/mod.rs"]
 pub mod watcher;
 #[path = "markdown/wiki/mod.rs"]
 pub mod wiki;
-#[cfg(feature = "desktop")]
-#[path = "vault/window/mod.rs"]
-pub mod window;
 
 #[path = "paper/scholar_api/mod.rs"]
 pub mod scholar_api;
 
-// Import-related source modules physically grouped under `paper/import/sources/`
-// but kept at the historical `features::` level for now.
+// Source/discovery modules physically grouped under `paper/discovery/`
+// and `paper/import/` but kept at the historical `features::` level for now.
 
 #[cfg(feature = "desktop")]
-#[path = "paper/import/sources/arxiv_proxy.rs"]
+#[path = "paper/discovery/arxiv_proxy.rs"]
 pub mod arxiv_proxy;
 #[cfg(feature = "desktop")]
-#[path = "paper/import/sources/connector/mod.rs"]
-pub mod connector;
-#[cfg(feature = "desktop")]
-#[path = "paper/import/sources/coolpapers/mod.rs"]
+#[path = "paper/discovery/coolpapers/mod.rs"]
 pub mod coolpapers;
-#[path = "paper/import/sources/feeds/mod.rs"]
+#[path = "paper/discovery/feeds/mod.rs"]
 pub mod feeds;
 #[cfg(feature = "desktop")]
-#[path = "paper/import/sources/modelscope_proxy.rs"]
+#[path = "paper/discovery/modelscope_proxy.rs"]
 pub mod modelscope_proxy;
 #[cfg(feature = "desktop")]
-#[path = "paper/import/sources/recommend/mod.rs"]
+#[path = "paper/discovery/recommend/mod.rs"]
 pub mod recommend;
 #[cfg(feature = "desktop")]
 #[path = "paper/import/site_proxy.rs"]
@@ -114,6 +86,3 @@ pub mod zotero;
 #[cfg(feature = "desktop")]
 #[path = "paper/import/sources/zotero_sync/mod.rs"]
 pub mod zotero_sync;
-
-#[cfg(feature = "desktop")]
-pub mod jobs;

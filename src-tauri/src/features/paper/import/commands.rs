@@ -13,10 +13,10 @@ use crate::features::import::{
     LookupImportBatchResult, PaperDownloadAssetsArgs, SkillImportResult, StageImportFileArgs,
     StageImportFileResult,
 };
-use crate::features::remote::{import_bridge, parse_remote_handle, RemoteRegistry};
 use crate::features::scholar_api::sources::semantic_scholar::{
     better_publication, is_usable_publication, SemanticScholarApi,
 };
+use crate::integration::remote::{import_bridge, parse_remote_handle, RemoteRegistry};
 use futures_util::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -206,7 +206,7 @@ pub async fn paper_parse_body(
 }
 
 async fn parse_remote_body(
-    session: Arc<crate::features::remote::session::RemoteSession>,
+    session: Arc<crate::integration::remote::session::RemoteSession>,
     args: PaperParseBodyArgs,
 ) -> Result<PaperParseResult, crate::core::error::AppError> {
     let path_rel = crate::core::fs::sanitize_vault_rel(&args.path)

@@ -1,7 +1,7 @@
 //! Append-only event writes, daily rollup, rename, and queries.
 
 use crate::core::error::AppError;
-use crate::features::usage::schema::{ensure_usage_at, paper_path_of};
+use crate::core::usage::schema::{ensure_usage_at, paper_path_of};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -587,7 +587,7 @@ pub fn since_rfc3339_days(days: u32) -> String {
 
 #[cfg(feature = "desktop")]
 pub fn rename_path_best_effort(vault: &str, from: &str, to: &str) {
-    match rename_path(&crate::features::usage::usage_db_path(), vault, from, to) {
+    match rename_path(&crate::core::usage::usage_db_path(), vault, from, to) {
         Ok(_) => {}
         Err(e) => {
             log::warn!(target: "agentero::usage", "rename usage paths {from} → {to}: {e}");
@@ -597,12 +597,12 @@ pub fn rename_path_best_effort(vault: &str, from: &str, to: &str) {
 
 #[cfg(feature = "desktop")]
 pub fn record_default(events: &[UsageRecord]) -> Result<usize, AppError> {
-    record_events(&crate::features::usage::usage_db_path(), events)
+    record_events(&crate::core::usage::usage_db_path(), events)
 }
 
 #[cfg(feature = "desktop")]
 pub fn list_default(filter: &ListFilter) -> Result<Vec<UsageEvent>, AppError> {
-    list_events(&crate::features::usage::usage_db_path(), filter)
+    list_events(&crate::core::usage::usage_db_path(), filter)
 }
 
 #[cfg(feature = "desktop")]
@@ -610,12 +610,12 @@ pub fn summarize_default(
     vault: Option<&str>,
     since: Option<&str>,
 ) -> Result<Vec<UsageKindCount>, AppError> {
-    summarize(&crate::features::usage::usage_db_path(), vault, since)
+    summarize(&crate::core::usage::usage_db_path(), vault, since)
 }
 
 #[cfg(feature = "desktop")]
 pub fn clear_default(vault: Option<&str>) -> Result<u64, AppError> {
-    let path = crate::features::usage::usage_db_path();
+    let path = crate::core::usage::usage_db_path();
     match vault.map(str::trim).filter(|s| !s.is_empty()) {
         Some(v) => clear_vault(&path, v),
         None => clear_all(&path),
