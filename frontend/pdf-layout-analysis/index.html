@@ -4002,6 +4002,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </ul>
 <p>缓存只在已知 paper folder 时启用；散落 PDF 没有 <code>{paper}</code> 路径，仍使用当前内存流程（也不写 index）。</p>
 <p><strong>重新分析按钮</strong>（Figures header）：<code>force: false</code>。有 <code>source/layout.json</code> 时只重跑 JSON→侧栏（<code>mergeCaptionsIntoHosts</code> + NMS），<strong>不</strong>再跑 PP-DocLayoutV3，也<strong>不</strong>覆盖 raw sidecar；<strong>会</strong>刷新 <code>layout-index.json</code>。无缓存时才走完整 PDF→JSON。需要强制刷新模型输出时由调用方显式传 <code>force: true</code>（当前 UI 不暴露）。</p>
+<p><strong>全库重置</strong>（设置 →「版面解析」底部两个按钮）：Host 命令 <code>clear_parse_results</code> / <code>clear_and_reparse</code>（<code>src-tauri/src/features/jobs/commands.rs</code>）按 catalog 逐篇删除所选 scope 的解析产物——<code>layout</code>（<code>source/layout.json</code> + <code>layout-index.json</code>）、<code>paper</code>（<code>PAPER.md</code>）或 <code>all</code>（默认）。删除前先取消该 Vault 下相关 queued/running 的 <code>layoutAnalyze</code> / <code>parseBody</code> job（防止晚到的 runner 把旧结果写回），删除后清空 <code>CapsCache</code>。「清除并重新解析」再对全部论文 enqueue <code>force: true</code> 的重新解析 job（idle lane，沿用 per-kind 并发上限）。仅支持本地 Vault；前端入口 <code>src/lib/paper/reparse.ts</code> + <code>layout-pane.tsx</code>（确认弹窗内选 scope）。</p>
 <hr />
 <h2 id="17">规则清单（现行，共 <strong>17</strong> 条核心规则）<a class="headerlink" href="#17" title="Permanent link">&para;</a></h2>
 <p>按阶段编号。实现常量见 <code>merge-captions.ts</code> → <code>LAYOUT_MERGE</code>。</p>
