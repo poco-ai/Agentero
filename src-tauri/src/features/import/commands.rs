@@ -7,15 +7,16 @@ use crate::core::log_util::{trunc, OpTimer};
 use crate::features::catalog::CapsCache;
 use crate::features::import::pdf_parse::{PaperParseBodyArgs, PaperParseResult};
 use crate::features::import::resolver::{fetch_arxiv_metadata, fetch_crossref_metadata};
-use crate::features::import::title_search::{
-    better_publication, fetch_s2_venue_by_doi, is_usable_publication, search_papers,
-};
+use crate::features::import::title_search::{needs_s2_venue_enrichment, search_papers};
 use crate::features::import::{
     AssetDownloadResult, ImportLocalPdfArgs, ImportLocalPdfResult, LookupImportBatchArgs,
     LookupImportBatchResult, PaperDownloadAssetsArgs, SkillImportResult, StageImportFileArgs,
     StageImportFileResult,
 };
 use crate::features::remote::{import_bridge, parse_remote_handle, RemoteRegistry};
+use crate::scholar_api::sources::semantic_scholar::{
+    better_publication, is_usable_publication, SemanticScholarApi,
+};
 use futures_util::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -319,11 +320,12 @@ pub async fn paper_resolve_identifier(
 /// Fill / replace `publication` from S2 when the current value is empty,
 /// generic (`arXiv`), or a likely-truncated Crossref proceedings title.
 async fn enrich_publication_from_s2(meta: &mut super::PaperMeta) {
-    use super::title_search::{better_publication, fetch_s2_venue, needs_s2_venue_enrichment};
     if !needs_s2_venue_enrichment(meta.publication.as_deref()) {
         return;
     }
-    let s2 = fetch_s2_venue(meta.arxiv_id.as_deref(), meta.doi.as_deref()).await;
+    let s2 = SemanticScholarApi
+        .fetch_venue_by_ids(meta.arxiv_id.as_deref(), meta.doi.as_deref())
+        .await;
     if let Some(best) = better_publication(meta.publication.as_deref(), s2.as_deref()) {
         meta.publication = Some(best);
     }
@@ -504,7 +506,7 @@ async fn resolve_publication_for_backfill(
     //    container-title. S2 wins on truncated ACL/NAACL titles; Crossref
     //    wins when it has the full proceedings string (ACL 2026 Long Papers).
     if let Some(doi) = doi.map(str::trim).filter(|s| !s.is_empty()) {
-        let s2 = fetch_s2_venue_by_doi(doi).await;
+        let s2 = SemanticScholarApi.fetch_venue_by_doi(doi).await;
         let crossref = match fetch_crossref_metadata(doi).await {
             Ok(meta) => meta.publication.filter(|p| is_usable_publication(p)),
             Err(_) => None,

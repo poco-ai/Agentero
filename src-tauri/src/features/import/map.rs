@@ -2,7 +2,6 @@
 
 use crate::core::error::AppError;
 use crate::features::catalog::papers::hide_arxiv_category_tag;
-use crate::features::import::title_search::fetch_s2_venue_by_arxiv;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -353,201 +352,6 @@ fn acl_anthology_pdf_url(url: &str) -> Option<String> {
     Some(format!("{}.pdf", trimmed))
 }
 
-pub async fn map_arxiv_atom(xml: &str, bare_id: &str) -> Result<PaperMeta, AppError> {
-    let titles: Vec<String> = xml
-        .split("<title>")
-        .skip(1)
-        .filter_map(|chunk| {
-            chunk
-                .split("</title>")
-                .next()
-                .map(collapse_ws)
-                .filter(|s| !s.is_empty() && !s.to_lowercase().starts_with("arxiv query"))
-        })
-        .collect();
-    let title = titles
-        .first()
-        .cloned()
-        .unwrap_or_else(|| bare_id.to_string());
-
-    let abstract_text = xml
-        .split("<summary>")
-        .nth(1)
-        .and_then(|c| c.split("</summary>").next())
-        .map(collapse_ws);
-
-    let mut authors = Vec::new();
-    for part in xml.split("<author>") {
-        if let Some(name_chunk) = part.split("<name>").nth(1) {
-            if let Some(name) = name_chunk.split("</name>").next() {
-                let n = collapse_ws(name);
-                if !n.is_empty() {
-                    authors.push(n);
-                }
-            }
-        }
-    }
-
-    let published = xml
-        .split("<published>")
-        .nth(1)
-        .and_then(|c| c.split("</published>").next())
-        .map(|s| s.trim().to_string());
-    let year = published
-        .as_ref()
-        .and_then(|p| p.get(0..4)?.parse::<i32>().ok());
-
-    // arXiv Atom carries the final journal/venue in <arxiv:journal_ref>.
-    // If the preprint has not been published, fall back to S2 publicationVenue.
-    let journal_ref = xml
-        .split("<arxiv:journal_ref>")
-        .nth(1)
-        .and_then(|c| c.split("</arxiv:journal_ref>").next())
-        .map(collapse_ws)
-        .filter(|s| !s.is_empty());
-    let publication = match journal_ref {
-        Some(jr) => Some(jr),
-        None => fetch_s2_venue_by_arxiv(bare_id).await,
-    };
-
-    let now = chrono_lite_now();
-    Ok(PaperMeta {
-        id: bare_id.to_string(),
-        paper_type: "arxiv".into(),
-        title,
-        authors,
-        creators: None,
-        year,
-        date: published,
-        abstract_text,
-        tags: vec![],
-        arxiv_id: Some(bare_id.to_string()),
-        doi: None,
-        isbn: None,
-        issn: None,
-        pmid: None,
-        publication: publication.or_else(|| Some("arXiv".into())),
-        volume: None,
-        issue: None,
-        pages: None,
-        publisher: None,
-        place: None,
-        series: None,
-        language: None,
-        pdf_url: Some(format!("https://arxiv.org/pdf/{bare_id}")),
-        html_url: Some(format!("https://arxiv.org/html/{bare_id}")),
-        source_url: Some(format!("https://arxiv.org/abs/{bare_id}")),
-        bibtex_key: Some(bare_id.replace('/', "")),
-        zotero_item_type: Some("preprint".into()),
-        meta_source: Some("arXiv.org".into()),
-        extra: None,
-        summary: None,
-        status: "completed".into(),
-        added_at: now.clone(),
-        updated_at: now,
-    })
-}
-
-/// Crossref `GET /works/{doi}` → `message` object → `PaperMeta`.
-/// `doi` is passed in separately because callers resolve it before fetching.
-pub fn map_crossref_work(message: &Value, doi: &str) -> Result<PaperMeta, AppError> {
-    let title = message
-        .get("title")
-        .and_then(|v| v.as_array())
-        .and_then(|a| a.first())
-        .and_then(|v| v.as_str())
-        .map(collapse_ws)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| AppError::message("crossref work missing title"))?;
-
-    let mut authors = Vec::new();
-    if let Some(arr) = message.get("author").and_then(|v| v.as_array()) {
-        for a in arr {
-            if let Some(name) = a.get("name").and_then(|v| v.as_str()) {
-                let n = collapse_ws(name);
-                if !n.is_empty() {
-                    authors.push(n);
-                }
-                continue;
-            }
-            let given = a.get("given").and_then(|v| v.as_str()).unwrap_or("");
-            let family = a.get("family").and_then(|v| v.as_str()).unwrap_or("");
-            let n = format!("{given} {family}").trim().to_string();
-            if !n.is_empty() {
-                authors.push(n);
-            }
-        }
-    }
-
-    let date = message
-        .pointer("/issued/date-parts/0/0")
-        .and_then(|v| v.as_i64())
-        .map(|y| y.to_string());
-    let year = date.as_ref().and_then(|d| d.parse::<i32>().ok());
-
-    let str_or_first = |key: &str| -> Option<String> {
-        let v = message.get(key)?;
-        match v {
-            Value::String(s) => Some(s.clone()),
-            Value::Array(a) => a.first().and_then(|x| x.as_str()).map(String::from),
-            _ => None,
-        }
-        .filter(|s| !s.trim().is_empty())
-    };
-
-    // Crossref abstracts are JATS XML; strip tags so NOTES/catalog stay plain.
-    let abstract_text = str_or_first("abstract").map(|s| {
-        let mut plain = String::with_capacity(s.len());
-        let mut in_tag = false;
-        for c in s.chars() {
-            match c {
-                '<' => in_tag = true,
-                '>' => in_tag = false,
-                _ if !in_tag => plain.push(c),
-                _ => {}
-            }
-        }
-        collapse_ws(&plain)
-    });
-
-    let now = chrono_lite_now();
-    Ok(PaperMeta {
-        id: doi_slug(doi),
-        paper_type: "article".into(),
-        title,
-        authors,
-        creators: None,
-        year,
-        date,
-        abstract_text,
-        tags: vec![],
-        arxiv_id: None,
-        doi: Some(doi.to_string()),
-        isbn: None,
-        issn: str_or_first("ISSN"),
-        pmid: None,
-        publication: str_or_first("container-title"),
-        volume: str_or_first("volume"),
-        issue: str_or_first("issue"),
-        pages: str_or_first("page"),
-        publisher: str_or_first("publisher"),
-        place: None,
-        series: None,
-        language: str_or_first("language"),
-        pdf_url: None,
-        html_url: Some(format!("https://doi.org/{doi}")),
-        source_url: Some(format!("https://doi.org/{doi}")),
-        bibtex_key: None,
-        zotero_item_type: Some("journalArticle".into()),
-        meta_source: Some("crossref.org".into()),
-        extra: None,
-        summary: None,
-        status: "completed".into(),
-        added_at: now.clone(),
-        updated_at: now,
-    })
-}
-
 /// Build metadata from a title-search candidate when no identifier resolved.
 /// Kept for unit tests; the production title path now uses `chain_resolve`.
 #[allow(dead_code)]
@@ -733,10 +537,6 @@ pub(crate) fn citekey_fallback(authors: &[String], year: Option<i32>, title: &st
     format!("{author}{y}{word}")
 }
 
-fn collapse_ws(s: &str) -> String {
-    s.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
 fn strip_v(id: &str) -> String {
     if let Some(i) = id.rfind('v') {
         if id[i + 1..].chars().all(|c| c.is_ascii_digit()) && i > 0 {
@@ -846,41 +646,6 @@ mod tests {
             meta.pdf_url.as_deref(),
             Some("https://aclanthology.org/2026.acl-long.1248.pdf")
         );
-    }
-
-    #[tokio::test]
-    async fn map_arxiv_atom_uses_journal_ref() {
-        let xml = r#"<feed>
-            <entry>
-                <id>http://arxiv.org/abs/1706.03762</id>
-                <published>2017-06-12T17:57:34Z</published>
-                <title>Attention Is All You Need</title>
-                <author><name>Ashish Vaswani</name></author>
-                <arxiv:journal_ref>Advances in Neural Information Processing Systems 30 (NeurIPS 2017)</arxiv:journal_ref>
-            </entry>
-        </feed>"#;
-        let meta = map_arxiv_atom(xml, "1706.03762").await.expect("map");
-        assert_eq!(
-            meta.publication.as_deref(),
-            Some("Advances in Neural Information Processing Systems 30 (NeurIPS 2017)")
-        );
-    }
-
-    #[tokio::test]
-    async fn map_arxiv_atom_falls_back_without_journal_ref() {
-        // Use an arXiv id that cannot resolve in Semantic Scholar, so the venue
-        // lookup yields None whether or not the test runner has network access.
-        let xml = r#"<feed>
-            <entry>
-                <id>http://arxiv.org/abs/9999.00001</id>
-                <published>2025-01-15T00:00:00Z</published>
-                <title>A Recent Preprint</title>
-                <author><name>Jane Doe</name></author>
-            </entry>
-        </feed>"#;
-        let meta = map_arxiv_atom(xml, "9999.00001").await.expect("map");
-        // No journal_ref and no resolvable S2 venue → publication falls back to "arXiv".
-        assert_eq!(meta.publication.as_deref(), Some("arXiv"));
     }
 
     #[test]

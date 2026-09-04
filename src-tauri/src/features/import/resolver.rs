@@ -12,10 +12,9 @@
 
 use std::future::Future;
 use std::pin::Pin;
-use std::time::Duration;
 
 use crate::core::error::AppError;
-use crate::features::import::map::{self, PaperMeta};
+use crate::features::import::map::PaperMeta;
 use crate::features::import::parse;
 
 /// A recognized identifier: machine kind tag (e.g. `SkippedImport.kind`),
@@ -327,6 +326,10 @@ fn regex_ads(s: &str) -> Option<String> {
     None
 }
 
+use crate::scholar_api::sources::{arxiv::ArxivApi, crossref::CrossrefApi};
+use crate::scholar_api::traits::AcademicApi;
+use crate::scholar_api::ApiQuery;
+
 // --- Direct-connect clients (fallbacks behind the trait) ---
 
 /// `GET https://export.arxiv.org/api/query?id_list=…` (Atom) → `PaperMeta`.
@@ -334,70 +337,26 @@ pub(crate) async fn fetch_arxiv_metadata(
     arxiv_id: &str,
     task_id: Option<&str>,
 ) -> Result<PaperMeta, AppError> {
-    let bare = parse::strip_arxiv_version(arxiv_id);
-    let api = format!(
-        "https://export.arxiv.org/api/query?id_list={}",
-        urlencoding_encode(&bare)
-    );
-    let client = crate::core::http::client_builder()
-        .timeout(Duration::from_secs(30))
-        .user_agent("agentero-lookup/0.1")
-        .build()
-        .map_err(|e| AppError::message(format!("http client: {e}")))?;
-    let xml = client
-        .get(&api)
-        .send()
-        .await
-        .map_err(|e| AppError::message(format!("arXiv API: {e}")))?
-        .text()
-        .await
-        .map_err(|e| AppError::message(format!("arXiv body: {e}")))?;
     super::check_task_not_cancelled(task_id)?;
-
-    map::map_arxiv_atom(&xml, &bare).await
-}
-
-fn urlencoding_encode(s: &str) -> String {
-    // minimal encode for arxiv ids
-    s.replace('/', "%2F")
+    let source = ArxivApi;
+    let mut papers = source
+        .fetch(&ApiQuery::ArxivId(arxiv_id.to_string()))
+        .await?;
+    super::check_task_not_cancelled(task_id)?;
+    let paper = papers
+        .pop()
+        .ok_or_else(|| AppError::message("arXiv metadata not found"))?;
+    Ok(super::api_paper_to_meta(&paper))
 }
 
 /// `GET https://api.crossref.org/works/{doi}` → `PaperMeta`.
 pub(crate) async fn fetch_crossref_metadata(doi: &str) -> Result<PaperMeta, AppError> {
-    let url = format!(
-        "https://api.crossref.org/works/{}",
-        urlencoding::encode(doi.trim())
-    );
-    let client = crate::core::http::client_builder()
-        .timeout(Duration::from_secs(30))
-        .user_agent(concat!(
-            "Agentero/",
-            env!("CARGO_PKG_VERSION"),
-            " (+https://github.com/poco-ai/agentero)"
-        ))
-        .build()
-        .map_err(|e| AppError::message(format!("crossref http client: {e}")))?;
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| AppError::message(format!("crossref request failed: {e}")))?;
-    if !response.status().is_success() {
-        return Err(AppError::message(format!(
-            "crossref HTTP {} for {doi}",
-            response.status()
-        )));
-    }
-    let value: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| AppError::message(format!("crossref body: {e}")))?;
-    map::map_crossref_work(
-        value
-            .pointer("/message")
-            .unwrap_or(&serde_json::Value::Null),
-        doi,
-    )
+    let source = CrossrefApi;
+    let mut papers = source.fetch(&ApiQuery::Doi(doi.to_string())).await?;
+    let paper = papers
+        .pop()
+        .ok_or_else(|| AppError::message("crossref metadata not found"))?;
+    Ok(super::api_paper_to_meta(&paper))
 }
 
 #[cfg(test)]

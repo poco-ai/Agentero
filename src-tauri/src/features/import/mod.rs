@@ -10,6 +10,9 @@ pub mod job_runners;
 pub mod paper_import;
 pub mod pdf_parse;
 
+mod api_mapper;
+pub(crate) use api_mapper::api_paper_to_meta;
+
 mod assets;
 pub(crate) mod batch;
 pub(crate) mod chain_resolve;
@@ -62,6 +65,8 @@ use crate::features::catalog::{
 };
 #[cfg(feature = "desktop")]
 use crate::features::import::assets::AssetDownloadProgress;
+use crate::scholar_api::sources::translator::TranslatorApi;
+use crate::scholar_api::traits::BibliographySource;
 use futures_util::StreamExt;
 use map::local_pdf_meta;
 use parse::extract_primary_identifier;
@@ -1055,58 +1060,19 @@ async fn translator_fetch(
     base: &str,
     task_id: Option<&str>,
 ) -> Result<PaperMeta, AppError> {
-    let client = crate::core::http::client_builder()
-        .timeout(Duration::from_secs(30))
-        .user_agent("agentero-lookup/0.1 (+https://github.com/poco-ai/agentero)")
-        .build()
-        .map_err(|e| AppError::message(format!("http client: {e}")))?;
-
     let (endpoint, body) = translator_request(text, base);
+    let api = TranslatorApi::new(base);
 
-    let res = client
-        .post(&endpoint)
-        .header("Content-Type", "text/plain")
-        .body(body)
-        .send()
+    let items = api
+        .fetch_raw_items(&endpoint, body)
         .await
         .map_err(|e| AppError::message(format!("translator request failed: {e}")))?;
     check_task_not_cancelled(task_id)?;
 
-    let status = res.status();
-    let bytes = res
-        .bytes()
-        .await
-        .map_err(|e| AppError::message(format!("translator read body: {e}")))?;
-    check_task_not_cancelled(task_id)?;
-
-    if status.as_u16() == 300 {
-        return Err(AppError::message(
-            "translator returned multiple choices; pick a single paper URL/id",
-        ));
-    }
-    if !status.is_success() {
-        let snippet = String::from_utf8_lossy(&bytes);
-        let short: String = snippet.chars().take(200).collect();
-        return Err(AppError::message(format!(
-            "translator HTTP {status}: {short}"
-        )));
-    }
-
-    let value: serde_json::Value = serde_json::from_slice(&bytes)
-        .map_err(|e| AppError::message(format!("translator JSON: {e}")))?;
-
-    let item = if value.is_array() {
-        value
-            .as_array()
-            .and_then(|a| a.first())
-            .cloned()
-            .ok_or_else(|| AppError::message("translator returned empty items array"))?
-    } else if value.is_object() {
-        // Some servers return a single object
-        value
-    } else {
-        return Err(AppError::message("unexpected translator response shape"));
-    };
+    let item = items
+        .into_iter()
+        .next()
+        .ok_or_else(|| AppError::message("translator returned empty items array"))?;
 
     map_zotero_item(&item)
 }
@@ -1164,49 +1130,15 @@ pub(crate) async fn translator_import_items(
 }
 
 async fn translator_import(content: &str, base: &str) -> Result<Vec<serde_json::Value>, AppError> {
-    let client =
-        crate::core::http::client_with(Duration::from_secs(60), 10, crate::core::http::USER_AGENT)?;
-    let url = format!("{base}/import");
-    let res = client
-        .post(&url)
-        .header("Content-Type", "text/plain")
-        .body(content.to_string())
-        .send()
+    let api = TranslatorApi::new(base);
+    let items = api
+        .import_items(content)
         .await
         .map_err(|e| AppError::message(format!("translator import: {e}")))?;
-
-    let status = res.status();
-    let bytes = res
-        .bytes()
-        .await
-        .map_err(|e| AppError::message(format!("import body: {e}")))?;
-    if !status.is_success() {
-        let snippet = String::from_utf8_lossy(&bytes);
-        let short: String = snippet.chars().take(200).collect();
-        return Err(AppError::message(format!(
-            "translator import HTTP {status}: {short}"
-        )));
-    }
-
-    let value: serde_json::Value = serde_json::from_slice(&bytes)
-        .map_err(|e| AppError::message(format!("import JSON: {e}")))?;
-
-    let arr = if value.is_array() {
-        value
-            .as_array()
-            .cloned()
-            .ok_or_else(|| AppError::message("import returned empty array"))?
-    } else if value.is_object() {
-        // Some servers may return a single item
-        vec![value]
-    } else {
-        return Err(AppError::message("unexpected import response shape"));
-    };
-
-    if arr.is_empty() {
+    if items.is_empty() {
         return Err(AppError::message("import returned no items"));
     }
-    Ok(arr)
+    Ok(items)
 }
 
 pub(crate) fn paper_record_from_meta(path: &str, meta: &PaperMeta) -> PaperRecord {

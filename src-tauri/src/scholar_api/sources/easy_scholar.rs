@@ -21,6 +21,19 @@ impl EasyScholarApi {
             secret_key: secret_key.into(),
         }
     }
+
+    /// Fetch the raw EasyScholar response for a publication name.
+    /// This is exposed so the frontend can keep consuming the original
+    /// `officialRank.all` JSON shape while the parsing logic lives here.
+    pub async fn fetch_raw(&self, venue: &str) -> Result<Value, ApiError> {
+        let url = format!(
+            "{}?secretKey={}&publicationName={}",
+            Self::ENDPOINT,
+            urlencoding::encode(&self.secret_key),
+            urlencoding::encode(venue.trim())
+        );
+        client::get_json_with_timeout(&url, client::DEFAULT_TIMEOUT).await
+    }
 }
 
 #[async_trait]
@@ -36,20 +49,18 @@ impl VenueMetricsSource for EasyScholarApi {
     async fn fetch_metrics(
         &self,
         venue: &str,
-        _identifiers: &VenueIdentifiers,
+        identifiers: &VenueIdentifiers,
     ) -> Result<VenueMetrics, ApiError> {
-        let url = format!(
-            "{}?secretKey={}&publicationName={}",
-            Self::ENDPOINT,
-            urlencoding::encode(&self.secret_key),
-            urlencoding::encode(venue.trim())
-        );
-        let value = client::get_json_with_timeout(&url, client::DEFAULT_TIMEOUT).await?;
-        parse_response(venue, &value)
+        let value = self.fetch_raw(venue).await?;
+        parse_response(venue, identifiers, &value)
     }
 }
 
-fn parse_response(venue: &str, value: &Value) -> Result<VenueMetrics, ApiError> {
+fn parse_response(
+    venue: &str,
+    _identifiers: &VenueIdentifiers,
+    value: &Value,
+) -> Result<VenueMetrics, ApiError> {
     let code = value.get("code").and_then(|v| v.as_i64()).unwrap_or(0);
     if code != 200 {
         return Err(ApiError::Other(format!(

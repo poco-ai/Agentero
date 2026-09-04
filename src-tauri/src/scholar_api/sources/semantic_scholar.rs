@@ -40,6 +40,35 @@ impl AcademicApi for SemanticScholarApi {
     }
 }
 
+impl SemanticScholarApi {
+    /// `/paper/search/match` returns the single best title match.
+    /// This endpoint is S2-specific and not part of the generic `AcademicApi`
+    /// trait, so it is exposed as an inherent method.
+    pub async fn search_match(&self, title: &str) -> Result<Option<ApiPaper>, ApiError> {
+        let url = format!(
+            "{API_BASE}/paper/search/match?query={}&fields=title,authors,year,venue,publicationVenue,journal,externalIds,citationCount,url",
+            urlencoding::encode(title)
+        );
+        let value = client::get_json(&url).await?;
+
+        // The endpoint usually returns a single paper object. The `/search`
+        // family wraps results in `data`; accept both shapes.
+        let item = if let Some(arr) = value.get("data").and_then(|v| v.as_array()) {
+            arr.first()
+        } else {
+            Some(&value)
+        };
+
+        let Some(item) = item else {
+            return Ok(None);
+        };
+
+        // Unlike the regular search endpoint, keep a match even if it has no
+        // DOI/arXiv id — this path is used for metadata refresh.
+        map_paper(item).map(Some).ok_or(ApiError::NotFound)
+    }
+}
+
 async fn fetch_by_id(paper_id: &str) -> Result<ApiPaper, ApiError> {
     let (prefix, rest) = paper_id.split_once(':').unwrap_or(("", paper_id));
     let url = if prefix.is_empty() {
@@ -71,11 +100,16 @@ async fn search_by_title(title: &str, limit: usize) -> Result<Vec<ApiPaper>, Api
 
     let mut out = Vec::new();
     for item in items {
-        if let Some(paper) = map_paper(item) {
-            out.push(paper);
-            if out.len() >= limit {
-                break;
-            }
+        let Some(paper) = map_paper(item) else {
+            continue;
+        };
+        // Skip entries that cannot be imported (no DOI or arXiv id).
+        if paper.identifiers.doi.is_none() && paper.identifiers.arxiv_id.is_none() {
+            continue;
+        }
+        out.push(paper);
+        if out.len() >= limit {
+            break;
         }
     }
     Ok(out)
@@ -127,7 +161,7 @@ fn map_paper(item: &Value) -> Option<ApiPaper> {
     })
 }
 
-fn venue_from_paper(v: &Value) -> Option<String> {
+pub fn venue_from_paper(v: &Value) -> Option<String> {
     let pv = v.get("publicationVenue").and_then(|pv| {
         let is_repo = pv
             .get("type")
@@ -147,7 +181,7 @@ fn venue_from_paper(v: &Value) -> Option<String> {
     )
 }
 
-fn is_usable_publication(s: &str) -> bool {
+pub fn is_usable_publication(s: &str) -> bool {
     let t = s.trim();
     if t.is_empty() {
         return false;
@@ -159,7 +193,7 @@ fn is_usable_publication(s: &str) -> bool {
     ) && !n.starts_with("arxiv:")
 }
 
-fn better_publication(primary: Option<&str>, other: Option<&str>) -> Option<String> {
+pub fn better_publication(primary: Option<&str>, other: Option<&str>) -> Option<String> {
     let a = primary.map(str::trim).filter(|s| is_usable_publication(s));
     let b = other.map(str::trim).filter(|s| is_usable_publication(s));
     match (a, b) {
@@ -174,6 +208,72 @@ fn better_publication(primary: Option<&str>, other: Option<&str>) -> Option<Stri
         (None, Some(y)) => Some(y.to_string()),
         _ => None,
     }
+}
+
+impl SemanticScholarApi {
+    /// Fetch the published venue for a paper via S2 `publicationVenue`/`journal`.
+    /// `paper_id` may be a bare S2 id, `DOI:...`, or `ARXIV:...`.
+    pub async fn fetch_venue(&self, paper_id: &str) -> Option<String> {
+        let (prefix, rest) = paper_id.split_once(':').unwrap_or(("", paper_id));
+        let url = if prefix.is_empty() {
+            format!(
+                "{API_BASE}/paper/{}?fields=venue,publicationVenue,journal",
+                urlencoding::encode(paper_id)
+            )
+        } else {
+            format!(
+                "{API_BASE}/paper/{}:{}?fields=venue,publicationVenue,journal",
+                prefix,
+                urlencoding::encode(rest)
+            )
+        };
+        match client::get_json(&url).await {
+            Ok(value) => venue_from_paper(&value),
+            Err(e) => {
+                log::debug!(
+                    target: "agentero::lookup",
+                    "s2 venue lookup for {paper_id} failed: {e}"
+                );
+                None
+            }
+        }
+    }
+
+    /// Convenience wrapper for an arXiv id.
+    pub async fn fetch_venue_by_arxiv(&self, arxiv_id: &str) -> Option<String> {
+        let bare = strip_arxiv_version(arxiv_id);
+        self.fetch_venue(&format!("ARXIV:{bare}")).await
+    }
+
+    /// Convenience wrapper for a DOI, skipping arXiv-issued DOIs.
+    pub async fn fetch_venue_by_doi(&self, doi: &str) -> Option<String> {
+        let doi = doi.trim();
+        if doi.is_empty() || is_arxiv_doi(doi) {
+            return None;
+        }
+        self.fetch_venue(&format!("DOI:{doi}")).await
+    }
+
+    /// Try arXiv first, then DOI.
+    pub async fn fetch_venue_by_ids(
+        &self,
+        arxiv_id: Option<&str>,
+        doi: Option<&str>,
+    ) -> Option<String> {
+        if let Some(id) = arxiv_id.map(str::trim).filter(|s| !s.is_empty()) {
+            if let Some(venue) = self.fetch_venue_by_arxiv(id).await {
+                return Some(venue);
+            }
+        }
+        if let Some(doi) = doi.map(str::trim).filter(|s| !s.is_empty()) {
+            return self.fetch_venue_by_doi(doi).await;
+        }
+        None
+    }
+}
+
+fn is_arxiv_doi(doi: &str) -> bool {
+    doi.to_ascii_lowercase().contains("10.48550/arxiv.")
 }
 
 fn strip_arxiv_version(id: &str) -> String {

@@ -441,23 +441,18 @@ fn pdf_url_candidates(id: &str, arxiv_id: Option<&str>, pdf_url: Option<&str>) -
     out
 }
 
-/// Query Unpaywall for a DOI's best open-access PDF location (no API key needed).
-/// Returns the `best_oa_location.url_for_pdf` when present.
+/// Query Unpaywall for a DOI's best open-access PDF location.
 async fn unpaywall_pdf_url(doi: &str) -> Option<String> {
-    let url = format!(
-        "https://api.unpaywall.org/v2/{}?email=agentero@users.noreply.github.com",
-        doi.trim()
-    );
-    let client = http::client_with(Duration::from_secs(20), 10, http::BROWSER_USER_AGENT).ok()?;
-    let resp = client.get(&url).send().await.ok()?;
-    if !resp.status().is_success() {
-        return None;
-    }
-    let v: serde_json::Value = serde_json::from_str(&resp.text().await.ok()?).ok()?;
-    v.pointer("/best_oa_location/url_for_pdf")
-        .and_then(|u| u.as_str())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+    use crate::scholar_api::sources::unpaywall::UnpaywallApi;
+    use crate::scholar_api::traits::PdfUrlSource;
+    use crate::scholar_api::ApiQuery;
+
+    let source = UnpaywallApi::new("agentero@users.noreply.github.com");
+    source
+        .pdf_url(&ApiQuery::Doi(doi.trim().to_string()))
+        .await
+        .ok()
+        .flatten()
 }
 
 /// Try each PDF URL in order; write on first success. Returns true when a PDF was saved.

@@ -9,6 +9,7 @@
 //! without creating feature-to-feature cycles.
 
 pub mod client;
+pub mod scoring;
 pub mod sources;
 pub mod traits;
 
