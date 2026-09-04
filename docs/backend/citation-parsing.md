@@ -5,7 +5,7 @@
 ## 1. 背景与现状
 
 - arXiv 入库时 e-print 已完整解压到 `{paper}/source/`（`src-tauri/src/features/import/assets.rs` `unpack_arxiv_eprint`），其中**天然包含 `.bbl`、偶有 `.bib`**。
-- 非 arXiv PDF 入库后由 liteparse 生成 `PAPER.md`（`src-tauri/src/features/import/pdf_parse/mod.rs`），References 段以纯文本存在，`extract_links: true` 已开启。
+- 非 arXiv PDF 入库后由 liteparse 生成 `PAPER.md`（`src-tauri/src/features/paper/analyze/parse/mod.rs`），References 段以纯文本存在，`extract_links: true` 已开启。
 - catalog（v3）没有 references 存储，仅有标量 `citation_count`。
 - PDF 查看器（EmbedPDF / PDFium）已加载页内 Link annotation，文中 citation 点击可跳转；`goToPage` 与 destination 解析（`src/lib/pdf/bookmark.ts`）已有基础。
 - 右侧栏新增 tab 的三处扩展点：`src/lib/shell/ui-store.ts`、`src/components/shell/title-bar.tsx`、`src/components/shell/right-sidebar.tsx`。
@@ -140,7 +140,7 @@ L2 方案实测对比（阈值统一取自己论文 p10）：
 
 ### 7.4 缓存与增量
 
-`.agentero/citing-scan.json`（参照 `features/doctor/mod.rs` 的 `DOCTOR_STATE_REL` 先例）存每个种子的 `s2Id` / `citationCount` / `fetchedAt` / 引用者元数据，外加上次结果供 UI 直接复用。下次扫描先用 1 个 batch 请求拿最新 `citationCount`，**只重抓被引数变化的种子**，稳态约 10 秒。SPECTER2 向量不落盘（每次 1–2 个请求重取），避免几 MB 的 JSON。
+`.agentero/citing-scan.json`（参照 `features/vault/doctor/mod.rs` 的 `DOCTOR_STATE_REL` 先例）存每个种子的 `s2Id` / `citationCount` / `fetchedAt` / 引用者元数据，外加上次结果供 UI 直接复用。下次扫描先用 1 个 batch 请求拿最新 `citationCount`，**只重抓被引数变化的种子**，稳态约 10 秒。SPECTER2 向量不落盘（每次 1–2 个请求重取），避免几 MB 的 JSON。
 
 写入是普通 `fs::write` 而非 tmp+rename，原因同 `write_sidecar`：rename 会被 vault watcher 报成「未验证重命名」。缓存可重建，不值得为原子性换这个噪音。
 

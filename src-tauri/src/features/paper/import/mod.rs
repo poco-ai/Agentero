@@ -8,7 +8,7 @@ pub mod commands;
 #[cfg(feature = "desktop")]
 pub mod job_runners;
 pub mod paper_import;
-#[path = "../../pdf/parse/mod.rs"]
+#[path = "../analyze/parse/mod.rs"]
 pub mod pdf_parse;
 
 mod api_mapper;

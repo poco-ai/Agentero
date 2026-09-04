@@ -4,7 +4,7 @@
 //! and normalize lists in `features/settings`), and the TS registry
 //! (`src/lib/pdf/layout/{settings,providers}.ts`). Providers that also (or
 //! only) parse PAPER.md bodies register a second engine in
-//! `pdf::parse::engines` (`PARSER_PROVIDERS` on the TS side).
+//! `paper::analyze::parse::engines` (`PARSER_PROVIDERS` on the TS side).
 
 use std::sync::Arc;
 

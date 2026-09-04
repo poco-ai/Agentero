@@ -1,5 +1,5 @@
 //! OpenAI-compatible provider registered for the settings connectivity
-//! probe only — PDF body OCR runs in `pdf::parse::engines`, and this
+//! probe only — PDF body OCR runs in `paper::analyze::parse::engines`, and this
 //! provider has no layout-analysis capability.
 
 use crate::core::error::AppError;
