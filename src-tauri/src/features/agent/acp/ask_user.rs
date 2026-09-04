@@ -6,56 +6,11 @@
 use agent_client_protocol::{util, Error, JsonRpcMessage, JsonRpcRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use tokio::sync::oneshot;
 
 /// Wire methods Grok (and compatible clients) may use.
 pub const GROK_ASK_USER_METHODS: &[&str] = &["_x.ai/ask_user_question", "x.ai/ask_user_question"];
 
-/// User decision for a pending Grok ask-user request.
-#[derive(Debug, Clone)]
-pub enum AskUserAnswer {
-    /// Accepted: one answer string per question (multi-select joined with ", ").
-    Accepted {
-        answers: Vec<String>,
-    },
-    Cancelled,
-}
 
-/// Process-wide table of ask-user requests awaiting a UI decision.
-#[derive(Clone, Default)]
-pub struct AskUserGate {
-    pending: Arc<Mutex<HashMap<String, oneshot::Sender<AskUserAnswer>>>>,
-}
-
-impl AskUserGate {
-    pub fn new() -> Self {
-        Self {
-            pending: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
-    pub fn register(&self, request_id: &str) -> oneshot::Receiver<AskUserAnswer> {
-        let (tx, rx) = oneshot::channel();
-        if let Ok(mut g) = self.pending.lock() {
-            g.insert(request_id.to_string(), tx);
-        }
-        rx
-    }
-
-    pub fn resolve(&self, request_id: &str, answer: AskUserAnswer) -> bool {
-        let tx = self
-            .pending
-            .lock()
-            .ok()
-            .and_then(|mut g| g.remove(request_id));
-        match tx {
-            Some(tx) => tx.send(answer).is_ok(),
-            None => false,
-        }
-    }
-}
 
 /// One option on a Grok question.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -7,7 +7,7 @@
 
 use crate::core::http::effective_proxy_url;
 use crate::core::paths::mcp_tunnel_dir;
-use crate::features::agent::discover::resolve_command;
+use crate::core::process::discover::resolve_command;
 use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};

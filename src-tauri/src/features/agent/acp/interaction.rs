@@ -1,9 +1,11 @@
-use crate::features::agent::ask_user::{
-    cancelled_response, grok_response_from_answers, questions_to_dto, AskUserAnswer, AskUserGate,
-    AskUserRequestEvent, GrokAskUserRequest,
+use crate::features::agent::acp::ask_user::{
+    cancelled_response, grok_response_from_answers, questions_to_dto, AskUserRequestEvent,
+    GrokAskUserRequest,
 };
 use crate::features::agent::runtime::events::AgentEventEmitter;
-use crate::features::agent::runtime::gates::{ElicitationAnswer, ElicitationGate, PermissionGate};
+use crate::features::agent::runtime::gates::{
+    AskUserAnswer, AskUserGate, ElicitationAnswer, ElicitationGate, PermissionGate,
+};
 use agent_client_protocol::schema::v1::{
     CreateElicitationRequest, CreateElicitationResponse, ElicitationAcceptAction,
     ElicitationAction, ElicitationContentValue, ElicitationMode, ElicitationPropertySchema,

@@ -8,6 +8,8 @@ pub mod agent;
 #[cfg(feature = "desktop")]
 #[path = "agent/install/mod.rs"]
 pub mod cli_install;
+#[cfg(feature = "desktop")]
+pub mod jobs;
 
 #[cfg(feature = "desktop")]
 #[path = "layout/layout_model/mod.rs"]

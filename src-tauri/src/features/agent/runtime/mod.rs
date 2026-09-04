@@ -5,5 +5,5 @@ pub mod stream;
 
 pub use control::{AgentRunController, AgentWarmGate};
 pub use events::AgentEventEmitter;
-pub use gates::{ElicitationAnswer, ElicitationGate, PermissionAnswer, PermissionGate};
+pub use gates::{AskUserAnswer, AskUserGate, ElicitationAnswer, ElicitationGate, PermissionAnswer, PermissionGate};
 pub use stream::{StreamCoalescer, STREAM_COALESCE_WINDOW};

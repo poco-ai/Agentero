@@ -1,4 +1,4 @@
-//! Interactive ACP gates: permission approval and form elicitation.
+//! Interactive ACP gates: permission, elicitation, and Grok ask-user.
 //!
 //! In `ask` mode the Host does not auto-decide ACP permission requests. Instead
 //! it forwards the request to the frontend (`agent:permission-request`), awaits
@@ -87,6 +87,50 @@ impl ElicitationGate {
     }
 
     pub fn resolve(&self, request_id: &str, answer: ElicitationAnswer) -> bool {
+        let tx = self
+            .pending
+            .lock()
+            .ok()
+            .and_then(|mut g| g.remove(request_id));
+        match tx {
+            Some(tx) => tx.send(answer).is_ok(),
+            None => false,
+        }
+    }
+}
+
+/// User decision for a pending Grok ask-user request.
+#[derive(Debug, Clone)]
+pub enum AskUserAnswer {
+    /// Accepted: one answer string per question (multi-select joined with ", ").
+    Accepted {
+        answers: Vec<String>,
+    },
+    Cancelled,
+}
+
+/// Process-wide table of ask-user requests awaiting a UI decision.
+#[derive(Clone, Default)]
+pub struct AskUserGate {
+    pending: Arc<Mutex<HashMap<String, oneshot::Sender<AskUserAnswer>>>>,
+}
+
+impl AskUserGate {
+    pub fn new() -> Self {
+        Self {
+            pending: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    pub fn register(&self, request_id: &str) -> oneshot::Receiver<AskUserAnswer> {
+        let (tx, rx) = oneshot::channel();
+        if let Ok(mut g) = self.pending.lock() {
+            g.insert(request_id.to_string(), tx);
+        }
+        rx
+    }
+
+    pub fn resolve(&self, request_id: &str, answer: AskUserAnswer) -> bool {
         let tx = self
             .pending
             .lock()
