@@ -2150,6 +2150,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#26-ipc-tauri-specta-srclibcorebindingsts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 类型化 IPC 契约（tauri-specta → src/lib/core/bindings.ts）
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4832,6 +4843,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#26-ipc-tauri-specta-srclibcorebindingsts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 类型化 IPC 契约（tauri-specta → src/lib/core/bindings.ts）
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -6337,6 +6359,24 @@ Host (Tauri + Rust)
 <li>使用 <code>State&lt;'_, T&gt;</code> 的 async command 受 Tauri 限制必须返回 <code>Result</code>（惯例 <code>Result&lt;ApiResult&lt;T&gt;, String&gt;</code>，恒为 <code>Ok(...)</code>）。<code>std::sync::Mutex</code> guard 不能跨 <code>await</code>：把「拿锁 + 干活」整体放进 <code>run_blocking</code> 闭包，State 先 clone 出可 <code>Send + 'static</code> 的 Arc 句柄（如 <code>WikiIndexState::handle()</code>、<code>CapsCache</code>、<code>ExternalRenameRepairStore</code>）。</li>
 <li>已按此约定改造：<code>vault_*</code>（create/ensure/tree_build/tree_children）、<code>wiki_*</code> 全部、<code>graph_*</code>、<code>vault_search</code>、<code>paper_*</code>（catalog）、<code>usage_*</code>/<code>activity_record_events</code>、<code>zotero_sync</code>/<code>zotero_scan</code>、<code>doctor_*</code>（除纯内存的 <code>doctor_set_dirty_paths</code>）、<code>list_system_fonts</code>（另有进程级缓存）、<code>export_system_cjk_font</code>、<code>paper_stage_import_file</code>、<code>paper_refs_list</code>、<code>connector_set_enabled</code>/<code>connector_set_port</code>（bind 改真 async，不再 <code>block_on</code>）。</li>
 </ul>
+<h3 id="26-ipc-tauri-specta-srclibcorebindingsts">2.6 类型化 IPC 契约（tauri-specta → <code>src/lib/core/bindings.ts</code>）<a class="headerlink" href="#26-ipc-tauri-specta-srclibcorebindingsts" title="Permanent link">&para;</a></h3>
+<p><code>src/lib/core/bindings.ts</code> 由 <a href="https://github.com/specta-rs/specta">tauri-specta</a>（rc.25）从 Rust 签名生成，是 Frontend ↔ Host IPC 的类型化契约。<strong>生成物，不要手改</strong>。</p>
+<ul>
+<li><strong>覆盖范围</strong></li>
+<li><strong>命令</strong>：desktop 注册的全部 185 个 <code>#[tauri::command]</code>（<code>app/handlers.rs</code> 的 <code>common_commands!</code> + desktop-only extras）逐一 collect 于 <code>src-tauri/src/app/bindings_test.rs</code>。iOS-only 的 5 个 bridge client 命令（<code>bridge_connect</code> / <code>bridge_resume</code> / <code>bridge_disconnect</code> / <code>bridge_rpc</code> / client 版 <code>bridge_status</code>）不进 desktop bindings。</li>
+<li><strong>事件</strong>：desktop 侧 emit 的 43 个事件（<code>job:*</code>、<code>agent:*</code>、<code>vault:file-changed</code>、<code>settings:changed</code>、<code>bridge:host-status</code>/<code>bridge:pair-request</code>、<code>connector:*</code>、<code>mcp:*</code>、<code>sync:*</code>、<code>background-task:progress</code>、<code>paper:*</code> 等），声明于 <code>src-tauri/src/app/events_contract.rs</code>（wrapper/mirror + <code>#[tauri_specta(event_name = "…")]</code>，事件名与 emit 字面量一致，emit 调用点不改造）。iOS-only bridge client 事件（<code>bridge:status</code> / <code>bridge:progress</code> / <code>bridge:pair-pending</code>）不在其中。</li>
+<li><strong>再生成 / 防漂移</strong></li>
+</ul>
+<p><code>bash
+  # 校验 bindings.ts 与 Rust 签名一致（cargo test 默认只比对，不写盘）
+  cargo test -p agentero export_typescript_bindings
+  # 重新生成（覆写 src/lib/core/bindings.ts）
+  AGENTERO_UPDATE_BINDINGS=1 cargo test -p agentero export_typescript_bindings</code></p>
+<p>另有 <code>event_names_match_emit_literals</code> 测试断言事件名与 emit 常量一致。改任何命令签名 / 事件 payload 后必须重新生成并提交 bindings.ts。
+- <strong><code>_Serialize</code> / <code>_Deserialize</code> 拆分</strong>：specta 对 serde 不对称表示的忠实拆分——<code>X_Deserialize</code> 是 <strong>TS→Rust 入参</strong>形态（<code>#[serde(default)]</code> 字段可省略），<code>X_Serialize</code> 是 <strong>Rust→TS 出参</strong>形态（<code>skip_serializing_if</code> 字段可缺省）。二者一致时只生成单一 <code>X</code>。命令函数与 <code>events.*</code> 的签名已内嵌正确方向的类型，<strong>调用点无需手写这些类型名</strong>。
+- <strong>前端调用形态（迁移说明）</strong>：bindings 导出 <code>commands</code>（camelCase 命令函数）与 <code>events</code>（<code>events.jobChanged.listen(cb)</code> 等，payload 已按事件名类型化）。返回值有两种信封：
+  - 命令返回 <code>ApiResult&lt;T&gt;</code>（如 <code>commands.settingsGet()</code>）：Promise 直接 resolve 信封，判错看 <code>r.ok === false</code> 时读 <code>r.error</code>（<code>{ code, message, details? }</code>）；<code>r.data</code> 类型为 <code>T | null</code>。
+  - 命令返回 <code>Result&lt;ApiResult&lt;T&gt;, String&gt;</code>（如 <code>commands.jobReport(args)</code>）：bindings 包了一层 <code>typedError</code>，resolve 为 <code>{ status: "ok", data: ApiResult&lt;T&gt; } | { status: "error", error: string }</code>；先判 <code>status</code>（外层 IPC 级错误，对应 Rust <code>Err(String)</code>），再判 <code>data.ok</code>（业务错误信封）。</p>
 <h2 id="3-host-tauri-invoke-api">3. Host 层 Tauri invoke API<a class="headerlink" href="#3-host-tauri-invoke-api" title="Permanent link">&para;</a></h2>
 <h3 id="31-vault">3.1 Vault 与窗口<a class="headerlink" href="#31-vault" title="Permanent link">&para;</a></h3>
 <blockquote>
