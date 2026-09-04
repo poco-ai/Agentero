@@ -3474,7 +3474,7 @@
 <p>Settings → <strong>翻译</strong>：</p>
 <ul>
 <li><strong>默认服务</strong> 下拉：免费 MT 与 Agent 始终可选；商用仅列出已配置者。打开下拉时对免费 MT 与已配置商用并行 probe。</li>
-<li>目标语言、划词自动翻译。</li>
+<li>目标语言、划词自动翻译；开启后，PDF 选区文本提取完成即自动启动翻译并打开结果卡，关闭时仍可从选区菜单手动翻译。</li>
 <li><strong>商用 API</strong> 卡片仅填写 key / endpoint / region / model；点「确定」后：</li>
 <li>将 API key 写入 Host <code>settings.json</code>（Unix 权限 <code>0600</code>）；WebView 只保留同长度 <code>*</code> 掩码，不再回显明文。</li>
 <li>Host <code>settings_get</code> / <code>settings:changed</code> 对 key 按字符 redact 为 <code>*</code>；<code>settings_set</code> 收到纯 <code>*</code> 串时保留原密钥。</li>
