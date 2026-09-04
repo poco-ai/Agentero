@@ -2220,7 +2220,7 @@ Windows：未设 `XDG_CONFIG_HOME` 时回退 `%APPDATA%/agentero/`。旧版 macO
 - **并发**：`settings.layout.backend` 为远程 provider 时 JobCenter `layoutAnalyze` **无并发上限**（远端排队）；本地 ONNX 仍 cap=1。
 - **返回**：`{ pages: [{ boxes: [{ clsId, label, score, coordinate }], widthPx, heightPx }] }`；渲染像素尺寸优先取服务端报告（Paddle：`dataInfo` / `inputImage` JPEG 头；MinerU：中间结果 `middle.json` / `layout.json` 页尺寸），缺失为 `null`（前端按 200 DPI 估算）。
 - **超时 / 代理**：单请求 120s；走 Host 全局代理（`core::http::client_builder`）。
-- 实现：`src-tauri/src/features/layout_remote/`（`commands.rs` 命令壳 + `engine.rs` `RemoteLayoutEngine` trait / 注册 + `paddle.rs` + `mineru.rs`）；前端 `src/lib/pdf/layout/paddle.ts`（IPC 封装）+ `providers.ts`（`LAYOUT_PROVIDERS` 注册表）。
+- 实现：`src-tauri/src/features/paper/analyze/layout/hosted/`（`commands.rs` 命令壳 + `engine.rs` `RemoteLayoutEngine` trait / 注册 + `paddle.rs` + `mineru.rs`）；前端 `src/lib/pdf/layout/paddle.ts`（IPC 封装）+ `providers.ts`（`LAYOUT_PROVIDERS` 注册表）。
 
 #### `layout_remote_probe`（已实现）
 

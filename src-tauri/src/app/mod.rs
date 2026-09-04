@@ -61,7 +61,7 @@ pub fn run() {
             crate::features::arxiv_proxy::handle(request, responder);
         })
         .register_asynchronous_uri_scheme_protocol("agentero-model", |_ctx, request, responder| {
-            crate::features::layout_model::handle_model_uri(request, responder);
+            crate::features::layout::model_assets::handle_model_uri(request, responder);
         })
         .register_asynchronous_uri_scheme_protocol(
             "agentero-coolpapers",
@@ -274,7 +274,7 @@ pub fn run() {
         );
         // Prefetch PP-DocLayoutV3 into XDG as fixed background-task id
         // (`layout-model`); frontend maps `layout-model:task` into the panel.
-        crate::features::layout_model::spawn_background_download(app.handle().clone());
+        crate::features::layout::model_assets::spawn_background_download(app.handle().clone());
         // Native menu is macOS-only; the renderer re-syncs the locale on mount.
         #[cfg(target_os = "macos")]
         {

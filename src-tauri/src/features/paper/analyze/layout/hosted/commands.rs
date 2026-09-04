@@ -2,8 +2,10 @@
 //! from settings and dispatches to the engine registry.
 
 use crate::core::error::{map_err, ApiResult, AppError};
-use crate::features::layout_remote::engine::{engine_for, AnalyzeCtx, ProviderCredentials};
-use crate::features::layout_remote::{
+use crate::features::layout::hosted::engine::{
+    engine_for, HostedProviderCredentials, LayoutAnalyzeContext,
+};
+use crate::features::layout::hosted::{
     LayoutRemoteAnalyzePdfArgs, LayoutRemoteAnalyzePdfResult, LayoutRemoteProbeArgs,
     LayoutRemoteProbeResult,
 };
@@ -18,7 +20,7 @@ fn inject_provider_credentials(
     app: &AppHandle,
     provider: &str,
     api_key: &mut Option<String>,
-) -> ProviderCredentials {
+) -> HostedProviderCredentials {
     let store = app.state::<AppSettingsStore>();
     let needs_stored_key = api_key
         .as_deref()
@@ -36,7 +38,7 @@ fn inject_provider_credentials(
     }
     // Move the key out of args so the plaintext never lingers in the
     // Debug-derivable args struct; engines read credentials only.
-    ProviderCredentials {
+    HostedProviderCredentials {
         api_key: api_key.take(),
         base_url: store.layout_base_url(provider),
         language: store.layout_language(provider),
@@ -70,7 +72,7 @@ pub async fn layout_remote_analyze_pdf(
         "layout_remote_analyze_pdf",
         format!("pdf_chars={}", args.pdf_base64.len()),
     );
-    let ctx = AnalyzeCtx {
+    let ctx = LayoutAnalyzeContext {
         app: app.clone(),
         credentials,
         args,

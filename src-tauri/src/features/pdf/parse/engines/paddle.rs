@@ -3,7 +3,7 @@
 
 use super::{BodyParseCtx, BodyParseEngine, BodyParseOutcome};
 use crate::core::error::AppError;
-use crate::features::layout_remote::paddle::run_paddle_ocr_job;
+use crate::features::layout::hosted::paddle::run_paddle_ocr_job;
 use async_trait::async_trait;
 use serde_json::Value;
 

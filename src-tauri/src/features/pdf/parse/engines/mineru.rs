@@ -3,8 +3,8 @@
 
 use super::{BodyParseCtx, BodyParseEngine, BodyParseOutcome};
 use crate::core::error::AppError;
-use crate::features::layout_remote::engine::ProviderCredentials;
-use crate::features::layout_remote::mineru::{read_zip_entry_by_candidates, run_mineru_extract};
+use crate::features::layout::hosted::engine::HostedProviderCredentials;
+use crate::features::layout::hosted::mineru::{read_zip_entry_by_candidates, run_mineru_extract};
 use async_trait::async_trait;
 
 pub(crate) struct MineruBodyEngine;
@@ -24,7 +24,7 @@ impl BodyParseEngine for MineruBodyEngine {
             .and_then(|n| n.to_str())
             .unwrap_or("paper.pdf")
             .to_string();
-        let credentials = ProviderCredentials {
+        let credentials = HostedProviderCredentials {
             api_key: ctx.credentials.api_key.clone(),
             base_url: ctx.credentials.base_url.clone(),
             language: ctx.credentials.language.clone(),
@@ -63,7 +63,7 @@ mod tests {
             std::env::var("AGENTERO_MINERU_API_KEY").expect("set AGENTERO_MINERU_API_KEY");
         let base_url = std::env::var("AGENTERO_MINERU_BASE_URL").unwrap_or_default();
 
-        let credentials = ProviderCredentials {
+        let credentials = HostedProviderCredentials {
             api_key: Some(api_key),
             base_url: (!base_url.is_empty()).then_some(base_url),
             ..Default::default()

@@ -14,7 +14,7 @@ use tauri::http::{header, Response, StatusCode};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
 
-const TARGET: &str = "agentero::layout_model";
+const TARGET: &str = "agentero::layout::model_assets";
 /// Canonical on-disk name (either full or FP16 export).
 pub const LAYOUT_MODEL_FILE: &str = "pp-doclayoutv3.onnx";
 /// Fixed id so Host startup + frontend panel share one background-task row.

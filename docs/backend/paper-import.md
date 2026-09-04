@@ -94,7 +94,7 @@ Skill 不写入 catalog、不创建 `papers/` 条目、不执行 `scripts/`。�
   - ⚠️ `PaddleOCR-VL` 是**任务提示词**模型，只认它自己那几个固定提示词；换成自由指令会退化成检测模式并吐出 `<|LOC_n|>` 坐标 token。自定义提示词请配指令型 VLM（如 DeepSeek-OCR 去掉 `<|grounding|>`、Qwen-VL 等）。
 - **MinerU 高级选项**：`language`（OCR 语言包，默认 `ch` 中英文，Host 白名单校验）与 `isOcr`（强制 OCR，默认关闭、按文本层自动判断）存在共用的 `layout.providerConfigs.mineru`，版面分析与正文解析复用同一套请求参数。
 - **输出清洗**：grounding 输出形如 `<|ref|>label<|/ref|><|det|>[[box]]<|/det|>\n正文`，`<|ref|>` 内是版面**类别名**（`text` / `title`）而非正文，两段都整体丢弃，否则正文里会混入 `text` / `sub_title` 噪声行；`<|LOC_n|>` 同样剥离。
-- **实现**：`src-tauri/src/features/import/pdf_parse/engines/`（`BodyParseEngine` trait + local / mineru / paddle / openai_vlm）；云端上传/轮询复用 `layout_remote` 的 `run_mineru_extract` / `run_paddle_ocr_job`。
+- **实现**：`src-tauri/src/features/pdf/parse/engines/`（`BodyParseEngine` trait + local / mineru / paddle / openai_vlm）；云端上传/轮询复用 `features/paper/analyze/layout/hosted` 的 `run_mineru_extract` / `run_paddle_ocr_job`。
 - **Live 验证**（`#[ignore]`，需自备 key，密钥只走环境变量）：
 
   ```bash

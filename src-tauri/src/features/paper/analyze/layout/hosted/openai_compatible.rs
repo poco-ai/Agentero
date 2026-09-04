@@ -1,11 +1,13 @@
 //! OpenAI-compatible provider registered for the settings connectivity
-//! probe only — PDF body OCR runs in `import::pdf_parse::engines`, and this
+//! probe only — PDF body OCR runs in `pdf::parse::engines`, and this
 //! provider has no layout-analysis capability.
 
 use crate::core::error::AppError;
 use crate::core::http;
-use crate::features::layout_remote::engine::{AnalyzeCtx, ProviderCredentials, RemoteLayoutEngine};
-use crate::features::layout_remote::{
+use crate::features::layout::hosted::engine::{
+    HostedLayoutAnalyzer, HostedProviderCredentials, LayoutAnalyzeContext,
+};
+use crate::features::layout::hosted::{
     LayoutRemoteAnalyzePdfResult, LayoutRemoteProbeArgs, LayoutRemoteProbeResult,
 };
 use async_trait::async_trait;
@@ -16,14 +18,14 @@ const DEFAULT_BASE_URL: &str = "https://api.siliconflow.cn/v1";
 pub struct OpenAiCompatibleEngine;
 
 #[async_trait]
-impl RemoteLayoutEngine for OpenAiCompatibleEngine {
+impl HostedLayoutAnalyzer for OpenAiCompatibleEngine {
     fn id(&self) -> &'static str {
         "openaiCompatible"
     }
 
     async fn analyze_pdf(
         &self,
-        _ctx: AnalyzeCtx,
+        _ctx: LayoutAnalyzeContext,
     ) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
         Err(AppError::message(
             "openaiCompatible is not a layout-analysis provider",
@@ -33,7 +35,7 @@ impl RemoteLayoutEngine for OpenAiCompatibleEngine {
     /// Validate key + endpoint with the standard `GET {base}/models` listing.
     async fn probe(
         &self,
-        credentials: &ProviderCredentials,
+        credentials: &HostedProviderCredentials,
         _args: LayoutRemoteProbeArgs,
     ) -> Result<LayoutRemoteProbeResult, AppError> {
         let api_key = credentials
@@ -85,7 +87,7 @@ mod tests {
     async fn live_openai_compatible_probe() {
         let api_key = std::env::var("AGENTERO_VLM_API_KEY").expect("set AGENTERO_VLM_API_KEY");
         let base_url = std::env::var("AGENTERO_VLM_BASE_URL").unwrap_or_default();
-        let credentials = ProviderCredentials {
+        let credentials = HostedProviderCredentials {
             api_key: Some(api_key),
             base_url: (!base_url.is_empty()).then_some(base_url),
             ..Default::default()
@@ -101,7 +103,7 @@ mod tests {
             .expect("probe should succeed");
         println!("probe ok: {}", result.job_id);
 
-        let bad = ProviderCredentials {
+        let bad = HostedProviderCredentials {
             api_key: Some("sk-definitely-invalid".to_string()),
             base_url: credentials.base_url.clone(),
             ..Default::default()

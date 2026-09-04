@@ -12,11 +12,12 @@ pub mod cli_install;
 pub mod jobs;
 
 #[cfg(feature = "desktop")]
-#[path = "layout/layout_model/mod.rs"]
-pub mod layout_model;
+#[path = "paper/analyze/layout/mod.rs"]
+pub mod layout;
 #[cfg(feature = "desktop")]
-#[path = "layout/layout_remote/mod.rs"]
-pub mod layout_remote;
+pub use layout::hosted as layout_remote;
+#[cfg(feature = "desktop")]
+pub use layout::model_assets as layout_model;
 
 pub mod lifecycle;
 

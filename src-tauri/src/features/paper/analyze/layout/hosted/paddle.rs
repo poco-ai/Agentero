@@ -6,8 +6,10 @@
 use crate::core::error::AppError;
 use crate::core::http;
 use crate::features::import::CANCELLED_MESSAGE;
-use crate::features::layout_remote::engine::{AnalyzeCtx, ProviderCredentials, RemoteLayoutEngine};
-use crate::features::layout_remote::{
+use crate::features::layout::hosted::engine::{
+    HostedLayoutAnalyzer, HostedProviderCredentials, LayoutAnalyzeContext,
+};
+use crate::features::layout::hosted::{
     emit_cloud_progress, parse_det_boxes, LayoutRemoteAnalyzePdfResult, LayoutRemotePageResult,
     LayoutRemoteProbeArgs, LayoutRemoteProbeResult,
 };
@@ -29,18 +31,21 @@ const MAX_PDF_BASE64_CHARS: usize = 96 * 1024 * 1024;
 pub struct PaddleEngine;
 
 #[async_trait]
-impl RemoteLayoutEngine for PaddleEngine {
+impl HostedLayoutAnalyzer for PaddleEngine {
     fn id(&self) -> &'static str {
         "paddle"
     }
 
-    async fn analyze_pdf(&self, ctx: AnalyzeCtx) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
+    async fn analyze_pdf(
+        &self,
+        ctx: LayoutAnalyzeContext,
+    ) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
         analyze_pdf(ctx).await
     }
 
     async fn probe(
         &self,
-        credentials: &ProviderCredentials,
+        credentials: &HostedProviderCredentials,
         args: LayoutRemoteProbeArgs,
     ) -> Result<LayoutRemoteProbeResult, AppError> {
         probe(credentials, args).await
@@ -347,16 +352,16 @@ pub(crate) async fn run_paddle_ocr_job(
         let _ = std::fs::create_dir_all(parent);
     }
     if let Err(e) = std::fs::write(&debug_path, result_text.as_bytes()) {
-        log::warn!(target: "agentero::layout_remote", "failed to write {debug_path:?}: {e}");
+        log::warn!(target: "agentero::layout::hosted", "failed to write {debug_path:?}: {e}");
     } else {
-        log::info!(target: "agentero::layout_remote", "raw cloud result saved to {debug_path:?}");
+        log::info!(target: "agentero::layout::hosted", "raw cloud result saved to {debug_path:?}");
     }
 
     Ok((result_text, data_info))
 }
 
-async fn analyze_pdf(ctx: AnalyzeCtx) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
-    let AnalyzeCtx {
+async fn analyze_pdf(ctx: LayoutAnalyzeContext) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
+    let LayoutAnalyzeContext {
         app,
         credentials,
         args,
@@ -453,7 +458,7 @@ async fn analyze_pdf(ctx: AnalyzeCtx) -> Result<LayoutRemoteAnalyzePdfResult, Ap
     }
     let unknown = dim_sources.iter().filter(|s| **s == "none").count();
     log::info!(
-        target: "agentero::layout_remote",
+        target: "agentero::layout::hosted",
         "cloud result: pages={} rendered_size_known={} unknown={}{}",
         pages.len(),
         pages.len() - unknown,
@@ -472,7 +477,7 @@ async fn analyze_pdf(ctx: AnalyzeCtx) -> Result<LayoutRemoteAnalyzePdfResult, Ap
 /// a jobId means endpoint + token are valid. Runs in the Host so it is not
 /// subject to WebView CORS and honors the app proxy.
 async fn probe(
-    credentials: &ProviderCredentials,
+    credentials: &HostedProviderCredentials,
     args: LayoutRemoteProbeArgs,
 ) -> Result<LayoutRemoteProbeResult, AppError> {
     let (jobs_url, auth) = resolve_cloud_target(credentials.api_key.as_deref())?;

@@ -99,7 +99,7 @@ LayoutAnalysisPluginPackage: {
 | 前端 | `agentero-model://…/pp-doclayoutv3.onnx`（Windows：`http://agentero-model.localhost/…`） |
 | Commands | `layout_model_status` / `layout_model_ensure({ progressTaskId? })` |
 
-实现：`src-tauri/src/features/layout_model/`、`src/lib/pdf/layout/model.ts`、`ai-runtime.ts`。
+实现：`src-tauri/src/features/paper/analyze/layout/model_assets/`、`src/lib/pdf/layout/model.ts`、`ai-runtime.ts`。
 
 ### 后端选择（本地 ONNX / 远程 Provider）
 
@@ -115,7 +115,7 @@ LayoutAnalysisPluginPackage: {
 
 远程 provider 共用流程（`src/lib/pdf/layout/paddle.ts` IPC 封装 + `run-analysis.ts`）：
 
-1. 读取本地 PDF，整份 base64 交给 Host 命令 `layout_remote_analyze_pdf`（`provider` 参数分发到 `src-tauri/src/features/layout_remote/` 的 `RemoteLayoutEngine` 实现：`paddle.rs` / `mineru.rs`）；token 由 Host 从设置注入，WebView 只持有 `*` 掩码；
+1. 读取本地 PDF，整份 base64 交给 Host 命令 `layout_remote_analyze_pdf`（`provider` 参数分发到 `src-tauri/src/features/paper/analyze/layout/hosted/` 的 `RemoteLayoutEngine` 实现：`paddle.rs` / `mineru.rs`）；token 由 Host 从设置注入，WebView 只持有 `*` 掩码；
 2. Host 轮询远端任务（总时限 10 分钟），期间通过 `layout-remote:progress` 事件回报进度（`requestId` 隔离并行任务）；
 3. 每页返回统一的 `boxes`（像素坐标 + `label` + `score`）；
 4. 后续与本地路径完全共用：PDF text runs 补文字 / captionRole → `mergeCaptionsIntoHosts` → sidecar / index。

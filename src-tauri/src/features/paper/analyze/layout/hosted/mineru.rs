@@ -9,8 +9,10 @@
 use crate::core::error::AppError;
 use crate::core::http;
 use crate::features::import::CANCELLED_MESSAGE;
-use crate::features::layout_remote::engine::{AnalyzeCtx, ProviderCredentials, RemoteLayoutEngine};
-use crate::features::layout_remote::{
+use crate::features::layout::hosted::engine::{
+    HostedLayoutAnalyzer, HostedProviderCredentials, LayoutAnalyzeContext,
+};
+use crate::features::layout::hosted::{
     emit_cloud_progress, LayoutRemoteAnalyzePdfResult, LayoutRemoteBox, LayoutRemotePageResult,
     LayoutRemoteProbeArgs, LayoutRemoteProbeResult,
 };
@@ -39,18 +41,21 @@ const MAX_JSON_ENTRY_BYTES: u64 = 128 * 1024 * 1024;
 pub struct MineruEngine;
 
 #[async_trait]
-impl RemoteLayoutEngine for MineruEngine {
+impl HostedLayoutAnalyzer for MineruEngine {
     fn id(&self) -> &'static str {
         "mineru"
     }
 
-    async fn analyze_pdf(&self, ctx: AnalyzeCtx) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
+    async fn analyze_pdf(
+        &self,
+        ctx: LayoutAnalyzeContext,
+    ) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
         analyze_pdf(ctx).await
     }
 
     async fn probe(
         &self,
-        credentials: &ProviderCredentials,
+        credentials: &HostedProviderCredentials,
         args: LayoutRemoteProbeArgs,
     ) -> Result<LayoutRemoteProbeResult, AppError> {
         probe(credentials, args).await
@@ -76,7 +81,7 @@ fn ensure_base_url_scheme(base: &str) -> Result<(), AppError> {
     ))
 }
 
-fn resolve_target(credentials: &ProviderCredentials) -> Result<(String, String), AppError> {
+fn resolve_target(credentials: &HostedProviderCredentials) -> Result<(String, String), AppError> {
     let api_key = credentials
         .api_key
         .as_deref()
@@ -401,8 +406,8 @@ async fn request_upload_url(
     Ok((batch_id, upload_url))
 }
 
-async fn analyze_pdf(ctx: AnalyzeCtx) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
-    let AnalyzeCtx {
+async fn analyze_pdf(ctx: LayoutAnalyzeContext) -> Result<LayoutRemoteAnalyzePdfResult, AppError> {
+    let LayoutAnalyzeContext {
         app,
         credentials,
         args,
@@ -438,7 +443,7 @@ async fn analyze_pdf(ctx: AnalyzeCtx) -> Result<LayoutRemoteAnalyzePdfResult, Ap
     // Extract content_list.json + middle.json and map to page boxes.
     let result = parse_result_zip(&zip_bytes)?;
     log::info!(
-        target: "agentero::layout_remote",
+        target: "agentero::layout::hosted",
         "mineru result: pages={} boxes={}",
         result.pages.len(),
         result.pages.iter().map(|p| p.boxes.len()).sum::<usize>()
@@ -450,7 +455,7 @@ async fn analyze_pdf(ctx: AnalyzeCtx) -> Result<LayoutRemoteAnalyzePdfResult, Ap
 /// result zip. Shared by the layout analyze path and the PAPER.md body-parse
 /// engine (which reads `full.md` from the same zip).
 pub(crate) async fn run_mineru_extract(
-    credentials: &ProviderCredentials,
+    credentials: &HostedProviderCredentials,
     pdf_bytes: Vec<u8>,
     file_name: &str,
     progress: super::ProgressFn<'_>,
@@ -606,7 +611,7 @@ fn probe_token_valid(body: &Value, status: StatusCode) -> bool {
 /// not. Runs in the Host so it is not subject to WebView CORS and honors
 /// the app proxy. The probe image is unused — MinerU has no image endpoint.
 async fn probe(
-    credentials: &ProviderCredentials,
+    credentials: &HostedProviderCredentials,
     _args: LayoutRemoteProbeArgs,
 ) -> Result<LayoutRemoteProbeResult, AppError> {
     let (base, auth) = resolve_target(credentials)?;
