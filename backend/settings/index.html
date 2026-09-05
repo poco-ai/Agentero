@@ -3443,7 +3443,7 @@
 <li>connector：<code>set_port</code>（端口变更重绑监听）</li>
 <li>mcp：<code>set_port</code> + translator / note-mode 快照（端口变更重绑监听；端口变化时自动停掉内置 ChatGPT tunnel，用户需再点 Start）</li>
 <li>tunnel：与 MCP 同域，但凭据从 settings store 原值读取（不通过 redacted 快照传递），启动/停止由 <code>mcp_tunnel_start</code> / <code>mcp_tunnel_stop</code> 命令驱动</li>
-<li>jobs：<code>apply_layout_backend</code> + <code>drain_and_spawn</code>（layout 并发上限）</li>
+<li>jobs：<code>apply_layout_backend</code> + <code>apply_import_concurrency</code> + <code>drain_and_spawn</code>（layout / 导入并发上限）</li>
 <li>反序列化期需要的域默认值（如 <code>DEFAULT_CONNECTOR_PORT</code>）定义在 settings，由属主域 re-export（方向 <code>connector → settings</code>，不成环）。</li>
 </ul>
 <p>前端：<a href="../../frontend/settings/">../frontend/settings.md</a><br />

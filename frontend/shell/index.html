@@ -3569,7 +3569,8 @@
 <li><strong>完成态</strong>：全部任务结束后圆环合并为满环（100%），成功时播放短暂合并/勾选动画（<code>task-ring-success-*</code>）；失败为满环 + destructive。进行中无数值进度时短弧旋转（indeterminate），不把完成态画成未闭合短弧。</li>
 <li>新任务 / 打开页面不自动展开。任务失败时短暂展开详情，未悬停约 5s 后收回；进行中可取消，可清除已完成。</li>
 <li>论文资源下载的总体进度按顺序聚合 PDF 与 TeX：PDF 占前 50%，TeX 占后 50%，避免切换阶段时进度回退。</li>
-<li>版面解析 / 引用解析 / 正文解析 / 资源下载 / 元数据识别由 JobCenter 投影到任务条（前端门面 <code>src/lib/core/tasks.ts</code>，投影/执行器桥接在其内部模块 <code>job-center.ts</code>）。取消走 <code>job_cancel</code>；迟到的 <code>running</code> 事件不得把已取消/已完成的行复活。</li>
+<li>版面解析 / 引用解析 / 正文解析 / 资源下载 / 元数据识别 / 论文导入（魔棒、本地 PDF、Skill、广场、Cool Papers）/ Connector 附件保存由 JobCenter 投影到任务条（前端门面 <code>src/lib/core/tasks.ts</code>，投影/执行器桥接在其内部模块 <code>job-center.ts</code>）。取消走 <code>job_cancel</code>；迟到的 <code>running</code> 事件不得把已取消/已完成的行复活。</li>
+<li>导入与 Connector 是 Renderer-host job：Rust 只负责调度（并发、去重、取消），编排在渲染端执行器里（<code>src/lib/paper/import/import-tasks.ts</code> 按 <code>params.mode</code> 分发；<code>connector-tasks.ts</code> 把 <code>connector:progress</code> 中继成 job）。job id 同时作为 Host 的 <code>task_id</code>，字节/批次进度与协作取消因此复用同一条链路。</li>
 <li>实现：<code>src/lib/core/background-tasks.ts</code> + <code>background-tasks-panel.tsx</code>。</li>
 </ul>
 <h2 id="_5">弹层栈<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>

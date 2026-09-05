@@ -3579,6 +3579,7 @@
 <li>本地 PDF 命中已有条目（按识别出的标识符去重）时不新建论文：PDF 合入原条目（缺主 PDF 时成为主 PDF，否则进 <code>attachments/</code>），Toast 提示「已将 PDF 合入已有条目」（#406）。</li>
 <li>成功后：局部刷新 <code>papers/</code> 子树、Wiki、Library；<strong>不</strong>自动打开论文（并行入库时抢焦点会让文件树反复跳转），批量也<strong>不</strong>自动连跑精读。</li>
 <li>同一条 identifier lookup 管线可由其它入口复用（References 面板、Plaza 入库、Zotero 迁移）。</li>
+<li>调度：每个输入一个 JobCenter <code>import</code> job（Normal lane；并发取 <code>batchImportConcurrency</code>；<code>params</code> = <code>mode</code> + 来源标识并参与去重，同一 URL 不重复入队）。编排仍在渲染端执行器（<code>src/lib/paper/import/import-tasks.ts</code> 按 <code>params.mode</code> 分发），job id 兼作 Host <code>task_id</code>，字节进度与协作取消复用同一条链路。</li>
 <li>Host：<code>lookup_import_batch</code> 等。</li>
 </ul>
 <h2 id="references">References 侧栏导入<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
