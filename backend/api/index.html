@@ -3207,10 +3207,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#layout_model_ensure" class="md-nav__link">
+  <a href="#job_model_download_enqueue" class="md-nav__link">
     <span class="md-ellipsis">
       
-        layout_model_ensure（已实现）
+        job_model_download_enqueue（已实现）
       
     </span>
   </a>
@@ -5900,10 +5900,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#layout_model_ensure" class="md-nav__link">
+  <a href="#job_model_download_enqueue" class="md-nav__link">
     <span class="md-ellipsis">
       
-        layout_model_ensure（已实现）
+        job_model_download_enqueue（已实现）
       
     </span>
   </a>
@@ -8476,23 +8476,22 @@ Host (Tauri + Rust)
 <h3 id="3101-pp-doclayoutv3">3.10.1 版面模型（PP-DocLayoutV3）<a class="headerlink" href="#3101-pp-doclayoutv3" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>路径</strong>：<code>$XDG_CACHE_HOME/agentero/models/pp-doclayoutv3.onnx</code></li>
-<li><strong>启动</strong>：<code>setup</code> 在代理配置后 <code>spawn_background_download</code>（固定 task id <code>layout-model</code>）</li>
+<li><strong>启动</strong>：<code>setup</code> 在代理配置后 <code>spawn_background_download</code> 入队 JobCenter <code>modelDownload</code> job（已有文件则跳过）</li>
 <li><strong>下载源</strong>：ModelScope（<code>greatv/oar-ocr</code>）优先，失败则 HuggingFace EmbedPDF <code>model_fp16.onnx</code></li>
 <li><strong>代理</strong>：走 Host 全局 <code>core::http::client_builder</code>（与设置 Network proxy 一致）</li>
 <li><strong>协议</strong>：<code>agentero-model</code> URI scheme 把本地文件喂给 <code>onnxruntime-web</code></li>
-<li><strong>后台任务</strong>：</li>
-<li><code>emit("layout-model:task", { taskId, status, progress, detail, error, source })</code></li>
-<li><code>emit("background-task:progress", { taskId: "layout-model", phase: "layout-model", … })</code></li>
-<li>取消：<code>background_task_cancel</code> + task id <code>layout-model</code></li>
+<li><strong>后台任务</strong>：Host runner job（全局资源：vault/paper 为空，cap 1；重复触发按 fingerprint 去重合并）</li>
+<li>面板行来自 JobCenter 投影；字节进度 <code>emit("background-task:progress", { taskId: &lt;job id&gt;, phase: "layout-model", … })</code></li>
+<li>取消：<code>job_cancel</code>（cancel token 桥接到 <code>background_tasks::is_cancelled(job id)</code>）</li>
 </ul>
 <h4 id="layout_model_status"><code>layout_model_status</code>（已实现）<a class="headerlink" href="#layout_model_status" title="Permanent link">&para;</a></h4>
 <ul>
 <li><strong>返回</strong> <code>ApiResult&lt;LayoutModelStatus&gt;</code>：<code>{ ready, path, sizeBytes, source, fileName }</code></li>
 </ul>
-<h4 id="layout_model_ensure"><code>layout_model_ensure</code>（已实现）<a class="headerlink" href="#layout_model_ensure" title="Permanent link">&para;</a></h4>
+<h4 id="job_model_download_enqueue"><code>job_model_download_enqueue</code>（已实现）<a class="headerlink" href="#job_model_download_enqueue" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>参数</strong>：<code>{ progressTaskId?: string }</code>（来自 <code>enqueueBackgroundTask</code> 的 id）</li>
-<li><strong>返回</strong>：<code>LayoutModelStatus</code>；未就绪则下载（进程锁；支持取消与字节进度）</li>
+<li><strong>参数</strong>：<code>{ lane?, force? }</code>（无 vault/paper 目标）</li>
+<li><strong>返回</strong>：<code>ApiResult&lt;JobSnapshot&gt;</code>；未就绪则由 Host runner 下载（进程锁；支持取消与字节进度），并发触发合并为同一 job</li>
 </ul>
 <h3 id="3102-onnx-provider">3.10.2 版面解析后端（本地 ONNX / 远程 Provider）<a class="headerlink" href="#3102-onnx-provider" title="Permanent link">&para;</a></h3>
 <p><code>settings.json</code> 新增 <code>layout</code> 段（camelCase，<code>settings_get</code> / <code>settings_set</code> 同构）：</p>

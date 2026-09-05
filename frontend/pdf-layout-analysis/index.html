@@ -3901,11 +3901,11 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </tr>
 <tr>
 <td>启动</td>
-<td>Host <code>spawn_background_download</code>（task id 固定 <code>layout-model</code>；已有文件则跳过）</td>
+<td>Host <code>spawn_background_download</code> 入队 JobCenter <code>modelDownload</code> job（已有文件则跳过；并发触发按 fingerprint 去重）</td>
 </tr>
 <tr>
 <td>面板</td>
-<td>App <code>useLayoutModelPrefetch</code> 监听 <code>layout-model:task</code> / 进度，写入左下角后台任务（可取消）</td>
+<td>JobCenter 投影成 download 行（字节进度 <code>background-task:progress</code>，task id = job id；取消走 <code>job_cancel</code>）</td>
 </tr>
 <tr>
 <td>代理</td>
@@ -3933,7 +3933,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </tr>
 <tr>
 <td>Commands</td>
-<td><code>layout_model_status</code> / <code>layout_model_ensure({ progressTaskId? })</code></td>
+<td><code>layout_model_status</code> / <code>job_model_download_enqueue</code></td>
 </tr>
 </tbody>
 </table>
