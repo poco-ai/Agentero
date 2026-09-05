@@ -3438,8 +3438,8 @@
 <td>魔棒入库主管线：<code>import_by_identifier*</code>、<code>download_paper_assets*</code>、<code>import_local_pdfs</code>、<code>paper_import::paper_commit</code>、assets 下载、batch/map/parse/resolver、skill_import、title_search、api_mapper</td>
 </tr>
 <tr>
-<td><code>features::paper::import::sources::zotero</code>（别名 <code>features::zotero</code>）</td>
-<td>codec（NOTES ↔ Zotero HTML）、io（Translator <code>/export</code> <code>/import</code>）</td>
+<td><code>features::paper::zotero</code>（别名 <code>features::zotero</code>）</td>
+<td>codec/io（core glob 再导出，NOTES ↔ Zotero HTML、Translator <code>/export</code> <code>/import</code>）、本地库 <code>db</code>、Tauri commands、<code>sync/</code> 双向同步</td>
 </tr>
 <tr>
 <td><code>features::paper::scholar_api</code></td>
@@ -3530,7 +3530,7 @@
 <td>tauri command/State、JobCenter、<code>tauri::http</code>（自定义协议代理）、AppHandle 事件</td>
 </tr>
 <tr>
-<td><code>features/paper/import/sources/zotero</code>：<code>db</code>、<code>commands</code>；<code>zotero_sync</code></td>
+<td><code>features/paper/zotero</code>：<code>db</code>、<code>commands</code>、<code>sync/</code></td>
 <td><code>tauri::AppHandle</code>（jobs spawn）、Channel IPC</td>
 </tr>
 <tr>
