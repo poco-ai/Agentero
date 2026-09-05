@@ -3526,8 +3526,8 @@
 <td>notify/AppHandle/tauri command/settings store</td>
 </tr>
 <tr>
-<td><code>features/paper/import</code>：<code>commands</code>、<code>job_runners</code>、<code>remote_ops</code>、<code>chain_resolve</code>、<code>pdf_recognize</code>、<code>recognize_apply</code>、<code>site_proxy</code></td>
-<td>tauri command/State、JobCenter、<code>tauri::http</code>（自定义协议代理）、AppHandle 事件</td>
+<td><code>features/paper/import</code>：<code>commands</code>、<code>job_runners</code>、<code>remote_ops</code>、<code>recognize/{chain_resolve,pdf_recognize,apply}</code></td>
+<td>tauri command/State、JobCenter、AppHandle 事件</td>
 </tr>
 <tr>
 <td><code>features/paper/zotero</code>：<code>db</code>、<code>commands</code>、<code>sync/</code></td>
@@ -3538,7 +3538,7 @@
 <td>settings store 凭据、模型资产下载任务、tauri command</td>
 </tr>
 <tr>
-<td><code>features/paper/discovery</code>：<code>coolpapers</code>、<code>recommend</code>、<code>arxiv_proxy</code>、<code>modelscope_proxy</code></td>
+<td><code>features/paper/discovery</code>：<code>coolpapers</code>、<code>recommend</code>、<code>proxy/{mod,arxiv,modelscope}</code></td>
 <td>tauri command / <code>tauri::http</code> 站点代理</td>
 </tr>
 <tr>
@@ -3566,7 +3566,7 @@
 <h2 id="phase-3">下一步（Phase 3 建议）<a class="headerlink" href="#phase-3" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>事件抽象扩展</strong>：把 <code>HostHooks</code> 泛化为完整宿主面（vault:open-request、connector、job 事件、window 聚焦），消灭 <code>wrap()</code> 手工转换点；命令壳统一在入口构造一次 core <code>AppHandle</code>。</li>
-<li><strong>留守域瘦身</strong>：<code>jobs</code>（JobCenter 调度核心可下沉，tauri spawn/emit 走 hooks）、<code>site_proxy</code>（<code>tauri::http</code> → 纯 axum/hyper 内核）、<code>heading_rename</code>（watcher 协同改回调）。</li>
+<li><strong>留守域瘦身</strong>：<code>jobs</code>（JobCenter 调度核心可下沉，tauri spawn/emit 走 hooks）、<code>discovery/proxy</code>（<code>tauri::http</code> → 纯 axum/hyper 内核）、<code>heading_rename</code>（watcher 协同改回调）。</li>
 <li><strong>core 内路径扁平化</strong>（可选）：<code>agentero_core::features::X</code> → <code>agentero_core::X</code>，与 Phase 1 顶层模块风格统一；Host 桥接不受影响。</li>
 <li><strong>reqwest 双版本对齐</strong>：锁文件中同时存在 <code>reqwest 0.12.28</code>（agentero-core / agentero 直接使用）与 <code>reqwest 0.13.4</code>（传递依赖引入，如 rmcp 等）。两份 TLS/连接池栈增大包体与审计面；待依赖链（rmcp / tauri 生态）稳定后统一到一个大版本，core 与 Host 必须同步升级以避免 feature 漂移。</li>
 <li><strong>src-tauri 依赖清理</strong>（保守未删）：迁移后 <code>feed-rs</code>、<code>dom_smoothie</code>、<code>pulldown-cmark</code>、<code>bitflags</code> 在 <code>src-tauri/src</code> 已无直接引用，可在确认无 build 脚本/宏隐式依赖后从 <code>src-tauri/Cargo.toml</code> 移除。</li>

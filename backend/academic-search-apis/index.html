@@ -3800,7 +3800,7 @@
 <td><strong>Crossref REST API</strong></td>
 <td><code>GET https://api.crossref.org/works/{doi}</code></td>
 <td>DOI → 元数据 / 参考文献</td>
-<td><code>features/paper/import/pdf_recognize.rs</code>, <code>features/paper/analyze/refs/online.rs</code>, <code>features/paper/catalog/commands.rs</code></td>
+<td><code>features/paper/import/recognize/pdf_recognize.rs</code>, <code>features/paper/analyze/refs/online.rs</code>, <code>features/paper/catalog/commands.rs</code></td>
 </tr>
 <tr>
 <td><strong>Unpaywall</strong></td>
@@ -3812,7 +3812,7 @@
 <td><strong>Zotero Recognizer</strong></td>
 <td><code>POST https://services.zotero.org/recognizer/recognize</code></td>
 <td>PDF 首页文字几何识别</td>
-<td><code>features/import/pdf_recognize.rs</code></td>
+<td><code>features/paper/import/recognize/pdf_recognize.rs</code></td>
 </tr>
 <tr>
 <td><strong>Translator Runtime</strong></td>
@@ -3847,13 +3847,13 @@
 <li>若用户输入被识别为 arXiv id / DOI / URL，会构造 <code>{base}/web</code> 或 <code>{base}/search</code> 请求。</li>
 <li>arXiv 的各类输入（<code>2508.05004</code>、<code>arXiv:2508.05004v2</code>、<code>https://arxiv.org/pdf/...</code>、<code>https://arxiv.org/html/...</code>）都会被规范化为 <code>https://arxiv.org/abs/{id}</code> 再走 <code>/web</code>。</li>
 <li>Translator 失败且输入是 arXiv id 时，本地 fallback 到 <code>fetch_arxiv_metadata</code>。</li>
-<li><strong>Crossref DOI fallback</strong>（<code>features/import/pdf_recognize.rs::resolve_identifier_full</code>）</li>
+<li><strong>Crossref DOI fallback</strong>（<code>features/paper/import/recognize/pdf_recognize.rs::resolve_identifier_full</code>）</li>
 <li>当 Translator 无法解析一个 DOI 时，直接请求 <code>api.crossref.org/works/{doi}</code>。</li>
 <li><strong>arXiv Atom 直接 fallback</strong>（<code>features/import/mod.rs::fetch_arxiv_metadata</code>）</li>
 <li>请求 <code>export.arxiv.org/api/query?id_list={id}</code>，解析 <code>&lt;arxiv:journal_ref&gt;</code> 作为 publication/venue。</li>
 </ol>
 <h3 id="22-pdf">2.2 PDF 元数据识别<a class="headerlink" href="#22-pdf" title="Permanent link">&para;</a></h3>
-<p>入口：<code>features/import/pdf_recognize.rs::recognize_and_resolve</code>。</p>
+<p>入口：<code>features/paper/import/recognize/pdf_recognize.rs::recognize_and_resolve</code>。</p>
 <p>流程：</p>
 <ol>
 <li>本地 liteparse 探测 PDF 前若干页文字几何。</li>

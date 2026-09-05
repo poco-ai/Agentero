@@ -3851,11 +3851,11 @@
 </tr>
 <tr>
 <td>站点代理（共享管道）</td>
-<td><code>src-tauri/src/features/site_proxy.rs</code></td>
+<td><code>src-tauri/src/features/paper/discovery/proxy/mod.rs</code></td>
 </tr>
 <tr>
 <td>站点代理（各站改写 + 注入）</td>
-<td><code>src-tauri/src/features/coolpapers/proxy.rs</code>、<code>src-tauri/src/features/modelscope_proxy.rs</code></td>
+<td><code>src-tauri/src/features/paper/discovery/coolpapers/proxy.rs</code>、<code>src-tauri/src/features/paper/discovery/proxy/modelscope.rs</code></td>
 </tr>
 </tbody>
 </table>
@@ -4063,7 +4063,7 @@
 <li>链接要么弹出独立窗口、要么静默失效——<strong>点了没反应</strong>；</li>
 <li>跨源 iframe 的 <code>location</code> / <code>history</code> 都读不到，<strong>无法实现后退</strong>。</li>
 </ul>
-<p>因此改为在 Host 侧以自有 scheme 转发（沿用 <code>arxiv_proxy.rs</code> 的既有模式），同源后即可改写与观测：</p>
+<p>因此改为在 Host 侧以自有 scheme 转发（沿用 <code>discovery/proxy/arxiv.rs</code> 的既有模式），同源后即可改写与观测：</p>
 <ul>
 <li><code>target="_blank"</code> → <code>_self</code>，站内链接原地跳转；</li>
 <li><strong>同时改写 <code>window.open</code></strong>。仅改 HTML 不够：cool.js 的所有脚本式跳转都走 <code>window.open</code>（搜索、<code>[REL]</code> 相关论文、排序、feed、导出收藏、arXiv 日历共 7 处），且多数传 <code>_blank</code>；sandbox 去掉 <code>allow-popups</code> 后这些调用会被<strong>静默丢弃</strong>，表现为「搜索点了没反应」。补丁在 <code>&lt;head&gt;</code> 安装，早于 body 末尾的 cool.js。</li>
@@ -4220,7 +4220,7 @@
 <tbody>
 <tr>
 <td>列表走 <code>PUT /api/v1/dolphin/papers</code>（JSON body，匿名可用）</td>
-<td>代理原本只发 GET 且丢 body，页面会渲染成空壳。请求管道抽到 <code>site_proxy.rs</code> 并<strong>转发 method + body</strong>（顺带修好 papers.cool 的 <code>POST /star</code>）。只转发 <code>Content-Type</code> / <code>Accept</code> / <code>Accept-Language</code>——<code>Cookie</code>、<code>Origin</code>、<code>Referer</code> 一律不带</td>
+<td>代理原本只发 GET 且丢 body，页面会渲染成空壳。请求管道抽到 <code>discovery/proxy/mod.rs</code> 并<strong>转发 method + body</strong>（顺带修好 papers.cool 的 <code>POST /star</code>）。只转发 <code>Content-Type</code> / <code>Accept</code> / <code>Accept-Language</code>——<code>Cookie</code>、<code>Origin</code>、<code>Referer</code> 一律不带</td>
 </tr>
 <tr>
 <td>外壳资源全是协议相对 <code>//g.alicdn.com/…</code>，含 <code>window.publicPath</code></td>
@@ -4442,7 +4442,7 @@
 <hr />
 <p><em>修订：2026-07-25 — 采纳 WebView、不做入库、P0 含推荐 v0、树位置在 Library/Trash 下。</em>
 <em>修订：2026-08-14 — 改为代理协议嵌入；壳 + Cool Papers 浏览 + 单条入库已落地；推荐 / 播客未实现。</em>
-<em>修订：2026-08-15 — 新增 ModelScope 论文来源；请求管道抽到 <code>site_proxy.rs</code> 并转发 method + body。</em><br />
+<em>修订：2026-08-15 — 新增 ModelScope 论文来源；请求管道抽到 <code>discovery/proxy/mod.rs</code> 并转发 method + body。</em><br />
 <em>修订：2026-08-15 — 订阅列为广场来源，规格拆到 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>。</em><br />
 <em>修订：2026-08-15 — 订阅 MVP 落地（XDG <code>feeds.sqlite</code> + 原生双栏 + 论文入库）。</em><br />
 <em>修订：2026-08-21 — arXiv 推荐落地（embedding + 时间衰减；缓存进 catalog schema v6；<code>vault:opened</code> 预热）。</em></p>

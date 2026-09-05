@@ -3880,7 +3880,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 <span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="err">任何一步失败静默降级为文件名元数据，绝不影响已完成的导入</span>
 </code></pre></div>
 
-<p>识别结果由 <code>src-tauri/src/features/import/recognize_apply.rs</code> 落地：</p>
+<p>识别结果由 <code>src-tauri/src/features/paper/import/recognize/apply.rs</code> 落地：</p>
 <ul>
 <li><strong>命中标识符（<code>ok</code>）</strong> → 目录经 wiki rename 事务改名为规范 id（<code>papers/&lt;文件名slug&gt;</code> → <code>papers/1706.03762</code>，含 <code>{id}.pdf</code> 改名、catalog path/id 重写、<code>[[...]]</code> 链接重写、失败回滚），<code>meta_source=recognize</code>，emit <code>paper:renamed</code>。</li>
 <li><strong>规范 id 已在库中</strong> → 占位条目并入已有条目（PDF 成为对方主 PDF 或进 <code>attachments/</code>），删除占位目录/行，emit <code>paper:renamed</code>（<code>outcome=merged</code>）。</li>
@@ -3890,7 +3890,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </ul>
 <p>时序约定：<code>paper_commit</code> 以 <code>defer_parse_jobs: true</code> 跳过 commit 期的 ParseBody/ParseRefs spawn，由 RecognizeMetadata runner 在目录名尘埃落定后统一编排 PAPER.md / refs / layout（<code>LookupImportResult.recognize_pending=true</code> 时前端也跳过自己的 layout enqueue）。</p>
 <ul>
-<li>实现：识别链路 <code>src-tauri/src/features/import/pdf_recognize.rs</code>（payload 组装 + HTTP client + <code>map_crossref_work</code>）；probe worker 变体在 <code>pdf_parse/mod.rs</code>（<code>--agentero-internal-pdf-recognize-worker</code>）；job 编排 <code>import/job_runners.rs::recognize_metadata_runner</code>。</li>
+<li>实现：识别链路 <code>src-tauri/src/features/paper/import/recognize/pdf_recognize.rs</code>（payload 组装 + HTTP client + <code>map_crossref_work</code>）；probe worker 变体在 <code>pdf_parse/mod.rs</code>（<code>--agentero-internal-pdf-recognize-worker</code>）；job 编排 <code>import/job_runners.rs::recognize_metadata_runner</code>。</li>
 <li>payload 结构复刻 Zotero document-worker <code>getRecognizerData</code>：<code>word = [xMin,yMin,xMax,yMax,fontSize,spaceAfter,baseline,rotation,0,bold,italic,0,fontIndex,text]</code>，行来自 liteparse 投影行（竖排 arXiv stamp 落到独立行，服务端可重建）。</li>
 <li>Host 侧 entries 仍支持 <code>title</code>/<code>doi</code>/<code>arxivId</code>/<code>extra</code> 覆盖（<code>meta_source=manual</code>，走原有同步路径不触发后台识别），供确认对话框/CLI 等调用方使用。</li>
 <li>隐私：上传的是前 5 页文本布局 JSON（~200KB），不是 PDF 文件；服务为 Zotero 托管的未公开 API，仅作尽力而为识别，失败无感知。</li>
