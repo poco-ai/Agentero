@@ -3748,6 +3748,7 @@
 <p>Agentero Host 端（<code>src-tauri/src/features/</code>）在论文识别、入库、引用补全、推荐等流程中，会调用若干外部学术服务。本文档列出所有当前在用的学术搜索/元数据 API，说明其用途、调用入口、请求形态、fallback 链路与并发控制。</p>
 <blockquote>
 <p>范围限定在<strong>学术元数据与论文发现</strong>相关的外部 HTTP API。翻译 API（Google/Bing/DeepL/OpenAI 等）、版面分析 ONNX、本地 Agent/ACP、PostHog 遥测不在本文讨论范围内。</p>
+<p>路径简写：<code>scholar_api/…</code> 与 <code>features/paper/import/</code> 的映射 / resolver / 批处理（<code>map.rs</code>、<code>resolver.rs</code>、<code>api_mapper.rs</code>、<code>title_search.rs</code>、<code>batch.rs</code>、<code>parse.rs</code>、<code>assets.rs</code>、<code>sources/</code>）已随 crate 拆分迁到 <code>crates/agentero-core/src/features/paper/…</code>；<code>import/recognize/</code>（标题解析链、PDF 识别）与 <code>import/commands.rs</code> 仍在 <code>src-tauri</code>。其余 <code>features/…</code> 均指 <code>src-tauri/src/features/…</code>。</p>
 </blockquote>
 <h2 id="1-api">1. API 总览<a class="headerlink" href="#1-api" title="Permanent link">&para;</a></h2>
 <table>
@@ -3776,7 +3777,7 @@
 <td><strong>Semantic Scholar Graph API</strong></td>
 <td><code>GET /graph/v1/paper/ARXIV:{id}</code> / <code>DOI:{doi}</code></td>
 <td>venue 回填（<code>publicationVenue.name</code>）</td>
-<td><code>features/import/title_search.rs</code></td>
+<td><code>features/paper/scholar_api/sources/semantic_scholar.rs</code>（<code>fetch_venue_by_*</code>），调用方 <code>features/paper/import/commands.rs</code></td>
 </tr>
 <tr>
 <td><strong>Semantic Scholar Graph API</strong></td>
@@ -3801,6 +3802,12 @@
 <td><code>GET https://api.crossref.org/works/{doi}</code></td>
 <td>DOI → 元数据 / 参考文献</td>
 <td><code>features/paper/import/recognize/pdf_recognize.rs</code>, <code>features/paper/analyze/refs/online.rs</code>, <code>features/paper/catalog/commands.rs</code></td>
+</tr>
+<tr>
+<td><strong>OpenAlex REST API</strong></td>
+<td><code>GET https://api.openalex.org/works</code></td>
+<td>标题搜索兜底（含 <code>cited_by_count</code>）</td>
+<td><code>features/paper/import/recognize/chain_resolve.rs</code></td>
 </tr>
 <tr>
 <td><strong>Unpaywall</strong></td>
@@ -3847,18 +3854,21 @@
 <li>若用户输入被识别为 arXiv id / DOI / URL，会构造 <code>{base}/web</code> 或 <code>{base}/search</code> 请求。</li>
 <li>arXiv 的各类输入（<code>2508.05004</code>、<code>arXiv:2508.05004v2</code>、<code>https://arxiv.org/pdf/...</code>、<code>https://arxiv.org/html/...</code>）都会被规范化为 <code>https://arxiv.org/abs/{id}</code> 再走 <code>/web</code>。</li>
 <li>Translator 失败且输入是 arXiv id 时，本地 fallback 到 <code>fetch_arxiv_metadata</code>。</li>
-<li><strong>Crossref DOI fallback</strong>（<code>features/paper/import/recognize/pdf_recognize.rs::resolve_identifier_full</code>）</li>
-<li>当 Translator 无法解析一个 DOI 时，直接请求 <code>api.crossref.org/works/{doi}</code>。</li>
+<li><strong>Crossref DOI fallback</strong>（<code>features/paper/import/resolver.rs::fetch_crossref_metadata</code>）</li>
+<li>当 Translator 无法解析一个 DOI 时，<code>fetch_direct_fallback</code> 直接请求 <code>api.crossref.org/works/{doi}</code>。</li>
 <li><strong>arXiv Atom 直接 fallback</strong>（<code>features/import/mod.rs::fetch_arxiv_metadata</code>）</li>
 <li>请求 <code>export.arxiv.org/api/query?id_list={id}</code>，解析 <code>&lt;arxiv:journal_ref&gt;</code> 作为 publication/venue。</li>
 </ol>
+<blockquote>
+<p><strong>被引数（<code>citation_count</code>）</strong>：Crossref 解析 <code>is-referenced-by-count</code>、OpenAlex 解析 <code>cited_by_count</code>、Semantic Scholar 解析 <code>citationCount</code>，三者 <code>capabilities()</code> 均声明 <code>PROVIDE_CITATION_COUNT</code>；Crossref / OpenAlex 的 title search 还必须把该字段列进 <code>select</code> 白名单，否则 API 根本不返回它。<code>api_paper_to_meta</code> 把值带进 <code>PaperRecord</code>，<code>merge_api_papers</code> 合并两个源时取较大值（各自索引的引用文献子集不同）。arXiv Atom 与 Translator 不产出被引数。<strong>注意</strong>：入库以 Translator 为主路径，<code>map_zotero_item</code> 不带被引数，因此常规导入写入的仍是 NULL；只有 Translator 失败后降级到 Crossref 直连的 DOI 导入才会落进真实值。完整缺口见 <a href="../catalog/">catalog.md</a>。</p>
+</blockquote>
 <h3 id="22-pdf">2.2 PDF 元数据识别<a class="headerlink" href="#22-pdf" title="Permanent link">&para;</a></h3>
 <p>入口：<code>features/paper/import/recognize/pdf_recognize.rs::recognize_and_resolve</code>。</p>
 <p>流程：</p>
 <ol>
 <li>本地 liteparse 探测 PDF 前若干页文字几何。</li>
 <li>将文字几何按 Zotero Worker 形状提交到 <code>https://services.zotero.org/recognizer/recognize</code>，获取可能的 DOI / arXiv / title。</li>
-<li>若识别出 DOI → <code>resolve_identifier_full</code> → Translator → Crossref fallback。</li>
+<li>若识别出 DOI → <code>import/mod.rs::resolve_metadata</code> → Translator → Crossref 直连 fallback。</li>
 <li>若识别出 arXiv → <code>fetch_arxiv_metadata</code>。</li>
 <li>仅有 title/authors 时 → 生成本地 PDF 占位元数据（<code>meta_from_recognize</code>）。</li>
 </ol>
@@ -3917,7 +3927,7 @@
 </ol>
 <p>UI 刷新（<code>paper_resolve_identifier</code>）对 DOI/arXiv/URL <strong>先走标识符解析</strong>，再用 S2 补全空缺或 Crossref 截断的 proceedings 标题；自由文本才走 title search。</p>
 <h3 id="26-arxiv-doi-venue">2.6 arXiv / DOI Venue 回填<a class="headerlink" href="#26-arxiv-doi-venue" title="Permanent link">&para;</a></h3>
-<p>入口：<code>features/import/title_search.rs::fetch_s2_venue_by_arxiv</code> / <code>fetch_s2_venue_by_doi</code>。</p>
+<p>入口：<code>features/paper/scholar_api/sources/semantic_scholar.rs::SemanticScholarApi::fetch_venue_by_arxiv</code> / <code>fetch_venue_by_doi</code> / <code>fetch_venue_by_ids</code>（取值逻辑 <code>venue_from_paper</code>）。</p>
 <p>请求 <code>GET /graph/v1/paper/{ARXIV:id\|DOI:doi}?fields=venue,publicationVenue,journal</code>。取值顺序：</p>
 <ol>
 <li><code>publicationVenue.name</code>（<code>type=repository</code> 跳过）</li>
@@ -3926,8 +3936,8 @@
 </ol>
 <p>用于：</p>
 <ul>
-<li><code>map_arxiv_atom</code> 中当 <code>&lt;arxiv:journal_ref&gt;</code> 缺失时补 venue。</li>
-<li>批量 publication 回填与 Edit Metadata 刷新。</li>
+<li><code>paper_backfill_publication</code> 的 arXiv 分支：Atom 的 <code>&lt;arxiv:journal_ref&gt;</code>（<code>scholar_api/sources/arxiv.rs::parse_entries</code> → <code>ApiPaper.venue</code>）缺失时补 venue。</li>
+<li>批量 publication 回填与 Edit Metadata 刷新（<code>enrich_publication_from_s2</code>）。</li>
 <li>title search 候选的 venue 字段。</li>
 </ul>
 <h3 id="27">2.7 推荐与订阅<a class="headerlink" href="#27" title="Permanent link">&para;</a></h3>
@@ -4024,10 +4034,10 @@
 <td>CLI/批量导入可临时覆盖</td>
 </tr>
 <tr>
-<td><code>ImportLocalPdfArgs.translator_base_url</code></td>
-<td>本地 PDF 导入参数</td>
-<td>空则使用设置值</td>
-<td>背景识别阶段使用</td>
+<td>后台 PDF 识别（RecognizeMetadata job）</td>
+<td><code>job_runners.rs</code> 直接读设置 <code>translator_base_url</code></td>
+<td>空则用 <code>DEFAULT_TRANSLATOR_BASE_URL</code></td>
+<td><strong>不</strong>经 IPC 入参传入（<code>ImportLocalPdfArgs</code> 无此字段）</td>
 </tr>
 </tbody>
 </table>

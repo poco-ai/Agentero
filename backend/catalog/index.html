@@ -3475,9 +3475,14 @@
 <h2 id="_2">要点<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
 <li>主键：论文 <code>path</code>（Vault 相对路径）</li>
-<li>字段以 <code>features/paper/catalog/schema.rs</code> 为准</li>
+<li>字段以 <code>crates/agentero-core/src/features/paper/catalog/schema.rs</code> 为准（当前 schema v7）</li>
+<li><strong>单一模型</strong>：<code>papers.rs::PaperRecord</code> 同时是 catalog 行、<code>papers/&lt;id&gt;/metadata.json</code> sidecar 投影与 IPC 出参（前端 <code>PaperMetadata</code> 只是其生成类型的派生别名）。构造走 <code>PaperRecord::local_pdf(id, title)</code>（<code>path</code> 故意为空），入库管线分配到文件夹后用 <code>at_path(rel)</code> 绑定；<code>upsert_conn</code> 归一化 <code>\</code> → <code>/</code> 并<strong>拒绝空 <code>path</code></strong>，避免写出 <code>path = ''</code> 主键或把 sidecar 落到 Vault 根（#181）</li>
+<li><strong>sidecar 形状</strong>：<code>metadata.json</code> = <code>PaperRecord</code> 的 pretty JSON（snake_case，<code>abstract</code> / <code>type</code> 经 serde rename）。读回时 <code>path</code> 一律取盘上位置（sidecar 随文件夹移动，内嵌值可能过期）；容忍 Connector 时代的旧文件（无 <code>path</code>、tags 为裸字符串）</li>
+<li><strong><code>type</code> 列 = <code>PaperKind</code> 枚举</strong>：<code>arxiv</code> / <code>pdf</code> / <code>html</code> / <code>doi</code> / <code>other</code>（全小写序列化，与前端 union 一致）。读侧归一化：历史 <code>'article'</code> → <code>Doi</code>，任何未识别值 → <code>Other</code>；<strong>没有 schema migration</strong>，下次 upsert 自然写回规范拼写。<code>From&lt;&amp;str&gt;</code> / <code>FromSql</code> / <code>Deserialize</code> 三条读路径共用同一归一化，因此不会因脏值整行解析失败</li>
+<li><strong><code>status</code> 列 = 导入状态</strong>，词表 <code>pending</code> / <code>importing</code> / <code>completed</code> / <code>failed</code>；已读与否由 <code>is_read</code> 专管（不要把阅读状态写进 <code>status</code>）。当前所有生产者都写 <code>completed</code>。Rust 侧仍是 <code>String</code>，前端靠 union 窄化维持类型安全；旧库遗留的 <code>status = 'unread'</code> 行<strong>未</strong>在读侧 heal（对比 <code>'article'</code>），因为前端目前不 switch <code>status</code>，无实际后果</li>
+<li><strong><code>citation_count</code>（INTEGER，模型侧 i64）</strong>：管道已通——Crossref / OpenAlex / Semantic Scholar 都能解析并声明 <code>PROVIDE_CITATION_COUNT</code>，<code>api_paper_to_meta</code> 带进 record，<code>merge_api_papers</code> 取较大值，upsert / sidecar / 部分更新都不会丢（有测试守护）。<strong>但常规入库路径写入的仍是 NULL</strong>：入库以 Translator 为主，<code>map_zotero_item</code> 不产出被引数；只有 Translator 失败后降级到 Crossref 直连的 DOI 导入才会落进真实值。补齐缺口见 <a href="../../development/import-api-abstraction/">../development/import-api-abstraction.md</a> §11</li>
 <li>时间戳统一走 <code>core/time.rs::now_rfc3339_millis()</code>（RFC 3339 毫秒 + <code>Z</code>，固定宽度）。<code>updated_at</code> 参与 SQL 字符串 <code>ORDER BY</code>，Secs/<code>+00:00</code> 变体与毫秒格式混排会排错序（<code>'+' &lt; '.' &lt; 'Z'</code>）；schema v7 迁移已把存量 <code>papers.updated_at</code> / <code>added_at</code>、<code>arxiv_rec_state.computed_at</code> 重写为规范格式（不可解析值原样保留，幂等）</li>
-<li><code>tags_json</code>：字符串或 <code>{name,color}</code>（Apple 8 色）。<code>@zotero:</code> / <code>@arxiv:</code> 前缀为内部隐标签（Connector 来源 / arXiv 学科分类），UI 与 CLI 默认不展示</li>
+<li><code>tags_json</code>：字符串或 <code>{name,color}</code>（Apple 8 色）。<code>@zotero:</code> / <code>@arxiv:</code> 前缀为内部隐标签（Connector 来源 / arXiv 学科分类），UI 与 CLI 默认不展示。<strong>契约缺口</strong>：<code>impl Serialize for PaperTag</code> 无色时输出裸字符串，而 specta 生成的类型是 <code>{ name, color }</code> 对象，因此前端必须保留 <code>PaperTagInput[]</code> + <code>coercePaperTags</code></li>
 <li><code>paper_list</code> 对前端 Library 返回按 <code>id</code> 去重的视图：同一逻辑论文若因历史原因出现在多个路径，只保留一条（优先存在磁盘的路径，其次 <code>updated_at</code> 最新、路径最短/字典序最小）</li>
 <li><code>paper_rescan</code>：盘上有、库内无则补齐</li>
 <li>删除：回收站快照；恢复 upsert</li>
@@ -3529,7 +3534,7 @@
 </table>
 <p>CLI：<code>agentero paper …</code> / <code>paper tag *</code>。</p>
 <p>入库如何写 catalog：<a href="../paper-import/">paper-import.md</a>。<br />
-代码：<code>src-tauri/src/features/paper/catalog/</code>；派生能力探测在 <code>src-tauri/src/features/paper/capabilities.rs</code>。</p>
+代码：模型 / schema / sidecar 与派生能力探测在 <code>crates/agentero-core/src/features/paper/catalog/</code> 与 <code>crates/agentero-core/src/features/paper/capabilities.rs</code>；Tauri 命令层在 <code>src-tauri/src/features/paper/catalog/commands.rs</code>。</p>
 
 
 

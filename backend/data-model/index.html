@@ -3556,6 +3556,7 @@
 <h2 id="paper">Paper 单元<a class="headerlink" href="#paper" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code>papers/&lt;id&gt;/
 ├── NOTES.md          # 人/Agent 笔记
+├── metadata.json     # catalog 行的 sidecar 投影（PaperRecord JSON）
 ├── &lt;id&gt;.pdf          # 可选
 ├── marks/            # 高亮/批注/提问/翻译 JSON 与 mark 自有资产
 ├── source/           # TeX 等（可懒加载）
@@ -3567,7 +3568,8 @@
 └── attachments/      # 可选：用户支撑材料（supplement / 代码仓库等）
 </code></pre></div>
 
-<p><code>attachments/</code> <strong>不</strong>在入库时预建空目录。仅当其中有文件时，文件树论文行才显示 chevron，并把该目录的子项直接挂在论文下（桶本身不占一行）。<code>source/</code>、<code>marks/</code>、<code>assets/</code>、主 PDF、<code>NOTES.md</code>、<code>PAPER.md</code> 仍不进入树。</p>
+<p><code>metadata.json</code> 不是独立 schema：它就是 <code>PaperRecord</code>（catalog 行 / sidecar / IPC 出参共用的唯一论文模型）的 pretty JSON 投影，每次 catalog upsert 重写，<code>paper_rescan</code> 可据此重建丢失的行。列词表与归一化行为见 <a href="../catalog/">catalog.md</a>。</p>
+<p><code>attachments/</code> <strong>不</strong>在入库时预建空目录。仅当其中有文件时，文件树论文行才显示 chevron，并把该目录的子项直接挂在论文下（桶本身不占一行）。<code>source/</code>、<code>marks/</code>、<code>assets/</code>、主 PDF、<code>NOTES.md</code>、<code>PAPER.md</code>、<code>metadata.json</code> 仍不进入树。</p>
 <p><code>layout-index.json</code> 与侧栏 Figures 同源（merge + score/NMS 后），供 <code>agentero layout list</code> / <code>mark add --region</code> 使用；<strong>可从</strong> <code>layout.json</code> 重算，分析完成或缓存命中时由桌面写入。详见 <a href="../../frontend/pdf-layout-analysis/">../frontend/pdf-layout-analysis.md</a>。</p>
 <h2 id="marks">marks/<a class="headerlink" href="#marks" title="Permanent link">&para;</a></h2>
 <ul>

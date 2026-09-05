@@ -3711,7 +3711,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 <h2 id="idurl">魔棒（精确 ID/URL）<a class="headerlink" href="#idurl" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code>粘贴 arXiv ID / DOI / URL
   → arXiv 输入先规范为 `https://arxiv.org/abs/&lt;id&gt;`，再交给 Translator（或 arXiv Atom fallback）
-  → PaperMetadata → catalog upsert
+  → PaperRecord → catalog upsert
   → papers/&lt;id&gt;/ + 带 aliases frontmatter 的 NOTES.md 壳（不覆盖已有 NOTES）
   → PDF → {paper}/{id}.pdf
   → arXiv e-print → 解压 LaTeX 到 source/

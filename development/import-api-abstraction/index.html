@@ -3306,7 +3306,7 @@
   <a href="#1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. 问题
+        1. 问题（重构前状态）
       
     </span>
   </a>
@@ -3588,10 +3588,93 @@
   <a href="#10" class="md-nav__link">
     <span class="md-ellipsis">
       
-        10. 待决策
+        10. 待决策 / 结论
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. 剩余工作（论文元数据重构后的已知缺口）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. 剩余工作（论文元数据重构后的已知缺口）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#111-citation_count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.1 citation_count 到不了用户眼前
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#112-status-body_source-body_quality-string" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.2 status / body_source / body_quality 仍是 String
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#113-papertag-wire" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.3 PaperTag 的生成契约与真实 wire 形态不符
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#114-pdfidentprobe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.4 PdfIdentProbe 是又一份手工维护的扁平字段表
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#115" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.5 前端仍有手写副本未收敛到生成类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#116" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.6 其它
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -3617,18 +3700,19 @@
 
 <h1 id="import-api">Import 学术 API 抽象层设计稿<a class="headerlink" href="#import-api" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：设计稿，待实现<br />
-目标：减少 <code>features/import/</code> 里各学术 HTTP 服务的重复代码，统一论文元数据、期刊指标、PDF URL 与题录批处理的抽象接口。</p>
+<p>状态：<strong>已落地</strong>，保留为设计记录（§8 阶段 0–6 全部完成）<br />
+目标：减少 <code>features/import/</code> 里各学术 HTTP 服务的重复代码，统一论文元数据、期刊指标、PDF URL 与题录批处理的抽象接口。<br />
+落地后的实际位置：<code>crates/agentero-core/src/features/paper/scholar_api/</code>（crate 拆分后从 <code>src-tauri</code> 迁入，见 <a href="../crate-split-roadmap/">crate-split-roadmap.md</a>）。剩余工作与已知缺口见 §11。</p>
 </blockquote>
-<h2 id="1">1. 问题<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
-<p>当前 <code>features/import/</code> 里各服务各自维护一套逻辑：</p>
+<h2 id="1">1. 问题（重构前状态）<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>当时 <code>features/import/</code> 里各服务各自维护一套逻辑：</p>
 <ul>
-<li><code>title_search.rs</code>：Semantic Scholar / arXiv 标题搜索，有 <code>PaperSearchCandidate</code></li>
-<li><code>chain_resolve.rs</code>：标题解析链，有 <code>ResolvedCandidate</code></li>
-<li><code>map.rs</code>：最终存储格式，有 <code>PaperMeta</code></li>
+<li><code>title_search.rs</code>：Semantic Scholar / arXiv 标题搜索，有 <code>PaperSearchCandidate</code> —— <strong>保留</strong>至今，作为魔棒搜索对话框的 IPC 出参（有 <code>From&lt;ApiPaper&gt;</code> 实现）</li>
+<li><code>chain_resolve.rs</code>：标题解析链，有 <code>ResolvedCandidate</code> —— <strong>已删除</strong>，连同该文件里重复的 <code>candidate_to_meta</code> / <code>merge_candidates</code>；现在直接消费 <code>ApiPaper</code></li>
+<li><code>map.rs</code>：最终存储格式，有 <code>PaperMeta</code> —— <strong>已合并</strong>进 <code>catalog/papers.rs::PaperRecord</code>（<code>PaperMeta</code> 曾是 <code>PaperRecord</code> 的严格字段子集，靠 <code>paper_record_from_meta</code> 逐字段手抄桥接，新字段要改四处，<code>citation_count</code> 就是在这个接缝上被静默丢掉的）</li>
 <li><code>mod.rs</code>：Translator Runtime 特化请求与错误处理</li>
-<li><code>assets.rs</code>：Unpaywall 独立调用</li>
-<li><code>pdf_recognize.rs</code>：Zotero Recognizer 独立调用</li>
+<li><code>assets.rs</code>：Unpaywall 独立调用 —— 已收进 <code>scholar_api/sources/unpaywall.rs</code></li>
+<li><code>pdf_recognize.rs</code>：Zotero Recognizer 独立调用 —— 按 §5.5 的结论保持独立（输出 <code>RecognizeHit</code>，再转 <code>ApiQuery</code>）</li>
 </ul>
 <p>三套候选结构互相转换、各自拼 reqwest client、各自处理 timeout / proxy / User-Agent / 限流。新增一个学术数据源要改多处。</p>
 <h2 id="2">2. 目标与非目标<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
@@ -3639,11 +3723,13 @@
 <li>统一错误类型（<code>ApiError</code>）</li>
 <li>按能力拆 trait，避免一个服务硬塞一堆空方法</li>
 <li>共享 HTTP 工具，集中处理 timeout / proxy / UA / 限流 / 错误包装</li>
-<li>把现有 <code>PaperMeta</code> 作为 storage 格式保留，只统一「生产 <code>PaperMeta</code> 的路径」</li>
+<li>把现有 <code>PaperMeta</code> 作为 storage 格式保留，只统一「生产 <code>PaperMeta</code> 的路径」<br />
+  → <strong>实际结果</strong>：抽象层照此落地，但 storage 格式随后统一到了 <code>PaperRecord</code>；<code>PaperMeta</code> 与其手写桥接 <code>paper_record_from_meta</code> 一并删除，生产路径改为直接构造 <code>PaperRecord</code>（<code>local_pdf</code> + <code>at_path</code>）</li>
 </ul>
 <p><strong>非目标：</strong></p>
 <ul>
-<li>不替换 <code>PaperMeta</code>（前端 <code>PaperMetadata</code> 已依赖其 JSON 形状）</li>
+<li>不替换 <code>PaperMeta</code>（前端 <code>PaperMetadata</code> 已依赖其 JSON 形状）<br />
+  → <strong>已被后续重构推翻</strong>：<code>PaperMeta</code> 合并进 <code>PaperRecord</code> 后，"前端依赖的 JSON 形状"这一约束由 <code>PaperRecord</code> 承担，前端 <code>PaperMetadata</code> 改为从 specta 生成的 <code>PaperRecord_Serialize</code> 派生，形状契约由生成物保证而非手抄</li>
 <li>不改动前端导入流程的 IPC 契约</li>
 <li>不删除现有 fallback 行为（Translator → arXiv / Crossref）</li>
 <li>不一次性重写所有服务；先落地抽象层，再逐个迁移</li>
@@ -4172,12 +4258,13 @@
 </ul>
 <p>每个服务实现里只剩「拼 URL + 解析响应到 <code>ApiPaper</code> / <code>VenueMetrics</code>」。</p>
 <h2 id="7">7. 模块布局<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
-<p>按顶层 <code>scholar_api</code> 组织，与 <code>features/import/</code> 解耦，方便 <code>features/refs/</code>、<code>features/recommend/</code>、<code>features/coolpapers/</code> 等复用。</p>
-<div class="codehilite"><pre><span></span><code>src-tauri/src/
+<p>按 <code>scholar_api</code> 模块组织，与 <code>features/paper/import/</code> 解耦，方便 <code>features/refs/</code>、<code>features/recommend/</code>、<code>features/coolpapers/</code> 等复用。</p>
+<div class="codehilite"><pre><span></span><code>crates/agentero-core/src/features/paper/
   scholar_api/
     mod.rs           # 公开类型：ApiQuery, ApiPaper, ApiError, ApiCapability, VenueMetrics ...
     traits.rs        # AcademicApi, VenueMetricsSource, PdfUrlSource, BibliographySource
     client.rs        # 共享 ApiHttpClient
+    scoring.rs       # 与 storage 无关的候选排序/合并：normalize_title, title_similarity, is_same_paper
     sources/
       translator.rs
       semantic_scholar.rs
@@ -4190,81 +4277,176 @@
 
 <p>依赖方向：</p>
 <ul>
-<li><code>scholar_api</code> 不依赖任何 <code>features/*</code> 模块，只依赖 <code>core/</code>（error、http、time 等）。</li>
-<li><code>features/import/</code> 依赖 <code>scholar_api</code>，把 <code>ApiPaper</code> 映射为 <code>PaperMeta</code>。</li>
+<li><code>scholar_api</code> 不依赖任何 <code>features/*</code> 业务模块，只依赖基础层（error、http、time 等）。</li>
+<li><code>features/paper/import/</code> 依赖 <code>scholar_api</code>，把 <code>ApiPaper</code> 映射为 <code>PaperRecord</code>。</li>
 <li><code>features/refs/online.rs</code>、<code>features/coolpapers/</code> 等也直接依赖 <code>scholar_api</code>。</li>
 </ul>
-<p>因此 <code>api_paper_to_paper_meta()</code> 不适合放在 <code>scholar_api/</code> 里，而应留在 <code>features/import/map.rs</code>（或新增 <code>features/import/api_mapper.rs</code>），由 import 域自己维护 storage 映射。通用的候选排序/合并工具如果也不依赖 <code>PaperMeta</code>，可以放 <code>scholar_api/scoring.rs</code>。</p>
+<p>因此 <code>api_paper_to_meta()</code> 不放在 <code>scholar_api/</code> 里，而是落在 <code>features/paper/import/api_mapper.rs</code>（当初"或新增 <code>api_mapper.rs</code>"的选项胜出），由 import 域自己维护 storage 映射；<code>merge_api_papers</code> 同文件。通用的候选排序/合并工具不依赖 <code>PaperRecord</code>，放在 <code>scholar_api/scoring.rs</code>。</p>
 <h2 id="8">8. 迁移路径<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
-<p>分阶段进行，避免一次性大爆炸：</p>
+<p>分阶段进行，避免一次性大爆炸。<strong>阶段 0–6 全部已落地</strong>（crate 拆分后代码位于 <code>crates/agentero-core/src/features/paper/</code>）：</p>
 <ol>
-<li><strong>阶段 0：新建抽象层</strong></li>
+<li><strong>阶段 0：新建抽象层</strong> ✅</li>
 <li>创建 <code>scholar_api/mod.rs</code> 与 <code>scholar_api/traits.rs</code></li>
 <li>实现 <code>ApiQuery</code>、<code>ApiPaper</code>、<code>ApiError</code>、<code>ApiCapability</code>、<code>VenueMetrics</code></li>
 <li>实现共享 <code>ApiHttpClient</code></li>
 <li>
-<p>在 <code>features/import/</code> 内实现 <code>api_paper_to_paper_meta()</code> 单一映射函数</p>
+<p>在 import 域内实现单一映射函数 → 落地为 <code>features/paper/import/api_mapper.rs::api_paper_to_meta()</code></p>
 </li>
 <li>
-<p><strong>阶段 1：先迁 arXiv 和 Crossref</strong></p>
+<p><strong>阶段 1：先迁 arXiv 和 Crossref</strong> ✅</p>
 </li>
 <li>这两个服务最独立、已有明确的 fallback 位置</li>
 <li>在 <code>scholar_api/sources/arxiv.rs</code> / <code>crossref.rs</code> 实现 <code>AcademicApi</code></li>
 <li>
-<p>保持 <code>features/import/resolver.rs</code> 原有调用点不变，内部改调新的 source</p>
+<p>保持 <code>features/paper/import/resolver.rs</code> 原有调用点不变，内部改调新的 source</p>
 </li>
 <li>
-<p><strong>阶段 2：Semantic Scholar</strong></p>
+<p><strong>阶段 2：Semantic Scholar</strong> ✅</p>
 </li>
 <li>在 <code>scholar_api/sources/semantic_scholar.rs</code> 实现 <code>AcademicApi</code></li>
-<li>重写 <code>features/import/title_search.rs</code> 里的 <code>s2_search</code> / <code>s2_search_match</code> / <code>s2_venue_from_paper</code></li>
+<li>重写 <code>title_search.rs</code> 里的 S2 搜索与 venue 取值（现为 <code>search_match</code> / <code>fetch</code> / <code>fetch_venue_by_*</code> + <code>venue_from_paper</code>）</li>
 <li>
 <p>让 <code>title_search::search_papers</code> 跑在新抽象上</p>
 </li>
 <li>
-<p><strong>阶段 3：OpenAlex</strong></p>
+<p><strong>阶段 3：OpenAlex</strong> ✅</p>
 </li>
 <li>在 <code>scholar_api/sources/openalex.rs</code> 实现 <code>AcademicApi</code></li>
-<li>重写 <code>features/paper/import/recognize/chain_resolve.rs</code> 里的 <code>openalex_search_by_title</code></li>
+<li>重写 <code>recognize/chain_resolve.rs</code> 里的 OpenAlex 标题搜索</li>
 <li>
-<p>可选在同一文件实现 <code>VenueMetricsSource</code> 提供开放指标</p>
+<p><code>VenueMetricsSource</code> 未落在 OpenAlex 上（见 §10 第 2 条）</p>
 </li>
 <li>
-<p><strong>阶段 4：EasyScholar</strong></p>
+<p><strong>阶段 4：EasyScholar</strong> ✅</p>
 </li>
-<li>把 <code>settings/commands.rs</code> 里的 <code>easy_scholar_get_rank</code> 移到 <code>scholar_api/sources/easy_scholar.rs</code></li>
-<li>实现 <code>VenueMetricsSource</code></li>
+<li><code>scholar_api/sources/easy_scholar.rs</code> 实现 <code>VenueMetricsSource</code></li>
 <li>
-<p><code>settings/commands.rs</code> 里的命令改调新的 source，保持 IPC 契约不变</p>
-</li>
-<li>
-<p><strong>阶段 5：Translator / Unpaywall / Zotero Recognizer</strong></p>
-</li>
-<li>在 <code>scholar_api/sources/translator.rs</code> 实现 <code>AcademicApi + BibliographySource</code></li>
-<li>在 <code>scholar_api/sources/unpaywall.rs</code> 实现 <code>PdfUrlSource</code></li>
-<li>
-<p>Zotero Recognizer 保持独立，但输出转成 <code>ApiQuery</code> 后走 <code>AcademicApi</code></p>
+<p><code>settings/commands.rs</code> 的 <code>easy_scholar_probe</code> / <code>easy_scholar_get_rank</code> 改调该 source，IPC 契约不变</p>
 </li>
 <li>
-<p><strong>阶段 6：清理旧结构</strong></p>
+<p><strong>阶段 5：Translator / Unpaywall / Zotero Recognizer</strong> ✅</p>
 </li>
-<li>删除 <code>ResolvedCandidate</code>、<code>PaperSearchCandidate</code>（或保留为 legacy alias 到 <code>ApiPaper</code>）</li>
-<li>删除 <code>chain_resolve.rs</code> 里重复的 <code>candidate_to_meta</code> / <code>merge_candidates</code></li>
-<li>统一走 <code>features/import/api_mapper</code> 的映射函数</li>
+<li><code>scholar_api/sources/translator.rs</code> 实现 <code>AcademicApi + BibliographySource</code></li>
+<li><code>scholar_api/sources/unpaywall.rs</code> 实现 <code>PdfUrlSource</code></li>
+<li>
+<p>Zotero Recognizer 保持独立，输出 <code>RecognizeHit</code> 后转成标识符走 <code>resolve_metadata</code></p>
+</li>
+<li>
+<p><strong>阶段 6：清理旧结构</strong> ✅</p>
+</li>
+<li>删除 <code>ResolvedCandidate</code>；<strong>保留</strong> <code>PaperSearchCandidate</code>（见 §10 第 4 条的结论）</li>
+<li>删除 <code>chain_resolve.rs</code> 里重复的 <code>candidate_to_meta</code> / <code>merge_candidates</code>，改调 <code>api_mapper::api_paper_to_meta</code> / <code>merge_api_papers</code></li>
+<li>统一走 <code>features/paper/import/api_mapper</code> 的映射函数</li>
+<li>后续追加：删除只被自身测试调用的 <code>meta_from_search_candidate</code>，等价断言移到 <code>api_paper_to_meta</code> 的测试上</li>
 </ol>
 <h2 id="9">9. 与现有文档的关系<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
 <ul>
-<li>实现完成后，更新 <a href="../../backend/academic-search-apis/">../backend/academic-search-apis.md</a>：把「调用入口」改为指向新的 <code>scholar_api/sources/*</code></li>
-<li>实现完成后，更新 <a href="../../backend/identifier-lookup/">../backend/identifier-lookup.md</a>：说明新的 identifier → <code>ApiQuery</code> → <code>AcademicApi</code> 链路</li>
-<li>本设计稿保留在 <code>docs/development/</code>，落地后可在其中追加「已实现」标记，但不迁移到 <code>docs/backend/</code>，避免重复</li>
+<li><a href="../../backend/academic-search-apis/">../backend/academic-search-apis.md</a>：Crossref / arXiv Atom / S2 venue 的入口已改指 <code>scholar_api/sources/*</code>；crate 拆分造成的路径歧义由该文档开头的一条简写说明统一交代（<code>scholar_api/…</code> 与 import 的解析 / 映射逻辑在 <code>crates/agentero-core</code>，其余 <code>features/…</code> 仍在 <code>src-tauri</code>）</li>
+<li><a href="../../backend/identifier-lookup/">../backend/identifier-lookup.md</a>：§3.2 记录 resolver 表（含 <code>fetch_fallback</code> 直连回退）、§3.4 记录 S2 ∥ arXiv 竞速、§5 记录 → <code>PaperRecord</code> 的字段映射</li>
+<li>本设计稿保留在 <code>docs/development/</code>（目录约定：已实现功能说明在 <code>docs/backend/</code>，本文件只作为设计记录 + 剩余工作清单）</li>
 </ul>
-<h2 id="10">10. 待决策<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<h2 id="10">10. 待决策 / 结论<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>EasyScholar 返回字段过滤</strong>：你之前说 UI 只保留 <code>sci</code> / <code>sciif</code> / <code>sciif5</code> / <code>ssci</code> / <code>eii</code> / <code>cssci</code> / <code>pku</code> / <code>ccf</code>。是否在后端 <code>VenueMetrics</code> 里就过滤，还是全部返回、前端决定显示哪些？</li>
-<li><strong>OpenAlex 指标是否接入</strong>：EasyScholar 未配置时整个期刊标签功能不启用，是否还需要 OpenAlex 作为 <code>VenueMetricsSource</code> fallback？</li>
-<li><strong>ISSN 是否用于 EasyScholar 查询</strong>：当前 <code>easy_scholar_get_rank</code> 只用 <code>publicationName</code>。是否先用 ISSN 查 OpenAlex 再回退到名称，提高命中率？</li>
-<li><strong>是否保留 <code>PaperSearchCandidate</code> 作为前端 IPC 类型</strong>：前端魔棒搜索目前返回 <code>PaperSearchGroup</code>（含 <code>PaperSearchCandidate</code>）。是否让前端继续用这个 shape，后端内部转成 <code>ApiPaper</code>？</li>
+<li><strong>EasyScholar 返回字段过滤</strong> — 未决策，现状是<strong>全部返回</strong>：<code>parse_response</code> 把 <code>officialRank.all</code> 的每一项都收进 <code>VenueMetrics.ranks</code>，同时 <code>fetch_raw</code> 仍对外暴露，让前端继续消费原始 <code>officialRank.all</code> JSON 形状。</li>
+<li><strong>OpenAlex 指标是否接入</strong> — 未决策，现状是<strong>未接入</strong>：OpenAlex 只实现 <code>AcademicApi</code>，<code>VenueMetricsSource</code> 的唯一实现是 <code>EasyScholarApi</code>；EasyScholar 未配置 key 时期刊标签功能整体不启用。</li>
+<li><strong>ISSN 是否用于 EasyScholar 查询</strong> — 未决策，现状是<strong>只用 <code>publicationName</code></strong>（<code>fetch_raw</code> 的 URL 只带 <code>secretKey</code> + <code>publicationName</code>，<code>VenueIdentifiers</code> 在 <code>fetch_metrics</code> 里未参与请求）。</li>
+<li><strong>是否保留 <code>PaperSearchCandidate</code> 作为前端 IPC 类型</strong> — <strong>结论：保留</strong>。它是魔棒搜索对话框的 IPC 出参（<code>PaperSearchGroup { query, candidates }</code>），后端内部一律用 <code>ApiPaper</code>，唯一的转换点是 <code>impl From&lt;ApiPaper&gt; for PaperSearchCandidate</code>。保留的理由：对话框需要的是<strong>展示形状</strong>而非候选全量——camelCase、已经算好的 <code>identifier</code>（arXiv id 优先，其次 DOI，用户确认后原样回灌标识符管线）、以及 <code>source: "s2" | "arxiv"</code> 这样的窄类型；<code>ApiPaper</code> 是 snake_case 的内部聚合体，直接当契约会把内部字段变更外泄成 IPC breaking change。被删除的是<strong>重复</strong>的候选结构（<code>ResolvedCandidate</code> 及其 <code>candidate_to_meta</code> / <code>merge_candidates</code>），不是这个出参。</li>
 </ol>
+<h2 id="11">11. 剩余工作（论文元数据重构后的已知缺口）<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<p>抽象层本身已收敛；下列是重构过程中发现、<strong>尚未修</strong>的问题，按影响排序。</p>
+<h3 id="111-citation_count">11.1 <code>citation_count</code> 到不了用户眼前<a class="headerlink" href="#111-citation_count" title="Permanent link">&para;</a></h3>
+<p>管道已通、数据源已能解析，但<strong>常规入库路径不会把非 NULL 值写进 catalog</strong>：</p>
+<ul>
+<li>入库以 Translator 为主路径，<code>map_zotero_item</code> 不产出被引数；Crossref 只在 Translator 失败时作为直连降级出现（这条降级路径确实会写进真实值）。</li>
+<li>Semantic Scholar 的结果只出现在 <code>paper_resolve_identifier</code>，而该命令<strong>只返回给前端、不落库</strong>。</li>
+</ul>
+<p>要让用户真正看到被引数，还差下列环节之一：</p>
+<table>
+<thead>
+<tr>
+<th>缺口</th>
+<th>位置</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PdfIdentProbe</code> 无 <code>citation_count</code> 字段</td>
+<td><code>src-tauri/src/features/paper/import/recognize/pdf_recognize.rs</code></td>
+<td>本地 PDF 识别路径在这个边界被截断：<code>from_meta</code> 逐字段拷贝时丢掉被引数，<code>apply.rs::apply_probe_fields</code> 随之也不会写</td>
+</tr>
+<tr>
+<td>魔棒标题搜索确认后丢弃候选被引数</td>
+<td><code>src/lib/paper/import-actions.ts</code></td>
+<td>只把候选降级成 <code>identifier</code> 字符串回传 <code>lookup_import_batch</code>，候选自带的 <code>citationCount</code> 直接扔掉</td>
+</tr>
+<tr>
+<td><code>PaperMetaPatch</code> 不含 <code>citation_count</code></td>
+<td><code>catalog/papers.rs</code></td>
+<td>因此「按标识符刷新元数据」（Edit Metadata 的刷新按钮）即使解析到了被引数也无法回填</td>
+</tr>
+</tbody>
+</table>
+<p>现状说明见 <a href="../../backend/catalog/">../backend/catalog.md</a> 与 <a href="../../backend/academic-search-apis/">../backend/academic-search-apis.md</a> §2.1。</p>
+<h3 id="112-status-body_source-body_quality-string">11.2 <code>status</code> / <code>body_source</code> / <code>body_quality</code> 仍是 <code>String</code><a class="headerlink" href="#112-status-body_source-body_quality-string" title="Permanent link">&para;</a></h3>
+<p>前端靠 <code>Omit</code> + union 窄化维持类型安全（<code>src/lib/paper/types.ts</code>）。词表与生产者的实际差距：</p>
+<ul>
+<li><code>status</code> 的生产词表实际只有 <code>"completed"</code>（<code>"unread"</code> 已消除）；前端 union 里的 <code>pending</code> / <code>importing</code> / <code>failed</code> 目前<strong>无人写入</strong>。旧 catalog 里遗留的 <code>status = 'unread'</code> 行<strong>没有 heal</strong>（对比 <code>"article"</code> 在读侧做了归一化），因为前端目前不 switch <code>status</code>，无实际后果。</li>
+<li><code>body_source</code> 的生产者是 <code>latex</code> / <code>pdf</code> / <code>ocr</code> / <code>mineru</code> / <code>paddle</code> / <code>vlm</code>；union 里的 <code>"html"</code> <strong>没有生产者</strong>。</li>
+</ul>
+<p>改 enum 的代价：</p>
+<table>
+<thead>
+<tr>
+<th>列</th>
+<th>代价</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status</code></td>
+<td>13 处 <code>status: "completed"</code> 字面量（其中 3 处在测试里）+ CLI <code>--status</code> 过滤（<code>cli/src/commands/paper.rs</code>）</td>
+</tr>
+<tr>
+<td><code>body_source</code> / <code>body_quality</code></td>
+<td>各 13 处 <code>None</code>（其中 3 处在测试里）+ 约 7 处真实生产者 + 4 个中间 <code>String</code> 载体，其中 <code>PdfParseWorkerResponse::Ok { body_source: String, .. }</code>（<code>analyze/parse/mod.rs</code>）跨 PDF parse worker 的 serde 契约</td>
+</tr>
+</tbody>
+</table>
+<p>三列都是 TEXT，照 <code>PaperKind</code> 的先例（enum + <code>From&lt;&amp;str&gt;</code> + <code>FromSql</code> + 未知值兜底）<strong>不需要 schema migration</strong>。</p>
+<h3 id="113-papertag-wire">11.3 <code>PaperTag</code> 的生成契约与真实 wire 形态不符<a class="headerlink" href="#113-papertag-wire" title="Permanent link">&para;</a></h3>
+<p><code>impl Serialize for PaperTag</code>（<code>catalog/papers.rs</code>）在<strong>无颜色时输出裸字符串</strong>，而 specta 生成的类型是 <code>{ name, color }</code> 对象且 <code>color: string | null</code>。前端因此必须保持 <code>PaperTagInput[]</code> + <code>coercePaperTags</code>。仓库已有现成范式可修（<code>crates/agentero-core/src/json.rs</code> 的 untagged specta-only enum + <code>#[specta(type = ...)]</code>），但会改生成契约、牵连所有消费者。</p>
+<h3 id="114-pdfidentprobe">11.4 <code>PdfIdentProbe</code> 是又一份手工维护的扁平字段表<a class="headerlink" href="#114-pdfidentprobe" title="Permanent link">&para;</a></h3>
+<p><code>recognize/pdf_recognize.rs</code> 的 <code>PdfIdentProbe</code> 约 12 个字段复制自 <code>PaperRecord</code>，外加 4 个控制字段（<code>file_path</code> / <code>status</code> / <code>error</code> / <code>source</code>），与已删除的 <code>PaperMeta</code> 同类问题：<code>PaperRecord</code> 加字段时这里不会自动跟上（§11.1 的第一条就是后果）。它只 derive <code>Serialize</code>、camelCase，是 job 事件的出参，所以收敛成内嵌 record 会改事件 payload 形状。</p>
+<h3 id="115">11.5 前端仍有手写副本未收敛到生成类型<a class="headerlink" href="#115" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>手写类型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/lib/paper/lookup.ts</code></td>
+<td><code>PaperSearchCandidate</code> / <code>LookupAddResult</code></td>
+</tr>
+<tr>
+<td><code>src/lib/paper/api.ts</code></td>
+<td><code>PaperMetaPatch</code> / <code>PaperExportResult</code></td>
+</tr>
+<tr>
+<td><code>src/lib/paper/load-meta.ts</code></td>
+<td><code>PaperOpenBundle</code></td>
+</tr>
+</tbody>
+</table>
+<p>其中 <code>lookup.ts</code> 的 <code>citationCount?: number</code> 与生成的 <code>number | null</code> 不一致 —— 正是 <code>paper-search-dialog.tsx</code> 里 <code>!== undefined</code> 判断失效的根因（wire 送 <code>null</code>，已就地修为 <code>!= null</code>，但类型副本本身还没收敛）。</p>
+<h3 id="116">11.6 其它<a class="headerlink" href="#116" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>远端重导入可能覆盖孤儿 catalog 行</strong>：<code>src-tauri/src/integration/remote/import_bridge.rs::unique_remote_paper_path</code> 只查远端 <code>fs.exists</code>、不查 work-copy catalog（本地版 <code>allocate_paper_path</code> 是盘 + catalog 双查）。孤儿行（有行、无远端目录）可能被同路径重导入从零覆盖——影响所有字段，非 <code>citation_count</code> 专属；<code>prune_missing</code> 负责清理这类孤儿。既有问题，非本轮引入。</li>
+<li><strong><code>is_remote_vault</code> 无生产调用方</strong>：<code>src-tauri/src/integration/connector/state.rs</code> 的该方法自诞生起只有自身测试覆盖。</li>
+</ul>
 
 
 
