@@ -3503,7 +3503,7 @@
 <li><code>spawn_parse_body_after_assets</code> / <code>spawn_parse_after_import</code>（返回 <code>true</code> 表示宿主接管调度）/ <code>spawn_recognize_metadata</code> —— JobCenter 跟随任务。</li>
 </ul>
 <p>desktop 在 <code>src-tauri/src/core/app_handle.rs</code> 用 <code>TauriHostHooks(tauri::AppHandle)</code> 实现，<code>wrap(&amp;app)</code> 生成 core <code>AppHandle</code>；命令壳/JobCenter/Connector/MCP/Remote 在调用迁移后的服务时包一层。headless（CLI）传 <code>None</code> → 全部 no-op，与迁移前 <code>cfg(not(desktop))</code> 行为一致（refs 的 tokio 直跑 fallback 保留）。</p>
-<p>parse 引擎同理：远端引擎（MinerU/Paddle/OpenAI-compatible，依赖 <code>layout::hosted</code> 与设置库）留守 <code>features/paper/analyze/remote_engines/</code>，经 core 的 <code>register_engine</code> / <code>set_provider_resolver</code> 注册表接入 <code>engine_for</code> 派发；注册发生在 <code>refresh_parser_config</code>（启动 + settings 变更时）。</p>
+<p>parse 引擎同理：远端引擎（MinerU/Paddle/OpenAI-compatible，依赖 <code>layout::hosted</code> 与设置库）留守 <code>features/paper/analyze/body_engines/</code>，经 core 的 <code>register_engine</code> / <code>set_provider_resolver</code> 注册表接入 <code>engine_for</code> 派发；注册发生在 <code>refresh_parser_config</code>（启动 + settings 变更时）。</p>
 <h2 id="_2">留守域及耦合原因<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -3534,7 +3534,7 @@
 <td><code>tauri::AppHandle</code>（jobs spawn）、Channel IPC</td>
 </tr>
 <tr>
-<td><code>features/paper/analyze/layout</code>（hosted/model_assets）、<code>remote_engines</code></td>
+<td><code>features/paper/analyze/layout</code>（hosted/model_assets）、<code>body_engines</code></td>
 <td>settings store 凭据、模型资产下载任务、tauri command</td>
 </tr>
 <tr>
