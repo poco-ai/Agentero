@@ -3416,7 +3416,7 @@
 <h2 id="phase-1tauri">Phase 1（已完成）：tauri 无关基座<a class="headerlink" href="#phase-1tauri" title="Permanent link">&para;</a></h2>
 <p><code>agentero_core</code> 顶层 13 个模块：<code>background_tasks</code>、<code>blocking</code>、<code>error</code>、<code>frontmatter</code>、<code>fs</code>、<code>http</code>、<code>install_dirs</code>、<code>log_util</code>、<code>paths</code>、<code>process</code>、<code>remote</code>、<code>sqlite</code>、<code>time</code>、<code>usage</code>（存储层）。<code>src-tauri/src/core/mod.rs</code> 以 <code>pub use agentero_core::{…}</code> 桥接，全仓 <code>crate::core::X</code> 路径零改动。</p>
 <h2 id="phase-2cli-core">Phase 2（已完成）：CLI 消费的数据域迁入 core<a class="headerlink" href="#phase-2cli-core" title="Permanent link">&para;</a></h2>
-<p><code>agentero_core::features::*</code> 镜像 Host 的语义树（<code>crate::features::X</code> 旧路径在 Host 侧全部经桥接可用；迁入代码内部路径零改写）：</p>
+<p><code>agentero_core::features::*</code> 镜像 Host 的语义树。core 侧保留扁平别名（<code>features::catalog</code> 等）供 headless CLI 与迁入代码使用；Host 侧别名已在重构中删除，调用方统一走语义路径 <code>crate::features::&lt;domain&gt;::&lt;module&gt;</code>：</p>
 <table>
 <thead>
 <tr>
@@ -3570,7 +3570,7 @@
 <li><strong>core 内路径扁平化</strong>（可选）：<code>agentero_core::features::X</code> → <code>agentero_core::X</code>，与 Phase 1 顶层模块风格统一；Host 桥接不受影响。</li>
 <li><strong>reqwest 双版本对齐</strong>：锁文件中同时存在 <code>reqwest 0.12.28</code>（agentero-core / agentero 直接使用）与 <code>reqwest 0.13.4</code>（传递依赖引入，如 rmcp 等）。两份 TLS/连接池栈增大包体与审计面；待依赖链（rmcp / tauri 生态）稳定后统一到一个大版本，core 与 Host 必须同步升级以避免 feature 漂移。</li>
 <li><strong>src-tauri 依赖清理</strong>（保守未删）：迁移后 <code>feed-rs</code>、<code>dom_smoothie</code>、<code>pulldown-cmark</code>、<code>bitflags</code> 在 <code>src-tauri/src</code> 已无直接引用，可在确认无 build 脚本/宏隐式依赖后从 <code>src-tauri/Cargo.toml</code> 移除。</li>
-<li><strong>iOS/Android 目标</strong>：core 的 <code>not(ios/android)</code> 门（parse/locate/liteparse）与 Host 侧别名门需保持同步；mobile 构建恢复时验证 remote bridge 路径。</li>
+<li><strong>iOS/Android 目标</strong>：core 的 <code>not(ios/android)</code> 门（parse/locate/liteparse）与 Host 侧模块 cfg 门需保持同步；mobile 构建恢复时验证 remote bridge 路径。</li>
 </ol>
 <h2 id="phase-2_1">验收快照（Phase 2 完成时）<a class="headerlink" href="#phase-2_1" title="Permanent link">&para;</a></h2>
 <ul>
