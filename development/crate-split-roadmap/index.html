@@ -3414,7 +3414,7 @@
 <li><code>agentero-cli</code>（<code>cli/</code>）：<strong>只依赖 <code>agentero-core</code></strong>，依赖树中不再出现 <code>agentero</code> / <code>tauri</code> / <code>wry</code> / <code>tao</code>。</li>
 </ul>
 <h2 id="phase-1tauri">Phase 1（已完成）：tauri 无关基座<a class="headerlink" href="#phase-1tauri" title="Permanent link">&para;</a></h2>
-<p><code>agentero_core</code> 顶层 13 个模块：<code>background_tasks</code>、<code>blocking</code>、<code>error</code>、<code>frontmatter</code>、<code>fs</code>、<code>http</code>、<code>install_dirs</code>、<code>log_util</code>、<code>paths</code>、<code>process</code>、<code>remote</code>、<code>sqlite</code>、<code>time</code>、<code>usage</code>（存储层）。<code>src-tauri/src/core/mod.rs</code> 以 <code>pub use agentero_core::{…}</code> 桥接，全仓 <code>crate::core::X</code> 路径零改动。</p>
+<p><code>agentero_core</code> 顶层 13 个模块：<code>cancel</code>、<code>blocking</code>、<code>error</code>、<code>frontmatter</code>、<code>fs</code>、<code>http</code>、<code>install_dirs</code>、<code>log_util</code>、<code>paths</code>、<code>process</code>、<code>remote</code>、<code>sqlite</code>、<code>time</code>、<code>usage</code>（存储层）。<code>src-tauri/src/core/mod.rs</code> 以 <code>pub use agentero_core::{…}</code> 桥接，全仓 <code>crate::core::X</code> 路径零改动。</p>
 <h2 id="phase-2cli-core">Phase 2（已完成）：CLI 消费的数据域迁入 core<a class="headerlink" href="#phase-2cli-core" title="Permanent link">&para;</a></h2>
 <p><code>agentero_core::features::*</code> 镜像 Host 的语义树。core 侧保留扁平别名（<code>features::catalog</code> 等）供 headless CLI 与迁入代码使用；Host 侧别名已在重构中删除，调用方统一走语义路径 <code>crate::features::&lt;domain&gt;::&lt;module&gt;</code>：</p>
 <table>
@@ -3499,7 +3499,7 @@
 <h3 id="phase-2">事件抽象（Phase 2 引入，窄面）<a class="headerlink" href="#phase-2" title="Permanent link">&para;</a></h3>
 <p><code>agentero_core::app_handle::HostHooks</code>：</p>
 <ul>
-<li><code>emit(event, payload_json)</code> —— lifecycle paper 事件、<code>background-task:progress</code>（批量导入 / 资产下载节流进度）。</li>
+<li><code>emit(event, payload_json)</code> —— lifecycle paper 事件、<code>job:progress</code>（批量导入 / 资产下载节流进度）。</li>
 <li><code>spawn_parse_body_after_assets</code> / <code>spawn_parse_after_import</code>（返回 <code>true</code> 表示宿主接管调度）/ <code>spawn_recognize_metadata</code> —— JobCenter 跟随任务。</li>
 </ul>
 <p>desktop 在 <code>src-tauri/src/core/app_handle.rs</code> 用 <code>TauriHostHooks(tauri::AppHandle)</code> 实现，<code>wrap(&amp;app)</code> 生成 core <code>AppHandle</code>；命令壳/JobCenter/Connector/MCP/Remote 在调用迁移后的服务时包一层。headless（CLI）传 <code>None</code> → 全部 no-op，与迁移前 <code>cfg(not(desktop))</code> 行为一致（refs 的 tokio 直跑 fallback 保留）。</p>

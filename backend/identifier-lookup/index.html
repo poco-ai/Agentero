@@ -5821,9 +5821,9 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li>按规范化 value（arXiv 去 version、DOI 小写等）去重：同一 batch 内重复 → <code>skipped</code>（<code>duplicate_in_batch</code>）。</li>
 <li>对每条唯一标识符查 catalog：已存在同 <code>arxiv_id</code> / <code>doi</code> / <code>isbn</code> / <code>pmid</code> / <code>id</code> 的 paper → <code>skipped</code>（<code>already_in_library</code>）。</li>
 <li>剩余条目以 <code>concurrency</code>（默认 5，范围 1–10）为上限<strong>并发</strong>调 <code>import_by_identifier_with_progress</code>。单条失败继续下一条，错误文本加入 <code>errors</code>。并发上限可在 <strong>Settings → General → Batch import concurrency</strong> 调整。commit 阶段仍按 <code>id</code> / <code>arxiv_id</code> / <code>doi</code> / <code>pmid</code> / <code>isbn</code> 做跨标识符去重（<code>DedupePolicy::ByIdentifiers</code>，#406），预检后出现的重复不会新建文件夹。</li>
-<li>返回全部 <code>imported</code> 条目；前端刷新树 / Library / wiki 后，对 <code>imported</code> 中仍缺资源的 paper 逐个加入下载队列，每篇对应一个独立的 <code>download</code> 后台任务，并按并发上限排队执行。</li>
+<li>返回全部 <code>imported</code> 条目；前端刷新树 / Library / wiki 后，对 <code>imported</code> 中仍缺资源的 paper 逐个入队 JobCenter <code>downloadAssets</code> job，按 kind 并发上限排队执行。</li>
 </ul>
-<p>魔棒界面使用通用的 <code>enqueueBackgroundTask</code> 为每个输入创建一个独立的前端任务。任务面板只展示每个标识符的状态和资源进度，不展示 Host 批处理的内部阶段或聚合计数；并发限制由同类任务共享的信号量执行。</p>
+<p>魔棒入库走 JobCenter <code>import</code> job（Renderer-host）：每个输入一个 job，面板行由 <code>job:changed</code> 投影产生，批次计数进度经 <code>job:progress</code> 写回行内。任务面板只展示每个标识符的状态和资源进度，不展示 Host 批处理的内部阶段或聚合计数；并发限制由 JobCenter 的 <code>Import</code> kind cap 执行（Settings → General → Batch import concurrency）。</p>
 <ul>
 <li><strong>不自动精读</strong>：批量入库不连跑 <code>paper-reader</code>，避免 Agent 与写笔记开销爆炸；用户可后续单篇手动 Zap 或等设置 <code>autoPaperReader</code> 对单篇触发。</li>
 </ul>

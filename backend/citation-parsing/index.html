@@ -4049,8 +4049,8 @@
 <h3 id="75">7.5 生命周期与进度<a class="headerlink" href="#75" title="Permanent link">&para;</a></h3>
 <p>扫描是 JobCenter <code>citingScan</code> Renderer-host job（触发在 <code>discoverCitingPapers</code>，<code>src/lib/paper/library-actions.ts</code>；执行器在 <code>src/lib/paper/library-tasks.ts</code>），执行器把 job id 作为 <code>taskId</code> 传给命令，Host 用它做两件事：</p>
 <ul>
-<li><strong>进度</strong>：抓取阶段按完成数 emit <code>background-task:progress</code>（带 <code>currentCount</code>/<code>totalCount</code>），投影行显示「引用 · 12/38」。只有带计数的阶段才 emit——没有计数的阶段会掉进面板的字节格式化分支</li>
-<li><strong>取消</strong>：面板走 <code>job_cancel</code>，cancel token 经桥接注册到同一 id；每个种子请求前轮询 <code>core::background_tasks::is_cancelled</code>，命中即返回且不写缓存；命令出口无条件 <code>finish()</code> 清标记，否则残留的取消标记会秒杀下一个复用该 id 的任务</li>
+<li><strong>进度</strong>：抓取阶段按完成数 emit <code>job:progress</code>（带 <code>currentCount</code>/<code>totalCount</code>），投影行显示「引用 · 12/38」。只有带计数的阶段才 emit——没有计数的阶段会掉进面板的字节格式化分支</li>
+<li><strong>取消</strong>：面板走 <code>job_cancel</code>，job 的 cancel token 由 JobCenter 按同一 id 索引（<code>features::jobs::is_task_cancelled</code>，注入为 <code>agentero_core::cancel</code> 探针）；每个种子请求前轮询，命中即返回且不写缓存。注册随 runner 退出清理，残留取消状态不会波及复用该 id 的下一个任务</li>
 </ul>
 <p>库级 I/O 互斥复用 <code>libraryStore.ioBusy</code>。结果属于扫描时那个 vault，执行器比对 <code>getVaultPath()</code> 不一致就不弹窗。</p>
 <h3 id="76-53-vault">7.6 实测（53 篇 vault）<a class="headerlink" href="#76-53-vault" title="Permanent link">&para;</a></h3>
