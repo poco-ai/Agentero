@@ -210,7 +210,7 @@ impl<'a> AssetProgressAggregator<'a> {
         })
     }
 
-    fn emit(&self, payload: Option<AssetDownloadProgress>) {
+    fn emit_progress(&self, payload: Option<AssetDownloadProgress>) {
         let (Some(app), Some(payload)) = (self.app, payload) else {
             return;
         };
@@ -246,7 +246,7 @@ impl<'agg, 'ctx> StreamProgress<'agg, 'ctx> {
             }
             self.agg.sample(&mut state, force)
         };
-        self.agg.emit(payload);
+        self.agg.emit_progress(payload);
     }
 
     pub(crate) fn report(&self, downloaded: u64, total: Option<u64>) {
@@ -265,7 +265,7 @@ impl<'agg, 'ctx> StreamProgress<'agg, 'ctx> {
             }
             self.agg.sample(&mut state, true)
         };
-        self.agg.emit(payload);
+        self.agg.emit_progress(payload);
     }
 }
 
