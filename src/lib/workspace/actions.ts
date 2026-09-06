@@ -35,6 +35,10 @@ import {
 	paperAbsFromWikiTarget,
 } from "@/lib/pdf/annotation-ref";
 import { removeTabAnnotations } from "@/lib/pdf/annotations-store";
+import {
+	getLayoutDocumentResult,
+	setLayoutDocumentResult,
+} from "@/lib/pdf/layout";
 import { registerScrollSyncPair } from "@/lib/pdf/scroll-sync";
 import {
 	isPlazaVirtualPath,
@@ -567,6 +571,15 @@ export function openTranslationTab(
 	const translationPane = createTranslationSplitPane(paperTab);
 	if (!translationPane) return;
 	registerScrollSyncPair(paperTabId, translationPane.id);
+	// Re-use the source pane's in-memory layout result so the translation pane
+	// does not have to re-read the sidecar or re-run layout analysis.
+	const sourceLayout = getLayoutDocumentResult(paperTabId);
+	if (sourceLayout) {
+		setLayoutDocumentResult({
+			...sourceLayout,
+			documentId: translationPane.id,
+		});
+	}
 	setTabs((prev) => [...prev, translationPane]);
 	dockHandle()?.splitPanelRight(
 		translationPane,
