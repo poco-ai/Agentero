@@ -311,42 +311,7 @@ export function openTab(
 			(res.mode === "pdf" || res.mode === "html") &&
 			(opts?.forceNotes || loadSettings().autoOpenPaperNotes);
 		if (wantDefaultNotes && res.notesPath) {
-			const notesId = tabIdForPath(res.notesPath);
-			const notesTab = getTabs().find((t) => t.id === notesId) ?? null;
-			// The notes tab existing in state is not enough: after layout
-			// restores it may live in a split pane / popout that
-			// `activatePanel` cannot bring beside this paper. Reopen it via
-			// the reading placement so it stacks into a visible notes column.
-			if (notesTab && dockHandle()?.canActivatePanel(notesId)) {
-				dockHandle()?.activatePanel(notesId);
-				dockHandle()?.activatePanel(id);
-			} else {
-				if (notesTab) {
-					// Drop the unreachable panel from state so the reopen below
-					// can register a fresh one under the same id.
-					setTabs((prev) => prev.filter((t) => t.id !== notesId));
-				}
-				const paperLike = {
-					...createPlaceholderTab(path, res.mode),
-					...patch,
-				} as DocTab;
-				const notesPane = createNotesSplitPane(paperLike);
-				if (notesPane) {
-					const { notes: notesPlacement } = paperReadingPlacements(getTabs(), {
-						paperId: id,
-						notesId: notesPane.id,
-						activeId: getActiveTabId(),
-						forcedPaperPlacement: opts?.placement,
-					});
-					setTabs((prev) => {
-						if (prev.some((t) => t.id === notesPane.id)) return prev;
-						return [...prev, notesPane];
-					});
-					dockHandle()?.openPanel(notesPane, notesPlacement);
-					// Keep focus on the paper body after NOTES joins the right column.
-					dockHandle()?.activatePanel(id);
-				}
-			}
+			openNotesForPaper(id, patch, path);
 		}
 
 		const vault = getVaultPath();
@@ -368,6 +333,65 @@ export function openTab(
 			notePaperFocus(path);
 		}
 	})();
+}
+
+/**
+ * Ensure the NOTES companion panel of paper tab `paperId` is open beside it.
+ * `paperPatch`/`paperPath` come from a freshly loaded tab; without them the
+ * patch is read from the current tab state (hydrate path).
+ * The notes tab existing in state is not enough: after layout restore it may
+ * live in a split pane / popout that `activatePanel` cannot bring beside this
+ * paper — drop it from state and reopen via the reading placement so it
+ * stacks into a visible notes column.
+ */
+function openNotesForPaper(
+	paperId: string,
+	paperPatch?: Partial<DocTab>,
+	paperPath?: string,
+): void {
+	const tab = getTabs().find((t) => t.id === paperId);
+	const notesPath = paperPatch?.notesPath ?? tab?.notesPath ?? null;
+	if (!tab && !paperPath) return;
+	const path = paperPath ?? tab?.path ?? "";
+	const notesId = notesPath ? tabIdForPath(notesPath) : null;
+	const notesTab = notesId
+		? (getTabs().find((t) => t.id === notesId) ?? null)
+		: null;
+	const notesInDock = notesId
+		? Boolean(dockHandle()?.canActivatePanel(notesId))
+		: false;
+	if (notesTab && notesInDock && notesId) {
+		dockHandle()?.activatePanel(notesId);
+		dockHandle()?.activatePanel(paperId);
+		return;
+	}
+	if (notesTab && notesId) {
+		// Drop the unreachable panel from state so the reopen below can
+		// register a fresh one under the same id.
+		setTabs((prev) => prev.filter((t) => t.id !== notesId));
+	}
+	const paperLike = {
+		...createPlaceholderTab(path, tab?.mode ?? "pdf"),
+		...(paperPatch ?? {}),
+		...tab,
+		notesPath,
+	} as DocTab;
+	const notesPane = createNotesSplitPane(paperLike);
+	if (!notesPane) {
+		return;
+	}
+	const { notes: notesPlacement } = paperReadingPlacements(getTabs(), {
+		paperId,
+		notesId: notesPane.id,
+		activeId: getActiveTabId(),
+	});
+	setTabs((prev) => {
+		if (prev.some((t) => t.id === notesPane.id)) return prev;
+		return [...prev, notesPane];
+	});
+	dockHandle()?.openPanel(notesPane, notesPlacement);
+	// Keep focus on the paper body after NOTES joins the right column.
+	dockHandle()?.activatePanel(paperId);
 }
 
 /**
@@ -1067,6 +1091,17 @@ export function hydratePlaceholderTabs(tabIds: readonly string[]): void {
 					seedKey: 1,
 					loaded: true,
 				});
+				// A restored paper body hydrates after its NOTES panel was
+				// pruned from the layout — open the companion now, otherwise
+				// the first click shows the PDF without notes beside it.
+				if (
+					res.kind === "paper" &&
+					(res.mode === "pdf" || res.mode === "html") &&
+					res.notesPath &&
+					loadSettings().autoOpenPaperNotes
+				) {
+					openNotesForPaper(id);
+				}
 			} finally {
 				placeholderLoads.delete(id);
 			}
