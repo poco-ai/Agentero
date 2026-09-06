@@ -4,8 +4,11 @@ use serde_json::Value;
 
 use crate::error::AppError;
 use crate::features::catalog::papers::{hide_arxiv_category_tag, PaperKind, PaperRecord, PaperTag};
-use crate::features::scholar_api::scoring::{normalize_title, title_similarity};
+use crate::features::scholar_api::identifiers::{doi_slug, strip_arxiv_version};
 use crate::features::scholar_api::sources::translator::map_zotero_item;
+use crate::features::scholar_api::urls::{
+    acl_anthology_pdf_url, arxiv_canonical_urls, doi_landing_url,
+};
 use crate::features::scholar_api::ApiPaper;
 
 /// Convert a single API candidate into a `PaperRecord`, choosing an id and
@@ -148,18 +151,6 @@ pub fn merge_api_papers(base: &ApiPaper, other: &ApiPaper) -> PaperRecord {
     merged
 }
 
-/// Compute a title-similarity score between a query and a candidate.
-pub fn score_against_query(paper: &ApiPaper, norm_query: &str) -> i32 {
-    title_similarity(norm_query, &normalize_title(&paper.title))
-}
-
-/// Pick the candidate with the highest title similarity.
-pub fn best_match<'a>(candidates: &'a [ApiPaper], norm_query: &str) -> Option<&'a ApiPaper> {
-    candidates
-        .iter()
-        .max_by_key(|c| score_against_query(c, norm_query))
-}
-
 /// Canonicalize remote URLs on a `PaperRecord`.
 ///
 /// - arXiv ids get standard `https://arxiv.org/{pdf,html,abs}` URLs.
@@ -167,12 +158,11 @@ pub fn best_match<'a>(candidates: &'a [ApiPaper], norm_query: &str) -> Option<&'
 /// - ACL Anthology landing pages get their predictable PDF URL.
 pub fn enrich_remote_urls(meta: &mut PaperRecord) {
     if let Some(ref aid) = meta.arxiv_id {
-        let bare = aid.trim().trim_start_matches("arXiv:").to_string();
-        let bare = strip_v(&bare);
-        // Always set canonical https arXiv preview URLs (overwrite http://arxiv.org/…)
-        meta.pdf_url = Some(format!("https://arxiv.org/pdf/{bare}"));
-        meta.html_url = Some(format!("https://arxiv.org/html/{bare}"));
-        meta.source_url = Some(format!("https://arxiv.org/abs/{bare}"));
+        let bare = strip_arxiv_version(aid.trim().trim_start_matches("arXiv:"));
+        let urls = arxiv_canonical_urls(&bare);
+        meta.pdf_url = Some(urls.pdf);
+        meta.html_url = Some(urls.html);
+        meta.source_url = Some(urls.abs);
         if meta.bibtex_key.is_none() {
             meta.bibtex_key = Some(bare.replace('/', ""));
         }
@@ -181,7 +171,7 @@ pub fn enrich_remote_urls(meta: &mut PaperRecord) {
         }
     } else if let Some(ref doi) = meta.doi {
         if meta.source_url.as_ref().is_none_or(|s| s.is_empty()) {
-            meta.source_url = Some(format!("https://doi.org/{doi}"));
+            meta.source_url = Some(doi_landing_url(doi));
         }
     }
 
@@ -198,44 +188,6 @@ pub fn enrich_remote_urls(meta: &mut PaperRecord) {
     if meta.bibtex_key.is_none() {
         meta.bibtex_key = Some(meta.id.replace(['/', '.'], "_"));
     }
-}
-
-/// Derive the canonical ACL Anthology PDF URL from a paper landing page.
-/// ACL Anthology paper URLs look like:
-///   https://aclanthology.org/2026.acl-long.1248/
-/// and the PDF is always:
-///   https://aclanthology.org/2026.acl-long.1248.pdf
-fn acl_anthology_pdf_url(url: &str) -> Option<String> {
-    let lower = url.to_ascii_lowercase();
-    if !lower.contains("aclanthology.org/") {
-        return None;
-    }
-    // Already a PDF.
-    if lower.ends_with(".pdf") {
-        return Some(url.trim().to_string());
-    }
-    let trimmed = url.trim_end_matches('/');
-    let slug = trimmed.rsplit('/').next()?;
-    // Expect: YYYY.venue-type.number (e.g. 2026.acl-long.1248)
-    let parts: Vec<&str> = slug.split('.').collect();
-    if parts.len() != 3 {
-        return None;
-    }
-    if parts[0].len() != 4 || !parts[0].chars().all(|c| c.is_ascii_digit()) {
-        return None;
-    }
-    if !parts[1].contains('-') {
-        return None;
-    }
-    if !parts[2].chars().all(|c| c.is_ascii_digit()) {
-        return None;
-    }
-    Some(format!("{}.pdf", trimmed))
-}
-
-/// DOI-safe folder slug: replace `/` and `.` with `_`.
-pub fn doi_slug(doi: &str) -> String {
-    doi.replace(['/', '.'], "_")
 }
 
 pub(crate) fn citekey_fallback(authors: &[String], year: Option<i32>, title: &str) -> String {
@@ -264,15 +216,6 @@ pub(crate) fn citekey_fallback(authors: &[String], year: Option<i32>, title: &st
     format!("{author}{y}{word}")
 }
 
-fn strip_v(id: &str) -> String {
-    if let Some(i) = id.rfind('v') {
-        if id[i + 1..].chars().all(|c| c.is_ascii_digit()) && i > 0 {
-            return id[..i].to_string();
-        }
-    }
-    id.to_string()
-}
-
 fn str_field(item: &Value, key: &str) -> Option<String> {
     item.get(key)
         .and_then(|v| v.as_str())
@@ -284,7 +227,6 @@ fn str_field(item: &Value, key: &str) -> Option<String> {
 mod tests {
     use super::*;
     use crate::features::scholar_api::{PaperIdentifiers, PaperUrls};
-    use serde_json::json;
 
     fn api_paper(source: &'static str, citation_count: Option<i64>) -> ApiPaper {
         ApiPaper {
@@ -370,7 +312,7 @@ mod tests {
 
     #[test]
     fn maps_zotero_item_to_record() {
-        let item = json!({
+        let item = serde_json::json!({
             "itemType": "preprint",
             "title": "Attention Is All You Need",
             "creators": [
@@ -418,27 +360,9 @@ mod tests {
     }
 
     #[test]
-    fn acl_anthology_pdf_url_derivation() {
-        assert_eq!(
-            acl_anthology_pdf_url("https://aclanthology.org/2026.acl-long.1248/"),
-            Some("https://aclanthology.org/2026.acl-long.1248.pdf".to_string())
-        );
-        assert_eq!(
-            acl_anthology_pdf_url("https://aclanthology.org/2026.acl-long.1248.pdf"),
-            Some("https://aclanthology.org/2026.acl-long.1248.pdf".to_string())
-        );
-        assert_eq!(
-            acl_anthology_pdf_url("https://www.aclanthology.org/2025.emnlp-main.42/"),
-            Some("https://www.aclanthology.org/2025.emnlp-main.42.pdf".to_string())
-        );
-        assert!(acl_anthology_pdf_url("https://aclanthology.org/venues/acl/").is_none());
-        assert!(acl_anthology_pdf_url("https://example.com/2026.acl-long.1248/").is_none());
-    }
-
-    #[test]
     fn enrich_remote_urls_fills_acl_anthology_pdf() {
         // Translator response shape for an ACL Anthology conference paper.
-        let item = json!({
+        let item = serde_json::json!({
             "itemType": "conferencePaper",
             "title": "Enabling Agents to Communicate Entirely in Latent Space",
             "creators": [

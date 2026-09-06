@@ -9,7 +9,8 @@ pub mod sources;
 pub use crate::features::paper::analyze::parse as pdf_parse;
 
 pub mod api_mapper;
-pub use api_mapper::{api_paper_to_meta, doi_slug, enrich_remote_urls, map_zotero_item_to_record};
+pub use crate::features::scholar_api::identifiers::doi_slug;
+pub use api_mapper::{api_paper_to_meta, enrich_remote_urls, map_zotero_item_to_record};
 
 pub mod assets;
 pub mod batch;
