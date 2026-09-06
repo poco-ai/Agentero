@@ -5898,6 +5898,20 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>展示读过的本地路径</td>
 <td>☐</td>
 </tr>
+<tr>
+<td>11.1.10</td>
+<td>右栏·Agent（支持 Client terminal 的 Agent）</td>
+<td>依次执行 <code>pwd</code>、<code>echo AGENTERO_SMOKE</code>，再启动长命令，发送 <code>wait_for_exit</code> 并在等待期间读取 output、kill、release</td>
+<td>前两条及时返回；wait 挂起时同连接仍能处理 output / kill / release，卡片最终 completed / failed</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>11.1.11</td>
+<td>右栏·Agent</td>
+<td>在工具卡 pending 时结束或取消回合，再依次接收迟到 progress、completion、progress</td>
+<td>回合结束后不保留永久 spinner；内容与终态按同一 toolCallId 修正原卡片，迟到 progress 不恢复 spinner，也不新增重复卡片</td>
+<td>☐</td>
+</tr>
 </tbody>
 </table>
 <h3 id="112">11.2 权限<a class="headerlink" href="#112" title="Permanent link">&para;</a></h3>
