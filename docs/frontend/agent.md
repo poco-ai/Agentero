@@ -22,6 +22,7 @@ AI Elements (Conversation / Message / PromptInput / Sources / Reasoning)
 - **图片附件**：Composer 支持粘贴 / 点选 / 从 Finder、预览或其它 App 窗口拖入图片（`image/*` 与 macOS image UTI，最多 8 张、单张 ≤ 10 MiB）。拖入图片且指针在 Agent 面板/输入框上时显示虚线 overlay；能判定为非图片（`.md` / PDF）或**文件树内部拖拽**则不显示、不抢落点。窗口 `dragDropEnabled: false`，走 HTML5（Windows 上 Tauri 原生拖放会吞掉 HTML5）；`FileList` 有数据时直接附加，否则按路径读盘。不抢成 `@` 路径 chip。提交时转为 ACP `ContentBlock::Image`（与 PDF 视觉批注同一 `runOnce.images` 通路）；会话气泡以缩略 chip 展示，纯图消息无文字气泡。图片仅会话本地保留，不随 `session/load` 历史回放。工具：`src/lib/agent/prompt-image.ts`。
 - `@`：空时优先最近路径与浅层目录；› 进入子目录；论文标签与 `paperTreeLabelMode` 一致。`@`、`$` 与 `/` 候选菜单由 viewport 碰撞处理定位，空间不足时翻转并在可用高度内滚动。
 - ACP `plan` 事件使用 AI Elements `Plan` / `PlanStep` 展示，可折叠查看步骤；步骤状态由图标、完成态和无障碍文案表达。
+- ACP tool 更新按 `toolCallId` 回写所属 Agent 消息，即使 completion 晚于回合结束也能修正原卡片；回合完成、失败或取消时，仍为 pending / in-progress 的卡片先收敛为 failed，避免永久 spinner。迟到的内容和 completed / failed 状态仍可更新原卡片，pending / in-progress 不会让已结束回合重新转圈。
 - ACP 结构化提问工具会解析为 AI Elements `Tool` 内的可选回答；完成选择后以正常的下一用户轮提交，并继续同一 ACP 会话。支持多 harness 的 rawInput 形状（见下表）。
 - 运行中可继续输入 → Queue waitlist；标题保持简洁，条目等宽并可单独移除；Esc / 停止中止。
 - **会话配置条**（Header 下方）：模型选择、协作模式（有上报时）、推理强度（有上报时）、Fast（有上报时）。从 Composer 工具栏上移，压低输入区时也不再被隐藏；窄侧栏中保持单行，过长的模型 / 模式名称以省略号截断。

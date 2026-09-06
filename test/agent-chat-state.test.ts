@@ -4,6 +4,7 @@ import {
 	agentHasContent,
 	agentTextFromParts,
 	appendStreamPart,
+	applyToolToLines,
 	applyToolToParts,
 	buildLocalTranscriptPrompt,
 	buildOptions,
@@ -13,6 +14,7 @@ import {
 	ensureModelsInclude,
 	errorChatLine,
 	errorText,
+	failIncompleteTools,
 	formatAskUserAnswers,
 	isBackgroundWorkflowHistoryTitle,
 	isPendingAskUserToolStatus,
@@ -79,6 +81,122 @@ describe("stream / tool / plan parts", () => {
 			type: "tool",
 			tool: { id: "t1", status: "completed", output: "ok" },
 		});
+	});
+
+	it("applies a late tool update to the completed turn that owns its id", () => {
+		const lines: ChatLine[] = [
+			{
+				id: "a1",
+				kind: "agent",
+				streaming: false,
+				parts: [
+					{
+						type: "tool",
+						id: "p1",
+						tool: {
+							id: "t1",
+							title: "terminal: pwd",
+							kind: "execute",
+							status: "failed",
+						},
+					},
+				],
+			},
+		];
+
+		const lateProgress = applyToolToLines(lines, {
+			id: "t1",
+			status: "in_progress",
+			output: "partial",
+		});
+		expect(lateProgress).toMatchObject([
+			{ parts: [{ tool: { status: "failed", output: "partial" } }] },
+		]);
+		const completed = applyToolToLines(lateProgress, {
+			id: "t1",
+			status: "completed",
+			output: "ok",
+		});
+		expect(completed).toMatchObject([
+			{
+				parts: [{ tool: { id: "t1", status: "completed", output: "ok" } }],
+			},
+		]);
+		expect(
+			applyToolToLines(completed, {
+				id: "t1",
+				status: "pending",
+				output: "late output",
+			}),
+		).toMatchObject([
+			{ parts: [{ tool: { status: "completed", output: "late output" } }] },
+		]);
+		expect(
+			applyToolToLines(lines, { id: "unknown", status: "completed" }),
+		).toBe(lines);
+	});
+
+	it("fails only unfinished tools when a turn ends", () => {
+		const parts = [
+			{
+				type: "tool" as const,
+				id: "p1",
+				tool: {
+					id: "t1",
+					title: "Pending",
+					kind: "execute",
+					status: "in_progress" as const,
+				},
+			},
+			{
+				type: "tool" as const,
+				id: "p2",
+				tool: {
+					id: "t2",
+					title: "Done",
+					kind: "read",
+					status: "completed" as const,
+				},
+			},
+		];
+
+		expect(failIncompleteTools(parts)).toMatchObject([
+			{ tool: { id: "t1", status: "failed" } },
+			{ tool: { id: "t2", status: "completed" } },
+		]);
+	});
+
+	it("keeps an answered ask-user tool completed when its blocked turn cancels", () => {
+		const lines: ChatLine[] = [
+			{
+				id: "a1",
+				kind: "agent",
+				streaming: true,
+				parts: [
+					{
+						type: "tool",
+						id: "p1",
+						tool: {
+							id: "ask-1",
+							title: "Question",
+							kind: "other",
+							status: "pending",
+						},
+					},
+				],
+			},
+		];
+		const answered = applyToolToLines(lines, {
+			id: "ask-1",
+			status: "completed",
+		});
+		const turn = answered[0];
+		expect(turn?.kind).toBe("agent");
+		if (turn?.kind !== "agent") throw new Error("expected agent turn");
+
+		expect(failIncompleteTools(turn.parts)).toMatchObject([
+			{ tool: { id: "ask-1", status: "completed" } },
+		]);
 	});
 
 	it("keeps a single plan part", () => {

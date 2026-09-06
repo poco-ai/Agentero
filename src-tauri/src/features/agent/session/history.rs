@@ -2,7 +2,8 @@
 
 use crate::core::error::AppError;
 use crate::features::agent::acp::client::{
-    client_initialize_request, timed_acp_request, to_acp_agent,
+    client_initialize_request, simplified_agent_cwd, timed_acp_initialize, timed_acp_request,
+    to_acp_agent,
 };
 use crate::features::agent::acp::interaction::permission_response;
 use crate::features::agent::acp::terminal::{AcpTerminalHandler, AcpTerminalManager};
@@ -54,12 +55,17 @@ pub fn list_sessions_page_done(
 /// Returns `supported: false` if the agent does not advertise session.list capability.
 pub async fn list_acp_sessions(
     desc: &AgentDescriptor,
-    cwd: PathBuf,
+    mut cwd: PathBuf,
     cursor: Option<String>,
     remote: Option<&dyn crate::features::agent::remote_host::RemoteAgentLaunch>,
 ) -> Result<AcpListSessionsResult, AppError> {
+    if remote.is_none() {
+        cwd = simplified_agent_cwd(&cwd);
+    }
     let acp = to_acp_agent(desc, Some(&cwd), remote)?;
-    let terminals = Arc::new(tokio::sync::Mutex::new(AcpTerminalManager::new()));
+    let terminals = Arc::new(tokio::sync::Mutex::new(AcpTerminalManager::with_cwd(
+        cwd.clone(),
+    )));
 
     let result = agent_client_protocol::Client
         .builder()
@@ -74,8 +80,7 @@ pub async fn list_acp_sessions(
         )
         .connect_with(acp, {
             move |connection: ConnectionTo<Agent>| async move {
-                let init = timed_acp_request(
-                    "initialize",
+                let init = timed_acp_initialize(
                     connection
                         .send_request(client_initialize_request())
                         .block_task(),
@@ -384,9 +389,12 @@ const REPLAY_SETTLE_POLL: std::time::Duration = std::time::Duration::from_millis
 pub async fn load_acp_session(
     desc: &AgentDescriptor,
     session_id: String,
-    cwd: PathBuf,
+    mut cwd: PathBuf,
     remote: Option<&dyn crate::features::agent::remote_host::RemoteAgentLaunch>,
 ) -> Result<AcpLoadSessionResult, AppError> {
+    if remote.is_none() {
+        cwd = simplified_agent_cwd(&cwd);
+    }
     let acp = to_acp_agent(desc, Some(&cwd), remote)?;
 
     let builder: Arc<Mutex<ReplayBuilder>> = Arc::new(Mutex::new(ReplayBuilder::default()));
@@ -396,7 +404,9 @@ pub async fn load_acp_session(
     let last_replay: Arc<Mutex<std::time::Instant>> =
         Arc::new(Mutex::new(std::time::Instant::now()));
     let last_replay_for_notif = last_replay.clone();
-    let terminals = Arc::new(tokio::sync::Mutex::new(AcpTerminalManager::new()));
+    let terminals = Arc::new(tokio::sync::Mutex::new(AcpTerminalManager::with_cwd(
+        cwd.clone(),
+    )));
 
     let result = agent_client_protocol::Client
         .builder()
@@ -482,8 +492,7 @@ pub async fn load_acp_session(
             let sid = session_id.clone();
             let last_replay = last_replay.clone();
             move |connection: ConnectionTo<Agent>| async move {
-                timed_acp_request(
-                    "initialize",
+                timed_acp_initialize(
                     connection
                         .send_request(client_initialize_request())
                         .block_task(),

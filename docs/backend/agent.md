@@ -5,9 +5,16 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
 ## 协议与运行时
 
 - Crate：`agent-client-protocol`（及 Codex 的 npm ACP 适配器进程）。
-- 会话 `cwd` = 当前 Vault 根（远程则为远端 Vault 根）。
-- 本地 Pi / 自定义 Agent 会先经 shell 切到 Vault；Windows 仅在传给 `cmd.exe` 时将
-  `\\?\D:\...` 形式的本地盘符路径还原为 `D:\...`，避免 CMD 将其误判为 UNC（#458）。
+- ACP `initialize` 在 run / warm / 历史 list / load 四处统一最多等待 30 秒（设置页
+  探针同样保留 30 秒总预算），覆盖 BYOA 冷启动；其余 session RPC 保持 15 秒预算。
+- 会话 `cwd` = 当前 Vault 根（远程则为远端 Vault 根），下发给 Agent 前经
+  `simplified_agent_cwd` 归一一次（run / warm / list / load 四处入口）：Windows 把
+  canonicalize 出的 `\?\D:\...` 还原为 `D:\...`，否则 Agent 把该路径转交给 MSYS2
+  shell（Git Bash）时无法 `cd`，POSIX cwd 也会初始化错误，`mktemp`/`cd` 报 ENOENT；
+  扩展 UNC（`\?\UNC\...`）与 POSIX 路径保持不变，远程历史入口不做本地路径转换。详见
+  [bug_fix/hermes-terminal-pending-msys2-hang.md](../bug_fix/hermes-terminal-pending-msys2-hang.md)。
+- 本地 Pi / 自定义 Agent 仍先经 shell 切到 Vault，其 `cmd.exe` 包装对同一前缀再剥一次
+  （幂等），避免 CMD 把 `\?\D:\...` 误判为 UNC（#458）。
 - Windows 的 cwd 与完整 Agent 命令通过环境变量展开，避免 Rust argv 转义破坏 CMD 内层引号；
   cwd 环境变量始终携带双引号，防止无空格路径中的括号等 CMD 元字符被当作语法（#458）。
 - 统一接口：OpenCode、OpenClaw、Hermes、Gemini、Claude ACP、Codex ACP、Qoder、Grok、Pi、Dsh（DeepSeek Harness）、Kimi Code、自定义 `command`/`args`/`env`。
@@ -73,13 +80,19 @@ spawn 用户配置的 agent
 ACP `terminal` 能力：Host 在 initialize 时声明 `terminal: true`，并本地实现
 `terminal/create`、`terminal/output`、`terminal/release`、`terminal/wait_for_exit`、
 `terminal/kill`。每个 ACP 连接持有独立的 `AcpTerminalManager`，按 `TerminalId`
-管理子进程；输出按 `outputByteLimit` 从头部截断并保证 UTF-8 字符边界。该能力
+管理子进程；每个 terminal 由单独任务独占 `Child`，`wait_for_exit` 不占 manager
+锁，`kill` / `release` 通过控制通道保持可用。ACP 消息分发本身是串行的，因此
+wait / kill / release 在分发时先获取或移除句柄，再经 `connection.spawn` 完成响应，
+避免等待退出时堵住同连接后续请求。`terminal/output` 只快照当前缓冲区，
+不会等待进程退出；输出按 `outputByteLimit` 从头部截断并保证 UTF-8 字符边界。该能力
 让 Kimi Code 等需要执行 shell 命令的 Agent 可以在 Vault 工作目录下运行命令并
 读取结果。
 
-Kimi Code ACP 会把 `Bash`/`Glob`/`Grep` 等工具实现为 `terminal/create`：它发送
-`/bin/bash -c "cd '<cwd>' && <cmd>"`，Host 按收到的 `cwd` 直接 spawn 该 bash
-进程即可。若 Host 没有声明 `terminal` 能力，或 Kimi Code 版本过旧，这些工具会
+Kimi Code ACP 会把 `Bash`/`Glob`/`Grep` 等工具实现为 `terminal/create`。[当前实现](https://github.com/MoonshotAI/kimi-cli/blob/main/src/kimi_cli/acp/tools.py)
+会把完整 shell 文本放进 `command`；Host 对可解析的可执行文件继续按 `command + args`
+直接 spawn，对无法解析且没有 `args` 的命令在 Windows 用 PowerShell、Unix 用
+`/bin/sh -c` 执行，以兼容 `pwd`、`echo ...` 等 shell 命令；请求没有显式 `cwd`
+时使用当前 ACP session 的 Vault cwd。若 Host 没有声明 `terminal` 能力，或 Kimi Code 版本过旧，这些工具会
 直接失败并报 `ACP runtime only supports interactive Bash tool processes`。
 此外 Kimi Code 的权限请求目前只返回通用 `"bash"` 字符串（[MoonshotAI/kimi-code#800](https://github.com/MoonshotAI/kimi-code/issues/800)），不会给出具体命令，因此 Agentero 默认的 Restricted 策略会拒绝、Ask 模式也只能看到 `bash`，需要用户在 Kimi 侧或 Agentero 侧开启自动批准（YOLO）才能静默执行。
 

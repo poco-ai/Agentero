@@ -37,6 +37,7 @@ import {
 } from "@/lib/agent/agent-session-store";
 import {
 	type AgentOption,
+	applyToolToLines,
 	type ChatLine,
 	type ChatSessionHistoryItem,
 	errorChatLine,
@@ -182,7 +183,7 @@ export type AgentSend = {
 	removeQueuedMessage: (id: string) => void;
 	clearMessageQueue: () => void;
 	cancelCurrentRun: () => Promise<void>;
-	answerToolAskUser: (answer: string) => Promise<boolean>;
+	answerToolAskUser: (answer: string, toolCallId: string) => Promise<boolean>;
 };
 
 export function useAgentSend({
@@ -685,21 +686,31 @@ export function useAgentSend({
 	 * (same net effect as enqueue + stop, without the extra click).
 	 * Grok ext / elicitation use dedicated respond paths and do not need this.
 	 */
-	const answerToolAskUser = async (answer: string): Promise<boolean> => {
+	const answerToolAskUser = async (
+		answer: string,
+		toolCallId: string,
+	): Promise<boolean> => {
 		if (switchingRef.current || submittingRef.current) return false;
 		resetPromptHistoryBrowse();
 		const text = answer.trim();
 		if (!text) return false;
 
-		setToolAskUserRequest(null);
+		const completedLines = applyToolToLines(lines, {
+			id: toolCallId,
+			status: "completed",
+		});
 
 		if (!activeTabIsRunning) {
-			return send(text);
+			setLines(completedLines);
+			setToolAskUserRequest(null);
+			return send(text, { baseLines: completedLines });
 		}
 
 		// Queue first so cancel → idle drains it; then free the blocked run.
 		const enqueued = enqueueMessage(text);
 		if (!enqueued) return false;
+		setLines(completedLines);
+		setToolAskUserRequest(null);
 		const sessionId = activeTabId;
 		if (!sessionId || !isTauri()) return true;
 		try {

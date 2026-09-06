@@ -1,7 +1,8 @@
 //! Background ACP warm-up (initialize + new_session, no prompt).
 
 use crate::features::agent::acp::client::{
-    client_initialize_request, timed_acp_request, to_acp_agent,
+    client_initialize_request, simplified_agent_cwd, timed_acp_initialize, timed_acp_request,
+    to_acp_agent,
 };
 use crate::features::agent::acp::interaction::permission_response;
 use crate::features::agent::acp::terminal::{AcpTerminalHandler, AcpTerminalManager};
@@ -34,14 +35,14 @@ pub async fn warm_agent(
 ) -> WarmResult {
     let agent_id = desc.id.clone();
     let session_id = Uuid::new_v4().to_string();
-    let cwd = if let Some(ref r) = remote {
+    let cwd = simplified_agent_cwd(&if let Some(ref r) = remote {
         r.agent_cwd()
     } else {
         vault_path
             .map(PathBuf::from)
             .filter(|p| p.is_dir())
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
-    };
+    });
 
     let acp = match to_acp_agent(&desc, Some(&cwd), remote.as_deref()) {
         Ok(a) => a,
@@ -70,7 +71,9 @@ pub async fn warm_agent(
     let app_for_conn = app.clone();
     let session_for_conn = session_id.clone();
     let agent_for_conn = agent_id.clone();
-    let terminals = Arc::new(tokio::sync::Mutex::new(AcpTerminalManager::new()));
+    let terminals = Arc::new(tokio::sync::Mutex::new(AcpTerminalManager::with_cwd(
+        cwd.clone(),
+    )));
 
     let result = agent_client_protocol::Client
         .builder()
@@ -123,8 +126,7 @@ pub async fn warm_agent(
             let preferred_collaboration = preferred_collaboration.clone();
             let models_for_conn = models_for_conn.clone();
             move |connection: ConnectionTo<Agent>| async move {
-                timed_acp_request(
-                    "initialize",
+                timed_acp_initialize(
                     connection
                         .send_request(client_initialize_request())
                         .block_task(),

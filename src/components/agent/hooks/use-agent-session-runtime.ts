@@ -46,9 +46,10 @@ import {
 	agentReasoningFromParts,
 	agentTextFromParts,
 	appendStreamPart,
-	applyToolToParts,
+	applyToolToLines,
 	type ChatLine,
 	errorChatLine,
+	failIncompleteTools,
 	isPendingAskUserToolStatus,
 	type PendingSessionEvent,
 	parseAskUserQuestions,
@@ -218,24 +219,17 @@ export function useAgentSessionRuntime({
 	const applyToolEvent = useCallback(
 		(ev: AgentToolEvent) => {
 			if (!isChatOwnedSession(ev.sessionId)) return;
-			updateSessionLines(ev.sessionId, (prev) => {
-				const next = [...prev];
-				const last = next[next.length - 1];
-				if (last?.kind !== "agent" || !last.streaming) return prev;
-				next[next.length - 1] = {
-					...last,
-					parts: applyToolToParts(last.parts, {
-						id: ev.toolCallId,
-						title: ev.title,
-						kind: ev.kind,
-						status: ev.status,
-						input: ev.input,
-						output: ev.output,
-						full: ev.full,
-					}),
-				};
-				return next;
-			});
+			updateSessionLines(ev.sessionId, (prev) =>
+				applyToolToLines(prev, {
+					id: ev.toolCallId,
+					title: ev.title,
+					kind: ev.kind,
+					status: ev.status,
+					input: ev.input,
+					output: ev.output,
+					full: ev.full,
+				}),
+			);
 
 			// Promote pending ask-user tools to the bottom surface (hides free-text composer).
 			// Surface priority: elicitation > Grok ext > tool; listeners clear tool on host asks.
@@ -406,6 +400,7 @@ export function useAgentSessionRuntime({
 						if (agentHasContent(last.parts)) {
 							next[next.length - 1] = {
 								...last,
+								parts: failIncompleteTools(last.parts),
 								streaming: false,
 							};
 						} else {
@@ -437,7 +432,7 @@ export function useAgentSessionRuntime({
 				const next = [...prev];
 				const last = next[next.length - 1];
 				if (last?.kind === "agent" && last.streaming) {
-					let parts = last.parts;
+					let parts = failIncompleteTools(last.parts);
 					if (
 						agentReasoningFromParts(parts).trim().length === 0 &&
 						ev.reasoning &&
@@ -529,6 +524,7 @@ export function useAgentSessionRuntime({
 					if (agentHasContent(last.parts)) {
 						next[next.length - 1] = {
 							...last,
+							parts: failIncompleteTools(last.parts),
 							streaming: false,
 						};
 					} else {

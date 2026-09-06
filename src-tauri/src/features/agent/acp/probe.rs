@@ -1,5 +1,5 @@
 use crate::features::agent::acp::client::{
-    acp_err, client_initialize_request, to_acp_agent, ACP_TIMEOUT,
+    acp_err, client_initialize_request, to_acp_agent, ACP_INITIALIZE_TIMEOUT,
 };
 use crate::features::agent::acp::interaction::permission_response;
 use crate::features::agent::acp::terminal::{AcpTerminalHandler, AcpTerminalManager};
@@ -76,7 +76,7 @@ pub async fn probe_agent(
             }
         });
 
-    let result = match tokio::time::timeout(ACP_TIMEOUT, connect).await {
+    let result = match tokio::time::timeout(ACP_INITIALIZE_TIMEOUT, connect).await {
         Ok(r) => r,
         Err(_) => {
             return ProbeResult {
@@ -86,7 +86,7 @@ pub async fn probe_agent(
                 protocol_version: None,
                 error: Some(format!(
                     "probe timed out after {}s (check Agent proxy / network)",
-                    ACP_TIMEOUT.as_secs()
+                    ACP_INITIALIZE_TIMEOUT.as_secs()
                 )),
                 session_capabilities: None,
             };

@@ -55,7 +55,7 @@ export function AgentAskUserSurface({
 	onAskUserResolved: () => void;
 	toolAskUserRequest: ToolAskUserRequest | null;
 	onToolAskUserResolved: () => void;
-	onAnswerToolAskUser: (answer: string) => Promise<boolean>;
+	onAnswerToolAskUser: (answer: string, toolCallId: string) => Promise<boolean>;
 	disabled?: boolean;
 	className?: string;
 }) {
@@ -168,7 +168,7 @@ export function AgentAskUserSurface({
 								toolAskUserRequest.questions,
 								answers,
 							);
-							return onAnswerToolAskUser(text);
+							return onAnswerToolAskUser(text, toolAskUserRequest.toolCallId);
 						}}
 						onCancel={() => {
 							onToolAskUserResolved();

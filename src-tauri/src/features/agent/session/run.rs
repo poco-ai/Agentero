@@ -3,8 +3,8 @@
 use crate::core::error::AppError;
 use crate::features::agent::acp::ask_user::GrokAskUserRequest;
 use crate::features::agent::acp::client::{
-    acp_err, cancelled_payload, client_initialize_request, timed_acp_request, to_acp_agent,
-    wait_for_cancellation,
+    acp_err, cancelled_payload, client_initialize_request, simplified_agent_cwd,
+    timed_acp_initialize, timed_acp_request, to_acp_agent, wait_for_cancellation,
 };
 use crate::features::agent::acp::interaction::{
     await_grok_ask_user, await_user_elicitation, await_user_permission, permission_response,
@@ -166,7 +166,7 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
         )
     };
     let prompt_images = params.images.clone();
-    let cwd = if let Some(ref r) = params.remote {
+    let cwd = simplified_agent_cwd(&if let Some(ref r) = params.remote {
         r.agent_cwd()
     } else {
         params
@@ -175,7 +175,7 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
             .map(PathBuf::from)
             .filter(|p| p.is_dir())
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
-    };
+    });
     Ok(RunTurnPrep {
         full_prompt,
         prompt_images,
@@ -209,7 +209,7 @@ struct RunOnceContext {
 }
 
 impl RunOnceContext {
-    fn new(params: &RunOnceParams) -> Self {
+    fn new(params: &RunOnceParams, cwd: std::path::PathBuf) -> Self {
         let dsh_fresh_sessions = matches!(params.desc.template, AgentTemplate::Dsh);
         // Merge token-storm chunks into ~25 emits/s (Windows webview jank source).
         // Payload shape is unchanged: same event, longer `chunk`, lower rate.
@@ -241,7 +241,7 @@ impl RunOnceContext {
                 params.resume_session_id.is_none() || dsh_fresh_sessions,
             )),
             stop_reason: Arc::new(Mutex::new(None)),
-            terminals: Arc::new(tokio::sync::Mutex::new(AcpTerminalManager::new())),
+            terminals: Arc::new(tokio::sync::Mutex::new(AcpTerminalManager::with_cwd(cwd))),
         }
     }
 
@@ -530,8 +530,7 @@ impl RunOnceContext {
         cwd: &Path,
     ) -> Result<TurnPhase<ConnectedSession>, agent_client_protocol::Error> {
         let init = tokio::select! {
-            result = timed_acp_request(
-                "initialize",
+            result = timed_acp_initialize(
                 connection
                     .send_request(client_initialize_request())
                     .block_task(),
@@ -823,7 +822,7 @@ pub async fn run_once(params: RunOnceParams) -> Result<AgentResultPayload, AppEr
     };
 
     // Phase 3 — connect, stream one turn, and finalize.
-    let state = RunOnceContext::new(&params);
+    let state = RunOnceContext::new(&params, prep.cwd.clone());
     let run_result = state.run(acp, params, prep).await;
 
     match run_result {

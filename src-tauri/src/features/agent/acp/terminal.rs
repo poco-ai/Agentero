@@ -13,32 +13,81 @@ use agent_client_protocol::schema::v1::{
 use agent_client_protocol::util::MatchDispatchFrom;
 use agent_client_protocol::{Agent, ConnectionTo, Dispatch, HandleDispatchFrom, Handled};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::process::Child;
-use tokio::sync::{watch, Mutex};
+use tokio::sync::{mpsc, oneshot, watch, Mutex};
+use tokio::time::{timeout, Duration};
 use uuid::Uuid;
 
 /// Default byte limit for captured terminal output when the agent does not specify one.
 const DEFAULT_OUTPUT_BYTE_LIMIT: u64 = 1024 * 1024; // 1 MiB
+const OUTPUT_DRAIN_TIMEOUT: Duration = Duration::from_millis(250);
 
 /// Shared manager for all terminals created on one ACP connection.
 pub struct AcpTerminalManager {
-    terminals: HashMap<String, AcpTerminal>,
+    terminals: HashMap<String, Arc<AcpTerminal>>,
+    default_cwd: Option<PathBuf>,
 }
 
 struct AcpTerminal {
-    child: Arc<Mutex<Child>>,
     state: Arc<Mutex<AcpTerminalState>>,
-    exit_tx: watch::Sender<Option<TerminalExitStatus>>,
-    readers: Vec<tokio::task::JoinHandle<()>>,
+    exit_rx: watch::Receiver<Option<TerminalExitStatus>>,
+    control_tx: mpsc::Sender<TerminalControl>,
 }
 
 struct AcpTerminalState {
     output_bytes: Vec<u8>,
     truncated: bool,
-    exit_status: Option<TerminalExitStatus>,
+}
+
+enum TerminalControl {
+    Kill(oneshot::Sender<Result<(), String>>),
+}
+
+fn terminal_exit_status(status: std::io::Result<std::process::ExitStatus>) -> TerminalExitStatus {
+    match status {
+        Ok(status) => TerminalExitStatus::new().exit_code(status.code().map(|code| code as u32)),
+        Err(_) => TerminalExitStatus::new(),
+    }
+}
+
+fn command_and_args(command: &str, args: &[String]) -> (String, Vec<String>) {
+    if !args.is_empty() {
+        let command = resolve_command(command)
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|| command.to_string());
+        return (command, args.to_vec());
+    }
+    if let Some(command) = resolve_command(command) {
+        return (command.to_string_lossy().to_string(), Vec::new());
+    }
+
+    #[cfg(windows)]
+    {
+        let shell = resolve_command("powershell.exe")
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|| "powershell.exe".to_string());
+        (
+            shell,
+            vec![
+                "-NoLogo".to_string(),
+                "-NoProfile".to_string(),
+                "-NonInteractive".to_string(),
+                "-Command".to_string(),
+                command.to_string(),
+            ],
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        (
+            "/bin/sh".to_string(),
+            vec!["-c".to_string(), command.to_string()],
+        )
+    }
 }
 
 impl AcpTerminalManager {
@@ -46,11 +95,19 @@ impl AcpTerminalManager {
     pub fn new() -> Self {
         Self {
             terminals: HashMap::new(),
+            default_cwd: None,
+        }
+    }
+
+    pub(crate) fn with_cwd(cwd: PathBuf) -> Self {
+        Self {
+            terminals: HashMap::new(),
+            default_cwd: Some(cwd),
         }
     }
 
     /// Spawn a command and return its terminal id.
-    pub(crate) async fn create(
+    pub(crate) fn create(
         &mut self,
         request: CreateTerminalRequest,
     ) -> Result<CreateTerminalResponse, String> {
@@ -62,17 +119,15 @@ impl AcpTerminalManager {
             request.cwd,
             request.env.len()
         );
-        let command = resolve_command(&request.command)
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|| request.command.clone());
+        let (command, args) = command_and_args(&request.command, &request.args);
 
         let mut cmd = tokio::process::Command::new(&command);
-        cmd.args(&request.args)
+        cmd.args(args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
 
-        if let Some(cwd) = &request.cwd {
+        if let Some(cwd) = request.cwd.as_ref().or(self.default_cwd.as_ref()) {
             cmd.current_dir(cwd);
         }
 
@@ -101,97 +156,81 @@ impl AcpTerminalManager {
         let state = Arc::new(Mutex::new(AcpTerminalState {
             output_bytes: Vec::new(),
             truncated: false,
-            exit_status: None,
         }));
-        let child_arc = Arc::new(Mutex::new(child));
-        let (exit_tx, _) = watch::channel(None);
+        let (exit_tx, exit_rx) = watch::channel(None);
+        let (control_tx, control_rx) = mpsc::channel(1);
 
         let stdout_handle = spawn_reader(stdout, state.clone(), output_byte_limit);
         let stderr_handle = spawn_reader(stderr, state.clone(), output_byte_limit);
-        spawn_waiter(child_arc.clone(), state.clone(), exit_tx.clone());
+        spawn_controller(
+            child,
+            exit_tx,
+            control_rx,
+            vec![stdout_handle, stderr_handle],
+        );
 
         self.terminals.insert(
             terminal_id.clone(),
-            AcpTerminal {
-                child: child_arc,
+            Arc::new(AcpTerminal {
                 state,
-                exit_tx,
-                readers: vec![stdout_handle, stderr_handle],
-            },
+                exit_rx,
+                control_tx,
+            }),
         );
 
         Ok(CreateTerminalResponse::new(TerminalId::new(terminal_id)))
     }
 
-    /// Return current output, truncation flag, and exit status if known.
-    pub(crate) async fn output(
-        &mut self,
-        request: &TerminalOutputRequest,
-    ) -> Result<TerminalOutputResponse, String> {
-        let terminal = self
-            .terminals
-            .get_mut(request.terminal_id.0.as_ref())
-            .ok_or_else(|| "terminal not found".to_string())?;
-        drain_readers(terminal).await;
-        let state = terminal.state.lock().await;
+    /// Clone a terminal handle without holding the manager lock during I/O.
+    fn get(&self, terminal_id: &TerminalId) -> Result<Arc<AcpTerminal>, String> {
+        self.terminals
+            .get(terminal_id.0.as_ref())
+            .cloned()
+            .ok_or_else(|| "terminal not found".to_string())
+    }
+
+    fn remove(&mut self, terminal_id: &TerminalId) -> Option<Arc<AcpTerminal>> {
+        self.terminals.remove(terminal_id.0.as_ref())
+    }
+}
+
+impl AcpTerminal {
+    /// Return the output captured so far without waiting for process completion.
+    async fn output(&self) -> TerminalOutputResponse {
+        let state = self.state.lock().await;
         let output = String::from_utf8_lossy(&state.output_bytes).to_string();
-        Ok(TerminalOutputResponse::new(output, state.truncated)
-            .exit_status(state.exit_status.clone()))
+        TerminalOutputResponse::new(output, state.truncated)
+            .exit_status(self.exit_rx.borrow().clone())
     }
 
     /// Wait for the command to exit and return its exit status.
-    pub(crate) async fn wait_for_exit(
-        &mut self,
-        request: &WaitForTerminalExitRequest,
-    ) -> Result<WaitForTerminalExitResponse, String> {
-        let terminal = self
-            .terminals
-            .get_mut(request.terminal_id.0.as_ref())
-            .ok_or_else(|| "terminal not found".to_string())?;
-
-        // Fast path: already exited.
-        if let Some(status) = terminal.state.lock().await.exit_status.clone() {
-            return Ok(WaitForTerminalExitResponse::new(status));
-        }
-
-        let mut rx = terminal.exit_tx.subscribe();
-        rx.changed()
-            .await
-            .map_err(|_| "terminal exit watcher dropped".to_string())?;
-        drain_readers(terminal).await;
+    async fn wait_for_exit(&self) -> Result<WaitForTerminalExitResponse, String> {
+        let mut rx = self.exit_rx.clone();
         let status = rx
-            .borrow()
+            .wait_for(Option::is_some)
+            .await
+            .map_err(|_| "terminal exit watcher dropped".to_string())?
             .clone()
             .ok_or_else(|| "terminal exited but status unavailable".to_string())?;
         Ok(WaitForTerminalExitResponse::new(status))
     }
 
     /// Kill a running terminal command without releasing its resources.
-    pub(crate) async fn kill(
-        &self,
-        request: &KillTerminalRequest,
-    ) -> Result<KillTerminalResponse, String> {
-        let terminal = self
-            .terminals
-            .get(request.terminal_id.0.as_ref())
-            .ok_or_else(|| "terminal not found".to_string())?;
-        let mut child = terminal.child.lock().await;
-        let _ = child.kill().await;
-        Ok(KillTerminalResponse::new())
-    }
-
-    /// Release a terminal, killing it if still running and removing it from the manager.
-    pub(crate) async fn release(
-        &mut self,
-        request: ReleaseTerminalRequest,
-    ) -> Result<ReleaseTerminalResponse, String> {
-        let terminal_id = request.terminal_id.0.as_ref();
-        if let Some(terminal) = self.terminals.get(terminal_id) {
-            let mut child = terminal.child.lock().await;
-            let _ = child.kill().await;
+    async fn kill(&self) -> Result<KillTerminalResponse, String> {
+        let (done_tx, done_rx) = oneshot::channel();
+        if self
+            .control_tx
+            .send(TerminalControl::Kill(done_tx))
+            .await
+            .is_err()
+        {
+            return Ok(KillTerminalResponse::new());
         }
-        self.terminals.remove(terminal_id);
-        Ok(ReleaseTerminalResponse::new())
+        match done_rx.await {
+            Ok(result) => result?,
+            Err(_) => return Ok(KillTerminalResponse::new()),
+        }
+        Ok(KillTerminalResponse::new())
     }
 }
 
@@ -229,32 +268,51 @@ where
     })
 }
 
-/// Wait for all output reader tasks to finish so captured output is complete.
-async fn drain_readers(terminal: &mut AcpTerminal) {
-    let handles = std::mem::take(&mut terminal.readers);
-    for handle in handles {
-        let _ = handle.await;
+/// Drain final output without allowing inherited pipe handles to block exit forever.
+async fn drain_readers(handles: Vec<tokio::task::JoinHandle<()>>) {
+    for mut handle in handles {
+        if timeout(OUTPUT_DRAIN_TIMEOUT, &mut handle).await.is_err() {
+            handle.abort();
+        }
     }
 }
 
-fn spawn_waiter(
-    child: Arc<Mutex<Child>>,
-    state: Arc<Mutex<AcpTerminalState>>,
+fn spawn_controller(
+    mut child: Child,
     exit_tx: watch::Sender<Option<TerminalExitStatus>>,
+    mut control_rx: mpsc::Receiver<TerminalControl>,
+    readers: Vec<tokio::task::JoinHandle<()>>,
 ) {
     tokio::spawn(async move {
-        let status = {
-            let mut child = child.lock().await;
-            match child.wait().await {
-                Ok(status) => TerminalExitStatus::new().exit_code(status.code().map(|c| c as u32)),
-                Err(_) => TerminalExitStatus::new(),
+        let (status, kill_done) = loop {
+            tokio::select! {
+                status = child.wait() => break (terminal_exit_status(status), None),
+                control = control_rx.recv() => {
+                    match control {
+                        Some(TerminalControl::Kill(done)) => match child.start_kill() {
+                            Ok(()) => {
+                                break (terminal_exit_status(child.wait().await), Some(done));
+                            }
+                            Err(error) => {
+                                let _ = done.send(Err(format!(
+                                    "failed to kill terminal command: {error}"
+                                )));
+                            }
+                        },
+                        None => {
+                            // Always reap and publish a status, even if the kill fails.
+                            let _ = child.start_kill();
+                            break (terminal_exit_status(child.wait().await), None);
+                        }
+                    }
+                }
             }
         };
-        {
-            let mut locked = state.lock().await;
-            locked.exit_status = Some(status.clone());
+        drain_readers(readers).await;
+        exit_tx.send_replace(Some(status));
+        if let Some(done) = kill_done {
+            let _ = done.send(Ok(()));
         }
-        let _ = exit_tx.send(Some(status));
     });
 }
 
@@ -295,7 +353,7 @@ impl HandleDispatchFrom<Agent> for AcpTerminalHandler {
             .if_request({
                 let terminals = terminals.clone();
                 async move |request: CreateTerminalRequest, responder| {
-                    let response = terminals.lock().await.create(request).await;
+                    let response = terminals.lock().await.create(request);
                     match response {
                         Ok(resp) => responder.respond(resp),
                         Err(e) => responder.respond_with_internal_error(e),
@@ -306,9 +364,9 @@ impl HandleDispatchFrom<Agent> for AcpTerminalHandler {
             .if_request({
                 let terminals = terminals.clone();
                 async move |request: TerminalOutputRequest, responder| {
-                    let response = terminals.lock().await.output(&request).await;
-                    match response {
-                        Ok(resp) => responder.respond(resp),
+                    let terminal = terminals.lock().await.get(&request.terminal_id);
+                    match terminal {
+                        Ok(terminal) => responder.respond(terminal.output().await),
                         Err(e) => responder.respond_with_internal_error(e),
                     }
                 }
@@ -316,34 +374,52 @@ impl HandleDispatchFrom<Agent> for AcpTerminalHandler {
             .await
             .if_request({
                 let terminals = terminals.clone();
+                let connection = connection.clone();
                 async move |request: WaitForTerminalExitRequest, responder| {
-                    let response = terminals.lock().await.wait_for_exit(&request).await;
-                    match response {
-                        Ok(resp) => responder.respond(resp),
-                        Err(e) => responder.respond_with_internal_error(e),
-                    }
+                    let terminal = terminals.lock().await.get(&request.terminal_id);
+                    // Dispatch is serial: capture the handle in order, then wait off-loop.
+                    connection.spawn(async move {
+                        match terminal {
+                            Ok(terminal) => match terminal.wait_for_exit().await {
+                                Ok(resp) => responder.respond(resp),
+                                Err(e) => responder.respond_with_internal_error(e),
+                            },
+                            Err(e) => responder.respond_with_internal_error(e),
+                        }
+                    })
                 }
             })
             .await
             .if_request({
                 let terminals = terminals.clone();
+                let connection = connection.clone();
                 async move |request: KillTerminalRequest, responder| {
-                    let response = terminals.lock().await.kill(&request).await;
-                    match response {
-                        Ok(resp) => responder.respond(resp),
-                        Err(e) => responder.respond_with_internal_error(e),
-                    }
+                    let terminal = terminals.lock().await.get(&request.terminal_id);
+                    connection.spawn(async move {
+                        match terminal {
+                            Ok(terminal) => match terminal.kill().await {
+                                Ok(resp) => responder.respond(resp),
+                                Err(e) => responder.respond_with_internal_error(e),
+                            },
+                            Err(e) => responder.respond_with_internal_error(e),
+                        }
+                    })
                 }
             })
             .await
             .if_request({
                 let terminals = terminals.clone();
+                let connection = connection.clone();
                 async move |request: ReleaseTerminalRequest, responder| {
-                    let response = terminals.lock().await.release(request).await;
-                    match response {
-                        Ok(resp) => responder.respond(resp),
-                        Err(e) => responder.respond_with_internal_error(e),
-                    }
+                    let terminal = terminals.lock().await.remove(&request.terminal_id);
+                    connection.spawn(async move {
+                        if let Some(terminal) = terminal {
+                            if let Err(e) = terminal.kill().await {
+                                return responder.respond_with_internal_error(e);
+                            }
+                        }
+                        responder.respond(ReleaseTerminalResponse::new())
+                    })
                 }
             })
             .await
@@ -379,7 +455,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_output_release_lifecycle() {
-        let manager = Arc::new(Mutex::new(AcpTerminalManager::new()));
+        let mut manager = AcpTerminalManager::new();
         let request =
             CreateTerminalRequest::new("session-1", if cfg!(windows) { "cmd" } else { "echo" })
                 .args(if cfg!(windows) {
@@ -389,27 +465,209 @@ mod tests {
                 })
                 .output_byte_limit(1024u64);
 
-        let response = manager.lock().await.create(request).await.unwrap();
-        let terminal_id = response.terminal_id.to_string();
+        let response = manager.create(request).unwrap();
+        let terminal = manager.get(&response.terminal_id).unwrap();
 
         // Wait for exit so output is finalized.
-        let wait_req =
-            WaitForTerminalExitRequest::new("session-1", TerminalId::new(terminal_id.clone()));
-        let _ = manager.lock().await.wait_for_exit(&wait_req).await.unwrap();
-
-        let output_req =
-            TerminalOutputRequest::new("session-1", TerminalId::new(terminal_id.clone()));
-        let output = manager.lock().await.output(&output_req).await.unwrap();
+        let _ = terminal.wait_for_exit().await.unwrap();
+        let output = terminal.output().await;
         assert!(output.output.contains("hello"));
         assert!(output.exit_status.is_some());
 
-        let release_req = ReleaseTerminalRequest::new("session-1", TerminalId::new(terminal_id));
-        manager.lock().await.release(release_req).await.unwrap();
+        manager.remove(&response.terminal_id);
+    }
+
+    #[tokio::test]
+    async fn shell_command_string_executes() {
+        let mut manager = AcpTerminalManager::new();
+        let response = manager
+            .create(CreateTerminalRequest::new(
+                "session-shell",
+                "echo AGENTERO_SMOKE",
+            ))
+            .unwrap();
+        let terminal = manager.get(&response.terminal_id).unwrap();
+
+        terminal.wait_for_exit().await.unwrap();
+        assert!(terminal.output().await.output.contains("AGENTERO_SMOKE"));
+
+        manager.remove(&response.terminal_id);
+    }
+
+    #[tokio::test]
+    async fn missing_request_cwd_uses_session_cwd() {
+        let cwd = tempfile::tempdir().unwrap();
+        let marker = cwd
+            .path()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+        let mut manager = AcpTerminalManager::with_cwd(cwd.path().to_path_buf());
+        let request =
+            CreateTerminalRequest::new("session-cwd", if cfg!(windows) { "cmd" } else { "pwd" })
+                .args(if cfg!(windows) {
+                    vec!["/D".to_string(), "/C".to_string(), "cd".to_string()]
+                } else {
+                    Vec::new()
+                });
+        let response = manager.create(request).unwrap();
+        let terminal = manager.get(&response.terminal_id).unwrap();
+
+        terminal.wait_for_exit().await.unwrap();
+        assert!(terminal.output().await.output.contains(&marker));
+
+        manager.remove(&response.terminal_id);
+    }
+
+    #[tokio::test]
+    async fn exit_before_wait_remains_observable() {
+        let mut manager = AcpTerminalManager::new();
+        let response = manager
+            .create(CreateTerminalRequest::new(
+                "session-fast-exit",
+                "echo finished",
+            ))
+            .unwrap();
+        let terminal = manager.get(&response.terminal_id).unwrap();
+        // Generous windows: process spawn latency on a loaded machine can
+        // exceed sub-second budgets; the scenario only needs exit-before-wait.
+        timeout(Duration::from_secs(5), async {
+            while terminal.exit_rx.borrow().is_none() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("terminal must exit before testing a late wait");
+
+        timeout(Duration::from_secs(1), terminal.wait_for_exit())
+            .await
+            .expect("an exit reported before wait_for_exit must not be lost")
+            .expect("wait_for_exit failed");
+
+        manager.remove(&response.terminal_id);
+    }
+
+    #[tokio::test]
+    async fn running_output_returns_and_wait_can_be_killed() {
+        let mut manager = AcpTerminalManager::new();
+        let request = CreateTerminalRequest::new(
+            "session-running",
+            if cfg!(windows) { "cmd" } else { "bash" },
+        )
+        .args(if cfg!(windows) {
+            vec![
+                "/D".to_string(),
+                "/C".to_string(),
+                "echo ready & ping -n 6 127.0.0.1 >NUL".to_string(),
+            ]
+        } else {
+            vec!["-c".to_string(), "echo ready; sleep 5".to_string()]
+        });
+
+        let response = manager.create(request).unwrap();
+        let terminal = manager.get(&response.terminal_id).unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let output = timeout(Duration::from_millis(500), terminal.output())
+            .await
+            .expect("terminal/output must not wait for process exit");
+        assert!(output.output.contains("ready"));
+        assert!(output.exit_status.is_none());
+
+        let waiter = {
+            let terminal = terminal.clone();
+            tokio::spawn(async move { terminal.wait_for_exit().await })
+        };
+        timeout(Duration::from_secs(2), terminal.kill())
+            .await
+            .expect("terminal/kill must remain available during wait_for_exit")
+            .expect("terminal/kill failed");
+        timeout(Duration::from_secs(2), waiter)
+            .await
+            .expect("wait_for_exit must finish after kill")
+            .expect("waiter task failed")
+            .expect("wait_for_exit failed");
+
+        manager.remove(&response.terminal_id);
+    }
+
+    #[tokio::test]
+    async fn pending_wait_does_not_block_acp_requests() {
+        use agent_client_protocol::Client;
+
+        let mut manager = AcpTerminalManager::new();
+        let request = CreateTerminalRequest::new(
+            "session-dispatch",
+            if cfg!(windows) {
+                "powershell.exe"
+            } else {
+                "sleep"
+            },
+        )
+        .args(if cfg!(windows) {
+            vec![
+                "-NoProfile".to_string(),
+                "-NonInteractive".to_string(),
+                "-Command".to_string(),
+                "Start-Sleep -Seconds 30".to_string(),
+            ]
+        } else {
+            vec!["30".to_string()]
+        });
+        let id = manager.create(request).unwrap().terminal_id;
+        let terminal = manager.get(&id).unwrap();
+        let host = Client
+            .builder()
+            .with_handler(AcpTerminalHandler::new(Arc::new(Mutex::new(manager))));
+        let run =
+            Agent
+                .builder()
+                .connect_with(host, async move |connection: ConnectionTo<Client>| {
+                    let wait = connection
+                        .send_request(WaitForTerminalExitRequest::new(
+                            "session-dispatch",
+                            id.clone(),
+                        ))
+                        .block_task();
+                    let stop = async {
+                        let output = connection
+                            .send_request(TerminalOutputRequest::new(
+                                "session-dispatch",
+                                id.clone(),
+                            ))
+                            .block_task()
+                            .await?;
+                        assert!(output.exit_status.is_none());
+                        connection
+                            .send_request(KillTerminalRequest::new("session-dispatch", id.clone()))
+                            .block_task()
+                            .await?;
+                        connection
+                            .send_request(ReleaseTerminalRequest::new("session-dispatch", id))
+                            .block_task()
+                            .await?;
+                        Ok::<_, agent_client_protocol::Error>(())
+                    };
+                    let (wait, stop) = tokio::join!(wait, stop);
+                    wait?;
+                    stop?;
+                    Ok(())
+                });
+        let result = timeout(Duration::from_secs(5), run).await;
+        // Clean up through the controller even if the protocol dispatcher stalls.
+        timeout(Duration::from_secs(2), terminal.kill())
+            .await
+            .expect("terminal cleanup must not hang")
+            .expect("terminal cleanup failed");
+        result
+            .expect("pending wait must not block output, kill or release on the connection")
+            .expect("ACP terminal requests failed");
     }
 
     #[tokio::test]
     async fn output_byte_limit_truncates() {
-        let manager = Arc::new(Mutex::new(AcpTerminalManager::new()));
+        let mut manager = AcpTerminalManager::new();
         // Print 2000 bytes of "x" then a marker.
         let script = if cfg!(windows) {
             "cmd /C for /L %i in (1,1,2000) do @<NUL set /p=\"x\" & echo MARKER"
@@ -425,18 +683,38 @@ mod tests {
                 })
                 .output_byte_limit(100u64);
 
-        let response = manager.lock().await.create(request).await.unwrap();
-        let terminal_id = response.terminal_id.to_string();
-
-        let wait_req =
-            WaitForTerminalExitRequest::new("session-2", TerminalId::new(terminal_id.clone()));
-        let _ = manager.lock().await.wait_for_exit(&wait_req).await.unwrap();
-
-        let output_req =
-            TerminalOutputRequest::new("session-2", TerminalId::new(terminal_id.clone()));
-        let output = manager.lock().await.output(&output_req).await.unwrap();
+        let response = manager.create(request).unwrap();
+        let terminal = manager.get(&response.terminal_id).unwrap();
+        let _ = terminal.wait_for_exit().await.unwrap();
+        let output = terminal.output().await;
         assert!(output.truncated);
         assert!(output.output.contains("MARKER"));
         assert!(output.output.len() <= 105);
+    }
+
+    #[tokio::test]
+    async fn dropping_last_handle_kills_running_process() {
+        let mut manager = AcpTerminalManager::new();
+        let request =
+            CreateTerminalRequest::new("session-drop", if cfg!(windows) { "cmd" } else { "bash" })
+                .args(if cfg!(windows) {
+                    vec![
+                        "/D".to_string(),
+                        "/C".to_string(),
+                        "ping -n 12 127.0.0.1 >NUL".to_string(),
+                    ]
+                } else {
+                    vec!["-c".to_string(), "exec sleep 30".to_string()]
+                });
+
+        let response = manager.create(request).unwrap();
+        let mut exit_rx = manager.get(&response.terminal_id).unwrap().exit_rx.clone();
+        // Session teardown drops the whole manager, closing the control channel.
+        drop(manager);
+
+        timeout(Duration::from_secs(5), exit_rx.wait_for(Option::is_some))
+            .await
+            .expect("dropping the last handle must kill the still-running command")
+            .expect("controller dropped the exit watcher without publishing a status");
     }
 }

@@ -184,8 +184,15 @@ pub(crate) async fn wait_for_cancellation(cancellation: &mut watch::Receiver<boo
     let _ = cancellation.changed().await;
 }
 
-/// Shared budget for ACP initialize / session RPCs and settings probe.
+/// Shared budget for ACP session RPCs.
 pub(crate) const ACP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// Initialize gets a longer budget: BYOA agents bootstrap heavy runtimes
+/// (python venvs, plugin and MCP discovery) before answering, and cold
+/// starts routinely exceed a 15s window — two cold spawns racing after an
+/// app start made Hermes miss it repeatedly. A hard 15s turns slow-but-
+/// working agents into hard "agent unavailable" failures.
+pub(crate) const ACP_INITIALIZE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 pub(crate) async fn timed_acp_request<T, E>(
     label: &str,
@@ -194,15 +201,45 @@ pub(crate) async fn timed_acp_request<T, E>(
 where
     E: std::fmt::Display,
 {
-    tokio::time::timeout(ACP_TIMEOUT, request)
+    timed_acp_request_with(ACP_TIMEOUT, label, request).await
+}
+
+/// `initialize` variant of [`timed_acp_request`]; see [`ACP_INITIALIZE_TIMEOUT`].
+pub(crate) async fn timed_acp_initialize<T, E>(
+    request: impl std::future::Future<Output = Result<T, E>>,
+) -> Result<T, agent_client_protocol::Error>
+where
+    E: std::fmt::Display,
+{
+    timed_acp_request_with(ACP_INITIALIZE_TIMEOUT, "initialize", request).await
+}
+
+async fn timed_acp_request_with<T, E>(
+    budget: std::time::Duration,
+    label: &str,
+    request: impl std::future::Future<Output = Result<T, E>>,
+) -> Result<T, agent_client_protocol::Error>
+where
+    E: std::fmt::Display,
+{
+    tokio::time::timeout(budget, request)
         .await
-        .map_err(|_| {
-            acp_err(format!(
-                "{label} timed out after {}s",
-                ACP_TIMEOUT.as_secs()
-            ))
-        })?
+        .map_err(|_| acp_err(format!("{label} timed out after {}s", budget.as_secs())))?
         .map_err(|error| acp_err(format!("{label}: {error}")))
+}
+
+/// The vault path can arrive as Rust's canonicalized extended-length form
+/// (`\\?\D:\…`). Agents forward it to MSYS2-based shells (Git Bash), which
+/// cannot `cd` into `\\?\` paths and mis-initialize their POSIX cwd when
+/// spawned under one (mktemp/cd fail with ENOENT), so hand agents the plain
+/// drive path. Extended UNC paths stay unchanged until their shell semantics
+/// are handled separately.
+pub(crate) fn simplified_agent_cwd(cwd: &Path) -> PathBuf {
+    let cwd = cwd.to_string_lossy();
+    match cwd.strip_prefix(r"\\?\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
+        _ => cwd.as_ref().into(),
+    }
 }
 
 pub(crate) fn cancelled_payload(
@@ -233,6 +270,32 @@ pub(crate) fn cancelled_payload(
 
 pub(crate) fn acp_err(msg: impl ToString) -> agent_client_protocol::Error {
     util::internal_error(msg)
+}
+
+#[cfg(test)]
+mod timeout_tests {
+    use super::*;
+
+    #[tokio::test(start_paused = true)]
+    async fn initialize_has_an_independent_budget() {
+        let slow_request = || async {
+            tokio::time::sleep(std::time::Duration::from_secs(20)).await;
+            Ok::<_, &str>(())
+        };
+        let (initialize, session) = tokio::join!(
+            timed_acp_initialize(slow_request()),
+            timed_acp_request("session/list", slow_request()),
+        );
+        assert!(initialize.is_ok());
+        assert!(session
+            .unwrap_err()
+            .to_string()
+            .contains("session/list timed out after 15s"));
+        let error = timed_acp_initialize(std::future::pending::<Result<(), &str>>())
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("initialize timed out after 30s"));
+    }
 }
 
 #[cfg(test)]

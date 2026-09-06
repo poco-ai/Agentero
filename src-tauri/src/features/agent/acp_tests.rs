@@ -381,4 +381,30 @@ mod list_sessions_paging {
             LIST_SESSIONS_BUDGET
         ));
     }
+
+    #[test]
+    fn simplified_agent_cwd_strips_extended_prefix() {
+        use crate::features::agent::acp::client::simplified_agent_cwd;
+
+        // Rust canonicalize() hands back extended-length drive paths; MSYS2
+        // shells cannot cd into them, so the agent must receive the plain form.
+        assert_eq!(
+            simplified_agent_cwd(std::path::Path::new(r"\\?\D:\Documents\Zotero")),
+            std::path::PathBuf::from(r"D:\Documents\Zotero")
+        );
+        assert_eq!(
+            simplified_agent_cwd(std::path::Path::new(r"D:\Documents\Zotero")),
+            std::path::PathBuf::from(r"D:\Documents\Zotero")
+        );
+        // UNC layouts have no plain drive form and stay unchanged.
+        assert_eq!(
+            simplified_agent_cwd(std::path::Path::new(r"\\?\UNC\server\share")),
+            std::path::Path::new(r"\\?\UNC\server\share")
+        );
+        // POSIX paths pass through untouched.
+        assert_eq!(
+            simplified_agent_cwd(std::path::Path::new("/home/user/vault")),
+            std::path::Path::new("/home/user/vault")
+        );
+    }
 }

@@ -965,6 +965,61 @@ export function applyToolToParts(
 	];
 }
 
+/** Apply a tool update to its existing turn, including updates arriving after turn completion. */
+export function applyToolToLines(
+	lines: ChatLine[],
+	patch: ToolPatch,
+): ChatLine[] {
+	let streamingIndex = -1;
+	for (let index = lines.length - 1; index >= 0; index -= 1) {
+		const line = lines[index];
+		if (line?.kind !== "agent") continue;
+		if (
+			line.parts.some(
+				(part) => part.type === "tool" && part.tool.id === patch.id,
+			)
+		) {
+			// Late payloads still apply, but progress cannot reopen a finished turn.
+			const update =
+				!line.streaming &&
+				patch.status !== "completed" &&
+				patch.status !== "failed"
+					? { ...patch, status: undefined }
+					: patch;
+			const next = lines.slice();
+			next[index] = { ...line, parts: applyToolToParts(line.parts, update) };
+			return next;
+		}
+		if (streamingIndex < 0 && line.streaming) streamingIndex = index;
+	}
+
+	if (streamingIndex < 0) return lines;
+	const line = lines[streamingIndex];
+	if (line?.kind !== "agent") return lines;
+	const next = lines.slice();
+	next[streamingIndex] = {
+		...line,
+		parts: applyToolToParts(line.parts, patch),
+	};
+	return next;
+}
+
+/** A finished turn must not retain an infinite spinner for an unfinished tool call. */
+export function failIncompleteTools(parts: AgentPart[]): AgentPart[] {
+	let changed = false;
+	const next = parts.map((part) => {
+		if (
+			part.type !== "tool" ||
+			(part.tool.status !== "pending" && part.tool.status !== "in_progress")
+		) {
+			return part;
+		}
+		changed = true;
+		return { ...part, tool: { ...part.tool, status: "failed" as const } };
+	});
+	return changed ? next : parts;
+}
+
 /** Plan updates arrive as full snapshots; keep a single plan part in place. */
 export function upsertPlanPart(
 	parts: AgentPart[],

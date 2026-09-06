@@ -7,6 +7,7 @@
 
 use crate::core::error::AppError;
 use crate::core::log_util::{trunc, OpTimer};
+use crate::features::agent::acp::client::simplified_agent_cwd;
 use crate::features::agent::models::{
     AcpListSessionsResult, AcpLoadSessionResult, AgentListResponse, AgentOnly, AgentRegistryState,
     AskUserResponseRequest, CatalogScanResponse, ElicitationResponseRequest, PermissionResponded,
@@ -332,11 +333,13 @@ fn agent_cwd_or_local(
     remote: Option<&dyn crate::features::agent::remote_host::RemoteAgentLaunch>,
     vault_path: Option<&str>,
 ) -> PathBuf {
-    if let Some(rt) = remote {
-        return rt.agent_cwd();
-    }
-    vault_path
-        .map(PathBuf::from)
-        .filter(|p| p.is_dir())
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+    let raw = if let Some(rt) = remote {
+        rt.agent_cwd()
+    } else {
+        vault_path
+            .map(PathBuf::from)
+            .filter(|p| p.is_dir())
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+    };
+    simplified_agent_cwd(&raw)
 }
