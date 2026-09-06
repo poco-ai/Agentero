@@ -16,7 +16,7 @@ pub mod batch;
 pub mod map;
 pub mod parse;
 pub mod resolver;
-pub mod skill_import;
+pub mod skill;
 pub mod title_search;
 
 pub use crate::features::paper::capabilities::{has_local_pdf, has_local_tex};
@@ -31,9 +31,9 @@ pub use map::{enrich_remote_urls, map_zotero_item};
 pub use paper_import::{
     paper_commit, AssetsPolicy, CommitStatus, DedupePolicy, PaperCommitOptions,
 };
-pub use skill_import::{
-    discard_skill_discovery, discover_skill_source, install_discovered_skills, SkillCandidate,
-    SkillDiscovery, SkillImportResult,
+pub use skill::{
+    discard_skill_discovery, discover_skill_source, extract_skill_source,
+    install_discovered_skills, SkillCandidate, SkillDiscovery, SkillImportResult, SkillSource,
 };
 pub use title_search::{PaperSearchCandidate, PaperSearchGroup};
 

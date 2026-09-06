@@ -1,17 +1,23 @@
-use super::AppHandle;
-use crate::error::AppError;
-use crate::features::import::assets::{
-    extract_tar_safe, http_get_bytes_with_progress, AssetProgressAggregator,
-};
-use crate::features::import::parse::SkillSource;
-use crate::frontmatter::{frontmatter_block, scalar_field};
-use flate2::read::GzDecoder;
-use serde::{Deserialize, Serialize};
+//! Skill import: discover GitHub-backed skill archives, let the user pick
+//! candidates, and install them into `.agents/skills`.
+
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+
+use flate2::read::GzDecoder;
+use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
+
+use super::assets::{extract_tar_safe, http_get_bytes_with_progress, AssetProgressAggregator};
+use super::AppHandle;
+use crate::error::AppError;
+use crate::frontmatter::{frontmatter_block, scalar_field};
+
+pub use source::{extract_skill_source, skill_identifier, SkillSource, SKILL_KIND};
+
+mod source;
 
 const MAX_ARCHIVE_BYTES: usize = 64 * 1024 * 1024;
 const MAX_EXTRACTED_FILES: usize = 2_000;

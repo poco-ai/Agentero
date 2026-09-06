@@ -209,7 +209,7 @@ pub async fn paper_resolve_identifier(args: PaperResolveIdentifierArgs) -> ApiRe
     let op = OpTimer::start_with("paper_resolve_identifier", format!("text={text}"));
 
     // Skill 分流不在 resolver 表内：由 extract_skill_source 判定。
-    let try_identifier = super::parse::extract_skill_source(&args.text).is_none()
+    let try_identifier = super::skill::extract_skill_source(&args.text).is_none()
         && super::parse::extract_primary_identifier(&args.text).is_some();
 
     if try_identifier {

@@ -18,11 +18,11 @@
 ## Skill 导入
 
 魔棒 `lookup_import_batch` 同时接受论文标识符和 Skill 来源。Host 在普通 URL
-识别之前通过 `parse::extract_skill_source` 检测 Skill 来源（`skill` kind，不入
+识别之前通过 `skill::extract_skill_source` 检测 Skill 来源（`skill` kind，不入
 resolver 表），解析 GitHub 仓库、
 GitHub tree、`github:`、`skills.sh` 和 `npx skills add` 输入。
 
-Skill 安装管线位于 `features/import/skill_import.rs`：
+Skill 安装管线位于 `features/paper/import/skill`：
 
 1. 解析默认分支并下载 GitHub codeload tarball；
 2. gzip/tar 安全解包，限制归档大小和文件数；

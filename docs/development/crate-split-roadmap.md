@@ -20,7 +20,7 @@
 |---|---|
 | `features::paper::catalog`（别名 `features::catalog`） | catalog.sqlite schema、papers 存取、sidecar、`move_paper_under` |
 | `features::paper::capabilities` | `probe_paper_caps` / `CapsCache` / 本地 pdf·tex·PAPER.md 探测 |
-| `features::paper::import`（别名 `features::import`） | 魔棒入库主管线：`import_by_identifier*`、`download_paper_assets*`、`import_local_pdfs`、`paper_import::paper_commit`、assets 下载、batch/map/parse/resolver、skill_import、title_search、api_mapper |
+| `features::paper::import`（别名 `features::import`） | 魔棒入库主管线：`import_by_identifier*`、`download_paper_assets*`、`import_local_pdfs`、`paper_import::paper_commit`、assets 下载、batch/map/parse/resolver、skill、title_search、api_mapper |
 | `features::paper::import::sources::zotero`（core 别名 `features::zotero`） | codec（NOTES ↔ Zotero HTML）、io（Translator `/export` `/import`）——tauri-free；Host 侧 `db`/`commands`/`sync/` 见留守域表 |
 | `features::paper::scholar_api` | arXiv / Crossref / OpenAlex / S2 / Unpaywall / EasyScholar / Translator 客户端与评分 |
 | `features::paper::analyze::parse`（别名 `features::import::pdf_parse`） | liteparse worker、`parse_paper_body`、`run_pdf_locate`、probe/render、engine 框架（trait + 注册表 + 本地引擎） |

@@ -23,7 +23,7 @@ https://github.com/Imbad0202/academic-research-skills: SKILL.md description is t
    CJK 描述会被高估约 3 倍；description 只是候选列表展示用的 metadata，超长不该阻断安装。
 2. 候选扫描用 `collect::<Result<Vec<_>, _>>()`，任意一个 `SKILL.md` 解析失败即整仓失败。
    monorepo 常带示例/模板 Skill，这条规则过严。
-3. 三处各自手写 frontmatter 解析（`import/skill_import.rs`、`agent/skills.rs`、
+3. 三处各自手写 frontmatter 解析（`import/skill`、`agent/skills.rs`、
    `vault/mod.rs` 的 `version`），都只取 `description:` 同行文本，遇到 `>-` / `|` 折叠块
    与 CRLF 就失效。
 4. 前端 `notifyError(`${input}: …`)` 又拼了一次输入，后端错误已带 `{raw}: ` 前缀，
@@ -42,5 +42,5 @@ https://github.com/Imbad0202/academic-research-skills: SKILL.md description is t
 ## 回归
 
 - `core::frontmatter::tests`：引号 / 折叠 / 字面块 / CRLF / 嵌套键。
-- `skill_import::tests::reads_folded_description`、`truncates_long_description_instead_of_failing`。
+- `import::skill::tests::reads_folded_description`、`truncates_long_description_instead_of_failing`。
 - `agent::skills::tests::parses_bundled_folded_description`：直接对模板 `paper-reader/SKILL.md` 断言。

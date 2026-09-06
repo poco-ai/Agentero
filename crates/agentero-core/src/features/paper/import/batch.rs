@@ -3,8 +3,9 @@ use std::path::Path;
 
 use crate::features::catalog::papers;
 
-use super::parse::{self, extract_primary_identifier, SkillSource};
+use super::parse::extract_primary_identifier;
 use super::resolver::ResolvedIdentifier;
+use super::skill::{extract_skill_source, skill_identifier, SkillSource};
 use super::SkippedImport;
 
 pub enum SkillBatchMode {
@@ -59,7 +60,7 @@ pub fn preflight_identifier_batch(
         for (raw, ident) in units {
             let raw = raw.as_str();
             // Skill 分流不在 resolver 表内：由 extract_skill_source 判定。
-            let skill = parse::extract_skill_source(raw);
+            let skill = extract_skill_source(raw);
             if skill.is_some() && matches!(skill_mode, SkillBatchMode::RejectRemote) {
                 errors.push(format!(
                     "{raw}: skill import is not supported for remote vaults"
@@ -146,7 +147,7 @@ fn classify_segment(input: &str) -> Segment {
     }
 
     // Skill sources (`npx skills add …`) are the only identifiers with spaces.
-    if let Some(ident) = parse::skill_identifier(input) {
+    if let Some(ident) = skill_identifier(input) {
         return Segment::Identifiers(vec![(input.to_string(), ident)]);
     }
 
