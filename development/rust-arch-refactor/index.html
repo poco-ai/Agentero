@@ -1,0 +1,4287 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agentero 本地优先 Agent 科研工作台文档">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Rust 端架构重构计划（2026-09） - Agentero 文档</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="grey">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rust-2026-09" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="Agentero 文档" class="md-header__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Agentero 文档
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Rust 端架构重构计划（2026-09）
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  首页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  架构总览
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../usage/" class="md-tabs__link">
+          
+  
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../frontend/" class="md-tabs__link">
+          
+  
+  
+  前端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../backend/" class="md-tabs__link">
+          
+  
+  
+  后端
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  开发草稿
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../test/" class="md-tabs__link">
+          
+  
+  
+  测试
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../bug_fix/deepseek-thinking-body/" class="md-tabs__link">
+          
+  
+  
+  Bug 修复记录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Agentero 文档" class="md-nav__button md-logo" aria-label="Agentero 文档" data-md-component="logo">
+      
+  <img src="../../assets/agentero-app-icon.svg" alt="logo">
+
+    </a>
+    Agentero 文档
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/poco-ai/agentero" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    poco-ai/agentero
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    首页
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    架构总览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速上手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    安装与首次使用
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/import-papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入和管理论文
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/read-and-organize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    阅读、标注与整理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    接入 Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    用 MCP 连接外部 Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/mobile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    移动端
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/zotero/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用 Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/remote-vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    打开远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    前端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    前端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/shell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    工作台壳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dockview 工作区
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/vault-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    文件树
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文库 Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入库 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/markdown/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Markdown 编辑
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/pdf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 阅读与划词
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/pdf-layout-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 版面分析（实验）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent 面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/mobile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    移动端
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链 UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/command-palette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    命令面板
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置与主题
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/onboarding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    新手引导
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/components/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    组件约定
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    后端
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    后端
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    数据模型
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/vault/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault FS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/paper-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文入库
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/identifier-lookup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Identifier Lookup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/academic-search-apis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    学术搜索 API 一览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/citation-parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考文献解析
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/skill-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skill 导入
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/connector/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zotero Connector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/wiki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    双链索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent Host
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/remote/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    搜索
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    设置
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用记录
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/translate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    运行日志
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/doctor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault Doctor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    遥测
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/sync/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    云同步（S3）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backend/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API 全表
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    开发草稿
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    开发草稿
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zotero-word-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Word 引用集成
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-cli-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注 CLI 路线 (#170)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-locate-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注惰性定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mark-locate-eager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标注即时定位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plaza/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    广场 Plaza
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plaza-feeds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    广场订阅（Feeds）— MVP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage-analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用记录总结 (#239)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lifecycle-events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    生命周期事件系统（Lifecycle Events）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cloud-sync-s3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    云同步（S3）设计草稿
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    测试
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    测试
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布流程
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/ios-testflight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iOS TestFlight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/release-checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    发布前 Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug 修复记录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bug 修复记录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/deepseek-thinking-body/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DeepSeek 正文落入 Thinking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/acp-session-resume-id/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ACP 会话恢复 ID 错误
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/ime-composition-enter-submit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    输入法组字 Enter 误发送
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wiki-embed-unrelated-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    普通编辑触发全部 Wiki 嵌入闪烁
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/wikilink-heading-reference-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    标题双链稳定性
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/dockview-sash-pdf-resize-jank/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    拖动 Dockview 分隔条时 PDF 卡顿
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/pdf-switch-visual-crop-layout-onnx/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PDF 切换视觉截图与后台 ONNX
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-acp-path-ssh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远端 ACP PATH / SSH
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-vault-tree-lazy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault 文件树懒加载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/macos-signing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    macOS 签名与公证
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/gemini-login-browser-loop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gemini 登录弹窗循环
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/import-abstract-mt-timeout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入 NOTES 摘要 MT 超时
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/cli-import-library-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI 导入后论文标题不刷新
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/codex-history-runtime-session-id/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Codex 历史恢复误用 session id
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/local-pdf-parse-missing-pdfium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入 PDF 无法生成 PAPER.md
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/paper-folder-marker-conflict/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    组织目录被识别成单篇论文
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/paper-import-timeout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    论文导入超时
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-create-folder-exists/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程 Vault 无法新建文件
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/remote-delete-list-nosuchfile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    远程删除后 list 报 NoSuchFile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/todo-checkbox-scale-align/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    缩放时待办 checkbox 错位
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/agent-external-source-blank-window/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent 引用来源外部链接在应用内弹出空标签页
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/coolpapers-entity-utf8-panic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cool Papers decode_entities 切中文 panic + 广场每次新建连接
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/layout-analyze-job-slot-leak/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    版面解析任务一直排队（JobCenter 槽位泄漏）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/publication-venue-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    期刊 / venue 取不全（#399）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/skill-import-description-length/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    导入第三方 Skill 报「description is too long」（#355）
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用方式
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        一句话诊断
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        核实裁决记录（先读这个，防止重复调研）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="核实裁决记录（先读这个，防止重复调研）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        已确认的重大问题
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        已推翻 / 修正的论断（不要再按原说法执行）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p0-pr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P0 · 正确性修复（立即做，独立小 PR，互不依赖）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p1-ipc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P1 · IPC 契约统一（机械高收益，为后续铺路）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p2-trait-vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P2 · trait Vault 统一双轨（核心战役，按切片推进）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p3-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P3 · Jobs 去业务化 + 进度/取消统一
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p4-p2p3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P4 · 横切基础设施（与 P2/P3 并行推进）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p5-paper-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P5 · Paper 域与 Agent 域
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="P5 · Paper 域与 Agent 域">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#paper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paper
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p6-corehost" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P6 · core/host 收尾（纯机械，最后做）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scope-creep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        明确不做（防止 scope creep）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        进度总览
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="rust-2026-09">Rust 端架构重构计划（2026-09）<a class="headerlink" href="#rust-2026-09" title="Permanent link">&para;</a></h1>
+<p>状态：<strong>进行中</strong> —— P0 未开始。</p>
+<p>来源：三轮架构评审（模型交叉 + 16 个审计/核实 sub-agent，2026-09-06）。文中所有关键论断均已逐条核实，含文件行号证据；被推翻的论断也已记录，避免后续重复调研或误信。</p>
+<h2 id="_1">使用方式<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<ul>
+<li>完成一项就把 <code>- [ ]</code> 改成 <code>- [x]</code>，并在该项末尾追加 commit hash（如 <code>✅ abc1234</code>）。</li>
+<li>阶段内任务尽量相互独立；标注 ⛓ 的任务存在前置依赖，先完成被依赖项。</li>
+<li>任意时刻可暂停：每个任务自含「问题 / 证据 / 做法 / 验收」，新会话读本文档即可恢复上下文，无需重新调研。</li>
+<li>发现计划与代码现实不符时（重构过程中代码会漂移），直接更新对应条目并注明日期，不要留着过期信息。</li>
+</ul>
+<h2 id="_2">一句话诊断<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>分层的"形"已就位（core/host 分离、依赖方向经核实为零违规：<code>features → integration</code> 0 引用、<code>agentero-core → tauri</code> 0 引用），但每个抽象都有"逃生舱口"——<code>VaultFs</code> 只有 remote 用、JobCenter 只有 paper 用、错误编码只有 1.4% 在用。<strong>本轮重构的性质是收敛平行实现，不是清理垃圾。</strong></p>
+<h2 id="_3">核实裁决记录（先读这个，防止重复调研）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h3 id="_4">已确认的重大问题<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>论断</th>
+<th>关键证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>V1</td>
+<td><strong>远端 catalog 推送丢数据（WAL）</strong>：push 只读主文件字节，全仓库 0 次 checkpoint；push 紧跟 commit 且缓存连接存活 → <strong>首次修改即丢</strong>；disconnect 删 work 目录连 WAL 一起删 → 永久丢失</td>
+<td><code>core/sqlite.rs:16</code>（强制 WAL）、<code>catalog/schema.rs:155</code>（进程级缓存连接）、<code>remote/catalog_mirror.rs:116</code>（裸 <code>fs::read</code>）、<code>remote/session.rs:88</code>（删 work 目录）；唯一 roundtrip 测试 <code>#[ignore]</code></td>
+</tr>
+<tr>
+<td>V2</td>
+<td>VaultFs 双轨制：<code>dyn VaultFs</code> 13 处全在 <code>integration/remote/**</code>，features 0 使用；<code>LocalFs</code> 生产实例仅 1 处（local-sim）</td>
+<td><code>core/fs/mod.rs:27</code>、<code>remote/session.rs:120</code></td>
+</tr>
+<tr>
+<td>V3</td>
+<td>remote 分支共 <strong>28 处 / 10 文件</strong>（23 处 <code>parse_remote_handle</code> 调用 + 5 处裸 <code>"remote:"</code> 比较）</td>
+<td>分布：trash×5、import×4、connector×11、jobs×1、zotero×1、launch×1、mcp×1、sync×1</td>
+</tr>
+<tr>
+<td>V4</td>
+<td><code>remote_*</code> 命令 21 个（remote/commands.rs 18 + agent 3），其中<strong>真孪生 5 个</strong>：<code>remote_paper_{get,list,set_tags,set_is_read,rescan}</code> ↔ <code>paper_*</code></td>
+<td><code>app/handlers.rs:155-175</code></td>
+</tr>
+<tr>
+<td>V5</td>
+<td>3 个 <code>Remote*Ops</code> trait 无本地实现，调用点 <code>if remote { ops } else { 直调 }</code></td>
+<td><code>RemoteImportOps</code>（features/paper/import/remote_ops.rs:22）、<code>RemoteTrashOps</code>（features/vault/trash/remote_ops.rs:17）、<code>RemoteAgentHosts</code>（features/agent/remote_host.rs:57）</td>
+</tr>
+<tr>
+<td>V6</td>
+<td>trash 整体复制分叉：结构体、校验函数、5 个操作全部重写，仅共享结果类型与 catalog 行助手</td>
+<td>core <code>vault/trash/mod.rs</code> vs <code>remote/trash_bridge.rs</code>（自带头注释"Semantics match local"）</td>
+</tr>
+<tr>
+<td>V7</td>
+<td>CLI move 只动文件+SQL，不处理双链；桌面走重命名事务（双链重写+脏文件拒绝+回滚）。CLI 移动后链接种留在盘上，修复依赖桌面端开着且手动确认</td>
+<td>core <code>catalog/mod.rs:66</code> vs src-tauri <code>catalog/commands.rs:578</code>（<code>run_local_rename_transaction</code>）；CLI 入口 <code>cli/src/commands/paper.rs:689</code></td>
+</tr>
+<tr>
+<td>V8</td>
+<td>caps 误判 attachments：附件 PDF 可成主 PDF（read_dir 顺序不定，可能抢在 source/ 前）；附件 <code>.tex</code> 置 <code>has_tex</code> 压制 ParseBody。与 AGENTS.md attachments 约定冲突</td>
+<td><code>core/paper/capabilities.rs:146,148</code></td>
+</tr>
+<tr>
+<td>V9</td>
+<td>本地/远端 rescan marker 不同：本地 <code>NOTES.md∨metadata.json</code>；远端另加 <code>highlights.md</code>/<code>PAPER.md</code>/<code>source|assets|marks</code> 目录 + 从 NOTES 刮标题 + 恒刷 <code>updated_at</code></td>
+<td><code>catalog/papers.rs:811</code> vs <code>remote/commands.rs:581-613</code></td>
+</tr>
+<tr>
+<td>V10</td>
+<td><code>set_tags</code>/<code>set_is_read</code>/<code>add_tags</code>/<code>remove_tags</code> 均为读全行→改→全行 upsert，两次独立拿锁，并发覆盖窗口</td>
+<td><code>catalog/papers.rs:1001-1056</code></td>
+</tr>
+<tr>
+<td>V11</td>
+<td>sidecar 尽力写：DB 写成功后投影失败仅 log</td>
+<td><code>papers.rs:391-395</code>、<code>sidecar.rs:14-33</code></td>
+</tr>
+<tr>
+<td>V12</td>
+<td>MinerU 双重提取：正文引擎与版面引擎各自 fresh client+batch，零共享；JobCenter 去重键含 kind 标签注定抓不住；两 job 确实同时入队</td>
+<td><code>body_engines/mineru.rs:22</code>、<code>layout/hosted/mineru.rs:409,465,476</code>；fingerprint <code>jobs/mod.rs:61-62</code></td>
+</tr>
+<tr>
+<td>V13</td>
+<td>sync 注销泄漏：<code>try_begin</code>/<code>end</code> 无 abort 防护（全仓库无 Drop/scopeguard 兜底），scheduler abort 跳过 <code>end()</code> → 直到重启永远 "sync already running"</td>
+<td><code>sync/commands.rs:211,229</code>、<code>sync/scheduler.rs:53</code></td>
+</tr>
+<tr>
+<td>V14</td>
+<td>gate 超时泄漏：三个 gate 的 pending map 只在 <code>resolve()</code> 删除，300s 超时路径不清理（晚到回答优雅返回 <code>resolved:false</code>，不崩）</td>
+<td><code>runtime/gates.rs:24,71,115</code>、<code>acp/interaction.rs:345,388,448</code></td>
+</tr>
+<tr>
+<td>V15</td>
+<td>bridge 事件缺口：<code>agent:ask-user-request</code> / <code>agent:elicitation-request</code> <strong>不在</strong>转发列表，但回答端 RPC 存在 → 移动端这两个 RPC 是死代码，300s 自动取消。<code>agent:permission-request</code> 已转发（无缺口）</td>
+<td><code>bridge/host.rs:41-49</code>（转发表）、<code>host.rs:964-985</code>（回答端）</td>
+</tr>
+<tr>
+<td>V16</td>
+<td>远端 agent 终端本机执行：SSH run 的 <code>terminal/create</code> 无条件走本机 <code>tokio::process::Command</code>，无远端 executor</td>
+<td><code>session/run.rs:244,356</code>、<code>acp/terminal.rs:124</code></td>
+</tr>
+<tr>
+<td>V17</td>
+<td>runtime 绑死 WebviewWindow：<code>accept_run_once</code> 首参 <code>&amp;WebviewWindow</code> 仅用作事件目标；bridge 被迫狩猎窗口 + <code>listen_any</code> 窃听</td>
+<td><code>agent/service.rs:140,198</code>、<code>bridge/host.rs:938-941,79-104</code></td>
+</tr>
+<tr>
+<td>V18</td>
+<td>Agent 命令绕过 service：<code>agent_warm</code> 内联整套编排；<code>agent_probe</code> 近乎逐字复制 <code>service::probe_catalog</code>；lifecycle 无 service 包装</td>
+<td><code>commands/session.rs:122-183</code>、<code>commands/registry.rs:156-178</code></td>
+</tr>
+<tr>
+<td>V19</td>
+<td>连接装配重复 <strong>5 处</strong>（非 4）：probe/warm/run/history×2，builder+terminal handler+deny-permission+connect_with 样板复制，无共享装配助手</td>
+<td><code>acp/probe.rs:37</code>、<code>session/warm.rs:78</code>、<code>session/run.rs:353</code>、<code>session/history.rs:70,411</code></td>
+</tr>
+<tr>
+<td>V20</td>
+<td>PATH 无缓存全量重扫：每次 <code>agent_run_once</code> 对<strong>每个</strong>注册 agent 跑 <code>probe_command</code>（遍历 nvm/brew/scoop），阻塞 tokio 线程；<code>upsert</code>/<code>discover</code> 还持锁扫描</td>
+<td><code>registry/store.rs:160,341</code>、<code>core/process/discover.rs</code>（零 memoization）</td>
+</tr>
+<tr>
+<td>V21</td>
+<td>取消=Ok+字符串：run.rs 恰 9 处 <code>select!</code>，取消返回 <code>Ok</code> + <code>stop_reason:"cancelled"</code> 硬编码</td>
+<td><code>session/run.rs:502-768</code>、<code>acp/client.rs:266</code></td>
+</tr>
+<tr>
+<td>V22</td>
+<td><code>is_ssh()</code>/<code>is_local_sim()</code> flag 泄漏 4 处（比原报告多 2 处）</td>
+<td><code>remote_host.rs:23,25</code>、<code>acp/client.rs:169</code>、<code>registry/remote.rs:121,158,211</code>、<code>commands/remote.rs:137</code>、<code>remote/launch.rs:75</code></td>
+</tr>
+<tr>
+<td>V23</td>
+<td>IPC 包络三态 95 / 94 / <strong>7</strong>（<code>set_locale</code> 曾被漏计）；成因是 State-borrow 变通，文档自认</td>
+<td><code>integration/remote/commands.rs:1-4</code>；前端 3 个 unwrap helper（<code>src/lib/core/ipc.ts</code>）</td>
+</tr>
+<tr>
+<td>V24</td>
+<td>fs scope 由渲染层授予：<code>vault_allow_fs_scope</code> 命令对任意非空路径 <code>allow_directory(&amp;p, true)</code> 递归授予，无 canonicalize/白名单/活跃 vault 校验（host 侧 <code>handle_open_dir</code> 反而会先 canonicalize）</td>
+<td><code>app/vault_session/fs_scope.rs:30</code>、<code>vault_session/mod.rs:6-14</code></td>
+</tr>
+<tr>
+<td>V25</td>
+<td>注册表双份：handlers.rs 191 vs bindings_test.rs 191 手工对齐；<code>bridge_status</code> 桌面/iOS 同名不同签名 → iOS 5 个命令整体排除在 bindings.ts 外（cfg 互斥故无运行时遮蔽）</td>
+<td><code>app/bindings_test.rs:11-13</code></td>
+</tr>
+<tr>
+<td>V26</td>
+<td><code>events_contract.rs</code> 1248 行 + 手写 Rust 源码扫描器；42 事件（<code>:360</code> 的"43"注释过期）；57 个 emit 点</td>
+<td><code>app/events_contract.rs:905-915</code></td>
+</tr>
+<tr>
+<td>V27</td>
+<td>OpTimer 覆盖 50/196 命令；jobs 全部 20 个命令、agent、feeds、catalog 大部无计时</td>
+<td><code>core/log_util.rs</code></td>
+</tr>
+<tr>
+<td>V28</td>
+<td>jobs/mod.rs 2845 行；JobKind 14 变体（严格 paper 11 + LibraryIo 边缘）；并发上限 9/14 硬编码字面量；<strong>发现 3 个死变体</strong>：<code>LayoutTranslate</code>/<code>PageCount</code>/<code>WikiReindex</code> 无 runner 无 enqueue</td>
+<td><code>features/jobs/mod.rs:35-50,417-442</code></td>
+</tr>
+<tr>
+<td>V29</td>
+<td>7 套进度机制 / 6 套取消机制并存（bridge progress 甚至裸 <code>&amp;str</code>；三个同形结构体靠注释同步）</td>
+<td>详见 P3 任务清单</td>
+</tr>
+<tr>
+<td>V30</td>
+<td>JobCenter 无持久化，崩溃丢队列</td>
+<td><code>jobs/mod.rs:247-266</code>（无 Serialize）</td>
+</tr>
+<tr>
+<td>V31</td>
+<td><code>probe_command</code> 薄重复包装（函数体逐字节相同，均委托同一 core <code>resolve_command</code>；测试不同）；<code>spawn_parse_after_import</code> 5 处定义（1 trait 声明+1 impl+1 固有方法+2 自由函数）</td>
+<td><code>core/process/discover.rs:150</code> vs <code>agent/registry/discovery.rs:9</code>；<code>core/app_handle.rs:29,69</code>、<code>host_hooks.rs:27</code>、refs 两处</td>
+</tr>
+<tr>
+<td>V32</td>
+<td>错误分类学空壳：<code>AppError::message</code> 937 处 vs <code>domain</code> 13 处；3 处靠嗅探文本决策（CLI 子串退出码、<code>VaultFs::exists</code> grep "not found"、connector <code>contains("SESSION_EXISTS")</code>）</td>
+<td><code>cli/src/error.rs:107-133</code>、<code>core/fs/mod.rs:44-62</code>、<code>connector/server.rs:329</code></td>
+</tr>
+<tr>
+<td>V33</td>
+<td>存储管道四套写法：4 种 SQLite 连接策略 / 4 套迁移梯子；mirror 连接无 busy_timeout；<code>CatalogMirror::open</code> 生产零调用</td>
+<td><code>usage/schema.rs:116</code>、<code>feeds/mod.rs:524</code>、<code>wiki/cache.rs:302</code>（DELETE 模式）、<code>catalog_mirror.rs:96-102</code></td>
+</tr>
+<tr>
+<td>V34</td>
+<td>失效依赖 UI 活性：watcher 只向 webview 发事件，由 React 回调 Host 命令触发重建；多窗口重复重建；headless 写入无 Host 侧对账</td>
+<td><code>features/vault/watcher/mod.rs:104-112</code>、<code>App.tsx:288-305</code></td>
+</tr>
+<tr>
+<td>V35</td>
+<td>远端 work-root 连接永不清退：<code>vault_release</code> 按本地路径 canonical 匹配，<code>remote:&lt;id&gt;</code> 永不命中；disconnect 也不清；远端 session 的 sidecar 写进临时 work 目录而非远端 vault</td>
+<td><code>app/vault_session/lifecycle.rs:34</code>、<code>remote/session.rs:88</code></td>
+</tr>
+<tr>
+<td>V36</td>
+<td>core/host 边界：src-tauri 14 处 glob 重导出；core 12 个扁平别名且<strong>自用 ~150 处</strong>（src-tauri 侧反而语义路径 83 处/33 文件、扁平 0 处）；<code>#[path]</code> 重挂载恰 2 处（cli_install、open_request）</td>
+<td><code>core/features/mod.rs:16-31</code>、<code>src-tauri/features/mod.rs:12-13,21-22</code></td>
+</tr>
+<tr>
+<td>V37</td>
+<td>两个下载器互补残缺（<strong>非</strong>重复实现）：install/download.rs 有 sha256+解包+chmod 无多源回退无进度无取消；model_assets 有多源回退+节流+取消无校验和。两者都已有 <code>.partial</code>+rename（不会留损坏产物）</td>
+<td><code>agent/install/download.rs</code>、<code>layout/model_assets/mod.rs:21,193-243</code></td>
+</tr>
+<tr>
+<td>V38</td>
+<td>Zotero 两个家：core codec+io 1189 行（tauri-free）vs host db.rs 1651 + sync 1352；db.rs 是事实上的 paper source 却无 trait（手工拼 Zotero API JSON 喂 <code>map_zotero_item</code>）</td>
+<td><code>features/paper/zotero/db.rs:1-6,390</code></td>
+</tr>
+<tr>
+<td>V39</td>
+<td>settings 直读 6 模块/10 处（非传闻的 8 features）：paper/import×4、body_engines、layout/hosted、recommend×2、translate、mcp</td>
+<td>详见 P5</td>
+</tr>
+<tr>
+<td>V40</td>
+<td>acp/ 层不纯：import <code>AgentEventEmitter</code> 并直接发 UI 事件（一跳之隔，无直接 tauri:: import）</td>
+<td><code>acp/updates.rs:7,407-422</code>、<code>acp/interaction.rs:5-6,334-437</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="_5">已推翻 / 修正的论断（不要再按原说法执行）<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>原论断</th>
+<th>裁决</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>parse_remote_handle</code> 38 处/11 文件</td>
+<td>真实 <strong>28 处/10 文件</strong>（38 是含 import/测试的总文本行数）</td>
+</tr>
+<tr>
+<td><code>layout_backend_source</code> 直读 settings</td>
+<td><strong>REFUTED</strong>——注入闭包模式，settings 读取在装配层（<code>app/mod.rs:187</code>），这是<strong>好设计，应推广而非移除</strong></td>
+</tr>
+<tr>
+<td>"core::cancel 只有 JobCenter 用"</td>
+<td><strong>方向反了</strong>：JobCenter 是 probe 提供方，消费者是 core 深处的 import/pdf-parse/scholar/citing</td>
+</tr>
+<tr>
+<td>enqueue 112 处</td>
+<td>文本 112，其中 78 处测试、11 处内部委托，<strong>真实外部调用 23 处</strong></td>
+</tr>
+<tr>
+<td>"recommend/coolpapers/search/recognize 因 settings 滞留 host（等 ConfigProvider）"</td>
+<td><strong>大部分不成立</strong>：四者主体（807+860+373+1416 行）今天就是 tauri-free 且 settings-free，settings 读取全在 commands 壳；recognize 的接缝早已以函数参数存在。直接搬即可，<strong>ConfigProvider 不做</strong></td>
+</tr>
+<tr>
+<td>import-tmp 永不清理</td>
+<td>REFUTED：前端 <code>cleanupImportTempPaths</code> finally 清理；仅崩溃孤儿无 host 清扫（降级为可选任务）</td>
+</tr>
+<tr>
+<td>glob 17 处 / 别名 11 个 / 事件 43 个</td>
+<td>精确值 <strong>14 / 12 / 42</strong></td>
+</tr>
+<tr>
+<td>OpTimer "20/39 文件"</td>
+<td>50/196 命令；文件口径 20/<strong>40</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="p0-pr">P0 · 正确性修复（立即做，独立小 PR，互不依赖）<a class="headerlink" href="#p0-pr" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>全部是核实过的真 bug。每项一个 PR，改完即可发布，不等重构。</p>
+</blockquote>
+<ul>
+<li>[ ] <strong>P0-1 远端 catalog WAL 推送修复</strong>（V1）</li>
+<li>做法：<code>CatalogMirror::push</code> 读字节前对 work 库执行 <code>PRAGMA wal_checkpoint(TRUNCATE)</code>；或推送走专用短连连接（开→checkpoint→读→关）。推荐后者：顺带修 V35 的连接清退。</li>
+<li>验收：用 <code>LocalFs</code> 复刻 write→push→pull roundtrip 进 CI（非 ignore）；远端 <code>set_tags</code> 后 pull 回读一致。</li>
+<li>
+<p>参考：<code>session.rs:449</code> 的 <code>#[ignore]</code> 冒烟测试就是会被此 bug 打败的用例，改造它。</p>
+</li>
+<li>
+<p>[ ] <strong>P0-2 sync 注销 RAII 防护</strong>（V13）</p>
+</li>
+<li>做法：<code>try_begin</code> 返回 guard（Drop 兜底 <code>end()</code>），<code>perform_sync</code> 持有；abort 时 Drop 保证注销。</li>
+<li>
+<p>验收：scheduler abort 后同 vault 可再次 <code>sync_now</code>；<code>sync_get_status</code> 不再永久 <code>running:true</code>。</p>
+</li>
+<li>
+<p>[ ] <strong>P0-3 gate 超时清理 pending</strong>（V14）</p>
+</li>
+<li>做法：<code>interaction.rs</code> 三处超时分支补 <code>gate.remove(&amp;id)</code>（gates 增加 remove 公有方法）。</li>
+<li>
+<p>验收：超时后三个 map 归零；晚到回答仍优雅 <code>resolved:false</code>。</p>
+</li>
+<li>
+<p>[ ] <strong>P0-4 bridge 转发补 2 事件</strong>（V15）</p>
+</li>
+<li>做法：<code>FORWARDED_AGENT_EVENTS</code>（<code>bridge/host.rs:41-49</code>）加入 <code>agent:ask-user-request</code>、<code>agent:elicitation-request</code>。payload 已带 sessionId，过滤器天然兼容，两行改动。</li>
+<li>
+<p>验收：移动端发起 agent run 后能收到并回答 ask-user / elicitation。</p>
+</li>
+<li>
+<p>[ ] <strong>P0-5 caps 排除 attachments/</strong>（V8）</p>
+</li>
+<li>做法：<code>probe_paper_caps</code> 二趟子目录扫描跳过 <code>attachments/</code>（PDF 与 tex 均不计数）；对齐 AGENTS.md 论文单元约定。</li>
+<li>验收：<code>attachments/supplementary.pdf</code> 不再成为 <code>pdf_path</code>；<code>attachments/x.tex</code> 不再置 <code>has_tex</code>；补两个单测锁定行为。</li>
+<li>
+<p>注意：老 Vault 兼容——若历史数据曾把主 PDF 放 attachments（需查证），保留一次迁移探测或 doctor 检查。</p>
+</li>
+<li>
+<p>[ ] <strong>P0-6 fs_scope 加固</strong>（V24）</p>
+</li>
+<li>做法：<code>vault_allow_fs_scope</code> 执行前 canonicalize + 存在性校验；与当前已打开 vault（<code>vault_session</code> 状态）做前缀断言后才授予。</li>
+<li>
+<p>验收：渲染层传任意路径（如 <code>/</code>）不再扩大 scope；正常打开 vault 流程不回归。</p>
+</li>
+<li>
+<p>[ ] <strong>P0-7 tag/is_read 单事务化</strong>（V10）</p>
+</li>
+<li>做法：<code>set_tags</code>/<code>set_is_read</code>/<code>add_tags</code>/<code>remove_tags</code> 改为单条 <code>UPDATE papers SET tags_json=?…WHERE path=?</code>（tags 解析/规范化后整体写回），去掉 get→upsert 全行覆盖。</li>
+<li>
+<p>验收：并发写不同字段不互相覆盖；返回值仍为完整 <code>PaperRecord</code>（可 SELECT 回读）。</p>
+</li>
+<li>
+<p>[ ] <strong>P0-8 杂项小修</strong></p>
+</li>
+<li>[ ] 远端 work-root 连接清退：<code>RemoteRegistry::disconnect</code> 调 <code>evict_catalog_conn(work_root)</code>（V35）</li>
+<li>[ ] <code>events_contract.rs:360</code> "43" 过期注释改 42</li>
+<li>[ ] 删除 JobKind 3 个死变体 <code>LayoutTranslate</code>/<code>PageCount</code>/<code>WikiReindex</code>（V28；确认 bindings 再生成后 TS 侧无引用）</li>
+</ul>
+<hr />
+<h2 id="p1-ipc">P1 · IPC 契约统一（机械高收益，为后续铺路）<a class="headerlink" href="#p1-ipc" title="Permanent link">&para;</a></h2>
+<ul>
+<li>[ ] <strong>P1-1 单一命令注册表</strong>（V25）</li>
+<li>做法：tauri-specta <code>Builder</code> 同时产出运行时 <code>invoke_handler</code> 与 bindings.ts；删 <code>handlers.rs</code> 与 <code>bindings_test.rs</code> 的双份手工清单。iOS 分支用独立 builder 保持干净。</li>
+<li>前置子项：<code>bridge_status</code> 改名解冲突<ul>
+<li>[ ] iOS 侧 <code>bridge_status</code> → <code>bridge_client_status</code>（<code>bridge/client_commands.rs:46</code>），前端 iOS 调用点同步改名</li>
+<li>[ ] iOS 5 个命令纳入 bindings.ts（解除 <code>bindings_test.rs:8-13</code> 排除）</li>
+</ul>
+</li>
+<li>
+<p>验收：<code>pnpm tauri dev</code> 全命令可调；bindings.ts 再生成 diff 仅含预期变化；加一个新命令只改一处。</p>
+</li>
+<li>
+<p>[ ] <strong>P1-2 包络统一为 <code>ApiResult&lt;T&gt;</code></strong>（V23）</p>
+</li>
+<li>做法：94 个 <code>Result&lt;ApiResult&lt;T&gt;, String&gt;</code> 命令改用 <code>State&lt;'_, Arc&lt;T&gt;&gt;</code> + clone 消 borrow 变通；7 个 <code>Result&lt;(), String&gt;</code>（menu/window/watcher）改 <code>ApiResult&lt;()&gt;</code>。前端删 <code>callApiResult</code>/<code>callResult</code>，只留 <code>callApi</code>。</li>
+<li>
+<p>验收：196 命令单一返回形态；前端 3 helper → 1；bindings.ts 类型收敛。</p>
+</li>
+<li>
+<p>[ ] <strong>P1-3 命令包装宏</strong>（V27）</p>
+</li>
+<li>做法：<code>macro_rules!</code>（展开为真实 fn，tauri-specta 兼容）统一：<code>#[tauri::command]</code> + <code>#[specta::specta]</code> + OpTimer（<code>stringify!</code> 自动命名）+ <code>finish_result</code> 错误映射 + 可选 blocking 标志走 <code>run_blocking</code>。</li>
+<li>
+<p>验收：OpTimer 50/196 → 全覆盖；先迁 jobs/commands.rs（20 命令零计时的最大户）验证宏形态，再批量。</p>
+</li>
+<li>
+<p>[ ] <strong>P1-4 路径 newtype</strong>（V24 关联）</p>
+</li>
+<li>做法：<code>VaultPath</code>/<code>PaperRelPath</code> 实现 <code>Deserialize</code>，归一化 + 拒 <code>..</code> + 分隔符统一在一处；命令 args 从 <code>vault_path: String</code> 渐进换类型（56 个 args 结构，机械替换）；合并两份 <code>vault_path_arg</code>；14 处手搓 <code>trim_matches('/').replace('\\',"/")</code> 替换为 <code>sanitize_vault_rel</code>。</li>
+<li>
+<p>验收：<code>set_tags</code> 等带 rel-path 入参的命令无法注入 <code>..</code>；Windows 混合分隔符场景单测通过。</p>
+</li>
+<li>
+<p>[ ] <strong>P1-5 重复定义收敛</strong>（V31）</p>
+</li>
+<li>[ ] 删 <code>agent/registry/discovery.rs:9</code> 的 <code>probe_command</code> 薄包装，调用点直用 core 版</li>
+<li>
+<p>[ ] <code>spawn_parse_after_import</code> 5 处定义收敛：trait 默认实现 + 桌面覆盖保留，删 2 个自由函数重复</p>
+</li>
+<li>
+<p>[ ] <strong>P1-6 错误语义构造器</strong>（V32）</p>
+</li>
+<li>做法：<code>AppError</code> 增加 <code>not_found(what)</code> / <code>conflict</code> / <code>cancelled</code> / <code>invalid_arg</code> 构造器（稳定 snake_case code，wire 格式不变，渐进迁移）；改掉 3 处嗅探：<ul>
+<li>[ ] CLI 退出码改按 <code>code()</code> 映射（<code>cli/src/error.rs:107-133</code>）</li>
+<li>[ ] <code>VaultFs::exists</code> 默认实现改按错误 code 判断 NotFound（<code>core/fs/mod.rs:44-62</code>，Ambiguous 分支返回 Err 而非 false）</li>
+<li>[ ] connector <code>SESSION_EXISTS</code> 改 <code>AppError::conflict</code> code（<code>connector/server.rs:329</code>）</li>
+</ul>
+</li>
+<li>验收：三处嗅探单测改为 code 断言；新命令错误天然带 code。</li>
+</ul>
+<hr />
+<h2 id="p2-trait-vault">P2 · trait Vault 统一双轨（核心战役，按切片推进）<a class="headerlink" href="#p2-trait-vault" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>目标：<code>Vault</code> 端口 + <code>CommitSink</code> 统一本地/远端；消 28 处分支、3 个 Remote*Ops、trash 分叉、rescan 分叉、4 份 commit 拷贝、5 个孪生命令。前置：P0-1（先把数据丢修了再动结构）。</p>
+</blockquote>
+<ul>
+<li>[ ] <strong>P2-1 VaultTarget 分发收敛</strong>（V3/V5）</li>
+<li>做法：仿 agent 侧已有的 <code>resolve_target()</code> 模式（<code>agent/service.rs:173</code>），在 core 建 <code>VaultTarget</code>（<code>Local(PathBuf)</code> / <code>Remote(session)</code>）+ <code>resolve_target(vault_path)</code> 单一入口；28 处 if-remote 分支改为模式匹配调用。</li>
+<li>
+<p>验收：<code>parse_remote_handle</code> 生产调用点归零（或仅剩 resolve_target 内部 1 处）；行为不变。</p>
+</li>
+<li>
+<p>[ ] <strong>P2-2 trash 统一</strong>（V6，最安全先行者）</p>
+</li>
+<li>做法：core trash 五操作参数化 <code>fs: &amp;dyn VaultFs</code>（语义已对齐，纯机械）；<code>trash_bridge.rs</code> 降为远端 session 组装 + <code>catalog.push</code> 钩子；补齐差异项（远端 restore 的 best-effort mkdir 保留为策略）。</li>
+<li>
+<p>验收：<code>trash_bridge.rs</code> 删至 ~100 行组装层；本地/远端 trash 行为单测同表驱动。</p>
+</li>
+<li>
+<p>[ ] <strong>P2-3 rescan marker 统一</strong>（V9）</p>
+</li>
+<li>做法：抽 <code>paper_marker(dir) -&gt; bool</code> + 收编规则到 core 一处；本地/远端共用；远端"NOTES 刮标题"与"恒刷 updated_at"作为远端策略参数保留或删除（倾向删除，向本地语义对齐）。</li>
+<li>
+<p>验收：同一目录结构本地/远端 rescan 结果一致；现有两边测试合并为参数化测试。</p>
+</li>
+<li>
+<p>[ ] <strong>P2-4 CommitSink 统一提交内核</strong>（4 份拷贝 → 1）</p>
+</li>
+<li>现状四份：core <code>paper_commit</code>（权威内核）、<code>remote/paper_commit.rs:38</code>（无去重/回滚/事件）、connector item remote（<code>connector/import.rs:151-199</code>，catalog/上传顺序还与前者相反）、connector standalone remote（<code>import.rs:664-718</code>）；外加 Zotero migrate 自拼第 5 份（<code>zotero/db.rs:470</code>，无回滚无事件）。</li>
+<li>做法：<ul>
+<li>[ ] <code>remote_paper_commit</code> 补齐与本地内核相同的策略面（<code>DedupePolicy</code> / <code>RemoteAssetsPolicy</code> / <code>events: bool</code> / staging RAII 回滚）</li>
+<li>[ ] connector 两份远端拷贝改为 <code>connector_paper_meta</code> + 一次 <code>remote_paper_commit</code> 调用（connector 15s 超时契约用 <code>push_catalog: false</code> + 事后显式 push 表达，API 已支持）</li>
+<li>[ ] Zotero migrate 接入 <code>paper_commit</code>（<code>PaperCommitOptions</code> 增 <code>source_metadata</code>/<code>linkage</code>/<code>skip_assets</code> 可选项），migrate 特有的 collection 迁移/幂等回填留在外层</li>
+<li>[ ] 统一 <code>paper:imported</code> 事件进内核（远端 payload 的 <code>vault_id</code> 编码 <code>remote:&lt;sid&gt;/&lt;path&gt;</code>），删 command 层 2 处手工补发</li>
+<li>[ ] 统一 ID 分配碰撞域：<code>unique_remote_paper_path</code> 补查镜像 catalog（本地版已是"目录存在 OR catalog 有行"）</li>
+</ul>
+</li>
+<li>
+<p>验收：四/五条路径入库行为一致（失败回滚、事件、去重、ID 后缀）；净删 ≥300 行。</p>
+</li>
+<li>
+<p>[ ] <strong>P2-5 孪生命令合并</strong>（V4）</p>
+</li>
+<li>做法：<code>remote_paper_{get,list,set_tags,set_is_read,rescan}</code> 并入 <code>paper_*</code> 按 <code>VaultTarget</code> 分发（前端已在传 <code>remote:&lt;id&gt;</code> handle）；前端删 <code>isRemoteVaultHandle()</code> 分派层，改消费 <code>FsCaps</code>（bindings 已序列化、前端零消费——V 确认）。</li>
+<li>
+<p>验收：5 个 <code>remote_paper_*</code> 命令删除；前端 paper API 层单路径；<code>remote_list/read/write/mkdir/remove/write_bytes</code> 6 个 FS 命令保留（镜像的是前端 fs 插件，非孪生，不动）。</p>
+</li>
+<li>
+<p>[ ] <strong>P2-6 Remote*Ops 退役</strong>（V5）</p>
+</li>
+<li>做法：<code>VaultTarget</code> 覆盖 import/trash 能力后，<code>RemoteImportOps</code>/<code>RemoteTrashOps</code> 删除；<code>RemoteAgentHosts</code> 保留（agent 侧的 <code>resolve_target</code> 模式已验证良好，等 P5-5 ExecutionTarget 时再评估合并）。</li>
+<li>验收：features 对 integration 的倒置仍为零直接依赖（保持铁律）。</li>
+</ul>
+<hr />
+<h2 id="p3-jobs">P3 · Jobs 去业务化 + 进度/取消统一<a class="headerlink" href="#p3-jobs" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>原则：<strong>不为拆而拆 2845 行</strong>；先去业务化 + 迁 platform，体积自然缓解。新 layer：<code>src-tauri/src/platform/</code>（features → platform → core，反向禁止）。</p>
+</blockquote>
+<ul>
+<li>[ ] <strong>P3-1 迁移 + 分层</strong></li>
+<li>[ ] <code>features/jobs/</code> → <code>platform/jobs/</code>（含 commands 壳评估：壳留 features 或随迁，倾向随迁）</li>
+<li>[ ] <code>features/system/settings</code> 存储层 → <code>platform/settings/</code>（commands 壳留守，修"8 个 feature 依赖 settings"的倒置观感；实际直读仅 6 模块/10 处，随 P5 收敛）</li>
+<li>
+<p>验收：依赖方向 features → platform → core 无反向（加一个 cargo-deny 或 grep CI 检查）。</p>
+</li>
+<li>
+<p>[ ] <strong>P3-2 JobKind 注册化</strong>（V28）</p>
+</li>
+<li>做法：JobKind 退化为稳定字符串 ID + <code>JobSpec { id, concurrency, exec_host, fingerprint }</code> 注册表（注册机制已有：<code>register_runner</code> <code>app/mod.rs:181-186</code>）；<strong>推广 <code>set_layout_backend_source</code> 注入模式</strong>（核实确认为好设计）。</li>
+<li>搬迁：<code>job_reconcile_paper</code>/<code>job_reconcile_vault</code>/<code>job_papers_needing_assets</code>/<code>validate_job_paper</code>/<code>spawn_parse_body_after_assets</code>/<code>spawn_recognize_metadata</code> → <code>features/paper/backfill/</code>。</li>
+<li>
+<p>验收：新增一种 job 只需在所属 feature 注册，不改 platform 代码；jobs/mod.rs 显著缩量。</p>
+</li>
+<li>
+<p>[ ] <strong>P3-3 进度统一 <code>ProgressPayload { phase, done, total, unit }</code></strong>（V29，7 → 1）</p>
+</li>
+<li>收编顺序（按风险从低到高）：<ul>
+<li>[ ] sync engine <code>Progress&lt;'a&gt; = &amp;dyn Fn(&amp;str, usize, usize)</code>（<code>sync/engine.rs:65</code>）</li>
+<li>[ ] zotero sync <code>impl Fn(usize, usize, &amp;str)</code>（注意参数序相反，<code>zotero/sync/mod.rs:73</code>）</li>
+<li>[ ] agent lifecycle 安装器 750ms 节流 emit（<code>registry/lifecycle.rs:841,898</code>，合成百分比 <code>5+elapsed*2</code> 一并删）</li>
+<li>[ ] connector <code>connector:progress</code>（保留 wire 协议不变，内部载荷统一）</li>
+<li>[ ] bridge <code>bridge:progress</code>（裸 <code>&amp;str</code> → 结构体，iOS 侧同步）</li>
+<li>[ ] 三个同形结构体合并（<code>AssetDownloadProgress</code> / <code>CitingScanProgress</code> / model_assets <code>ProgressEvent</code>，靠注释同步的字段对齐改为单一类型）</li>
+</ul>
+</li>
+<li>
+<p>验收：进度载荷类型数 7 → 1；前端 job 面板对所有来源显示一致。</p>
+</li>
+<li>
+<p>[ ] <strong>P3-4 取消统一</strong>（V29，6 族 → 2）</p>
+</li>
+<li>保留：JobCenter per-job <code>CancellationToken</code>（唯一 tokio_util 用户）+ <code>core::cancel</code> probe（<strong>方向是对的</strong>：JobCenter 提供探针、core 消费）。</li>
+<li>[ ] agent lifecycle cancel set 并入 job token</li>
+<li>[ ] agent gates oneshot 超时并入统一取消语义（保留 300s 预算）</li>
+<li>
+<p>验收：<code>is_task_cancelled</code> 单一注册表；liteparse/terminal 的 kill 逻辑不变（已良好）。</p>
+</li>
+<li>
+<p>[ ] <strong>P3-5 JobCenter 最小持久化</strong>（V30）</p>
+</li>
+<li>做法：job 队列入 <code>usage.sqlite</code> 同款轻量 SQLite（或独立 jobs.sqlite），崩溃重启后未完成 job 标记 interrupted 可重入。</li>
+<li>验收：进程 kill 后重启，队列可见且可重跑；正常路径零额外 IO（变更时写）。</li>
+</ul>
+<hr />
+<h2 id="p4-p2p3">P4 · 横切基础设施（与 P2/P3 并行推进）<a class="headerlink" href="#p4-p2p3" title="Permanent link">&para;</a></h2>
+<ul>
+<li>[ ] <strong>P4-1 sqlite 统一入口</strong>（V33）</li>
+<li>[ ] <code>core::sqlite</code> 升级为唯一连接入口：<code>Db</code> 注册表（Catalog/Usage/Feeds/WikiCache/Mirror），统一 busy_timeout、按逻辑库声明 journal mode（wiki cache 保持 DELETE 需有注释理由）</li>
+<li>[ ] mirror 连接补 PRAGMA（busy_timeout；journal 随 P0-1 决策）</li>
+<li>[ ] 统一迁移 runner：<code>migrate(conn, DbId, &amp;[Migration])</code> 事务化 + 统一 duplicate-column 容忍 + 统一 future-version 报错（4 套梯子：catalog/usage/feeds/wiki-cache 各自手搓）</li>
+<li>
+<p>验收：新增一个数据库只写 DDL + Migration 列表；现有迁移行为有快照测试锁定。</p>
+</li>
+<li>
+<p>[ ] <strong>P4-2 LoopbackServer 泛型</strong></p>
+</li>
+<li>做法：抽 <code>LoopbackServer&lt;S&gt;</code>（端口配置、bind-await、oneshot shutdown、状态快照、状态事件常量）；MCP 与 Connector 两个 controller（结构相同的 ~250 行）迁移，各留 Router/领域状态。</li>
+<li>顺带：connector <code>AddrInUse</code> 的硬编码中文提示改 error kind（i18n 走前端）。</li>
+<li>
+<p>验收：两 controller 删至各自领域逻辑；端口冲突行为一致。</p>
+</li>
+<li>
+<p>[ ] <strong>P4-3 process supervisor</strong>（以 MCP tunnel 的 generation-counter 模式为模板，全仓库最佳实现）</p>
+</li>
+<li>[ ] <code>core::process::supervisor</code>：<code>SpawnSpec { cmd, args, env, stdio, windows_flags, timeout, cancel, on_progress }</code>，async + sync-stop 双入口</li>
+<li>[ ] 迁移：agent lifecycle 安装器（std 100ms 轮询）、PDF worker、<code>agent_exec::remote_which</code></li>
+<li>不迁：ACP 子进程（外部 crate 管）、terminal（已教科书级）</li>
+<li>
+<p>验收：子进程生命周期模式 4 → 2（supervisor + terminal）。</p>
+</li>
+<li>
+<p>[ ] <strong>P4-4 SSH 选项统一</strong></p>
+</li>
+<li>做法：<code>remote::ssh_cli_opts()</code> 单一 <code>-o</code> 参数向量 + SessionBuilder 调优（现 3 套：SftpFs 15s+ServerAlive、remote_which 15s+ServerAlive、agent tunnel <strong>30s 无 ServerAlive 可挂死</strong>）；<code>SSH_CONNECT_TIMEOUT</code> 定义两遍合一。</li>
+<li>
+<p>验收：agent tunnel SSH 获得心跳；常量单一来源。</p>
+</li>
+<li>
+<p>[ ] <strong>P4-5 Host 侧 VaultEventBus</strong>（V34）</p>
+</li>
+<li>做法：tokio broadcast channel；watcher/sync/connector/import/remote session 发布；订阅者：wiki 索引调度、caps 失效、catalog 对账；单一桥转发所有窗口。</li>
+<li>
+<p>验收：多窗口打开同 vault 只重建一次索引；renderer 不在场时 headless 写入（CLI/agent 子进程）也能触发 Host 对账；React hook 只剩纯视图反应。</p>
+</li>
+<li>
+<p>[ ] <strong>P4-6 事件 payload 公有化</strong>（V26）</p>
+</li>
+<li>做法：所有 emit payload 改公有命名结构体（derive specta::Type），删 <code>events_contract.rs</code> 的手写镜像与 ~500 行源码扫描器（编译器接管不变量）；bridge host 的 <code>listen_any</code>+JSON 重解析暂保留（解耦合理，profile 出现热点再改 typed tap）。</li>
+<li>
+<p>验收：events_contract.rs 缩至事件名常量表 + 少量形状测试；payload 漂移在编译期暴露。</p>
+</li>
+<li>
+<p>[ ] <strong>P4-7 错误 code 全面化</strong>（V32 续 P1-6）</p>
+</li>
+<li>做法：高频文件机会主义迁移（bridge/host、mineru、parse、translate 是 message() 大户）；<code>ErrorBody.details</code> 去掉 <code>#[specta(skip)]</code> 补进 TS 类型（前端 wiki rename 恢复路径已依赖 details，手工 RuntimeErrorBody 可删）。</li>
+<li>验收：<code>AppError::message</code> 新增调用为零（grep CI 或 clippy 检查）；zh-CN 错误 toast 可按 code 映射（前端 <code>translateHostError</code>，缺 key 回退原文）。</li>
+</ul>
+<hr />
+<h2 id="p5-paper-agent">P5 · Paper 域与 Agent 域<a class="headerlink" href="#p5-paper-agent" title="Permanent link">&para;</a></h2>
+<h3 id="paper">Paper<a class="headerlink" href="#paper" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <strong>P5-1 PaperUnit / PaperLayout 领域类型</strong>（P0-5 的架构化版本）</li>
+<li>做法：统一回答"论文根在哪 / 文件属于哪篇论文 / 主 PDF 是什么 / 哪些是正文源 / 哪些是支撑材料"；树、rescan、Doctor、CapsCache、同步消费同一分类；保留老 Vault 兼容探测。</li>
+<li>
+<p>验收：caps 分类逻辑单点；新增资产类型或改目录布局只改一处。</p>
+</li>
+<li>
+<p>[ ] <strong>P5-2 move/trash/restore 用例统一</strong>（V7）</p>
+</li>
+<li>做法：CLI move 接入 <code>run_local_rename_transaction</code>（或显式 headless 降级：移动 + 输出"存在 stale 双链，运行 doctor 修复"提示）；<code>commit_paper</code>/<code>move_paper</code>/<code>trash_paths</code>/<code>restore_item</code> 形成带预检/操作计划/补偿规则的用例层，各入口只做参数转换与自身策略（connector 时限、zotero linkage、桌面脏文件信息）。</li>
+<li>
+<p>验收：CLI 与桌面移动后双链状态一致（测试同表驱动）。</p>
+</li>
+<li>
+<p>[ ] <strong>P5-3 解析调度收敛 PaperPreparation</strong></p>
+</li>
+<li>现状 11 处入队点（paper_commit、core download、DownloadAssets runner、recognize 完成、reconcile×4、jobs spawn helper、桌面 refs、remote bridge）；且 <code>parse_app</code> 从下载进度上下文的 <code>app</code> 字段偷取（<code>paper_import/mod.rs:224-228</code>），<code>Deferred</code> 策略硬编码 None 抑制调度。</li>
+<li>做法：<code>PaperPreparation</code> 依据最终身份/已有资产/缺失产物/入口策略生成任务计划；commit/download/recognize 返回明确结果由用例安排后续；<code>HostHooks</code> 的业务 spawn 回调逐步退场。</li>
+<li>
+<p>验收：入队点 11 → ≤3；"识别完成路径稳定后再解析"与"connector 附件齐再处理"成为显式策略字段。</p>
+</li>
+<li>
+<p>[ ] <strong>P5-4 DocumentExtraction 共享提取</strong>（V12）</p>
+</li>
+<li>做法：MinerU 正文+版面共享一次 provider 执行与原始产物（复用键：PDF 内容摘要+服务地址+模型+选项）；先合并进行中的相同请求，再做可重建缓存；按消费者管理取消；Paddle 不同模型保持独立执行。</li>
+<li>
+<p>验收：同一 PDF 双引擎场景只上传/计费一次。</p>
+</li>
+<li>
+<p>[ ] <strong>P5-5 settings 直读收敛</strong>（V39）</p>
+</li>
+<li>做法：6 模块/10 处直读改为 job 参数注入或既有 subscribe 反应（paper/import 的 4 处优先，runner 收 <code>NoteShellMode</code>/backend 作为参数）。</li>
+<li>验收：features 对 <code>AppSettingsStore</code> 的 State 依赖清零（settings 壳与装配层除外）。</li>
+</ul>
+<h3 id="agent">Agent<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <strong>P5-6 service 单一入口</strong>（V18）</li>
+<li>[ ] <code>agent_warm</code> 编排下沉 <code>service::warm</code>（对齐 run_once/list_sessions 模式）</li>
+<li>[ ] <code>agent_probe</code> 改调 <code>service::probe_catalog</code>，删逐字复制的内联版</li>
+<li>[ ] lifecycle 补 service 包装（<code>run_lifecycle</code>/<code>cancel_lifecycle</code>）</li>
+<li>
+<p>验收：commands 层只剩参数转换；service.rs 成为唯一编排者。</p>
+</li>
+<li>
+<p>[ ] <strong>P5-7 AgentCtx 聚合 + 连接装配收敛</strong>（V19）</p>
+</li>
+<li>[ ] 5 个分散 managed state（Registry/RunController/WarmGate/3 gates）聚合为 <code>AgentCtx</code> 按域分组，命令签名从 7 个 State 参数降为 1-2 个</li>
+<li>[ ] 5 处连接装配抽 <code>agent_connection::build(spec) -&gt; Client</code>（builder+terminal handler+deny-permission+connect_with 样板）</li>
+<li>
+<p>验收：新增 agent 命令不再手拼 5 个 State；装配点 5 → 1。</p>
+</li>
+<li>
+<p>[ ] <strong>P5-8 runtime 与窗口解耦</strong>（V17）</p>
+</li>
+<li>做法：<code>RunEventSink</code> trait（<code>emit(event, payload)</code>），窗口实现（emit_to webview）与 bridge 实现（直接进转发通道）各自适配；<code>accept_run_once</code> 去 <code>WebviewWindow</code> 参数；bridge 删 <code>get_webview_window("main")</code> 狩猎与 <code>listen_any</code> 窃听。</li>
+<li>
+<p>验收：无桌面窗口（headless/仅移动端连接）可运行 agent；事件路由由调用方身份决定。</p>
+</li>
+<li>
+<p>[ ] <strong>P5-9 ExecutionTarget 统一执行环境</strong>（V16/V22）</p>
+</li>
+<li>做法：<code>ExecutionTarget</code> 同时决定主进程启动（本地 spawn / ssh stdio）、cwd、terminal executor、声明的 ACP capabilities；远端 run 的 <code>terminal/create</code> 走 SSH exec 或明确返回 unsupported；删 <code>is_ssh()</code>/<code>is_local_sim()</code> 4 处调用点分支（改多态）。</li>
+<li>
+<p>验收：远端 agent 的终端命令在远端执行（或明确报不支持）；flag 分支归零。</p>
+</li>
+<li>
+<p>[ ] <strong>P5-10 agent 杂项</strong></p>
+</li>
+<li>[ ] PATH 探测缓存（TTL 或 registry 快照）+ <code>spawn_blocking</code>，消 <code>agent_run_once</code> 全量重扫（V20）</li>
+<li>[ ] 取消改 typed error（<code>AppError::cancelled</code>，P1-6 构造器）替代 <code>Ok + stop_reason:"cancelled"</code>（V21）</li>
+<li>[ ] acp/ 层纯化：<code>updates.rs</code>/<code>interaction.rs</code> 的 UI emit 经由注入的事件口而非直接持 <code>AgentEventEmitter</code>（为后续抽独立 acp crate 铺路）（V40）</li>
+</ul>
+<hr />
+<h2 id="p6-corehost">P6 · core/host 收尾（纯机械，最后做）<a class="headerlink" href="#p6-corehost" title="Permanent link">&para;</a></h2>
+<ul>
+<li>[ ] <strong>P6-1 别名与 glob 清理</strong>（V36）</li>
+<li>[ ] 删 core <code>features/mod.rs</code> 12 个扁平别名；core 内部 ~150 处自用迁移到语义路径（<code>crate::features::catalog</code> → <code>crate::features::paper::catalog</code> 等，rg 可机械替换）</li>
+<li>[ ] src-tauri 14 处 <code>pub use …::*</code> glob 改具名模块重导出（<code>pub use agentero_core::features::vault as svc;</code>）或显式清单</li>
+<li>
+<p>验收：任一符号 grep 只有一个规范路径；core 的 pub 面不再无差别暴露给 host。</p>
+</li>
+<li>
+<p>[ ] <strong>P6-2 物理搬运归位</strong></p>
+</li>
+<li>[ ] <code>app/open_request/</code> → <code>features/open_request/</code>（app/ 只留 desktop 命令壳）</li>
+<li>[ ] <code>features::cli_install</code>（<code>#[path]</code> 挂载自 <code>agent/install/</code>）独立目录或并入 <code>system/</code>；消磁盘位置与模块身份不一致</li>
+<li>
+<p>验收：全仓库 <code>#[path]</code> 重挂载数 2 → 0。</p>
+</li>
+<li>
+<p>[ ] <strong>P6-3 tauri-free 模块下沉 core</strong>（核实：<strong>无需 ConfigProvider</strong>，settings 读取都在 commands 壳）</p>
+</li>
+<li>[ ] <code>features/markdown/search</code>（373 行，已 tauri-free 且零 settings）</li>
+<li>[ ] <code>features/paper/import/recognize</code>（1416 行，配置已以函数参数存在，仅需去 desktop cfg gate）</li>
+<li>[ ] <code>features/paper/discovery/recommend</code> mod（807 行）</li>
+<li>[ ] <code>features/paper/discovery/coolpapers</code> mod+page（860 行；<code>proxy.rs</code> 绑 tauri URI scheme，留守）</li>
+<li>
+<p>验收：~3.4k LOC 回归 core；CLI 可直接消费（recommend/recognize 接入 headless 命令为可选后续）。</p>
+</li>
+<li>
+<p>[ ] <strong>P6-4 下载器合并 <code>core::asset::ensure_asset()</code></strong>（V37）</p>
+</li>
+<li>做法：合并两者互补特性（sha256 校验+解包+chmod+多源回退+节流进度+取消），保持 <code>.partial</code>+rename 原子性；<code>core/fs/store.rs::atomic_write</code> 不适用流式大文件，新写流式变体。</li>
+<li>验收：agent 安装与模型下载共用一个模块；两个旧文件删除。</li>
+</ul>
+<hr />
+<h2 id="scope-creep">明确不做（防止 scope creep）<a class="headerlink" href="#scope-creep" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>不为拆而拆 jobs/mod.rs</strong>——去业务化 + 迁 platform 后体积自然缓解。</li>
+<li><strong>不统一三个 wire 协议</strong>（ACP 外部版本化 / bridge E2EE 二进制帧 / connector REST）——强行统一零收益，只抽 <code>rpc::PendingTable</code> 级别的关联机制（已并入 P4-3/4 范围外，需要时单独立项）。</li>
+<li><strong>不引入 ConfigProvider trait</strong>——核实证明四个"滞留"模块本就 tauri-free，直接搬（P6-3）。</li>
+<li><strong>不动</strong>：<code>core::http</code> 客户端工厂、<code>HostHooks</code> 倒置缝、settings 订阅反应模式、MCP tunnel 监督者、ACP terminal 管理、<code>core/time.rs</code>、<code>run_blocking</code> 纪律、<code>set_layout_backend_source</code> 注入模式（这些是全仓库最佳实践，是其他统一工作的模板）。</li>
+<li><strong>不做 crate 三拆</strong>（infra/domain 分离）——待 P2-P6 业务边界收敛后按 <code>docs/development/crate-split-roadmap.md</code> Phase 3 另行评估。</li>
+</ol>
+<h2 id="_6">进度总览<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>主题</th>
+<th>任务数</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td>正确性修复</td>
+<td>8</td>
+<td>未开始</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>IPC 契约统一</td>
+<td>6</td>
+<td>未开始</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>trait Vault 统一</td>
+<td>6</td>
+<td>未开始</td>
+</tr>
+<tr>
+<td>P3</td>
+<td>Jobs 去业务化</td>
+<td>5</td>
+<td>未开始</td>
+</tr>
+<tr>
+<td>P4</td>
+<td>横切基础设施</td>
+<td>7</td>
+<td>未开始</td>
+</tr>
+<tr>
+<td>P5</td>
+<td>Paper 域 + Agent 域</td>
+<td>10</td>
+<td>未开始</td>
+</tr>
+<tr>
+<td>P6</td>
+<td>core/host 收尾</td>
+<td>4</td>
+<td>未开始</td>
+</tr>
+</tbody>
+</table>
+<p>推进节奏建议：P0 全部 → P1-1/P1-2 → P2-1/P2-2（trash 最安全）→ 其余按需并行。P0 与任何阶段可穿插。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.tracking", "navigation.top", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
