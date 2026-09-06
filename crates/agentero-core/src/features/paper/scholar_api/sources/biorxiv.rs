@@ -102,11 +102,7 @@ fn map_item(server: &str, item: &Value) -> Option<ApiPaper> {
     } else {
         format!("https://www.{server}.org/content/{bare_doi}v{version}")
     };
-    let pdf = if version.is_empty() {
-        format!("{landing}.full.pdf")
-    } else {
-        format!("{landing}.full.pdf")
-    };
+    let pdf = format!("{landing}.full.pdf");
 
     Some(ApiPaper {
         identifiers: PaperIdentifiers {
