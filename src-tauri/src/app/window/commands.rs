@@ -172,8 +172,15 @@ pub async fn settings_window_open(
     Ok(())
 }
 
-/// Valid right-rail feature views that may open as a singleton native window.
-const FEATURE_VIEWS: &[&str] = &["agent", "backlinks", "annotations", "references", "figures"];
+/// Valid feature views that may open as a singleton native window.
+const FEATURE_VIEWS: &[&str] = &[
+    "agent",
+    "backlinks",
+    "annotations",
+    "references",
+    "figures",
+    "translation",
+];
 
 pub fn feature_window_label(view: &str) -> String {
     format!("feature-{view}")
@@ -249,6 +256,7 @@ pub async fn feature_window_open(
                 "annotations" => "Annotations".into(),
                 "references" => "References".into(),
                 "figures" => "Figures".into(),
+                "translation" => "Translation".into(),
                 other => other.to_string(),
             });
 

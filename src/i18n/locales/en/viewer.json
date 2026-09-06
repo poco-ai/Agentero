@@ -66,6 +66,11 @@
 			"needLayout": "Run layout analysis first (Figures panel).",
 			"noText": "No extractable text regions to translate.",
 			"failed": "Full-text translate failed"
+		},
+		"translation": {
+			"openWindow": "Open translation window",
+			"noPaper": "Open a paper to see its rendered translation.",
+			"empty": "No rendered translation yet. Run full-text translate in the PDF viewer first."
 		}
 	},
 	"pdfAsk": {

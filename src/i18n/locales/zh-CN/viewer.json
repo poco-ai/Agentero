@@ -66,6 +66,11 @@
 			"needLayout": "请先运行版面分析（Figures 面板）。",
 			"noText": "没有可提取文字的版面区域可翻译。",
 			"failed": "全文翻译失败"
+		},
+		"translation": {
+			"openWindow": "打开翻译窗口",
+			"noPaper": "打开一篇论文以查看渲染好的译文。",
+			"empty": "还没有渲染好的译文。请先在 PDF 阅读器中运行全文翻译。"
 		}
 	},
 	"pdfAsk": {

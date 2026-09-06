@@ -7,6 +7,7 @@ export const DEFAULT_TRANSLATE_SETTINGS: TranslateSettings = {
 	sourceLang: "auto",
 	providerConfigs: {},
 	autoTranslateSelection: false,
+	dualPaneTranslate: false,
 	agentId: "",
 	modelId: "",
 };

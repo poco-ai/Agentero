@@ -9,6 +9,8 @@ import type { PaperSearchGroup, SkillDiscovery } from "@/lib/paper/lookup";
 import type { PaletteMode } from "@/lib/shell/commands/types";
 
 export type RightSidebarTab = "agent" | "annotations";
+/** Views that may live in a singleton native feature window (right-rail + standalone). */
+export type FeatureViewType = RightSidebarTab | "translation";
 export type LayoutMode = "agent" | "notes" | "reading" | "custom";
 
 /** Crop + multi-turn payload when opening a visual-trace pin in Agent. */
@@ -73,7 +75,7 @@ type UiStore = {
 	 * Feature views currently living in a singleton native window.
 	 * Main window uses this to focus the popout instead of only expanding the rail.
 	 */
-	featurePoppedOut: Partial<Record<RightSidebarTab, boolean>>;
+	featurePoppedOut: Partial<Record<FeatureViewType, boolean>>;
 	/** Increment to open magic-wand popover (⇧⌘I). */
 	lookupOpenSignal: number;
 	/** Zotero one-click migration dialog. */
@@ -253,13 +255,13 @@ export function openRightTabInRail(tab: RightSidebarTab): void {
 }
 
 export function setFeaturePoppedOut(
-	tab: RightSidebarTab,
+	view: FeatureViewType,
 	poppedOut: boolean,
 ): void {
 	uiStore.setState((s) => ({
 		featurePoppedOut: {
 			...s.featurePoppedOut,
-			[tab]: poppedOut,
+			[view]: poppedOut,
 		},
 	}));
 }

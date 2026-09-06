@@ -390,6 +390,9 @@
 		"autoSelection": {
 			"label": "PDF 划词后自动翻译"
 		},
+		"dualPane": {
+			"label": "在侧窗中打开渲染好的翻译"
+		},
 		"providerConfig": {
 			"section": "API 服务",
 			"confirm": "确定",

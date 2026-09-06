@@ -64,6 +64,11 @@ const AgentPanel = lazy(() =>
 		default: m.AgentPanel,
 	})),
 );
+const TranslationView = lazy(() =>
+	import("@/components/translation/translation-view").then((m) => ({
+		default: m.TranslationView,
+	})),
+);
 
 function closeCurrentWindow() {
 	if (!isTauri()) return;
@@ -96,12 +101,16 @@ function readFeatureQuery(): {
 
 function viewTitleKey(
 	view: FeatureViewType,
-): "labels.agent" | "titlebar.annotationsPanel" {
+): "labels.agent" | "titlebar.annotationsPanel" | "windows.titleTranslation" {
 	switch (view) {
 		case "agent":
 			return "labels.agent";
 		case "annotations":
 			return "titlebar.annotationsPanel";
+		case "translation":
+			return "windows.titleTranslation";
+		default:
+			return "labels.agent";
 	}
 }
 
@@ -399,6 +408,14 @@ export function FeatureWindowRoot() {
 						vaultPath={vaultPath}
 						vaultPaperPaths={vaultPaperPaths}
 					/>
+				) : view === "translation" ? (
+					<Suspense fallback={null}>
+						<TranslationView
+							selectedPath={selectedPath}
+							vaultPath={vaultPath}
+							vaultPaperPaths={vaultPaperPaths}
+						/>
+					</Suspense>
 				) : null}
 			</div>
 		</div>

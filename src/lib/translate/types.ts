@@ -42,6 +42,11 @@ export type TranslateSettings = {
 	/** PDF consumer: auto-run translate after selection (default off). */
 	autoTranslateSelection: boolean;
 	/**
+	 * Open a secondary window with the rendered full-document translation so the
+	 * original PDF stays on the left and the translation stays on the right.
+	 */
+	dualPaneTranslate: boolean;
+	/**
 	 * Agent seat for provider === "agent".
 	 * Empty = follow registry defaultId.
 	 */

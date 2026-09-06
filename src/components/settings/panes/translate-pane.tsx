@@ -451,6 +451,16 @@ export function TranslatePane({
 						}
 					/>
 				</SettingsRow>
+				<SettingsRow
+					label={t("translate.dualPane.label")}
+					htmlFor="translate-dual-pane"
+				>
+					<Switch
+						id="translate-dual-pane"
+						checked={tr.dualPaneTranslate}
+						onCheckedChange={(v) => patchTranslate({ dualPaneTranslate: v })}
+					/>
+				</SettingsRow>
 			</SettingsGroup>
 
 			<div className="mb-5">

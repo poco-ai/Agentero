@@ -126,6 +126,7 @@ import {
 } from "@/lib/pdf/layout";
 import type { ActiveSelectionCard } from "@/lib/pdf/selection";
 import { PDF_ZOOM_MAX, PDF_ZOOM_MIN } from "@/lib/pdf/zoom";
+import { openFeatureWindow } from "@/lib/shell/feature-window";
 
 export type {
 	PdfViewerHandle,
@@ -370,6 +371,7 @@ function PdfViewerInner({
 	const autoTranslateSelection = useSettings(
 		(s) => s.translate.autoTranslateSelection,
 	);
+	const dualPaneTranslate = useSettings((s) => s.translate.dualPaneTranslate);
 	const paperMeta = useMemo(() => {
 		if (paperMetaProp) return paperMetaProp;
 		if (!paperRelPath) return undefined;
@@ -404,6 +406,10 @@ function PdfViewerInner({
 			setImportBusy(false);
 		}
 	}, [importIdentifier, importBusy]);
+
+	const handleOpenTranslationWindow = useCallback(() => {
+		void openFeatureWindow("translation");
+	}, []);
 
 	const { pageField, setPageField, pageFocusedRef, goToPage, commitPageField } =
 		usePdfNavigation({
@@ -1303,6 +1309,8 @@ function PdfViewerInner({
 				isRemotePaper={isRemotePaper}
 				onImportToLibrary={handleImportToLibrary}
 				importBusy={importBusy}
+				dualPaneTranslate={dualPaneTranslate}
+				onOpenTranslationWindow={handleOpenTranslationWindow}
 			/>
 
 			<DockviewViewport

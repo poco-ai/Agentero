@@ -390,6 +390,9 @@
 		"autoSelection": {
 			"label": "Auto-translate PDF selection"
 		},
+		"dualPane": {
+			"label": "Open rendered translation in a side window"
+		},
 		"providerConfig": {
 			"section": "API Services",
 			"confirm": "Confirm",
