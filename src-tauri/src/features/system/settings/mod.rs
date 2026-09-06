@@ -198,6 +198,8 @@ pub struct TranslateSettings {
     #[serde(default)]
     pub auto_translate_selection: bool,
     #[serde(default)]
+    pub dual_pane_translate: bool,
+    #[serde(default)]
     pub agent_id: String,
     #[serde(default)]
     pub model_id: String,
@@ -211,6 +213,7 @@ impl Default for TranslateSettings {
             source_lang: default_translate_source(),
             provider_configs: HashMap::new(),
             auto_translate_selection: false,
+            dual_pane_translate: false,
             agent_id: String::new(),
             model_id: String::new(),
         }

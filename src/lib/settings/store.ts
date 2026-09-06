@@ -593,6 +593,9 @@ function normalizeTranslateSettings(
 	if (typeof raw.autoTranslateSelection === "boolean") {
 		base.autoTranslateSelection = raw.autoTranslateSelection;
 	}
+	if (typeof raw.dualPaneTranslate === "boolean") {
+		base.dualPaneTranslate = raw.dualPaneTranslate;
+	}
 	if (typeof raw.agentId === "string") {
 		base.agentId = raw.agentId.trim();
 	}
