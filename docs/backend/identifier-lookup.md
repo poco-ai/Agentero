@@ -278,7 +278,7 @@ interface ParsedIdentifier {
 
 兼容性通过分工保留：**搜索只负责「文本 → 候选标识符」**，用户选中后把 `identifier`（arXiv ID 优先，其次 DOI）重新提交 `lookup_import_batch`，Translator 仍是元数据的唯一事实来源，入库管道不分叉。
 
-- 实现：`src-tauri/src/features/import/title_search.rs`
+- 实现：`crates/agentero-core/src/features/paper/import/search_router.rs`
 - 数据源：Semantic Scholar Graph API `/paper/search` 与 **arXiv** `search_query=ti:"…"&sortBy=relevance` **并行**发起；S2 在 5s 预算（`S2_SEARCH_BUDGET`）内返回非空则优先（跨域、带被引数），否则取已在途的 arXiv 结果。最坏耗时 ≈ max(预算, 单请求 20s 超时)，不再是串行 S2→arXiv 之和（~40s）。两者均免 key，复用 `core::http::client_builder()` 与信号量限流（并发 2）。
   > **S2 无 key 的搜索接口限流极严（实测连续 3 次均 429）**，所以 arXiv 才是线上的常走路径；并行发起后 429 快速失败时 arXiv 已在途，省掉一次串行往返。不选 Crossref 兜底：NeurIPS proceedings 之类没有 Crossref DOI，搜 "Attention is all you need" 时正确论文**根本不在** Crossref 结果集里，只会返回一堆同名论文。
   > arXiv 的 Atom 需要按 `<entry>` 切块解析 —— `scholar_api/sources/arxiv.rs::parse_entries` 承担这件事，`fetch_by_id`（limit 1）与 `search_by_title` 共用同一解析器。

@@ -93,7 +93,7 @@ pub async fn import_by_identifier_batch_remote(
     );
     let skipped = preflight.skipped;
     let mut errors = preflight.errors;
-    let search_candidates = crate::features::paper::import::resolve_search_queries(
+    let search_candidates = crate::features::paper::import::search_router::resolve_search_queries(
         &preflight.queries,
         &mut errors,
         args.task_id.as_deref(),

@@ -8,7 +8,7 @@
 
 当时 `features/import/` 里各服务各自维护一套逻辑：
 
-- `title_search.rs`：Semantic Scholar / arXiv 标题搜索，有 `PaperSearchCandidate` —— **保留**至今，作为魔棒搜索对话框的 IPC 出参（有 `From<ApiPaper>` 实现）
+- `title_search.rs`：Semantic Scholar / arXiv 标题搜索，有 `PaperSearchCandidate` —— 已并入 `import/search_router.rs`，仍作为魔棒搜索对话框的 IPC 出参（有 `From<ApiPaper>` 实现）
 - `chain_resolve.rs`：标题解析链，有 `ResolvedCandidate` —— **已删除**，连同该文件里重复的 `candidate_to_meta` / `merge_candidates`；现在直接消费 `ApiPaper`
 - `map.rs`：最终存储格式，有 `PaperMeta` —— **已合并**进 `catalog/papers.rs::PaperRecord`（`PaperMeta` 曾是 `PaperRecord` 的严格字段子集，靠 `paper_record_from_meta` 逐字段手抄桥接，新字段要改四处，`citation_count` 就是在这个接缝上被静默丢掉的；该文件现已移除，Zotero JSON → `PaperRecord` 由 `api_mapper.rs` 经 `ApiPaper` 完成）
 - `mod.rs`：Translator Runtime 特化请求与错误处理
@@ -304,7 +304,7 @@ pub trait BibliographySource: Send + Sync {
 
 - timeout / User-Agent / proxy（复用 `crate::core::http`）
 - JSON / Atom XML / text 获取
-- 请求并发限制（替代 `title_search.rs` 里独立的 Semaphore）
+- 请求并发限制（替代原 `title_search.rs` 里独立的 Semaphore，现位于 `import/search_router.rs`）
 - 状态码和 body 错误包装
 
 每个服务实现里只剩「拼 URL + 解析响应到 `ApiPaper` / `VenueMetrics`」。
@@ -355,8 +355,8 @@ crates/agentero-core/src/features/paper/
 
 3. **阶段 2：Semantic Scholar** ✅
    - 在 `scholar_api/sources/semantic_scholar.rs` 实现 `AcademicApi`
-   - 重写 `title_search.rs` 里的 S2 搜索与 venue 取值（现为 `search_match` / `fetch` / `fetch_venue_by_*` + `venue_from_paper`）
-   - 让 `title_search::search_papers` 跑在新抽象上
+   - 重写原 `title_search.rs` 里的 S2 搜索与 venue 取值（现为 `search_match` / `fetch` / `fetch_venue_by_*` + `venue_from_paper`）
+   - 让 `search_router::search_papers` 跑在新抽象上
 
 4. **阶段 3：OpenAlex** ✅
    - 在 `scholar_api/sources/openalex.rs` 实现 `AcademicApi`

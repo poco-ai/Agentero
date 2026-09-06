@@ -13,10 +13,8 @@ pub use crate::features::scholar_api::identifiers::doi_slug;
 pub use api_mapper::{api_paper_to_meta, enrich_remote_urls, map_zotero_item_to_record};
 
 pub mod download;
-pub mod identifiers;
 pub mod search_router;
 pub mod skill;
-pub mod title_search;
 
 pub use crate::features::paper::capabilities::{has_local_pdf, has_local_tex};
 pub use download::{
@@ -34,13 +32,15 @@ pub use skill::{
     discard_skill_discovery, discover_skill_source, install_discovered_skills, SkillCandidate,
     SkillDiscovery, SkillImportResult, SkillSource,
 };
-pub use title_search::{PaperSearchCandidate, PaperSearchGroup};
 
 // Stable top-level API for the remote import bridge (`remote/import_bridge.rs`)
 // and the Zotero feature (`features/zotero/io.rs`). Other features must depend
-// on these re-exports, not reach into the `batch` / `parse` / `map` internals.
+// on these re-exports, not reach into the `search_router` / `parse` / `map` internals.
 pub use crate::features::scholar_api::identifiers::{extract_arxiv_id, strip_arxiv_version};
-pub use search_router::{preflight_identifier_batch, SkillBatchMode};
+pub use search_router::{
+    extract_primary_identifier, needs_s2_venue_enrichment, preflight_identifier_batch,
+    resolve_search_queries, search_papers, PaperSearchCandidate, PaperSearchGroup, SkillBatchMode,
+};
 // pdf_parse surface consumed by other features (layout_remote compares the
 // cancellation message).
 pub use pdf_parse::CANCELLED_MESSAGE;
@@ -55,7 +55,6 @@ use crate::features::import::download::{AssetDownloadProgress, JOB_PROGRESS_EVEN
 use crate::features::scholar_api::sources::translator::TranslatorApi;
 use crate::features::scholar_api::traits::BibliographySource;
 use futures_util::StreamExt;
-use identifiers::extract_primary_identifier;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -477,36 +476,6 @@ pub async fn import_by_identifier_batch(
         skipped,
         errors,
     })
-}
-
-/// Top-N candidates shown in the magic-wand picker.
-const SEARCH_CANDIDATE_LIMIT: usize = 3;
-
-/// Resolve free-text queries to importable candidates. Empty results and search
-/// failures become errors so a title that matches nothing is never a silent no-op.
-/// A cancelled `task_id` (picker card closed) skips the remaining queries.
-pub async fn resolve_search_queries(
-    queries: &[String],
-    errors: &mut Vec<String>,
-    task_id: Option<&str>,
-) -> Vec<PaperSearchGroup> {
-    let mut groups = Vec::new();
-    for query in queries {
-        if check_task_not_cancelled(task_id).is_err() {
-            break;
-        }
-        match title_search::search_papers(query, SEARCH_CANDIDATE_LIMIT).await {
-            Ok(candidates) if candidates.is_empty() => {
-                errors.push(format!("{query}: no search results"));
-            }
-            Ok(candidates) => groups.push(PaperSearchGroup {
-                query: query.clone(),
-                candidates,
-            }),
-            Err(e) => errors.push(format!("{query}: {e}")),
-        }
-    }
-    groups
 }
 
 fn emit_batch_progress(
@@ -1681,22 +1650,5 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "user template");
 
         let _ = fs::remove_dir_all(&vault);
-    }
-
-    #[tokio::test]
-    async fn cancelled_task_skips_title_search() {
-        let task_id = "test-resolve-search-cancelled";
-        crate::cancel::testing::cancel(task_id);
-        let mut errors = Vec::new();
-        let groups = resolve_search_queries(
-            &["attention is all you need".to_string()],
-            &mut errors,
-            Some(task_id),
-        )
-        .await;
-        crate::cancel::testing::finish(task_id);
-        // Cancelled before the first query runs: no groups, no network, no errors.
-        assert!(groups.is_empty());
-        assert!(errors.is_empty());
     }
 }

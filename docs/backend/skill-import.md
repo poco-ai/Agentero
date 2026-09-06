@@ -72,7 +72,7 @@
 | `npx skills add https://github.com/anthropics/skills --skill pptx` | GitHub 仓库 `anthropics/skills`，Skill 过滤 `pptx` |
 
 回归测试位于 `crates/agentero-core/src/features/paper/scholar_api/sources/skill.rs` 的
-`parses_requested_skill_import_examples`，`import/identifiers.rs` 仍保留
+`parses_requested_skill_import_examples`，`import/search_router.rs` 仍保留
 `extract_primary_identifier` 的优先级测试。
 
 ## 7. 后续

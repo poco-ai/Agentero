@@ -3409,6 +3409,7 @@ export type PaperResolveIdentifierArgs = {
 	translatorBaseUrl?: string | null,
 };
 
+/**  Frontend-facing title/keyword search candidate. */
 export type PaperSearchCandidate = {
 	title: string,
 	authors: string[],
@@ -3424,6 +3425,7 @@ export type PaperSearchCandidate = {
 	source: string,
 };
 
+/**  A query together with its importable candidates. */
 export type PaperSearchGroup = {
 	query: string,
 	candidates: PaperSearchCandidate[],

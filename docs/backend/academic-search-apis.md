@@ -4,17 +4,17 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 
 > 范围限定在**学术元数据与论文发现**相关的外部 HTTP API。翻译 API（Google/Bing/DeepL/OpenAI 等）、版面分析 ONNX、本地 Agent/ACP、PostHog 遥测不在本文讨论范围内。
 
-> 路径简写：`scholar_api/…` 与 `features/paper/import/` 的映射 / resolver / 路由（`scholar_api::identifiers`、`api_mapper.rs`、`title_search.rs`、`search_router.rs`、`download.rs`、`sources/`）已随 crate 拆分迁到 `crates/agentero-core/src/features/paper/…`；`import/recognize/`（标题解析链、PDF 识别）与 `import/commands.rs` 仍在 `src-tauri`。其余 `features/…` 均指 `src-tauri/src/features/…`。
+> 路径简写：`scholar_api/…` 与 `features/paper/import/` 的映射 / resolver / 路由（`scholar_api::identifiers`、`api_mapper.rs`、`search_router.rs`、`download.rs`、`sources/`）已随 crate 拆分迁到 `crates/agentero-core/src/features/paper/…`；`import/recognize/`（标题解析链、PDF 识别）与 `import/commands.rs` 仍在 `src-tauri`。其余 `features/…` 均指 `src-tauri/src/features/…`。
 
 ## 1. API 总览
 
 | 服务 | 主要端点 | 用途 | 核心调用模块 |
 |---|---|---|---|
-| **Semantic Scholar Graph API** | `GET /graph/v1/paper/search` | 标题/关键词搜索 | `features/import/title_search.rs` |
+| **Semantic Scholar Graph API** | `GET /graph/v1/paper/search` | 标题/关键词搜索 | `features/paper/import/search_router.rs` |
 | **Semantic Scholar Graph API** | `GET /graph/v1/paper/{id}/references` | 在线参考文献补全 | `features/refs/online.rs` |
 | **Semantic Scholar Graph API** | `GET /graph/v1/paper/ARXIV:{id}` / `DOI:{doi}` | venue 回填（`publicationVenue.name`） | `features/paper/scholar_api/sources/semantic_scholar.rs`（`fetch_venue_by_*`），调用方 `features/paper/import/commands.rs` |
 | **Semantic Scholar Graph API** | `GET /graph/v1/paper/{id}/citations` | "谁引用了我" 候选发现 | `features/refs/citing.rs` |
-| **arXiv Atom API** | `GET https://export.arxiv.org/api/query` | 按 ID 取元数据 / 按标题搜索 | `features/import/mod.rs`, `features/import/title_search.rs` |
+| **arXiv Atom API** | `GET https://export.arxiv.org/api/query` | 按 ID 取元数据 / 按标题搜索 | `features/paper/import/mod.rs`, `features/paper/import/search_router.rs` |
 | **arXiv 二进制端点** | `https://arxiv.org/pdf/{id}` / `https://arxiv.org/e-print/{id}` / `https://arxiv.org/src/{id}` | PDF / TeX 源码下载 | `features/paper/import/download.rs` |
 | **Crossref REST API** | `GET https://api.crossref.org/works/{doi}` | DOI → 元数据 / 参考文献 | `features/paper/import/recognize/pdf_recognize.rs`, `features/paper/analyze/refs/online.rs`, `features/paper/catalog/commands.rs` |
 | **OpenAlex REST API** | `GET https://api.openalex.org/works` | 标题搜索兜底（含 `cited_by_count`） | `features/paper/import/recognize/chain_resolve.rs` |
@@ -35,7 +35,7 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 
 当前主路径按以下顺序尝试：
 
-1. **标题/关键词搜索**（`features/import/title_search.rs::search_papers`）
+1. **标题/关键词搜索**（`features/paper/import/search_router.rs::search_papers`）
    - Semantic Scholar `GET /graph/v1/paper/search?query=...&fields=title,authors,year,venue,publicationVenue,journal,externalIds,citationCount,url` 与 arXiv Atom `GET export.arxiv.org/api/query?search_query=ti:"..."` **并行**发起。S2 在 5s 预算（`S2_SEARCH_BUDGET`）内返回非空则优先（venue 取 `publicationVenue.name`（跳过 `type=repository`），其次 `journal.name`，再次 `venue`），否则取已在途的 arXiv 结果；最坏耗时 ≈ max(预算, 单请求 20s 超时)。
    - 仅保留带 DOI 或 arXiv id 的候选；返回结果会按精确标题匹配重新排序。
    - `resolve_search_queries` 接收前端 `task_id`：关闭搜索卡片取消任务后，剩余查询直接跳过。

@@ -8,7 +8,7 @@ use crate::core::remote::parse_remote_handle;
 use crate::features::paper::catalog::papers::PaperRecord;
 use crate::features::paper::catalog::CapsCache;
 use crate::features::paper::import::pdf_parse::{PaperParseBodyArgs, PaperParseResult};
-use crate::features::paper::import::title_search::{needs_s2_venue_enrichment, search_papers};
+use crate::features::paper::import::search_router::{needs_s2_venue_enrichment, search_papers};
 use crate::features::paper::import::RemoteImportOps;
 use crate::features::paper::import::{
     AssetDownloadResult, ImportLocalPdfArgs, ImportLocalPdfResult, LookupImportBatchArgs,
@@ -214,7 +214,7 @@ pub async fn paper_resolve_identifier(args: PaperResolveIdentifierArgs) -> ApiRe
     let try_identifier =
         agentero_core::features::paper::scholar_api::identifiers::extract_skill_source(&args.text)
             .is_none()
-            && super::identifiers::extract_primary_identifier(&args.text).is_some();
+            && super::search_router::extract_primary_identifier(&args.text).is_some();
 
     if try_identifier {
         let base = args
