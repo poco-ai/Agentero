@@ -62,6 +62,15 @@ The reading result is written to the paper's `NOTES.md`, and the paper is marked
 5. Choose the default Agent.
 6. Start a test conversation.
 
+### Agents not directly supported
+
+The following desktop apps currently **cannot** be used as in-app Agentero agents:
+
+- **OpenAI Codex desktop app**: Agentero connects to **Codex CLI** (the command-line version) through the `@agentclientprotocol/codex-acp` adapter; the standalone Codex desktop app does not expose an interface that Agentero can connect to.
+- **WorkBuddy (Tencent)**: Agentero does not yet have an ACP adapter template for WorkBuddy, so it cannot be connected directly.
+
+To use Codex, install Codex CLI and connect it via `codex-acp`. There is no supported way to connect WorkBuddy at this time.
+
 ## Troubleshooting
 
 ### Q1: An Agent is not detected
