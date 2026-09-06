@@ -12,9 +12,9 @@ pub mod api_mapper;
 pub use crate::features::scholar_api::identifiers::doi_slug;
 pub use api_mapper::{api_paper_to_meta, enrich_remote_urls, map_zotero_item_to_record};
 
-pub mod batch;
 pub mod download;
 pub mod identifiers;
+pub mod search_router;
 pub mod skill;
 pub mod title_search;
 
@@ -40,7 +40,7 @@ pub use title_search::{PaperSearchCandidate, PaperSearchGroup};
 // and the Zotero feature (`features/zotero/io.rs`). Other features must depend
 // on these re-exports, not reach into the `batch` / `parse` / `map` internals.
 pub use crate::features::scholar_api::identifiers::{extract_arxiv_id, strip_arxiv_version};
-pub use batch::{preflight_identifier_batch, SkillBatchMode};
+pub use search_router::{preflight_identifier_batch, SkillBatchMode};
 // pdf_parse surface consumed by other features (layout_remote compares the
 // cancellation message).
 pub use pdf_parse::CANCELLED_MESSAGE;
@@ -381,10 +381,10 @@ pub async fn import_by_identifier_batch(
 
     let skills: Vec<SkillImportResult> = Vec::new();
     let mut skill_candidates: Vec<SkillDiscovery> = Vec::new();
-    let mut preflight = batch::preflight_identifier_batch(
+    let mut preflight = search_router::preflight_identifier_batch(
         &args.texts,
         &vault,
-        batch::SkillBatchMode::Collect,
+        search_router::SkillBatchMode::Collect,
         false,
     );
 

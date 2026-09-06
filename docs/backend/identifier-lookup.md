@@ -228,7 +228,7 @@ UI 阅读：优先 catalog 远程 URL；`source/` 为 arXiv TeX 归档；`PAPER.
 | **arXiv** | `1706.03762`、`arXiv:1706.03762v1`、abs URL | arXiv Search Translator 或 Agentero arXiv API |
 | **ADS Bibcode** | `2015ApJ...810...89S` | ADS 相关 Search Translator |
 
-批量：魔棒输入框支持一次粘贴多个标识符，按**换行 / 回车、逗号 `,`、分号 `;`、中文逗号 `，`、中文分号 `；`**拆分（正则 `/[\n\r,;，；]+/`）。空格**不再**是分隔符 —— 论文标题与 `npx skills add …` 都含空格，必须整段送到 Host。Host 侧 `classify_segment`（`src-tauri/src/features/import/batch.rs`）按以下顺序判定每一段：
+批量：魔棒输入框支持一次粘贴多个标识符，按**换行 / 回车、逗号 `,`、分号 `;`、中文逗号 `，`、中文分号 `；`**拆分（正则 `/[\n\r,;，；]+/`）。空格**不再**是分隔符 —— 论文标题与 `npx skills add …` 都含空格，必须整段送到 Host。Host 侧 `classify_segment`（`crates/agentero-core/src/features/paper/import/search_router.rs`）按以下顺序判定每一段：
 
 1. 单 token → `extract_primary_identifier`，命中即标识符，否则转标题搜索。
 2. 多 token 且整段是 Skill 来源（`npx skills add …`）→ 单条 Skill。

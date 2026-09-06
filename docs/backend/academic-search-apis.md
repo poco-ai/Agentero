@@ -4,7 +4,7 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 
 > 范围限定在**学术元数据与论文发现**相关的外部 HTTP API。翻译 API（Google/Bing/DeepL/OpenAI 等）、版面分析 ONNX、本地 Agent/ACP、PostHog 遥测不在本文讨论范围内。
 
-> 路径简写：`scholar_api/…` 与 `features/paper/import/` 的映射 / resolver / 批处理（`scholar_api::identifiers`、`api_mapper.rs`、`title_search.rs`、`batch.rs`、`download.rs`、`sources/`）已随 crate 拆分迁到 `crates/agentero-core/src/features/paper/…`；`import/recognize/`（标题解析链、PDF 识别）与 `import/commands.rs` 仍在 `src-tauri`。其余 `features/…` 均指 `src-tauri/src/features/…`。
+> 路径简写：`scholar_api/…` 与 `features/paper/import/` 的映射 / resolver / 路由（`scholar_api::identifiers`、`api_mapper.rs`、`title_search.rs`、`search_router.rs`、`download.rs`、`sources/`）已随 crate 拆分迁到 `crates/agentero-core/src/features/paper/…`；`import/recognize/`（标题解析链、PDF 识别）与 `import/commands.rs` 仍在 `src-tauri`。其余 `features/…` 均指 `src-tauri/src/features/…`。
 
 ## 1. API 总览
 

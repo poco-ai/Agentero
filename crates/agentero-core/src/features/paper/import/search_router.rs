@@ -1,3 +1,9 @@
+//! Route raw lookup inputs to the right import pipeline.
+//!
+//! `preflight_identifier_batch` classifies each user-supplied segment as a paper
+//! identifier, a Skill source, or a free-text search query, and performs batch
+//! deduplication / catalog lookup so the caller can dispatch the right follow-up.
+
 use std::collections::HashMap;
 use std::path::Path;
 
