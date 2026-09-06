@@ -28,7 +28,7 @@
 | `locale` | `AppSettings.locale` |
 | `timezone` | 本地 UTC 偏移（如 `+08:00`） |
 | `tauri_version` | `tauri::VERSION` |
-| `installed_agents` | 已注册 Agent 的 template id 数组（如 `["claude-acp","gemini"]`，排序去重；`AgentRegistry::telemetry_summary()`，只读注册表、无 PATH 探测） |
+| `installed_agents` | 已注册 Agent 的 template id 数组（如 `["antigravity","claude-acp"]`，排序去重；`AgentRegistry::telemetry_summary()`，只读注册表、无 PATH 探测） |
 | `custom_agent_count` | 已注册的自定义 Agent 数量（不含名称/命令） |
 | `$session_id` | 本次运行生成的 UUID（PostHog 保留属性，Sessions 口径依赖它） |
 

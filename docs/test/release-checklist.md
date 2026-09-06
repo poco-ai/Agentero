@@ -354,7 +354,7 @@ cargo test -p agentero-cli
 | # | 界面 | 操作 | 预期 | 结果 |
 |---|---|---|---|---|
 | 11.0.1 | 右栏·Agent | 未配置 Agent 时打开面板 | 有安装/配置指引；**左栏库与 PDF 仍可用** | ☐ |
-| 11.0.2 | 设置 → Agent | 本机未装 Claude/Codex/OpenCode/Gemini 等预设 Agent 时，点「安装」/「安装 ACP」 | 静默执行官方 installer；安装成功后探测状态变绿 | ☐ |
+| 11.0.2 | 设置 → Agent | 本机未装 Claude/Codex/OpenCode/Antigravity 等预设 Agent 时，点「安装」/「安装 ACP」 | 静默执行官方 installer；安装成功后探测状态变绿 | ☐ |
 | 11.0.3 | 设置 → Agent | 已装 Agent 有可用更新时，点「升级」 | 升级成功；版本号或探测状态更新 | ☐ |
 
 ### 11.1 对话

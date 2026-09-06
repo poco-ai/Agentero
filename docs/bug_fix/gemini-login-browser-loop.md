@@ -1,5 +1,7 @@
 # Windows 上 Gemini CLI 反复弹浏览器登录
 
+> 历史复盘：Gemini CLI 已被 Google Antigravity CLI 取代，Agentero 的 Agent 模板也已从 Gemini 迁移到 Antigravity。本文档保留当时的分析与修复思路，新模板的 `NO_BROWSER=true` 逻辑继承至 Antigravity。
+
 ## 现象
 
 Windows 11 安装 exe 后，打开 Chat 面板 / 设置页时应用不断拉起系统浏览器，跳转 Gemini（Google OAuth）登录页，且登录始终无法完成。

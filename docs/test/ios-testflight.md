@@ -220,7 +220,7 @@ NOTES.md editor and write back to the desktop.
 
 CHAT WITH YOUR OWN AGENT
 Use the Agent tab to talk to the ACP Agent you already have installed
-on your computer — Claude, Codex, OpenCode, Gemini, Qoder, Grok, or
+on your computer — Claude, Codex, OpenCode, Antigravity, Qoder, Grok, or
 any ACP-compatible CLI. Streaming replies, history, and permission
 prompts are forwarded from the desktop.
 
@@ -356,7 +356,7 @@ catalog 和 ACP Agent 都留在你的桌面上；手机只负责渲染和缓存�
 
 与自己的 Agent 对话
 用 Agent 标签页和你已经在电脑上安装的 ACP Agent 聊天——
-Claude、Codex、OpenCode、Gemini、Qoder、Grok 或任意兼容 ACP
+Claude、Codex、OpenCode、Antigravity、Qoder、Grok 或任意兼容 ACP
 的 CLI。流式回复、历史会话和权限确认都由桌面转发过来。
 
 为隐私而生
