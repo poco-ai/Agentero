@@ -19,6 +19,12 @@ export type DockHandle = {
 	cycleActive: (delta: number) => void;
 	/** Activate an existing panel by id. */
 	activatePanel: (panelId: string) => void;
+	/**
+	 * True when `activatePanel` can actually bring the panel to a visible
+	 * group (i.e. the panel is registered in this dock, not in a split
+	 * pane / popout window this handle cannot see).
+	 */
+	canActivatePanel: (panelId: string) => boolean;
 	/** Make all visible Dockview grid groups equal width. */
 	equalizeGridGroups: () => void;
 };

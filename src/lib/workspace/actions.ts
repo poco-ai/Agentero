@@ -312,11 +312,20 @@ export function openTab(
 			(opts?.forceNotes || loadSettings().autoOpenPaperNotes);
 		if (wantDefaultNotes && res.notesPath) {
 			const notesId = tabIdForPath(res.notesPath);
-			const notesAlreadyOpen = getTabs().some((t) => t.id === notesId);
-			if (notesAlreadyOpen) {
+			const notesTab = getTabs().find((t) => t.id === notesId) ?? null;
+			// The notes tab existing in state is not enough: after layout
+			// restores it may live in a split pane / popout that
+			// `activatePanel` cannot bring beside this paper. Reopen it via
+			// the reading placement so it stacks into a visible notes column.
+			if (notesTab && dockHandle()?.canActivatePanel(notesId)) {
 				dockHandle()?.activatePanel(notesId);
 				dockHandle()?.activatePanel(id);
 			} else {
+				if (notesTab) {
+					// Drop the unreachable panel from state so the reopen below
+					// can register a fresh one under the same id.
+					setTabs((prev) => prev.filter((t) => t.id !== notesId));
+				}
 				const paperLike = {
 					...createPlaceholderTab(path, res.mode),
 					...patch,
