@@ -10,14 +10,11 @@ use flate2::read::GzDecoder;
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
-use super::assets::{extract_tar_safe, http_get_bytes_with_progress, AssetProgressAggregator};
+use super::download::{extract_tar_safe, http_get_bytes_with_progress, AssetProgressAggregator};
 use super::AppHandle;
 use crate::error::AppError;
+pub use crate::features::scholar_api::identifiers::SkillSource;
 use crate::frontmatter::{frontmatter_block, scalar_field};
-
-pub use source::{extract_skill_source, skill_identifier, SkillSource, SKILL_KIND};
-
-mod source;
 
 const MAX_ARCHIVE_BYTES: usize = 64 * 1024 * 1024;
 const MAX_EXTRACTED_FILES: usize = 2_000;

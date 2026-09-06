@@ -1531,7 +1531,7 @@ pub fn emit_job_changed(app: &tauri::AppHandle, job: JobSnapshot) {
 /// because core cannot reach the JobCenter.
 pub fn emit_job_progress(app: &tauri::AppHandle, payload: &impl Serialize) {
     let _ = app.emit(
-        agentero_core::features::paper::import::assets::JOB_PROGRESS_EVENT,
+        agentero_core::features::paper::import::download::JOB_PROGRESS_EVENT,
         payload,
     );
 }

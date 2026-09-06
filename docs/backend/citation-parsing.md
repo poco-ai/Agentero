@@ -4,7 +4,7 @@
 
 ## 1. 背景与现状
 
-- arXiv 入库时 e-print 已完整解压到 `{paper}/source/`（`src-tauri/src/features/import/assets.rs` `unpack_arxiv_eprint`），其中**天然包含 `.bbl`、偶有 `.bib`**。
+- arXiv 入库时 e-print 已完整解压到 `{paper}/source/`（`crates/agentero-core/src/features/paper/import/download.rs` `unpack_arxiv_eprint`），其中**天然包含 `.bbl`、偶有 `.bib`**。
 - 非 arXiv PDF 入库后由 liteparse 生成 `PAPER.md`（`src-tauri/src/features/paper/analyze/parse/mod.rs`），References 段以纯文本存在，`extract_links: true` 已开启。
 - catalog（v3）没有 references 存储，仅有标量 `citation_count`。
 - PDF 查看器（EmbedPDF / PDFium）已加载页内 Link annotation，文中 citation 点击可跳转；`goToPage` 与 destination 解析（`src/lib/pdf/bookmark.ts`）已有基础。

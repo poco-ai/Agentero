@@ -101,7 +101,7 @@ pub struct SettingsChangedEvent(pub crate::features::system::settings::AppSettin
 #[derive(specta::Type, tauri_specta::Event)]
 #[tauri_specta(event_name = "job:progress")]
 pub struct JobProgressEvent(
-    pub agentero_core::features::paper::import::assets::AssetDownloadProgress,
+    pub agentero_core::features::paper::import::download::AssetDownloadProgress,
 );
 
 /// Owned mirror of the private `CloudProgressPayload` in

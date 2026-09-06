@@ -4,9 +4,10 @@ use std::path::Path;
 use crate::features::catalog::papers;
 
 use super::identifiers::extract_primary_identifier;
-use super::skill::{extract_skill_source, skill_identifier, SkillSource};
 use super::SkippedImport;
-use crate::features::scholar_api::identifiers::ResolvedIdentifier;
+use crate::features::scholar_api::identifiers::{
+    extract_skill_source, skill_identifier, ResolvedIdentifier, SkillSource,
+};
 
 pub enum SkillBatchMode {
     Collect,

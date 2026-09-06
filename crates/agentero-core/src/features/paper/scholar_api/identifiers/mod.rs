@@ -11,6 +11,9 @@ pub mod parsers;
 pub(crate) mod fallback;
 pub(crate) mod resolver;
 
+pub use crate::features::scholar_api::sources::skill::{
+    extract_skill_source, skill_identifier, SkillSource, SKILL_KIND,
+};
 pub use kind::{ResolvedIdentifier, ADS, ARXIV, DOI, ISBN, PMID, URL};
 pub use parsers::{
     clean_doi, clean_isbn, doi_slug, extract_arxiv_id, regex_ads, regex_pmid, strip_arxiv_version,

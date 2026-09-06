@@ -1,11 +1,18 @@
-//! Download PDF + arXiv LaTeX source into a paper folder's `source/`.
+//! Paper asset download: PDF + arXiv LaTeX source fetch, byte progress aggregation,
+//! and on-demand re-download for an existing paper folder.
 //!
-//! Flow: always try PDF → arXiv also tries e-print TeX → caller may liteparse when no TeX.
+//! Flow:
+//! - `ensure_paper_assets*` is used by the commit pipeline to fetch resources for
+//!   a freshly created paper folder.
+//! - `download_paper_assets*` is the on-demand entry for an existing folder
+//!   (Library right-click / CLI `paper download`).
+//! - Always try PDF; arXiv IDs also try e-print TeX; caller runs liteparse when
+//!   no TeX is available.
 
-use super::AppHandle;
+use super::{AppHandle, PaperDownloadAssetsArgs};
 use crate::error::AppError;
-use crate::features::catalog::{probe_paper_caps, CapsCache};
-use crate::features::scholar_api::identifiers::strip_arxiv_version;
+use crate::features::catalog::{papers, probe_paper_caps, CapsCache};
+use crate::features::scholar_api::identifiers::{extract_arxiv_id, strip_arxiv_version};
 use crate::http;
 use flate2::read::GzDecoder;
 use serde::Serialize;
@@ -15,6 +22,13 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
 use tar::Archive;
+
+/// Upper bound for the network asset phase of one paper import.
+///
+/// Individual requests have shorter reqwest timeouts, but an import may try
+/// several PDF fallbacks before fetching the arXiv source. Keep the whole
+/// phase bounded so one paper cannot hold an import task indefinitely.
+pub const PAPER_ASSET_TIMEOUT: Duration = Duration::from_secs(3 * 60);
 
 #[derive(Debug, Default, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -300,7 +314,7 @@ pub async fn ensure_paper_assets_with_progress(
     progress: AssetProgressContext<'_>,
 ) -> Result<AssetDownloadResult, AppError> {
     tokio::time::timeout(
-        super::PAPER_ASSET_TIMEOUT,
+        PAPER_ASSET_TIMEOUT,
         ensure_paper_assets_impl(
             paper_dir, vault, paper_path, id, arxiv_id, pdf_url, doi, cookies, cache, progress,
         ),
@@ -309,7 +323,7 @@ pub async fn ensure_paper_assets_with_progress(
     .map_err(|_| {
         AppError::message(format!(
             "asset download timeout after {}s",
-            super::PAPER_ASSET_TIMEOUT.as_secs()
+            PAPER_ASSET_TIMEOUT.as_secs()
         ))
     })?
 }
@@ -325,7 +339,7 @@ pub async fn ensure_paper_assets_with_cookies(
     cookies: Option<&str>,
 ) -> Result<AssetDownloadResult, AppError> {
     tokio::time::timeout(
-        super::PAPER_ASSET_TIMEOUT,
+        PAPER_ASSET_TIMEOUT,
         ensure_paper_assets_impl(
             paper_dir,
             paper_dir,
@@ -346,7 +360,7 @@ pub async fn ensure_paper_assets_with_cookies(
     .map_err(|_| {
         AppError::message(format!(
             "asset download timeout after {}s",
-            super::PAPER_ASSET_TIMEOUT.as_secs()
+            PAPER_ASSET_TIMEOUT.as_secs()
         ))
     })?
 }
@@ -905,7 +919,7 @@ pub(crate) async fn http_get_bytes_with_progress(
     progress: StreamProgress<'_, '_>,
 ) -> Result<Vec<u8>, AppError> {
     let task_id = progress.task_id();
-    crate::features::import::check_task_not_cancelled(task_id)?;
+    super::check_task_not_cancelled(task_id)?;
     // Each attempt counts from zero: PDF falls back across candidate URLs.
     progress.restart();
     let client = http::client_with(timeout, 10, http::BROWSER_USER_AGENT)?;
@@ -919,7 +933,7 @@ pub(crate) async fn http_get_bytes_with_progress(
         .send()
         .await
         .map_err(|e| AppError::message(format!("download: {e}")))?;
-    crate::features::import::check_task_not_cancelled(task_id)?;
+    super::check_task_not_cancelled(task_id)?;
     if !res.status().is_success() {
         return Err(AppError::message(format!("download HTTP {}", res.status())));
     }
@@ -932,7 +946,7 @@ pub(crate) async fn http_get_bytes_with_progress(
         .map_err(|e| AppError::message(format!("download body: {e}")))?
     {
         if let Some(task_id) = task_id {
-            if crate::features::import::is_task_cancelled(task_id) {
+            if super::is_task_cancelled(task_id) {
                 return Err(AppError::message("background task cancelled"));
             }
         }
@@ -946,6 +960,122 @@ pub(crate) async fn http_get_bytes_with_progress(
     // the last chunk: the task bar must reach the final byte count.
     progress.finish();
     Ok(bytes)
+}
+
+/// On-demand download of PDF (+ arXiv LaTeX) for an existing paper folder.
+pub async fn download_paper_assets(
+    args: PaperDownloadAssetsArgs,
+) -> Result<AssetDownloadResult, AppError> {
+    download_paper_assets_with_progress(args, None, None).await
+}
+
+pub async fn download_paper_assets_with_progress(
+    args: PaperDownloadAssetsArgs,
+    app: Option<&AppHandle>,
+    cache: Option<&CapsCache>,
+) -> Result<AssetDownloadResult, AppError> {
+    // Resolve the vault/paper folder (fs::canonicalize) and read the catalog
+    // row (rusqlite, which acquires the process-wide catalog lock) on the
+    // blocking pool so neither a slow filesystem nor a held catalog lock stalls
+    // a tokio worker.
+    let vault_arg = args.vault_path.clone();
+    let path_arg = args.path.clone();
+    let (vault, paper_dir, path_rel, id, arxiv_id, pdf_url, doi, rebuilt_row) =
+        tokio::task::spawn_blocking(move || {
+            let vault = crate::fs::resolve_vault(&vault_arg)?;
+            let (paper_dir, path_rel) = crate::fs::resolve_paper_dir(&vault, &path_arg)?;
+
+            let resolved = if let Ok(Some(row)) = papers::get_by_path(&vault, &path_rel) {
+                (row.id, row.arxiv_id, row.pdf_url, row.doi, None)
+            } else if let Ok(Some(row)) = papers::ensure_row_for_path(&vault, &path_rel) {
+                // Orphaned folder (import failed after shell + folder were written but
+                // before the catalog row landed): rebuild the row so the Library sees it.
+                (
+                    row.id.clone(),
+                    row.arxiv_id,
+                    row.pdf_url,
+                    row.doi,
+                    Some(row.id),
+                )
+            } else {
+                // Fallback: folder name as id; treat as arXiv if it looks like one
+                let name = paper_dir
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("paper")
+                    .to_string();
+                let arxiv = extract_arxiv_id(&name);
+                let pdf = arxiv
+                    .as_ref()
+                    .map(|a| format!("https://arxiv.org/pdf/{}", a));
+                (name, arxiv, pdf, None, None)
+            };
+            let (id, arxiv_id, pdf_url, doi, rebuilt_row) = resolved;
+            Ok::<_, AppError>((
+                vault,
+                paper_dir,
+                path_rel,
+                id,
+                arxiv_id,
+                pdf_url,
+                doi,
+                rebuilt_row,
+            ))
+        })
+        .await
+        .map_err(|e| AppError::message(format!("blocking task failed: {e}")))??;
+
+    if let Some(row_id) = rebuilt_row {
+        crate::features::lifecycle::emit_paper_imported(app, &vault, &row_id);
+    }
+
+    let result = ensure_paper_assets_with_progress(
+        &paper_dir,
+        &vault,
+        &path_rel,
+        &id,
+        arxiv_id.as_deref(),
+        pdf_url.as_deref(),
+        doi.as_deref(),
+        None,
+        cache,
+        AssetProgressContext {
+            app,
+            task_id: args.task_id.as_deref(),
+        },
+    )
+    .await?;
+    super::check_task_not_cancelled(args.task_id.as_deref())?;
+
+    // When TeX was downloaded into source/, record body_source = "latex" in catalog
+    // so the frontend doesn't show "download TeX" even though source/ is lazy-loaded.
+    // The catalog read/write acquires the process-wide catalog lock, so run it on
+    // the blocking pool. Errors were already ignored; a blocking join error is too.
+    if result.tex {
+        let vault_owned = vault.clone();
+        let path_owned = path_rel.clone();
+        let _ = tokio::task::spawn_blocking(move || {
+            if let Ok(Some(mut row)) = papers::get_by_path(&vault_owned, &path_owned) {
+                let changed = row.body_source.as_deref() != Some("latex");
+                if changed {
+                    row.body_source = Some("latex".to_string());
+                    row.body_quality = Some("high".to_string());
+                    row.updated_at = crate::time::now_rfc3339_millis();
+                    let _ = papers::upsert_paper(&vault_owned, &row);
+                }
+            }
+        })
+        .await;
+    }
+
+    if result.pdf && !result.tex && !result.paper_md {
+        if let Some(app) = app {
+            app.spawn_parse_body_after_assets(&vault, &path_rel, false);
+        }
+    }
+
+    crate::features::refs::spawn_parse_after_import(app, &vault, &path_rel);
+    Ok(result)
 }
 
 fn safe_filename(id: &str, ext: &str) -> String {

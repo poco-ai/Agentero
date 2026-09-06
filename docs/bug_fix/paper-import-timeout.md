@@ -10,7 +10,7 @@ Bib/RIS 导入以及 Zotero Connector 的后台资源任务仍可能长时间没
 
 ## 修复
 
-- `features/import/assets.rs` 对一篇论文的整个资源阶段增加 3 分钟截止时间。
+- `features/paper/import/download.rs` 对一篇论文的整个资源阶段增加 3 分钟截止时间。
 - 截止时间覆盖 PDF fallback、Crossref、Unpaywall 和 arXiv e-print。
 - 共享资源入口因此同时覆盖魔棒、Bib/RIS、Connector，以及其它调用
   `ensure_paper_assets_*` 的导入路径。

@@ -5,9 +5,7 @@
 //! [`scholar_api::identifiers`](crate::features::scholar_api::identifiers) in
 //! priority order.
 
-use crate::features::scholar_api::identifiers::ResolvedIdentifier;
-
-use super::skill::skill_identifier;
+use crate::features::scholar_api::identifiers::{skill_identifier, ResolvedIdentifier};
 
 /// Returns the first recognized identifier in `text`.
 pub fn extract_primary_identifier(text: &str) -> Option<ResolvedIdentifier> {
@@ -23,8 +21,8 @@ pub fn extract_primary_identifier(text: &str) -> Option<ResolvedIdentifier> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::skill::{extract_skill_source, SKILL_KIND};
     use super::*;
+    use crate::features::scholar_api::identifiers::{extract_skill_source, SKILL_KIND};
 
     #[test]
     fn extract_primary_identifier_priority_order() {

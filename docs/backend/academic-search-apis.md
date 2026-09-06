@@ -4,7 +4,7 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 
 > 范围限定在**学术元数据与论文发现**相关的外部 HTTP API。翻译 API（Google/Bing/DeepL/OpenAI 等）、版面分析 ONNX、本地 Agent/ACP、PostHog 遥测不在本文讨论范围内。
 
-> 路径简写：`scholar_api/…` 与 `features/paper/import/` 的映射 / resolver / 批处理（`scholar_api::identifiers`、`api_mapper.rs`、`title_search.rs`、`batch.rs`、`assets.rs`、`sources/`）已随 crate 拆分迁到 `crates/agentero-core/src/features/paper/…`；`import/recognize/`（标题解析链、PDF 识别）与 `import/commands.rs` 仍在 `src-tauri`。其余 `features/…` 均指 `src-tauri/src/features/…`。
+> 路径简写：`scholar_api/…` 与 `features/paper/import/` 的映射 / resolver / 批处理（`scholar_api::identifiers`、`api_mapper.rs`、`title_search.rs`、`batch.rs`、`download.rs`、`sources/`）已随 crate 拆分迁到 `crates/agentero-core/src/features/paper/…`；`import/recognize/`（标题解析链、PDF 识别）与 `import/commands.rs` 仍在 `src-tauri`。其余 `features/…` 均指 `src-tauri/src/features/…`。
 
 ## 1. API 总览
 
@@ -15,10 +15,10 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 | **Semantic Scholar Graph API** | `GET /graph/v1/paper/ARXIV:{id}` / `DOI:{doi}` | venue 回填（`publicationVenue.name`） | `features/paper/scholar_api/sources/semantic_scholar.rs`（`fetch_venue_by_*`），调用方 `features/paper/import/commands.rs` |
 | **Semantic Scholar Graph API** | `GET /graph/v1/paper/{id}/citations` | "谁引用了我" 候选发现 | `features/refs/citing.rs` |
 | **arXiv Atom API** | `GET https://export.arxiv.org/api/query` | 按 ID 取元数据 / 按标题搜索 | `features/import/mod.rs`, `features/import/title_search.rs` |
-| **arXiv 二进制端点** | `https://arxiv.org/pdf/{id}` / `https://arxiv.org/e-print/{id}` / `https://arxiv.org/src/{id}` | PDF / TeX 源码下载 | `features/import/assets.rs` |
+| **arXiv 二进制端点** | `https://arxiv.org/pdf/{id}` / `https://arxiv.org/e-print/{id}` / `https://arxiv.org/src/{id}` | PDF / TeX 源码下载 | `features/paper/import/download.rs` |
 | **Crossref REST API** | `GET https://api.crossref.org/works/{doi}` | DOI → 元数据 / 参考文献 | `features/paper/import/recognize/pdf_recognize.rs`, `features/paper/analyze/refs/online.rs`, `features/paper/catalog/commands.rs` |
 | **OpenAlex REST API** | `GET https://api.openalex.org/works` | 标题搜索兜底（含 `cited_by_count`） | `features/paper/import/recognize/chain_resolve.rs` |
-| **Unpaywall** | `GET https://api.unpaywall.org/v2/{doi}` | DOI → 开放获取 PDF | `features/import/assets.rs` |
+| **Unpaywall** | `GET https://api.unpaywall.org/v2/{doi}` | DOI → 开放获取 PDF | `features/paper/import/download.rs` |
 | **PubMed / NCBI E-utilities** | `GET https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi` / `efetch.fcgi` | 标题/PMID → 医学/生命科学元数据 | `features/paper/scholar_api/sources/pubmed.rs` |
 | **bioRxiv** | `GET https://api.biorxiv.org/details/biorxiv/{doi}` | DOI → 生命科学预印本元数据 | `features/paper/scholar_api/sources/biorxiv.rs` |
 | **medRxiv** | `GET https://api.biorxiv.org/details/medrxiv/{doi}` | DOI → 医学预印本元数据 | `features/paper/scholar_api/sources/biorxiv.rs` |
@@ -139,7 +139,7 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 
 ### 2.10 PDF / TeX 资产下载
 
-入口：`features/import/assets.rs`。
+入口：`features/paper/import/download.rs`。
 
 - arXiv PDF 候选链：`https://arxiv.org/pdf/{id}` → `https://arxiv.org/pdf/{id}.pdf` → `https://export.arxiv.org/pdf/{id}`。
 - arXiv TeX 源码：`https://arxiv.org/e-print/{id}`（`/src/` 为别名）。
