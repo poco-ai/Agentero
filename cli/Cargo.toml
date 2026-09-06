@@ -1,6 +1,6 @@
 [package]
 name = "agentero-cli"
-version = "0.9.4"
+version = "0.9.5"
 edition = "2021"
 description = "Headless Agentero CLI for Vault / Catalog (no BYOA)"
 authors = ["you"]

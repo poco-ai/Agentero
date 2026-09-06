@@ -2,7 +2,7 @@
 name = "agentero-core"
 # Keep in lockstep with the `agentero` / `agentero-cli` versions: `core::http`
 # bakes `CARGO_PKG_VERSION` into the product User-Agent string.
-version = "0.9.4"
+version = "0.9.5"
 edition = "2021"
 description = "Tauri-independent foundations of Agentero (errors, fs, http, paths, sqlite, usage log)"
 authors = ["you"]
