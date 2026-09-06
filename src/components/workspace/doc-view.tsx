@@ -32,6 +32,11 @@ const PlazaView = lazy(() =>
 		default: m.PlazaView,
 	})),
 );
+const TranslationView = lazy(() =>
+	import("@/components/translation/translation-view").then((m) => ({
+		default: m.TranslationView,
+	})),
+);
 
 /** Library-tab-only props (ignored by PDF / editor / trash). */
 export type DocViewLibraryProps = {
@@ -78,6 +83,15 @@ export type DocViewPdfProps = {
 	onHighlightsChange: (tabId: string, list: PdfHighlight[]) => void;
 	onAsksChange: (tabId: string, list: PdfAskThread[]) => void;
 	onVisualTracesChange: (tabId: string, list: PdfVisualSessionTrace[]) => void;
+	/**
+	 * Open a rendered-translation tab split to the right of the current PDF panel.
+	 * Called by the full-document translate button when dual-pane mode is on.
+	 */
+	onOpenTranslationTab?: (
+		paperTabId: string,
+		paperAbsPath: string | null,
+		paperTitle?: string | null,
+	) => void;
 };
 
 export type DocViewProps = {
@@ -151,6 +165,7 @@ function docViewPropsEqual(prev: DocViewProps, next: DocViewProps): boolean {
 	if (tab.kind === "plaza") return true;
 	if (tab.mode === "markdown") return prev.editor === next.editor;
 	if (tab.mode === "pdf") return prev.pdf === next.pdf;
+	if (tab.mode === "translation") return true;
 	return true;
 }
 
@@ -310,7 +325,17 @@ export const DocView = memo(function DocView({
 						onHighlightsChange={handlePdfHighlightsChange}
 						onAsksChange={handlePdfAsksChange}
 						onVisualTracesChange={handlePdfVisualTracesChange}
+						onOpenTranslationTab={pdf.onOpenTranslationTab}
 					/>
+				</Suspense>
+			</div>
+		);
+	}
+	if (tab.mode === "translation") {
+		return (
+			<div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+				<Suspense fallback={<TabLoadingSkeleton />}>
+					<TranslationView paperAbsPath={tab.path} />
 				</Suspense>
 			</div>
 		);

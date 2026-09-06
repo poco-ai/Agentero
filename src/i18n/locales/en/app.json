@@ -122,7 +122,6 @@
 		"docDesktopOnly": "Document windows require the desktop app.",
 		"titleAgent": "Agent",
 		"titleAnnotations": "Annotations",
-		"titleTranslation": "Translation",
 		"titleDocument": "Document"
 	},
 	"errors": {

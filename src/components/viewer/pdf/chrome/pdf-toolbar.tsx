@@ -1,6 +1,5 @@
 import type { PdfEngine } from "@embedpdf/models";
 import {
-	BookOpen,
 	Languages,
 	Library,
 	Loader2,
@@ -53,10 +52,6 @@ type PdfToolbarProps = {
 	onImportToLibrary?: () => void;
 	/** True while the import is running. */
 	importBusy?: boolean;
-	/** True when Settings → Translate enables the dual-pane translation window. */
-	dualPaneTranslate?: boolean;
-	/** Open the standalone rendered-translation window for this paper. */
-	onOpenTranslationWindow?: () => void;
 };
 
 /** Top-right toolbar: zoom, region select, bulk translate. */
@@ -81,8 +76,6 @@ export function PdfToolbar({
 	isRemotePaper = false,
 	onImportToLibrary,
 	importBusy = false,
-	dualPaneTranslate = false,
-	onOpenTranslationWindow,
 }: PdfToolbarProps) {
 	const { t } = useTranslation("viewer");
 
@@ -253,26 +246,6 @@ export function PdfToolbar({
 							</TooltipTrigger>
 							<TooltipContent side="bottom">
 								{layoutTranslateLabel}
-							</TooltipContent>
-						</Tooltip>
-					) : null}
-					{dualPaneTranslate && !isRemotePaper ? (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									size="icon-xs"
-									variant="ghost"
-									className="shrink-0 self-center"
-									aria-label={t("pdf.translation.openWindow")}
-									disabled={!engine}
-									onClick={onOpenTranslationWindow}
-								>
-									<BookOpen className="size-3.5" aria-hidden />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">
-								{t("pdf.translation.openWindow")}
 							</TooltipContent>
 						</Tooltip>
 					) : null}

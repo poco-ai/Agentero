@@ -126,7 +126,6 @@ import {
 } from "@/lib/pdf/layout";
 import type { ActiveSelectionCard } from "@/lib/pdf/selection";
 import { PDF_ZOOM_MAX, PDF_ZOOM_MIN } from "@/lib/pdf/zoom";
-import { openFeatureWindow } from "@/lib/shell/feature-window";
 
 export type {
 	PdfViewerHandle,
@@ -298,6 +297,7 @@ function PdfViewerInner({
 	onHighlightsChange,
 	onAsksChange,
 	onVisualTracesChange,
+	onOpenTranslationTab,
 }: PdfViewerInnerProps) {
 	const { t } = useTranslation("viewer");
 	const [importBusy, setImportBusy] = useState(false);
@@ -406,10 +406,6 @@ function PdfViewerInner({
 			setImportBusy(false);
 		}
 	}, [importIdentifier, importBusy]);
-
-	const handleOpenTranslationWindow = useCallback(() => {
-		void openFeatureWindow("translation");
-	}, []);
 
 	const { pageField, setPageField, pageFocusedRef, goToPage, commitPageField } =
 		usePdfNavigation({
@@ -797,6 +793,29 @@ function PdfViewerInner({
 		hostRef,
 		isRemotePaper,
 	});
+
+	const handleToggleLayoutTranslateWithDualPane = useCallback(() => {
+		if (!dualPaneTranslate) {
+			toggleLayoutTranslate();
+			return;
+		}
+		// In dual-pane mode the full-document translate button opens a
+		// rendered-translation workspace tab. If no job is running yet, kick it
+		// off first; the tab will read the cached/progressive result.
+		if (!layoutTranslateActive && !layoutTranslateRunning) {
+			toggleLayoutTranslate();
+		}
+		onOpenTranslationTab?.(docId, paperAbsPath ?? null, paperTitle ?? null);
+	}, [
+		dualPaneTranslate,
+		layoutTranslateActive,
+		layoutTranslateRunning,
+		toggleLayoutTranslate,
+		onOpenTranslationTab,
+		docId,
+		paperAbsPath,
+		paperTitle,
+	]);
 
 	// Sticky overlays (selection menu / visual draft / pin card) suppress
 	// ephemeral link previews so the pointer cannot stack multiple cards (#430).
@@ -1304,13 +1323,11 @@ function PdfViewerInner({
 				layoutTranslateRunning={layoutTranslateRunning}
 				layoutTranslateActive={layoutTranslateActive}
 				layoutTranslateLabel={layoutTranslateLabel}
-				onToggleLayoutTranslate={toggleLayoutTranslate}
+				onToggleLayoutTranslate={handleToggleLayoutTranslateWithDualPane}
 				visible={topChromeVisible}
 				isRemotePaper={isRemotePaper}
 				onImportToLibrary={handleImportToLibrary}
 				importBusy={importBusy}
-				dualPaneTranslate={dualPaneTranslate}
-				onOpenTranslationWindow={handleOpenTranslationWindow}
 			/>
 
 			<DockviewViewport

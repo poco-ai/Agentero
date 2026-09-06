@@ -9,8 +9,8 @@ import type { PaperSearchGroup, SkillDiscovery } from "@/lib/paper/lookup";
 import type { PaletteMode } from "@/lib/shell/commands/types";
 
 export type RightSidebarTab = "agent" | "annotations";
-/** Views that may live in a singleton native feature window (right-rail + standalone). */
-export type FeatureViewType = RightSidebarTab | "translation";
+/** Views that may live in a singleton native feature window (right-rail popouts). */
+export type FeatureViewType = RightSidebarTab;
 export type LayoutMode = "agent" | "notes" | "reading" | "custom";
 
 /** Crop + multi-turn payload when opening a visual-trace pin in Agent. */

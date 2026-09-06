@@ -68,7 +68,8 @@
 			"failed": "全文翻译失败"
 		},
 		"translation": {
-			"openWindow": "打开翻译窗口",
+			"title": "翻译",
+			"tabTitle": "译文 – {{title}}",
 			"noPaper": "打开一篇论文以查看渲染好的译文。",
 			"empty": "还没有渲染好的译文。请先在 PDF 阅读器中运行全文翻译。"
 		}

@@ -20,6 +20,7 @@ const VALID_MODES = new Set<CenterViewMode>([
 	"pdf",
 	"html",
 	"image",
+	"translation",
 ]);
 
 function isCenterViewMode(v: unknown): v is CenterViewMode {

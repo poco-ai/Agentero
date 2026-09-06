@@ -86,6 +86,7 @@ import {
 	basenameOf,
 	createNotesSplitPane,
 	createPlaceholderTab,
+	createTranslationSplitPane,
 	type DocTab,
 	ensureFullLibraryTab,
 	insertPlaceholderTab,
@@ -105,6 +106,7 @@ import {
 	tabIdForPath,
 	tabIsPaperNotes,
 	tabNotesEligible,
+	translationSplitPlacement,
 } from "./tabs";
 import { type CenterViewMode, preferredModeForPath } from "./viewer";
 
@@ -537,6 +539,37 @@ export function splitActivePane(): void {
 	setTabs((prev) => [...prev, splitPane]);
 	dockHandle()?.splitPanelRight(splitPane, active.id);
 	setActiveTabId(splitPane.id);
+}
+
+/**
+ * Open a rendered-translation panel to the right of the referenced paper panel.
+ * When dual-pane translation is enabled, the full-document translate button
+ * calls this after kicking off the layout translation job.
+ */
+export function openTranslationTab(
+	paperTabId: string,
+	paperAbsPath: string | null,
+): void {
+	if (!paperAbsPath) return;
+	const tabs = getTabs();
+	const paperTab = tabs.find((t) => t.id === paperTabId);
+	if (!paperTab) return;
+
+	const existing = tabs.find(
+		(t) => t.id === `${tabIdForPath(paperAbsPath)}::translation`,
+	);
+	if (existing) {
+		dockHandle()?.activatePanel(existing.id);
+		return;
+	}
+
+	const translationPane = createTranslationSplitPane(paperTab);
+	if (!translationPane) return;
+	setTabs((prev) => [...prev, translationPane]);
+	dockHandle()?.splitPanelRight(
+		translationPane,
+		translationSplitPlacement(paperTabId, tabs).referencePanelId,
+	);
 }
 
 export function closeWindow(): void {

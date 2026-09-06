@@ -1,4 +1,9 @@
-export type CenterViewMode = "markdown" | "pdf" | "html" | "image";
+export type CenterViewMode =
+	| "markdown"
+	| "pdf"
+	| "html"
+	| "image"
+	| "translation";
 
 export function isPdfPath(path: string): boolean {
 	return /\.pdf$/i.test(path);

@@ -47,6 +47,7 @@ import {
 	hydratePlaceholderTabs,
 	openTab,
 	openTabNotes,
+	openTranslationTab,
 	persistFile,
 } from "@/lib/workspace/actions";
 import { registerDockHandle } from "@/lib/workspace/dock-registry";
@@ -306,6 +307,7 @@ export function WorkspaceHost() {
 			onHighlightsChange: setTabHighlights,
 			onAsksChange: setTabAsks,
 			onVisualTracesChange: setTabVisualTraces,
+			onOpenTranslationTab: openTranslationTab,
 		}),
 		[handleOpenSettings],
 	);

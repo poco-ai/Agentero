@@ -19,12 +19,8 @@ import { getVaultPath } from "@/lib/vault/store";
 
 export type { FeatureViewType };
 
-/** Same set as right-rail tabs / leaf feature views plus standalone viewers. */
-const FEATURE_TAB_ORDER: FeatureViewType[] = [
-	"agent",
-	"annotations",
-	"translation",
-];
+/** Same set as right-rail tabs / leaf feature views. */
+const FEATURE_TAB_ORDER: FeatureViewType[] = ["agent", "annotations"];
 
 function featureWindowTitle(view: FeatureViewType): string {
 	switch (view) {
@@ -32,8 +28,6 @@ function featureWindowTitle(view: FeatureViewType): string {
 			return i18n.t("app:windows.titleAgent");
 		case "annotations":
 			return i18n.t("app:windows.titleAnnotations");
-		case "translation":
-			return i18n.t("app:windows.titleTranslation");
 	}
 }
 
@@ -52,8 +46,6 @@ async function clearMainHostForFeature(view: FeatureViewType): Promise<void> {
 	if (view === "agent") {
 		ui.setAgentPanelMounted(false);
 	}
-	// Standalone viewers (translation) have no right-rail host to clear.
-	if (view !== "agent" && view !== "annotations") return;
 	// Rail stays open. If the selected rail tab is the one now in a window,
 	// switch to another non-popped-out tab so the switcher + content remain usable.
 	const { rightSidebarTab, featurePoppedOut } = ui.uiStore.getState();

@@ -301,7 +301,9 @@ function resolveReferencePanel(
  * when not shown.
  */
 function rendererForMode(mode: CenterViewMode): DockviewPanelRenderer {
-	return mode === "pdf" || mode === "markdown" ? "always" : "onlyWhenVisible";
+	return mode === "pdf" || mode === "markdown" || mode === "translation"
+		? "always"
+		: "onlyWhenVisible";
 }
 
 function applyPanelRenderer(panel: IDockviewPanel, mode: CenterViewMode): void {

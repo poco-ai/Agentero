@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fontSizeForLayoutTranslateBox } from "@/components/viewer/pdf/layers/layout-translate-overlay";
 import { cn } from "@/lib/core/utils";
-import { paperDirFromPath } from "@/lib/paper/detect";
 import {
 	currentLayoutTranslateCacheKey,
 	type LayoutTranslateItem,
@@ -18,15 +17,10 @@ import {
 	PDF_PAPER_BLOCK_CLASS,
 	type PdfPaperTone,
 } from "@/lib/pdf/page-theme";
-import { joinVaultPath } from "@/lib/vault";
 
 type TranslationViewProps = {
-	/** Active document path broadcast from the main window. */
-	selectedPath: string | null;
-	/** Current vault root. */
-	vaultPath: string | null;
-	/** Vault-relative paper folder paths used to map any path to its paper unit. */
-	vaultPaperPaths: string[];
+	/** Absolute path to the paper folder (papers/<id>/). */
+	paperAbsPath: string | null;
 };
 
 type PageSize = { width: number; height: number };
@@ -227,11 +221,7 @@ function TranslatedPage({
 	);
 }
 
-export function TranslationView({
-	selectedPath,
-	vaultPath,
-	vaultPaperPaths,
-}: TranslationViewProps) {
+export function TranslationView({ paperAbsPath }: TranslationViewProps) {
 	const { t } = useTranslation("viewer");
 	const { resolvedTheme } = useTheme();
 	const [layoutSidecar, setLayoutSidecar] = useState<PdfLayoutSidecar | null>(
@@ -239,15 +229,6 @@ export function TranslationView({
 	);
 	const [translateSidecar, setTranslateSidecar] =
 		useState<LayoutTranslateSidecar | null>(null);
-
-	const paperAbsPath = useMemo(() => {
-		if (!selectedPath || !vaultPath) return null;
-		const paperDir = paperDirFromPath(selectedPath, vaultPaperPaths);
-		if (!paperDir) return null;
-		return paperDir.startsWith("/")
-			? paperDir
-			: joinVaultPath(vaultPath, paperDir);
-	}, [selectedPath, vaultPath, vaultPaperPaths]);
 
 	useEffect(() => {
 		setLayoutSidecar(null);

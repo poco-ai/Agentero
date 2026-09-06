@@ -34,6 +34,10 @@ export {
 	loadTabResources,
 	revokeTabMediaSources,
 } from "@/lib/workspace/tabs/resources";
+export {
+	createTranslationSplitPane,
+	translationSplitPlacement,
+} from "@/lib/workspace/tabs/translation-split";
 export type {
 	DocTab,
 	OpenPlacement,

@@ -68,7 +68,8 @@
 			"failed": "Full-text translate failed"
 		},
 		"translation": {
-			"openWindow": "Open translation window",
+			"title": "Translation",
+			"tabTitle": "Translation – {{title}}",
 			"noPaper": "Open a paper to see its rendered translation.",
 			"empty": "No rendered translation yet. Run full-text translate in the PDF viewer first."
 		}

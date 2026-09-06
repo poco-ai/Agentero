@@ -62,6 +62,14 @@ export function initWorkspaceStore(): void {
 	if (!persisted?.tabs.length) return;
 	workspaceStore.setState({
 		tabs: persisted.tabs.map((pt) => {
+			if (pt.mode === "translation") {
+				return {
+					...createPlaceholderTab(pt.path, "translation", pt.id),
+					kind: "paper",
+					title: pt.title || "Translation",
+					loaded: true,
+				};
+			}
 			const tab = createPlaceholderTab(pt.path, pt.mode, pt.id);
 			// Real-path placeholders default to the folder basename; prefer the
 			// persisted title so strips show paper names before hydration.
