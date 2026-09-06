@@ -4122,7 +4122,7 @@
 <ul>
 <li>复用共享的 <code>paper_commit</code>：catalog 插入、NOTES.md 播种、PDF 下载、去重全部沿用，不新增管线。</li>
 <li><code>paper_type</code> 不是 Zotero itemType，取值是 <code>PaperKind</code> 枚举（<code>arxiv</code> / <code>pdf</code> / <code>html</code> / <code>doi</code> / <code>other</code>）；无 DOI 时为 <code>other</code>。</li>
-<li>元数据解析复用 <code>map_zotero_item</code>（先拼一个 Zotero 形状的值），避免第二套字段映射。</li>
+<li>元数据解析复用 <code>map_zotero_item_to_record</code>（先拼一个 Zotero 形状的值），避免第二套字段映射。</li>
 <li>注入的 <code>[入库]</code> <strong>不带 href</strong>，否则会被跨源链接拦截器当外链送去系统浏览器。</li>
 <li>行是滚动加载的（<code>loadMorePapers</code> 追加 <code>.panel.paper</code>），除首屏遍历外挂 <code>MutationObserver</code>。</li>
 <li>只做<strong>单条入库</strong>，不提供批量。</li>

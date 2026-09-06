@@ -3709,7 +3709,7 @@
 <ul>
 <li><code>title_search.rs</code>：Semantic Scholar / arXiv 标题搜索，有 <code>PaperSearchCandidate</code> —— <strong>保留</strong>至今，作为魔棒搜索对话框的 IPC 出参（有 <code>From&lt;ApiPaper&gt;</code> 实现）</li>
 <li><code>chain_resolve.rs</code>：标题解析链，有 <code>ResolvedCandidate</code> —— <strong>已删除</strong>，连同该文件里重复的 <code>candidate_to_meta</code> / <code>merge_candidates</code>；现在直接消费 <code>ApiPaper</code></li>
-<li><code>map.rs</code>：最终存储格式，有 <code>PaperMeta</code> —— <strong>已合并</strong>进 <code>catalog/papers.rs::PaperRecord</code>（<code>PaperMeta</code> 曾是 <code>PaperRecord</code> 的严格字段子集，靠 <code>paper_record_from_meta</code> 逐字段手抄桥接，新字段要改四处，<code>citation_count</code> 就是在这个接缝上被静默丢掉的）</li>
+<li><code>map.rs</code>：最终存储格式，有 <code>PaperMeta</code> —— <strong>已合并</strong>进 <code>catalog/papers.rs::PaperRecord</code>（<code>PaperMeta</code> 曾是 <code>PaperRecord</code> 的严格字段子集，靠 <code>paper_record_from_meta</code> 逐字段手抄桥接，新字段要改四处，<code>citation_count</code> 就是在这个接缝上被静默丢掉的；该文件现已移除，Zotero JSON → <code>PaperRecord</code> 由 <code>api_mapper.rs</code> 经 <code>ApiPaper</code> 完成）</li>
 <li><code>mod.rs</code>：Translator Runtime 特化请求与错误处理</li>
 <li><code>assets.rs</code>：Unpaywall 独立调用 —— 已收进 <code>scholar_api/sources/unpaywall.rs</code></li>
 <li><code>pdf_recognize.rs</code>：Zotero Recognizer 独立调用 —— 按 §5.5 的结论保持独立（输出 <code>RecognizeHit</code>，再转 <code>ApiQuery</code>）</li>
@@ -4048,7 +4048,7 @@
 <span class="p">}</span>
 </code></pre></div>
 
-<p><code>resolver.rs</code> 的 <code>ResolvedIdentifier</code> 可直接映射为 <code>ApiQuery</code>。</p>
+<p><code>scholar_api::identifiers::ResolvedIdentifier</code> 可直接映射为 <code>ApiQuery</code>。</p>
 <h3 id="42-paperidentifiers">4.2 统一标识符包：<code>PaperIdentifiers</code><a class="headerlink" href="#42-paperidentifiers" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">PaperIdentifiers</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">doi</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
@@ -4298,7 +4298,7 @@
 <li>这两个服务最独立、已有明确的 fallback 位置</li>
 <li>在 <code>scholar_api/sources/arxiv.rs</code> / <code>crossref.rs</code> 实现 <code>AcademicApi</code></li>
 <li>
-<p>保持 <code>features/paper/import/resolver.rs</code> 原有调用点不变，内部改调新的 source</p>
+<p>保持 <code>features/paper/scholar_api/identifiers/resolver.rs</code> 原有调用点不变，内部改调新的 source</p>
 </li>
 <li>
 <p><strong>阶段 2：Semantic Scholar</strong> ✅</p>
@@ -4357,7 +4357,7 @@
 <h3 id="111-citation_count">11.1 <code>citation_count</code> 到不了用户眼前<a class="headerlink" href="#111-citation_count" title="Permanent link">&para;</a></h3>
 <p>管道已通、数据源已能解析，但<strong>常规入库路径不会把非 NULL 值写进 catalog</strong>：</p>
 <ul>
-<li>入库以 Translator 为主路径，<code>map_zotero_item</code> 不产出被引数；Crossref 只在 Translator 失败时作为直连降级出现（这条降级路径确实会写进真实值）。</li>
+<li>入库以 Translator 为主路径，<code>map_zotero_item_to_record</code> 不产出被引数；Crossref 只在 Translator 失败时作为直连降级出现（这条降级路径确实会写进真实值）。</li>
 <li>Semantic Scholar 的结果只出现在 <code>paper_resolve_identifier</code>，而该命令<strong>只返回给前端、不落库</strong>。</li>
 </ul>
 <p>要让用户真正看到被引数，还差下列环节之一：</p>

@@ -3484,7 +3484,7 @@
    CJK 描述会被高估约 3 倍；description 只是候选列表展示用的 metadata，超长不该阻断安装。</li>
 <li>候选扫描用 <code>collect::&lt;Result&lt;Vec&lt;_&gt;, _&gt;&gt;()</code>，任意一个 <code>SKILL.md</code> 解析失败即整仓失败。
    monorepo 常带示例/模板 Skill，这条规则过严。</li>
-<li>三处各自手写 frontmatter 解析（<code>import/skill_import.rs</code>、<code>agent/skills.rs</code>、
+<li>三处各自手写 frontmatter 解析（<code>import/skill</code>、<code>agent/skills.rs</code>、
    <code>vault/mod.rs</code> 的 <code>version</code>），都只取 <code>description:</code> 同行文本，遇到 <code>&gt;-</code> / <code>|</code> 折叠块
    与 CRLF 就失效。</li>
 <li>前端 <code>notifyError(</code>${input}: …<code>)</code> 又拼了一次输入，后端错误已带 <code>{raw}:</code> 前缀，
@@ -3503,7 +3503,7 @@
 <h2 id="_4">回归<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>core::frontmatter::tests</code>：引号 / 折叠 / 字面块 / CRLF / 嵌套键。</li>
-<li><code>skill_import::tests::reads_folded_description</code>、<code>truncates_long_description_instead_of_failing</code>。</li>
+<li><code>import::skill::tests::reads_folded_description</code>、<code>truncates_long_description_instead_of_failing</code>。</li>
 <li><code>agent::skills::tests::parses_bundled_folded_description</code>：直接对模板 <code>paper-reader/SKILL.md</code> 断言。</li>
 </ul>
 

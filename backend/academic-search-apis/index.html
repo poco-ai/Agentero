@@ -1712,6 +1712,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#211-pubmed-biorxiv-medrxiv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.11 PubMed / bioRxiv / medRxiv 元数据兜底
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3675,6 +3686,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#211-pubmed-biorxiv-medrxiv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.11 PubMed / bioRxiv / medRxiv 元数据兜底
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3748,7 +3770,7 @@
 <p>Agentero Host 端（<code>src-tauri/src/features/</code>）在论文识别、入库、引用补全、推荐等流程中，会调用若干外部学术服务。本文档列出所有当前在用的学术搜索/元数据 API，说明其用途、调用入口、请求形态、fallback 链路与并发控制。</p>
 <blockquote>
 <p>范围限定在<strong>学术元数据与论文发现</strong>相关的外部 HTTP API。翻译 API（Google/Bing/DeepL/OpenAI 等）、版面分析 ONNX、本地 Agent/ACP、PostHog 遥测不在本文讨论范围内。</p>
-<p>路径简写：<code>scholar_api/…</code> 与 <code>features/paper/import/</code> 的映射 / resolver / 批处理（<code>map.rs</code>、<code>resolver.rs</code>、<code>api_mapper.rs</code>、<code>title_search.rs</code>、<code>batch.rs</code>、<code>parse.rs</code>、<code>assets.rs</code>、<code>sources/</code>）已随 crate 拆分迁到 <code>crates/agentero-core/src/features/paper/…</code>；<code>import/recognize/</code>（标题解析链、PDF 识别）与 <code>import/commands.rs</code> 仍在 <code>src-tauri</code>。其余 <code>features/…</code> 均指 <code>src-tauri/src/features/…</code>。</p>
+<p>路径简写：<code>scholar_api/…</code> 与 <code>features/paper/import/</code> 的映射 / resolver / 批处理（<code>scholar_api::identifiers</code>、<code>api_mapper.rs</code>、<code>title_search.rs</code>、<code>batch.rs</code>、<code>assets.rs</code>、<code>sources/</code>）已随 crate 拆分迁到 <code>crates/agentero-core/src/features/paper/…</code>；<code>import/recognize/</code>（标题解析链、PDF 识别）与 <code>import/commands.rs</code> 仍在 <code>src-tauri</code>。其余 <code>features/…</code> 均指 <code>src-tauri/src/features/…</code>。</p>
 </blockquote>
 <h2 id="1-api">1. API 总览<a class="headerlink" href="#1-api" title="Permanent link">&para;</a></h2>
 <table>
@@ -3816,6 +3838,24 @@
 <td><code>features/import/assets.rs</code></td>
 </tr>
 <tr>
+<td><strong>PubMed / NCBI E-utilities</strong></td>
+<td><code>GET https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi</code> / <code>efetch.fcgi</code></td>
+<td>标题/PMID → 医学/生命科学元数据</td>
+<td><code>features/paper/scholar_api/sources/pubmed.rs</code></td>
+</tr>
+<tr>
+<td><strong>bioRxiv</strong></td>
+<td><code>GET https://api.biorxiv.org/details/biorxiv/{doi}</code></td>
+<td>DOI → 生命科学预印本元数据</td>
+<td><code>features/paper/scholar_api/sources/biorxiv.rs</code></td>
+</tr>
+<tr>
+<td><strong>medRxiv</strong></td>
+<td><code>GET https://api.biorxiv.org/details/medrxiv/{doi}</code></td>
+<td>DOI → 医学预印本元数据</td>
+<td><code>features/paper/scholar_api/sources/biorxiv.rs</code></td>
+</tr>
+<tr>
 <td><strong>Zotero Recognizer</strong></td>
 <td><code>POST https://services.zotero.org/recognizer/recognize</code></td>
 <td>PDF 首页文字几何识别</td>
@@ -3854,13 +3894,13 @@
 <li>若用户输入被识别为 arXiv id / DOI / URL，会构造 <code>{base}/web</code> 或 <code>{base}/search</code> 请求。</li>
 <li>arXiv 的各类输入（<code>2508.05004</code>、<code>arXiv:2508.05004v2</code>、<code>https://arxiv.org/pdf/...</code>、<code>https://arxiv.org/html/...</code>）都会被规范化为 <code>https://arxiv.org/abs/{id}</code> 再走 <code>/web</code>。</li>
 <li>Translator 失败且输入是 arXiv id 时，本地 fallback 到 <code>fetch_arxiv_metadata</code>。</li>
-<li><strong>Crossref DOI fallback</strong>（<code>features/paper/import/resolver.rs::fetch_crossref_metadata</code>）</li>
+<li><strong>Crossref DOI fallback</strong>（<code>features/paper/scholar_api/identifiers/fallback.rs::fetch_crossref_metadata</code>）</li>
 <li>当 Translator 无法解析一个 DOI 时，<code>fetch_direct_fallback</code> 直接请求 <code>api.crossref.org/works/{doi}</code>。</li>
-<li><strong>arXiv Atom 直接 fallback</strong>（<code>features/import/mod.rs::fetch_arxiv_metadata</code>）</li>
+<li><strong>arXiv Atom 直接 fallback</strong>（<code>features/paper/scholar_api/identifiers/fallback.rs::fetch_arxiv_metadata</code>）</li>
 <li>请求 <code>export.arxiv.org/api/query?id_list={id}</code>，解析 <code>&lt;arxiv:journal_ref&gt;</code> 作为 publication/venue。</li>
 </ol>
 <blockquote>
-<p><strong>被引数（<code>citation_count</code>）</strong>：Crossref 解析 <code>is-referenced-by-count</code>、OpenAlex 解析 <code>cited_by_count</code>、Semantic Scholar 解析 <code>citationCount</code>，三者 <code>capabilities()</code> 均声明 <code>PROVIDE_CITATION_COUNT</code>；Crossref / OpenAlex 的 title search 还必须把该字段列进 <code>select</code> 白名单，否则 API 根本不返回它。<code>api_paper_to_meta</code> 把值带进 <code>PaperRecord</code>，<code>merge_api_papers</code> 合并两个源时取较大值（各自索引的引用文献子集不同）。arXiv Atom 与 Translator 不产出被引数。<strong>注意</strong>：入库以 Translator 为主路径，<code>map_zotero_item</code> 不带被引数，因此常规导入写入的仍是 NULL；只有 Translator 失败后降级到 Crossref 直连的 DOI 导入才会落进真实值。完整缺口见 <a href="../catalog/">catalog.md</a>。</p>
+<p><strong>被引数（<code>citation_count</code>）</strong>：Crossref 解析 <code>is-referenced-by-count</code>、OpenAlex 解析 <code>cited_by_count</code>、Semantic Scholar 解析 <code>citationCount</code>，三者 <code>capabilities()</code> 均声明 <code>PROVIDE_CITATION_COUNT</code>；Crossref / OpenAlex 的 title search 还必须把该字段列进 <code>select</code> 白名单，否则 API 根本不返回它。<code>api_paper_to_meta</code> 把值带进 <code>PaperRecord</code>，<code>merge_api_papers</code> 合并两个源时取较大值（各自索引的引用文献子集不同）。arXiv Atom 与 Translator 不产出被引数。<strong>注意</strong>：入库以 Translator 为主路径，<code>map_zotero_item_to_record</code> 不带被引数，因此常规导入写入的仍是 NULL；只有 Translator 失败后降级到 Crossref 直连的 DOI 导入才会落进真实值。完整缺口见 <a href="../catalog/">catalog.md</a>。</p>
 </blockquote>
 <h3 id="22-pdf">2.2 PDF 元数据识别<a class="headerlink" href="#22-pdf" title="Permanent link">&para;</a></h3>
 <p>入口：<code>features/paper/import/recognize/pdf_recognize.rs::recognize_and_resolve</code>。</p>
@@ -3966,6 +4006,13 @@
 <li>arXiv PDF 候选链：<code>https://arxiv.org/pdf/{id}</code> → <code>https://arxiv.org/pdf/{id}.pdf</code> → <code>https://export.arxiv.org/pdf/{id}</code>。</li>
 <li>arXiv TeX 源码：<code>https://arxiv.org/e-print/{id}</code>（<code>/src/</code> 为别名）。</li>
 <li>DOI 论文 PDF：先查 <code>api.unpaywall.org/v2/{doi}</code>，再查 Crossref <code>message.link</code> 中的 PDF 链接。</li>
+</ul>
+<h3 id="211-pubmed-biorxiv-medrxiv">2.11 PubMed / bioRxiv / medRxiv 元数据兜底<a class="headerlink" href="#211-pubmed-biorxiv-medrxiv" title="Permanent link">&para;</a></h3>
+<p>入口：<code>features/paper/scholar_api/sources/pubmed.rs</code>、<code>features/paper/scholar_api/sources/biorxiv.rs</code>。</p>
+<ul>
+<li><strong>PubMed</strong>：实现 <code>AcademicApi</code>，支持标题搜索和 PMID 查询。流程为 <code>esearch.fcgi</code>（JSON）拿 PMID 列表 → <code>efetch.fcgi</code>（XML）批量取详情；请求带 <code>email</code> 与 <code>tool</code> 参数以符合 NCBI 礼貌使用要求。解析字段包括 title、authors、year、venue、volume、issue、pages、DOI、PMID、abstract；PMC 存在时给出 PDF 候选。</li>
+<li><strong>bioRxiv / medRxiv</strong>：共用 <code>biorxiv.rs</code>，实现 <code>AcademicApi</code>，仅支持 <code>FETCH_BY_DOI</code>（上游 API 无 title 搜索端点）。请求 <code>https://api.biorxiv.org/details/{server}/{doi}</code>，解析 title、authors、date、abstract，并构造 <code>.full.pdf</code> 直链。</li>
+<li>PMID 在 <code>scholar_api::identifiers::resolver</code> 中已有识别器，现在为其补充 PubMed <code>efetch</code> 直连 fallback（<code>scholar_api::identifiers::fallback::fetch_pubmed_metadata</code>）；Translator 失败时可直接从 NCBI 拉取。</li>
 </ul>
 <h2 id="3">3. 并发与限流<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
 <table>
@@ -4074,6 +4121,12 @@
 <td>用户输入 DOI</td>
 <td>Translator <code>/search</code></td>
 <td>Crossref <code>works/{doi}</code></td>
+<td>无</td>
+</tr>
+<tr>
+<td>用户输入 PMID</td>
+<td>Translator <code>/search</code></td>
+<td>PubMed <code>efetch</code></td>
 <td>无</td>
 </tr>
 <tr>

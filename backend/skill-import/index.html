@@ -3574,7 +3574,7 @@
 </blockquote>
 <h2 id="1">1. 背景与现状<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <ul>
-<li>魔棒输入的类型识别完全在 Host 侧：<code>src-tauri/src/features/import/parse.rs</code> 的 <code>extract_skill_source()</code>（<code>SkillSource</code>，识别为 <code>skill</code> kind，不入 resolver 表）和 <code>extract_primary_identifier()</code>（其余标识符走 <code>resolver.rs</code> 静态表）。Skill 识别发生在普通 URL 分支之前，GitHub 链接不会再被送入 Translator <code>/web</code>。</li>
+<li>魔棒输入的类型识别完全在 Host 侧：<code>crates/agentero-core/src/features/paper/import/skill/source.rs</code> 的 <code>extract_skill_source()</code>（<code>SkillSource</code>，识别为 <code>skill</code> kind，不入 resolver 表）和 <code>import::identifiers::extract_primary_identifier()</code>（其余标识符走 <code>scholar_api::identifiers::resolver</code> 静态表）。Skill 识别发生在普通 URL 分支之前，GitHub 链接不会再被送入 Translator <code>/web</code>。</li>
 <li>前端不做识别，只切分多条输入（<code>src/components/sidebar/vault-sidebar-header.tsx</code> <code>parseLookupTexts()</code>），经 <code>lookup_import_batch</code>（<code>src-tauri/src/features/import/commands.rs:17</code>）进入 <code>import_by_identifier_batch</code>。</li>
 <li>Skill 目录约定已存在：<code>vault/.agents/skills/&lt;id&gt;/SKILL.md</code>（YAML frontmatter <code>name</code> / <code>description</code>，解析见 <code>src-tauri/src/features/agent/prompt/skills.rs</code> <code>parse_skill_metadata</code>）；<code>ensure_vault()</code> 播种 bundled skills，并按 frontmatter 整数 <code>version</code> 升级第一方 Skill（盘上版本低于模板则覆盖；无 <code>version</code> / 同版本 / 更高版本不覆盖）。</li>
 <li>文件树中 <code>.agents</code> 是 eager 目录（<code>src/lib/vault/tree.ts</code> <code>TREE_EAGER_ROOT_NAMES</code> / <code>TREE_ALLOWED_DOT_NAMES</code>），写入后 <code>refreshTree</code> 即可见。</li>
@@ -3684,8 +3684,9 @@
 </tr>
 </tbody>
 </table>
-<p>回归测试位于 <code>src-tauri/src/features/import/parse.rs</code> 的
-<code>parses_requested_skill_import_examples</code>。</p>
+<p>回归测试位于 <code>crates/agentero-core/src/features/paper/import/skill/source.rs</code> 的
+<code>parses_requested_skill_import_examples</code>，<code>import/identifiers.rs</code> 仍保留
+<code>extract_primary_identifier</code> 的优先级测试。</p>
 <h2 id="7">7. 后续<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

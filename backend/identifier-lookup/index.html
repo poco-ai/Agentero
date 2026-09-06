@@ -4967,7 +4967,7 @@
 <li>入库命令与事件：<a href="../api/"><code>api.md</code></a> §3.5</li>
 <li>Vault 文件模型：<a href="../data-model/"><code>data-model.md</code></a></li>
 <li>UI：<a href="../../frontend/paper-import/"><code>../frontend/paper-import.md</code></a></li>
-<li><strong>浏览器一键保存</strong>：官方 Zotero Connector → 本机兼容服务 — <a href="../connector/"><code>connector.md</code></a>（与魔棒并存；元数据映射复用 <code>map_zotero_item</code>）</li>
+<li><strong>浏览器一键保存</strong>：官方 Zotero Connector → 本机兼容服务 — <a href="../connector/"><code>connector.md</code></a>（与魔棒并存；元数据映射复用 <code>map_zotero_item_to_record</code>）</li>
 <li><strong>多入口入库统一方案</strong>（魔棒 / Connector / 本地 PDF / Bib / 迁移 / CLI）— <a href="../paper-import/"><code>paper-import.md</code></a></li>
 </ul>
 <hr />
@@ -5279,7 +5279,7 @@
 </tr>
 <tr>
 <td><code>extractIdentifiers()</code></td>
-<td><code>lookup:parse</code> / Host <code>parse.rs</code></td>
+<td><code>lookup:parse</code> / Host <code>scholar_api::identifiers::parsers</code> + <code>import::identifiers</code></td>
 </tr>
 <tr>
 <td><code>Zotero.Translate.Search</code></td>
@@ -5372,7 +5372,7 @@
 <li>PMID（1–9 位数字，最后匹配）</li>
 </ol>
 <blockquote>
-<p>实现上，优先级由 <code>src-tauri/src/features/import/resolver.rs</code> 的静态 resolver 表驱动：Url / Doi / Arxiv / Isbn / Pmid / Ads 各实现 <code>PaperResolver</code>（<code>priority</code> 探测顺序、<code>catalog_column</code> 查重列、<code>translator_target</code> 构造 Translator 请求、<code>fetch_fallback</code> Translator 失败后的直连回退——arXiv→Atom、DOI→Crossref）。Skill 不入表，由 <code>parse::extract_skill_source</code> 前置分流。新增导入源只需实现一个 resolver 并登记进表（表按 <code>priority</code> 排序，有测试守护）。</p>
+<p>实现上，优先级由 <code>crates/agentero-core/src/features/paper/scholar_api/identifiers/resolver.rs</code> 的静态 resolver 表驱动：Url / Doi / Arxiv / Isbn / Pmid / Ads 各实现 <code>PaperResolver</code>（<code>priority</code> 探测顺序、<code>catalog_column</code> 查重列、<code>translator_target</code> 构造 Translator 请求）。Translator 失败后的直连回退在 <code>scholar_api::identifiers::fallback</code>（arXiv→Atom、DOI→Crossref、PMID→PubMed）。Skill 不入表，由 <code>skill::skill_identifier</code>（内部调用 <code>skill::extract_skill_source</code>）前置分流。新增导入源只需实现一个 resolver 并登记进表（表按 <code>priority</code> 排序，有测试守护）。</p>
 </blockquote>
 <p>解析失败：返回 <code>lookup.failure_to_id</code>，不调用网络。</p>
 <h3 id="33-parsedidentifier">3.3 输出：<code>ParsedIdentifier</code><a class="headerlink" href="#33-parsedidentifier" title="Permanent link">&para;</a></h3>
@@ -5513,7 +5513,7 @@ arXiv 的 Atom 需要按 <code>&lt;entry&gt;</code> 切块解析 —— <code>sc
 </table>
 <hr />
 <h2 id="5-translator-item-paperrecord">5. 数据映射：Translator Item → <code>PaperRecord</code>（直接并入）<a class="headerlink" href="#5-translator-item-paperrecord" title="Permanent link">&para;</a></h2>
-<p>Translator 输出的 <strong>Zotero API JSON Item</strong> 经 <code>map_zotero_item</code>（<code>features/paper/import/map.rs</code>）<strong>直接写入</strong> <code>PaperRecord</code> / catalog 列，<strong>不再</strong>先落到另一套 arXiv 专用结构。<br />
+<p>Translator 输出的 <strong>Zotero API JSON Item</strong> 经 <code>map_zotero_item_to_record</code>（<code>features/paper/import/api_mapper.rs</code>）<strong>直接写入</strong> <code>PaperRecord</code> / catalog 列，<strong>不再</strong>先落到另一套 arXiv 专用结构。<br />
 <code>PaperRecord</code>（<code>features/paper/catalog/papers.rs</code>）是 Rust 侧唯一论文模型：同时充当 catalog SQLite 行、<code>papers/&lt;id&gt;/metadata.json</code> sidecar 投影与 IPC 出参。前端 <code>src/lib/paper/types.ts</code> 的 <code>PaperMetadata</code> 只是 specta 生成的 <code>PaperRecord_Serialize</code> 的派生别名，不是独立模型。<br />
 catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a href="../catalog/"><code>catalog.md</code></a> §4.2）。</p>
 <h3 id="51-item-record">5.1 字段对照（Item → record）<a class="headerlink" href="#51-item-record" title="Permanent link">&para;</a></h3>
@@ -5664,7 +5664,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <tr>
 <td><code>type</code>（<code>PaperKind</code>）</td>
 <td>由标识符 + <code>itemType</code> 推断</td>
-<td>序列化取值 <code>arxiv</code> | <code>pdf</code> | <code>html</code> | <code>doi</code> | <code>other</code>。<code>map_zotero_item</code> 顺序：有 <code>arxiv_id</code>→<code>arxiv</code>；否则有 <code>doi</code>→<code>doi</code>；否则 <code>itemType == webpage</code>→<code>html</code>；否则 <code>other</code>。<code>enrich_remote_urls</code> 在随后补出 arXiv id 时把 <code>other</code> 提升为 <code>arxiv</code>。<code>pdf</code> 是 <code>PaperRecord::local_pdf</code> 的初值（本地 PDF 导入）</td>
+<td>序列化取值 <code>arxiv</code> | <code>pdf</code> | <code>html</code> | <code>doi</code> | <code>other</code>。<code>map_zotero_item_to_record</code> 顺序：有 <code>arxiv_id</code>→<code>arxiv</code>；否则有 <code>doi</code>→<code>doi</code>；否则 <code>itemType == webpage</code>→<code>html</code>；否则 <code>other</code>。<code>enrich_remote_urls</code> 在随后补出 arXiv id 时把 <code>other</code> 提升为 <code>arxiv</code>。<code>pdf</code> 是 <code>PaperRecord::local_pdf</code> 的初值（本地 PDF 导入）</td>
 </tr>
 <tr>
 <td><code>id</code></td>
@@ -5715,7 +5715,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <p>入库前 Host 手中只有 <strong><code>PaperRecord</code>（已 map）</strong>；不必单独长期持有 Zotero Item。调试可选暂存 <code>raw</code> 日志，不进 catalog。</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">// 概念：一次魔棒调用（落地：lookup_import_batch）</span>
 <span class="kd">const</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">translator</span><span class="p">.</span><span class="nx">searchOrWeb</span><span class="p">(</span><span class="nx">input</span><span class="p">);</span><span class="w">      </span><span class="c1">// Zotero Item</span>
-<span class="kd">const</span><span class="w"> </span><span class="nx">record</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">map_zotero_item</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">                  </span><span class="c1">// → PaperRecord（path 为空）</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">record</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">map_zotero_item_to_record</span><span class="p">(</span><span class="nx">item</span><span class="p">);</span><span class="w">                  </span><span class="c1">// → PaperRecord（path 为空）</span>
 <span class="nx">enrich_remote_urls</span><span class="p">(</span><span class="nx">record</span><span class="p">);</span><span class="w">                            </span><span class="c1">// arxiv/doi 推导</span>
 <span class="k">await</span><span class="w"> </span><span class="nx">paper_commit</span><span class="p">(</span><span class="nx">record</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">parentDir</span><span class="p">,</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">});</span><span class="w">          </span><span class="c1">// 内部分配 path → at_path → upsert_paper</span>
 <span class="k">await</span><span class="w"> </span><span class="nx">ensure_paper_assets</span><span class="p">(</span><span class="nx">paperDir</span><span class="p">,</span><span class="w"> </span><span class="nx">record</span><span class="p">);</span><span class="w">           </span><span class="c1">// PDF + arXiv LaTeX → source/</span>
@@ -5939,7 +5939,7 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <hr />
 <h2 id="9-host">9. Host 模块布局（早期规划，仅供参考）<a class="headerlink" href="#9-host" title="Permanent link">&para;</a></h2>
 <blockquote>
-<p>实际落地时相关逻辑并入了 <code>src-tauri/src/features/import/</code>（<code>parse.rs</code>、<code>map.rs</code>、<code>assets.rs</code>、<code>paper_import/mod.rs</code> 等），没有独立的 <code>commands/</code> / <code>services/</code> 分层。下列结构保留为设计阶段参考。</p>
+<p>实际落地时相关逻辑拆分到了 <code>crates/agentero-core/src/features/paper/</code>：<code>scholar_api::identifiers</code>（解析、resolver 表、直连回退）、<code>import</code>（Skill 分流、批量预检、落盘、Zotero 映射）等，没有独立的 <code>commands/</code> / <code>services/</code> 分层。下列结构保留为设计阶段参考。</p>
 </blockquote>
 <div class="codehilite"><pre><span></span><code>src-tauri/src/
   commands/
@@ -5948,9 +5948,9 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
   services/
     lookup/
       mod.rs
-      parse.rs             # extractIdentifiers 规则
+      identifiers.rs       # extractIdentifiers 规则（实际在 scholar_api::identifiers）
       client.rs            # Runtime HTTP
-      map.rs               # Zotero JSON → PaperRecord
+      api_mapper.rs        # Zotero JSON → ApiPaper → PaperRecord
       dedupe.rs
       fallback/
         mod.rs
@@ -6197,8 +6197,8 @@ catalog <strong>schema v2</strong> 起补齐期刊/卷期页等字段（见 <a h
 <li>选错目录兜底：扫描报 <code>zotero.sqlite not found</code> 时，若所选目录的<strong>父目录</strong>含 <code>zotero.sqlite</code>（如误选 <code>storage/</code>），对话框提示一键改用父目录；否则显示本地化错误（不再透出后端原始英文串）。</li>
 <li>Host：<code>zotero_scan</code>（只读预览：文献数 / 有本地 PDF 数）、<code>zotero_migrate</code>（执行）；实现在 <code>features/zotero/db.rs</code>。</li>
 <li>读库：把 <code>zotero.sqlite</code>（含 <code>-wal</code>/<code>-shm</code>）<strong>拷到临时目录</strong>再只读打开（容忍 Zotero 正在运行）；查 <code>items</code>/<code>itemData</code>/<code>creators</code>/<code>itemTags</code>/<code>itemAttachments</code>，跳过 <code>deletedItems</code> 与 attachment/note/annotation 类型，并排除插件产生的 <code>computerProgram</code> 垃圾条目（如标题为 "Addon Item" 的项）。</li>
-<li>映射：每条<strong>拼装成 Zotero-API-JSON item</strong> → 复用 <code>map_zotero_item</code> + <code>enrich_remote_urls</code> + <code>write_paper_shell</code> + <code>PaperRecord::at_path</code> + catalog upsert，落到 <code>{parent_dir}/{id}/</code>（id/citekey 与魔棒 / 文件导入一致）。</li>
-<li>附件 PDF URL：<code>map_zotero_item</code> 未给出 <code>pdf_url</code> 时，采用 Connector <code>attachments[]</code> 里的 PDF 链接（浏览器侧捕获，ACM/IEEE 等常仅经此暴露）。</li>
+<li>映射：每条<strong>拼装成 Zotero-API-JSON item</strong> → 复用 <code>map_zotero_item_to_record</code> + <code>enrich_remote_urls</code> + <code>write_paper_shell</code> + <code>PaperRecord::at_path</code> + catalog upsert，落到 <code>{parent_dir}/{id}/</code>（id/citekey 与魔棒 / 文件导入一致）。</li>
+<li>附件 PDF URL：<code>map_zotero_item_to_record</code> 未给出 <code>pdf_url</code> 时，采用 Connector <code>attachments[]</code> 里的 PDF 链接（浏览器侧捕获，ACM/IEEE 等常仅经此暴露）。</li>
 <li>中文摘要：为不超 Connector 15s 超时，壳先以原文写入；<strong>后台</strong>三引擎并行竞速翻译摘要，成功则安全替换 <code>NOTES.md</code> 的 <code>&gt;</code> 摘要块（mtime 守卫，用户已编辑或 MT 全失败则跳过）。</li>
 <li>标签：用户标签原样保留；Zotero 自动标签（网络翻译器加的来源/状态标签，<code>itemTags.type ≠ 0</code>）保留并加 <code>@zotero:</code> 前缀，因此在 Agentero 的标签界面中隐藏。arXiv 学科分类（<code>Computer Science - Machine Learning</code> 等）无论来自魔棒 Translator 还是 Zotero 条目，都加 <code>@arxiv:</code> 前缀，同样隐藏。旧库无 <code>type</code> 列时回退为将全部标签视为用户标签。collection 名仍作为组织标签补充。</li>
 <li>PDF：对话框 <strong>“把 PDF 复制进知识库”</strong> 勾选项（默认开）。勾选时从 <code>storage/&lt;attachmentKey&gt;/</code> 拷到 <code>{paper}/{id}.pdf</code> 并 liteparse <code>PAPER.md</code>；不勾则只留书目，<code>pdf_url</code> 供按需下载。</li>
