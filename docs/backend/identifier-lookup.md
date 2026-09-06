@@ -200,7 +200,7 @@ UI 阅读：优先 catalog 远程 URL；`source/` 为 arXiv TeX 归档；`PAPER.
 | Zotero | Agentero |
 |---|---|
 | `lookup.js` UI | `MagicWand` 弹层 |
-| `extractIdentifiers()` | `lookup:parse` / Host `parse.rs` |
+| `extractIdentifiers()` | `lookup:parse` / Host `scholar_api::identifiers::parsers` + `import::identifiers` |
 | `Zotero.Translate.Search` | `POST /search` on translation-server |
 | Search Translators 仓库 | sidecar 内置 / 可更新的 translators 目录 |
 | 写入 Zotero SQLite | 写 Vault 文件 + **catalog.sqlite** |
@@ -254,7 +254,7 @@ UI 阅读：优先 catalog 远程 URL；`source/` 为 arXiv TeX 归档；`PAPER.
 4. ADS Bibcode
 5. PMID（1–9 位数字，最后匹配）
 
-> 实现上，优先级由 `src-tauri/src/features/import/resolver.rs` 的静态 resolver 表驱动：Url / Doi / Arxiv / Isbn / Pmid / Ads 各实现 `PaperResolver`（`priority` 探测顺序、`catalog_column` 查重列、`translator_target` 构造 Translator 请求、`fetch_fallback` Translator 失败后的直连回退——arXiv→Atom、DOI→Crossref）。Skill 不入表，由 `skill::skill_identifier`（内部调用 `skill::extract_skill_source`）前置分流。新增导入源只需实现一个 resolver 并登记进表（表按 `priority` 排序，有测试守护）。
+> 实现上，优先级由 `crates/agentero-core/src/features/paper/scholar_api/identifiers/resolver.rs` 的静态 resolver 表驱动：Url / Doi / Arxiv / Isbn / Pmid / Ads 各实现 `PaperResolver`（`priority` 探测顺序、`catalog_column` 查重列、`translator_target` 构造 Translator 请求）。Translator 失败后的直连回退在 `scholar_api::identifiers::fallback`（arXiv→Atom、DOI→Crossref、PMID→PubMed）。Skill 不入表，由 `skill::skill_identifier`（内部调用 `skill::extract_skill_source`）前置分流。新增导入源只需实现一个 resolver 并登记进表（表按 `priority` 排序，有测试守护）。
 
 解析失败：返回 `lookup.failure_to_id`，不调用网络。
 
@@ -641,7 +641,7 @@ await ensure_paper_assets(paperDir, record);           // PDF + arXiv LaTeX → 
 
 ## 9. Host 模块布局（早期规划，仅供参考）
 
-> 实际落地时相关逻辑并入了 `src-tauri/src/features/import/`（`parse.rs`、`map.rs`、`assets.rs`、`paper_import/mod.rs` 等），没有独立的 `commands/` / `services/` 分层。下列结构保留为设计阶段参考。
+> 实际落地时相关逻辑拆分到了 `crates/agentero-core/src/features/paper/`：`scholar_api::identifiers`（解析、resolver 表、直连回退）、`import`（Skill 分流、批量预检、落盘、Zotero 映射）等，没有独立的 `commands/` / `services/` 分层。下列结构保留为设计阶段参考。
 
 ```text
 src-tauri/src/
@@ -651,7 +651,7 @@ src-tauri/src/
   services/
     lookup/
       mod.rs
-      parse.rs             # extractIdentifiers 规则
+      identifiers.rs       # extractIdentifiers 规则（实际在 scholar_api::identifiers）
       client.rs            # Runtime HTTP
       map.rs               # Zotero JSON → PaperRecord
       dedupe.rs

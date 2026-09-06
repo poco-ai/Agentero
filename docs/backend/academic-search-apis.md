@@ -4,7 +4,7 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 
 > 范围限定在**学术元数据与论文发现**相关的外部 HTTP API。翻译 API（Google/Bing/DeepL/OpenAI 等）、版面分析 ONNX、本地 Agent/ACP、PostHog 遥测不在本文讨论范围内。
 
-> 路径简写：`scholar_api/…` 与 `features/paper/import/` 的映射 / resolver / 批处理（`map.rs`、`resolver.rs`、`api_mapper.rs`、`title_search.rs`、`batch.rs`、`parse.rs`、`assets.rs`、`sources/`）已随 crate 拆分迁到 `crates/agentero-core/src/features/paper/…`；`import/recognize/`（标题解析链、PDF 识别）与 `import/commands.rs` 仍在 `src-tauri`。其余 `features/…` 均指 `src-tauri/src/features/…`。
+> 路径简写：`scholar_api/…` 与 `features/paper/import/` 的映射 / resolver / 批处理（`map.rs`、`scholar_api::identifiers`、`api_mapper.rs`、`title_search.rs`、`batch.rs`、`assets.rs`、`sources/`）已随 crate 拆分迁到 `crates/agentero-core/src/features/paper/…`；`import/recognize/`（标题解析链、PDF 识别）与 `import/commands.rs` 仍在 `src-tauri`。其余 `features/…` 均指 `src-tauri/src/features/…`。
 
 ## 1. API 总览
 
@@ -43,9 +43,9 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
    - 若用户输入被识别为 arXiv id / DOI / URL，会构造 `{base}/web` 或 `{base}/search` 请求。
    - arXiv 的各类输入（`2508.05004`、`arXiv:2508.05004v2`、`https://arxiv.org/pdf/...`、`https://arxiv.org/html/...`）都会被规范化为 `https://arxiv.org/abs/{id}` 再走 `/web`。
    - Translator 失败且输入是 arXiv id 时，本地 fallback 到 `fetch_arxiv_metadata`。
-3. **Crossref DOI fallback**（`features/paper/import/resolver.rs::fetch_crossref_metadata`）
+3. **Crossref DOI fallback**（`features/paper/scholar_api/identifiers/fallback.rs::fetch_crossref_metadata`）
    - 当 Translator 无法解析一个 DOI 时，`fetch_direct_fallback` 直接请求 `api.crossref.org/works/{doi}`。
-4. **arXiv Atom 直接 fallback**（`features/import/mod.rs::fetch_arxiv_metadata`）
+4. **arXiv Atom 直接 fallback**（`features/paper/scholar_api/identifiers/fallback.rs::fetch_arxiv_metadata`）
    - 请求 `export.arxiv.org/api/query?id_list={id}`，解析 `<arxiv:journal_ref>` 作为 publication/venue。
 
 > **被引数（`citation_count`）**：Crossref 解析 `is-referenced-by-count`、OpenAlex 解析 `cited_by_count`、Semantic Scholar 解析 `citationCount`，三者 `capabilities()` 均声明 `PROVIDE_CITATION_COUNT`；Crossref / OpenAlex 的 title search 还必须把该字段列进 `select` 白名单，否则 API 根本不返回它。`api_paper_to_meta` 把值带进 `PaperRecord`，`merge_api_papers` 合并两个源时取较大值（各自索引的引用文献子集不同）。arXiv Atom 与 Translator 不产出被引数。**注意**：入库以 Translator 为主路径，`map_zotero_item` 不带被引数，因此常规导入写入的仍是 NULL；只有 Translator 失败后降级到 Crossref 直连的 DOI 导入才会落进真实值。完整缺口见 [catalog.md](catalog.md)。
@@ -151,7 +151,7 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 
 - **PubMed**：实现 `AcademicApi`，支持标题搜索和 PMID 查询。流程为 `esearch.fcgi`（JSON）拿 PMID 列表 → `efetch.fcgi`（XML）批量取详情；请求带 `email` 与 `tool` 参数以符合 NCBI 礼貌使用要求。解析字段包括 title、authors、year、venue、volume、issue、pages、DOI、PMID、abstract；PMC 存在时给出 PDF 候选。
 - **bioRxiv / medRxiv**：共用 `biorxiv.rs`，实现 `AcademicApi`，仅支持 `FETCH_BY_DOI`（上游 API 无 title 搜索端点）。请求 `https://api.biorxiv.org/details/{server}/{doi}`，解析 title、authors、date、abstract，并构造 `.full.pdf` 直链。
-- PMID 在 `resolver.rs` 中已有识别器，现在为其补充 PubMed `efetch` 直连 fallback；Translator 失败时可直接从 NCBI 拉取。
+- PMID 在 `scholar_api::identifiers::resolver` 中已有识别器，现在为其补充 PubMed `efetch` 直连 fallback（`scholar_api::identifiers::fallback::fetch_pubmed_metadata`）；Translator 失败时可直接从 NCBI 拉取。
 
 ## 3. 并发与限流
 

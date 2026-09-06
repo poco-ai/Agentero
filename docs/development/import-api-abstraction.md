@@ -105,7 +105,7 @@ impl ApiQuery {
 }
 ```
 
-`resolver.rs` 的 `ResolvedIdentifier` 可直接映射为 `ApiQuery`。
+`scholar_api::identifiers::ResolvedIdentifier` 可直接映射为 `ApiQuery`。
 
 ### 4.2 统一标识符包：`PaperIdentifiers`
 
@@ -351,7 +351,7 @@ crates/agentero-core/src/features/paper/
 2. **阶段 1：先迁 arXiv 和 Crossref** ✅
    - 这两个服务最独立、已有明确的 fallback 位置
    - 在 `scholar_api/sources/arxiv.rs` / `crossref.rs` 实现 `AcademicApi`
-   - 保持 `features/paper/import/resolver.rs` 原有调用点不变，内部改调新的 source
+   - 保持 `features/paper/scholar_api/identifiers/resolver.rs` 原有调用点不变，内部改调新的 source
 
 3. **阶段 2：Semantic Scholar** ✅
    - 在 `scholar_api/sources/semantic_scholar.rs` 实现 `AcademicApi`
