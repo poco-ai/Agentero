@@ -200,6 +200,8 @@ fn run_dsh_lifecycle(
     action: ToolLifecycleAction,
     app: Option<&AppHandle>,
     task_id: Option<&str>,
+    proxy_enabled: bool,
+    proxy_url: &str,
 ) -> Result<(), String> {
     prepare_dsh_launcher()?;
     let reachable = dsh_entrypoint_exists() || resolve_command("dsh-acp-demo").is_some();
@@ -217,6 +219,8 @@ fn run_dsh_lifecycle(
         app,
         task_id,
         "agent-lifecycle-install",
+        proxy_enabled,
+        proxy_url,
     )
 }
 
@@ -380,6 +384,8 @@ fn run_template_uninstall(
     template_id: &str,
     app: Option<&AppHandle>,
     task_id: Option<&str>,
+    proxy_enabled: bool,
+    proxy_url: &str,
 ) -> Result<(), String> {
     let Some(info) = uninstall_info(template_id) else {
         return Ok(());
@@ -411,6 +417,8 @@ fn run_template_uninstall(
             app,
             task_id,
             "agent-lifecycle-uninstall",
+            proxy_enabled,
+            proxy_url,
         )?;
     }
     for dir in &info.dirs {
@@ -426,6 +434,8 @@ pub fn run_template_lifecycle(
     action: ToolLifecycleAction,
     app: Option<&AppHandle>,
     task_id: Option<&str>,
+    proxy_enabled: bool,
+    proxy_url: &str,
 ) -> Result<(), String> {
     check_lifecycle_cancelled(task_id)?;
     if !supports_lifecycle(template_id) {
@@ -437,13 +447,13 @@ pub fn run_template_lifecycle(
         .ok_or_else(|| format!("unknown catalog template: {template_id}"))?;
 
     if matches!(action, ToolLifecycleAction::Uninstall) {
-        return run_template_uninstall(template_id, app, task_id);
+        return run_template_uninstall(template_id, app, task_id, proxy_enabled, proxy_url);
     }
 
     // dsh is a project-dir npm install (not on PATH): Rust writes cordis.yml
     // and the shell only runs the pinned `npm i` inside the launcher dir.
     if template_id == "dsh" {
-        return run_dsh_lifecycle(action, app, task_id);
+        return run_dsh_lifecycle(action, app, task_id, proxy_enabled, proxy_url);
     }
 
     let detect = info
@@ -505,7 +515,14 @@ pub fn run_template_lifecycle(
         action,
         command.len()
     );
-    run_tool_lifecycle_silently(&command, app, task_id, "agent-lifecycle-install")
+    run_tool_lifecycle_silently(
+        &command,
+        app,
+        task_id,
+        "agent-lifecycle-install",
+        proxy_enabled,
+        proxy_url,
+    )
 }
 
 fn update_command(
@@ -820,6 +837,8 @@ fn run_tool_lifecycle_silently(
     app: Option<&AppHandle>,
     task_id: Option<&str>,
     phase: &str,
+    proxy_enabled: bool,
+    proxy_url: &str,
 ) -> Result<(), String> {
     let _guard = acquire_lifecycle_lock(app, task_id)?;
     check_lifecycle_cancelled(task_id)?;
@@ -830,6 +849,7 @@ fn run_tool_lifecycle_silently(
         let script = format!("set -e\nset -o pipefail\n{command_line}\n");
         let mut cmd = Command::new("bash");
         cmd.arg("-c").arg(script);
+        apply_proxy_env_to_command(&mut cmd, proxy_enabled, proxy_url);
         if let Some(login_path) = login_shell_path() {
             let inherited = std::env::var("PATH").unwrap_or_default();
             cmd.env("PATH", merge_path_segments(&login_path, &inherited));
@@ -851,10 +871,29 @@ fn run_tool_lifecycle_silently(
             .arg(&bat_file)
             .env("PATH", merged_path)
             .creation_flags(CREATE_NO_WINDOW);
+        apply_proxy_env_to_command(&mut cmd, proxy_enabled, proxy_url);
         let output = run_command_with_cancellation(cmd, app, task_id, phase);
         let _ = fs::remove_file(&bat_file);
         check_lifecycle_cancelled(task_id)?;
         finish_lifecycle_output(&output.map_err(format_lifecycle_process_error)?)
+    }
+}
+
+/// Mirror `store::apply_proxy_to_agent`: inject HTTP_PROXY/HTTPS_PROXY/ALL_PROXY
+/// into the lifecycle child when the Agentero proxy is enabled, so curl/npm
+/// based installers (Antigravity, Kimi, Claude, Grok, Hermes, OpenCode, …)
+/// can reach the network through the user's configured proxy.
+fn apply_proxy_env_to_command(cmd: &mut Command, proxy_enabled: bool, proxy_url: &str) {
+    for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
+        cmd.env_remove(key);
+    }
+    if proxy_enabled {
+        let proxy_url = proxy_url.trim();
+        if !proxy_url.is_empty() {
+            for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
+                cmd.env(key, proxy_url);
+            }
+        }
     }
 }
 
@@ -1307,6 +1346,30 @@ mod tests {
             chain,
             "npm uninstall -g a || true; npm uninstall -g b || true"
         );
+    }
+
+    #[test]
+    fn proxy_env_is_injected_into_lifecycle_command() {
+        let mut cmd = std::process::Command::new("env");
+        apply_proxy_env_to_command(&mut cmd, true, "http://127.0.0.1:7890");
+        let output = cmd.output().expect("run env");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("HTTP_PROXY=http://127.0.0.1:7890"));
+        assert!(stdout.contains("HTTPS_PROXY=http://127.0.0.1:7890"));
+        assert!(stdout.contains("ALL_PROXY=http://127.0.0.1:7890"));
+    }
+
+    #[test]
+    fn proxy_env_is_cleared_when_disabled() {
+        let mut cmd = std::process::Command::new("env");
+        // Start with a proxy var in the inherited env.
+        cmd.env("HTTP_PROXY", "http://old");
+        apply_proxy_env_to_command(&mut cmd, false, "http://127.0.0.1:7890");
+        let output = cmd.output().expect("run env");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(!stdout.contains("HTTP_PROXY"));
+        assert!(!stdout.contains("HTTPS_PROXY"));
+        assert!(!stdout.contains("ALL_PROXY"));
     }
 }
 

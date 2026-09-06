@@ -214,6 +214,7 @@ pub async fn agent_run_tool_lifecycle(
         Ok(a) => a,
         Err(e) => return Ok(map_err(AppError::message(e))),
     };
+    let (proxy_enabled, proxy_url) = registry.proxy_settings().unwrap_or_default();
     let template_id_for_log = template_id.clone();
     let task_id_for_worker = task_id.clone();
     let app_for_emit = app.clone();
@@ -223,6 +224,8 @@ pub async fn agent_run_tool_lifecycle(
             action,
             Some(&app),
             task_id_for_worker.as_deref(),
+            proxy_enabled,
+            &proxy_url,
         )
     })
     .await
