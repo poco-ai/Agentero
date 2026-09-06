@@ -1,23 +1,13 @@
-//! Title/keyword search for the magic wand.
+//! Frontend-facing title/keyword search wrapper.
 //!
-//! This module delegates to `scholar_api` sources and only keeps the
-//! frontend-facing `PaperSearchCandidate` / `PaperSearchGroup` shapes.
-
-use std::time::Duration;
+//! The source-racing logic lives in [`crate::features::scholar_api::search`];
+//! this module only keeps the `PaperSearchCandidate` / `PaperSearchGroup` shapes
+//! and the `needs_s2_venue_enrichment` helper used by the import UI.
 
 use serde::Serialize;
 
 use crate::error::AppError;
-use crate::features::scholar_api::sources::{
-    arxiv::ArxivApi, semantic_scholar::SemanticScholarApi,
-};
-use crate::features::scholar_api::traits::AcademicApi;
-use crate::features::scholar_api::ApiQuery;
-
-/// How long Semantic Scholar gets before the already-in-flight arXiv result
-/// decides the search. Healthy S2 answers land sub-second and rate-limit
-/// rejections are fast, so this budget only caps the hang case.
-const S2_SEARCH_BUDGET: Duration = Duration::from_secs(5);
+use crate::features::scholar_api::search::{rank_candidates, search_papers_by_title};
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -32,7 +22,7 @@ pub struct PaperSearchCandidate {
     pub url: Option<String>,
     /// Text handed back to the identifier pipeline (arXiv id preferred over DOI).
     pub identifier: String,
-    /// `"s2"` or `"arxiv"`.
+    /// Source that produced the candidate, e.g. `"s2"` or `"arxiv"`.
     pub source: &'static str,
 }
 
@@ -69,91 +59,17 @@ pub struct PaperSearchGroup {
 /// Search papers by title/keyword. Returns at most `limit` candidates that carry
 /// an arXiv id or DOI.
 ///
-/// Semantic Scholar and arXiv fire concurrently; S2 wins whenever it answers
-/// with hits inside [`S2_SEARCH_BUDGET`], otherwise the already-in-flight arXiv
-/// result decides.
+/// Delegates to [`crate::features::scholar_api::search::search_papers_by_title`]
+/// and maps the results into frontend-facing candidates.
 pub async fn search_papers(
     query: &str,
     limit: usize,
 ) -> Result<Vec<PaperSearchCandidate>, AppError> {
-    let query = query.trim();
-    if query.is_empty() {
-        return Ok(Vec::new());
-    }
-    let limit = limit.max(1);
-    let api_query = ApiQuery::Title(query.to_string());
-
-    let s2 = tokio::time::timeout(S2_SEARCH_BUDGET, SemanticScholarApi.fetch(&api_query));
-    let arxiv = ArxivApi.fetch(&api_query);
-    tokio::pin!(s2);
-    tokio::pin!(arxiv);
-
-    let arxiv_hits = tokio::select! {
-        out = &mut s2 => {
-            match out {
-                Ok(Ok(hits)) if !hits.is_empty() => return Ok(rank(hits, query, limit)),
-                Ok(Ok(_)) => log::warn!("title search: semantic scholar returned no results for {query}"),
-                Ok(Err(e)) => log::warn!("title search: semantic scholar failed ({e}); falling back to arXiv"),
-                Err(_elapsed) => log::warn!(
-                    "title search: semantic scholar exceeded its {}s budget; falling back to arXiv",
-                    S2_SEARCH_BUDGET.as_secs()
-                ),
-            }
-            arxiv.await
-        }
-        hits = &mut arxiv => match s2.await {
-            Ok(Ok(s2_hits)) if !s2_hits.is_empty() => return Ok(rank(s2_hits, query, limit)),
-            Ok(Ok(_)) => {
-                log::warn!("title search: semantic scholar returned no results for {query}");
-                hits
-            }
-            Ok(Err(e)) => {
-                log::warn!("title search: semantic scholar failed ({e}); using arXiv results");
-                hits
-            }
-            Err(_elapsed) => {
-                log::warn!(
-                    "title search: semantic scholar exceeded its {}s budget; using arXiv results",
-                    S2_SEARCH_BUDGET.as_secs()
-                );
-                hits
-            }
-        },
-    };
-    match arxiv_hits {
-        Ok(hits) => Ok(rank(hits, query, limit)),
-        Err(e) => Err(AppError::message(format!("arXiv search failed: {e}"))),
-    }
-}
-
-/// Keep the provider's relevance order, but float exact title matches to the
-/// top — same-named papers otherwise bury the one the user meant.
-fn rank(
-    mut hits: Vec<crate::features::scholar_api::ApiPaper>,
-    query: &str,
-    limit: usize,
-) -> Vec<PaperSearchCandidate> {
-    let target = normalize_title(query);
-    hits.sort_by_key(|c| normalize_title(&c.title) != target);
-    hits.truncate(limit);
-    hits.into_iter().map(PaperSearchCandidate::from).collect()
-}
-
-pub(crate) fn normalize_title(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut pending_space = false;
-    for ch in s.chars() {
-        if ch.is_alphanumeric() {
-            if pending_space && !out.is_empty() {
-                out.push(' ');
-            }
-            pending_space = false;
-            out.extend(ch.to_lowercase());
-        } else {
-            pending_space = true;
-        }
-    }
-    out
+    let hits = search_papers_by_title(query, limit).await?;
+    Ok(rank_candidates(hits, query, limit)
+        .into_iter()
+        .map(PaperSearchCandidate::from)
+        .collect())
 }
 
 /// True when the current `publication` value should be replaced from S2.
@@ -170,53 +86,35 @@ mod tests {
     use super::*;
 
     #[test]
-    fn normalizes_punctuation_and_case() {
-        assert_eq!(
-            normalize_title("Attention Is All You Need!"),
-            normalize_title("  attention is  all-you-need ")
-        );
-    }
-
-    #[test]
-    fn floats_exact_title_match_to_top() {
+    fn maps_api_paper_to_candidate() {
         use crate::features::scholar_api::{ApiPaper, PaperIdentifiers, PaperUrls};
-        let hits = vec![
-            ApiPaper {
-                title: "Not Attention".into(),
-                authors: vec![],
-                year: None,
-                date: None,
-                venue: None,
-                volume: None,
-                issue: None,
-                pages: None,
-                publisher: None,
-                abstract_text: None,
-                language: None,
-                citation_count: None,
-                identifiers: PaperIdentifiers::default(),
-                urls: PaperUrls::default(),
-                source: "s2",
+        let p = ApiPaper {
+            title: "Attention Is All You Need".into(),
+            authors: vec!["Ashish Vaswani".into()],
+            year: Some(2017),
+            date: Some("2017".into()),
+            venue: Some("NeurIPS".into()),
+            volume: None,
+            issue: None,
+            pages: None,
+            publisher: None,
+            abstract_text: None,
+            language: None,
+            citation_count: Some(42),
+            identifiers: PaperIdentifiers {
+                arxiv_id: Some("1706.03762".into()),
+                doi: Some("10.48550/arXiv.1706.03762".into()),
+                ..Default::default()
             },
-            ApiPaper {
-                title: "Attention Is All You Need".into(),
-                authors: vec![],
-                year: None,
-                date: None,
-                venue: None,
-                volume: None,
-                issue: None,
-                pages: None,
-                publisher: None,
-                abstract_text: None,
-                language: None,
-                citation_count: None,
-                identifiers: PaperIdentifiers::default(),
-                urls: PaperUrls::default(),
-                source: "s2",
+            urls: PaperUrls {
+                landing: Some("https://arxiv.org/abs/1706.03762".into()),
+                ..Default::default()
             },
-        ];
-        let ranked = rank(hits, "attention is all you need", 2);
-        assert_eq!(ranked[0].title, "Attention Is All You Need");
+            source: "arxiv",
+        };
+        let c = PaperSearchCandidate::from(p);
+        assert_eq!(c.title, "Attention Is All You Need");
+        assert_eq!(c.identifier, "1706.03762");
+        assert_eq!(c.source, "arxiv");
     }
 }
