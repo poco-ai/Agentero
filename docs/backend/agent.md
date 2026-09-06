@@ -49,9 +49,9 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `## Context` / `## Skills` / `## Extensions` 清单）当作普通 agent message 推送。Host
   在本轮首个 message chunk 上识别该横幅并丢弃，不写入内容缓冲、不发 `agent:stream`，
   避免它出现在回答之前。
-- Antigravity（`agy --acp`）：spawn 时注入 `NO_BROWSER=true`（用户显式配置则不覆盖），避免未登录时
+- Antigravity（`agy-acp`）：spawn 时注入 `NO_BROWSER=true`（用户显式配置则不覆盖），避免未登录时
   `new_session` 反复拉起浏览器 OAuth；登录须在终端完成（BYOA）。
-- Gemini CLI 已被 Google Antigravity CLI 取代；Agentero 在启动时会将旧版 Gemini 注册项迁移为 Antigravity。
+- Gemini CLI 与旧版 `agy --acp` 调用已被 Google Antigravity CLI 的社区 ACP 适配器 `agy-acp` 取代；Agentero 在启动时会将旧版 Gemini / `agy --acp` 注册项迁移为 `agy-acp`。
 - 设置页会将 ACP 探测中的认证错误（如 `invalid_grant` / `failed to authenticate` /
   `authentication required` / `not logged in`）
   显示为「未登录」，其他握手或进程错误仍显示为「ACP 失败」。

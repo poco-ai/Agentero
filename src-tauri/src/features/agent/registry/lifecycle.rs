@@ -8,8 +8,8 @@
 use crate::features::agent::registry::discovery::path_entries;
 use crate::features::agent::registry::discovery::resolve_command;
 use crate::features::agent::registry::templates::{
-    antigravity_install_dir, dsh_entrypoint_exists, dsh_launcher_dir, kimi_launcher_dir,
-    template_info, CLAUDE_ACP_INSTALL_COMMAND, PI_ACP_INSTALL_COMMAND, PI_HOST_INSTALL_COMMAND,
+    dsh_entrypoint_exists, dsh_launcher_dir, kimi_launcher_dir, template_info,
+    CLAUDE_ACP_INSTALL_COMMAND, PI_ACP_INSTALL_COMMAND, PI_HOST_INSTALL_COMMAND,
 };
 use serde::Serialize;
 use std::collections::HashSet;
@@ -254,18 +254,11 @@ const HERMES_UPDATE_UNIX: &str = "hermes update || bash -c 'tmp=$(mktemp) && cur
 #[cfg(not(target_os = "windows"))]
 const KIMI_INSTALL_UNIX: &str = "bash -c 'tmp=$(mktemp) && curl -fsSL https://code.kimi.com/kimi-code/install.sh -o $tmp && bash $tmp; status=$?; rm -f $tmp; exit $status'";
 
-/// Antigravity CLI official installer (single Go binary, not npm).
-#[cfg(not(target_os = "windows"))]
-const ANTIGRAVITY_INSTALL_UNIX: &str = "bash -c 'tmp=$(mktemp) && curl -fsSL https://antigravity.google/cli/install.sh -o $tmp && bash $tmp; status=$?; rm -f $tmp; exit $status'";
-
 /// npm fallback for Kimi Code (npm installs the same `kimi` binary).
 pub const KIMI_NPM_INSTALL_COMMAND: &str = "npm i -g @moonshot-ai/kimi-code@latest";
 
 #[cfg(target_os = "windows")]
 const GROK_INSTALL_WINDOWS_SCRIPT: &str = "irm https://x.ai/cli/install.ps1 | iex";
-#[cfg(target_os = "windows")]
-const ANTIGRAVITY_INSTALL_WINDOWS_SCRIPT: &str =
-    "irm https://antigravity.google/cli/install.ps1 | iex";
 #[cfg(target_os = "windows")]
 const HERMES_INSTALL_WINDOWS_SCRIPT: &str =
     "irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex";
@@ -330,7 +323,7 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
             "npm uninstall -g @openai/codex".to_string(),
             "npm uninstall -g @agentclientprotocol/codex-acp".to_string(),
         ],
-        "antigravity" => Vec::new(),
+        "antigravity" => vec!["npm uninstall -g agy-acp".to_string()],
         "pi" => vec![
             "npm uninstall -g @earendil-works/pi-coding-agent".to_string(),
             pi_acp,
@@ -343,7 +336,6 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
     };
     let dirs = match template_id {
         "dsh" => vec![dsh_launcher_dir().display().to_string()],
-        "antigravity" => vec![antigravity_install_dir().display().to_string()],
         "kimi-code" => vec![kimi_launcher_dir().display().to_string()],
         _ => Vec::new(),
     };
@@ -392,20 +384,6 @@ fn run_template_uninstall(
     };
     if template_id == "dsh" {
         return remove_managed_dir(&dsh_launcher_dir());
-    }
-    if template_id == "antigravity" {
-        #[cfg(not(target_os = "windows"))]
-        {
-            if let Some(home) = std::env::var_os("HOME") {
-                let _ = std::fs::remove_file(
-                    std::path::PathBuf::from(home)
-                        .join(".local")
-                        .join("bin")
-                        .join("agy"),
-                );
-            }
-        }
-        return remove_managed_dir(&antigravity_install_dir());
     }
     if !info.npm_commands.is_empty() {
         // A fully `|| true` chain would silently succeed when npm is missing.
@@ -572,10 +550,7 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
         match template_id {
             "claude-acp" => Ok("npm i -g @anthropic-ai/claude-code@latest".to_string()),
             "codex-acp" => Ok("npm i -g @openai/codex@latest".to_string()),
-            "antigravity" => Ok(format!(
-                "powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand {}",
-                powershell_encoded_command(ANTIGRAVITY_INSTALL_WINDOWS_SCRIPT)
-            )),
+            "antigravity" => Ok("npm i -g agy-acp@latest".to_string()),
             "opencode" => Ok("npm i -g opencode-ai@latest".to_string()),
             "openclaw" => Ok("npm i -g openclaw@latest".to_string()),
             "hermes" => Ok(hermes_install_windows_command()),
@@ -600,7 +575,7 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
                 "npm i -g @anthropic-ai/claude-code@latest",
             )),
             "codex-acp" => Ok("npm i -g @openai/codex@latest".to_string()),
-            "antigravity" => Ok(ANTIGRAVITY_INSTALL_UNIX.to_string()),
+            "antigravity" => Ok("npm i -g agy-acp@latest".to_string()),
             "opencode" => Ok(chain_or(
                 OPENCODE_INSTALL_UNIX,
                 "npm i -g opencode-ai@latest",
@@ -644,8 +619,8 @@ fn host_update_command(template_id: &str) -> Result<String, String> {
             }
         }
         "codex-acp" => Ok("npm i -g @openai/codex@latest".to_string()),
-        // Antigravity installer is idempotent; re-run it to update.
-        "antigravity" => Ok(host_install_command(template_id)?),
+        // Antigravity is installed through the community agy-acp npm adapter.
+        "antigravity" => Ok("npm i -g agy-acp@latest".to_string()),
         "openclaw" => Ok(chain_or(
             "openclaw update --yes",
             "npm i -g openclaw@latest",
@@ -796,10 +771,7 @@ npm i -g openclaw@latest
 # Dsh (DeepSeek Harness ACP demo — Agentero writes cordis.yml + runs this)
 {dsh}"#,
             claude_acp = CLAUDE_ACP_INSTALL_COMMAND,
-            antigravity = format!(
-                "powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand {}",
-                powershell_encoded_command(ANTIGRAVITY_INSTALL_WINDOWS_SCRIPT)
-            ),
+            antigravity = "npm i -g agy-acp@latest",
             pi_host = PI_HOST_INSTALL_COMMAND,
             pi_acp = PI_ACP_INSTALL_COMMAND,
             hermes = hermes_install_windows_command(),
@@ -836,7 +808,7 @@ npm i -g openclaw@latest
 {dsh}"#,
             claude_host = CLAUDE_INSTALL_UNIX,
             claude_acp = CLAUDE_ACP_INSTALL_COMMAND,
-            antigravity = ANTIGRAVITY_INSTALL_UNIX,
+            antigravity = "npm i -g agy-acp@latest",
             opencode = OPENCODE_INSTALL_UNIX,
             pi_host = PI_HOST_INSTALL_COMMAND,
             pi_acp = PI_ACP_INSTALL_COMMAND,

@@ -3,7 +3,7 @@ import type { ComponentProps, ReactNode } from "react";
 import {
 	SiClaude,
 	SiDeepseek,
-	SiGooglegemini,
+	SiGoogle,
 	SiHermes,
 	SiOpencode,
 } from "react-icons/si";
@@ -85,7 +85,7 @@ export function AgentLogo({
 			icon = <OpenAiMark className={neutralIconClass} />;
 			break;
 		case "antigravity":
-			icon = <SiGooglegemini className={cn(iconClass, "!text-[#1A73E8]")} />;
+			icon = <SiGoogle className={cn(iconClass, "!text-[#1A73E8]")} />;
 			break;
 		case "hermes":
 			icon = (

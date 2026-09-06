@@ -676,17 +676,24 @@ fn migrate_legacy_codex_agents(state: &mut AgentRegistryState) -> bool {
     migrated
 }
 
-/// Google Gemini CLI has been replaced by Antigravity CLI (`agy`). Repoint
-/// stale Gemini registrations (template deserializes as Antigravity, but
-/// `command`/`args` still reference `gemini`) at the new command.
+/// Google Gemini CLI and the previous `agy --acp` invocation have been
+/// replaced by the community `agy-acp` ACP adapter. Repoint stale Gemini or
+/// legacy Antigravity registrations (template deserializes as Antigravity, but
+/// `command`/`args` still reference `gemini` or `agy --acp`) at the new command.
 fn migrate_legacy_gemini_agents(state: &mut AgentRegistryState) -> bool {
     let mut migrated = false;
     for agent in &mut state.agents {
-        if agent.template != AgentTemplate::Antigravity || agent.command != "gemini" {
+        if agent.template != AgentTemplate::Antigravity {
             continue;
         }
-        agent.command = "agy".to_string();
-        agent.args = vec!["--acp".to_string()];
+        let is_legacy_gemini = agent.command == "gemini";
+        let is_legacy_agy_acp =
+            agent.command == "agy" && agent.args.len() == 1 && agent.args[0] == "--acp";
+        if !is_legacy_gemini && !is_legacy_agy_acp {
+            continue;
+        }
+        agent.command = "agy-acp".to_string();
+        agent.args = vec![];
         agent.last_probe_ok = None;
         agent.last_probe_agent_name = None;
         agent.last_probe_error = None;
@@ -1042,12 +1049,42 @@ mod tests {
 
         assert!(migrate_legacy_gemini_agents(&mut state));
         let agent = &state.agents[0];
-        assert_eq!(agent.command, "agy");
-        assert_eq!(agent.args, vec!["--acp".to_string()]);
+        assert_eq!(agent.command, "agy-acp");
+        assert!(agent.args.is_empty());
         assert_eq!(agent.last_probe_ok, None);
         assert_eq!(agent.last_probed_at, None);
 
         // Already migrated: nothing left to do.
+        assert!(!migrate_legacy_gemini_agents(&mut state));
+    }
+
+    #[test]
+    fn migrates_legacy_agy_acp_to_agy_acp_adapter() {
+        let mut state = AgentRegistryState {
+            agents: vec![AgentDescriptor {
+                id: "catalog-antigravity".to_string(),
+                name: "Antigravity".to_string(),
+                template: AgentTemplate::Antigravity,
+                command: "agy".to_string(),
+                args: vec!["--acp".to_string()],
+                env: HashMap::new(),
+                available: true,
+                last_error: None,
+                last_probe_ok: Some(true),
+                last_probe_agent_name: Some("agy".to_string()),
+                last_probe_error: None,
+                last_probed_at: Some("1".to_string()),
+            }],
+            ..AgentRegistryState::default()
+        };
+
+        assert!(migrate_legacy_gemini_agents(&mut state));
+        let agent = &state.agents[0];
+        assert_eq!(agent.command, "agy-acp");
+        assert!(agent.args.is_empty());
+        assert_eq!(agent.last_probe_ok, None);
+        assert_eq!(agent.last_probed_at, None);
+
         assert!(!migrate_legacy_gemini_agents(&mut state));
     }
 

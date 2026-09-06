@@ -70,26 +70,6 @@ pub fn kimi_launcher_dir() -> std::path::PathBuf {
     }
 }
 
-/// Antigravity CLI install directory. The official Windows installer places
-/// files under `%LOCALAPPDATA%\agy`; on Unix the binary lands in `~/.local/bin`
-/// (removed separately) and any config/cache lives here.
-pub fn antigravity_install_dir() -> std::path::PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        let base = std::env::var_os("LOCALAPPDATA")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|| std::path::PathBuf::from("C:\\"));
-        base.join("agy")
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let home = std::env::var_os("HOME")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_default();
-        home.join(".agy")
-    }
-}
-
 /// Home-level npm root shim: if the user has `~/package.json`, npm walks up
 /// from the launcher dir and lands packages in `~/node_modules` (off PATH).
 pub fn dsh_home_entrypoint() -> Option<std::path::PathBuf> {
@@ -206,12 +186,12 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
         AgentTemplateInfo {
             id: AgentTemplate::Antigravity.as_str().to_string(),
             name: "Antigravity".to_string(),
-            description: "Google Antigravity CLI with native ACP (`agy --acp`).".to_string(),
-            command: "agy".to_string(),
-            args: vec!["--acp".to_string()],
-            detect_command: Some("agy".to_string()),
-            install_hint: "Install Google Antigravity CLI.".to_string(),
-            install_command: None,
+            description: "Google Antigravity CLI via the community `agy-acp` ACP adapter.".to_string(),
+            command: "agy-acp".to_string(),
+            args: vec![],
+            detect_command: Some("agy-acp".to_string()),
+            install_hint: "Install the agy-acp ACP adapter (npm i -g agy-acp).".to_string(),
+            install_command: Some("npm i -g agy-acp@latest".to_string()),
         },
         AgentTemplateInfo {
             id: AgentTemplate::QoderCli.as_str().to_string(),
