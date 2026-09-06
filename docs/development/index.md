@@ -22,5 +22,6 @@
 | [import-api-abstraction.md](import-api-abstraction.md) | Import 学术 API 抽象层：统一论文元数据、期刊指标、PDF URL 与题录批处理的 trait 与数据结构。**已落地**（`crates/agentero-core` 的 `features/paper/scholar_api/`），保留为设计记录 + 论文元数据重构的剩余缺口清单（`citation_count` 入库断点、`status`/`body_source` enum 化代价、`PaperTag` 生成契约） |
 | [mark-locate-eager.md](mark-locate-eager.md) | 文字定位：标注时算（即时 B1 viewer / 可选 B2 headless） |
 | [crate-split-roadmap.md](crate-split-roadmap.md) | agentero-core crate 拆分路线：Phase 1/2 已落地（基座 + CLI 数据域迁入、`HostHooks` 事件抽象、CLI 脱离 `agentero_lib`）；留守域耦合清单与 Phase 3 建议 |
+| [rust-arch-refactor.md](rust-arch-refactor.md) | Rust 端架构重构 To-do（2026-09 评审产物）：三轮评审 + 16 个核实 agent 的结论沉淀。P0 正确性修复（含远端 catalog WAL 推送丢数据）→ P1 IPC 契约 → P2 trait Vault 统一双轨 → P3 Jobs 去业务化 → P4 横切设施 → P5 Paper/Agent 域 → P6 core/host 收尾。含已推翻论断记录，防止重复调研 |
 
 macOS 签名与公证（已实现流程说明）在 [`../bug_fix/macos-signing.md`](../bug_fix/macos-signing.md)。
