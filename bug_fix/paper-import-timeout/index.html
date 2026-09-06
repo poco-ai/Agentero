@@ -3476,7 +3476,7 @@
 Bib/RIS 导入以及 Zotero Connector 的后台资源任务仍可能长时间没有终态。</p>
 <h2 id="_2">修复<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>features/import/assets.rs</code> 对一篇论文的整个资源阶段增加 3 分钟截止时间。</li>
+<li><code>features/paper/import/download.rs</code> 对一篇论文的整个资源阶段增加 3 分钟截止时间。</li>
 <li>截止时间覆盖 PDF fallback、Crossref、Unpaywall 和 arXiv e-print。</li>
 <li>共享资源入口因此同时覆盖魔棒、Bib/RIS、Connector，以及其它调用
   <code>ensure_paper_assets_*</code> 的导入路径。</li>

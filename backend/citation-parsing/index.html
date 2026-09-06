@@ -3840,7 +3840,7 @@
 </blockquote>
 <h2 id="1">1. 背景与现状<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <ul>
-<li>arXiv 入库时 e-print 已完整解压到 <code>{paper}/source/</code>（<code>src-tauri/src/features/import/assets.rs</code> <code>unpack_arxiv_eprint</code>），其中<strong>天然包含 <code>.bbl</code>、偶有 <code>.bib</code></strong>。</li>
+<li>arXiv 入库时 e-print 已完整解压到 <code>{paper}/source/</code>（<code>crates/agentero-core/src/features/paper/import/download.rs</code> <code>unpack_arxiv_eprint</code>），其中<strong>天然包含 <code>.bbl</code>、偶有 <code>.bib</code></strong>。</li>
 <li>非 arXiv PDF 入库后由 liteparse 生成 <code>PAPER.md</code>（<code>src-tauri/src/features/paper/analyze/parse/mod.rs</code>），References 段以纯文本存在，<code>extract_links: true</code> 已开启。</li>
 <li>catalog（v3）没有 references 存储，仅有标量 <code>citation_count</code>。</li>
 <li>PDF 查看器（EmbedPDF / PDFium）已加载页内 Link annotation，文中 citation 点击可跳转；<code>goToPage</code> 与 destination 解析（<code>src/lib/pdf/bookmark.ts</code>）已有基础。</li>

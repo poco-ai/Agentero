@@ -5346,7 +5346,7 @@
 </tr>
 </tbody>
 </table>
-<p>批量：魔棒输入框支持一次粘贴多个标识符，按<strong>换行 / 回车、逗号 <code>,</code>、分号 <code>;</code>、中文逗号 <code>，</code>、中文分号 <code>；</code></strong>拆分（正则 <code>/[\n\r,;，；]+/</code>）。空格<strong>不再</strong>是分隔符 —— 论文标题与 <code>npx skills add …</code> 都含空格，必须整段送到 Host。Host 侧 <code>classify_segment</code>（<code>src-tauri/src/features/import/batch.rs</code>）按以下顺序判定每一段：</p>
+<p>批量：魔棒输入框支持一次粘贴多个标识符，按<strong>换行 / 回车、逗号 <code>,</code>、分号 <code>;</code>、中文逗号 <code>，</code>、中文分号 <code>；</code></strong>拆分（正则 <code>/[\n\r,;，；]+/</code>）。空格<strong>不再</strong>是分隔符 —— 论文标题与 <code>npx skills add …</code> 都含空格，必须整段送到 Host。Host 侧 <code>classify_segment</code>（<code>crates/agentero-core/src/features/paper/import/search_router.rs</code>）按以下顺序判定每一段：</p>
 <ol>
 <li>单 token → <code>extract_primary_identifier</code>，命中即标识符，否则转标题搜索。</li>
 <li>多 token 且整段是 Skill 来源（<code>npx skills add …</code>）→ 单条 Skill。</li>

@@ -3693,8 +3693,8 @@
 <p>路径分配：<code>import::allocate_paper_path</code>（盘 + catalog 双查，撞名改写 id）。</p>
 <h2 id="skill">Skill 导入<a class="headerlink" href="#skill" title="Permanent link">&para;</a></h2>
 <p>魔棒 <code>lookup_import_batch</code> 同时接受论文标识符和 Skill 来源。Host 在普通 URL
-识别之前通过 <code>skill::extract_skill_source</code> 检测 Skill 来源（<code>skill</code> kind，不入
-resolver 表），解析 GitHub 仓库、
+识别之前通过 <code>scholar_api::identifiers::extract_skill_source</code> 检测 Skill 来源（<code>skill</code>
+kind，不入 resolver 表），解析 GitHub 仓库、
 GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills add</code> 输入。</p>
 <p>Skill 安装管线位于 <code>features/paper/import/skill</code>：</p>
 <ol>

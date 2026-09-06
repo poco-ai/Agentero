@@ -3770,7 +3770,7 @@
 <p>Agentero Host 端（<code>src-tauri/src/features/</code>）在论文识别、入库、引用补全、推荐等流程中，会调用若干外部学术服务。本文档列出所有当前在用的学术搜索/元数据 API，说明其用途、调用入口、请求形态、fallback 链路与并发控制。</p>
 <blockquote>
 <p>范围限定在<strong>学术元数据与论文发现</strong>相关的外部 HTTP API。翻译 API（Google/Bing/DeepL/OpenAI 等）、版面分析 ONNX、本地 Agent/ACP、PostHog 遥测不在本文讨论范围内。</p>
-<p>路径简写：<code>scholar_api/…</code> 与 <code>features/paper/import/</code> 的映射 / resolver / 批处理（<code>scholar_api::identifiers</code>、<code>api_mapper.rs</code>、<code>title_search.rs</code>、<code>batch.rs</code>、<code>assets.rs</code>、<code>sources/</code>）已随 crate 拆分迁到 <code>crates/agentero-core/src/features/paper/…</code>；<code>import/recognize/</code>（标题解析链、PDF 识别）与 <code>import/commands.rs</code> 仍在 <code>src-tauri</code>。其余 <code>features/…</code> 均指 <code>src-tauri/src/features/…</code>。</p>
+<p>路径简写：<code>scholar_api/…</code> 与 <code>features/paper/import/</code> 的映射 / resolver / 路由（<code>scholar_api::identifiers</code>、<code>api_mapper.rs</code>、<code>title_search.rs</code>、<code>search_router.rs</code>、<code>download.rs</code>、<code>sources/</code>）已随 crate 拆分迁到 <code>crates/agentero-core/src/features/paper/…</code>；<code>import/recognize/</code>（标题解析链、PDF 识别）与 <code>import/commands.rs</code> 仍在 <code>src-tauri</code>。其余 <code>features/…</code> 均指 <code>src-tauri/src/features/…</code>。</p>
 </blockquote>
 <h2 id="1-api">1. API 总览<a class="headerlink" href="#1-api" title="Permanent link">&para;</a></h2>
 <table>
@@ -3817,7 +3817,7 @@
 <td><strong>arXiv 二进制端点</strong></td>
 <td><code>https://arxiv.org/pdf/{id}</code> / <code>https://arxiv.org/e-print/{id}</code> / <code>https://arxiv.org/src/{id}</code></td>
 <td>PDF / TeX 源码下载</td>
-<td><code>features/import/assets.rs</code></td>
+<td><code>features/paper/import/download.rs</code></td>
 </tr>
 <tr>
 <td><strong>Crossref REST API</strong></td>
@@ -3835,7 +3835,7 @@
 <td><strong>Unpaywall</strong></td>
 <td><code>GET https://api.unpaywall.org/v2/{doi}</code></td>
 <td>DOI → 开放获取 PDF</td>
-<td><code>features/import/assets.rs</code></td>
+<td><code>features/paper/import/download.rs</code></td>
 </tr>
 <tr>
 <td><strong>PubMed / NCBI E-utilities</strong></td>
@@ -4001,7 +4001,7 @@
 <li>这是一个人工整理的学术站点，不是开放 API；解析结果写入 NOTES.md。</li>
 </ul>
 <h3 id="210-pdf-tex">2.10 PDF / TeX 资产下载<a class="headerlink" href="#210-pdf-tex" title="Permanent link">&para;</a></h3>
-<p>入口：<code>features/import/assets.rs</code>。</p>
+<p>入口：<code>features/paper/import/download.rs</code>。</p>
 <ul>
 <li>arXiv PDF 候选链：<code>https://arxiv.org/pdf/{id}</code> → <code>https://arxiv.org/pdf/{id}.pdf</code> → <code>https://export.arxiv.org/pdf/{id}</code>。</li>
 <li>arXiv TeX 源码：<code>https://arxiv.org/e-print/{id}</code>（<code>/src/</code> 为别名）。</li>
