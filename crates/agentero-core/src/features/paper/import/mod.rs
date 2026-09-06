@@ -9,12 +9,11 @@ pub mod sources;
 pub use crate::features::paper::analyze::parse as pdf_parse;
 
 pub mod api_mapper;
-pub use api_mapper::api_paper_to_meta;
+pub use api_mapper::{api_paper_to_meta, doi_slug, enrich_remote_urls, map_zotero_item_to_record};
 
 pub mod assets;
 pub mod batch;
 pub mod identifiers;
-pub mod map;
 pub mod skill;
 pub mod title_search;
 
@@ -23,7 +22,6 @@ pub use assets::{
     ensure_paper_assets, ensure_paper_assets_with_cookies, ensure_paper_assets_with_progress,
     AssetDownloadResult, AssetProgressContext,
 };
-pub use map::{enrich_remote_urls, map_zotero_item};
 // Stable top-level API for the desktop connector (`integration/connector`):
 // commit pipeline entry point + policies. Consumers must not reach into the
 // `paper_import` internals.
@@ -41,7 +39,6 @@ pub use title_search::{PaperSearchCandidate, PaperSearchGroup};
 // on these re-exports, not reach into the `batch` / `parse` / `map` internals.
 pub use crate::features::scholar_api::identifiers::{extract_arxiv_id, strip_arxiv_version};
 pub use batch::{preflight_identifier_batch, SkillBatchMode};
-pub use map::doi_slug;
 // pdf_parse surface consumed by other features (layout_remote compares the
 // cancellation message).
 pub use pdf_parse::CANCELLED_MESSAGE;
@@ -334,10 +331,8 @@ pub async fn import_by_identifier_with_progress(
     }
 
     check_task_not_cancelled(args.task_id.as_deref())?;
-    let (mut meta, used_translator) =
-        resolve_metadata(text, &base, args.task_id.as_deref()).await?;
+    let (meta, used_translator) = resolve_metadata(text, &base, args.task_id.as_deref()).await?;
     check_task_not_cancelled(args.task_id.as_deref())?;
-    enrich_remote_urls(&mut meta);
 
     let commit = paper_commit(
         meta,
@@ -841,7 +836,7 @@ async fn import_one_local_pdf(
                 .as_deref()
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
-                .map(map::doi_slug)
+                .map(doi_slug)
         })
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| slug_from_stem(stem));
@@ -1084,7 +1079,7 @@ async fn translator_fetch(
         .next()
         .ok_or_else(|| AppError::message("translator returned empty items array"))?;
 
-    map_zotero_item(&item)
+    api_mapper::map_zotero_item_to_record(&item)
 }
 
 /// Build a Translator Runtime request from an identifier.

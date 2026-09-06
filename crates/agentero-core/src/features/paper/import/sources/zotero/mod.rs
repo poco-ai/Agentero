@@ -6,7 +6,7 @@
 //! migration) and bidirectional sync (`zotero_sync`), which builds on this
 //! feature's [`codec`].
 //!
-//! Boundary: the Zotero-item → `PaperRecord` mapping (`map_zotero_item`) and
+//! Boundary: the Zotero-item → `PaperRecord` mapping (`map_zotero_item_to_record`) and
 //! the commit pipeline stay in [`crate::features::import`]; this feature is a
 //! consumer of that stable top-level API (same contract as `zotero_sync`,
 //! `connector`, `coolpapers`). The Translator `/import` client

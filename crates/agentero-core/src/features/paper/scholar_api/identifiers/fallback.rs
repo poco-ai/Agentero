@@ -73,7 +73,7 @@ pub async fn fetch_direct_fallback(
 }
 
 fn check_cancelled(task_id: Option<&str>) -> Result<(), AppError> {
-    if task_id.is_some_and(|id| crate::cancel::is_cancelled(id)) {
+    if task_id.is_some_and(crate::cancel::is_cancelled) {
         return Err(AppError::message("background task cancelled"));
     }
     Ok(())

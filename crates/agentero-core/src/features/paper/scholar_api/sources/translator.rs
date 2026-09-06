@@ -26,7 +26,7 @@ impl TranslatorApi {
     /// POST a prepared body to a Translator endpoint and return the raw Zotero
     /// item(s). This is the primitive used by both metadata lookup and
     /// bibliography import; callers that need a `PaperRecord` map the items
-    /// with `features::import::map::map_zotero_item`.
+    /// with `features::import::api_mapper::map_zotero_item_to_record`.
     pub async fn fetch_raw_items(
         &self,
         endpoint: &str,
@@ -113,7 +113,7 @@ impl BibliographySource for TranslatorApi {
     }
 }
 
-fn map_zotero_item(item: &Value) -> Option<ApiPaper> {
+pub(crate) fn map_zotero_item(item: &Value) -> Option<ApiPaper> {
     let title = item
         .get("title")
         .and_then(|v| v.as_str())
@@ -174,13 +174,14 @@ fn map_zotero_item(item: &Value) -> Option<ApiPaper> {
 
     let doi = str_field(item, "DOI").or_else(|| str_field(item, "doi"));
     let isbn = str_field(item, "ISBN");
+    let extra = str_field(item, "extra");
     let pmid = item
         .get("PMID")
         .and_then(|v| v.as_str())
         .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
+        .filter(|s| !s.is_empty())
+        .or_else(|| extract_pmid_from_extra(extra.as_deref()));
 
-    let extra = str_field(item, "extra");
     let url = str_field(item, "url");
 
     let arxiv_id = extract_arxiv_from_extra(extra.as_deref())
@@ -294,6 +295,20 @@ fn extract_arxiv_from_extra(extra: Option<&str>) -> Option<String> {
         if line.to_ascii_lowercase().starts_with("arxiv:") {
             let token = line.split_once(':')?.1.split_whitespace().next()?.trim();
             return Some(strip_arxiv_version(token));
+        }
+    }
+    None
+}
+
+fn extract_pmid_from_extra(extra: Option<&str>) -> Option<String> {
+    let extra = extra?;
+    for line in extra.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("PMID:") {
+            let value = rest.trim();
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
         }
     }
     None

@@ -18,3 +18,7 @@ pub use parsers::{
 
 pub(crate) use fallback::fetch_direct_fallback;
 pub(crate) use resolver::{extract, find};
+
+// Direct-connect fallback fetchers exposed to the desktop host for commands
+// that refresh metadata without importing.
+pub use fallback::{fetch_arxiv_metadata, fetch_crossref_metadata};

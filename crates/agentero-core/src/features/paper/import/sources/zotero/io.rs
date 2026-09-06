@@ -7,8 +7,8 @@ use crate::app_handle::AppHandle;
 use crate::error::AppError;
 use crate::features::catalog::papers::{self, PaperKind, PaperRecord};
 use crate::features::import::{
-    enrich_remote_urls, map_zotero_item, normalize_parent_dir, translator_import_items,
-    PaperImportArgs, PaperImportResult, DEFAULT_TRANSLATOR_BASE_URL,
+    api_mapper, normalize_parent_dir, translator_import_items, PaperImportArgs, PaperImportResult,
+    DEFAULT_TRANSLATOR_BASE_URL,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -163,8 +163,7 @@ async fn import_one_item(
     };
     use crate::features::import::AssetProgressContext;
 
-    let mut meta = map_zotero_item(item)?;
-    enrich_remote_urls(&mut meta);
+    let meta = api_mapper::map_zotero_item_to_record(item)?;
 
     let commit = paper_commit(
         meta,

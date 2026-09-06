@@ -1,9 +1,11 @@
 //! Map [`ApiPaper`] candidates from `scholar_api` into [`PaperRecord`].
 
-use crate::features::catalog::papers::{PaperKind, PaperRecord};
-use crate::features::import::map::{doi_slug, enrich_remote_urls};
-use crate::features::import::slug_from_stem;
+use serde_json::Value;
+
+use crate::error::AppError;
+use crate::features::catalog::papers::{hide_arxiv_category_tag, PaperKind, PaperRecord, PaperTag};
 use crate::features::scholar_api::scoring::{normalize_title, title_similarity};
+use crate::features::scholar_api::sources::translator::map_zotero_item;
 use crate::features::scholar_api::ApiPaper;
 
 /// Convert a single API candidate into a `PaperRecord`, choosing an id and
@@ -14,7 +16,8 @@ pub fn api_paper_to_meta(paper: &ApiPaper) -> PaperRecord {
         .arxiv_id
         .clone()
         .or_else(|| paper.identifiers.doi.clone().map(|d| doi_slug(&d)))
-        .unwrap_or_else(|| slug_from_stem(&paper.title));
+        .or_else(|| paper.identifiers.isbn.clone())
+        .unwrap_or_else(|| citekey_fallback(&paper.authors, paper.year, &paper.title));
 
     let paper_type = if paper.identifiers.arxiv_id.is_some() {
         PaperKind::Arxiv
@@ -32,6 +35,8 @@ pub fn api_paper_to_meta(paper: &ApiPaper) -> PaperRecord {
     meta.publication = paper.venue.clone();
     meta.doi = paper.identifiers.doi.clone();
     meta.arxiv_id = paper.identifiers.arxiv_id.clone();
+    meta.isbn = paper.identifiers.isbn.clone();
+    meta.pmid = paper.identifiers.pmid.clone();
     meta.volume = paper.volume.clone();
     meta.issue = paper.issue.clone();
     meta.pages = paper.pages.clone();
@@ -48,6 +53,50 @@ pub fn api_paper_to_meta(paper: &ApiPaper) -> PaperRecord {
     enrich_remote_urls(&mut meta);
 
     meta
+}
+
+/// Map a raw Zotero/Translator item into a `PaperRecord`.
+///
+/// This is the single entry point for Zotero-shaped JSON: it first turns the
+/// item into an [`ApiPaper`] via the translator source, then maps to
+/// `PaperRecord`, and finally preserves Zotero-only fields.
+pub fn map_zotero_item_to_record(item: &Value) -> Result<PaperRecord, AppError> {
+    let api_paper = map_zotero_item(item)
+        .ok_or_else(|| AppError::message("translator item missing title or unparseable"))?;
+    let mut record = api_paper_to_meta(&api_paper);
+    apply_zotero_extras(item, &mut record);
+    Ok(record)
+}
+
+/// Preserve Zotero-specific fields that do not fit the generic [`ApiPaper`]
+/// shape.
+fn apply_zotero_extras(item: &Value, record: &mut PaperRecord) {
+    record.creators = item.get("creators").cloned();
+    record.zotero_item_type = str_field(item, "itemType");
+    record.extra = str_field(item, "extra");
+    record.issn = str_field(item, "ISSN");
+    record.place = str_field(item, "place");
+    record.series = str_field(item, "series");
+
+    if let Some(tags) = item.get("tags").and_then(|v| v.as_array()) {
+        record.tags = tags
+            .iter()
+            .filter_map(|t| {
+                t.get("tag")
+                    .and_then(|v| v.as_str())
+                    .or_else(|| t.as_str())
+                    .map(hide_arxiv_category_tag)
+                    .filter(|s| !s.is_empty())
+                    .map(PaperTag::new)
+            })
+            .collect();
+    }
+
+    if (record.paper_type == PaperKind::Pdf || record.paper_type == PaperKind::Other)
+        && str_field(item, "itemType").as_deref() == Some("webpage")
+    {
+        record.paper_type = PaperKind::Html;
+    }
 }
 
 /// Merge `other` into `base`, preferring non-empty fields from `other`.
@@ -111,10 +160,131 @@ pub fn best_match<'a>(candidates: &'a [ApiPaper], norm_query: &str) -> Option<&'
         .max_by_key(|c| score_against_query(c, norm_query))
 }
 
+/// Canonicalize remote URLs on a `PaperRecord`.
+///
+/// - arXiv ids get standard `https://arxiv.org/{pdf,html,abs}` URLs.
+/// - DOI-only records get a `https://doi.org/{doi}` source URL.
+/// - ACL Anthology landing pages get their predictable PDF URL.
+pub fn enrich_remote_urls(meta: &mut PaperRecord) {
+    if let Some(ref aid) = meta.arxiv_id {
+        let bare = aid.trim().trim_start_matches("arXiv:").to_string();
+        let bare = strip_v(&bare);
+        // Always set canonical https arXiv preview URLs (overwrite http://arxiv.org/…)
+        meta.pdf_url = Some(format!("https://arxiv.org/pdf/{bare}"));
+        meta.html_url = Some(format!("https://arxiv.org/html/{bare}"));
+        meta.source_url = Some(format!("https://arxiv.org/abs/{bare}"));
+        if meta.bibtex_key.is_none() {
+            meta.bibtex_key = Some(bare.replace('/', ""));
+        }
+        if meta.paper_type == PaperKind::Other || meta.paper_type == PaperKind::Pdf {
+            meta.paper_type = PaperKind::Arxiv;
+        }
+    } else if let Some(ref doi) = meta.doi {
+        if meta.source_url.as_ref().is_none_or(|s| s.is_empty()) {
+            meta.source_url = Some(format!("https://doi.org/{doi}"));
+        }
+    }
+
+    // ACL Anthology landing pages don't expose a PDF attachment, but the PDF
+    // is always available at <landing>.pdf.
+    if meta.pdf_url.is_none() {
+        if let Some(url) = meta.source_url.as_deref().or(meta.html_url.as_deref()) {
+            if let Some(pdf) = acl_anthology_pdf_url(url) {
+                meta.pdf_url = Some(pdf);
+            }
+        }
+    }
+
+    if meta.bibtex_key.is_none() {
+        meta.bibtex_key = Some(meta.id.replace(['/', '.'], "_"));
+    }
+}
+
+/// Derive the canonical ACL Anthology PDF URL from a paper landing page.
+/// ACL Anthology paper URLs look like:
+///   https://aclanthology.org/2026.acl-long.1248/
+/// and the PDF is always:
+///   https://aclanthology.org/2026.acl-long.1248.pdf
+fn acl_anthology_pdf_url(url: &str) -> Option<String> {
+    let lower = url.to_ascii_lowercase();
+    if !lower.contains("aclanthology.org/") {
+        return None;
+    }
+    // Already a PDF.
+    if lower.ends_with(".pdf") {
+        return Some(url.trim().to_string());
+    }
+    let trimmed = url.trim_end_matches('/');
+    let slug = trimmed.rsplit('/').next()?;
+    // Expect: YYYY.venue-type.number (e.g. 2026.acl-long.1248)
+    let parts: Vec<&str> = slug.split('.').collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    if parts[0].len() != 4 || !parts[0].chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    if !parts[1].contains('-') {
+        return None;
+    }
+    if !parts[2].chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    Some(format!("{}.pdf", trimmed))
+}
+
+/// DOI-safe folder slug: replace `/` and `.` with `_`.
+pub fn doi_slug(doi: &str) -> String {
+    doi.replace(['/', '.'], "_")
+}
+
+pub(crate) fn citekey_fallback(authors: &[String], year: Option<i32>, title: &str) -> String {
+    let author = authors
+        .first()
+        .map(|a| {
+            a.split_whitespace()
+                .last()
+                .unwrap_or("paper")
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric())
+                .collect::<String>()
+                .to_lowercase()
+        })
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "paper".into());
+    let y = year.map(|y| y.to_string()).unwrap_or_else(|| "0000".into());
+    let word = title
+        .split_whitespace()
+        .next()
+        .unwrap_or("item")
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect::<String>()
+        .to_lowercase();
+    format!("{author}{y}{word}")
+}
+
+fn strip_v(id: &str) -> String {
+    if let Some(i) = id.rfind('v') {
+        if id[i + 1..].chars().all(|c| c.is_ascii_digit()) && i > 0 {
+            return id[..i].to_string();
+        }
+    }
+    id.to_string()
+}
+
+fn str_field(item: &Value, key: &str) -> Option<String> {
+    item.get(key)
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::features::scholar_api::{PaperIdentifiers, PaperUrls};
+    use serde_json::json;
 
     fn api_paper(source: &'static str, citation_count: Option<i64>) -> ApiPaper {
         ApiPaper {
@@ -161,10 +331,7 @@ mod tests {
 
         let mut no_identifier = api_paper("openalex", None);
         no_identifier.identifiers.doi = None;
-        assert_eq!(
-            api_paper_to_meta(&no_identifier).id,
-            "Attention-Is-All-You-Need"
-        );
+        assert_eq!(api_paper_to_meta(&no_identifier).id, "vaswani2017attention");
     }
 
     #[test]
@@ -198,6 +365,94 @@ mod tests {
         assert_eq!(
             merge_api_papers(&api_paper("s2", None), &unknown).citation_count,
             None
+        );
+    }
+
+    #[test]
+    fn maps_zotero_item_to_record() {
+        let item = json!({
+            "itemType": "preprint",
+            "title": "Attention Is All You Need",
+            "creators": [
+                {"firstName": "Ashish", "lastName": "Vaswani", "creatorType": "author"}
+            ],
+            "date": "2023-08-02",
+            "abstractNote": "The dominant sequence transduction models…",
+            "archiveID": "arXiv:1706.03762",
+            "extra": "arXiv:1706.03762 [cs]",
+            "libraryCatalog": "arXiv.org",
+            "repository": "arXiv",
+            "url": "http://arxiv.org/abs/1706.03762",
+            "DOI": "10.48550/arXiv.1706.03762",
+            "tags": [
+                {"tag": "Computer Science - Machine Learning"},
+                {"tag": "survey"}
+            ]
+        });
+        let meta = map_zotero_item_to_record(&item).expect("map");
+        assert_eq!(meta.arxiv_id.as_deref(), Some("1706.03762"));
+        assert_eq!(
+            meta.tags,
+            vec![
+                PaperTag::new("@arxiv:Computer Science - Machine Learning"),
+                PaperTag::new("survey"),
+            ]
+        );
+        assert_eq!(
+            meta.pdf_url.as_deref(),
+            Some("https://arxiv.org/pdf/1706.03762")
+        );
+        assert_eq!(
+            meta.html_url.as_deref(),
+            Some("https://arxiv.org/html/1706.03762")
+        );
+        assert_eq!(
+            meta.source_url.as_deref(),
+            Some("https://arxiv.org/abs/1706.03762")
+        );
+        // metadata.json must use snake_case keys for the frontend
+        let json = serde_json::to_string(&meta).unwrap();
+        assert!(json.contains("\"pdf_url\""), "got {json}");
+        assert!(json.contains("\"arxiv_id\""), "got {json}");
+        assert!(!json.contains("\"pdfUrl\""));
+    }
+
+    #[test]
+    fn acl_anthology_pdf_url_derivation() {
+        assert_eq!(
+            acl_anthology_pdf_url("https://aclanthology.org/2026.acl-long.1248/"),
+            Some("https://aclanthology.org/2026.acl-long.1248.pdf".to_string())
+        );
+        assert_eq!(
+            acl_anthology_pdf_url("https://aclanthology.org/2026.acl-long.1248.pdf"),
+            Some("https://aclanthology.org/2026.acl-long.1248.pdf".to_string())
+        );
+        assert_eq!(
+            acl_anthology_pdf_url("https://www.aclanthology.org/2025.emnlp-main.42/"),
+            Some("https://www.aclanthology.org/2025.emnlp-main.42.pdf".to_string())
+        );
+        assert!(acl_anthology_pdf_url("https://aclanthology.org/venues/acl/").is_none());
+        assert!(acl_anthology_pdf_url("https://example.com/2026.acl-long.1248/").is_none());
+    }
+
+    #[test]
+    fn enrich_remote_urls_fills_acl_anthology_pdf() {
+        // Translator response shape for an ACL Anthology conference paper.
+        let item = json!({
+            "itemType": "conferencePaper",
+            "title": "Enabling Agents to Communicate Entirely in Latent Space",
+            "creators": [
+                {"firstName": "Zhuoyun", "lastName": "Du", "creatorType": "author"}
+            ],
+            "date": "2026-07",
+            "url": "https://aclanthology.org/2026.acl-long.1248/",
+            "DOI": "10.18653/v1/2026.acl-long.1248",
+            "libraryCatalog": "ACLWeb"
+        });
+        let meta = map_zotero_item_to_record(&item).expect("map");
+        assert_eq!(
+            meta.pdf_url.as_deref(),
+            Some("https://aclanthology.org/2026.acl-long.1248.pdf")
         );
     }
 }
