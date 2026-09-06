@@ -21,7 +21,10 @@ export function createTranslationSplitPane(paperTab: DocTab): DocTab | null {
 		title,
 		paperMeta: paperTab.paperMeta,
 		pdfUrl: paperTab.pdfUrl,
-		pdfBytes: paperTab.pdfBytes,
+		// Copy the PDF bytes so each pane owns its own buffer. EmbedPDF's worker
+		// may transfer the underlying ArrayBuffer, so sharing the same reference
+		// between panes can leave the second pane with a detached buffer.
+		pdfBytes: paperTab.pdfBytes ? paperTab.pdfBytes.slice(0) : null,
 		notesPath: paperTab.notesPath,
 		loaded: true,
 	};
