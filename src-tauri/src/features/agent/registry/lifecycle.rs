@@ -525,6 +525,12 @@ pub fn run_template_lifecycle(
     )
 }
 
+fn host_update_includes_adapter(template_id: &str) -> bool {
+    // Must match any host_update_command branch that already chains the
+    // adapter install. Currently only pi does this to keep pi-acp in sync.
+    template_id == "pi"
+}
+
 fn update_command(
     template_id: &str,
     host_present: bool,
@@ -538,7 +544,8 @@ fn update_command(
         } else {
             parts.push(host_install_command(template_id)?);
         }
-        if !acp_present || host_present {
+        let host_update_has_adapter = host_present && host_update_includes_adapter(template_id);
+        if !host_update_has_adapter && (!acp_present || host_present) {
             // Always refresh adapter on update when host path exists; install if missing.
             parts.push(adapter_install_command(template_id)?);
         }
@@ -643,7 +650,16 @@ fn host_update_command(template_id: &str) -> Result<String, String> {
             "openclaw update --yes",
             "npm i -g openclaw@latest",
         )),
-        "pi" => Ok(chain_or("pi update --self", PI_HOST_INSTALL_COMMAND)),
+        "pi" => {
+            // pi is a host CLI plus a community ACP adapter. Updating only the
+            // host frequently leaves the adapter out of sync after a `pi` release,
+            // which then fails during ACP initialize. Chain both together.
+            let host = chain_or("pi update --self", PI_HOST_INSTALL_COMMAND);
+            Ok(chain_host_and_adapter(
+                host,
+                PI_ACP_INSTALL_COMMAND.to_string(),
+            ))
+        }
         // `kimi upgrade` is interactive (prints an update prompt and waits for a
         // selection), so silent update re-runs the idempotent official installer
         // (latest version) with the npm install as fallback.
@@ -1182,6 +1198,35 @@ mod tests {
             .contains("codex-acp"));
         assert!(adapter_install_command("pi").unwrap().contains("pi-acp"));
         assert!(adapter_install_command("antigravity").is_err());
+    }
+
+    #[test]
+    fn pi_update_keeps_host_and_adapter_in_sync() {
+        let host_update = host_update_command("pi").expect("pi host update");
+        assert!(
+            host_update.contains("pi update --self")
+                || host_update.contains(PI_HOST_INSTALL_COMMAND),
+            "pi host update must update the host CLI"
+        );
+        assert!(
+            host_update.contains("pi-acp"),
+            "pi host update must also refresh pi-acp"
+        );
+
+        let full_update = update_command("pi", true, true, true).expect("pi full update");
+        assert_eq!(
+            full_update.matches("pi-acp").count(),
+            1,
+            "pi-acp must appear exactly once in the combined update: {full_update}"
+        );
+
+        let install_when_missing =
+            update_command("pi", false, false, true).expect("pi install when missing");
+        assert_eq!(
+            install_when_missing.matches("pi-acp").count(),
+            1,
+            "adapter must still be installed when the host is missing: {install_when_missing}"
+        );
     }
 
     #[test]
