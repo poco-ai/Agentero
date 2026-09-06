@@ -10,7 +10,7 @@
 
 - `title_search.rs`：Semantic Scholar / arXiv 标题搜索，有 `PaperSearchCandidate` —— **保留**至今，作为魔棒搜索对话框的 IPC 出参（有 `From<ApiPaper>` 实现）
 - `chain_resolve.rs`：标题解析链，有 `ResolvedCandidate` —— **已删除**，连同该文件里重复的 `candidate_to_meta` / `merge_candidates`；现在直接消费 `ApiPaper`
-- `map.rs`：最终存储格式，有 `PaperMeta` —— **已合并**进 `catalog/papers.rs::PaperRecord`（`PaperMeta` 曾是 `PaperRecord` 的严格字段子集，靠 `paper_record_from_meta` 逐字段手抄桥接，新字段要改四处，`citation_count` 就是在这个接缝上被静默丢掉的）
+- `map.rs`：最终存储格式，有 `PaperMeta` —— **已合并**进 `catalog/papers.rs::PaperRecord`（`PaperMeta` 曾是 `PaperRecord` 的严格字段子集，靠 `paper_record_from_meta` 逐字段手抄桥接，新字段要改四处，`citation_count` 就是在这个接缝上被静默丢掉的；该文件现已移除，Zotero JSON → `PaperRecord` 由 `api_mapper.rs` 经 `ApiPaper` 完成）
 - `mod.rs`：Translator Runtime 特化请求与错误处理
 - `assets.rs`：Unpaywall 独立调用 —— 已收进 `scholar_api/sources/unpaywall.rs`
 - `pdf_recognize.rs`：Zotero Recognizer 独立调用 —— 按 §5.5 的结论保持独立（输出 `RecognizeHit`，再转 `ApiQuery`）
@@ -399,7 +399,7 @@ crates/agentero-core/src/features/paper/
 
 管道已通、数据源已能解析，但**常规入库路径不会把非 NULL 值写进 catalog**：
 
-- 入库以 Translator 为主路径，`map_zotero_item` 不产出被引数；Crossref 只在 Translator 失败时作为直连降级出现（这条降级路径确实会写进真实值）。
+- 入库以 Translator 为主路径，`map_zotero_item_to_record` 不产出被引数；Crossref 只在 Translator 失败时作为直连降级出现（这条降级路径确实会写进真实值）。
 - Semantic Scholar 的结果只出现在 `paper_resolve_identifier`，而该命令**只返回给前端、不落库**。
 
 要让用户真正看到被引数，还差下列环节之一：

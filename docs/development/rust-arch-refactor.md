@@ -58,7 +58,7 @@
 | V35 | 远端 work-root 连接永不清退：`vault_release` 按本地路径 canonical 匹配，`remote:<id>` 永不命中；disconnect 也不清；远端 session 的 sidecar 写进临时 work 目录而非远端 vault | `app/vault_session/lifecycle.rs:34`、`remote/session.rs:88` |
 | V36 | core/host 边界：src-tauri 14 处 glob 重导出；core 12 个扁平别名且**自用 ~150 处**（src-tauri 侧反而语义路径 83 处/33 文件、扁平 0 处）；`#[path]` 重挂载恰 2 处（cli_install、open_request） | `core/features/mod.rs:16-31`、`src-tauri/features/mod.rs:12-13,21-22` |
 | V37 | 两个下载器互补残缺（**非**重复实现）：install/download.rs 有 sha256+解包+chmod 无多源回退无进度无取消；model_assets 有多源回退+节流+取消无校验和。两者都已有 `.partial`+rename（不会留损坏产物） | `agent/install/download.rs`、`layout/model_assets/mod.rs:21,193-243` |
-| V38 | Zotero 两个家：core codec+io 1189 行（tauri-free）vs host db.rs 1651 + sync 1352；db.rs 是事实上的 paper source 却无 trait（手工拼 Zotero API JSON 喂 `map_zotero_item`） | `features/paper/zotero/db.rs:1-6,390` |
+| V38 | Zotero 两个家：core codec+io 1189 行（tauri-free）vs host db.rs 1651 + sync 1352；db.rs 是事实上的 paper source 却无 trait（手工拼 Zotero API JSON 喂 `map_zotero_item_to_record`） | `features/paper/zotero/db.rs:1-6,390` |
 | V39 | settings 直读 6 模块/10 处（非传闻的 8 features）：paper/import×4、body_engines、layout/hosted、recommend×2、translate、mcp | 详见 P5 |
 | V40 | acp/ 层不纯：import `AgentEventEmitter` 并直接发 UI 事件（一跳之隔，无直接 tauri:: import） | `acp/updates.rs:7,407-422`、`acp/interaction.rs:5-6,334-437` |
 

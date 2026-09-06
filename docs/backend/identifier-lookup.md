@@ -9,7 +9,7 @@
 - 入库命令与事件：[`api.md`](api.md) §3.5
 - Vault 文件模型：[`data-model.md`](data-model.md)
 - UI：[`../frontend/paper-import.md`](../frontend/paper-import.md)
-- **浏览器一键保存**：官方 Zotero Connector → 本机兼容服务 — [`connector.md`](connector.md)（与魔棒并存；元数据映射复用 `map_zotero_item`）
+- **浏览器一键保存**：官方 Zotero Connector → 本机兼容服务 — [`connector.md`](connector.md)（与魔棒并存；元数据映射复用 `map_zotero_item_to_record`）
 - **多入口入库统一方案**（魔棒 / Connector / 本地 PDF / Bib / 迁移 / CLI）— [`paper-import.md`](paper-import.md)
 
 ---
@@ -372,7 +372,7 @@ lookup:search 被调用
 
 ## 5. 数据映射：Translator Item → `PaperRecord`（直接并入）
 
-Translator 输出的 **Zotero API JSON Item** 经 `map_zotero_item`（`features/paper/import/map.rs`）**直接写入** `PaperRecord` / catalog 列，**不再**先落到另一套 arXiv 专用结构。  
+Translator 输出的 **Zotero API JSON Item** 经 `map_zotero_item_to_record`（`features/paper/import/api_mapper.rs`）**直接写入** `PaperRecord` / catalog 列，**不再**先落到另一套 arXiv 专用结构。  
 `PaperRecord`（`features/paper/catalog/papers.rs`）是 Rust 侧唯一论文模型：同时充当 catalog SQLite 行、`papers/<id>/metadata.json` sidecar 投影与 IPC 出参。前端 `src/lib/paper/types.ts` 的 `PaperMetadata` 只是 specta 生成的 `PaperRecord_Serialize` 的派生别名，不是独立模型。  
 catalog **schema v2** 起补齐期刊/卷期页等字段（见 [`catalog.md`](catalog.md) §4.2）。
 
@@ -407,7 +407,7 @@ catalog **schema v2** 起补齐期刊/卷期页等字段（见 [`catalog.md`](ca
 | `zotero_item_type` | `itemType` | 如 `journalArticle`、`preprint`、`book` |
 | `meta_source` | `libraryCatalog` | 如 `DOI.org (Crossref)`、`arXiv.org` |
 | `extra` | `extra` | 未结构化残余 |
-| `type`（`PaperKind`） | 由标识符 + `itemType` 推断 | 序列化取值 `arxiv` \| `pdf` \| `html` \| `doi` \| `other`。`map_zotero_item` 顺序：有 `arxiv_id`→`arxiv`；否则有 `doi`→`doi`；否则 `itemType == webpage`→`html`；否则 `other`。`enrich_remote_urls` 在随后补出 arXiv id 时把 `other` 提升为 `arxiv`。`pdf` 是 `PaperRecord::local_pdf` 的初值（本地 PDF 导入） |
+| `type`（`PaperKind`） | 由标识符 + `itemType` 推断 | 序列化取值 `arxiv` \| `pdf` \| `html` \| `doi` \| `other`。`map_zotero_item_to_record` 顺序：有 `arxiv_id`→`arxiv`；否则有 `doi`→`doi`；否则 `itemType == webpage`→`html`；否则 `other`。`enrich_remote_urls` 在随后补出 arXiv id 时把 `other` 提升为 `arxiv`。`pdf` 是 `PaperRecord::local_pdf` 的初值（本地 PDF 导入） |
 | `id` | arXiv ID 或 citekey | |
 | `bibtex_key` | 生成或沿用 | 作者 + 年+题词 |
 | `path` | Host 用 `parent_dir`+`id` 写入 | 入库时填 |
@@ -432,7 +432,7 @@ catalog **schema v2** 起补齐期刊/卷期页等字段（见 [`catalog.md`](ca
 ```ts
 // 概念：一次魔棒调用（落地：lookup_import_batch）
 const item = await translator.searchOrWeb(input);      // Zotero Item
-const record = map_zotero_item(item);                  // → PaperRecord（path 为空）
+const record = map_zotero_item_to_record(item);                  // → PaperRecord（path 为空）
 enrich_remote_urls(record);                            // arxiv/doi 推导
 await paper_commit(record, { parentDir, … });          // 内部分配 path → at_path → upsert_paper
 await ensure_paper_assets(paperDir, record);           // PDF + arXiv LaTeX → source/
@@ -653,7 +653,7 @@ src-tauri/src/
       mod.rs
       identifiers.rs       # extractIdentifiers 规则（实际在 scholar_api::identifiers）
       client.rs            # Runtime HTTP
-      map.rs               # Zotero JSON → PaperRecord
+      api_mapper.rs        # Zotero JSON → ApiPaper → PaperRecord
       dedupe.rs
       fallback/
         mod.rs
@@ -821,8 +821,8 @@ arXiv URL 推导：
 - 选错目录兜底：扫描报 `zotero.sqlite not found` 时，若所选目录的**父目录**含 `zotero.sqlite`（如误选 `storage/`），对话框提示一键改用父目录；否则显示本地化错误（不再透出后端原始英文串）。
 - Host：`zotero_scan`（只读预览：文献数 / 有本地 PDF 数）、`zotero_migrate`（执行）；实现在 `features/zotero/db.rs`。
 - 读库：把 `zotero.sqlite`（含 `-wal`/`-shm`）**拷到临时目录**再只读打开（容忍 Zotero 正在运行）；查 `items`/`itemData`/`creators`/`itemTags`/`itemAttachments`，跳过 `deletedItems` 与 attachment/note/annotation 类型，并排除插件产生的 `computerProgram` 垃圾条目（如标题为 "Addon Item" 的项）。
-- 映射：每条**拼装成 Zotero-API-JSON item** → 复用 `map_zotero_item` + `enrich_remote_urls` + `write_paper_shell` + `PaperRecord::at_path` + catalog upsert，落到 `{parent_dir}/{id}/`（id/citekey 与魔棒 / 文件导入一致）。
-- 附件 PDF URL：`map_zotero_item` 未给出 `pdf_url` 时，采用 Connector `attachments[]` 里的 PDF 链接（浏览器侧捕获，ACM/IEEE 等常仅经此暴露）。
+- 映射：每条**拼装成 Zotero-API-JSON item** → 复用 `map_zotero_item_to_record` + `enrich_remote_urls` + `write_paper_shell` + `PaperRecord::at_path` + catalog upsert，落到 `{parent_dir}/{id}/`（id/citekey 与魔棒 / 文件导入一致）。
+- 附件 PDF URL：`map_zotero_item_to_record` 未给出 `pdf_url` 时，采用 Connector `attachments[]` 里的 PDF 链接（浏览器侧捕获，ACM/IEEE 等常仅经此暴露）。
 - 中文摘要：为不超 Connector 15s 超时，壳先以原文写入；**后台**三引擎并行竞速翻译摘要，成功则安全替换 `NOTES.md` 的 `>` 摘要块（mtime 守卫，用户已编辑或 MT 全失败则跳过）。
 - 标签：用户标签原样保留；Zotero 自动标签（网络翻译器加的来源/状态标签，`itemTags.type ≠ 0`）保留并加 `@zotero:` 前缀，因此在 Agentero 的标签界面中隐藏。arXiv 学科分类（`Computer Science - Machine Learning` 等）无论来自魔棒 Translator 还是 Zotero 条目，都加 `@arxiv:` 前缀，同样隐藏。旧库无 `type` 列时回退为将全部标签视为用户标签。collection 名仍作为组织标签补充。
 - PDF：对话框 **“把 PDF 复制进知识库”** 勾选项（默认开）。勾选时从 `storage/<attachmentKey>/` 拷到 `{paper}/{id}.pdf` 并 liteparse `PAPER.md`；不勾则只留书目，`pdf_url` 供按需下载。

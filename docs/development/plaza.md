@@ -174,7 +174,7 @@ papers.cool 给几乎所有链接都加了 `target="_blank"`（单个分区页�
 
 - 复用共享的 `paper_commit`：catalog 插入、NOTES.md 播种、PDF 下载、去重全部沿用，不新增管线。
 - `paper_type` 不是 Zotero itemType，取值是 `PaperKind` 枚举（`arxiv` / `pdf` / `html` / `doi` / `other`）；无 DOI 时为 `other`。
-- 元数据解析复用 `map_zotero_item`（先拼一个 Zotero 形状的值），避免第二套字段映射。
+- 元数据解析复用 `map_zotero_item_to_record`（先拼一个 Zotero 形状的值），避免第二套字段映射。
 - 注入的 `[入库]` **不带 href**，否则会被跨源链接拦截器当外链送去系统浏览器。
 - 行是滚动加载的（`loadMorePapers` 追加 `.panel.paper`），除首屏遍历外挂 `MutationObserver`。
 - 只做**单条入库**，不提供批量。

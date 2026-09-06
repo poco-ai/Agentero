@@ -4,7 +4,7 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 
 > 范围限定在**学术元数据与论文发现**相关的外部 HTTP API。翻译 API（Google/Bing/DeepL/OpenAI 等）、版面分析 ONNX、本地 Agent/ACP、PostHog 遥测不在本文讨论范围内。
 
-> 路径简写：`scholar_api/…` 与 `features/paper/import/` 的映射 / resolver / 批处理（`map.rs`、`scholar_api::identifiers`、`api_mapper.rs`、`title_search.rs`、`batch.rs`、`assets.rs`、`sources/`）已随 crate 拆分迁到 `crates/agentero-core/src/features/paper/…`；`import/recognize/`（标题解析链、PDF 识别）与 `import/commands.rs` 仍在 `src-tauri`。其余 `features/…` 均指 `src-tauri/src/features/…`。
+> 路径简写：`scholar_api/…` 与 `features/paper/import/` 的映射 / resolver / 批处理（`scholar_api::identifiers`、`api_mapper.rs`、`title_search.rs`、`batch.rs`、`assets.rs`、`sources/`）已随 crate 拆分迁到 `crates/agentero-core/src/features/paper/…`；`import/recognize/`（标题解析链、PDF 识别）与 `import/commands.rs` 仍在 `src-tauri`。其余 `features/…` 均指 `src-tauri/src/features/…`。
 
 ## 1. API 总览
 
@@ -48,7 +48,7 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 4. **arXiv Atom 直接 fallback**（`features/paper/scholar_api/identifiers/fallback.rs::fetch_arxiv_metadata`）
    - 请求 `export.arxiv.org/api/query?id_list={id}`，解析 `<arxiv:journal_ref>` 作为 publication/venue。
 
-> **被引数（`citation_count`）**：Crossref 解析 `is-referenced-by-count`、OpenAlex 解析 `cited_by_count`、Semantic Scholar 解析 `citationCount`，三者 `capabilities()` 均声明 `PROVIDE_CITATION_COUNT`；Crossref / OpenAlex 的 title search 还必须把该字段列进 `select` 白名单，否则 API 根本不返回它。`api_paper_to_meta` 把值带进 `PaperRecord`，`merge_api_papers` 合并两个源时取较大值（各自索引的引用文献子集不同）。arXiv Atom 与 Translator 不产出被引数。**注意**：入库以 Translator 为主路径，`map_zotero_item` 不带被引数，因此常规导入写入的仍是 NULL；只有 Translator 失败后降级到 Crossref 直连的 DOI 导入才会落进真实值。完整缺口见 [catalog.md](catalog.md)。
+> **被引数（`citation_count`）**：Crossref 解析 `is-referenced-by-count`、OpenAlex 解析 `cited_by_count`、Semantic Scholar 解析 `citationCount`，三者 `capabilities()` 均声明 `PROVIDE_CITATION_COUNT`；Crossref / OpenAlex 的 title search 还必须把该字段列进 `select` 白名单，否则 API 根本不返回它。`api_paper_to_meta` 把值带进 `PaperRecord`，`merge_api_papers` 合并两个源时取较大值（各自索引的引用文献子集不同）。arXiv Atom 与 Translator 不产出被引数。**注意**：入库以 Translator 为主路径，`map_zotero_item_to_record` 不带被引数，因此常规导入写入的仍是 NULL；只有 Translator 失败后降级到 Crossref 直连的 DOI 导入才会落进真实值。完整缺口见 [catalog.md](catalog.md)。
 
 ### 2.2 PDF 元数据识别
 
