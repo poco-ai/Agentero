@@ -124,6 +124,11 @@ pub fn regex_pmid(s: &str) -> Option<String> {
     None
 }
 
+/// DOI-safe folder slug: replace `/` and `.` with `_`.
+pub fn doi_slug(doi: &str) -> String {
+    doi.replace(['/', '.'], "_")
+}
+
 pub fn regex_ads(s: &str) -> Option<String> {
     // 2015ApJ...810...89S — 19 chars-ish
     let t = s.trim();

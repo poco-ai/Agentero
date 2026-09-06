@@ -15,6 +15,7 @@ pub mod scoring;
 pub mod search;
 pub mod sources;
 pub mod traits;
+pub mod urls;
 
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};

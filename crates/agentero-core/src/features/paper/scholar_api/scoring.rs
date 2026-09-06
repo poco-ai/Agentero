@@ -70,6 +70,18 @@ pub fn score_candidates(candidates: &mut [ApiPaper], norm_query: &str) {
     }
 }
 
+/// Compute a title-similarity score between a query and a candidate.
+pub fn score_against_query(paper: &ApiPaper, norm_query: &str) -> i32 {
+    title_similarity(norm_query, &normalize_title(&paper.title))
+}
+
+/// Pick the candidate with the highest title similarity.
+pub fn best_match<'a>(candidates: &'a [ApiPaper], norm_query: &str) -> Option<&'a ApiPaper> {
+    candidates
+        .iter()
+        .max_by_key(|c| score_against_query(c, norm_query))
+}
+
 /// True if two papers describe the same work using title, year, and author overlap.
 pub fn is_same_paper(a: &ApiPaper, b: &ApiPaper, year_tolerance: i32) -> bool {
     title_similarity(&normalize_title(&a.title), &normalize_title(&b.title)) >= 85

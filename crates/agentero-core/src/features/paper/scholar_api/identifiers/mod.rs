@@ -13,7 +13,7 @@ pub(crate) mod resolver;
 
 pub use kind::{ResolvedIdentifier, ADS, ARXIV, DOI, ISBN, PMID, URL};
 pub use parsers::{
-    clean_doi, clean_isbn, extract_arxiv_id, regex_ads, regex_pmid, strip_arxiv_version,
+    clean_doi, clean_isbn, doi_slug, extract_arxiv_id, regex_ads, regex_pmid, strip_arxiv_version,
 };
 
 pub(crate) use fallback::fetch_direct_fallback;
