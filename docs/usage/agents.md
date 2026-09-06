@@ -16,6 +16,20 @@ Agentero 使用 **BYOA**（Bring Your Own Agent）：Agent 由你安装和登录
 
 若要把当前 Vault 接到 ChatGPT 或其它 MCP 客户端（不走应用内 ACP 面板），见 [用 MCP 连接外部 Agent](mcp.md)。
 
+### 暂不直接支持的 Agent
+
+以下桌面应用目前**不能**直接作为 Agentero 的内嵌 Agent 使用：
+
+| 应用 | 当前状态 | 说明 |
+|---|---|---|
+| **OpenAI Codex 桌面版** | 不支持 | Agentero 通过 ACP 接入的是 **Codex CLI**（命令行版）+ `@agentclientprotocol/codex-acp` 适配器；独立的 Codex 桌面 App 未暴露可被 Agentero 连接的 ACP/MCP 接口。 |
+| **WorkBuddy（腾讯）** | 不支持 | Agentero 当前没有 WorkBuddy 的 ACP 适配模板；即使 WorkBuddy 支持 ACP，也需要额外适配才能接入。 |
+
+如果你希望这些应用操作 Vault，可参考：
+
+- **Codex**：安装 Codex CLI 并通过 `codex-acp` 接入（见上表）。
+- **WorkBuddy**：暂无可行接入方式；如 WorkBuddy 后续提供兼容 ACP 的 CLI/bridge，可尝试「自定义 `command` / `args` / `env`」，但未经官方测试。
+
 ## 添加 Agent
 
 1. 打开 **Settings**（`⌘,`）。
