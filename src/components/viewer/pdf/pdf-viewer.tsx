@@ -800,17 +800,12 @@ function PdfViewerInner({
 			toggleLayoutTranslate();
 			return;
 		}
-		// In dual-pane mode the full-document translate button opens a
-		// rendered-translation workspace tab. If no job is running yet, kick it
-		// off first; the tab will read the cached/progressive result.
-		if (!layoutTranslateActive && !layoutTranslateRunning) {
-			toggleLayoutTranslate();
-		}
+		// In dual-pane mode the source pane only opens the right-hand
+		// translation panel. The translation pane itself owns the single
+		// layout-translation job so only one task runs at a time.
 		onOpenTranslationTab?.(docId, paperAbsPath ?? null, paperTitle ?? null);
 	}, [
 		dualPaneTranslate,
-		layoutTranslateActive,
-		layoutTranslateRunning,
 		toggleLayoutTranslate,
 		onOpenTranslationTab,
 		docId,
@@ -819,12 +814,16 @@ function PdfViewerInner({
 	]);
 
 	// In the right-hand translation pane, automatically start the bulk layout
-	// translation job so the translated overlay appears without requiring a
-	// second button click. The same cache key/sidecar as the source pane is
-	// used, so completed work is shared.
+	// translation job once so the translated overlay appears without requiring
+	// a second button click. The same cache key/sidecar as the source pane is
+	// used, so completed work is shared. A ref prevents re-starting after the
+	// user clears the translation from the pane itself.
+	const translationAutoStartedRef = useRef(false);
 	useEffect(() => {
 		if (!translationPane) return;
+		if (translationAutoStartedRef.current) return;
 		if (!layoutTranslateActive && !layoutTranslateRunning) {
+			translationAutoStartedRef.current = true;
 			toggleLayoutTranslate();
 		}
 	}, [
@@ -1351,7 +1350,6 @@ function PdfViewerInner({
 				onToggleLayoutTranslate={handleToggleLayoutTranslateWithDualPane}
 				visible={topChromeVisible}
 				isRemotePaper={isRemotePaper}
-				translationPane={translationPane}
 				onImportToLibrary={handleImportToLibrary}
 				importBusy={importBusy}
 			/>
