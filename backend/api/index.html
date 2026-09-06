@@ -6307,7 +6307,7 @@ Host (Tauri + Rust)
 <tr>
 <td><code>job:progress</code></td>
 <td>下载/解析任务字节与计数进度（<code>taskId</code> = JobCenter job id，投影行消费）</td>
-<td><code>{ taskId, phase, downloadedBytes, totalBytes?, progress?, currentCount?, totalCount? }</code>；下载阶段的字节进度由前端投影层聚合为总体进度（PDF 映射到 0–50%，TeX 映射到 50–100%），解析阶段显示为处理中，任务完成时为 100%。Host 对字节级进度做节流：百分比变化 ≥1 个点或距上次 emit ≥100ms 才发事件，下载完成时必发最终值</td>
+<td><code>{ taskId, phase, downloadedBytes, totalBytes?, progress?, currentCount?, totalCount? }</code>；PDF 与 TeX 并发下载，Host 把两条流的字节合并成<strong>一个</strong>总体进度后再 emit（两条流同时跑时 <code>phase</code> = <code>assets</code>，只有一条时为 <code>pdf</code> / <code>tex</code>），前端只做 clamp 不再按阶段加权；任一流仍在下载且 <code>Content-Length</code> 未知时 <code>totalBytes</code> / <code>progress</code> 为空（面板转不确定态），解析阶段显示为处理中，任务完成时为 100%。Host 对字节级进度做节流：百分比变化 ≥1 个点或距上次 emit ≥100ms 才发事件，流结束时必发最终值</td>
 </tr>
 <tr>
 <td><code>paper:imported</code>（已实现）</td>
