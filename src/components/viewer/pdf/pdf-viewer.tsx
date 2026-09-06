@@ -78,6 +78,7 @@ import { usePdfPageText } from "@/components/viewer/pdf/hooks/use-pdf-page-text"
 import { usePdfPaperTone } from "@/components/viewer/pdf/hooks/use-pdf-paper-tone";
 import { usePdfPinAnchors } from "@/components/viewer/pdf/hooks/use-pdf-pin-anchors";
 import { usePdfRegionFraming } from "@/components/viewer/pdf/hooks/use-pdf-region-framing";
+import { usePdfScrollSync } from "@/components/viewer/pdf/hooks/use-pdf-scroll-sync";
 import { usePdfSelectionActions } from "@/components/viewer/pdf/hooks/use-pdf-selection-actions";
 import { usePdfSelectionTranslate } from "@/components/viewer/pdf/hooks/use-pdf-selection-translate";
 import { usePdfSidebarPanels } from "@/components/viewer/pdf/hooks/use-pdf-sidebar-panels";
@@ -314,6 +315,7 @@ function PdfViewerInner({
 	const { engine } = usePdfEngineContext();
 	const { provides: zoom, state: zoomState } = useZoom(docId);
 	const { provides: scroll, state: scrollState } = useScroll(docId);
+	usePdfScrollSync(docId);
 	const { provides: selectionCap } = useSelectionCapability();
 	const { provides: interactionCap } = useInteractionManagerCapability();
 	const { provides: annotationCap } = useAnnotationCapability();

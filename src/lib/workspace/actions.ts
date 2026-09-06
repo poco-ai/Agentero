@@ -35,6 +35,7 @@ import {
 	paperAbsFromWikiTarget,
 } from "@/lib/pdf/annotation-ref";
 import { removeTabAnnotations } from "@/lib/pdf/annotations-store";
+import { registerScrollSyncPair } from "@/lib/pdf/scroll-sync";
 import {
 	isPlazaVirtualPath,
 	type PlazaSource,
@@ -565,6 +566,7 @@ export function openTranslationTab(
 
 	const translationPane = createTranslationSplitPane(paperTab);
 	if (!translationPane) return;
+	registerScrollSyncPair(paperTabId, translationPane.id);
 	setTabs((prev) => [...prev, translationPane]);
 	dockHandle()?.splitPanelRight(
 		translationPane,
