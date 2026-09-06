@@ -20,7 +20,14 @@ export function createTranslationSplitPane(paperTab: DocTab): DocTab | null {
 		kind: "paper",
 		title,
 		paperMeta: paperTab.paperMeta,
-		pdfUrl: paperTab.pdfUrl,
+		// If the source pane opened from local bytes, keep using bytes in the
+		// translation pane. Do not reuse a source-side blob: URL here: blob leases
+		// are scoped to the creating pane and may not resolve for the second
+		// viewer (or may be revoked when the first pane closes).
+		pdfUrl:
+			paperTab.pdfUrl && !paperTab.pdfUrl.startsWith("blob:")
+				? paperTab.pdfUrl
+				: null,
 		// Copy the PDF bytes so each pane owns its own buffer. EmbedPDF's worker
 		// may transfer the underlying ArrayBuffer, so sharing the same reference
 		// between panes can leave the second pane with a detached buffer.

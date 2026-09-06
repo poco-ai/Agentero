@@ -64,10 +64,7 @@ export type UsePdfLayoutClusterOptions = {
 	isRemotePaper?: boolean;
 };
 
-export type PdfLayoutCluster = Omit<
-	PdfLayoutRegions,
-	"layoutDocRegions" | "layoutRawRegions"
-> &
+export type PdfLayoutCluster = Omit<PdfLayoutRegions, "layoutDocRegions"> &
 	ReturnType<typeof usePdfLayoutRun> &
 	ReturnType<typeof usePdfVisualDraft> &
 	ReturnType<typeof usePdfLayoutTranslate> & {
@@ -187,6 +184,7 @@ export function usePdfLayoutCluster({
 
 	return {
 		layoutOverlayVisible,
+		layoutRawRegions,
 		hoverableRegionsByPage,
 		rawRegionsByPage,
 		startLayoutAnalysisRef,

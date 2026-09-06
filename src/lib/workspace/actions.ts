@@ -36,9 +36,12 @@ import {
 } from "@/lib/pdf/annotation-ref";
 import { removeTabAnnotations } from "@/lib/pdf/annotations-store";
 import {
+	buildLayoutDocumentResult,
 	getLayoutDocumentResult,
+	mergeCaptionsIntoHosts,
 	setLayoutDocumentResult,
 } from "@/lib/pdf/layout";
+import { readLayoutSidecar } from "@/lib/pdf/layout/io";
 import { registerScrollSyncPair } from "@/lib/pdf/scroll-sync";
 import {
 	isPlazaVirtualPath,
@@ -579,6 +582,22 @@ export function openTranslationTab(
 			...sourceLayout,
 			documentId: translationPane.id,
 		});
+	} else if (paperAbsPath) {
+		// The source pane hasn't finished writing its result yet (rare race when
+		// the user clicks translate immediately after opening the paper). Read the
+		// sidecar asynchronously once it lands and seed the right pane so its auto-
+		// start translation can begin without a manual layout re-run.
+		void (async () => {
+			const sidecar = await readLayoutSidecar(paperAbsPath);
+			if (!sidecar) return;
+			if (getLayoutDocumentResult(translationPane.id)) return;
+			const result = buildLayoutDocumentResult(
+				translationPane.id,
+				mergeCaptionsIntoHosts([...sidecar.regions]),
+				sidecar.regions,
+			);
+			setLayoutDocumentResult(result);
+		})();
 	}
 	setTabs((prev) => [...prev, translationPane]);
 	dockHandle()?.splitPanelRight(

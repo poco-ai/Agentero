@@ -1,6 +1,6 @@
 import { useDocumentManagerCapability } from "@embedpdf/plugin-document-manager/react";
 import { useViewportCapability } from "@embedpdf/plugin-viewport/react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
 	getScrollSyncPartner,
 	isScrollSyncApplying,
@@ -21,6 +21,7 @@ export function usePdfScrollSync(docId: string): void {
 	const viewportCap = useViewportCapability().provides;
 	const docCap = useDocumentManagerCapability().provides;
 	const partnerId = useMemo(() => getScrollSyncPartner(docId), [docId]);
+	const initialSyncDoneRef = useRef(false);
 
 	useEffect(() => {
 		if (!partnerId || !viewportCap || !docCap) return;
@@ -29,52 +30,49 @@ export function usePdfScrollSync(docId: string): void {
 
 		const myScope = viewportCap.forDocument(docId);
 		const partnerScope = viewportCap.forDocument(partnerId);
+		if (!myScope || !partnerScope) return;
 
-		const unsubscribeMy = myScope.onScrollChange((metrics) => {
-			if (isScrollSyncApplying(docId)) return;
-			const myMetrics = myScope.getMetrics();
-			if (myMetrics.scrollHeight <= 0 || myMetrics.scrollWidth <= 0) return;
-			const ratioY = metrics.scrollTop / myMetrics.scrollHeight;
-			const ratioX = metrics.scrollLeft / myMetrics.scrollWidth;
-			const partnerMetrics = partnerScope.getMetrics();
-			if (partnerMetrics.scrollHeight <= 0 || partnerMetrics.scrollWidth <= 0)
-				return;
-			runSyncedScroll(partnerId, () => {
+		const applyScroll = (
+			fromScope: typeof myScope,
+			toScope: typeof partnerScope,
+			targetDocId: string,
+		) => {
+			if (isScrollSyncApplying(targetDocId)) return;
+			const fromMetrics = fromScope.getMetrics();
+			if (fromMetrics.scrollHeight <= 0 || fromMetrics.scrollWidth <= 0) return;
+			const toMetrics = toScope.getMetrics();
+			if (toMetrics.scrollHeight <= 0 || toMetrics.scrollWidth <= 0) return;
+			const ratioY = fromMetrics.scrollTop / fromMetrics.scrollHeight;
+			const ratioX = fromMetrics.scrollLeft / fromMetrics.scrollWidth;
+			runSyncedScroll(targetDocId, () => {
 				try {
-					partnerScope.scrollTo({
-						x: ratioX * partnerMetrics.scrollWidth,
-						y: ratioY * partnerMetrics.scrollHeight,
+					toScope.scrollTo({
+						x: ratioX * toMetrics.scrollWidth,
+						y: ratioY * toMetrics.scrollHeight,
 						behavior: "instant",
 					});
 				} catch {
-					// Ignore transient scroll failures while the partner viewport is
+					// Ignore transient scroll failures while the target viewport is
 					// still initializing.
 				}
 			});
+		};
+
+		const unsubscribeMy = myScope.onScrollChange(() => {
+			applyScroll(myScope, partnerScope, partnerId);
 		});
 
-		const unsubscribePartner = partnerScope.onScrollChange((metrics) => {
-			if (isScrollSyncApplying(partnerId)) return;
-			const partnerMetrics = partnerScope.getMetrics();
-			if (partnerMetrics.scrollHeight <= 0 || partnerMetrics.scrollWidth <= 0)
-				return;
-			const ratioY = metrics.scrollTop / partnerMetrics.scrollHeight;
-			const ratioX = metrics.scrollLeft / partnerMetrics.scrollWidth;
-			const myMetrics = myScope.getMetrics();
-			if (myMetrics.scrollHeight <= 0 || myMetrics.scrollWidth <= 0) return;
-			runSyncedScroll(docId, () => {
-				try {
-					myScope.scrollTo({
-						x: ratioX * myMetrics.scrollWidth,
-						y: ratioY * myMetrics.scrollHeight,
-						behavior: "instant",
-					});
-				} catch {
-					// Ignore transient scroll failures while this viewport is
-					// still initializing.
-				}
-			});
+		const unsubscribePartner = partnerScope.onScrollChange(() => {
+			applyScroll(partnerScope, myScope, docId);
 		});
+
+		// One-time initial alignment: when the translation pane first loads,
+		// snap it to the source pane's current scroll ratio so both panels show
+		// the same page instead of the right pane staying at the top.
+		if (!initialSyncDoneRef.current) {
+			initialSyncDoneRef.current = true;
+			applyScroll(myScope, partnerScope, partnerId);
+		}
 
 		return () => {
 			unsubscribeMy();

@@ -161,11 +161,26 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 		source ||
 		"pdf";
 
+	// Make a private copy of the PDF bytes for this EmbedPDF mount. The worker
+	// engine may structured-clone/transfer the buffer; sharing the same
+	// ArrayBuffer with another pane or across a StrictMode remount can leave us
+	// with a detached buffer on the second open. The copy is created once per
+	// prop identity; if slicing fails (already detached) we fall back to the URL.
+	const pdfBuffer = useMemo(() => {
+		if (!sourceBytes) return null;
+		try {
+			return sourceBytes.slice(0);
+		} catch {
+			return null;
+		}
+	}, [sourceBytes]);
+	const effectiveSourceBytes = pdfBuffer ?? sourceBytes;
+
 	const plugins = useMemo(() => {
-		if (!source && !sourceBytes) return null;
+		if (!source && !effectiveSourceBytes) return null;
 		// Prefer bytes (no fetch step); fall back to a URL (remote https).
-		const initialDocument = sourceBytes
-			? { buffer: sourceBytes, documentId: docId, name: docId }
+		const initialDocument = effectiveSourceBytes
+			? { buffer: effectiveSourceBytes, documentId: docId, name: docId }
 			: { url: source as string, documentId: docId, name: docId };
 		return [
 			createPluginRegistration(DocumentManagerPluginPackage, {
@@ -222,7 +237,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				renderScale: 2,
 			}),
 		];
-	}, [source, sourceBytes, docId]);
+	}, [source, effectiveSourceBytes, docId]);
 
 	const hostClass = cn(
 		"relative flex h-full min-h-0 flex-col bg-muted/20",
@@ -267,7 +282,20 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 				plugins={plugins}
 			>
 				<DocumentContent documentId={docId}>
-					{({ isLoaded, isLoading }) => {
+					{({ isLoaded, isLoading, isError, documentState }) => {
+						if (isError) {
+							console.error(
+								`[PdfViewer ${docId}] document load error:`,
+								documentState.error,
+								documentState.errorDetails,
+							);
+							return (
+								<p className="p-6 text-center text-destructive text-sm">
+									{t("pdf.loadError")}
+									{documentState.error ? `: ${documentState.error}` : null}
+								</p>
+							);
+						}
 						if (!isLoaded) {
 							return (
 								<p className="p-6 text-center text-muted-foreground text-sm">
@@ -275,7 +303,13 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 								</p>
 							);
 						}
-						return <PdfViewerInner {...props} docId={docId} />;
+						return (
+							<PdfViewerInner
+								{...props}
+								docId={docId}
+								sourceBytes={effectiveSourceBytes}
+							/>
+						);
 					}}
 				</DocumentContent>
 			</EmbedPDF>
@@ -764,6 +798,7 @@ function PdfViewerInner({
 	// ---- Layout analysis ----
 	const {
 		layoutOverlayVisible,
+		layoutRawRegions,
 		hoverableRegionsByPage,
 		rawRegionsByPage,
 		startLayoutAnalysisRef,
@@ -819,10 +854,22 @@ function PdfViewerInner({
 	// translation job once so the translated overlay appears without requiring
 	// a second button click. The same cache key/sidecar as the source pane is
 	// used, so completed work is shared. A ref prevents re-starting after the
-	// user clears the translation from the pane itself.
+	// user clears the translation from the pane itself. The effect also re-arms
+	// when layout regions arrive later (e.g. the source pane's result is copied
+	// into the store after the right pane has already mounted).
 	const translationAutoStartedRef = useRef(false);
+	const hadLayoutRegionsRef = useRef(false);
 	useEffect(() => {
 		if (!translationPane) return;
+		const hasRegions = (layoutRawRegions?.length ?? 0) > 0;
+		if (hasRegions) {
+			hadLayoutRegionsRef.current = true;
+		} else if (hadLayoutRegionsRef.current) {
+			// Layout result was dropped (pane switched documents); allow retry.
+			translationAutoStartedRef.current = false;
+			hadLayoutRegionsRef.current = false;
+		}
+		if (!hasRegions) return;
 		if (translationAutoStartedRef.current) return;
 		if (!layoutTranslateActive && !layoutTranslateRunning) {
 			translationAutoStartedRef.current = true;
@@ -830,6 +877,7 @@ function PdfViewerInner({
 		}
 	}, [
 		translationPane,
+		layoutRawRegions,
 		layoutTranslateActive,
 		layoutTranslateRunning,
 		toggleLayoutTranslate,
