@@ -184,6 +184,13 @@ impl PaperResolver for PmidResolver {
             catalog_column: self.catalog_column(),
         })
     }
+    fn fetch_fallback<'a>(
+        &'a self,
+        value: &'a str,
+        _task_id: Option<&'a str>,
+    ) -> Option<FallbackFuture<'a>> {
+        Some(Box::pin(fetch_pubmed_metadata(value)))
+    }
 }
 
 struct AdsResolver;
@@ -326,7 +333,9 @@ fn regex_ads(s: &str) -> Option<String> {
     None
 }
 
-use crate::features::scholar_api::sources::{arxiv::ArxivApi, crossref::CrossrefApi};
+use crate::features::scholar_api::sources::{
+    arxiv::ArxivApi, crossref::CrossrefApi, pubmed::PubMedApi,
+};
 use crate::features::scholar_api::traits::AcademicApi;
 use crate::features::scholar_api::ApiQuery;
 
@@ -356,6 +365,16 @@ pub async fn fetch_crossref_metadata(doi: &str) -> Result<PaperRecord, AppError>
     let paper = papers
         .pop()
         .ok_or_else(|| AppError::message("crossref metadata not found"))?;
+    Ok(super::api_paper_to_meta(&paper))
+}
+
+/// `GET https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=...` → `PaperRecord`.
+pub async fn fetch_pubmed_metadata(pmid: &str) -> Result<PaperRecord, AppError> {
+    let source = PubMedApi;
+    let mut papers = source.fetch(&ApiQuery::Pmid(pmid.to_string())).await?;
+    let paper = papers
+        .pop()
+        .ok_or_else(|| AppError::message("pubmed metadata not found"))?;
     Ok(super::api_paper_to_meta(&paper))
 }
 
@@ -434,7 +453,7 @@ mod tests {
     }
 
     #[test]
-    fn only_arxiv_and_doi_have_direct_fallbacks() {
+    fn direct_fallbacks_match_resolver_kinds() {
         let has_fallback = |kind: &str| {
             let resolver = find(kind).unwrap();
             resolver
@@ -444,7 +463,8 @@ mod tests {
         };
         assert!(has_fallback("arxiv"));
         assert!(has_fallback("doi"));
-        for kind in ["url", "isbn", "pmid", "ads"] {
+        assert!(has_fallback("pmid"));
+        for kind in ["url", "isbn", "ads"] {
             assert!(!has_fallback(kind), "{kind} should have no fallback");
         }
     }

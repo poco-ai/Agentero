@@ -19,6 +19,9 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 | **Crossref REST API** | `GET https://api.crossref.org/works/{doi}` | DOI → 元数据 / 参考文献 | `features/paper/import/recognize/pdf_recognize.rs`, `features/paper/analyze/refs/online.rs`, `features/paper/catalog/commands.rs` |
 | **OpenAlex REST API** | `GET https://api.openalex.org/works` | 标题搜索兜底（含 `cited_by_count`） | `features/paper/import/recognize/chain_resolve.rs` |
 | **Unpaywall** | `GET https://api.unpaywall.org/v2/{doi}` | DOI → 开放获取 PDF | `features/import/assets.rs` |
+| **PubMed / NCBI E-utilities** | `GET https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi` / `efetch.fcgi` | 标题/PMID → 医学/生命科学元数据 | `features/paper/scholar_api/sources/pubmed.rs` |
+| **bioRxiv** | `GET https://api.biorxiv.org/details/biorxiv/{doi}` | DOI → 生命科学预印本元数据 | `features/paper/scholar_api/sources/biorxiv.rs` |
+| **medRxiv** | `GET https://api.biorxiv.org/details/medrxiv/{doi}` | DOI → 医学预印本元数据 | `features/paper/scholar_api/sources/biorxiv.rs` |
 | **Zotero Recognizer** | `POST https://services.zotero.org/recognizer/recognize` | PDF 首页文字几何识别 | `features/paper/import/recognize/pdf_recognize.rs` |
 | **Translator Runtime** | `POST {base}/web`, `POST {base}/search`, `POST {base}/import` | 通用 URL/标识符/题录解析 | `features/import/mod.rs` |
 | **Cool Papers (papers.cool)** | `GET https://papers.cool/{branch}/search?query=...`, `GET https://papers.cool/{branch}/kimi?paper={id}` | Kimi 论文解析 / 广场导入 | `features/coolpapers/` |
@@ -142,6 +145,14 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 - arXiv TeX 源码：`https://arxiv.org/e-print/{id}`（`/src/` 为别名）。
 - DOI 论文 PDF：先查 `api.unpaywall.org/v2/{doi}`，再查 Crossref `message.link` 中的 PDF 链接。
 
+### 2.11 PubMed / bioRxiv / medRxiv 元数据兜底
+
+入口：`features/paper/scholar_api/sources/pubmed.rs`、`features/paper/scholar_api/sources/biorxiv.rs`。
+
+- **PubMed**：实现 `AcademicApi`，支持标题搜索和 PMID 查询。流程为 `esearch.fcgi`（JSON）拿 PMID 列表 → `efetch.fcgi`（XML）批量取详情；请求带 `email` 与 `tool` 参数以符合 NCBI 礼貌使用要求。解析字段包括 title、authors、year、venue、volume、issue、pages、DOI、PMID、abstract；PMC 存在时给出 PDF 候选。
+- **bioRxiv / medRxiv**：共用 `biorxiv.rs`，实现 `AcademicApi`，仅支持 `FETCH_BY_DOI`（上游 API 无 title 搜索端点）。请求 `https://api.biorxiv.org/details/{server}/{doi}`，解析 title、authors、date、abstract，并构造 `.full.pdf` 直链。
+- PMID 在 `resolver.rs` 中已有识别器，现在为其补充 PubMed `efetch` 直连 fallback；Translator 失败时可直接从 NCBI 拉取。
+
 ## 3. 并发与限流
 
 | 能力 | 并发控制 | 说明 |
@@ -176,6 +187,7 @@ Translator Runtime 约定端点：
 | 用户输入 title/关键词 | S2 ∥ arXiv 并行竞速（5s 预算内 S2 优先） | 已在途的 arXiv 结果 | 无 |
 | 用户输入 arXiv id | Translator `/web` (canonical abs URL) | arXiv Atom | 无 |
 | 用户输入 DOI | Translator `/search` | Crossref `works/{doi}` | 无 |
+| 用户输入 PMID | Translator `/search` | PubMed `efetch` | 无 |
 | 用户输入 URL | Translator `/web` | - | 无 |
 | PDF 识别出 DOI | Translator | Crossref | 本地 title fallback |
 | PDF 识别出 arXiv | arXiv Atom | - | 本地 title fallback |
