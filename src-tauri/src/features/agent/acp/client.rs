@@ -122,6 +122,18 @@ pub(crate) fn wrap_local_command_with_cwd(
     )
 }
 
+fn acp_agent_with_debug(agent: AcpAgent, name: &str) -> AcpAgent {
+    let name = name.to_string();
+    agent.with_debug(
+        move |line: &str, direction: agent_client_protocol::LineDirection| {
+            log::debug!(
+                target: "agentero::acp::stdio",
+                "{name} {direction:?}: {line}",
+            );
+        },
+    )
+}
+
 pub(crate) fn to_acp_agent_local(
     desc: &AgentDescriptor,
     cwd: Option<&Path>,
@@ -157,7 +169,10 @@ pub(crate) fn to_acp_agent_local(
     let stdio = McpServerStdio::new(desc.name.clone(), command)
         .args(args)
         .env(env);
-    Ok(AcpAgent::new(McpServer::Stdio(stdio)))
+    Ok(acp_agent_with_debug(
+        AcpAgent::new(McpServer::Stdio(stdio)),
+        &desc.name,
+    ))
 }
 
 /// Build ACP agent process. When `remote` is SSH, wrap launch as `ssh … 'cd vault && exec agent'`.
@@ -171,7 +186,10 @@ pub(crate) fn to_acp_agent(
         if r.is_ssh() {
             let (program, args) = r.ssh_stdio(&desc.command, &desc.args, &desc.env)?;
             let stdio = McpServerStdio::new(desc.name.clone(), program).args(args);
-            return Ok(AcpAgent::new(McpServer::Stdio(stdio)));
+            return Ok(acp_agent_with_debug(
+                AcpAgent::new(McpServer::Stdio(stdio)),
+                &desc.name,
+            ));
         }
         // local-sim: local binary, cwd set via NewSessionRequest to remote_cwd
     }
