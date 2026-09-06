@@ -2,7 +2,7 @@
 //! into the Motif catalog.
 //!
 //! Strategy: reconstruct each regular item as a **Zotero API JSON item** and
-//! reuse the existing `map_zotero_item` + paper-shell/catalog pipeline, so the
+//! reuse the existing `map_zotero_item_to_record` + paper-shell/catalog pipeline, so the
 //! id/citekey and field mapping match the magic-wand / file import exactly.
 //! Everything is local: no Translator is contacted.
 
@@ -10,8 +10,8 @@ use super::ZOTERO_INTERNAL_TAG_PREFIX;
 use crate::core::error::AppError;
 use crate::features::paper::catalog::papers;
 use crate::features::paper::import::{
-    allocate_paper_path, enrich_remote_urls, map_zotero_item, normalize_parent_dir,
-    write_paper_shell, NoteShellMode,
+    allocate_paper_path, map_zotero_item_to_record, normalize_parent_dir, write_paper_shell,
+    NoteShellMode,
 };
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -387,8 +387,7 @@ async fn migrate_one(
     dedup: &mut Dedup,
     note_mode: NoteShellMode,
 ) -> Result<(MigrateOutcome, bool), AppError> {
-    let mut meta = map_zotero_item(&item.json)?; // errors when the item has no title
-    enrich_remote_urls(&mut meta);
+    let mut meta = map_zotero_item_to_record(&item.json)?; // errors when the item has no title
     let id = meta.id.clone();
     if id.is_empty() {
         return Err(AppError::message("mapped item has empty id"));
@@ -761,7 +760,7 @@ pub(crate) struct SyncNote {
 #[derive(Debug)]
 pub(crate) struct SyncItem {
     pub item_id: i64,
-    /// Assembled Zotero-API-JSON (feeds `map_zotero_item`, same as migration).
+    /// Assembled Zotero-API-JSON (feeds `map_zotero_item_to_record`, same as migration).
     pub json: Value,
     pub notes: Vec<SyncNote>,
     /// Pre-formatted Markdown blocks for PDF annotations (migration format).
@@ -1396,7 +1395,7 @@ mod tests {
         let conn = seed_db();
         let (items, _collections) =
             read_items_conn(&conn, Path::new("/nonexistent-zotero")).unwrap();
-        let meta = map_zotero_item(&items[0].json).unwrap();
+        let meta = map_zotero_item_to_record(&items[0].json).unwrap();
         assert_eq!(meta.title, "Attention Is All You Need");
         assert_eq!(meta.year, Some(2017));
         assert_eq!(meta.doi.as_deref(), Some("10.5555/abc"));
@@ -1547,7 +1546,9 @@ mod tests {
         fs::write(vault.join(flat_rel).join("NOTES.md"), "# user notes\n").unwrap();
         let conn = seed_db();
         let (items, _c) = read_items_conn(&conn, Path::new("/nonexistent-zotero")).unwrap();
-        let record = map_zotero_item(&items[0].json).unwrap().at_path(flat_rel);
+        let record = map_zotero_item_to_record(&items[0].json)
+            .unwrap()
+            .at_path(flat_rel);
         papers::upsert_paper(&vault, &record).unwrap();
 
         let out = migrate_zotero(

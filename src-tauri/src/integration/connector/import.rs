@@ -6,7 +6,7 @@ use crate::core::fs::WriteOpts;
 use crate::features::paper::catalog::papers;
 use crate::features::paper::catalog::papers::is_internal_tag_name;
 use crate::features::paper::import::{
-    enrich_remote_urls, ensure_paper_assets_with_cookies, map_zotero_item, normalize_parent_dir,
+    ensure_paper_assets_with_cookies, map_zotero_item_to_record, normalize_parent_dir,
     write_paper_shell_opts, NoteShellMode,
 };
 use crate::features::paper::zotero::ZOTERO_INTERNAL_TAG_PREFIX;
@@ -373,7 +373,7 @@ fn connector_paper_meta(
     item: &Value,
     page_uri: Option<&str>,
 ) -> Result<papers::PaperRecord, AppError> {
-    let mut meta = map_zotero_item(item)?;
+    let mut meta = map_zotero_item_to_record(item)?;
     for tag in &mut meta.tags {
         if !tag.name.is_empty() && !is_internal_tag_name(&tag.name) {
             tag.name = format!("{ZOTERO_INTERNAL_TAG_PREFIX}{}", tag.name);
@@ -388,7 +388,6 @@ fn connector_paper_meta(
     if meta.html_url.is_none() {
         meta.html_url = meta.source_url.clone();
     }
-    enrich_remote_urls(&mut meta);
     if meta.pdf_url.as_deref().map(str::is_empty).unwrap_or(true) {
         meta.pdf_url = pdf_attachment_url(item);
     }

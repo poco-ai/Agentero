@@ -14,9 +14,8 @@
 use crate::core::error::AppError;
 use crate::features::paper::catalog::papers::PaperRecord;
 use crate::features::paper::import::api_mapper::{
-    api_paper_to_meta, best_match, merge_api_papers, score_against_query,
+    api_paper_to_meta, best_match, enrich_remote_urls, merge_api_papers, score_against_query,
 };
-use crate::features::paper::import::map::enrich_remote_urls;
 use crate::features::paper::scholar_api::scoring::{is_same_paper, normalize_title};
 use crate::features::paper::scholar_api::sources::{
     arxiv::ArxivApi, crossref::CrossrefApi, openalex::OpenAlexApi,

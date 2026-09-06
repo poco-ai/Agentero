@@ -10,7 +10,7 @@ use crate::features::paper::import::pdf_parse::{
 };
 use crate::features::paper::import::remote_ops::RemoteImportOps;
 use crate::features::paper::import::{
-    doi_slug, enrich_remote_urls, ensure_paper_assets, extract_arxiv_id, map_zotero_item,
+    doi_slug, ensure_paper_assets, extract_arxiv_id, map_zotero_item_to_record,
     normalize_parent_dir, preflight_identifier_batch, resolve_metadata, slug_from_stem,
     title_from_stem, translator_import_items, AssetDownloadResult, ImportLocalPdfArgs,
     ImportLocalPdfResult, LocalPdfImportEntry, LookupImportArgs, LookupImportBatchArgs,
@@ -45,10 +45,8 @@ pub async fn import_by_identifier_remote(
     }
 
     crate::features::paper::import::check_task_not_cancelled(args.task_id.as_deref())?;
-    let (mut meta, used_translator) =
-        resolve_metadata(text, &base, args.task_id.as_deref()).await?;
+    let (meta, used_translator) = resolve_metadata(text, &base, args.task_id.as_deref()).await?;
     crate::features::paper::import::check_task_not_cancelled(args.task_id.as_deref())?;
-    enrich_remote_urls(&mut meta);
 
     let commit = remote_paper_commit(
         session.clone(),
@@ -373,8 +371,7 @@ async fn import_one_zotero_item_remote(
     item: &serde_json::Value,
     note_mode: NoteShellMode,
 ) -> Result<Option<(String, String)>, AppError> {
-    let mut meta = map_zotero_item(item)?;
-    enrich_remote_urls(&mut meta);
+    let meta = map_zotero_item_to_record(item)?;
     let base_id = meta.id.clone();
     if base_id.is_empty() {
         return Err(AppError::message("imported item has empty id"));

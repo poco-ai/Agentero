@@ -12,9 +12,10 @@
 
 use crate::core::error::AppError;
 use crate::features::paper::catalog::papers::PaperRecord;
+use crate::features::paper::import::api_mapper::api_paper_to_meta;
 use crate::features::paper::import::pdf_parse::{run_liteparse_probe, ProbePage, ProbeWord};
 use crate::features::paper::import::resolve_metadata;
-use crate::features::paper::import::resolver::fetch_arxiv_metadata;
+use crate::features::paper::scholar_api::identifiers::fetch_arxiv_metadata;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -402,7 +403,9 @@ pub(crate) async fn recognize_and_resolve(
         .filter(|a| !a.is_empty())
     {
         match fetch_arxiv_metadata(arxiv, task_id).await {
-            Ok(meta) => return PdfIdentProbe::from_meta(&file_path, &meta, "arxiv"),
+            Ok(meta) => {
+                return PdfIdentProbe::from_meta(&file_path, &api_paper_to_meta(&meta), "arxiv")
+            }
             Err(e) => {
                 log::debug!(target: "agentero::recognize", "arXiv {arxiv} resolve failed: {e}");
                 let mut probe = title_fallback(&file_path, &hit);

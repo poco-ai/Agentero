@@ -20,7 +20,7 @@ use crate::features::paper::catalog::papers::{self, PaperRecord};
 use crate::features::paper::catalog::CapsCache;
 use crate::features::paper::import::recognize::pdf_recognize::PdfIdentProbe;
 use crate::features::paper::import::AppHandle;
-use crate::features::paper::import::{map, slug_from_stem};
+use crate::features::paper::import::{doi_slug, slug_from_stem};
 use crate::features::vault::rename::{run_local_rename_transaction, WikiIndex};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -53,7 +53,7 @@ fn canonical_base_id(probe: &PdfIdentProbe) -> Option<String> {
                 .as_deref()
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
-                .map(map::doi_slug)
+                .map(doi_slug)
         })
         .filter(|s| !s.is_empty())
 }

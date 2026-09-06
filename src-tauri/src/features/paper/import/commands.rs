@@ -8,13 +8,15 @@ use crate::core::remote::parse_remote_handle;
 use crate::features::paper::catalog::papers::PaperRecord;
 use crate::features::paper::catalog::CapsCache;
 use crate::features::paper::import::pdf_parse::{PaperParseBodyArgs, PaperParseResult};
-use crate::features::paper::import::resolver::{fetch_arxiv_metadata, fetch_crossref_metadata};
 use crate::features::paper::import::title_search::{needs_s2_venue_enrichment, search_papers};
 use crate::features::paper::import::RemoteImportOps;
 use crate::features::paper::import::{
     AssetDownloadResult, ImportLocalPdfArgs, ImportLocalPdfResult, LookupImportBatchArgs,
     LookupImportBatchResult, PaperDownloadAssetsArgs, SkillImportResult, StageImportFileArgs,
     StageImportFileResult,
+};
+use crate::features::paper::scholar_api::identifiers::{
+    fetch_arxiv_metadata, fetch_crossref_metadata,
 };
 use crate::features::paper::scholar_api::sources::semantic_scholar::{
     better_publication, is_usable_publication, SemanticScholarApi,
@@ -210,7 +212,7 @@ pub async fn paper_resolve_identifier(args: PaperResolveIdentifierArgs) -> ApiRe
 
     // Skill 分流不在 resolver 表内：由 extract_skill_source 判定。
     let try_identifier = super::skill::extract_skill_source(&args.text).is_none()
-        && super::parse::extract_primary_identifier(&args.text).is_some();
+        && super::identifiers::extract_primary_identifier(&args.text).is_some();
 
     if try_identifier {
         let base = args
@@ -425,7 +427,7 @@ async fn resolve_publication_for_backfill(
     // 1. arXiv `journal_ref` (most complete when present). Skip generic "arXiv".
     if let Some(arxiv) = arxiv_id.map(str::trim).filter(|s| !s.is_empty()) {
         if let Ok(meta) = fetch_arxiv_metadata(arxiv, None).await {
-            if let Some(pub_value) = meta.publication.filter(|p| is_usable_publication(p)) {
+            if let Some(pub_value) = meta.venue.filter(|p| is_usable_publication(p)) {
                 return Some(pub_value);
             }
         }
@@ -437,7 +439,7 @@ async fn resolve_publication_for_backfill(
     if let Some(doi) = doi.map(str::trim).filter(|s| !s.is_empty()) {
         let s2 = SemanticScholarApi.fetch_venue_by_doi(doi).await;
         let crossref = match fetch_crossref_metadata(doi).await {
-            Ok(meta) => meta.publication.filter(|p| is_usable_publication(p)),
+            Ok(meta) => meta.venue.filter(|p| is_usable_publication(p)),
             Err(_) => None,
         };
         if let Some(best) = better_publication(s2.as_deref(), crossref.as_deref()) {

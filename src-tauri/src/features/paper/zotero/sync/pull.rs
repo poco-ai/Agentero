@@ -9,7 +9,7 @@ use super::link::{self, MatchedBy};
 use super::{file_newer_than, parse_dt};
 use crate::core::error::AppError;
 use crate::features::paper::catalog::papers;
-use crate::features::paper::import::map_zotero_item;
+use crate::features::paper::import::map_zotero_item_to_record;
 use crate::features::paper::zotero::codec;
 use crate::features::paper::zotero::db::{append_markdown_blocks, SyncItem};
 use serde::Serialize;
@@ -58,7 +58,7 @@ pub(crate) fn pull(
     for (idx, item) in items.iter().enumerate() {
         progress(idx, total);
         // Items without a title cannot map to a paper.
-        let Ok(meta) = map_zotero_item(&item.json) else {
+        let Ok(meta) = map_zotero_item_to_record(&item.json) else {
             report.unlinked += 1;
             continue;
         };

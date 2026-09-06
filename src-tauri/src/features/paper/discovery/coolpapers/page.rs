@@ -14,7 +14,7 @@
 use super::{decode_entities, http_client, ORIGIN};
 use crate::core::error::AppError;
 use crate::features::paper::import::{
-    map_zotero_item,
+    map_zotero_item_to_record,
     paper_import::{
         paper_commit, AssetsPolicy, DedupePolicy, PaperCommitOptions, PaperCommitResult,
     },
@@ -68,7 +68,7 @@ pub fn parse_page(html: &str) -> PageMeta {
     }
 }
 
-/// Zotero-shaped value so the whole field mapping in `map_zotero_item` is reused
+/// Zotero-shaped value so the whole field mapping in `map_zotero_item_to_record` is reused
 /// instead of hand-rolling a second metadata constructor.
 fn zotero_item(page: &PageMeta) -> serde_json::Value {
     let creators: Vec<serde_json::Value> = page
@@ -145,7 +145,7 @@ pub async fn import_page(args: ImportPageArgs<'_>) -> Result<PaperCommitResult, 
         ));
     }
 
-    let mut meta = map_zotero_item(&zotero_item(&page))?;
+    let mut meta = map_zotero_item_to_record(&zotero_item(&page))?;
     // The papers.cool id is globally unique, so it dedupes precisely; the
     // derived citekey fallback can collide and would be swallowed as a dup.
     meta.id = id.to_string();
