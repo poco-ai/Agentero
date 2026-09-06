@@ -21,7 +21,7 @@ export type {
 export type AgentTemplate =
 	| "opencode"
 	| "openclaw"
-	| "gemini"
+	| "antigravity"
 	| "hermes"
 	| "claude-acp"
 	| "codex-acp"

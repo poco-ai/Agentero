@@ -1061,7 +1061,12 @@ export type AgentTemplate = "opencode" |
  *  OpenClaw native ACP (`openclaw acp`).
  *  Docs: https://docs.openclaw.ai/cli/acp
  */
-"open-claw" | "gemini" | 
+"open-claw" | 
+/**
+ *  Google Antigravity CLI with native ACP (`agy --acp`).
+ *  Replaces the previous Google Gemini CLI template.
+ */
+"antigravity" | 
 /**
  *  Hermes Agent native ACP (`hermes acp`).
  *  Docs: https://github.com/NousResearch/hermes-agent

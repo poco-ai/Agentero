@@ -1,14 +1,16 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "kebab-case")]
 pub enum AgentTemplate {
     Opencode,
     /// OpenClaw native ACP (`openclaw acp`).
     /// Docs: https://docs.openclaw.ai/cli/acp
     OpenClaw,
-    Gemini,
+    /// Google Antigravity CLI with native ACP (`agy --acp`).
+    /// Replaces the previous Google Gemini CLI template.
+    Antigravity,
     /// Hermes Agent native ACP (`hermes acp`).
     /// Docs: https://github.com/NousResearch/hermes-agent
     Hermes,
@@ -33,12 +35,41 @@ pub enum AgentTemplate {
     Custom,
 }
 
+impl<'de> serde::Deserialize<'de> for AgentTemplate {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(match s.as_str() {
+            "opencode" => Self::Opencode,
+            "openclaw" => Self::OpenClaw,
+            // Backward compatibility: old Gemini registrations deserialize as Antigravity.
+            "antigravity" | "gemini" => Self::Antigravity,
+            "hermes" => Self::Hermes,
+            "claude-acp" => Self::ClaudeAcp,
+            "codex-acp" => Self::CodexAcp,
+            "qodercli" => Self::QoderCli,
+            "grok-build" => Self::GrokBuild,
+            "pi" => Self::Pi,
+            "dsh" => Self::Dsh,
+            "kimi-code" => Self::KimiCode,
+            "custom" => Self::Custom,
+            other => {
+                return Err(serde::de::Error::custom(format!(
+                    "unknown agent template: {other}"
+                )))
+            }
+        })
+    }
+}
+
 impl AgentTemplate {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Opencode => "opencode",
             Self::OpenClaw => "openclaw",
-            Self::Gemini => "gemini",
+            Self::Antigravity => "antigravity",
             Self::Hermes => "hermes",
             Self::ClaudeAcp => "claude-acp",
             Self::CodexAcp => "codex-acp",

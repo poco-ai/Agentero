@@ -34,7 +34,7 @@ pub fn skill_mention_style(template: &AgentTemplate) -> SkillMentionStyle {
         AgentTemplate::ClaudeAcp
         | AgentTemplate::Opencode
         | AgentTemplate::OpenClaw
-        | AgentTemplate::Gemini
+        | AgentTemplate::Antigravity
         | AgentTemplate::Hermes
         | AgentTemplate::QoderCli
         | AgentTemplate::GrokBuild

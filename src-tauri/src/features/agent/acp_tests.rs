@@ -44,7 +44,7 @@ mod acp_live {
         assert!(ids.contains(&"claude-acp"));
         assert!(ids.contains(&"codex-acp"));
         assert!(ids.contains(&"hermes"));
-        assert!(ids.contains(&"gemini"));
+        assert!(ids.contains(&"antigravity"));
         assert!(ids.contains(&"qodercli"));
         assert!(ids.contains(&"grok-build"));
         assert!(ids.contains(&"pi"));
@@ -217,9 +217,9 @@ mod acp_live {
         if resolve_command("codex").is_some() {
             assert!(by_id("codex-acp").binary_available);
         }
-        if resolve_command("gemini").is_none() {
-            assert!(!by_id("gemini").binary_available);
-            assert_eq!(by_id("gemini").acp_status, CatalogAcpStatus::Missing);
+        if resolve_command("agy").is_none() {
+            assert!(!by_id("antigravity").binary_available);
+            assert_eq!(by_id("antigravity").acp_status, CatalogAcpStatus::Missing);
         }
     }
 

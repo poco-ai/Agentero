@@ -133,11 +133,12 @@ pub(crate) fn to_acp_agent_local(
             child_env.insert("PATH".to_string(), path.to_string_lossy().to_string());
         }
     }
-    // Gemini CLI launches a browser OAuth flow from `new_session` when it has no
-    // cached credentials; our 15s ACP timeout kills the child before login can
-    // finish, so the browser would pop up on every spawn. Sign-in must happen in
-    // a terminal instead (BYOA).
-    if matches!(desc.template, AgentTemplate::Gemini) && !child_env.contains_key("NO_BROWSER") {
+    // Antigravity (formerly Gemini) launches a browser OAuth flow from
+    // `new_session` when it has no cached credentials; our 15s ACP timeout kills
+    // the child before login can finish, so the browser would pop up on every
+    // spawn. Sign-in must happen in a terminal instead (BYOA).
+    if matches!(desc.template, AgentTemplate::Antigravity) && !child_env.contains_key("NO_BROWSER")
+    {
         child_env.insert("NO_BROWSER".to_string(), "true".to_string());
     }
 

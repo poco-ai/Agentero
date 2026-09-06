@@ -70,6 +70,26 @@ pub fn kimi_launcher_dir() -> std::path::PathBuf {
     }
 }
 
+/// Antigravity CLI install directory. The official Windows installer places
+/// files under `%LOCALAPPDATA%\agy`; on Unix the binary lands in `~/.local/bin`
+/// (removed separately) and any config/cache lives here.
+pub fn antigravity_install_dir() -> std::path::PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        let base = std::env::var_os("LOCALAPPDATA")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| std::path::PathBuf::from("C:\\"));
+        base.join("agy")
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let home = std::env::var_os("HOME")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_default();
+        home.join(".agy")
+    }
+}
+
 /// Home-level npm root shim: if the user has `~/package.json`, npm walks up
 /// from the launcher dir and lands packages in `~/node_modules` (off PATH).
 pub fn dsh_home_entrypoint() -> Option<std::path::PathBuf> {
@@ -184,13 +204,13 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             install_command: None,
         },
         AgentTemplateInfo {
-            id: AgentTemplate::Gemini.as_str().to_string(),
-            name: "Gemini CLI".to_string(),
-            description: "Google Gemini CLI with experimental ACP mode.".to_string(),
-            command: "gemini".to_string(),
-            args: vec!["--experimental-acp".to_string()],
-            detect_command: Some("gemini".to_string()),
-            install_hint: "Install Google Gemini CLI (with ACP support).".to_string(),
+            id: AgentTemplate::Antigravity.as_str().to_string(),
+            name: "Antigravity".to_string(),
+            description: "Google Antigravity CLI with native ACP (`agy --acp`).".to_string(),
+            command: "agy".to_string(),
+            args: vec!["--acp".to_string()],
+            detect_command: Some("agy".to_string()),
+            install_hint: "Install Google Antigravity CLI.".to_string(),
             install_command: None,
         },
         AgentTemplateInfo {
@@ -295,7 +315,9 @@ pub fn template_from_id(id: &str) -> AgentTemplate {
     match id {
         "opencode" => AgentTemplate::Opencode,
         "openclaw" => AgentTemplate::OpenClaw,
-        "gemini" => AgentTemplate::Gemini,
+        "antigravity" => AgentTemplate::Antigravity,
+        // Backward compatibility: old Gemini registrations map to Antigravity.
+        "gemini" => AgentTemplate::Antigravity,
         "hermes" => AgentTemplate::Hermes,
         "claude-acp" => AgentTemplate::ClaudeAcp,
         "codex-acp" => AgentTemplate::CodexAcp,

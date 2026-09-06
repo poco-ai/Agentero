@@ -1,12 +1,6 @@
-import { Terminal } from "lucide-react";
+import { Rocket, Terminal } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import {
-	SiClaude,
-	SiDeepseek,
-	SiGooglegemini,
-	SiHermes,
-	SiOpencode,
-} from "react-icons/si";
+import { SiClaude, SiDeepseek, SiHermes, SiOpencode } from "react-icons/si";
 import type { AgentTemplate } from "@/lib/agent";
 import { cn } from "@/lib/core/utils";
 
@@ -15,7 +9,7 @@ export type AgentLogoKey =
 	| "openclaw"
 	| "claude-acp"
 	| "codex-acp"
-	| "gemini"
+	| "antigravity"
 	| "hermes"
 	| "qodercli"
 	| "grok-build"
@@ -32,7 +26,7 @@ export function agentLogoKeyForTemplate(
 		case "openclaw":
 		case "claude-acp":
 		case "codex-acp":
-		case "gemini":
+		case "antigravity":
 		case "hermes":
 		case "qodercli":
 		case "grok-build":
@@ -84,8 +78,8 @@ export function AgentLogo({
 		case "codex-acp":
 			icon = <OpenAiMark className={neutralIconClass} />;
 			break;
-		case "gemini":
-			icon = <SiGooglegemini className={cn(iconClass, "!text-[#1A73E8]")} />;
+		case "antigravity":
+			icon = <Rocket className={cn(iconClass, "!text-[#1A73E8]")} />;
 			break;
 		case "hermes":
 			icon = (

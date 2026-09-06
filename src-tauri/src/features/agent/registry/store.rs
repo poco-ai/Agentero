@@ -26,9 +26,10 @@ impl AgentRegistry {
         let mut state = read_state(&path).unwrap_or_default();
         let migrated_codex = migrate_legacy_codex_agents(&mut state);
         let migrated_grok = migrate_legacy_grok_agents(&mut state);
+        let migrated_gemini = migrate_legacy_gemini_agents(&mut state);
         let migrated_env = migrate_catalog_env_defaults(&mut state);
         state.enabled = true;
-        if migrated_codex || migrated_grok || migrated_env {
+        if migrated_codex || migrated_grok || migrated_gemini || migrated_env {
             if let Err(error) = persist(&path, &state) {
                 log::error!(
                     target: "agentero::agent",
@@ -675,6 +676,26 @@ fn migrate_legacy_codex_agents(state: &mut AgentRegistryState) -> bool {
     migrated
 }
 
+/// Google Gemini CLI has been replaced by Antigravity CLI (`agy`). Repoint
+/// stale Gemini registrations (template deserializes as Antigravity, but
+/// `command`/`args` still reference `gemini`) at the new command.
+fn migrate_legacy_gemini_agents(state: &mut AgentRegistryState) -> bool {
+    let mut migrated = false;
+    for agent in &mut state.agents {
+        if agent.template != AgentTemplate::Antigravity || agent.command != "gemini" {
+            continue;
+        }
+        agent.command = "agy".to_string();
+        agent.args = vec!["--acp".to_string()];
+        agent.last_probe_ok = None;
+        agent.last_probe_agent_name = None;
+        agent.last_probe_error = None;
+        agent.last_probed_at = None;
+        migrated = true;
+    }
+    migrated
+}
+
 fn stable_id_for(template: &AgentTemplate, command: &str, args: &[String]) -> String {
     match template {
         AgentTemplate::Custom => Uuid::new_v4().to_string(),
@@ -792,7 +813,7 @@ fn apply_user_agent_to_agent(agent: &mut AgentDescriptor, user_agent: &str, prov
         }
         // Other ACP templates: only AGENTERO_USER_AGENT today (agent may ignore it).
         AgentTemplate::Opencode
-        | AgentTemplate::Gemini
+        | AgentTemplate::Antigravity
         | AgentTemplate::QoderCli
         | AgentTemplate::GrokBuild
         | AgentTemplate::OpenClaw
@@ -924,8 +945,8 @@ fn refresh_availability(state: &mut AgentRegistryState) {
 mod tests {
     use super::{
         apply_user_agent_to_agent, merge_anthropic_custom_headers_user_agent,
-        merge_codex_config_user_agent, migrate_legacy_codex_agents, migrate_legacy_grok_agents,
-        AGENTERO_USER_AGENT_ENV, ANTHROPIC_CUSTOM_HEADERS_ENV,
+        merge_codex_config_user_agent, migrate_legacy_codex_agents, migrate_legacy_gemini_agents,
+        migrate_legacy_grok_agents, AGENTERO_USER_AGENT_ENV, ANTHROPIC_CUSTOM_HEADERS_ENV,
     };
     use crate::features::agent::models::{AgentDescriptor, AgentRegistryState, AgentTemplate};
     use std::collections::HashMap;
@@ -997,6 +1018,58 @@ mod tests {
 
         // Already native: nothing left to migrate.
         assert!(!migrate_legacy_grok_agents(&mut state));
+    }
+
+    #[test]
+    fn migrates_legacy_gemini_to_antigravity() {
+        let mut state = AgentRegistryState {
+            agents: vec![AgentDescriptor {
+                id: "catalog-antigravity".to_string(),
+                name: "Antigravity".to_string(),
+                template: AgentTemplate::Antigravity,
+                command: "gemini".to_string(),
+                args: vec!["--experimental-acp".to_string()],
+                env: HashMap::new(),
+                available: true,
+                last_error: None,
+                last_probe_ok: Some(true),
+                last_probe_agent_name: Some("gemini".to_string()),
+                last_probe_error: None,
+                last_probed_at: Some("1".to_string()),
+            }],
+            ..AgentRegistryState::default()
+        };
+
+        assert!(migrate_legacy_gemini_agents(&mut state));
+        let agent = &state.agents[0];
+        assert_eq!(agent.command, "agy");
+        assert_eq!(agent.args, vec!["--acp".to_string()]);
+        assert_eq!(agent.last_probe_ok, None);
+        assert_eq!(agent.last_probed_at, None);
+
+        // Already migrated: nothing left to do.
+        assert!(!migrate_legacy_gemini_agents(&mut state));
+    }
+
+    #[test]
+    fn deserializes_legacy_gemini_template_as_antigravity() {
+        let json = r#"{
+            "enabled": true,
+            "agents": [
+                {
+                    "id": "catalog-gemini",
+                    "name": "Gemini",
+                    "template": "gemini",
+                    "command": "gemini",
+                    "args": ["--experimental-acp"],
+                    "env": {},
+                    "available": true
+                }
+            ]
+        }"#;
+        let state: AgentRegistryState = serde_json::from_str(json).expect("parse legacy gemini");
+        let agent = &state.agents[0];
+        assert_eq!(agent.template, AgentTemplate::Antigravity);
     }
 
     #[test]
@@ -1106,7 +1179,7 @@ mod tests {
                 agents: vec![
                     desc("claude", AgentTemplate::ClaudeAcp),
                     desc("claude-2", AgentTemplate::ClaudeAcp),
-                    desc("gemini", AgentTemplate::Gemini),
+                    desc("antigravity", AgentTemplate::Antigravity),
                     desc("my-agent", AgentTemplate::Custom),
                 ],
                 ..AgentRegistryState::default()
@@ -1115,7 +1188,7 @@ mod tests {
         };
 
         let summary = registry.telemetry_summary();
-        assert_eq!(summary.templates, vec!["claude-acp", "gemini"]);
+        assert_eq!(summary.templates, vec!["antigravity", "claude-acp"]);
         assert_eq!(summary.custom_count, 1);
     }
 
