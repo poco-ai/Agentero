@@ -335,7 +335,7 @@ export const DocView = memo(function DocView({
 		return (
 			<div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
 				<Suspense fallback={<TabLoadingSkeleton />}>
-					<TranslationView paperAbsPath={tab.path} />
+					<TranslationView paperAbsPath={tab.path} active={active} />
 				</Suspense>
 			</div>
 		);

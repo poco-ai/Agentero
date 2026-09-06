@@ -21,6 +21,8 @@ import {
 type TranslationViewProps = {
 	/** Absolute path to the paper folder (papers/<id>/). */
 	paperAbsPath: string | null;
+	/** Whether this tab is the active dockview panel. */
+	active?: boolean;
 };
 
 type PageSize = { width: number; height: number };
@@ -221,7 +223,10 @@ function TranslatedPage({
 	);
 }
 
-export function TranslationView({ paperAbsPath }: TranslationViewProps) {
+export function TranslationView({
+	paperAbsPath,
+	active = true,
+}: TranslationViewProps) {
 	const { t } = useTranslation("viewer");
 	const { resolvedTheme } = useTheme();
 	const [layoutSidecar, setLayoutSidecar] = useState<PdfLayoutSidecar | null>(
@@ -229,7 +234,9 @@ export function TranslationView({ paperAbsPath }: TranslationViewProps) {
 	);
 	const [translateSidecar, setTranslateSidecar] =
 		useState<LayoutTranslateSidecar | null>(null);
+	const [refreshKey, setRefreshKey] = useState(0);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: refreshKey is an intentional reload trigger.
 	useEffect(() => {
 		setLayoutSidecar(null);
 		setTranslateSidecar(null);
@@ -250,7 +257,17 @@ export function TranslationView({ paperAbsPath }: TranslationViewProps) {
 		return () => {
 			cancelled = true;
 		};
-	}, [paperAbsPath]);
+	}, [paperAbsPath, refreshKey]);
+
+	// Re-read the sidecars when this tab becomes active so progressive
+	// full-document translation results appear without reopening the tab.
+	const wasActiveRef = useRef(active);
+	useEffect(() => {
+		if (!wasActiveRef.current && active) {
+			setRefreshKey((k) => k + 1);
+		}
+		wasActiveRef.current = active;
+	}, [active]);
 
 	const pages = useMemo(
 		() => buildPageSpecs(layoutSidecar, translateSidecar),
