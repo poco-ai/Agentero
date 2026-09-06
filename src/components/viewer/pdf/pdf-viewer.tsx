@@ -291,6 +291,7 @@ function PdfViewerInner({
 	paperMeta: paperMetaProp = null,
 	isActive = true,
 	isRemotePaper = false,
+	translationPane = false,
 	importIdentifier,
 	onOpenSettings,
 	onHandle,
@@ -817,6 +818,22 @@ function PdfViewerInner({
 		paperTitle,
 	]);
 
+	// In the right-hand translation pane, automatically start the bulk layout
+	// translation job so the translated overlay appears without requiring a
+	// second button click. The same cache key/sidecar as the source pane is
+	// used, so completed work is shared.
+	useEffect(() => {
+		if (!translationPane) return;
+		if (!layoutTranslateActive && !layoutTranslateRunning) {
+			toggleLayoutTranslate();
+		}
+	}, [
+		translationPane,
+		layoutTranslateActive,
+		layoutTranslateRunning,
+		toggleLayoutTranslate,
+	]);
+
 	// Sticky overlays (selection menu / visual draft / pin card) suppress
 	// ephemeral link previews so the pointer cannot stack multiple cards (#430).
 	// Declared after visualDraftEditor is available from the layout cluster.
@@ -1105,8 +1122,14 @@ function PdfViewerInner({
 			hoverableRegionsByPage,
 			rawRegionsByPage,
 			layoutOverlayVisible,
-			layoutTranslateItemsByPage,
-			layoutTranslatePageStateByPage,
+			layoutTranslateItemsByPage:
+				translationPane || !dualPaneTranslate
+					? layoutTranslateItemsByPage
+					: new Map(),
+			layoutTranslatePageStateByPage:
+				translationPane || !dualPaneTranslate
+					? layoutTranslatePageStateByPage
+					: new Map(),
 		}),
 		[
 			hoverableRegionsByPage,
@@ -1114,6 +1137,8 @@ function PdfViewerInner({
 			layoutOverlayVisible,
 			layoutTranslateItemsByPage,
 			layoutTranslatePageStateByPage,
+			translationPane,
+			dualPaneTranslate,
 		],
 	);
 
@@ -1326,6 +1351,7 @@ function PdfViewerInner({
 				onToggleLayoutTranslate={handleToggleLayoutTranslateWithDualPane}
 				visible={topChromeVisible}
 				isRemotePaper={isRemotePaper}
+				translationPane={translationPane}
 				onImportToLibrary={handleImportToLibrary}
 				importBusy={importBusy}
 			/>

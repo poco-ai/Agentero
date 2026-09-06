@@ -48,6 +48,8 @@ type PdfToolbarProps = {
 	visible: boolean;
 	/** True when viewing a remote paper that has no local sidecar. */
 	isRemotePaper?: boolean;
+	/** True for the right-hand translation pane; hides the bulk-translate toggle. */
+	translationPane?: boolean;
 	/** Import the remote paper into the current vault. */
 	onImportToLibrary?: () => void;
 	/** True while the import is running. */
@@ -74,6 +76,7 @@ export function PdfToolbar({
 	onToggleLayoutTranslate,
 	visible,
 	isRemotePaper = false,
+	translationPane = false,
 	onImportToLibrary,
 	importBusy = false,
 }: PdfToolbarProps) {
@@ -224,7 +227,7 @@ export function PdfToolbar({
 							</TooltipContent>
 						</Tooltip>
 					) : null}
-					{!isRemotePaper ? (
+					{!isRemotePaper && !translationPane ? (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button

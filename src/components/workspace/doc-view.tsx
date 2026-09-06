@@ -32,11 +32,6 @@ const PlazaView = lazy(() =>
 		default: m.PlazaView,
 	})),
 );
-const TranslationView = lazy(() =>
-	import("@/components/translation/translation-view").then((m) => ({
-		default: m.TranslationView,
-	})),
-);
 
 /** Library-tab-only props (ignored by PDF / editor / trash). */
 export type DocViewLibraryProps = {
@@ -164,8 +159,8 @@ function docViewPropsEqual(prev: DocViewProps, next: DocViewProps): boolean {
 	}
 	if (tab.kind === "plaza") return true;
 	if (tab.mode === "markdown") return prev.editor === next.editor;
-	if (tab.mode === "pdf") return prev.pdf === next.pdf;
-	if (tab.mode === "translation") return true;
+	if (tab.mode === "pdf" || tab.mode === "translation")
+		return prev.pdf === next.pdf;
 	return true;
 }
 
@@ -332,10 +327,37 @@ export const DocView = memo(function DocView({
 		);
 	}
 	if (tab.mode === "translation") {
+		// Right-hand pane of a dual-pane translation layout: render the same
+		// PDF viewer as the source pane, but force translation overlays on.
+		if (!active && !keepMounted) return null;
 		return (
 			<div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
 				<Suspense fallback={<TabLoadingSkeleton />}>
-					<TranslationView paperAbsPath={tab.path} active={active} />
+					<PdfViewer
+						source={tab.pdfUrl}
+						sourceBytes={tab.pdfBytes}
+						docId={tab.id}
+						paperAbsPath={
+							tab.notesPath
+								? tab.notesPath.replace(/[\\/]NOTES\.md$/i, "")
+								: null
+						}
+						paperRelPath={
+							tab.paperMeta?.path ?? paperRelFromNotes(tab.notesPath, vaultPath)
+						}
+						vaultPath={vaultPath}
+						paperMeta={tab.paperMeta}
+						isActive={active}
+						isRemotePaper={isRemoteArxivPath(tab.path)}
+						importIdentifier={tab.paperMeta?.source_url ?? undefined}
+						onOpenSettings={pdf.onOpenSettings}
+						className="h-full w-full"
+						onHandle={handlePdfHandle}
+						onHighlightsChange={handlePdfHighlightsChange}
+						onAsksChange={handlePdfAsksChange}
+						onVisualTracesChange={handlePdfVisualTracesChange}
+						translationPane
+					/>
 				</Suspense>
 			</div>
 		);

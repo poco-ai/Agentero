@@ -68,6 +68,12 @@ export type PdfViewerProps = {
 	 */
 	isActive?: boolean;
 	/**
+	 * When true, this viewer is the right-hand translation pane of a dual-pane
+	 * layout. It always paints layout-translate overlays and never hides them
+	 * behind the dual-pane setting.
+	 */
+	translationPane?: boolean;
+	/**
 	 * True for remote papers (e.g. arXiv Daily preview) that have no local
 	 * sidecar. Hides mark-persisting UI (highlight / note / translate); Ask /
 	 * Add-to-chat stay available as ephemeral session actions. Offers import.

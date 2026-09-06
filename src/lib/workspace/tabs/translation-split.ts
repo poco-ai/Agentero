@@ -20,6 +20,9 @@ export function createTranslationSplitPane(paperTab: DocTab): DocTab | null {
 		kind: "paper",
 		title,
 		paperMeta: paperTab.paperMeta,
+		pdfUrl: paperTab.pdfUrl,
+		pdfBytes: paperTab.pdfBytes,
+		notesPath: paperTab.notesPath,
 		loaded: true,
 	};
 }
