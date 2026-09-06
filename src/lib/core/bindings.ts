@@ -3420,7 +3420,7 @@ export type PaperSearchCandidate = {
 	url: string | null,
 	/**  Text handed back to the identifier pipeline (arXiv id preferred over DOI). */
 	identifier: string,
-	/**  `"s2"` or `"arxiv"`. */
+	/**  Source that produced the candidate, e.g. `"s2"` or `"arxiv"`. */
 	source: string,
 };
 
@@ -4156,6 +4156,7 @@ export type TranslateSettings = {
 	sourceLang?: string,
 	providerConfigs?: { [key in string]: TranslateProviderConfig },
 	autoTranslateSelection?: boolean,
+	dualPaneTranslate?: boolean,
 	agentId?: string,
 	modelId?: string,
 };
