@@ -3,6 +3,7 @@
 use async_trait::async_trait;
 
 use crate::features::scholar_api::client;
+use crate::features::scholar_api::identifiers::strip_arxiv_version;
 use crate::features::scholar_api::traits::AcademicApi;
 use crate::features::scholar_api::{
     ApiCapability, ApiError, ApiPaper, ApiQuery, PaperIdentifiers, PaperUrls,
@@ -128,30 +129,9 @@ fn tag_text(xml: &str, tag: &str) -> Option<String> {
     }
 }
 
-/// Bare arXiv id without version suffix (`v1`, `v2`, …).
-fn strip_arxiv_version(id: &str) -> String {
-    let id = id
-        .trim()
-        .trim_start_matches("arXiv:")
-        .trim_start_matches("arxiv:");
-    if let Some(i) = id.rfind('v') {
-        if id[i + 1..].chars().all(|c| c.is_ascii_digit()) && i > 0 {
-            return id[..i].to_string();
-        }
-    }
-    id.to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn strips_arxiv_version_and_prefix() {
-        assert_eq!(strip_arxiv_version("1706.03762"), "1706.03762");
-        assert_eq!(strip_arxiv_version("1706.03762v7"), "1706.03762");
-        assert_eq!(strip_arxiv_version("arXiv:1706.03762v2"), "1706.03762");
-    }
 
     #[test]
     fn parses_atom_entry() {

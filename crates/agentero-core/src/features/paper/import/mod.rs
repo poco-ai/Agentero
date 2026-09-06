@@ -13,9 +13,8 @@ pub use api_mapper::api_paper_to_meta;
 
 pub mod assets;
 pub mod batch;
+pub mod identifiers;
 pub mod map;
-pub mod parse;
-pub mod resolver;
 pub mod skill;
 pub mod title_search;
 
@@ -40,9 +39,9 @@ pub use title_search::{PaperSearchCandidate, PaperSearchGroup};
 // Stable top-level API for the remote import bridge (`remote/import_bridge.rs`)
 // and the Zotero feature (`features/zotero/io.rs`). Other features must depend
 // on these re-exports, not reach into the `batch` / `parse` / `map` internals.
+pub use crate::features::scholar_api::identifiers::{extract_arxiv_id, strip_arxiv_version};
 pub use batch::{preflight_identifier_batch, SkillBatchMode};
 pub use map::doi_slug;
-pub use parse::{extract_arxiv_id, strip_arxiv_version};
 // pdf_parse surface consumed by other features (layout_remote compares the
 // cancellation message).
 pub use pdf_parse::CANCELLED_MESSAGE;
@@ -57,7 +56,7 @@ use crate::features::import::assets::{AssetDownloadProgress, JOB_PROGRESS_EVENT}
 use crate::features::scholar_api::sources::translator::TranslatorApi;
 use crate::features::scholar_api::traits::BibliographySource;
 use futures_util::StreamExt;
-use parse::extract_primary_identifier;
+use identifiers::extract_primary_identifier;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -587,7 +586,7 @@ pub async fn download_paper_assets_with_progress(
                     .and_then(|s| s.to_str())
                     .unwrap_or("paper")
                     .to_string();
-                let arxiv = parse::extract_arxiv_id(&name);
+                let arxiv = extract_arxiv_id(&name);
                 let pdf = arxiv
                     .as_ref()
                     .map(|a| format!("https://arxiv.org/pdf/{}", a));
@@ -1050,10 +1049,12 @@ pub async fn resolve_metadata(
         Err(e) => {
             // Direct-connect fallbacks from the resolver table (arXiv Atom,
             // DOI → Crossref) so local dev works without the Runtime sidecar.
-            match resolver::fetch_direct_fallback(text, task_id).await {
-                Some(Ok(meta)) => {
+            match crate::features::scholar_api::identifiers::fetch_direct_fallback(text, task_id)
+                .await
+            {
+                Some(Ok(api_paper)) => {
                     check_task_not_cancelled(task_id)?;
-                    Ok((meta, false))
+                    Ok((api_paper_to_meta(&api_paper), false))
                 }
                 Some(Err(err)) => Err(err),
                 None => Err(AppError::message(format!(
@@ -1094,15 +1095,17 @@ async fn translator_fetch(
 /// URLs the same metadata path — so it runs ahead of the generic table probe,
 /// where arXiv URLs would classify as `url`.
 fn translator_request(text: &str, base: &str) -> (String, String) {
-    if let Some(arxiv_id) = parse::extract_arxiv_id(text) {
-        return resolver::find(resolver::ARXIV_KIND)
+    use crate::features::scholar_api::identifiers::{find, ARXIV};
+
+    if let Some(arxiv_id) = extract_arxiv_id(text) {
+        return find(ARXIV)
             .expect("arxiv resolver is registered")
             .translator_target(&arxiv_id, base);
     }
 
     let ident = extract_primary_identifier(text);
     match ident {
-        Some(ident) => resolver::find(ident.kind)
+        Some(ident) => find(ident.kind)
             .map(|r| r.translator_target(&ident.value, base))
             .unwrap_or_else(|| (format!("{base}/search"), ident.value.clone())),
         None => {

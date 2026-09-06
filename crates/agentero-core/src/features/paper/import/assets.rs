@@ -2,10 +2,10 @@
 //!
 //! Flow: always try PDF → arXiv also tries e-print TeX → caller may liteparse when no TeX.
 
-use super::parse::strip_arxiv_version;
 use super::AppHandle;
 use crate::error::AppError;
 use crate::features::catalog::{probe_paper_caps, CapsCache};
+use crate::features::scholar_api::identifiers::strip_arxiv_version;
 use crate::http;
 use flate2::read::GzDecoder;
 use serde::Serialize;

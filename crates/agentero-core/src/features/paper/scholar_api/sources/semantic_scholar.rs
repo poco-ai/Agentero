@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 use crate::features::scholar_api::client;
+use crate::features::scholar_api::identifiers::strip_arxiv_version;
 use crate::features::scholar_api::traits::AcademicApi;
 use crate::features::scholar_api::{
     ApiCapability, ApiError, ApiPaper, ApiQuery, PaperIdentifiers, PaperUrls,
@@ -274,19 +275,6 @@ impl SemanticScholarApi {
 
 fn is_arxiv_doi(doi: &str) -> bool {
     doi.to_ascii_lowercase().contains("10.48550/arxiv.")
-}
-
-fn strip_arxiv_version(id: &str) -> String {
-    let id = id
-        .trim()
-        .trim_start_matches("arXiv:")
-        .trim_start_matches("arxiv:");
-    if let Some(i) = id.rfind('v') {
-        if id[i + 1..].chars().all(|c| c.is_ascii_digit()) && i > 0 {
-            return id[..i].to_string();
-        }
-    }
-    id.to_string()
 }
 
 fn str_field(v: &Value, key: &str) -> Option<String> {

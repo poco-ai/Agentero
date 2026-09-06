@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 use crate::features::scholar_api::client;
+use crate::features::scholar_api::identifiers::strip_arxiv_version;
 use crate::features::scholar_api::traits::{AcademicApi, BibliographySource};
 use crate::features::scholar_api::{
     ApiCapability, ApiError, ApiPaper, ApiQuery, PaperIdentifiers, PaperUrls,
@@ -253,23 +254,11 @@ fn str_field(item: &Value, key: &str) -> Option<String> {
 
 fn normalize_arxiv_field(s: Option<&str>) -> Option<String> {
     let s = s?;
-    let s = s
-        .trim()
-        .trim_start_matches("arXiv:")
-        .trim_start_matches("arxiv:");
-    if s.is_empty() {
+    let out = strip_arxiv_version(s);
+    if out.is_empty() {
         return None;
     }
-    Some(strip_arxiv_version(s).to_string())
-}
-
-fn strip_arxiv_version(id: &str) -> String {
-    if let Some(i) = id.rfind('v') {
-        if id[i + 1..].chars().all(|c| c.is_ascii_digit()) && i > 0 {
-            return id[..i].to_string();
-        }
-    }
-    id.to_string()
+    Some(out)
 }
 
 fn extract_arxiv_from_url(url: &str) -> Option<String> {
@@ -277,12 +266,12 @@ fn extract_arxiv_from_url(url: &str) -> Option<String> {
     if lower.contains("arxiv.org/abs/") {
         let rest = lower.split("arxiv.org/abs/").nth(1)?;
         let id = rest.split(&['/', '?', '#'][..]).next()?;
-        return Some(strip_arxiv_version(id).to_string());
+        return Some(strip_arxiv_version(id));
     }
     if lower.contains("arxiv.org/pdf/") {
         let rest = lower.split("arxiv.org/pdf/").nth(1)?;
         let id = rest.split(&['/', '?', '#'][..]).next()?;
-        return Some(strip_arxiv_version(id).to_string());
+        return Some(strip_arxiv_version(id));
     }
     None
 }
@@ -291,7 +280,7 @@ fn extract_arxiv_from_doi(doi: &str) -> Option<String> {
     let lower = doi.to_ascii_lowercase();
     lower
         .strip_prefix("10.48550/arxiv.")
-        .map(|s| strip_arxiv_version(s).to_string())
+        .map(strip_arxiv_version)
 }
 
 fn extract_arxiv_from_extra(extra: Option<&str>) -> Option<String> {
@@ -300,11 +289,11 @@ fn extract_arxiv_from_extra(extra: Option<&str>) -> Option<String> {
         let line = line.trim();
         if let Some(rest) = line.strip_prefix("arXiv:") {
             let token = rest.split_whitespace().next()?.trim();
-            return Some(strip_arxiv_version(token).to_string());
+            return Some(strip_arxiv_version(token));
         }
         if line.to_ascii_lowercase().starts_with("arxiv:") {
             let token = line.split_once(':')?.1.split_whitespace().next()?.trim();
-            return Some(strip_arxiv_version(token).to_string());
+            return Some(strip_arxiv_version(token));
         }
     }
     None

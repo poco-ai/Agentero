@@ -1,6 +1,6 @@
 //! Skill source parsing for GitHub-backed skill imports.
 
-use super::super::resolver::ResolvedIdentifier;
+use crate::features::scholar_api::identifiers::ResolvedIdentifier;
 
 /// Machine kind tag for the Skill side-channel. Skills are deliberately not
 /// resolver-table driven (see [`extract_skill_source`]).

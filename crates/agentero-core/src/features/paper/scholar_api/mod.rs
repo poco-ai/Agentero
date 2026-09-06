@@ -10,6 +10,7 @@
 
 pub mod client;
 pub mod dedup;
+pub mod identifiers;
 pub mod scoring;
 pub mod search;
 pub mod sources;
