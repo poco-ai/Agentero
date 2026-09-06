@@ -230,6 +230,7 @@
 		"downloadPaper": "下载论文资源",
 		"downloadPhasePdf": "PDF",
 		"downloadPhaseTex": "TeX 源码",
+		"downloadPhaseAssets": "下载",
 		"downloadPhaseParse": "正在解析 PDF",
 		"downloadPhaseAsset": "资源",
 		"downloadPhaseLayoutModel": "版面模型",

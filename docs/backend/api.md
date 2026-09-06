@@ -61,7 +61,7 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
 | `agent:permission-request` | 权限「每次询问」档：ACP 权限请求转交用户 | `{ requestId, sessionId, title, kind?, paths, options: { optionId, name, kind }[] }` |
 | `agent:elicitation-request` | form elicitation（Codex request_user_input） | `{ requestId, sessionId, message, toolCallId?, fields: { id, title, description?, required, kind, options[] }[] }` |
 | `agent:ask-user-request` | Grok `_x.ai/ask_user_question` | `{ requestId, sessionId, toolCallId?, mode, questions: { question, options[{label,description?}], multiSelect, allowOther }[] }` |
-| `job:progress` | 下载/解析任务字节与计数进度（`taskId` = JobCenter job id，投影行消费） | `{ taskId, phase, downloadedBytes, totalBytes?, progress?, currentCount?, totalCount? }`；下载阶段的字节进度由前端投影层聚合为总体进度（PDF 映射到 0–50%，TeX 映射到 50–100%），解析阶段显示为处理中，任务完成时为 100%。Host 对字节级进度做节流：百分比变化 ≥1 个点或距上次 emit ≥100ms 才发事件，下载完成时必发最终值 |
+| `job:progress` | 下载/解析任务字节与计数进度（`taskId` = JobCenter job id，投影行消费） | `{ taskId, phase, downloadedBytes, totalBytes?, progress?, currentCount?, totalCount? }`；PDF 与 TeX 并发下载，Host 把两条流的字节合并成**一个**总体进度后再 emit（两条流同时跑时 `phase` = `assets`，只有一条时为 `pdf` / `tex`），前端只做 clamp 不再按阶段加权；任一流仍在下载且 `Content-Length` 未知时 `totalBytes` / `progress` 为空（面板转不确定态），解析阶段显示为处理中，任务完成时为 100%。Host 对字节级进度做节流：百分比变化 ≥1 个点或距上次 emit ≥100ms 才发事件，流结束时必发最终值 |
 | `paper:imported`（已实现） | `paper_commit` 成功（catalog 已写入、NOTES 已建）；本地与远程导入路径统一发；`paper_download_assets` 为孤儿文件夹补建 catalog 行时也发 | `{ vaultId, paperId, timestamp }`（`vaultId` 为 vault 根路径，远程为 `remote:<sessionId>`） |
 | `paper:assets-ready`（已实现） | 论文资产就绪：同步下载完成 / 本地 PDF 拷贝完成 / `DownloadAssets` job 成功 | `{ vaultId, paperId, timestamp }` |
 | `job:completed`（已实现） | job 状态机真实迁移到 `Succeeded` 时由 `job:changed` 单点派生 | `{ jobId, kind, paperId?, timestamp }` |

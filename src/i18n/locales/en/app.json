@@ -230,6 +230,7 @@
 		"downloadPaper": "Download paper assets",
 		"downloadPhasePdf": "PDF",
 		"downloadPhaseTex": "TeX source",
+		"downloadPhaseAssets": "Download",
 		"downloadPhaseParse": "Parsing PDF",
 		"downloadPhaseAsset": "Asset",
 		"downloadPhaseLayoutModel": "Layout model",

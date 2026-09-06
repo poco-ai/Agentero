@@ -12,6 +12,7 @@ use serde::Serialize;
 use std::fs::{self, File};
 use std::io::{Cursor, Read, Write};
 use std::path::{Component, Path, PathBuf};
+use std::sync::Mutex;
 use std::time::Duration;
 use tar::Archive;
 
@@ -101,12 +102,180 @@ impl ProgressThrottle {
 /// Minimum spacing between byte-progress events when the percent is unknown.
 pub(crate) const PROGRESS_EMIT_INTERVAL: Duration = Duration::from_millis(100);
 
+/// Byte progress of one download stream inside an [`AssetProgressAggregator`].
+#[derive(Debug, Clone, Copy, Default)]
+struct ProgressSlot {
+    downloaded: u64,
+    total: Option<u64>,
+    /// The stream ended (saved or gave up), so its size is final and a missing
+    /// `Content-Length` no longer holds the merged total back.
+    finished: bool,
+}
+
+/// Merged totals across every stream sharing one JobCenter row.
+///
+/// A stream still running with no `Content-Length` keeps the merged size
+/// unknown: guessing at it would let the other stream read 100% on its own.
+fn merged_progress(slots: &[ProgressSlot]) -> (u64, Option<u64>, Option<u8>) {
+    let mut downloaded = 0_u64;
+    let mut total = 0_u64;
+    for slot in slots {
+        downloaded = downloaded.saturating_add(slot.downloaded);
+        let Some(size) = slot
+            .total
+            .or_else(|| slot.finished.then_some(slot.downloaded))
+        else {
+            return (downloaded, None, None);
+        };
+        total = total.saturating_add(size);
+    }
+    let percent = ((downloaded.saturating_mul(100) / total.max(1)).min(100)) as u8;
+    (downloaded, Some(total), Some(percent))
+}
+
+/// Merges the byte progress of every stream that shares one JobCenter row.
+///
+/// PDF and TeX download concurrently under a single `task_id`, so per-phase
+/// percentages cannot be weighted on the frontend: whichever stream finished
+/// first pinned the shared bar at 100% while the other was still fetching.
+/// The slot count fixed at construction is the denominator, which also keeps a
+/// PDF-only import (no TeX stream) spanning the whole bar.
+pub(crate) struct AssetProgressAggregator<'a> {
+    app: Option<&'a AppHandle>,
+    task_id: Option<&'a str>,
+    phase: &'static str,
+    state: Mutex<AggregatorState>,
+}
+
+struct AggregatorState {
+    slots: Vec<ProgressSlot>,
+    throttle: ProgressThrottle,
+}
+
+impl<'a> AssetProgressAggregator<'a> {
+    pub(crate) fn new(
+        app: Option<&'a AppHandle>,
+        task_id: Option<&'a str>,
+        phase: &'static str,
+        streams: usize,
+    ) -> Self {
+        Self {
+            app,
+            task_id,
+            phase,
+            state: Mutex::new(AggregatorState {
+                slots: vec![ProgressSlot::default(); streams.max(1)],
+                throttle: ProgressThrottle::new(PROGRESS_EMIT_INTERVAL),
+            }),
+        }
+    }
+
+    /// A lone stream reporting under its own phase (e.g. a skill archive).
+    pub(crate) fn single(
+        app: Option<&'a AppHandle>,
+        task_id: Option<&'a str>,
+        phase: &'static str,
+    ) -> Self {
+        Self::new(app, task_id, phase, 1)
+    }
+
+    /// Handle for one stream of this aggregator.
+    pub(crate) fn stream(&self, slot: usize) -> StreamProgress<'_, 'a> {
+        StreamProgress { agg: self, slot }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, AggregatorState> {
+        self.state.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Build the wire payload, or `None` when the throttle swallowed it.
+    fn sample(&self, state: &mut AggregatorState, force: bool) -> Option<AssetDownloadProgress> {
+        let task_id = self.task_id?;
+        let (downloaded_bytes, total_bytes, progress) = merged_progress(&state.slots);
+        if !force
+            && !state
+                .throttle
+                .should_emit(std::time::Instant::now(), progress)
+        {
+            return None;
+        }
+        Some(AssetDownloadProgress {
+            task_id: task_id.to_string(),
+            phase: self.phase.to_string(),
+            downloaded_bytes,
+            total_bytes,
+            progress,
+            current_count: None,
+            total_count: None,
+        })
+    }
+
+    fn emit(&self, payload: Option<AssetDownloadProgress>) {
+        let (Some(app), Some(payload)) = (self.app, payload) else {
+            return;
+        };
+        app.emit(JOB_PROGRESS_EVENT, &payload);
+    }
+}
+
+/// One stream's view into an [`AssetProgressAggregator`].
+#[derive(Clone, Copy)]
+pub(crate) struct StreamProgress<'agg, 'ctx> {
+    agg: &'agg AssetProgressAggregator<'ctx>,
+    slot: usize,
+}
+
+impl<'agg, 'ctx> StreamProgress<'agg, 'ctx> {
+    pub(crate) fn task_id(&self) -> Option<&'ctx str> {
+        self.agg.task_id
+    }
+
+    /// The next candidate URL starts its byte count over (PDF fallbacks).
+    fn restart(&self) {
+        if let Some(slot) = self.agg.lock().slots.get_mut(self.slot) {
+            *slot = ProgressSlot::default();
+        }
+    }
+
+    fn record(&self, downloaded: u64, total: Option<u64>, force: bool) {
+        let payload = {
+            let mut state = self.agg.lock();
+            if let Some(slot) = state.slots.get_mut(self.slot) {
+                slot.downloaded = downloaded;
+                slot.total = total;
+            }
+            self.agg.sample(&mut state, force)
+        };
+        self.agg.emit(payload);
+    }
+
+    pub(crate) fn report(&self, downloaded: u64, total: Option<u64>) {
+        self.record(downloaded, total, false);
+    }
+
+    /// The stream ended. Always emits: the merged bar must reach the final
+    /// byte count even when the throttle swallowed the last chunk, and a
+    /// stream that gave up before any byte landed must not keep the merged
+    /// total unknown forever.
+    pub(crate) fn finish(&self) {
+        let payload = {
+            let mut state = self.agg.lock();
+            if let Some(slot) = state.slots.get_mut(self.slot) {
+                slot.finished = true;
+            }
+            self.agg.sample(&mut state, true)
+        };
+        self.agg.emit(payload);
+    }
+}
+
 /// Download missing PDF (always try when URL known) and arXiv LaTeX source.
 ///
 /// - **PDF** → paper folder root: `{paper}/{id}.pdf` (not under `source/`)
 /// - **TeX** (arXiv e-print) → `{paper}/source/`
 ///
-/// Order: PDF first, then TeX. Caller runs liteparse when `!tex && pdf`.
+/// Both streams download concurrently and their byte progress is merged into
+/// one overall value. Caller runs liteparse when `!tex && pdf`.
 pub async fn ensure_paper_assets(
     paper_dir: &Path,
     id: &str,
@@ -216,6 +385,27 @@ async fn ensure_paper_assets_impl(
         .unwrap_or_else(|| probe_paper_caps(paper_dir));
     let need_pdf = !before.has_pdf();
     let need_tex = !before.has_tex;
+    let tex_arxiv_id = arxiv_id.filter(|a| !a.trim().is_empty());
+
+    // Both streams share one JobCenter row, so their byte progress is merged
+    // here instead of being weighted per phase in the frontend. The slot count
+    // is the denominator: a stream that never starts must not let the other
+    // one reach 100%.
+    let streams = usize::from(need_pdf) + usize::from(need_tex && tex_arxiv_id.is_some());
+    let aggregator = AssetProgressAggregator::new(
+        progress.app,
+        progress.task_id,
+        if streams > 1 {
+            "assets"
+        } else if need_pdf {
+            "pdf"
+        } else {
+            "tex"
+        },
+        streams,
+    );
+    let pdf_stream = aggregator.stream(0);
+    let tex_stream = aggregator.stream(usize::from(need_pdf));
 
     let pdf_task = async {
         if !need_pdf {
@@ -224,7 +414,11 @@ async fn ensure_paper_assets_impl(
                 messages: vec!["pdf already present".into()],
             };
         }
-        fetch_pdf_assets(paper_dir, id, arxiv_id, pdf_url, doi, cookies, progress).await
+        let res =
+            fetch_pdf_assets(paper_dir, id, arxiv_id, pdf_url, doi, cookies, pdf_stream).await;
+        // The candidate loop may have given up before any byte landed.
+        pdf_stream.finish();
+        res
     };
 
     let tex_task = async {
@@ -234,10 +428,12 @@ async fn ensure_paper_assets_impl(
                 messages: vec!["tex already present".into()],
             };
         }
-        let Some(aid) = arxiv_id.filter(|a| !a.trim().is_empty()) else {
+        let Some(aid) = tex_arxiv_id else {
             return TexAssetResult::default();
         };
-        fetch_tex_assets(paper_dir, aid, progress).await
+        let res = fetch_tex_assets(paper_dir, aid, tex_stream).await;
+        tex_stream.finish();
+        res
     };
 
     let (pdf_res, tex_res) = tokio::join!(pdf_task, tex_task);
@@ -271,7 +467,7 @@ async fn fetch_pdf_assets(
     pdf_url: Option<&str>,
     doi: Option<&str>,
     cookies: Option<&str>,
-    progress: AssetProgressContext<'_>,
+    progress: StreamProgress<'_, '_>,
 ) -> PdfAssetResult {
     let mut out = PdfAssetResult::default();
     let mut candidates = pdf_url_candidates(id, arxiv_id, pdf_url);
@@ -281,14 +477,13 @@ async fn fetch_pdf_assets(
         &candidates,
         &mut out,
         cookies,
-        progress.app,
-        progress.task_id,
+        progress,
     )
     .await;
     // DOI fallback: Crossref often lists a direct / open-access PDF link even
     // when the Translator gave no pdf_url (or the publisher landing page failed).
     if !ok {
-        if let Err(e) = super::check_task_not_cancelled(progress.task_id) {
+        if let Err(e) = super::check_task_not_cancelled(progress.task_id()) {
             out.messages.push(format!("pdf cancelled: {e}"));
             return out;
         }
@@ -303,13 +498,7 @@ async fn fetch_pdf_assets(
                     .push("pdf: no Crossref PDF link for DOI".into());
             } else {
                 ok = try_download_candidates_with_cookies(
-                    paper_dir,
-                    id,
-                    &extra,
-                    &mut out,
-                    cookies,
-                    progress.app,
-                    progress.task_id,
+                    paper_dir, id, &extra, &mut out, cookies, progress,
                 )
                 .await;
                 candidates.extend(extra);
@@ -319,7 +508,7 @@ async fn fetch_pdf_assets(
     // Unpaywall fallback: open-access PDF for DOI papers (helps some ACM/IEEE
     // and other paywalled papers that have an OA copy; no API key required).
     if !ok {
-        if let Err(e) = super::check_task_not_cancelled(progress.task_id) {
+        if let Err(e) = super::check_task_not_cancelled(progress.task_id()) {
             out.messages.push(format!("pdf cancelled: {e}"));
             return out;
         }
@@ -332,8 +521,7 @@ async fn fetch_pdf_assets(
                         std::slice::from_ref(&url),
                         &mut out,
                         cookies,
-                        progress.app,
-                        progress.task_id,
+                        progress,
                     )
                     .await;
                     candidates.push(url);
@@ -351,10 +539,10 @@ async fn fetch_pdf_assets(
 async fn fetch_tex_assets(
     paper_dir: &Path,
     arxiv_id: &str,
-    progress: AssetProgressContext<'_>,
+    progress: StreamProgress<'_, '_>,
 ) -> TexAssetResult {
     let mut out = TexAssetResult::default();
-    if let Err(e) = super::check_task_not_cancelled(progress.task_id) {
+    if let Err(e) = super::check_task_not_cancelled(progress.task_id()) {
         out.messages.push(format!("tex cancelled: {e}"));
         return out;
     }
@@ -363,8 +551,7 @@ async fn fetch_tex_assets(
         out.messages.push(format!("tex failed: {e}"));
         return out;
     }
-    match download_arxiv_source(&source, paper_dir, arxiv_id, progress.app, progress.task_id).await
-    {
+    match download_arxiv_source(&source, paper_dir, arxiv_id, progress).await {
         Ok(()) => {
             // A PDF-only e-print also returns Ok (the PDF is written to
             // the paper root and no TeX is extracted), so success here
@@ -435,12 +622,11 @@ async fn try_download_candidates_with_cookies(
     urls: &[String],
     out: &mut PdfAssetResult,
     cookies: Option<&str>,
-    app: Option<&AppHandle>,
-    task_id: Option<&str>,
+    progress: StreamProgress<'_, '_>,
 ) -> bool {
     for url in urls {
         // PDF lives next to NOTES.md, not under source/
-        match download_pdf_with_cookies(paper_dir, id, url, cookies, app, task_id).await {
+        match download_pdf_with_cookies(paper_dir, id, url, cookies, progress).await {
             Ok(()) => {
                 out.ok = true;
                 out.messages.push(format!("pdf ok ({url})"));
@@ -530,12 +716,10 @@ async fn download_pdf_with_cookies(
     id: &str,
     url: &str,
     cookies: Option<&str>,
-    app: Option<&AppHandle>,
-    task_id: Option<&str>,
+    progress: StreamProgress<'_, '_>,
 ) -> Result<(), AppError> {
     let bytes =
-        http_get_bytes_with_progress(url, Duration::from_secs(180), app, task_id, cookies, "pdf")
-            .await?;
+        http_get_bytes_with_progress(url, Duration::from_secs(180), cookies, progress).await?;
     // Reject HTML error pages disguised as PDF
     if bytes.len() >= 4 && &bytes[..4] == b"%PDF" {
         let name = safe_filename(id, "pdf");
@@ -562,15 +746,13 @@ async fn download_arxiv_source(
     source_dir: &Path,
     paper_dir: &Path,
     arxiv_id: &str,
-    app: Option<&AppHandle>,
-    task_id: Option<&str>,
+    progress: StreamProgress<'_, '_>,
 ) -> Result<(), AppError> {
     let bare = strip_arxiv_version(arxiv_id);
     // Prefer e-print; /src/ is an alias
     let url = format!("https://arxiv.org/e-print/{bare}");
     let bytes =
-        http_get_bytes_with_progress(&url, Duration::from_secs(180), app, task_id, None, "tex")
-            .await?;
+        http_get_bytes_with_progress(&url, Duration::from_secs(180), None, progress).await?;
     unpack_arxiv_eprint(source_dir, paper_dir, &bare, &bytes)
 }
 
@@ -719,12 +901,13 @@ fn sanitize_tar_path(path: &Path) -> Result<PathBuf, AppError> {
 pub(crate) async fn http_get_bytes_with_progress(
     url: &str,
     timeout: Duration,
-    app: Option<&AppHandle>,
-    task_id: Option<&str>,
     cookies: Option<&str>,
-    phase: &str,
+    progress: StreamProgress<'_, '_>,
 ) -> Result<Vec<u8>, AppError> {
+    let task_id = progress.task_id();
     crate::features::import::check_task_not_cancelled(task_id)?;
+    // Each attempt counts from zero: PDF falls back across candidate URLs.
+    progress.restart();
     let client = http::client_with(timeout, 10, http::BROWSER_USER_AGENT)?;
     let mut request = client
         .get(url)
@@ -742,7 +925,6 @@ pub(crate) async fn http_get_bytes_with_progress(
     }
     let total_bytes = res.content_length();
     let mut downloaded_bytes = 0_u64;
-    let mut throttle = ProgressThrottle::new(PROGRESS_EMIT_INTERVAL);
     let mut bytes = Vec::new();
     while let Some(chunk) = res
         .chunk()
@@ -756,46 +938,13 @@ pub(crate) async fn http_get_bytes_with_progress(
         }
         downloaded_bytes += chunk.len() as u64;
         bytes.extend_from_slice(&chunk);
-        if let (Some(app), Some(task_id)) = (app, task_id) {
-            let progress = total_bytes.map(|total| {
-                ((downloaded_bytes.saturating_mul(100) / total.max(1)).min(100)) as u8
-            });
-            // Per-chunk emits flood the webview event loop; throttle to
-            // percent moves / ≥100ms. The final value is emitted below.
-            if throttle.should_emit(std::time::Instant::now(), progress) {
-                app.emit(
-                    JOB_PROGRESS_EVENT,
-                    &AssetDownloadProgress {
-                        task_id: task_id.to_string(),
-                        phase: phase.to_string(),
-                        downloaded_bytes,
-                        total_bytes,
-                        progress,
-                        current_count: None,
-                        total_count: None,
-                    },
-                );
-            }
-        }
+        // Per-chunk emits flood the webview event loop; the aggregator
+        // throttles to percent moves / ≥100ms.
+        progress.report(downloaded_bytes, total_bytes);
     }
-    // Completion event always lands, even when the throttle just swallowed
+    // Settling always lands an event, even when the throttle just swallowed
     // the last chunk: the task bar must reach the final byte count.
-    if let (Some(app), Some(task_id)) = (app, task_id) {
-        let progress = total_bytes
-            .map(|total| ((downloaded_bytes.saturating_mul(100) / total.max(1)).min(100)) as u8);
-        app.emit(
-            JOB_PROGRESS_EVENT,
-            &AssetDownloadProgress {
-                task_id: task_id.to_string(),
-                phase: phase.to_string(),
-                downloaded_bytes,
-                total_bytes,
-                progress,
-                current_count: None,
-                total_count: None,
-            },
-        );
-    }
+    progress.finish();
     Ok(bytes)
 }
 
@@ -872,6 +1021,135 @@ mod tests {
     fn progress_throttle_first_sample_emits() {
         let mut throttle = ProgressThrottle::new(PROGRESS_EMIT_INTERVAL);
         assert!(throttle.should_emit(std::time::Instant::now(), Some(0)));
+    }
+
+    /// A finished concurrent stream must not pin the shared row at 100% while
+    /// the other one is still fetching (TeX used to land first and freeze the
+    /// bar above a PDF that was only 60% downloaded).
+    #[test]
+    fn merged_progress_stays_below_100_while_a_stream_runs() {
+        let slots = vec![
+            ProgressSlot {
+                downloaded: 1024,
+                total: Some(1024),
+                finished: true,
+            },
+            ProgressSlot {
+                downloaded: 352,
+                total: Some(586),
+                finished: false,
+            },
+        ];
+        let (downloaded, total, percent) = merged_progress(&slots);
+        assert_eq!(downloaded, 1376);
+        assert_eq!(total, Some(1610));
+        assert_eq!(percent, Some(85));
+    }
+
+    /// Guessing at a running stream's size would let the other one read 100%,
+    /// so an unknown `Content-Length` keeps the merged total unknown instead.
+    #[test]
+    fn merged_progress_is_indeterminate_while_a_size_is_unknown() {
+        let slots = vec![
+            ProgressSlot {
+                downloaded: 1024,
+                total: Some(1024),
+                finished: true,
+            },
+            ProgressSlot {
+                downloaded: 64,
+                total: None,
+                finished: false,
+            },
+        ];
+        assert_eq!(merged_progress(&slots), (1088, None, None));
+    }
+
+    /// Once a stream settles, whatever it received is all there is: it stops
+    /// holding the merged total back.
+    #[test]
+    fn merged_progress_counts_a_settled_stream_of_unknown_size() {
+        let slots = vec![ProgressSlot {
+            downloaded: 40,
+            total: None,
+            finished: true,
+        }];
+        assert_eq!(merged_progress(&slots), (40, Some(40), Some(100)));
+    }
+
+    /// A DOI-only import has no TeX stream, so the PDF alone must span the
+    /// whole bar instead of stalling at 50%.
+    #[test]
+    fn merged_progress_single_stream_spans_the_whole_bar() {
+        let running = vec![ProgressSlot {
+            downloaded: 293,
+            total: Some(586),
+            finished: false,
+        }];
+        assert_eq!(merged_progress(&running).2, Some(50));
+
+        let done = vec![ProgressSlot {
+            downloaded: 586,
+            total: Some(586),
+            finished: true,
+        }];
+        assert_eq!(merged_progress(&done).2, Some(100));
+    }
+
+    /// Force a payload without an `AppHandle`, bypassing the throttle.
+    fn sample(agg: &AssetProgressAggregator<'_>) -> AssetDownloadProgress {
+        let mut state = agg.lock();
+        agg.sample(&mut state, true).expect("task id present")
+    }
+
+    /// The reported regression, through the real slot bookkeeping: TeX settles
+    /// first, and the shared row must keep tracking the PDF's remaining bytes
+    /// instead of claiming 100% above "PDF · 352 KB / 586 KB".
+    #[test]
+    fn aggregator_merges_concurrent_streams_without_overshooting() {
+        let agg = AssetProgressAggregator::new(None, Some("job-1"), "assets", 2);
+        let (pdf, tex) = (agg.stream(0), agg.stream(1));
+
+        pdf.restart();
+        tex.restart();
+        pdf.report(0, Some(586));
+        tex.report(0, Some(1024));
+        tex.report(1024, Some(1024));
+        tex.finish();
+        pdf.report(352, Some(586));
+
+        let payload = sample(&agg);
+        assert_eq!(payload.phase, "assets");
+        assert_eq!(payload.task_id, "job-1");
+        assert_eq!(payload.downloaded_bytes, 1376);
+        assert_eq!(payload.total_bytes, Some(1610));
+        assert_eq!(payload.progress, Some(85));
+
+        // The bar and the byte detail stay in agreement until the PDF lands.
+        pdf.report(586, Some(586));
+        pdf.finish();
+        assert_eq!(sample(&agg).progress, Some(100));
+    }
+
+    /// Each PDF candidate URL counts its bytes from zero, so an attempt that
+    /// failed mid-body cannot inflate the merged total.
+    #[test]
+    fn aggregator_restarts_the_byte_count_for_each_pdf_candidate() {
+        let agg = AssetProgressAggregator::new(None, Some("job-1"), "assets", 2);
+        let (pdf, tex) = (agg.stream(0), agg.stream(1));
+
+        pdf.restart();
+        pdf.report(300, Some(586));
+        tex.restart();
+        tex.report(512, Some(1024));
+
+        pdf.restart();
+        pdf.report(100, Some(400));
+
+        let payload = sample(&agg);
+        assert_eq!(payload.downloaded_bytes, 612);
+        assert_eq!(payload.total_bytes, Some(1424));
+        assert_eq!(payload.progress, Some(42));
     }
 
     #[test]

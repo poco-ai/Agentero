@@ -1,6 +1,8 @@
 use super::AppHandle;
 use crate::error::AppError;
-use crate::features::import::assets::{extract_tar_safe, http_get_bytes_with_progress};
+use crate::features::import::assets::{
+    extract_tar_safe, http_get_bytes_with_progress, AssetProgressAggregator,
+};
 use crate::features::import::parse::SkillSource;
 use crate::frontmatter::{frontmatter_block, scalar_field};
 use flate2::read::GzDecoder;
@@ -67,13 +69,12 @@ pub async fn discover_skill_source(
         source.repo,
         urlencoding::encode(&reference)
     );
+    let aggregator = AssetProgressAggregator::single(app, task_id, "skill");
     let archive = http_get_bytes_with_progress(
         &archive_url,
         Duration::from_secs(120),
-        app,
-        task_id,
         None,
-        "skill",
+        aggregator.stream(0),
     )
     .await?;
     if archive.len() > MAX_ARCHIVE_BYTES {

@@ -76,6 +76,7 @@ export function formatBytes(bytes: number): string {
 }
 
 export function phaseLabel(phase: string): string {
+	if (phase === "assets") return i18n.t("app:tasks.downloadPhaseAssets");
 	if (phase === "pdf") return i18n.t("app:tasks.downloadPhasePdf");
 	if (phase === "tex") return i18n.t("app:tasks.downloadPhaseTex");
 	if (phase === "parse") return i18n.t("app:tasks.downloadPhaseParse");
@@ -86,23 +87,18 @@ export function phaseLabel(phase: string): string {
 }
 
 /**
- * Map byte progress from one asset phase into the progress of the whole task.
- * PDF and TeX are sequential, so a new phase must not reset the task to 0%.
+ * Byte progress arrives already merged across the streams sharing a row (the
+ * Host downloads PDF and TeX concurrently and sums their bytes), so it only
+ * needs clamping.
  */
 export function mapDownloadProgress(
 	phase: string,
 	progress: number | null,
 ): number | null {
-	const clamped =
-		progress == null ? null : Math.max(0, Math.min(100, progress));
-	if (phase === "pdf") return clamped == null ? 0 : Math.round(clamped * 0.5);
-	if (phase === "tex") {
-		return clamped == null ? 50 : 50 + Math.round(clamped * 0.5);
-	}
-	// Parsing starts after asset downloads. Keep a determinate overall value
-	// until the task can be marked complete at 100%.
+	// Parsing starts after asset downloads and reports no bytes of its own.
+	// Keep a determinate overall value until the task completes at 100%.
 	if (phase === "parse") return 90;
-	return clamped;
+	return progress == null ? null : Math.max(0, Math.min(100, progress));
 }
 
 /** Vanilla store so plain modules can start/patch tasks without React. */
