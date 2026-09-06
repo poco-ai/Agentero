@@ -14,7 +14,10 @@
 //!   storage layer in `agentero_core::usage`.
 
 pub mod app_handle;
-#[cfg(feature = "desktop")]
+#[cfg(all(
+    feature = "desktop",
+    not(any(target_os = "android", target_os = "ios"))
+))]
 pub mod telemetry;
 pub mod usage;
 

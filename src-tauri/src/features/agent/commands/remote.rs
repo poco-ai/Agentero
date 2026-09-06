@@ -102,6 +102,7 @@ pub struct RemoteAgentInstallArgs {
 
 /// Open a local terminal that SSHes into the remote host and runs the template's
 /// install command after the user presses Enter (same confirm UX as local install).
+#[cfg(not(target_os = "ios"))]
 #[tauri::command]
 #[specta::specta]
 pub async fn remote_agent_open_install_terminal(

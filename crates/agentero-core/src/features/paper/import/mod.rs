@@ -6,7 +6,6 @@
 pub mod paper_import;
 pub mod sources;
 // `parse` (liteparse worker) is excluded on mobile targets, gate the alias too.
-#[cfg(not(any(target_os = "ios", target_os = "android")))]
 pub use crate::features::paper::analyze::parse as pdf_parse;
 
 pub mod api_mapper;
@@ -46,7 +45,6 @@ pub use map::doi_slug;
 pub use parse::{extract_arxiv_id, strip_arxiv_version};
 // pdf_parse surface consumed by other features (layout_remote compares the
 // cancellation message).
-#[cfg(not(any(target_os = "ios", target_os = "android")))]
 pub use pdf_parse::CANCELLED_MESSAGE;
 
 pub use crate::app_handle::AppHandle;

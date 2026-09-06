@@ -14,7 +14,6 @@ pub mod vault_session;
 
 #[cfg(not(target_os = "ios"))]
 pub mod finder_service;
-#[cfg(not(target_os = "ios"))]
 pub use crate::features::open_request;
 #[cfg(not(target_os = "ios"))]
 pub mod terminal;
