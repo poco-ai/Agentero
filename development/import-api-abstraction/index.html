@@ -3707,7 +3707,7 @@
 <h2 id="1">1. 问题（重构前状态）<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
 <p>当时 <code>features/import/</code> 里各服务各自维护一套逻辑：</p>
 <ul>
-<li><code>title_search.rs</code>：Semantic Scholar / arXiv 标题搜索，有 <code>PaperSearchCandidate</code> —— <strong>保留</strong>至今，作为魔棒搜索对话框的 IPC 出参（有 <code>From&lt;ApiPaper&gt;</code> 实现）</li>
+<li><code>title_search.rs</code>：Semantic Scholar / arXiv 标题搜索，有 <code>PaperSearchCandidate</code> —— 已并入 <code>import/search_router.rs</code>，仍作为魔棒搜索对话框的 IPC 出参（有 <code>From&lt;ApiPaper&gt;</code> 实现）</li>
 <li><code>chain_resolve.rs</code>：标题解析链，有 <code>ResolvedCandidate</code> —— <strong>已删除</strong>，连同该文件里重复的 <code>candidate_to_meta</code> / <code>merge_candidates</code>；现在直接消费 <code>ApiPaper</code></li>
 <li><code>map.rs</code>：最终存储格式，有 <code>PaperMeta</code> —— <strong>已合并</strong>进 <code>catalog/papers.rs::PaperRecord</code>（<code>PaperMeta</code> 曾是 <code>PaperRecord</code> 的严格字段子集，靠 <code>paper_record_from_meta</code> 逐字段手抄桥接，新字段要改四处，<code>citation_count</code> 就是在这个接缝上被静默丢掉的；该文件现已移除，Zotero JSON → <code>PaperRecord</code> 由 <code>api_mapper.rs</code> 经 <code>ApiPaper</code> 完成）</li>
 <li><code>mod.rs</code>：Translator Runtime 特化请求与错误处理</li>
@@ -4253,7 +4253,7 @@
 <ul>
 <li>timeout / User-Agent / proxy（复用 <code>crate::core::http</code>）</li>
 <li>JSON / Atom XML / text 获取</li>
-<li>请求并发限制（替代 <code>title_search.rs</code> 里独立的 Semaphore）</li>
+<li>请求并发限制（替代原 <code>title_search.rs</code> 里独立的 Semaphore，现位于 <code>import/search_router.rs</code>）</li>
 <li>状态码和 body 错误包装</li>
 </ul>
 <p>每个服务实现里只剩「拼 URL + 解析响应到 <code>ApiPaper</code> / <code>VenueMetrics</code>」。</p>
@@ -4304,9 +4304,9 @@
 <p><strong>阶段 2：Semantic Scholar</strong> ✅</p>
 </li>
 <li>在 <code>scholar_api/sources/semantic_scholar.rs</code> 实现 <code>AcademicApi</code></li>
-<li>重写 <code>title_search.rs</code> 里的 S2 搜索与 venue 取值（现为 <code>search_match</code> / <code>fetch</code> / <code>fetch_venue_by_*</code> + <code>venue_from_paper</code>）</li>
+<li>重写原 <code>title_search.rs</code> 里的 S2 搜索与 venue 取值（现为 <code>search_match</code> / <code>fetch</code> / <code>fetch_venue_by_*</code> + <code>venue_from_paper</code>）</li>
 <li>
-<p>让 <code>title_search::search_papers</code> 跑在新抽象上</p>
+<p>让 <code>search_router::search_papers</code> 跑在新抽象上</p>
 </li>
 <li>
 <p><strong>阶段 3：OpenAlex</strong> ✅</p>

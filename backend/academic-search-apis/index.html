@@ -3770,7 +3770,7 @@
 <p>Agentero Host 端（<code>src-tauri/src/features/</code>）在论文识别、入库、引用补全、推荐等流程中，会调用若干外部学术服务。本文档列出所有当前在用的学术搜索/元数据 API，说明其用途、调用入口、请求形态、fallback 链路与并发控制。</p>
 <blockquote>
 <p>范围限定在<strong>学术元数据与论文发现</strong>相关的外部 HTTP API。翻译 API（Google/Bing/DeepL/OpenAI 等）、版面分析 ONNX、本地 Agent/ACP、PostHog 遥测不在本文讨论范围内。</p>
-<p>路径简写：<code>scholar_api/…</code> 与 <code>features/paper/import/</code> 的映射 / resolver / 路由（<code>scholar_api::identifiers</code>、<code>api_mapper.rs</code>、<code>title_search.rs</code>、<code>search_router.rs</code>、<code>download.rs</code>、<code>sources/</code>）已随 crate 拆分迁到 <code>crates/agentero-core/src/features/paper/…</code>；<code>import/recognize/</code>（标题解析链、PDF 识别）与 <code>import/commands.rs</code> 仍在 <code>src-tauri</code>。其余 <code>features/…</code> 均指 <code>src-tauri/src/features/…</code>。</p>
+<p>路径简写：<code>scholar_api/…</code> 与 <code>features/paper/import/</code> 的映射 / resolver / 路由（<code>scholar_api::identifiers</code>、<code>api_mapper.rs</code>、<code>search_router.rs</code>、<code>download.rs</code>、<code>sources/</code>）已随 crate 拆分迁到 <code>crates/agentero-core/src/features/paper/…</code>；<code>import/recognize/</code>（标题解析链、PDF 识别）与 <code>import/commands.rs</code> 仍在 <code>src-tauri</code>。其余 <code>features/…</code> 均指 <code>src-tauri/src/features/…</code>。</p>
 </blockquote>
 <h2 id="1-api">1. API 总览<a class="headerlink" href="#1-api" title="Permanent link">&para;</a></h2>
 <table>
@@ -3787,7 +3787,7 @@
 <td><strong>Semantic Scholar Graph API</strong></td>
 <td><code>GET /graph/v1/paper/search</code></td>
 <td>标题/关键词搜索</td>
-<td><code>features/import/title_search.rs</code></td>
+<td><code>features/paper/import/search_router.rs</code></td>
 </tr>
 <tr>
 <td><strong>Semantic Scholar Graph API</strong></td>
@@ -3811,7 +3811,7 @@
 <td><strong>arXiv Atom API</strong></td>
 <td><code>GET https://export.arxiv.org/api/query</code></td>
 <td>按 ID 取元数据 / 按标题搜索</td>
-<td><code>features/import/mod.rs</code>, <code>features/import/title_search.rs</code></td>
+<td><code>features/paper/import/mod.rs</code>, <code>features/paper/import/search_router.rs</code></td>
 </tr>
 <tr>
 <td><strong>arXiv 二进制端点</strong></td>
@@ -3886,7 +3886,7 @@
 <p>入口：<code>features/import/commands.rs::paper_resolve_identifier</code>、<code>features/import/mod.rs::import_by_identifier_with_progress</code>。</p>
 <p>当前主路径按以下顺序尝试：</p>
 <ol>
-<li><strong>标题/关键词搜索</strong>（<code>features/import/title_search.rs::search_papers</code>）</li>
+<li><strong>标题/关键词搜索</strong>（<code>features/paper/import/search_router.rs::search_papers</code>）</li>
 <li>Semantic Scholar <code>GET /graph/v1/paper/search?query=...&amp;fields=title,authors,year,venue,publicationVenue,journal,externalIds,citationCount,url</code> 与 arXiv Atom <code>GET export.arxiv.org/api/query?search_query=ti:"..."</code> <strong>并行</strong>发起。S2 在 5s 预算（<code>S2_SEARCH_BUDGET</code>）内返回非空则优先（venue 取 <code>publicationVenue.name</code>（跳过 <code>type=repository</code>），其次 <code>journal.name</code>，再次 <code>venue</code>），否则取已在途的 arXiv 结果；最坏耗时 ≈ max(预算, 单请求 20s 超时)。</li>
 <li>仅保留带 DOI 或 arXiv id 的候选；返回结果会按精确标题匹配重新排序。</li>
 <li><code>resolve_search_queries</code> 接收前端 <code>task_id</code>：关闭搜索卡片取消任务后，剩余查询直接跳过。</li>
