@@ -3770,7 +3770,7 @@
 <p>Agentero Host 端（<code>src-tauri/src/features/</code>）在论文识别、入库、引用补全、推荐等流程中，会调用若干外部学术服务。本文档列出所有当前在用的学术搜索/元数据 API，说明其用途、调用入口、请求形态、fallback 链路与并发控制。</p>
 <blockquote>
 <p>范围限定在<strong>学术元数据与论文发现</strong>相关的外部 HTTP API。翻译 API（Google/Bing/DeepL/OpenAI 等）、版面分析 ONNX、本地 Agent/ACP、PostHog 遥测不在本文讨论范围内。</p>
-<p>路径简写：<code>scholar_api/…</code> 与 <code>features/paper/import/</code> 的映射 / resolver / 路由（<code>scholar_api::identifiers</code>、<code>api_mapper.rs</code>、<code>search_router.rs</code>、<code>download.rs</code>、<code>sources/</code>）已随 crate 拆分迁到 <code>crates/agentero-core/src/features/paper/…</code>；<code>import/recognize/</code>（标题解析链、PDF 识别）与 <code>import/commands.rs</code> 仍在 <code>src-tauri</code>。其余 <code>features/…</code> 均指 <code>src-tauri/src/features/…</code>。</p>
+<p>路径简写：<code>scholar_api/…</code> 与 <code>features/paper/import/</code> 的映射 / resolver / 路由（<code>scholar_api::identifiers</code>、<code>api_mapper.rs</code>、<code>search_router.rs</code>、<code>search.rs</code>、<code>download.rs</code>、<code>sources/</code>）已随 crate 拆分迁到 <code>crates/agentero-core/src/features/paper/…</code>；<code>import/recognize/</code>（PDF 识别）与 <code>import/commands.rs</code> 仍在 <code>src-tauri</code>。其余 <code>features/…</code> 均指 <code>src-tauri/src/features/…</code>。</p>
 </blockquote>
 <h2 id="1-api">1. API 总览<a class="headerlink" href="#1-api" title="Permanent link">&para;</a></h2>
 <table>
@@ -3829,7 +3829,7 @@
 <td><strong>OpenAlex REST API</strong></td>
 <td><code>GET https://api.openalex.org/works</code></td>
 <td>标题搜索兜底（含 <code>cited_by_count</code>）</td>
-<td><code>features/paper/import/recognize/chain_resolve.rs</code></td>
+<td><code>features/paper/scholar_api/search.rs</code>（<code>SourceScope::All</code> 兜底源）</td>
 </tr>
 <tr>
 <td><strong>Unpaywall</strong></td>
