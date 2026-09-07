@@ -27,6 +27,7 @@ import {
 	cancelAgentRun,
 	ensureCatalogAgent,
 	loadModelPref,
+	loadReasoningEffortPref,
 	type PromptImage,
 	runOnce,
 } from "@/lib/agent";
@@ -359,6 +360,7 @@ export function useAgentSend({
 				(agentId === selected?.id ? modelId : null) ||
 				loadModelPref(agentId) ||
 				undefined;
+			const preferredEffort = loadReasoningEffortPref(agentId);
 
 			// Options are availability-filtered in buildOptions; unavailable agents
 			// never appear in the switcher.
@@ -437,7 +439,13 @@ export function useAgentSend({
 					collaborationOptions.some((mode) => mode.id === collaborationModeId)
 						? collaborationModeId
 						: undefined,
-				reasoningEffort: reasoningEffort ?? undefined,
+				reasoningEffort:
+					preferredEffort === null
+						? undefined
+						: agentId === selected?.id
+							? (reasoningEffort ?? preferredEffort)
+							: preferredEffort,
+				preferHighestReasoningEffort: preferredEffort === null,
 				fastMode: fastAvailable ? fastEnabled : undefined,
 				skillIds: resolvedSkillIds,
 				autoApprove: loadSettings().agentPermissionMode === "auto",

@@ -30,10 +30,13 @@ import {
 	loadModelCatalog,
 	loadModelFavorites,
 	loadModelPref,
+	loadReasoningEffortPref,
+	resolveReasoningEffort,
 	saveCollaborationPref,
 	saveModelCatalog,
 	saveModelFavorites,
 	saveModelPref,
+	saveReasoningEffortPref,
 	scanCatalog,
 	warmAgent,
 } from "@/lib/agent";
@@ -97,9 +100,9 @@ export type AgentConfig = {
 	setAcpCommandsByAgent: Dispatch<SetStateAction<Record<string, AcpCommand[]>>>;
 	collaborationOptions: AgentModeChoice[];
 	collaborationModeId: string | null;
-	effortOptionsInDisplayOrder: AgentEffortChoice[];
+	effortOptions: AgentEffortChoice[];
 	reasoningEffort: string | null;
-	setReasoningEffort: Dispatch<SetStateAction<string | null>>;
+	pickReasoningEffort: (id: string) => void;
 	fastAvailable: boolean;
 	fastEnabled: boolean;
 	setFastEnabled: Dispatch<SetStateAction<boolean>>;
@@ -128,7 +131,6 @@ export type AgentConfig = {
 		isFavorites: boolean;
 		items: AgentModelChoice[];
 	}[];
-	formatEffort: (value: string) => string;
 	selectedCollaborationName: string | null;
 	pickCollaborationMode: (id: string) => void;
 	pickModel: (id: string) => void;
@@ -241,7 +243,13 @@ export function useAgentConfig({
 			const cur = selectedAgentIdRef.current;
 			if (cur && cur !== ev.agentId) return;
 			setEffortOptions(ev.efforts);
-			setReasoningEffort(ev.currentId);
+			setReasoningEffort(
+				resolveReasoningEffort(
+					loadReasoningEffortPref(ev.agentId),
+					ev.currentId,
+					ev.efforts,
+				),
+			);
 		},
 		[selectedAgentIdRef],
 	);
@@ -314,7 +322,7 @@ export function useAgentConfig({
 		setCollaborationOptions([]);
 		setCollaborationModeId(loadCollaborationPref(selectedAgentId));
 		setEffortOptions([]);
-		setReasoningEffort(null);
+		setReasoningEffort(loadReasoningEffortPref(selectedAgentId));
 		setFastAvailable(false);
 		setFastEnabled(false);
 		setUsage(null);
@@ -465,32 +473,6 @@ export function useAgentConfig({
 		return result;
 	}, [models, favoriteIds, t]);
 
-	const effortOptionsInDisplayOrder = useMemo(() => {
-		const order = ["max", "xhigh", "high", "medium", "low"];
-		return [...effortOptions].sort(
-			(left, right) =>
-				order.indexOf(left.id.toLocaleLowerCase()) -
-				order.indexOf(right.id.toLocaleLowerCase()),
-		);
-	}, [effortOptions]);
-
-	const formatEffort = (value: string) => {
-		switch (value.toLocaleLowerCase()) {
-			case "max":
-				return t("composer.effort.max");
-			case "xhigh":
-				return t("composer.effort.xhigh");
-			case "high":
-				return t("composer.effort.high");
-			case "medium":
-				return t("composer.effort.medium");
-			case "low":
-				return t("composer.effort.low");
-			default:
-				return value;
-		}
-	};
-
 	const selectedCollaborationName = useMemo(() => {
 		if (!collaborationModeId) return null;
 		return (
@@ -514,7 +496,7 @@ export function useAgentConfig({
 	const pickModel = (id: string) => {
 		const next = id.trim();
 		if (!next) return;
-		setModelSelectorOpen(false);
+		if (next === modelId) return;
 		// Free-form / third-party ids may not be in the advertised catalog yet.
 		setModels((prev) => ensureModelsInclude(prev, [next]));
 		setModelId(next);
@@ -526,7 +508,7 @@ export function useAgentConfig({
 		const requestVaultPath = vaultPath;
 		const generation = ++warmGenRef.current;
 		setEffortOptions([]);
-		setReasoningEffort(null);
+		setReasoningEffort(loadReasoningEffortPref(agentId));
 		setFastAvailable(false);
 		setFastEnabled(false);
 		void runWarmAgent({
@@ -545,6 +527,16 @@ export function useAgentConfig({
 				vaultPathRef.current === requestVaultPath,
 		});
 	};
+
+	const pickReasoningEffort = useCallback(
+		(id: string) => {
+			if (!selectedAgentId || !effortOptions.some((option) => option.id === id))
+				return;
+			saveReasoningEffortPref(selectedAgentId, id);
+			setReasoningEffort(id);
+		},
+		[effortOptions, selectedAgentId],
+	);
 
 	const toggleFavorite = useCallback(
 		(id: string) => {
@@ -580,9 +572,9 @@ export function useAgentConfig({
 		setAcpCommandsByAgent,
 		collaborationOptions,
 		collaborationModeId,
-		effortOptionsInDisplayOrder,
+		effortOptions,
 		reasoningEffort,
-		setReasoningEffort,
+		pickReasoningEffort,
 		fastAvailable,
 		fastEnabled,
 		setFastEnabled,
@@ -593,7 +585,6 @@ export function useAgentConfig({
 		refresh,
 		selectedModelName,
 		groupedModels,
-		formatEffort,
 		selectedCollaborationName,
 		pickCollaborationMode,
 		pickModel,

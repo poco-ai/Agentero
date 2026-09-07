@@ -37,16 +37,15 @@ export type AgentConfigBarProps = {
 	collaborationModeId: string | null;
 	selectedCollaborationName: string | null;
 	onPickCollaborationMode: (id: string) => void;
-	effortOptionsInDisplayOrder: AgentEffortChoice[];
+	effortOptions: AgentEffortChoice[];
 	reasoningEffort: string | null;
 	onReasoningEffortChange: (id: string) => void;
-	formatEffort: (value: string) => string;
 	fastAvailable: boolean;
 	fastEnabled: boolean;
 	onFastEnabledToggle: () => void;
 };
 
-/** Session config row under the pane header: model, collaboration, effort, fast. */
+/** Session config row under the pane header: model (including effort), collaboration, fast. */
 export function AgentConfigBar({
 	modelSelectorOpen,
 	onModelSelectorOpenChange,
@@ -62,10 +61,9 @@ export function AgentConfigBar({
 	collaborationModeId,
 	selectedCollaborationName,
 	onPickCollaborationMode,
-	effortOptionsInDisplayOrder,
+	effortOptions,
 	reasoningEffort,
 	onReasoningEffortChange,
-	formatEffort,
 	fastAvailable,
 	fastEnabled,
 	onFastEnabledToggle,
@@ -90,6 +88,9 @@ export function AgentConfigBar({
 					warming={warming}
 					onPickModel={onPickModel}
 					onToggleFavorite={onToggleFavorite}
+					effortOptions={effortOptions}
+					reasoningEffort={reasoningEffort}
+					onReasoningEffortChange={onReasoningEffortChange}
 				/>
 				{collaborationOptions.length > 0 ? (
 					<DropdownMenu>
@@ -129,48 +130,6 @@ export function AgentConfigBar({
 									<span className="min-w-0 flex-1 truncate">{mode.name}</span>
 									{collaborationModeId === mode.id ? (
 										<CheckIcon className="size-3.5 shrink-0 text-muted-foreground" />
-									) : null}
-								</DropdownMenuItem>
-							))}
-						</DropdownMenuContent>
-					</DropdownMenu>
-				) : null}
-				{effortOptionsInDisplayOrder.length > 0 ? (
-					<DropdownMenu>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<DropdownMenuTrigger asChild>
-									<InputGroupButton
-										type="button"
-										variant="ghost"
-										size="sm"
-										className="h-7 min-w-0 max-w-[min(8rem,100%)] shrink gap-1 px-1.5 text-xs font-medium text-foreground"
-									>
-										<span className="min-w-0 flex-1 truncate">
-											{t("composer.effort.label")}:{" "}
-											{formatEffort(reasoningEffort ?? "medium")}
-										</span>
-										<ChevronDown className="size-3 shrink-0 opacity-70" />
-									</InputGroupButton>
-								</DropdownMenuTrigger>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">
-								{t("composer.effortTooltip")}
-							</TooltipContent>
-						</Tooltip>
-						<DropdownMenuContent align="start" className="min-w-28 p-1">
-							{effortOptionsInDisplayOrder.map((effort) => (
-								<DropdownMenuItem
-									key={effort.id}
-									className={cn(
-										"justify-between rounded-md",
-										reasoningEffort === effort.id && "bg-muted",
-									)}
-									onSelect={() => onReasoningEffortChange(effort.id)}
-								>
-									{formatEffort(effort.id)}
-									{reasoningEffort === effort.id ? (
-										<CheckIcon className="size-3.5 text-muted-foreground" />
 									) : null}
 								</DropdownMenuItem>
 							))}

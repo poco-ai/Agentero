@@ -4,6 +4,7 @@ export * from "@/lib/agent/composer-state";
 export * from "@/lib/agent/context-path-icon";
 export * from "@/lib/agent/prompt-display";
 export * from "@/lib/agent/prompt-image";
+export * from "@/lib/agent/reasoning-effort";
 export * from "@/lib/agent/run-attach";
 export * from "@/lib/agent/slash-commands";
 // mention is not re-exported here: import from `@/lib/agent/mention` directly

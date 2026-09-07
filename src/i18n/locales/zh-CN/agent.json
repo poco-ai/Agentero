@@ -104,14 +104,8 @@
 		"collaboration": {
 			"label": "模式"
 		},
-		"effortTooltip": "选择推理强度",
 		"effort": {
-			"label": "推理强度",
-			"max": "最高",
-			"xhigh": "极高",
-			"high": "高",
-			"medium": "中等",
-			"low": "低"
+			"label": "推理强度"
 		}
 	},
 	"empty": {
@@ -153,6 +147,8 @@
 		"vaultPath": "Agent 引用的知识库路径"
 	},
 	"models": {
+		"currentSelection": "当前选择",
+		"locateCurrent": "定位当前模型",
 		"defaultGroup": "模型",
 		"favorites": "收藏",
 		"addToFavorites": "添加到收藏",

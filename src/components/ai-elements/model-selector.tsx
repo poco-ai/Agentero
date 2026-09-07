@@ -33,12 +33,14 @@ export const ModelSelectorTrigger = (props: ModelSelectorTriggerProps) => (
 
 export type ModelSelectorContentProps = ComponentProps<typeof DialogContent> & {
 	title?: ReactNode;
+	header?: ReactNode;
 };
 
 export const ModelSelectorContent = ({
 	className,
 	children,
 	title,
+	header,
 	...props
 }: ModelSelectorContentProps) => {
 	const { t } = useTranslation("aiElements");
@@ -47,7 +49,7 @@ export const ModelSelectorContent = ({
 		<DialogContent
 			aria-describedby={undefined}
 			className={cn(
-				"outline! border-none! p-0 outline-border! outline-solid!",
+				"outline! border-none! gap-0 p-0 outline-border! outline-solid!",
 				className,
 			)}
 			{...props}
@@ -55,6 +57,7 @@ export const ModelSelectorContent = ({
 			<DialogTitle className="sr-only">
 				{title ?? t("modelSelector.label")}
 			</DialogTitle>
+			{header}
 			<Command className="**:data-[slot=command-input-wrapper]:h-auto">
 				{children}
 			</Command>

@@ -25,14 +25,15 @@ AI Elements (Conversation / Message / PromptInput / Sources / Reasoning)
 - ACP tool 更新按 `toolCallId` 回写所属 Agent 消息，即使 completion 晚于回合结束也能修正原卡片；回合完成、失败或取消时，仍为 pending / in-progress 的卡片先收敛为 failed，避免永久 spinner。迟到的内容和 completed / failed 状态仍可更新原卡片，pending / in-progress 不会让已结束回合重新转圈。
 - ACP 结构化提问工具会解析为 AI Elements `Tool` 内的可选回答；完成选择后以正常的下一用户轮提交，并继续同一 ACP 会话。支持多 harness 的 rawInput 形状（见下表）。
 - 运行中可继续输入 → Queue waitlist；标题保持简洁，条目等宽并可单独移除；Esc / 停止中止。
-- **会话配置条**（Header 下方）：模型选择、协作模式（有上报时）、推理强度（有上报时）、Fast（有上报时）。从 Composer 工具栏上移，压低输入区时也不再被隐藏；窄侧栏中保持单行，过长的模型 / 模式名称以省略号截断。
+- **会话配置条**（Header 下方）：模型选择、协作模式（有上报时）、Fast（有上报时）；推理强度收在模型选择弹层顶部，与当前模型名称同行。从 Composer 工具栏上移，压低输入区时也不再被隐藏；窄侧栏中保持单行，过长的模型 / 模式名称以省略号截断。
 - 引用上下文 chip（当前文件 / `@` 提及 / 选区 / 视觉草稿 / skill）在**输入框上方**单独一行，不进边框内；图片附件仍在输入框内部。右侧栏 composer 顶部有竖向拖拽分隔条，可压低输入区高度；低于紧凑阈值后进入一行模式：上述 chip 与图片附件变为图标圆片，隐藏底部工具栏，圆形向上箭头发送按钮与输入框同一行（无内容时置灰）。
 - 会话空闲时 hover 用户消息可 **Edit** 后重发。
 - **长会话虚拟化**：transcript 行数 ≥ 80（`use-transcript-virtualizer` 的 `VIRTUALIZE_MIN_LINES`）时切换 `@tanstack/react-virtual` 窗口化渲染，复用 use-stick-to-bottom 的 scrollRef（贴底与滚动按钮行为不变）；Reasoning / Tool / Plan 折叠态提升到 `ChatTranscript` 统一管理，行卸载不丢。
 - **新建对话 / 历史恢复**：新建草稿不会清空刚离开的本地 transcript；历史项同时存在 Agentero runtime id 与 ACP provider id 时，`session/load` / 后续续聊只使用 `providerSessionId`；连续续聊产生的新 runtime 行会按 provider id 合并回同一个历史项；加载结果通过一次原子 store 更新写入并激活，避免列表刷新后出现空白会话。详见 [Codex 历史恢复误用 runtime id](../bug_fix/codex-history-runtime-session-id.md)。会话标题优先用 ACP `session/list` / `session/load` 返回的 title，缺失时回退首条用户消息；运行中 Agent 经 `session_info_update` 推送的新标题由 `agent:session-info` 事件实时写回历史项（按 runtime id 或 providerSessionId 匹配；视觉批注会话标题不被覆盖）。
 - Slash 命令完全来自当前 ACP session 的 `available_commands_update`；Agentero 不再注册本地 action/template。映射时剥离名称前导 `/` 与 `$`（部分 Agent 把 skill 以 `$name` 形式广播），再以 `/name` 填入 Composer，并在当前 provider session 中原样发送。
-- **模型选择（含第三方）**：列表来自 ACP `agent:models`；若 Agent 当前模型或用户偏好不在固定目录中（如 Codex + 中转 / cc-switch DeepSeek），仍会并入可选列表，并支持在搜索框输入任意 model id 作为自定义模型（`warm` / `run_once` 会尝试 `SetSessionConfigOption`，即使 id 未出现在上报目录中）。偏好按 agent 持久化。
+- **模型选择（含第三方）**：列表来自 ACP `agent:models`；若 Agent 当前模型或用户偏好不在固定目录中（如 Codex + 中转 / cc-switch DeepSeek），仍会并入可选列表，并支持在搜索框输入任意 model id 作为自定义模型（`warm` / `run_once` 会尝试 `SetSessionConfigOption`，即使 id 未出现在上报目录中）。偏好按 agent 持久化。弹层顶部固定「当前选择」，模型名称与推理强度下拉按基线保持一行；搜索与模型目录在下方独立滚动。点击当前模型名称即清空搜索并滚动到完整目录中的当前模型、短暂高亮（不跳到收藏副本），无常驻定位按钮；打开时聚焦搜索。选择模型后弹层保持打开，可继续调整强度，点击外部或 Esc 关闭；协商期间暂停再次选择模型。
 - **会话模式（capability-driven）**：Codex `collaboration_mode`（Default / Plan 等）。Plan 下才开放 `request_user_input`。事件 `agent:collaboration`；`warm` / `run_once` 携带 `collaborationModeId`。Header 下配置条有上报时显示「模式」下拉（仅模式名，不展示 description）；偏好按 agent 持久化。不暴露 ACP `category: mode` 沙箱档（Read-only / Agent 等）。
+- **推理强度**：紧跟顶部当前模型名称，无分隔点、无常驻标签、无独立配置行；点击档位名称打开单选菜单。ACP 提供的档位名称与顺序原样展示（不翻译 Low / High / Max 等 Agent 数据），标签仅用于 Tooltip / 无障碍名称。没有已存选择时，默认当前模型支持的最高可识别档位（none/off → minimal → low → medium → high → xhigh → max → ultra）；ACP 不定义强度排序，自定义档位无法排序时采用 Agent 当前值。手动选择按 Agent 持久化，重新打开、切换 Agent 或模型后仍支持该档位时继续使用；不支持时采用 Agent 当前值，保留原偏好供切回时恢复。发送前 Host 按最终模型能力校验；未手动选择时传 `preferHighestReasoningEffort`，保证在 warm 尚未完成时首轮也应用最高档策略。快捷工作流切换 Agent 时采用目标 Agent 的偏好。
 
 ## 权限 UI
 

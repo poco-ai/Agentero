@@ -237,10 +237,9 @@ export const AgentPanel = memo(function AgentPanel({
 		collaborationModeId,
 		selectedCollaborationName,
 		pickCollaborationMode,
-		effortOptionsInDisplayOrder,
+		effortOptions,
 		reasoningEffort,
-		setReasoningEffort,
-		formatEffort,
+		pickReasoningEffort,
 		activeUsage,
 		fastAvailable,
 		fastEnabled,
@@ -316,10 +315,9 @@ export const AgentPanel = memo(function AgentPanel({
 					collaborationModeId={collaborationModeId}
 					selectedCollaborationName={selectedCollaborationName}
 					onPickCollaborationMode={pickCollaborationMode}
-					effortOptionsInDisplayOrder={effortOptionsInDisplayOrder}
+					effortOptions={effortOptions}
 					reasoningEffort={reasoningEffort}
-					onReasoningEffortChange={setReasoningEffort}
-					formatEffort={formatEffort}
+					onReasoningEffortChange={pickReasoningEffort}
 					fastAvailable={fastAvailable}
 					fastEnabled={fastEnabled}
 					onFastEnabledToggle={() => setFastEnabled((current) => !current)}

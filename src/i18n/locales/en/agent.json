@@ -104,14 +104,8 @@
 		"collaboration": {
 			"label": "Mode"
 		},
-		"effortTooltip": "Select reasoning effort",
 		"effort": {
-			"label": "Effort",
-			"max": "Max",
-			"xhigh": "XHigh",
-			"high": "High",
-			"medium": "Medium",
-			"low": "Low"
+			"label": "Reasoning effort"
 		}
 	},
 	"empty": {
@@ -153,6 +147,8 @@
 		"vaultPath": "Vault path referenced by agent"
 	},
 	"models": {
+		"currentSelection": "Current selection",
+		"locateCurrent": "Locate current model",
 		"defaultGroup": "Models",
 		"favorites": "Favorites",
 		"addToFavorites": "Add to favorites",
