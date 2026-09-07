@@ -346,6 +346,9 @@ pub struct RunOnceRequest {
     /// Preferred ACP reasoning effort (category: thought_level). Applied after session/new.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning_effort: Option<String>,
+    /// Choose the highest recognized ACP effort when no explicit effort is supplied.
+    #[serde(default)]
+    pub prefer_highest_reasoning_effort: bool,
     /// Preferred ACP fast mode (category: model_config). Applied after session/new.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fast_mode: Option<bool>,

@@ -196,6 +196,7 @@ ACP **没有**统一的 ask-user tool 规范：各 harness 的字段名、挂载
 - 若 `current_value` 不在 selector 选项中（第三方网关 / cc-switch 等只改默认 model、目录仍是官方列表），Host **注入**该 current id，避免 UI 丢失。
 - `preferred_model_id`（warm / run_once）在与 current 不同时 **始终尝试** `session/set_config_option`，不要求 id 已在上报列表中；失败仅 debug 日志，不阻断会话。
 - Codex `collaboration_mode`（Default / Plan 等）解析为 `agent:collaboration`；`collaboration_mode_id` 在选项内且与 current 不同时尝试 `session/set_config_option`。UI 称「模式」。Plan 才能用 `request_user_input`。不解析 / 不暴露 ACP `category: mode` 沙箱档。
+- 推理强度：识别 `category: thought_level`（兼容 id `reasoning_effort` / `effort`），转为 `agent:effort`。默认值和支持的档位由 Agent/适配器决定，ACP 不规定 low/high 枚举或跨会话持久化；前端保存用户选择；面板无已存选择时传 `preferHighestReasoningEffort: true`，Host 在模型和模式协商完成后选择最高可识别档位，覆盖 warm 未完成就发送的首轮。显式 `reasoningEffort` 优先；未知档位无法排序时不覆盖 Agent 当前值，其他调用者缺省不开启此策略。`run_once` 在 new/resume/load 后、prompt 前应用 `reasoningEffort`。先完成模型和模式切换、读取完整 `configOptions`，再仅对仍在列表中且与 current 不同的档位调用 `session/set_config_option`；不支持时沿用 Agent 当前值。参见 [ACP Session Config Options](https://agentclientprotocol.com/protocol/v1/session-config-options)。
 - Fast 开关（`fast-mode` model_config 选项）与上述一致：仅当会话当前值与请求值不同时才发 `session/set_config_option`，未变化的配置不再每轮重复下发（#271）。
 
 ## User-Agent（中转站亲和）

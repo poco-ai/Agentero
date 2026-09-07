@@ -489,6 +489,8 @@ export async function runOnce(request: {
 	collaborationModeId?: string;
 	/** ACP reasoning-effort value id (from agent:effort). */
 	reasoningEffort?: string;
+	/** Resolve the highest supported effort after session setup, unless explicitly chosen. */
+	preferHighestReasoningEffort?: boolean;
 	/** ACP fast-mode preference (from agent:fast-mode). */
 	fastMode?: boolean;
 	/** Local SKILL.md identifiers selected through the composer. */
@@ -544,6 +546,8 @@ export async function runOnce(request: {
 				modelId: request.modelId,
 				collaborationModeId: request.collaborationModeId,
 				reasoningEffort: request.reasoningEffort,
+				preferHighestReasoningEffort:
+					request.preferHighestReasoningEffort ?? false,
 				fastMode: request.fastMode,
 				skillIds: request.skillIds ?? [],
 				autoApprove: request.autoApprove ?? false,

@@ -226,6 +226,7 @@ pub async fn accept_run_once(
             preferred_model_id: request.model_id,
             preferred_collaboration_mode_id: request.collaboration_mode_id,
             preferred_reasoning_effort: request.reasoning_effort,
+            prefer_highest_reasoning_effort: request.prefer_highest_reasoning_effort,
             fast_mode: request.fast_mode,
             skill_ids: request.skill_ids,
             permission_policy,

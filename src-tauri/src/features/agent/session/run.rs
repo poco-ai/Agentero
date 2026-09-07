@@ -56,6 +56,7 @@ pub struct RunOnceParams {
     pub preferred_model_id: Option<String>,
     pub preferred_collaboration_mode_id: Option<String>,
     pub preferred_reasoning_effort: Option<String>,
+    pub prefer_highest_reasoning_effort: bool,
     pub fast_mode: Option<bool>,
     pub skill_ids: Vec<String>,
     pub permission_policy: PermissionPolicy,
@@ -334,6 +335,7 @@ impl RunOnceContext {
             preferred_model_id,
             preferred_collaboration_mode_id,
             preferred_reasoning_effort,
+            prefer_highest_reasoning_effort,
             fast_mode,
             ..
         } = params;
@@ -346,6 +348,7 @@ impl RunOnceContext {
                 model_id: preferred_model_id,
                 collaboration_mode_id: preferred_collaboration_mode_id,
                 reasoning_effort: preferred_reasoning_effort,
+                prefer_highest_reasoning_effort,
                 fast_mode,
             },
         };
@@ -727,10 +730,10 @@ impl RunOnceContext {
                 }
             }
         }
-        if let Some(pref) = prefs.reasoning_effort.clone() {
-            if let Some(ev) =
-                effort_from_config_options(&self.session_id, &self.agent_id, &config_options)
-            {
+        if let Some(ev) =
+            effort_from_config_options(&self.session_id, &self.agent_id, &config_options)
+        {
+            if let Some(pref) = prefs.resolve_reasoning_effort(&ev.efforts) {
                 if pref != ev.current_id && ev.efforts.iter().any(|effort| effort.id == pref) {
                     let response = tokio::select! {
                         result = timed_acp_request(

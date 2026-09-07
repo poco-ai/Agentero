@@ -3796,6 +3796,8 @@ export type RunOnceRequest_Deserialize = {
 	collaborationModeId?: string | null,
 	/**  Preferred ACP reasoning effort (category: thought_level). Applied after session/new. */
 	reasoningEffort?: string | null,
+	/**  Choose the highest recognized ACP effort when no explicit effort is supplied. */
+	preferHighestReasoningEffort?: boolean,
 	/**  Preferred ACP fast mode (category: model_config). Applied after session/new. */
 	fastMode?: boolean | null,
 	/**  Locally discovered SKILL.md identifiers selected through the composer. */
@@ -3848,6 +3850,8 @@ export type RunOnceRequest_Serialize = {
 	collaborationModeId?: string | null,
 	/**  Preferred ACP reasoning effort (category: thought_level). Applied after session/new. */
 	reasoningEffort?: string | null,
+	/**  Choose the highest recognized ACP effort when no explicit effort is supplied. */
+	preferHighestReasoningEffort: boolean,
 	/**  Preferred ACP fast mode (category: model_config). Applied after session/new. */
 	fastMode?: boolean | null,
 	/**  Locally discovered SKILL.md identifiers selected through the composer. */
