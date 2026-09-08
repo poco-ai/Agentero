@@ -393,7 +393,7 @@ pub(crate) fn read_mineru_markdown_bundle(bytes: &[u8]) -> Result<MineruMarkdown
     let mut total_bytes = 0u64;
 
     for index in 0..archive.len() {
-        let mut entry = archive
+        let entry = archive
             .by_index(index)
             .map_err(|e| AppError::message(format!("MinerU result zip entry failed: {e}")))?;
         if entry.is_dir() {
