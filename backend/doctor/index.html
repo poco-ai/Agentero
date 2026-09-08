@@ -2033,6 +2033,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#host-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Host / Agent 诊断
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Host / Agent 诊断">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#doctor_check_host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        主机运行环境（doctor_check_host）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent-acp-doctor_check_agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent ACP 连通性（doctor_check_agents）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3550,6 +3589,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#host-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Host / Agent 诊断
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Host / Agent 诊断">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#doctor_check_host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        主机运行环境（doctor_check_host）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent-acp-doctor_check_agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent ACP 连通性（doctor_check_agents）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3647,13 +3725,97 @@
 <li>脏路径（打开中的 mark）拒绝写入</li>
 </ul>
 <p>读路径（桌面）始终 dual-read v1/v2，不依赖 Doctor 也能打开旧 Vault。</p>
+<h2 id="host-agent">Host / Agent 诊断<a class="headerlink" href="#host-agent" title="Permanent link">&para;</a></h2>
+<p>除 Vault Doctor 外，设置页诊断还有两个 <strong>host 级</strong>检查（不依赖 Vault，代码在 <code>src-tauri/src/features/agent/</code>）：</p>
+<h3 id="doctor_check_host">主机运行环境（<code>doctor_check_host</code>）<a class="headerlink" href="#doctor_check_host" title="Permanent link">&para;</a></h3>
+<p><code>agent/doctor.rs</code> <code>diagnose_host</code>：在 Agent 实际使用的合并环境（<code>effective_local_agent_env</code>，PATH 按 descriptor → 进程 → login shell → 常见 GUI 缺失目录顺序合并）里检查：</p>
+<ul>
+<li><code>node</code> / <code>npm</code>：解析路径 + <code>--version</code>（5s 超时），状态 <code>available / missing / unusable</code>；</li>
+<li><code>npm prefix -g</code>：追加进环境 PATH 后再查 node（覆盖 npm 全局安装但 GUI PATH 缺失的场景）。</li>
+</ul>
+<p>Codex 登录状态不再放在主机运行环境；改由 Agent 卡片第三行展示（见下）。</p>
+<h3 id="agent-acp-doctor_check_agents">Agent ACP 连通性（<code>doctor_check_agents</code>）<a class="headerlink" href="#agent-acp-doctor_check_agents" title="Permanent link">&para;</a></h3>
+<p><code>agent/doctor_agents.rs</code> <code>diagnose_agents</code>：对 registry 中<strong>每个已注册 Agent</strong>（含 custom）重新执行 ACP initialize 探测（不发 prompt），并分类失败原因。每个诊断额外收集卡片三行字段：</p>
+<table>
+<thead>
+<tr>
+<th>行</th>
+<th>字段</th>
+<th>来源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent 位置 · 版本</td>
+<td><code>agentPath</code> / <code>agentVersion</code></td>
+<td>模板 <code>detect_command</code> 的路径 + <code>--version</code></td>
+</tr>
+<tr>
+<td>ACP 位置 · 版本</td>
+<td><code>resolvedPath</code> / <code>acpVersion</code></td>
+<td>ACP <code>command</code> 的路径 + <code>--version</code>（不是协议版本）</td>
+</tr>
+<tr>
+<td>登录状态</td>
+<td><code>authStatus</code></td>
+<td>Codex 走 <code>codex(-acp) login status</code>；其它由探测结果推导（成功→已登录，<code>not-logged-in</code>→未登录，命令缺失→不适用，其余→未知）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>编排：<code>snapshot()</code> 一次（内部已刷新命令可用性）；<code>buffered(3)</code> 限流并行探测；<code>!available</code> 的 Agent 不 spawn，直接按 <code>last_error</code> 合成「命令缺失」结果（镜像 <code>agent_probe</code> 快路径）；</li>
+<li>写回：每个结果 <code>apply_probe_result</code> 持久化到 registry，结束后 <code>emit_registry_changed</code>，Agent 目录页同步刷新；成功时清除该 Agent 的 warm-gate 熔断，失败<strong>不</strong>记录新熔断（Doctor 是用户主动重试，应无视 120s 冷却）；</li>
+<li>分类（<code>classify_acp_error</code>，按序匹配原始错误文本）：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>分类</th>
+<th>匹配模式（示例）</th>
+<th>典型原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>command-missing</code></td>
+<td><code>not found on PATH</code>、<code>No such file or directory (os error 2)</code></td>
+<td>CLI 未安装或 GUI PATH 缺失</td>
+</tr>
+<tr>
+<td><code>not-logged-in</code></td>
+<td><code>not logged in</code>、<code>invalid_grant</code>、<code>authentication required</code> 等（与前端 <code>isAgentAuthFailure</code> 一致；优先于协议类，auth 错误常被包进 <code>initialize failed:</code>）</td>
+<td>Agent 未登录 / token 过期</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td><code>timed out</code></td>
+<td>冷启动慢、代理/网络问题</td>
+</tr>
+<tr>
+<td><code>spawn-failed</code></td>
+<td><code>failed to start</code>、<code>Permission denied (os error 13)</code>、<code>(os error 193)</code></td>
+<td>权限或无效可执行文件</td>
+</tr>
+<tr>
+<td><code>protocol-failed</code></td>
+<td><code>initialize failed</code>、<code>no initialize response</code>、<code>method not found</code></td>
+<td>ACP adapter 版本/实现问题</td>
+</tr>
+<tr>
+<td><code>unknown</code></td>
+<td>兜底</td>
+<td>展示原始错误</td>
+</tr>
+</tbody>
+</table>
+<p>hint 文案不在 wire 类型里，前端按分类映射 <code>doctor.agent.hints.*</code> i18n key。探测不随设置窗关闭而取消，由 30s initialize 超时兜底。</p>
 <h2 id="_6">入口<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li>桌面：设置 → 知识库诊断；远程 Vault 当前显示不可用。</li>
 <li>CLI：<code>agentero doctor</code>、<code>agentero doctor fix aliases</code>、<code>agentero doctor fix visual-marks</code>、<code>agentero doctor fix catalog-duplicates</code>、<code>agentero -y doctor fix …</code>（CLI 诊断同样尊重 <code>.agentero/doctor.json</code> 忽略列表）。</li>
-<li>Host：<code>doctor_check</code>、<code>doctor_apply_aliases</code>、<code>doctor_ignore_aliases</code>、<code>doctor_set_dirty_paths</code>、<code>doctor_plan_wikilinks</code>、<code>doctor_apply_wikilinks</code>、<code>doctor_apply_visual_marks</code>、<code>doctor_fix_catalog_duplicates</code>。</li>
+<li>Host：<code>doctor_check</code>、<code>doctor_apply_aliases</code>、<code>doctor_ignore_aliases</code>、<code>doctor_set_dirty_paths</code>、<code>doctor_plan_wikilinks</code>、<code>doctor_apply_wikilinks</code>、<code>doctor_apply_visual_marks</code>、<code>doctor_fix_catalog_duplicates</code>；host 级：<code>doctor_check_host</code>、<code>doctor_check_agents</code>。</li>
 </ul>
-<p>代码：<code>src-tauri/src/features/vault/doctor/</code>（聚合入口）、<code>src-tauri/src/features/markdown/wiki/doctor.rs</code>（双链修复）、<code>src-tauri/src/features/pdf/marks/doctor.rs</code>（视觉批注修复）、<code>src/lib/doctor/</code>、<code>src/components/settings/panes/doctor-pane.tsx</code>。</p>
+<p>代码：<code>src-tauri/src/features/vault/doctor/</code>（聚合入口）、<code>src-tauri/src/features/markdown/wiki/doctor.rs</code>（双链修复）、<code>src-tauri/src/features/pdf/marks/doctor.rs</code>（视觉批注修复）、<code>src-tauri/src/features/agent/doctor.rs</code>（主机运行环境）、<code>src-tauri/src/features/agent/doctor_agents.rs</code>（Agent ACP 诊断）、<code>src/lib/doctor/</code>、<code>src/components/settings/panes/doctor-pane.tsx</code>。</p>
 
 
 

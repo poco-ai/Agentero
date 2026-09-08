@@ -3535,7 +3535,7 @@
 <tbody>
 <tr>
 <td>通用</td>
-<td>Translator URL、EasyScholar Key（输入后点确定保存并探测，色点显示可用/不可用/未配置；留空则禁用。配置后可在 Library 表头 Tags 列一键为当前范围内全部论文获取 <code>#easyscholar:</code> 命名空间的分区/影响因子标签）、Connector 开关、<strong>MCP server</strong> 开关（loopback Streamable HTTP，默认关；同区块可填 ChatGPT Secure MCP Tunnel 的 Runtime API key / Tunnel ID 并一键起停，接 ChatGPT 见 <a href="../../usage/mcp/">用 MCP 连接外部 Agent</a>）、<strong>广场开关</strong>（<code>plazaEnabled</code>，默认开；关闭后侧栏隐藏且不挂载广场面板）、文件树标签/排序、打开行为（<code>autoOpenPaperNotes</code> 默认开，关闭后打开论文只开 PDF/HTML、不自动分屏 NOTES）、笔记导出默认水印、隐私（PostHog <code>telemetryEnabled</code> 控制是否上报；本机 <code>usage.sqlite</code> 记录始终开启、可一键清除）</td>
+<td>Translator URL、EasyScholar Key（输入后点确定保存并探测，色点显示可用/不可用/未配置；留空则禁用。配置后可在 Library 表头 Tags 列一键为当前范围内全部论文获取 <code>#easyscholar:</code> 命名空间的分区/影响因子标签）、Connector 开关、<strong>MCP server</strong> 开关（loopback Streamable HTTP，默认关；同区块可填 ChatGPT Secure MCP Tunnel 的 Runtime API key / Tunnel ID 并一键起停，接 ChatGPT 见 <a href="../../usage/mcp/">用 MCP 连接外部 Agent</a>）、<strong>广场开关</strong>（<code>plazaEnabled</code>，默认开；关闭后侧栏隐藏且不挂载广场面板）、网络代理、<strong>GitHub 镜像</strong>（Skill 导入直连失败时的 URL 前缀回退，见 <a href="../../backend/skill-import/">backend/skill-import.md</a>）、文件树标签/排序、打开行为（<code>autoOpenPaperNotes</code> 默认开，关闭后打开论文只开 PDF/HTML、不自动分屏 NOTES）、笔记导出默认水印、隐私（PostHog <code>telemetryEnabled</code> 控制是否上报；本机 <code>usage.sqlite</code> 记录始终开启、可一键清除）</td>
 </tr>
 <tr>
 <td>Appearance</td>
@@ -3555,17 +3555,23 @@
 </tr>
 <tr>
 <td>知识库诊断</td>
-<td>Vault / Catalog / 双链 / 论文 aliases / 视觉批注格式；本地 Vault 可确认批量修复</td>
+<td>主机运行环境 / Agent ACP 连通性 / Vault / Catalog / 双链 / 论文 aliases / 视觉批注格式；本地 Vault 可确认批量修复</td>
 </tr>
 <tr>
 <td>关于</td>
-<td>版本信息与应用更新、CLI 安装/卸载（状态行由结构化字段推导并全部走 i18n，不直接展示后端英文 message；安装/卸载失败 Toast 带真实错误原因；安装成功后展示可复制的验证命令 <code>agentero(-cli) --version</code>，Windows 额外说明已自动加入用户 PATH、开新终端即可、无需重启；应用更新重启后 main window 启动时自动把已安装 CLI 同步到新版本，成功静默、失败 Toast，见 <a href="../../backend/cli/">docs/backend/cli.md</a>）、「打开日志文件夹」（<code>appLogDir()</code> + opener，便于报错时上传日志）；标题右侧「Star us on GitHub」打开仓库</td>
+<td>版本信息与应用更新、CLI 安装/卸载（状态行由结构化字段推导并全部走 i18n，不直接展示后端英文 message；安装/卸载失败 Toast 带真实错误原因；安装成功后展示可复制的验证命令 <code>agentero(-cli) --version</code>，Windows 额外说明已自动加入用户 PATH、开新终端即可、无需重启；应用更新重启后 main window 启动时自动把已安装 CLI 同步到新版本，成功静默、失败 Toast，见 <a href="../../backend/cli/">docs/backend/cli.md</a>）、「打开日志文件夹」与「清理日志」（<code>appLogDir()</code> / Host <code>logs_clear</code>，见 <a href="../../backend/logging/">backend/logging.md</a>）；标题右侧「Star us on GitHub」打开仓库</td>
 </tr>
 </tbody>
 </table>
 <p>知识库诊断页调用 Host 的只读 Doctor 报告。检查项各自作为小标题（带一行检测说明），标题行右侧显示 icon + 问题数；模块间用非通栏次要分隔线。列表过长时（双链 / 别名 / 视觉批注）<code>max-h</code> 内滚动。视觉批注一节可将旧版 <code>agent-trace</code> mark 一键升级为 <code>visual</code> v2。</p>
 <ul>
-<li><strong>论文别名</strong>：勾选与编辑标题/短 alias，标题行「修复」→ 确认后批量写入 frontmatter（不改 path）。单行「忽略」或「忽略所选」把路径写入 Vault <code>.agentero/doctor.json</code>，下次诊断不再报错；列表底部可恢复。</li>
+<li><strong>主机运行环境</strong>（<code>doctor_check_host</code>）：提示性检查 Node.js / npm 可用性（路径与版本）；不依赖 Vault，未打开 Vault 时也显示。不再展示 Codex 登录状态。</li>
+<li>
+<p><strong>Agent ACP 连通性</strong>（<code>doctor_check_agents</code>）：对每个已注册 Agent 重新执行 ACP initialize 探测并写回 registry（Agent 目录页同步刷新）；每个 Agent 以卡片展示三行：Agent 路径+版本、ACP 路径+版本、登录状态。失败按原因分类（命令缺失 / 未登录 / 超时 / 启动失败 / 协议失败 / 其他）并给出对应 hint。探测最长约 30s/Agent，作为独立请求加载，不阻塞其余 section；探测期间刷新按钮禁用。</p>
+</li>
+<li>
+<p><strong>论文别名</strong>：勾选与编辑标题/短 alias，标题行「修复」→ 确认后批量写入 frontmatter（不改 path）。单行「忽略」或「忽略所选」把路径写入 Vault <code>.agentero/doctor.json</code>，下次诊断不再报错；列表底部可恢复。</p>
+</li>
 <li><strong>双链语义</strong>：</li>
 <li>「探测」→ 自动建议（默认勾选）+ 可手改候选项（默认不勾选）；</li>
 <li>每条 git 风格整行 diff：核心变更居中高亮，按设置窗宽度窗口化前后文；</li>
@@ -3573,7 +3579,7 @@
 <li>下方 Agent 提示词（随 UI 语言 en/zh）：复制，或「在 Agent 中打开」（关设置、打开主窗 Agent 并预填 composer）。</li>
 </ul>
 <p>主窗口把未保存的 Markdown 路径同步到 Host，因此独立设置 Webview 发起修复时仍能在任何写入前拒绝脏文件。远程 Vault 首版只显示不可用。</p>
-<p>相关代码：<code>src/lib/doctor/</code>、<code>src/lib/agent/composer-seed.ts</code>。诊断页外壳 <code>src/components/settings/panes/doctor-pane.tsx</code> 只做报告拉取与分区编排，各检查项在同目录拆分：<code>doctor-vault-catalog-sections.tsx</code>、<code>doctor-wikilink-section.tsx</code>、<code>doctor-alias-section.tsx</code>、<code>doctor-visual-marks-section.tsx</code>；共用展示件（小标题、问题行、git 风格 diff）在 <code>doctor-sections.tsx</code>，整行 diff 的文本测量与窗口化在 <code>doctor-line-fit.ts</code>（单测 <code>test/doctor-line-fit.test.ts</code>）。</p>
+<p>相关代码：<code>src/lib/doctor/</code>、<code>src/lib/agent/composer-seed.ts</code>。诊断页外壳 <code>src/components/settings/panes/doctor-pane.tsx</code> 只做报告拉取与分区编排，各检查项在同目录拆分：<code>doctor-host-runtime-section.tsx</code>、<code>doctor-agent-section.tsx</code>、<code>doctor-vault-catalog-sections.tsx</code>、<code>doctor-wikilink-section.tsx</code>、<code>doctor-alias-section.tsx</code>、<code>doctor-visual-marks-section.tsx</code>；共用展示件（小标题、问题行、git 风格 diff）在 <code>doctor-sections.tsx</code>，整行 diff 的文本测量与窗口化在 <code>doctor-line-fit.ts</code>（单测 <code>test/doctor-line-fit.test.ts</code>）。</p>
 <h2 id="_4">应用更新<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>正式桌面构建的主窗口会在启动后异步检查一次稳定版更新，不阻塞首屏或 Vault 初始化；检查失败只记日志。</li>

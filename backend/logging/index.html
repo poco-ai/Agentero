@@ -3362,7 +3362,9 @@
 <li>与用户 Toast / <code>ApiResult</code> <strong>分层</strong>：日志不替代错误 UX。</li>
 <li>关键操作记录 op start/end。</li>
 <li>前端启动：<code>main.tsx</code> 在 <code>op start/end frontend_boot</code> 之间输出 <code>boot stage=&lt;阶段&gt; ms=&lt;累计&gt;</code>（entry / settings / theme / i18n / 模块加载）。计时基准是 <code>performance.now()</code>，即从页面导航开始，因此包含 HTML 与入口模块本身的加载；多窗口时用末尾的 <code>window=main|settings</code> 区分。dev 环境的 Webview console 日志桥接异步附加，不阻塞启动链。</li>
-<li>日志目录由插件约定（Windows 为 <code>%LOCALAPPDATA%\&lt;identifier&gt;\logs\agentero.log</code>）。Settings → About 提供「打开日志文件夹」，经 <code>appLogDir()</code> + opener <code>openPath</code> 直接在系统文件管理器打开，便于用户报错时上传日志。</li>
+<li>日志目录由插件约定（Windows 为 <code>%LOCALAPPDATA%\&lt;identifier&gt;\logs\agentero.log</code>；macOS 为 <code>~/Library/Logs/&lt;identifier&gt;/</code>）。Settings → About「运行日志」提供：</li>
+<li><strong>打开日志文件夹</strong>：<code>appLogDir()</code> + opener <code>openPath</code>，便于报错时上传日志。</li>
+<li><strong>清理日志</strong>：Host <code>logs_clear</code> 删除目录内 <code>agentero*.log</code>（含轮转归档）；当前仍被 logger 占用的 <code>agentero.log</code> 删除失败时改为截断为空，返回清理的文件数。</li>
 </ul>
 
 
