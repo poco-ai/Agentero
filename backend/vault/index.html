@@ -3672,7 +3672,7 @@
 <p><code>src-tauri/capabilities/default.json</code>：<code>fs:*</code> 读写/dir、<code>dialog</code>、<code>opener</code>（含 reveal）、scope 覆盖 <code>$HOME/**</code> 等用户可选目录。</p>
 <h2 id="_7">其它<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>path_open_in_terminal</code>：系统默认终端。</li>
+<li><code>path_open_in_terminal</code>：系统默认终端（目录自身 / 文件父目录）。Windows 复用 <code>core::process::windows_shell_path</code> 去掉本地盘符路径的 <code>\\?\</code> 前缀，Windows Terminal 的 <code>-d</code> 与 CMD 的进程工作目录使用同一结果；CMD 通过隐藏的 <code>start</code> 启动进程创建独立交互控制台，不再拼接 <code>cd</code> 命令，也不继承桌面应用的关闭 / 重定向输入输出句柄。</li>
 <li>多窗口：<code>window_new</code>、<code>settings_window_open</code>。</li>
 </ul>
 <h2 id="_8">代码<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>

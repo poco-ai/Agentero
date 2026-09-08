@@ -3676,12 +3676,16 @@
 <td>右键 → 树内联命名；菜单会按实际尺寸在窗口边缘自动翻转或滚动，不会被窗口下沿截断。<strong>远程 Vault</strong> 的重名预检走 <code>vaultPathExists</code>（<code>remote_list</code> 父目录），不可用本机 <code>plugin-fs</code> <code>exists</code>（伪路径 <code>remote:&lt;id&gt;/…</code> 不在本地 scope）</td>
 </tr>
 <tr>
+<td>复制路径</td>
+<td>右键；Windows 本地路径去掉 <code>\\?\</code> 前缀，扩展 UNC 路径显示为 <code>\\server\share\…</code>；仅转换剪贴板文本，内部文件路径保持原样</td>
+</tr>
+<tr>
 <td>Finder 显示</td>
 <td>右键 / <code>⌥⌘R</code></td>
 </tr>
 <tr>
 <td>终端打开</td>
-<td>右键 / <code>⌥⌘T</code>（文件夹=自身，文件=父目录）</td>
+<td>右键 / <code>⌥⌘T</code>（文件夹=自身，文件=父目录）；Windows 先把扩展盘符路径转换为普通盘符路径，再启动 Windows Terminal 或 CMD，目录名中的空格、中文与 shell 特殊字符不作为命令解析</td>
 </tr>
 <tr>
 <td>删除</td>

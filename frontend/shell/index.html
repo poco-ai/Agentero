@@ -3553,6 +3553,7 @@
 <li><strong>功能单例窗</strong>：<code>feature_window_open</code> → <code>?window=feature&amp;view=…</code>（<code>FeatureWindowRoot</code>）。</li>
 <li><strong>文档弹出窗</strong>：文档 tab 右键「移动至新窗口」→ <code>doc_window_open</code> → <code>?window=doc&amp;path=…</code>（<code>DocWindowRoot</code>）；同 path 再开则聚焦。</li>
 <li>当前窗口 Vault：<code>sessionStorage</code>；MRU / 上次路径：<code>localStorage</code>。</li>
+<li>Vault 切换菜单与欢迎页的最近路径使用 <code>displayPath</code> 展示普通 Windows 盘符 / UNC 路径；兼容历史记录中的 <code>\\?\</code> 前缀，不改写持久化路径或 Vault 身份。</li>
 <li>桌面窗口在 Webview 页面加载完成后显示；React 首次提交前由 <code>index.html</code> 的零依赖启动壳占位，避免冷启动和 dev 模块加载期间出现空白窗口。</li>
 </ul>
 <h2 id="toast">全局 Toast<a class="headerlink" href="#toast" title="Permanent link">&para;</a></h2>
