@@ -3564,10 +3564,11 @@
 </tbody>
 </table>
 <h2 id="phase-3">下一步（Phase 3 建议）<a class="headerlink" href="#phase-3" title="Permanent link">&para;</a></h2>
+<p>2026-09-08 更新：实施优先级以 <a href="../rust-arch-refactor/">Rust 架构重构计划</a> 为准。Phase 1/2 的历史完成状态不变；下列建议尚未实施。</p>
 <ol>
-<li><strong>事件抽象扩展</strong>：把 <code>HostHooks</code> 泛化为完整宿主面（vault:open-request、connector、job 事件、window 聚焦），消灭 <code>wrap()</code> 手工转换点；命令壳统一在入口构造一次 core <code>AppHandle</code>。</li>
-<li><strong>留守域瘦身</strong>：<code>jobs</code>（JobCenter 调度核心可下沉，tauri spawn/emit 走 hooks）、<code>discovery/proxy</code>（<code>tauri::http</code> → 纯 axum/hyper 内核）、<code>heading_rename</code>（watcher 协同改回调）。</li>
-<li><strong>core 内路径扁平化</strong>（可选）：<code>agentero_core::features::X</code> → <code>agentero_core::X</code>，与 Phase 1 顶层模块风格统一；Host 桥接不受影响。</li>
+<li><strong>共享应用用例优先</strong>：在现有 core 内按域收敛移动、trash/restore、入库的完整规则；Desktop、CLI、Connector 只做入口适配。先统一行为，再决定剩余模块是否搬迁。</li>
+<li><strong>收窄宿主接缝</strong>：保留 HostHooks 的依赖倒置方向，分离事件通知与业务后续工作；PaperPreparation 显式生成计划，JobCenter 执行。取消把窗口聚焦、Connector、调度全部扩入万能 HostHooks 的旧建议。</li>
+<li><strong>保留语义目录</strong>：继续 feature-first，不预设 core 顶层扁平化、新 platform 层或更多 crate。Agent 先解耦事件目标与执行环境，可以继续留在 desktop crate；别名与物理搬运后置。</li>
 <li><strong>reqwest 双版本对齐</strong>：锁文件中同时存在 <code>reqwest 0.12.28</code>（agentero-core / agentero 直接使用）与 <code>reqwest 0.13.4</code>（传递依赖引入，如 rmcp 等）。两份 TLS/连接池栈增大包体与审计面；待依赖链（rmcp / tauri 生态）稳定后统一到一个大版本，core 与 Host 必须同步升级以避免 feature 漂移。</li>
 <li><strong>src-tauri 依赖清理</strong>（保守未删）：迁移后 <code>feed-rs</code>、<code>dom_smoothie</code>、<code>pulldown-cmark</code>、<code>bitflags</code> 在 <code>src-tauri/src</code> 已无直接引用，可在确认无 build 脚本/宏隐式依赖后从 <code>src-tauri/Cargo.toml</code> 移除。</li>
 <li><strong>iOS/Android 目标</strong>：core 的 <code>not(ios/android)</code> 门（parse/locate/liteparse）与 Host 侧模块 cfg 门需保持同步；mobile 构建恢复时验证 remote bridge 路径。</li>
