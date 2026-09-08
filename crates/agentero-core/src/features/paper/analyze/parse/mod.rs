@@ -289,19 +289,20 @@ async fn parse_paper_body_inner(
             let path_owned = path_rel.to_string();
             let catalog_source = body_source.clone();
             let catalog_quality = body_quality.clone();
-            let write_outcome = tokio::task::spawn_blocking(move || {
-                write_paper_body_bundle(&paper_dir_owned, &markdown, &assets)?;
-                let catalog_error = update_catalog_body(
-                    &vault_owned,
-                    &path_owned,
-                    &catalog_source,
-                    &catalog_quality,
-                )
-                .err()
-                .map(|e| e.to_string());
-                Ok(catalog_error)
-            })
-            .await;
+            let write_outcome: Result<Result<Option<String>, String>, tokio::task::JoinError> =
+                tokio::task::spawn_blocking(move || {
+                    write_paper_body_bundle(&paper_dir_owned, &markdown, &assets)?;
+                    let catalog_error = update_catalog_body(
+                        &vault_owned,
+                        &path_owned,
+                        &catalog_source,
+                        &catalog_quality,
+                    )
+                    .err()
+                    .map(|e| e.to_string());
+                    Ok(catalog_error)
+                })
+                .await;
 
             match write_outcome {
                 Ok(Ok(catalog_error)) => {
