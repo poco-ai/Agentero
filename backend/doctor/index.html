@@ -2066,6 +2066,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#doctor_check_network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        网络连通性（doctor_check_network）
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3622,6 +3633,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#doctor_check_network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        网络连通性（doctor_check_network）
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3726,7 +3748,7 @@
 </ul>
 <p>读路径（桌面）始终 dual-read v1/v2，不依赖 Doctor 也能打开旧 Vault。</p>
 <h2 id="host-agent">Host / Agent 诊断<a class="headerlink" href="#host-agent" title="Permanent link">&para;</a></h2>
-<p>除 Vault Doctor 外，设置页诊断还有两个 <strong>host 级</strong>检查（不依赖 Vault，代码在 <code>src-tauri/src/features/agent/</code>）：</p>
+<p>除 Vault Doctor 外，设置页诊断还有三个 <strong>host 级</strong>检查（不依赖 Vault）：</p>
 <h3 id="doctor_check_host">主机运行环境（<code>doctor_check_host</code>）<a class="headerlink" href="#doctor_check_host" title="Permanent link">&para;</a></h3>
 <p><code>agent/doctor.rs</code> <code>diagnose_host</code>：在 Agent 实际使用的合并环境（<code>effective_local_agent_env</code>，PATH 按 descriptor → 进程 → login shell → 常见 GUI 缺失目录顺序合并）里检查：</p>
 <ul>
@@ -3809,13 +3831,55 @@
 </tbody>
 </table>
 <p>hint 文案不在 wire 类型里，前端按分类映射 <code>doctor.agent.hints.*</code> i18n key。探测不随设置窗关闭而取消，由 30s initialize 超时兜底。</p>
+<h3 id="doctor_check_network">网络连通性（<code>doctor_check_network</code>）<a class="headerlink" href="#doctor_check_network" title="Permanent link">&para;</a></h3>
+<p><code>system/network/mod.rs</code> <code>diagnose_network</code>：按当前应用的全局代理设置（<code>effective_proxy_url</code>），并行探测六个常用站点/论文源：</p>
+<table>
+<thead>
+<tr>
+<th>端点</th>
+<th>探测 URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Baidu</td>
+<td><code>https://www.baidu.com/</code></td>
+</tr>
+<tr>
+<td>Google</td>
+<td><code>https://www.google.com/generate_204</code></td>
+</tr>
+<tr>
+<td>Google Scholar</td>
+<td><code>https://scholar.google.com/</code></td>
+</tr>
+<tr>
+<td>GitHub</td>
+<td><code>https://api.github.com/</code></td>
+</tr>
+<tr>
+<td>arXiv</td>
+<td><code>https://export.arxiv.org/api/query?id_list=1706.03762&amp;max_results=1</code></td>
+</tr>
+<tr>
+<td>Semantic Scholar</td>
+<td><code>https://api.semanticscholar.org/graph/v1/paper/ARXIV:1706.03762?fields=title</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>8s 超时，<code>buffered(6)</code> 并行探测，按固定顺序返回；</li>
+<li>使用 <code>BROWSER_USER_AGENT</code> 与 <code>DEFAULT_REDIRECT_LIMIT</code>，与导入/下载流程的 HTTP 客户端行为一致；</li>
+<li>任何 HTTP 响应（1xx–5xx）都算 <code>reachable</code>，仅 transport 失败（DNS、连接、TLS、代理错误、超时）标记为 <code>timeout</code> / <code>unreachable</code>；</li>
+<li>返回每个端点的状态码、耗时与当前生效代理，方便判断代理是否生效。</li>
+</ul>
 <h2 id="_6">入口<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li>桌面：设置 → 知识库诊断；远程 Vault 当前显示不可用。</li>
 <li>CLI：<code>agentero doctor</code>、<code>agentero doctor fix aliases</code>、<code>agentero doctor fix visual-marks</code>、<code>agentero doctor fix catalog-duplicates</code>、<code>agentero -y doctor fix …</code>（CLI 诊断同样尊重 <code>.agentero/doctor.json</code> 忽略列表）。</li>
-<li>Host：<code>doctor_check</code>、<code>doctor_apply_aliases</code>、<code>doctor_ignore_aliases</code>、<code>doctor_set_dirty_paths</code>、<code>doctor_plan_wikilinks</code>、<code>doctor_apply_wikilinks</code>、<code>doctor_apply_visual_marks</code>、<code>doctor_fix_catalog_duplicates</code>；host 级：<code>doctor_check_host</code>、<code>doctor_check_agents</code>。</li>
+<li>Host：<code>doctor_check</code>、<code>doctor_apply_aliases</code>、<code>doctor_ignore_aliases</code>、<code>doctor_set_dirty_paths</code>、<code>doctor_plan_wikilinks</code>、<code>doctor_apply_wikilinks</code>、<code>doctor_apply_visual_marks</code>、<code>doctor_fix_catalog_duplicates</code>；host 级：<code>doctor_check_host</code>、<code>doctor_check_agents</code>、<code>doctor_check_network</code>。</li>
 </ul>
-<p>代码：<code>src-tauri/src/features/vault/doctor/</code>（聚合入口）、<code>src-tauri/src/features/markdown/wiki/doctor.rs</code>（双链修复）、<code>src-tauri/src/features/pdf/marks/doctor.rs</code>（视觉批注修复）、<code>src-tauri/src/features/agent/doctor.rs</code>（主机运行环境）、<code>src-tauri/src/features/agent/doctor_agents.rs</code>（Agent ACP 诊断）、<code>src/lib/doctor/</code>、<code>src/components/settings/panes/doctor-pane.tsx</code>。</p>
+<p>代码：<code>src-tauri/src/features/vault/doctor/</code>（聚合入口）、<code>src-tauri/src/features/markdown/wiki/doctor.rs</code>（双链修复）、<code>src-tauri/src/features/pdf/marks/doctor.rs</code>（视觉批注修复）、<code>src-tauri/src/features/agent/doctor.rs</code>（主机运行环境）、<code>src-tauri/src/features/agent/doctor_agents.rs</code>（Agent ACP 诊断）、<code>src-tauri/src/features/system/network/</code>（网络连通性）、<code>src/lib/doctor/</code>、<code>src/components/settings/panes/doctor-pane.tsx</code>。</p>
 
 
 

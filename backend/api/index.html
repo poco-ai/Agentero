@@ -2787,6 +2787,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#agent_check_catalog_updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_check_catalog_updates（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#agent_set_user_agent" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5480,6 +5491,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#agent_check_catalog_updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_check_catalog_updates（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#agent_set_user_agent" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -7965,6 +7987,21 @@ Host (Tauri + Rust)
 <li>Agent 未装且 <code>canInstall</code> → 设置页「安装」</li>
 <li>dsh 例外：<code>binaryAvailable</code> 与 <code>acpCommandAvailable</code> 同源——launcher 目录、home npm 根或 PATH 的 <code>dsh-acp-demo</code> 入口，<code>detect_command</code>（node）不参与判定。</li>
 <li>另回传 <code>userAgent</code> / <code>userAgentProviderIds</code>（见下）</li>
+<li><strong>不</strong>在本命令里做版本/网络探测；「升级」按钮见 <code>agent_check_catalog_updates</code>。</li>
+</ul>
+<h4 id="agent_check_catalog_updates"><code>agent_check_catalog_updates</code>（已实现）<a class="headerlink" href="#agent_check_catalog_updates" title="Permanent link">&para;</a></h4>
+<p>在 <code>agent_scan_catalog</code> 结果上，对已装且 <code>canInstall</code> 的目录 Agent 比较本地版本与可静默升到的目标版本，供设置页决定是否显示「升级」。</p>
+<ul>
+<li><strong>参数</strong>：无</li>
+<li><strong>返回</strong>：<code>CatalogScanResponse</code>（同 scan；额外可选字段）</li>
+<li><code>installedVersion</code>：本地 host CLI <code>--version</code> 规范化结果</li>
+<li><code>latestVersion</code>：npm <code>view &lt;pkg&gt; version</code>（15 分钟内存缓存）或 dsh pin</li>
+<li><code>updateAvailable</code>：仅当目标版本<strong>严格新于</strong>本地时为 <code>true</code>；无法判定时省略/<code>null</code>（UI 不显示升级）</li>
+<li><strong>行为</strong></li>
+<li>同步 PATH scan 后，在 <code>spawn_blocking</code> 中跑 <code>--version</code> / <code>npm view</code>（尊重代理设置）。</li>
+<li>npm 包映射：<code>opencode-ai</code> / <code>openclaw</code> / <code>@anthropic-ai/claude-code</code> / <code>@openai/codex</code> / <code>agy-acp</code> / <code>@earendil-works/pi-coding-agent</code> / <code>@xai-official/grok</code> / <code>@moonshot-ai/kimi-code</code>；dsh 对比 pin；<strong>hermes 本轮不探测</strong>（无稳定 npm 源）。</li>
+<li>不写入 registry；设置页打开/刷新与 lifecycle 成功后调用。</li>
+<li><strong>实现</strong>：<code>registry/version_check.rs</code> · <code>commands::agent_check_catalog_updates</code></li>
 </ul>
 <h4 id="agent_set_user_agent"><code>agent_set_user_agent</code>（已实现）<a class="headerlink" href="#agent_set_user_agent" title="Permanent link">&para;</a></h4>
 <p>可选 HTTP User-Agent，注入 Codex ACP 出站请求（中转站 Codex 亲和）。</p>

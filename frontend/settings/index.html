@@ -3543,7 +3543,7 @@
 </tr>
 <tr>
 <td>Agent</td>
-<td>目录两层检测（Agent CLI / ACP）、未装「安装」/ 缺 ACP「安装 ACP」/ 已装「升级」、已安装或已注册行「卸载」（Trash 按钮 → 确认对话框展示 logo 与清理项：npm 全局包、受管目录，或仅注册项）、安装 / 升级进行中行内显示阶段进度条与取消（X）按钮（点击静默中止安装子进程，不弹错误）、默认 Agent、权限模式、自动精读、可选 <strong>User-Agent</strong>（Codex 中转亲和）、个人提示词、划词提问 Agent</td>
+<td>目录两层检测（Agent CLI / ACP）、未装「安装」/ 缺 ACP「安装 ACP」/ <strong>有可静默升到的新版本时</strong>「升级」（本地 <code>--version</code> 对比 npm latest 或 dsh pin；探测中/失败/hermes 等无法判定时不显示）、已安装或已注册行「卸载」（Trash 按钮 → 确认对话框展示 logo 与清理项：npm 全局包、受管目录，或仅注册项）、安装 / 升级进行中行内显示阶段进度条与取消（X）按钮（点击静默中止安装子进程，不弹错误）、默认 Agent、权限模式、自动精读、可选 <strong>User-Agent</strong>（Codex 中转亲和）、个人提示词、划词提问 Agent</td>
 </tr>
 <tr>
 <td>翻译</td>
@@ -3555,7 +3555,7 @@
 </tr>
 <tr>
 <td>知识库诊断</td>
-<td>主机运行环境 / Agent ACP 连通性 / Vault / Catalog / 双链 / 论文 aliases / 视觉批注格式；本地 Vault 可确认批量修复</td>
+<td>主机运行环境 / 网络连通性 / Agent ACP 连通性 / Vault / Catalog / 双链 / 论文 aliases / 视觉批注格式；本地 Vault 可确认批量修复</td>
 </tr>
 <tr>
 <td>关于</td>
@@ -3566,6 +3566,7 @@
 <p>知识库诊断页调用 Host 的只读 Doctor 报告。检查项各自作为小标题（带一行检测说明），标题行右侧显示 icon + 问题数；模块间用非通栏次要分隔线。列表过长时（双链 / 别名 / 视觉批注）<code>max-h</code> 内滚动。视觉批注一节可将旧版 <code>agent-trace</code> mark 一键升级为 <code>visual</code> v2。</p>
 <ul>
 <li><strong>主机运行环境</strong>（<code>doctor_check_host</code>）：提示性检查 Node.js / npm 可用性（路径与版本）；不依赖 Vault，未打开 Vault 时也显示。不再展示 Codex 登录状态。检查失败时错误写在该分区卡片内，不弹 Toast。</li>
+<li><strong>网络连通性</strong>（<code>doctor_check_network</code>）：按当前全局代理设置并行探测 Baidu / Google / Google Scholar / GitHub / arXiv / Semantic Scholar；一行一个端点，左侧状态点，右侧显示耗时或失败原因；失败时在行内展示原始错误与修复提示。不依赖 Vault，未打开 Vault 时也显示。独立加载，探测期间刷新按钮禁用。</li>
 <li>
 <p><strong>Agent ACP 连通性</strong>（<code>doctor_check_agents</code>）：探测前先 <code>scan_catalog</code> 自动注册 PATH 上已装的目录 Agent（不必先打开设置 → Agent）；再对每个已注册 Agent 执行 ACP initialize 并写回 registry（Agent 目录页同步刷新）。每个 Agent 以卡片展示：版本在上、路径在下（Agent / ACP / 登录）；失败按原因分类并给出 hint；错误写在卡片内不弹 Toast。探测中显示 shimmer。最长约 30s/Agent，独立加载；探测期间刷新按钮禁用。</p>
 </li>
@@ -3579,7 +3580,7 @@
 <li>下方 Agent 提示词（随 UI 语言 en/zh）：复制，或「在 Agent 中打开」（关设置、打开主窗 Agent 并预填 composer）。</li>
 </ul>
 <p>主窗口把未保存的 Markdown 路径同步到 Host，因此独立设置 Webview 发起修复时仍能在任何写入前拒绝脏文件。远程 Vault 首版只显示不可用。</p>
-<p>相关代码：<code>src/lib/doctor/</code>、<code>src/lib/agent/composer-seed.ts</code>。诊断页外壳 <code>src/components/settings/panes/doctor-pane.tsx</code> 只做报告拉取与分区编排，各检查项在同目录拆分：<code>doctor-host-runtime-section.tsx</code>、<code>doctor-agent-section.tsx</code>、<code>doctor-vault-catalog-sections.tsx</code>、<code>doctor-wikilink-section.tsx</code>、<code>doctor-alias-section.tsx</code>、<code>doctor-visual-marks-section.tsx</code>；共用展示件（小标题、问题行、git 风格 diff）在 <code>doctor-sections.tsx</code>，整行 diff 的文本测量与窗口化在 <code>doctor-line-fit.ts</code>（单测 <code>test/doctor-line-fit.test.ts</code>）。</p>
+<p>相关代码：<code>src/lib/doctor/</code>、<code>src/lib/agent/composer-seed.ts</code>。诊断页外壳 <code>src/components/settings/panes/doctor-pane.tsx</code> 只做报告拉取与分区编排，各检查项在同目录拆分：<code>doctor-host-runtime-section.tsx</code>、<code>doctor-network-section.tsx</code>、<code>doctor-agent-section.tsx</code>、<code>doctor-vault-catalog-sections.tsx</code>、<code>doctor-wikilink-section.tsx</code>、<code>doctor-alias-section.tsx</code>、<code>doctor-visual-marks-section.tsx</code>；共用展示件（小标题、问题行、git 风格 diff）在 <code>doctor-sections.tsx</code>，整行 diff 的文本测量与窗口化在 <code>doctor-line-fit.ts</code>（单测 <code>test/doctor-line-fit.test.ts</code>）。</p>
 <h2 id="_4">应用更新<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>正式桌面构建的主窗口会在启动后异步检查一次稳定版更新，不阻塞首屏或 Vault 初始化；检查失败只记日志。</li>
