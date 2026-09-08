@@ -26,6 +26,17 @@ use std::time::Duration;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 const PAPER_MD: &str = "PAPER.md";
+
+/// A derived file returned by a body-parse engine alongside its Markdown.
+///
+/// The writer validates `relative_path` before placing the file below the
+/// paper directory. Engines must not use this for user-authored files such as
+/// `NOTES.md`.
+#[derive(Debug, Clone)]
+pub struct BodyParseAsset {
+    pub relative_path: String,
+    pub bytes: Vec<u8>,
+}
 /// Cancellation is a user action, not a parse failure; `PaperParseResult::fail`
 /// keys off this to avoid reporting cancelled work as broken.
 pub const CANCELLED_MESSAGE: &str = "background task cancelled";
@@ -257,40 +268,38 @@ async fn parse_paper_body_inner(
     #[cfg(not(any(target_os = "ios", target_os = "android")))]
     let parse_result = engines::parse_body_with_engine(&pdf_path, task_id, &mut out.messages)
         .await
-        .map(|o| (o.markdown, o.body_source, o.body_quality));
+        .map(|o| (o.markdown, o.assets, o.body_source, o.body_quality));
     #[cfg(any(target_os = "ios", target_os = "android"))]
-    let parse_result = run_liteparse_markdown(&pdf_path, task_id).await;
+    let parse_result = run_liteparse_markdown(&pdf_path, task_id).await.map(
+        |(markdown, body_source, body_quality)| (markdown, Vec::new(), body_source, body_quality),
+    );
 
     match parse_result {
-        Ok((markdown, body_source, body_quality)) => {
+        Ok((markdown, assets, body_source, body_quality)) => {
             if markdown.trim().is_empty() {
                 out.fail("liteparse returned empty text".into());
                 return out;
             }
-            // Writing PAPER.md (fs) and updating the catalog body fields
-            // (rusqlite, which acquires the process-wide catalog lock) are both
-            // blocking. Run them on the blocking pool so a held catalog lock or
-            // slow disk never stalls a tokio worker.
+            // Writing PAPER.md (fs), its provider-derived assets, and updating
+            // the catalog body fields (rusqlite, which acquires the process-wide
+            // catalog lock) are all blocking. Run them on the blocking pool so a
+            // held catalog lock or slow disk never stalls a tokio worker.
             let paper_dir_owned = paper_dir.to_path_buf();
             let vault_owned = vault.to_path_buf();
             let path_owned = path_rel.to_string();
             let catalog_source = body_source.clone();
             let catalog_quality = body_quality.clone();
             let write_outcome = tokio::task::spawn_blocking(move || {
-                match fs::write(paper_dir_owned.join(PAPER_MD), &markdown) {
-                    Ok(()) => {
-                        let catalog_error = update_catalog_body(
-                            &vault_owned,
-                            &path_owned,
-                            &catalog_source,
-                            &catalog_quality,
-                        )
-                        .err()
-                        .map(|e| e.to_string());
-                        Ok(catalog_error)
-                    }
-                    Err(e) => Err(e.to_string()),
-                }
+                write_paper_body_bundle(&paper_dir_owned, &markdown, &assets)?;
+                let catalog_error = update_catalog_body(
+                    &vault_owned,
+                    &path_owned,
+                    &catalog_source,
+                    &catalog_quality,
+                )
+                .err()
+                .map(|e| e.to_string());
+                Ok(catalog_error)
             })
             .await;
 
@@ -1079,6 +1088,60 @@ fn collect_probe_words(
     }
 }
 
+fn safe_body_asset_path(relative_path: &str) -> Result<PathBuf, AppError> {
+    if relative_path.contains('\\') {
+        return Err(AppError::message(
+            "body parse asset path must use slash separators",
+        ));
+    }
+    let path = Path::new(relative_path);
+    if path.is_absolute() {
+        return Err(AppError::message("body parse asset path must be relative"));
+    }
+
+    let mut safe = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(part) => safe.push(part),
+            std::path::Component::CurDir
+            | std::path::Component::ParentDir
+            | std::path::Component::RootDir
+            | std::path::Component::Prefix(_) => {
+                return Err(AppError::message("body parse asset path is unsafe"));
+            }
+        }
+    }
+    let mut components = safe.components();
+    if components
+        .next()
+        .is_none_or(|part| part.as_os_str() != "images")
+    {
+        return Err(AppError::message(
+            "body parse assets must stay below images",
+        ));
+    }
+    if components.next().is_none() {
+        return Err(AppError::message("body parse asset path is empty"));
+    }
+    Ok(safe)
+}
+fn write_paper_body_bundle(
+    paper_dir: &Path,
+    markdown: &str,
+    assets: &[BodyParseAsset],
+) -> Result<(), String> {
+    for asset in assets {
+        let relative = safe_body_asset_path(&asset.relative_path).map_err(|e| e.to_string())?;
+        let destination = paper_dir.join(relative);
+        let parent = destination
+            .parent()
+            .ok_or_else(|| "body parse asset has no parent directory".to_string())?;
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        fs::write(destination, &asset.bytes).map_err(|e| e.to_string())?;
+    }
+    fs::write(paper_dir.join(PAPER_MD), markdown).map_err(|e| e.to_string())
+}
+
 fn update_catalog_body(
     vault: &Path,
     path_rel: &str,
@@ -1169,6 +1232,50 @@ mod tests {
             OsString::from("input.pdf"),
         ];
         assert!(pdf_parse_worker_request_from_args(incomplete).is_err());
+    }
+
+    #[test]
+    fn writes_paper_body_with_derived_assets() {
+        let dir = tempfile::tempdir().unwrap();
+        write_paper_body_bundle(
+            dir.path(),
+            "# Paper\n\n![](images/figure.jpg)\n",
+            &[BodyParseAsset {
+                relative_path: "images/figure.jpg".into(),
+                bytes: b"image-bytes".to_vec(),
+            }],
+        )
+        .unwrap();
+
+        assert_eq!(
+            fs::read_to_string(dir.path().join(PAPER_MD)).unwrap(),
+            "# Paper\n\n![](images/figure.jpg)\n"
+        );
+        assert_eq!(
+            fs::read(dir.path().join("images/figure.jpg")).unwrap(),
+            b"image-bytes"
+        );
+    }
+
+    #[test]
+    fn refuses_paper_body_asset_path_traversal() {
+        let dir = tempfile::tempdir().unwrap();
+        for path in ["../outside.jpg", "images\\..\\outside.jpg", "NOTES.md"] {
+            let err = write_paper_body_bundle(
+                dir.path(),
+                "# Paper",
+                &[BodyParseAsset {
+                    relative_path: path.into(),
+                    bytes: b"unsafe".to_vec(),
+                }],
+            )
+            .unwrap_err();
+            assert!(
+                err.contains("unsafe") || err.contains("slash") || err.contains("images"),
+                "{err}"
+            );
+        }
+        assert!(!dir.path().parent().unwrap().join("outside.jpg").exists());
     }
 
     #[test]

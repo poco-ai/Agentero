@@ -1,14 +1,15 @@
 //! MinerU body-parse engine: run the shared cloud extract and read the
-//! `full.md` markdown from the result zip.
+//! `full.md` markdown and its `images/` assets from the result zip.
 
 use crate::core::error::AppError;
 use crate::features::paper::analyze::layout::hosted::engine::HostedProviderCredentials;
 use crate::features::paper::analyze::layout::hosted::mineru::{
-    read_zip_entry_by_candidates, run_mineru_extract,
+    read_mineru_markdown_bundle, run_mineru_extract,
 };
 use crate::features::paper::analyze::parse::engines::{
     BodyParseCtx, BodyParseEngine, BodyParseOutcome,
 };
+use crate::features::paper::analyze::parse::BodyParseAsset;
 use async_trait::async_trait;
 
 pub(crate) struct MineruBodyEngine;
@@ -39,9 +40,17 @@ impl BodyParseEngine for MineruBodyEngine {
                 ctx.is_cancelled()
             })
             .await?;
-        let markdown = read_zip_entry_by_candidates(&zip_bytes, &["full.md"])?;
+        let bundle = read_mineru_markdown_bundle(&zip_bytes)?;
         Ok(BodyParseOutcome {
-            markdown,
+            markdown: bundle.markdown,
+            assets: bundle
+                .assets
+                .into_iter()
+                .map(|asset| BodyParseAsset {
+                    relative_path: asset.relative_path,
+                    bytes: asset.bytes,
+                })
+                .collect(),
             body_source: "mineru".to_string(),
             body_quality: "high".to_string(),
         })
@@ -52,8 +61,8 @@ impl BodyParseEngine for MineruBodyEngine {
 mod tests {
     use super::*;
 
-    /// Live end-to-end MinerU extract; prints the result-zip entry names so a
-    /// schema change (e.g. `full.md` renamed) is immediately visible.
+    /// Live end-to-end MinerU extract; prints the result-zip entry names and
+    /// extracted asset count so a schema change remains visible.
     ///
     /// ```sh
     /// AGENTERO_MINERU_LIVE_PDF=/tmp/x.pdf AGENTERO_MINERU_API_KEY=sk-… \
@@ -91,8 +100,13 @@ mod tests {
             .collect();
         println!("zip entries: {names:?}");
 
-        let markdown = read_zip_entry_by_candidates(&zip, &["full.md"]).expect("full.md entry");
-        println!("--- markdown ({} chars) ---\n{markdown}", markdown.len());
-        assert!(!markdown.trim().is_empty());
+        let bundle = read_mineru_markdown_bundle(&zip).expect("MinerU markdown bundle");
+        println!(
+            "--- markdown ({} chars), assets={} ---\n{}",
+            bundle.markdown.len(),
+            bundle.assets.len(),
+            bundle.markdown
+        );
+        assert!(!bundle.markdown.trim().is_empty());
     }
 }

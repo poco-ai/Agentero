@@ -11,7 +11,7 @@
 //! the cloud job runners in [`crate::features::paper::analyze::layout::hosted`] (upload →
 //! poll → zip/JSONL). Sharing those runners avoids duplicating the HTTP
 //! orchestration; the same cloud job is run once and consumed differently
-//! (zip → `full.md` here; zip → `content_list.json` boxes there).
+//! (zip → `full.md` plus `images/` assets here; zip → `content_list.json` boxes there).
 //! `openai_vlm` is self-contained and does not touch `layout::hosted`.
 //!
 //! Both trees draw credentials from the single `layout.providerConfigs`

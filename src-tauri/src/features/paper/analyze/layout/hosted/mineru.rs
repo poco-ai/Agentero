@@ -20,6 +20,7 @@ use async_trait::async_trait;
 use base64::Engine;
 use reqwest::StatusCode;
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use std::io::Read;
 use std::time::{Duration, Instant};
 
@@ -37,6 +38,24 @@ const MAX_PDF_BASE64_CHARS: usize = 96 * 1024 * 1024;
 /// to prevent zip-bomb OOM (same rationale as the sync gunzip caps).
 const MAX_RESULT_ZIP_BYTES: usize = 256 * 1024 * 1024;
 const MAX_JSON_ENTRY_BYTES: u64 = 128 * 1024 * 1024;
+/// MinerU Markdown refers to extracted figures through `images/...` paths.
+/// Keep the individual and aggregate unpacked sizes bounded because result ZIPs
+/// are remote, untrusted input.
+const MAX_BODY_IMAGE_ENTRY_BYTES: u64 = 32 * 1024 * 1024;
+const MAX_BODY_IMAGE_BYTES: u64 = 128 * 1024 * 1024;
+
+/// The Markdown and figure files required to materialize a MinerU body parse.
+/// Paths remain relative to `PAPER.md`, for example `images/figure-1.jpg`.
+pub(crate) struct MineruMarkdownBundle {
+    pub markdown: String,
+    pub assets: Vec<MineruMarkdownAsset>,
+}
+
+/// One image extracted from a MinerU result ZIP.
+pub(crate) struct MineruMarkdownAsset {
+    pub relative_path: String,
+    pub bytes: Vec<u8>,
+}
 
 pub struct MineruEngine;
 
@@ -326,6 +345,96 @@ pub(crate) fn read_zip_entry_by_candidates(
         )));
     }
     Ok(text)
+}
+
+/// Return a safe, slash-separated image path below `images/`, or `None` for
+/// unrelated ZIP entries. MinerU may prefix ZIP members with a task id, so the
+/// returned path starts at the first `images` directory. Backslashes are
+/// normalized before validation because they become path separators on Windows.
+fn safe_mineru_image_path(name: &str) -> Result<Option<String>, AppError> {
+    let normalized = name.replace('\\', "/");
+    if normalized.contains('\0') || normalized.starts_with('/') {
+        return Err(AppError::message(
+            "MinerU result zip contains an invalid image path",
+        ));
+    }
+    if !normalized.starts_with("images/") && !normalized.contains("/images/") {
+        return Ok(None);
+    }
+    let parts: Vec<&str> = normalized.split('/').collect();
+    if parts
+        .iter()
+        .any(|part| part.is_empty() || *part == "." || *part == ".." || part.contains(':'))
+    {
+        return Err(AppError::message(
+            "MinerU result zip contains an unsafe image path",
+        ));
+    }
+    let Some(images_index) = parts.iter().position(|part| *part == "images") else {
+        return Ok(None);
+    };
+    let image_parts = &parts[images_index + 1..];
+    if image_parts.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(format!("images/{}", image_parts.join("/"))))
+}
+
+/// Extract `full.md` and the `images/` files it references by relative path.
+/// The caller writes them beside `PAPER.md`, preserving MinerU's portable
+/// Markdown instead of rewriting the links to application-specific URLs.
+pub(crate) fn read_mineru_markdown_bundle(bytes: &[u8]) -> Result<MineruMarkdownBundle, AppError> {
+    let markdown = read_zip_entry_by_candidates(bytes, &["full.md"])?;
+    let cursor = std::io::Cursor::new(bytes);
+    let mut archive = zip::ZipArchive::new(cursor)
+        .map_err(|e| AppError::message(format!("MinerU result zip open failed: {e}")))?;
+    let mut assets = Vec::new();
+    let mut paths = HashSet::new();
+    let mut total_bytes = 0u64;
+
+    for index in 0..archive.len() {
+        let mut entry = archive
+            .by_index(index)
+            .map_err(|e| AppError::message(format!("MinerU result zip entry failed: {e}")))?;
+        if entry.is_dir() {
+            continue;
+        }
+        let Some(relative_path) = safe_mineru_image_path(entry.name())? else {
+            continue;
+        };
+        if !paths.insert(relative_path.clone()) {
+            return Err(AppError::message(format!(
+                "MinerU result zip contains duplicate image `{relative_path}`"
+            )));
+        }
+        if entry.size() > MAX_BODY_IMAGE_ENTRY_BYTES {
+            return Err(AppError::message(format!(
+                "MinerU result image `{relative_path}` is too large"
+            )));
+        }
+        let mut image = Vec::with_capacity(entry.size() as usize);
+        entry
+            .take(MAX_BODY_IMAGE_ENTRY_BYTES + 1)
+            .read_to_end(&mut image)
+            .map_err(|e| AppError::message(format!("MinerU result image read failed: {e}")))?;
+        if image.len() as u64 > MAX_BODY_IMAGE_ENTRY_BYTES {
+            return Err(AppError::message(format!(
+                "MinerU result image `{relative_path}` is too large"
+            )));
+        }
+        total_bytes = total_bytes
+            .checked_add(image.len() as u64)
+            .ok_or_else(|| AppError::message("MinerU result images are too large"))?;
+        if total_bytes > MAX_BODY_IMAGE_BYTES {
+            return Err(AppError::message("MinerU result images are too large"));
+        }
+        assets.push(MineruMarkdownAsset {
+            relative_path,
+            bytes: image,
+        });
+    }
+
+    Ok(MineruMarkdownBundle { markdown, assets })
 }
 
 /// Intermediate-result entry names: `*_middle.json` / `middle.json` in older
@@ -708,6 +817,48 @@ mod tests {
         assert_eq!(pages[1].boxes[0].label, "image");
         assert!((pages[1].boxes[0].coordinate[2] - 612.0).abs() < 1e-9);
         assert!((pages[1].boxes[0].coordinate[3] - 396.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn reads_markdown_bundle_with_figure_assets() {
+        use std::io::Write;
+        use zip::write::SimpleFileOptions;
+
+        let mut cursor = std::io::Cursor::new(Vec::new());
+        {
+            let mut writer = zip::ZipWriter::new(&mut cursor);
+            let opts = SimpleFileOptions::default();
+            writer.start_file("task/full.md", opts).unwrap();
+            writer
+                .write_all(b"# Paper\n\n![](images/figure-1.jpg)\n")
+                .unwrap();
+            writer.start_file("task/images/figure-1.jpg", opts).unwrap();
+            writer.write_all(b"jpeg-bytes").unwrap();
+            writer.start_file("task/model.json", opts).unwrap();
+            writer.write_all(b"{}").unwrap();
+            writer.finish().unwrap();
+        }
+
+        let bundle = read_mineru_markdown_bundle(cursor.get_ref()).unwrap();
+        assert!(bundle.markdown.contains("images/figure-1.jpg"));
+        assert_eq!(bundle.assets.len(), 1);
+        assert_eq!(bundle.assets[0].relative_path, "images/figure-1.jpg");
+        assert_eq!(bundle.assets[0].bytes, b"jpeg-bytes");
+    }
+
+    #[test]
+    fn rejects_unsafe_mineru_image_paths() {
+        for path in [
+            "images/../escape.jpg",
+            "images\\..\\escape.jpg",
+            "images/./figure.jpg",
+        ] {
+            let err = safe_mineru_image_path(path).unwrap_err();
+            assert!(err.to_string().contains("unsafe"));
+        }
+        assert!(safe_mineru_image_path("other/figure.jpg")
+            .unwrap()
+            .is_none());
     }
 
     #[test]

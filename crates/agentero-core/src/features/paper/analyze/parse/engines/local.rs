@@ -17,6 +17,7 @@ impl BodyParseEngine for LocalBodyEngine {
             super::super::run_liteparse_markdown(ctx.pdf_path, ctx.task_id).await?;
         Ok(BodyParseOutcome {
             markdown,
+            assets: Vec::new(),
             body_source,
             body_quality,
         })

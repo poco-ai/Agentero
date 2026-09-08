@@ -92,6 +92,7 @@ impl BodyParseEngine for OpenAiVlmBodyEngine {
         let markdown = ocr_rendered_pages(&pages, guard.path(), ctx, &target).await?;
         Ok(BodyParseOutcome {
             markdown,
+            assets: Vec::new(),
             body_source: "vlm".to_string(),
             body_quality: "medium".to_string(),
         })

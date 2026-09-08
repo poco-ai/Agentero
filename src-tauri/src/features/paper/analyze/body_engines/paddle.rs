@@ -56,6 +56,7 @@ impl BodyParseEngine for PaddleBodyEngine {
         }
         Ok(BodyParseOutcome {
             markdown,
+            assets: Vec::new(),
             body_source: "paddle".to_string(),
             body_quality: "high".to_string(),
         })

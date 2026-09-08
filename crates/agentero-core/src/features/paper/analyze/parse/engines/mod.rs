@@ -6,6 +6,7 @@
 //! credentials live in a process-wide snapshot (same pattern as
 //! `http::configure_proxy`), refreshed at startup and on `settings_set`.
 
+use super::BodyParseAsset;
 use crate::error::AppError;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -14,10 +15,13 @@ use std::sync::{Arc, OnceLock, RwLock};
 
 mod local;
 
-/// Successful body parse: markdown plus the catalog quality labels.
+/// Successful body parse: markdown, optional derived assets, and the catalog
+/// quality labels. Assets are regenerated with `PAPER.md` and are never the
+/// source of truth for a paper.
 #[derive(Debug, Clone)]
 pub struct BodyParseOutcome {
     pub markdown: String,
+    pub assets: Vec<BodyParseAsset>,
     pub body_source: String,
     pub body_quality: String,
 }
