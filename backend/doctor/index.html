@@ -3763,7 +3763,7 @@
 </tbody>
 </table>
 <ul>
-<li>编排：<code>snapshot()</code> 一次（内部已刷新命令可用性）；<code>buffered(3)</code> 限流并行探测；<code>!available</code> 的 Agent 不 spawn，直接按 <code>last_error</code> 合成「命令缺失」结果（镜像 <code>agent_probe</code> 快路径）；</li>
+<li>编排：先 <code>scan_catalog()</code>（把 PATH 上已装但未落盘的目录 Agent 自动注册，避免必须先打开设置 → Agent）；再 <code>snapshot()</code> 一次（内部已刷新命令可用性）；<code>buffered(3)</code> 限流并行探测；<code>!available</code> 的 Agent 不 spawn，直接按 <code>last_error</code> 合成「命令缺失」结果（镜像 <code>agent_probe</code> 快路径）；</li>
 <li>写回：每个结果 <code>apply_probe_result</code> 持久化到 registry，结束后 <code>emit_registry_changed</code>，Agent 目录页同步刷新；成功时清除该 Agent 的 warm-gate 熔断，失败<strong>不</strong>记录新熔断（Doctor 是用户主动重试，应无视 120s 冷却）；</li>
 <li>分类（<code>classify_acp_error</code>，按序匹配原始错误文本）：</li>
 </ul>
