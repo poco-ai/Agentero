@@ -3637,7 +3637,7 @@
 <ol>
 <li><code>GET https://codeload.github.com/{owner}/{repo}/tar.gz/{ref}</code>（ref 缺省时先经 <code>api.github.com/repos/{owner}/{repo}</code> 拿默认分支）；复用 <code>http_get_bytes_with_progress</code> 报进度。</li>
 <li>已走 Host 网络代理（<code>networkProxy*</code>）。</li>
-<li>Settings → 通用 → <strong>GitHub 镜像</strong>（<code>githubMirrorEnabled</code> / <code>githubMirrorBaseUrl</code>）：直连失败（超时/连接错误/5xx/429）时回退 <code>{base}/https://api|codeload.github.com/...</code>（URL 前缀形态，如 <code>https://gh.llkk.cc</code>）。<strong>4xx（如 404）不回退</strong>。与网络代理正交。</li>
+<li>Settings → 通用 → <strong>GitHub 镜像</strong>（<code>githubMirrorEnabled</code> / <code>githubMirrorBaseUrl</code>）：从内置预设列表中选择一个 URL 前缀镜像；直连失败（超时/连接错误/5xx/429）时回退 <code>{base}/https://api|codeload.github.com/...</code>（如 <code>https://gh.llkk.cc</code>）。<strong>4xx（如 404）不回退</strong>。与网络代理正交。</li>
 <li>解压到临时目录（复用 <code>extract_tar_safe</code> 系安全逻辑），递归扫描 <code>**/SKILL.md</code>：</li>
 <li>有子目录约束（tree URL / <code>--skill</code>）→ 只取匹配项；</li>
 <li>repo 根或指定路径发现 Skill → 返回候选列表，前端弹选择（见 §4）。</li>
