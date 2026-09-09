@@ -1170,15 +1170,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#17" class="md-nav__link">
+  <a href="#21" class="md-nav__link">
     <span class="md-ellipsis">
       
-        规则清单（现行，共 17 条核心规则）
+        规则清单（现行，共 21 条核心规则）
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="规则清单（现行，共 17 条核心规则）">
+    <nav class="md-nav" aria-label="规则清单（现行，共 21 条核心规则）">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1193,10 +1193,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#b-3" class="md-nav__link">
+  <a href="#b-4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        B. 文字角色（3）
+        B. 文字角色（4）
       
     </span>
   </a>
@@ -3633,15 +3633,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#17" class="md-nav__link">
+  <a href="#21" class="md-nav__link">
     <span class="md-ellipsis">
       
-        规则清单（现行，共 17 条核心规则）
+        规则清单（现行，共 21 条核心规则）
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="规则清单（现行，共 17 条核心规则）">
+    <nav class="md-nav" aria-label="规则清单（现行，共 21 条核心规则）">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -3656,10 +3656,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#b-3" class="md-nav__link">
+  <a href="#b-4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        B. 文字角色（3）
+        B. 文字角色（4）
       
     </span>
   </a>
@@ -4004,7 +4004,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <p><strong>重新分析按钮</strong>（Figures header）：<code>force: false</code>。有 <code>source/layout.json</code> 时只重跑 JSON→侧栏（<code>mergeCaptionsIntoHosts</code> + NMS），<strong>不</strong>再跑 PP-DocLayoutV3，也<strong>不</strong>覆盖 raw sidecar；<strong>会</strong>刷新 <code>layout-index.json</code>。无缓存时才走完整 PDF→JSON。需要强制刷新模型输出时由调用方显式传 <code>force: true</code>（当前 UI 不暴露）。</p>
 <p><strong>全库重置</strong>（设置 →「版面解析」底部两个按钮）：Host 命令 <code>clear_parse_results</code> / <code>clear_and_reparse</code>（<code>src-tauri/src/features/jobs/commands.rs</code>）按 catalog 逐篇删除所选 scope 的解析产物——<code>layout</code>（<code>source/layout.json</code> + <code>layout-index.json</code>）、<code>paper</code>（<code>PAPER.md</code>）或 <code>all</code>（默认）。删除前先取消该 Vault 下相关 queued/running 的 <code>layoutAnalyze</code> / <code>parseBody</code> job（防止晚到的 runner 把旧结果写回），删除后清空 <code>CapsCache</code>。「清除并重新解析」再对全部论文 enqueue <code>force: true</code> 的重新解析 job（idle lane，沿用 per-kind 并发上限）。仅支持本地 Vault；前端入口 <code>src/lib/paper/reparse.ts</code> + <code>layout-pane.tsx</code>（确认弹窗内选 scope）。</p>
 <hr />
-<h2 id="17">规则清单（现行，共 <strong>17</strong> 条核心规则）<a class="headerlink" href="#17" title="Permanent link">&para;</a></h2>
+<h2 id="21">规则清单（现行，共 <strong>21</strong> 条核心规则）<a class="headerlink" href="#21" title="Permanent link">&para;</a></h2>
 <p>按阶段编号。实现常量见 <code>merge-captions.ts</code> → <code>LAYOUT_MERGE</code>。</p>
 <h3 id="a-4">A. 标签与侧栏（4）<a class="headerlink" href="#a-4" title="Permanent link">&para;</a></h3>
 <table>
@@ -4038,7 +4038,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </tr>
 </tbody>
 </table>
-<h3 id="b-3">B. 文字角色（3）<a class="headerlink" href="#b-3" title="Permanent link">&para;</a></h3>
+<h3 id="b-4">B. 文字角色（4）<a class="headerlink" href="#b-4" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -4056,12 +4056,17 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <tr>
 <td><strong>B2</strong></td>
 <td>无文本时几何兜底</td>
-<td>宽≥0.45 且矮 → 可能主图题；窄短 → 子图题</td>
+<td>宽≥0.45 且矮 → 可能主图题；窄短框保持未定角色，已知主图题优先聚合后，再用邻近图框恢复无文字图题（单栏 / 多子图均可）。旧 sidecar 中无文字的几何 <code>subpanel</code> 重新判断</td>
 </tr>
 <tr>
 <td><strong>B3</strong></td>
 <td>角色驱动绑定</td>
 <td><code>table_main</code> 只绑 table；<code>figure_main</code> 只绑图；<code>subpanel</code> 不当整图锚点</td>
+</tr>
+<tr>
+<td><strong>B4</strong></td>
+<td>正文误标图题恢复</td>
+<td>模型把图题高置信标成 <code>text</code> 时（如 ViT Fig 6/11），文本以<strong>带编号 + 标点</strong>的图题开头（<code>Figure N:</code> / <code>Fig. N.</code> + 正文）且上方存在 score≥0.3 的可靠图框（贴题位有效）→ 提升为 <code>figure_main</code> 参与聚合；<code>Figure 5 contains …</code> 等正文引用不提升。只影响 merge，不改 raw sidecar</td>
 </tr>
 </tbody>
 </table>
@@ -4100,17 +4105,17 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <tr>
 <td><strong>D1</strong></td>
 <td>主图题锚点</td>
-<td>仅 <code>figure_main</code>（或宽 figure_title）可启动联图</td>
+<td><code>figure_main</code>（或宽 figure_title）优先启动联图；无文字的窄 figure_title 延后匹配，不能抢占已知主图题的子图</td>
 </tr>
 <tr>
 <td><strong>D2</strong></td>
 <td>竖向带</td>
-<td>panel 须在「上一主图题底边 → 本图题顶边」内（防 Fig6/7/8 竖向串台）</td>
+<td>panel 须在「水平方向相交的上一主图题底边 → 本图题顶边」内；另一栏图题不截断当前栏</td>
 </tr>
 <tr>
 <td><strong>D3</strong></td>
 <td>全宽 vs 半宽</td>
-<td>图题宽 ≥ <strong>0.55</strong>：band 内全部 image/chart 一次收齐（<strong>不</strong>再砍 <code>maxHeightAbove</code>，底行允许轻微压进 title）；半宽：标题水平栏 + panel 邻接连通 + 高度软上限 0.55</td>
+<td>先过滤置信度 &lt; <strong>0.3</strong> 的图框和图题 / 图例候选，再从距图题 ≤ <strong>0.12</strong> 的子图所在连通组聚合；正文 / 表 / 算法在竖向间隙内阻断连接和贴题。图题宽 ≥ <strong>0.55</strong> 可同时锚定多个不连通的列，保留多行联图且不设高度软上限；半宽只取最贴近图题的组，保留高度软上限 0.55。远处孤立框不因全宽图题而被收入</td>
 </tr>
 <tr>
 <td><strong>D4</strong></td>
@@ -4132,7 +4137,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <tr>
 <td><strong>E1</strong></td>
 <td>孤儿 panel</td>
-<td>落在更大联图内（覆盖≥0.55）的无主标题 panel 丢弃</td>
+<td>落在更大联图内（覆盖≥0.55）的无主标题 panel 丢弃；已有主图题的窄图不当孤儿。左右裁切仅用于纵向重叠且图题水平分离的半宽图，上下独立图不裁切</td>
 </tr>
 <tr>
 <td><strong>E2</strong></td>
@@ -4420,6 +4425,8 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 <li>实验路径；大模型推理可能卡顿。</li>
 <li>不改 PDF 二进制；只写可重建的 <code>{paper}/source/layout.json</code>。</li>
 <li><code>layout.json</code> 只缓存 raw layout，不等同于未来 <code>agentero-figures.json</code> / 缩略图资产 sidecar。</li>
+<li><strong>模型级整面板误标仍会漏图</strong>（merge 层无法救回，页上没有可用 image/chart 检测）：ViT 附录 Fig 14（注意力图网格被标 <code>header</code> 0.91，同框 <code>image</code> 仅 0.05）、Transformer 附录 Fig 4（注意力可视化被标 <code>table</code> 0.88）。四篇论文（resnet / vit / transformer / swin，单双栏混合）实测图题召回 28/30 ≈ 93%，在容忍范围内；后续如换更强检测模型可回归 <code>test/pdf-layout-arxiv.test.ts</code> 复核。</li>
+<li><strong>真实 PDF smoke test（opt-in，默认跳过）</strong>：<code>test/pdf-layout-arxiv.test.ts</code>，需 <code>AGENTERO_LAYOUT_PDF_DIR</code>（放 <code>&lt;name&gt;.pdf</code>）+ <code>AGENTERO_LAYOUT_MODEL</code>（pp-doclayoutv3.onnx 路径），<code>AGENTERO_LAYOUT_PDFS</code> 逗号分隔指定论文名（默认 <code>resnet,vit</code>）。逐页输出渲染 PNG、合并后 bbox 叠加 PNG 与 <code>*-detections.json</code>，供 before/after 回归对比（<code>/tmp/agentero-bbox-validation/compare.mjs</code> 为临时脚本，不在仓库内）。</li>
 <li>后续：最终 figure sidecar、自动分析、一键视觉批注。</li>
 </ul>
 
