@@ -3427,6 +3427,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/windows-console-window-flash/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Windows 启动与问题诊断弹出黑色控制台窗口
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3617,6 +3645,9 @@
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p>Windows 的 <code>device_model</code> 走 <code>reg query</code>，该子进程必须带 <code>CREATE_NO_WINDOW</code>。发布版是 GUI 子系统二进制，缺这个 flag 时 Windows 会为它分配可见控制台窗口，表现为每次启动都在首帧前闪一下黑窗（<code>app started</code> 在 setup 后 <code>spawn_blocking</code> 发送，与窗口首帧时间上重叠）。</p>
+</blockquote>
 <p>Person 属性：<code>$set</code> → <code>app_version</code> / <code>os_name</code> / <code>os_version</code> / <code>arch</code> / <code>device_model</code> / <code>installed_agents</code> / <code>custom_agent_count</code>；<code>$set_once</code> → <code>first_app_version</code>。<code>installed_agents</code> 随每次启动更新，可直接在 PostHog 按 Agent 过滤 / 分群。</p>
 <h3 id="app-exitedruneventexit-flush"><code>app exited</code>（<code>RunEvent::Exit</code> 回调中发送并 flush）<a class="headerlink" href="#app-exitedruneventexit-flush" title="Permanent link">&para;</a></h3>
 <p><code>$session_id</code>、<code>session_duration_ms</code>、<code>app_version</code>。</p>

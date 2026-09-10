@@ -3505,6 +3505,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../bug_fix/windows-console-window-flash/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Windows 启动与问题诊断弹出黑色控制台窗口
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3782,6 +3810,7 @@
 <ul>
 <li><code>node</code> / <code>npm</code>：解析路径 + <code>--version</code>（5s 超时），状态 <code>available / missing / unusable</code>；</li>
 <li><code>npm prefix -g</code>：追加进环境 PATH 后再查 node（覆盖 npm 全局安装但 GUI PATH 缺失的场景）。</li>
+<li>Windows：探测子进程一律带 <code>CREATE_NO_WINDOW</code>（<code>diagnostic_command</code> 统一收口）。应用是 GUI 子系统二进制，缺该标志时 Windows 会给每个控制台子进程新建可见控制台——表现为每次打开/刷新问题诊断，每探测一个工具就多一个黑窗（标题即该工具路径，两个 hermes 条目就是两个黑窗）。</li>
 </ul>
 <p>Codex 登录状态不再放在主机运行环境；改由 Agent 卡片第三行展示（见下）。</p>
 <h3 id="agent-acp-doctor_check_agents">Agent ACP 连通性（<code>doctor_check_agents</code>）<a class="headerlink" href="#agent-acp-doctor_check_agents" title="Permanent link">&para;</a></h3>
