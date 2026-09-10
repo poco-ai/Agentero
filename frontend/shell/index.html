@@ -921,6 +921,17 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
+        字号
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
         欢迎页与多窗口
       
     </span>
@@ -940,7 +951,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         后台任务条
@@ -951,7 +962,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         弹层栈
@@ -962,7 +973,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
         快捷键（壳层）
@@ -973,7 +984,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_7" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
       
         设计约定
@@ -3452,6 +3463,17 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
+        字号
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
         欢迎页与多窗口
       
     </span>
@@ -3471,7 +3493,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         后台任务条
@@ -3482,7 +3504,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         弹层栈
@@ -3493,7 +3515,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
         快捷键（壳层）
@@ -3504,7 +3526,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_7" class="md-nav__link">
+  <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
       
         设计约定
@@ -3537,7 +3559,7 @@
 <h1 id="_1">工作台壳<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
 <h2 id="_2">布局<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>左栏</strong>：文件树 + Paper Info（显示最近选中的论文；切换到非论文文档时保持不消失；无卡片容器、常驻 collapsible；上边缘可拖拽调整高度，<code>preserve-pixel-size</code>；文件树多选时复用固定高度标题栏显示批量操作，不压缩或遮挡树；arXiv 论文在资源按钮下显示 arXiv PDF、魔搭论文解读与 alphaXiv 外链，不再显示摘要按钮；窄宽度下资源按钮退化为仅图标；元信息修改入口位于 Info 底部）。Cool Papers / Kimi 解析入口在论文 <code>NOTES.md</code> 的 Markdown 工具栏，不在 Paper Info。</li>
+<li><strong>左栏</strong>：文件树 + Paper Info（显示最近选中的论文；切换到非论文文档时保持不消失；无卡片容器、常驻 collapsible，点标题行即可折叠，高度 200ms 过渡；上边缘可拖拽调整高度，<code>preserve-pixel-size</code>；内容区可滚动但不显示滚动条；文件树多选时复用固定高度标题栏显示批量操作，不压缩或遮挡树；arXiv 论文在资源按钮下显示 arXiv PDF、魔搭论文解读与 alphaXiv 外链，不再显示摘要按钮；窄宽度下资源按钮退化为仅图标；元信息修改入口位于 Info 底部）。Cool Papers / Kimi 解析入口在论文 <code>NOTES.md</code> 的 Markdown 工具栏，不在 Paper Info。</li>
 <li><strong>中间</strong>：无 Vault 欢迎页；有 Vault 时为全局 Dockview（见 <a href="../workspace/">workspace.md</a>）。</li>
 <li><strong>右栏</strong>（可选）：Agent / 批注。</li>
 <li>参考文献与版面解析已移入 PDF 阅读器左侧浮层面板（见 <a href="../pdf/">pdf.md</a>），不再占用右栏。</li>
@@ -3546,7 +3568,9 @@
 <li>标题栏右侧：更新指示器、窗口布局菜单、Agent 切换；有新版本可更新时显示更新指示器按钮（见 <a href="../settings/">settings.md</a> 「应用更新」）。布局菜单提供 <strong>Agent</strong>（PDF / Agent <code>1:1</code>）、<strong>笔记</strong>（PDF / Notes / Agent <code>1:1:1</code>）和 <strong>阅读</strong>（仅 PDF）三种预设。预设只调整 panel 宽度并开关当前论文的 Notes / Agent，不关闭其它 PDF tab。</li>
 </ul>
 <p>实现：<code>src/components/shell/</code>、<code>src/lib/shell/ui-store.ts</code>、<code>src/lib/shell/leaf.ts</code>、<code>src/lib/shell/feature-window.ts</code>、<code>hooks/use-shell-layout.ts</code>。</p>
-<h2 id="_3">欢迎页与多窗口<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_3">字号<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>壳层（顶栏、左右栏、PaneHeader、Dock 页签、底栏任务条）与库表 / Agent chrome 共用 Appearance 字号阶梯：<code>body</code> 默认 <code>text-sm</code>（13），次要 <code>text-xs</code>（12），密集元数据 <code>text-caption</code>（11）。Dock 页签字号变量为 <code>0.8125rem</code>（与 Body 同档）。细则见 <a href="../settings/">settings.md</a>。</p>
+<h2 id="_4">欢迎页与多窗口<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>无 Vault：最近路径 MRU、打开 / 创建 / 从 Zotero 迁移。</li>
 <li><code>⌘N</code> → Host <code>window_new</code>（<code>?fresh=1</code>）；Vault 与 dock 布局按窗口 session 隔离。</li>
@@ -3562,7 +3586,7 @@
 <li>API：<code>notifyError</code> / <code>notifyWarning</code>（<code>src/lib/core/notify.ts</code>）。</li>
 <li>表单就地校验不走 Toast。</li>
 </ul>
-<h2 id="_4">后台任务条<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">后台任务条<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <ul>
 <li>左下角：下载、入库、导入导出、paper-reader、版面解析等。</li>
 <li><strong>折叠 = 进度圆环</strong>；<strong>悬停约 400ms 或点击圆环 → 详情列表</strong>；<strong>指针离开即收回圆环</strong>（不常驻详情 Toast）。</li>
@@ -3576,13 +3600,13 @@
 <li>纯前端 UI 本地活动不进 JobCenter（无去重/依赖/重启恢复语义）：paper-reader、Zotero 迁移向导、散落 PDF 的 viewer 内版面分析经门面 <code>runLocalActivity</code>（<code>src/lib/core/tasks.ts</code>）创建本地任务行；取消纯靠本地 AbortController（不经 Rust），同类并发由 <code>tasks.ts</code> 内的信号量执行。<code>background-tasks.ts</code> 只保留面板 store 与视图辅助（行 CRUD、字节/进度格式化），不含执行编排。</li>
 <li>实现：<code>src/lib/core/background-tasks.ts</code> + <code>background-tasks-panel.tsx</code>。</li>
 </ul>
-<h2 id="_5">弹层栈<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_6">弹层栈<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>overlay-stack</code>：<code>Esc</code> / <code>⌘W</code> 先关最顶层 sheet/Dialog，再关 active panel。</li>
 <li>弹层可标记为 <code>modal: false</code>（如 Agent 面板底部 ask-user 表单），保留 <code>Esc</code> 关闭能力，但不阻塞 <code>whenSettingsClosed</code> 类的全局快捷键（如 <code>⌘B</code> / <code>⌥⌘S</code> 切换侧边栏）。</li>
 <li>仅剩全库 Library 且无弹层时，<code>⌘W</code> 关窗。</li>
 </ul>
-<h2 id="_6">快捷键（壳层）<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<h2 id="_7">快捷键（壳层）<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -3694,10 +3718,11 @@
 </tbody>
 </table>
 <p>完整快捷键绑定：<code>src/lib/shell/shortcuts.ts</code>。文案 i18n 见 <a href="../settings/">settings.md</a>。</p>
-<h2 id="_7">设计约定<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<h2 id="_8">设计约定<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
 <ul>
 <li>工具栏优先图标 + <code>aria-label</code> + Tooltip；避免常驻解释文案。</li>
-<li>操作型 Chrome（按钮、导航、标题栏、工具栏、可点击卡片）默认禁用浏览器文字选择；正文、可复制 metadata、编辑器、PDF 文字层和输入控件必须保持可选。不要在应用根节点统一设置 <code>user-select: none</code>，避免误伤第三方内容层和移动端长按选择。</li>
+<li>操作型 Chrome（按钮、导航、标题栏、工具栏、Dock 标签、可点击卡片、Agent 空状态）默认禁用浏览器文字选择；正文、可复制 metadata、编辑器、PDF 译文层（<code>.select-text</code>）和输入控件必须保持可选。不要在应用根节点统一设置 <code>user-select: none</code>，避免误伤第三方内容层和移动端长按选择。</li>
+<li><strong>⌘A / Ctrl+A</strong>：仅在输入框、<code>contenteditable</code>、<code>[role=textbox]</code> 或带 <code>.select-text</code> / <code>.select-all</code> 的区域内走浏览器原生全选；点在页面空白或 chrome 上时由 <code>useNativeSelectAllGuard</code>（主窗经 <code>useAppShortcuts</code>，文档/功能弹窗各自挂载）吞掉，避免整页扫到侧栏/标签/空状态文案。⇧⌘A 仍是「固定选区并聚焦 Agent」。判定见 <code>src/lib/shell/native-select-all.ts</code>。</li>
 <li>基础组件 shadcn/ui；Chat/树 AI UI 用 AI Elements（<a href="../components/">components.md</a>）。</li>
 <li><strong>启动种子放 <code>boot()</code></strong>（<code>src/main.tsx</code>），不要在 render 期做副作用。<code>initSettingsStore</code> / <code>initVaultStore</code> / <code>initWorkspaceStore</code> 在 <code>createRoot</code> 前调用：既保证首帧前完成，又不依赖 <code>useState</code> 初始化器（StrictMode 下可能跑两次）。</li>
 <li><strong>订阅 Host 事件一律用类型化事件绑定（<code>src/lib/core/bindings.ts</code> 的 <code>events.*</code>）：组件内 <code>useTauriEvent(events.x, cb)</code>，非 UI 模块 <code>listenEventSafe(events.x, cb)</code>（<code>src/lib/core/tauri-events.ts</code>）</strong>；字符串事件名仅限前端窗口间广播（<code>workspace:*</code>、<code>agent:attach-context</code> 等）与 iOS bridge client 事件，非 Tauri wire 的 promise 式订阅（bridge、workspace-broadcast）用 <code>toSafeDisposer()</code>。手写 <code>let off; void (async () =&gt; { off = await listen(...) })(); return () =&gt; off?.()</code> 会在 <code>listen</code> resolve 前 dispose 时泄漏监听器 —— StrictMode 每次开发挂载都会命中。</li>

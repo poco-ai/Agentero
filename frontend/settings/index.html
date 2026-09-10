@@ -3598,15 +3598,21 @@
 <li>外观设置中的配色主题以紧凑预览网格展示背景、卡片、主色和强调色；点击预览项即可应用主题。</li>
 <li>36 个 tweakcn 预设：<code>src/themes/tweakcn.json</code>；<code>src/lib/ui/theme.ts</code> 注入 CSS 变量。</li>
 <li>刷新主题数据：<code>node scripts/fetch-tweakcn-themes.mjs</code>。</li>
-<li><code>uiScale</code>：80%–150% 五档，改 <code>html</code> font-size（整 UI，与编辑器字号/行距正交）。</li>
+<li><code>uiScale</code>：80%–150% 五档，改 <code>html</code> font-size（基数仍为 <strong>16×scale</strong>，与编辑器字号/行距正交；不把根字号改成 13，以免 rem 间距在 Windows 125% 等缩放下整体被压扁）。</li>
+<li>字号阶梯（对齐 macOS HIG Body/Callout/Title 3，见 <code>src/index.css</code> <code>@theme</code>；<code>body</code> 默认 <code>text-sm</code>，PaneHeader / 侧栏 / 底栏 / 顶栏 / Dock / 库表 / Agent chrome 共用）：</li>
+<li><code>text-sm</code> → <strong>13px</strong>（Body，主 chrome）</li>
+<li><code>text-xs</code> → <strong>12px</strong>（Callout，次要控件、快捷键、辅助说明）</li>
+<li><code>text-base</code> → <strong>15px</strong>（Title 3，设置/对话框标题）</li>
+<li><code>text-caption</code> → <strong>11px</strong>（Subhead/Caption，chip、密集元数据；禁止再写 9/10px）</li>
 <li>字体（Appearance → Fonts，对齐 Obsidian 三分法）：</li>
 <li><code>interfaceFontFamily</code>：界面 chrome（<code>--font-sans</code> / <code>--font-heading</code>）。</li>
 <li><code>textFontFamily</code>：Markdown/笔记正文（仅编辑器根节点）。</li>
 <li><code>monoFontFamily</code>：代码块与 <code>font-mono</code>（<code>--font-mono</code>）。</li>
-<li>取值：空 = 应用默认；<code>system</code> / <code>serif</code> / <code>mono</code> = 内置栈；其余 = 系统字体族名。</li>
+<li>取值：空 = <strong>系统 UI</strong>（macOS SF Pro / Windows Segoe UI + 雅黑等 CJK 回退）；<code>system</code> 同义；<code>geist</code> = 打包 Geist Variable；<code>serif</code> / <code>mono</code> = 内置栈；其余 = 系统字体族名。</li>
+<li>等宽默认含 Cascadia Mono / Consolas，照顾 Windows。</li>
 <li>选择器：Popover + 搜索；Host <code>list_system_fonts</code>（fontdb）枚举本机字体。</li>
 <li>Markdown 编辑器（Appearance → Markdown editor）：</li>
-<li><code>editorFontSize</code>：12–20 px。</li>
+<li><code>editorFontSize</code>：12–20 px（默认 14，阅读区可略大于 chrome）。</li>
 <li><code>editorLineHeight</code>：1.4–2.0（步长 0.1，默认 1.6）。</li>
 <li><code>batchImportConcurrency</code>：魔棒批量导入及后续资源下载的并发上限，范围 1–10，默认 5。</li>
 <li><code>paperNoteMode</code>：新导入论文 NOTES.md 壳的初始化方式，四档：</li>

@@ -3538,11 +3538,11 @@
 </tr>
 <tr>
 <td>列</td>
-<td>表头右键选列 / 拖拽排序；顺序+显隐持久化 <code>libraryColumns</code>；标题列不可隐藏</td>
+<td>表头右键选列 / 拖拽排序；顺序+显隐持久化 <code>libraryColumns</code>；标题列不可隐藏；标题单元格对 <code>$...$</code> / <code>\\(...\\)</code> 做 KaTeX 内联渲染（复制仍为原始 TeX）</td>
 </tr>
 <tr>
 <td>滚动</td>
-<td>横向 + 纵向</td>
+<td>横向 + 纵向；滚动中表头控件瞬间隐藏为纯列名（搜索框与刷新/筛选等图标，固定 <code>h-9</code> 行高与占位不变；当前排序列仍保留方向箭头；有标签筛选时 Tags 列名旁留小圆点），停滚约 450ms 后淡入恢复（入 300ms）</td>
 </tr>
 <tr>
 <td>tags</td>

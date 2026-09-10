@@ -3456,6 +3456,7 @@
 <li><strong>禁止</strong>新建 <code>src/components/ai/*</code> 或用 <code>ui/message</code> 搭 Chat。</li>
 </ul>
 <p>常用：<code>conversation</code>、<code>message</code>、<code>prompt-input</code>、<code>sources</code>、<code>reasoning</code>、<code>file-tree</code>、queue 等。</p>
+<p>Agent / Reasoning 消息里的 Markdown：<code>Streamdown</code> + <code>PlainTable</code> / <code>PlainCodeBlock</code>（代码块左上角语言标签，悬停复制/下载；无外侧卡片，见 <a href="../agent/">agent.md</a>#消息-markdown-渲染）。</p>
 <h2 id="_2">业务组件目录<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -3507,7 +3508,7 @@
 </tr>
 <tr>
 <td><code>components/ui/</code></td>
-<td>shadcn 基础件</td>
+<td>shadcn 基础件；<code>math-text.tsx</code> 用 KaTeX 渲染标题内联公式（<code>$\\pi$</code>）</td>
 </tr>
 </tbody>
 </table>
