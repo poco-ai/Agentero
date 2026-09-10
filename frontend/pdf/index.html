@@ -3612,7 +3612,7 @@
 </tr>
 <tr>
 <td>文中链接</td>
-<td>Link annotation 覆盖层：citation / 图表·公式交叉引用 / 章节 GoTo 点击跳页，URI 开系统浏览器；未带 Link annotation 的纯文本 <code>http(s)</code> URL 与 <code>arXiv:&lt;id&gt;</code> 也会根据现有 PDFium 文字矩形生成外链命中区，并跳过与原生链接重叠的区域。打开论文后（主线程空闲时）在 Worker 里解析命名目标（<code>lib/pdf/citation-dest-keys.ts</code>），字节优先复用 <code>tab.pdfBytes</code>，按 <code>pdfPath:size</code> 缓存。<strong>Citation hover</strong>：hyperref <code>cite.&lt;key&gt;</code> 走 <code>pageIndex:pdfY → key → sidecar.rawKey</code>；ACS <code>mk:refN</code> 因 <code>/FitR</code> 整页冲突改走 <strong>Link rect → mk:refN → sidecar id <code>ref-N</code></strong>。同一上标簇内按间距区分逗号与连字符：<code>14-18</code> 展开为 14…18 多条列表，<code>7,9</code> 保持两条。<strong>Crossref hover</strong>（<code>Fig. 3</code> / <code>Table 1</code> / <code>Eq. (2)</code>）：同理先 dest 坐标，冲突时 <strong>Link rect → mk:tbl1 / mk:fig3</strong>，再配 layout region 裁剪。索引 / layout / sidecar 未就绪或无法消歧时不弹卡片；章节等非 float 内部链接只保留导航。<strong>浮动卡互斥（#430）</strong>：citation 与 crossref 预览互斥；划词菜单 / 视觉草稿 / pin 卡（ask·translate·visual）打开时压制链接预览；预览卡与 pin 卡共用 sticky hover（指针在卡上不收起，离开后短延迟关闭；link 命中区用 pointer 事件与卡片对齐）</td>
+<td>Link annotation 覆盖层：citation / 图表·公式交叉引用 / 章节 GoTo 点击跳页，URI 开系统浏览器；未带 Link annotation 的纯文本 <code>http(s)</code> URL 与 <code>arXiv:&lt;id&gt;</code> 也会根据现有 PDFium 文字矩形生成外链命中区，并跳过与原生链接重叠的区域。打开论文后（主线程空闲时）在 Worker 里解析命名目标（<code>lib/pdf/citation-dest-keys.ts</code>），字节优先复用 <code>tab.pdfBytes</code>，按 <code>pdfPath:size</code> 缓存。<strong>Citation hover</strong>：hyperref <code>cite.&lt;key&gt;</code> 走 <code>pageIndex:pdfY → key → sidecar.rawKey</code>；ACS <code>mk:refN</code> 因 <code>/FitR</code> 整页冲突改走 <strong>Link rect → mk:refN → sidecar id <code>ref-N</code></strong>。同一上标簇内按间距区分逗号与连字符：<code>14-18</code> 展开为 14…18 多条列表，<code>7,9</code> 保持两条。<strong>Crossref hover</strong>（<code>Fig. 3</code> / <code>Table 1</code> / <code>Eq. (2)</code>）：同理先 dest 坐标，冲突时 <strong>Link rect → mk:tbl1 / mk:fig3</strong>，再配 layout region 裁剪。索引 / layout / sidecar 未就绪或无法消歧时不弹卡片；章节等非 float 内部链接只保留导航。<strong>浮动卡互斥（#430）</strong>：citation 与 crossref 预览互斥；划词拖选进行中（<code>onBeginSelection</code>→菜单就绪）以及 pin 卡（ask·translate·visual）打开时压制链接预览；划词菜单单独存在时仍允许 hover 引用预览；链接命中区在主键按下时不触发 hover，避免拖选扫过引用时闪卡；预览卡与 pin 卡共用 sticky hover（指针在卡上不收起，离开后短延迟关闭；link 命中区用 pointer 事件与卡片对齐）</td>
 </tr>
 <tr>
 <td>视觉批注</td>
@@ -3621,7 +3621,7 @@
 </tbody>
 </table>
 <h2 id="_2">划词菜单<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>选区后浮动工具栏：高亮 / 复制 / 提问 / 加入对话 / 翻译。<strong>批注</strong>不在工具栏里：选区出现时页右缘评论列会在对应高度出现一条竖向入口（与空评论卡同高、宽度更窄，内为评论图标），hover / 键盘聚焦后展开成空评论卡预览，点击后创建高亮并进入就地编辑。Settings → 翻译开启「划词自动翻译」后，选区文本提取完成即自动启动翻译并打开结果卡；关闭时保留手动翻译入口。</p>
+<p>选区后浮动工具栏：高亮 / 复制 / 提问 / 加入对话 / 翻译。<strong>批注</strong>不在工具栏里：选区出现时页右缘评论列会在对应高度出现一条竖向入口（与空评论卡同高、宽度更窄，内为评论图标）。<strong>Hover 直接进入编辑</strong>（展开并聚焦输入框）；<strong>移走且尚未输入则缩回竖向卡片</strong>；已有输入则保持编辑直至 ⌘/Ctrl+Enter / 失焦提交或 Esc 取消。入口用选区快照，聚焦时即使 EmbedPDF 清掉选区也保留卡片。Settings → 翻译开启「划词自动翻译」后，选区文本提取完成即自动启动翻译并打开结果卡；关闭时保留手动翻译入口。</p>
 <p><strong>远程 PDF</strong>（<code>agentero:arxiv:*</code>，如 arXiv Daily 预览）：无本地 sidecar。划词菜单只保留 <strong>复制 / 提问 / 加入对话</strong>（Ask 内存 ephemeral，关 tab 即丢，不写 <code>marks/</code>）；高亮 / 批注入口 / 翻译隐藏。底栏显示 Remote mode 徽标（<code>SiArxiv</code>，与 Info 面板同色）。引用 hover 可从 PDF dest key 生成只读条目，导入按钮走整篇入库。</p>
 <table>
 <thead>
@@ -3640,7 +3640,7 @@
 <tr>
 <td>批注</td>
 <td>高亮 + <code>comment</code></td>
-<td>选区时页右缘竖向评论入口（hover 展开预览，点击创建）；已保存的批注在页右缘外侧常驻评论列（色点 + 评论卡，相邻卡片纵向避让；点击卡片就地编辑，Notion 式：卡片内 textarea，Enter 换行，⌘/Ctrl+Enter 或失焦保存，Esc 取消；hover 出复制链接/嵌入/删除）；视口窄于 640px 时回退为页边针</td>
+<td>选区时页右缘竖向评论入口（hover 进入编辑；移走且无输入则缩回图标卡；提交后落盘）；已保存的批注在页右缘外侧常驻评论列（色点 + 评论卡，相邻卡片纵向避让；点击卡片就地编辑，Notion 式：卡片内 textarea，Enter 换行，⌘/Ctrl+Enter 或失焦保存，Esc 取消；hover 出复制链接/嵌入/删除）；视口窄于 640px 时回退为页边针</td>
 </tr>
 <tr>
 <td>提问</td>
@@ -3770,7 +3770,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-text-selection.ts</code></td>
-<td>选区检测、划词菜单状态与复制拦截</td>
+<td>选区检测、划词菜单状态、<code>isSelecting</code>（拖选中压制链接预览）与复制拦截</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-ask-threads.ts</code></td>

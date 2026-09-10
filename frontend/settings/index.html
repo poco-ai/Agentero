@@ -1279,6 +1279,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="设置窗口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ui-system-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UI 约定（System Settings 风格）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3463,6 +3480,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="设置窗口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ui-system-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UI 约定（System Settings 风格）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3544,13 +3578,51 @@
 <h2 id="_2">设置窗口<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
 <li>独立原生单例：<code>settings_window_open</code> + <code>?window=settings</code> → <code>SettingsNativeRoot</code>。</li>
-<li>macOS Overlay 标题栏 + 交通灯；Windows/Linux 系统原生边框。</li>
+<li>macOS Overlay 标题栏 + 交通灯；Windows/Linux 系统原生边框。标题栏与侧栏共用 <code>--sidebar</code> 材质（macOS 标题栏 <code>backdrop-blur</code>；<code>prefers-reduced-transparency</code> 下实色）。</li>
 <li>开/关：<code>⌘,</code>、菜单、齿轮；<code>Esc</code> / 标题栏 X 关闭。</li>
 <li>不查询或展示本机 hostname / OS 身份。</li>
 <li>保存：<code>settings_set</code> → 广播 <code>settings:changed</code> 跨窗口同步。</li>
 <li>落盘：XDG <code>$XDG_CONFIG_HOME/agentero/settings.json</code>。</li>
 <li>加载策略：设置 webview 不加载完整 <code>App</code>，也不加载 PDF 引擎与 KaTeX（二者随 <code>App</code> 动态 import）。各分区 pane 按 <code>lazy()</code> 分 chunk；<strong>当前分区</strong>的 pane 与外壳并行预热（<code>preloadSettingsPane</code>），避免窗口刚可交互时才去拉 pane 而卡一下；其余分区首次访问才加载，已访问的保持挂载。</li>
 <li>通用页的「网络代理」是 Host 级配置，启用后用于 Host 创建的 HTTP(S)/SOCKS 请求，并同步注入本地与远端 Agent 进程的 <code>HTTP_PROXY</code> / <code>HTTPS_PROXY</code> / <code>ALL_PROXY</code>。旧版 Settings → Agent 的代理配置会在首次启动时迁移。</li>
+</ul>
+<h3 id="ui-system-settings">UI 约定（System Settings 风格）<a class="headerlink" href="#ui-system-settings" title="Permanent link">&para;</a></h3>
+<p>共用件在 <code>src/components/settings/settings-layout.tsx</code>：</p>
+<table>
+<thead>
+<tr>
+<th>元件</th>
+<th>约定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PageTitle</code></td>
+<td>Title 3：<code>text-base</code> + <code>font-semibold</code>（字距/行高走字号阶梯 token）</td>
+</tr>
+<tr>
+<td><code>SettingsSectionLabel</code></td>
+<td>Callout 大写小标题：<code>text-xs</code> + <code>font-medium</code> + muted（避免 <code>text-caption</code> 被 twMerge 与 <code>text-muted-*</code> 互斥吃掉）</td>
+</tr>
+<tr>
+<td><code>SettingsGroup</code> / <code>settingsCardClassName</code></td>
+<td>圆角 inset 卡片：<code>rounded-xl</code>、淡边框、极轻阴影</td>
+</tr>
+<tr>
+<td><code>SettingsRow</code> / <code>settingsRowClassName</code></td>
+<td>Body 行：<code>text-sm</code> 常规字重、<code>min-h-10</code>、柔和行间分隔</td>
+</tr>
+<tr>
+<td><code>HelpLabel</code></td>
+<td>可键盘聚焦的 <code>?</code> 按钮（Tooltip），按压有微缩反馈</td>
+</tr>
+</tbody>
+</table>
+<p>侧栏（<code>SettingsContent</code>）：</p>
+<ul>
+<li>材质：<code>bg-sidebar</code> / <code>border-sidebar-border</code>；选中项滑动高亮（<code>sidebar-primary</code>）+ <code>font-medium</code>；按压 <code>scale(0.98)</code>；方向键在导航项间移动。</li>
+<li>内容区：<code>overscroll-y-contain</code>；切换分区平滑滚回顶部（尊重 <code>prefers-reduced-motion</code>）；pane 进入短时 opacity 交叉淡入。</li>
+<li>主题预览卡：选中 inset ring + 按压缩放；slider 带 <code>aria-valuetext</code>。</li>
 </ul>
 <h2 id="_3">主要分类<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>
