@@ -3986,7 +3986,7 @@
 <ul>
 <li><strong>空态</strong>：建议 chips → <code>summary</code> / <code>qa</code> / <code>related_work</code>。</li>
 <li><strong>上下文</strong>：当前论文默认加入（实心 chip，可 X 移除）。<code>@</code> 提及与文件树拖入为可移除 context chip。</li>
-<li><strong>选区上下文</strong>：Markdown/PDF 选中文字 → 瞬时选区 chip（虚线）；<code>⌘L</code> 或「加入对话」固定为 chip。发送时以引用块消费；PDF 带几何的选区在发送后插入 <code>kind: ask</code> 对话卡片页边针（非视觉批注）。</li>
+<li><strong>选区上下文</strong>：Markdown/PDF 选中文字 → 瞬时选区 chip（虚线）；<code>⌘L</code> 固定为 chip；PDF 仅在 Agent 侧栏打开时于选区右下角显示「加入对话」pill。发送时以引用块消费；PDF 带几何的选区在发送后插入 <code>kind: ask</code> 对话卡片页边针（非视觉批注）。</li>
 <li><strong>运行中继续输入</strong>：后续消息进 Queue waitlist，当前回复结束后自动发送。</li>
 <li><strong>权限</strong>：全局模式 <code>restricted</code>（默认）/ <code>ask</code> / <code>auto</code>。<code>ask</code> 时弹权限对话框。</li>
 <li><strong>结构化提问</strong>：各 harness 的 ask-user / elicitation / Grok ext 归一为底部问卷（与 free-text composer 互斥）。详见 <a href="../frontend/agent/">frontend/agent.md</a> / <a href="../backend/agent/">backend/agent.md</a>。</li>
