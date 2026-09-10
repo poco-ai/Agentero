@@ -1935,6 +1935,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../backend/builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../backend/sync/" class="md-nav__link">
         
   
@@ -4161,7 +4189,7 @@
 </tr>
 <tr>
 <td>向量</td>
-<td><code>POST {baseUrl}/embeddings</code>（batch，OpenAI 兼容），凭据取自设置 → Agent → Embedding</td>
+<td><code>POST {baseUrl}/embeddings</code>（batch，OpenAI 兼容），凭据取自设置 → Agent → Embedding：<code>source</code> 为 <code>builtin</code>（默认，需构建期注入了内置 provider key）时用内置网关三元组，为 <code>custom</code> 时用用户自填的 Base URL / API Key / Model</td>
 <td><code>core::http::client_builder</code>；请求形状抄 <code>translate_openai_compatible</code></td>
 </tr>
 <tr>
@@ -4197,14 +4225,15 @@
 <ul>
 <li><strong>header</strong>：分类 chip 多选（默认 <code>ARXIV_FEED_CHIPS</code>，与订阅共用常量）+ 上次计算时间 + 刷新按钮。<strong>不进 app settings</strong> —— 分类就是页面状态，持久化在 <code>arxiv_rec_state</code>。</li>
 <li><strong>body</strong>：卡片列表（标题 / arXiv id / 分数 / 摘要三行截断），右上角<strong>阅读</strong>（在应用内打开远程 PDF，不写盘）+ 外链 + 一键入库（走 <code>lookupSubmit</code>，与订阅同一条魔棒路线）。</li>
-<li><strong>空态分三种</strong>并给对应出路：未配置 embedding → 「打开 Agent 设置」按钮；库里没摘要 → 引导先导入论文；分类下无新论文 → 提示换分类。</li>
+<li><strong>空态分三种</strong>并给对应出路：未配置 embedding（构建没有内置 key，且用户也没填自定义端点）→ 「打开 Agent 设置」按钮；库里没摘要 → 引导先导入论文；分类下无新论文 → 提示换分类。</li>
 </ul>
 <p><strong>取舍</strong></p>
 <ul>
 <li>首次或大库的整库 embedding 会慢一次（上千篇），之后靠 <code>embed_cache</code> 只增量；候选每天仅数十篇。接受首启一次性成本，换掉「每次都重算」。</li>
 <li>分类/Top-N 不做设置项：Top-20 是常量，分类留在 header。少一层配置面板。</li>
-<li>模型换了会导致缓存维度不一致；打分时按维度不匹配记 0 分，不会崩，但建议换模型后点一次刷新。</li>
-<li><strong>隐私</strong>：摘要会发给用户自己配置的 embedding 端点（BYOK）。未配置则整个功能静默不跑。</li>
+<li><code>embed_cache</code> 主键是 <code>(text_hash, model)</code>，所以换 embedding 模型是缓存 miss、整库重 embed 一次（不是维度混用）；打分处的维度不匹配记 0 分只是防御性兜底。换来源后建议点一次刷新，见下条。</li>
+<li><strong><code>arxiv_rec_state</code> 不按 model 建键</strong>：当天已排序的结果在切换 embedding 来源后的首次运行仍会被复用（陈旧短路只看 <code>computed_at</code> 是否当天 + 分类集合是否一致），除非 <code>force</code>。既存行为，未随内置 provider 一起改。</li>
+<li><strong>隐私</strong>：摘要会发给当前 embedding 来源的端点。<code>source: "custom"</code> 时是用户自己配置的 BYOK 端点；<code>source: "builtin"</code>（构建注入了内置 provider key 时的默认）时是产品方自己的网关 <code>https://api.qiyuanchen.top/v1</code>——也就是说<strong>新装用户在默认配置下就会把库内摘要发到该网关</strong>，要避开必须显式切到 custom 并留空（功能随之禁用）。构建没有内置 key 时行为回到从前：未配置则整个功能静默不跑。详见 <a href="../../backend/builtin-provider/"><code>../backend/builtin-provider.md</code></a>。</li>
 </ul>
 <h3 id="35-modelscope">3.5 ModelScope 论文（已实现）<a class="headerlink" href="#35-modelscope" title="Permanent link">&para;</a></h3>
 <p><strong>主内容</strong>：内嵌 iframe，经 <code>agentero-modelscope://localhost</code> 加载 <a href="https://modelscope.cn/papers">modelscope.cn/papers</a>。顶条 chrome、拖拽护盾、Back / Forward 全部复用 <code>PlazaWebFrame</code>，前端只多了 <code>PLAZA_SOURCES</code> 一条。</p>
@@ -4324,7 +4353,7 @@
 <tr>
 <td><strong>P0c arXiv Daily</strong></td>
 <td>embedding 相似度 + 时间衰减排序 + 一键入库（已交付）</td>
-<td>配好 embedding 后有排序结果；未配置有引导空态</td>
+<td>内置或自定义 embedding 任一可用时有排序结果；两者都没有时有引导空态</td>
 </tr>
 <tr>
 <td><strong>P0d 播客</strong></td>
@@ -4353,7 +4382,7 @@
 <li>广场 → Vault <strong>批量入库</strong>（单条已实现，见 §3.2.1）。  </li>
 <li>把 feed 写入 catalog（订阅条目缓存走 XDG，见 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>）。  </li>
 <li>播客播放器。订阅管理见 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>，不进本篇原 P0。  </li>
-<li>云端协同过滤，或把本地库上传到 Agentero 自有服务。arXiv Daily 只把摘要发给<strong>用户自己配置的</strong> BYOK embedding 端点；未配置则整个功能不跑。  </li>
+<li>云端协同过滤，或把整个本地库上传到 Agentero 自有服务。arXiv Daily 只把<strong>有摘要的论文条目</strong>（title + abstract）发给当前 embedding 端点：默认是内置网关，用户可切到自己配置的 BYOK 端点，也可以留空把功能整个关掉（见 §3.4 取舍 · 隐私）。  </li>
 <li>注入脚本只做导航上报与 <code>[入库]</code>；<strong>不注入任何凭据 / API Key / 登录态</strong>。</li>
 </ul>
 <h2 id="8">8. 实现落点（编码时）<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
@@ -4445,7 +4474,8 @@
 <em>修订：2026-08-15 — 新增 ModelScope 论文来源；请求管道抽到 <code>discovery/proxy/mod.rs</code> 并转发 method + body。</em><br />
 <em>修订：2026-08-15 — 订阅列为广场来源，规格拆到 <a href="../plaza-feeds/"><code>plaza-feeds.md</code></a>。</em><br />
 <em>修订：2026-08-15 — 订阅 MVP 落地（XDG <code>feeds.sqlite</code> + 原生双栏 + 论文入库）。</em><br />
-<em>修订：2026-08-21 — arXiv 推荐落地（embedding + 时间衰减；缓存进 catalog schema v6；<code>vault:opened</code> 预热）。</em></p>
+<em>修订：2026-08-21 — arXiv 推荐落地（embedding + 时间衰减；缓存进 catalog schema v6；<code>vault:opened</code> 预热）。</em>
+<em>修订：2026-09-10 — arXiv Daily 的 embedding 凭据新增内置来源（<code>embedding.source</code>），新装默认走产品网关；隐私取舍与空态条件随之改写，见 §3.4。</em></p>
 
 
 

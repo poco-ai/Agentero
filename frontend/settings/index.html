@@ -2053,6 +2053,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../backend/builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../backend/sync/" class="md-nav__link">
         
   
@@ -3543,11 +3571,11 @@
 </tr>
 <tr>
 <td>Agent</td>
-<td>目录两层检测（Agent CLI / ACP）、未装「安装」/ 缺 ACP「安装 ACP」/ <strong>有可静默升到的新版本时</strong>「升级」（本地 <code>--version</code> 对比 npm latest 或 dsh pin；探测中/失败/hermes 等无法判定时不显示）、已安装或已注册行「卸载」（Trash 按钮 → 确认对话框展示 logo 与清理项：npm 全局包、受管目录，或仅注册项）、安装 / 升级进行中行内显示阶段进度条与取消（X）按钮（点击静默中止安装子进程，不弹错误）、默认 Agent、权限模式、自动精读、可选 <strong>User-Agent</strong>（Codex 中转亲和）、个人提示词、划词提问 Agent</td>
+<td>目录两层检测（Agent CLI / ACP）、未装「安装」/ 缺 ACP「安装 ACP」/ <strong>有可静默升到的新版本时</strong>「升级」（本地 <code>--version</code> 对比 npm latest 或 dsh pin；探测中/失败/hermes 等无法判定时不显示）、已安装或已注册行「卸载」（Trash 按钮 → 确认对话框展示 logo 与清理项：npm 全局包、受管目录，或仅注册项）、安装 / 升级进行中行内显示阶段进度条与取消（X）按钮（点击静默中止安装子进程，不弹错误）、默认 Agent、权限模式、自动精读、可选 <strong>User-Agent</strong>（Codex 中转亲和）、个人提示词、划词提问 Agent、<strong>Embedding 端点</strong>（arXiv 每日推荐用；<code>source</code> 在「Agentero 内置」与「自定义接口」之间切换，选内置时隐藏 Base URL / API Key / Model 三个输入框以及探测色点和 Test 按钮——凭证来自构建期注入，见 <a href="../../backend/builtin-provider/">../backend/builtin-provider.md</a>）</td>
 </tr>
 <tr>
 <td>翻译</td>
-<td>默认服务选择、商用 API 配置、语言与 Agent 座</td>
+<td>默认服务选择（含<strong>内置 provider</strong> <code>agentero</code>：无凭证卡片、无探测色点，可用性来自 Host <code>builtin_provider_status</code>；构建未注入 key 时禁用，当前已选中则仍留在列表里）、商用 API 配置、语言与 Agent 座</td>
 </tr>
 <tr>
 <td>同步</td>

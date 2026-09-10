@@ -1935,6 +1935,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../backend/builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../backend/sync/" class="md-nav__link">
         
   
@@ -4451,6 +4479,13 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>有 <code>latest.json</code>、各平台 updater 包与对应 <code>.sig</code>；<code>latest.json</code> 包含每个平台的 URL 和签名</td>
 <td>☐</td>
 </tr>
+<tr>
+<td>0.2.4</td>
+<td>GitHub Actions / 应用·设置</td>
+<td>确认 <code>AGENTERO_BUILTIN_API_KEY</code> secret 已配且本次构建注入了它</td>
+<td>缺 secret <strong>不会</strong>让构建失败（<code>option_env!</code> 当未设置处理），只会静默产出没有内置 provider 的包。信号：设置 → 翻译的「Agentero 内置」可选、设置 → Agent → Embedding 的来源默认「Agentero 内置」、设置 → 版面解析的正文引擎默认「Agentero 内置」。见 <a href="../release/">release.md</a> §内置 Provider 构建期注入</td>
+<td>☐</td>
+</tr>
 </tbody>
 </table>
 <h3 id="03">0.3 安装启动<a class="headerlink" href="#03" title="Permanent link">&para;</a></h3>
@@ -5272,6 +5307,13 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>任务面板出现 <strong>失败</strong> 的「解析 PDF 正文」，详情含找不到 PDFium 的真实原因，而不是显示“已完成”</td>
 <td>☐</td>
 </tr>
+<tr>
+<td>6.2.6</td>
+<td>设置 → 版面解析 + 左栏·树</td>
+<td>正文引擎选「Agentero 内置」，导入一篇无 TeX 的 PDF</td>
+<td>生成的 <code>PAPER.md</code> 是 OCR 质量正文（catalog <code>body_source</code> = <code>vlm</code>），<strong>不是</strong>静默退化成本地 liteparse 的纯文本；同时版面后端仍显示 <code>local</code>，PP-DocLayoutV3 仍从本地 cache 加载（内置 provider 只是正文引擎，不是版面后端）</td>
+<td>☐</td>
+</tr>
 </tbody>
 </table>
 <h3 id="63">6.3 补下载<a class="headerlink" href="#63" title="Permanent link">&para;</a></h3>
@@ -5519,6 +5561,13 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>中间栏·PDF</td>
 <td>点工具栏 Languages 全文翻译</td>
 <td>按阅读顺序分批出译文并盖在 bbox 上（非整页等齐）；再点可停止/清除；磁盘 <code>source/layout-translate.json</code> 有缓存</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>7.3.5a</td>
+<td>中间栏·PDF（翻译服务=Agentero 内置）</td>
+<td>对一篇含公式 / URL / 引用标记的论文跑全文翻译，逐段对照原文</td>
+<td>内置路径的 <code>[[n]]</code> 批次由 Host 拆分逐段请求再重组：译文<strong>不错位、不并段、不丢块</strong>；<code>⟦n⟧</code> 占位符保护的公式 / URL / 引用在译文里原样还原，<strong>没有</strong>出现裸露的 <code>⟦0⟧</code> 或被吞掉后整段回落原文（这两点是尚未用真实 key 验证过的假设，见 <a href="../../backend/builtin-provider/">../backend/builtin-provider.md</a> §限制与后续）</td>
 <td>☐</td>
 </tr>
 </tbody>
@@ -5781,6 +5830,27 @@ cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span
 <td>设置 → 翻译</td>
 <td>切换 free / Agent 翻译</td>
 <td>保存成功；PDF 划词翻译跟新设置</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>10.8a</td>
+<td>设置（新装 / 删掉 <code>settings.json</code> 后重启）</td>
+<td>依次看翻译默认服务、Agent → Embedding 来源、版面解析 → 正文引擎</td>
+<td>注入 key 的构建里三处默认都是「Agentero 内置」，且<strong>看不到任何</strong> Base URL / API Key / Model 输入框；未注入 key 的构建里三处回落 <code>tencenttransmart</code> / 自定义 / <code>local</code></td>
+<td>☐</td>
+</tr>
+<tr>
+<td>10.8b</td>
+<td>设置 → 翻译</td>
+<td>选「Agentero 内置」后在 PDF 划词翻译一段英文</td>
+<td>出译文；失败时 Toast 是可读文案，<strong>不裸露</strong> <code>translate.no_builtin_key</code> 标记</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>10.8c</td>
+<td>设置 → Agent → Embedding</td>
+<td>已填过 Base URL / API Key / Model 的老配置升级后打开</td>
+<td>来源被推断为「自定义接口」，三个输入框仍在且值未丢；<strong>没有</strong>被静默切到内置</td>
 <td>☐</td>
 </tr>
 <tr>
@@ -6324,8 +6394,8 @@ agentero<span class="w"> </span>--vault<span class="w"> </span>/tmp/agentero-cli
 <td>不支持</td>
 </tr>
 <tr>
-<td>应用内填模型 API Key</td>
-<td>BYOA，不收集</td>
+<td>应用内填 <strong>Agent</strong> 的模型 API Key</td>
+<td>BYOA，不收集；Agent 的 Key 由 Agent CLI 自己持有。（翻译 / 版面 / embedding 的 BYOK Key 与构建期内置 provider 凭证是另外两条路径，见 <a href="../release/">release.md</a> §内置 Provider 构建期注入）</td>
 </tr>
 <tr>
 <td>删除时确认框 / Undo toast</td>

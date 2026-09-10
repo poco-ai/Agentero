@@ -14,7 +14,7 @@
         <link rel="prev" href="../doctor/">
       
       
-        <link rel="next" href="../sync/">
+        <link rel="next" href="../builtin-provider/">
       
       
         
@@ -2059,6 +2059,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../sync/" class="md-nav__link">
         
   
@@ -3530,7 +3558,7 @@
 <p>三层门控，任一不满足即整体 no-op：</p>
 <ol>
 <li><strong>编译期</strong>：构建时环境变量 <code>AGENTERO_POSTHOG_KEY</code> 注入 PostHog Project API Key；未设置（或为空）时功能完全禁用——本地 / 开源构建默认不上报。</li>
-<li>Key 来源（<code>build.rs</code> 的 <code>forward_posthog_key()</code>）：显式环境变量优先；否则回退读仓库根 <code>.env</code>（gitignored）。</li>
+<li>Key 来源（<code>build.rs</code> 的 <code>forward_build_env()</code>，同时转发 <code>AGENTERO_BUILTIN_*</code>，见 <a href="../builtin-provider/">builtin-provider.md</a>）：显式环境变量优先；否则回退读仓库根 <code>.env</code>（gitignored）。</li>
 <li>官方发布：<code>release.yml</code> 的 tauri-action 步骤从 GitHub Secret <code>POSTHOG_KEY</code> 注入；secret 缺失时为空串，遥测编译为 no-op。</li>
 <li>Ingestion host 使用 posthog-rs 默认 <code>https://us.i.posthog.com</code>（US 项目）；换 EU / 自建需改用 <code>ClientOptionsBuilder().host(...)</code>。</li>
 <li><strong>构建类型</strong>：debug 构建（<code>cfg!(debug_assertions)</code>，含 <code>pnpm tauri dev</code>）不上报，避免开发数据污染。</li>

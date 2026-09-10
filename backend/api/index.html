@@ -1940,6 +1940,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../sync/" class="md-nav__link">
         
   
@@ -3191,6 +3219,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="3.10 应用设置（XDG）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#builtin_provider_status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        builtin_provider_status（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -5896,6 +5941,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="3.10 应用设置（XDG）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#builtin_provider_status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        builtin_provider_status（已实现）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -7158,17 +7220,19 @@ Host (Tauri + Rust)
 <span class="w">    </span><span class="n">text</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span>
 <span class="w">    </span><span class="n">sourceLang</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">     </span><span class="o">//</span><span class="w"> </span><span class="n">default</span><span class="w"> </span><span class="s2">"auto"</span>
 <span class="w">    </span><span class="n">targetLang</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">      </span><span class="o">//</span><span class="w"> </span><span class="n">e</span><span class="o">.</span><span class="n">g</span><span class="o">.</span><span class="w"> </span><span class="s2">"zh-CN"</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">"en"</span>
-<span class="w">    </span><span class="n">provider</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">tencenttransmart</span><span class="w"> </span><span class="p">(</span><span class="n">default</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">huoshanweb</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">deeplx</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">googleapi</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">google</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">deepl</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">azure</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">googleCloud</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">openaiCompatible</span>
-<span class="w">    </span><span class="n">apiKey</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="err">商用</span><span class="w"> </span><span class="n">BYOK</span><span class="err">；可省略或传同长度</span><span class="w"> </span><span class="s2">"*"</span><span class="w"> </span><span class="err">掩码，</span><span class="n">Host</span><span class="w"> </span><span class="err">从</span><span class="w"> </span><span class="n">settings</span><span class="w"> </span><span class="err">注入真实密钥</span>
-<span class="w">    </span><span class="n">baseUrl</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="err">商用</span><span class="w"> </span><span class="n">provider</span><span class="w"> </span><span class="n">endpoint</span><span class="w"> </span><span class="n">override</span><span class="err">（可选）</span>
+<span class="w">    </span><span class="n">provider</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="n">agentero</span><span class="w"> </span><span class="p">(</span><span class="err">内置；注入</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="err">的构建里的默认</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">tencenttransmart</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">huoshanweb</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">deeplx</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">googleapi</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">google</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">deepl</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">azure</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">googleCloud</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">openaiCompatible</span>
+<span class="w">    </span><span class="n">apiKey</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="err">商用</span><span class="w"> </span><span class="n">BYOK</span><span class="err">；可省略或传同长度</span><span class="w"> </span><span class="s2">"*"</span><span class="w"> </span><span class="err">掩码，</span><span class="n">Host</span><span class="w"> </span><span class="err">从</span><span class="w"> </span><span class="n">settings</span><span class="w"> </span><span class="err">注入真实密钥。</span><span class="n">provider</span><span class="w"> </span><span class="err">为</span><span class="w"> </span><span class="n">agentero</span><span class="w"> </span><span class="err">时被</span><span class="w"> </span><span class="n">Host</span><span class="w"> </span><span class="err">用构建期凭证</span><span class="o">**</span><span class="err">覆写</span><span class="o">**</span><span class="err">，调用方传什么都无效</span>
+<span class="w">    </span><span class="n">baseUrl</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="err">商用</span><span class="w"> </span><span class="n">provider</span><span class="w"> </span><span class="n">endpoint</span><span class="w"> </span><span class="n">override</span><span class="err">（可选）；</span><span class="n">agentero</span><span class="w"> </span><span class="err">同样被覆写</span>
 <span class="w">    </span><span class="n">region</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">azure</span><span class="w"> </span><span class="err">必填</span>
-<span class="w">    </span><span class="n">model</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="n">openaiCompatible</span><span class="w"> </span><span class="err">必填</span>
+<span class="w">    </span><span class="n">model</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="n">openaiCompatible</span><span class="w"> </span><span class="err">必填；</span><span class="n">agentero</span><span class="w"> </span><span class="err">被覆写为构建期</span><span class="w"> </span><span class="n">translate</span><span class="w"> </span><span class="n">model</span>
 <span class="w">    </span><span class="n">timeoutMs</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">number</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nb nb-Type">null</span><span class="p">;</span><span class="w">   </span><span class="o">//</span><span class="w"> </span><span class="n">optional</span><span class="p">;</span><span class="w"> </span><span class="n">clamped</span><span class="w"> </span><span class="mi">1</span><span class="n">s</span><span class="err">–</span><span class="mi">30</span><span class="n">s</span><span class="w"> </span><span class="n">server</span><span class="o">-</span><span class="n">side</span><span class="w"> </span><span class="p">(</span><span class="n">default</span><span class="w"> </span><span class="mi">30</span><span class="n">s</span><span class="p">);</span><span class="w"> </span><span class="n">settings</span><span class="w"> </span><span class="n">probe</span><span class="w"> </span><span class="n">uses</span><span class="w"> </span><span class="mi">5000</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="w">  </span><span class="err">```</span>
 
 <span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">返回</span><span class="o">**</span><span class="err">：`</span><span class="p">{</span><span class="w"> </span><span class="n">ok</span><span class="p">:</span><span class="w"> </span><span class="bp">true</span><span class="p">;</span><span class="w"> </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">text</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">;</span><span class="w"> </span><span class="n">provider</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="err">`</span>
-<span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">约束</span><span class="o">**</span><span class="err">：单次约</span><span class="w"> </span><span class="err">≤</span><span class="w"> </span><span class="mi">5000</span><span class="w"> </span><span class="err">字符（</span><span class="n">CNKI</span><span class="w"> </span><span class="err">≤</span><span class="mi">800</span><span class="err">）；默认超时约</span><span class="w"> </span><span class="mi">30</span><span class="n">s</span><span class="err">。无付费</span><span class="w"> </span><span class="n">API</span><span class="w"> </span><span class="n">Key</span><span class="err">；免费引擎为非官方网页接口。设置页打开默认服务下拉时，对全部免费引擎并行</span><span class="w"> </span><span class="n">probe</span><span class="err">（`</span><span class="n">timeoutMs</span><span class="o">=</span><span class="mi">5000</span><span class="err">`，不含</span><span class="w"> </span><span class="n">Agent</span><span class="err">）。</span>
+<span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">约束</span><span class="o">**</span><span class="err">：单次约</span><span class="w"> </span><span class="err">≤</span><span class="w"> </span><span class="mi">5000</span><span class="w"> </span><span class="err">字符（</span><span class="n">CNKI</span><span class="w"> </span><span class="err">≤</span><span class="mi">800</span><span class="err">）；默认超时约</span><span class="w"> </span><span class="mi">30</span><span class="n">s</span><span class="err">。免费引擎为非官方网页接口，会挂会限流；商用</span><span class="w"> </span><span class="n">BYOK</span><span class="w"> </span><span class="err">与内置</span><span class="w"> </span><span class="n">provider</span><span class="w"> </span><span class="err">需要各自的</span><span class="w"> </span><span class="n">key</span><span class="err">（前者用户填，后者构建期注入）。设置页打开默认服务下拉时，对全部免费引擎并行</span><span class="w"> </span><span class="n">probe</span><span class="err">（`</span><span class="n">timeoutMs</span><span class="o">=</span><span class="mi">5000</span><span class="err">`，不含</span><span class="w"> </span><span class="n">Agent</span><span class="err">，也不含内置</span><span class="w"> </span><span class="n">provider</span><span class="err">）。</span>
+<span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">结构化错误</span><span class="o">**</span><span class="err">：`</span><span class="n">translate</span><span class="o">.</span><span class="n">no_builtin_key</span><span class="err">`</span><span class="w"> </span><span class="err">——</span><span class="w"> </span><span class="n">provider</span><span class="w"> </span><span class="err">为</span><span class="w"> </span><span class="err">`</span><span class="n">agentero</span><span class="err">`</span><span class="w"> </span><span class="err">但本次构建没有编译进</span><span class="w"> </span><span class="n">key</span><span class="err">（`</span><span class="n">AppError</span><span class="p">::</span><span class="n">domain</span><span class="err">`，在任何</span><span class="w"> </span><span class="err">`</span><span class="o">.</span><span class="n">await</span><span class="err">`</span><span class="w"> </span><span class="err">之前返回）。前端按标记转</span><span class="w"> </span><span class="n">i18n</span><span class="w"> </span><span class="err">文案，不裸露标记串。</span>
+<span class="o">-</span><span class="w"> </span><span class="err">内置</span><span class="w"> </span><span class="n">provider</span><span class="w"> </span><span class="err">的模板、`</span><span class="p">[[</span><span class="n">n</span><span class="p">]]</span><span class="err">`</span><span class="w"> </span><span class="n">Host</span><span class="w"> </span><span class="err">侧拆分与语言映射见</span><span class="w"> </span><span class="p">[</span><span class="n">builtin</span><span class="o">-</span><span class="n">provider</span><span class="o">.</span><span class="n">md</span><span class="p">](</span><span class="n">builtin</span><span class="o">-</span><span class="n">provider</span><span class="o">.</span><span class="n">md</span><span class="p">)</span><span class="w"> </span><span class="err">§翻译：</span><span class="n">Hunyuan</span><span class="o">-</span><span class="n">MT</span><span class="err">。</span>
 
 <span class="c1">### 3.5b Zotero Connector 兼容服务</span>
 
@@ -7396,7 +7460,7 @@ Host (Tauri + Rust)
 
 <span class="c1">#### `paper_parse_body`</span>
 
-<span class="err">把</span><span class="w"> </span><span class="n">paper</span><span class="w"> </span><span class="err">文件夹下的本地</span><span class="w"> </span><span class="n">PDF</span><span class="w"> </span><span class="err">解析为</span><span class="w"> </span><span class="err">`</span><span class="n">PAPER</span><span class="o">.</span><span class="n">md</span><span class="err">`。引擎由</span><span class="w"> </span><span class="err">`</span><span class="n">settings</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">parserBackend</span><span class="err">`</span><span class="w"> </span><span class="err">决定（默认本地</span><span class="w"> </span><span class="n">liteparse</span><span class="w"> </span><span class="err">隔离子进程；可选</span><span class="w"> </span><span class="err">`</span><span class="n">mineru</span><span class="err">`</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">`</span><span class="n">paddle</span><span class="err">`</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">`</span><span class="n">openaiCompatible</span><span class="err">`</span><span class="w"> </span><span class="err">云端引擎，失败自动回退本地，见</span><span class="w"> </span><span class="p">[</span><span class="n">paper</span><span class="o">-</span><span class="n">import</span><span class="o">.</span><span class="n">md</span><span class="p">](</span><span class="n">paper</span><span class="o">-</span><span class="n">import</span><span class="o">.</span><span class="n">md</span><span class="p">)</span><span class="w"> </span><span class="err">§</span><span class="w"> </span><span class="err">正文解析引擎）。可作为独立后台任务调用；已有</span><span class="w"> </span><span class="err">`</span><span class="n">PAPER</span><span class="o">.</span><span class="n">md</span><span class="err">`</span><span class="w"> </span><span class="err">且无</span><span class="w"> </span><span class="err">`</span><span class="n">force</span><span class="err">`</span><span class="w"> </span><span class="err">时直接跳过。</span>
+<span class="err">把</span><span class="w"> </span><span class="n">paper</span><span class="w"> </span><span class="err">文件夹下的本地</span><span class="w"> </span><span class="n">PDF</span><span class="w"> </span><span class="err">解析为</span><span class="w"> </span><span class="err">`</span><span class="n">PAPER</span><span class="o">.</span><span class="n">md</span><span class="err">`。引擎由</span><span class="w"> </span><span class="err">`</span><span class="n">settings</span><span class="o">.</span><span class="n">layout</span><span class="o">.</span><span class="n">parserBackend</span><span class="err">`</span><span class="w"> </span><span class="err">决定（默认取构建是否注入内置</span><span class="w"> </span><span class="n">provider</span><span class="w"> </span><span class="n">key</span><span class="err">：注入则</span><span class="w"> </span><span class="err">`</span><span class="n">agentero</span><span class="err">`，否则本地</span><span class="w"> </span><span class="n">liteparse</span><span class="w"> </span><span class="err">隔离子进程；另可选</span><span class="w"> </span><span class="err">`</span><span class="n">mineru</span><span class="err">`</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">`</span><span class="n">paddle</span><span class="err">`</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">`</span><span class="n">openaiCompatible</span><span class="err">`</span><span class="w"> </span><span class="err">云端引擎，失败自动回退本地，见</span><span class="w"> </span><span class="p">[</span><span class="n">paper</span><span class="o">-</span><span class="n">import</span><span class="o">.</span><span class="n">md</span><span class="p">](</span><span class="n">paper</span><span class="o">-</span><span class="n">import</span><span class="o">.</span><span class="n">md</span><span class="p">)</span><span class="w"> </span><span class="err">§</span><span class="w"> </span><span class="err">正文解析引擎）。`</span><span class="n">agentero</span><span class="err">`</span><span class="w"> </span><span class="err">复用</span><span class="w"> </span><span class="err">`</span><span class="n">openaiCompatible</span><span class="err">`</span><span class="w"> </span><span class="err">的</span><span class="w"> </span><span class="n">VLM</span><span class="w"> </span><span class="err">引擎，只是凭证来自构建期网关，见</span><span class="w"> </span><span class="p">[</span><span class="n">builtin</span><span class="o">-</span><span class="n">provider</span><span class="o">.</span><span class="n">md</span><span class="p">](</span><span class="n">builtin</span><span class="o">-</span><span class="n">provider</span><span class="o">.</span><span class="n">md</span><span class="p">)</span><span class="err">。可作为独立后台任务调用；已有</span><span class="w"> </span><span class="err">`</span><span class="n">PAPER</span><span class="o">.</span><span class="n">md</span><span class="err">`</span><span class="w"> </span><span class="err">且无</span><span class="w"> </span><span class="err">`</span><span class="n">force</span><span class="err">`</span><span class="w"> </span><span class="err">时直接跳过。</span>
 
 <span class="o">-</span><span class="w"> </span><span class="o">**</span><span class="err">参数</span><span class="o">**</span><span class="err">（</span><span class="n">invoke</span><span class="w"> </span><span class="err">字段名</span><span class="w"> </span><span class="err">`</span><span class="n">args</span><span class="err">`）：</span>
 
@@ -8506,6 +8570,16 @@ Host (Tauri + Rust)
 </tbody>
 </table>
 <p>Windows：未设 <code>XDG_CONFIG_HOME</code> 时回退 <code>%APPDATA%/agentero/</code>。旧版 macOS 路径 <code>~/Library/Application Support/agentero/</code> 在首次启动时 <strong>best-effort 复制</strong> 到 XDG 路径。</p>
+<h4 id="builtin_provider_status"><code>builtin_provider_status</code>（已实现）<a class="headerlink" href="#builtin_provider_status" title="Permanent link">&para;</a></h4>
+<p>内置 provider（翻译 / embedding / 正文 OCR）的能力查询。凭证在<strong>构建期</strong>编入 Host，本命令只回非秘密字段，供前端决定是否显示 / 禁用内置选项。见 <a href="../builtin-provider/">builtin-provider.md</a>。</p>
+<ul>
+<li><strong>参数</strong>：无</li>
+<li><strong>返回</strong> <code>ApiResult&lt;BuiltinProviderStatus&gt;</code>：<code>{ available, baseUrl, translateModel, embeddingModel, ocrModel }</code></li>
+<li><strong><code>available</code></strong>：本次构建是否编译进了 <code>AGENTERO_BUILTIN_API_KEY</code>。<code>false</code> 时前端隐藏或禁用内置选项，默认回落到 <code>tencenttransmart</code> / <code>local</code>，embedding 穿透到已存值。</li>
+<li><strong>不含任何 key 派生物</strong>：无前缀、无长度、无 <code>*</code> 掩码、无 hash。内置 key 也不写 <code>AppSettings</code>，因此既不出现在 <code>settings_get</code> 里也不出现在 <code>settings.json</code> 里。</li>
+<li><strong>同步命令</strong>：纯读编译期常量，无 IO；AGENTS.md 对同步命令的警告只针对在其中 build <code>WebviewWindow</code>。</li>
+<li>前端只消费 <code>available</code>；<code>baseUrl</code> 与三个 model id 供 Host 内部解析凭证，不显示到 UI。</li>
+</ul>
 <h3 id="3101-pp-doclayoutv3">3.10.1 版面模型（PP-DocLayoutV3）<a class="headerlink" href="#3101-pp-doclayoutv3" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>路径</strong>：<code>$XDG_CACHE_HOME/agentero/models/pp-doclayoutv3.onnx</code></li>
@@ -8530,8 +8604,8 @@ Host (Tauri + Rust)
 <p><code>settings.json</code> 新增 <code>layout</code> 段（camelCase，<code>settings_get</code> / <code>settings_set</code> 同构）：</p>
 <div class="codehilite"><pre><span></span><code>{
   "layout": {
-    "backend": "local", // "local"（默认，ONNX）| "paddle"（AI Studio 异步任务）| "mineru"（MinerU 云 API）
-    "parserBackend": "local", // PAPER.md 正文解析引擎："local"（默认）| "paddle" | "mineru" | "openaiCompatible"
+    "backend": "local", // "local"（默认，ONNX；**无条件**，不含内置 provider）| "paddle"（AI Studio 异步任务）| "mineru"（MinerU 云 API）
+    "parserBackend": "local", // PAPER.md 正文解析引擎："local" | "paddle" | "mineru" | "openaiCompatible" | "agentero"（内置）。默认取构建是否注入内置 provider key：注入则 "agentero"，否则 "local"
     "providerConfigs": {
       "paddle": { "apiKey": "***", "baseUrl": "", "model": "", "prompt": "", "language": "", "isOcr": false },
       "mineru": { "apiKey": "***", "baseUrl": "", "model": "", "prompt": "", "language": "ch", "isOcr": false }, // baseUrl 空 → 官方 https://mineru.net
@@ -8542,14 +8616,16 @@ Host (Tauri + Rust)
 </code></pre></div>
 
 <ul>
+<li><strong><code>agentero</code> 没有 <code>providerConfigs</code> 条目</strong>：它的 endpoint / key / model 由 <code>layout_api_key</code> / <code>layout_base_url</code> / <code>layout_model</code> 在 getter 层解析到构建期凭证；<code>normalize_layout_provider_configs</code> 的 <code>PROVIDERS</code> 白名单（<code>paddle</code> / <code>mineru</code> / <code>openaiCompatible</code>）会在每次保存时丢掉任何 <code>agentero</code> 卡片，所以编译进去的 key 不可能落盘。<code>prompt</code> / <code>language</code> / <code>isOcr</code> 对它不特判（分别是 model id 推导与 MinerU 专用）。</li>
+<li><strong><code>backend</code> 与 <code>parserBackend</code> 的白名单不对称</strong>：<code>LAYOUT_BACKENDS</code> 不含 <code>agentero</code>（把它写进 <code>backend</code> 会在下次保存时被重置为 <code>local</code>），<code>PARSER_BACKENDS</code> 含它。版面分析跑随包离线 ONNX，切云端只会让每个 PDF 都产生费用；理由见 <a href="../builtin-provider/">builtin-provider.md</a> §版面分析不走内置。</li>
 <li><code>apiKey</code> 与翻译 BYOK 同一套掩码机制：<code>settings_get</code> 返回 <code>*</code> 掩码，<code>settings_set</code> 收到掩码时保留已存密钥。Paddle key 在 AI Studio 访问令牌页获取；MinerU token 在 mineru.net API 管理页获取；OpenAI 兼容 key 在服务商控制台获取（如硅基流动，前端 <code>LAYOUT_PROVIDER_DOCS_URLS</code>）。</li>
 <li><code>baseUrl</code> 为可选端点覆盖：paddle 端点固定（不支持覆盖）；mineru 支持覆盖且强制 https（loopback <code>http://localhost</code> 等除外）；openaiCompatible 默认硅基流动。</li>
 <li><code>model</code> 供正文解析引擎使用：openaiCompatible 预设 <code>PaddlePaddle/PaddleOCR-VL-1.5</code> / <code>deepseek-ai/DeepSeek-OCR</code>（空 → 前者）；paddle 正文预设 <code>PaddleOCR-VL-1.6</code> / <code>PaddleOCR-VL-1.5</code>（空 → 前者；版面分析固定用 <code>PP-StructureV3</code>，不读该字段）。</li>
 <li><code>prompt</code> 仅 openaiCompatible 使用：OCR 提示词覆盖，空 → 按 model id 自动选择。注意 <code>PaddleOCR-VL</code> 只接受固定任务提示词，自定义提示词请配指令型 VLM（详见 <a href="../paper-import/">paper-import.md</a> § 正文解析引擎）。</li>
 <li><code>language</code> 仅 mineru 使用：OCR 语言包（API <code>language</code> 参数，顶层字段）。白名单校验（<code>ch</code> / <code>en</code> / <code>japan</code> / <code>korean</code> 等 16 个语言包，含仅 Host 侧保留的 <code>ch_server</code>），未知值回落 <code>ch</code>；UI 只提供「中英文」（<code>ch</code>，默认，涵盖简体/繁体/混排）与「纯英文」（<code>en</code>）。</li>
 <li><code>isOcr</code> 仅 mineru 使用：强制对所有页面执行 OCR（API <code>files[].is_ocr</code>）。默认 <code>false</code>，由 MinerU 按文本层自动判断；扫描件文本层缺失/乱码时开启。</li>
-<li><code>parserBackend</code> 与版面 <code>backend</code> 独立选择，但共用 <code>providerConfigs</code> 凭据池；正文引擎详见 <a href="../paper-import/">paper-import.md</a> § 正文解析引擎。</li>
-<li>设置 UI：Settings →「版面解析 / Layout」（版面后端由前端 <code>LAYOUT_PROVIDERS</code>、正文引擎由 <code>PARSER_PROVIDERS</code> 注册表驱动；所有远程 provider 平铺为配置卡，<code>mergeProviderCards</code> 按 provider 合并、按 <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>supportsModel</code> / <code>supportsPrompt</code> / <code>supportsLanguage</code> / <code>supportsOcr</code> 显隐 API Key / Base URL / Model / Prompt / 语言 / 强制 OCR 输入 + 连通性测试；Model / Base URL 空值时预填引擎默认值，语言预填 <code>ch</code>（中英文）。两个 backend 选择只提供本地 + 已配置（apiKey 非空）的 provider；可选项 ≤1 时保留 Select 外观但 disabled（不弹出下拉，避免换成纯文本导致布局抖动）。清空 API Key 输入框会立即落盘清除密钥（无需点确认）；若当前 <code>backend</code> / <code>parserBackend</code> 指向该 provider 则回退 <code>local</code>，下拉随之移除该项）。</li>
+<li><code>parserBackend</code> 与版面 <code>backend</code> 独立选择；<code>paddle</code> / <code>mineru</code> / <code>openaiCompatible</code> 共用 <code>providerConfigs</code> 凭据池，内置 <code>agentero</code> 的凭据来自构建期注入、不进凭据池。正文引擎详见 <a href="../paper-import/">paper-import.md</a> § 正文解析引擎。</li>
+<li>设置 UI：Settings →「版面解析 / Layout」（版面后端由前端 <code>LAYOUT_PROVIDERS</code>、正文引擎由 <code>PARSER_PROVIDERS</code> 注册表驱动；所有远程 provider 平铺为配置卡，<code>mergeProviderCards</code> 按 provider 合并、按 <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>supportsModel</code> / <code>supportsPrompt</code> / <code>supportsLanguage</code> / <code>supportsOcr</code> 显隐 API Key / Base URL / Model / Prompt / 语言 / 强制 OCR 输入 + 连通性测试；Model / Base URL 空值时预填引擎默认值，语言预填 <code>ch</code>（中英文）。两个 backend 选择只提供本地 + 已配置（apiKey 非空）的 provider；<code>local</code> 与内置 <code>agentero</code> 豁免这条过滤（后者没有 apiKey，不豁免就会整个从 <code>parserBackend</code> 下拉里消失），内置的描述符 <code>requiresApiKey</code> / <code>supports*</code> 全 false，因此不渲染任何凭证输入或连通性测试；可选项 ≤1 时保留 Select 外观但 disabled（不弹出下拉，避免换成纯文本导致布局抖动）。清空 API Key 输入框会立即落盘清除密钥（无需点确认）；若当前 <code>backend</code> / <code>parserBackend</code> 指向该 provider 则回退 <code>local</code>，下拉随之移除该项）。</li>
 </ul>
 <h4 id="layout_remote_analyze_pdf"><code>layout_remote_analyze_pdf</code>（已实现）<a class="headerlink" href="#layout_remote_analyze_pdf" title="Permanent link">&para;</a></h4>
 <p>整份 PDF 的 <strong>异步</strong> 远程解析（无同步逐页接口），按 <code>provider</code> 分发到对应 engine：</p>
@@ -8685,9 +8761,9 @@ Host (Tauri + Rust)
 </table>
 <ul>
 <li><strong>陈旧短路</strong>：非 <code>force</code> 且 <code>computed_at</code> 为当天、分类集合一致时，直接返回存量，不发任何网络请求。所以 <code>vault:opened</code> 的预热调用通常是零成本的。</li>
-<li><strong>缓存</strong>：<code>embed_cache(text_hash, model, dim, vector)</code> 按 sha256(title+abstract)+model 存小端 f32 向量，语料只 embed 一次；<code>arxiv_rec_state</code> 单行存上次运行。均在 catalog schema v6。</li>
-<li><strong>凭据</strong>：读设置 <code>embedding</code>（Base URL / API Key / Model），<code>POST {baseUrl}/embeddings</code>。</li>
-<li><strong>结构化错误</strong>（前端转空态）：<code>recommend.no_embedding</code> 未配置端点、<code>recommend.empty_corpus</code> 库里没摘要、<code>recommend.no_candidates</code> 分类下无新论文。</li>
+<li><strong>缓存</strong>：<code>embed_cache(text_hash, model, dim, vector)</code> 按 sha256(title+abstract)+model 存小端 f32 向量，语料只 embed 一次；主键含 model，所以换 embedding 模型不会读到旧向量。<code>arxiv_rec_state</code> 单行存上次运行，<strong>不按 model 建键</strong>：切换 embedding 来源后的当天首次运行仍会复用存量结果，除非 <code>force</code>（既存行为）。均在 catalog schema v6。</li>
+<li><strong>凭据</strong>：读设置 <code>embedding</code>。<code>source</code>（<code>"builtin"</code> | <code>"custom"</code>）决定用哪一套：非 <code>custom</code> 且本次构建注入了内置 provider key 时用构建期网关三元组，否则用已存的 Base URL / API Key / Model。请求都是 <code>POST {baseUrl}/embeddings</code>（OpenAI 兼容）。见 <a href="../builtin-provider/">builtin-provider.md</a> §Embedding。</li>
+<li><strong>结构化错误</strong>（前端转空态）：<code>recommend.no_embedding</code> 端点未配置（自定义来源缺字段，或构建无内置 key 且未填 BYOK）、<code>recommend.empty_corpus</code> 库里没摘要、<code>recommend.no_candidates</code> 分类下无新论文。</li>
 </ul>
 <p>前端入口：<code>src/lib/recommend/</code>。</p>
 <h3 id="311-ui-i18n">3.11 界面与本地化（UI / i18n）<a class="headerlink" href="#311-ui-i18n" title="Permanent link">&para;</a></h3>

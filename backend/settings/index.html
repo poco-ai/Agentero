@@ -1832,6 +1832,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        内置 provider 凭证解析
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#schema" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1978,6 +1989,34 @@
     
   
     遥测
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
   
 
     
@@ -3372,6 +3411,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        内置 provider 凭证解析
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#schema" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3434,6 +3484,17 @@
 <li>旧 localStorage 键一次性迁移。</li>
 <li>Agent 注册表等同目录管理。</li>
 </ul>
+<h2 id="provider">内置 provider 凭证解析<a class="headerlink" href="#provider" title="Permanent link">&para;</a></h2>
+<p>settings 不存内置 provider 的任何凭证；它只在<strong>读取时</strong>把 id <code>agentero</code> 解析到构建期注入的凭证（见 <a href="../builtin-provider/">builtin-provider.md</a>）。</p>
+<ul>
+<li><strong><code>embedding.source</code></strong>（<code>"builtin"</code> | <code>"custom"</code>）：普通 <code>#[serde(default)]</code>，空串即「未设置」，<strong>不是</strong>返回 <code>"builtin"</code> 的 default fn——否则一个填了 BYOK 端点但没有 <code>source</code> 键的旧 <code>settings.json</code>，与「用户显式选了内置」无法区分。<code>normalize()</code> 里的 <code>resolve_embedding_source()</code> 推断：显式值优先 → <code>baseUrl</code>/<code>apiKey</code>/<code>model</code> 任一非空（全 <code>*</code> 掩码也算非空）⇒ <code>custom</code> → 三项全空 ⇒ <code>builtin</code>。该规则必须与前端 <code>normalizeEmbeddingSettings</code> <strong>逐条一致</strong>（它在 Host load、legacy 迁移、每次保存、<code>settings_set</code> 回显、<code>settings:changed</code> 时都会跑）。已填过自定义端点的老用户不会被静默切走。</li>
+<li><strong><code>embedding_config()</code></strong>：source 非 <code>custom</code> 且 <code>builtin::available()</code> 时返回网关三元组；无编译期 key 时穿透到已存值，仍为空则 <code>None</code>，让 <code>recommend.no_embedding</code> 照常触发。</li>
+<li><strong><code>layout_api_key</code> / <code>layout_base_url</code> / <code>layout_model</code></strong> 在 <strong>getter 层</strong>特判内置 id，这样所有调用方（<code>body_engines/mod.rs</code>、<code>layout/hosted/commands.rs</code>）自动正确，不必各自加分支。<code>layout_prompt</code> / <code>layout_language</code> / <code>layout_is_ocr</code> <strong>不特判</strong> → <code>None</code> / <code>None</code> / <code>false</code>：提示词由 VLM 引擎按 model id 推导，后两项是 MinerU 专用。</li>
+<li><strong><code>layout_provider_settings_key("agentero")</code></strong> 返回 <code>"agentero"</code>，只为给 parser 凭证 <code>HashMap</code> 一个稳定的键；它不对应任何落盘卡片。</li>
+<li><strong><code>PARSER_BACKENDS</code> vs <code>LAYOUT_BACKENDS</code></strong>：前者含 <code>agentero</code>，后者<strong>不含</strong>。<code>normalize()</code> 在每次保存时都会跑并把未列入的 backend 重置为默认值、由 <code>persist</code> 写盘，所以白名单就是「选择能否留存」的开关。<code>default_layout_backend()</code> 无条件 <code>"local"</code>；<code>default_translate_provider()</code> 与 <code>default_parser_backend()</code> 在 <code>builtin::available()</code> 时返回 <code>agentero</code>。</li>
+<li><strong>新装默认值由 Rust 决定</strong>：没有 <code>settings.json</code> 时 <code>read_file</code> 返回 <code>AppSettings::default()</code>，走的是上面的 <code>default_*()</code>。前端 TS 的 defaults 只在浏览器 dev（不可能有 key）里生效，因此刻意保持在非内置值上，两边不需要一致。</li>
+<li><strong>key 收敛</strong>：<code>normalize_layout_provider_configs</code> 的 <code>PROVIDERS</code> 白名单是 <code>["paddle", "mineru", "openaiCompatible"]</code> + <code>retain</code>，任何 <code>agentero</code> 卡片都会在保存时被丢弃，所以编译进去的 key 不可能被写进 <code>settings.json</code>（有测试断言）。</li>
+</ul>
 <h2 id="schema">耦合契约（schema 无关配置层）<a class="headerlink" href="#schema" title="Permanent link">&para;</a></h2>
 <p>settings 只提供读/写/持久化/广播能力，<strong>不 import 任何域 feature</strong>（出边仅 <code>core/*</code>）：</p>
 <ul>
@@ -3446,6 +3507,7 @@
 <li>tunnel：与 MCP 同域，但凭据从 settings store 原值读取（不通过 redacted 快照传递），启动/停止由 <code>mcp_tunnel_start</code> / <code>mcp_tunnel_stop</code> 命令驱动</li>
 <li>jobs：<code>apply_layout_backend</code> + <code>apply_import_concurrency</code> + <code>drain_and_spawn</code>（layout / 导入并发上限）</li>
 <li>反序列化期需要的域默认值（如 <code>DEFAULT_CONNECTOR_PORT</code>）定义在 settings，由属主域 re-export（方向 <code>connector → settings</code>，不成环）。</li>
+<li><strong>一处反向例外</strong>：<code>BUILTIN_PROVIDER_ID</code> 由 settings <code>pub use agentero_core::features::translate::BUILTIN_PROVIDER_ID</code>，方向是 <code>settings → translate</code>（与上一条相反），目的是让 Host 不再手打这个字面量。它是纯常量、没有函数调用，因此不成环。另外 settings 会调 <code>crate::features::system::builtin</code>（<code>available()</code> / <code>api_key()</code> / <code>status()</code>）——那是 <code>system</code> 域内的兄弟模块，不是跨域出边。</li>
 </ul>
 <p>前端：<a href="../../frontend/settings/">../frontend/settings.md</a><br />
 代码：<code>src-tauri/src/features/system/settings/</code></p>

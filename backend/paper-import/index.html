@@ -2120,6 +2120,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../sync/" class="md-nav__link">
         
   
@@ -3753,7 +3781,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </tr>
 <tr>
 <td>无 TeX 有 PDF</td>
-<td>下载后由选定的正文解析引擎生成 <code>PAPER.md</code>（默认本地 liteparse 隔离子进程，单次解析限时 120 秒）</td>
+<td>下载后由选定的正文解析引擎生成 <code>PAPER.md</code>（默认按构建是否注入内置 provider key 决定：注入则 <code>agentero</code>，否则本地 liteparse 隔离子进程，单次解析限时 120 秒）</td>
 </tr>
 <tr>
 <td>解析失败或超时</td>
@@ -3767,7 +3795,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </table>
 <p><code>PAPER.md</code> 是派生文件，可删可重建；<code>source/</code> 与 PDF 才是归档事实来源。</p>
 <h3 id="_4">正文解析引擎（可插拔）<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
-<p><code>settings.layout.parserBackend</code> 选择 PAPER.md 的生成引擎（Settings →「版面解析」），凭据与版面分析共用 <code>layout.providerConfigs</code>：</p>
+<p><code>settings.layout.parserBackend</code> 选择 PAPER.md 的生成引擎（Settings →「版面解析」）。除内置 provider 外，凭据与版面分析共用 <code>layout.providerConfigs</code>；<code>agentero</code> 的凭据在构建期编入 Host，不落设置（见 <a href="../builtin-provider/">builtin-provider.md</a>）：</p>
 <table>
 <thead>
 <tr>
@@ -3779,7 +3807,7 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 </thead>
 <tbody>
 <tr>
-<td><code>local</code>（默认）</td>
+<td><code>local</code>（无编译期 key 时的默认）</td>
 <td>liteparse worker 子进程 + PDFium</td>
 <td><code>pdf</code> / <code>ocr</code></td>
 <td><code>medium</code> / <code>low</code></td>
@@ -3802,9 +3830,17 @@ GitHub tree、<code>github:</code>、<code>skills.sh</code> 和 <code>npx skills
 <td><code>vlm</code></td>
 <td><code>medium</code></td>
 </tr>
+<tr>
+<td><code>agentero</code>（注入 key 的构建里的默认）</td>
+<td><strong>复用同一个 <code>OpenAiVlmBodyEngine</code>，没有新引擎</strong>：流程与 <code>openaiCompatible</code> 完全一致，只是 endpoint / key / model 来自构建期的内置网关（model 兜底 <code>PaddlePaddle/PaddleOCR-VL-1.5</code>，提示词按 model id 自动选）。引擎携带自己注册时的 id，所以回退提示读作 <code>agentero failed: …</code></td>
+<td><code>vlm</code></td>
+<td><code>medium</code></td>
+</tr>
 </tbody>
 </table>
 <ul>
+<li><strong><code>agentero</code> 只是 parser backend，不是版面分析 backend</strong>：<code>LAYOUT_BACKENDS</code> 仍是 <code>local</code> / <code>paddle</code> / <code>mineru</code>，<code>default_layout_backend()</code> 无条件 <code>local</code>——版面分析跑随包的离线 PP-DocLayoutV3 ONNX，切云端只会让每个 PDF 都产生费用而无收益。<code>layout_prompt</code> / <code>layout_language</code> / <code>layout_is_ocr</code> 对它不特判，因此提示词由 model id 推导，而<strong>语言与强制 OCR 是 MinerU 专用</strong>；前端内置描述符的 <code>requiresApiKey</code> / <code>supports*</code> 全 false，整张凭证卡被 <code>isProviderCardConfigurable</code> 过滤掉，什么都不渲染。</li>
+<li><strong>两处白名单</strong>：<code>PARSER_BACKENDS</code> 必须含 <code>agentero</code>，否则 <code>normalize()</code> 在每次保存时把它重置为默认值并写盘；引擎注册表也必须显式注册，因为未注册的 backend 会<strong>静默回退</strong>到 <code>LocalBodyEngine</code> 而不报错。两者都有测试守着。</li>
 <li><strong>回退</strong>：云端引擎失败或产出空 markdown 时自动回退本地 liteparse，原因追加进 <code>messages</code>；用户取消不回退。<code>body_source</code> 始终记录实际来源。</li>
 <li><strong>凭据注入</strong>：引擎配置以进程级快照持有（启动与 <code>settings_set</code> 时从 <code>AppSettingsStore</code> 刷新，模式同 <code>core::http::configure_proxy</code>），明文 key 不出 Host。</li>
 <li><strong>提示词</strong>：默认按 model id 自动选择（含 <code>deepseek-ocr</code> → grounding 提示词；含 <code>paddleocr</code> → <code>OCR:</code>；其余 → 通用指令）。设置里的 Prompt 输入框可覆盖，留空即走自动。</li>

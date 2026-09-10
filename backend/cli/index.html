@@ -1940,6 +1940,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../sync/" class="md-nav__link">
         
   
@@ -3794,7 +3822,10 @@ agentero<span class="w"> </span>translate<span class="w"> </span><span class="s2
 句子重试，而不是写一条没有位置的垃圾 mark。论文无本地 PDF 时返回 <code>paper_pdf_missing</code>。</p>
 <p>定位跑在与 <code>PAPER.md</code> 解析同一套隔离 worker 子进程里（<code>--agentero-internal-pdf-locate-worker</code>，
 30s 硬超时），PDFium 卡死不会拖住 CLI。翻译只用免费引擎（<code>translate_text</code> 的 FREE_PROVIDERS，
-zh 目标走并行竞速）；商业 BYOK Key 只在桌面 settings 里，CLI 拿不到也不去读。</p>
+zh 目标走并行竞速）；商业 BYOK Key 只在桌面 settings 里，CLI 拿不到也不去读。
+内置 provider <code>agentero</code> <strong>刻意不在</strong> FREE_PROVIDERS 里，所以 <code>--provider agentero</code> 会被拒：
+<code>--provider</code> 就是拿这个清单门控的，随后又以 <code>api_key: None</code> 调用，加进去等于让 CLI 接受一个
+它无法认证的 provider。内置凭证只编在桌面 Host 二进制里（见 <a href="../builtin-provider/">builtin-provider.md</a>）。</p>
 <p>阅读器侧：打开论文时导入 <code>annotations.json</code>，并监听该文件的<strong>外部</strong>变更增量导入，
 所以论文开着时跑 CLI 也能在 1~2 秒内看到黄底（见 <a href="../../frontend/pdf/">frontend/pdf.md</a>）。</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># CLI 只依赖 agentero-core（tauri 无关），headless 构建不走 tauri-build。</span>

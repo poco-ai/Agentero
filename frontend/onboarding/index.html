@@ -2042,6 +2042,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../backend/builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../backend/sync/" class="md-nav__link">
         
   
@@ -3551,6 +3579,9 @@
 </tbody>
 </table>
 <p>流程状态机用 <strong>@stepperize/react</strong>（<code>defineStepper</code> + <code>useStepper</code>），定义见 <code>src/components/onboarding/flow.ts</code>；纯线性、无分支跳转。</p>
+<blockquote>
+<p><strong>与内置 provider 的未对齐</strong>：<code>translate</code> 与 <code>layout</code> 两步早于内置 provider，只提供「填自己的 Key」与「用免费引擎 / 本地模型」的二选一，没有「Agentero 内置」这一档。<code>translate-step.tsx</code> 的「用系统默认」按内置可用性解析 provider（与 Host 的 <code>default_translate_provider()</code> 一致），所以一路点过引导不会丢掉内置默认；缺的只是把内置作为显式选项呈现。引导步的改造登记在 <a href="../../backend/builtin-provider/"><code>../backend/builtin-provider.md</code></a> §限制与后续。</p>
+</blockquote>
 <h2 id="_3">结构<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>src/components/onboarding/flow.ts</code> — <code>defineStepper</code> 步骤定义。</li>

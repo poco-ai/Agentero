@@ -2209,6 +2209,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../backend/builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../backend/sync/" class="md-nav__link">
         
   
@@ -3825,7 +3853,10 @@
 
 
 <h1 id="agent">接入 Agent<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h1>
-<p>Agentero 使用 <strong>BYOA</strong>（Bring Your Own Agent）：Agent 由你安装和登录，Agentero 负责把当前 Vault 的上下文交给它，并展示结果。应用<strong>不</strong>捆绑模型，也<strong>不</strong>要求你在 Agentero 内填写模型 API Key。</p>
+<p>Agentero 使用 <strong>BYOA</strong>（Bring Your Own Agent）：Agent 由你安装和登录，Agentero 负责把当前 Vault 的上下文交给它，并展示结果。Agentero <strong>不</strong>捆绑 Agent，也<strong>不</strong>要求你在应用内填写 Agent 的模型 API Key——Key 由该 Agent CLI 自己持有。</p>
+<blockquote>
+<p>与 ACP Agent 无关的另一条通道：官方安装包在构建时打进了内置模型凭证，覆盖翻译、arXiv 每日推荐 embedding 与 PDF 正文 OCR，在设置里选中即可用、无需填 Key。见 <a href="../#agent">用户指南 §Agent</a>。</p>
+</blockquote>
 <h2 id="_1">支持方式<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p>通过 <a href="https://agentclientprotocol.com/">Agent Client Protocol</a>（ACP）接入。常见选项：</p>
 <ul>

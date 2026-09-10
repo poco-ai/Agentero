@@ -1837,6 +1837,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    翻译
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1853,6 +1871,36 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#providerhunyuan-mt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        内置 provider（Hunyuan-MT）
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1930,6 +1978,34 @@
     
   
     遥测
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
   
 
     
@@ -3317,6 +3393,25 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#providerhunyuan-mt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        内置 provider（Hunyuan-MT）
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -3346,7 +3441,11 @@
 <tbody>
 <tr>
 <td><code>translate_text</code></td>
-<td>免费 MT + 商用 BYOK 路径（非文献 Translator）</td>
+<td>免费 MT + 商用 BYOK + 内置 provider 路径（非文献 Translator）</td>
+</tr>
+<tr>
+<td><code>builtin_provider_status</code></td>
+<td>内置 provider 的非秘密快照（<code>available</code> / <code>baseUrl</code> / 三个 model id）；见 <a href="../builtin-provider/">builtin-provider.md</a></td>
 </tr>
 </tbody>
 </table>
@@ -3367,23 +3466,72 @@
 <td>DeepL / Azure / Google Cloud / OpenAI-compatible；<code>apiKey</code> 可由调用方传入，或由 Host 从 <code>settings.translate.providerConfigs</code> 解析（前端仅持有同长度 <code>*</code> 掩码）</td>
 </tr>
 <tr>
+<td>内置 provider</td>
+<td>id <code>agentero</code>；凭证由<strong>构建期</strong>环境变量注入，用户在设置里选它即可，无需填 key / baseUrl / model。走 Hunyuan-MT，见下方</td>
+</tr>
+<tr>
 <td>OpenAI-compatible prompt</td>
 <td><code>openai_translate_prompt</code>：学术译者 system prompt + 规则块（按意思重组语序、公式/符号/引用/<code>⟦n⟧</code> 占位符原样、术语一致、只输出译文、批量保留 <code>[[n]]</code>）；<code>temperature</code> 0.2。与前端 <code>buildTranslatePrompt</code> 保持同步</td>
 </tr>
 <tr>
 <td>密钥存储</td>
-<td>明文写在用户本机 <code>settings.json</code>（Unix <code>0600</code>）；<code>settings_get</code> / 广播按字符 redact 为 <code>*</code>；<code>settings_set</code> 对纯 <code>*</code> 串 merge 保留原值</td>
+<td>BYOK：明文写在用户本机 <code>settings.json</code>（Unix <code>0600</code>）；<code>settings_get</code> / 广播按字符 redact 为 <code>*</code>；<code>settings_set</code> 对纯 <code>*</code> 串 merge 保留原值。内置 provider 的 key <strong>不落 <code>settings.json</code></strong>，编译期编入二进制、只在 Host 进程内使用（见 <a href="../builtin-provider/">builtin-provider.md</a> §密钥边界）</td>
 </tr>
 <tr>
 <td>导入摘要 <code>free_mt_to_zh</code></td>
-<td><strong>并行竞速</strong> 腾讯 / 火山 / DeepLX，取最先成功；单引擎 5s（<code>FREE_MT_ZH_TIMEOUT_MS</code>）；全失败则不写翻译</td>
+<td><strong>并行竞速</strong> 腾讯 / 火山 / DeepLX，取最先成功；单引擎 5s（<code>FREE_MT_ZH_TIMEOUT_MS</code>）；全失败则不写翻译。<strong>内置 provider 不参与这条竞速</strong>：<code>ZH_RACE_PROVIDERS</code> 只含免费引擎，导入摘要仍走非官方免费接口</td>
 </tr>
 <tr>
 <td>设置页探测</td>
-<td>前端 5s / 引擎</td>
+<td>前端 5s / 引擎；内置 provider 不参与探测，可用性直接来自 <code>builtin_provider_status</code></td>
 </tr>
 </tbody>
 </table>
+<h2 id="providerhunyuan-mt">内置 provider（Hunyuan-MT）<a class="headerlink" href="#providerhunyuan-mt" title="Permanent link">&para;</a></h2>
+<p><code>tencent/Hunyuan-MT-7B</code> 是专用 MT 模型，不是 instruct 模型，因此这条路径<strong>不复用</strong>上面的长规则 prompt，也<strong>不给模型看 <code>[[n]]</code> 批量标记</strong>（对齐协议依赖指令遵循）：</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>模板</td>
+<td><code>Translate the following segment into &lt;target_language&gt;, without additional explanation.&lt;source_text&gt;</code>（逐字；指令与原文之间无空格无换行）</td>
+</tr>
+<tr>
+<td>消息</td>
+<td>单条 user message，<strong>无 system message</strong>；<code>sourceLang</code> 不参与（模板没有它的位置，模型自动检测）</td>
+</tr>
+<tr>
+<td><code>[[n]]</code></td>
+<td>Host 侧按行首标记拆分（从 1 递增；行中或乱序即停止扫描）→ 每段一个请求 → <code>buffered(3)</code> 保序并发 → 按 <code>"{marker} {text}"</code> + <code>"\n\n"</code> 重组，与前端 <code>buildNumberedPayload</code> 字节一致。空段丢弃，段数变少时前端回退逐段翻译</td>
+</tr>
+<tr>
+<td><code>⟦n⟧</code></td>
+<td><code>mask.ts</code> 插入的行内占位符原样透传，不剥离（<strong>未经真实 key 验证</strong>）</td>
+</tr>
+<tr>
+<td>目标语言</td>
+<td>只映射可达值：<code>zh-CN</code> → Chinese，<code>en</code> → English，防御性 <code>ui</code> → English，未知/<code>auto</code>/空 → English。上限由 <code>TR_TARGETS</code> 决定，模型侧的 37 语言见 <a href="../builtin-provider/">builtin-provider.md</a> §支持语言</td>
+</tr>
+<tr>
+<td>无 key</td>
+<td><code>commands.rs</code> 在任何 <code>.await</code> 前返回 <code>AppError::domain(ERR_NO_BUILTIN_KEY)</code>（<code>translate.no_builtin_key</code>），不放一个无法认证的请求出去</td>
+</tr>
+<tr>
+<td>列表归属</td>
+<td><code>"agentero"</code> 既不在 Rust <code>FREE_PROVIDERS</code>（CLI 用它门控 <code>--provider</code> 且以 <code>api_key: None</code> 调用）也不在 <code>COMMERCIAL_PROVIDERS</code>（驱动 WebView 凭证卡片）。<strong>但前端 <code>FreeTranslateProviderId</code> / <code>FREE_MT_PROVIDER_IDS</code> 含它</strong>——借此复用无 key 管线且不渲染凭证卡片；两份清单刻意相反，改一份要想到另一份</td>
+</tr>
+<tr>
+<td>探测</td>
+<td><code>probeFreeMtProviders</code> 显式过滤掉 <code>agentero</code>（探测它会真发一次翻译请求）；可用性只来自 <code>builtin_provider_status</code></td>
+</tr>
+</tbody>
+</table>
+<p>实现：<code>crates/agentero-core/src/features/translate/sources/hunyuan_mt.rs</code>；凭证解析 <code>src-tauri/src/features/translate/commands.rs</code> + <code>src-tauri/src/features/system/builtin/</code>。限制与未决项见 <a href="../builtin-provider/">builtin-provider.md</a> §限制与后续。</p>
 <p>Agent 翻译走 <code>agent_run_once</code>，不经本 command。<br />
 前端服务层：<a href="../../frontend/translate/">../frontend/translate.md</a><br />
 代码：<code>src-tauri/src/features/translate/</code></p>

@@ -1935,6 +1935,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../backend/builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../backend/sync/" class="md-nav__link">
         
   
@@ -2544,6 +2572,17 @@
     <span class="md-ellipsis">
       
         应用内更新签名
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#provider-agentero_builtin_" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        内置 Provider 构建期注入（AGENTERO_BUILTIN_*）
       
     </span>
   </a>
@@ -3805,6 +3844,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#provider-agentero_builtin_" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        内置 Provider 构建期注入（AGENTERO_BUILTIN_*）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#macos" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4191,7 +4241,7 @@
 <li>执行 <code>/bump &lt;version&gt;</code>，同步检查 <code>package.json</code>、<code>src-tauri/tauri.conf.json</code>、<code>src-tauri/Cargo.toml</code>、<code>crates/agentero-core/Cargo.toml</code>、<code>cli/Cargo.toml</code>、<code>src-tauri/ios-project.yml</code> 和 <code>Cargo.lock</code>。</li>
 <li>执行 <code>/commit</code>，将版本 bump 作为独立的 <code>chore(release): bump version to &lt;version&gt;</code> commit。</li>
 <li>确认 tag <code>v&lt;version&gt;</code> 指向该版本 bump commit，且 tag 去掉 <code>v</code> 后与所有版本字段一致。</li>
-<li>推送 tag，等待 <code>.github/workflows/release.yml</code> 构建 Tauri installers 和 CLI artifacts。</li>
+<li>推送 tag，等待 <code>.github/workflows/release.yml</code> 构建 Tauri installers 和 CLI artifacts。构建前确认 repository secret 已配齐：updater 签名（见下）与内置 provider 的 <code>AGENTERO_BUILTIN_API_KEY</code>（见 §内置 Provider 构建期注入）。</li>
 <li>在 Draft Release 中确认桌面安装包、应用内版本、CLI <code>--version</code> 和 CLI 文件名没有混用不同版本；确认 <code>latest.json</code> 与 updater <code>.sig</code> 资产齐全后才发布 Release。</li>
 </ol>
 <p><code>/bump</code> 和 <code>/commit</code> 默认只修改工作区或创建本地 commit，不会自动创建 tag、push 或发布 Release。</p>
@@ -4270,6 +4320,52 @@
 <div class="codehilite"><pre><span></span><code>pnpm<span class="w"> </span>tauri<span class="w"> </span>signer<span class="w"> </span>generate<span class="w"> </span>--password<span class="w"> </span><span class="s1">'&lt;strong password&gt;'</span><span class="w"> </span>--write-keys<span class="w"> </span>/secure/path/agentero-updater.key
 </code></pre></div>
 
+<h3 id="provider-agentero_builtin_">内置 Provider 构建期注入（<code>AGENTERO_BUILTIN_*</code>）<a class="headerlink" href="#provider-agentero_builtin_" title="Permanent link">&para;</a></h3>
+<p>翻译、arXiv 推荐 embedding 与 PDF 正文 OCR 的内置 provider（id <code>agentero</code>）凭证在<strong>编译期</strong>编入 Host，不来自运行时配置。完整语义见 <a href="../../backend/builtin-provider/"><code>../backend/builtin-provider.md</code></a>。</p>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>兜底</th>
+<th>发布构建</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AGENTERO_BUILTIN_API_KEY</code></td>
+<td>无</td>
+<td><strong>必须注入</strong>；缺失则内置 provider 报告不可用，UI 隐藏/禁用，默认回落免费翻译引擎与本地正文解析</td>
+</tr>
+<tr>
+<td><code>AGENTERO_BUILTIN_BASE_URL</code></td>
+<td><code>https://api.qiyuanchen.top/v1</code></td>
+<td>可选</td>
+</tr>
+<tr>
+<td><code>AGENTERO_BUILTIN_TRANSLATE_MODEL</code></td>
+<td><code>tencent/Hunyuan-MT-7B</code></td>
+<td>可选</td>
+</tr>
+<tr>
+<td><code>AGENTERO_BUILTIN_EMBEDDING_MODEL</code></td>
+<td><code>BAAI/bge-m3</code></td>
+<td>可选</td>
+</tr>
+<tr>
+<td><code>AGENTERO_BUILTIN_OCR_MODEL</code></td>
+<td><code>PaddlePaddle/PaddleOCR-VL-1.5</code></td>
+<td>可选</td>
+</tr>
+</tbody>
+</table>
+<p>约定与坑：</p>
+<ul>
+<li><strong>key 绝不入库</strong>：发布构建的 key 只以 GitHub Actions repository secret 形式存在，注入方式与 <code>POSTHOG_KEY</code> 同一套（见 <a href="../../backend/telemetry/"><code>../backend/telemetry.md</code></a> §开关语义）。不写进仓库、<code>tauri.conf.json</code>、workflow 文件或任何 Release 资产说明。仓库根 <code>.env</code> 已 gitignore，只作为本地验证的便利（见下条），同样不得提交或复制到任何被追踪的文件里。</li>
+<li><strong>注入位置</strong>：<code>release.yml</code> 的 <code>Build Tauri installers</code> 步骤（<code>tauri-apps/tauri-action@v1</code>）的 <code>env:</code> 块，紧邻已有的 <code>AGENTERO_POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}</code> 一行。secret 缺失时为空串，<code>option_env!</code> 把空串当未设置，构建不会失败——所以<strong>漏配 secret 不会报错，只会静默产出一个没有内置 provider 的安装包</strong>，验收时必须显式检查（见 <a href="../release-checklist/"><code>release-checklist.md</code></a> §0.2）。</li>
+<li><strong><code>.env</code> 与自动重编均已支持</strong>：<code>src-tauri/build.rs</code> 的 <code>forward_build_env()</code> 为全部 <code>AGENTERO_BUILTIN_*</code> 发 <code>cargo:rerun-if-env-changed</code>，并在环境变量缺失时回退读仓库根 <code>.env</code>（gitignored）。本地验证内置路径既可 <code>AGENTERO_BUILTIN_API_KEY=&lt;your-key&gt; pnpm tauri dev</code>，也可写进 <code>.env</code>；显式环境变量优先。改值会触发重编，不会拿到上一次构建烤进去的旧值。</li>
+<li><strong>编译期语义的运维后果</strong>：轮换<strong>客户端侧</strong> key 或改 model id 都需要发新版；网关侧轮换<strong>上游</strong> key 不需要发版。</li>
+<li><strong>不要把它写成「安全」</strong>：内嵌在已发布二进制里的 key 对拿到安装包的人仍然可提取（<code>strings</code>，或用户在自己机器上抓自己的流量）。网关（model 白名单、per-IP 限流、花费上限）限制的是损失面，不能阻止提取。对外文案与 Release notes 不应声称用户拿不到 key。</li>
+</ul>
 <h3 id="macos">macOS 签名与公证（店外分发）<a class="headerlink" href="#macos" title="Permanent link">&para;</a></h3>
 <p>GitHub Release 上的 macOS 安装包应使用 <strong>Developer ID Application</strong> 签名，并由 <strong>notarytool</strong> 公证 + staple，避免用户下载后出现「已损坏 / 无法打开」。</p>
 <ul>

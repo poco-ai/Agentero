@@ -2192,6 +2192,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../backend/builtin-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内置模型服务
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../backend/sync/" class="md-nav__link">
         
   
@@ -3939,7 +3967,7 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </table>
 <p>实现：<code>src-tauri/src/features/paper/analyze/layout/model_assets/</code>、<code>src/lib/pdf/layout/model.ts</code>、<code>ai-runtime.ts</code>。</p>
 <h3 id="onnx-provider">后端选择（本地 ONNX / 远程 Provider）<a class="headerlink" href="#onnx-provider" title="Permanent link">&para;</a></h3>
-<p>设置 →「版面解析」可选择检测后端（<code>settings.layout.backend</code>），选项由前端注册表 <code>LAYOUT_PROVIDERS</code>（<code>src/lib/pdf/layout/providers.ts</code>）驱动；下拉只列出本地 + 已配置（apiKey 非空）的 provider，可选项 ≤1 时保留 Select 外观但 disabled、不弹出菜单（正文解析引擎 <code>parserBackend</code> 同理，避免换成纯文本导致布局抖动）。配置卡里清空 API Key 会立即清除已存密钥（无需点确认）；若当前后端指向该 provider 则回退本地：</p>
+<p>设置 →「版面解析」可选择检测后端（<code>settings.layout.backend</code>），选项由前端注册表 <code>LAYOUT_PROVIDERS</code>（<code>src/lib/pdf/layout/providers.ts</code>）驱动；下拉只列出本地 + 已配置（apiKey 非空）的 provider，可选项 ≤1 时保留 Select 外观但 disabled、不弹出菜单（正文解析引擎 <code>parserBackend</code> 同理，避免换成纯文本导致布局抖动）。<strong>内置 provider（<code>agentero</code>）没有 apiKey，因此必须和 <code>local</code> 一样豁免这条过滤</strong>，否则它会整个从 <code>parserBackend</code> 下拉里消失、用户根本选不到：它改由 Host 可用性（<code>useBuiltinProviderAvailable</code>）门控，不可用时<strong>若已被选中仍留在列表里但渲染为 disabled</strong>，而不是凭空消失。凭证卡片一侧由 <code>isProviderCardConfigurable</code> 过滤掉没有任何可编辑字段的卡片，所以内置 parser 不会渲染出空卡或只有一个 Confirm 的卡。配置卡里清空 API Key 会立即清除已存密钥（无需点确认）；若当前后端指向该 provider 则回退本地：</p>
 <table>
 <thead>
 <tr>
@@ -3966,7 +3994,8 @@ PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar
 </tr>
 </tbody>
 </table>
-<p>每个 provider 描述符带 <code>kind</code> / <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>sidecarMode</code>（MinerU 另有 <code>supportsLanguage</code> / <code>supportsOcr</code>）：设置面板与 Onboarding 据此显隐 API Key / Base URL / 语言 / 强制 OCR 输入（保存 / 掩码 / 连通性测试逻辑共用 <code>provider-config.ts</code>）；<code>run-analysis.ts</code> 用 <code>layoutProviderFor(backend)</code> + <code>isRemoteLayoutProvider</code> 判定走远程分支（<code>startRemoteLayoutAnalysis</code>，按 <code>provider.id</code> 分发到 Host engine 注册表）。</p>
+<p><strong><code>agentero</code> 刻意不在这张表里</strong>：内置 provider 只是<strong>正文解析</strong>（<code>parserBackend</code>）后端，不是版面分析后端。版面分析继续跑上表的 <code>local</code>（随包 PP-DocLayoutV3 ONNX，首次使用下载到 XDG cache，经 <code>agentero-model://</code> 喂给 webview）——已经免费且离线，切到云端网关只会让每个 PDF 都产生费用而无收益。Host 侧 <code>LAYOUT_BACKENDS</code> 白名单不含它，<code>default_layout_backend()</code> 无条件返回 <code>local</code>；把它写进 <code>backend</code> 会在下次保存时被重置。理由与实现见 <a href="../../backend/builtin-provider/">../backend/builtin-provider.md</a> §版面分析不走内置。</p>
+<p>每个 provider 描述符带 <code>kind</code> / <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>sidecarMode</code>（MinerU 另有 <code>supportsLanguage</code> / <code>supportsOcr</code>）：设置面板与 Onboarding 据此显隐 API Key / Base URL / 语言 / 强制 OCR 输入（保存 / 掩码 / 连通性测试逻辑共用 <code>provider-config.ts</code>）；<code>run-analysis.ts</code> 用 <code>layoutProviderFor(backend)</code> + <code>isRemoteLayoutProvider</code> 判定走远程分支（<code>startRemoteLayoutAnalysis</code>，按 <code>provider.id</code> 分发到 Host engine 注册表）。内置 provider 的描述符只在 <code>PARSER_PROVIDERS</code> 里（<code>LAYOUT_PROVIDERS</code> 不含它），且 <code>requiresApiKey</code> / <code>supportsBaseUrl</code> / <code>supportsModel</code> / <code>supportsPrompt</code> / <code>supportsLanguage</code> / <code>supportsOcr</code> <strong>全为 false</strong>——VLM 引擎只读 model 与 prompt，而这两项都由构建期凭证给出，所以面板不为它渲染任何凭证输入或连通性测试。</p>
 <p>远程 provider 共用流程（<code>src/lib/pdf/layout/paddle.ts</code> IPC 封装 + <code>run-analysis.ts</code>）：</p>
 <ol>
 <li>读取本地 PDF，整份 base64 交给 Host 命令 <code>layout_remote_analyze_pdf</code>（<code>provider</code> 参数分发到 <code>src-tauri/src/features/paper/analyze/layout/hosted/</code> 的 <code>RemoteLayoutEngine</code> 实现：<code>paddle.rs</code> / <code>mineru.rs</code>）；token 由 Host 从设置注入，WebView 只持有 <code>*</code> 掩码；</li>
