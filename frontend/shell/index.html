@@ -3559,17 +3559,17 @@
 <h1 id="_1">工作台壳<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
 <h2 id="_2">布局<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>左栏</strong>：文件树 + Paper Info（显示最近选中的论文；切换到非论文文档时保持不消失；无卡片容器、常驻 collapsible，点标题行即可折叠，高度 200ms 过渡；上边缘可拖拽调整高度，<code>preserve-pixel-size</code>；内容区可滚动但不显示滚动条；文件树多选时复用固定高度标题栏显示批量操作，不压缩或遮挡树；arXiv 论文在资源按钮下显示 arXiv PDF、魔搭论文解读与 alphaXiv 外链，不再显示摘要按钮；窄宽度下资源按钮退化为仅图标；元信息修改入口位于 Info 底部）。Cool Papers / Kimi 解析入口在论文 <code>NOTES.md</code> 的 Markdown 工具栏，不在 Paper Info。</li>
-<li><strong>中间</strong>：无 Vault 欢迎页；有 Vault 时为全局 Dockview（见 <a href="../workspace/">workspace.md</a>）。</li>
-<li><strong>右栏</strong>（可选）：Agent / 批注。</li>
+<li><strong>左栏</strong>：文件树 + Paper Info（显示最近选中的论文；切换到非论文文档时保持不消失；无卡片容器、常驻 collapsible，点标题行即可折叠，高度 200ms 过渡；上边缘可拖拽调整高度，<code>preserve-pixel-size</code>；内容区可滚动但不显示滚动条；文件树多选时复用固定高度标题栏显示批量操作，不压缩或遮挡树；arXiv 论文在资源按钮下显示 arXiv PDF、魔搭论文解读与 alphaXiv 外链，不再显示摘要按钮；窄宽度下资源按钮退化为仅图标；元信息修改入口位于 Info 底部）。Cool Papers / Kimi 解析入口在论文 <code>NOTES.md</code> 的 Markdown 工具栏，不在 Paper Info。左右栏共用 <code>bg-sidebar</code> 材质，与中间内容区分层。</li>
+<li><strong>中间</strong>：无 Vault 欢迎页；有 Vault 时为全局 Dockview（见 <a href="../workspace/">workspace.md</a>）。Dock 页签条略软于实色 muted，活动页签用 <code>background</code> 抬起；页签按下有轻 opacity 反馈。</li>
+<li><strong>右栏</strong>（可选）：Agent / 批注（<code>bg-sidebar</code>，与左栏同色）。</li>
 <li>参考文献与版面解析已移入 PDF 阅读器左侧浮层面板（见 <a href="../pdf/">pdf.md</a>），不再占用右栏。</li>
 <li><strong>移至新窗口</strong>：标题栏右栏功能图标 <strong>右键</strong> →「移动至新窗口」→ 单例 <code>feature-{view}</code> Webview；主窗右栏收起。工具视图默认 <strong>跟随主窗当前激活文档</strong>（<code>workspace:active-changed</code>）。</li>
 <li>左右栏折叠：<code>⌥⌘S</code> / <code>⌘L</code>（不重叠）。折叠/展开带 200ms <code>flex-grow</code> 过渡（<code>data-rail-animating</code>，见 <code>index.css</code>）；过渡中拖动分隔条立即接管（可打断）；<code>prefers-reduced-motion</code> 下直接切换。</li>
-<li>标题栏右侧：更新指示器、窗口布局菜单、Agent 切换；有新版本可更新时显示更新指示器按钮（见 <a href="../settings/">settings.md</a> 「应用更新」）。布局菜单提供 <strong>Agent</strong>（PDF / Agent <code>1:1</code>）、<strong>笔记</strong>（PDF / Notes / Agent <code>1:1:1</code>）和 <strong>阅读</strong>（仅 PDF）三种预设。预设只调整 panel 宽度并开关当前论文的 Notes / Agent，不关闭其它 PDF tab。</li>
+<li><strong>标题栏</strong>：<code>bg-background/80</code> + <code>backdrop-blur-sm</code>（<code>supports-backdrop-blur</code> 回退更实色；<code>prefers-reduced-transparency</code> 下实色无 blur）。右侧：更新指示器、窗口布局菜单、Agent 切换；有新版本可更新时显示更新指示器按钮（见 <a href="../settings/">settings.md</a> 「应用更新」）。布局菜单提供 <strong>Agent</strong>（PDF / Agent <code>1:1</code>）、<strong>笔记</strong>（PDF / Notes / Agent <code>1:1:1</code>）和 <strong>阅读</strong>（仅 PDF）三种预设。预设只调整 panel 宽度并开关当前论文的 Notes / Agent，不关闭其它 PDF tab。</li>
 </ul>
 <p>实现：<code>src/components/shell/</code>、<code>src/lib/shell/ui-store.ts</code>、<code>src/lib/shell/leaf.ts</code>、<code>src/lib/shell/feature-window.ts</code>、<code>hooks/use-shell-layout.ts</code>。</p>
 <h2 id="_3">字号<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<p>壳层（顶栏、左右栏、PaneHeader、Dock 页签、底栏任务条）与库表 / Agent chrome 共用 Appearance 字号阶梯：<code>body</code> 默认 <code>text-sm</code>（13），次要 <code>text-xs</code>（12），密集元数据 <code>text-caption</code>（11）。Dock 页签字号变量为 <code>0.8125rem</code>（与 Body 同档）。细则见 <a href="../settings/">settings.md</a>。</p>
+<p>壳层（顶栏、左右栏、PaneHeader、Dock 页签、底栏任务条）与库表 / Agent chrome 共用 Appearance 字号阶梯：<code>body</code> 默认 <code>text-sm</code>（13 / 行高约 1.385），次要 <code>text-xs</code>（12），密集元数据 <code>text-caption</code>（11，略开字距）。Dock 页签字号为 <code>0.8125rem</code>（与 Body 同档）；PaneHeader / Dock 页签栏高度均为 <code>2.25rem</code>（<code>h-9</code>）。细则见 <a href="../settings/">settings.md</a>。</p>
 <h2 id="_4">欢迎页与多窗口<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>无 Vault：最近路径 MRU、打开 / 创建 / 从 Zotero 迁移。</li>
@@ -3589,9 +3589,9 @@
 <h2 id="_5">后台任务条<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <ul>
 <li>左下角：下载、入库、导入导出、paper-reader、版面解析等。</li>
-<li><strong>折叠 = 进度圆环</strong>；<strong>悬停约 400ms 或点击圆环 → 详情列表</strong>；<strong>指针离开即收回圆环</strong>（不常驻详情 Toast）。</li>
-<li>圆环使用不透明 <code>bg-background</code> 圆盘 + <code>ring-1 ring-border</code>（不用 border，避免内容区缩小导致圆环与底盘错位）+ 轨道（<code>muted-foreground/30</code>）与进度弧（<code>primary</code> / 失败 destructive / 完成 emerald）；中心图标用 <code>foreground</code>。避免浅色模式下底层内容透出或轨道过浅。</li>
-<li><strong>完成态</strong>：全部任务结束后圆环合并为满环（100%），成功时播放短暂合并/勾选动画（<code>task-ring-success-*</code>）；失败为满环 + destructive。进行中无数值进度时短弧旋转（indeterminate），不把完成态画成未闭合短弧。</li>
+<li><strong>折叠 = 进度圆环</strong>；<strong>悬停约 400ms 或点击圆环 → 详情列表</strong>；<strong>指针离开约 100ms 后收回圆环</strong>（不常驻详情 Toast）。展开/收起沿左下角 <code>origin-bottom-left</code> 做 opacity + scale（200ms，无 bounce）；<code>prefers-reduced-motion</code> 下仅短淡入淡出。</li>
+<li>圆环使用不透明 <code>bg-background</code> 圆盘 + <code>ring-1 ring-border</code>（不用 border，避免内容区缩小导致圆环与底盘错位）+ 轨道（<code>muted-foreground/30</code>）与进度弧（<code>primary</code> / 失败 destructive / 完成 emerald）；中心图标用 <code>foreground</code>。按下 <code>active:scale-[0.96]</code>。避免浅色模式下底层内容透出或轨道过浅。</li>
+<li><strong>完成态</strong>：全部任务结束后圆环合并为满环（100%），成功时播放短暂合并/勾选动画（<code>task-ring-success-*</code>）；失败为满环 + destructive。进行中无数值进度时短弧旋转（indeterminate），不把完成态画成未闭合短弧；<code>prefers-reduced-motion</code> 下不轮换圆环中心 progress/icon。</li>
 <li>新任务 / 打开页面不自动展开。任务失败时短暂展开详情，未悬停约 5s 后收回；进行中可取消，可清除已完成。</li>
 <li>论文资源下载的总体进度由 <strong>Host 侧聚合</strong>：PDF 与 TeX 并发下载，两条流的字节合并成一个 <code>downloadedBytes</code> / <code>totalBytes</code> 后经 <code>job:progress</code>（<code>phase</code> = <code>assets</code>）写回同一行，前端 <code>mapDownloadProgress</code> 只做 clamp。这样先下完的一条流不会把进度条钉在 100%，纯 PDF（无 TeX 流）的入库也能走满 0–100%。</li>
 <li>版面解析 / 引用解析 / 正文解析 / 资源下载 / 元数据识别 / 论文导入（魔棒、本地 PDF、Skill、广场、Cool Papers）/ Connector 附件保存 / 库级批量操作（引用扫描、书目导入导出、批量元数据刷新）/ 版面模型下载由 JobCenter 投影到任务条（前端门面 <code>src/lib/core/tasks.ts</code>，投影/执行器桥接在其内部模块 <code>job-center.ts</code>）。取消走 <code>job_cancel</code>；迟到的 <code>running</code> 事件不得把已取消/已完成的行复活。</li>
@@ -3720,6 +3720,8 @@
 <p>完整快捷键绑定：<code>src/lib/shell/shortcuts.ts</code>。文案 i18n 见 <a href="../settings/">settings.md</a>。</p>
 <h2 id="_8">设计约定<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
 <ul>
+<li><strong>Motion tokens</strong>（<code>index.css</code> / <code>src/lib/core/motion.ts</code> 的 <code>MOTION_MS</code>）：<code>micro</code> 100ms（按压/hover）、<code>fast</code> 150ms（浮层进出）、<code>normal</code> 200ms（栏折叠 / 任务 HUD）。壳层默认无 bounce；可打断的手势再考虑弹簧。</li>
+<li><strong>按压反馈</strong>：<code>Button</code> 为 <code>active:scale-[0.97]</code>；文件树行 / Dock 页签 / 任务圆环共享同档微反馈（色阶或轻 scale/opacity）。Layout 菜单触发器保留 ghost hover fill。</li>
 <li>工具栏优先图标 + <code>aria-label</code> + Tooltip；避免常驻解释文案。</li>
 <li>操作型 Chrome（按钮、导航、标题栏、工具栏、Dock 标签、可点击卡片、Agent 空状态）默认禁用浏览器文字选择；正文、可复制 metadata、编辑器、PDF 译文层（<code>.select-text</code>）和输入控件必须保持可选。不要在应用根节点统一设置 <code>user-select: none</code>，避免误伤第三方内容层和移动端长按选择。</li>
 <li><strong>⌘A / Ctrl+A</strong>：仅在输入框、<code>contenteditable</code>、<code>[role=textbox]</code> 或带 <code>.select-text</code> / <code>.select-all</code> 的区域内走浏览器原生全选；点在页面空白或 chrome 上时由 <code>useNativeSelectAllGuard</code>（主窗经 <code>useAppShortcuts</code>，文档/功能弹窗各自挂载）吞掉，避免整页扫到侧栏/标签/空状态文案。⇧⌘A 仍是「固定选区并聚焦 Agent」。判定见 <code>src/lib/shell/native-select-all.ts</code>。</li>

@@ -3599,11 +3599,14 @@
 <li>36 个 tweakcn 预设：<code>src/themes/tweakcn.json</code>；<code>src/lib/ui/theme.ts</code> 注入 CSS 变量。</li>
 <li>刷新主题数据：<code>node scripts/fetch-tweakcn-themes.mjs</code>。</li>
 <li><code>uiScale</code>：80%–150% 五档，改 <code>html</code> font-size（基数仍为 <strong>16×scale</strong>，与编辑器字号/行距正交；不把根字号改成 13，以免 rem 间距在 Windows 125% 等缩放下整体被压扁）。</li>
-<li>字号阶梯（对齐 macOS HIG Body/Callout/Title 3，见 <code>src/index.css</code> <code>@theme</code>；<code>body</code> 默认 <code>text-sm</code>，PaneHeader / 侧栏 / 底栏 / 顶栏 / Dock / 库表 / Agent chrome 共用）：</li>
-<li><code>text-sm</code> → <strong>13px</strong>（Body，主 chrome）</li>
-<li><code>text-xs</code> → <strong>12px</strong>（Callout，次要控件、快捷键、辅助说明）</li>
-<li><code>text-base</code> → <strong>15px</strong>（Title 3，设置/对话框标题）</li>
-<li><code>text-caption</code> → <strong>11px</strong>（Subhead/Caption，chip、密集元数据；禁止再写 9/10px）</li>
+<li>字号阶梯（Apple UI 光学字阶，见 <code>src/index.css</code> <code>@theme</code>；<code>body</code> 默认 <code>text-sm</code>，PaneHeader / 侧栏 / 底栏 / 顶栏 / Dock / 库表 / Agent chrome 共用）。每档是 <strong>字号 + 行高 + 字距</strong> 一组，不是只改 size：</li>
+<li><code>text-caption</code> → <strong>11px</strong>（Caption；行高 1.35，字距 +0.012em；chip / 密集元数据；禁止再写 9/10px）</li>
+<li><code>text-xs</code> → <strong>12px</strong>（Callout；行高 1.35，字距 +0.006em；次要控件、快捷键）</li>
+<li><code>text-sm</code> → <strong>13px</strong>（Body；行高 ≈1.385，字距 0；主 chrome）</li>
+<li><code>text-base</code> → <strong>15px</strong>（Title 3；行高 1.25，字距 −0.012em；设置/对话框标题）</li>
+<li><code>text-lg</code> → <strong>17px</strong>（Title 2；行高 1.2，字距 −0.018em；欢迎页等大标题）</li>
+<li>字重：正文 <code>font-normal</code>（400）；强调用 <code>font-medium</code>（510）/ <code>font-semibold</code>（590）；chrome 少用 <code>font-bold</code>。可变字体（SF Pro / Geist）吃得到中间档，Segoe 等会落到最近可用字重。</li>
+<li>圆角基值 <code>--radius</code>：<strong>0.5rem（8px）</strong>；PaneHeader / Dock 页签栏高度：<strong>2.25rem（h-9）</strong>。</li>
 <li>字体（Appearance → Fonts，对齐 Obsidian 三分法）：</li>
 <li><code>interfaceFontFamily</code>：界面 chrome（<code>--font-sans</code> / <code>--font-heading</code>）。</li>
 <li><code>textFontFamily</code>：Markdown/笔记正文（仅编辑器根节点）。</li>
