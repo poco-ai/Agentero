@@ -994,7 +994,7 @@
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        视图
+        外观
       
     </span>
   </a>
@@ -1003,6 +1003,17 @@
       
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        视图
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         表格能力
@@ -1024,7 +1035,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         编辑元数据
@@ -1046,7 +1057,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3430,7 +3441,7 @@
   <a href="#_1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        视图
+        外观
       
     </span>
   </a>
@@ -3439,6 +3450,17 @@
       
         <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        视图
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         表格能力
@@ -3460,7 +3482,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         编辑元数据
@@ -3482,7 +3504,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3514,7 +3536,12 @@
 
 <h1 id="library">论文库 Library<a class="headerlink" href="#library" title="Permanent link">&para;</a></h1>
 <p>中间栏 catalog 表格；数据一次 <code>paper_list</code> 进内存。</p>
-<h2 id="_1">视图<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<h2 id="_1">外观<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<ul>
+<li>画布用 <code>bg-background</code>（与侧栏 <code>bg-sidebar</code> 分层）；表头 sticky 半透明 + <code>backdrop-blur</code>（滚动边缘用 soft shadow，非硬分割线）；行间 hairline <code>border-border/40</code>，悬停 <code>accent</code> 浅洗。</li>
+<li>配色跟默认主题 token，见 <a href="../settings/">settings.md</a>「主题」。</li>
+</ul>
+<h2 id="_2">视图<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
 <li>虚拟路径 <code>agentero:library</code>（不写盘）。</li>
 <li><strong>全库</strong>：点 Library 节点或关光文档后默认页。</li>
@@ -3523,7 +3550,7 @@
 <li>外部 CLI / 同步工具改动 <code>.agentero/catalog.sqlite</code> 或 <code>papers/</code> 结构时，前端会后台去抖重新 <code>paper_list</code>，同步 Library 表格与文件树论文标题。</li>
 <li>NOTES 仅选中<strong>具体论文</strong>时出现；Paper Info 保留最近选中的论文，切换到非论文文档时仍显示。</li>
 </ul>
-<h2 id="_2">表格能力<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h2 id="_3">表格能力<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -3587,7 +3614,7 @@
 <li>标签类型与语义（normalize / coerce / 可见性）：<code>src/lib/paper/tags.ts</code>（类型在 <code>src/lib/paper/types.ts</code>）；色板映射：<code>src/lib/ui/tag-colors.ts</code>。</li>
 <li>CLI 标签见 <a href="../../backend/catalog/">../backend/catalog.md</a>。</li>
 </ul>
-<h2 id="_3">编辑元数据<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h2 id="_4">编辑元数据<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <p>误识别/缺失的论文元数据可手动修正，三个入口共享同一对话框（<code>edit-paper-meta-dialog.tsx</code>，挂在 <code>app-dialogs.tsx</code>，经 <code>libraryStore.editMetaDraft</code> 打开）：</p>
 <ul>
 <li>Paper Info 面板头部铅笔按钮；</li>
@@ -3602,7 +3629,7 @@
 <li>识别成功自动填充 标题/作者/年份/DOI/arXiv ID，文件夹 id 按 arXiv ID → DOI slug → 文件名 slug 自动派生；</li>
 <li>识别失败静默回退文件名派生元数据，用户在 Edit Metadata 中修正（DOI 旁刷新按钮拉取权威元数据）。</li>
 </ul>
-<h2 id="_4">代码<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h2 id="_5">代码<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <ul>
 <li>UI：<code>src/components/library/</code>（拖入：<code>library-pdf-drop-surface.tsx</code>）</li>
 <li>状态：<code>src/lib/paper/library-store.ts</code>、<code>library-actions.ts</code>、<code>import-actions.ts</code>（<code>dropLocalPdfs</code>）</li>

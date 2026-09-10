@@ -3593,8 +3593,8 @@
 </tbody>
 </table>
 <h2 id="_2">划词菜单<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>选区后：高亮 / 批注 / 提问 / 加入对话 / 翻译。Settings → 翻译开启「划词自动翻译」后，选区文本提取完成即自动启动翻译并打开结果卡；关闭时保留手动翻译入口。</p>
-<p><strong>远程 PDF</strong>（<code>agentero:arxiv:*</code>，如 arXiv Daily 预览）：无本地 sidecar。划词菜单只保留 <strong>复制 / 提问 / 加入对话</strong>（Ask 内存 ephemeral，关 tab 即丢，不写 <code>marks/</code>）；高亮 / 批注 / 翻译隐藏。底栏显示 Remote mode 徽标（<code>SiArxiv</code>，与 Info 面板同色）。引用 hover 可从 PDF dest key 生成只读条目，导入按钮走整篇入库。</p>
+<p>选区后浮动工具栏：高亮 / 复制 / 提问 / 加入对话 / 翻译。<strong>批注</strong>不在工具栏里：选区出现时页右缘评论列会在对应高度出现一条竖向入口（与空评论卡同高、宽度更窄，内为评论图标），hover / 键盘聚焦后展开成空评论卡预览，点击后创建高亮并进入就地编辑。Settings → 翻译开启「划词自动翻译」后，选区文本提取完成即自动启动翻译并打开结果卡；关闭时保留手动翻译入口。</p>
+<p><strong>远程 PDF</strong>（<code>agentero:arxiv:*</code>，如 arXiv Daily 预览）：无本地 sidecar。划词菜单只保留 <strong>复制 / 提问 / 加入对话</strong>（Ask 内存 ephemeral，关 tab 即丢，不写 <code>marks/</code>）；高亮 / 批注入口 / 翻译隐藏。底栏显示 Remote mode 徽标（<code>SiArxiv</code>，与 Info 面板同色）。引用 hover 可从 PDF dest key 生成只读条目，导入按钮走整篇入库。</p>
 <table>
 <thead>
 <tr>
@@ -3612,7 +3612,7 @@
 <tr>
 <td>批注</td>
 <td>高亮 + <code>comment</code></td>
-<td>页右缘外侧常驻评论列（色点 + quote + 评论卡，相邻卡片纵向避让；点击卡片就地编辑，Notion 式：卡片内 textarea，Enter 换行，⌘/Ctrl+Enter 或失焦保存，Esc 取消；hover 出复制链接/嵌入/删除）；视口窄于 640px 时回退为页边针</td>
+<td>选区时页右缘竖向评论入口（hover 展开预览，点击创建）；已保存的批注在页右缘外侧常驻评论列（色点 + 评论卡，相邻卡片纵向避让；点击卡片就地编辑，Notion 式：卡片内 textarea，Enter 换行，⌘/Ctrl+Enter 或失焦保存，Esc 取消；hover 出复制链接/嵌入/删除）；视口窄于 640px 时回退为页边针</td>
 </tr>
 <tr>
 <td>提问</td>
@@ -3710,11 +3710,11 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/layers/</code></td>
-<td>页内绘制层：<code>page-layers</code>（memo 单页栈）/ <code>citation-links</code> / <code>layout-translate-overlay</code> / <code>region-select-layer</code> / <code>selection-gutter</code> / <code>comment-cards-layer</code>（批注评论列：页右缘常驻卡片 + <code>layoutCommentCards</code> 纵向避让；点击就地编辑；hover 卡片时页内高亮区域叠半透明强调层）</td>
+<td>页内绘制层：<code>page-layers</code>（memo 单页栈）/ <code>citation-links</code> / <code>layout-translate-overlay</code> / <code>region-select-layer</code> / <code>selection-gutter</code> / <code>comment-cards-layer</code>（批注评论列：页右缘常驻卡片 + <code>layoutCommentCards</code> 纵向避让；选区竖向评论入口 hover 展开；点击就地编辑；hover 卡片时页内高亮区域叠半透明强调层）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/chrome/</code></td>
-<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-left-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-references-panel</code> / <code>pdf-figures-panel</code> / <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）。顶部两条工具栏自动显隐（<code>use-pdf-chrome-visibility</code>）：滚动中或指针靠近顶部区域时显示，静读时淡出；面板打开 / ⌘F / 框选 / 缩放输入聚焦时保持可见；底部页码条按页数位数扩展输入宽度，并限制在视口内以适配窄面板</td>
+<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-left-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-references-panel</code> / <code>pdf-figures-panel</code> / <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）。共享材质见 <code>pdf-chrome-surface.ts</code>（小芯片轻玻璃、侧栏厚材质、划词菜单玻璃、长文卡片近实色；<code>data-pdf-chrome</code> 供 <code>prefers-reduced-transparency</code> 实色回退）。顶部两条工具栏自动显隐（<code>use-pdf-chrome-visibility</code>）：滚动中或指针靠近顶部区域时显示，静读时以 opacity + 轻微上移/缩放 materialize（<code>prefers-reduced-motion</code> 仅淡入淡出）；面板打开 / ⌘F / 框选 / 缩放输入聚焦时保持可见；左侧大纲/引用/图表面板自左滑入；⌘F 查找栏自右上角 zoom-in；底部页码条按页数位数扩展输入宽度，并限制在视口内以适配窄面板。阅读区底色 <code>bg-muted/40</code>，与纸面 tone 分层</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/cards/</code></td>
@@ -3798,7 +3798,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-chrome-visibility.ts</code></td>
-<td>顶部工具栏自动显隐：滚动事件 + 指针靠近顶部区域触发显示，空闲定时淡出</td>
+<td>顶部工具栏自动显隐：滚动事件 + 指针靠近顶部区域触发显示，空闲定时淡出；显隐动画由 chrome 组件的 <code>PDF_CHROME_VIS*</code> 类承担</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-paper-tone.ts</code></td>
@@ -3834,7 +3834,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-selection-actions.ts</code></td>
-<td>划词菜单六动作（高亮/批注/复制/提问/加入对话/翻译），只做装配，各动作入口注入</td>
+<td>划词动作装配（工具栏：高亮/复制/提问/加入对话/翻译；右缘入口：批注），各动作入口注入</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-mark-actions.ts</code></td>

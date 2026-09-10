@@ -3594,10 +3594,11 @@
 </ul>
 <h2 id="_5">主题<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>uiTheme</code> 默认 <code>default</code>（内置外观）。</li>
+<li><code>uiTheme</code> 默认 <code>default</code>（内置外观）：Apple 系统灰材质——冷灰低饱和中性色（oklch hue ≈260），侧栏略重于画布、卡片抬起；<code>--brand</code> / <code>--highlight</code> 保留彩色强调。覆盖见 <code>src/index.css</code> <code>:root</code> / <code>.dark</code>。</li>
 <li>外观设置中的配色主题以紧凑预览网格展示背景、卡片、主色和强调色；点击预览项即可应用主题。</li>
 <li>36 个 tweakcn 预设：<code>src/themes/tweakcn.json</code>；<code>src/lib/ui/theme.ts</code> 注入 CSS 变量。</li>
 <li>刷新主题数据：<code>node scripts/fetch-tweakcn-themes.mjs</code>。</li>
+<li>可访问性：<code>prefers-reduced-transparency</code> 下标题栏 / Library 表头退回实色；<code>prefers-contrast: more</code> 加深边框。</li>
 <li><code>uiScale</code>：80%–150% 五档，改 <code>html</code> font-size（基数仍为 <strong>16×scale</strong>，与编辑器字号/行距正交；不把根字号改成 13，以免 rem 间距在 Windows 125% 等缩放下整体被压扁）。</li>
 <li>字号阶梯（Apple UI 光学字阶，见 <code>src/index.css</code> <code>@theme</code>；<code>body</code> 默认 <code>text-sm</code>，PaneHeader / 侧栏 / 底栏 / 顶栏 / Dock / 库表 / Agent chrome 共用）。每档是 <strong>字号 + 行高 + 字距</strong> 一组，不是只改 size：</li>
 <li><code>text-caption</code> → <strong>11px</strong>（Caption；行高 1.35，字距 +0.012em；chip / 密集元数据；禁止再写 9/10px）</li>
