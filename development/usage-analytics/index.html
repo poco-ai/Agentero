@@ -4158,7 +4158,7 @@
 
 <h1 id="memory">使用记录、Memory 与产品分析<a class="headerlink" href="#memory" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>状态：<strong>P0 存储已落地</strong>（XDG <code>usage.sqlite</code> schema v2 + <code>track()</code> + CLI <code>usage</code>），漏斗与画像仍按本文推进。关联 <a href="https://github.com/poco-ai/Agentero/issues/239">#239</a>。实现契约见 <a href="../../backend/usage/"><code>../backend/usage.md</code></a>。
+<p>状态：<strong>P0 存储已落地</strong>（XDG <code>usage.sqlite</code> schema v2 + <code>track()</code>），漏斗与画像仍按本文推进。关联 <a href="https://github.com/poco-ai/Agentero/issues/239">#239</a>。实现契约见 <a href="../../backend/usage/"><code>../backend/usage.md</code></a>。
 相关：<a href="../../backend/catalog/"><code>../backend/catalog.md</code></a>、<a href="../../backend/agent/"><code>../backend/agent.md</code></a>、<a href="../../backend/telemetry/"><code>../backend/telemetry.md</code></a>、<a href="../../backend/translate/"><code>../backend/translate.md</code></a>、<a href="../../backend/skill-import/"><code>../backend/skill-import.md</code></a>、<a href="../../frontend/pdf/"><code>../frontend/pdf.md</code></a>、<a href="../../frontend/pdf-layout-analysis/"><code>../frontend/pdf-layout-analysis.md</code></a>、<a href="../plaza/"><code>plaza.md</code></a></p>
 </blockquote>
 <h2 id="1">1. 目标与非目标<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
@@ -4658,12 +4658,6 @@
 <td><code>format</code></td>
 </tr>
 <tr>
-<td><code>note.format</code></td>
-<td>编辑习惯</td>
-<td>右键「整理 Markdown」</td>
-<td>仅计数</td>
-</tr>
-<tr>
 <td><code>wiki.follow</code></td>
 <td>双链是否在被走</td>
 <td><code>navigateWiki</code></td>
@@ -4987,13 +4981,11 @@
 </tr>
 </tbody>
 </table>
-<p>细节走 CLI，不塞 prompt。已落地：</p>
-<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>usage<span class="w"> </span>which<span class="w"> </span>--json
-agentero<span class="w"> </span>usage<span class="w"> </span>summary<span class="w"> </span>--days<span class="w"> </span><span class="m">30</span><span class="w"> </span>--json
-agentero<span class="w"> </span>usage<span class="w"> </span>timeline<span class="w"> </span>--path<span class="w"> </span>papers/xxx<span class="w"> </span>--json
+<p>细节通过桌面端设置 / Host API 查询，不塞 prompt。已落地：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># CLI 不再暴露 usage 命令；查询通过桌面端或 Host API 进行</span>
 </code></pre></div>
 
-<p><code>usage top</code> / <code>usage tools</code> 仍是规划，画像未做前先用 <code>timeline</code> + <code>summary</code>。</p>
+<p><code>usage top</code> / <code>usage tools</code> 仍是规划，画像未做前先用 timeline + summary。</p>
 <h3 id="53-p3">5.3 声明式记忆（P3）<a class="headerlink" href="#53-p3" title="Permanent link">&para;</a></h3>
 <p>周回顾 skill <strong>提议</strong>短句 → 设置页确认 → <code>usage_memories</code>。不自动写入。可删。关本地开关则不注入。</p>
 <h2 id="6-agent">6. Agent 接入<a class="headerlink" href="#6-agent" title="Permanent link">&para;</a></h2>
@@ -5038,7 +5030,7 @@ agentero<span class="w"> </span>usage<span class="w"> </span>timeline<span class
 <tbody>
 <tr>
 <td><strong>P0</strong></td>
-<td>Registry + <code>track()</code> + usage.sqlite v2 + 双开关 + CLI <code>usage which\|timeline\|summary\|clear</code></td>
+<td>Registry + <code>track()</code> + usage.sqlite v2 + 双开关</td>
 <td><strong>已落地</strong>（漏斗见 <a href="../../backend/usage/">usage.md</a>「前端漏斗」；翻译 / 版面 / 批注尚未接线）</td>
 </tr>
 <tr>
@@ -5053,13 +5045,13 @@ agentero<span class="w"> </span>usage<span class="w"> </span>timeline<span class
 </tr>
 <tr>
 <td><strong>P2</strong></td>
-<td><code>build_prompt</code> 注入（CLI 查询面已有）</td>
+<td><code>build_prompt</code> 注入</td>
 <td>问答能提到工具习惯；关本地后注入消失</td>
 </tr>
 <tr>
 <td><strong>P3</strong></td>
 <td>usage-reviewer、周回顾、推荐、可选 memories</td>
-<td><code>Reviews/YYYY-WW.md</code></td>
+<td><code>Reviews/YYYY-WW.md</code>；CLI 不再提供 usage 查询入口</td>
 </tr>
 </tbody>
 </table>

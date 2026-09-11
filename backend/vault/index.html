@@ -3721,8 +3721,9 @@
 <h2 id="_6">文件监听<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Host <code>notify</code> → <code>vault:file-changed</code>。</li>
-<li>前端：打开 md 自动重载（有未存则提示）；结构变化局部刷树。</li>
-<li>代码：<code>features/vault/watcher/</code>、<code>src/lib/vault/fs-watch.ts</code>。</li>
+<li>Host 空闲时阻塞等待 FS 事件（无定期空转）；有变更时再做约 300ms trailing debounce。停止 watcher 时 drop 原生监听以唤醒阻塞线程。</li>
+<li>前端：打开 md 自动重载（有未存则提示）；结构变化局部刷树。窗口隐藏/失焦时缓冲 <code>vault:file-changed</code>，回到前台再按序 flush；树 / wiki / Library 的去抖在后台会拉长。</li>
+<li>代码：<code>features/vault/watcher/</code>、<code>src/lib/vault/fs-watch.ts</code>、<code>src/lib/vault/file-change-gate.ts</code>、<code>src/lib/vault/shell-activity.ts</code>。</li>
 </ul>
 <h2 id="capabilities">Capabilities（摘要）<a class="headerlink" href="#capabilities" title="Permanent link">&para;</a></h2>
 <p><code>src-tauri/capabilities/default.json</code>：<code>fs:*</code> 读写/dir、<code>dialog</code>、<code>opener</code>（含 reveal）、scope 覆盖 <code>$HOME/**</code> 等用户可选目录。</p>

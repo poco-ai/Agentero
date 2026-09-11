@@ -3756,7 +3756,7 @@
 </tr>
 </tbody>
 </table>
-<p>代码：存储层 <code>crates/agentero-core/src/usage/</code>（tauri 无关，桌面与 CLI 共用）；Tauri commands <code>src-tauri/src/core/usage/commands.rs</code>。前端入口 <code>src/lib/activity/track.ts</code>（<code>track()</code> 缓冲批量上报）。</p>
+<p>代码：存储层 <code>crates/agentero-core/src/usage/</code>（tauri 无关，桌面端使用）；Tauri commands <code>src-tauri/src/core/usage/commands.rs</code>。前端入口 <code>src/lib/activity/track.ts</code>（<code>track()</code> 缓冲批量上报）。CLI 不再暴露 usage 命令。</p>
 <h2 id="_2">开关<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>本地活动记录<strong>始终开启</strong>、无独立开关：<code>activity_record_events</code> 无条件写库。是否投影到 PostHog 由 <code>telemetryEnabled</code> 单独控制（见 <a href="../telemetry/">telemetry.md</a>）。</p>
 <p>设置页可一键清除全部记录。</p>
@@ -4087,15 +4087,7 @@ usage_memories   声明：用户确认过的短句（P3，先建表不写）
 </tbody>
 </table>
 <h2 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>usage<span class="w"> </span>which<span class="w"> </span>--json
-agentero<span class="w"> </span>usage<span class="w"> </span>timeline<span class="w"> </span>--days<span class="w"> </span><span class="m">30</span><span class="w"> </span>--json
-agentero<span class="w"> </span>usage<span class="w"> </span>summary<span class="w"> </span>--days<span class="w"> </span><span class="m">30</span><span class="w"> </span>--json
-agentero<span class="w"> </span>usage<span class="w"> </span>timeline<span class="w"> </span>--kind<span class="w"> </span>paper.open<span class="w"> </span>--path<span class="w"> </span>papers/xxx<span class="w"> </span>--json
-agentero<span class="w"> </span>usage<span class="w"> </span>clear<span class="w"> </span>-y<span class="w">          </span><span class="c1"># 当前 --vault</span>
-agentero<span class="w"> </span>usage<span class="w"> </span>clear<span class="w"> </span>--all<span class="w"> </span>-y<span class="w">    </span><span class="c1"># 本机全部</span>
-</code></pre></div>
-
-<p>未加 <code>--all-vaults</code> 时 timeline / summary 过滤当前 Vault。</p>
+<p>CLI 不再暴露 <code>usage</code> 命令；查询、统计与清除请通过桌面端设置或 Host API 进行。</p>
 <h2 id="_5">前端漏斗<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p><code>track(kind, payload)</code> 是唯一入口。5s / 满 50 条 / 窗口 blur 刷新。同一 <code>(kind, path, mode)</code> 1s 去重。</p>
 <p>已接线：<code>paper.open</code> / <code>note.open</code> / <code>paper.focus|blur|session</code>、<code>asset.download</code>、<code>paper.import</code>、<code>skill.install</code>、<code>search.query</code>、<code>agent.run</code>、<code>paper.tag</code>、<code>paper.read</code>、<code>vault.open</code>、<code>onboarding.complete</code>。<br />

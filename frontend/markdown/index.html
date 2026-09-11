@@ -1092,17 +1092,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        显式格式整理
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#propertiesfrontmatter" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1152,7 +1141,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3578,17 +3567,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        显式格式整理
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#propertiesfrontmatter" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3638,7 +3616,7 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         代码
@@ -3688,10 +3666,6 @@
 <td>Markdown ↔ 编辑器文档 序列化</td>
 </tr>
 <tr>
-<td><code>prettier/standalone</code> + <code>prettier/plugins/markdown</code></td>
-<td>用户显式触发的整篇 Markdown 格式整理；首次使用时按需加载</td>
-</tr>
-<tr>
 <td><code>@platejs/media</code> 等</td>
 <td>图片等节点</td>
 </tr>
@@ -3716,10 +3690,9 @@
 <li><strong>分隔线</strong>：<code>---</code> / <code>___</code> 渲染为紧凑分隔条；void 块放不进光标，默认 Enter 无效果，现光标停在分隔线上或块选分隔线时按 Enter 会在其下方插入新段落并落入光标。</li>
 <li><strong>外部链接</strong>：手写或粘贴标准 Markdown <code>[文字](https://…)</code> 会成为链接节点；普通单击打开编辑气泡（改显示文字与 URL），<code>⌘/Ctrl+单击</code>、中键或右键用系统浏览器打开；气泡内也有「打开」。<code>/</code> 菜单「外部链接」或右键「新增外部链接」直接插入链接节点（默认占位文字）并打开同一编辑气泡，而不是插入字面量 <code>[]()</code>。Vault 内相对 <code>.md</code> 链接与 <code>wiki:</code> 双链仍走站内导航。</li>
 <li><strong>Markdown 粘贴</strong>：普通文本粘贴默认按 Markdown 反序列化，粘贴后光标保持在插入内容之后。</li>
-<li><strong>整理 Markdown 格式</strong>：编辑器右键显式整理当前整篇文档；只读编辑器禁用。</li>
 <li><strong>块选与拖拽</strong>：编辑态悬停顶层块时左侧出现六点手柄（Notion 同款）。<strong>悬停或点击手柄</strong>打开操作列表（复制 / 剪切 / 创建副本 / 删除）；<strong>按住拖动手柄</strong>在块之间换位（拖拽中禁止划词）。左 gutter 拖出虚线框可框选相邻块；多选后每个选中块保持显示手柄，任一手柄对整组复制 / 剪切 / 移动。空段落（Markdown 空行、文末 TrailingBlock）不是内容块：不显示手柄、也不画选中底色，但仍可随相邻块一起被框选移动以保留间距。在文字上拖仍是划词。<code>⌘A</code> / <code>Ctrl+A</code> 第一次选中当前块，再按一次选中全部块。复制块写入 Markdown 纯文本。只读、导出面和 <code>![[…]]</code> 嵌入不显示手柄。内部 Plate 块 id 不写回磁盘。块拖拽用指针后端（非 HTML5）：macOS 上 wry 会吞掉 DOM <code>drop</code>，和文件树一样。长笔记下拖拽/框选的两个全局标志由单一订阅镜像成编辑器根节点上的 <code>data-dnd-dragging</code> / <code>data-dnd-selection-area</code>，块级样式走 CSS 后代选择器而非每块订阅；手柄的操作菜单 Popover 直到指针进入手柄才挂载。放置目标与 drop line 必须常驻——指针后端在拖拽途中不会触发「被拖过的那个块」去注册自己。</li>
 <li><strong>Slash 格式命令</strong>：在可编辑正文中输入 <code>/</code> 打开轻量命令列表；使用上下方向键选择、Enter 执行、Escape 关闭。Slash 与双链候选会在可视窗口边缘自动翻转并限制高度；滚动编辑器时关闭候选，避免脱离光标。</li>
-<li><strong>美元符号</strong>：<code>\$a\$</code> 是普通文本，<code>$a$</code> 是行内公式；行内公式两侧可直接接普通文字（如 <code>第一段$x_0$第三段</code>），编辑时继续输入不会吞掉公式；两者经编辑、粘贴、整理和保存后保持不同语义。</li>
+<li><strong>美元符号</strong>：<code>\$a\$</code> 是普通文本，<code>$a$</code> 是行内公式；行内公式两侧可直接接普通文字（如 <code>第一段$x_0$第三段</code>），编辑时继续输入不会吞掉公式；两者经编辑、粘贴和保存后保持不同语义。</li>
 <li><strong>公式错误恢复</strong>：未闭合的独立 <code>$$</code> 不会吞掉其后的 Markdown；围栏内的错误内容按普通文本保留，后续段落和标题继续正常解析。</li>
 <li><strong>Obsidian Callout</strong>：<code>&gt; [!important]</code> 等标准 marker 渲染为专用块，正文继续使用既有段落、列表、公式与双链节点。</li>
 <li><strong>内嵌 HTML</strong>：<code>&lt;div&gt;</code>、<code>&lt;center&gt;</code>、<code>&lt;p align="…"&gt;</code>、<code>&lt;iframe&gt;</code> 保留为 HTML 块并在编辑器内净化后真实渲染（居中、嵌入生效），单击块打开源码编辑气泡；保存逐字写回原文，不再被转义成 <code>\&lt;div&gt;</code>。裸 <code>&lt;p&gt;</code> 还原为普通段落，<code>&lt;br&gt;</code> 作为硬换行。其余标签（<code>&lt;u&gt;</code> <code>&lt;sub&gt;</code> <code>&lt;sup&gt;</code> <code>&lt;mark&gt;</code> <code>&lt;kbd&gt;</code>）沿用既有 mark 节点。详见下文「内嵌 HTML」。</li>
@@ -3727,7 +3700,7 @@
 <li><strong>内嵌图</strong>（见下表）。</li>
 <li><strong>双链 / 嵌入</strong>：见 <a href="../wiki/">wiki.md</a>。</li>
 <li><strong>导出 PDF / PNG</strong>（桌面端）：工具栏分享按钮或右键「导出为 PDF / 图片…」。离屏只读渲染当前序列化内容（含未保存改动）。页面背景贴边；正文内边距对齐编辑器 <code>default</code>（<code>px-16 pt-4</code>，底边 <code>pb-10</code>）。默认完整展开 <code>![[…]]</code> 嵌入，就绪后用 <code>html-to-image</code> 截视觉层。<strong>PDF</strong>（<code>pdf-lib</code>）在位图上叠 <strong>不可见可选中文字层</strong>（DOM 测量 + Host <code>export_system_cjk_font</code>）与 <strong>http(s)/mailto 链接注解</strong>，再按 A4 分页；<strong>PNG</strong> 仍为纯位图。可选论文页眉、每页水印（logo + <code>muted-foreground</code>）。完整 PDF 附件嵌入为路径占位。默认水印见设置 → 通用。</li>
-<li><strong>外部改盘</strong>：无未存改动则重载；有未存则 toast；内容相等抑制自写回声。</li>
+<li><strong>外部改盘</strong>：无未存改动则重载；有未存则 toast；内容相等抑制自写回声。主窗与文档弹出窗（「移动至新窗口」）各自监听本窗 Vault watcher，规则相同。</li>
 <li><strong>保存冲突</strong>：写盘前比对上次落盘内容；磁盘已被外部改则中止并警告。</li>
 </ul>
 <h2 id="_3">内嵌图片<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
@@ -3760,6 +3733,7 @@
 <h2 id="_4">数据流<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code>打开文件
   → Host 读文本
+  → 反序列化前把「段落间多余空行」改写成 Plate 空段落占位（零宽空格行），避免 CommonMark 合并
   → @platejs/markdown 反序列化
   → Plate 渲染
 
@@ -3769,23 +3743,10 @@
   → watcher → 自写回声只刷新嵌入投影，不重建索引；外部变更按需重建 wiki 索引
 
 外部/Agent 写盘（文件已打开）
-  → 未保存改动时先提示；接受后打开中的编辑器就地重载新内容
+  → 未保存改动时先提示；接受后打开中的编辑器就地重载新内容（同样走空行保留预处理）
   → 不重挂载编辑器（插件与 DOM 保留，滚动位置不丢），Agent 流式写入不再反复重建
 </code></pre></div>
 
-<h3 id="_5">显式格式整理<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
-<p>“整理 Markdown 格式”采用 <code>Plate AST → Markdown → Prettier → Plate AST</code>，处理整篇文档，不读取选区的可见文本，也不会在输入、粘贴、打开或自动保存时隐式运行。</p>
-<div class="codehilite"><pre><span></span><code>右键整理
-  → 序列化当前完整快照
-  → 异步加载 Prettier 并格式化
-  → 再次比对当前序列化结果
-  → 结果过期：提示重试，不替换编辑器内容
-  → 结果未变化：恢复焦点，不写 Undo history
-  → 结果有效：反序列化并以一个 history batch 替换全文
-  → 按文本上下文恢复选区与焦点
-</code></pre></div>
-
-<p>Frontmatter 当前保存在 Plate AST 之外，因此整理时继续字节级保留；这样格式整理产生的实际正文变化可以由一次 Undo 完整撤销。Prettier 固定使用 <code>proseWrap: "preserve"</code>、<code>embeddedLanguageFormatting: "off"</code> 与 <code>htmlWhitespaceSensitivity: "ignore"</code>，避免重排正文段落或 fenced code 内部语言。</p>
 <h3 id="propertiesfrontmatter">Properties（frontmatter）<a class="headerlink" href="#propertiesfrontmatter" title="Permanent link">&para;</a></h3>
 <p>编辑器工具栏提供 <strong>Properties</strong> 图标，点击后展开属性填写下拉表格：</p>
 <ul>
@@ -3811,7 +3772,7 @@
 <span class="ge">&gt; 正文可包含列表、$公式$ 与 [[双链]]。</span>
 </code></pre></div>
 
-<p>已知类型使用对应图标与 light/dark 主题；未知但合法的 type 使用通用样式，并按原始大小写写回 Markdown。没有显式标题时只显示本地化默认标题，不向源码补写标题。标题行通过 Markdown hard break 与正文相连时仍可识别；<code>\[!important]</code> 的开括号已经显式转义，因此保持普通引用文本。逐字符输入完整的 <code>&gt; [!important] 可选标题</code> 后按 Enter，会转换为 Callout 并将光标放入正文；转换不依赖粘贴或格式整理。Slash 菜单也可以插入默认 <code>note</code> Callout。正文普通段落中的 Enter 只在当前 Callout 内拆分段落，不复制整个 Callout；列表和嵌套块继续使用各自插件的 Enter 语义。光标位于正文时，第一次 <code>⌘A</code> / <code>Ctrl+A</code> 只选中当前 Callout 的全部正文，再按一次才扩展为整篇文档。编辑态点击标题可直接行内编辑，标题输入框保持透明且无边框，失焦或按 Enter 保存，按 Escape 取消；点击标题左侧图标会打开带主题色图标和本地化名称的标准类型列表。修改后的元数据通过既有自动保存写回 marker。首版不支持自定义 type 输入、<code>+</code> / <code>-</code> 折叠 marker、嵌套 Callout、工具栏插入或拖拽换类型，这些语法保持普通引用文本。</p>
+<p>已知类型使用对应图标与 light/dark 主题；未知但合法的 type 使用通用样式，并按原始大小写写回 Markdown。没有显式标题时只显示本地化默认标题，不向源码补写标题。标题行通过 Markdown hard break 与正文相连时仍可识别；<code>\[!important]</code> 的开括号已经显式转义，因此保持普通引用文本。逐字符输入完整的 <code>&gt; [!important] 可选标题</code> 后按 Enter，会转换为 Callout 并将光标放入正文；转换不依赖粘贴。Slash 菜单也可以插入默认 <code>note</code> Callout。正文普通段落中的 Enter 只在当前 Callout 内拆分段落，不复制整个 Callout；列表和嵌套块继续使用各自插件的 Enter 语义。光标位于正文时，第一次 <code>⌘A</code> / <code>Ctrl+A</code> 只选中当前 Callout 的全部正文，再按一次才扩展为整篇文档。编辑态点击标题可直接行内编辑，标题输入框保持透明且无边框，失焦或按 Enter 保存，按 Escape 取消；点击标题左侧图标会打开带主题色图标和本地化名称的标准类型列表。修改后的元数据通过既有自动保存写回 marker。首版不支持自定义 type 输入、<code>+</code> / <code>-</code> 折叠 marker、嵌套 Callout、工具栏插入或拖拽换类型，这些语法保持普通引用文本。</p>
 <h2 id="html">内嵌 HTML<a class="headerlink" href="#html" title="Permanent link">&para;</a></h2>
 <p>Markdown 已能表达的语法不做 HTML 语义化转换，只处理 Markdown 表达不了的能力。</p>
 <table>
@@ -3843,7 +3804,7 @@
 <p>单击 HTML 块打开源码编辑气泡；净化后为空（例如标签整体被剥离）时退化为等宽源码，保证内容仍可见可编辑。</p>
 <p>渲染前经 <code>DOMPurify</code> 净化：剥离 <code>script</code> / <code>style</code> / 表单与内联事件，<code>iframe</code> 强制 <code>sandbox</code> + <code>referrerpolicy="no-referrer"</code> 且仅允许 http(s) <code>src</code>，链接强制 <code>target="_blank" rel="noopener noreferrer"</code>。应用未启用 CSP，因此净化是唯一防线——Markdown 文件始终保存作者原文，只收窄进入 DOM 的部分。</p>
 <p><code>@platejs/markdown</code> 解析前会把 <code>class</code> / <code>for</code> 改写成 JSX 拼写；编辑器会在取回源码切片和 HTML 代码围栏时还原。void 元素会被补成自闭合（<code>&lt;img …&gt;</code> → <code>&lt;img … /&gt;</code>），这是一次性归一化，之后保持稳定。</p>
-<h2 id="_6">代码<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<h2 id="_5">代码<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -3935,14 +3896,6 @@
 <tr>
 <td><code>src/components/editor/plugins/markdown-kit.tsx</code></td>
 <td>Markdown 解析、序列化、粘贴与 Callout portable rules</td>
-</tr>
-<tr>
-<td><code>src/lib/markdown/format.ts</code></td>
-<td>按需加载的 Prettier Markdown 纯函数</td>
-</tr>
-<tr>
-<td><code>src/lib/markdown/editor-format.ts</code></td>
-<td>stale guard、frontmatter 保留、selection bookmark 与单次 Undo 事务</td>
 </tr>
 <tr>
 <td><code>src/lib/markdown/image.ts</code></td>

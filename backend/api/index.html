@@ -6865,7 +6865,7 @@ Host (Tauri + Rust)
 <li><strong><code>fs_watch_start</code></strong></li>
 <li><strong>参数</strong>：<code>{ vaultPath: string }</code></li>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
-<li><strong>行为</strong>：为当前窗口（label）启动递归监听；若该窗口已有监听则先停止再重建。命中变更时按窗口 <code>emit_to</code> 发送 <code>vault:file-changed</code>（去抖 ~300ms，过滤 <code>.agentero/</code> 内部文件、<code>.git/</code>、<code>node_modules/</code>；但放行 <code>.agentero/catalog.sqlite</code> 及 SQLite sidecar，供前端刷新 Library 元数据）。只有 <code>notify</code> 的单事件 <code>RenameMode::Both</code>、恰有两条不同路径且均未被过滤时，payload 才带按顺序排列的 <code>rename.from</code> / <code>rename.to</code>；其它 rename 事件只用于刷新，绝不能授权改写 Vault 内容。前端只将 Markdown、PDF、受支持图片或疑似目录的 rename 交给双链修复/警告；带明确非目标扩展名的 sidecar / 临时文件仅执行常规工作区刷新。</li>
+<li><strong>行为</strong>：为当前窗口（label）启动递归监听；若该窗口已有监听则先停止再重建。命中变更时按窗口 <code>emit_to</code> 发送 <code>vault:file-changed</code>（去抖 ~300ms，过滤 <code>.agentero/</code> 内部文件、<code>.git/</code>、<code>node_modules/</code>；但放行 <code>.agentero/catalog.sqlite</code> 及 SQLite sidecar，供前端刷新 Library 元数据）。只有 <code>notify</code> 的单事件 <code>RenameMode::Both</code>、恰有两条不同路径且均未被过滤时，payload 才带按顺序排列的 <code>rename.from</code> / <code>rename.to</code>；其它 rename 事件只用于刷新，绝不能授权改写 Vault 内容。前端只将 Markdown、PDF、受支持图片或疑似目录的<strong>可信</strong> rename 交给双链修复；不完整路径对只打控制台日志、不弹 Toast（扩展名启发式不检查笔记里是否真有双链）。带明确非目标扩展名的 sidecar / 临时文件仅执行常规工作区刷新。</li>
 <li><strong><code>fs_watch_stop</code></strong></li>
 <li><strong>参数</strong>：无</li>
 <li><strong>返回</strong>：<code>Result&lt;(), String&gt;</code></li>
@@ -7825,7 +7825,7 @@ Host (Tauri + Rust)
 <li><strong>契约缺口</strong>：<code>impl Serialize for PaperTag</code>（<code>catalog/papers.rs</code>）在无色时输出<strong>裸字符串</strong>，而 specta 生成的类型是 <code>{ name, color }</code> 对象（<code>color: string | null</code>）。生成契约与真实 wire 形态不符，因此前端必须保留 <code>PaperTagInput[]</code> + <code>coercePaperTags</code>（<code>src/lib/paper/tags.ts</code>）而不能直接用生成类型。修法见 <a href="../../development/import-api-abstraction/">../development/import-api-abstraction.md</a> §11。</li>
 <li><strong>规范化</strong>：trim 空白；丢弃空串；大小写不敏感去重（保留首次出现的写法与颜色；同名后续项仅在先无色时补色）；<code>color</code> 白名单校验。</li>
 <li><strong>前端</strong>：<code>src/lib/paper/api.ts</code> → <code>setPaperTags</code>；Paper Info 增删 + 色盘；Library 染色 chip + 筛选；<code>src/lib/ui/tag-colors.ts</code>。</li>
-<li><strong>CLI</strong>：<code>agentero paper tag set|add|rm &lt;ref&gt; …</code>（<code>set</code> 整表替换，<code>--clear</code> 清空；支持 <code>name:color</code>，颜色为 Apple 8 色 id）；<code>paper list --tag</code> 默认隐藏 <code>@zotero:</code> / <code>@arxiv:</code> 内部标签，<code>--all</code> 包含全部标签；<code>paper tag list</code> 同样支持 <code>--all</code>。另有 <code>paper move</code> 与 <code>trash list|restore|purge</code>。见 <a href="../cli/"><code>cli.md</code></a>。</li>
+<li><strong>CLI</strong>：<code>agentero paper tag set|add|rm &lt;ref&gt; …</code>（<code>set</code> 整表替换，<code>--clear</code> 清空；支持 <code>name:color</code>，颜色为 Apple 8 色 id）；<code>paper list --tag</code> 默认隐藏 <code>@zotero:</code> / <code>@arxiv:</code> 内部标签，<code>--all</code> 包含全部标签；<code>paper tag list</code> 同样支持 <code>--all</code>。另有 <code>paper move</code>。见 <a href="../cli/"><code>cli.md</code></a>。</li>
 </ul>
 <h4 id="paperlist"><code>paper:list</code>（扩展规划）<a class="headerlink" href="#paperlist" title="Permanent link">&para;</a></h4>
 <p>带过滤与分页的列表（尚未实现；现网用 <code>paper_list</code>）。</p>
@@ -8722,7 +8722,7 @@ Host (Tauri + Rust)
 <li><strong>参数</strong>（<code>args</code>）：<code>{ vault? }</code></li>
 <li><strong>返回</strong>：删除的事件条数。</li>
 </ul>
-<p>CLI 对照：<code>agentero usage which|timeline|summary|clear</code>（见 <a href="../cli/">cli.md</a>）。前端入口：<code>src/lib/activity/</code>。</p>
+<p>CLI 不再暴露 usage 命令；查询与清理通过桌面端设置 / Host API 操作。前端入口：<code>src/lib/activity/</code>。</p>
 <h3 id="3104-xdg-feedssqlite">3.10.4 广场订阅（XDG <code>feeds.sqlite</code>）<a class="headerlink" href="#3104-xdg-feedssqlite" title="Permanent link">&para;</a></h3>
 <p>用户 RSS / Atom / JSON Feed 订阅与条目缓存。<strong>不写 catalog / Vault</strong>。规格见 <a href="../../development/plaza-feeds/">../development/plaza-feeds.md</a>。</p>
 <table>
@@ -8923,10 +8923,6 @@ Host (Tauri + Rust)
 <td><code>lookup::download_paper_assets</code> / <code>pdf_parse::parse_paper_body</code></td>
 </tr>
 <tr>
-<td><code>trash list\|restore\|purge</code></td>
-<td><code>path_list_trash</code> / <code>path_restore_item</code> / <code>path_purge_*</code></td>
-</tr>
-<tr>
 <td><code>import id\|bib</code></td>
 <td><code>lookup::import_by_identifier</code> / <code>import_catalog</code></td>
 </tr>
@@ -8935,12 +8931,12 @@ Host (Tauri + Rust)
 <td><code>lookup::export_catalog</code>（<code>-o</code>/<code>--out</code> 写文件；全局格式用 <code>--json</code>）</td>
 </tr>
 <tr>
-<td><code>wiki check</code></td>
-<td>只读双链语义检查（<code>WikiIndex</code>）</td>
-</tr>
-<tr>
 <td><code>doctor</code> / <code>doctor fix</code></td>
 <td>聚合诊断与 aliases / visual-marks 修复</td>
+</tr>
+<tr>
+<td><code>doctor wiki</code></td>
+<td>只读双链语义检查（<code>WikiIndex</code>）</td>
 </tr>
 <tr>
 <td><code>layout list\|get</code></td>
@@ -8949,14 +8945,6 @@ Host (Tauri + Rust)
 <tr>
 <td><code>mark list\|get\|add\|delete</code></td>
 <td><code>{paper}/marks/</code>（区域锚点优先）</td>
-</tr>
-<tr>
-<td><code>usage which\|timeline\|summary\|clear</code></td>
-<td>XDG <code>usage.sqlite</code>（<code>activity_record_events</code> / <code>usage_*</code>）</td>
-</tr>
-<tr>
-<td><code>config show\|set</code></td>
-<td><code>~/.config/agentero/config.toml</code>（与 GUI 隔离）</td>
 </tr>
 </tbody>
 </table>

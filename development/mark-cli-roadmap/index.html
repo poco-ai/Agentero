@@ -4174,7 +4174,7 @@
 </tr>
 <tr>
 <td>CLI 命令组</td>
-<td><code>vault</code> / <code>tree</code> / <code>paper</code> / <code>trash</code> / <code>import</code> / <code>export</code> / <code>config</code> / <code>wiki</code>；<strong>无</strong> <code>mark</code> / <code>translate</code></td>
+<td><code>vault</code> / <code>tree</code> / <code>paper</code> / <code>import</code> / <code>export</code> / <code>doctor</code>；<strong>无</strong> <code>mark</code> / <code>translate</code></td>
 </tr>
 <tr>
 <td>CLI 与 marks</td>
@@ -4318,7 +4318,7 @@
 <td>BYOA Agent 翻译经 CLI</td>
 </tr>
 <tr>
-<td>与 <code>wiki check</code>、<code>[[@id]]</code> 兼容的 id</td>
+<td>与 <code>doctor wiki</code>、<code>[[@id]]</code> 兼容的 id</td>
 <td>伪造 id、手写 0–1 坐标充 resolved</td>
 </tr>
 </tbody>
@@ -4366,7 +4366,7 @@ agentero<span class="w"> </span>translate<span class="w"> </span><span class="s2
 agentero<span class="w"> </span>mark<span class="w"> </span>add<span class="w"> </span>papers/…<span class="w"> </span>--kind<span class="w"> </span>translate<span class="w"> </span>--quote<span class="w"> </span><span class="s2">"…"</span><span class="w"> </span>--result<span class="w"> </span><span class="s2">"…"</span><span class="w"> </span>--json
 </code></pre></div>
 
-<p>全局约定不变：<code>--vault</code> → <code>AGENTERO_VAULT</code> → cwd 上溯 → config <code>default_vault</code>；破坏性操作 <code>-y</code>。</p>
+<p>全局约定不变：<code>--vault</code> → <code>AGENTERO_VAULT</code> → cwd 上溯；破坏性操作 <code>-y</code>。</p>
 <h3 id="45">4.5 总体实施策略<a class="headerlink" href="#45" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code>基础能力（mark 文件契约 + CLI 内置子命令）
     → 定位（默认惰性；可读时即时）
@@ -4449,7 +4449,7 @@ agentero<span class="w"> </span>mark<span class="w"> </span>delete<span class="w
 <h3 id="53">5.3 只读增强（可选但便宜）<a class="headerlink" href="#53" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>paper get</code> / <code>paths</code> 已暴露 <code>marksDir</code>：可增加 <code>mark list</code> 摘要计数。</li>
-<li><code>wiki check</code> 对 <code>@id</code> 仍可不打开 marks 验存在（保持现状）；文档写清。</li>
+<li><code>doctor wiki</code> 对 <code>@id</code> 仍可不打开 marks 验存在（保持现状）；文档写清。</li>
 </ul>
 <h3 id="54">5.4 基础阶段验收<a class="headerlink" href="#54" title="Permanent link">&para;</a></h3>
 <ul>
@@ -4640,7 +4640,7 @@ agentero<span class="w"> </span>mark<span class="w"> </span>delete<span class="w
 </tr>
 <tr>
 <td>S3</td>
-<td>与 <code>wiki check</code>、<code>[[@id]]</code> 互链写法；仍不伪造 id</td>
+<td>与 <code>doctor wiki</code>、<code>[[@id]]</code> 互链写法；仍不伪造 id</td>
 </tr>
 <tr>
 <td>S4</td>

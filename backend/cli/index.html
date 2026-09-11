@@ -2106,6 +2106,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        论文导入
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tag" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2145,18 +2156,19 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#shell" class="md-nav__link">
+  <a href="#doctor" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Shell 自动补全
+        Doctor
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+    <nav class="md-nav" aria-label="Doctor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         双链检查
@@ -2165,15 +2177,20 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#doctor" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Doctor
+        修复命令
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -3589,6 +3606,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        论文导入
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tag" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3628,18 +3656,19 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#shell" class="md-nav__link">
+  <a href="#doctor" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Shell 自动补全
+        Doctor
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+    <nav class="md-nav" aria-label="Doctor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         双链检查
@@ -3648,15 +3677,20 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#doctor" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Doctor
+        修复命令
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -3685,7 +3719,7 @@
 <h2 id="_1">位置<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <ul>
 <li>目录：<code>cli/</code>（crate <code>agentero-cli</code>）</li>
-<li>path 依赖 <code>agentero-core</code>（<strong>不</strong>依赖 <code>agentero_lib</code>，依赖树无 tauri/wry/tao）：<code>features::{vault,catalog,import,wiki,zotero,feeds,translate,doctor,trash,pdf_locate,open_request}</code> + 顶层 <code>{error,fs,usage}</code></li>
+<li>path 依赖 <code>agentero-core</code>（<strong>不</strong>依赖 <code>agentero_lib</code>，依赖树无 tauri/wry/tao）：<code>features::{vault,catalog,import,wiki,zotero,feeds,translate,doctor,trash,pdf_locate,open_request}</code> + 顶层 <code>{error,fs}</code></li>
 <li>可选同版本 CLI 安装（不随桌面安装包打入，减小体积 <a href="https://github.com/poco-ai/Agentero/issues/285">#285</a>；open/deep-link 仍见 <a href="https://github.com/poco-ai/Agentero/issues/165">#165</a> / <a href="https://github.com/poco-ai/Agentero/issues/166">#166</a>）</li>
 <li>设置 → 关于：<strong>安装 CLI</strong> 从 GitHub Release 下载与 App <strong>同版本</strong> 的 <code>agentero-cli-{ver}-{triple}</code> 归档，校验 <code>.sha256</code> 后写入用户目录并创建 PATH shim。POSIX 写 <code>~/.local/bin/agentero</code> 软链（不静默改 shell rc）；Windows 写 <code>agentero-cli.cmd</code> 并<strong>自动把安装目录加入用户 PATH</strong>（<code>HKCU\Environment</code>，广播 <code>WM_SETTINGCHANGE</code>，无需重启，新开终端即可用 <code>agentero-cli</code>）。下载 404 的错误文案会带上完整资产 URL（含宿主 triple），架构/版本不匹配时自解释；<code>CliInstallStatus.commandName</code> 供前端按平台展示验证命令</li>
 <li>独立 CLI 归档仍随每次 Release 发布，供无桌面的 headless 机器使用；macOS 亦可通过 Homebrew tap <code>poco-ai/agentero</code> 安装 headless CLI</li>
@@ -3705,10 +3739,6 @@
 <td>在桌面 App 打开本地目录为 Vault（<code>agentero open &lt;PATH&gt;</code>；简写 <code>agentero &lt;PATH&gt;</code>）</td>
 </tr>
 <tr>
-<td><code>completion</code></td>
-<td>生成 / 安装 shell 自动补全（bash / zsh / fish / powershell / elvish）</td>
-</tr>
-<tr>
 <td><code>vault</code></td>
 <td>create / which / info 等</td>
 </tr>
@@ -3721,10 +3751,6 @@
 <td>list/get、tag list/set/add/rm、move、download/parse…</td>
 </tr>
 <tr>
-<td><code>trash</code></td>
-<td>list / restore / purge 本地回收站</td>
-</tr>
-<tr>
 <td><code>import</code></td>
 <td>标识符入库</td>
 </tr>
@@ -3733,16 +3759,8 @@
 <td>导出</td>
 </tr>
 <tr>
-<td><code>config</code></td>
-<td>配置</td>
-</tr>
-<tr>
-<td><code>wiki</code></td>
-<td>只读双链语义检查</td>
-</tr>
-<tr>
 <td><code>doctor</code></td>
-<td>聚合诊断与显式确认的论文 aliases / 视觉批注格式修复</td>
+<td>Vault 结构与 Catalog 诊断；含 wikilink 检查与 aliases / 视觉批注 / catalog 去重修复</td>
 </tr>
 <tr>
 <td><code>layout</code></td>
@@ -3755,14 +3773,6 @@
 <tr>
 <td><code>translate</code></td>
 <td>免费机器翻译纯文本（无需 API Key，不读桌面 settings）</td>
-</tr>
-<tr>
-<td><code>usage</code></td>
-<td>本机活动日志：<code>which</code> / <code>timeline</code> / <code>summary</code> / <code>clear</code>（XDG <code>usage.sqlite</code>）</td>
-</tr>
-<tr>
-<td><code>feed</code></td>
-<td>广场订阅：<code>add</code> / <code>list</code> / <code>remove</code>（XDG <code>feeds.sqlite</code>，与 UI 共用）</td>
 </tr>
 </tbody>
 </table>
@@ -3862,13 +3872,22 @@ zh 目标走并行竞速）；商业 BYOK Key 只在桌面 settings 里，CLI �
 pnpm<span class="w"> </span>cli:bundle
 cargo<span class="w"> </span>build<span class="w"> </span>-p<span class="w"> </span>agentero-cli
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>vault<span class="w"> </span>which<span class="w"> </span>--json
-cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>wiki<span class="w"> </span>check<span class="w"> </span>papers/demo/NOTES.md<span class="w"> </span>--json
+cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>doctor<span class="w"> </span>wiki<span class="w"> </span>papers/demo/NOTES.md<span class="w"> </span>--json
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>doctor<span class="w"> </span>--json
 cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>layout<span class="w"> </span>list<span class="w"> </span>papers/demo<span class="w"> </span>--json
-cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span>agentero-cli<span class="w"> </span>--<span class="w"> </span>completion<span class="w"> </span>zsh
 cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-p<span class="w"> </span>agentero-cli
 </code></pre></div>
 
+<h2 id="_5">论文导入<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p><code>import id</code> 通过标识符（arXiv ID / DOI / URL / 标题等）解析元数据并创建论文单元，同时尝试下载 PDF / arXiv TeX 等资源。默认放到 <code>papers/</code> 下，可用 <code>--parent</code> 指定 vault 内的父目录：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 默认 parent = papers</span>
+agentero<span class="w"> </span>import<span class="w"> </span>id<span class="w"> </span><span class="m">1706</span>.03762<span class="w"> </span>--json
+
+<span class="c1"># 放到指定分类目录（不存在时会自动创建）</span>
+agentero<span class="w"> </span>import<span class="w"> </span>id<span class="w"> </span><span class="m">1706</span>.03762<span class="w"> </span>--parent<span class="w"> </span>papers/nlp<span class="w"> </span>--json
+</code></pre></div>
+
+<p><code>--parent</code> 是 <strong>vault-relative</strong> 的父目录，最终论文目录名由 resolver 根据论文 ID 决定，不是完全自定义路径。导入成功后会返回 <code>path</code>、<code>id</code>、<code>title</code> 以及 <code>pdf</code> / <code>tex</code> / <code>paperMd</code> 等资源旗标。</p>
 <h2 id="tag">论文与 Tag<a class="headerlink" href="#tag" title="Permanent link">&para;</a></h2>
 <p>Tag 写入支持桌面端相同的 8 色后缀格式：</p>
 <div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w"> </span>add<span class="w"> </span>papers/demo<span class="w"> </span><span class="s2">"survey:blue"</span>
@@ -3882,13 +3901,7 @@ agentero<span class="w"> </span>paper<span class="w"> </span>list<span class="w"
 agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w"> </span>list<span class="w"> </span>--all
 </code></pre></div>
 
-<p><code>paper delete</code> 默认移入可恢复回收站；明确传 <code>--files</code> 才会物理删除。回收站操作：</p>
-<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>trash<span class="w"> </span>list
-agentero<span class="w"> </span>trash<span class="w"> </span>restore<span class="w"> </span>&lt;batch-id&gt;<span class="w"> </span>&lt;stored&gt;
-agentero<span class="w"> </span>-y<span class="w"> </span>trash<span class="w"> </span>purge<span class="w"> </span>&lt;batch-id&gt;<span class="w"> </span>&lt;stored&gt;
-agentero<span class="w"> </span>-y<span class="w"> </span>trash<span class="w"> </span>purge
-</code></pre></div>
-
+<p><code>paper delete</code> 默认移入可恢复回收站（由桌面端管理恢复与清空）；明确传 <code>--files</code> 才会物理删除。</p>
 <p>论文移动会更新文件夹和 Catalog 路径。目标父目录不存在时会自动创建；目标已存在或路径逃出 <code>papers/</code> 时失败且不改 Catalog：</p>
 <div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>move<span class="w"> </span>papers/inbox/demo<span class="w"> </span>papers/archive
 <span class="c1"># 目标父目录可尚未存在：</span>
@@ -3909,67 +3922,10 @@ agentero<span class="w"> </span>.<span class="w">             </span><span class
 <li><strong>Windows 资源管理器</strong>：NSIS 安装钩子（<code>src-tauri/nsis/hooks.nsh</code>，经 <code>bundle.windows.nsis.installerHooks</code> 引入）在 <code>Software\Classes\Directory\shell</code> 与 <code>Directory\Background\shell</code> 下写入 <code>OpenWithAgentero</code> 条目，命令为 <code>"$INSTDIR\agentero.exe" "%1"</code>；卸载时仅清理指向本安装位置的条目。Win11 新式菜单中条目位于「显示更多选项」。</li>
 <li><strong>macOS 访达</strong>：Finder 对目录没有「打开方式」，改用 Quick Action。桌面 App 启动时自动安装/刷新 <code>~/Library/Services/Open with Agentero.workflow</code>（<code>features::finder_service</code>，shell 动作直接调用当前 App 二进制并传裸路径）；用户显式移除后写入配置标记（<code>finder-service.removed</code>），启动时不再自动恢复。设置 → 关于 提供安装/更新/移除入口；App 移动位置后状态显示为过期，可一键更新。</li>
 </ul>
-<h2 id="shell">Shell 自动补全<a class="headerlink" href="#shell" title="Permanent link">&para;</a></h2>
-<p><code>agentero completion &lt;SHELL&gt;</code> 向 stdout 打印补全脚本（始终是原始脚本，即使带了 <code>--json</code>）。<code>--install</code> 把脚本写入用户目录，<strong>不</strong>改 shell rc。</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 打印脚本</span>
-agentero<span class="w"> </span>completion<span class="w"> </span>zsh
-agentero<span class="w"> </span>completion<span class="w"> </span>bash
-agentero<span class="w"> </span>completion<span class="w"> </span>fish
-
-<span class="c1"># 写入用户补全目录（不改 rc）</span>
-agentero<span class="w"> </span>completion<span class="w"> </span>zsh<span class="w"> </span>--install
-agentero<span class="w"> </span>completion<span class="w"> </span>bash<span class="w"> </span>--install
-agentero<span class="w"> </span>completion<span class="w"> </span>fish<span class="w"> </span>--install
-</code></pre></div>
-
-<table>
-<thead>
-<tr>
-<th>Shell</th>
-<th><code>--install</code> 路径</th>
-<th>是否自动加载</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>bash</td>
-<td><code>~/.local/share/bash-completion/completions/agentero</code></td>
-<td>bash-completion 2.8+ 会自动加载</td>
-</tr>
-<tr>
-<td>zsh</td>
-<td><code>~/.zfunc/_agentero</code></td>
-<td>需把 <code>~/.zfunc</code> 加进 <code>fpath</code> 后 <code>compinit</code></td>
-</tr>
-<tr>
-<td>fish</td>
-<td><code>~/.config/fish/completions/agentero.fish</code></td>
-<td>自动</td>
-</tr>
-<tr>
-<td>powershell</td>
-<td><code>~/.config/powershell/Completions/agentero-cli.ps1</code></td>
-<td>需在 <code>$PROFILE</code> 里 <code>.</code> source</td>
-</tr>
-<tr>
-<td>elvish</td>
-<td><code>~/.config/elvish/lib/agentero.elv</code></td>
-<td>需在 <code>rc.elv</code> 里 <code>use agentero</code></td>
-</tr>
-</tbody>
-</table>
-<p>zsh 若尚未配置 <code>fpath</code>，在 <code>~/.zshrc</code> 加：</p>
-<div class="codehilite"><pre><span></span><code><span class="nv">fpath</span><span class="o">=(</span>~/.zfunc<span class="w"> </span><span class="nv">$fpath</span><span class="o">)</span>
-autoload<span class="w"> </span>-Uz<span class="w"> </span>compinit<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>compinit
-</code></pre></div>
-
-<p>Windows 安装后命令名是 <code>agentero-cli</code>，可显式指定：</p>
-<div class="codehilite"><pre><span></span><code><span class="n">agentero-cli</span> <span class="n">completion</span> <span class="n">powershell</span> <span class="p">-</span><span class="n">-install</span> <span class="p">-</span><span class="n">-bin-name</span> <span class="n">agentero-cli</span>
-</code></pre></div>
-
-<p>补全会带上子命令、全局 flag，以及已声明的枚举值（如 <code>layout --kind</code>、<code>mark --mark-color</code>）。路径参数带 <code>ValueHint</code>，由 shell 按目录/文件补全。</p>
-<h2 id="_5">双链检查<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
-<p><code>agentero wiki check [&lt;source&gt;] --json</code> 使用桌面端导航、嵌入、反链和重命名事务共用的 <code>WikiIndex</code> resolver，不维护第二套正则解析器。</p>
+<h2 id="doctor">Doctor<a class="headerlink" href="#doctor" title="Permanent link">&para;</a></h2>
+<p><code>agentero doctor</code> 只读聚合 Vault 结构、Catalog schema、双链语义、Catalog 论文 <code>NOTES.md</code> aliases，以及 <code>papers/**/marks/*.json</code> 视觉批注格式；任一错误/待修项存在时返回 <code>doctor_issues</code> 和非零退出码。诊断会尊重设置页写入的 <code>.agentero/doctor.json</code> 别名忽略列表（这些路径不计入别名错误）。</p>
+<h3 id="_6">双链检查<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<p><code>agentero doctor wiki [&lt;source&gt;] --json</code> 使用桌面端导航、嵌入、反链和重命名事务共用的 <code>WikiIndex</code> resolver，不维护第二套正则解析器。</p>
 <ul>
 <li>不传 <code>source</code>：检查整个 Vault。</li>
 <li>传 Markdown 文件：只检查该文件，适合 paper-reader 写入后的局部验收。</li>
@@ -3980,8 +3936,7 @@ autoload<span class="w"> </span>-Uz<span class="w"> </span>compinit<span class="
 <li>批注双链 <code>[[target@id]]</code> / <code>[[target#@id]]</code>：按 path 解析 target，并校验 id 形态；<strong>不</strong>读取 <code>marks/</code> 判断 id 是否仍存在（与桌面 resolve 一致）。</li>
 </ul>
 <p>报告包含 <code>checkedFiles</code>、四类状态计数，以及每个问题的 <code>source</code>、<code>line</code>、<code>targetRaw</code>、<code>syntax</code>、<code>embed</code>、<code>targetPath?</code>、<code>candidates</code> 和 <code>context?</code>。指定单文件作用域后，Vault 中其它历史坏链不会影响本次验收。</p>
-<h2 id="doctor">Doctor<a class="headerlink" href="#doctor" title="Permanent link">&para;</a></h2>
-<p><code>agentero doctor</code> 只读聚合 Vault 结构、Catalog schema、双链语义、Catalog 论文 <code>NOTES.md</code> aliases，以及 <code>papers/**/marks/*.json</code> 视觉批注格式；任一错误/待修项存在时返回 <code>doctor_issues</code> 和非零退出码。诊断会尊重设置页写入的 <code>.agentero/doctor.json</code> 别名忽略列表（这些路径不计入别名错误）。</p>
+<h3 id="_7">修复命令<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
 <p><code>agentero doctor fix aliases</code> 在 TTY 中逐篇展示已有 alias，并允许编辑生成的标题 alias / 短 alias，最后进行一次批量确认。<code>-y</code> 接受全部安全默认值；<code>--json</code> 从不提示，未同时传 <code>-y</code> 时返回 <code>needs_confirmation</code>。修复会保留已有自定义 aliases，以内容哈希做竞态检查，并作为一个可回滚批次写入。</p>
 <p><code>agentero doctor fix visual-marks -y</code> 将旧版 <code>kind: agent-trace</code>（扁平 agent 字段）迁移为 <code>kind: visual</code> v2（可选嵌套 <code>agent</code>），幂等；不改 id 与裁剪图路径。详见 <a href="../doctor/">doctor.md</a>。</p>
 <p>Skill 种子：<code>templates/vault/.agents/skills/agentero-cli/</code>，含两个平台变体——<code>SKILL.md</code>（POSIX，命令 <code>agentero</code>）与 <code>SKILL-windows.md</code>（Windows，命令 <code>agentero-cli</code>、PowerShell/cmd 语法）。播种时按宿主平台选择变体写入同一个 skill id，skill 目录不随平台变化。</p>

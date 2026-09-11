@@ -4023,7 +4023,7 @@
 <h3 id="pdf">PDF 阅读<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h3>
 <p>Vault 任意路径 <code>.pdf</code> → <code>blob:</code> 预览。页码导航/适应宽·整页/大纲/⌘F 查找。真实 scale 渲染 + 平滑划词覆盖层。划词菜单：高亮/提问/翻译；批注走页右缘竖向入口。支持视觉区域批注（框选插图/表/算法/公式，可写备注或向 Agent 提问）、版面分析（Figures 侧栏列出检测到的图/表/算法/公式）、有编号公式 hover 符号解析卡。详见 <a href="../frontend/pdf/">frontend/pdf.md</a> / <a href="../frontend/pdf-layout-analysis/">frontend/pdf-layout-analysis.md</a>。</p>
 <h3 id="markdown">Markdown 编辑<a class="headerlink" href="#markdown" title="Permanent link">&para;</a></h3>
-<p>Plate + <code>@platejs/markdown</code>。普通文本粘贴默认按 Markdown 解析。右键「整理 Markdown 格式」执行 Prettier round-trip。<code>\$a\$</code> 保持普通文本、<code>$a$</code> 保持公式。Obsidian Callout（<code>&gt; [!type]</code>）结构化渲染并原样写回。内嵌图片粘贴到 <code>{mdDir}/assets/</code>，删节点且无引用时 GC。详见 <a href="../frontend/markdown/">frontend/markdown.md</a>。</p>
+<p>Plate + <code>@platejs/markdown</code>。普通文本粘贴默认按 Markdown 解析。<code>\$a\$</code> 保持普通文本、<code>$a$</code> 保持公式。Obsidian Callout（<code>&gt; [!type]</code>）结构化渲染并原样写回。内嵌图片粘贴到 <code>{mdDir}/assets/</code>，删节点且无引用时 GC。详见 <a href="../frontend/markdown/">frontend/markdown.md</a>。</p>
 <h3 id="_8">双链与图谱<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
 <p>嵌套标题双链：<code>[[文件#外层标题#内层标题]]</code>。Wiki 索引 <code>.md</code> 变更防抖重建（~900ms）。反链见编辑器状态栏；文献引用解析入库后自动生成 <code>{paper}/source/agentero-cite.json</code>，与 Markdown 双链索引分层、不共用边语义。详见 <a href="../frontend/wiki/">frontend/wiki.md</a> / <a href="../backend/wiki/">backend/wiki.md</a> / <a href="../backend/citation-parsing/">backend/citation-parsing.md</a>。</p>
 <h2 id="_9">数据流<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
@@ -4095,7 +4095,7 @@
 <h3 id="_12">国际化<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h3>
 <p>所有面向用户文案经 <code>t()</code> 走 <code>react-i18next</code>。en 源语言 → 同步 <code>zh-CN</code>（<code>src/i18n/locales/</code>）。详见 <a href="../frontend/settings/#i18n">frontend/settings.md</a>。</p>
 <h3 id="_13">外部改动自动重载<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h3>
-<p>Host <code>notify</code> → <code>vault:file-changed</code>。打开的 <code>.md</code>/<code>NOTES.md</code> 磁盘变化：无未存改动则重载；有未存改动则 toast 提示；内容相等抑制自写回声。create/remove/rename 去抖刷新文件树。</p>
+<p>Host <code>notify</code> → <code>vault:file-changed</code>。打开的 <code>.md</code>/<code>NOTES.md</code> 磁盘变化：无未存改动则重载；有未存改动则 toast 提示；内容相等抑制自写回声。create/remove/rename 去抖刷新文件树。窗口隐藏/失焦时先缓冲变更，回到前台再 flush；后台去抖窗口更长。</p>
 <h3 id="_14">保存冲突<a class="headerlink" href="#_14" title="Permanent link">&para;</a></h3>
 <p>写盘前比对上次落盘内容；磁盘已被外部改则中止写入并警告（<code>diskConflict.saveBlocked</code>）。</p>
 <h3 id="_15">多窗口<a class="headerlink" href="#_15" title="Permanent link">&para;</a></h3>
