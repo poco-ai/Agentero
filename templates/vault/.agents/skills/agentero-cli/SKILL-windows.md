@@ -1,6 +1,6 @@
 ---
 name: agentero-cli
-version: 13
+version: 14
 description: >-
   Use the Agentero CLI (bin `agentero-cli` on Windows) to create, discover, and
   inspect a local research vault and catalog—list/get papers, import by id/URL,
@@ -127,10 +127,14 @@ agentero-cli paper get <path|id> --json
 agentero-cli import id <arxiv|doi|url> --json
 # place the new paper under a specific vault-relative parent (default: papers)
 agentero-cli import id <arxiv|doi|url> --parent papers/nlp --json
-# then write {path}/NOTES.md yourself: preserve user prose, never wipe marks/;
-# `paper set-read <path>` only after notes are done
+# parse body from PDF to PAPER.md if no TeX is present
+agentero-cli paper parse <path> --json
 
-# 6) Tags: paper tag set|add|rm <path|id> … --json (clear: tag set --clear)
+# 6) Note & Read: write {path}/NOTES.md (lecture notes), check wikilinks (`agentero-cli doctor wiki`),
+# then close the loop by marking the paper as read in the catalog:
+agentero-cli paper set-read <path> --json
+
+# 7) Tags: paper tag set|add|rm <path|id> … --json (clear: tag set --clear)
 ```
 
 Cite Vault-relative paths in your answer; end with `## Sources` when substantial.
@@ -165,4 +169,5 @@ others follow this body directly.
 - Keep Obsidian wikilinks `[[...]]` when you edit Markdown.
 - Never invent catalog metadata; trust CLI / files.
 - Never overwrite user-written NOTES without explicit request.
+- Always run `agentero-cli paper set-read <path>` after finishing NOTES.md to update catalog read status.
 - Prefer short tool loops: list → get → read files → answer.
