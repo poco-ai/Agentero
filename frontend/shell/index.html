@@ -3766,11 +3766,15 @@
 </tr>
 <tr>
 <td><code>⌘L</code></td>
-<td>有选区时固定选区并打开右侧 Agent；无选区时开关右侧栏</td>
+<td>有选区时「加入对话」（固定选区并打开右侧 Agent）；无选区时开关右侧栏</td>
 </tr>
 <tr>
 <td><code>⌘K</code></td>
-<td>固定当前选区为 Agent 上下文，打开 Agent 面板并聚焦输入框（无选区时只打开并聚焦；<code>⇧⌘A</code> 仍为别名）</td>
+<td>有划词工具栏时「快速对话」（页内 Ask）</td>
+</tr>
+<tr>
+<td><code>⇧⌘A</code></td>
+<td>固定当前选区为 Agent 上下文，打开 Agent 面板并聚焦输入框（无选区时只打开并聚焦）</td>
 </tr>
 </tbody>
 </table>
@@ -3781,7 +3785,7 @@
 <li><strong>按压反馈</strong>：<code>Button</code> 为 <code>active:scale-[0.97]</code>；文件树行 / Dock 页签 / 任务圆环共享同档微反馈（色阶或轻 scale/opacity）。Layout 菜单触发器保留 ghost hover fill。</li>
 <li>工具栏优先图标 + <code>aria-label</code> + Tooltip；避免常驻解释文案。</li>
 <li>操作型 Chrome（按钮、导航、标题栏、工具栏、Dock 标签、可点击卡片、Agent 空状态）默认禁用浏览器文字选择；正文、可复制 metadata、编辑器、PDF 译文层（<code>.select-text</code>）和输入控件必须保持可选。不要在应用根节点统一设置 <code>user-select: none</code>，避免误伤第三方内容层和移动端长按选择。</li>
-<li><strong>⌘A / Ctrl+A</strong>：仅在输入框、<code>contenteditable</code>、<code>[role=textbox]</code> 或带 <code>.select-text</code> / <code>.select-all</code> 的区域内走浏览器原生全选；点在页面空白或 chrome 上时由 <code>useNativeSelectAllGuard</code>（主窗经 <code>useAppShortcuts</code>，文档/功能弹窗各自挂载）吞掉，避免整页扫到侧栏/标签/空状态文案。⌘K / ⇧⌘A 仍是「固定选区并聚焦 Agent」。判定见 <code>src/lib/shell/native-select-all.ts</code>。</li>
+<li><strong>⌘A / Ctrl+A</strong>：仅在输入框、<code>contenteditable</code>、<code>[role=textbox]</code> 或带 <code>.select-text</code> / <code>.select-all</code> 的区域内走浏览器原生全选；点在页面空白或 chrome 上时由 <code>useNativeSelectAllGuard</code>（主窗经 <code>useAppShortcuts</code>，文档/功能弹窗各自挂载）吞掉，避免整页扫到侧栏/标签/空状态文案。⇧⌘A 仍是「固定选区并聚焦 Agent」。判定见 <code>src/lib/shell/native-select-all.ts</code>。</li>
 <li>基础组件 shadcn/ui；Chat/树 AI UI 用 AI Elements（<a href="../components/">components.md</a>）。</li>
 <li><strong>启动种子放 <code>boot()</code></strong>（<code>src/main.tsx</code>），不要在 render 期做副作用。<code>initSettingsStore</code> / <code>initVaultStore</code> / <code>initWorkspaceStore</code> 在 <code>createRoot</code> 前调用：既保证首帧前完成，又不依赖 <code>useState</code> 初始化器（StrictMode 下可能跑两次）。</li>
 <li><strong>订阅 Host 事件一律用类型化事件绑定（<code>src/lib/core/bindings.ts</code> 的 <code>events.*</code>）：组件内 <code>useTauriEvent(events.x, cb)</code>，非 UI 模块 <code>listenEventSafe(events.x, cb)</code>（<code>src/lib/core/tauri-events.ts</code>）</strong>；字符串事件名仅限前端窗口间广播（<code>workspace:*</code>、<code>agent:attach-context</code> 等）与 iOS bridge client 事件，非 Tauri wire 的 promise 式订阅（bridge、workspace-broadcast）用 <code>toSafeDisposer()</code>。手写 <code>let off; void (async () =&gt; { off = await listen(...) })(); return () =&gt; off?.()</code> 会在 <code>listen</code> resolve 前 dispose 时泄漏监听器 —— StrictMode 每次开发挂载都会命中。</li>

@@ -3649,7 +3649,7 @@
 </tbody>
 </table>
 <h2 id="_2">划词菜单<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p>选区后浮动工具栏：高亮色点 / <strong>加入对话</strong>（提示 <code>⌘K</code>）/ <strong>快速对话</strong>（提示 <code>⌘L</code>，点击为页内 Ask）/ 翻译，均为小号文字按钮（快捷键提示更小）。选中后自动复制，工具栏不再放复制按钮。<strong>批注</strong>不在工具栏里：选区出现时页右缘评论列会在对应高度出现一条竖向入口（与空评论卡同高、宽度更窄，内为评论图标）。<strong>Hover 直接进入编辑</strong>（展开并聚焦输入框）；<strong>移走且尚未输入则缩回竖向卡片</strong>；已有输入则保持编辑直至 ⌘/Ctrl+Enter / 失焦提交或 Esc 取消。入口用选区快照，聚焦时即使 EmbedPDF 清掉选区也保留卡片。Settings → 翻译开启「划词自动翻译」后，选区文本提取完成即自动启动翻译并打开结果卡；关闭时保留手动翻译入口。全局 <code>⌘L</code> 在有选区时固定选区并打开 Agent 侧栏（与「加入对话」同类，但不聚焦输入框）；<code>⌘K</code> 还会聚焦输入框。</p>
+<p>选区后浮动工具栏：高亮色点（默认半重叠叠放并带深色描边，hover / 聚焦时向左弹簧展开；工具栏按右边缘定位，仅左侧色点区变宽，翻译 / 快速对话 / 加入对话位置不变、整栏不抖动）/ <strong>翻译</strong> / <strong>快速对话</strong>（<code>⌘K</code>，页内 Ask）/ <strong>加入对话</strong>（<code>⌘L</code>），文字按钮小号、快捷键提示更小。选中后自动复制，工具栏不再放复制按钮。<strong>批注</strong>不在工具栏里：选区出现时页右缘评论列会在对应高度出现一条竖向入口（与空评论卡同高、宽度更窄，内为评论图标）。<strong>Hover 直接进入编辑</strong>（展开并聚焦输入框）；<strong>移走且尚未输入则缩回竖向卡片</strong>；已有输入则保持编辑直至 ⌘/Ctrl+Enter / 失焦提交或 Esc 取消。入口用选区快照，聚焦时即使 EmbedPDF 清掉选区也保留卡片。Settings → 翻译开启「划词自动翻译」后，选区文本提取完成即自动启动翻译并打开结果卡；关闭时保留手动翻译入口。全局 <code>⌘L</code> 有选区时加入对话并打开侧栏；<code>⌘K</code> 触发页内快速对话；<code>⇧⌘A</code> 加入对话并聚焦输入框。</p>
 <p><strong>远程 PDF</strong>（<code>agentero:arxiv:*</code>，如 arXiv Daily 预览）：无本地 sidecar。划词菜单只保留 <strong>加入对话 / 快速对话</strong>（Ask 内存 ephemeral，关 tab 即丢，不写 <code>marks/</code>）；高亮 / 批注入口 / 翻译隐藏。底栏显示 Remote mode 徽标（<code>SiArxiv</code>，与 Info 面板同色）。引用 hover 可从 PDF dest key 生成只读条目，导入按钮走整篇入库。</p>
 <table>
 <thead>
@@ -3676,14 +3676,14 @@
 <td>划词工具栏文字「快速对话」；迷你问答；页边针；<strong>hover / 打开卡片时高亮</strong>锚定选区原文；打开时停在用户问题处，不自动滚到回复底部；卡片右上角 ChatGPT / Claude 图标可把 论文标题 + 页码 + 划选文本 发送到对应外部 AI</td>
 </tr>
 <tr>
-<td>加入对话</td>
-<td>发送该轮后写 <code>marks/&lt;id&gt;.json</code>（kind <code>ask</code>）；远程无 pin 落盘</td>
-<td>划词工具栏文字按钮 / <code>⌘K</code>（<code>⇧⌘A</code> 别名）/ 有选区时的 <code>⌘L</code>；点击或快捷键后选区固定为 Agent composer 文本 chip 并打开侧栏；<strong>发送</strong>后在选区旁插入<strong>对话卡片</strong>页边针（与「快速对话」同一 ask 卡 / 非视觉批注）；hover / 打开同样高亮原文，见 <a href="../agent/">agent.md</a></td>
-</tr>
-<tr>
 <td>快速对话</td>
 <td>页内 Ask 浮层（ephemeral）</td>
-<td>划词工具栏文字按钮；打开 PDF Ask 对话卡，不强制打开 Agent 侧栏</td>
+<td>划词工具栏文字按钮 / <code>⌘K</code>；打开 PDF Ask 对话卡，不强制打开 Agent 侧栏</td>
+</tr>
+<tr>
+<td>加入对话</td>
+<td>发送该轮后写 <code>marks/&lt;id&gt;.json</code>（kind <code>ask</code>）；远程无 pin 落盘</td>
+<td>划词工具栏文字按钮 / <code>⌘L</code> / <code>⇧⌘A</code>（额外聚焦）；点击或快捷键后选区固定为 Agent composer 文本 chip 并打开侧栏；<strong>发送</strong>后在选区旁插入<strong>对话卡片</strong>页边针（与「快速对话」同一 ask 卡 / 非视觉批注）；hover / 打开同样高亮原文，见 <a href="../agent/">agent.md</a></td>
 </tr>
 <tr>
 <td>翻译</td>
@@ -3779,7 +3779,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/cards/</code></td>
-<td>划词与 mark 卡片：<code>selection-menu</code> / <code>selection-card</code>（共用壳）/ <code>ask-popover</code> / <code>translate-card</code> / <code>visual-trace-card</code> / <code>visual-annotation-editor</code> / <code>formula-annotation-card</code> / <code>citation-preview</code></td>
+<td>划词与 mark 卡片：<code>selection-menu</code> / <code>highlight-color-stack</code>（高亮色点叠放与向左展开）/ <code>selection-card</code>（共用壳）/ <code>ask-popover</code> / <code>translate-card</code> / <code>visual-trace-card</code> / <code>visual-annotation-editor</code> / <code>formula-annotation-card</code> / <code>citation-preview</code></td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/viewport/</code></td>
