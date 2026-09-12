@@ -3549,13 +3549,15 @@
 <li><strong>不翻译</strong>：算法框及其内部文字；<code>reference</code> / <code>reference_content</code> 文献条目；“References / Bibliography / 参考文献” 标题；侧栏 <code>aside_text</code>。</li>
 <li><strong>译前归一化</strong>（<code>normalizeLayoutSourceText</code>）：文字层是空白折叠后的单行串，先合并行末连字符断词（<code>repre- sentation</code> → <code>representation</code>，<code>pre- and</code> 这类并列保留）、展开 ligature / 去 soft hyphen、清掉落在正文 bbox 里的 arXiv 戳与会议 boilerplate、剥掉句末后粘着的页码与续段前的行号（<code>Table 2</code> 这类交叉引用不动，<code>header</code> 不做数字剥离）。</li>
 <li><strong>跨页/跨栏段落合并</strong>（#340）：一个段落被分栏、分页或图表切开时是多个 region。末尾无句末标点、下一片段以小写开头则判为续段，拼成一个 chain 作为<strong>原子翻译单元</strong>（≤ 4 片段 / 4000 字符），译文再按各片段原文长度加权、在句末→分句→空白边界切回各自 bbox。图题不打断 chain，<code>header</code> 打断。chain 内任一片段缺译文即整条重译。</li>
+<li><strong>段落边界与安全扩框</strong>：文字层会按真实行间距将被模型合并的相邻正文段落拆成独立 bbox。标题和图表 caption 的译文估算行宽超过原文 10% 时，覆盖层才会向无检测内容的右侧或下侧留白扩展（最多原框的 1.5× 宽或 1.75× 高）；遇到任何版面检测框即停止，扩展失败才走行距/字号拟合。正文不借用周围空间，避免不完整的版面检测遮住邻栏内容。</li>
 <li><strong>占位符保护</strong>（<code>src/lib/translate/mask.ts</code>）：行内公式 / LaTeX 命令 / URL / DOI 先换成 <code>⟦n⟧</code> 再发引擎，回填时还原；引擎吞掉占位符则该 chain 用原文重译一次。</li>
 <li>按阅读顺序把 chain <strong>分批</strong>翻译（<code>buildTranslateBatches</code>）：批内 payload ≤ 4500 字符（约一页双栏正文），用 <code>[[n]]</code> 编号拼成一次请求，让引擎看到上下文；译文按 <code>[[n]]</code> 标记切回、逐块写回原 bbox 位置。标记解析不一致时该批<strong>回退为逐段翻译</strong>，保证不丢块。并发 2（Agent 串行）；<strong>每批完成立刻</strong>在 bbox 上盖译文层（非整页等齐）。这里的并发 2 是<strong>前端批次</strong>并发，与内置 provider 在 Host 内对单批做的段级 fan-out（并发 3）正交：选内置时同时在飞的请求最多 2 × 3。</li>
 <li>每页纸张右上角外侧常驻窄页签可只翻译本页；页签 hover 不弹出额外文字；本页已有可见译文时，页签切换为隐藏本页译文。隐藏只影响当前 UI 覆盖层，不删除磁盘缓存。</li>
 <li>译文按论文写入 <code>{paper}/source/layout-translate.json</code>。缓存命中需匹配 provider / 源语言 / 目标语言 / 非密钥服务配置，并逐块校验 region id + 原文（存的是归一化后的原文，归一化规则变化时旧缓存会 miss 一次并重译）；版面或目标语言变化时只复用仍匹配的块。</li>
 <li>单页翻译写缓存时按同一 cache key 增量合并，避免只翻译一页时覆盖其它页已经落盘的译文。</li>
 <li>运行中再点=停止；有译文再点=清除。实现：<code>layout-translate.ts</code> + <code>layout-translate-source.ts</code> + <code>layout-translate-overlay.tsx</code>。</li>
-<li>覆盖层按当前 PDF 页面背景 tone 绘制纸面底色（深字）；暗色下套用与页面栅格相同的 invert filter（<code>PDF_PAGE_RASTER_DARK_CLASS</code>），使盖住原文的底色与反转后的纸面一致。</li>
+<li>覆盖层按当前 PDF 页面背景 tone 绘制纸面底色（深字）；暗色下套用与页面栅格相同的 invert filter（<code>PDF_PAGE_RASTER_DARK_CLASS</code>），使盖住原文的底色与反转后的纸面一致。排版先以原文尺度估算、再用真实浏览器度量校验：译文膨胀时依次收紧行距（1.25 → 1.10）、缩小字号；遵循严格 CJK 断行，只有不可断的 URL/标识符仍溢出时才允许词内断行。因此普通段落不会过早缩成极小字，并尽量避免裁掉译文。</li>
+<li><strong>双栏翻译</strong>（Settings → 翻译 →「在侧窗中打开渲染好的翻译」）：全文翻译按钮在原文右侧打开只读译文 PDF 面板（同页栈 + 译文覆盖层，隐藏工具栏/选区菜单）。左右各是独立 EmbedPDF 实例，通过模块级 peer 注册表（<code>src/lib/pdf/scroll-sync.ts</code> + <code>usePdfScrollSync</code>）双向同步<strong>滚动比例</strong>与<strong>缩放</strong>；任一侧滚轮滚动或 Ctrl/Cmd+滚轮缩放，另一侧跟到同一相对位置。译文面板保留滚动/缩放手势，不开放批注 chrome。</li>
 <li>API：<code>runTranslate(task)</code>（<code>src/lib/translate/</code>）。</li>
 </ul>
 <h2 id="prompt">Prompt<a class="headerlink" href="#prompt" title="Permanent link">&para;</a></h2>
