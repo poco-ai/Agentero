@@ -3608,7 +3608,7 @@
 <tbody>
 <tr>
 <td>缩放</td>
-<td>可输入 50%–300% 精确比例；支持 +/-、⌘滚轮、触控板捏合；适应宽度 / 适应整页放在底部栏的沉浸式按钮左侧；真实 scale 重渲染。⌘滚轮步进按动画帧合并（<code>createWheelZoomCoalescer</code>）：一帧内多个 wheel 事件先累加抵消，再一次性应用净步进，避免触控板高频事件逐事件触发整页重光栅。wheel 监听不常驻 non-passive（<code>bindWheelZoomGesture</code>）：普通滚动手势期间切成 passive，滚轮静默后再换回 non-passive，保证捏合缩放仍可 <code>preventDefault</code>，同时普通滚动不被主线程阻塞。WebKit（Safari / macOS WKWebView）的触控板捏合不以 ctrl+wheel 送达，而是 <code>gesturestart/change/end</code>，<code>bindWheelZoomGesture</code> 将其 magnification 比值换算为等价 wheel delta 走同一合并路径并 <code>preventDefault</code> 抑制平台放大</td>
+<td>底部栏滑动条调节 50%–300%（旁显示当前百分比；静止为灰色，hover / 聚焦 / 拖动时为 brand 主题色）；另支持 ⌘滚轮、触控板捏合；真实 scale 重渲染。默认仍以适应宽度打开。⌘滚轮步进按动画帧合并（<code>createWheelZoomCoalescer</code>）：一帧内多个 wheel 事件先累加抵消，再一次性应用净步进，避免触控板高频事件逐事件触发整页重光栅。wheel 监听不常驻 non-passive（<code>bindWheelZoomGesture</code>）：普通滚动手势期间切成 passive，滚轮静默后再换回 non-passive，保证捏合缩放仍可 <code>preventDefault</code>，同时普通滚动不被主线程阻塞。WebKit（Safari / macOS WKWebView）的触控板捏合不以 ctrl+wheel 送达，而是 <code>gesturestart/change/end</code>，<code>bindWheelZoomGesture</code> 将其 magnification 比值换算为等价 wheel delta 走同一合并路径并 <code>preventDefault</code> 抑制平台放大</td>
 </tr>
 <tr>
 <td>导航</td>
@@ -3779,7 +3779,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/chrome/</code></td>
-<td>纯展示 chrome：<code>pdf-toolbar</code> / <code>pdf-left-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-references-panel</code> / <code>pdf-figures-panel</code> / <code>pdf-bottom-bar</code> / <code>pdf-card-stack</code>（portal 卡片栈）。共享材质见 <code>pdf-chrome-surface.ts</code>（小芯片轻玻璃、侧栏厚材质、划词菜单玻璃、长文卡片近实色；<code>data-pdf-chrome</code> 供 <code>prefers-reduced-transparency</code> 实色回退）。顶部两条工具栏自动显隐（<code>use-pdf-chrome-visibility</code>）：滚动中或指针靠近顶部区域时显示，静读时以 opacity + 轻微上移/缩放 materialize（<code>prefers-reduced-motion</code> 仅淡入淡出）；面板打开 / ⌘F / 框选 / 缩放输入聚焦时保持可见；左侧大纲/引用/图表面板自左滑入；⌘F 查找栏自右上角 zoom-in；底部页码条按页数位数扩展输入宽度，并限制在视口内以适配窄面板。阅读区底色 <code>bg-muted/40</code>，与纸面 tone 分层</td>
+<td>纯展示 chrome：<code>pdf-toolbar</code>（右上：框选 / 全文翻译，常显）/ <code>pdf-left-toolbar</code> / <code>pdf-find-bar</code> / <code>pdf-outline-panel</code>（+<code>outline-tree</code>）/ <code>pdf-references-panel</code> / <code>pdf-figures-panel</code> / <code>pdf-bottom-bar</code>（页码 + 缩放滑动条 + 纸色）/ <code>pdf-card-stack</code>（portal 卡片栈）。共享材质见 <code>pdf-chrome-surface.ts</code>（小芯片轻玻璃、侧栏厚材质、划词菜单玻璃、长文卡片近实色；<code>data-pdf-chrome</code> 供 <code>prefers-reduced-transparency</code> 实色回退）。左上工具栏自动显隐（<code>use-pdf-chrome-visibility</code>）：滚动中或指针靠近顶部区域时显示，静读时以 opacity + 轻微上移/缩放 materialize（<code>prefers-reduced-motion</code> 仅淡入淡出）；面板打开 / ⌘F 时保持可见；左侧大纲/引用/图表面板自左滑入；⌘F 查找栏自右上角 zoom-in；底部页码条按页数位数扩展输入宽度，并限制在视口内以适配窄面板。阅读区底色 <code>bg-muted/40</code>，与纸面 tone 分层</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/cards/</code></td>
@@ -3859,11 +3859,11 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-zoom-controls.ts</code></td>
-<td>缩放百分比输入（focus 期不被观测值覆盖）</td>
+<td>缩放 level → ref 镜像（页层 / 选区定位不因 zoom 重订阅）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-chrome-visibility.ts</code></td>
-<td>顶部工具栏自动显隐：滚动事件 + 指针靠近顶部区域触发显示，空闲定时淡出；显隐动画由 chrome 组件的 <code>PDF_CHROME_VIS*</code> 类承担</td>
+<td>左上工具栏自动显隐：滚动事件 + 指针靠近顶部区域触发显示，空闲定时淡出；显隐动画由 <code>pdf-left-toolbar</code> 的 <code>PDF_CHROME_VIS*</code> 类承担；右上工具栏常显</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-paper-tone.ts</code></td>

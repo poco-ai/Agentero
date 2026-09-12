@@ -4021,7 +4021,7 @@
 <li><strong>个人偏好</strong>：<code>agentPersonalPrompt</code> 非空时经 Host <code>build_prompt</code> 注入 envelope。</li>
 </ul>
 <h3 id="pdf">PDF 阅读<a class="headerlink" href="#pdf" title="Permanent link">&para;</a></h3>
-<p>Vault 任意路径 <code>.pdf</code> → <code>blob:</code> 预览。页码导航/适应宽·整页/大纲/⌘F 查找。真实 scale 渲染 + 平滑划词覆盖层。划词菜单：高亮/提问/翻译；批注走页右缘竖向入口。支持视觉区域批注（框选插图/表/算法/公式，可写备注或向 Agent 提问）、版面分析（Figures 侧栏列出检测到的图/表/算法/公式）、有编号公式 hover 符号解析卡。详见 <a href="../frontend/pdf/">frontend/pdf.md</a> / <a href="../frontend/pdf-layout-analysis/">frontend/pdf-layout-analysis.md</a>。</p>
+<p>Vault 任意路径 <code>.pdf</code> → <code>blob:</code> 预览。页码导航/底部缩放滑动条/大纲/⌘F 查找。真实 scale 渲染 + 平滑划词覆盖层。划词菜单：高亮/提问/翻译；批注走页右缘竖向入口。支持视觉区域批注（框选插图/表/算法/公式，可写备注或向 Agent 提问）、版面分析（Figures 侧栏列出检测到的图/表/算法/公式）、有编号公式 hover 符号解析卡。详见 <a href="../frontend/pdf/">frontend/pdf.md</a> / <a href="../frontend/pdf-layout-analysis/">frontend/pdf-layout-analysis.md</a>。</p>
 <h3 id="markdown">Markdown 编辑<a class="headerlink" href="#markdown" title="Permanent link">&para;</a></h3>
 <p>Plate + <code>@platejs/markdown</code>。普通文本粘贴默认按 Markdown 解析。<code>\$a\$</code> 保持普通文本、<code>$a$</code> 保持公式。Obsidian Callout（<code>&gt; [!type]</code>）结构化渲染并原样写回。内嵌图片粘贴到 <code>{mdDir}/assets/</code>，删节点且无引用时 GC。详见 <a href="../frontend/markdown/">frontend/markdown.md</a>。</p>
 <h3 id="_8">双链与图谱<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
