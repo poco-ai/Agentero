@@ -3784,16 +3784,19 @@ tunnel-client<span class="w"> </span>run<span class="w"> </span>--profile<span c
 <li>ChatGPT <strong>Settings → Security and login</strong> 打开 Developer mode。</li>
 <li><a href="https://chatgpt.com/#settings/Connectors">Connectors</a>（或 <a href="https://chatgpt.com/plugins">Plugins</a>）点 <code>+</code>。</li>
 <li><strong>Connection</strong> 选 <strong>Tunnel</strong>，选列表里的隧道或粘贴 <code>tunnel_id</code>。</li>
-<li>发现 tools 后，先读资源 <code>agentero://vault</code>，再 <code>paper_list</code>。</li>
+<li>发现 tools 后，先读 <code>agentero://vault</code> 与 <code>agentero://agent-invariants</code>，再 <code>paper_list</code>（默认只有 id/path/title）。</li>
 </ol>
 <p>官方：<a href="https://developers.openai.com/api/docs/guides/secure-mcp-tunnels">Secure MCP Tunnel</a>。</p>
 <p>列表没有隧道：关联了目标 workspace、有 Tunnels <strong>Use</strong>、<code>/readyz</code> 为 200。</p>
 <h2 id="_2">能做什么<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>paper_list</code> / <code>paper_get</code> — 论文 metadata</li>
+<li><code>paper_list</code> / <code>paper_get</code> — 论文 metadata（list 默认瘦字段；<code>fields</code> / <code>full</code> 按需）</li>
+<li><code>paper_set_read</code> — 标记已读/未读</li>
 <li><code>import_id</code> — arXiv / DOI / URL 入库</li>
 <li><code>paper_notes_get</code> / <code>paper_notes_write</code> — 读写该篇 <code>NOTES.md</code></li>
 <li><code>paper_tag_add</code> / <code>paper_tag_rm</code> — 标签</li>
+<li><code>layout_list</code> / <code>layout_get</code> — 侧栏图/表/公式索引（需先在 App 跑版面分析）</li>
+<li>Resources：<code>agentero://vault</code>、<code>agentero://agent-invariants</code>、<code>agentero://skills/agentero-cli</code></li>
 </ul>
 <h2 id="_3">常见问题<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <table>

@@ -3607,6 +3607,7 @@
 <p>监听 URL：<code>http://127.0.0.1:{port}/mcp</code>。设置页端口旁绿点表示正在听；点击 URL 复制。</p>
 <p>Host commands：<code>mcp_get_status</code> / <code>mcp_set_enabled</code> / <code>mcp_set_port</code> / <code>mcp_set_vault</code> / <code>mcp_set_parent_dir</code>，以及隧道相关 <code>mcp_tunnel_status</code> / <code>mcp_tunnel_start</code> / <code>mcp_tunnel_stop</code>。状态事件 <code>mcp:status</code>、<code>mcp:tunnel-status</code>。</p>
 <p><code>initialize.serverInfo</code> 带 <code>title</code>、<code>websiteUrl</code> 和 <code>icons</code>（应用 PNG 的 data URI）。客户端可以忽略不画。</p>
+<p><code>initialize.instructions</code> 指向下方 resources，并强调 <code>paper_list</code> 默认瘦字段、覆盖 NOTES 前需确认。</p>
 <p>无鉴权。不要把端口绑到非 loopback。</p>
 <h2 id="chatgpt-secure-mcp-tunnel">ChatGPT Secure MCP Tunnel<a class="headerlink" href="#chatgpt-secure-mcp-tunnel" title="Permanent link">&para;</a></h2>
 <p>App 开着且 MCP 开关打开后，可在同一设置区填写 Tunnel ID 与 Runtime API key，点 <strong>Start</strong> 让 Agentero 直接 spawn 并持有 <code>tunnel-client run</code>。按钮旁绿点表示隧道已连通控制平面；<strong>注意 <code>/readyz</code> 返回 200 不代表认证成功</strong>，真正的 ready 信号是 <code>tunnel-client health --require-control-plane-poll</code> 的 <code>control_plane_poll.ok=true</code>。</p>
@@ -3614,7 +3615,6 @@
 <p>Agentero 用独立 <code>--profile-dir</code>（<code>$XDG_CACHE_HOME/agentero/mcp-tunnel</code>）运行 tunnel-client，避免串到用户已有的 <code>~/.config/tunnel-client/*.yaml</code>；API key 只通过子进程 env <code>CONTROL_PLANE_API_KEY</code> 注入，不出现在命令行参数或 UI 日志。</p>
 <p>Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通路。详细逐步教程见 <a href="../../usage/mcp/">用 MCP 连接外部 Agent</a>。</p>
 <h2 id="resource">Resource<a class="headerlink" href="#resource" title="Permanent link">&para;</a></h2>
-<p>Vault 概况不是 tool，是文档：</p>
 <table>
 <thead>
 <tr>
@@ -3629,11 +3629,22 @@
 <td>Markdown</td>
 <td>路径、schemaVersion、papers、unread</td>
 </tr>
+<tr>
+<td><code>agentero://agent-invariants</code></td>
+<td>Markdown</td>
+<td>与 CLI/<code>agentero-core::ops</code> 同源的 agent invariants</td>
+</tr>
+<tr>
+<td><code>agentero://skills/agentero-cli</code></td>
+<td>Markdown</td>
+<td>当前平台 bundled <code>agentero-cli</code> Skill 正文</td>
+</tr>
 </tbody>
 </table>
-<p>无 Vault 时 resource 仍列出，<code>resources/read</code> 返回「未打开 Vault」正文。<code>initialize</code> instructions 提示先读这份文档，再 <code>paper_list</code> / <code>paper_get</code>。</p>
+<p>无 Vault 时 <code>agentero://vault</code> 仍列出，<code>resources/read</code> 返回「未打开 Vault」正文。<code>initialize</code> instructions 提示先读 vault → invariants，再调用 tools。</p>
 <h2 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h2>
 <p><code>ref</code> = paper id 或 vault 相对路径（如 <code>papers/1706.03762</code>）。禁止 <code>..</code>。</p>
+<p>每个 tool 都声明 <code>outputSchema</code>，成功时走 MCP <code>structuredContent</code>（ChatGPT 需要这份才能理解结果）。</p>
 <table>
 <thead>
 <tr>
@@ -3644,20 +3655,46 @@
 <tbody>
 <tr>
 <td><code>paper_list</code></td>
-<td>列表 metadata：<code>{ items: [{ id, path, title, authors, year, tags, doi, arxivId, publication, status, isRead }] }</code>。<code>query?</code>、<code>tag[]?</code>、<code>unread?</code>、<code>limit?</code>（默认 50，封顶 200）。abstract 只在 <code>paper_get</code>。</td>
+<td>列表。<strong>默认</strong>每行只有 <code>id/path/title</code>（省 token）。<code>fields[]?</code> 按需加字段（<code>year</code>/<code>tags</code>/<code>authors</code>/<code>isRead</code>/…）；<code>full?</code> 恢复完整 metadata 行。另有 <code>query?</code>、<code>tag[]?</code>、<code>unread?</code>、<code>limit?</code>（默认 50，封顶 200）。abstract 只在 <code>paper_get</code>。</td>
 </tr>
 <tr>
 <td><code>paper_get</code></td>
 <td>单篇 metadata（含 abstract）</td>
 </tr>
+<tr>
+<td><code>paper_set_read</code></td>
+<td>设置 catalog <code>isRead</code>（默认 true）</td>
+</tr>
+<tr>
+<td><code>import_id</code></td>
+<td>魔棒入库（arxiv / DOI / URL）。<code>parent?</code> 默认当前 Library 作用域或 <code>papers</code></td>
+</tr>
+<tr>
+<td><code>paper_notes_get</code></td>
+<td>读 <code>{paper}/NOTES.md</code>（文件不存在则空字符串）</td>
+</tr>
+<tr>
+<td><code>paper_notes_write</code></td>
+<td>写 <code>NOTES.md</code>。<code>mode</code>: <code>replace</code>（默认）或 <code>append</code></td>
+</tr>
+<tr>
+<td><code>paper_tag_add</code></td>
+<td>加标签；可用 <code>topic:blue</code> 色后缀</td>
+</tr>
+<tr>
+<td><code>paper_tag_rm</code></td>
+<td>删标签</td>
+</tr>
+<tr>
+<td><code>layout_list</code></td>
+<td>侧栏版面索引（需 <code>{paper}/source/layout-index.json</code>）。<code>kind[]?</code>、<code>minScore?</code></td>
+</tr>
+<tr>
+<td><code>layout_get</code></td>
+<td>按 region id 取一条（如 <code>figure-3</code>）</td>
+</tr>
 </tbody>
 </table>
-<p>每个 tool 都声明 <code>outputSchema</code>，成功时走 MCP <code>structuredContent</code>（ChatGPT 需要这份才能理解结果）。
-| <code>import_id</code> | 魔棒入库（arxiv / DOI / URL）。<code>parent?</code> 默认当前 Library 作用域或 <code>papers</code> |
-| <code>paper_notes_get</code> | 读 <code>{paper}/NOTES.md</code>（文件不存在则空字符串） |
-| <code>paper_notes_write</code> | 写 <code>NOTES.md</code>。<code>mode</code>: <code>replace</code>（默认）或 <code>append</code> |
-| <code>paper_tag_add</code> | 加标签；可用 <code>topic:blue</code> 色后缀 |
-| <code>paper_tag_rm</code> | 删标签 |</p>
 <p><code>paper_notes_write</code>：</p>
 <ul>
 <li>只写 <code>NOTES.md</code>，不动 <code>PAPER.md</code> / <code>source/</code> / <code>marks/</code></li>
@@ -3666,9 +3703,10 @@
 <li><code>append</code>：追加正文，保留 frontmatter</li>
 <li>编辑器有未存改动时走现有 <code>vault:file-changed</code> 冲突逻辑</li>
 </ul>
-<p>不做：<code>vault_info</code> tool、通用读文件、<code>paper_paths</code>、delete/trash、mark/layout、shell。</p>
+<p>不做：通用读文件、<code>paper_paths</code>、delete/trash、mark（请用 CLI）、shell、stdio MCP。</p>
+<p>机器契约与 CLI 共用 <code>agentero-core::ops</code>；CLI 侧用 <code>agentero describe</code> 自省。</p>
 <h2 id="_2">代码<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
-<p><code>src-tauri/src/features/mcp/</code>：<code>McpController</code> + Streamable HTTP（<code>rmcp</code>）+ tools/resource。直接调 <code>features::{catalog, import, vault}</code>。</p>
+<p><code>src-tauri/src/integration/mcp/</code>：<code>McpController</code> + Streamable HTTP（<code>rmcp</code>）+ tools/resource。直接调 <code>features::{catalog, import, vault, pdf::layout_index}</code>。</p>
 <h2 id="_3">安全<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
 <li>仅 <code>127.0.0.1</code>；默认关</li>
