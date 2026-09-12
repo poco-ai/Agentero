@@ -2100,6 +2100,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vault 列表
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3600,6 +3611,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vault 列表
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3740,7 +3762,7 @@
 </tr>
 <tr>
 <td><code>vault</code></td>
-<td>create / which / info 等</td>
+<td>create / which / info / list / use 等</td>
 </tr>
 <tr>
 <td><code>tree</code></td>
@@ -3878,6 +3900,17 @@ cargo<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </spa
 cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-p<span class="w"> </span>agentero-cli
 </code></pre></div>
 
+<h3 id="vault">Vault 列表<a class="headerlink" href="#vault" title="Permanent link">&para;</a></h3>
+<p><code>agentero vault use &lt;PATH&gt;</code> 和 <code>agentero vault create &lt;PATH&gt;</code> 会把 Vault 绝对路径记录到 <code>~/.config/agentero/config.toml</code> 的 <code>known_vaults</code> 数组中（去重追加）。<code>agentero vault list</code> 可列出这些已知 Vault，并标出当前 <code>default_vault</code>：</p>
+<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>vault<span class="w"> </span>list
+agentero<span class="w"> </span>vault<span class="w"> </span>list<span class="w"> </span>--json
+</code></pre></div>
+
+<p>该配置与 GUI 设置隔离，可直接编辑 <code>config.toml</code>：</p>
+<div class="codehilite"><pre><span></span><code><span class="n">default_vault</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/Users/philfan/l/paper"</span>
+<span class="n">known_vaults</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"/Users/philfan/l/paper"</span><span class="p">,</span><span class="w"> </span><span class="s2">"/Users/philfan/l/video-acc"</span><span class="p">]</span>
+</code></pre></div>
+
 <h2 id="_5">论文导入<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <p><code>import id</code> 通过标识符（arXiv ID / DOI / URL / 标题等）解析元数据并创建论文单元，同时尝试下载 PDF / arXiv TeX 等资源。默认放到 <code>papers/</code> 下，可用 <code>--parent</code> 指定 vault 内的父目录：</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># 默认 parent = papers</span>
@@ -3906,6 +3939,10 @@ agentero<span class="w"> </span>paper<span class="w"> </span>tag<span class="w">
 <div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>move<span class="w"> </span>papers/inbox/demo<span class="w"> </span>papers/archive
 <span class="c1"># 目标父目录可尚未存在：</span>
 agentero<span class="w"> </span>paper<span class="w"> </span>move<span class="w"> </span>papers/inbox/demo<span class="w"> </span>papers/new-shelf
+</code></pre></div>
+
+<p>如果路径以 Vault 根目录开头，则自动识别为跨 Vault 迁移（源 Vault 的 Catalog 记录会被删除并插入到目标 Vault）：</p>
+<div class="codehilite"><pre><span></span><code>agentero<span class="w"> </span>paper<span class="w"> </span>move<span class="w"> </span>/path/to/src-vault/papers/inbox/demo<span class="w"> </span>/path/to/dst-vault/papers/archive
 </code></pre></div>
 
 <h3 id="app">从命令行打开桌面 App<a class="headerlink" href="#app" title="Permanent link">&para;</a></h3>
