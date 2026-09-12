@@ -4029,7 +4029,7 @@
 </tbody>
 </table>
 <ul>
-<li><strong>划词与 Agent（#421）</strong>：详情正文 DOM 选区后浮出 Copy / Ask / Add to chat（<code>PlazaSelectionMenu</code>）。Ask 复用 PDF <code>AskPopover</code> + 内存 <code>PdfAskThread</code>（空 rects），<code>runOnce({ hideFromChatHistory: true })</code>，Agent 取自设置里的划词提问席位；关闭即丢，不落盘。Add to chat：<code>publishSelection({ origin: "markdown" })</code> → pin → 打开右侧 Agent。实现：<code>plaza-feeds-item.tsx</code>、<code>use-plaza-feed-selection.ts</code>、<code>plaza-selection-menu.tsx</code>、<code>lib/plaza/ask-prompt.ts</code>。</li>
+<li><strong>划词与 Agent（#421）</strong>：详情正文 DOM 选区后浮出文字按钮 Add to chat / Quick chat（<code>PlazaSelectionMenu</code>）。Quick chat 复用 PDF <code>AskPopover</code> + 内存 <code>PdfAskThread</code>（空 rects），<code>runOnce({ hideFromChatHistory: true })</code>，Agent 取自设置里的划词提问席位；关闭即丢，不落盘。Add to chat：<code>publishSelection({ origin: "markdown" })</code> → pin → 打开右侧 Agent。实现：<code>plaza-feeds-item.tsx</code>、<code>use-plaza-feed-selection.ts</code>、<code>plaza-selection-menu.tsx</code>、<code>lib/plaza/ask-prompt.ts</code>。</li>
 <li>入库复用 <code>importPlazaPaper</code> / <code>lookupSubmit</code>：arXiv 喂 <code>https://arxiv.org/abs/{id}</code>；DOI 喂 <code>https://doi.org/{doi}</code>。入库不自动打开论文。</li>
 <li>入库中按钮 busy；成功 Toast + 该行变为「已入库」（本机缓存记 <code>importedAt</code>，刷新不丢）。</li>
 <li>失败 <code>notifyError</code>，不在侧栏挂错误条。</li>

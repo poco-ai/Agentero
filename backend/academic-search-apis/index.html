@@ -4054,7 +4054,7 @@
 <li>解析论文 URL：<code>https://papers.cool/{arxiv|venue}/{id}</code>。</li>
 <li>按标题搜索：<code>GET https://papers.cool/{branch}/search?query=...</code>。</li>
 <li>获取 Kimi 解析：<code>GET https://papers.cool/{branch}/kimi?paper={id}</code>。</li>
-<li>这是一个人工整理的学术站点，不是开放 API；解析结果写入 NOTES.md。转换时丢弃末尾「想要进一步了解论文」FAQ（跳转 Kimi 网页版的推广段）。</li>
+<li>这是一个人工整理的学术站点，不是开放 API；解析结果写入 NOTES.md。FAQ 问题写成 <code>## Qn</code>，保留答案内 <code>###</code> 小节；丢弃末尾「想要进一步了解论文」FAQ（跳转 Kimi 网页版的推广段）。</li>
 </ul>
 <h3 id="210-pdf-tex">2.10 PDF / TeX 资产下载<a class="headerlink" href="#210-pdf-tex" title="Permanent link">&para;</a></h3>
 <p>入口：<code>features/paper/import/download.rs</code>。</p>
