@@ -3646,6 +3646,10 @@
 <td>视觉批注</td>
 <td>工具栏或 <strong>⌘.</strong> 进入框选，框定/单击 layout 区域后裁剪直接保存为 <code>marks/&lt;id&gt;.json</code>，并在页右缘评论列打开就地编辑。评论卡 hover 显示「加入侧边栏对话」图标，点击后将裁剪图送入 Agent composer 草稿。视觉批注的 Agent 会话继续通过右侧 Agent 面板进行；没有用户备注但已有 Agent 会话的视觉批注，点击页边针会在针旁打开浮动对话卡查看 transcript。面板与 mark 共用 <code>agentSessionStore</code> 会话（同一 send 管线、同一 <code>lines</code>）。多轮会回写同一 <code>marks/&lt;id&gt;.json</code> 的 <code>messages[]</code> / <code>answerSnapshot</code>。活动 PDF 才轮询 marks；切换 Vault 清空 composer 视觉草稿。裁剪最长边 1600 px</td>
 </tr>
+<tr>
+<td>隐私模式</td>
+<td><strong>窗口失焦</strong>时淡出批注（高亮）、评论卡、翻译覆盖、Agent 对话卡等浮层（<code>usePdfPrivacy</code> 经 <code>onFocusChanged</code> 监听），页面正文渲染层保留——切换窗口后再截图不会带出标注内容。系统不提供“正在截图”事件，失焦是无需权限的近似代理；纯浏览器 dev 构建恒可见</td>
+</tr>
 </tbody>
 </table>
 <h2 id="_2">划词菜单<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
@@ -3771,7 +3775,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/layers/</code></td>
-<td>页内绘制层：<code>page-layers</code>（memo 单页栈）/ <code>citation-links</code> / <code>layout-translate-overlay</code> / <code>region-select-layer</code> / <code>selection-gutter</code> / <code>comment-cards-layer</code>（批注评论列：页右缘常驻卡片 + <code>layoutCommentCards</code> 纵向避让；选区竖向评论入口 hover 展开；点击就地编辑；hover 卡片或原文命中区时页内高亮叠半透明强调层，并用 <code>commentConnectorPath</code> 画页缘直角连接细线；线色随 PDF 纸面 tone，不跟 app 主题）</td>
+<td>页内绘制层：<code>page-layers</code>（memo 单页栈）/ <code>citation-links</code> / <code>layout-translate-overlay</code> / <code>region-select-layer</code> / <code>selection-gutter</code> / <code>comment-cards-layer</code>（批注评论列：页右缘常驻卡片 + <code>layoutCommentCards</code> 纵向避让；选区竖向评论入口 hover 展开；点击就地编辑；hover 卡片或原文命中区时页内高亮叠半透明强调层，并用 <code>commentConnectorPath</code> 画页缘直角连接细线（多段高亮锚到离卡片最近的段落，而非整段竖直中点）；线色随 PDF 纸面 tone，不跟 app 主题）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/chrome/</code></td>
@@ -3880,6 +3884,10 @@
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-viewer-handle.ts</code></td>
 <td>注册命令式 handle（跨簇，唯一入口）</td>
+</tr>
+<tr>
+<td><code>src/components/viewer/pdf/hooks/use-pdf-privacy.ts</code></td>
+<td>隐私模式：监听窗口 <code>onFocusChanged</code>，失焦时返回 hidden（驱动批注/评论/翻译/Agent 卡淡出）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-pin-anchors.ts</code></td>
