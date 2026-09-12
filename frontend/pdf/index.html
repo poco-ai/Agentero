@@ -3668,7 +3668,7 @@
 <tr>
 <td>批注</td>
 <td>高亮 + <code>comment</code></td>
-<td>选区时页右缘竖向评论入口（hover 进入编辑；移走且无输入则缩回图标卡；提交后落盘）；已保存的批注在页右缘外侧常驻评论列（色点 + 评论卡，相邻卡片纵向避让；点击卡片就地编辑，Notion 式：卡片内 textarea，Enter 换行，⌘/Ctrl+Enter 或失焦保存，Esc 取消；hover 出复制链接/嵌入/删除）；视口窄于 640px 时回退为页边针</td>
+<td>选区时页右缘竖向评论入口（hover 进入编辑；移走且无输入则缩回图标卡；提交后落盘）；已保存的批注在页右缘外侧常驻评论列（色点 + 评论卡，相邻卡片纵向避让；点击卡片就地编辑，Notion 式：卡片内 textarea，Enter 换行，⌘/Ctrl+Enter 或失焦保存，Esc 取消；hover 出复制链接/嵌入/删除）；<strong>Hover 卡片或原文高亮区</strong>时叠强调层，并画一条经页缘的直角细线连到卡片（仅 Hover 显示，编辑中不常驻；文字与视觉批注双向）；视口窄于 640px 时回退为页边针</td>
 </tr>
 <tr>
 <td>快速对话（Ask）</td>
@@ -3771,7 +3771,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/layers/</code></td>
-<td>页内绘制层：<code>page-layers</code>（memo 单页栈）/ <code>citation-links</code> / <code>layout-translate-overlay</code> / <code>region-select-layer</code> / <code>selection-gutter</code> / <code>comment-cards-layer</code>（批注评论列：页右缘常驻卡片 + <code>layoutCommentCards</code> 纵向避让；选区竖向评论入口 hover 展开；点击就地编辑；hover 卡片时页内高亮区域叠半透明强调层）</td>
+<td>页内绘制层：<code>page-layers</code>（memo 单页栈）/ <code>citation-links</code> / <code>layout-translate-overlay</code> / <code>region-select-layer</code> / <code>selection-gutter</code> / <code>comment-cards-layer</code>（批注评论列：页右缘常驻卡片 + <code>layoutCommentCards</code> 纵向避让；选区竖向评论入口 hover 展开；点击就地编辑；hover 卡片或原文命中区时页内高亮叠半透明强调层，并用 <code>commentConnectorPath</code> 画页缘直角连接细线；线色随 PDF 纸面 tone，不跟 app 主题）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/chrome/</code></td>

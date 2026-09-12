@@ -3555,7 +3555,8 @@
 </ul>
 <p>完成任一收尾动作（创建 Vault / 从 Zotero 导入 / 完成 / 关闭）都会把 <code>onboardingDone</code> 置 <code>true</code>（随 XDG <code>settings.json</code> 持久化，Host <code>AppSettings</code> 必须保留该字段），此后不再自动弹出。</p>
 <h2 id="feature-tour">功能导引（Feature tour）<a class="headerlink" href="#feature-tour" title="Permanent link">&para;</a></h2>
-<p>Vault 首次打开后，<code>useFeatureTour</code> 用 driver.js 高亮侧栏 / 魔棒 / 工作区 / Agent / 标题栏。<code>featureTourDone === false</code> 时自动开始；完成或跳过写入 <code>featureTourDone: true</code>。设置侧栏可手动重放（<code>onboarding:tour</code>）。</p>
+<p>Onboarding 关闭、Vault 首次打开后，<code>useFeatureTour</code> 用 driver.js 高亮侧栏 / 论文库 / Cool Papers / 魔棒 / 阅读记笔记 / 工作区 / 全文翻译 / Cool Paper 笔记抓取 / Agent / 标题栏。<code>featureTourDone === false</code> 且引导向导已关闭时自动开始；完成或跳过写入 <code>featureTourDone: true</code>。设置侧栏可手动重放（<code>onboarding:tour</code>）。</p>
+<p><code>useFeatureTour</code> 订阅 <code>onboardingStore.open</code>，确保在 onboarding 覆盖层仍在显示时不提前启动，避免高亮层与向导覆盖层竞争。</p>
 <h2 id="_2">步骤<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>每个步骤头部显示标题 + 一句人话说明（<code>&lt;id&gt;.title</code> / <code>&lt;id&gt;.desc</code>，welcome 除外）。</p>
 <table>
