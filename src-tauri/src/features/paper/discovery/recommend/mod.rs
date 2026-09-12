@@ -766,7 +766,6 @@ mod tests {
             vec![64, 8, 8, 8, 8, 8, 8, 8, 8, 1]
         );
 
-        // Changing the limit must keep existing vectors usable without a server.
         server.abort();
         let cached = embed_all(vault.path(), &endpoint, None, "test", &texts, 64)
             .await

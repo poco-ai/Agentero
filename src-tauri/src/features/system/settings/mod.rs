@@ -212,13 +212,8 @@ pub struct EmbeddingSettings {
     pub api_key: String,
     #[serde(default)]
     pub model: String,
-    /// Maximum inputs per embedding request.
     #[serde(default = "default_embedding_batch_size")]
     pub batch_size: usize,
-}
-
-fn default_embedding_batch_size() -> usize {
-    64
 }
 
 impl Default for EmbeddingSettings {
@@ -470,6 +465,9 @@ fn default_mcp_port() -> u16 {
 }
 fn default_batch_import_concurrency() -> u32 {
     5
+}
+fn default_embedding_batch_size() -> usize {
+    64
 }
 fn default_translate_target() -> String {
     "ui".into()
