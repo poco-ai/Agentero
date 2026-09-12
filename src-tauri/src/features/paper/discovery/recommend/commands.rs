@@ -102,8 +102,8 @@ pub async fn probe_embedding(
     let settings = app.state::<AppSettingsStore>();
     let uses_builtin = settings.embedding_is_builtin();
     let stored = settings.embedding_config();
-    let (base_url, api_key, model) = match stored {
-        Some(triple) => triple,
+    let (base_url, api_key, model, _) = match stored {
+        Some(config) => config,
         None => return ApiResult::err(AppError::message(ERR_NO_EMBEDDING)),
     };
     // The built-in key is shared, not the caller's, so an override would let

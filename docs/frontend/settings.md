@@ -103,6 +103,10 @@
   - `custom`：渲染 vault 内 `.agentero/templates/NOTES.md`（变量 `{{title}} {{authors}} {{year}} {{date}} {{abstract}} {{arxiv_id}} {{doi}} {{url}} {{id}}`，`{{abstract}}` 为原文不翻译，未知变量原样保留；模板缺失回退 standard）。选中该项时显示模板路径与「生成起始模板」按钮（`notes_template_seed`，仅当模板不存在时写入）。
   - 所有模式产物都保证含 aliases frontmatter；只影响新导入，不改存量笔记。
 
+## Embedding 批次大小
+
+设置 → Agent → Embedding 模型提供「批次大小」数字输入框，默认 **64**，内置和自定义接口均可调整。填写正整数后失焦或按 Enter 保存；无效输入恢复为已保存的值。遇到 embedding 接口单批最多 8 条的错误时，改为 **8**，再刷新 arXiv Daily。
+
 ## i18n
 
 - 用户文案一律 `t()` / `react-i18next`；en 源语言，同步 `zh-CN`。

@@ -2333,6 +2333,8 @@ export type EmbeddingSettings = {
 	baseUrl?: string,
 	apiKey?: string,
 	model?: string,
+	/**  Maximum inputs per embedding request. */
+	batchSize?: number,
 };
 
 export type EnabledResponse = {

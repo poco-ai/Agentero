@@ -280,6 +280,33 @@ export function AgentEmbeddingBlock({
 						</SettingsRow>
 					</>
 				) : null}
+				<SettingsRow
+					label={t("agent.embedding.batchSize.label")}
+					htmlFor="agent-embedding-batch-size"
+				>
+					<Input
+						key={embedding.batchSize}
+						id="agent-embedding-batch-size"
+						type="number"
+						min={1}
+						step={1}
+						defaultValue={embedding.batchSize}
+						onBlur={(e) => {
+							const batchSize = e.currentTarget.valueAsNumber;
+							if (!Number.isSafeInteger(batchSize) || batchSize < 1) {
+								e.currentTarget.value = String(embedding.batchSize);
+								return;
+							}
+							if (batchSize !== embedding.batchSize) {
+								commitEmbedding({ batchSize });
+							}
+						}}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") e.currentTarget.blur();
+						}}
+						className="h-8 w-28"
+					/>
+				</SettingsRow>
 			</SettingsGroup>
 		</>
 	);

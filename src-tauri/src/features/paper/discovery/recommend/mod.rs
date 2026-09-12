@@ -29,8 +29,6 @@ pub const DEFAULT_TOP_N: usize = 20;
 
 /// Cap on abstracts embedded per request so one run cannot fan out unbounded.
 const MAX_CORPUS: usize = 2_000;
-/// Abstracts per `/embeddings` call. Large batches trip provider input limits.
-const EMBED_BATCH: usize = 64;
 /// Chars of an abstract sent for embedding (providers cap tokens per input).
 const MAX_EMBED_CHARS: usize = 4_000;
 const FEED_TIMEOUT: Duration = Duration::from_secs(30);
@@ -487,6 +485,7 @@ async fn embed_all(
     api_key: Option<&str>,
     model: &str,
     texts: &[String],
+    batch_size: usize,
 ) -> Result<Vec<Vec<f32>>, AppError> {
     let hashes: Vec<String> = texts.iter().map(|t| text_hash(t)).collect();
     let cached = {
@@ -510,7 +509,7 @@ async fn embed_all(
         .build()
         .map_err(|e| AppError::message(format!("recommend http client: {e}")))?;
     let mut fresh: Vec<(String, Vec<f32>)> = Vec::new();
-    for chunk in missing.chunks(EMBED_BATCH) {
+    for chunk in missing.chunks(batch_size.max(1)) {
         let inputs: Vec<String> = chunk.iter().map(|(_, t)| t.clone()).collect();
         let vectors = embed_batch(&client, endpoint, api_key, model, &inputs).await?;
         for ((hash, _), vector) in chunk.iter().zip(vectors) {
@@ -568,14 +567,14 @@ fn time_decay_weights(len: usize) -> Vec<f32> {
 
 /// Recompute recommendations, or return the stored run when it is still fresh.
 ///
-/// `settings` is the resolved embedding endpoint `(base_url, api_key, model)`;
+/// `embedding` is the resolved endpoint `(base_url, api_key, model, batch_size)`;
 /// callers read it from `AppSettingsStore` before awaiting.
 pub async fn recommend(
     vault_root: &Path,
     requested_categories: Option<Vec<String>>,
     top_n: Option<usize>,
     force: bool,
-    embedding: Option<(String, Option<String>, String)>,
+    embedding: Option<(String, Option<String>, String, usize)>,
 ) -> Result<RecommendResult, AppError> {
     let categories = {
         let vault = vault_root.to_path_buf();
@@ -597,7 +596,7 @@ pub async fn recommend(
         }
     }
 
-    let Some((base_url, api_key, model)) = embedding else {
+    let Some((base_url, api_key, model, batch_size)) = embedding else {
         return Err(AppError::message(ERR_NO_EMBEDDING));
     };
     let endpoint = resolve_endpoint(&base_url);
@@ -642,6 +641,7 @@ pub async fn recommend(
         api_key.as_deref(),
         &model,
         &corpus_texts,
+        batch_size,
     )
     .await?;
     let mut candidate_vectors = embed_all(
@@ -650,6 +650,7 @@ pub async fn recommend(
         api_key.as_deref(),
         &model,
         &candidate_texts,
+        batch_size,
     )
     .await?;
     for v in corpus_vectors.iter_mut() {
@@ -707,6 +708,71 @@ pub async fn recommend(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn embedding_batch_size_limits_requests_and_preserves_cache() {
+        use axum::{http::StatusCode, routing::post, Json, Router};
+        use std::sync::{Arc, Mutex};
+
+        let batches = Arc::new(Mutex::new(Vec::new()));
+        let observed = batches.clone();
+        let app = Router::new().route(
+            "/embeddings",
+            post(move |Json(body): Json<serde_json::Value>| {
+                let observed = observed.clone();
+                async move {
+                    let inputs = body["input"].as_array().unwrap();
+                    observed.lock().unwrap().push(inputs.len());
+                    if inputs.len() > 8 {
+                        return (
+                            StatusCode::UNPROCESSABLE_ENTITY,
+                            Json(serde_json::json!({"error": "maximum batch size is 8"})),
+                        );
+                    }
+                    let data: Vec<_> = inputs
+                        .iter()
+                        .map(|input| {
+                            let n: f32 = input.as_str().unwrap().parse().unwrap();
+                            serde_json::json!({"embedding": [n, 1.0]})
+                        })
+                        .collect();
+                    (StatusCode::OK, Json(serde_json::json!({"data": data})))
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endpoint = format!("http://{}/embeddings", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let vault = tempfile::tempdir().unwrap();
+        let mut texts: Vec<String> = (0..65).map(|n| n.to_string()).collect();
+        texts.push(texts[0].clone());
+
+        let error = embed_all(vault.path(), &endpoint, None, "test", &texts, 64)
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("422"), "{error}");
+        assert_eq!(*batches.lock().unwrap(), vec![64]);
+
+        let vectors = embed_all(vault.path(), &endpoint, None, "test", &texts, 8)
+            .await
+            .unwrap();
+        let expected: Vec<Vec<f32>> = texts
+            .iter()
+            .map(|text| vec![text.parse().unwrap(), 1.0])
+            .collect();
+        assert_eq!(vectors, expected);
+        assert_eq!(
+            *batches.lock().unwrap(),
+            vec![64, 8, 8, 8, 8, 8, 8, 8, 8, 1]
+        );
+
+        // Changing the limit must keep existing vectors usable without a server.
+        server.abort();
+        let cached = embed_all(vault.path(), &endpoint, None, "test", &texts, 64)
+            .await
+            .unwrap();
+        assert_eq!(cached, expected);
+    }
 
     #[test]
     fn weights_favor_recent_and_sum_to_one() {

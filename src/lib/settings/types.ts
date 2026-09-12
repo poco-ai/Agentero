@@ -319,4 +319,6 @@ export type EmbeddingSettings = {
 	apiKey: string;
 	/** Embedding model id, e.g. `text-embedding-3-small`, `BAAI/bge-m3`. */
 	model: string;
+	/** Maximum inputs per embedding request. */
+	batchSize: number;
 };

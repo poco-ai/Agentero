@@ -200,7 +200,7 @@ pub struct PdfAskSettings {
 
 /// Embedding endpoint: the built-in provider, or a custom OpenAI-compatible
 /// one (BYOK). Custom with all-empty fields = feature disabled.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct EmbeddingSettings {
     /// `builtin` | `custom`; empty = unset and inferred from the fields below.
@@ -212,6 +212,25 @@ pub struct EmbeddingSettings {
     pub api_key: String,
     #[serde(default)]
     pub model: String,
+    /// Maximum inputs per embedding request.
+    #[serde(default = "default_embedding_batch_size")]
+    pub batch_size: usize,
+}
+
+fn default_embedding_batch_size() -> usize {
+    64
+}
+
+impl Default for EmbeddingSettings {
+    fn default() -> Self {
+        Self {
+            source: String::new(),
+            base_url: String::new(),
+            api_key: String::new(),
+            model: String::new(),
+            batch_size: default_embedding_batch_size(),
+        }
+    }
 }
 
 /// One column in the papers Library table: array order = display order.
@@ -733,10 +752,10 @@ impl AppSettingsStore {
             .is_ok_and(|guard| embedding_uses_builtin(&guard.embedding))
     }
 
-    /// Resolve the embedding endpoint (base URL, API key, model): the built-in
+    /// Resolve the embedding endpoint (base URL, API key, model, batch size): the built-in
     /// gateway unless the source is custom. None when a custom endpoint is
     /// incomplete, which is what disables arXiv recommendations.
-    pub fn embedding_config(&self) -> Option<(String, Option<String>, String)> {
+    pub fn embedding_config(&self) -> Option<(String, Option<String>, String, usize)> {
         let guard = self.inner.lock().ok()?;
         if embedding_uses_builtin(&guard.embedding) {
             let status = builtin::status();
@@ -744,6 +763,7 @@ impl AppSettingsStore {
                 status.base_url,
                 builtin::api_key().map(str::to_string),
                 status.embedding_model,
+                guard.embedding.batch_size,
             ));
         }
         let base_url = guard.embedding.base_url.trim();
@@ -757,7 +777,12 @@ impl AppSettingsStore {
         } else {
             Some(api_key.to_string())
         };
-        Some((base_url.to_string(), key, model.to_string()))
+        Some((
+            base_url.to_string(),
+            key,
+            model.to_string(),
+            guard.embedding.batch_size,
+        ))
     }
 
     /// Raw `(tunnel_id, api_key)` for the built-in ChatGPT tunnel supervisor.
@@ -1054,6 +1079,9 @@ fn normalize(s: &mut AppSettings) {
     s.embedding.api_key = s.embedding.api_key.trim().to_string();
     s.embedding.model = s.embedding.model.trim().to_string();
     s.embedding.source = resolve_embedding_source(&s.embedding);
+    if s.embedding.batch_size == 0 {
+        s.embedding.batch_size = default_embedding_batch_size();
+    }
 
     normalize_translate_provider_configs(&mut s.translate.provider_configs);
     s.translate.agent_id = s.translate.agent_id.trim().to_string();
@@ -1600,6 +1628,7 @@ mod tests {
         let mut fresh = AppSettings::default();
         normalize(&mut fresh);
         assert_eq!(fresh.embedding.source, "builtin");
+        assert_eq!(fresh.embedding.batch_size, 64);
 
         // Legacy file: BYOK fields populated, no `source` key at all.
         let mut legacy: AppSettings = serde_json::from_str(
@@ -1609,6 +1638,7 @@ mod tests {
         assert_eq!(legacy.embedding.source, "");
         normalize(&mut legacy);
         assert_eq!(legacy.embedding.source, "custom");
+        assert_eq!(legacy.embedding.batch_size, 64);
 
         // An explicit choice wins over inference from the other fields.
         let mut explicit = AppSettings::default();
@@ -1631,14 +1661,31 @@ mod tests {
     }
 
     #[test]
+    fn embedding_batch_size_roundtrips_and_rejects_zero() {
+        let mut settings: AppSettings =
+            serde_json::from_str(r#"{"embedding":{"batchSize":8}}"#).expect("deserialize");
+        normalize(&mut settings);
+        assert_eq!(settings.embedding.source, "builtin");
+        assert_eq!(settings.embedding.batch_size, 8);
+        let json = serde_json::to_string(&settings).expect("serialize");
+        let restored: AppSettings = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(restored.embedding.batch_size, 8);
+
+        settings.embedding.batch_size = 0;
+        normalize(&mut settings);
+        assert_eq!(settings.embedding.batch_size, 64);
+    }
+
+    #[test]
     fn embedding_config_prefers_builtin_unless_custom() {
         let status = builtin::status();
         let store = AppSettingsStore::for_tests(AppSettings::default());
         match store.embedding_config() {
-            Some((base_url, api_key, model)) => {
+            Some((base_url, api_key, model, batch_size)) => {
                 assert!(builtin::available(), "no key compiled in → no config");
                 assert_eq!(base_url, status.base_url);
                 assert_eq!(model, status.embedding_model);
+                assert_eq!(batch_size, 64);
                 assert!(api_key.is_some());
             }
             None => {
@@ -1652,6 +1699,7 @@ mod tests {
                 base_url: "https://embed.test/v1".into(),
                 api_key: "sk-custom-test".into(),
                 model: "bge-m3".into(),
+                batch_size: 8,
             },
             ..AppSettings::default()
         });
@@ -1660,7 +1708,8 @@ mod tests {
             Some((
                 "https://embed.test/v1".into(),
                 Some("sk-custom-test".into()),
-                "bge-m3".into()
+                "bge-m3".into(),
+                8
             ))
         );
     }
@@ -1678,12 +1727,13 @@ mod tests {
                 base_url: "https://embed.test/v1".into(),
                 api_key: "sk-custom-test".into(),
                 model: "bge-m3".into(),
+                ..EmbeddingSettings::default()
             },
             ..AppSettings::default()
         });
         assert!(!custom.embedding_is_builtin());
         assert_eq!(
-            custom.embedding_config().map(|(base, _, _)| base),
+            custom.embedding_config().map(|(base, _, _, _)| base),
             Some("https://embed.test/v1".into())
         );
     }

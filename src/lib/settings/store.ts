@@ -586,6 +586,13 @@ function normalizeEmbeddingSettings(
 	if (typeof raw.baseUrl === "string") base.baseUrl = raw.baseUrl.trim();
 	if (typeof raw.apiKey === "string") base.apiKey = raw.apiKey.trim();
 	if (typeof raw.model === "string") base.model = raw.model.trim();
+	if (
+		typeof raw.batchSize === "number" &&
+		Number.isSafeInteger(raw.batchSize) &&
+		raw.batchSize > 0
+	) {
+		base.batchSize = raw.batchSize;
+	}
 	// Wire `source` is a plain string (empty on a fresh install); narrow it here.
 	base.source = resolveEmbeddingSource(
 		(raw as { source?: unknown }).source,

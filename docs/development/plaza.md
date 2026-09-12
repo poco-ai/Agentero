@@ -227,6 +227,7 @@ papers.cool 给几乎所有链接都加了 `target="_blank"`（单个分区页�
 **取舍**
 
 - 首次或大库的整库 embedding 会慢一次（上千篇），之后靠 `embed_cache` 只增量；候选每天仅数十篇。接受首启一次性成本，换掉「每次都重算」。
+- embedding 批次大小可在设置 → Agent → Embedding 模型中调整（`embedding.batchSize`，默认 64），内置和自定义来源均生效。接口单批上限较小时手动调小，例如改为 8；较小批次会增加首次计算的请求次数。
 - 分类/Top-N 不做设置项：Top-20 是常量，分类留在 header。少一层配置面板。
 - `embed_cache` 主键是 `(text_hash, model)`，所以换 embedding 模型是缓存 miss、整库重 embed 一次（不是维度混用）；打分处的维度不匹配记 0 分只是防御性兜底。换来源后建议点一次刷新，见下条。
 - **`arxiv_rec_state` 不按 model 建键**：当天已排序的结果在切换 embedding 来源后的首次运行仍会被复用（陈旧短路只看 `computed_at` 是否当天 + 分类集合是否一致），除非 `force`。既存行为，未随内置 provider 一起改。

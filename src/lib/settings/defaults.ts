@@ -18,6 +18,7 @@ export const DEFAULT_EMBEDDING_SETTINGS: EmbeddingSettings = {
 	baseUrl: "",
 	apiKey: "",
 	model: "",
+	batchSize: 64,
 };
 
 /** Default Translator Runtime endpoint (overridable in Settings). */

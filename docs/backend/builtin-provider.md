@@ -161,7 +161,7 @@
 
 也就是说：已经填过自定义端点的老用户**不会被静默切走**，只有真正全新 / 全空的配置才变成内置。
 
-`embedding_config()` 在解析出的 source 非 `"custom"` 且 `builtin::available()` 时返回网关三元组；否则穿透到已存值。这条链路只服务 arXiv 每日推荐（[../development/plaza.md](../development/plaza.md) §3.4），Host 命令 `recommend_arxiv` 透明继承，无需改动。
+`embedding_config()` 在解析出的 source 非 `"custom"` 且 `builtin::available()` 时使用网关凭据；否则穿透到已存值，并随凭据返回用户设置的 `embedding.batchSize`（默认 64）。这条链路只服务 arXiv 每日推荐（[../development/plaza.md](../development/plaza.md) §3.4），Host 命令 `recommend_arxiv` 透明继承。
 
 向量缓存安全：`embed_cache` 的主键是 `(text_hash, model)`（`catalog/schema.rs` v6），所有读写都按 model 过滤，所以换 embedding 模型不会读到旧向量。
 

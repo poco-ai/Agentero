@@ -255,6 +255,9 @@
 			"model": {
 				"label": "模型"
 			},
+			"batchSize": {
+				"label": "批次大小"
+			},
 			"test": "测试连接",
 			"testing": "测试中…",
 			"probeStatus": {

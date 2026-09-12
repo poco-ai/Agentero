@@ -138,3 +138,31 @@ describe("embedding source migration", () => {
 		expect(next.model).toBe("text-embedding-3-small");
 	});
 });
+
+describe("embedding batch size", () => {
+	it("keeps the default for fresh installs and legacy settings", () => {
+		expect(DEFAULT_SETTINGS.embedding.batchSize).toBe(64);
+		expect(normalizeEmbedding({ model: "bge-m3" }).batchSize).toBe(64);
+	});
+
+	it.each([
+		"builtin",
+		"custom",
+	])("preserves a manual limit for %s", (source) => {
+		const next = normalizeEmbedding({ source, batchSize: 8 });
+		expect(next.batchSize).toBe(8);
+		expect(next.source).toBe(source);
+	});
+
+	it.each([
+		0,
+		-1,
+		1.5,
+		Number.NaN,
+		Number.POSITIVE_INFINITY,
+		"8",
+		null,
+	])("falls back to 64 for invalid input %s", (batchSize) => {
+		expect(normalizeEmbedding({ batchSize }).batchSize).toBe(64);
+	});
+});

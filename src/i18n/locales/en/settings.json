@@ -255,6 +255,9 @@
 			"model": {
 				"label": "Model"
 			},
+			"batchSize": {
+				"label": "Batch size"
+			},
 			"test": "Test connection",
 			"testing": "Testing…",
 			"probeStatus": {
