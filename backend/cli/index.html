@@ -3808,7 +3808,7 @@
 </tr>
 <tr>
 <td><code>layout</code></td>
-<td>侧栏同构版面索引：<code>list</code> / <code>get</code>（figure / table / algorithm / formula）</td>
+<td>侧栏同构版面索引：<code>list</code> / <code>get</code>（figure / table / algorithm / formula / section）</td>
 </tr>
 <tr>
 <td><code>mark</code></td>
@@ -3828,13 +3828,16 @@ agentero<span class="w"> </span>describe<span class="w"> </span>paper.list<span 
 agentero<span class="w"> </span>describe<span class="w"> </span>paper_list<span class="w"> </span>--json<span class="w">   </span><span class="c1"># MCP tool 名亦可</span>
 </code></pre></div>
 
-<p>未知 id 返回 <code>usage</code>，并尽量提示相近 op。Skill <code>agentero-cli</code> 只保留协议与 invariants，细节指向本命令。</p>
+<p>未知 id 返回 <code>usage</code>，并尽量提示相近 op。Skill <code>agentero-cli</code>（v16+）按<strong>任务分支</strong>写协议（已知 path 的问答直接读文件；探索才 <code>paper list</code>；<code>describe</code> 仅在 flag 未知时用；<code>set-read</code> 只在 paper-reader / 显式标已读后），细节仍以本命令为准。</p>
 <p><code>paper list --json</code> 默认每行只含 <code>id/path/title</code>；用 <code>--fields year,tags,abstract,…</code>（逗号分隔、可重复）按需加字段，或 <code>--full</code> 输出完整 <code>PaperRecord</code>。未知字段报 <code>usage</code> 错误并列出合法字段。text 表格输出不受影响。</p>
+<p><code>paper get</code> / 其它接受 paper ref 的命令：优先 vault-relative <strong>path</strong>。bare <strong>id</strong> 在多 shelf 同 id 时返回 <code>paper_ambiguous</code>（<code>details.candidates</code> 为可选 path），message 会提示用 path 重试。</p>
 <h3 id="_3">版面索引与区域批注（已实现）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
 <p>侧栏 Figures 同源列表落在 <code>{paper}/source/layout-index.json</code>（由桌面版面分析在 merge 后写入；raw 仍为 <code>source/layout.json</code>）。</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 列出图 / 表 / 算法 / 公式（--kind 可重复，OR）</span>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 列出图 / 表 / 算法 / 公式 / 章节标题（--kind 可重复，OR）</span>
 agentero<span class="w"> </span>layout<span class="w"> </span>list<span class="w"> </span>papers/demo<span class="w"> </span>--json
 agentero<span class="w"> </span>layout<span class="w"> </span>list<span class="w"> </span>papers/demo<span class="w"> </span>--kind<span class="w"> </span>figure<span class="w"> </span>--kind<span class="w"> </span>formula<span class="w"> </span>--json
+<span class="c1"># section 从 source/layout.json 的 header 区域实时合并，不写入 layout-index.json</span>
+agentero<span class="w"> </span>layout<span class="w"> </span>list<span class="w"> </span>papers/demo<span class="w"> </span>--kind<span class="w"> </span>section<span class="w"> </span>--json
 agentero<span class="w"> </span>layout<span class="w"> </span>get<span class="w">  </span>papers/demo<span class="w"> </span>figure-3<span class="w"> </span>--json
 
 <span class="c1"># 按区域钉批注（bbox 归一，页面尺寸由 PDF 引擎测量）</span>
@@ -3860,6 +3863,10 @@ agentero<span class="w"> </span>mark<span class="w"> </span>delete<span class="w
 <tr>
 <td><code>image</code> / <code>chart</code> / <code>table</code> / <code>algorithm</code> / <code>formula</code></td>
 <td>精确 kind</td>
+</tr>
+<tr>
+<td><code>section</code></td>
+<td>章节 / 段落标题，实时从 <code>source/layout.json</code> 的 <code>kind=header</code> 区域合并</td>
 </tr>
 </tbody>
 </table>

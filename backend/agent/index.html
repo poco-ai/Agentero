@@ -3926,7 +3926,7 @@ Agentero prompt envelope、skill/context 注入，并将原始 <code>/command</c
 <li><code>translate</code>：<strong>不套 envelope</strong>（无 <code>## Sources</code>、无 CLI 政策、不注入回答语言与个人偏好）。翻译 prompt 自己已指定目标语言并要求「只返回译文」，envelope 会与之冲突。</li>
 <li>Skill：Claude 倾向 <code>/id</code>；其它注入 <code>SKILL.md</code> 文本（<code>SkillMentionStyle</code>）。激活语法<strong>只由 Host 判定</strong>（<code>skill_mention_style</code> + <code>paper_reader_skill_line</code>）；前端不得重复推断，否则同一条 prompt 的两半会互相矛盾。</li>
 <li>paper-reader：写 NOTES + <code>paper_set_is_read</code>；前端任务条编排。</li>
-<li>输出约定：工作流要求 <code>## Sources</code>（相对 Vault 路径）；双链保留 <code>[[...]]</code>。</li>
+<li>输出约定：工作流要求行内引用（<strong>不加外层括号</strong>）。<strong>阅读</strong>可用 TeX/<code>PAPER.md</code>，但 citation <strong>href 优先指向本地 PDF + fragment</strong>（<code>#section=</code> / <code>#figure=</code> / <code>#page=</code>），例如 <code>[Section 2.3](papers/&lt;id&gt;/&lt;id&gt;.pdf#section=2.3)</code>、<code>[Figure 1](papers/&lt;id&gt;/&lt;id&gt;.pdf#figure=1)</code>；笔记可用 <code>[[papers/&lt;id&gt;/NOTES]]</code>。不要把 <code>source/**/*.tex</code> 写进 href。Agent 只按格式输出；前端负责把链接/<code>[[papers/…]]</code> 渲成 pill，并把残留的 <code>.tex</code> href 回退到同论文 <code>{id}.pdf</code> 再打开/跳转。不再使用独立的 <code>## Sources</code> 块。</li>
 <li><code>AGENTS.md</code> 已作为 progressive disclosure 系统上下文注入所有工作流 prompt（优先级：Vault 根 <code>AGENTS.md</code> → 当前 paper <code>NOTES.md</code> → marks）。</li>
 <li>自由模型选择：<code>preferred_model_id</code> 可指向 ACP catalog 外的任意模型 id；Warm / Run 时始终尝试 <code>session/set_config_option</code>，失败不阻断会话。</li>
 </ul>

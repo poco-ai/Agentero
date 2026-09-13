@@ -3615,12 +3615,13 @@
 <h1 id="agent">Agent 面板<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h1>
 <p>BYOA：连接本机（或远程）ACP Agent。Host 协议见 <a href="../../backend/agent/">../backend/agent.md</a>。</p>
 <h2 id="ui">UI 分层<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span><code>AI Elements (Conversation / Message / PromptInput / Sources / Reasoning)
+<div class="codehilite"><pre><span></span><code>AI Elements (Conversation / Message / PromptInput / InlineCitation / Reasoning)
   → AgentPanel 状态机
   → invoke agent_* + 订阅 agent:* 事件
 </code></pre></div>
 
 <p>流式：<code>agent:stream</code>（message | thought）→ 完成 / 失败事件。写 NOTES 后统一 Diff（Keep / Revert）。</p>
+<p><strong>行内 citation pill / 统一跳转</strong>：Agent 按格式输出 <code>[label](papers/…/&lt;id&gt;.pdf#section|figure|page=…)</code> 或 <code>[[papers/…/NOTES]]</code>。前端 <code>MessageResponse</code> 把可解析 <code>&lt;a&gt;</code> 渲成 pill；Markdown 编辑器普通链接、wikilink、图谱/<code>openVaultRel</code> 等入口对 <code>#page=</code> / <code>#section=</code> / <code>#figure=</code> 等 fragment 一律走 <code>openCitation</code>（与 Agent pill 相同：开论文 PDF 并 <code>scrollToLayoutRegion</code>）。<code>.tex</code> href 会回退到同论文 <code>{id}.pdf</code>。约定不加外层 <code>([…])</code>，不用文末 <code>## Sources</code>。</p>
 <h2 id="_1">面板行为<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <ul>
 <li>空态建议 chips → workflow：<code>summary</code> / <code>qa</code> / <code>related_work</code>。</li>
