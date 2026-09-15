@@ -29,6 +29,9 @@ fn extra_path_dirs() -> Vec<PathBuf> {
         if let Some(home) = dirs::home_dir() {
             dirs.push(home.join("scoop").join("shims")); // scoop
         }
+        for d in install_dirs::WIN_ABS_BIN_DIRS {
+            dirs.push(PathBuf::from(*d)); // chocolatey
+        }
     }
     #[cfg(not(windows))]
     {

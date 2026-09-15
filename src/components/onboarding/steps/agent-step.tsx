@@ -70,6 +70,16 @@ function isAvailable(entry: CatalogEntry): boolean {
 	);
 }
 
+/**
+ * Which layer is missing for an unusable entry — the host CLI (`agent`) or the
+ * ACP adapter (`adapter`). Without this, dimmed cards look identical whether the
+ * user never installed the agent or only lacks its ACP entrypoint.
+ */
+function missingLayer(entry: CatalogEntry): "agent" | "adapter" | null {
+	if (entry.acpCommandAvailable) return null;
+	return entry.binaryAvailable ? "adapter" : "agent";
+}
+
 function sortEntries(entries: CatalogEntry[]): CatalogEntry[] {
 	return [...entries].sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -195,6 +205,8 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 					<ul className="grid grid-cols-4 gap-3">
 						{entries.map((entry) => {
 							const available = isAvailable(entry);
+							const layer = available ? null : missingLayer(entry);
+							const adapterOnly = layer === "adapter";
 							const isDefault =
 								entry.isDefault || entry.registeredId === state?.defaultId;
 							const settingDefault = busyId === entry.templateId;
@@ -226,10 +238,20 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 										<button
 											type="button"
 											disabled={busy}
-											aria-label={t("agent.installAgentAria", {
-												name: entry.name,
-											})}
-											title={t("agent.install")}
+											aria-label={
+												adapterOnly
+													? t("agent.installAdapterAria", {
+															name: entry.name,
+														})
+													: t("agent.installAgentAria", {
+															name: entry.name,
+														})
+											}
+											title={
+												adapterOnly
+													? t("agent.installAdapterTitle")
+													: t("agent.installAgentTitle")
+											}
 											onClick={(e) => {
 												e.stopPropagation();
 												void onInstall(entry);
@@ -264,6 +286,13 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 									<p className="w-full truncate text-sm font-medium">
 										{entry.name}
 									</p>
+									{layer && !rowLifecycle ? (
+										<p className="w-full text-caption text-muted-foreground leading-tight">
+											{adapterOnly
+												? t("agent.adapterMissing")
+												: t("agent.agentMissing")}
+										</p>
+									) : null}
 									{rowLifecycle ? (
 										<div
 											role="status"
