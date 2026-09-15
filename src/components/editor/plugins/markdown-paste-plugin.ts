@@ -15,6 +15,32 @@ function isMarkdownPasteBlocked(editor: SlateEditor) {
 	});
 }
 
+type InsertFragmentNodes = Parameters<SlateEditor["tf"]["insertFragment"]>[0];
+
+function decodeSlateFragment(
+	dataTransfer: DataTransfer,
+): InsertFragmentNodes | null {
+	const raw =
+		dataTransfer.getData("application/x-slate-fragment") ||
+		dataTransfer
+			.getData("text/html")
+			.match(/data-slate-fragment="(.+?)"/m)?.[1];
+	if (!raw) return null;
+	try {
+		const decoded = decodeURIComponent(
+			typeof atob === "function"
+				? atob(raw)
+				: Buffer.from(raw, "base64").toString("binary"),
+		);
+		const parsed = JSON.parse(decoded);
+		return Array.isArray(parsed) && parsed.length > 0
+			? (parsed as InsertFragmentNodes)
+			: null;
+	} catch {
+		return null;
+	}
+}
+
 /**
  * Parse clipboard text as Markdown before Plate's HTML parser can claim a
  * payload that contains both text/plain and text/html.
@@ -42,6 +68,17 @@ export const MarkdownPastePlugin = createSlatePlugin({
 			// Only for single-line payloads (multi-line stays Markdown).
 			if (!markdown.includes("\n") && isUnfinishedMarkdownLinkContext(editor)) {
 				editor.tf.insertText(markdown);
+				return;
+			}
+
+			// Intra-editor paste: when the clipboard carries a rich Slate fragment
+			// (via application/x-slate-fragment or data-slate-fragment in HTML),
+			// insert the exact AST nodes directly. This preserves block types (e.g.
+			// headings, lists), prevents wikilink text duplication, and avoids
+			// spurious empty paragraphs from DOM text extraction.
+			const slateFragment = decodeSlateFragment(dataTransfer);
+			if (slateFragment) {
+				editor.tf.insertFragment(slateFragment);
 				return;
 			}
 
