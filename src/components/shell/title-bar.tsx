@@ -3,6 +3,7 @@ import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentLogo } from "@/components/agent/agent-logo";
 import { LayoutMenu } from "@/components/shell/layout-menu";
+import { TrafficLightSpacer } from "@/components/shell/traffic-light-spacer";
 import { UpdateIndicator } from "@/components/shell/update-indicator";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,15 +75,9 @@ export const TitleBar = memo(function TitleBar({
 			data-titlebar
 			className="flex h-8 shrink-0 items-center border-b border-border/50 bg-background/75 backdrop-blur-xl backdrop-saturate-150 supports-backdrop-blur:bg-background/65 select-none"
 		>
-			{/*
-			  Traffic lights: x=14, three ~14px buttons + gaps → ends ~68px.
-			  Keep extra gap so the sidebar toggle never hugs the lights.
-			*/}
+			{/* Collapses in native fullscreen, where macOS hides the lights. */}
 			{isMacDesktop ? (
-				<div
-					className="w-[92px] shrink-0 self-stretch"
-					data-tauri-drag-region
-				/>
+				<TrafficLightSpacer />
 			) : (
 				<div className="w-2 shrink-0 self-stretch" data-tauri-drag-region />
 			)}

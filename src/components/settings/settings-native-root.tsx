@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SettingsSection } from "@/components/settings/types";
+import { TrafficLightSpacer } from "@/components/shell/traffic-light-spacer";
 import { applyLocale } from "@/i18n";
 import { commands } from "@/lib/core/bindings";
 import { isMacOS, isTauri } from "@/lib/core/tauri";
@@ -132,14 +133,12 @@ export function SettingsNativeRoot() {
 				>
 					{/*
 					  Traffic lights: x=14, three ~14px buttons + gaps → ends ~68px.
-					  Keep the same 92px reserved strip as the main title bar so the
-					  drag region layout matches across windows, then let the rest of
+					  Keep the same reserved strip as the main title bar so the drag
+					  region layout matches across windows (collapses in native
+					  fullscreen, where the lights are hidden), then let the rest of
 					  the header be draggable too.
 					*/}
-					<div
-						className="w-[92px] shrink-0 self-stretch"
-						data-tauri-drag-region
-					/>
+					<TrafficLightSpacer />
 					<div className="min-w-0 flex-1 self-stretch" data-tauri-drag-region />
 				</header>
 			) : null}

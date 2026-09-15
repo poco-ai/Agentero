@@ -5,6 +5,7 @@
 
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { TrafficLightSpacer } from "@/components/shell/traffic-light-spacer";
 import {
 	AnnotationsPanel,
 	type AskRow,
@@ -356,10 +357,7 @@ export function FeatureWindowRoot() {
 					data-titlebar
 					className="flex h-8 shrink-0 items-center border-b border-border/50 bg-background/75 backdrop-blur-xl backdrop-saturate-150 supports-backdrop-blur:bg-background/65 select-none"
 				>
-					<div
-						className="w-[92px] shrink-0 self-stretch"
-						data-tauri-drag-region
-					/>
+					<TrafficLightSpacer />
 					<div
 						className="min-w-0 flex-1 truncate px-2 text-sm font-medium text-muted-foreground"
 						data-tauri-drag-region
