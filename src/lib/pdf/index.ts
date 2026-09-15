@@ -260,14 +260,17 @@ export {
 	type PdfViewportScrollScheduler,
 } from "@/lib/pdf/viewport-scroll";
 export {
-	bindWheelZoomGesture,
-	createWheelZoomCoalescer,
+	bindZoomGesture,
+	wheelDeltaToZoomRatio,
+	type ZoomGesturePoint,
 } from "@/lib/pdf/wheel-zoom";
 export {
+	clampZoomPreviewScale,
 	formatPdfZoomPercentage,
 	PDF_ZOOM_MAX,
 	PDF_ZOOM_MIN,
 	parsePdfZoomPercentage,
+	zoomPreviewTranslate,
 } from "@/lib/pdf/zoom";
 // citation-dest-keys.worker.ts (web worker entry) and marks/* (internal mark
 // store schema/io) are intentionally not re-exported from this barrel.

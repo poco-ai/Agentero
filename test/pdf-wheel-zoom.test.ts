@@ -1,133 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-	bindWheelZoomGesture,
-	createWheelZoomCoalescer,
-} from "@/lib/pdf/wheel-zoom";
-
-function frameHarness() {
-	let callback: FrameRequestCallback | null = null;
-	return {
-		requestFrame: vi.fn((next: FrameRequestCallback) => {
-			callback = next;
-			return 7;
-		}),
-		cancelFrame: vi.fn(() => {
-			callback = null;
-		}),
-		flush: () => {
-			const next = callback;
-			callback = null;
-			next?.(0);
-		},
-		hasPending: () => callback !== null,
-	};
-}
-
-describe("PDF wheel zoom coalescer", () => {
-	it("coalesces deltas from multiple wheel events into one frame flush", () => {
-		const frames = frameHarness();
-		const onZoomIn = vi.fn();
-		const onZoomOut = vi.fn();
-		const coalescer = createWheelZoomCoalescer({
-			onZoomIn,
-			onZoomOut,
-			requestFrame: frames.requestFrame,
-			cancelFrame: frames.cancelFrame,
-		});
-
-		coalescer.addDelta(-60);
-		coalescer.addDelta(-60);
-		coalescer.addDelta(-60);
-		expect(frames.requestFrame).toHaveBeenCalledTimes(1);
-		expect(onZoomIn).not.toHaveBeenCalled();
-
-		frames.flush();
-		// -180 accumulated → one zoom-in step, -80 remainder kept.
-		expect(onZoomIn).toHaveBeenCalledTimes(1);
-		expect(onZoomOut).not.toHaveBeenCalled();
-	});
-
-	it("applies multiple steps in one batch and keeps the remainder", () => {
-		const frames = frameHarness();
-		const onZoomIn = vi.fn();
-		const onZoomOut = vi.fn();
-		const coalescer = createWheelZoomCoalescer({
-			onZoomIn,
-			onZoomOut,
-			requestFrame: frames.requestFrame,
-			cancelFrame: frames.cancelFrame,
-		});
-
-		coalescer.addDelta(350);
-		frames.flush();
-		expect(onZoomOut).toHaveBeenCalledTimes(3);
-		expect(onZoomIn).not.toHaveBeenCalled();
-
-		// Remainder 50 carries into the next gesture window.
-		coalescer.addDelta(50);
-		frames.flush();
-		expect(onZoomOut).toHaveBeenCalledTimes(4);
-	});
-
-	it("cancels opposite deltas within the same frame", () => {
-		const frames = frameHarness();
-		const onZoomIn = vi.fn();
-		const onZoomOut = vi.fn();
-		const coalescer = createWheelZoomCoalescer({
-			onZoomIn,
-			onZoomOut,
-			requestFrame: frames.requestFrame,
-			cancelFrame: frames.cancelFrame,
-		});
-
-		coalescer.addDelta(-150);
-		coalescer.addDelta(120);
-		frames.flush();
-		// Net -30 → below threshold, no step.
-		expect(onZoomIn).not.toHaveBeenCalled();
-		expect(onZoomOut).not.toHaveBeenCalled();
-	});
-
-	it("reset drops pending accumulation before the frame fires", () => {
-		const frames = frameHarness();
-		const onZoomIn = vi.fn();
-		const onZoomOut = vi.fn();
-		const coalescer = createWheelZoomCoalescer({
-			onZoomIn,
-			onZoomOut,
-			requestFrame: frames.requestFrame,
-			cancelFrame: frames.cancelFrame,
-		});
-
-		coalescer.addDelta(-250);
-		coalescer.reset();
-		frames.flush();
-		expect(onZoomIn).not.toHaveBeenCalled();
-		expect(onZoomOut).not.toHaveBeenCalled();
-	});
-
-	it("dispose cancels the pending frame and ignores later deltas", () => {
-		const frames = frameHarness();
-		const onZoomIn = vi.fn();
-		const onZoomOut = vi.fn();
-		const coalescer = createWheelZoomCoalescer({
-			onZoomIn,
-			onZoomOut,
-			requestFrame: frames.requestFrame,
-			cancelFrame: frames.cancelFrame,
-		});
-
-		coalescer.addDelta(-250);
-		expect(frames.hasPending()).toBe(true);
-		coalescer.dispose();
-		expect(frames.cancelFrame).toHaveBeenCalledWith(7);
-
-		coalescer.addDelta(-250);
-		expect(frames.requestFrame).toHaveBeenCalledTimes(1);
-		frames.flush();
-		expect(onZoomIn).not.toHaveBeenCalled();
-	});
-});
+import { bindZoomGesture, wheelDeltaToZoomRatio } from "@/lib/pdf/wheel-zoom";
 
 /** Records listeners per type and dispatches wheel events to the wheel one. */
 function wheelTargetHarness() {
@@ -158,6 +30,8 @@ function wheelTargetHarness() {
 				ctrlKey: init.ctrlKey ?? false,
 				metaKey: false,
 				cancelable: true,
+				clientX: 40,
+				clientY: 60,
 				preventDefault,
 			} as unknown as WheelEvent);
 			return preventDefault;
@@ -173,30 +47,74 @@ describe("PDF wheel zoom gesture binding", () => {
 		vi.useRealTimers();
 	});
 
+	it("binds one started gesture per Ctrl+wheel stream and ends it on idle", () => {
+		const harness = wheelTargetHarness();
+		const onZoomStart = vi.fn();
+		const onZoomChange = vi.fn();
+		const onZoomEnd = vi.fn();
+		bindZoomGesture({
+			target: harness.target,
+			onZoomStart,
+			onZoomChange,
+			onZoomEnd,
+			idleMs: 150,
+		});
+
+		harness.dispatch({ deltaY: -50, ctrlKey: true });
+		harness.dispatch({ deltaY: -50, ctrlKey: true });
+		expect(onZoomStart).toHaveBeenCalledTimes(1);
+		expect(onZoomStart).toHaveBeenCalledWith({ x: 40, y: 60 });
+		// Magnification accumulates across the ticks of one gesture.
+		expect(onZoomChange).toHaveBeenCalledTimes(2);
+		expect(onZoomChange.mock.calls[1][0]).toBeCloseTo(
+			wheelDeltaToZoomRatio(-50) ** 2,
+			10,
+		);
+		expect(onZoomEnd).not.toHaveBeenCalled();
+
+		vi.advanceTimersByTime(150);
+		expect(onZoomEnd).toHaveBeenCalledTimes(1);
+
+		// The next tick starts a fresh gesture with its own ratio baseline.
+		harness.dispatch({ deltaY: -50, ctrlKey: true });
+		expect(onZoomStart).toHaveBeenCalledTimes(2);
+		expect(onZoomChange.mock.calls[2][0]).toBeCloseTo(
+			wheelDeltaToZoomRatio(-50),
+			10,
+		);
+	});
+
 	it("starts non-passive so a cold pinch can cancel platform zoom", () => {
 		const harness = wheelTargetHarness();
-		const onZoomWheel = vi.fn();
-		bindWheelZoomGesture({ target: harness.target, onZoomWheel });
+		const onZoomChange = vi.fn();
+		bindZoomGesture({
+			target: harness.target,
+			onZoomStart: vi.fn(),
+			onZoomChange,
+			onZoomEnd: vi.fn(),
+		});
 
 		expect(harness.isPassive()).toBe(false);
 		const preventDefault = harness.dispatch({ deltaY: -40, ctrlKey: true });
 		expect(preventDefault).toHaveBeenCalledTimes(1);
-		expect(onZoomWheel).toHaveBeenCalledTimes(1);
+		expect(onZoomChange).toHaveBeenCalledTimes(1);
 		expect(harness.isPassive()).toBe(false);
 	});
 
 	it("goes passive for a plain scroll gesture and back after it idles", () => {
 		const harness = wheelTargetHarness();
-		const onZoomWheel = vi.fn();
-		bindWheelZoomGesture({
+		const onZoomChange = vi.fn();
+		bindZoomGesture({
 			target: harness.target,
-			onZoomWheel,
-			scrollIdleMs: 200,
+			onZoomStart: vi.fn(),
+			onZoomChange,
+			onZoomEnd: vi.fn(),
+			idleMs: 200,
 		});
 
 		harness.dispatch({ deltaY: 30 });
 		expect(harness.isPassive()).toBe(true);
-		expect(onZoomWheel).not.toHaveBeenCalled();
+		expect(onZoomChange).not.toHaveBeenCalled();
 
 		// Continued scrolling keeps the listener passive.
 		vi.advanceTimersByTime(150);
@@ -210,33 +128,54 @@ describe("PDF wheel zoom gesture binding", () => {
 
 	it("still zooms when a pinch starts mid-scroll, without a passive preventDefault", () => {
 		const harness = wheelTargetHarness();
-		const onZoomWheel = vi.fn();
-		bindWheelZoomGesture({ target: harness.target, onZoomWheel });
+		const onZoomChange = vi.fn();
+		bindZoomGesture({
+			target: harness.target,
+			onZoomStart: vi.fn(),
+			onZoomChange,
+			onZoomEnd: vi.fn(),
+		});
 
 		harness.dispatch({ deltaY: 30 });
 		expect(harness.isPassive()).toBe(true);
 
 		const preventDefault = harness.dispatch({ deltaY: -40, ctrlKey: true });
 		expect(preventDefault).not.toHaveBeenCalled();
-		expect(onZoomWheel).toHaveBeenCalledTimes(1);
+		expect(onZoomChange).toHaveBeenCalledTimes(1);
 		// Next tick of the same pinch is cancelable again.
 		expect(harness.isPassive()).toBe(false);
 	});
 
 	it("dispose detaches the listener and drops the idle timer", () => {
 		const harness = wheelTargetHarness();
-		const onZoomWheel = vi.fn();
-		const binding = bindWheelZoomGesture({
+		const binding = bindZoomGesture({
 			target: harness.target,
-			onZoomWheel,
+			onZoomStart: vi.fn(),
+			onZoomChange: vi.fn(),
+			onZoomEnd: vi.fn(),
 		});
 
 		harness.dispatch({ deltaY: 30 });
 		binding.dispose();
 		expect(harness.hasListener()).toBe(false);
-		vi.advanceTimersByTime(1000);
 		// wheel + 3 WebKit gesture listeners, plus one passive-toggle re-add.
 		expect(harness.target.addEventListener).toHaveBeenCalledTimes(5);
+	});
+
+	it("dispose drops a pending end-of-gesture timer", () => {
+		const harness = wheelTargetHarness();
+		const onZoomEnd = vi.fn();
+		const binding = bindZoomGesture({
+			target: harness.target,
+			onZoomStart: vi.fn(),
+			onZoomChange: vi.fn(),
+			onZoomEnd,
+		});
+
+		harness.dispatch({ deltaY: -40, ctrlKey: true });
+		binding.dispose();
+		vi.advanceTimersByTime(1000);
+		expect(onZoomEnd).not.toHaveBeenCalled();
 	});
 });
 
@@ -254,9 +193,18 @@ function gestureTargetHarness() {
 				listeners.delete(type);
 			}),
 		} as unknown as HTMLElement,
-		dispatch: (type: string, scale: number) => {
+		dispatch: (
+			type: string,
+			scale: number,
+			point?: { x: number; y: number },
+		) => {
 			const preventDefault = vi.fn();
-			listeners.get(type)?.({ scale, preventDefault });
+			listeners.get(type)?.({
+				scale,
+				clientX: point?.x,
+				clientY: point?.y,
+				preventDefault,
+			});
 			return preventDefault;
 		},
 		hasListener: (type: string) => listeners.has(type),
@@ -264,50 +212,61 @@ function gestureTargetHarness() {
 }
 
 describe("PDF wheel zoom WebKit gesture binding", () => {
-	it("translates pinch-out scale increases into zoom-in deltas", () => {
+	it("reports the pinch magnification relative to the gesture start", () => {
 		const harness = gestureTargetHarness();
-		const onZoomWheel = vi.fn();
-		bindWheelZoomGesture({ target: harness.target, onZoomWheel });
+		const onZoomStart = vi.fn();
+		const onZoomChange = vi.fn();
+		const onZoomEnd = vi.fn();
+		bindZoomGesture({
+			target: harness.target,
+			onZoomStart,
+			onZoomChange,
+			onZoomEnd,
+		});
 
-		const startPrevent = harness.dispatch("gesturestart", 1);
+		const startPrevent = harness.dispatch("gesturestart", 1, { x: 12, y: 34 });
 		expect(startPrevent).toHaveBeenCalledTimes(1);
+		expect(onZoomStart).toHaveBeenCalledWith({ x: 12, y: 34 });
 
-		const changePrevent = harness.dispatch("gesturechange", 1.1);
-		expect(changePrevent).toHaveBeenCalledTimes(1);
-		expect(onZoomWheel).toHaveBeenCalledTimes(1);
-		// ln(1.1) * 1000 ≈ 95, negated → zoom-in direction.
-		expect(onZoomWheel.mock.calls[0][0].deltaY).toBeCloseTo(-95.3, 0);
+		// Magnification is cumulative, not per-event: 1 → 1.25 → 1.5.
+		harness.dispatch("gesturechange", 1.25);
+		expect(onZoomChange).toHaveBeenLastCalledWith(1.25);
+		harness.dispatch("gesturechange", 1.5);
+		expect(onZoomChange).toHaveBeenLastCalledWith(1.5);
 
-		onZoomWheel.mockClear();
-		harness.dispatch("gesturechange", 0.99);
-		expect(onZoomWheel).toHaveBeenCalledTimes(1);
-		// ratio 0.9 → positive delta (zoom out).
-		expect(onZoomWheel.mock.calls[0][0].deltaY).toBeGreaterThan(0);
+		harness.dispatch("gestureend", 1.5);
+		expect(onZoomEnd).toHaveBeenCalledTimes(1);
 	});
 
 	it("resets the scale baseline when the gesture ends", () => {
 		const harness = gestureTargetHarness();
-		const onZoomWheel = vi.fn();
-		bindWheelZoomGesture({ target: harness.target, onZoomWheel });
+		const onZoomChange = vi.fn();
+		bindZoomGesture({
+			target: harness.target,
+			onZoomStart: vi.fn(),
+			onZoomChange,
+			onZoomEnd: vi.fn(),
+		});
 
 		harness.dispatch("gesturestart", 1);
 		harness.dispatch("gesturechange", 2);
 		harness.dispatch("gestureend", 2);
-		onZoomWheel.mockClear();
+		onZoomChange.mockClear();
 
-		// A fresh gesture starts from baseline 1 again, not the previous 2.
+		// A fresh gesture starts from its own baseline, not the previous 2.
 		harness.dispatch("gesturestart", 1);
 		harness.dispatch("gesturechange", 1.1);
-		expect(onZoomWheel).toHaveBeenCalledTimes(1);
-		expect(onZoomWheel.mock.calls[0][0].deltaY).toBeCloseTo(-95.3, 0);
+		expect(onZoomChange).toHaveBeenLastCalledWith(1.1);
 	});
 
 	it("dispose detaches the gesture listeners", () => {
 		const harness = gestureTargetHarness();
-		const onZoomWheel = vi.fn();
-		const binding = bindWheelZoomGesture({
+		const onZoomChange = vi.fn();
+		const binding = bindZoomGesture({
 			target: harness.target,
-			onZoomWheel,
+			onZoomStart: vi.fn(),
+			onZoomChange,
+			onZoomEnd: vi.fn(),
 		});
 
 		expect(harness.hasListener("gesturestart")).toBe(true);
@@ -320,6 +279,19 @@ describe("PDF wheel zoom WebKit gesture binding", () => {
 		expect(harness.hasListener("gestureend")).toBe(false);
 
 		harness.dispatch("gesturechange", 2);
-		expect(onZoomWheel).not.toHaveBeenCalled();
+		expect(onZoomChange).not.toHaveBeenCalled();
+	});
+});
+
+describe("PDF wheel delta to zoom ratio", () => {
+	it("inverts the magnification a pinch reports", () => {
+		// A wheel tick that reports a 1.25× pinch magnification.
+		const delta = -1000 * Math.log(1.25);
+		expect(wheelDeltaToZoomRatio(delta)).toBeCloseTo(1.25, 10);
+	});
+
+	it("zooms in for negative deltas and out for positive ones", () => {
+		expect(wheelDeltaToZoomRatio(-100)).toBeGreaterThan(1);
+		expect(wheelDeltaToZoomRatio(100)).toBeLessThan(1);
 	});
 });

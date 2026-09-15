@@ -1611,8 +1611,9 @@ function PdfViewerInner({
 				/>
 				{/* Ctrl+wheel and trackpad pinch are handled by WheelZoomHandler (WebKit
 				    pinch arrives as GestureEvents, not ctrl+wheel); EmbedPDF's built-in
-				    wheel zoom is disabled so steps stay discrete and coalesced, and
-				    its enablePinch only covers touch devices. */}
+				    wheel zoom is disabled because its per-tick scale factor collapses
+				    the zoom on a single mouse notch, and its enablePinch only covers
+				    touch devices. */}
 				<ZoomGestureWrapper documentId={docId} enableWheel={false}>
 					<GlobalPointerProvider documentId={docId}>
 						<Scroller documentId={docId} renderPage={renderPage} />
