@@ -21,9 +21,14 @@ const USER_AGENT: &str = "agentero/0.6 (+https://github.com/poco-ai/agentero)";
 /// the paper feed, and adds an `[入库]` action to every paper.
 ///
 /// Selectors here are limited to stable hooks (`header.antd5-layout-header`,
-/// `a[href^="/papers/"]`, the arXiv landing link, the `ms-page-*` page roots,
-/// `.g_PageWidthAdapter`). The site's Emotion classes (`acss-*`) are
-/// content-hashed per release and must never be matched on.
+/// `a[href^="/papers/"]`, the arXiv landing link, `.ms-page-container`). The
+/// site's Emotion classes (`acss-*`) are content-hashed per release and must
+/// never be matched on.
+///
+/// The site pins its paper pages at a 1280px desktop width, so the panel browses
+/// it as a narrow desktop window: the frame keeps that layout and its own
+/// document is the horizontal scrollport, which is what lets a trackpad pan the
+/// page. Clamping the pages to the panel instead would leave no overflow to pan.
 const NAV_BRIDGE: &str = r##"<style>
 /* The panel is a paper feed, not a browser: the global nav only offers ways out. */
 header.antd5-layout-header { display: none !important; }
@@ -34,12 +39,9 @@ header.antd5-layout-header { display: none !important; }
 .antd5-tour-target-placeholder { display: none !important; }
 /* The tour injects `html body { overflow-y: hidden }` via a runtime style tag. */
 html body { overflow-y: visible !important; }
-/* The site assumes a desktop browser: its paper pages pin their width at 1280px
-   (min-width on the ms-page-* layout, a fixed width on the page adapter), so a
-   narrower panel overflows and the page renders cut off at its left edge
-   (#550). Let the pages shrink to the panel instead. */
-[class*="ms-page-"] { min-width: 0 !important; max-width: 100% !important; }
-.g_PageWidthAdapter { max-width: 100% !important; }
+/* The site smooth-scrolls its layout root while centring a page action; the
+   bridge re-pins that root, and a running smooth animation would win. */
+.ms-page-container { scroll-behavior: auto !important; }
 .agentero-import {
   cursor: pointer;
   user-select: none;
@@ -307,6 +309,95 @@ html body { overflow-y: visible !important; }
       true
     );
 
+    // ModelScope centres a page action with
+    // `scrollIntoView({ block: "center", inline: "center" })`. The frame is
+    // narrower than the site's 1280px desktop layout, so that call drags the
+    // whole document sideways and the feed loads scrolled past its left edge
+    // (#550). The panel is panned by the user, not by the site: undo the
+    // horizontal part of every such call, leaving vertical scrolling alone.
+    var scrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function () {
+      var chain = [];
+      for (var node = this; node; node = node.parentElement) chain.push(node);
+      chain.push(document.scrollingElement);
+      var before = [];
+      for (var i = 0; i < chain.length; i++) {
+        before.push(chain[i] ? chain[i].scrollLeft : 0);
+      }
+      var result = scrollIntoView.apply(this, arguments);
+      for (var j = 0; j < chain.length; j++) {
+        if (chain[j] && chain[j].scrollLeft !== before[j]) {
+          chain[j].scrollLeft = before[j];
+        }
+      }
+      return result;
+    };
+
+    // The frame owns horizontal panning: nothing outside an iframe reliably
+    // receives its wheel deltas, and the frame is narrower than the site's
+    // desktop layout. Trackpad swipes, and Shift+wheel (a keyboard reports that
+    // as deltaY), pan the document — but the event is never cancelled, so a
+    // diagonal gesture keeps scrolling vertically too. An engine that pans
+    // horizontally on its own is left to it: the delta is only added when the
+    // document did not move. An in-page horizontal scroller (a carousel) wins.
+    var scrollsHorizontally = function (node) {
+      while (node && node.nodeType === 1 && node !== document.documentElement) {
+        var overflow = getComputedStyle(node).overflowX;
+        if (
+          (overflow === "auto" || overflow === "scroll" || overflow === "overlay") &&
+          node.scrollWidth > node.clientWidth + 1
+        ) {
+          return true;
+        }
+        node = node.parentElement;
+      }
+      return false;
+    };
+    var panFrame = 0;
+    var panPending = 0;
+    var panStart = null;
+    document.addEventListener("wheel", function (event) {
+      if (event.ctrlKey || event.deltaMode === 2) return;
+      var scroller = document.scrollingElement || document.documentElement;
+      if (!scroller || scroller.scrollWidth <= scroller.clientWidth + 1) return;
+      if (scrollsHorizontally(event.target)) return;
+      var dx = event.deltaX;
+      if (!dx && event.shiftKey) dx = event.deltaY;
+      if (!dx) return;
+      if (event.deltaMode === 1) dx *= 16;
+      if (panStart === null) panStart = scroller.scrollLeft;
+      panPending += dx;
+      if (panFrame) return;
+      panFrame = requestAnimationFrame(function () {
+        panFrame = 0;
+        var moved = scroller.scrollLeft - panStart;
+        var delta = panPending;
+        panStart = null;
+        panPending = 0;
+        if (!moved) scroller.scrollLeft += delta;
+      });
+    });
+
+    // The site's own layout root is a scroll container as well (`overflow-x:
+    // hidden` next to `overflow-y: overlay`, which stays scrollable in script).
+    // The browser parks it 10px to the right, shaving the card gutter off the
+    // left edge; it is never meant to scroll, so pin it.
+    document.addEventListener(
+      "scroll",
+      function (event) {
+        var node = event.target;
+        if (
+          node &&
+          node.classList &&
+          node.classList.contains("ms-page-container") &&
+          node.scrollLeft
+        ) {
+          node.scrollLeft = 0;
+        }
+      },
+      true
+    );
+
     // Without allow-popups these calls are silently dropped by the sandbox.
     window.open = function (url) {
       var resolved;
@@ -440,15 +531,41 @@ mod tests {
         assert!(NAV_BRIDGE.contains("html body { overflow-y: visible !important; }"));
     }
 
-    /// The site's paper pages pin their width at a 1280px desktop minimum, so a
-    /// narrower panel overflowed and the feed rendered cut off at its left
-    /// edge (#550). The pages must shrink to the panel instead.
+    /// The panel browses the site as a narrow desktop window: the frame keeps
+    /// the 1280px layout and its own document is the horizontal scrollport, so a
+    /// trackpad pans it. Clamping the pages to the panel would leave no
+    /// horizontal overflow — and nothing to pan.
     #[test]
-    fn shrinks_the_feed_to_fit_the_panel() {
-        assert!(NAV_BRIDGE.contains(
-            "[class*=\"ms-page-\"] { min-width: 0 !important; max-width: 100% !important; }"
-        ));
-        assert!(NAV_BRIDGE.contains(".g_PageWidthAdapter { max-width: 100% !important; }"));
+    fn keeps_the_desktop_layout_pannable() {
+        assert!(!NAV_BRIDGE.contains("min-width: 0 !important"));
+        assert!(!NAV_BRIDGE.contains("max-width: 100% !important"));
+    }
+
+    /// ModelScope centres a page action with
+    /// `scrollIntoView({ block: "center", inline: "center" })`, which dragged the
+    /// document right and hid the left edge (#550). Horizontal self-panning is
+    /// undone; vertical scrolling must survive.
+    #[test]
+    fn undoes_programmatic_horizontal_panning() {
+        assert!(NAV_BRIDGE.contains("Element.prototype.scrollIntoView = function"));
+        assert!(NAV_BRIDGE.contains("chain[j].scrollLeft = before[j]"));
+    }
+
+    /// Nothing outside the frame reliably receives its wheel deltas, so the
+    /// bridge pans horizontally itself — while never cancelling the event, and
+    /// only when the engine did not already pan (a diagonal gesture must keep
+    /// scrolling vertically). An in-page scroller keeps priority.
+    #[test]
+    fn pans_horizontally_without_cancelling_the_wheel() {
+        assert!(NAV_BRIDGE.contains("scrollsHorizontally(event.target)"));
+        assert!(NAV_BRIDGE.contains("if (!moved) scroller.scrollLeft += delta;"));
+    }
+
+    /// The site's own layout root is scrollable in script and gets parked 10px to
+    /// the right, shaving the card gutter off the left edge. Pin it.
+    #[test]
+    fn pins_the_sites_own_layout_root() {
+        assert!(NAV_BRIDGE.contains("classList.contains(\"ms-page-container\")"));
     }
 
     /// A card click is a pushState route, not a navigation: without these the
