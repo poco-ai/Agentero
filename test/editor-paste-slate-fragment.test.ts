@@ -1,3 +1,5 @@
+import { HeadingRules } from "@platejs/basic-nodes";
+import { H2Plugin } from "@platejs/basic-nodes/react";
 import { BaseListPlugin } from "@platejs/list";
 import { createSlateEditor, createSlatePlugin, KEYS } from "platejs";
 import { describe, expect, it } from "vitest";
@@ -8,9 +10,9 @@ const TestParagraphPlugin = createSlatePlugin({
 	node: { isElement: true },
 });
 
-const TestH2Plugin = createSlatePlugin({
-	key: KEYS.h2,
-	node: { isElement: true },
+const RealH2Plugin = H2Plugin.configure({
+	inputRules: [HeadingRules.markdown()],
+	rules: { break: { empty: "reset" } },
 });
 
 const TestWikiLinkPlugin = createSlatePlugin({
@@ -24,7 +26,7 @@ function createPasteEditor(
 	const editor = createSlateEditor({
 		plugins: [
 			TestParagraphPlugin,
-			TestH2Plugin,
+			RealH2Plugin,
 			TestWikiLinkPlugin,
 			BaseListPlugin,
 			...MarkdownKit,
@@ -174,5 +176,93 @@ describe("intra-editor paste preserving Slate fragment", () => {
 
 		expect(editor.children.length).toBeGreaterThan(0);
 		expect(JSON.stringify(editor.children)).toContain("list item 1");
+	});
+
+	it("preserves H2 heading block when pasting plain text into empty H2", () => {
+		const editor = createPasteEditor([
+			{ type: KEYS.h2, children: [{ text: "" }] },
+		]);
+
+		editor.tf.insertData(
+			slateClipboard({
+				text: "二级标题文本",
+			}),
+		);
+
+		expect(editor.children).toHaveLength(1);
+		expect(editor.children[0]).toMatchObject({
+			type: KEYS.h2,
+			children: [{ text: "二级标题文本" }],
+		});
+	});
+
+	it("preserves H2 heading block when pasting into non-empty H2", () => {
+		const editor = createPasteEditor([
+			{ type: KEYS.h2, children: [{ text: "前缀: " }] },
+		]);
+		editor.tf.select({
+			anchor: { path: [0, 0], offset: 4 },
+			focus: { path: [0, 0], offset: 4 },
+		});
+
+		editor.tf.insertData(
+			slateClipboard({
+				text: "二级标题文本",
+			}),
+		);
+
+		expect(editor.children).toHaveLength(1);
+		expect(editor.children[0]).toMatchObject({
+			type: KEYS.h2,
+			children: [{ text: "前缀: 二级标题文本" }],
+		});
+	});
+
+	it("retains heading type for first block on multi-paragraph paste into empty heading", () => {
+		const editor = createPasteEditor([
+			{ type: KEYS.h2, children: [{ text: "" }] },
+		]);
+
+		editor.tf.insertData(
+			slateClipboard({
+				text: "标题行\n\n正文段落",
+			}),
+		);
+
+		expect(editor.children).toHaveLength(2);
+		expect(editor.children[0]).toMatchObject({
+			type: KEYS.h2,
+			children: [{ text: "标题行" }],
+		});
+		expect(editor.children[1]).toMatchObject({
+			type: KEYS.p,
+			children: [{ text: "正文段落" }],
+		});
+	});
+
+	it("reproduces heading paste with MarkdownEditorKit", () => {
+		const editor = createSlateEditor({
+			plugins: [TestParagraphPlugin, RealH2Plugin, ...MarkdownKit],
+			value: [{ type: KEYS.p, children: [{ text: "" }] }],
+		});
+		editor.tf.select({
+			anchor: { path: [0, 0], offset: 0 },
+			focus: { path: [0, 0], offset: 0 },
+		});
+
+		for (const c of "## ") editor.tf.insertText(c);
+
+		editor.tf.insertData(
+			slateClipboard({
+				text: "二级标题文本",
+				fragment: [{ type: KEYS.p, children: [{ text: "二级标题文本" }] }],
+			}),
+		);
+
+		expect(editor.children).toHaveLength(1);
+		expect(editor.children[0]).toMatchObject({
+			type: KEYS.h2,
+			children: [{ text: "二级标题文本" }],
+		});
 	});
 });

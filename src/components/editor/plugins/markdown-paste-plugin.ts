@@ -41,6 +41,52 @@ function decodeSlateFragment(
 	}
 }
 
+function insertFragmentPreservingBlock(
+	editor: SlateEditor,
+	fragment: InsertFragmentNodes,
+) {
+	if (!fragment.length) return;
+
+	const currentBlockEntry = editor.api.above({
+		match: (n) => editor.api.isBlock(n),
+	});
+	const currentBlock = currentBlockEntry?.[0];
+	const isCurrentBlockEmpty =
+		Boolean(currentBlock) && editor.api.isEmpty(currentBlock);
+
+	const first = fragment[0];
+	// Single paragraph without block syntax: insert inline children to preserve
+	// the current container block type (headings, lists, blockquotes) instead of
+	// letting Slate replace an empty block with a paragraph.
+	if (
+		fragment.length === 1 &&
+		typeof first === "object" &&
+		first !== null &&
+		"type" in first &&
+		first.type === editor.getType(KEYS.p) &&
+		"children" in first &&
+		Array.isArray(first.children)
+	) {
+		editor.tf.insertFragment(first.children as InsertFragmentNodes);
+		return;
+	}
+
+	if (
+		isCurrentBlockEmpty &&
+		typeof currentBlock?.type === "string" &&
+		currentBlock.type !== editor.getType(KEYS.p) &&
+		fragment.length > 1 &&
+		typeof first === "object" &&
+		first !== null &&
+		"type" in first &&
+		first.type === editor.getType(KEYS.p)
+	) {
+		first.type = currentBlock.type;
+	}
+
+	editor.tf.insertFragment(fragment);
+}
+
 /**
  * Parse clipboard text as Markdown before Plate's HTML parser can claim a
  * payload that contains both text/plain and text/html.
@@ -78,7 +124,7 @@ export const MarkdownPastePlugin = createSlatePlugin({
 			// spurious empty paragraphs from DOM text extraction.
 			const slateFragment = decodeSlateFragment(dataTransfer);
 			if (slateFragment) {
-				editor.tf.insertFragment(slateFragment);
+				insertFragmentPreservingBlock(editor, slateFragment);
 				return;
 			}
 
@@ -87,7 +133,7 @@ export const MarkdownPastePlugin = createSlatePlugin({
 				.markdown.deserialize(prepareMarkdownForDeserialize(markdown));
 			if (fragment.length === 0) return insertData(dataTransfer);
 
-			editor.tf.insertFragment(fragment);
+			insertFragmentPreservingBlock(editor, fragment);
 
 			const inlineEquationEntry = editor.api.above({
 				match: { type: editor.getType(KEYS.inlineEquation) },
