@@ -3854,8 +3854,12 @@
 <td>浮动卡 sticky hover 共用：hide 延迟常量、<code>isFloatingDialogActive</code></td>
 </tr>
 <tr>
+<td><code>src/components/viewer/pdf/hooks/use-sticky-hover-hide.ts</code></td>
+<td>浮动卡 sticky hover 状态机（hoverSurface ref + 延迟 hide + 浮动 dialog re-arm + 可选 hold 否决），<code>use-pdf-cards</code> / <code>use-pdf-citations</code> / <code>use-pdf-crossref-preview</code> 共用</td>
+</tr>
+<tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-cards.ts</code></td>
-<td>浮动卡生命周期：打开 / 定位（虚拟化重试）/ hover 收起</td>
+<td>浮动卡生命周期：打开 / 定位（虚拟化重试）/ hover 收起（经 <code>use-sticky-hover-hide</code>，translate 流式期间 hold）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-highlights.ts</code></td>
@@ -3907,11 +3911,11 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-citations.ts</code></td>
-<td>文中引用 hover 预览与跳转（sticky hover + clear API）</td>
+<td>文中引用 hover 预览与跳转（<code>use-sticky-hover-hide</code> + clear API；dest-map 经 <code>schedulePdfDestMapsBuild</code> 空闲构建）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-crossref-preview.ts</code></td>
-<td>交叉引用 hover 裁剪预览（sticky hover + clear API）</td>
+<td>交叉引用 hover 裁剪预览（<code>use-sticky-hover-hide</code> + clear API；dest-map 经 <code>schedulePdfDestMapsBuild</code> 空闲构建）</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-navigation.ts</code></td>
@@ -4020,6 +4024,10 @@
 <tr>
 <td><code>src/lib/pdf/region.ts</code></td>
 <td>区域坐标归一化与 PDF rect 转换</td>
+</tr>
+<tr>
+<td><code>src/lib/pdf/citation-dest-map.ts</code></td>
+<td>dest-map Worker 加载与缓存；<code>schedulePdfDestMapsBuild</code> 供 citations / crossref hover hooks 空闲延迟构建（可取消、失败仅 warn）</td>
 </tr>
 <tr>
 <td><code>src/lib/pdf/translate/</code></td>
