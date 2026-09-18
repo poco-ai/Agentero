@@ -3752,7 +3752,7 @@
 <li>基础顺序：目录在文件前；同类按数字感知的自然顺序排序（如 <code>9-...</code> 在 <code>10-...</code> 前）。</li>
 <li>默认只展开 <code>papers/</code> 及其一级子目录。</li>
 <li>所有节点图标统一位于行首并使用一致的左右边距；文件夹与广场行悬停或键盘聚焦时，在同一位置将自身图标替换为展开/收缩箭头，保持行宽稳定并提示该行可展开。</li>
-<li>虚拟化：<code>@tanstack/react-virtual</code> 拍平窗口化；<code>getItemKey</code> 用行稳定 id，避免内联新建草稿插入/移除后按索引缓存行高留下空隙。文件/文件夹行固定为 <code>h-7</code>，论文资源操作按钮不改变行高。行定位用 <code>top</code>（不用 <code>translateY</code>），并在视口 Resize 时把 <code>scrollTop</code> 同步回 virtualizer，避免 WKWebView 在打开论文 / 刷新树后侧栏整片不绘制、滚动才恢复（见 <a href="../../bug_fix/vault-sidebar-blank-until-scroll/">bug_fix/vault-sidebar-blank-until-scroll.md</a>）。</li>
+<li>虚拟化：<code>@tanstack/react-virtual</code> 拍平窗口化；<code>getItemKey</code> 用行稳定 id，避免内联新建草稿插入/移除后按索引缓存行高留下空隙。文件/文件夹行固定为 <code>h-7</code>，论文资源操作按钮不改变行高。行定位用 <code>top</code>（不用 <code>translateY</code>），并在视口<strong>高度</strong>变化时把 <code>scrollTop</code> 同步回 virtualizer，避免 WKWebView 在打开论文 / 刷新树后侧栏整片不绘制、滚动才恢复（见 <a href="../../bug_fix/vault-sidebar-blank-until-scroll/">bug_fix/vault-sidebar-blank-until-scroll.md</a>）。宽度变化（左栏收起/展开动画、手动拖宽）不写 <code>scrollTop</code>；左栏 0 宽收起期间记住滚动位置、重新展开时恢复（#576）。扁平行集变化时不再全量 <code>measure()</code>——稳定 key 令缓存行高保持有效，全量重估会在无原生 scroll anchoring 的 WebKit 上表现为每次展开/折叠的行抖动。</li>
 <li>外部工具 / CLI 导入论文时，watcher 会刷新文件树，并在 Catalog 或 <code>papers/</code> 结构变更后去抖刷新 Library 元数据；论文行标签因此可在不重开论文库的情况下从目录 ID 更新为标题/作者。窗口隐藏/失焦时变更先缓冲，回到前台再 flush；后台去抖更长。</li>
 </ul>
 <h3 id="_5">论文目录识别<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
@@ -3844,7 +3844,7 @@
 </tr>
 <tr>
 <td>定位</td>
-<td>激活文档变化时展开祖先并 <code>scrollToIndex</code>；同一目标只定位一次，导入后台阶段引起的树刷新不再重复滚动</td>
+<td>激活文档变化时展开祖先并 <code>scrollToIndex</code>（VS Code <code>List.reveal</code> 语义：<code>align: "auto"</code> 最小滚动，行已可见则不滚，从不居中）；同一目标只定位一次，导入后台阶段引起的树刷新不再重复滚动；用户折叠包含当前选中的目录后不会被自动定位立即重新展开（#576）</td>
 </tr>
 <tr>
 <td>刷新</td>

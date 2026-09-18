@@ -3555,7 +3555,7 @@
 </tr>
 <tr>
 <td>OpenAI-compatible prompt</td>
-<td><code>openai_translate_prompt</code>：学术译者 system prompt + 规则块（按意思重组语序、公式/符号/引用/<code>⟦n⟧</code> 占位符原样、术语一致、只输出译文、批量保留 <code>[[n]]</code>）；<code>temperature</code> 0.2。与前端 <code>buildTranslatePrompt</code> 保持同步</td>
+<td><code>openai_translate_messages</code>：学术译者 system prompt + 规则块（按意思重组语序、公式/符号/引用/<code>⟦n⟧</code> 占位符原样、术语一致、只输出译文、批量保留 <code>[[n]]</code>）；<code>temperature</code> 0.2。与前端 <code>buildTranslatePrompt</code> 保持同步。设置 <code>translate.customPrompt</code> 非空时（Host 在 <code>translate_text</code> 命令内注入 <code>custom_prompt</code>，WebView 调用方无感）替换 system message（<code>{{targetLang}}</code>/<code>{{sourceLang}}</code> 插值，映射与前端 <code>targetLangDisplayName</code> 一致）；<code>[[n]]</code> 批量规则与 <code>Text:</code> 原文仍由 Host 组装</td>
 </tr>
 <tr>
 <td>密钥存储</td>
