@@ -3929,7 +3929,7 @@ cursor 不再推进（<code>next == prev</code>）时视为走完，避免死循
 </tr>
 <tr>
 <td><code>agent_run_tool_lifecycle</code></td>
-<td>静默安装/升级/卸载 catalog CLI（及 Claude/Codex ACP 适配器）；本机 lifecycle 串行执行，设置页在对应 Agent 行内展示安装 / 扫描 / 探测进度（#250），Windows 使用唯一临时 <code>.bat</code> 并按 UTF-8/GBK 解码错误输出；安装失败会将 npm 缓存目录 EPERM 转成可操作的缓存迁移提示；Windows 探测 <code>.exe</code> 时校验 PE 头，避免把文本 shim 当作 16 位程序执行；<code>uninstall</code> 做 best-effort npm 卸载 + 受管目录删除（不改 shell rc），成功后联动删除 catalog 注册项；见 <a href="../api/">api.md</a> 与 <a href="https://github.com/poco-ai/Agentero/issues/225">#225</a></td>
+<td>静默安装/升级/卸载 catalog CLI（及 Claude/Codex ACP 适配器）；本机 lifecycle 串行执行，设置页在对应 Agent 行内展示安装 / 扫描 / 探测进度（#250），Windows 使用唯一临时 <code>.bat</code> 并按 UTF-8/GBK 解码错误输出；安装失败会将 npm 缓存目录 EPERM 转成可操作的缓存迁移提示；受管安装探测到系统 npm 缓存不可写时自动注入独立缓存目录（<code>npm_config_cache</code>），可写的缓存不动；Windows 探测 <code>.exe</code> 时校验 PE 头，避免把文本 shim 当作 16 位程序执行；<code>uninstall</code> 做 best-effort npm 卸载 + 受管目录删除（不改 shell rc），成功后联动删除 catalog 注册项；见 <a href="../api/">api.md</a> 与 <a href="https://github.com/poco-ai/Agentero/issues/225">#225</a></td>
 </tr>
 <tr>
 <td><code>agent_check_catalog_updates</code></td>
