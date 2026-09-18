@@ -3667,7 +3667,7 @@
 <p>无鉴权。不要把端口绑到非 loopback。</p>
 <h2 id="chatgpt-secure-mcp-tunnel">ChatGPT Secure MCP Tunnel<a class="headerlink" href="#chatgpt-secure-mcp-tunnel" title="Permanent link">&para;</a></h2>
 <p>App 开着且 MCP 开关打开后，可在同一设置区填写 Tunnel ID 与 Runtime API key，点 <strong>Start</strong> 让 Agentero 直接 spawn 并持有 <code>tunnel-client run</code>。按钮旁绿点表示隧道已连通控制平面；<strong>注意 <code>/readyz</code> 返回 200 不代表认证成功</strong>，真正的 ready 信号是 <code>tunnel-client health --require-control-plane-poll</code> 的 <code>control_plane_poll.ok=true</code>。</p>
-<p>隧道子进程随 Agentero 退出而停止（<code>RunEvent::Exit</code> 里 kill）。找不到 <code>tunnel-client</code> 时按钮禁用，并提示可复制安装命令 <code>brew install openai/tools/tunnel-client</code>，不会自动安装。</p>
+<p>隧道子进程随 Agentero 退出而停止（<code>RunEvent::Exit</code> 里 kill），设置区 <strong>Stop</strong> 与关闭 MCP 开关也会真正结束进程；宿主异常退出（崩溃、强杀）遗留的孤儿会在下次启动时按 <code>--profile-dir</code> 清扫。找不到 <code>tunnel-client</code> 时按钮禁用，并提示可复制安装命令 <code>brew install openai/tools/tunnel-client</code>，不会自动安装。</p>
 <p>Agentero 用独立 <code>--profile-dir</code>（<code>$XDG_CACHE_HOME/agentero/mcp-tunnel</code>）运行 tunnel-client，避免串到用户已有的 <code>~/.config/tunnel-client/*.yaml</code>；API key 只通过子进程 env <code>CONTROL_PLANE_API_KEY</code> 注入，不出现在命令行参数或 UI 日志。</p>
 <p>Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通路。详细逐步教程见 <a href="../../usage/mcp/">用 MCP 连接外部 Agent</a>。</p>
 <h2 id="resource">Resource<a class="headerlink" href="#resource" title="Permanent link">&para;</a></h2>
