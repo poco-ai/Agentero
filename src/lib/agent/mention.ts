@@ -5,6 +5,7 @@
 
 import type { ComposerStateStorage } from "@/lib/agent/composer-state";
 import { normalizeContextPath } from "@/lib/agent/context-path-icon";
+import { isPlazaMentionPath } from "@/lib/agent/plaza-mention";
 import { readJsonStorage, writeJsonStorage } from "@/lib/core/storage";
 
 const RECENT_PREFIX = "agentero-agent-mention-recent-v1";
@@ -219,6 +220,13 @@ export function filterMentionOptions(options: {
 	const pool = options.candidates
 		.map(normPath)
 		.filter((p) => p && !exclude.has(p))
+		.filter((p) => {
+			if (!isPlazaMentionPath(p)) return true;
+			// Plaza entries are title-search targets: surface on typed queries
+			// (label match below) or as recents, never in the empty-query
+			// shallow tree or folder drill-downs.
+			return Boolean(query) || recentRank.has(p);
+		})
 		.filter((p) => !query || pathMatchesQuery(p, query) || matchesExtra(p));
 
 	if (pool.length === 0) return [];

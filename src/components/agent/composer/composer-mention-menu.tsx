@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ContextPathIcon } from "@/components/agent/context-path-icon";
 import { PopoverContent } from "@/components/ui/popover";
 import { mentionPathHasChildren } from "@/lib/agent/mention";
+import { lookupPlazaMention } from "@/lib/agent/plaza-mention";
 import { cn } from "@/lib/core/utils";
 
 /** Must render inside the composer `Popover` subtree — `PopoverContent` needs its context. */
@@ -67,9 +68,18 @@ export function ComposerMentionMenu({
 				</div>
 			) : (
 				mentionOptions.map((path, index) => {
-					const label = labelForPath(path);
-					const showPathHint =
-						!mentionBrowseRoot && label !== path && path.includes("/");
+					// Plaza rows: paper title as label, source name as the hint line.
+					const plazaEntry = lookupPlazaMention(path);
+					const label = plazaEntry?.title.trim() || labelForPath(path);
+					const hint = plazaEntry
+						? plazaEntry.sourceLabel
+						: !mentionBrowseRoot && label !== path && path.includes("/")
+							? path
+							: null;
+					const rowTitle = plazaEntry
+						? `${plazaEntry.title} · ${plazaEntry.sourceLabel}`
+						: path;
+					const showPathHint = Boolean(hint);
 					const canEnter = mentionPathHasChildren(
 						path,
 						mentionCandidates,
@@ -98,15 +108,15 @@ export function ComposerMentionMenu({
 									paperPaths={paperPathSet}
 								/>
 								<span className="min-w-0 flex-1 truncate">
-									<span className="block truncate" title={path}>
+									<span className="block truncate" title={rowTitle}>
 										{label}
 									</span>
 									{showPathHint ? (
 										<span
 											className="block truncate text-caption text-muted-foreground"
-											title={path}
+											title={rowTitle}
 										>
-											{path}
+											{hint}
 										</span>
 									) : null}
 								</span>

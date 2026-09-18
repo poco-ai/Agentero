@@ -26,6 +26,7 @@ import {
 	parseInlineTokenParts,
 	stripInlineTokens,
 } from "@/lib/agent/composer-inline-tokens";
+import { plazaMentionTitle } from "@/lib/agent/plaza-mention";
 import { isImeKeyboardEvent } from "@/lib/core/ime";
 import { basenameOf } from "@/lib/core/path";
 import { cn, truncateToChars } from "@/lib/core/utils";
@@ -442,7 +443,11 @@ function renderChip(
 	if (part.type === "mention") {
 		chip.setAttribute(CHIP_ATTR, "mention");
 		chip.dataset.path = part.path;
-		const short = basenameOf(part.path) || labelForPath(part.path) || part.path;
+		// Plaza mentions show the paper title; vault paths keep the basename.
+		const plazaTitle = plazaMentionTitle(part.path);
+		const short = plazaTitle
+			? truncateToChars(plazaTitle, MAX_CHIP_TITLE_CHARS)
+			: basenameOf(part.path) || labelForPath(part.path) || part.path;
 		appendPrefixLabel(chip, "@", short, part.path);
 		chip.setAttribute(
 			"aria-label",

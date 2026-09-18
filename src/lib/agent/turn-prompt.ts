@@ -7,6 +7,10 @@
 import type { TFunction } from "i18next";
 import type { PromptImage } from "@/lib/agent/api";
 import type { ChatVisualAnnotation } from "@/lib/agent/chat-state";
+import {
+	plazaMentionPromptBlock,
+	splitContextPaths,
+} from "@/lib/agent/plaza-mention";
 import { selectionsPromptBlock } from "@/lib/agent/selection-prompt";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
@@ -42,12 +46,18 @@ export function assembleTurnPrompt({
 	const hasAttachedImages = attachedImages.length > 0;
 
 	const contextBlocks: string[] = [];
-	if (contextPaths.length) {
+	// Plaza mentions are virtual paths with no file for the agent to read —
+	// expand their metadata inline instead of the vault read-instruction list.
+	const { vaultPaths, plazaPaths } = splitContextPaths(contextPaths);
+	if (vaultPaths.length) {
 		contextBlocks.push(
-			`${t("composer.contextInstruction")}\n${contextPaths
+			`${t("composer.contextInstruction")}\n${vaultPaths
 				.map((path) => `- ${path}`)
 				.join("\n")}`,
 		);
+	}
+	if (plazaPaths.length) {
+		contextBlocks.push(plazaMentionPromptBlock({ plazaPaths, t }));
 	}
 	if (selections.length) {
 		contextBlocks.push(selectionsPromptBlock(selections));

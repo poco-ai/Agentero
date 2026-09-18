@@ -17,6 +17,7 @@ import {
 } from "react";
 import type { ComposerInlineInputHandle } from "@/components/agent/composer/composer-inline-input";
 import type { AgentPanelRefs } from "@/components/agent/hooks/use-agent-panel-context";
+import { usePlazaMentionSource } from "@/components/agent/hooks/use-plaza-mention-source";
 import {
 	useSelectionStore,
 	useVisualContextStore,
@@ -267,15 +268,33 @@ export function useAgentComposer({
 	const mentionQueryRaw = mentionMatch?.[2] ?? "";
 	const mentionQuery = mentionQueryRaw.toLocaleLowerCase();
 
-	const mentionCandidates = useMemo(
-		() =>
-			buildMentionCandidatePaths({
-				markdownPaths: vaultMarkdownPaths,
-				directoryPaths: vaultDirectoryPaths,
-				paperPaths: vaultPaperPaths,
-			}),
-		[vaultDirectoryPaths, vaultMarkdownPaths, vaultPaperPaths],
-	);
+	const plazaMentionEntries = usePlazaMentionSource(vaultPath);
+
+	const mentionCandidates = useMemo(() => {
+		const vaultPaths = buildMentionCandidatePaths({
+			markdownPaths: vaultMarkdownPaths,
+			directoryPaths: vaultDirectoryPaths,
+			paperPaths: vaultPaperPaths,
+		});
+		// Plaza entries are virtual leaves (arXiv Daily / Feeds); they surface
+		// on typed title queries or as recents, never in the shallow tree.
+		return [...vaultPaths, ...plazaMentionEntries.map((entry) => entry.path)];
+	}, [
+		plazaMentionEntries,
+		vaultDirectoryPaths,
+		vaultMarkdownPaths,
+		vaultPaperPaths,
+	]);
+
+	/** Vault paper titles + plaza titles/sources, both searchable via `@`. */
+	const mentionSearchLabels = useMemo(() => {
+		if (plazaMentionEntries.length === 0) return mentionLabelsByPath;
+		const map = new Map(mentionLabelsByPath);
+		for (const entry of plazaMentionEntries) {
+			map.set(entry.path, `${entry.title} ${entry.sourceLabel}`);
+		}
+		return map;
+	}, [mentionLabelsByPath, plazaMentionEntries]);
 
 	const [recentMentionPaths, setRecentMentionPaths] = useState<string[]>(() => {
 		try {
@@ -325,7 +344,7 @@ export function useAgentComposer({
 			query: mentionQuery,
 			exclude: contextPaths,
 			recent: recentMentionPaths,
-			labelsByPath: mentionLabelsByPath,
+			labelsByPath: mentionSearchLabels,
 			browseRoot: mentionBrowseRoot,
 			limit: 8,
 		});
@@ -333,9 +352,9 @@ export function useAgentComposer({
 		contextPaths,
 		mentionBrowseRoot,
 		mentionCandidates,
-		mentionLabelsByPath,
 		mentionMatch,
 		mentionQuery,
+		mentionSearchLabels,
 		recentMentionPaths,
 	]);
 

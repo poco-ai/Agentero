@@ -52,6 +52,7 @@ import {
 	stripInlineTokens,
 } from "@/lib/agent/composer-inline-tokens";
 import type { AgentComposerState } from "@/lib/agent/composer-state";
+import { isPlazaMentionPath } from "@/lib/agent/plaza-mention";
 import {
 	consumeSelections,
 	currentSelections,
@@ -418,10 +419,14 @@ export function useAgentSend({
 				});
 			// Workflow suggestions act on the focused paper / mentioned paths so
 			// “Summarize” targets the open paper even without an explicit @mention.
+			// Plaza mentions are virtual refs, never workflow filesystem targets.
 			const workflow = isAcpCommand ? undefined : options?.workflow;
+			const workflowVaultTarget = resolvedContextPaths.find(
+				(path) => !isPlazaMentionPath(path),
+			);
 			const workflowTarget = workflow
-				? (resolvedContextPaths[0] ?? selectedVaultPath ?? undefined)
-				: resolvedContextPaths[0];
+				? (workflowVaultTarget ?? selectedVaultPath ?? undefined)
+				: workflowVaultTarget;
 			const userLine: ChatLine = {
 				id: nextLineId("user"),
 				kind: "user",

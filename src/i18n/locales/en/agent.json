@@ -59,6 +59,8 @@
 		"queueLabel": "Queued",
 		"queueRemove": "Remove from queue",
 		"contextInstruction": "Read these Vault files before answering when relevant:",
+		"plazaContextInstruction": "Plaza entries referenced with @ (not yet in the Vault):",
+		"plazaEntryUnavailable": "Entry metadata is unavailable (no longer in the Plaza cache). Ask the user to re-reference it from the Plaza tab.",
 		"resizeHandle": "Resize composer height",
 		"removeContext": "Remove {{path}} from context",
 		"removeSkill": "Remove ${{skill}} from context",
