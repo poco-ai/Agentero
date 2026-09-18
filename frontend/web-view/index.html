@@ -3656,7 +3656,7 @@ Host `features/web/proxy.rs`(agentero-web scheme)
 <ul>
 <li><strong>工具栏</strong>:<code>SelectionMenu</code>(复用 <code>viewer/pdf/cards/</code>,<code>showHighlight={false}</code>——网页无 marks/,藏高亮留翻译)+ 选中即复制标签 <code>SelectionCopiedLabel</code>;</li>
 <li><strong>翻译</strong>:<code>TranslateCard</code> 流式卡,双 provider(agent → <code>runOnce{workflow:"translate"}</code> 流式;免费 MT → <code>runTranslate</code>),ephemeral 单卡不写 marks;</li>
-<li><strong>Quick chat ⌘K</strong>:<code>AskPopover</code> + 共享 <code>use-selection-ask.ts</code>(从 plaza 抽出的 ephemeral ask 生命周期:<code>PdfAskThread</code> + <code>runOnce{workflow:"free"}</code> + <code>attachAgentRun</code> 流式,plaza 改为消费方);</li>
+<li><strong>Quick chat ⌘K</strong>:<code>AskPopover</code> + 共享 <code>use-selection-ask.ts</code>(从 plaza 抽出的 ephemeral ask 生命周期:<code>PdfAskThread</code> + 共享引擎 <code>lib/pdf/ask/run-turn.ts</code> 的 <code>runOnce{workflow:"free"}</code> + <code>attachAgentRun</code> 流式,plaza 改为消费方);</li>
 <li><strong>加入对话 ⌘L</strong>:<code>publishSelection{origin:"markdown", sourcePath: html_url}</code> + <code>pinActiveSelection</code> + <code>openRightTab("agent")</code>。</li>
 </ul>
 <p>坐标换算:<code>bridgeSelectionScreen(rect, iframeRect)</code>(桥给的是 frame 视口坐标,加 iframe 元素偏移即应用视口坐标),纯函数在 <code>bridge-message.ts</code>,与消息 parse 守卫一起有 vitest 覆盖。</p>

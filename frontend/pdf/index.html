@@ -3871,7 +3871,7 @@
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-ask-threads.ts</code></td>
-<td>划词提问工作流：建/续/停、ACP 流监听、<code>marks/&lt;id&gt;.json</code> 落盘</td>
+<td>划词提问工作流：建/续/停、线程数组容器、<code>marks/&lt;id&gt;.json</code> 落盘；单轮状态机（乐观消息 → 流式 → 完成/失败 → resend 截断）在共享引擎 <code>src/lib/pdf/ask/run-turn.ts</code>，与 <code>use-selection-ask.ts</code> 复用</td>
 </tr>
 <tr>
 <td><code>src/components/viewer/pdf/hooks/use-pdf-selection-translate.ts</code></td>
