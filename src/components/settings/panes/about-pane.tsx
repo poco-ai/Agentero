@@ -8,6 +8,7 @@ import {
 	MousePointerClick,
 	RefreshCw,
 	Star,
+	Telescope,
 	Terminal,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -21,6 +22,10 @@ import {
 } from "@/components/settings/settings-layout";
 import { Button } from "@/components/ui/button";
 import { lifecycleErrorMessage } from "@/lib/agent/lifecycle-error";
+import {
+	plazaScratchClear,
+	plazaScratchStats,
+} from "@/lib/agent/plaza-scratch";
 import {
 	type CliInstallStatus,
 	type FinderServiceStatus,
@@ -60,6 +65,11 @@ export function AboutPane() {
 	const [finder, setFinder] = useState<FinderServiceStatus | null>(null);
 	const [finderBusy, setFinderBusy] = useState(false);
 	const [logsBusy, setLogsBusy] = useState(false);
+	const [scratchStats, setScratchStats] = useState<{
+		papers: number;
+		bytes: number;
+	} | null>(null);
+	const [scratchBusy, setScratchBusy] = useState(false);
 	const isMac = useMemo(() => isMacOS(), []);
 	const isWin = useMemo(() => isWindows(), []);
 
@@ -208,6 +218,32 @@ export function AboutPane() {
 				}),
 			)
 			.finally(() => setLogsBusy(false));
+	};
+
+	const refreshScratchStats = useCallback(() => {
+		if (!isTauri()) return;
+		void plazaScratchStats()
+			.then(setScratchStats)
+			.catch(() => setScratchStats(null));
+	}, []);
+
+	useEffect(() => {
+		refreshScratchStats();
+	}, [refreshScratchStats]);
+
+	const onClearScratch = () => {
+		setScratchBusy(true);
+		void plazaScratchClear()
+			.then(async () => {
+				notifySuccess(t("about.scratch.clearDone"));
+				refreshScratchStats();
+			})
+			.catch((err) =>
+				notifyError(t("about.scratch.clearFailed"), {
+					description: err instanceof Error ? err.message : String(err),
+				}),
+			)
+			.finally(() => setScratchBusy(false));
 	};
 
 	// Derive the status line from structured fields; the Host `message` is
@@ -504,6 +540,49 @@ export function AboutPane() {
 									/>
 								) : null}
 								{t("about.logs.clear")}
+							</Button>
+						</div>
+					</SettingsRow>
+				</SettingsGroup>
+			) : null}
+			{isTauri() ? (
+				<SettingsGroup>
+					<SettingsRow
+						label={
+							<span className="inline-flex items-center gap-1.5">
+								<Telescope
+									className="size-3.5 shrink-0 text-muted-foreground"
+									aria-hidden
+								/>
+								{t("about.scratch.label")}
+							</span>
+						}
+					>
+						<div className="flex items-center gap-2">
+							{scratchStats?.bytes ? (
+								<span className="text-muted-foreground text-xs">
+									{t("about.scratch.summary", {
+										papers: scratchStats.papers,
+										size: `${(scratchStats.bytes / 1024 / 1024).toFixed(1)} MB`,
+									})}
+								</span>
+							) : null}
+							{/* Gate on bytes, not papers: failed parses leave an
+							    orphaned paper.pdf (bytes > 0, papers == 0) that
+							    must stay clearable. */}
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={scratchBusy || !scratchStats?.bytes}
+								onClick={onClearScratch}
+							>
+								{scratchBusy ? (
+									<LoaderCircle
+										data-icon="inline-start"
+										className="animate-spin"
+									/>
+								) : null}
+								{t("about.scratch.clear")}
 							</Button>
 						</div>
 					</SettingsRow>

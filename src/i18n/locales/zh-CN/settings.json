@@ -702,6 +702,13 @@
 			"clearDone": "已清理日志",
 			"clearFailed": "无法清理日志。"
 		},
+		"scratch": {
+			"label": "论文全文缓存",
+			"summary": "{{papers}} 篇 · {{size}}",
+			"clear": "清除缓存",
+			"clearDone": "缓存已清除",
+			"clearFailed": "清除论文全文缓存失败。"
+		},
 		"update": {
 			"available": "版本 {{version}} 已可用",
 			"downloading": "正在下载更新...",

@@ -7,9 +7,12 @@ import {
 	FileText,
 	FileType2,
 	Folder,
+	Rss,
 	ScrollText,
 	Sigma,
+	Telescope,
 } from "lucide-react";
+import { plazaMentionSource } from "@/lib/agent/plaza-mention";
 import {
 	formatPaperTreeLabel,
 	type PaperTreeLabelMode,
@@ -186,6 +189,11 @@ export function contextPathIcon(
 	options?: ContextPathIconOptions | null,
 ): LucideIcon {
 	const opts = options ?? {};
+
+	// Virtual plaza mentions mirror the plaza source icons (telescope / rss).
+	const plazaSource = plazaMentionSource(path);
+	if (plazaSource === "feed") return Rss;
+	if (plazaSource === "arxiv-rec") return Telescope;
 
 	if (isPaperContextPath(path, opts.paperPaths)) {
 		return ScrollText;

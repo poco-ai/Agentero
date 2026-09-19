@@ -702,6 +702,13 @@
 			"clearDone": "Logs cleared",
 			"clearFailed": "Couldn't clear logs."
 		},
+		"scratch": {
+			"label": "Paper full-text cache",
+			"summary": "{{papers}} papers · {{size}}",
+			"clear": "Clear cache",
+			"clearDone": "Cache cleared",
+			"clearFailed": "Couldn't clear the paper full-text cache."
+		},
 		"update": {
 			"available": "Version {{version}} is ready",
 			"downloading": "Downloading update...",

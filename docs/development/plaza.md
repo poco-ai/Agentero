@@ -275,7 +275,7 @@ papers.cool 给几乎所有链接都加了 `target="_blank"`（单个分区页�
 | 魔棒 / 入库 | **已复用** `lookup_import_batch`：喂上游 URL，见 §3.2.1。订阅论文卡走同一条 |
 | 订阅 | 独立 XDG `feeds.sqlite`，不进 catalog；见 [`plaza-feeds.md`](plaza-feeds.md) |
 | PDF\|NOTES | 推荐打开本地论文时走现有阅读布局 |
-| Agent | 订阅详情与 arXiv Daily 远程 PDF 均支持划词提问 / 加入对话（#421；远程 ephemeral，不写 `marks/`） |
+| Agent | 订阅详情与 arXiv Daily 远程 PDF 均支持划词提问 / 加入对话（#421；远程 ephemeral，不写 `marks/`）；Agent `@` 可引用广场条目（arXiv Daily 当日 + Feeds 最近条目，元数据 + Vault 外全文临时副本展开进 prompt，见 [agent.md](../frontend/agent.md)） |
 | 命令面板 | P1：`Plaza: Cool Papers` 等 |
 
 ## 5. 虚拟路径与类型草图
@@ -305,7 +305,8 @@ DocTab：`kind: "plaza"`（或 `file` + mode `plaza` + path 虚拟 URI——实�
 | **P0c arXiv Daily** | embedding 相似度 + 时间衰减排序 + 一键入库（已交付） | 内置或自定义 embedding 任一可用时有排序结果；两者都没有时有引导空态 |
 | **P0d 播客** | 占位页 | 可进入、文案清晰 |
 | **P1** | 入库（解析 arXiv / 魔棒管线）、预览抽屉、批量加入 Library | 与魔棒语义一致 |
-| **P2** | 播客实体、Agent 推荐、命令面板、@ 广场条目 | — |
+| **P2** | 播客实体、Agent 推荐、命令面板 | — |
+| **P2 @ 广场条目（已交付）** | Agent `@` 搜索引用 arXiv Daily + Feeds 条目；虚拟路径 `agentero:plaza/…`，发送时展开元数据，并为 arXiv 条目准备 Vault 外全文临时副本（`<cache>/agentero/plaza-scratch/`，liteparse 转 `PAPER.md`，500MB LRU、单篇下载上限 100MB、并发串行化；设置→关于可清除） | 标题关键词可命中；Agent 读全文无需入库；条目过期 / 全文准备失败降级提示，不静默丢弃 |
 | **订阅 MVP** | 原生面板 + 本地 RSS + 论文入库 | 见 [`plaza-feeds.md`](plaza-feeds.md) M1–M4 |
 
 ## 7. 明确不做（P0）

@@ -7,3 +7,4 @@ pub mod feeds;
 pub mod proxy;
 #[cfg(feature = "desktop")]
 pub mod recommend;
+pub mod scratch;

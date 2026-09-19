@@ -7,6 +7,10 @@
 import type { TFunction } from "i18next";
 import type { PromptImage } from "@/lib/agent/api";
 import type { ChatVisualAnnotation } from "@/lib/agent/chat-state";
+import {
+	plazaMentionPromptBlock,
+	splitContextPaths,
+} from "@/lib/agent/plaza-mention";
 import { selectionsPromptBlock } from "@/lib/agent/selection-prompt";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
@@ -19,6 +23,8 @@ export type AssembleTurnPromptInput = {
 	visualDrafts: PdfVisualDraft[];
 	attachedImages: PromptImage[];
 	isAcpCommand: boolean;
+	/** Mention path → scratch full-text markdown path (plaza entries). */
+	plazaScratchByPath?: ReadonlyMap<string, string> | null;
 	t: TFunction<"agent", undefined>;
 };
 
@@ -36,17 +42,30 @@ export function assembleTurnPrompt({
 	visualDrafts,
 	attachedImages,
 	isAcpCommand,
+	plazaScratchByPath,
 	t,
 }: AssembleTurnPromptInput): AssembledTurnPrompt {
 	const hasVisualDrafts = visualDrafts.length > 0;
 	const hasAttachedImages = attachedImages.length > 0;
 
 	const contextBlocks: string[] = [];
-	if (contextPaths.length) {
+	// Plaza mentions are virtual paths with no file for the agent to read —
+	// expand their metadata inline instead of the vault read-instruction list.
+	const { vaultPaths, plazaPaths } = splitContextPaths(contextPaths);
+	if (vaultPaths.length) {
 		contextBlocks.push(
-			`${t("composer.contextInstruction")}\n${contextPaths
+			`${t("composer.contextInstruction")}\n${vaultPaths
 				.map((path) => `- ${path}`)
 				.join("\n")}`,
+		);
+	}
+	if (plazaPaths.length) {
+		contextBlocks.push(
+			plazaMentionPromptBlock({
+				plazaPaths,
+				scratchByPath: plazaScratchByPath,
+				t,
+			}),
 		);
 	}
 	if (selections.length) {

@@ -365,6 +365,9 @@ export const commands = {
 	feedsRefresh: (args: FeedsRefreshArgs) => __TAURI_INVOKE<ApiResult<FeedRefreshResult>>("feeds_refresh", { args }),
 	feedsItems: (args: FeedsItemsArgs) => __TAURI_INVOKE<ApiResult<FeedItemsPage>>("feeds_items", { args }),
 	feedsMarkImported: (args: FeedsIdArgs) => __TAURI_INVOKE<ApiResult<FeedItem>>("feeds_mark_imported", { args }),
+	plazaScratchPrepare: (args: PlazaScratchPrepareArgs) => __TAURI_INVOKE<ApiResult<PlazaScratchEntry[]>>("plaza_scratch_prepare", { args }),
+	plazaScratchStats: () => __TAURI_INVOKE<ApiResult<ScratchStats>>("plaza_scratch_stats"),
+	plazaScratchClear: () => __TAURI_INVOKE<ApiResult<ScratchClearResult>>("plaza_scratch_clear"),
 	feedsSetPinned: (args: FeedsSetPinnedArgs) => __TAURI_INVOKE<ApiResult<FeedSub>>("feeds_set_pinned", { args }),
 	feedsResolveBody: (args: FeedsIdArgs) => __TAURI_INVOKE<ApiResult<FeedItem>>("feeds_resolve_body", { args }),
 	/**
@@ -3936,6 +3939,19 @@ export type PermissionResponseRequest = {
 	optionId?: string | null,
 };
 
+/**  Per-id outcome: one failed paper never blocks the rest of the turn. */
+export type PlazaScratchEntry = {
+	arxivId: string,
+	ok: boolean,
+	markdownPath: string | null,
+	pdfPath: string | null,
+	error: string | null,
+};
+
+export type PlazaScratchPrepareArgs = {
+	arxivIds: string[],
+};
+
 export type ProbeEmbeddingArgs = {
 	/**  Override the stored base URL. Empty / missing keeps the stored value. */
 	baseUrl?: string | null,
@@ -4294,6 +4310,15 @@ export type RunOnceRequest_Serialize = {
 	 *  (paper-reader and other non-composer workflows).
 	 */
 	hideFromChatHistory: boolean,
+};
+
+export type ScratchClearResult = {
+	freedBytes: number,
+};
+
+export type ScratchStats = {
+	papers: number,
+	bytes: number,
 };
 
 export type SearchHit = SearchHit_Serialize | SearchHit_Deserialize;
