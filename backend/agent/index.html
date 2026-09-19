@@ -3831,7 +3831,9 @@
     该目录进 <code>.gitignore</code>，pin 不经 pnpm-lock（对应用是惰性数据）。</li>
 <li>CI：Rust <code>quality</code> / <code>agentero-tests</code> 任务各自准备 Node 22 并执行
     <code>node scripts/prepare-adapters.mjs</code>；直接运行 Cargo 不触发 Tauri 前置命令，
-    TypeScript 任务的 staging 产物也不会跨 runner 共享。<code>cli-tests</code> 不依赖这些资源。</li>
+    TypeScript 任务的 staging 产物也不会跨 runner 共享。<code>cli-tests</code> 不依赖这些资源。
+    Rust 任务只需 Node/npm，<code>setup-node</code> 显式关闭包管理器自动缓存，避免根据
+    <code>package.json</code> 的 <code>packageManager</code> 字段调用未安装的 pnpm。</li>
 <li>运行时（<code>registry/bundled.rs</code>）：<code>init</code> 在 app setup 时定位资源根（打包
     <code>Resources/adapters</code>；dev 回退源码树），<code>adapter_at</code> 读 manifest。解析顺序全局唯一：
     <strong>PATH/lifecycle 安装的适配器永远优先</strong>，<code>resolve_command</code> 命中即走原路径，miss 才回落
