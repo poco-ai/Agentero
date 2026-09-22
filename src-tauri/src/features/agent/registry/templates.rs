@@ -79,7 +79,9 @@ pub fn kimi_launcher_dir() -> std::path::PathBuf {
 /// app-server --stdio` and reuses the ZCode desktop app login. Same prefix
 /// reasoning as the Claude adapter above.
 pub const ZCODE_ACP_INSTALL_COMMAND: &str = if cfg!(windows) {
-    "npm i -g zcode-acp-server@latest"
+    // The package's postinstall is only a hub-upgrade notification, but its
+    // POSIX shell syntax fails when npm runs it through Windows cmd.exe.
+    "npm i -g zcode-acp-server@latest --ignore-scripts"
 } else {
     "npm i -g zcode-acp-server@latest --prefix \"$HOME/.local\""
 };
@@ -473,8 +475,10 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
                     .to_string(),
             // ACP entrypoint is the adapter. Catalog discovery separately
             // checks the desktop app's bundled `zcode.cjs` as its host layer.
+            // zcode-acp-server 0.47+ opens its interactive TUI when invoked
+            // without a subcommand. ACP uses the explicit stdio bridge.
             command: "zcode-acp-server".to_string(),
-            args: vec![],
+            args: vec!["server".to_string()],
             detect_command: Some("zcode-acp-server".to_string()),
             install_hint: format!(
                 "{ZCODE_ACP_INSTALL_COMMAND}  (needs Node 22+ and a logged-in ZCode App)  ·  \

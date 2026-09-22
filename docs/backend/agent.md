@@ -61,14 +61,16 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `mcode login`，skill 走 slash mention。除 npm 全局目录外，Windows 官方安装器的
   `%USERPROFILE%\.minimax-code`（`mcode.cmd`）及 POSIX 的
   `~/.minimax-code/bin` 也会被 GUI 扫描，即使应用启动时没有继承新开的终端 PATH。
-- ZCode：host CLI 无原生 ACP，走社区适配器 `zcode-acp-server`（桥接无头
+- ZCode：host CLI 无原生 ACP，走社区适配器 `zcode-acp-server server`（桥接无头
   `zcode app-server --stdio`，声明 `session/load` 续聊）。zcode CLI 内置在 ZCode
-  桌面应用中、通常不在 PATH 上，适配器会自动发现桌面应用内置 CLI（或用 `ZCODE_BIN`
-  指定），凭据直接复用 `~/.zcode` 的桌面登录——无需额外 API key。Catalog 将桌面
+  桌面应用中、通常不在 PATH 上，适配器会自动发现桌面应用内置 CLI；若装在其他盘符或
+  更深层目录，可将 `ZCODE_BIN` 设为实际的 `zcode.cjs` 路径。凭据直接复用 `~/.zcode`
+  的桌面登录——无需额外 API key。Catalog 将桌面
   CLI 与 ACP 适配器分层探测：桌面版可从 PATH 的 `zcode` 或应用内置的 `zcode.cjs`
   识别；只有两层齐备才会自动注册并允许 initialize，缺少适配器时显示安装 ACP。
   `zcode-acp-server`（npm 安装，需 Node 22+）是唯一由 Agentero 管理的组件，静默
-  install/update 走 npm（Unix 侧装入 `~/.local` 前缀）；卸载只移除该适配器，不删除
+  install/update 走 npm（Windows 加 `--ignore-scripts` 跳过包内不兼容 cmd 的通知脚本；
+  Unix 侧装入 `~/.local` 前缀）；卸载只移除该适配器，不删除
   ZCode 桌面应用、登录或 `~/.zcode` 数据。
   - spawn 时 Host 注入环境变量（注册项 env 可覆盖）：`ZCODE_BUILTIN_PROVIDER_CONFIG_FILE`
     指向 `~/.zcode/v2/runtime/provider/*/*/endpoint-*/zcode-builtin.json` 中最新一份——

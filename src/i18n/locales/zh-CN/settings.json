@@ -267,6 +267,7 @@
 		"desktopHint": "运行 `pnpm tauri dev` 以扫描本机上的 Agent。",
 		"commonAgents": "常用 Agent",
 		"commonAgentsHint": "若 ACP 失败，可尝试在「通用」当中配置代理。",
+		"zcodeDesktopPathHint": "若未找到 ZCode，请将 ZCODE_BIN 设为其 zcode.cjs 路径；支持任意盘符及多层目录安装。",
 		"defaultAgent": {
 			"section": "默认 Agent",
 			"label": "默认 Agent",

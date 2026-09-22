@@ -267,6 +267,7 @@
 		"desktopHint": "Run `pnpm tauri dev` to scan agents on this machine.",
 		"commonAgents": "Common agents",
 		"commonAgentsHint": "If ACP fails, try configuring a proxy under General.",
+		"zcodeDesktopPathHint": "If ZCode is not found, set ZCODE_BIN to its zcode.cjs path. This supports any drive and nested install folder.",
 		"defaultAgent": {
 			"section": "Default agent",
 			"label": "Default Agent",

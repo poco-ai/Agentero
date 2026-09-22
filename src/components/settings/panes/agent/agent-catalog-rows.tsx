@@ -327,6 +327,11 @@ function AgentCatalogEntryRow({
 					) : null}
 				</div>
 			</div>
+			{entry.templateId === "zcode" ? (
+				<p className="text-muted-foreground text-xs">
+					{t("agent.zcodeDesktopPathHint")}
+				</p>
+			) : null}
 			{rowLifecycle ? (
 				<div className="grid grid-cols-[8rem_minmax(0,1fr)_2.5rem_1.5rem] items-center gap-3 pr-2">
 					<span className="truncate text-caption text-muted-foreground">

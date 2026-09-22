@@ -62,7 +62,7 @@ mod acp_live {
             .find(|entry| entry.id == "zcode")
             .expect("ZCode template");
         assert_eq!(zcode.command, "zcode-acp-server");
-        assert_eq!(zcode.args, Vec::<String>::new());
+        assert_eq!(zcode.args, vec!["server".to_string()]);
         // The adapter discovers the desktop app's zcode.cjs itself, so the
         // "installed" badge tracks the adapter rather than a host `zcode` CLI.
         assert_eq!(zcode.detect_command.as_deref(), Some("zcode-acp-server"));

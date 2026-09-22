@@ -31,9 +31,10 @@ impl AgentRegistry {
             read_state(&path).unwrap_or_else(|_| (AgentRegistryState::default(), false));
         let migrated_codex = migrate_legacy_codex_agents(&mut state);
         let migrated_grok = migrate_legacy_grok_agents(&mut state);
+        let migrated_zcode = migrate_legacy_zcode_agents(&mut state);
         let migrated_env = migrate_catalog_env_defaults(&mut state);
         state.enabled = true;
-        if migrated_codex || migrated_grok || removed_templates || migrated_env {
+        if migrated_codex || migrated_grok || migrated_zcode || removed_templates || migrated_env {
             if let Err(error) = persist(&path, &state) {
                 log::error!(
                     target: "agentero::agent",
@@ -673,6 +674,28 @@ fn migrate_legacy_codex_agents(state: &mut AgentRegistryState) -> bool {
     migrated
 }
 
+/// zcode-acp-server 0.47 changed its bare invocation from the stdio ACP bridge
+/// to an interactive TUI. Catalog registrations created by older releases need
+/// the explicit `server` subcommand before their next initialize.
+fn migrate_legacy_zcode_agents(state: &mut AgentRegistryState) -> bool {
+    let mut migrated = false;
+    for agent in &mut state.agents {
+        if agent.template != AgentTemplate::Zcode
+            || agent.command != "zcode-acp-server"
+            || !agent.args.is_empty()
+        {
+            continue;
+        }
+        agent.args = vec!["server".to_string()];
+        agent.last_probe_ok = None;
+        agent.last_probe_agent_name = None;
+        agent.last_probe_error = None;
+        agent.last_probed_at = None;
+        migrated = true;
+    }
+    migrated
+}
+
 /// Google Antigravity (community `agy-acp` adapter) and the legacy Gemini CLI
 /// template were removed: Google ships no official ACP entrypoint. Registrations
 /// may still be on disk, and an unknown template string fails the whole parse
@@ -1009,7 +1032,8 @@ mod tests {
     use super::{
         apply_user_agent_to_agent, merge_anthropic_custom_headers_user_agent,
         merge_codex_config_user_agent, migrate_legacy_codex_agents, migrate_legacy_grok_agents,
-        strip_removed_templates, AGENTERO_USER_AGENT_ENV, ANTHROPIC_CUSTOM_HEADERS_ENV,
+        migrate_legacy_zcode_agents, strip_removed_templates, AGENTERO_USER_AGENT_ENV,
+        ANTHROPIC_CUSTOM_HEADERS_ENV,
     };
     use crate::features::agent::models::{AgentDescriptor, AgentRegistryState, AgentTemplate};
     use std::collections::HashMap;
@@ -1081,6 +1105,34 @@ mod tests {
 
         // Already native: nothing left to migrate.
         assert!(!migrate_legacy_grok_agents(&mut state));
+    }
+
+    #[test]
+    fn migrates_legacy_zcode_bare_launcher_to_acp_server() {
+        let mut state = AgentRegistryState {
+            agents: vec![AgentDescriptor {
+                id: "catalog-zcode".to_string(),
+                name: "ZCode".to_string(),
+                template: AgentTemplate::Zcode,
+                command: "zcode-acp-server".to_string(),
+                args: vec![],
+                env: HashMap::new(),
+                available: true,
+                last_error: None,
+                last_probe_ok: Some(true),
+                last_probe_agent_name: Some("zcode".to_string()),
+                last_probe_error: None,
+                last_probed_at: Some("1".to_string()),
+            }],
+            ..AgentRegistryState::default()
+        };
+
+        assert!(migrate_legacy_zcode_agents(&mut state));
+        let agent = &state.agents[0];
+        assert_eq!(agent.args, vec!["server".to_string()]);
+        assert_eq!(agent.last_probe_ok, None);
+        assert_eq!(agent.last_probed_at, None);
+        assert!(!migrate_legacy_zcode_agents(&mut state));
     }
 
     #[test]
