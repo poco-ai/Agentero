@@ -62,8 +62,10 @@ export type CliSyncOutcome = "synced" | "skipped";
  * version, so the old process cannot pre-install the next CLI during an app
  * update. Instead the fresh app syncs on startup: when the user has a managed
  * CLI entry (`installed`) whose version drifted (`!shimCurrent`), re-run the
- * install so binary + shim match this build. Never throws; callers surface
- * failures ("failed" outcome) with a toast.
+ * install so binary + shim match this build. Never throws; callers can retry
+ * a transient release-asset/network failure and surface a final failure with
+ * a toast. A missing CLI is always skipped: app updates never opt a user into
+ * installing a command-line tool they did not previously install.
  */
 export async function syncInstalledCliWithApp(): Promise<
 	CliSyncOutcome | "failed"
