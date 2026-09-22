@@ -36,17 +36,25 @@ describe("viewer path helpers", () => {
 		expect(preferredModeForPath(null)).toBe("markdown");
 	});
 
-	it("falls back to the text editor only outside papers/", () => {
+	it("falls back to the text editor for non-Markdown files inside and outside papers/", () => {
 		expect(preferredModeForPath("/vault/notes/config.toml")).toBe("text");
 		expect(preferredModeForPath("/vault/README")).toBe("text");
 		expect(preferredModeForPath("/vault/notes/data.json")).toBe("text");
-		// Inside papers/ the legacy behavior stands: markdown, never text.
+		// Paper notes remain Markdown, but source/data files use CodeMirror.
 		expect(preferredModeForPath("/vault/papers/2401.0001/notes/org.md")).toBe(
 			"markdown",
 		);
 		expect(preferredModeForPath("/vault/papers/2401.0001/data/misc.dat")).toBe(
-			"markdown",
+			"text",
 		);
+		for (const path of [
+			"/vault/papers/DiveIntoScene/source/agentero-cite.json",
+			"C:\\vault\\papers\\DiveIntoScene\\source\\AGENTERO-CITE.JSON",
+			"/vault/papers/a/source/main.tex",
+			"/vault/papers/a/attachments/config.yaml",
+		]) {
+			expect(preferredModeForPath(path)).toBe("text");
+		}
 		// Dedicated viewers still win under papers/.
 		expect(preferredModeForPath("/vault/papers/2401.0001/main.pdf")).toBe(
 			"pdf",

@@ -12,7 +12,6 @@ import {
 	getRemoteArxivPaperByPath,
 	isPaperDirectory,
 	isRemoteArxivPath,
-	isUnderPapers,
 	loadPaperMetadata,
 	loadPaperOpenBundle,
 	localFileToArrayBuffer,
@@ -255,7 +254,7 @@ export async function loadTabResources(
 	// Non-paper directory (org folder under papers/, notes/, etc.) → scoped library.
 	// Tree may be empty during tab restore before refreshTree completes: fall back to
 	// "not an openable file" so folder paths still reopen as library scope tabs.
-	// Outside `papers/` any extension-bearing path is a plain-text fallback file;
+	// Any extension-bearing path is a plain-text fallback file;
 	// extension-less names stay directory-suspect for that restore race.
 	const looksLikeOpenableFile =
 		isPdfPath(path) ||
@@ -263,7 +262,7 @@ export async function loadTabResources(
 		isHtmlPath(path) ||
 		isExcalidrawPath(path) ||
 		isTextOpenable(path) ||
-		(!isUnderPapers(path) && /\.[^\\/]+$/.test(path));
+		/\.[^\\/]+$/.test(path);
 	if (
 		!paperDir &&
 		(treeNode?.kind === "directory" ||
@@ -391,6 +390,7 @@ export async function loadTabResources(
 		let pdfBytes = paperBytes;
 		let imageUrl: string | null = null;
 		let markdownSeed = "";
+		let textSeed = "";
 		let excalidrawSeed = "";
 
 		if (isPdfPath(path)) {
@@ -421,9 +421,11 @@ export async function loadTabResources(
 				};
 			}
 		}
-		if (isTextOpenable(path)) {
+		if (mode === "text" || isTextOpenable(path)) {
 			try {
-				markdownSeed = await readVaultFile(path);
+				const content = await readVaultFile(path);
+				if (mode === "text") textSeed = content;
+				else markdownSeed = content;
 			} catch {
 				// Leave the editor empty when the file cannot be read.
 			}
@@ -448,6 +450,7 @@ export async function loadTabResources(
 			notesPath,
 			notesSeed,
 			markdownSeed,
+			textSeed,
 			excalidrawSeed,
 			loaded: true,
 			didDownloadAssets: didDownload,
@@ -499,7 +502,7 @@ export async function loadTabResources(
 		}
 	}
 
-	// CodeMirror plain-text fallback (Papers 外未知/文本扩展名). Unlike the
+	// CodeMirror plain-text fallback, including paper source/attachments. Unlike the
 	// Markdown editor this accepts any extension — the text editor is the
 	// catch-all viewer, so no isTextOpenable gate here.
 	if (mode === "text") {

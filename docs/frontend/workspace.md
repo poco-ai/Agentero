@@ -30,7 +30,7 @@
 
 ## 纯文本编辑器（CodeMirror 兜底）
 
-`papers/` 之外的文本文件在专用查看器（PDF / HTML / 图片 / Excalidraw / Markdown）都不命中时，落入 CodeMirror 6 纯文本编辑器（`text` 模式），承担「未知格式兜底查看器」的角色；`papers/` 内部保持原 Markdown 行为不变（paper 域文件不降级为原始文本缓冲）。
+文本文件在专用查看器（PDF / HTML / 图片 / Excalidraw / Markdown）都不命中时，落入 CodeMirror 6 纯文本编辑器（`text` 模式），包括 `papers/` 内的 source / attachments / 数据文件。`PAPER.md`、`NOTES.md` 与其他 Markdown 笔记仍使用富文本编辑器；JSON 等结构化文件不再进入 Markdown 解析器，避免打开大型引用数据时同步解析阻塞 UI。
 
 | 项 | 方案 |
 |---|---|

@@ -67,10 +67,9 @@ export function isImageViewerSource(
 
 /**
  * View mode for a path. After the dedicated viewers (PDF / HTML / image /
- * Excalidraw / Markdown), the CodeMirror plain-text editor is the fallback —
- * but only outside `papers/`: files inside a paper folder keep the legacy
- * Markdown behavior (they belong to the paper's NOTES/PAPER domain, and an
- * org-level index note must never degrade into a raw text buffer).
+ * Excalidraw / Markdown), CodeMirror is the fallback, including paper source
+ * and attachment files. Only Markdown files belong in the rich-text editor:
+ * parsing structured data such as citation JSON there can block the UI.
  */
 export function preferredModeForPath(path: string | null): CenterViewMode {
 	if (!path) return "markdown";
@@ -79,7 +78,6 @@ export function preferredModeForPath(path: string | null): CenterViewMode {
 	if (isImagePath(path)) return "image";
 	if (isExcalidrawPath(path)) return "excalidraw";
 	if (isMarkdownPath(path)) return "markdown";
-	if (isUnderPapers(path)) return "markdown";
 	return "text";
 }
 
