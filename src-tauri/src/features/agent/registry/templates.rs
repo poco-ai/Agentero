@@ -122,6 +122,25 @@ fn zcode_cached_cli_candidates(releases_root: std::path::PathBuf) -> Vec<std::pa
     candidates
 }
 
+/// Candidate desktop CLIs from custom first-level folders on a system drive.
+/// This intentionally checks only the fixed suffix rather than walking all
+/// descendant directories during catalog scans.
+fn zcode_system_drive_cli_candidates(root: std::path::PathBuf) -> Vec<std::path::PathBuf> {
+    std::fs::read_dir(root)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| {
+            entry
+                .path()
+                .join("ZCode")
+                .join("resources")
+                .join("glm")
+                .join("zcode.cjs")
+        })
+        .collect()
+}
+
 /// Locate the CLI bundled in a ZCode desktop installation. The desktop CLI is
 /// a JavaScript entrypoint, so normal executable/PATH probing cannot see it.
 /// Keep this separate from `zcode_runtime_env`: catalog discovery needs to
@@ -171,6 +190,11 @@ fn zcode_desktop_cli_candidates() -> Vec<std::path::PathBuf> {
         candidates.push(std::path::PathBuf::from(
             r"C:\Program Files\ZCode\resources\glm\zcode.cjs",
         ));
+        // Users often choose a custom first-level folder on the system drive.
+        if let Some(system_drive) = std::env::var_os("SystemDrive") {
+            let root = std::path::PathBuf::from(format!("{}\\", system_drive.to_string_lossy()));
+            candidates.extend(zcode_system_drive_cli_candidates(root));
+        }
     }
     candidates
 }
@@ -521,7 +545,7 @@ pub fn template_info(id: &str) -> Option<AgentTemplateInfo> {
 
 #[cfg(test)]
 mod tests {
-    use super::zcode_host_path;
+    use super::{zcode_host_path, zcode_system_drive_cli_candidates};
     use std::collections::HashMap;
 
     #[test]
@@ -530,5 +554,14 @@ mod tests {
         let environment =
             HashMap::from([("ZCODE_BIN".to_string(), temp.path().display().to_string())]);
         assert_eq!(zcode_host_path(&environment).as_deref(), Some(temp.path()));
+    }
+
+    #[test]
+    fn zcode_custom_system_drive_candidate_uses_fixed_suffix() {
+        let temp = tempfile::tempdir().unwrap();
+        let cli = temp.path().join("Sofware/ZCode/resources/glm/zcode.cjs");
+        std::fs::create_dir_all(cli.parent().unwrap()).unwrap();
+        std::fs::write(&cli, "").unwrap();
+        assert!(zcode_system_drive_cli_candidates(temp.path().to_path_buf()).contains(&cli));
     }
 }

@@ -80,8 +80,9 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
     `workspace/updateProviderRegistry` 标记，避免启动时直接关闭 ACP transport。
     均不存在时回落适配器默认发现逻辑。注入仅在**本地** spawn 生效：SSH 远端 Vault 不做
     该注入（本地发现的路径对远端无意义），远端沿用适配器自身的发现逻辑，上述坑在
-    远端同样存在；Windows 上注入的候选根为 `%LOCALAPPDATA%\Programs\ZCode` 与
-    `%APPDATA%\ZCode` 缓存和 `C:\Program Files\ZCode`，并在可解析时额外注入 `ZCODE_NODE`（适配器
+    远端同样存在；Windows 上注入的候选根为 `%LOCALAPPDATA%\Programs\ZCode`、
+    `%APPDATA%\ZCode` 缓存、`C:\Program Files\ZCode`，以及系统盘根目录下一级自定义目录中的
+    `ZCode\resources\glm\zcode.cjs`（例如 `C:\Sofware\ZCode`）；并在可解析时额外注入 `ZCODE_NODE`（适配器
     在 Windows 上解析 Node 不可靠）。
 - Pi：无原生 ACP，走社区适配器 `pi-acp`（内部 spawn `pi --mode rpc`）；detect 用 host `pi`、
   ACP 入口用 `pi-acp`。pi 的 skill 以 `/skill:<name>` 暴露，故 Agentero 不发 `/<name>`

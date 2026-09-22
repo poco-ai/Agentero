@@ -13,7 +13,7 @@ use crate::features::agent::registry::templates::{
     PI_ACP_INSTALL_COMMAND, PI_HOST_INSTALL_COMMAND, ZCODE_ACP_INSTALL_COMMAND,
 };
 use serde::Serialize;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{self, Read};
 use std::process::{Command, Output, Stdio};
@@ -427,7 +427,10 @@ pub fn run_template_lifecycle(
         .as_deref()
         .unwrap_or(info.command.as_str());
     let host_present = if template_id == "zcode" {
-        zcode_host_path(&std::collections::HashMap::new()).is_some()
+        // Match catalog scanning: custom desktop installs can be supplied
+        // through ZCODE_BIN in the app's launch environment.
+        let environment = std::env::vars().collect::<HashMap<_, _>>();
+        zcode_host_path(&environment).is_some()
     } else {
         resolve_command(detect).is_some()
     };
