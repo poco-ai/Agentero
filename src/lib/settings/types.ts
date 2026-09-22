@@ -45,6 +45,8 @@ export type LibraryColumnKey =
 export type LibraryColumnPref = {
 	key: LibraryColumnKey;
 	visible: boolean;
+	/** Optional fixed width in CSS pixels. Missing keeps the responsive default. */
+	width?: number;
 };
 
 /** Canonical column order (also the source of truth for reconciliation). */

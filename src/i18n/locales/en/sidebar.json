@@ -131,6 +131,7 @@
 		"colCitations": "Citations",
 		"heatmapTooltip": "{{total}} events · {{highlights}} highlights · {{asks}} asks · {{translates}} translations",
 		"sortBy": "Sort by {{column}}",
+		"resizeColumn": "Resize {{column}} column",
 		"copyHint": "Double-click to copy {{label}}",
 		"copied": "Copied {{label}}",
 		"copyFailed": "Could not copy to clipboard",

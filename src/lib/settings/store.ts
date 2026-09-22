@@ -517,9 +517,16 @@ function normalizeLibraryColumns(raw: unknown): LibraryColumnPref[] {
 			if (seen.has(k)) continue;
 			seen.add(k);
 			const visible = (item as { visible?: unknown }).visible;
+			const width = (item as { width?: unknown }).width;
 			saved.push({
 				key: k,
 				visible: typeof visible === "boolean" ? visible : true,
+				...(typeof width === "number" &&
+				Number.isFinite(width) &&
+				width >= 48 &&
+				width <= 2400
+					? { width: Math.round(width) }
+					: {}),
 			});
 		}
 	}
@@ -539,7 +546,11 @@ function normalizeLibraryColumns(raw: unknown): LibraryColumnPref[] {
 	if (matchesOldLayout) {
 		for (const key of LIBRARY_COLUMN_KEYS) {
 			const pref = saved.find((c) => c.key === key);
-			out.push({ key, visible: pref?.visible ?? true });
+			out.push({
+				key,
+				visible: pref?.visible ?? true,
+				...(pref?.width != null ? { width: pref.width } : {}),
+			});
 		}
 	} else {
 		for (const key of LIBRARY_COLUMN_KEYS) {

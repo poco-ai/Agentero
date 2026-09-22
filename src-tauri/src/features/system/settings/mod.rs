@@ -220,6 +220,8 @@ pub struct EmbeddingSettings {
 pub struct LibraryColumnPref {
     pub key: String,
     pub visible: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub width: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
@@ -413,6 +415,7 @@ fn default_library_columns() -> Vec<LibraryColumnPref> {
         .map(|&key| LibraryColumnPref {
             key: key.to_string(),
             visible: true,
+            width: None,
         })
         .collect()
 }
@@ -1007,6 +1010,7 @@ fn normalize(s: &mut AppSettings) {
         cols.push(LibraryColumnPref {
             key,
             visible: col.visible,
+            width: col.width.filter(|width| (48..=2400).contains(width)),
         });
     }
     for &key in LIBRARY_COLUMN_KEYS {
@@ -1014,6 +1018,7 @@ fn normalize(s: &mut AppSettings) {
             cols.push(LibraryColumnPref {
                 key: key.to_string(),
                 visible: true,
+                width: None,
             });
         }
     }
@@ -1546,14 +1551,17 @@ mod tests {
                 LibraryColumnPref {
                     key: "bogus".into(),
                     visible: true,
+                    width: None,
                 },
                 LibraryColumnPref {
                     key: "title".into(),
                     visible: false,
+                    width: None,
                 },
                 LibraryColumnPref {
                     key: "year".into(),
                     visible: false,
+                    width: Some(132),
                 },
             ],
             ..AppSettings::default()
@@ -1579,6 +1587,7 @@ mod tests {
         // Non-title hidden preference preserved through the rename.
         let date = s.library_columns.iter().find(|c| c.key == "date").unwrap();
         assert!(!date.visible);
+        assert_eq!(date.width, Some(132));
         // Appended column defaults to visible.
         let authors = s
             .library_columns

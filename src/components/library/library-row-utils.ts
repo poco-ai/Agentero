@@ -133,6 +133,7 @@ export type CellCtx = {
 export type ColumnDef = {
 	labelKey: string;
 	widthWeight: number;
+	minWidth: number;
 	headerClassName: string;
 	render: (p: PaperLibraryRow, ctx: CellCtx) => ReactNode;
 };

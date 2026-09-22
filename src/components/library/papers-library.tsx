@@ -40,6 +40,7 @@ import { heatmapCacheKey } from "@/lib/paper/reading-heatmap";
 import { type PaperTag, visiblePaperTags } from "@/lib/paper/tags";
 import {
 	DEFAULT_LIBRARY_COLUMNS,
+	type LibraryColumnKey,
 	type LibraryColumnPref,
 	useUiScale,
 } from "@/lib/settings";
@@ -173,6 +174,41 @@ export function PapersLibrary({
 				0,
 			),
 		[visibleColumns],
+	);
+	/** Pixel widths sampled when a resize starts; persisted only on pointer-up. */
+	const resizeWidthsRef = useRef<Partial<Record<LibraryColumnKey, number>>>({});
+	const [resizeWidths, setResizeWidths] = useState<Partial<
+		Record<LibraryColumnKey, number>
+	> | null>(null);
+	const handleColumnResizeStart = useCallback(
+		(widths: Partial<Record<LibraryColumnKey, number>>) => {
+			resizeWidthsRef.current = widths;
+			setResizeWidths(widths);
+		},
+		[],
+	);
+	const handleColumnResize = useCallback(
+		(key: LibraryColumnKey, width: number) => {
+			resizeWidthsRef.current = { ...resizeWidthsRef.current, [key]: width };
+			setResizeWidths(resizeWidthsRef.current);
+		},
+		[],
+	);
+	const handleColumnResizeEnd = useCallback(
+		(key: LibraryColumnKey, width: number) => {
+			const widths = { ...resizeWidthsRef.current, [key]: width };
+			resizeWidthsRef.current = {};
+			setResizeWidths(null);
+			onColumnsChange?.(
+				columns.map((col) => {
+					const nextWidth = widths[col.key];
+					return col.visible && nextWidth != null
+						? { ...col, width: nextWidth }
+						: col;
+				}),
+			);
+		},
+		[columns, onColumnsChange],
 	);
 
 	const toggleColumn = useCallback(
@@ -361,14 +397,20 @@ export function PapersLibrary({
 					{/* Fixed weights keep the table stable while content and rows change. */}
 					<table className="w-full min-w-[900px] table-fixed border-collapse text-left text-sm">
 						<colgroup>
-							{visibleColumns.map((col) => (
-								<col
-									key={col.key}
-									style={{
-										width: `${(COLUMN_META[col.key].widthWeight / visibleColumnWeight) * 100}%`,
-									}}
-								/>
-							))}
+							{visibleColumns.map((col) => {
+								const width = resizeWidths?.[col.key] ?? col.width;
+								return (
+									<col
+										key={col.key}
+										style={{
+											width:
+												width != null
+													? `${width}px`
+													: `${(COLUMN_META[col.key].widthWeight / visibleColumnWeight) * 100}%`,
+										}}
+									/>
+								);
+							})}
 						</colgroup>
 						<LibraryTableHeader
 							t={t}
@@ -392,6 +434,9 @@ export function PapersLibrary({
 							onToggleColumn={toggleColumn}
 							onResetColumns={resetColumns}
 							onColumnReorder={handleColumnReorder}
+							onColumnResizeStart={handleColumnResizeStart}
+							onColumnResize={handleColumnResize}
+							onColumnResizeEnd={handleColumnResizeEnd}
 							vaultPath={vaultPath}
 							papers={scopedPapers}
 						/>

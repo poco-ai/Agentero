@@ -104,6 +104,7 @@ export const COLUMN_META = {
 	title: {
 		labelKey: "papersLibrary.colTitle",
 		widthWeight: 32,
+		minWidth: 240,
 		headerClassName: "min-w-[240px]",
 		render: (p, ctx) => (
 			<td className="min-w-0 max-w-0 overflow-hidden px-3 py-2.5">
@@ -141,6 +142,7 @@ export const COLUMN_META = {
 	authors: {
 		labelKey: "papersLibrary.colAuthors",
 		widthWeight: 18,
+		minWidth: 140,
 		headerClassName: "min-w-[140px]",
 		render: (p, ctx) => (
 			<td className="min-w-0 max-w-0 overflow-hidden px-3 py-2.5 text-muted-foreground text-xs">
@@ -167,6 +169,7 @@ export const COLUMN_META = {
 	date: {
 		labelKey: "papersLibrary.colDate",
 		widthWeight: 10,
+		minWidth: 92,
 		headerClassName: "min-w-[92px]",
 		render: (p) => (
 			<td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-muted-foreground text-xs">
@@ -177,6 +180,7 @@ export const COLUMN_META = {
 	publication: {
 		labelKey: "papersLibrary.colPublication",
 		widthWeight: 14,
+		minWidth: 120,
 		headerClassName: "min-w-[120px]",
 		render: (p) => (
 			<td className="min-w-0 max-w-0 overflow-hidden px-3 py-2.5 text-muted-foreground text-xs">
@@ -189,6 +193,7 @@ export const COLUMN_META = {
 	tags: {
 		labelKey: "papersLibrary.colTags",
 		widthWeight: 18,
+		minWidth: 120,
 		headerClassName: "min-w-[120px]",
 		render: (_p, { tags }) => (
 			<td className="min-w-0 max-w-0 overflow-hidden px-3 py-2.5">
@@ -207,6 +212,7 @@ export const COLUMN_META = {
 	id: {
 		labelKey: "papersLibrary.colId",
 		widthWeight: 14,
+		minWidth: 160,
 		headerClassName: "min-w-[160px]",
 		render: (p, ctx) => {
 			const value = identifierValue(p);
@@ -228,6 +234,7 @@ export const COLUMN_META = {
 	citations: {
 		labelKey: "papersLibrary.colCitations",
 		widthWeight: 10,
+		minWidth: 80,
 		headerClassName: "min-w-[80px]",
 		render: (p) => {
 			const count = p.citation_count;

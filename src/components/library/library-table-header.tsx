@@ -11,7 +11,7 @@
  * compact/props change.
  */
 import { Award, ListFilter, RefreshCw, Search, X } from "lucide-react";
-import { memo, useEffect, useState } from "react";
+import { memo, type PointerEvent, useEffect, useState } from "react";
 import { COLUMN_META, SortIcon } from "@/components/library/library-columns";
 import type {
 	CellT,
@@ -49,7 +49,7 @@ import {
 import type { PaperMetadata } from "@/lib/paper";
 import { setLibraryPaperTags } from "@/lib/paper/library-store";
 import { coercePaperTags, type PaperTag } from "@/lib/paper/tags";
-import type { LibraryColumnPref } from "@/lib/settings";
+import type { LibraryColumnKey, LibraryColumnPref } from "@/lib/settings";
 
 type LibraryTableHeaderProps = {
 	t: CellT;
@@ -83,6 +83,11 @@ type LibraryTableHeaderProps = {
 	onToggleColumn: (key: SortKey) => void;
 	onResetColumns: () => void;
 	onColumnReorder: (fromKey: SortKey, toKey: SortKey) => void;
+	onColumnResizeStart: (
+		widths: Partial<Record<LibraryColumnKey, number>>,
+	) => void;
+	onColumnResize: (key: LibraryColumnKey, width: number) => void;
+	onColumnResizeEnd: (key: LibraryColumnKey, width: number) => void;
 	/** Vault path for EasyScholar batch tag fetch. */
 	vaultPath?: string | null;
 	/** Papers currently visible in the library scope. */
@@ -111,6 +116,9 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 	onToggleColumn,
 	onResetColumns,
 	onColumnReorder,
+	onColumnResizeStart,
+	onColumnResize,
+	onColumnResizeEnd,
 	vaultPath,
 	papers,
 }: LibraryTableHeaderProps) {
@@ -130,6 +138,44 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 		? "opacity-100 duration-300"
 		: "pointer-events-none opacity-0 duration-0";
 	const canFetchRanks = Boolean(vaultPath) && !rankBusy && papers.length > 0;
+	const startColumnResize = (
+		key: LibraryColumnKey,
+		event: PointerEvent<HTMLButtonElement>,
+	) => {
+		if (!canCustomizeColumns || event.button !== 0) return;
+		event.preventDefault();
+		event.stopPropagation();
+		const headerRow = event.currentTarget.closest("tr");
+		const cells = headerRow?.querySelectorAll("th");
+		const widths: Partial<Record<LibraryColumnKey, number>> = {};
+		visibleColumns.forEach((column, index) => {
+			const width = cells?.[index]?.getBoundingClientRect().width;
+			if (width) widths[column.key] = Math.round(width);
+		});
+		const startWidth = widths[key] ?? COLUMN_META[key].minWidth;
+		let nextWidth = startWidth;
+		onColumnResizeStart(widths);
+
+		const onPointerMove = (moveEvent: globalThis.PointerEvent) => {
+			nextWidth = Math.min(
+				2400,
+				Math.max(
+					COLUMN_META[key].minWidth,
+					Math.round(startWidth + moveEvent.clientX - event.clientX),
+				),
+			);
+			onColumnResize(key, nextWidth);
+		};
+		const finishResize = () => {
+			window.removeEventListener("pointermove", onPointerMove);
+			window.removeEventListener("pointerup", finishResize);
+			window.removeEventListener("pointercancel", finishResize);
+			onColumnResizeEnd(key, nextWidth);
+		};
+		window.addEventListener("pointermove", onPointerMove);
+		window.addEventListener("pointerup", finishResize, { once: true });
+		window.addEventListener("pointercancel", finishResize, { once: true });
+	};
 
 	const fetchAllRanks = async () => {
 		if (!vaultPath || rankBusy) return;
@@ -208,7 +254,9 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 									onDragStart={(e) => {
 										const target = e.target as HTMLElement;
 										if (
-											target.closest("input,button[data-library-header-action]")
+											target.closest(
+												"input,button[data-library-header-interaction]",
+											)
 										) {
 											e.preventDefault();
 											return;
@@ -237,7 +285,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 									}}
 								>
 									{/* Fixed h-9 so compact fade never changes header height. */}
-									<div className="flex h-9 min-w-0 items-center gap-1 px-3">
+									<div className="relative flex h-9 min-w-0 items-center gap-1 px-3">
 										<button
 											type="button"
 											className={cn(
@@ -468,6 +516,20 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 													</PopoverContent>
 												</Popover>
 											</>
+										) : null}
+										{canCustomizeColumns ? (
+											<button
+												type="button"
+												data-library-header-interaction
+												className="absolute inset-y-0 right-0 z-10 w-2 cursor-col-resize touch-none hover:bg-primary/30 focus-visible:bg-primary/30 focus-visible:outline-none"
+												aria-label={t("papersLibrary.resizeColumn", {
+													column: t(meta.labelKey),
+												})}
+												onPointerDown={(event) =>
+													startColumnResize(col.key, event)
+												}
+												onClick={(event) => event.stopPropagation()}
+											/>
 										) : null}
 									</div>
 								</th>
