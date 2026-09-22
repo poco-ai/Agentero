@@ -26,6 +26,11 @@ pub const HOME_BIN_DIRS: &[&str] = &[
     ".grok/bin",
     // Kimi Code official installer (single binary, writes PATH into the shell rc).
     ".kimi-code/bin",
+    // MiniMax Code's official installer keeps its isolated runtime and
+    // launchers outside npm's global bin. POSIX uses `bin/mcode`; Windows
+    // writes `mcode.cmd` directly under `%USERPROFILE%\\.minimax-code`.
+    ".minimax-code/bin",
+    ".minimax-code",
     // fnm default-alias bins (data dir varies by platform; session
     // multishell dirs are ephemeral, skip them).
     "Library/Application Support/fnm/aliases/default/bin",

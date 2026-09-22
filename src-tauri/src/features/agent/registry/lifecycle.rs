@@ -8,9 +8,9 @@
 use crate::features::agent::registry::discovery::path_entries;
 use crate::features::agent::registry::discovery::resolve_command;
 use crate::features::agent::registry::templates::{
-    kimi_launcher_dir, template_info, CLAUDE_ACP_INSTALL_COMMAND, CODEX_ACP_INSTALL_COMMAND,
-    DSH_INSTALL_COMMAND, MINIMAX_CODE_INSTALL_COMMAND, PI_ACP_INSTALL_COMMAND,
-    PI_HOST_INSTALL_COMMAND, ZCODE_ACP_INSTALL_COMMAND,
+    kimi_launcher_dir, template_info, zcode_host_path, CLAUDE_ACP_INSTALL_COMMAND,
+    CODEX_ACP_INSTALL_COMMAND, DSH_INSTALL_COMMAND, MINIMAX_CODE_INSTALL_COMMAND,
+    PI_ACP_INSTALL_COMMAND, PI_HOST_INSTALL_COMMAND, ZCODE_ACP_INSTALL_COMMAND,
 };
 use serde::Serialize;
 use std::collections::HashSet;
@@ -301,9 +301,10 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
             vec!["npm uninstall -g @minimax-ai/code".to_string()],
             Vec::new(),
         ),
-        // Single-package adapter: the ACP bridge is the only npm artifact
-        // (the zcode CLI itself ships inside the ZCode desktop app).
-        "zcode" => (vec![zcode_acp], Vec::new()),
+        // The desktop app owns the ZCode host. Agentero only manages the ACP
+        // bridge npm package, so uninstall must never imply that it removed
+        // the user's desktop app or login data.
+        "zcode" => (Vec::new(), vec![zcode_acp]),
         // hermes: official-script-only install, nothing we can reverse.
         _ => return None,
     };
@@ -325,26 +326,6 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
             dirs: acp_dirs,
         },
     })
-}
-
-/// Chain best-effort uninstall commands: each failure is non-fatal (idempotent
-/// uninstall, packages may be absent or root-owned). Unix `|| true`; Windows
-/// `|| echo skip` (cmd has no `true`, and `exit /b 0` would abort the bat).
-fn best_effort_chain(cmds: &[String]) -> String {
-    #[cfg(target_os = "windows")]
-    {
-        cmds.iter()
-            .map(|c| format!("{c} || echo skip"))
-            .collect::<Vec<_>>()
-            .join("\r\n")
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        cmds.iter()
-            .map(|c| format!("{c} || true"))
-            .collect::<Vec<_>>()
-            .join("; ")
-    }
 }
 
 fn remove_managed_dir(dir: &std::path::Path) -> Result<(), String> {
@@ -373,8 +354,12 @@ pub fn run_partial_template_uninstall(
         if resolve_command("npm").is_none() {
             return Err("npm is not available on PATH; cannot uninstall npm packages".to_string());
         }
+        // `npm uninstall -g` is already idempotent for an absent package. Do
+        // not append `|| true` / `|| echo skip`: that converted real npm
+        // failures (wrong prefix, permissions, locked files) into a false
+        // successful uninstall and then removed the catalog registration.
         run_tool_lifecycle_silently(
-            &best_effort_chain(&payload.npm_commands),
+            &payload.npm_commands.join("\n"),
             app,
             task_id,
             "agent-lifecycle-uninstall",
@@ -384,6 +369,15 @@ pub fn run_partial_template_uninstall(
     }
     for dir in &payload.dirs {
         remove_managed_dir(std::path::Path::new(dir))?;
+    }
+    if template_id == "zcode"
+        && matches!(scope, UninstallScope::Acp | UninstallScope::All)
+        && resolve_command("zcode-acp-server").is_some()
+    {
+        return Err(
+            "zcode-acp-server is still on PATH after npm uninstall; remove it with the npm installation that owns that command"
+                .to_string(),
+        );
     }
     Ok(())
 }
@@ -432,7 +426,11 @@ pub fn run_template_lifecycle(
         .detect_command
         .as_deref()
         .unwrap_or(info.command.as_str());
-    let host_present = resolve_command(detect).is_some();
+    let host_present = if template_id == "zcode" {
+        zcode_host_path(&std::collections::HashMap::new()).is_some()
+    } else {
+        resolve_command(detect).is_some()
+    };
     let acp_path_present = resolve_command(&info.command).is_some();
     // Bundled adapter tier keeps the ACP layer ready without an npm install;
     // it only counts when nothing is PATH-installed (PATH always wins) and it
@@ -441,10 +439,11 @@ pub fn run_template_lifecycle(
     let bundled_tier_active = !acp_path_present && super::bundled::bundled_spawnable(template_id);
     let acp_present = acp_path_present || bundled_tier_active;
     // Same binary for host and ACP (opencode, openclaw, hermes, grok via npx).
-    let needs_separate_adapter = info
-        .detect_command
-        .as_ref()
-        .is_some_and(|d| d != &info.command);
+    let needs_separate_adapter = template_id == "zcode"
+        || info
+            .detect_command
+            .as_ref()
+            .is_some_and(|d| d != &info.command);
 
     let command = match action {
         ToolLifecycleAction::Install => {
@@ -521,6 +520,11 @@ fn update_command(
     needs_separate_adapter: bool,
     bundled_tier_active: bool,
 ) -> Result<String, String> {
+    // Agentero cannot update the ZCode desktop app safely; update only the
+    // bridge package it installed and leave the app/login untouched.
+    if template_id == "zcode" {
+        return adapter_install_command(template_id);
+    }
     if needs_separate_adapter {
         let mut parts = Vec::new();
         if host_present {
@@ -549,6 +553,7 @@ fn adapter_install_command(template_id: &str) -> Result<String, String> {
         "claude-acp" => Ok(CLAUDE_ACP_INSTALL_COMMAND.to_string()),
         "codex-acp" => Ok(CODEX_ACP_INSTALL_COMMAND.to_string()),
         "pi" => Ok(PI_ACP_INSTALL_COMMAND.to_string()),
+        "zcode" => Ok(ZCODE_ACP_INSTALL_COMMAND.to_string()),
         _ => Err(format!("no ACP adapter install for {template_id}")),
     }
 }
@@ -573,7 +578,10 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
                 &grok_install_windows_command(),
                 "npm i -g @xai-official/grok@latest",
             )),
-            "zcode" => Ok(ZCODE_ACP_INSTALL_COMMAND.to_string()),
+            "zcode" => Err(
+                "ZCode desktop app is required; install it first, then install the ACP bridge"
+                    .to_string(),
+            ),
             _ => Err(format!("no host install for {template_id}")),
         }
     }
@@ -599,7 +607,10 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
                 GROK_INSTALL_UNIX,
                 "npm i -g @xai-official/grok@latest",
             )),
-            "zcode" => Ok(ZCODE_ACP_INSTALL_COMMAND.to_string()),
+            "zcode" => Err(
+                "ZCode desktop app is required; install it first, then install the ACP bridge"
+                    .to_string(),
+            ),
             _ => Err(format!("no host install for {template_id}")),
         }
     }
@@ -1256,6 +1267,12 @@ mod tests {
     #[test]
     fn host_install_nonempty() {
         for id in LIFECYCLE_TEMPLATES {
+            // ZCode's host is the desktop application. Agentero may install
+            // its ACP bridge, but must never pretend it can install the app.
+            if *id == "zcode" {
+                assert!(host_install_command(id).is_err(), "{id}");
+                continue;
+            }
             let cmd = host_install_command(id).expect(id);
             assert!(!cmd.is_empty(), "{id}");
             assert!(
@@ -1297,6 +1314,9 @@ mod tests {
             .unwrap()
             .contains("codex-acp"));
         assert!(adapter_install_command("pi").unwrap().contains("pi-acp"));
+        assert!(adapter_install_command("zcode")
+            .unwrap()
+            .contains("zcode-acp-server"));
     }
 
     /// Codex was the last adapter installed into the global npm prefix on Unix,
@@ -1557,6 +1577,13 @@ mod tests {
             kimi.agent.dirs,
             vec![kimi_launcher_dir().display().to_string()]
         );
+        let zcode = uninstall_info("zcode").unwrap();
+        assert!(zcode.agent.npm_commands.is_empty());
+        assert!(zcode
+            .acp
+            .npm_commands
+            .iter()
+            .any(|c| c.contains("zcode-acp-server")));
     }
 
     #[test]
@@ -1576,26 +1603,6 @@ mod tests {
             .all(|c| !c.contains("@openai/codex")));
         let all = codex.for_scope(UninstallScope::All);
         assert_eq!(all.npm_commands.len(), 2);
-    }
-
-    #[cfg(target_os = "windows")]
-    #[test]
-    fn best_effort_chain_windows_echo() {
-        let chain = best_effort_chain(&["npm uninstall -g a".to_string()]);
-        assert_eq!(chain, "npm uninstall -g a || echo skip");
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    #[test]
-    fn best_effort_chain_unix_true() {
-        let chain = best_effort_chain(&[
-            "npm uninstall -g a".to_string(),
-            "npm uninstall -g b".to_string(),
-        ]);
-        assert_eq!(
-            chain,
-            "npm uninstall -g a || true; npm uninstall -g b || true"
-        );
     }
 
     #[test]

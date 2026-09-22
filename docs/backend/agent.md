@@ -58,25 +58,30 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `npm install --global @minimax-ai/code@latest --ignore-scripts=false
   --include=optional --allow-scripts=@minimax-ai/code,better-sqlite3
   --registry https://registry.npmjs.org/ --foreground-scripts`，登录命令为
-  `mcode login`，skill 走 slash mention。
+  `mcode login`，skill 走 slash mention。除 npm 全局目录外，Windows 官方安装器的
+  `%USERPROFILE%\.minimax-code`（`mcode.cmd`）及 POSIX 的
+  `~/.minimax-code/bin` 也会被 GUI 扫描，即使应用启动时没有继承新开的终端 PATH。
 - ZCode：host CLI 无原生 ACP，走社区适配器 `zcode-acp-server`（桥接无头
   `zcode app-server --stdio`，声明 `session/load` 续聊）。zcode CLI 内置在 ZCode
   桌面应用中、通常不在 PATH 上，适配器会自动发现桌面应用内置 CLI（或用 `ZCODE_BIN`
-  指定），凭据直接复用 `~/.zcode` 的桌面登录——无需额外 API key。detect/ACP 入口
-  均为 `zcode-acp-server`（npm 安装，需 Node 22+），静默 install/update 走 npm，
-  Unix 侧装入 `~/.local` 前缀。
+  指定），凭据直接复用 `~/.zcode` 的桌面登录——无需额外 API key。Catalog 将桌面
+  CLI 与 ACP 适配器分层探测：桌面版可从 PATH 的 `zcode` 或应用内置的 `zcode.cjs`
+  识别；只有两层齐备才会自动注册并允许 initialize，缺少适配器时显示安装 ACP。
+  `zcode-acp-server`（npm 安装，需 Node 22+）是唯一由 Agentero 管理的组件，静默
+  install/update 走 npm（Unix 侧装入 `~/.local` 前缀）；卸载只移除该适配器，不删除
+  ZCode 桌面应用、登录或 `~/.zcode` 数据。
   - spawn 时 Host 注入环境变量（注册项 env 可覆盖）：`ZCODE_BUILTIN_PROVIDER_CONFIG_FILE`
     指向 `~/.zcode/v2/runtime/provider/*/*/endpoint-*/zcode-builtin.json` 中最新一份——
     缺少它内置 CLI 的 provider 层不启动（backend dead）；同时注入
     `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE`（`~/.zcode/v2/provider_config.json`），两变量
     齐备 CLI 才原样使用注入表，否则会改道自同步副本并使适配器的 provider 注册作废
-    （zcode-acp#202，0.42.4 起适配器自身注入同组变量）；`ZCODE_BIN` 指向 remote-assets
-    cache 中最新一个仍实现 `workspace/updateProviderRegistry` 的 `zcode.cjs`（桌面
-    3.12.3 起内置副本移除了该方法，缺失时 prompt 报 `provider_not_configured`），
+    （zcode-acp#202，0.42.4 起适配器自身注入同组变量）；`ZCODE_BIN` 选用最新可读的
+    remote-assets 或桌面应用 `zcode.cjs`，不再依赖已从较新 app-server 移除的
+    `workspace/updateProviderRegistry` 标记，避免启动时直接关闭 ACP transport。
     均不存在时回落适配器默认发现逻辑。注入仅在**本地** spawn 生效：SSH 远端 Vault 不做
     该注入（本地发现的路径对远端无意义），远端沿用适配器自身的发现逻辑，上述坑在
     远端同样存在；Windows 上注入的候选根为 `%LOCALAPPDATA%\Programs\ZCode` 与
-    `%APPDATA%\ZCode` 缓存（未实机验证），并在可解析时额外注入 `ZCODE_NODE`（适配器
+    `%APPDATA%\ZCode` 缓存和 `C:\Program Files\ZCode`，并在可解析时额外注入 `ZCODE_NODE`（适配器
     在 Windows 上解析 Node 不可靠）。
 - Pi：无原生 ACP，走社区适配器 `pi-acp`（内部 spawn `pi --mode rpc`）；detect 用 host `pi`、
   ACP 入口用 `pi-acp`。pi 的 skill 以 `/skill:<name>` 暴露，故 Agentero 不发 `/<name>`

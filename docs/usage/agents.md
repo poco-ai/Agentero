@@ -50,11 +50,12 @@ Agentero 使用 **BYOA**（Bring Your Own Agent）：Agent 由你安装和登录
 2. 确认对话框展示该 Agent 的 logo 与将要执行的清理项：
    - Agentero 静默安装的 npm 全局包（如 `opencode-ai`、`@anthropic-ai/claude-code`、`@minimax-ai/code` 等）逐个 `npm uninstall -g`；
    - Agentero 管理的目录（Kimi Code 的 `~/.kimi-code`、dsh 旧方案的遗留 `~/.agentero/dsh-acp`）整体删除。
-3. 确认后行内显示卸载进度，完成后注册项一并移除，行回到「未安装」状态。
+3. 确认后行内显示卸载进度；npm 卸载失败或命令仍可解析时会明确报错，不会再把失败显示为完成。成功后注册项一并移除，行回到「未安装」状态。
 
 清理范围与保留项：
 
 - **不清理**：官方安装器或 Homebrew 安装的 CLI、shell 配置中官方 installer 写入的 PATH 行、Agent 会话历史。这些无法可靠定位或属于用户数据，均保留。
+- **ZCode**：只清理 `zcode-acp-server` ACP 适配器；ZCode 桌面应用、其登录状态和 `~/.zcode` 数据始终保留。
 - **仅移除注册项**：对没有可管理卸载路径的 Agent（如 Hermes、纯 PATH 探测到的 CLI），对话框会注明只删 Agentero 注册项，磁盘文件不动。
 - **自定义 Agent**：走同一确认对话框，但只移除注册项（自定义 Agent 的二进制由用户自管）。
 

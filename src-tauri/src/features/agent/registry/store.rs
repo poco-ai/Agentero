@@ -11,7 +11,7 @@ use crate::features::agent::registry::bundled;
 use crate::features::agent::registry::discovery::probe_command;
 use crate::features::agent::registry::lifecycle;
 use crate::features::agent::registry::templates::{
-    catalog_templates, template_from_id, template_info,
+    catalog_templates, template_from_id, template_info, zcode_host_path,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -410,16 +410,18 @@ impl AgentRegistry {
                     crate::features::agent::registry::discovery::login_shell_env(),
                     &descriptor_env,
                 );
-                let detect = info
-                    .detect_command
-                    .as_deref()
-                    .unwrap_or(info.command.as_str());
                 let path_acp_available =
                     resolve_command_in_agent_env(&info.command, &environment).is_some();
                 let bundled = bundled::bundled_adapter(&info.id);
-                let detect_path = if !path_acp_available && bundled.is_some() {
+                let detect_path = if info.id == AgentTemplate::Zcode.as_str() {
+                    zcode_host_path(&environment)
+                } else if !path_acp_available && bundled.is_some() {
                     bundled::host_path(&info.id, &environment)
                 } else {
+                    let detect = info
+                        .detect_command
+                        .as_deref()
+                        .unwrap_or(info.command.as_str());
                     resolve_command_in_agent_env(detect, &environment)
                 };
                 let binary_available = detect_path.is_some();
@@ -471,10 +473,11 @@ impl AgentRegistry {
                     .is_some_and(|(a, d)| a == d);
 
                 // Two install layers: Agent (detect binary) vs ACP entrypoint.
-                let adapter_distinct = info
-                    .detect_command
-                    .as_ref()
-                    .is_some_and(|d| d != &info.command);
+                let adapter_distinct = info.id == AgentTemplate::Zcode.as_str()
+                    || info
+                        .detect_command
+                        .as_ref()
+                        .is_some_and(|d| d != &info.command);
                 let can_install = lifecycle::supports_lifecycle(&info.id);
                 // Offer ACP install when host is present but ACP entry is missing.
                 let offer_install = binary_available
@@ -966,6 +969,13 @@ fn local_command_availability(
     environment: &HashMap<String, String>,
     bundled_spawnable: impl FnOnce() -> bool,
 ) -> Result<(), String> {
+    // ZCode's ACP executable is only a bridge. Treat it as unavailable until
+    // the desktop-app CLI (normally a `zcode.cjs`, not a PATH executable) is
+    // present; otherwise an adapter-only registration reaches `initialize`
+    // and fails with the opaque "incoming transport closed" error.
+    if template_id == AgentTemplate::Zcode.as_str() && zcode_host_path(environment).is_none() {
+        return Err("ZCode desktop CLI not found (install ZCode or set ZCODE_BIN)".to_string());
+    }
     if resolve_command_in_agent_env(command, environment).is_some() {
         return Ok(());
     }
