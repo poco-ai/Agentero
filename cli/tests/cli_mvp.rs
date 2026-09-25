@@ -1803,3 +1803,95 @@ fn mark_id_starting_with_hyphen_is_not_parsed_as_a_flag() {
     assert_eq!(out["error"]["code"], "mark_not_found");
     assert_eq!(out["error"]["details"]["id"], "-gnlmmSEJc");
 }
+
+#[test]
+fn import_pdf_single_and_batch() {
+    let tmp = tempdir().unwrap();
+    let vault = tmp.path().join("v");
+    create_vault(&vault);
+
+    let pdf_bytes = tiny_pdf_pages(&["Attention is all you need"]);
+    let pdf1_path = tmp.path().join("attention-paper.pdf");
+    fs::write(&pdf1_path, &pdf_bytes).unwrap();
+
+    let pdf2_path = tmp.path().join("bert-paper.pdf");
+    fs::write(&pdf2_path, &pdf_bytes).unwrap();
+
+    // 1. Single PDF import with default parent
+    let out = agentero()
+        .args([
+            "--vault",
+            vault.to_str().unwrap(),
+            "import",
+            "pdf",
+            pdf1_path.to_str().unwrap(),
+            "--json",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["ok"], true);
+    let papers = v["data"]["papers"].as_array().unwrap();
+    assert_eq!(papers.len(), 1);
+    let p1 = &papers[0];
+    assert_eq!(p1["id"], "attention-paper");
+    assert_eq!(p1["path"], "papers/attention-paper");
+    assert_eq!(p1["pdf"], true);
+    assert!(vault
+        .join("papers/attention-paper/attention-paper.pdf")
+        .is_file());
+    assert!(vault.join("papers/attention-paper/NOTES.md").is_file());
+
+    // 2. Batch import to subfolder
+    let out = agentero()
+        .args([
+            "--vault",
+            vault.to_str().unwrap(),
+            "import",
+            "pdf",
+            pdf2_path.to_str().unwrap(),
+            "--parent",
+            "papers/nlp",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["ok"], true);
+    let papers = v["data"]["papers"].as_array().unwrap();
+    assert_eq!(papers.len(), 1);
+    let p2 = &papers[0];
+    assert_eq!(p2["id"], "bert-paper");
+    assert_eq!(p2["path"], "papers/nlp/bert-paper");
+    assert!(vault
+        .join("papers/nlp/bert-paper/bert-paper.pdf")
+        .is_file());
+    assert!(vault.join("papers/nlp/bert-paper/NOTES.md").is_file());
+
+    // 3. Error case: file not found
+    let bogus = tmp.path().join("nonexistent.pdf");
+    let out = agentero()
+        .args([
+            "--vault",
+            vault.to_str().unwrap(),
+            "import",
+            "pdf",
+            bogus.to_str().unwrap(),
+            "--json",
+        ])
+        .assert()
+        .failure()
+        .get_output()
+        .stdout
+        .clone();
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["ok"], false);
+    assert_eq!(v["error"]["code"], "import_failed");
+}
+

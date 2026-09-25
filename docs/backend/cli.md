@@ -163,6 +163,20 @@ agentero import id 1706.03762 --parent papers/nlp --json
 
 `--parent` 是 **vault-relative** 的父目录，最终论文目录名由 resolver 根据论文 ID 决定，不是完全自定义路径。导入成功后会返回 `path`、`id`、`title` 以及 `pdf` / `tex` / `paperMd` 等资源旗标。
 
+### 导入本地 PDF
+
+`import pdf` 将本地裸 PDF 文件导入 Vault。每个 PDF 会被复制到 `{parent}/{slug}/{slug}.pdf`，生成 `NOTES.md` 外壳骨架并在 `catalog.sqlite` 中注册，同时在后台触发元数据识别（RecognizeMetadata）与解析：
+
+```bash
+# 导入单篇本地 PDF（默认 parent = papers）
+agentero import pdf /path/to/paper.pdf --json
+
+# 批量导入多篇本地 PDF 到指定分类目录
+agentero import pdf paper1.pdf paper2.pdf --parent papers/nlp --json
+```
+
+支持一次传入多个文件路径；支持相对路径与绝对路径。
+
 ## 论文与 Tag
 
 Tag 写入支持桌面端相同的 8 色后缀格式：
