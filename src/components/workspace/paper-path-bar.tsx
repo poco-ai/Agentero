@@ -41,9 +41,9 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 	if (!crumbs) return null;
 
 	return (
-		<div className="flex h-9 shrink-0 items-center border-b border-border/50 px-3 select-none">
-			<Breadcrumb>
-				<BreadcrumbList className="flex-nowrap gap-1 text-xs">
+		<div className="flex h-9 min-w-0 shrink-0 items-center overflow-hidden border-b border-border/50 px-3 select-none">
+			<Breadcrumb className="w-full min-w-0">
+				<BreadcrumbList className="min-w-0 flex-nowrap gap-1 text-xs">
 					{crumbs.folders.map((folder, index) => {
 						const folderRel = crumbs.folders.slice(0, index + 1).join("/");
 						return (
@@ -52,7 +52,7 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 									<BreadcrumbLink asChild>
 										<button
 											type="button"
-											className="flex max-w-40 items-center gap-1 truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+											className="flex max-w-40 min-w-0 items-center gap-1 truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
 											onClick={() =>
 												setTreeSelectedPath(
 													joinVaultPath(crumbs.vaultPath, folderRel),
@@ -62,7 +62,7 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 											{index === 0 ? (
 												<FolderOpen className="size-3.5 shrink-0" />
 											) : null}
-											<span className="truncate">{folder}</span>
+											<span className="min-w-0 truncate">{folder}</span>
 										</button>
 									</BreadcrumbLink>
 								</BreadcrumbItem>
@@ -71,7 +71,7 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 						);
 					})}
 					<BreadcrumbItem className="min-w-0 flex-1">
-						<BreadcrumbPage className="block max-w-full truncate">
+						<BreadcrumbPage className="block w-full truncate">
 							<MathText text={crumbs.title} />
 						</BreadcrumbPage>
 					</BreadcrumbItem>
