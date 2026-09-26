@@ -168,7 +168,7 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 | Cool Papers /kimi | `1` | 避免触发上游 LLM 配额 |
 | 通用 HTTP | `crate::core::http::client` | 共享连接池，单个请求超时 20s，PDF/TeX 下载 180s |
 
-所有调用均使用无 API key 的免费端点（Semantic Scholar、arXiv、Crossref、Unpaywall）。Cool Papers 无 auth。Translator Runtime 默认使用项目托管实例 `https://translation-server.agentero.app`，用户可在设置中替换。
+默认所有调用均使用无 API key 的免费端点（Semantic Scholar、arXiv、Crossref、Unpaywall）；Semantic Scholar、PubMed 与 OpenAlex 额外支持可选的 BYOK 环境变量（见第 4 节）。Cool Papers 无 auth。Translator Runtime 默认使用项目托管实例 `https://translation-server.agentero.app`，用户可在设置中替换。
 
 ## 4. 配置与可替换项
 
@@ -177,6 +177,9 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 | `translatorBaseUrl` | `features/system/settings/mod.rs` | `https://translation-server.agentero.app` | 可替换为自托管 Translator Runtime |
 | `LookupImportArgs.translator_base_url` | 单次请求参数 | 空则使用设置值 | CLI/批量导入可临时覆盖 |
 | 后台 PDF 识别（RecognizeMetadata job） | `job_runners.rs` 直接读设置 `translator_base_url` | 空则用 `DEFAULT_TRANSLATOR_BASE_URL` | **不**经 IPC 入参传入（`ImportLocalPdfArgs` 无此字段） |
+| `SEMANTIC_SCHOLAR_API_KEY` | 环境变量，`scholar_api/client.rs::auth_headers` 按请求读取 | 未设置 | 对 `api.semanticscholar.org` 的请求追加 `x-api-key` 头；免费 key 可将共享池限速提升至 1 req/s+ |
+| `NCBI_API_KEY` | 环境变量，`scholar_api/sources/pubmed.rs` 按请求读取 | 未设置 | esearch/efetch 追加 `api_key=` 参数；免费 key 将单 IP 限速从 3 提升到 10 req/s |
+| `OPENALEX_MAILTO` | 环境变量，`scholar_api/sources/openalex.rs` 按请求读取 | `agentero@users.noreply.github.com` | 覆盖 OpenAlex polite pool 联系邮箱；同时补齐 `doi:` 端点的 `mailto` 参数 |
 
 Translator Runtime 约定端点：
 

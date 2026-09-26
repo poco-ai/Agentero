@@ -17,6 +17,20 @@ const EUTILS_BASE: &str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
 const EMAIL: &str = "agentero@users.noreply.github.com";
 const TOOL: &str = "agentero";
 
+/// Optional `api_key` query suffix for NCBI E-utilities. A free key from
+/// NCBI raises the per-IP rate limit from 3 to 10 requests/second.
+/// Pure so the suffix shape is unit-testable without touching the environment.
+fn api_key_suffix(key: Option<&str>) -> String {
+    match key.map(str::trim).filter(|k| !k.is_empty()) {
+        Some(k) => format!("&api_key={}", urlencoding::encode(k)),
+        None => String::new(),
+    }
+}
+
+fn env_api_key_suffix() -> String {
+    api_key_suffix(std::env::var("NCBI_API_KEY").ok().as_deref())
+}
+
 /// PubMed metadata source.
 #[derive(Debug, Clone, Default)]
 pub struct PubMedApi;
@@ -48,8 +62,9 @@ impl AcademicApi for PubMedApi {
 
 async fn search_by_title(title: &str, limit: usize) -> Result<Vec<ApiPaper>, ApiError> {
     let search_url = format!(
-        "{EUTILS_BASE}/esearch.fcgi?db=pubmed&term={}&retmax={limit}&retmode=json&email={EMAIL}&tool={TOOL}",
-        urlencoding::encode(title)
+        "{EUTILS_BASE}/esearch.fcgi?db=pubmed&term={}&retmax={limit}&retmode=json&email={EMAIL}&tool={TOOL}{}",
+        urlencoding::encode(title),
+        env_api_key_suffix()
     );
     let search_value = client::get_json(&search_url).await?;
     let pmids: Vec<String> = search_value
@@ -82,7 +97,8 @@ async fn fetch_by_pmids(pmids: &[String]) -> Result<Vec<ApiPaper>, ApiError> {
     }
     let ids = pmids.join(",");
     let fetch_url = format!(
-        "{EUTILS_BASE}/efetch.fcgi?db=pubmed&id={ids}&rettype=xml&retmode=xml&email={EMAIL}&tool={TOOL}"
+        "{EUTILS_BASE}/efetch.fcgi?db=pubmed&id={ids}&rettype=xml&retmode=xml&email={EMAIL}&tool={TOOL}{}",
+        env_api_key_suffix()
     );
     let xml = client::get_text(&fetch_url).await?;
     Ok(parse_articles(&xml))
@@ -312,6 +328,17 @@ fn article_id(xml: &str, kind: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn api_key_suffix_empty_without_key() {
+        assert_eq!(api_key_suffix(None), "");
+        assert_eq!(api_key_suffix(Some("  ")), "");
+    }
+
+    #[test]
+    fn api_key_suffix_encodes_key() {
+        assert_eq!(api_key_suffix(Some("abc 123")), "&api_key=abc%20123");
+    }
 
     #[test]
     fn tag_text_handles_attributes() {
