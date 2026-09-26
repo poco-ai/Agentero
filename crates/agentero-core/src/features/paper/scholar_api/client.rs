@@ -30,6 +30,38 @@ pub const USER_AGENT: &str = concat!(
 /// pools happy (Semantic Scholar free tier, arXiv Atom, Crossref).
 const GLOBAL_CONCURRENCY: usize = 4;
 
+/// Semantic Scholar API host that `auth_headers` gates on.
+const S2_API_HOST_PREFIX: &str = "https://api.semanticscholar.org/";
+
+/// Optional BYOK credential read from the environment at request time.
+/// Empty/whitespace values are ignored so the unauthenticated free tier stays
+/// the default.
+fn env_credential(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+}
+
+/// `x-api-key` header value for Semantic Scholar (free key from
+/// semanticscholar.org/product/api; raises the shared-pool rate limit).
+/// Pure so the header shape is unit-testable without touching the environment.
+fn s2_key_header(key: Option<&str>) -> Option<(&'static str, String)> {
+    let key = key?.trim();
+    (!key.is_empty()).then(|| ("x-api-key", key.to_string()))
+}
+
+/// Extra request headers derived from `url` and BYOK environment variables.
+fn auth_headers(url: &str) -> Vec<(&'static str, String)> {
+    let mut headers = Vec::new();
+    if url.starts_with(S2_API_HOST_PREFIX) {
+        if let Some(header) = s2_key_header(env_credential("SEMANTIC_SCHOLAR_API_KEY").as_deref()) {
+            headers.push(header);
+        }
+    }
+    headers
+}
+
 fn global_limiter() -> &'static Arc<Semaphore> {
     static LIMITER: OnceLock<Arc<Semaphore>> = OnceLock::new();
     LIMITER.get_or_init(|| Arc::new(Semaphore::new(GLOBAL_CONCURRENCY)))
@@ -59,8 +91,11 @@ pub async fn get_text(url: &str) -> Result<String, ApiError> {
 pub async fn get_text_with_timeout(url: &str, timeout: Duration) -> Result<String, ApiError> {
     let _permit = acquire_permit().await;
     let client = http_client(timeout)?;
-    let res = client
-        .get(url)
+    let mut request = client.get(url);
+    for (name, value) in auth_headers(url) {
+        request = request.header(name, value);
+    }
+    let res = request
         .send()
         .await
         .map_err(|e| ApiError::Network(e.to_string()))?;
@@ -84,10 +119,14 @@ pub async fn post_text_json_with_timeout(
 ) -> Result<Value, ApiError> {
     let _permit = acquire_permit().await;
     let client = http_client(timeout)?;
-    let res = client
+    let mut request = client
         .post(url)
         .header("Content-Type", "text/plain")
-        .body(body)
+        .body(body);
+    for (name, value) in auth_headers(url) {
+        request = request.header(name, value);
+    }
+    let res = request
         .send()
         .await
         .map_err(|e| ApiError::Network(e.to_string()))?;
@@ -102,10 +141,14 @@ pub async fn post_json_with_timeout(
 ) -> Result<Value, ApiError> {
     let _permit = acquire_permit().await;
     let client = http_client(timeout)?;
-    let res = client
+    let mut request = client
         .post(url)
         .header("Content-Type", "application/json")
-        .json(&body)
+        .json(&body);
+    for (name, value) in auth_headers(url) {
+        request = request.header(name, value);
+    }
+    let res = request
         .send()
         .await
         .map_err(|e| ApiError::Network(e.to_string()))?;
@@ -145,5 +188,34 @@ pub fn check_cancelled(task_id: Option<&str>) -> Result<(), ApiError> {
 impl From<AppError> for ApiError {
     fn from(value: AppError) -> Self {
         ApiError::Other(value.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn s2_key_header_ignores_missing_or_blank_key() {
+        assert_eq!(s2_key_header(None), None);
+        assert_eq!(s2_key_header(Some("   ")), None);
+    }
+
+    #[test]
+    fn s2_key_header_builds_header_from_trimmed_key() {
+        assert_eq!(
+            s2_key_header(Some(" abcd1234 ")),
+            Some(("x-api-key", "abcd1234".to_string()))
+        );
+    }
+
+    #[test]
+    fn auth_headers_skips_non_semantic_scholar_urls() {
+        // Only Semantic Scholar requests carry a BYOK header; other sources
+        // authenticate via query parameters owned by their source modules.
+        assert!(auth_headers("https://api.openalex.org/works?search=x").is_empty());
+        assert!(
+            auth_headers("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi").is_empty()
+        );
     }
 }

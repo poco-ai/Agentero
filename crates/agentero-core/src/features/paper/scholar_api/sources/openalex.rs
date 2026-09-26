@@ -13,6 +13,21 @@ const SOURCE: &str = "openalex";
 const API_BASE: &str = "https://api.openalex.org/works";
 const MAILTO: &str = "agentero@users.noreply.github.com";
 
+/// Polite-pool contact for OpenAlex requests. `OPENALEX_MAILTO` (a real
+/// contact address) overrides the project default so users join the polite
+/// pool under their own identity. Pure so the override is unit-testable.
+fn mailto(env_override: Option<&str>) -> String {
+    env_override
+        .map(str::trim)
+        .filter(|m| !m.is_empty())
+        .unwrap_or(MAILTO)
+        .to_string()
+}
+
+fn env_mailto() -> String {
+    mailto(std::env::var("OPENALEX_MAILTO").ok().as_deref())
+}
+
 /// OpenAlex metadata source.
 #[derive(Debug, Clone, Default)]
 pub struct OpenAlexApi;
@@ -45,8 +60,9 @@ impl AcademicApi for OpenAlexApi {
 
 async fn fetch_by_doi(doi: &str) -> Result<ApiPaper, ApiError> {
     let url = format!(
-        "{API_BASE}/doi:{}?select=title,display_name,publication_year,doi,authorships,primary_location,biblio,cited_by_count,id",
-        urlencoding::encode(doi.trim())
+        "{API_BASE}/doi:{}?select=title,display_name,publication_year,doi,authorships,primary_location,biblio,cited_by_count,id&mailto={}",
+        urlencoding::encode(doi.trim()),
+        env_mailto()
     );
     let value = client::get_json(&url).await?;
     map_work(&value).ok_or(ApiError::NotFound)
@@ -57,7 +73,7 @@ async fn search_by_title(title: &str, limit: usize) -> Result<Vec<ApiPaper>, Api
         "{API_BASE}?search={}&per_page={}&select=title,display_name,publication_year,doi,authorships,primary_location,biblio,cited_by_count,id&mailto={}",
         urlencoding::encode(title),
         limit,
-        MAILTO
+        env_mailto()
     );
     let value = client::get_json(&url).await?;
     let Some(items) = value.get("results").and_then(|v| v.as_array()) else {
@@ -167,6 +183,17 @@ fn pages_from_biblio(biblio: &Value) -> Option<String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn mailto_falls_back_to_project_default() {
+        assert_eq!(mailto(None), "agentero@users.noreply.github.com");
+        assert_eq!(mailto(Some("  ")), "agentero@users.noreply.github.com");
+    }
+
+    #[test]
+    fn mailto_prefers_env_override() {
+        assert_eq!(mailto(Some(" me@example.org ")), "me@example.org");
+    }
 
     #[test]
     fn maps_openalex_work() {
