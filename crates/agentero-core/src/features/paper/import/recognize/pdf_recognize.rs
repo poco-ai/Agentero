@@ -10,11 +10,12 @@
 //!
 //! @see docs/backend/paper-import.md § PDF 元数据识别
 
-use crate::core::error::AppError;
+use crate::error::AppError;
 use crate::features::paper::catalog::papers::PaperRecord;
 use crate::features::paper::import::api_mapper::api_paper_to_meta;
 use crate::features::paper::import::pdf_parse::{run_liteparse_probe, ProbePage, ProbeWord};
 use crate::features::paper::import::resolve_metadata;
+use crate::features::paper::import::{doi_slug, slug_from_stem};
 use crate::features::paper::scholar_api::identifiers::fetch_arxiv_metadata;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -24,8 +25,7 @@ use std::time::Duration;
 /// Zotero's hosted recognizer endpoint. Undocumented and unsuitable as a
 /// hard dependency: every failure here degrades silently to filename-based
 /// metadata.
-pub(crate) const ZOTERO_RECOGNIZER_ENDPOINT: &str =
-    "https://services.zotero.org/recognizer/recognize";
+pub const ZOTERO_RECOGNIZER_ENDPOINT: &str = "https://services.zotero.org/recognizer/recognize";
 
 const RECOGNIZE_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -73,13 +73,13 @@ pub struct RecognizeAuthor {
 }
 
 impl RecognizeHit {
-    fn has_identifier(&self) -> bool {
+    pub fn has_identifier(&self) -> bool {
         self.doi.as_deref().is_some_and(nonempty)
             || self.arxiv.as_deref().is_some_and(nonempty)
             || self.isbn.as_deref().is_some_and(nonempty)
     }
 
-    fn author_names(&self) -> Vec<String> {
+    pub fn author_names(&self) -> Vec<String> {
         self.authors
             .iter()
             .map(|a| {
@@ -129,7 +129,7 @@ fn clean_recognizer_title(title: &str) -> Option<String> {
 /// `word = [xMin, yMin, xMax, yMax, fontSize, spaceAfter, baseline,
 ///          rotation, underlined, bold, italic, colorIndex, fontIndex, text]`
 /// with y in PDF bottom-left coords (liteparse viewport y flipped).
-pub(crate) fn build_recognizer_payload(pages: &[ProbePage], file_name: &str) -> Value {
+pub fn build_recognizer_payload(pages: &[ProbePage], file_name: &str) -> Value {
     let pages_json: Vec<Value> = pages
         .iter()
         .map(|page| {
@@ -217,7 +217,7 @@ fn flip_y(page_height: f32, word: &ProbeWord) -> (f32, f32, f32) {
 
 /// Recognize one local PDF. Returns `Ok(None)` when nothing usable came back
 /// (probe failure, no text, no hit) — never blocks the caller's flow.
-pub(crate) async fn recognize_pdf(
+pub async fn recognize_pdf(
     pdf_path: &Path,
     task_id: Option<&str>,
 ) -> Result<Option<RecognizeHit>, AppError> {
@@ -248,7 +248,7 @@ pub(crate) async fn recognize_pdf(
         .to_string();
     let payload = build_recognizer_payload(&pages, &file_name);
 
-    let client = crate::core::http::client_builder()
+    let client = crate::http::client_builder()
         .timeout(RECOGNIZE_TIMEOUT)
         .user_agent(concat!(
             "Agentero/",
@@ -338,7 +338,7 @@ pub struct PdfIdentProbe {
 }
 
 impl PdfIdentProbe {
-    fn from_meta(file_path: &str, meta: &PaperRecord, source: &str) -> Self {
+    pub fn from_meta(file_path: &str, meta: &PaperRecord, source: &str) -> Self {
         Self {
             file_path: file_path.to_string(),
             status: "ok".into(),
@@ -359,7 +359,7 @@ impl PdfIdentProbe {
         }
     }
 
-    fn no_match(file_path: &str) -> Self {
+    pub fn no_match(file_path: &str) -> Self {
         Self {
             file_path: file_path.to_string(),
             status: "no-match".into(),
@@ -380,7 +380,7 @@ impl PdfIdentProbe {
         }
     }
 
-    pub(crate) fn error(file_path: &str, message: String) -> Self {
+    pub fn error(file_path: &str, message: String) -> Self {
         let mut probe = Self::no_match(file_path);
         probe.status = "error".into();
         probe.error = Some(message);
@@ -388,10 +388,66 @@ impl PdfIdentProbe {
     }
 }
 
+/// Folder-safe canonical base id from a resolved probe: bare arXiv id or
+/// DOI slug (mirrors identifier-import naming, e.g. `papers/1706.03762`).
+pub fn canonical_base_id(probe: &PdfIdentProbe) -> Option<String> {
+    probe
+        .arxiv_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(slug_from_stem)
+        .or_else(|| {
+            probe
+                .doi
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(doi_slug)
+        })
+        .filter(|s| !s.is_empty())
+}
+
+/// Copy the recognized fields onto a catalog row. Only `Some`/non-empty
+/// probe values overwrite; placeholders start empty so this never discards
+/// information. `meta_source` records the provenance (`recognize` /
+/// `local-unresolved`).
+pub fn apply_probe_fields(record: &mut PaperRecord, probe: &PdfIdentProbe, meta_source: &str) {
+    fn take(slot: &mut Option<String>, incoming: &Option<String>) {
+        if let Some(v) = incoming.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+            *slot = Some(v.to_string());
+        }
+    }
+    if let Some(title) = probe
+        .title
+        .as_deref()
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+    {
+        record.title = title.to_string();
+    }
+    if !probe.authors.is_empty() {
+        record.authors = probe.authors.clone();
+    }
+    if let Some(year) = probe.year {
+        record.year = Some(year);
+    }
+    take(&mut record.doi, &probe.doi);
+    take(&mut record.arxiv_id, &probe.arxiv_id);
+    take(&mut record.abstract_text, &probe.abstract_text);
+    take(&mut record.publication, &probe.publication);
+    take(&mut record.volume, &probe.volume);
+    take(&mut record.issue, &probe.issue);
+    take(&mut record.pages, &probe.pages);
+    take(&mut record.publisher, &probe.publisher);
+    record.meta_source = Some(meta_source.to_string());
+    record.updated_at = crate::time::now_rfc3339_millis();
+}
+
 /// Full recognition pipeline for one PDF:
 /// probe → recognizer → (identifier resolution | title fallback).
 /// Cancellation propagates; every other failure degrades to a status row.
-pub(crate) async fn recognize_and_resolve(
+pub async fn recognize_and_resolve(
     pdf_path: &Path,
     translator_base: &str,
     task_id: Option<&str>,
@@ -439,7 +495,11 @@ pub(crate) async fn recognize_and_resolve(
             // The chain names whichever source actually answered (arxiv / s2
             // / alphaxiv), so meta_source reflects the failover.
             Ok(meta) => {
-                return PdfIdentProbe::from_meta(&file_path, &api_paper_to_meta(&meta), meta.source)
+                return PdfIdentProbe::from_meta(
+                    &file_path,
+                    &api_paper_to_meta(&meta),
+                    meta.source,
+                );
             }
             Err(e) => {
                 log::debug!(target: "agentero::recognize", "arXiv {arxiv} resolve failed: {e}");
@@ -479,7 +539,7 @@ fn title_fallback(file_path: &str, hit: &RecognizeHit) -> PdfIdentProbe {
 
 /// Best-effort metadata from a recognizer hit when no identifier resolved:
 /// use the recognizer's own title/authors extraction (Zotero's fallback too).
-pub(crate) fn meta_from_recognize(hit: &RecognizeHit, fallback_id: &str) -> PaperRecord {
+pub fn meta_from_recognize(hit: &RecognizeHit, fallback_id: &str) -> PaperRecord {
     let authors = hit.author_names();
     let title = hit
         .title
@@ -643,7 +703,7 @@ mod tests {
     /// Live end-to-end check against the real Zotero recognizer:
     /// liteparse probe → payload builder → HTTP 200 with identifiers.
     /// Run manually with a real PDF:
-    /// `AGENTERO_RECOGNIZE_LIVE_PDF=<path> cargo test -p agentero --lib live_recognize -- --ignored --nocapture`
+    /// `AGENTERO_RECOGNIZE_LIVE_PDF=<path> cargo test -p agentero-core --lib live_recognize -- --ignored --nocapture`
     #[cfg(all(test, not(any(target_os = "ios", target_os = "android"))))]
     #[tokio::test]
     #[ignore = "network test; requires AGENTERO_RECOGNIZE_LIVE_PDF"]
@@ -671,7 +731,7 @@ mod tests {
                 }
             }
         }
-        let client = crate::core::http::client_builder()
+        let client = crate::http::client_builder()
             .timeout(Duration::from_secs(30))
             .build()
             .unwrap();

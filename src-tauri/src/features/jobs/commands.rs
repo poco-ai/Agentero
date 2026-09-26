@@ -248,6 +248,11 @@ pub async fn job_reconcile_paper(
     {
         return Ok(ApiResult::ok(Vec::new()));
     }
+    // This command is also the recovery path for imports made by another
+    // process. The watcher normally invalidates CapsCache, but an external
+    // copy can race the debounced event or happen before the watcher starts.
+    // Reconcile must inspect the current filesystem state unconditionally.
+    caps.invalidate(&vault, &path);
     let paper_caps = caps.caps_for(&vault, &path);
     let mut enqueued = Vec::new();
     if paper_caps.needs_paper_md() {
@@ -301,7 +306,10 @@ pub async fn job_reconcile_vault(
         papers
             .into_iter()
             .map(|paper| paper.path)
-            .filter(|path| caps_handle.caps_for(&scan_vault, path).needs_paper_md())
+            .filter(|path| {
+                caps_handle.invalidate(&scan_vault, path);
+                caps_handle.caps_for(&scan_vault, path).needs_paper_md()
+            })
             .collect::<Vec<_>>()
     })
     .await

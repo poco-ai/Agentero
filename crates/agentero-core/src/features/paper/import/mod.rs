@@ -14,6 +14,7 @@ pub use crate::features::scholar_api::identifiers::doi_slug;
 pub use api_mapper::{api_paper_to_meta, enrich_remote_urls, map_zotero_item_to_record};
 
 pub mod download;
+pub mod recognize;
 pub mod search_router;
 pub mod skill;
 
@@ -207,6 +208,12 @@ pub struct ImportLocalPdfArgs {
     /// JobCenter job id (task id) for parse-phase `job:progress` events.
     #[serde(default)]
     pub task_id: Option<String>,
+    /// Whether to run metadata recognition synchronously before committing the paper.
+    #[serde(default)]
+    pub recognize_sync: bool,
+    /// Optional Translator service URL used for identifier resolution.
+    #[serde(default)]
+    pub translator_base_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, specta::Type)]
@@ -564,6 +571,8 @@ pub async fn import_local_pdfs(
     let parent_rel = normalize_parent_dir(&args.parent_dir)?;
 
     let task_id = args.task_id.clone();
+    let recognize_sync = args.recognize_sync;
+    let translator_base_url = args.translator_base_url.clone();
     let entries: Vec<LocalPdfImportEntry> = if !args.entries.is_empty() {
         args.entries
     } else {
@@ -594,6 +603,8 @@ pub async fn import_local_pdfs(
                 app,
                 cache,
                 note_mode,
+                recognize_sync,
+                translator_base_url: translator_base_url.as_deref(),
             },
         )
         .await
@@ -640,6 +651,8 @@ struct ImportLocalPdfContext<'a> {
     app: Option<&'a AppHandle>,
     cache: Option<&'a CapsCache>,
     note_mode: NoteShellMode,
+    recognize_sync: bool,
+    translator_base_url: Option<&'a str>,
 }
 
 async fn import_one_local_pdf(
@@ -665,14 +678,14 @@ async fn import_one_local_pdf(
     }
 
     let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("paper");
-    let title = entry
+    let mut title = entry
         .title
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
         .unwrap_or_else(|| title_from_stem(stem));
-    let base_id = entry
+    let mut base_id = entry
         .arxiv_id
         .as_deref()
         .map(str::trim)
@@ -694,13 +707,40 @@ async fn import_one_local_pdf(
         || entry.arxiv_id.is_some()
         || entry.extra.is_some();
 
-    // Entries straight from the picker/drop (no dialog metadata) commit
-    // instantly with filename-derived metadata; a RecognizeMetadata job then
-    // resolves DOI/arXiv/title in the background and renames the folder to
-    // the canonical id (see `recognize::apply`). Best-effort: any recognition
-    // failure keeps the filename-derived metadata.
-    let recognize_deferred = !dialog_meta;
+    let sync_probe = if ctx.recognize_sync && !dialog_meta {
+        let translator_base = ctx.translator_base_url.unwrap_or("");
+        let probe = recognize::recognize_and_resolve(&src, translator_base, ctx.task_id).await;
+        if let Some(canon) = recognize::canonical_base_id(&probe) {
+            base_id = canon;
+        }
+        if let Some(t) = probe.title.as_deref().filter(|t| !t.trim().is_empty()) {
+            title = t.trim().to_string();
+        }
+        Some(probe)
+    } else {
+        None
+    };
+
+    // Entries straight from the picker/drop (no dialog metadata) without
+    // synchronous recognition commit instantly with filename-derived metadata;
+    // a RecognizeMetadata job then resolves DOI/arXiv/title in the background
+    // and renames the folder to the canonical id (see `recognize::apply`).
+    let recognize_deferred = !dialog_meta && !ctx.recognize_sync;
     let mut meta = PaperRecord::local_pdf(base_id, title);
+    if let Some(probe) = &sync_probe {
+        let meta_source = match probe.status.as_str() {
+            "ok" => {
+                if probe.source.is_empty() {
+                    "recognize"
+                } else {
+                    &probe.source
+                }
+            }
+            "title" => "recognize",
+            _ => "local-unresolved",
+        };
+        recognize::apply_probe_fields(&mut meta, probe, meta_source);
+    }
     if let Some(authors) = &entry.authors {
         meta.authors = authors
             .iter()
@@ -799,13 +839,19 @@ async fn import_one_local_pdf(
         }
     }
 
+    let used_translator = sync_probe
+        .as_ref()
+        .map(|p| p.source == "translator")
+        .unwrap_or(false);
+    let translator_base_url = ctx.translator_base_url.unwrap_or("").to_string();
+
     Ok(LookupImportResult {
         paper_dir: commit.paper_dir,
         path: commit.path,
         id: commit.id,
         title: commit.title,
-        used_translator: false,
-        translator_base_url: String::new(),
+        used_translator,
+        translator_base_url,
         pdf: commit.pdf,
         tex: commit.tex,
         paper_md: commit.paper_md,

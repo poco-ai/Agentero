@@ -9,4 +9,4 @@ pub(crate) mod apply;
 #[cfg(feature = "desktop")]
 pub(crate) mod chain_resolve;
 #[cfg(feature = "desktop")]
-pub(crate) mod pdf_recognize;
+pub use agentero_core::features::paper::import::recognize::*;

@@ -142,6 +142,7 @@ mod tests {
         assert!(get("paper.set_read").is_some());
         assert!(get("file_read").is_some());
         assert!(get("file.write").is_some());
+        assert!(get("import.pdf").is_some());
         assert!(get("no.such.op").is_none());
     }
 
