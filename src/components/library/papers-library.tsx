@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCellCopy } from "@/components/library/hooks/use-cell-copy";
 import { useLibraryHeatmap } from "@/components/library/hooks/use-library-heatmap";
+import { resolveColumnWidths } from "@/components/library/library-column-widths";
 import { COLUMN_META } from "@/components/library/library-columns";
 import { LibraryPaperRow } from "@/components/library/library-paper-row";
 import { LibraryPdfDropSurface } from "@/components/library/library-pdf-drop-surface";
@@ -170,14 +171,40 @@ export function PapersLibrary({
 		const vis = columns.filter((c) => c.visible);
 		return vis.length ? vis : columns.filter((c) => c.key === "title");
 	}, [columns]);
-	const visibleColumnWeight = useMemo(
-		() =>
-			visibleColumns.reduce(
-				(total, col) => total + COLUMN_META[col.key].widthWeight,
-				0,
-			),
-		[visibleColumns],
-	);
+	const [viewportRem, setViewportRem] = useState(56.25);
+	const [resizing, setResizing] = useState<number[] | null>(null);
+	const columnWidths =
+		resizing ??
+		resolveColumnWidths(
+			visibleColumns,
+			viewportRem,
+			(col) => COLUMN_META[col.key].widthWeight,
+		);
+	const resizeColumn = (
+		key: SortKey,
+		width: number | null,
+		commit: boolean,
+	) => {
+		if (width === null) {
+			setResizing(null);
+			return;
+		}
+		// Freeze the other visible columns so every separator follows the pointer 1:1.
+		const widths = columnWidths.map((value, index) =>
+			visibleColumns[index].key === key ? width : value,
+		);
+		setResizing(commit ? null : widths);
+		if (commit) {
+			onColumnsChange?.(
+				columns.map((col) => {
+					const index = visibleColumns.findIndex(
+						(visible) => visible.key === col.key,
+					);
+					return index < 0 ? col : { ...col, widthRem: widths[index] };
+				}),
+			);
+		}
+	};
 
 	const toggleColumn = useCallback(
 		(key: SortKey) => {
@@ -296,9 +323,21 @@ export function PapersLibrary({
 				setHeaderCompact(false);
 			}, HEADER_SCROLL_IDLE_MS);
 		};
+		const updateWidth = () =>
+			setViewportRem(
+				el.clientWidth /
+					Number.parseFloat(
+						getComputedStyle(el.ownerDocument.documentElement).fontSize,
+					),
+			);
+		const observer = new ResizeObserver(updateWidth);
+		observer.observe(el);
+		observer.observe(el.ownerDocument.documentElement);
+		updateWidth();
 		el.addEventListener("scroll", onScroll, { passive: true });
 		detachScrollRef.current = () => {
 			if (idleTimer) clearTimeout(idleTimer);
+			observer.disconnect();
 			el.removeEventListener("scroll", onScroll);
 		};
 	}, []);
@@ -310,6 +349,10 @@ export function PapersLibrary({
 		[],
 	);
 	const uiScale = useUiScale();
+	useEffect(() => {
+		if (scrollRef.current)
+			setViewportRem(scrollRef.current.clientWidth / (16 * uiScale));
+	}, [uiScale]);
 	const rowVirtualizer = useVirtualizer({
 		count: rows.length,
 		getScrollElement: () => scrollRef.current,
@@ -361,13 +404,18 @@ export function PapersLibrary({
 					)}
 				>
 					{/* Fixed weights keep the table stable while content and rows change. */}
-					<table className="w-full min-w-[900px] table-fixed border-collapse text-left text-sm">
+					<table
+						className="table-fixed border-collapse text-left text-sm"
+						style={{
+							width: `${columnWidths.reduce((sum, width) => sum + width, 0)}rem`,
+						}}
+					>
 						<colgroup>
-							{visibleColumns.map((col) => (
+							{visibleColumns.map((col, index) => (
 								<col
 									key={col.key}
 									style={{
-										width: `${(COLUMN_META[col.key].widthWeight / visibleColumnWeight) * 100}%`,
+										width: `${columnWidths[index]}rem`,
 									}}
 								/>
 							))}
@@ -394,6 +442,7 @@ export function PapersLibrary({
 							onToggleColumn={toggleColumn}
 							onResetColumns={resetColumns}
 							onColumnReorder={handleColumnReorder}
+							onColumnResize={resizeColumn}
 							vaultPath={vaultPath}
 							papers={scopedPapers}
 						/>

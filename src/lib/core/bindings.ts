@@ -3154,6 +3154,7 @@ export type LibraryCitingScanArgs = {
 export type LibraryColumnPref = {
 	key: string,
 	visible: boolean,
+	widthRem?: number | null,
 };
 
 export type LinkFragment = { kind: "heading"; path: string[] } | { kind: "block"; id: string } | 

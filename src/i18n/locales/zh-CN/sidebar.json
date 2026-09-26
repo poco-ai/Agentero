@@ -131,6 +131,7 @@
 		"colPublication": "出版物",
 		"colCitations": "被引量",
 		"heatmapTooltip": "{{total}} 次 · 高亮 {{highlights}} · 对话 {{asks}} · 翻译 {{translates}}",
+		"resizeColumn": "调整{{column}}列宽",
 		"sortBy": "按{{column}}排序",
 		"copyHint": "双击复制{{label}}",
 		"copied": "已复制{{label}}",

@@ -517,9 +517,13 @@ function normalizeLibraryColumns(raw: unknown): LibraryColumnPref[] {
 			if (seen.has(k)) continue;
 			seen.add(k);
 			const visible = (item as { visible?: unknown }).visible;
+			const width = (item as { widthRem?: unknown }).widthRem;
 			saved.push({
 				key: k,
 				visible: typeof visible === "boolean" ? visible : true,
+				...(typeof width === "number" && Number.isFinite(width) && width > 0
+					? { widthRem: Math.min(120, Math.max(5, width)) }
+					: {}),
 			});
 		}
 	}

@@ -220,6 +220,8 @@ pub struct EmbeddingSettings {
 pub struct LibraryColumnPref {
     pub key: String,
     pub visible: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub width_rem: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
@@ -414,6 +416,7 @@ fn default_library_columns() -> Vec<LibraryColumnPref> {
         .map(|&key| LibraryColumnPref {
             key: key.to_string(),
             visible: key != "addedAt",
+            width_rem: None,
         })
         .collect()
 }
@@ -1008,6 +1011,10 @@ fn normalize(s: &mut AppSettings) {
         cols.push(LibraryColumnPref {
             key,
             visible: col.visible,
+            width_rem: col
+                .width_rem
+                .filter(|w| w.is_finite() && *w > 0.0)
+                .map(|w| w.clamp(5.0, 120.0)),
         });
     }
     for fallback in default_library_columns() {
@@ -1538,19 +1545,39 @@ mod tests {
     }
 
     #[test]
+    fn library_column_widths_roundtrip_and_normalize() {
+        let old: LibraryColumnPref =
+            serde_json::from_str(r#"{"key":"title","visible":true}"#).unwrap();
+        assert_eq!(old.width_rem, None);
+        let mut s = AppSettings::default();
+        s.library_columns[0].width_rem = Some(25.5);
+        s.library_columns[1].width_rem = Some(-2.0);
+        s.library_columns[2].width_rem = Some(999.0);
+        normalize(&mut s);
+        let encoded = serde_json::to_string(&s).unwrap();
+        let loaded: AppSettings = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(loaded.library_columns[0].width_rem, Some(25.5));
+        assert_eq!(loaded.library_columns[1].width_rem, None);
+        assert_eq!(loaded.library_columns[2].width_rem, Some(120.0));
+    }
+
+    #[test]
     fn normalize_reconciles_library_columns() {
         let mut s = AppSettings {
             library_columns: vec![
                 LibraryColumnPref {
                     key: "bogus".into(),
+                    width_rem: None,
                     visible: true,
                 },
                 LibraryColumnPref {
                     key: "title".into(),
+                    width_rem: None,
                     visible: false,
                 },
                 LibraryColumnPref {
                     key: "year".into(),
+                    width_rem: None,
                     visible: false,
                 },
             ],

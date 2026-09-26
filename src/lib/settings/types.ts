@@ -46,6 +46,8 @@ export type LibraryColumnKey =
 export type LibraryColumnPref = {
 	key: LibraryColumnKey;
 	visible: boolean;
+	/** User-resized width in rem; omitted columns remain adaptive. */
+	widthRem?: number;
 };
 
 /** Canonical column order (also the source of truth for reconciliation). */

@@ -57,3 +57,18 @@ describe("library column settings migration", () => {
 		expect(normalize(migrated)).toEqual(migrated);
 	});
 });
+
+it("preserves valid saved widths and sanitizes invalid widths", () => {
+	const columns = normalize([
+		{ key: "title", visible: true, widthRem: 25.5 },
+		{ key: "authors", visible: true, widthRem: -2 },
+		{ key: "date", visible: true, widthRem: Number.NaN },
+		{ key: "tags", visible: true, widthRem: 999 },
+		{ key: "id", visible: true, widthRem: 1 },
+	]);
+	expect(columns.find((c) => c.key === "title")?.widthRem).toBe(25.5);
+	expect(columns.find((c) => c.key === "authors")?.widthRem).toBeUndefined();
+	expect(columns.find((c) => c.key === "date")?.widthRem).toBeUndefined();
+	expect(columns.find((c) => c.key === "tags")?.widthRem).toBe(120);
+	expect(columns.find((c) => c.key === "id")?.widthRem).toBe(5);
+});
