@@ -3,6 +3,7 @@
 //! @see docs/backend/identifier-lookup.md
 //! @see docs/backend/paper-import-pipeline.md
 
+pub mod auto_ingest;
 pub mod paper_import;
 pub mod sources;
 // `parse` (liteparse worker) is excluded on mobile targets, gate the alias too.
