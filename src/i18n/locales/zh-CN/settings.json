@@ -85,6 +85,9 @@
 		"autoOpenPaperNotes": {
 			"label": "默认打开论文笔记"
 		},
+		"autoIngest": {
+			"label": "自动收录 Papers 下新增的文件夹"
+		},
 		"replaceCurrentTabOnOpenPaper": {
 			"label": "打开新论文时替换当前标签页"
 		},

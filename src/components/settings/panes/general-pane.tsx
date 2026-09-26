@@ -247,6 +247,16 @@ export function GeneralPane({
 					/>
 				</SettingsRow>
 				<SettingsRow
+					label={t("general.autoIngest.label")}
+					htmlFor="auto-ingest"
+				>
+					<Switch
+						id="auto-ingest"
+						checked={settings.autoIngest}
+						onCheckedChange={(v) => patch({ autoIngest: v })}
+					/>
+				</SettingsRow>
+				<SettingsRow
 					label={t("general.replaceCurrentTabOnOpenPaper.label")}
 					htmlFor="replace-current-tab-on-open-paper"
 				>

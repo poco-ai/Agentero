@@ -153,6 +153,12 @@ export type AppSettings = {
 	 */
 	autoOpenPaperNotes: boolean;
 	/**
+	 * Adopt bare folders created under `papers/` that hold settled PDFs into
+	 * the library in place (rename to the canonical id, NOTES shell, metadata
+	 * recognition). Default **on**.
+	 */
+	autoIngest: boolean;
+	/**
 	 * When opening a new paper, close the active tab instead of adding another one.
 	 * Default **off**; turn on for a single-paper-at-a-time workflow.
 	 */

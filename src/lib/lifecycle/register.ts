@@ -78,6 +78,14 @@ export function registerLifecycleHandlers(): () => void {
 				).catch(() => undefined);
 			}
 			if (isTauri() && !isRemoteVaultHandle(vaultId)) {
+				// Auto-ingest: adopt bare papers/ folders created while the app
+				// was closed; the FS watcher only covers the live session.
+				void callApiResult(
+					() => commands.paperIngestReconcile({ vaultPath: vaultId }),
+					{ fallback: "paper ingest reconcile failed" },
+				).catch(() => undefined);
+			}
+			if (isTauri() && !isRemoteVaultHandle(vaultId)) {
 				// Warm today's arXiv ranking so the Plaza panel opens instantly. The
 				// Host returns its stored same-day run untouched and exits early when
 				// no embedding endpoint is configured, so this is usually free.
