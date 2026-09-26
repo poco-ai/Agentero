@@ -35,8 +35,8 @@
 
 ## Tags（前端）
 
-- Paper Info 增删 + Apple 8 色色盘 → `paper_set_tags`。
-- 配置 EasyScholar Key 后，Library 表头 Tags 列的筛选按钮左侧显示奖牌图标，点击后会为当前 Library 范围内的全部论文拉取期刊分区、影响因子、JCI 等数据并生成 `#easyscholar:` 命名空间标签；重复获取会替换该命名空间标签，不影响用户普通标签。
+- Paper Info 增删 + Apple 8 色色盘 → `paper_set_tags`。Library 与 Paper Info 点击已有标签可修改颜色或恢复无色；色盘支持键盘焦点、Enter/Space 选择与 Escape 关闭。颜色按当前论文保存，不改变其他论文的同名标签。
+- 配置 EasyScholar Key 后，Library 表头 Tags 列的筛选按钮左侧显示奖牌图标，点击后会为当前 Library 范围内的全部论文拉取期刊分区、影响因子、JCI 等数据并生成 `#easyscholar:` 命名空间标签；重复获取会替换该命名空间标签，不影响用户普通标签；保留当前论文中同名标签的已选颜色（含无色）。IF 数值或分区名称变化后视为新标签，使用默认颜色：IF / IF5 绿色，其余蓝色。
 - `@zotero:` 前缀标签属于 Connector 来源标记，只保留在 catalog 中，不参与展示、搜索和筛选；编辑普通标签时会保留这些内部标签。
 - arXiv 入库带来的学科分类（如 `Computer Science - Machine Learning`）以 `@arxiv:` 前缀保存为隐标签，同样不参与展示、搜索和筛选；已入库、尚未加前缀的同形标签也按隐标签处理。
 - 标签类型与语义（normalize / coerce / 可见性）：`src/lib/paper/tags.ts`（类型在 `src/lib/paper/types.ts`）；色板映射：`src/lib/ui/tag-colors.ts`。

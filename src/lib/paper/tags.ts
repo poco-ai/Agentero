@@ -3,7 +3,7 @@
  * which keeps only the color-token mapping).
  */
 import type { PaperTag, PaperTagInput } from "@/lib/paper/types";
-import { isTagColorId } from "@/lib/ui/tag-colors";
+import { isTagColorId, type TagColorId } from "@/lib/ui/tag-colors";
 
 export type { PaperTag, PaperTagInput } from "@/lib/paper/types";
 
@@ -101,4 +101,19 @@ export function tagName(t: PaperTagInput): string {
 export function coercePaperTags(tags: unknown): PaperTag[] {
 	if (!Array.isArray(tags)) return [];
 	return normalizePaperTags(tags as PaperTagInput[]);
+}
+
+/** Change only one existing tag, retaining invisible provenance tags. */
+export function withPaperTagColor(
+	tags: unknown,
+	name: string,
+	color: TagColorId | null,
+): PaperTag[] {
+	return coercePaperTags(tags).map((tag) =>
+		tag.name.toLocaleLowerCase() === name.toLocaleLowerCase()
+			? color
+				? { ...tag, color }
+				: { name: tag.name }
+			: tag,
+	);
 }

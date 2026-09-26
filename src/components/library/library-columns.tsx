@@ -5,6 +5,7 @@
  */
 import { ArrowDown, ArrowUp, ArrowUpDown, FileWarning } from "lucide-react";
 import type { ReactNode } from "react";
+import { LibraryPaperTag } from "@/components/library/library-paper-tag";
 import {
 	addedDate,
 	authorsCopyText,
@@ -15,7 +16,6 @@ import {
 	type SortDir,
 	type SortKey,
 } from "@/components/library/library-row-utils";
-import { PaperTagChip } from "@/components/library/paper-tag-chip";
 import { ReadingTitleHeat } from "@/components/library/reading-heatmap";
 import { MathText } from "@/components/ui/math-text";
 import {
@@ -209,12 +209,12 @@ export const COLUMN_META = {
 		labelKey: "papersLibrary.colTags",
 		widthWeight: 18,
 		headerClassName: "min-w-[120px]",
-		render: (_p, { tags }) => (
+		render: (p, { tags }) => (
 			<td className="min-w-0 max-w-0 overflow-hidden px-3 py-2.5">
 				{tags.length ? (
 					<div className="flex flex-wrap gap-1">
 						{tags.map((tag) => (
-							<PaperTagChip key={tag.name} tag={tag} />
+							<LibraryPaperTag key={tag.name} paper={p} tag={tag} />
 						))}
 					</div>
 				) : (

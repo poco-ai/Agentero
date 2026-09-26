@@ -359,6 +359,17 @@
 		"tags": "标签",
 		"addTag": "添加标签…",
 		"removeTag": "移除标签 {{tag}}",
+		"editTagColor": "修改 {{tag}} 的颜色",
+		"tagColors": {
+			"red": "红色",
+			"orange": "橙色",
+			"yellow": "黄色",
+			"green": "绿色",
+			"teal": "青色",
+			"blue": "蓝色",
+			"indigo": "靛蓝色",
+			"purple": "紫色"
+		},
 		"tagColor": "标签颜色",
 		"tagColorDefault": "默认（无颜色）",
 		"tagColorNamed": "颜色 {{color}}",

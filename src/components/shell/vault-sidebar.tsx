@@ -136,8 +136,15 @@ export function VaultSidebar() {
 		);
 	}, [paperMeta, vaultPath]);
 
-	const displayedPaperMeta =
+	const selectedPaperMeta =
 		paperMeta ?? (lastPaper.vaultPath === vaultPath ? lastPaper.meta : null);
+	// Library tag edits update the catalog store while the open tab may retain an older snapshot.
+	const selectedPaperPath = selectedPaperMeta?.path
+		.replace(/\\/g, "/")
+		.replace(/^\/+|\/+$/g, "");
+	const displayedPaperMeta = selectedPaperPath
+		? (paperMetaByRelPath.get(selectedPaperPath) ?? selectedPaperMeta)
+		: selectedPaperMeta;
 	const onPaperTagsChange = useCallback(
 		async (tags: PaperTag[]) => {
 			if (!displayedPaperMeta) return;

@@ -19,11 +19,9 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { SiArxiv, SiModelscope } from "react-icons/si";
-
-import {
-	PaperTagChip,
-	PaperTagRemoveButton,
-} from "@/components/library/paper-tag-chip";
+import { EditablePaperTag } from "@/components/library/editable-paper-tag";
+import { PaperTagRemoveButton } from "@/components/library/paper-tag-chip";
+import { TagColorPalette } from "@/components/library/tag-color-palette";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -49,12 +47,9 @@ import {
 	normalizePaperTags,
 	type PaperTag,
 	visiblePaperTags,
+	withPaperTagColor,
 } from "@/lib/paper/tags";
-import {
-	TAG_COLOR_IDS,
-	type TagColorId,
-	tagSwatchStyle,
-} from "@/lib/ui/tag-colors";
+import { type TagColorId, tagSwatchStyle } from "@/lib/ui/tag-colors";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 import { getVaultPath } from "@/lib/vault/store";
 
@@ -325,55 +320,14 @@ function TagsEditor({
 							className="w-auto p-2"
 							onOpenAutoFocus={(e) => e.preventDefault()}
 						>
-							<div className="flex items-center gap-1.5">
-								<button
-									type="button"
-									data-tag-color-picker
-									className={cn(
-										"relative size-5 overflow-hidden rounded-full bg-background ring-1 ring-border transition-shadow",
-										"hover:ring-foreground/40",
-										"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-										draftColor == null && "ring-2 ring-foreground/50",
-									)}
-									aria-label={t("paperInfo.tagColorDefault")}
-									title={t("paperInfo.tagColorDefault")}
-									onClick={() => {
-										setDraftColor(null);
-										setColorOpen(false);
-										inputRef.current?.focus();
-									}}
-								>
-									<span
-										className="pointer-events-none absolute top-1/2 left-[-20%] h-px w-[140%] -translate-y-1/2 rotate-45 bg-red-500"
-										aria-hidden
-									/>
-								</button>
-								{TAG_COLOR_IDS.map((id) => {
-									const style = tagSwatchStyle(id);
-									const selected = draftColor === id;
-									return (
-										<button
-											key={id}
-											type="button"
-											data-tag-color-picker
-											className={cn(
-												"size-5 rounded-full ring-1 ring-black/10 transition-shadow",
-												"hover:ring-foreground/40",
-												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-												selected && "ring-2 ring-foreground/50",
-											)}
-											style={style}
-											aria-label={t("paperInfo.tagColorNamed", { color: id })}
-											title={id}
-											onClick={() => {
-												setDraftColor(id);
-												setColorOpen(false);
-												inputRef.current?.focus();
-											}}
-										/>
-									);
-								})}
-							</div>
+							<TagColorPalette
+								color={draftColor}
+								onChange={(color) => {
+									setDraftColor(color);
+									setColorOpen(false);
+									inputRef.current?.focus();
+								}}
+							/>
 						</PopoverContent>
 					</Popover>
 				</div>
@@ -381,9 +335,13 @@ function TagsEditor({
 			{list.length > 0 ? (
 				<div className="flex flex-wrap gap-1">
 					{list.map((tag) => (
-						<PaperTagChip
+						<EditablePaperTag
 							key={tag.name}
 							tag={tag}
+							disabled={disabled || busy}
+							onColorChange={(color) =>
+								commit(withPaperTagColor(list, tag.name, color))
+							}
 							trailing={
 								disabled ? null : (
 									<PaperTagRemoveButton

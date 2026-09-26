@@ -360,6 +360,17 @@
 		"tags": "Tags",
 		"addTag": "Add tag…",
 		"removeTag": "Remove tag {{tag}}",
+		"editTagColor": "Change color of {{tag}}",
+		"tagColors": {
+			"red": "Red",
+			"orange": "Orange",
+			"yellow": "Yellow",
+			"green": "Green",
+			"teal": "Teal",
+			"blue": "Blue",
+			"indigo": "Indigo",
+			"purple": "Purple"
+		},
 		"tagColor": "Tag color",
 		"tagColorDefault": "Default (no color)",
 		"tagColorNamed": "Color {{color}}",

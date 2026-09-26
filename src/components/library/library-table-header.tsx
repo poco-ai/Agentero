@@ -45,12 +45,13 @@ import { cn } from "@/lib/core/utils";
 import {
 	buildEasyScholarTags,
 	fetchEasyScholarRank,
-	isEasyScholarTag,
+	mergeEasyScholarTags,
 } from "@/lib/easyscholar";
 import type { PaperMetadata } from "@/lib/paper";
-import { setLibraryPaperTags } from "@/lib/paper/library-store";
-import { coercePaperTags, type PaperTag } from "@/lib/paper/tags";
+import { libraryStore, setLibraryPaperTags } from "@/lib/paper/library-store";
+import type { PaperTag } from "@/lib/paper/tags";
 import type { LibraryColumnPref } from "@/lib/settings";
+import { getVaultPath } from "@/lib/vault/store";
 
 type LibraryTableHeaderProps = {
 	t: CellT;
@@ -152,12 +153,17 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 						continue;
 					}
 					const newTags = buildEasyScholarTags(title, data);
-					const allTags = coercePaperTags(paper.tags);
-					const base = allTags.filter((tag) => !isEasyScholarTag(tag.name));
-					await setLibraryPaperTags(vaultPath, paper.path, [
-						...base,
-						...newTags,
-					]);
+					// The request may take seconds: merge with edits made while it was in flight.
+					if (getVaultPath() !== vaultPath) break;
+					const current = libraryStore
+						.getState()
+						.papers.find((row) => row.path === paper.path);
+					if (!current) continue;
+					await setLibraryPaperTags(
+						vaultPath,
+						paper.path,
+						mergeEasyScholarTags(current.tags, newTags),
+					);
 					updated += 1;
 				} catch {
 					failed += 1;
