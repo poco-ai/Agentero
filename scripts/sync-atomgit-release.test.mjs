@@ -7,6 +7,7 @@ import {
 	AtomGit,
 	digest,
 	retry,
+	selectRelease,
 	syncRelease,
 } from "./sync-atomgit-release.mjs";
 
@@ -116,6 +117,18 @@ test("reject unsafe and incomplete source assets before touching AtomGit", async
 		await assert.rejects(syncRelease({ ...options, assets }));
 		assert.equal(calls.length, 0);
 	}
+});
+
+test("resolves the release from the list so drafts are selectable", () => {
+	const draft = { id: 397038165, tag_name: "v0.11.4", draft: true };
+	assert.equal(
+		selectRelease([{ tag_name: "v0.11.3" }, draft], "v0.11.4"),
+		draft,
+	);
+	assert.throws(
+		() => selectRelease([draft], "v9.9.9"),
+		/GitHub Release not found: v9\.9\.9/,
+	);
 });
 
 test("lookup paginates; authentication errors do not masquerade as missing releases", async () => {

@@ -50,6 +50,16 @@ export async function digest(stream) {
 	return { size, sha256: hash.digest("hex") };
 }
 
+export function selectRelease(releases, tag) {
+	// The GitHub "get release by tag name" endpoint returns published releases
+	// only. While the build jobs upload assets the release is still a draft, so
+	// it can only be resolved from the releases list (which includes drafts for
+	// tokens with push access).
+	const release = releases.find((item) => item.tag_name === tag);
+	if (!release) throw new Error(`GitHub Release not found: ${tag}`);
+	return release;
+}
+
 export function validateAssets(assets) {
 	if (!assets.length) throw new Error("GitHub Release has no uploaded assets");
 	const names = new Set();
@@ -265,21 +275,22 @@ async function main() {
 	if (!/^[\w.-]+\/[\w.-]+$/.test(destination))
 		throw new Error("Invalid ATOMGIT_REPOSITORY");
 	const repo = `repos/${GITHUB_REPOSITORY}`;
-	const release = JSON.parse(
-		gh(`${repo}/releases/tags/${encode(RELEASE_TAG)}`),
-	);
+	// Resolve from the list endpoint: the release is still a draft while the
+	// build jobs upload assets, and the tag endpoint only returns published
+	// releases. Listing drafts requires push access, so the workflow tasks run
+	// with `contents: write`.
+	const releases = JSON.parse(
+		gh(`${repo}/releases?per_page=100`, {
+			args: ["--paginate", "--slurp"],
+		}),
+	).flat();
+	const release = selectRelease(releases, RELEASE_TAG);
 	const assets = JSON.parse(
 		gh(`${repo}/releases/${release.id}/assets?per_page=100`, {
 			args: ["--paginate", "--slurp"],
 		}),
 	).flat();
 	const commit = JSON.parse(gh(`${repo}/commits/${encode(RELEASE_TAG)}`)).sha;
-	// The list endpoint also works for a repository whose first release is draft.
-	const releases = JSON.parse(
-		gh(`${repo}/releases?per_page=100`, {
-			args: ["--paginate", "--slurp"],
-		}),
-	).flat();
 	const hasStableRelease = releases.some(
 		(item) => !item.draft && !item.prerelease,
 	);

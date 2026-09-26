@@ -12,8 +12,10 @@ jobs:
   atomgit:
     name: Sync release to AtomGit
     needs: [installers, android, cli]
+    # Push access (write) is required to list the still-draft release via the
+    # releases list endpoint; the tag endpoint only returns published releases.
     permissions:
-      contents: read
+      contents: write
     uses: ./.github/workflows/sync-atomgit-release.yml
     with:
       tag: ${{ github.ref_name }}

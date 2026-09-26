@@ -24,6 +24,8 @@
 
 配置 GitHub repository secret **`ATOMGIT_TOKEN`**：使用对目标 AtomGit 仓库有 Release / 附件读写权限的个人访问令牌。可选 repository variable **`ATOMGIT_REPOSITORY`**，默认 `poco-ai/Agentero`。令牌只通过请求头传递，不写入附件、下载清单或日志。缺少令牌时同步 job 明确失败，已完成的 GitHub 构建和附件仍保留。
 
+同步在 Release 仍为 Draft 时执行：`GITHUB_TOKEN` 需要 `contents: write`（草稿仅对具备 push 权限的令牌出现在 releases 列表中），脚本通过列表接口按 tag 解析 Release，而不是只返回已发布版本的 `releases/tags/<tag>` 接口。
+
 目标仓库需先通过代码镜像同步对应提交。脚本创建 Release 时使用 GitHub tag 的准确 commit SHA，并检查 AtomGit 同名 tag 的 SHA；不自动推送代码、不移动已有 tag。目标提交不存在或 tag 不一致时，先修复仓库镜像，再重跑同步。
 
 - 构建完成时 GitHub 仍为 Draft，AtomGit 同步为 `pre`（**预发布可公开访问，不是私有草稿**）。

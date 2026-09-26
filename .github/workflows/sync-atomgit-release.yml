@@ -19,7 +19,9 @@ on:
     types: [published, edited]
 
 permissions:
-  contents: read
+  # Listing the still-draft release that the build jobs are populating needs
+  # push access; a read-only token never sees it.
+  contents: write
 
 # Serialize tags too, so a historical backfill cannot race latest promotion.
 # Never interrupt an upload to start a newer run.
