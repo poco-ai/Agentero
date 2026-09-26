@@ -41,7 +41,7 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 	if (!crumbs) return null;
 
 	return (
-		<div className="flex h-8 shrink-0 items-center border-b border-border/50 px-3 select-none">
+		<div className="flex h-9 shrink-0 items-center border-b border-border/50 px-3 select-none">
 			<Breadcrumb>
 				<BreadcrumbList className="flex-nowrap gap-1 text-xs">
 					{crumbs.folders.map((folder, index) => {
