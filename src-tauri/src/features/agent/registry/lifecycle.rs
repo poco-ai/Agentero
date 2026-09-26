@@ -35,8 +35,6 @@ use std::io::Write;
 use std::os::windows::process::CommandExt;
 #[cfg(target_os = "windows")]
 use std::sync::atomic::{AtomicU64, Ordering};
-#[cfg(target_os = "windows")]
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
