@@ -183,14 +183,12 @@ function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
 			{focused ? (
 				<PaperPathBar tab={tab} vaultPath={centerProps.vaultPath} />
 			) : null}
-			<div className="min-h-0 flex-1">
-				<DocView
-					{...centerProps}
-					tab={tab}
-					active={active}
-					keepMounted={keepMountedIds.has(tab.id)}
-				/>
-			</div>
+			<DocView
+				{...centerProps}
+				tab={tab}
+				active={active}
+				keepMounted={keepMountedIds.has(tab.id)}
+			/>
 		</div>
 	);
 }
