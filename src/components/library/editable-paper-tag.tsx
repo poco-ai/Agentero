@@ -56,7 +56,7 @@ export function EditablePaperTag({
 					</button>
 				</PopoverTrigger>
 				<PopoverContent
-					className="w-auto p-2"
+					className="w-auto p-1.5"
 					align="start"
 					aria-label={t("paperInfo.tagColor")}
 					onClick={(event) => event.stopPropagation()}

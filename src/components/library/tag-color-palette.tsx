@@ -33,7 +33,7 @@ export function TagColorPalette({
 						title={label}
 						aria-pressed={(color ?? null) === id}
 						className={cn(
-							"relative size-6 overflow-hidden rounded-full bg-background ring-1 ring-border hover:ring-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+							"relative size-5 overflow-hidden rounded-full bg-background ring-1 ring-border hover:ring-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
 							(color ?? null) === id && "ring-2 ring-foreground/50",
 						)}
 						style={tagSwatchStyle(id)}
