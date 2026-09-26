@@ -1443,7 +1443,7 @@ export type AppSettings_Deserialize = {
 	 */
 	replaceCurrentTabOnOpenPaper?: boolean,
 	autoUpdateInternalLinks?: string,
-	libraryColumns?: LibraryColumnPref[],
+	libraryColumns?: LibraryColumnPref_Deserialize[],
 	connectorEnabled?: boolean,
 	connectorPort?: number,
 	/**  Loopback Streamable HTTP MCP server. Default off. */
@@ -1532,7 +1532,7 @@ export type AppSettings_Serialize = {
 	 */
 	replaceCurrentTabOnOpenPaper: boolean,
 	autoUpdateInternalLinks: string,
-	libraryColumns: LibraryColumnPref[],
+	libraryColumns: LibraryColumnPref_Serialize[],
 	connectorEnabled: boolean,
 	connectorPort: number,
 	/**  Loopback Streamable HTTP MCP server. Default off. */
@@ -3169,7 +3169,17 @@ export type LibraryCitingScanArgs = {
 };
 
 /**  One column in the papers Library table: array order = display order. */
-export type LibraryColumnPref = {
+export type LibraryColumnPref = LibraryColumnPref_Serialize | LibraryColumnPref_Deserialize;
+
+/**  One column in the papers Library table: array order = display order. */
+export type LibraryColumnPref_Deserialize = {
+	key: string,
+	visible: boolean,
+	widthRem?: number | null,
+};
+
+/**  One column in the papers Library table: array order = display order. */
+export type LibraryColumnPref_Serialize = {
 	key: string,
 	visible: boolean,
 	widthRem?: number | null,
