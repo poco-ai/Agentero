@@ -142,7 +142,11 @@ export function PapersLibrary({
 			}
 			setSortKey(key);
 			// Date / citation count default to newest/highest first; text columns ascending
-			setSortDir(key === "date" || key === "citations" ? "desc" : "asc");
+			setSortDir(
+				key === "date" || key === "addedAt" || key === "citations"
+					? "desc"
+					: "asc",
+			);
 		},
 		[sortKey],
 	);

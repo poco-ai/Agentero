@@ -124,6 +124,7 @@
 		"rescanFailed": "重新扫描失败。",
 		"colTitle": "标题",
 		"colAuthors": "作者",
+		"colAddedAt": "添加日期",
 		"colDate": "日期",
 		"colTags": "标签",
 		"colId": "标识符",

@@ -124,6 +124,7 @@
 		"rescanFailed": "Rescan failed.",
 		"colTitle": "Title",
 		"colAuthors": "Authors",
+		"colAddedAt": "Date added",
 		"colDate": "Date",
 		"colTags": "Tags",
 		"colId": "ID",

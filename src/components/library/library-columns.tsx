@@ -6,6 +6,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, FileWarning } from "lucide-react";
 import type { ReactNode } from "react";
 import {
+	addedDate,
 	authorsCopyText,
 	type CellCtx,
 	type ColumnDef,
@@ -173,6 +174,24 @@ export const COLUMN_META = {
 				{publicationDateText(p) || "—"}
 			</td>
 		),
+	},
+	addedAt: {
+		labelKey: "papersLibrary.colAddedAt",
+		widthWeight: 10,
+		headerClassName: "min-w-[6.5rem]",
+		render: (p) => {
+			const date = addedDate(p.added_at);
+			const text = date
+				? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+				: "—";
+			return (
+				<td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-muted-foreground text-xs">
+					<time dateTime={date?.toISOString()} title={date?.toLocaleString()}>
+						{text}
+					</time>
+				</td>
+			);
+		},
 	},
 	publication: {
 		labelKey: "papersLibrary.colPublication",

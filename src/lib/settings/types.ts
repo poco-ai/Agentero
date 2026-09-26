@@ -36,6 +36,7 @@ export type LibraryColumnKey =
 	| "title"
 	| "authors"
 	| "date"
+	| "addedAt"
 	| "publication"
 	| "tags"
 	| "id"
@@ -56,11 +57,12 @@ export const LIBRARY_COLUMN_KEYS: LibraryColumnKey[] = [
 	"tags",
 	"id",
 	"citations",
+	"addedAt",
 ];
 
-/** Default: every column visible, in canonical order. */
+/** Keep the existing layout; users can enable the added-date column. */
 export const DEFAULT_LIBRARY_COLUMNS: LibraryColumnPref[] =
-	LIBRARY_COLUMN_KEYS.map((key) => ({ key, visible: true }));
+	LIBRARY_COLUMN_KEYS.map((key) => ({ key, visible: key !== "addedAt" }));
 
 /**
  * How Agentero responds to agent permission escalations.

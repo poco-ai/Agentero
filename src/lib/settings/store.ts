@@ -494,7 +494,7 @@ function isTranslateTargetLang(v: unknown): v is TranslateTargetLang {
 
 /**
  * Reconcile stored column prefs against the canonical set:
- * drop unknown/duplicate keys, append missing columns (visible), and keep
+ * drop unknown/duplicate keys, append missing columns with their default visibility, and keep
  * `title` visible so rows stay identifiable.
  *
  * Migration: if the saved order matches the old canonical layout (before the
@@ -537,16 +537,14 @@ function normalizeLibraryColumns(raw: unknown): LibraryColumnPref[] {
 
 	const out: LibraryColumnPref[] = [];
 	if (matchesOldLayout) {
-		for (const key of LIBRARY_COLUMN_KEYS) {
-			const pref = saved.find((c) => c.key === key);
-			out.push({ key, visible: pref?.visible ?? true });
+		for (const fallback of DEFAULT_LIBRARY_COLUMNS) {
+			const pref = saved.find((c) => c.key === fallback.key);
+			out.push(pref ?? { ...fallback });
 		}
 	} else {
-		for (const key of LIBRARY_COLUMN_KEYS) {
-			if (!seen.has(key)) out.push({ key, visible: true });
-		}
-		for (const c of saved) {
-			if (seen.has(c.key)) out.push({ ...c });
+		out.push(...saved);
+		for (const fallback of DEFAULT_LIBRARY_COLUMNS) {
+			if (!seen.has(fallback.key)) out.push({ ...fallback });
 		}
 	}
 

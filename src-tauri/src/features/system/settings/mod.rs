@@ -406,13 +406,14 @@ const LIBRARY_COLUMN_KEYS: &[&str] = &[
     "tags",
     "id",
     "citations",
+    "addedAt",
 ];
 fn default_library_columns() -> Vec<LibraryColumnPref> {
     LIBRARY_COLUMN_KEYS
         .iter()
         .map(|&key| LibraryColumnPref {
             key: key.to_string(),
-            visible: true,
+            visible: key != "addedAt",
         })
         .collect()
 }
@@ -987,7 +988,7 @@ fn normalize(s: &mut AppSettings) {
     }
 
     // Library columns: drop unknown/duplicate keys, append missing ones
-    // (visible), and keep `title` visible so rows stay identifiable.
+    // with their default visibility, and keep `title` visible.
     let mut seen: Vec<String> = Vec::new();
     let mut cols: Vec<LibraryColumnPref> = Vec::new();
     for col in s.library_columns.drain(..) {
@@ -1009,12 +1010,9 @@ fn normalize(s: &mut AppSettings) {
             visible: col.visible,
         });
     }
-    for &key in LIBRARY_COLUMN_KEYS {
-        if !seen.iter().any(|k| k == key) {
-            cols.push(LibraryColumnPref {
-                key: key.to_string(),
-                visible: true,
-            });
+    for fallback in default_library_columns() {
+        if !seen.iter().any(|key| key == &fallback.key) {
+            cols.push(fallback);
         }
     }
     for col in cols.iter_mut() {
@@ -1570,7 +1568,8 @@ mod tests {
                 "publication",
                 "tags",
                 "id",
-                "citations"
+                "citations",
+                "addedAt"
             ]
         );
         // Title forced visible even though stored hidden.
@@ -1586,6 +1585,51 @@ mod tests {
             .find(|c| c.key == "authors")
             .unwrap();
         assert!(authors.visible);
+    }
+
+    #[test]
+    fn library_columns_added_date_persists_through_host_store() {
+        let store = AppSettingsStore::for_tests(AppSettings::default());
+        let mut legacy = AppSettings::default();
+        legacy.library_columns.retain(|col| col.key != "addedAt");
+        legacy.library_columns.reverse();
+        legacy.library_columns[0].visible = false;
+        let existing: Vec<_> = legacy
+            .library_columns
+            .iter()
+            .map(|col| (col.key.clone(), col.visible))
+            .collect();
+        // Simulate an older settings.json, exercising the real disk load path.
+        persist(&store.path, &legacy).expect("write legacy settings");
+        let (mut loaded, existed) = read_file(&store.path);
+        assert!(existed);
+        let added = loaded.library_columns.last().unwrap();
+        assert_eq!(added.key, "addedAt");
+        assert!(!added.visible);
+        assert_eq!(
+            loaded.library_columns[..existing.len()]
+                .iter()
+                .map(|col| (col.key.clone(), col.visible))
+                .collect::<Vec<_>>(),
+            existing
+        );
+
+        // Enable and move the column, then save via the desktop Host store.
+        let mut added = loaded.library_columns.pop().unwrap();
+        added.visible = true;
+        loaded.library_columns.insert(0, added);
+        let expected = serde_json::to_value(&loaded.library_columns).unwrap();
+        let returned = store.set(loaded).expect("save settings through Host");
+        assert_eq!(
+            serde_json::to_value(&returned.library_columns).unwrap(),
+            expected
+        );
+        let (reloaded, _) = read_file(&store.path);
+        assert_eq!(
+            serde_json::to_value(&reloaded.library_columns).unwrap(),
+            expected
+        );
+        fs::remove_file(&store.path).expect("remove test settings");
     }
 
     /// `agentero` is a parser (body-text) backend only. Layout analysis stays on

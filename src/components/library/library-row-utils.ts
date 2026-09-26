@@ -35,6 +35,12 @@ export function isMissingLocalPdf(p: PaperLibraryRow): boolean {
 	return p.has_pdf === false;
 }
 
+/** Catalog timestamps include a timezone; invalid legacy values stay empty. */
+export function addedDate(value: string | undefined): Date | null {
+	const timestamp = value?.trim() ? Date.parse(value) : Number.NaN;
+	return Number.isFinite(timestamp) ? new Date(timestamp) : null;
+}
+
 /** Precomputed per-paper keys so sort/filter avoid O(n log n) re-coerce. */
 export type PaperRow = {
 	paper: PaperLibraryRow;
@@ -76,6 +82,7 @@ export function buildPaperRow(p: PaperLibraryRow): PaperRow {
 			title: (p.title ?? "").toLocaleLowerCase(),
 			authors: (p.authors?.[0] ?? "").toLocaleLowerCase(),
 			date: publicationDateSortKey(p) ?? Number.NEGATIVE_INFINITY,
+			addedAt: addedDate(p.added_at)?.getTime() ?? Number.NEGATIVE_INFINITY,
 			publication: (p.publication ?? "").toLocaleLowerCase(),
 			id: id.toLocaleLowerCase(),
 			tags: tags
@@ -97,7 +104,8 @@ export function comparePaperRows(
 	const bv = b.sort[key];
 	let cmp = 0;
 	if (typeof av === "number" && typeof bv === "number") {
-		cmp = av - bv;
+		// Equal missing values (-Infinity) must still use the stable tie-break.
+		cmp = av === bv ? 0 : av - bv;
 	} else {
 		cmp = String(av).localeCompare(String(bv), undefined, {
 			numeric: true,
