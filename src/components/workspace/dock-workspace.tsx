@@ -66,6 +66,7 @@ import {
 	rememberNotesSplitWidth,
 	restoreNotesSplitWidth,
 } from "@/lib/workspace/notes-split-width";
+import { useSelectionOverlayActive } from "@/lib/workspace/selection-overlay";
 import {
 	isSplitDragPayload,
 	readDraggedVaultPaths,
@@ -548,6 +549,10 @@ export const DockWorkspace = memo(
 		const { t } = useTranslation(["app", "viewer"]);
 		const apiRef = useRef<DockviewApi | null>(null);
 		const workspaceRootRef = useRef<HTMLDivElement>(null);
+		// Suspend dockview DnD while a floating selection overlay (toolbar or
+		// ask card) is open — they can sit against the tab strip and a stray
+		// drag would split the layout (#608).
+		const selectionOverlayActive = useSelectionOverlayActive();
 		const syncingRef = useRef(false);
 		const layoutTimerRef = useRef<number | null>(null);
 		const disposablesRef = useRef<{ dispose: () => void }[]>([]);
@@ -1080,6 +1085,9 @@ export const DockWorkspace = memo(
 						// Tauri WKWebView: HTML5 DnD is unreliable; pointer covers mouse+touch.
 						// Floating/popout already disabled — no cross-window HTML5 drag needed.
 						dndStrategy="pointer"
+						// Floating selection overlays sit against the tab strip; freeze
+						// tab/group drag while one is open so a stray drag cannot split (#608).
+						disableDnd={selectionOverlayActive}
 						dndEdges={{ size: { value: 24, type: "pixels" } }}
 						dropOverlayModel={resolveDropOverlayModel}
 						// Within-group tabs + between groups + Ctrl+M keyboard dock.

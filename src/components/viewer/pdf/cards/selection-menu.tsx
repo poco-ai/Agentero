@@ -15,6 +15,7 @@ import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import { cn } from "@/lib/core/utils";
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
 import { formatModShortcut } from "@/lib/shell/shortcuts";
+import { useSelectionOverlayGuard } from "@/lib/workspace/selection-overlay";
 
 type SelectionMenuProps = {
 	/** Screen point near the top-center of the selection (toolbar anchor) */
@@ -55,6 +56,9 @@ export function SelectionMenu({
 	showTranslate = true,
 }: SelectionMenuProps) {
 	const { t } = useTranslation("viewer");
+	// Suspend dockview drag-and-drop while this toolbar floats over the tab
+	// strip so a stray drag cannot split the layout (#608).
+	useSelectionOverlayGuard();
 	// ⌘K = in-page Quick chat (Ask); ⌘L = Add to chat (pin + open Agent).
 	const quickChatShortcut = formatModShortcut("k");
 	const addToChatShortcut = formatModShortcut("l");

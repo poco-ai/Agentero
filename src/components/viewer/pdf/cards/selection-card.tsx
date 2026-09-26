@@ -17,6 +17,7 @@ import { PDF_FLOAT_CARD } from "@/components/viewer/pdf/chrome/pdf-chrome-surfac
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import { clamp } from "@/lib/core/math";
 import { cn } from "@/lib/core/utils";
+import { useSelectionOverlayGuard } from "@/lib/workspace/selection-overlay";
 
 /** Minimum inset from the viewport edges (px). */
 export const SELECTION_CARD_EDGE = 12;
@@ -242,6 +243,9 @@ export function SelectionCard({
 }: SelectionCardProps) {
 	const rootRef = useRef<HTMLDivElement>(null);
 	const reduceMotion = useReducedMotion();
+	// Suspend dockview drag-and-drop while this card floats over the tab strip
+	// so a stray drag cannot split the layout (#608).
+	useSelectionOverlayGuard();
 	const { left, top, maxHeight } = placeSelectionCard(screen, {
 		width,
 		height,
