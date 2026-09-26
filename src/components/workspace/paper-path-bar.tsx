@@ -1,4 +1,4 @@
-import { FileText, Folder, FolderOpen } from "lucide-react";
+import { Folder, FolderOpen, ScrollText } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import {
 	Breadcrumb,
@@ -14,8 +14,12 @@ import {
 } from "@/components/ui/hover-card";
 import { MathText } from "@/components/ui/math-text";
 import { useLibraryStore, useVaultStore } from "@/hooks/use-app-stores";
-import type { PaperMetadata } from "@/lib/paper";
-import { isUnderPapers } from "@/lib/paper";
+import { contextPathIcon } from "@/lib/agent/context-path-icon";
+import {
+	isPaperDirectory,
+	isUnderPapers,
+	type PaperMetadata,
+} from "@/lib/paper";
 import { joinVaultPath, treeFindNode, vaultRelativePath } from "@/lib/vault";
 import type { FileNode } from "@/lib/vault/types";
 import {
@@ -54,12 +58,16 @@ function candidateLabel(
 	return node.name;
 }
 
+/** Same glyph the file tree uses: paper folders → ScrollText, folders → Folder. */
 function CandidateIcon({ node }: { node: FileNode }) {
-	return node.kind === "directory" ? (
-		<Folder className="size-4 shrink-0 text-muted-foreground" />
-	) : (
-		<FileText className="size-4 shrink-0 text-muted-foreground" />
-	);
+	if (node.kind === "directory") {
+		const Icon = isPaperDirectory(node.path, node.children)
+			? ScrollText
+			: Folder;
+		return <Icon className="size-4 shrink-0 text-muted-foreground" />;
+	}
+	const Icon = contextPathIcon(node.path);
+	return <Icon className="size-4 shrink-0 text-muted-foreground" />;
 }
 
 /**
@@ -158,7 +166,9 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 																		paperMetaByRelPath,
 																	)}
 																</span>
-																{child.children && child.children.length > 0 ? (
+																{child.kind === "directory" &&
+																!isPaperDirectory(child.path, child.children) &&
+																(child.children?.length ?? 0) > 0 ? (
 																	<span className="text-muted-foreground">
 																		›
 																	</span>
