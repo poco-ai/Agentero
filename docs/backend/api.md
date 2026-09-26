@@ -1696,7 +1696,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
   - `updateAvailable`：仅当目标版本**严格新于**本地时为 `true`；无法判定时省略/`null`（UI 不显示升级）
 - **行为**
   - 同步 PATH scan 后，在 `spawn_blocking` 中跑 `--version` / `npm view`（尊重代理设置）。
-  - npm 包映射：`opencode-ai` / `openclaw` / `@anthropic-ai/claude-code` / `@openai/codex` / `@earendil-works/pi-coding-agent` / `@xai-official/grok` / `@deepseek-ai/dsh` / `@moonshot-ai/kimi-code` / `zcode-acp-server` / `@minimax-ai/code`；Antigravity 从 ACP Registry 读取最新版本；**hermes 本轮不探测**（无稳定 npm 源）。
+  - npm 包映射：`@opencode/cli` / `openclaw` / `@anthropic-ai/claude-code` / `@openai/codex` / `@earendil-works/pi-coding-agent` / `@xai-official/grok` / `@deepseek-ai/dsh` / `@moonshot-ai/kimi-code` / `zcode-acp-server` / `@minimax-ai/code`；Antigravity 从 ACP Registry 读取最新版本；**hermes 本轮不探测**（无稳定 npm 源）。OpenCode 卸载额外清理旧版 `opencode-ai`。
   - 不写入 registry；设置页打开/刷新与 lifecycle 成功后调用。
 - **实现**：`registry/version_check.rs` · `commands::agent_check_catalog_updates`
 
