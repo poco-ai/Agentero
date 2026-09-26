@@ -71,6 +71,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	autoUpdateInternalLinks: "ask",
 	paperNoteMode: "standard",
 	autoOpenPaperNotes: true,
+	autoIngest: true,
 	replaceCurrentTabOnOpenPaper: false,
 	libraryColumns: DEFAULT_LIBRARY_COLUMNS.map((c) => ({ ...c })),
 	connectorEnabled: false,

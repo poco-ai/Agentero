@@ -131,7 +131,8 @@ struct ToolLifecycleProgress {
 #[cfg(not(target_os = "windows"))]
 const CLAUDE_INSTALL_UNIX: &str = "bash -c 'tmp=$(mktemp) && curl -fsSL https://claude.ai/install.sh -o $tmp && bash $tmp; status=$?; rm -f $tmp; exit $status'";
 #[cfg(not(target_os = "windows"))]
-const OPENCODE_INSTALL_UNIX: &str = "bash -c 'tmp=$(mktemp) && curl -fsSL https://opencode.ai/install -o $tmp && bash $tmp; status=$?; rm -f $tmp; exit $status'";
+const OPENCODE_INSTALL_UNIX: &str = "bash -c 'tmp=$(mktemp) && curl -fsSL https://opencode.ai/v2/install -o $tmp && bash $tmp; status=$?; rm -f $tmp; exit $status'";
+const OPENCODE_NPM_INSTALL_COMMAND: &str = "npm i -g @opencode/cli@latest";
 #[cfg(not(target_os = "windows"))]
 const GROK_INSTALL_UNIX: &str = "bash -c 'tmp=$(mktemp) && curl -fsSL https://x.ai/cli/install.sh -o $tmp && bash $tmp; status=$?; rm -f $tmp; exit $status'";
 #[cfg(not(target_os = "windows"))]
@@ -280,7 +281,13 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
 
     let (agent_commands, acp_commands): (Vec<String>, Vec<String>) = match template_id {
         // Single-package agents: host CLI and ACP are the same binary.
-        "opencode" => (vec!["npm uninstall -g opencode-ai".to_string()], Vec::new()),
+        "opencode" => (
+            vec![
+                "npm uninstall -g @opencode/cli".to_string(),
+                "npm uninstall -g opencode-ai".to_string(),
+            ],
+            Vec::new(),
+        ),
         "openclaw" => (vec!["npm uninstall -g openclaw".to_string()], Vec::new()),
         "claude-acp" => (
             vec!["npm uninstall -g @anthropic-ai/claude-code".to_string()],
@@ -813,7 +820,7 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
         match template_id {
             "claude-acp" => Ok("npm i -g @anthropic-ai/claude-code@latest".to_string()),
             "codex-acp" => Ok("npm i -g @openai/codex@latest".to_string()),
-            "opencode" => Ok("npm i -g opencode-ai@latest".to_string()),
+            "opencode" => Ok(OPENCODE_NPM_INSTALL_COMMAND.to_string()),
             "openclaw" => Ok("npm i -g openclaw@latest".to_string()),
             "hermes" => Ok(hermes_install_windows_command()),
             "pi" => Ok(PI_HOST_INSTALL_COMMAND.to_string()),
@@ -841,7 +848,7 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
             "codex-acp" => Ok("npm i -g @openai/codex@latest".to_string()),
             "opencode" => Ok(chain_or(
                 OPENCODE_INSTALL_UNIX,
-                "npm i -g opencode-ai@latest",
+                OPENCODE_NPM_INSTALL_COMMAND,
             )),
             "openclaw" => Ok("npm i -g openclaw@latest".to_string()),
             "hermes" => Ok(HERMES_INSTALL_UNIX.to_string()),
@@ -916,13 +923,13 @@ fn host_update_command(template_id: &str) -> Result<String, String> {
         "opencode" => {
             #[cfg(target_os = "windows")]
             {
-                Ok("npm i -g opencode-ai@latest".to_string())
+                Ok(OPENCODE_NPM_INSTALL_COMMAND.to_string())
             }
             #[cfg(not(target_os = "windows"))]
             {
                 Ok(chain_or(
                     "opencode upgrade",
-                    &chain_or(OPENCODE_INSTALL_UNIX, "npm i -g opencode-ai@latest"),
+                    &chain_or(OPENCODE_INSTALL_UNIX, OPENCODE_NPM_INSTALL_COMMAND),
                 ))
             }
         }
@@ -1016,7 +1023,7 @@ npm i -g @anthropic-ai/claude-code@latest
 npm i -g @openai/codex@latest
 {codex_acp}
 # OpenCode
-npm i -g opencode-ai@latest
+npm i -g @opencode/cli@latest
 # OpenClaw
 npm i -g openclaw@latest
 # Pi + ACP adapter
@@ -1055,7 +1062,7 @@ npm i -g openclaw@latest
 npm i -g @openai/codex@latest
 {codex_acp}
 # OpenCode
-{opencode} || npm i -g opencode-ai@latest
+{opencode} || npm i -g @opencode/cli@latest
 # OpenClaw
 npm i -g openclaw@latest
 # Pi + ACP adapter
@@ -1830,7 +1837,16 @@ mod tests {
     #[test]
     fn uninstall_commands_mirror_install_packages() {
         let opencode = uninstall_info("opencode").unwrap();
-        assert!(opencode.agent.npm_commands[0].contains("opencode-ai"));
+        assert!(opencode
+            .agent
+            .npm_commands
+            .iter()
+            .any(|c| c.contains("@opencode/cli")));
+        assert!(opencode
+            .agent
+            .npm_commands
+            .iter()
+            .any(|c| c.contains("opencode-ai")));
         let codex = uninstall_info("codex-acp").unwrap();
         assert!(codex
             .agent

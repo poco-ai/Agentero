@@ -38,7 +38,7 @@ fn npm_version_cache() -> &'static Mutex<NpmVersionCache> {
 /// Hermes has no stable npm source — callers leave `update_available` unset.
 pub fn npm_package_for_template(template_id: &str) -> Option<&'static str> {
     match template_id {
-        "opencode" => Some("opencode-ai"),
+        "opencode" => Some("@opencode/cli"),
         "openclaw" => Some("openclaw"),
         "claude-acp" => Some("@anthropic-ai/claude-code"),
         "codex-acp" => Some("@openai/codex"),
@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn npm_package_map_covers_lifecycle_npm_templates() {
-        assert_eq!(npm_package_for_template("opencode"), Some("opencode-ai"));
+        assert_eq!(npm_package_for_template("opencode"), Some("@opencode/cli"));
         assert_eq!(
             npm_package_for_template("claude-acp"),
             Some("@anthropic-ai/claude-code")

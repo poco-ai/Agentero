@@ -138,6 +138,15 @@ impl FsWatchController {
                                 let batch = std::mem::take(&mut pending);
                                 for payload in payloads_from_events(batch) {
                                     invalidate_caps_for_paths(&app, &watch_root, &payload.paths);
+                                    // Watch-folder auto-ingest (papers/
+                                    // adoption); schedules work, never blocks
+                                    // this loop.
+                                    crate::features::paper::ingest::on_fs_batch(
+                                        &app,
+                                        &watch_root,
+                                        &payload.kind,
+                                        &payload.paths,
+                                    );
                                     let _ = app.emit_to(
                                         EventTarget::webview_window(label.clone()),
                                         "vault:file-changed",

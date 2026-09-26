@@ -44,6 +44,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { DocView, type DocViewProps } from "@/components/workspace/doc-view";
+import { PaperPathBar } from "@/components/workspace/paper-path-bar";
 import { AgenteroTabGroupChip } from "@/components/workspace/tab-group-chip";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
@@ -175,9 +176,13 @@ function WorkspacePane(props: IDockviewPanelProps<{ panelId: string }>) {
 		tab.mode === "html" &&
 		tab.notesPath != null &&
 		activePanelId === tabIdForPath(tab.notesPath);
-	const active = activePanelId === panelId || notesActive;
+	const focused = activePanelId === panelId;
+	const active = focused || notesActive;
 	return (
 		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
+			{focused ? (
+				<PaperPathBar tab={tab} vaultPath={centerProps.vaultPath} />
+			) : null}
 			<DocView
 				{...centerProps}
 				tab={tab}

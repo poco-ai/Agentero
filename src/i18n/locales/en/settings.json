@@ -85,6 +85,9 @@
 		"autoOpenPaperNotes": {
 			"label": "Open paper notes by default"
 		},
+		"autoIngest": {
+			"label": "Auto-import folders added under Papers"
+		},
 		"replaceCurrentTabOnOpenPaper": {
 			"label": "Replace current tab when opening a paper"
 		},

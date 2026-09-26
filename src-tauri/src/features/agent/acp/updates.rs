@@ -179,6 +179,52 @@ fn collect_choices_from_select(
     models
 }
 
+fn model_group_from_id(id: &str) -> Option<String> {
+    id.split_once(':')
+        .or_else(|| id.split_once('/'))
+        .map(|(prefix, _)| prefix.trim().to_string())
+        .filter(|g| !g.is_empty())
+}
+
+fn first_string<'a>(value: &'a serde_json::Value, keys: &[&str]) -> Option<&'a str> {
+    keys.iter()
+        .find_map(|key| value.get(*key).and_then(|v| v.as_str()))
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+}
+
+fn session_models_object(value: &serde_json::Value) -> Option<&serde_json::Value> {
+    value
+        .get("models")
+        .or_else(|| value.pointer("/_meta/models"))
+        .or_else(|| value.pointer("/_meta/opencode/models"))
+}
+
+pub(crate) fn richer_models_event(
+    config: Option<AgentModelsEvent>,
+    raw: Option<AgentModelsEvent>,
+) -> Option<AgentModelsEvent> {
+    match (config, raw) {
+        (Some(config), Some(raw)) => {
+            if raw.models.len() > config.models.len() {
+                log::debug!(
+                    target: "agentero::agent",
+                    "agent={} using raw session models over config options: raw={} config={}",
+                    raw.agent_id,
+                    raw.models.len(),
+                    config.models.len()
+                );
+                Some(raw)
+            } else {
+                Some(config)
+            }
+        }
+        (Some(config), None) => Some(config),
+        (None, Some(raw)) => Some(raw),
+        (None, None) => None,
+    }
+}
+
 /// Fallback model selector extraction for agents that still expose the
 /// pre-stabilization top-level `models` field on `session/new` (e.g. hermes-agent
 /// before it migrated to `configOptions`, see NousResearch/hermes-agent#81067).
@@ -189,37 +235,31 @@ fn collect_choices_from_select(
 ///
 /// Shape: `{ "models": { "availableModels": [{ "modelId", "name", ... }],
 ///                       "currentModelId": "..." } }`.
+/// OpenCode 2.x can also place this object under `_meta.models`; keep parsing
+/// both so a partial ACP `configOptions` catalog does not hide custom providers.
 pub(crate) fn models_from_session_models_value(
     session_id: &str,
     agent_id: &str,
     value: &serde_json::Value,
 ) -> Option<AgentModelsEvent> {
-    let models_obj = value.get("models")?;
+    let models_obj = session_models_object(value)?;
 
-    let available = models_obj.get("availableModels")?.as_array()?;
+    let available = models_obj
+        .get("availableModels")
+        .or_else(|| models_obj.get("available_models"))?
+        .as_array()?;
     let mut models = Vec::with_capacity(available.len());
     for entry in available {
-        let id = entry
-            .get("modelId")
-            .and_then(|v| v.as_str())?
-            .trim()
-            .to_string();
+        let id = first_string(entry, &["modelId", "model_id", "id", "value"])?.to_string();
         if id.is_empty() {
             continue;
         }
-        let name = entry
-            .get("name")
-            .and_then(|v| v.as_str())
-            .map(str::trim)
-            .filter(|n| !n.is_empty())
+        let name = first_string(entry, &["name", "label", "displayName", "title"])
             .unwrap_or(&id)
             .to_string();
-        // Provider prefix ("opencode-zen:..." → group "opencode-zen") keeps the
-        // picker's provider grouping that the config-options path gets for free.
-        let group = id
-            .split_once(':')
-            .map(|(prefix, _)| prefix.trim().to_string())
-            .filter(|g| !g.is_empty());
+        let group =
+            first_string(entry, &["provider", "providerId", "provider_id"]).map(str::to_string);
+        let group = group.or_else(|| model_group_from_id(&id));
         models.push(AgentModelChoice { id, name, group });
     }
     let mut models = dedupe_model_choices(models);
@@ -227,12 +267,17 @@ pub(crate) fn models_from_session_models_value(
         return None;
     }
 
-    let current_id = models_obj
-        .get("currentModelId")
-        .and_then(|v| v.as_str())
-        .unwrap_or_default()
-        .trim()
-        .to_string();
+    let current_id = first_string(
+        models_obj,
+        &[
+            "currentModelId",
+            "current_model_id",
+            "currentModel",
+            "current",
+        ],
+    )
+    .unwrap_or_default()
+    .to_string();
     if !current_id.is_empty() && !models.iter().any(|m| m.id == current_id) {
         models.insert(
             0,
@@ -966,7 +1011,12 @@ mod config_option_tests {
 
 #[cfg(test)]
 mod session_models_fallback_tests {
-    use super::models_from_session_models_value;
+    use super::{
+        models_from_config_options, models_from_session_models_value, richer_models_event,
+    };
+    use agent_client_protocol::schema::v1::{
+        SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectOption,
+    };
 
     #[test]
     fn parses_legacy_top_level_models_field() {
@@ -995,6 +1045,70 @@ mod session_models_fallback_tests {
             .find(|m| m.id == "opencode-zen:deepseek-v4.1-flash")
             .expect("zen model");
         assert_eq!(zen.group.as_deref(), Some("opencode-zen"));
+    }
+
+    #[test]
+    fn parses_opencode_meta_models_and_slash_provider_groups() {
+        let value = serde_json::json!({
+            "sessionId": "sess-1",
+            "_meta": {
+                "models": {
+                    "availableModels": [
+                        { "modelId": "github-copilot/claude-sonnet-4.5", "name": "Claude Sonnet 4.5" },
+                        { "modelId": "custom-gateway/my-model", "name": "My Model" }
+                    ],
+                    "currentModelId": "custom-gateway/my-model"
+                }
+            }
+        });
+
+        let ev = models_from_session_models_value("sess-1", "opencode", &value)
+            .expect("opencode meta models should be parsed");
+        assert_eq!(ev.current_id, "custom-gateway/my-model");
+        assert_eq!(ev.models.len(), 2);
+        let custom = ev
+            .models
+            .iter()
+            .find(|m| m.id == "custom-gateway/my-model")
+            .expect("custom provider model");
+        assert_eq!(custom.group.as_deref(), Some("custom-gateway"));
+    }
+
+    #[test]
+    fn raw_session_models_win_when_catalog_is_more_complete() {
+        let config_options = vec![SessionConfigOption::select(
+            "model",
+            "Model",
+            "opencode/gpt-5",
+            vec![SessionConfigSelectOption::new(
+                "opencode/gpt-5",
+                "OpenCode · GPT-5",
+            )],
+        )
+        .category(SessionConfigOptionCategory::Model)];
+        let config = models_from_config_options("sess-1", "opencode", &config_options);
+        let raw = models_from_session_models_value(
+            "sess-1",
+            "opencode",
+            &serde_json::json!({
+                "sessionId": "sess-1",
+                "models": {
+                    "availableModels": [
+                        { "modelId": "opencode/gpt-5", "name": "OpenCode · GPT-5" },
+                        { "modelId": "custom-gateway/deepseek-chat", "name": "Custom · deepseek-chat" }
+                    ],
+                    "currentModelId": "custom-gateway/deepseek-chat"
+                }
+            }),
+        );
+
+        let ev = richer_models_event(config, raw).expect("models");
+        assert_eq!(ev.current_id, "custom-gateway/deepseek-chat");
+        assert_eq!(ev.models.len(), 2);
+        assert!(ev
+            .models
+            .iter()
+            .any(|m| m.id == "custom-gateway/deepseek-chat"));
     }
 
     #[test]

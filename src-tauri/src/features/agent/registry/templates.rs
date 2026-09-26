@@ -296,9 +296,9 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             args: vec!["acp".to_string()],
             detect_command: Some("opencode".to_string()),
             install_hint: (if cfg!(windows) {
-                "npm i -g opencode  ·  https://opencode.ai"
+                "npm i -g @opencode/cli  ·  https://opencode.ai/v2"
             } else {
-                "brew install opencode  ·  https://opencode.ai"
+                "brew install anomalyco/tap/opencode-v2  ·  https://opencode.ai/v2"
             })
             .to_string(),
             install_command: None,

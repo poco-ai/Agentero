@@ -13,6 +13,7 @@ use crate::features::agent::acp::client::{
 };
 use crate::features::agent::acp::updates::{
     emit_session_config_options, models_from_config_options, models_from_session_models_value,
+    richer_models_event,
 };
 use crate::features::agent::models::{AgentDescriptor, WarmResult};
 use crate::features::agent::runtime::events::AgentEventEmitter;
@@ -284,14 +285,10 @@ impl WarmSetupCtx {
         )
         .await;
         emit_session_config_options(&self.app, &self.session_id, &self.agent_id, &config_options);
-        let models_event = models_from_config_options(
-            &self.session_id,
-            &self.agent_id,
-            &config_options,
-        )
-        .or_else(|| {
-            models_from_session_models_value(&self.session_id, &self.agent_id, &raw_new_session)
-        });
+        let models_event = richer_models_event(
+            models_from_config_options(&self.session_id, &self.agent_id, &config_options),
+            models_from_session_models_value(&self.session_id, &self.agent_id, &raw_new_session),
+        );
         if let Some(ev) = models_event {
             if let Ok(mut g) = self.models_out.lock() {
                 *g = Some(ev);

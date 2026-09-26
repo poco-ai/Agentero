@@ -28,6 +28,8 @@ Library 始终位于所在标签条的第一位：禁止拖动 Library 及包含
 
 布局只存 dockview `toJSON()`；path/mode/title 在 panel params。同一路径可存在多个 split pane，panel id 保留 pane 实例后缀用于恢复布局。Tab 条上的论文标题经 `MathText` 渲染内联公式（`$\\pi$` 等）；`panel.api.setTitle` 仍存原始字符串。
 
+活动 panel 为 `papers/` 下的论文 PDF 时，其顶部（Dockview 标签条之下、正文之上）显示面包屑路径条 `papers / 论文标题`：论文目录的 catalog id 段替换为 `paperMeta.title`（缺失时回退 tab title），标题经 `MathText`，超宽逐级 `min-w-0 truncate`。文件夹段 **悬停** 弹出其子项候选（论文目录显示 catalog 标题，超过 50 项截断），点击候选经 `selectFileNode` 跳转（论文开 PDF、普通文件夹进 scoped Library、文件直接打开）；**点击文件夹段本身** 进入该文件夹对应的 scoped Library，`papers` 段进入主 Library（`selectLibrary`）。仅在活动 panel 渲染；非 PDF 论文、HTML 版与虚拟标签（Library / 回收站 / 广场）不显示。实现：`src/components/workspace/paper-path-bar.tsx`。
+
 启动恢复只 hydrate 每个 Dockview group 当前可见的 panel；隐藏标签在首次切换到前台时再读取资源。 `papers/` 下的占位标签统一等待文件树加载完成后再 hydrate，不按扩展名猜测文件或目录，避免带点的论文 ID（如 `2606.04046`）被误归属到父级分类目录并触发错误的引用解析；其它笔记与虚拟标签可继续加载。恢复出的占位 tab 直接用 params 里的 title 显示（论文名），无需等资源加载；未携带 title 的旧布局回退为文件夹名，激活后由资源加载刷新。PDFium 保留当前可见与最近使用的至多两个 PDF viewer，本地 PDF `ArrayBuffer` 离开保留集合后释放，避免多标签工作区重启时并发加载全部 PDF 并长期占用 WebContent 内存；重新 hydrate 既有 PDF tab 时只刷新资源，不因一次 PDF 探测失败降级成 Markdown 空编辑器；同一保护（`patchFromTabResources`）覆盖 ⇧⌘T 重开与文档弹出窗。资源侧论文正文只产出 pdf / html（`paperBodyMode`）：探测全空且 catalog bundle / 元数据也落空时先延迟重试一次（启动时 Host catalog 或 fs scope 未就绪的竞态），仍无资源则停在 PDF「暂无论文」空态，绝不渲染空 Markdown 编辑器；paper 文件夹内的子目录按 scoped library 打开，同样不进编辑器。Markdown 编辑器（含 NOTES）与纯文本编辑器同样保活：至多两个最近使用的编辑器保持挂载，切换标签不再重建 Plate / CodeMirror；离开保留集合的编辑器卸载为占位，切回时重新反序列化，卸载时未落盘的编辑会照常 flush。
 
 ## 纯文本编辑器（CodeMirror 兜底）
@@ -60,6 +62,7 @@ Library · Trash · PDF · HTML · 图片 · Markdown · 论文 NOTES · 纯文�
 | 路径 | 职责 |
 |---|---|
 | `src/components/workspace/dock-workspace.tsx` | Dockview 宿主（tab 右键 → 移至新窗口） |
+| `src/components/workspace/paper-path-bar.tsx` | 活动论文 PDF 的 `papers / 标题` 面包屑路径条 |
 | `src/lib/shell/leaf.ts` | leaf 打开 / `moveDocToWindow` |
 | `src/lib/shell/doc-window.ts` | `doc_window_open` 前端封装 |
 | `src/components/shell/doc-window-root.tsx` | 文档弹出窗根 |

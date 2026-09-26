@@ -141,6 +141,7 @@ pub fn run() {
         let remote_registry = Arc::new(RemoteRegistry::new());
         builder = builder
             .manage(FsWatchController::new())
+            .manage(crate::features::paper::ingest::IngestQueue::default())
             .manage(Arc::new(ConnectorController::new()))
             .manage(Arc::new(McpController::new()))
             .manage(Arc::new(McpTunnelController::new()))
