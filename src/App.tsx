@@ -490,10 +490,17 @@ export default function App() {
 										}
 									}}
 								>
+									{/*
+									  `isolate` (stacking context) separates the rail from the PDF
+									  pane, but a whole-rail `transform-gpu` GPU layer goes
+									  unpainted in WKWebView after paper open / tab switch /
+									  import and only recovers on scroll. Rows use `top`, not
+									  `translateY`, so no compositing layer is needed here.
+									*/}
 									<aside
 										ref={sidebarAsideRef}
 										data-vault-sidebar
-										className="flex h-full min-h-0 flex-col overflow-hidden bg-sidebar isolate transform-gpu"
+										className="flex h-full min-h-0 flex-col overflow-hidden bg-sidebar isolate"
 									>
 										<VaultSidebar />
 									</aside>
