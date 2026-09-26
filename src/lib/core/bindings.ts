@@ -2712,6 +2712,10 @@ export type ImportLocalPdfArgs = {
 	entries?: LocalPdfImportEntry[],
 	/**  JobCenter job id (task id) for parse-phase `job:progress` events. */
 	taskId?: string | null,
+	/**  Whether to run metadata recognition synchronously before committing the paper. */
+	recognizeSync?: boolean,
+	/**  Optional Translator service URL used for identifier resolution. */
+	translatorBaseUrl?: string | null,
 };
 
 export type ImportLocalPdfResult = ImportLocalPdfResult_Serialize | ImportLocalPdfResult_Deserialize;

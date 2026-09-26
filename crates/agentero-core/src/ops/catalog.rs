@@ -255,11 +255,11 @@ pub fn build() -> Vec<OpSpec> {
             "import.pdf",
             Some("agentero import pdf"),
             None,
-            "Import local PDF file(s) into vault (copy + catalog + NOTES.md shell).",
+            "Import local PDF file(s) into vault (metadata recognition + copy + catalog + NOTES.md shell).",
             OpSideEffect::Write,
             cli,
             false,
-            json!({"files": ["path…"], "parent?": "vault-relative under papers/ (default papers)"}),
+            json!({"files": ["path…"], "parent?": "vault-relative under papers/ (default papers)", "no_recognize?": "bool"}),
             json!({
                 "papers": [{"path": "string", "id": "string", "title": "string", "pdf": "bool", "tex": "bool", "paperMd": "bool"}],
                 "errors": ["string"]
@@ -268,6 +268,7 @@ pub fn build() -> Vec<OpSpec> {
             &[
                 "agentero import pdf /path/to/paper.pdf --json",
                 "agentero import pdf paper1.pdf paper2.pdf --parent papers/nlp --json",
+                "agentero import pdf paper.pdf --no-recognize --json",
             ],
         ),
         op(

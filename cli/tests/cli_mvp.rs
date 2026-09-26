@@ -1845,7 +1845,7 @@ fn import_pdf_single_and_batch() {
         .is_file());
     assert!(vault.join("papers/attention-paper/NOTES.md").is_file());
 
-    // 2. Batch import to subfolder
+    // 2. Batch import to subfolder with --no-recognize
     let out = agentero()
         .args([
             "--vault",
@@ -1855,6 +1855,7 @@ fn import_pdf_single_and_batch() {
             pdf2_path.to_str().unwrap(),
             "--parent",
             "papers/nlp",
+            "--no-recognize",
             "--json",
         ])
         .assert()
@@ -1869,9 +1870,7 @@ fn import_pdf_single_and_batch() {
     let p2 = &papers[0];
     assert_eq!(p2["id"], "bert-paper");
     assert_eq!(p2["path"], "papers/nlp/bert-paper");
-    assert!(vault
-        .join("papers/nlp/bert-paper/bert-paper.pdf")
-        .is_file());
+    assert!(vault.join("papers/nlp/bert-paper/bert-paper.pdf").is_file());
     assert!(vault.join("papers/nlp/bert-paper/NOTES.md").is_file());
 
     // 3. Error case: file not found
@@ -1894,4 +1893,3 @@ fn import_pdf_single_and_batch() {
     assert_eq!(v["ok"], false);
     assert_eq!(v["error"]["code"], "import_failed");
 }
-

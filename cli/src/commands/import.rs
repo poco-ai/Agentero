@@ -32,7 +32,7 @@ pub enum ImportCmd {
         #[arg(long = "parent", default_value = "papers", value_hint = ValueHint::DirPath)]
         parent: String,
     },
-    /// Import local PDF file(s) into vault (copy + catalog + NOTES.md shell).
+    /// Import local PDF file(s) into vault (metadata recognition + copy + catalog + NOTES.md shell).
     Pdf {
         /// Local PDF file path(s).
         #[arg(required = true, num_args = 1.., value_hint = ValueHint::FilePath)]
@@ -40,6 +40,9 @@ pub enum ImportCmd {
         /// Vault-relative parent (default `papers`).
         #[arg(long = "parent", default_value = "papers", value_hint = ValueHint::DirPath)]
         parent: String,
+        /// Skip metadata recognition and import with filename-based metadata.
+        #[arg(long = "no-recognize")]
+        no_recognize: bool,
     },
 }
 
@@ -47,7 +50,11 @@ pub async fn run(cmd: ImportCmd, globals: &GlobalOpts) -> Result<Value, CliError
     match cmd {
         ImportCmd::Id { text, parent } => import_id(globals, &text, &parent).await,
         ImportCmd::Bib { file, parent } => import_bib(globals, &file, &parent).await,
-        ImportCmd::Pdf { files, parent } => import_pdf(globals, &files, &parent).await,
+        ImportCmd::Pdf {
+            files,
+            parent,
+            no_recognize,
+        } => import_pdf(globals, &files, &parent, no_recognize).await,
     }
 }
 
@@ -142,6 +149,7 @@ async fn import_pdf(
     globals: &GlobalOpts,
     files: &[PathBuf],
     parent: &str,
+    no_recognize: bool,
 ) -> Result<Value, CliError> {
     let vault = resolve_vault(globals)?;
     let mut file_paths = Vec::with_capacity(files.len());
@@ -162,6 +170,8 @@ async fn import_pdf(
             file_paths,
             entries: vec![],
             task_id: None,
+            recognize_sync: !no_recognize,
+            translator_base_url: globals.translator_base_url(),
         },
         None,
         None,
