@@ -130,6 +130,12 @@ export const commands = {
 	 */
 	jobReconcileVault: (args: JobReconcileVaultArgs) => typedError<ApiResult<number>, string>(__TAURI_INVOKE("job_reconcile_vault", { args })),
 	/**
+	 *  Startup reconcile: adopt bare `papers/` child folders (created while the
+	 *  app was closed) into the library. Fire-and-forget from the frontend's
+	 *  `vault:opened` handler; returns the adopted count.
+	 */
+	paperIngestReconcile: (args: PaperIngestReconcileArgs) => typedError<ApiResult<number>, string>(__TAURI_INVOKE("paper_ingest_reconcile", { args })),
+	/**
 	 *  Vault-relative paths of papers still missing local assets, per §8.4 CapsCache
 	 *  (replaces the frontend `collectPapersNeedingAssetDownload` tree walk). A
 	 *  paper needs a download when it has no PDF, or its body is unknown (no
@@ -1247,7 +1253,7 @@ export type AgentTemplate = "opencode" |
  */
 "hermes" | "claude-acp" | "codex-acp" | 
 /**  Google Antigravity's official ACP server (separate from the retired `agy-acp` adapter). */
-"antigravity-acp" |
+"antigravity-acp" | 
 /**
  *  Qoder CLI native ACP (`qodercli --acp`).
  *  Docs: https://docs.qoder.com/en/cli/acp
@@ -1426,6 +1432,12 @@ export type AppSettings_Deserialize = {
 	 */
 	autoOpenPaperNotes?: boolean,
 	/**
+	 *  Auto-ingest: adopt bare folders created under `papers/` that hold at
+	 *  least one settled PDF into the library in place (catalog row + NOTES
+	 *  shell + background metadata recognition). Default on.
+	 */
+	autoIngest?: boolean,
+	/**
 	 *  When opening a new paper, close the active tab instead of adding a new one.
 	 *  Default off; useful for users who prefer a single-paper-at-a-time workflow.
 	 */
@@ -1508,6 +1520,12 @@ export type AppSettings_Serialize = {
 	 *  Default on; off opens only the PDF/HTML body.
 	 */
 	autoOpenPaperNotes: boolean,
+	/**
+	 *  Auto-ingest: adopt bare folders created under `papers/` that hold at
+	 *  least one settled PDF into the library in place (catalog row + NOTES
+	 *  shell + background metadata recognition). Default on.
+	 */
+	autoIngest: boolean,
 	/**
 	 *  When opening a new paper, close the active tab instead of adding a new one.
 	 *  Default off; useful for users who prefer a single-paper-at-a-time workflow.
@@ -3521,6 +3539,10 @@ export type PaperImportResult = {
 
 export type PaperImportedEvent = PaperFactPayload;
 
+export type PaperIngestReconcileArgs = {
+	vaultPath: string,
+};
+
 /**
  *  What identifier the paper was resolved through. Serialized all-lowercase so
  *  the wire form matches the frontend's `PaperMetadata["type"]` union exactly.
@@ -5482,3 +5504,4 @@ function makeEvent<T>(name: string, serialize?: (payload: T) => unknown, deseria
 
     return Object.assign(fn, base);
 }
+

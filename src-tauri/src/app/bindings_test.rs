@@ -64,6 +64,7 @@ fn export_typescript_bindings() {
             crate::features::jobs::commands::job_paper_assets_status,
             crate::features::jobs::commands::job_reconcile_paper,
             crate::features::jobs::commands::job_reconcile_vault,
+            crate::features::paper::ingest::commands::paper_ingest_reconcile,
             crate::features::jobs::commands::job_papers_needing_assets,
             crate::features::jobs::commands::job_focus_paper,
             crate::features::jobs::commands::job_cancel,
