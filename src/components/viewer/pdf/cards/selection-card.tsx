@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { Dialog } from "radix-ui";
 import {
 	type ReactNode,
 	type PointerEvent as ReactPointerEvent,
@@ -203,6 +204,8 @@ type SelectionCardProps = {
 	ariaLabel?: string;
 	/** Announce body updates (e.g. streaming translation). */
 	ariaLive?: "polite" | "off";
+	/** Dismiss this card on Escape or pointer interaction outside it. */
+	onDismiss?: () => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
 	/** Optional footer strip (prompt input, save/cancel). */
@@ -234,6 +237,7 @@ export function SelectionCard({
 	actions,
 	ariaLabel,
 	ariaLive = "off",
+	onDismiss,
 	onPointerEnter,
 	onPointerLeave,
 	footer,
@@ -263,6 +267,11 @@ export function SelectionCard({
 	const transition = reduceMotion
 		? { duration: 0 }
 		: { type: "spring" as const, bounce: 0.15, duration: 0.35 };
+	const titleNode = (
+		<span className="min-w-0 flex-1 truncate font-medium text-foreground text-sm">
+			{title}
+		</span>
+	);
 
 	// If the card mounts / remounts under an existing pointer (mode switch,
 	// open under cursor), browsers do not re-fire pointerenter — re-arm the
@@ -280,7 +289,7 @@ export function SelectionCard({
 		onPointerLeave?.();
 	};
 
-	return (
+	const card = (
 		<motion.div
 			ref={rootRef}
 			className={cn(
@@ -322,9 +331,11 @@ export function SelectionCard({
 						aria-hidden
 					/>
 				) : null}
-				<span className="min-w-0 flex-1 truncate font-medium text-foreground text-sm">
-					{title}
-				</span>
+				{onDismiss ? (
+					<Dialog.Title asChild>{titleNode}</Dialog.Title>
+				) : (
+					titleNode
+				)}
 				{actions && actions.length > 0 ? (
 					// disableHoverableContent: tooltip is portaled outside the card;
 					// moving into it would fire pointerleave and start the hide timer.
@@ -385,4 +396,27 @@ export function SelectionCard({
 			) : null}
 		</motion.div>
 	);
+
+	if (onDismiss) {
+		return (
+			<Dialog.Root
+				open
+				modal={false}
+				onOpenChange={(open) => {
+					if (!open) onDismiss();
+				}}
+			>
+				<Dialog.Content
+					asChild
+					aria-describedby={undefined}
+					onOpenAutoFocus={(event) => event.preventDefault()}
+					onCloseAutoFocus={(event) => event.preventDefault()}
+				>
+					{card}
+				</Dialog.Content>
+			</Dialog.Root>
+		);
+	}
+
+	return card;
 }

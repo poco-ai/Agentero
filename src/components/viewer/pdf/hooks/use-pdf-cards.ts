@@ -109,8 +109,9 @@ export function usePdfCards({
 	 * Sticky hover contract for the open card: hide `CARD_HOVER_HIDE_MS` after
 	 * the pointer leaves every hover surface (pin / card / source fragment),
 	 * never while the floating dialog is hovered / focused, and never
-	 * auto-hide for translate — the user reads the translation, so only an
-	 * explicit hide/delete closes it. `hideActiveCard` needs the hook's
+	 * auto-hide for translate — the user reads the translation. A translate
+	 * card closes through its own dismiss action, Escape, outside interaction,
+	 * or deliberate page scrolling. `hideActiveCard` needs the hook's
 	 * surface ref, so the hook receives it through a ref assigned below —
 	 * both stay identity-stable (`onCardClose` already is).
 	 */

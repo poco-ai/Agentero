@@ -201,7 +201,7 @@
 		"editComment": "Edit note",
 		"translateTitle": "Translation",
 		"translating": "Translating…",
-		"translateHide": "Hide",
+		"translateHide": "Close card",
 		"translateDelete": "Delete",
 		"translatePinAria": "Open translation: {{preview}}",
 		"translateNoAgent": "No available Agent for translation. Configure one in Settings → Agent.",

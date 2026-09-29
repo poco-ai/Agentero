@@ -201,7 +201,7 @@
 		"editComment": "编辑批注",
 		"translateTitle": "翻译",
 		"translating": "翻译中…",
-		"translateHide": "收起",
+		"translateHide": "关闭卡片",
 		"translateDelete": "删除",
 		"translatePinAria": "打开翻译：{{preview}}",
 		"translateNoAgent": "没有可用的 Agent 进行翻译，请先在设置 → Agent 中配置。",
