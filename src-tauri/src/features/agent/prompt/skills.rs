@@ -42,6 +42,7 @@ pub fn skill_mention_style(template: &AgentTemplate) -> SkillMentionStyle {
         | AgentTemplate::KimiCode
         | AgentTemplate::Zcode
         | AgentTemplate::MinimaxCode
+        | AgentTemplate::MimoCode
         | AgentTemplate::Custom => SkillMentionStyle::Slash,
     }
 }

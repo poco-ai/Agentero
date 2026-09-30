@@ -1,6 +1,6 @@
 import { Terminal } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { SiClaude, SiDeepseek, SiHermes, SiOpencode } from "react-icons/si";
+import { SiClaude, SiDeepseek, SiHermes, SiOpencode, SiXiaomi } from "react-icons/si";
 import type { AgentTemplate } from "@/lib/agent";
 import { cn } from "@/lib/core/utils";
 
@@ -17,6 +17,7 @@ export type AgentLogoKey =
 	| "kimi-code"
 	| "zcode"
 	| "minimax-code"
+	| "mimo-code"
 	| "custom";
 
 export function agentLogoKeyForTemplate(
@@ -35,6 +36,7 @@ export function agentLogoKeyForTemplate(
 		case "kimi-code":
 		case "zcode":
 		case "minimax-code":
+		case "mimo-code":
 			return template;
 		default:
 			return "custom";
@@ -108,6 +110,9 @@ export function AgentLogo({
 			break;
 		case "minimax-code":
 			icon = <MiniMaxMark className={iconClass} />;
+			break;
+		case "mimo-code":
+			icon = <SiXiaomi className={cn(iconClass, "!text-[#FF6900]")} />;
 			break;
 		case "qodercli":
 			icon = <QoderMark className={neutralIconClass} />;

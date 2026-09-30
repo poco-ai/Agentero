@@ -115,6 +115,14 @@ pub const ZCODE_ACP_INSTALL_COMMAND: &str = if cfg!(windows) {
     "npm i -g zcode-acp-server@latest --prefix \"$HOME/.local\""
 };
 
+/// Xiaomi MiMo Code CLI (npm package `mimocode`, bin `mimo`) with native ACP.
+/// Same prefix reasoning as the ZCode adapter above.
+pub const MIMO_CODE_INSTALL_COMMAND: &str = if cfg!(windows) {
+    "npm i -g mimocode"
+} else {
+    "npm i -g mimocode --prefix \"$HOME/.local\""
+};
+
 /// Newest `zcode.cjs` under the given dir, deepest-glob `*/*/glm/*/[arch]`.
 /// Returns candidates newest-mtime first; the cjs is platform-agnostic JS.
 fn zcode_cached_cli_candidates(releases_root: std::path::PathBuf) -> Vec<std::path::PathBuf> {
@@ -482,6 +490,22 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             login_command: Some("mcode login".to_string()),
         },
         AgentTemplateInfo {
+            id: AgentTemplate::MimoCode.as_str().to_string(),
+            name: "MiMo Code".to_string(),
+            description:
+                "Xiaomi MiMo Code CLI (an OpenCode fork) with native ACP (`mimo acp`). \
+                 Log in once via `mimo providers` (opencode auth login flow)."
+                    .to_string(),
+            command: "mimo".to_string(),
+            args: vec!["acp".to_string()],
+            detect_command: Some("mimo".to_string()),
+            install_hint: format!(
+                "{MIMO_CODE_INSTALL_COMMAND}  (needs Node 22+)  ·  https://mimo.xiaomi.com"
+            ),
+            install_command: Some(MIMO_CODE_INSTALL_COMMAND.to_string()),
+            login_command: None,
+        },
+        AgentTemplateInfo {
             id: AgentTemplate::Custom.as_str().to_string(),
             name: "Custom".to_string(),
             description: "Any ACP-compatible command + args.".to_string(),
@@ -518,6 +542,7 @@ pub fn template_from_id(id: &str) -> AgentTemplate {
         "kimi-code" => AgentTemplate::KimiCode,
         "zcode" => AgentTemplate::Zcode,
         "minimax-code" => AgentTemplate::MinimaxCode,
+        "mimo-code" => AgentTemplate::MimoCode,
         _ => AgentTemplate::Custom,
     }
 }

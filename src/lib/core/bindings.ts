@@ -1290,7 +1290,12 @@ export type AgentTemplate = "opencode" |
  *  MiniMax Code CLI with native ACP (`mcode acp`).
  *  Docs: https://agent.minimax.io/docs/cli/quick-start
  */
-"minimax-code" | "custom";
+"minimax-code" |
+/**
+ *  Xiaomi MiMo Code CLI (an OpenCode fork) with native ACP (`mimo acp`).
+ *  Docs: https://mimo.xiaomi.com · npm package `mimocode`
+ */
+"mimo-code" | "custom";
 
 /**  ACP tool call create/update for UI (`Tool` element). */
 export type AgentToolEvent = AgentToolEvent_Serialize | AgentToolEvent_Deserialize;

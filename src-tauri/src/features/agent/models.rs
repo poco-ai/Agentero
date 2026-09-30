@@ -38,6 +38,9 @@ pub enum AgentTemplate {
     /// MiniMax Code CLI with native ACP (`mcode acp`).
     /// Docs: https://agent.minimax.io/docs/cli/quick-start
     MinimaxCode,
+    /// Xiaomi MiMo Code CLI (an OpenCode fork) with native ACP (`mimo acp`).
+    /// Docs: https://mimo.xiaomi.com · npm package `mimocode`
+    MimoCode,
     Custom,
 }
 
@@ -61,6 +64,7 @@ impl<'de> serde::Deserialize<'de> for AgentTemplate {
             "kimi-code" => Self::KimiCode,
             "zcode" => Self::Zcode,
             "minimax-code" => Self::MinimaxCode,
+            "mimo-code" => Self::MimoCode,
             "custom" => Self::Custom,
             other => {
                 return Err(serde::de::Error::custom(format!(
@@ -87,6 +91,7 @@ impl AgentTemplate {
             Self::KimiCode => "kimi-code",
             Self::Zcode => "zcode",
             Self::MinimaxCode => "minimax-code",
+            Self::MimoCode => "mimo-code",
             Self::Custom => "custom",
         }
     }
