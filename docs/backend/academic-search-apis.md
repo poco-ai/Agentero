@@ -179,6 +179,8 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 | 后台 PDF 识别（RecognizeMetadata job） | `job_runners.rs` 直接读设置 `translator_base_url` | 空则用 `DEFAULT_TRANSLATOR_BASE_URL` | **不**经 IPC 入参传入（`ImportLocalPdfArgs` 无此字段） |
 | `SEMANTIC_SCHOLAR_API_KEY` | 环境变量，`scholar_api/client.rs::auth_headers` 按请求读取 | 未设置 | 对 `api.semanticscholar.org` 的请求追加 `x-api-key` 头；免费 key 可将共享池限速提升至 1 req/s+ |
 | `NCBI_API_KEY` | 环境变量，`scholar_api/sources/pubmed.rs` 按请求读取 | 未设置 | esearch/efetch 追加 `api_key=` 参数；免费 key 将单 IP 限速从 3 提升到 10 req/s |
+| `institutionProxyPrefix` | 设置项（`settings.json`，camelCase） | 未设置 | EZProxy/WebVPN 前缀，如 `https://webvpn.zju.edu.cn/login?url=`（裸域名自动补 `/login?url=`）。配置后 PDF 下载链在 Unpaywall 未命中时经前缀重写请求，覆盖 #654 一类"浏览器能看、直连 403"的机构订阅场景 |
+| `institutionProxyCookie` | 设置项 | 空 | 随机构代理请求发送的会话 Cookie（从浏览器 DevTools 粘贴）；配套 `institution_proxy_probe` 命令可测试连通性（取 10.1038/nature12373 校验 `%PDF`） |
 | `OPENALEX_MAILTO` | 环境变量，`scholar_api/sources/openalex.rs` 按请求读取 | `agentero@users.noreply.github.com` | 覆盖 OpenAlex polite pool 联系邮箱；同时补齐 `doi:` 端点的 `mailto` 参数 |
 
 Translator Runtime 约定端点：

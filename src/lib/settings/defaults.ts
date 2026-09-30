@@ -62,6 +62,8 @@ export function clampEditorLineHeight(value: number): number {
 export const DEFAULT_SETTINGS: AppSettings = {
 	translatorBaseUrl: DEFAULT_TRANSLATOR_BASE_URL,
 	easyScholarKey: "",
+	institutionProxyPrefix: "",
+	institutionProxyCookie: "",
 	networkProxyEnabled: false,
 	networkProxyUrl: DEFAULT_NETWORK_PROXY_URL,
 	githubMirrorEnabled: false,

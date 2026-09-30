@@ -105,6 +105,26 @@ pub fn settings_set(
     }
 }
 
+/// Probe the configured institution proxy (EZProxy/WebVPN) by fetching a
+/// known paywalled DOI through the rewrite and checking the response is a
+/// PDF. Returns a short human-readable result for the settings UI.
+#[tauri::command]
+#[specta::specta]
+pub async fn institution_proxy_probe(app: AppHandle) -> ApiResult<String> {
+    let store = app.state::<AppSettingsStore>();
+    let Some((prefix, cookie)) = store.institution_proxy() else {
+        return ApiResult::ok("prefix not configured".into());
+    };
+    match agentero_core::features::paper::import::download::probe_institution_proxy(
+        &prefix, &cookie,
+    )
+    .await
+    {
+        Ok(n) => ApiResult::ok(format!("ok ({n} bytes)")),
+        Err(e) => ApiResult::ok(format!("failed: {e}")),
+    }
+}
+
 /// Probe the configured EasyScholar key by querying a stable journal.
 /// Returns false when no key is configured, the request fails, or the API
 /// rejects the key (non-200 / non-200 code).

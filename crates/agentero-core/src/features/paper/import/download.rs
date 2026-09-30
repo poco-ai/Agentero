@@ -23,6 +23,111 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tar::Archive;
 
+/// Institution proxy (EZProxy/WebVPN) credentials for paywalled PDF fallback.
+///
+/// Set by the host when settings load or change (`set_institution_proxy`);
+/// read per request by the download fallback chain. An empty prefix disables
+/// the layer — the unauthenticated behaviour stays the default.
+static INSTITUTION_PROXY: Mutex<Option<(String, String)>> = Mutex::new(None);
+
+/// Update the process-wide institution proxy (prefix + session cookie).
+/// An empty prefix disables the fallback layer. A bare origin (no query part)
+/// gets the EZProxy `/login?url=` convention appended.
+pub fn set_institution_proxy(prefix: &str, cookie: &str) {
+    let mut prefix = prefix.trim().trim_end_matches('/').to_string();
+    if !prefix.is_empty() && !prefix.contains('?') {
+        prefix.push_str("/login?url=");
+    }
+    let cookie = cookie.trim().to_string();
+    let value = if prefix.is_empty() {
+        None
+    } else {
+        Some((prefix, cookie))
+    };
+    if let Ok(mut guard) = INSTITUTION_PROXY.lock() {
+        *guard = value;
+    }
+}
+
+fn institution_proxy() -> Option<(String, String)> {
+    INSTITUTION_PROXY.lock().ok().and_then(|g| g.clone())
+}
+
+/// Rewrite `target` into an EZProxy-style prefixed URL
+/// (`{prefix}{percent-encoded target}`). The prefix is expected to already end
+/// with the query part, e.g. `https://webvpn.example.edu/login?url=`.
+fn ezproxy_rewrite(prefix: &str, target: &str) -> String {
+    format!("{prefix}{}", urlencoding::encode(target))
+}
+
+/// Extract candidate PDF links from a proxied landing page. Absolute links are
+/// returned as-is; publisher-relative paths are resolved against the proxy
+/// origin so the caller can rewrite them again.
+fn pdf_links_from_html(html: &str, proxy_origin: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for attr in ["href=\"", "src=\""] {
+        let mut rest = html;
+        while let Some(idx) = rest.find(attr) {
+            let after = &rest[idx + attr.len()..];
+            let Some(end) = after.find('"') else { break };
+            let link = &after[..end];
+            rest = &after[end..];
+            let lower = link.to_ascii_lowercase();
+            let looks_like_pdf = lower.ends_with(".pdf")
+                || lower.contains("pdfdirect")
+                || lower.contains("getfulltxt")
+                || lower.contains("/pdf/")
+                || lower.contains("articlepdf");
+            if !looks_like_pdf || link.is_empty() {
+                continue;
+            }
+            let resolved = if link.starts_with("http") {
+                link.to_string()
+            } else if link.starts_with('/') {
+                format!("{proxy_origin}{link}")
+            } else {
+                continue;
+            };
+            if !out.contains(&resolved) {
+                out.push(resolved);
+            }
+        }
+    }
+    out.truncate(5);
+    out
+}
+
+/// One-shot probe of an institution proxy configuration: fetch a known
+/// paywalled DOI through the rewrite and check the response is a PDF.
+/// Returns the byte count on success. Backs the settings "test connection".
+pub async fn probe_institution_proxy(prefix: &str, cookie: &str) -> Result<usize, String> {
+    const PROBE_DOI: &str = "10.1038/nature12373";
+    let prefix = prefix.trim().trim_end_matches('/');
+    if prefix.is_empty() {
+        return Err("proxy prefix is empty".into());
+    }
+    let rewritten = ezproxy_rewrite(prefix, &format!("https://doi.org/{PROBE_DOI}"));
+    let bytes = fetch_bytes_checked(&rewritten, cookie.trim()).await?;
+    if bytes.len() >= 4 && &bytes[..4] == b"%PDF" {
+        return Ok(bytes.len());
+    }
+    Err("response was HTML, not a PDF (cookie expired or institution not subscribed?)".into())
+}
+
+async fn fetch_bytes_checked(url: &str, cookie: &str) -> Result<Vec<u8>, String> {
+    let client = http::client_with(Duration::from_secs(60), 10, http::BROWSER_USER_AGENT)
+        .map_err(|e| e.to_string())?;
+    let mut req = client.get(url);
+    if !cookie.is_empty() {
+        req = req.header("Cookie", cookie);
+    }
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("HTTP {}", res.status()));
+    }
+    Ok(res.bytes().await.map_err(|e| e.to_string())?.to_vec())
+}
+
 /// Upper bound for the network asset phase of one paper import.
 ///
 /// Individual requests have shorter reqwest timeouts, but an import may try
@@ -534,11 +639,85 @@ async fn fetch_pdf_assets(
             }
         }
     }
+    // Institution proxy fallback (EZProxy/WebVPN): rewrite the DOI target
+    // through the user's proxy prefix + session cookie. Only active when the
+    // host configured one; uses the user's own institution subscription.
+    if !ok {
+        if let Err(e) = super::check_task_not_cancelled(progress.task_id()) {
+            out.messages.push(format!("pdf cancelled: {e}"));
+            return out;
+        }
+        if let (Some(doi), Some((prefix, cookie))) = (
+            doi.map(str::trim).filter(|s| !s.is_empty()),
+            institution_proxy(),
+        ) {
+            ok = try_institution_proxy_download(paper_dir, id, doi, &prefix, &cookie, &mut out)
+                .await;
+        }
+    }
     if !ok && candidates.is_empty() {
         out.messages.push("pdf: no url".into());
     }
     out.ok = ok;
     out
+}
+
+/// Try to fetch a paywalled PDF through the EZProxy rewrite. The first hop
+/// often lands on the proxied publisher page rather than the PDF itself, so
+/// an HTML response is mined for direct PDF links and retried (bounded).
+async fn try_institution_proxy_download(
+    paper_dir: &Path,
+    id: &str,
+    doi: &str,
+    prefix: &str,
+    cookie: &str,
+    out: &mut PdfAssetResult,
+) -> bool {
+    let proxy_origin = prefix
+        .split("/login?url=")
+        .next()
+        .unwrap_or(prefix)
+        .to_string();
+    let mut targets = vec![format!("https://doi.org/{doi}")];
+
+    for _hop in 0..2 {
+        let mut next_targets: Vec<String> = Vec::new();
+        for target in &targets {
+            let rewritten = ezproxy_rewrite(prefix, target);
+            match fetch_bytes_checked(&rewritten, cookie).await {
+                Ok(bytes) => {
+                    if bytes.len() >= 4 && &bytes[..4] == b"%PDF" {
+                        let name = safe_filename(id, "pdf");
+                        if let Err(e) = fs::write(paper_dir.join(name), &bytes) {
+                            out.messages
+                                .push(format!("institution proxy write failed: {e}"));
+                            return false;
+                        }
+                        out.messages
+                            .push(format!("pdf ok via institution proxy ({rewritten})"));
+                        return true;
+                    }
+                    if let Ok(html) = String::from_utf8(bytes) {
+                        for link in pdf_links_from_html(&html, &proxy_origin) {
+                            if !next_targets.contains(&link) {
+                                next_targets.push(link);
+                            }
+                        }
+                    }
+                }
+                Err(e) => out.messages.push(format!(
+                    "institution proxy candidate failed ({rewritten}): {e}"
+                )),
+            }
+        }
+        if next_targets.is_empty() {
+            break;
+        }
+        targets = next_targets;
+    }
+    out.messages
+        .push("institution proxy did not yield a PDF (cookie expired or not subscribed?)".into());
+    false
 }
 
 async fn fetch_tex_assets(
@@ -1088,6 +1267,46 @@ mod tests {
     use flate2::write::GzEncoder;
     use flate2::Compression;
     use std::io::Write;
+
+    #[test]
+    fn ezproxy_rewrite_percent_encodes_target() {
+        assert_eq!(
+            ezproxy_rewrite(
+                "https://webvpn.example.edu/login?url=",
+                "https://doi.org/10.1038/nature12373"
+            ),
+            "https://webvpn.example.edu/login?url=https%3A%2F%2Fdoi.org%2F10.1038%2Fnature12373"
+        );
+    }
+
+    #[test]
+    fn pdf_links_from_html_keeps_pdf_like_and_resolves_relative() {
+        let html = r#"<a href="https://pub.example.org/pdf/10.1/x.pdf">pdf</a>
+            <a href="/doi/pdf/10.1/x">alt</a>
+            <a href="https://pub.example.org/article">no</a>
+            <embed src="/delivery/getFullTxt.cpx">"#;
+        let links = pdf_links_from_html(html, "https://webvpn.example.edu");
+        assert!(links.contains(&"https://pub.example.org/pdf/10.1/x.pdf".to_string()));
+        assert!(links.contains(&"https://webvpn.example.edu/doi/pdf/10.1/x".to_string()));
+        assert!(links.contains(&"https://webvpn.example.edu/delivery/getFullTxt.cpx".to_string()));
+        assert!(!links.iter().any(|l| l.ends_with("/article")));
+    }
+
+    #[test]
+    fn set_institution_proxy_blank_prefix_disables() {
+        set_institution_proxy("  ", "cookie");
+        assert!(institution_proxy().is_none());
+        // Bare origin gets the EZProxy `/login?url=` convention appended.
+        set_institution_proxy("https://webvpn.example.edu/", " c ");
+        assert_eq!(
+            institution_proxy(),
+            Some((
+                "https://webvpn.example.edu/login?url=".to_string(),
+                "c".to_string()
+            ))
+        );
+        set_institution_proxy("", "");
+    }
 
     /// 2000 × 8KB chunks of a 16MB known-size download at the same instant
     /// (time gate never opens) must be capped by percent moves: ≤ ~100 emits

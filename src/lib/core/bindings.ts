@@ -34,6 +34,7 @@ export const commands = {
 	 *  rejects the key (non-200 / non-200 code).
 	 */
 	easyScholarProbe: () => __TAURI_INVOKE<ApiResult<boolean>>("easy_scholar_probe"),
+	institutionProxyProbe: () => __TAURI_INVOKE<ApiResult<string>>("institution_proxy_probe"),
 	/**
 	 *  Query EasyScholar for a publication's rank data.
 	 *  Returns the full API response so the WebView can extract `officialRank.all`
