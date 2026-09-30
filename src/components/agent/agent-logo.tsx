@@ -1,6 +1,12 @@
 import { Terminal } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { SiClaude, SiDeepseek, SiHermes, SiOpencode, SiXiaomi } from "react-icons/si";
+import {
+	SiClaude,
+	SiDeepseek,
+	SiHermes,
+	SiOpencode,
+	SiXiaomi,
+} from "react-icons/si";
 import type { AgentTemplate } from "@/lib/agent";
 import { cn } from "@/lib/core/utils";
 
