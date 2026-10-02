@@ -25,6 +25,7 @@ import {
 	PaperTreeRow,
 	PlazaRow,
 	PlazaSourceRow,
+	ZoteroCollectionReferenceRow,
 } from "./tree-rows";
 import type { FlatRow, TreeRenameDraft } from "./types";
 
@@ -126,6 +127,14 @@ function renderRow(row: FlatRow, props: TreeRowsViewportProps): ReactNode {
 	if (row.kind === "plaza")
 		return <PlazaRow expanded={props.expanded.has(PLAZA_VIRTUAL_PATH)} />;
 	if (row.kind === "plazaSource") return <PlazaSourceRow source={row.source} />;
+	if (row.kind === "zoteroCollectionReference") {
+		return (
+			<ZoteroCollectionReferenceRow
+				path={row.path}
+				label={row.paper.title || row.paper.id}
+			/>
+		);
+	}
 	if (row.kind === "create") return props.createRow;
 	if (props.renameDraft?.path === row.node.path) {
 		return <RenameRow node={row.node} ctx={props} isPaper={row.paperLeaf} />;

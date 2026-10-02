@@ -1,3 +1,4 @@
+import type { PaperLibraryRow } from "@/lib/paper";
 import type { PlazaSource } from "@/lib/plaza";
 import type { FileNode } from "@/lib/vault";
 
@@ -21,6 +22,13 @@ export type FlatRow =
 	| { key: string; kind: "trash" }
 	| { key: string; kind: "plaza" }
 	| { key: string; kind: "plazaSource"; source: PlazaSource }
+	| {
+			key: string;
+			kind: "zoteroCollectionReference";
+			depth: number;
+			paper: PaperLibraryRow;
+			path: string;
+	  }
 	| { key: string; kind: "create"; depth: number }
 	| {
 			key: string;

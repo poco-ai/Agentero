@@ -12,6 +12,10 @@ import {
 import type { FileNode } from "@/lib/vault";
 import { isVirtualTreePath, normalizeTreeSelection } from "../tree-helpers";
 import type { TreeCreateDraft, TreeRenameDraft } from "../types";
+import {
+	isZoteroCollectionReferencePath,
+	zoteroCollectionReferenceRelPath,
+} from "../zotero-collection-references";
 
 export type RowClickMods = { meta: boolean; ctrl: boolean; shift: boolean };
 
@@ -39,6 +43,7 @@ export function useTreeSelection({
 	onSelectLibrary,
 	onSelectTrash,
 	onSelectPlazaSource,
+	onOpenZoteroCollectionPaper,
 	onTogglePath,
 	onDeletePath,
 	onDeletePaths,
@@ -56,6 +61,8 @@ export function useTreeSelection({
 	onSelectLibrary?: () => void;
 	onSelectTrash?: () => void;
 	onSelectPlazaSource?: (source: PlazaSource) => void;
+	/** Open the real paper behind a read-only Zotero collection reference. */
+	onOpenZoteroCollectionPaper?: (relPath: string) => void;
 	onTogglePath?: (path: string) => void;
 	onDeletePath?: (path: string) => void | Promise<void>;
 	onDeletePaths?: (paths: string[]) => void | Promise<void>;
@@ -113,6 +120,11 @@ export function useTreeSelection({
 				else onTogglePath?.(path);
 				return;
 			}
+			if (isZoteroCollectionReferencePath(path)) {
+				const paperRel = zoteroCollectionReferenceRelPath(path);
+				if (paperRel) onOpenZoteroCollectionPaper?.(paperRel);
+				return;
+			}
 			const node = byPath.get(path);
 			if (!node) return;
 			// Files, paper folders, and org folders (e.g. papers/nlp/pretrain) —
@@ -125,6 +137,7 @@ export function useTreeSelection({
 			onSelectLibrary,
 			onSelectTrash,
 			onSelectPlazaSource,
+			onOpenZoteroCollectionPaper,
 			onTogglePath,
 		],
 	);

@@ -23,6 +23,7 @@ import {
 	visibleTreeChildren,
 } from "../tree-helpers";
 import type { FlatRow, TreeCreateDraft } from "../types";
+import type { ZoteroCollectionReference } from "../zotero-collection-references";
 
 export type TreeIndex = {
 	byPath: ReadonlyMap<string, FileNode>;
@@ -191,6 +192,7 @@ export function useTreeRows({
 	vaultPath,
 	plazaEnabled,
 	plazaHiddenSources,
+	zoteroCollectionReferences,
 }: {
 	displayNodes: FileNode[];
 	expanded: ReadonlySet<string>;
@@ -198,6 +200,7 @@ export function useTreeRows({
 	vaultPath: string | null;
 	plazaEnabled: boolean;
 	plazaHiddenSources: readonly string[];
+	zoteroCollectionReferences: ReadonlyMap<string, ZoteroCollectionReference[]>;
 }): TreeRows {
 	const selectableOrder = useMemo(() => {
 		const out: string[] = [];
@@ -207,12 +210,16 @@ export function useTreeRows({
 				if (n.kind === "directory" && expanded.has(n.path)) {
 					const kids = visibleTreeChildren(n);
 					if (kids.length) walk(kids);
+					for (const reference of zoteroCollectionReferences.get(n.path) ??
+						[]) {
+						out.push(reference.path);
+					}
 				}
 			}
 		};
 		walk(displayNodes);
 		return out;
-	}, [displayNodes, expanded]);
+	}, [displayNodes, expanded, zoteroCollectionReferences]);
 
 	const flatRows = useMemo<FlatRow[]>(() => {
 		// Virtual rows sit at the top: Recycle Bin, then 广场 + its sources.
@@ -263,6 +270,16 @@ export function useTreeRows({
 				if (n.kind === "directory" && expanded.has(n.path)) {
 					const kids = visibleTreeChildren(n);
 					if (kids.length) walk(kids, depth + 1);
+					for (const reference of zoteroCollectionReferences.get(n.path) ??
+						[]) {
+						out.push({
+							key: `zotero-reference-${reference.path}`,
+							kind: "zoteroCollectionReference",
+							depth: depth + 1,
+							path: reference.path,
+							paper: reference.paper,
+						});
+					}
 				}
 			}
 		};
@@ -275,6 +292,7 @@ export function useTreeRows({
 		vaultPath,
 		plazaEnabled,
 		plazaHiddenSources,
+		zoteroCollectionReferences,
 	]);
 
 	return { selectableOrder, flatRows };

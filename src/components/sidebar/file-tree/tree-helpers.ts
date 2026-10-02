@@ -9,6 +9,7 @@ import { LIBRARY_VIRTUAL_PATH, TRASH_VIRTUAL_PATH } from "@/lib/paper/api";
 import { isPlazaVirtualPath, PLAZA_VIRTUAL_PATH } from "@/lib/plaza";
 import type { FileNode } from "@/lib/vault";
 import { normalizePathKey } from "@/lib/vault/path";
+import { isZoteroCollectionReferencePath } from "./zotero-collection-references";
 
 /** Case-insensitive tree-path key (same normalization as vault path keys). */
 export const pathKey = normalizePathKey;
@@ -40,7 +41,8 @@ export function isVirtualTreePath(path: string): boolean {
 	return (
 		path === LIBRARY_VIRTUAL_PATH ||
 		path === TRASH_VIRTUAL_PATH ||
-		isPlazaVirtualPath(path)
+		isPlazaVirtualPath(path) ||
+		isZoteroCollectionReferencePath(path)
 	);
 }
 

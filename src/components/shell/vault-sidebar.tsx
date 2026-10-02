@@ -38,7 +38,7 @@ import {
 	readPaper,
 } from "@/lib/paper/library-actions";
 import { setZoteroOpen, setZoteroSyncOpen } from "@/lib/shell/ui-store";
-import { vaultDisplayName } from "@/lib/vault";
+import { joinVaultPath, vaultDisplayName } from "@/lib/vault";
 import {
 	cancelCreate,
 	cancelRenamePath,
@@ -61,6 +61,7 @@ import {
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 import { loadDirChildren } from "@/lib/vault/store";
 import {
+	openPaper,
 	openPaperNotes,
 	openPlazaSource,
 	selectFileNode,
@@ -115,6 +116,7 @@ export function VaultSidebar() {
 	const cutPaths = useVaultStore((s) => s.cutPaths);
 	const ioBusy = useLibraryStore((s) => s.ioBusy);
 	const paperMetaByRelPath = useLibraryStore((s) => s.paperMetaByRelPath);
+	const papers = useLibraryStore((s) => s.papers);
 	const lookupOpenSignal = useUiStore((s) => s.lookupOpenSignal);
 	const paperTreeLabelMode = useSettings((s) => s.paperTreeLabelMode);
 	const paperTreeSortMode = useSettings((s) => s.paperTreeSortMode);
@@ -145,6 +147,15 @@ export function VaultSidebar() {
 			if (updated) setLastPaper({ vaultPath, meta: updated });
 		},
 		[displayedPaperMeta, vaultPath],
+	);
+	const onOpenZoteroCollectionPaper = useCallback(
+		(relPath: string) => {
+			if (!vaultPath) return;
+			// Keep the user in the read-only Zotero hierarchy; the reference still
+			// opens its one real paper folder, without scrolling the physical tree.
+			openPaper(joinVaultPath(vaultPath, relPath), { revealTree: false });
+		},
+		[vaultPath],
 	);
 
 	const lookupParentDir = useMemo(
@@ -241,6 +252,8 @@ export function VaultSidebar() {
 					onSelectLibrary={selectLibrary}
 					onSelectTrash={selectTrash}
 					onSelectPlazaSource={openPlazaSource}
+					zoteroCollectionPapers={papers}
+					onOpenZoteroCollectionPaper={onOpenZoteroCollectionPaper}
 					onEmptyTrash={onEmptyTrash}
 					onExportLibrary={onExportLibrary}
 					libraryExportBusy={ioBusy === "export"}

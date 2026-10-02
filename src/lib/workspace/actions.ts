@@ -1015,10 +1015,13 @@ export function openPaperNotes(paperDir: string): void {
 }
 
 /** Open a paper folder in a tab: center PDF, right Notes (resolved on load).
- *  Also selects/reveals the paper in the left file tree. */
-export function openPaper(paperDir: string): void {
+ *  By default also selects/reveals the paper in the physical file tree. */
+export function openPaper(
+	paperDir: string,
+	options?: { revealTree?: boolean },
+): void {
 	const abs = paperDir.replace(/\\/g, "/").replace(/\/+$/, "");
-	setTreeSelectedPath(abs);
+	if (options?.revealTree !== false) setTreeSelectedPath(abs);
 	if (loadSettings().replaceCurrentTabOnOpenPaper) {
 		const activeId = getActiveTabId();
 		const activeTab = activeId

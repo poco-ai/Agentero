@@ -12,6 +12,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSettings } from "@/hooks/use-app-stores";
 import { cn } from "@/lib/core/utils";
 import type {
+	PaperLibraryRow,
 	PaperMetadata,
 	PaperTreeLabelMode,
 	PaperTreeSortMode,
@@ -38,6 +39,7 @@ import { TreeCreateInput } from "./tree-inputs";
 import { LoadingRows, PlazaRow, PlazaSourceRow, TrashRow } from "./tree-rows";
 import { TreeRowsViewport } from "./tree-rows-viewport";
 import type { TreeCreateDraft, TreeCreateKind, TreeRenameDraft } from "./types";
+import { buildZoteroCollectionReferences } from "./zotero-collection-references";
 
 type FileTreeProps = {
 	nodes: FileNode[];
@@ -65,6 +67,10 @@ type FileTreeProps = {
 	onSelectTrash?: () => void;
 	/** Virtual 广场 child node → that source's page in center pane. */
 	onSelectPlazaSource?: (source: PlazaSource) => void;
+	/** Catalog papers used to add Zotero multi-collection references in-place. */
+	zoteroCollectionPapers?: PaperLibraryRow[];
+	/** Open the real paper selected through that virtual collection view. */
+	onOpenZoteroCollectionPaper?: (relPath: string) => void;
 	/** Empty recycle bin (confirm + purge). From trash node context menu. */
 	onEmptyTrash?: () => void | Promise<void>;
 	/** Export library bibliography (Library node context menu). */
@@ -177,6 +183,8 @@ export const FileTree = memo(
 			onSelectLibrary,
 			onSelectTrash,
 			onSelectPlazaSource,
+			zoteroCollectionPapers = [],
+			onOpenZoteroCollectionPaper,
 			onEmptyTrash,
 			onExportLibrary,
 			libraryExportBusy = false,
@@ -209,7 +217,6 @@ export const FileTree = memo(
 		const plazaEnabled = useSettings((s) => s.plazaEnabled);
 		const plazaHiddenSources = useSettings((s) => s.plazaHiddenSources);
 		const containerRef = useRef<HTMLDivElement>(null);
-
 		const {
 			byPath,
 			byPathKey,
@@ -224,6 +231,15 @@ export const FileTree = memo(
 			paperTreeLabelMode,
 			paperTreeSortMode,
 		});
+		const zoteroCollectionReferences = useMemo(
+			() =>
+				buildZoteroCollectionReferences({
+					papers: zoteroCollectionPapers,
+					vaultPath,
+					byPathKey,
+				}),
+			[zoteroCollectionPapers, vaultPath, byPathKey],
+		);
 
 		const expansion = useTreeExpansion({
 			nodes,
@@ -240,6 +256,7 @@ export const FileTree = memo(
 			vaultPath,
 			plazaEnabled,
 			plazaHiddenSources,
+			zoteroCollectionReferences,
 		});
 
 		const selection = useTreeSelection({
@@ -253,6 +270,7 @@ export const FileTree = memo(
 			onSelectLibrary,
 			onSelectTrash,
 			onSelectPlazaSource,
+			onOpenZoteroCollectionPaper,
 			onTogglePath: expansion.togglePath,
 			onDeletePath,
 			onDeletePaths,

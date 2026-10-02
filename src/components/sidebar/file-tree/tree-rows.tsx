@@ -6,6 +6,7 @@ import {
 	Eraser,
 	Globe,
 	Library,
+	Link2,
 	Loader2,
 	NotebookPen,
 	ScrollText,
@@ -510,6 +511,26 @@ export function PlazaSourceRow({ source }: { source: PlazaSource }) {
 			</FileTreeIcon>
 			<FileTreeName className="min-w-0 flex-1 truncate" title={label}>
 				{label}
+			</FileTreeName>
+		</FileTreeFile>
+	);
+}
+
+/** A reference rendered in another Zotero collection, not a second paper. */
+export function ZoteroCollectionReferenceRow({
+	path,
+	label,
+}: {
+	path: string;
+	label: string;
+}) {
+	return (
+		<FileTreeFile path={path} name={label}>
+			<FileTreeIcon>
+				<Link2 className="size-4 text-muted-foreground" aria-hidden />
+			</FileTreeIcon>
+			<FileTreeName className="min-w-0 flex-1 truncate" title={label}>
+				<MathText text={label} />
 			</FileTreeName>
 		</FileTreeFile>
 	);
