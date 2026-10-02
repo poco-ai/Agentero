@@ -286,6 +286,7 @@
 		"summaryPdfs": "复制了 {{count}} 个 PDF",
 		"summaryPruned": "清理了 {{count}} 条失效记录",
 		"summarySkipped": "{{count}} 篇已在库中（跳过）",
+		"summaryIgnoredUnsupported": "已忽略 {{count}} 条不支持的 Zotero 条目",
 		"summaryDuplicates": "{{count}} 条重复 Zotero 条目已合并到已有论文（笔记已并入）",
 		"summaryErrors": "{{count}} 篇失败",
 		"done": "完成",

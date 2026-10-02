@@ -404,6 +404,13 @@ export function ZoteroMigrateDialog({
 										})}
 									</li>
 								) : null}
+								{result.ignoredUnsupported > 0 ? (
+									<li>
+										{t("sidebar:zoteroMigrate.summaryIgnoredUnsupported", {
+											count: result.ignoredUnsupported,
+										})}
+									</li>
+								) : null}
 								{result.mergedDuplicates > 0 ? (
 									<li>
 										{t("sidebar:zoteroMigrate.summaryDuplicates", {

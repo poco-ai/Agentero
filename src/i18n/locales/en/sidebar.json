@@ -286,6 +286,7 @@
 		"summaryPdfs": "{{count}} PDFs copied",
 		"summaryPruned": "{{count}} stale entries cleaned up",
 		"summarySkipped": "{{count}} already in your library",
+		"summaryIgnoredUnsupported": "{{count}} unsupported Zotero items ignored",
 		"summaryDuplicates": "{{count}} duplicate Zotero entries merged into existing papers (notes kept)",
 		"summaryErrors": "{{count}} failed",
 		"done": "Done",
