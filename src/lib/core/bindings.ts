@@ -5366,6 +5366,8 @@ export type ZoteroMigrateArgs = {
 export type ZoteroMigrateResult = {
 	imported: number,
 	skipped: number,
+	/**  Zotero item types deliberately excluded from migration (currently computerProgram). */
+	ignoredUnsupported: number,
 	copiedPdfs: number,
 	/**  Zotero notes backfilled into existing papers' NOTES.md (already-present papers). */
 	notesAdded: number,
@@ -5465,4 +5467,3 @@ function makeEvent<T>(name: string, serialize?: (payload: T) => unknown, deseria
 
     return Object.assign(fn, base);
 }
-

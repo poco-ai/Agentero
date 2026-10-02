@@ -116,6 +116,10 @@ pub struct ZoteroMigrateArgs {
 pub struct ZoteroMigrateResult {
     pub imported: usize,
     pub skipped: usize,
+    /// Zotero item types intentionally outside Agentero's paper model (currently
+    /// `computerProgram`). Kept separate from duplicate skips for an auditable
+    /// source-item total.
+    pub ignored_unsupported: usize,
     pub copied_pdfs: usize,
     /// Zotero notes backfilled into existing papers' NOTES.md (already-present papers).
     pub notes_added: usize,
@@ -224,6 +228,7 @@ pub async fn migrate_zotero(
 
     let mut out = ZoteroMigrateResult {
         pruned,
+        ignored_unsupported: count_ignored_unsupported_items(&zotero_dir).unwrap_or(0),
         ..Default::default()
     };
 
@@ -423,6 +428,21 @@ async fn migrate_one(
     } else {
         parent_rel.to_string()
     };
+    // Let the sidebar locate the physical collection tree even when the user
+    // chose a non-default parent directory. Combined with every full
+    // `@zotero:collection:` membership, this makes a virtual reference appear
+    // inside each *other* real collection folder without copying the paper.
+    if flags.preserve_collections && !item.collection_ids.is_empty() {
+        let root = parent_rel.trim_matches('/');
+        let tag = format!("@zotero:collection-root:{root}");
+        if !meta
+            .tags
+            .iter()
+            .any(|existing| existing.name.eq_ignore_ascii_case(&tag))
+        {
+            meta.tags.push(papers::PaperTag::new(tag));
+        }
+    }
 
     if dedup.contains(&meta) {
         // Paper already in the vault. When it sits outside its collection
@@ -458,13 +478,31 @@ async fn migrate_one(
         let mut duplicate = false;
         if let Some(p) = &path {
             if let Ok(Some(mut rec)) = papers::get_by_path(vault, p) {
+                let mut changed = false;
+                // Existing papers may have been imported before full Zotero
+                // collection metadata existed. Merge this item's tags instead
+                // of replacing user-created tags, so a re-migration rebuilds
+                // the in-place virtual collection references.
+                for tag in &meta.tags {
+                    if !rec
+                        .tags
+                        .iter()
+                        .any(|existing| existing.name.eq_ignore_ascii_case(&tag.name))
+                    {
+                        rec.tags.push(tag.clone());
+                        changed = true;
+                    }
+                }
                 match rec.zotero_item_id {
                     None => {
                         rec.zotero_item_id = Some(item.item_id);
-                        let _ = papers::upsert_paper(vault, &rec);
+                        changed = true;
                     }
                     Some(zid) if zid != item.item_id => duplicate = true,
                     _ => {}
+                }
+                if changed {
+                    let _ = papers::upsert_paper(vault, &rec);
                 }
             }
         }
@@ -739,6 +777,26 @@ fn read_all_items(
     result
 }
 
+/// Count Zotero item types that migration deliberately does not treat as
+/// papers. Do this separately from `read_items_conn`: those rows are excluded
+/// before mapping, but their count belongs in the migration audit trail.
+fn count_ignored_unsupported_items(zotero_dir: &Path) -> Result<usize, AppError> {
+    let (conn, tmp_dir) = copy_zotero_sqlite(zotero_dir)?;
+    let result = conn
+        .query_row(
+            "SELECT COUNT(*)
+             FROM items i
+             JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
+             WHERE it.typeName = 'computerProgram'
+               AND i.itemID NOT IN (SELECT itemID FROM deletedItems)",
+            [],
+            |row| row.get::<_, i64>(0).map(|count| count as usize),
+        )
+        .map_err(AppError::from);
+    let _ = fs::remove_dir_all(tmp_dir);
+    result
+}
+
 /// Copy `zotero.sqlite` (+WAL/SHM) into a private temp dir and open it, so
 /// reads never fight Zotero's own lock. Returns the connection and the temp
 /// dir; the caller must remove the dir when done.
@@ -896,7 +954,16 @@ fn read_items_conn(
             }
         }
         // Keep collection membership as tags (an item can live in several).
+        // Leaf names remain visible for tag filtering. Full paths are hidden
+        // provenance tags used for in-place virtual collection references,
+        // which restore multi-membership without duplicate folders.
         for name in collection_leaf_names(&collections, &coll_ids) {
+            if !tags.iter().any(|t| t.eq_ignore_ascii_case(&name)) {
+                tags.push(name);
+            }
+        }
+        for path in collection_full_paths(&collections, &coll_ids) {
+            let name = format!("@zotero:collection:{}", path.join("/"));
             if !tags.iter().any(|t| t.eq_ignore_ascii_case(&name)) {
                 tags.push(name);
             }
@@ -1115,6 +1182,18 @@ fn chosen_collection_path(collections: &HashMap<i64, Collection>, ids: &[i64]) -
                 .then_with(|| b.join("/").cmp(&a.join("/")))
         })
         .unwrap_or_default()
+}
+
+/// All collection paths an item belongs to, deduplicated in stable order.
+fn collection_full_paths(collections: &HashMap<i64, Collection>, ids: &[i64]) -> Vec<Vec<String>> {
+    let mut out = Vec::new();
+    for id in ids {
+        let path = collection_full_path(collections, *id);
+        if !path.is_empty() && !out.contains(&path) {
+            out.push(path);
+        }
+    }
+    out
 }
 
 /// Pick an item's placement path from precomputed collection paths. When
@@ -1444,6 +1523,9 @@ mod tests {
         let tags = it.json["tags"].as_array().unwrap();
         assert!(tags.iter().any(|t| t["tag"] == "Transformers"));
         assert!(tags.iter().any(|t| t["tag"] == "nlp"));
+        assert!(tags
+            .iter()
+            .any(|t| t["tag"] == "@zotero:collection:NLP/Transformers"));
         // Automatic Zotero tags (type != 0) are retained with the hidden prefix.
         assert!(tags.iter().any(|t| t["tag"] == "@zotero:_to_read"));
     }
@@ -1467,6 +1549,27 @@ mod tests {
         let tags = it.json["tags"].as_array().unwrap();
         assert!(tags.iter().any(|t| t["tag"] == "NLP"));
         assert!(tags.iter().any(|t| t["tag"] == "Transformers"));
+        assert!(tags.iter().any(|t| t["tag"] == "@zotero:collection:NLP"));
+        assert!(tags
+            .iter()
+            .any(|t| t["tag"] == "@zotero:collection:NLP/Transformers"));
+    }
+
+    #[test]
+    fn multi_collection_placement_is_stable_for_unrelated_branches() {
+        let conn = seed_db();
+        conn.execute_batch(
+            "INSERT INTO collections VALUES (3,'Review',NULL),(4,'Topic',NULL);
+             INSERT INTO items VALUES (51,1,'FFFF5555');
+             INSERT INTO itemDataValues VALUES (510,'Two Branches');
+             INSERT INTO itemData VALUES (51,1,510);
+             INSERT INTO collectionItems VALUES (3,51,0),(4,51,0);",
+        )
+        .unwrap();
+        let (items, _c) = read_items_conn(&conn, Path::new("/nonexistent-zotero")).unwrap();
+        let it = items.iter().find(|i| i.item_id == 51).unwrap();
+        // Both paths are equally deep, so their lexical order is the documented tie-breaker.
+        assert_eq!(it.collection_path, vec!["Review"]);
     }
 
     #[test]
@@ -1488,6 +1591,29 @@ mod tests {
             "computerProgram addon item must be excluded"
         );
         assert_eq!(items[0].item_id, 10);
+    }
+
+    #[test]
+    fn counts_unsupported_computer_program_items() {
+        let conn = seed_db();
+        conn.execute_batch(
+            "INSERT INTO itemTypes VALUES (9,'computerProgram');
+             INSERT INTO items VALUES (40,9,'FFFF6666');
+             INSERT INTO items VALUES (41,9,'GGGG7777');
+             INSERT INTO deletedItems VALUES (41);",
+        )
+        .unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM items i JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
+                 WHERE it.typeName = 'computerProgram'
+                   AND i.itemID NOT IN (SELECT itemID FROM deletedItems)",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
     }
 
     #[tokio::test]
@@ -1530,6 +1656,11 @@ mod tests {
         assert_eq!(out.paths[0], "papers/NLP/Transformers/10_5555_abc");
         // Empty collection still materializes so the tree matches Zotero.
         assert!(vault.join("papers/Empty Sibling").is_dir());
+        let record = papers::get_by_path(&vault, &out.paths[0]).unwrap().unwrap();
+        assert!(record
+            .tags
+            .iter()
+            .any(|tag| tag.name == "@zotero:collection-root:papers"));
 
         let _ = fs::remove_dir_all(&base);
     }

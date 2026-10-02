@@ -56,7 +56,17 @@ pub async fn zotero_migrate(
     let note_mode = crate::features::paper::import::note_mode_from_app(&app);
     op.finish_result_ok_extra(
         migrate_zotero(args, report, Some(&app), note_mode).await,
-        |r| format!("imported={} skipped={}", r.imported, r.skipped),
+        |r| {
+            format!(
+                "imported={} skipped={} ignored_unsupported={} merged_duplicates={} relocated={} notes_added={}",
+                r.imported,
+                r.skipped,
+                r.ignored_unsupported,
+                r.merged_duplicates,
+                r.relocated,
+                r.notes_added
+            )
+        },
     )
 }
 
