@@ -275,6 +275,7 @@
 		"migrateNotes": "迁移 Zotero 笔记",
 		"migrateAnnotations": "迁移 PDF 高亮批注",
 		"preserveCollections": "按 Zotero 分类建子文件夹",
+		"multiCollectionWarning": "{{count}} 篇论文属于多个 Zotero 分类。每篇只保留一个真实文件夹；其他分类中显示链接条目，点击会打开同一篇论文，不会复制文件。",
 		"targetFolder": "目标文件夹",
 		"migrate": "开始迁移",
 		"cancel": "取消",

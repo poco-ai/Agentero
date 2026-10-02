@@ -275,6 +275,7 @@
 		"migrateNotes": "Migrate Zotero notes",
 		"migrateAnnotations": "Migrate PDF annotations",
 		"preserveCollections": "Recreate Zotero collections as folders",
+		"multiCollectionWarning": "{{count}} papers belong to multiple Zotero collections. Each has one real folder; its other collections show linked entries that open the same paper without copying files.",
 		"targetFolder": "Target folder",
 		"migrate": "Migrate",
 		"cancel": "Cancel",

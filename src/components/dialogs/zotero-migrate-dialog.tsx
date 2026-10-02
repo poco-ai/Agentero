@@ -258,6 +258,13 @@ export function ZoteroMigrateDialog({
 			return it.collections.includes(collFilter);
 		});
 	}, [scan, query, collFilter, collectionInfo]);
+	// A paper unit has one physical folder. Count the entries that would be
+	// visible in more than one Zotero collection so the user can make an
+	// informed choice before recreating the collection tree as folders.
+	const multiCollectionCount = useMemo(
+		() => scan?.items.filter((item) => item.collections.length > 1).length ?? 0,
+		[scan],
+	);
 
 	const allFilteredSelected =
 		filtered.length > 0 && filtered.every((it) => selectedItems.has(it.id));
@@ -524,6 +531,14 @@ export function ZoteroMigrateDialog({
 											label={t("sidebar:zoteroMigrate.migrateAnnotations")}
 										/>
 									</div>
+
+									{preserveCollections && multiCollectionCount > 0 ? (
+										<div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-amber-950 text-xs dark:text-amber-200">
+											{t("sidebar:zoteroMigrate.multiCollectionWarning", {
+												count: multiCollectionCount,
+											})}
+										</div>
+									) : null}
 
 									<div className="space-y-1.5">
 										<div className="flex items-center justify-between">
