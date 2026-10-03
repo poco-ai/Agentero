@@ -112,6 +112,16 @@ struct LayoutGetArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
+struct PaperTextArgs {
+    r#ref: String,
+    /// 1-based page numbers; omit for all pages.
+    pages: Option<Vec<u32>>,
+    /// Per-page character budget (default 20000, capped at 50000).
+    max_chars: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 struct ImportIdArgs {
     /// arXiv id, DOI, or URL.
     text: String,
@@ -467,6 +477,40 @@ impl AgenteroMcp {
             Err(e) => return Err(tool_err(e)),
         };
         match layout::get(&vault, &args.r#ref, &args.id) {
+            Ok(out) => Ok(Json(out)),
+            Err(e) => Err(tool_err(e)),
+        }
+    }
+
+    /// Opt-in (#676): paper full text leaves the vault only when the user
+    /// enables `mcpExposePaperText`; otherwise this tool errors.
+    #[tool(
+        description = "Read page text of a paper's PDF (opt-in). Disabled unless the owner enables mcpExposePaperText in Settings. pages selects 1-based pages (omit for all); each page is truncated to maxChars (default 20000)."
+    )]
+    async fn paper_text_get(
+        &self,
+        Parameters(args): Parameters<PaperTextArgs>,
+    ) -> Result<Json<paper::PaperTextOut>, CallToolResult> {
+        let app = match self.ctrl.app_handle() {
+            Some(app) => app,
+            None => return Err(tool_err(AppError::message("app handle unavailable"))),
+        };
+        let expose = app
+            .state::<crate::features::system::settings::AppSettingsStore>()
+            .get()
+            .map(|result| result.settings.mcp_expose_paper_text)
+            .unwrap_or(false);
+        if !expose {
+            return Err(tool_err(AppError::message(
+                "paper_text_get is disabled: enable mcpExposePaperText in Settings                  (opt-in — paper full text would be sent to external clients)",
+            )));
+        }
+        let vault = match self.ctrl.local_vault() {
+            Ok(v) => v,
+            Err(e) => return Err(tool_err(e)),
+        };
+        let max_chars = args.max_chars.unwrap_or(20_000).clamp(1, 50_000);
+        match paper::text(&vault, &args.r#ref, args.pages, max_chars) {
             Ok(out) => Ok(Json(out)),
             Err(e) => Err(tool_err(e)),
         }

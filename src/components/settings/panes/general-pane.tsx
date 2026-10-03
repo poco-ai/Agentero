@@ -772,6 +772,20 @@ function McpSettingsBlock({
 				/>
 			</SettingsRow>
 			<SettingsRow
+				label={t("general.mcp.exposeText.label")}
+				description={t("general.mcp.exposeText.description")}
+				htmlFor="mcp-expose-paper-text"
+			>
+				<Switch
+					id="mcp-expose-paper-text"
+					checked={settings.mcpExposePaperText}
+					disabled={disabled}
+					onCheckedChange={(mcpExposePaperText) =>
+						patch({ mcpExposePaperText })
+					}
+				/>
+			</SettingsRow>
+			<SettingsRow
 				label={
 					<>
 						{t("general.mcp.portLabel")}

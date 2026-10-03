@@ -1463,6 +1463,11 @@ export type AppSettings_Deserialize = {
 	mcpEnabled?: boolean,
 	mcpPort?: number,
 	/**
+	 *  Opt-in: expose paper full text (`paper_text_get`) through the MCP
+	 *  server. Default off — external clients only see metadata and NOTES.
+	 */
+	mcpExposePaperText?: boolean,
+	/**
 	 *  OpenAI Secure MCP Tunnel id (`tunnel_` + 32 hex) for the built-in
 	 *  `tunnel-client` supervisor. Empty = never configured.
 	 */
@@ -1557,6 +1562,11 @@ export type AppSettings_Serialize = {
 	/**  Loopback Streamable HTTP MCP server. Default off. */
 	mcpEnabled: boolean,
 	mcpPort: number,
+	/**
+	 *  Opt-in: expose paper full text (`paper_text_get`) through the MCP
+	 *  server. Default off — external clients only see metadata and NOTES.
+	 */
+	mcpExposePaperText: boolean,
 	/**
 	 *  OpenAI Secure MCP Tunnel id (`tunnel_` + 32 hex) for the built-in
 	 *  `tunnel-client` supervisor. Empty = never configured.

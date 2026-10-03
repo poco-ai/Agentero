@@ -129,6 +129,10 @@
 			"invalidPort": "Port must be between 1 and 65535."
 		},
 		"mcp": {
+			"exposeText": {
+				"label": "Expose paper text (MCP)",
+				"description": "Opt-in for paper_text_get: external clients (e.g. ChatGPT) can read the PDF's page text. Off by default — full text then never leaves the vault."
+			},
 			"label": "MCP server",
 			"portLabel": "MCP port",
 			"invalidPort": "Port must be between 1 and 65535.",

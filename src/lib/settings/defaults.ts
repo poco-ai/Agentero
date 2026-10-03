@@ -91,6 +91,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	connectorPort: 23119,
 	mcpEnabled: false,
 	mcpPort: 8765,
+	mcpExposePaperText: false,
 	mcpTunnelId: "",
 	mcpTunnelApiKey: "",
 	zoteroSyncDir: "",

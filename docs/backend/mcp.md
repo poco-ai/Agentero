@@ -61,6 +61,7 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 | `paper_notes_write` | 写 `NOTES.md`。`mode`: `replace`（默认）或 `append` |
 | `paper_tag_add` | 加标签；可用 `topic:blue` 色后缀 |
 | `paper_tag_rm` | 删标签 |
+| `paper_text_get` | **opt-in**（#676，默认关闭）：读取论文 PDF 的分页文本。`ref` + `pages?`（1-based，缺省全篇）+ `max_chars?`（每页字符预算，默认 20000、上限 50000）。需在设置中开启 `mcpExposePaperText`，未开启时调用直接报错；开启即意味着正文文本将发送给隧道另一端的外部客户端 |
 | `layout_list` | 侧栏版面索引（需 `{paper}/source/layout-index.json`）。`kind[]?`、`minScore?` |
 | `layout_get` | 按 region id 取一条（如 `figure-3`） |
 | `file_list` | 列一层目录。`path?` 为 Vault 相对路径，空则根目录。跳过 `.agentero`、隐藏目录和 LaTeX 编译产物。`limit?` 默认 200，最多 500 |

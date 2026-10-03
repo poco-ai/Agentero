@@ -129,6 +129,10 @@
 			"invalidPort": "端口必须在 1 到 65535 之间。"
 		},
 		"mcp": {
+			"exposeText": {
+				"label": "对外暴露论文正文（MCP）",
+				"description": "开启后 paper_text_get 可用：外部客户端（如 ChatGPT）可读取 PDF 分页文本。默认关闭——正文不会离开本地库。"
+			},
 			"label": "MCP 服务器",
 			"portLabel": "MCP 端口",
 			"invalidPort": "端口必须在 1 到 65535 之间。",

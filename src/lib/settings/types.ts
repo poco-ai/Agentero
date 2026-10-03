@@ -180,6 +180,8 @@ export type AppSettings = {
 	 */
 	mcpEnabled: boolean;
 	mcpPort: number;
+	/** Opt-in: expose paper full text via MCP paper_text_get. */
+	mcpExposePaperText: boolean;
 	/**
 	 * OpenAI Secure MCP Tunnel id (`tunnel_` + 32 hex). Empty = not configured.
 	 */

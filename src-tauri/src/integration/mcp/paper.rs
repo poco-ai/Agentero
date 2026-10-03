@@ -252,3 +252,76 @@ pub fn set_read(vault: &Path, ref_: &str, is_read: bool) -> Result<PaperGetOut, 
     strip_internal_tags(&mut row);
     Ok(PaperGetOut::from_record(&row))
 }
+
+/// One page's text for `paper_text_get`.
+#[derive(Debug, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PaperTextPage {
+    /// 1-based page number.
+    pub page: u32,
+    /// PDFium char count before truncation.
+    pub char_count: usize,
+    /// Page text, truncated to the per-page budget.
+    pub text: String,
+}
+
+/// Full-text extraction result for `paper_text_get` (#676).
+#[derive(Debug, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PaperTextOut {
+    /// Vault-relative paper path (same resolution as other paper tools).
+    pub path: String,
+    /// Total page count of the PDF.
+    pub page_count: u32,
+    /// Per-page extracted text.
+    pub pages: Vec<PaperTextPage>,
+}
+
+/// Extract page text for a paper's main PDF. `pages` selects 1-based pages
+/// (None = all); each page is truncated to `max_chars` characters.
+pub fn text(
+    vault: &Path,
+    ref_: &str,
+    pages: Option<Vec<u32>>,
+    max_chars: usize,
+) -> Result<PaperTextOut, AppError> {
+    let record = resolve_paper(vault, ref_)?;
+    let folder_id = record
+        .path
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or_default()
+        .to_string();
+    let paper_dir = vault.join(&record.path);
+    // paper_commit convention: `{folder-id}.pdf` beside NOTES.md.
+    let mut pdf_path = paper_dir.join(format!("{folder_id}.pdf"));
+    if !pdf_path.is_file() {
+        // Fallback: first .pdf in the paper directory.
+        pdf_path = std::fs::read_dir(&paper_dir)
+            .map_err(|e| AppError::message(format!("read paper dir: {e}")))?
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.path())
+            .find(|p| {
+                p.extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"))
+                    && p.is_file()
+            })
+            .ok_or_else(|| AppError::message("no PDF in paper folder"))?;
+    }
+    let bytes =
+        std::fs::read(&pdf_path).map_err(|e| AppError::message(format!("read pdf: {e}")))?;
+    let out = crate::features::pdf::text::extract_text(&bytes, pages.as_deref(), max_chars)?;
+    Ok(PaperTextOut {
+        path: record.path,
+        page_count: out.page_count,
+        pages: out
+            .pages
+            .into_iter()
+            .map(|p| PaperTextPage {
+                page: p.page,
+                char_count: p.char_count,
+                text: p.text,
+            })
+            .collect(),
+    })
+}

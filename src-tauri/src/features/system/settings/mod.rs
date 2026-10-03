@@ -122,6 +122,10 @@ pub struct AppSettings {
     pub mcp_enabled: bool,
     #[serde(default = "default_mcp_port")]
     pub mcp_port: u16,
+    /// Opt-in: expose paper full text (`paper_text_get`) through the MCP
+    /// server. Default off — external clients only see metadata and NOTES.
+    #[serde(default)]
+    pub mcp_expose_paper_text: bool,
     /// OpenAI Secure MCP Tunnel id (`tunnel_` + 32 hex) for the built-in
     /// `tunnel-client` supervisor. Empty = never configured.
     #[serde(default)]
@@ -378,6 +382,7 @@ impl Default for AppSettings {
             connector_enabled: false,
             connector_port: default_connector_port(),
             mcp_enabled: false,
+            mcp_expose_paper_text: false,
             mcp_port: default_mcp_port(),
             mcp_tunnel_id: String::new(),
             mcp_tunnel_api_key: String::new(),
