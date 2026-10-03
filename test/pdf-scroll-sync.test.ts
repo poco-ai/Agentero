@@ -5,6 +5,7 @@ import {
 	getScrollSyncPeer,
 	getScrollSyncRole,
 	mapScrollByContent,
+	mergeSyncedScrollPosition,
 	registerScrollSyncElement,
 	registerScrollSyncPair,
 	registerScrollSyncPeer,
@@ -111,6 +112,28 @@ describe("mapScrollByContent", () => {
 				metrics({ scrollTop: 0, scrollHeight: 1000, clientHeight: 200 }),
 			),
 		).toBeNull();
+	});
+});
+
+describe("mergeSyncedScrollPosition", () => {
+	it("keeps horizontal position when only the other pane scrolls vertically", () => {
+		expect(
+			mergeSyncedScrollPosition(
+				{ x: 120, y: 480 },
+				{ x: 37, y: 300 },
+				{ x: false, y: true },
+			),
+		).toEqual({ x: 37, y: 480 });
+	});
+
+	it("keeps vertical position when only the other pane scrolls horizontally", () => {
+		expect(
+			mergeSyncedScrollPosition(
+				{ x: 120, y: 480 },
+				{ x: 37, y: 300 },
+				{ x: true, y: false },
+			),
+		).toEqual({ x: 120, y: 300 });
 	});
 });
 

@@ -9,6 +9,7 @@ import {
 	getScrollSyncPeer,
 	getScrollSyncRole,
 	mapScrollByContent,
+	mergeSyncedScrollPosition,
 	registerScrollSyncPair,
 	registerScrollSyncPeer,
 	type ScrollSyncPeer,
@@ -169,6 +170,7 @@ export function usePdfScrollSync(docId: string): void {
 			fromDocId: string;
 			to: ScrollSyncPeer;
 			targetDocId: string;
+			changed: { x: boolean; y: boolean };
 		} | null = null;
 		// Last position commanded onto each pane; matching scroll events are
 		// echoes of our own write rather than user input.
@@ -191,6 +193,14 @@ export function usePdfScrollSync(docId: string): void {
 			return { x: metrics.scrollLeft, y: metrics.scrollTop };
 		};
 
+		// Native DOM and plugin scroll notifications can both describe one
+		// gesture. Retain the last observed position per pane so we can mirror
+		// only the axis that genuinely moved.
+		const observedScroll = new Map<string, { x: number; y: number }>([
+			[docId, readPosition(docId, me)],
+			[partnerId, readPosition(partnerId, partner)],
+		]);
+
 		const isEchoScroll = (paneDocId: string, pane: ScrollSyncPeer) => {
 			const last = commandedScroll.get(paneDocId);
 			if (!last) return false;
@@ -206,6 +216,7 @@ export function usePdfScrollSync(docId: string): void {
 			fromDocId: string,
 			to: ScrollSyncPeer,
 			targetDocId: string,
+			changed: { x: boolean; y: boolean },
 		) => {
 			if (cancelled) return;
 			const fromMetrics = from.getMetrics();
@@ -221,17 +232,21 @@ export function usePdfScrollSync(docId: string): void {
 			);
 			if (!mapped) return;
 			const toElement = getScrollSyncElement(targetDocId);
-			const currentX = toElement ? toElement.scrollLeft : toMetrics.scrollLeft;
-			const currentY = toElement ? toElement.scrollTop : toMetrics.scrollTop;
+			const current = {
+				x: toElement ? toElement.scrollLeft : toMetrics.scrollLeft,
+				y: toElement ? toElement.scrollTop : toMetrics.scrollTop,
+			};
+			const next = mergeSyncedScrollPosition(mapped, current, changed);
 			// Skip sub-pixel no-ops so paired scroll events do not fight each other.
 			if (
-				Math.abs(currentX - mapped.x) < 0.5 &&
-				Math.abs(currentY - mapped.y) < 0.5
+				Math.abs(current.x - next.x) < 0.5 &&
+				Math.abs(current.y - next.y) < 0.5
 			) {
 				return;
 			}
-			commandedScroll.set(targetDocId, mapped);
-			to.scrollTo(mapped);
+			commandedScroll.set(targetDocId, next);
+			observedScroll.set(targetDocId, next);
+			to.scrollTo(next);
 		};
 
 		const scheduleScroll = (
@@ -239,15 +254,35 @@ export function usePdfScrollSync(docId: string): void {
 			fromDocId: string,
 			to: ScrollSyncPeer,
 			targetDocId: string,
+			changed: { x: boolean; y: boolean },
 		) => {
-			pendingScroll = { from, fromDocId, to, targetDocId };
+			if (pendingScroll) {
+				pendingScroll = {
+					from,
+					fromDocId,
+					to,
+					targetDocId,
+					changed: {
+						x: pendingScroll.changed.x || changed.x,
+						y: pendingScroll.changed.y || changed.y,
+					},
+				};
+			} else {
+				pendingScroll = { from, fromDocId, to, targetDocId, changed };
+			}
 			if (scrollFrame != null) return;
 			scrollFrame = requestAnimationFrame(() => {
 				scrollFrame = null;
 				const next = pendingScroll;
 				pendingScroll = null;
 				if (!next || cancelled) return;
-				applyScrollNow(next.from, next.fromDocId, next.to, next.targetDocId);
+				applyScrollNow(
+					next.from,
+					next.fromDocId,
+					next.to,
+					next.targetDocId,
+					next.changed,
+				);
 			});
 		};
 
@@ -298,7 +333,10 @@ export function usePdfScrollSync(docId: string): void {
 					frames >= MAX_ZOOM_SETTLE_FRAMES
 				) {
 					settlingDocs.delete(targetDocId);
-					applyScrollNow(from, fromDocId, to, targetDocId);
+					applyScrollNow(from, fromDocId, to, targetDocId, {
+						x: true,
+						y: true,
+					});
 					return;
 				}
 				requestAnimationFrame(step);
@@ -344,15 +382,23 @@ export function usePdfScrollSync(docId: string): void {
 			other: ScrollSyncPeer,
 			otherDocId: string,
 		) => {
+			const position = readPosition(paneDocId, pane);
+			const previous = observedScroll.get(paneDocId) ?? position;
+			observedScroll.set(paneDocId, position);
+			const changed = {
+				x: Math.abs(position.x - previous.x) >= 0.5,
+				y: Math.abs(position.y - previous.y) >= 0.5,
+			};
 			if (
 				cancelled ||
 				zoomGestureActive ||
 				settlingDocs.has(paneDocId) ||
-				isEchoScroll(paneDocId, pane)
+				isEchoScroll(paneDocId, pane) ||
+				(!changed.x && !changed.y)
 			) {
 				return;
 			}
-			scheduleScroll(pane, paneDocId, other, otherDocId);
+			scheduleScroll(pane, paneDocId, other, otherDocId, changed);
 		};
 
 		// Raw DOM scroll events are the primary signal: they fire for wheel,

@@ -178,3 +178,19 @@ export function mapScrollByContent(
 		y: Math.min(Math.max(fromCenterY - to.clientHeight / 2, 0), toMaxY),
 	};
 }
+
+/**
+ * Apply only the axes the user actually moved. In particular, a vertical
+ * wheel event in the translation pane must not recompute the source pane's
+ * horizontal offset just because the two panes have different widths.
+ */
+export function mergeSyncedScrollPosition(
+	mapped: { x: number; y: number },
+	current: { x: number; y: number },
+	changed: { x: boolean; y: boolean },
+): { x: number; y: number } {
+	return {
+		x: changed.x ? mapped.x : current.x,
+		y: changed.y ? mapped.y : current.y,
+	};
+}
