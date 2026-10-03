@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -113,6 +114,96 @@ export function GitHubMirrorRow({
 					disabled={!isTauri()}
 					onCheckedChange={(v) => onToggle(v)}
 				/>
+			</div>
+		</SettingsRow>
+	);
+}
+
+/** Institution proxy (EZProxy/WebVPN) prefix + session cookie for paywalled
+ * PDF fallback, with a connection test that fetches a known paywalled DOI. */
+export function InstitutionProxyRow({
+	htmlFor,
+	label,
+	description,
+	prefix,
+	cookie,
+	prefixPlaceholder,
+	cookiePlaceholder,
+	testLabel,
+	testingLabel,
+	onPrefixChange,
+	onCookieChange,
+	onCommit,
+	onTest,
+	testing,
+	result,
+}: {
+	htmlFor: string;
+	label: string;
+	description?: string;
+	prefix: string;
+	cookie: string;
+	prefixPlaceholder?: string;
+	cookiePlaceholder?: string;
+	testLabel: string;
+	testingLabel: string;
+	onPrefixChange: (v: string) => void;
+	onCookieChange: (v: string) => void;
+	onCommit: () => void;
+	onTest: () => void;
+	testing: boolean;
+	result?: string;
+}) {
+	return (
+		<SettingsRow label={label} description={description} htmlFor={htmlFor}>
+			<div className="flex items-center gap-2">
+				<Input
+					id={htmlFor}
+					value={prefix}
+					onChange={(e) => onPrefixChange(e.target.value)}
+					onBlur={() => onCommit()}
+					onKeyDown={(e) => {
+						if (e.key === "Enter") {
+							e.currentTarget.blur();
+						}
+					}}
+					placeholder={prefixPlaceholder}
+					spellCheck={false}
+					autoComplete="off"
+					disabled={!isTauri()}
+					className="h-8 w-56 text-xs"
+				/>
+				<Input
+					aria-label={`${label} cookie`}
+					value={cookie}
+					onChange={(e) => onCookieChange(e.target.value)}
+					onBlur={() => onCommit()}
+					onKeyDown={(e) => {
+						if (e.key === "Enter") {
+							e.currentTarget.blur();
+						}
+					}}
+					placeholder={cookiePlaceholder}
+					spellCheck={false}
+					autoComplete="off"
+					type="password"
+					disabled={!isTauri()}
+					className="h-8 w-32 text-xs"
+				/>
+				<Button
+					variant="outline"
+					size="sm"
+					className="h-8 text-xs"
+					disabled={!isTauri() || testing || !prefix.trim()}
+					onClick={onTest}
+				>
+					{testing ? testingLabel : testLabel}
+				</Button>
+				{result ? (
+					<span className="max-w-44 truncate text-xs text-muted-foreground">
+						{result}
+					</span>
+				) : null}
 			</div>
 		</SettingsRow>
 	);

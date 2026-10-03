@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	GitHubMirrorRow,
+	InstitutionProxyRow,
 	NetworkProxyRow,
 } from "@/components/settings/agent-common-rows";
 import {
@@ -98,6 +99,36 @@ export function GeneralPane({
 	// OS system proxy detected by the Host (Windows "Internet Settings"); used
 	// automatically while the app proxy is off — surface it for transparency.
 	const [systemProxy, setSystemProxy] = useState<string | null>(null);
+	const [institutionProxyPrefixDraft, setInstitutionProxyPrefixDraft] =
+		useState(settings.institutionProxyPrefix);
+	const [institutionProxyCookieDraft, setInstitutionProxyCookieDraft] =
+		useState(settings.institutionProxyCookie);
+	const [institutionProxyTesting, setInstitutionProxyTesting] = useState(false);
+	const [institutionProxyResult, setInstitutionProxyResult] = useState<
+		string | undefined
+	>(undefined);
+	const commitInstitutionProxy = useCallback(() => {
+		patch({
+			institutionProxyPrefix: institutionProxyPrefixDraft.trim(),
+			institutionProxyCookie: institutionProxyCookieDraft.trim(),
+		});
+	}, [institutionProxyPrefixDraft, institutionProxyCookieDraft, patch]);
+	const testInstitutionProxy = useCallback(async () => {
+		setInstitutionProxyTesting(true);
+		setInstitutionProxyResult(undefined);
+		try {
+			const result = await commands.institutionProxyProbe();
+			setInstitutionProxyResult(
+				result.ok ? (result.data ?? "") : (result.error?.message ?? "failed"),
+			);
+		} catch (error) {
+			setInstitutionProxyResult(
+				error instanceof Error ? error.message : "failed",
+			);
+		} finally {
+			setInstitutionProxyTesting(false);
+		}
+	}, []);
 	const [seedingTemplate, setSeedingTemplate] = useState(false);
 
 	// Custom note mode seeds `.agentero/templates/NOTES.md` in the active vault;
@@ -125,7 +156,13 @@ export function GeneralPane({
 
 	useEffect(() => {
 		setProxyUrlDraft(settings.networkProxyUrl);
-	}, [settings.networkProxyUrl]);
+		setInstitutionProxyPrefixDraft(settings.institutionProxyPrefix);
+		setInstitutionProxyCookieDraft(settings.institutionProxyCookie);
+	}, [
+		settings.networkProxyUrl,
+		settings.institutionProxyPrefix,
+		settings.institutionProxyCookie,
+	]);
 
 	useEffect(() => {
 		setEasyScholarKeyDraft(settings.easyScholarKey);
@@ -348,6 +385,23 @@ export function GeneralPane({
 						patch({ githubMirrorBaseUrl })
 					}
 					onToggle={(githubMirrorEnabled) => patch({ githubMirrorEnabled })}
+				/>
+				<InstitutionProxyRow
+					htmlFor="institution-proxy-prefix"
+					label={t("general.institutionProxy.label")}
+					description={t("general.institutionProxy.description")}
+					prefix={institutionProxyPrefixDraft}
+					cookie={institutionProxyCookieDraft}
+					prefixPlaceholder="https://webvpn.example.edu/login?url="
+					cookiePlaceholder={t("general.institutionProxy.cookiePlaceholder")}
+					testLabel={t("general.institutionProxy.test")}
+					testingLabel={t("general.institutionProxy.testing")}
+					onPrefixChange={setInstitutionProxyPrefixDraft}
+					onCookieChange={setInstitutionProxyCookieDraft}
+					onCommit={commitInstitutionProxy}
+					onTest={() => void testInstitutionProxy()}
+					testing={institutionProxyTesting}
+					result={institutionProxyResult}
 				/>
 			</SettingsGroup>
 			<EasyScholarSettingsBlock

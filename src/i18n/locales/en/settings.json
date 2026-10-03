@@ -109,6 +109,13 @@
 			"label": "GitHub mirror",
 			"description": "Choose a built-in public mirror for Skill import fallback when GitHub is unreachable."
 		},
+		"institutionProxy": {
+			"label": "Institution proxy",
+			"description": "EZProxy/WebVPN prefix + session cookie for paywalled PDF fallback. Uses your institution's own subscription; leave empty to disable.",
+			"cookiePlaceholder": "Cookie",
+			"test": "Test",
+			"testing": "Testing…"
+		},
 		"easyScholar": {
 			"section": "EasyScholar",
 			"keyLabel": "Key",

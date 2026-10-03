@@ -109,6 +109,13 @@
 			"label": "GitHub 镜像",
 			"description": "从内置公开镜像中选择一个，用于 Skill 导入时回退 GitHub 直连。"
 		},
+		"institutionProxy": {
+			"label": "机构代理",
+			"description": "EZProxy/WebVPN 前缀与会话 Cookie，用于付费文献 PDF 兜底下载。仅使用本校订阅权限，留空即停用。",
+			"cookiePlaceholder": "Cookie",
+			"test": "测试",
+			"testing": "测试中…"
+		},
 		"easyScholar": {
 			"section": "EasyScholar",
 			"keyLabel": "Key",

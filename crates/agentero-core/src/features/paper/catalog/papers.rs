@@ -2480,10 +2480,11 @@ mod tests {
             fresh.as_secs_f64() / cached.as_secs_f64().max(f64::EPSILON)
         );
         assert!(opens <= 1, "expected at most 1 physical open, got {opens}");
-        assert!(
-            cached < fresh,
-            "cached connection ({cached:?}) should beat per-call opens ({fresh:?})"
-        );
+        // Timing comparison intentionally not asserted: on loaded CI runners
+        // the cached loop can lose to per-call opens (OS page cache, WAL
+        // state), flipping this test without any regression — the physical
+        // open count above is the deterministic guard. Durations stay in the
+        // eprintln for manual inspection.
 
         let _ = fs::remove_dir_all(&dir);
     }

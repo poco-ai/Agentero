@@ -119,6 +119,10 @@ export type AppSettings = {
 	translatorBaseUrl: string;
 	/** EasyScholar key for journal ranking and impact-factor lookups. */
 	easyScholarKey: string;
+	/** EZProxy/WebVPN prefix for paywalled PDF fallback ("" disables). */
+	institutionProxyPrefix: string;
+	/** Session cookie for institution proxy requests. */
+	institutionProxyCookie: string;
 	/** Process-wide HTTP(S)/SOCKS proxy for Host requests and Agent traffic. */
 	networkProxyEnabled: boolean;
 	networkProxyUrl: string;
