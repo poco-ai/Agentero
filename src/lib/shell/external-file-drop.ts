@@ -1,7 +1,8 @@
 /**
- * OS file drops on the webview. `dragDropEnabled: false` so HTML5 DnD
- * stays available (Windows WebView2 otherwise swallows it). Path-less
- * File bytes are staged via Host `paper_stage_import_file` into
+ * OS file drops on the webview. Windows/macOS use `dragDropEnabled: false`
+ * so HTML5 DnD stays available (Windows WebView2 otherwise swallows it).
+ * Linux enables native GTK file paths. Path-less File bytes are staged via
+ * Host `paper_stage_import_file` into
  * `~/.agentero/import-tmp/`. Tauri `onDragDropEvent` supplies the native-path
  * fallback on platforms whose WebView does not forward Finder drops as DOM
  * `DataTransfer` events.

@@ -25,9 +25,10 @@ function nativeDropIsOverLibrary(position: { x: number; y: number }): boolean {
 /**
  * Block OS file drops from navigating the webview away from the SPA.
  *
- * Required while `dragDropEnabled` is false (HTML5 DnD for vault moves /
- * Library PDF / composer images). Without preventDefault, dropping a PDF
- * can navigate the webview to the system viewer and freeze.
+ * Windows/macOS use HTML5 DnD with `dragDropEnabled: false`; Linux also
+ * enables native GTK file-path events to cover empty WebKitGTK FileLists.
+ * Without preventDefault, dropping a PDF can navigate the webview to the
+ * system viewer and freeze.
  *
  * Non-PDF drops: no app reaction (only navigation cancelled). PDF drops that
  * are not claimed by a more specific target handler use the current Papers
