@@ -436,15 +436,27 @@ export function TranslatePane({
 						}
 					/>
 				</SettingsRow>
-				<SettingsRow
-					label={t("translate.displayMode.label")}
-					htmlFor="translate-dual-pane"
-				>
-					<Switch
-						id="translate-dual-pane"
-						checked={tr.dualPaneTranslate}
-						onCheckedChange={(v) => patchTranslate({ dualPaneTranslate: v })}
-					/>
+				<SettingsRow label={t("translate.displayMode.label")}>
+					<Select
+						value={tr.displayMode}
+						onValueChange={(v) =>
+							patchTranslate({
+								displayMode: v === "dualPane" ? "dualPane" : "overlay",
+							})
+						}
+					>
+						<SelectTrigger size="sm" className="min-w-[160px] max-w-[220px]">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="overlay">
+								{t("translate.displayMode.overlay")}
+							</SelectItem>
+							<SelectItem value="dualPane">
+								{t("translate.displayMode.dualPane")}
+							</SelectItem>
+						</SelectContent>
+					</Select>
 				</SettingsRow>
 			</SettingsGroup>
 
