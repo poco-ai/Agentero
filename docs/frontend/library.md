@@ -39,7 +39,7 @@
 - 配置 EasyScholar Key 后，Library 表头 Tags 列的筛选按钮左侧显示奖牌图标，点击后会为当前 Library 范围内的全部论文拉取期刊分区、影响因子、JCI 等数据并生成 `#easyscholar:` 命名空间标签；重复获取会替换该命名空间标签，不影响用户普通标签；保留当前论文中同名标签的已选颜色（含无色）。IF 数值或分区名称变化后视为新标签，使用默认颜色：IF / IF5 绿色，其余蓝色。
 - `@zotero:` 前缀标签属于 Connector 来源标记，只保留在 catalog 中，不参与展示、搜索和筛选；编辑普通标签时会保留这些内部标签。
 - arXiv 入库带来的学科分类（如 `Computer Science - Machine Learning`）以 `@arxiv:` 前缀保存为隐标签，同样不参与展示、搜索和筛选；已入库、尚未加前缀的同形标签也按隐标签处理。
-- Library 表头 Tags 列的过滤器左侧还有一个「解析 venue」按钮（`paper_refresh_venue_tags`）：依据 `publication` 元数据与 arXiv `source/` 的 LaTeX 模板（`\documentclass` / `\usepackage` / `.sty`/`.cls` 名）为范围内论文生成 `#venue:` / `#submitted:` 命名空间标签。arXiv 入库下载资源后会自动跑一次；已有 venue/submitted 标签的论文跳过，`publication` 命中时以 `#venue:` 覆盖模板推断的 `#submitted:`。
+- Library 表头 Tags 列的过滤器左侧还有一个「解析 venue」按钮（`paper_refresh_venue_tags`）：依据 `publication` 元数据与 arXiv `source/` 的 LaTeX 模板（`\documentclass` / `\usepackage` / `.sty`/`.cls` 名）为范围内论文生成 `#venue:` / `#submitted:` 命名空间标签。arXiv 入库下载资源后会自动跑一次；已有 venue/submitted 标签的论文跳过，真实 `publication` 命中时以 `#venue:` 覆盖模板推断的 `#submitted:`；arXiv 等仓库类 `publication` 不算 venue。chip 显示时去掉 `#venue:` / `#submitted:` 前缀（与 `#easyscholar:` 一致，原样保留在 tooltip）。
 - 标签类型与语义（normalize / coerce / 可见性）：`src/lib/paper/tags.ts`（类型在 `src/lib/paper/types.ts`）；色板映射：`src/lib/ui/tag-colors.ts`。
 - CLI 标签见 [../backend/catalog.md](../backend/catalog.md)。
 

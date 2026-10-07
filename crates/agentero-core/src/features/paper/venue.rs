@@ -267,6 +267,42 @@ fn tag_names_venue(name: &str, venue: &str) -> bool {
     normalized == venue || normalized.starts_with(&format!("{venue} "))
 }
 
+/// Repository / preprint-server names that must never be treated as a venue.
+/// Metadata APIs sometimes fill `publication` with these — e.g. Semantic
+/// Scholar reports `arXiv (Cornell University)` for preprints.
+fn is_repository_venue(name: &str) -> bool {
+    let name = name.trim().to_ascii_lowercase();
+    if name.is_empty() {
+        return true;
+    }
+    const MARKERS: &[&str] = &[
+        "arxiv",
+        "biorxiv",
+        "medrxiv",
+        "chemrxiv",
+        "techrxiv",
+        "ssrn",
+        "research square",
+        "researchesquare",
+        "preprints.org",
+        "osf preprint",
+        "zenodo",
+        "semantic scholar",
+        "researchgate",
+        "scienceopen",
+        "openreview",
+    ];
+    MARKERS.iter().any(|marker| name.contains(marker))
+}
+
+/// Whether a `#venue:` tag carries a repository name.
+fn tag_is_repository_venue(name: &str) -> bool {
+    let lower = name.trim().to_ascii_lowercase();
+    lower
+        .strip_prefix(VENUE_TAG_PREFIX)
+        .is_some_and(is_repository_venue)
+}
+
 /// Pure decision over the current tags + metadata + detection result.
 #[derive(Debug, PartialEq, Eq)]
 pub enum VenueTagUpdate {
@@ -282,8 +318,14 @@ pub fn plan_venue_tags(
     publication: Option<&str>,
     detected: Option<&DetectedVenue>,
 ) -> VenueTagUpdate {
+    // Repository / preprint-server names are not real venues: treat them as "no
+    // published venue" so the template path below can run.
+    let published = publication
+        .map(str::trim)
+        .filter(|s| !s.is_empty() && !is_repository_venue(s));
+
     // Authoritative published venue wins and replaces any submission guess.
-    if let Some(publication) = publication.map(str::trim).filter(|s| !s.is_empty()) {
+    if let Some(publication) = published {
         let target = PaperTag::new(format!("{VENUE_TAG_PREFIX}{publication}"));
         let has_submitted = existing.iter().any(|t| is_submitted_tag_name(&t.name));
         let venue_tags: Vec<&PaperTag> = existing
@@ -308,23 +350,40 @@ pub fn plan_venue_tags(
         return VenueTagUpdate::Set(next);
     }
 
-    // Template path: once any venue/submitted tag exists, leave it alone.
-    if existing
+    // Template path. First drop stale repository-derived `#venue:` tags (e.g.
+    // `#venue:arXiv (Cornell University)`) so an earlier run can self-heal.
+    let cleaned: Vec<PaperTag> = existing
+        .iter()
+        .filter(|t| !(is_venue_tag_name(&t.name) && tag_is_repository_venue(&t.name)))
+        .cloned()
+        .collect();
+    let removed = cleaned.len() != existing.len();
+
+    // Once a real venue/submitted tag exists, leave it alone (but still persist
+    // any repository-tag cleanup).
+    let unchanged = |removed: bool, cleaned: Vec<PaperTag>| {
+        if removed {
+            VenueTagUpdate::Set(cleaned)
+        } else {
+            VenueTagUpdate::None
+        }
+    };
+    if cleaned
         .iter()
         .any(|t| is_venue_tag_name(&t.name) || is_submitted_tag_name(&t.name))
     {
-        return VenueTagUpdate::None;
+        return unchanged(removed, cleaned);
     }
     let Some(detected) = detected else {
-        return VenueTagUpdate::None;
+        return unchanged(removed, cleaned);
     };
-    if existing
+    if cleaned
         .iter()
         .any(|t| tag_names_venue(&t.name, detected.venue))
     {
-        return VenueTagUpdate::None;
+        return unchanged(removed, cleaned);
     }
-    let mut next = existing.to_vec();
+    let mut next = cleaned;
     next.push(PaperTag::new(detected.submitted_tag_name()));
     VenueTagUpdate::Set(next)
 }
@@ -497,6 +556,39 @@ mod tests {
         assert_eq!(
             plan_venue_tags(&existing, Some("ICLR"), None),
             VenueTagUpdate::None
+        );
+    }
+
+    #[test]
+    fn repository_publication_is_not_a_venue() {
+        let detected = DetectedVenue {
+            venue: "ICLR",
+            year: Some(2027),
+            evidence: "iclr2027".into(),
+        };
+        // Repository `publication` → template path, not `#venue:`.
+        assert_eq!(
+            plan_venue_tags(&[], Some("arXiv (Cornell University)"), Some(&detected)),
+            VenueTagUpdate::Set(vec![tag("#submitted:ICLR 2027")])
+        );
+        // A stale repository `#venue:` tag is dropped and replaced by the guess.
+        assert_eq!(
+            plan_venue_tags(
+                &[tag("#venue:arXiv (Cornell University)")],
+                Some("arXiv (Cornell University)"),
+                Some(&detected),
+            ),
+            VenueTagUpdate::Set(vec![tag("#submitted:ICLR 2027")])
+        );
+        // Repository publication with no source self-heals to no tag.
+        assert_eq!(
+            plan_venue_tags(&[tag("#venue:bioRxiv")], Some("bioRxiv"), None),
+            VenueTagUpdate::Set(vec![])
+        );
+        // A real published venue still wins.
+        assert_eq!(
+            plan_venue_tags(&[], Some("NeurIPS"), None),
+            VenueTagUpdate::Set(vec![tag("#venue:NeurIPS")])
         );
     }
 }

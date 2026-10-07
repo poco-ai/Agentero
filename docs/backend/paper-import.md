@@ -51,7 +51,7 @@ Skill 不写入 catalog、不创建 `papers/` 条目、不执行 `scripts/`。�
 - 设置：`translatorBaseUrl`。
 - arXiv 的 `abs` / `pdf` / `html` / `src` / `e-print` URL 与裸 ID 都会先提取 ID；不会将 PDF 二进制 URL 交给 Translator 的网页解析器。
 - Translator 带回的 arXiv 学科分类（`Computer Science - Machine Learning` 这类 `"Archive - Sub-Field"` 标签）写入 catalog 时加 `@arxiv:` 前缀，作为隐标签保留来源、不出现在 Library / Paper Info / 标签筛选。用户自己加的普通标签不受影响。
-- venue 标签：arXiv e-print 解包到 `source/` 后扫描 LaTeX 模板（`\documentclass` / `\usepackage` / `.sty`/`.cls` 名），命中已知会议/期刊时写可见的 `#submitted:<会议> <年份>` 标签（如 `#submitted:AAAI 2027`）。若 catalog `publication` 已有出版 venue，则写 `#venue:<出版名>` 并覆盖 `#submitted:`。已有任意 venue/submitted 标签、或用户标签已含该会议名的论文会跳过。见 [catalog.md](catalog.md)。
+- venue 标签：arXiv e-print 解包到 `source/` 后扫描 LaTeX 模板（`\documentclass` / `\usepackage` / `.sty`/`.cls` 名），命中已知会议/期刊时写可见的 `#submitted:<会议> <年份>` 标签（如 `#submitted:AAAI 2027`）。若 catalog `publication` 已是**真实出版 venue**，则写 `#venue:<出版名>` 并覆盖 `#submitted:`。preprint / 仓库类 `publication`（arXiv、bioRxiv、medRxiv、SSRN、Research Square、Zenodo、OpenReview 等）不算 venue，会走模板路径；历史误写的 `#venue:arXiv (...)` 之类的标签会自动清理。已有任意 venue/submitted 标签、或用户标签已含该会议名的论文会跳过。见 [catalog.md](catalog.md)。
 - 补资源：`paper_download_assets`（单篇 / Library 批量）。
 - 失败回滚：文件夹创建后，若 PDF 复制 / NOTES 壳 / catalog 写入任一失败，删除刚建的论文文件夹，避免出现树里有、catalog 无的"半篇论文"；资源下载阶段的错误不回滚（壳与 catalog 已落地）。
 - 孤儿文件夹自愈：`paper_download_assets` 发现盘上论文文件夹缺 catalog 行（历史失败导入的残留）时，按 `metadata.json` sidecar 重建 catalog 行（无 sidecar 退化为文件夹名最小记录）并发 `paper:imported`，Library / 树随之刷新。
