@@ -135,6 +135,10 @@
 			"typeWengine": "WebVPN（wengine 路径式）",
 			"test": "测试",
 			"testing": "测试中…",
+			"probeIdle": "尚未检测",
+			"probeOk": "可用",
+			"probeFail": "不可用",
+			"probeProbing": "检测中…",
 			"presetsLabel": "常见院校",
 			"presets": {
 				"zju": "浙江大学",

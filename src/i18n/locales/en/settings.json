@@ -135,6 +135,10 @@
 			"typeWengine": "WebVPN (wengine)",
 			"test": "Test",
 			"testing": "Testing…",
+			"probeIdle": "Not tested",
+			"probeOk": "Available",
+			"probeFail": "Unavailable",
+			"probeProbing": "Testing…",
 			"presetsLabel": "Common institutions",
 			"presets": {
 				"zju": "Zhejiang University",

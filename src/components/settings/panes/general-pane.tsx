@@ -87,6 +87,7 @@ import {
 	DEFAULT_NETWORK_PROXY_URL,
 	INSTITUTION_PROXY_PRESETS,
 } from "@/lib/settings/defaults";
+import type { ProbeStatus } from "@/lib/ui/probe-status";
 import { notesTemplateSeed } from "@/lib/vault/note-template";
 
 export function GeneralPane({
@@ -114,7 +115,7 @@ export function GeneralPane({
 		useState(settings.institutionProxyCookie);
 	const [institutionProxyTesting, setInstitutionProxyTesting] = useState(false);
 	const [institutionProxyResult, setInstitutionProxyResult] = useState<
-		string | undefined
+		{ status: "ok" | "fail"; message: string } | undefined
 	>(undefined);
 	const commitInstitutionProxy = useCallback(() => {
 		patch({
@@ -128,12 +129,15 @@ export function GeneralPane({
 		try {
 			const result = await commands.institutionProxyProbe();
 			setInstitutionProxyResult(
-				result.ok ? (result.data ?? "") : (result.error?.message ?? "failed"),
+				result.ok
+					? { status: "ok", message: result.data ?? "" }
+					: { status: "fail", message: result.error?.message ?? "failed" },
 			);
 		} catch (error) {
-			setInstitutionProxyResult(
-				error instanceof Error ? error.message : "failed",
-			);
+			setInstitutionProxyResult({
+				status: "fail",
+				message: error instanceof Error ? error.message : "failed",
+			});
 		} finally {
 			setInstitutionProxyTesting(false);
 		}
@@ -155,6 +159,18 @@ export function GeneralPane({
 			});
 		},
 		[patch],
+	);
+	const institutionProxyProbeStatus: ProbeStatus = institutionProxyTesting
+		? "probing"
+		: (institutionProxyResult?.status ?? "idle");
+	const institutionProxyProbeLabel = t(
+		institutionProxyProbeStatus === "probing"
+			? "general.institutionProxy.probeProbing"
+			: institutionProxyProbeStatus === "ok"
+				? "general.institutionProxy.probeOk"
+				: institutionProxyProbeStatus === "fail"
+					? "general.institutionProxy.probeFail"
+					: "general.institutionProxy.probeIdle",
 	);
 	const [seedingTemplate, setSeedingTemplate] = useState(false);
 
@@ -521,7 +537,9 @@ export function GeneralPane({
 					onCommit={commitInstitutionProxy}
 					onTest={() => void testInstitutionProxy()}
 					testing={institutionProxyTesting}
-					result={institutionProxyResult}
+					probeStatus={institutionProxyProbeStatus}
+					probeLabel={institutionProxyProbeLabel}
+					probeDetail={institutionProxyResult?.message}
 				/>
 			</SettingsGroup>
 			<EasyScholarSettingsBlock

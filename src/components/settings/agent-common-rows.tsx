@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ProbeDot } from "@/components/settings/provider-card";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -23,6 +24,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { isTauri } from "@/lib/core/tauri";
 import type {
 	AgentPermissionMode,
@@ -30,6 +36,7 @@ import type {
 	AppSettings,
 } from "@/lib/settings";
 import { GITHUB_MIRROR_PRESETS } from "@/lib/settings/defaults";
+import type { ProbeStatus } from "@/lib/ui/probe-status";
 import { SettingsRow } from "./settings-layout";
 
 type Patch = (p: Partial<AppSettings>) => void;
@@ -163,7 +170,9 @@ export function InstitutionProxyRow({
 	onCommit,
 	onTest,
 	testing,
-	result,
+	probeStatus,
+	probeLabel,
+	probeDetail,
 }: {
 	htmlFor: string;
 	label: string;
@@ -183,11 +192,29 @@ export function InstitutionProxyRow({
 	onCommit: () => void;
 	onTest: () => void;
 	testing: boolean;
-	result?: string;
+	probeStatus: ProbeStatus;
+	probeLabel: string;
+	probeDetail?: string;
 }) {
 	return (
 		<>
-			<SettingsRow label={label} description={description} htmlFor={htmlFor}>
+			<SettingsRow
+				label={
+					<span className="inline-flex items-center gap-1.5">
+						{label}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<ProbeDot status={probeStatus} configured label={probeLabel} />
+							</TooltipTrigger>
+							<TooltipContent>
+								{probeDetail ? `${probeLabel} · ${probeDetail}` : probeLabel}
+							</TooltipContent>
+						</Tooltip>
+					</span>
+				}
+				description={description}
+				htmlFor={htmlFor}
+			>
 				<div className="flex items-center gap-2">
 					<InputGroup className="h-8 w-64 max-w-[18rem]">
 						<InputGroupInput
@@ -271,11 +298,6 @@ export function InstitutionProxyRow({
 						disabled={!isTauri()}
 						className="h-8 w-64 max-w-[18rem] font-mono text-xs"
 					/>
-					{result ? (
-						<span className="max-w-40 truncate text-xs text-muted-foreground">
-							{result}
-						</span>
-					) : null}
 				</div>
 			</SettingsRow>
 		</>
