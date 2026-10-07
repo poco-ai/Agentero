@@ -142,6 +142,7 @@
 			"section": "EasyScholar",
 			"keyLabel": "Key",
 			"placeholder": "Enter EasyScholar key",
+			"openKeyPage": "Get an EasyScholar key",
 			"confirm": "Confirm",
 			"probeIdle": "Not configured",
 			"probeOk": "Available",

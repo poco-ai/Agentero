@@ -636,6 +636,26 @@ function EasyScholarSettingsBlock({
 						>
 							{t("general.easyScholar.confirm")}
 						</Button>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									aria-label={t("general.easyScholar.openKeyPage")}
+									onClick={() =>
+										void openExternalUrl(
+											"https://www.easyscholar.cc/console/user/open",
+										)
+									}
+								>
+									<ExternalLink className="size-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>
+								{t("general.easyScholar.openKeyPage")}
+							</TooltipContent>
+						</Tooltip>
 					</div>
 				</SettingsRow>
 			</SettingsGroup>

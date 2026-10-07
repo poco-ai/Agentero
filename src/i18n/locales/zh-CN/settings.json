@@ -142,6 +142,7 @@
 			"section": "EasyScholar",
 			"keyLabel": "Key",
 			"placeholder": "填写 EasyScholar Key",
+			"openKeyPage": "获取 EasyScholar 密钥",
 			"confirm": "确定",
 			"probeIdle": "未配置",
 			"probeOk": "可用",
