@@ -1,4 +1,4 @@
-import { ChevronDown, School } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +9,12 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+	InputGroup,
+	InputGroupAddon,
+	InputGroupButton,
+	InputGroupInput,
+} from "@/components/ui/input-group";
 import {
 	Select,
 	SelectContent,
@@ -183,57 +189,58 @@ export function InstitutionProxyRow({
 		<>
 			<SettingsRow label={label} description={description} htmlFor={htmlFor}>
 				<div className="flex items-center gap-2">
-					<Input
-						id={htmlFor}
-						value={prefix}
-						onChange={(e) => onPrefixChange(e.target.value)}
-						onBlur={() => onCommit()}
-						onKeyDown={(e) => {
-							if (e.key === "Enter") {
-								e.currentTarget.blur();
-							}
-						}}
-						placeholder={prefixPlaceholder}
-						spellCheck={false}
-						autoComplete="off"
-						disabled={!isTauri()}
-						className="h-8 w-64 max-w-[18rem] font-mono text-xs"
-					/>
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								type="button"
-								variant="outline"
-								size="xs"
-								disabled={!isTauri()}
-								title={presetsLabel}
-								aria-label={presetsLabel}
-							>
-								<School />
-								<ChevronDown />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent
-							align="start"
-							className="max-h-72 w-64 overflow-y-auto"
-						>
-							<DropdownMenuLabel className="text-xs text-muted-foreground">
-								{presetsLabel}
-							</DropdownMenuLabel>
-							{presets.map((preset) => (
-								<DropdownMenuItem
-									key={preset.id}
-									className="flex flex-col items-start gap-0.5"
-									onSelect={() => onPresetSelect(preset)}
+					<InputGroup className="h-8 w-64 max-w-[18rem]">
+						<InputGroupInput
+							id={htmlFor}
+							value={prefix}
+							onChange={(e) => onPrefixChange(e.target.value)}
+							onBlur={() => onCommit()}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") {
+									e.currentTarget.blur();
+								}
+							}}
+							placeholder={prefixPlaceholder}
+							spellCheck={false}
+							autoComplete="off"
+							disabled={!isTauri()}
+							className="font-mono text-xs"
+						/>
+						<InputGroupAddon align="inline-end">
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<InputGroupButton
+										size="icon-xs"
+										disabled={!isTauri()}
+										title={presetsLabel}
+										aria-label={presetsLabel}
+									>
+										<ChevronDown />
+									</InputGroupButton>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent
+									align="end"
+									className="max-h-72 w-64 overflow-y-auto"
 								>
-									<span className="text-xs">{preset.label}</span>
-									<span className="font-mono text-[10px] text-muted-foreground">
-										{preset.prefix}
-									</span>
-								</DropdownMenuItem>
-							))}
-						</DropdownMenuContent>
-					</DropdownMenu>
+									<DropdownMenuLabel className="text-xs text-muted-foreground">
+										{presetsLabel}
+									</DropdownMenuLabel>
+									{presets.map((preset) => (
+										<DropdownMenuItem
+											key={preset.id}
+											className="flex flex-col items-start gap-0.5"
+											onSelect={() => onPresetSelect(preset)}
+										>
+											<span className="text-xs">{preset.label}</span>
+											<span className="font-mono text-[10px] text-muted-foreground">
+												{preset.prefix}
+											</span>
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</InputGroupAddon>
+					</InputGroup>
 					<Button
 						type="button"
 						variant="outline"
