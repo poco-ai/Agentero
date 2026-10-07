@@ -123,6 +123,47 @@ pub fn list_dir(vault: &Path, rel: &str, limit: usize) -> Result<FileListOut, Ap
     })
 }
 
+/// Use exactly the text-read path policy, before search reads/traverses entries.
+/// Optional catalog metadata filter (`year` / `publication` / `doi` /
+/// `is_read`) narrows hits to papers whose catalog record matches; hits that
+/// do not map to a catalog paper are dropped when any filter is set.
+pub fn search(
+    vault: &Path,
+    query: String,
+    limit: Option<usize>,
+    year: Option<i32>,
+    publication: Option<String>,
+    doi: Option<String>,
+    is_read: Option<bool>,
+) -> Result<crate::features::markdown::search::VaultSearchResult, AppError> {
+    use crate::features::markdown::search::{vault_search_filtered, VaultSearchArgs};
+    let root = canonical_root(vault)?;
+    vault_search_filtered(
+        VaultSearchArgs {
+            vault_path: root.to_string_lossy().into_owned(),
+            query,
+            limit,
+            year,
+            publication,
+            doi,
+            is_read,
+        },
+        &|path| {
+            let Some(rel) = path.strip_prefix(&root).ok().and_then(Path::to_str) else {
+                return false;
+            };
+            let rel = match sanitize_vault_rel(rel) {
+                Ok(rel) => rel,
+                Err(_) => return false,
+            };
+            let is_dir = path.is_dir();
+            reject_segments(&rel).is_ok()
+                && (is_dir || (reject_managed(&rel).is_ok() && reject_binary_name(&rel).is_ok()))
+                && contained_existing(&root, &rel, is_dir).is_ok()
+        },
+    )
+}
+
 pub fn read_text(vault: &Path, rel: &str) -> Result<FileReadOut, AppError> {
     let rel = normalize_file(rel)?;
     reject_segments(&rel)?;

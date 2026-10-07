@@ -39,6 +39,49 @@ pub fn build() -> Vec<OpSpec> {
 
     vec![
         op(
+            "vault.search",
+            None,
+            Some("vault_search"),
+            "Read-only Markdown keyword AND search; PAPER.md body hits carry a physical page; optional catalog metadata filters (year/publication/doi/isRead); read returned paths with file_read.",
+            OpSideEffect::Read,
+            &[OpSurface::Mcp],
+            false,
+            json!({
+                "query": "string",
+                "limit?": "integer (default 60, clamped 1..200)",
+                "year?": "integer exact match on catalog year",
+                "publication?": "case-insensitive substring on catalog publication",
+                "doi?": "case-insensitive substring on catalog doi",
+                "isRead?": "bool catalog read state"
+            }),
+            json!({"hits": [{"path": "string", "paperPath?": "string", "page?": "1-based physical page for PAPER.md body hits", "title": "string", "snippet": "string", "line": "1-based number", "score": "number"}], "truncated": "bool (more hits than limit)"}),
+            &["message", "io"],
+            &[
+                "MCP vault_search { \"query\": \"transformer attention\", \"limit\": 10 }",
+                "MCP vault_search { \"query\": \"diffusion\", \"year\": 2024, \"publication\": \"NeurIPS\" }",
+            ],
+        ),
+        op(
+            "page.read",
+            None,
+            Some("page_read"),
+            "Read all layout regions of one physical page from source/layout.json (schemaVersion 3, desktop layout analysis).",
+            OpSideEffect::Read,
+            &[OpSurface::Mcp],
+            false,
+            json!({"ref": "paper id or vault-relative path", "page": "1-based physical page"}),
+            json!({
+                "paperPath": "string",
+                "page": "number (1-based)",
+                "pageCount": "number of physical pages in layout.json",
+                "regionCount": "number",
+                "textRegions": [{"id": "string", "kind": "string", "title?": "string", "text?": "string", "bbox": {"x":0,"y":0,"w":0,"h":0}}],
+                "regions": [{"id": "string", "kind": "string", "text?": "string", "bbox": {"x":0,"y":0,"w":0,"h":0}}]
+            }),
+            &["layout_raw_missing", "paper_not_found", "message"],
+            &["MCP page_read { \"ref\": \"papers/1706.03762\", \"page\": 2 }"],
+        ),
+        op(
             "vault.create",
             Some("agentero vault create"),
             None,

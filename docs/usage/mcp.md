@@ -144,6 +144,7 @@ tunnel-client run --profile agentero
 - `paper_notes_get` / `paper_notes_write` — 读写该篇 `NOTES.md`
 - `paper_tag_add` / `paper_tag_rm` — 标签
 - `layout_list` / `layout_get` — 侧栏图/表/公式索引（需先在 App 跑版面分析）
+- `vault_search {"query":"transformer attention","limit":10}` — 只读全库 Markdown 关键词 AND 搜索，非语义检索。返回相对 path、snippet、1-based line 和 truncated；用 `file_read {"path": hit.path}` 回读定位。不读 PDF，不服务 Remote Vault。
 - `file_list` / `file_read` / `file_write` — 读改 Vault 里 `papers/` 以外的文本，例如自己的 `drafts/main.tex`。一次只列一层目录；不碰 `.agentero`、PDF 和 `NOTES.md`（笔记仍用 `paper_notes_write`）
 - Resources：`agentero://vault`、`agentero://agent-invariants`、`agentero://skills/agentero-cli`
 

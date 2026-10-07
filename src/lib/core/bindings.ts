@@ -4605,6 +4605,11 @@ export type SearchHit_Deserialize = {
 	path: string,
 	/**  Vault-relative paper folder when the hit is inside `papers/…`; else omitted. */
 	paperPath: string | null,
+	/**
+	 *  1-based physical page for `PAPER.md` body hits when `layout.json` maps
+	 *  the matched line to a single unambiguous page; omitted otherwise.
+	 */
+	page: number | null,
 	title: string,
 	snippet: string,
 	/**  1-based line of the first matching line (0 when unknown). */
@@ -4617,6 +4622,11 @@ export type SearchHit_Serialize = {
 	path: string,
 	/**  Vault-relative paper folder when the hit is inside `papers/…`; else omitted. */
 	paperPath?: string | null,
+	/**
+	 *  1-based physical page for `PAPER.md` body hits when `layout.json` maps
+	 *  the matched line to a single unambiguous page; omitted otherwise.
+	 */
+	page?: number | null,
 	title: string,
 	snippet: string,
 	/**  1-based line of the first matching line (0 when unknown). */
@@ -5111,6 +5121,17 @@ export type VaultSearchArgs = {
 	vaultPath: string,
 	query: string,
 	limit?: number | null,
+	/**
+	 *  Publication year; when set, only hits that map to a catalog paper with
+	 *  this exact `year` are returned. Hits with no catalog paper are dropped.
+	 */
+	year?: number | null,
+	/**  Case-insensitive substring match on the catalog `publication` field. */
+	publication?: string | null,
+	/**  Case-insensitive substring match on the catalog `doi` field. */
+	doi?: string | null,
+	/**  Catalog read state; `true` keeps only hits on papers marked read. */
+	isRead?: boolean | null,
 };
 
 export type VaultSearchResult = VaultSearchResult_Serialize | VaultSearchResult_Deserialize;

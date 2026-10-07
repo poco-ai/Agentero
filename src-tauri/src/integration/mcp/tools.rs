@@ -124,6 +124,15 @@ struct PaperTextArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
+struct PageReadArgs {
+    /// Paper id or vault-relative folder path (`papers/…`).
+    r#ref: String,
+    /// 1-based physical page number to read (first page is 1).
+    page: u32,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 struct ImportIdArgs {
     /// arXiv id, DOI, or URL.
     text: String,
@@ -331,8 +340,56 @@ fn clamp_limit(raw: Option<u32>) -> usize {
     raw.unwrap_or(50).clamp(1, 200) as usize
 }
 
+#[derive(Debug, Default, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct VaultSearchArgs {
+    query: String,
+    #[serde(default)]
+    limit: Option<usize>,
+    /// Exact publication year; narrows hits to catalog papers with this year.
+    #[serde(default)]
+    year: Option<i32>,
+    /// Case-insensitive substring on the catalog `publication` field.
+    #[serde(default)]
+    publication: Option<String>,
+    /// Case-insensitive substring on the catalog `doi` field.
+    #[serde(default)]
+    doi: Option<String>,
+    /// Catalog read state (true = read); narrows hits to catalog papers.
+    #[serde(default)]
+    is_read: Option<bool>,
+}
+
 #[tool_router]
 impl AgenteroMcp {
+    #[tool(
+        description = "Search Markdown in the open local vault using case-insensitive keyword AND (not semantic search). Returns ranked relative paths, snippets, 1-based lines and truncated; read hits with file_read. limit defaults to 60, clamped to 1..200.",
+        annotations(read_only_hint = true)
+    )]
+    async fn vault_search(
+        &self,
+        Parameters(args): Parameters<VaultSearchArgs>,
+    ) -> Result<Json<crate::features::markdown::search::VaultSearchResult>, CallToolResult> {
+        let ctrl = self.ctrl.clone();
+        // Root resolution and the walk both do sync I/O; keep them off the MCP runtime.
+        tokio::task::spawn_blocking(move || {
+            let vault = ctrl.local_vault()?;
+            files::search(
+                &vault,
+                args.query,
+                args.limit,
+                args.year,
+                args.publication,
+                args.doi,
+                args.is_read,
+            )
+        })
+        .await
+        .map_err(|e| tool_err(AppError::message(format!("blocking search failed: {e}"))))?
+        .map(Json)
+        .map_err(tool_err)
+    }
+
     #[tool(
         description = "List papers in the open vault. Default rows are only id/path/title (token-cheap). Pass fields (year, date, tags, authors, isRead, …) or full=true for more. Abstract is only on paper_get."
     )]
@@ -653,6 +710,25 @@ impl AgenteroMcp {
     }
 
     #[tool(
+        description = "Read the full text layout of one physical page of a paper from source/layout.json (schemaVersion 3, desktop layout analysis). Returns every region in reading order, plus text_regions (paragraph-level). Requires layout analysis to have run for the paper.",
+        annotations(read_only_hint = true)
+    )]
+    async fn page_read(
+        &self,
+        Parameters(args): Parameters<PageReadArgs>,
+    ) -> Result<Json<layout::PageReadOut>, CallToolResult> {
+        let ctrl = self.ctrl.clone();
+        tokio::task::spawn_blocking(move || {
+            let vault = ctrl.local_vault()?;
+            layout::read_page(&vault, &args.r#ref, args.page)
+        })
+        .await
+        .map_err(|e| tool_err(AppError::message(format!("blocking page_read failed: {e}"))))?
+        .map(Json)
+        .map_err(tool_err)
+    }
+
+    #[tool(
         description = "List one directory in the open vault (not the whole tree). path is vault-relative; omit it for the vault root. Skips .agentero, hidden dirs, and LaTeX build artifacts. Use this to find drafts such as main.tex outside papers/."
     )]
     async fn file_list(
@@ -787,6 +863,333 @@ mod schema_tests {
     use rmcp::ServerHandler;
 
     #[test]
+    fn vault_search_advertises_read_only_hint() {
+        let tool = AgenteroMcp::vault_search_tool_attr();
+        assert_eq!(
+            tool.annotations.as_ref().and_then(|a| a.read_only_hint),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn vault_search_is_registered_with_structured_output() {
+        let router = AgenteroMcp::tool_router();
+        let tools = router.list_all();
+        let tool = tools
+            .iter()
+            .find(|t| t.name == "vault_search")
+            .expect("read-only vault_search must be registered");
+        let schema = tool
+            .output_schema
+            .as_ref()
+            .expect("structured search output");
+        let props = schema.get("properties").unwrap();
+        assert!(props.get("hits").is_some());
+        assert!(props.get("truncated").is_some());
+        let inputs = tool.input_schema.get("properties").unwrap();
+        assert!(inputs.get("query").is_some());
+        assert!(inputs.get("limit").is_some());
+        assert!(inputs.get("vaultPath").is_none());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn vault_search_does_not_follow_links_outside_the_host_vault() {
+        use rmcp::handler::server::wrapper::Parameters;
+        use std::os::unix::fs::symlink;
+        let vault = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::write(
+            vault.path().join("inside.md"),
+            "# Test material\nneedle inside\n",
+        )
+        .unwrap();
+        std::fs::write(outside.path().join("secret.md"), "needle outside secret\n").unwrap();
+        symlink(
+            outside.path().join("secret.md"),
+            vault.path().join("linked.md"),
+        )
+        .unwrap();
+        symlink(outside.path(), vault.path().join("linked-dir")).unwrap();
+        for rel in [
+            ".hidden.md",
+            ".agentero/skip.md",
+            "target/skip.md",
+            "source/skip.md",
+        ] {
+            let path = vault.path().join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, "needle ignored test material\n").unwrap();
+        }
+        let ctrl = std::sync::Arc::new(McpController::new());
+        ctrl.set_vault(Some(vault.path().to_string_lossy().into_owned()));
+        let mcp = AgenteroMcp::new(ctrl);
+        let result = mcp
+            .vault_search(Parameters(super::VaultSearchArgs {
+                query: "needle".into(),
+                limit: None,
+                ..Default::default()
+            }))
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(
+            result
+                .hits
+                .iter()
+                .map(|h| h.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["inside.md"]
+        );
+        assert!(super::files::read_text(vault.path(), "linked.md").is_err());
+    }
+
+    #[tokio::test]
+    async fn vault_search_protocol_round_trip_reads_fixture_hits() {
+        use rmcp::{model::CallToolRequestParams, ServiceExt};
+        use serde_json::json;
+        let vault = tempfile::tempdir().unwrap();
+        let fixture =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/fixtures/mcp-search");
+        let mut before = Vec::new();
+        for rel in [
+            "papers/alpha/PAPER.md",
+            "papers/alpha/NOTES.md",
+            "papers/beta/PAPER.md",
+            "papers/beta/NOTES.md",
+        ] {
+            let bytes = std::fs::read(fixture.join(rel)).unwrap();
+            let target = vault.path().join(rel);
+            std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+            std::fs::write(&target, &bytes).unwrap();
+            before.push((target, bytes));
+        }
+        let ctrl = std::sync::Arc::new(McpController::new());
+        ctrl.set_vault(Some(vault.path().to_string_lossy().into_owned()));
+        let (server_io, client_io) = tokio::io::duplex(65536);
+        let server =
+            tokio::spawn(async move { AgenteroMcp::new(ctrl).serve(server_io).await.unwrap() });
+        let mut client = ().serve(client_io).await.unwrap();
+        let mut server = server.await.unwrap();
+        assert_eq!(
+            client
+                .peer_info()
+                .unwrap()
+                .server_info
+                .as_ref()
+                .unwrap()
+                .name,
+            "agentero"
+        );
+        assert!(client
+            .list_all_tools()
+            .await
+            .unwrap()
+            .iter()
+            .any(|t| t.name == "vault_search"));
+        let result = client
+            .call_tool(
+                CallToolRequestParams::new("vault_search").with_arguments(
+                    json!({"query":"TRANSFORMER attention"})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                ),
+            )
+            .await
+            .unwrap();
+        assert_ne!(result.is_error, Some(true));
+        let out = result.structured_content.unwrap();
+        eprintln!(
+            "MCP tools/call vault_search: {}",
+            serde_json::to_string_pretty(&out).unwrap()
+        );
+        let hits = out["hits"].as_array().unwrap();
+        assert_eq!(hits.len(), 3);
+        assert_eq!(out["truncated"], false);
+        let host = crate::features::markdown::search::vault_search(
+            crate::features::markdown::search::VaultSearchArgs {
+                vault_path: vault.path().to_string_lossy().into_owned(),
+                query: "TRANSFORMER attention".into(),
+                limit: None,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            out,
+            serde_json::to_value(host).unwrap(),
+            "same ranking/snippets as Host"
+        );
+        for hit in hits {
+            let read = client
+                .call_tool(
+                    CallToolRequestParams::new("file_read")
+                        .with_arguments(json!({"path":hit["path"]}).as_object().unwrap().clone()),
+                )
+                .await
+                .unwrap();
+            assert_ne!(read.is_error, Some(true));
+            let read = read.structured_content.unwrap();
+            let content = read["content"].as_str().unwrap();
+            let line = hit["line"].as_u64().unwrap() as usize;
+            assert_eq!(line, 3);
+            assert_eq!(
+                content.lines().nth(line - 1).unwrap(),
+                hit["snippet"].as_str().unwrap()
+            );
+            eprintln!(
+                "MCP file_read verified {} line {}: {}",
+                hit["path"], line, hit["snippet"]
+            );
+        }
+        for (args, count, truncated) in [
+            (json!({"query":"transformer attention", "limit":1}), 1, true),
+            (json!({"query":"transformer attention", "limit":0}), 1, true),
+            (
+                json!({"query":"transformer attention", "limit":999}),
+                3,
+                false,
+            ),
+            (json!({"query":"   "}), 0, false),
+            (json!({"query":"absent-keyword"}), 0, false),
+            (json!({"query":"transformer cats"}), 0, false),
+        ] {
+            let response = client
+                .call_tool(
+                    CallToolRequestParams::new("vault_search")
+                        .with_arguments(args.as_object().unwrap().clone()),
+                )
+                .await
+                .unwrap();
+            let value = response.structured_content.unwrap();
+            assert_eq!(value["hits"].as_array().unwrap().len(), count);
+            assert_eq!(value["truncated"], truncated);
+        }
+        for args in [
+            json!({}),
+            json!({"query":"attention", "limit":-1}),
+            json!({"query":"attention", "limit":1.5}),
+        ] {
+            let response = client
+                .call_tool(
+                    CallToolRequestParams::new("vault_search")
+                        .with_arguments(args.as_object().unwrap().clone()),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.is_error, Some(true));
+        }
+        client.close().await.unwrap();
+        server.close().await.unwrap();
+        for (path, bytes) in before {
+            assert_eq!(
+                std::fs::read(path).unwrap(),
+                bytes,
+                "search/read must not write fixture"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn vault_search_requires_a_local_host_selected_root() {
+        use rmcp::handler::server::wrapper::Parameters;
+        let ctrl = std::sync::Arc::new(McpController::new());
+        let mcp = AgenteroMcp::new(ctrl.clone());
+        assert!(mcp
+            .vault_search(Parameters(super::VaultSearchArgs {
+                query: "needle".into(),
+                limit: None,
+                ..Default::default()
+            }))
+            .await
+            .is_err());
+        ctrl.set_vault(Some("remote:test-fixture".into()));
+        assert!(mcp
+            .vault_search(Parameters(super::VaultSearchArgs {
+                query: "needle".into(),
+                limit: None,
+                ..Default::default()
+            }))
+            .await
+            .is_err());
+    }
+
+    #[test]
+    fn vault_search_uses_the_blocking_pool_without_stalling_the_runtime() {
+        use rmcp::handler::server::wrapper::Parameters;
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .max_blocking_threads(1)
+            .build()
+            .unwrap();
+        let (release, wait) = std::sync::mpsc::channel();
+        let (ready, started) = std::sync::mpsc::channel();
+        let blocker = rt.spawn_blocking(move || {
+            ready.send(()).unwrap();
+            wait.recv().unwrap();
+        });
+        started.recv().unwrap();
+        let vault = tempfile::tempdir().unwrap();
+        std::fs::write(vault.path().join("test.md"), "needle test material\n").unwrap();
+        let ctrl = std::sync::Arc::new(McpController::new());
+        ctrl.set_vault(Some(vault.path().to_string_lossy().into_owned()));
+        let mcp = AgenteroMcp::new(ctrl);
+        rt.block_on(async move {
+            let search = tokio::spawn(async move {
+                mcp.vault_search(Parameters(super::VaultSearchArgs {
+                    query: "needle".into(),
+                    limit: None,
+                    ..Default::default()
+                }))
+                .await
+                .unwrap()
+                .0
+            });
+            tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+            let queued = !search.is_finished();
+            release.send(()).unwrap(); // Release even if the assertion will fail.
+            blocker.await.unwrap();
+            let result = search.await.unwrap();
+            assert!(
+                queued,
+                "search must wait for the blocking pool, not run sync I/O on the runtime"
+            );
+            assert_eq!(result.hits.len(), 1);
+            eprintln!(
+                "MCP current-thread timer progressed while search was queued on the blocking pool"
+            );
+        });
+    }
+
+    #[tokio::test]
+    async fn vault_search_allows_markdown_in_a_directory_with_binary_extension() {
+        use rmcp::handler::server::wrapper::Parameters;
+        let vault = tempfile::tempdir().unwrap();
+        std::fs::create_dir(vault.path().join("draft.pdf")).unwrap();
+        std::fs::write(
+            vault.path().join("draft.pdf/note.md"),
+            "needle test material\n",
+        )
+        .unwrap();
+        assert!(super::files::read_text(vault.path(), "draft.pdf/note.md").is_ok());
+        let ctrl = std::sync::Arc::new(McpController::new());
+        ctrl.set_vault(Some(vault.path().to_string_lossy().into_owned()));
+        let mcp = AgenteroMcp::new(ctrl);
+        let out = mcp
+            .vault_search(Parameters(super::VaultSearchArgs {
+                query: "needle".into(),
+                limit: None,
+                ..Default::default()
+            }))
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(out.hits.len(), 1);
+        assert_eq!(out.hits[0].path, "draft.pdf/note.md");
+    }
+
+    #[test]
     fn import_id_advertises_output_schema() {
         let tool = AgenteroMcp::import_id_tool_attr();
         let schema = tool
@@ -836,6 +1239,248 @@ mod schema_tests {
         for key in ["path", "content", "bytes"] {
             assert!(props.contains_key(key), "missing {key} in {props:?}");
         }
+    }
+
+    fn serve_fixture_vault(root: &std::path::Path, rels: &[&str]) {
+        let fixture =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../test/fixtures/mcp-search");
+        for rel in rels {
+            let bytes = std::fs::read(fixture.join(rel)).unwrap();
+            let target = root.join(rel);
+            std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+            std::fs::write(&target, &bytes).unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn page_read_protocol_round_trip_reads_a_physical_page() {
+        use crate::features::paper::catalog::papers::{self, PaperRecord};
+        use rmcp::{model::CallToolRequestParams, ServiceExt};
+        use serde_json::json;
+        let vault = tempfile::tempdir().unwrap();
+        let root = vault.path();
+        serve_fixture_vault(
+            root,
+            &[
+                "papers/alpha/PAPER.md",
+                "papers/alpha/NOTES.md",
+                "papers/alpha/source/layout.json",
+            ],
+        );
+        // resolve_paper reads the catalog, so index the paper first.
+        papers::upsert_paper(
+            root,
+            &PaperRecord::local_pdf("alpha".into(), "Alpha".into()).at_path("papers/alpha"),
+        )
+        .unwrap();
+        let ctrl = std::sync::Arc::new(McpController::new());
+        ctrl.set_vault(Some(root.to_string_lossy().into_owned()));
+        let (server_io, client_io) = tokio::io::duplex(65536);
+        let server =
+            tokio::spawn(async move { AgenteroMcp::new(ctrl).serve(server_io).await.unwrap() });
+        let mut client = ().serve(client_io).await.unwrap();
+        let mut server = server.await.unwrap();
+
+        let result = client
+            .call_tool(
+                CallToolRequestParams::new("page_read").with_arguments(
+                    json!({"ref": "papers/alpha", "page": 2})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                ),
+            )
+            .await
+            .unwrap();
+        assert_ne!(result.is_error, Some(true));
+        let out = result.structured_content.unwrap();
+        eprintln!(
+            "MCP tools/call page_read: {}",
+            serde_json::to_string_pretty(&out).unwrap()
+        );
+        assert_eq!(out["paperPath"], "papers/alpha");
+        assert_eq!(out["page"], 2);
+        assert_eq!(out["pageCount"], 2, "fixture layout spans pageIndex 0..=1");
+        assert_eq!(out["regionCount"], 1);
+        assert_eq!(out["regions"][0]["id"], "page2-body");
+        let text_regions = out["textRegions"].as_array().unwrap();
+        assert_eq!(text_regions.len(), 1);
+        assert_eq!(
+            text_regions[0]["text"],
+            "Transformer attention test evidence."
+        );
+
+        // Out-of-range page is an empty page, not an error.
+        let empty = client
+            .call_tool(
+                CallToolRequestParams::new("page_read").with_arguments(
+                    json!({"ref": "papers/alpha", "page": 9999})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                ),
+            )
+            .await
+            .unwrap();
+        let out = empty.structured_content.unwrap();
+        assert_eq!(out["regionCount"], 0);
+
+        // page=0 is rejected (1-based).
+        let bad = client
+            .call_tool(
+                CallToolRequestParams::new("page_read").with_arguments(
+                    json!({"ref": "papers/alpha", "page": 0})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                ),
+            )
+            .await
+            .unwrap();
+        assert_eq!(bad.is_error, Some(true));
+
+        client.close().await.unwrap();
+        server.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn vault_search_carries_physical_page_and_metadata_filter() {
+        use crate::features::paper::catalog::papers::{self, PaperRecord};
+        use rmcp::{model::CallToolRequestParams, ServiceExt};
+        use serde_json::json;
+        let vault = tempfile::tempdir().unwrap();
+        let root = vault.path();
+        serve_fixture_vault(
+            root,
+            &[
+                "papers/alpha/PAPER.md",
+                "papers/alpha/NOTES.md",
+                "papers/alpha/source/layout.json",
+                "papers/beta/PAPER.md",
+                "papers/beta/NOTES.md",
+            ],
+        );
+        // A lone note outside the catalog: full-text searchable but no metadata.
+        std::fs::write(
+            root.join("scratch.md"),
+            "# Scratch\n\ntransformer attention scratch note\n",
+        )
+        .unwrap();
+        let mut alpha =
+            PaperRecord::local_pdf("alpha".into(), "Alpha".into()).at_path("papers/alpha");
+        alpha.year = Some(2024);
+        alpha.publication = Some("NeurIPS".into());
+        alpha.doi = Some("10.5555/alpha".into());
+        papers::upsert_paper(root, &alpha).unwrap();
+        let mut beta = PaperRecord::local_pdf("beta".into(), "Beta".into()).at_path("papers/beta");
+        beta.year = Some(2019);
+        beta.publication = Some("ICLR".into());
+        papers::upsert_paper(root, &beta).unwrap();
+
+        let ctrl = std::sync::Arc::new(McpController::new());
+        ctrl.set_vault(Some(root.to_string_lossy().into_owned()));
+        let (server_io, client_io) = tokio::io::duplex(65536);
+        let server =
+            tokio::spawn(async move { AgenteroMcp::new(ctrl).serve(server_io).await.unwrap() });
+        let mut client = ().serve(client_io).await.unwrap();
+        let mut server = server.await.unwrap();
+
+        // Baseline: alpha PAPER+NOTES, beta PAPER, scratch note = 4 hits.
+        let base = client
+            .call_tool(
+                CallToolRequestParams::new("vault_search").with_arguments(
+                    json!({"query": "transformer attention"})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                ),
+            )
+            .await
+            .unwrap();
+        let base_hits = base.structured_content.unwrap()["hits"]
+            .as_array()
+            .unwrap()
+            .clone();
+        assert_eq!(base_hits.len(), 4, "baseline hit count");
+        let baseline_alpha_paper = base_hits
+            .iter()
+            .find(|h| h["path"] == "papers/alpha/PAPER.md")
+            .expect("alpha PAPER baseline hit");
+        assert_eq!(
+            baseline_alpha_paper["page"], 2,
+            "PAPER.md body maps to physical page 2"
+        );
+        let baseline_notes = base_hits
+            .iter()
+            .find(|h| h["path"] == "papers/alpha/NOTES.md")
+            .expect("alpha NOTES baseline hit");
+        assert!(
+            baseline_notes.get("page").is_none(),
+            "NOTES.md must not carry a physical page"
+        );
+
+        // year=2024 filter keeps only the alpha paper's hits.
+        let filtered = client
+            .call_tool(
+                CallToolRequestParams::new("vault_search").with_arguments(
+                    json!({"query": "transformer attention", "year": 2024})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                ),
+            )
+            .await
+            .unwrap();
+        let hits = filtered.structured_content.unwrap()["hits"]
+            .as_array()
+            .unwrap()
+            .clone();
+        assert_eq!(hits.len(), 2, "alpha PAPER + NOTES");
+        for h in &hits {
+            assert_eq!(h["paperPath"], "papers/alpha");
+        }
+
+        // A publication substring filter also narrows.
+        let publ = client
+            .call_tool(
+                CallToolRequestParams::new("vault_search").with_arguments(
+                    json!({"query": "transformer attention", "publication": "iclr"})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                ),
+            )
+            .await
+            .unwrap();
+        let publ_hits = publ.structured_content.unwrap()["hits"]
+            .as_array()
+            .unwrap()
+            .clone();
+        assert_eq!(publ_hits.len(), 1, "beta PAPER only");
+        assert_eq!(publ_hits[0]["path"], "papers/beta/PAPER.md");
+
+        // A year with no catalog paper drops every hit.
+        let none = client
+            .call_tool(
+                CallToolRequestParams::new("vault_search").with_arguments(
+                    json!({"query": "transformer attention", "year": 1000})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                ),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            none.structured_content.unwrap()["hits"]
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
+
+        client.close().await.unwrap();
+        server.close().await.unwrap();
     }
 
     #[test]

@@ -135,12 +135,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn vault_search_contract_is_read_only_and_mcp_only() {
+        let op = get("vault_search").expect("vault.search catalog entry");
+        assert_eq!(op.id, "vault.search");
+        assert_eq!(op.side_effects, OpSideEffect::Read);
+        assert!(!op.requires_confirmation);
+        assert!(op.cli.is_none());
+        assert_eq!(op.surfaces.len(), 1);
+        assert!(matches!(op.surfaces[0], OpSurface::Mcp));
+        assert!(op.input.get("query").is_some());
+        assert!(op.output.get("truncated").is_some());
+    }
+
+    #[test]
     fn catalog_has_core_ops() {
         assert!(get("paper.list").is_some());
         assert!(get("paper_list").is_some()); // mcp alias
         assert!(get("layout.list").is_some());
         assert!(get("paper.set_read").is_some());
         assert!(get("file_read").is_some());
+        assert!(get("page.read").is_some());
+        assert!(get("page_read").is_some());
         assert!(get("file.write").is_some());
         assert!(get("import.pdf").is_some());
         assert!(get("no.such.op").is_none());

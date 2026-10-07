@@ -48,6 +48,8 @@ desktop = [
 tauri-build = { version = "2", features = [] }
 
 [dev-dependencies]
+# In-memory MCP protocol tests; no listener or permanent service.
+rmcp = { version = "3.1", default-features = false, features = ["client", "transport-io"] }
 # `start_paused` virtual clock for stream coalescer / throttle unit tests.
 tokio = { workspace = true, features = ["test-util", "macros"] }
 

@@ -792,6 +792,7 @@ async fn dispatch_rpc(
                 vault_path: vault_root.to_string_lossy().into_owned(),
                 query: args.query,
                 limit: args.limit,
+                ..Default::default()
             })?)
         }
         "vault_read_text" => {

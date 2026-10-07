@@ -36,6 +36,203 @@ pub struct Bbox {
     pub h: f64,
 }
 
+/// A single region from the raw `source/layout.json` (schemaVersion 3).
+///
+/// Unlike [`LayoutIndexItem`] the raw layout keeps paragraph-level regions
+/// (`kind` such as `paragraph` / `text`), each carrying its physical
+/// `page_index` and the body `text`. This is the source of truth for reading
+/// a paper by physical page and for mapping a Markdown hit back to a page.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct RawLayoutRegion {
+    pub id: String,
+    /// 0-based physical page index into the PDF.
+    pub page_index: u32,
+    /// Region kind from `layout.json` (e.g. `text`, `paragraph`, `header`,
+    /// `figure`, `table`). Kinds whose name contains `text` are paragraph-level.
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    pub bbox: Bbox,
+}
+
+/// Ordered raw regions for a paper. Order follows document reading order
+/// (page then top-to-bottom) so a caller can page through a paper naturally.
+#[derive(Debug)]
+pub struct RawLayout {
+    pub regions: Vec<RawLayoutRegion>,
+}
+
+/// Read and parse `{paper}/source/layout.json`.
+pub fn load_raw_layout(vault: &Path, paper_path: &str) -> Result<RawLayout, AppError> {
+    let dir = paper_abs(vault, paper_path)?;
+    let raw_path = dir.join("source").join(LAYOUT_RAW_FILE);
+    if !raw_path.is_file() {
+        return Err(AppError::domain(
+            "layout_raw_missing",
+            format!(
+                "{paper_path}/source/{LAYOUT_RAW_FILE} not found; open the paper and run layout analysis first"
+            ),
+        ));
+    }
+    let text = std::fs::read_to_string(&raw_path)
+        .map_err(|e| AppError::message(format!("failed to read raw layout: {e}")))?;
+    let value: Value = serde_json::from_str(&text)
+        .map_err(|e| AppError::message(format!("invalid raw layout json: {e}")))?;
+    let regions = parse_raw_regions(&value)?;
+    let mut regions: Vec<RawLayoutRegion> = regions;
+    regions.sort_by(|a, b| {
+        a.page_index
+            .cmp(&b.page_index)
+            .then_with(|| {
+                bbox_order(&a.bbox)
+                    .partial_cmp(&bbox_order(&b.bbox))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .then_with(|| a.id.cmp(&b.id))
+    });
+    Ok(RawLayout { regions })
+}
+
+fn bbox_order(b: &Bbox) -> f64 {
+    b.y * 100_000.0 + b.x
+}
+
+/// Regions on a 0-based physical `page_index`, in document reading order
+/// (page then top-to-bottom). Paragraph-level regions carry `kind` `text`
+/// or `paragraph` and their body in `text`.
+pub fn page_regions(layout: &RawLayout, page_index: u32) -> Vec<&RawLayoutRegion> {
+    layout
+        .regions
+        .iter()
+        .filter(|r| r.page_index == page_index)
+        .collect()
+}
+
+/// Highest physical page present (0-based index) + 1, or 0 when no regions.
+pub fn page_count(layout: &RawLayout) -> u32 {
+    layout
+        .regions
+        .iter()
+        .map(|r| r.page_index)
+        .max()
+        .map(|p| p + 1)
+        .unwrap_or(0)
+}
+
+/// Best-effort map of a Markdown body line back to its physical page.
+///
+/// The `PAPER.md` body of a LiteParse-derived paper closely mirrors
+/// `layout.json` paragraph regions, so we normalize both sides and match on
+/// equality / containment. Returns the 1-based physical page (`page_index + 1`)
+/// only when every matching region resolves to a single distinct page;
+/// otherwise `None` (ambiguous / absent) so callers never trust a guess.
+pub fn page_map(layout: &RawLayout, text: &str) -> Option<u32> {
+    let needle = normalize_text(text)?;
+    if needle.is_empty() {
+        return None;
+    }
+    let mut pages: Vec<u32> = Vec::new();
+    for region in &layout.regions {
+        let Some(body) = region.text.as_deref().and_then(normalize_text) else {
+            continue;
+        };
+        let matches = body == needle || body.contains(&needle) || needle.contains(&body);
+        if matches {
+            pages.push(region.page_index);
+        }
+    }
+    pages.sort_unstable();
+    pages.dedup();
+    if pages.len() == 1 {
+        Some(pages[0] + 1)
+    } else {
+        None
+    }
+}
+
+/// Lowercase and collapse all runs of whitespace to single ASCII spaces.
+fn normalize_text(s: &str) -> Option<String> {
+    let mut out = String::with_capacity(s.len());
+    let mut pending_space = false;
+    let mut seen = false;
+    for c in s.trim().chars() {
+        if c.is_whitespace() {
+            pending_space = true;
+        } else {
+            if pending_space && seen {
+                out.push(' ');
+            }
+            out.extend(c.to_lowercase());
+            pending_space = false;
+            seen = true;
+        }
+    }
+    if seen {
+        Some(out)
+    } else {
+        None
+    }
+}
+
+fn parse_raw_regions(value: &Value) -> Result<Vec<RawLayoutRegion>, AppError> {
+    let arr = value
+        .get("regions")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| {
+            AppError::domain("layout_raw_invalid", "layout.json missing regions array")
+        })?;
+    let mut regions = Vec::with_capacity(arr.len());
+    for (i, entry) in arr.iter().enumerate() {
+        match parse_raw_region(entry) {
+            Some(region) => regions.push(region),
+            None => {
+                return Err(AppError::domain(
+                    "layout_raw_invalid",
+                    format!("invalid raw layout region at index {i}"),
+                ));
+            }
+        }
+    }
+    Ok(regions)
+}
+
+fn parse_raw_region(v: &Value) -> Option<RawLayoutRegion> {
+    let id = v.get("id")?.as_str()?.to_string();
+    let page_index = v.get("pageIndex")?.as_u64()? as u32;
+    let kind = v.get("kind")?.as_str()?.to_string();
+    let title = v
+        .get("title")
+        .and_then(|x| x.as_str())
+        .map(str::to_string)
+        .filter(|s| !s.is_empty());
+    let text = v
+        .get("text")
+        .and_then(|x| x.as_str())
+        .map(str::to_string)
+        .filter(|s| !s.is_empty());
+    let bbox_v = v.get("bbox")?;
+    let bbox = Bbox {
+        x: bbox_v.get("x")?.as_f64()?,
+        y: bbox_v.get("y")?.as_f64()?,
+        w: bbox_v.get("w")?.as_f64()?,
+        h: bbox_v.get("h")?.as_f64()?,
+    };
+    if id.is_empty() || kind.is_empty() {
+        return None;
+    }
+    Some(RawLayoutRegion {
+        id,
+        page_index,
+        kind,
+        title,
+        text,
+        bbox,
+    })
+}
+
 #[derive(Debug, Default, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LayoutCounts {
@@ -542,5 +739,74 @@ mod tests {
         let listed = list_regions(vault, "papers/p1", &["section".into()], Some(0.5)).unwrap();
         assert_eq!(listed.items.len(), 1);
         assert_eq!(listed.items[0].id, "h1");
+    }
+
+    #[test]
+    fn raw_layout_parses_pages_in_reading_order() {
+        let dir = tempdir().unwrap();
+        let vault = dir.path();
+        let paper = vault.join("papers").join("p1");
+        write_raw_layout(
+            &paper,
+            r#"{
+              "schemaVersion": 3,
+              "source": {"mode": "embedpdf-layout", "generatedAt": "t"},
+              "regions": [
+                {"id":"p1","pageIndex":0,"kind":"paragraph","score":0.8,"bbox":{"x":10,"y":40,"w":500,"h":20},"text":"Transformer attention test evidence."},
+                {"id":"p2","pageIndex":0,"kind":"paragraph","score":0.8,"bbox":{"x":10,"y":70,"w":500,"h":20},"text":"second paragraph"},
+                {"id":"p3","pageIndex":1,"kind":"paragraph","score":0.8,"bbox":{"x":510,"y":10,"w":500,"h":20},"text":"Transformer attention on page two."}
+              ]
+            }"#,
+        );
+        let layout = load_raw_layout(vault, "papers/p1").unwrap();
+        assert_eq!(page_count(&layout), 2);
+        let page1 = page_regions(&layout, 0);
+        assert_eq!(page1.len(), 2);
+        assert_eq!(page1[0].id, "p1");
+        assert_eq!(page1[1].id, "p2");
+        let page2 = page_regions(&layout, 1);
+        assert_eq!(page2.len(), 1);
+        assert_eq!(
+            page2[0].text.as_deref(),
+            Some("Transformer attention on page two.")
+        );
+    }
+
+    #[test]
+    fn raw_layout_missing_errors() {
+        let dir = tempdir().unwrap();
+        let vault = dir.path();
+        let paper = vault.join("papers").join("p1");
+        fs::create_dir_all(&paper).unwrap();
+        let err = load_raw_layout(vault, "papers/p1").unwrap_err();
+        assert_eq!(err.code(), "layout_raw_missing");
+    }
+
+    #[test]
+    fn page_map_resolves_unique_page_and_abstains_on_ambiguity() {
+        let dir = tempdir().unwrap();
+        let vault = dir.path();
+        let paper = vault.join("papers").join("p1");
+        write_raw_layout(
+            &paper,
+            r#"{
+              "regions": [
+                {"id":"p1","pageIndex":0,"kind":"paragraph","bbox":{"x":10,"y":40,"w":500,"h":20},"text":"Transformer attention test evidence."},
+                {"id":"p2","pageIndex":2,"kind":"paragraph","bbox":{"x":10,"y":40,"w":500,"h":20},"text":"another unique attention body"}
+              ]
+            }"#,
+        );
+        let layout = load_raw_layout(vault, "papers/p1").unwrap();
+        // Exact normalized equality -> that region's page (1-based = index+1).
+        assert_eq!(
+            page_map(&layout, "  Transformer  ATTENTION test evidence. "),
+            Some(1)
+        );
+        // Ambiguous: the needle is a substring of regions on multiple pages -> None.
+        assert_eq!(page_map(&layout, "another unique attention body"), Some(3));
+        assert_eq!(page_map(&layout, "attention"), None);
+        // No match at all -> None.
+        assert_eq!(page_map(&layout, "absent keyword"), None);
+        assert_eq!(page_map(&layout, ""), None);
     }
 }

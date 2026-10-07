@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 3,
+	"source": { "mode": "embedpdf-layout", "generatedAt": "fixture" },
+	"regions": [
+		{
+			"id": "page1-title",
+			"pageIndex": 0,
+			"kind": "title",
+			"score": 0.99,
+			"bbox": { "x": 72, "y": 72, "w": 480, "h": 36 },
+			"title": "Test material: Alpha"
+		},
+		{
+			"id": "page2-body",
+			"pageIndex": 1,
+			"kind": "paragraph",
+			"score": 0.9,
+			"bbox": { "x": 72, "y": 120, "w": 480, "h": 24 },
+			"text": "Transformer attention test evidence."
+		}
+	]
+}

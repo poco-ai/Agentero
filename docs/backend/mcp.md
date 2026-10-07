@@ -65,9 +65,27 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 | `paper_text_get` | **opt-in**（#676，默认关闭）：读取论文 PDF 的分页文本。`ref` + `pages?`（1-based，缺省全篇）+ `max_chars?`（每页字符预算，默认 20000、上限 50000）。需在设置中开启 `mcpExposePaperText`，未开启时调用直接报错；开启即意味着正文文本将发送给隧道另一端的外部客户端 |
 | `layout_list` | 侧栏版面索引（需 `{paper}/source/layout-index.json`）。`kind[]?`、`minScore?` |
 | `layout_get` | 按 region id 取一条（如 `figure-3`） |
+| `page_read` | 按**物理页**读一篇论文正文（需 `{paper}/source/layout.json`，schemaVersion 3；桌面端跑过版面分析）。`ref` 必填，`page` 为 1-based 物理页。返回该页**阅读顺序**下的全部 region，外加 `textRegions`（段落级）；`pageCount` 为布局页数，越界页返回空数组而非报错 |
+| `vault_search` | 只读全库 Markdown 关键词 AND 搜索（大小写不敏感，非语义检索）。`query` 必填；`limit?` 默认 60，限制到 1–200。根目录由 Host 当前本地 Vault 决定，不接受客户端路径。返回 `hits`（相对 `path`、`snippet`、1-based `line`、`title`、`score`、可选 `paperPath`、可选 `page`）及 `truncated`；`PAPER.md` 正文命中会带上由 `source/layout.json` 映射出的 1-based 物理页码 `page`（无法唯一确定时省略）；命中用 `file_read {"path": hit.path}` 回读。可选元数据过滤 `year`（精确）、`publication` / `doi`（大小写不敏感子串）、`isRead`（bool）：一旦给出，只保留能映射到 catalog 论文且全部匹配的命中，其它一律丢弃 |
 | `file_list` | 列一层目录。`path?` 为 Vault 相对路径，空则根目录。跳过 `.agentero`、隐藏目录和 LaTeX 编译产物。`limit?` 默认 200，最多 500 |
 | `file_read` | 读一个 UTF-8 文本文件（如 `drafts/main.tex`、`notes/idea.md`）。不限 `papers/` |
 | `file_write` | 写同一个路径。`mode`: `replace`（默认）或 `append`。父目录不存在会在 Vault 内创建。覆盖前需用户确认 |
+
+`vault_search` 复用 Host 搜索算法，不建索引；在遍历/读取前沿用 `file_read` 的路径过滤与符号链接边界。扫描大小写不敏感的 `*.md`（含 `PAPER.md` / `NOTES.md`），跳过隐藏/系统目录、`source`、超过 2 MiB 的文件；沿用深度 16、最多 20,000 文件的扫描上限。空白 query 返回空结果。`truncated` 仅表示匹配数超过 limit，不是扫描完整性或游标分页的保证。snippet 会去除常见 Markdown 前缀、最多约 200 字符；回读后用 line 定位原行。
+
+`vault_search` 的 `page` 与 `page_read` 都是**启发式**的：`PAPER.md` 命中行与 `layout.json` 的 `text` region 做归一化（小写 + 折叠空白）后的等式/包含匹配，只有所有匹配 region 落在**同一个** `pageIndex` 时才返回页码，否则留空——绝不返回猜测。语义检索不在 MCP 范围（由外部索引承担），这里只补"页码语义 + 结构化元数据过滤"。
+
+复现（macOS 未 stage 打包资源时可仅为测试设置 `TAURI_CONFIG='{"bundle":{"resources":[],"macOS":{"frameworks":[]}}}'`）：
+
+```bash
+cargo test -p agentero --lib vault_search_ -- --nocapture
+cargo test -p agentero --lib page_read_ -- --nocapture
+cargo test -p agentero --lib features::markdown::search -- --nocapture
+cargo test -p agentero-core ops::tests
+cargo test -p agentero-core pdf::layout_index
+```
+
+`vault_search_protocol_round_trip_reads_fixture_hits` 使用 `test/fixtures/mcp-search` 测试资料，实际运行内存 JSON-RPC 的 initialize、tools/list、tools/call 与 file_read 回读；不启动 listener，不代表 Streamable HTTP / App UI / Tunnel 的端到端验收。
 
 `paper_notes_write`：
 
