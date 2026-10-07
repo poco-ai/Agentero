@@ -256,6 +256,11 @@ fn main() -> StdExitCode {
     }
     init_logging();
 
+    // Headless downloads honor the EZProxy/WebVPN gateway + session cookie the
+    // user configured in the desktop app's shared `settings.json` (the CLI has
+    // no settings store of its own).
+    agentero_core::features::paper::import::download::load_institution_proxy_from_settings();
+
     // `agentero <dir>` → `agentero open <dir>` before clap (subcommand names win).
     let argv = args_rewrite::rewrite_path_shorthand(std::env::args_os().collect());
 

@@ -95,6 +95,51 @@ fn institution_proxy() -> Option<InstitutionProxyConf> {
     INSTITUTION_PROXY.lock().ok().and_then(|g| g.clone())
 }
 
+/// Institution-proxy fields as stored in the shared
+/// `$XDG_CONFIG_HOME/agentero/settings.json` (camelCase). Defined here so the
+/// headless CLI reads the very same keys the GUI store writes, instead of a
+/// parallel copy that could drift out of sync.
+#[derive(Debug, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct InstitutionProxySettings {
+    #[serde(default)]
+    institution_proxy_prefix: String,
+    #[serde(default)]
+    institution_proxy_cookie: String,
+    #[serde(default)]
+    institution_proxy_type: String,
+}
+
+/// Extract `(kind, prefix, cookie)` from a `settings.json` body. Pure so it can
+/// be unit-tested without touching the process-wide proxy.
+fn parse_institution_proxy_settings(raw: &str) -> Option<(InstitutionProxyKind, String, String)> {
+    let s: InstitutionProxySettings = serde_json::from_str(raw).ok()?;
+    let kind = InstitutionProxyKind::from_setting(&s.institution_proxy_type);
+    Some((kind, s.institution_proxy_prefix, s.institution_proxy_cookie))
+}
+
+/// Install the institution-proxy slice of a `settings.json` body into this
+/// process. An absent/empty prefix keeps the unauthenticated default (direct,
+/// no cookie). Returns true when a gateway was activated.
+fn apply_institution_proxy_settings(raw: &str) -> bool {
+    let Some((kind, prefix, cookie)) = parse_institution_proxy_settings(raw) else {
+        return false;
+    };
+    set_institution_proxy(kind, &prefix, &cookie);
+    institution_proxy().is_some()
+}
+
+/// Load the institution proxy (EZProxy/WebVPN) from the shared `settings.json`
+/// into this process. The desktop Host does this through its settings store;
+/// the headless CLI has no store, so it reads the same file here before
+/// downloading. Missing, unreadable, or malformed settings leave the default
+/// (direct, no cookie).
+pub fn load_institution_proxy_from_settings() -> bool {
+    std::fs::read_to_string(crate::paths::settings_path())
+        .map(|raw| apply_institution_proxy_settings(&raw))
+        .unwrap_or(false)
+}
+
 /// AES-128-CTR encrypt `host` with the public wengine key/IV and hex-encode
 /// with the IV prefixed in plaintext, matching the gateway's URL form
 /// (`/https/{hex(wrdvpnisthebest!)}{hex(ct)}/`). Verified against a live ZJU
@@ -1549,6 +1594,29 @@ mod tests {
             })
         );
         set_institution_proxy(InstitutionProxyKind::EzProxy, "", "");
+    }
+
+    #[test]
+    fn parse_institution_proxy_settings_reads_camel_case_keys() {
+        // wengine gateway (ZJU-style): bare origin + session cookie.
+        let parsed = parse_institution_proxy_settings(
+            r#"{"institutionProxyPrefix":"https://webvpn.zju.edu.cn","institutionProxyCookie":"S=1","institutionProxyType":"wengine"}"#,
+        );
+        assert_eq!(
+            parsed,
+            Some((
+                InstitutionProxyKind::Wengine,
+                "https://webvpn.zju.edu.cn".to_string(),
+                "S=1".to_string(),
+            ))
+        );
+        // Unknown/absent type falls back to EZProxy; missing prefix stays empty.
+        assert_eq!(
+            parse_institution_proxy_settings(r#"{"institutionProxyPrefix":""}"#),
+            Some((InstitutionProxyKind::EzProxy, String::new(), String::new()))
+        );
+        // Malformed JSON is ignored rather than panicking.
+        assert!(parse_institution_proxy_settings("not json").is_none());
     }
 
     /// 2000 × 8KB chunks of a 16MB known-size download at the same instant
