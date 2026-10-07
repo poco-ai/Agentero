@@ -10,7 +10,14 @@
  * scrolling the virtualized body does not re-render the header unless
  * compact/props change.
  */
-import { Award, ListFilter, RefreshCw, Search, X } from "lucide-react";
+import {
+	Award,
+	Landmark,
+	ListFilter,
+	RefreshCw,
+	Search,
+	X,
+} from "lucide-react";
 import { memo, useEffect, useState } from "react";
 import { LibraryColumnResizeHandle } from "@/components/library/library-column-resize-handle";
 import { COLUMN_META, SortIcon } from "@/components/library/library-columns";
@@ -40,6 +47,8 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { commands } from "@/lib/core/bindings";
+import { callApi } from "@/lib/core/ipc";
 import { errorMessage, notifyError, notifySuccess } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
 import {
@@ -48,8 +57,12 @@ import {
 	mergeEasyScholarTags,
 } from "@/lib/easyscholar";
 import type { PaperMetadata } from "@/lib/paper";
-import { libraryStore, setLibraryPaperTags } from "@/lib/paper/library-store";
-import type { PaperTag } from "@/lib/paper/tags";
+import {
+	libraryStore,
+	setLibraryPapers,
+	setLibraryPaperTags,
+} from "@/lib/paper/library-store";
+import { coercePaperTags, type PaperTag } from "@/lib/paper/tags";
 import type { LibraryColumnPref } from "@/lib/settings";
 import { getVaultPath } from "@/lib/vault/store";
 
@@ -123,6 +136,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 	const [dragOverKey, setDragOverKey] = useState<SortKey | null>(null);
 	const [tagFilterOpen, setTagFilterOpen] = useState(false);
 	const [rankBusy, setRankBusy] = useState(false);
+	const [venueBusy, setVenueBusy] = useState(false);
 
 	useEffect(() => {
 		if (compact) setTagFilterOpen(false);
@@ -134,6 +148,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 		? "opacity-100 duration-300"
 		: "pointer-events-none opacity-0 duration-0";
 	const canFetchRanks = Boolean(vaultPath) && !rankBusy && papers.length > 0;
+	const canDetectVenues = Boolean(vaultPath) && !venueBusy && papers.length > 0;
 
 	const fetchAllRanks = async () => {
 		if (!vaultPath || rankBusy) return;
@@ -179,6 +194,36 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 			});
 		} finally {
 			setRankBusy(false);
+		}
+	};
+
+	const refreshAllVenues = async () => {
+		if (!vaultPath || venueBusy) return;
+		const paths = papers
+			.map((paper) => paper.path)
+			.filter((path): path is string => Boolean(path));
+		if (paths.length === 0) return;
+		setVenueBusy(true);
+		try {
+			const rows = await callApi(
+				() => commands.paperRefreshVenueTags({ vaultPath, paths }),
+				{ fallback: t("papersLibrary.venue.refreshFailed") },
+			);
+			if (getVaultPath() !== vaultPath) return;
+			const byPath = new Map(rows.map((row) => [row.path, row]));
+			setLibraryPapers((prev) =>
+				prev.map((paper) => {
+					const row = byPath.get(paper.path);
+					return row ? { ...paper, tags: coercePaperTags(row.tags) } : paper;
+				}),
+			);
+			notifySuccess(t("papersLibrary.venue.batchDone", { count: rows.length }));
+		} catch (err) {
+			notifyError(t("papersLibrary.venue.refreshFailed"), {
+				description: errorMessage(err),
+			});
+		} finally {
+			setVenueBusy(false);
 		}
 	};
 
@@ -343,6 +388,38 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 										) : null}
 										{isTags ? (
 											<>
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<button
+															type="button"
+															data-library-header-action
+															disabled={!canDetectVenues}
+															tabIndex={showActions ? undefined : -1}
+															className={cn(
+																"ml-1 flex size-6 shrink-0 items-center justify-center rounded-sm",
+																"hover:bg-muted/60 hover:text-foreground",
+																"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+																"disabled:pointer-events-none",
+																showActions && "disabled:opacity-50",
+																"transition-opacity ease-out",
+																chromeFadeClass,
+															)}
+															aria-hidden={!showActions}
+															aria-label={t("papersLibrary.venue.refresh")}
+															title={t("papersLibrary.venue.refresh")}
+															onClick={(e) => {
+																e.stopPropagation();
+																void refreshAllVenues();
+															}}
+															onMouseDown={(e) => e.stopPropagation()}
+														>
+															<Landmark className="size-3.5" aria-hidden />
+														</button>
+													</TooltipTrigger>
+													<TooltipContent side="bottom">
+														{t("papersLibrary.venue.refresh")}
+													</TooltipContent>
+												</Tooltip>
 												<Tooltip>
 													<TooltipTrigger asChild>
 														<button

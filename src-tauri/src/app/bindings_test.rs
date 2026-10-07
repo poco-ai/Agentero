@@ -134,6 +134,7 @@ fn export_typescript_bindings() {
             crate::features::paper::catalog::commands::paper_set_is_read,
             crate::features::paper::catalog::commands::paper_update_meta,
             crate::features::paper::catalog::commands::paper_set_tags,
+            crate::features::paper::catalog::commands::paper_refresh_venue_tags,
             crate::features::paper::catalog::commands::paper_rescan,
             crate::features::paper::catalog::commands::paper_page_counts,
             crate::features::paper::catalog::commands::paper_set_page_counts,

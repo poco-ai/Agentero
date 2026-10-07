@@ -146,6 +146,11 @@
 			"fetchFailed": "Failed to fetch EasyScholar rank.",
 			"batchDone": "Updated {{updated}} papers · failed {{failed}} · no data {{empty}}"
 		},
+		"venue": {
+			"refresh": "Detect venue tags (#venue / #submitted) from metadata and arXiv source",
+			"refreshFailed": "Failed to detect venue tags.",
+			"batchDone": "Updated {{count}} papers"
+		},
 		"noMatch": "No papers match your search.",
 		"columnsMenuLabel": "Columns",
 		"resetColumns": "Reset columns",

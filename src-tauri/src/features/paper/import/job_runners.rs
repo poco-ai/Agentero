@@ -99,6 +99,12 @@ fn download_assets_runner(
 
         match result {
             Ok(_) => {
+                // arXiv e-print template / published venue → `#submitted:` /
+                // `#venue:` catalog tags. Best-effort: never fail the download.
+                if let Err(e) = crate::features::paper::venue::refresh_venue_tag(&vault, &path) {
+                    log::warn!(target: "agentero::import",
+                        "venue tag refresh failed for {path}: {e}");
+                }
                 // Follow-ups only when a local PDF actually exists. TeX-only
                 // downloads (or a failed PDF attempt) must not enqueue layout /
                 // ParseBody — those jobs fail with "No local PDF".

@@ -360,6 +360,12 @@ export const commands = {
 	/**  Replace catalog tags for a paper (syncs metadata.json projection). */
 	paperSetTags: (args: PaperSetTagsArgs) => __TAURI_INVOKE<ApiResult<PaperRecord_Serialize>>("paper_set_tags", { args }),
 	/**
+	 *  Recompute `#venue:` / `#submitted:` tags from catalog metadata + the arXiv
+	 *  e-print LaTeX template. An authoritative `publication` overwrites a template
+	 *  guess; papers that already carry a venue/submitted tag are left unchanged.
+	 */
+	paperRefreshVenueTags: (args: PaperRefreshVenueTagsArgs) => __TAURI_INVOKE<ApiResult<PaperRecord_Serialize[]>>("paper_refresh_venue_tags", { args }),
+	/**
 	 *  Rebuild catalog rows from `papers/` metadata.json — recovers papers that are
 	 *  on disk but missing from the catalog (added externally, or a lost row).
 	 */
@@ -4047,6 +4053,12 @@ export type PaperRecord_Serialize = {
 	zotero_last_synced?: string | null,
 	added_at: string,
 	updated_at: string,
+};
+
+export type PaperRefreshVenueTagsArgs = {
+	vaultPath: string,
+	/**  Vault-relative paper folder paths to process. */
+	paths: string[],
 };
 
 export type PaperRefsListArgs = {

@@ -146,6 +146,11 @@
 			"fetchFailed": "获取 EasyScholar 数据失败。",
 			"batchDone": "已更新 {{updated}} 篇 · 失败 {{failed}} · 无数据 {{empty}}"
 		},
+		"venue": {
+			"refresh": "依据元数据与 arXiv 源码解析 venue 标签（#venue / #submitted）",
+			"refreshFailed": "解析 venue 标签失败。",
+			"batchDone": "已更新 {{count}} 篇"
+		},
 		"noMatch": "没有匹配的论文。",
 		"columnsMenuLabel": "列",
 		"resetColumns": "重置列",

@@ -359,6 +359,32 @@ pub async fn paper_set_tags(args: PaperSetTagsArgs) -> ApiResult<PaperRecord> {
 
 #[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub struct PaperRefreshVenueTagsArgs {
+    pub vault_path: String,
+    /// Vault-relative paper folder paths to process.
+    pub paths: Vec<String>,
+}
+
+/// Recompute `#venue:` / `#submitted:` tags from catalog metadata + the arXiv
+/// e-print LaTeX template. An authoritative `publication` overwrites a template
+/// guess; papers that already carry a venue/submitted tag are left unchanged.
+#[tauri::command]
+#[specta::specta]
+pub async fn paper_refresh_venue_tags(
+    args: PaperRefreshVenueTagsArgs,
+) -> ApiResult<Vec<PaperRecord>> {
+    run_blocking(move || {
+        let vault = try_vault!(&args.vault_path);
+        match crate::features::paper::venue::refresh_venue_tags(&vault, &args.paths) {
+            Ok(rows) => ApiResult::ok(rows),
+            Err(e) => map_err(e),
+        }
+    })
+    .await
+}
+
+#[derive(Debug, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperRescanArgs {
     pub vault_path: String,
 }
