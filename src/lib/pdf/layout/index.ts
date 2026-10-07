@@ -186,12 +186,14 @@ export {
 	layoutDocumentKey,
 	layoutKindFromCitationFragment,
 	layoutKindFromRegionId,
+	mirrorLayoutResultToTranslation,
 	normalizeLayoutPaperKey,
 	setFocusedLayoutRegion,
 	setLayoutAnalysisUi,
 	setLayoutDocumentResult,
 	setLayoutOverlayVisible,
 	toggleLayoutOverlayVisible,
+	translationSourceKey,
 } from "@/lib/pdf/layout/store";
 export {
 	attachTitlesFromTextRuns,

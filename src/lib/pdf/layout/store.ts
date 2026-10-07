@@ -147,6 +147,42 @@ export function getLayoutDocumentResult(
 	);
 }
 
+/**
+ * Source document key for a dual-pane translation pane id (`base::translation`).
+ * Returns null when `documentId` is not a translation companion.
+ */
+export function translationSourceKey(documentId: string): string | null {
+	const key = layoutDocumentKey(documentId);
+	const suffix = "::translation";
+	return key.endsWith(suffix) ? key.slice(0, -suffix.length) : null;
+}
+
+/**
+ * Keep a translation pane's layout result mirrored from its source document.
+ *
+ * `openTranslationTab` seeds a one-shot snapshot when the pane opens; if layout
+ * analysis was still running then, the source result lands later under the
+ * source key and never reaches the pane. Subscribe so the pane's auto-start can
+ * still fire once regions are ready (and re-mirror when the source re-analyzes).
+ *
+ * Returns an unsubscribe function.
+ */
+export function mirrorLayoutResultToTranslation(
+	translationDocId: string,
+	sourceKey: string,
+): () => void {
+	const translationKey = layoutDocumentKey(translationDocId);
+	let seededFrom: PdfLayoutDocumentResult | null = null;
+	const sync = () => {
+		const source = getLayoutDocumentResult(sourceKey);
+		if (!source || source === seededFrom) return;
+		seededFrom = source;
+		setLayoutDocumentResult({ ...source, documentId: translationKey });
+	};
+	sync();
+	return layoutAnalysisStore.subscribe(sync);
+}
+
 export function clearLayoutDocumentResult(documentId: string): void {
 	const key = layoutDocumentKey(documentId);
 	layoutAnalysisStore.setState((state) => {

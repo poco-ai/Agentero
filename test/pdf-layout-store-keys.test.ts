@@ -5,7 +5,9 @@ import {
 	getLayoutDocumentResult,
 	layoutAnalysisStore,
 	layoutDocumentKey,
+	mirrorLayoutResultToTranslation,
 	setLayoutDocumentResult,
+	translationSourceKey,
 } from "@/lib/pdf/layout/store";
 import type {
 	PdfLayoutDocumentResult,
@@ -83,5 +85,57 @@ describe("layout byDocument keys across buffer revisions", () => {
 	it("keeps headless synthetic ids untouched", () => {
 		setLayoutDocumentResult(result("headless-layout-m1abc"));
 		expect(getLayoutDocumentResult("headless-layout-m1abc")).not.toBeNull();
+	});
+});
+
+describe("translationSourceKey", () => {
+	it("maps a translation pane id back to the source key", () => {
+		expect(translationSourceKey("papers/x.pdf::translation::r3")).toBe(
+			"papers/x.pdf",
+		);
+		expect(translationSourceKey("papers/x.pdf::translation")).toBe(
+			"papers/x.pdf",
+		);
+	});
+
+	it("returns null for ids that are not translation companions", () => {
+		expect(translationSourceKey("papers/x.pdf::r1")).toBeNull();
+		expect(translationSourceKey("papers/x.pdf")).toBeNull();
+	});
+});
+
+describe("mirrorLayoutResultToTranslation", () => {
+	it("mirrors a source result that lands after the pane opened", () => {
+		const unsubscribe = mirrorLayoutResultToTranslation(
+			"papers/x.pdf::translation::r2",
+			"papers/x.pdf",
+		);
+		// Nothing to mirror yet: layout analysis is still running.
+		expect(getLayoutDocumentResult("papers/x.pdf::translation")).toBeNull();
+
+		setLayoutDocumentResult(result("papers/x.pdf"));
+
+		const mirrored = getLayoutDocumentResult("papers/x.pdf::translation");
+		expect(mirrored).not.toBeNull();
+		expect(mirrored?.documentId).toBe("papers/x.pdf::translation");
+		expect(mirrored?.regions[0]?.id).toBe("papers/x.pdf-r1");
+		unsubscribe();
+	});
+
+	it("re-mirrors on re-analysis and stops after unsubscribe", () => {
+		const unsubscribe = mirrorLayoutResultToTranslation(
+			"papers/x.pdf::translation",
+			"papers/x.pdf",
+		);
+		setLayoutDocumentResult(result("papers/x.pdf"));
+		const first = getLayoutDocumentResult("papers/x.pdf::translation");
+
+		setLayoutDocumentResult(result("papers/x.pdf"));
+		const second = getLayoutDocumentResult("papers/x.pdf::translation");
+		expect(second).not.toBe(first);
+
+		unsubscribe();
+		setLayoutDocumentResult({ ...result("papers/x.pdf"), updatedAt: 99 });
+		expect(getLayoutDocumentResult("papers/x.pdf::translation")).toBe(second);
 	});
 });

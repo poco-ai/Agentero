@@ -29,6 +29,10 @@ import type { PdfViewerInnerProps } from "@/components/viewer/pdf/types";
 import { DockviewViewport } from "@/components/viewer/pdf/viewport/dockview-viewport";
 import { PanDragHandler } from "@/components/viewer/pdf/viewport/pan-handler";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
+import {
+	mirrorLayoutResultToTranslation,
+	translationSourceKey,
+} from "@/lib/pdf/layout";
 
 const EMPTY_PAGE_MAP = new Map();
 
@@ -130,6 +134,15 @@ export function PdfTranslationViewerInner({
 		vaultPath,
 	});
 
+	// `openTranslationTab` seeds a snapshot at open time; if layout analysis was
+	// still running then, mirror the source result when it lands so the
+	// auto-start below can fire.
+	useEffect(() => {
+		const sourceKey = translationSourceKey(docId);
+		if (!sourceKey) return;
+		return mirrorLayoutResultToTranslation(docId, sourceKey);
+	}, [docId]);
+
 	const translationAutoStartedRef = useRef(false);
 	const hadLayoutRegionsRef = useRef(false);
 	const layoutTranslateActiveRef = useRef(layoutTranslateActive);
@@ -145,8 +158,17 @@ export function PdfTranslationViewerInner({
 			translationAutoStartedRef.current = false;
 			hadLayoutRegionsRef.current = false;
 		}
-		if (!hasRegions) return;
 		if (translationAutoStartedRef.current) return;
+		if (!hasRegions) {
+			// Layout is not ready yet. Park the job on the shared analysis queue
+			// so the user sees the "queued — waiting for layout analysis" toast
+			// (with a cancel action) instead of a silent empty pane. The hook
+			// starts the job once regions land; the mirror above delivers them
+			// even when the source pane finishes after this pane opened.
+			translationAutoStartedRef.current = true;
+			toggleLayoutTranslate();
+			return;
+		}
 		if (layoutTranslateActive || layoutTranslateRunning) {
 			translationAutoStartedRef.current = true;
 			return;
