@@ -464,7 +464,6 @@ export function GeneralPane({
 				<GitHubMirrorRow
 					htmlFor="github-mirror-enabled"
 					label={t("general.githubMirror.label")}
-					description={t("general.githubMirror.description")}
 					value={settings.githubMirrorBaseUrl}
 					enabled={settings.githubMirrorEnabled}
 					onValueChange={(githubMirrorBaseUrl) =>
@@ -503,7 +502,6 @@ export function GeneralPane({
 				<InstitutionProxyRow
 					htmlFor="institution-proxy-prefix"
 					label={t("general.institutionProxy.label")}
-					description={t("general.institutionProxy.description")}
 					prefix={institutionProxyPrefixDraft}
 					cookie={institutionProxyCookieDraft}
 					prefixPlaceholder={

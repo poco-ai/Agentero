@@ -124,12 +124,10 @@
 			"systemDetected": "System proxy detected ({{url}}) — used automatically while this switch is off."
 		},
 		"githubMirror": {
-			"label": "GitHub mirror",
-			"description": "Choose a built-in public mirror for Skill import fallback when GitHub is unreachable."
+			"label": "GitHub mirror"
 		},
 		"institutionProxy": {
 			"label": "Institution proxy",
-			"description": "WebVPN prefix for paywalled PDF download (leave empty to disable)",
 			"cookieLabel": "Proxy cookie",
 			"cookiePlaceholder": "Paste WebVPN cookie",
 			"typeLabel": "Gateway type",

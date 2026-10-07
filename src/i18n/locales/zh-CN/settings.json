@@ -124,12 +124,10 @@
 			"systemDetected": "检测到系统代理（{{url}}）——开关关闭时将自动使用。"
 		},
 		"githubMirror": {
-			"label": "GitHub 镜像",
-			"description": "从内置公开镜像中选择一个，用于 Skill 导入时回退 GitHub 直连。"
+			"label": "GitHub 镜像"
 		},
 		"institutionProxy": {
 			"label": "机构代理",
-			"description": "WebVPN 前缀，用于付费文献 PDF 兜底下载（留空停用）",
 			"cookieLabel": "代理 Cookie",
 			"cookiePlaceholder": "粘贴 WebVPN Cookie",
 			"typeLabel": "网关类型",
