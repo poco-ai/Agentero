@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	GitHubMirrorRow,
+	type InstitutionProxyPresetOption,
 	InstitutionProxyRow,
 	NetworkProxyRow,
 } from "@/components/settings/agent-common-rows";
@@ -82,7 +83,10 @@ import {
 	type PdfSpreadMode,
 	saveSettingsAsync,
 } from "@/lib/settings";
-import { DEFAULT_NETWORK_PROXY_URL } from "@/lib/settings/defaults";
+import {
+	DEFAULT_NETWORK_PROXY_URL,
+	INSTITUTION_PROXY_PRESETS,
+} from "@/lib/settings/defaults";
 import { notesTemplateSeed } from "@/lib/vault/note-template";
 
 export function GeneralPane({
@@ -134,6 +138,24 @@ export function GeneralPane({
 			setInstitutionProxyTesting(false);
 		}
 	}, []);
+	const institutionProxyPresets = useMemo(
+		() =>
+			INSTITUTION_PROXY_PRESETS.map((preset) => ({
+				...preset,
+				label: t(`general.institutionProxy.presets.${preset.id}`),
+			})),
+		[t],
+	);
+	const selectInstitutionProxyPreset = useCallback(
+		(preset: InstitutionProxyPresetOption) => {
+			setInstitutionProxyPrefixDraft(preset.prefix);
+			patch({
+				institutionProxyPrefix: preset.prefix,
+				institutionProxyType: preset.kind,
+			});
+		},
+		[patch],
+	);
 	const [seedingTemplate, setSeedingTemplate] = useState(false);
 
 	// Custom note mode seeds `.agentero/templates/NOTES.md` in the active vault;
@@ -484,13 +506,20 @@ export function GeneralPane({
 					description={t("general.institutionProxy.description")}
 					prefix={institutionProxyPrefixDraft}
 					cookie={institutionProxyCookieDraft}
-					prefixPlaceholder="https://webvpn.example.edu/login?url="
+					prefixPlaceholder={
+						settings.institutionProxyType === "wengine"
+							? "https://webvpn.example.edu"
+							: "https://webvpn.example.edu/login?url="
+					}
 					cookiePlaceholder={t("general.institutionProxy.cookiePlaceholder")}
 					cookieLabel={t("general.institutionProxy.cookieLabel")}
 					testLabel={t("general.institutionProxy.test")}
 					testingLabel={t("general.institutionProxy.testing")}
+					presetsLabel={t("general.institutionProxy.presetsLabel")}
+					presets={institutionProxyPresets}
 					onPrefixChange={setInstitutionProxyPrefixDraft}
 					onCookieChange={setInstitutionProxyCookieDraft}
+					onPresetSelect={selectInstitutionProxyPreset}
 					onCommit={commitInstitutionProxy}
 					onTest={() => void testInstitutionProxy()}
 					testing={institutionProxyTesting}

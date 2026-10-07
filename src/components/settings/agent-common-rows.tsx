@@ -1,5 +1,13 @@
+import { ChevronDown, School } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -119,6 +127,14 @@ export function GitHubMirrorRow({
 	);
 }
 
+/** Resolved quick-fill preset (label already localized by the caller). */
+export type InstitutionProxyPresetOption = {
+	id: string;
+	kind: string;
+	prefix: string;
+	label: string;
+};
+
 /** Institution proxy (EZProxy/WebVPN) prefix + session cookie for paywalled
  * PDF fallback, with a connection test that fetches a known paywalled DOI.
  * Two stacked rows (prefix + cookie) so the control column never wraps. */
@@ -133,8 +149,11 @@ export function InstitutionProxyRow({
 	cookieLabel,
 	testLabel,
 	testingLabel,
+	presetsLabel,
+	presets,
 	onPrefixChange,
 	onCookieChange,
+	onPresetSelect,
 	onCommit,
 	onTest,
 	testing,
@@ -150,8 +169,11 @@ export function InstitutionProxyRow({
 	cookieLabel: string;
 	testLabel: string;
 	testingLabel: string;
+	presetsLabel: string;
+	presets: readonly InstitutionProxyPresetOption[];
 	onPrefixChange: (v: string) => void;
 	onCookieChange: (v: string) => void;
+	onPresetSelect: (preset: InstitutionProxyPresetOption) => void;
 	onCommit: () => void;
 	onTest: () => void;
 	testing: boolean;
@@ -177,6 +199,41 @@ export function InstitutionProxyRow({
 						disabled={!isTauri()}
 						className="h-8 w-64 max-w-[18rem] font-mono text-xs"
 					/>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								type="button"
+								variant="outline"
+								size="xs"
+								disabled={!isTauri()}
+								title={presetsLabel}
+								aria-label={presetsLabel}
+							>
+								<School />
+								<ChevronDown />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent
+							align="start"
+							className="max-h-72 w-64 overflow-y-auto"
+						>
+							<DropdownMenuLabel className="text-xs text-muted-foreground">
+								{presetsLabel}
+							</DropdownMenuLabel>
+							{presets.map((preset) => (
+								<DropdownMenuItem
+									key={preset.id}
+									className="flex flex-col items-start gap-0.5"
+									onSelect={() => onPresetSelect(preset)}
+								>
+									<span className="text-xs">{preset.label}</span>
+									<span className="font-mono text-[10px] text-muted-foreground">
+										{preset.prefix}
+									</span>
+								</DropdownMenuItem>
+							))}
+						</DropdownMenuContent>
+					</DropdownMenu>
 					<Button
 						type="button"
 						variant="outline"

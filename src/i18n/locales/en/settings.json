@@ -136,7 +136,17 @@
 			"typeEzproxy": "EZProxy (login?url=)",
 			"typeWengine": "WebVPN (wengine)",
 			"test": "Test",
-			"testing": "Testing…"
+			"testing": "Testing…",
+			"presetsLabel": "Common institutions",
+			"presets": {
+				"zju": "Zhejiang University",
+				"ustc": "University of Science and Technology of China",
+				"xjtu": "Xi'an Jiaotong University",
+				"neu": "Northeastern University",
+				"zjnu": "Zhejiang Normal University",
+				"sjzu": "Shenyang Jianzhu University",
+				"zqu": "Zhaoqing University"
+			}
 		},
 		"easyScholar": {
 			"section": "EasyScholar",

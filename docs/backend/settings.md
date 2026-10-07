@@ -14,6 +14,7 @@
 - `onboardingDone` / `featureTourDone`：首次运行向导与 Vault 打开后的功能导引是否已完成（默认 `false`）。前端完成/跳过后写入；Host schema 必须保留这两个字段，否则 `settings_set` 会静默丢掉，下次启动再次弹出（#398）。
 - 网络代理（`networkProxyEnabled` / `networkProxyUrl`）：作用于 Host 全部 reqwest 客户端（广场站点代理、订阅、检索、翻译、模型下载）与 Agent 流量。**开关关闭时自动回退 Windows 系统代理**（读注册表 `Internet Settings` 的 `ProxyEnable`/`ProxyServer`，30s TTL 缓存以跟随代理软件开关）；reqwest 默认不读 Windows 系统代理，此回退避免“浏览器能开、应用内页面打不开”的割裂。`network_system_proxy` 命令暴露检测结果：更新器插件用它做代理回退，设置页在开关关闭时显示“检测到系统代理”。
 - GitHub 镜像（`githubMirrorEnabled` / `githubMirrorBaseUrl`）：Skill 导入专用 URL 前缀回退（直连 `api.github.com` / `codeload.github.com` 超时、连接失败、5xx、429 或 403 后再试 `{base}/https://…`；404 等真实不存在仍不回退）。GitHub REST API 请求优先使用本机已登录的 `gh api`；没有 `gh`、未登录或 `gh api` 失败时才走 Host 直连 API；第三方镜像不带 token。默认关；`githubMirrorBaseUrl` 只能从内建预设列表中选取，不再允许用户填写自定义地址。与网络代理正交。见 [skill-import.md](skill-import.md)。
+- 机构代理（`institutionProxyType` / `institutionProxyPrefix` / `institutionProxyCookie`）：付费文献 PDF 兜底，OA 链路全未命中时经机构网关重写请求。`institutionProxyType` 取 `ezproxy`（查询透传 `{prefix}{urlencode(target)}`，裸域名自动补 `/login?url=`）或 `wengine`（网瑞达路径式 `/https/{AES-128-CTR(host)}/{path}`，浙大等）；空前缀禁用。设置页提供常见院校快速填充（均为实测 wengine 网关）。见 [academic-search-apis.md](academic-search-apis.md)。
 - 旧 localStorage 键一次性迁移。
 - Agent 注册表等同目录管理。
 

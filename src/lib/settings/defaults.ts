@@ -86,6 +86,34 @@ export const GITHUB_MIRROR_PRESETS = [
 	"https://github.moeyy.xyz",
 ] as const;
 
+/** Gateway flavour for the institution proxy (`institutionProxyType`). */
+export type InstitutionProxyKind = "ezproxy" | "wengine";
+
+export type InstitutionProxyPreset = {
+	id: string;
+	kind: InstitutionProxyKind;
+	/** Gateway origin only — the rewrite logic appends the path/query form. */
+	prefix: string;
+};
+
+/**
+ * Built-in institution WebVPN gateways offered as quick-fill presets beside the
+ * free-text prefix field. Only gateways confirmed to run the wengine
+ * path-rewriting engine are listed: the AES key is engine-wide, so the origin
+ * is all we need and both gateway kinds still accept a hand-typed prefix.
+ * Covers the "preset school table" deferred from the first institution-proxy
+ * PR (#677). Labels live at `general.institutionProxy.presets.{id}`.
+ */
+export const INSTITUTION_PROXY_PRESETS = [
+	{ id: "zju", kind: "wengine", prefix: "https://webvpn.zju.edu.cn" },
+	{ id: "ustc", kind: "wengine", prefix: "https://webvpn.ustc.edu.cn" },
+	{ id: "xjtu", kind: "wengine", prefix: "https://webvpn.xjtu.edu.cn" },
+	{ id: "neu", kind: "wengine", prefix: "https://webvpn.neu.edu.cn" },
+	{ id: "zjnu", kind: "wengine", prefix: "https://webvpn.zjnu.edu.cn" },
+	{ id: "sjzu", kind: "wengine", prefix: "https://webvpn.sjzu.edu.cn" },
+	{ id: "zqu", kind: "wengine", prefix: "https://webvpn.zqu.edu.cn" },
+] as const satisfies readonly InstitutionProxyPreset[];
+
 /**
  * Discrete UI scale presets exposed in Settings. Keyboard shortcuts and the
  * settings UI move between these values instead of using a continuous slider.

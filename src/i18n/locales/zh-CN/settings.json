@@ -136,7 +136,17 @@
 			"typeEzproxy": "EZProxy（login?url=）",
 			"typeWengine": "WebVPN（wengine 路径式）",
 			"test": "测试",
-			"testing": "测试中…"
+			"testing": "测试中…",
+			"presetsLabel": "常见院校",
+			"presets": {
+				"zju": "浙江大学",
+				"ustc": "中国科学技术大学",
+				"xjtu": "西安交通大学",
+				"neu": "东北大学",
+				"zjnu": "浙江师范大学",
+				"sjzu": "沈阳建筑大学",
+				"zqu": "肇庆学院"
+			}
 		},
 		"easyScholar": {
 			"section": "EasyScholar",
