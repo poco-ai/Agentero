@@ -22,7 +22,13 @@ export function isVenueNamespaceTag(name: string): boolean {
 	return isVenueTagName(name) || isSubmittedTagName(name);
 }
 
-/** Display label with the namespace prefix removed. */
+/**
+ * Display label with the namespace prefix removed.
+ *
+ * `#venue:` shows the published name as-is; `#submitted:` keeps the
+ * "Submitted to" wording because the template-inferred target is not a
+ * formal publication yet.
+ */
 export function formatVenueTag(name: string): string {
 	const trimmed = name.trim();
 	const lower = trimmed.toLocaleLowerCase();
@@ -30,7 +36,7 @@ export function formatVenueTag(name: string): string {
 		return trimmed.slice(VENUE_TAG_PREFIX.length);
 	}
 	if (lower.startsWith(SUBMITTED_TAG_PREFIX)) {
-		return trimmed.slice(SUBMITTED_TAG_PREFIX.length);
+		return `Submitted to ${trimmed.slice(SUBMITTED_TAG_PREFIX.length)}`;
 	}
 	return name;
 }
