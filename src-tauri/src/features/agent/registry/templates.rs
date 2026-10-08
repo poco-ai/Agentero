@@ -383,7 +383,9 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             args: vec!["--acp".to_string()],
             detect_command: Some("qodercli".to_string()),
             install_hint:
-                "Install Qoder CLI, then `qodercli login`  ·  https://docs.qoder.com/en/cli/acp"
+                "Official installer (https://qoder.com/install) or npm: \
+                 `npm i -g @qoder-ai/qodercli`  ·  then `qodercli login`  ·  \
+                 https://docs.qoder.com/cli/installation"
                     .to_string(),
             install_command: None,
             login_command: None,

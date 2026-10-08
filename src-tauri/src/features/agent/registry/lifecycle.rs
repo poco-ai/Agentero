@@ -81,6 +81,7 @@ pub const LIFECYCLE_TEMPLATES: &[&str] = &[
     "claude-acp",
     "codex-acp",
     "hermes",
+    "qodercli",
     "grok-build",
     "pi",
     "dsh",
@@ -147,6 +148,13 @@ const KIMI_INSTALL_UNIX: &str = "bash -c 'tmp=$(mktemp) && curl -fsSL https://co
 /// npm fallback for Kimi Code (npm installs the same `kimi` binary).
 pub const KIMI_NPM_INSTALL_COMMAND: &str = "npm i -g @moonshot-ai/kimi-code@latest";
 
+/// Qoder CLI official installer. The script downloads a native `qodercli`
+/// and delegates to `qodercli install --force` (non-interactive). npm is only
+/// the Node compatibility build, so it stays the fallback.
+#[cfg(not(target_os = "windows"))]
+const QODER_INSTALL_UNIX: &str = "bash -c 'tmp=$(mktemp) && curl -fsSL https://qoder.com/install -o $tmp && bash $tmp; status=$?; rm -f $tmp; exit $status'";
+const QODER_NPM_INSTALL_COMMAND: &str = "npm i -g @qoder-ai/qodercli@latest";
+
 #[cfg(target_os = "windows")]
 const GROK_INSTALL_WINDOWS_SCRIPT: &str = "irm https://x.ai/cli/install.ps1 | iex";
 #[cfg(target_os = "windows")]
@@ -154,6 +162,8 @@ const HERMES_INSTALL_WINDOWS_SCRIPT: &str =
     "irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex";
 #[cfg(target_os = "windows")]
 const KIMI_INSTALL_WINDOWS_SCRIPT: &str = "irm https://code.kimi.com/kimi-code/install.ps1 | iex";
+#[cfg(target_os = "windows")]
+const QODER_INSTALL_WINDOWS_SCRIPT: &str = "irm https://qoder.com/install.ps1 | iex";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolLifecycleAction {
@@ -302,6 +312,12 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
             vec!["npm uninstall -g @xai-official/grok".to_string()],
             Vec::new(),
         ),
+        // npm covers the Node fallback. The official script writes the paths
+        // in `qoder_managed_install_paths` (not the ~/.qoder session dir).
+        "qodercli" => (
+            vec!["npm uninstall -g @qoder-ai/qodercli".to_string()],
+            Vec::new(),
+        ),
         // The ACP profile lives inside the umbrella CLI; the dir entry below
         // only cleans up the retired dsh-acp-demo launcher.
         "dsh" => (vec![dsh_host], Vec::new()),
@@ -327,6 +343,13 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
             vec![legacy_dsh_launcher_dir().display().to_string()],
         ),
         "kimi-code" => (vec![kimi_launcher_dir().display().to_string()], Vec::new()),
+        "qodercli" => (
+            qoder_managed_install_paths()
+                .into_iter()
+                .map(|path| path.display().to_string())
+                .collect(),
+            Vec::new(),
+        ),
         "antigravity-acp" => (
             Vec::new(),
             vec![antigravity_install_dir().display().to_string()],
@@ -365,11 +388,56 @@ fn best_effort_chain(cmds: &[String]) -> String {
     }
 }
 
-fn remove_managed_dir(dir: &std::path::Path) -> Result<(), String> {
-    if !dir.exists() {
-        return Ok(());
-    }
-    fs::remove_dir_all(dir).map_err(|e| format!("failed to remove {}: {e}", dir.display()))
+/// Official Qoder installer layout. The versioned binary lives in
+/// `~/.qoder/bin/qodercli`, the `qoder` dispatcher in `~/.qoder/entry`, and
+/// PATH sees a symlink at `~/.local/bin/qodercli`. `~/.qoder` itself holds
+/// sessions and auth, and `~/.local/bin` is shared, so neither directory is
+/// removed. Shell rc PATH lines are left in place.
+fn qoder_managed_install_paths() -> Vec<std::path::PathBuf> {
+    #[cfg(target_os = "windows")]
+    let home = std::env::var_os("USERPROFILE").map(std::path::PathBuf::from);
+    #[cfg(not(target_os = "windows"))]
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    let Some(home) = home.filter(|path| !path.as_os_str().is_empty()) else {
+        return Vec::new();
+    };
+    #[cfg(not(target_os = "windows"))]
+    let paths = vec![
+        home.join(".qoder").join("bin").join("qodercli"),
+        home.join(".qoder").join("entry"),
+        home.join(".local").join("bin").join("qodercli"),
+    ];
+    #[cfg(target_os = "windows")]
+    let paths = {
+        let bin = home.join(".local").join("bin");
+        vec![
+            home.join(".qoder").join("bin").join("qodercli"),
+            home.join(".qoder").join("entry"),
+            bin.join("qodercli"),
+            bin.join("qodercli.exe"),
+            bin.join("qodercli.cmd"),
+        ]
+    };
+    paths
+}
+
+/// Remove one managed uninstall path. A symlink is unlinked and not followed,
+/// so `~/.local/bin/qodercli` goes away even after its target is already gone,
+/// and the shared `~/.local/bin` directory stays.
+fn remove_managed_path(path: &std::path::Path) -> Result<(), String> {
+    let meta = match fs::symlink_metadata(path) {
+        Ok(meta) => meta,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(err) => {
+            return Err(format!("failed to inspect {}: {err}", path.display()));
+        }
+    };
+    let result = if meta.file_type().is_symlink() || meta.is_file() {
+        fs::remove_file(path)
+    } else {
+        fs::remove_dir_all(path)
+    };
+    result.map_err(|err| format!("failed to remove {}: {err}", path.display()))
 }
 
 /// Uninstall path: npm uninstall chains plus managed directory removal.
@@ -388,20 +456,25 @@ pub fn run_partial_template_uninstall(
     let payload = info.for_scope(scope);
     if !payload.npm_commands.is_empty() {
         // A fully `|| true` chain would silently succeed when npm is missing.
-        if resolve_command("npm").is_none() {
+        // Qoder's official installer does not need Node, so a missing npm must
+        // not block removal of the script-installed binary.
+        let npm_available = resolve_command("npm").is_some();
+        if !npm_available && template_id != "qodercli" {
             return Err("npm is not available on PATH; cannot uninstall npm packages".to_string());
         }
-        run_tool_lifecycle_silently(
-            &best_effort_chain(&payload.npm_commands),
-            app,
-            task_id,
-            "agent-lifecycle-uninstall",
-            proxy_enabled,
-            proxy_url,
-        )?;
+        if npm_available {
+            run_tool_lifecycle_silently(
+                &best_effort_chain(&payload.npm_commands),
+                app,
+                task_id,
+                "agent-lifecycle-uninstall",
+                proxy_enabled,
+                proxy_url,
+            )?;
+        }
     }
     for dir in &payload.dirs {
-        remove_managed_dir(std::path::Path::new(dir))?;
+        remove_managed_path(std::path::Path::new(dir))?;
     }
     Ok(())
 }
@@ -462,7 +535,7 @@ pub fn run_template_lifecycle(
     // the bundled adapter moves with app releases.
     let bundled_tier_active = !acp_path_present && super::bundled::bundled_spawnable(template_id);
     let acp_present = acp_path_present || bundled_tier_active;
-    // Same binary for host and ACP (opencode, hermes, grok via npx).
+    // Same binary for host and ACP (opencode, hermes, qodercli, grok).
     let needs_separate_adapter = info
         .detect_command
         .as_ref()
@@ -820,6 +893,10 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
             "codex-acp" => Ok("npm i -g @openai/codex@latest".to_string()),
             "opencode" => Ok(OPENCODE_NPM_INSTALL_COMMAND.to_string()),
             "hermes" => Ok(hermes_install_windows_command()),
+            "qodercli" => Ok(chain_or(
+                &qoder_install_windows_command(),
+                QODER_NPM_INSTALL_COMMAND,
+            )),
             "pi" => Ok(PI_HOST_INSTALL_COMMAND.to_string()),
             "dsh" => Ok(DSH_INSTALL_COMMAND.to_string()),
             "kimi-code" => Ok(chain_or(
@@ -849,6 +926,7 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
                 OPENCODE_NPM_INSTALL_COMMAND,
             )),
             "hermes" => Ok(HERMES_INSTALL_UNIX.to_string()),
+            "qodercli" => Ok(chain_or(QODER_INSTALL_UNIX, QODER_NPM_INSTALL_COMMAND)),
             "pi" => Ok(PI_HOST_INSTALL_COMMAND.to_string()),
             "dsh" => Ok(DSH_INSTALL_COMMAND.to_string()),
             "kimi-code" => Ok(chain_or(KIMI_INSTALL_UNIX, KIMI_NPM_INSTALL_COMMAND)),
@@ -947,6 +1025,24 @@ fn host_update_command(template_id: &str) -> Result<String, String> {
                 ))
             }
         }
+        // `qodercli update` is a non-interactive self-update. If it fails,
+        // re-run the official installer (already passes --force) then npm.
+        "qodercli" => {
+            #[cfg(target_os = "windows")]
+            {
+                Ok(chain_or(
+                    "qodercli update",
+                    &chain_or(&qoder_install_windows_command(), QODER_NPM_INSTALL_COMMAND),
+                ))
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                Ok(chain_or(
+                    "qodercli update",
+                    &chain_or(QODER_INSTALL_UNIX, QODER_NPM_INSTALL_COMMAND),
+                ))
+            }
+        }
         _ => host_install_command(template_id),
     }
 }
@@ -1006,6 +1102,14 @@ fn kimi_install_windows_command() -> String {
     )
 }
 
+#[cfg(target_os = "windows")]
+fn qoder_install_windows_command() -> String {
+    format!(
+        "powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand {}",
+        powershell_encoded_command(QODER_INSTALL_WINDOWS_SCRIPT)
+    )
+}
+
 /// Manual one-click install text for Settings (copyable). Matches backend install chains.
 pub fn manual_install_commands_text() -> String {
     #[cfg(target_os = "windows")]
@@ -1024,6 +1128,9 @@ npm i -g @opencode/cli@latest
 {pi_acp}
 # Hermes Agent
 {hermes}
+# Qoder CLI
+{qoder}
+# (or) npm i -g @qoder-ai/qodercli@latest
 # Grok Build
 {grok}
 # (or) npm i -g @xai-official/grok@latest
@@ -1039,6 +1146,7 @@ npm i -g @opencode/cli@latest
             pi_host = PI_HOST_INSTALL_COMMAND,
             pi_acp = PI_ACP_INSTALL_COMMAND,
             hermes = hermes_install_windows_command(),
+            qoder = qoder_install_windows_command(),
             grok = grok_install_windows_command(),
             kimi = kimi_install_windows_command(),
             minimax = MINIMAX_CODE_INSTALL_COMMAND,
@@ -1061,6 +1169,8 @@ npm i -g @openai/codex@latest
 {pi_acp}
 # Hermes Agent
 {hermes}
+# Qoder CLI
+{qoder} || npm i -g @qoder-ai/qodercli@latest
 # Grok Build
 {grok} || npm i -g @xai-official/grok@latest
 # Kimi Code
@@ -1076,6 +1186,7 @@ npm i -g @openai/codex@latest
             pi_host = PI_HOST_INSTALL_COMMAND,
             pi_acp = PI_ACP_INSTALL_COMMAND,
             hermes = HERMES_INSTALL_UNIX,
+            qoder = QODER_INSTALL_UNIX,
             grok = GROK_INSTALL_UNIX,
             kimi = KIMI_INSTALL_UNIX,
             minimax = MINIMAX_CODE_INSTALL_COMMAND,
@@ -1509,7 +1620,7 @@ mod tests {
             assert!(template_info(id).is_some(), "missing template {id}");
             assert!(supports_lifecycle(id));
         }
-        assert!(!supports_lifecycle("qodercli"));
+        assert!(supports_lifecycle("qodercli"));
         assert!(!supports_lifecycle("custom"));
     }
 
@@ -1696,6 +1807,7 @@ mod tests {
         assert!(text.contains("Claude"));
         assert!(text.contains("OpenCode"));
         assert!(text.contains("Hermes"));
+        assert!(text.contains("Qoder"));
         assert!(text.contains("Grok"));
         assert!(text.contains("Pi"));
         assert!(text.contains("Kimi"));
@@ -1746,6 +1858,129 @@ mod tests {
         );
         let update = host_update_command("kimi-code").expect("kimi update");
         assert_eq!(update, cmd, "kimi update re-runs the official installer");
+    }
+
+    #[test]
+    fn qoder_install_prefers_official_script_with_npm_fallback() {
+        let cmd = host_install_command("qodercli").expect("qoder install");
+        let script = if cfg!(target_os = "windows") {
+            decode_encoded_commands(&cmd)
+        } else {
+            cmd.clone()
+        };
+        assert!(
+            script.contains("qoder.com/install"),
+            "qoder install must use the official script: {script}"
+        );
+        assert!(
+            !script.contains("curl | bash"),
+            "must not pipe curl to bash"
+        );
+        assert!(
+            cmd.contains("@qoder-ai/qodercli"),
+            "qoder install must fall back to npm: {cmd}"
+        );
+        let update = host_update_command("qodercli").expect("qoder update");
+        assert!(
+            update.contains("qodercli update"),
+            "qoder update must try the built-in updater: {update}"
+        );
+        assert!(
+            update.contains("qoder.com/install"),
+            "qoder update must fall back to the official installer"
+        );
+        let info = uninstall_info("qodercli").expect("qoder uninstall");
+        assert!(info
+            .agent
+            .npm_commands
+            .iter()
+            .any(|c| c.contains("@qoder-ai/qodercli")));
+        let dirs: Vec<String> = info
+            .agent
+            .dirs
+            .iter()
+            .map(|dir| dir.replace('\\', "/"))
+            .collect();
+        assert!(dirs.iter().any(|dir| dir.ends_with(".qoder/bin/qodercli")));
+        assert!(dirs.iter().any(|dir| dir.ends_with(".qoder/entry")));
+        assert!(dirs.iter().any(|dir| dir.ends_with(".local/bin/qodercli")));
+        assert!(dirs.iter().all(|dir| {
+            let name = std::path::Path::new(dir)
+                .file_name()
+                .and_then(|name| name.to_str());
+            name != Some(".qoder") && name != Some(".local") && name != Some("bin")
+        }));
+        #[cfg(target_os = "windows")]
+        {
+            assert!(dirs
+                .iter()
+                .any(|dir| dir.ends_with(".local/bin/qodercli.exe")));
+            assert!(dirs
+                .iter()
+                .any(|dir| dir.ends_with(".local/bin/qodercli.cmd")));
+        }
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(dirs.len(), 3);
+    }
+
+    #[test]
+    fn remove_managed_path_removes_file_and_directory_and_ignores_missing() {
+        let root = std::env::temp_dir().join(format!(
+            "agentero-managed-path-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("dir")).unwrap();
+        fs::write(root.join("dir").join("f"), b"x").unwrap();
+        fs::write(root.join("file"), b"y").unwrap();
+
+        remove_managed_path(&root.join("dir")).unwrap();
+        remove_managed_path(&root.join("file")).unwrap();
+        remove_managed_path(&root.join("absent")).unwrap();
+
+        assert!(!root.join("dir").exists());
+        assert!(!root.join("file").exists());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn remove_managed_path_unlinks_symlink_without_following() {
+        use std::os::unix::fs::symlink;
+
+        let root = std::env::temp_dir().join(format!(
+            "agentero-qoder-unlink-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("shared-bin")).unwrap();
+        fs::create_dir_all(root.join("versioned")).unwrap();
+        let binary = root.join("versioned").join("qodercli-1");
+        fs::write(&binary, b"bin").unwrap();
+        let link = root.join("shared-bin").join("qodercli");
+        symlink(&binary, &link).unwrap();
+        let dangling = root.join("shared-bin").join("gone");
+        symlink(root.join("missing-target"), &dangling).unwrap();
+
+        remove_managed_path(&link).unwrap();
+        remove_managed_path(&dangling).unwrap();
+
+        assert!(fs::symlink_metadata(&link).is_err());
+        assert!(fs::symlink_metadata(&dangling).is_err());
+        assert!(
+            binary.exists(),
+            "unlinking the shim must not delete its target"
+        );
+        assert!(root.join("shared-bin").is_dir());
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
@@ -1842,7 +2077,7 @@ mod tests {
                 assert!(!cmd.contains("@latest"), "{id}: {cmd}");
             }
         }
-        assert!(uninstall_info("qodercli").is_none());
+        assert!(uninstall_info("qodercli").is_some());
         assert!(uninstall_info("custom").is_none());
     }
 

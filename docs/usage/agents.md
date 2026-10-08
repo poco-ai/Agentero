@@ -50,13 +50,14 @@ Agentero 使用 **BYOA**（Bring Your Own Agent）：Agent 由你安装和登录
 
 1. 打开 **Settings → Agent**，在已安装或已注册的 Agent 行点 **Trash** 按钮。
 2. 确认对话框展示该 Agent 的 logo 与将要执行的清理项：
-   - Agentero 静默安装的 npm 全局包（如 `@opencode/cli`、`@anthropic-ai/claude-code`、`@minimax-ai/code` 等）逐个 `npm uninstall -g`；OpenCode 会额外清理旧版 `opencode-ai`。
+   - Agentero 静默安装的 npm 全局包（如 `@opencode/cli`、`@anthropic-ai/claude-code`、`@minimax-ai/code`、`@qoder-ai/qodercli` 等）逐个 `npm uninstall -g`；OpenCode 会额外清理旧版 `opencode-ai`。
    - Agentero 管理的目录（Kimi Code 的 `~/.kimi-code`、dsh 旧方案的遗留 `~/.agentero/dsh-acp`）整体删除。
+   - Qoder CLI 官方脚本安装会删除 `~/.qoder/bin/qodercli`、`~/.qoder/entry`，以及 `~/.local/bin/qodercli` 这个链接（不删除整个 `~/.local/bin`）。
 3. 确认后行内显示卸载进度，完成后注册项一并移除，行回到「未安装」状态。
 
 清理范围与保留项：
 
-- **不清理**：官方安装器或 Homebrew 安装的 CLI、shell 配置中官方 installer 写入的 PATH 行、Agent 会话历史。这些无法可靠定位或属于用户数据，均保留。
+- **不清理**：Homebrew 安装的 CLI、shell 配置中官方 installer 写入的 PATH 行、Agent 会话历史（包括 `~/.qoder` 里的登录和会话）。除上面列出的 Qoder 脚本安装文件外，其它官方脚本安装的 CLI 无法可靠定位，保留。
 - **仅移除注册项**：对没有可管理卸载路径的 Agent（如 Hermes、纯 PATH 探测到的 CLI），对话框会注明只删 Agentero 注册项，磁盘文件不动。
 - **自定义 Agent**：走同一确认对话框，但只移除注册项（自定义 Agent 的二进制由用户自管）。
 

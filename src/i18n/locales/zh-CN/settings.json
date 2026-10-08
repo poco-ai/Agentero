@@ -417,7 +417,7 @@
 			"lead": "选择要移除的内容：",
 			"removeAgent": "移除 Agent CLI",
 			"removeAcp": "移除 ACP 适配器",
-			"dirsLabel": "要删除的目录",
+			"dirsLabel": "要删除的路径",
 			"copyAria": "复制到剪贴板",
 			"registryOnly": "仅移除 Agentero 注册项，磁盘上的文件保留。",
 			"customConfirm": "从 Agentero 中移除此自定义 Agent？",

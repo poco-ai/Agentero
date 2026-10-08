@@ -337,11 +337,11 @@ describe("showUninstallAgent", () => {
 		).toBe(false);
 	});
 
-	it("rejects plain-PATH binaries we never installed (qodercli)", () => {
+	it("rejects an installed binary whose template has no silent installer", () => {
 		expect(
 			showUninstallAgent(
 				entry({
-					templateId: "qodercli",
+					templateId: "custom",
 					registeredId: null,
 					canInstall: false,
 					binaryAvailable: true,

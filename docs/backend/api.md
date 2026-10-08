@@ -1661,13 +1661,13 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 > 已取代旧的 `agent_open_install_terminal`（打开系统终端、Enter 确认后再装）。远端仍用 `remote_agent_open_install_terminal`（SSH 确认安装）。
 
 - **参数**：`{ templateId: string, action: "install" | "update" | "uninstall", taskId?: string }`
-  - 支持的 `templateId`：`opencode` · `claude-acp` · `codex-acp` · `antigravity-acp` · `hermes` · `grok-build` · `pi` · `dsh` · `kimi-code` · `zcode` · `minimax-code` · `mimo-code`（不含 `qodercli` / `custom`）
+  - 支持的 `templateId`：`opencode` · `claude-acp` · `codex-acp` · `antigravity-acp` · `hermes` · `qodercli` · `grok-build` · `pi` · `dsh` · `kimi-code` · `zcode` · `minimax-code` · `mimo-code`（不含 `custom`）
   - `taskId` 来自设置页 Agent 行内安装进度条；用于匹配 Host progress tick 与接收协作取消信号。
 - **返回**：`{ ok: true; data: null }` 或错误（stderr/stdout 末尾若干行）
 - **行为**
-  - `install`：未装 host 时走官方 installer（POSIX curl→临时文件再 bash，非 `curl|bash`）或 npm；Claude/Codex/Pi 在 host 已存在但 ACP 缺失时只装适配器；两者都缺则 host && adapter；Antigravity 从 ACP Registry 读取当前版本和平台压缩包，校验 HTTPS ZIP 后解压到 Agentero 管理目录，不使用旧版本回退；Registry 不可用、manifest 无效或平台没有构建时直接报错。Hermes 走官方 installer；Pi 无原生 ACP，ACP 入口是社区适配器 `pi-acp`（detect 用 host `pi`）；host 与 adapter 两层都走 npm，因为 `pi.dev/install.sh` 是交互式 TUI installer，不能静默执行。Dsh 是 umbrella CLI 的内置 ACP profile（`dsh --profile acp`，需 `@deepseek-ai/dsh` 0.1.2+，npm latest 0.1.5-rc.2；旧的独立包 `dsh-acp-demo` 停更于 0.1.1-rc.2 已弃用）：host 与 ACP 同二进制，`npm i -g @deepseek-ai/dsh@latest`（Unix `--prefix "$HOME/.local"`）安装/更新。Kimi Code 优先官方 installer（`code.kimi.com`，单二进制装入 `~/.kimi-code`），失败回退 `npm i -g @moonshot-ai/kimi-code`。ZCode 是单包 npm 适配器（`zcode-acp-server`，桥接 ZCode 桌面应用的 `zcode app-server`），host 与 ACP 入口同二进制。MiniMax Code 是原生 ACP 单包 CLI（`mcode acp`），安装/更新使用带 `--ignore-scripts=false`、`--include=optional`、`--allow-scripts=@minimax-ai/code,better-sqlite3` 和 `--foreground-scripts` 的 npm 命令，确保 native SQLite 依赖完成安装。
-  - `update`：Antigravity 重新读取 ACP Registry 并安装当前平台版本；Registry 失败时直接报错，不回退到旧版本。其他模板优先 `tool update` / 官方链，失败再 npm；Codex 固定 npm（避免假成功）；Pi 使用 `pi update --self` 后 fallback npm；Windows 上 OpenCode 不用交互式 `upgrade`。Kimi 的 `kimi upgrade` 是交互式，静默 update 直接重跑官方 installer（幂等）。
-  - `uninstall`：Antigravity 只删除 Agentero 管理目录和对应 catalog 注册项，不处理用户自己放在 PATH 中的版本；其他模板镜像安装矩阵做 best-effort 清理（先 `resolve_command("npm")` 预检，缺失即报错而非假成功）——npm 全局包逐个 `npm uninstall -g`（unix 上适配器带 `--prefix "$HOME/.local"`，与安装一致）；dsh 在 npm 卸载后删除废弃方案的遗留目录 `~/.agentero/dsh-acp`（旧 dsh-acp-demo 受管安装），kimi-code 在 npm 卸载后删除 `~/.kimi-code`（Windows 为 `%USERPROFILE%\.kimi-code`）；**不改 shell rc**（官方 installer 写入的 PATH 行保留）、不处理官方脚本/brew 安装的 CLI（无法可靠定位）。Hermes 无 npm 包/受管目录 → 仅移除注册项（不跑命令）。成功后同命令联动删除该模板的 catalog 注册项（`catalog-{templateId}`，或 command+args 匹配），避免二进制已删而注册项残留；phase 用 `agent-lifecycle-uninstall` 推送进度。
+  - `install`：未装 host 时走官方 installer（POSIX curl→临时文件再 bash，非 `curl|bash`）或 npm；Claude/Codex/Pi 在 host 已存在但 ACP 缺失时只装适配器；两者都缺则 host && adapter；Antigravity 从 ACP Registry 读取当前版本和平台压缩包，校验 HTTPS ZIP 后解压到 Agentero 管理目录，不使用旧版本回退；Registry 不可用、manifest 无效或平台没有构建时直接报错。Hermes 走官方 installer；Pi 无原生 ACP，ACP 入口是社区适配器 `pi-acp`（detect 用 host `pi`）；host 与 adapter 两层都走 npm，因为 `pi.dev/install.sh` 是交互式 TUI installer，不能静默执行。Dsh 是 umbrella CLI 的内置 ACP profile（`dsh --profile acp`，需 `@deepseek-ai/dsh` 0.1.2+，npm latest 0.1.5-rc.2；旧的独立包 `dsh-acp-demo` 停更于 0.1.1-rc.2 已弃用）：host 与 ACP 同二进制，`npm i -g @deepseek-ai/dsh@latest`（Unix `--prefix "$HOME/.local"`）安装/更新。Kimi Code 优先官方 installer（`code.kimi.com`，单二进制装入 `~/.kimi-code`），失败回退 `npm i -g @moonshot-ai/kimi-code`。Qoder CLI 优先官方 installer（`https://qoder.com/install`，Windows 为 `install.ps1`），失败回退 `npm i -g @qoder-ai/qodercli@latest`；host 与 ACP 同二进制（`qodercli --acp`）。ZCode 是单包 npm 适配器（`zcode-acp-server`，桥接 ZCode 桌面应用的 `zcode app-server`），host 与 ACP 入口同二进制。MiniMax Code 是原生 ACP 单包 CLI（`mcode acp`），安装/更新使用带 `--ignore-scripts=false`、`--include=optional`、`--allow-scripts=@minimax-ai/code,better-sqlite3` 和 `--foreground-scripts` 的 npm 命令，确保 native SQLite 依赖完成安装。
+  - `update`：Antigravity 重新读取 ACP Registry 并安装当前平台版本；Registry 失败时直接报错，不回退到旧版本。其他模板优先 `tool update` / 官方链，失败再 npm；Codex 固定 npm（避免假成功）；Pi 使用 `pi update --self` 后 fallback npm；Windows 上 OpenCode 不用交互式 `upgrade`。Kimi 的 `kimi upgrade` 是交互式，静默 update 直接重跑官方 installer（幂等）。Qoder 优先 `qodercli update`，失败再走官方 installer / npm。
+  - `uninstall`：Antigravity 只删除 Agentero 管理目录和对应 catalog 注册项，不处理用户自己放在 PATH 中的版本；其他模板镜像安装矩阵做 best-effort 清理（先 `resolve_command("npm")` 预检，缺失即报错而非假成功）——npm 全局包逐个 `npm uninstall -g`（unix 上适配器带 `--prefix "$HOME/.local"`，与安装一致）；dsh 在 npm 卸载后删除废弃方案的遗留目录 `~/.agentero/dsh-acp`（旧 dsh-acp-demo 受管安装），kimi-code 在 npm 卸载后删除 `~/.kimi-code`（Windows 为 `%USERPROFILE%\.kimi-code`），qodercli 在 npm 卸载后删除官方脚本写入的 `~/.qoder/bin/qodercli`、`~/.qoder/entry` 和 `~/.local/bin/qodercli`（只删这个链接，不删 `~/.local/bin`；符号链接用 unlink，悬空链接也删；Windows 额外尝试同目录的 `qodercli.exe` / `qodercli.cmd`）。本机没有 npm 时 qodercli 仍删除这些路径，其它模板仍因缺少 npm 报错。**不改 shell rc**（官方 installer 写入的 PATH 行保留）、不删除 `~/.qoder` 会话与登录、不处理 Homebrew cask，也不处理其它官方脚本安装的 CLI（无法可靠定位）。Hermes 无 npm 包/受管目录 → 仅移除注册项（不跑命令）。成功后同命令联动删除该模板的 catalog 注册项（`catalog-{templateId}`，或 command+args 匹配），避免二进制已删而注册项残留；phase 用 `agent-lifecycle-uninstall` 推送进度。
   - 本机 lifecycle 全局串行执行，避免多个 npm 全局安装/升级任务并发抢锁或互相覆盖临时脚本；设置页在对应 Agent 卡片内展示安装 / 扫描 / 探测阶段进度（#250）。
   - 安装子进程运行期间，Host 以 `agent-lifecycle:progress` 推送 `agent-lifecycle-*` phase tick，供设置页行内进度条消费，避免快捷下载脚本长时间停在无进度状态。
   - 若传入 `taskId`，等待 lifecycle 锁和执行安装子进程时会检查 agent 域内的 lifecycle 取消注册表（`agent_lifecycle_cancel` 写入，命令出口清理）；取消是尽力而为，不回滚已完成的包管理器写入。设置页 Agent 目录行与引导页 Agent 卡片在行内进度条上提供取消（X）按钮，点击即以本次 lifecycle 的 `taskId` 调 `agent_lifecycle_cancel`（参数 `{ taskId: string }`）；取消为静默处理（不弹错误 toast、不显示错误条）。
@@ -1696,7 +1696,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
   - `updateAvailable`：仅当目标版本**严格新于**本地时为 `true`；无法判定时省略/`null`（UI 不显示升级）
 - **行为**
   - 同步 PATH scan 后，在 `spawn_blocking` 中跑 `--version` / `npm view`（尊重代理设置）。
-  - npm 包映射：`@opencode/cli` / `@anthropic-ai/claude-code` / `@openai/codex` / `@earendil-works/pi-coding-agent` / `@xai-official/grok` / `@deepseek-ai/dsh` / `@moonshot-ai/kimi-code` / `zcode-acp-server` / `@minimax-ai/code` / `mimocode`；Antigravity 从 ACP Registry 读取最新版本；**hermes 本轮不探测**（无稳定 npm 源）。OpenCode 卸载额外清理旧版 `opencode-ai`。
+  - npm 包映射：`@opencode/cli` / `@anthropic-ai/claude-code` / `@openai/codex` / `@earendil-works/pi-coding-agent` / `@xai-official/grok` / `@qoder-ai/qodercli` / `@deepseek-ai/dsh` / `@moonshot-ai/kimi-code` / `zcode-acp-server` / `@minimax-ai/code` / `mimocode`；Antigravity 从 ACP Registry 读取最新版本；**hermes 本轮不探测**（无稳定 npm 源）。OpenCode 卸载额外清理旧版 `opencode-ai`。
   - 不写入 registry；设置页打开/刷新与 lifecycle 成功后调用。
 - **实现**：`registry/version_check.rs` · `commands::agent_check_catalog_updates`
 
@@ -1725,7 +1725,7 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 返回某模板「彻底卸载」将执行的清理项清单，供设置页确认对话框展示。无副作用的纯查询；与 `agent_run_tool_lifecycle` 的 `uninstall` 矩阵一致。
 
 - **参数**：`{ templateId: string }`
-- **返回**：`{ ok: true; data: UninstallInfo | null }`（`null` = 无可管理卸载，仅注册项移除，如 `hermes` / `qodercli` / `custom`）
+- **返回**：`{ ok: true; data: UninstallInfo | null }`（`null` = 无可管理卸载，仅注册项移除，如 `hermes` / `custom`）
 
 ```ts
 interface UninstallInfo {
