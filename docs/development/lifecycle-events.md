@@ -141,6 +141,9 @@ Rust 关键节点 ──emit──▶ Tauri wire 事件 ──┐
    - bootstrap：store 种子移入 `boot()`（不再在 render 期做副作用）、JobCenter 订阅补 disposer、`app:ready` 等校验 settle、`window:closed` 收进 bus
    - 各 store 的 vault 级 clear + `vault_release`（驱逐 Host catalog 连接）
    - 退出时 `BridgeController::stop()`
+   - ACP 退出清理已接入 `ExitRequested` / `Exit`：同步关闭 warm 池、终止 Windows ACP Job；
+     warm setup 超时/替换通过取消 token 回收，Windows 崩溃兜底由 Job kill-on-close 完成。
+     实现与边界见 [`../backend/agent.md`](../backend/agent.md)，无需新增前端退出事件。
 6. 后续（本稿不含）：hook 表用户可配置（settings / `.agentero/`），动作接 JobCenter 执行
 
 ## 非目标

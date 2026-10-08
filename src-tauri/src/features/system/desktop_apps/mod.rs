@@ -38,8 +38,10 @@ pub struct DesktopAppStatus {
 struct AppSpec {
     id: DesktopAppId,
     /// macOS `.app` base names (no extension), in probe order.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     names: &'static [&'static str],
     /// Known macOS bundle identifiers, for apps moved out of `/Applications`.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     bundle_ids: &'static [&'static str],
 }
 

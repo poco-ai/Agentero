@@ -23,11 +23,16 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   或整个临时目录。**Unix 探针**也复用该入口：本地用
   scratch，远端沿用目标自己的 Vault；SSH 路径不在本机检查。local-sim 新建连接前验证
   目录存在，失效时明确报错，不悄悄切到 scratch。
-- **Windows 保留既有启动策略**：仅 Pi / Custom 的 run / warm / list / load 使用 `cmd /D /C`
-  包装，探针均直接启动配置的命令，不增加 `cmd` 层。ACP SDK 当前只在 Unix 清理进程组；
-  扩大 Windows 包装范围会让原生 `.exe` 不再是可直接强杀的子进程，并使 UNC Vault 落入
-  CMD 不支持的 `cd /d` 路径。因此 #570 不在 Windows 推广包装；既有 Pi / Custom 以及
-  自带 launcher 的进程树清理限制仍需另行解决。
+- **Windows 保留既有 cwd 策略**：仅 Pi / Custom 的 run / warm / list / load 使用 `cmd /D /C`
+  切换目录，探针不增加 cwd 包装。原生 `.exe` 直启；npm 等 `.cmd` / `.bat` shim 经显式
+  `cmd /D /S /C` 执行。UNC Vault 不推广 `cd /d` 包装。
+- **Windows ACP 进程树归宿主管理**：run / warm / probe / history 共用 `acp/process.rs`，
+  通过 `windows-spawn` 的 `PROC_THREAD_ATTRIBUTE_JOB_LIST` 在创建进程时原子绑定独立的
+  Job Object，并设置 `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`。Job handle 不向子进程继承，
+  连接结束/取消时终止整个 Job；宿主被强杀或崩溃时由内核回收该 Job 中的进程树。
+  Job 创建或绑定失败直接报启动错误，不退回无保护的启动路径。
+  `ExitRequested` / `Exit` 同步关闭 warm 池并终止所有 ACP Job（含预热中、已借出及冷连接），
+  不依赖 Tauri static async runtime 的析构。
 - Windows Pi / Custom 包装的 cwd 与完整 Agent 命令通过环境变量展开，cwd 始终携带双引号，
   防止无空格路径中的括号等 CMD 元字符被当作语法；盘符扩展前缀再幂等剥除一次（#458）。
   该旧包装仍不支持 UNC cwd，不能将其他模板保持直启等同于所有 Windows Agent 都支持 UNC。
@@ -58,7 +63,9 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `npm install --global @minimax-ai/code@latest --ignore-scripts=false
   --include=optional --allow-scripts=@minimax-ai/code,better-sqlite3
   --registry https://registry.npmjs.org/ --foreground-scripts`，登录命令为
-  `mcode login`，skill 走 slash mention。
+  `mcode login`，skill 走 slash mention。除 npm 全局目录外，Windows 官方安装器的
+  `%USERPROFILE%\.minimax-code`（`mcode.cmd`）及 POSIX 的
+  `~/.minimax-code/bin` 也会被 GUI 扫描，即使应用启动时没有继承新开的终端 PATH。
 - MiMo Code：Xiaomi 的 OpenCode fork，原生 ACP（`mimo acp`）。npm 包 `mimocode`
   （bin `mimo`，需 Node 22+），install/update 走 `npm i -g mimocode`（Unix
   `--prefix "$HOME/.local"`），uninstall 走 `npm uninstall -g mimocode`；detect/ACP
@@ -68,24 +75,30 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `agy_acp_server` 与 `localharness_external`；macOS Intel 没有官方构建，因此不提供该预设。
   Linux 启动时附带官方要求的 `--uid=` 参数。Registry 不可用或当前平台没有构建时直接报错；
   远程主机不提供 shell 安装命令。
-- ZCode：host CLI 无原生 ACP，走社区适配器 `zcode-acp-server`（桥接无头
+- ZCode：host CLI 无原生 ACP，走社区适配器 `zcode-acp-server server`（桥接无头
   `zcode app-server --stdio`，声明 `session/load` 续聊）。zcode CLI 内置在 ZCode
-  桌面应用中、通常不在 PATH 上，适配器会自动发现桌面应用内置 CLI（或用 `ZCODE_BIN`
-  指定），凭据直接复用 `~/.zcode` 的桌面登录——无需额外 API key。detect/ACP 入口
-  均为 `zcode-acp-server`（npm 安装，需 Node 22+），静默 install/update 走 npm，
-  Unix 侧装入 `~/.local` 前缀。
+  桌面应用中、通常不在 PATH 上，适配器会自动发现桌面应用内置 CLI；若装在其他盘符或
+  更深层目录，可将 `ZCODE_BIN` 设为实际的 `zcode.cjs` 路径。凭据直接复用 `~/.zcode`
+  的桌面登录——无需额外 API key。Catalog 将桌面
+  CLI 与 ACP 适配器分层探测：桌面版可从 PATH 的 `zcode` 或应用内置的 `zcode.cjs`
+  识别；只有两层齐备才会自动注册并允许 initialize，缺少适配器时显示安装 ACP。
+  `zcode-acp-server`（npm 安装，需 Node 22+）是唯一由 Agentero 管理的组件，静默
+  install/update 走 npm（Windows 加 `--ignore-scripts` 跳过包内不兼容 cmd 的通知脚本；
+  Unix 侧装入 `~/.local` 前缀）；卸载只移除该适配器，不删除
+  ZCode 桌面应用、登录或 `~/.zcode` 数据。
   - spawn 时 Host 注入环境变量（注册项 env 可覆盖）：`ZCODE_BUILTIN_PROVIDER_CONFIG_FILE`
     指向 `~/.zcode/v2/runtime/provider/*/*/endpoint-*/zcode-builtin.json` 中最新一份——
     缺少它内置 CLI 的 provider 层不启动（backend dead）；同时注入
     `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE`（`~/.zcode/v2/provider_config.json`），两变量
     齐备 CLI 才原样使用注入表，否则会改道自同步副本并使适配器的 provider 注册作废
-    （zcode-acp#202，0.42.4 起适配器自身注入同组变量）；`ZCODE_BIN` 指向 remote-assets
-    cache 中最新一个仍实现 `workspace/updateProviderRegistry` 的 `zcode.cjs`（桌面
-    3.12.3 起内置副本移除了该方法，缺失时 prompt 报 `provider_not_configured`），
+    （zcode-acp#202，0.42.4 起适配器自身注入同组变量）；`ZCODE_BIN` 选用最新可读的
+    remote-assets 或桌面应用 `zcode.cjs`，不再依赖已从较新 app-server 移除的
+    `workspace/updateProviderRegistry` 标记，避免启动时直接关闭 ACP transport。
     均不存在时回落适配器默认发现逻辑。注入仅在**本地** spawn 生效：SSH 远端 Vault 不做
     该注入（本地发现的路径对远端无意义），远端沿用适配器自身的发现逻辑，上述坑在
-    远端同样存在；Windows 上注入的候选根为 `%LOCALAPPDATA%\Programs\ZCode` 与
-    `%APPDATA%\ZCode` 缓存（未实机验证），并在可解析时额外注入 `ZCODE_NODE`（适配器
+    远端同样存在；Windows 上注入的候选根为 `%LOCALAPPDATA%\Programs\ZCode`、
+    `%APPDATA%\ZCode` 缓存、`C:\Program Files\ZCode`，以及系统盘根目录下一级自定义目录中的
+    `ZCode\resources\glm\zcode.cjs`（例如 `C:\Sofware\ZCode`）；并在可解析时额外注入 `ZCODE_NODE`（适配器
     在 Windows 上解析 Node 不可靠）。
 - Pi：无原生 ACP，走社区适配器 `pi-acp`（内部 spawn `pi --mode rpc`）；detect 用 host `pi`、
   ACP 入口用 `pi-acp`。pi 的 skill 以 `/skill:<name>` 暴露，故 Agentero 不发 `/<name>`
@@ -183,10 +196,15 @@ run / warm / list / load / probe 共用 `agentero_acp_builder!`（name + termina
 handler）；各入口自行挂 notification / permission 回调。
 
 **warm 与空会话**：模型列表来自 Session Setup 的 `configOptions`（协议不在
-`initialize` 提供），故 warm 仍需 `session/new`。若 Agent 声明
-`sessionCapabilities.delete`，warm 在读完 models/usage 后对该空会话调用
-`session/delete`，避免 `session/list` / CLI 历史堆积无消息 thread；未声明时仅
-debug 日志，行为与旧版相同。
+`initialize` 提供），故 warm 仍需 `session/new`。连接在池中复用，空闲 TTL 为 10 分钟。
+切换 warm 目标会取消旧的未完成 setup、回收不匹配的空闲 slot；已借出的连接继续服务正在执行的
+prompt，结束后仍受 TTL 与退出清理约束。setup 总预算为 60 秒，超时或请求 future 被取消会
+取消后台任务，禁止迟到发布；错误/超时返回前等待任务完成回收。
+slot 替换、evict 和 shutdown 均有独立取消 token，不依赖 slot 是否还在池中。
+若 Agent 声明 `sessionCapabilities.delete`，未使用的空会话在 teardown 时尝试删除；
+取消清理最多允许 1 秒，之后无论 RPC 是否响应均丢弃连接并终止进程树。
+旧版本已产生的孤儿不属于新 Job，升级不会自动按进程名杀掉其他宿主的 Agent；需一次性确认
+路径与归属后清理。远端 SSH Agent 的宿主外进程不受本机 Windows Job 约束。
 
 Kimi Code ACP 会把 `Bash`/`Glob`/`Grep` 等工具实现为 `terminal/create`。[当前实现](https://github.com/MoonshotAI/kimi-cli/blob/main/src/kimi_cli/acp/tools.py)
 会把完整 shell 文本放进 `command`；Host 对可解析的可执行文件继续按 `command + args`

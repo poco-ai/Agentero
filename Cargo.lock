@@ -147,6 +147,8 @@ dependencies = [
  "uuid",
  "walkdir",
  "which",
+ "windows-spawn",
+ "windows-sys 0.61.2",
  "winreg",
  "zip 2.4.2",
 ]
@@ -9030,6 +9032,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7781fa89eaf60850ac3d2da7af8e5242a5ea78d1a11c49bf2910bb5a73853eb5"
 dependencies = [
  "windows-link 0.2.1",
+]
+
+[[package]]
+name = "windows-spawn"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2de3bd5b666ddb82bdd91c438afbe6a413fc21725d10e3e0b8d1d1c4afdd91c6"
+dependencies = [
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

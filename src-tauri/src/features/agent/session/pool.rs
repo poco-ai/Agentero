@@ -19,6 +19,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::watch;
+use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 
 /// Idle time before a pooled connection is torn down (and its empty session
 /// deleted when never used). Long-lived agent processes can grow memory and
@@ -58,6 +60,8 @@ pub(crate) fn pool_key(
 
 /// One live warm connection available for the next turn.
 pub(crate) struct PooledSlot {
+    pub task_id: Uuid,
+    pub cancellation: CancellationToken,
     pub key: PoolKey,
     pub connection: ConnectionTo<Agent>,
     /// Fresh session created during warm setup; a turn without a resume id
@@ -83,6 +87,10 @@ pub(crate) struct PooledSlot {
 }
 
 impl PooledSlot {
+    fn stop(&self) {
+        let _ = self.end.send(true);
+        self.cancellation.cancel();
+    }
     /// Liveness probe: the agent process closed its stdin-to-us stream (EOF).
     pub fn is_alive(&self) -> bool {
         !self.connection.is_incoming_closed()
@@ -145,23 +153,121 @@ impl<T> SlotMap<T> {
 /// Registry of pooled warm connections (at most one per agent).
 pub struct AgentWarmPool {
     slots: Mutex<SlotMap<PooledSlot>>,
+    tasks: Mutex<HashMap<Uuid, WarmState>>,
+    closed: AtomicBool,
+}
+
+struct WarmState {
+    key: PoolKey,
+    cancellation: CancellationToken,
+    published: bool,
+}
+
+/// Dropping a cancelled/finished warm task unregisters it even before setup.
+pub(crate) struct WarmTask {
+    pub id: Uuid,
+    pub cancellation: CancellationToken,
+    pool: Arc<AgentWarmPool>,
+}
+
+impl Drop for WarmTask {
+    fn drop(&mut self) {
+        let mut tasks = self.pool.tasks.lock().unwrap_or_else(|e| e.into_inner());
+        tasks.remove(&self.id);
+        let mut slots = self.pool.slots.lock().unwrap_or_else(|e| e.into_inner());
+        slots.entries.retain(|_, (_, slot)| slot.task_id != self.id);
+    }
 }
 
 impl AgentWarmPool {
     pub(crate) fn new() -> Self {
         Self {
             slots: Mutex::new(SlotMap::default()),
+            tasks: Mutex::new(HashMap::new()),
+            closed: AtomicBool::new(false),
+        }
+    }
+
+    pub(crate) fn start_warm(self: &Arc<Self>, key: &PoolKey) -> WarmTask {
+        let mut tasks = self.tasks.lock().unwrap_or_else(|e| e.into_inner());
+        let mut slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
+        // Retire idle connections for the previous selection. Taken slots may
+        // still serve a prompt, so leave them alone until released/idle.
+        slots.entries.retain(|_, (old_key, slot)| {
+            if old_key == key {
+                return true;
+            }
+            slot.stop();
+            false
+        });
+        for task in tasks.values() {
+            if !task.published {
+                task.cancellation.cancel();
+            }
+        }
+        let cancellation = CancellationToken::new();
+        if self.closed.load(Ordering::SeqCst) {
+            cancellation.cancel();
+        }
+        let id = Uuid::new_v4();
+        tasks.insert(
+            id,
+            WarmState {
+                key: key.clone(),
+                cancellation: cancellation.clone(),
+                published: false,
+            },
+        );
+        WarmTask {
+            id,
+            cancellation,
+            pool: self.clone(),
+        }
+    }
+
+    pub(crate) fn retire_idle(&self, key: &PoolKey) {
+        let tasks = self.tasks.lock().unwrap_or_else(|e| e.into_inner());
+        for task in tasks.values() {
+            if !task.published && task.key != *key {
+                task.cancellation.cancel();
+            }
+        }
+        let mut slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
+        slots.entries.retain(|_, (old_key, slot)| {
+            if old_key == key {
+                return true;
+            }
+            slot.stop();
+            false
+        });
+    }
+
+    pub fn shutdown(&self) {
+        let tasks = self.tasks.lock().unwrap_or_else(|e| e.into_inner());
+        self.closed.store(true, Ordering::SeqCst);
+        for task in tasks.values() {
+            task.cancellation.cancel();
+        }
+        let mut slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
+        for (_, (_, slot)) in slots.entries.drain() {
+            slot.stop();
         }
     }
 
     /// Insert a freshly set-up slot, tearing down any previous slot for the
     /// same agent, and log the replacement.
     pub(crate) fn publish(&self, slot: PooledSlot) {
-        let displaced = self
-            .slots
-            .lock()
-            .ok()
-            .and_then(|mut slots| slots.insert(slot.key.clone(), slot));
+        let mut tasks = self.tasks.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(task) = tasks.get_mut(&slot.task_id) {
+            task.published = true;
+        }
+        let displaced = self.slots.lock().ok().and_then(|mut slots| {
+            if self.closed.load(Ordering::SeqCst) || slot.cancellation.is_cancelled() {
+                slot.stop();
+                return None;
+            }
+            slots.insert(slot.key.clone(), slot)
+        });
         if let Some((key, old)) = displaced {
             log::debug!(
                 target: "agentero::agent",
@@ -170,7 +276,7 @@ impl AgentWarmPool {
                 key.cwd.display(),
                 key.remote_tag
             );
-            let _ = old.end.send(true);
+            old.stop();
         }
     }
 
@@ -201,7 +307,7 @@ impl AgentWarmPool {
                 "agent={} warm slot dead (EOF); cold fallback",
                 slot_key.agent_id
             );
-            let _ = slot.end.send(true);
+            slot.stop();
             return None;
         }
         Some(slot)
@@ -214,38 +320,20 @@ impl AgentWarmPool {
             *v += 1;
             true
         });
-        if !slot.is_alive() {
-            let _ = slot.end.send(true);
+        if !slot.is_alive()
+            || self.closed.load(Ordering::SeqCst)
+            || slot.cancellation.is_cancelled()
+        {
+            slot.stop();
             return;
         }
-        let agent_id = slot.key.agent_id.clone();
-        let displaced = self
-            .slots
-            .lock()
-            .ok()
-            .and_then(|mut slots| slots.insert(slot.key.clone(), slot));
-        if let Some((key, old)) = displaced {
-            log::debug!(
-                target: "agentero::agent",
-                "agent={} released slot displaced idle slot cwd={} remote={:?}",
-                key.agent_id,
-                key.cwd.display(),
-                key.remote_tag
-            );
-            let _ = old.end.send(true);
-        } else {
-            log::debug!(
-                target: "agentero::agent",
-                "agent={} warm slot released back to pool",
-                agent_id
-            );
-        }
+        self.publish(slot);
     }
 
     /// Tear a slot's process down (run error paths). The slot is already out
     /// of the map (it was taken), so this only signals the keepalive loop.
     pub(crate) fn evict(&self, slot: &PooledSlot) {
-        let _ = slot.end.send(true);
+        slot.stop();
     }
 
     /// Cached `(models, usage)` from a healthy matching slot — lets a Chat
@@ -316,5 +404,45 @@ mod slot_map_tests {
         let mut other = pool_key("codex", PathBuf::from("/vault"), None);
         other.remote_tag = Some("host".to_string());
         assert_ne!(local, other);
+    }
+
+    #[test]
+    fn replacing_pending_warm_cancels_previous_setup() {
+        let pool = std::sync::Arc::new(super::AgentWarmPool::new());
+        let first = pool.start_warm(&key("codex", "/vault-a"));
+        let second = pool.start_warm(&key("grok", "/vault-b"));
+        assert!(first.cancellation.is_cancelled());
+        assert!(!second.cancellation.is_cancelled());
+        drop(first);
+        assert_eq!(pool.tasks.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn switching_selection_preserves_taken_connection() {
+        let pool = std::sync::Arc::new(super::AgentWarmPool::new());
+        let active = pool.start_warm(&key("codex", "/vault-a"));
+        // Published + absent from the idle map represents a taken connection.
+        pool.tasks
+            .lock()
+            .unwrap()
+            .get_mut(&active.id)
+            .unwrap()
+            .published = true;
+        let next = pool.start_warm(&key("grok", "/vault-b"));
+        assert!(!active.cancellation.is_cancelled());
+        pool.shutdown();
+        assert!(active.cancellation.is_cancelled());
+        assert!(next.cancellation.is_cancelled());
+    }
+
+    #[test]
+    fn shutdown_cancels_pending_and_rejects_late_setups() {
+        let pool = std::sync::Arc::new(super::AgentWarmPool::new());
+        let pending = pool.start_warm(&key("codex", "/vault-a"));
+        pool.shutdown();
+        pool.shutdown();
+        assert!(pending.cancellation.is_cancelled());
+        let late = pool.start_warm(&key("codex", "/vault-b"));
+        assert!(late.cancellation.is_cancelled());
     }
 }

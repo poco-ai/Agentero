@@ -280,9 +280,20 @@ async function syncInstalledCli(): Promise<void> {
 		const { getCurrentWindow } = await import("@tauri-apps/api/window");
 		if (getCurrentWindow().label !== "main") return;
 		const { syncInstalledCliWithApp } = await import("@/lib/cli/api");
-		if ((await syncInstalledCliWithApp()) === "failed") {
-			notifyError(i18n.t("settings:about.cli.syncFailed"));
+		// The updater publishes the desktop package and separate CLI archive
+		// independently. A just-relaunched app can reach the new desktop build
+		// before its matching CLI asset is downloadable, so retry an existing
+		// managed CLI instead of leaving it on the previous version forever.
+		for (const delayMs of [0, 15_000, 60_000]) {
+			if (delayMs > 0) {
+				await new Promise<void>((resolve) => {
+					window.setTimeout(resolve, delayMs);
+				});
+			}
+			const outcome = await syncInstalledCliWithApp();
+			if (outcome !== "failed") return;
 		}
+		notifyError(i18n.t("settings:about.cli.syncFailed"));
 	} catch (error) {
 		logger.warn("op end cli_sync ok=false", {
 			error: errorText(error),

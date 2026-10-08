@@ -176,7 +176,9 @@ pub async fn agent_warm(
     .await;
     if result.ok {
         warm_gate.clear(&agent_id);
-    } else {
+    } else if result.error.as_deref()
+        != Some(crate::features::agent::session::warm::WARM_CANCELLED_ERROR)
+    {
         warm_gate.record_failure(
             &agent_id,
             result.error.as_deref().unwrap_or("agent warm failed"),

@@ -321,6 +321,7 @@
 			"qwenwork": "千问办公",
 			"workbuddy": "WorkBuddy"
 		},
+		"zcodeDesktopPathHint": "若未找到 ZCode，请将 ZCODE_BIN 设为其 zcode.cjs 路径；支持任意盘符及多层目录安装。",
 		"defaultAgent": {
 			"section": "默认 Agent",
 			"label": "默认 Agent",

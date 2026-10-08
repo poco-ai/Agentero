@@ -9,7 +9,7 @@ Headless Vault / Catalog / Wiki 接口；**不含** BYOA / paper-reader。
 - 可选同版本 CLI 安装（不随桌面安装包打入，减小体积 [#285](https://github.com/poco-ai/Agentero/issues/285)；open/deep-link 仍见 [#165](https://github.com/poco-ai/Agentero/issues/165) / [#166](https://github.com/poco-ai/Agentero/issues/166)）
   - 设置 → 关于：**安装 CLI** 从 GitHub Release 下载与 App **同版本** 的 `agentero-cli-{ver}-{triple}` 归档，校验 `.sha256` 后写入用户目录并创建 PATH shim。POSIX 写 `~/.local/bin/agentero` 软链（不静默改 shell rc）；Windows 写 `agentero-cli.cmd` 并**自动把安装目录加入用户 PATH**（`HKCU\Environment`，广播 `WM_SETTINGCHANGE`，无需重启，新开终端即可用 `agentero-cli`）。下载 404 的错误文案会带上完整资产 URL（含宿主 triple），架构/版本不匹配时自解释；`CliInstallStatus.commandName` 供前端按平台展示验证命令
   - 独立 CLI 归档仍随每次 Release 发布，供无桌面的 headless 机器使用；macOS 亦可通过 Homebrew tap `poco-ai/agentero` 安装 headless CLI
-  - **更新后自动同步**：应用内更新只替换 GUI 包；更新重启后的新进程在 main window 启动时检测已安装 shim（`installed && !shimCurrent`，见 `syncInstalledCliWithApp`），自动重新下载同版本 CLI 并刷新 shim（Host 按编译期 App 版本下载校验，旧进程无法预装新版 CLI，故只能在新进程里同步）。成功静默，失败 `notifyError` Toast；dev 环境与未安装 CLI 时跳过
+  - **更新后自动同步**：应用内更新只替换 GUI 包；更新重启后的新进程在 main window 启动时检测已安装 shim（`installed && !shimCurrent`，见 `syncInstalledCliWithApp`），自动重新下载同版本 CLI 并刷新 shim（Host 按编译期 App 版本下载校验，旧进程无法预装新版 CLI，故只能在新进程里同步）。Release 的桌面包与 CLI 归档独立上传，首次请求暂未命中或网络短暂失败时会在 15 秒、60 秒后重试；只对已有 CLI 生效，未安装 CLI 的用户不会被自动安装。成功静默，最终失败 `notifyError` Toast；dev 环境跳过
 
 ## 命令组
 

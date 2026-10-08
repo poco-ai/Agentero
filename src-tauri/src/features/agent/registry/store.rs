@@ -11,7 +11,7 @@ use crate::features::agent::registry::bundled;
 use crate::features::agent::registry::discovery::probe_command;
 use crate::features::agent::registry::lifecycle;
 use crate::features::agent::registry::templates::{
-    catalog_templates, interactive_cli, template_from_id, template_info,
+    catalog_templates, interactive_cli, template_from_id, template_info, zcode_host_path,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -31,9 +31,10 @@ impl AgentRegistry {
             read_state(&path).unwrap_or_else(|_| (AgentRegistryState::default(), false));
         let migrated_codex = migrate_legacy_codex_agents(&mut state);
         let migrated_grok = migrate_legacy_grok_agents(&mut state);
+        let migrated_zcode = migrate_legacy_zcode_agents(&mut state);
         let migrated_env = migrate_catalog_env_defaults(&mut state);
         state.enabled = true;
-        if migrated_codex || migrated_grok || removed_templates || migrated_env {
+        if migrated_codex || migrated_grok || migrated_zcode || removed_templates || migrated_env {
             if let Err(error) = persist(&path, &state) {
                 log::error!(
                     target: "agentero::agent",
@@ -422,16 +423,18 @@ impl AgentRegistry {
                     crate::features::agent::registry::discovery::login_shell_env(),
                     &descriptor_env,
                 );
-                let detect = info
-                    .detect_command
-                    .as_deref()
-                    .unwrap_or(info.command.as_str());
                 let path_acp_available =
                     resolve_command_in_agent_env(&info.command, &environment).is_some();
                 let bundled = bundled::bundled_adapter(&info.id);
-                let detect_path = if !path_acp_available && bundled.is_some() {
+                let detect_path = if info.id == AgentTemplate::Zcode.as_str() {
+                    zcode_host_path(&environment)
+                } else if !path_acp_available && bundled.is_some() {
                     bundled::host_path(&info.id, &environment)
                 } else {
+                    let detect = info
+                        .detect_command
+                        .as_deref()
+                        .unwrap_or(info.command.as_str());
                     resolve_command_in_agent_env(detect, &environment)
                 };
                 let binary_available = detect_path.is_some();
@@ -483,10 +486,11 @@ impl AgentRegistry {
                     .is_some_and(|(a, d)| a == d);
 
                 // Two install layers: Agent (detect binary) vs ACP entrypoint.
-                let adapter_distinct = info
-                    .detect_command
-                    .as_ref()
-                    .is_some_and(|d| d != &info.command);
+                let adapter_distinct = info.id == AgentTemplate::Zcode.as_str()
+                    || info
+                        .detect_command
+                        .as_ref()
+                        .is_some_and(|d| d != &info.command);
                 let can_install = lifecycle::supports_lifecycle(&info.id);
                 // Resolve the interactive CLI's leading binary so the row only
                 // offers the terminal action when it is actually available
@@ -686,6 +690,28 @@ fn migrate_legacy_codex_agents(state: &mut AgentRegistryState) -> bool {
             agent.last_probed_at = None;
             migrated = true;
         }
+    }
+    migrated
+}
+
+/// zcode-acp-server 0.47 changed its bare invocation from the stdio ACP bridge
+/// to an interactive TUI. Catalog registrations created by older releases need
+/// the explicit `server` subcommand before their next initialize.
+fn migrate_legacy_zcode_agents(state: &mut AgentRegistryState) -> bool {
+    let mut migrated = false;
+    for agent in &mut state.agents {
+        if agent.template != AgentTemplate::Zcode
+            || agent.command != "zcode-acp-server"
+            || !agent.args.is_empty()
+        {
+            continue;
+        }
+        agent.args = vec!["server".to_string()];
+        agent.last_probe_ok = None;
+        agent.last_probe_agent_name = None;
+        agent.last_probe_error = None;
+        agent.last_probed_at = None;
+        migrated = true;
     }
     migrated
 }
@@ -993,6 +1019,13 @@ fn local_command_availability(
     environment: &HashMap<String, String>,
     bundled_spawnable: impl FnOnce() -> bool,
 ) -> Result<(), String> {
+    // ZCode's ACP executable is only a bridge. Treat it as unavailable until
+    // the desktop-app CLI (normally a `zcode.cjs`, not a PATH executable) is
+    // present; otherwise an adapter-only registration reaches `initialize`
+    // and fails with the opaque "incoming transport closed" error.
+    if template_id == AgentTemplate::Zcode.as_str() && zcode_host_path(environment).is_none() {
+        return Err("ZCode desktop CLI not found (install ZCode or set ZCODE_BIN)".to_string());
+    }
     if resolve_command_in_agent_env(command, environment).is_some() {
         return Ok(());
     }
@@ -1026,7 +1059,8 @@ mod tests {
     use super::{
         apply_proxy_to_agent, apply_user_agent_to_agent, merge_anthropic_custom_headers_user_agent,
         merge_codex_config_user_agent, migrate_legacy_codex_agents, migrate_legacy_grok_agents,
-        strip_removed_templates, AGENTERO_USER_AGENT_ENV, ANTHROPIC_CUSTOM_HEADERS_ENV,
+        migrate_legacy_zcode_agents, strip_removed_templates, AGENTERO_USER_AGENT_ENV,
+        ANTHROPIC_CUSTOM_HEADERS_ENV,
     };
     use crate::features::agent::models::{
         merge_no_proxy, AgentDescriptor, AgentRegistryState, AgentTemplate,
@@ -1100,6 +1134,34 @@ mod tests {
 
         // Already native: nothing left to migrate.
         assert!(!migrate_legacy_grok_agents(&mut state));
+    }
+
+    #[test]
+    fn migrates_legacy_zcode_bare_launcher_to_acp_server() {
+        let mut state = AgentRegistryState {
+            agents: vec![AgentDescriptor {
+                id: "catalog-zcode".to_string(),
+                name: "ZCode".to_string(),
+                template: AgentTemplate::Zcode,
+                command: "zcode-acp-server".to_string(),
+                args: vec![],
+                env: HashMap::new(),
+                available: true,
+                last_error: None,
+                last_probe_ok: Some(true),
+                last_probe_agent_name: Some("zcode".to_string()),
+                last_probe_error: None,
+                last_probed_at: Some("1".to_string()),
+            }],
+            ..AgentRegistryState::default()
+        };
+
+        assert!(migrate_legacy_zcode_agents(&mut state));
+        let agent = &state.agents[0];
+        assert_eq!(agent.args, vec!["server".to_string()]);
+        assert_eq!(agent.last_probe_ok, None);
+        assert_eq!(agent.last_probed_at, None);
+        assert!(!migrate_legacy_zcode_agents(&mut state));
     }
 
     #[test]

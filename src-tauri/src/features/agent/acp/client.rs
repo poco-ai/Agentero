@@ -3,13 +3,14 @@ use crate::core::process::windows_shell_path;
 use crate::features::agent::acp::terminal::AcpTerminalManager;
 use crate::features::agent::models::{AgentDescriptor, AgentResultPayload, AgentTemplate};
 
+use super::process::AcpAgent;
 use crate::features::agent::registry::discovery::{login_shell_env, path_entries};
 use agent_client_protocol::schema::v1::{
     ClientCapabilities, ElicitationCapabilities, ElicitationFormCapabilities, EnvVariable,
     InitializeRequest, McpServer, McpServerStdio,
 };
 use agent_client_protocol::schema::ProtocolVersion;
-use agent_client_protocol::{util, AcpAgent};
+use agent_client_protocol::util;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -123,8 +124,8 @@ fn windows_launch_command(
     cwd: Option<&Path>,
 ) -> (PathBuf, Vec<String>) {
     // Keep the pre-#570 Windows policy: adding cmd around native launchers
-    // changes quoting, breaks UNC cwd, and prevents the SDK (which only kills
-    // its direct child on Windows) from forcibly reaping the real agent.
+    // changes quoting and breaks UNC cwd. Process-tree ownership is handled
+    // separately by the Windows ACP transport's Job Object.
     let Some(cwd) =
         cwd.filter(|_| matches!(desc.template, AgentTemplate::Pi | AgentTemplate::Custom))
     else {

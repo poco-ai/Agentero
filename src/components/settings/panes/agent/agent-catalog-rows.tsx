@@ -1,5 +1,6 @@
 import {
 	ArrowUpCircle,
+	CircleAlert,
 	Loader2,
 	Pencil,
 	Terminal,
@@ -28,6 +29,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { useAgentToolLifecycle } from "@/hooks/use-agent-tool-lifecycle";
 import {
 	type AgentDescriptor,
@@ -163,6 +169,26 @@ function AgentCatalogEntryRow({
 						>
 							{entry.name}
 						</span>
+						{entry.templateId === "zcode" ? (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span
+										role="img"
+										aria-label={t("agent.zcodeDesktopPathHint")}
+										className="inline-flex shrink-0 cursor-help text-muted-foreground"
+									>
+										<CircleAlert className="size-3.5" aria-hidden />
+									</span>
+								</TooltipTrigger>
+								<TooltipContent
+									side="bottom"
+									align="start"
+									className="max-w-sm leading-relaxed"
+								>
+									{t("agent.zcodeDesktopPathHint")}
+								</TooltipContent>
+							</Tooltip>
+						) : null}
 					</div>
 					<div className="flex min-w-0 flex-wrap items-center gap-1.5">
 						{entry.isDefault ? (

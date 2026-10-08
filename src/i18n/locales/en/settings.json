@@ -321,6 +321,7 @@
 			"qwenwork": "QwenWork",
 			"workbuddy": "WorkBuddy"
 		},
+		"zcodeDesktopPathHint": "If ZCode is not found, set ZCODE_BIN to its zcode.cjs path. This supports any drive and nested install folder.",
 		"defaultAgent": {
 			"section": "Default agent",
 			"label": "Default Agent",
