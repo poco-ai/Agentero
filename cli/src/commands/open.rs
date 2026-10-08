@@ -78,10 +78,7 @@ fn expand_user(path: &Path) -> PathBuf {
 pub fn run(path: &Path, globals: &GlobalOpts) -> Result<Value, CliError> {
     let abs = resolve_open_dir(path)?;
     let url = open_deep_link_url(&abs);
-    let dry = matches!(
-        std::env::var("AGENTERO_OPEN_DRY_RUN").as_deref(),
-        Ok("1") | Ok("true") | Ok("TRUE")
-    );
+    let dry = is_dry_run();
 
     let mut methods: Vec<&'static str> = Vec::new();
     let mut request_file: Option<String> = None;
@@ -101,33 +98,9 @@ pub fn run(path: &Path, globals: &GlobalOpts) -> Result<Value, CliError> {
             }
         }
 
-        // 2) Wake single-instance desktop process (same socket as tauri plugin).
-        if notify_single_instance(&url) {
-            methods.push("single-instance");
-        }
-
-        // 3) OS deep-link (works when the installed .app registered agentero://).
-        if open_system_url(&url).is_ok() {
-            methods.push("deep-link");
-        }
-
-        // 4) Spawn/activate GUI so a stopped App starts and the watcher runs.
-        //    If single-instance already owns the lock, this process exits quickly
-        //    after notifying — still useful when nothing is running.
-        if !methods.contains(&"single-instance") {
-            match launch_gui_with_url(&url) {
-                Ok(gui) => {
-                    methods.push("gui-argv");
-                    gui_launched = Some(gui.to_string_lossy().into_owned());
-                }
-                Err(e) => {
-                    log::warn!(target: "agentero::op", "gui launch skipped: {e}");
-                }
-            }
-        } else {
-            // Still try to activate the frontmost Agentero-related process.
-            activate_agentero_frontmost();
-        }
+        let delivery = deliver_deep_link(&url);
+        methods.extend(delivery.methods);
+        gui_launched = delivery.gui_launched;
     } else {
         methods.push("dry-run");
     }
@@ -151,6 +124,119 @@ pub fn run(path: &Path, globals: &GlobalOpts) -> Result<Value, CliError> {
             )
         }],
     }))
+}
+
+/// Build the deep-link URL for `agentero paper open <ref>`.
+pub fn paper_deep_link_url(vault_abs: &Path, paper_rel: &str) -> String {
+    let vault = urlencoding_encode(&vault_abs.to_string_lossy());
+    let paper = urlencoding_encode(paper_rel);
+    format!("agentero://paper?vault={vault}&path={paper}")
+}
+
+/// Ask the running desktop App to open `paper_rel` inside `vault`.
+pub fn open_paper_in_app(
+    vault: &Path,
+    paper_rel: &str,
+    globals: &GlobalOpts,
+) -> Result<Value, CliError> {
+    let abs = vault.canonicalize().map_err(|e| {
+        CliError::message(format!("failed to resolve vault {}: {e}", vault.display()))
+    })?;
+    let paper = agentero_core::features::open_request::normalize_paper_rel(paper_rel)
+        .map_err(|e| CliError::usage(e.to_string()))?;
+    let url = paper_deep_link_url(&abs, &paper);
+    let dry = is_dry_run();
+
+    let mut methods: Vec<&'static str> = Vec::new();
+    let mut request_file: Option<String> = None;
+    let mut gui_launched: Option<String> = None;
+
+    if !dry {
+        match agentero_core::features::open_request::write_cli_paper_open_request(&abs, &paper) {
+            Ok(p) => {
+                methods.push("request-file");
+                request_file = Some(p.to_string_lossy().into_owned());
+            }
+            Err(e) => {
+                return Err(CliError::message(format!(
+                    "failed to write paper open request file: {e}"
+                )));
+            }
+        }
+        let delivery = deliver_deep_link(&url);
+        methods.extend(delivery.methods);
+        gui_launched = delivery.gui_launched;
+    } else {
+        methods.push("dry-run");
+    }
+
+    let method = methods.first().copied().unwrap_or("none");
+    Ok(json!({
+        "vaultPath": abs.to_string_lossy(),
+        "paperPath": paper,
+        "url": url,
+        "method": method,
+        "methods": methods,
+        "requestFile": request_file,
+        "guiLaunched": gui_launched,
+        "dryRun": dry,
+        "lines": [if dry {
+            format!(
+                "would open {} in desktop",
+                globals.style.path(&paper)
+            )
+        } else {
+            format!(
+                "opening {} ({})",
+                globals.style.path(&paper),
+                methods.join("+")
+            )
+        }],
+    }))
+}
+
+fn is_dry_run() -> bool {
+    matches!(
+        std::env::var("AGENTERO_OPEN_DRY_RUN").as_deref(),
+        Ok("1") | Ok("true") | Ok("TRUE")
+    )
+}
+
+struct Delivery {
+    methods: Vec<&'static str>,
+    gui_launched: Option<String>,
+}
+
+/// Steps 2–4 of the delivery chain: single-instance socket → OS deep link →
+/// spawn/activate the GUI with the URL on argv.
+fn deliver_deep_link(url: &str) -> Delivery {
+    let mut methods: Vec<&'static str> = Vec::new();
+    let mut gui_launched = None;
+
+    if notify_single_instance(url) {
+        methods.push("single-instance");
+    }
+    if open_system_url(url).is_ok() {
+        methods.push("deep-link");
+    }
+    if !methods.contains(&"single-instance") {
+        match launch_gui_with_url(url) {
+            Ok(gui) => {
+                methods.push("gui-argv");
+                gui_launched = Some(gui.to_string_lossy().into_owned());
+            }
+            Err(e) => {
+                log::warn!(target: "agentero::op", "gui launch skipped: {e}");
+            }
+        }
+    } else {
+        activate_agentero_frontmost();
+    }
+
+    Delivery {
+        methods,
+        gui_launched,
+    }
 }
 
 /// Speak the same Unix socket protocol as `tauri-plugin-single-instance` (macOS/Linux).

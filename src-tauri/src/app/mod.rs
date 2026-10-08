@@ -130,7 +130,8 @@ pub fn run() {
         .manage(crate::features::vault::doctor::DoctorDirtyPathsState::default())
         .manage(ExternalRenameRepairStore::new())
         .manage(crate::integration::sync::SyncService::default())
-        .manage(crate::app::open_request::PendingVaultOpen::new());
+        .manage(crate::app::open_request::PendingVaultOpen::new())
+        .manage(crate::app::open_request::PendingPaperOpen::new());
 
     #[cfg(not(target_os = "ios"))]
     {
@@ -411,6 +412,13 @@ pub fn run() {
             // Consume a request file left by `agentero open` before we listened.
             if let Some(path) = crate::app::open_request::take_cli_open_request_file() {
                 let _ = crate::app::open_request::handle_open_path(app.handle(), &path);
+            }
+            if let Some(payload) = crate::app::open_request::take_cli_paper_open_request_file() {
+                let _ = crate::app::open_request::handle_paper_open_path(
+                    app.handle(),
+                    std::path::Path::new(&payload.vault_path),
+                    &payload.paper_path,
+                );
             }
             crate::app::open_request::spawn_cli_open_request_watcher(app.handle().clone());
             let handle = app.handle().clone();

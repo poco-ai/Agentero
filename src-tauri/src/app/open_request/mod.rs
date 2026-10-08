@@ -52,12 +52,71 @@ pub fn handle_open_path<R: Runtime>(app: &AppHandle<R>, path: &Path) -> Result<S
     Ok(path_str)
 }
 
+/// Validate a paper request, allow fs scope, store pending, emit + focus.
+#[cfg(feature = "desktop")]
+pub fn handle_paper_open_path<R: Runtime>(
+    app: &AppHandle<R>,
+    vault: &Path,
+    paper_rel: &str,
+) -> Result<PaperOpenPayload, AppError> {
+    let canonical = validate_open_dir(vault)?;
+    let paper_path = normalize_paper_rel(paper_rel)?;
+    let vault_path = canonical.to_string_lossy().to_string();
+
+    if let Err(e) = app.fs_scope().allow_directory(&canonical, true) {
+        log::warn!(
+            target: "agentero::op",
+            "paper open allow_directory failed vault={} error={e}",
+            trunc(&vault_path)
+        );
+    }
+
+    let payload = PaperOpenPayload {
+        vault_path: vault_path.clone(),
+        paper_path: paper_path.clone(),
+    };
+    if let Some(state) = app.try_state::<PendingPaperOpen>() {
+        state.set(payload.clone());
+    }
+
+    let _ = app.emit(EVENT_PAPER_OPEN_REQUEST, &payload);
+    focus_main_window(app);
+    log::info!(
+        target: "agentero::op",
+        "op end paper_open_request ok=true vault={} paper={}",
+        trunc(&vault_path),
+        trunc(&paper_path)
+    );
+    Ok(payload)
+}
+
+/// Emit the shared `vault:open-error` toast payload.
+#[cfg(feature = "desktop")]
+fn emit_open_error<R: Runtime>(app: &AppHandle<R>, message: &str) {
+    let _ = app.emit(
+        "vault:open-error",
+        serde_json::json!({ "message": message }),
+    );
+}
+
 /// Handle one or more deep-link URLs; non-open URLs are ignored with a warning.
 #[cfg(feature = "desktop")]
 pub fn handle_deep_link_urls<R: Runtime>(app: &AppHandle<R>, urls: &[String]) {
     for raw in urls {
         if raw.contains("://pair") || raw.contains(":pair") {
             // Mobile pairing — leave to the mobile UI / other handlers.
+            continue;
+        }
+        // `agentero://paper?vault=…&path=…` — open one paper.
+        if let Ok((vault, paper)) = parse_paper_open_url(raw) {
+            if let Err(e) = handle_paper_open_path(app, &vault, &paper) {
+                log::warn!(
+                    target: "agentero::op",
+                    "op end paper_open_request ok=false url={} error={e}",
+                    trunc(raw)
+                );
+                emit_open_error(app, &e.to_string());
+            }
             continue;
         }
         match parse_open_url(raw) {
@@ -68,10 +127,7 @@ pub fn handle_deep_link_urls<R: Runtime>(app: &AppHandle<R>, urls: &[String]) {
                         "op end vault_open_request ok=false url={} error={e}",
                         trunc(raw)
                     );
-                    let _ = app.emit(
-                        "vault:open-error",
-                        serde_json::json!({ "message": e.to_string() }),
-                    );
+                    emit_open_error(app, &e.to_string());
                 }
             }
             Err(e) => {
@@ -101,10 +157,7 @@ pub fn handle_argv_urls<R: Runtime>(app: &AppHandle<R>, argv: &[String]) {
                 "op end vault_open_request ok=false argv_dir={} error={e}",
                 trunc(&path.to_string_lossy())
             );
-            let _ = app.emit(
-                "vault:open-error",
-                serde_json::json!({ "message": e.to_string() }),
-            );
+            emit_open_error(app, &e.to_string());
         }
     }
 }
@@ -143,34 +196,52 @@ fn trunc(s: &str) -> String {
     }
 }
 
-/// Poll the CLI open-request file and forward into the normal open pipeline.
+/// Poll the CLI open-request files and forward into the normal open pipeline.
 #[cfg(feature = "desktop")]
 pub fn spawn_cli_open_request_watcher<R: Runtime>(app: AppHandle<R>) {
     tauri::async_runtime::spawn(async move {
         let mut last_handled: Option<String> = None;
+        let mut last_paper: Option<String> = None;
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(400)).await;
-            let Some(path) = take_cli_open_request_file() else {
-                continue;
-            };
-            let key = path.to_string_lossy().into_owned();
-            if last_handled.as_deref() == Some(key.as_str()) {
-                continue;
-            }
-            match handle_open_path(&app, &path) {
-                Ok(p) => {
-                    last_handled = Some(p);
+            if let Some(path) = take_cli_open_request_file() {
+                let key = path.to_string_lossy().into_owned();
+                if last_handled.as_deref() != Some(key.as_str()) {
+                    match handle_open_path(&app, &path) {
+                        Ok(p) => {
+                            last_handled = Some(p);
+                        }
+                        Err(e) => {
+                            log::warn!(
+                                target: "agentero::op",
+                                "cli open request file failed path={} error={e}",
+                                trunc(&key)
+                            );
+                            emit_open_error(&app, &e.to_string());
+                        }
+                    }
                 }
-                Err(e) => {
-                    log::warn!(
-                        target: "agentero::op",
-                        "cli open request file failed path={} error={e}",
-                        trunc(&key)
-                    );
-                    let _ = app.emit(
-                        "vault:open-error",
-                        serde_json::json!({ "message": e.to_string() }),
-                    );
+            }
+            if let Some(payload) = take_cli_paper_open_request_file() {
+                let key = format!("{}::{}", payload.vault_path, payload.paper_path);
+                if last_paper.as_deref() != Some(key.as_str()) {
+                    match handle_paper_open_path(
+                        &app,
+                        Path::new(&payload.vault_path),
+                        &payload.paper_path,
+                    ) {
+                        Ok(p) => {
+                            last_paper = Some(format!("{}::{}", p.vault_path, p.paper_path));
+                        }
+                        Err(e) => {
+                            log::warn!(
+                                target: "agentero::op",
+                                "cli paper open request file failed key={} error={e}",
+                                trunc(&key)
+                            );
+                            emit_open_error(&app, &e.to_string());
+                        }
+                    }
                 }
             }
         }

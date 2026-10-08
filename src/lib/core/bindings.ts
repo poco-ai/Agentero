@@ -585,6 +585,8 @@ export const commands = {
 	mcpTunnelStop: () => __TAURI_INVOKE<ApiResult<McpTunnelStatus>>("mcp_tunnel_stop"),
 	/**  Take the pending open path (startup race: frontend ready after Host queued). */
 	vaultOpenTakePending: () => __TAURI_INVOKE<ApiResult<string | null>>("vault_open_take_pending"),
+	/**  Take the pending paper-open request (startup race for `paper:open-request`). */
+	paperOpenTakePending: () => __TAURI_INVOKE<ApiResult<PaperOpenPayload | null>>("paper_open_take_pending"),
 	cliInstallStatus: () => __TAURI_INVOKE<ApiResult<CliInstallStatus>>("cli_install_status"),
 	cliInstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_install_command"),
 	cliUninstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_uninstall_command"),
@@ -683,6 +685,7 @@ export const events = {
 	menuInvoked: makeEvent<MenuInvokedEvent>("menu:invoked"),
 	paperAssetsReady: makeEvent<PaperAssetsReadyEvent>("paper:assets-ready"),
 	paperImported: makeEvent<PaperImportedEvent>("paper:imported"),
+	paperOpenRequest: makeEvent<PaperOpenRequestEvent>("paper:open-request"),
 	paperRenamed: makeEvent<PaperRenamedEventPayload>("paper:renamed"),
 	settingsChanged: makeEvent<SettingsChangedEvent_Deserialize>("settings:changed"),
 	syncProgress: makeEvent<SyncProgressEvent>("sync:progress"),
@@ -3888,6 +3891,20 @@ export type PaperOpenBundle_Serialize = {
 	hasTex: boolean,
 	hasPaperMd: boolean,
 };
+
+/**
+ *  Request to open one paper (`papers/…`) in the desktop App.
+ * 
+ *  `vault_path` is the absolute Vault root; `paper_path` is the Vault-relative
+ *  paper folder (always `/`-separated). Together they address a Dockview panel
+ *  without the Host needing to know the frontend's tab registry.
+ */
+export type PaperOpenPayload = {
+	vaultPath: string,
+	paperPath: string,
+};
+
+export type PaperOpenRequestEvent = PaperOpenPayload;
 
 export type PaperPageCountsArgs = {
 	vaultPath: string,

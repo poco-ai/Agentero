@@ -18,7 +18,7 @@ Headless Vault / Catalog / Wiki 接口；**不含** BYOA / paper-reader。
 | `open` | 在桌面 App 打开本地目录为 Vault（`agentero open <PATH>`；简写 `agentero <PATH>`） |
 | `vault` | create / list 等 |
 | `describe` | Agent 自省：策展型 op 目录与单 op 的 input/output/errors/examples（机器契约真源） |
-| `paper` | list/get、tag list/set/add/rm、move、download/parse… |
+| `paper` | list/get、tag list/set/add/rm、move、open、download/parse… |
 | `import` | 标识符入库 |
 | `discover` | 查询式发现：按关键词/分类/提交日期窗口抓 arXiv 候选，确定性词法排序（headless、无 embedding key） |
 | `export` | 导出 |
@@ -258,6 +258,15 @@ agentero .             # 当前目录
 ```
 
 CLI 通过 `agentero://open?path=…` 深链唤起已安装的桌面 App；无参数时仍打印 help，不会隐式打开最近 Vault。
+
+打开**某篇论文**（而不是整个 Vault）：
+
+```bash
+agentero paper open 1706.03762 --json
+agentero paper open papers/nlp/attention --json
+```
+
+`paper open` 先按优先 path、其次 id 解析论文（与 `paper get` 同一 ref 规则，多 shelf 同 id 时返回 `paper_ambiguous`），再走与 `open` 相同的投递链：写 `cli-paper-open-request.json`（Host 每 ~400ms 轮询）→ single-instance socket → `agentero://paper?vault=…&path=…` 深链 → 必要时拉起 GUI。Host 校验 Vault 目录与 vault-relative 论文路径后发 `paper:open-request` 事件，前端在需要时先切换 Vault，再在 Dockview 工作区打开该论文。`AGENTERO_OPEN_DRY_RUN=1` 只解析并打印 `vaultPath` / `paperPath` / `url`，不触达桌面 App。
 
 ### 系统外壳集成（右键「用 Agentero 打开」）
 

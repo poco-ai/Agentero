@@ -3,7 +3,7 @@
  * Install may use a local/dev binary or download the same app version from GitHub Releases.
  */
 
-import { commands } from "@/lib/core/bindings";
+import { commands, type PaperOpenPayload } from "@/lib/core/bindings";
 import { callApi } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
 import { isTauri } from "@/lib/core/tauri";
@@ -131,5 +131,13 @@ export async function takePendingVaultOpen(): Promise<string | null> {
 	const res = await commands.vaultOpenTakePending();
 	if (!res.ok) return null;
 	// `data: null` means no pending path (not a failure).
+	return res.data ?? null;
+}
+
+/** Consume a Host-queued paper-open request from a cold start (null if none). */
+export async function takePendingPaperOpen(): Promise<PaperOpenPayload | null> {
+	if (!isTauri()) return null;
+	const res = await commands.paperOpenTakePending();
+	if (!res.ok) return null;
 	return res.data ?? null;
 }

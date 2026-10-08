@@ -105,6 +105,15 @@ pub enum PaperCmd {
         #[arg(value_hint = ValueHint::DirPath)]
         dest_parent: String,
     },
+    /// Open a paper in the running desktop App.
+    ///
+    /// Resolves the vault-relative paper folder, then wakes the App via a
+    /// request file + `agentero://paper` deep link (spawning it when needed).
+    Open {
+        /// Vault-relative path or paper id.
+        #[arg(value_hint = ValueHint::DirPath)]
+        r#ref: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -203,7 +212,15 @@ pub async fn run(cmd: PaperCmd, globals: &GlobalOpts) -> Result<Value, CliError>
         PaperCmd::Download { r#ref } => download(globals, &r#ref).await,
         PaperCmd::Parse { r#ref, force } => parse(globals, &r#ref, force).await,
         PaperCmd::Move { from, dest_parent } => move_paper(globals, &from, &dest_parent),
+        PaperCmd::Open { r#ref } => open_in_app(globals, &r#ref),
     }
+}
+
+/// Resolve the paper folder, then hand off to the desktop open pipeline.
+fn open_in_app(globals: &GlobalOpts, ref_: &str) -> Result<Value, CliError> {
+    let vault = resolve_vault(globals)?;
+    let paper = resolve_paper(&vault, ref_, globals)?;
+    crate::commands::open::open_paper_in_app(&vault, &paper.path, globals)
 }
 
 fn run_tag(cmd: TagCmd, globals: &GlobalOpts) -> Result<Value, CliError> {

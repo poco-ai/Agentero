@@ -602,6 +602,22 @@ pub fn build() -> Vec<OpSpec> {
             &["agentero open ~/research --json"],
         ),
         op(
+            "paper.open",
+            Some("agentero paper open"),
+            None,
+            "Open one paper (id or vault-relative path) in the desktop App, focusing its tab.",
+            OpSideEffect::None,
+            cli,
+            false,
+            json!({"ref": "paper id or vault-relative path"}),
+            json!({"vaultPath": "string", "paperPath": "string", "methods": ["string"]}),
+            &["message", "paper_not_found", "paper_ambiguous"],
+            &[
+                "agentero paper open 1706.03762 --json",
+                "agentero paper open papers/nlp/attention --json",
+            ],
+        ),
+        op(
             "describe",
             Some("agentero describe"),
             None,

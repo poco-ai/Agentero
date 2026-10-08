@@ -976,6 +976,55 @@ fn open_path_shorthand_and_explicit_dry_run() {
 }
 
 #[test]
+fn paper_open_dry_run_resolves_ref() {
+    let tmp = tempdir().unwrap();
+    let vault = tmp.path().join("v");
+    create_vault(&vault);
+    let paper = vault.join("papers/demo");
+    fs::create_dir_all(&paper).unwrap();
+    fs::write(paper.join("NOTES.md"), "# Demo\n").unwrap();
+    seed_paper(&vault, "papers/demo", "demo", "Demo Paper");
+
+    let out = agentero()
+        .env("AGENTERO_OPEN_DRY_RUN", "1")
+        .args([
+            "--vault",
+            vault.to_str().unwrap(),
+            "paper",
+            "open",
+            "demo",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["ok"], true);
+    assert_eq!(v["data"]["dryRun"], true);
+    assert_eq!(v["data"]["paperPath"], "papers/demo");
+    assert!(v["data"]["url"]
+        .as_str()
+        .unwrap()
+        .starts_with("agentero://paper?vault="));
+
+    agentero()
+        .env("AGENTERO_OPEN_DRY_RUN", "1")
+        .args([
+            "--vault",
+            vault.to_str().unwrap(),
+            "paper",
+            "open",
+            "nope",
+            "--json",
+        ])
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("paper_not_found"));
+}
+
+#[test]
 fn doctor_wiki_check_reports_semantic_issues_and_honors_file_scope() {
     let tmp = tempdir().unwrap();
     let vault = tmp.path().join("v");

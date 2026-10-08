@@ -72,6 +72,10 @@ pub struct MenuInvokedEvent {
 #[tauri_specta(event_name = "vault:open-request")]
 pub struct VaultOpenRequestEvent(pub agentero_core::features::open_request::VaultOpenPayload);
 
+#[derive(specta::Type, tauri_specta::Event)]
+#[tauri_specta(event_name = "paper:open-request")]
+pub struct PaperOpenRequestEvent(pub agentero_core::features::open_request::PaperOpenPayload);
+
 /// Mirror of the inline `json!({ "message": ... })` in `app::open_request`.
 #[derive(specta::Type, tauri_specta::Event)]
 #[tauri_specta(event_name = "vault:open-error")]
@@ -334,6 +338,10 @@ fn event_names_match_emit_literals() {
         agentero_core::features::open_request::EVENT_VAULT_OPEN_REQUEST
     );
     assert_eq!(
+        PaperOpenRequestEvent::NAME,
+        agentero_core::features::open_request::EVENT_PAPER_OPEN_REQUEST
+    );
+    assert_eq!(
         WindowClosedEvent::NAME,
         crate::app::window::commands::WINDOW_CLOSED_EVENT
     );
@@ -401,13 +409,14 @@ use std::path::{Path, PathBuf};
 /// Every event name registered in this file (the desktop contract surface).
 fn registered_event_names() -> BTreeSet<String> {
     use tauri_specta::Event as _;
-    let names: [&str; 44] = [
+    let names: [&str; 45] = [
         JobOfferEvent::NAME,
         JobChangedEvent::NAME,
         JobCompletedEvent::NAME,
         JobFailedEvent::NAME,
         MenuInvokedEvent::NAME,
         VaultOpenRequestEvent::NAME,
+        PaperOpenRequestEvent::NAME,
         VaultOpenErrorEvent::NAME,
         WindowClosedEvent::NAME,
         VaultFileChangedEvent::NAME,
@@ -1112,11 +1121,7 @@ fn menu_invoked_mirror_matches_inline_json_shape() {
 #[test]
 fn vault_open_error_mirror_matches_inline_json_shape() {
     let sites = inline_json_keys("src/app/open_request/mod.rs", "\"vault:open-error\"");
-    assert_eq!(
-        sites.len(),
-        3,
-        "expected the three vault:open-error emit sites"
-    );
+    assert_eq!(sites.len(), 1, "expected the single emit_open_error site");
     let mirror = specta_field_keys::<VaultOpenErrorEvent>();
     for site in &sites {
         assert_eq!(

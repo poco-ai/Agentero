@@ -3,7 +3,7 @@
 //!
 //! Coverage: every command registered for desktop in `app::handlers`
 //! (`common_commands!` + the desktop-only extras) is collected here, and every
-//! event emitted on desktop is declared in `app::events_contract` (44 events;
+//! event emitted on desktop is declared in `app::events_contract` (45 events;
 //! `event_name` matches the emit literal, emit sites unchanged). The iOS-only
 //! bridge client commands (`integration::bridge::client_commands`) and client
 //! events (`bridge:status` / `bridge:progress` / `bridge:pair-pending`) are
@@ -226,6 +226,7 @@ fn export_typescript_bindings() {
             crate::integration::mcp::commands::mcp_tunnel_start,
             crate::integration::mcp::commands::mcp_tunnel_stop,
             crate::app::open_request::commands::vault_open_take_pending,
+            crate::app::open_request::commands::paper_open_take_pending,
             crate::features::cli_install::commands::cli_install_status::<tauri::Wry>,
             crate::features::cli_install::commands::cli_install_command::<tauri::Wry>,
             crate::features::cli_install::commands::cli_uninstall_command::<tauri::Wry>,
@@ -255,6 +256,7 @@ fn export_typescript_bindings() {
             crate::app::events_contract::JobFailedEvent,
             crate::app::events_contract::MenuInvokedEvent,
             crate::app::events_contract::VaultOpenRequestEvent,
+            crate::app::events_contract::PaperOpenRequestEvent,
             crate::app::events_contract::VaultOpenErrorEvent,
             crate::app::events_contract::WindowClosedEvent,
             crate::app::events_contract::VaultFileChangedEvent,
