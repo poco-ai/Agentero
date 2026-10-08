@@ -201,6 +201,13 @@
 		box-shadow: none;
 		border-bottom-width: 1px;
 	}
+	[data-plaza-header] {
+		background-color: var(--background);
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
+		box-shadow: none;
+		border-bottom: 1px solid var(--border);
+	}
 }
 
 /* Settings pane enter: short opacity cross-fade (respects reduced-motion). */
