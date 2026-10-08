@@ -139,8 +139,9 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
     host CLI——claude 适配器 `CLAUDE_CODE_EXECUTABLE`、codex 适配器 `CODEX_PATH`——均
     优先解析用户在注册项 env 里显式配置的目标，再注入经过校验的绝对路径；无效覆盖不回退。
     Windows Claude host 必须为原生 `.exe` 或 `.js` 入口：npm 的 `.cmd` / `.bat` / `.ps1`
-    shim 会解析到同目录 `node_modules/@anthropic-ai/claude-code/cli.js`，让 SDK 使用 Node
-    启动。显式配置 shim 同样转换；缺少入口时在启动内置适配器前提示修复 npm 安装、使用
+    shim 优先解析同目录 `node_modules/@anthropic-ai/claude-code/bin/claude.exe`（新版 npm
+    包，校验 PE 头），否则解析 `node_modules/@anthropic-ai/claude-code/cli.js`，让 SDK 使用
+    Node 启动。显式配置 shim 同样转换；缺少入口时在启动内置适配器前提示修复 npm 安装、使用
     原生安装器或配置 `CLAUDE_CODE_EXECUTABLE`。通用命令发现仍支持 shim，PATH 安装的
     ACP 适配器仍优先且不受此校验影响。
     详见 [Windows Claude npm shim 的 spawnEINVAL](../bug_fix/windows-claude-bundled-spawn-einval.md)。

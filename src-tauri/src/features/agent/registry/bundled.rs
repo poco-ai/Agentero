@@ -222,12 +222,20 @@ fn claude_sdk_path(path: &Path) -> Option<PathBuf> {
         .iter()
         .any(|ext| extension.eq_ignore_ascii_case(ext))
     {
-        let entry = path
+        let package = path
             .parent()?
             .join("node_modules")
             .join("@anthropic-ai")
-            .join("claude-code")
-            .join("cli.js");
+            .join("claude-code");
+        // Recent npm releases ship a native package bin instead of cli.js.
+        // Reuse PE validation so a missing/corrupt binary is never injected.
+        let native = package.join("bin").join("claude.exe");
+        if let Some(native) =
+            crate::core::process::resolve_command_in_paths(&native.to_string_lossy(), &[])
+        {
+            return Some(native);
+        }
+        let entry = package.join("cli.js");
         return entry.is_file().then_some(entry);
     }
     None
@@ -242,7 +250,7 @@ pub fn host_env_injection(
     };
     let path = host_path(template_id, child_env).ok_or_else(|| {
         if cfg!(windows) && template_id == "claude-acp" {
-            "Claude Code has no SDK-compatible entrypoint: Windows .cmd/.bat/.ps1 shims cannot be spawned directly. Repair the npm installation so @anthropic-ai/claude-code/cli.js exists, use the native Claude Code installer, or set CLAUDE_CODE_EXECUTABLE to an existing claude.exe or cli.js path".to_string()
+            "Claude Code has no SDK-compatible entrypoint: Windows .cmd/.bat/.ps1 shims cannot be spawned directly. Repair the npm installation, use the native Claude Code installer, or set CLAUDE_CODE_EXECUTABLE to an existing claude.exe or cli.js path".to_string()
         } else {
             format!("host command `{command}` not found (check its installation or `{key}`)")
         }
@@ -518,6 +526,25 @@ mod tests {
             script.display().to_string(),
         );
         assert_eq!(host_path("claude-acp", &env), Some(script));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn claude_npm_native_package_bin_resolves_without_cli_js() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("claude.cmd"), "npm shim").unwrap();
+        let bin = tmp
+            .path()
+            .join("node_modules")
+            .join("@anthropic-ai")
+            .join("claude-code")
+            .join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        let native = fake_host(&bin, "claude");
+        let env = HashMap::from([("PATH".to_string(), tmp.path().display().to_string())]);
+        assert_eq!(host_path("claude-acp", &env), Some(native.clone()));
+        std::fs::write(native, "invalid PE file").unwrap();
+        assert!(host_path("claude-acp", &env).is_none());
     }
 
     #[test]
