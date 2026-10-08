@@ -28,6 +28,9 @@
         │  终态 `job_report` / 取消必须释放该 cap，否则后续任务会一直排队
         │  后台 ONNX 不依赖当前 active 论文窗口：headless EmbedPDF 独立打开 `{id}.pdf`
         │  激活中的 tab：有 layout.json → 静默载入 store（无新任务条）
+        │  已在内存里的结果不会挡住这次载入：`generatedAt` 变了就重新 merge 进当前 tab。
+        │  headless 强制重跑写在 `headless-layout-*` 上并随任务结束清掉，侧栏读的是
+        │  查看器 documentId；不重载的话重启前一直显示上一次解析（例如只有一页）
         │  viewer-bound 分析在每个异步边界检查 document 是否仍 open；关闭/切换竞态按取消处理
         │  尚无缓存 → 轮询 sidecar，headless 写完后再静默载入
         │  无 paper 目录的散落 PDF：仅 active tab 用 viewer 内分析（asBackgroundTask）
