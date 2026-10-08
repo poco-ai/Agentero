@@ -10,7 +10,7 @@ import { errorText } from "@/lib/core/error";
 
 import { logger } from "@/lib/core/logger";
 import { isTauri } from "@/lib/core/tauri";
-import { findLocalPdfPath, localFileToArrayBuffer } from "@/lib/paper";
+import { findCanonicalPaperPdfPath, localFileToArrayBuffer } from "@/lib/paper";
 import {
 	type LayoutSidecarMode,
 	layoutSidecarNeedsTextLayer,
@@ -864,7 +864,7 @@ function startRemoteLayoutAnalysis(
 		let unlisten: (() => void) | null = null;
 		try {
 			assertDocumentOpen(options.isDocumentOpen);
-			const pdfPath = await findLocalPdfPath(paperAbsPath);
+			const pdfPath = await findCanonicalPaperPdfPath(paperAbsPath);
 			if (!pdfPath) throw new Error("No local PDF for layout analysis");
 			const buffer = await localFileToArrayBuffer(pdfPath);
 			if (!buffer) throw new Error("Failed to read paper PDF");

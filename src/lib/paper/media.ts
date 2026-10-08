@@ -1,11 +1,11 @@
 import { readDir } from "@tauri-apps/plugin-fs";
 import { errorText } from "@/lib/core/error";
 import { logger } from "@/lib/core/logger";
-import { joinPath } from "@/lib/core/path";
+import { basenameOf, joinPath } from "@/lib/core/path";
 import { isTauri } from "@/lib/core/tauri";
 import { arxivUrls } from "@/lib/paper/arxiv";
 import type { PaperMetadata } from "@/lib/paper/types";
-import { readVaultBytes } from "@/lib/vault";
+import { readVaultBytes, vaultPathExists } from "@/lib/vault";
 import {
 	parseRemoteJoinedPath,
 	remoteList,
@@ -107,6 +107,42 @@ export function revokePdfViewerSource(source: string | null | undefined): void {
 		} catch {
 			// ignore
 		}
+	}
+}
+
+/**
+ * Layout-analysis PDF: `{paperDir}/{id}.pdf` and nothing else.
+ *
+ * `id` is the paper folder name. `findLocalPdfPath` still walks nested
+ * folders when that root file is missing, and can return an illustration
+ * PDF under `source/assets/`. Layout analysis must not parse that file.
+ */
+export function canonicalPaperPdfPath(paperDir: string): string | null {
+	const root = paperDir.trim().replace(/[/\\]+$/, "");
+	if (!root) return null;
+	const id = basenameOf(root);
+	if (!id || id === "." || id === "..") return null;
+	return joinPath(root, `${id}.pdf`);
+}
+
+/**
+ * Resolve {@link canonicalPaperPdfPath} when the file is already on disk.
+ * Returns null while the root PDF has not landed — callers should skip,
+ * not search `source/assets/`.
+ */
+export async function findCanonicalPaperPdfPath(
+	paperDir: string,
+): Promise<string | null> {
+	const path = canonicalPaperPdfPath(paperDir);
+	if (!path || !isTauri()) return null;
+	try {
+		return (await vaultPathExists(path)) ? path : null;
+	} catch (e) {
+		logger.warn("pdf: canonical paper pdf check failed", {
+			path,
+			error: errorText(e),
+		});
+		return null;
 	}
 }
 

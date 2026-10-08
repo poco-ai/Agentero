@@ -17,9 +17,10 @@ import { RenderPluginPackage } from "@embedpdf/plugin-render";
 import { errorText } from "@/lib/core/error";
 
 import { logger } from "@/lib/core/logger";
-import { findLocalPdfPath, localFileToArrayBuffer } from "@/lib/paper";
+import { findCanonicalPaperPdfPath, localFileToArrayBuffer } from "@/lib/paper";
 import { getPdfAiRuntime } from "@/lib/pdf/layout/ai-runtime";
 import {
+	layoutSidecarBlocksAnalysis,
 	readLayoutSidecar,
 	writeLayoutIndexFromRaw,
 } from "@/lib/pdf/layout/io";
@@ -108,8 +109,9 @@ export type HeadlessLayoutResult = {
 };
 
 /**
- * Ensure layout sidecar exists for a paper folder. Hits cache when present;
- * otherwise opens the local PDF in a headless EmbedPDF stack and analyzes.
+ * Ensure layout sidecar exists for a paper folder. Hits cache when present
+ * unless `force` is set. Opens `{paper}/{id}.pdf` only — never an
+ * illustration PDF under `source/assets/`.
  */
 export async function analyzePaperLayoutHeadless(opts: {
 	paperAbsPath: string;
@@ -117,17 +119,31 @@ export async function analyzePaperLayoutHeadless(opts: {
 	paperLabel?: string;
 	/** Caller-owned EmbedPDF document id, so progress can be attributed to this run. */
 	documentId?: string;
+	/**
+	 * Re-run even when `source/layout.json` already has regions. JobCenter
+	 * stores this on the task; it has to be read here or a force enqueue
+	 * still returns the cached sidecar.
+	 */
+	force?: boolean;
 	signal?: AbortSignal;
 }): Promise<HeadlessLayoutResult> {
 	const paperAbsPath = opts.paperAbsPath.replace(/[/\\]+$/, "");
 	if (opts.signal?.aborted) throw new Error("cancelled");
 
 	const existing = await readLayoutSidecar(paperAbsPath);
-	if (existing?.regions?.length) {
+	if (opts.signal?.aborted) throw new Error("cancelled");
+	if (
+		existing &&
+		layoutSidecarBlocksAnalysis(opts.force, existing.regions.length)
+	) {
 		// Ensure CLI-facing sidebar index exists even on raw-only cache hits.
 		try {
+			if (opts.signal?.aborted) throw new Error("cancelled");
 			await writeLayoutIndexFromRaw(paperAbsPath, existing.regions);
-		} catch {
+		} catch (error) {
+			if (opts.signal?.aborted || errorText(error) === "cancelled") {
+				throw new Error("cancelled");
+			}
 			// non-fatal
 		}
 		return {
@@ -137,7 +153,7 @@ export async function analyzePaperLayoutHeadless(opts: {
 		};
 	}
 
-	const pdfPath = await findLocalPdfPath(paperAbsPath);
+	const pdfPath = await findCanonicalPaperPdfPath(paperAbsPath);
 	if (!pdfPath) {
 		// Soft-skip: callers may race ahead of DownloadAssets. Re-enqueue after
 		// the PDF lands rather than failing the job with "No local PDF".
@@ -218,7 +234,7 @@ export async function analyzePaperLayoutHeadless(opts: {
 				paperAbsPath,
 				paperLabel: opts.paperLabel,
 				totalPages: pageCount > 0 ? pageCount : null,
-				force: false,
+				force: opts.force === true,
 				pageSizeAt: (pageIndex) => {
 					const size = doc.pages[pageIndex]?.size;
 					return size && size.width > 0 && size.height > 0 ? size : null;

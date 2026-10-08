@@ -172,6 +172,18 @@ export function parseLayoutSidecar(raw: unknown): PdfLayoutSidecar | null {
 	};
 }
 
+/**
+ * A non-empty sidecar is a finished parse. `force` is the only way through
+ * it: headless analysis used to return here even when the job was enqueued
+ * with `force: true`.
+ */
+export function layoutSidecarBlocksAnalysis(
+	force: boolean | undefined,
+	regionCount: number,
+): boolean {
+	return force !== true && regionCount > 0;
+}
+
 /** Old sidecars, and reads that did not finish, still need the text layer. */
 export function layoutSidecarNeedsTextLayer(
 	sidecar: PdfLayoutSidecar,
