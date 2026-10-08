@@ -6,11 +6,13 @@
 //! settings pane lists them read-only so a user who has one installed
 //! understands why and can still launch it.
 //!
-//! Detection is best-effort and local-only: it inspects app bundles / Spotlight
-//! on macOS, never the network or the user's account. Only macOS is implemented
-//! so far; other platforms report "not installed" until their probes land.
+//! Detection is best-effort and local-only: app bundles / Spotlight on macOS,
+//! registered installations and executable files on Windows. No account/cache
+//! directories are used. Other platforms await their own installation probes.
 
 pub mod commands;
+#[cfg(windows)]
+mod windows;
 
 use crate::core::error::AppError;
 use serde::{Deserialize, Serialize};
@@ -25,7 +27,7 @@ pub enum DesktopAppId {
     Workbuddy,
 }
 
-/// Detection result for one app. `path` is the resolved macOS bundle when known.
+/// Detection result: macOS bundle or Windows executable path when known.
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DesktopAppStatus {
@@ -43,6 +45,8 @@ struct AppSpec {
     /// Known macOS bundle identifiers, for apps moved out of `/Applications`.
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     bundle_ids: &'static [&'static str],
+    #[cfg(windows)]
+    windows: windows::WinSpec,
 }
 
 /// Probe order is the display order in Settings.
@@ -53,17 +57,41 @@ const APPS: &[AppSpec] = &[
         // build ships as `ChatGPT Classic.app` (com.openai.chat).
         names: &["ChatGPT", "ChatGPT Classic"],
         bundle_ids: &["com.openai.codex", "com.openai.chat"],
+        #[cfg(windows)]
+        windows: windows::WinSpec {
+            uninstall_names: &["ChatGPT", "ChatGPT Classic"],
+            package_names: &["OpenAI.ChatGPT-Desktop", "OpenAI.ChatGPT", "OpenAI.Codex"],
+            exe_names: &["ChatGPT.exe"],
+            install_names: &["ChatGPT"],
+            protocols: &[],
+        },
     },
     AppSpec {
         id: DesktopAppId::Qwenwork,
         // Vendor bundle id is not published; match by bundle name.
         names: &["QwenWork", "千问办公"],
         bundle_ids: &[],
+        #[cfg(windows)]
+        windows: windows::WinSpec {
+            uninstall_names: &["千问办公", "QwenWork", "QwenWorkCN"],
+            package_names: &[],
+            exe_names: &["QwenWork.exe", "QwenWorkCN.exe", "千问办公.exe"],
+            install_names: &["QwenWork", "QwenWorkCN", "千问办公"],
+            protocols: &[],
+        },
     },
     AppSpec {
         id: DesktopAppId::Workbuddy,
         names: &["WorkBuddy AI", "WorkBuddy"],
         bundle_ids: &[],
+        #[cfg(windows)]
+        windows: windows::WinSpec {
+            uninstall_names: &["WorkBuddy", "WorkBuddy AI"],
+            package_names: &[],
+            exe_names: &["WorkBuddy.exe"],
+            install_names: &["WorkBuddy"],
+            protocols: &["workbuddy"],
+        },
     },
 ];
 
@@ -166,15 +194,25 @@ fn open_resolved(spec: &AppSpec) -> Result<(), AppError> {
     Ok(())
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(windows)]
+fn detect_app(spec: &AppSpec) -> Option<PathBuf> {
+    windows::detect(spec).map(|app| app.path)
+}
+
+#[cfg(windows)]
+fn open_resolved(spec: &AppSpec) -> Result<(), AppError> {
+    windows::open(spec)
+}
+
+#[cfg(not(any(target_os = "macos", windows)))]
 fn detect_app(_spec: &AppSpec) -> Option<PathBuf> {
     None
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", windows)))]
 fn open_resolved(_spec: &AppSpec) -> Result<(), AppError> {
     Err(AppError::message(
-        "desktop app detection is only available on macOS for now",
+        "desktop app detection is only available on macOS and Windows for now",
     ))
 }
 

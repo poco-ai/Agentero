@@ -11,7 +11,7 @@ pub async fn desktop_apps_probe() -> Result<ApiResult<Vec<DesktopAppStatus>>, St
     Ok(run_blocking(|| ApiResult::ok(probe_desktop_apps())).await)
 }
 
-/// Launch one installed desktop app (currently macOS only).
+/// Launch one installed desktop app (macOS or Windows).
 #[tauri::command]
 #[specta::specta]
 pub async fn desktop_app_open(id: DesktopAppId) -> Result<ApiResult<()>, String> {

@@ -25,13 +25,27 @@ Agent 设置页的「本地桌面应用」区块列出若干**不支持 ACP** �
 
 **刻意不做**：扫描 `~/Library` 或 `~/.<app>` 残留目录。已卸载但留下日志/数据的 App 会因此被误判为「已安装」（WorkBuddy 卸载后仍留 `~/.workbuddy-ai` 等，是典型反例）。可靠判据只有真实 `.app` bundle 与系统注册信息。
 
+## 检测方式（Windows）
+
+1. ChatGPT：直接读取当前用户的 AppModel `Repository\Packages` 安装注册，支持 `OpenAI.ChatGPT-Desktop`、`OpenAI.ChatGPT` 与新版仍使用的 `OpenAI.Codex` 包标识。读取 `AppxManifest.xml`，校验注册的 UI Application、实际 `ChatGPT.exe` 与包标识；不以 `%LOCALAPPDATA%\Packages` 残留目录判定安装。
+2. 千问办公 / QwenWork、WorkBuddy：读取 HKCU / HKLM 的 32 位与 64 位 `Uninstall` 注册表视图，匹配 `DisplayName`。从 `DisplayIcon`、`InstallLocation` 或 Inno `UninstallString` 所在目录定位应用；卸载程序本身不会作为启动目标。
+3. 补充读取 `App Paths` 与 WorkBuddy 的 `workbuddy` 协议命令，再检查 `%LOCALAPPDATA%\Programs` / `%ProgramFiles%` / `%ProgramFiles(x86)%` 下的已知安装目录。
+
+所有路径均要求对应应用的原生 `.exe` 存在且通过共享进程层的 PE 文件头校验。空目录、失效注册表记录、卸载残留以及 `.workbuddy-ai` 等用户数据目录不会使行高亮。探测不启动 PowerShell / winget，不读取账号数据。
+
 ## 打开
 
 `desktop_app_open` 优先 `open <resolved .app path>`，未解析到路径时回退 `open -a <name>`。ChatGPT 新版同时注册 `codex://` scheme，后续如需带参深链可在此扩展。
 
+Windows 在打开前重新检测安装：MSIX 用 `explorer.exe shell:AppsFolder\<PackageFamilyName>!<AppId>` 激活注册的 UI 入口；原生桌面应用直接启动解析到的 `.exe`，无需 shell。后台启动隐藏控制台窗口，不执行注册表中的完整命令串。
+
 ## 平台
 
-当前仅 macOS；Windows / Linux 一律返回 `installed=false`，待补注册表 / MSIX 与 `.desktop` 扫描。
+支持 macOS 与 Windows。Linux 仍返回 `installed=false`，待实现 `.desktop` / Flatpak / Snap 安装探针并在 Linux 真机验证。
+
+Windows 回归覆盖中文名称、含空格路径、图标索引、卸载表来源、Inno 目录回退、App Paths、协议、失效记录、缓存残留，以及 MSIX 注册的 UI 入口和非 UI helper 区分。测试使用隔离的 HKCU 测试键，不修改真实安装记录。
+
+Windows 本机验证（2026-10-08）：对同一台已安装 `OpenAI.Codex_26.1002.7124.0_x64__2p2nqsd0c76g0` 的机器运行修改前后的后端源码，ChatGPT 从 `installed=false` 变为 `true`，返回实际 `app\ChatGPT.exe`，MSIX 打开调用成功。一次三应用探测约 24 ms（非性能基准）。本机未安装千问办公 / WorkBuddy，其安装和卸载场景仅由隔离注册表回归覆盖；尚未做这两个产品的真实安装测试，也未做 Settings / Onboarding 窗口视觉验收。
 
 ## 代码
 

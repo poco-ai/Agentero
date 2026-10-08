@@ -150,6 +150,7 @@ openssh-sftp-client = { version = "0.15.7", features = ["openssh"] }
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
 windows-spawn = "0.1.0"
+roxmltree = "0.20"
 
 [target.'cfg(windows)'.dev-dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading"] }
