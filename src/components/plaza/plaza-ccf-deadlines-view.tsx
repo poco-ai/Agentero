@@ -139,7 +139,7 @@ function DeadlineRow({ item }: { item: CcfDeadlineItem }) {
 				{countdown ? (
 					<span
 						className={cn(
-							"w-10 text-right text-caption tabular-nums",
+							"w-14 whitespace-nowrap text-right text-caption tabular-nums",
 							urgent
 								? "font-medium text-amber-600 dark:text-amber-400"
 								: "text-muted-foreground",
