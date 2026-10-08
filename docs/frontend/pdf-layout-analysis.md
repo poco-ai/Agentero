@@ -16,7 +16,8 @@
 
 ```text
 下载 / 添加入库完成后 → 后台任务「解析插图、表格、文字」
-        │  headless EmbedPDF 栈写 `{paper}/source/layout.json`（有缓存则跳过）
+        │  headless EmbedPDF 栈写 `{paper}/source/layout.json`（有缓存则跳过；`force` 不跳过）
+        │  只打开论文根目录 `{id}.pdf`。根文件还没落盘时跳过，不改用 `source/assets/` 里的插图 PDF
         │  实现：`enqueue-paper-layout.ts` + `headless-analyze.ts`
         │
 打开论文 PDF（含非 active 的已挂载 tab）→ enqueue 到后台任务队列
@@ -25,16 +26,21 @@
         │  远程 Provider（Paddle / MinerU）：无 JobCenter 并发上限（远端排队）；进度事件用 requestId 隔离
         │  实现：viewer mount 调 `enqueuePaperLayoutAnalysis`（与入库后同一路径）
         │  终态 `job_report` / 取消必须释放该 cap，否则后续任务会一直排队
-        │  后台 ONNX 不依赖当前 active 论文窗口：headless EmbedPDF 独立打开本地 PDF
+        │  后台 ONNX 不依赖当前 active 论文窗口：headless EmbedPDF 独立打开 `{id}.pdf`
         │  激活中的 tab：有 layout.json → 静默载入 store（无新任务条）
+        │  已在内存里的结果不会挡住这次载入：`generatedAt` 变了就重新 merge 进当前 tab。
+        │  headless 强制重跑写在 `headless-layout-*` 上并随任务结束清掉，侧栏读的是
+        │  查看器 documentId；不重载的话重启前一直显示上一次解析（例如只有一页）
         │  viewer-bound 分析在每个异步边界检查 document 是否仍 open；关闭/切换竞态按取消处理
         │  尚无缓存 → 轮询 sidecar，headless 写完后再静默载入
         │  无 paper 目录的散落 PDF：仅 active tab 用 viewer 内分析（asBackgroundTask）
-        │  手动：Figures header「分析 / 重新分析」
-        │     · 有 `source/layout.json` → 不重跑 ONNX。文字层已抽过则只在内存里归并；
-        │       还没标记时补抽文字并写回同一次解析（不换 generatedAt）
-        │     · 无缓存 → 全量 PDF→JSON（PP-DocLayoutV3）再归并
-        │     · 打开 Figures / 可选 Eye；`force` 仅内部/将来「强制刷新模型」用
+        │  手动：Figures header「分析 / 重新分析」仍是 `force: false`（有缓存不重跑模型）
+        │  插图侧栏右上角刷新按钮（Eye 左侧）：确认后强制重跑这一篇
+        │     · PDF 必须是论文根目录 `{id}.pdf`；没有则提示，不删 sidecar、不入队
+        │     · 取消这篇进行中的 `layoutAnalyze`，再以 `force: true`、focus lane 入队
+        │     · executor 把 `force` 传进 `analyzePaperLayoutHeadless`，否则
+        │       `regions.length > 0` 会直接返回缓存
+        │     · 入队成功后再删 `layout.json` 与 `layout-index.json`
         ▼
 PP-DocLayoutV3  每页: render → detect → map to PDF points（仅无 sidecar 或 force）
         │  LayoutBlock[]（插件全量标签；页上 LayoutAnalysisLayer 仍画原始框）
@@ -174,7 +180,9 @@ type LayoutSidecar = {
 
 缓存只在已知 paper folder 时启用；散落 PDF 没有 `{paper}` 路径，仍使用当前内存流程（也不写 index）。
 
-**重新分析按钮**（Figures header）：`force: false`。有 `source/layout.json` 时不跑 PP-DocLayoutV3。文字层标记已在则只重跑 JSON→侧栏（`mergeCaptionsIntoHosts` + NMS），不改 raw sidecar。标记缺失时把抽到的文字写回同一次解析，`generatedAt` 不变；写之前若磁盘上的 mode、时间戳或框几何已经变了，则放弃这次写回。两种情况都会刷新 `layout-index.json`（内容没变则不落盘）。无缓存时才走完整 PDF→JSON。需要强制刷新模型输出时由调用方显式传 `force: true`（当前 UI 不暴露）。
+**重新分析按钮**（Figures header）：`force: false`。有 `source/layout.json` 时不跑 PP-DocLayoutV3。文字层标记已在则只重跑 JSON→侧栏（`mergeCaptionsIntoHosts` + NMS），不改 raw sidecar。标记缺失时把抽到的文字写回同一次解析，`generatedAt` 不变；写之前若磁盘上的 mode、时间戳或框几何已经变了，则放弃这次写回。两种情况都会刷新 `layout-index.json`（内容没变则不落盘）。无缓存时才走完整 PDF→JSON。
+
+**强制重新解析**（插图侧栏右上角，布局叠加开关左侧）：确认弹窗后只处理当前这一篇。入口 `forcePaperLayoutAnalysis`（`enqueue-paper-layout.ts`）+ `PdfForceLayoutButton`。根目录没有 `{id}.pdf` 时只提示，不改 sidecar。否则取消这篇进行中的 `layoutAnalyze`，enqueue `force: true`（focus lane），入队成功后再删 `source/layout.json` 和 `source/layout-index.json`。`analyzePaperLayoutHeadless` 读任务上的 `force`，为真时跳过「已有 regions 就返回」；`runDocumentLayoutAnalysis` 同样收到 `force: true`。版面分析重新选 PDF 时只用 `canonicalPaperPdfPath`（`{paper}/{id}.pdf`），根目录文件不在则 soft-skip，不再调用会下钻到 `source/assets/` 的 `findLocalPdfPath`。远程 provider 上传同一条路径。
 
 **全库重置**（设置 →「版面解析」底部两个按钮）：Host 命令 `clear_parse_results` / `clear_and_reparse`（`src-tauri/src/features/jobs/commands.rs`）按 catalog 逐篇删除所选 scope 的解析产物——`layout`（`source/layout.json` + `layout-index.json`）、`paper`（`PAPER.md`）或 `all`（默认）。删除前先取消该 Vault 下相关 queued/running 的 `layoutAnalyze` / `parseBody` job（防止晚到的 runner 把旧结果写回），删除后清空 `CapsCache`。「清除并重新解析」再对全部论文 enqueue `force: true` 的重新解析 job（idle lane，沿用 per-kind 并发上限）。仅支持本地 Vault；前端入口 `src/lib/paper/reparse.ts` + `layout-pane.tsx`（确认弹窗内选 scope）。
 
@@ -317,7 +325,9 @@ type PdfLayoutRegion = {
 
 | 路径 | 职责 |
 |---|---|
-| `run-analysis.ts` | 分析 → 文字 → merge → store |
+| `run-analysis.ts` | 分析 → 文字 → merge → store。远程后端上传 `{id}.pdf` |
+| `enqueue-paper-layout.ts` | `layoutAnalyze` executor；`forcePaperLayoutAnalysis` 单篇强制重跑 |
+| `chrome/pdf-force-layout-button.tsx` | 插图侧栏确认后强制重解析 |
 | `providers.ts` / `provider-config.ts` | Provider 注册表（kind / requiresApiKey / supportsBaseUrl / sidecarMode）与设置 UI 共用的保存 / 探测逻辑 |
 | `paddle.ts` | 远程分析 / probe 的 IPC 封装（provider 参数分发） |
 | `io.ts` | `{paper}/source/layout.json` raw sidecar 读写与 schema 校验 |
@@ -334,7 +344,8 @@ type PdfLayoutRegion = {
 ## 限制与后续
 
 - 实验路径；大模型推理可能卡顿。后端为本地模型时，主窗口每次启动都会弹一次右上角提醒（仅首次运行向导覆盖时暂停；提示本机模型的性能代价，可「打开版面解析设置」或「不再提醒」，见 [settings.md](settings.md) §低频配置提醒）。
-- 不改 PDF 二进制；只写可重建的 `{paper}/source/layout.json`。
+- 不改 PDF 二进制；只写可重建的 `{paper}/source/layout.json`。单篇强制重解析在 force 任务入队成功后删掉这篇的 `layout.json` 和 `layout-index.json`，再由新的解析重写。
+- 版面分析只读论文根目录 `{id}.pdf`。根文件尚未落盘时跳过，不会改去解析 `source/assets/` 里的插图 PDF。查看器打开 PDF 仍用 `findLocalPdfPath`。
 - `layout.json` 只缓存 raw layout，不等同于未来 `agentero-figures.json` / 缩略图资产 sidecar。
 - 跨页关联只支持相邻页的唯一候选；更远的图注、扫描件无可用文字层或冲突图号不会强行配对，可靠无图题图片仍展示。MinerU #704 的真实论文回放与修复记录见 [mineru-missing-figures.md](../bug_fix/mineru-missing-figures.md)。
 - **模型级整面板误标仍会漏图**（merge 层无法救回，页上没有可用 image/chart 检测）：ViT 附录 Fig 14（注意力图网格被标 `header` 0.91，同框 `image` 仅 0.05）、Transformer 附录 Fig 4（注意力可视化被标 `table` 0.88）。四篇论文（resnet / vit / transformer / swin，单双栏混合）实测图题召回 28/30 ≈ 93%，在容忍范围内；后续如换更强检测模型可回归 `test/pdf-layout-arxiv.test.ts` 复核。

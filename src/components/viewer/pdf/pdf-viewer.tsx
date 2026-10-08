@@ -1893,6 +1893,7 @@ function PdfViewerInner({
 					paperAbsPath={paperAbsPath}
 					paperRelPath={paperRelPath}
 					showFigures={showFigures}
+					isRemotePaper={isRemotePaper}
 					onAnalyze={handleAnalyzeLayout}
 					onJump={handleJumpToLayoutRegion}
 					onRenderThumb={handleRenderLayoutThumb}

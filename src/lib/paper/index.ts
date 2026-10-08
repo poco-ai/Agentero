@@ -29,6 +29,8 @@ export {
 } from "@/lib/paper/load-meta";
 export {
 	canAttemptPdfDownload,
+	canonicalPaperPdfPath,
+	findCanonicalPaperPdfPath,
 	findLocalPdfPath,
 	isPdfViewerSource,
 	localFileToArrayBuffer,

@@ -10,10 +10,11 @@ import { errorText } from "@/lib/core/error";
 
 import { logger } from "@/lib/core/logger";
 import { isTauri } from "@/lib/core/tauri";
-import { findLocalPdfPath, localFileToArrayBuffer } from "@/lib/paper";
+import { findCanonicalPaperPdfPath, localFileToArrayBuffer } from "@/lib/paper";
 import {
 	type LayoutSidecarMode,
 	layoutSidecarNeedsTextLayer,
+	layoutSidecarWasReplaced,
 	readLayoutSidecar,
 	writeLayoutIndexFromRaw,
 	writeLayoutSidecar,
@@ -374,6 +375,22 @@ export async function runDocumentLayoutAnalysis(
 						)
 					: null;
 				const raw = extracted?.regions ?? cached.regions;
+				if (options.isDocumentOpen && !options.isDocumentOpen()) {
+					cancelClosedDocument();
+					return null;
+				}
+				// A force re-run can replace layout.json while this merge is
+				// still on the previous parse. Publishing that parse would put
+				// the stale regions back into the open viewer's store.
+				const latest = await readLayoutSidecar(options.paperAbsPath);
+				if (
+					layoutSidecarWasReplaced(
+						cached.source.generatedAt,
+						latest?.source.generatedAt,
+					)
+				) {
+					return null;
+				}
 				if (options.isDocumentOpen && !options.isDocumentOpen()) {
 					cancelClosedDocument();
 					return null;
@@ -864,7 +881,7 @@ function startRemoteLayoutAnalysis(
 		let unlisten: (() => void) | null = null;
 		try {
 			assertDocumentOpen(options.isDocumentOpen);
-			const pdfPath = await findLocalPdfPath(paperAbsPath);
+			const pdfPath = await findCanonicalPaperPdfPath(paperAbsPath);
 			if (!pdfPath) throw new Error("No local PDF for layout analysis");
 			const buffer = await localFileToArrayBuffer(pdfPath);
 			if (!buffer) throw new Error("Failed to read paper PDF");

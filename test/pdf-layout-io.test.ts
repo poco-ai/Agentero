@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	layoutSidecarBlocksAnalysis,
 	layoutSidecarNeedsTextLayer,
+	layoutSidecarNeedsViewerReload,
 	layoutSidecarPath,
+	layoutSidecarWasReplaced,
 	layoutTextBackfillSidecar,
 	type PdfLayoutSidecar,
 	parseLayoutSidecar,
@@ -40,6 +43,45 @@ describe("layout sidecar", () => {
 		const parsed = parseLayoutSidecar(updated);
 		expect(parsed && layoutSidecarNeedsTextLayer(parsed)).toBe(false);
 	});
+	it("reloads an open viewer only when the sidecar parse is new", () => {
+		expect(
+			layoutSidecarNeedsViewerReload(null, {
+				generatedAt: "t1",
+				regionCount: 1,
+			}),
+		).toBe(true);
+		expect(
+			layoutSidecarNeedsViewerReload("t1", {
+				generatedAt: "t1",
+				regionCount: 4,
+			}),
+		).toBe(false);
+		expect(
+			layoutSidecarNeedsViewerReload("t1", {
+				generatedAt: "t2",
+				regionCount: 12,
+			}),
+		).toBe(true);
+		expect(
+			layoutSidecarNeedsViewerReload("t1", {
+				generatedAt: "t2",
+				regionCount: 0,
+			}),
+		).toBe(false);
+		expect(layoutSidecarNeedsViewerReload("t1", null)).toBe(false);
+		expect(layoutSidecarWasReplaced("t1", "t2")).toBe(true);
+		expect(layoutSidecarWasReplaced("t1", "t1")).toBe(false);
+		expect(layoutSidecarWasReplaced("t1", null)).toBe(false);
+	});
+
+	it("keeps a non-empty sidecar unless the caller forces a new parse", () => {
+		expect(layoutSidecarBlocksAnalysis(false, 3)).toBe(true);
+		expect(layoutSidecarBlocksAnalysis(undefined, 3)).toBe(true);
+		expect(layoutSidecarBlocksAnalysis(true, 3)).toBe(false);
+		expect(layoutSidecarBlocksAnalysis(true, 0)).toBe(false);
+		expect(layoutSidecarBlocksAnalysis(false, 0)).toBe(false);
+	});
+
 	it("stores under the paper source folder", () => {
 		expect(layoutSidecarPath("/vault/papers/demo")).toBe(
 			"/vault/papers/demo/source/layout.json",

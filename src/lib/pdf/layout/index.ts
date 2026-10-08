@@ -25,7 +25,11 @@ export {
 	type DedupeLayoutOptions,
 	dedupeLayoutRegions,
 } from "@/lib/pdf/layout/dedupe";
-export { enqueuePaperLayoutAnalysis } from "@/lib/pdf/layout/enqueue-paper-layout";
+export {
+	enqueuePaperLayoutAnalysis,
+	forcePaperLayoutAnalysis,
+	LayoutReanalyzeError,
+} from "@/lib/pdf/layout/enqueue-paper-layout";
 export {
 	analyzePaperLayoutHeadless,
 	type HeadlessLayoutResult,
@@ -45,7 +49,10 @@ export {
 	LAYOUT_SIDECAR_FILE,
 	LAYOUT_SIDECAR_SCHEMA_VERSION,
 	layoutIndexPath,
+	layoutSidecarBlocksAnalysis,
+	layoutSidecarNeedsViewerReload,
 	layoutSidecarPath,
+	layoutSidecarWasReplaced,
 	type PdfLayoutSidecar,
 	parseLayoutSidecar,
 	readLayoutIndex,

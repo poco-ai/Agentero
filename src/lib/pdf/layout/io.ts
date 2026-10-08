@@ -172,6 +172,44 @@ export function parseLayoutSidecar(raw: unknown): PdfLayoutSidecar | null {
 	};
 }
 
+/**
+ * The open viewer should merge this sidecar into its tab store.
+ * Empty and unchanged parses are ignored so a text-layer write-back of the
+ * same `generatedAt` does not reload forever.
+ */
+export function layoutSidecarNeedsViewerReload(
+	appliedGeneratedAt: string | null | undefined,
+	sidecar: { generatedAt: string; regionCount: number } | null,
+): boolean {
+	if (!sidecar || sidecar.regionCount <= 0 || !sidecar.generatedAt)
+		return false;
+	return appliedGeneratedAt !== sidecar.generatedAt;
+}
+
+/**
+ * A cache merge started on `startedAt` must not publish if a newer parse
+ * landed while it was reading. Otherwise a force re-run's result is
+ * overwritten by the one-page sidecar the viewer already had in memory.
+ */
+export function layoutSidecarWasReplaced(
+	startedAt: string,
+	latestGeneratedAt: string | null | undefined,
+): boolean {
+	return latestGeneratedAt != null && latestGeneratedAt !== startedAt;
+}
+
+/**
+ * A non-empty sidecar is a finished parse. `force` is the only way through
+ * it: headless analysis used to return here even when the job was enqueued
+ * with `force: true`.
+ */
+export function layoutSidecarBlocksAnalysis(
+	force: boolean | undefined,
+	regionCount: number,
+): boolean {
+	return force !== true && regionCount > 0;
+}
+
 /** Old sidecars, and reads that did not finish, still need the text layer. */
 export function layoutSidecarNeedsTextLayer(
 	sidecar: PdfLayoutSidecar,
