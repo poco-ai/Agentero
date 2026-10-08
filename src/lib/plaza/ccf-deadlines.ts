@@ -7,6 +7,12 @@
  * paint); every future submission deadline is flattened, cached, and sorted
  * ascending so the panel is a plain "what's due next" list.
  *
+ * `initial.json` also advertises (via `archive`) a content-hashed history part
+ * holding every past edition. A conference whose next cycle is not announced
+ * yet has no upcoming deadline and would otherwise vanish, so we estimate its
+ * next one from the most recent past edition (same month/day, weekday kept).
+ * Estimates are flagged `estimated` and never override an official date.
+ *
  * @see https://github.com/ccfddl/ccf-deadlines
  */
 
@@ -21,6 +27,11 @@ export const CCF_DEADLINES_DATA_URL =
 
 const CACHE_KEY = "plaza:ccf-deadlines:v1";
 
+/** Estimate only while the last known cycle is recent enough to recur. */
+const ESTIMATE_RECENT_MS = 548 * 86_400_000; // ~18 months
+/** Estimate only when the projected deadline lands within the next year. */
+const ESTIMATE_HORIZON_MS = 365 * 86_400_000; // ~12 months
+
 export type CcfRank = "A" | "B" | "C" | "N";
 
 /** One upcoming submission deadline, ready to render. */
@@ -29,7 +40,7 @@ export type CcfDeadlineItem = {
 	key: string;
 	title: string;
 	rank: CcfRank;
-	/** Edition id, e.g. `aaai26`. */
+	/** Edition id, e.g. `aaai26`. Empty for estimated items. */
 	editionId: string;
 	year: number;
 	/** Venue-local deadline string, `YYYY-MM-DD HH:MM:SS`. */
@@ -42,6 +53,8 @@ export type CcfDeadlineItem = {
 	link: string;
 	/** Parsed instant (epoch ms); null only for an unknown timezone label. */
 	at: number | null;
+	/** True when derived from a past edition (next cycle not yet announced). */
+	estimated?: boolean;
 };
 
 type RawTimelineNode = { deadline?: unknown; comment?: unknown };
@@ -57,6 +70,22 @@ type RawConference = {
 	conference_key?: unknown;
 	rank?: { ccf?: unknown } | null;
 	confs?: unknown;
+};
+
+/** One concrete deadline lifted out of an upstream conference payload. */
+type RawDeadline = {
+	title: string;
+	rank: CcfRank;
+	conferenceKey: string;
+	editionId: string;
+	year: number;
+	link: string;
+	timezone: string;
+	/** Venue-local `YYYY-MM-DD HH:MM:SS`; blanks and `TBD` already dropped. */
+	deadline: string;
+	/** Parsed instant; null for an unknown timezone label. */
+	at: number | null;
+	comment?: string;
 };
 
 /** UTC offset (hours) for the upstream timezone labels; null when unknown. */
@@ -94,8 +123,102 @@ export function ccfDeadlineInstant(
 	);
 }
 
+/**
+ * Project a venue-local deadline one year forward, keeping its weekday (most
+ * venues anchor to e.g. "last Thursday of January"). Returns the shifted
+ * `YYYY-MM-DD HH:MM:SS` string, or null when the input is malformed.
+ */
+export function ccfNextYearDeadline(deadline: string): string | null {
+	const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/.exec(
+		deadline.trim(),
+	);
+	if (!match) return null;
+	const [, rawYear, rawMonth, rawDay, hour, minute, second] = match;
+	const year = Number(rawYear) + 1;
+	const month = Number(rawMonth);
+	const day = Number(rawDay);
+	const weekday = new Date(
+		Date.UTC(Number(rawYear), month - 1, day),
+	).getUTCDay();
+	const maxDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+	for (const offset of [0, 1, -1, 2, -2, 3, -3]) {
+		const candidate = day + offset;
+		if (candidate < 1 || candidate > maxDay) continue;
+		if (
+			new Date(Date.UTC(year, month - 1, candidate)).getUTCDay() === weekday
+		) {
+			const mm = String(month).padStart(2, "0");
+			const dd = String(candidate).padStart(2, "0");
+			return `${year}-${mm}-${dd} ${hour}:${minute}:${second}`;
+		}
+	}
+	return null;
+}
+
 function isRank(value: unknown): value is CcfRank {
 	return value === "A" || value === "B" || value === "C" || value === "N";
+}
+
+/** Lifts every concrete (non-`TBD`) deadline out of one or more payloads. */
+function* iterDeadlines(payloads: readonly unknown[]): Generator<RawDeadline> {
+	for (const payload of payloads) {
+		const outer = payload as { conferences?: unknown } | null;
+		const conferences = Array.isArray(payload) ? payload : outer?.conferences;
+		if (!Array.isArray(conferences)) continue;
+
+		for (const raw of conferences as RawConference[]) {
+			if (!raw || typeof raw !== "object") continue;
+			const rank = raw.rank?.ccf;
+			if (!isRank(rank)) continue;
+			const title = typeof raw.title === "string" ? raw.title : "";
+			if (!title) continue;
+			const conferenceKey =
+				typeof raw.conference_key === "string" ? raw.conference_key : title;
+			const editions = Array.isArray(raw.confs)
+				? (raw.confs as RawEdition[])
+				: [];
+
+			for (const edition of editions) {
+				if (!edition || typeof edition !== "object") continue;
+				const timezone =
+					typeof edition.timezone === "string" ? edition.timezone : "";
+				const timeline = Array.isArray(edition.timeline)
+					? (edition.timeline as RawTimelineNode[])
+					: [];
+				const editionId = typeof edition.id === "string" ? edition.id : "";
+				const year = typeof edition.year === "number" ? edition.year : 0;
+				const link = typeof edition.link === "string" ? edition.link : "";
+
+				for (const node of timeline) {
+					if (!node || typeof node !== "object") continue;
+					const deadline =
+						typeof node.deadline === "string" ? node.deadline.trim() : "";
+					if (!deadline || deadline === "TBD") continue;
+					const comment =
+						typeof node.comment === "string" ? node.comment.trim() : "";
+					yield {
+						title,
+						rank,
+						conferenceKey,
+						editionId,
+						year,
+						link,
+						timezone,
+						deadline,
+						at: ccfDeadlineInstant(deadline, timezone),
+						comment: comment || undefined,
+					};
+				}
+			}
+		}
+	}
+}
+
+function compareItems(a: CcfDeadlineItem, b: CcfDeadlineItem): number {
+	if (a.at === null && b.at === null) return a.title.localeCompare(b.title);
+	if (a.at === null) return 1;
+	if (b.at === null) return -1;
+	return a.at - b.at;
 }
 
 /**
@@ -106,66 +229,80 @@ export function parseCcfDeadlines(
 	payload: unknown,
 	now: number,
 ): CcfDeadlineItem[] {
-	const conferences = (payload as { conferences?: unknown } | null)
-		?.conferences;
-	if (!Array.isArray(conferences)) return [];
-
 	const items: CcfDeadlineItem[] = [];
-	for (const raw of conferences as RawConference[]) {
-		if (!raw || typeof raw !== "object") continue;
-		const rank = raw.rank?.ccf;
-		if (!isRank(rank)) continue;
-		const title = typeof raw.title === "string" ? raw.title : "";
-		if (!title) continue;
-		const conferenceKey =
-			typeof raw.conference_key === "string" ? raw.conference_key : title;
-		const editions = Array.isArray(raw.confs)
-			? (raw.confs as RawEdition[])
-			: [];
+	for (const raw of iterDeadlines([payload])) {
+		if (raw.at !== null && raw.at < now) continue;
+		items.push({
+			key: `${raw.conferenceKey}:${raw.editionId || raw.year}:${raw.deadline}`,
+			title: raw.title,
+			rank: raw.rank,
+			editionId: raw.editionId,
+			year: raw.year,
+			deadline: raw.deadline,
+			timezone: raw.timezone,
+			comment: raw.comment,
+			link: raw.link,
+			at: raw.at,
+		});
+	}
+	return items.sort(compareItems);
+}
 
-		for (const edition of editions) {
-			if (!edition || typeof edition !== "object") continue;
-			const timezone =
-				typeof edition.timezone === "string" ? edition.timezone : "";
-			const timeline = Array.isArray(edition.timeline)
-				? (edition.timeline as RawTimelineNode[])
-				: [];
-			const editionId = typeof edition.id === "string" ? edition.id : "";
-			const year = typeof edition.year === "number" ? edition.year : 0;
-			const link = typeof edition.link === "string" ? edition.link : "";
-
-			for (const node of timeline) {
-				if (!node || typeof node !== "object") continue;
-				const deadline =
-					typeof node.deadline === "string" ? node.deadline.trim() : "";
-				if (!deadline || deadline === "TBD") continue;
-				const at = ccfDeadlineInstant(deadline, timezone);
-				if (at !== null && at < now) continue;
-				const comment =
-					typeof node.comment === "string" ? node.comment.trim() : "";
-				items.push({
-					key: `${conferenceKey}:${editionId || year}:${deadline}`,
-					title,
-					rank,
-					editionId,
-					year,
-					deadline,
-					timezone,
-					comment: comment || undefined,
-					link,
-					at,
-				});
-			}
-		}
+/**
+ * Estimate the next deadline for CCF A/B/C conferences whose next cycle is not
+ * announced yet (i.e. they have no future official deadline). Uses the latest
+ * past edition, projected one year forward with its weekday preserved, and is
+ * bounded to recent cycles plus the coming year so stale or distant guesses
+ * never surface.
+ */
+export function predictCcfDeadlines(
+	payloads: readonly unknown[],
+	now: number,
+): CcfDeadlineItem[] {
+	const groups = new Map<string, RawDeadline[]>();
+	for (const raw of iterDeadlines(payloads)) {
+		if (raw.rank === "N") continue;
+		const list = groups.get(raw.conferenceKey);
+		if (list) list.push(raw);
+		else groups.set(raw.conferenceKey, [raw]);
 	}
 
-	items.sort((a, b) => {
-		if (a.at === null && b.at === null) return a.title.localeCompare(b.title);
-		if (a.at === null) return 1;
-		if (b.at === null) return -1;
-		return a.at - b.at;
-	});
-	return items;
+	const items: CcfDeadlineItem[] = [];
+	for (const [conferenceKey, deadlines] of groups) {
+		let hasFuture = false;
+		let latest: RawDeadline | null = null;
+		for (const raw of deadlines) {
+			if (raw.at === null) continue;
+			if (raw.at >= now) {
+				hasFuture = true;
+				break;
+			}
+			if (latest === null || (latest.at !== null && raw.at > latest.at)) {
+				latest = raw;
+			}
+		}
+		if (hasFuture || latest === null || latest.at === null) continue;
+		if (latest.at < now - ESTIMATE_RECENT_MS) continue;
+
+		const projected = ccfNextYearDeadline(latest.deadline);
+		if (!projected) continue;
+		const at = ccfDeadlineInstant(projected, latest.timezone);
+		if (at === null || at < now || at > now + ESTIMATE_HORIZON_MS) continue;
+
+		items.push({
+			key: `${conferenceKey}:est:${projected}`,
+			title: latest.title,
+			rank: latest.rank,
+			editionId: "",
+			year: Number(projected.slice(0, 4)),
+			deadline: projected,
+			timezone: latest.timezone,
+			link: latest.link,
+			at,
+			estimated: true,
+		});
+	}
+	return items.sort(compareItems);
 }
 
 type CcfCache = { fetchedAt: number; items: CcfDeadlineItem[] };
@@ -180,6 +317,39 @@ function readCache(): CcfCache | null {
 		return null;
 	}
 	return cached;
+}
+
+/** Resolve the content-hashed history part advertised by `initial.json`. */
+function resolveArchiveUrl(payload: unknown): string | null {
+	const archive = (payload as { archive?: unknown } | null)?.archive;
+	if (typeof archive !== "string" || !archive.trim()) return null;
+	try {
+		return new URL(archive, CCF_DEADLINES_DATA_URL).href;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Best-effort fetch of the history part to estimate unannounced cycles. Any
+ * failure (offline, missing part) degrades to "official deadlines only".
+ */
+async function loadEstimatedDeadlines(
+	payload: unknown,
+	now: number,
+): Promise<CcfDeadlineItem[]> {
+	const archiveUrl = resolveArchiveUrl(payload);
+	if (!archiveUrl) return [];
+	try {
+		const response = await fetch(archiveUrl, {
+			headers: { Accept: "application/json" },
+		});
+		if (!response.ok) return [];
+		const history = await response.json();
+		return predictCcfDeadlines([payload, history], now);
+	} catch {
+		return [];
+	}
 }
 
 /**
@@ -197,7 +367,9 @@ export async function loadCcfDeadlines(): Promise<CcfDeadlineItem[]> {
 			throw new Error(`CCF deadlines request failed (${response.status})`);
 		}
 		const payload = await response.json();
-		const items = parseCcfDeadlines(payload, now);
+		const official = parseCcfDeadlines(payload, now);
+		const estimated = await loadEstimatedDeadlines(payload, now);
+		const items = [...official, ...estimated].sort(compareItems);
 		writeJsonStorage(CACHE_KEY, { fetchedAt: now, items } satisfies CcfCache);
 		return items;
 	} catch (error) {

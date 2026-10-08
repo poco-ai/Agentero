@@ -265,7 +265,9 @@
 			"daysLeft": "{{days}} 天",
 			"empty": "暂无即将到来的截稿日期。",
 			"emptyFiltered": "该评级下暂无截稿。",
-			"loadFailed": "加载 CCF 截稿数据失败。"
+			"loadFailed": "加载 CCF 截稿数据失败。",
+			"estimated": "预计",
+			"estimatedHint": "根据往届推算，尚未官宣。"
 		}
 	},
 	"zoteroMigrate": {

@@ -283,16 +283,17 @@ papers.cool 给几乎所有链接都加了 `target="_blank"`（单个分区页�
 
 | 项 | 约定 |
 |---|---|
-| 数据源 | `https://ccfddl.com/conference/initial.json`（上游 CI 每次 push 重建：最新 + 即将到来的 editions，约 176 KB） |
+| 数据源 | `https://ccfddl.com/conference/initial.json`（上游 CI 每次 push 重建：最新 + 即将到来的 editions，约 176 KB）；其 `archive` 字段指向内容哈希的历史部分（全部往届 editions）。两者合并即全集，**无重叠** |
 | 数据语料 | `conferences[].confs[].timeline[]` 的 `deadline`（`TBD` 丢弃）；`rank.ccf` 取 A/B/C/N |
 | 时区 | `confs[].timezone` 标签换算成瞬时（`AoE` = UTC-12，`PT` = UTC-8，`UTC±N`）；未知标签该项排最后且不给倒计时 |
+| 预测 | 对**没有任何未来官方截稿**的 CCF A/B/C 会议，取最近一届截稿日 +1 年并保留星期几（多数会议锚定「某月第 N 个周四」）生成预计项，标记 `estimated`；为免僵尸会议与过远猜测，限定最近一届在 18 个月内、且预测落在未来 12 个月内。历史部分拉取为**尽力而为**：失败即静默降级为「仅官方截稿」 |
 | 缓存 | 每次打开面板强制拉取（不提供刷新按钮）；失败时回退到 `localStorage` 里上次的结果并 `notifyError` |
-| 呈现 | 单列「接下来要投什么」：单色 CCF 徽标（A 最重 → N 最轻的明度梯度，不用颜色）+ 会议名与年份 + 会议官网外链 + 原站本地截稿时间与时区标签 + 剩余天数（≤3 天加粗强调）；头部为半透明吸顶材质（`data-plaza-header`，随 `prefers-reduced-transparency` 退化为实底 + 细边框），内嵌分段控件做 CCF 评级多选（A / B / C / N 可叠加，「全部」清空） |
+| 呈现 | 单列「接下来要投什么」：单色 CCF 徽标（A 最重 → N 最轻的明度梯度，不用颜色）+ 会议名与年份 + 会议官网外链 + 原站本地截稿时间与时区标签 + 剩余天数（≤3 天加粗强调）；预计项额外带一枚弱化的「预计」角标（Tooltip 说明为往届推算），与官方项按时间混排。头部为半透明吸顶材质（`data-plaza-header`，随 `prefers-reduced-transparency` 退化为实底 + 细边框），内嵌分段控件做 CCF 评级多选（A / B / C / N 可叠加，「全部」清空） |
 | 落点 | `src/lib/plaza/ccf-deadlines.ts`（拉取 / 解析 / 缓存）、`src/components/plaza/plaza-ccf-deadlines-view.tsx`（面板） |
 
 **为什么自建 UI 而非内嵌 ccfddl.top**：数据结构稳定（MIT，schema 3.0.x 带版本号）、CORS 全开、解析成本低；内嵌站点是 jQuery 老表格，且整站 `<base target="_blank">`，仍要写代理改写链接，等于付出代理成本却换不来可用 UI。
 
-**不做**：不接上游 MCP、不做批量入库、不做日程提醒，面板只回答「评几级 / 什么时候截止 / 官网在哪」。
+**不做**：不接上游 MCP、不做批量入库、不做日程提醒，面板只回答「评几级 / 什么时候截止 / 官网在哪」。预计项只是「近期可能截止」的提示，不做确定日期承诺，也不覆盖任何官方截稿。
 
 ## 4. 与其它模块
 
@@ -380,6 +381,7 @@ DocTab：`kind: "plaza"`（或 `file` + mode `plaza` + path 虚拟 URI——实�
 *修订：2026-08-14 — 改为代理协议嵌入；壳 + Cool Papers 浏览 + 单条入库已落地；推荐 / 播客未实现。*
 *修订：2026-10-08 — 新增 CCF 截稿来源：原生面板只读上游 ccf-deadlines 的 `initial.json`，见 §3.6。*
 *修订：2026-10-08 — CCF 截稿面板按 Apple 设计语言重构：单色评级徽标、半透明吸顶分段筛选、剩余天数强调，去除手动刷新与时间戳。*
+*修订：2026-10-08 — CCF 截稿新增「未官宣用往届推算」：合并 `initial.json` 的 `archive` 历史，对无未来官方截稿的 A/B/C 会议生成 `estimated` 预计项（+1 年保留星期几，18 个月 / 12 个月窗口），面板加「预计」角标。*
 *修订：2026-08-15 — 新增 ModelScope 论文来源；请求管道抽到 `discovery/proxy/mod.rs` 并转发 method + body。*  
 *修订：2026-08-15 — 订阅列为广场来源，规格拆到 [`plaza-feeds.md`](plaza-feeds.md)。*  
 *修订：2026-08-15 — 订阅 MVP 落地（XDG `feeds.sqlite` + 原生双栏 + 论文入库）。*  

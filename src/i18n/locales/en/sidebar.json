@@ -265,7 +265,9 @@
 			"daysLeft": "{{days}}d",
 			"empty": "No upcoming deadlines.",
 			"emptyFiltered": "No deadlines at this rank.",
-			"loadFailed": "Could not load CCF deadlines."
+			"loadFailed": "Could not load CCF deadlines.",
+			"estimated": "Est.",
+			"estimatedHint": "Estimated from past editions; not officially announced."
 		}
 	},
 	"zoteroMigrate": {

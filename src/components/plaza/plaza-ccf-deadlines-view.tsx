@@ -148,6 +148,14 @@ function DeadlineRow({ item }: { item: CcfDeadlineItem }) {
 				{item.rank}
 			</span>
 			<span className="min-w-0 truncate text-sm font-medium">{item.title}</span>
+			{item.estimated ? (
+				<span
+					className="shrink-0 rounded border border-border/60 px-1 text-caption text-muted-foreground/70"
+					title={t("plaza.ccfDeadlines.estimatedHint")}
+				>
+					{t("plaza.ccfDeadlines.estimated")}
+				</span>
+			) : null}
 			{item.year ? (
 				<span className="shrink-0 text-caption tabular-nums text-muted-foreground">
 					{item.year}

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
 	ccfDeadlineInstant,
+	ccfNextYearDeadline,
 	ccfTimezoneOffsetHours,
 	parseCcfDeadlines,
+	predictCcfDeadlines,
 } from "@/lib/plaza/ccf-deadlines";
 
 describe("ccfTimezoneOffsetHours", () => {
@@ -99,5 +101,116 @@ describe("parseCcfDeadlines", () => {
 	it("tolerates a malformed payload", () => {
 		expect(parseCcfDeadlines(null, now)).toEqual([]);
 		expect(parseCcfDeadlines({ conferences: "nope" }, now)).toEqual([]);
+	});
+});
+
+describe("ccfNextYearDeadline", () => {
+	it("shifts a year forward keeping the weekday", () => {
+		// 2026-01-29 is a Thursday; the next Thursday in Jan 2027 is the 28th.
+		expect(ccfNextYearDeadline("2026-01-29 23:59:59")).toBe(
+			"2027-01-28 23:59:59",
+		);
+	});
+
+	it("handles Feb 29 spilling into a non-leap year", () => {
+		expect(ccfNextYearDeadline("2024-02-29 23:59:59")).toBe(
+			"2025-02-27 23:59:59",
+		);
+	});
+
+	it("returns null on malformed input", () => {
+		expect(ccfNextYearDeadline("TBD")).toBeNull();
+		expect(ccfNextYearDeadline("2026-01-29")).toBeNull();
+	});
+});
+
+describe("predictCcfDeadlines", () => {
+	const now = Date.UTC(2026, 9, 8); // 2026-10-08
+
+	const conference = (over: Record<string, unknown> = {}) => ({
+		title: "ICML",
+		conference_key: "AI/icml",
+		rank: { ccf: "A" },
+		confs: [
+			{
+				id: "icml26",
+				year: 2026,
+				link: "https://icml.example/2026",
+				timezone: "UTC-12",
+				timeline: [{ deadline: "2026-01-29 23:59:59" }],
+			},
+		],
+		...over,
+	});
+
+	it("estimates the next cycle from the latest past edition", () => {
+		const [item] = predictCcfDeadlines([{ conferences: [conference()] }], now);
+		expect(item).toMatchObject({
+			title: "ICML",
+			rank: "A",
+			year: 2027,
+			deadline: "2027-01-28 23:59:59",
+			estimated: true,
+			link: "https://icml.example/2026",
+		});
+	});
+
+	it("skips conferences that still have a future official deadline", () => {
+		const future = conference({
+			confs: [
+				{
+					id: "icml27",
+					year: 2027,
+					timezone: "UTC-12",
+					timeline: [{ deadline: "2027-01-28 23:59:59" }],
+				},
+			],
+		});
+		expect(predictCcfDeadlines([{ conferences: [future] }], now)).toEqual([]);
+	});
+
+	it("skips non A/B/C venues and stale cycles", () => {
+		const n = conference({ rank: { ccf: "N" } });
+		const stale = conference({
+			confs: [
+				{
+					id: "icml20",
+					year: 2020,
+					timezone: "UTC-12",
+					timeline: [{ deadline: "2020-01-30 23:59:59" }],
+				},
+			],
+		});
+		expect(predictCcfDeadlines([{ conferences: [n, stale] }], now)).toEqual([]);
+	});
+
+	it("merges the history array with the initial payload", () => {
+		const history = [
+			conference({
+				confs: [
+					{
+						id: "icml25",
+						year: 2025,
+						timezone: "UTC-12",
+						timeline: [{ deadline: "2025-01-30 23:59:59" }],
+					},
+				],
+			}),
+		];
+		const initial = conference({
+			confs: [
+				{
+					id: "icml26",
+					year: 2026,
+					timezone: "UTC-12",
+					timeline: [{ deadline: "2026-01-29 23:59:59" }],
+				},
+			],
+		});
+		const [item] = predictCcfDeadlines(
+			[{ conferences: [initial] }, history],
+			now,
+		);
+		expect(item?.year).toBe(2027);
 	});
 });
