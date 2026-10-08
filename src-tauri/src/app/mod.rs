@@ -498,6 +498,9 @@ pub fn run() {
                 event,
                 tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
             ) {
+                app.state::<Arc<crate::features::agent::session::pool::AgentWarmPool>>()
+                    .shutdown();
+                crate::features::agent::acp::process::shutdown();
                 #[cfg(not(target_os = "ios"))]
                 app.state::<Arc<ConnectorController>>().stop();
                 // The MCP HTTP listener and the ChatGPT tunnel child are both

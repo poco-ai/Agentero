@@ -23,11 +23,16 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   或整个临时目录。**Unix 探针**也复用该入口：本地用
   scratch，远端沿用目标自己的 Vault；SSH 路径不在本机检查。local-sim 新建连接前验证
   目录存在，失效时明确报错，不悄悄切到 scratch。
-- **Windows 保留既有启动策略**：仅 Pi / Custom 的 run / warm / list / load 使用 `cmd /D /C`
-  包装，探针均直接启动配置的命令，不增加 `cmd` 层。ACP SDK 当前只在 Unix 清理进程组；
-  扩大 Windows 包装范围会让原生 `.exe` 不再是可直接强杀的子进程，并使 UNC Vault 落入
-  CMD 不支持的 `cd /d` 路径。因此 #570 不在 Windows 推广包装；既有 Pi / Custom 以及
-  自带 launcher 的进程树清理限制仍需另行解决。
+- **Windows 保留既有 cwd 策略**：仅 Pi / Custom 的 run / warm / list / load 使用 `cmd /D /C`
+  切换目录，探针不增加 cwd 包装。原生 `.exe` 直启；npm 等 `.cmd` / `.bat` shim 经显式
+  `cmd /D /S /C` 执行。UNC Vault 不推广 `cd /d` 包装。
+- **Windows ACP 进程树归宿主管理**：run / warm / probe / history 共用 `acp/process.rs`，
+  通过 `windows-spawn` 的 `PROC_THREAD_ATTRIBUTE_JOB_LIST` 在创建进程时原子绑定独立的
+  Job Object，并设置 `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`。Job handle 不向子进程继承，
+  连接结束/取消时终止整个 Job；宿主被强杀或崩溃时由内核回收该 Job 中的进程树。
+  Job 创建或绑定失败直接报启动错误，不退回无保护的启动路径。
+  `ExitRequested` / `Exit` 同步关闭 warm 池并终止所有 ACP Job（含预热中、已借出及冷连接），
+  不依赖 Tauri static async runtime 的析构。
 - Windows Pi / Custom 包装的 cwd 与完整 Agent 命令通过环境变量展开，cwd 始终携带双引号，
   防止无空格路径中的括号等 CMD 元字符被当作语法；盘符扩展前缀再幂等剥除一次（#458）。
   该旧包装仍不支持 UNC cwd，不能将其他模板保持直启等同于所有 Windows Agent 都支持 UNC。
@@ -168,10 +173,15 @@ run / warm / list / load / probe 共用 `agentero_acp_builder!`（name + termina
 handler）；各入口自行挂 notification / permission 回调。
 
 **warm 与空会话**：模型列表来自 Session Setup 的 `configOptions`（协议不在
-`initialize` 提供），故 warm 仍需 `session/new`。若 Agent 声明
-`sessionCapabilities.delete`，warm 在读完 models/usage 后对该空会话调用
-`session/delete`，避免 `session/list` / CLI 历史堆积无消息 thread；未声明时仅
-debug 日志，行为与旧版相同。
+`initialize` 提供），故 warm 仍需 `session/new`。连接在池中复用，空闲 TTL 为 10 分钟。
+切换 warm 目标会取消旧的未完成 setup、回收不匹配的空闲 slot；已借出的连接继续服务正在执行的
+prompt，结束后仍受 TTL 与退出清理约束。setup 总预算为 60 秒，超时或请求 future 被取消会
+取消后台任务，禁止迟到发布；错误/超时返回前等待任务完成回收。
+slot 替换、evict 和 shutdown 均有独立取消 token，不依赖 slot 是否还在池中。
+若 Agent 声明 `sessionCapabilities.delete`，未使用的空会话在 teardown 时尝试删除；
+取消清理最多允许 1 秒，之后无论 RPC 是否响应均丢弃连接并终止进程树。
+旧版本已产生的孤儿不属于新 Job，升级不会自动按进程名杀掉其他宿主的 Agent；需一次性确认
+路径与归属后清理。远端 SSH Agent 的宿主外进程不受本机 Windows Job 约束。
 
 Kimi Code ACP 会把 `Bash`/`Glob`/`Grep` 等工具实现为 `terminal/create`。[当前实现](https://github.com/MoonshotAI/kimi-cli/blob/main/src/kimi_cli/acp/tools.py)
 会把完整 shell 文本放进 `command`；Host 对可解析的可执行文件继续按 `command + args`
