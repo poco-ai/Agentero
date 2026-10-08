@@ -7,10 +7,12 @@ import { setTimeout as sleep } from "node:timers/promises";
 import {
 	AtomGit,
 	digest,
+	HttpError,
 	retry,
 	selectRelease,
 	stallWatchdog,
 	syncRelease,
+	waitForTag,
 } from "./sync-atomgit-release.mjs";
 
 const asset = {
@@ -57,11 +59,62 @@ function fixture(overrides = {}) {
 test("stage as pre; publish latest only after all assets verify; preserve notes", async () => {
 	const { options, calls } = fixture();
 	await syncRelease(options);
-	assert.equal(calls[0].body.release_status, "pre");
-	assert.equal(calls[0].body.target_commitish, "commit");
+	const tagCheck = calls.findIndex(
+		(call) => call.path === `/commits/${release.tag_name}`,
+	);
+	const post = calls.findIndex((call) => call.method === "POST");
+	assert.ok(tagCheck !== -1, "checks the mirrored tag");
+	assert.ok(tagCheck < post, "checks the tag before creating the release");
+	assert.equal(calls[post].body.release_status, "pre");
+	assert.equal(calls[post].body.target_commitish, "commit");
 	assert.equal(calls.at(-1).method, "PATCH");
 	assert.equal(calls.at(-1).body.release_status, "latest");
 	assert.equal(calls.at(-1).body.body, release.body);
+});
+
+test("waitForTag polls a missing mirrored tag, then reports the lagging mirror", async () => {
+	let attempts = 0;
+	const notMirrored = new HttpError("AtomGit GET", 404);
+	await assert.rejects(
+		waitForTag(
+			{
+				api: async () => {
+					attempts++;
+					throw notMirrored;
+				},
+			},
+			release.tag_name,
+			"commit",
+			{ attempts: 3, pauseMs: 0, pause: async () => {} },
+		),
+		/has not mirrored tag v1\.2\.3/,
+	);
+	assert.equal(attempts, 3);
+});
+
+test("waitForTag proceeds once the tag appears and rejects a mismatched commit", async () => {
+	let calls = 0;
+	const notMirrored = new HttpError("AtomGit GET", 404);
+	const atomgit = {
+		api: async () => {
+			calls++;
+			if (calls < 2) throw notMirrored;
+			return { sha: "commit" };
+		},
+	};
+	await waitForTag(atomgit, release.tag_name, "commit", {
+		pause: async () => {},
+	});
+	assert.equal(calls, 2);
+	await assert.rejects(
+		waitForTag(
+			{ api: async () => ({ sha: "other" }) },
+			release.tag_name,
+			"commit",
+			{ pause: async () => {} },
+		),
+		/does not match/,
+	);
 });
 
 test("drafts and prereleases stay pre; historical backfills never promote latest", async () => {
