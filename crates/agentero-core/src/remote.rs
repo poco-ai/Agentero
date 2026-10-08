@@ -23,6 +23,11 @@ pub const REMOTE_PROXY_ENV_KEYS: &[&str] = &[
     "http_proxy",
     "https_proxy",
     "all_proxy",
+    // Loopback bypass travels with the proxy keys: OpenCode on the remote
+    // host reaches its own serve child over 127.0.0.1, which must not be
+    // routed through the injected proxy.
+    "NO_PROXY",
+    "no_proxy",
     // Custom User-Agent for Codex/Claude / mid-station affinity (#207).
     "AGENTERO_USER_AGENT",
     "CODEX_CONFIG",
@@ -67,13 +72,25 @@ mod tests {
         );
         env.insert("ALL_PROXY".to_string(), "   ".to_string());
         env.insert("PATH".to_string(), "/usr/bin".to_string());
+        // The loopback bypass must travel with the proxy keys: without it the
+        // remote OpenCode's 127.0.0.1 serve traffic goes through the proxy.
+        env.insert(
+            "NO_PROXY".to_string(),
+            "127.0.0.1,localhost,::1".to_string(),
+        );
         let pairs = proxy_env_from_map(&env);
         assert_eq!(
             pairs,
-            vec![(
-                "HTTP_PROXY".to_string(),
-                "http://127.0.0.1:7890".to_string()
-            )]
+            vec![
+                (
+                    "HTTP_PROXY".to_string(),
+                    "http://127.0.0.1:7890".to_string()
+                ),
+                (
+                    "NO_PROXY".to_string(),
+                    "127.0.0.1,localhost,::1".to_string()
+                ),
+            ]
         );
     }
 }

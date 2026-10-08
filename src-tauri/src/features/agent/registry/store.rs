@@ -3,9 +3,9 @@ use crate::features::agent::acp::client::{
     build_child_env, effective_local_agent_env, resolve_command_in_agent_env,
 };
 use crate::features::agent::models::{
-    default_agent_proxy_url, AgentDescriptor, AgentRegistryState, AgentTelemetrySummary,
-    AgentTemplate, CatalogAcpStatus, CatalogEntry, CatalogScanResponse, ProbeResult,
-    UpsertAgentRequest,
+    default_agent_proxy_url, merge_no_proxy, AgentDescriptor, AgentRegistryState,
+    AgentTelemetrySummary, AgentTemplate, CatalogAcpStatus, CatalogEntry, CatalogScanResponse,
+    ProbeResult, UpsertAgentRequest,
 };
 use crate::features::agent::registry::bundled;
 use crate::features::agent::registry::discovery::probe_command;
@@ -807,6 +807,8 @@ fn apply_proxy_settings(state: &mut AgentRegistryState) {
     }
 }
 
+/// Loopback bypass for the injected proxy env lives in `models::merge_no_proxy`
+/// (shared with the remote and lifecycle injection sites).
 fn apply_proxy_to_agent(agent: &mut AgentDescriptor, proxy_enabled: bool, proxy_url: &str) {
     for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
         agent.env.remove(key);
@@ -817,6 +819,10 @@ fn apply_proxy_to_agent(agent: &mut AgentDescriptor, proxy_enabled: bool, proxy_
             for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
                 agent.env.insert(key.to_string(), proxy_url.to_string());
             }
+            agent.env.insert(
+                "NO_PROXY".to_string(),
+                merge_no_proxy(agent.env.get("NO_PROXY")),
+            );
         }
     }
 }
@@ -1018,11 +1024,13 @@ fn probe_or_bundled(agent: &mut AgentDescriptor) {
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_user_agent_to_agent, merge_anthropic_custom_headers_user_agent,
+        apply_proxy_to_agent, apply_user_agent_to_agent, merge_anthropic_custom_headers_user_agent,
         merge_codex_config_user_agent, migrate_legacy_codex_agents, migrate_legacy_grok_agents,
         strip_removed_templates, AGENTERO_USER_AGENT_ENV, ANTHROPIC_CUSTOM_HEADERS_ENV,
     };
-    use crate::features::agent::models::{AgentDescriptor, AgentRegistryState, AgentTemplate};
+    use crate::features::agent::models::{
+        merge_no_proxy, AgentDescriptor, AgentRegistryState, AgentTemplate,
+    };
     use std::collections::HashMap;
 
     fn legacy_codex_app_server() -> AgentDescriptor {
@@ -1220,6 +1228,72 @@ mod tests {
         // Empty UA only clears our env key; snapshot always restarts from disk.
         apply_user_agent_to_agent(&mut agent, "", "");
         assert!(!agent.env.contains_key(AGENTERO_USER_AGENT_ENV));
+    }
+
+    #[test]
+    fn proxy_injection_adds_loopback_no_proxy() {
+        let mut agent = AgentDescriptor {
+            id: "oc".into(),
+            name: "OpenCode".into(),
+            template: AgentTemplate::Opencode,
+            command: "opencode".into(),
+            args: vec!["acp".into()],
+            env: HashMap::new(),
+            available: true,
+            last_error: None,
+            last_probe_ok: None,
+            last_probe_agent_name: None,
+            last_probe_error: None,
+            last_probed_at: None,
+        };
+        apply_proxy_to_agent(&mut agent, true, "http://127.0.0.1:7890");
+        assert_eq!(
+            agent.env.get("HTTP_PROXY").map(String::as_str),
+            Some("http://127.0.0.1:7890")
+        );
+        // OpenCode's ACP CLI talks to its own serve child over 127.0.0.1;
+        // without the bypass the local proxy 502s that loopback traffic and
+        // session/new fails with ClientError (empty model list).
+        assert_eq!(
+            agent.env.get("NO_PROXY").map(String::as_str),
+            Some("127.0.0.1,localhost,::1")
+        );
+    }
+
+    #[test]
+    fn proxy_no_proxy_merge_keeps_user_entries() {
+        assert_eq!(merge_no_proxy(None), "127.0.0.1,localhost,::1");
+        // User entries stay first; loopback hosts are deduped case-insensitively.
+        assert_eq!(
+            merge_no_proxy(Some(&"internal.corp,LOCALHOST,127.0.0.1".to_string())),
+            "internal.corp,LOCALHOST,127.0.0.1,::1"
+        );
+    }
+
+    #[test]
+    fn proxy_disabled_clears_injected_vars_but_keeps_user_no_proxy() {
+        let mut agent = AgentDescriptor {
+            id: "oc2".into(),
+            name: "OpenCode".into(),
+            template: AgentTemplate::Opencode,
+            command: "opencode".into(),
+            args: vec!["acp".into()],
+            env: HashMap::from([("NO_PROXY".to_string(), "internal.corp".to_string())]),
+            available: true,
+            last_error: None,
+            last_probe_ok: None,
+            last_probe_agent_name: None,
+            last_probe_error: None,
+            last_probed_at: None,
+        };
+        apply_proxy_to_agent(&mut agent, false, "http://127.0.0.1:7890");
+        assert!(!agent.env.contains_key("HTTP_PROXY"));
+        assert!(!agent.env.contains_key("HTTPS_PROXY"));
+        assert!(!agent.env.contains_key("ALL_PROXY"));
+        assert_eq!(
+            agent.env.get("NO_PROXY").map(String::as_str),
+            Some("internal.corp")
+        );
     }
 
     #[test]

@@ -198,6 +198,13 @@ fn apply_proxy_env(desc: &mut AgentDescriptor, proxy_enabled: bool, proxy_url: &
     for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
         desc.env.insert(key.to_string(), url.to_string());
     }
+    // Same loopback bypass as local agents: OpenCode on the remote host also
+    // reaches its own serve child over 127.0.0.1, and the mirrored proxy env
+    // would hijack that loopback traffic.
+    desc.env.insert(
+        "NO_PROXY".to_string(),
+        crate::features::agent::models::merge_no_proxy(desc.env.get("NO_PROXY")),
+    );
 }
 
 fn descriptor_from_template(
@@ -227,5 +234,53 @@ fn session_destination(session: &dyn RemoteAgentLaunch) -> String {
         "local-sim".into()
     } else {
         session.host().to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::apply_proxy_env;
+    use crate::features::agent::models::AgentTemplate;
+
+    fn descriptor() -> crate::features::agent::models::AgentDescriptor {
+        crate::features::agent::models::AgentDescriptor {
+            id: "remote-catalog-opencode".into(),
+            name: "OpenCode".into(),
+            template: AgentTemplate::Opencode,
+            command: "opencode".into(),
+            args: vec!["acp".into()],
+            env: std::collections::HashMap::new(),
+            available: true,
+            last_error: None,
+            last_probe_ok: None,
+            last_probe_agent_name: None,
+            last_probe_error: None,
+            last_probed_at: None,
+        }
+    }
+
+    /// Remote probes inject the same loopback bypass as local agents: OpenCode
+    /// on the server reaches its own serve child over 127.0.0.1, which must
+    /// not be routed through the mirrored proxy.
+    #[test]
+    fn proxy_env_adds_loopback_no_proxy() {
+        let mut desc = descriptor();
+        apply_proxy_env(&mut desc, true, "http://10.0.0.2:7890");
+        assert_eq!(
+            desc.env.get("HTTP_PROXY").map(String::as_str),
+            Some("http://10.0.0.2:7890")
+        );
+        assert_eq!(
+            desc.env.get("NO_PROXY").map(String::as_str),
+            Some("127.0.0.1,localhost,::1")
+        );
+    }
+
+    #[test]
+    fn proxy_env_disabled_clears_injected_keys() {
+        let mut desc = descriptor();
+        apply_proxy_env(&mut desc, true, "http://10.0.0.2:7890");
+        apply_proxy_env(&mut desc, false, "http://10.0.0.2:7890");
+        assert!(desc.env.is_empty());
     }
 }

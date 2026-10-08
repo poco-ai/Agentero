@@ -174,6 +174,34 @@ pub fn default_agent_proxy_url() -> String {
     DEFAULT_AGENT_PROXY_URL.to_string()
 }
 
+/// Loopback hosts that never go through the agent proxy. OpenCode's ACP CLI
+/// reaches its own `opencode serve` child over 127.0.0.1 HTTP, and local
+/// proxies (Clash & friends) refuse to forward loopback destinations (502 →
+/// ClientError → session/new fails, model list stays empty), so this bypass
+/// must accompany every proxy injection (store / remote / lifecycle).
+pub(crate) const PROXY_LOOPBACK_BYPASS: &[&str] = &["127.0.0.1", "localhost", "::1"];
+
+/// Merge the loopback bypass into an existing NO_PROXY value (dedup, keep
+/// user entries first). Shared by every site that injects proxy env vars.
+pub(crate) fn merge_no_proxy(existing: Option<&String>) -> String {
+    let mut entries: Vec<String> = existing
+        .map(|value| {
+            value
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    for host in PROXY_LOOPBACK_BYPASS {
+        if !entries.iter().any(|entry| entry.eq_ignore_ascii_case(host)) {
+            entries.push(host.to_string());
+        }
+    }
+    entries.join(",")
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentListResponse {

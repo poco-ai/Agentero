@@ -1136,7 +1136,9 @@ fn run_tool_lifecycle_silently(
 /// Mirror `store::apply_proxy_to_agent`: inject HTTP_PROXY/HTTPS_PROXY/ALL_PROXY
 /// into the lifecycle child when the Agentero proxy is enabled, so curl/npm
 /// based installers (Kimi, Claude, Grok, Hermes, OpenCode, …)
-/// can reach the network through the user's configured proxy.
+/// can reach the network through the user's configured proxy. The loopback
+/// NO_PROXY bypass keeps install scripts that also talk to localhost (npm
+/// postinstall hooks, local registries) out of the proxy.
 fn apply_proxy_env_to_command(cmd: &mut Command, proxy_enabled: bool, proxy_url: &str) {
     for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
         cmd.env_remove(key);
@@ -1147,6 +1149,12 @@ fn apply_proxy_env_to_command(cmd: &mut Command, proxy_enabled: bool, proxy_url:
             for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
                 cmd.env(key, proxy_url);
             }
+            cmd.env(
+                "NO_PROXY",
+                crate::features::agent::models::merge_no_proxy(
+                    std::env::var("NO_PROXY").ok().as_ref(),
+                ),
+            );
         }
     }
 }
@@ -1961,6 +1969,8 @@ mod tests {
         assert!(stdout.contains("HTTP_PROXY=http://127.0.0.1:7890"));
         assert!(stdout.contains("HTTPS_PROXY=http://127.0.0.1:7890"));
         assert!(stdout.contains("ALL_PROXY=http://127.0.0.1:7890"));
+        // Loopback bypass keeps localhost traffic out of the proxy.
+        assert!(stdout.contains("NO_PROXY=127.0.0.1,localhost,::1"));
     }
 
     #[test]
