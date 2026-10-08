@@ -1029,15 +1029,8 @@ fn local_command_availability(
     if resolve_command_in_agent_env(command, environment).is_some() {
         return Ok(());
     }
-    if bundled_spawnable() {
-        if bundled::host_path(template_id, environment).is_some() {
-            return Ok(());
-        }
-        if let Some((host, key)) = bundled::host_requirement(template_id) {
-            return Err(format!(
-                "host command `{host}` not found (check its installation or `{key}`)"
-            ));
-        }
+    if bundled_spawnable() && bundled::host_requirement(template_id).is_some() {
+        return bundled::host_env_injection(template_id, environment).map(|_| ());
     }
     Err(format!("ACP command `{command}` not found"))
 }
@@ -1405,7 +1398,14 @@ mod tests {
             })
             .is_ok());
 
-            environment.insert(key.to_string(), executable.display().to_string());
+            let host_entry = if cfg!(windows) && id == "claude-acp" {
+                let script = tmp.path().join("cli.js");
+                std::fs::write(&script, "").unwrap();
+                script
+            } else {
+                executable
+            };
+            environment.insert(key.to_string(), host_entry.display().to_string());
             assert!(
                 local_command_availability("missing-adapter", id, &environment, || true).is_ok()
             );

@@ -317,13 +317,13 @@ type BundledSpawnFn = fn(
 ///    env) — always wins when present;
 /// 2. the bundled adapter tier — spawn `node <entry.js> [desc args…]` and
 ///    point the stripped adapter at the user's host CLI
-///    (`CLAUDE_CODE_EXECUTABLE` / `CODEX_PATH`, or_insert so user env wins);
+///    (`CLAUDE_CODE_EXECUTABLE` / `CODEX_PATH`, validating user overrides);
 /// 3. today's behavior — the raw descriptor command, letting the spawn
 ///    surface the OS error.
 pub(crate) fn plan_local_launch(
     desc: &AgentDescriptor,
     child_env: &mut HashMap<String, String>,
-) -> (AgentDescriptor, PathBuf) {
+) -> Result<(AgentDescriptor, PathBuf), AppError> {
     plan_local_launch_with(desc, child_env, registry_bundled_spawn)
 }
 
@@ -341,16 +341,20 @@ fn plan_local_launch_with(
     desc: &AgentDescriptor,
     child_env: &mut HashMap<String, String>,
     bundled_spawn: BundledSpawnFn,
-) -> (AgentDescriptor, PathBuf) {
+) -> Result<(AgentDescriptor, PathBuf), AppError> {
     if let Some(path) = resolve_command_in_agent_env(&desc.command, child_env) {
-        return (desc.clone(), path);
+        return Ok((desc.clone(), path));
     }
     if let Some((node, adapter)) = bundled_spawn(desc.template.as_str(), child_env) {
         for (key, value) in crate::features::agent::registry::bundled::host_env_injection(
             desc.template.as_str(),
             child_env,
-        ) {
-            child_env.entry(key).or_insert(value);
+        )
+        .map_err(AppError::message)?
+        {
+            // Resolution honors explicit overrides, but npm shims must be
+            // replaced by their SDK-compatible entrypoint even when explicit.
+            child_env.insert(key, value);
         }
         let mut launch_desc = desc.clone();
         let mut args = Vec::with_capacity(desc.args.len() + 1);
@@ -359,9 +363,9 @@ fn plan_local_launch_with(
         args.push(windows_shell_path(&adapter.entry_js).display().to_string());
         args.extend(desc.args.iter().cloned());
         launch_desc.args = args;
-        return (launch_desc, node);
+        return Ok((launch_desc, node));
     }
-    (desc.clone(), PathBuf::from(&desc.command))
+    Ok((desc.clone(), PathBuf::from(&desc.command)))
 }
 
 pub(crate) fn to_acp_agent_local(
@@ -378,7 +382,7 @@ pub(crate) fn to_acp_agent_local(
             child_env.entry(key).or_insert(value);
         }
     }
-    let (launch_desc, command) = plan_local_launch(desc, &mut child_env);
+    let (launch_desc, command) = plan_local_launch(desc, &mut child_env)?;
 
     // Unix agents must not inherit `/` from a Finder-launched app (#570).
     // Windows retains its existing Pi/Custom-only wrapping policy until the
@@ -644,6 +648,16 @@ mod cwd_shell_wrap_tests {
             // Windows resolution probes PATHEXT-style suffixes.
             #[cfg(windows)]
             std::fs::write(bin.join(format!("{name}.cmd")), "@echo off\r\n").unwrap();
+            #[cfg(windows)]
+            if *name == "claude" {
+                let cli = bin
+                    .join("node_modules")
+                    .join("@anthropic-ai")
+                    .join("claude-code")
+                    .join("cli.js");
+                std::fs::create_dir_all(cli.parent().unwrap()).unwrap();
+                std::fs::write(cli, "").unwrap();
+            }
         }
         let mut env = HashMap::new();
         env.insert(
@@ -681,7 +695,8 @@ mod cwd_shell_wrap_tests {
         let mut desc = descriptor(AgentTemplate::Custom);
         desc.command = "fake-agent".to_string();
         desc.args = vec!["--flag".to_string()];
-        let (launch_desc, command) = plan_local_launch_with(&desc, &mut env, fake_bundled_claude);
+        let (launch_desc, command) =
+            plan_local_launch_with(&desc, &mut env, fake_bundled_claude).unwrap();
         // Resolved PATH tier: args untouched, no entry injection. (Windows
         // resolution lands on the `.cmd` shim, so match by substring.)
         assert!(
@@ -702,7 +717,8 @@ mod cwd_shell_wrap_tests {
             desc.command, "claude",
             "adapter command must differ from host"
         );
-        let (launch_desc, command) = plan_local_launch_with(&desc, &mut env, fake_bundled_claude);
+        let (launch_desc, command) =
+            plan_local_launch_with(&desc, &mut env, fake_bundled_claude).unwrap();
         assert_eq!(command, PathBuf::from("/fake/node"));
         assert_eq!(
             launch_desc.args,
@@ -713,16 +729,23 @@ mod cwd_shell_wrap_tests {
             .expect("host env injected");
         assert!(injected.contains("claude"), "injected: {injected}");
 
-        // User-configured env wins: an explicit CLAUDE_CODE_EXECUTABLE survives.
-        let (_tmp2, mut env2) = fake_agent_bin(&["claude"]);
+        // An explicit, valid host overrides the PATH host.
+        let (tmp2, mut env2) = fake_agent_bin(&["claude"]);
+        let chosen = tmp2.path().join("chosen-cli.js");
+        std::fs::write(&chosen, "").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&chosen, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
         env2.insert(
             "CLAUDE_CODE_EXECUTABLE".to_string(),
-            "/user/chosen/claude".to_string(),
+            chosen.display().to_string(),
         );
-        let (_, _) = plan_local_launch_with(&desc, &mut env2, fake_bundled_claude);
+        plan_local_launch_with(&desc, &mut env2, fake_bundled_claude).unwrap();
         assert_eq!(
-            env2.get("CLAUDE_CODE_EXECUTABLE").map(String::as_str),
-            Some("/user/chosen/claude")
+            env2.get("CLAUDE_CODE_EXECUTABLE"),
+            Some(&chosen.display().to_string())
         );
     }
 
@@ -733,7 +756,8 @@ mod cwd_shell_wrap_tests {
         let mut desc = descriptor(AgentTemplate::Custom);
         desc.command = "nowhere-agent".to_string();
         desc.args = vec!["--flag".to_string(), "value".to_string()];
-        let (launch_desc, command) = plan_local_launch_with(&desc, &mut env, fake_bundled_claude);
+        let (launch_desc, command) =
+            plan_local_launch_with(&desc, &mut env, fake_bundled_claude).unwrap();
         assert_eq!(command, PathBuf::from("/fake/node"));
         assert_eq!(
             launch_desc.args,
@@ -745,10 +769,30 @@ mod cwd_shell_wrap_tests {
         );
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn bundled_claude_rejects_invalid_override_but_path_adapter_keeps_priority() {
+        let (_tmp, mut env) = fake_agent_bin(&["claude"]);
+        let desc = descriptor(AgentTemplate::ClaudeAcp);
+        env.insert(
+            "CLAUDE_CODE_EXECUTABLE".to_string(),
+            "missing-claude.cmd".to_string(),
+        );
+        assert!(plan_local_launch_with(&desc, &mut env, fake_bundled_claude).is_err());
+        let (_tmp, mut env) = fake_agent_bin(&["claude-agent-acp"]);
+        env.insert(
+            "CLAUDE_CODE_EXECUTABLE".to_string(),
+            "missing-claude.cmd".to_string(),
+        );
+        let (_, command) = plan_local_launch_with(&desc, &mut env, fake_bundled_claude).unwrap();
+        assert!(command.to_string_lossy().contains("claude-agent-acp"));
+        assert_eq!(env["CLAUDE_CODE_EXECUTABLE"], "missing-claude.cmd");
+    }
+
     #[test]
     fn plan_local_launch_normalizes_bundled_windows_entry() {
         for template in [AgentTemplate::CodexAcp, AgentTemplate::ClaudeAcp] {
-            let (_tmp, mut env) = fake_agent_bin(&[]);
+            let (_tmp, mut env) = fake_agent_bin(&["claude", "codex"]);
             let mut desc = descriptor(template);
             desc.args = vec!["--flag".to_string(), "value with spaces".to_string()];
             let (launch_desc, command) = plan_local_launch_with(&desc, &mut env, |_, _| {
@@ -762,7 +806,8 @@ mod cwd_shell_wrap_tests {
                         node_major: Some(22),
                     },
                 ))
-            });
+            })
+            .unwrap();
             assert_eq!(command, PathBuf::from(r"C:\Program Files\nodejs\node.exe"));
             assert_eq!(
                 launch_desc.args,
@@ -781,7 +826,7 @@ mod cwd_shell_wrap_tests {
         let desc = descriptor(AgentTemplate::CodexAcp);
         let raw = desc.command.clone();
         let (launch_desc, command) =
-            plan_local_launch_with(&desc, &mut env, |_template_id, _child_env| None);
+            plan_local_launch_with(&desc, &mut env, |_template_id, _child_env| None).unwrap();
         assert_eq!(command, PathBuf::from(&raw));
         assert_eq!(launch_desc.args, desc.args);
         assert!(!env.contains_key("CODEX_PATH"));

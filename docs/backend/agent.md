@@ -137,7 +137,13 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
     [descriptor args…]`，node 从合并后的 agent 环境（含 login-shell PATH）解析；Unix 的
     `cd <vault> && exec` 包装（#570）自动覆盖 node 命令。裁剪后的适配器通过注入 env 找到
     host CLI——claude 适配器 `CLAUDE_CODE_EXECUTABLE`、codex 适配器 `CODEX_PATH`——均
-    `or_insert`，用户在注册项 env 里显式配置的值永远优先。
+    优先解析用户在注册项 env 里显式配置的目标，再注入经过校验的绝对路径；无效覆盖不回退。
+    Windows Claude host 必须为原生 `.exe` 或 `.js` 入口：npm 的 `.cmd` / `.bat` / `.ps1`
+    shim 会解析到同目录 `node_modules/@anthropic-ai/claude-code/cli.js`，让 SDK 使用 Node
+    启动。显式配置 shim 同样转换；缺少入口时在启动内置适配器前提示修复 npm 安装、使用
+    原生安装器或配置 `CLAUDE_CODE_EXECUTABLE`。通用命令发现仍支持 shim，PATH 安装的
+    ACP 适配器仍优先且不受此校验影响。
+    详见 [Windows Claude npm shim 的 spawnEINVAL](../bug_fix/windows-claude-bundled-spawn-einval.md)。
     Windows 下传给 Node 的入口脚本参数先经 `windows_shell_path` 去除本地盘符路径的
     `\\?\` 前缀，避免安装包资源路径触发 Node 的 `EISDIR` 并在 ACP 握手前退出；
     详见 [Windows 内置 ACP 启动失败](../bug_fix/windows-bundled-acp-node-path.md)。

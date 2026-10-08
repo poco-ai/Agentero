@@ -200,17 +200,56 @@ pub(crate) fn host_requirement(template_id: &str) -> Option<(&'static str, &'sta
 pub fn host_path(template_id: &str, child_env: &HashMap<String, String>) -> Option<PathBuf> {
     let (command, key) = host_requirement(template_id)?;
     let command = child_env.get(key).map(String::as_str).unwrap_or(command);
-    crate::features::agent::acp::client::resolve_command_in_agent_env(command, child_env)
+    let path =
+        crate::features::agent::acp::client::resolve_command_in_agent_env(command, child_env)?;
+    #[cfg(windows)]
+    if template_id == "claude-acp" {
+        return claude_sdk_path(&path);
+    }
+    Some(path)
+}
+
+/// The Claude SDK spawns native binaries directly and JS entrypoints through
+/// Node. Windows npm shims cannot be spawned directly (Node returns EINVAL).
+/// Resolve only the known npm package layout, never execute/parse a shell shim.
+#[cfg(windows)]
+fn claude_sdk_path(path: &Path) -> Option<PathBuf> {
+    let extension = path.extension()?.to_str()?;
+    if extension.eq_ignore_ascii_case("exe") || extension == "js" {
+        return Some(path.to_path_buf());
+    }
+    if ["cmd", "bat", "ps1"]
+        .iter()
+        .any(|ext| extension.eq_ignore_ascii_case(ext))
+    {
+        let entry = path
+            .parent()?
+            .join("node_modules")
+            .join("@anthropic-ai")
+            .join("claude-code")
+            .join("cli.js");
+        return entry.is_file().then_some(entry);
+    }
+    None
 }
 
 pub fn host_env_injection(
     template_id: &str,
     child_env: &HashMap<String, String>,
-) -> Vec<(String, String)> {
-    host_requirement(template_id)
-        .and_then(|(_, key)| host_path(template_id, child_env).map(|path| (key, path)))
-        .map(|(key, path)| vec![(key.to_string(), path.display().to_string())])
-        .unwrap_or_default()
+) -> Result<Vec<(String, String)>, String> {
+    let Some((command, key)) = host_requirement(template_id) else {
+        return Ok(Vec::new());
+    };
+    let path = host_path(template_id, child_env).ok_or_else(|| {
+        if cfg!(windows) && template_id == "claude-acp" {
+            "Claude Code has no SDK-compatible entrypoint: Windows .cmd/.bat/.ps1 shims cannot be spawned directly. Repair the npm installation so @anthropic-ai/claude-code/cli.js exists, use the native Claude Code installer, or set CLAUDE_CODE_EXECUTABLE to an existing claude.exe or cli.js path".to_string()
+        } else {
+            format!("host command `{command}` not found (check its installation or `{key}`)")
+        }
+    })?;
+    // Node's script lookup does not accept Tauri's Windows resource prefix.
+    let path = crate::core::process::windows_shell_path(&path);
+    Ok(vec![(key.to_string(), path.display().to_string())])
 }
 
 /// Scan-status hint when the tier exists but cannot run (Node missing/old).
@@ -308,16 +347,7 @@ mod tests {
         let bin = tmp.path().join("bin");
         std::fs::create_dir_all(&bin).unwrap();
         for name in ["claude", "codex"] {
-            let file = bin.join(name);
-            std::fs::write(&file, "#!/bin/sh\n").unwrap();
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).unwrap();
-            }
-            // Windows resolution probes PATHEXT-style suffixes (.cmd first).
-            #[cfg(windows)]
-            std::fs::write(bin.join(format!("{name}.cmd")), "@echo off\r\n").unwrap();
+            fake_host(&bin, name);
         }
         let mut env = HashMap::new();
         env.insert(
@@ -328,12 +358,12 @@ mod tests {
                 .to_string(),
         );
 
-        let injected = host_env_injection("claude-acp", &env);
+        let injected = host_env_injection("claude-acp", &env).unwrap();
         assert_eq!(injected.len(), 1);
         assert_eq!(injected[0].0, "CLAUDE_CODE_EXECUTABLE");
         assert!(injected[0].1.contains("claude"));
 
-        let injected = host_env_injection("codex-acp", &env);
+        let injected = host_env_injection("codex-acp", &env).unwrap();
         assert_eq!(injected.len(), 1);
         assert_eq!(injected[0].0, "CODEX_PATH");
         assert!(injected[0].1.contains("codex"));
@@ -349,18 +379,18 @@ mod tests {
             .to_string_lossy()
             .to_string(),
         );
-        assert!(host_env_injection("claude-acp", &empty).is_empty());
-        assert!(host_env_injection("codex-acp", &empty).is_empty());
-        assert!(host_env_injection("dsh", &empty).is_empty());
+        assert!(host_env_injection("claude-acp", &empty).is_err());
+        assert!(host_env_injection("codex-acp", &empty).is_err());
+        assert!(host_env_injection("dsh", &empty).unwrap().is_empty());
     }
 
     fn fake_host(dir: &Path, name: &str) -> PathBuf {
         let file = dir.join(if cfg!(windows) {
-            format!("{name}.cmd")
+            format!("{name}.exe")
         } else {
             name.to_string()
         });
-        std::fs::write(&file, "#!/bin/sh\n").unwrap();
+        std::fs::write(&file, if cfg!(windows) { "MZ" } else { "#!/bin/sh\n" }).unwrap();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -382,7 +412,7 @@ mod tests {
             env.insert(key.to_string(), explicit.display().to_string());
             assert_eq!(host_path(id, &env), Some(explicit.clone()));
             assert_eq!(
-                host_env_injection(id, &env),
+                host_env_injection(id, &env).unwrap(),
                 vec![(key.to_string(), explicit.display().to_string())]
             );
         }
@@ -402,7 +432,7 @@ mod tests {
             ] {
                 env.insert(key.to_string(), value);
                 assert!(host_path(id, &env).is_none());
-                assert!(host_env_injection(id, &env).is_empty());
+                assert!(host_env_injection(id, &env).is_err());
             }
             #[cfg(unix)]
             {
@@ -412,6 +442,82 @@ mod tests {
                 assert!(host_path(id, &env).is_none());
             }
         }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn claude_npm_shims_resolve_to_cli_js_in_paths_with_spaces() {
+        let tmp = tempfile::Builder::new()
+            .prefix("Claude npm ")
+            .tempdir()
+            .unwrap();
+        let entry = tmp
+            .path()
+            .join("node_modules")
+            .join("@anthropic-ai")
+            .join("claude-code")
+            .join("cli.js");
+        std::fs::create_dir_all(entry.parent().unwrap()).unwrap();
+        std::fs::write(&entry, "").unwrap();
+        let mut env = HashMap::from([("PATH".to_string(), tmp.path().display().to_string())]);
+        for ext in ["cmd", "bat", "ps1", "CMD"] {
+            let shim = tmp.path().join(format!("claude.{ext}"));
+            std::fs::write(&shim, "npm shim").unwrap();
+            env.insert(
+                "CLAUDE_CODE_EXECUTABLE".to_string(),
+                shim.display().to_string(),
+            );
+            assert_eq!(host_path("claude-acp", &env), Some(entry.clone()));
+            assert_eq!(
+                host_env_injection("claude-acp", &env).unwrap(),
+                vec![(
+                    "CLAUDE_CODE_EXECUTABLE".to_string(),
+                    entry.display().to_string()
+                )]
+            );
+        }
+        env.remove("CLAUDE_CODE_EXECUTABLE");
+        assert_eq!(host_path("claude-acp", &env), Some(entry.clone()));
+        // Extended-length paths must retain native separators during lookup,
+        // then lose the local drive prefix before entering the Node SDK.
+        env.insert(
+            "CLAUDE_CODE_EXECUTABLE".to_string(),
+            format!(r"\\?\{}", tmp.path().join("claude.cmd").display()),
+        );
+        assert_eq!(
+            host_env_injection("claude-acp", &env).unwrap()[0].1,
+            entry.display().to_string()
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn claude_unresolved_shim_fails_before_sdk_spawn() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("claude.cmd"), "npm shim").unwrap();
+        let env = HashMap::from([("PATH".to_string(), tmp.path().display().to_string())]);
+        assert!(host_path("claude-acp", &env).is_none());
+        let error = host_env_injection("claude-acp", &env).unwrap_err();
+        assert!(error.contains("CLAUDE_CODE_EXECUTABLE"));
+        assert!(error.contains("cli.js"));
+        assert!(error.contains("native Claude Code installer"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn claude_native_host_and_explicit_js_override_remain_usable() {
+        let tmp = tempfile::tempdir().unwrap();
+        let native = fake_host(tmp.path(), "claude");
+        std::fs::write(tmp.path().join("claude.cmd"), "npm shim").unwrap();
+        let mut env = HashMap::from([("PATH".to_string(), tmp.path().display().to_string())]);
+        assert_eq!(host_path("claude-acp", &env), Some(native));
+        let script = tmp.path().join("chosen-cli.js");
+        std::fs::write(&script, "").unwrap();
+        env.insert(
+            "CLAUDE_CODE_EXECUTABLE".to_string(),
+            script.display().to_string(),
+        );
+        assert_eq!(host_path("claude-acp", &env), Some(script));
     }
 
     #[test]
