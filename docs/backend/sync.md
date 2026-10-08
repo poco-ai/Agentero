@@ -17,7 +17,7 @@
 | `webdav.rs` | 最小 WebDAV 客户端：Basic Auth + GET / 条件 PUT / DELETE / MKCOL / PROPFIND（仅取状态码，无 XML 解析），见下节 |
 | `snapshot.rs` | Vault 扫描 → `Manifest`（relPath → sha256/size/mtime）；`size+mtime` 未变复用 base 哈希；忽略 `.agentero` `.git` `node_modules` `.DS_Store` `*.tmp`；`SyncScope` 与分类谓词（见「同步范围」） |
 | `local.rs` | `.agentero/vault.json`（Vault UUID）、`.agentero/sync/{base,state}.json`（watcher 忽略 `.agentero/`，无事件回环） |
-| `engine.rs` | 三方合并 + 应用 + 发布（见下） |
+| `engine.rs` | 三方合并 + 应用 + 发布 + 空转短路（见下） |
 | `commands.rs` | `sync_get_status` / `sync_configure` / `sync_disconnect` / `sync_now` / `sync_scope_sizes`（本地各附件分类体积，供设置页展示）；广播 `sync:state` / `sync:progress` 事件 |
 | `scheduler.rs` | 自动同步：每 Vault 一个后台任务——启动时同步一次、改动静置 30s 后同步、按 `intervalMinutes`（15/30/60）定时兜底；退出时尽力推送（每 Vault 限 5s） |
 
@@ -31,6 +31,15 @@
 ```
 
 一次 `sync_now`：扫描 → GET HEAD/manifest → 与本地 base（上次同步清单）三方合并 → 应用远端改动（临时文件 + rename 原子落盘，blob 校验 sha256）→ 上传新 blob（`If-None-Match: *`，跨设备重复上传为廉价 no-op）→ 发布新 manifest → `If-Match` CAS 推进 HEAD。CAS 失败（他端并发推进）则以对方 manifest 为新 base 重跑，最多 5 次。
+
+### 空转短路（请求配额）
+
+按请求数计费/限额的后端（坚果云 WebDAV 免费版 600 次/30 分钟、付费版 1500 次/30 分钟，且为**账号级**，与官方客户端共享）下，空转 pass 的开销才是主要成本。引擎因此在两处提前收敛，判据均只比 **hash**（不比 mtime，见下）：
+
+- **已是最新**：GET HEAD 后，若 `HEAD.version == state.lastVersion`、本地扫描与 base 内容一致、且 `base.scope == cfg.scope` → 直接返回，**整个 pass 只有 1 次请求**（原先约 11 次：vault.json/HEAD/manifest 三个 GET + 每次上传前的 MKCOL 链 + blob/manifest/HEAD 三个 PUT）。此路径同时跳过 `ensure_remote_identity`——空转 pass 不写远端，无需重新核验身份；任何真正要写的 pass 仍会核验，因此远端 `vault.json` 被外部删除后最迟在下一次有改动的 pass 补回。要求 `lastSyncAt` 非空（有同步历史），首次 pass 必须走完整握手。
+- **无需发布**：合并应用完成后，若 `merged` 与**未过滤的**远端 manifest 内容一致 → 把它连同当前 version 写回本地 base/state 后返回，不发布新 manifest、不推进 HEAD。比 mtime 会误判：每次下载都以新的本地 mtime 落盘，而 `merge` 在双侧 hash 相同时采纳本地条目，于是每台设备都把自己的 mtime 重新发布一遍——两台设备会**永久互相推进 HEAD**，即使无人编辑。空转短路依赖 HEAD 版本稳定，所以这一条是它能在多设备下真正生效的前提。比对用未过滤的远端清单，是为了让「对某分类失明」的设备也能区分「无可补充」与「发布端看不见我的文件」（后者仍需发布）。
+
+`MemStore`（`engine.rs` 测试内的内存 `RemoteStore`，带请求计数）覆盖这两条：`idle_pass_costs_one_request`、`idle_devices_do_not_ping_pong_head`（含「真实改动仍会发布并被对端拉取」）。
 
 合并规则：单侧改动直接采纳；双侧同改 `*.md` 保留 mtime 较新者、较旧者存为 `<name> (conflict <时间).md`；其余文件（sidecar/marks/二进制）按 mtime LWW；删除 vs 修改保留修改。
 
@@ -58,7 +67,7 @@
 - **无 ETag 的服务器**：`If-Match` 退化为普通 PUT，同降级语义收敛。
 - **重试**：与 S3 客户端一致的传输层 3 次重试（幂等操作）。
 - **安全约束同 S3**：`https://` 强制（仅 loopback 放行 http），密码掩码同 `secretKey`。NAS 场景的明文 http 与自签名证书 https 均不可用。
-- **兼容性（实测）**：路径段 percent-encode、请求带尾斜杠集合形式。坚果云特性：MKCOL 对根 `/dav` 返回 403 OperationNotAllowed（按「已存在/受保护」容忍）；根 `/dav` 不允许创建文件（PUT 一律 404 ObjectNotFound，[#681](https://github.com/poco-ai/Agentero/issues/681)），故根地址自动落到 `agentero/` 子文件夹（见「目录模型」）；顶层目录名长度有限制（`sandbox name is too long`）；顶层目录不可经 WebDAV 删除、非空目录删除需先清空子项——`sync_disconnect` 本就不动远端数据，仅测试清理需注意。Nextcloud / Apache mod_dav 按标准实现工作。
+- **兼容性（实测）**：路径段 percent-encode、请求带尾斜杠集合形式。坚果云特性：MKCOL 对根 `/dav` 返回 403 OperationNotAllowed（按「已存在/受保护」容忍）；根 `/dav` 不允许创建文件（PUT 一律 404 ObjectNotFound，[#681](https://github.com/poco-ai/Agentero/issues/681)），故根地址自动落到 `agentero/` 子文件夹（见「目录模型」）；顶层目录名长度有限制（`sandbox name is too long`）；顶层目录不可经 WebDAV 删除、非空目录删除需先清空子项——`sync_disconnect` 本就不动远端数据，仅测试清理需注意；**请求按账号限频**（免费 600 次/30 分钟、付费 1500 次/30 分钟），空转成本见「空转短路」。Nextcloud / Apache mod_dav 按标准实现工作。
 - **集成测试**：`engine.rs` `two_device_roundtrip_against_webdav`（`#[ignore]`，env `AGENTERO_SYNC_WEBDAV_TEST_URL` / `_USERNAME` / `_PASSWORD`，连接测试 + 发布/加入/编辑/分歧冲突/收敛全流程，镜像 MinIO 测试）。
 
 ## 条件写降级（OSS 等后端）
