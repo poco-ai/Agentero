@@ -43,6 +43,7 @@ pub fn npm_package_for_template(template_id: &str) -> Option<&'static str> {
         "codex-acp" => Some("@openai/codex"),
         "pi" => Some("@earendil-works/pi-coding-agent"),
         "grok-build" => Some("@xai-official/grok"),
+        "qodercli" => Some("@qoder-ai/qodercli"),
         "dsh" => Some("@deepseek-ai/dsh"),
         "kimi-code" => Some("@moonshot-ai/kimi-code"),
         "zcode" => Some("zcode-acp-server"),
@@ -337,6 +338,10 @@ mod tests {
         );
         assert_eq!(npm_package_for_template("hermes"), None);
         assert_eq!(npm_package_for_template("dsh"), Some("@deepseek-ai/dsh"));
+        assert_eq!(
+            npm_package_for_template("qodercli"),
+            Some("@qoder-ai/qodercli")
+        );
         assert_eq!(
             npm_package_for_template("minimax-code"),
             Some("@minimax-ai/code")

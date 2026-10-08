@@ -70,6 +70,13 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   （bin `mimo`，需 Node 22+），install/update 走 `npm i -g mimocode`（Unix
   `--prefix "$HOME/.local"`），uninstall 走 `npm uninstall -g mimocode`；detect/ACP
   入口同二进制，登录在 CLI 内完成（`mimo providers`，即 opencode auth login 流程）。
+- Qoder CLI：原生 ACP（`qodercli --acp`）。官方 installer（`https://qoder.com/install`，
+  Windows PowerShell 为 `irm https://qoder.com/install.ps1 | iex`）安装原生 `qodercli`；
+  npm 包 `@qoder-ai/qodercli`（需 Node 20+）作回退。静默 update 优先 `qodercli update`，
+  失败再重跑官方 installer。卸载会 `npm uninstall -g @qoder-ai/qodercli`，并删除官方脚本写入的
+  `~/.qoder/bin/qodercli`、`~/.qoder/entry` 和 `~/.local/bin/qodercli`（只删这个链接；Windows 同位置
+  再试 `qodercli.exe` / `qodercli.cmd`）。没有 npm 时仍删除这些路径。不删除 `~/.qoder` 里的会话和登录，
+  不改 shell rc，也不处理 Homebrew cask。登录在终端完成（`qodercli login`）。
 - Antigravity ACP：Google 官方 ACP server，安装和更新从 ACP Registry 的 manifest
   读取当前版本及平台压缩包，不保留旧版本回退。压缩包解压到 Agentero 管理目录，并保留
   `agy_acp_server` 与 `localharness_external`；macOS Intel 没有官方构建，因此不提供该预设。

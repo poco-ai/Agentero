@@ -26,7 +26,7 @@
 
 同步在 Release 仍为 Draft 时执行：`GITHUB_TOKEN` 需要 `contents: write`（草稿仅对具备 push 权限的令牌出现在 releases 列表中），脚本通过列表接口按 tag 解析 Release，而不是只返回已发布版本的 `releases/tags/<tag>` 接口。
 
-目标仓库需先通过代码镜像同步对应提交。脚本创建 Release 时使用 GitHub tag 的准确 commit SHA，并检查 AtomGit 同名 tag 的 SHA；不自动推送代码、不移动已有 tag。目标提交不存在或 tag 不一致时，先修复仓库镜像，再重跑同步。
+目标仓库需先通过代码镜像同步对应提交。脚本在创建 Release **前**先等待 AtomGit 同名 tag 就位（有界退避轮询，约 2.5 分钟后放弃）：AtomGit 不会像 GitHub 那样用 `target_commitish` 自动建 tag，镜像落后时 `POST /releases` 只会返回无法解释的 HTTP 400，因此 tag 缺失现在会明确报 `AtomGit has not mirrored tag …`。tag 就位后再校验其 SHA 与 GitHub 一致，并用该 commit 创建 Release；不自动推送代码、不移动已有 tag。目标提交不存在或 tag 不一致时，先修复仓库镜像，再重跑同步。
 
 - 构建完成时 GitHub 仍为 Draft，AtomGit 同步为 `pre`（**预发布可公开访问，不是私有草稿**）。
 - GitHub Release `published` / `edited` 事件会再次同步当前说明和附件；仅当来源是 GitHub 当前最新稳定版且所有附件校验通过，才标记 AtomGit `latest`。手动补传旧稳定版不会抢占最新版本；新建的历史版本保留 `pre`。

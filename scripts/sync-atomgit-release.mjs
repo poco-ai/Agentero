@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url";
 
 const encode = encodeURIComponent;
 
-class HttpError extends Error {
+export class HttpError extends Error {
 	constructor(label, status) {
 		// Never print signed upload URLs, response bodies or credentials.
 		super(`${label}: HTTP ${status}`);
@@ -245,6 +245,45 @@ export class AtomGit {
 	}
 }
 
+/**
+ * Gate a release on the tag already existing on AtomGit.
+ *
+ * AtomGit's repository mirror can lag GitHub, and unlike GitHub it does not
+ * create the tag from `target_commitish`: `POST /releases` answers an opaque
+ * HTTP 400 while the tag is absent. Poll the mirrored tag with a bounded
+ * backoff so a short lag self-heals, then fail with an actionable message
+ * instead of that 400, and reject a tag whose commit disagrees with GitHub.
+ */
+export async function waitForTag(
+	atomgit,
+	tag,
+	commit,
+	{ attempts = 5, pauseMs = 10_000, pause = sleep } = {},
+) {
+	for (let attempt = 0; ; attempt++) {
+		let target;
+		try {
+			// 5xx/408/429 retry inside `retry`; a 404 means "not mirrored yet".
+			target = await retry(() => atomgit.api(`/commits/${encode(tag)}`));
+		} catch (error) {
+			if (error?.status !== 404) throw error;
+			if (attempt >= attempts - 1) {
+				throw new Error(
+					`AtomGit has not mirrored tag ${tag}; fix the repository mirror, then rerun the sync`,
+				);
+			}
+			await pause(pauseMs * 2 ** attempt);
+			continue;
+		}
+		if (target.sha !== commit) {
+			throw new Error(
+				"AtomGit tag does not match the GitHub commit; sync repository tags first",
+			);
+		}
+		return;
+	}
+}
+
 export async function syncRelease({
 	atomgit,
 	release,
@@ -252,10 +291,15 @@ export async function syncRelease({
 	commit,
 	latestTag,
 	download,
+	waitForTag: waitForMirroredTag = waitForTag,
 }) {
 	validateAssets(assets);
 	const tag = release.tag_name;
 	const metadata = { name: release.name || tag, body: release.body || "" };
+	// Gate on the mirrored tag before creating the release: while the mirror is
+	// behind, AtomGit rejects `POST /releases` with HTTP 400 and never tells us
+	// why. Waiting here turns that into a clear, actionable failure.
+	await waitForMirroredTag(atomgit, tag, commit);
 	const existing = await atomgit.findRelease(tag);
 	if (!existing) {
 		// target_commitish must be the exact GitHub tag commit, never default main.
@@ -265,13 +309,6 @@ export async function syncRelease({
 			target_commitish: commit,
 			release_status: "pre",
 		});
-	}
-	// AtomGit may already have a tag; target_commitish does not move it.
-	const target = await retry(() => atomgit.api(`/commits/${encode(tag)}`));
-	if (target.sha !== commit) {
-		throw new Error(
-			"AtomGit tag does not match the GitHub commit; sync repository tags first",
-		);
 	}
 	for (const asset of assets) {
 		const { file, expected, cleanup } = await download(asset);

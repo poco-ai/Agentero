@@ -124,8 +124,8 @@ export function showUpdateAgent(entry: CatalogEntry): boolean {
 
 /**
  * Row can be uninstalled/removed: a registry entry always qualifies; otherwise
- * an installed CLI of a lifecycle template (excludes plain-PATH templates like
- * qodercli that we never installed).
+ * an installed CLI of a lifecycle template (`canInstall`). Templates without a
+ * silent installer stay out.
  */
 export function showUninstallAgent(entry: CatalogEntry): boolean {
 	return (
