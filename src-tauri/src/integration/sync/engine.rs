@@ -19,6 +19,10 @@
 //! remote one adopts it instead of publishing. Request-metered backends
 //! (Nutstore: 600 per 30 min on a free plan) make the idle cost the dominant
 //! one, and republishing mtime drift used to advance `HEAD` forever.
+//!
+//! A pass interrupted mid-upload resumes instead of starting over:
+//! `.agentero/sync/pushed.jsonl` records the blobs it already sent, which no
+//! manifest can vouch for until `HEAD` moves.
 
 use crate::core::error::AppError;
 use crate::integration::sync::config::SyncBackendConfig;
@@ -28,7 +32,7 @@ use crate::integration::sync::store::{PutCondition, PutOutcome, RemoteStore, Syn
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -107,6 +111,10 @@ async fn run_sync<S: RemoteStore>(
     let base = local::read_base(vault);
     let meta = local::read_meta(vault);
     let base_scope = base.scope;
+    // Key for the pushed-blob log, hashed so no credential lands in the vault:
+    // a vault repointed at another store must not inherit upload records that
+    // the new store never received.
+    let store_id = snapshot::hash_bytes(cfg.remote_identity().as_bytes());
     // Symmetric filtering: the same predicate blinds the local scan, the
     // base, and the remote manifest, so excluded files are inert — never
     // uploaded, downloaded, or mistaken for deletions.
@@ -211,16 +219,26 @@ async fn run_sync<S: RemoteStore>(
                         last_version: ptr.version,
                     },
                 )?;
+                // The manifest just adopted references every blob `merged`
+                // has, so the log has nothing left to remember.
+                local::clear_pushed(vault);
                 refresh_catalog_if_needed(vault, &outcome).await;
                 outcome.version = ptr.version;
                 return Ok(outcome);
             }
         }
 
-        // Upload blobs the remote has never referenced. `If-None-Match: *`
-        // makes duplicate uploads across devices a cheap no-op.
-        let remote_hashes: std::collections::HashSet<&str> =
-            remote_files.values().map(|e| e.hash.as_str()).collect();
+        // Upload blobs the remote has never referenced. Two records decide
+        // that: the remote manifest, unfiltered so a category this device
+        // skips still counts as present, and the pushed log, which covers
+        // blobs an earlier pass uploaded but never got to publish. Skipping
+        // matters most where `If-None-Match: *` is ignored (Nutstore) and a
+        // repeat PUT re-sends the whole body instead of failing cheaply.
+        let remote_hashes: HashSet<&str> = match &remote_manifest {
+            Some(m) => m.files.values().map(|e| e.hash.as_str()).collect(),
+            None => HashSet::new(),
+        };
+        let mut pushed = local::read_pushed(vault, &store_id);
         let uploads: Vec<(&String, &FileEntry)> = merged
             .iter()
             .filter(|(_, e)| !remote_hashes.contains(e.hash.as_str()))
@@ -228,6 +246,10 @@ async fn run_sync<S: RemoteStore>(
         let total = uploads.len();
         for (i, (rel, entry)) in uploads.into_iter().enumerate() {
             progress("upload", i + 1, total);
+            // Also covers two paths with identical content in one pass.
+            if pushed.contains(&entry.hash) {
+                continue;
+            }
             let raw = fs::read(vault.join(rel))?;
             if snapshot::hash_bytes(&raw) != entry.hash {
                 return Err(AppError::message(format!(
@@ -241,6 +263,8 @@ async fn run_sync<S: RemoteStore>(
                     PutCondition::IfNoneMatch,
                 )
                 .await?;
+            pushed.insert(entry.hash.clone());
+            local::record_pushed(vault, &store_id, &entry.hash);
             outcome.uploaded += 1;
         }
 
@@ -284,6 +308,9 @@ async fn run_sync<S: RemoteStore>(
                         last_version: new_version,
                     },
                 )?;
+                // The published manifest is now the authority on what the
+                // remote holds; the log only ever covers unpublished uploads.
+                local::clear_pushed(vault);
                 refresh_catalog_if_needed(vault, &outcome).await;
                 outcome.version = new_version;
                 outcome.removed_remote = remote_files
@@ -643,12 +670,26 @@ mod tests {
 
     /// In-memory `RemoteStore` that counts requests, so a test can assert what
     /// a pass costs and not only what it produces.
-    #[derive(Default)]
     struct MemStore {
         objects: Mutex<BTreeMap<String, (Vec<u8>, String)>>,
         revisions: AtomicUsize,
         gets: AtomicUsize,
         puts: AtomicUsize,
+        /// PUTs allowed before the store starts refusing — models a rate limit
+        /// landing partway through a pass.
+        put_budget: AtomicUsize,
+    }
+
+    impl Default for MemStore {
+        fn default() -> Self {
+            Self {
+                objects: Mutex::new(BTreeMap::new()),
+                revisions: AtomicUsize::new(0),
+                gets: AtomicUsize::new(0),
+                puts: AtomicUsize::new(0),
+                put_budget: AtomicUsize::new(usize::MAX),
+            }
+        }
     }
 
     impl MemStore {
@@ -676,7 +717,10 @@ mod tests {
             body: Vec<u8>,
             condition: PutCondition,
         ) -> Result<PutOutcome, AppError> {
-            self.puts.fetch_add(1, Ordering::Relaxed);
+            let attempt = self.puts.fetch_add(1, Ordering::Relaxed) + 1;
+            if attempt > self.put_budget.load(Ordering::Relaxed) {
+                return Err(AppError::message("PUT {key}: 429 Too Many Requests"));
+            }
             let mut objects = self.objects.lock().unwrap();
             let current = objects.get(key).map(|(_, etag)| etag.clone());
             match (&current, condition) {
@@ -776,6 +820,53 @@ mod tests {
         for dir in [a, b] {
             let _ = fs::remove_dir_all(dir);
         }
+    }
+
+    /// An interrupted upload must not be re-sent. The remote manifest still
+    /// describes the pre-pass state, so without the pushed log the next pass
+    /// recomputes the same upload list and re-sends every byte — at full cost
+    /// on Nutstore, which ignores `If-None-Match`.
+    #[tokio::test]
+    async fn interrupted_upload_resumes_without_resending() {
+        let store = MemStore::default();
+        let cfg = SyncBackendConfig::default();
+        let vault = temp_vault("resume");
+        fs::create_dir_all(vault.join("notes")).unwrap();
+        for name in ["a", "b", "c", "d"] {
+            fs::write(
+                vault.join("notes").join(format!("{name}.md")),
+                format!("# {name}\n"),
+            )
+            .unwrap();
+        }
+
+        // The budget covers vault.json plus the first two blobs; the third is
+        // refused, so HEAD never advances and nothing is published.
+        store.put_budget.store(3, Ordering::Relaxed);
+        assert!(run_sync(&vault, &cfg, &store, noop_progress())
+            .await
+            .is_err());
+
+        store.put_budget.store(usize::MAX, Ordering::Relaxed);
+        let before = store.counts();
+        let resumed = run_sync(&vault, &cfg, &store, noop_progress())
+            .await
+            .unwrap();
+        let (gets, puts) = store.counts();
+        assert_eq!((resumed.version, resumed.uploaded), (1, 2));
+        assert_eq!(puts - before.1, 4, "2 remaining blobs + manifest + HEAD");
+        assert_eq!(gets - before.0, 2, "vault.json + HEAD");
+
+        // The published manifest covers every blob, so the log is spent and
+        // the next pass short-circuits.
+        let before = store.counts();
+        run_sync(&vault, &cfg, &store, noop_progress())
+            .await
+            .unwrap();
+        let (gets, puts) = store.counts();
+        assert_eq!((gets - before.0, puts - before.1), (1, 0));
+
+        let _ = fs::remove_dir_all(&vault);
     }
 
     #[test]

@@ -4,11 +4,14 @@
 //! - `.agentero/vault.json` — durable vault identity (UUID)
 //! - `.agentero/sync/base.json` — manifest of the last successful sync
 //! - `.agentero/sync/state.json` — last sync time / version for status UI
+//! - `.agentero/sync/pushed.jsonl` — blobs uploaded but not yet published
 
 use crate::core::error::AppError;
 use crate::integration::sync::snapshot::Manifest;
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::collections::HashSet;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -92,4 +95,113 @@ pub fn write_meta(vault: &Path, meta: &SyncMeta) -> Result<(), AppError> {
 /// Forget local sync state (disconnect). Keeps the vault identity.
 pub fn clear(vault: &Path) {
     let _ = fs::remove_dir_all(sync_dir(vault));
+}
+
+// ---- Pushed-blob log -------------------------------------------------------
+//
+// Blobs a pass uploaded but never got to publish, so the next pass can skip
+// them instead of re-sending every byte to a server that ignores
+// `If-None-Match` (Nutstore). Appended per blob rather than written once at the
+// end: a rate-limit error, a quit or an aborted task must not lose the record.
+// The first line pins the remote store, because skipping an upload a different
+// store never received would publish a manifest referencing missing blobs.
+
+fn pushed_path(vault: &Path) -> PathBuf {
+    sync_dir(vault).join("pushed.jsonl")
+}
+
+fn pushed_header(store_id: &str) -> String {
+    format!("#{store_id}")
+}
+
+/// Hashes already uploaded to `store_id`. A log left by a different store is
+/// removed rather than kept: appending under a header that no longer matches
+/// would strand it, and the records are worthless for the new store anyway.
+pub fn read_pushed(vault: &Path, store_id: &str) -> HashSet<String> {
+    let path = pushed_path(vault);
+    let Ok(raw) = fs::read_to_string(&path) else {
+        return HashSet::new();
+    };
+    let mut lines = raw.lines();
+    if lines.next() == Some(pushed_header(store_id).as_str()) {
+        return lines
+            .filter(|line| !line.is_empty())
+            .map(str::to_string)
+            .collect();
+    }
+    let _ = fs::remove_file(&path);
+    HashSet::new()
+}
+
+/// Record one uploaded blob. Best-effort: a lost record only costs a redundant
+/// upload, so a write failure must not fail the pass it is bookkeeping for.
+pub fn record_pushed(vault: &Path, store_id: &str, hash: &str) {
+    let path = pushed_path(vault);
+    let result = (|| -> std::io::Result<()> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let mut file = OpenOptions::new().create(true).append(true).open(&path)?;
+        if file.metadata()?.len() == 0 {
+            writeln!(file, "{}", pushed_header(store_id))?;
+        }
+        writeln!(file, "{hash}")
+    })();
+    if let Err(e) = result {
+        log::warn!(target: "agentero::sync", "record pushed blob {hash}: {e}");
+    }
+}
+
+/// Forget the log: a published manifest now covers those blobs, and it is the
+/// authority every device consults.
+pub fn clear_pushed(vault: &Path) {
+    let _ = fs::remove_file(pushed_path(vault));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pushed_log_appends_dedupes_and_is_scoped_to_one_store() {
+        let vault =
+            std::env::temp_dir().join(format!("agentero-sync-local-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&vault).unwrap();
+
+        assert!(read_pushed(&vault, "store-a").is_empty());
+        record_pushed(&vault, "store-a", "h1");
+        record_pushed(&vault, "store-a", "h2");
+        // The same hash again after a second aborted pass.
+        record_pushed(&vault, "store-a", "h1");
+        assert_eq!(
+            read_pushed(&vault, "store-a"),
+            HashSet::from(["h1".to_string(), "h2".to_string()])
+        );
+
+        // Another store inherits nothing, and recording for it retires the
+        // old log so the two cannot end up interleaved under one header.
+        assert!(read_pushed(&vault, "store-b").is_empty());
+        record_pushed(&vault, "store-b", "h3");
+        assert_eq!(
+            read_pushed(&vault, "store-b"),
+            HashSet::from(["h3".to_string()])
+        );
+        assert!(read_pushed(&vault, "store-a").is_empty());
+
+        clear_pushed(&vault);
+        assert!(read_pushed(&vault, "store-b").is_empty());
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[test]
+    fn disconnect_also_forgets_the_pushed_log() {
+        let vault =
+            std::env::temp_dir().join(format!("agentero-sync-local-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&vault).unwrap();
+        record_pushed(&vault, "store-a", "h1");
+        clear(&vault);
+        assert!(read_pushed(&vault, "store-a").is_empty());
+        let _ = fs::remove_dir_all(&vault);
+    }
 }

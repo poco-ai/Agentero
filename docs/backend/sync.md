@@ -11,13 +11,13 @@
 | 文件 | 职责 |
 |---|---|
 | `mod.rs` | `SyncService` 与 `SyncRunLease`：手动、自动与退出同步共用按 Vault 的占用，guard 释放覆盖正常返回、错误、超时和 task abort |
-| `config.rs` | `SyncBackendConfig`（`backend: s3 \| webdav` 判别字段，旧 `sync.json` 缺省即 S3）与凭据持久化：XDG `agentero/sync.json`（按 Vault 路径分键，0600）；`secretKey` / `webdavPassword` 出站掩码 / 回传掩码保留旧值（同 translate API key 先例）；`conditionalWrites` 持久化连接测试的条件写探测结果；`webdavUrl` 归一化（trim 尾斜杠 + 坚果云根地址展开，见 WebDAV 节）；`scope` 同步范围（见下） |
+| `config.rs` | `SyncBackendConfig`（`backend: s3 \| webdav` 判别字段，旧 `sync.json` 缺省即 S3）与凭据持久化：XDG `agentero/sync.json`（按 Vault 路径分键，0600）；`secretKey` / `webdavPassword` 出站掩码 / 回传掩码保留旧值（同 translate API key 先例）；`conditionalWrites` 持久化连接测试的条件写探测结果；`webdavUrl` 归一化（trim 尾斜杠 + 坚果云根地址展开，见 WebDAV 节）；`scope` 同步范围（见下）；`remoteIdentity()` 给出远端 store 标识（后端 + 地址/bucket/prefix + 账号名，不含密钥），供本地状态在换 store 后判失效 |
 | `store.rs` | 后端无关抽象（Strategy）：`RemoteStore` trait 定义后端契约（`ensure_root` / `get` / 条件 `put` / `probe_conditional_writes`，futures 均为 `Send`），`SyncStore` 枚举是唯一的组合点（从配置选择具体客户端并转发）；engine 只依赖 trait，可用内存实现做引擎测试。另含两个客户端共享的 HTTP 工具：`send_with_retries`（幂等操作传输层 3 次重试）、`check` / `etag_of` / `error_chain` |
 | `s3.rs` | 最小 S3 客户端：GET / 条件 PUT（`If-Match` / `If-None-Match`）/ DELETE / ListObjectsV2，reqwest + 手写 SigV4（HMAC-SHA256 自实现，RFC 4231 向量测试）；条件写探测与降级（见下） |
 | `webdav.rs` | 最小 WebDAV 客户端：Basic Auth + GET / 条件 PUT / DELETE / MKCOL / PROPFIND（仅取状态码，无 XML 解析），见下节 |
 | `snapshot.rs` | Vault 扫描 → `Manifest`（relPath → sha256/size/mtime）；`size+mtime` 未变复用 base 哈希；忽略 `.agentero` `.git` `node_modules` `.DS_Store` `*.tmp`；`SyncScope` 与分类谓词（见「同步范围」） |
-| `local.rs` | `.agentero/vault.json`（Vault UUID）、`.agentero/sync/{base,state}.json`（watcher 忽略 `.agentero/`，无事件回环） |
-| `engine.rs` | 三方合并 + 应用 + 发布 + 空转短路（见下） |
+| `local.rs` | `.agentero/vault.json`（Vault UUID）、`.agentero/sync/{base,state}.json`、`.agentero/sync/pushed.jsonl`（已上传未发布的 blob，见「请求预算」）；watcher 忽略 `.agentero/`，无事件回环 |
+| `engine.rs` | 三方合并 + 应用 + 发布 + 空转短路 / 断点续传（见下） |
 | `commands.rs` | `sync_get_status` / `sync_configure` / `sync_disconnect` / `sync_now` / `sync_scope_sizes`（本地各附件分类体积，供设置页展示）；广播 `sync:state` / `sync:progress` 事件 |
 | `scheduler.rs` | 自动同步：每 Vault 一个后台任务——启动时同步一次、改动静置 30s 后同步、按 `intervalMinutes`（15/30/60）定时兜底；退出时尽力推送（每 Vault 限 5s） |
 
@@ -30,16 +30,17 @@
 <prefix>/blobs/<aa>/<sha256>         gzip(内容)，内容寻址天然去重
 ```
 
-一次 `sync_now`：扫描 → GET HEAD/manifest → 与本地 base（上次同步清单）三方合并 → 应用远端改动（临时文件 + rename 原子落盘，blob 校验 sha256）→ 上传新 blob（`If-None-Match: *`，跨设备重复上传为廉价 no-op）→ 发布新 manifest → `If-Match` CAS 推进 HEAD。CAS 失败（他端并发推进）则以对方 manifest 为新 base 重跑，最多 5 次。
+一次 `sync_now`：扫描 → GET HEAD/manifest → 与本地 base（上次同步清单）三方合并 → 应用远端改动（临时文件 + rename 原子落盘，blob 校验 sha256）→ 上传新 blob（`If-None-Match: *`，跨设备重复上传为廉价 no-op——**但坚果云忽略该头**，重复 PUT 会重传全部字节，见「请求预算」）→ 发布新 manifest → `If-Match` CAS 推进 HEAD。CAS 失败（他端并发推进）则以对方 manifest 为新 base 重跑，最多 5 次。
 
-### 空转短路（请求配额）
+### 请求预算（空转短路 / 断点续传）
 
-按请求数计费/限额的后端（坚果云 WebDAV 免费版 600 次/30 分钟、付费版 1500 次/30 分钟，且为**账号级**，与官方客户端共享）下，空转 pass 的开销才是主要成本。引擎因此在两处提前收敛，判据均只比 **hash**（不比 mtime，见下）：
+按请求数计费或限额的后端（坚果云 WebDAV 免费版 600 次/30 分钟、付费版 1500 次/30 分钟，且为**账号级**，与官方客户端共享）下，空转 pass 与失败重试的开销才是主要成本。引擎因此在三处收敛，判据均只比 **hash**（不比 mtime，见下）：
 
 - **已是最新**：GET HEAD 后，若 `HEAD.version == state.lastVersion`、本地扫描与 base 内容一致、且 `base.scope == cfg.scope` → 直接返回，**整个 pass 只有 1 次请求**（原先约 11 次：vault.json/HEAD/manifest 三个 GET + 每次上传前的 MKCOL 链 + blob/manifest/HEAD 三个 PUT）。此路径同时跳过 `ensure_remote_identity`——空转 pass 不写远端，无需重新核验身份；任何真正要写的 pass 仍会核验，因此远端 `vault.json` 被外部删除后最迟在下一次有改动的 pass 补回。要求 `lastSyncAt` 非空（有同步历史），首次 pass 必须走完整握手。
 - **无需发布**：合并应用完成后，若 `merged` 与**未过滤的**远端 manifest 内容一致 → 把它连同当前 version 写回本地 base/state 后返回，不发布新 manifest、不推进 HEAD。比 mtime 会误判：每次下载都以新的本地 mtime 落盘，而 `merge` 在双侧 hash 相同时采纳本地条目，于是每台设备都把自己的 mtime 重新发布一遍——两台设备会**永久互相推进 HEAD**，即使无人编辑。空转短路依赖 HEAD 版本稳定，所以这一条是它能在多设备下真正生效的前提。比对用未过滤的远端清单，是为了让「对某分类失明」的设备也能区分「无可补充」与「发布端看不见我的文件」（后者仍需发布）。
+- **断点续传**：上传循环跳过 `.agentero/sync/pushed.jsonl`（`local.rs`）已记录的 hash。pass 在上传途中失败（限流、退出、断网）时 HEAD 未推进，远端 manifest 仍描述旧状态，下一趟会算出**完全相同**的上传清单——没有这份日志就会把已落地的 blob 全部重传，在忽略 `If-None-Match` 的坚果云上是全额字节重传。日志**逐条追加**（一行一个 sha256），因此进程被杀或 task 被 abort 最多丢最后一条；发布成功（或走「无需发布」）即删除——此后远端 manifest 就是权威。首行以 `#<store id>` 钉住远端 store：`store_id = sha256(cfg.remote_identity())`（后端 + 地址/bucket/prefix + 账号名，**不含密钥**，故可落在 Vault 内），换 store 后旧记录一律失效，否则会发布出引用不存在 blob 的 manifest。顺带也去重了同一 pass 内内容相同的多个路径。
 
-`MemStore`（`engine.rs` 测试内的内存 `RemoteStore`，带请求计数）覆盖这两条：`idle_pass_costs_one_request`、`idle_devices_do_not_ping_pong_head`（含「真实改动仍会发布并被对端拉取」）。
+`MemStore`（`engine.rs` 测试内的内存 `RemoteStore`，带请求计数与可注入的 PUT 配额）覆盖这三条：`idle_pass_costs_one_request`、`idle_devices_do_not_ping_pong_head`（含「真实改动仍会发布并被对端拉取」）、`interrupted_upload_resumes_without_resending`；日志本身的追加/去重/换 store 失效在 `local.rs` 测试内。
 
 合并规则：单侧改动直接采纳；双侧同改 `*.md` 保留 mtime 较新者、较旧者存为 `<name> (conflict <时间).md`；其余文件（sidecar/marks/二进制）按 mtime LWW；删除 vs 修改保留修改。
 
