@@ -8,8 +8,13 @@
 //! 3. **Bare directory argv** — OS shell integrations (Finder Quick Action,
 //!    Explorer context menu) pass the folder path directly
 //!
+//! The same request-file / `agentero://ui` deep-link plumbing also carries
+//! generic workspace **UI actions** (`open-paper` / `open-path` / `open-window`
+//! / `close-path`) as [`UiRequestPayload`] — the CLI-side of Herdr-like window
+//! management.
+//!
 //! The desktop Host (`agentero_lib::features::open_request`) adds the Tauri
-//! side: fs-scope extension, pending-path caching, event emit, and window
+//! side: fs-scope extension, pending-request caching, event emit, and window
 //! focus on top of these pure parsing/validation/request-file helpers.
 
 use crate::error::AppError;
@@ -21,12 +26,18 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use url::Url;
 
 pub const EVENT_VAULT_OPEN_REQUEST: &str = "vault:open-request";
-pub const EVENT_PAPER_OPEN_REQUEST: &str = "paper:open-request";
+/// Generic workspace UI action request (open paper / path / window, close path).
+pub const EVENT_UI_REQUEST: &str = "ui:request";
+
+pub const UI_ACTION_OPEN_PAPER: &str = "open-paper";
+pub const UI_ACTION_OPEN_PATH: &str = "open-path";
+pub const UI_ACTION_OPEN_WINDOW: &str = "open-window";
+pub const UI_ACTION_CLOSE_PATH: &str = "close-path";
 
 /// Written by headless CLI; consumed by the running desktop Host.
 const CLI_OPEN_REQUEST_FILE: &str = "cli-open-request.json";
-/// Paper variant of the CLI request file (`agentero paper open <ref>`).
-const CLI_PAPER_OPEN_REQUEST_FILE: &str = "cli-paper-open-request.json";
+/// CLI UI-action request file (`agentero paper open` / `agentero ui …`).
+const CLI_UI_REQUEST_FILE: &str = "cli-ui-request.json";
 /// Ignore stale requests older than this (seconds).
 const CLI_OPEN_REQUEST_MAX_AGE_SECS: u64 = 120;
 
@@ -62,43 +73,141 @@ pub struct VaultOpenPayload {
     pub path: String,
 }
 
-/// Last validated paper-open request waiting for the frontend to consume.
+/// Last validated UI request waiting for the frontend to consume.
 #[derive(Default)]
-pub struct PendingPaperOpen {
-    pending: Mutex<Option<PaperOpenPayload>>,
+pub struct PendingUiRequest {
+    pending: Mutex<Option<UiRequestPayload>>,
 }
 
-impl PendingPaperOpen {
+impl PendingUiRequest {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn set(&self, payload: PaperOpenPayload) {
+    pub fn set(&self, payload: UiRequestPayload) {
         if let Ok(mut guard) = self.pending.lock() {
             *guard = Some(payload);
         }
     }
 
-    pub fn take(&self) -> Option<PaperOpenPayload> {
+    pub fn take(&self) -> Option<UiRequestPayload> {
         self.pending.lock().ok().and_then(|mut g| g.take())
     }
 }
 
-/// Request to open one paper (`papers/…`) in the desktop App.
+/// One workspace UI action for the desktop App, dispatched by `action`.
 ///
-/// `vault_path` is the absolute Vault root; `paper_path` is the Vault-relative
-/// paper folder (always `/`-separated). Together they address a Dockview panel
-/// without the Host needing to know the frontend's tab registry.
+/// `vault_path` is the absolute Vault root and `path` is the Vault-relative
+/// target (paper folder, note, file). `window` selects a native child window.
+/// Together these address a Dockview panel or window without the Host needing
+/// to know the frontend's tab registry.
 #[derive(specta::Type, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PaperOpenPayload {
-    pub vault_path: String,
-    pub paper_path: String,
+pub struct UiRequestPayload {
+    /// `open-paper` | `open-path` | `open-window` | `close-path`.
+    pub action: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vault_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
 }
 
-/// Parse `agentero://paper?vault=<abs>&path=<vault-relative>`.
-pub fn parse_paper_open_url(raw: &str) -> Result<(PathBuf, String), AppError> {
-    let url = Url::parse(raw).map_err(|e| AppError::message(format!("invalid open URL: {e}")))?;
+impl UiRequestPayload {
+    pub fn open_paper(vault_path: String, path: String) -> Self {
+        Self::with_path(UI_ACTION_OPEN_PAPER, vault_path, path)
+    }
+
+    pub fn open_path(vault_path: String, path: String) -> Self {
+        Self::with_path(UI_ACTION_OPEN_PATH, vault_path, path)
+    }
+
+    pub fn close_path(vault_path: String, path: String) -> Self {
+        Self::with_path(UI_ACTION_CLOSE_PATH, vault_path, path)
+    }
+
+    pub fn open_window(window: String, section: Option<String>) -> Self {
+        Self {
+            action: UI_ACTION_OPEN_WINDOW.into(),
+            vault_path: None,
+            path: None,
+            window: Some(window),
+            section,
+        }
+    }
+
+    fn with_path(action: &str, vault_path: String, path: String) -> Self {
+        Self {
+            action: action.into(),
+            vault_path: Some(vault_path),
+            path: Some(path),
+            window: None,
+            section: None,
+        }
+    }
+}
+
+/// Validate + canonicalize a UI request (absolute Vault dir, Vault-relative path).
+pub fn validate_ui_request(mut req: UiRequestPayload) -> Result<UiRequestPayload, AppError> {
+    match req.action.as_str() {
+        UI_ACTION_OPEN_PAPER | UI_ACTION_OPEN_PATH | UI_ACTION_CLOSE_PATH => {
+            let vault = req
+                .vault_path
+                .take()
+                .ok_or_else(|| AppError::message("vault path is required"))?;
+            let canonical = validate_open_dir(Path::new(&vault))?;
+            let path = normalize_vault_rel(req.path.as_deref().unwrap_or(""))?;
+            req.vault_path = Some(canonical.to_string_lossy().into_owned());
+            req.path = Some(path);
+            Ok(req)
+        }
+        UI_ACTION_OPEN_WINDOW => {
+            let window = req
+                .window
+                .take()
+                .map(|w| w.trim().to_string())
+                .filter(|w| !w.is_empty())
+                .ok_or_else(|| AppError::message("window is required"))?;
+            req.window = Some(window);
+            req.section = req
+                .section
+                .take()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty());
+            Ok(req)
+        }
+        other => Err(AppError::message(format!("unsupported ui action: {other}"))),
+    }
+}
+
+/// Build the `agentero://ui?action=…` deep link for a UI request.
+pub fn ui_deep_link_url(req: &UiRequestPayload) -> String {
+    let mut url = Url::parse("agentero://ui").expect("static ui url");
+    {
+        let mut q = url.query_pairs_mut();
+        q.append_pair("action", &req.action);
+        if let Some(v) = req.vault_path.as_deref() {
+            q.append_pair("vault", v);
+        }
+        if let Some(v) = req.path.as_deref() {
+            q.append_pair("path", v);
+        }
+        if let Some(v) = req.window.as_deref() {
+            q.append_pair("window", v);
+        }
+        if let Some(v) = req.section.as_deref() {
+            q.append_pair("section", v);
+        }
+    }
+    url.to_string()
+}
+
+/// Parse `agentero://ui?action=…` into a validated [`UiRequestPayload`].
+pub fn parse_ui_url(raw: &str) -> Result<UiRequestPayload, AppError> {
+    let url = Url::parse(raw).map_err(|e| AppError::message(format!("invalid ui URL: {e}")))?;
     if url.scheme() != "agentero" {
         return Err(AppError::message(format!(
             "unsupported URL scheme: {}",
@@ -107,8 +216,7 @@ pub fn parse_paper_open_url(raw: &str) -> Result<(PathBuf, String), AppError> {
     }
     let host = url.host_str().unwrap_or("");
     let path_seg = url.path().trim_matches('/');
-    let is_paper = host.eq_ignore_ascii_case("paper") || path_seg.eq_ignore_ascii_case("paper");
-    if !is_paper {
+    if !(host.eq_ignore_ascii_case("ui") || path_seg.eq_ignore_ascii_case("ui")) {
         return Err(AppError::message(format!(
             "unsupported agentero URL action: {}",
             if host.is_empty() { path_seg } else { host }
@@ -120,21 +228,27 @@ pub fn parse_paper_open_url(raw: &str) -> Result<(PathBuf, String), AppError> {
             .map(|(_, v)| v.into_owned())
             .filter(|s| !s.trim().is_empty())
     };
-    let vault = param("vault").ok_or_else(|| AppError::message("open URL missing vault query"))?;
-    let paper = param("path").ok_or_else(|| AppError::message("open URL missing path query"))?;
-    Ok((PathBuf::from(vault), paper))
+    let action = param("action").ok_or_else(|| AppError::message("ui URL missing action query"))?;
+    // Structural parse only; `handle_ui_request` validates (and surfaces errors).
+    Ok(UiRequestPayload {
+        action,
+        vault_path: param("vault"),
+        path: param("path"),
+        window: param("window"),
+        section: param("section"),
+    })
 }
 
-/// Normalize a Vault-relative paper folder, rejecting absolute paths and any
-/// `..` escape. Returns `/`-separated segments joined without a leading slash.
-pub fn normalize_paper_rel(paper_rel: &str) -> Result<String, AppError> {
-    let raw = paper_rel.trim().replace('\\', "/");
+/// Normalize a Vault-relative path, rejecting absolute paths and any `..`
+/// escape. Returns `/`-separated segments joined without a leading slash.
+pub fn normalize_vault_rel(rel: &str) -> Result<String, AppError> {
+    let raw = rel.trim().replace('\\', "/");
     if raw.trim_matches('/').is_empty() {
-        return Err(AppError::message("paper path is required"));
+        return Err(AppError::message("vault-relative path is required"));
     }
     if Path::new(&raw).is_absolute() {
         return Err(AppError::message(format!(
-            "paper path must be vault-relative: {paper_rel}"
+            "path must be vault-relative: {rel}"
         )));
     }
     let trimmed = raw.trim_matches('/');
@@ -142,14 +256,12 @@ pub fn normalize_paper_rel(paper_rel: &str) -> Result<String, AppError> {
     for seg in trimmed.split('/') {
         match seg {
             "" | "." => continue,
-            ".." => {
-                return Err(AppError::message("paper path must not escape the vault"));
-            }
+            ".." => return Err(AppError::message("path must not escape the vault")),
             other => parts.push(other),
         }
     }
     if parts.is_empty() {
-        return Err(AppError::message("paper path is required"));
+        return Err(AppError::message("vault-relative path is required"));
     }
     Ok(parts.join("/"))
 }
@@ -301,50 +413,59 @@ pub fn take_cli_open_request_file() -> Option<PathBuf> {
     }
 }
 
-// --- CLI ↔ Host request file: paper variant --------------------------------
+// --- CLI ↔ Host request file: UI actions -----------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct CliPaperOpenRequestFile {
-    vault_path: String,
-    paper_path: String,
+struct CliUiRequestFile {
+    action: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    vault_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    window: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    section: Option<String>,
     /// Unix epoch seconds when the CLI wrote the request.
     ts: u64,
 }
 
-/// Absolute path of the CLI paper open-request file.
-pub fn cli_paper_open_request_path() -> PathBuf {
-    agentero_config_dir().join(CLI_PAPER_OPEN_REQUEST_FILE)
+/// Absolute path of the CLI UI-action request file.
+pub fn cli_ui_request_path() -> PathBuf {
+    agentero_config_dir().join(CLI_UI_REQUEST_FILE)
 }
 
-/// CLI (and tests): ask any running desktop Host to open `paper_rel` in `vault`.
-pub fn write_cli_paper_open_request(vault: &Path, paper_rel: &str) -> Result<PathBuf, AppError> {
-    let canonical = validate_open_dir(vault)?;
-    let paper = normalize_paper_rel(paper_rel)?;
+/// CLI (and tests): ask any running desktop Host to run a workspace UI action.
+pub fn write_cli_ui_request(req: &UiRequestPayload) -> Result<PathBuf, AppError> {
+    let validated = validate_ui_request(req.clone())?;
     let dir = agentero_config_dir();
     std::fs::create_dir_all(&dir)?;
-    let file = cli_paper_open_request_path();
+    let file = cli_ui_request_path();
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    let body = CliPaperOpenRequestFile {
-        vault_path: canonical.to_string_lossy().into_owned(),
-        paper_path: paper,
+    let body = CliUiRequestFile {
+        action: validated.action,
+        vault_path: validated.vault_path,
+        path: validated.path,
+        window: validated.window,
+        section: validated.section,
         ts,
     };
     let json = serde_json::to_string_pretty(&body)
-        .map_err(|e| AppError::message(format!("serialize paper open request: {e}")))?;
+        .map_err(|e| AppError::message(format!("serialize ui request: {e}")))?;
     crate::fs::atomic_write(&file, json.as_bytes())?;
     Ok(file)
 }
 
-/// Read + delete a fresh CLI paper open request, if any.
-pub fn take_cli_paper_open_request_file() -> Option<PaperOpenPayload> {
-    let file = cli_paper_open_request_path();
+/// Read + delete a fresh CLI UI action request, if any.
+pub fn take_cli_ui_request_file() -> Option<UiRequestPayload> {
+    let file = cli_ui_request_path();
     let raw = std::fs::read_to_string(&file).ok()?;
     let _ = std::fs::remove_file(&file);
-    let req: CliPaperOpenRequestFile = serde_json::from_str(&raw).ok()?;
+    let req: CliUiRequestFile = serde_json::from_str(&raw).ok()?;
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -352,20 +473,19 @@ pub fn take_cli_paper_open_request_file() -> Option<PaperOpenPayload> {
     if now.saturating_sub(req.ts) > CLI_OPEN_REQUEST_MAX_AGE_SECS {
         log::info!(
             target: "agentero::op",
-            "ignore stale cli paper open request age_s={}",
+            "ignore stale cli ui request age_s={}",
             now.saturating_sub(req.ts)
         );
         return None;
     }
-    let vault = PathBuf::from(&req.vault_path);
-    if !(vault.is_absolute() && vault.is_dir()) {
-        return None;
-    }
-    let paper_path = normalize_paper_rel(&req.paper_path).ok()?;
-    Some(PaperOpenPayload {
-        vault_path: vault.to_string_lossy().into_owned(),
-        paper_path,
+    validate_ui_request(UiRequestPayload {
+        action: req.action,
+        vault_path: req.vault_path,
+        path: req.path,
+        window: req.window,
+        section: req.section,
     })
+    .ok()
 }
 
 #[cfg(test)]
@@ -404,40 +524,69 @@ mod tests {
     }
 
     #[test]
-    fn parses_paper_open_url() {
-        let (vault, paper) =
-            parse_paper_open_url("agentero://paper?vault=%2Ftmp%2Fvault&path=papers%2Fdemo")
-                .unwrap();
-        assert_eq!(vault, PathBuf::from("/tmp/vault"));
-        assert_eq!(paper, "papers/demo");
+    fn ui_deep_link_roundtrips_open_paper() {
+        let dir = test_dir("ui-paper");
+        let req = UiRequestPayload::open_paper(
+            dir.to_string_lossy().into_owned(),
+            "papers/demo".to_string(),
+        );
+        let validated = validate_ui_request(req).unwrap();
+        let url = ui_deep_link_url(&validated);
+        assert!(url.starts_with("agentero://ui?action=open-paper"));
+        assert_eq!(parse_ui_url(&url).unwrap(), validated);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn paper_open_url_requires_vault_and_path() {
-        assert!(parse_paper_open_url("agentero://paper?path=papers/demo").is_err());
-        assert!(parse_paper_open_url("agentero://paper?vault=/tmp/vault").is_err());
+    fn ui_deep_link_roundtrips_open_window() {
+        let req = UiRequestPayload::open_window("agent".to_string(), Some("translate".into()));
+        let validated = validate_ui_request(req).unwrap();
+        let url = ui_deep_link_url(&validated);
+        let parsed = parse_ui_url(&url).unwrap();
+        assert_eq!(parsed, validated);
+        assert_eq!(parsed.window.as_deref(), Some("agent"));
+        assert_eq!(parsed.section.as_deref(), Some("translate"));
     }
 
     #[test]
-    fn paper_open_url_rejects_other_action() {
-        assert!(parse_paper_open_url("agentero://open?path=%2Ftmp%2Fvault").is_err());
+    fn ui_url_requires_action() {
+        assert!(parse_ui_url("agentero://ui?vault=/tmp/vault&path=papers/demo").is_err());
     }
 
     #[test]
-    fn normalize_paper_rel_rejects_escape_and_absolute() {
-        assert!(normalize_paper_rel("../etc").is_err());
-        assert!(normalize_paper_rel("papers/../../etc").is_err());
-        assert!(normalize_paper_rel("/abs/paper").is_err());
-        assert!(normalize_paper_rel("   ").is_err());
+    fn ui_url_rejects_other_action() {
+        assert!(parse_ui_url("agentero://open?path=%2Ftmp%2Fvault").is_err());
     }
 
     #[test]
-    fn normalize_paper_rel_collapses_separators() {
+    fn ui_open_path_requires_existing_absolute_vault() {
+        assert!(validate_ui_request(UiRequestPayload::open_path(
+            "relative".into(),
+            "notes/a.md".into()
+        ))
+        .is_err());
+        assert!(validate_ui_request(UiRequestPayload::open_path(
+            "/no/such/agentero/vault".into(),
+            "notes/a.md".into()
+        ))
+        .is_err());
+    }
+
+    #[test]
+    fn normalize_vault_rel_rejects_escape_and_absolute() {
+        assert!(normalize_vault_rel("../etc").is_err());
+        assert!(normalize_vault_rel("papers/../../etc").is_err());
+        assert!(normalize_vault_rel("/abs/paper").is_err());
+        assert!(normalize_vault_rel("   ").is_err());
+    }
+
+    #[test]
+    fn normalize_vault_rel_collapses_separators() {
         assert_eq!(
-            normalize_paper_rel("papers\\\\demo\\").unwrap(),
+            normalize_vault_rel("papers\\\\demo\\").unwrap(),
             "papers/demo"
         );
-        assert_eq!(normalize_paper_rel("./papers/demo").unwrap(), "papers/demo");
+        assert_eq!(normalize_vault_rel("./papers/demo").unwrap(), "papers/demo");
     }
 
     #[test]

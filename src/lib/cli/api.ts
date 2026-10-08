@@ -3,7 +3,7 @@
  * Install may use a local/dev binary or download the same app version from GitHub Releases.
  */
 
-import { commands, type PaperOpenPayload } from "@/lib/core/bindings";
+import { commands, type UiRequestPayload } from "@/lib/core/bindings";
 import { callApi } from "@/lib/core/ipc";
 import { logger } from "@/lib/core/logger";
 import { isTauri } from "@/lib/core/tauri";
@@ -134,10 +134,10 @@ export async function takePendingVaultOpen(): Promise<string | null> {
 	return res.data ?? null;
 }
 
-/** Consume a Host-queued paper-open request from a cold start (null if none). */
-export async function takePendingPaperOpen(): Promise<PaperOpenPayload | null> {
+/** Consume a Host-queued workspace UI request from a cold start (null if none). */
+export async function takePendingUiRequest(): Promise<UiRequestPayload | null> {
 	if (!isTauri()) return null;
-	const res = await commands.paperOpenTakePending();
+	const res = await commands.uiRequestTakePending();
 	if (!res.ok) return null;
 	return res.data ?? null;
 }

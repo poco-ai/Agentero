@@ -25,6 +25,7 @@ Headless Vault / Catalog / Wiki 接口；**不含** BYOA / paper-reader。
 | `doctor` | Vault 结构与 Catalog 诊断；含 wikilink 检查与 aliases / 视觉批注 / catalog 去重修复 |
 | `layout` | 侧栏同构版面索引：`list` / `get`（figure / table / algorithm / formula / section） |
 | `mark` | 阅读标注：`list` / `get` / `add`（`--quote` 文字锚点或 `--region` 区域锚点）/ `update` / `delete` |
+| `ui` | 桌面工作区/窗口操作：`open`（打开或聚焦文档/文件夹/论文）/ `close`（关闭面板）/ `window`（聚焦原生子窗口）；均走 `agentero://ui` 深链 + 请求文件 |
 | `translate` | 免费机器翻译纯文本（无需 API Key，不读桌面 settings） |
 
 稳定 `--json` 输出，供脚本与外部 Agent 组合。JSON 默认 **compact 单行**（省 token），`--pretty` 恢复缩进美化（[#367](https://github.com/poco-ai/Agentero/issues/367)）。
@@ -249,7 +250,9 @@ agentero paper move papers/inbox/demo papers/new-shelf
 agentero paper move /path/to/src-vault/papers/inbox/demo /path/to/dst-vault/papers/archive
 ```
 
-### 从命令行打开桌面 App
+### 从命令行打开桌面 App / 工作区
+
+打开整个 Vault：
 
 ```bash
 agentero open ~/research
@@ -259,14 +262,33 @@ agentero .             # 当前目录
 
 CLI 通过 `agentero://open?path=…` 深链唤起已安装的桌面 App；无参数时仍打印 help，不会隐式打开最近 Vault。
 
-打开**某篇论文**（而不是整个 Vault）：
+#### 工作区操作（`ui`）
+
+`agentero ui` 是 Herdr 式的「窗口管理」面：操作正在运行的桌面工作区，而不是文件系统。所有动作都走同一条投递链——写 `cli-ui-request.json`（Host 每 ~400ms 轮询）→ single-instance socket → `agentero://ui?action=…` 深链 → 必要时拉起 GUI；Host 校验后发 `ui:request` 事件，前端在需要时先切换 Vault，再调用与 UI 相同的打开/关闭原语。
+
+```bash
+# 打开或聚焦一个 vault-relative 文档 / 文件夹 / 论文（已开则聚焦同一 tab）
+agentero ui open notes/idea.md --json
+agentero ui open papers/demo --json
+
+# 关闭某个路径对应的工作区面板（论文会连同 NOTES 一起关）
+agentero ui close papers/demo --json
+
+# 打开或聚焦原生子窗口：settings / agent / annotations
+agentero ui window agent --json
+agentero ui window settings --section layout --json
+```
+
+打开**某篇论文**（`ui open` 的论文语义快捷方式）：
 
 ```bash
 agentero paper open 1706.03762 --json
 agentero paper open papers/nlp/attention --json
 ```
 
-`paper open` 先按优先 path、其次 id 解析论文（与 `paper get` 同一 ref 规则，多 shelf 同 id 时返回 `paper_ambiguous`），再走与 `open` 相同的投递链：写 `cli-paper-open-request.json`（Host 每 ~400ms 轮询）→ single-instance socket → `agentero://paper?vault=…&path=…` 深链 → 必要时拉起 GUI。Host 校验 Vault 目录与 vault-relative 论文路径后发 `paper:open-request` 事件，前端在需要时先切换 Vault，再在 Dockview 工作区打开该论文。`AGENTERO_OPEN_DRY_RUN=1` 只解析并打印 `vaultPath` / `paperPath` / `url`，不触达桌面 App。
+`paper open` 先按优先 path、其次 id 解析论文（与 `paper get` 同一 ref 规则，多 shelf 同 id 时返回 `paper_ambiguous`），再投递 `open-paper` 动作。`AGENTERO_OPEN_DRY_RUN=1` 只校验并打印 `action` / `path` / `window` / `url`，不触达桌面 App（仍会校验路径与窗口名）。
+
+> `ui open/close` 的 path 是 **vault-relative**（与 `openVaultRel` 一致），Vault 由 `--vault` / `AGENTERO_VAULT` / 目录上溯 / 默认 Vault 解析；`ui window` 不需要 Vault。
 
 ### 系统外壳集成（右键「用 Agentero 打开」）
 

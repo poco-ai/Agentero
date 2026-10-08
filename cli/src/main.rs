@@ -216,6 +216,11 @@ enum Commands {
         #[command(subcommand)]
         cmd: commands::mark::MarkCmd,
     },
+    /// Workspace / window management in the desktop App (open/focus/close).
+    Ui {
+        #[command(subcommand)]
+        cmd: commands::ui::UiCmd,
+    },
     /// Translate text with free machine translation (no API key).
     Translate {
         /// Text to translate.
@@ -376,6 +381,7 @@ fn command_label(cmd: &Commands) -> &'static str {
         Commands::Doctor { .. } => "cli.doctor",
         Commands::Layout { .. } => "cli.layout",
         Commands::Mark { .. } => "cli.mark",
+        Commands::Ui { .. } => "cli.ui",
         Commands::Translate { .. } => "cli.translate",
         Commands::Open { .. } => "cli.open",
     }
@@ -409,6 +415,7 @@ async fn run(command: Commands, globals: &GlobalOpts) -> Result<serde_json::Valu
         Commands::Doctor { cmd } => commands::doctor::run(cmd, globals),
         Commands::Layout { cmd } => commands::layout::run(cmd, globals),
         Commands::Mark { cmd } => commands::mark::run(cmd, globals).await,
+        Commands::Ui { cmd } => commands::ui::run(cmd, globals),
         Commands::Translate {
             text,
             to,

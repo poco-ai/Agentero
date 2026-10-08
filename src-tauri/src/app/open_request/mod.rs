@@ -52,42 +52,60 @@ pub fn handle_open_path<R: Runtime>(app: &AppHandle<R>, path: &Path) -> Result<S
     Ok(path_str)
 }
 
-/// Validate a paper request, allow fs scope, store pending, emit + focus.
+/// Validate a workspace UI action, allow fs scope, store pending, emit + focus.
 #[cfg(feature = "desktop")]
-pub fn handle_paper_open_path<R: Runtime>(
+pub fn handle_ui_request<R: Runtime>(
     app: &AppHandle<R>,
-    vault: &Path,
-    paper_rel: &str,
-) -> Result<PaperOpenPayload, AppError> {
-    let canonical = validate_open_dir(vault)?;
-    let paper_path = normalize_paper_rel(paper_rel)?;
-    let vault_path = canonical.to_string_lossy().to_string();
+    req: UiRequestPayload,
+) -> Result<UiRequestPayload, AppError> {
+    let payload = validate_ui_request(req)?;
 
-    if let Err(e) = app.fs_scope().allow_directory(&canonical, true) {
-        log::warn!(
-            target: "agentero::op",
-            "paper open allow_directory failed vault={} error={e}",
-            trunc(&vault_path)
-        );
+    if payload.action == UI_ACTION_OPEN_WINDOW {
+        let window = payload.window.as_deref().unwrap_or("");
+        if !crate::app::window::commands::is_known_window(window) {
+            return Err(AppError::message(format!("unknown window: {window}")));
+        }
+    } else if let Some(vault) = payload.vault_path.as_deref() {
+        if let Err(e) = app
+            .fs_scope()
+            .allow_directory(std::path::Path::new(vault), true)
+        {
+            log::warn!(
+                target: "agentero::op",
+                "ui request allow_directory failed vault={} error={e}",
+                trunc(vault)
+            );
+        }
     }
 
-    let payload = PaperOpenPayload {
-        vault_path: vault_path.clone(),
-        paper_path: paper_path.clone(),
-    };
-    if let Some(state) = app.try_state::<PendingPaperOpen>() {
+    if let Some(state) = app.try_state::<PendingUiRequest>() {
         state.set(payload.clone());
     }
 
-    let _ = app.emit(EVENT_PAPER_OPEN_REQUEST, &payload);
+    let _ = app.emit(EVENT_UI_REQUEST, &payload);
     focus_main_window(app);
     log::info!(
         target: "agentero::op",
-        "op end paper_open_request ok=true vault={} paper={}",
-        trunc(&vault_path),
-        trunc(&paper_path)
+        "op end ui_request ok=true action={} vault={} path={} window={}",
+        payload.action,
+        trunc(payload.vault_path.as_deref().unwrap_or("")),
+        trunc(payload.path.as_deref().unwrap_or("")),
+        trunc(payload.window.as_deref().unwrap_or(""))
     );
     Ok(payload)
+}
+
+/// Stable dedupe key for a UI request (watcher double-write guard).
+#[cfg(feature = "desktop")]
+fn ui_request_key(req: &UiRequestPayload) -> String {
+    format!(
+        "{}|{}|{}|{}|{}",
+        req.action,
+        req.vault_path.as_deref().unwrap_or(""),
+        req.path.as_deref().unwrap_or(""),
+        req.window.as_deref().unwrap_or(""),
+        req.section.as_deref().unwrap_or("")
+    )
 }
 
 /// Emit the shared `vault:open-error` toast payload.
@@ -107,12 +125,12 @@ pub fn handle_deep_link_urls<R: Runtime>(app: &AppHandle<R>, urls: &[String]) {
             // Mobile pairing — leave to the mobile UI / other handlers.
             continue;
         }
-        // `agentero://paper?vault=…&path=…` — open one paper.
-        if let Ok((vault, paper)) = parse_paper_open_url(raw) {
-            if let Err(e) = handle_paper_open_path(app, &vault, &paper) {
+        // `agentero://ui?action=…` — workspace UI action (open paper/path/window).
+        if let Ok(req) = parse_ui_url(raw) {
+            if let Err(e) = handle_ui_request(app, req) {
                 log::warn!(
                     target: "agentero::op",
-                    "op end paper_open_request ok=false url={} error={e}",
+                    "op end ui_request ok=false url={} error={e}",
                     trunc(raw)
                 );
                 emit_open_error(app, &e.to_string());
@@ -201,7 +219,7 @@ fn trunc(s: &str) -> String {
 pub fn spawn_cli_open_request_watcher<R: Runtime>(app: AppHandle<R>) {
     tauri::async_runtime::spawn(async move {
         let mut last_handled: Option<String> = None;
-        let mut last_paper: Option<String> = None;
+        let mut last_ui: Option<String> = None;
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(400)).await;
             if let Some(path) = take_cli_open_request_file() {
@@ -222,21 +240,17 @@ pub fn spawn_cli_open_request_watcher<R: Runtime>(app: AppHandle<R>) {
                     }
                 }
             }
-            if let Some(payload) = take_cli_paper_open_request_file() {
-                let key = format!("{}::{}", payload.vault_path, payload.paper_path);
-                if last_paper.as_deref() != Some(key.as_str()) {
-                    match handle_paper_open_path(
-                        &app,
-                        Path::new(&payload.vault_path),
-                        &payload.paper_path,
-                    ) {
+            if let Some(req) = take_cli_ui_request_file() {
+                let key = ui_request_key(&req);
+                if last_ui.as_deref() != Some(key.as_str()) {
+                    match handle_ui_request(&app, req) {
                         Ok(p) => {
-                            last_paper = Some(format!("{}::{}", p.vault_path, p.paper_path));
+                            last_ui = Some(ui_request_key(&p));
                         }
                         Err(e) => {
                             log::warn!(
                                 target: "agentero::op",
-                                "cli paper open request file failed key={} error={e}",
+                                "cli ui request file failed key={} error={e}",
                                 trunc(&key)
                             );
                             emit_open_error(&app, &e.to_string());

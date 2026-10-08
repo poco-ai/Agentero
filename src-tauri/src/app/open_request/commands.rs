@@ -1,6 +1,6 @@
 use crate::core::error::ApiResult;
 
-use super::{PaperOpenPayload, PendingPaperOpen, PendingVaultOpen};
+use super::{PendingUiRequest, PendingVaultOpen, UiRequestPayload};
 
 /// Take the pending open path (startup race: frontend ready after Host queued).
 #[tauri::command]
@@ -11,11 +11,11 @@ pub fn vault_open_take_pending(
     ApiResult::ok(state.take())
 }
 
-/// Take the pending paper-open request (startup race for `paper:open-request`).
+/// Take the pending UI action request (startup race for `ui:request`).
 #[tauri::command]
 #[specta::specta]
-pub fn paper_open_take_pending(
-    state: tauri::State<'_, PendingPaperOpen>,
-) -> ApiResult<Option<PaperOpenPayload>> {
+pub fn ui_request_take_pending(
+    state: tauri::State<'_, PendingUiRequest>,
+) -> ApiResult<Option<UiRequestPayload>> {
     ApiResult::ok(state.take())
 }

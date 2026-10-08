@@ -73,8 +73,8 @@ pub struct MenuInvokedEvent {
 pub struct VaultOpenRequestEvent(pub agentero_core::features::open_request::VaultOpenPayload);
 
 #[derive(specta::Type, tauri_specta::Event)]
-#[tauri_specta(event_name = "paper:open-request")]
-pub struct PaperOpenRequestEvent(pub agentero_core::features::open_request::PaperOpenPayload);
+#[tauri_specta(event_name = "ui:request")]
+pub struct UiRequestEvent(pub agentero_core::features::open_request::UiRequestPayload);
 
 /// Mirror of the inline `json!({ "message": ... })` in `app::open_request`.
 #[derive(specta::Type, tauri_specta::Event)]
@@ -338,8 +338,8 @@ fn event_names_match_emit_literals() {
         agentero_core::features::open_request::EVENT_VAULT_OPEN_REQUEST
     );
     assert_eq!(
-        PaperOpenRequestEvent::NAME,
-        agentero_core::features::open_request::EVENT_PAPER_OPEN_REQUEST
+        UiRequestEvent::NAME,
+        agentero_core::features::open_request::EVENT_UI_REQUEST
     );
     assert_eq!(
         WindowClosedEvent::NAME,
@@ -416,7 +416,7 @@ fn registered_event_names() -> BTreeSet<String> {
         JobFailedEvent::NAME,
         MenuInvokedEvent::NAME,
         VaultOpenRequestEvent::NAME,
-        PaperOpenRequestEvent::NAME,
+        UiRequestEvent::NAME,
         VaultOpenErrorEvent::NAME,
         WindowClosedEvent::NAME,
         VaultFileChangedEvent::NAME,

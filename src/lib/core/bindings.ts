@@ -585,8 +585,8 @@ export const commands = {
 	mcpTunnelStop: () => __TAURI_INVOKE<ApiResult<McpTunnelStatus>>("mcp_tunnel_stop"),
 	/**  Take the pending open path (startup race: frontend ready after Host queued). */
 	vaultOpenTakePending: () => __TAURI_INVOKE<ApiResult<string | null>>("vault_open_take_pending"),
-	/**  Take the pending paper-open request (startup race for `paper:open-request`). */
-	paperOpenTakePending: () => __TAURI_INVOKE<ApiResult<PaperOpenPayload | null>>("paper_open_take_pending"),
+	/**  Take the pending UI action request (startup race for `ui:request`). */
+	uiRequestTakePending: () => __TAURI_INVOKE<ApiResult<UiRequestPayload_Serialize | null>>("ui_request_take_pending"),
 	cliInstallStatus: () => __TAURI_INVOKE<ApiResult<CliInstallStatus>>("cli_install_status"),
 	cliInstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_install_command"),
 	cliUninstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_uninstall_command"),
@@ -685,11 +685,11 @@ export const events = {
 	menuInvoked: makeEvent<MenuInvokedEvent>("menu:invoked"),
 	paperAssetsReady: makeEvent<PaperAssetsReadyEvent>("paper:assets-ready"),
 	paperImported: makeEvent<PaperImportedEvent>("paper:imported"),
-	paperOpenRequest: makeEvent<PaperOpenRequestEvent>("paper:open-request"),
 	paperRenamed: makeEvent<PaperRenamedEventPayload>("paper:renamed"),
 	settingsChanged: makeEvent<SettingsChangedEvent_Deserialize>("settings:changed"),
 	syncProgress: makeEvent<SyncProgressEvent>("sync:progress"),
 	syncState: makeEvent<SyncStateEvent_Deserialize>("sync:state"),
+	uiRequest: makeEvent<UiRequestEvent_Deserialize>("ui:request"),
 	vaultFileChanged: makeEvent<VaultFileChangedEvent_Deserialize>("vault:file-changed"),
 	vaultOpenError: makeEvent<VaultOpenErrorEvent>("vault:open-error"),
 	vaultOpenRequest: makeEvent<VaultOpenRequestEvent>("vault:open-request"),
@@ -3892,20 +3892,6 @@ export type PaperOpenBundle_Serialize = {
 	hasPaperMd: boolean,
 };
 
-/**
- *  Request to open one paper (`papers/…`) in the desktop App.
- * 
- *  `vault_path` is the absolute Vault root; `paper_path` is the Vault-relative
- *  paper folder (always `/`-separated). Together they address a Dockview panel
- *  without the Host needing to know the frontend's tab registry.
- */
-export type PaperOpenPayload = {
-	vaultPath: string,
-	paperPath: string,
-};
-
-export type PaperOpenRequestEvent = PaperOpenPayload;
-
 export type PaperPageCountsArgs = {
 	vaultPath: string,
 };
@@ -5022,6 +5008,56 @@ export type TrashResult = {
 
 export type TrashVaultArgs = {
 	vaultPath: string,
+};
+
+export type UiRequestEvent = UiRequestEvent_Serialize | UiRequestEvent_Deserialize;
+
+export type UiRequestEvent_Deserialize = UiRequestPayload_Deserialize;
+
+export type UiRequestEvent_Serialize = UiRequestPayload_Serialize;
+
+/**
+ *  One workspace UI action for the desktop App, dispatched by `action`.
+ * 
+ *  `vault_path` is the absolute Vault root and `path` is the Vault-relative
+ *  target (paper folder, note, file). `window` selects a native child window.
+ *  Together these address a Dockview panel or window without the Host needing
+ *  to know the frontend's tab registry.
+ */
+export type UiRequestPayload = UiRequestPayload_Serialize | UiRequestPayload_Deserialize;
+
+/**
+ *  One workspace UI action for the desktop App, dispatched by `action`.
+ * 
+ *  `vault_path` is the absolute Vault root and `path` is the Vault-relative
+ *  target (paper folder, note, file). `window` selects a native child window.
+ *  Together these address a Dockview panel or window without the Host needing
+ *  to know the frontend's tab registry.
+ */
+export type UiRequestPayload_Deserialize = {
+	/**  `open-paper` | `open-path` | `open-window` | `close-path`. */
+	action: string,
+	vaultPath?: string | null,
+	path?: string | null,
+	window?: string | null,
+	section?: string | null,
+};
+
+/**
+ *  One workspace UI action for the desktop App, dispatched by `action`.
+ * 
+ *  `vault_path` is the absolute Vault root and `path` is the Vault-relative
+ *  target (paper folder, note, file). `window` selects a native child window.
+ *  Together these address a Dockview panel or window without the Host needing
+ *  to know the frontend's tab registry.
+ */
+export type UiRequestPayload_Serialize = {
+	/**  `open-paper` | `open-path` | `open-window` | `close-path`. */
+	action: string,
+	vaultPath?: string | null,
+	path?: string | null,
+	window?: string | null,
+	section?: string | null,
 };
 
 /**

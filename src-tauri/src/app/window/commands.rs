@@ -173,7 +173,18 @@ pub async fn settings_window_open(
 }
 
 /// Valid right-rail feature views that may open as a singleton native window.
-const FEATURE_VIEWS: &[&str] = &["agent", "backlinks", "annotations", "references", "figures"];
+pub(crate) const FEATURE_VIEWS: &[&str] =
+    &["agent", "backlinks", "annotations", "references", "figures"];
+
+/// Feature views the desktop frontend can actually pop out today (see
+/// `FeatureViewType` in `lib/shell/ui-store`).
+pub(crate) const UI_OPENABLE_FEATURE_VIEWS: &[&str] = &["agent", "annotations"];
+
+/// True for a window id the `ui:request` `open-window` action may target: the
+/// singleton Settings window or an openable right-rail feature window.
+pub(crate) fn is_known_window(view: &str) -> bool {
+    view == "settings" || UI_OPENABLE_FEATURE_VIEWS.contains(&view)
+}
 
 pub fn feature_window_label(view: &str) -> String {
     format!("feature-{view}")

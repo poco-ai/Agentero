@@ -131,7 +131,7 @@ pub fn run() {
         .manage(ExternalRenameRepairStore::new())
         .manage(crate::integration::sync::SyncService::default())
         .manage(crate::app::open_request::PendingVaultOpen::new())
-        .manage(crate::app::open_request::PendingPaperOpen::new());
+        .manage(crate::app::open_request::PendingUiRequest::new());
 
     #[cfg(not(target_os = "ios"))]
     {
@@ -413,12 +413,8 @@ pub fn run() {
             if let Some(path) = crate::app::open_request::take_cli_open_request_file() {
                 let _ = crate::app::open_request::handle_open_path(app.handle(), &path);
             }
-            if let Some(payload) = crate::app::open_request::take_cli_paper_open_request_file() {
-                let _ = crate::app::open_request::handle_paper_open_path(
-                    app.handle(),
-                    std::path::Path::new(&payload.vault_path),
-                    &payload.paper_path,
-                );
+            if let Some(req) = crate::app::open_request::take_cli_ui_request_file() {
+                let _ = crate::app::open_request::handle_ui_request(app.handle(), req);
             }
             crate::app::open_request::spawn_cli_open_request_watcher(app.handle().clone());
             let handle = app.handle().clone();

@@ -126,25 +126,78 @@ pub fn run(path: &Path, globals: &GlobalOpts) -> Result<Value, CliError> {
     }))
 }
 
-/// Build the deep-link URL for `agentero paper open <ref>`.
-pub fn paper_deep_link_url(vault_abs: &Path, paper_rel: &str) -> String {
-    let vault = urlencoding_encode(&vault_abs.to_string_lossy());
-    let paper = urlencoding_encode(paper_rel);
-    format!("agentero://paper?vault={vault}&path={paper}")
-}
-
 /// Ask the running desktop App to open `paper_rel` inside `vault`.
 pub fn open_paper_in_app(
     vault: &Path,
     paper_rel: &str,
     globals: &GlobalOpts,
 ) -> Result<Value, CliError> {
-    let abs = vault.canonicalize().map_err(|e| {
-        CliError::message(format!("failed to resolve vault {}: {e}", vault.display()))
-    })?;
-    let paper = agentero_core::features::open_request::normalize_paper_rel(paper_rel)
+    let abs = canonical_vault(vault)?;
+    let path = normalize_rel(paper_rel)?;
+    deliver_ui_request(
+        agentero_core::features::open_request::UiRequestPayload::open_paper(abs, path),
+        globals,
+    )
+}
+
+/// Ask the App to open (or focus) a Vault-relative document / folder / paper.
+pub fn open_path_in_app(vault: &Path, rel: &str, globals: &GlobalOpts) -> Result<Value, CliError> {
+    let abs = canonical_vault(vault)?;
+    let path = normalize_rel(rel)?;
+    deliver_ui_request(
+        agentero_core::features::open_request::UiRequestPayload::open_path(abs, path),
+        globals,
+    )
+}
+
+/// Ask the App to close the panel(s) for a Vault-relative path.
+pub fn close_path_in_app(vault: &Path, rel: &str, globals: &GlobalOpts) -> Result<Value, CliError> {
+    let abs = canonical_vault(vault)?;
+    let path = normalize_rel(rel)?;
+    deliver_ui_request(
+        agentero_core::features::open_request::UiRequestPayload::close_path(abs, path),
+        globals,
+    )
+}
+
+/// Ask the App to open (or focus) a native child window (`settings` or a
+/// right-rail feature view).
+pub fn open_window_in_app(
+    window: &str,
+    section: Option<String>,
+    globals: &GlobalOpts,
+) -> Result<Value, CliError> {
+    deliver_ui_request(
+        agentero_core::features::open_request::UiRequestPayload::open_window(
+            window.trim().to_string(),
+            section,
+        ),
+        globals,
+    )
+}
+
+fn canonical_vault(vault: &Path) -> Result<String, CliError> {
+    vault
+        .canonicalize()
+        .map(|p| p.to_string_lossy().into_owned())
+        .map_err(|e| CliError::message(format!("failed to resolve vault {}: {e}", vault.display())))
+}
+
+fn normalize_rel(rel: &str) -> Result<String, CliError> {
+    agentero_core::features::open_request::normalize_vault_rel(rel)
+        .map_err(|e| CliError::usage(e.to_string()))
+}
+
+/// Write the CLI UI request file + deliver the `agentero://ui` deep link.
+fn deliver_ui_request(
+    req: agentero_core::features::open_request::UiRequestPayload,
+    globals: &GlobalOpts,
+) -> Result<Value, CliError> {
+    // Validate even for dry-run so bad input fails fast (and the URL/file carry
+    // canonical values).
+    let req = agentero_core::features::open_request::validate_ui_request(req)
         .map_err(|e| CliError::usage(e.to_string()))?;
-    let url = paper_deep_link_url(&abs, &paper);
+    let url = agentero_core::features::open_request::ui_deep_link_url(&req);
     let dry = is_dry_run();
 
     let mut methods: Vec<&'static str> = Vec::new();
@@ -152,14 +205,14 @@ pub fn open_paper_in_app(
     let mut gui_launched: Option<String> = None;
 
     if !dry {
-        match agentero_core::features::open_request::write_cli_paper_open_request(&abs, &paper) {
+        match agentero_core::features::open_request::write_cli_ui_request(&req) {
             Ok(p) => {
                 methods.push("request-file");
                 request_file = Some(p.to_string_lossy().into_owned());
             }
             Err(e) => {
                 return Err(CliError::message(format!(
-                    "failed to write paper open request file: {e}"
+                    "failed to write ui request file: {e}"
                 )));
             }
         }
@@ -170,10 +223,15 @@ pub fn open_paper_in_app(
         methods.push("dry-run");
     }
 
+    let target = req.path.as_deref().or(req.window.as_deref()).unwrap_or("");
+    let styled = globals.style.path(target);
     let method = methods.first().copied().unwrap_or("none");
     Ok(json!({
-        "vaultPath": abs.to_string_lossy(),
-        "paperPath": paper,
+        "action": req.action,
+        "vaultPath": req.vault_path,
+        "path": req.path,
+        "window": req.window,
+        "section": req.section,
         "url": url,
         "method": method,
         "methods": methods,
@@ -181,16 +239,9 @@ pub fn open_paper_in_app(
         "guiLaunched": gui_launched,
         "dryRun": dry,
         "lines": [if dry {
-            format!(
-                "would open {} in desktop",
-                globals.style.path(&paper)
-            )
+            format!("would open {styled} in desktop")
         } else {
-            format!(
-                "opening {} ({})",
-                globals.style.path(&paper),
-                methods.join("+")
-            )
+            format!("opening {styled} ({})", methods.join("+"))
         }],
     }))
 }

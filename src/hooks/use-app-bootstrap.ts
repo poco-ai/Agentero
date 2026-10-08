@@ -8,7 +8,7 @@
 import { useTheme } from "next-themes";
 import { useEffect } from "react";
 import { useSettings, useVaultStore } from "@/hooks/use-app-stores";
-import { usePaperOpenRequest } from "@/hooks/use-paper-open-request";
+import { useUiRequest } from "@/hooks/use-ui-request";
 import { useVaultOpenRequest } from "@/hooks/use-vault-open-request";
 import { applyLocale } from "@/i18n";
 import { startActivityTracking } from "@/lib/activity";
@@ -36,8 +36,8 @@ export function useAppBootstrap(): void {
 	const { setTheme } = useTheme();
 	// CLI / deep-link: agentero open <path> → vault:open-request
 	useVaultOpenRequest();
-	// CLI / deep-link: agentero paper open <ref> → paper:open-request
-	usePaperOpenRequest();
+	// CLI / deep-link: agentero paper open / agentero ui … → ui:request
+	useUiRequest();
 
 	const theme = useSettings((s) => s.theme);
 	const locale = useSettings((s) => s.locale);

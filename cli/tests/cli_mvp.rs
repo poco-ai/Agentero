@@ -1003,11 +1003,12 @@ fn paper_open_dry_run_resolves_ref() {
     let v: Value = serde_json::from_slice(&out).unwrap();
     assert_eq!(v["ok"], true);
     assert_eq!(v["data"]["dryRun"], true);
-    assert_eq!(v["data"]["paperPath"], "papers/demo");
+    assert_eq!(v["data"]["action"], "open-paper");
+    assert_eq!(v["data"]["path"], "papers/demo");
     assert!(v["data"]["url"]
         .as_str()
         .unwrap()
-        .starts_with("agentero://paper?vault="));
+        .starts_with("agentero://ui?action=open-paper"));
 
     agentero()
         .env("AGENTERO_OPEN_DRY_RUN", "1")
@@ -1022,6 +1023,54 @@ fn paper_open_dry_run_resolves_ref() {
         .assert()
         .failure()
         .stdout(predicate::str::contains("paper_not_found"));
+}
+
+#[test]
+fn ui_open_and_window_dry_run() {
+    let tmp = tempdir().unwrap();
+    let vault = tmp.path().join("v");
+    create_vault(&vault);
+    fs::create_dir_all(vault.join("notes")).unwrap();
+    fs::write(vault.join("notes/idea.md"), "# Idea\n").unwrap();
+
+    let out = agentero()
+        .env("AGENTERO_OPEN_DRY_RUN", "1")
+        .args([
+            "--vault",
+            vault.to_str().unwrap(),
+            "ui",
+            "open",
+            "notes/idea.md",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["data"]["action"], "open-path");
+    assert_eq!(v["data"]["path"], "notes/idea.md");
+
+    let out = agentero()
+        .env("AGENTERO_OPEN_DRY_RUN", "1")
+        .args(["ui", "window", "agent", "--json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["data"]["action"], "open-window");
+    assert_eq!(v["data"]["window"], "agent");
+
+    // Unknown window is rejected before touching the App.
+    agentero()
+        .env("AGENTERO_OPEN_DRY_RUN", "1")
+        .args(["ui", "window", "nope", "--json"])
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("unknown window"));
 }
 
 #[test]
