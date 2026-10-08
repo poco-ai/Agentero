@@ -255,6 +255,16 @@
 				"reproduce": "复现",
 				"submit": "投稿"
 			}
+		},
+		"ccfDeadlines": {
+			"label": "CCF 截稿",
+			"refresh": "刷新",
+			"updated": "更新于 {{time}}",
+			"openOfficial": "打开会议官网",
+			"today": "今天",
+			"daysLeft": "{{days}} 天",
+			"empty": "暂无即将到来的截稿日期。",
+			"loadFailed": "加载 CCF 截稿数据失败。"
 		}
 	},
 	"zoteroMigrate": {

@@ -255,6 +255,16 @@
 				"reproduce": "Reproduction",
 				"submit": "Submission"
 			}
+		},
+		"ccfDeadlines": {
+			"label": "CCF Deadlines",
+			"refresh": "Refresh",
+			"updated": "Updated {{time}}",
+			"openOfficial": "Open conference site",
+			"today": "Today",
+			"daysLeft": "{{days}}d",
+			"empty": "No upcoming deadlines.",
+			"loadFailed": "Could not load CCF deadlines."
 		}
 	},
 	"zoteroMigrate": {

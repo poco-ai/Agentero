@@ -55,7 +55,8 @@ Agentero 已是 **local-first 论文工作台**（Library + 文件树 + PDF\|NOT
 3. **Skill 推荐** — 原生面板：按论文阅读 / 写作 / 绘图 / PPT 制作 / 复现 / 投稿精选 GitHub Skill 仓库；点卡片走魔棒 Skill 导入。  
 4. **订阅** — 用户自己的 RSS / Atom / JSON Feed；论文条目入库。见 [`plaza-feeds.md`](plaza-feeds.md)。  
 5. **播客** — 占位，后续。  
-6. **论文推荐** — P0 v0：基于本地库的轻量推荐列表（无云端上传）。
+6. **论文推荐** — P0 v0：基于本地库的轻量推荐列表（无云端上传）。  
+7. **CCF 截稿** — 原生面板：只读上游 [ccf-deadlines](https://github.com/ccfddl/ccf-deadlines) 数据，按截稿时间列出 CCF A/B/C 会议；见 §3.6。
 
 ## 2. 侧栏信息架构
 
@@ -69,7 +70,8 @@ Agentero 已是 **local-first 论文工作台**（Library + 文件树 + PDF\|NOT
 │   ├── ✨ Skill 推荐           agentero:plaza/skills
 │   ├── 📡 订阅                 agentero:plaza/feeds
 │   ├── 🎙️ 播客                 agentero:plaza/podcasts      ← 占位
-│   └── 🔭 arXiv Daily            agentero:plaza/arxiv-rec
+│   ├── 🔭 arXiv Daily            agentero:plaza/arxiv-rec
+│   └── 📅 CCF 截稿               agentero:plaza/ccf-deadlines
 ├── papers/
 ├── notes/
 └── …
@@ -275,6 +277,23 @@ papers.cool 给几乎所有链接都加了 `target="_blank"`（单个分区页�
 - React 重渲染会抹掉注入节点，`MutationObserver` 挂 `document.body` 补回来（debounce 100ms，避免自触发抖动）。
 - 回执按 `data-paper-id` 遍历匹配：arXiv id 带 `.`，不能用 id 选择器。
 
+### 3.6 CCF 截稿（已实现）
+
+**主内容**：原生面板（不 iframe），只读上游 [ccf-deadlines](https://github.com/ccfddl/ccf-deadlines) 发布的数据，**不自建、不存储会议库**。
+
+| 项 | 约定 |
+|---|---|
+| 数据源 | `https://ccfddl.com/conference/initial.json`（上游 CI 每次 push 重建：最新 + 即将到来的 editions，约 176 KB） |
+| 数据语料 | `conferences[].confs[].timeline[]` 的 `deadline`（`TBD` 丢弃）；`rank.ccf` 取 A/B/C/N |
+| 时区 | `confs[].timezone` 标签换算成瞬时（`AoE` = UTC-12，`PT` = UTC-8，`UTC±N`）；未知标签该项排最后且不给倒计时 |
+| 缓存 | `localStorage` 12h TTL；点刷新强制重取；过期 / 错误时保留已显示数据并 `notifyError` |
+| 呈现 | 单列「接下来要投什么」：CCF 徽标 + 会议名与年份 + 会议官网外链 + 原站本地截稿时间与时区标签 + 剩余天数（≤3 天高亮） |
+| 落点 | `src/lib/plaza/ccf-deadlines.ts`（拉取 / 解析 / 缓存）、`src/components/plaza/plaza-ccf-deadlines-view.tsx`（面板） |
+
+**为什么自建 UI 而非内嵌 ccfddl.top**：数据结构稳定（MIT，schema 3.0.x 带版本号）、CORS 全开、解析成本低；内嵌站点是 jQuery 老表格，且整站 `<base target="_blank">`，仍要写代理改写链接，等于付出代理成本却换不来可用 UI。
+
+**不做**：不接上游 MCP、不做批量入库、不做日程提醒，面板只回答「评几级 / 什么时候截止 / 官网在哪」。
+
 ## 4. 与其它模块
 
 | 模块 | 关系 |
@@ -335,6 +354,7 @@ DocTab：`kind: "plaza"`（或 `file` + mode `plaza` + path 虚拟 URI——实�
 | 中间栏 | `src/components/plaza/*` + `doc-view` |
 | 站点内嵌 | `src/components/plaza/plaza-web-frame.tsx`（代理 iframe，两个站点来源共用；没有 Tauri 子 webview 封装） |
 | arXiv Daily | `src-tauri/src/features/recommend/`（管线 + 命令）、`src/lib/recommend/index.ts`、`src/components/plaza/plaza-arxiv-rec-view.tsx`；缓存表见 `catalog/schema.rs` v6 |
+| CCF 截稿 | `src/lib/plaza/ccf-deadlines.ts`、`src/components/plaza/plaza-ccf-deadlines-view.tsx`（只读上游 JSON，无 Host 侧代码） |
 | 订阅 | [`plaza-feeds.md`](plaza-feeds.md) §6 |
 | i18n | `sidebar` / 独立 `plaza` ns |
 | Roadmap / Todo | 增加「广场 P0」条目 |
@@ -358,6 +378,7 @@ DocTab：`kind: "plaza"`（或 `file` + mode `plaza` + path 虚拟 URI——实�
 
 *修订：2026-07-25 — 采纳 WebView、不做入库、P0 含推荐 v0、树位置在 Library/Trash 下。*
 *修订：2026-08-14 — 改为代理协议嵌入；壳 + Cool Papers 浏览 + 单条入库已落地；推荐 / 播客未实现。*
+*修订：2026-10-08 — 新增 CCF 截稿来源：原生面板只读上游 ccf-deadlines 的 `initial.json`，见 §3.6。*
 *修订：2026-08-15 — 新增 ModelScope 论文来源；请求管道抽到 `discovery/proxy/mod.rs` 并转发 method + body。*  
 *修订：2026-08-15 — 订阅列为广场来源，规格拆到 [`plaza-feeds.md`](plaza-feeds.md)。*  
 *修订：2026-08-15 — 订阅 MVP 落地（XDG `feeds.sqlite` + 原生双栏 + 论文入库）。*  

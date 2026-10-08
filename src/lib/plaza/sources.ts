@@ -23,7 +23,8 @@ export type PlazaSourceIcon =
 	| "modelScope"
 	| "sparkles"
 	| "rss"
-	| "telescope";
+	| "telescope"
+	| "calendarClock";
 
 export type PlazaSource = {
 	id: string;
@@ -36,7 +37,7 @@ export type PlazaSource = {
 	 */
 	url: string | null;
 	/** Native plaza panel (not an iframe). */
-	panel?: "skills" | "feeds" | "arxivRec";
+	panel?: "skills" | "feeds" | "arxivRec" | "ccfDeadlines";
 	/**
 	 * Host proxy scheme origin used for embedding. A cross-origin frame cannot
 	 * retarget the site's `target="_blank"` links or report its navigations, so
@@ -105,6 +106,15 @@ export const PLAZA_SOURCES: readonly PlazaSource[] = [
 		panel: "arxivRec",
 		icon: "telescope",
 	},
+	{
+		id: "ccf-deadlines",
+		path: sourcePath("ccf-deadlines"),
+		label: "CCF Deadlines",
+		url: "https://ccfddl.com/",
+		embedOrigin: null,
+		panel: "ccfDeadlines",
+		icon: "calendarClock",
+	},
 ];
 
 /** True for the Plaza parent node and every source under this parent. */
@@ -147,6 +157,8 @@ export function plazaSourceLabel(source: PlazaSource): string {
 			return i18n.t("sidebar:plaza.feeds.label");
 		case "arxiv-rec":
 			return i18n.t("sidebar:plaza.arxivRec.label");
+		case "ccf-deadlines":
+			return i18n.t("sidebar:plaza.ccfDeadlines.label");
 		default:
 			return source.label;
 	}
