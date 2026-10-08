@@ -260,10 +260,13 @@
 			"label": "CCF Deadlines",
 			"refresh": "Refresh",
 			"updated": "Updated {{time}}",
+			"rankAll": "All",
+			"filterLabel": "Filter by CCF rank",
 			"openOfficial": "Open conference site",
 			"today": "Today",
 			"daysLeft": "{{days}}d",
 			"empty": "No upcoming deadlines.",
+			"emptyFiltered": "No deadlines at this rank.",
 			"loadFailed": "Could not load CCF deadlines."
 		}
 	},
