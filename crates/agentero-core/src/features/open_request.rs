@@ -33,6 +33,10 @@ pub const UI_ACTION_OPEN_PAPER: &str = "open-paper";
 pub const UI_ACTION_OPEN_PATH: &str = "open-path";
 pub const UI_ACTION_OPEN_WINDOW: &str = "open-window";
 pub const UI_ACTION_CLOSE_PATH: &str = "close-path";
+pub const UI_ACTION_SPLIT: &str = "split";
+
+/// Dockview split directions accepted by [`UI_ACTION_SPLIT`].
+pub const SPLIT_DIRECTIONS: &[&str] = &["left", "right", "above", "below", "within"];
 
 /// Written by headless CLI; consumed by the running desktop Host.
 const CLI_OPEN_REQUEST_FILE: &str = "cli-open-request.json";
@@ -104,7 +108,7 @@ impl PendingUiRequest {
 #[derive(specta::Type, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UiRequestPayload {
-    /// `open-paper` | `open-path` | `open-window` | `close-path`.
+    /// `open-paper` | `open-path` | `open-window` | `close-path` | `split`.
     pub action: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vault_path: Option<String>,
@@ -114,6 +118,12 @@ pub struct UiRequestPayload {
     pub window: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub section: Option<String>,
+    /// `split` direction (`left` | `right` | `above` | `below` | `within`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub direction: Option<String>,
+    /// `split` reference panel (Vault-relative path).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference: Option<String>,
 }
 
 impl UiRequestPayload {
@@ -136,6 +146,25 @@ impl UiRequestPayload {
             path: None,
             window: Some(window),
             section,
+            direction: None,
+            reference: None,
+        }
+    }
+
+    pub fn split(
+        vault_path: String,
+        path: Option<String>,
+        reference: Option<String>,
+        direction: Option<String>,
+    ) -> Self {
+        Self {
+            action: UI_ACTION_SPLIT.into(),
+            vault_path: Some(vault_path),
+            path,
+            window: None,
+            section: None,
+            direction,
+            reference,
         }
     }
 
@@ -146,6 +175,8 @@ impl UiRequestPayload {
             path: Some(path),
             window: None,
             section: None,
+            direction: None,
+            reference: None,
         }
     }
 }
@@ -179,7 +210,49 @@ pub fn validate_ui_request(mut req: UiRequestPayload) -> Result<UiRequestPayload
                 .filter(|s| !s.is_empty());
             Ok(req)
         }
+        UI_ACTION_SPLIT => {
+            let vault = req
+                .vault_path
+                .take()
+                .ok_or_else(|| AppError::message("vault path is required"))?;
+            let canonical = validate_open_dir(Path::new(&vault))?;
+            req.vault_path = Some(canonical.to_string_lossy().into_owned());
+            req.path = normalize_opt_rel(req.path.take())?;
+            req.reference = normalize_opt_rel(req.reference.take())?;
+            req.direction = Some(match req.direction.take() {
+                Some(d) => {
+                    let d = d.trim().to_ascii_lowercase();
+                    // Accept Herdr-style `up`/`down` as aliases for dockview's
+                    // `above`/`below`, then keep only canonical values.
+                    let canonical = match d.as_str() {
+                        "up" => "above",
+                        "down" => "below",
+                        other => other,
+                    };
+                    if !SPLIT_DIRECTIONS.contains(&canonical) {
+                        return Err(AppError::message(format!(
+                            "unsupported split direction: {d} (expected {})",
+                            SPLIT_DIRECTIONS.join(", ")
+                        )));
+                    }
+                    canonical.to_string()
+                }
+                None => "right".to_string(),
+            });
+            Ok(req)
+        }
         other => Err(AppError::message(format!("unsupported ui action: {other}"))),
+    }
+}
+
+/// Normalize an optional Vault-relative path (`None` when absent/blank).
+fn normalize_opt_rel(value: Option<String>) -> Result<Option<String>, AppError> {
+    match value
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+    {
+        Some(v) => Ok(Some(normalize_vault_rel(&v)?)),
+        None => Ok(None),
     }
 }
 
@@ -200,6 +273,12 @@ pub fn ui_deep_link_url(req: &UiRequestPayload) -> String {
         }
         if let Some(v) = req.section.as_deref() {
             q.append_pair("section", v);
+        }
+        if let Some(v) = req.direction.as_deref() {
+            q.append_pair("direction", v);
+        }
+        if let Some(v) = req.reference.as_deref() {
+            q.append_pair("reference", v);
         }
     }
     url.to_string()
@@ -236,6 +315,8 @@ pub fn parse_ui_url(raw: &str) -> Result<UiRequestPayload, AppError> {
         path: param("path"),
         window: param("window"),
         section: param("section"),
+        direction: param("direction"),
+        reference: param("reference"),
     })
 }
 
@@ -427,6 +508,10 @@ struct CliUiRequestFile {
     window: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     section: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    direction: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reference: Option<String>,
     /// Unix epoch seconds when the CLI wrote the request.
     ts: u64,
 }
@@ -452,6 +537,8 @@ pub fn write_cli_ui_request(req: &UiRequestPayload) -> Result<PathBuf, AppError>
         path: validated.path,
         window: validated.window,
         section: validated.section,
+        direction: validated.direction,
+        reference: validated.reference,
         ts,
     };
     let json = serde_json::to_string_pretty(&body)
@@ -484,6 +571,8 @@ pub fn take_cli_ui_request_file() -> Option<UiRequestPayload> {
         path: req.path,
         window: req.window,
         section: req.section,
+        direction: req.direction,
+        reference: req.reference,
     })
     .ok()
 }
@@ -546,6 +635,52 @@ mod tests {
         assert_eq!(parsed, validated);
         assert_eq!(parsed.window.as_deref(), Some("agent"));
         assert_eq!(parsed.section.as_deref(), Some("translate"));
+    }
+
+    #[test]
+    fn ui_deep_link_roundtrips_split() {
+        let dir = test_dir("ui-split");
+        let req = UiRequestPayload::split(
+            dir.to_string_lossy().into_owned(),
+            Some("papers/demo".into()),
+            Some("papers/other".into()),
+            Some("down".into()),
+        );
+        let validated = validate_ui_request(req).unwrap();
+        let url = ui_deep_link_url(&validated);
+        let parsed = parse_ui_url(&url).unwrap();
+        assert_eq!(parsed.action, UI_ACTION_SPLIT);
+        assert_eq!(parsed.direction.as_deref(), Some("below"));
+        assert_eq!(parsed.path.as_deref(), Some("papers/demo"));
+        assert_eq!(parsed.reference.as_deref(), Some("papers/other"));
+        assert_eq!(
+            validate_ui_request(parse_ui_url(&url).unwrap()).unwrap(),
+            validated
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ui_split_defaults_direction_right_and_rejects_bad() {
+        let dir = test_dir("ui-split-dir");
+        let validated = validate_ui_request(UiRequestPayload::split(
+            dir.to_string_lossy().into_owned(),
+            None,
+            None,
+            None,
+        ))
+        .unwrap();
+        assert_eq!(validated.direction.as_deref(), Some("right"));
+        assert!(validated.path.is_none());
+
+        let bad = UiRequestPayload::split(
+            dir.to_string_lossy().into_owned(),
+            Some("papers/demo".into()),
+            None,
+            Some("sideways".into()),
+        );
+        assert!(validate_ui_request(bad).is_err());
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

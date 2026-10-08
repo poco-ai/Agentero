@@ -1071,6 +1071,63 @@ fn ui_open_and_window_dry_run() {
         .assert()
         .failure()
         .stdout(predicate::str::contains("unknown window"));
+
+    // Split with no path → active pane; direction defaults to right.
+    let out = agentero()
+        .env("AGENTERO_OPEN_DRY_RUN", "1")
+        .args(["--vault", vault.to_str().unwrap(), "ui", "split", "--json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["data"]["action"], "split");
+    assert_eq!(v["data"]["direction"], "right");
+    assert!(v["data"]["path"].is_null());
+
+    // Split a path down beside a reference panel.
+    let out = agentero()
+        .env("AGENTERO_OPEN_DRY_RUN", "1")
+        .args([
+            "--vault",
+            vault.to_str().unwrap(),
+            "ui",
+            "split",
+            "papers/demo",
+            "--direction",
+            "down",
+            "--reference",
+            "papers/other",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let v: Value = serde_json::from_slice(&out).unwrap();
+    assert_eq!(v["data"]["action"], "split");
+    assert_eq!(v["data"]["direction"], "below");
+    assert_eq!(v["data"]["path"], "papers/demo");
+    assert_eq!(v["data"]["reference"], "papers/other");
+
+    // Bad direction is rejected before touching the App.
+    agentero()
+        .env("AGENTERO_OPEN_DRY_RUN", "1")
+        .args([
+            "--vault",
+            vault.to_str().unwrap(),
+            "ui",
+            "split",
+            "papers/demo",
+            "--direction",
+            "sideways",
+            "--json",
+        ])
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("unsupported split direction"));
 }
 
 #[test]

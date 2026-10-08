@@ -29,14 +29,28 @@ pub enum UiCmd {
     },
     /// Open (or focus) a native child window.
     ///
-    /// `view` is `settings` or a right-rail feature: agent / backlinks /
-    /// annotations / references / figures.
+    /// `view` is `settings` or a right-rail feature: agent / annotations.
     Window {
-        /// Window id (`settings`, `agent`, `backlinks`, …).
+        /// Window id (`settings`, `agent`, `annotations`).
         view: String,
         /// Settings section (only meaningful for `settings`).
         #[arg(long = "section")]
         section: Option<String>,
+    },
+    /// Split the workspace: open a path beside a reference panel, or split the
+    /// active pane when no path is given (⌘\ semantics).
+    Split {
+        /// Vault-relative path to open beside the reference (omit to split the
+        /// active pane).
+        #[arg(value_hint = ValueHint::DirPath)]
+        path: Option<String>,
+        /// Split direction: right (default) | left | above | below | within.
+        /// `up`/`down` are accepted as aliases for above/below.
+        #[arg(long = "direction", value_name = "DIR")]
+        direction: Option<String>,
+        /// Reference panel path (default: the active pane).
+        #[arg(long = "reference", value_name = "PATH")]
+        reference: Option<String>,
     },
 }
 
@@ -59,6 +73,20 @@ pub fn run(cmd: UiCmd, globals: &GlobalOpts) -> Result<Value, CliError> {
                 )));
             }
             crate::commands::open::open_window_in_app(&view, section, globals)
+        }
+        UiCmd::Split {
+            path,
+            direction,
+            reference,
+        } => {
+            let vault = resolve_vault(globals)?;
+            crate::commands::open::split_in_app(
+                &vault,
+                path.as_deref(),
+                reference.as_deref(),
+                direction,
+                globals,
+            )
         }
     }
 }

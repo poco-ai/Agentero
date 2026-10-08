@@ -25,7 +25,7 @@ Headless Vault / Catalog / Wiki 接口；**不含** BYOA / paper-reader。
 | `doctor` | Vault 结构与 Catalog 诊断；含 wikilink 检查与 aliases / 视觉批注 / catalog 去重修复 |
 | `layout` | 侧栏同构版面索引：`list` / `get`（figure / table / algorithm / formula / section） |
 | `mark` | 阅读标注：`list` / `get` / `add`（`--quote` 文字锚点或 `--region` 区域锚点）/ `update` / `delete` |
-| `ui` | 桌面工作区/窗口操作：`open`（打开或聚焦文档/文件夹/论文）/ `close`（关闭面板）/ `window`（聚焦原生子窗口）；均走 `agentero://ui` 深链 + 请求文件 |
+| `ui` | 桌面工作区/窗口操作：`open`（打开或聚焦文档/文件夹/论文）/ `close`（关闭面板）/ `window`（聚焦原生子窗口）/ `split`（分屏）；均走 `agentero://ui` 深链 + 请求文件 |
 | `translate` | 免费机器翻译纯文本（无需 API Key，不读桌面 settings） |
 
 稳定 `--json` 输出，供脚本与外部 Agent 组合。JSON 默认 **compact 单行**（省 token），`--pretty` 恢复缩进美化（[#367](https://github.com/poco-ai/Agentero/issues/367)）。
@@ -277,7 +277,14 @@ agentero ui close papers/demo --json
 # 打开或聚焦原生子窗口：settings / agent / annotations
 agentero ui window agent --json
 agentero ui window settings --section layout --json
+
+# 分屏：省略 path 即拆分当前 active pane（等价 ⌘\）；给了 path 则在参考/当前 pane 旁打开
+agentero ui split --json
+agentero ui split papers/demo --direction below --json
+agentero ui split notes/idea.md --direction right --reference papers/demo --json
 ```
+
+`ui split` 的 `--direction` 取 `right`（默认）/ `left` / `above` / `below` / `within`，`up`/`down` 作为 `above`/`below` 的别名；`--reference` 指定参考 pane（默认当前 active pane），省略 `path` 时走 `splitActivePane()`（论文补 NOTES、TeX 补编译 PDF、否则克隆当前 pane）。
 
 打开**某篇论文**（`ui open` 的论文语义快捷方式）：
 

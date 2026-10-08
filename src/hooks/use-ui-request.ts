@@ -16,6 +16,23 @@ import { listenEventSafe } from "@/lib/core/tauri-events";
 import { openLocalVaultPath } from "@/lib/vault/actions";
 import { joinVaultPath } from "@/lib/vault/path";
 import { vaultStore } from "@/lib/vault/store";
+import { getActiveTabId } from "@/lib/workspace/store";
+import { type SplitDirection, tabIdForPath } from "@/lib/workspace/tabs";
+
+const SPLIT_DIRECTIONS: readonly SplitDirection[] = [
+	"left",
+	"right",
+	"above",
+	"below",
+	"within",
+];
+
+function normalizeDirection(value: string | null | undefined): SplitDirection {
+	const v = value?.trim().toLowerCase();
+	return SPLIT_DIRECTIONS.includes(v as SplitDirection)
+		? (v as SplitDirection)
+		: "right";
+}
 
 function normalizeVault(path: string | null | undefined): string {
 	return (path ?? "").replace(/[\\/]+$/, "");
@@ -83,6 +100,29 @@ async function dispatch(payload: UiRequestPayload): Promise<void> {
 				);
 				await openFeatureWindow(view);
 			}
+			return;
+		}
+		case "split": {
+			if (!vaultPath) return;
+			if (!(await ensureVault(vaultPath))) return;
+			const { openTab, splitActivePane } = await import(
+				"@/lib/workspace/actions"
+			);
+			// No path → split the active pane (⌘\ semantics).
+			if (!rel) {
+				splitActivePane();
+				return;
+			}
+			const reference = payload.reference?.trim();
+			const referencePanelId = reference
+				? tabIdForPath(joinVaultPath(vaultPath, reference))
+				: getActiveTabId();
+			openTab(joinVaultPath(vaultPath, rel), {
+				placement: {
+					direction: normalizeDirection(payload.direction),
+					referencePanelId,
+				},
+			});
 			return;
 		}
 	}

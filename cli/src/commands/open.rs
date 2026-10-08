@@ -176,6 +176,32 @@ pub fn open_window_in_app(
     )
 }
 
+/// Ask the App to split the workspace: with `rel`, open it beside the
+/// reference (or active) panel; without `rel`, split the active pane (⌘\ semantics).
+pub fn split_in_app(
+    vault: &Path,
+    rel: Option<&str>,
+    reference: Option<&str>,
+    direction: Option<String>,
+    globals: &GlobalOpts,
+) -> Result<Value, CliError> {
+    let abs = canonical_vault(vault)?;
+    let path = match rel.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(r) => Some(normalize_rel(r)?),
+        None => None,
+    };
+    let reference = match reference.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(r) => Some(normalize_rel(r)?),
+        None => None,
+    };
+    deliver_ui_request(
+        agentero_core::features::open_request::UiRequestPayload::split(
+            abs, path, reference, direction,
+        ),
+        globals,
+    )
+}
+
 fn canonical_vault(vault: &Path) -> Result<String, CliError> {
     vault
         .canonicalize()
@@ -232,6 +258,8 @@ fn deliver_ui_request(
         "path": req.path,
         "window": req.window,
         "section": req.section,
+        "direction": req.direction,
+        "reference": req.reference,
         "url": url,
         "method": method,
         "methods": methods,

@@ -99,12 +99,14 @@ pub fn handle_ui_request<R: Runtime>(
 #[cfg(feature = "desktop")]
 fn ui_request_key(req: &UiRequestPayload) -> String {
     format!(
-        "{}|{}|{}|{}|{}",
+        "{}|{}|{}|{}|{}|{}|{}",
         req.action,
         req.vault_path.as_deref().unwrap_or(""),
         req.path.as_deref().unwrap_or(""),
         req.window.as_deref().unwrap_or(""),
-        req.section.as_deref().unwrap_or("")
+        req.section.as_deref().unwrap_or(""),
+        req.direction.as_deref().unwrap_or(""),
+        req.reference.as_deref().unwrap_or("")
     )
 }
 

@@ -5035,12 +5035,16 @@ export type UiRequestPayload = UiRequestPayload_Serialize | UiRequestPayload_Des
  *  to know the frontend's tab registry.
  */
 export type UiRequestPayload_Deserialize = {
-	/**  `open-paper` | `open-path` | `open-window` | `close-path`. */
+	/**  `open-paper` | `open-path` | `open-window` | `close-path` | `split`. */
 	action: string,
 	vaultPath?: string | null,
 	path?: string | null,
 	window?: string | null,
 	section?: string | null,
+	/**  `split` direction (`left` | `right` | `above` | `below` | `within`). */
+	direction?: string | null,
+	/**  `split` reference panel (Vault-relative path). */
+	reference?: string | null,
 };
 
 /**
@@ -5052,12 +5056,16 @@ export type UiRequestPayload_Deserialize = {
  *  to know the frontend's tab registry.
  */
 export type UiRequestPayload_Serialize = {
-	/**  `open-paper` | `open-path` | `open-window` | `close-path`. */
+	/**  `open-paper` | `open-path` | `open-window` | `close-path` | `split`. */
 	action: string,
 	vaultPath?: string | null,
 	path?: string | null,
 	window?: string | null,
 	section?: string | null,
+	/**  `split` direction (`left` | `right` | `above` | `below` | `within`). */
+	direction?: string | null,
+	/**  `split` reference panel (Vault-relative path). */
+	reference?: string | null,
 };
 
 /**
