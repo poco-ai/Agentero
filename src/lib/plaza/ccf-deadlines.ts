@@ -20,8 +20,6 @@ export const CCF_DEADLINES_DATA_URL =
 	"https://ccfddl.com/conference/initial.json";
 
 const CACHE_KEY = "plaza:ccf-deadlines:v1";
-/** Upstream rebuilds on each push; a 12h cache is plenty and avoids refetch churn. */
-const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
 export type CcfRank = "A" | "B" | "C" | "N";
 
@@ -172,11 +170,6 @@ export function parseCcfDeadlines(
 
 type CcfCache = { fetchedAt: number; items: CcfDeadlineItem[] };
 
-export type CcfDeadlinesResult = {
-	items: CcfDeadlineItem[];
-	fetchedAt: number;
-};
-
 function readCache(): CcfCache | null {
 	const cached = readJsonStorage<CcfCache | null>(CACHE_KEY, null);
 	if (
@@ -190,29 +183,28 @@ function readCache(): CcfCache | null {
 }
 
 /**
- * Load upcoming deadlines. Serves the cache within {@link CACHE_TTL_MS};
- * `force` refetches upstream (the panel's refresh button).
+ * Fetch the latest upcoming deadlines. Always hits the network (the panel
+ * refreshes on every open); the cache is only a fallback so an offline open
+ * still shows the last known list.
  */
-export async function loadCcfDeadlines(opts?: {
-	force?: boolean;
-}): Promise<CcfDeadlinesResult> {
+export async function loadCcfDeadlines(): Promise<CcfDeadlineItem[]> {
 	const now = Date.now();
-	const cached = readCache();
-	if (!opts?.force && cached && now - cached.fetchedAt < CACHE_TTL_MS) {
-		return {
-			items: cached.items.filter((item) => item.at === null || item.at >= now),
-			fetchedAt: cached.fetchedAt,
-		};
+	try {
+		const response = await fetch(CCF_DEADLINES_DATA_URL, {
+			headers: { Accept: "application/json" },
+		});
+		if (!response.ok) {
+			throw new Error(`CCF deadlines request failed (${response.status})`);
+		}
+		const payload = await response.json();
+		const items = parseCcfDeadlines(payload, now);
+		writeJsonStorage(CACHE_KEY, { fetchedAt: now, items } satisfies CcfCache);
+		return items;
+	} catch (error) {
+		const cached = readCache();
+		if (cached) {
+			return cached.items.filter((item) => item.at === null || item.at >= now);
+		}
+		throw error;
 	}
-
-	const response = await fetch(CCF_DEADLINES_DATA_URL, {
-		headers: { Accept: "application/json" },
-	});
-	if (!response.ok) {
-		throw new Error(`CCF deadlines request failed (${response.status})`);
-	}
-	const payload = await response.json();
-	const items = parseCcfDeadlines(payload, now);
-	writeJsonStorage(CACHE_KEY, { fetchedAt: now, items } satisfies CcfCache);
-	return { items, fetchedAt: now };
 }

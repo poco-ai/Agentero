@@ -258,8 +258,6 @@
 		},
 		"ccfDeadlines": {
 			"label": "CCF Deadlines",
-			"refresh": "Refresh",
-			"updated": "Updated {{time}}",
 			"rankAll": "All",
 			"filterLabel": "Filter by CCF rank",
 			"openOfficial": "Open conference site",

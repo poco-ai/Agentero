@@ -258,8 +258,6 @@
 		},
 		"ccfDeadlines": {
 			"label": "CCF 截稿",
-			"refresh": "刷新",
-			"updated": "更新于 {{time}}",
 			"rankAll": "全部",
 			"filterLabel": "按 CCF 评级筛选",
 			"openOfficial": "打开会议官网",

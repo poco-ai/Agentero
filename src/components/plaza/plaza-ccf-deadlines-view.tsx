@@ -6,7 +6,7 @@
  * the CCF rank, the submission deadline and the official site link.
  */
 
-import { ExternalLink, Loader2, RefreshCw } from "lucide-react";
+import { ExternalLink, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatLocaleTimestamp } from "@/i18n";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
@@ -28,82 +27,57 @@ import {
 
 const RANKS: readonly CcfRank[] = ["A", "B", "C", "N"];
 
-/** Rank filter value: a single CCF rank, or every rank. */
-type RankFilterValue = CcfRank | "all";
-
 export function PlazaCcfDeadlinesView({ className }: { className?: string }) {
 	const { t } = useTranslation("sidebar");
 	const [items, setItems] = useState<CcfDeadlineItem[]>([]);
-	const [fetchedAt, setFetchedAt] = useState<number | null>(null);
 	const [busy, setBusy] = useState(true);
 	const [error, setError] = useState(false);
-	const [rankFilter, setRankFilter] = useState<RankFilterValue>("all");
+	const [rankFilter, setRankFilter] = useState<CcfRank[]>([]);
 	const loadedRef = useRef(false);
 
-	const load = useCallback(
-		async (force: boolean) => {
-			setBusy(true);
-			try {
-				const result = await loadCcfDeadlines({ force });
-				setItems(result.items);
-				setFetchedAt(result.fetchedAt);
-				setError(false);
-			} catch (err) {
-				setError(true);
-				notifyError(errorText(err) || t("plaza.ccfDeadlines.loadFailed"));
-			} finally {
-				setBusy(false);
-			}
-		},
-		[t],
-	);
+	const load = useCallback(async () => {
+		setBusy(true);
+		try {
+			setItems(await loadCcfDeadlines());
+			setError(false);
+		} catch (err) {
+			setError(true);
+			notifyError(errorText(err) || t("plaza.ccfDeadlines.loadFailed"));
+		} finally {
+			setBusy(false);
+		}
+	}, [t]);
 
+	// Refresh on every open.
 	useEffect(() => {
 		if (loadedRef.current) return;
 		loadedRef.current = true;
-		void load(false);
+		void load();
 	}, [load]);
 
 	const visible =
-		rankFilter === "all"
+		rankFilter.length === 0
 			? items
-			: items.filter((item) => item.rank === rankFilter);
+			: items.filter((item) => rankFilter.includes(item.rank));
+
+	const toggleRank = (rank: CcfRank) =>
+		setRankFilter((prev) =>
+			prev.includes(rank) ? prev.filter((r) => r !== rank) : [...prev, rank],
+		);
 
 	return (
 		<div className={cn("flex h-full min-h-0 flex-col", className)}>
-			<div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b px-2.5 py-2">
-				<RankFilter value={rankFilter} onChange={setRankFilter} />
-				<span className="ml-auto min-w-0 truncate text-caption text-muted-foreground">
-					{fetchedAt
-						? t("plaza.ccfDeadlines.updated", {
-								time: formatLocaleTimestamp(fetchedAt),
-							})
-						: ""}
-				</span>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-sm"
-							disabled={busy}
-							aria-label={t("plaza.ccfDeadlines.refresh")}
-							onClick={() => void load(true)}
-						>
-							{busy ? (
-								<Loader2 className="size-3.5 animate-spin" aria-hidden />
-							) : (
-								<RefreshCw className="size-3.5" aria-hidden />
-							)}
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent>{t("plaza.ccfDeadlines.refresh")}</TooltipContent>
-				</Tooltip>
+			<div className="flex shrink-0 items-center gap-1.5 border-b px-2.5 py-2">
+				<RankFilter
+					selected={rankFilter}
+					onToggle={toggleRank}
+					onClear={() => setRankFilter([])}
+				/>
 			</div>
 
 			<div className="agentero-scroll min-h-0 flex-1 overflow-y-auto p-1.5">
 				{busy && items.length === 0 ? (
-					<div className="flex items-center justify-center gap-2 py-10 text-muted-foreground text-xs">
+					<div className="flex items-center justify-center py-10 text-muted-foreground text-xs">
 						<Loader2 className="size-3.5 animate-spin" aria-hidden />
 					</div>
 				) : visible.length === 0 ? (
@@ -199,38 +173,52 @@ function DeadlineRow({ item }: { item: CcfDeadlineItem }) {
 	);
 }
 
-/** Compact CCF-rank selector for the panel header. */
+/** Compact multi-select CCF-rank selector for the panel header. */
 function RankFilter({
-	value,
-	onChange,
+	selected,
+	onToggle,
+	onClear,
 }: {
-	value: RankFilterValue;
-	onChange: (value: RankFilterValue) => void;
+	selected: readonly CcfRank[];
+	onToggle: (rank: CcfRank) => void;
+	onClear: () => void;
 }) {
 	const { t } = useTranslation("sidebar");
-	const options: readonly RankFilterValue[] = ["all", ...RANKS];
+	const allActive = selected.length === 0;
 	return (
 		<fieldset className="m-0 flex items-center gap-1 border-0 p-0">
 			<legend className="sr-only">{t("plaza.ccfDeadlines.filterLabel")}</legend>
-			{options.map((option) => {
-				const active = value === option;
+			<button
+				type="button"
+				aria-pressed={allActive}
+				onClick={onClear}
+				className={chipClass(allActive)}
+			>
+				{t("plaza.ccfDeadlines.rankAll")}
+			</button>
+			{RANKS.map((rank) => {
+				const active = selected.includes(rank);
 				return (
 					<button
-						key={option}
+						key={rank}
 						type="button"
 						aria-pressed={active}
-						onClick={() => onChange(option)}
-						className={cn(
-							"inline-flex h-5 min-w-5 items-center justify-center rounded-full border px-1.5 font-medium text-caption transition-colors",
-							active
-								? "border-primary/50 bg-primary/10 text-foreground"
-								: "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-						)}
+						onClick={() => onToggle(rank)}
+						className={chipClass(active)}
 					>
-						{option === "all" ? t("plaza.ccfDeadlines.rankAll") : option}
+						{rank}
 					</button>
 				);
 			})}
 		</fieldset>
+	);
+}
+
+function chipClass(active: boolean): string {
+	return cn(
+		"inline-flex h-5 min-w-5 items-center justify-center rounded-full border px-1.5 font-medium text-caption transition-colors",
+		active
+			? "border-primary/50 bg-primary/10 text-foreground"
+			: "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
 	);
 }

@@ -286,8 +286,8 @@ papers.cool 给几乎所有链接都加了 `target="_blank"`（单个分区页�
 | 数据源 | `https://ccfddl.com/conference/initial.json`（上游 CI 每次 push 重建：最新 + 即将到来的 editions，约 176 KB） |
 | 数据语料 | `conferences[].confs[].timeline[]` 的 `deadline`（`TBD` 丢弃）；`rank.ccf` 取 A/B/C/N |
 | 时区 | `confs[].timezone` 标签换算成瞬时（`AoE` = UTC-12，`PT` = UTC-8，`UTC±N`）；未知标签该项排最后且不给倒计时 |
-| 缓存 | `localStorage` 12h TTL；点刷新强制重取；过期 / 错误时保留已显示数据并 `notifyError` |
-| 呈现 | 单列「接下来要投什么」：中性的 CCF 徽标 + 会议名与年份 + 会议官网外链 + 原站本地截稿时间与时区标签 + 剩余天数（≤3 天高亮）；头部按 CCF 评级（全部 / A / B / C / N）单选筛选 |
+| 缓存 | 每次打开面板强制拉取（不提供刷新按钮）；失败时回退到 `localStorage` 里上次的结果并 `notifyError` |
+| 呈现 | 单列「接下来要投什么」：中性的 CCF 徽标 + 会议名与年份 + 会议官网外链 + 原站本地截稿时间与时区标签 + 剩余天数（≤3 天高亮）；头部按 CCF 评级多选筛选（A / B / C / N 可叠加，「全部」清空选择） |
 | 落点 | `src/lib/plaza/ccf-deadlines.ts`（拉取 / 解析 / 缓存）、`src/components/plaza/plaza-ccf-deadlines-view.tsx`（面板） |
 
 **为什么自建 UI 而非内嵌 ccfddl.top**：数据结构稳定（MIT，schema 3.0.x 带版本号）、CORS 全开、解析成本低；内嵌站点是 jQuery 老表格，且整站 `<base target="_blank">`，仍要写代理改写链接，等于付出代理成本却换不来可用 UI。
