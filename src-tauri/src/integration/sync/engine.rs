@@ -13,6 +13,16 @@
 //! One pass = scan → three-way merge against the last synced manifest →
 //! apply remote changes locally → upload new blobs → publish manifest →
 //! CAS `HEAD`. A lost CAS re-runs the merge against the winner's manifest.
+//!
+//! Passes that would change nothing stop early: an up-to-date vault returns
+//! after the single `HEAD` read, and a pass whose merged manifest matches the
+//! remote one adopts it instead of publishing. Request-metered backends
+//! (Nutstore: 600 per 30 min on a free plan) make the idle cost the dominant
+//! one, and republishing mtime drift used to advance `HEAD` forever.
+//!
+//! A pass interrupted mid-upload resumes instead of starting over:
+//! `.agentero/sync/pushed.jsonl` records the blobs it already sent, which no
+//! manifest can vouch for until `HEAD` moves.
 
 use crate::core::error::AppError;
 use crate::integration::sync::config::SyncBackendConfig;
@@ -22,7 +32,7 @@ use crate::integration::sync::store::{PutCondition, PutOutcome, RemoteStore, Syn
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -97,10 +107,14 @@ async fn run_sync<S: RemoteStore>(
     client: &S,
     progress: Progress<'_>,
 ) -> Result<SyncOutcome, AppError> {
-    ensure_remote_identity(vault, client).await?;
-
     progress("scan", 0, 0);
     let base = local::read_base(vault);
+    let meta = local::read_meta(vault);
+    let base_scope = base.scope;
+    // Key for the pushed-blob log, hashed so no credential lands in the vault:
+    // a vault repointed at another store must not inherit upload records that
+    // the new store never received.
+    let store_id = snapshot::hash_bytes(cfg.remote_identity().as_bytes());
     // Symmetric filtering: the same predicate blinds the local scan, the
     // base, and the remote manifest, so excluded files are inert — never
     // uploaded, downloaded, or mistaken for deletions.
@@ -114,7 +128,7 @@ async fn run_sync<S: RemoteStore>(
     };
 
     let mut outcome = SyncOutcome::default();
-    for _attempt in 0..MAX_CAS_RETRIES {
+    for attempt in 0..MAX_CAS_RETRIES {
         progress("pull", 0, 0);
         let head = client.get(HEAD_KEY).await?;
         let (head_ptr, head_etag) = match &head {
@@ -124,7 +138,35 @@ async fn run_sync<S: RemoteStore>(
             ),
             None => (None, None),
         };
-        let (remote_files, remote_scope) = match &head_ptr {
+
+        // A later attempt is a CAS retry, which always has work in flight.
+        if attempt == 0 {
+            // Up to date: HEAD still points at the manifest this vault last
+            // agreed on, no local file changed content since, and the scope
+            // is the one that manifest was published with. One request
+            // instead of a full pull/merge/publish pass — backends meter
+            // requests per account (Nutstore allows 600 per 30 min on a free
+            // plan), so the steady state has to be cheap. Sync history is
+            // required because a first pass must establish the remote
+            // identity; a no-op pass writes nothing, so skipping the
+            // handshake below is what makes the single request possible.
+            let up_to_date = meta.last_sync_at.is_some()
+                && head_ptr
+                    .as_ref()
+                    .is_some_and(|p| p.version == meta.last_version)
+                && base_scope == cfg.scope
+                && same_content(&local_files, &base_files);
+            if up_to_date {
+                outcome.version = meta.last_version;
+                return Ok(outcome);
+            }
+            ensure_remote_identity(vault, client).await?;
+        }
+
+        // Kept unfiltered: the publish check below compares against the whole
+        // remote manifest, so a device blind to a category can still tell
+        // "nothing to add" from "the publisher could not see my files".
+        let remote_manifest = match &head_ptr {
             Some(ptr) => {
                 let (bytes, _) = client.get(&ptr.manifest_key).await?.ok_or_else(|| {
                     AppError::message(format!("manifest {} missing", ptr.manifest_key))
@@ -132,10 +174,17 @@ async fn run_sync<S: RemoteStore>(
                 let manifest: Manifest =
                     serde_json::from_slice(&gunzip_limited(&bytes, MAX_MANIFEST_BYTES)?)?;
                 validate_manifest(&manifest)?;
-                let scope = manifest.scope;
-                (snapshot::filter_files(manifest.files, &cfg.scope), scope)
+                Some(manifest)
             }
-            None => (BTreeMap::new(), snapshot::SyncScope::all()),
+            None => None,
+        };
+        let remote_scope = remote_manifest
+            .as_ref()
+            .map(|m| m.scope)
+            .unwrap_or_else(snapshot::SyncScope::all);
+        let remote_files = match &remote_manifest {
+            Some(m) => snapshot::filter_files(m.files.clone(), &cfg.scope),
+            None => BTreeMap::new(),
         };
 
         let plan = merge(
@@ -148,10 +197,48 @@ async fn run_sync<S: RemoteStore>(
         apply_local(vault, client, &plan, &mut outcome, progress).await?;
         let merged = plan.merged;
 
-        // Upload blobs the remote has never referenced. `If-None-Match: *`
-        // makes duplicate uploads across devices a cheap no-op.
-        let remote_hashes: std::collections::HashSet<&str> =
-            remote_files.values().map(|e| e.hash.as_str()).collect();
+        // Nothing to publish: the merged manifest carries the same content as
+        // the remote one, so adopting it locally is the whole pass. Mtime-only
+        // differences must land here — every download rewrites the file with a
+        // fresh local mtime, and republishing that made two devices advance
+        // HEAD forever without exchanging a single byte.
+        if let (Some(ptr), Some(remote)) = (&head_ptr, &remote_manifest) {
+            if same_content(&merged, &remote.files) {
+                local::write_base(
+                    vault,
+                    &Manifest {
+                        version: ptr.version,
+                        files: merged,
+                        scope: cfg.scope,
+                    },
+                )?;
+                local::write_meta(
+                    vault,
+                    &SyncMeta {
+                        last_sync_at: Some(now()),
+                        last_version: ptr.version,
+                    },
+                )?;
+                // The manifest just adopted references every blob `merged`
+                // has, so the log has nothing left to remember.
+                local::clear_pushed(vault);
+                refresh_catalog_if_needed(vault, &outcome).await;
+                outcome.version = ptr.version;
+                return Ok(outcome);
+            }
+        }
+
+        // Upload blobs the remote has never referenced. Two records decide
+        // that: the remote manifest, unfiltered so a category this device
+        // skips still counts as present, and the pushed log, which covers
+        // blobs an earlier pass uploaded but never got to publish. Skipping
+        // matters most where `If-None-Match: *` is ignored (Nutstore) and a
+        // repeat PUT re-sends the whole body instead of failing cheaply.
+        let remote_hashes: HashSet<&str> = match &remote_manifest {
+            Some(m) => m.files.values().map(|e| e.hash.as_str()).collect(),
+            None => HashSet::new(),
+        };
+        let mut pushed = local::read_pushed(vault, &store_id);
         let uploads: Vec<(&String, &FileEntry)> = merged
             .iter()
             .filter(|(_, e)| !remote_hashes.contains(e.hash.as_str()))
@@ -159,6 +246,10 @@ async fn run_sync<S: RemoteStore>(
         let total = uploads.len();
         for (i, (rel, entry)) in uploads.into_iter().enumerate() {
             progress("upload", i + 1, total);
+            // Also covers two paths with identical content in one pass.
+            if pushed.contains(&entry.hash) {
+                continue;
+            }
             let raw = fs::read(vault.join(rel))?;
             if snapshot::hash_bytes(&raw) != entry.hash {
                 return Err(AppError::message(format!(
@@ -172,6 +263,8 @@ async fn run_sync<S: RemoteStore>(
                     PutCondition::IfNoneMatch,
                 )
                 .await?;
+            pushed.insert(entry.hash.clone());
+            local::record_pushed(vault, &store_id, &entry.hash);
             outcome.uploaded += 1;
         }
 
@@ -215,6 +308,9 @@ async fn run_sync<S: RemoteStore>(
                         last_version: new_version,
                     },
                 )?;
+                // The published manifest is now the authority on what the
+                // remote holds; the log only ever covers unpublished uploads.
+                local::clear_pushed(vault);
                 refresh_catalog_if_needed(vault, &outcome).await;
                 outcome.version = new_version;
                 outcome.removed_remote = remote_files
@@ -442,6 +538,15 @@ fn merge(
     plan
 }
 
+/// Whether two manifests carry identical content, ignoring mtime: a download
+/// rewrites the file with a fresh local mtime, so mtime drift alone must never
+/// read as a change worth publishing.
+fn same_content(a: &BTreeMap<String, FileEntry>, b: &BTreeMap<String, FileEntry>) -> bool {
+    a.len() == b.len()
+        && a.iter()
+            .all(|(path, entry)| b.get(path).is_some_and(|o| o.hash == entry.hash))
+}
+
 async fn apply_local<S: RemoteStore>(
     vault: &Path,
     client: &S,
@@ -544,6 +649,9 @@ fn now() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Mutex;
 
     fn entry(hash: &str, mtime: i64) -> FileEntry {
         FileEntry {
@@ -558,6 +666,207 @@ mod tests {
             .iter()
             .map(|(k, v)| (k.to_string(), v.clone()))
             .collect()
+    }
+
+    /// In-memory `RemoteStore` that counts requests, so a test can assert what
+    /// a pass costs and not only what it produces.
+    struct MemStore {
+        objects: Mutex<BTreeMap<String, (Vec<u8>, String)>>,
+        revisions: AtomicUsize,
+        gets: AtomicUsize,
+        puts: AtomicUsize,
+        /// PUTs allowed before the store starts refusing — models a rate limit
+        /// landing partway through a pass.
+        put_budget: AtomicUsize,
+    }
+
+    impl Default for MemStore {
+        fn default() -> Self {
+            Self {
+                objects: Mutex::new(BTreeMap::new()),
+                revisions: AtomicUsize::new(0),
+                gets: AtomicUsize::new(0),
+                puts: AtomicUsize::new(0),
+                put_budget: AtomicUsize::new(usize::MAX),
+            }
+        }
+    }
+
+    impl MemStore {
+        fn counts(&self) -> (usize, usize) {
+            (
+                self.gets.load(Ordering::Relaxed),
+                self.puts.load(Ordering::Relaxed),
+            )
+        }
+    }
+
+    impl RemoteStore for MemStore {
+        async fn ensure_root(&self) -> Result<(), AppError> {
+            Ok(())
+        }
+
+        async fn get(&self, key: &str) -> Result<Option<(Vec<u8>, String)>, AppError> {
+            self.gets.fetch_add(1, Ordering::Relaxed);
+            Ok(self.objects.lock().unwrap().get(key).cloned())
+        }
+
+        async fn put(
+            &self,
+            key: &str,
+            body: Vec<u8>,
+            condition: PutCondition,
+        ) -> Result<PutOutcome, AppError> {
+            let attempt = self.puts.fetch_add(1, Ordering::Relaxed) + 1;
+            if attempt > self.put_budget.load(Ordering::Relaxed) {
+                return Err(AppError::message("PUT {key}: 429 Too Many Requests"));
+            }
+            let mut objects = self.objects.lock().unwrap();
+            let current = objects.get(key).map(|(_, etag)| etag.clone());
+            match (&current, condition) {
+                (Some(_), PutCondition::IfNoneMatch) => return Ok(PutOutcome::PreconditionFailed),
+                (None, PutCondition::IfMatch(_)) => return Ok(PutOutcome::PreconditionFailed),
+                (Some(etag), PutCondition::IfMatch(want)) if *etag != want => {
+                    return Ok(PutOutcome::PreconditionFailed)
+                }
+                _ => {}
+            }
+            let etag = format!("\"r{}\"", self.revisions.fetch_add(1, Ordering::Relaxed));
+            objects.insert(key.to_string(), (body, etag));
+            Ok(PutOutcome::Ok)
+        }
+
+        async fn probe_conditional_writes(&self) -> Result<bool, AppError> {
+            Ok(true)
+        }
+    }
+
+    fn temp_vault(tag: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("agentero-sync-{tag}-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn noop_progress() -> &'static (dyn Fn(&str, usize, usize) + Send + Sync) {
+        &|_, _, _| {}
+    }
+
+    /// The point of the up-to-date check: an idle vault costs one request per
+    /// pass instead of a full pull/merge/publish round trip.
+    #[tokio::test]
+    async fn idle_pass_costs_one_request() {
+        let store = MemStore::default();
+        let cfg = SyncBackendConfig::default();
+        let vault = temp_vault("idle");
+        fs::create_dir_all(vault.join("papers/x")).unwrap();
+        fs::write(vault.join("papers/x/NOTES.md"), "# x\n").unwrap();
+
+        let first = run_sync(&vault, &cfg, &store, noop_progress())
+            .await
+            .unwrap();
+        assert_eq!((first.version, first.uploaded), (1, 1));
+
+        let before = store.counts();
+        let second = run_sync(&vault, &cfg, &store, noop_progress())
+            .await
+            .unwrap();
+        assert_eq!(second.version, 1);
+        let (gets, puts) = store.counts();
+        assert_eq!((gets - before.0, puts - before.1), (1, 0));
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    /// Two idle devices must not advance HEAD. A download rewrites the file
+    /// with a fresh local mtime, and republishing that difference used to make
+    /// each device outbid the other forever.
+    #[tokio::test]
+    async fn idle_devices_do_not_ping_pong_head() {
+        let store = MemStore::default();
+        let cfg = SyncBackendConfig::default();
+        let (a, b) = (temp_vault("ping-a"), temp_vault("ping-b"));
+        fs::create_dir_all(a.join("papers/x")).unwrap();
+        fs::create_dir_all(&b).unwrap();
+        fs::write(a.join("papers/x/NOTES.md"), "# x\n").unwrap();
+
+        let published = run_sync(&a, &cfg, &store, noop_progress()).await.unwrap();
+        assert_eq!(published.version, 1);
+        // B joins by download only: it adopts the remote manifest instead of
+        // publishing a content-identical one.
+        let joined = run_sync(&b, &cfg, &store, noop_progress()).await.unwrap();
+        assert_eq!((joined.version, joined.downloaded), (1, 1));
+
+        for round in 0..2 {
+            let before = store.counts();
+            let again_a = run_sync(&a, &cfg, &store, noop_progress()).await.unwrap();
+            let again_b = run_sync(&b, &cfg, &store, noop_progress()).await.unwrap();
+            assert_eq!((again_a.version, again_b.version), (1, 1), "round {round}");
+            let (gets, puts) = store.counts();
+            assert_eq!(puts - before.1, 0, "round {round} republished");
+            assert_eq!(gets - before.0, 2, "round {round}: one HEAD read each");
+        }
+
+        // A real edit still publishes, and B still picks it up.
+        fs::write(a.join("papers/x/NOTES.md"), "# x\nedited\n").unwrap();
+        let edited = run_sync(&a, &cfg, &store, noop_progress()).await.unwrap();
+        assert_eq!((edited.version, edited.uploaded), (2, 1));
+        let pulled = run_sync(&b, &cfg, &store, noop_progress()).await.unwrap();
+        assert_eq!((pulled.version, pulled.downloaded), (2, 1));
+        assert!(fs::read_to_string(b.join("papers/x/NOTES.md"))
+            .unwrap()
+            .contains("edited"));
+
+        for dir in [a, b] {
+            let _ = fs::remove_dir_all(dir);
+        }
+    }
+
+    /// An interrupted upload must not be re-sent. The remote manifest still
+    /// describes the pre-pass state, so without the pushed log the next pass
+    /// recomputes the same upload list and re-sends every byte — at full cost
+    /// on Nutstore, which ignores `If-None-Match`.
+    #[tokio::test]
+    async fn interrupted_upload_resumes_without_resending() {
+        let store = MemStore::default();
+        let cfg = SyncBackendConfig::default();
+        let vault = temp_vault("resume");
+        fs::create_dir_all(vault.join("notes")).unwrap();
+        for name in ["a", "b", "c", "d"] {
+            fs::write(
+                vault.join("notes").join(format!("{name}.md")),
+                format!("# {name}\n"),
+            )
+            .unwrap();
+        }
+
+        // The budget covers vault.json plus the first two blobs; the third is
+        // refused, so HEAD never advances and nothing is published.
+        store.put_budget.store(3, Ordering::Relaxed);
+        assert!(run_sync(&vault, &cfg, &store, noop_progress())
+            .await
+            .is_err());
+
+        store.put_budget.store(usize::MAX, Ordering::Relaxed);
+        let before = store.counts();
+        let resumed = run_sync(&vault, &cfg, &store, noop_progress())
+            .await
+            .unwrap();
+        let (gets, puts) = store.counts();
+        assert_eq!((resumed.version, resumed.uploaded), (1, 2));
+        assert_eq!(puts - before.1, 4, "2 remaining blobs + manifest + HEAD");
+        assert_eq!(gets - before.0, 2, "vault.json + HEAD");
+
+        // The published manifest covers every blob, so the log is spent and
+        // the next pass short-circuits.
+        let before = store.counts();
+        run_sync(&vault, &cfg, &store, noop_progress())
+            .await
+            .unwrap();
+        let (gets, puts) = store.counts();
+        assert_eq!((gets - before.0, puts - before.1), (1, 0));
+
+        let _ = fs::remove_dir_all(&vault);
     }
 
     #[test]
@@ -806,11 +1115,12 @@ mod tests {
         fs::write(a.join("papers/x/NOTES.md"), "# x\n").unwrap();
         fs::write(a.join("papers/x/metadata.json"), r#"{"id":"x"}"#).unwrap();
 
-        // A publishes, empty B joins and receives everything.
+        // A publishes, empty B joins and receives everything. B adds nothing,
+        // so it adopts version 1 rather than republishing it.
         let up = sync_vault(&a, &cfg, noop).await.expect("sync A");
         assert_eq!((up.version, up.uploaded), (1, 2));
         let down = sync_vault(&b, &cfg, noop).await.expect("sync B");
-        assert_eq!((down.version, down.downloaded), (2, 2));
+        assert_eq!((down.version, down.downloaded), (1, 2));
         assert_eq!(
             fs::read_to_string(b.join("papers/x/NOTES.md")).unwrap(),
             "# x\n"
@@ -895,11 +1205,12 @@ mod tests {
         fs::write(a.join("papers/x/NOTES.md"), "# x\n").unwrap();
         fs::write(a.join("papers/x/metadata.json"), r#"{"id":"x"}"#).unwrap();
 
-        // A publishes, empty B joins and receives everything.
+        // A publishes, empty B joins and receives everything. B adds nothing,
+        // so it adopts version 1 rather than republishing it.
         let up = sync_vault(&a, &cfg, noop).await.expect("sync A");
         assert_eq!((up.version, up.uploaded), (1, 2));
         let down = sync_vault(&b, &cfg, noop).await.expect("sync B");
-        assert_eq!((down.version, down.downloaded), (2, 2));
+        assert_eq!((down.version, down.downloaded), (1, 2));
         assert_eq!(
             fs::read_to_string(b.join("papers/x/NOTES.md")).unwrap(),
             "# x\n"

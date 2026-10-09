@@ -154,6 +154,23 @@ impl SyncBackendConfig {
                 .unwrap_or_default();
         }
     }
+
+    /// Which remote store this config points at, for local state that must not
+    /// survive being repointed at a different one. Carries no secret: the value
+    /// is only ever compared, and callers hash it before it reaches the vault.
+    pub fn remote_identity(&self) -> String {
+        match self.backend {
+            SyncBackendKind::S3 => format!(
+                "s3|{}|{}|{}|{}",
+                self.endpoint, self.bucket, self.prefix, self.access_key
+            ),
+            SyncBackendKind::Webdav => format!(
+                "webdav|{}|{}",
+                normalize_webdav_url(&self.webdav_url),
+                self.webdav_username
+            ),
+        }
+    }
 }
 
 /// Folder the app uses when the user points at Jianguoyun's WebDAV root.
