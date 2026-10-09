@@ -88,6 +88,8 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls", "socks", "multipart", "cookies"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 flate2 = "1.1.9"
+# Read Dsh's existing compressed transcripts when its ACP bridge cannot replay them.
+zstd = { version = "0.13.3", default-features = false }
 tar = "0.4.46"
 zip = { version = "2.4", default-features = false, features = ["deflate"] }
 htmd = "0.5.4"

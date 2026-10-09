@@ -60,6 +60,13 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
     复现与验证见 [Windows Dsh 运行时和卸载复盘](../bug_fix/windows-dsh-runtime-and-uninstall.md)。
   - 会话：当前版本声明 `sessionCapabilities` 的 `close`/`list`/`resume`，多轮续聊
     走标准 resume 路径，连接也可进入 warm 池。
+    这些能力不代表支持历史回放：当前官方桥没有 `loadSession` / `session/load`。
+    本机 Dsh 在缺少该能力时，只读 `$DSH_HOME/sessions`（默认 `~/.dsh/sessions`）
+    中的标准 v2–v4 JSONL / Zstd 日志，恢复文字、推理、工具记录与标题；按会话
+    UUID 和 workspace 核对 header，优先最新已提交格式，不改写或迁移日志。
+    标题仍由现有前端回退首条用户消息。远端、自定义存储根目录、v0/v1 和未来
+    格式不走该兼容读取；支持 `loadSession` 的新版 Dsh 优先用 ACP 回放。
+    见 [Dsh 重启后的历史恢复](../bug_fix/dsh-history-after-restart.md)。
   - API Key：官方 CLI 的分层 env（`~/.dsh/.env` 等）由 `dsh` 自身加载，ACP
     profile 同样受益；也可在注册项 env 中 export `DEEPSEEK_API_KEY`。
 - Kimi Code：原生 ACP（`kimi acp`）。官方 installer（`code.kimi.com/kimi-code/install.sh`）

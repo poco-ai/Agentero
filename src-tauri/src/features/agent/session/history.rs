@@ -14,6 +14,9 @@ use crate::features::agent::models::{
     AcpSessionInfo, AgentDescriptor, AgentPlanEntry,
 };
 
+#[path = "dsh_history.rs"]
+mod dsh_history;
+
 use agent_client_protocol::schema::v1::{
     ListSessionsRequest, LoadSessionRequest, RequestPermissionRequest, SessionId,
     SessionNotification, SessionUpdate,
@@ -394,6 +397,16 @@ pub async fn load_acp_session(
     remote: Option<&dyn crate::features::agent::remote_host::RemoteAgentLaunch>,
 ) -> Result<AcpLoadSessionResult, AppError> {
     let acp = to_acp_agent(desc, Some(&cwd), remote)?;
+    let dsh_home = if remote.is_none()
+        && desc.template == crate::features::agent::models::AgentTemplate::Dsh
+    {
+        Some(dsh_history::home(
+            &crate::features::agent::acp::client::effective_local_agent_env(desc),
+            &cwd,
+        ))
+    } else {
+        None
+    };
 
     let builder: Arc<Mutex<ReplayBuilder>> = Arc::new(Mutex::new(ReplayBuilder::default()));
     let builder_for_notif = builder.clone();
@@ -485,12 +498,30 @@ pub async fn load_acp_session(
             let sid = session_id.clone();
             let last_replay = last_replay.clone();
             move |connection: ConnectionTo<Agent>| async move {
-                timed_acp_initialize(
+                let init = timed_acp_initialize(
                     connection
                         .send_request(client_initialize_request())
                         .block_task(),
                 )
                 .await?;
+
+                if !init.agent_capabilities.load_session {
+                    // resume restores model context, but does not replay a transcript.
+                    // Dsh currently only implements resume; recover its local durable log.
+                    if let Some(home) = dsh_home {
+                        let home = home.map_err(agent_client_protocol::util::internal_error)?;
+                        return tokio::task::spawn_blocking(move || {
+                            dsh_history::load(&home, &sid, &cwd)
+                        })
+                        .await
+                        .map_err(agent_client_protocol::util::internal_error)?
+                        .map(Some)
+                        .map_err(agent_client_protocol::util::internal_error);
+                    }
+                    return Err(agent_client_protocol::util::internal_error(
+                        "This agent does not support history replay (session/load)".to_string(),
+                    ));
+                }
 
                 timed_acp_request(
                     "session/load",
@@ -518,13 +549,14 @@ pub async fn load_acp_session(
                         break;
                     }
                 }
-                Ok(())
+                Ok(None)
             }
         })
         .await;
 
     match result {
-        Ok(()) => {
+        Ok(Some(history)) => Ok(history),
+        Ok(None) => {
             let taken = builder
                 .lock()
                 .map(|mut g| std::mem::take(&mut *g))

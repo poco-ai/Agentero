@@ -16,6 +16,12 @@ AI Elements (Conversation / Message / PromptInput / InlineCitation / Reasoning)
 
 ## 面板行为
 
+- **Dsh 重启历史**：官方 ACP 桥仅支持 `session/resume` 时，本机历史从
+  Dsh 标准落盘日志只读恢复；后台标题补全和点击历史项共用该路径。已有日志
+  完整时可恢复文字、推理、工具记录，标题缺失时回退首条用户消息；不会再向
+  不支持的桥发送 `session/load`。范围与验证见
+  [Dsh 重启后的历史恢复](../bug_fix/dsh-history-after-restart.md)。
+
 - 空态建议 chips → workflow：`summary` / `qa` / `related_work`。
 - **Agent 切换器列表**：App 启动即 `scanCatalog` + soft-probe（`prefetchAgentCatalog`，不依赖侧栏挂载）；面板挂载与 vault 变化时再 `listAgents + scanCatalog` 刷新。Settings 探测 / 安装 / 卸载 / 改默认会改 registry，Host 广播 `agent:registry-changed`（已纳入 lifecycle typed bus，见 [lifecycle-events](../development/lifecycle-events.md)），面板经 `lifecycle.on` 防抖刷新——面板常驻不卸载，否则探测成功后切换器仍是旧列表。catalog 项仅 `acpStatus === "ready"`（ACP 握手成功）才显示，不可用项直接隐藏而非置灰。
 - **当前论文默认 context**（可 X 移除）；`@` 提及或文件树拖入 → 在输入正文光标处插入行内 mention chip（见下）。
