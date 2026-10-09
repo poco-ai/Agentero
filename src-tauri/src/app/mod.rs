@@ -503,8 +503,18 @@ pub fn run() {
         });
     }
 
+    #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
+    let mut context = tauri::generate_context!();
+    // WebKitGTK can omit dropped File objects. Keep GTK's native file-path
+    // events enabled so the frontend's existing OS-drop handlers can import.
+    // Unlike WebView2, GTK still forwards in-app HTML5 drags.
+    #[cfg(target_os = "linux")]
+    for window in &mut context.config_mut().app.windows {
+        window.drag_drop_enabled = true;
+    }
+
     builder
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building tauri application")
         .run(|app, event| {
             let _ = &app;

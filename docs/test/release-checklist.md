@@ -229,6 +229,7 @@ cargo test -p agentero-core -p agentero-cli
 | 6.2.2.1 | 访达 | 把 1 个或多个 PDF **拖到**中间栏 Library 表 | 出现虚线 overlay「松开以导入 PDF」；松手后直接后台入库，文件夹作用域导入到该夹 | ☐ |
 | 6.2.2.2 | 中间栏·PDF 阅读器 / NOTES / 其它窗口区域 | 把一个 PDF 拖到当前阅读器，再连续拖入第二个 | 两个 PDF 都不丢失并按顺序导入；识别和版面分析继续在后台 | ☐ |
 | 6.2.2.3 | 访达 | 把 PNG / `.md` 拖到 Library 表 | **无** overlay、不入库 | ☐ |
+| 6.2.2.4 | Linux · Files（Nautilus）+ GNOME / Wayland | 从 Files 把 PDF 分别拖到主窗口 Library、`papers/` 组织夹、阅读器；再检查树内移动和 tab 重排 | PDF 按对应目标目录各导入一次；Library 有 overlay；内部移动和 tab 拖拽正常 | ☐ |
 | 6.2.3 | 同上 | 再导同名冲突 PDF | citekey 带 `-2` / `-3` 等后缀，不互相覆盖 | ☐ |
 | 6.2.4 | 终端 + 应用 | **用安装包装的应用**（非 `tauri dev`），先确认 PDFium 已随包：macOS `ls "/Applications/Agentero.app/Contents/Frameworks/libpdfium.dylib"`，Windows/Linux 查 exe 同级 `pdfium/`。再临时移走构建期缓存 `~/Library/Caches/pdfium-rs`（Linux `~/.cache/pdfium-rs`），导入一个本地 PDF | 仍生成 `PAPER.md`，catalog 写入 `body_source`；测完恢复缓存目录（回归 #303） | ☐ |
 | 6.2.5 | 同上 | 把包内 PDFium 临时改名，再导入一个本地 PDF | 任务面板出现 **失败** 的「解析 PDF 正文」，详情含找不到 PDFium 的真实原因，而不是显示“已完成” | ☐ |

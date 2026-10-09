@@ -46,6 +46,7 @@
 | 拖到 Library 表 | 仅一个或多个 PDF 时显示虚线 overlay；松手后直接后台导入。目标：当前文件夹作用域，或全库时的树选中 Papers 夹 / `papers/`（[#309](https://github.com/poco-ai/Agentero/issues/309)） |
 | 拖到窗口其它区域 | 按当前 Papers 目标目录直接后台导入；识别元数据、重命名和版面分析继续在后台运行 |
 
+- Linux 主窗口启用 Tauri 原生 GTK 文件拖放，复用 Library / 文件树 / 全局落点的原生路径处理，避免 WebKitGTK 在 Files（Nautilus）拖入时提供空 `dataTransfer.files`（[上游回归](https://bugs.webkit.org/show_bug.cgi?id=323277)）。窗口配置在 Host 启动时按平台调整；Windows/macOS 保持 HTML5 拖放配置。Linux 内部文件树移动、tab 拖拽仍走 HTML5。
 - 即时导入：`paper_commit` 立刻复制 PDF + 建目录 + 落 catalog，`paper:imported` 让论文马上出现在树/论文库；`RecognizeMetadata` job 在后台跑识别链路（见 [../backend/paper-import.md](../backend/paper-import.md)），返回值 `recognizePending=true` 时前端跳过自己的 layout enqueue（runner 统一在改名后编排 PAPER.md / refs / layout）。
 - 识别落地：改名/合并通过 `paper:renamed` 事件通知前端 —— handler 抑制 watcher 的外部 rename 修复（`trackInternalRenamePaths`）、remap 打开的 tab/标注、定向刷新树（新旧两个路径）与 Library；`outcome=merged` 时 Toast「识别后的 PDF 已合入已有条目」。仅元数据更新走 `job:changed` 终态 → Library 刷新，树行标签随 `paperMetaByRelPath` 自动更新。
 - PDF 解析最多等待 120 秒，取消任务会终止当前解析子进程。解析失败或超时时，后台入库任务仍会结束，已复制的 PDF、`NOTES.md` 与 catalog 记录保持可用；用户可稍后通过 CLI `paper parse` 重试派生正文。
