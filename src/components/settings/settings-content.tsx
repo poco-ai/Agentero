@@ -40,7 +40,6 @@ import {
 	broadcastTourRequest,
 } from "@/lib/onboarding/api";
 import type { AppSettings } from "@/lib/settings";
-import { patchSettings } from "@/lib/settings/react-store";
 import { closeSettingsWindow } from "@/lib/shell/settings-window";
 import {
 	getRemoteSessionMeta,
@@ -429,7 +428,6 @@ export function SettingsContent({
 						size="sm"
 						className="w-full border-sidebar-border bg-sidebar/40 hover:bg-sidebar-accent"
 						onClick={() => {
-							patchSettings({ onboardingDone: false });
 							broadcastOnboardingRequest();
 							closeSettingsWindow();
 						}}

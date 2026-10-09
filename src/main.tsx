@@ -50,6 +50,8 @@ async function boot() {
 
 	// Host XDG settings.json (migrates legacy localStorage once).
 	await ensureSettingsLoaded();
+	// Every window must hydrate the React mirror before it can patch settings.
+	initSettingsStore();
 	bootStage("settings");
 	initSettingsSync();
 	const initialSettings = loadSettings();
@@ -200,7 +202,6 @@ async function boot() {
 			import("katex/dist/katex.min.css"),
 		]);
 	bootStage("app-module");
-	initSettingsStore();
 	initVaultStore();
 	initWorkspaceStore();
 	if (!isMobileApp()) initShellLayoutFromPrefs();
