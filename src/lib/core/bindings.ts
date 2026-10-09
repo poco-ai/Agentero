@@ -96,7 +96,7 @@ export const commands = {
 	doctorCheckNetwork: () => typedError<ApiResult<NetworkDoctorReport_Serialize>, string>(__TAURI_INVOKE("doctor_check_network")),
 	/**  List which known desktop apps are installed on this machine. */
 	desktopAppsProbe: () => typedError<ApiResult<DesktopAppStatus_Serialize[]>, string>(__TAURI_INVOKE("desktop_apps_probe")),
-	/**  Launch one installed desktop app (currently macOS only). */
+	/**  Launch one installed desktop app (macOS or Windows). */
 	desktopAppOpen: (id: DesktopAppId) => typedError<ApiResult<null>, string>(__TAURI_INVOKE("desktop_app_open", { id })),
 	/**  Request cooperative cancellation for a currently streaming ACP session. */
 	agentCancelRun: (sessionId: string) => __TAURI_INVOKE<ApiResult<boolean>>("agent_cancel_run", { sessionId }),
@@ -2476,19 +2476,19 @@ export type DecisionStatus =
 export type DepPolicy = "allSettled" | "allSucceeded";
 
 /**  Stable id the frontend keys rows and brand logos on. */
-export type DesktopAppId = "chatgpt" | "qwenwork" | "workbuddy";
+export type DesktopAppId = "chatgpt" | "qwenwork" | "workbuddy" | "dsh-desktop";
 
-/**  Detection result for one app. `path` is the resolved macOS bundle when known. */
+/**  Detection result: macOS bundle or Windows executable path when known. */
 export type DesktopAppStatus = DesktopAppStatus_Serialize | DesktopAppStatus_Deserialize;
 
-/**  Detection result for one app. `path` is the resolved macOS bundle when known. */
+/**  Detection result: macOS bundle or Windows executable path when known. */
 export type DesktopAppStatus_Deserialize = {
 	id: DesktopAppId,
 	installed: boolean,
 	path: string | null,
 };
 
-/**  Detection result for one app. `path` is the resolved macOS bundle when known. */
+/**  Detection result: macOS bundle or Windows executable path when known. */
 export type DesktopAppStatus_Serialize = {
 	id: DesktopAppId,
 	installed: boolean,

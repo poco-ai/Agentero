@@ -52,7 +52,8 @@
 			"unsupported": "Not supported yet",
 			"chatgpt": "ChatGPT",
 			"qwenwork": "QwenWork",
-			"workbuddy": "WorkBuddy"
+			"workbuddy": "WorkBuddy",
+			"dsh-desktop": "Dsh Desktop"
 		}
 	},
 	"translate": {

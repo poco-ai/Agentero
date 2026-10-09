@@ -1,5 +1,5 @@
 import { type ComponentProps, type ReactNode, useId } from "react";
-import { SiQwen } from "react-icons/si";
+import { SiDeepseek, SiQwen } from "react-icons/si";
 import { ChatGPTIcon } from "@/components/ai-elements/open-in-chat";
 import type { DesktopAppId } from "@/lib/system/desktop-apps";
 
@@ -21,6 +21,8 @@ export function DesktopAppLogo({
 			return <SiQwen className={className} />;
 		case "workbuddy":
 			return <WorkBuddyMark className={className} />;
+		case "dsh-desktop":
+			return <SiDeepseek className={className} />;
 		default:
 			return null;
 	}

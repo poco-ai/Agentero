@@ -13,6 +13,7 @@ export const DESKTOP_APP_IDS: DesktopAppId[] = [
 	"chatgpt",
 	"qwenwork",
 	"workbuddy",
+	"dsh-desktop",
 ];
 
 /** Detect which known desktop apps are installed on this machine. */

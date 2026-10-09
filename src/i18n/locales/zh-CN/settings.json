@@ -319,7 +319,8 @@
 			"open": "打开 {{name}}",
 			"chatgpt": "ChatGPT",
 			"qwenwork": "千问办公",
-			"workbuddy": "WorkBuddy"
+			"workbuddy": "WorkBuddy",
+			"dsh-desktop": "Dsh 桌面版"
 		},
 		"zcodeDesktopPathHint": "若未找到 ZCode，请将 ZCODE_BIN 设为其 zcode.cjs 路径；支持任意盘符及多层目录安装。",
 		"defaultAgent": {

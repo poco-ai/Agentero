@@ -25,6 +25,7 @@ pub enum DesktopAppId {
     Chatgpt,
     Qwenwork,
     Workbuddy,
+    DshDesktop,
 }
 
 /// Detection result: macOS bundle or Windows executable path when known.
@@ -91,6 +92,21 @@ const APPS: &[AppSpec] = &[
             exe_names: &["WorkBuddy.exe"],
             install_names: &["WorkBuddy"],
             protocols: &["workbuddy"],
+        },
+    },
+    AppSpec {
+        id: DesktopAppId::DshDesktop,
+        // Official Electron product name. The desktop shell is distinct from
+        // the CLI's native ACP profile (`dsh --profile acp`).
+        names: &["DeepSeek Harness"],
+        bundle_ids: &[],
+        #[cfg(windows)]
+        windows: windows::WinSpec {
+            uninstall_names: &["DeepSeek Harness"],
+            package_names: &[],
+            exe_names: &["DeepSeek Harness.exe"],
+            install_names: &["DeepSeek Harness"],
+            protocols: &["dsh"],
         },
     },
 ];
@@ -222,7 +238,7 @@ mod tests {
 
     #[test]
     fn apps_are_unique_and_ordered() {
-        assert_eq!(APPS.len(), 3);
+        assert_eq!(APPS.len(), 4);
         let mut seen = std::collections::HashSet::new();
         for spec in APPS {
             assert!(seen.insert(spec.id), "duplicate desktop app id");
@@ -231,11 +247,16 @@ mod tests {
         assert_eq!(APPS[0].id, DesktopAppId::Chatgpt);
         assert_eq!(APPS[1].id, DesktopAppId::Qwenwork);
         assert_eq!(APPS[2].id, DesktopAppId::Workbuddy);
+        assert_eq!(APPS[3].id, DesktopAppId::DshDesktop);
     }
 
     #[test]
     fn ids_serialize_to_kebab_case() {
         let value = serde_json::to_value(DesktopAppId::Qwenwork).expect("serializes");
         assert_eq!(value, serde_json::json!("qwenwork"));
+        assert_eq!(
+            serde_json::to_value(DesktopAppId::DshDesktop).unwrap(),
+            serde_json::json!("dsh-desktop")
+        );
     }
 }

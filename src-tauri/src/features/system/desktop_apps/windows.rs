@@ -508,6 +508,30 @@ mod tests {
     }
 
     #[test]
+    fn dsh_desktop_requires_the_gui_executable_not_a_cli_or_home_directory() {
+        let fixture = Fixture::new();
+        let cli = fixture.dir.path().join("dsh.cmd");
+        std::fs::write(&cli, "@echo off").unwrap();
+        std::fs::create_dir(fixture.dir.path().join(".dsh")).unwrap();
+        let (record, _) = fixture.sources.uninstall[0].create_subkey("Dsh").unwrap();
+        record
+            .set_value("DisplayName", &"DeepSeek Harness 0.2.0-rc.2")
+            .unwrap();
+        record
+            .set_value("DisplayIcon", &format!("\"{}\",0", cli.display()))
+            .unwrap();
+        assert!(fixture.detect(3).is_none());
+
+        let exe = fixture.exe("DeepSeek Harness.exe");
+        record
+            .set_value("DisplayIcon", &format!("\"{}\",0", exe.display()))
+            .unwrap();
+        assert_eq!(fixture.detect(3).unwrap().path, exe);
+        std::fs::remove_file(exe).unwrap();
+        assert!(fixture.detect(3).is_none());
+    }
+
+    #[test]
     fn command_parsing_and_native_launch_do_not_invoke_a_shell() {
         let fixture = Fixture::new();
         let exe = fixture.exe("WorkBuddy.exe");
