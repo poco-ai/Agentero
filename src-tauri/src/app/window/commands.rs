@@ -55,13 +55,13 @@ pub async fn window_new(app: AppHandle) -> Result<(), String> {
     let op = OpTimer::start("window_new");
     let label = format!("agentero-{}", uuid::Uuid::new_v4().simple());
 
-    // Main window uses tauri.conf.json `dragDropEnabled: false` so HTML5
-    // DnD works (vault moves, tab reorder, Library/composer file drops).
+    // Windows/macOS main windows use `dragDropEnabled: false` for HTML5
+    // DnD (vault moves, tab reorder, Library/composer file drops). Linux
+    // enables native GTK file paths as a fallback for empty WebKit FileLists.
     // On Windows, Tauri native drag-drop swallows HTML5 dragover/drop.
     // Frontend preventDefaults leftover file drops so the webview never
     // navigates to a dropped PDF.
-    // WebviewWindowBuilder in this Tauri version has no drag_drop_enabled();
-    // secondary windows inherit platform defaults — frontend still preventDefaults.
+    // Secondary windows inherit platform defaults — frontend still preventDefaults.
     #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
     let mut builder =
         WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html?fresh=1".into()))
