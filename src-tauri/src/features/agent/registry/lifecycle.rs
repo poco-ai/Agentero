@@ -435,6 +435,18 @@ pub fn run_partial_template_uninstall(
         return Ok(());
     };
     let payload = info.for_scope(scope);
+    #[cfg(windows)]
+    let npm_prefix =
+        if template_id == "dsh" && matches!(scope, UninstallScope::Agent | UninstallScope::All) {
+            resolve_command("dsh")
+                .map(|command| super::dsh::npm_prefix(&command))
+                .transpose()?
+                .flatten()
+        } else {
+            None
+        };
+    #[cfg(not(windows))]
+    let npm_prefix: Option<std::path::PathBuf> = None;
     if !payload.npm_commands.is_empty() {
         // A fully `|| true` chain would silently succeed when npm is missing.
         // Qoder's official installer does not need Node, so a missing npm must
@@ -451,11 +463,22 @@ pub fn run_partial_template_uninstall(
                 "agent-lifecycle-uninstall",
                 proxy_enabled,
                 proxy_url,
+                npm_prefix.as_deref(),
             )?;
         }
     }
     for dir in &payload.dirs {
         remove_managed_path(std::path::Path::new(dir))?;
+    }
+    #[cfg(windows)]
+    if template_id == "dsh"
+        && matches!(scope, UninstallScope::Agent | UninstallScope::All)
+        && resolve_command("dsh").is_some()
+    {
+        return Err(
+            "Dsh is still on PATH after npm uninstall; another npm installation or a desktop-managed launcher remains. Remove it with the installation that owns that command"
+                .to_string(),
+        );
     }
     if template_id == "zcode"
         && matches!(scope, UninstallScope::Acp | UninstallScope::All)
@@ -598,6 +621,7 @@ pub fn run_template_lifecycle(
         "agent-lifecycle-install",
         proxy_enabled,
         proxy_url,
+        None,
     )
 }
 
@@ -1212,6 +1236,7 @@ fn run_tool_lifecycle_silently(
     phase: &str,
     proxy_enabled: bool,
     proxy_url: &str,
+    npm_prefix: Option<&std::path::Path>,
 ) -> Result<(), String> {
     let _guard = acquire_lifecycle_lock(app, task_id)?;
     check_lifecycle_cancelled(task_id)?;
@@ -1224,6 +1249,9 @@ fn run_tool_lifecycle_silently(
         cmd.arg("-c").arg(script);
         apply_proxy_env_to_command(&mut cmd, proxy_enabled, proxy_url);
         apply_npm_cache_env(&mut cmd, effective_npm_cache_dir().as_deref());
+        if let Some(prefix) = npm_prefix {
+            cmd.env("npm_config_prefix", prefix);
+        }
         if let Some(login_path) = login_shell_path() {
             let inherited = std::env::var("PATH").unwrap_or_default();
             cmd.env("PATH", merge_path_segments(&login_path, &inherited));
@@ -1247,6 +1275,9 @@ fn run_tool_lifecycle_silently(
             .creation_flags(CREATE_NO_WINDOW);
         apply_proxy_env_to_command(&mut cmd, proxy_enabled, proxy_url);
         apply_npm_cache_env(&mut cmd, effective_npm_cache_dir().as_deref());
+        if let Some(prefix) = npm_prefix {
+            cmd.env("npm_config_prefix", prefix);
+        }
         let output = run_command_with_cancellation(cmd, app, task_id, phase);
         let _ = fs::remove_file(&bat_file);
         check_lifecycle_cancelled(task_id)?;

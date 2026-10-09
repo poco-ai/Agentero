@@ -343,6 +343,19 @@ fn plan_local_launch_with(
     bundled_spawn: BundledSpawnFn,
 ) -> Result<(AgentDescriptor, PathBuf), AppError> {
     if let Some(path) = resolve_command_in_agent_env(&desc.command, child_env) {
+        #[cfg(windows)]
+        if desc.template == AgentTemplate::Dsh {
+            if let Some((node, entry)) = crate::features::agent::registry::dsh::npm_launch(
+                &path,
+                resolve_command_in_agent_env("node", child_env),
+            )
+            .map_err(AppError::message)?
+            {
+                let mut launch_desc = desc.clone();
+                launch_desc.args.insert(0, entry.display().to_string());
+                return Ok((launch_desc, node));
+            }
+        }
         return Ok((desc.clone(), path));
     }
     if let Some((node, adapter)) = bundled_spawn(desc.template.as_str(), child_env) {

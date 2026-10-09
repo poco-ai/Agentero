@@ -494,7 +494,7 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             args: vec!["--profile".to_string(), "acp".to_string()],
             detect_command: Some("dsh".to_string()),
             install_hint: format!(
-                "{DSH_INSTALL_COMMAND}  ·  needs Node 22.19+ and DEEPSEEK_API_KEY in ~/.dsh/.env \
+                "{DSH_INSTALL_COMMAND}  ·  needs Node 22.19+ / 24.2+ and DEEPSEEK_API_KEY in ~/.dsh/.env \
                  (or the launch environment)  ·  https://github.com/deepseek-ai/deepseek-harness"
             ),
             install_command: Some(DSH_INSTALL_COMMAND.to_string()),

@@ -1,6 +1,8 @@
 pub mod antigravity;
 pub mod bundled;
 pub mod discovery;
+#[cfg(windows)]
+pub(crate) mod dsh;
 pub mod lifecycle;
 pub mod remote;
 pub mod store;

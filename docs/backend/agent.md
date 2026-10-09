@@ -49,6 +49,15 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
     而 demo 停更，锁步 prerelease semver 无法混搭），uninstall 仍会清理该遗留目录。
   - 安装/更新走 `npm i -g @deepseek-ai/dsh@latest`（Unix `--prefix "$HOME/.local"`），
     检测/版本对比用 `dsh --version` vs npm latest，与其他 npm 模板一致。
+  - Windows 标准 npm 安装的 ACP 启动直接读取 `@deepseek-ai/dsh` 的 `bin.dsh`
+    入口，优先用 Agent 合并 PATH 中的兼容 Node，再尝试 shim 同目录的 Node。
+    运行时需 Node 22.19+ / 24.2+（或更高版本）并支持 `import.meta.main`；没有
+    兼容运行时则在启动前报出升级提示，避免旧 Node 静默退出后仅显示协议失败。
+    自定义包装脚本与桌面端注册的命令保持原有启动方式。
+  - Windows 卸载按实际 `dsh.cmd` 所属 npm prefix 设置子进程的
+    `npm_config_prefix`，不依赖当前 npm 的默认 prefix；删除后仍有 Dsh 命令
+    留在 PATH 时报告未完成。不会删除 `DSH_HOME` / `~/.dsh` 用户数据。
+    复现与验证见 [Windows Dsh 运行时和卸载复盘](../bug_fix/windows-dsh-runtime-and-uninstall.md)。
   - 会话：当前版本声明 `sessionCapabilities` 的 `close`/`list`/`resume`，多轮续聊
     走标准 resume 路径，连接也可进入 warm 池。
   - API Key：官方 CLI 的分层 env（`~/.dsh/.env` 等）由 `dsh` 自身加载，ACP
