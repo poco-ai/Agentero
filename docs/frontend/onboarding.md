@@ -5,7 +5,7 @@
 ## 触发时机
 
 - **自动**：主窗口（Tauri 桌面）首次启动，且 `settings.onboardingDone === false`、无已打开 Vault、无最近 Vault 记录时，覆盖层自动打开。老用户升级因已有 Vault/最近记录不会误弹。
-- **手动**：设置 → 关于 → 首次运行引导 →「重新打开引导向导」。设置窗口通过 Tauri 事件 `onboarding:request`（`src/lib/onboarding/api.ts`）广播，主窗口 `OnboardingRoot` 监听后强制打开。
+- **手动**：设置侧栏 →「快速配置向导」。设置窗口通过 Tauri 事件 `onboarding:request`（`src/lib/onboarding/api.ts`）广播，主窗口 `OnboardingRoot` 监听后强制打开。打开操作不写设置，也不重置 `onboardingDone`；进入向导后，各步骤仍按用户操作保存配置。
 
 完成任一收尾动作（创建 Vault / 从 Zotero 导入 / 完成 / 关闭）都会把 `onboardingDone` 置 `true`（随 XDG `settings.json` 持久化，Host `AppSettings` 必须保留该字段），此后不再自动弹出。
 
