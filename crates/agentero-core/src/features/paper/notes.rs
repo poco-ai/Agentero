@@ -1,8 +1,8 @@
 //! `{paper}/NOTES.md` get/write with YAML frontmatter protection.
 
-use crate::core::error::AppError;
-use crate::core::fs::{atomic_write, sanitize_vault_rel};
-use agentero_core::features::markdown::frontmatter::split_off_frontmatter;
+use crate::error::AppError;
+use crate::features::markdown::frontmatter::split_off_frontmatter;
+use crate::fs::{atomic_write, sanitize_vault_rel};
 use std::fs;
 use std::path::{Path, PathBuf};
 

@@ -1,0 +1,434 @@
+//! Vault-wide full-text search over Markdown files.
+//!
+//! Walk-based (always fresh, no index): scans `*.md` under the Vault (skipping
+//! hidden / system dirs), requires all query terms (AND), and returns ranked
+//! hits with a snippet + line number. Hits inside a `papers/<…>` folder carry
+//! `paper_path` so the UI can open the paper instead of the raw file.
+
+use crate::error::AppError;
+use crate::features::paper::catalog::papers::PaperRecord;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+const MAX_FILE_BYTES: u64 = 2 * 1024 * 1024; // skip very large md files
+const MAX_DEPTH: usize = 16;
+const MAX_FILES: usize = 20_000;
+const SNIPPET_CHARS: usize = 200;
+
+#[derive(Debug, Default, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultSearchArgs {
+    pub vault_path: String,
+    pub query: String,
+    #[serde(default)]
+    pub limit: Option<usize>,
+    /// Publication year; when set, only hits that map to a catalog paper with
+    /// this exact `year` are returned. Hits with no catalog paper are dropped.
+    #[serde(default)]
+    pub year: Option<i32>,
+    /// Case-insensitive substring match on the catalog `publication` field.
+    #[serde(default)]
+    pub publication: Option<String>,
+    /// Case-insensitive substring match on the catalog `doi` field.
+    #[serde(default)]
+    pub doi: Option<String>,
+    /// Catalog read state; `true` keeps only hits on papers marked read.
+    #[serde(default)]
+    pub is_read: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct MetadataFilter {
+    year: Option<i32>,
+    publication: Option<String>,
+    doi: Option<String>,
+    is_read: Option<bool>,
+}
+
+impl MetadataFilter {
+    fn active(&self) -> bool {
+        self.year.is_some()
+            || !self.publication.as_deref().unwrap_or("").is_empty()
+            || !self.doi.as_deref().unwrap_or("").is_empty()
+            || self.is_read.is_some()
+    }
+
+    fn matches(&self, rec: &crate::features::paper::catalog::papers::PaperRecord) -> bool {
+        if let Some(y) = self.year {
+            if rec.year != Some(y) {
+                return false;
+            }
+        }
+        if let Some(pub_) = self.publication.as_deref().filter(|s| !s.is_empty()) {
+            let p = pub_.to_ascii_lowercase();
+            if !rec
+                .publication
+                .as_deref()
+                .unwrap_or("")
+                .to_ascii_lowercase()
+                .contains(&p)
+            {
+                return false;
+            }
+        }
+        if let Some(d) = self.doi.as_deref().filter(|s| !s.is_empty()) {
+            let d = d.to_ascii_lowercase();
+            if !rec
+                .doi
+                .as_deref()
+                .unwrap_or("")
+                .to_ascii_lowercase()
+                .contains(&d)
+            {
+                return false;
+            }
+        }
+        if let Some(r) = self.is_read {
+            if rec.is_read != r {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+#[derive(Debug, Serialize, specta::Type)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct SearchHit {
+    /// Vault-relative md file, e.g. `papers/x/NOTES.md`.
+    pub path: String,
+    /// Vault-relative paper folder when the hit is inside `papers/…`; else omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paper_path: Option<String>,
+    /// 1-based physical page for `PAPER.md` body hits when `layout.json` maps
+    /// the matched line to a single unambiguous page; omitted otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+    pub title: String,
+    pub snippet: String,
+    /// 1-based line of the first matching line (0 when unknown).
+    pub line: u32,
+    pub score: i64,
+}
+
+#[derive(Debug, Serialize, specta::Type)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct VaultSearchResult {
+    pub hits: Vec<SearchHit>,
+    /// True when more hits existed than `limit`.
+    pub truncated: bool,
+}
+
+/// Search the Vault's Markdown files for all whitespace-separated terms (AND).
+pub fn vault_search(args: VaultSearchArgs) -> Result<VaultSearchResult, AppError> {
+    vault_search_filtered(args, &|_| true)
+}
+
+/// Share ranking/snippets while letting MCP apply its file_read path policy
+/// before any directory traversal or file content read. Host behavior is unchanged.
+pub(crate) fn vault_search_filtered(
+    args: VaultSearchArgs,
+    allow_path: &dyn Fn(&Path) -> bool,
+) -> Result<VaultSearchResult, AppError> {
+    let vault = crate::fs::resolve_vault(&args.vault_path)?;
+
+    let terms: Vec<String> = args
+        .query
+        .to_lowercase()
+        .split_whitespace()
+        .map(str::to_string)
+        .collect();
+    if terms.is_empty() {
+        return Ok(VaultSearchResult {
+            hits: Vec::new(),
+            truncated: false,
+        });
+    }
+    let limit = args.limit.unwrap_or(60).clamp(1, 200);
+
+    let filter = MetadataFilter {
+        year: args.year,
+        publication: args.publication.clone(),
+        doi: args.doi.clone(),
+        is_read: args.is_read,
+    };
+    let catalog_rows: Option<Vec<PaperRecord>> = if filter.active() {
+        crate::features::paper::catalog::papers::list_all_unique_by_id(&vault).ok()
+    } else {
+        None
+    };
+    let paper_meta: Option<std::collections::HashMap<String, &PaperRecord>> =
+        catalog_rows.as_ref().map(|rows| {
+            rows.iter()
+                .map(|r| (r.path.clone(), r))
+                .collect::<std::collections::HashMap<_, _>>()
+        });
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_md_files(&vault, 0, &mut files, allow_path);
+
+    let mut hits: Vec<SearchHit> = Vec::new();
+    for file in &files {
+        if let Some(hit) = search_file(&vault, file, &terms) {
+            hits.push(hit);
+        }
+    }
+    // Attach a physical page to PAPER.md body hits from layout.json when the
+    // matched line resolves to a single unambiguous page.
+    let mut layout_cache: std::collections::HashMap<
+        String,
+        Option<crate::features::pdf::layout_index::RawLayout>,
+    > = std::collections::HashMap::new();
+    for hit in &mut hits {
+        let is_paper_body = hit
+            .path
+            .rsplit('/')
+            .next()
+            .is_some_and(|f| f.eq_ignore_ascii_case("PAPER.md"));
+        if !is_paper_body {
+            continue;
+        }
+        let Some(paper_path) = hit.paper_path.clone() else {
+            continue;
+        };
+        let layout = layout_cache
+            .entry(paper_path.clone())
+            .or_insert_with(|| {
+                crate::features::pdf::layout_index::load_raw_layout(&vault, &paper_path).ok()
+            })
+            .as_ref();
+        if let Some(layout) = layout {
+            hit.page = crate::features::pdf::layout_index::page_map(layout, &hit.snippet);
+        }
+    }
+
+    // Metadata filtering keeps only hits that map to a catalog paper matching
+    // every requested field. Non-catalog hits are dropped, not silently kept.
+    // When a metadata filter is requested but the catalog cannot be read,
+    // drop every hit: none can be verified against the filter.
+    if filter.active() {
+        match paper_meta {
+            Some(map) => hits.retain(|hit| match hit.paper_path.as_deref() {
+                Some(path) => map.get(path).is_some_and(|rec| filter.matches(rec)),
+                None => false,
+            }),
+            None => hits.clear(),
+        }
+    }
+
+    hits.sort_by(|a, b| b.score.cmp(&a.score).then_with(|| a.path.cmp(&b.path)));
+    let truncated = hits.len() > limit;
+    hits.truncate(limit);
+    Ok(VaultSearchResult { hits, truncated })
+}
+
+fn collect_md_files(
+    dir: &Path,
+    depth: usize,
+    out: &mut Vec<PathBuf>,
+    allow_path: &dyn Fn(&Path) -> bool,
+) {
+    if depth > MAX_DEPTH || out.len() >= MAX_FILES {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !allow_path(&path) {
+            continue;
+        }
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if path.is_dir() {
+            // Skip hidden (.agentero/.git/.trash), deps, and LaTeX/e-print source.
+            if name.starts_with('.') || name == "node_modules" || name == "source" {
+                continue;
+            }
+            collect_md_files(&path, depth + 1, out, allow_path);
+        } else if path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("md"))
+        {
+            out.push(path);
+            if out.len() >= MAX_FILES {
+                return;
+            }
+        }
+    }
+}
+
+fn search_file(vault: &Path, file: &Path, terms: &[String]) -> Option<SearchHit> {
+    let meta = fs::metadata(file).ok()?;
+    if meta.len() > MAX_FILE_BYTES {
+        return None;
+    }
+    let content = fs::read_to_string(file).ok()?;
+    let lower = content.to_lowercase();
+    // AND semantics: every term must appear somewhere in the file.
+    if !terms.iter().all(|t| lower.contains(t.as_str())) {
+        return None;
+    }
+
+    let rel = file
+        .strip_prefix(vault)
+        .ok()?
+        .to_string_lossy()
+        .replace('\\', "/");
+
+    let title = content
+        .lines()
+        .find_map(|l| l.trim().strip_prefix("# ").map(|s| s.trim().to_string()))
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            file.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string()
+        });
+
+    // First matching line → snippet + 1-based line number.
+    let mut line = 0u32;
+    let mut snippet = String::new();
+    for (i, raw) in content.lines().enumerate() {
+        let ll = raw.to_lowercase();
+        if terms.iter().any(|t| ll.contains(t.as_str())) {
+            line = (i + 1) as u32;
+            snippet = make_snippet(raw, terms);
+            break;
+        }
+    }
+
+    let title_lower = title.to_lowercase();
+    let mut score: i64 = 0;
+    for t in terms {
+        if title_lower.contains(t.as_str()) {
+            score += 50;
+        }
+        let occ = lower.matches(t.as_str()).count().min(20) as i64;
+        score += occ;
+    }
+    let fname = file.file_name().and_then(|s| s.to_str()).unwrap_or("");
+    if fname.eq_ignore_ascii_case("NOTES.md") || fname.eq_ignore_ascii_case("PAPER.md") {
+        score += 5;
+    }
+
+    Some(SearchHit {
+        paper_path: paper_folder_of(&rel),
+        path: rel,
+        page: None,
+        title,
+        snippet,
+        line,
+        score,
+    })
+}
+
+/// Center a snippet on the earliest matching term, trimmed to [`SNIPPET_CHARS`].
+fn make_snippet(raw: &str, terms: &[String]) -> String {
+    // Strip common leading Markdown markers for a cleaner preview.
+    let cleaned = raw
+        .trim()
+        .trim_start_matches(['#', '>', '-', '*', ' '])
+        .trim();
+    let chars: Vec<char> = cleaned.chars().collect();
+    if chars.len() <= SNIPPET_CHARS {
+        return cleaned.to_string();
+    }
+
+    let lower = cleaned.to_lowercase();
+    let byte_pos = terms
+        .iter()
+        .filter_map(|t| lower.find(t.as_str()))
+        .min()
+        .unwrap_or(0);
+    let char_pos = cleaned[..byte_pos].chars().count();
+
+    let mut start = char_pos.saturating_sub(SNIPPET_CHARS / 3);
+    let end = (start + SNIPPET_CHARS).min(chars.len());
+    start = end.saturating_sub(SNIPPET_CHARS);
+    let mut s: String = chars[start..end].iter().collect();
+    if start > 0 {
+        s = format!("…{s}");
+    }
+    if end < chars.len() {
+        s = format!("{s}…");
+    }
+    s
+}
+
+/// Vault-relative paper folder for a md path under `papers/…`, else None.
+fn paper_folder_of(rel: &str) -> Option<String> {
+    if !rel.starts_with("papers/") {
+        return None;
+    }
+    let (parent, _file) = rel.rsplit_once('/')?;
+    if parent == "papers" {
+        // md directly under papers/ (not a paper folder) → open the file itself.
+        return None;
+    }
+    Some(parent.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn write(dir: &Path, rel: &str, body: &str) {
+        let p = dir.join(rel);
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        fs::write(p, body).unwrap();
+    }
+
+    #[test]
+    fn finds_terms_and_maps_paper_folder() {
+        let root = std::env::temp_dir().join(format!("agentero-search-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        write(
+            &root,
+            "papers/attention/NOTES.md",
+            "# Attention Is All You Need\n\nThe transformer uses self-attention.\n",
+        );
+        write(&root, "notes/idea.md", "Random note about cats.\n");
+        write(&root, ".agentero/skip.md", "attention transformer hidden\n");
+
+        let out = vault_search(VaultSearchArgs {
+            vault_path: root.to_string_lossy().to_string(),
+            query: "transformer attention".into(),
+            limit: None,
+            ..Default::default()
+        })
+        .unwrap();
+
+        assert_eq!(out.hits.len(), 1, "only the NOTES.md matches both terms");
+        let hit = &out.hits[0];
+        assert_eq!(hit.path, "papers/attention/NOTES.md");
+        assert_eq!(hit.paper_path.as_deref(), Some("papers/attention"));
+        assert_eq!(hit.title, "Attention Is All You Need");
+        assert!(hit.line >= 1);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn empty_query_returns_nothing() {
+        let root = std::env::temp_dir().join(format!("agentero-search-e-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let out = vault_search(VaultSearchArgs {
+            vault_path: root.to_string_lossy().to_string(),
+            query: "   ".into(),
+            limit: None,
+            ..Default::default()
+        })
+        .unwrap();
+        assert!(out.hits.is_empty());
+        let _ = fs::remove_dir_all(&root);
+    }
+}

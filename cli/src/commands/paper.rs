@@ -8,6 +8,7 @@ use agentero_core::features::catalog;
 use agentero_core::features::catalog::papers::{self, PaperRecord, PaperTag};
 use agentero_core::features::import::pdf_parse::{self, PaperParseBodyArgs};
 use agentero_core::features::import::{self, PaperDownloadAssetsArgs};
+use agentero_core::features::paper::{notes, reading};
 use clap::{Subcommand, ValueHint};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -16,6 +17,21 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Subcommand)]
 pub enum PaperCmd {
+    /// Read PDF page text with the same PDFium extractor as MCP.
+    Text {
+        r#ref: String,
+        /// 1-based pages (comma-separated); omit for all pages.
+        #[arg(long, value_delimiter = ',')]
+        pages: Option<Vec<u32>>,
+        /// Per-page character budget (clamped to 1..50000).
+        #[arg(long, default_value_t = 20_000)]
+        max_chars: usize,
+    },
+    /// Read/write NOTES.md using MCP's frontmatter-preserving operations.
+    Notes {
+        #[command(subcommand)]
+        cmd: NotesCmd,
+    },
     /// List papers from catalog (L1 index).
     List {
         /// Substring filter on title / authors / id / path / tags.
@@ -117,6 +133,19 @@ pub enum PaperCmd {
 }
 
 #[derive(Debug, Subcommand)]
+pub enum NotesCmd {
+    Get {
+        r#ref: String,
+    },
+    Write {
+        r#ref: String,
+        content: String,
+        #[arg(long)]
+        append: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 pub enum TagCmd {
     /// List unique tags in the catalog with counts (and colors when set).
     List {
@@ -184,6 +213,47 @@ struct TagCountOut {
 
 pub async fn run(cmd: PaperCmd, globals: &GlobalOpts) -> Result<Value, CliError> {
     match cmd {
+        PaperCmd::Text {
+            r#ref,
+            pages,
+            max_chars,
+        } => {
+            let vault = resolve_vault(globals)?;
+            let paper = resolve_paper(&vault, &r#ref, globals)?;
+            to_value(&reading::text(
+                &vault,
+                &paper.path,
+                pages,
+                max_chars.clamp(1, 50_000),
+            )?)
+        }
+        PaperCmd::Notes { cmd } => {
+            let vault = resolve_vault(globals)?;
+            match cmd {
+                NotesCmd::Get { r#ref } => {
+                    let paper = resolve_paper(&vault, &r#ref, globals)?;
+                    Ok(
+                        json!({"ref": paper.path, "id": paper.id, "content": notes::read_notes(&vault, &paper.path)?}),
+                    )
+                }
+                NotesCmd::Write {
+                    r#ref,
+                    content,
+                    append,
+                } => {
+                    let paper = resolve_paper(&vault, &r#ref, globals)?;
+                    let mode = if append {
+                        notes::WriteMode::Append
+                    } else {
+                        notes::WriteMode::Replace
+                    };
+                    notes::write_notes(&vault, &paper.path, &paper.id, &content, mode)?;
+                    Ok(
+                        json!({"ref": paper.path, "id": paper.id, "mode": if append { "append" } else { "replace" }}),
+                    )
+                }
+            }
+        }
         PaperCmd::List {
             query,
             tags,

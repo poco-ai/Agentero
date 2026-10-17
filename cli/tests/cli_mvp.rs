@@ -76,6 +76,91 @@ fn tiny_pdf_pages(texts: &[&str]) -> Vec<u8> {
 }
 
 #[test]
+fn mcp_reading_operations_on_two_vaults() {
+    let tmp = tempdir().unwrap();
+    for (name, page_text) in [("first", "fir"), ("second", "sec")] {
+        let root = tmp.path().join(name);
+        agentero_core::features::vault::create_vault(&root, "en").unwrap();
+        seed_paper(&root, "papers/demo", "demo", "Demo");
+        set_paper_authors_and_year(&root, "papers/demo", "[]", 2024);
+        let paper = root.join("papers/demo");
+        fs::create_dir_all(paper.join("source")).unwrap();
+        fs::write(
+            paper.join("demo.pdf"),
+            tiny_pdf_pages(&["First page", name]),
+        )
+        .unwrap();
+        fs::write(paper.join("NOTES.md"), "---\naliases: [demo]\n---\n\nOld\n").unwrap();
+        fs::write(
+            paper.join("PAPER.md"),
+            "Transformer attention test evidence.\n",
+        )
+        .unwrap();
+        fs::write(
+            paper.join("source/layout.json"),
+            include_str!("../../test/fixtures/mcp-search/papers/alpha/source/layout.json"),
+        )
+        .unwrap();
+        let call = |args: &[&str]| -> Value {
+            let output = agentero()
+                .args(["--vault", root.to_str().unwrap(), "--json"])
+                .args(args)
+                .assert()
+                .success()
+                .get_output()
+                .stdout
+                .clone();
+            serde_json::from_slice::<Value>(&output).unwrap()["data"].clone()
+        };
+        call(&["file", "write", "drafts/main.tex", name]);
+        call(&["file", "write", "drafts/main.tex", "!", "--append"]);
+        assert_eq!(
+            call(&["file", "read", "drafts/main.tex"])["content"],
+            format!("{name}!")
+        );
+        assert_eq!(
+            call(&["file", "list", "drafts"])["entries"][0]["path"],
+            "drafts/main.tex"
+        );
+
+        call(&["paper", "notes", "write", "demo", "# Transformer attention"]);
+        call(&["paper", "notes", "write", "demo", name, "--append"]);
+        assert_eq!(
+            call(&["paper", "notes", "get", "demo"])["content"],
+            format!("---\naliases: [demo]\n---\n\n# Transformer attention\n\n{name}\n")
+        );
+        let text = call(&["paper", "text", "demo", "--pages", "2", "--max-chars", "3"]);
+        assert_eq!(text["pages"][0]["page"], 2);
+        assert_eq!(text["pages"][0]["text"], page_text);
+        assert_eq!(
+            call(&["layout", "page", "demo", "2"])["textRegions"][0]["id"],
+            "page2-body"
+        );
+
+        let search = call(&[
+            "vault",
+            "search",
+            "transformer attention",
+            "--year",
+            "2024",
+            "--is-read",
+            "false",
+        ]);
+        let hits = search["hits"].as_array().unwrap();
+        assert_eq!(hits[0]["path"], "papers/demo/NOTES.md");
+        assert!(hits
+            .iter()
+            .any(|h| h["path"] == "papers/demo/PAPER.md" && h["page"] == 2));
+        assert!(
+            call(&["vault", "search", "transformer attention", "--year", "2023"])["hits"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+    }
+}
+
+#[test]
 fn vault_create_and_list() {
     let tmp = tempdir().unwrap();
     let vault = tmp.path().join("v");

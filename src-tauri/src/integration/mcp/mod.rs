@@ -2,10 +2,9 @@
 //!
 //! See `docs/backend/mcp.md`.
 
-mod files;
+use agentero_core::features::{paper::notes, vault::files};
 mod icons;
 mod layout;
-mod notes;
 mod paper;
 mod resources;
 mod server;

@@ -3,9 +3,9 @@
 //! Paper `NOTES.md` stays on `paper_notes_*` (frontmatter). This surface is for
 //! other vault text, such as a LaTeX draft that does not live under `papers/`.
 
-use crate::core::error::AppError;
-use crate::core::fs::{atomic_write, sanitize_vault_rel};
+use crate::error::AppError;
 use crate::features::vault::tree::should_ignore;
+use crate::fs::{atomic_write, sanitize_vault_rel};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -26,7 +26,8 @@ pub enum WriteMode {
     Append,
 }
 
-#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct FileEntry {
     pub name: String,
@@ -36,7 +37,8 @@ pub struct FileEntry {
     pub kind: String,
 }
 
-#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct FileListOut {
     /// Vault-relative directory that was listed. Empty string is the vault root.
@@ -45,7 +47,8 @@ pub struct FileListOut {
     pub truncated: bool,
 }
 
-#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct FileReadOut {
     pub path: String,
@@ -53,7 +56,8 @@ pub struct FileReadOut {
     pub bytes: usize,
 }
 
-#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct FileWriteOut {
     pub path: String,

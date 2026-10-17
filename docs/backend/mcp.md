@@ -107,7 +107,7 @@ cargo test -p agentero-core pdf::layout_index
 
 不做：删除 / 回收站、`paper_paths`、mark（请用 CLI）、把 PDF 当文本读、shell、stdio MCP。
 
-机器契约与 CLI 共用 `agentero-core::ops`；CLI 侧用 `agentero describe` 自省。
+机器契约与 CLI 共用 `agentero-core::ops`；CLI 侧用 `agentero describe` 自省。文件、笔记、PDF 文本、逐页读取与搜索实现在 core，CLI/MCP 调用同一服务，命令对应关系见 [cli.md](cli.md)。
 
 ## 代码
 

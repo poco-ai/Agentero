@@ -3,7 +3,7 @@
 use crate::config;
 use crate::error::CliError;
 use crate::output::to_value;
-use crate::resolve::GlobalOpts;
+use crate::resolve::{resolve_vault, GlobalOpts};
 use agentero_core::features::vault as vault_svc;
 use clap::{Subcommand, ValueHint};
 use serde_json::{json, Value};
@@ -11,6 +11,20 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Subcommand)]
 pub enum VaultCmd {
+    /// Search Markdown with MCP ranking, page mapping and metadata filters.
+    Search {
+        query: String,
+        #[arg(long)]
+        limit: Option<usize>,
+        #[arg(long)]
+        year: Option<i32>,
+        #[arg(long)]
+        publication: Option<String>,
+        #[arg(long)]
+        doi: Option<String>,
+        #[arg(long, value_name = "BOOL")]
+        is_read: Option<bool>,
+    },
     /// Scaffold a new vault (catalog + dirs + AGENTS.md). Does not overwrite existing files.
     Create {
         /// Directory to create / scaffold.
@@ -26,6 +40,25 @@ pub enum VaultCmd {
 
 pub async fn run(cmd: VaultCmd, globals: &GlobalOpts) -> Result<Value, CliError> {
     match cmd {
+        VaultCmd::Search {
+            query,
+            limit,
+            year,
+            publication,
+            doi,
+            is_read,
+        } => {
+            let vault = resolve_vault(globals)?;
+            to_value(&vault_svc::files::search(
+                &vault,
+                query,
+                limit,
+                year,
+                publication,
+                doi,
+                is_read,
+            )?)
+        }
         VaultCmd::Create { path, open } => create(&path, open, globals),
         VaultCmd::List => list(globals),
     }

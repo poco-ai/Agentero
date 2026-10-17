@@ -9,7 +9,12 @@ authors = ["you"]
 license = "MIT"
 publish = false
 
+[features]
+# MCP output schemas; the headless CLI only needs serde.
+schema = ["dep:schemars"]
+
 [dependencies]
+schemars = { version = "1", optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 # `fs` for the async VaultFs local backend; `rt` for `blocking::run_blocking`

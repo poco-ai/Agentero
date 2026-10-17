@@ -15,6 +15,7 @@
 | MCP `file_list` / `file_read` / `file_write` | Vault 内 UTF-8 文本（Papers 外的 `.tex` 等）；拒绝 `.agentero`、二进制、NOTES 直写 |
 | MCP `vault_search` | 全库 Markdown 关键词 AND；复用 Host 搜索，沿用 MCP 文件路径限制；返回 path/snippet/line/truncated，见 [backend/mcp](../backend/mcp.md) |
 | MCP resources | `agentero://vault`、`agentero://agent-invariants`、`agentero://skills/agentero-cli` |
+| CLI 补齐 MCP 阅读能力 | `file list/read/write`、`paper notes get/write`、`paper text`、`layout page`、`vault search`；CLI/MCP 复用 core 的文件、笔记、PDFium、搜索排名与页码映射，见 [CLI 文档](../backend/cli.md) |
 | Skill 削薄 | `templates/vault/.agents/skills/agentero-cli` v16（任务分支协议；`describe`/`set-read`/`vault list` 不再默认开场） |
 
 ## 刻意未做（后续）

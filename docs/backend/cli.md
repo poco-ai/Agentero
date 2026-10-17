@@ -2,6 +2,26 @@
 
 Headless Vault / Catalog / Wiki 接口；**不含** BYOA / paper-reader。
 
+文件、笔记、PDF 文本、逐页读取与搜索复用 MCP 的同一组 core 服务；通过 `--vault` 选择任一本地 Vault，无需启动桌面或 MCP 服务。
+
+| CLI 命令 | 对应 MCP 工具 |
+|---|---|
+| `file list/read/write` | `file_list/read/write` |
+| `paper notes get/write` | `paper_notes_get/write` |
+| `paper text` | `paper_text_get` |
+| `layout page` | `page_read` |
+| `vault search` | `vault_search` |
+
+```sh
+agentero --vault /path/to/vault file read drafts/main.tex --json
+agentero --vault /path/to/vault paper notes write papers/demo "Finding" --append --json
+agentero --vault /path/to/vault paper text papers/demo --pages 1,2 --max-chars 20000 --json
+agentero --vault /path/to/vault layout page papers/demo 2 --json
+agentero --vault /path/to/vault vault search "transformer attention" --year 2024 --is-read false --json
+```
+
+`file list [path] --limit N` 默认列出 Vault 根目录（200 条，上限 500）；`file write <path> <content> [--append]` 默认替换，沿用 MCP 的路径限制、2 MiB 限制与原子写入。`paper notes write` 保留原 frontmatter，除非替换内容提供自己的 frontmatter。PDF 文本使用同一 PDFium 提取器（同样的分页、去重与字符预算）；搜索保留 MCP 的排名、片段、物理页映射与元数据筛选（`--year`、`--publication`、`--doi`、`--is-read`、`--limit`）。`layout page` 和 MCP 一样需要已有的 v3 `source/layout.json`。MCP 的全文外发开关仍只在 MCP 入口检查；CLI 是本地显式读取。
+
 ## 位置
 
 - 目录：`cli/`（crate `agentero-cli`）

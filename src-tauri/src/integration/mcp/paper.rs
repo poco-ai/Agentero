@@ -1,7 +1,7 @@
 //! Paper ref resolution and list/get shaping for MCP tools.
 
 use crate::core::error::AppError;
-use crate::features::paper::catalog::papers::{self, PaperRecord, PaperRefLookup};
+use crate::features::paper::catalog::papers::{self, PaperRecord};
 use serde::Serialize;
 use std::path::Path;
 
@@ -21,19 +21,7 @@ const PAPER_LIST_EXTRA_FIELDS: &[&str] = &[
     "is_read",
 ];
 
-/// Resolve a paper reference with MCP-flavoured error text.
-pub fn resolve_paper(vault: &Path, ref_: &str) -> Result<PaperRecord, AppError> {
-    let reference = ref_.trim();
-    match papers::lookup_paper_ref(vault, reference)? {
-        PaperRefLookup::Found(record) => Ok(*record),
-        PaperRefLookup::NotFound => Err(AppError::message(format!("paper not found: {reference}"))),
-        PaperRefLookup::Ambiguous(paths) => Err(AppError::message(format!(
-            "paper id '{reference}' is ambiguous ({} matches): {}",
-            paths.len(),
-            paths.join(", ")
-        ))),
-    }
-}
+pub use agentero_core::features::paper::reading::{resolve_paper, text, PaperTextOut};
 
 fn strip_internal_tags(row: &mut PaperRecord) {
     row.tags.retain(|t| !papers::is_internal_tag_name(&t.name));
@@ -251,92 +239,4 @@ pub fn set_read(vault: &Path, ref_: &str, is_read: bool) -> Result<PaperGetOut, 
     let mut row = papers::set_is_read(vault, &paper.path, is_read)?;
     strip_internal_tags(&mut row);
     Ok(PaperGetOut::from_record(&row))
-}
-
-/// One page's text for `paper_text_get`.
-#[derive(Debug, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PaperTextPage {
-    /// 1-based page number.
-    pub page: u32,
-    /// PDFium char count before truncation.
-    pub char_count: usize,
-    /// Page text, truncated to the per-page budget.
-    pub text: String,
-}
-
-/// Full-text extraction result for `paper_text_get` (#676).
-#[derive(Debug, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PaperTextOut {
-    /// Vault-relative paper path (same resolution as other paper tools).
-    pub path: String,
-    /// Total page count of the PDF.
-    pub page_count: u32,
-    /// Per-page extracted text.
-    pub pages: Vec<PaperTextPage>,
-}
-
-/// Extract page text for a paper's main PDF. `pages` selects 1-based pages
-/// (None = all); each page is truncated to `max_chars` characters.
-#[cfg(not(any(target_os = "ios", target_os = "android")))]
-pub fn text(
-    vault: &Path,
-    ref_: &str,
-    pages: Option<Vec<u32>>,
-    max_chars: usize,
-) -> Result<PaperTextOut, AppError> {
-    let record = resolve_paper(vault, ref_)?;
-    let folder_id = record
-        .path
-        .rsplit(['/', '\\'])
-        .next()
-        .unwrap_or_default()
-        .to_string();
-    let paper_dir = vault.join(&record.path);
-    // paper_commit convention: `{folder-id}.pdf` beside NOTES.md.
-    let mut pdf_path = paper_dir.join(format!("{folder_id}.pdf"));
-    if !pdf_path.is_file() {
-        // Fallback: first .pdf in the paper directory.
-        pdf_path = std::fs::read_dir(&paper_dir)
-            .map_err(|e| AppError::message(format!("read paper dir: {e}")))?
-            .filter_map(|entry| entry.ok())
-            .map(|entry| entry.path())
-            .find(|p| {
-                p.extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"))
-                    && p.is_file()
-            })
-            .ok_or_else(|| AppError::message("no PDF in paper folder"))?;
-    }
-    let bytes =
-        std::fs::read(&pdf_path).map_err(|e| AppError::message(format!("read pdf: {e}")))?;
-    let out = crate::features::pdf::text::extract_text(&bytes, pages.as_deref(), max_chars)?;
-    Ok(PaperTextOut {
-        path: record.path,
-        page_count: out.page_count,
-        pages: out
-            .pages
-            .into_iter()
-            .map(|p| PaperTextPage {
-                page: p.page,
-                char_count: p.char_count,
-                text: p.text,
-            })
-            .collect(),
-    })
-}
-
-/// Mobile targets have no PDFium binding, so `paper_text_get` cannot extract
-/// page text; keep the command surface identical and fail at call time.
-#[cfg(any(target_os = "ios", target_os = "android"))]
-pub fn text(
-    _vault: &Path,
-    _ref_: &str,
-    _pages: Option<Vec<u32>>,
-    _max_chars: usize,
-) -> Result<PaperTextOut, AppError> {
-    Err(AppError::message(
-        "paper text extraction is unavailable on this platform",
-    ))
 }

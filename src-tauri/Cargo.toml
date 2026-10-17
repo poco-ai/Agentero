@@ -24,6 +24,7 @@ required-features = ["desktop"]
 [features]
 default = ["desktop"]
 desktop = [
+  "agentero-core/schema",
   "dep:agent-client-protocol",
   "dep:axum",
   "dep:tauri",

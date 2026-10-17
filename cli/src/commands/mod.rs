@@ -2,6 +2,7 @@ pub mod describe;
 pub mod discover;
 pub mod doctor;
 pub mod export;
+pub mod file;
 pub mod import;
 pub mod layout;
 pub mod mark;

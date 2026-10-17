@@ -135,14 +135,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn vault_search_contract_is_read_only_and_mcp_only() {
+    fn vault_search_contract_is_read_only_on_both_surfaces() {
         let op = get("vault_search").expect("vault.search catalog entry");
         assert_eq!(op.id, "vault.search");
         assert_eq!(op.side_effects, OpSideEffect::Read);
         assert!(!op.requires_confirmation);
-        assert!(op.cli.is_none());
-        assert_eq!(op.surfaces.len(), 1);
-        assert!(matches!(op.surfaces[0], OpSurface::Mcp));
+        assert_eq!(op.cli.as_deref(), Some("agentero vault search"));
+        assert_eq!(op.surfaces.len(), 2);
+        assert!(op.surfaces.contains(&OpSurface::Cli));
+        assert!(op.surfaces.contains(&OpSurface::Mcp));
         assert!(op.input.get("query").is_some());
         assert!(op.output.get("truncated").is_some());
     }

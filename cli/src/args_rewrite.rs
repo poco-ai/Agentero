@@ -9,6 +9,7 @@ use std::path::Path;
 
 /// Subcommand names accepted by the CLI (must stay in sync with `Commands`).
 const KNOWN_COMMANDS: &[&str] = &[
+    "file",
     "vault",
     "tree",
     "paper",

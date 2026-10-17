@@ -10,6 +10,8 @@ use serde_json::{json, Value};
 
 #[derive(Debug, Subcommand)]
 pub enum LayoutCmd {
+    /// Read every layout region of a 1-based physical page (same as MCP page_read).
+    Page { r#ref: String, page: u32 },
     /// List sidebar-aligned regions (figure / table / algorithm / formula).
     List {
         /// Vault-relative paper path or id.
@@ -39,6 +41,15 @@ pub enum LayoutCmd {
 
 pub fn run(cmd: LayoutCmd, globals: &GlobalOpts) -> Result<Value, CliError> {
     match cmd {
+        LayoutCmd::Page { r#ref, page } => {
+            let vault = resolve_vault(globals)?;
+            let paper = resolve_paper(&vault, &r#ref, globals)?;
+            to_value(&agentero_core::features::paper::reading::read_page(
+                &vault,
+                &paper.path,
+                page,
+            )?)
+        }
         LayoutCmd::List {
             r#ref,
             kinds,

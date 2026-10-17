@@ -640,6 +640,7 @@ mod tests {
 
 pub mod agent_links;
 pub mod doctor;
+pub mod files;
 pub mod rename;
 pub mod trash;
 pub mod tree;

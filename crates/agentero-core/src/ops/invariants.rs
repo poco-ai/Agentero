@@ -20,7 +20,7 @@ These rules apply to both the `agentero` CLI and the loopback MCP server.
 4. L2.5 — layout index (`layout list` / `layout_list`) and marks (via CLI `mark`, not by hand-editing JSON)
 5. L3 — `{paper}/PAPER.md` when no TeX
 6. L4 — `{paper}/source/**` (prefer TeX)
-7. A known vault text file outside a paper record — MCP `file_list` / `file_read` (one file, not a tree dump)
+7. A known vault text file outside a paper record — CLI `file list/read` or MCP `file_list` / `file_read` (one file, not a tree dump)
 
 Never dump an entire PDF/TeX/body into context by default.
 
@@ -32,7 +32,7 @@ Never dump an entire PDF/TeX/body into context by default.
 ## Writes and safety
 
 - Confirm with the user before overwriting user-written `NOTES.md` or any other file (`replace`). Prefer `append` when unsure.
-- MCP `file_read` / `file_write` take a vault-relative path (`drafts/main.tex`, `notes/idea.md`). They are UTF-8 text only. `file_list` is one directory. Do not use them for `.agentero`, binaries, LaTeX build artifacts, marks, or layout indexes. `NOTES.md` writes still go through `paper_notes_write`.
+- CLI `file read/write` and MCP `file_read` / `file_write` take a vault-relative path (`drafts/main.tex`, `notes/idea.md`). They are UTF-8 text only. `file list` / `file_list` is one directory. Do not use them for `.agentero`, binaries, LaTeX build artifacts, marks, or layout indexes. `NOTES.md` writes go through CLI `paper notes write` or MCP `paper_notes_write`.
 - Do not hand-edit `{paper}/marks/annotations.json` or `{paper}/source/layout-index.json`.
 - Do not invent catalog metadata, layout bboxes, or mark coordinates. On `mark_locate_failed`, retry with a longer verbatim quote — never guess rects.
 - If `layout_index_missing`, ask the user to open the paper in Agentero and run layout analysis; do not invent regions.

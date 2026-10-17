@@ -171,6 +171,11 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    /// Vault-relative text files (shared with MCP).
+    File {
+        #[command(subcommand)]
+        cmd: commands::file::FileCmd,
+    },
     /// Vault lifecycle: create, resolve, inspect.
     Vault {
         #[command(subcommand)]
@@ -375,7 +380,9 @@ fn finish_err(
 
 fn command_label(cmd: &Commands) -> &'static str {
     match cmd {
+        Commands::File { .. } => "cli.file",
         Commands::Vault { cmd } => match cmd {
+            commands::vault::VaultCmd::Search { .. } => "cli.vault.search",
             commands::vault::VaultCmd::Create { .. } => "cli.vault.create",
             commands::vault::VaultCmd::List => "cli.vault.list",
         },
@@ -413,6 +420,7 @@ fn resolve_format(cli: &Cli) -> OutputFormat {
 
 async fn run(command: Commands, globals: &GlobalOpts) -> Result<serde_json::Value, CliError> {
     match command {
+        Commands::File { cmd } => commands::file::run(cmd, globals),
         Commands::Vault { cmd } => commands::vault::run(cmd, globals).await,
         Commands::Sync { cmd } => commands::sync::run(cmd, globals).await,
         Commands::Describe { op } => commands::describe::run(op.as_deref(), globals),
