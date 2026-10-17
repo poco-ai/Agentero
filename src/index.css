@@ -898,6 +898,11 @@ html[data-linux-scrollbars]:has(
  * A Dockview sash move resizes multiple nested views in the same frame.
  * Temporarily contain those layout/paint trees so a heavy PDF or editor panel
  * cannot invalidate sibling panels while the divider is moving.
+ *
+ * `contain: paint` here is also what makes the Markdown re-wrap freeze work:
+ * while the gesture runs, `lib/workspace/markdown-resize-freeze.ts` pins each
+ * editor's content box to its pre-drag width, so the pane follows the pointer
+ * and the pinned overflow is clipped by this containment instead of spilling.
  */
 .agentero-dockview.agentero-dock-sash-active .dv-view,
 .agentero-dockview.agentero-dock-sash-active .dv-render-overlay {

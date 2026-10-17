@@ -22,7 +22,7 @@ import {
 	registerScrollSyncElement,
 } from "@/lib/pdf/scroll-sync";
 import { createPdfViewportScrollScheduler } from "@/lib/pdf/viewport-scroll";
-import { isDockviewSashTarget } from "@/lib/workspace/dockview-sash";
+import { subscribeResizeGesture } from "@/lib/workspace/resize-gesture";
 
 type DockviewViewportProps = HTMLAttributes<HTMLDivElement> & {
 	children: ReactNode;
@@ -74,7 +74,6 @@ export function DockviewViewport({
 
 		const ownerDocument = viewport.ownerDocument;
 		const ownerWindow = ownerDocument.defaultView;
-		const workspace = hostRef.current?.closest(".agentero-dockview") ?? null;
 		const requestFrame = (callback: FrameRequestCallback) =>
 			ownerWindow
 				? ownerWindow.requestAnimationFrame(callback)
@@ -127,38 +126,16 @@ export function DockviewViewport({
 			requestFrame,
 			cancelFrame,
 		});
-		let dockResizeActive = false;
 
-		const removeEndListeners = () => {
-			ownerDocument.removeEventListener("pointerup", finishResize, true);
-			ownerDocument.removeEventListener("pointercancel", finishResize, true);
-			ownerDocument.removeEventListener("contextmenu", finishResize, true);
-			ownerWindow?.removeEventListener("blur", finishResize);
-		};
-
-		const finishResize = () => {
-			if (!dockResizeActive) return;
-			dockResizeActive = false;
-			removeEndListeners();
-			resizeGate.endDockResize();
-		};
-
-		const handlePointerDown = (event: PointerEvent) => {
-			if (
-				dockResizeActive ||
-				!workspace ||
-				!isDockviewSashTarget(event.target, workspace)
-			) {
-				return;
-			}
-
-			dockResizeActive = true;
-			resizeGate.beginDockResize();
-			ownerDocument.addEventListener("pointerup", finishResize, true);
-			ownerDocument.addEventListener("pointercancel", finishResize, true);
-			ownerDocument.addEventListener("contextmenu", finishResize, true);
-			ownerWindow?.addEventListener("blur", finishResize);
-		};
+		// Gate on the shared gesture rather than on `.dv-sash` pointerdown: rail
+		// drags and native window resizes resize this viewport too, and they never
+		// produce a sash event (see `lib/workspace/resize-gesture.ts`). Subscribing
+		// by element would race the workspace's own effect — a child layout effect
+		// runs first — so this uses the order-independent fan-out.
+		const unsubscribeGesture = subscribeResizeGesture((active) => {
+			if (active) resizeGate.beginDockResize();
+			else resizeGate.endDockResize();
+		});
 
 		let scrollFrame: number | null = null;
 		const handleScroll = () => {
@@ -216,11 +193,8 @@ export function DockviewViewport({
 				scrollScheduler.schedule({ x, y, behavior }),
 		);
 
-		ownerDocument.addEventListener("pointerdown", handlePointerDown, true);
 		return () => {
-			ownerDocument.removeEventListener("pointerdown", handlePointerDown, true);
-			removeEndListeners();
-			dockResizeActive = false;
+			unsubscribeGesture();
 			resizeGate.dispose();
 			resizeObserver.disconnect();
 			if (scrollFrame != null) cancelFrame(scrollFrame);
@@ -232,7 +206,7 @@ export function DockviewViewport({
 			unregisterScrollSyncElement();
 			viewportPlugin.unregisterViewport(documentId);
 		};
-	}, [documentId, hostRef, viewportPlugin, rightGutter]);
+	}, [documentId, viewportPlugin, rightGutter]);
 
 	const { style, ...restProps } = props;
 

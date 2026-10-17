@@ -23,7 +23,7 @@ Plate WYSIWYG；用于普通笔记与论文 `NOTES.md`。磁盘上始终是标�
 - **窄面板标题**：一至三级标题字号随面板宽度分两档递减（小于 24rem、小于 18rem），避免窄面板下单个标题占满整屏并逐字换行。
 - **标题上边距**：GitHub 风格固定阶梯，H1–H3 为 `mt-6`、H4–H6 为 `mt-4`，不随标题字号放大；文档第一个块不再叠加段前间距，笔记以 `# 标题` 开头时只保留编辑器 `pt-4`。
 - **分隔线**：`---` / `___` 渲染为紧凑分隔条；void 块放不进光标，默认 Enter 无效果，现光标停在分隔线上或块选分隔线时按 Enter 会在其下方插入新段落并落入光标。
-- **长文阅读性能**：编辑器未聚焦（阅读态）时，顶层块按 `content-visibility: auto` 跳过离屏块的布局与绘制，滚动、拖拽侧边栏或 Dockview 分隔条时只重排视口内内容；聚焦编辑时自动关闭，保证光标、选区与输入法语义不变。该优化仅对非 WebKit 引擎（Windows WebView2 等）启用（#702）。
+- **长文阅读性能**：编辑器未聚焦（阅读态）时，顶层块按 `content-visibility: auto` 跳过离屏块的布局与绘制，滚动、拖拽侧边栏或 Dockview 分隔条时只重排视口内内容；聚焦编辑时自动关闭，保证光标、选区与输入法语义不变。该优化仅对非 WebKit 引擎（Windows WebView2 等）启用（#702）。**WebKit 上改由拖动期间冻结布局兜底**：手势期间把 `@container/editor` 查询容器的宽度 pin 住、松手再还原（实测 42ms → 17ms/帧；真正的大头是容器查询的子树样式重算，不是文字折行），并自动覆盖 rail 拖拽与原生窗口缩放（见 [bug_fix/dockview-sash-pdf-resize-jank.md](../bug_fix/dockview-sash-pdf-resize-jank.md) §3.4）。
 - **外部链接**：手写或粘贴标准 Markdown `[文字](https://…)` 会成为链接节点；普通单击打开编辑气泡（改显示文字与 URL），`⌘/Ctrl+单击`、中键或右键用系统浏览器打开；气泡内也有「打开」。`/` 菜单「外部链接」或右键「新增外部链接」直接插入链接节点（默认占位文字）并打开同一编辑气泡，而不是插入字面量 `[]()`。Vault 内相对 `.md` 链接与 `wiki:` 双链仍走站内导航。Vault 内 `.pdf` 链接（含 `%20` 解码后的空格路径）单击走 `openCitation` 打开 PDF，不经双链解析。带 `#page=` / `#section=` / `#figure=` 等 fragment 的 vault PDF（或 `.tex` 回退到同论文 PDF）同样走 `openCitation`，并跳到对应页/区域。
 - **Markdown 粘贴**：普通文本粘贴默认按 Markdown 反序列化，粘贴后光标保持在插入内容之后。若剪贴板携带 Slate 富文本片段（如编辑器内复制自身），优先恢复富文本 AST 节点，保留标题层级与节点属性，避免二次文本提取引入多余空行或重复双链文字。在空标题或既有标题块内粘贴单行纯文本/公式等无块级语法的文本时，按行内子节点插入并保持原标题级别，不会被降级替换为普通正文段落。
 - **块选与拖拽**：编辑态悬停顶层块时左侧出现六点手柄（Notion 同款）。**悬停或点击手柄**打开操作列表（加入会话 / 复制 / 剪切 / 创建副本 / 删除）。「加入会话」把当前块（多选时为整组）序列化成 Markdown，按划词「加入对话」同样固定到 Agent 输入框并聚焦。**按住拖动手柄**在块之间换位（拖拽中禁止划词）。左 gutter 拖出虚线框可框选相邻块；多选后每个选中块保持显示手柄，任一手柄对整组复制 / 剪切 / 移动。空段落（Markdown 空行、文末 TrailingBlock）不是内容块：不显示手柄、也不画选中底色，但仍可随相邻块一起被框选移动以保留间距。在文字上拖仍是划词。`⌘A` / `Ctrl+A` 第一次选中当前顶层块（光标在代码行、Callout 内，或焦点在 Mermaid 预览等不可编辑区域时，也只框住该代码块 / Callout，不会扩成整篇），再按一次选中全部块。复制块写入 Markdown 纯文本。只读、导出面和 `![[…]]` 嵌入不显示手柄。内部 Plate 块 id 不写回磁盘。块拖拽用指针后端（非 HTML5）：macOS 上 wry 会吞掉 DOM `drop`，和文件树一样。长笔记下拖拽/框选的两个全局标志由单一订阅镜像成编辑器根节点上的 `data-dnd-dragging` / `data-dnd-selection-area`，块级样式走 CSS 后代选择器而非每块订阅；手柄的操作菜单 Popover 直到指针进入手柄才挂载。放置目标与 drop line 必须常驻——指针后端在拖拽途中不会触发「被拖过的那个块」去注册自己。
@@ -61,8 +61,8 @@ Plate WYSIWYG；用于普通笔记与论文 `NOTES.md`。磁盘上始终是标�
 
 ## 限制与后续
 
-- **`@platejs/toc` 每 scroll 事件重建 IntersectionObserver**：`@platejs/toc` 的 scroll 监听每事件 `setStatus(Date.now())`，observer effect 依赖它，于是每个 scroll 事件都 disconnect + 重建 IO（每个标题一次 `NodeApi.get` + `toDOMNode` + `observe`）并全量重渲染 TOC。这是拖滚动条 / TOC 平滑滚动期间掉帧的最大单项（约 2–5ms/事件，与滚动距离无关）。后续计划在 `toc-sidebar.tsx` 用自持长生命周期 IO 替换 `useTocSideBarState` / `useTocSideBar`（保留 `queryTocHeadings` 三层缓存），或对依赖打 patch。
-- **macOS 未启用块级 `content-visibility`**：见 §阅读与打开性能第 1 条与 #702；WebKit 逐元素 CV 可能更慢，需按块数阈值分层灰度并 A/B 实测后再开。
+- **~~`@platejs/toc` 每 scroll 事件重建 IntersectionObserver~~**：已修复（`patches/@platejs__toc@53.0.0.patch`）。原实现里 scroll 监听每事件 `setStatus(Date.now())`，observer effect 依赖它，于是每个 scroll 事件都 disconnect + 重建 IO（每个标题一次 `NodeApi.get` + `toDOMNode` + `observe`）并全量重渲染 TOC（约 2–5ms/事件，与滚动距离无关）。现在 observer 长生命周期保留，滚动只按 rAF 合并做一次 diff 重挂（仅重新 observe DOM 节点真的换过的标题），也不再触发 React 状态更新。见 [bug_fix/toc-scroll-observer-rebuild.md](../bug_fix/toc-scroll-observer-rebuild.md)。
+- **macOS 未启用块级 `content-visibility`**：见 §阅读与打开性能第 1 条与 #702；WebKit 逐元素 CV 只在内容进入视口时才 reveal（[WebKit #276735](https://bugs.webkit.org/show_bug.cgi?id=276735) 未修），打开它会把卡顿从拖拽搬到滚动，故仍不开。**拖动分隔条这一条已用「手势期间冻结重排」绕开**；仍未覆盖的是原生窗口缩放，以及拖动期间 `@container/editor` 的每帧 style recalc（见 [bug_fix/dockview-sash-pdf-resize-jank.md](../bug_fix/dockview-sash-pdf-resize-jank.md) §5）。
 - **Agent 写盘光标保护**：`applyExternalMarkdown` 整篇 `setValue` + `deselect()`，Agent 流式写笔记时可能打断正在输入的光标；后续计划 setValue 后恢复 selection（pathRef 吸收位移）。
 - **对话面板剩余 memo**：流式合帧与窄订阅已落地（见 [agent.md](agent.md)），composer / config bar 等与 lines 无关的子树仍随面板重渲染，待逐个补 memo。
 

@@ -824,8 +824,19 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 								}
 							/>
 						) : null}
-						<div className="@container/editor relative flex min-h-0 min-w-0 flex-1 flex-col">
-							<div className="relative min-h-0 min-w-0 flex-1">
+						<div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+							{/*
+							 * `@container/editor` deliberately sits on this child rather than
+							 * on the pane above. A query container that resizes re-runs style
+							 * for its whole subtree on every frame of a drag — measured at 24
+							 * of the 25ms a pane resize costs on WebKit. One level in, the
+							 * width is still the pane's, and `markdown-resize-freeze` can pin
+							 * it for the gesture so neither the query nor the text re-wraps.
+							 */}
+							<div
+								className="@container/editor relative min-h-0 min-w-0 flex-1"
+								data-editor-query-container=""
+							>
 								<ContextMenu onOpenChange={handleContextMenuOpenChange}>
 									<ContextMenuTrigger asChild>
 										<EditorContainer

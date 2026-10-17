@@ -97,6 +97,7 @@ nav:
       - 生命周期事件系统（Lifecycle Events）: development/lifecycle-events.md
       - 云同步（S3）设计草稿: development/cloud-sync-s3.md
       - A2A 本机与远端协作: development/A2A.md
+      - 面板 resize 性能调研（同类项目做法）: development/resize-performance-research.md
       - Agent DX（CLI / MCP / Skill）: development/agent-dx.md
       - Crate 拆分路线图: development/crate-split-roadmap.md
       - Import 学术 API 抽象层: development/import-api-abstraction.md
@@ -117,6 +118,7 @@ nav:
       - 标题双链稳定性: bug_fix/wikilink-heading-reference-stability.md
       - 拖动 Dockview 分隔条时 PDF 卡顿: bug_fix/dockview-sash-pdf-resize-jank.md
       - Markdown 长文阅读卡顿: bug_fix/markdown-read-jank-offscreen-blocks.md
+      - 笔记滚动条拖动卡顿（TOC observer 每 scroll 重建）: bug_fix/toc-scroll-observer-rebuild.md
       - PDF 切换视觉截图与后台 ONNX: bug_fix/pdf-switch-visual-crop-layout-onnx.md
       - 远端 ACP PATH / SSH: bug_fix/remote-acp-path-ssh.md
       - 远程 Vault 文件树懒加载: bug_fix/remote-vault-tree-lazy.md

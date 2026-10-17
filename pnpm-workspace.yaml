@@ -37,3 +37,6 @@ patchedDependencies:
   '@embedpdf/engines@2.14.4': patches/@embedpdf__engines@2.14.4.patch
   '@embedpdf/plugin-scroll@2.14.4': patches/@embedpdf__plugin-scroll@2.14.4.patch
   '@embedpdf/plugin-tiling@2.14.4': patches/@embedpdf__plugin-tiling@2.14.4.patch
+  # The heading IntersectionObserver was rebuilt on every scroll event, which
+  # showed up as a scrollbar thumb that would not follow a drag on macOS.
+  '@platejs/toc@53.0.0': patches/@platejs__toc@53.0.0.patch

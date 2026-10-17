@@ -1,0 +1,230 @@
+diff --git a/dist/react/index.d.ts b/dist/react/index.d.ts
+index 4297edb9..591b3c80 100644
+--- a/dist/react/index.d.ts
++++ b/dist/react/index.d.ts
+@@ -52,14 +52,14 @@ type UseContentObserver = {
+   isObserve: boolean;
+   isScroll: boolean;
+   rootMargin: string;
+-  status: number;
++  /** Unused since agentero's patch: the observer no longer rebuilds on scroll. */
++  status?: number;
+ };
+ declare const useContentObserver: ({
+   editorContentRef,
+   isObserve,
+   isScroll,
+-  rootMargin,
+-  status
++  rootMargin
+ }: UseContentObserver) => {
+   activeId: string;
+ };
+diff --git a/dist/react/index.js b/dist/react/index.js
+index e95f4bdd..a9463188 100644
+--- a/dist/react/index.js
++++ b/dist/react/index.js
+@@ -72,7 +72,7 @@ const getHeadingList = (editor) => {
+ //#region src/react/hooks/useContentObserver.ts
+ const useContentObserver = (t0) => {
+ 	const $ = c(19);
+-	const { editorContentRef, isObserve, isScroll, rootMargin, status } = t0;
++	const { editorContentRef, isObserve, isScroll, rootMargin } = t0;
+ 	let t1;
+ 	if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
+ 		t1 = {};
+@@ -87,65 +87,98 @@ const useContentObserver = (t0) => {
+ 	} else t2 = $[1];
+ 	const headingList = useEditorSelector(getHeadingList, t2);
+ 	const [activeId, setActiveId] = React.useState("");
+-	let t3;
+-	if ($[2] !== editor || $[3] !== editorContentRef || $[4] !== headingList || $[5] !== isObserve || $[6] !== isScroll || $[7] !== rootMargin) {
+-		t3 = () => {
+-			const root = isScroll ? editorContentRef.current : void 0;
+-			const callback = (headings) => {
+-				if (!isObserve) return;
+-				headingElementsRef.current = headings.reduce(_temp, headingElementsRef.current);
+-				const visibleHeadings = [];
+-				Object.keys(headingElementsRef.current).forEach((key) => {
+-					if (headingElementsRef.current[key].isIntersecting) visibleHeadings.push(key);
+-				});
+-				const lastKey = Object.keys(headingElementsRef.current).pop();
+-				if (visibleHeadings.length > 0) setActiveId(visibleHeadings[0] || lastKey);
+-				headingElementsRef.current = {};
+-			};
+-			const observer = new IntersectionObserver(callback, {
+-				root,
+-				rootMargin
+-			});
+-			headingList.forEach((item) => {
+-				const { path } = item;
+-				const node = NodeApi.get(editor, path);
+-				if (!node) return;
+-				const element = editor.api.toDOMNode(node);
+-				if (element) observer.observe(element);
++	// PATCHED (agentero): the observer below used to be torn down and rebuilt on
++	// every entry of the dependency list, including `status` — which
++	// `useContentController` bumped on each scroll event. A scroll therefore
++	// re-ran `headingList.forEach(...)` (NodeApi.get + toDOMNode + observe per
++	// heading) and constructed a fresh IntersectionObserver, several ms per
++	// event, and it landed on the main thread for the whole length of a
++	// scrollbar-thumb drag. The observer is now long-lived: scrolling only
++	// re-attaches headings whose DOM node was actually remounted, coalesced to
++	// one pass per animation frame.
++	const observerRef = React.useRef(null);
++	const targetsRef = React.useRef(new Map());
++	const callbackRef = React.useRef(null);
++	callbackRef.current = (headings) => {
++		if (!isObserve) return;
++		headingElementsRef.current = headings.reduce(_temp, headingElementsRef.current);
++		const visibleHeadings = [];
++		Object.keys(headingElementsRef.current).forEach((key) => {
++			if (headingElementsRef.current[key].isIntersecting) visibleHeadings.push(key);
++		});
++		const lastKey = Object.keys(headingElementsRef.current).pop();
++		if (visibleHeadings.length > 0) setActiveId(visibleHeadings[0] || lastKey);
++		headingElementsRef.current = {};
++	};
++	const syncTargetsRef = React.useRef(null);
++	syncTargetsRef.current = () => {
++		const observer = observerRef.current;
++		if (!observer) return;
++		const previous = targetsRef.current;
++		const next = new Map();
++		headingList.forEach((item) => {
++			const node = NodeApi.get(editor, item.path);
++			if (!node) return;
++			const element = editor.api.toDOMNode(node);
++			if (element) next.set(item.id, element);
++		});
++		previous.forEach((element, id) => {
++			if (next.get(id) !== element) observer.unobserve(element);
++		});
++		next.forEach((element, id) => {
++			if (previous.get(id) !== element) observer.observe(element);
++		});
++		targetsRef.current = next;
++	};
++	const syncTargets = React.useCallback(() => syncTargetsRef.current(), []);
++	React.useEffect(() => {
++		if (!isObserve) return;
++		const root = isScroll ? editorContentRef.current : void 0;
++		const observer = new IntersectionObserver((headings) => callbackRef.current(headings), {
++			root,
++			rootMargin
++		});
++		observerRef.current = observer;
++		targetsRef.current = new Map();
++		syncTargetsRef.current();
++		return () => {
++			observer.disconnect();
++			observerRef.current = null;
++			targetsRef.current = new Map();
++		};
++	}, [
++		editor,
++		editorContentRef,
++		isObserve,
++		isScroll,
++		rootMargin
++	]);
++	React.useEffect(() => {
++		syncTargets();
++		if (!isObserve || typeof window !== "object") return;
++		const scrollContainer = isScroll ? editorContentRef.current : window;
++		if (!scrollContainer) return;
++		let frame = null;
++		const onScroll = () => {
++			if (frame !== null) return;
++			frame = requestAnimationFrame(() => {
++				frame = null;
++				syncTargets();
+ 			});
+-			return () => {
+-				observer.disconnect();
+-			};
+ 		};
+-		$[2] = editor;
+-		$[3] = editorContentRef;
+-		$[4] = headingList;
+-		$[5] = isObserve;
+-		$[6] = isScroll;
+-		$[7] = rootMargin;
+-		$[8] = t3;
+-	} else t3 = $[8];
+-	let t4;
+-	if ($[9] !== editor || $[10] !== editorContentRef || $[11] !== headingList || $[12] !== isObserve || $[13] !== isScroll || $[14] !== rootMargin || $[15] !== status) {
+-		t4 = [
+-			headingList,
+-			isObserve,
+-			editor,
+-			editorContentRef,
+-			isScroll,
+-			rootMargin,
+-			status
+-		];
+-		$[9] = editor;
+-		$[10] = editorContentRef;
+-		$[11] = headingList;
+-		$[12] = isObserve;
+-		$[13] = isScroll;
+-		$[14] = rootMargin;
+-		$[15] = status;
+-		$[16] = t4;
+-	} else t4 = $[16];
+-	React.useEffect(t3, t4);
++		scrollContainer.addEventListener("scroll", onScroll, { passive: true });
++		return () => {
++			scrollContainer.removeEventListener("scroll", onScroll);
++			if (frame !== null) cancelAnimationFrame(frame);
++		};
++	}, [
++		editor,
++		editorContentRef,
++		headingList,
++		isObserve,
++		isScroll,
++		syncTargets
++	]);
+ 	let t5;
+ 	if ($[17] !== activeId) {
+ 		t5 = { activeId };
+@@ -167,17 +200,14 @@ const useContentController = ({ containerRef, isObserve, rootMargin, topOffset }
+ 	const isScrollRef = React.useRef(false);
+ 	const isScroll = (editorContentRef.current?.scrollHeight || 0) > (editorContentRef.current?.clientHeight || 0);
+ 	isScrollRef.current = isScroll;
+-	const scrollContainer = React.useMemo(() => {
+-		if (typeof window !== "object") return;
+-		return isScroll ? editorContentRef.current : window;
+-	}, [isScroll]);
+-	const [status, setStatus] = React.useState(0);
++	// PATCHED (agentero): dropped the per-scroll `setStatus(Date.now())` kick that
++	// forced `useContentObserver` to rebuild its observer on every scroll event.
++	// Re-attaching remounted headings now lives in that hook, behind a rAF.
+ 	const { activeId } = useContentObserver({
+ 		editorContentRef,
+ 		isObserve,
+ 		isScroll,
+-		rootMargin,
+-		status
++		rootMargin
+ 	});
+ 	const [activeContentId, setActiveContentId] = React.useState(activeId);
+ 	const onContentScroll = ({ behavior = "instant", el, id, path }) => {
+@@ -204,16 +234,6 @@ const useContentController = ({ containerRef, isObserve, rootMargin, topOffset }
+ 	React.useEffect(() => {
+ 		setActiveContentId(activeId);
+ 	}, [activeId]);
+-	React.useEffect(() => {
+-		if (!scrollContainer) return;
+-		const scroll = () => {
+-			if (isObserve) setStatus(Date.now());
+-		};
+-		scrollContainer.addEventListener("scroll", scroll);
+-		return () => {
+-			scrollContainer.removeEventListener("scroll", scroll);
+-		};
+-	}, [isObserve, scrollContainer]);
+ 	return {
+ 		activeContentId,
+ 		onContentScroll

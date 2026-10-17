@@ -56,17 +56,51 @@ function useCachedEquationElement({
 	katexRef,
 	options,
 	enabled,
+	preserveHeight = false,
+	preserveBox = false,
 }: {
 	texExpression: string;
 	katexRef: React.RefObject<HTMLElement | null>;
 	options: katex.KatexOptions;
 	enabled: boolean;
+	preserveHeight?: boolean;
+	preserveBox?: boolean;
 }) {
+	// Footprint of the last render. Eviction must not change the box: a display
+	// formula collapsing would change the document height, and an inline one
+	// changing width would re-wrap its line — either way every element after it
+	// moves, which drags other formulas across their in-view thresholds and makes
+	// the document shake.
+	const boxRef = React.useRef({ width: 0, height: 0 });
+
 	// biome-ignore lint/correctness/useExhaustiveDependencies: katexRef is a stable DOM container; only the TeX source should trigger re-render.
 	useEffect(() => {
-		if (!enabled) return;
-		if (!katexRef.current) return;
-		renderKatexToElement(texExpression, options, katexRef.current);
+		const container = katexRef.current;
+		if (!container) return;
+		if (!enabled) {
+			// Eviction is the whole point of `keepAlive: false`: a rendered KaTeX
+			// formula is hundreds of nodes, and a math-heavy note that has been
+			// scrolled through would otherwise keep every one of them in the DOM
+			// forever, making each later style/layout pass cost hundreds of ms.
+			if (preserveBox) {
+				// `min-width` does nothing on a non-replaced inline box, so the
+				// placeholder is made a sized inline-block instead.
+				container.style.display = "inline-block";
+				container.style.width = `${boxRef.current.width}px`;
+				container.style.height = `${boxRef.current.height}px`;
+			} else if (preserveHeight) {
+				container.style.minHeight = `${boxRef.current.height > 0 ? boxRef.current.height : 64}px`;
+			}
+			container.replaceChildren();
+			return;
+		}
+		container.style.display = "";
+		container.style.width = "";
+		container.style.height = "";
+		container.style.minHeight = "";
+		renderKatexToElement(texExpression, options, container);
+		const rect = container.getBoundingClientRect();
+		boxRef.current = { width: rect.width, height: rect.height };
 	}, [enabled, texExpression, options]);
 }
 
@@ -128,13 +162,22 @@ export const EquationElement = memo(function EquationElement(
 	const [open, setOpen] = React.useState(false);
 	const katexRef = React.useRef<HTMLDivElement | null>(null);
 	const exportMode = useMarkdownExportMode();
-	const inView = useInView(katexRef, { enabled: !exportMode });
+	// Same reasoning as the inline element: a display formula is hundreds of
+	// nodes, so scrolled-past ones must give theirs back.
+	const inView = useInView(katexRef, {
+		enabled: !exportMode,
+		keepAlive: false,
+		rootMargin: "1200px 0px",
+	});
 
 	useCachedEquationElement({
 		texExpression: props.element.texExpression,
 		katexRef,
 		options: displayKatexOptions,
 		enabled: inView,
+		// Display formulas are tall; collapsing them on eviction would change the
+		// document height and shift the scroll.
+		preserveHeight: true,
 	});
 
 	return (
@@ -185,16 +228,32 @@ export const InlineEquationElement = memo(function InlineEquationElement(
 ) {
 	const selected = useSelected();
 	const [open, setOpen] = React.useState(false);
-	const katexRef = React.useRef<HTMLDivElement | null>(null);
+	const katexRef = React.useRef<HTMLSpanElement | null>(null);
+	// Observed instead of `katexRef`: KaTeX is written into the katex span
+	// imperatively, so React must never reconcile its children. The measured
+	// element is the wrapper, which carries the size placeholder while deferred.
+	const wrapperRef = React.useRef<HTMLSpanElement | null>(null);
 
-	// Inline formulas are small and numerous, and a freshly inserted one has an
-	// empty (zero-size) KaTeX span that IntersectionObserver cannot observe.
-	// Render them eagerly; only block equations are deferred.
+	// Inline formulas are the reason a math-heavy note stalls on resize: KaTeX
+	// expands each one into tens to hundreds of spans, so ~5600 inline formulas
+	// put ~200k nodes in the DOM and every style/layout pass then costs hundreds
+	// of milliseconds. Only the equations near the viewport stay expanded; an
+	// evicted one keeps its rendered footprint so the line does not re-wrap.
+	const exportMode = useMarkdownExportMode();
+	// `keepAlive: false`: the node count is the cost, so a formula that scrolls far
+	// off screen has to give its nodes back. The wide rootMargin keeps that churn
+	// well outside the viewport.
+	const inView = useInView(wrapperRef, {
+		enabled: !exportMode,
+		keepAlive: false,
+		rootMargin: "1200px 0px",
+	});
 	useCachedEquationElement({
 		texExpression: props.element.texExpression,
 		katexRef,
 		options: inlineKatexOptions,
-		enabled: true,
+		enabled: inView,
+		preserveBox: true,
 	});
 
 	return (
@@ -205,6 +264,7 @@ export const InlineEquationElement = memo(function InlineEquationElement(
 			<Popover open={open} onOpenChange={setOpen} modal={false}>
 				<PopoverTrigger asChild>
 					<span
+						ref={wrapperRef}
 						className={cn(
 							"inline-flex max-w-full cursor-pointer items-baseline rounded-sm px-1 py-0.5 align-baseline hover:bg-primary/10",
 							selected && "bg-primary/10",

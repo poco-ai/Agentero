@@ -38,6 +38,16 @@ export default defineConfig(async () => ({
 			// patch fix in plugin-tiling or plugin-scroll never reaches `vite dev`.
 			"@embedpdf/plugin-tiling",
 			"@embedpdf/plugin-scroll",
+			// Do NOT add `@platejs/toc` here even though it is patched in-repo.
+			// It imports the CommonJS-only `react-compiler-runtime`
+			// (`import { c } from "react-compiler-runtime"`), and only the
+			// prebundle step performs the CJS→ESM interop that resolves `c`.
+			// Excluding it fails in the webview with
+			// "Importing binding name 'c' is not found".
+			//
+			// The patch still reaches `vite dev` because pnpm resolves the
+			// package to its `patch_hash=…` store dir, and the prebundle cache
+			// key covers the lockfile — so a patch edit invalidates it.
 		],
 	},
 

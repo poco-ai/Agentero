@@ -31,6 +31,7 @@ patchedDependencies:
   '@embedpdf/engines@2.14.4': 32c0ae5c278953b7eb8e64854fe0726e95a6f415b624a4eb1c1ecd25042e057a
   '@embedpdf/plugin-scroll@2.14.4': f32482b4d5884508497cae96468cb4cf37c0288408c18640baa0cb7dc724aac7
   '@embedpdf/plugin-tiling@2.14.4': 63f0fea7c7d9923fa4281a876567f499d7941dfe8c7b7aa42e72990ec0e005a0
+  '@platejs/toc@53.0.0': 59d8aa74c06566a1b758035ef7d31e02ddb2140d68c0cd04ac1afb0c3992c09c
 
 importers:
 
@@ -173,7 +174,7 @@ importers:
         version: 53.0.9(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@platejs/toc':
         specifier: 53.0.0
-        version: 53.0.0(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 53.0.0(patch_hash=59d8aa74c06566a1b758035ef7d31e02ddb2140d68c0cd04ac1afb0c3992c09c)(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@radix-ui/react-toolbar':
         specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -7346,7 +7347,7 @@ snapshots:
       react-compiler-runtime: 1.0.0(react@19.2.7)
       react-dom: 19.2.7(react@19.2.7)
 
-  '@platejs/toc@53.0.0(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@platejs/toc@53.0.0(patch_hash=59d8aa74c06566a1b758035ef7d31e02ddb2140d68c0cd04ac1afb0c3992c09c)(platejs@53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       platejs: 53.3.14(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7))
       react: 19.2.7

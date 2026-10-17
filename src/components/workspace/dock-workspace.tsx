@@ -65,10 +65,12 @@ import {
 	ensureLibraryTabFirst,
 	isLibraryPanel,
 } from "@/lib/workspace/library-tab-position";
+import { createMarkdownResizeFreeze } from "@/lib/workspace/markdown-resize-freeze";
 import {
 	rememberNotesSplitWidth,
 	restoreNotesSplitWidth,
 } from "@/lib/workspace/notes-split-width";
+import { installResizeGesture } from "@/lib/workspace/resize-gesture";
 import { useSelectionOverlayActive } from "@/lib/workspace/selection-overlay";
 import {
 	isSplitDragPayload,
@@ -597,7 +599,22 @@ export const DockWorkspace = memo(
 		useEffect(() => {
 			const root = workspaceRootRef.current;
 			if (!root) return;
-			return installDockviewSashFrameLoop(root);
+			// One gesture signal for every pane resize source: the sash hook below
+			// reports divider drags, and the gesture's own root observer covers
+			// shell rail drags and native window resizes (see resize-gesture.ts).
+			const gesture = installResizeGesture(root);
+			// A dragged divider re-runs the editor's container query every frame;
+			// pin the query containers for the gesture so only the pane edges move.
+			const freeze = createMarkdownResizeFreeze(root, gesture);
+			const disposeSashLoop = installDockviewSashFrameLoop(root, {
+				onSashDragBegin: gesture.begin,
+				onSashDragEnd: gesture.end,
+			});
+			return () => {
+				disposeSashLoop();
+				freeze.dispose();
+				gesture.dispose();
+			};
 		}, []);
 
 		const tabGroupColors = useMemo<DockviewTabGroupColorEntry[]>(

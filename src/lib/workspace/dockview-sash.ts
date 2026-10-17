@@ -113,8 +113,15 @@ function latestPointerSnapshot(event: PointerEvent): PointerMoveSnapshot {
  * pointermove. High-frequency pointer devices can deliver several moves inside
  * one display frame, so forward only the latest coordinate per frame. The
  * pending final coordinate is flushed before pointerup reaches Dockview.
+ *
+ * `hooks` lets the workspace react to the gesture without this module knowing
+ * what lives inside the pane — currently the Markdown re-wrap freeze
+ * (`markdown-resize-freeze.ts`).
  */
-export function installDockviewSashFrameLoop(root: HTMLElement): () => void {
+export function installDockviewSashFrameLoop(
+	root: HTMLElement,
+	hooks: { onSashDragBegin?: () => void; onSashDragEnd?: () => void } = {},
+): () => void {
 	const ownerDocument = root.ownerDocument;
 	const ownerWindow = ownerDocument.defaultView;
 	const PointerEventCtor = ownerWindow?.PointerEvent ?? PointerEvent;
@@ -146,6 +153,9 @@ export function installDockviewSashFrameLoop(root: HTMLElement): () => void {
 		activeSash?.classList.remove("agentero-dock-sash-dragging");
 		activeSash = null;
 		root.classList.remove("agentero-dock-sash-active");
+		// After the flush above, so the document re-wraps at the geometry the
+		// gesture actually ended on.
+		hooks.onSashDragEnd?.();
 	};
 
 	const handlePointerDown = (event: PointerEvent) => {
@@ -160,6 +170,9 @@ export function installDockviewSashFrameLoop(root: HTMLElement): () => void {
 			: null;
 		activeSash?.classList.add("agentero-dock-sash-dragging");
 		root.classList.add("agentero-dock-sash-active");
+		// Before Dockview re-lays out, so the pre-gesture width is what gets
+		// measured and pinned.
+		hooks.onSashDragBegin?.();
 		event.preventDefault();
 	};
 	const handlePointerMove = (event: PointerEvent) => {
