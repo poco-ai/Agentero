@@ -277,6 +277,19 @@ export async function runLookupImportJob(
 		);
 	}
 
+	// Papers that already have a PDF after import: start layout now.
+	// Those still downloading enqueue layout after DownloadAssets completes —
+	// do not kick layout (or it fails with "No local PDF") before the file lands.
+	await finishImportedPapers(vaultPath, result, input);
+}
+
+/** Shared post-import tail of the lookup executors: tracking, layout for
+ * papers that already have a PDF, and asset downloads for the rest. */
+async function finishImportedPapers(
+	vaultPath: string,
+	result: LookupBatchAddResult,
+	sourceInput: string,
+): Promise<void> {
 	for (const paper of result.imported) {
 		const rel = (paper.path || "")
 			.replace(/\\/g, "/")
@@ -284,13 +297,10 @@ export async function runLookupImportJob(
 		if (rel) {
 			track("paper.import", {
 				path: rel,
-				extra: { source: inferLookupSource(input) },
+				extra: { source: inferLookupSource(sourceInput) },
 			});
 		}
 	}
-	// Papers that already have a PDF after import: start layout now.
-	// Those still downloading enqueue layout after DownloadAssets completes —
-	// do not kick layout (or it fails with "No local PDF") before the file lands.
 	for (const paper of result.imported) {
 		if (!paper.pdf) continue;
 		const abs = paper.paperDir
@@ -359,6 +369,60 @@ export async function runLookupImportJob(
 	}
 }
 
+/** Executor body of a chat-paste review batch (`mode: "lookupBatch"`) job —
+ * one Host `lookup_import_batch` call for the whole checklist, so batch-level
+ * dedup applies and the row shows n/total progress. */
+export async function runLookupBatchImportJob(
+	ctx: TaskExecutorContext,
+): Promise<void> {
+	const vaultPath = ctx.vaultPath;
+	const parentDir = ctx.paperPath || "papers";
+	const texts = lookupJobTexts(ctx.params);
+	if (texts.length === 0)
+		throw new Error("import job is missing its identifiers");
+	const settings = getSettings();
+
+	await reportTaskPhase(ctx, i18n.t("app:tasks.lookupFetching"));
+	const result = await addPapersByIdentifiers({
+		vaultRoot: vaultPath,
+		parentDir,
+		texts,
+		settings,
+		progressTaskId: ctx.jobId,
+	});
+	throwIfTaskCancelled(ctx);
+	stashLookupResult(ctx.jobId, result);
+
+	if (result.imported.length > 0) {
+		await reportTaskPhase(
+			ctx,
+			i18n.t("sidebar:lookup.batchDone", { count: result.imported.length }),
+		);
+	}
+	if (result.skillCandidates.length > 0) {
+		setSkillImportDraft(result.skillCandidates);
+	}
+
+	await finishImportedPapers(vaultPath, result, texts[0] ?? "");
+}
+
+/** Submit the confirmed chat-paste checklist as ONE batch import job and
+ * surface its failure to the popover. */
+export async function lookupBatchSubmit(texts: string[]): Promise<void> {
+	const vaultPath = getVaultPath();
+	if (!vaultPath) throw new Error(i18n.t("sidebar:lookup.needsVault"));
+	const list = texts.map((t) => t.trim()).filter(Boolean);
+	if (list.length === 0) return;
+	const job = await enqueueTask({
+		kind: "import",
+		vaultPath,
+		path: currentLookupParentDir(),
+		lane: "normal",
+		params: { mode: "lookupBatch", texts: list },
+	});
+	await awaitTaskSettled(job);
+}
+
 function lookupJobText(params: unknown): string {
 	const text =
 		params && typeof params === "object"
@@ -373,6 +437,18 @@ function lookupJobMode(params: unknown): string {
 			? (params as { mode?: unknown }).mode
 			: undefined;
 	return typeof mode === "string" ? mode : "";
+}
+
+function lookupJobTexts(params: unknown): string[] {
+	const texts =
+		params && typeof params === "object"
+			? (params as { texts?: unknown }).texts
+			: undefined;
+	if (!Array.isArray(texts)) return [];
+	return texts
+		.filter((t): t is string => typeof t === "string")
+		.map((t) => t.trim())
+		.filter(Boolean);
 }
 
 /** Picked a title-search candidate → import it as a normal identifier. */
@@ -468,7 +544,7 @@ function skillJobSelections(params: unknown): SkillImportSelection[] {
 	);
 }
 
-function inferLookupSource(raw: string): string {
+export function inferLookupSource(raw: string): string {
 	const text = raw.trim();
 	if (/npx\s+skills|github\.com|skills\.sh/i.test(text)) return "skill";
 	if (/arxiv\.org|^\d{4}\.\d{4,5}(v\d+)?$/i.test(text)) return "arxiv";

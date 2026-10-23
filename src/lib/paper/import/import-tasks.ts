@@ -17,6 +17,7 @@ import {
 import { runCoolNotesImportJob } from "@/lib/paper/coolpapers";
 import {
 	runLocalPdfImportJob,
+	runLookupBatchImportJob,
 	runLookupImportJob,
 	runSkillImportJob,
 } from "@/lib/paper/import-actions";
@@ -24,6 +25,7 @@ import { runPlazaImportJob } from "@/lib/plaza/import";
 
 export type ImportMode =
 	| "lookup"
+	| "lookupBatch"
 	| "skillLookup"
 	| "skill"
 	| "localPdf"
@@ -35,6 +37,7 @@ const HANDLERS: Record<
 	(ctx: TaskExecutorContext) => Promise<void>
 > = {
 	lookup: runLookupImportJob,
+	lookupBatch: runLookupBatchImportJob,
 	skillLookup: runLookupImportJob,
 	skill: runSkillImportJob,
 	localPdf: runLocalPdfImportJob,

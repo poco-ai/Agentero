@@ -193,6 +193,7 @@ const PROJECTED_JOB_KINDS: ReadonlySet<JobKind> = new Set([
 function importRowIcon(params: unknown): BackgroundTaskIcon {
 	switch (jobParams(params).mode) {
 		case "lookup":
+		case "lookupBatch":
 		case "plaza":
 			return "search";
 		case "coolNotes":
@@ -280,6 +281,7 @@ function jobPanelTitle(job: JobChangedSnapshot): string {
 type JobParams = {
 	mode?: string;
 	text?: string;
+	texts?: string[];
 	title?: string;
 	id?: string;
 	detail?: string;
@@ -305,6 +307,8 @@ function importPanelTitle(params: unknown): string {
 			return i18n.t("app:plazaImport.taskTitle");
 		case "coolNotes":
 			return i18n.t("app:coolPapers.fetchTask");
+		case "lookupBatch":
+			return i18n.t("sidebar:lookup.batchTask");
 		default:
 			return i18n.t("app:tasks.lookupImport");
 	}
@@ -317,6 +321,13 @@ function importPanelDetail(job: JobChangedSnapshot): string | undefined {
 			// Prefer a resolved title once the executor reports it via params;
 			// never surface the raw identifier / URL as the row subject.
 			return p.title?.trim().slice(0, 80) || undefined;
+		case "lookupBatch":
+			// Executor reports the imported count as the phase; the checklist
+			// size stays in params.texts for the panel.
+			return (
+				p.title?.trim().slice(0, 80) ||
+				(p.texts ? `${p.texts.length}` : undefined)
+			);
 		case "plaza":
 			return (p.title?.trim() || "").slice(0, 80) || undefined;
 		case "coolNotes":

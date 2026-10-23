@@ -94,6 +94,7 @@ macro_rules! common_commands {
             crate::features::vault::trash::commands::path_purge_trash,
             crate::features::translate::commands::translate_text,
             crate::features::paper::import::commands::lookup_import_batch,
+            crate::features::paper::import::commands::chat_import_extract,
             crate::features::paper::import::commands::skill_install,
             crate::features::paper::import::commands::skill_discard,
             crate::features::paper::import::commands::paper_import_local_pdf,

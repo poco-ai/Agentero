@@ -31,6 +31,7 @@ import {
 import {
 	dropLocalPdfs,
 	importLocalPdf,
+	lookupBatchSubmit,
 	lookupSubmit,
 } from "@/lib/paper/import-actions";
 import {
@@ -82,6 +83,7 @@ import {
 
 // Stable callbacks so the memoized header / tree bail out on unrelated renders.
 const onLookupSubmit = (texts: string[]) => lookupSubmit(texts);
+const onLookupBatchSubmit = (texts: string[]) => lookupBatchSubmit(texts);
 const onImportBibliography = () => void libraryImport();
 const onImportLocalPdf = () => void importLocalPdf();
 const onOpenRecent = (p: string) => void openRecentVault(p);
@@ -250,6 +252,7 @@ export function VaultSidebar() {
 					selection={treeSelectionHeader}
 					lookupParentDir={lookupParentDir}
 					onLookupSubmit={onLookupSubmit}
+					onLookupBatchSubmit={onLookupBatchSubmit}
 					onImportBibliography={onImportBibliography}
 					onImportLocalPdf={onImportLocalPdf}
 					importBusy={ioBusy === "import"}

@@ -272,6 +272,13 @@ export const commands = {
 	 *  Deduplicates within the batch and against existing catalog entries.
 	 */
 	lookupImportBatch: (args: LookupImportBatchArgs) => typedError<ApiResult<LookupImportBatchResult_Serialize>, string>(__TAURI_INVOKE("lookup_import_batch", { args })),
+	/**
+	 *  Extract paper identifiers from pasted chat text or an AI-chat share URL
+	 *  (#652). Deterministic scanner — no LLM; pasted text never leaves the
+	 *  machine, share pages are fetched once and the page text is dropped after
+	 *  extraction.
+	 */
+	chatImportExtract: (args: ChatImportExtractArgs) => typedError<ApiResult<ChatImportExtractResult>, string>(__TAURI_INVOKE("chat_import_extract", { args })),
 	skillInstall: (args: SkillInstallArgs) => __TAURI_INVOKE<ApiResult<SkillImportResult[]>>("skill_install", { args }),
 	skillDiscard: (discoveryId: string) => __TAURI_INVOKE<ApiResult<null>>("skill_discard", { discoveryId }),
 	/**  Import local PDF file(s) into the vault as paper folders (copy + catalog + liteparse). */
@@ -2085,6 +2092,19 @@ export type CatalogScanResponse_Serialize = {
 	userAgent: string,
 	/**  See [`AgentRegistryState::user_agent_provider_ids`]. */
 	userAgentProviderIds: string,
+};
+
+export type ChatImportExtractArgs = {
+	/**  Pasted chat text, or a bare AI-chat share URL (chatgpt.com/share/...). */
+	text: string,
+};
+
+export type ChatImportExtractResult = {
+	arxiv: string[],
+	dois: string[],
+	pmids: string[],
+	/**  Set when the input was a share link whose page we fetched. */
+	fetchedFrom: string | null,
 };
 
 export type Citation = Citation_Serialize | Citation_Deserialize;

@@ -68,6 +68,56 @@ pub async fn lookup_import_batch(
 
 #[derive(Debug, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub struct ChatImportExtractArgs {
+    /// Pasted chat text, or a bare AI-chat share URL (chatgpt.com/share/...).
+    pub text: String,
+}
+
+#[derive(Debug, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatImportExtractResult {
+    pub arxiv: Vec<String>,
+    pub dois: Vec<String>,
+    pub pmids: Vec<String>,
+    /// Set when the input was a share link whose page we fetched.
+    pub fetched_from: Option<String>,
+}
+
+/// Extract paper identifiers from pasted chat text or an AI-chat share URL
+/// (#652). Deterministic scanner — no LLM; pasted text never leaves the
+/// machine, share pages are fetched once and the page text is dropped after
+/// extraction.
+#[tauri::command]
+#[specta::specta]
+pub async fn chat_import_extract(
+    args: ChatImportExtractArgs,
+) -> Result<ApiResult<ChatImportExtractResult>, String> {
+    let share_url = super::chat_extract::is_share_url(&args.text);
+    let op = OpTimer::start_with(
+        "chat_import_extract",
+        if share_url { "share-url" } else { "text" },
+    );
+    let result: Result<(super::chat_extract::ExtractedIdentifiers, Option<String>), AppError> =
+        if share_url {
+            let url = args.text.trim().to_string();
+            super::chat_extract::extract_from_share_url(&url)
+                .await
+                .map(|ids| (ids, Some(url)))
+        } else {
+            Ok((super::chat_extract::extract_identifiers(&args.text), None))
+        };
+    Ok(
+        op.finish_result(result.map(|(ids, fetched_from)| ChatImportExtractResult {
+            arxiv: ids.arxiv,
+            dois: ids.dois,
+            pmids: ids.pmids,
+            fetched_from,
+        })),
+    )
+}
+
+#[derive(Debug, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct SkillInstallArgs {
     pub vault_path: String,
     pub discovery_id: String,
