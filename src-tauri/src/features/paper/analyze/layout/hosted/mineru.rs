@@ -487,7 +487,10 @@ pub(crate) fn read_zip_entry_by_candidates(
             let entry = archive
                 .by_index(i)
                 .map_err(|e| AppError::message(format!("MinerU result zip entry failed: {e}")))?;
-            if entry.name() == *candidate {
+            let name = entry.name().map_err(|e| {
+                AppError::message(format!("MinerU result zip entry name failed: {e}"))
+            })?;
+            if name == *candidate {
                 index = Some(i);
                 break;
             }
@@ -497,7 +500,10 @@ pub(crate) fn read_zip_entry_by_candidates(
                 let entry = archive.by_index(i).map_err(|e| {
                     AppError::message(format!("MinerU result zip entry failed: {e}"))
                 })?;
-                if entry.name().ends_with(candidate) {
+                let name = entry.name().map_err(|e| {
+                    AppError::message(format!("MinerU result zip entry name failed: {e}"))
+                })?;
+                if name.ends_with(candidate) {
                     index = Some(i);
                     break;
                 }
@@ -509,7 +515,12 @@ pub(crate) fn read_zip_entry_by_candidates(
     }
     let index = index.ok_or_else(|| {
         let names: Vec<String> = (0..archive.len())
-            .filter_map(|i| archive.by_index(i).ok().map(|e| e.name().to_string()))
+            .filter_map(|i| {
+                archive
+                    .by_index(i)
+                    .ok()
+                    .and_then(|e| e.name().ok().map(|name| name.into_owned()))
+            })
             .collect();
         AppError::message(format!(
             "MinerU result zip missing {:?} entry (entries: {})",
@@ -588,7 +599,10 @@ pub(crate) fn read_mineru_markdown_bundle(bytes: &[u8]) -> Result<MineruMarkdown
         if entry.is_dir() {
             continue;
         }
-        let Some(relative_path) = safe_mineru_image_path(entry.name())? else {
+        let name = entry
+            .name()
+            .map_err(|e| AppError::message(format!("MinerU result zip entry name failed: {e}")))?;
+        let Some(relative_path) = safe_mineru_image_path(name.as_ref())? else {
             continue;
         };
         if !paths.insert(relative_path.clone()) {

@@ -889,7 +889,10 @@ fn extract_antigravity_zip(archive: &[u8], dest: &std::path::Path) -> Result<(),
         let mut entry = zip
             .by_index(index)
             .map_err(|e| format!("invalid Antigravity archive entry: {e}"))?;
-        let name = std::path::Path::new(entry.name());
+        let entry_name = entry
+            .name()
+            .map_err(|e| format!("invalid Antigravity archive entry name: {e}"))?;
+        let name = std::path::Path::new(entry_name.as_ref());
         if name.components().any(|component| {
             matches!(
                 component,

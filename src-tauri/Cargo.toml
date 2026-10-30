@@ -98,7 +98,8 @@ flate2 = "1.1.9"
 # Read Dsh's existing compressed transcripts when its ACP bridge cannot replay them.
 zstd = { version = "0.13.3", default-features = false }
 tar = "0.4.46"
-zip = { version = "2.4", default-features = false, features = ["deflate"] }
+# 9.0.5+ fixes the zip-cloaking and symlink extraction advisories (GHSA-m665-v7pm-7grj).
+zip = { version = "9.1", default-features = false, features = ["deflate"] }
 htmd = "0.5.4"
 notify-debouncer-full = "0.3"
 log = { workspace = true }
@@ -134,7 +135,7 @@ agentero-plugin-host = { path = "../crates/agentero-plugin-host", optional = tru
 # Real-time LuaLaTeX preview. In-process (no sidecar): the desktop host owns
 # one session per project root; mobile has no local lualatex and gates it off.
 rtex-core = { git = "https://github.com/HenryXiaoYang/realtime-tex", tag = "v0.0.5", optional = true }
-tauri-plugin-updater = { version = "2", optional = true }
+tauri-plugin-updater = { version = "2.14.1", optional = true }
 tauri-plugin-process = { version = "2", optional = true }
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"], optional = true }
 tauri-plugin-window-state = { version = "2", optional = true }

@@ -211,11 +211,14 @@ fn extract_zip_member(bytes: &[u8], member_name: &str, dest: &Path) -> Result<()
         let file = archive
             .by_index(i)
             .map_err(|e| AppError::message(format!("zip entry error: {e}")))?;
-        let name = file.name();
-        let base = Path::new(name)
+        let name = file
+            .name()
+            .map_err(|e| AppError::message(format!("zip entry name error: {e}")))?
+            .into_owned();
+        let base = Path::new(&name)
             .file_name()
             .and_then(|s| s.to_str())
-            .unwrap_or(name);
+            .unwrap_or(&name);
         if base == member_name || name == member_name {
             index = Some(i);
             break;
