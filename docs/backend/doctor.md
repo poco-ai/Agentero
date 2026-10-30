@@ -108,7 +108,7 @@ Codex 登录状态不再放在主机运行环境；改由 Agent 卡片第三行�
 |---|---|---|
 | Agent 位置 · 版本 | `agentPath` / `agentVersion` | 模板 `detect_command` 的路径 + `--version` |
 | ACP 位置 · 版本 | `resolvedPath` / `acpVersion` | ACP `command` 的路径 + `--version`（不是协议版本）；Claude / Codex 的内置适配器不探测，该行不展示（`resolvedPath` / `acpVersion` 为 null），只剩 Agent 行与登录状态 |
-| 登录状态 | `authStatus` | Codex 走 `codex(-acp) login status`；其它由探测结果推导（成功→已登录，`not-logged-in`→未登录，命令缺失→不适用，其余→未知） |
+| 登录状态 | `authStatus` | Codex 先查 `codex-acp cli login status`；未报告已登录时再通过同一适配器的 Codex app-server `account/read` 查询 `requiresOpenaiAuth` 与 `account`：自定义 provider 无须 OpenAI 登录时为不适用，需要登录且无账号时为未登录。app-server 查询失败时，CLI 的“未登录”仅作未知状态；其它 Agent 由 ACP 探测结果推导（成功→已登录，`not-logged-in`→未登录，命令缺失→不适用，其余→未知） |
 
 - 编排：先 `scan_catalog()`（把 PATH 上已装但未落盘的目录 Agent 自动注册，避免必须先打开设置 → Agent）；再 `snapshot()` 一次（内部已刷新命令可用性）；`buffered(3)` 限流并行探测；`!available` 的 Agent 不 spawn，直接按 `last_error` 合成「命令缺失」结果（镜像 `agent_probe` 快路径）；
 - 写回：每个结果 `apply_probe_result` 持久化到 registry，结束后 `emit_registry_changed`，Agent 目录页同步刷新；成功时清除该 Agent 的 warm-gate 熔断，失败**不**记录新熔断（Doctor 是用户主动重试，应无视 120s 冷却）；
