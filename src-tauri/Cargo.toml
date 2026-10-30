@@ -96,7 +96,7 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 flate2 = "1.1.9"
 # Read Dsh's existing compressed transcripts when its ACP bridge cannot replay them.
-zstd = { version = "0.13.3", default-features = false }
+zstd = { version = "0.14.3", default-features = false }
 tar = "0.4.46"
 # 9.0.5+ fixes the zip-cloaking and symlink extraction advisories (GHSA-m665-v7pm-7grj).
 zip = { version = "9.1", default-features = false, features = ["deflate"] }
