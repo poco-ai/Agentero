@@ -251,7 +251,7 @@ fn client_builder_with_proxy(proxy: Option<&str>) -> reqwest::ClientBuilder {
     let builder = reqwest::Client::builder();
     match proxy {
         Some(url) => match reqwest::Proxy::all(url) {
-            Ok(proxy) => builder.proxy(proxy),
+            Ok(proxy) => builder.proxy(proxy.no_proxy(loopback_bypass())),
             Err(error) => {
                 log::error!(target: "agentero::network", "invalid configured proxy: {error}");
                 builder
@@ -259,6 +259,13 @@ fn client_builder_with_proxy(proxy: Option<&str>) -> reqwest::ClientBuilder {
         },
         None => builder,
     }
+}
+
+/// Loopback destinations never go through the proxy: a self-hosted service on
+/// this machine (MinerU behind an SSH tunnel, Ollama) is unreachable through a
+/// proxy in global mode, and the OS system proxy bypasses them too.
+fn loopback_bypass() -> Option<reqwest::NoProxy> {
+    reqwest::NoProxy::from_string("localhost,127.0.0.0/8,::1")
 }
 
 /// Standard Host HTTP client: [`USER_AGENT`], the configured proxy, `timeout`,
@@ -362,6 +369,38 @@ fn discover_github_auth_token() -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #866: a loopback service answers even when the proxy is unreachable.
+    #[tokio::test]
+    async fn loopback_requests_bypass_the_proxy() {
+        use std::io::{Read, Write};
+        let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = server.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = server.accept() {
+                let mut buf = [0u8; 1024];
+                let _ = stream.read(&mut buf);
+                let _ = stream.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok");
+            }
+        });
+        // A proxy port nothing listens on: any proxied request fails.
+        let dead = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let proxy = format!("http://{}", dead.local_addr().unwrap());
+        drop(dead);
+        let client = client_builder_with_proxy(Some(&proxy))
+            .timeout(Duration::from_secs(5))
+            .build()
+            .unwrap();
+        let body = client
+            .get(format!("http://127.0.0.1:{port}/v1/health"))
+            .send()
+            .await
+            .expect("loopback request should not use the proxy")
+            .text()
+            .await
+            .unwrap();
+        assert_eq!(body, "ok");
+    }
 
     #[test]
     fn accepts_supported_proxy_urls() {
