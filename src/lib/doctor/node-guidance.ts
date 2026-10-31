@@ -39,6 +39,12 @@ const WINDOWS_NPM_ONLY_TEMPLATE_IDS = new Set(["opencode"]);
 export type PlatformOS = ReturnType<typeof getPlatformOS>;
 
 /**
+ * Official Node.js download page: the manual route that works when no system
+ * package manager (winget / Homebrew) can install Node.js (#859).
+ */
+export const NODE_DOWNLOAD_URL = "https://nodejs.org/en/download";
+
+/**
  * True when this install/update runs through Node.js/npm:
  * - `adapterDistinct`: the ACP layer is a separate adapter, and every adapter
  *   supported by the lifecycle (Claude / Codex / Pi / ZCode) is an npm package

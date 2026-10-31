@@ -1,4 +1,9 @@
-import { CheckCircle2, Download, TriangleAlert } from "lucide-react";
+import {
+	CheckCircle2,
+	Download,
+	ExternalLink,
+	TriangleAlert,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -7,9 +12,11 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
 import type { HostDoctorReport, HostToolDiagnostic } from "@/lib/doctor/api";
 import { installNodeInBackground } from "@/lib/doctor/install-node";
+import { NODE_DOWNLOAD_URL } from "@/lib/doctor/node-guidance";
 import { DoctorSection } from "./doctor-sections";
 
 function StatusIcon({ ok }: { ok: boolean }) {
@@ -151,7 +158,7 @@ export function DoctorHostRuntimeSection({
 					<ToolRow label="Node.js" tool={report.node} />
 					<ToolRow label="npm" tool={report.npm} />
 					{showInstall ? (
-						<div className="px-3.5 py-2.5">
+						<div className="space-y-2 px-3.5 py-2.5">
 							{installNotice ? (
 								<p className="whitespace-pre-wrap break-words text-amber-700 text-xs">
 									{installNotice}
@@ -161,6 +168,15 @@ export function DoctorHostRuntimeSection({
 									{t("doctor.host.install.hint")}
 								</p>
 							)}
+							<Button
+								type="button"
+								size="sm"
+								variant="ghost"
+								onClick={() => openExternalUrl(NODE_DOWNLOAD_URL)}
+							>
+								<ExternalLink className="size-3.5" />
+								{t("doctor.host.install.download")}
+							</Button>
 						</div>
 					) : null}
 				</>

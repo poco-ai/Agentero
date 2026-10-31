@@ -13,13 +13,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { errorText } from "@/lib/core/error";
 import { notifyError, notifySuccess } from "@/lib/core/notify";
+import { openExternalUrl } from "@/lib/core/open-external";
 import { isTauri } from "@/lib/core/tauri";
 import { doctorCheckHost, type HostDoctorReport } from "@/lib/doctor/api";
 import {
 	HOST_NODE_INSTALLED_EVENT,
 	installNodeInBackground,
 } from "@/lib/doctor/install-node";
-import type { HostNodeGap } from "@/lib/doctor/node-guidance";
+import {
+	type HostNodeGap,
+	NODE_DOWNLOAD_URL,
+} from "@/lib/doctor/node-guidance";
 
 export type HostNodeStatus = {
 	nodeMissing: boolean;
@@ -144,7 +148,12 @@ export function useHostNodeStatus(
 			// panel row (or the other caller) owns that feedback.
 			if (!result) return;
 			if (result.outcome === "no-package-manager") {
-				notifyError(t("doctor.host.install.noPackageManager"));
+				notifyError(t("doctor.host.install.noPackageManager"), {
+					action: {
+						label: t("doctor.host.install.download"),
+						onClick: () => openExternalUrl(NODE_DOWNLOAD_URL),
+					},
+				});
 			} else if (result.error) {
 				notifyError(result.error);
 			} else {
