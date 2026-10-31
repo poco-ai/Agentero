@@ -28,6 +28,8 @@ export default defineConfig(async () => ({
 		format: "es",
 	},
 	optimizeDeps: {
+		// Only scan the main desktop entrypoint for dependency pre-bundling.
+		entries: ["index.html"],
 		// PDFium + ONNX Runtime load wasm/workers; dep-optimize rewrites break them.
 		exclude: [
 			"@embedpdf/pdfium",
