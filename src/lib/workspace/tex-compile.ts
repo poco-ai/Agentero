@@ -34,6 +34,7 @@ import { cleanLatexArtifacts, getLatexArtifacts } from "@/lib/tex/host";
 import { readVaultFile } from "@/lib/vault/fs";
 import { vaultStore } from "@/lib/vault/store";
 import { texPdfPath } from "@/lib/workspace/viewer";
+import { writingStore } from "@/lib/writing/store";
 
 export type LatexEngine = {
 	id: string;
@@ -241,7 +242,8 @@ export async function cleanTexAuxFiles(texPath: string): Promise<boolean> {
  * triggered row even when the build target is its root.
  *
  * `quietSuccess` skips the success toast (save-triggered compiles would spam
- * one per autosave); failures always notify.
+ * one per autosave). Failures notify, except while the writing surface shows
+ * this root: its problems button turns red and lists the errors instead.
  */
 export async function compileTexFile(
 	texPath: string,
@@ -299,7 +301,7 @@ export async function compileTexFile(
 					? e.message
 					: String(e),
 		);
-		if (!isBackgroundTaskCancelledError(e)) {
+		if (!isBackgroundTaskCancelledError(e) && !writingShowsProblems(texPath)) {
 			notifyError(
 				e instanceof Error && e.message
 					? e.message
@@ -310,6 +312,15 @@ export async function compileTexFile(
 	} finally {
 		texCompileStore.setState({ compilingPath: null });
 	}
+}
+
+function writingShowsProblems(rootPath: string): boolean {
+	const { surface, activeRoot } = writingStore.getState();
+	return (
+		surface === "writing" &&
+		activeRoot != null &&
+		normalizePath(activeRoot) === normalizePath(rootPath)
+	);
 }
 
 /** The host owns artifact layout (outDir/jobname), including custom recipes. */
