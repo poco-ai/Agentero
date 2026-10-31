@@ -88,7 +88,8 @@ pub fn resolve_vault_locale(locale: &str) -> &str {
 }
 
 /// Vault-relative path → content for onboarding tutorial notes.
-/// Files are written only if missing so user edits survive app updates.
+/// Files are written once and only if missing, so user edits and deletions
+/// survive app updates (see [`ONBOARDING_SEEDED_REL`]).
 pub fn bundled_onboarding_files(locale: &str) -> Vec<(&'static str, &'static str)> {
     let resolved = resolve_vault_locale(locale);
     BUNDLED_ONBOARDING_FILES
@@ -157,6 +158,48 @@ fn seed_or_upgrade_bundled_file(
     Ok(())
 }
 
+/// Onboarding notes this vault has already received. A note the user deleted
+/// or renamed is not seeded again on the next open; only notes shipped after
+/// this record was written are added.
+const ONBOARDING_SEEDED_REL: &str = ".agentero/onboarding-seeded.json";
+
+fn load_seeded_onboarding(root: &Path) -> Option<Vec<String>> {
+    let raw = fs::read_to_string(join_rel(root, ONBOARDING_SEEDED_REL)).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+/// Seed onboarding notes the vault has never received and record them.
+///
+/// A vault Agentero opened before the record existed has already had its
+/// notes seeded, so whatever is missing there was deleted by the user: the
+/// current notes are recorded without being written back.
+fn seed_onboarding_notes(
+    root: &Path,
+    files: &[(&'static str, &'static str)],
+    opened_before: bool,
+    created: &mut Vec<String>,
+) -> Result<(), AppError> {
+    let recorded = load_seeded_onboarding(root);
+    let had_record = recorded.is_some();
+    let mut seeded = recorded.unwrap_or_default();
+    let before = seeded.len();
+    for (rel, content) in files {
+        if seeded.iter().any(|s| s == rel) {
+            continue;
+        }
+        if had_record || !opened_before {
+            seed_file_if_missing(root, rel, content, created)?;
+        }
+        seeded.push((*rel).to_string());
+    }
+    if seeded.len() != before {
+        let json = serde_json::to_string_pretty(&seeded)
+            .map_err(|e| AppError::message(format!("onboarding record: {e}")))?;
+        fs::write(join_rel(root, ONBOARDING_SEEDED_REL), json)?;
+    }
+    Ok(())
+}
+
 /// Idempotent vault scaffold under `path` without overwriting existing user files.
 ///
 /// Creates: `papers/`, `notes/`, `data/`, `.agentero/`, `.agents/` (+ `skills/`),
@@ -187,6 +230,7 @@ pub fn ensure_vault(path: &Path, locale: &str) -> Result<CreateVaultResult, AppE
 
     let mut created: Vec<String> = Vec::new();
     let mut updated: Vec<String> = Vec::new();
+    let opened_before = join_rel(path, ".agentero").exists();
 
     for dir in [
         "papers",
@@ -226,11 +270,10 @@ pub fn ensure_vault(path: &Path, locale: &str) -> Result<CreateVaultResult, AppE
     // skill root just seeded, so both sides see the same packages.
     agent_links::ensure_vault_agent_links(path);
 
-    // Seed localized onboarding tutorial notes under `notes/` (no overwrite).
+    // Seed localized onboarding tutorial notes under `notes/` once: never
+    // overwrite them, and never bring back one the user deleted.
     let onboarding_files = bundled_onboarding_files(locale);
-    for (rel, content) in &onboarding_files {
-        seed_file_if_missing(path, rel, content, &mut created)?;
-    }
+    seed_onboarding_notes(path, &onboarding_files, opened_before, &mut created)?;
 
     // Seed the LaTeX manuscript starter only when `thesis/` does not exist, so
     // an existing (possibly real) manuscript directory is never touched.
@@ -417,6 +460,51 @@ mod tests {
         assert!(dir.join("notes/01 论文导入与管理.md").is_file());
         assert!(!dir.join("notes/zh-CN").exists());
         assert_eq!(result.open_path, "notes/01 论文导入与管理.md");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// #886: a deleted onboarding note stays deleted; a newly shipped one still
+    /// arrives, and a vault opened before the record existed is not refilled.
+    #[test]
+    fn ensure_vault_does_not_restore_deleted_onboarding_notes() {
+        let dir = env::temp_dir().join(format!(
+            "agentero-vault-onboarding-deleted-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let notes = bundled_onboarding_files("zh-CN");
+        let (first, _) = notes[0];
+
+        create_vault(&dir, "zh-CN").expect("create");
+        fs::remove_file(dir.join(first)).unwrap();
+        let r = ensure_vault(&dir, "zh-CN").expect("reopen");
+        assert!(!dir.join(first).exists(), "deleted note came back");
+        assert!(r.created.is_empty(), "{:?}", r.created);
+        assert_eq!(r.open_path, "AGENTS.md");
+
+        // A note shipped after the vault was created is still seeded once.
+        let (second, _) = notes[1];
+        fs::remove_file(dir.join(second)).unwrap();
+        fs::write(
+            dir.join(ONBOARDING_SEEDED_REL),
+            serde_json::to_string(&[first]).unwrap(),
+        )
+        .unwrap();
+        let r = ensure_vault(&dir, "zh-CN").expect("after update");
+        assert!(dir.join(second).is_file());
+        assert!(r.created.iter().any(|c| c == second));
+        assert!(!dir.join(first).exists());
+
+        // An existing vault without the record keeps its deletions too.
+        fs::remove_file(dir.join(ONBOARDING_SEEDED_REL)).unwrap();
+        fs::remove_file(dir.join(second)).unwrap();
+        let r = ensure_vault(&dir, "zh-CN").expect("first open after upgrade");
+        assert!(!dir.join(first).exists());
+        assert!(!dir.join(second).exists());
+        assert!(r.created.is_empty(), "{:?}", r.created);
+        assert!(dir.join(ONBOARDING_SEEDED_REL).is_file());
 
         let _ = fs::remove_dir_all(&dir);
     }
