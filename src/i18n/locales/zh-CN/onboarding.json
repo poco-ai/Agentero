@@ -39,7 +39,8 @@
 		"missingDesc": "安装 Node.js（自带 npm）后，Agent 适配器和 npm 安装才能正常运行。",
 		"install": "安装 Node.js",
 		"installing": "安装中…",
-		"installHint": "使用系统包管理器安装，可能需要几分钟。",
+		"installHint": "使用系统包管理器安装，可能需要几分钟。没有 winget 或 Homebrew 时，请从 nodejs.org 下载安装包，装好后重新检查。",
+		"download": "从 nodejs.org 下载",
 		"installed": "已安装",
 		"missing": "未安装",
 		"recheck": "重新检查"
