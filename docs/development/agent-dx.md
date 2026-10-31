@@ -13,6 +13,7 @@
 | MCP 瘦 `paper_list` + `fields`/`full` | `integration/mcp` |
 | MCP `paper_set_read` / `paper_set_meta` / `layout_list` / `layout_get` | 同上 |
 | MCP `file_list` / `file_read` / `file_write` | Vault 内 UTF-8 文本（Papers 外的 `.tex` 等）；拒绝 `.agentero`、二进制、NOTES 直写 |
+| MCP `file_write_binary` | base64 写入图片等二进制文件（解码后最多 10 MiB），路径规则与 `file_write` 相同 |
 | MCP `vault_list` + `vault` 参数 | 列出用户打开过的本地 Vault；工具可切换到其中任意一个，未知名路径拒绝 |
 | MCP `paper_paths` / `paper_move` | 相关路径与论文库移动；和 CLI 共用 `catalog::paper_related_paths` / `move_paper_under` / `migrate_paper_between_vaults` |
 | MCP `paper_tag_set` / `paper_tag_list` | 替换用户标签（保留内部标签）与全库标签清单；和 CLI 共用 core 标签函数 |

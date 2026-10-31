@@ -172,6 +172,11 @@ const TABLE: &[OpClassification] = &[
     spec("file.read", OpStability::Stable, OpPermission::VaultRead),
     spec("file.write", OpStability::Stable, OpPermission::VaultWrite),
     spec(
+        "file.write_binary",
+        OpStability::Internal,
+        OpPermission::Unspecified,
+    ),
+    spec(
         "file.move",
         OpStability::Internal,
         OpPermission::Unspecified,

@@ -98,6 +98,7 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 | `file_list` | 列一层目录。`path?` 为 Vault 相对路径，空则根目录。跳过 `.agentero`、隐藏目录和 LaTeX 编译产物。`limit?` 默认 200，最多 500 |
 | `file_read` | 读一个 UTF-8 文本文件（如 `drafts/main.tex`、`notes/idea.md`）。不限 `papers/` |
 | `file_write` | 写同一个路径。`mode`: `replace`（默认）或 `append`。父目录不存在会在 Vault 内创建。覆盖前需用户确认 |
+| `file_write_binary` | 写一个二进制文件（图片、PDF、压缩包等）。`contentBase64` 为标准 base64，也接受 `data:<type>;base64,` URL、换行和省略的 `=` 填充；解码后最多 10 MiB。同名文件整体替换，父目录不存在会在 Vault 内创建。覆盖前需用户确认 |
 | `file_move` | 移动/重命名 Vault 内一个文件或目录。`from` / `to` 都是 Vault 相对路径，目标必须不存在；同时更新可解析的 wiki 链接与 `papers/` catalog 路径。覆盖前需用户确认 |
 | `file_delete` | 删除一个或多个 Vault 路径。默认移入回收站（`.agentero/.trash`，可撤销；`papers/` catalog 行随文件快照/恢复）；`permanent=true` 永久删除文件与 catalog 行。删除前需用户确认 |
 
@@ -136,7 +137,7 @@ cargo test -p agentero-core pdf::layout_index
 `file_read` / `file_write` / `file_move` / `file_delete`：
 
 - 路径是 Vault 相对路径，禁止 `..`；符号链接解析后必须仍在 Vault 内
-- 只接受 UTF-8 文本，单次最多 2 MiB。拒绝 PDF / 图片 / 压缩包等二进制扩展名，以及内容中的 NUL（`file_move` / `file_delete` 不读取内容，可移动/删除目录和二进制附件）
+- 只接受 UTF-8 文本，单次最多 2 MiB（二进制文件用 `file_write_binary`：路径规则相同，不检查扩展名，解码后最多 10 MiB；base64 无效、为空或超限时直接报错，不写文件）。拒绝 PDF / 图片 / 压缩包等二进制扩展名，以及内容中的 NUL（`file_move` / `file_delete` 不读取内容，可移动/删除目录和二进制附件）
 - 与文件树相同，拒绝 `.agentero`、`.` 开头的隐藏项（`.agents` 除外）、`target` 等忽略目录，以及 `.aux` / `.log` 等 LaTeX 编译产物
 - 不写 `NOTES.md`（仍走 `paper_notes_write`，以保留 frontmatter）、`marks/annotations.json`、`source/layout-index.json`、`source/layout.json`、`catalog.sqlite`
 - 原子写。编辑器打开同一文件时走 `vault:file-changed`
