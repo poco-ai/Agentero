@@ -35,16 +35,33 @@ fn environment_value<'a>(environment: &'a BTreeMap<String, String>, name: &str) 
     })
 }
 
+/// TeX Live wraps log and terminal lines at `max_print_line` (79 columns by
+/// default). Under a long project path that splits `file:line: message`
+/// errors and file names across lines, and the diagnostics parsers read one
+/// line at a time. MiKTeX ignores the variable.
+const MAX_PRINT_LINE: &str = "max_print_line";
+const UNWRAPPED_LOG_WIDTH: &str = "10000";
+
 fn tool_environment(
     tool: &LatexTool,
     root: &Path,
     artifact: &LatexArtifacts,
 ) -> BTreeMap<String, String> {
-    tool.env
+    let mut environment = tool
+        .env
         .iter()
         .flat_map(|environment| environment.iter())
         .map(|(key, value)| (key.clone(), expand(value, root, artifact)))
-        .collect()
+        .collect();
+    widen_log_lines(&mut environment, std::env::var_os(MAX_PRINT_LINE).is_some());
+    environment
+}
+
+/// A width set by the recipe or inherited from the user's environment wins.
+fn widen_log_lines(environment: &mut BTreeMap<String, String>, inherited: bool) {
+    if !inherited && environment_value(environment, MAX_PRINT_LINE).is_none() {
+        environment.insert(MAX_PRINT_LINE.into(), UNWRAPPED_LOG_WIDTH.into());
+    }
 }
 
 #[cfg(windows)]
@@ -740,6 +757,53 @@ mod tests {
             Some(PathBuf::from("/project/build/scripts/build.sh"))
         );
         assert_eq!(tool_arguments(&tool, root, &artifact, &options)[1], "out");
+    }
+
+    #[test]
+    fn tex_log_lines_are_unwrapped_unless_a_width_is_already_set() {
+        let mut environment = BTreeMap::from([("TEXINPUTS".into(), "styles:".into())]);
+        widen_log_lines(&mut environment, false);
+        assert_eq!(
+            environment_value(&environment, "max_print_line"),
+            Some("10000")
+        );
+        assert_eq!(
+            environment_value(&environment, "TEXINPUTS"),
+            Some("styles:")
+        );
+
+        let configured = BTreeMap::from([("max_print_line".into(), "200".into())]);
+        let mut recipe = configured.clone();
+        widen_log_lines(&mut recipe, false);
+        assert_eq!(recipe, configured);
+        #[cfg(windows)]
+        {
+            // Environment names are case-insensitive on Windows.
+            let configured = BTreeMap::from([("MAX_PRINT_LINE".into(), "200".into())]);
+            let mut recipe = configured.clone();
+            widen_log_lines(&mut recipe, false);
+            assert_eq!(recipe, configured);
+        }
+
+        let mut inherited = BTreeMap::new();
+        widen_log_lines(&mut inherited, true);
+        assert!(inherited.is_empty());
+
+        // The built-in latexmk tool has no recipe environment of its own.
+        if std::env::var_os("max_print_line").is_none() {
+            let root = Path::new("/project/main.tex");
+            let artifact = artifacts(root, &Default::default()).unwrap();
+            let tool = LatexTool {
+                command: "latexmk".into(),
+                args: Vec::new(),
+                cwd: None,
+                env: None,
+            };
+            assert_eq!(
+                tool_environment(&tool, root, &artifact),
+                BTreeMap::from([("max_print_line".into(), "10000".into())])
+            );
+        }
     }
 
     #[cfg(unix)]
