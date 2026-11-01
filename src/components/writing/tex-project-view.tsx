@@ -1,11 +1,12 @@
 /** Source and compiled output share one workspace panel; neither can join a notes group alone. */
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
 	ResizableGroup,
 	ResizableHandle,
 	ResizablePanel,
 } from "@/components/ui/resizable";
 import { useTexRoot } from "@/hooks/use-tex-root";
+import { showTexProblemsView } from "@/lib/workspace/tex-compile";
 import { ProjectPdf } from "./writing-desk";
 import { WritingPdfBar } from "./writing-pdf-bar";
 import { WritingSyncButtons } from "./writing-sync-buttons";
@@ -28,6 +29,12 @@ export function TexProjectView({
 	const root = useTexRoot(projectRoot) ?? projectRoot;
 	const [live, setLive] = useState(false);
 	const [splitPosition, setSplitPosition] = useState(58);
+	// While focused, the problems button in the PDF bar reports failed
+	// compiles of this root, so they do not also raise a toast.
+	useEffect(
+		() => (active ? showTexProblemsView(root) : undefined),
+		[active, root],
+	);
 	return (
 		<div className="relative min-h-0 min-w-0 flex-1">
 			<ResizableGroup

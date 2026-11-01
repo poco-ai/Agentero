@@ -506,8 +506,8 @@ async function compileTexAndRefreshNow(
 		});
 		const bytes = compiled ? await localFileToArrayBuffer(compiled) : null;
 		if (!compiled || !bytes) {
-			// Drop the shimmer on the previous content; the failure itself was
-			// notified by compileTexFile.
+			// Drop the shimmer on the previous content; compileTexFile has reported
+			// the failure (a toast, or the focused project's problems button).
 			if (paneOpen) updateTexPdfPanes(pdfPath, { texCompiling: false });
 			if (compiled) {
 				notifyError(

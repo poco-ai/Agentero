@@ -1,7 +1,8 @@
 /**
  * Problems from the editor and from the last compile, in one place.
- * One yellow alert entry opens the findings card; the card footer opens the
- * full build log (same findings, raw text on the right).
+ * One alert entry opens the findings card; the card footer opens the full
+ * build log (same findings, raw text on the right). The entry turns red while
+ * there are errors, which is how a failed compile is reported here.
  */
 
 import { FileText, MessageSquare, Square, TriangleAlert } from "lucide-react";
@@ -27,7 +28,7 @@ import {
 import { basenameOf, normalizePath } from "@/lib/core/path";
 import { cancelTask } from "@/lib/core/tasks";
 import { cn } from "@/lib/core/utils";
-import { texBuildStore } from "@/lib/tex/build-state";
+import { type TexBuildSnapshot, texBuildStore } from "@/lib/tex/build-state";
 import {
 	editorLintStore,
 	pendingEditorLineJump,
@@ -49,7 +50,7 @@ type Row = {
 };
 
 export function WritingProblems({ rootFile }: { rootFile: string }) {
-	const { t } = useTranslation(["latexBuild", "viewer"]);
+	const { t } = useTranslation(["latexBuild", "viewer", "sidebar"]);
 	const key = normalizePath(rootFile);
 	const snapshot = useStore(texBuildStore, (state) => state.byRoot[key]);
 	const lint = useStore(editorLintStore, (state) => state.current);
@@ -67,8 +68,18 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 					)
 				: []),
 			...compileProblems.map((problem) => compileRow(problem, rootFile)),
+			...(snapshot?.status === "failed" &&
+			!compileProblems.some((problem) => problem.severity === "error")
+				? [
+						buildFailureRow(
+							snapshot,
+							rootFile,
+							t("sidebar:fileTree.compileFailed"),
+						),
+					]
+				: []),
 		],
-		[compileProblems, key, lint, rootFile],
+		[compileProblems, key, lint, rootFile, snapshot, t],
 	);
 	const counts = { error: 0, warning: 0, info: 0 };
 	for (const row of rows) counts[row.severity] += 1;
@@ -112,7 +123,12 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 						type="button"
 						variant="ghost"
 						size="icon-sm"
-						className="shrink-0 text-amber-600 dark:text-amber-500"
+						className={cn(
+							"shrink-0",
+							counts.error > 0
+								? "text-destructive"
+								: "text-amber-600 dark:text-amber-500",
+						)}
 						aria-label={
 							shown.length
 								? shown
@@ -291,6 +307,26 @@ function editorRow(
 		sourcePath: path,
 		line: diagnostic.line,
 		jump: () => jump(diagnostic),
+	};
+}
+
+/** A failed build whose log has no parsable error still gets one row. */
+function buildFailureRow(
+	snapshot: TexBuildSnapshot,
+	rootFile: string,
+	fallback: string,
+): Row {
+	const message =
+		snapshot.diagnostics.find((item) => item.severity === "error")?.message ||
+		fallback;
+	return {
+		key: `build:${message}`,
+		severity: "error",
+		message,
+		where: "",
+		logLine: null,
+		sourcePath: rootFile,
+		jump: () => {},
 	};
 }
 
