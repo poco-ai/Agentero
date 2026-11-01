@@ -33,9 +33,11 @@ import {
 	pendingEditorLineJump,
 } from "@/lib/tex/editor-lint-bridge";
 import { navigateTexSource } from "@/lib/tex/editor-navigation";
-import { type LogProblem, parseLatexLog } from "@/lib/tex/log-problems";
-import { joinVaultPath } from "@/lib/vault/path";
-import { manuscriptDir } from "@/lib/writing/session";
+import {
+	type LogProblem,
+	parseLatexLog,
+	resolveLogProblemPath,
+} from "@/lib/tex/log-problems";
 
 type Row = {
 	key: string;
@@ -301,7 +303,7 @@ function compileRow(problem: LogProblem, rootFile: string): Row {
 		message: problem.message,
 		where: problem.line ? String(problem.line) : "",
 		logLine: problem.logLine,
-		sourcePath: resolveProblemPath(rootFile, problem.file),
+		sourcePath: resolveLogProblemPath(rootFile, problem.file),
 		line: problem.line,
 		jump: () => jumpToCompileProblem(rootFile, problem),
 	};
@@ -310,7 +312,7 @@ function compileRow(problem: LogProblem, rootFile: string): Row {
 function jumpToCompileProblem(rootFile: string, problem: LogProblem) {
 	if (!problem.line) return;
 	const lint = editorLintStore.getState().current;
-	const target = resolveProblemPath(rootFile, problem.file);
+	const target = resolveLogProblemPath(rootFile, problem.file);
 	if (
 		lint &&
 		target &&
@@ -326,15 +328,4 @@ function jumpToCompileProblem(rootFile: string, problem: LogProblem) {
 		line: problem.line,
 	});
 	navigateTexSource(target, problem.line);
-}
-
-function resolveProblemPath(
-	rootFile: string,
-	file: string | undefined,
-): string {
-	const dir = manuscriptDir(rootFile);
-	if (!file) return rootFile;
-	const cleaned = file.replace(/^\.[\\/]/, "").replaceAll("\\", "/");
-	if (!cleaned || cleaned.includes("..")) return rootFile;
-	return joinVaultPath(dir, cleaned);
 }
