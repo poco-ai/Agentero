@@ -257,6 +257,19 @@ struct FileWriteArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
+struct FileWriteBinaryArgs {
+    /// Vault-relative file, e.g. `figures/plot.png`.
+    path: String,
+    /// File bytes as standard base64; a `data:<type>;base64,` URL also works.
+    content_base64: String,
+
+    /// Optional absolute local vault path from `vault_list`; defaults to the open vault.
+    #[serde(default)]
+    vault: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
 struct FileMoveArgs {
     /// Vault-relative source file or directory.
     from: String,
@@ -1234,6 +1247,23 @@ impl AgenteroMcp {
             Err(e) => Err(tool_err(e)),
         }
     }
+
+    #[tool(
+        description = "Write one binary file (image, PDF, archive, ...) by vault-relative path from base64 bytes (contentBase64; a data: URL also works). Replaces an existing file; at most 10 MiB decoded. Creates missing parent directories inside the vault. Use file_write for text. Refuses NOTES.md, .agentero, marks, and layout indexes. Confirm with the user before replacing a file. Set vault to target a vault from vault_list."
+    )]
+    async fn file_write_binary(
+        &self,
+        Parameters(args): Parameters<FileWriteBinaryArgs>,
+    ) -> Result<Json<files::FileWriteBinaryOut>, CallToolResult> {
+        let vault = match self.ctrl.resolve_vault(args.vault.as_deref()) {
+            Ok(v) => v,
+            Err(e) => return Err(tool_err(e)),
+        };
+        match files::write_binary(&vault, &args.path, &args.content_base64) {
+            Ok(out) => Ok(Json(out)),
+            Err(e) => Err(tool_err(e)),
+        }
+    }
 }
 
 #[tool_handler]
@@ -1251,7 +1281,7 @@ impl ServerHandler for AgenteroMcp {
             "Call vault_list first when you may need a vault other than the open one; pass its path as `vault` on other tools. ",
             "paper_list defaults to id/path/title only — pass fields or full when needed. ",
             "ref is a paper id or vault-relative path. Notes writes only touch NOTES.md. ",
-            "Other vault text (a .tex draft outside papers/) uses file_list, file_read, and file_write. ",
+            "Other vault text (a .tex draft outside papers/) uses file_list, file_read, and file_write; file_write_binary saves images and other binary files from base64. ",
             "Library organization: paper_move changes a paper's parent folder (or vault); file_move renames/moves any path with link updates. ",
             "file_delete defaults to the vault recycle bin; permanent=true is destructive. ",
             "Confirm with the user before replace of user-written NOTES or other files, and before moves or deletes. ",
@@ -1377,6 +1407,7 @@ mod schema_tests {
             "vault_list",
             "file_move",
             "file_delete",
+            "file_write_binary",
             "paper_move",
             "paper_paths",
             "paper_tag_set",
@@ -1591,6 +1622,54 @@ mod schema_tests {
                 "search/read must not write fixture"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn file_write_binary_protocol_round_trip_writes_exact_bytes() {
+        use base64::Engine;
+        use rmcp::{model::CallToolRequestParams, ServiceExt};
+        use serde_json::json;
+        let vault = tempfile::tempdir().unwrap();
+        let ctrl = std::sync::Arc::new(McpController::new());
+        ctrl.set_vault(Some(vault.path().to_string_lossy().into_owned()));
+        let (server_io, client_io) = tokio::io::duplex(65536);
+        let server =
+            tokio::spawn(async move { AgenteroMcp::new(ctrl).serve(server_io).await.unwrap() });
+        let mut client = ().serve(client_io).await.unwrap();
+        let mut server = server.await.unwrap();
+
+        let png: Vec<u8> = (0..=255u8).rev().chain(0..=255u8).collect();
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&png);
+        let call = |args: serde_json::Value| {
+            CallToolRequestParams::new("file_write_binary")
+                .with_arguments(args.as_object().unwrap().clone())
+        };
+        let result = client
+            .call_tool(call(
+                json!({"path": "figures/plot.png", "contentBase64": b64}),
+            ))
+            .await
+            .unwrap();
+        assert_ne!(result.is_error, Some(true), "{result:?}");
+        let out = result.structured_content.unwrap();
+        assert_eq!(out["path"], "figures/plot.png");
+        assert_eq!(out["bytes"], png.len());
+        assert_eq!(
+            std::fs::read(vault.path().join("figures/plot.png")).unwrap(),
+            png
+        );
+
+        for args in [
+            json!({"path": "figures/bad.png", "contentBase64": "%%%"}),
+            json!({"path": "papers/p1/NOTES.md", "contentBase64": "AAE="}),
+            json!({"path": "figures/missing.png"}),
+        ] {
+            let response = client.call_tool(call(args.clone())).await.unwrap();
+            assert_eq!(response.is_error, Some(true), "{args}");
+        }
+        assert!(!vault.path().join("figures/bad.png").exists());
+        client.close().await.unwrap();
+        server.close().await.unwrap();
     }
 
     #[tokio::test]

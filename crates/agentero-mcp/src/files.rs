@@ -1,4 +1,5 @@
-//! Vault-relative UTF-8 text read / write for MCP.
+//! Vault-relative UTF-8 text read / write for MCP, plus base64 binary writes
+//! (images and other generated files).
 //!
 //! Paper `NOTES.md` stays on `paper_notes_*` (frontmatter). This surface is for
 //! other vault text, such as a LaTeX draft that does not live under `papers/`.
@@ -17,6 +18,9 @@ use std::path::{Path, PathBuf};
 
 /// MCP text reads and writes refuse anything larger than this.
 pub const MAX_TEXT_BYTES: usize = 2 * 1024 * 1024;
+
+/// MCP binary writes refuse more decoded bytes than this.
+pub const MAX_BINARY_BYTES: usize = 10 * 1024 * 1024;
 
 const BINARY_EXTS: &[&str] = &[
     "pdf", "png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "ico", "icns", "zip", "gz",
@@ -63,6 +67,14 @@ pub struct FileReadOut {
 pub struct FileWriteOut {
     pub path: String,
     pub mode: String,
+    pub bytes: usize,
+}
+
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FileWriteBinaryOut {
+    pub path: String,
+    /// Decoded bytes written.
     pub bytes: usize,
 }
 
@@ -258,6 +270,30 @@ pub fn write_text(
     })
 }
 
+/// Write one binary file (an image, a PDF, an archive) from base64, replacing
+/// any file already at `rel`. A `data:<type>;base64,` URL is accepted too.
+pub fn write_binary(
+    vault: &Path,
+    rel: &str,
+    content_base64: &str,
+) -> Result<FileWriteBinaryOut, AppError> {
+    let rel = normalize_file(rel)?;
+    reject_segments(&rel)?;
+    reject_managed(&rel)?;
+    reject_notes(&rel)?;
+    let bytes = decode_base64(content_base64)?;
+    let root = canonical_root(vault)?;
+    let path = contained_write_target(&root, &rel)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    atomic_write(&path, &bytes)?;
+    Ok(FileWriteBinaryOut {
+        path: rel,
+        bytes: bytes.len(),
+    })
+}
+
 /// Move or rename a vault path, updating resolved wiki links and catalog paper
 /// path prefixes. The destination must not exist.
 pub fn move_entry(
@@ -407,6 +443,51 @@ fn decode_text(bytes: &[u8]) -> Result<String, AppError> {
         return Err(AppError::message("file is binary"));
     }
     String::from_utf8(bytes.to_vec()).map_err(|_| AppError::message("file is not UTF-8 text"))
+}
+
+fn decode_base64(raw: &str) -> Result<Vec<u8>, AppError> {
+    use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
+    use base64::{alphabet, Engine};
+    const ENGINE: GeneralPurpose = GeneralPurpose::new(
+        &alphabet::STANDARD,
+        GeneralPurposeConfig::new().with_decode_padding_mode(DecodePaddingMode::Indifferent),
+    );
+
+    let raw = raw.trim();
+    let payload = match raw.strip_prefix("data:") {
+        Some(rest) => match rest.split_once(',') {
+            Some((meta, data)) if meta.ends_with(";base64") => data,
+            _ => {
+                return Err(AppError::message(
+                    "data URL must be base64 (data:<type>;base64,...)",
+                ))
+            }
+        },
+        None => raw,
+    };
+    let payload: String = payload
+        .chars()
+        .filter(|c| !c.is_ascii_whitespace())
+        .collect();
+    if payload.is_empty() {
+        return Err(AppError::message("contentBase64 is empty"));
+    }
+    // Refuse oversized input before decoding it.
+    if payload.len() / 4 * 3 > MAX_BINARY_BYTES {
+        return Err(AppError::message(format!(
+            "content exceeds {MAX_BINARY_BYTES} bytes; MCP binary writes are limited to that"
+        )));
+    }
+    let bytes = ENGINE
+        .decode(payload.as_bytes())
+        .map_err(|e| AppError::message(format!("contentBase64 is not valid base64: {e}")))?;
+    if bytes.len() > MAX_BINARY_BYTES {
+        return Err(AppError::message(format!(
+            "content is {} bytes; MCP binary writes are limited to {MAX_BINARY_BYTES} bytes",
+            bytes.len()
+        )));
+    }
+    Ok(bytes)
 }
 
 fn canonical_root(vault: &Path) -> Result<PathBuf, AppError> {
@@ -578,6 +659,61 @@ mod tests {
         let err = write_text(dir.path(), "drafts/fig.pdf", "%PDF", WriteMode::Replace).unwrap_err();
         assert!(err.to_string().contains("binary"), "{err}");
         write_text(dir.path(), "drafts/main.tex", "a\0b", WriteMode::Replace).unwrap_err();
+    }
+
+    #[test]
+    fn writes_binary_files_byte_for_byte() {
+        use base64::Engine;
+        let dir = tempdir().unwrap();
+        // PNG signature + bytes that are not UTF-8, including NUL.
+        let png: Vec<u8> = [
+            0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0xFF, 0xFE,
+        ]
+        .into_iter()
+        .chain(0..=255u8)
+        .collect();
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&png);
+        let out = write_binary(dir.path(), "figures/plot.png", &b64).unwrap();
+        assert_eq!(out.path, "figures/plot.png");
+        assert_eq!(out.bytes, png.len());
+        assert_eq!(fs::read(dir.path().join("figures/plot.png")).unwrap(), png);
+
+        // A data URL, line-wrapped base64 and missing padding are accepted;
+        // an existing file is replaced.
+        let wrapped = format!("data:image/png;base64,{}\n{}", &b64[..40], &b64[40..]);
+        write_binary(dir.path(), "figures/plot.png", &wrapped).unwrap();
+        assert_eq!(fs::read(dir.path().join("figures/plot.png")).unwrap(), png);
+        write_binary(dir.path(), "data/two.bin", "AAE").unwrap();
+        assert_eq!(fs::read(dir.path().join("data/two.bin")).unwrap(), [0, 1]);
+
+        // The text tools still refuse binaries.
+        assert!(read_text(dir.path(), "figures/plot.png").is_err());
+    }
+
+    #[test]
+    fn binary_write_rejects_bad_input_and_protected_paths() {
+        let dir = tempdir().unwrap();
+        let err = write_binary(dir.path(), "figures/a.png", "not base64!").unwrap_err();
+        assert!(err.to_string().contains("not valid base64"), "{err}");
+        let err = write_binary(dir.path(), "figures/a.png", "  ").unwrap_err();
+        assert!(err.to_string().contains("empty"), "{err}");
+        let err = write_binary(dir.path(), "figures/a.png", "data:image/png,abc").unwrap_err();
+        assert!(err.to_string().contains("data URL"), "{err}");
+        let huge = "A".repeat(MAX_BINARY_BYTES / 3 * 4 + 8);
+        let err = write_binary(dir.path(), "figures/a.png", &huge).unwrap_err();
+        assert!(err.to_string().contains("limited"), "{err}");
+        assert!(!dir.path().join("figures").exists());
+
+        for rel in [
+            "../escape.png",
+            ".agentero/catalog.sqlite",
+            "papers/p1/NOTES.md",
+            "papers/p1/marks/annotations.json",
+        ] {
+            assert!(write_binary(dir.path(), rel, "AAE=").is_err(), "{rel}");
+        }
+        fs::create_dir_all(dir.path().join("figures/dir.png")).unwrap();
+        assert!(write_binary(dir.path(), "figures/dir.png", "AAE=").is_err());
     }
 
     #[cfg(unix)]
