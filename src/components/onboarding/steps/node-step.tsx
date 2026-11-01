@@ -1,6 +1,7 @@
 import {
 	CheckCircle2,
 	Download,
+	ExternalLink,
 	Loader2,
 	RefreshCw,
 	TriangleAlert,
@@ -9,9 +10,11 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useHostNodeStatus } from "@/hooks/use-host-node-status";
+import { openExternalUrl } from "@/lib/core/open-external";
 import { isTauri } from "@/lib/core/tauri";
 import { cn } from "@/lib/core/utils";
 import type { HostToolDiagnostic } from "@/lib/doctor/api";
+import { NODE_DOWNLOAD_URL } from "@/lib/doctor/node-guidance";
 
 function ToolStatus({
 	label,
@@ -132,6 +135,15 @@ export function NodeStep() {
 										<Download aria-hidden />
 									)}
 									{installing ? t("node.installing") : t("node.install")}
+								</Button>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={() => openExternalUrl(NODE_DOWNLOAD_URL)}
+								>
+									<ExternalLink aria-hidden />
+									{t("node.download")}
 								</Button>
 								<Button
 									type="button"

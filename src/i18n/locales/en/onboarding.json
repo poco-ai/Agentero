@@ -39,7 +39,8 @@
 		"missingDesc": "Install Node.js (npm ships with it) so Agent adapters and npm-based installs can run.",
 		"install": "Install Node.js",
 		"installing": "Installing…",
-		"installHint": "Uses your system package manager and can take a few minutes.",
+		"installHint": "Uses your system package manager and can take a few minutes. Without winget or Homebrew, download the installer from nodejs.org, then check again.",
+		"download": "Download from nodejs.org",
 		"installed": "Installed",
 		"missing": "Not installed",
 		"recheck": "Check again"

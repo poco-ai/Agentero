@@ -728,6 +728,7 @@
 				"tooltip": "通过系统包管理器（winget 或 Homebrew）安装 Node.js LTS",
 				"hint": "部分 ACP Agent 需要 PATH 中的 Node.js 与 npm。可通过系统包管理器安装 LTS 版本，安装完成后重新检测。",
 				"noPackageManager": "未找到受支持的系统包管理器，请前往 nodejs.org 手动安装 Node.js，然后重新检测。",
+				"download": "从 nodejs.org 下载",
 				"success": "Node.js 安装完成，请重试安装 Agent。"
 			}
 		},

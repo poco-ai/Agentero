@@ -728,6 +728,7 @@
 				"tooltip": "Install the Node.js LTS through your system package manager (winget or Homebrew)",
 				"hint": "Some ACP Agents need Node.js and npm on PATH. Install the LTS via your system package manager, then re-detect.",
 				"noPackageManager": "No supported package manager found. Install Node.js manually from nodejs.org, then re-detect.",
+				"download": "Download from nodejs.org",
 				"success": "Node.js installed. Retry the Agent install."
 			}
 		},
