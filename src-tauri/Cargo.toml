@@ -161,8 +161,8 @@ openssh-sftp-client = { version = "0.15.7", features = ["openssh"] }
 winreg = "0.55"
 roxmltree = "0.20"
 # Match the WebView2 interface versions used by Tauri/Wry.
-webview2-com = "0.38"
-windows = { version = "0.61", features = ["Win32_Foundation"] }
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Win32_Foundation"] }
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_Diagnostics_ToolHelp", "Win32_System_LibraryLoader", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"] }
 
 [[example]]
