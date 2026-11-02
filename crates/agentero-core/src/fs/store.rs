@@ -64,8 +64,21 @@ pub fn atomic_write_with(path: &Path, bytes: &[u8], opts: &AtomicOpts) -> io::Re
     if opts.sync_file {
         temp.as_file().sync_all()?;
     }
-    temp.persist(path).map_err(|error| error.error)?;
-    Ok(())
+    replace_with(temp, path)
+}
+
+/// `NamedTempFile::persist` replaces through `MoveFileExW` on Windows, which
+/// fails with access denied while another writer is replacing the same target.
+/// `fs::rename` uses POSIX rename semantics there (Windows 10 1809+), so
+/// concurrent replacements of one file all succeed; on Unix both are
+/// `rename(2)`. `keep` first clears the temporary-file attribute tempfile sets
+/// on Windows (as `persist` does) and disarms delete-on-drop, so a failed
+/// rename removes the staged file here.
+fn replace_with(temp: tempfile::NamedTempFile, path: &Path) -> io::Result<()> {
+    let staged = temp.into_temp_path().keep().map_err(|error| error.error)?;
+    fs::rename(&staged, path).inspect_err(|_| {
+        let _ = fs::remove_file(&staged);
+    })
 }
 
 /// Serialize `value` as pretty JSON and write it atomically (see
@@ -310,6 +323,22 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "original");
         drop(guard);
         assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    /// tempfile stages files with `FILE_ATTRIBUTE_TEMPORARY`; the published
+    /// file must not keep it.
+    #[cfg(windows)]
+    #[test]
+    fn windows_written_file_is_not_marked_temporary() {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_TEMPORARY: u32 = 0x100;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("plain.txt");
+        atomic_write(&path, b"first").unwrap();
+        atomic_write(&path, b"second").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "second");
+        let attributes = fs::metadata(&path).unwrap().file_attributes();
+        assert_eq!(attributes & FILE_ATTRIBUTE_TEMPORARY, 0);
     }
 
     #[test]
