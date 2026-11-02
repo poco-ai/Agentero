@@ -55,6 +55,7 @@ import { isLibraryVirtualPath, isTrashVirtualPath } from "@/lib/paper/api";
 import { isPlazaVirtualPath } from "@/lib/plaza/sources";
 import { moveDocToWindow } from "@/lib/shell/leaf";
 import { formatShortcutById } from "@/lib/shell/shortcuts";
+import { setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import { TAG_COLOR_IDS, tagSwatchStyle } from "@/lib/ui/tag-colors";
 import { openTexPdf } from "@/lib/workspace/actions";
 import type { DockHandle } from "@/lib/workspace/dock-registry";
@@ -75,8 +76,10 @@ import { useSelectionOverlayActive } from "@/lib/workspace/selection-overlay";
 import { readDraggedVaultPaths } from "@/lib/workspace/tab-dnd";
 import {
 	type DocTab,
+	type ReadingColumns,
 	type SplitDirection,
 	tabIdForPath,
+	tabIsPaperNotes,
 	tabNotesEligible,
 } from "@/lib/workspace/tabs";
 import { isTexPath } from "@/lib/workspace/viewer";
@@ -403,6 +406,9 @@ export const DockWorkspace = memo(
 		onOpenNotesRef.current = onOpenNotesPanel;
 		const onDropRef = useRef(onExternalDrop);
 		onDropRef.current = onExternalDrop;
+		const activePanelIdRef = useRef(activePanelId);
+		activePanelIdRef.current = activePanelId;
+		const cachedReadingColumnsRef = useRef<ReadingColumns | null>(null);
 
 		useEffect(() => {
 			const root = workspaceRootRef.current;
@@ -468,6 +474,22 @@ export const DockWorkspace = memo(
 				requestAnimationFrame(() => {
 					syncingRef.current = false;
 					syncWritingFocus(api);
+					if (
+						uiStore.getState().layoutMode === "reading" &&
+						!api.hasMaximizedGroup()
+					) {
+						const activeId = activePanelIdRef.current ?? api.activePanel?.id;
+						const target =
+							(activeId && api.getPanel(activeId)) ??
+							api.panels.find((p) => {
+								const t = tabsRef.current.find((tab) => tab.id === p.id);
+								return t && !tabIsPaperNotes(t);
+							}) ??
+							api.activePanel;
+						if (target) {
+							api.maximizeGroup(target);
+						}
+					}
 					onActiveRef.current(api.activePanel?.id ?? null);
 					publishVisiblePanels(api);
 					scheduleLayoutSave(api);
@@ -521,7 +543,13 @@ export const DockWorkspace = memo(
 					}
 					syncingRef.current = true;
 					try {
-						addPanelWithPlacement(api, tab, placement);
+						const isBackgroundNote =
+							api.hasMaximizedGroup() &&
+							tabIsPaperNotes(tab) &&
+							Boolean(placement && placement.direction === "within");
+						addPanelWithPlacement(api, tab, placement, {
+							inactive: isBackgroundNote,
+						});
 					} finally {
 						endSync(api);
 					}
@@ -579,15 +607,32 @@ export const DockWorkspace = memo(
 					const nextIdx = (base + delta + panels.length) % panels.length;
 					panels[nextIdx]?.api.setActive();
 				},
-				activatePanel(panelId) {
-					apiRef.current?.getPanel(panelId)?.api.setActive();
+				activatePanel(panelId, options) {
+					const api = apiRef.current;
+					const panel = api?.getPanel(panelId);
+					if (!panel) return;
+					if (
+						options?.skipSetGroupActive ||
+						(api?.hasMaximizedGroup() && !panel.group.api.isMaximized())
+					) {
+						panel.group.model.openPanel(panel, { skipSetGroupActive: true });
+					} else {
+						panel.api.setActive();
+					}
 				},
 				canActivatePanel(panelId) {
 					return Boolean(apiRef.current?.getPanel(panelId));
 				},
 				maximizeActivePanel() {
 					const api = apiRef.current;
-					const panel = api?.activePanel;
+					const activeId = activePanelIdRef.current ?? api?.activePanel?.id;
+					const panel =
+						(activeId && api?.getPanel(activeId)) ??
+						api?.panels.find((p) => {
+							const t = tabsRef.current.find((tab) => tab.id === p.id);
+							return t && !tabIsPaperNotes(t);
+						}) ??
+						api?.activePanel;
 					if (!api || !panel) return false;
 					if (!api.hasMaximizedGroup()) api.maximizeGroup(panel);
 					return true;
@@ -608,7 +653,15 @@ export const DockWorkspace = memo(
 				},
 				readingColumns() {
 					const api = apiRef.current;
-					return api ? readingColumnAnchors(api) : null;
+					if (!api) return null;
+					const resolved = readingColumnAnchors(
+						api,
+						cachedReadingColumnsRef.current,
+					);
+					if (resolved && !api.hasMaximizedGroup()) {
+						cachedReadingColumnsRef.current = resolved;
+					}
+					return resolved;
 				},
 			}),
 			[endSync],
@@ -656,6 +709,13 @@ export const DockWorkspace = memo(
 						syncWritingFocus(api);
 						onActiveRef.current(ev.panel?.id ?? null);
 						publishVisiblePanels(api);
+					}),
+					api.onDidMaximizedGroupChange((event) => {
+						if (event.isMaximized) {
+							if (uiStore.getState().layoutMode !== "reading") {
+								setLayoutMode("reading");
+							}
+						}
 					}),
 					api.onDidRemovePanel((panel) => {
 						if (syncingRef.current) return;

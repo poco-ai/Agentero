@@ -480,7 +480,9 @@ export default function App() {
 							if (!meta.isUserInteraction) return;
 							// Entering custom snapshots the rail flags; widths commit
 							// from measured px so save and restore share one base.
-							setLayoutMode("custom");
+							if (uiStore.getState().layoutMode !== "reading") {
+								setLayoutMode("custom");
+							}
 							commitUserRailPx(
 								vaultPath
 									? sidebarPanelRef.current?.getSize().inPixels

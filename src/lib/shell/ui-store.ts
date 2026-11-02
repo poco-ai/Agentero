@@ -283,9 +283,11 @@ export function layout(): LayoutController | null {
 }
 
 export function toggleSidebar(): void {
-	const { sidebarCollapsed } = uiStore.getState();
+	const { sidebarCollapsed, layoutMode } = uiStore.getState();
 	// React state is source of truth — isCollapsed() can lag at 0px.
-	setLayoutMode("custom");
+	if (layoutMode !== "reading") {
+		setLayoutMode("custom");
+	}
 	layout()?.setLeftCollapsed(!sidebarCollapsed);
 }
 

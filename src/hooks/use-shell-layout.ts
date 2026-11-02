@@ -316,7 +316,8 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 				// arrangement. Checking the dock's real state handles a restored
 				// or externally exited maximize without a snapshot.
 				if (
-					state.layoutMode === "reading" &&
+					(state.layoutMode === "reading" ||
+						dockHandle()?.isMaximizedPanel()) &&
 					(readingSnapshot !== null || dockHandle()?.isMaximizedPanel())
 				) {
 					exitReading(true);
@@ -333,7 +334,12 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 
 		const focusSidebar = () => {
 			// Expanding a collapsed rail deviates from the active preset.
-			if (uiStore.getState().sidebarCollapsed) setLayoutMode("custom");
+			if (
+				uiStore.getState().sidebarCollapsed &&
+				uiStore.getState().layoutMode !== "reading"
+			) {
+				setLayoutMode("custom");
+			}
 			setLeftCollapsed(false);
 			requestAnimationFrame(() => {
 				sidebarAsideRef.current?.querySelector<HTMLElement>("button")?.focus();

@@ -1,16 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readingColumnAnchors } from "@/components/workspace/dock-layout";
 import * as tauri from "@/lib/core/tauri";
 import * as paperApi from "@/lib/paper/api";
 import { LIBRARY_VIRTUAL_PATH } from "@/lib/paper/api";
 import { paperMetaChange } from "@/lib/paper/library-actions";
 import { libraryStore, setLibraryPapers } from "@/lib/paper/library-store";
 import type { PaperMetadata } from "@/lib/paper/types";
+import { toggleSidebar, uiStore } from "@/lib/shell/ui-store";
 import { vaultStore } from "@/lib/vault/store";
 import {
+	activatePaperWithNotes,
 	closeTab,
 	hydratePlaceholderTabs,
 	openPath,
 	openTab,
+	openTabNotes,
 	setNotesSplit,
 	syncUpdatedPaperTabs,
 } from "@/lib/workspace/actions";
@@ -1065,6 +1069,129 @@ describe("Notes layout actions", () => {
 		} finally {
 			registerDockHandle(null);
 			vi.restoreAllMocks();
+		}
+	});
+
+	it("resolves readingColumnAnchors when maximized using cached columns", () => {
+		const mockApi = {
+			hasMaximizedGroup: () => true,
+			groups: [
+				{
+					api: {
+						location: { type: "grid" },
+						boundingBox: { width: 1000, height: 800, top: 0, left: 0 },
+					},
+					panels: [{ id: "paper-a" }],
+				},
+				{
+					api: {
+						location: { type: "grid" },
+						boundingBox: { width: 0, height: 800, top: 0, left: 500 },
+					},
+					panels: [{ id: "notes-a" }],
+				},
+			],
+		};
+		const cached = { leftAnchorId: "paper-a", rightAnchorId: "notes-a" };
+		const resolved = readingColumnAnchors(mockApi as never, cached);
+		expect(resolved).toEqual({
+			leftAnchorId: "paper-a",
+			rightAnchorId: "notes-a",
+		});
+	});
+
+	it("syncs companion notes with skipSetGroupActive in reading mode without un-maximizing", () => {
+		const paper = makeTab("/vault/papers/a", {
+			kind: "paper",
+			mode: "pdf",
+			notesPath: "/vault/papers/a/NOTES.md",
+		});
+		const notes = createNotesSplitPane(paper);
+		if (!notes) throw new Error("Missing notes fixture");
+		const handle = {
+			activatePanel: vi.fn(),
+			isMaximizedPanel: vi.fn(() => true),
+			maximizeActivePanel: vi.fn(() => true),
+			exitMaximizedPanel: vi.fn(),
+		};
+		registerDockHandle(handle as unknown as DockHandle);
+		uiStore.setState({ layoutMode: "reading" });
+		try {
+			setTabs([paper, notes]);
+			activatePaperWithNotes(paper);
+			expect(handle.activatePanel).toHaveBeenNthCalledWith(1, notes.id, {
+				skipSetGroupActive: true,
+			});
+			expect(handle.activatePanel).toHaveBeenNthCalledWith(2, paper.id);
+			expect(handle.exitMaximizedPanel).not.toHaveBeenCalled();
+		} finally {
+			registerDockHandle(null);
+			uiStore.setState({ layoutMode: "custom" });
+		}
+	});
+
+	it("exits maximized panel when explicitly opening notes with setNotesSplit or openTabNotes", () => {
+		const paper = makeTab("/vault/papers/a", {
+			kind: "paper",
+			mode: "pdf",
+			notesPath: "/vault/papers/a/NOTES.md",
+		});
+		const handle = {
+			openPanel: vi.fn(),
+			activatePanel: vi.fn(),
+			isMaximizedPanel: vi.fn(() => true),
+			exitMaximizedPanel: vi.fn(),
+			readingColumns: vi.fn(() => null),
+			rememberNotesSplitWidth: vi.fn(),
+			restoreNotesSplitWidth: vi.fn(),
+		};
+		registerDockHandle(handle as unknown as DockHandle);
+		try {
+			setTabs([paper]);
+			setActiveTabId(paper.id);
+			setNotesSplit(true);
+			expect(handle.exitMaximizedPanel).toHaveBeenCalled();
+			handle.exitMaximizedPanel.mockClear();
+			openTabNotes(paper.id);
+			expect(handle.exitMaximizedPanel).toHaveBeenCalled();
+		} finally {
+			registerDockHandle(null);
+		}
+	});
+
+	it("preserves layoutMode reading when toggling sidebar in reading mode", () => {
+		uiStore.setState({ layoutMode: "reading", sidebarCollapsed: true });
+		try {
+			toggleSidebar();
+			expect(uiStore.getState().layoutMode).toBe("reading");
+		} finally {
+			uiStore.setState({ layoutMode: "custom", sidebarCollapsed: false });
+		}
+	});
+
+	it("does not exit maximized panel when opening an existing paper tab in reading mode", () => {
+		const paper = makeTab("/vault/papers/a", {
+			kind: "paper",
+			mode: "pdf",
+			notesPath: "/vault/papers/a/NOTES.md",
+		});
+		const handle = {
+			openPanel: vi.fn(),
+			activatePanel: vi.fn(),
+			isMaximizedPanel: vi.fn(() => true),
+			maximizeActivePanel: vi.fn(() => true),
+			exitMaximizedPanel: vi.fn(),
+		};
+		registerDockHandle(handle as unknown as DockHandle);
+		uiStore.setState({ layoutMode: "reading" });
+		try {
+			setTabs([paper]);
+			openTab(paper.path, { preferMode: "pdf" });
+			expect(handle.exitMaximizedPanel).not.toHaveBeenCalled();
+			expect(uiStore.getState().layoutMode).toBe("reading");
+		} finally {
+			registerDockHandle(null);
+			uiStore.setState({ layoutMode: "custom" });
 		}
 	});
 });

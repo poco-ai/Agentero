@@ -104,6 +104,7 @@ export function addPanelWithPlacement(
 	api: DockviewApi,
 	tab: DocTab,
 	placement: OpenPlacement,
+	options?: { inactive?: boolean },
 ): IDockviewPanel {
 	const referencePanel = resolveReferencePanel(api, placement);
 	const direction = placement?.direction ?? "within";
@@ -116,6 +117,7 @@ export function addPanelWithPlacement(
 		title: tab.title,
 		params: panelPersistParams(tab),
 		renderer: rendererForMode(tab.mode),
+		inactive: options?.inactive,
 		...(referencePanel
 			? {
 					position: {
@@ -132,7 +134,10 @@ export function addPanelWithPlacement(
  * grid groups. Actions use them to keep new papers on the left and NOTES on the
  * right instead of following whichever group happens to hold focus.
  */
-export function readingColumnAnchors(api: DockviewApi): ReadingColumns | null {
+export function readingColumnAnchors(
+	api: DockviewApi,
+	cached?: ReadingColumns | null,
+): ReadingColumns | null {
 	const groups = api.groups.filter(
 		(group) => group.api.location.type === "grid" && group.panels.length > 0,
 	);
@@ -141,22 +146,51 @@ export function readingColumnAnchors(api: DockviewApi): ReadingColumns | null {
 	const a = first.api.boundingBox;
 	const b = second.api.boundingBox;
 	if (
-		!a ||
-		!b ||
-		a.width <= 0 ||
-		b.width <= 0 ||
-		Math.abs(a.top - b.top) > 1 ||
-		Math.abs(a.height - b.height) > 1 ||
-		Math.abs(a.left - b.left) <= 1
+		a &&
+		b &&
+		a.width > 0 &&
+		b.width > 0 &&
+		Math.abs(a.top - b.top) <= 1 &&
+		Math.abs(a.height - b.height) <= 1 &&
+		Math.abs(a.left - b.left) > 1
 	) {
-		return null;
+		const left = a.left < b.left ? first : second;
+		const right = left === first ? second : first;
+		const leftAnchor = left.panels[0];
+		const rightAnchor = right.panels[0];
+		if (!leftAnchor || !rightAnchor) return null;
+		return { leftAnchorId: leftAnchor.id, rightAnchorId: rightAnchor.id };
 	}
-	const left = a.left < b.left ? first : second;
-	const right = left === first ? second : first;
-	const leftAnchor = left.panels[0];
-	const rightAnchor = right.panels[0];
-	if (!leftAnchor || !rightAnchor) return null;
-	return { leftAnchorId: leftAnchor.id, rightAnchorId: rightAnchor.id };
+
+	// While a group is maximized (e.g. reading layout), hidden groups report width <= 0.
+	// If exactly two groups remain and we have cached reading columns whose panels
+	// belong to these two groups, keep using the remembered left and right anchors.
+	if (api.hasMaximizedGroup() && cached) {
+		const firstHasLeft = first.panels.some((p) => p.id === cached.leftAnchorId);
+		const secondHasRight = second.panels.some(
+			(p) => p.id === cached.rightAnchorId,
+		);
+		if (firstHasLeft && secondHasRight) {
+			return {
+				leftAnchorId: first.panels[0]?.id ?? cached.leftAnchorId,
+				rightAnchorId: second.panels[0]?.id ?? cached.rightAnchorId,
+			};
+		}
+		const firstHasRight = first.panels.some(
+			(p) => p.id === cached.rightAnchorId,
+		);
+		const secondHasLeft = second.panels.some(
+			(p) => p.id === cached.leftAnchorId,
+		);
+		if (firstHasRight && secondHasLeft) {
+			return {
+				leftAnchorId: second.panels[0]?.id ?? cached.leftAnchorId,
+				rightAnchorId: first.panels[0]?.id ?? cached.rightAnchorId,
+			};
+		}
+	}
+
+	return null;
 }
 
 export function rebalanceGridGroupWidths(api: DockviewApi): void {
