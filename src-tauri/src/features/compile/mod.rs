@@ -176,9 +176,12 @@ pub async fn clean_latex_aux_files(tex_path: String) -> ApiResult<()> {
     );
 
     let mut cmd = tokio::process::Command::new(&latexmk);
-    cmd.current_dir(&cwd)
+    // latexmk gets the plain form of a Windows `\\?\D:\…` path (see
+    // `types::tool_path`).
+    let tool_cwd = types::tool_path(&cwd);
+    cmd.current_dir(&tool_cwd)
         .arg("-c")
-        .arg(format!("-outdir={}", cwd.to_string_lossy()))
+        .arg(format!("-outdir={}", tool_cwd.to_string_lossy()))
         .arg(&basename)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
@@ -282,7 +285,9 @@ pub async fn chktex_lint(tex_path: String, content: String) -> ApiResult<Vec<Lat
     let mut cmd = tokio::process::Command::new(&chktex);
     cmd.args(["-q", "-I0", "-f%l:%c:%d:%k:%n:%m\n"])
         // cwd = the .tex parent so a project-local .chktexrc keeps working.
-        .current_dir(Path::new(&tex_path).parent().unwrap_or(Path::new(".")))
+        .current_dir(types::tool_path(
+            Path::new(&tex_path).parent().unwrap_or(Path::new(".")),
+        ))
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         // The version banner and the run summary go to stderr; drop them.

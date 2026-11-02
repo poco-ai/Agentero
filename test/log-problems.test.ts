@@ -111,4 +111,22 @@ describe("latex log problem paths", () => {
 			expect(resolveLogProblemPath(root, file)).toBe(root);
 		}
 	});
+
+	it("maps plain log paths onto an extended Windows root", () => {
+		// A Vault opened via canonicalize() keeps `\\?\`; TeX tools get the
+		// plain path and print it with a lower-case drive letter (#909).
+		const extended = "\\\\?\\E:\\Vault\\thesis\\note\\main.tex";
+		expect(
+			resolveLogProblemPath(extended, "e:/Vault/thesis/note/main.tex"),
+		).toBe(extended);
+		expect(
+			resolveLogProblemPath(
+				extended,
+				"e:/Vault/thesis/note/sections/intro.tex",
+			),
+		).toBe("\\\\?\\E:\\Vault\\thesis\\note\\sections\\intro.tex");
+		expect(resolveLogProblemPath(extended, "e:/Vault/other/x.tex")).toBe(
+			extended,
+		);
+	});
 });

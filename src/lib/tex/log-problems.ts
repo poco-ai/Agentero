@@ -3,7 +3,7 @@
  * show the same findings as the raw log.
  */
 
-import { normalizePath } from "@/lib/core/path";
+import { displayPath, normalizePath } from "@/lib/core/path";
 import { joinVaultPath } from "@/lib/vault/path";
 import { manuscriptDir } from "@/lib/writing/session";
 
@@ -115,8 +115,10 @@ export function resolveLogProblemPath(
 	if (!cleaned || cleaned.includes("..")) return rootFile;
 	if (!ABSOLUTE.test(cleaned)) return joinVaultPath(dir, cleaned);
 	const path = normalizePath(cleaned);
-	if (samePath(path, normalizePath(rootFile))) return rootFile;
-	const folder = normalizePath(dir);
+	// TeX tools get the plain form of an extended `\\?\D:\…` root, so compare
+	// against the root spelled that way; the result keeps the root's spelling.
+	if (samePath(path, normalizePath(displayPath(rootFile)))) return rootFile;
+	const folder = normalizePath(displayPath(dir));
 	if (
 		folder &&
 		path[folder.length] === "/" &&

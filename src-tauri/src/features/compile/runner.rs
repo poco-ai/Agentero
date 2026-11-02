@@ -5,8 +5,9 @@ use super::{
     latexmk_engine_flag, line_milestone, resolve_engine,
     tools::prepare_command,
     types::{
-        artifacts, compiler_kind, expand, is_latexmk, tool_directory, tool_option, CompilerKind,
-        LatexArtifacts, LatexBuildOptions, LatexCompileResult, LatexTool,
+        artifacts, caller_path, compiler_kind, expand, is_latexmk, tool_artifacts, tool_directory,
+        tool_option, tool_path, CompilerKind, LatexArtifacts, LatexBuildOptions,
+        LatexCompileResult, LatexTool,
     },
     CompileProgress, LatexCompileParams, ERROR_TAIL_LINES,
 };
@@ -443,9 +444,13 @@ pub(super) async fn run_latexmk(
         Ok(value) => value,
         Err(e) => return RunOutcome::Failed(Some(format!("cannot create build log: {e}"))),
     };
+    // Tools get plain Windows paths (latexmk globs on the `?` of `\\?\D:\…`);
+    // our own files and the reported result keep the caller's spelling.
+    let tool_root = tool_path(&root);
+    let tool_artifact = tool_artifacts(&artifact);
     let mut tools = Vec::new();
     if options.clean {
-        tools.push(clean_tool(&root, &artifact));
+        tools.push(clean_tool(&tool_root, &tool_artifact));
     }
     if let Some(recipe) = &options.recipe {
         if recipe.tools.is_empty() || recipe.tools.len() > 32 {
@@ -465,10 +470,10 @@ pub(super) async fn run_latexmk(
             "-file-line-error".into(),
             "-synctex=1".into(),
             "-recorder".into(),
-            format!("-outdir={}", artifact.out_dir),
+            format!("-outdir={}", tool_artifact.out_dir),
         ];
-        if artifact.aux_dir != artifact.out_dir {
-            args.push(format!("-auxdir={}", artifact.aux_dir));
+        if tool_artifact.aux_dir != tool_artifact.out_dir {
+            args.push(format!("-auxdir={}", tool_artifact.aux_dir));
         }
         if options.force || options.clean {
             args.push("-g".into());
@@ -476,7 +481,7 @@ pub(super) async fn run_latexmk(
         if let Some(name) = &options.jobname {
             args.push(format!("-jobname={name}"));
         }
-        args.push(root.to_string_lossy().into_owned());
+        args.push(tool_root.to_string_lossy().into_owned());
         tools.push(LatexTool {
             command: "latexmk".into(),
             args,
@@ -494,14 +499,14 @@ pub(super) async fn run_latexmk(
             outcome = RunOutcome::Cancelled;
             break;
         }
-        let command_name = expand(&tool.command, &root, &artifact);
-        let tool_dir = tool_directory(&tool, &root, &artifact);
-        let environment = tool_environment(&tool, &root, &artifact);
+        let command_name = expand(&tool.command, &tool_root, &tool_artifact);
+        let tool_dir = tool_directory(&tool, &tool_root, &tool_artifact);
+        let environment = tool_environment(&tool, &tool_root, &tool_artifact);
         let Some(executable) = executable_path(&command_name, &tool_dir, &environment) else {
             outcome = RunOutcome::Failed(Some(format!("{command_name} not found on this system")));
             break;
         };
-        let args = tool_arguments(&tool, &root, &artifact, &options);
+        let args = tool_arguments(&tool, &tool_root, &tool_artifact, &options);
         let mut command = tokio::process::Command::new(&executable);
         prepare_command(&mut command, &executable);
         #[cfg(unix)]
@@ -680,8 +685,17 @@ pub(super) async fn run_latexmk(
         pdf_path: artifact.pdf_path,
         log_path: artifact.log_path,
         synctex_path: artifact.synctex_path,
-        dependencies: read_fls(Path::new(&artifact.fls_path), cwd),
-        diagnostics: parse_diagnostics(&output, &root),
+        dependencies: read_fls(Path::new(&artifact.fls_path), cwd)
+            .into_iter()
+            .map(|path| caller_path(&path, &root))
+            .collect(),
+        diagnostics: parse_diagnostics(&output, &root)
+            .into_iter()
+            .map(|mut diagnostic| {
+                diagnostic.path = caller_path(&diagnostic.path, &root);
+                diagnostic
+            })
+            .collect(),
     };
     let _ = app.emit("compile:finished", result);
     outcome

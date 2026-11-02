@@ -277,6 +277,52 @@ pub fn artifacts(
     })
 }
 
+/// A path as handed to an external TeX tool. Windows `canonicalize()` returns
+/// extended `\\?\D:\…` paths, which latexmk (Perl) treats as a glob and TeX
+/// cannot parse, so tools get the plain drive form. UNC and other extended
+/// paths are passed through unchanged.
+pub(super) fn tool_path(path: &std::path::Path) -> std::path::PathBuf {
+    crate::core::process::windows_shell_path(path)
+}
+
+/// [`LatexArtifacts`] as handed to external TeX tools (see [`tool_path`]).
+pub(super) fn tool_artifacts(artifact: &LatexArtifacts) -> LatexArtifacts {
+    let plain = |value: &str| {
+        tool_path(std::path::Path::new(value))
+            .to_string_lossy()
+            .into_owned()
+    };
+    LatexArtifacts {
+        pdf_path: plain(&artifact.pdf_path),
+        log_path: plain(&artifact.log_path),
+        synctex_path: plain(&artifact.synctex_path),
+        fls_path: plain(&artifact.fls_path),
+        out_dir: plain(&artifact.out_dir),
+        aux_dir: plain(&artifact.aux_dir),
+    }
+}
+
+/// A path a TeX tool reported, spelled the way the caller spelled `request`:
+/// when the request used an extended `\\?\D:\…` path, plain drive paths get
+/// the prefix back (backslashes, and the upper-case drive letter
+/// `canonicalize()` produces; TeX Live prints `d:/…`). Anything else is
+/// returned unchanged.
+pub(super) fn caller_path(reported: &str, request: &std::path::Path) -> String {
+    let bytes = reported.as_bytes();
+    let drive_path = bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && matches!(bytes[2], b'\\' | b'/');
+    if !drive_path || !request.to_string_lossy().starts_with(r"\\?\") {
+        return reported.to_string();
+    }
+    format!(
+        r"\\?\{}{}",
+        bytes[0].to_ascii_uppercase() as char,
+        reported[1..].replace('/', "\\")
+    )
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn latex_build_artifacts(
@@ -294,6 +340,57 @@ pub async fn latex_build_artifacts(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn tex_tools_get_plain_paths_and_reports_keep_the_callers_spelling() {
+        // `canonicalize()` spelling of a Vault on Windows (#909).
+        let root = Path::new(r"\\?\E:\vault\thesis\main.tex");
+        assert_eq!(tool_path(root), PathBuf::from(r"E:\vault\thesis\main.tex"));
+        let unc = Path::new(r"\\?\UNC\server\share\main.tex");
+        assert_eq!(tool_path(unc), unc.to_path_buf());
+
+        let dir = r"\\?\E:\vault\thesis";
+        let artifact = LatexArtifacts {
+            pdf_path: format!(r"{dir}\main.pdf"),
+            log_path: format!(r"{dir}\main.log"),
+            synctex_path: format!(r"{dir}\main.synctex.gz"),
+            fls_path: format!(r"{dir}\main.fls"),
+            out_dir: dir.into(),
+            aux_dir: format!(r"{dir}\aux"),
+        };
+        let tool = tool_artifacts(&artifact);
+        assert_eq!(tool.pdf_path, r"E:\vault\thesis\main.pdf");
+        assert_eq!(tool.out_dir, r"E:\vault\thesis");
+        assert_eq!(tool.aux_dir, r"E:\vault\thesis\aux");
+
+        // TeX Live reports the plain path with a lower-case drive letter.
+        assert_eq!(
+            caller_path("e:/vault/thesis/chapters/intro.tex", root),
+            r"\\?\E:\vault\thesis\chapters\intro.tex"
+        );
+        assert_eq!(
+            caller_path(r"E:\vault\thesis\main.tex", root),
+            r"\\?\E:\vault\thesis\main.tex"
+        );
+        for unchanged in [
+            r"\\?\E:\vault\x.tex",
+            "chapters/intro.tex",
+            "/tex/article.cls",
+        ] {
+            assert_eq!(caller_path(unchanged, root), unchanged);
+        }
+        // Plain requests get plain reports, as before.
+        assert_eq!(
+            caller_path("e:/vault/x.tex", Path::new(r"E:\vault\main.tex")),
+            "e:/vault/x.tex"
+        );
+        assert_eq!(
+            caller_path("/project/x.tex", Path::new("/project/main.tex")),
+            "/project/x.tex"
+        );
+    }
+
     #[test]
     fn custom_artifacts_keep_output_and_aux_separate() {
         let options = LatexBuildOptions {
