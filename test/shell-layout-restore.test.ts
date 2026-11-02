@@ -12,6 +12,7 @@ import {
 	setLayoutMode,
 	setRightSidebarOpenState,
 	setSidebarCollapsedState,
+	toggleSidebar,
 	uiStore,
 } from "@/lib/shell/ui-store";
 import { setNotesSplit } from "@/lib/workspace/actions";
@@ -260,23 +261,57 @@ describe("shell layout restoration", () => {
 		controller.applyLayoutMode("agent");
 		commitShellRailWidths({ leftRatio: 0.25, rightRatio: 0.4 }, "agent", 1200);
 		controller.applyLayoutMode("notes");
+		expect(widths.right).toBe(0);
+		controller.setLeftCollapsed(true);
 		expect(widths).toEqual({ left: 0, right: 0 });
 		controller.setLeftCollapsed(false);
 		controller.setRightCollapsed(false);
 		// Agent width is global: the last committed 0.4 wins over notes' 0.3.
 		expect(widths).toEqual({ left: 240, right: 480 });
 		controller.applyLayoutMode("agent");
-		expect(widths).toEqual({ left: 300, right: 480 });
+		expect(widths.right).toBe(480);
 	});
 
 	it("restores the previous preset and its global Agent width after reading", () => {
 		commitShellRailWidths({ leftRatio: 0.25, rightRatio: 0.4 }, "agent", 1200);
 		const { controller, widths } = mountController();
+		widths.left = 300;
 		controller.applyLayoutMode("agent");
 		controller.applyLayoutMode("reading");
 		controller.applyLayoutMode("reading");
 		expect(uiStore.getState().layoutMode).toBe("agent");
 		expect(widths).toEqual({ left: 300, right: 480 });
+	});
+
+	it("decouples left sidebar visibility from Agent and Notes layout modes", () => {
+		const { controller, widths } = mountController();
+		expect(widths.left).toBe(200);
+
+		// Applying notes preset keeps left rail open
+		controller.applyLayoutMode("notes");
+		expect(uiStore.getState().layoutMode).toBe("notes");
+		expect(widths.left).toBe(200);
+		expect(widths.right).toBe(0);
+
+		// Manually collapsing left rail preserves notes layout
+		controller.setLeftCollapsed(true);
+		expect(widths.left).toBe(0);
+		expect(uiStore.getState().layoutMode).toBe("notes");
+
+		// Switching to agent preset keeps left rail collapsed
+		controller.applyLayoutMode("agent");
+		expect(uiStore.getState().layoutMode).toBe("agent");
+		expect(widths.left).toBe(0);
+		expect(widths.right).toBeGreaterThan(0);
+
+		// Toggling left rail via toggleSidebar preserves agent layout
+		toggleSidebar();
+		expect(widths.left).toBeGreaterThan(0);
+		expect(uiStore.getState().layoutMode).toBe("agent");
+
+		toggleSidebar();
+		expect(widths.left).toBe(0);
+		expect(uiStore.getState().layoutMode).toBe("agent");
 	});
 
 	it("restores custom visibility and its preset width owner after a cold reload", () => {

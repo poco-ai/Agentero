@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-	LAYOUT_MODE_LEFT_COLLAPSED,
 	LAYOUT_MODE_RIGHT_RATIOS,
-	layoutModeLeftCollapsed,
 	layoutModeRightCollapsed,
 	layoutModeRightRatio,
 } from "@/lib/shell/layout-presets";
@@ -19,12 +17,5 @@ describe("layout presets", () => {
 
 	it("collapses Agent in Reading mode", () => {
 		expect(layoutModeRightCollapsed("reading")).toBe(true);
-	});
-
-	it("collapses the left sidebar in Notes and Reading modes", () => {
-		expect(layoutModeLeftCollapsed("reading")).toBe(true);
-		expect(layoutModeLeftCollapsed("notes")).toBe(true);
-		expect(layoutModeLeftCollapsed("agent")).toBe(false);
-		expect(LAYOUT_MODE_LEFT_COLLAPSED.notes).toBe(true);
 	});
 });
