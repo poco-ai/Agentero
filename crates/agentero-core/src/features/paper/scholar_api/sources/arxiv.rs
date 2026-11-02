@@ -2,6 +2,7 @@
 
 use async_trait::async_trait;
 
+use crate::features::paper::discovery::coolpapers::decode_entities;
 use crate::features::scholar_api::client;
 use crate::features::scholar_api::identifiers::strip_arxiv_version;
 use crate::features::scholar_api::traits::AcademicApi;
@@ -139,7 +140,8 @@ fn parse_entries(xml: &str, limit: usize) -> Vec<ApiPaper> {
     out
 }
 
-/// First `<tag>…</tag>` in `xml`, whitespace collapsed.
+/// First `<tag>…</tag>` in `xml`, whitespace collapsed and XML entities
+/// decoded: the Atom feed escapes `&`, `<` and `>` (`&lt;0.5MB`).
 fn tag_text(xml: &str, tag: &str) -> Option<String> {
     let body = xml
         .split(&format!("<{tag}>"))
@@ -150,7 +152,7 @@ fn tag_text(xml: &str, tag: &str) -> Option<String> {
     if text.is_empty() {
         None
     } else {
-        Some(text)
+        Some(decode_entities(&text))
     }
 }
 
@@ -186,5 +188,29 @@ mod tests {
         );
         assert_eq!(p.authors.len(), 2);
         assert!(p.urls.pdf.as_deref().unwrap().contains("/pdf/1706.03762"));
+    }
+
+    #[test]
+    fn decodes_escaped_characters_in_atom_text() {
+        // As export.arxiv.org returns 1602.07360 (SqueezeNet).
+        let xml = r#"<feed>
+            <entry>
+                <id>http://arxiv.org/abs/1602.07360v4</id>
+                <published>2016-02-24T20:41:44Z</published>
+                <title>SqueezeNet: AlexNet-level accuracy with 50x fewer parameters and
+  &lt;0.5MB model size</title>
+                <summary>Smaller DNNs &amp; FPGAs: &quot;fewer&quot; parameters</summary>
+                <author><name>Forrest N. Iandola</name></author>
+            </entry>
+        </feed>"#;
+        let p = &parse_entries(xml, 1)[0];
+        assert_eq!(
+            p.title,
+            "SqueezeNet: AlexNet-level accuracy with 50x fewer parameters and <0.5MB model size"
+        );
+        assert_eq!(
+            p.abstract_text.as_deref(),
+            Some("Smaller DNNs & FPGAs: \"fewer\" parameters")
+        );
     }
 }
