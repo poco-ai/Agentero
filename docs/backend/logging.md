@@ -9,6 +9,7 @@
 - 与用户 Toast / `ApiResult` **分层**：日志不替代错误 UX。
 - 关键操作记录 op start/end。
 - 前端启动：`main.tsx` 在 `op start/end frontend_boot` 之间输出 `boot stage=<阶段> ms=<累计>`（entry / settings / theme / i18n / 模块加载）。计时基准是 `performance.now()`，即从页面导航开始，因此包含 HTML 与入口模块本身的加载；多窗口时用末尾的 `window=main|settings` 区分。dev 环境的 Webview console 日志桥接异步附加，不阻塞启动链。
+- 全局异常：`main.tsx` 监听 `window` 的 `error` 与 `unhandledrejection` 事件，将未捕获的前端运行时报错与未处理 Promise 拒绝路由至 Host logger，便于排查界面未预期崩溃或白屏/黑屏问题。
 - 日志目录由插件约定（Windows 为 `%LOCALAPPDATA%\<identifier>\logs\agentero.log`；macOS 为 `~/Library/Logs/<identifier>/`）。Release 版本默认最高输出 `Info`，不输出 `Debug`/`Trace`。
 - 文件轮转策略：单文件 2 MB，最多保留 5 个近期文件（当前 + 4 个归档），避免日志无限累积。
 - Settings → About「运行日志」提供：

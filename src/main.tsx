@@ -29,6 +29,18 @@ import { initWorkspaceStore } from "@/lib/workspace/store";
 import i18n, { applyLocale } from "./i18n";
 import "./index.css";
 
+window.addEventListener("error", (e) => {
+	const location = e.filename ? ` at ${e.filename}:${e.lineno}:${e.colno}` : "";
+	logger.error(`[window.error] ${e.message}${location}`);
+});
+window.addEventListener("unhandledrejection", (e) => {
+	const reason =
+		e.reason instanceof Error
+			? e.reason.stack || e.reason.message
+			: String(e.reason);
+	logger.error(`[unhandledrejection] ${reason}`);
+});
+
 const searchParams = new URLSearchParams(window.location.search);
 const windowKind = searchParams.get("window");
 const isSettingsWindow = windowKind === "settings";
