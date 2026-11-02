@@ -279,9 +279,16 @@ pub fn artifacts(
 
 /// A path as handed to an external TeX tool. Windows `canonicalize()` returns
 /// extended `\\?\D:\…` paths, which latexmk (Perl) treats as a glob and TeX
-/// cannot parse, so tools get the plain drive form. UNC and other extended
-/// paths are passed through unchanged.
+/// cannot parse, so tools get the plain drive form. The frontend may send the
+/// same path with normalized separators (`//?/D:/…`); that prefix is dropped
+/// too. UNC and other extended paths are passed through unchanged.
 pub(super) fn tool_path(path: &std::path::Path) -> std::path::PathBuf {
+    let value = path.to_string_lossy();
+    if let Some(rest) = value.strip_prefix("//?/") {
+        if rest.as_bytes().get(1) == Some(&b':') {
+            return rest.into();
+        }
+    }
     crate::core::process::windows_shell_path(path)
 }
 
@@ -303,23 +310,31 @@ pub(super) fn tool_artifacts(artifact: &LatexArtifacts) -> LatexArtifacts {
 }
 
 /// A path a TeX tool reported, spelled the way the caller spelled `request`:
-/// when the request used an extended `\\?\D:\…` path, plain drive paths get
-/// the prefix back (backslashes, and the upper-case drive letter
-/// `canonicalize()` produces; TeX Live prints `d:/…`). Anything else is
-/// returned unchanged.
+/// when the request used an extended `\\?\D:\…` (or `//?/D:/…`) path, plain
+/// drive paths get the same prefix and separators back, with the upper-case
+/// drive letter `canonicalize()` produces (TeX Live prints `d:/…`). Anything
+/// else is returned unchanged.
 pub(super) fn caller_path(reported: &str, request: &std::path::Path) -> String {
     let bytes = reported.as_bytes();
     let drive_path = bytes.len() >= 3
         && bytes[0].is_ascii_alphabetic()
         && bytes[1] == b':'
         && matches!(bytes[2], b'\\' | b'/');
-    if !drive_path || !request.to_string_lossy().starts_with(r"\\?\") {
+    let request = request.to_string_lossy();
+    let (prefix, separator) = if request.starts_with(r"\\?\") {
+        (r"\\?\", "\\")
+    } else if request.starts_with("//?/") {
+        ("//?/", "/")
+    } else {
+        return reported.to_string();
+    };
+    if !drive_path {
         return reported.to_string();
     }
     format!(
-        r"\\?\{}{}",
+        "{prefix}{}{}",
         bytes[0].to_ascii_uppercase() as char,
-        reported[1..].replace('/', "\\")
+        reported[1..].replace(['/', '\\'], separator)
     )
 }
 
@@ -380,6 +395,16 @@ mod tests {
         ] {
             assert_eq!(caller_path(unchanged, root), unchanged);
         }
+        // The frontend can send the same path with normalized separators.
+        let slashed = Path::new("//?/E:/vault/thesis/main.tex");
+        assert_eq!(
+            tool_path(slashed),
+            PathBuf::from("E:/vault/thesis/main.tex")
+        );
+        assert_eq!(
+            caller_path("e:/vault/thesis/chapters/intro.tex", slashed),
+            "//?/E:/vault/thesis/chapters/intro.tex"
+        );
         // Plain requests get plain reports, as before.
         assert_eq!(
             caller_path("e:/vault/x.tex", Path::new(r"E:\vault\main.tex")),
