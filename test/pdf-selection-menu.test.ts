@@ -33,7 +33,7 @@ describe("SelectionMenu", () => {
 		showTranslate: true,
 	};
 
-	it("renders the copy button after translate and before quick chat when onCopy is provided", () => {
+	it("renders the copy button after translate and before add to chat when onCopy is provided", () => {
 		const html = renderToStaticMarkup(
 			createElement(SelectionMenu, {
 				...baseProps,
@@ -43,8 +43,8 @@ describe("SelectionMenu", () => {
 		);
 
 		expect(html).toContain("复制");
-		expect(html).toContain("快速对话");
-		expect(html).not.toContain("加入对话");
+		expect(html).toContain("加入对话");
+		expect(html).not.toContain("快速对话");
 		expect(html).toContain('aria-label="对话操作"');
 
 		expect(html.indexOf('aria-label="批注"')).toBeLessThan(
@@ -52,13 +52,13 @@ describe("SelectionMenu", () => {
 		);
 		const translateIdx = html.indexOf('aria-label="翻译"');
 		const copyIdx = html.indexOf("复制");
-		const quickChatIdx = html.indexOf("快速对话");
+		const addToChatIdx = html.indexOf("加入对话");
 		const chatMenuIdx = html.indexOf('aria-label="对话操作"');
 
 		expect(translateIdx).toBeGreaterThan(-1);
 		expect(copyIdx).toBeGreaterThan(translateIdx);
-		expect(quickChatIdx).toBeGreaterThan(copyIdx);
-		expect(chatMenuIdx).toBeGreaterThan(quickChatIdx);
+		expect(addToChatIdx).toBeGreaterThan(copyIdx);
+		expect(chatMenuIdx).toBeGreaterThan(addToChatIdx);
 	});
 
 	it("omits the copy button when onCopy is not provided", () => {
@@ -69,8 +69,8 @@ describe("SelectionMenu", () => {
 		);
 
 		expect(html).not.toContain("复制");
-		expect(html).toContain("快速对话");
-		expect(html).not.toContain("加入对话");
+		expect(html).toContain("加入对话");
+		expect(html).not.toContain("快速对话");
 		expect(html).toContain('aria-label="对话操作"');
 	});
 });

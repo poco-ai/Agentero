@@ -133,7 +133,8 @@ function SelectionCopyButton({
 
 /**
  * Floating action bar shown next to a text selection: overlapping highlight
- * color dots (fan left on hover), Note / Translate / Copy / Quick chat menu.
+ * color dots (fan left on hover), Note / Translate / Copy / Add to chat, with
+ * Quick chat in the split button's menu.
  * Copy keeps the bar open and swaps the icon for a check; it does not toast.
  * The bar is pinned by its right edge so expanding colors only grow left —
  * action buttons never shift.
@@ -323,13 +324,13 @@ export function SelectionMenu({
 					<button
 						type="button"
 						className="inline-flex h-7 shrink-0 items-center gap-1 rounded-l-md px-1.5 text-caption font-medium text-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97] motion-reduce:active:scale-100"
-						aria-label={`${t("selection.quickChat")} ${quickChatShortcut}`}
+						aria-label={`${t("selection.addToChat")} ${addToChatShortcut}`}
 						onPointerDown={(event) => event.preventDefault()}
-						onClick={onAsk}
+						onClick={onAddToChat}
 					>
-						<span>{t("selection.quickChat")}</span>
+						<span>{t("selection.addToChat")}</span>
 						<kbd className="translate-y-px scale-90 text-caption font-normal text-muted-foreground/80 tabular-nums">
-							{quickChatShortcut}
+							{addToChatShortcut}
 						</kbd>
 					</button>
 					<DropdownMenu modal={false}>
@@ -345,10 +346,10 @@ export function SelectionMenu({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" data-pdf-chrome>
-							<DropdownMenuItem onSelect={onAddToChat}>
-								{t("selection.addToChat")}
+							<DropdownMenuItem onSelect={onAsk}>
+								{t("selection.quickChat")}
 								<kbd className="ml-auto pl-3 text-xs text-muted-foreground">
-									{addToChatShortcut}
+									{quickChatShortcut}
 								</kbd>
 							</DropdownMenuItem>
 						</DropdownMenuContent>

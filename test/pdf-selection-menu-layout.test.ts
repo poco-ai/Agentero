@@ -213,7 +213,7 @@ it("centers surfaces without highlights and retains vertical flipping and clampi
 	expect(menu.className).toContain("opacity-70");
 });
 
-it("keeps note clicks explicit and opens the secondary chat action through its arrow", async () => {
+it("keeps note clicks explicit and opens quick chat through the chat arrow", async () => {
 	const onNote = vi.fn();
 	const onAsk = vi.fn();
 	const onAddToChat = vi.fn();
@@ -232,9 +232,9 @@ it("keeps note clicks explicit and opens the secondary chat action through its a
 	await act(() => note.click());
 	expect(onNote).toHaveBeenCalledOnce();
 	await act(() =>
-		menu.querySelector<HTMLButtonElement>('[aria-label^="快速对话"]')?.click(),
+		menu.querySelector<HTMLButtonElement>('[aria-label^="加入对话"]')?.click(),
 	);
-	expect(onAsk).toHaveBeenCalledOnce();
+	expect(onAddToChat).toHaveBeenCalledOnce();
 	expect(document.querySelector('[role="menuitem"]')).toBeNull();
 	await act(() =>
 		trigger.dispatchEvent(
@@ -246,10 +246,10 @@ it("keeps note clicks explicit and opens the secondary chat action through its a
 		),
 	);
 	const item = document.querySelector<HTMLElement>('[role="menuitem"]');
-	expect(item?.textContent).toContain("加入对话");
-	expect(onAddToChat).not.toHaveBeenCalled();
+	expect(item?.textContent).toContain("快速对话");
+	expect(onAsk).not.toHaveBeenCalled();
 	await act(() => item?.click());
-	expect(onAddToChat).toHaveBeenCalledOnce();
+	expect(onAsk).toHaveBeenCalledOnce();
 });
 
 const customBindings = {
@@ -262,7 +262,9 @@ it("updates PDF quick-chat and add-to-chat hints while its menu is mounted", asy
 	await act(() =>
 		settingsStore.setState({ shortcutOverrides: customBindings }),
 	);
-	expect(menu.textContent).toContain(formatShortcut(customBindings.quickChat));
+	expect(menu.textContent).toContain(
+		formatShortcut(customBindings.addSelectionToChat),
+	);
 	const trigger = menu.querySelector<HTMLButtonElement>(
 		'[aria-haspopup="menu"]',
 	);
@@ -277,7 +279,7 @@ it("updates PDF quick-chat and add-to-chat hints while its menu is mounted", asy
 		),
 	);
 	expect(document.querySelector('[role="menuitem"]')?.textContent).toContain(
-		formatShortcut(customBindings.addSelectionToChat),
+		formatShortcut(customBindings.quickChat),
 	);
 	await act(() =>
 		settingsStore.setState({
