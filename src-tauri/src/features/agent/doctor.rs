@@ -10,8 +10,10 @@ use crate::features::agent::registry::{template_info, AgentRegistry};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::process::Command;
 
 const HOST_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
@@ -355,6 +357,72 @@ async fn run_auth_status(
     }
 }
 
+async fn codex_app_server_result(
+    lines: &mut Lines<BufReader<tokio::process::ChildStdout>>,
+    id: i64,
+) -> Option<serde_json::Value> {
+    loop {
+        let line = lines.next_line().await.ok()??;
+        let response: serde_json::Value = serde_json::from_str(&line).ok()?;
+        if response.get("id").and_then(serde_json::Value::as_i64) == Some(id) {
+            return response.get("result").cloned();
+        }
+    }
+}
+
+/// The CLI login command checks OpenAI credentials even when Codex is configured
+/// to use a provider that does not require them. Ask the same Codex CLI used by
+/// the ACP adapter whether OpenAI authentication is needed for this environment.
+async fn codex_account_auth_status(
+    adapter: &Path,
+    environment: &HashMap<String, String>,
+) -> Option<CodexAuthDiagnostic> {
+    let mut command = diagnostic_command(adapter, &["cli", "app-server"]);
+    command
+        .env_clear()
+        .envs(environment)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .kill_on_drop(true);
+    tokio::time::timeout(HOST_PROBE_TIMEOUT, async {
+        let mut child = command.spawn().ok()?;
+        let mut stdin = child.stdin.take()?;
+        let stdout = child.stdout.take()?;
+        let mut lines = BufReader::new(stdout).lines();
+
+        stdin
+            .write_all(b"{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"Agentero\",\"version\":\"0.14.0\"},\"capabilities\":null}}\n")
+            .await
+            .ok()?;
+        codex_app_server_result(&mut lines, 1).await?;
+        stdin
+            .write_all(b"{\"id\":2,\"method\":\"account/read\",\"params\":{\"refreshToken\":false}}\n")
+            .await
+            .ok()?;
+        let account = codex_app_server_result(&mut lines, 2).await?;
+        let required = account.get("requiresOpenaiAuth")?.as_bool()?;
+        let has_account = !account.get("account")?.is_null();
+        drop(stdin);
+        let _ = tokio::time::timeout(Duration::from_millis(250), child.wait()).await;
+
+        Some(CodexAuthDiagnostic {
+            status: if !required {
+                CodexAuthStatus::NotApplicable
+            } else if has_account {
+                CodexAuthStatus::Authenticated
+            } else {
+                CodexAuthStatus::Unauthenticated
+            },
+            method: None,
+            detail: None,
+        })
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
 async fn diagnose_codex_auth_in_env(
     desc: &AgentDescriptor,
     environment: &HashMap<String, String>,
@@ -369,14 +437,34 @@ async fn diagnose_codex_auth_in_env(
 
     let adapter_result =
         run_auth_status(adapter.as_path(), &["cli", "login", "status"], environment).await;
-    if adapter_result.status != CodexAuthStatus::Unknown {
+    if adapter_result.status == CodexAuthStatus::Authenticated {
         return adapter_result;
+    }
+    if let Some(status) = codex_account_auth_status(adapter.as_path(), environment).await {
+        return status;
+    }
+    if adapter_result.status == CodexAuthStatus::Unauthenticated {
+        // A failed account/read cannot distinguish missing OpenAI login from a
+        // custom provider that does not require it.
+        return CodexAuthDiagnostic {
+            status: CodexAuthStatus::Unknown,
+            method: None,
+            detail: Some("Codex app-server account status unavailable".to_string()),
+        };
     }
 
     let Some(codex) = resolve_command_in_agent_env("codex", environment) else {
         return adapter_result;
     };
-    run_auth_status(codex.as_path(), &["login", "status"], environment).await
+    let native_result = run_auth_status(codex.as_path(), &["login", "status"], environment).await;
+    if native_result.status == CodexAuthStatus::Unauthenticated {
+        return CodexAuthDiagnostic {
+            status: CodexAuthStatus::Unknown,
+            method: None,
+            detail: Some("Codex app-server account status unavailable".to_string()),
+        };
+    }
+    native_result
 }
 
 pub(crate) async fn diagnose_codex_auth(desc: &AgentDescriptor) -> CodexAuthDiagnostic {
@@ -830,6 +918,89 @@ mod tests {
             result.detail.as_deref(),
             Some("status command exited with 7")
         );
+    }
+
+    fn fake_codex_auth(
+        requires_openai_auth: Option<bool>,
+    ) -> (tempfile::TempDir, HashMap<String, String>) {
+        let bin = tempfile::tempdir().unwrap();
+        let response = match requires_openai_auth {
+            Some(true) => "true",
+            Some(false) => "false",
+            None => "null",
+        };
+        #[cfg(windows)]
+        {
+            std::fs::write(
+                bin.path().join("codex-acp.cmd"),
+                "@echo off\r\nif \"%~1\"==\"cli\" if \"%~2\"==\"app-server\" (\r\nset /p init=\r\necho {\"id\":1,\"result\":{}}\r\nset /p account=\r\necho {\"id\":2,\"result\":{\"account\":null,\"requiresOpenaiAuth\":__REQUIRED__}}\r\nexit /b 0\r\n)\r\necho Not logged in 1>&2\r\nexit /b 1\r\n"
+                    .replace("__REQUIRED__", response),
+            )
+            .unwrap();
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let adapter = bin.path().join("codex-acp");
+            std::fs::write(
+                &adapter,
+                "#!/bin/sh\nif [ \"$1\" = cli ] && [ \"$2\" = app-server ]; then\n  IFS= read -r init\n  printf '%s\\n' '{\"id\":1,\"result\":{}}'\n  IFS= read -r account\n  printf '%s\\n' '{\"id\":2,\"result\":{\"account\":null,\"requiresOpenaiAuth\":__REQUIRED__}}'\n  exit 0\nfi\necho 'Not logged in' >&2\nexit 1\n"
+                    .replace("__REQUIRED__", response),
+            )
+            .unwrap();
+            std::fs::set_permissions(&adapter, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+
+        let mut environment: HashMap<_, _> = std::env::vars().collect();
+        let path = std::env::join_paths(
+            std::iter::once(bin.path().to_path_buf()).chain(
+                environment
+                    .get("PATH")
+                    .into_iter()
+                    .flat_map(std::env::split_paths),
+            ),
+        )
+        .unwrap();
+        environment.insert("PATH".to_string(), path.to_string_lossy().into_owned());
+        (bin, environment)
+    }
+
+    fn fake_codex_descriptor() -> AgentDescriptor {
+        AgentDescriptor {
+            id: "catalog-codex-acp".into(),
+            name: "Codex".into(),
+            template: AgentTemplate::CodexAcp,
+            command: "codex-acp".into(),
+            args: vec![],
+            env: HashMap::new(),
+            available: true,
+            last_error: None,
+            last_probe_ok: None,
+            last_probe_agent_name: None,
+            last_probe_error: None,
+            last_probed_at: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn codex_custom_provider_does_not_require_openai_login() {
+        let (_bin, environment) = fake_codex_auth(Some(false));
+        let result = diagnose_codex_auth_in_env(&fake_codex_descriptor(), &environment).await;
+        assert_eq!(result.status, CodexAuthStatus::NotApplicable);
+    }
+
+    #[tokio::test]
+    async fn codex_openai_provider_still_requires_login() {
+        let (_bin, environment) = fake_codex_auth(Some(true));
+        let result = diagnose_codex_auth_in_env(&fake_codex_descriptor(), &environment).await;
+        assert_eq!(result.status, CodexAuthStatus::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn codex_unavailable_account_query_is_not_assumed_logged_out() {
+        let (_bin, environment) = fake_codex_auth(None);
+        let result = diagnose_codex_auth_in_env(&fake_codex_descriptor(), &environment).await;
+        assert_eq!(result.status, CodexAuthStatus::Unknown);
     }
 
     #[test]
