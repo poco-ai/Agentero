@@ -101,6 +101,7 @@ import {
 	parseAskUserQuestions,
 	streamingLabel,
 	suggestionItems,
+	type ToolAskUserRecord,
 	toolPartState,
 } from "@/lib/agent/chat-state";
 import { stripInlineTokens } from "@/lib/agent/composer-inline-tokens";
@@ -121,6 +122,51 @@ function AskUserToolPendingNote() {
 			<p className="text-xs text-muted-foreground">
 				{t("askUserQuestion.pendingInComposer")}
 			</p>
+		</ToolContent>
+	);
+}
+
+/** Answered questionnaire shown in the transcript tool card (Grok / OpenCode / elicitation). */
+function AskUserToolAnswers({
+	record,
+	questions,
+	className,
+}: {
+	record?: ToolAskUserRecord;
+	questions: AskUserQuestion[];
+	className?: string;
+}) {
+	const { t } = useTranslation("agent");
+	return (
+		<ToolContent className={className}>
+			<dl className="space-y-2">
+				{questions.map((question, index) => {
+					const raw = record?.answers[index];
+					const answer = Array.isArray(raw) ? raw.join(", ") : raw;
+					const text = answer?.trim();
+					return (
+						<div
+							key={`${question.id ?? ""}:${question.question}`}
+							className="space-y-0.5"
+						>
+							<dt className="text-xs text-muted-foreground">
+								{question.question}
+							</dt>
+							<dd
+								className={cn(
+									"whitespace-pre-wrap text-sm",
+									!text && "text-muted-foreground",
+								)}
+							>
+								{text ||
+									(record?.cancelled
+										? t("askUserQuestion.cancelled")
+										: t("askUserQuestion.noAnswer"))}
+							</dd>
+						</div>
+					);
+				})}
+			</dl>
 		</ToolContent>
 	);
 }
@@ -620,11 +666,17 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 			if (part.type === "tool") {
 				const tool = part.tool;
 				const state = toolPartState(tool.status);
-				const askUserQuestion = cachedAskUserQuestions(tool.input);
+				const parsedQuestions = cachedAskUserQuestions(tool.input);
+				const askRecord = tool.askUser;
+				const askUserQuestion = askRecord?.questions.length
+					? askRecord.questions
+					: parsedQuestions;
 				// Interactive form is owned by the composer; transcript
-				// only shows a compact tool row (and a short pending note).
+				// shows a compact tool row, a pending note, or the recorded Q&A.
 				const askPending =
-					Boolean(askUserQuestion) && isPendingAskUserToolStatus(tool.status);
+					!askRecord &&
+					Boolean(askUserQuestion) &&
+					isPendingAskUserToolStatus(tool.status);
 				const terminal = !askUserQuestion ? terminalToolData(tool) : null;
 				if (terminal)
 					return (
@@ -660,7 +712,13 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 						/>
 						{askPending ? (
 							<AskUserToolPendingNote />
-						) : askUserQuestion ? null : (
+						) : askUserQuestion ? (
+							<AskUserToolAnswers
+								record={askRecord}
+								questions={askUserQuestion}
+								className={insideProcess ? "border-t-0 px-2 py-2" : undefined}
+							/>
+						) : (
 							<ToolContent
 								className={insideProcess ? "border-t-0 px-2 py-2" : undefined}
 							>

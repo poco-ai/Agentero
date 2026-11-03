@@ -7,6 +7,8 @@ import { AskUserQuestionForm } from "@/components/agent/ask-user-question-form";
 import type { AskUserRequest, ElicitationRequest } from "@/lib/agent";
 import { respondAskUser, respondElicitation } from "@/lib/agent/api";
 import {
+	type AskUserAnswer,
+	type AskUserQuestion,
 	elicitationContentFromAnswers,
 	formatAskUserAnswers,
 	questionsFromAskUserDtos,
@@ -46,6 +48,7 @@ export function AgentAskUserSurface({
 	toolAskUserRequest,
 	onToolAskUserResolved,
 	onAnswerToolAskUser,
+	onRecordAskUserAnswers,
 	disabled = false,
 	className,
 }: {
@@ -55,7 +58,20 @@ export function AgentAskUserSurface({
 	onAskUserResolved: () => void;
 	toolAskUserRequest: ToolAskUserRequest | null;
 	onToolAskUserResolved: () => void;
-	onAnswerToolAskUser: (answer: string, toolCallId: string) => Promise<boolean>;
+	onAnswerToolAskUser: (input: {
+		answer: string;
+		toolCallId: string;
+		questions: AskUserQuestion[];
+		answers: AskUserAnswer[];
+	}) => Promise<boolean>;
+	/** Persist the answered/cancelled questionnaire on the matching transcript tool card. */
+	onRecordAskUserAnswers: (input: {
+		sessionId: string;
+		toolCallId: string | null | undefined;
+		questions: AskUserQuestion[];
+		answers?: AskUserAnswer[];
+		cancelled?: boolean;
+	}) => void;
 	disabled?: boolean;
 	className?: string;
 }) {
@@ -111,6 +127,12 @@ export function AgentAskUserSurface({
 								action: "accept",
 								content,
 							});
+							onRecordAskUserAnswers({
+								sessionId: elicitationRequest.sessionId,
+								toolCallId: elicitationRequest.toolCallId,
+								questions: elicitationQuestions,
+								answers,
+							});
 							onElicitationResolved();
 							return true;
 						}}
@@ -118,7 +140,15 @@ export function AgentAskUserSurface({
 							void respondElicitation({
 								requestId: elicitationRequest.requestId,
 								action: "cancel",
-							}).finally(() => onElicitationResolved());
+							}).finally(() => {
+								onRecordAskUserAnswers({
+									sessionId: elicitationRequest.sessionId,
+									toolCallId: elicitationRequest.toolCallId,
+									questions: elicitationQuestions,
+									cancelled: true,
+								});
+								onElicitationResolved();
+							});
 						}}
 					/>
 				</div>
@@ -142,6 +172,12 @@ export function AgentAskUserSurface({
 									Array.isArray(answer) ? answer.join(", ") : answer,
 								),
 							});
+							onRecordAskUserAnswers({
+								sessionId: askUserRequest.sessionId,
+								toolCallId: askUserRequest.toolCallId,
+								questions: askUserQuestions,
+								answers,
+							});
 							onAskUserResolved();
 							return true;
 						}}
@@ -149,7 +185,15 @@ export function AgentAskUserSurface({
 							void respondAskUser({
 								requestId: askUserRequest.requestId,
 								action: "cancel",
-							}).finally(() => onAskUserResolved());
+							}).finally(() => {
+								onRecordAskUserAnswers({
+									sessionId: askUserRequest.sessionId,
+									toolCallId: askUserRequest.toolCallId,
+									questions: askUserQuestions,
+									cancelled: true,
+								});
+								onAskUserResolved();
+							});
 						}}
 					/>
 				</div>
@@ -170,9 +214,20 @@ export function AgentAskUserSurface({
 								toolAskUserRequest.questions,
 								answers,
 							);
-							return onAnswerToolAskUser(text, toolAskUserRequest.toolCallId);
+							return onAnswerToolAskUser({
+								answer: text,
+								toolCallId: toolAskUserRequest.toolCallId,
+								questions: toolAskUserRequest.questions,
+								answers,
+							});
 						}}
 						onCancel={() => {
+							onRecordAskUserAnswers({
+								sessionId: toolAskUserRequest.sessionId,
+								toolCallId: toolAskUserRequest.toolCallId,
+								questions: toolAskUserRequest.questions,
+								cancelled: true,
+							});
 							onToolAskUserResolved();
 						}}
 					/>

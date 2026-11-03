@@ -75,6 +75,16 @@ export type ToolUiState = {
 	status: "pending" | "in_progress" | "completed" | "failed";
 	input?: unknown;
 	output?: unknown;
+	/** Locally recorded ask-user Q&A so the tool card can show it after answering. */
+	askUser?: ToolAskUserRecord;
+};
+
+/** Questions + answers recorded on an ask-user tool card (Grok ext / OpenCode question / elicitation). */
+export type ToolAskUserRecord = {
+	questions: AskUserQuestion[];
+	answers: AskUserAnswer[];
+	/** User dismissed the questionnaire without answering. */
+	cancelled?: boolean;
 };
 
 /** A selectable answer supplied by an ACP AskUserQuestion / form elicitation. */
@@ -1029,6 +1039,7 @@ export type ToolPatch = {
 	input?: unknown;
 	output?: unknown;
 	full?: boolean;
+	askUser?: ToolAskUserRecord;
 };
 
 export function mergeToolState(
@@ -1042,6 +1053,7 @@ export function mergeToolState(
 		status: mapToolStatus(patch.status ?? prev?.status),
 		input: patch.input !== undefined ? patch.input : prev?.input,
 		output: patch.output !== undefined ? patch.output : prev?.output,
+		askUser: patch.askUser ?? prev?.askUser,
 	};
 }
 

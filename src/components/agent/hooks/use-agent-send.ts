@@ -49,6 +49,8 @@ import {
 } from "@/lib/agent/annotation-prompt";
 import {
 	type AgentOption,
+	type AskUserAnswer,
+	type AskUserQuestion,
 	applyToolToLines,
 	buildLocalTranscriptPrompt,
 	type ChatLine,
@@ -200,7 +202,19 @@ export type AgentSend = {
 	removeQueuedMessage: (id: string) => void;
 	clearMessageQueue: () => void;
 	cancelCurrentRun: () => Promise<void>;
-	answerToolAskUser: (answer: string, toolCallId: string) => Promise<boolean>;
+	answerToolAskUser: (input: {
+		answer: string;
+		toolCallId: string;
+		questions: AskUserQuestion[];
+		answers: AskUserAnswer[];
+	}) => Promise<boolean>;
+	recordAskUserAnswers: (input: {
+		sessionId: string;
+		toolCallId: string | null | undefined;
+		questions: AskUserQuestion[];
+		answers?: AskUserAnswer[];
+		cancelled?: boolean;
+	}) => void;
 };
 
 export function useAgentSend({
@@ -941,18 +955,21 @@ export function useAgentSend({
 	 * (same net effect as enqueue + stop, without the extra click).
 	 * Grok ext / elicitation use dedicated respond paths and do not need this.
 	 */
-	const answerToolAskUser = async (
-		answer: string,
-		toolCallId: string,
-	): Promise<boolean> => {
+	const answerToolAskUser = async (input: {
+		answer: string;
+		toolCallId: string;
+		questions: AskUserQuestion[];
+		answers: AskUserAnswer[];
+	}): Promise<boolean> => {
 		if (switchingRef.current || submittingRef.current) return false;
 		resetPromptHistoryBrowse();
-		const text = answer.trim();
+		const text = input.answer.trim();
 		if (!text) return false;
 
 		const completedLines = applyToolToLines(lines, {
-			id: toolCallId,
+			id: input.toolCallId,
 			status: "completed",
+			askUser: { questions: input.questions, answers: input.answers },
 		});
 
 		if (!activeTabIsRunning) {
@@ -976,6 +993,36 @@ export function useAgentSend({
 		}
 		return true;
 	};
+
+	/**
+	 * Persist an answered / cancelled ext or elicitation questionnaire on the
+	 * matching transcript tool card. The provider's tool mirror often carries
+	 * no output, so this local record is what the collapsed card can show.
+	 */
+	const recordAskUserAnswers = useCallback(
+		(input: {
+			sessionId: string;
+			toolCallId: string | null | undefined;
+			questions: AskUserQuestion[];
+			answers?: AskUserAnswer[];
+			cancelled?: boolean;
+		}) => {
+			const toolCallId = input.toolCallId?.trim();
+			if (!toolCallId) return;
+			agentSessionStore.getState().updateSessionLines(input.sessionId, (prev) =>
+				applyToolToLines(prev, {
+					id: toolCallId,
+					...(input.cancelled ? {} : { status: "completed" }),
+					askUser: {
+						questions: input.questions,
+						answers: input.answers ?? [],
+						...(input.cancelled ? { cancelled: true } : {}),
+					},
+				}),
+			);
+		},
+		[],
+	);
 
 	const removeQueuedMessage = useCallback((id: string) => {
 		setMessageQueue((prev) => prev.filter((item) => item.id !== id));
@@ -1220,5 +1267,6 @@ export function useAgentSend({
 		clearMessageQueue,
 		cancelCurrentRun,
 		answerToolAskUser,
+		recordAskUserAnswers,
 	};
 }

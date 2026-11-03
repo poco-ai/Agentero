@@ -177,6 +177,8 @@
 		"progress": "{{current}} / {{total}}",
 		"freeTextPlaceholder": "输入你的回答",
 		"pendingInComposer": "请在下方问卷中作答",
+		"noAnswer": "未作答",
+		"cancelled": "已取消",
 		"keyboardHint": "↑↓ 选项 · Space 勾选 · Enter 确认",
 		"keyboardHintMulti": "↑↓ 选项 · Space 勾选 · Enter 下一题 · ←→ 切题",
 		"collapse": "收起问卷",

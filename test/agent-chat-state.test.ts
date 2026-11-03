@@ -138,6 +138,69 @@ describe("stream / tool / plan parts", () => {
 		).toBe(lines);
 	});
 
+	it("keeps recorded ask-user answers on the tool card across later updates", () => {
+		const questions = [
+			{
+				question: "Which language?",
+				options: [{ label: "English" }, { label: "Chinese" }],
+			},
+		];
+		const lines: ChatLine[] = [
+			{
+				id: "a1",
+				kind: "agent",
+				streaming: true,
+				parts: [
+					{
+						type: "tool",
+						id: "p1",
+						tool: {
+							id: "ask-1",
+							title: "Ask 1 question",
+							kind: "other",
+							status: "in_progress",
+						},
+					},
+				],
+			},
+		];
+
+		const answered = applyToolToLines(lines, {
+			id: "ask-1",
+			status: "completed",
+			askUser: { questions, answers: ["Chinese"] },
+		});
+		expect(answered).toMatchObject([
+			{
+				parts: [
+					{
+						tool: {
+							status: "completed",
+							askUser: { questions, answers: ["Chinese"] },
+						},
+					},
+				],
+			},
+		]);
+
+		const late = applyToolToLines(answered, {
+			id: "ask-1",
+			output: "done",
+		});
+		expect(late).toMatchObject([
+			{
+				parts: [
+					{
+						tool: {
+							output: "done",
+							askUser: { questions, answers: ["Chinese"] },
+						},
+					},
+				],
+			},
+		]);
+	});
+
 	it("fails only unfinished tools when a turn ends", () => {
 		const parts = [
 			{

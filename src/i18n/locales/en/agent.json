@@ -177,6 +177,8 @@
 		"progress": "{{current}} / {{total}}",
 		"freeTextPlaceholder": "Type your answer",
 		"pendingInComposer": "Answer in the questionnaire below",
+		"noAnswer": "No answer",
+		"cancelled": "Cancelled",
 		"keyboardHint": "↑↓ options · Space select · Enter confirm",
 		"keyboardHintMulti": "↑↓ options · Space select · Enter next · ←→ pages",
 		"collapse": "Collapse questionnaire",

@@ -356,6 +356,7 @@ export function useAgentPanel({
 		clearMessageQueue,
 		cancelCurrentRun,
 		answerToolAskUser,
+		recordAskUserAnswers,
 	} = useAgentSend({
 		refs,
 		t,
@@ -714,6 +715,7 @@ export function useAgentPanel({
 		toolAskUserRequest,
 		setToolAskUserRequest,
 		answerToolAskUser,
+		recordAskUserAnswers,
 		// Refs used by composer submit race guards
 		switchingRef,
 		submittingRef,

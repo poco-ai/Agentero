@@ -281,6 +281,7 @@ export const AgentPanel = memo(function AgentPanel({
 		toolAskUserRequest,
 		setToolAskUserRequest,
 		answerToolAskUser,
+		recordAskUserAnswers,
 		switchingRef,
 		submittingRef,
 	} = panel;
@@ -432,6 +433,7 @@ export const AgentPanel = memo(function AgentPanel({
 						toolAskUserRequest={toolAskUserRequest}
 						onToolAskUserResolved={() => setToolAskUserRequest(null)}
 						onAnswerToolAskUser={answerToolAskUser}
+						onRecordAskUserAnswers={recordAskUserAnswers}
 						disabled={switching}
 					/>
 

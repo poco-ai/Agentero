@@ -71,7 +71,7 @@ shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
 
 | 来源 | 协议 / rawInput | UI 位置 | 备注 |
 |---|---|---|---|
-| Codex tool / Claude / OpenCode `question` | `agent:tool` + 可解析 questions | **底部问卷**（从 tool 提升） | Transcript 只留 tool 行 +「请在下方问卷中作答」；不嵌表单 |
+| Codex tool / Claude / OpenCode `question` | `agent:tool` + 可解析 questions | **底部问卷**（从 tool 提升） | Transcript 作答前显示 tool 行 +「请在下方问卷中作答」；作答后在原 tool 卡展开显示问题与答案 |
 | Codex `request_user_input` | `elicitation/create` → `agent:elicitation-request` | **底部问卷** | Client 须声明 `elicitation.form` |
 | Grok `_x.ai/ask_user_question` | ACP **ext method** → `agent:ask-user-request` | **底部问卷** | 提交 → `agent_respond_ask_user`；若同时有 tool 镜像则**抑制** tool 表单 |
 
@@ -84,6 +84,8 @@ shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
 Client 声明 `elicitation.form`；用户提交 elicitation → `agent_respond_elicitation`（accept + content）或 cancel。映射：`elicitationContentFromAnswers`。
 
 Tool 提升的作答：`formatAskUserAnswers` 后作为下一用户轮。若当前 turn 仍 `running`（OpenCode 等阻塞在 question tool），会先入队再 **取消该 turn**，以便队列立刻排空发送——避免卡在「等待发送」还要点停止。Grok ext / elicitation 不走此路径。
+
+作答结果按 `toolCallId` 记到 transcript 的 tool part（`ToolUiState.askUser`，含 `questions` / `answers` / `cancelled`），tool 卡展开即可看到问答；provider 后续的 tool 更新不会覆盖该记录。表单内取消也会记录为 cancelled；尚未作答时 tool 卡保留「请在下方问卷中作答」。该记录仅存在当前会话的本地 transcript，ACP `session/load` 恢复的远端历史以 provider 返回为准。
 
 ## 精读（paper-reader）
 
