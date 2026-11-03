@@ -28,6 +28,7 @@ export {
 	openTab,
 	openTabNotes,
 	rehydrateMisclassifiedPaperTabs,
+	remapMovedWorkspacePaths,
 	reopenClosedTab,
 	selectFileNode,
 	selectLibrary,

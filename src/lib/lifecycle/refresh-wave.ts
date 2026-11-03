@@ -12,7 +12,8 @@ import { backgroundTasksStore } from "@/lib/core/background-tasks";
 import { perfWait } from "@/lib/core/perf";
 import { isTauri } from "@/lib/core/tauri";
 import { ensurePaperRows, listPapers } from "@/lib/paper/api";
-import { setLibraryPapers } from "@/lib/paper/library-store";
+import { libraryStore, setLibraryPapers } from "@/lib/paper/library-store";
+import type { PaperLibraryRow } from "@/lib/paper/types";
 import { normalizePathKey } from "@/lib/vault/path";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 import { watchRefreshDelayMs } from "@/lib/vault/shell-activity";
@@ -82,6 +83,25 @@ function norm(path: string): string {
 
 export function registerWikiRevisionBump(bump: () => void): void {
 	bumpWikiRevision = bump;
+}
+
+/**
+ * Workspace sync that runs after an external Library refresh. Wired by the
+ * lifecycle registration so this coordinator keeps no dependency on the
+ * tab/workspace modules it would otherwise close a cycle with.
+ */
+export type ExternalLibraryReconciler = (
+	vaultPath: string,
+	previous: readonly PaperLibraryRow[],
+	next: readonly PaperLibraryRow[],
+) => Promise<void>;
+
+let externalLibraryReconciler: ExternalLibraryReconciler | null = null;
+
+export function registerExternalLibraryReconciler(
+	reconciler: ExternalLibraryReconciler | null,
+): void {
+	externalLibraryReconciler = reconciler;
 }
 
 export function isCommittedRefreshPath(path: string): boolean {
@@ -307,7 +327,23 @@ async function flushBucket(bucket: Bucket): Promise<void> {
 		}
 		if (bucket.library !== "none") {
 			const papers = await listPapers(vault);
-			if (getVaultPath() === vault) setLibraryPapers(papers);
+			if (getVaultPath() === vault) {
+				// External tools move papers without a trustworthy rename pair;
+				// carry open tabs/annotations to the catalog's new paths first.
+				if (externalLibraryReconciler) {
+					try {
+						await externalLibraryReconciler(
+							vault,
+							libraryStore.getState().papers,
+							papers,
+						);
+					} catch {
+						// Workspace remap is best-effort; the catalog rows below
+						// must still publish.
+					}
+				}
+				setLibraryPapers(papers);
+			}
 		}
 	} catch {
 		// Background catalog refresh is best-effort. The next watcher burst retries.

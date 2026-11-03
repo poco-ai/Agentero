@@ -18,11 +18,13 @@ import {
 	noteCommittedLibraryList,
 	noteCommittedPaths,
 	noteCommittedRename,
+	registerExternalLibraryReconciler,
 } from "@/lib/lifecycle/refresh-wave";
 import {
 	clearLibraryVaultState,
 	refreshLibrary,
 } from "@/lib/paper/library-store";
+import { reconcileExternalLibraryChange } from "@/lib/paper/library-sync";
 import { clearAnnotationsVaultState } from "@/lib/pdf/annotations-store";
 import { clearLayoutVaultState } from "@/lib/pdf/layout/store";
 import { recommendArxiv } from "@/lib/recommend";
@@ -40,14 +42,17 @@ import {
 	refreshTree,
 	scheduleTreeRefresh,
 } from "@/lib/vault/store";
-import { remapMovedWorkspacePaths } from "@/lib/wiki/actions";
 import {
 	clearWikiVaultState,
 	trackInternalRenamePaths,
 } from "@/lib/wiki/store";
-import { syncRenamedPaperTabs } from "@/lib/workspace/actions";
+import {
+	remapMovedWorkspacePaths,
+	syncRenamedPaperTabs,
+} from "@/lib/workspace/actions";
 
 export function registerLifecycleHandlers(): () => void {
+	registerExternalLibraryReconciler(reconcileExternalLibraryChange);
 	const offs = [
 		lifecycle.on("window:closed", ({ kind, view }) => {
 			if (kind === "settings") {
@@ -157,5 +162,6 @@ export function registerLifecycleHandlers(): () => void {
 	];
 	return () => {
 		for (const off of offs) off();
+		registerExternalLibraryReconciler(null);
 	};
 }
