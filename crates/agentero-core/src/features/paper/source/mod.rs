@@ -211,9 +211,11 @@ fn read_text(path: &Path) -> Option<String> {
         return None;
     }
     let text = String::from_utf8_lossy(&bytes).into_owned();
+    // An empty (or whitespace-only) file is valid TeX — e.g. a chapter file a
+    // submission leaves blank. Root selection relies on `has_indicator`, not on
+    // non-empty text, so this must not reject an `\input` of such a file.
     let trimmed = text.trim_start().to_ascii_lowercase();
-    if trimmed.is_empty()
-        || trimmed.starts_with("<html")
+    if trimmed.starts_with("<html")
         || trimmed.starts_with("<!doctype")
         || trimmed.starts_with("%pdf")
     {
@@ -417,6 +419,22 @@ mod tests {
         )
         .unwrap();
         assert!(read_tex(dir.path()).is_none());
+    }
+
+    #[test]
+    fn blank_included_file_does_not_fail_the_project() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("source/chapters")).unwrap();
+        fs::write(
+            dir.path().join("source/main.tex"),
+            "\\documentclass{article}\\begin{document}INTRO-SENTINEL\\input{chapters/blank}\\end{document}",
+        )
+        .unwrap();
+        // arXiv submissions leave unedited chapter files blank; the whole
+        // project must still read (Kimi Linear, 2510.26692).
+        fs::write(dir.path().join("source/chapters/blank.tex"), "\n\n\n").unwrap();
+        let source = read_tex(dir.path()).unwrap();
+        assert!(source.text.contains("INTRO-SENTINEL"));
     }
 
     #[test]
