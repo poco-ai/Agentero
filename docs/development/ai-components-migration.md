@@ -29,7 +29,7 @@
 | 输入 | 继续使用 Input Group，保留 IME、contenteditable token、附件状态和 ACP 提交；附件展示使用 Attachment |
 | 队列 | 用户待发送消息不是 Agent todo，保留 Collapsible / ScrollArea 组合 |
 | 模型选择 | 官方允许搜索场景继续用 Command，保留分组搜索与推理强度 |
-| 文件树 | 当前是平铺虚拟行，不能硬套递归 Collapsible；用 Button / Slot 组合保留多选、拖放、重命名 |
+| 文件树 | 当前是平铺虚拟行，不能硬套递归 Collapsible；行元素保留原生 button/div 语义，多选、拖放、重命名不变，交互态只用共享 token |
 | 长会话 | 80 行启用虚拟化，整个虚拟画布注册为一个 Item；历史跳转用 virtualizer，viewport 由业务 context 传递 |
 
 上游组件不承担 ACP、Vault、PDF 状态。未为已知上游 issue 添加未经复现的补丁。后续升级先检查 registry diff 与上游能力，再决定删除本地适配。

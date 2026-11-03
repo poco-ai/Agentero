@@ -142,12 +142,14 @@ nav:
       - Windows ACP 终端 Hermes MSYS2 挂死: bug_fix/hermes-terminal-pending-msys2-hang.md
       - 任务 runner panic 导致并发槽泄漏: bug_fix/job-runner-panic-slot-leak.md
       - macOS 主窗口可无限缩小: bug_fix/macos-window-min-size-config-merge.md
+      - "macOS 新建窗口崩溃（AppKit 主线程断言，⌘N 打不开新窗口）": bug_fix/macos-second-window-appkit-crash.md
       - PDF 内部链接跳转后返回原位置: bug_fix/pdf-citation-jump-back.md
       - PDF 引用跳转后被拉回第 1 页: bug_fix/pdf-citation-page-restore-race.md
       - PDF 重新编译后仍显示旧版本: bug_fix/pdf-disk-refresh-after-compile.md
       - PDF 布局翻译取消后覆盖新任务: bug_fix/pdf-layout-translation-cancellation-race.md
       - "Windows PDF 翻页随机跳到首尾页（#539）": bug_fix/pdf-windows-scroll-endpoint-jump.md
       - "Windows PDF 滚动跳回已保存位置（#427）": bug_fix/pdf-windows-scroll-restore-jump.md
+      - "写作分栏 PDF 拖选带出源码原生选区（#895）": bug_fix/writing-pdf-native-selection-leak.md
       - Pi ACP 未使用 Vault 工作目录: bug_fix/pi-acp-vault-cwd.md
       - 左侧文件树偶发黑屏: bug_fix/vault-sidebar-blank-until-scroll.md
       - 左侧栏收起后文件树跳回顶部: bug_fix/vault-sidebar-jump-to-top.md

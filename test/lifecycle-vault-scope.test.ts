@@ -64,6 +64,7 @@ vi.mock("@/lib/lifecycle/refresh-wave", () => ({
 	noteCommittedLibraryList: vi.fn(),
 	noteCommittedPaths: vi.fn(),
 	noteCommittedRename: vi.fn(),
+	registerExternalLibraryReconciler: vi.fn(),
 }));
 vi.mock("@/lib/paper/library-store", () => ({
 	clearLibraryVaultState: mocks.clearLibraryVaultState,

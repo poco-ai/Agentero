@@ -3,10 +3,10 @@
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
 import type { ComponentProps } from "react";
 import { memo } from "react";
-import { Streamdown } from "streamdown";
+import { type PluginConfig, Streamdown } from "streamdown";
+import { MermaidCodeRenderer } from "@/components/markdown/mermaid-diagram";
 import { prepareAgentMessageMarkdown } from "@/lib/agent/message-markdown";
 import { cn } from "@/lib/core/utils";
 import { AgentCitationLink } from "./agent-citation-link";
@@ -24,11 +24,13 @@ export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
  * rendered as raw text. Enable `$…$` for inline and keep `$$…$$` for display.
  */
 const streamdownMath = createMathPlugin({ singleDollarTextMath: true });
-const streamdownPlugins = {
+const streamdownPlugins: PluginConfig = {
 	cjk,
 	code,
 	math: streamdownMath,
-	mermaid,
+	// Mermaid owns its block chrome (theme-aware colors, source toggle) instead
+	// of Streamdown's default diagram card.
+	renderers: [{ language: "mermaid", component: MermaidCodeRenderer }],
 };
 
 export const MessageResponse = memo(

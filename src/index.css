@@ -516,6 +516,16 @@
 	background-color: rgb(96 165 250 / 0.4);
 	color: #f4f4f5;
 }
+/*
+ * Reflow previews are rasterized translations. Their DOM layer only carries
+ * selection geometry (transparent glyphs), so selecting it must not paint a
+ * second copy of the text over the raster.
+ */
+.pdf-translate-selection[data-reflow-selection="true"]::selection,
+.pdf-translate-selection[data-reflow-selection="true"] *::selection {
+	background-color: rgb(96 165 250 / 0.4);
+	color: transparent;
+}
 
 /*
  * Preserved tokens ([12], 图 3, URLs) use the original glyph fill (inline

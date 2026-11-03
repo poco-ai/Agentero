@@ -103,7 +103,13 @@ impl RemoteRegistry {
         // Windows refuses to delete that file (and therefore `work_root`) until
         // the handle is dropped.
         crate::features::paper::catalog::evict_catalog_conn(&session.work_root);
-        let _ = std::fs::remove_dir_all(&session.work_root);
+        if let Err(e) = std::fs::remove_dir_all(&session.work_root) {
+            log::warn!(
+                target: "agentero::op",
+                "remote disconnect: could not remove {}: {e}",
+                session.work_root.display()
+            );
+        }
         // Keep blob cache for LRU reuse; optional cleanup of empty parent
         Ok(())
     }
@@ -162,11 +168,7 @@ impl RemoteRegistry {
 
         let session_id = uuid::Uuid::new_v4().to_string();
         let cache_key = hex::encode(Sha256::digest(format!("{host}\0{remote_path}").as_bytes()));
-        let base_cache = dirs::cache_dir()
-            .unwrap_or_else(std::env::temp_dir)
-            .join("agentero")
-            .join("remote")
-            .join(&cache_key);
+        let base_cache = super::blob_cache::remote_cache_base().join(&cache_key);
         let work_root = base_cache.join("work").join(&session_id);
         let blob_root = base_cache.join("blobs");
         std::fs::create_dir_all(&work_root)?;

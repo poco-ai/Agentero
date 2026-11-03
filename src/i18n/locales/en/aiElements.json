@@ -62,6 +62,13 @@
 		"copy": "Copy code",
 		"download": "Download code"
 	},
+	"mermaid": {
+		"label": "Mermaid diagram",
+		"viewSource": "View source",
+		"viewDiagram": "View diagram",
+		"copySource": "Copy Mermaid source",
+		"error": "This Mermaid diagram could not be rendered."
+	},
 	"promptInput": {
 		"placeholder": "What would you like to know?",
 		"uploadFiles": "Upload files",

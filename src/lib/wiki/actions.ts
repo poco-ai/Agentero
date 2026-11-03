@@ -9,17 +9,12 @@ import { commands } from "@/lib/core/bindings";
 import { callApi } from "@/lib/core/ipc";
 import { notifyError, notifySuccess } from "@/lib/core/notify";
 import { isUnderPapers } from "@/lib/paper";
-import { refreshLibrary, setLibraryScopePath } from "@/lib/paper/library-store";
-import { remapTabAnnotations } from "@/lib/pdf/annotations-store";
+import { refreshLibrary } from "@/lib/paper/library-store";
 import { getSettings } from "@/lib/settings/react-store";
 import { joinVaultPath, vaultRelativePath } from "@/lib/vault";
 import type { VaultFileChangedPayload } from "@/lib/vault/fs-watch";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
-import {
-	getVaultPath,
-	refreshTree,
-	setTreeSelectedPath,
-} from "@/lib/vault/store";
+import { getVaultPath, refreshTree } from "@/lib/vault/store";
 import {
 	applyExternalRenameRepair,
 	externalRenameRepairHadZeroWrites,
@@ -45,18 +40,7 @@ import {
 	trackInternalRenamePaths,
 } from "@/lib/wiki/store";
 import { applyDiskChange, dirtyVaultPaths } from "@/lib/workspace/actions";
-import { dockHandle } from "@/lib/workspace/dock-registry";
-import {
-	getActiveTabId,
-	getTabs,
-	setActiveTabId,
-	setTabs,
-} from "@/lib/workspace/store";
-import {
-	remapPathUnder,
-	remapTabsUnderPath,
-	tabIdForPath,
-} from "@/lib/workspace/tabs";
+import { remapMovedWorkspacePaths } from "@/lib/workspace/navigation";
 
 export async function renameWikiHeadingAction(
 	absPath: string,
@@ -105,47 +89,6 @@ export async function renameWikiHeadingAction(
 		});
 		throw error;
 	}
-}
-
-/** Preserve mounted workspace state when a filesystem path changes identity. */
-export function remapMovedWorkspacePaths(
-	fromAbs: string,
-	toAbs: string,
-	fromRel: string,
-	toRel: string,
-): void {
-	const previousTabs = getTabs();
-	const remappedTabs = remapTabsUnderPath(
-		previousTabs,
-		fromAbs,
-		toAbs,
-		fromRel,
-		toRel,
-	);
-	for (let index = 0; index < previousTabs.length; index++) {
-		const previous = previousTabs[index];
-		const remapped = remappedTabs[index];
-		if (previous && remapped && previous.id !== remapped.id) {
-			dockHandle()?.remapPanel(previous.id, remapped);
-		}
-	}
-	const active = previousTabs.find((tab) => tab.id === getActiveTabId());
-	if (active) {
-		setActiveTabId(tabIdForPath(remapPathUnder(active.path, fromAbs, toAbs)));
-	}
-	remapTabAnnotations(
-		previousTabs.map((tab) => ({
-			fromId: tab.id,
-			toId: tabIdForPath(remapPathUnder(tab.path, fromAbs, toAbs)),
-		})),
-	);
-	setTabs(remappedTabs);
-	setTreeSelectedPath((path) =>
-		path ? remapPathUnder(path, fromAbs, toAbs) : path,
-	);
-	setLibraryScopePath((scope) =>
-		scope ? remapPathUnder(scope, fromRel, toRel) : scope,
-	);
 }
 
 export function syncMovedPaths(

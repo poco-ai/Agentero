@@ -118,9 +118,12 @@ Skill 语法由 Host 按 provider 分流（Claude `/id`，其它注入 `SKILL.md
 | 块 | 组件 | 悬停操作 |
 |---|---|---|
 | 表格 | `PlainTable` | 复制（Markdown / CSV / TSV）、下载（CSV / Markdown）、全屏 |
-| 代码块 | `PlainCodeBlock` | 左上角语言小标签；悬停复制/下载（按语言后缀）；无外侧卡片、无全屏；`mermaid` 仍走 Streamdown 图渲染 |
+| 代码块 | `PlainCodeBlock` | 左上角语言小标签；悬停复制/下载（按语言后缀）；无外侧卡片、无全屏 |
+| Mermaid | `MermaidBlock` | 默认只显示图形；悬停右上角出现复制与源码图标，点源码才换成代码；无法编译时自动回退源码 |
 
-落盘：`src/components/agent/rendering/plain-table.tsx`、`plain-code-block.tsx`；正文与推理统一复用同目录的 `message-response.tsx`。代码高亮复用 shadcn 的 `use-highlighted-code` 与 `lib/ui/highlighter`，复制经业务适配调用 Tauri 兼容剪贴板。
+`mermaid` 代码块不再交给 `@streamdown/mermaid` 的默认卡片，`MessageResponse` 通过 Streamdown 的 `renderers` 接管该语言，渲染配色、字体与排版由 `lib/markdown/mermaid-theme.ts` 按亮/暗主题生成（主题令牌的 sRGB 等价色，Mermaid 的取色库无法解析 `oklch()`）。
+
+落盘：`src/components/agent/rendering/plain-table.tsx`、`plain-code-block.tsx`；正文与推理统一复用同目录的 `message-response.tsx`。Mermaid 走 `src/components/markdown/mermaid-diagram.tsx`（`MermaidBlock` / `MermaidDiagram` / `useMermaidSvg`）。代码高亮复用 shadcn 的 `use-highlighted-code` 与 `lib/ui/highlighter`，复制经业务适配调用 Tauri 兼容剪贴板。
 
 Streamdown 的 `mode` 由 `isAnimating` 派生：流式中 `"streaming"`（跑 remend 补全未闭合标签），消息落定后 `"static"` 跳过 remend——否则公式里 `x_{<n}` 的 `<n…` 会被当成未闭合 HTML 标签截掉，KaTeX 报 `Expected '}', got 'EOF'`（#584，复盘见 [bug_fix/agent-message-math-less-than](../bug_fix/agent-message-math-less-than.md)）。
 

@@ -13,6 +13,7 @@ import {
 	Sparkles,
 	Trash2,
 } from "lucide-react";
+import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { PLAZA_SOURCE_ICONS } from "@/components/plaza/source-icons";
 import {
@@ -24,14 +25,9 @@ import {
 	FileTreeName,
 	useFileTree,
 } from "@/components/sidebar/file-tree/file-tree-primitives";
-import { Button } from "@/components/ui/button";
+import { TreeRowActionButton } from "@/components/sidebar/tree-row-action-button";
 import { MathText } from "@/components/ui/math-text";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { NewProjectButton } from "@/components/writing/new-project-button";
 import { contextPathIcon } from "@/lib/agent/context-path-icon";
 import { cn } from "@/lib/core/utils";
@@ -59,8 +55,14 @@ import {
 	vaultRootFace,
 } from "./tree-helpers";
 
+/** Content inset shared by every row: base padding plus one step per level. */
+export function treeRowIndentStyle(depth: number): CSSProperties {
+	return { paddingLeft: 16 + depth * 12 };
+}
+
 type PaperTreeRowProps = {
 	node: FileNode;
+	depth: number;
 	isCut: boolean;
 	label: string;
 	downloadReasons: Array<keyof typeof DOWNLOAD_REASON_KEYS>;
@@ -75,6 +77,7 @@ type PaperTreeRowProps = {
 
 export function PaperTreeRow({
 	node,
+	depth,
 	isCut,
 	label,
 	downloadReasons,
@@ -102,6 +105,7 @@ export function PaperTreeRow({
 			path={node.path}
 			name={label}
 			className={cn(isCut && "opacity-50")}
+			style={treeRowIndentStyle(depth)}
 		>
 			{expandable ? (
 				<button
@@ -150,70 +154,48 @@ export function PaperTreeRow({
 					onKeyDown={(e) => e.stopPropagation()}
 				>
 					{showDownload ? (
-						<Tooltip disableHoverableContent>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-xs"
-									className="size-5"
-									aria-label={reasonTip}
-									disabled={rowBusy}
-									onClick={(e) => {
-										e.stopPropagation();
-										onDownload?.();
-									}}
-								>
-									{isDownloading ? (
-										<Loader2 className="size-3.5 animate-spin" />
-									) : (
-										<Download className="size-3.5" />
-									)}
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent
-								side="right"
-								className="max-w-xs select-none cursor-default flex-col items-start gap-0"
-							>
-								<p className="font-medium">{t("fileTree.downloadAssets")}</p>
-								<ul className="mt-1 list-disc space-y-0.5 pl-3 text-xs opacity-90">
-									{downloadReasons.map((r) => (
-										<li key={r}>{t(DOWNLOAD_REASON_KEYS[r])}</li>
-									))}
-								</ul>
-							</TooltipContent>
-						</Tooltip>
+						<TreeRowActionButton
+							label={reasonTip}
+							tooltip={
+								<>
+									<p className="font-medium">{t("fileTree.downloadAssets")}</p>
+									<ul className="mt-1 list-disc space-y-0.5 pl-3 text-xs opacity-90">
+										{downloadReasons.map((r) => (
+											<li key={r}>{t(DOWNLOAD_REASON_KEYS[r])}</li>
+										))}
+									</ul>
+								</>
+							}
+							tooltipClassName="flex-col items-start gap-0"
+							disabled={rowBusy}
+							onClick={(e) => {
+								e.stopPropagation();
+								onDownload?.();
+							}}
+						>
+							{isDownloading ? (
+								<Loader2 className="size-3.5 animate-spin" />
+							) : (
+								<Download className="size-3.5" />
+							)}
+						</TreeRowActionButton>
 					) : null}
 					{showRead ? (
-						<Tooltip disableHoverableContent>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-xs"
-									className="size-5"
-									data-read-paper
-									aria-label={t("fileTree.readPaper")}
-									disabled={rowBusy}
-									onClick={(e) => {
-										e.stopPropagation();
-										onRead?.();
-									}}
-								>
-									{isReading ? (
-										<Loader2 className="size-3.5 animate-spin" />
-									) : (
-										<NotebookPen className="size-3.5" />
-									)}
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent
-								side="right"
-								className="max-w-xs select-none cursor-default"
-							>
-								<p className="font-medium">{t("fileTree.readPaper")}</p>
-							</TooltipContent>
-						</Tooltip>
+						<TreeRowActionButton
+							label={t("fileTree.readPaper")}
+							data-read-paper
+							disabled={rowBusy}
+							onClick={(e) => {
+								e.stopPropagation();
+								onRead?.();
+							}}
+						>
+							{isReading ? (
+								<Loader2 className="size-3.5 animate-spin" />
+							) : (
+								<NotebookPen className="size-3.5" />
+							)}
+						</TreeRowActionButton>
 					) : null}
 				</FileTreeActions>
 			) : null}
@@ -223,6 +205,7 @@ export function PaperTreeRow({
 
 type NodeTreeRowProps = {
 	node: FileNode;
+	depth: number;
 	isCut: boolean;
 	pendingLoad: boolean;
 	expanded: boolean;
@@ -233,6 +216,7 @@ type NodeTreeRowProps = {
 
 export function NodeTreeRow({
 	node,
+	depth,
 	isCut,
 	pendingLoad,
 	expanded,
@@ -248,6 +232,7 @@ export function NodeTreeRow({
 		return (
 			<SkillTreeRow
 				node={node}
+				depth={depth}
 				isCut={isCut}
 				label={label?.name || node.name}
 				description={skillDescriptionTooltip(label?.description ?? "")}
@@ -274,39 +259,40 @@ export function NodeTreeRow({
 				{...(isAgentRoot ? { "data-vault-root": "agents" } : {})}
 				{...(rootFace ? { "data-vault-root": rootFace } : {})}
 			>
-				<div className="min-w-0 flex-1">
-					<FileTreeFolderRow
-						openOnLabel={Boolean(
-							vaultPath && isWritingPath(vaultPath, node.path),
-						)}
-						path={node.path}
-						name={
-							isLibraryRoot
-								? t("papersLibrary.title")
-								: isAgentRoot
-									? t("fileTree.vaultRoot.agents")
-									: rootFace
-										? t(
-												rootFace === "thesis"
-													? "writing.write"
-													: VAULT_ROOT_LABEL_KEY[rootFace],
-											)
-										: node.name
-						}
-						icon={
-							isLibraryRoot ? (
-								<Library className="size-4 text-muted-foreground" />
-							) : isAgentRoot ? (
-								<Bot className="size-4 text-muted-foreground" aria-hidden />
-							) : rootFace ? (
-								<VaultRootIcon face={rootFace} />
-							) : undefined
-						}
-					/>
-				</div>
-				{rootFace === "thesis" && vaultPath ? (
-					<NewProjectButton vaultPath={vaultPath} />
-				) : null}
+				<FileTreeFolderRow
+					openOnLabel={Boolean(
+						vaultPath && isWritingPath(vaultPath, node.path),
+					)}
+					path={node.path}
+					style={treeRowIndentStyle(depth)}
+					name={
+						isLibraryRoot
+							? t("papersLibrary.title")
+							: isAgentRoot
+								? t("fileTree.vaultRoot.agents")
+								: rootFace
+									? t(
+											rootFace === "thesis"
+												? "writing.write"
+												: VAULT_ROOT_LABEL_KEY[rootFace],
+										)
+									: node.name
+					}
+					icon={
+						isLibraryRoot ? (
+							<Library className="size-4 text-muted-foreground" />
+						) : isAgentRoot ? (
+							<Bot className="size-4 text-muted-foreground" aria-hidden />
+						) : rootFace ? (
+							<VaultRootIcon face={rootFace} />
+						) : undefined
+					}
+					actions={
+						rootFace === "thesis" && vaultPath ? (
+							<NewProjectButton vaultPath={vaultPath} />
+						) : undefined
+					}
+				/>
 				{pendingLoad && expanded ? (
 					<Loader2
 						className="pointer-events-none absolute right-2 size-3.5 shrink-0 animate-spin text-muted-foreground"
@@ -324,6 +310,7 @@ export function NodeTreeRow({
 			path={node.path}
 			name={node.name}
 			className={cn(isCut && "opacity-50")}
+			style={treeRowIndentStyle(depth)}
 		>
 			<FileTreeIcon>
 				<Icon className="size-4 text-muted-foreground" />
@@ -337,6 +324,7 @@ export function NodeTreeRow({
 
 function SkillTreeRow({
 	node,
+	depth,
 	isCut,
 	label,
 	description,
@@ -344,6 +332,7 @@ function SkillTreeRow({
 	pendingLoad,
 }: {
 	node: FileNode;
+	depth: number;
 	isCut: boolean;
 	label: string;
 	description: string;
@@ -362,7 +351,12 @@ function SkillTreeRow({
 		<div
 			className={cn("relative flex w-full items-center", isCut && "opacity-50")}
 		>
-			<FileTreeFile path={node.path} name={label} className="min-w-0 flex-1">
+			<FileTreeFile
+				path={node.path}
+				name={label}
+				className="min-w-0 flex-1"
+				style={treeRowIndentStyle(depth)}
+			>
 				{expandable ? (
 					<button
 						type="button"
@@ -449,13 +443,20 @@ export function PlazaRow({ expanded }: { expanded: boolean }) {
 	);
 }
 
-export function PlazaSourceRow({ source }: { source: PlazaSource }) {
+export function PlazaSourceRow({
+	source,
+	style,
+}: {
+	source: PlazaSource;
+	style?: CSSProperties;
+}) {
 	const Icon = PLAZA_SOURCE_ICONS[source.icon];
 	const label = plazaSourceLabel(source);
 	return (
 		<FileTreeFile
 			path={source.path}
 			name={label}
+			style={style}
 			{...(source.id === "cool-papers" ? { "data-cool-papers": "" } : {})}
 		>
 			<FileTreeIcon>
@@ -472,12 +473,14 @@ export function PlazaSourceRow({ source }: { source: PlazaSource }) {
 export function ZoteroCollectionReferenceRow({
 	path,
 	label,
+	depth,
 }: {
 	path: string;
 	label: string;
+	depth: number;
 }) {
 	return (
-		<FileTreeFile path={path} name={label}>
+		<FileTreeFile path={path} name={label} style={treeRowIndentStyle(depth)}>
 			<FileTreeIcon>
 				<Link2 className="size-4 text-muted-foreground" aria-hidden />
 			</FileTreeIcon>

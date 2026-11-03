@@ -61,6 +61,13 @@
 		"copy": "复制代码",
 		"download": "下载代码"
 	},
+	"mermaid": {
+		"label": "Mermaid 图表",
+		"viewSource": "查看源码",
+		"viewDiagram": "查看图表",
+		"copySource": "复制 Mermaid 源码",
+		"error": "这个 Mermaid 图表暂时无法渲染。"
+	},
 	"promptInput": {
 		"placeholder": "想了解些什么？",
 		"uploadFiles": "上传文件",

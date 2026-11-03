@@ -4,10 +4,7 @@ import { notifyError } from "@/lib/core/notify";
 import { normalizePath } from "@/lib/core/path";
 import { embedPdfDocumentId } from "@/lib/pdf/document-id";
 import { texBuildOptions } from "@/lib/tex/config";
-import {
-	getTexEditorCursor,
-	type TexSourcePoint,
-} from "@/lib/tex/editor-navigation";
+import { getTexEditorCursor } from "@/lib/tex/editor-navigation";
 import {
 	getLatexArtifacts,
 	type SyncTexLocation,
@@ -18,7 +15,7 @@ import { openTab } from "@/lib/workspace/navigation";
 import { updateTab, workspaceStore } from "@/lib/workspace/store";
 import { tabIdForPath } from "@/lib/workspace/tabs";
 
-type SyncTexTarget = SyncTexLocation & { highlights?: SyncTexLocation[] };
+type SyncTexTarget = SyncTexLocation;
 
 type TexPdfPeer = {
 	tabId?: string;
@@ -110,7 +107,6 @@ export async function syncTexToPdf(
 	options?: {
 		activate?: boolean;
 		scope?: "writing";
-		selection?: TexSourcePoint[];
 	},
 ): Promise<void> {
 	const request = ++forwardRequest;
@@ -125,35 +121,9 @@ export async function syncTexToPdf(
 		// current build configuration, rather than an open tab, owns the target.
 		const pdfPath = (await getLatexArtifacts(root, texBuildOptions(root)))
 			.pdfPath;
-		const matches: SyncTexLocation[] = [];
-		const points = options?.selection ?? [{ line, column }];
-		// Bound concurrent child processes; cancel obsolete requests between batches.
-		for (let offset = 0; offset < points.length; offset += 4) {
-			if (request !== forwardRequest) return;
-			const results = await Promise.all(
-				points
-					.slice(offset, offset + 4)
-					.map((point) =>
-						syncTexForward(pdfPath, sourcePath, point.line, point.column),
-					),
-			);
-			matches.push(...results.flat());
-		}
+		const matches = await syncTexForward(pdfPath, sourcePath, line, column);
 		if (request !== forwardRequest) return;
-		const unique = [
-			...new Map(
-				matches
-					.filter(validSyncTexLocation)
-					.map((location) => [
-						`${location.page}:${location.x}:${location.y}:${location.width}:${location.height}`,
-						location,
-					]),
-			).values(),
-		];
-		const target: SyncTexTarget | undefined = unique[0] && {
-			...unique[0],
-			...(options?.selection ? { highlights: unique } : {}),
-		};
+		const target = matches.find(validSyncTexLocation);
 		if (!target) {
 			if (report) notifyError(i18n.t("latexPdf:noMatch"));
 			return;

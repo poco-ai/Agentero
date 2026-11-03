@@ -117,6 +117,10 @@ pub struct AppSettings {
     pub replace_current_tab_on_open_paper: bool,
     #[serde(default = "default_auto_update_internal_links")]
     pub auto_update_internal_links: String,
+    /// Preferred terminal for "Open in Terminal". Empty = system default.
+    /// Unknown or uninstalled ids fall back at launch time.
+    #[serde(default)]
+    pub terminal_app: String,
     /// PDF navigation: `vertical` | `horizontal` | `paginated`.
     #[serde(default = "default_pdf_scroll_strategy")]
     pub pdf_scroll_strategy: String,
@@ -465,6 +469,7 @@ impl Default for AppSettings {
             auto_ingest: default_true(),
             replace_current_tab_on_open_paper: false,
             auto_update_internal_links: default_auto_update_internal_links(),
+            terminal_app: String::new(),
             pdf_scroll_strategy: default_pdf_scroll_strategy(),
             pdf_spread_mode: default_pdf_spread_mode(),
             library_columns: default_library_columns(),
@@ -1313,6 +1318,9 @@ fn normalize(s: &mut AppSettings) {
     if !AUTO_UPDATE_INTERNAL_LINKS.contains(&s.auto_update_internal_links.as_str()) {
         s.auto_update_internal_links = default_auto_update_internal_links();
     }
+    // Unknown ids are kept: the launch path falls back to the system default,
+    // and the settings pane can still show the saved app as unavailable.
+    s.terminal_app = s.terminal_app.trim().to_ascii_lowercase();
     const PDF_SCROLL_STRATEGIES: &[&str] = &["vertical", "horizontal", "paginated"];
     if !PDF_SCROLL_STRATEGIES.contains(&s.pdf_scroll_strategy.as_str()) {
         s.pdf_scroll_strategy = default_pdf_scroll_strategy();

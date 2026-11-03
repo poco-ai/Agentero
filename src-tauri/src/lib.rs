@@ -21,6 +21,24 @@ pub mod integration;
 #[cfg(feature = "desktop")]
 pub use app::run;
 
+/// Point the unit-test binary's XDG config/data/cache/state homes at a fresh
+/// temporary directory before any test runs, so tests never read or write the
+/// developer's real `agents.json`, `usage.sqlite` or caches.
+/// [`agentero_core::paths`] honors these variables on every platform.
+#[cfg(test)]
+#[ctor::ctor]
+unsafe fn isolate_user_dirs_for_tests() {
+    let root = std::env::temp_dir().join(format!("agentero-test-{}", std::process::id()));
+    for (var, sub) in [
+        ("XDG_CONFIG_HOME", "config"),
+        ("XDG_DATA_HOME", "data"),
+        ("XDG_CACHE_HOME", "cache"),
+        ("XDG_STATE_HOME", "state"),
+    ] {
+        std::env::set_var(var, root.join(sub));
+    }
+}
+
 /// Regenerate typed IPC without running the unit-test harness.
 #[cfg(feature = "bindings-export")]
 pub fn export_bindings() {

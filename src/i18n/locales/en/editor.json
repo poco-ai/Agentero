@@ -31,7 +31,9 @@
 		"copy": "Copy code",
 		"copyFailed": "Could not copy the code.",
 		"mermaidPreview": "Mermaid preview",
-		"mermaidPreviewError": "This Mermaid diagram could not be rendered."
+		"mermaidPreviewError": "This Mermaid diagram could not be rendered.",
+		"editSource": "Edit Mermaid source",
+		"showDiagram": "Show diagram"
 	},
 	"image": {
 		"noFile": "Save the note to a file before inserting images.",

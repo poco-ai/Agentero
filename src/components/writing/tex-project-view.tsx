@@ -1,10 +1,14 @@
 /** Source and compiled output share one workspace panel; neither can join a notes group alone. */
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
 	ResizableGroup,
 	ResizableHandle,
 	ResizablePanel,
 } from "@/components/ui/resizable";
+import {
+	createWritingSelectionGroup,
+	WritingSelectionGroupContext,
+} from "@/components/writing/writing-selection-group";
 import { useTexRoot } from "@/hooks/use-tex-root";
 import { showTexProblemsView } from "@/lib/workspace/tex-compile";
 import { ProjectPdf } from "./writing-desk";
@@ -29,6 +33,7 @@ export function TexProjectView({
 	const root = useTexRoot(projectRoot) ?? projectRoot;
 	const [live, setLive] = useState(false);
 	const [splitPosition, setSplitPosition] = useState(58);
+	const selectionGroup = useMemo(createWritingSelectionGroup, []);
 	// While focused, the problems button in the PDF bar reports failed
 	// compiles of this root, so they do not also raise a toast.
 	useEffect(
@@ -36,52 +41,57 @@ export function TexProjectView({
 		[active, root],
 	);
 	return (
-		<div className="relative min-h-0 min-w-0 flex-1">
-			<ResizableGroup
-				orientation="horizontal"
-				className="h-full min-h-0"
-				onLayoutChange={(layout) =>
-					setSplitPosition(layout["project-source"] ?? 58)
-				}
-			>
-				<ResizablePanel
-					id="project-source"
-					defaultSize="58"
-					minSize="24"
-					className="flex min-h-0 min-w-0 flex-col"
+		<WritingSelectionGroupContext.Provider value={selectionGroup}>
+			<div className="relative min-h-0 min-w-0 flex-1">
+				<ResizableGroup
+					orientation="horizontal"
+					className="h-full min-h-0"
+					onLayoutChange={(layout) =>
+						setSplitPosition(layout["project-source"] ?? 58)
+					}
 				>
-					{children}
-				</ResizablePanel>
-				<ResizableHandle className="z-30" />
-				<ResizablePanel
-					id="project-preview"
-					defaultSize="42"
-					minSize="20"
-					className="flex min-h-0 min-w-0 flex-col"
-				>
-					<div className="flex h-9 shrink-0 items-stretch border-b border-border bg-muted/70">
-						<WritingPdfBar
-							rootFile={root}
-							livePreview={live}
-							onLivePreviewChange={setLive}
-							manageSync={active}
-						/>
-					</div>
-					<div className="min-h-0 flex-1">
-						<ProjectPdf
-							key={root}
-							rootFile={root}
-							vaultPath={vaultPath}
-							livePreview={live}
-							active={active}
-							instanceId={panelId}
-						/>
-					</div>
-				</ResizablePanel>
-			</ResizableGroup>
-			{!live && (
-				<WritingSyncButtons activeFile={sourcePath} position={splitPosition} />
-			)}
-		</div>
+					<ResizablePanel
+						id="project-source"
+						defaultSize="58"
+						minSize="24"
+						className="flex min-h-0 min-w-0 flex-col"
+					>
+						{children}
+					</ResizablePanel>
+					<ResizableHandle className="z-30" />
+					<ResizablePanel
+						id="project-preview"
+						defaultSize="42"
+						minSize="20"
+						className="flex min-h-0 min-w-0 flex-col"
+					>
+						<div className="flex h-9 shrink-0 items-stretch border-b border-border bg-muted/70">
+							<WritingPdfBar
+								rootFile={root}
+								livePreview={live}
+								onLivePreviewChange={setLive}
+								manageSync={active}
+							/>
+						</div>
+						<div className="min-h-0 flex-1">
+							<ProjectPdf
+								key={root}
+								rootFile={root}
+								vaultPath={vaultPath}
+								livePreview={live}
+								active={active}
+								instanceId={panelId}
+							/>
+						</div>
+					</ResizablePanel>
+				</ResizableGroup>
+				{!live && (
+					<WritingSyncButtons
+						activeFile={sourcePath}
+						position={splitPosition}
+					/>
+				)}
+			</div>
+		</WritingSelectionGroupContext.Provider>
 	);
 }

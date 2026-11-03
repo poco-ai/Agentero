@@ -29,8 +29,22 @@ pub fn terminal_cwd_for_path(path: &Path) -> Result<PathBuf, AppError> {
 }
 
 /// Open the system default terminal with cwd at `path` (or its parent if a file).
-pub fn open_in_terminal(path: &Path) -> Result<PathBuf, AppError> {
+///
+/// `preferred` is a preset id from Settings; empty means the system default.
+/// A missing or failing preset logs and falls back to the system default so the
+/// action never fails just because a terminal was uninstalled.
+pub fn open_in_terminal(path: &Path, preferred: &str) -> Result<PathBuf, AppError> {
     let cwd = terminal_cwd_for_path(path)?;
+    let preferred = preferred.trim();
+    if !preferred.is_empty() {
+        match presets::launch(preferred, &cwd) {
+            Ok(()) => return Ok(cwd),
+            Err(error) => log::warn!(
+                target: "agentero::terminal",
+                "preferred terminal '{preferred}' unavailable, using system default: {error}"
+            ),
+        }
+    }
     open_terminal_at(&cwd)?;
     Ok(cwd)
 }
@@ -728,3 +742,4 @@ $result = @{
 
 /// Tauri command shells for this feature.
 pub mod commands;
+pub(crate) mod presets;

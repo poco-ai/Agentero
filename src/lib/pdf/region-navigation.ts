@@ -35,7 +35,7 @@ export function scrollToPdfRegion(
 	setFocusedLayoutRegion(
 		documentId,
 		region.id,
-		{ pageIndex: region.pageIndex, bbox, kind, highlights: region.highlights },
+		{ pageIndex: region.pageIndex, bbox, kind },
 		{ flash: true },
 	);
 }

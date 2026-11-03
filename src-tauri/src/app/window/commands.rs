@@ -41,10 +41,22 @@ pub fn emit_window_closed(app: &AppHandle, kind: &str, view: Option<&str>) {
 }
 
 /// Enables macOS native fullscreen space and window tiling (Move & Resize).
+///
+/// `setCollectionBehavior:` must run on the main thread: AppKit routes it
+/// through its window-management coordinator, which traps (`EXC_BREAKPOINT`)
+/// when called from an async command thread and takes the whole app down
+/// before the new window ever shows. `window_new` / `doc_window_open` are
+/// `async` (see [`window_new`]), so hop back to the main thread with
+/// `run_on_main_thread`.
 #[cfg(target_os = "macos")]
 pub fn enable_window_tiling(window: &tauri::WebviewWindow) {
-    use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
-    if let Ok(ptr) = window.ns_window() {
+    let window = window.clone();
+    let scheduler = window.clone();
+    let _ = scheduler.run_on_main_thread(move || {
+        use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
+        let Ok(ptr) = window.ns_window() else {
+            return;
+        };
         let ns_win = unsafe { (ptr as *mut NSWindow).as_ref() };
         if let Some(ns_win) = ns_win {
             let mut behavior = ns_win.collectionBehavior();
@@ -52,7 +64,7 @@ pub fn enable_window_tiling(window: &tauri::WebviewWindow) {
                 | NSWindowCollectionBehavior::FullScreenAllowsTiling;
             ns_win.setCollectionBehavior(behavior);
         }
-    }
+    });
 }
 
 /// Open a fresh Agentero window without restoring the last vault (`?fresh=1`).

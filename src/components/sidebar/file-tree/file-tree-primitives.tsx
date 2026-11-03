@@ -7,6 +7,7 @@ import {
 	FolderOpenIcon,
 } from "lucide-react";
 import type {
+	CSSProperties,
 	DragEvent,
 	HTMLAttributes,
 	KeyboardEvent,
@@ -20,7 +21,7 @@ import {
 	useMemo,
 	useState,
 } from "react";
-import { Button } from "@/components/ui/button";
+import { TREE_ROW_TEXT_STATE } from "@/components/sidebar/tree-row-styles";
 import { cn } from "@/lib/core/utils";
 
 export type SelectMods = { meta: boolean; ctrl: boolean; shift: boolean };
@@ -227,10 +228,9 @@ export function FileTreeDisclosureIcon({
 /** Ring shown on the row a drag is currently hovering (valid drop target). */
 const DROP_RING = "ring-1 ring-inset ring-primary bg-accent";
 /** Row interaction states shared by the reading tree and the writing sidebar. */
-export const FILE_TREE_ROW_STATE =
-	"transition-colors duration-75 hover:bg-sidebar-accent/80 active:not-has-[[data-tex-compile]:active]:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/80";
+export const FILE_TREE_ROW_STATE = `${TREE_ROW_TEXT_STATE} transition-colors duration-[var(--motion-duration-micro)] ease-[var(--motion-ease-out)] hover:bg-sidebar-accent/80 active:not-has-[[data-tex-compile]:active]:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/80`;
 export const FILE_TREE_ROW_SELECTED_STATE =
-	"bg-sidebar-primary/75 text-sidebar-primary-foreground hover:bg-sidebar-primary/85 active:not-has-[[data-tex-compile]:active]:bg-sidebar-primary/90 [&_svg]:text-sidebar-primary-foreground/90";
+	"bg-sidebar-primary/75 text-sidebar-primary-foreground hover:text-sidebar-primary-foreground hover:bg-sidebar-primary/75 active:not-has-[[data-tex-compile]:active]:bg-sidebar-primary/75 [&_svg]:text-sidebar-primary-foreground/90";
 
 /**
  * Flat folder ROW (no nested children) for virtualized rendering: renders the
@@ -242,14 +242,20 @@ export const FileTreeFolderRow = ({
 	name,
 	icon,
 	className,
+	style,
 	openOnLabel = false,
+	actions,
 }: {
 	path: string;
 	name: string;
 	/** Overrides the default folder glyph (e.g. the Library icon for `papers/`). */
 	icon?: ReactNode;
 	className?: string;
+	/** Content inset; the row background still spans the full container. */
+	style?: CSSProperties;
 	openOnLabel?: boolean;
+	/** Trailing actions rendered inside the row background. */
+	actions?: ReactNode;
 }) => {
 	const {
 		expandedPaths,
@@ -271,19 +277,17 @@ export const FileTreeFolderRow = ({
 	const isSelected =
 		selCount > 0 ? (selectedPaths?.has(path) ?? false) : selectedPath === path;
 	return (
-		<Button
-			variant="ghost"
-			size="sm"
-			type="button"
+		<div
 			data-path={path}
 			draggable
 			className={cn(
-				"group flex h-7 min-h-7 w-full items-center justify-start gap-1 rounded px-4 text-left text-sm font-normal",
+				"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded px-4 text-left text-sm font-normal",
 				FILE_TREE_ROW_STATE,
 				isSelected && FILE_TREE_ROW_SELECTED_STATE,
 				dropTargetPath === path && DROP_RING,
 				className,
 			)}
+			style={style}
 			onClick={(e) => {
 				// Keep the row focused so Enter can start inline rename right
 				// after a click (WebKit does not focus buttons on click).
@@ -317,8 +321,14 @@ export const FileTreeFolderRow = ({
 				onDoubleClickPath?.(path);
 			}}
 			onKeyDown={(e) => {
+				if (e.target !== e.currentTarget) return;
 				if (e.key === "Enter" && onRenamePath?.(path)) {
 					e.preventDefault();
+					return;
+				}
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					e.currentTarget.click();
 				}
 			}}
 			onContextMenu={(e) => onContextMenuPath?.(path, e)}
@@ -329,6 +339,7 @@ export const FileTreeFolderRow = ({
 			aria-expanded={isExpanded}
 			aria-selected={isSelected}
 			role="treeitem"
+			tabIndex={0}
 		>
 			<span data-tree-disclosure className="inline-flex shrink-0">
 				<FileTreeDisclosureIcon
@@ -343,8 +354,18 @@ export const FileTreeFolderRow = ({
 					}
 				/>
 			</span>
-			<FileTreeName>{name}</FileTreeName>
-		</Button>
+			<FileTreeName className="min-w-0 flex-1">{name}</FileTreeName>
+			{actions ? (
+				<FileTreeActions
+					className="shrink-0"
+					onClick={(e) => e.stopPropagation()}
+					onDoubleClick={(e) => e.stopPropagation()}
+					onKeyDown={(e) => e.stopPropagation()}
+				>
+					{actions}
+				</FileTreeActions>
+			) : null}
+		</div>
 	);
 };
 
@@ -452,40 +473,38 @@ export const FileTreeFile = ({
 
 	return (
 		<FileTreeFileContext.Provider value={fileContextValue}>
-			<Button asChild variant="ghost" size="sm">
-				<div
-					data-path={path}
-					draggable
-					className={cn(
-						"group flex h-7 min-h-7 cursor-pointer items-center justify-start gap-1 rounded px-4 text-sm font-normal",
-						FILE_TREE_ROW_STATE,
-						isSelected && FILE_TREE_ROW_SELECTED_STATE,
-						dropTargetPath === path && DROP_RING,
-						className,
-					)}
-					onClick={handleClick}
-					onDoubleClick={handleDoubleClick}
-					onContextMenu={handleContextMenu}
-					onKeyDown={handleKeyDown}
-					onDragStart={(e) => onRowDragStart?.(path, e)}
-					onDragOver={(e) => onRowDragOver?.(path, e)}
-					onDrop={(e) => onRowDrop?.(path, e)}
-					onDragEnd={() => onRowDragEnd?.()}
-					role="treeitem"
-					aria-selected={isSelected}
-					tabIndex={0}
-					{...props}
-				>
-					{children ?? (
-						<>
-							<FileTreeIcon>
-								{icon ?? <FileIcon className="size-4 text-muted-foreground" />}
-							</FileTreeIcon>
-							<FileTreeName>{name}</FileTreeName>
-						</>
-					)}
-				</div>
-			</Button>
+			<div
+				data-path={path}
+				draggable
+				className={cn(
+					"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded px-4 text-sm font-normal",
+					FILE_TREE_ROW_STATE,
+					isSelected && FILE_TREE_ROW_SELECTED_STATE,
+					dropTargetPath === path && DROP_RING,
+					className,
+				)}
+				onClick={handleClick}
+				onDoubleClick={handleDoubleClick}
+				onContextMenu={handleContextMenu}
+				onKeyDown={handleKeyDown}
+				onDragStart={(e) => onRowDragStart?.(path, e)}
+				onDragOver={(e) => onRowDragOver?.(path, e)}
+				onDrop={(e) => onRowDrop?.(path, e)}
+				onDragEnd={() => onRowDragEnd?.()}
+				role="treeitem"
+				aria-selected={isSelected}
+				tabIndex={0}
+				{...props}
+			>
+				{children ?? (
+					<>
+						<FileTreeIcon>
+							{icon ?? <FileIcon className="size-4 text-muted-foreground" />}
+						</FileTreeIcon>
+						<FileTreeName>{name}</FileTreeName>
+					</>
+				)}
+			</div>
 		</FileTreeFileContext.Provider>
 	);
 };

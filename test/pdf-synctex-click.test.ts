@@ -40,7 +40,7 @@ vi.mock("@/lib/core/notify", () => ({ notifyError: vi.fn() }));
 
 import { usePdfSyncTex } from "@/components/viewer/pdf/hooks/use-pdf-synctex";
 
-it("uses the same PDF coordinates for a click + arrow and a modified click, even after zoom/scroll; resets for a new revision", async () => {
+it("keeps word selection local while explicit clicks share PDF coordinates, even after zoom/scroll; resets for a new revision", async () => {
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	const container = document.createElement("div");
 	const host = document.createElement("div");
@@ -115,12 +115,8 @@ it("uses the same PDF coordinates for a click + arrow and a modified click, even
 				);
 			}
 		});
-		expect(mocks.backward).toHaveBeenCalledExactlyOnceWith(
-			"/main.pdf",
-			1,
-			150,
-			300,
-		);
+		// Selecting a word (double-click) must stay local to the PDF.
+		expect(mocks.backward).not.toHaveBeenCalled();
 		await act(() => {
 			mocks.peer?.syncFromView();
 		});

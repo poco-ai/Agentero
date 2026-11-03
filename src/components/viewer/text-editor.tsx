@@ -27,6 +27,7 @@ import {
 } from "@/components/viewer/text-editor-theme";
 import { TextEditorToolbar } from "@/components/viewer/text-editor-toolbar";
 import { useTextEditorSelection } from "@/components/viewer/use-text-editor-selection";
+import { useWritingSelectionGroup } from "@/components/writing/writing-selection-group";
 import { basenameOf, dirnameOf, normalizePath } from "@/lib/core/path";
 import { texSettingsStore } from "@/lib/tex/config";
 import { insertTexCitation } from "@/lib/tex/editor-intelligence";
@@ -37,7 +38,6 @@ import {
 import {
 	markTexEditorActive,
 	registerTexEditor,
-	texSelectionPoints,
 } from "@/lib/tex/editor-navigation";
 import { type TexOutlineItem, texOutlineFromTree } from "@/lib/tex/outline";
 import { isInsideProject } from "@/lib/tex/project";
@@ -201,12 +201,9 @@ export function TextEditor({
 						pathRef.current,
 						line.number,
 						position - line.from + 1,
-						{
-							selection: texSelectionPoints(view),
-							...(writingStore.getState().surface === "writing"
-								? { scope: "writing" as const }
-								: {}),
-						},
+						writingStore.getState().surface === "writing"
+							? { scope: "writing" as const }
+							: undefined,
 					);
 					return true;
 				},
@@ -228,7 +225,13 @@ export function TextEditor({
 	// Selection → floating Quick chat / Add to chat toolbar (same chrome the
 	// PDF surfaces have). The listener extension registers once at mount and
 	// routes through refs inside the hook.
-	const selection = useTextEditorSelection({ viewRef, path, active });
+	const writingSelectionGroup = useWritingSelectionGroup();
+	const selection = useTextEditorSelection({
+		viewRef,
+		path,
+		active,
+		selectionGroup: writingSelectionGroup,
+	});
 
 	// Lint diagnostics for the status-bar footer (TeX only — the only mode
 	// with lint sources). The watcher extension registers once at mount and

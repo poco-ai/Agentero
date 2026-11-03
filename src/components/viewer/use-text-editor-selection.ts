@@ -29,6 +29,7 @@ import {
 } from "@/components/selection/use-selection-ask";
 import { useSelectionQuickChat } from "@/components/selection/use-selection-quick-chat";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
+import type { WritingSelectionGroup } from "@/components/writing/writing-selection-group";
 import { textAskContextRequest } from "@/lib/agent/context-request";
 import { openSelectionChat } from "@/lib/agent/selection-chat-store";
 import {
@@ -84,6 +85,7 @@ export function useTextEditorSelection({
 	viewRef,
 	path,
 	active,
+	selectionGroup,
 }: {
 	/** CodeMirror view owned by TextEditor's mount effect. */
 	viewRef: RefObject<EditorView | null>;
@@ -91,6 +93,8 @@ export function useTextEditorSelection({
 	path: string;
 	/** Only the active tab may arm the toolbar (inactive panes stay mounted). */
 	active: boolean;
+	/** Writing split: keep source and PDF selections mutually exclusive. */
+	selectionGroup?: WritingSelectionGroup | null;
 }) {
 	const [menu, setMenu] = useState<TextEditorSelectionMenu | null>(null);
 	const menuRef = useRef(menu);
@@ -145,6 +149,7 @@ export function useTextEditorSelection({
 		const { lineFrom, lineTo } = selectionLines(view.state.doc, selection);
 		setMenu({ text, screen, lineFrom, lineTo });
 		publishedRef.current = true;
+		selectionGroup?.announce("source");
 		publishSelection({
 			text,
 			sourcePath: pathRef.current,
@@ -205,6 +210,19 @@ export function useTextEditorSelection({
 			view.dispatch({ selection: { anchor: selection.head } });
 		}
 	}, [viewRef]);
+
+	// PDF selection took over the writing split: drop the source range, but do
+	// not move the cursor or steal focus.
+	useEffect(() => {
+		if (!selectionGroup) return;
+		return selectionGroup.subscribe((origin) => {
+			if (origin !== "pdf") return;
+			const view = viewRef.current;
+			const selection = view?.state.selection.main;
+			if (!view || !selection || selection.empty) return;
+			view.dispatch({ selection: { anchor: selection.head } });
+		});
+	}, [selectionGroup, viewRef]);
 
 	// ⌘K Quick chat — while this editor's selection toolbar is armed.
 	useSelectionQuickChat(() => menuRef.current != null, handleAsk);

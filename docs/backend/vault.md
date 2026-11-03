@@ -86,7 +86,7 @@
 
 ## 其它
 
-- `path_open_in_terminal`：系统默认终端（目录自身 / 文件父目录）。Windows 复用 `core::process::windows_shell_path` 去掉本地盘符路径的 `\\?\` 前缀，Windows Terminal 的 `-d` 与 CMD 的进程工作目录使用同一结果；CMD 通过隐藏的 `start` 启动进程创建独立交互控制台，不再拼接 `cd` 命令，也不继承桌面应用的关闭 / 重定向输入输出句柄。
+- `path_open_in_terminal`：用户在「设置 → 通用 → 系统 → 终端应用」选定的终端（`terminalApp`，留空 = 系统默认；macOS 支持 Terminal / iTerm2 / Otty，Windows 支持 Windows Terminal / PowerShell / CMD，Linux 按 PATH 探测常见终端）；所选终端未安装或启动失败时回退到系统默认并不报错。目录自身 / 文件父目录。Windows 复用 `core::process::windows_shell_path` 去掉本地盘符路径的 `\\?\` 前缀，Windows Terminal 的 `-d` 与 CMD 的进程工作目录使用同一结果；CMD 通过隐藏的 `start` 启动进程创建独立交互控制台，不再拼接 `cd` 命令，也不继承桌面应用的关闭 / 重定向输入输出句柄。
 - 多窗口：`window_new`、`settings_window_open`。
 
 ## 代码

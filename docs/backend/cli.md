@@ -282,6 +282,10 @@ agentero paper move papers/inbox/demo papers/new-shelf
 agentero paper move /path/to/src-vault/papers/inbox/demo /path/to/dst-vault/papers/archive
 ```
 
+- **文件身份**：论文 id 不随移动改变，目录名、`metadata.json`、PDF/TeX/`marks` 等资产整体迁移；跨 Vault 后目标 Vault 的 Catalog 行沿用同一 id（目标已有同 id 论文时直接失败）。
+- **复制/移动语义**：跨 Vault 是移动而非复制。同设备先 `rename`；跨设备回退为复制后删除源目录，复制失败会清理本次创建的目标目录，源 Vault 保持不变，可修正原因后重试。源 Vault 的 `papers/` 下条目在成功后不再存在。
+- **桌面同步**：运行中的桌面通过 watcher 与 Catalog 快照跟随。同 Vault 移动把打开中的论文 / NOTES tab、标注与树选中移到新路径；跨 Vault 迁移或外部删除会关闭该论文在源 Vault 的 tab。macOS 的 FSEvents 不保证配对旧/新路径，所以以 Catalog 的 paper id 对比为准，而不是等 rename 事件。桌面未保存的编辑不受保护（该论文目录已整体移走）。
+
 ### Cool Papers 笔记（`paper notes fetch`）
 
 把 papers.cool 上的 Kimi 解析追加到论文的 `NOTES.md`，与桌面 NOTES 工具栏的「获取 Cool Paper 笔记」共用 `agentero-core` 实现。追加按内容幂等：同一条解析已在 `NOTES.md` 中时不再重复写入，也不改写手写内容。

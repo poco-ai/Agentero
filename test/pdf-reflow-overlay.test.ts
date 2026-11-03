@@ -56,5 +56,6 @@ it("renders PDF previews even when no legacy DOM paragraphs remain", () => {
 	);
 	expect(html).toContain('src="blob:pdf-preview"');
 	expect(html).toContain('data-layout-item="p"');
+	expect(html).toContain('data-reflow-selection="true"');
 	expect(html).toContain("译文");
 });

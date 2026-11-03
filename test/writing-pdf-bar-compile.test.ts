@@ -134,7 +134,9 @@ it("shows a solid compiling control, and ignores another click", async () => {
 	});
 	expect(group().dataset.compileState).toBe("running");
 	expect(group().getAttribute("aria-busy")).toBe("true");
-	expect(compileButton().textContent).toContain("正在编译…");
+	// The idle label stays in flow but hidden; the loading text is the
+	// accessible name while only the spinner is visible.
+	expect(compileButton().getAttribute("aria-label")).toContain("正在编译…");
 	expect(compileButton().querySelector(".animate-spin")).not.toBeNull();
 	expect(compileButton().disabled).toBe(true);
 	expect(compileButton().className).toContain("disabled:opacity-100");

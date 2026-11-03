@@ -551,10 +551,12 @@ export const commands = {
 	 */
 	remoteAgentOpenInstallTerminal: (args: RemoteAgentInstallArgs) => typedError<ApiResult<Json>, string>(__TAURI_INVOKE("remote_agent_open_install_terminal", { args })),
 	/**
-	 *  Open the system default terminal at `path`.
-	 *  Directories open as themselves; files open their parent directory.
+	 *  Open the preferred terminal (or the system default when unset/unavailable)
+	 *  at `path`. Directories open as themselves; files open their parent directory.
 	 */
 	pathOpenInTerminal: (path: string) => __TAURI_INVOKE<ApiResult<OpenInTerminalResult>>("path_open_in_terminal", { path }),
+	/**  List known external terminals for the "Open in Terminal" preference. */
+	terminalAppsProbe: () => typedError<ApiResult<TerminalAppStatus[]>, string>(__TAURI_INVOKE("terminal_apps_probe")),
 	/**
 	 *  Open a fresh Agentero window without restoring the last vault (`?fresh=1`).
 	 * 
@@ -1630,6 +1632,11 @@ export type AppSettings_Deserialize = {
 	 */
 	replaceCurrentTabOnOpenPaper?: boolean,
 	autoUpdateInternalLinks?: string,
+	/**
+	 *  Preferred terminal for "Open in Terminal". Empty = system default.
+	 *  Unknown or uninstalled ids fall back at launch time.
+	 */
+	terminalApp?: string,
 	/**  PDF navigation: `vertical` | `horizontal` | `paginated`. */
 	pdfScrollStrategy?: string,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */
@@ -1767,6 +1774,11 @@ export type AppSettings_Serialize = {
 	 */
 	replaceCurrentTabOnOpenPaper: boolean,
 	autoUpdateInternalLinks: string,
+	/**
+	 *  Preferred terminal for "Open in Terminal". Empty = system default.
+	 *  Unknown or uninstalled ids fall back at launch time.
+	 */
+	terminalApp: string,
 	/**  PDF navigation: `vertical` | `horizontal` | `paginated`. */
 	pdfScrollStrategy: string,
 	/**  PDF page layout: `none` (single page) | `odd` | `even` (two-page spread). */
@@ -4361,8 +4373,8 @@ export type PaperRecord_Deserialize = {
 	html_url: string | null,
 	source_url: string | null,
 	/**
-	 *  Code repository. Import fills this from the main PDF's first page when
-	 *  it is empty; Edit Metadata can set or clear it afterwards.
+	 *  Code repository. Import fills this from the main PDF when it is empty
+	 *  and the user has not edited it; Edit Metadata can set or clear it.
 	 */
 	code_repo: string | null,
 	/**  Manually maintained OpenReview link; never resolved from identifiers. */
@@ -4427,8 +4439,8 @@ export type PaperRecord_Serialize = {
 	html_url?: string | null,
 	source_url?: string | null,
 	/**
-	 *  Code repository. Import fills this from the main PDF's first page when
-	 *  it is empty; Edit Metadata can set or clear it afterwards.
+	 *  Code repository. Import fills this from the main PDF when it is empty
+	 *  and the user has not edited it; Edit Metadata can set or clear it.
 	 */
 	code_repo?: string | null,
 	/**  Manually maintained OpenReview link; never resolved from identifiers. */
@@ -5448,6 +5460,13 @@ export type SyncTexSource = {
 
 export type SyncVaultArgs = {
 	vaultPath: string,
+};
+
+/**  One row in Settings. `name` is a brand name shown verbatim. */
+export type TerminalAppStatus = {
+	id: string,
+	name: string,
+	installed: boolean,
 };
 
 export type TranslateProviderConfig = {

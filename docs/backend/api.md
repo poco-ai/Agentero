@@ -268,7 +268,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 #### `path_open_in_terminal`（已实现）
 
-在系统默认终端中打开本地路径（文件树右键 / `⌥⌘T`「在终端中打开」）。
+在用户选定的外部终端中打开本地路径（文件树右键 / `⌥⌘T`「在终端中打开」）；设置留空或所选终端不可用时回退到系统默认终端。
 
 - **参数**
 
@@ -284,10 +284,19 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
   - 路径为**目录**时：`cwd` = 该目录。
   - 路径为**文件**时：`cwd` = 父目录。
   - 路径不存在或无法解析父目录时返回错误。
-  - 平台：
+  - 读取 `settings.terminalApp`（`terminal_apps_probe` 返回的 id）；未知 id、未安装或启动失败只记 warning，随后走系统默认终端，不向上返回错误。
+  - 系统默认平台：
     - macOS：`open -a Terminal <cwd>`
     - Windows：优先 `wt -d <cwd>`，失败则 `cmd /K cd /d …`
     - Linux：`xdg-terminal-exec` → `$TERMINAL` → 常见终端（gnome-terminal / konsole / …）→ `x-terminal-emulator`
+
+#### `terminal_apps_probe`（已实现）
+
+返回当前平台已知的终端应用及其安装状态（`{ id, name, installed }[]`），供「设置 → 通用 → 系统 → 终端应用」下拉使用。
+
+- macOS：Terminal（系统内置）、iTerm2、Otty
+- Windows：Windows Terminal、PowerShell、Command Prompt
+- Linux：GNOME Terminal / Konsole / Xfce Terminal / kitty / Alacritty / WezTerm（按 PATH 检测）
 
 #### `path_trash`
 

@@ -171,6 +171,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	paperTreeLabelMode: "title-author",
 	paperTreeSortMode: "folder",
 	autoUpdateInternalLinks: "ask",
+	terminalApp: "",
 	pdfScrollStrategy: "vertical",
 	pdfSpreadMode: "none",
 	paperNoteMode: "standard",

@@ -275,12 +275,43 @@ pub fn plugin_activate(
 mod tests {
     use super::*;
     fn example() -> manifest::DevelopmentPlugin {
-        manifest::load(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../examples/plugins/reading-tools")
-                .as_path(),
-        )
-        .unwrap()
+        let mut name = BTreeMap::new();
+        name.insert("en".into(), "Reading tools".into());
+        name.insert("zh-CN".into(), "阅读工具".into());
+        let mut command_title = BTreeMap::new();
+        command_title.insert("en".into(), "Mark paper as read".into());
+        command_title.insert("zh-CN".into(), "标记论文为已读".into());
+        let mut setting_title = BTreeMap::new();
+        setting_title.insert("en".into(), "Notes heading".into());
+        setting_title.insert("zh-CN".into(), "笔记标题".into());
+        let manifest = manifest::Manifest {
+            api_version: 1,
+            id: "agentero.reading-tools".into(),
+            permissions: vec![
+                "vault:read".into(),
+                "catalog:write".into(),
+                "vault:notes:write".into(),
+            ],
+            commands: vec![manifest::Command {
+                id: "mark-read".into(),
+                title: command_title,
+            }],
+            version: "1.0.0".into(),
+            name,
+            menus: vec![],
+            events: vec![],
+            settings: vec![manifest::Setting {
+                key: "heading".into(),
+                title: setting_title,
+                kind: "string".into(),
+                default: json!("Highlights"),
+            }],
+        };
+        manifest::validate(&manifest).unwrap();
+        manifest::DevelopmentPlugin {
+            manifest,
+            source: "export async function onEvent() {}".into(),
+        }
     }
     #[test]
     fn package_update_revokes_grants_and_keeps_unknown_fields() {

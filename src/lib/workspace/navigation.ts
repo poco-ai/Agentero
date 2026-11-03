@@ -30,7 +30,10 @@ import {
 	TRASH_VIRTUAL_PATH,
 } from "@/lib/paper/api";
 import { refreshLibrary, setLibraryScopePath } from "@/lib/paper/library-store";
-import { removeTabAnnotations } from "@/lib/pdf/annotations-store";
+import {
+	remapTabAnnotations,
+	removeTabAnnotations,
+} from "@/lib/pdf/annotations-store";
 import { cancelPdfNavigationForTab } from "@/lib/pdf/pending-pdf-page";
 import {
 	isPlazaVirtualPath,
@@ -83,9 +86,12 @@ import {
 	patchFromTabResources,
 	type ReadingColumns,
 	readingPairCloseIds,
+	remapPathUnder,
+	remapTabsUnderPath,
 	removeTab,
 	removeTabsUnderPath,
 	revokeTabMediaSources,
+	SPLIT_PANE_ID_MARKER,
 	splitPaneIdForPath,
 	tabHasNotesSplit,
 	tabIdForPath,
@@ -503,6 +509,52 @@ export function closePlazaTabs(): void {
 	if (removedIds.length) removeTabAnnotations(removedIds);
 }
 
+/**
+ * Preserve mounted workspace state when a filesystem path changes identity.
+ * Works for a single file and for a tree (a paper folder and everything under
+ * it), keeping dockview panels, tab ids, annotations, tree selection, and the
+ * Library scope pointed at the new path.
+ */
+export function remapMovedWorkspacePaths(
+	fromAbs: string,
+	toAbs: string,
+	fromRel: string,
+	toRel: string,
+): void {
+	const previousTabs = getTabs();
+	const remappedTabs = remapTabsUnderPath(
+		previousTabs,
+		fromAbs,
+		toAbs,
+		fromRel,
+		toRel,
+	);
+	for (let index = 0; index < previousTabs.length; index++) {
+		const previous = previousTabs[index];
+		const remapped = remappedTabs[index];
+		if (previous && remapped && previous.id !== remapped.id) {
+			dockHandle()?.remapPanel(previous.id, remapped);
+		}
+	}
+	const active = previousTabs.find((tab) => tab.id === getActiveTabId());
+	if (active) {
+		setActiveTabId(tabIdForPath(remapPathUnder(active.path, fromAbs, toAbs)));
+	}
+	remapTabAnnotations(
+		previousTabs.map((tab) => ({
+			fromId: tab.id,
+			toId: tabIdForPath(remapPathUnder(tab.path, fromAbs, toAbs)),
+		})),
+	);
+	setTabs(remappedTabs);
+	setTreeSelectedPath((path) =>
+		path ? remapPathUnder(path, fromAbs, toAbs) : path,
+	);
+	setLibraryScopePath((scope) =>
+		scope ? remapPathUnder(scope, fromRel, toRel) : scope,
+	);
+}
+
 /** Close every panel whose path is at or under the given path. */
 export function closeTabsUnderPath(path: string): void {
 	let removedIds: string[] = [];
@@ -840,10 +892,9 @@ export function openPlazaSource(source: PlazaSource): void {
 }
 
 /**
- * Org folder click: expand happens in the tree; center shows the same Library
- * tab filtered by path prefix — never opens a new tab for the folder.
- * Only `papers/` (and subfolders) become a scope; notes/.agents/plans etc.
- * show the full library (#160).
+ * Org folder click: `papers/` folders focus the same Library tab filtered by
+ * path prefix. Other folders (`notes/`, `.agents/`, `plans`, …) only keep the
+ * tree selection so clicking them never steals the active view.
  */
 export function openFolderLibrary(folderAbs: string): void {
 	const abs = folderAbs.replace(/\\/g, "/").replace(/\/+$/, "");
@@ -854,7 +905,9 @@ export function openFolderLibrary(folderAbs: string): void {
 				.replace(/\\/g, "/")
 				.replace(/^\/+|\/+$/g, "")
 		: "";
-	setLibraryScopePath(resolveLibraryScopePath(rel || null));
+	const scope = resolveLibraryScopePath(rel || null);
+	if (!scope) return;
+	setLibraryScopePath(scope);
 	// Reuse / focus the single full-library tab only.
 	openTab(LIBRARY_VIRTUAL_PATH);
 }
@@ -1006,9 +1059,12 @@ export async function syncRenamedPaperTabs(
 	const notesPath = res.notesPath ?? notesPathForPaper(toAbs);
 	const notesTabId = tabIdForPath(notesPath);
 	const currentTabs = getTabs();
+	// Split panes share a path but carry a `::pane-N` suffix on their id.
+	const isPaneOf = (id: string, baseId: string) =>
+		id === baseId || id.startsWith(`${baseId}${SPLIT_PANE_ID_MARKER}`);
 
 	for (const tab of currentTabs) {
-		if (tab.id === paperTabId || tab.path === toAbs) {
+		if (isPaneOf(tab.id, paperTabId) || tab.path === toAbs) {
 			updateTab(tab.id, {
 				title: res.title || tab.title,
 				paperMeta: res.paperMeta ?? tab.paperMeta,
@@ -1019,7 +1075,7 @@ export async function syncRenamedPaperTabs(
 				notesKey: tab.notesKey + 1,
 			});
 		} else if (
-			tab.id === notesTabId ||
+			isPaneOf(tab.id, notesTabId) ||
 			(tab.notesPath &&
 				normalizeTabPath(tab.notesPath) === normalizeTabPath(notesPath)) ||
 			(tab.path && normalizeTabPath(tab.path) === normalizeTabPath(notesPath))

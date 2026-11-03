@@ -164,7 +164,7 @@ PDF 拖到窗口任意区域都会导入当前 Papers 目标目录；Library 表
 
 - 左侧虚拟节点 **Library** 打开全库表格。
 - 单击 `papers/` 下的组织文件夹（如 `papers/nlp`）：同一 Library 表按路径前缀筛选（不新开 tab、不重新拉全库）。
-- 单击 `notes/`、`.agents/`、`plans/` 等非 papers 目录：不进入文件夹作用域，Library 仍显示全库。
+- 单击 `notes/`、`.agents/`、`plans/` 等非 papers 目录：只展开/折叠并选中文件树行，不切换当前视图，也不进入文件夹作用域。
 - 表头可排序；表头右键可选列与顺序（持久化到设置）。
 
 ### 标签
