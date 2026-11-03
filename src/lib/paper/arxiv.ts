@@ -10,8 +10,10 @@
  * | Source   | https://arxiv.org/e-print/{id} or /src/{id} |
  *
  * API Atom links use the same shapes; prefer export.arxiv.org only for bulk.
- * PDF/HTML responses currently send `Access-Control-Allow-Origin: *`, so
- * desktop WebView can load them for preview without a proxy.
+ * PDF/HTML responses currently send `Access-Control-Allow-Origin: *`. The HTML
+ * reader fetches the paper in the webview (`arxiv-html.ts`); do not send that
+ * document through {@link arxivReaderUrl}, which reports every transport
+ * failure as "arXiv unavailable".
  */
 
 const ARXIV_ID_RE =

@@ -274,7 +274,13 @@
 		"sandboxTitle": "HTML 论文沙箱",
 		"denied": "该网页的域名无法通过内置代理加载。",
 		"localTitle": "HTML 预览",
-		"localFailed": "无法预览这个 HTML 文件。"
+		"localFailed": "无法预览这个 HTML 文件。",
+		"loading": "正在打开 HTML…",
+		"missing": "这篇论文还没有 HTML 版本。",
+		"network": "网络不可用，打不开 HTML。",
+		"badUrl": "HTML 地址无效。",
+		"backToPdf": "返回 PDF",
+		"openAbstract": "打开摘要"
 	},
 	"image": {
 		"empty": "暂无图片。",

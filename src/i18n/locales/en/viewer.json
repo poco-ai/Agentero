@@ -275,7 +275,13 @@
 		"sandboxTitle": "HTML paper sandbox",
 		"denied": "This page's host cannot be loaded through the built-in proxy.",
 		"localTitle": "HTML preview",
-		"localFailed": "Could not preview this HTML file."
+		"localFailed": "Could not preview this HTML file.",
+		"loading": "Opening HTML…",
+		"missing": "This paper has no HTML version yet.",
+		"network": "The network is unavailable, so HTML cannot be opened.",
+		"badUrl": "The HTML address is not valid.",
+		"backToPdf": "Back to PDF",
+		"openAbstract": "Open abstract"
 	},
 	"image": {
 		"empty": "No image available.",

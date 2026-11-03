@@ -581,6 +581,11 @@ const DocumentContent = memo(function DocumentContent({
 				srcUrl={tab.htmlUrl}
 				title={tab.title}
 				className="h-full w-full"
+				onShowPdf={
+					tab.paperMeta?.type === "html"
+						? undefined
+						: () => updateTab(tab.id, { mode: "pdf" })
+				}
 			/>
 		</div>
 	);
