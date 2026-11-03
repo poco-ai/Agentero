@@ -42,14 +42,23 @@ export function finishTexBuild(
 	error?: string,
 ): void {
 	const key = normalizePath(rootPath);
-	const snapshot = texBuildStore.getState().byRoot[key];
-	if (snapshot)
-		texBuildStore.setState((state) => ({
+	texBuildStore.setState((state) => {
+		const snapshot = state.byRoot[key];
+		if (!snapshot) return state;
+		// compile:finished is the build's own verdict. The job waiter reports
+		// "succeeded" whenever the task resolves, which must not hide a failure
+		// or a cancel that already landed, or revive a stale running snapshot.
+		const next =
+			status === "succeeded" &&
+			(snapshot.status === "failed" || snapshot.status === "cancelled")
+				? snapshot.status
+				: status;
+		return {
 			byRoot: {
 				...state.byRoot,
 				[key]: {
 					...snapshot,
-					status,
+					status: next,
 					logs:
 						error && !snapshot.logs.join("\n").includes(error)
 							? [...snapshot.logs, error]
@@ -65,14 +74,15 @@ export function finishTexBuild(
 										column: 1,
 										severity: "error" as const,
 										message: error,
-										source: "build",
+										source: "build" as const,
 									},
 								],
 							}
 						: {}),
 				},
 			},
-		}));
+		};
+	});
 }
 
 export function setTexDependencies(rootPath: string, paths: string[]): void {

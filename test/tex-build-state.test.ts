@@ -52,6 +52,40 @@ it("keeps unrelated jobs from overwriting an active build", () => {
 	});
 });
 
+it("does not let a resolved job hide a compile that already failed", () => {
+	beginTexBuild(ROOT);
+	receiveTexLog({ rootPath: ROOT, jobId: "job", line: "error line" });
+	receiveTexResult({
+		...result("job"),
+		success: false,
+		diagnostics: [
+			{
+				path: ROOT,
+				line: 3,
+				column: 1,
+				severity: "error",
+				message: "undefined control sequence",
+				source: "build",
+			},
+		],
+	});
+	finishTexBuild(ROOT, "succeeded");
+	expect(texBuildStore.getState().byRoot[ROOT]).toMatchObject({
+		status: "failed",
+		logs: ["error line"],
+		diagnostics: [
+			{
+				path: ROOT,
+				line: 3,
+				column: 1,
+				severity: "error",
+				message: "undefined control sequence",
+				source: "build",
+			},
+		],
+	});
+});
+
 it("surfaces preflight failures in the same editor problem list", () => {
 	beginTexBuild(ROOT);
 	finishTexBuild(ROOT, "failed", "latexmk not found");
