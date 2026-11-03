@@ -210,7 +210,15 @@ fn move_dir_all(src: &Path, dst: &Path) -> Result<(), AppError> {
     if std::fs::rename(src, dst).is_ok() {
         return Ok(());
     }
-    copy_dir_all(src, dst)?;
+    let created_target = !dst.exists();
+    if let Err(error) = copy_dir_all(src, dst) {
+        // Never leave a half-copied target behind: it would block the retry
+        // with "target already exists" while the source is still intact.
+        if created_target {
+            let _ = std::fs::remove_dir_all(dst);
+        }
+        return Err(error);
+    }
     std::fs::remove_dir_all(src)?;
     Ok(())
 }
