@@ -142,6 +142,7 @@ nav:
       - Windows ACP 终端 Hermes MSYS2 挂死: bug_fix/hermes-terminal-pending-msys2-hang.md
       - 任务 runner panic 导致并发槽泄漏: bug_fix/job-runner-panic-slot-leak.md
       - macOS 主窗口可无限缩小: bug_fix/macos-window-min-size-config-merge.md
+      - "macOS 新建窗口崩溃（AppKit 主线程断言，⌘N 打不开新窗口）": bug_fix/macos-second-window-appkit-crash.md
       - PDF 内部链接跳转后返回原位置: bug_fix/pdf-citation-jump-back.md
       - PDF 引用跳转后被拉回第 1 页: bug_fix/pdf-citation-page-restore-race.md
       - PDF 重新编译后仍显示旧版本: bug_fix/pdf-disk-refresh-after-compile.md
