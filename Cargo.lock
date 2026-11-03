@@ -109,6 +109,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "crypto_box",
+ "ctor",
  "dirs",
  "ed25519-dalek",
  "encoding_rs",
