@@ -37,7 +37,13 @@ import { MovePickerPopover } from "./move-picker-popover";
 import { TreeContextMenuPortal } from "./tree-context-menu";
 import { isVirtualTreePath, pathKey } from "./tree-helpers";
 import { TreeCreateInput } from "./tree-inputs";
-import { LoadingRows, PlazaRow, PlazaSourceRow, TrashRow } from "./tree-rows";
+import {
+	LoadingRows,
+	PlazaRow,
+	PlazaSourceRow,
+	TrashRow,
+	treeRowIndentStyle,
+} from "./tree-rows";
 import { TreeRowsViewport } from "./tree-rows-viewport";
 import type { TreeCreateDraft, TreeCreateKind, TreeRenameDraft } from "./types";
 import { buildZoteroCollectionReferences } from "./zotero-collection-references";
@@ -408,9 +414,11 @@ export const FileTree = memo(
 				<PlazaRow expanded={plazaExpanded} />
 				{plazaExpanded
 					? visiblePlazaSources(plazaHiddenSources).map((source) => (
-							<div key={source.id} className="pl-3">
-								<PlazaSourceRow source={source} />
-							</div>
+							<PlazaSourceRow
+								key={source.id}
+								source={source}
+								style={treeRowIndentStyle(1)}
+							/>
 						))
 					: null}
 			</>
@@ -444,7 +452,7 @@ export const FileTree = memo(
 					/>
 					<div
 						ref={treeScrollRef}
-						className="agentero-scroll min-h-0 flex-1 overflow-y-auto py-1 [scrollbar-gutter:stable]"
+						className="agentero-scroll min-h-0 flex-1 overflow-y-auto px-2 py-1 [scrollbar-gutter:stable]"
 					>
 						{nodes.length === 0 && !createDraft ? (
 							<>

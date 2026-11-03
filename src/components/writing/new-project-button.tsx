@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
+import { TreeRowActionButton } from "@/components/sidebar/tree-row-action-button";
 import {
 	Popover,
 	PopoverContent,
@@ -14,17 +14,12 @@ export function NewProjectButton({ vaultPath }: { vaultPath: string }) {
 	const [open, setOpen] = useState(false);
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
-			<PopoverTrigger asChild>
-				<Button
-					size="icon-xs"
-					variant="ghost"
-					className="mr-1 shrink-0 text-muted-foreground"
-					aria-label={t("writing.newProject")}
-					title={t("writing.newProject")}
-				>
-					<Plus className="size-3.5" aria-hidden />
-				</Button>
-			</PopoverTrigger>
+			<TreeRowActionButton
+				label={t("writing.newProject")}
+				trigger={(button) => <PopoverTrigger asChild>{button}</PopoverTrigger>}
+			>
+				<Plus className="size-3.5" aria-hidden />
+			</TreeRowActionButton>
 			<PopoverContent align="start" className="w-72">
 				<NewProjectForm
 					vaultPath={vaultPath}

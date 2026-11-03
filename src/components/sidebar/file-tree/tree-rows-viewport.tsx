@@ -30,6 +30,7 @@ import {
 	PaperTreeRow,
 	PlazaRow,
 	PlazaSourceRow,
+	treeRowIndentStyle,
 	ZoteroCollectionReferenceRow,
 } from "./tree-rows";
 import type { FlatRow, TreeRenameDraft } from "./types";
@@ -59,9 +60,11 @@ export type TreeRowsViewportProps = RowContext & {
 
 function PaperLeafRow({
 	node,
+	depth,
 	ctx,
 }: {
 	node: FileNode;
+	depth: number;
 	ctx: RowContext;
 }): ReactNode {
 	const { paperActions: actions } = ctx;
@@ -77,6 +80,7 @@ function PaperLeafRow({
 	return (
 		<PaperTreeRow
 			node={node}
+			depth={depth}
 			isCut={ctx.cutPathKeys.has(pathKey(node.path))}
 			label={formatPaperTreeLabel(ctx.paperTreeLabelMode, meta, node.name)}
 			downloadReasons={downloadReasons}
@@ -132,27 +136,42 @@ function RenameRow({
 	);
 }
 
-function renderRow(row: FlatRow, props: TreeRowsViewportProps): ReactNode {
+function renderRow(
+	row: FlatRow,
+	props: TreeRowsViewportProps,
+	depth: number,
+): ReactNode {
 	if (row.kind === "trash") return props.trashRow;
 	if (row.kind === "plaza")
 		return <PlazaRow expanded={props.expanded.has(PLAZA_VIRTUAL_PATH)} />;
-	if (row.kind === "plazaSource") return <PlazaSourceRow source={row.source} />;
+	if (row.kind === "plazaSource")
+		return (
+			<PlazaSourceRow source={row.source} style={treeRowIndentStyle(depth)} />
+		);
 	if (row.kind === "zoteroCollectionReference") {
 		return (
 			<ZoteroCollectionReferenceRow
 				path={row.path}
 				label={row.paper.title || row.paper.id}
+				depth={depth}
 			/>
 		);
 	}
-	if (row.kind === "create") return props.createRow;
+	if (row.kind === "create")
+		return <div style={{ paddingLeft: depth * 12 }}>{props.createRow}</div>;
 	if (props.renameDraft?.path === row.node.path) {
-		return <RenameRow node={row.node} ctx={props} isPaper={row.paperLeaf} />;
+		return (
+			<div style={{ paddingLeft: depth * 12 }}>
+				<RenameRow node={row.node} ctx={props} isPaper={row.paperLeaf} />
+			</div>
+		);
 	}
-	if (row.paperLeaf) return <PaperLeafRow node={row.node} ctx={props} />;
+	if (row.paperLeaf)
+		return <PaperLeafRow node={row.node} depth={depth} ctx={props} />;
 	return (
 		<NodeTreeRow
 			node={row.node}
+			depth={depth}
 			isCut={props.cutPathKeys.has(pathKey(row.node.path))}
 			pendingLoad={
 				Boolean(row.node.childrenPending) ||
@@ -193,10 +212,9 @@ export function TreeRowsViewport(props: TreeRowsViewportProps) {
 							// compositor layers go blank in WKWebView (Tauri macOS)
 							// after paper open / tree refresh until the next scroll.
 							top: vi.start,
-							paddingLeft: depth * 12,
 						}}
 					>
-						{renderRow(row, props)}
+						{renderRow(row, props, depth)}
 					</div>
 				);
 			})}
