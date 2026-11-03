@@ -264,7 +264,11 @@ fn apple_quote(value: &str) -> String {
 #[cfg(windows)]
 fn launch_installed(id: &str, cwd: &Path) -> Result<(), AppError> {
     match id {
-        "wt" => spawn(Command::new("wt.exe").arg("-d").arg(cwd)),
+        "wt" => {
+            let mut command = Command::new("wt.exe");
+            command.arg("-d").arg(cwd);
+            spawn(command)
+        }
         "powershell" => {
             let mut command = Command::new("cmd.exe");
             command
