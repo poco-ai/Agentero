@@ -149,6 +149,7 @@ nav:
       - PDF 布局翻译取消后覆盖新任务: bug_fix/pdf-layout-translation-cancellation-race.md
       - "Windows PDF 翻页随机跳到首尾页（#539）": bug_fix/pdf-windows-scroll-endpoint-jump.md
       - "Windows PDF 滚动跳回已保存位置（#427）": bug_fix/pdf-windows-scroll-restore-jump.md
+      - "写作分栏 PDF 拖选带出源码原生选区（#895）": bug_fix/writing-pdf-native-selection-leak.md
       - Pi ACP 未使用 Vault 工作目录: bug_fix/pi-acp-vault-cwd.md
       - 左侧文件树偶发黑屏: bug_fix/vault-sidebar-blank-until-scroll.md
       - 左侧栏收起后文件树跳回顶部: bug_fix/vault-sidebar-jump-to-top.md
