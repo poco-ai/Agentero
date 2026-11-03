@@ -31,7 +31,9 @@
 		"copy": "复制代码",
 		"copyFailed": "无法复制代码。",
 		"mermaidPreview": "Mermaid 预览",
-		"mermaidPreviewError": "这个 Mermaid 图表暂时无法渲染。"
+		"mermaidPreviewError": "这个 Mermaid 图表暂时无法渲染。",
+		"editSource": "编辑 Mermaid 源码",
+		"showDiagram": "显示图表"
 	},
 	"image": {
 		"noFile": "请先将笔记保存为文件，再插入图片。",
