@@ -1,5 +1,6 @@
-//! Commit the writing folder (`thesis/`) and push it to the GitHub repository
-//! the user configured. Build products are gitignored. Nothing here runs on autosave.
+//! Commit one writing project (`thesis/<project>/`) to the GitHub repository
+//! bound to it. Older vaults keep `thesis/` itself as the project. Build
+//! products are gitignored. Nothing here runs on autosave.
 
 use crate::core::error::{ApiResult, AppError};
 use serde::Serialize;
@@ -93,11 +94,11 @@ fn report(
 #[tauri::command]
 #[specta::specta]
 pub async fn writing_sync_project(
-    thesis_dir: String,
+    project_dir: String,
     remote: String,
     branch: String,
 ) -> ApiResult<WritingSyncReport> {
-    match sync_shelf(Path::new(&thesis_dir), &remote, &branch).await {
+    match sync_project(Path::new(&project_dir), &remote, &branch).await {
         Ok(value) => ApiResult::ok(value),
         Err(err) => ApiResult::err(err),
     }
@@ -105,8 +106,8 @@ pub async fn writing_sync_project(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn writing_git_log(thesis_dir: String) -> ApiResult<WritingGitLog> {
-    match read_git_log(Path::new(&thesis_dir)).await {
+pub async fn writing_git_log(project_dir: String) -> ApiResult<WritingGitLog> {
+    match read_git_log(Path::new(&project_dir)).await {
         Ok(value) => ApiResult::ok(value),
         Err(err) => ApiResult::err(err),
     }
@@ -114,8 +115,8 @@ pub async fn writing_git_log(thesis_dir: String) -> ApiResult<WritingGitLog> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn writing_git_diff(thesis_dir: String, commit: String) -> ApiResult<WritingGitDiff> {
-    match read_git_diff(Path::new(&thesis_dir), &commit).await {
+pub async fn writing_git_diff(project_dir: String, commit: String) -> ApiResult<WritingGitDiff> {
+    match read_git_diff(Path::new(&project_dir), &commit).await {
         Ok(value) => ApiResult::ok(value),
         Err(err) => ApiResult::err(err),
     }
@@ -124,26 +125,26 @@ pub async fn writing_git_diff(thesis_dir: String, commit: String) -> ApiResult<W
 #[tauri::command]
 #[specta::specta]
 pub async fn writing_git_restore(
-    thesis_dir: String,
+    project_dir: String,
     commit: String,
 ) -> ApiResult<WritingSyncReport> {
-    match restore_tree(Path::new(&thesis_dir), &commit).await {
+    match restore_tree(Path::new(&project_dir), &commit).await {
         Ok(value) => ApiResult::ok(value),
         Err(err) => ApiResult::err(err),
     }
 }
 
-async fn read_git_log(thesis_dir: &Path) -> Result<WritingGitLog, AppError> {
-    if !thesis_dir.is_dir() {
+async fn read_git_log(project_dir: &Path) -> Result<WritingGitLog, AppError> {
+    if !project_dir.is_dir() {
         return Ok(WritingGitLog {
             code: "no_repo".into(),
             commits: Vec::new(),
         });
     }
-    let dir = thesis_dir
+    let dir = project_dir
         .canonicalize()
         .map_err(|err| AppError::message(err.to_string()))?;
-    if !thesis_dir_ok(&dir) {
+    if !writing_project_dir_ok(&dir) {
         return Ok(WritingGitLog {
             code: "no_repo".into(),
             commits: Vec::new(),
@@ -325,7 +326,7 @@ fn chrono_now() -> i64 {
         .unwrap_or(0)
 }
 
-async fn read_git_diff(thesis_dir: &Path, commit: &str) -> Result<WritingGitDiff, AppError> {
+async fn read_git_diff(project_dir: &Path, commit: &str) -> Result<WritingGitDiff, AppError> {
     if !valid_commit(commit) {
         return Ok(WritingGitDiff {
             code: "missing".into(),
@@ -333,13 +334,13 @@ async fn read_git_diff(thesis_dir: &Path, commit: &str) -> Result<WritingGitDiff
             truncated: false,
         });
     }
-    if !thesis_dir.is_dir() {
+    if !project_dir.is_dir() {
         return Ok(empty_diff("no_repo"));
     }
-    let dir = thesis_dir
+    let dir = project_dir
         .canonicalize()
         .map_err(|err| AppError::message(err.to_string()))?;
-    if !thesis_dir_ok(&dir) || !dir.join(".git").exists() {
+    if !writing_project_dir_ok(&dir) || !dir.join(".git").exists() {
         return Ok(empty_diff("no_repo"));
     }
     let Some(git) = find_git() else {
@@ -370,17 +371,17 @@ async fn read_git_diff(thesis_dir: &Path, commit: &str) -> Result<WritingGitDiff
 
 /// Put the working tree back at `commit` without moving HEAD, so the next
 /// upload records the restore as a new change.
-async fn restore_tree(thesis_dir: &Path, commit: &str) -> Result<WritingSyncReport, AppError> {
+async fn restore_tree(project_dir: &Path, commit: &str) -> Result<WritingSyncReport, AppError> {
     if commit == "pending" || !valid_commit(commit) {
         return Err(AppError::message("invalid commit"));
     }
-    if !thesis_dir.is_dir() {
+    if !project_dir.is_dir() {
         return Ok(report(false, false, false, "no_repo", ""));
     }
-    let dir = thesis_dir
+    let dir = project_dir
         .canonicalize()
         .map_err(|err| AppError::message(err.to_string()))?;
-    if !thesis_dir_ok(&dir) || !dir.join(".git").exists() {
+    if !writing_project_dir_ok(&dir) || !dir.join(".git").exists() {
         return Ok(report(false, false, false, "no_repo", ""));
     }
     let Some(git) = find_git() else {
@@ -435,18 +436,18 @@ fn find_git() -> Option<PathBuf> {
     candidates.into_iter().find(|path| path.is_file())
 }
 
-async fn sync_shelf(
-    thesis_dir: &Path,
+async fn sync_project(
+    project_dir: &Path,
     remote_input: &str,
     branch_input: &str,
 ) -> Result<WritingSyncReport, AppError> {
-    if !thesis_dir.is_dir() {
+    if !project_dir.is_dir() {
         return Ok(report(false, false, false, "missing", ""));
     }
-    let dir = thesis_dir
+    let dir = project_dir
         .canonicalize()
         .map_err(|err| AppError::message(err.to_string()))?;
-    if !thesis_dir_ok(&dir) {
+    if !writing_project_dir_ok(&dir) {
         return Ok(report(false, false, false, "invalid_dir", ""));
     }
     let Some(remote) = normalize_github_remote(remote_input) else {
@@ -554,12 +555,22 @@ async fn sync_shelf(
     Ok(network_failure(clip_output(&pushed)))
 }
 
-fn thesis_dir_ok(path: &Path) -> bool {
-    path.is_dir()
-        && path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| name.eq_ignore_ascii_case("thesis"))
+/// A project repository lives in one folder under `thesis/`, or in `thesis/`
+/// itself for older vaults whose main file sits directly on the shelf.
+fn writing_project_dir_ok(path: &Path) -> bool {
+    if !path.is_dir() {
+        return false;
+    }
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    if name.eq_ignore_ascii_case("thesis") {
+        return true;
+    }
+    path.parent()
+        .and_then(|parent| parent.file_name())
+        .and_then(|parent| parent.to_str())
+        .is_some_and(|parent| parent.eq_ignore_ascii_case("thesis"))
 }
 
 fn normalize_github_remote(input: &str) -> Option<String> {
@@ -808,8 +819,23 @@ async fn git_run(
 mod tests {
     use super::{
         commit_message, is_auth, is_conflict, merge_gitignore, normalize_branch,
-        normalize_github_remote, parse_git_log,
+        normalize_github_remote, parse_git_log, writing_project_dir_ok,
     };
+
+    #[test]
+    fn keeps_the_repository_inside_one_project_folder() {
+        let root = tempfile::tempdir().unwrap();
+        let shelf = root.path().join("thesis");
+        let project = shelf.join("paper-a");
+        let nested = project.join("sections");
+        std::fs::create_dir_all(&nested).unwrap();
+        assert!(writing_project_dir_ok(&shelf));
+        assert!(writing_project_dir_ok(&project));
+        assert!(!writing_project_dir_ok(&nested));
+        let outside = root.path().join("notes");
+        std::fs::create_dir_all(&outside).unwrap();
+        assert!(!writing_project_dir_ok(&outside));
+    }
 
     #[test]
     fn appends_missing_rules_once() {

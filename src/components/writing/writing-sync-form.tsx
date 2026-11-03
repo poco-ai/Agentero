@@ -1,13 +1,14 @@
 /**
- * GitHub repository and upload schedule for the writing folder. App settings
- * and the upload tab share it so both edit the same preferences.
+ * GitHub repository and upload schedule for one writing project. The upload
+ * tab and its dialog share the same fields and preferences.
  */
 
-import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SettingsRow } from "@/components/settings/settings-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -32,17 +33,23 @@ import {
 
 export function WritingSyncForm({
 	vaultPath,
+	project,
 	submitLabel,
 	busy = false,
 	onSaved,
 }: {
 	vaultPath: string | null;
+	/** Vault-relative project folder, which is also its repository root. */
+	project: string | null;
 	submitLabel?: string;
 	busy?: boolean;
 	onSaved?: (link: WritingGitHubLink) => void;
 }) {
 	const { t } = useTranslation(["settings", "sidebar"]);
-	const saved = vaultPath ? readWritingGitHub(vaultPath) : null;
+	const id = useId();
+	const ready = Boolean(vaultPath && project);
+	const saved =
+		vaultPath && project ? readWritingGitHub(vaultPath, project) : null;
 	const [remote, setRemote] = useState(
 		saved ? `https://github.com/${saved.label}` : "",
 	);
@@ -57,7 +64,7 @@ export function WritingSyncForm({
 	);
 
 	function save() {
-		if (!vaultPath) return;
+		if (!vaultPath || !project) return;
 		const parsed = parseGitHubRemote(remote);
 		const nextBranch = normalizeBranch(branch);
 		if (!parsed || !nextBranch) {
@@ -69,7 +76,7 @@ export function WritingSyncForm({
 			branch: nextBranch,
 			label: parsed.label,
 		};
-		writeWritingGitHub(vaultPath, link);
+		writeWritingGitHub(vaultPath, project, link);
 		notifySuccess(t("writing.saved"));
 		onSaved?.(link);
 	}
@@ -82,69 +89,105 @@ export function WritingSyncForm({
 	}
 
 	return (
-		<>
-			<SettingsRow label={t("sidebar:writing.syncRemote")}>
+		<form
+			className="flex flex-col gap-4"
+			onSubmit={(event) => {
+				event.preventDefault();
+				save();
+			}}
+		>
+			<div className="flex flex-col gap-1.5">
+				<Label
+					htmlFor={`${id}-remote`}
+					className="text-muted-foreground text-xs"
+				>
+					{t("sidebar:writing.syncRemote")}
+				</Label>
 				<Input
+					id={`${id}-remote`}
 					value={remote}
 					placeholder={t("sidebar:writing.syncRemotePlaceholder")}
-					className="w-72"
 					autoCapitalize="off"
 					autoCorrect="off"
 					spellCheck={false}
-					disabled={!vaultPath}
+					disabled={!ready}
+					aria-invalid={invalid || undefined}
 					onChange={(event) => {
 						setRemote(event.target.value);
 						setInvalid(false);
 					}}
 				/>
-			</SettingsRow>
-			<SettingsRow label={t("sidebar:writing.syncBranch")}>
-				<Input
-					value={branch}
-					className="w-40"
-					autoCapitalize="off"
-					autoCorrect="off"
-					spellCheck={false}
-					disabled={!vaultPath}
-					onChange={(event) => {
-						setBranch(event.target.value);
-						setInvalid(false);
-					}}
-				/>
-			</SettingsRow>
-			<SettingsRow label={t("writing.uploadMode")}>
-				<Select
-					value={syncMode}
-					disabled={!vaultPath}
-					onValueChange={(value) => {
-						if (
-							value === "manual" ||
-							value === "onCompile" ||
-							value === "interval"
-						) {
-							saveSyncMode(value);
-						}
-					}}
-				>
-					<SelectTrigger size="sm" className="w-44">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="manual">{t("writing.uploadManual")}</SelectItem>
-						<SelectItem value="onCompile">
-							{t("writing.uploadOnCompile")}
-						</SelectItem>
-						<SelectItem value="interval">
-							{t("writing.uploadInterval")}
-						</SelectItem>
-					</SelectContent>
-				</Select>
-			</SettingsRow>
+			</div>
+			<div className="grid grid-cols-2 gap-3">
+				<div className="flex flex-col gap-1.5">
+					<Label
+						htmlFor={`${id}-branch`}
+						className="text-muted-foreground text-xs"
+					>
+						{t("sidebar:writing.syncBranch")}
+					</Label>
+					<Input
+						id={`${id}-branch`}
+						value={branch}
+						autoCapitalize="off"
+						autoCorrect="off"
+						spellCheck={false}
+						disabled={!ready}
+						aria-invalid={invalid || undefined}
+						onChange={(event) => {
+							setBranch(event.target.value);
+							setInvalid(false);
+						}}
+					/>
+				</div>
+				<div className="flex flex-col gap-1.5">
+					<Label
+						htmlFor={`${id}-mode`}
+						className="text-muted-foreground text-xs"
+					>
+						{t("writing.uploadMode")}
+					</Label>
+					<Select
+						value={syncMode}
+						disabled={!ready}
+						onValueChange={(value) => {
+							if (
+								value === "manual" ||
+								value === "onCompile" ||
+								value === "interval"
+							) {
+								saveSyncMode(value);
+							}
+						}}
+					>
+						<SelectTrigger id={`${id}-mode`} className="w-full">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent position="popper" align="start">
+							<SelectItem value="manual">
+								{t("writing.uploadManual")}
+							</SelectItem>
+							<SelectItem value="onCompile">
+								{t("writing.uploadOnCompile")}
+							</SelectItem>
+							<SelectItem value="interval">
+								{t("writing.uploadInterval")}
+							</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
+			</div>
 			{syncMode === "interval" ? (
-				<SettingsRow label={t("writing.uploadEvery")}>
+				<div className="flex flex-col gap-1.5">
+					<Label
+						htmlFor={`${id}-every`}
+						className="text-muted-foreground text-xs"
+					>
+						{t("writing.uploadEvery")}
+					</Label>
 					<Select
 						value={String(syncMinutes)}
-						disabled={!vaultPath}
+						disabled={!ready}
 						onValueChange={(value) => {
 							const minutes = Number(value);
 							if (WRITING_SYNC_INTERVALS.some((item) => item === minutes)) {
@@ -152,10 +195,10 @@ export function WritingSyncForm({
 							}
 						}}
 					>
-						<SelectTrigger size="sm" className="w-44">
+						<SelectTrigger id={`${id}-every`} className="w-full">
 							<SelectValue />
 						</SelectTrigger>
-						<SelectContent>
+						<SelectContent position="popper" align="start">
 							{WRITING_SYNC_INTERVALS.map((minutes) => (
 								<SelectItem key={minutes} value={String(minutes)}>
 									{t("writing.uploadMinutes", { count: minutes })}
@@ -163,24 +206,25 @@ export function WritingSyncForm({
 							))}
 						</SelectContent>
 					</Select>
-				</SettingsRow>
+				</div>
 			) : null}
-			<div className="flex items-center gap-3 px-3.5 py-2.5">
+			<div className="flex items-center gap-3">
 				{invalid ? (
-					<p className="text-muted-foreground text-xs">
+					<p className="text-destructive text-xs leading-snug">
 						{t("sidebar:writing.syncInvalid")}
 					</p>
 				) : null}
-				<Button
-					type="button"
-					size="sm"
-					className="ml-auto"
-					disabled={!vaultPath || busy}
-					onClick={save}
-				>
-					{submitLabel ?? t("writing.save")}
+				<Button type="submit" className="ml-auto" disabled={!ready || busy}>
+					{busy ? (
+						<>
+							<Loader2 className="animate-spin" aria-hidden />
+							{t("sidebar:writing.syncing")}
+						</>
+					) : (
+						(submitLabel ?? t("writing.save"))
+					)}
 				</Button>
 			</div>
-		</>
+		</form>
 	);
 }

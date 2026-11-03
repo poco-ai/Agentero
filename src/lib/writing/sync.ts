@@ -1,5 +1,6 @@
 /**
- * Explicit git sync for the writing folder. Autosave does not call this.
+ * Explicit git sync for one writing project. Each project under `thesis/` has
+ * its own repository. Autosave does not call this.
  */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -14,13 +15,13 @@ export type WritingSyncReport = {
 };
 
 export async function syncWritingProject(
-	thesisDir: string,
+	projectDir: string,
 	remote: string,
 	branch: string,
 ): Promise<WritingSyncReport> {
 	const result = await invoke<ApiResult<WritingSyncReport>>(
 		"writing_sync_project",
-		{ thesisDir, remote, branch },
+		{ projectDir, remote, branch },
 	);
 	if (!result.ok || result.data == null) {
 		throw new Error(result.error?.message ?? "writing_sync_project");
@@ -53,10 +54,10 @@ export type WritingGitDiff = {
 };
 
 export async function loadWritingGitLog(
-	thesisDir: string,
+	projectDir: string,
 ): Promise<WritingGitLog> {
 	const result = await invoke<ApiResult<WritingGitLog>>("writing_git_log", {
-		thesisDir,
+		projectDir,
 	});
 	if (!result.ok || result.data == null) {
 		throw new Error(result.error?.message ?? "writing_git_log");
@@ -65,11 +66,11 @@ export async function loadWritingGitLog(
 }
 
 export async function loadWritingGitDiff(
-	thesisDir: string,
+	projectDir: string,
 	commit: string,
 ): Promise<WritingGitDiff> {
 	const result = await invoke<ApiResult<WritingGitDiff>>("writing_git_diff", {
-		thesisDir,
+		projectDir,
 		commit,
 	});
 	if (!result.ok || result.data == null) {
@@ -79,12 +80,12 @@ export async function loadWritingGitDiff(
 }
 
 export async function restoreWritingRevision(
-	thesisDir: string,
+	projectDir: string,
 	commit: string,
 ): Promise<WritingSyncReport> {
 	const result = await invoke<ApiResult<WritingSyncReport>>(
 		"writing_git_restore",
-		{ thesisDir, commit },
+		{ projectDir, commit },
 	);
 	if (!result.ok || result.data == null) {
 		throw new Error(result.error?.message ?? "writing_git_restore");

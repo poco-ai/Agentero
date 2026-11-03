@@ -3,6 +3,7 @@ import {
 	normalizeBranch,
 	parseGitHubRemote,
 	readWritingGitHub,
+	WRITING_GITHUB_KEY,
 	type WritingGitHubLink,
 	writeWritingGitHub,
 } from "@/lib/writing/github";
@@ -19,6 +20,18 @@ function memory() {
 		},
 	};
 }
+
+const PAPER_A: WritingGitHubLink = {
+	remote: "https://github.com/ada/paper-a.git",
+	branch: "main",
+	label: "ada/paper-a",
+};
+
+const PAPER_B: WritingGitHubLink = {
+	remote: "https://github.com/ada/paper-b.git",
+	branch: "main",
+	label: "ada/paper-b",
+};
 
 describe("writing github link", () => {
 	it("accepts a GitHub repository and rejects anything else", () => {
@@ -38,15 +51,36 @@ describe("writing github link", () => {
 		expect(normalizeBranch("../main")).toBeNull();
 	});
 
-	it("remembers the repository for one vault", () => {
+	it("keeps one repository per project", () => {
 		const storage = memory();
-		const link: WritingGitHubLink = {
+		writeWritingGitHub("D:/vault", "thesis/paper-a", PAPER_A, storage);
+		writeWritingGitHub("D:/vault", "thesis/paper-b", PAPER_B, storage);
+		expect(readWritingGitHub("D:/vault", "thesis/paper-a", storage)).toEqual(
+			PAPER_A,
+		);
+		expect(readWritingGitHub("D:/vault", "thesis/paper-b", storage)).toEqual(
+			PAPER_B,
+		);
+		expect(readWritingGitHub("D:/vault", "thesis/paper-c", storage)).toBeNull();
+		expect(readWritingGitHub("D:/other", "thesis/paper-a", storage)).toBeNull();
+	});
+
+	it("reads the shelf repository written by older builds", () => {
+		const storage = memory();
+		storage.setItem(
+			WRITING_GITHUB_KEY,
+			JSON.stringify({
+				"D:/vault": {
+					remote: "https://github.com/ada/writing",
+					branch: "main",
+				},
+			}),
+		);
+		expect(readWritingGitHub("D:/vault", "thesis", storage)).toEqual({
 			remote: "https://github.com/ada/writing.git",
 			branch: "main",
 			label: "ada/writing",
-		};
-		writeWritingGitHub("D:/vault", link, storage);
-		expect(readWritingGitHub("D:/vault", storage)).toEqual(link);
-		expect(readWritingGitHub("D:/other", storage)).toBeNull();
+		});
+		expect(readWritingGitHub("D:/vault", "thesis/paper-a", storage)).toBeNull();
 	});
 });

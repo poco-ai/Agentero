@@ -10,7 +10,7 @@ import {
 	type StorageLike,
 	writeJsonStorage,
 } from "@/lib/core/storage";
-import { vaultRelativePath } from "@/lib/vault/path";
+import { joinVaultPath, vaultRelativePath } from "@/lib/vault/path";
 
 export const WRITING_STORAGE_KEY = "agentero.writing.v1";
 export const WRITING_RECENT_LIMIT = 8;
@@ -154,6 +154,18 @@ export function writingHistoryProjectRel(
 	if (parts.some((part) => part === "." || part === "..")) return null;
 	if (parts.length === 2) return "thesis";
 	return `${parts[0]}/${parts[1]}`;
+}
+
+/**
+ * Absolute directory that one writing project owns: `thesis/<project>`, or the
+ * shelf itself for older vaults. Each project keeps its own git repository here.
+ */
+export function writingProjectDir(
+	vaultPath: string,
+	filePath: string,
+): string | null {
+	const rel = writingHistoryProjectRel(vaultPath, filePath);
+	return rel ? joinVaultPath(vaultPath, rel) : null;
 }
 
 export function touchRecent(

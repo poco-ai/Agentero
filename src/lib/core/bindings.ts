@@ -759,10 +759,10 @@ export const commands = {
 	jobLatexCompileEnqueue: (args: JobLatexCompileEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_latex_compile_enqueue", { args })),
 	jobJevSmartHighlightsEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_jev_smart_highlights_enqueue", { args })),
 	jevProbeHealth: () => typedError<ApiResult<null>, string>(__TAURI_INVOKE("jev_probe_health")),
-	writingSyncProject: (thesisDir: string, remote: string, branch: string) => __TAURI_INVOKE<ApiResult<WritingSyncReport>>("writing_sync_project", { thesisDir, remote, branch }),
-	writingGitLog: (thesisDir: string) => __TAURI_INVOKE<ApiResult<WritingGitLog>>("writing_git_log", { thesisDir }),
-	writingGitDiff: (thesisDir: string, commit: string) => __TAURI_INVOKE<ApiResult<WritingGitDiff>>("writing_git_diff", { thesisDir, commit }),
-	writingGitRestore: (thesisDir: string, commit: string) => __TAURI_INVOKE<ApiResult<WritingSyncReport>>("writing_git_restore", { thesisDir, commit }),
+	writingSyncProject: (projectDir: string, remote: string, branch: string) => __TAURI_INVOKE<ApiResult<WritingSyncReport>>("writing_sync_project", { projectDir, remote, branch }),
+	writingGitLog: (projectDir: string) => __TAURI_INVOKE<ApiResult<WritingGitLog>>("writing_git_log", { projectDir }),
+	writingGitDiff: (projectDir: string, commit: string) => __TAURI_INVOKE<ApiResult<WritingGitDiff>>("writing_git_diff", { projectDir, commit }),
+	writingGitRestore: (projectDir: string, commit: string) => __TAURI_INVOKE<ApiResult<WritingSyncReport>>("writing_git_restore", { projectDir, commit }),
 };
 
 /** Events */

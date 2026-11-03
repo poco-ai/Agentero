@@ -555,7 +555,6 @@
 		"historyPending": "尚未上传的修改",
 		"historyRestore": "回退到这一版",
 		"historyRestored": "已回退",
-		"historyBack": "返回编辑",
 		"setMainFile": "设为主文件",
 		"mainFile": "主文件",
 		"setMainFileDone": "编译将使用这个文件",
@@ -569,9 +568,9 @@
 		"syncing": "正在上传…",
 		"syncTo": "上传到 {{repo}}",
 		"syncSetup": "连接 GitHub",
-		"syncSetupHint": "整个写作目录会提交并推送到这个仓库。请先在 GitHub 上建好空仓库。编译产物和 PDF 不会上传。登录用系统窗口，密码不会留在这里。",
+		"syncSetupHint": "每个论文项目单独用一个仓库。这个项目的目录会提交并推送到下面填的仓库，编译产物和 PDF 不会上传。请先在 GitHub 上建好空仓库；登录用系统窗口，密码不会留在这里。",
 		"syncRemote": "仓库",
-		"syncRemotePlaceholder": "https://github.com/you/writing",
+		"syncRemotePlaceholder": "https://github.com/you/paper",
 		"syncBranch": "分支",
 		"syncSave": "保存并同步",
 		"syncChange": "更改仓库",
@@ -581,8 +580,8 @@
 		"syncPushed": "已推送到 GitHub",
 		"syncPulled": "已从 GitHub 更新",
 		"syncAuth": "登录 GitHub 后再试。地址正确时，系统会打开登录窗口。",
-		"syncConflict": "写作目录和 GitHub 上都有对不上的改动，这次没有覆盖任何一边。",
-		"syncMissing": "这个文库里还没有写作目录",
+		"syncConflict": "项目和 GitHub 上都有对不上的改动，这次没有覆盖任何一边。",
+		"syncMissing": "找不到这个写作项目",
 		"syncFailed": "同步失败"
 	}
 }

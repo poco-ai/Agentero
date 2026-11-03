@@ -1,5 +1,5 @@
 /**
- * Push the writing folder to its GitHub repository. The toolbar, the upload
+ * Push one writing project to its GitHub repository. The toolbar, the upload
  * tab, and the automatic schedule share this runner.
  */
 
@@ -22,20 +22,25 @@ export function isWritingAutoSyncPaused(): boolean {
 	return autoSyncPaused;
 }
 
+/**
+ * `project` is the vault-relative project folder (`thesis/<name>`), which is
+ * also the repository root.
+ */
 export async function uploadWritingProject(
+	project: string,
 	link: WritingGitHubLink,
 	quiet = false,
 ): Promise<void> {
 	if (quiet && autoSyncPaused) return;
 	const vault = getVaultPath();
-	const thesisDir = vault ? joinVaultPath(vault, "thesis") : "";
-	if (!thesisDir) {
+	const projectDir = vault ? joinVaultPath(vault, project) : "";
+	if (!projectDir) {
 		if (!quiet) notifyError(i18n.t("sidebar:writing.syncMissing"));
 		return;
 	}
 	try {
 		const report = await syncWritingProject(
-			thesisDir,
+			projectDir,
 			link.remote,
 			link.branch,
 		);

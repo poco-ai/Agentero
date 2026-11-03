@@ -52,6 +52,7 @@ import {
 	readWritingGitHub,
 	type WritingGitHubLink,
 } from "@/lib/writing/github";
+import { writingHistoryProjectRel } from "@/lib/writing/session";
 import {
 	closeWritingHistory,
 	openWritingHistory,
@@ -111,13 +112,14 @@ export function WritingPdfBar({
 	const running = display === "running";
 	const ready = enginesLoading || engines.length > 0;
 	const vault = getVaultPath();
+	const project = vault ? writingHistoryProjectRel(vault, rootFile) : null;
 	const historyActive = useStore(writingStore, (state) => state.historyActive);
 	const [engineChoice, setEngineChoice] = useState<TexEngineChoice | null>(
 		null,
 	);
 	const [syncing, setSyncing] = useState(false);
 	const [github, setGithub] = useState<WritingGitHubLink | null>(() =>
-		vault ? readWritingGitHub(vault) : null,
+		vault && project ? readWritingGitHub(vault, project) : null,
 	);
 	const [syncMode, setSyncMode] = useState(() =>
 		vault ? readWritingSyncPrefs(vault).mode : "manual",
@@ -145,19 +147,23 @@ export function WritingPdfBar({
 	useEffect(() => {
 		const refresh = () => {
 			const current = getVaultPath();
-			setGithub(current ? readWritingGitHub(current) : null);
+			setGithub(
+				current && project ? readWritingGitHub(current, project) : null,
+			);
 			const prefs = current ? readWritingSyncPrefs(current) : null;
 			setSyncMode(prefs?.mode ?? "manual");
 			setSyncMinutes(prefs?.intervalMinutes ?? 15);
 		};
+		refresh();
 		window.addEventListener("storage", refresh);
 		return () => window.removeEventListener("storage", refresh);
-	}, []);
+	}, [project]);
 
 	async function runSync(link: WritingGitHubLink, quiet = false) {
+		if (!project) return;
 		setSyncing(true);
 		try {
-			await uploadWritingProject(link, quiet);
+			await uploadWritingProject(project, link, quiet);
 		} finally {
 			setSyncing(false);
 		}
@@ -179,14 +185,15 @@ export function WritingPdfBar({
 			}
 			if (seenJob.current === snap.jobId) return;
 			seenJob.current = snap.jobId;
-			if (!manageSync || !vault || syncMode !== "onCompile" || !github) return;
+			if (!manageSync || !project || syncMode !== "onCompile" || !github)
+				return;
 			if (isWritingAutoSyncPaused()) return;
 			void runSyncRef.current(github, true);
 		});
-	}, [key, vault, syncMode, github, manageSync]);
+	}, [key, project, syncMode, github, manageSync]);
 
 	useEffect(() => {
-		if (!manageSync || !vault || syncMode !== "interval" || !github) return;
+		if (!manageSync || !project || syncMode !== "interval" || !github) return;
 		const timer = window.setInterval(
 			() => {
 				if (isWritingAutoSyncPaused()) return;
@@ -195,12 +202,13 @@ export function WritingPdfBar({
 			syncMinutes * 60 * 1000,
 		);
 		return () => window.clearInterval(timer);
-	}, [vault, syncMode, syncMinutes, github, manageSync]);
+	}, [project, syncMode, syncMinutes, github, manageSync]);
 
 	function syncProject() {
 		resumeWritingAutoSync();
 		const current = getVaultPath();
-		const link = current ? readWritingGitHub(current) : null;
+		const link =
+			current && project ? readWritingGitHub(current, project) : null;
 		setGithub(link);
 		if (!link) {
 			openWritingSync();

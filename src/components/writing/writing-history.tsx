@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useStore } from "zustand";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -14,10 +15,9 @@ import {
 import { errorText } from "@/lib/core/error";
 import { notifyError, notifySuccess } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
-import { joinVaultPath } from "@/lib/vault/path";
-import { getVaultPath } from "@/lib/vault/store";
 import { reloadOpenWritingFiles } from "@/lib/writing/history";
-import { closeWritingHistory } from "@/lib/writing/store";
+import { writingProjectDir } from "@/lib/writing/session";
+import { writingStore } from "@/lib/writing/store";
 import {
 	loadWritingGitDiff,
 	loadWritingGitLog,
@@ -28,7 +28,10 @@ import {
 
 export function WritingHistory() {
 	const { t } = useTranslation("sidebar");
-	const thesisDir = thesisDirectory();
+	const vault = useStore(writingStore, (state) => state.vaultPath);
+	const activeRoot = useStore(writingStore, (state) => state.activeRoot);
+	const projectDir =
+		vault && activeRoot ? writingProjectDir(vault, activeRoot) : "";
 	const [commits, setCommits] = useState<WritingGitCommit[]>([]);
 	const [notice, setNotice] = useState<string | null>(null);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -40,12 +43,12 @@ export function WritingHistory() {
 	const [revision, setRevision] = useState(0);
 
 	useEffect(() => {
-		if (!thesisDir) return;
+		if (!projectDir) return;
 		const generation = revision;
 		let cancelled = false;
 		setLoading(true);
 		setNotice(null);
-		void loadWritingGitLog(thesisDir)
+		void loadWritingGitLog(projectDir)
 			.then((log) => {
 				if (cancelled || generation !== revision) return;
 				setCommits(log.commits);
@@ -66,16 +69,16 @@ export function WritingHistory() {
 		return () => {
 			cancelled = true;
 		};
-	}, [thesisDir, revision, t]);
+	}, [projectDir, revision, t]);
 
 	useEffect(() => {
-		if (!thesisDir || !selectedId) {
+		if (!projectDir || !selectedId) {
 			setPatch("");
 			return;
 		}
 		let cancelled = false;
 		setPatchLoading(true);
-		void loadWritingGitDiff(thesisDir, selectedId)
+		void loadWritingGitDiff(projectDir, selectedId)
 			.then((diff) => {
 				if (!cancelled) setPatch(diff.patch);
 			})
@@ -88,16 +91,16 @@ export function WritingHistory() {
 		return () => {
 			cancelled = true;
 		};
-	}, [thesisDir, selectedId]);
+	}, [projectDir, selectedId]);
 
 	const selected = commits.find((commit) => commit.id === selectedId) ?? null;
 	const canRestore = selected != null && selected.id !== "pending";
 
 	async function restore() {
-		if (!thesisDir || !selected || selected.id === "pending") return;
+		if (!projectDir || !selected || selected.id === "pending") return;
 		setRestoring(true);
 		try {
-			const report = await restoreWritingRevision(thesisDir, selected.id);
+			const report = await restoreWritingRevision(projectDir, selected.id);
 			if (report.code !== "restored") {
 				notifyError(
 					report.code === "git_missing"
@@ -120,17 +123,14 @@ export function WritingHistory() {
 	return (
 		<div className="flex h-full min-h-0 min-w-0">
 			<div className="flex w-56 shrink-0 flex-col border-r border-border">
-				<div className="flex h-10 shrink-0 items-center border-b border-border px-3">
-					<span className="text-sm font-medium">{t("writing.historyTab")}</span>
-				</div>
-				<div className="min-h-0 flex-1 overflow-auto p-1">
+				<div className="min-h-0 flex-1 overflow-auto p-2">
 					{loading ? (
 						<p className="text-muted-foreground px-2 py-1.5 text-xs">
 							{t("writing.loading")}
 						</p>
 					) : null}
 					{!loading && commits.length === 0 ? (
-						<p className="text-muted-foreground px-2 py-1.5 text-xs">
+						<p className="text-muted-foreground flex h-full items-center justify-center px-3 text-center text-xs leading-relaxed">
 							{notice}
 						</p>
 					) : null}
@@ -156,45 +156,29 @@ export function WritingHistory() {
 						</button>
 					))}
 				</div>
-			</div>
-			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
-				<div className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
-					<span className="min-w-0 flex-1 truncate text-sm">
-						{selected
-							? selected.id === "pending"
-								? t("writing.historyPending")
-								: formatWhen(selected.at)
-							: ""}
-					</span>
-					{canRestore ? (
+				{canRestore ? (
+					<div className="shrink-0 px-2 pb-2">
 						<Button
 							type="button"
 							variant="outline"
 							size="sm"
+							className="w-full"
 							disabled={restoring}
 							onClick={() => setConfirming(true)}
 						>
 							{t("writing.historyRestore")}
 						</Button>
-					) : null}
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						onClick={() => closeWritingHistory()}
-					>
-						{t("writing.historyBack")}
-					</Button>
-				</div>
-				<div className="min-h-0 flex-1 overflow-auto">
-					{patchLoading ? (
-						<p className="text-muted-foreground px-3 py-2 text-xs">
-							{t("writing.loading")}
-						</p>
-					) : (
-						<DiffDocument patch={patch} />
-					)}
-				</div>
+					</div>
+				) : null}
+			</div>
+			<div className="min-h-0 min-w-0 flex-1 overflow-auto">
+				{patchLoading ? (
+					<p className="text-muted-foreground px-3 py-2 text-xs">
+						{t("writing.loading")}
+					</p>
+				) : (
+					<DiffDocument patch={patch} />
+				)}
 			</div>
 			<Dialog
 				open={confirming}
@@ -297,9 +281,4 @@ function formatWhen(at: number): string {
 		hour: "2-digit",
 		minute: "2-digit",
 	}).format(new Date(at * 1000));
-}
-
-function thesisDirectory(): string {
-	const vault = getVaultPath();
-	return vault ? joinVaultPath(vault, "thesis") : "";
 }
