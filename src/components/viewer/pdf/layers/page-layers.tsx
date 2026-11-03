@@ -667,18 +667,14 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		marks.visualCropRegion?.page === pageNumber
 			? marks.visualCropRegion.region
 			: null;
-	const focus = marks.focusedLayoutRegion;
+	const focusedLayoutOnPage =
+		marks.focusedLayoutRegion?.pageIndex === pageIndex
+			? marks.focusedLayoutRegion
+			: null;
 	const persistentRegion =
 		marks.persistentRegion?.pageIndex === pageIndex
 			? marks.persistentRegion
 			: null;
-	const focusedLayoutsOnPage = focus?.highlights
-		? focus.highlights
-				.filter((hit) => hit.pageIndex === pageIndex)
-				.map((hit, index) => ({ ...focus, ...hit, id: `${focus.id}:${index}` }))
-		: focus?.pageIndex === pageIndex
-			? [focus]
-			: [];
 
 	const pins = marks.pinsByPage.get(pageNumber) ?? EMPTY_PINS;
 	const comments = marks.commentsByPage.get(pageNumber) ?? EMPTY_COMMENTS;
@@ -1560,7 +1556,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						aria-hidden="true"
 					/>
 				) : null}
-				{focusedLayoutsOnPage.map((focusedLayoutOnPage) => (
+				{focusedLayoutOnPage ? (
 					<div
 						key={`${focusedLayoutOnPage.id}:${focusedLayoutOnPage.pageIndex}:${focusedLayoutOnPage.bbox.y}:${marks.focusedLayoutFlashToken}`}
 						className={cn(
@@ -1589,7 +1585,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						}
 						aria-hidden="true"
 					/>
-				))}
+				) : null}
 				{/* Active visual mark: default-theme outline of the crop region. */}
 				{activeVisualOnPage
 					? activeVisualOnPage.rects.map((rect) => (

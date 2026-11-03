@@ -11,7 +11,6 @@ import {
 	markTexEditorActive,
 	navigateTexSource,
 	registerTexEditor,
-	texSelectionPoints,
 } from "@/lib/tex/editor-navigation";
 
 const path = "/vault/main.tex";
@@ -118,23 +117,4 @@ describe("TeX source editor pane registry", () => {
 		expect(canonical.fixture.state.selection.main.head).toBe(14);
 		expect(activateCanonical).toHaveBeenCalledOnce();
 	});
-});
-
-it("captures the same selected source range in either direction and excludes an unselected next line", () => {
-	const { view, fixture } = editor(0, true);
-	fixture.state = EditorState.create({
-		doc: "first\nsecond\nthird",
-		selection: { anchor: 13, head: 0 },
-	});
-	const points = texSelectionPoints(view);
-	expect(points).toEqual([
-		{ line: 1, column: 1 },
-		{ line: 1, column: 5 },
-		{ line: 2, column: 1 },
-		{ line: 2, column: 6 },
-	]);
-	fixture.state = fixture.state.update({
-		selection: { anchor: 0, head: 13 },
-	}).state;
-	expect(texSelectionPoints(view)).toEqual(points);
 });

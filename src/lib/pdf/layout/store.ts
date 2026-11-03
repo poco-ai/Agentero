@@ -16,7 +16,6 @@ import type {
 
 /** Inline geometry when focus id is absent from sidebar `regions` (citation jumps). */
 export type FocusedLayoutSnapshot = {
-	highlights?: PdfLayoutRegion["highlights"];
 	pageIndex: number;
 	bbox: PdfAskNormalizedRect;
 	kind: PdfLayoutKind;
@@ -273,7 +272,6 @@ function regionFromSnapshot(
 		readingOrder: 0,
 		rect: { x: 0, y: 0, w: 0, h: 0 },
 		bbox,
-		...(snapshot.highlights ? { highlights: snapshot.highlights } : {}),
 	};
 }
 

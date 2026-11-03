@@ -6,7 +6,6 @@ import {
 	layoutAnalysisStore,
 	layoutDocumentKey,
 	mirrorLayoutResultToTranslation,
-	setFocusedLayoutRegion,
 	setLayoutDocumentResult,
 	translationSourceKey,
 } from "@/lib/pdf/layout/store";
@@ -139,29 +138,4 @@ describe("mirrorLayoutResultToTranslation", () => {
 		setLayoutDocumentResult({ ...result("papers/x.pdf"), updatedAt: 99 });
 		expect(getLayoutDocumentResult("papers/x.pdf::translation")).toBe(second);
 	});
-});
-
-it("keeps separate cross-page navigation boxes in the focus snapshot", () => {
-	const bbox = { x: 0.1, y: 0.2, w: 0.3, h: 0.02 };
-	const highlights = [
-		{ pageIndex: 0, bbox },
-		{ pageIndex: 1, bbox: { ...bbox, y: 0.1 } },
-	];
-	setFocusedLayoutRegion(
-		"paper",
-		"synctex:selection",
-		{ pageIndex: 0, bbox, kind: "text", highlights },
-		{ flash: true },
-	);
-	expect(layoutAnalysisStore.getState().focused?.region?.highlights).toEqual(
-		highlights,
-	);
-	setFocusedLayoutRegion("paper", "single", {
-		pageIndex: 0,
-		bbox,
-		kind: "text",
-	});
-	expect(
-		layoutAnalysisStore.getState().focused?.region?.highlights,
-	).toBeUndefined();
 });

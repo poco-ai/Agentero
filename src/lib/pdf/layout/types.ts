@@ -43,8 +43,6 @@ export type DocumentAnchorRegion = {
  * equation-id text into `title`.
  */
 export type PdfLayoutRegion = {
-	/** Disjoint navigation highlights, potentially spanning pages. */
-	highlights?: { pageIndex: number; bbox: PdfAskNormalizedRect }[];
 	id: string;
 	/** 0-based page index (EmbedPDF). */
 	pageIndex: number;

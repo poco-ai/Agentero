@@ -7,7 +7,6 @@ export type PdfNavigationRegion = {
 	pageIndex: number;
 	bbox: PdfAskNormalizedRect;
 	kind?: PdfLayoutKind;
-	highlights?: { pageIndex: number; bbox: PdfAskNormalizedRect }[];
 };
 export type PdfNavigationTarget = {
 	page: number;

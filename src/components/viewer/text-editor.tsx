@@ -37,7 +37,6 @@ import {
 import {
 	markTexEditorActive,
 	registerTexEditor,
-	texSelectionPoints,
 } from "@/lib/tex/editor-navigation";
 import { type TexOutlineItem, texOutlineFromTree } from "@/lib/tex/outline";
 import { isInsideProject } from "@/lib/tex/project";
@@ -201,12 +200,9 @@ export function TextEditor({
 						pathRef.current,
 						line.number,
 						position - line.from + 1,
-						{
-							selection: texSelectionPoints(view),
-							...(writingStore.getState().surface === "writing"
-								? { scope: "writing" as const }
-								: {}),
-						},
+						writingStore.getState().surface === "writing"
+							? { scope: "writing" as const }
+							: undefined,
 					);
 					return true;
 				},

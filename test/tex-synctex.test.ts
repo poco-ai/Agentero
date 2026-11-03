@@ -324,35 +324,3 @@ describe("compiled PDF SyncTeX routing", () => {
 		offCurrent();
 	});
 });
-
-it("preserves disjoint selection matches across pages and deduplicates before queued delivery", async () => {
-	const second = { ...location, page: 4, y: 30 };
-	mocks.forward
-		.mockResolvedValueOnce([location, location])
-		.mockResolvedValueOnce([second]);
-	await syncTexToPdf("/vault/thesis/chapter.tex", 12, 7, {
-		scope: "writing",
-		selection: [
-			{ line: 10, column: 1 },
-			{ line: 12, column: 7 },
-		],
-	});
-	const navigate = vi.fn();
-	const off = registerTexPdfViewer("/vault/thesis/build/paper.pdf", {
-		scope: "writing",
-		navigate,
-		isActive: () => true,
-	});
-	expect(navigate).toHaveBeenCalledExactlyOnceWith({
-		...location,
-		highlights: [location, second],
-	});
-	expect(mocks.forward).toHaveBeenNthCalledWith(
-		1,
-		"/vault/thesis/build/paper.pdf",
-		"/vault/thesis/chapter.tex",
-		10,
-		1,
-	);
-	off();
-});
