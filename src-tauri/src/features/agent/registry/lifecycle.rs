@@ -2230,13 +2230,18 @@ mod tests {
             "qoder install must fall back to npm: {cmd}"
         );
         let update = host_update_command("qodercli").expect("qoder update");
+        let update_text = if cfg!(target_os = "windows") {
+            format!("{update}\n{}", decode_encoded_commands(&update))
+        } else {
+            update.clone()
+        };
         assert!(
-            update.contains("qodercli update"),
-            "qoder update must try the built-in updater: {update}"
+            update_text.contains("qodercli update"),
+            "qoder update must try the built-in updater: {update_text}"
         );
         assert!(
-            update.contains("qoder.com/install"),
-            "qoder update must fall back to the official installer"
+            update_text.contains("qoder.com/install"),
+            "qoder update must fall back to the official installer: {update_text}"
         );
         let info = uninstall_info("qodercli").expect("qoder uninstall");
         assert!(info
@@ -2585,21 +2590,31 @@ mod tests {
         assert_eq!(all.npm_commands.len(), 2);
     }
 
+    /// `Some(None)` means the child variable is explicitly removed.
+    fn configured_var(cmd: &std::process::Command, key: &str) -> Option<Option<String>> {
+        cmd.get_envs().find_map(|(name, value)| {
+            name.to_string_lossy()
+                .eq_ignore_ascii_case(key)
+                .then(|| value.map(|value| value.to_string_lossy().into_owned()))
+        })
+    }
+
     #[test]
     fn proxy_env_is_injected_into_lifecycle_command() {
-        let mut cmd = std::process::Command::new("env");
+        let mut cmd = std::process::Command::new("agentero");
         apply_proxy_env_to_command(&mut cmd, true, "http://127.0.0.1:7890");
-        let output = cmd.output().expect("run env");
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("HTTP_PROXY=http://127.0.0.1:7890"));
-        assert!(stdout.contains("HTTPS_PROXY=http://127.0.0.1:7890"));
-        assert!(stdout.contains("ALL_PROXY=http://127.0.0.1:7890"));
+        for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
+            assert_eq!(
+                configured_var(&cmd, key),
+                Some(Some("http://127.0.0.1:7890".to_string())),
+                "{key}"
+            );
+        }
         // Loopback bypass keeps localhost traffic out of the proxy. The ambient
         // NO_PROXY list is preserved, so only assert membership, not order.
-        let no_proxy = stdout
-            .lines()
-            .find_map(|line| line.strip_prefix("NO_PROXY="))
-            .expect("NO_PROXY is set");
+        let no_proxy = configured_var(&cmd, "NO_PROXY")
+            .expect("NO_PROXY is set")
+            .expect("NO_PROXY is not removed");
         for host in ["127.0.0.1", "localhost", "::1"] {
             assert!(
                 no_proxy
@@ -2612,28 +2627,29 @@ mod tests {
 
     #[test]
     fn proxy_env_is_cleared_when_disabled() {
-        let mut cmd = std::process::Command::new("env");
-        // Start with a proxy var in the inherited env.
+        let mut cmd = std::process::Command::new("agentero");
+        // Start with a proxy var that the disabled proxy must take back off.
         cmd.env("HTTP_PROXY", "http://old");
         apply_proxy_env_to_command(&mut cmd, false, "http://127.0.0.1:7890");
-        let output = cmd.output().expect("run env");
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(!stdout.contains("HTTP_PROXY"));
-        assert!(!stdout.contains("HTTPS_PROXY"));
-        assert!(!stdout.contains("ALL_PROXY"));
+        for key in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
+            assert_eq!(
+                configured_var(&cmd, key),
+                Some(None),
+                "{key} must be removed from the child"
+            );
+        }
     }
 
     #[test]
     fn npm_cache_env_keeps_a_writable_default() {
         let writable = std::env::temp_dir().join("agentero-npm-cache-test-ok");
         fs::create_dir_all(&writable).expect("create probe dir");
-        let mut cmd = std::process::Command::new("env");
+        let mut cmd = std::process::Command::new("agentero");
         apply_npm_cache_env(&mut cmd, Some(&writable));
-        let output = cmd.output().expect("run env");
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(
-            !stdout.contains("npm_config_cache="),
-            "a healthy cache must be left alone: {stdout}"
+        assert_eq!(
+            configured_var(&cmd, "npm_config_cache"),
+            None,
+            "a healthy cache must be left alone"
         );
         let _ = fs::remove_dir_all(&writable);
     }
@@ -2655,13 +2671,13 @@ mod tests {
     fn npm_cache_env_injects_managed_cache_when_default_unwritable() {
         let file = std::env::temp_dir().join("agentero-npm-cache-test-file-2");
         fs::write(&file, b"x").expect("write probe file");
-        let mut cmd = std::process::Command::new("env");
+        let mut cmd = std::process::Command::new("agentero");
         apply_npm_cache_env(&mut cmd, Some(&file));
-        let output = cmd.output().expect("run env");
-        let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(
-            stdout.contains("npm_config_cache="),
-            "unwritable default must be replaced: {stdout}"
+            configured_var(&cmd, "npm_config_cache")
+                .and_then(|value| value)
+                .is_some(),
+            "unwritable default must be replaced"
         );
         let _ = fs::remove_file(&file);
     }

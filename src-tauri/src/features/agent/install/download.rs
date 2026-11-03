@@ -365,9 +365,10 @@ mod tests {
                 .as_nanos()
         ));
         fs::create_dir_all(&dir).unwrap();
-        let dest = dir.join("agentero");
+        let name = archive_inner_name();
+        let dest = dir.join(name);
 
-        // Build a minimal tar.gz with a single `agentero` member.
+        // Build a minimal tar.gz whose member name matches this platform.
         let mut tar_buf = Vec::new();
         {
             let mut builder = tar::Builder::new(&mut tar_buf);
@@ -377,7 +378,7 @@ mod tests {
             header.set_mode(0o755);
             header.set_cksum();
             builder
-                .append_data(&mut header, "agentero", data.as_slice())
+                .append_data(&mut header, name, data.as_slice())
                 .unwrap();
             builder.finish().unwrap();
         }

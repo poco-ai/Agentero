@@ -294,6 +294,11 @@ pub async fn latex_build_artifacts(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn portable(value: &str) -> String {
+        value.replace('\\', "/")
+    }
+
     #[test]
     fn custom_artifacts_keep_output_and_aux_separate() {
         let options = LatexBuildOptions {
@@ -303,8 +308,8 @@ mod tests {
             ..Default::default()
         };
         let paths = artifacts(std::path::Path::new("/project/main.tex"), &options).unwrap();
-        assert_eq!(paths.pdf_path, "/project/build/draft.pdf");
-        assert_eq!(paths.fls_path, "/project/aux/draft.fls");
+        assert_eq!(portable(&paths.pdf_path), "/project/build/draft.pdf");
+        assert_eq!(portable(&paths.fls_path), "/project/aux/draft.fls");
         assert!(artifacts(
             std::path::Path::new("/project/main.tex"),
             &LatexBuildOptions {
@@ -337,9 +342,11 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            artifacts(std::path::Path::new("/project/main.tex"), &options)
-                .unwrap()
-                .pdf_path,
+            portable(
+                &artifacts(std::path::Path::new("/project/main.tex"), &options)
+                    .unwrap()
+                    .pdf_path,
+            ),
             "/project/final/main.pdf"
         );
     }

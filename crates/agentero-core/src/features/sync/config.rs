@@ -738,14 +738,22 @@ mod tests {
 
     #[test]
     fn git_remote_validation_accepts_supported_transports() {
-        for remote in [
-            "https://github.com/u/papers.git",
-            "ssh://git@example.com/u/papers.git",
-            "git@github.com:u/papers.git",
-            "file:///tmp/papers.git",
-            "/tmp/papers.git",
-            "http://127.0.0.1:9000/papers.git",
-        ] {
+        let local = std::env::temp_dir().join("papers.git");
+        let local_slash = local.to_string_lossy().replace('\\', "/");
+        let file_url = if local_slash.starts_with('/') {
+            format!("file://{local_slash}")
+        } else {
+            format!("file:///{local_slash}")
+        };
+        let remotes = [
+            "https://github.com/u/papers.git".to_string(),
+            "ssh://git@example.com/u/papers.git".to_string(),
+            "git@github.com:u/papers.git".to_string(),
+            file_url,
+            local.to_string_lossy().into_owned(),
+            "http://127.0.0.1:9000/papers.git".to_string(),
+        ];
+        for remote in &remotes {
             assert!(
                 git_config(remote, "main").validate().is_ok(),
                 "remote {remote:?} should be accepted"

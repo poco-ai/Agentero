@@ -711,7 +711,14 @@ mod tests {
     fn normalize_vault_rel_rejects_escape_and_absolute() {
         assert!(normalize_vault_rel("../etc").is_err());
         assert!(normalize_vault_rel("papers/../../etc").is_err());
-        assert!(normalize_vault_rel("/abs/paper").is_err());
+        // `/abs/paper` is not absolute on Windows, so it would be accepted as
+        // `abs/paper`. Reject a path that is absolute on this platform.
+        let absolute = if cfg!(windows) {
+            r"C:\abs\paper"
+        } else {
+            "/abs/paper"
+        };
+        assert!(normalize_vault_rel(absolute).is_err());
         assert!(normalize_vault_rel("   ").is_err());
     }
 

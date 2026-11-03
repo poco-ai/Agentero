@@ -1310,10 +1310,10 @@ mod tests {
         let err = sync_vault(&b, &cfg, noop_progress()).await.unwrap_err();
         assert_eq!(err.code(), "sync_conflict", "{err}");
         assert!(err.to_string().contains("papers/x/NOTES.md"), "{err}");
-        assert_eq!(
-            fs::read_to_string(b.join("papers/x/NOTES.md")).unwrap(),
-            "# x\nB version\n"
-        );
+        let notes = fs::read_to_string(b.join("papers/x/NOTES.md"))
+            .unwrap()
+            .replace("\r\n", "\n");
+        assert_eq!(notes, "# x\nB version\n");
         assert!(!run_git(&b, &["rev-parse", "--verify", "-q", "MERGE_HEAD"])
             .status
             .success());

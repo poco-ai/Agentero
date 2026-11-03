@@ -690,16 +690,23 @@ pub(super) async fn run_latexmk(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Compile paths are `Path` joins, so Windows stores `\` where these
+    /// fixtures were written with `/`.
+    fn portable(value: &str) -> String {
+        value.replace('\\', "/")
+    }
+
     #[test]
     fn recipe_expansion_keeps_spaces_as_a_single_argument() {
         let root = Path::new("/project with spaces/main.tex");
         let artifact = artifacts(root, &Default::default()).unwrap();
         assert_eq!(
-            expand("%DOC%", root, &artifact),
+            portable(&expand("%DOC%", root, &artifact)),
             "/project with spaces/main.tex"
         );
         assert_eq!(
-            expand("%OUTDIR%/%JOBNAME%.pdf", root, &artifact),
+            portable(&expand("%OUTDIR%/%JOBNAME%.pdf", root, &artifact)),
             "/project with spaces/main.pdf"
         );
     }
@@ -750,11 +757,13 @@ mod tests {
             ..Default::default()
         };
         let artifact = artifacts(root, &options).unwrap();
-        assert_eq!(artifact.pdf_path, "/project/build/out/main.pdf");
+        assert_eq!(portable(&artifact.pdf_path), "/project/build/out/main.pdf");
         let cwd = tool_directory(&tool, root, &artifact);
         assert_eq!(
-            executable_path(&tool.command, &cwd, &BTreeMap::new()),
-            Some(PathBuf::from("/project/build/scripts/build.sh"))
+            executable_path(&tool.command, &cwd, &BTreeMap::new())
+                .as_ref()
+                .map(|path| portable(&path.to_string_lossy())),
+            Some("/project/build/scripts/build.sh".to_string())
         );
         assert_eq!(tool_arguments(&tool, root, &artifact, &options)[1], "out");
     }
@@ -897,12 +906,15 @@ mod tests {
                 ..Default::default()
             };
             let artifact = artifacts(root, &options).unwrap();
-            let args = tool_arguments(&tool, root, &artifact, &options);
+            let args: Vec<String> = tool_arguments(&tool, root, &artifact, &options)
+                .into_iter()
+                .map(|arg| portable(&arg))
+                .collect();
             assert!(args.contains(&"-outdir=/project/build".into()));
             assert!(args.contains(&"-auxdir=/project/cache".into()));
             assert!(args.contains(&"-jobname=draft".into()));
             assert_eq!(args.last().unwrap(), "/project/main.tex");
-            assert_eq!(artifact.pdf_path, "/project/build/draft.pdf");
+            assert_eq!(portable(&artifact.pdf_path), "/project/build/draft.pdf");
         }
     }
 

@@ -454,12 +454,17 @@ mod tests {
         .unwrap();
         assert!(read_tex(dir.path()).is_none());
         fs::write(other.path().join("private.tex"), "PRIVATE-SENTINEL").unwrap();
+        // `Display` uses `\` on Windows, which the TeX scanner treats as an
+        // escape and keeps verbatim. A slash-separated absolute path is still
+        // outside the paper and must not be read.
+        let outside = other
+            .path()
+            .join("private.tex")
+            .to_string_lossy()
+            .replace('\\', "/");
         fs::write(
             dir.path().join("main.tex"),
-            format!(
-                "\\documentclass{{article}}\\input{{{}}}",
-                other.path().join("private.tex").display()
-            ),
+            format!("\\documentclass{{article}}\\input{{{outside}}}"),
         )
         .unwrap();
         assert!(read_tex(dir.path()).is_none());

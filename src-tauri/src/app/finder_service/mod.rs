@@ -411,7 +411,8 @@ mod tests {
     fn workflow_root_is_in_user_services() {
         let root = workflow_root();
         assert!(root.ends_with(format!("{WORKFLOW_NAME}.workflow")));
-        assert!(root.to_string_lossy().contains("Library/Services"));
+        let text = root.to_string_lossy().replace('\\', "/");
+        assert!(text.contains("Library/Services"), "{text}");
     }
 
     #[test]

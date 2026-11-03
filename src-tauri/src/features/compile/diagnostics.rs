@@ -272,6 +272,11 @@ pub fn read_fls(path: &Path, cwd: &Path) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn portable(value: &str) -> String {
+        value.replace('\\', "/")
+    }
+
     #[test]
     fn parses_windows_and_unix_file_line_errors_and_warnings() {
         let found = parse_diagnostics("C:\\work\\chapter.tex:42: Undefined control sequence.\n./intro.tex:8: LaTeX Warning: Reference missing.\n! Missing $ inserted.\nl.9 text\nOverfull \\hbox (3pt too wide) at lines 10--11", Path::new("/work/main.tex"));
@@ -288,12 +293,12 @@ mod tests {
         let found = parse_diagnostics(output, Path::new("/project/main.tex"));
         assert_eq!(found.len(), 4);
         for item in &found[..3] {
-            assert_eq!(item.path, "/project/chapters/intro.tex");
+            assert_eq!(portable(&item.path), "/project/chapters/intro.tex");
         }
         assert_eq!(found[0].line, 7);
         assert_eq!(found[1].line, 8);
         assert_eq!(found[2].line, 11);
-        assert_eq!(found[3].path, "/project/main.tex");
+        assert_eq!(portable(&found[3].path), "/project/main.tex");
         assert_eq!(found[3].line, 20);
     }
     #[test]

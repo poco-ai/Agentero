@@ -2940,6 +2940,9 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
+    /// Unix can unlink an open SQLite file; Windows returns os error 32, so the
+    /// stale-handle recovery this exercises cannot be set up there.
+    #[cfg(unix)]
     #[test]
     fn with_catalog_recovers_after_db_deleted_externally() {
         let dir = env::temp_dir().join(format!("agentero-conn-stale-{}", std::process::id()));
