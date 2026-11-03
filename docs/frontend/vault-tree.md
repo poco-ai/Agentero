@@ -50,7 +50,7 @@ Vault 根上的 `.agents/` 与 `AGENTS.md` 合成一行，标题为 Agent（中�
 - 忽略：`.git`、`.venv`、`node_modules` 等（`TREE_IGNORE_NAMES`）。
 - 基础顺序：目录在文件前；同类按数字感知的自然顺序排序（如 `9-...` 在 `10-...` 前）。
 - 默认只展开 `papers/` 及其一级子目录。
-- 所有节点图标统一位于行首并使用一致的左右边距；文件夹与广场行悬停或键盘聚焦时，在同一位置将自身图标替换为展开/收缩箭头，保持行宽稳定并提示该行可展开。
+- 所有节点图标统一位于行首并使用一致的左右边距；行首内容 inset 由 `TREE_ROW_INSET_PX` + 层级 × `TREE_ROW_INDENT_STEP_PX` 统一计算（`file-tree-primitives.tsx`），行背景仍铺满整行。文件夹与广场行悬停或键盘聚焦时，在同一位置将自身图标替换为展开/收缩箭头，保持行宽稳定并提示该行可展开。
 - 行文字默认使用 `text-muted-foreground`，行悬停过渡到 `text-foreground`，选中行过渡到 `text-sidebar-primary-foreground`；行尾操作按钮复用同一份 `TREE_ROW_TEXT_STATE`。
 - 行尾操作按钮（论文下载 / 精读、写作根的“新建项目”）复用同一个图标按钮：默认 `text-muted-foreground`，悬停转 `text-foreground`，并在右侧显示全局 Tooltip；按钮透明，不叠加自己的悬停背景，选中行内随行文字反色为 `text-sidebar-primary-foreground`。
 - 虚拟化：`@tanstack/react-virtual` 拍平窗口化；`getItemKey` 用行稳定 id，避免内联新建草稿插入/移除后按索引缓存行高留下空隙。文件/文件夹行固定为 `h-7`，论文资源操作按钮不改变行高。行定位用 `top`（不用 `translateY`），并在视口**高度**变化时把 `scrollTop` 同步回 virtualizer，避免 WKWebView 在打开论文 / 刷新树后侧栏整片不绘制、滚动才恢复（见 [bug_fix/vault-sidebar-blank-until-scroll.md](../bug_fix/vault-sidebar-blank-until-scroll.md)）。宽度变化（左栏收起/展开动画、手动拖宽）不写 `scrollTop`；左栏 0 宽收起期间记住滚动位置、重新展开时恢复（#576）。扁平行集变化时不再全量 `measure()`——稳定 key 令缓存行高保持有效，全量重估会在无原生 scroll anchoring 的 WebKit 上表现为每次展开/折叠的行抖动。

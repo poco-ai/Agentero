@@ -13,6 +13,8 @@ import {
 	FILE_TREE_ROW_SELECTED_STATE,
 	FILE_TREE_ROW_STATE,
 	FileTreeDisclosureIcon,
+	TREE_ROW_INDENT_STEP_PX,
+	TREE_ROW_INSET_PX,
 } from "@/components/sidebar/file-tree/file-tree-primitives";
 import { Button } from "@/components/ui/button";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
@@ -589,7 +591,10 @@ function NodeList({
 						) : (
 							<p
 								className="text-muted-foreground py-1 text-xs"
-								style={{ paddingLeft: 28 + depth * 12 }}
+								style={{
+									paddingLeft:
+										TREE_ROW_INSET_PX + (depth + 1) * TREE_ROW_INDENT_STEP_PX,
+								}}
 							>
 								{loadingLabel}
 							</p>
@@ -777,7 +782,9 @@ function FileRow({
 						selected && FILE_TREE_ROW_SELECTED_STATE,
 						cut && "opacity-50",
 					)}
-					style={{ paddingLeft: 16 + depth * 12 }}
+					style={{
+						paddingLeft: TREE_ROW_INSET_PX + depth * TREE_ROW_INDENT_STEP_PX,
+					}}
 				>
 					{directory ? (
 						<FileTreeDisclosureIcon

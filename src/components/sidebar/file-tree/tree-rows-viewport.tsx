@@ -21,6 +21,7 @@ import {
 	isVaultSkillDirectory,
 	type SkillTreeLabel,
 } from "@/lib/vault/agent-tree";
+import { TREE_ROW_INDENT_STEP_PX } from "./file-tree-primitives";
 import type { PaperRowActions } from "./hooks/use-paper-row-actions";
 import type { TexCompileActions } from "./hooks/use-tex-compile";
 import { pathKey } from "./tree-helpers";
@@ -158,10 +159,14 @@ function renderRow(
 		);
 	}
 	if (row.kind === "create")
-		return <div style={{ paddingLeft: depth * 12 }}>{props.createRow}</div>;
+		return (
+			<div style={{ paddingLeft: depth * TREE_ROW_INDENT_STEP_PX }}>
+				{props.createRow}
+			</div>
+		);
 	if (props.renameDraft?.path === row.node.path) {
 		return (
-			<div style={{ paddingLeft: depth * 12 }}>
+			<div style={{ paddingLeft: depth * TREE_ROW_INDENT_STEP_PX }}>
 				<RenameRow node={row.node} ctx={props} isPaper={row.paperLeaf} />
 			</div>
 		);

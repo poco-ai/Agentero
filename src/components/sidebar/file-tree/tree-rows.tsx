@@ -23,6 +23,8 @@ import {
 	FileTreeFolderRow,
 	FileTreeIcon,
 	FileTreeName,
+	TREE_ROW_INDENT_STEP_PX,
+	TREE_ROW_INSET_PX,
 	useFileTree,
 } from "@/components/sidebar/file-tree/file-tree-primitives";
 import { TreeRowActionButton } from "@/components/sidebar/tree-row-action-button";
@@ -57,7 +59,9 @@ import {
 
 /** Content inset shared by every row: base padding plus one step per level. */
 export function treeRowIndentStyle(depth: number): CSSProperties {
-	return { paddingLeft: 16 + depth * 12 };
+	return {
+		paddingLeft: TREE_ROW_INSET_PX + depth * TREE_ROW_INDENT_STEP_PX,
+	};
 }
 
 type PaperTreeRowProps = {

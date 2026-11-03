@@ -26,6 +26,10 @@ import { cn } from "@/lib/core/utils";
 
 export type SelectMods = { meta: boolean; ctrl: boolean; shift: boolean };
 
+/** Content inset shared by every row: base padding plus one step per level. */
+export const TREE_ROW_INSET_PX = 10;
+export const TREE_ROW_INDENT_STEP_PX = 12;
+
 interface FileTreeContextType {
 	expandedPaths: Set<string>;
 	togglePath: (path: string) => void;
@@ -281,7 +285,7 @@ export const FileTreeFolderRow = ({
 			data-path={path}
 			draggable
 			className={cn(
-				"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded px-4 text-left text-sm font-normal",
+				"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded pl-2.5 pr-4 text-left text-sm font-normal",
 				FILE_TREE_ROW_STATE,
 				isSelected && FILE_TREE_ROW_SELECTED_STATE,
 				dropTargetPath === path && DROP_RING,
@@ -477,7 +481,7 @@ export const FileTreeFile = ({
 				data-path={path}
 				draggable
 				className={cn(
-					"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded px-4 text-sm font-normal",
+					"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded pl-2.5 pr-4 text-sm font-normal",
 					FILE_TREE_ROW_STATE,
 					isSelected && FILE_TREE_ROW_SELECTED_STATE,
 					dropTargetPath === path && DROP_RING,

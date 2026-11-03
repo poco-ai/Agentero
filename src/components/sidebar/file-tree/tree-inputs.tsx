@@ -79,7 +79,7 @@ function TreeNameInput({
 		<div className="relative">
 			<div
 				className={cn(
-					"flex h-7 items-center gap-1 rounded px-4",
+					"flex h-7 items-center gap-1 rounded pl-2.5 pr-4",
 					error ? "bg-destructive/10" : "bg-muted/60",
 				)}
 			>
