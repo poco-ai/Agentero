@@ -24,6 +24,8 @@ type TranslateCardProps = {
 	onTogglePin?: () => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
+	/** Scale with the PDF zoom; see SelectionCard. */
+	scale?: number;
 };
 
 /**
@@ -44,6 +46,7 @@ export function TranslateCard({
 	onTogglePin,
 	onPointerEnter,
 	onPointerLeave,
+	scale,
 }: TranslateCardProps) {
 	const { t } = useTranslation("viewer");
 	const showResult = result.trim().length > 0;
@@ -72,6 +75,7 @@ export function TranslateCard({
 			screen={screen}
 			width={340}
 			height={480}
+			scale={scale}
 			// Content-sized: hug the anchor and shrink near viewport edges instead
 			// of pre-shifting by the full preferred height.
 			trackPin

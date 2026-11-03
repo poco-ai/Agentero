@@ -6,6 +6,10 @@
  *
  * Click a card to edit the note in place (Notion-style): the body becomes a
  * textarea, ⌘/Ctrl+Enter or blur saves, Escape cancels. No floating editor.
+ *
+ * The rail is laid out in unscaled page space and the whole layer is zoomed
+ * exactly with the PDF zoom, so cards keep a constant ratio to the page while
+ * text, icons, and padding are laid out at their final size.
  */
 
 import { Crop, Link2, MessageSquarePlus, Trash2 } from "lucide-react";
@@ -72,6 +76,8 @@ type CommentCardsLayerProps = {
 	pageWidthPx: number;
 	/** Rendered page height in px (zoom-aware). */
 	pageHeightPx: number;
+	/** PDF zoom; the rail is laid out in page space and scaled to match. */
+	scale?: number;
 	/** Id of the card currently being edited in place; null when idle. */
 	editingId: string | null;
 	/** Resolvable wiki target; copy buttons only render when set. */
@@ -185,7 +191,7 @@ export function layoutCommentCards(
  * Word / Feishu-style orthogonal leader from the nearest highlight segment to
  * the laid-out card's left midpoint, folding at the page's right edge.
  * Multi-line highlights pick the rect closest to the card (not the envelope mid).
- * Returns an SVG path `d` in page-pixel coordinates, or null when undrawable.
+ * Returns an SVG path `d` in unscaled page-space pixels, or null when undrawable.
  */
 export function commentConnectorPath(
 	rects: readonly PdfAskNormalizedRect[],
@@ -821,6 +827,7 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 	items,
 	pageWidthPx,
 	pageHeightPx,
+	scale = 1,
 	editingId,
 	wikiTarget,
 	hoveredId,
@@ -849,11 +856,18 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 		const timer = setTimeout(() => setRetainedHoverId(null), 250);
 		return () => clearTimeout(timer);
 	}, [inset, hoveredId]);
+	// Build the rail in page space, then zoom the whole layer with the same
+	// ratio as the page so cards shrink and grow with it. Layout `zoom`
+	// re-computes the cards' font, icon, and padding sizes before painting;
+	// `transform: scale` would stretch a pre-rasterized layer instead.
+	const zoom = scale > 0 ? scale : 1;
+	const pageWidth = pageWidthPx / zoom;
+	const pageHeight = pageHeightPx / zoom;
 	// Stacking depends only on items / page height / the edited card; hover
 	// re-renders (hoveredId flips) must not redo layout for the whole rail.
 	const laid = useMemo(
-		() => layoutCommentCards(items, pageHeightPx, editingId),
-		[items, pageHeightPx, editingId],
+		() => layoutCommentCards(items, pageHeight, editingId),
+		[items, pageHeight, editingId],
 	);
 	const byId = useMemo(
 		() => new Map(items.map((item) => [item.id, item])),
@@ -869,15 +883,22 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 			? commentConnectorPath(
 					hoveredItem.rects,
 					hoveredPlacement,
-					pageWidthPx,
-					pageHeightPx,
+					pageWidth,
+					pageHeight,
 				)
 			: null;
-	const svgWidth = pageWidthPx + COMMENT_CARD_GAP_PX + COMMENT_CARD_WIDTH_PX;
+	const svgWidth = pageWidth + COMMENT_CARD_GAP_PX + COMMENT_CARD_WIDTH_PX;
 
 	return (
 		// Above translated glyphs (also z-6, mounted earlier) so the rail stays visible.
-		<div className="pointer-events-none absolute inset-0 z-[6] overflow-visible">
+		<div
+			className="pointer-events-none absolute top-0 left-0 z-[6] overflow-visible"
+			style={{
+				width: pageWidth,
+				height: pageHeight,
+				zoom,
+			}}
+		>
 			{connectorD ? (
 				// Decorative hover leader; announced via the card / hit-target labels.
 				// biome-ignore lint/a11y/noSvgWithoutTitle: purely visual connector
@@ -886,8 +907,8 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 					focusable="false"
 					className="pointer-events-none absolute top-0 left-0 overflow-visible"
 					width={svgWidth}
-					height={pageHeightPx}
-					viewBox={`0 0 ${svgWidth} ${pageHeightPx}`}
+					height={pageHeight}
+					viewBox={`0 0 ${svgWidth} ${pageHeight}`}
 				>
 					<path
 						d={connectorD}
@@ -947,7 +968,7 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 					<SelectionCommentAffordance
 						inset={inset}
 						draft={selectionDraft}
-						pageHeightPx={pageHeightPx}
+						pageHeightPx={pageHeight}
 						onCommit={onCommitSelectionComment}
 						onActiveChange={onSelectionCommentActiveChange}
 						onDismiss={onDismissSelectionComment}

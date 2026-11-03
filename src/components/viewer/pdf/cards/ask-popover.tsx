@@ -62,6 +62,8 @@ type AskPopoverProps = {
 	onPointerEnter?: () => void;
 	/** Schedule delayed hide when leaving dialog */
 	onPointerLeave?: () => void;
+	/** Scale with the PDF zoom; see SelectionCard. */
+	scale?: number;
 };
 
 export function AskPopover({
@@ -80,6 +82,7 @@ export function AskPopover({
 	onStop,
 	onPointerEnter,
 	onPointerLeave,
+	scale,
 }: AskPopoverProps) {
 	const { t } = useTranslation("viewer");
 	const title = threadTitle(thread, t("pdfAsk.newTitle"));
@@ -185,6 +188,7 @@ export function AskPopover({
 			screen={screen}
 			width={360}
 			height={360}
+			scale={scale}
 			// Fixed height so the nested scrollport has a definite viewport.
 			lockHeight
 			// Follow pin while scrolling; shrink height near edges instead of

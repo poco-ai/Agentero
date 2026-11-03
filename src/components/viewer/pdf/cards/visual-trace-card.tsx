@@ -22,6 +22,8 @@ type VisualTraceCardProps = {
 	onDelete: () => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
+	/** Scale with the PDF zoom; see SelectionCard. */
+	scale?: number;
 };
 
 /**
@@ -37,6 +39,7 @@ export function VisualTraceCard({
 	onDelete,
 	onPointerEnter,
 	onPointerLeave,
+	scale,
 }: VisualTraceCardProps) {
 	const { t } = useTranslation("viewer");
 	const title = tracePreview(trace, t("pdfExplain.visualAnnotation"));
@@ -47,6 +50,7 @@ export function VisualTraceCard({
 			screen={screen}
 			width={320}
 			height={360}
+			scale={scale}
 			lockHeight
 			preferRight={preferRight}
 			title={title}

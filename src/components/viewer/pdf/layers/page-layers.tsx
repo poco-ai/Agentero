@@ -486,6 +486,8 @@ type PageTranslateTabProps = {
 	pageIndex: number;
 	active: boolean;
 	running: boolean;
+	/** Current PDF zoom; the tab shrinks and grows with the page. */
+	zoom: number;
 	onToggle: (pageIndex: number) => void;
 };
 
@@ -509,9 +511,11 @@ const PageTranslateTab = memo(function PageTranslateTab({
 	pageIndex,
 	active,
 	running,
+	zoom,
 	onToggle,
 }: PageTranslateTabProps) {
 	const { t } = useTranslation("viewer");
+	const scale = zoom > 0 ? zoom : 1;
 	const label = running
 		? t("pdf.layoutTranslate.pageRunning")
 		: active
@@ -530,6 +534,11 @@ const PageTranslateTab = memo(function PageTranslateTab({
 				PDF_CHROME_CHIP,
 				active && "border-primary/30 bg-primary/10 text-primary",
 			)}
+			style={{
+				// Layout-level zoom re-computes the chip's font, icon, and padding
+				// sizes before painting; transform scaling stretches a texture.
+				zoom: scale,
+			}}
 			aria-label={label}
 			aria-pressed={active}
 			onClick={(event) => {
@@ -593,6 +602,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				: height;
 	const pdfDark = tone === "dark";
 	const paperTint = PDF_PAPER_TINT[tone];
+	const cardScale = zoomRef.current > 0 ? zoomRef.current : 1;
 	const pageShellRef = useRef<HTMLDivElement | null>(null);
 	/**
 	 * Lazily arm text selection once the pointer reaches the page. Registering
@@ -1295,6 +1305,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						pageIndex={pageIndex}
 						active={pageTranslateState.active}
 						running={pageTranslateState.running}
+						zoom={cardScale}
 						onToggle={handlers.onTogglePageLayoutTranslate}
 					/>
 				) : null}
@@ -1704,6 +1715,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						inset={mode.insetCommentCards}
 						pageWidthPx={width}
 						pageHeightPx={height}
+						scale={cardScale}
 						editingId={marks.editingCommentId}
 						wikiTarget={marks.commentWikiTarget}
 						hoveredId={hoveredCommentId}

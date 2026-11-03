@@ -58,6 +58,8 @@ type PdfCardStackProps = {
 	};
 	/** Shared anchor of the pin-attached cards (ask / translate). */
 	cardScreen: CardScreenPoint | null;
+	/** Live PDF zoom; pin cards scale with the page so they keep covering it. */
+	zoomLevel: number;
 	/** Shared hover-hide contract of the pin-attached cards. */
 	onCardHoverEnter: () => void;
 	onCardHoverLeave: () => void;
@@ -99,7 +101,8 @@ function selectionMenuInstanceKey(state: SelectionMenuState): string {
 
 /**
  * Floating cards of the viewer, portaled to `document.body` so page transforms
- * and the scroller's overflow never clip or scale them.
+ * and the scroller's overflow never clip them. Pin cards scale with the PDF
+ * zoom instead of staying a fixed viewport size.
  */
 export const PdfCardStack = memo(function PdfCardStack({
 	selectionMenu,
@@ -107,6 +110,7 @@ export const PdfCardStack = memo(function PdfCardStack({
 	crossrefPreview,
 	linkUrlTip,
 	cardScreen,
+	zoomLevel,
 	onCardHoverEnter,
 	onCardHoverLeave,
 	ask,
@@ -173,6 +177,7 @@ export const PdfCardStack = memo(function PdfCardStack({
 						paperTitle={ask.paperTitle}
 						paperLink={ask.paperLink}
 						screen={cardScreen}
+						scale={zoomLevel}
 						preferRight={cardScreen.preferRight ?? true}
 						streaming={ask.streaming}
 						error={ask.error}
@@ -193,6 +198,7 @@ export const PdfCardStack = memo(function PdfCardStack({
 						key={`translate-${translate.record.id}`}
 						screen={cardScreen}
 						preferRight={cardScreen.preferRight ?? false}
+						scale={zoomLevel}
 						result={translate.record.result ?? ""}
 						streaming={translate.streaming}
 						error={translate.error ?? translate.record.error ?? null}
@@ -213,6 +219,7 @@ export const PdfCardStack = memo(function PdfCardStack({
 						trace={visual.trace}
 						screen={cardScreen}
 						preferRight={cardScreen.preferRight ?? true}
+						scale={zoomLevel}
 						onHide={visual.onHide}
 						onDelete={visual.onDelete}
 						onPointerEnter={onCardHoverEnter}
