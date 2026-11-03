@@ -76,10 +76,21 @@ fn create_dir_link(rel_target: &Path, _abs_target: &Path, link: &Path) -> io::Re
 
 /// A real directory symlink needs Developer Mode or elevation; a junction is a
 /// plain reparse point any user can create, at the cost of an absolute target.
+///
+/// The stored target must use `\`. A link created with `/` can exist and still
+/// fail to resolve, so a successful `symlink_dir` is kept only when the target
+/// can be read.
 #[cfg(windows)]
 fn create_dir_link(rel_target: &Path, abs_target: &Path, link: &Path) -> io::Result<()> {
-    if std::os::windows::fs::symlink_dir(rel_target, link).is_ok() {
+    let windows_target = rel_target.to_string_lossy().replace('/', "\\");
+    if std::os::windows::fs::symlink_dir(&windows_target, link).is_ok()
+        && fs::metadata(link).is_ok()
+    {
         return Ok(());
+    }
+    if link.symlink_metadata().is_ok() {
+        let _ = fs::remove_dir(link);
+        let _ = fs::remove_file(link);
     }
     create_junction(abs_target, link)
 }
