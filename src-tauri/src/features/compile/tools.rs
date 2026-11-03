@@ -26,7 +26,7 @@ async fn tool_output(name: &str, args: &[String], cwd: &Path) -> Result<String, 
     prepare_command(&mut command, &executable);
     command
         .args(args)
-        .current_dir(cwd)
+        .current_dir(super::types::tool_path(cwd))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -207,12 +207,15 @@ pub async fn latex_synctex_forward(
             "PDF is missing or source line is invalid",
         ));
     }
+    let tool_tex = super::types::tool_path(Path::new(&tex_path));
     let args = vec![
         "view".into(),
         "-i".into(),
-        format!("{line}:{column}:{tex_path}"),
+        format!("{line}:{column}:{}", tool_tex.display()),
         "-o".into(),
-        pdf_path.clone(),
+        super::types::tool_path(Path::new(&pdf_path))
+            .to_string_lossy()
+            .into_owned(),
     ];
     match tool_output(
         "synctex",
@@ -240,10 +243,11 @@ pub async fn latex_synctex_backward(
         ));
     }
     let cwd = Path::new(&pdf_path).parent().unwrap_or(Path::new("."));
+    let tool_pdf = super::types::tool_path(Path::new(&pdf_path));
     let args = vec![
         "edit".into(),
         "-o".into(),
-        format!("{page}:{x}:{y}:{pdf_path}"),
+        format!("{page}:{x}:{y}:{}", tool_pdf.display()),
     ];
     match tool_output("synctex", &args, cwd).await {
         Ok(text) => {
@@ -262,9 +266,10 @@ pub async fn latex_synctex_backward(
                         cwd.join(path)
                     };
                     SyncTexSource {
-                        path: super::root::normalize_lexical(&path)
-                            .to_string_lossy()
-                            .into_owned(),
+                        path: super::types::caller_path(
+                            &super::root::normalize_lexical(&path).to_string_lossy(),
+                            Path::new(&pdf_path),
+                        ),
                         line: line.max(1),
                         column: value("Column:")
                             .and_then(|v| v.parse().ok())
@@ -296,12 +301,13 @@ pub async fn latex_clean(
         .file_stem()
         .unwrap_or_default()
         .to_string_lossy();
+    let tool_artifact = super::types::tool_artifacts(&artifact);
     let args = vec![
         "-c".into(),
-        format!("-outdir={}", artifact.out_dir),
-        format!("-auxdir={}", artifact.aux_dir),
+        format!("-outdir={}", tool_artifact.out_dir),
+        format!("-auxdir={}", tool_artifact.aux_dir),
         format!("-jobname={name}"),
-        root_path.clone(),
+        super::types::tool_path(root).to_string_lossy().into_owned(),
     ];
     match tool_output("latexmk", &args, root.parent().unwrap_or(Path::new("."))).await {
         Ok(_) => ApiResult::ok(()),

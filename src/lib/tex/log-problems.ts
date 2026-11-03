@@ -3,7 +3,7 @@
  * show the same findings as the raw log.
  */
 
-import { normalizePath } from "@/lib/core/path";
+import { displayPath, normalizePath } from "@/lib/core/path";
 import { joinVaultPath } from "@/lib/vault/path";
 import { manuscriptDir } from "@/lib/writing/session";
 
@@ -100,6 +100,11 @@ function samePath(a: string, b: string): boolean {
 	return /^[A-Za-z]:/.test(a) ? a.toLowerCase() === b.toLowerCase() : a === b;
 }
 
+/** Forward slashes and no extended-length prefix: how TeX tools see a path. */
+function plainPath(path: string): string {
+	return normalizePath(displayPath(path)).replace(/^\/\/\?\/(?=[a-z]:\/)/i, "");
+}
+
 /**
  * Editor path of a problem's file. Relative names resolve against the root
  * file's folder; absolute ones are mapped back onto it. A name outside that
@@ -115,8 +120,11 @@ export function resolveLogProblemPath(
 	if (!cleaned || cleaned.includes("..")) return rootFile;
 	if (!ABSOLUTE.test(cleaned)) return joinVaultPath(dir, cleaned);
 	const path = normalizePath(cleaned);
-	if (samePath(path, normalizePath(rootFile))) return rootFile;
-	const folder = normalizePath(dir);
+	// TeX tools get the plain form of an extended `\\?\D:\…` (or `//?/D:/…`)
+	// root, so compare against the root spelled that way; the result keeps the
+	// root's spelling.
+	if (samePath(path, plainPath(rootFile))) return rootFile;
+	const folder = plainPath(dir);
 	if (
 		folder &&
 		path[folder.length] === "/" &&
