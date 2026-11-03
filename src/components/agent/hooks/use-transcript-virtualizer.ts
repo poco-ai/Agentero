@@ -6,7 +6,7 @@
  */
 import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo } from "react";
-import { useStickToBottomContext } from "use-stick-to-bottom";
+import { useConversationViewport } from "@/components/agent/conversation";
 import type { ChatLine } from "@/lib/agent/chat-state";
 import { useUiScale } from "@/lib/settings";
 
@@ -39,13 +39,12 @@ export function useTranscriptVirtualizer({
 	/** Storybook / tests: virtualize even with few lines. */
 	forceVirtualize?: boolean;
 }): {
-	rowVirtualizer: Virtualizer<HTMLElement, Element>;
+	rowVirtualizer: Virtualizer<HTMLDivElement, Element>;
 	virtualized: boolean;
 	lineKeys: string[];
 } {
-	// Reuse the StickToBottom scroll viewport. The totalSize container lives in
-	// the content subtree, so its ResizeObserver keeps stick-to-bottom working.
-	const { scrollRef } = useStickToBottomContext();
+	// Share the upstream scroller viewport; virtualization owns row measurement.
+	const scrollRef = useConversationViewport();
 	const uiScale = useUiScale();
 	const virtualized = forceVirtualize || lines.length >= VIRTUALIZE_MIN_LINES;
 

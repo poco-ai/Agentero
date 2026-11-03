@@ -12,7 +12,7 @@ import { useStore } from "zustand";
 import {
 	FILE_TREE_ROW_SELECTED_STATE,
 	FILE_TREE_ROW_STATE,
-} from "@/components/ai-elements/file-tree";
+} from "@/components/sidebar/file-tree/file-tree-primitives";
 import { normalizePath } from "@/lib/core/path";
 import { cn } from "@/lib/core/utils";
 import { trackTexProject } from "@/lib/tex/auto-build";

@@ -361,6 +361,7 @@ Agentero prompt envelope、skill/context 注入，并将原始 `/command` 作为
 - Host 依赖 `agent-client-protocol` feature `unstable_elicitation`。
 - `initialize` 声明 `elicitation.form`，否则 codex-acp 对 `request_user_input` 直接返回空 answers。
 - 收到 `elicitation/create` → 事件 `agent:elicitation-request` → 前端表单 → `agent_respond_elicitation`。
+- 枚举数组保留为 `kind: multiselect` 与选项列表，不降级成文本字段。`agent_respond_elicitation.content` 的字段值为字符串或字符串数组，多选按上游原生 `StringArray` 回传；显示标签在业务适配层映射回选项 value，不拼接再拆分。Grok / 普通 tool 提问仍在各自协议边界转换成原有字符串回答。
 
 ## 结构化提问（多 harness）
 

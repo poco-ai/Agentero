@@ -8,7 +8,8 @@ use crate::features::agent::runtime::events::AgentEventEmitter;
 use agent_client_protocol::schema::v1::{
     AvailableCommandInput, PlanEntryPriority, PlanEntryStatus, SessionConfigKind,
     SessionConfigOption, SessionConfigOptionCategory, SessionConfigOptionValue,
-    SessionConfigSelectOptions, SessionNotification, SessionUpdate, ToolCallStatus, ToolKind,
+    SessionConfigSelectOptions, SessionNotification, SessionUpdate, ToolCallContent,
+    ToolCallStatus, ToolKind,
 };
 use agent_client_protocol::schema::MaybeUndefined;
 use std::collections::HashSet;
@@ -577,6 +578,33 @@ pub(crate) fn emit_session_config_options(
 /// transcript only renders a preview, so ship a bounded head + marker instead.
 pub(crate) const TOOL_PAYLOAD_MAX_BYTES: usize = 32 * 1024;
 
+// ACP updates can carry output only in native content blocks. Retain those
+// alongside raw provider metadata; updates need not repeat the initial kind.
+fn tool_output_payload(
+    raw_output: Option<serde_json::Value>,
+    content: &[ToolCallContent],
+) -> Option<serde_json::Value> {
+    let text: Vec<_> = content
+        .iter()
+        .filter_map(|item| match item {
+            ToolCallContent::Content(item) => text_from_content_block(&item.content),
+            _ => None,
+        })
+        .collect();
+    if text.is_empty() {
+        return cap_tool_payload(raw_output);
+    }
+    let mut output = match raw_output {
+        Some(serde_json::Value::Object(output)) => output,
+        Some(raw) => serde_json::Map::from_iter([("rawOutput".into(), raw)]),
+        None => serde_json::Map::new(),
+    };
+    output
+        .entry("stdout")
+        .or_insert_with(|| serde_json::Value::String(text.join("\n")));
+    cap_tool_payload(Some(serde_json::Value::Object(output)))
+}
+
 pub(crate) fn cap_tool_payload(value: Option<serde_json::Value>) -> Option<serde_json::Value> {
     let value = value?;
     let serialized = serde_json::to_string(&value).unwrap_or_default();
@@ -648,7 +676,7 @@ pub(crate) fn emit_rich_session_update(
                     kind: Some(tool_kind_str(tc.kind).to_string()),
                     status: Some(tool_status_str(tc.status).to_string()),
                     input: cap_tool_payload(tc.raw_input.clone()),
-                    output: cap_tool_payload(tc.raw_output.clone()),
+                    output: tool_output_payload(tc.raw_output.clone(), &tc.content),
                     full: true,
                 },
             );
@@ -664,7 +692,10 @@ pub(crate) fn emit_rich_session_update(
                     kind: f.kind.map(tool_kind_str).map(str::to_string),
                     status: f.status.map(tool_status_str).map(str::to_string),
                     input: cap_tool_payload(f.raw_input.clone()),
-                    output: cap_tool_payload(f.raw_output.clone()),
+                    output: tool_output_payload(
+                        f.raw_output.clone(),
+                        f.content.as_deref().unwrap_or_default(),
+                    ),
                     full: false,
                 },
             );
@@ -1027,6 +1058,26 @@ mod config_option_tests {
 
 #[cfg(test)]
 mod session_models_fallback_tests {
+    #[test]
+    fn native_opencode_terminal_content_keeps_stdout_and_metadata() {
+        let content: Vec<agent_client_protocol::schema::v1::ToolCallContent> = serde_json::from_value(serde_json::json!([
+			{ "type": "content", "content": { "type": "text", "text": "component_migration_probe" } }
+		])).unwrap();
+        let metadata = serde_json::json!({ "metadata": { "status": "completed", "truncated": false, "exit": 0 }});
+        let output = super::tool_output_payload(Some(metadata.clone()), &content).unwrap();
+        assert_eq!(output["stdout"], "component_migration_probe");
+        assert_eq!(output["metadata"], metadata["metadata"]);
+        let existing = serde_json::json!({ "stdout": "provider output", "extra": "preserve" });
+        assert_eq!(
+            super::tool_output_payload(Some(existing.clone()), &content),
+            Some(existing)
+        );
+        assert_eq!(
+            super::tool_output_payload(Some(serde_json::json!("raw")), &content).unwrap()
+                ["rawOutput"],
+            "raw"
+        );
+    }
     use super::{
         models_from_config_options, models_from_session_models_value, richer_models_event,
         store_richer_models,

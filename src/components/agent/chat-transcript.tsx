@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import type { RefObject } from "react";
 import {
-	Fragment,
 	memo,
 	type ReactNode,
 	useCallback,
@@ -17,7 +16,6 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { useStickToBottomContext } from "use-stick-to-bottom";
 import { useStore } from "zustand";
 import { AgentThinkingOrb } from "@/components/agent/agent-thinking-orb";
 import { ChatSelectionReferences } from "@/components/agent/chat-selection-references";
@@ -28,28 +26,16 @@ import {
 } from "@/components/agent/chat-visual-annotations";
 import { ContextSourceLinks } from "@/components/agent/context-source-links";
 import {
-	transcriptLineKey,
-	useTranscriptVirtualizer,
-} from "@/components/agent/hooks/use-transcript-virtualizer";
-import { ZhihuDiscussions } from "@/components/agent/zhihu-discussions";
-import {
-	Checkpoint,
-	CheckpointIcon,
-	CheckpointTrigger,
-} from "@/components/ai-elements/checkpoint";
-import {
 	Conversation,
 	ConversationContent,
 	ConversationEmptyState,
 	ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
+} from "@/components/agent/conversation";
 import {
-	Message,
-	MessageAction,
-	MessageActions,
-	MessageContent,
-	MessageResponse,
-} from "@/components/ai-elements/message";
+	Checkpoint,
+	CheckpointIcon,
+	CheckpointTrigger,
+} from "@/components/agent/elements/checkpoint";
 import {
 	Plan,
 	PlanAction,
@@ -59,27 +45,45 @@ import {
 	PlanStep,
 	PlanTitle,
 	PlanTrigger,
-} from "@/components/ai-elements/plan";
+} from "@/components/agent/elements/plan";
 import {
 	Reasoning,
 	ReasoningContent,
 	ReasoningTrigger,
-} from "@/components/ai-elements/reasoning";
-import { Shimmer } from "@/components/ai-elements/shimmer";
-import { Suggestion } from "@/components/ai-elements/suggestion";
+} from "@/components/agent/elements/reasoning";
+import { Suggestion } from "@/components/agent/elements/suggestion";
 import {
 	Tool,
 	ToolContent,
 	ToolHeader,
 	ToolInput,
 	ToolOutput,
-} from "@/components/ai-elements/tool";
+} from "@/components/agent/elements/tool";
+import {
+	transcriptLineKey,
+	useTranscriptVirtualizer,
+} from "@/components/agent/hooks/use-transcript-virtualizer";
+import {
+	Message,
+	MessageAction,
+	MessageActions,
+	MessageContent,
+	MessageResponse,
+} from "@/components/agent/message";
+import { TerminalTool } from "@/components/agent/rendering/terminal-tool";
+import { ZhihuDiscussions } from "@/components/agent/zhihu-discussions";
 import { Button } from "@/components/ui/button";
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+	MessageScrollerContent,
+	MessageScrollerItem,
+	useMessageScroller,
+} from "@/components/ui/message-scroller";
+import { Shimmer } from "@/components/ui/shimmer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveChatLines } from "@/lib/agent/agent-session-store";
 import {
@@ -97,12 +101,14 @@ import {
 	parseAskUserQuestions,
 	streamingLabel,
 	suggestionItems,
+	type ToolAskUserRecord,
 	toolPartState,
 } from "@/lib/agent/chat-state";
 import { stripInlineTokens } from "@/lib/agent/composer-inline-tokens";
 import { stripPromptEnvelopeForDisplay } from "@/lib/agent/prompt-display";
 import { selectionNavigationStore } from "@/lib/agent/selection-navigation-state";
 import { selectionsPromptBlock } from "@/lib/agent/selection-prompt";
+import { terminalToolData } from "@/lib/agent/terminal-tool";
 import { cn } from "@/lib/core/utils";
 import type { PaperMetadata } from "@/lib/paper";
 import { workspaceStore } from "@/lib/workspace/store";
@@ -116,6 +122,51 @@ function AskUserToolPendingNote() {
 			<p className="text-xs text-muted-foreground">
 				{t("askUserQuestion.pendingInComposer")}
 			</p>
+		</ToolContent>
+	);
+}
+
+/** Answered questionnaire shown in the transcript tool card (Grok / OpenCode / elicitation). */
+function AskUserToolAnswers({
+	record,
+	questions,
+	className,
+}: {
+	record?: ToolAskUserRecord;
+	questions: AskUserQuestion[];
+	className?: string;
+}) {
+	const { t } = useTranslation("agent");
+	return (
+		<ToolContent className={className}>
+			<dl className="space-y-2">
+				{questions.map((question, index) => {
+					const raw = record?.answers[index];
+					const answer = Array.isArray(raw) ? raw.join(", ") : raw;
+					const text = answer?.trim();
+					return (
+						<div
+							key={`${question.id ?? ""}:${question.question}`}
+							className="space-y-0.5"
+						>
+							<dt className="text-xs text-muted-foreground">
+								{question.question}
+							</dt>
+							<dd
+								className={cn(
+									"whitespace-pre-wrap text-sm",
+									!text && "text-muted-foreground",
+								)}
+							>
+								{text ||
+									(record?.cancelled
+										? t("askUserQuestion.cancelled")
+										: t("askUserQuestion.noAnswer"))}
+							</dd>
+						</div>
+					);
+				})}
+			</dl>
 		</ToolContent>
 	);
 }
@@ -148,15 +199,15 @@ function cachedAskUserQuestions(input: unknown): AskUserQuestion[] | null {
 
 /** On tab switch, jump to the latest messages instead of keeping the old scroll position. */
 function TabScrollToBottom({ activeTabId }: { activeTabId: string }) {
-	const { scrollToBottom } = useStickToBottomContext();
+	const { scrollToEnd } = useMessageScroller();
 	const prevTabIdRef = useRef(activeTabId);
 
 	useEffect(() => {
 		if (prevTabIdRef.current !== activeTabId) {
 			prevTabIdRef.current = activeTabId;
-			scrollToBottom({ animation: "instant" });
+			scrollToEnd({ behavior: "instant" });
 		}
-	}, [activeTabId, scrollToBottom]);
+	}, [activeTabId, scrollToEnd]);
 
 	return null;
 }
@@ -232,11 +283,17 @@ function StreamingActivityRow({
 	parts,
 	streaming,
 	phase = null,
+	expanded = false,
+	onToggle,
 }: {
 	parts: AgentPart[];
 	streaming: boolean;
 	/** Backend loading phase (starting / waiting-model / reconnecting) outranks part-derived labels. */
 	phase?: AgentPhaseState | null;
+	/** Whether the synchronized live parts are currently shown. */
+	expanded?: boolean;
+	/** When provided, the row toggles the live reasoning/tool parts. */
+	onToggle?: () => void;
 }) {
 	const { t } = useTranslation("agent");
 	const [elapsed, setElapsed] = useState(0);
@@ -254,9 +311,8 @@ function StreamingActivityRow({
 	if (!streaming) return null;
 
 	const label = streamingLabel(phase, parts, t);
-
-	return (
-		<div className="flex w-full items-center gap-2 text-muted-foreground text-sm">
+	const content = (
+		<>
 			<AgentThinkingOrb
 				parts={parts}
 				streaming={streaming}
@@ -267,7 +323,40 @@ function StreamingActivityRow({
 			<span className="text-xs tabular-nums">
 				{t("streaming.elapsed", { count: elapsed })}
 			</span>
-		</div>
+			{onToggle ? (
+				<ChevronDownIcon
+					className={cn(
+						"size-3.5 shrink-0 transition-transform",
+						expanded && "rotate-180",
+					)}
+				/>
+			) : null}
+		</>
+	);
+
+	if (!onToggle) {
+		return (
+			<div className="flex w-full items-center gap-2 text-muted-foreground text-sm">
+				{content}
+			</div>
+		);
+	}
+
+	return (
+		<button
+			type="button"
+			aria-expanded={expanded}
+			aria-label={t(
+				expanded ? "streaming.collapseProcess" : "streaming.expandProcess",
+			)}
+			title={t(
+				expanded ? "streaming.collapseProcess" : "streaming.expandProcess",
+			)}
+			onClick={onToggle}
+			className="flex w-full items-center gap-2 rounded-md text-left text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+		>
+			{content}
+		</button>
 	);
 }
 
@@ -512,6 +601,8 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 		// leaks across sessions when history line ids collide
 		// (e.g. Codex thread message ids).
 		const rowKey = `${activeTabId}:${line.id}`;
+		const liveKey = `${rowKey}:__live__`;
+		const showLiveProcess = partOpenState[liveKey] ?? false;
 		const parts = line.parts;
 		const lastIndex = parts.length - 1;
 		// PERF: agentTextFromParts joins the whole reply on every render of
@@ -535,12 +626,10 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 						key={partKey}
 						className={insideProcess ? "mb-0" : "mb-2"}
 						isStreaming={streaming}
-						// Collapsed by default so the transcript stays
-						// scannable; expand on click. Also collapsed
-						// while streaming (no auto-expand). Open state
-						// is lifted to ChatTranscript so virtualized
-						// rows survive unmount; defaultOpen={false}
-						// still suppresses streaming auto-open.
+						// Collapsed by default; the compact activity row above the
+						// parts carries the live one-line progress. Expand on click
+						// while streaming to read the full thought. Open state is
+						// lifted to ChatTranscript so virtualized rows survive unmount.
 						defaultOpen={false}
 						open={partOpenState[partKey] ?? false}
 						onOpenChange={(open) => onPartOpenChange(partKey, open)}
@@ -615,11 +704,32 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 			if (part.type === "tool") {
 				const tool = part.tool;
 				const state = toolPartState(tool.status);
-				const askUserQuestion = cachedAskUserQuestions(tool.input);
+				const parsedQuestions = cachedAskUserQuestions(tool.input);
+				const askRecord = tool.askUser;
+				const askUserQuestion = askRecord?.questions.length
+					? askRecord.questions
+					: parsedQuestions;
 				// Interactive form is owned by the composer; transcript
-				// only shows a compact tool row (and a short pending note).
+				// shows a compact tool row, a pending note, or the recorded Q&A.
 				const askPending =
-					Boolean(askUserQuestion) && isPendingAskUserToolStatus(tool.status);
+					!askRecord &&
+					Boolean(askUserQuestion) &&
+					isPendingAskUserToolStatus(tool.status);
+				const terminal = !askUserQuestion ? terminalToolData(tool) : null;
+				if (terminal)
+					return (
+						<TerminalTool
+							key={partKey}
+							data={terminal}
+							tool={tool}
+							compact={insideProcess}
+							open={
+								partOpenState[partKey] ??
+								(tool.status === "in_progress" && Boolean(terminal.output))
+							}
+							onOpenChange={(open) => onPartOpenChange(partKey, open)}
+						/>
+					);
 				return (
 					<Tool
 						key={partKey}
@@ -640,7 +750,13 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 						/>
 						{askPending ? (
 							<AskUserToolPendingNote />
-						) : askUserQuestion ? null : (
+						) : askUserQuestion ? (
+							<AskUserToolAnswers
+								record={askRecord}
+								questions={askUserQuestion}
+								className={insideProcess ? "border-t-0 px-2 py-2" : undefined}
+							/>
+						) : (
 							<ToolContent
 								className={insideProcess ? "border-t-0 px-2 py-2" : undefined}
 							>
@@ -702,19 +818,34 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 									renderAgentPart(part, index, false),
 								)}
 							</>
-						) : isStreaming &&
-							(nonTextParts.length > 0 || parts.length === 0) ? (
+						) : isStreaming ? (
 							<>
-								{/* Empty parts: send → first chunk used to render nothing; the
-								    phase label + orb now fill that gap. */}
-								<StreamingActivityRow
-									parts={parts}
-									streaming={isStreaming}
-									phase={phase}
-								/>
-								{textParts.map((part, index) =>
-									renderAgentPart(part, index, false),
-								)}
+								{/* Default view mirrors the old compact stream: one live line
+								    plus answer text. Clicking the line reveals the synchronized
+								    reasoning / plan / tool parts in place; clicking again folds
+								    them back. */}
+								{parts.length === 0 || nonTextParts.length > 0 || phase ? (
+									<StreamingActivityRow
+										parts={parts}
+										streaming={isStreaming}
+										phase={phase}
+										expanded={showLiveProcess}
+										onToggle={
+											nonTextParts.length > 0
+												? () => onPartOpenChange(liveKey, !showLiveProcess)
+												: undefined
+										}
+									/>
+								) : null}
+								{showLiveProcess
+									? parts.map((part, index) =>
+											renderAgentPart(part, index, false),
+										)
+									: parts.map((part, index) =>
+											isNonTextPart(part)
+												? null
+												: renderAgentPart(part, index, false),
+										)}
 							</>
 						) : (
 							parts.map((part, index) => renderAgentPart(part, index, false))
@@ -773,7 +904,7 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 
 /**
  * Renders transcript rows. Must live inside <Conversation> so it can reach
- * the StickToBottom scroll viewport via context. Long transcripts switch to
+ * the Message Scroller viewport via context. Long transcripts switch to
  * windowed rendering (absolute rows inside a totalSize container); short ones
  * keep the plain flex/gap layout.
  */
@@ -881,34 +1012,41 @@ function TranscriptBody({
 
 	if (!virtualized) {
 		return (
-			<div className="flex w-full flex-col gap-6">
+			<MessageScrollerContent className="w-full min-h-0">
 				{lines.map((line) => (
-					<Fragment key={transcriptLineKey(line, activeTabId)}>
+					<MessageScrollerItem
+						key={transcriptLineKey(line, activeTabId)}
+						messageId={transcriptLineKey(line, activeTabId)}
+						className="[content-visibility:visible]"
+					>
 						{renderRow(line)}
-					</Fragment>
+					</MessageScrollerItem>
 				))}
-			</div>
+			</MessageScrollerContent>
 		);
 	}
 
 	return (
-		<div
-			className="relative w-full"
-			style={{ height: rowVirtualizer.getTotalSize() }}
-		>
-			{rowVirtualizer.getVirtualItems().map((virtualRow) => (
-				// pb-8 replaces the flex gap-8 spacing (absolute rows have no gap).
-				<div
-					key={virtualRow.key}
-					className="absolute top-0 left-0 w-full pb-6"
-					style={{ transform: `translateY(${virtualRow.start}px)` }}
-					ref={rowVirtualizer.measureElement}
-					data-index={virtualRow.index}
-				>
-					{renderRow(lines[virtualRow.index])}
-				</div>
-			))}
-		</div>
+		<MessageScrollerContent className="min-h-0 gap-0">
+			<MessageScrollerItem
+				messageId={`virtual:${activeTabId}`}
+				className="relative w-full [content-visibility:visible] [contain-intrinsic-size:none]"
+				style={{ height: rowVirtualizer.getTotalSize() }}
+			>
+				{rowVirtualizer.getVirtualItems().map((virtualRow) => (
+					// pb-8 replaces the flex gap-8 spacing (absolute rows have no gap).
+					<div
+						key={virtualRow.key}
+						className="absolute top-0 left-0 w-full pb-6"
+						style={{ transform: `translateY(${virtualRow.start}px)` }}
+						ref={rowVirtualizer.measureElement}
+						data-index={virtualRow.index}
+					>
+						{renderRow(lines[virtualRow.index])}
+					</div>
+				))}
+			</MessageScrollerItem>
+		</MessageScrollerContent>
 	);
 }
 
@@ -1070,44 +1208,50 @@ export const ChatTranscript = memo(function ChatTranscript({
 			>
 				<TabScrollToBottom activeTabId={activeTabId} />
 				{restoringHistorySession ? (
-					<HistorySessionShimmer />
+					<MessageScrollerContent>
+						<MessageScrollerItem>
+							<HistorySessionShimmer />
+						</MessageScrollerItem>
+					</MessageScrollerContent>
 				) : lines.length === 0 ? (
-					<div className="flex w-full flex-col gap-6">
-						<ConversationEmptyState
-							className={zhihuEmpty ? "px-2 py-8" : undefined}
-							title={t("empty.title")}
-							description={t(
-								writing ? "empty.writingDescription" : "empty.description",
-							)}
-						>
-							{zhihuEmpty ? (
-								<ZhihuDiscussions paper={paper} />
-							) : (
-								<div className="mt-4 flex w-full max-w-sm flex-col items-stretch gap-2">
-									{activeTabIsRunning ? (
-										<Shimmer className="text-center text-sm">
-											{t("empty.waiting")}
-										</Shimmer>
-									) : (
-										suggestions.map((item) => {
-											const label = t(`suggestions.${item.key}`);
-											return (
-												<Suggestion
-													key={item.key}
-													suggestion={label}
-													className="h-auto w-full justify-start whitespace-normal rounded-lg px-3 py-2.5 text-left"
-													onClick={(value) =>
-														onSendSuggestion(value, item.workflow)
-													}
-													disabled={activeTabIsRunning}
-												/>
-											);
-										})
-									)}
-								</div>
-							)}
-						</ConversationEmptyState>
-					</div>
+					<MessageScrollerContent>
+						<MessageScrollerItem className="flex w-full flex-col gap-6">
+							<ConversationEmptyState
+								className={zhihuEmpty ? "px-2 py-8" : undefined}
+								title={t("empty.title")}
+								description={t(
+									writing ? "empty.writingDescription" : "empty.description",
+								)}
+							>
+								{zhihuEmpty ? (
+									<ZhihuDiscussions paper={paper} />
+								) : (
+									<div className="mt-4 flex w-full max-w-sm flex-col items-stretch gap-2">
+										{activeTabIsRunning ? (
+											<Shimmer className="text-center text-sm">
+												{t("empty.waiting")}
+											</Shimmer>
+										) : (
+											suggestions.map((item) => {
+												const label = t(`suggestions.${item.key}`);
+												return (
+													<Suggestion
+														key={item.key}
+														suggestion={label}
+														className="h-auto w-full justify-start whitespace-normal rounded-lg px-3 py-2.5 text-left"
+														onClick={(value) =>
+															onSendSuggestion(value, item.workflow)
+														}
+														disabled={activeTabIsRunning}
+													/>
+												);
+											})
+										)}
+									</div>
+								)}
+							</ConversationEmptyState>
+						</MessageScrollerItem>
+					</MessageScrollerContent>
 				) : (
 					<TranscriptBody
 						lines={lines}

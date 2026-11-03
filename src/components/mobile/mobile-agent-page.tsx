@@ -3,23 +3,22 @@ import { LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-	Conversation,
-	ConversationContent,
-	ConversationEmptyState,
-	ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
-import {
-	Message,
-	MessageContent,
-	MessageResponse,
-} from "@/components/ai-elements/message";
-import {
 	PromptInput,
 	PromptInputBody,
 	PromptInputSubmit,
 	PromptInputTextarea,
-} from "@/components/ai-elements/prompt-input";
-import { Shimmer } from "@/components/ai-elements/shimmer";
+} from "@/components/agent/composer/prompt-input";
+import {
+	Conversation,
+	ConversationContent,
+	ConversationEmptyState,
+	ConversationScrollButton,
+} from "@/components/agent/conversation";
+import {
+	Message,
+	MessageContent,
+	MessageResponse,
+} from "@/components/agent/message";
 import { useMobileAgentChat } from "@/components/mobile/hooks/use-mobile-agent-chat";
 import type {
 	AcpListSessionsResult,
@@ -37,6 +36,11 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	MessageScrollerContent,
+	MessageScrollerItem,
+} from "@/components/ui/message-scroller";
+import { Shimmer } from "@/components/ui/shimmer";
 import { displayHistoryTitle } from "@/lib/agent/prompt-display";
 import { bridgeRpc } from "@/lib/bridge/client";
 import { cn } from "@/lib/core/utils";
@@ -99,37 +103,48 @@ export function MobileAgentPage({
 			<section className="flex h-full min-h-0 flex-col">
 				<Conversation className="min-h-0 flex-1">
 					<ConversationContent className="gap-5 px-4 py-5 md:px-6">
-						{restoring ? (
-							<p className="mb-3 flex items-center gap-2 text-muted-foreground text-sm">
-								<LoaderCircle className="size-4 animate-spin" />
-								{t("agent.restoring")}
-							</p>
-						) : null}
-						{lines.length === 0 && !restoring ? (
-							<ConversationEmptyState
-								className="min-h-0 flex-1 p-4 text-base"
-								title={t("agent.empty")}
-							/>
-						) : (
-							<>
-								{lines.map((line) => (
-									<MobileChatLine
-										key={line.id}
-										line={line}
-										label={line === streamingAssistant ? pendingLabel : null}
+						<MessageScrollerContent className="gap-5">
+							{restoring ? (
+								<MessageScrollerItem messageId="restoring">
+									<p className="mb-3 flex items-center gap-2 text-muted-foreground text-sm">
+										<LoaderCircle className="size-4 animate-spin" />
+										{t("agent.restoring")}
+									</p>
+								</MessageScrollerItem>
+							) : null}
+							{lines.length === 0 && !restoring ? (
+								<MessageScrollerItem messageId="empty">
+									<ConversationEmptyState
+										className="min-h-0 flex-1 p-4 text-base"
+										title={t("agent.empty")}
 									/>
-								))}
-								{sending && !streamingAssistant ? (
-									<Message from="assistant" className="max-w-full">
-										<MessageContent className="text-base leading-6">
-											<Shimmer className="text-sm">
-												{pendingLabel ?? t("agent.thinking")}
-											</Shimmer>
-										</MessageContent>
-									</Message>
-								) : null}
-							</>
-						)}
+								</MessageScrollerItem>
+							) : (
+								<>
+									{lines.map((line) => (
+										<MessageScrollerItem key={line.id} messageId={line.id}>
+											<MobileChatLine
+												line={line}
+												label={
+													line === streamingAssistant ? pendingLabel : null
+												}
+											/>
+										</MessageScrollerItem>
+									))}
+									{sending && !streamingAssistant ? (
+										<MessageScrollerItem messageId="pending">
+											<Message from="assistant" className="max-w-full">
+												<MessageContent className="text-base leading-6">
+													<Shimmer className="text-sm">
+														{pendingLabel ?? t("agent.thinking")}
+													</Shimmer>
+												</MessageContent>
+											</Message>
+										</MessageScrollerItem>
+									) : null}
+								</>
+							)}
+						</MessageScrollerContent>
 					</ConversationContent>
 					<ConversationScrollButton className="bottom-3 size-8 shadow-md" />
 				</Conversation>

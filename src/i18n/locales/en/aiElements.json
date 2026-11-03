@@ -1,8 +1,14 @@
 {
+	"sources": {
+		"count_one": "{{count}} source",
+		"count_other": "{{count}} sources",
+		"link": "Link"
+	},
 	"context": {
 		"iconLabel": "Model context usage"
 	},
 	"tool": {
+		"exitCode": "Exit {{code}}",
 		"status": {
 			"awaitingApproval": "Awaiting Approval",
 			"responded": "Responded",
@@ -21,6 +27,8 @@
 		"thought": "Thought process"
 	},
 	"conversation": {
+		"messages": "Messages",
+		"scrollToEnd": "Scroll to latest message",
 		"empty": {
 			"title": "No messages yet",
 			"description": "Start a conversation to see messages here"

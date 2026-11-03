@@ -2,7 +2,7 @@ import { ChevronDown, LoaderCircle, Star } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ComposerReasoningEffort } from "@/components/agent/composer/composer-reasoning-effort";
-import type { GroupedModel } from "@/components/agent/hooks/use-agent-config";
+import { PromptInputButton } from "@/components/agent/composer/prompt-input";
 import {
 	ModelSelector,
 	ModelSelectorContent,
@@ -12,8 +12,8 @@ import {
 	ModelSelectorItem,
 	ModelSelectorList,
 	ModelSelectorTrigger,
-} from "@/components/ai-elements/model-selector";
-import { PromptInputButton } from "@/components/ai-elements/prompt-input";
+} from "@/components/agent/elements/model-selector";
+import type { GroupedModel } from "@/components/agent/hooks/use-agent-config";
 import {
 	Tooltip,
 	TooltipContent,

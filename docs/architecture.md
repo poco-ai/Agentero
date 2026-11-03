@@ -7,7 +7,7 @@ Agentero 基于 Tauri 2 + React 19，本地优先，Vault 文件与 Catalog SQLi
 ```text
 ┌─────────────────────────────────────────────────┐
 │  React 19 Webview (src/)                        │
-│  zustand vanilla stores → AI Elements UI        │
+│  zustand stores → 业务组合 → shadcn AI UI       │
 ├─────────────────────────────────────────────────┤
 │  Tauri IPC (invoke / events)                    │
 ├─────────────────────────────────────────────────┤

@@ -1,7 +1,7 @@
 import { BookOpen, ChevronRight } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Shimmer } from "@/components/ai-elements/shimmer";
+import { Shimmer } from "@/components/ui/shimmer";
 import { cn } from "@/lib/core/utils";
 import type { PaperMetadata } from "@/lib/paper/types";
 

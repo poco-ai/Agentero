@@ -10,7 +10,7 @@ import {
 	tableDataToMarkdown,
 	tableDataToTSV,
 } from "streamdown";
-import { downloadText } from "@/components/ai-elements/plain-code-block";
+import { downloadText } from "@/components/agent/rendering/plain-code-block";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,

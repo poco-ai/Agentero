@@ -2,6 +2,13 @@
 
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { isValidElement, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import {
+	HoverCard,
+	HoverCardContent,
+	HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import {
 	citationLabelFromHref,
 	isCitationStatusLabel,
@@ -25,7 +32,7 @@ function hrefFromProps(
 	href: string | undefined,
 	node: AgentCitationLinkProps["node"],
 ): string {
-	if (href && href.trim()) return href.trim();
+	if (href?.trim()) return href.trim();
 	const fromNode = node?.properties?.href;
 	return typeof fromNode === "string" ? fromNode.trim() : "";
 }
@@ -54,6 +61,7 @@ export function AgentCitationLink({
 	rel: _rel,
 	...props
 }: AgentCitationLinkProps) {
+	const { t } = useTranslation("aiElements");
 	const rawHref = hrefFromProps(href, node);
 	const incomplete = rawHref === "streamdown:incomplete-link";
 	const resolvedHref = useMemo(() => {
@@ -84,27 +92,45 @@ export function AgentCitationLink({
 		if (resolvedHref && !incomplete) {
 			return citationLabelFromHref(resolvedHref) || resolvedHref;
 		}
-		return rawLabel || "link";
-	}, [rawLabel, resolvedHref, incomplete]);
+		return rawLabel || t("sources.link");
+	}, [rawLabel, resolvedHref, incomplete, t]);
 
 	// Every resolved agent link is a pill. Ignore Streamdown's default
 	// `underline text-primary` className so chips stay chip-shaped.
-	return (
-		<a
-			href={incomplete ? undefined : resolvedHref || undefined}
+	const link = (
+		<Button
+			asChild
+			variant="secondary"
+			size="xs"
 			className={cn(
-				"inline-flex max-w-[12rem] shrink-0 cursor-pointer items-center gap-1 rounded-full",
-				"border border-border/60 bg-muted/60 px-2 py-0.5 align-baseline text-xs font-medium text-muted-foreground",
-				"transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-foreground",
-				"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				"inline-flex h-auto max-w-[12rem] rounded-full px-2 py-0.5 align-baseline text-xs text-muted-foreground",
 				incomplete && "cursor-default opacity-70",
 			)}
-			title={incomplete ? undefined : resolvedHref || undefined}
-			data-incomplete={incomplete || undefined}
-			{...props}
-			onClick={handleClick}
 		>
-			<span className="block min-w-0 truncate">{label}</span>
-		</a>
+			<a
+				href={incomplete ? undefined : resolvedHref || undefined}
+				data-incomplete={incomplete || undefined}
+				{...props}
+				onClick={handleClick}
+			>
+				<span className="block min-w-0 truncate">{label}</span>
+			</a>
+		</Button>
+	);
+	if (!resolvedHref || incomplete) return link;
+	return (
+		<HoverCard openDelay={100} closeDelay={100}>
+			<HoverCardTrigger asChild>{link}</HoverCardTrigger>
+			<HoverCardContent className="flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-1">
+				<span className="font-medium">{label}</span>
+				<a
+					href={resolvedHref}
+					onClick={handleClick}
+					className="break-all text-xs text-muted-foreground hover:text-foreground"
+				>
+					{resolvedHref}
+				</a>
+			</HoverCardContent>
+		</HoverCard>
 	);
 }

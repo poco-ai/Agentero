@@ -7,7 +7,7 @@ import { CommentCardsLayer } from "@/components/viewer/pdf/layers/comment-cards-
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
-vi.mock("@/components/ai-elements/message", () => ({
+vi.mock("@/components/agent/message", () => ({
 	MessageResponse: () => null,
 }));
 

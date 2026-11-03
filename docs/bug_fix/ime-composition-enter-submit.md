@@ -6,7 +6,7 @@
 
 - `src/lib/core/ime.ts` — `isImeKeyboardEvent`、`IME_KEY_CODE`（229）、`IME_COMPOSITION_END_GRACE_MS`
 - `src/hooks/use-ime-guard.ts` — composition 状态 + 确认键宽限
-- `src/components/ai-elements/prompt-input.tsx` — `PromptInputTextarea` Enter 提交守卫
+- `src/components/agent/composer/prompt-input.tsx` — `PromptInputTextarea` Enter 提交守卫
 - `src/components/agent/use-agent-panel.ts` — `@`/`$` 菜单 Enter、消息编辑重发
 - `src/components/viewer/pdf-ask/annotation-editor.tsx` — 批注 Enter 保存
 - `src/components/sidebar/vault-sidebar-header.tsx` — 魔棒标题搜索 Enter 提交守卫

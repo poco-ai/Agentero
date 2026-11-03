@@ -14,7 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import agenteroAppIcon from "@/assets/agentero-app-icon.svg";
-import { CompactCodeBlock } from "@/components/ai-elements/code-block";
+import { CompactCodeBlock } from "@/components/agent/rendering/code-block";
 import { AboutFeedback } from "@/components/settings/panes/about-feedback";
 import {
 	PageTitle,

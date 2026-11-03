@@ -1,8 +1,7 @@
 "use client";
 
-// Local fork of the vendored AI Elements prompt-input. Unused families
-// (provider, referenced sources, action menu, select, hover-card, tabs,
-// command, screenshot) were trimmed locally — keep this file lean.
+// Application form and attachment lifecycle composed from upstream Input Group.
+// Keep ACP and native capabilities outside UI primitives.
 
 import type { ChatStatus, FileUIPart } from "ai";
 import { ArrowUpIcon, SquareIcon, XIcon } from "lucide-react";

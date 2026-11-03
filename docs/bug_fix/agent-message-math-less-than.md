@@ -30,7 +30,7 @@ $$
 
 ## 修复
 
-`MessageResponse`（`src/components/ai-elements/message.tsx`）按 `isAnimating` 派生 Streamdown 的 `mode`：
+`MessageResponse`（`src/components/agent/rendering/message-response.tsx`）按 `isAnimating` 派生 Streamdown 的 `mode`：
 
 - **流式中**（`isAnimating=true`，各调用方已有的信号：chat-transcript / ask-popover / mobile-agent-page）：`mode="streaming"`，remend 照跑，行为不变——流式期间内容还会增长，截掉未闭合标签是合理的中间态。
 - **已落定**（其余一切场合，含历史消息、plaza feed、翻译卡、wiki 注释嵌入、用户气泡）：`mode="static"`，完全跳过 remend，TeX 源原样进入 KaTeX，公式完整渲染。流式结束 `isAnimating` 翻 false 时 Streamdown 重渲染，从截断中间态恢复为完整公式。

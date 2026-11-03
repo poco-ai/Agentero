@@ -14,7 +14,7 @@ import {
 	useRef,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { usePromptInputAttachments } from "@/components/ai-elements/prompt-input";
+import { usePromptInputAttachments } from "@/components/agent/composer/prompt-input";
 import { useImeGuard } from "@/hooks/use-ime-guard";
 import { AGENT_COMPOSER_INPUT_ATTR } from "@/lib/agent/composer-focus";
 import {

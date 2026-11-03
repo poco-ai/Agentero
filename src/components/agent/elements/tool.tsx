@@ -3,7 +3,6 @@
 import type { DynamicToolUIPart, ToolUIPart } from "ai";
 import {
 	CheckCircleIcon,
-	ChevronDownIcon,
 	CircleIcon,
 	ClockIcon,
 	WrenchIcon,
@@ -12,26 +11,38 @@ import {
 import type { ComponentProps, ReactNode } from "react";
 import { isValidElement } from "react";
 import { useTranslation } from "react-i18next";
+import { CodeBlock } from "@/components/agent/rendering/code-block";
 import { Badge } from "@/components/ui/badge";
 import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+	Trace,
+	TraceCollapsible,
+	TraceCollapsibleContent,
+	TraceCollapsibleTrigger,
+	TraceIcon,
+	TraceLine,
+	TraceTitle,
+} from "@/components/ui/trace";
 import { cn } from "@/lib/core/utils";
 
-import { CodeBlock } from "./code-block";
+export type ToolProps = Omit<
+	ComponentProps<typeof TraceCollapsible>,
+	"open" | "onOpenChange"
+> & { open?: boolean; onOpenChange?: (open: boolean) => void };
 
-export type ToolProps = ComponentProps<typeof Collapsible>;
-
-export const Tool = ({ className, ...props }: ToolProps) => (
-	<Collapsible
-		className={cn(
-			"group not-prose mb-1.5 w-full max-w-full rounded border bg-muted/20",
-			className,
-		)}
-		{...props}
-	/>
+export const Tool = ({
+	className,
+	open,
+	onOpenChange,
+	...props
+}: ToolProps) => (
+	<Trace className={cn("not-prose mb-1.5", className)}>
+		<TraceCollapsible
+			{...props}
+			{...(open === undefined
+				? { onOpenChange }
+				: { open, onOpenChange: onOpenChange ?? (() => {}) })}
+		/>
+	</Trace>
 );
 
 export type ToolPart = ToolUIPart | DynamicToolUIPart;
@@ -87,65 +98,33 @@ export const ToolHeader = ({
 	type,
 	state,
 	toolName,
-	swapIconOnHover = false,
+	swapIconOnHover: _swapIconOnHover,
 	...props
 }: ToolHeaderProps) => {
 	const { t } = useTranslation("aiElements");
-	const derivedName =
+	const name =
 		type === "dynamic-tool" ? toolName : type.split("-").slice(1).join("-");
-
+	const failed = state === "output-denied" || state === "output-error";
+	const running = state === "input-available" || state === "input-streaming";
 	return (
-		<CollapsibleTrigger
-			className={cn(
-				// Left-aligned compact header (not space-between)
-				"flex w-full items-center justify-start gap-2 px-2 py-1 text-left text-muted-foreground transition-colors hover:text-foreground",
-				swapIconOnHover && "group/tool-header",
-				className,
-			)}
-			{...props}
-		>
-			{swapIconOnHover ? (
-				<span className="relative flex size-4 shrink-0 items-center justify-center">
-					<ChevronDownIcon
-						className={cn(
-							"absolute size-4 text-muted-foreground opacity-0 transition-all",
-							"group-hover/tool-header:opacity-100",
-							"-rotate-90 group-data-[state=open]:rotate-0",
-						)}
-					/>
-					<WrenchIcon
-						className={cn(
-							"absolute size-4 text-muted-foreground transition-opacity",
-							"group-hover/tool-header:opacity-0",
-						)}
-					/>
-				</span>
-			) : (
-				<>
-					<ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform -rotate-90 group-data-[state=open]:rotate-0" />
-					<WrenchIcon className="size-4 shrink-0 text-muted-foreground" />
-				</>
-			)}
-			<span className="min-w-0 truncate font-medium text-xs">
-				{title ?? derivedName}
-			</span>
-			{state === "output-denied" || state === "output-error" ? (
-				<span className="ml-auto">
-					{getStatusBadge(state, t(statusLabelKeys[state]))}
-				</span>
-			) : null}
-		</CollapsibleTrigger>
+		<TraceCollapsibleTrigger className={className} {...props}>
+			<TraceLine status={failed ? "error" : running ? "running" : undefined}>
+				<TraceIcon>
+					<WrenchIcon />
+				</TraceIcon>
+				<TraceTitle className="font-medium text-xs">{title ?? name}</TraceTitle>
+				<span className="sr-only">{t(statusLabelKeys[state])}</span>
+				{failed ? getStatusBadge(state, t(statusLabelKeys[state])) : null}
+			</TraceLine>
+		</TraceCollapsibleTrigger>
 	);
 };
 
-export type ToolContentProps = ComponentProps<typeof CollapsibleContent>;
+export type ToolContentProps = ComponentProps<typeof TraceCollapsibleContent>;
 
 export const ToolContent = ({ className, ...props }: ToolContentProps) => (
-	<CollapsibleContent
-		className={cn(
-			"data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 space-y-2 border-t px-2 py-1.5 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
-			className,
-		)}
+	<TraceCollapsibleContent
+		className={cn("space-y-2 text-popover-foreground", className)}
 		{...props}
 	/>
 );

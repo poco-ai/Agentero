@@ -339,7 +339,7 @@ export type ElicitationField = {
 	title: string;
 	description?: string | null;
 	required: boolean;
-	/** select | text | boolean | number | other */
+	/** select | multiselect | text | boolean | number | other */
 	kind: string;
 	options: ElicitationOption[];
 	/** Codex free-text companion for the same logical question ("Other"). */
@@ -727,7 +727,7 @@ export async function respondPermission(
 export async function respondElicitation(request: {
 	requestId: string;
 	action: "accept" | "decline" | "cancel";
-	content?: Record<string, string>;
+	content?: Record<string, string | string[]>;
 }): Promise<void> {
 	await callApi(
 		() =>

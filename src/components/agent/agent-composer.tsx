@@ -31,14 +31,14 @@ import {
 	ComposerSlashMenu,
 } from "@/components/agent/composer/composer-quick-menus";
 import { ComposerToolbar } from "@/components/agent/composer/composer-toolbar";
-import { useComposerFileDrag } from "@/components/agent/hooks/use-composer-file-drag";
-import type { QueuedPrompt } from "@/components/agent/types";
 import {
 	PromptInput,
 	PromptInputBody,
 	PromptInputFooter,
 	PromptInputTools,
-} from "@/components/ai-elements/prompt-input";
+} from "@/components/agent/composer/prompt-input";
+import { useComposerFileDrag } from "@/components/agent/hooks/use-composer-file-drag";
+import type { QueuedPrompt } from "@/components/agent/types";
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import type { AgentSkill, PromptImage } from "@/lib/agent";
 import { annotationOrdinal } from "@/lib/agent/annotation-prompt";

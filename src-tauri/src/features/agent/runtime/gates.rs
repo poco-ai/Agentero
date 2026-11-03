@@ -9,6 +9,7 @@
 //! elicitation. The Host must advertise `clientCapabilities.elicitation.form`
 //! and answer `elicitation/create` or the adapter returns empty answers.
 
+use crate::features::agent::models::ElicitationFieldValue;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
 use tokio::sync::oneshot;
@@ -59,8 +60,8 @@ impl PermissionGate {
 /// User decision for a pending elicitation.
 #[derive(Debug, Clone)]
 pub enum ElicitationAnswer {
-    /// Accept with field values (property id → string content).
-    Accept(BTreeMap<String, String>),
+    /// Accept with scalar or multi-select field values.
+    Accept(BTreeMap<String, ElicitationFieldValue>),
     Decline,
     Cancel,
 }

@@ -6,7 +6,7 @@ import {
 	Message,
 	MessageContent,
 	MessageResponse,
-} from "@/components/ai-elements/message";
+} from "@/components/agent/message";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import { cn } from "@/lib/core/utils";

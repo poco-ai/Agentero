@@ -2927,6 +2927,9 @@ export type DuplicateRow = {
 	pathExists: boolean,
 };
 
+/**  Form field response: a scalar selection/text or multiple selected values. */
+export type ElicitationFieldValue = string | string[];
+
 /**  One form field derived from an elicitation schema property (for UI). */
 export type ElicitationFieldView = ElicitationFieldView_Serialize | ElicitationFieldView_Deserialize;
 
@@ -2936,7 +2939,7 @@ export type ElicitationFieldView_Deserialize = {
 	title: string,
 	description: string | null,
 	required: boolean,
-	/**  select | text | boolean | number | other */
+	/**  select | multiselect | text | boolean | number | other */
 	kind: string,
 	options: ElicitationOptionView[],
 	/**  Codex companion free-text for "Other" (same logical question). */
@@ -2951,7 +2954,7 @@ export type ElicitationFieldView_Serialize = {
 	title: string,
 	description: string | null,
 	required: boolean,
-	/**  select | text | boolean | number | other */
+	/**  select | multiselect | text | boolean | number | other */
 	kind: string,
 	options: ElicitationOptionView[],
 	/**  Codex companion free-text for "Other" (same logical question). */
@@ -3002,8 +3005,8 @@ export type ElicitationResponseRequest = {
 	requestId: string,
 	/**  accept | decline | cancel */
 	action: string,
-	/**  Field id → string value (accept only). */
-	content?: { [key in string]: string } | null,
+	/**  Field id → string or selected string values (accept only). */
+	content?: { [key in string]: ElicitationFieldValue } | null,
 };
 
 /**

@@ -1,8 +1,13 @@
 {
+	"sources": {
+		"count_other": "{{count}} 个来源",
+		"link": "链接"
+	},
 	"context": {
 		"iconLabel": "模型上下文用量"
 	},
 	"tool": {
+		"exitCode": "退出码 {{code}}",
 		"status": {
 			"awaitingApproval": "等待批准",
 			"responded": "已响应",
@@ -21,6 +26,8 @@
 		"thought": "思考过程"
 	},
 	"conversation": {
+		"messages": "对话消息",
+		"scrollToEnd": "滚动到最新消息",
 		"empty": {
 			"title": "暂无消息",
 			"description": "开始对话后，消息会显示在这里"
