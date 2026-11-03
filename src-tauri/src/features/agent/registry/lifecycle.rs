@@ -1611,11 +1611,7 @@ fn effective_npm_cache_dir() -> Option<std::path::PathBuf> {
 }
 
 fn managed_npm_cache_dir() -> std::path::PathBuf {
-    dirs::data_local_dir()
-        .or_else(dirs::home_dir)
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("Agentero")
-        .join("npm-cache")
+    crate::core::paths::agentero_cache_dir().join("npm-cache")
 }
 
 /// True when `dir` exists (or can be created) and accepts a new file.

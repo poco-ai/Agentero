@@ -53,6 +53,8 @@ desktop = [
 tauri-build = { version = "2", features = [] }
 
 [dev-dependencies]
+# Redirects the XDG dirs to a temp dir before unit tests start (lib.rs).
+ctor = "0.8"
 # In-memory MCP protocol tests; no listener or permanent service.
 rmcp = { version = "3.1", default-features = false, features = ["client", "transport-io"] }
 # `start_paused` virtual clock for stream coalescer / throttle unit tests.
