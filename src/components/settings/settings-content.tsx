@@ -35,6 +35,7 @@ import type {
 	SettingsSection,
 } from "@/components/settings/types";
 import { Button } from "@/components/ui/button";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { scrollBehavior } from "@/lib/core/motion";
 import { cn } from "@/lib/core/utils";
 import {
@@ -76,9 +77,16 @@ const PANE_LOADERS = {
  * Warm the chunk for `section` before the shell renders. Module promises are
  * cached, so the matching `lazy()` below resolves without a second request.
  */
+function sectionVisible(id: SettingsSection): boolean {
+	if (!pluginsSurfaceEnabled && id === "plugins") return false;
+	if (!accountSurfaceEnabled && id === "account") return false;
+	return true;
+}
+
 export function preloadSettingsPane(section: string): Promise<unknown> {
-	const requested =
-		!pluginsSurfaceEnabled && section === "plugins" ? "general" : section;
+	const requested = sectionVisible(section as SettingsSection)
+		? section
+		: "general";
 	const load =
 		PANE_LOADERS[requested as SettingsSection] ?? PANE_LOADERS.general;
 	return load();
@@ -197,13 +205,11 @@ export function SettingsContent({
 	const fallbackTitleId = useId();
 	const headingId = titleId ?? fallbackTitleId;
 	const navItems = useMemo(
-		() => NAV.filter((item) => pluginsSurfaceEnabled || item.id !== "plugins"),
+		() => NAV.filter((item) => sectionVisible(item.id)),
 		[],
 	);
 	const activeSection =
-		(pluginsSurfaceEnabled || section !== "plugins") && section in PANE_LOADERS
-			? section
-			: "general";
+		sectionVisible(section) && section in PANE_LOADERS ? section : "general";
 
 	useEffect(() => {
 		if (activeSection !== section) onSectionChange(activeSection);
@@ -231,7 +237,7 @@ export function SettingsContent({
 	useEffect(() => {
 		let cancelled = false;
 		const sections = (Object.keys(PANE_LOADERS) as SettingsSection[]).filter(
-			(id) => pluginsSurfaceEnabled || id !== "plugins",
+			(id) => sectionVisible(id),
 		);
 		let i = 0;
 		let timer: ReturnType<typeof setTimeout> | null = null;

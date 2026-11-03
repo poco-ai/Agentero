@@ -13,6 +13,7 @@ import {
 	RemoteVaultDialog,
 } from "@/components/dialogs/remote-vault-dialog";
 import { Button } from "@/components/ui/button";
+import { accountSurfaceEnabled } from "@/features/account/visibility";
 import { displayPath } from "@/lib/core/path";
 import { cn } from "@/lib/core/utils";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
@@ -126,14 +127,16 @@ export function VaultWelcome({
 			)}
 		>
 			<div className="flex w-full max-w-lg flex-col gap-6">
-				<Button
-					variant="ghost"
-					className="self-center"
-					onClick={() => openSettingsWindow("account")}
-				>
-					<UserRound className="size-4" />
-					{t("settings:nav.account")}
-				</Button>
+				{accountSurfaceEnabled ? (
+					<Button
+						variant="ghost"
+						className="self-center"
+						onClick={() => openSettingsWindow("account")}
+					>
+						<UserRound className="size-4" />
+						{t("settings:nav.account")}
+					</Button>
+				) : null}
 				<div className="mx-auto flex size-12 items-center justify-center rounded-xl border bg-background shadow-sm">
 					<FolderOpen className="size-6 text-muted-foreground" />
 				</div>

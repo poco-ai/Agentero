@@ -134,3 +134,5 @@
 ## 账户入口
 
 账户页在桌面显示当前用户、云同步用量和团队列表；资料编辑与团队管理分别打开 Web 应用的 `/account` 与 `/teams`。登录、退出及会话事件仍经 `tauri-plugin-better-auth` 处理。`src/features/account/` 只保留客户端、会话/团队查询、错误映射和头像组件；旧本地账户管理 UI 及其专用 mutation hooks 已移除。
+
+账户入口默认隐藏，由 `src/features/account/visibility.ts` 的 `accountSurfaceEnabled` 控制（与 `pluginsSurfaceEnabled` 同一模式）：为 `false` 时不显示设置侧栏的「账户」分区和 Vault 欢迎页的账户按钮，`?section=account` 回落到「通用」。后端鉴权与会话逻辑不受影响。
