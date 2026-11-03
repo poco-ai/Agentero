@@ -299,8 +299,8 @@ pub struct PaperRecord {
     pub html_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_url: Option<String>,
-    /// Code repository. Import fills this from the main PDF's first page when
-    /// it is empty; Edit Metadata can set or clear it afterwards.
+    /// Code repository. Import fills this from the main PDF when it is empty
+    /// and the user has not edited it; Edit Metadata can set or clear it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_repo: Option<String>,
     /// Manually maintained OpenReview link; never resolved from identifiers.
@@ -1185,6 +1185,22 @@ pub struct PaperMetaPatch {
     pub openreview_url: Option<String>,
 }
 
+/// Whether Edit Metadata has written `code_repo` for this paper.
+/// A missing row is not manual. The column is not part of [`PaperRecord`].
+pub fn code_repo_is_manual(vault_root: &Path, path: &str) -> Result<bool, AppError> {
+    let path = crate::fs::normalize_rel_separators(path);
+    with_catalog(vault_root, |conn| {
+        let flagged: Option<i64> = conn
+            .query_row(
+                "SELECT code_repo_manual FROM papers WHERE path = ?1",
+                params![path],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(flagged.unwrap_or(0) != 0)
+    })
+}
+
 /// Apply a manual metadata patch; returns the updated row.
 /// Marks `meta_source = "manual"` so sync/rescan flows know the user edited it.
 /// A title change appends the new title to NOTES.md frontmatter aliases
@@ -1196,96 +1212,101 @@ pub fn update_meta(
 ) -> Result<PaperRecord, AppError> {
     let mut old_title = String::new();
     let mut title_changed = false;
-    let updated = mutate_paper(vault_root, path, |row| {
-        fn norm(value: &str) -> Option<String> {
-            let trimmed = value.trim();
-            (!trimmed.is_empty()).then(|| trimmed.to_string())
-        }
-
-        if let Some(title) = patch.title.as_deref() {
-            let title = title.trim();
-            if title.is_empty() {
-                return Err(AppError::message("title cannot be empty"));
+    let updated = mutate_paper_inner(
+        vault_root,
+        path,
+        |row| {
+            fn norm(value: &str) -> Option<String> {
+                let trimmed = value.trim();
+                (!trimmed.is_empty()).then(|| trimmed.to_string())
             }
-            old_title = row.title.clone();
-            title_changed = title != row.title;
-            row.title = title.to_string();
-        }
-        if let Some(authors) = &patch.authors {
-            row.authors = authors
-                .iter()
-                .map(|a| a.trim().to_string())
-                .filter(|a| !a.is_empty())
-                .collect();
-        }
-        if let Some(date) = patch.date.as_deref() {
-            match norm(date) {
-                None => {
-                    row.date = None;
-                    row.year = None;
+
+            if let Some(title) = patch.title.as_deref() {
+                let title = title.trim();
+                if title.is_empty() {
+                    return Err(AppError::message("title cannot be empty"));
                 }
-                Some(text) => {
-                    let parsed = parse_publication_date(&text).ok_or_else(|| {
+                old_title = row.title.clone();
+                title_changed = title != row.title;
+                row.title = title.to_string();
+            }
+            if let Some(authors) = &patch.authors {
+                row.authors = authors
+                    .iter()
+                    .map(|a| a.trim().to_string())
+                    .filter(|a| !a.is_empty())
+                    .collect();
+            }
+            if let Some(date) = patch.date.as_deref() {
+                match norm(date) {
+                    None => {
+                        row.date = None;
+                        row.year = None;
+                    }
+                    Some(text) => {
+                        let parsed = parse_publication_date(&text).ok_or_else(|| {
                         AppError::message(
                             "date must be a year (YYYY), year-month (YYYY-MM) or full date (YYYY-MM-DD)",
                         )
                     })?;
-                    row.year = Some(parsed.year);
-                    row.date = Some(parsed.canonical());
+                        row.year = Some(parsed.year);
+                        row.date = Some(parsed.canonical());
+                    }
                 }
             }
-        }
-        if let Some(v) = patch.doi.as_deref() {
-            row.doi = norm(v);
-        }
-        if let Some(v) = patch.arxiv_id.as_deref() {
-            row.arxiv_id = norm(v);
-        }
-        if let Some(v) = patch.publication.as_deref() {
-            let next = norm(v);
-            // Metrics are derived from the venue name; a changed publication
-            // invalidates them immediately instead of leaving stale ranks.
-            if next != row.publication {
-                row.tags.retain(|tag| {
-                    !tag.name
-                        .trim()
-                        .to_ascii_lowercase()
-                        .starts_with("#easyscholar:")
-                });
+            if let Some(v) = patch.doi.as_deref() {
+                row.doi = norm(v);
             }
-            row.publication = next;
-        }
-        if let Some(v) = patch.volume.as_deref() {
-            row.volume = norm(v);
-        }
-        if let Some(v) = patch.issue.as_deref() {
-            row.issue = norm(v);
-        }
-        if let Some(v) = patch.pages.as_deref() {
-            row.pages = norm(v);
-        }
-        if let Some(v) = patch.publisher.as_deref() {
-            row.publisher = norm(v);
-        }
-        if let Some(v) = patch.abstract_text.as_deref() {
-            row.abstract_text = norm(v);
-        }
-        if let Some(v) = patch.pdf_url.as_deref() {
-            row.pdf_url = norm(v);
-        }
-        if let Some(v) = patch.html_url.as_deref() {
-            row.html_url = norm(v);
-        }
-        if let Some(v) = patch.code_repo.as_deref() {
-            row.code_repo = norm(v);
-        }
-        if let Some(v) = patch.openreview_url.as_deref() {
-            row.openreview_url = norm(v);
-        }
+            if let Some(v) = patch.arxiv_id.as_deref() {
+                row.arxiv_id = norm(v);
+            }
+            if let Some(v) = patch.publication.as_deref() {
+                let next = norm(v);
+                // Metrics are derived from the venue name; a changed publication
+                // invalidates them immediately instead of leaving stale ranks.
+                if next != row.publication {
+                    row.tags.retain(|tag| {
+                        !tag.name
+                            .trim()
+                            .to_ascii_lowercase()
+                            .starts_with("#easyscholar:")
+                    });
+                }
+                row.publication = next;
+            }
+            if let Some(v) = patch.volume.as_deref() {
+                row.volume = norm(v);
+            }
+            if let Some(v) = patch.issue.as_deref() {
+                row.issue = norm(v);
+            }
+            if let Some(v) = patch.pages.as_deref() {
+                row.pages = norm(v);
+            }
+            if let Some(v) = patch.publisher.as_deref() {
+                row.publisher = norm(v);
+            }
+            if let Some(v) = patch.abstract_text.as_deref() {
+                row.abstract_text = norm(v);
+            }
+            if let Some(v) = patch.pdf_url.as_deref() {
+                row.pdf_url = norm(v);
+            }
+            if let Some(v) = patch.html_url.as_deref() {
+                row.html_url = norm(v);
+            }
+            if let Some(v) = patch.code_repo.as_deref() {
+                row.code_repo = norm(v);
+            }
+            if let Some(v) = patch.openreview_url.as_deref() {
+                row.openreview_url = norm(v);
+            }
 
-        row.meta_source = Some("manual".to_string());
-        Ok(())
-    })?;
+            row.meta_source = Some("manual".to_string());
+            Ok(())
+        },
+        patch.code_repo.is_some(),
+    )?;
     if title_changed {
         log::info!(
             target: "agentero::catalog",
@@ -1388,6 +1409,18 @@ fn mutate_paper(
     path: &str,
     patch: impl FnOnce(&mut PaperRecord) -> Result<(), AppError>,
 ) -> Result<PaperRecord, AppError> {
+    mutate_paper_inner(vault_root, path, patch, false)
+}
+
+/// `mark_code_repo` records that Edit Metadata wrote `code_repo`, including a
+/// clear. The flag lives beside the row so a later PDF scan does not put the
+/// automatic value back. Upsert leaves the column alone.
+fn mutate_paper_inner(
+    vault_root: &Path,
+    path: &str,
+    patch: impl FnOnce(&mut PaperRecord) -> Result<(), AppError>,
+    mark_code_repo: bool,
+) -> Result<PaperRecord, AppError> {
     let path = crate::fs::normalize_rel_separators(path);
     let persisted = with_catalog(vault_root, |conn| {
         let tx =
@@ -1397,6 +1430,12 @@ fn mutate_paper(
         patch(&mut row)?;
         row.updated_at = crate::time::now_rfc3339_millis();
         upsert_conn_impl(&tx, &row, false)?;
+        if mark_code_repo {
+            tx.execute(
+                "UPDATE papers SET code_repo_manual = 1 WHERE path = ?1",
+                params![path],
+            )?;
+        }
         let persisted =
             get_conn(&tx, &path)?.ok_or_else(|| AppError::message("paper not found in catalog"))?;
         tx.commit()?;

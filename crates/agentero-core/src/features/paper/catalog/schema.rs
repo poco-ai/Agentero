@@ -11,10 +11,12 @@
 //! - v8: multi-row discovery runs (`discovery_runs`) keyed by
 //!   source/model/categories/top_n, superseding the single-row
 //!   `arxiv_rec_state` (kept for old DBs; no longer written)
-//! - v9: `code_repo` link (filled from PDF page 1 on import when empty; still hand-editable)
+//! - v9: `code_repo` link (filled from the PDF when empty; a manual edit sticks)
 //! - v10: manually maintained `openreview_url` link
 //! - v11: `custom_properties` table + `papers.custom_props_json`
 //! - v12: durable pending metadata sidecar paths
+//! - v13: `code_repo_manual` — set when Edit Metadata writes `code_repo`, so a
+//!   cleared value is not filled again from the PDF
 
 use crate::error::AppError;
 use crate::sqlite::MigrationStep;
@@ -25,7 +27,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 /// Current catalog schema version written to `schema_meta`.
-pub const SCHEMA_VERSION: i32 = 12;
+pub const SCHEMA_VERSION: i32 = 13;
 
 const DDL_V1: &str = r#"
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -152,9 +154,15 @@ CREATE TABLE IF NOT EXISTS discovery_runs (
 CREATE INDEX IF NOT EXISTS idx_discovery_runs_computed_at ON discovery_runs(computed_at DESC);
 "#;
 
-/// Schema v9: manually maintained code-repository link.
+/// Schema v9: code-repository link, filled from the PDF when still empty.
 const MIGRATE_V8_TO_V9: &str = r#"
 ALTER TABLE papers ADD COLUMN code_repo TEXT;
+"#;
+
+/// Schema v13: the user edited `code_repo` (including clearing it).
+/// Kept off `PaperRecord` so a later upsert does not clear the flag.
+const MIGRATE_V12_TO_V13: &str = r#"
+ALTER TABLE papers ADD COLUMN code_repo_manual INTEGER NOT NULL DEFAULT 0;
 "#;
 
 /// Schema v10: manually maintained OpenReview link.
@@ -303,7 +311,7 @@ pub fn with_catalog<T>(
 
 /// Migration ladder, applied by [`crate::sqlite::run_migrations`] (per-step
 /// version re-read, stamping, `newer than app` guard).
-const MIGRATION_STEPS: [MigrationStep; 12] = [
+const MIGRATION_STEPS: [MigrationStep; 13] = [
     MigrationStep::batch(1, DDL_V1),
     // SQLite ADD COLUMN is not fully batch-safe across existing cols; the
     // v2–v4 entries run one-by-one and ignore duplicate-column errors.
@@ -318,6 +326,7 @@ const MIGRATION_STEPS: [MigrationStep; 12] = [
     MigrationStep::script_tolerant(10, MIGRATE_V9_TO_V10),
     MigrationStep::script_tolerant(11, MIGRATE_V10_TO_V11),
     MigrationStep::batch(12, MIGRATE_V11_TO_V12),
+    MigrationStep::script_tolerant(13, MIGRATE_V12_TO_V13),
 ];
 
 fn migrate(conn: &Connection) -> Result<(), AppError> {
@@ -574,6 +583,14 @@ mod tests {
             )
             .unwrap();
         assert_eq!(has_later_columns, 6);
+        let has_code_repo_manual: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('papers') WHERE name = 'code_repo_manual'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(has_code_repo_manual, 1);
         // v5 page-count cache + v6 recommendation caches + v8 discovery runs + v11 custom_properties.
         let tables: i64 = conn
             .query_row(
