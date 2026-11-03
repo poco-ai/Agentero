@@ -43,6 +43,12 @@ import {
 	texCompileStore,
 } from "@/lib/workspace/tex-compile";
 import {
+	COMPILE_SUCCESS_FLASH_MS,
+	compileButtonDisplay,
+	compileButtonPhase,
+	shouldFlashCompileSuccess,
+} from "@/lib/writing/compile-button";
+import {
 	readWritingGitHub,
 	type WritingGitHubLink,
 } from "@/lib/writing/github";
@@ -82,7 +88,27 @@ export function WritingPdfBar({
 		(state) => state.compilingPath,
 	);
 	const snapshot = useStore(texBuildStore, (state) => state.byRoot[key]);
-	const compiling = compilingPath != null || snapshot?.status === "running";
+	const phase = compileButtonPhase({
+		compilingPath,
+		rootFile: key,
+		status: snapshot?.status,
+	});
+	const [trackedPhase, setTrackedPhase] = useState(phase);
+	const [successFlash, setSuccessFlash] = useState(false);
+	if (phase !== trackedPhase) {
+		setTrackedPhase(phase);
+		setSuccessFlash(shouldFlashCompileSuccess(trackedPhase, phase));
+	}
+	useEffect(() => {
+		if (!successFlash) return;
+		const timer = window.setTimeout(
+			() => setSuccessFlash(false),
+			COMPILE_SUCCESS_FLASH_MS,
+		);
+		return () => window.clearTimeout(timer);
+	}, [successFlash]);
+	const display = compileButtonDisplay(phase, successFlash);
+	const running = display === "running";
 	const ready = enginesLoading || engines.length > 0;
 	const vault = getVaultPath();
 	const historyActive = useStore(writingStore, (state) => state.historyActive);
@@ -203,22 +229,37 @@ export function WritingPdfBar({
 
 	return (
 		<div className="flex h-full min-w-0 flex-1 items-center gap-1 overflow-hidden pr-2 pl-1">
-			<div className="inline-flex items-stretch">
+			<div
+				className="inline-flex items-stretch"
+				data-compile-state={display}
+				aria-busy={running || undefined}
+			>
 				<Button
 					type="button"
 					size="sm"
-					className="rounded-r-none"
-					disabled={!ready || compiling}
+					className={cn("rounded-r-none", running && "disabled:opacity-100")}
+					disabled={!ready || running}
+					aria-disabled={!ready || running || undefined}
 					onClick={() => {
+						if (!ready || running) return;
 						void compileTexProject(rootFile);
 					}}
 				>
-					{compiling ? (
-						<Loader2 className="animate-spin" aria-hidden />
+					{display === "running" ? (
+						<Loader2
+							className="animate-spin motion-reduce:animate-none"
+							aria-hidden
+						/>
+					) : display === "succeeded" ? (
+						<Check aria-hidden />
 					) : (
 						<Play aria-hidden />
 					)}
-					{t("writing.recompile")}
+					{display === "running"
+						? t("writing.compiling")
+						: display === "succeeded"
+							? t("fileTree.compileSuccess")
+							: t("writing.recompile")}
 				</Button>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
@@ -234,7 +275,7 @@ export function WritingPdfBar({
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="start">
 						<DropdownMenuItem
-							disabled={compiling}
+							disabled={running}
 							onSelect={() => {
 								void compileTexProject(rootFile, "force");
 							}}
@@ -242,7 +283,7 @@ export function WritingPdfBar({
 							{t("latexBuild:rebuild")}
 						</DropdownMenuItem>
 						<DropdownMenuItem
-							disabled={compiling}
+							disabled={running}
 							onSelect={() => {
 								void compileTexProject(rootFile, "clean");
 							}}
@@ -250,7 +291,7 @@ export function WritingPdfBar({
 							{t("latexBuild:cleanRebuild")}
 						</DropdownMenuItem>
 						<DropdownMenuItem
-							disabled={compiling}
+							disabled={running}
 							onSelect={() => {
 								void cleanTexAuxFiles(rootFile);
 							}}
