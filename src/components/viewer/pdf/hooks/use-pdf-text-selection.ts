@@ -59,6 +59,43 @@ type SelectionCapabilityProvides = ReturnType<
 	typeof useSelectionCapability
 >["provides"];
 
+/** DOM-text surfaces inside the viewer that keep native selection. */
+const SELECTABLE_PDF_TEXT =
+	".pdf-translate-selection, [data-reflow-selection], [data-selection-comment], input, textarea, [contenteditable='true']";
+
+/**
+ * Starting a pointer gesture on the PDF page must not let the browser extend a
+ * native selection from the source editor (or any other contenteditable) into
+ * the PDF split. PDFium owns the PDF selection, so dropping the DOM range is
+ * safe; translation / reflow DOM text and text inputs keep theirs.
+ */
+export function releaseNativeSelectionForPdfPointer({
+	host,
+	target,
+}: {
+	host: HTMLElement;
+	target: EventTarget | null;
+}): void {
+	const element =
+		target instanceof Element
+			? target
+			: target instanceof Node
+				? target.parentElement
+				: null;
+	if (element?.closest(SELECTABLE_PDF_TEXT)) return;
+	// CodeMirror is contenteditable: if it keeps focus, its DOM observer can
+	// adopt the browser selection dragged across the split.
+	const active = document.activeElement;
+	if (
+		active instanceof HTMLElement &&
+		!host.contains(active) &&
+		active.isContentEditable
+	) {
+		active.blur();
+	}
+	window.getSelection()?.removeAllRanges();
+}
+
 type DocumentManagerCapability = ReturnType<
 	typeof useDocumentManagerCapability
 >["provides"];
@@ -199,6 +236,24 @@ export function usePdfTextSelection({
 			return { ...prev, screen };
 		});
 	}, [hostRef, zoomRef]);
+
+	// A drag that starts on the PDF page must not extend the browser's native
+	// selection from the previously focused source editor. PDFium owns the PDF
+	// selection, so dropping the DOM range is safe; DOM-text translation and
+	// input surfaces keep theirs.
+	useEffect(() => {
+		const host = hostRef.current;
+		if (!host) return;
+		const onPointerDown = (event: PointerEvent) => {
+			if (event.button !== 0) return;
+			releaseNativeSelectionForPdfPointer({
+				host,
+				target: event.target,
+			});
+		};
+		host.addEventListener("pointerdown", onPointerDown, true);
+		return () => host.removeEventListener("pointerdown", onPointerDown, true);
+	}, [hostRef]);
 
 	// Source editor took over the writing split: drop the PDFium selection and
 	// its toolbar so only one side stays visibly selected.
