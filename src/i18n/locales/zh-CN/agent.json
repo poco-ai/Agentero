@@ -149,7 +149,9 @@
 		"starting": "启动 Agent 中…",
 		"waitingModel": "等待模型输出…",
 		"reconnecting": "上游重连中",
-		"elapsed": "{{count}}秒"
+		"elapsed": "{{count}}秒",
+		"expandProcess": "展开实时过程",
+		"collapseProcess": "收起实时过程"
 	},
 	"copy": "复制",
 	"copied": "已复制",

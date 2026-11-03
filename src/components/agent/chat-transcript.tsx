@@ -283,11 +283,17 @@ function StreamingActivityRow({
 	parts,
 	streaming,
 	phase = null,
+	expanded = false,
+	onToggle,
 }: {
 	parts: AgentPart[];
 	streaming: boolean;
 	/** Backend loading phase (starting / waiting-model / reconnecting) outranks part-derived labels. */
 	phase?: AgentPhaseState | null;
+	/** Whether the synchronized live parts are currently shown. */
+	expanded?: boolean;
+	/** When provided, the row toggles the live reasoning/tool parts. */
+	onToggle?: () => void;
 }) {
 	const { t } = useTranslation("agent");
 	const [elapsed, setElapsed] = useState(0);
@@ -305,9 +311,8 @@ function StreamingActivityRow({
 	if (!streaming) return null;
 
 	const label = streamingLabel(phase, parts, t);
-
-	return (
-		<div className="flex w-full items-center gap-2 text-muted-foreground text-sm">
+	const content = (
+		<>
 			<AgentThinkingOrb
 				parts={parts}
 				streaming={streaming}
@@ -318,7 +323,40 @@ function StreamingActivityRow({
 			<span className="text-xs tabular-nums">
 				{t("streaming.elapsed", { count: elapsed })}
 			</span>
-		</div>
+			{onToggle ? (
+				<ChevronDownIcon
+					className={cn(
+						"size-3.5 shrink-0 transition-transform",
+						expanded && "rotate-180",
+					)}
+				/>
+			) : null}
+		</>
+	);
+
+	if (!onToggle) {
+		return (
+			<div className="flex w-full items-center gap-2 text-muted-foreground text-sm">
+				{content}
+			</div>
+		);
+	}
+
+	return (
+		<button
+			type="button"
+			aria-expanded={expanded}
+			aria-label={t(
+				expanded ? "streaming.collapseProcess" : "streaming.expandProcess",
+			)}
+			title={t(
+				expanded ? "streaming.collapseProcess" : "streaming.expandProcess",
+			)}
+			onClick={onToggle}
+			className="flex w-full items-center gap-2 rounded-md text-left text-muted-foreground text-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+		>
+			{content}
+		</button>
 	);
 }
 
@@ -563,6 +601,8 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 		// leaks across sessions when history line ids collide
 		// (e.g. Codex thread message ids).
 		const rowKey = `${activeTabId}:${line.id}`;
+		const liveKey = `${rowKey}:__live__`;
+		const showLiveProcess = partOpenState[liveKey] ?? false;
 		const parts = line.parts;
 		const lastIndex = parts.length - 1;
 		// PERF: agentTextFromParts joins the whole reply on every render of
@@ -586,12 +626,10 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 						key={partKey}
 						className={insideProcess ? "mb-0" : "mb-2"}
 						isStreaming={streaming}
-						// Collapsed by default so the transcript stays
-						// scannable; expand on click. Also collapsed
-						// while streaming (no auto-expand). Open state
-						// is lifted to ChatTranscript so virtualized
-						// rows survive unmount; defaultOpen={false}
-						// still suppresses streaming auto-open.
+						// Collapsed by default; the compact activity row above the
+						// parts carries the live one-line progress. Expand on click
+						// while streaming to read the full thought. Open state is
+						// lifted to ChatTranscript so virtualized rows survive unmount.
 						defaultOpen={false}
 						open={partOpenState[partKey] ?? false}
 						onOpenChange={(open) => onPartOpenChange(partKey, open)}
@@ -780,19 +818,34 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 									renderAgentPart(part, index, false),
 								)}
 							</>
-						) : isStreaming &&
-							(nonTextParts.length > 0 || parts.length === 0) ? (
+						) : isStreaming ? (
 							<>
-								{/* Empty parts: send → first chunk used to render nothing; the
-								    phase label + orb now fill that gap. */}
-								<StreamingActivityRow
-									parts={parts}
-									streaming={isStreaming}
-									phase={phase}
-								/>
-								{textParts.map((part, index) =>
-									renderAgentPart(part, index, false),
-								)}
+								{/* Default view mirrors the old compact stream: one live line
+								    plus answer text. Clicking the line reveals the synchronized
+								    reasoning / plan / tool parts in place; clicking again folds
+								    them back. */}
+								{parts.length === 0 || nonTextParts.length > 0 || phase ? (
+									<StreamingActivityRow
+										parts={parts}
+										streaming={isStreaming}
+										phase={phase}
+										expanded={showLiveProcess}
+										onToggle={
+											nonTextParts.length > 0
+												? () => onPartOpenChange(liveKey, !showLiveProcess)
+												: undefined
+										}
+									/>
+								) : null}
+								{showLiveProcess
+									? parts.map((part, index) =>
+											renderAgentPart(part, index, false),
+										)
+									: parts.map((part, index) =>
+											isNonTextPart(part)
+												? null
+												: renderAgentPart(part, index, false),
+										)}
 							</>
 						) : (
 							parts.map((part, index) => renderAgentPart(part, index, false))

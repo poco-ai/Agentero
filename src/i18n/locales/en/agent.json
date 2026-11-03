@@ -149,7 +149,9 @@
 		"starting": "Starting agent…",
 		"waitingModel": "Waiting for model…",
 		"reconnecting": "Upstream reconnecting",
-		"elapsed": "{{count}}s"
+		"elapsed": "{{count}}s",
+		"expandProcess": "Show live process",
+		"collapseProcess": "Collapse live process"
 	},
 	"copy": "Copy",
 	"copied": "Copied",
