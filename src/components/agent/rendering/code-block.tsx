@@ -25,19 +25,25 @@ export function CodeBlockContent({
 	showLineNumbers = false,
 	compact = false,
 	wrap = false,
+	className,
 }: {
 	code: string;
 	language: BundledLanguage;
 	showLineNumbers?: boolean;
 	compact?: boolean;
 	wrap?: boolean;
+	className?: string;
 }) {
 	const lines = useHighlightedCode(code, language);
 	return (
 		<CodeBlockPre
 			lineNumbers={showLineNumbers}
 			wrap={wrap}
-			className={cn("m-0", compact && "min-w-0 flex-1 px-3 py-2 text-xs")}
+			className={cn(
+				"m-0",
+				compact && "min-w-0 flex-1 px-3 py-2 text-xs",
+				className,
+			)}
 		>
 			{lines.map((line, index) => (
 				<CodeBlockLine key={`line-${index}`}>{line}</CodeBlockLine>

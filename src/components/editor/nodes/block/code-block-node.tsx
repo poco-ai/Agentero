@@ -16,6 +16,7 @@ import {
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { useMarkdownExportMode } from "@/components/editor/markdown-export-mode-context";
+import { MermaidDiagram } from "@/components/markdown/mermaid-diagram";
 import {
 	Command,
 	CommandEmpty,
@@ -35,7 +36,6 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useInView } from "@/hooks/use-in-view";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { cn } from "@/lib/core/utils";
 
@@ -211,83 +211,19 @@ function CopyCodeButton({ element }: { element: TCodeBlockElement }) {
 function MermaidPreview({ source }: { source: string }) {
 	const { t } = useTranslation("editor");
 	const exportMode = useMarkdownExportMode();
-	const previewId = React.useId().replace(/:/g, "");
-	const [svg, setSvg] = React.useState<string | null>(null);
-	const [renderError, setRenderError] = React.useState(false);
-	const renderVersionRef = React.useRef(0);
-	const rootRef = React.useRef<HTMLDivElement | null>(null);
-	// Mermaid pulls a multi-MB bundle and renders off the main thread; defer it
-	// until the block is near the viewport (export renders everything).
-	const inView = useInView(rootRef, { enabled: !exportMode });
-
-	React.useEffect(() => {
-		if (!inView) return;
-		const sourceText = source.trim();
-		const renderVersion = ++renderVersionRef.current;
-		if (!sourceText) {
-			setSvg(null);
-			setRenderError(false);
-			return;
-		}
-
-		let cancelled = false;
-		const timeout = window.setTimeout(() => {
-			void (async () => {
-				try {
-					// Mermaid drags in a multi-MB bundle, so it stays out of the editor
-					// chunk — notes without diagrams never pay for it.
-					const { mermaid } = await import("@streamdown/mermaid");
-					const result = await mermaid
-						.getMermaid()
-						.render(
-							`agentero-mermaid-${previewId}-${renderVersion}`,
-							sourceText,
-						);
-					if (cancelled || renderVersionRef.current !== renderVersion) return;
-					setSvg(result.svg);
-					setRenderError(false);
-				} catch {
-					if (cancelled || renderVersionRef.current !== renderVersion) return;
-					setSvg(null);
-					setRenderError(true);
-				}
-			})();
-		}, 160);
-
-		return () => {
-			cancelled = true;
-			window.clearTimeout(timeout);
-		};
-	}, [inView, previewId, source]);
 
 	return (
 		<div
-			ref={rootRef}
-			className={cn(
-				!svg && !renderError
-					? "min-h-8 overflow-hidden"
-					: "border-border/40 border-t bg-background/30 px-4 py-3 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full",
-			)}
+			className="border-border/40 border-t bg-background/30"
 			contentEditable={false}
 		>
-			{svg ? (
-				<MermaidSvg svg={svg} label={t("codeBlock.mermaidPreview")} />
-			) : renderError ? (
-				<p className="m-0 text-muted-foreground text-xs">
-					{t("codeBlock.mermaidPreviewError")}
-				</p>
-			) : null}
+			<MermaidDiagram
+				defer={!exportMode}
+				errorLabel={t("codeBlock.mermaidPreviewError")}
+				label={t("codeBlock.mermaidPreview")}
+				source={source}
+			/>
 		</div>
-	);
-}
-
-function MermaidSvg({ svg, label }: { svg: string; label: string }) {
-	return (
-		<div
-			aria-label={label}
-			dangerouslySetInnerHTML={{ __html: svg }}
-			role="img"
-		/>
 	);
 }
 

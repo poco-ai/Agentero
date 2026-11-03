@@ -1,6 +1,5 @@
 "use client";
 
-import { mermaid } from "@streamdown/mermaid";
 import { Copy, Download } from "lucide-react";
 import {
 	type ComponentPropsWithoutRef,
@@ -11,7 +10,6 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { BundledLanguage } from "shiki";
-import { Streamdown } from "streamdown";
 import { CodeBlockContent } from "@/components/agent/rendering/code-block";
 import { Button } from "@/components/ui/button";
 import {
@@ -123,17 +121,6 @@ export function PlainCodeBlock({
 
 	const language = extractLanguage(className);
 	const code = extractText(children).replace(/\n$/, "");
-
-	if (language === "mermaid") {
-		// Nested Streamdown keeps the default mermaid diagram path
-		// (our `code` override would otherwise swallow it).
-		return (
-			<Streamdown
-				linkSafety={{ enabled: false }}
-				plugins={{ mermaid }}
-			>{`\`\`\`mermaid\n${code}\n\`\`\``}</Streamdown>
-		);
-	}
 
 	return <PlainCodeBlockView code={code} language={language} />;
 }
