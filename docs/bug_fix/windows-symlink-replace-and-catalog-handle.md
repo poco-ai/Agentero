@@ -12,4 +12,5 @@
 
 - Windows 建链接前把目标改成 `\`。`symlink_dir` 成功后还要能 `metadata` 读到目标，否则删掉链接再 `mklink /J`。
 - 同一路径的替换先串行，再对上述三个临时错误重试，最多约 5 秒。一直被占用的目标仍然失败，原内容保留。
+- 锁函数及 guard 绑定都用 `cfg(windows)` 门控；非 Windows 不用返回 `()` 的空函数模拟 guard，否则全平台 Clippy 的 `let_unit_value` 检查会失败。
 - 断开会话、确认 sidecar 已经推上去之后，先 `evict_catalog_conn` 再删 `work_root`。推送失败时不删，会话留着重试。

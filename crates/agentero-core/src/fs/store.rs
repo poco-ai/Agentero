@@ -73,6 +73,7 @@ pub fn atomic_write_with(path: &Path, bytes: &[u8], opts: &AtomicOpts) -> io::Re
 /// and a remaining transient error is retried. A persistently locked target is
 /// left untouched.
 fn persist_replace(temp: tempfile::NamedTempFile, path: &Path) -> io::Result<()> {
+    #[cfg(windows)]
     let _guard = replace_guard(path);
     let mut temp = temp;
     let started = std::time::Instant::now();
@@ -109,9 +110,6 @@ fn replace_guard(path: &Path) -> std::sync::MutexGuard<'static, ()> {
         .lock()
         .unwrap_or_else(|poison| poison.into_inner())
 }
-
-#[cfg(not(windows))]
-fn replace_guard(_path: &Path) {}
 
 fn thread_mix() -> u64 {
     use std::collections::hash_map::DefaultHasher;
