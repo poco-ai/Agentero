@@ -193,3 +193,59 @@ jobs:
               exit 1
               ;;
           esac
+
+  # Same three tasks as `rust` above. macos-15 never compiles `#[cfg(windows)]`.
+  rust-windows:
+    name: Rust windows (${{ matrix.task }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task:
+          - quality
+          - agentero-tests
+          - cli-tests
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Stage bundled ACP adapters
+        if: matrix.task != 'cli-tests'
+        run: node scripts/prepare-adapters.mjs
+      - name: Stage plugin worker sidecar
+        if: matrix.task != 'cli-tests'
+        run: node scripts/prepare-plugin-worker.mjs
+      - name: Stage PDFium
+        run: node scripts/prepare-pdfium.mjs
+      - name: Point PDFium at the staged library
+        shell: bash
+        run: echo "PDFIUM_LIB_PATH=$GITHUB_WORKSPACE/src-tauri/pdfium" >> "$GITHUB_ENV"
+      - name: Run Rust checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.task }}" in
+            quality)
+              cargo fmt --all --check
+              cargo clippy --workspace --all-targets -- -D warnings
+              ;;
+            agentero-tests)
+              cargo test -p agentero -p agentero-plugin-host
+              ;;
+            cli-tests)
+              # Dependency builds do not run agentero-core's own tests. Keep
+              # both headless packages in this job to share PDFium and artifacts.
+              cargo test -p agentero-core -p agentero-cli
+              cargo build -p agentero-cli
+              ;;
+            *)
+              echo "::error::Unknown Rust CI task: ${{ matrix.task }}"
+              exit 1
+              ;;
+          esac
