@@ -12,7 +12,7 @@
 - 虚拟路径 `agentero:library`（不写盘）。
 - **全库**：点 `papers/` 论文库节点（根文件夹）或关光文档后默认页。
 - **文件夹作用域**：单击 `papers/` 下非 paper 叶目录（如 `papers/nlp`）→ 同一 Library panel 上按 `paper.path` **前缀过滤**（不新开 tab、不重新 RPC）。
-- **非 papers 目录**（`notes/`、`.agents/`、`plans/` 等）：不进入文件夹作用域，Library 显示全库（#160）。
+- **非 papers 目录**（`notes/`、`.agents/`、`plans/` 等）：只展开/折叠并选中文件树行，不切换当前视图，也不改变 Library 作用域。
 - 外部 CLI / 同步工具改动 `.agentero/catalog.sqlite` 或 `papers/` 结构时，前端会后台去抖重新 `paper_list`，同步 Library 表格与文件树论文标题。
 - NOTES 仅选中**具体论文**时出现；Paper Info 在选中论文时显示，或在 Library 中**悬停行 180ms** 后预览该论文（不打开即可查看）。离开行、移入 Info 或滚动列表时保留最近一次预览；短暂经过其他行不会切换，Info 内输入及展开菜单期间不替换预览。切换文件夹、离开 Library、切换 Vault 或预览论文被过滤/移除时清除；返回 Library 不恢复旧预览。已打开论文的 Info 继续跟随当前论文。
 

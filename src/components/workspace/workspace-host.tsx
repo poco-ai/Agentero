@@ -230,12 +230,16 @@ export function WorkspaceHost() {
 	}, [activePdfId, pdfLru, visiblePanelIds]);
 
 	// Tree selection / create-parent follows the active document.
-	// Scoped library keeps the tree highlight on the org folder.
+	// Scoped library keeps the tree highlight on the org folder. The resident
+	// full Library tab is active by default and must not claim the tree
+	// selection, otherwise every folder click snaps the cursor to `papers/`.
 	const selectedPath = activeTab?.path ?? null;
 	useEffect(() => {
 		if (!selectedPath) return;
-		if (isLibraryVirtualPath(selectedPath) && libraryScopePath && vaultPath) {
-			setTreeSelectedPath(joinVaultPath(vaultPath, libraryScopePath));
+		if (isLibraryVirtualPath(selectedPath)) {
+			if (libraryScopePath && vaultPath) {
+				setTreeSelectedPath(joinVaultPath(vaultPath, libraryScopePath));
+			}
 			return;
 		}
 		setTreeSelectedPath(selectedPath);

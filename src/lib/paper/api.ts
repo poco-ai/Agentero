@@ -51,7 +51,7 @@ export function normalizeLibraryScope(path: string): string {
 /**
  * Whether a vault-relative path is a meaningful Library folder scope.
  * Only `papers` / `papers/...` filter the catalog; `notes`, `.agents`,
- * `plans`, etc. are not paper trees and must show the full library (#160).
+ * `plans`, etc. are not paper trees and get no Library scope.
  */
 export function isPapersLibraryScope(
 	scopeRel: string | null | undefined,
@@ -63,7 +63,7 @@ export function isPapersLibraryScope(
 
 /**
  * Resolve a folder click to a Library scope path.
- * Non-papers folders → `null` (full library).
+ * Non-papers folders → `null` (no Library navigation).
  */
 export function resolveLibraryScopePath(
 	rel: string | null | undefined,
