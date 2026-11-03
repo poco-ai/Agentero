@@ -70,7 +70,7 @@
 - Library 表格行右键"编辑元数据"；
 - 文件树论文行右键"编辑元数据"。
 
-核心字段（标题/作者/日期/DOI/arXiv/期刊）直接展示，卷期页、出版社、摘要、URL、代码仓库（`code_repo`）和 OpenReview 链接（`openreview_url`）折叠在"更多字段"。`code_repo` 在主 PDF 入库时若为空，由第一页的 GitHub 仓库自动填入；已经在库里的论文在下一次打开时补扫一次，仍可手改；`openreview_url` 仅手动填写，无自动查找。作者每行一位；日期接受 `YYYY` / `YYYY-MM` / `YYYY-MM-DD`（也容忍 `2017-06-12T00:00:00Z`、`Spring 2017` 这类松散串，由 Host 规范化），年份由日期派生；仅提交变更字段（patch）→ `paper_update_meta` → 返回完整记录替换 Library 与打开 tab 的 metadata（`paperMetaChange`，仅保留列表的 `has_pdf` 探测结果），确保清空的可选字段立即移除。OpenReview 字段可设置或清空，保存后在 Paper Info 链接区展示；标识符刷新保留该手工值，有效 HTTP(S) 地址才展示按钮。远程 Vault 暂不支持，入口隐藏。后端语义见 [../backend/catalog.md](../backend/catalog.md)。
+核心字段（标题/作者/日期/DOI/arXiv/期刊）直接展示，卷期页、出版社、摘要、URL、代码仓库（`code_repo`）和 OpenReview 链接（`openreview_url`）折叠在"更多字段"。`code_repo` 在主 PDF 入库时若为空且用户没改过，按摘要、首页脚注、文末的顺序自动填入论文自己的 GitHub 仓库，参考文献里的仓库不写入；已经在库里的论文在下一次打开时补扫一次。手改或清空后不再自动覆盖。`openreview_url` 仅手动填写，无自动查找。作者每行一位；日期接受 `YYYY` / `YYYY-MM` / `YYYY-MM-DD`（也容忍 `2017-06-12T00:00:00Z`、`Spring 2017` 这类松散串，由 Host 规范化），年份由日期派生；仅提交变更字段（patch）→ `paper_update_meta` → 返回完整记录替换 Library 与打开 tab 的 metadata（`paperMetaChange`，仅保留列表的 `has_pdf` 探测结果），确保清空的可选字段立即移除。OpenReview 字段可设置或清空，保存后在 Paper Info 链接区展示；标识符刷新保留该手工值，有效 HTTP(S) 地址才展示按钮。远程 Vault 暂不支持，入口隐藏。后端语义见 [../backend/catalog.md](../backend/catalog.md)。
 
 DOI 旁有 **刷新** 按钮：按当前 DOI（或 arXiv ID）拉取权威元数据（`paper_resolve_identifier` → Translator/Crossref/arXiv Atom，再用 S2 `publicationVenue` 补期刊/会议名），只填充表单供确认，保存仍走 patch。venue 源优先级见 [../backend/academic-search-apis.md](../backend/academic-search-apis.md) §2.5。
 

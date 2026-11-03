@@ -1,6 +1,6 @@
 # 论文入库
 
-多入口共享落盘内核 **`paper_commit`**（`features/import/paper_import`）：分配路径、写 catalog、NOTES 壳、资源。主 PDF 到位后，若 `code_repo` 为空，从第一页写入论文自己的 GitHub 仓库。已经在库里的论文在下一次打开时补扫一次（见 [catalog.md](catalog.md)）。
+多入口共享落盘内核 **`paper_commit`**（`features/import/paper_import`）：分配路径、写 catalog、NOTES 壳、资源。主 PDF 到位后，若 `code_repo` 为空且用户没有改过该字段，从摘要、首页脚注和文末写入论文自己的 GitHub 仓库。已经在库里的论文在下一次打开时补扫一次（见 [catalog.md](catalog.md)）。
 
 ## 入口
 
