@@ -99,6 +99,10 @@ impl RemoteRegistry {
             .push_for_disconnect(session.fs.clone())
             .await?;
         self.inner.lock().await.remove(session_id);
+        // The work catalog stays open in the process-wide connection cache.
+        // Windows refuses to delete that file (and therefore `work_root`) until
+        // the handle is dropped.
+        crate::features::paper::catalog::evict_catalog_conn(&session.work_root);
         let _ = std::fs::remove_dir_all(&session.work_root);
         // Keep blob cache for LRU reuse; optional cleanup of empty parent
         Ok(())
