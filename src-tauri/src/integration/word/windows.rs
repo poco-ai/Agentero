@@ -166,8 +166,10 @@ fn command_from_copydata(lparam: LPARAM) -> Option<String> {
                 return None;
             }
             let units: Vec<u16> = bytes
-                .chunks_exact(2)
-                .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|&[lo, hi]| u16::from_le_bytes([lo, hi]))
                 .collect();
             String::from_utf16_lossy(&units)
         }
