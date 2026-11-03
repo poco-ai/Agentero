@@ -237,29 +237,42 @@ export function WritingPdfBar({
 				<Button
 					type="button"
 					size="sm"
-					className={cn("rounded-r-none", running && "disabled:opacity-100")}
+					className={cn(
+						"relative rounded-r-none",
+						running && "disabled:opacity-100",
+					)}
 					disabled={!ready || running}
 					aria-disabled={!ready || running || undefined}
+					aria-label={running ? t("writing.compiling") : undefined}
 					onClick={() => {
 						if (!ready || running) return;
 						void compileTexProject(rootFile);
 					}}
 				>
-					{display === "running" ? (
-						<Loader2
-							className="animate-spin motion-reduce:animate-none"
-							aria-hidden
-						/>
-					) : display === "succeeded" ? (
-						<Check aria-hidden />
-					) : (
-						<Play aria-hidden />
-					)}
-					{display === "running"
-						? t("writing.compiling")
-						: display === "succeeded"
+					{/* Compiling keeps the idle label in flow but hidden, so the split
+					    control does not change width while only the spinner shows. */}
+					<span
+						className={cn(
+							"inline-flex items-center gap-1",
+							running && "invisible",
+						)}
+						aria-hidden={running || undefined}
+					>
+						{display === "succeeded" ? (
+							<Check aria-hidden />
+						) : (
+							<Play aria-hidden />
+						)}
+						{display === "succeeded"
 							? t("fileTree.compileSuccess")
 							: t("writing.recompile")}
+					</span>
+					{running ? (
+						<Loader2
+							className="absolute inset-0 m-auto animate-spin motion-reduce:animate-none"
+							aria-hidden
+						/>
+					) : null}
 				</Button>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
