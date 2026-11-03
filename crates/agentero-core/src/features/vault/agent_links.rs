@@ -41,6 +41,8 @@ fn ensure_claude_skills_link(vault: &Path, claude_available: bool) -> Option<Str
         return None;
     }
     let link = vault.join(CLAUDE_SKILLS_REL);
+    #[cfg(windows)]
+    remove_unresolvable_legacy_link(&link);
     // `symlink_metadata`: a dangling link still occupies the path.
     if link.symlink_metadata().is_ok() {
         return None;
@@ -93,6 +95,24 @@ fn create_dir_link(rel_target: &Path, abs_target: &Path, link: &Path) -> io::Res
         let _ = fs::remove_file(link);
     }
     create_junction(abs_target, link)
+}
+
+/// Earlier builds created `.claude/skills` with the `/` target whenever the
+/// process could create symlinks, leaving a link that never resolves. Remove
+/// only that dangling link so the caller recreates it; anything else at the
+/// path, including a user's own directory or link, stays untouched.
+#[cfg(windows)]
+fn remove_unresolvable_legacy_link(link: &Path) {
+    let legacy = fs::read_link(link)
+        .is_ok_and(|target| target.as_os_str() == std::ffi::OsStr::new(CLAUDE_SKILLS_TARGET));
+    if legacy && !link.is_dir() {
+        if let Err(error) = fs::remove_dir(link) {
+            log::warn!(
+                target: "agentero::vault",
+                "failed to remove unresolvable {CLAUDE_SKILLS_REL} link: {error}"
+            );
+        }
+    }
 }
 
 #[cfg(not(any(unix, windows)))]
@@ -216,6 +236,29 @@ mod tests {
         let vault = temp_vault("idempotent");
         assert!(ensure_claude_skills_link(&vault, true).is_some());
         assert_eq!(ensure_claude_skills_link(&vault, true), None);
+        assert!(linked_skill_is_a_real_dir(&vault));
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    /// The `/` target older builds wrote whenever symlinks were allowed.
+    #[cfg(windows)]
+    #[test]
+    fn replaces_the_unresolvable_legacy_symlink() {
+        let vault = temp_vault("legacy-link");
+        fs::create_dir_all(vault.join(".claude")).unwrap();
+        let link = vault.join(CLAUDE_SKILLS_REL);
+        if std::os::windows::fs::symlink_dir(CLAUDE_SKILLS_TARGET, &link).is_err() {
+            // No symlink privilege: the junction fallback never produced this link.
+            let _ = fs::remove_dir_all(&vault);
+            return;
+        }
+        assert!(!link.join("x/SKILL.md").is_file());
+
+        assert_eq!(
+            ensure_claude_skills_link(&vault, true).as_deref(),
+            Some(CLAUDE_SKILLS_REL)
+        );
+        assert!(link.join("x/SKILL.md").is_file());
         assert!(linked_skill_is_a_real_dir(&vault));
         let _ = fs::remove_dir_all(&vault);
     }
