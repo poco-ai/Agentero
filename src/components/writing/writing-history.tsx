@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useStore } from "zustand";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -14,9 +15,9 @@ import {
 import { errorText } from "@/lib/core/error";
 import { notifyError, notifySuccess } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
-import { joinVaultPath } from "@/lib/vault/path";
-import { getVaultPath } from "@/lib/vault/store";
 import { reloadOpenWritingFiles } from "@/lib/writing/history";
+import { writingProjectDir } from "@/lib/writing/session";
+import { writingStore } from "@/lib/writing/store";
 import {
 	loadWritingGitDiff,
 	loadWritingGitLog,
@@ -27,7 +28,10 @@ import {
 
 export function WritingHistory() {
 	const { t } = useTranslation("sidebar");
-	const thesisDir = thesisDirectory();
+	const vault = useStore(writingStore, (state) => state.vaultPath);
+	const activeRoot = useStore(writingStore, (state) => state.activeRoot);
+	const projectDir =
+		vault && activeRoot ? writingProjectDir(vault, activeRoot) : "";
 	const [commits, setCommits] = useState<WritingGitCommit[]>([]);
 	const [notice, setNotice] = useState<string | null>(null);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -39,12 +43,12 @@ export function WritingHistory() {
 	const [revision, setRevision] = useState(0);
 
 	useEffect(() => {
-		if (!thesisDir) return;
+		if (!projectDir) return;
 		const generation = revision;
 		let cancelled = false;
 		setLoading(true);
 		setNotice(null);
-		void loadWritingGitLog(thesisDir)
+		void loadWritingGitLog(projectDir)
 			.then((log) => {
 				if (cancelled || generation !== revision) return;
 				setCommits(log.commits);
@@ -65,16 +69,16 @@ export function WritingHistory() {
 		return () => {
 			cancelled = true;
 		};
-	}, [thesisDir, revision, t]);
+	}, [projectDir, revision, t]);
 
 	useEffect(() => {
-		if (!thesisDir || !selectedId) {
+		if (!projectDir || !selectedId) {
 			setPatch("");
 			return;
 		}
 		let cancelled = false;
 		setPatchLoading(true);
-		void loadWritingGitDiff(thesisDir, selectedId)
+		void loadWritingGitDiff(projectDir, selectedId)
 			.then((diff) => {
 				if (!cancelled) setPatch(diff.patch);
 			})
@@ -87,16 +91,16 @@ export function WritingHistory() {
 		return () => {
 			cancelled = true;
 		};
-	}, [thesisDir, selectedId]);
+	}, [projectDir, selectedId]);
 
 	const selected = commits.find((commit) => commit.id === selectedId) ?? null;
 	const canRestore = selected != null && selected.id !== "pending";
 
 	async function restore() {
-		if (!thesisDir || !selected || selected.id === "pending") return;
+		if (!projectDir || !selected || selected.id === "pending") return;
 		setRestoring(true);
 		try {
-			const report = await restoreWritingRevision(thesisDir, selected.id);
+			const report = await restoreWritingRevision(projectDir, selected.id);
 			if (report.code !== "restored") {
 				notifyError(
 					report.code === "git_missing"
@@ -277,9 +281,4 @@ function formatWhen(at: number): string {
 		hour: "2-digit",
 		minute: "2-digit",
 	}).format(new Date(at * 1000));
-}
-
-function thesisDirectory(): string {
-	const vault = getVaultPath();
-	return vault ? joinVaultPath(vault, "thesis") : "";
 }

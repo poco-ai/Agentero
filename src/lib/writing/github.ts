@@ -1,6 +1,7 @@
 /**
- * The GitHub repository bound to one vault's writing folder.
- * The address stays on this computer. It is not written into the manuscript.
+ * The GitHub repository bound to one writing project.
+ * Every project under `thesis/` keeps its own repository. The address stays on
+ * this computer and is not written into the manuscript.
  */
 
 import {
@@ -20,6 +21,11 @@ export type WritingGitHubLink = {
 type StoredLink = {
 	remote?: unknown;
 	branch?: unknown;
+};
+
+/** Older builds stored one repository for the whole `thesis/` shelf. */
+type StoredVault = StoredLink & {
+	projects?: unknown;
 };
 
 export function parseGitHubRemote(
@@ -66,40 +72,59 @@ export function normalizeBranch(input: string): string | null {
 	return text;
 }
 
-export function readWritingGitHub(
-	vaultPath: string,
-	storage?: StorageLike | null,
-): WritingGitHubLink | null {
-	const raw = readJsonStorage<Record<string, StoredLink>>(
-		WRITING_GITHUB_KEY,
-		{},
-		storage,
-	);
-	const item = raw[vaultPath];
-	if (
-		!item ||
-		typeof item.remote !== "string" ||
-		typeof item.branch !== "string"
-	) {
-		return null;
-	}
+/** Read one stored entry as a usable link; unknown shapes are ignored. */
+function parseLink(item: StoredLink | undefined): WritingGitHubLink | null {
+	if (!item || typeof item.remote !== "string") return null;
+	if (typeof item.branch !== "string") return null;
 	const parsed = parseGitHubRemote(item.remote);
 	const branch = normalizeBranch(item.branch);
 	if (!parsed || !branch) return null;
 	return { remote: parsed.remote, branch, label: parsed.label };
 }
 
-export function writeWritingGitHub(
+function readProjects(item: StoredVault): Record<string, StoredLink> {
+	if (!item.projects || typeof item.projects !== "object") return {};
+	return item.projects as Record<string, StoredLink>;
+}
+
+/**
+ * Repository bound to one project, keyed by its vault-relative folder
+ * (`thesis/<project>`, or `thesis` for an older flat vault). The shelf key
+ * still reads the single repository older builds stored.
+ */
+export function readWritingGitHub(
 	vaultPath: string,
-	link: WritingGitHubLink,
+	project: string,
 	storage?: StorageLike | null,
-): void {
-	const raw = readJsonStorage<Record<string, WritingGitHubLink>>(
+): WritingGitHubLink | null {
+	const raw = readJsonStorage<Record<string, StoredVault>>(
 		WRITING_GITHUB_KEY,
 		{},
 		storage,
 	);
-	raw[vaultPath] = link;
+	const item = raw[vaultPath];
+	if (!item) return null;
+	const stored = parseLink(readProjects(item)[project]);
+	if (stored) return stored;
+	return project === "thesis" ? parseLink(item) : null;
+}
+
+export function writeWritingGitHub(
+	vaultPath: string,
+	project: string,
+	link: WritingGitHubLink,
+	storage?: StorageLike | null,
+): void {
+	const raw = readJsonStorage<Record<string, StoredVault>>(
+		WRITING_GITHUB_KEY,
+		{},
+		storage,
+	);
+	const item = raw[vaultPath] ?? {};
+	raw[vaultPath] = {
+		...item,
+		projects: { ...readProjects(item), [project]: link },
+	};
 	writeJsonStorage(WRITING_GITHUB_KEY, raw, storage);
 }
 

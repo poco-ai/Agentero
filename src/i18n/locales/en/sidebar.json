@@ -569,9 +569,9 @@
 		"syncing": "Uploading…",
 		"syncTo": "Upload to {{repo}}",
 		"syncSetup": "Connect GitHub",
-		"syncSetupHint": "The writing folder is committed and pushed to this repository. Create the empty repository on GitHub first. Build files and PDFs stay out. Sign-in uses the system window, and the password is not saved here.",
+		"syncSetupHint": "Each paper project keeps its own repository. This project's folder is committed and pushed to the repository below. Build files and PDFs stay out. Create the empty repository on GitHub first; sign-in uses the system window, and the password is not saved here.",
 		"syncRemote": "Repository",
-		"syncRemotePlaceholder": "https://github.com/you/writing",
+		"syncRemotePlaceholder": "https://github.com/you/paper",
 		"syncBranch": "Branch",
 		"syncSave": "Save and sync",
 		"syncChange": "Change repository",
@@ -581,8 +581,8 @@
 		"syncPushed": "Pushed to GitHub",
 		"syncPulled": "Updated from GitHub",
 		"syncAuth": "Sign in to GitHub and try again. If the address is right, the system login window opens.",
-		"syncConflict": "The writing folder and GitHub both have changes that do not match. Nothing was overwritten.",
-		"syncMissing": "This vault has no writing folder yet",
+		"syncConflict": "A project and GitHub both have changes that do not match. Nothing was overwritten.",
+		"syncMissing": "This writing project is missing",
 		"syncFailed": "Sync failed"
 	}
 }
