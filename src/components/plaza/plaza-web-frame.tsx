@@ -24,6 +24,7 @@ import { useIframeDragShield } from "@/hooks/use-iframe-drag-shield";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
 import { importPlazaPaper, type PlazaImportRequest } from "@/lib/plaza/import";
+import { importedIdsInLibrary } from "@/lib/plaza/imported";
 
 /** No `allow-popups`: every link must resolve inside this frame. */
 const SANDBOX = "allow-scripts allow-same-origin allow-forms";
@@ -41,6 +42,8 @@ type NavMessage = {
 	externalPath?: string;
 	/** A paper row's `[入库]` was clicked. */
 	importPaper?: PlazaImportRequest;
+	/** Paper ids on screen; the host answers which of them are already imported. */
+	queryImported?: string[];
 };
 
 function isNavMessage(data: unknown): data is NavMessage {
@@ -51,7 +54,8 @@ function isNavMessage(data: unknown): data is NavMessage {
 		typeof value.path === "string" ||
 		typeof value.external === "string" ||
 		typeof value.externalPath === "string" ||
-		typeof value.importPaper === "object"
+		typeof value.importPaper === "object" ||
+		Array.isArray(value.queryImported)
 	);
 }
 
@@ -151,13 +155,26 @@ export function PlazaWebFrame({
 		if (!embedOrigin) return;
 		const onMessage = (event: MessageEvent) => {
 			if (event.origin !== embedOrigin || !isNavMessage(event.data)) return;
-			const { path, external, externalPath, importPaper } = event.data;
+			const { path, external, externalPath, importPaper, queryImported } =
+				event.data;
 			if (external) {
 				openExternalUrl(external);
 				return;
 			}
 			if (externalPath) {
 				openExternalUrl(new URL(externalPath, homeUrl).href);
+				return;
+			}
+			if (queryImported) {
+				void importedIdsInLibrary(queryImported).then((importedIds) => {
+					frameRef.current?.contentWindow?.postMessage(
+						{
+							source: "agentero-plaza-host",
+							importedIds,
+						},
+						embedOrigin,
+					);
+				});
 				return;
 			}
 			if (importPaper) {

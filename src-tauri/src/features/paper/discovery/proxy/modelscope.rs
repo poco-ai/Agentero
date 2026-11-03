@@ -289,6 +289,33 @@ html body { overflow-y: visible !important; }
       var label = el.querySelector(".agentero-import-label");
       if (label) label.textContent = text;
     };
+    // The label is not part of the page. Remember which ids the library already
+    // has, and ask again after a reload — React rebuilds every button as idle.
+    var knownImported = {};
+    var askedImported = {};
+    var markDone = function (el) {
+      el.dataset.state = "done";
+      setLabel(el, LABELS.done);
+    };
+    var applyKnown = function () {
+      var buttons = document.querySelectorAll(".agentero-import");
+      for (var i = 0; i < buttons.length; i++) {
+        if (knownImported[buttons[i].dataset.paperId]) markDone(buttons[i]);
+      }
+    };
+    var requestKnown = function () {
+      var ids = [];
+      var seen = {};
+      var buttons = document.querySelectorAll(".agentero-import");
+      for (var i = 0; i < buttons.length; i++) {
+        var id = buttons[i].dataset.paperId;
+        if (!id || knownImported[id] || askedImported[id] || seen[id]) continue;
+        seen[id] = true;
+        askedImported[id] = true;
+        ids.push(id);
+      }
+      if (ids.length) post({ queryImported: ids });
+    };
     var button = function (id, variant, borrowedClass) {
       var el = document.createElement(variant === "action" ? "div" : "span");
       el.className =
@@ -364,10 +391,14 @@ html body { overflow-y: visible !important; }
       setTimeout(function () {
         scheduled = false;
         decorate();
+        applyKnown();
+        requestKnown();
       }, 100);
     };
     var start = function () {
       decorate();
+      applyKnown();
+      requestKnown();
       restoreScroll();
       if (window.MutationObserver) {
         new MutationObserver(schedule).observe(document.body, {
@@ -545,6 +576,14 @@ html body { overflow-y: visible !important; }
     window.addEventListener("message", function (event) {
       var data = event.data;
       if (!data || data.source !== "agentero-plaza-host") return;
+      if (Array.isArray(data.importedIds)) {
+        for (var n = 0; n < data.importedIds.length; n++) {
+          if (typeof data.importedIds[n] === "string") {
+            knownImported[data.importedIds[n]] = true;
+          }
+        }
+        applyKnown();
+      }
       if (typeof data.importedId !== "string") return;
       // arXiv ids contain dots, so id-based DOM lookups are out.
       var buttons = document.querySelectorAll(".agentero-import");
@@ -552,6 +591,7 @@ html body { overflow-y: visible !important; }
         var el = buttons[i];
         if (el.dataset.paperId !== data.importedId) continue;
         if (data.ok) {
+          knownImported[data.importedId] = true;
           el.dataset.state = "done";
           setLabel(el, LABELS.done);
         } else {
@@ -728,6 +768,10 @@ mod tests {
         assert!(NAV_BRIDGE.contains("https://arxiv.org/abs/"));
         // Settled from the app so a row can show 已入库 / stay retryable.
         assert!(NAV_BRIDGE.contains("agentero-plaza-host"));
+        // A reload rebuilds every button as idle, so the frame asks which ids
+        // are already in the library.
+        assert!(NAV_BRIDGE.contains("queryImported"));
+        assert!(NAV_BRIDGE.contains("importedIds"));
     }
 
     /// Absolute positioning against the card's own anchor is ill-defined: the
