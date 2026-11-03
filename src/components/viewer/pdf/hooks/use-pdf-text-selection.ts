@@ -26,6 +26,7 @@ import {
 	type SetStateAction,
 	useCallback,
 	useEffect,
+	useRef,
 	useState,
 } from "react";
 import {
@@ -42,6 +43,7 @@ import type {
 	ScreenPoint,
 	SelectionMenuState,
 } from "@/components/viewer/pdf/types";
+import { useWritingSelectionGroup } from "@/components/writing/writing-selection-group";
 import {
 	clearActiveSelection,
 	publishSelection,
@@ -171,8 +173,11 @@ export function usePdfTextSelection({
 		null,
 	);
 	const [isSelecting, setIsSelecting] = useState(false);
+	const selectionGroup = useWritingSelectionGroup();
+	const selectionEpochRef = useRef(0);
 
 	const closeSelectionMenu = useCallback(() => {
+		selectionEpochRef.current += 1;
 		clearDomSelectionInside(hostRef.current);
 		setSelectionMenu(null);
 		selectionCap?.clear(docId);
@@ -194,6 +199,15 @@ export function usePdfTextSelection({
 			return { ...prev, screen };
 		});
 	}, [hostRef, zoomRef]);
+
+	// Source editor took over the writing split: drop the PDFium selection and
+	// its toolbar so only one side stays visibly selected.
+	useEffect(() => {
+		if (!selectionGroup) return;
+		return selectionGroup.subscribe((origin) => {
+			if (origin === "source") closeSelectionMenu();
+		});
+	}, [selectionGroup, closeSelectionMenu]);
 
 	// Show the selection action menu when a drag-selection ends.
 	useEffect(() => {
@@ -264,6 +278,7 @@ export function usePdfTextSelection({
 			}
 			// Keep isSelecting true across the async quote extract so link
 			// previews cannot flash between mouseup and the selection menu.
+			const epoch = selectionEpochRef.current;
 			void (async () => {
 				let quote = "";
 				try {
@@ -271,6 +286,10 @@ export function usePdfTextSelection({
 					quote = (lines ?? []).join(" ").replace(/\s+/g, " ").trim();
 				} catch {
 					// text extraction is best-effort
+				}
+				if (epoch !== selectionEpochRef.current) {
+					setIsSelecting(false);
+					return;
 				}
 				const doc = docCap.getDocument(docId);
 				const anchor = anchorFromEmbedSelection(
@@ -286,6 +305,7 @@ export function usePdfTextSelection({
 				}
 				setSelectionMenu({ screen, anchor, pages });
 				setIsSelecting(false);
+				selectionGroup?.announce("pdf");
 				publishSelection({
 					text: quote,
 					sourcePath: paperRelPath ?? paperAbsPath ?? "PDF",
@@ -326,6 +346,7 @@ export function usePdfTextSelection({
 		hostRef,
 		zoomRef,
 		isCommentDraftActive,
+		selectionGroup,
 	]);
 
 	// PDFium selections are invisible to the browser: intercept copy so ⌘/Ctrl+C
