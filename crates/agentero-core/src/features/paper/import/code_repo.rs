@@ -1,9 +1,9 @@
-//! Fill an empty `code_repo` from the main PDF's first page.
+//! Fill an empty `code_repo` from the main PDF.
 //!
 //! Runs when a paper gains its main PDF, and once when an existing paper is
-//! opened with the field still empty. A value already stored (including one
-//! typed in Edit Metadata) is left as-is, and `meta_source` is not changed, so
-//! a later recognition pass still applies.
+//! opened with the field still empty. A value already stored is left as-is.
+//! Edit Metadata marks the field manual, including a clear, so a later scan
+//! does not write it back. `meta_source` is not changed by the scan.
 
 use std::path::Path;
 
@@ -12,8 +12,8 @@ use crate::error::AppError;
 #[cfg(not(any(target_os = "ios", target_os = "android")))]
 use crate::features::catalog::{find_local_pdf, papers};
 
-/// Best-effort. A missing PDF, an unreadable file, or no repository on page 1
-/// leaves the row unchanged. Failures are logged and do not fail the import.
+/// Best-effort. A missing PDF, an unreadable file, or no repository worth
+/// storing leaves the row unchanged. Failures are logged and do not fail the import.
 pub async fn fill_code_repo_from_pdf(vault: &Path, path_rel: &str) {
     #[cfg(any(target_os = "ios", target_os = "android"))]
     {
@@ -39,8 +39,8 @@ async fn fill_code_repo_from_pdf_task(vault: &Path, path_rel: &str) -> Result<()
     }
 }
 
-/// Open path. A paper whose first page has no repository is remembered for
-/// this process so later opens do not parse the PDF again. A missing or
+/// Open path. A paper whose PDF has no repository worth storing is remembered
+/// for this process so later opens do not parse it again. A missing or
 /// unreadable PDF is not remembered.
 pub fn fill_code_repo_on_open(vault: &Path, path_rel: &str) {
     #[cfg(any(target_os = "ios", target_os = "android"))]
@@ -87,10 +87,11 @@ fn fill_once(vault: &Path, path_rel: &str) -> Result<Scan, AppError> {
     let Some(mut record) = papers::get_by_path(vault, path_rel)? else {
         return Ok(Scan::AlreadySet);
     };
-    if record
-        .code_repo
-        .as_deref()
-        .is_some_and(|value| !value.trim().is_empty())
+    if papers::code_repo_is_manual(vault, path_rel)?
+        || record
+            .code_repo
+            .as_deref()
+            .is_some_and(|value| !value.trim().is_empty())
     {
         return Ok(Scan::AlreadySet);
     }
@@ -108,16 +109,18 @@ fn fill_once(vault: &Path, path_rel: &str) -> Result<Scan, AppError> {
             return Ok(Scan::Unreadable);
         }
     };
-    let Some(repo) = crate::features::pdf::github_repo::extract_first_page_github_repo(&bytes)
-    else {
+    let Some(found) = crate::features::pdf::github_repo::extract_github_repo(&bytes) else {
         return Ok(Scan::NoRepo);
     };
+    let repo = found.url;
     record.code_repo = Some(repo.clone());
     record.updated_at = crate::time::now_rfc3339_millis();
     papers::upsert_paper(vault, &record)?;
     log::info!(
         target: "agentero::import",
-        "code repo from PDF first page: {path_rel} -> {repo}"
+        "code repo from PDF ({}, {}): {path_rel} -> {repo}",
+        found.source,
+        found.confidence
     );
     Ok(Scan::Wrote)
 }
@@ -144,7 +147,7 @@ fn empty_scan_cache() -> std::sync::MutexGuard<'static, std::collections::HashSe
 #[cfg(all(test, not(any(target_os = "ios", target_os = "android"))))]
 mod tests {
     use super::*;
-    use crate::features::catalog::papers::PaperRecord;
+    use crate::features::catalog::papers::{PaperMetaPatch, PaperRecord};
     use crate::features::pdf::tiny_pdf;
 
     #[tokio::test]
@@ -201,5 +204,37 @@ mod tests {
             row.code_repo.as_deref(),
             Some("https://github.com/open/scan")
         );
+    }
+
+    #[test]
+    fn a_cleared_code_repo_is_not_filled_again() {
+        let vault = tempfile::tempdir().unwrap();
+        let paper_dir = vault.path().join("papers").join("cleared");
+        std::fs::create_dir_all(&paper_dir).unwrap();
+        std::fs::write(
+            paper_dir.join("cleared.pdf"),
+            tiny_pdf("Code: https://github.com/auto/fill"),
+        )
+        .unwrap();
+        let record =
+            PaperRecord::local_pdf("cleared".into(), "Cleared".into()).at_path("papers/cleared");
+        papers::upsert_paper(vault.path(), &record).unwrap();
+
+        fill_code_repo_on_open(vault.path(), "papers/cleared");
+        papers::update_meta(
+            vault.path(),
+            "papers/cleared",
+            &PaperMetaPatch {
+                code_repo: Some(String::new()),
+                ..PaperMetaPatch::default()
+            },
+        )
+        .unwrap();
+        fill_code_repo_on_open(vault.path(), "papers/cleared");
+        let row = papers::get_by_path(vault.path(), "papers/cleared")
+            .unwrap()
+            .unwrap();
+        assert_eq!(row.code_repo, None);
+        assert!(papers::code_repo_is_manual(vault.path(), "papers/cleared").unwrap());
     }
 }
