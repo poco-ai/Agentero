@@ -41,7 +41,7 @@ cargo test -p agentero                        # 应用层测试
 
 Windows 上 `liteparse` 会拉起 `tesseract-rs`，有两个第三方坑，仓库修不了：
 
-- Visual Studio 的 Debug 构建会产出 `tesseract*d.lib`，crate 按发行版名字去找，于是 `cargo test` / `cargo clippy --all-targets` 链接失败。在 VS Developer Prompt 里编，或先用 release 把库编出来一次，再跑 debug。
+- Visual Studio 的 Debug 构建会产出 `tesseract*d.lib`，crate 按发行版名字去找，于是 `cargo test` / `cargo clippy --all-targets` 链接失败。在 VS Developer Prompt 里编，或先用 release 把库编出来一次，再跑 debug；CI 的 Windows 测试任务因此直接使用 release profile。
 - tessdata 下载超时是 30 秒，失败后会留下空的 `eng.traineddata`。之后的构建会一直复用这个空文件。删掉缓存里的空文件再下。
 
 仓库分为三层：`src/`（React 前端）、`src-tauri/`（Tauri 2 桌面 Host）、`crates/agentero-core` 与 `cli/`（Tauri 无关的基础层与无头 CLI）。改动了哪层，就跑对应层的检查。

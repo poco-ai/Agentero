@@ -236,13 +236,17 @@ jobs:
               cargo clippy --workspace --all-targets -- -D warnings
               ;;
             agentero-tests)
-              cargo test -p agentero -p agentero-plugin-host
+              # tesseract-rs 0.2 builds Debug leptonica/tesseract on Windows
+              # (*d.lib) but only links the release names. The release profile
+              # makes CMake produce and link the matching libs; see
+              # CONTRIBUTING.md.
+              cargo test --release -p agentero -p agentero-plugin-host
               ;;
             cli-tests)
               # Dependency builds do not run agentero-core's own tests. Keep
               # both headless packages in this job to share PDFium and artifacts.
-              cargo test -p agentero-core -p agentero-cli
-              cargo build -p agentero-cli
+              cargo test --release -p agentero-core -p agentero-cli
+              cargo build --release -p agentero-cli
               ;;
             *)
               echo "::error::Unknown Rust CI task: ${{ matrix.task }}"
