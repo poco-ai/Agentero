@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import type { BundledLanguage } from "shiki";
 import { Button } from "@/components/ui/button";
 import {
+	CodeBlockActions,
 	CodeBlockLine,
 	CodeBlockContent as CodeBlockPre,
 	CodeBlock as CodeBlockRoot,
@@ -137,9 +138,9 @@ export function CompactCodeBlock({
 				{...props}
 			>
 				<CodeBlockContent code={code} language={language} compact wrap={wrap} />
-				<div className="flex shrink-0 items-center border-l bg-muted/30 px-0.5">
+				<CodeBlockActions className="static! m-0! items-center border-l bg-muted/30 px-0.5 opacity-100!">
 					<CodeBlockCopyButton {...copyButtonProps} />
-				</div>
+				</CodeBlockActions>
 			</CodeBlockRoot>
 		</CodeContext.Provider>
 	);

@@ -70,6 +70,7 @@ import {
 	MessageContent,
 	MessageResponse,
 } from "@/components/agent/message";
+import { TerminalTool } from "@/components/agent/rendering/terminal-tool";
 import { ZhihuDiscussions } from "@/components/agent/zhihu-discussions";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,6 +107,7 @@ import { stripInlineTokens } from "@/lib/agent/composer-inline-tokens";
 import { stripPromptEnvelopeForDisplay } from "@/lib/agent/prompt-display";
 import { selectionNavigationStore } from "@/lib/agent/selection-navigation-state";
 import { selectionsPromptBlock } from "@/lib/agent/selection-prompt";
+import { terminalToolData } from "@/lib/agent/terminal-tool";
 import { cn } from "@/lib/core/utils";
 import type { PaperMetadata } from "@/lib/paper";
 import { workspaceStore } from "@/lib/workspace/store";
@@ -623,6 +625,21 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 				// only shows a compact tool row (and a short pending note).
 				const askPending =
 					Boolean(askUserQuestion) && isPendingAskUserToolStatus(tool.status);
+				const terminal = !askUserQuestion ? terminalToolData(tool) : null;
+				if (terminal)
+					return (
+						<TerminalTool
+							key={partKey}
+							data={terminal}
+							tool={tool}
+							compact={insideProcess}
+							open={
+								partOpenState[partKey] ??
+								(tool.status === "in_progress" && Boolean(terminal.output))
+							}
+							onOpenChange={(open) => onPartOpenChange(partKey, open)}
+						/>
+					);
 				return (
 					<Tool
 						key={partKey}

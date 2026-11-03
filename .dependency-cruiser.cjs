@@ -10,7 +10,7 @@ module.exports = {
 			comment: "Upstream AI primitives must remain independently upgradeable.",
 			severity: "error",
 			from: {
-				path: "^src/components/ui/(message|bubble|code-block|attachment|trace|marker|message-scroller)\\.tsx$",
+				path: "^src/components/ui/(message|bubble|code-block|attachment|trace|marker|message-scroller|questionnaire)\\.tsx$",
 			},
 			to: {
 				path: "^src/(components/(?!ui/)|lib/(agent|paper|pdf|vault|wiki|workspace|settings|translate)|hooks/use-app-stores)",

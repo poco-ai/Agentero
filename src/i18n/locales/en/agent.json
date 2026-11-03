@@ -172,6 +172,8 @@
 		"cancel": "Cancel",
 		"prev": "Back",
 		"next": "Next",
+		"skip": "Skip",
+		"answerRequired": "Choose an answer or enter a response.",
 		"progress": "{{current}} / {{total}}",
 		"freeTextPlaceholder": "Type your answer",
 		"pendingInComposer": "Answer in the questionnaire below",

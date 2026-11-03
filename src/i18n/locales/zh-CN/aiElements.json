@@ -1,8 +1,13 @@
 {
+	"sources": {
+		"count_other": "{{count}} 个来源",
+		"link": "链接"
+	},
 	"context": {
 		"iconLabel": "模型上下文用量"
 	},
 	"tool": {
+		"exitCode": "退出码 {{code}}",
 		"status": {
 			"awaitingApproval": "等待批准",
 			"responded": "已响应",

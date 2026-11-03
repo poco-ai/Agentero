@@ -172,6 +172,8 @@
 		"cancel": "取消",
 		"prev": "上一题",
 		"next": "下一题",
+		"skip": "跳过",
+		"answerRequired": "请选择答案或填写回复。",
 		"progress": "{{current}} / {{total}}",
 		"freeTextPlaceholder": "输入你的回答",
 		"pendingInComposer": "请在下方问卷中作答",

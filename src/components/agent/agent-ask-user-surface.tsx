@@ -138,7 +138,9 @@ export function AgentAskUserSurface({
 							await respondAskUser({
 								requestId: askUserRequest.requestId,
 								action: "accept",
-								answers,
+								answers: answers.map((answer) =>
+									Array.isArray(answer) ? answer.join(", ") : answer,
+								),
 							});
 							onAskUserResolved();
 							return true;

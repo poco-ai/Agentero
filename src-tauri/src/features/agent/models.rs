@@ -866,6 +866,14 @@ pub struct PermissionResponded {
     pub resolved: bool,
 }
 
+/// Form field response: a scalar selection/text or multiple selected values.
+#[derive(Debug, Clone, Deserialize, specta::Type)]
+#[serde(untagged)]
+pub enum ElicitationFieldValue {
+    String(String),
+    StringArray(Vec<String>),
+}
+
 /// Request payload for `agent_respond_elicitation`.
 #[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -873,9 +881,9 @@ pub struct ElicitationResponseRequest {
     pub request_id: String,
     /// accept | decline | cancel
     pub action: String,
-    /// Field id → string value (accept only).
+    /// Field id → string or selected string values (accept only).
     #[serde(default)]
-    pub content: Option<std::collections::BTreeMap<String, String>>,
+    pub content: Option<std::collections::BTreeMap<String, ElicitationFieldValue>>,
 }
 
 /// Request payload for `agent_respond_ask_user`.

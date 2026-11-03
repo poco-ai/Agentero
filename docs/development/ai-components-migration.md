@@ -45,3 +45,24 @@ computer use 使用临时测试知识库 `/tmp/agentero-ai-migration-vault`；�
 已实际验证：知识库与笔记打开、树展开及多选、Agent 空态、中文输入、用户消息公式显示、提交与等待状态、运行中待发送队列、模型搜索、原生图片选择、Attachment 展示及移除。默认本地模型返回重试信息；切换 Cursor 后 Host 返回 `Authentication required` 并正确显示登录按钮，未代用户登录。因此不能把它作为正常模型回复与完整流式回归的证据。
 
 尚未完成的真实交互验收：长会话上滚/跟底/回最新、完整工具与推理回放、PDF 全部浮层、移动设备与 Windows 125% 缩放、中文 IME 候选确认。对应纯逻辑与组件测试可提供部分覆盖，不能代替这些平台交互验证。
+
+## 第二轮：扩大上游复用
+
+- `AskUserQuestionForm` 从 640 行降至约 207 行，用 `@shadcn/react/questionnaire` 管理交互，移除手写分页、选项焦点、逗号反解析与验证状态。多选在 UI 内保持结构化，仅在 ACP 回传边界序列化。
+- `ui/questionnaire` 来自官方 `apps/v4/registry/bases/radix/ui/questionnaire.tsx`，按官方 `registry/styles/style-nova.css` 展开样式，避免未编译的 `cn-*` 模板类无效。
+- 聊天图片与视觉批注共用 Attachment 预览组件，代码块头部与操作区复用现有 CodeBlock 部件。
+- 来源列表用 Trace 并去重，行内引用用 HoverCard + Button/anchor，保留科研链接重写与跳转。
+- Terminal renderer 仅处理 ACP `kind=execute` 的 command、可选 cwd 与 stdout / stderr / exitCode / metadata，完整展示 metadata。未知结构回退通用工具卡，退出码只来自结构化字段。
+- 不添加缺少结构化数据的 Subagent / Test Results 展示，不将日志猜测结果伪装成结构化状态。权限弹窗已用 Dialog / Button 且保留 ACP 多选项授权语义。
+
+第二轮新增回归覆盖问卷必填/可选跳过/多选/自由输入/失败恢复/焦点进度、来源去重和引用路由、图片预览、代码复制下载与 Terminal 降级。真实 Agent 实验指定使用 OpenCode。
+
+OpenCode 实验发现旧 Host 把 ACP array elicitation 的选项丢弃并当成文本输入，且回传仅支持字符串。修复时沿用上游 `MultiSelectItems` / `ElicitationContentValue::StringArray`，Host、bindings、前端问题适配与问卷保持类型化数组。该修复来自真实交互复现，新增 schema→UI 与回答→wire 回归。
+
+第二轮自动验证：最终目标 8 个前端测试文件共 69 项通过；全库 Biome error 级别、TypeScript、依赖边界和 Vite 生产构建通过。`AGENTERO_UPDATE_BINDINGS=1 cargo test -p agentero export_typescript_bindings` 与 2 个 `elicitation_tests` 通过；新的 desktop Host 已成功编译。OpenCode 免费模型额度耗尽后，改用该 OpenCode 已配置的 GLM 模型，成功返回中文、公式、表格和代码，并发起真实提问。CLI 的只读 printf 实验也实际执行并返回 stdout；不把模型自己的成功描述当成测试结果。
+
+最终生产构建 + 新 Host 的 computer use 已确认：必填错误、单选、三项复选框、页码进度、跳过可选题、数组回答回传和 OpenCode 继续执行。模型的回复明确复述了所选项；引用链接可打开演示库本地 PDF（演示 PDF 仅一页，不据此声称验证了任意页码定位）。前后截图保存在 `/tmp`，不提交仓库。
+
+真实 OpenCode 工具使用 `command + cwd`，原 Host 仅转发 rawOutput metadata、漏掉 ACP 原生 content 文本。现在两条工具事件通路共用输出适配：将原生文本补到 stdout，不覆盖已有 stdout，原始 metadata 或非对象 rawOutput 保留，仍走既有 32 KiB 上限。新 Terminal 可显示真实命令输出而非只在人工样例下生效。
+
+终端修复后的最终验证：类型检查与生产构建通过，最新 5 文件 16 项前端回归通过，新增原生输出 Rust 回归及再次 bindings 生成通过，desktop Host 编译通过。在最终生产构建与新 Host 中，computer use 展开 OpenCode 执行链，实际看到 `printf component_migration_probe`、工作目录、stdout、退出码 0 与完整 metadata。终端截图在 `/tmp/agentero-ai-round2-terminal.png`，问卷对比在 `/tmp/agentero-ai-round2-before.png`、`/tmp/agentero-ai-round2-after.png`。

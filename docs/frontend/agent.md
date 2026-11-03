@@ -2,6 +2,8 @@
 
 输入框的 DOM 序列化、光标定位和 chip 构造集中在 `components/agent/composer/composer-inline-dom.ts`；`composer-inline-input.tsx` 保留 React 生命周期、IME 与输入事件处理，快捷菜单复用同一 skill 显示名规范化函数。
 
+结构化提问复用 shadcn Questionnaire：原生 radio/checkbox 与上游导航管理答案、必填校验和焦点，选中答案后用 Next / Submit 确认，可选题用 Skip 跳过。业务只负责有序答案回传、提交失败恢复和折叠；取消与 ACP elicitation/tool 路由仍由 `AgentAskUserSurface` 管理。图片预览统一复用 Attachment + Dialog。明确的 execute 工具显示 Terminal Trace；不满足严格输入输出结构时保留通用工具卡。
+
 BYOA：连接本机（或远程）ACP Agent。Host 协议见 [../backend/agent.md](../backend/agent.md)。
 
 ## UI 分层

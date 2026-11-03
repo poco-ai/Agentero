@@ -15,6 +15,12 @@ import { Streamdown } from "streamdown";
 import { CodeBlockContent } from "@/components/agent/rendering/code-block";
 import { Button } from "@/components/ui/button";
 import {
+	CodeBlock,
+	CodeBlockActions,
+	CodeBlockHeader,
+	CodeBlockTitle,
+} from "@/components/ui/code-block";
+import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
@@ -159,63 +165,58 @@ function PlainCodeBlockView({
 	const label = (language || "text").toLowerCase();
 
 	return (
-		<div className="group/code relative my-4 overflow-x-auto">
-			<div className="overflow-hidden rounded-md border bg-background">
-				<div className="flex h-8 items-center justify-between gap-2 border-b border-border/60 bg-muted/30 px-2.5">
-					<span
-						className="truncate font-mono text-[11px] lowercase leading-none text-muted-foreground"
-						title={label}
-					>
-						{label}
-					</span>
-					<div
-						className={cn(
-							"flex shrink-0 items-center gap-0.5",
-							"opacity-0 transition-opacity group-hover/code:opacity-100",
-							"focus-within:opacity-100",
-						)}
-					>
-						<TooltipProvider>
-							<Tooltip>
+		<CodeBlock className="group/code my-4 rounded-md bg-background">
+			<CodeBlockHeader className="h-8 justify-between border-b border-border/60 bg-muted/30 px-2.5 pt-0">
+				<CodeBlockTitle
+					className="font-mono text-[11px] lowercase leading-none text-muted-foreground"
+					title={label}
+				>
+					{label}
+				</CodeBlockTitle>
+				<CodeBlockActions
+					className={cn(
+						"my-0 mr-0 gap-0.5",
+						"opacity-0 transition-opacity group-hover/code:opacity-100",
+						"focus-within:opacity-100 pointer-coarse:opacity-100",
+					)}
+				>
+					<TooltipProvider>
+						{[
+							{
+								key: "copy",
+								label: t("code.copy"),
+								Icon: Copy,
+								onClick: handleCopy,
+							},
+							{
+								key: "download",
+								label: t("code.download"),
+								Icon: Download,
+								onClick: handleDownload,
+							},
+						].map(({ key, label: actionLabel, Icon, onClick }) => (
+							<Tooltip key={key}>
 								<TooltipTrigger asChild>
 									<Button
 										type="button"
 										variant="ghost"
 										size="icon"
 										className={iconButtonClass}
-										aria-label={t("code.copy")}
-										onClick={handleCopy}
+										aria-label={actionLabel}
+										onClick={onClick}
 									>
-										<Copy className="size-4" />
+										<Icon className="size-4" />
 									</Button>
 								</TooltipTrigger>
 								<TooltipContent>
-									<p>{t("code.copy")}</p>
+									<p>{actionLabel}</p>
 								</TooltipContent>
 							</Tooltip>
-
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon"
-										className={iconButtonClass}
-										aria-label={t("code.download")}
-										onClick={handleDownload}
-									>
-										<Download className="size-4" />
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent>
-									<p>{t("code.download")}</p>
-								</TooltipContent>
-							</Tooltip>
-						</TooltipProvider>
-					</div>
-				</div>
-				<CodeBlockContent code={code} language={lang} showLineNumbers={false} />
-			</div>
-		</div>
+						))}
+					</TooltipProvider>
+				</CodeBlockActions>
+			</CodeBlockHeader>
+			<CodeBlockContent code={code} language={lang} showLineNumbers={false} />
+		</CodeBlock>
 	);
 }

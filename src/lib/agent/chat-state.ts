@@ -85,6 +85,9 @@ export type AskUserQuestionOption = {
 	value?: string;
 };
 
+/** Keep multi-select answers structured until a provider's response boundary. */
+export type AskUserAnswer = string | string[];
+
 /** A question supplied by AskUserQuestion tool or form elicitation. */
 export type AskUserQuestion = {
 	/** Optional field id (elicitation schema property name). */
@@ -757,12 +760,12 @@ function parseOneAskUserQuestion(
 /** Format selected options as a concise, self-contained follow-up turn. */
 export function formatAskUserAnswers(
 	questions: AskUserQuestion[],
-	answers: string[],
+	answers: AskUserAnswer[],
 ): string {
 	return questions
 		.map(
 			(question, index) =>
-				`Question: ${question.question}\nAnswer: ${answers[index]}`,
+				`Question: ${question.question}\nAnswer: ${Array.isArray(answers[index]) ? answers[index].join(", ") : answers[index]}`,
 		)
 		.join("\n\n");
 }
@@ -790,7 +793,12 @@ function parseOtherFieldParentId(fieldId: string): string | null {
 
 function isTextishElicitationField(field: ElicitationFieldInput): boolean {
 	if (field.kind === "text") return true;
-	if (field.kind === "select" || field.kind === "boolean") return false;
+	if (
+		field.kind === "select" ||
+		field.kind === "multiselect" ||
+		field.kind === "boolean"
+	)
+		return false;
 	return field.options.length === 0;
 }
 
@@ -824,7 +832,12 @@ function isOtherCompanionElicitationField(
 function mapFieldOptions(
 	field: ElicitationFieldInput,
 ): AskUserQuestionOption[] {
-	if (field.kind !== "select" && field.kind !== "boolean") return [];
+	if (
+		field.kind !== "select" &&
+		field.kind !== "multiselect" &&
+		field.kind !== "boolean"
+	)
+		return [];
 	const options: AskUserQuestionOption[] = [];
 	for (const option of field.options) {
 		const label = (option.title || option.value).trim();
@@ -951,6 +964,7 @@ export function questionsFromElicitationFields(
 			question: displayQuestion || field.id,
 			options,
 			required: field.required !== false && !freeTextOnly,
+			...(field.kind === "multiselect" ? { multiSelect: true } : {}),
 			allowOther: Boolean(other) || freeTextOnly,
 			otherFieldId: other?.id ?? (freeTextOnly ? field.id : undefined),
 		});
@@ -966,12 +980,31 @@ export function questionsFromElicitationFields(
  */
 export function elicitationContentFromAnswers(
 	questions: AskUserQuestion[],
-	answers: string[],
-): Record<string, string> {
-	const content: Record<string, string> = {};
+	answers: AskUserAnswer[],
+): Record<string, AskUserAnswer> {
+	const content: Record<string, AskUserAnswer> = {};
 	for (let i = 0; i < questions.length; i++) {
 		const q = questions[i];
-		const answer = answers[i]?.trim();
+		const raw = answers[i];
+		if (q?.multiSelect) {
+			const values = (Array.isArray(raw) ? raw : [raw ?? ""])
+				.map((value) => value.trim())
+				.filter(Boolean);
+			if (!values.length) continue;
+			const selected: string[] = [];
+			const custom: string[] = [];
+			for (const value of values) {
+				const option = q.options.find((entry) => entry.label === value);
+				if (option) selected.push(option.value ?? option.label);
+				else custom.push(value);
+			}
+			if (q.id && (selected.length || !q.otherFieldId))
+				content[q.id] = q.otherFieldId ? selected : [...selected, ...custom];
+			if (q.otherFieldId && custom.length)
+				content[q.otherFieldId] = custom.join(", ");
+			continue;
+		}
+		const answer = (Array.isArray(raw) ? raw[0] : raw)?.trim();
 		if (!q || !answer) continue;
 		const matched = q.options.find((option) => option.label === answer);
 		if (matched && q.id) {

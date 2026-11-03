@@ -12,6 +12,12 @@ Chat / Agent UI 使用 [shadcn/ui AI Elements](https://ui.shadcn.com/docs/ai-ele
 
 待发送队列与官方 Agent todo Queue 语义不同；模型选择器需要 Command 搜索；Vault 文件树需要多选、拖放和重命名。这些能力用基础组件组合，不能用精简展示示例替代。
 
+提问表单使用 `ui/questionnaire`，分页、选择、自由输入、校验与焦点由 `@shadcn/react/questionnaire` 管理；业务只负责 ACP 问题/答案转换、折叠和异步提交恢复。该基础件按官方 Radix 源码与 Nova style 展开，禁止在基础件里处理协议回传。
+
+待发送与已发送图片均使用 Attachment；已发送图片与视觉批注共用 `agent/chat-image-gallery.tsx` 的预览交互。代码块复用 Code Block 的 Header / Title / Actions，Tauri 剪贴板与文件下载保留在业务层。
+
+引用来源列表用 Trace Sources 组合并按 URI 去重；行内引用用 Hover Card + Button/链接组合，Vault/PDF 跳转仍经项目解析器。Terminal pattern 只接受可验证的 ACP execute 命令、可选 cwd 与文本输出，保留完整 metadata；未知字段回退通用 Tool，退出码只读结构化字段，不能从日志猜测或隐藏参数。
+
 Agent / Reasoning 消息里的 Markdown：`Streamdown` + `PlainTable` / `PlainCodeBlock`（代码块左上角语言标签，悬停复制/下载；无外侧卡片，见 [agent.md](agent.md)#消息-markdown-渲染）。
 
 ## 业务组件目录
