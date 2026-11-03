@@ -64,8 +64,72 @@ pub fn atomic_write_with(path: &Path, bytes: &[u8], opts: &AtomicOpts) -> io::Re
     if opts.sync_file {
         temp.as_file().sync_all()?;
     }
-    temp.persist(path).map_err(|error| error.error)?;
-    Ok(())
+    persist_replace(temp, path)
+}
+
+/// Replace `path` with the staged file. Concurrent Windows replacements of the
+/// same path can make `MoveFileExW` return access-denied or a sharing
+/// violation. Writers of one path take the same shard so they do not collide,
+/// and a remaining transient error is retried. A persistently locked target is
+/// left untouched.
+fn persist_replace(temp: tempfile::NamedTempFile, path: &Path) -> io::Result<()> {
+    let _guard = replace_guard(path);
+    let mut temp = temp;
+    let started = std::time::Instant::now();
+    let mut attempt = 0u32;
+    loop {
+        match temp.persist(path) {
+            Ok(_) => return Ok(()),
+            Err(error) => {
+                let timed_out = started.elapsed() >= std::time::Duration::from_secs(5);
+                if !transient_replace(&error.error) || timed_out {
+                    return Err(error.error);
+                }
+                temp = error.file;
+                let step = 1u64 << attempt.min(5);
+                let jitter = thread_mix() % (step + 1);
+                std::thread::sleep(std::time::Duration::from_millis(step + jitter));
+                attempt = attempt.saturating_add(1);
+            }
+        }
+    }
+}
+
+#[cfg(windows)]
+fn replace_guard(path: &Path) -> std::sync::MutexGuard<'static, ()> {
+    use std::sync::Mutex;
+    const SHARDS: usize = 32;
+    static LOCKS: [Mutex<()>; SHARDS] = [const { Mutex::new(()) }; SHARDS];
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for byte in path.as_os_str().as_encoded_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    LOCKS[(hash as usize) % SHARDS]
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner())
+}
+
+#[cfg(not(windows))]
+fn replace_guard(_path: &Path) {}
+
+fn thread_mix() -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    std::thread::current().id().hash(&mut hasher);
+    hasher.finish()
+}
+
+#[cfg(windows)]
+fn transient_replace(error: &io::Error) -> bool {
+    // ERROR_ACCESS_DENIED, ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION.
+    matches!(error.raw_os_error(), Some(5 | 32 | 33))
+}
+
+#[cfg(not(windows))]
+fn transient_replace(_error: &io::Error) -> bool {
+    false
 }
 
 /// Serialize `value` as pretty JSON and write it atomically (see
