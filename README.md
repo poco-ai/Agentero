@@ -172,6 +172,12 @@ agentero --help
 
 ---
 
+### 在更多地方使用 Agentero
+
+- **DeepSeek Harness (dsh) 插件**：在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 中也能直接使用 Agentero 的文献库、笔记与 PDF 阅读器。执行 `dsh plugin --profile web add @poco-ai/agentero-dsh` 安装，详见 [agentero-dsh-plugin](https://github.com/poco-ai/agentero-dsh-plugin)。
+
+---
+
 ## 致谢与社区
 
 * 感谢 [LinuxDo](https://linux.do/) 与 [ModelScope 魔搭社区](https://modelscope.cn/) 成员在项目早期测试阶段提供的建议与反馈。
