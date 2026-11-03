@@ -7,7 +7,7 @@
 	"syncPdf": "在 PDF 中定位",
 	"syncSource": "在源码中定位",
 	"syncPdfHint": "在 PDF 中定位当前源码位置（⌘/Ctrl+Alt+J）",
-	"syncSourceHint": "在源码中定位 PDF 位置（提示：⌘/Ctrl + 点击 PDF 中的具体位置可更准确地定位）",
+	"syncSourceHint": "在源码中定位 PDF 位置（提示：双击 PDF 中的具体位置可更准确地定位）",
 	"saveFailed": "请先保存项目中的修改，再插入引用。",
 	"noDocumentEnd": "请先在主文档中添加参考文献声明，再插入引用。"
 }

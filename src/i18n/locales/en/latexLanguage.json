@@ -7,7 +7,7 @@
 	"syncPdf": "Locate in PDF",
 	"syncSource": "Locate in source",
 	"syncPdfHint": "Go to code location in PDF (⌘/Ctrl+Alt+J)",
-	"syncSourceHint": "Go to PDF location in code (Tip: ⌘/Ctrl-click a spot on the PDF for best results)",
+	"syncSourceHint": "Go to PDF location in code (Tip: double-click on the PDF for best results)",
 	"saveFailed": "Save the project changes before inserting a citation.",
 	"noDocumentEnd": "Add a bibliography declaration to the root document before inserting a citation."
 }

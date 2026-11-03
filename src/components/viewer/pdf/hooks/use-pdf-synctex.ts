@@ -137,6 +137,8 @@ export function usePdfSyncTex(options: {
 		if (!host || !pdfPath || !rootPath) return;
 		const click = (event: MouseEvent) => {
 			if (event.button !== 0) return;
+			// Modified clicks already sync on click; do not repeat on dblclick.
+			if (event.type === "dblclick" && (event.ctrlKey || event.metaKey)) return;
 			const element =
 				event.target instanceof Element
 					? event.target.closest<HTMLElement>(`[${EMBED_PAGE_ATTR}]`)
@@ -149,17 +151,18 @@ export function usePdfSyncTex(options: {
 			});
 			if (!point) return;
 			lastPoint.current = { docId, index, ...point };
-			// Plain clicks (including the two clicks of a word selection) only
-			// record the point. A modified click is the explicit reverse sync.
-			if (!(event.ctrlKey || event.metaKey)) return;
+			if (event.type !== "dblclick" && !(event.ctrlKey || event.metaKey))
+				return;
 			event.preventDefault();
 			event.stopPropagation();
 			syncBackward(index, point);
 		};
 		host.addEventListener("click", click, true);
+		host.addEventListener("dblclick", click, true);
 		return () => {
 			navigation.current += 1;
 			host.removeEventListener("click", click, true);
+			host.removeEventListener("dblclick", click, true);
 		};
 	}, [docId, pdfPath, rootPath, hostRef, syncBackward, pagePoint]);
 }
