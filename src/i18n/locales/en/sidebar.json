@@ -556,7 +556,6 @@
 		"historyPending": "Not uploaded yet",
 		"historyRestore": "Restore this version",
 		"historyRestored": "Restored",
-		"historyBack": "Back to editor",
 		"setMainFile": "Set as main file",
 		"mainFile": "Main file",
 		"setMainFileDone": "This file is now compiled",

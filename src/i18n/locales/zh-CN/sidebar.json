@@ -555,7 +555,6 @@
 		"historyPending": "尚未上传的修改",
 		"historyRestore": "回退到这一版",
 		"historyRestored": "已回退",
-		"historyBack": "返回编辑",
 		"setMainFile": "设为主文件",
 		"mainFile": "主文件",
 		"setMainFileDone": "编译将使用这个文件",

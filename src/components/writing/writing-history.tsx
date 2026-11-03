@@ -17,7 +17,6 @@ import { cn } from "@/lib/core/utils";
 import { joinVaultPath } from "@/lib/vault/path";
 import { getVaultPath } from "@/lib/vault/store";
 import { reloadOpenWritingFiles } from "@/lib/writing/history";
-import { closeWritingHistory } from "@/lib/writing/store";
 import {
 	loadWritingGitDiff,
 	loadWritingGitLog,
@@ -120,17 +119,14 @@ export function WritingHistory() {
 	return (
 		<div className="flex h-full min-h-0 min-w-0">
 			<div className="flex w-56 shrink-0 flex-col border-r border-border">
-				<div className="flex h-10 shrink-0 items-center border-b border-border px-3">
-					<span className="text-sm font-medium">{t("writing.historyTab")}</span>
-				</div>
-				<div className="min-h-0 flex-1 overflow-auto p-1">
+				<div className="min-h-0 flex-1 overflow-auto p-2">
 					{loading ? (
 						<p className="text-muted-foreground px-2 py-1.5 text-xs">
 							{t("writing.loading")}
 						</p>
 					) : null}
 					{!loading && commits.length === 0 ? (
-						<p className="text-muted-foreground px-2 py-1.5 text-xs">
+						<p className="text-muted-foreground flex h-full items-center justify-center px-3 text-center text-xs leading-relaxed">
 							{notice}
 						</p>
 					) : null}
@@ -156,45 +152,29 @@ export function WritingHistory() {
 						</button>
 					))}
 				</div>
-			</div>
-			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
-				<div className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
-					<span className="min-w-0 flex-1 truncate text-sm">
-						{selected
-							? selected.id === "pending"
-								? t("writing.historyPending")
-								: formatWhen(selected.at)
-							: ""}
-					</span>
-					{canRestore ? (
+				{canRestore ? (
+					<div className="shrink-0 px-2 pb-2">
 						<Button
 							type="button"
 							variant="outline"
 							size="sm"
+							className="w-full"
 							disabled={restoring}
 							onClick={() => setConfirming(true)}
 						>
 							{t("writing.historyRestore")}
 						</Button>
-					) : null}
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						onClick={() => closeWritingHistory()}
-					>
-						{t("writing.historyBack")}
-					</Button>
-				</div>
-				<div className="min-h-0 flex-1 overflow-auto">
-					{patchLoading ? (
-						<p className="text-muted-foreground px-3 py-2 text-xs">
-							{t("writing.loading")}
-						</p>
-					) : (
-						<DiffDocument patch={patch} />
-					)}
-				</div>
+					</div>
+				) : null}
+			</div>
+			<div className="min-h-0 min-w-0 flex-1 overflow-auto">
+				{patchLoading ? (
+					<p className="text-muted-foreground px-3 py-2 text-xs">
+						{t("writing.loading")}
+					</p>
+				) : (
+					<DiffDocument patch={patch} />
+				)}
 			</div>
 			<Dialog
 				open={confirming}
