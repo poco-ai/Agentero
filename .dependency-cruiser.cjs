@@ -6,6 +6,17 @@
 module.exports = {
 	forbidden: [
 		{
+			name: "ai-primitives-stay-generic",
+			comment: "Upstream AI primitives must remain independently upgradeable.",
+			severity: "error",
+			from: {
+				path: "^src/components/ui/(message|bubble|code-block|attachment|trace|marker|message-scroller)\\.tsx$",
+			},
+			to: {
+				path: "^src/(components/(?!ui/)|lib/(agent|paper|pdf|vault|wiki|workspace|settings|translate)|hooks/use-app-stores)",
+			},
+		},
+		{
 			name: "no-circular",
 			comment: "Module cycles make init order fragile (see lib barrel cycles).",
 			severity: "error",
