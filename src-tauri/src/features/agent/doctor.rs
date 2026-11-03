@@ -391,13 +391,26 @@ async fn codex_account_auth_status(
         let stdout = child.stdout.take()?;
         let mut lines = BufReader::new(stdout).lines();
 
+        let initialize = serde_json::json!({
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "clientInfo": {
+                    "name": "Agentero",
+                    "version": env!("CARGO_PKG_VERSION"),
+                },
+                "capabilities": null,
+            },
+        });
         stdin
-            .write_all(b"{\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"Agentero\",\"version\":\"0.14.0\"},\"capabilities\":null}}\n")
+            .write_all(format!("{initialize}\n").as_bytes())
             .await
             .ok()?;
         codex_app_server_result(&mut lines, 1).await?;
         stdin
-            .write_all(b"{\"id\":2,\"method\":\"account/read\",\"params\":{\"refreshToken\":false}}\n")
+            .write_all(
+                b"{\"id\":2,\"method\":\"account/read\",\"params\":{\"refreshToken\":false}}\n",
+            )
             .await
             .ok()?;
         let account = codex_app_server_result(&mut lines, 2).await?;
