@@ -276,6 +276,7 @@ papers.cool 给几乎所有链接都加了 `target="_blank"`（单个分区页�
 - 站点的 Emotion 类名（`acss-*`）每次发版重新哈希，**只能**用 `header.antd5-layout-header`、`a[href^="/papers/"]`、arXiv favicon 这类结构化钩子。
 - React 重渲染会抹掉注入节点，`MutationObserver` 挂 `document.body` 补回来（debounce 100ms，避免自触发抖动）。
 - 回执按 `data-paper-id` 遍历匹配：arXiv id 带 `.`，不能用 id 选择器。
+- 刷新或重开页面时，按钮会重新画成「入库」。桥接把当前页的 id 用 `queryImported` 问宿主，宿主按论文库的 `arxiv_id`（以及文件夹名）回答 `importedIds`，版本号 `vN` 忽略。已入库的行直接标成「已入库」，避免重复点。
 
 ### 3.6 CCF 截稿（已实现）
 
