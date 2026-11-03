@@ -4,7 +4,7 @@ import type { LucideProps } from "lucide-react";
 import { BookmarkIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import {
 	Tooltip,
 	TooltipContent,
@@ -19,16 +19,18 @@ export const Checkpoint = ({
 	children,
 	...props
 }: CheckpointProps) => (
-	<div
+	<Marker
+		variant="separator"
 		className={cn(
 			"flex items-center gap-0.5 overflow-hidden text-muted-foreground",
 			className,
 		)}
 		{...props}
 	>
-		{children}
-		<Separator />
-	</div>
+		<MarkerContent className="inline-flex items-center gap-0.5">
+			{children}
+		</MarkerContent>
+	</Marker>
 );
 
 export type CheckpointIconProps = LucideProps;
@@ -37,10 +39,13 @@ export const CheckpointIcon = ({
 	className,
 	children,
 	...props
-}: CheckpointIconProps) =>
-	children ?? (
-		<BookmarkIcon className={cn("size-4 shrink-0", className)} {...props} />
-	);
+}: CheckpointIconProps) => (
+	<MarkerIcon>
+		{children ?? (
+			<BookmarkIcon className={cn("size-4 shrink-0", className)} {...props} />
+		)}
+	</MarkerIcon>
+);
 
 export type CheckpointTriggerProps = ComponentProps<typeof Button> & {
 	tooltip?: string;

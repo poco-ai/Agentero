@@ -13,6 +13,7 @@
 
 | 文档 | 主题 |
 |---|---|
+| [ai-components-migration.md](ai-components-migration.md) | shadcn AI 组件迁移：上游基础件与业务解耦、能力取舍和验证记录 |
 | [lifecycle-events.md](lifecycle-events.md) | 生命周期事件系统：语义事件 + 注册式 handler，统一事件命名规范。**已落地**，保留为设计记录（scoped 事件与 teardown 语义、为何不需要 `vault:closed`、为何 `app:will-quit` 延后） |
 | [plaza.md](plaza.md) | 广场（Cool Papers / ModelScope 论文 / 推荐 / 播客）。**壳 + 两个站点来源浏览与入库已落地**（`agentero-coolpapers` / `agentero-modelscope` 站点代理）；推荐 / 播客仍为草稿 |
 | [webpage-library.md](webpage-library.md) | #821 网页收藏：RSS 入库入口已实现；正文归档、来源去重设计待实现 |

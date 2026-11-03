@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { MessageResponse } from "@/components/ai-elements/message";
+import { MessageResponse } from "@/components/agent/message";
 
 /**
  * Streamdown's streaming mode runs `remend`, which truncates a TeX `<`

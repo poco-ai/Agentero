@@ -4,7 +4,7 @@ import { NotebookPen } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { MessageResponse } from "@/components/ai-elements/message";
+import { MessageResponse } from "@/components/agent/message";
 import { EmbedStatus } from "@/components/editor/embeds/embed-status";
 import { useMarkdownExportMode } from "@/components/editor/markdown-export-mode-context";
 import { AnnotationQuoteBlock } from "@/components/selection/annotation-quote-block";

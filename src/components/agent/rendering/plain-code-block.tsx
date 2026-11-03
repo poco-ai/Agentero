@@ -12,6 +12,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { BundledLanguage } from "shiki";
 import { Streamdown } from "streamdown";
+import { CodeBlockContent } from "@/components/agent/rendering/code-block";
 import { Button } from "@/components/ui/button";
 import {
 	Tooltip,
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/tooltip";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { cn } from "@/lib/core/utils";
-import { CodeBlockContent } from "./code-block";
 
 export function downloadText(filename: string, text: string) {
 	const blob = new Blob([text], { type: "text/plain;charset=utf-8" });

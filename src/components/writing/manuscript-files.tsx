@@ -13,7 +13,7 @@ import {
 	FILE_TREE_ROW_SELECTED_STATE,
 	FILE_TREE_ROW_STATE,
 	FileTreeDisclosureIcon,
-} from "@/components/ai-elements/file-tree";
+} from "@/components/sidebar/file-tree/file-tree-primitives";
 import { Button } from "@/components/ui/button";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import {

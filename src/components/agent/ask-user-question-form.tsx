@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Suggestion } from "@/components/ai-elements/suggestion";
+import { Suggestion } from "@/components/agent/elements/suggestion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { AskUserQuestion } from "@/lib/agent/chat-state";

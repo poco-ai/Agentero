@@ -9,7 +9,14 @@ import {
 	PromptInputButton,
 	PromptInputSubmit,
 	usePromptInputAttachments,
-} from "@/components/ai-elements/prompt-input";
+} from "@/components/agent/composer/prompt-input";
+import {
+	Attachment,
+	AttachmentContent,
+	AttachmentMedia,
+	AttachmentTitle,
+	AttachmentTrigger,
+} from "@/components/ui/attachment";
 import {
 	COMPOSER_IMAGE_MAX_BYTES,
 	COMPOSER_IMAGE_MAX_FILES,
@@ -39,39 +46,44 @@ export function ComposerImageAttachments({
 				const label = file.filename?.trim() || t("composer.attachedImage");
 				const thumb = file.url || null;
 				return (
-					<button
+					<Attachment
 						key={file.id}
-						type="button"
+						size="xs"
 						className={cn(
 							"inline-flex items-center border bg-muted/20 text-foreground text-xs transition-colors hover:bg-muted",
 							compact
-								? "size-7 shrink-0 justify-center rounded-full p-0"
+								? "size-7 min-w-0 shrink-0 justify-center rounded-full p-0"
 								: "h-8 max-w-full gap-1.5 rounded-full px-1.5 pr-2",
 						)}
-						onClick={() => attachments.remove(file.id)}
 						title={t("composer.removeAttachedImage")}
 					>
-						{thumb ? (
-							<img
-								src={thumb}
-								alt=""
-								className={cn(
-									"shrink-0 object-cover",
-									compact ? "size-5 rounded-full" : "size-5 rounded",
-								)}
-							/>
-						) : (
-							<ImageIcon className="size-3.5 shrink-0 text-muted-foreground" />
-						)}
+						<AttachmentTrigger
+							aria-label={t("composer.removeAttachedImage")}
+							onClick={() => attachments.remove(file.id)}
+						/>
+						<AttachmentMedia variant="image" className="size-5!">
+							{thumb ? (
+								<img
+									src={thumb}
+									alt=""
+									className={cn(
+										"shrink-0 object-cover",
+										compact ? "size-5 rounded-full" : "size-5 rounded",
+									)}
+								/>
+							) : (
+								<ImageIcon className="size-3.5 shrink-0 text-muted-foreground" />
+							)}
+						</AttachmentMedia>
 						{compact ? null : (
 							<>
-								<span className="max-w-[10rem] truncate" title={label}>
-									{label}
-								</span>
+								<AttachmentContent className="max-w-[10rem]">
+									<AttachmentTitle title={label}>{label}</AttachmentTitle>
+								</AttachmentContent>
 								<X className="size-3 shrink-0 text-muted-foreground" />
 							</>
 						)}
-					</button>
+					</Attachment>
 				);
 			})}
 		</div>

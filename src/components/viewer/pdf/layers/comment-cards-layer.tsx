@@ -11,7 +11,7 @@
 import { Crop, Link2, MessageSquarePlus, Trash2 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MessageResponse } from "@/components/ai-elements/message";
+import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
 import {
 	Tooltip,

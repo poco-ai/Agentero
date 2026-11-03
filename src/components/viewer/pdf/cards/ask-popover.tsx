@@ -1,6 +1,12 @@
 import { MessageSquareIcon, MinusIcon, Pencil, Trash2Icon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+	PromptInput,
+	PromptInputBody,
+	PromptInputSubmit,
+	PromptInputTextarea,
+} from "@/components/agent/composer/prompt-input";
 import { ContextSourceLinks } from "@/components/agent/context-source-links";
 import {
 	Message,
@@ -8,21 +14,15 @@ import {
 	MessageActions,
 	MessageContent,
 	MessageResponse,
-} from "@/components/ai-elements/message";
+} from "@/components/agent/message";
 import {
 	ChatGPTIcon,
 	ClaudeIcon,
 	openInChatGPT,
 	openInClaude,
-} from "@/components/ai-elements/open-in-chat";
-import {
-	PromptInput,
-	PromptInputBody,
-	PromptInputSubmit,
-	PromptInputTextarea,
-} from "@/components/ai-elements/prompt-input";
-import { Shimmer } from "@/components/ai-elements/shimmer";
+} from "@/components/agent/open-in-chat";
 import { Button } from "@/components/ui/button";
+import { Shimmer } from "@/components/ui/shimmer";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import { useImeGuard } from "@/hooks/use-ime-guard";

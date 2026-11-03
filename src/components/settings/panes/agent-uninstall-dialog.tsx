@@ -2,7 +2,7 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentLogo } from "@/components/agent/agent-logo";
-import { CompactCodeBlock } from "@/components/ai-elements/code-block";
+import { CompactCodeBlock } from "@/components/agent/rendering/code-block";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {

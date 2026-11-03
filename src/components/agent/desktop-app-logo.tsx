@@ -1,6 +1,6 @@
 import { type ComponentProps, type ReactNode, useId } from "react";
 import { SiDeepseek, SiQwen } from "react-icons/si";
-import { ChatGPTIcon } from "@/components/ai-elements/open-in-chat";
+import { ChatGPTIcon } from "@/components/agent/open-in-chat";
 import type { DesktopAppId } from "@/lib/system/desktop-apps";
 
 /**

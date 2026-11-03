@@ -1,8 +1,8 @@
 import { CheckIcon, ChevronDown, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ComposerModelSelector } from "@/components/agent/composer/composer-model-selector";
+import { PromptInputButton } from "@/components/agent/composer/prompt-input";
 import type { GroupedModel } from "@/components/agent/hooks/use-agent-config";
-import { PromptInputButton } from "@/components/ai-elements/prompt-input";
 import {
 	DropdownMenu,
 	DropdownMenuContent,

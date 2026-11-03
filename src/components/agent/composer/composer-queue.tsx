@@ -1,6 +1,5 @@
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { QueuedPrompt } from "@/components/agent/types";
 import {
 	Queue,
 	QueueItem,
@@ -13,7 +12,8 @@ import {
 	QueueSectionContent,
 	QueueSectionLabel,
 	QueueSectionTrigger,
-} from "@/components/ai-elements/queue";
+} from "@/components/agent/elements/queue";
+import type { QueuedPrompt } from "@/components/agent/types";
 import { stripInlineTokens } from "@/lib/agent/composer-inline-tokens";
 import { cn } from "@/lib/core/utils";
 

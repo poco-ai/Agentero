@@ -4,7 +4,7 @@ import {
 	ContextContent,
 	ContextContentHeader,
 	ContextTrigger,
-} from "@/components/ai-elements/context";
+} from "@/components/agent/elements/context";
 
 /** Renders inside `PromptInputTools`; the attach-image button needs the PromptInput attachment context. */
 export function ComposerToolbar({

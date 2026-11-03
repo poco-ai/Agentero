@@ -7,7 +7,7 @@ BYOA：连接本机（或远程）ACP Agent。Host 协议见 [../backend/agent.m
 ## UI 分层
 
 ```text
-AI Elements (Conversation / Message / PromptInput / InlineCitation / Reasoning)
+shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
   → AgentPanel 状态机
   → invoke agent_* + 订阅 agent:* 事件
 ```
@@ -46,7 +46,7 @@ AI Elements (Conversation / Message / PromptInput / InlineCitation / Reasoning)
 - **会话配置条**（Header 下方）：模型选择、协作模式（有上报时）、Fast（有上报时）；推理强度收在模型选择弹层顶部，与当前模型名称同行。从 Composer 工具栏上移，压低输入区时也不再被隐藏；窄侧栏中保持单行，过长的模型 / 模式名称以省略号截断。
 - 引用上下文：`@` 提及、`$skill`、`/command` 选中后在输入正文里**行内插入**小 pill（contenteditable；行高贴近正文、`max-w` 较短；点击或 Backspace 整颗删除）。Skill pill **只显示图标 + 名称**（去掉 `$` / `skill :` 前缀）；`@` 仍带 `@`，`/` 仍带 `/`；选区与笔记块引用在输入正文里显示为行内引用块（插在光标后，引文片段、最大宽度省略，Backspace / Delete 整块删除，悬停查看，单击不移除）。草稿 marker：`{{m:path}}` / `{{s:skillId}}` / `{{c:name}}` / `{{sel:…}}` / `{{vis:id}}`；发送时 m/s 从正文剥离（路径和 skillIds 走原通路），sel/vis 在原位置换成 `[Annotation N]`、详情附在文末，c 展开为 `/name` 进 ACP 正文。Composer 外部草稿同步不能在 IME / 语音输入 composition 或等待父状态回显用户输入时重建 `contenteditable` DOM，避免首次语音输入被初始化 draft 覆盖；`@` / `$skill` / `/command` 的 token commit 仍立即渲染。当前文件仍为输入框上方的块级 chip：默认图标；hover / 聚焦时**宽度动画展开**短标签与 ×（不用 tooltip 浮层）。视觉批注（一个视觉 mark 至多一个，重复「加入侧边栏对话」只刷新不追加）同样是行内引用块，图标为图片，插在光标之后；悬停查看裁剪图并编辑备注，点击图片放大，删除在悬浮卡片里，单击不移除。悬浮卡片上的序号与发送时的 `[Annotation N]` 相同，按正文从左到右把文字批注和视觉批注一起编号。每段会话各自保存尚未发送的视觉批注。切换会话不会删掉另一段里的引用块，也不会把那段的裁剪图带过来。在当前会话加入同一条视觉批注，只在当前输入框插入或刷新这一块。删除、发送或排队只动当前这段输入。发送后裁剪图只进入提示词，PDF 上的视觉批注不写入这轮对话。图片附件仍在边框内。紧凑一行模式**按内容撑开**（不写死壳高，避免输入行下留白）；触发条件：composer 高度 ≤ 160px（拖拽分隔条可随时进出）。应用窗口高度 < 600px 时**默认压到紧凑高度**（打开侧栏或窗口由高变矮时），但不锁死，用户仍可拖高退出紧凑。块级 chip 与图片收成图标圆片；隐藏底部工具栏，圆形向上箭头发送按钮与输入框同一行并垂直居中（无内容时置灰）；单行用 `px-3 py-2.5`，与非紧凑 footer 的 `px-3 pb-2.5` 对齐，切换紧凑时发送按钮底边 inset 不跳。外层左右 padding（`px-3`）与底边距（`pb-3`）与非紧凑一致，避免输入框宽度或与下边框距离跳动。右侧栏 composer 顶部有竖向拖拽分隔条，可压低输入区高度。
 - 会话空闲时 hover 用户消息可 **Edit** 后重发。
-- **长会话虚拟化**：transcript 行数 ≥ 80（`use-transcript-virtualizer` 的 `VIRTUALIZE_MIN_LINES`）时切换 `@tanstack/react-virtual` 窗口化渲染，复用 use-stick-to-bottom 的 scrollRef（贴底与滚动按钮行为不变）；Reasoning / Tool / Plan 折叠态提升到 `ChatTranscript` 统一管理，行卸载不丢。
+- **长会话虚拟化**：transcript 行数 ≥ 80（`use-transcript-virtualizer` 的 `VIRTUALIZE_MIN_LINES`）时切换 `@tanstack/react-virtual` 窗口化渲染，复用 `Conversation` 暴露的 Message Scroller viewport ref。短会话每行注册 Item，长会话将整个虚拟画布注册为一个 Item，历史索引导航继续由 virtualizer 处理；上游负责自动跟底与滚动按钮，不启用发送后顶对齐锚点。Reasoning / Tool / Plan 折叠态提升到 `ChatTranscript` 统一管理，行卸载不丢。
 - **流式合帧与窄订阅**：`agent:stream` chunk 先按 session 进缓冲，每动画帧合并为一次 store 更新（tool / plan / complete / fail 前强制 flush 保序，监听器卸载时 flush 残留）；面板不订阅整个 `sessions` 数组（identity 随每个 chunk 变化），改用布尔 selector（是否有运行中会话）+ `store.subscribe` 镜像 ref，历史弹层自行订阅——流式期间只有变化的消息行重渲染，不再每 token 重渲染整个面板（含 composer）。
 - **新建对话 / 历史恢复**：新建草稿不会清空刚离开的本地 transcript；历史项同时存在 Agentero runtime id 与 ACP provider id 时，`session/load` / 后续续聊只使用 `providerSessionId`；连续续聊产生的新 runtime 行会按 provider id 合并回同一个历史项；远端历史项会先激活空 transcript 并显示 Shimmer/骨架占位，加载结果再通过一次原子 store 更新替换为真实内容，避免列表刷新后出现空白会话。详见 [Codex 历史恢复误用 runtime id](../bug_fix/codex-history-runtime-session-id.md)。会话标题优先用 ACP `session/list` / `session/load` 返回的 title，缺失时回退首条用户消息（本地已有 transcript 时立即从首条 user turn 推导；外部会话无 title 时先留空并由后台 `session/load` **预加载**补全——切 Agent / 打开历史弹层时对无标题项并发 hydrate，结果写入 `localStorage` 标题缓存，下次列表可秒开；**不再**用 session id 前缀占位以免挡住回退，见 #484）。历史列表在行上 hover 时显示铅笔图标以 **重命名**（#710）：新标题写入 store 的 `titleLocked` 与 `localStorage` override 缓存，之后 ACP 列表 / `session_info_update` / 后台 hydrate 都不再覆盖。重命名输入框的 Enter 走 `useImeGuard`，中文输入法确认候选不会直接保存标题。历史列表按当前 ACP 后端过滤，行内不显示后端名。已完成会话只显示标题与时间；运行中、失败、已中止在标题前显示状态点，悬停提示对应状态文案。会话 id 不出现在行内，只在标题完全缺失时作为最后兜底。运行中 Agent 经 `session_info_update` 推送的新标题由 `agent:session-info` 事件实时写回历史项（按 runtime id 或 providerSessionId 匹配；视觉批注与用户重命名的标题不被覆盖）。
 - Slash 命令完全来自当前 ACP session 的 `available_commands_update`；Agentero 不再注册本地 action/template。映射时剥离名称前导 `/` 与 `$`（部分 Agent 把 skill 以 `$name` 形式广播），再以 `/name` 填入 Composer，并在当前 provider session 中原样发送。
@@ -116,7 +116,7 @@ Skill 语法由 Host 按 provider 分流（Claude `/id`，其它注入 `SKILL.md
 | 表格 | `PlainTable` | 复制（Markdown / CSV / TSV）、下载（CSV / Markdown）、全屏 |
 | 代码块 | `PlainCodeBlock` | 左上角语言小标签；悬停复制/下载（按语言后缀）；无外侧卡片、无全屏；`mermaid` 仍走 Streamdown 图渲染 |
 
-落盘：`src/components/ai-elements/plain-table.tsx`、`plain-code-block.tsx`。
+落盘：`src/components/agent/rendering/plain-table.tsx`、`plain-code-block.tsx`；正文与推理统一复用同目录的 `message-response.tsx`。代码高亮复用 shadcn 的 `use-highlighted-code` 与 `lib/ui/highlighter`，复制经业务适配调用 Tauri 兼容剪贴板。
 
 Streamdown 的 `mode` 由 `isAnimating` 派生：流式中 `"streaming"`（跑 remend 补全未闭合标签），消息落定后 `"static"` 跳过 remend——否则公式里 `x_{<n}` 的 `<n…` 会被当成未闭合 HTML 标签截掉，KaTeX 报 `Expected '}', got 'EOF'`（#584，复盘见 [bug_fix/agent-message-math-less-than](../bug_fix/agent-message-math-less-than.md)）。
 

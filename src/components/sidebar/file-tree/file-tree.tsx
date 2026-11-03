@@ -7,7 +7,7 @@ import {
 	useRef,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { FileTree as AiFileTree } from "@/components/ai-elements/file-tree";
+import { FileTree as AiFileTree } from "@/components/sidebar/file-tree/file-tree-primitives";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSettings } from "@/hooks/use-app-stores";
 import { cn } from "@/lib/core/utils";

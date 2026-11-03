@@ -25,7 +25,7 @@ function hrefFromProps(
 	href: string | undefined,
 	node: AgentCitationLinkProps["node"],
 ): string {
-	if (href && href.trim()) return href.trim();
+	if (href?.trim()) return href.trim();
 	const fromNode = node?.properties?.href;
 	return typeof fromNode === "string" ? fromNode.trim() : "";
 }

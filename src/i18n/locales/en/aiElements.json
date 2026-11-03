@@ -21,6 +21,8 @@
 		"thought": "Thought process"
 	},
 	"conversation": {
+		"messages": "Messages",
+		"scrollToEnd": "Scroll to latest message",
 		"empty": {
 			"title": "No messages yet",
 			"description": "Start a conversation to see messages here"

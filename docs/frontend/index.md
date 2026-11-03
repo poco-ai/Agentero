@@ -24,9 +24,9 @@ React 19 + TypeScript Webview UI。全局状态为按域 **zustand vanilla store
 |---|---|
 | Tailwind CSS 4 | 布局与 token |
 | shadcn/ui（radix-nova） | `src/components/ui/` |
-| AI Elements | Chat / Prompt / Sources / FileTree → `src/components/ai-elements/` |
+| shadcn AI Elements | `components/ui/` 上游基础件；`components/agent/` 业务组合；`sidebar/file-tree/file-tree-primitives.tsx` 文件树交互 |
 | streamdown | `MessageResponse` 流式 Markdown |
-| use-stick-to-bottom | 对话贴底 |
+| @shadcn/react | Message Scroller 对话跟底与滚动导航 |
 | Radix / Lucide | 可访问性与图标 |
 | react-resizable-panels | 左/右 collapsible 侧栏 |
 | dockview | 中间文档工作区 |
@@ -37,7 +37,7 @@ React 19 + TypeScript Webview UI。全局状态为按域 **zustand vanilla store
 
 动效约定：`index.css` `:root` 定义 motion token（`--motion-duration-fast: 150ms` 浮层进出、`--motion-duration-normal: 200ms` 布局编排、`--motion-ease-out`）；组件类对应 100=微反馈 / 150=浮层 / 200=布局。全局 `prefers-reduced-motion` 兜底关闭所有动效（`animate-spin` 除外）。
 
-该 CSS 兜底只覆盖 CSS transition/keyframes；JS 驱动的动效（`scrollIntoView` / 虚拟列表滚动 / `use-stick-to-bottom` 贴底 / `motion/react`）必须自行询问 `src/lib/core/motion.ts` 的 `prefersReducedMotion()` / `scrollBehavior()`，`motion/react` 组件用其 `useReducedMotion()`。
+该 CSS 兜底只覆盖 CSS transition/keyframes；JS 驱动的动效（`scrollIntoView` / 虚拟列表滚动 / Message Scroller 导航 / `motion/react`）必须自行询问 `src/lib/core/motion.ts` 的 `prefersReducedMotion()` / `scrollBehavior()`，`motion/react` 组件用其 `useReducedMotion()`。
 
 ### 领域库
 

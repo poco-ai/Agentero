@@ -14,6 +14,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { PLAZA_SOURCE_ICONS } from "@/components/plaza/source-icons";
 import {
 	FileTreeActions,
 	FileTreeDisclosureIcon,
@@ -22,8 +23,7 @@ import {
 	FileTreeIcon,
 	FileTreeName,
 	useFileTree,
-} from "@/components/ai-elements/file-tree";
-import { PLAZA_SOURCE_ICONS } from "@/components/plaza/source-icons";
+} from "@/components/sidebar/file-tree/file-tree-primitives";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/ui/math-text";
 import { Skeleton } from "@/components/ui/skeleton";

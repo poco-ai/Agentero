@@ -10,7 +10,7 @@ import {
 	useEffect,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { usePromptInputAttachments } from "@/components/ai-elements/prompt-input";
+import { usePromptInputAttachments } from "@/components/agent/composer/prompt-input";
 import {
 	COMPOSER_IMAGE_MAX_FILES,
 	imagePathsFromDataTransfer,

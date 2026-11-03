@@ -2,14 +2,15 @@
 
 ## AI Elements
 
-Chat / Agent / 文件树 AI UI **统一使用** [AI Elements](https://elements.ai-sdk.dev/)。
+Chat / Agent UI 使用 [shadcn/ui AI Elements](https://ui.shadcn.com/docs/ai-elements) 的 Radix patterns，并复用当前 `radix-nova` 基础组件。
 
-- 落盘：`src/components/ai-elements/`
-- 安装：`pnpm dlx shadcn@latest add https://elements.ai-sdk.dev/api/registry/<name>.json -y -o`
+- 上游基础件落盘：`src/components/ui/`。安装前用 `pnpm exec shadcn view <name>` 对比，按需添加，禁止批量覆盖已有组件。
+- 应用组合位于 `src/components/agent/`：`elements/` 为过程展示与队列，`composer/` 为输入状态与附件，`rendering/` 为科研 Markdown、引用及代码展示。旧 `ai-elements/` 目录已移除。
 - 主题跟 shadcn token；**不是** Vercel AI SDK `useChat`（传输层为 ACP）。
-- **禁止**新建 `src/components/ai/*` 或用 `ui/message` 搭 Chat。
+- `ui/message`、`bubble`、`trace`、`code-block`、`attachment`、`message-scroller` 保持上游通用接口，通过 props / children 组合业务；不导入 ACP、Vault、PDF、业务 store 或 IPC。`pnpm deps:check` 检查这条边界。
+- 保留 AI SDK、Streamdown 等成熟依赖；只有确认无消费者才删除，不为减少依赖重新实现基础能力。
 
-常用：`conversation`、`message`、`prompt-input`、`sources`、`reasoning`、`file-tree`、queue 等。
+待发送队列与官方 Agent todo Queue 语义不同；模型选择器需要 Command 搜索；Vault 文件树需要多选、拖放和重命名。这些能力用基础组件组合，不能用精简展示示例替代。
 
 Agent / Reasoning 消息里的 Markdown：`Streamdown` + `PlainTable` / `PlainCodeBlock`（代码块左上角语言标签，悬停复制/下载；无外侧卡片，见 [agent.md](agent.md)#消息-markdown-渲染）。
 

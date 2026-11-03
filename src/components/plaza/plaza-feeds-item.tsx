@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MessageResponse } from "@/components/ai-elements/message";
+import { MessageResponse } from "@/components/agent/message";
 import { PlazaSelectionMenu } from "@/components/plaza/plaza-selection-menu";
 import { usePlazaFeedSelection } from "@/components/plaza/use-plaza-feed-selection";
 import { Button } from "@/components/ui/button";

@@ -20,6 +20,7 @@ import {
 	useMemo,
 	useState,
 } from "react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/core/utils";
 
 export type SelectMods = { meta: boolean; ctrl: boolean; shift: boolean };
@@ -270,12 +271,14 @@ export const FileTreeFolderRow = ({
 	const isSelected =
 		selCount > 0 ? (selectedPaths?.has(path) ?? false) : selectedPath === path;
 	return (
-		<button
+		<Button
+			variant="ghost"
+			size="sm"
 			type="button"
 			data-path={path}
 			draggable
 			className={cn(
-				"group flex h-7 min-h-7 w-full items-center gap-1 rounded px-4 text-left",
+				"group flex h-7 min-h-7 w-full items-center justify-start gap-1 rounded px-4 text-left text-sm font-normal",
 				FILE_TREE_ROW_STATE,
 				isSelected && FILE_TREE_ROW_SELECTED_STATE,
 				dropTargetPath === path && DROP_RING,
@@ -341,7 +344,7 @@ export const FileTreeFolderRow = ({
 				/>
 			</span>
 			<FileTreeName>{name}</FileTreeName>
-		</button>
+		</Button>
 	);
 };
 
@@ -449,38 +452,40 @@ export const FileTreeFile = ({
 
 	return (
 		<FileTreeFileContext.Provider value={fileContextValue}>
-			<div
-				data-path={path}
-				draggable
-				className={cn(
-					"group flex h-7 min-h-7 cursor-pointer items-center gap-1 rounded px-4",
-					FILE_TREE_ROW_STATE,
-					isSelected && FILE_TREE_ROW_SELECTED_STATE,
-					dropTargetPath === path && DROP_RING,
-					className,
-				)}
-				onClick={handleClick}
-				onDoubleClick={handleDoubleClick}
-				onContextMenu={handleContextMenu}
-				onKeyDown={handleKeyDown}
-				onDragStart={(e) => onRowDragStart?.(path, e)}
-				onDragOver={(e) => onRowDragOver?.(path, e)}
-				onDrop={(e) => onRowDrop?.(path, e)}
-				onDragEnd={() => onRowDragEnd?.()}
-				role="treeitem"
-				aria-selected={isSelected}
-				tabIndex={0}
-				{...props}
-			>
-				{children ?? (
-					<>
-						<FileTreeIcon>
-							{icon ?? <FileIcon className="size-4 text-muted-foreground" />}
-						</FileTreeIcon>
-						<FileTreeName>{name}</FileTreeName>
-					</>
-				)}
-			</div>
+			<Button asChild variant="ghost" size="sm">
+				<div
+					data-path={path}
+					draggable
+					className={cn(
+						"group flex h-7 min-h-7 cursor-pointer items-center justify-start gap-1 rounded px-4 text-sm font-normal",
+						FILE_TREE_ROW_STATE,
+						isSelected && FILE_TREE_ROW_SELECTED_STATE,
+						dropTargetPath === path && DROP_RING,
+						className,
+					)}
+					onClick={handleClick}
+					onDoubleClick={handleDoubleClick}
+					onContextMenu={handleContextMenu}
+					onKeyDown={handleKeyDown}
+					onDragStart={(e) => onRowDragStart?.(path, e)}
+					onDragOver={(e) => onRowDragOver?.(path, e)}
+					onDrop={(e) => onRowDrop?.(path, e)}
+					onDragEnd={() => onRowDragEnd?.()}
+					role="treeitem"
+					aria-selected={isSelected}
+					tabIndex={0}
+					{...props}
+				>
+					{children ?? (
+						<>
+							<FileTreeIcon>
+								{icon ?? <FileIcon className="size-4 text-muted-foreground" />}
+							</FileTreeIcon>
+							<FileTreeName>{name}</FileTreeName>
+						</>
+					)}
+				</div>
+			</Button>
 		</FileTreeFileContext.Provider>
 	);
 };

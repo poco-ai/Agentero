@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import type { RefObject } from "react";
 import {
-	Fragment,
 	memo,
 	type ReactNode,
 	useCallback,
@@ -17,7 +16,6 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { useStickToBottomContext } from "use-stick-to-bottom";
 import { useStore } from "zustand";
 import { AgentThinkingOrb } from "@/components/agent/agent-thinking-orb";
 import { ChatSelectionReferences } from "@/components/agent/chat-selection-references";
@@ -28,28 +26,16 @@ import {
 } from "@/components/agent/chat-visual-annotations";
 import { ContextSourceLinks } from "@/components/agent/context-source-links";
 import {
-	transcriptLineKey,
-	useTranscriptVirtualizer,
-} from "@/components/agent/hooks/use-transcript-virtualizer";
-import { ZhihuDiscussions } from "@/components/agent/zhihu-discussions";
-import {
-	Checkpoint,
-	CheckpointIcon,
-	CheckpointTrigger,
-} from "@/components/ai-elements/checkpoint";
-import {
 	Conversation,
 	ConversationContent,
 	ConversationEmptyState,
 	ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
+} from "@/components/agent/conversation";
 import {
-	Message,
-	MessageAction,
-	MessageActions,
-	MessageContent,
-	MessageResponse,
-} from "@/components/ai-elements/message";
+	Checkpoint,
+	CheckpointIcon,
+	CheckpointTrigger,
+} from "@/components/agent/elements/checkpoint";
 import {
 	Plan,
 	PlanAction,
@@ -59,27 +45,44 @@ import {
 	PlanStep,
 	PlanTitle,
 	PlanTrigger,
-} from "@/components/ai-elements/plan";
+} from "@/components/agent/elements/plan";
 import {
 	Reasoning,
 	ReasoningContent,
 	ReasoningTrigger,
-} from "@/components/ai-elements/reasoning";
-import { Shimmer } from "@/components/ai-elements/shimmer";
-import { Suggestion } from "@/components/ai-elements/suggestion";
+} from "@/components/agent/elements/reasoning";
+import { Suggestion } from "@/components/agent/elements/suggestion";
 import {
 	Tool,
 	ToolContent,
 	ToolHeader,
 	ToolInput,
 	ToolOutput,
-} from "@/components/ai-elements/tool";
+} from "@/components/agent/elements/tool";
+import {
+	transcriptLineKey,
+	useTranscriptVirtualizer,
+} from "@/components/agent/hooks/use-transcript-virtualizer";
+import {
+	Message,
+	MessageAction,
+	MessageActions,
+	MessageContent,
+	MessageResponse,
+} from "@/components/agent/message";
+import { ZhihuDiscussions } from "@/components/agent/zhihu-discussions";
 import { Button } from "@/components/ui/button";
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+	MessageScrollerContent,
+	MessageScrollerItem,
+	useMessageScroller,
+} from "@/components/ui/message-scroller";
+import { Shimmer } from "@/components/ui/shimmer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveChatLines } from "@/lib/agent/agent-session-store";
 import {
@@ -148,15 +151,15 @@ function cachedAskUserQuestions(input: unknown): AskUserQuestion[] | null {
 
 /** On tab switch, jump to the latest messages instead of keeping the old scroll position. */
 function TabScrollToBottom({ activeTabId }: { activeTabId: string }) {
-	const { scrollToBottom } = useStickToBottomContext();
+	const { scrollToEnd } = useMessageScroller();
 	const prevTabIdRef = useRef(activeTabId);
 
 	useEffect(() => {
 		if (prevTabIdRef.current !== activeTabId) {
 			prevTabIdRef.current = activeTabId;
-			scrollToBottom({ animation: "instant" });
+			scrollToEnd({ behavior: "instant" });
 		}
-	}, [activeTabId, scrollToBottom]);
+	}, [activeTabId, scrollToEnd]);
 
 	return null;
 }
@@ -773,7 +776,7 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 
 /**
  * Renders transcript rows. Must live inside <Conversation> so it can reach
- * the StickToBottom scroll viewport via context. Long transcripts switch to
+ * the Message Scroller viewport via context. Long transcripts switch to
  * windowed rendering (absolute rows inside a totalSize container); short ones
  * keep the plain flex/gap layout.
  */
@@ -881,34 +884,41 @@ function TranscriptBody({
 
 	if (!virtualized) {
 		return (
-			<div className="flex w-full flex-col gap-6">
+			<MessageScrollerContent className="w-full min-h-0">
 				{lines.map((line) => (
-					<Fragment key={transcriptLineKey(line, activeTabId)}>
+					<MessageScrollerItem
+						key={transcriptLineKey(line, activeTabId)}
+						messageId={transcriptLineKey(line, activeTabId)}
+						className="[content-visibility:visible]"
+					>
 						{renderRow(line)}
-					</Fragment>
+					</MessageScrollerItem>
 				))}
-			</div>
+			</MessageScrollerContent>
 		);
 	}
 
 	return (
-		<div
-			className="relative w-full"
-			style={{ height: rowVirtualizer.getTotalSize() }}
-		>
-			{rowVirtualizer.getVirtualItems().map((virtualRow) => (
-				// pb-8 replaces the flex gap-8 spacing (absolute rows have no gap).
-				<div
-					key={virtualRow.key}
-					className="absolute top-0 left-0 w-full pb-6"
-					style={{ transform: `translateY(${virtualRow.start}px)` }}
-					ref={rowVirtualizer.measureElement}
-					data-index={virtualRow.index}
-				>
-					{renderRow(lines[virtualRow.index])}
-				</div>
-			))}
-		</div>
+		<MessageScrollerContent className="min-h-0 gap-0">
+			<MessageScrollerItem
+				messageId={`virtual:${activeTabId}`}
+				className="relative w-full [content-visibility:visible] [contain-intrinsic-size:none]"
+				style={{ height: rowVirtualizer.getTotalSize() }}
+			>
+				{rowVirtualizer.getVirtualItems().map((virtualRow) => (
+					// pb-8 replaces the flex gap-8 spacing (absolute rows have no gap).
+					<div
+						key={virtualRow.key}
+						className="absolute top-0 left-0 w-full pb-6"
+						style={{ transform: `translateY(${virtualRow.start}px)` }}
+						ref={rowVirtualizer.measureElement}
+						data-index={virtualRow.index}
+					>
+						{renderRow(lines[virtualRow.index])}
+					</div>
+				))}
+			</MessageScrollerItem>
+		</MessageScrollerContent>
 	);
 }
 
@@ -1070,44 +1080,50 @@ export const ChatTranscript = memo(function ChatTranscript({
 			>
 				<TabScrollToBottom activeTabId={activeTabId} />
 				{restoringHistorySession ? (
-					<HistorySessionShimmer />
+					<MessageScrollerContent>
+						<MessageScrollerItem>
+							<HistorySessionShimmer />
+						</MessageScrollerItem>
+					</MessageScrollerContent>
 				) : lines.length === 0 ? (
-					<div className="flex w-full flex-col gap-6">
-						<ConversationEmptyState
-							className={zhihuEmpty ? "px-2 py-8" : undefined}
-							title={t("empty.title")}
-							description={t(
-								writing ? "empty.writingDescription" : "empty.description",
-							)}
-						>
-							{zhihuEmpty ? (
-								<ZhihuDiscussions paper={paper} />
-							) : (
-								<div className="mt-4 flex w-full max-w-sm flex-col items-stretch gap-2">
-									{activeTabIsRunning ? (
-										<Shimmer className="text-center text-sm">
-											{t("empty.waiting")}
-										</Shimmer>
-									) : (
-										suggestions.map((item) => {
-											const label = t(`suggestions.${item.key}`);
-											return (
-												<Suggestion
-													key={item.key}
-													suggestion={label}
-													className="h-auto w-full justify-start whitespace-normal rounded-lg px-3 py-2.5 text-left"
-													onClick={(value) =>
-														onSendSuggestion(value, item.workflow)
-													}
-													disabled={activeTabIsRunning}
-												/>
-											);
-										})
-									)}
-								</div>
-							)}
-						</ConversationEmptyState>
-					</div>
+					<MessageScrollerContent>
+						<MessageScrollerItem className="flex w-full flex-col gap-6">
+							<ConversationEmptyState
+								className={zhihuEmpty ? "px-2 py-8" : undefined}
+								title={t("empty.title")}
+								description={t(
+									writing ? "empty.writingDescription" : "empty.description",
+								)}
+							>
+								{zhihuEmpty ? (
+									<ZhihuDiscussions paper={paper} />
+								) : (
+									<div className="mt-4 flex w-full max-w-sm flex-col items-stretch gap-2">
+										{activeTabIsRunning ? (
+											<Shimmer className="text-center text-sm">
+												{t("empty.waiting")}
+											</Shimmer>
+										) : (
+											suggestions.map((item) => {
+												const label = t(`suggestions.${item.key}`);
+												return (
+													<Suggestion
+														key={item.key}
+														suggestion={label}
+														className="h-auto w-full justify-start whitespace-normal rounded-lg px-3 py-2.5 text-left"
+														onClick={(value) =>
+															onSendSuggestion(value, item.workflow)
+														}
+														disabled={activeTabIsRunning}
+													/>
+												);
+											})
+										)}
+									</div>
+								)}
+							</ConversationEmptyState>
+						</MessageScrollerItem>
+					</MessageScrollerContent>
 				) : (
 					<TranscriptBody
 						lines={lines}
