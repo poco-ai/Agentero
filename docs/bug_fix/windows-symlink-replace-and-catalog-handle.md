@@ -10,7 +10,6 @@
 
 ## 修复
 
-- Windows 建链接前把目标改成 `\`。`symlink_dir` 成功后还要能 `metadata` 读到目标，否则删掉链接再 `mklink /J`。
-- 同一路径的替换先串行，再对上述三个临时错误重试，最多约 5 秒。一直被占用的目标仍然失败，原内容保留。
-- 锁函数及 guard 绑定都用 `cfg(windows)` 门控；非 Windows 不用返回 `()` 的空函数模拟 guard，否则全平台 Clippy 的 `let_unit_value` 检查会失败。
+- Windows 建链接前把目标改成 `\`。`symlink_dir` 成功后还要能 `metadata` 读到目标，否则删掉链接再 `mklink /J`。已经存在、目标正好是 `../.agents/skills` 且解析不到的旧链接会删掉重建；用户自己的目录或链接不动。
+- 替换改用 `std::fs::rename`。Windows 10 1809+ 上这是 POSIX 语义，并发替换同一个文件不会再因为 `MoveFileExW` 返回拒绝访问而失败。替换失败时删掉临时文件，一直被占用的目标仍然失败，原内容保留。
 - 断开会话、确认 sidecar 已经推上去之后，先 `evict_catalog_conn` 再删 `work_root`。推送失败时不删，会话留着重试。

@@ -64,70 +64,21 @@ pub fn atomic_write_with(path: &Path, bytes: &[u8], opts: &AtomicOpts) -> io::Re
     if opts.sync_file {
         temp.as_file().sync_all()?;
     }
-    persist_replace(temp, path)
+    replace_with(temp, path)
 }
 
-/// Replace `path` with the staged file. Concurrent Windows replacements of the
-/// same path can make `MoveFileExW` return access-denied or a sharing
-/// violation. Writers of one path take the same shard so they do not collide,
-/// and a remaining transient error is retried. A persistently locked target is
-/// left untouched.
-fn persist_replace(temp: tempfile::NamedTempFile, path: &Path) -> io::Result<()> {
-    #[cfg(windows)]
-    let _guard = replace_guard(path);
-    let mut temp = temp;
-    let started = std::time::Instant::now();
-    let mut attempt = 0u32;
-    loop {
-        match temp.persist(path) {
-            Ok(_) => return Ok(()),
-            Err(error) => {
-                let timed_out = started.elapsed() >= std::time::Duration::from_secs(5);
-                if !transient_replace(&error.error) || timed_out {
-                    return Err(error.error);
-                }
-                temp = error.file;
-                let step = 1u64 << attempt.min(5);
-                let jitter = thread_mix() % (step + 1);
-                std::thread::sleep(std::time::Duration::from_millis(step + jitter));
-                attempt = attempt.saturating_add(1);
-            }
-        }
-    }
-}
-
-#[cfg(windows)]
-fn replace_guard(path: &Path) -> std::sync::MutexGuard<'static, ()> {
-    use std::sync::Mutex;
-    const SHARDS: usize = 32;
-    static LOCKS: [Mutex<()>; SHARDS] = [const { Mutex::new(()) }; SHARDS];
-    let mut hash: u64 = 0xcbf29ce484222325;
-    for byte in path.as_os_str().as_encoded_bytes() {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    LOCKS[(hash as usize) % SHARDS]
-        .lock()
-        .unwrap_or_else(|poison| poison.into_inner())
-}
-
-fn thread_mix() -> u64 {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::new();
-    std::thread::current().id().hash(&mut hasher);
-    hasher.finish()
-}
-
-#[cfg(windows)]
-fn transient_replace(error: &io::Error) -> bool {
-    // ERROR_ACCESS_DENIED, ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION.
-    matches!(error.raw_os_error(), Some(5 | 32 | 33))
-}
-
-#[cfg(not(windows))]
-fn transient_replace(_error: &io::Error) -> bool {
-    false
+/// `NamedTempFile::persist` replaces through `MoveFileExW` on Windows, which
+/// fails with access denied while another writer is replacing the same target.
+/// `fs::rename` uses POSIX rename semantics there (Windows 10 1809+), so
+/// concurrent replacements of one file all succeed; on Unix both are
+/// `rename(2)`. `keep` first clears the temporary-file attribute tempfile sets
+/// on Windows (as `persist` does) and disarms delete-on-drop, so a failed
+/// rename removes the staged file here.
+fn replace_with(temp: tempfile::NamedTempFile, path: &Path) -> io::Result<()> {
+    let staged = temp.into_temp_path().keep().map_err(|error| error.error)?;
+    fs::rename(&staged, path).inspect_err(|_| {
+        let _ = fs::remove_file(&staged);
+    })
 }
 
 /// Serialize `value` as pretty JSON and write it atomically (see
@@ -361,8 +312,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("locked.txt");
         fs::write(&path, "original").unwrap();
-        // Allow reads/writes but deny delete-sharing, forcing MoveFileExW to
-        // fail while an in-place write would have been allowed.
+        // Allow reads/writes but deny delete-sharing, so replacement cannot
+        // remove the existing file while an in-place write would still be allowed.
         let guard = fs::OpenOptions::new()
             .read(true)
             .share_mode(0x1 | 0x2)
@@ -372,6 +323,22 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "original");
         drop(guard);
         assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    /// tempfile stages files with `FILE_ATTRIBUTE_TEMPORARY`; the published
+    /// file must not keep it.
+    #[cfg(windows)]
+    #[test]
+    fn windows_written_file_is_not_marked_temporary() {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_TEMPORARY: u32 = 0x100;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("plain.txt");
+        atomic_write(&path, b"first").unwrap();
+        atomic_write(&path, b"second").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "second");
+        let attributes = fs::metadata(&path).unwrap().file_attributes();
+        assert_eq!(attributes & FILE_ATTRIBUTE_TEMPORARY, 0);
     }
 
     #[test]
