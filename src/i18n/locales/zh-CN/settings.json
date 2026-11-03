@@ -73,9 +73,15 @@
 			"papers": "论文库",
 			"pdf": "PDF 阅读",
 			"plaza": "广场",
+			"system": "系统",
 			"network": "网络",
 			"integrations": "集成",
 			"mcp": "MCP"
+		},
+		"terminalApp": {
+			"label": "终端应用",
+			"systemDefault": "系统默认",
+			"unavailable": "{{name}}（未安装）"
 		},
 		"paperTreeLabelMode": {
 			"label": "文件树论文名称",

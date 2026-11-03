@@ -73,9 +73,15 @@
 			"papers": "Paper library",
 			"pdf": "PDF reading",
 			"plaza": "Plaza",
+			"system": "System",
 			"network": "Network",
 			"integrations": "Integrations",
 			"mcp": "MCP"
+		},
+		"terminalApp": {
+			"label": "Terminal app",
+			"systemDefault": "System default",
+			"unavailable": "{{name}} (not installed)"
 		},
 		"paperTreeLabelMode": {
 			"label": "Paper names in file tree",

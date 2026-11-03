@@ -378,6 +378,11 @@ function normalizePartial(
 	) {
 		merged.autoUpdateInternalLinks = DEFAULT_SETTINGS.autoUpdateInternalLinks;
 	}
+	if (typeof parsed.terminalApp !== "string") {
+		merged.terminalApp = DEFAULT_SETTINGS.terminalApp;
+	} else {
+		merged.terminalApp = parsed.terminalApp.trim().toLowerCase();
+	}
 	if (!isPdfScrollStrategy(merged.pdfScrollStrategy)) {
 		merged.pdfScrollStrategy = DEFAULT_SETTINGS.pdfScrollStrategy;
 	}

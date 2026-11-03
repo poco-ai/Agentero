@@ -184,6 +184,11 @@ export type AppSettings = {
 	/** Default `ask`: external local renames are previewed before Markdown writes. */
 	autoUpdateInternalLinks: AutoUpdateInternalLinks;
 	/**
+	 * Preferred terminal for "Open in Terminal". Empty = system default.
+	 * Unknown or uninstalled ids fall back at launch time.
+	 */
+	terminalApp: string;
+	/**
 	 * PDF reader navigation: vertical/horizontal continuous scrolling or
 	 * one page at a time (`paginated`).
 	 */

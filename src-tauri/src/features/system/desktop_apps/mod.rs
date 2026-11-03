@@ -138,8 +138,17 @@ pub fn open_desktop_app(id: DesktopAppId) -> Result<(), AppError> {
 
 #[cfg(target_os = "macos")]
 fn detect_app(spec: &AppSpec) -> Option<PathBuf> {
+    detect_macos_app(spec.names, spec.bundle_ids)
+}
+
+/// Locate a macOS `.app` by base name or bundle id.
+///
+/// Shared with other native-app probes (for example the terminal picker), so
+/// they use the same `/Applications` → Spotlight fallback order.
+#[cfg(target_os = "macos")]
+pub(crate) fn detect_macos_app(names: &[&str], bundle_ids: &[&str]) -> Option<PathBuf> {
     for dir in app_search_dirs() {
-        for name in spec.names {
+        for name in names {
             let candidate = dir.join(format!("{name}.app"));
             if candidate.is_dir() {
                 return Some(candidate);
@@ -148,12 +157,12 @@ fn detect_app(spec: &AppSpec) -> Option<PathBuf> {
     }
     // Spotlight catches apps the user moved out of the standard folders. Bundle
     // id first (robust to renames), then the bundle file name.
-    for id in spec.bundle_ids {
+    for id in bundle_ids {
         if let Some(path) = spotlight_find(&format!("kMDItemCFBundleIdentifier == '{id}'")) {
             return Some(path);
         }
     }
-    for name in spec.names {
+    for name in names {
         if let Some(path) = spotlight_find(&format!("kMDItemFSName == '{name}.app'")) {
             return Some(path);
         }

@@ -59,6 +59,7 @@ import { ConnectorSettingsBlock } from "./general/connector-settings-block";
 import { EasyScholarSettingsBlock } from "./general/easy-scholar-settings-block";
 import { McpSettingsBlock } from "./general/mcp-settings-block";
 import { PrivacySettingsBlock } from "./general/privacy-settings-block";
+import { TerminalAppRow } from "./general/terminal-app-row";
 
 export function GeneralPane({
 	settings,
@@ -444,6 +445,16 @@ export function GeneralPane({
 						onCheckedChange={(v) => patch({ plazaEnabled: v })}
 					/>
 				</SettingsRow>
+			</SettingsGroup>
+
+			<SettingsSectionLabel className="mt-4">
+				{t("general.sections.system")}
+			</SettingsSectionLabel>
+			<SettingsGroup>
+				<TerminalAppRow
+					value={settings.terminalApp}
+					onChange={(terminalApp) => patch({ terminalApp })}
+				/>
 			</SettingsGroup>
 
 			<SettingsSectionLabel className="mt-4">

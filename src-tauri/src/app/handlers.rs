@@ -224,6 +224,7 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::features::agent::commands::remote_agent_probe,
             crate::features::agent::commands::remote_agent_open_install_terminal,
             crate::app::terminal::commands::path_open_in_terminal,
+            crate::app::terminal::commands::terminal_apps_probe,
             crate::app::window::commands::window_new,
             crate::app::window::commands::settings_window_open,
             crate::app::window::commands::feature_window_open,
