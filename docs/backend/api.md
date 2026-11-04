@@ -28,6 +28,12 @@ Host (Tauri + Rust)
   - 失败：`{ "ok": false, "error": { "code": "...", "message": "...", "details"?: {} } }`
 - 流式结果通过 Tauri event 推送，不占用返回通道。
 
+### 论文批量补齐
+
+- `job_backfill_preview({ vaultPath })` → `{ papers: [{ path, title, reason }], downloadSource, parseBody, repairState }`；原因枚举 `downloadSource | parseBody | repairState`。只修复本地 catalog 投影，不下载、不解析、不创建任务。
+- `job_backfill_enqueue({ vaultPath, paths })` → 入队数量；只接收确认的 Vault 相对路径，整批验证后去重、idle lane 入队，不重新全库扫描。代替旧的启动时 `job_reconcile_vault`。
+- 仍通过 `Result<ApiResult<T>, String>` / `callApiResult` 解包。完整语义见 [paper-import.md](paper-import.md)「全库论文补齐」。
+
 ### 2.3 路径表示
 
 - Vault 内路径统一使用相对路径（UNIX 风格 `/`），以 Vault root 为基准。

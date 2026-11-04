@@ -67,6 +67,18 @@ Skill 不写入 catalog、不创建 `papers/` 条目、不执行 `scripts/`。�
 - 新建壳会写论文全称 alias，并在元数据足够时写确定性短 alias；历史笔记由 [Doctor](doctor.md) 诊断和确认迁移。`created` 不属于入库壳或 Doctor 的职责。
 - 壳内容由设置 `paper_note_mode` 决定（`standard` / `title-only` / `blank` / `custom`，默认 `standard`，见 [settings.md](../frontend/settings.md)）；`custom` 模板位于 `{vault}/.agentero/templates/NOTES.md`，缺失或不可读时回退 standard 并 warn。任何模式的产物都会补齐 aliases frontmatter（模板 frontmatter 不可安全改写时留给 Doctor）。Connector 的后台摘要机翻仅对 standard 壳生效，避免改写 custom 模板渲染的原文摘要。
 
+## 全库论文补齐（#932）
+
+打开本地 Vault 时只调用 `job_backfill_preview({ vaultPath })`：复用 `source::preparation_reason`，返回论文路径、标题、原因以及三类计数。`needs_preparation` 由同一分类派生，单篇打开与导入仍沿用原自动准备流程。
+
+- `downloadSource`：允许同步 source 且到达重试时间的 arXiv 源码补齐；确认后可能联网下载，仍无 TeX 时可能回退解析 PDF。
+- `parseBody`：有 PDF、无有效 TeX、缺少非空 `PAPER.md`；确认后写入正文。零字节 `PAPER.md` 也属于该类，已有非空正文不覆盖。
+- `repairState`：仅 catalog 正文来源与磁盘状态不符；预览阶段内联 `reconcile_body`，不创建任务。
+
+有代价项由右上角常驻 Sonner 提示列出计数，支持展开滚动列表、全选和逐篇选择。取消全选后不能开始；「稍后」在本次应用会话内不再自动提示该 Vault，设置 → 问题诊断 → 论文补齐的「检查」在本节下方展示同一勾选列表和「开始补齐」，不再弹出右上角提醒。切换/关闭 Vault 会撤下其提示，并丢弃尚未返回的预览；未主动选择「稍后」时，切回该 Vault 会重新检查并提示，空预览或被取消的预览不消耗提示机会。
+
+确认后 `job_backfill_enqueue({ vaultPath, paths })` 先校验整批路径并去重，再仅按选中路径进入 idle lane 的 ParseBody，不二次扫描全库；保留活跃识别任务延后、执行时磁盘短路、源码 15 分钟退避、`unavailable` 终态及 source 同步排除策略。不触发版面分析。
+
 ## 可读正文
 
 | 情况 | 行为 |

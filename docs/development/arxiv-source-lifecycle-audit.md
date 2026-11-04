@@ -126,7 +126,7 @@ batch 预检时以 `already_in_library` 跳过，无法作为修复手段。
 
 ### P1：下载与解析没有依赖约束，晚到的源码不会阻止 OCR 落盘
 
-`job_reconcile_paper` 只延后活跃的 `RecognizeMetadata`；全库 reconcile 按磁盘直接入队。
+`job_reconcile_paper` 只延后活跃的 `RecognizeMetadata`。#932 将全库补齐改为先预览、本地状态内联修复、有代价项经用户确认后按选中路径入队，并同样延后活跃识别任务；详见 [已实现行为](../backend/paper-import.md#全库论文补齐932)。
 `enqueue_core` 创建普通任务时 `depends_on` 为空。正文执行器只在开头检查一次 TeX，等待解析
 许可后、发起云端请求前和写盘前都没有重判。
 
