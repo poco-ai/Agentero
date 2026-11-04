@@ -31,6 +31,77 @@ export type VisibleSelectionPage = {
 };
 
 const MIN_CLIENT_PX = 0.5;
+/** Same line rule as the English glyph highlight (`selection-appearance.ts`). */
+const MIN_VERTICAL_OVERLAP = 0.5;
+/** Justification and sentence-span seams stay inside one band; a column gutter does not. */
+const MAX_GAP_FACTOR = 2.5;
+
+function verticalOverlapRatio(
+	first: ClientRectLike,
+	second: ClientRectLike,
+): number {
+	const top = Math.max(first.top, second.top);
+	const bottom = Math.min(first.top + first.height, second.top + second.height);
+	const overlap = Math.max(0, bottom - top);
+	const minHeight = Math.min(first.height, second.height);
+	return minHeight > 0 ? overlap / minHeight : 0;
+}
+
+/**
+ * Join selection fragments that sit on one visual line.
+ *
+ * A translation paragraph is split into sentence spans, and justified CJK
+ * yields a client rect per character. Native `::selection` paints each of
+ * those separately, so a drag looks like disconnected blocks. English text
+ * selection unions glyph boxes on the same line; this is that union for DOM
+ * client rects, in document order.
+ */
+export function mergeClientRectsIntoLines(
+	rects: readonly ClientRectLike[],
+): ClientRectLike[] {
+	const merged: ClientRectLike[] = [];
+	for (const rect of rects) {
+		if (rect.width < MIN_CLIENT_PX || rect.height < MIN_CLIENT_PX) continue;
+		const previous = merged.at(-1);
+		const glyph = Math.min(
+			rect.width,
+			rect.height,
+			previous?.height ?? rect.height,
+		);
+		const maximumGap = Math.max(glyph, 1) * MAX_GAP_FACTOR;
+		const gap = previous
+			? rect.left - (previous.left + previous.width)
+			: Number.POSITIVE_INFINITY;
+		if (
+			!previous ||
+			verticalOverlapRatio(previous, rect) < MIN_VERTICAL_OVERLAP ||
+			gap > maximumGap
+		) {
+			merged.push({
+				left: rect.left,
+				top: rect.top,
+				width: rect.width,
+				height: rect.height,
+			});
+			continue;
+		}
+		const left = Math.min(previous.left, rect.left);
+		const top = Math.min(previous.top, rect.top);
+		const right = Math.max(
+			previous.left + previous.width,
+			rect.left + rect.width,
+		);
+		const bottom = Math.max(
+			previous.top + previous.height,
+			rect.top + rect.height,
+		);
+		previous.left = left;
+		previous.top = top;
+		previous.width = right - left;
+		previous.height = bottom - top;
+	}
+	return merged;
+}
 
 function roundFraction(value: number): number {
 	return Math.round(value * 1e6) / 1e6;

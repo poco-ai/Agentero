@@ -30,8 +30,13 @@ import {
 	unionPageRect,
 } from "@/lib/pdf/layout/layout-sentence-selection";
 import { normalizeSentenceKey } from "@/lib/pdf/layout/layout-sentences";
+import {
+	clearTranslationSelectionBands,
+	publishTranslationSelectionBands,
+} from "@/lib/pdf/layout/translation-selection-bands";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 import {
+	mergeClientRectsIntoLines,
 	type PageFrame,
 	visibleMenuPoint,
 	visiblePagesFromClientRects,
@@ -59,6 +64,10 @@ export type UsePdfTranslationSelectionOptions = {
 	paperRelPath: string | null;
 	paperAbsPath: string | null;
 };
+
+function rangeElement(node: Node): Element | null {
+	return node instanceof Element ? node : node.parentElement;
+}
 
 function caretInsideLayoutItem(host: HTMLElement | null): boolean {
 	if (!host) return false;
@@ -207,7 +216,10 @@ export function usePdfTranslationSelection({
 	}, [enabled, closeSelectionMenu]);
 
 	useEffect(() => {
-		if (!enabled) return;
+		if (!enabled) {
+			clearTranslationSelectionBands();
+			return;
+		}
 		const host = hostRef.current;
 		if (!host) return;
 
@@ -284,7 +296,7 @@ export function usePdfTranslationSelection({
 					);
 					const frames = pageFrames(root);
 					const visiblePages = visiblePagesFromClientRects(
-						Array.from(live.getClientRects()),
+						mergeClientRectsIntoLines(Array.from(live.getClientRects())),
 						frames,
 					);
 					const pageEl = pageElByIndex(root, anchorPage.pageIndex);
@@ -349,7 +361,47 @@ export function usePdfTranslationSelection({
 			commit();
 			scheduleReleaseDrag();
 		};
+		// One rectangle per line. Reflow places one absolute box per character
+		// above the raster; painting ::selection on each of those boxes stacks
+		// in the seam. The band covers a reflow drag too.
+		let bandFrame = 0;
+		const publishBands = () => {
+			const root = hostRef.current;
+			const selection = window.getSelection();
+			if (
+				!root ||
+				!selection ||
+				selection.isCollapsed ||
+				selection.rangeCount === 0
+			) {
+				clearTranslationSelectionBands();
+				return;
+			}
+			const range = selection.getRangeAt(0);
+			const anchor = rangeElement(range.startContainer);
+			const focus = rangeElement(range.endContainer);
+			const inside = (el: Element | null) =>
+				Boolean(el && root.contains(el) && el.closest("[data-layout-item]"));
+			if (!inside(anchor) && !inside(focus)) {
+				clearTranslationSelectionBands();
+				return;
+			}
+			publishTranslationSelectionBands(
+				visiblePagesFromClientRects(
+					mergeClientRectsIntoLines(Array.from(range.getClientRects())),
+					pageFrames(root),
+				),
+			);
+		};
+		const scheduleBands = () => {
+			if (bandFrame) return;
+			bandFrame = requestAnimationFrame(() => {
+				bandFrame = 0;
+				publishBands();
+			});
+		};
 		const onSelectionChange = () => {
+			scheduleBands();
 			if (pointerDownRef.current) return;
 			commit();
 		};
@@ -360,6 +412,8 @@ export function usePdfTranslationSelection({
 		document.addEventListener("selectionchange", onSelectionChange);
 		return () => {
 			genRef.current += 1;
+			if (bandFrame) cancelAnimationFrame(bandFrame);
+			clearTranslationSelectionBands();
 			releaseDragRef.current?.();
 			releaseDragRef.current = null;
 			host.removeEventListener("pointerdown", onPointerDown);

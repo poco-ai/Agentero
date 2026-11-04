@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	mergeClientRectsIntoLines,
 	selectionAnchorFromVisible,
 	visibleMenuPoint,
 	visiblePagesFromClientRects,
@@ -11,6 +12,32 @@ const pages = [
 	{ pageIndex: 0, left: 0, top: 0, width: 200, height: 400 },
 	{ pageIndex: 1, left: 0, top: 420, width: 200, height: 400 },
 ];
+
+describe("mergeClientRectsIntoLines", () => {
+	it("joins character and sentence fragments on one line into a single band", () => {
+		expect(
+			mergeClientRectsIntoLines([
+				{ left: 10, top: 20, width: 14, height: 16 },
+				{ left: 28, top: 20, width: 14, height: 16 },
+				{ left: 46, top: 21, width: 14, height: 16 },
+			]),
+		).toEqual([{ left: 10, top: 20, width: 50, height: 17 }]);
+	});
+
+	it("keeps the next line and a distant column as separate bands", () => {
+		expect(
+			mergeClientRectsIntoLines([
+				{ left: 10, top: 20, width: 40, height: 16 },
+				{ left: 220, top: 20, width: 40, height: 16 },
+				{ left: 10, top: 44, width: 40, height: 16 },
+			]),
+		).toEqual([
+			{ left: 10, top: 20, width: 40, height: 16 },
+			{ left: 220, top: 20, width: 40, height: 16 },
+			{ left: 10, top: 44, width: 40, height: 16 },
+		]);
+	});
+});
 
 describe("visiblePagesFromClientRects", () => {
 	it("maps a client rect to the page that contains its center", () => {

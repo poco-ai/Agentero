@@ -38,6 +38,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
@@ -117,6 +118,10 @@ import type {
 	PreservedLinkAssignment,
 	TranslateLinkBox,
 } from "@/lib/pdf/layout/translated-links";
+import {
+	subscribeTranslationSelectionBands,
+	translationSelectionBandsFor,
+} from "@/lib/pdf/layout/translation-selection-bands";
 import {
 	pageQuarterTurns,
 	shellFractionToUnrotatedPdf,
@@ -214,6 +219,42 @@ function TranslatedHighlightLayer({
  * page shares one stable value.
  */
 const PDF_TEXT_SELECTION_BACKGROUND = "rgba(96, 165, 250, 0.28)";
+const EMPTY_SELECTION_BANDS: readonly PdfAskNormalizedRect[] = [];
+
+/**
+ * English draws one rectangle per line under the glyphs. This is that
+ * rectangle for a translation drag. It stays under the Chinese, so the
+ * characters remain readable, and it is one box so the gap between two
+ * characters is not painted twice.
+ */
+function TranslationLiveSelection({ pageIndex }: { pageIndex: number }) {
+	const rects = useSyncExternalStore(
+		subscribeTranslationSelectionBands,
+		() => translationSelectionBandsFor(pageIndex),
+		() => EMPTY_SELECTION_BANDS,
+	);
+	if (!rects.length) return null;
+	return (
+		<div
+			aria-hidden="true"
+			className="pointer-events-none absolute inset-0 z-[5]"
+		>
+			{rects.map((rect) => (
+				<div
+					key={`${rect.x}:${rect.y}:${rect.w}:${rect.h}`}
+					style={{
+						position: "absolute",
+						left: `${rect.x * 100}%`,
+						top: `${rect.y * 100}%`,
+						width: `${rect.w * 100}%`,
+						height: `${rect.h * 100}%`,
+						background: PDF_TEXT_SELECTION_BACKGROUND,
+					}}
+				/>
+			))}
+		</div>
+	);
+}
 
 /**
  * Keeps a translation selection visible after focus moves into the note chip.
@@ -1372,6 +1413,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 				 * z-5); glyphs are z-6 so the tint cannot wash them out.
 				 */}
 				{translateOverlay}
+				<TranslationLiveSelection pageIndex={pageIndex} />
 				{translationVisible ? (
 					<TranslatedHighlightLayer paints={translatedPaints} />
 				) : null}

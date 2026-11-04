@@ -506,24 +506,30 @@
  * the paragraph's own text; each span matches the global ::selection and
  * turns white. The descendant rule has to name those spans.
  */
+/*
+ * The blue line is painted under the glyphs, the same slot as English
+ * selection. A ::selection background here is a second layer: translucent
+ * quads overlap between characters, and an opaque fill covers the ink.
+ */
 .pdf-translate-selection::selection,
 .pdf-translate-selection *::selection {
-	background-color: rgb(96 165 250 / 0.4);
+	background-color: transparent;
 	color: #18181b;
 }
 .pdf-translate-selection[data-paper="dark"]::selection,
 .pdf-translate-selection[data-paper="dark"] *::selection {
-	background-color: rgb(96 165 250 / 0.4);
+	background-color: transparent;
 	color: #f4f4f5;
 }
 /*
- * Reflow previews are rasterized translations. Their DOM layer only carries
- * selection geometry (transparent glyphs), so selecting it must not paint a
- * second copy of the text over the raster.
+ * Reflow previews are rasterized translations. Each character is its own
+ * absolutely positioned box on top of that image. A translucent ::selection
+ * on every box stacks in the seam between two characters. The line band
+ * paints the highlight once; this layer only keeps the text invisible.
  */
 .pdf-translate-selection[data-reflow-selection="true"]::selection,
 .pdf-translate-selection[data-reflow-selection="true"] *::selection {
-	background-color: rgb(96 165 250 / 0.4);
+	background-color: transparent;
 	color: transparent;
 }
 

@@ -95,8 +95,9 @@ export function ReflowPageOverlay({
 						key={item.id}
 						data-layout-item={item.id}
 						// The preview raster already paints the translated glyphs. This
-						// layer only provides selection geometry, so ::selection must keep
-						// the text transparent instead of drawing a second copy.
+						// layer only provides selection geometry. ::selection stays
+						// transparent: one box per character would stack in the seam.
+						// The line band paints the highlight once.
 						data-reflow-selection="true"
 						className="pdf-translate-selection pointer-events-auto absolute select-text"
 						onPointerDownCapture={(event) => {
