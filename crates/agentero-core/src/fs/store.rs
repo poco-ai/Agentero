@@ -268,18 +268,39 @@ mod tests {
 
     /// `fs::read` opens without delete sharing, so a concurrent atomic
     /// replacement can fail it with Access Denied on Windows. Share delete
-    /// here; the reader then observes either the old or the new file.
+    /// here and retry the short window while the destination is swapped; the
+    /// reader then observes either the old or the new file.
     #[cfg(windows)]
     fn read_published(path: &Path) -> io::Result<Vec<u8>> {
         use std::io::Read;
         use std::os::windows::fs::OpenOptionsExt;
-        let mut file = fs::OpenOptions::new()
-            .read(true)
-            .share_mode(0x1 | 0x2 | 0x4)
-            .open(path)?;
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)?;
-        Ok(bytes)
+        use std::time::Duration;
+
+        let mut last_error = None;
+        for _ in 0..50 {
+            match fs::OpenOptions::new()
+                .read(true)
+                .share_mode(0x1 | 0x2 | 0x4)
+                .open(path)
+            {
+                Ok(mut file) => {
+                    let mut bytes = Vec::new();
+                    file.read_to_end(&mut bytes)?;
+                    return Ok(bytes);
+                }
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        io::ErrorKind::PermissionDenied | io::ErrorKind::NotFound
+                    ) =>
+                {
+                    last_error = Some(error);
+                    std::thread::sleep(Duration::from_millis(2));
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        Err(last_error.unwrap())
     }
 
     #[cfg(not(windows))]
