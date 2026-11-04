@@ -16,7 +16,7 @@ use crate::features::agent::acp::interaction::{
 };
 use crate::features::agent::acp::updates::{
     emit_rich_session_update, emit_session_config_options, models_from_config_options,
-    store_richer_models,
+    models_from_grok_update, store_richer_models,
 };
 use crate::features::agent::models::{AgentModelsEvent, AgentUsageEvent};
 use crate::features::agent::runtime::events::AgentEventEmitter;
@@ -128,6 +128,22 @@ impl WarmIdleHooks {
             );
         }
     }
+
+    /// Grok Build pushes its refreshed model catalog with a vendor
+    /// notification after `session/new`; keep the warm result and the Chat
+    /// picker on the pushed catalog instead of the stale session snapshot.
+    pub(crate) fn handle_grok_models_update(
+        &self,
+        params: &crate::features::agent::acp::grok_models::GrokModelsUpdateParams,
+    ) {
+        let Some(event) = models_from_grok_update(&self.session_id, &self.agent_id, params) else {
+            return;
+        };
+        if let Ok(mut g) = self.models.lock() {
+            store_richer_models(&mut g, event.clone());
+        }
+        let _ = self.app.emit("agent:models", event);
+    }
 }
 
 /// Permission decision for a live turn (policy → deny / allow / ask the user).
@@ -170,6 +186,30 @@ macro_rules! agentero_turn_builder {
                             None => {
                                 if let Some(idle) = idle.as_ref() {
                                     idle.handle_notification(&notification);
+                                }
+                            }
+                        }
+                        Ok(())
+                    }
+                },
+                agent_client_protocol::on_receive_notification!(),
+            )
+            .on_receive_notification(
+                {
+                    let registry = registry.clone();
+                    let idle = idle.clone();
+                    async move |update: $crate::features::agent::acp::grok_models::GrokModelsUpdate, _cx| {
+                        match $crate::features::agent::session::handlers::snapshot_turn(&registry)
+                        {
+                            Some(turn) => {
+                                $crate::features::agent::session::handlers::bump_activity(
+                                    &turn.activity,
+                                );
+                                turn.ctx.relay_grok_models_update(&update.0);
+                            }
+                            None => {
+                                if let Some(idle) = idle.as_ref() {
+                                    idle.handle_grok_models_update(&update.0);
                                 }
                             }
                         }

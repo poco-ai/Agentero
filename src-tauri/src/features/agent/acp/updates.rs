@@ -260,7 +260,41 @@ pub(crate) fn models_from_session_models_value(
     value: &serde_json::Value,
 ) -> Option<AgentModelsEvent> {
     let models_obj = session_models_object(value)?;
+    let event = models_from_models_object(session_id, agent_id, models_obj)?;
+    log::debug!(
+        target: "agentero::agent",
+        "agent={} using legacy top-level session models field: count={} current={}",
+        agent_id,
+        event.models.len(),
+        event.current_id
+    );
+    Some(event)
+}
 
+/// Grok Build's `_x.ai/models/update` params carry the same catalog shape as
+/// the legacy top-level `models` object (`currentModelId` / `availableModels`).
+pub(crate) fn models_from_grok_update(
+    session_id: &str,
+    agent_id: &str,
+    params: &crate::features::agent::acp::grok_models::GrokModelsUpdateParams,
+) -> Option<AgentModelsEvent> {
+    let models_obj = serde_json::to_value(params).ok()?;
+    let event = models_from_models_object(session_id, agent_id, &models_obj)?;
+    log::debug!(
+        target: "agentero::agent",
+        "agent={} grok models update: count={} current={}",
+        agent_id,
+        event.models.len(),
+        event.current_id
+    );
+    Some(event)
+}
+
+fn models_from_models_object(
+    session_id: &str,
+    agent_id: &str,
+    models_obj: &serde_json::Value,
+) -> Option<AgentModelsEvent> {
     let available = models_obj
         .get("availableModels")
         .or_else(|| models_obj.get("available_models"))?
@@ -311,17 +345,10 @@ pub(crate) fn models_from_session_models_value(
         current_id
     };
 
-    log::debug!(
-        target: "agentero::agent",
-        "agent={} using legacy top-level session models field: count={} current={}",
-        agent_id,
-        models.len(),
-        current_id
-    );
     Some(AgentModelsEvent {
         session_id: session_id.to_string(),
         agent_id: agent_id.to_string(),
-        // The legacy field carries no config option id; the picker only needs a
+        // The vendor field carries no config option id; the picker only needs a
         // stable key for persistence, and "model" matches the standard option id.
         config_id: "model".to_string(),
         current_id,
@@ -1079,8 +1106,8 @@ mod session_models_fallback_tests {
         );
     }
     use super::{
-        models_from_config_options, models_from_session_models_value, richer_models_event,
-        store_richer_models,
+        models_from_config_options, models_from_grok_update, models_from_session_models_value,
+        richer_models_event, store_richer_models,
     };
     use agent_client_protocol::schema::v1::{
         SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectOption,
@@ -1140,6 +1167,30 @@ mod session_models_fallback_tests {
             .find(|m| m.id == "custom-gateway/my-model")
             .expect("custom provider model");
         assert_eq!(custom.group.as_deref(), Some("custom-gateway"));
+    }
+
+    #[test]
+    fn grok_models_push_replaces_a_stale_session_snapshot() {
+        let params = crate::features::agent::acp::grok_models::GrokModelsUpdateParams {
+            current_model_id: Some("grok-4.7-build-fast".into()),
+            available_models: serde_json::json!([
+                { "modelId": "grok-4.7", "name": "Grok 4.7" },
+                { "modelId": "grok-4.7-build-fast", "name": "Grok 4.7 Fast" },
+                { "modelId": "grok-4.6", "name": "Grok 4.6" },
+                { "modelId": "grok-4.5", "name": "Grok 4.5" },
+                { "modelId": "grok-4.6", "name": "Grok 4.6 (dup id)" }
+            ])
+            .as_array()
+            .unwrap()
+            .clone(),
+        };
+
+        let ev = models_from_grok_update("sess-1", "catalog-grok-build", &params)
+            .expect("grok models push should parse");
+        assert_eq!(ev.config_id, "model");
+        assert_eq!(ev.current_id, "grok-4.7-build-fast");
+        assert_eq!(ev.models.len(), 4);
+        assert_eq!(ev.models[0].id, "grok-4.7");
     }
 
     #[test]

@@ -395,6 +395,7 @@ ACP **没有**统一的 ask-user tool 规范：各 harness 的字段名、挂载
 ## 模型协商
 
 - `session/new`（及 config 更新）中的 `SessionConfigOption`（category=Model 或 name 回退）解析为 `agent:models`。
+- Grok Build 的 `session/new` 可能先返回启动时的占位目录（如只有 4.6/4.5），真实目录在鉴权完成后通过 `_x.ai/models/update` 扩展通知推送（同一秒到达，标准 ACP schema 会丢弃）。Host 按 `grok_models.rs` 解析该通知并转为 `agent:models`，否则选单会一直停在占位目录、与 `grok models` 不一致。
 - 若 `current_value` 不在 selector 选项中（第三方网关 / cc-switch 等只改默认 model、目录仍是官方列表），Host **注入**该 current id，避免 UI 丢失。
 - `preferred_model_id`（warm / run_once）在与 current 不同时 **始终尝试** `session/set_config_option`，不要求 id 已在上报列表中；失败仅 debug 日志，不阻断会话。
 - Codex `collaboration_mode`（Default / Plan 等）解析为 `agent:collaboration`；`collaboration_mode_id` 在选项内且与 current 不同时尝试 `session/set_config_option`。UI 称「模式」。Plan 才能用 `request_user_input`。不解析 / 不暴露 ACP `category: mode` 沙箱档。

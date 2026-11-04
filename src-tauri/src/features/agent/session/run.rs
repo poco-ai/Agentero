@@ -408,6 +408,22 @@ impl RunOnceContext {
         emit_rich_session_update(&self.app, &self.session_id, &self.agent_id, notification);
     }
 
+    /// Grok Build's vendor model-catalog push (`_x.ai/models/update`): forward
+    /// the refreshed list so a live picker stops showing the stale snapshot
+    /// `session/new` returned.
+    pub(crate) fn relay_grok_models_update(
+        &self,
+        params: &crate::features::agent::acp::grok_models::GrokModelsUpdateParams,
+    ) {
+        if let Some(event) = crate::features::agent::acp::updates::models_from_grok_update(
+            &self.session_id,
+            &self.agent_id,
+            params,
+        ) {
+            let _ = self.app.emit("agent:models", event);
+        }
+    }
+
     /// Flush buffered stream text, then emit `agent:completed` (ordered after text).
     fn emit_completed(&self, payload: AgentResultPayload) -> AgentResultPayload {
         self.coalescer.flush();
