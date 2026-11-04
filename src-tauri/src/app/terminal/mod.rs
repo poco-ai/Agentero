@@ -37,6 +37,11 @@ pub fn open_in_terminal(path: &Path, preferred: &str) -> Result<PathBuf, AppErro
     let cwd = terminal_cwd_for_path(path)?;
     let preferred = preferred.trim();
     if !preferred.is_empty() {
+        log::debug!(
+            target: "agentero::terminal",
+            "opening '{preferred}' at {}",
+            cwd.display()
+        );
         match presets::launch(preferred, &cwd) {
             Ok(()) => return Ok(cwd),
             Err(error) => log::warn!(
@@ -44,6 +49,12 @@ pub fn open_in_terminal(path: &Path, preferred: &str) -> Result<PathBuf, AppErro
                 "preferred terminal '{preferred}' unavailable, using system default: {error}"
             ),
         }
+    } else {
+        log::debug!(
+            target: "agentero::terminal",
+            "no terminal preference, opening system default at {}",
+            cwd.display()
+        );
     }
     open_terminal_at(&cwd)?;
     Ok(cwd)

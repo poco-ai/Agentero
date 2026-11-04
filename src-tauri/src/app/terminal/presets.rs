@@ -188,13 +188,20 @@ fn launch_otty(cwd: &Path) -> Result<(), AppError> {
     // Otty's CLI opens a window in a directory without Apple Events
     // automation. It is only on PATH after the user installs it, so try the
     // bundled CLI and common install locations before AppleScript.
-    for bin in otty_cli_candidates() {
+    let app = macos_app("otty");
+    for bin in otty_cli_candidates(app.as_deref()) {
         if Command::new(&bin)
             .arg("open")
             .arg(cwd)
             .status()
             .is_ok_and(|s| s.success())
         {
+            // The CLI creates the window without activating Otty, so it stays
+            // behind Agentero. `open` on a running bundle only brings it to the
+            // front: no extra window, and no Apple Events permission prompt.
+            if let Some(app) = app.as_deref() {
+                let _ = Command::new("open").arg(app).status();
+            }
             return Ok(());
         }
     }
@@ -209,12 +216,12 @@ fn launch_otty(cwd: &Path) -> Result<(), AppError> {
 }
 
 #[cfg(target_os = "macos")]
-fn otty_cli_candidates() -> Vec<PathBuf> {
+fn otty_cli_candidates(app: Option<&Path>) -> Vec<PathBuf> {
     let mut candidates = vec![
         PathBuf::from("/usr/local/bin/otty"),
         PathBuf::from("/opt/homebrew/bin/otty"),
     ];
-    if let Some(app) = macos_app("otty") {
+    if let Some(app) = app {
         candidates.push(app.join("Contents/MacOS/otty-cli"));
     }
     candidates.push(PathBuf::from("otty"));
