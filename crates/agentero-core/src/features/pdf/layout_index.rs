@@ -37,6 +37,10 @@ pub struct LayoutIndexItem {
     pub paragraph_index: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    /// Original section marker (`1`, `2.1`, `III`) for this section or the
+    /// section that owns this paragraph. Internal disambiguation only.
+    #[serde(skip)]
+    pub section_marker: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -516,6 +520,7 @@ fn parse_item(v: &Value) -> Option<LayoutIndexItem> {
         section_anchor: None,
         paragraph_index: None,
         text: None,
+        section_marker: None,
     })
 }
 
@@ -577,15 +582,18 @@ fn count_items(items: &[LayoutIndexItem]) -> LayoutCounts {
 fn enumerate_document_anchors(layout: &RawLayout) -> Vec<LayoutIndexItem> {
     let mut items = Vec::new();
     let mut section_anchor: Option<String> = None;
+    let mut section_marker: Option<SectionMarker> = None;
     let mut paragraph_index = 0u32;
     for region in super::document_reading_order::document_reading_order(&layout.regions) {
         let (kind, anchor, ordinal) = if region.kind == "header" {
-            section_anchor = region
+            let marker = region
                 .title
                 .as_deref()
                 .filter(|s| !s.trim().is_empty())
                 .or(region.text.as_deref())
-                .and_then(section_number);
+                .and_then(section_marker_of);
+            section_anchor = marker.as_ref().map(|marker| marker.canonical.clone());
+            section_marker = marker;
             paragraph_index = 0;
             ("section", section_anchor.clone(), None)
         } else if matches!(region.kind.as_str(), "text" | "paragraph")
@@ -618,37 +626,102 @@ fn enumerate_document_anchors(layout: &RawLayout) -> Vec<LayoutIndexItem> {
             section_anchor: section_anchor.as_ref().map(|s| format!("#{s}")),
             paragraph_index: ordinal,
             text: region.text.clone(),
+            section_marker: section_marker.as_ref().map(|marker| marker.raw.clone()),
         });
     }
     items
 }
 
 /// Only advertise fragments whose owning section is unique in this result.
+/// Arabic `1` and Roman `I` stay distinct even though both canonicalize to `1`.
 pub fn document_anchors(layout: &RawLayout) -> Vec<LayoutIndexItem> {
     let mut items = enumerate_document_anchors(layout);
-    let mut counts = std::collections::HashMap::new();
+    let mut counts: std::collections::HashMap<(String, SectionNotation), usize> =
+        std::collections::HashMap::new();
     for item in &items {
         if item.kind == "section" {
-            if let Some(anchor) = &item.anchor {
-                *counts.entry(anchor.clone()).or_insert(0) += 1;
+            if let (Some(anchor), Some(notation)) = (
+                &item.anchor,
+                item.section_marker.as_deref().and_then(marker_notation),
+            ) {
+                *counts.entry((anchor.clone(), notation)).or_insert(0) += 1;
             }
         }
     }
     for item in &mut items {
-        if item
-            .section_anchor
-            .as_ref()
-            .is_some_and(|a| counts.get(a).copied().unwrap_or(0) > 1)
-        {
+        let Some(anchor) = item.section_anchor.clone() else {
+            continue;
+        };
+        let notation = item.section_marker.as_deref().and_then(marker_notation);
+        if notation.is_some_and(|notation| {
+            counts
+                .get(&(anchor.clone(), notation))
+                .copied()
+                .unwrap_or(0)
+                > 1
+        }) {
             item.anchor = None;
         }
     }
     items
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum SectionNotation {
+    Arabic,
+    Roman,
+}
+
+#[derive(Debug, Clone)]
+struct SectionMarker {
+    /// Marker as written in the heading (`1`, `2.1`, `III`).
+    raw: String,
+    /// Dotted Arabic form used by anchors (`1`, `2.1`, `3`).
+    canonical: String,
+}
+
+fn roman_number(marker: &str) -> Option<String> {
+    const ROMAN: [&str; 20] = [
+        "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv",
+        "xv", "xvi", "xvii", "xviii", "xix", "xx",
+    ];
+    ROMAN
+        .iter()
+        .position(|r| *r == marker.to_ascii_lowercase())
+        .map(|n| (n + 1).to_string())
+}
+
+/// Canonical anchor marker for a fragment section (`1`, `2.1`, `I` -> `1`).
+/// Fragments keep canonical anchors, so Roman requests must be rewritten
+/// before lookup.
+fn canonical_fragment_section(section: &str) -> String {
+    let trimmed = section.trim();
+    match section_marker_of(trimmed) {
+        Some(marker) if marker.raw.eq_ignore_ascii_case(trimmed) => marker.canonical,
+        _ => trimmed.to_string(),
+    }
+}
+
+pub(crate) fn marker_notation(value: &str) -> Option<SectionNotation> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed
+        .chars()
+        .all(|c| matches!(c, 'i' | 'I' | 'v' | 'V' | 'x' | 'X'))
+    {
+        return Some(SectionNotation::Roman);
+    }
+    if trimmed.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+        return Some(SectionNotation::Arabic);
+    }
+    None
+}
+
 /// Explicit Arabic hierarchy or an IEEE Roman top-level marker. Never fuzzy
 /// match a numeric substring (2 must not resolve to 2.1, 12 or an arXiv id).
-fn section_number(title: &str) -> Option<String> {
+fn section_marker_of(title: &str) -> Option<SectionMarker> {
     let trimmed = title.trim_start();
     let numeric: String = trimmed
         .chars()
@@ -665,38 +738,49 @@ fn section_number(title: &str) -> Option<String> {
             .split('.')
             .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
     {
-        return Some(
-            number
-                .split('.')
-                .map(|p| p.parse::<u32>().ok().map(|n| n.to_string()))
-                .collect::<Option<Vec<_>>>()?
-                .join("."),
-        );
+        // OCR keeps numbered prompt list items as paragraph_title; they read
+        // `<number>. ** ...` and must not shadow the real section.
+        let rest = boundary.trim_start();
+        if rest.starts_with('*') || rest.starts_with('_') {
+            return None;
+        }
+        let canonical = number
+            .split('.')
+            .map(|p| p.parse::<u32>().ok().map(|n| n.to_string()))
+            .collect::<Option<Vec<_>>>()?
+            .join(".");
+        return Some(SectionMarker {
+            raw: number.to_string(),
+            canonical,
+        });
     }
     // Try compact dotted OCR markers, then a normal whitespace-delimited
     // marker. A later dot in the heading text is not a marker boundary.
-    let roman = [
-        "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv",
-        "xv", "xvi", "xvii", "xviii", "xix", "xx",
-    ];
-    let roman_number = |marker: &str| {
-        roman
-            .iter()
-            .position(|r| *r == marker.to_ascii_lowercase())
-            .map(|n| (n + 1).to_string())
-    };
     let compact: String = trimmed.chars().filter(|c| !c.is_whitespace()).collect();
-    if let Some((marker, _)) = compact.split_once('.') {
-        if let Some(number) = roman_number(marker) {
-            return Some(number);
+    if let Some((marker, rest)) = compact.split_once('.') {
+        if let Some(canonical) = roman_number(marker) {
+            if rest.starts_with('*') || rest.starts_with('_') {
+                return None;
+            }
+            return Some(SectionMarker {
+                raw: marker.to_string(),
+                canonical,
+            });
         }
     }
-    roman_number(
-        trimmed
-            .split_whitespace()
-            .next()?
-            .trim_end_matches(['.', ':', ')']),
-    )
+    let marker = trimmed
+        .split_whitespace()
+        .next()?
+        .trim_end_matches(['.', ':', ')']);
+    Some(SectionMarker {
+        raw: marker.to_string(),
+        canonical: roman_number(marker)?,
+    })
+}
+
+#[cfg(test)]
+fn section_number(title: &str) -> Option<String> {
+    section_marker_of(title).map(|marker| marker.canonical)
 }
 
 /// Resolve the exact, published fragment. Duplicate headings (including their
@@ -706,23 +790,78 @@ pub fn resolve_document_anchor(
     paper_path: &str,
     fragment: &str,
 ) -> Result<LayoutIndexItem, AppError> {
+    let requested = fragment.strip_prefix('#').unwrap_or(fragment);
+    let preferred = marker_notation(requested.split('#').next().unwrap_or(requested));
+    resolve_document_anchor_preferring(vault, paper_path, fragment, preferred)
+}
+
+/// Resolve with an explicit section notation preference. Citations pass the
+/// notation the author wrote (`1` vs `I`) so an appendix never shadows a
+/// numbered section that canonicalizes to the same Arabic anchor.
+pub(crate) fn resolve_document_anchor_preferring(
+    vault: &Path,
+    paper_path: &str,
+    fragment: &str,
+    preferred: Option<SectionNotation>,
+) -> Result<LayoutIndexItem, AppError> {
     let items = document_anchor_items(vault, paper_path)?;
-    let anchor = format!("#{}", fragment.strip_prefix('#').unwrap_or(fragment));
-    let section = anchor.split("#p").next().unwrap_or(&anchor);
-    if items
+    let requested = fragment.strip_prefix('#').unwrap_or(fragment);
+    let (requested_section, paragraph) = match requested.split_once("#p") {
+        Some((section, ordinal)) if !section.is_empty() => (section, Some(ordinal)),
+        _ => (requested, None),
+    };
+    let canonical_section = canonical_fragment_section(requested_section);
+    let anchor = match paragraph {
+        Some(ordinal) => format!("#{canonical_section}#p{ordinal}"),
+        None => format!("#{canonical_section}"),
+    };
+    let section = format!("#{canonical_section}");
+    let section_items: Vec<&LayoutIndexItem> = items
         .iter()
-        .filter(|i| i.kind == "section" && i.anchor.as_deref() == Some(section))
-        .count()
-        > 1
-    {
-        return Err(AppError::domain(
-            "citation_anchor_ambiguous",
-            format!("ambiguous PDF section `{section}`"),
-        ));
-    }
+        .filter(|i| i.kind == "section" && i.anchor.as_deref() == Some(section.as_str()))
+        .collect();
+    let notation = match preferred {
+        Some(preferred) => {
+            let exact: Vec<&LayoutIndexItem> = section_items
+                .iter()
+                .copied()
+                .filter(|i| {
+                    i.section_marker.as_deref().and_then(marker_notation) == Some(preferred)
+                })
+                .collect();
+            match exact.len() {
+                1 => Some(preferred),
+                // IEEE papers write `III.`; an Arabic request still resolves
+                // when that is the only section with this number.
+                0 if section_items.len() == 1 => section_items[0]
+                    .section_marker
+                    .as_deref()
+                    .and_then(marker_notation),
+                0 => None,
+                _ => {
+                    return Err(AppError::domain(
+                        "citation_anchor_ambiguous",
+                        format!("ambiguous PDF section `{section}`"),
+                    ));
+                }
+            }
+        }
+        None if section_items.len() > 1 => {
+            return Err(AppError::domain(
+                "citation_anchor_ambiguous",
+                format!("ambiguous PDF section `{section}`"),
+            ));
+        }
+        None => section_items
+            .first()
+            .and_then(|i| i.section_marker.as_deref().and_then(marker_notation)),
+    };
     let matches: Vec<_> = items
         .iter()
         .filter(|i| i.anchor.as_deref() == Some(anchor.as_str()))
+        .filter(|i| {
+            notation.is_none() || i.section_marker.as_deref().and_then(marker_notation) == notation
+        })
         .cloned()
         .collect();
     match matches.len() {
@@ -1132,6 +1271,69 @@ mod tests {
         let listed = list_regions(dir.path(), "papers/p1", &["paragraph".into()], None).unwrap();
         assert!(listed.items[0].anchor.is_none());
     }
+    #[test]
+    fn arabic_and_roman_section_markers_stay_distinct() {
+        let dir = tempdir().unwrap();
+        let paper = dir.path().join("papers/p1");
+        write_raw_layout(
+            &paper,
+            r#"{"regions":[
+            {"id":"intro","pageIndex":0,"kind":"header","text":"1 Introduction","bbox":{"x":0,"y":0,"w":1,"h":0.1}},
+            {"id":"intro-body","pageIndex":0,"kind":"text","text":"intro body","bbox":{"x":0,"y":0.1,"w":1,"h":0.1}},
+            {"id":"appendix","pageIndex":20,"kind":"header","text":"I Prompt Templates","bbox":{"x":0,"y":0,"w":1,"h":0.1}},
+            {"id":"appendix-body","pageIndex":20,"kind":"text","text":"prompt body","bbox":{"x":0,"y":0.1,"w":1,"h":0.1}}
+        ]}"#,
+        );
+        assert_eq!(
+            get_region(dir.path(), "papers/p1", "#1").unwrap().item.id,
+            "intro"
+        );
+        assert_eq!(
+            get_region(dir.path(), "papers/p1", "#1#p1")
+                .unwrap()
+                .item
+                .id,
+            "intro-body"
+        );
+        assert_eq!(
+            get_region(dir.path(), "papers/p1", "#I").unwrap().item.id,
+            "appendix"
+        );
+        assert_eq!(
+            get_region(dir.path(), "papers/p1", "#I#p1")
+                .unwrap()
+                .item
+                .id,
+            "appendix-body"
+        );
+    }
+
+    #[test]
+    fn numbered_prompt_list_items_do_not_shadow_sections() {
+        let dir = tempdir().unwrap();
+        let paper = dir.path().join("papers/p1");
+        write_raw_layout(
+            &paper,
+            r#"{"regions":[
+            {"id":"h4","pageIndex":4,"kind":"header","text":"4. Experiments","bbox":{"x":0,"y":0,"w":1,"h":0.1}},
+            {"id":"body","pageIndex":4,"kind":"text","text":"section body","bbox":{"x":0,"y":0.1,"w":1,"h":0.1}},
+            {"id":"prompt","pageIndex":13,"kind":"header","text":"4. ** Critical Rules: **","bbox":{"x":0,"y":0.2,"w":1,"h":0.1}},
+            {"id":"prompt-body","pageIndex":13,"kind":"text","text":"prompt body","bbox":{"x":0,"y":0.3,"w":1,"h":0.1}}
+        ]}"#,
+        );
+        assert_eq!(
+            get_region(dir.path(), "papers/p1", "#4").unwrap().item.id,
+            "h4"
+        );
+        assert_eq!(
+            get_region(dir.path(), "papers/p1", "#4#p1")
+                .unwrap()
+                .item
+                .id,
+            "body"
+        );
+    }
+
     #[test]
     fn section_markers_preserve_compact_roman_ocr_without_prefix_collisions() {
         for title in ["III.Method", "III. M ETHOD", "I I I. Method", "III Method"] {

@@ -179,12 +179,22 @@ fn resolve_section(
         .split('.')
         .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
     {
-        return layout_index::resolve_document_anchor(vault, paper_path, heading)
-            .map(|i| (&i).into());
+        return layout_index::resolve_document_anchor_preferring(
+            vault,
+            paper_path,
+            heading,
+            Some(layout_index::SectionNotation::Arabic),
+        )
+        .map(|i| (&i).into());
     }
     if let Some(n) = parse_section_number(&needle) {
-        return layout_index::resolve_document_anchor(vault, paper_path, &n.to_string())
-            .map(|i| (&i).into());
+        return layout_index::resolve_document_anchor_preferring(
+            vault,
+            paper_path,
+            &n.to_string(),
+            Some(layout_index::SectionNotation::Roman),
+        )
+        .map(|i| (&i).into());
     }
 
     let mut candidates: Vec<(f64, &LayoutRegion)> = Vec::new();
@@ -237,20 +247,302 @@ fn resolve_layout_index_by_number(
         return Ok((&result.item).into());
     }
 
-    let listed = layout_index::list_regions(vault, paper_path, &[], None)?;
-    let matches: Vec<&LayoutIndexItem> = listed
-        .items
-        .iter()
-        .filter(|item| item_matches_numbered_citation(item, section, n))
-        .collect();
+    let listed = layout_index::list_regions(vault, paper_path, &[], None);
+    if let Ok(listed) = &listed {
+        let matches: Vec<&LayoutIndexItem> = listed
+            .items
+            .iter()
+            .filter(|item| item_matches_numbered_citation(item, section, n))
+            .collect();
+        if let Some(item) = matches.into_iter().next() {
+            return Ok(item.into());
+        }
+    }
+    // The sidebar index only contains merged image/chart/table hosts. A figure
+    // or table that exists as a caption in `layout.json` (common after OCR
+    // merge misses) still satisfies an explicit `#figure=N` citation.
+    if let Some(fragment) = resolve_raw_numbered_caption(vault, paper_path, section, n) {
+        return Ok(fragment);
+    }
+    // Layout extraction can drop a caption while the PDF text layer still has
+    // it. Locating that line keeps navigation and the wiki check in agreement.
+    if let Some(fragment) = resolve_pdf_text_caption(vault, paper_path, section, n) {
+        return Ok(fragment);
+    }
+    listed?;
+    Err(AppError::domain(
+        "citation_region_not_found",
+        format!("no {section} {n} found in {paper_path}/source/layout-index.json"),
+    ))
+}
 
-    let item = matches.into_iter().next().ok_or_else(|| {
-        AppError::domain(
-            "citation_region_not_found",
-            format!("no {section} {n} found in {paper_path}/source/layout-index.json"),
+/// Locate a numbered caption in raw `layout.json` when the sidebar index has no
+/// host for it. Captions are matched only at the start of a region text, and a
+/// lowercase continuation (`Figure 6 plots ...`) is treated as body prose.
+fn resolve_raw_numbered_caption(
+    vault: &Path,
+    paper_path: &str,
+    section: &str,
+    number: usize,
+) -> Option<ResolvedFragment> {
+    let layout = layout_index::load_raw_layout(vault, paper_path).ok()?;
+    let mut matches: Vec<&LayoutRegion> = layout
+        .regions
+        .iter()
+        .filter(|region| {
+            let text = region
+                .title
+                .as_deref()
+                .or(region.text.as_deref())
+                .unwrap_or("");
+            caption_starts_with_number(text, section, number)
+        })
+        .collect();
+    if matches.is_empty() {
+        return None;
+    }
+    matches.sort_by_key(|region| {
+        let rank = match region.kind.as_str() {
+            "figure_title" => 0,
+            kind if host_kind(section, kind) => 1,
+            _ => 2,
+        };
+        (
+            rank,
+            region.page_index,
+            region.reading_order.unwrap_or(u32::MAX),
         )
-    })?;
-    Ok(item.into())
+    });
+    let caption = matches[0];
+    let host = nearest_caption_host(&layout, caption, section);
+    let target = host.unwrap_or(caption);
+    Some(ResolvedFragment {
+        page_index: target.page_index,
+        bbox: target.bbox.clone(),
+        title: caption
+            .title
+            .clone()
+            .or_else(|| caption.text.clone())
+            .or_else(|| target.title.clone()),
+        region_id: target.id.clone(),
+    })
+}
+
+/// Last resort for layouts that lost a caption: find the numbered caption line
+/// in the PDF text layer and locate its rect with the shared PDFium engine.
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+fn resolve_pdf_text_caption(
+    vault: &Path,
+    paper_path: &str,
+    section: &str,
+    number: usize,
+) -> Option<ResolvedFragment> {
+    let paper_dir = vault.join(sanitize_vault_rel(paper_path).ok()?);
+    let pdf_path = crate::features::paper::capabilities::find_local_pdf(&paper_dir)?;
+    let pdf = std::fs::read(pdf_path).ok()?;
+    let pages = crate::features::pdf::text::extract_text(&pdf, None, 50_000).ok()?;
+    let candidates: Vec<_> = pages
+        .pages
+        .iter()
+        .filter_map(|page| {
+            page.text
+                .split('\n')
+                .map(|line| line.trim_end_matches('\r').trim())
+                .find(|line| caption_line_starts_with_number(line, section, number))
+                .map(|caption| (page, caption))
+        })
+        .collect();
+    // A list-of-figures page also starts lines with the label. Prefer a page
+    // that has a matching figure/table host, then fall back to page order.
+    if let Ok(layout) = layout_index::load_raw_layout(vault, paper_path) {
+        for (page, caption) in &candidates {
+            let page_index = page.page.saturating_sub(1);
+            if layout
+                .regions
+                .iter()
+                .any(|region| region.page_index == page_index && host_kind(section, &region.kind))
+            {
+                if let Some(fragment) =
+                    locate_text_caption(&pdf, page.page, caption, section, number)
+                {
+                    return Some(fragment);
+                }
+            }
+        }
+    }
+    candidates
+        .into_iter()
+        .find_map(|(page, caption)| locate_text_caption(&pdf, page.page, caption, section, number))
+}
+
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+fn locate_text_caption(
+    pdf: &[u8],
+    page: u32,
+    caption: &str,
+    section: &str,
+    number: usize,
+) -> Option<ResolvedFragment> {
+    let request = crate::features::pdf_locate::LocateRequest {
+        quote: caption.chars().take(160).collect(),
+        page: Some(page),
+        case_sensitive: false,
+        max_matches: 4,
+        measure_pages: Vec::new(),
+    };
+    let located = crate::features::pdf_locate::locate_in_pdf(pdf, &request).ok()?;
+    let first = located.matches.first()?;
+    let bbox = union_norm_rects(&first.rects)?;
+    let page_index = page.saturating_sub(1);
+    Some(ResolvedFragment {
+        page_index,
+        bbox,
+        title: Some(caption.to_string()),
+        region_id: format!("pdf-caption-{page_index}-{section}-{number}"),
+    })
+}
+
+#[cfg(any(target_os = "ios", target_os = "android"))]
+fn resolve_pdf_text_caption(
+    _vault: &Path,
+    _paper_path: &str,
+    _section: &str,
+    _number: usize,
+) -> Option<ResolvedFragment> {
+    None
+}
+
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+fn union_norm_rects(rects: &[crate::features::pdf_locate::NormRect]) -> Option<Bbox> {
+    let first = rects.first()?;
+    let mut min_x = first.x;
+    let mut min_y = first.y;
+    let mut max_x = first.x + first.w;
+    let mut max_y = first.y + first.h;
+    for rect in &rects[1..] {
+        min_x = min_x.min(rect.x);
+        min_y = min_y.min(rect.y);
+        max_x = max_x.max(rect.x + rect.w);
+        max_y = max_y.max(rect.y + rect.h);
+    }
+    Some(Bbox {
+        x: f64::from(min_x),
+        y: f64::from(min_y),
+        w: f64::from(max_x - min_x),
+        h: f64::from(max_y - min_y),
+    })
+}
+
+fn host_kind(section: &str, kind: &str) -> bool {
+    match section {
+        "figure" => matches!(kind, "image" | "chart"),
+        "table" => kind == "table",
+        "algorithm" => kind == "algorithm",
+        "formula" => kind == "formula",
+        _ => false,
+    }
+}
+
+/// The nearest host above the caption on the same page, so a caption-only
+/// match still jumps to the figure/table rather than its text line.
+fn nearest_caption_host<'a>(
+    layout: &'a layout_index::RawLayout,
+    caption: &LayoutRegion,
+    section: &str,
+) -> Option<&'a LayoutRegion> {
+    let caption_order = caption.reading_order.unwrap_or(u32::MAX);
+    layout
+        .regions
+        .iter()
+        .filter(|region| region.page_index == caption.page_index)
+        .filter(|region| host_kind(section, &region.kind))
+        .filter(|region| {
+            region
+                .reading_order
+                .map_or(region.bbox.y < caption.bbox.y, |order| {
+                    order < caption_order
+                })
+        })
+        .max_by(|a, b| {
+            a.reading_order
+                .unwrap_or(0)
+                .cmp(&b.reading_order.unwrap_or(0))
+                .then_with(|| a.bbox.y.total_cmp(&b.bbox.y))
+        })
+}
+
+/// Caption text after the numbered label, when `text` starts with one.
+fn caption_tail(text: &str, section: &str, number: usize) -> Option<String> {
+    let trimmed = text.trim_start_matches(|c: char| !c.is_alphanumeric());
+    let labels: &[&str] = match section {
+        "figure" => &["figure", "fig"],
+        "table" => &["table"],
+        "algorithm" => &["algorithm", "alg"],
+        _ => return None,
+    };
+    let lower = trimmed.to_ascii_lowercase();
+    for label in labels {
+        if !lower.starts_with(label) {
+            continue;
+        }
+        let mut index = label.len();
+        let bytes = trimmed.as_bytes();
+        while index < bytes.len() {
+            let ch = bytes[index] as char;
+            if ch.is_ascii_digit() {
+                break;
+            }
+            if ch.is_alphabetic() {
+                index = bytes.len();
+                break;
+            }
+            index += 1;
+        }
+        if index >= bytes.len() {
+            continue;
+        }
+        let rest = &trimmed[index..];
+        let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if digits.parse::<usize>().ok() != Some(number) {
+            continue;
+        }
+        let after = &rest[digits.len()..];
+        if after.chars().next().is_some_and(|c| c.is_alphanumeric()) {
+            continue;
+        }
+        let tail = after.trim_start_matches(|c: char| !c.is_alphanumeric());
+        return Some(tail.to_string());
+    }
+    None
+}
+
+/// Match `Figure 6 ...`, `Fig. 6: ...`, `Table 3 ⋃︀ ...` at the start of a
+/// region. A lowercase continuation is prose ("Figure 6 plots ...").
+fn caption_starts_with_number(text: &str, section: &str, number: usize) -> bool {
+    caption_tail(text, section, number)
+        .is_some_and(|tail| tail.is_empty() || tail.chars().next().is_some_and(char::is_uppercase))
+}
+
+/// PDF text lines reject a bare `Figure 6.` sentence ending; the text layer
+/// fallback only accepts a real caption tail. The label may follow a column
+/// separator on the same line (`long n=105 Figure 7 ...`), so scan after
+/// non-alphanumeric boundaries and reject prose lead-ins (`in Figure 6`).
+fn caption_line_starts_with_number(text: &str, section: &str, number: usize) -> bool {
+    let mut previous_non_space: Option<char> = None;
+    for (index, ch) in text.char_indices() {
+        if ch.is_ascii_alphabetic()
+            && previous_non_space.is_none_or(|previous| !previous.is_alphanumeric())
+            && caption_tail(&text[index..], section, number).is_some_and(|tail| {
+                !tail.is_empty() && tail.chars().next().is_some_and(char::is_uppercase)
+            })
+        {
+            return true;
+        }
+        if !ch.is_whitespace() {
+            previous_non_space = Some(ch);
+        }
+    }
+    false
 }
 
 fn resolve_region(
@@ -455,6 +747,121 @@ mod tests {
 
     fn write_index(paper: &Path, body: &str) {
         fs::write(paper.join("source").join("layout-index.json"), body).unwrap();
+    }
+
+    #[test]
+    fn resolves_figure_from_raw_caption_when_sidebar_index_misses_it() {
+        let dir = tempdir().unwrap();
+        let vault = dir.path();
+        let paper = make_paper(vault, "papers/p1");
+        write_index(
+            &paper,
+            r#"{"schemaVersion":1,"source":{"mode":"sidebar","from":"layout.json","generatedAt":"t","minScore":0.3},"items":[]}"#,
+        );
+        write_raw_layout(
+            &paper,
+            r#"{"schemaVersion":3,"source":{"mode":"embedpdf-layout","generatedAt":"t"},"regions":[
+              {"id":"body","pageIndex":3,"kind":"text","readingOrder":0,"score":1,"text":"Figure 6 plots the accuracies.","bbox":{"x":0.1,"y":0.1,"w":0.8,"h":0.05}},
+              {"id":"fig-host","pageIndex":3,"kind":"chart","readingOrder":1,"score":1,"bbox":{"x":0.1,"y":0.3,"w":0.8,"h":0.4}},
+              {"id":"fig-caption","pageIndex":3,"kind":"text","readingOrder":2,"score":1,"text":"⋃︀ Figure 6 Long-input results as a function of total context limit.","bbox":{"x":0.1,"y":0.8,"w":0.8,"h":0.05}}
+            ]}"#,
+        );
+        let target = resolve_citation(vault, "papers/p1/p1.pdf#figure=6").unwrap();
+        assert_eq!(target.region_id, "fig-host");
+        assert_eq!(target.page_index, 3);
+        assert!(target.title.as_deref().unwrap_or("").contains("Figure 6"));
+    }
+
+    #[test]
+    fn body_reference_does_not_resolve_as_a_figure_caption() {
+        let dir = tempdir().unwrap();
+        let vault = dir.path();
+        let paper = make_paper(vault, "papers/p1");
+        write_index(
+            &paper,
+            r#"{"schemaVersion":1,"source":{"mode":"sidebar","from":"layout.json","generatedAt":"t","minScore":0.3},"items":[]}"#,
+        );
+        write_raw_layout(
+            &paper,
+            r#"{"schemaVersion":3,"source":{"mode":"embedpdf-layout","generatedAt":"t"},"regions":[
+              {"id":"body","pageIndex":3,"kind":"text","readingOrder":0,"score":1,"text":"Figure 6 plots the accuracies.","bbox":{"x":0.1,"y":0.1,"w":0.8,"h":0.05}}
+            ]}"#,
+        );
+        assert!(resolve_citation(vault, "papers/p1/p1.pdf#figure=6").is_err());
+    }
+
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    #[test]
+    fn resolves_figure_from_pdf_text_when_layout_misses_caption() {
+        let dir = tempdir().unwrap();
+        let vault = dir.path();
+        let paper = make_paper(vault, "papers/p1");
+        fs::write(
+            paper.join("p1.pdf"),
+            crate::features::pdf::tiny_pdf(
+                "Figure 6: Long-input results as a function of total context limit.",
+            ),
+        )
+        .unwrap();
+        write_index(
+            &paper,
+            r#"{"schemaVersion":1,"source":{"mode":"sidebar","from":"layout.json","generatedAt":"t","minScore":0.3},"items":[]}"#,
+        );
+        write_raw_layout(
+            &paper,
+            r#"{"schemaVersion":3,"source":{"mode":"embedpdf-layout","generatedAt":"t"},"regions":[
+              {"id":"fig-host","pageIndex":0,"kind":"chart","readingOrder":1,"score":1,"bbox":{"x":0.1,"y":0.3,"w":0.8,"h":0.4}}
+            ]}"#,
+        );
+        let target = resolve_citation(vault, "papers/p1/p1.pdf#figure=6").unwrap();
+        assert_eq!(target.page_index, 0);
+        assert!(target.title.as_deref().unwrap_or("").contains("Figure 6"));
+        assert!(target.bbox.w > 0.0);
+    }
+
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    #[test]
+    fn resolves_mid_line_caption_from_pdf_text() {
+        let dir = tempdir().unwrap();
+        let vault = dir.path();
+        let paper = make_paper(vault, "papers/p1");
+        fs::write(
+            paper.join("p1.pdf"),
+            crate::features::pdf::tiny_pdf(
+                "long n=105, Figure 7: LongBench v2 conversation length versus document length.",
+            ),
+        )
+        .unwrap();
+        write_index(
+            &paper,
+            r#"{"schemaVersion":1,"source":{"mode":"sidebar","from":"layout.json","generatedAt":"t","minScore":0.3},"items":[]}"#,
+        );
+        let target = resolve_citation(vault, "papers/p1/p1.pdf#figure=7").unwrap();
+        assert!(target.title.as_deref().unwrap_or("").contains("Figure 7"));
+    }
+
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    #[test]
+    fn pdf_text_body_reference_does_not_resolve_as_caption() {
+        let dir = tempdir().unwrap();
+        let vault = dir.path();
+        let paper = make_paper(vault, "papers/p1");
+        fs::write(
+            paper.join("p1.pdf"),
+            crate::features::pdf::tiny_pdf("Figure 6 plots the accuracies."),
+        )
+        .unwrap();
+        write_index(
+            &paper,
+            r#"{"schemaVersion":1,"source":{"mode":"sidebar","from":"layout.json","generatedAt":"t","minScore":0.3},"items":[]}"#,
+        );
+        write_raw_layout(
+            &paper,
+            r#"{"schemaVersion":3,"source":{"mode":"embedpdf-layout","generatedAt":"t"},"regions":[
+              {"id":"body","pageIndex":0,"kind":"text","readingOrder":0,"score":1,"text":"Figure 6 plots the accuracies.","bbox":{"x":0.1,"y":0.1,"w":0.8,"h":0.05}}
+            ]}"#,
+        );
+        assert!(resolve_citation(vault, "papers/p1/p1.pdf#figure=6").is_err());
     }
 
     #[test]

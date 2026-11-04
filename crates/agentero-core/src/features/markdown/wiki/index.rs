@@ -2752,6 +2752,42 @@ mod tests {
     }
 
     #[test]
+    fn caption_only_figures_resolve_in_wiki_checks() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let paper = root.join("papers/p1");
+        fs::create_dir_all(paper.join("source")).unwrap();
+        fs::write(paper.join("p1.pdf"), b"%PDF fixture").unwrap();
+        fs::write(paper.join("NOTES.md"), "# Notes\n").unwrap();
+        fs::write(
+            paper.join("source/layout.json"),
+            r#"{"schemaVersion":3,"source":{"mode":"embedpdf-layout","generatedAt":"t"},"regions":[
+              {"id":"body","pageIndex":3,"kind":"text","readingOrder":0,"score":1,"text":"Figure 6 plots the accuracies.","bbox":{"x":0.1,"y":0.1,"w":0.8,"h":0.05}},
+              {"id":"fig-host","pageIndex":3,"kind":"chart","readingOrder":1,"score":1,"bbox":{"x":0.1,"y":0.3,"w":0.8,"h":0.4}},
+              {"id":"fig-caption","pageIndex":3,"kind":"text","readingOrder":2,"score":1,"text":"⋃︀ Figure 6 Long-input results as a function of total context limit.","bbox":{"x":0.1,"y":0.8,"w":0.8,"h":0.05}}
+            ]}"#,
+        )
+        .unwrap();
+        fs::write(
+            paper.join("source/layout-index.json"),
+            r#"{"schemaVersion":1,"source":{"mode":"sidebar","from":"layout.json","generatedAt":"t","minScore":0.3},"items":[]}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("source.md"),
+            "[Figure 6](papers/p1/p1.pdf#figure=6)\n[[papers/p1/p1.pdf#figure=6]]\n",
+        )
+        .unwrap();
+        let vault = root.to_str().unwrap();
+        let mut index = WikiIndex::default();
+        index.rebuild(vault).unwrap();
+        let checks = index.check_links(vault, None);
+        assert_eq!(checks.counts.resolved, 2);
+        assert_eq!(checks.counts.invalid_fragment, 0);
+        assert!(checks.issues.is_empty(), "{:?}", checks.issues);
+    }
+
+    #[test]
     fn markdown_edits_do_not_reresolve_unchanged_pdf_fragments() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
