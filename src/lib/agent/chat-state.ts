@@ -19,6 +19,10 @@ import type {
 	PromptImage,
 } from "@/lib/agent/api";
 import {
+	hasTranscriptChips,
+	inlineMarkupToPlain,
+} from "@/lib/agent/composer-inline-tokens";
+import {
 	isVisualAnnotationPromptText,
 	stripPromptEnvelopeForDisplay,
 } from "@/lib/agent/prompt-display";
@@ -141,6 +145,11 @@ export type ChatLine =
 			kind: "user";
 			/** Free-form composer text (may be empty when only visual annotations / images). */
 			text: string;
+			/**
+			 * Composer draft with inline tokens, so the bubble and queue can redraw
+			 * @ / $ / / chips. Session-local: ACP `session/load` does not return it.
+			 */
+			markup?: string;
 			/** Local multimodal visual crops sent with this turn (session-local). */
 			visualAnnotations?: ChatVisualAnnotation[];
 			selections?: SelectionContext[];
@@ -242,7 +251,11 @@ export function buildLocalTranscriptPrompt(
 	let lastUserText: string | null = null;
 	for (const line of lines) {
 		if (line.kind === "user") {
-			const text = line.text.trim();
+			const text = (
+				line.markup && hasTranscriptChips(line.markup)
+					? inlineMarkupToPlain(line.markup)
+					: line.text
+			).trim();
 			const hasVisual = Boolean(line.visualAnnotations?.length);
 			const hasImages = Boolean(line.images?.length);
 			const references = selectionsPromptBlock(line.selections ?? []);

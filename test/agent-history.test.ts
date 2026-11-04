@@ -14,6 +14,7 @@ import {
 	agentSessionStore,
 } from "@/lib/agent/agent-session-store";
 import type { AcpSessionInfo } from "@/lib/agent/api";
+import { encodeMentionToken } from "@/lib/agent/composer-inline-tokens";
 import * as titleCache from "@/lib/agent/history-title-cache";
 import { rememberEmptyAcpSession } from "@/lib/agent/history-title-cache";
 
@@ -77,6 +78,20 @@ describe("sanitizeChatLines", () => {
 		expect(out[0]?.visualAnnotations).toHaveLength(1);
 		expect(out[0]?.visualAnnotations?.[0]?.id).toBe("v1");
 		expect(out[0]?.images).toHaveLength(1);
+	});
+
+	it("keeps a chip-only user turn and its markup", () => {
+		const lines = [
+			{
+				id: "l1",
+				kind: "user" as const,
+				text: "",
+				markup: encodeMentionToken("notes/论文关系图.md"),
+			},
+		];
+		const out = sanitizeChatLines(lines);
+		expect(out).toHaveLength(1);
+		expect(out[0]?.kind === "user" && out[0].markup).toContain("{{m:");
 	});
 
 	it("drops empty user turns that have no text, visuals, or images", () => {

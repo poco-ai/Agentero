@@ -36,6 +36,10 @@ import {
 	providerSessionIdForHistoryLoad,
 } from "@/lib/agent/chat-state";
 import {
+	hasTranscriptChips,
+	inlineMarkupToPlain,
+} from "@/lib/agent/composer-inline-tokens";
+import {
 	applyCachedHistoryTitles,
 	forgetEmptyAcpSession,
 	getCachedHistoryTitle,
@@ -61,7 +65,8 @@ export const sanitizeChatLines = (raw: ChatLine[]): ChatLine[] =>
 			const text = stripPromptEnvelopeForDisplay(line.text);
 			const hasVisual = Boolean(line.visualAnnotations?.length);
 			const hasImages = Boolean(line.images?.length);
-			if (!text && !hasVisual && !hasImages) return null;
+			const hasChips = Boolean(line.markup && hasTranscriptChips(line.markup));
+			if (!text && !hasVisual && !hasImages && !hasChips) return null;
 			return {
 				...line,
 				text: text || "",
@@ -87,8 +92,12 @@ export function titleFromSessionLines(
 	lines: AgentSessionRecord["lines"],
 ): string {
 	const firstUser = lines.find((line) => line.kind === "user");
-	if (!firstUser) return "";
-	return displayHistoryTitle(firstUser.text, "");
+	if (firstUser?.kind !== "user") return "";
+	const source =
+		firstUser.markup && hasTranscriptChips(firstUser.markup)
+			? inlineMarkupToPlain(firstUser.markup)
+			: firstUser.text;
+	return displayHistoryTitle(source, "");
 }
 
 /**

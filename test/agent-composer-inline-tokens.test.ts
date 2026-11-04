@@ -11,6 +11,8 @@ import {
 	extractSelectionTokens,
 	extractSkillIds,
 	extractVisualIds,
+	hasTranscriptChips,
+	inlineMarkupToPlain,
 	insertTokensAt,
 	parseInlineTokenParts,
 	plainTriggerSuffix,
@@ -18,7 +20,9 @@ import {
 	removeVisualToken,
 	replaceSelectionToken,
 	replaceTrailingTriggerWithToken,
+	retainTranscriptChips,
 	stripInlineTokens,
+	transcriptMarkup,
 } from "@/lib/agent/composer-inline-tokens";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 
@@ -30,6 +34,25 @@ describe("composer inline tokens", () => {
 		expect(extractMentionPaths(text)).toEqual([path]);
 		expect(extractSkillIds(text)).toEqual([skill]);
 		expect(stripInlineTokens(text)).toBe("see and please");
+	});
+
+	it("keeps mention chips readable after send", () => {
+		const path = "notes/论文关系图.md";
+		const text = `帮我梳理一下 ${encodeMentionToken(path)}`;
+		expect(hasTranscriptChips(text)).toBe(true);
+		expect(transcriptMarkup(text)).toBe(text);
+		expect(transcriptMarkup("只要文字")).toBeUndefined();
+		expect(inlineMarkupToPlain(text)).toBe("帮我梳理一下 @论文关系图.md");
+		expect(stripInlineTokens(text)).toBe("帮我梳理一下");
+	});
+
+	it("keeps chip positions when an edit does not change the sentence", () => {
+		const path = "notes/a.md";
+		const text = `see ${encodeMentionToken(path)} please`;
+		expect(retainTranscriptChips("see please", text)).toBe(text);
+		expect(retainTranscriptChips("see this please", text)).toBe(
+			`see this please ${encodeMentionToken(path)}`,
+		);
 	});
 
 	it("expands command markers to /name on send", () => {

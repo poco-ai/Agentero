@@ -8,6 +8,7 @@ import type { AgentPanelRefs } from "@/components/agent/hooks/use-agent-panel-co
 import type { SendOptions } from "@/components/agent/hooks/use-agent-send";
 import { useImeGuard } from "@/hooks/use-ime-guard";
 import type { ChatLine } from "@/lib/agent/chat-state";
+import { retainTranscriptChips } from "@/lib/agent/composer-inline-tokens";
 
 export type UseAgentMessageEditOptions = {
 	refs: Pick<
@@ -132,7 +133,11 @@ export function useAgentMessageEdit({
 		];
 		setEditingLineId(null);
 		setEditingText("");
-		await send(text, {
+		const payload =
+			original?.kind === "user"
+				? retainTranscriptChips(text, original.markup)
+				: text;
+		await send(payload, {
 			baseLines,
 			selections: original?.kind === "user" ? (original.selections ?? []) : [],
 			...(mergedImages.length ? { images: mergedImages } : {}),

@@ -63,6 +63,7 @@ import {
 	transcriptLineKey,
 	useTranscriptVirtualizer,
 } from "@/components/agent/hooks/use-transcript-virtualizer";
+import { InlineChipText } from "@/components/agent/inline-chip-text";
 import {
 	Message,
 	MessageAction,
@@ -104,7 +105,11 @@ import {
 	type ToolAskUserRecord,
 	toolPartState,
 } from "@/lib/agent/chat-state";
-import { stripInlineTokens } from "@/lib/agent/composer-inline-tokens";
+import {
+	hasTranscriptChips,
+	inlineMarkupToPlain,
+	stripInlineTokens,
+} from "@/lib/agent/composer-inline-tokens";
 import { stripPromptEnvelopeForDisplay } from "@/lib/agent/prompt-display";
 import { selectionNavigationStore } from "@/lib/agent/selection-navigation-state";
 import { selectionsPromptBlock } from "@/lib/agent/selection-prompt";
@@ -470,10 +475,21 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 	if (line.kind === "user") {
 		const visuals = line.visualAnnotations ?? [];
 		const attachedImages = line.images ?? [];
+		const chipMarkup =
+			line.markup && hasTranscriptChips(line.markup) ? line.markup : undefined;
 		if (isEditing) {
 			return (
 				<Message from="user">
 					{/* Chips sit above the bubble, matching composer context chips. */}
+					{chipMarkup ? (
+						<div className="ml-auto flex w-fit max-w-full flex-wrap justify-end">
+							<InlineChipText
+								markup={chipMarkup}
+								onOpenPath={onOpenSource}
+								chipsOnly
+							/>
+						</div>
+					) : null}
 					{visuals.length > 0 ? (
 						<ChatVisualAnnotations annotations={visuals} />
 					) : null}
@@ -531,6 +547,7 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 		// Never render Codex env / Host system envelopes as user bubbles.
 		if (
 			!userDisplay &&
+			!chipMarkup &&
 			visuals.length === 0 &&
 			attachedImages.length === 0 &&
 			!line.selections?.length
@@ -538,10 +555,11 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 			return null;
 		// PERF: copy payload joins the full selection quote block — build it
 		// lazily in the copy handler instead of on every row render.
+		const copyText = chipMarkup ? inlineMarkupToPlain(chipMarkup) : userDisplay;
 		const buildCopyPayload = () =>
 			[
 				formatUserLineForCopy({
-					text: userDisplay,
+					text: copyText,
 					visualAnnotations: visuals,
 					images: attachedImages,
 				}),
@@ -566,16 +584,20 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 						<ChatAttachedImages images={attachedImages} />
 					) : null}
 					{/* Free-text only: skip empty bubble when the turn is image/visual-only. */}
-					{userDisplay ? (
+					{chipMarkup || userDisplay ? (
 						<MessageContent
 							className="rounded-2xl px-4 py-2.5"
 							data-selection-chat-source={`Chat ${activeTabId}`}
 							data-selection-chat-origin="chat"
 							data-selection-chat-message={line.id}
 						>
-							<MessageResponse className="text-base leading-relaxed">
-								{userDisplay}
-							</MessageResponse>
+							{chipMarkup ? (
+								<InlineChipText markup={chipMarkup} onOpenPath={onOpenSource} />
+							) : (
+								<MessageResponse className="text-base leading-relaxed">
+									{userDisplay}
+								</MessageResponse>
+							)}
 						</MessageContent>
 					) : null}
 					{/* Hovers beside the bubble's bottom-left, outside the box. */}

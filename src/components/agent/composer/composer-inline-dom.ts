@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 import {
+	displaySkillName,
 	encodeCommandToken,
 	encodeMentionToken,
 	encodeSelectionToken,
@@ -106,10 +107,7 @@ function appendPrefixLabel(
 
 /** Strip trigger / "skill :" chrome — chip shows the bare skill name. */
 export function cleanSkillDisplayName(name: string): string {
-	return name
-		.trim()
-		.replace(/^[/$]+/, "")
-		.replace(/^skill\s*:\s*/i, "");
+	return displaySkillName(name);
 }
 
 function appendLucideIcon(

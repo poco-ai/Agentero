@@ -13,7 +13,11 @@ import {
 } from "@/lib/agent/annotation-prompt";
 import type { PromptImage } from "@/lib/agent/api";
 import type { ChatVisualAnnotation } from "@/lib/agent/chat-state";
-import { stripInlineTokens } from "@/lib/agent/composer-inline-tokens";
+import {
+	hasTranscriptChips,
+	inlineMarkupToPlain,
+	stripInlineTokens,
+} from "@/lib/agent/composer-inline-tokens";
 import {
 	plazaMentionPromptBlock,
 	splitContextPaths,
@@ -187,6 +191,7 @@ export function assembleTurnPrompt({
 
 	const historyTitle =
 		displayText ||
+		(hasTranscriptChips(text) ? inlineMarkupToPlain(text) : "") ||
 		orderedVisualDrafts.find((d) => d.comment.trim())?.comment.trim() ||
 		(hasVisualDrafts
 			? t("composer.visualAnnotationsTitle", {

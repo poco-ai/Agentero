@@ -63,9 +63,12 @@ import {
 	upsertChatSessionTurn,
 } from "@/lib/agent/chat-state";
 import {
+	extractMentionPaths,
 	extractSelectionTokens,
+	extractSkillIds,
 	extractVisualIds,
 	stripInlineTokens,
+	transcriptMarkup,
 } from "@/lib/agent/composer-inline-tokens";
 import type { AgentComposerState } from "@/lib/agent/composer-state";
 import { sidebarContextRequest } from "@/lib/agent/context-request";
@@ -625,8 +628,9 @@ export function useAgentSend({
 		textRaw: string,
 		options?: SendOptions,
 	): Promise<boolean> => {
-		// Inline @/$ markers stay in the draft; the user bubble / ACP body is plain.
+		// ACP body is plain text. `markup` keeps the chips for the user bubble.
 		const text = stripInlineTokens(textRaw).trim();
+		const markup = transcriptMarkup(textRaw);
 		const draftSessionKey = activeVisualDraftSessionKey();
 		const annotationRefs = planAnnotationRefs(textRaw);
 		const resolvedVisualDrafts =
@@ -664,14 +668,26 @@ export function useAgentSend({
 					...snap,
 					text: textRaw,
 				};
-		const resolvedContextPaths = options?.contextPaths ?? contextPaths;
+		// Chips live in the draft. Union them with the composer snapshot so an
+		// edit-resend still hands the file / skill to the agent after the
+		// composer has been cleared.
+		const resolvedContextPaths = [
+			...new Set([
+				...(options?.contextPaths ?? contextPaths),
+				...extractMentionPaths(textRaw),
+			]),
+		];
 		const inlineSelections = extractSelectionTokens(textRaw);
 		const storeSelections = currentSelections();
 		const resolvedSelections =
 			options?.selections ??
 			(inlineSelections.length > 0 ? inlineSelections : storeSelections);
-		const resolvedSkillIds =
-			options?.skillIds ?? submittedComposerState.selectedSkillIds;
+		const resolvedSkillIds = [
+			...new Set([
+				...(options?.skillIds ?? submittedComposerState.selectedSkillIds),
+				...extractSkillIds(textRaw),
+			]),
+		];
 		const submissionGeneration = ++submissionGenRef.current;
 		const sessionContextGeneration = sessionContextGenRef.current;
 		const requestVaultPath = vaultPath;
@@ -744,6 +760,7 @@ export function useAgentSend({
 				id: nextLineId("user"),
 				kind: "user",
 				text,
+				...(markup ? { markup } : {}),
 				...(visualAnnotations?.length ? { visualAnnotations } : {}),
 				...(resolvedSelections.length
 					? {

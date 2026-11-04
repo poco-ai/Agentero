@@ -29,6 +29,7 @@ import {
 	upsertChatSessionTurn,
 	upsertPlanPart,
 } from "@/lib/agent/chat-state";
+import { encodeMentionToken } from "@/lib/agent/composer-inline-tokens";
 import { resetAgentChatIds } from "@/lib/pdf-visual/ids";
 
 beforeEach(() => {
@@ -1117,6 +1118,20 @@ describe("buildLocalTranscriptPrompt", () => {
 
 	it("returns empty when there is no prior dialogue", () => {
 		expect(buildLocalTranscriptPrompt([])).toBe("");
+	});
+
+	it("replays a mention chip as a readable label", () => {
+		const lines: ChatLine[] = [
+			{
+				id: "u1",
+				kind: "user",
+				text: "梳理一下",
+				markup: `梳理一下 ${encodeMentionToken("notes/论文关系图.md")}`,
+			},
+		];
+		expect(buildLocalTranscriptPrompt(lines)).toContain(
+			"User: 梳理一下 @论文关系图.md",
+		);
 	});
 });
 

@@ -3,10 +3,13 @@ import { normalizeQuoteContext } from "./selection-context";
  * Inline @mention / $skill / /command / selection tokens embedded in composer
  * draft text. Contenteditable renders markers as chips; send path strips
  * mention/skill/selection markers and expands command markers to `/name` for
- * ACP.
+ * ACP. The raw draft is kept on the user line so the transcript can redraw
+ * @ / $ / / chips after send.
  */
 
+import { plazaMentionTitle } from "@/lib/agent/plaza-mention";
 import type { SelectionContext } from "@/lib/agent/selection-store";
+import { basenameOf } from "@/lib/core/path";
 
 const MENTION_RE = /\{\{m:([^}]+)\}\}/g;
 const SKILL_RE = /\{\{s:([^}]+)\}\}/g;
@@ -345,6 +348,96 @@ export function stripInlineTokens(text: string): string {
 		.replace(/\n[ \t]+/g, "\n")
 		.replace(/[ \t]{2,}/g, " ")
 		.trim();
+}
+
+/** @ / $ / / chips that should survive in the sent bubble and the queue. */
+const TRANSCRIPT_CHIP_RE = /\{\{(?:m|s|c):[^}]+\}\}/;
+
+export function hasTranscriptChips(text: string): boolean {
+	return TRANSCRIPT_CHIP_RE.test(text);
+}
+
+/**
+ * Composer draft to store on the user line. Undefined when the draft has no
+ * mention / skill / command chip, so plain turns stay a single string.
+ */
+export function transcriptMarkup(textRaw: string): string | undefined {
+	return hasTranscriptChips(textRaw) ? textRaw : undefined;
+}
+
+/** Strip trigger / "skill :" chrome — chip shows the bare skill name. */
+export function displaySkillName(name: string): string {
+	return name
+		.trim()
+		.replace(/^[/$]+/, "")
+		.replace(/^skill\s*:\s*/i, "");
+}
+
+/** Visible label for an @ chip: plaza title, otherwise the path basename. */
+export function mentionChipLabel(path: string): string {
+	return plazaMentionTitle(path) || basenameOf(path) || path;
+}
+
+function chipTokenSource(part: InlineTokenPart): string {
+	switch (part.type) {
+		case "mention":
+			return encodeMentionToken(part.path);
+		case "skill":
+			return encodeSkillToken(part.skillId);
+		case "command":
+			return encodeCommandToken(part.name);
+		case "selection":
+			return encodeSelectionToken(part.selection);
+		case "visual":
+			return encodeVisualToken(part.id);
+		default:
+			return "";
+	}
+}
+
+function chipPlainLabel(part: InlineTokenPart): string {
+	if (part.type === "mention") return `@${mentionChipLabel(part.path)}`;
+	if (part.type === "skill") return displaySkillName(part.skillId);
+	if (part.type === "command") {
+		const name = displaySkillName(part.name);
+		return name ? `/${name}` : "";
+	}
+	return "";
+}
+
+/**
+ * Draft → copy / history / replay text. Mention, skill, and command chips
+ * become readable labels; selection and visual markers stay out (they travel
+ * on their own fields).
+ */
+export function inlineMarkupToPlain(markup: string): string {
+	return parseInlineTokenParts(markup)
+		.map((part) => (part.type === "text" ? part.value : chipPlainLabel(part)))
+		.join("")
+		.replace(/\u200B/g, "")
+		.replace(/[ \t]+\n/g, "\n")
+		.replace(/\n[ \t]+/g, "\n")
+		.replace(/[ \t]{2,}/g, " ")
+		.trim();
+}
+
+/**
+ * Edit-and-resend. An unchanged sentence keeps chip positions. A changed
+ * sentence keeps the same chips, appended after the new prose.
+ */
+export function retainTranscriptChips(
+	prose: string,
+	markup: string | undefined,
+): string {
+	if (!markup || !hasTranscriptChips(markup)) return prose;
+	if (stripInlineTokens(markup).trim() === prose.trim()) return markup;
+	const tokens = parseInlineTokenParts(markup)
+		.map(chipTokenSource)
+		.filter(Boolean)
+		.join("");
+	if (!tokens) return prose;
+	const needsSpace = prose.length > 0 && !/\s$/.test(prose);
+	return `${prose}${needsSpace ? " " : ""}${tokens}`;
 }
 
 /**
