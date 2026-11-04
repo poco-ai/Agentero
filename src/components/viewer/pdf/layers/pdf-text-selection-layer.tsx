@@ -5,8 +5,45 @@ import {
 	useSelectionCapability,
 	useSelectionPlugin,
 } from "@embedpdf/plugin-selection/react";
-import { memo, useEffect, useMemo, useState } from "react";
+import {
+	memo,
+	useEffect,
+	useMemo,
+	useState,
+	useSyncExternalStore,
+} from "react";
+import {
+	linkPreviewDragActive,
+	subscribeLinkPreviewDrag,
+} from "@/lib/pdf/link-preview-drag";
 import { buildTightSelectionRects } from "@/lib/pdf/selection-appearance";
+
+/**
+ * A translation drag hits the English glyphs underneath as well. Those rects
+ * sit under the Chinese and show through the gaps, so two characters gain a
+ * darker patch once the drag settles into a line. Hide them while the reader
+ * is selecting the translation itself.
+ */
+function translationSelectionCovering(): boolean {
+	if (typeof document === "undefined") return false;
+	if (linkPreviewDragActive()) return true;
+	const selection = document.getSelection();
+	if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+		return false;
+	}
+	const node = selection.getRangeAt(0).startContainer;
+	const el = node instanceof Element ? node : node.parentElement;
+	return Boolean(el?.closest("[data-layout-item], [data-reflow-selection]"));
+}
+
+function subscribeTranslationCover(onChange: () => void): () => void {
+	const unsubscribe = subscribeLinkPreviewDrag(onChange);
+	document.addEventListener("selectionchange", onChange);
+	return () => {
+		unsubscribe();
+		document.removeEventListener("selectionchange", onChange);
+	};
+}
 
 export type PdfTextSelectionLayerProps = {
 	documentId: string;
@@ -77,9 +114,14 @@ export const PdfTextSelectionLayer = memo(function PdfTextSelectionLayer({
 				: [];
 	}, [draftPages, pageIndex]);
 
+	const coveredByTranslation = useSyncExternalStore(
+		subscribeTranslationCover,
+		translationSelectionCovering,
+		() => false,
+	);
 	const effectiveRects = rects.length > 0 ? rects : draftRects;
 
-	if (effectiveRects.length === 0) return null;
+	if (coveredByTranslation || effectiveRects.length === 0) return null;
 
 	return (
 		<div

@@ -54,6 +54,7 @@ import {
 	type PageFrame,
 	visibleMenuPoint,
 } from "@/lib/pdf/layout/visible-selection-rects";
+import { linkPreviewDragActive } from "@/lib/pdf/link-preview-drag";
 
 type SelectionCapabilityProvides = ReturnType<
 	typeof useSelectionCapability
@@ -291,7 +292,9 @@ export function usePdfTextSelection({
 			// Glyphs under the overlay share the pointer, so a drag on the
 			// translation also ends an English selection. Drop those rects and
 			// leave the DOM range's menu in place.
-			if (selectionInsideTranslation()) {
+			// The drag flag covers the moment the DOM range is not ready yet.
+			// Leaving the English rects would paint them under the Chinese.
+			if (selectionInsideTranslation() || linkPreviewDragActive()) {
 				setIsSelecting(false);
 				selectionCap.clear(docId);
 				return;
