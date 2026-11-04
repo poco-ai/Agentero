@@ -165,6 +165,10 @@ import {
 	publishTranslatedLinkSource,
 } from "@/lib/pdf/layout/translated-link-source";
 import { selectionAnchorFromVisible } from "@/lib/pdf/layout/visible-selection-rects";
+import {
+	linkPreviewDragActive,
+	subscribeLinkPreviewDrag,
+} from "@/lib/pdf/link-preview-drag";
 import type { PdfReloadPosition } from "@/lib/pdf/reload-position";
 import {
 	type ActiveSelectionCard,
@@ -1388,10 +1392,21 @@ function PdfViewerInner({
 
 	// Drag-select and pin cards suppress ephemeral link previews so the pointer
 	// cannot stack cards while sweeping across citation / crossref hit targets
-	// (#430). Keep previews suppressed while the selection action menu remains
-	// open so reference cards cannot stack on top of the selection controls.
+	// (#430). Translation drags are DOM selections, so EmbedPDF never sets
+	// `isSelecting`; handlers also read `linkPreviewDragActive`, which flips
+	// synchronously and must not be copied into this render snapshot. Keep
+	// previews suppressed while the selection action menu remains open so
+	// reference cards cannot stack on top of the selection controls.
 	const suppressLinkPreviews =
 		Boolean(activeCard) || Boolean(selectionMenu) || isSelecting;
+
+	useEffect(() => {
+		return subscribeLinkPreviewDrag(() => {
+			clearCitationPreview();
+			clearCrossrefPreview();
+			clearLinkUrlTip();
+		});
+	}, [clearCitationPreview, clearCrossrefPreview, clearLinkUrlTip]);
 
 	useEffect(() => {
 		if (!suppressLinkPreviews) return;
@@ -1407,7 +1422,7 @@ function PdfViewerInner({
 
 	const handleLinkHover = useCallback(
 		(link: PdfLinkAnnoObject | null, clientPoint?: ScreenPoint | null) => {
-			if (suppressLinkPreviews) {
+			if (suppressLinkPreviews || linkPreviewDragActive()) {
 				clearCitationPreview();
 				clearCrossrefPreview();
 				clearLinkUrlTip();
@@ -1428,7 +1443,7 @@ function PdfViewerInner({
 
 	const handleLinkUrlHover = useCallback(
 		(url: string | null, clientPoint?: ScreenPoint | null) => {
-			if (suppressLinkPreviews) {
+			if (suppressLinkPreviews || linkPreviewDragActive()) {
 				clearLinkUrlTip();
 				return;
 			}

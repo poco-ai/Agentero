@@ -22,6 +22,10 @@ import {
 import { memo } from "react";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import { normalizeArxivId } from "@/lib/paper/arxiv";
+import {
+	linkHoverSuppressed,
+	linkPreviewDragActive,
+} from "@/lib/pdf/link-preview-drag";
 import { linkTargetUrl } from "@/lib/pdf/link-target";
 
 export { linkTargetUrl };
@@ -175,10 +179,10 @@ export const CitationLinkLayer = memo(function CitationLinkLayer({
 					}}
 					// Match floating preview cards (pointerenter/leave) so hide
 					// timers do not race mouse-only leave on trackpads.
-					// Skip while a primary button is held so drag-select across
-					// citations does not flash hover cards mid-gesture.
+					// Skip while a primary button is held, and while a translation
+					// DOM drag is in progress (`pointerenter.buttons` stays 0 then).
 					onPointerEnter={(e) => {
-						if ((e.buttons & 1) === 1) return;
+						if (linkHoverSuppressed(e.buttons)) return;
 						const box = e.currentTarget.getBoundingClientRect();
 						const point = {
 							x: box.left + box.width / 2,
@@ -191,6 +195,7 @@ export const CitationLinkLayer = memo(function CitationLinkLayer({
 						onUrlHover?.(url, url ? point : null);
 					}}
 					onPointerLeave={() => {
+						if (linkPreviewDragActive()) return;
 						onHover(null);
 						onUrlHover?.(null);
 					}}
@@ -215,7 +220,7 @@ export const CitationLinkLayer = memo(function CitationLinkLayer({
 						onTextActivate(link.url);
 					}}
 					onPointerEnter={(e) => {
-						if ((e.buttons & 1) === 1) return;
+						if (linkHoverSuppressed(e.buttons)) return;
 						const box = e.currentTarget.getBoundingClientRect();
 						onUrlHover?.(link.url, {
 							x: box.left + box.width / 2,
@@ -224,7 +229,10 @@ export const CitationLinkLayer = memo(function CitationLinkLayer({
 							bottom: box.bottom,
 						});
 					}}
-					onPointerLeave={() => onUrlHover?.(null)}
+					onPointerLeave={() => {
+						if (linkPreviewDragActive()) return;
+						onUrlHover?.(null);
+					}}
 				/>
 			))}
 		</>

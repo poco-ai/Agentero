@@ -37,6 +37,11 @@ import {
 } from "@/lib/pdf/layout/translated-links";
 import type { PdfLayoutRegion } from "@/lib/pdf/layout/types";
 import {
+	beginLinkPreviewDrag,
+	linkHoverSuppressed,
+	linkPreviewDragActive,
+} from "@/lib/pdf/link-preview-drag";
+import {
 	PDF_PAGE_RASTER_DARK_CLASS,
 	PDF_PAPER_BLOCK_CLASS,
 	type PdfPaperTone,
@@ -516,10 +521,12 @@ function linkPoint(element: HTMLElement) {
 }
 
 /**
- * Render `text`, wrapping preserved link tokens. A drag that produced a
- * selection does not navigate. Each token uses the original glyph fill
- * (`assignment.color`), adjusted for the paper tone. The source page marks
- * these links by ink color, so the token does not add an underline.
+ * Render `text`, wrapping preserved link tokens. Anchors stay non-draggable:
+ * the browser default drag on `<a href>` replaces the text range when a drag
+ * starts on or crosses a citation. A drag that produced a selection does not
+ * navigate. Each token uses the original glyph fill (`assignment.color`),
+ * adjusted for the paper tone. The source page marks these links by ink
+ * color, so the token does not add an underline.
  */
 function LinkifiedText({
 	text,
@@ -568,8 +575,11 @@ function LinkifiedText({
 			<a
 				key={part.key}
 				href={part.assignment.url ?? "#"}
+				draggable={false}
 				data-translated-link={part.assignment.key ?? part.assignment.url ?? ""}
+				className="select-text"
 				style={linkInkStyle(part.assignment.color, tone)}
+				onDragStart={(event) => event.preventDefault()}
 				onClick={(event) => {
 					event.preventDefault();
 					event.stopPropagation();
@@ -577,10 +587,13 @@ function LinkifiedText({
 					onOpenLink?.(part.assignment);
 				}}
 				onPointerEnter={(event) => {
-					if ((event.buttons & 1) === 1) return;
+					if (linkHoverSuppressed(event.buttons)) return;
 					onHoverLink?.(part.assignment, linkPoint(event.currentTarget));
 				}}
-				onPointerLeave={() => onHoverLink?.(null, null)}
+				onPointerLeave={() => {
+					if (linkPreviewDragActive()) return;
+					onHoverLink?.(null, null);
+				}}
 			>
 				{part.assignment.text}
 			</a>
@@ -658,6 +671,10 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 			)}
 			data-layout-item={itemId}
 			data-paper={paperDark ? "dark" : undefined}
+			onPointerDownCapture={(event) => {
+				if (event.button !== 0) return;
+				beginLinkPreviewDrag();
+			}}
 			style={{
 				fontSize: cachedDomFit?.fontSize ?? initialFontSize,
 				fontWeight: sourceStyle ? (sourceStyle.bold ? 700 : 400) : undefined,

@@ -533,12 +533,12 @@
  * browser's link blue. No underline: colorlinks PDFs already mark the link
  * by ink color, and a zero-width border paints nothing on the source page.
  */
-.pdf-translate-selection a[data-translated-link],
-.pdf-translate-selection a[data-translated-link]:visited,
-.pdf-translate-selection a[data-translated-link]:hover {
+.pdf-translate-selection [data-translated-link] {
 	color: inherit;
 	cursor: pointer;
 	text-decoration: none;
+	-webkit-user-select: text;
+	user-select: text;
 }
 
 /*

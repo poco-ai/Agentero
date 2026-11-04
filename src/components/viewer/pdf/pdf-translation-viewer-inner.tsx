@@ -60,6 +60,10 @@ import {
 	getTranslatedLinkSource,
 	subscribeTranslatedLinkSource,
 } from "@/lib/pdf/layout/translated-link-source";
+import {
+	linkPreviewDragActive,
+	subscribeLinkPreviewDrag,
+} from "@/lib/pdf/link-preview-drag";
 
 const EMPTY_PAGE_MAP = new Map();
 
@@ -376,19 +380,43 @@ export function PdfTranslationViewerInner({
 	clearCrossrefPreviewRef.current = clearCrossrefPreview;
 	clearLinkUrlTipRef.current = clearLinkUrlTip;
 
+	useEffect(() => {
+		return subscribeLinkPreviewDrag(() => {
+			clearCitationPreviewRef.current();
+			clearCrossrefPreviewRef.current();
+			clearLinkUrlTipRef.current();
+		});
+	}, []);
+
 	const handleLinkHover = useCallback(
 		(link: PdfLinkAnnoObject | null, point?: ScreenPoint | null) => {
+			if (linkPreviewDragActive()) {
+				clearCitationPreview();
+				clearCrossrefPreview();
+				clearLinkUrlTip();
+				return;
+			}
 			handleCitationLinkHover(link, point);
 			handleCrossrefLinkHover(link, point);
 		},
-		[handleCitationLinkHover, handleCrossrefLinkHover],
+		[
+			clearCitationPreview,
+			clearCrossrefPreview,
+			clearLinkUrlTip,
+			handleCitationLinkHover,
+			handleCrossrefLinkHover,
+		],
 	);
 
 	const handleLinkUrlHover = useCallback(
 		(url: string | null, point?: ScreenPoint | null) => {
+			if (linkPreviewDragActive()) {
+				clearLinkUrlTip();
+				return;
+			}
 			hoverLinkUrl(url, point);
 		},
-		[hoverLinkUrl],
+		[clearLinkUrlTip, hoverLinkUrl],
 	);
 
 	const handleCitationImportOpenChange = useCallback(

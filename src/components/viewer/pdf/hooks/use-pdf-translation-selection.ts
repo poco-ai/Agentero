@@ -36,6 +36,7 @@ import {
 	visibleMenuPoint,
 	visiblePagesFromClientRects,
 } from "@/lib/pdf/layout/visible-selection-rects";
+import { holdLinkPreviewDrag } from "@/lib/pdf/link-preview-drag";
 import { loadSettings } from "@/lib/settings/store";
 import { langsFromSettings } from "@/lib/translate/lang";
 
@@ -197,6 +198,8 @@ export function usePdfTranslationSelection({
 	langRef.current = i18n.language;
 	const genRef = useRef(0);
 	const pointerDownRef = useRef(false);
+	const inflightRef = useRef(0);
+	const releaseDragRef = useRef<(() => void) | null>(null);
 
 	useEffect(() => {
 		if (enabled || !menuRef.current?.fromTranslation) return;
@@ -207,6 +210,17 @@ export function usePdfTranslationSelection({
 		if (!enabled) return;
 		const host = hostRef.current;
 		if (!host) return;
+
+		// Drop the hold once the locate has settled and React has painted the
+		// selection menu, which suppresses previews on its own. A locate that
+		// finishes mid-drag must not release early.
+		const scheduleReleaseDrag = () => {
+			requestAnimationFrame(() => {
+				if (pointerDownRef.current || inflightRef.current > 0) return;
+				releaseDragRef.current?.();
+				releaseDragRef.current = null;
+			});
+		};
 
 		const commit = () => {
 			const root = hostRef.current;
@@ -239,81 +253,101 @@ export function usePdfTranslationSelection({
 			);
 			if (!resolved) return;
 			void (async () => {
-				const pages = await locatePages(
-					engineRef.current,
-					docCapRef.current,
-					docId,
-					resolved,
-					alive,
-				);
-				if (!pages?.length || !alive()) return;
-				const live = hostRange(root);
-				if (
-					!live ||
-					live.toString() !== selectedText ||
-					translationHitsFromRange(live, root).length === 0 ||
-					!alive()
-				) {
-					return;
-				}
-				const doc = docCapRef.current?.getDocument(docId);
-				const anchorPage = pages[pages.length - 1];
-				if (!anchorPage) return;
-				const anchor = anchorFromEmbedSelection(
-					pages,
-					resolved.quote,
-					(pageIndex) => doc?.pages[pageIndex]?.size ?? null,
-					"selection",
-					anchorPage.pageIndex,
-				);
-				const frames = pageFrames(root);
-				const visiblePages = visiblePagesFromClientRects(
-					Array.from(live.getClientRects()),
-					frames,
-				);
-				const pageEl = pageElByIndex(root, anchorPage.pageIndex);
-				const screen =
-					visibleMenuPoint(
-						visiblePages,
+				inflightRef.current += 1;
+				try {
+					const pages = await locatePages(
+						engineRef.current,
+						docCapRef.current,
+						docId,
+						resolved,
+						alive,
+					);
+					if (!pages?.length || !alive()) return;
+					const live = hostRange(root);
+					if (
+						!live ||
+						live.toString() !== selectedText ||
+						translationHitsFromRange(live, root).length === 0 ||
+						!alive()
+					) {
+						return;
+					}
+					const doc = docCapRef.current?.getDocument(docId);
+					const anchorPage = pages[pages.length - 1];
+					if (!anchorPage) return;
+					const anchor = anchorFromEmbedSelection(
+						pages,
+						resolved.quote,
+						(pageIndex) => doc?.pages[pageIndex]?.size ?? null,
+						"selection",
 						anchorPage.pageIndex,
-						(pageIndex) =>
-							frames.find((frame) => frame.pageIndex === pageIndex) ?? null,
-					) ??
-					(pageEl
-						? rectTopCenterScreen(pageEl, anchorPage.rect, zoomRef.current)
-						: null);
-				if (!anchor || !screen || !alive()) return;
-				setSelectionMenu({
-					screen,
-					anchor,
-					pages,
-					copyText: resolved.copyText,
-					fromTranslation: true,
-					pairedTranslation: resolved.paired || undefined,
-					visiblePages: visiblePages.length ? visiblePages : undefined,
-				});
-				publishSelection({
-					text: resolved.quote,
-					sourcePath: paperRelPath ?? paperAbsPath ?? "PDF",
-					origin: "pdf",
-					page: anchor.page,
-					rects: anchor.rects,
-					paperAbsPath: paperAbsPath ?? undefined,
-					context: resolved.paired
-						? { status: "unavailable", translation: resolved.paired }
-						: undefined,
-				});
+					);
+					const frames = pageFrames(root);
+					const visiblePages = visiblePagesFromClientRects(
+						Array.from(live.getClientRects()),
+						frames,
+					);
+					const pageEl = pageElByIndex(root, anchorPage.pageIndex);
+					const screen =
+						visibleMenuPoint(
+							visiblePages,
+							anchorPage.pageIndex,
+							(pageIndex) =>
+								frames.find((frame) => frame.pageIndex === pageIndex) ?? null,
+						) ??
+						(pageEl
+							? rectTopCenterScreen(pageEl, anchorPage.rect, zoomRef.current)
+							: null);
+					if (!anchor || !screen || !alive()) return;
+					setSelectionMenu({
+						screen,
+						anchor,
+						pages,
+						copyText: resolved.copyText,
+						fromTranslation: true,
+						pairedTranslation: resolved.paired || undefined,
+						visiblePages: visiblePages.length ? visiblePages : undefined,
+					});
+					publishSelection({
+						text: resolved.quote,
+						sourcePath: paperRelPath ?? paperAbsPath ?? "PDF",
+						origin: "pdf",
+						page: anchor.page,
+						rects: anchor.rects,
+						paperAbsPath: paperAbsPath ?? undefined,
+						context: resolved.paired
+							? { status: "unavailable", translation: resolved.paired }
+							: undefined,
+					});
+				} finally {
+					inflightRef.current = Math.max(0, inflightRef.current - 1);
+					if (!pointerDownRef.current) scheduleReleaseDrag();
+				}
 			})();
 		};
 
-		const onPointerDown = () => {
+		const onPointerDown = (event: PointerEvent) => {
 			pointerDownRef.current = true;
+			if (event.button !== 0) return;
+			const target = event.target;
+			const el =
+				target instanceof Element
+					? target
+					: target instanceof Node
+						? target.parentElement
+						: null;
+			if (!el || !host.contains(el) || !el.closest("[data-layout-item]"))
+				return;
+			if (!releaseDragRef.current) {
+				releaseDragRef.current = holdLinkPreviewDrag();
+			}
 		};
 		// The page ends a text drag on bubble pointerup. Stopping that event
 		// here leaves the drag active, so later moves keep extending it.
 		const onPointerUp = () => {
 			pointerDownRef.current = false;
 			commit();
+			scheduleReleaseDrag();
 		};
 		const onSelectionChange = () => {
 			if (pointerDownRef.current) return;
@@ -322,11 +356,15 @@ export function usePdfTranslationSelection({
 
 		host.addEventListener("pointerdown", onPointerDown);
 		host.addEventListener("pointerup", onPointerUp, true);
+		host.addEventListener("pointercancel", onPointerUp, true);
 		document.addEventListener("selectionchange", onSelectionChange);
 		return () => {
 			genRef.current += 1;
+			releaseDragRef.current?.();
+			releaseDragRef.current = null;
 			host.removeEventListener("pointerdown", onPointerDown);
 			host.removeEventListener("pointerup", onPointerUp, true);
+			host.removeEventListener("pointercancel", onPointerUp, true);
 			document.removeEventListener("selectionchange", onSelectionChange);
 		};
 	}, [

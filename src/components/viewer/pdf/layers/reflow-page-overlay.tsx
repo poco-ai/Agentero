@@ -10,6 +10,11 @@ import {
 } from "@/lib/pdf/layout/translated-links";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 import {
+	beginLinkPreviewDrag,
+	linkHoverSuppressed,
+	linkPreviewDragActive,
+} from "@/lib/pdf/link-preview-drag";
+import {
 	PDF_PAGE_RASTER_DARK_CLASS,
 	PDF_PAPER_TINT,
 	type PdfPaperTone,
@@ -94,6 +99,10 @@ export function ReflowPageOverlay({
 						// the text transparent instead of drawing a second copy.
 						data-reflow-selection="true"
 						className="pdf-translate-selection pointer-events-auto absolute select-text"
+						onPointerDownCapture={(event) => {
+							if (event.button !== 0) return;
+							beginLinkPreviewDrag();
+						}}
 						style={{
 							left: layout.box.x * sx,
 							top: layout.box.y * sy,
@@ -133,8 +142,11 @@ export function ReflowPageOverlay({
 										key={key}
 										style={style}
 										href={assignment.url ?? "#"}
+										draggable={false}
 										aria-label={assignment.text}
 										tabIndex={start === assignment.start ? 0 : -1}
+										className="select-text"
+										onDragStart={(event) => event.preventDefault()}
 										onClick={(event) => {
 											event.preventDefault();
 											event.stopPropagation();
@@ -142,6 +154,7 @@ export function ReflowPageOverlay({
 												onOpenLink?.(assignment);
 										}}
 										onPointerEnter={(event) => {
+											if (linkHoverSuppressed(event.buttons)) return;
 											const b = event.currentTarget.getBoundingClientRect();
 											onHoverLink?.(assignment, {
 												x: b.left + b.width / 2,
@@ -150,7 +163,10 @@ export function ReflowPageOverlay({
 												bottom: b.bottom,
 											});
 										}}
-										onPointerLeave={() => onHoverLink?.(null, null)}
+										onPointerLeave={() => {
+											if (linkPreviewDragActive()) return;
+											onHoverLink?.(null, null);
+										}}
 									>
 										{u.text}
 									</a>
