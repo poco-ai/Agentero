@@ -855,6 +855,23 @@
 			"confirmTitle": "Apply link repairs?",
 			"confirmDescription": "Doctor will rewrite {{count}} link target(s) as one transaction. Only the selected byte ranges change.",
 			"success": "Updated links in {{count}} file(s)."
+		},
+		"backfill": {
+			"title": "Paper backfill",
+			"downloadCount": "Download source: {{count}} (network)",
+			"parseCount": "Parse PDF body: {{count}} (write PAPER.md)",
+			"repairCount": "State repaired: {{count}} (local)",
+			"hint": "Check missing paper sources and bodies. Downloads and PDF parsing start only after confirmation.",
+			"selection": "Selected {{selected}} / {{total}}",
+			"selectAll": "Select all",
+			"later": "Later",
+			"start": "Start backfill",
+			"check": "Check",
+			"queued": "Backfill queued: {{count}}",
+			"reasons": {
+				"downloadSource": "Download source · network",
+				"parseBody": "Parse body"
+			}
 		}
 	},
 	"keyboard": {

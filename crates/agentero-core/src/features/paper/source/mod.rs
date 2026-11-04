@@ -1,4 +1,5 @@
 //! Validated paper source and acquisition state, shared by import, parse and context.
+pub mod backfill;
 pub mod tex;
 
 use crate::{error::AppError, features::paper::catalog::papers};
@@ -152,16 +153,39 @@ fn download_allowed_in(
         .is_none_or(|(_, config)| config.scope.source)
 }
 
-pub fn needs_preparation(vault: &Path, paper: &papers::PaperRecord) -> bool {
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum PreparationReason {
+    DownloadSource,
+    ParseBody,
+    RepairState,
+}
+
+/// Classify the existing preparation predicate without downloading or parsing.
+/// Source acquisition takes precedence: it may avoid PDF parsing altogether.
+pub fn preparation_reason(vault: &Path, paper: &papers::PaperRecord) -> Option<PreparationReason> {
     let dir = vault.join(&paper.path);
     let caps = super::capabilities::probe_paper_caps(&dir);
-    caps.needs_paper_md()
-        || (automatic_download_allowed(vault)
-            && arxiv_request(paper).is_some_and(|id| retry_due(&dir, &id)))
-        || (caps.has_tex && paper.body_source.as_deref() != Some("latex"))
+    if automatic_download_allowed(vault)
+        && arxiv_request(paper).is_some_and(|id| retry_due(&dir, &id))
+    {
+        return Some(PreparationReason::DownloadSource);
+    }
+    if caps.needs_paper_md() {
+        return Some(PreparationReason::ParseBody);
+    }
+    if (caps.has_tex && paper.body_source.as_deref() != Some("latex"))
         || (!caps.has_tex
             && (paper.body_source.as_deref() == Some("latex")
                 || (!caps.has_paper_md && paper.body_source.is_some())))
+    {
+        return Some(PreparationReason::RepairState);
+    }
+    None
+}
+
+pub fn needs_preparation(vault: &Path, paper: &papers::PaperRecord) -> bool {
+    preparation_reason(vault, paper).is_some()
 }
 
 /// One lock covers source publication and body-result publication. Weak entries

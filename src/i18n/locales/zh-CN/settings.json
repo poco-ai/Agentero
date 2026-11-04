@@ -855,6 +855,23 @@
 			"confirmTitle": "应用双链修复？",
 			"confirmDescription": "Doctor 将把 {{count}} 处链接目标作为一个事务写入；只改选中的字节范围。",
 			"success": "已更新 {{count}} 个文件中的链接。"
+		},
+		"backfill": {
+			"title": "论文补齐",
+			"downloadCount": "补源码：{{count}} 篇（联网）",
+			"parseCount": "解析正文：{{count}} 篇（写入 PAPER.md）",
+			"repairCount": "已修复状态：{{count}} 篇（本地）",
+			"hint": "检查缺失的论文源码和正文，确认后才会下载或解析 PDF。",
+			"selection": "已选 {{selected}} / {{total}} 篇",
+			"selectAll": "全选",
+			"later": "稍后",
+			"start": "开始补齐",
+			"check": "检查",
+			"queued": "已加入补齐任务：{{count}} 篇",
+			"reasons": {
+				"downloadSource": "补源码 · 联网",
+				"parseBody": "解析正文"
+			}
 		}
 	},
 	"keyboard": {

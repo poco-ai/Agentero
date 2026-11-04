@@ -23,6 +23,7 @@ import {
 } from "@/lib/doctor/api";
 import { DoctorAgentSection } from "./doctor-agent-section";
 import { DoctorAliasSection } from "./doctor-alias-section";
+import { DoctorBackfillSection } from "./doctor-backfill-section";
 import { DoctorHostRuntimeSection } from "./doctor-host-runtime-section";
 import { DoctorNetworkSection } from "./doctor-network-section";
 import {
@@ -183,6 +184,10 @@ export function DoctorPane({
 					</Tooltip>
 				}
 			/>
+
+			{vaultPath && (
+				<DoctorBackfillSection key={vaultPath} vaultPath={vaultPath} />
+			)}
 
 			<DoctorHostRuntimeSection
 				report={hostReport}

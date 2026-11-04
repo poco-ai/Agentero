@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => {
 		callApiResult: vi.fn(async () => undefined),
 		callResult: vi.fn(async () => undefined),
 		clearLibraryVaultState: vi.fn(),
+		maybeShowPaperBackfill: vi.fn(),
+		dismissPaperBackfill: vi.fn(),
 		clearWikiVaultState: vi.fn(),
 		clearAgentVaultState: vi.fn(),
 		clearAnnotationsVaultState: vi.fn(),
@@ -65,6 +67,10 @@ vi.mock("@/lib/lifecycle/refresh-wave", () => ({
 	noteCommittedPaths: vi.fn(),
 	noteCommittedRename: vi.fn(),
 	registerExternalLibraryReconciler: vi.fn(),
+}));
+vi.mock("@/lib/paper/backfill", () => ({
+	maybeShowPaperBackfill: mocks.maybeShowPaperBackfill,
+	dismissPaperBackfill: mocks.dismissPaperBackfill,
 }));
 vi.mock("@/lib/paper/library-store", () => ({
 	clearLibraryVaultState: mocks.clearLibraryVaultState,
@@ -135,6 +141,7 @@ describe("vault:opened scope", () => {
 		await drain();
 
 		expect(mocks.refreshTree).toHaveBeenCalledWith("/vault-a");
+		expect(mocks.maybeShowPaperBackfill).toHaveBeenCalledWith("/vault-a");
 		expect(mocks.seedVaultSkills).toHaveBeenCalledWith("/vault-a");
 		// The window registers its hold in setup; the Host only releases when
 		// the last holder lets go (see `vault_session::VaultHolders`).
@@ -156,6 +163,7 @@ describe("vault:opened scope", () => {
 		await drain();
 
 		for (const clear of clears) expect(clear).toHaveBeenCalledTimes(1);
+		expect(mocks.dismissPaperBackfill).toHaveBeenCalledWith("/vault-a");
 		expect(mocks.commandSpy("vaultRelease")).toHaveBeenCalledWith("/vault-a");
 		expect(mocks.callApi).toHaveBeenCalledWith(expect.any(Function), {
 			fallback: "vault release failed",
@@ -172,6 +180,7 @@ describe("vault:opened scope", () => {
 		await drain();
 
 		for (const clear of clears) expect(clear).toHaveBeenCalledTimes(1);
+		expect(mocks.maybeShowPaperBackfill).not.toHaveBeenCalled();
 		expect(mocks.commandSpy("vaultHold")).not.toHaveBeenCalled();
 		expect(mocks.commandSpy("vaultRelease")).not.toHaveBeenCalled();
 	});

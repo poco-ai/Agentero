@@ -144,12 +144,10 @@ export const commands = {
 	 *  jobs (empty when nothing needs doing).
 	 */
 	jobReconcilePaper: (args: JobReconcilePaperArgs) => typedError<ApiResult<JobSnapshot[]>, string>(__TAURI_INVOKE("job_reconcile_paper", { args })),
-	/**
-	 *  Vault-wide reconcile (§7.3 T2): backfill `ParseBody` for every catalog paper
-	 *  that has a PDF but no TeX and no `PAPER.md`. Jobs enqueue on the idle lane;
-	 *  the per-kind cap (ParseBody = 1) throttles execution. Returns the count.
-	 */
-	jobReconcileVault: (args: JobReconcileVaultArgs) => typedError<ApiResult<number>, string>(__TAURI_INVOKE("job_reconcile_vault", { args })),
+	/**  Preview vault-wide backfill and inline local catalog repairs. Never enqueues work. */
+	jobBackfillPreview: (args: JobBackfillPreviewArgs) => typedError<ApiResult<BackfillPreview>, string>(__TAURI_INVOKE("job_backfill_preview", { args })),
+	/**  Enqueue only the explicitly confirmed paths, without rescanning the catalog. */
+	jobBackfillEnqueue: (args: JobBackfillEnqueueArgs) => typedError<ApiResult<number>, string>(__TAURI_INVOKE("job_backfill_enqueue", { args })),
 	/**
 	 *  Startup reconcile: adopt bare `papers/` child folders and loose PDFs (created while the
 	 *  app was closed) into the library. Fire-and-forget from the frontend's
@@ -1953,6 +1951,19 @@ export type AssetDownloadProgress_Serialize = {
 	totalCount?: number | null,
 };
 
+export type BackfillPaper = {
+	path: string,
+	title: string,
+	reason: PreparationReason,
+};
+
+export type BackfillPreview = {
+	papers: BackfillPaper[],
+	downloadSource: number,
+	parseBody: number,
+	repairState: number,
+};
+
 export type BacklinksResponse = BacklinksResponse_Serialize | BacklinksResponse_Deserialize;
 
 export type BacklinksResponse_Deserialize = {
@@ -3333,6 +3344,15 @@ export type InternalLinkOccurrence_Serialize = {
 
 export type InternalLinkSyntax = "wikilink" | "markdown";
 
+export type JobBackfillEnqueueArgs = {
+	vaultPath: string,
+	paths: string[],
+};
+
+export type JobBackfillPreviewArgs = {
+	vaultPath: string,
+};
+
 export type JobChangedEvent = JobChangedPayload;
 
 export type JobChangedPayload = {
@@ -3456,10 +3476,6 @@ export type JobProgressEvent_Serialize = AssetDownloadProgress_Serialize;
 export type JobReconcilePaperArgs = {
 	vaultPath: string,
 	path: string,
-};
-
-export type JobReconcileVaultArgs = {
-	vaultPath: string,
 };
 
 export type JobReportArgs = {
@@ -4655,6 +4671,8 @@ export type PlazaScratchPrepareArgs = {
 export type PluginsChangedEvent = null;
 
 export type PluginsDataChangedEvent = string;
+
+export type PreparationReason = "downloadSource" | "parseBody" | "repairState";
 
 export type ProbeEmbeddingArgs = {
 	/**  Override the stored base URL. Empty / missing keeps the stored value. */

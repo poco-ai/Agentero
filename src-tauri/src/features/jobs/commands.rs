@@ -288,42 +288,69 @@ pub async fn job_reconcile_paper(
 
 #[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
-pub struct JobReconcileVaultArgs {
+pub struct JobBackfillPreviewArgs {
     pub vault_path: String,
 }
 
-/// Vault-wide reconcile (§7.3 T2): backfill `ParseBody` for every catalog paper
-/// that has a PDF but no TeX and no `PAPER.md`. Jobs enqueue on the idle lane;
-/// the per-kind cap (ParseBody = 1) throttles execution. Returns the count.
+/// Preview vault-wide backfill and inline local catalog repairs. Never enqueues work.
 #[tauri::command]
 #[specta::specta]
-pub async fn job_reconcile_vault(
-    app: tauri::AppHandle,
-    center: State<'_, JobCenter>,
-    caps: State<'_, crate::features::paper::catalog::CapsCache>,
-    args: JobReconcileVaultArgs,
-) -> Result<ApiResult<u32>, String> {
+pub async fn job_backfill_preview(
+    args: JobBackfillPreviewArgs,
+) -> Result<ApiResult<agentero_core::features::paper::source::backfill::BackfillPreview>, String> {
     let vault = try_vault_ok!(&args.vault_path);
-    let caps_handle = (*caps).clone();
-    let scan_vault = vault.clone();
-    let needing = tauri::async_runtime::spawn_blocking(move || {
-        let Ok(papers) = crate::features::paper::catalog::papers::list_all(&scan_vault) else {
-            return Vec::new();
-        };
-        papers
-            .into_iter()
-            .filter(|paper| {
-                caps_handle.invalidate(&scan_vault, &paper.path);
-                agentero_core::features::paper::source::needs_preparation(&scan_vault, paper)
-            })
-            .map(|paper| paper.path)
-            .collect::<Vec<_>>()
+    match tauri::async_runtime::spawn_blocking(move || {
+        agentero_core::features::paper::source::backfill::preview(&vault)
     })
     .await
-    .unwrap_or_default();
+    {
+        Ok(Ok(preview)) => Ok(ApiResult::ok(preview)),
+        Ok(Err(error)) => Ok(map_err(error)),
+        Err(error) => Err(error.to_string()),
+    }
+}
 
-    let mut enqueued = 0u32;
-    for path in needing {
+#[derive(Debug, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct JobBackfillEnqueueArgs {
+    pub vault_path: String,
+    pub paths: Vec<String>,
+}
+
+/// Enqueue only the explicitly confirmed paths, without rescanning the catalog.
+#[tauri::command]
+#[specta::specta]
+pub async fn job_backfill_enqueue(
+    app: tauri::AppHandle,
+    center: State<'_, JobCenter>,
+    args: JobBackfillEnqueueArgs,
+) -> Result<ApiResult<u32>, String> {
+    let vault = try_vault_ok!(&args.vault_path);
+    let mut paths = std::collections::BTreeSet::new();
+    // Validate the whole selection before starting any work.
+    for path in args.paths {
+        match super::validate_job_paper(&args.vault_path, &path) {
+            Ok((_, path)) => {
+                paths.insert(path);
+            }
+            Err(error) => return Ok(map_err(error)),
+        }
+    }
+    let mut enqueued = 0;
+    for path in paths {
+        if deferred_if_recognizing(
+            &center,
+            &vault,
+            &path,
+            JobKind::ParseBody,
+            JobLane::Idle,
+            false,
+        )
+        .await
+        .is_some()
+        {
+            continue;
+        }
         enqueue_backfill(&app, &center, JobLane::Idle, |lane| {
             center.enqueue_parse_body(&vault, &path, lane, false, None)
         })

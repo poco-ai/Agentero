@@ -21,6 +21,10 @@ import {
 	registerExternalLibraryReconciler,
 } from "@/lib/lifecycle/refresh-wave";
 import {
+	dismissPaperBackfill,
+	maybeShowPaperBackfill,
+} from "@/lib/paper/backfill";
+import {
 	clearLibraryVaultState,
 	refreshLibrary,
 } from "@/lib/paper/library-store";
@@ -79,13 +83,8 @@ export function registerLifecycleHandlers(): () => void {
 					logger.warn("vault hold failed", { error: errorText(e) });
 				});
 			}
-			if (isTauri() && !perfActive()) {
-				// T2 reconcile: backfill PAPER.md for catalog papers missing it. Fire
-				// & forget; jobs are idempotent and throttled (ParseBody cap = 1).
-				void callApiResult(
-					() => commands.jobReconcileVault({ vaultPath: vaultId }),
-					{ fallback: "vault reconcile failed" },
-				).catch(() => undefined);
+			if (isTauri() && !perfActive() && !isRemoteVaultHandle(vaultId)) {
+				void maybeShowPaperBackfill(vaultId);
 			}
 			if (isTauri() && !perfActive() && !isRemoteVaultHandle(vaultId)) {
 				// Auto-ingest: adopt bare papers/ folders created while the app
@@ -106,6 +105,7 @@ export function registerLifecycleHandlers(): () => void {
 			// painted frame of the new vault from showing the old one, which is a
 			// different concern from releasing resources.
 			return () => {
+				dismissPaperBackfill(vaultId);
 				clearLibraryVaultState();
 				clearWikiVaultState();
 				clearAgentVaultState();
