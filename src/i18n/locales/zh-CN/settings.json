@@ -82,6 +82,19 @@
 			"label": "终端打开方式",
 			"unavailable": "{{name}}（未安装）"
 		},
+		"finder": {
+			"label": "访达集成",
+			"description": "在访达文件夹右键菜单中添加“用 Agentero 打开”",
+			"descriptionInstalled": "在访达中右键文件夹即可作为 Vault 打开",
+			"stale": "Agentero 位置已变化，更新以修复菜单项",
+			"install": "安装",
+			"update": "更新",
+			"uninstall": "移除",
+			"installSuccess": "已安装访达快捷操作",
+			"uninstallSuccess": "已移除访达快捷操作",
+			"installFailed": "无法安装访达快捷操作",
+			"uninstallFailed": "无法移除访达快捷操作"
+		},
 		"paperTreeLabelMode": {
 			"label": "文件树论文名称",
 			"title-author": "标题 · 作者",
@@ -921,19 +934,6 @@
 			"statusFailed": "无法读取 CLI 状态",
 			"openReleaseFailed": "无法打开发布页",
 			"syncFailed": "已安装的 CLI 未能自动同步到当前版本，请到 设置 → 关于 手动更新"
-		},
-		"finder": {
-			"label": "访达集成",
-			"description": "在访达文件夹右键菜单中添加“用 Agentero 打开”",
-			"descriptionInstalled": "在访达中右键文件夹即可作为 Vault 打开",
-			"stale": "Agentero 位置已变化，更新以修复菜单项",
-			"install": "安装",
-			"update": "更新",
-			"uninstall": "移除",
-			"installSuccess": "已安装访达快捷操作",
-			"uninstallSuccess": "已移除访达快捷操作",
-			"installFailed": "无法安装访达快捷操作",
-			"uninstallFailed": "无法移除访达快捷操作"
 		},
 		"feedback": {
 			"label": "反馈",

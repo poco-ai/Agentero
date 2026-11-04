@@ -292,7 +292,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 #### `terminal_apps_probe`（已实现）
 
-返回当前平台已知的终端应用及其安装状态（`{ id, name, installed }[]`），供「设置 → 通用 → 系统 → 终端应用」下拉使用。
+返回当前平台已知的终端应用及其安装状态（`{ id, name, installed }[]`），供「设置 → 通用 → 系统 → 终端打开方式」下拉使用。
 
 - macOS：Terminal（系统内置）、iTerm2、Otty
 - Windows：Windows Terminal、PowerShell、Command Prompt

@@ -82,6 +82,19 @@
 			"label": "Open in Terminal with",
 			"unavailable": "{{name}} (not installed)"
 		},
+		"finder": {
+			"label": "Finder integration",
+			"description": "Adds \"Open with Agentero\" to the right-click menu for folders in Finder",
+			"descriptionInstalled": "Right-click a folder in Finder to open it as a Vault",
+			"stale": "Agentero was moved — update to fix the menu entry",
+			"install": "Install",
+			"update": "Update",
+			"uninstall": "Remove",
+			"installSuccess": "Finder Quick Action installed",
+			"uninstallSuccess": "Finder Quick Action removed",
+			"installFailed": "Could not install the Finder Quick Action",
+			"uninstallFailed": "Could not remove the Finder Quick Action"
+		},
 		"paperTreeLabelMode": {
 			"label": "Paper names in file tree",
 			"title-author": "Title · Author",
@@ -921,19 +934,6 @@
 			"statusFailed": "Could not read CLI status",
 			"openReleaseFailed": "Could not open the release page",
 			"syncFailed": "Could not auto-sync the installed CLI with this app version. Update it from Settings → About"
-		},
-		"finder": {
-			"label": "Finder integration",
-			"description": "Adds \"Open with Agentero\" to the right-click menu for folders in Finder",
-			"descriptionInstalled": "Right-click a folder in Finder to open it as a Vault",
-			"stale": "Agentero was moved — update to fix the menu entry",
-			"install": "Install",
-			"update": "Update",
-			"uninstall": "Remove",
-			"installSuccess": "Finder Quick Action installed",
-			"uninstallSuccess": "Finder Quick Action removed",
-			"installFailed": "Could not install the Finder Quick Action",
-			"uninstallFailed": "Could not remove the Finder Quick Action"
 		},
 		"feedback": {
 			"label": "Feedback",

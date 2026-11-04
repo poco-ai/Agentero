@@ -57,6 +57,7 @@ import type { ProbeStatus } from "@/lib/ui/probe-status";
 import { notesTemplateSeed } from "@/lib/vault/note-template";
 import { ConnectorSettingsBlock } from "./general/connector-settings-block";
 import { EasyScholarSettingsBlock } from "./general/easy-scholar-settings-block";
+import { FinderIntegrationRow } from "./general/finder-integration-row";
 import { McpSettingsBlock } from "./general/mcp-settings-block";
 import { PrivacySettingsBlock } from "./general/privacy-settings-block";
 import { TerminalAppRow } from "./general/terminal-app-row";
@@ -455,6 +456,7 @@ export function GeneralPane({
 					value={settings.terminalApp}
 					onChange={(terminalApp) => patch({ terminalApp })}
 				/>
+				<FinderIntegrationRow />
 			</SettingsGroup>
 
 			<SettingsSectionLabel className="mt-4">
