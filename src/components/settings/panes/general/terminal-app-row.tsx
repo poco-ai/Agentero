@@ -13,14 +13,15 @@ import {
 	probeTerminalApps,
 	type TerminalAppStatus,
 } from "@/lib/system/terminal-apps";
-
-/** Radix disallows empty item values; this sentinel maps to "system default". */
-const SYSTEM_DEFAULT = "system-default";
+import { TerminalAppLogo } from "./terminal-app-logo";
 
 /**
- * Preferred terminal for "Open in Terminal". Only installed terminals are
- * selectable; a saved but now-missing app stays visible as unavailable and the
- * Host falls back to the system default (see `app/terminal`).
+ * Terminal used by "Open in Terminal". Only installed terminals are selectable;
+ * a saved but now-missing app stays visible as unavailable and the Host falls
+ * back to the system default (see `app/terminal`).
+ *
+ * There is no "system default" entry: when nothing is stored yet, the first
+ * installed terminal is shown — the same app the Host opens by default.
  */
 export function TerminalAppRow({
 	value,
@@ -59,27 +60,24 @@ export function TerminalAppRow({
 		: t("general.terminalApp.unavailable", { name: value });
 	const unavailable =
 		loaded && Boolean(value) && !installed.some((app) => app.id === value);
+	const selected = value || installed[0]?.id || "";
 
 	return (
 		<SettingsRow label={t("general.terminalApp.label")}>
-			<Select
-				value={value || SYSTEM_DEFAULT}
-				onValueChange={(next) => onChange(next === SYSTEM_DEFAULT ? "" : next)}
-			>
+			<Select value={selected} onValueChange={onChange}>
 				<SelectTrigger size="sm" className="min-w-[180px] max-w-[240px]">
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
-					<SelectItem value={SYSTEM_DEFAULT}>
-						{t("general.terminalApp.systemDefault")}
-					</SelectItem>
 					{installed.map((app) => (
 						<SelectItem key={app.id} value={app.id}>
+							<TerminalAppLogo id={app.id} />
 							{app.name}
 						</SelectItem>
 					))}
 					{unavailable ? (
 						<SelectItem value={value} disabled>
+							<TerminalAppLogo id={value} />
 							{unavailableLabel}
 						</SelectItem>
 					) : null}

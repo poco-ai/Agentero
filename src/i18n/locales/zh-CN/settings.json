@@ -79,8 +79,7 @@
 			"mcp": "MCP"
 		},
 		"terminalApp": {
-			"label": "终端应用",
-			"systemDefault": "系统默认",
+			"label": "终端打开方式",
 			"unavailable": "{{name}}（未安装）"
 		},
 		"paperTreeLabelMode": {

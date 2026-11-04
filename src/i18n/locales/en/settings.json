@@ -79,8 +79,7 @@
 			"mcp": "MCP"
 		},
 		"terminalApp": {
-			"label": "Terminal app",
-			"systemDefault": "System default",
+			"label": "Open in Terminal with",
 			"unavailable": "{{name}} (not installed)"
 		},
 		"paperTreeLabelMode": {
