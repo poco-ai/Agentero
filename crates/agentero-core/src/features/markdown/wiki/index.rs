@@ -32,7 +32,7 @@ const IGNORE_NAMES: &[&str] = &[
     ".agentero",
 ];
 
-fn is_markdown(path: &Path) -> bool {
+pub(crate) fn is_markdown(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
         .map(|e| {
@@ -55,13 +55,13 @@ fn is_wiki_source(path: &Path) -> bool {
     is_markdown(path) && !is_derived_paper_body(path)
 }
 
-fn is_pdf(path: &Path) -> bool {
+pub(crate) fn is_pdf(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
         .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"))
 }
 
-fn is_image(path: &Path) -> bool {
+pub(crate) fn is_image(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
         .is_some_and(|extension| {

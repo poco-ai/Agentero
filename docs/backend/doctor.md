@@ -61,6 +61,7 @@ Doctor 聚合本地 Vault 的只读完整性检查，并为论文别名、双链
 
 1. **探测** `doctor_plan_wikilinks`  
    - 对 unresolved 边做唯一高置信匹配（path / stem / alias 近邻、heading/block 近邻）→ `layer=deterministic`（默认勾选）  
+   - 目标替换保持媒体类型：图片只匹配图片（png/jpg/jpeg/gif/webp/bmp/svg/avif/ico），PDF 只匹配 PDF，Markdown 只匹配 Markdown；同 stem 的图片优先保留原扩展名，只有 PDF 时不会把图片链接改成 PDF，而是留在 `manual` 候选项  
    - 无法唯一匹配时仍输出可编辑候选项 → `layer=manual`（默认不勾选，绿色区可手改）  
    - 每条 suggestion 含 `rangeStart/End`、`expected`、`expectedHash`、`linePrefix` / `lineSuffix`（整行上下文）  
 2. **UI 列表**：git 风格整行展示，核心变更居中高亮，按容器宽度窗口化前后文  
