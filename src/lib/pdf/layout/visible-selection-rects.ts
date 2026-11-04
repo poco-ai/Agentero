@@ -100,7 +100,35 @@ export function mergeClientRectsIntoLines(
 		previous.width = right - left;
 		previous.height = bottom - top;
 	}
-	return merged;
+	return separateStackedLines(merged);
+}
+
+/**
+ * Reflow gives every character the font's full height, which is taller than
+ * the gap to the next baseline. Each line stays its own band, but the two
+ * bands share a strip. Split that strip so the highlight is not painted twice.
+ */
+function separateStackedLines(rects: ClientRectLike[]): ClientRectLike[] {
+	const lines = rects.map((rect) => ({ ...rect }));
+	for (let index = 1; index < lines.length; index += 1) {
+		const previous = lines[index - 1];
+		const current = lines[index];
+		if (!previous || !current) continue;
+		const overlap = previous.top + previous.height - current.top;
+		const minHeight = Math.min(previous.height, current.height);
+		if (overlap <= 0 || minHeight <= 0) continue;
+		if (overlap >= minHeight * MIN_VERTICAL_OVERLAP) continue;
+		const shared =
+			Math.min(previous.left + previous.width, current.left + current.width) -
+			Math.max(previous.left, current.left);
+		if (shared <= 0) continue;
+		const mid = current.top + overlap / 2;
+		const bottom = current.top + current.height;
+		previous.height = mid - previous.top;
+		current.top = mid;
+		current.height = bottom - mid;
+	}
+	return lines;
 }
 
 function roundFraction(value: number): number {

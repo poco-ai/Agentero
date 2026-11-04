@@ -24,6 +24,18 @@ describe("mergeClientRectsIntoLines", () => {
 		).toEqual([{ left: 10, top: 20, width: 50, height: 17 }]);
 	});
 
+	it("splits the strip where two stacked lines overlap", () => {
+		expect(
+			mergeClientRectsIntoLines([
+				{ left: 10, top: 20, width: 80, height: 16 },
+				{ left: 10, top: 30, width: 60, height: 16 },
+			]),
+		).toEqual([
+			{ left: 10, top: 20, width: 80, height: 13 },
+			{ left: 10, top: 33, width: 60, height: 13 },
+		]);
+	});
+
 	it("keeps the next line and a distant column as separate bands", () => {
 		expect(
 			mergeClientRectsIntoLines([
