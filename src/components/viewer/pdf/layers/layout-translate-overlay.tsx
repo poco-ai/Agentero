@@ -909,7 +909,10 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 									fontFamily:
 										'ui-serif, "Times New Roman", Times, "Noto Serif SC", "Songti SC", "Source Han Serif SC", serif',
 									fontWeight: isHeading ? 700 : 400,
-									textAlign: isHeading ? "left" : "justify",
+									// Justified CJK inserts space between every character. Those
+									// gaps paint as a darker selection block where two highlight
+									// rects overlap. Keep the glyphs adjacent, like the English line.
+									textAlign: "start",
 								}}
 							>
 								<LayoutTranslateParagraph
