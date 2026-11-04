@@ -40,10 +40,15 @@ export const DEFAULT_DECISION_SETTINGS: DecisionSettings = {
 	smartHighlight: false,
 };
 
+/** Default OpenAI Decisions endpoint + model. */
+export const DEFAULT_OPENAI_DECISIONS_BASE_URL =
+	"https://api.openai.com/v1/decisions";
+export const DEFAULT_OPENAI_DECISIONS_MODEL = "gpt-6-luna";
+
 /**
  * Per-provider defaults applied when the user switches the decision provider.
- * Clef / OpenAI need a user-supplied endpoint (Cloudflare includes the account
- * id; OpenAI is not public yet), so their base URL stays empty.
+ * Clef still needs a user-supplied Cloudflare Worker URL (account id). OpenAI
+ * Decisions is public: preset fills `/v1/decisions` + `gpt-6-luna`.
  */
 export const DECISION_PROVIDER_PRESETS: Record<
 	DecisionProviderId,
@@ -62,10 +67,10 @@ export const DECISION_PROVIDER_PRESETS: Record<
 		consoleUrl: "",
 	},
 	openai: {
-		baseUrl: "",
-		model: "",
+		baseUrl: DEFAULT_OPENAI_DECISIONS_BASE_URL,
+		model: DEFAULT_OPENAI_DECISIONS_MODEL,
 		keyUrl: "https://platform.openai.com/api-keys",
-		consoleUrl: "",
+		consoleUrl: "https://platform.openai.com/playground/decisions",
 	},
 	custom: {
 		baseUrl: "",

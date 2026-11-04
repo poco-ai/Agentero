@@ -8,6 +8,11 @@
 //! `features::jev`, but sends every request through
 //! [`SystemOneProvider::complete`] so credentials and error handling live in
 //! exactly one place.
+//!
+//! When the configured endpoint is OpenAI Decisions (`…/v1/decisions` or the
+//! OpenAI API root), the transport transparently adapts System One request /
+//! response shapes via [`super::openai_decisions`] so the OpenAI preset works
+//! without changing callers.
 
 use super::super::types::{DecisionOutcome, DecisionProvider, ProviderCall, SYSTEM_ONE_PROVIDER};
 use crate::error::AppError;
@@ -77,6 +82,19 @@ impl SystemOneProvider {
             ));
         }
 
+        let openai = super::openai_decisions::is_openai_decisions_endpoint(&creds.base_url);
+        let endpoint = if openai {
+            super::openai_decisions::normalize_openai_decisions_url(&creds.base_url)
+        } else {
+            creds.base_url.trim().to_string()
+        };
+
+        if openai {
+            if let Some(converted) = super::openai_decisions::system_one_to_openai_request(&body) {
+                body = converted;
+            }
+        }
+
         let model = creds.model.trim();
         if !model.is_empty() {
             if let Some(object) = body.as_object_mut() {
@@ -86,7 +104,7 @@ impl SystemOneProvider {
 
         let resp = self
             .client
-            .post(creds.base_url.trim())
+            .post(&endpoint)
             .header("Authorization", format!("Bearer {}", creds.api_key))
             .header("Content-Type", "application/json")
             .json(&body)
@@ -105,9 +123,16 @@ impl SystemOneProvider {
             )));
         }
 
-        resp.json::<Value>()
+        let response = resp
+            .json::<Value>()
             .await
-            .map_err(|e| AppError::message(format!("decision response decode failed: {e}")))
+            .map_err(|e| AppError::message(format!("decision response decode failed: {e}")))?;
+
+        if openai {
+            Ok(super::openai_decisions::openai_to_system_one_response(&response))
+        } else {
+            Ok(response)
+        }
     }
 }
 

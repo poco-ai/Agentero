@@ -380,14 +380,14 @@ export type AppSettings = {
 	/**
 	 * Decision-layer provider (System One: TypeSafe jEV / Cloudflare Clef /
 	 * compatible). `provider` selects a preset; base URL + model are editable so
-	 * the OpenAI Decisions API can be configured once its contract ships.
+	 * the OpenAI Decisions API is available via the `openai` preset.
 	 */
 	decision: DecisionSettings;
 };
 
 /**
  * Decision-layer provider ids. `custom` accepts any System One endpoint.
- * `openai` is a config slot for the (not yet public) OpenAI Decisions API.
+ * `openai` targets the public OpenAI Decisions API (`/v1/decisions`).
  */
 export type DecisionProviderId = "jev" | "clef" | "openai" | "custom";
 
@@ -405,15 +405,15 @@ export function isDecisionProviderId(v: unknown): v is DecisionProviderId {
 	);
 }
 
-/** Decision-layer provider settings (System One: jEV / Clef / compatible). */
+/** Decision-layer provider settings (System One + OpenAI Decisions). */
 export type DecisionSettings = {
 	/** Selected vendor preset. */
 	provider: DecisionProviderId;
 	/** API key; masked (`*`) when echoed back from the Host. */
 	apiKey: string;
-	/** System One endpoint, e.g. `https://api.typesafe.ai/v1/systemone`. */
+	/** Endpoint. System One: `…/v1/systemone`. OpenAI: `…/v1/decisions`. */
 	baseUrl: string;
-	/** Model id injected into every request, e.g. `jev-latest` or `clef`. */
+	/** Model id injected into every request, e.g. `jev-latest` or `gpt-6-luna`. */
 	model: string;
 	/** Enable the experimental smart-highlight action in the PDF toolbar. */
 	smartHighlight: boolean;

@@ -103,13 +103,15 @@ pub trait DecisionProvider: Send + Sync {
 | 字段 | 说明 |
 |---|---|
 | `provider` | 预设：`jev` / `clef` / `openai` / `custom`。 |
-| `baseUrl` | System One 端点。Clef 填 Cloudflare Worker 运行地址（含 accountId）；OpenAI 待官方公布。 |
+| `baseUrl` | 端点。jEV/Clef/custom 走 System One；OpenAI 预设默认 `https://api.openai.com/v1/decisions`（也可填 `/v1`，传输层会补 `/decisions`）。Clef 填 Cloudflare Worker 运行地址（含 accountId）。 |
 | `apiKey` | Bearer key（读回时打码）。 |
 | `model` | 请求注入的模型 id（如 `jev-latest` / `clef` / `clef-flash`）。 |
 | `smartHighlight` | 实验性 PDF 智能高亮开关。 |
 
-预设只在设置界面切换时预填 baseUrl/model；`openai` 目前是配置位（官方契约未公布），
-发布后填上即可。设置界面见 `experimental-pane.tsx`。
+预设只在设置界面切换时预填 baseUrl/model；`openai` 预填 Decisions 端点与 `gpt-6-luna`。
+调用方仍构造 System One 请求体，由 `openai_decisions` 适配器在传输层翻译为
+`input` + `questions[]`，并把响应 `answers` 数组还原成 System One 的 map。
+设置界面见 `experimental-pane.tsx`。
 
 ### System One 共享解码（`providers/system_one.rs`）
 
@@ -187,8 +189,8 @@ const action = decideSync("file-tree.click", { node });
 - **用户可覆盖**：AI 只给默认建议；UI 上应保留其他选项供用户手动选择。
 - **可解释**：`Outcome` 必带中立信封 `{ action, status, provider, modelVersion }`，provider 专属的
   `confidence` 在 `metadata` 里，便于调试与 fallback。
-- **provider 可切换**：设置里的 `decision.provider` 决定端点与模型；OpenAI Decisions API
-  官方契约尚未公布，暂为配置位，发布后填 baseUrl/model 即可。
+- **provider 可切换**：设置里的 `decision.provider` 决定端点与模型；选 `openai` 时走
+  OpenAI Decisions（`gpt-6-luna`），System One 形状由传输层适配。
 - **未决**：
   - `pdf.smart-highlight` 仍以领域批处理直接调用 `SystemOneProvider::complete`，未统一为通用
     `decide_batch`（通用批量需要 provider 理解按 state 合并 questions 的语义，暂不抽象）。
@@ -203,6 +205,7 @@ const action = decideSync("file-tree.click", { node });
 |---|---|
 | 核心引擎 | `crates/agentero-core/src/decision/`（types / registry / engine / providers） |
 | System One provider（传输 + 解码） | `crates/agentero-core/src/decision/providers/system_one.rs` |
+| OpenAI Decisions 适配 | `crates/agentero-core/src/decision/providers/openai_decisions.rs` |
 | Host 装配 | `src-tauri/src/features/decision/mod.rs`（共享 `SystemOneProvider`） |
 | 设置（Host） | `src-tauri/src/features/system/settings/mod.rs`（`DecisionSettings` / `decision_config`） |
 | 设置（前端） | `src/components/settings/panes/experimental-pane.tsx`、`src/lib/settings/{types,defaults,store}.ts` |
