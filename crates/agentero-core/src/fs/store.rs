@@ -266,6 +266,27 @@ mod tests {
         }
     }
 
+    /// `fs::read` opens without delete sharing, so a concurrent atomic
+    /// replacement can fail it with Access Denied on Windows. Share delete
+    /// here; the reader then observes either the old or the new file.
+    #[cfg(windows)]
+    fn read_published(path: &Path) -> io::Result<Vec<u8>> {
+        use std::io::Read;
+        use std::os::windows::fs::OpenOptionsExt;
+        let mut file = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0x1 | 0x2 | 0x4)
+            .open(path)?;
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)?;
+        Ok(bytes)
+    }
+
+    #[cfg(not(windows))]
+    fn read_published(path: &Path) -> io::Result<Vec<u8>> {
+        fs::read(path)
+    }
+
     #[test]
     fn concurrent_writes_never_publish_partial_or_mixed_contents() {
         use std::sync::Barrier;
@@ -289,7 +310,7 @@ mod tests {
             }
             barrier.wait();
             loop {
-                let bytes = fs::read(&path).unwrap();
+                let bytes = read_published(&path).unwrap();
                 assert_eq!(bytes.len(), BYTES);
                 assert!(bytes[0] <= WRITERS as u8);
                 assert!(bytes.iter().all(|byte| *byte == bytes[0]));
