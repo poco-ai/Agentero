@@ -15,7 +15,6 @@ import {
 } from "@/lib/shell/layout-persist";
 import {
 	type LayoutPresetMode,
-	layoutModeLeftCollapsed,
 	layoutModeRightCollapsed,
 } from "@/lib/shell/layout-presets";
 
@@ -94,8 +93,8 @@ export const uiStore = createStore<UiStore>(() => ({
 export function setSidebarCollapsedState(collapsed: boolean): void {
 	const prev = uiStore.getState().sidebarCollapsed;
 	uiStore.setState({ sidebarCollapsed: collapsed });
-	// The free-form arrangement is part of the persisted custom layout.
-	if (prev !== collapsed && uiStore.getState().layoutMode === "custom") {
+	// Persist the left sidebar's state unless temporarily collapsed by Reading mode.
+	if (prev !== collapsed && uiStore.getState().layoutMode !== "reading") {
 		saveCustomRails({
 			leftCollapsed: collapsed,
 			rightOpen: uiStore.getState().rightSidebarOpen,
@@ -154,7 +153,8 @@ export function initShellLayoutFromPrefs(): void {
 		uiStore.setState({
 			layoutMode: mode,
 			lastAppliedPreset: mode === "reading" ? previousPreset : mode,
-			sidebarCollapsed: layoutModeLeftCollapsed(mode),
+			sidebarCollapsed:
+				mode === "reading" ? true : (prefs.customRails?.leftCollapsed ?? false),
 			rightSidebarOpen: !layoutModeRightCollapsed(mode),
 		});
 		return;
@@ -284,8 +284,6 @@ export function layout(): LayoutController | null {
 
 export function toggleSidebar(): void {
 	const { sidebarCollapsed } = uiStore.getState();
-	// React state is source of truth — isCollapsed() can lag at 0px.
-	setLayoutMode("custom");
 	layout()?.setLeftCollapsed(!sidebarCollapsed);
 }
 

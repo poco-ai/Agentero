@@ -11,6 +11,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { LayoutMode } from "@/lib/shell/ui-store";
+import { dockHandle } from "@/lib/workspace/dock-registry";
 
 type LayoutMenuProps = {
 	value: LayoutMode;
@@ -24,7 +25,9 @@ export function LayoutMenu({ value, onValueChange }: LayoutMenuProps) {
 	const closeTimer = useRef<number | undefined>(undefined);
 	/** Clicked open: hover-out must not dismiss it; outside click still does. */
 	const pinned = useRef(false);
-	const selected = value === "custom" ? "" : value;
+	const isReading =
+		value === "reading" || Boolean(dockHandle()?.isMaximizedPanel?.());
+	const selected = isReading ? "reading" : value === "custom" ? "" : value;
 
 	const cancelClose = () => window.clearTimeout(closeTimer.current);
 	const scheduleClose = () => {

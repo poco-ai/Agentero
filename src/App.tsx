@@ -7,7 +7,7 @@
  */
 
 import { FolderOpen } from "lucide-react";
-import { Fragment, useCallback, useEffect } from "react";
+import { Fragment, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingRoot } from "@/components/onboarding/onboarding-root";
 import { AppDialogs } from "@/components/shell/app-dialogs";
@@ -245,6 +245,7 @@ export default function App() {
 
 	const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
 	const rightSidebarOpen = useUiStore((s) => s.rightSidebarOpen);
+	const isResizingRightRef = useRef(false);
 
 	// Seed the chrome agent icon with the registry default before the Agent panel
 	// is ever opened. If the panel mounts first, it wins via agentChromeStore.
@@ -454,6 +455,9 @@ export default function App() {
 	// imperative resize (isUserInteraction stays false), so persist the
 	// known reset target directly instead of racing a DOM read-back.
 	const commitRailReset = (side: "left" | "right") => {
+		if (side === "right" && uiStore.getState().layoutMode !== "reading") {
+			setLayoutMode("custom");
+		}
 		commitUserRailPx(
 			side === "left" ? initialLeftPx : undefined,
 			side === "right" ? initialRightPx : undefined,
@@ -478,9 +482,16 @@ export default function App() {
 							// the remembered widths; mount echoes, window resizes and
 							// programmatic preset applies are filtered out here.
 							if (!meta.isUserInteraction) return;
-							// Entering custom snapshots the rail flags; widths commit
-							// from measured px so save and restore share one base.
-							setLayoutMode("custom");
+							// Only user resize of the right (Agent) rail transitions the
+							// layout into custom. The left Vault sidebar is independent of
+							// Agent / Notes presets.
+							if (
+								isResizingRightRef.current &&
+								uiStore.getState().layoutMode !== "reading"
+							) {
+								setLayoutMode("custom");
+							}
+							isResizingRightRef.current = false;
 							commitUserRailPx(
 								vaultPath
 									? sidebarPanelRef.current?.getSize().inPixels
@@ -531,6 +542,12 @@ export default function App() {
 								{sidebarCollapsed ? null : (
 									<ResizableHandle
 										onDoubleClick={() => commitRailReset("left")}
+										onPointerDown={() => {
+											isResizingRightRef.current = false;
+										}}
+										onKeyDown={() => {
+											isResizingRightRef.current = false;
+										}}
 									/>
 								)}
 							</Fragment>
@@ -562,7 +579,15 @@ export default function App() {
 
 						{/* Right sidebar: always mounted + collapsible (same as left). */}
 						{rightSidebarOpen ? (
-							<ResizableHandle onDoubleClick={() => commitRailReset("right")} />
+							<ResizableHandle
+								onDoubleClick={() => commitRailReset("right")}
+								onPointerDown={() => {
+									isResizingRightRef.current = true;
+								}}
+								onKeyDown={() => {
+									isResizingRightRef.current = true;
+								}}
+							/>
 						) : null}
 						<ResizablePanel
 							id="right-sidebar"

@@ -42,7 +42,7 @@ import {
 } from "@/lib/plaza";
 import { loadSettings } from "@/lib/settings";
 import { closeCurrentWindow } from "@/lib/shell/close-window";
-import { setLayoutMode } from "@/lib/shell/ui-store";
+import { setLayoutMode, uiStore } from "@/lib/shell/ui-store";
 import { type FileNode, joinVaultPath } from "@/lib/vault";
 import {
 	isVaultSkillDirectory,
@@ -135,9 +135,15 @@ export function activatePaperWithNotes(paperTab: DocTab): void {
 		// Activate NOTES first so its group shows the matching tab; then paper
 		// so focus/active id land on the body panel.
 		if (notesOpen && notesId) {
-			dockHandle()?.activatePanel(notesId);
+			dockHandle()?.activatePanel(notesId, { skipSetGroupActive: true });
 		}
 		dockHandle()?.activatePanel(paperTab.id);
+		if (
+			uiStore.getState().layoutMode === "reading" &&
+			!dockHandle()?.isMaximizedPanel?.()
+		) {
+			dockHandle()?.maximizeActivePanel?.();
+		}
 	} finally {
 		queueMicrotask(() => {
 			readingSync = false;
@@ -183,8 +189,14 @@ export function handleActivePanelChange(panelId: string | null): void {
 		if (!getTabs().some((t) => t.id === notesId)) return;
 		readingSync = true;
 		try {
-			dockHandle()?.activatePanel(notesId);
+			dockHandle()?.activatePanel(notesId, { skipSetGroupActive: true });
 			dockHandle()?.activatePanel(panelId);
+			if (
+				uiStore.getState().layoutMode === "reading" &&
+				!dockHandle()?.isMaximizedPanel()
+			) {
+				dockHandle()?.maximizeActivePanel();
+			}
 		} finally {
 			queueMicrotask(() => {
 				readingSync = false;
@@ -251,7 +263,9 @@ export function openTab(
 				Boolean(existing.notesPath) &&
 				(opts?.forceNotes || loadSettings().autoOpenPaperNotes);
 			if (wantDefaultNotes && !tabHasNotesSplit(getTabs(), existing)) {
-				openTabNotes(existing.id);
+				if (uiStore.getState().layoutMode !== "reading") {
+					openTabNotes(existing.id);
+				}
 			}
 			activatePaperWithNotes(existing);
 		} else {
@@ -386,8 +400,14 @@ function openNotesForPaper(
 		? Boolean(dockHandle()?.canActivatePanel(notesId))
 		: false;
 	if (notesTab && notesInDock && notesId) {
-		dockHandle()?.activatePanel(notesId);
+		dockHandle()?.activatePanel(notesId, { skipSetGroupActive: true });
 		dockHandle()?.activatePanel(paperId);
+		if (
+			uiStore.getState().layoutMode === "reading" &&
+			!dockHandle()?.isMaximizedPanel?.()
+		) {
+			dockHandle()?.maximizeActivePanel?.();
+		}
 		return;
 	}
 	if (notesTab && notesId) {
@@ -418,6 +438,12 @@ function openNotesForPaper(
 	dockHandle()?.openPanel(notesPane, notesPlacement);
 	// Keep focus on the paper body after NOTES joins the right column.
 	dockHandle()?.activatePanel(paperId);
+	if (
+		uiStore.getState().layoutMode === "reading" &&
+		!dockHandle()?.isMaximizedPanel?.()
+	) {
+		dockHandle()?.maximizeActivePanel?.();
+	}
 }
 
 /**
@@ -651,6 +677,9 @@ export function setNotesSplit(
 		closeTab(notesId, { remember: false });
 		return;
 	}
+	if (dockHandle()?.isMaximizedPanel?.()) {
+		dockHandle()?.exitMaximizedPanel?.();
+	}
 	if (!tabNotesEligible(target) && target.kind !== "paper") return;
 	const notesPane = createNotesSplitPane(target);
 	if (!notesPane) return;
@@ -684,6 +713,9 @@ export function openTabNotes(tabId: string): void {
 	const target = getTabs().find((t) => t.id === tabId);
 	if (!target?.notesPath || !tabNotesEligible(target)) return;
 	const notesId = tabIdForPath(target.notesPath);
+	if (dockHandle()?.isMaximizedPanel?.()) {
+		dockHandle()?.exitMaximizedPanel?.();
+	}
 	if (tabHasNotesSplit(getTabs(), target)) {
 		dockHandle()?.activatePanel(notesId);
 		setActiveTabId(notesId);

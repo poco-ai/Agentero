@@ -21,8 +21,14 @@ export type DockHandle = {
 	remapPanel: (previousPanelId: string, tab: DocTab) => void;
 	/** Cycle active panel by dockview `api.panels` order (wraps). */
 	cycleActive: (delta: number) => void;
-	/** Activate an existing panel by id. */
-	activatePanel: (panelId: string) => void;
+	/**
+	 * Activate an existing panel by id. When `skipSetGroupActive` is true, sets
+	 * the active panel within its group without activating the group itself.
+	 */
+	activatePanel: (
+		panelId: string,
+		options?: { skipSetGroupActive?: boolean },
+	) => void;
 	/**
 	 * True when `activatePanel` can actually bring the panel to a visible
 	 * group (i.e. the panel is registered in this dock, not in a split

@@ -8,13 +8,6 @@ export const LAYOUT_MODE_RIGHT_RATIOS: Record<LayoutPresetMode, number> = {
 	reading: 0,
 };
 
-/** Whether the preset should collapse the left Vault sidebar. */
-export const LAYOUT_MODE_LEFT_COLLAPSED: Record<LayoutPresetMode, boolean> = {
-	agent: false,
-	notes: true,
-	reading: true,
-};
-
 /** Whether the preset should collapse the right Agent/annotations sidebar. */
 export const LAYOUT_MODE_RIGHT_COLLAPSED: Record<LayoutPresetMode, boolean> = {
 	agent: false,
@@ -24,10 +17,6 @@ export const LAYOUT_MODE_RIGHT_COLLAPSED: Record<LayoutPresetMode, boolean> = {
 
 export function layoutModeRightRatio(mode: LayoutPresetMode): number {
 	return LAYOUT_MODE_RIGHT_RATIOS[mode];
-}
-
-export function layoutModeLeftCollapsed(mode: LayoutPresetMode): boolean {
-	return LAYOUT_MODE_LEFT_COLLAPSED[mode];
 }
 
 export function layoutModeRightCollapsed(mode: LayoutPresetMode): boolean {

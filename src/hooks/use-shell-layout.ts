@@ -14,7 +14,6 @@ import {
 } from "@/lib/shell/layout-persist";
 import {
 	type LayoutPresetMode,
-	layoutModeLeftCollapsed,
 	layoutModeRightCollapsed,
 	layoutModeRightRatio,
 } from "@/lib/shell/layout-presets";
@@ -199,8 +198,8 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			// Stop recording custom visibility before programmatic panel changes.
 			setLayoutMode(mode);
 			setLastAppliedPreset(mode);
-			// Prefer the widths remembered for this mode; fall back to the
-			// static preset ratios on first use.
+			// Agent / Notes presets do not dictate left Vault sidebar visibility;
+			// the left rail retains whatever state it had.
 			const saved = railWidthsForSlot(
 				getShellLayoutPrefs(),
 				mode,
@@ -208,13 +207,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 				LEFT_LIMITS,
 				RIGHT_LIMITS,
 			);
-			// Seed the remembered width before collapsing so a later manual
-			// reopen (setLeftCollapsed(false) / setRightCollapsed(false))
-			// restores this mode's width instead of the static default.
-			const leftPx = saved.leftPx ?? SIDEBAR_DEFAULT_PX;
 			const rightPx = saved.rightPx ?? RIGHT_SIDEBAR_DEFAULT_PX;
-			leftWidthPxRef.current = leftPx;
-			setLeftCollapsed(layoutModeLeftCollapsed(mode));
 
 			if (mode === "notes") setNotesSplit(true, { preserveLayoutMode: true });
 			else setNotesSplit(false, { preserveLayoutMode: true });
@@ -246,9 +239,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			);
 			return {
 				mode: preset ?? "custom",
-				leftCollapsed: preset
-					? layoutModeLeftCollapsed(preset)
-					: (prefs.customRails?.leftCollapsed ?? false),
+				leftCollapsed: prefs.customRails?.leftCollapsed ?? false,
 				rightOpen: preset
 					? !layoutModeRightCollapsed(preset)
 					: (prefs.customRails?.rightOpen ?? false),
@@ -287,13 +278,7 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 			dockHandle()?.exitMaximizedPanel();
 			if (!restore) return;
 
-			if (snapshot.mode !== "custom") {
-				applyPreset(snapshot.mode);
-				return;
-			}
-
-			// Restore rails before switching to custom so `setLayoutMode` snapshots
-			// the restored visibility instead of the collapsed reading state.
+			// Restore left rail before restoring preset or custom mode.
 			if (snapshot.leftCollapsed) {
 				setLeftCollapsed(true);
 			} else {
@@ -301,6 +286,13 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 				sidebarPanelRef.current?.resize(snapshot.leftPx);
 				leftWidthPxRef.current = snapshot.leftPx;
 			}
+
+			if (snapshot.mode !== "custom") {
+				applyPreset(snapshot.mode);
+				return;
+			}
+
+			// Restore right rail for custom mode.
 			if (snapshot.rightOpen) {
 				setRightPx(snapshot.rightPx);
 			} else {
@@ -316,7 +308,8 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 				// arrangement. Checking the dock's real state handles a restored
 				// or externally exited maximize without a snapshot.
 				if (
-					state.layoutMode === "reading" &&
+					(state.layoutMode === "reading" ||
+						dockHandle()?.isMaximizedPanel()) &&
 					(readingSnapshot !== null || dockHandle()?.isMaximizedPanel())
 				) {
 					exitReading(true);
@@ -325,15 +318,23 @@ export function useShellLayout(vaultPath: string | null = null): ShellLayout {
 				}
 				return;
 			}
-			// Any other preset leaves reading (and restores its maximize).
-			dockHandle()?.exitMaximizedPanel();
-			readingSnapshot = null;
+			// Any other preset leaves reading (and restores its maximize and rails).
+			if (state.layoutMode === "reading" || dockHandle()?.isMaximizedPanel()) {
+				const snapshot = readingSnapshot ?? fallbackReadingSnapshot();
+				dockHandle()?.exitMaximizedPanel();
+				readingSnapshot = null;
+				if (snapshot.leftCollapsed) {
+					setLeftCollapsed(true);
+				} else {
+					setLeftCollapsed(false);
+					sidebarPanelRef.current?.resize(snapshot.leftPx);
+					leftWidthPxRef.current = snapshot.leftPx;
+				}
+			}
 			applyPreset(mode);
 		};
 
 		const focusSidebar = () => {
-			// Expanding a collapsed rail deviates from the active preset.
-			if (uiStore.getState().sidebarCollapsed) setLayoutMode("custom");
 			setLeftCollapsed(false);
 			requestAnimationFrame(() => {
 				sidebarAsideRef.current?.querySelector<HTMLElement>("button")?.focus();
