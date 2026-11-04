@@ -474,8 +474,6 @@ type ExactFitParagraphProps = {
 	boxWidthPx: number;
 	boxHeightPx: number;
 	isHeading: boolean;
-	/** Dark PDF paper: selection ink stays light, matching the glyphs. */
-	paperDark: boolean;
 	tone: PdfPaperTone;
 	/** Sentence indexes whose translation should show the highlight color. */
 	tintedSentences?: ReadonlyMap<number, TranslateSentenceTint>;
@@ -616,7 +614,6 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 	boxWidthPx,
 	boxHeightPx,
 	isHeading,
-	paperDark,
 	tone,
 	tintedSentences,
 	linkAssignments,
@@ -670,7 +667,7 @@ export const LayoutTranslateParagraph = memo(function LayoutTranslateParagraph({
 				isHeading && "font-bold",
 			)}
 			data-layout-item={itemId}
-			data-paper={paperDark ? "dark" : undefined}
+			data-paper={tone}
 			onPointerDownCapture={(event) => {
 				if (event.button !== 0) return;
 				beginLinkPreviewDrag();
@@ -924,7 +921,6 @@ export const LayoutTranslateOverlay = memo(function LayoutTranslateOverlay({
 									boxWidthPx={boxWidthPx}
 									boxHeightPx={boxHeightPx}
 									isHeading={isHeading}
-									paperDark={tone === "dark"}
 									tone={tone}
 									tintedSentences={tintByItem.get(item.id)}
 									linkAssignments={linkAssignments}
