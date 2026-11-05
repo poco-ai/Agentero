@@ -61,11 +61,6 @@ function bootStage(name: string) {
 }
 
 async function boot() {
-	if (import.meta.env.DEV && import.meta.env.VITE_ELN_GRID_POC === "1") {
-		const { mountGridPoc } = await import("@/components/eln-poc/grid-poc");
-		mountGridPoc();
-		return;
-	}
 	void initLogger();
 	logger.info("op start frontend_boot");
 	bootStage("entry");

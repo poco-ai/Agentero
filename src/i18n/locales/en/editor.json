@@ -1,14 +1,38 @@
 {
-	"elnPoc": {
-		"focus": "Focus first cell",
-		"frames": "Sample frames for 5 seconds",
-		"title": "Plate + Glide Data Grid PoC (memory only)",
-		"hint": "Edit a cell, paste a rectangular Excel selection, then leave edit mode to undo the transaction. Changes are discarded on reload.",
-		"before": "Edit this paragraph to check that document input and undo stay separate from the grid.",
-		"after": "Continue writing after the grid.",
-		"undo": "Undo grid",
-		"redo": "Redo grid",
-		"batch": "Apply 1,000 × 20 fixture"
+	"researchTable": {
+		"preview": "Live preview · {{shown}} of {{total}} rows",
+		"deleteField": "Delete field",
+		"insert": "Embed research table",
+		"name": "Name",
+		"kind": "Table kind",
+		"result": "Results",
+		"entity": "Research objects",
+		"save": "Save",
+		"undo": "Undo",
+		"redo": "Redo",
+		"embed": "Copy Markdown embed",
+		"export": "Export CSV",
+		"addRows": "Add rows",
+		"rowCount": "Rows to add",
+		"addField": "Add field",
+		"field": "Field",
+		"type": "Type",
+		"unit": "Unit",
+		"options": "Options (comma separated)",
+		"dimensions": "{{rows}} rows · {{columns}} fields",
+		"invalid": "Invalid table data: {{detail}}",
+		"invalidFile": "This table could not be read. Check its format and field values in an external editor.",
+		"path": "Vault-relative table path",
+		"open": "Open table",
+		"load": "Load table",
+		"loading": "Loading table…",
+		"types": {
+			"text": "Text",
+			"number": "Number",
+			"boolean": "Boolean",
+			"date": "Date",
+			"select": "Select"
+		}
 	},
 	"missingLink": "Missing: {{target}} (click to create)",
 	"toc": {

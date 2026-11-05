@@ -128,6 +128,7 @@ describe("viewer mode registry", () => {
 
 	it("preferredModeForPath follows the table matchers, then the documented fallbacks", () => {
 		const cases: Array<[string, CenterViewMode]> = [
+			["/v/data/results.table.json", "research-table"],
 			["/v/paper.pdf", "pdf"],
 			["/v/page.html", "html"],
 			["/v/page.htm", "html"],

@@ -308,6 +308,14 @@ export function useTreeContextMenu({
 						onStartCreate("file", parent);
 					}
 				: undefined,
+		onNewTable:
+			onStartCreate && vaultPath
+				? () => {
+						const parent = resolveCreateParent(vaultPath, menu.path, nodes);
+						setMenu(null);
+						onStartCreate("table", parent);
+					}
+				: undefined,
 		onNewFolder:
 			onStartCreate && vaultPath
 				? () => {

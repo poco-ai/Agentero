@@ -58,6 +58,12 @@ const ExcalidrawViewer = lazy(() =>
 		default: m.ExcalidrawViewer,
 	})),
 );
+
+const TableViewer = lazy(() =>
+	import("@/components/research-table/table-viewer").then((m) => ({
+		default: m.TableViewer,
+	})),
+);
 const TextEditor = lazy(() =>
 	import("@/components/viewer/text-editor").then((m) => ({
 		default: m.TextEditor,
@@ -527,6 +533,26 @@ const DocumentContent = memo(function DocumentContent({
 							excalidraw.onTabPatch(tab.id, { excalidrawDirty: d })
 						}
 						className="h-full w-full"
+					/>
+				</Suspense>
+			</div>
+		);
+	}
+	if (tab.mode === "research-table") {
+		if (!active && !keepMounted) return <TabLoadingSkeleton />;
+		return (
+			<div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+				<Suspense fallback={<TabLoadingSkeleton />}>
+					<TableViewer
+						key={tab.id}
+						path={tab.path}
+						seed={tab.textSeed}
+						reloadKey={tab.textKey}
+						vaultPath={vaultPath}
+						onPersist={text.onPersistFile}
+						onDirtyChange={(dirty) =>
+							text.onTabPatch(tab.id, { textDirty: dirty })
+						}
 					/>
 				</Suspense>
 			</div>

@@ -1,14 +1,38 @@
 {
-	"elnPoc": {
-		"focus": "聚焦首个单元格",
-		"frames": "采样 5 秒帧间隔",
-		"title": "Plate + Glide Data Grid PoC（仅内存）",
-		"hint": "编辑单元格、粘贴 Excel 矩形选区，退出编辑后撤销整次操作。刷新后丢弃修改。",
-		"before": "编辑这段正文，检查文档输入与撤销是否与表格互相独立。",
-		"after": "在表格后继续写正文。",
-		"undo": "撤销表格",
-		"redo": "重做表格",
-		"batch": "写入 1,000 × 20 测试数据"
+	"researchTable": {
+		"preview": "实时预览 · 显示 {{shown}} / {{total}} 行",
+		"deleteField": "删除字段",
+		"insert": "嵌入科研表格",
+		"name": "名称",
+		"kind": "表格类别",
+		"result": "实验结果",
+		"entity": "科研对象",
+		"save": "保存",
+		"undo": "撤销",
+		"redo": "重做",
+		"embed": "复制 Markdown 嵌入引用",
+		"export": "导出 CSV",
+		"addRows": "添加行",
+		"rowCount": "添加行数",
+		"addField": "添加字段",
+		"field": "字段",
+		"type": "类型",
+		"unit": "单位",
+		"options": "选项（英文逗号分隔）",
+		"dimensions": "{{rows}} 行 · {{columns}} 个字段",
+		"invalid": "表格数据无效：{{detail}}",
+		"invalidFile": "无法读取表格，请用外部编辑器检查文件格式与字段取值。",
+		"path": "表格相对 Vault 的路径",
+		"open": "打开表格",
+		"load": "加载表格",
+		"loading": "正在加载表格…",
+		"types": {
+			"text": "文本",
+			"number": "数值",
+			"boolean": "布尔值",
+			"date": "日期",
+			"select": "单选"
+		}
 	},
 	"missingLink": "缺失：{{target}}（点击创建）",
 	"toc": {

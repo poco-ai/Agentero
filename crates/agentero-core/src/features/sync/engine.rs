@@ -553,7 +553,7 @@ fn merge(
                 // Divergent edits.
                 (Some(le), Some(re)) => {
                     let remote_newer = re.mtime_ms >= le.mtime_ms;
-                    if path.ends_with(".md") {
+                    if path.ends_with(".md") || path.to_ascii_lowercase().ends_with(".table.json") {
                         let copy = conflict_name(path);
                         if remote_newer {
                             plan.preserve_local.push((path.clone(), copy.clone()));
@@ -654,6 +654,10 @@ fn blob_key(hash: &str) -> String {
 
 fn conflict_name(path: &str) -> String {
     let stamp = chrono::Local::now().format("%Y-%m-%d %H%M%S");
+    if path.to_ascii_lowercase().ends_with(".table.json") {
+        let stem = &path[..path.len() - ".table.json".len()];
+        return format!("{stem} (conflict {stamp}).table.json");
+    }
     match path.rsplit_once('.') {
         Some((stem, ext)) => format!("{stem} (conflict {stamp}).{ext}"),
         None => format!("{path} (conflict {stamp})"),
@@ -978,6 +982,25 @@ mod tests {
         let copy = &plan.preserve_local[0].1;
         assert!(copy.contains("(conflict"));
         assert_eq!(plan.merged[copy].hash, "hl");
+    }
+
+    #[test]
+    fn merge_divergent_research_tables_preserves_both_readable_files() {
+        for (local_time, remote_time) in [(10, 20), (20, 10)] {
+            let path = "data/results.table.json";
+            let plan = merge(
+                &map(&[(path, entry("base", 1))]),
+                &map(&[(path, entry("local", local_time))]),
+                &map(&[(path, entry("remote", remote_time))]),
+                &snapshot::SyncScope::all(),
+                &snapshot::SyncScope::all(),
+            );
+            assert_eq!(plan.merged.len(), 2);
+            let copy = plan.merged.keys().find(|key| key.as_str() != path).unwrap();
+            assert!(copy.ends_with(".table.json"));
+            assert!(copy.contains(" (conflict "));
+            assert_ne!(plan.merged[path].hash, plan.merged[copy].hash);
+        }
     }
 
     #[test]

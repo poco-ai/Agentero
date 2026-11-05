@@ -8,6 +8,7 @@ import { notifyError, notifyUndo, notifyWarning } from "@/lib/core/notify";
 import { isTauri } from "@/lib/core/tauri";
 import { localFileToArrayBuffer } from "@/lib/paper";
 import { isRecentBookmarkWrite } from "@/lib/pdf/bookmark-echo";
+import { isResearchTablePath } from "@/lib/research-table/model";
 import { onTexFileSaved } from "@/lib/tex/auto-build";
 import {
 	isMarkdownPath,
@@ -152,7 +153,8 @@ const diskChangeKinds: DiskChangeKind[] = [
 	},
 	{
 		owns: (tab, norm) =>
-			normalizeTabPath(tab.path) === norm && tab.mode === "text",
+			normalizeTabPath(tab.path) === norm &&
+			(tab.mode === "text" || tab.mode === "research-table"),
 		seed: "textSeed",
 		dirty: "textDirty",
 		refresh: (prev, absPath, content) =>
@@ -330,17 +332,23 @@ function persistTextLike(
 				try {
 					const disk = await readVaultFile(path);
 					if (
-						markdownDiskConflicts(
-							disk,
-							lastSaved,
-							lastOwnWriteByPath.get(normalizedPath),
-						)
+						isResearchTablePath(path)
+							? disk !== lastSaved && disk !== content
+							: markdownDiskConflicts(
+									disk,
+									lastSaved,
+									lastOwnWriteByPath.get(normalizedPath),
+								)
 					) {
 						const name = path.split(/[\\/]/).pop() ?? path;
-						notifyWarning(i18n.t("app:diskConflict.saveBlocked", { name }));
+						const notify = isResearchTablePath(path)
+							? notifyError
+							: notifyWarning;
+						notify(i18n.t("app:diskConflict.saveBlocked", { name }));
 						return false;
 					}
-				} catch {
+				} catch (error) {
+					if (isResearchTablePath(path)) throw error;
 					// Missing/unreadable file → no conflict to guard against.
 				}
 				await writeVaultFile(path, content);

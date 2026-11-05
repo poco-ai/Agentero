@@ -76,6 +76,7 @@ export type TreeContextMenuPortalProps = {
 	/** Add the right-clicked file/paper to the Agent chat as a context chip. */
 	onAddToChat?: () => void;
 	onNewFile?: () => void;
+	onNewTable?: () => void;
 	onNewFolder?: () => void;
 	onCopyPath?: () => void;
 	onCut?: () => void;
@@ -111,6 +112,7 @@ export function TreeContextMenuPortal({
 	onEditMeta,
 	onAddToChat,
 	onNewFile,
+	onNewTable,
 	onNewFolder,
 	onCopyPath,
 	onCut,
@@ -327,6 +329,16 @@ export function TreeContextMenuPortal({
 							onClick={onAddToChat}
 						>
 							<span>{t("fileTree.addToChat")}</span>
+						</button>
+					) : null}
+					{menuCount === 1 && onNewTable ? (
+						<button
+							type="button"
+							role="menuitem"
+							className="flex w-full cursor-default items-center gap-4 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+							onClick={onNewTable}
+						>
+							{t("newTableLabel")}
 						</button>
 					) : null}
 					{menuCount === 1 && onNewFile ? (

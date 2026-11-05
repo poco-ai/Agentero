@@ -161,6 +161,12 @@ const MDX_BRACE = /[{}]/;
 export function escapeStrayMdxBraces(source: string): string {
 	if (!MDX_BRACE.test(source)) return source;
 	const mask = buildLiteralMask(source);
+	// Quoted table attributes are directive syntax rather than prose MDX.
+	for (const match of source.matchAll(
+		/^ {0,3}::research-table\{path=(?:"[^"\r\n]*"|'[^'\r\n]*')\}[ \t]*\r?$/gm,
+	)) {
+		mask.fill(1, match.index, match.index + match[0].length);
+	}
 	let out = "";
 	let last = 0;
 	for (let i = 0; i < source.length; i += 1) {

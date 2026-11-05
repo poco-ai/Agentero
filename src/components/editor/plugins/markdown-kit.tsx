@@ -10,6 +10,7 @@ import { columnsRules } from "@/lib/markdown/columns";
 import { htmlRules } from "@/lib/markdown/html";
 import { imageGroupRules } from "@/lib/markdown/image-group";
 import { MARKDOWN_REMARK_PLUGINS } from "@/lib/markdown/remark-plugins";
+import { researchTableRules } from "@/lib/research-table/markdown";
 import { wikiLinkRules } from "@/lib/wiki/wikilink-model";
 
 export const MarkdownKit = [
@@ -38,6 +39,7 @@ export const MarkdownKit = [
 			plainMarks: [KEYS.suggestion, KEYS.comment],
 			remarkPlugins: MARKDOWN_REMARK_PLUGINS,
 			rules: {
+				...researchTableRules,
 				...wikiLinkRules,
 				...obsidianCalloutRules,
 				...imageGroupRules,

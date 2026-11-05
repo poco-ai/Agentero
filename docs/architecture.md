@@ -89,6 +89,7 @@ Plate + `@platejs/markdown`。普通文本粘贴默认按 Markdown 解析。`\$a
 |---|---|---|
 | 文件 | NOTES、PDF、TeX、Markdown、assets、attachments | Vault 内 |
 | Catalog | 论文集合 + metadata | `.agentero/catalog.sqlite` |
+| 科研表格 | 首版科研对象／结果字段与记录（JSON 真源，尚未建 SQLite 索引） | Vault 内 `*.table.json`，见 [科研表格](frontend/research-tables.md) |
 | 阅读标注 | 高亮、划词问答、翻译、视觉批注 | `{paper}/marks/` |
 | 版面分析 | 原始 layout regions / 侧栏索引 | `{paper}/source/layout.json` / `layout-index.json` |
 | 引用解析 | 参考文献元数据 | `{paper}/source/agentero-cite.json` |

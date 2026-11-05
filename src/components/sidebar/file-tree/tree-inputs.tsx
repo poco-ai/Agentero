@@ -137,18 +137,34 @@ export function TreeCreateInput({
 	onCancel: () => void;
 }) {
 	const { t } = useTranslation("sidebar");
-	const Icon = kind === "file" ? FileText : FolderPlus;
+	const Icon = kind !== "folder" ? FileText : FolderPlus;
 	return (
 		<TreeNameInput
 			initialName={
-				kind === "file" ? `${t("fileTree.untitledNote")}.md` : "New Folder"
+				kind === "table"
+					? `${t("fileTree.untitledNote")}.table.json`
+					: kind === "file"
+						? `${t("fileTree.untitledNote")}.md`
+						: "New Folder"
 			}
 			icon={<Icon className="size-4 shrink-0 text-muted-foreground" />}
-			label={kind === "file" ? t("fileTree.newFile") : t("fileTree.newFolder")}
-			selectBasename={kind === "file"}
+			label={
+				kind === "table"
+					? t("newTableLabel")
+					: kind === "file"
+						? t("fileTree.newFile")
+						: t("fileTree.newFolder")
+			}
+			selectBasename={kind !== "folder"}
 			onConfirm={(name) =>
 				onConfirm(
-					kind === "file" && !hasVaultFileExtension(name) ? `${name}.md` : name,
+					kind === "table"
+						? name.toLowerCase().endsWith(".table.json")
+							? name
+							: `${name.replace(/\.json$/i, "")}.table.json`
+						: kind === "file" && !hasVaultFileExtension(name)
+							? `${name}.md`
+							: name,
 				)
 			}
 			onCancel={onCancel}

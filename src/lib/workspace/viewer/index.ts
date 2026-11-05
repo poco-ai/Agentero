@@ -1,5 +1,6 @@
 import { isUnderPapers } from "@/lib/paper/paths";
 import { isRemoteArxivPath } from "@/lib/paper/remote-paper";
+import { isResearchTablePath } from "@/lib/research-table/model";
 import { isMarkdownPath } from "@/lib/vault/fs";
 
 export function isPdfPath(path: string): boolean {
@@ -130,6 +131,14 @@ export type ViewerModeSpec = {
 };
 
 export const VIEWER_MODE_TABLE = [
+	{
+		mode: "research-table",
+		matchesPath: isResearchTablePath,
+		renderer: "always",
+		keepAlive: "editor",
+		props: "text",
+		resource: "text",
+	},
 	{
 		mode: "pdf",
 		matchesPath: isPdfPath,

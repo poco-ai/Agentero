@@ -51,7 +51,7 @@ S3 / WebDAV 共用同一套状态化同步协议（内容寻址 blob + 不可变
 
 `MemStore`（`engine.rs` 测试内的内存 `RemoteStore`，带请求计数与可注入的 PUT 配额）覆盖这三条：`idle_pass_costs_one_request`、`idle_devices_do_not_ping_pong_head`（含「真实改动仍会发布并被对端拉取」）、`interrupted_upload_resumes_without_resending`；日志本身的追加/去重/换 store 失效在 `local.rs` 测试内。
 
-合并规则：单侧改动直接采纳；双侧同改 `*.md` 保留 mtime 较新者、较旧者存为 `<name> (conflict <时间).md`；其余文件（sidecar/marks/二进制）按 mtime LWW；删除 vs 修改保留修改。
+合并规则：单侧改动直接采纳；双侧同改 `*.md` 保留 mtime 较新者、较旧者存为 `<name> (conflict <时间).md`；`*.table.json` 同样保留两份，冲突副本保留完整 `.table.json` 扩展名以便在科研表格编辑器中核对；其余文件（sidecar/marks/二进制）按 mtime LWW；删除 vs 修改保留修改。Git 使用自身合并与冲突流程。
 
 ## 同步范围（Sync Scope）
 

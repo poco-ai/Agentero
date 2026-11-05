@@ -30,7 +30,7 @@ import {
 } from "@/lib/vault";
 import { watchRefreshDelayMs } from "@/lib/vault/shell-activity";
 
-export type TreeCreateKind = "file" | "folder";
+export type TreeCreateKind = "file" | "folder" | "table";
 
 export type TreeCreateDraft = {
 	kind: TreeCreateKind;

@@ -995,16 +995,25 @@ export async function confirmCreate(name: string): Promise<void> {
 			notifyError(i18n.t("sidebar:fileTree.alreadyExists", { name: trimmed }));
 			return;
 		}
-		if (kind === "file") {
-			const initialContent = isExcalidrawPath(trimmed)
-				? JSON.stringify({
-						type: "excalidraw",
-						version: 2,
-						source: "https://excalidraw.com",
-						elements: [],
-						appState: { collaborators: [] },
-					})
-				: "";
+		if (kind !== "folder") {
+			const { createResearchTable, isResearchTablePath } = await import(
+				"@/lib/research-table/model"
+			);
+			const table = isResearchTablePath(trimmed)
+				? createResearchTable(trimmed.slice(0, -11))
+				: null;
+			if (table) table.fields[0].name = i18n.t("editor:researchTable.name");
+			const initialContent = table
+				? `${JSON.stringify(table, null, 2)}\n`
+				: isExcalidrawPath(trimmed)
+					? JSON.stringify({
+							type: "excalidraw",
+							version: 2,
+							source: "https://excalidraw.com",
+							elements: [],
+							appState: { collaborators: [] },
+						})
+					: "";
 			await writeVaultFile(full, initialContent);
 			await refreshTree(vaultPath);
 			openPath(full);
