@@ -158,7 +158,9 @@ pub async fn post_json_with_timeout(
 
 async fn handle_response(res: reqwest::Response) -> Result<String, ApiError> {
     let status = res.status();
-    if status == 429 {
+    // Classify these before reading the body so a truncated 429/404 still
+    // keeps its variant.
+    if status.as_u16() == 429 {
         return Err(ApiError::RateLimited);
     }
     if status.as_u16() == 404 {
@@ -169,10 +171,60 @@ async fn handle_response(res: reqwest::Response) -> Result<String, ApiError> {
         .await
         .map_err(|e| ApiError::Network(format!("read body: {e}")))?;
     if !status.is_success() {
-        let snippet: String = text.chars().take(180).collect();
-        return Err(ApiError::Network(format!("HTTP {status}: {snippet}")));
+        return Err(classify_http_error(status, &text));
     }
     Ok(text)
+}
+
+/// Classify a non-success HTTP response.
+///
+/// 429 and 404 keep their existing variants. HTTP 503 and a body that carries
+/// `error code: 1102` (Cloudflare worker resource limit) become
+/// [`ApiError::Unavailable`] so the translator can retry and then degrade
+/// instead of failing the import.
+pub(crate) fn classify_http_error(status: reqwest::StatusCode, body: &str) -> ApiError {
+    if status.as_u16() == 429 {
+        return ApiError::RateLimited;
+    }
+    if status.as_u16() == 404 {
+        return ApiError::NotFound;
+    }
+    let code = upstream_error_code(body);
+    let detail: String = body.chars().take(180).collect();
+    if status.as_u16() == 503 || code == Some(1102) {
+        return ApiError::Unavailable(crate::features::scholar_api::HttpUnavailable {
+            status: status.as_u16(),
+            code,
+            detail,
+        });
+    }
+    ApiError::Network(format!("HTTP {status}: {detail}"))
+}
+
+/// `true` for the translator failures we retry: HTTP 503, or error code 1102
+/// on any status. Other 5xx and transport errors are not retried here.
+pub(crate) fn is_retryable_unavailable(err: &ApiError) -> bool {
+    match err {
+        ApiError::Unavailable(err) => err.status == 503 || err.code == Some(1102),
+        _ => false,
+    }
+}
+
+/// Cloudflare-style `error code: 1102` marker. The page is often a short HTML
+/// document; the code is the stable part.
+fn upstream_error_code(body: &str) -> Option<u16> {
+    let lower = body.to_ascii_lowercase();
+    let rest = lower.split("error code:").nth(1)?;
+    let digits: String = rest
+        .trim_start()
+        .chars()
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
+    if digits.is_empty() {
+        None
+    } else {
+        digits.parse().ok()
+    }
 }
 
 /// Wrap a cancellation check so callers can short-circuit long-running work.
@@ -207,6 +259,65 @@ mod tests {
             s2_key_header(Some(" abcd1234 ")),
             Some(("x-api-key", "abcd1234".to_string()))
         );
+    }
+
+    #[test]
+    fn classifies_503_with_cloudflare_1102_as_retryable() {
+        let body = "<html><body>error code: 1102</body></html>";
+        let err = classify_http_error(reqwest::StatusCode::SERVICE_UNAVAILABLE, body);
+        assert!(is_retryable_unavailable(&err));
+        match err {
+            ApiError::Unavailable(err) => {
+                assert_eq!(err.status, 503);
+                assert_eq!(err.code, Some(1102));
+                assert_eq!(
+                    err.to_string(),
+                    "HTTP 503 Service Unavailable, error code: 1102"
+                );
+            }
+            other => panic!("expected unavailable, got {other}"),
+        }
+    }
+
+    #[test]
+    fn classifies_503_without_a_code_as_retryable() {
+        let err = classify_http_error(reqwest::StatusCode::SERVICE_UNAVAILABLE, "upstream down");
+        assert!(is_retryable_unavailable(&err));
+        match err {
+            ApiError::Unavailable(err) => {
+                assert_eq!(err.status, 503);
+                assert_eq!(err.code, None);
+            }
+            other => panic!("expected unavailable, got {other}"),
+        }
+    }
+
+    #[test]
+    fn classifies_1102_on_other_statuses_as_retryable() {
+        let err = classify_http_error(
+            reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            "error code: 1102",
+        );
+        assert!(is_retryable_unavailable(&err));
+        match err {
+            ApiError::Unavailable(err) => assert_eq!(err.code, Some(1102)),
+            other => panic!("expected unavailable, got {other}"),
+        }
+    }
+
+    #[test]
+    fn leaves_404_429_and_other_5xx_on_their_existing_paths() {
+        assert!(matches!(
+            classify_http_error(reqwest::StatusCode::NOT_FOUND, "missing"),
+            ApiError::NotFound
+        ));
+        assert!(matches!(
+            classify_http_error(reqwest::StatusCode::TOO_MANY_REQUESTS, "slow down"),
+            ApiError::RateLimited
+        ));
+        let err = classify_http_error(reqwest::StatusCode::BAD_GATEWAY, "bad gateway");
+        assert!(!is_retryable_unavailable(&err));
+        assert!(matches!(err, ApiError::Network(_)));
     }
 
     #[test]
