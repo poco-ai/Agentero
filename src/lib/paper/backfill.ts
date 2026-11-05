@@ -1,6 +1,4 @@
-import { createElement } from "react";
 import { toast } from "sonner";
-import { BackfillPrompt } from "@/components/paper/backfill-prompt";
 import i18n from "@/i18n";
 import { type BackfillPreview, commands } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
@@ -9,8 +7,28 @@ import { notifyError, notifySuccess } from "@/lib/core/notify";
 
 const deferred = new Set<string>();
 const generations = new Map<string, number>();
-let promptSequence = 0;
 const toastId = (vaultPath: string) => `paper-backfill:${vaultPath}`;
+
+export type BackfillPromptRequest = {
+	preview: BackfillPreview;
+	/** Sonner toast id; also honored by `dismissPaperBackfill`. */
+	toastId: string;
+	onLater: () => void;
+	onStart: (paths: string[]) => Promise<void>;
+};
+
+/**
+ * Registered by the main window (`usePaperBackfillPrompt`) to render the
+ * prompt UI. Kept as a setter so this module stays component-free
+ * (`lib-no-components`), mirroring `setNetworkFailureReporter`.
+ */
+let presenter: ((request: BackfillPromptRequest) => void) | null = null;
+
+export function setBackfillPromptPresenter(
+	fn: ((request: BackfillPromptRequest) => void) | null,
+): void {
+	presenter = fn;
+}
 
 export function checkPaperBackfill(
 	vaultPath: string,
@@ -25,28 +43,18 @@ export function dismissPaperBackfill(vaultPath: string): void {
 
 function showPaperBackfill(vaultPath: string, preview: BackfillPreview): void {
 	if (!preview.downloadSource && !preview.parseBody) return;
-	const key = ++promptSequence;
-	toast.custom(
-		() =>
-			createElement(BackfillPrompt, {
-				key,
-				preview,
-				onLater: () => {
-					deferred.add(vaultPath);
-					toast.dismiss(toastId(vaultPath));
-				},
-				onStart: async (paths) => {
-					await enqueuePaperBackfill(vaultPath, paths);
-					toast.dismiss(toastId(vaultPath));
-				},
-			}),
-		{
-			id: toastId(vaultPath),
-			duration: Number.POSITIVE_INFINITY,
-			dismissible: false,
-			style: { width: "min(26rem, calc(100vw - 1.5rem))" },
+	presenter?.({
+		preview,
+		toastId: toastId(vaultPath),
+		onLater: () => {
+			deferred.add(vaultPath);
+			toast.dismiss(toastId(vaultPath));
 		},
-	);
+		onStart: async (paths) => {
+			await enqueuePaperBackfill(vaultPath, paths);
+			toast.dismiss(toastId(vaultPath));
+		},
+	});
 }
 
 export async function enqueuePaperBackfill(

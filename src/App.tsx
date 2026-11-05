@@ -39,6 +39,7 @@ import { useLayoutModelPrefetch } from "@/hooks/use-layout-model-prefetch";
 import { useMcpSync } from "@/hooks/use-mcp-sync";
 import { useNativeMenuEvents } from "@/hooks/use-native-menu-events";
 import { useAnyModalOverlayOpen } from "@/hooks/use-overlay-registration";
+import { usePaperBackfillPrompt } from "@/hooks/use-paper-backfill-prompt";
 import {
 	RAIL_COLLAPSED_MAX_PX,
 	RIGHT_SIDEBAR_MAX_RATIO,
@@ -230,6 +231,8 @@ export default function App() {
 	useFeatureTour();
 	// Low-frequency config reminders (#658): startup layout-model hint.
 	useConfigReminders();
+	// Vault backfill prompt: lib decides when, this window renders the toast.
+	usePaperBackfillPrompt();
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const {
 		sidebarPanelRef,
