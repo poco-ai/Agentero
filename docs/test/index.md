@@ -104,7 +104,7 @@ cargo test -p agentero-core -p agentero-cli
 
 CI 的 `agentero-tests` 任务运行 Host 与 `agentero-plugin-host` 测试，包含真实插件子进程的取消、超时和资源限制；`cli-tests` 任务同时运行 `agentero-core` 与 CLI 自身的测试，并保留 CLI 构建检查。仅测试 Host/CLI 不会执行依赖 crate 的单元测试，因此必须显式选择共享 crate。两个 headless 包复用同一任务的 Rust 构建产物与 PDFium provisioning，不执行桌面 ACP adapter staging；PDFium 的构建与运行时路径由现有 CI provisioning 统一设置。桌面 `cargo test -p agentero` 与 `cargo clippy --workspace` 还要先有 `pnpm plugin-worker:stage` 放进 `src-tauri/binaries/` 的 sidecar，否则 `tauri-build` 会像缺少 `src-tauri/pdfium` 一样失败；`cargo test -p agentero-core -p agentero-cli` 不编译 `agentero`，不需要该文件。
 
-`#[cfg(windows)]` 不会出现在 macOS job 里。`rust-windows`（`windows-latest`）跑同一组任务：quality（`cargo fmt --all --check` 与 `cargo clippy --workspace --all-targets -- -D warnings`）、`agentero-tests`、`cli-tests`。Windows 上 `tesseract-rs` 的 Debug `*d.lib` 和空 `eng.traineddata` 见 [CONTRIBUTING.md](../../CONTRIBUTING.md)；测试任务因此使用 `--release`，让 CMake 产出并链接与 crate 匹配的库名。
+`#[cfg(windows)]` 不会出现在 macOS job 里。`rust-windows`（`windows-latest`）跑同一组任务：quality（`cargo fmt --all --check` 与 `cargo clippy --workspace --all-targets -- -D warnings`）、`agentero-tests`、`cli-tests`。Windows 上 `tesseract-rs` 的 Debug `*d.lib` 和空 `eng.traineddata` 见 [CONTRIBUTING.md](https://github.com/poco-ai/agentero/blob/main/CONTRIBUTING.md)；测试任务因此使用 `--release`，让 CMake 产出并链接与 crate 匹配的库名。
 
 解析器和 resolver 的边界用例可以放在对应 Rust 模块的 `#[cfg(test)]` 中。依赖 Vault 的 graph/index 测试应创建临时目录和文件，不依赖已提交的缓存文件。
 
