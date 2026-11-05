@@ -102,7 +102,7 @@ export function BlockDragPreview() {
 		>
 			{/* Card chrome expands around the clone so the grab point on the text stays put. */}
 			<div className="relative">
-				<div className="absolute -inset-1 rounded-md bg-background/95 shadow-lg ring-1 ring-foreground/15" />
+				<div className="absolute -inset-1 rounded-md bg-background/95 shadow-overlay ring-1 ring-foreground/15" />
 				<div ref={hostRef} className="relative" />
 			</div>
 		</div>,

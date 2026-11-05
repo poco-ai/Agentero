@@ -188,7 +188,7 @@ export function TextEditorLintFooter({
 				{diagnostics.length ? (
 					<div
 						className={cn(
-							"pointer-events-none invisible absolute left-0 z-20 max-h-72 w-[28rem] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border bg-popover p-1 text-foreground opacity-0 shadow-lg group-hover/lint:pointer-events-auto group-hover/lint:visible group-hover/lint:opacity-100 group-focus-within/lint:pointer-events-auto group-focus-within/lint:visible group-focus-within/lint:opacity-100",
+							"pointer-events-none invisible absolute left-0 z-20 max-h-72 w-[28rem] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border bg-popover p-1.5 text-foreground opacity-0 shadow-overlay ring-1 ring-foreground/10 group-hover/lint:pointer-events-auto group-hover/lint:visible group-hover/lint:opacity-100 group-focus-within/lint:pointer-events-auto group-focus-within/lint:visible group-focus-within/lint:opacity-100",
 							chrome === "inline" ? "top-full mt-1" : "bottom-full",
 						)}
 					>

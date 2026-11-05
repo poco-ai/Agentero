@@ -61,12 +61,12 @@ const EDIT_MIN_COMMENT_LINES = 3;
 /** In-place editor: layout estimate cap; textarea scrolls past this. */
 const EDIT_MAX_COMMENT_LINES = 12;
 const COMMENT_CARD_SURFACE_CLASS =
-	"group pointer-events-auto absolute select-none rounded-lg border border-white/55 bg-background/88 shadow-[0_10px_28px_rgba(15,23,42,0.16),0_2px_8px_rgba(15,23,42,0.1)] ring-1 ring-black/5 backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,background-color,transform] duration-150 ease-out hover:z-[7] hover:shadow-[0_16px_36px_rgba(15,23,42,0.2),0_4px_12px_rgba(15,23,42,0.12)] hover:!h-auto supports-backdrop-blur:bg-background/70 dark:border-white/10 dark:shadow-[0_12px_32px_rgba(0,0,0,0.45),0_2px_10px_rgba(0,0,0,0.35)] dark:hover:shadow-[0_18px_40px_rgba(0,0,0,0.55),0_4px_14px_rgba(0,0,0,0.42)] dark:ring-white/10";
+	"group pointer-events-auto absolute select-none rounded-lg border border-white/55 bg-background/88 shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,background-color,transform] duration-150 ease-out hover:z-[7] hover:shadow-dialog hover:!h-auto supports-backdrop-blur:bg-background/70 dark:border-white/10";
 const COMMENT_DRAFT_SURFACE_CLASS =
-	"group/draft pointer-events-auto absolute z-[6] cursor-text overflow-hidden rounded-lg border border-white/55 bg-background/88 text-left shadow-[0_10px_28px_rgba(15,23,42,0.16),0_2px_8px_rgba(15,23,42,0.1)] ring-1 ring-black/5 backdrop-blur-xl backdrop-saturate-150 outline-none supports-backdrop-blur:bg-background/70 dark:border-white/10 dark:shadow-[0_12px_32px_rgba(0,0,0,0.45),0_2px_10px_rgba(0,0,0,0.35)] dark:ring-white/10";
+	"group/draft pointer-events-auto absolute z-[6] cursor-text overflow-hidden rounded-lg border border-white/55 bg-background/88 text-left shadow-overlay ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 outline-none supports-backdrop-blur:bg-background/70 dark:border-white/10";
 /** Horizontal action bar floating just above the card's top-right corner. */
 const COMMENT_ACTION_BAR_CLASS =
-	"pointer-events-none absolute right-0 bottom-full z-[1] flex items-center gap-0.5 rounded-md border border-white/50 bg-background/82 p-0.5 shadow-[0_6px_18px_rgba(15,23,42,0.14)] ring-1 ring-black/5 backdrop-blur-xl backdrop-saturate-150 transition-opacity duration-150 group-hover:pointer-events-auto dark:border-white/10 dark:shadow-[0_8px_20px_rgba(0,0,0,0.4)] dark:ring-white/10";
+	"pointer-events-none absolute right-0 bottom-full z-[1] flex items-center gap-0.5 rounded-md border border-white/50 bg-background/82 p-0.5 shadow-raised ring-1 ring-foreground/10 backdrop-blur-xl backdrop-saturate-150 transition-opacity duration-150 group-hover:pointer-events-auto dark:border-white/10";
 
 type CommentCardsLayerProps = {
 	inset?: boolean;
@@ -360,9 +360,9 @@ const CommentCard = memo(function CommentCard({
 			className={cn(
 				COMMENT_CARD_SURFACE_CLASS,
 				editing
-					? "z-[6] bg-background/92 shadow-[0_18px_44px_rgba(15,23,42,0.22),0_4px_16px_rgba(15,23,42,0.12)] ring-2 ring-ring/50 dark:shadow-[0_18px_46px_rgba(0,0,0,0.6),0_4px_16px_rgba(0,0,0,0.45)]"
+					? "z-[6] bg-background/92 shadow-dialog ring-2 ring-ring/50"
 					: hovered
-						? "z-[6] bg-background/92 shadow-[0_18px_44px_rgba(15,23,42,0.22),0_4px_16px_rgba(15,23,42,0.12)] ring-2 ring-primary/45 dark:shadow-[0_18px_46px_rgba(0,0,0,0.6),0_4px_16px_rgba(0,0,0,0.45)]"
+						? "z-[6] bg-background/92 shadow-dialog ring-2 ring-primary/45"
 						: "",
 			)}
 			style={{
@@ -737,7 +737,7 @@ const SelectionCommentAffordance = memo(function SelectionCommentAffordance({
 			data-selection-comment=""
 			className={cn(
 				COMMENT_DRAFT_SURFACE_CLASS,
-				"z-[7] w-56 bg-background/92 shadow-[0_18px_44px_rgba(15,23,42,0.22),0_4px_16px_rgba(15,23,42,0.12)] ring-2 ring-ring/50 dark:shadow-[0_18px_46px_rgba(0,0,0,0.6),0_4px_16px_rgba(0,0,0,0.45)]",
+				"z-[7] w-56 bg-background/92 shadow-dialog ring-2 ring-ring/50",
 			)}
 			style={{
 				...(inset

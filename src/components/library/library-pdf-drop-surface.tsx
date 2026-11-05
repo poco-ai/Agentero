@@ -44,7 +44,7 @@ export function LibraryPdfDropSurface({
 					)}
 					aria-hidden
 				>
-					<div className="flex items-center gap-2 rounded-full border border-primary/25 bg-background/90 px-3 py-1.5 text-primary text-xs font-medium shadow-sm">
+					<div className="flex items-center gap-2 rounded-full border border-primary/25 bg-background/90 px-3 py-1.5 text-primary text-xs font-medium shadow-raised">
 						<FileUp className="size-3.5 shrink-0" />
 						<span>{t("papersLibrary.dropPdfHint")}</span>
 					</div>

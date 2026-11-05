@@ -175,7 +175,7 @@ export function RemoteVaultDialog({
 								<div
 									id="remote-host-suggestions"
 									role="listbox"
-									className="absolute top-full right-0 left-0 z-50 mt-1 max-h-56 overflow-y-auto rounded-md border bg-popover p-1 shadow-md"
+									className="absolute top-full right-0 left-0 z-50 mt-1 max-h-56 overflow-y-auto rounded-lg border bg-popover p-1.5 shadow-overlay ring-1 ring-foreground/10"
 								>
 									{filtered.map((h, i) => (
 										<button
@@ -185,7 +185,7 @@ export function RemoteVaultDialog({
 											aria-selected={i === activeIdx}
 											tabIndex={-1}
 											className={cn(
-												"flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none",
+												"flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none",
 												i === activeIdx
 													? "bg-muted text-foreground"
 													: "text-popover-foreground",

@@ -18,7 +18,7 @@ export function BackfillPrompt({
 	return (
 		<section
 			aria-label={t("doctor.backfill.title")}
-			className="w-full rounded-xl border border-border/70 bg-popover p-4 text-popover-foreground shadow-lg"
+			className="w-full rounded-xl border border-border/70 bg-popover p-4 text-popover-foreground shadow-overlay"
 		>
 			<h2 className="mb-2.5 font-semibold text-sm tracking-tight">
 				{t("doctor.backfill.title")}

@@ -43,7 +43,7 @@ export function PlazaSelectionMenu({
 		<div
 			data-plaza-selection-menu
 			className={cn(
-				"fixed z-50 flex h-8 items-center gap-0.5 rounded-md border border-border/80 bg-background px-1 shadow-2xl ring-1 ring-black/5 dark:ring-white/10",
+				"fixed z-50 flex h-8 items-center gap-0.5 rounded-lg border border-border/80 bg-background px-1 shadow-overlay ring-1 ring-foreground/10",
 				overContent &&
 					"bg-background/80 backdrop-blur-sm transition-[background-color] duration-150 hover:bg-background",
 			)}

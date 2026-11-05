@@ -142,7 +142,7 @@ function FeedSubMenu({
 			floatingRef={menuRef}
 			point={{ x: menu.x, y: menu.y }}
 			role="menu"
-			className="z-[2000] min-w-40 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+			className="z-[2000] min-w-44 rounded-lg bg-popover p-1.5 text-popover-foreground shadow-overlay ring-1 ring-foreground/10"
 		>
 			<button
 				type="button"

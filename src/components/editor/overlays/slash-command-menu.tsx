@@ -144,7 +144,7 @@ export function SlashCommandMenu({
 	return (
 		<ViewportFloating
 			point={{ x: draft.left, y: draft.top }}
-			className="z-50 w-64 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
+			className="z-50 w-64 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-overlay ring-1 ring-foreground/10"
 			data-editor-completion="slash"
 		>
 			<div

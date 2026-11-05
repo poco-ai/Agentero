@@ -260,7 +260,7 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 				<div className="absolute -right-24 -bottom-32 size-96 rounded-full bg-primary/10 blur-3xl" />
 			</div>
 
-			<div className="relative flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl">
+			<div className="relative flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border bg-card shadow-dialog">
 				{/* Header: current step title + per-step action */}
 				<div className="flex items-start justify-between gap-3 px-6 pt-5">
 					<div className="min-w-0 max-w-md">

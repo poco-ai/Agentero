@@ -218,7 +218,7 @@ function SelectionReferenceCard({
 		<div
 			ref={cardRef}
 			data-annotation-ui
-			className="fixed z-50 max-h-[min(24rem,calc(100vh-2rem))] overflow-y-auto rounded-lg bg-popover p-1 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10"
+			className="fixed z-50 max-h-[min(24rem,calc(100vh-2rem))] overflow-y-auto rounded-lg bg-popover p-1.5 text-sm text-popover-foreground shadow-overlay ring-1 ring-foreground/10"
 			style={{
 				left: position.left,
 				top: position.top,

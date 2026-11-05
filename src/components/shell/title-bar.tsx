@@ -85,7 +85,7 @@ export const TitleBar = memo(function TitleBar({
 						<TooltipTrigger asChild>
 							<Button
 								variant="ghost"
-								size="icon-xs"
+								size="icon-sm"
 								data-tb-sidebar
 								aria-label={
 									sidebarCollapsed
@@ -121,7 +121,7 @@ export const TitleBar = memo(function TitleBar({
 									<Button
 										type="button"
 										variant="ghost"
-										size="icon-xs"
+										size="icon-sm"
 										data-tb-agent
 										aria-label={
 											rightSidebarOpen
@@ -177,7 +177,7 @@ export const TitleBar = memo(function TitleBar({
 										<Button
 											type="button"
 											variant="ghost"
-											size="icon-xs"
+											size="icon-sm"
 											aria-label={t("titlebar.settings")}
 										>
 											<Settings className="size-3.5" />

@@ -172,7 +172,7 @@ function TaskRow({ task }: { task: BackgroundTask }) {
 	}, [task.detail]);
 
 	return (
-		<div className="flex flex-col gap-1 border-b border-border/60 px-2.5 py-2 last:border-b-0">
+		<div className="flex flex-col gap-1 border-b border-border/60 px-3 py-2.5 last:border-b-0">
 			<div className="flex min-w-0 items-start gap-2">
 				<span className="mt-0.5">{statusIcon(task)}</span>
 				<div className="min-w-0 flex-1">
@@ -373,7 +373,7 @@ function ProgressRing({
 		<button
 			type="button"
 			className={cn(
-				"relative flex size-9 items-center justify-center rounded-full bg-background text-foreground shadow-sm ring-1 ring-border transition-[opacity,transform] duration-100 hover:opacity-90 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+				"relative flex size-9 items-center justify-center rounded-full bg-background text-foreground shadow-raised ring-1 ring-border transition-[opacity,transform] duration-100 hover:opacity-90 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
 				celebrate && "task-ring-success-pulse",
 			)}
 			aria-label={label}
@@ -680,7 +680,7 @@ export function BackgroundTasksPanel({ className }: { className?: string }) {
 				{detailMounted ? (
 					<div
 						className={cn(
-							"w-full origin-bottom-left overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-lg",
+							"w-full origin-bottom-left overflow-hidden rounded-lg border border-border/70 bg-popover text-popover-foreground shadow-overlay",
 							"transition-[opacity,transform] ease-out",
 							reduceMotion ? "duration-150" : "duration-200",
 							detailVisible
@@ -690,7 +690,7 @@ export function BackgroundTasksPanel({ className }: { className?: string }) {
 									: "scale-95 opacity-0",
 						)}
 					>
-						<div className="flex h-8 items-center gap-1 border-b bg-muted/40 px-2">
+						<div className="flex h-9 items-center gap-1 border-b border-border/60 bg-muted/30 px-2.5">
 							<span className="min-w-0 flex-1 truncate px-1 font-medium text-sm">
 								{t("tasks.title")}
 								{active.length > 0 ? (

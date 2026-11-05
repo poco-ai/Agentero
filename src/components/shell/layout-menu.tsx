@@ -49,7 +49,7 @@ export function LayoutMenu({ value, onValueChange }: LayoutMenuProps) {
 				<Button
 					type="button"
 					variant="ghost"
-					size="icon-xs"
+					size="icon-sm"
 					aria-label={t("titlebar.layout")}
 					className="active:scale-95 data-[state=open]:bg-muted data-[state=open]:text-foreground"
 					onPointerDown={(event) => {

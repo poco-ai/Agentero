@@ -53,7 +53,7 @@ export function ThemeModeSwitch({
 						{selected ? (
 							<motion.span
 								layoutId="theme-mode-indicator"
-								className="absolute inset-0 rounded-md bg-background shadow-sm"
+								className="absolute inset-0 rounded-md bg-background shadow-raised"
 								transition={{ type: "spring", bounce: 0.2, duration: 0.3 }}
 							/>
 						) : null}

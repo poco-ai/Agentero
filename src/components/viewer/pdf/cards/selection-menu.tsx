@@ -228,7 +228,7 @@ export function SelectionMenu({
 			ref={menuRef}
 			data-pdf-chrome
 			className={cn(
-				"fixed z-50 flex h-8 items-center gap-0.5 rounded-md border border-border/80 bg-background px-1 shadow-2xl ring-1 ring-black/5 transition-[background-color,opacity] duration-150 dark:ring-white/10",
+				"fixed z-50 flex h-8 items-center gap-0.5 rounded-lg border border-border/80 bg-background px-1 shadow-overlay ring-1 ring-foreground/10 transition-[background-color,opacity] duration-150 dark:ring-white/10",
 				// Dim when covering body text or when the selection scrolled away.
 				position?.dimmed &&
 					"bg-background/80 opacity-70 backdrop-blur-sm hover:bg-background hover:opacity-100",

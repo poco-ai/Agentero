@@ -469,7 +469,7 @@ export function WikiEmbedElement({
 				ref={bodyRef}
 				contentEditable={false}
 				className={cn(
-					"group/embed block rounded-md border border-border bg-muted/20 shadow-sm",
+					"group/embed block rounded-md border border-border bg-muted/20 shadow-raised",
 					expandEmbeds
 						? "max-h-none overflow-visible"
 						: "max-h-96 overflow-auto",

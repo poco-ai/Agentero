@@ -137,7 +137,7 @@ export function VaultWelcome({
 						{t("settings:nav.account")}
 					</Button>
 				) : null}
-				<div className="mx-auto flex size-12 items-center justify-center rounded-xl border bg-background shadow-sm">
+				<div className="mx-auto flex size-12 items-center justify-center rounded-xl border bg-background shadow-raised">
 					<FolderOpen className="size-6 text-muted-foreground" />
 				</div>
 
@@ -185,7 +185,7 @@ export function VaultWelcome({
 				</div>
 
 				{recentVaults.length > 0 || recentRemotes.length > 0 ? (
-					<div className="overflow-hidden rounded-lg border bg-background shadow-sm">
+					<div className="overflow-hidden rounded-lg border bg-background shadow-raised">
 						<div className="border-b px-3 py-2">
 							<p className="font-medium text-muted-foreground text-xs">
 								{t("vault.recentTitle")}

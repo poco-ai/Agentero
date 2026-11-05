@@ -325,7 +325,7 @@ export function MermaidBlock({
 
 			<div
 				className={cn(
-					"absolute top-2 right-2 z-10 flex items-center gap-0.5 rounded-md border bg-background/95 p-1 shadow-sm",
+					"absolute top-2 right-2 z-10 flex items-center gap-0.5 rounded-md border bg-background/95 p-1 shadow-raised",
 					"opacity-0 transition-opacity focus-within:opacity-100 group-hover/mermaid:opacity-100 pointer-coarse:opacity-100",
 				)}
 			>

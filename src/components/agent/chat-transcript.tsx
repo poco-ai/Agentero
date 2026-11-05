@@ -1260,7 +1260,7 @@ export const ChatTranscript = memo(function ChatTranscript({
 													<Suggestion
 														key={item.key}
 														suggestion={label}
-														className="h-auto w-full justify-start whitespace-normal rounded-lg px-3 py-2.5 text-left"
+														className="h-auto w-full justify-start whitespace-normal rounded-lg px-3 py-2.5 text-left hover:shadow-raised"
 														onClick={(value) =>
 															onSendSuggestion(value, item.workflow)
 														}

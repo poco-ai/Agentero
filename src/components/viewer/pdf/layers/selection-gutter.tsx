@@ -179,7 +179,7 @@ export const SelectionGutter = memo(function SelectionGutter({
 						<button
 							type="button"
 							className={cn(
-								"flex size-6 items-center justify-center rounded-md border shadow-sm transition-[opacity,background-color] duration-150 hover:scale-110",
+								"flex size-6 items-center justify-center rounded-md border shadow-raised transition-[opacity,background-color] duration-150 hover:scale-110",
 								item.kind === "ask" && item.ended
 									? "border-amber-600/35 bg-background text-amber-600 dark:text-amber-400"
 									: item.kind === "translate"

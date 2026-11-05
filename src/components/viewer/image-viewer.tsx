@@ -40,7 +40,7 @@ export function ImageViewer({ source, alt, className }: ImageViewerProps) {
 			<img
 				src={source}
 				alt={alt?.trim() || t("image.altFallback")}
-				className="max-h-full max-w-full object-contain shadow-sm"
+				className="max-h-full max-w-full object-contain shadow-raised"
 				draggable={false}
 			/>
 		</div>

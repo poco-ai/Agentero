@@ -364,7 +364,7 @@ function CitationCard({
 					<ReferenceCardBody citation={citation} ordinal={ordinal} />
 				</div>
 			)}
-			<div className="absolute top-2 right-2 flex items-center gap-0.5 rounded-lg bg-background/80 p-0.5 opacity-0 shadow-sm ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+			<div className="absolute top-2 right-2 flex items-center gap-0.5 rounded-lg bg-background/80 p-0.5 opacity-0 shadow-raised ring-1 ring-border/60 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
 				{importable ? (
 					<CitationImportPopover
 						citationId={citation.id}

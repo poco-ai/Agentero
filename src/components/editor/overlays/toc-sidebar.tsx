@@ -174,8 +174,8 @@ export function TocSidebar(props: TocSideBarProps) {
 				className={cn(
 					"rounded-xl border border-transparent bg-transparent p-1",
 					"transition-[background-color,border-color,box-shadow] duration-200 ease-out",
-					"group-hover/toc:border-border/60 group-hover/toc:bg-background/95 group-hover/toc:shadow-lg",
-					"group-focus-within/toc:border-border/60 group-focus-within/toc:bg-background/95 group-focus-within/toc:shadow-lg",
+					"group-hover/toc:border-border/70 group-hover/toc:bg-background/95 group-hover/toc:shadow-overlay",
+					"group-focus-within/toc:border-border/70 group-focus-within/toc:bg-background/95 group-focus-within/toc:shadow-overlay",
 				)}
 			>
 				<div

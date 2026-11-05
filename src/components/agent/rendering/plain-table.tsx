@@ -97,7 +97,7 @@ export function PlainTable({
 
 			<div
 				className={cn(
-					"absolute right-2 top-2 flex items-center gap-1 rounded-md border bg-background/95 p-1 shadow-sm",
+					"absolute right-2 top-2 flex items-center gap-1 rounded-md border bg-background/95 p-1 shadow-raised",
 					"opacity-0 transition-opacity group-hover/table:opacity-100",
 					"focus-within:opacity-100",
 				)}

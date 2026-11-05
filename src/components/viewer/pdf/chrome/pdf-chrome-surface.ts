@@ -9,7 +9,7 @@
 
 /** Compact HUD chips: top toolbars, bottom bar, find bar, page-edge tabs. */
 export const PDF_CHROME_CHIP =
-	"border border-border/50 bg-background/80 shadow-sm ring-1 ring-black/5 backdrop-blur-md backdrop-saturate-150 supports-backdrop-blur:bg-background/60 dark:border-white/10 dark:ring-white/10";
+	"border border-border/50 bg-background/80 shadow-raised ring-1 ring-foreground/10 backdrop-blur-md backdrop-saturate-150 supports-backdrop-blur:bg-background/60 dark:border-white/10 dark:ring-white/10";
 
 /** Auto-hide chrome: materialize (opacity + slight rise), not a plain fade. */
 export const PDF_CHROME_VIS =
@@ -26,12 +26,12 @@ export const PDF_CHROME_VIS_HIDE =
  * Reserve the bottom 4rem for the page / zoom bar and a clear gap.
  */
 export const PDF_SIDE_PANEL =
-	"absolute top-0 bottom-16 left-0 z-20 w-80 select-none border-r border-border/50 bg-background/90 pt-11 pb-2 shadow-lg backdrop-blur-xl backdrop-saturate-150 supports-backdrop-blur:bg-background/75 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:duration-200 motion-reduce:animate-none";
+	"absolute top-0 bottom-16 left-0 z-20 w-80 select-none border-r border-border/50 bg-background/90 pt-11 pb-2 shadow-overlay backdrop-blur-xl backdrop-saturate-150 supports-backdrop-blur:bg-background/75 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:duration-200 motion-reduce:animate-none";
 
 /** Icon-only selection menu — glassier than long-form cards. */
 export const PDF_SELECTION_MENU =
-	"rounded-xl border border-border/50 bg-background/90 shadow-xl ring-1 ring-black/5 backdrop-blur-md backdrop-saturate-150 supports-backdrop-blur:bg-background/75 dark:ring-white/10";
+	"rounded-xl border border-border/50 bg-background/90 shadow-overlay ring-1 ring-foreground/10 backdrop-blur-md backdrop-saturate-150 supports-backdrop-blur:bg-background/75 dark:ring-white/10";
 
 /** Ask / translate / preview cards — near-solid for dense text. */
 export const PDF_FLOAT_CARD =
-	"rounded-xl border border-border/60 bg-background/95 text-foreground shadow-xl ring-1 ring-black/5 backdrop-blur-sm supports-backdrop-blur:bg-background/90 dark:ring-white/10";
+	"rounded-xl border border-border/60 bg-background/95 text-foreground shadow-overlay ring-1 ring-foreground/10 backdrop-blur-sm supports-backdrop-blur:bg-background/90 dark:ring-white/10";
