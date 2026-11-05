@@ -225,6 +225,7 @@ export function usePdfLayoutTranslate({
 	const { t } = useTranslation("viewer");
 	/** Progressive layout bulk-translate overlays (body text / abstract / header). */
 	const [sourcePreparing, setSourcePreparing] = useState(false);
+	const [cacheOnly, setCacheOnly] = useState(false);
 	const [layoutTranslateJob, setLayoutTranslateJob] = useState<{
 		status: LayoutTranslateJobStatus;
 		items: LayoutTranslateItem[];
@@ -236,6 +237,7 @@ export function usePdfLayoutTranslate({
 		reflowItems,
 		reflowBusy,
 		reflowReady,
+		reflowProgress,
 		exportTranslatedPdf,
 	} = usePdfReflow(
 		reflowContext,
@@ -425,6 +427,7 @@ export function usePdfLayoutTranslate({
 			setSourcePreparing(false);
 			const items = applyLayoutTranslateSidecar(prepared, sidecar);
 			const needsRun = hasPendingLayoutTranslateItems(items);
+			setCacheOnly(!needsRun);
 			setLayoutTranslateJob({
 				status: needsRun ? "running" : "done",
 				items,
@@ -541,6 +544,7 @@ export function usePdfLayoutTranslate({
 				setSourcePreparing(false);
 				const pageItems = applyLayoutTranslateSidecar(prepared, sidecar);
 				const needsRun = hasPendingLayoutTranslateItems(pageItems);
+				setCacheOnly(!needsRun);
 				setLayoutTranslateJob((prev) => {
 					const merged = mergeTranslatePageItems(
 						prev.items,
@@ -896,6 +900,8 @@ export function usePdfLayoutTranslate({
 	const layoutTranslateProgress = layoutTranslateDisplayRatio(
 		layoutTranslateRunning && sourcePreparing ? null : textSettled,
 		(layoutTranslateRunning || previewPending) && !finalReflowFailed,
+		reflowProgress,
+		cacheOnly,
 	);
 	// Cached re-runs settle almost immediately, but the translated page only
 	// paints once the final reflow build publishes its previews. Keep the

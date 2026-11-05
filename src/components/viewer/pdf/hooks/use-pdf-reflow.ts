@@ -127,6 +127,7 @@ export function usePdfReflow(
 		reflowItems,
 		reflowBusy: session.current?.busy ?? false,
 		reflowReady: !running && Boolean(session.current?.output),
+		reflowProgress: session.current?.progress ?? 0,
 		exportTranslatedPdf: exportPdf,
 	};
 }

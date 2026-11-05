@@ -108,6 +108,39 @@ afterEach(() => {
 });
 const settled = () => vi.waitFor(() => expect(session.busy).toBe(false));
 
+it("reports final build work and resets progress when that output is superseded", async () => {
+	const gate = deferred<ReflowOutput>();
+	vi.mocked(buildReflowPdf).mockImplementationOnce(
+		async (
+			_engine,
+			_doc,
+			ir,
+			_translations,
+			_fonts,
+			_signal,
+			_commonScale,
+			report,
+		) => {
+			report?.(0.5);
+			await gate.promise;
+			return result(ir);
+		},
+	);
+	const first = item(0);
+	session.update([first], [], false);
+	await vi.waitFor(() => expect(session.progress).toBe(0.4));
+	expect(session.output).toBeNull();
+	gate.resolve(result(vi.mocked(buildReflowPdf).mock.calls[0][2]));
+	await settled();
+	expect(session.progress).toBe(1);
+	session.update(
+		[{ ...first, status: "pending", translated: undefined }],
+		[],
+		true,
+	);
+	expect(session.progress).toBe(0);
+});
+
 it("publishes a finished page during translation and preserves it across other batches", async () => {
 	const first = item(0),
 		second = item(1, "pending");

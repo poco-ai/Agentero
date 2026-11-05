@@ -9,6 +9,13 @@ import {
 	ScanSearch,
 	Square,
 } from "lucide-react";
+import {
+	motion,
+	useMotionValueEvent,
+	useReducedMotion,
+	useSpring,
+	useTransform,
+} from "motion/react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -206,19 +213,20 @@ export const PdfToolbar = memo(function PdfToolbar({
 	const meterRatio = lingerFull
 		? 1
 		: Math.max(0, Math.min(1, layoutTranslateProgress ?? 0));
-	const meterPercent = Math.round(meterRatio * 100);
-
-	const [meterGrown, setMeterGrown] = useState(false);
+	const reduceMotion = useReducedMotion();
+	const smoothPercent = useSpring(0, { stiffness: 180, damping: 30 });
+	const smoothWidth = useTransform(smoothPercent, (value) => `${value}%`);
+	const [meterPercent, setMeterPercent] = useState(0);
+	useMotionValueEvent(smoothPercent, "change", (value) =>
+		setMeterPercent(Math.round(value)),
+	);
 	useEffect(() => {
-		if (!meterOpen) {
-			setMeterGrown(false);
-			return;
-		}
-		const id = requestAnimationFrame(() => setMeterGrown(true));
-		return () => cancelAnimationFrame(id);
-	}, [meterOpen]);
-	const meterWidth =
-		meterOpen && meterGrown && !meterIndeterminate ? meterRatio : 0;
+		const target = meterOpen && !meterIndeterminate ? meterRatio * 100 : 0;
+		if (reduceMotion || !meterOpen || meterIndeterminate)
+			smoothPercent.jump(target);
+		else smoothPercent.set(target);
+	}, [meterOpen, meterIndeterminate, meterRatio, reduceMotion, smoothPercent]);
+
 	const meterStage = lingerFull
 		? t("pdf.layoutTranslate.phaseDone")
 		: layoutTranslateWaiting
@@ -248,7 +256,9 @@ export const PdfToolbar = memo(function PdfToolbar({
 					aria-label={meterStage}
 					aria-valuemin={0}
 					aria-valuemax={100}
-					aria-valuenow={meterIndeterminate ? undefined : meterPercent}
+					aria-valuenow={
+						meterIndeterminate ? undefined : Math.round(meterRatio * 100)
+					}
 				/>
 			) : null}
 			<TooltipProvider delayDuration={200}>
@@ -385,15 +395,13 @@ export const PdfToolbar = memo(function PdfToolbar({
 												aria-hidden
 												className="pointer-events-none absolute inset-x-2 bottom-0 h-0.5 overflow-hidden rounded-full bg-foreground/5"
 											>
-												<span
+												<motion.span
 													className={cn(
-														"absolute inset-y-0 left-0 rounded-full bg-foreground/45 transition-[width] duration-500 ease-out motion-reduce:transition-none",
+														"absolute inset-y-0 left-0 rounded-full bg-foreground/45",
 														meterIndeterminate && "pdf-translate-indeterminate",
 													)}
 													style={{
-														width: meterIndeterminate
-															? "30%"
-															: `${meterWidth * 100}%`,
+														width: meterIndeterminate ? "30%" : smoothWidth,
 													}}
 												/>
 											</span>

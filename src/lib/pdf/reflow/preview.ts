@@ -71,6 +71,7 @@ export class ReflowPreviewSession {
 	/** Set when decorated state (previews, busy, output) changed since the last notify. */
 	private dirty = false;
 	output: Uint8Array | null = null;
+	progress = 0;
 
 	constructor(
 		private engine: PdfEngine,
@@ -155,7 +156,10 @@ export class ReflowPreviewSession {
 						[...this.inputs].map(([index, input]) => [index, input.key]),
 					)
 				: "";
-		if (finalKey !== this.finalKey) this.output = null;
+		if (finalKey !== this.finalKey) {
+			this.output = null;
+			this.progress = 0;
+		}
 		this.finalKey = finalKey;
 		for (const [index, job] of this.jobs) {
 			const key = index === "final" ? finalKey : this.inputs.get(index)?.key;
@@ -212,6 +216,15 @@ export class ReflowPreviewSession {
 			}
 		} else if (finalKey) {
 			this.enqueue("final", finalKey, async (signal) => {
+				const report = (ratio: number) => {
+					if (signal.aborted || this.disposed || this.finalKey !== finalKey)
+						return;
+					const next = Math.floor(ratio * 100) / 100;
+					if (next <= this.progress) return;
+					this.progress = next;
+					this.dirty = true;
+					this.notify();
+				};
 				const fonts = await loadReflowFonts();
 				signal.throwIfAborted();
 				// Retain untranslated IR paragraphs as obstacles (including fallback text).
@@ -225,11 +238,16 @@ export class ReflowPreviewSession {
 						new Map(selected.map((i) => [i.id, i.translated ?? ""])),
 						fonts,
 						signal,
+						true,
+						(ratio) => report(ratio * 0.8),
 					),
 				);
-				await this.publish(target.engine, built, signal, false);
+				await this.publish(target.engine, built, signal, false, (ratio) =>
+					report(0.8 + ratio * 0.19),
+				);
 				signal.throwIfAborted();
 				this.output = built.bytes;
+				report(1);
 			});
 		}
 		this.notify();
@@ -305,6 +323,7 @@ export class ReflowPreviewSession {
 		built: ReflowOutput,
 		signal: AbortSignal,
 		single: boolean,
+		onProgress?: (ratio: number) => void,
 	): Promise<void> {
 		signal.throwIfAborted();
 		const changed = built.pages.filter(
@@ -321,7 +340,7 @@ export class ReflowPreviewSession {
 			})
 			.toPromise();
 		try {
-			for (const page of changed) {
+			for (const [pageIndex, page] of changed.entries()) {
 				signal.throwIfAborted();
 				const blob = await logOp(
 					"pdf.reflow.render",
@@ -345,6 +364,7 @@ export class ReflowPreviewSession {
 				if (previous) URL.revokeObjectURL(previous.url);
 				this.dirty = true;
 				this.notify();
+				onProgress?.((pageIndex + 1) / changed.length);
 			}
 		} finally {
 			await engine.closeDocument(preview).toPromise();

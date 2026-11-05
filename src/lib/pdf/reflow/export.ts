@@ -69,12 +69,14 @@ export async function writeReflowPdf(
 	dual = false,
 	formulaPdfs: ReadonlyMap<string, Uint8Array> = new Map(),
 	commonScale = true,
+	onProgress?: (ratio: number) => void,
 ): Promise<ReflowOutput> {
 	const pdf = await PDFDocument.load(redacted);
 	const source = await PDFDocument.load(original);
 	const fonts = await embedReflowFonts(pdf, cjkFont);
+	onProgress?.(0.1);
 	const pages = layoutReflowDocument(ir, translations, fonts, commonScale);
-	for (const page of pages) {
+	for (const [pageIndex, page] of pages.entries()) {
 		const target = pdf.getPage(page.index);
 		if (target.getRotation().angle !== 0)
 			throw new Error("Rotated pages require normalized page coordinates");
@@ -139,6 +141,7 @@ export async function writeReflowPdf(
 				}
 			}
 		}
+		onProgress?.(0.1 + 0.75 * ((pageIndex + 1) / pages.length));
 	}
 	if (dual) {
 		const originals = await copyOriginalPages(pdf, source);
@@ -146,7 +149,9 @@ export async function writeReflowPdf(
 			pdf.insertPage(i * 2, page);
 		});
 	}
-	return { bytes: await pdf.save(), pages };
+	const bytes = await pdf.save();
+	onProgress?.(1);
+	return { bytes, pages };
 }
 /** Work on an isolated PDFium document: never redact the open source viewer. */
 export async function buildReflowPdf(
@@ -157,10 +162,19 @@ export async function buildReflowPdf(
 	cjkFont: Uint8Array | ReflowFontBytes,
 	signal?: AbortSignal,
 	commonScale = true,
+	onProgress?: (ratio: number) => void,
 ): Promise<ReflowOutput> {
 	signal?.throwIfAborted();
 	const original = new Uint8Array(await engine.saveAsCopy(doc).toPromise());
 	const formulaPdfs = new Map<string, Uint8Array>();
+	const formulaCount = ir.pages.reduce(
+		(count, page) =>
+			count +
+			page.paragraphs
+				.filter((p) => translations.has(p.id))
+				.reduce((n, p) => n + p.formulas.length, 0),
+		0,
+	);
 	for (const page of ir.pages) {
 		const formulas = page.paragraphs
 			.filter((p) => translations.has(p.id))
@@ -208,8 +222,10 @@ export async function buildReflowPdf(
 			} finally {
 				await engine.closeDocument(fragment).toPromise();
 			}
+			onProgress?.((0.4 * formulaPdfs.size) / Math.max(1, formulaCount));
 		}
 	}
+	onProgress?.(0.4);
 	const clone = await engine
 		.openDocumentBuffer({
 			id: `reflow-${crypto.randomUUID()}`,
@@ -217,7 +233,7 @@ export async function buildReflowPdf(
 		})
 		.toPromise();
 	try {
-		for (const page of ir.pages) {
+		for (const [pageIndex, page] of ir.pages.entries()) {
 			signal?.throwIfAborted();
 			const rects = page.paragraphs
 				.filter((p) => translations.has(p.id))
@@ -232,6 +248,7 @@ export async function buildReflowPdf(
 						drawBlackBoxes: false,
 					})
 					.toPromise();
+			onProgress?.(0.4 + 0.2 * ((pageIndex + 1) / ir.pages.length));
 		}
 		const redacted = new Uint8Array(await engine.saveAsCopy(clone).toPromise());
 		signal?.throwIfAborted();
@@ -244,6 +261,7 @@ export async function buildReflowPdf(
 			false,
 			formulaPdfs,
 			commonScale,
+			(ratio) => onProgress?.(0.6 + 0.4 * ratio),
 		);
 	} finally {
 		await engine.closeDocument(clone).toPromise();

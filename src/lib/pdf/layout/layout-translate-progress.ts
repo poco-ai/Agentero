@@ -26,17 +26,18 @@ export function layoutTranslateSettledRatio(
 	return settled / items.length;
 }
 
-/**
- * The last stretch of the meter is the reflow preview. Block statuses can all
- * be done while that preview is still blank, so the bar must not read as full.
- */
-export const LAYOUT_TRANSLATE_PREVIEW_HOLD = 0.86;
-
+/** Translation and page generation report real work; cache hits only generate pages. */
 export function layoutTranslateDisplayRatio(
 	settled: number | null,
 	previewPending: boolean,
+	reflowProgress = 0,
+	cacheOnly = false,
 ): number | null {
 	if (settled == null) return null;
 	if (!previewPending) return settled;
-	return Math.min(settled, LAYOUT_TRANSLATE_PREVIEW_HOLD);
+	const built = Number.isFinite(reflowProgress)
+		? Math.max(0, Math.min(1, reflowProgress))
+		: 0;
+	// Leave 100% for the committed output, not just PDF byte generation.
+	return Math.min(0.99, cacheOnly ? built : settled * 0.7 + built * 0.3);
 }
