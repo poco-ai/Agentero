@@ -1,5 +1,26 @@
 {
 	"researchTable": {
+		"errors": {
+			"values": "Existing values are incompatible with this field definition.",
+			"duplicate": "Field names and record IDs must be unique.",
+			"options": "Add at least one unique, non-empty option.",
+			"rows": "Enter a valid row count. A table can contain up to 100,000 rows.",
+			"paste": "The selection exceeds the limit of 100,000 cells or 100,000 rows.",
+			"columns": "The pasted area exceeds the existing fields. Add fields first.",
+			"bounds": "The selected cell is outside the table.",
+			"migration": "Fields with existing values require a data migration before changing their type or unit.",
+			"lastField": "Keep at least one field in the table.",
+			"schema": "Check the field definition, name, unit, and options."
+		},
+		"refresh": "Refresh preview",
+		"more": "Table actions",
+		"batchRows": "Add multiple rows",
+		"saveState": {
+			"saved": "Saved",
+			"pending": "Unsaved changes",
+			"saving": "Saving…",
+			"error": "Not saved"
+		},
 		"preview": "Live preview · {{shown}} of {{total}} rows",
 		"deleteField": "Delete field",
 		"insert": "Embed research table",

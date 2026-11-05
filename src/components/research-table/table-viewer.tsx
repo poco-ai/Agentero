@@ -1,15 +1,10 @@
-import {
-	Columns3,
-	Copy,
-	Download,
-	Plus,
-	Redo2,
-	Save,
-	Undo2,
-} from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TableGrid } from "@/components/research-table/table-grid";
+import {
+	type TableSaveState,
+	TableToolbar,
+} from "@/components/research-table/table-toolbar";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -18,8 +13,16 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { isImeKeyboardEvent } from "@/lib/core/ime";
 import { notifyError } from "@/lib/core/notify";
+import { researchTableErrorMessage } from "@/lib/research-table/errors";
 import {
 	appendRows,
 	fieldTypes,
@@ -74,14 +77,14 @@ export function TableViewer({
 	const history = useRef<ResearchTable[]>([]),
 		future = useRef<ResearchTable[]>([]);
 	const saving = useRef<Promise<boolean> | null>(null);
-	const [busy, setBusy] = useState(false);
+	const [saveState, setSaveState] = useState<TableSaveState>("saved");
 	const [field, setField] = useState<TableField | null>(null);
-	const [count, setCount] = useState(10);
 	const setSnapshot = useCallback((next: ResearchTable) => {
 		if (current.current === next) return;
 		current.current = next;
 		setTable(next);
 		dirty.current = true;
+		setSaveState("pending");
 		callbacks.current.onDirtyChange(true);
 	}, []);
 	const change = useCallback(
@@ -111,7 +114,7 @@ export function TableViewer({
 		if (!dirty.current || !snapshot) return true;
 		const revision = savedRevision.current + 1;
 		const content = `${JSON.stringify({ ...snapshot, revision }, null, 2)}\n`;
-		setBusy(true);
+		setSaveState("saving");
 		const attempt = callbacks.current.onPersist(
 			callbacks.current.path,
 			content,
@@ -129,10 +132,10 @@ export function TableViewer({
 				}
 				notifyWikiEmbedTargets([callbacks.current.path]);
 			}
+			setSaveState(ok ? (dirty.current ? "pending" : "saved") : "error");
 			return ok;
 		} finally {
 			if (saving.current === attempt) saving.current = null;
-			setBusy(false);
 		}
 	}, []);
 	useEffect(() => registerTextEditorFlusher(path, flush), [path, flush]);
@@ -150,6 +153,7 @@ export function TableViewer({
 		savedRevision.current = next?.revision ?? 0;
 		history.current = [];
 		future.current = [];
+		setSaveState("saved");
 	}, [seed, reloadKey]);
 	useEffect(() => {
 		if (!table || !dirty.current) return;
@@ -171,14 +175,10 @@ export function TableViewer({
 			</p>
 		);
 	const fail = (error: unknown) =>
-		notifyError(
-			t("researchTable.invalid", {
-				detail: error instanceof Error ? error.message : String(error),
-			}),
-		);
+		notifyError(researchTableErrorMessage(error));
 	return (
 		<section
-			className="flex h-full min-h-0 flex-col gap-3 p-4"
+			className="@container flex h-full min-h-0 flex-col"
 			aria-label={table.name}
 			onKeyDownCapture={(event) => {
 				if (isImeKeyboardEvent(event)) return;
@@ -201,137 +201,41 @@ export function TableViewer({
 				}
 			}}
 		>
-			<div className="flex flex-wrap items-center gap-2">
-				<Input
-					className="max-w-64"
-					aria-label={t("researchTable.name")}
-					value={table.name}
-					onChange={(e) => {
-						if (e.target.value.trim())
-							change({ ...table, name: e.target.value });
-					}}
-				/>
-				<select
-					className="h-8 rounded border bg-background px-2 text-sm"
-					aria-label={t("researchTable.kind")}
-					value={table.kind}
-					onChange={(e) =>
-						change({ ...table, kind: e.target.value as ResearchTable["kind"] })
+			<TableToolbar
+				table={table}
+				path={path}
+				vaultPath={vaultPath}
+				onChange={change}
+				saveState={saveState}
+				onSave={() => void flush()}
+				canUndo={!!history.current.length}
+				onAddField={() =>
+					setField({
+						id: crypto.randomUUID(),
+						name: "",
+						type: "text",
+						unit: "",
+						options: [],
+					})
+				}
+				canRedo={!!future.current.length}
+				onUndo={undo}
+				onAddRows={(count) => {
+					try {
+						change(appendRows(table, count));
+					} catch (error) {
+						fail(error);
 					}
-				>
-					<option value="result">{t("researchTable.result")}</option>
-					<option value="entity">{t("researchTable.entity")}</option>
-				</select>
-				<Button
-					variant="ghost"
-					size="icon"
-					title={t("researchTable.undo")}
-					aria-label={t("researchTable.undo")}
-					disabled={!history.current.length}
-					onClick={() => undo()}
-				>
-					<Undo2 />
-				</Button>
-				<Button
-					variant="ghost"
-					size="icon"
-					title={t("researchTable.redo")}
-					aria-label={t("researchTable.redo")}
-					disabled={!future.current.length}
-					onClick={() => undo(true)}
-				>
-					<Redo2 />
-				</Button>
-				<Button
-					variant="ghost"
-					size="icon"
-					aria-label={t("researchTable.save")}
-					title={t("researchTable.save")}
-					disabled={busy}
-					onClick={() => void flush()}
-				>
-					<Save />
-				</Button>
-				<Button
-					variant="ghost"
-					size="icon"
-					aria-label={t("researchTable.embed")}
-					title={t("researchTable.embed")}
-					disabled={!vaultPath}
-					onClick={() => {
-						const root = (vaultPath ?? "")
-							.replaceAll("\\", "/")
-							.replace(/\/$/, "");
-						const normalized = path.replaceAll("\\", "/");
-						if (!normalized.startsWith(`${root}/`)) return;
-						void navigator.clipboard
-							.writeText(
-								`::research-table{path=${JSON.stringify(normalized.slice(root.length + 1))}}`,
-							)
-							.catch(fail);
+				}}
+			/>
+			<div className="min-h-0 flex-1 overflow-hidden border-y border-border/60">
+				<TableGrid
+					table={table}
+					onChange={change}
+					onField={(index) => {
+						if (table.fields[index]) setField({ ...table.fields[index] });
 					}}
-				>
-					<Copy />
-				</Button>
-				<Button
-					variant="ghost"
-					size="icon"
-					title={t("researchTable.export")}
-					aria-label={t("researchTable.export")}
-					onClick={async () => {
-						const csvCell = (v: unknown) =>
-							`"${String(v ?? "").replaceAll('"', '""')}"`;
-						const csv = [
-							table.fields
-								.map((f) => csvCell(f.unit ? `${f.name} (${f.unit})` : f.name))
-								.join(","),
-							...table.rows.map((r) =>
-								table.fields.map((f) => csvCell(r.values[f.id])).join(","),
-							),
-						].join("\r\n");
-						try {
-							const { save } = await import("@tauri-apps/plugin-dialog");
-							const { writeVaultFile } = await import("@/lib/vault/fs");
-							const destination = await save({
-								defaultPath: `${table.name.replace(/[\\/:*?"<>|]/g, "_")}.csv`,
-								filters: [{ name: "CSV", extensions: ["csv"] }],
-							});
-							if (destination)
-								await writeVaultFile(destination, `\ufeff${csv}`);
-						} catch (error) {
-							fail(error);
-						}
-					}}
-				>
-					<Download />
-				</Button>
-			</div>
-			<div className="flex flex-wrap items-center gap-2">
-				<Input
-					type="number"
-					min={1}
-					max={1000}
-					className="w-24"
-					aria-label={t("researchTable.rowCount")}
-					value={count}
-					onChange={(e) => setCount(Number(e.target.value))}
-				/>
-				<Button
-					variant="outline"
-					onClick={() => {
-						try {
-							change(appendRows(table, count));
-						} catch (error) {
-							fail(error);
-						}
-					}}
-				>
-					<Plus />
-					{t("researchTable.addRows")}
-				</Button>
-				<Button
-					variant="outline"
-					onClick={() =>
+					onAddField={() =>
 						setField({
 							id: crypto.randomUUID(),
 							name: "",
@@ -340,27 +244,15 @@ export function TableViewer({
 							options: [],
 						})
 					}
-				>
-					<Columns3 />
-					{t("researchTable.addField")}
-				</Button>
-				<span className="text-xs text-muted-foreground">
-					{t("researchTable.dimensions", {
-						rows: table.rows.length,
-						columns: table.fields.length,
-					})}
-				</span>
-			</div>
-			<div className="min-h-0 flex-1 overflow-hidden rounded border">
-				<TableGrid
-					table={table}
-					onChange={change}
-					onField={(index) => {
-						if (table.fields[index]) setField({ ...table.fields[index] });
-					}}
 					height="100%"
 				/>
 			</div>
+			<footer className="flex h-7 shrink-0 items-center px-4 text-[0.6875rem] tabular-nums text-muted-foreground">
+				{t("researchTable.dimensions", {
+					rows: table.rows.length,
+					columns: table.fields.length,
+				})}
+			</footer>
 			<Dialog
 				open={field !== null}
 				onOpenChange={(open) => {
@@ -392,24 +284,25 @@ export function TableViewer({
 									onChange={(e) => setField({ ...field, name: e.target.value })}
 								/>
 							</label>
-							<label>
+							<label htmlFor={`${formId}-type`} className="grid gap-1.5">
 								{t("researchTable.type")}
-								<select
-									className="ml-2 h-8 rounded border bg-background px-2"
+								<Select
 									value={field.type}
-									onChange={(e) =>
-										setField({
-											...field,
-											type: e.target.value as TableField["type"],
-										})
+									onValueChange={(type) =>
+										setField({ ...field, type: type as TableField["type"] })
 									}
 								>
-									{fieldTypes.map((type) => (
-										<option key={type} value={type}>
-											{t(`researchTable.types.${type}`)}
-										</option>
-									))}
-								</select>
+									<SelectTrigger id={`${formId}-type`} className="w-full">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{fieldTypes.map((type) => (
+											<SelectItem key={type} value={type}>
+												{t(`researchTable.types.${type}`)}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</label>
 							{field.type === "number" && (
 								<label htmlFor={`${formId}-unit`}>

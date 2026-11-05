@@ -1,4 +1,4 @@
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { Ellipsis, ExternalLink, RefreshCw, Table } from "lucide-react";
 import {
 	createPlatePlugin,
 	PlateElement,
@@ -10,6 +10,12 @@ import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMarkdownExportMode } from "@/components/editor/markdown-export-mode-context";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { notifyError } from "@/lib/core/notify";
 import {
@@ -84,14 +90,14 @@ function ResearchTableElement(props: PlateElementProps) {
 			<fieldset
 				contentEditable={false}
 				data-export-pending={absolute && !table && !failed ? "" : undefined}
-				className="my-3 min-w-0 rounded border bg-background p-2"
+				className="my-3 min-w-0 overflow-hidden rounded-lg border border-border/60 bg-background"
 				onKeyDown={(event) => event.stopPropagation()}
 				onCopy={(event) => event.stopPropagation()}
 				onCut={(event) => event.stopPropagation()}
 				onPaste={(event) => event.stopPropagation()}
 			>
 				{!target && !readonly ? (
-					<div className="flex gap-2">
+					<div className="flex gap-2 p-3">
 						<Input
 							aria-label={t("researchTable.path")}
 							placeholder="data/results.table.json"
@@ -104,21 +110,21 @@ function ResearchTableElement(props: PlateElementProps) {
 					</div>
 				) : null}
 				{target ? (
-					<div className="mb-2 flex items-center justify-between gap-2 text-sm">
-						<span className="truncate">{table?.name ?? target}</span>
+					<div className="flex min-h-10 items-center justify-between gap-2 px-3 text-sm">
+						<div className="flex min-w-0 items-center gap-2">
+							<Table
+								className="size-3.5 shrink-0 text-muted-foreground"
+								aria-hidden
+							/>
+							<span className="truncate font-medium">
+								{table?.name ?? target}
+							</span>
+						</div>
 						{!exportMode && (
 							<div className="flex shrink-0 gap-1">
 								<Button
 									variant="ghost"
-									size="icon"
-									aria-label={t("researchTable.load")}
-									onClick={() => setRefresh((n) => n + 1)}
-								>
-									<RefreshCw />
-								</Button>
-								<Button
-									variant="ghost"
-									size="icon"
+									size="sm"
 									aria-label={t("researchTable.open")}
 									onClick={() =>
 										nav?.onWikiNavigate({
@@ -128,8 +134,26 @@ function ResearchTableElement(props: PlateElementProps) {
 										})
 									}
 								>
-									<ExternalLink />
+									{t("researchTable.open")}
+									<ExternalLink className="size-3" />
 								</Button>
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon-sm"
+											aria-label={t("researchTable.more")}
+										>
+											<Ellipsis />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end">
+										<DropdownMenuItem onSelect={() => setRefresh((n) => n + 1)}>
+											<RefreshCw />
+											{t("researchTable.refresh")}
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
 							</div>
 						)}
 					</div>
@@ -169,7 +193,7 @@ function ResearchTableElement(props: PlateElementProps) {
 						</Suspense>
 					)
 				) : target ? (
-					<p className="text-sm text-muted-foreground">
+					<p className="px-3 py-2 text-sm text-muted-foreground">
 						{t(
 							failed || !absolute
 								? "researchTable.invalidFile"
@@ -178,7 +202,7 @@ function ResearchTableElement(props: PlateElementProps) {
 					</p>
 				) : null}
 				{table ? (
-					<p className="mt-1 text-xs text-muted-foreground">
+					<p className="border-t border-border/60 px-3 py-1.5 text-[0.6875rem] tabular-nums text-muted-foreground">
 						{t("researchTable.preview", {
 							shown: Math.min(20, table.rows.length),
 							total: table.rows.length,

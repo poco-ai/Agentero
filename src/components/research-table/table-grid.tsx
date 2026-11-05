@@ -2,15 +2,17 @@ import DataEditor, {
 	CompactSelection,
 	type GridCell,
 	GridCellKind,
+	type GridColumn,
+	GridColumnIcon,
 	type GridSelection,
 	type Item,
 } from "@glideapps/glide-data-grid";
 import "@glideapps/glide-data-grid/dist/index.css";
-import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { FieldCellEditor } from "@/components/research-table/field-cell-editor";
+import { useGridTheme } from "@/components/research-table/use-grid-theme";
 import { notifyError } from "@/lib/core/notify";
+import { researchTableErrorMessage } from "@/lib/research-table/errors";
 import {
 	type CellValue,
 	editCells,
@@ -22,35 +24,16 @@ export function TableGrid({
 	table,
 	onChange,
 	onField,
+	onAddField,
 	height = 420,
 }: {
 	table: ResearchTable;
 	onChange?: (table: ResearchTable) => void;
 	onField?: (index: number) => void;
+	onAddField?: () => void;
 	height?: number | string;
 }) {
-	const { t } = useTranslation("editor");
-	const { resolvedTheme } = useTheme();
-	const theme = useMemo(
-		() =>
-			resolvedTheme === "dark"
-				? {
-						bgCell: "#171717",
-						bgCellMedium: "#202020",
-						bgHeader: "#202020",
-						bgHeaderHovered: "#303030",
-						bgHeaderHasFocus: "#303030",
-						bgBubble: "#303030",
-						textDark: "#ededed",
-						textMedium: "#b4b4b4",
-						textLight: "#909090",
-						textHeader: "#ededed",
-						borderColor: "#353535",
-						horizontalBorderColor: "#353535",
-					}
-				: undefined,
-		[resolvedTheme],
-	);
+	const theme = useGridTheme();
 	useEffect(() => {
 		// Glide's public overlay contract requires one window-level portal.
 		if (document.getElementById("portal")) return;
@@ -68,14 +51,26 @@ export function TableGrid({
 		columns: CompactSelection.empty(),
 		rows: CompactSelection.empty(),
 	});
-	const columns = useMemo(
-		() =>
-			table.fields.map((f) => ({
+	const columns = useMemo<GridColumn[]>(
+		() => [
+			...table.fields.map((f) => ({
 				id: f.id,
-				title: f.unit ? `${f.name} (${f.unit})` : f.name,
-				width: 180,
+				title: f.name,
+				width: f.unit ? 220 : 200,
+				icon: {
+					text: GridColumnIcon.HeaderString,
+					number: GridColumnIcon.HeaderNumber,
+					boolean: GridColumnIcon.HeaderBoolean,
+					date: GridColumnIcon.HeaderDate,
+					select: GridColumnIcon.HeaderSingleValue,
+				}[f.type],
+				hasMenu: !!onField,
 			})),
-		[table.fields],
+			...(onAddField && table.fields.length < 100
+				? [{ id: "add-field", title: "+", width: 40 }]
+				: []),
+		],
+		[table.fields, onField, onAddField],
 	);
 	const getCellContent = useCallback(
 		([col, row]: Item): GridCell => {
@@ -104,6 +99,7 @@ export function TableGrid({
 					data: typeof value === "number" ? value : undefined,
 					displayData: value === null ? "" : String(value),
 					allowNegative: true,
+					contentAlign: "right",
 				};
 			return {
 				...common,
@@ -119,11 +115,7 @@ export function TableGrid({
 		try {
 			onChange(pasteCells(table, target[0], target[1], cells));
 		} catch (error) {
-			notifyError(
-				t("researchTable.invalid", {
-					detail: error instanceof Error ? error.message : String(error),
-				}),
-			);
+			notifyError(researchTableErrorMessage(error));
 		}
 		return false;
 	};
@@ -133,13 +125,98 @@ export function TableGrid({
 			width="100%"
 			height={height}
 			rows={table.rows.length}
+			scaleToRem
+			rowHeight={32}
+			headerHeight={34}
+			rowMarkerWidth={42}
 			rowMarkers={onChange ? "both" : "number"}
 			columns={columns}
 			getCellContent={getCellContent}
 			getCellsForSelection={true}
 			gridSelection={selection}
 			onGridSelectionChange={setSelection}
-			onHeaderClicked={onChange ? onField : undefined}
+			onHeaderClicked={
+				onChange
+					? (index) => {
+							if (index === table.fields.length) onAddField?.();
+							else onField?.(index);
+						}
+					: undefined
+			}
+			onHeaderMenuClick={onChange ? onField : undefined}
+			drawHeader={(args, drawContent) => {
+				const field = table.fields[args.columnIndex];
+				if (!field && onAddField) {
+					const { ctx, rect, theme: colors } = args;
+					ctx.save();
+					ctx.strokeStyle = colors.textLight;
+					ctx.lineWidth = 1.25;
+					const x = rect.x + rect.width / 2,
+						y = rect.y + rect.height / 2;
+					ctx.beginPath();
+					ctx.moveTo(x - 4, y);
+					ctx.lineTo(x + 4, y);
+					ctx.moveTo(x, y - 4);
+					ctx.lineTo(x, y + 4);
+					ctx.stroke();
+					ctx.restore();
+					return;
+				}
+				if (!field?.unit) {
+					drawContent();
+					return;
+				}
+				const { ctx, rect, theme: colors, column, spriteManager } = args;
+				ctx.save();
+				ctx.beginPath();
+				ctx.rect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
+				ctx.clip();
+				if (column.icon)
+					spriteManager.drawSprite(
+						column.icon,
+						"normal",
+						ctx,
+						rect.x + 10,
+						rect.y + (rect.height - 16) / 2,
+						16,
+						colors,
+					);
+				const menuSpace = column.hasMenu ? 26 : 10;
+				ctx.font = `11px ${colors.fontFamily}`;
+				const unitWidth = Math.min(
+					ctx.measureText(field.unit).width,
+					rect.width / 3,
+				);
+				const unitX = rect.x + rect.width - menuSpace - unitWidth;
+				ctx.textBaseline = "middle";
+				ctx.fillStyle = colors.textLight;
+				ctx.fillText(field.unit, unitX, rect.y + rect.height / 2, unitWidth);
+				ctx.save();
+				ctx.beginPath();
+				ctx.rect(
+					rect.x + 34,
+					rect.y,
+					Math.max(0, unitX - rect.x - 42),
+					rect.height,
+				);
+				ctx.clip();
+				ctx.font = `${colors.headerFontStyle} ${colors.fontFamily}`;
+				ctx.fillStyle = colors.textHeader;
+				ctx.fillText(field.name, rect.x + 34, rect.y + rect.height / 2);
+				ctx.restore();
+				if (column.hasMenu && args.isHovered) {
+					ctx.strokeStyle = colors.textLight;
+					ctx.lineWidth = 1;
+					const x = rect.x + rect.width - 15,
+						y = rect.y + rect.height / 2;
+					ctx.beginPath();
+					ctx.moveTo(x - 3, y - 1);
+					ctx.lineTo(x, y + 2);
+					ctx.lineTo(x + 3, y - 1);
+					ctx.stroke();
+				}
+				ctx.restore();
+			}}
 			onPaste={paste}
 			provideEditor={(cell) => {
 				const index = selection.current?.cell[0];
@@ -200,12 +277,7 @@ export function TableGrid({
 								}
 								onChange(editCells(table, changes));
 							} catch (error) {
-								notifyError(
-									t("researchTable.invalid", {
-										detail:
-											error instanceof Error ? error.message : String(error),
-									}),
-								);
+								notifyError(researchTableErrorMessage(error));
 							}
 							return true;
 						}
