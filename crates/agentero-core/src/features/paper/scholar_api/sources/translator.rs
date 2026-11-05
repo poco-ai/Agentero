@@ -1,5 +1,7 @@
 //! Translator Runtime source (Zotero translation-server).
 
+use std::time::Duration;
+
 use async_trait::async_trait;
 use serde_json::Value;
 
@@ -10,6 +12,10 @@ use crate::features::scholar_api::traits::{AcademicApi, BibliographySource};
 use crate::features::scholar_api::{
     ApiCapability, ApiError, ApiPaper, ApiQuery, PaperIdentifiers, PaperUrls,
 };
+
+/// Attempts for one Translator call when the service returns HTTP 503 or
+/// Cloudflare error code 1102. The first try plus two short retries.
+const UNAVAILABLE_ATTEMPTS: u32 = 3;
 
 /// Translator Runtime source.
 #[derive(Debug, Clone)]
@@ -29,6 +35,40 @@ impl TranslatorApi {
     /// bibliography import; callers that need a `PaperRecord` map the items
     /// with `features::import::api_mapper::map_zotero_item_to_record`.
     pub async fn fetch_raw_items(
+        &self,
+        endpoint: &str,
+        body: String,
+    ) -> Result<Vec<Value>, ApiError> {
+        let mut attempt = 0u32;
+        loop {
+            match self.fetch_raw_items_once(endpoint, body.clone()).await {
+                Ok(items) => return Ok(items),
+                Err(err) if client::is_retryable_unavailable(&err) => {
+                    if let Some(delay) = unavailable_retry_delay(attempt) {
+                        log::warn!(
+                            target: "agentero::lookup",
+                            "translator {} unavailable ({err}); retrying in {}ms (attempt {}/{UNAVAILABLE_ATTEMPTS})",
+                            endpoint,
+                            delay.as_millis(),
+                            attempt + 1
+                        );
+                        tokio::time::sleep(delay).await;
+                        attempt += 1;
+                        continue;
+                    }
+                    log::warn!(
+                        target: "agentero::lookup",
+                        "translator {} still unavailable after {UNAVAILABLE_ATTEMPTS} attempts ({err})",
+                        endpoint
+                    );
+                    return Err(err);
+                }
+                Err(err) => return Err(err),
+            }
+        }
+    }
+
+    async fn fetch_raw_items_once(
         &self,
         endpoint: &str,
         body: String,
@@ -296,6 +336,17 @@ fn extract_arxiv_from_extra(extra: Option<&str>) -> Option<String> {
     None
 }
 
+/// Delay before the next attempt. `attempt` is how many tries have already
+/// failed, starting at 0. `None` means the budget is spent.
+pub(crate) fn unavailable_retry_delay(attempt: u32) -> Option<Duration> {
+    if attempt + 1 >= UNAVAILABLE_ATTEMPTS {
+        return None;
+    }
+    // 400ms, then 800ms. 503/1102 is usually a short worker-limit page, so
+    // the waits stay small enough that a dead service does not stall import.
+    Some(Duration::from_millis(400 << attempt.min(2)))
+}
+
 fn extract_pmid_from_extra(extra: Option<&str>) -> Option<String> {
     let extra = extra?;
     for line in extra.lines() {
@@ -314,6 +365,13 @@ fn extract_pmid_from_extra(extra: Option<&str>) -> Option<String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn unavailable_retries_twice_then_stops() {
+        assert_eq!(unavailable_retry_delay(0), Some(Duration::from_millis(400)));
+        assert_eq!(unavailable_retry_delay(1), Some(Duration::from_millis(800)));
+        assert_eq!(unavailable_retry_delay(2), None);
+    }
 
     #[test]
     fn maps_zotero_journal_article() {
