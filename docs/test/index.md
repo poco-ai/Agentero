@@ -110,6 +110,8 @@ CI 的 `agentero-tests` 任务运行 Host 与 `agentero-plugin-host` 测试，�
 
 子进程测试应在超时范围内等待就绪信号，避免用固定短 sleep 假定启动完成。ACP 终端测试等待 `ready` 输出，同时单独限制每次 output 调用耗时，继续验证运行中的输出读取和取消能力。
 
+给子进程设定截止时间时要避开 Windows PowerShell 冷启动（CLR + 程序集加载）：在满载的 CI runner 上它可能远超 10 秒。不依赖 PowerShell 语义的测试应直接 spawn 快速命令（如 `cmd /C echo`）；必须用 PowerShell 的测试（如终端 stdio 探针）要给出宽裕预算并轮询就绪信号。
+
 定量对比与瓶颈定位用可选的 JSONL 轨迹，不改变默认启动。见 [性能测试轨迹](performance.md)。
 
 ## 手动验证

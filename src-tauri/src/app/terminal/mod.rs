@@ -711,7 +711,12 @@ $result = @{
                 .status()
                 .unwrap();
             assert!(status.success(), "{status}");
-            let deadline = Instant::now() + Duration::from_secs(10);
+            // The chain `start` → new console → cmd.exe → powershell.exe pays
+            // the full PowerShell cold start (CLR + assemblies), which can
+            // exceed 10s on a cold CI runner while hundreds of tests spawn
+            // processes at once. Keep a generous budget: a warm probe finishes
+            // in ~1s, so only genuinely broken consoles reach the deadline.
+            let deadline = Instant::now() + Duration::from_secs(60);
             let result = loop {
                 if let Some(result) = fs::read_to_string(&probe)
                     .ok()

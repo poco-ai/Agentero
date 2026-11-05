@@ -523,12 +523,21 @@ mod tests {
     #[tokio::test]
     async fn exit_before_wait_remains_observable() {
         let mut manager = AcpTerminalManager::new();
-        let response = manager
-            .create(CreateTerminalRequest::new(
-                "session-fast-exit",
-                "echo finished",
-            ))
-            .unwrap();
+        // Spawn a directly resolved fast-exit command instead of the
+        // shell-string path: on Windows that route goes through powershell.exe,
+        // whose cold start (CLR + assemblies) can exceed this test's exit
+        // budget on a fully loaded CI runner. The shell-string path itself is
+        // covered by `shell_command_string_executes` without a deadline.
+        let request = CreateTerminalRequest::new(
+            "session-fast-exit",
+            if cfg!(windows) { "cmd" } else { "echo" },
+        )
+        .args(if cfg!(windows) {
+            vec!["/C".to_string(), "echo finished".to_string()]
+        } else {
+            vec!["finished".to_string()]
+        });
+        let response = manager.create(request).unwrap();
         let terminal = manager.get(&response.terminal_id).unwrap();
         // Generous windows: process spawn latency on a loaded machine can
         // exceed sub-second budgets; the scenario only needs exit-before-wait.
