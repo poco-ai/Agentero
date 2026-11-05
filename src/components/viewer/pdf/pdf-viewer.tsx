@@ -1677,7 +1677,14 @@ function PdfViewerInner({
 
 	const handleMenuNote = useCallback(() => {
 		const menu = selectionMenuRef.current;
-		if (!menu || isRemotePaper || plainViewer || regionSelecting) return;
+		if (
+			!menu ||
+			menu.fromTranslation ||
+			isRemotePaper ||
+			plainViewer ||
+			regionSelecting
+		)
+			return;
 		const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
 		selectionCommentEngagedRef.current = true;
 		setSelectionCommentDraft({
@@ -2193,7 +2200,10 @@ function PdfViewerInner({
 		() => ({
 			state: selectionMenu,
 			onHighlight: handleHighlight,
-			onNote: !isRemotePaper && !plainViewer ? handleMenuNote : undefined,
+			onNote:
+				!isRemotePaper && !plainViewer && !selectionMenu?.fromTranslation
+					? handleMenuNote
+					: undefined,
 			onAsk: handleMenuAsk,
 			onAddToChat: handleMenuAddToChat,
 			onTranslate: handleMenuTranslate,
@@ -2202,7 +2212,8 @@ function PdfViewerInner({
 				bookmarkEditor.canEdit && !bookmarkEditor.draft?.saving
 					? handleBookmarkSelection
 					: undefined,
-			showHighlight: !isRemotePaper && !plainViewer,
+			showHighlight:
+				!isRemotePaper && !plainViewer && !selectionMenu?.fromTranslation,
 			showTranslate:
 				!selectionMenu?.fromTranslation && !isRemotePaper && !plainViewer,
 			contributionContext: pdfSelectionMenuContext({
