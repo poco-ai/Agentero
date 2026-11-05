@@ -1,14 +1,24 @@
 // @vitest-environment happy-dom
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	describe,
+	expect,
+	it,
+	vi,
+} from "vitest";
 import { BackfillPrompt } from "@/components/paper/backfill-prompt";
 import { DoctorBackfillSection } from "@/components/settings/panes/doctor-backfill-section";
+import { showBackfillPromptToast } from "@/hooks/use-paper-backfill-prompt";
 import type { BackfillPreview } from "@/lib/core/bindings";
 import {
 	dismissPaperBackfill,
 	enqueuePaperBackfill,
 	maybeShowPaperBackfill,
+	setBackfillPromptPresenter,
 } from "@/lib/paper/backfill";
 
 const mocks = vi.hoisted(() => ({
@@ -39,6 +49,10 @@ vi.mock("react-i18next", () => ({
 }));
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+// Install the same presenter the main window mounts, so `maybeShowPaperBackfill`
+// reaches the (mocked) sonner toast like it does in the app.
+beforeAll(() => setBackfillPromptPresenter(showBackfillPromptToast));
+afterAll(() => setBackfillPromptPresenter(null));
 const preview: BackfillPreview = {
 	downloadSource: 1,
 	parseBody: 1,
