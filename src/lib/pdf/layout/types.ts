@@ -153,6 +153,8 @@ export type LayoutTranslateItemStatus =
 
 export type LayoutTranslateItem = LayoutTranslateRegion & {
 	status: LayoutTranslateItemStatus;
+	/** Transient settled sentence share while a paragraph is still translating. */
+	progress?: number;
 	/** Translated text when status is done (or partial). */
 	translated?: string;
 	error?: string;

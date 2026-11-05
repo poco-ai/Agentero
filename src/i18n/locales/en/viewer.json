@@ -59,11 +59,13 @@
 			"reflowFailed": "PDF typesetting failed",
 			"invalidTokens": "The translation changed protected formulas or links. The original text has been kept.",
 			"openSettings": "Open translation settings",
-			"waiting": "Waiting for layout analysis…",
+			"waiting": "Cancel translation preparation",
+			"phaseLayout": "Preparing layout",
+			"phaseExtract": "Reading text",
+			"phaseTranslate": "Translating",
+			"phaseTypeset": "Typesetting",
+			"phaseDone": "Complete",
 			"progress": "{{percent}}%",
-			"cancelQueue": "Cancel queue",
-			"queuedToast": "Full-text translation queued — waiting for layout analysis",
-			"startedAfterLayout": "Layout analysis finished — full-text translation started",
 			"parseFailedWhileWaiting": "Layout analysis failed; translation cancelled"
 		},
 		"translation": {

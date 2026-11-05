@@ -3,12 +3,12 @@ import type { LayoutTranslateItemStatus } from "@/lib/pdf/layout/types";
 /**
  * Share of a translation job that has already settled.
  *
- * Pending and running blocks are still empty. Done, failed, and skipped
+ * Running blocks include their settled sentence share. Done, failed, and skipped
  * blocks are finished work, so a failed block does not pin the meter open.
  * No blocks yet means the total is unknown.
  */
 export function layoutTranslateSettledRatio(
-	items: readonly { status: LayoutTranslateItemStatus }[],
+	items: readonly { status: LayoutTranslateItemStatus; progress?: number }[],
 ): number | null {
 	if (items.length === 0) return null;
 	let settled = 0;
@@ -19,6 +19,8 @@ export function layoutTranslateSettledRatio(
 			item.status === "skipped"
 		) {
 			settled += 1;
+		} else if (item.status === "running" && Number.isFinite(item.progress)) {
+			settled += Math.max(0, Math.min(1, item.progress ?? 0));
 		}
 	}
 	return settled / items.length;

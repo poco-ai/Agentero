@@ -46,6 +46,33 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 		runTranslate.mockReset();
 	});
 
+	it("publishes valid batch results before a different paragraph finishes retrying", async () => {
+		let finishRetry!: (text: string) => void;
+		runTranslate.mockResolvedValueOnce("[[1]] 参见网址。\n\n[[2]] 第二段。");
+		runTranslate.mockImplementationOnce(
+			() =>
+				new Promise<string>((resolve) => {
+					finishRetry = resolve;
+				}),
+		);
+		const updates: LayoutTranslateItem[][] = [];
+		const run = runLayoutRegionTranslate({
+			items: [
+				item("retry", "See https://example.com/x for details.", 0),
+				item("ready", "Second standalone paragraph.", 0),
+			],
+			onUpdate: (items) => updates.push(items),
+		});
+		await vi.waitFor(() => expect(finishRetry).toBeTypeOf("function"));
+		expect(
+			updates.some(
+				(items) => items[1].status === "done" && items[0].status === "running",
+			),
+		).toBe(true);
+		finishRetry("参见 ⟦0⟧ 获取细节。");
+		expect((await run).map((item) => item.status)).toEqual(["done", "done"]);
+	});
+
 	it("preserves raw quotes and source styles through the public long-block path", async () => {
 		const raw = `A repre- sentation ${"with detail ".repeat(600)}ends here.`;
 		const source = raw.replace("repre- sentation", "representation");

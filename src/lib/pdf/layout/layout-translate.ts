@@ -1019,7 +1019,13 @@ export async function runLayoutRegionTranslate(options: {
 
 	const paintJob = (job: ChainJob) => {
 		if (signal?.aborted) return;
-		if (job.slots.some((slot) => slot.state === "pending")) return;
+		if (job.slots.some((slot) => slot.state === "pending")) {
+			const progress =
+				job.slots.filter((slot) => slot.state !== "pending").length /
+				job.slots.length;
+			for (const member of job.chain.members) member.progress = progress;
+			return;
+		}
 		const failed = job.slots.some((slot) => slot.state !== "ok");
 		const painted = paintSentenceTranslations(
 			job.drafts,
@@ -1050,6 +1056,8 @@ export async function runLayoutRegionTranslate(options: {
 		if (signal?.aborted) return;
 		if (text) succeedUnit(unit, text);
 		else failUnit(unit);
+		paintJob(unit.job);
+		publish();
 	};
 
 	const translateSentenceBatch = async (batch: readonly SentenceUnit[]) => {
@@ -1069,16 +1077,41 @@ export async function runLayoutRegionTranslate(options: {
 					await translateSentence(unit);
 				} catch (error) {
 					failUnit(unit, error);
+					paintJob(unit.job);
+					publish();
 				}
 			}
 			return;
 		}
+		const retries: {
+			unit: SentenceUnit;
+			segment: string;
+			tokens: MaskedToken[];
+		}[] = [];
 		for (const [index, masked] of maskedUnits.entries()) {
+			if (signal?.aborted) return;
+			const segment = segments[index] ?? "";
+			const restored = restoreInlineTokens(segment.trim(), masked.tokens);
+			const structural = masked.unit.job.chain.members[0]?.reflow;
+			if (
+				restored.missing ||
+				restored.invalid ||
+				(structural && !validReflowTranslation(structural, restored.text))
+			) {
+				retries.push({ ...masked, segment });
+				continue;
+			}
+			succeedUnit(masked.unit, restored.text);
+			paintJob(masked.unit.job);
+			publish();
+		}
+		// Publish every valid paragraph before starting potentially slow repairs.
+		for (const masked of retries) {
 			if (signal?.aborted) return;
 			try {
 				const text = await finalizeSentence(
 					masked.unit,
-					segments[index] ?? "",
+					masked.segment,
 					masked.tokens,
 				);
 				if (text) succeedUnit(masked.unit, text);
@@ -1086,6 +1119,10 @@ export async function runLayoutRegionTranslate(options: {
 			} catch (error) {
 				failUnit(masked.unit, error);
 			}
+			// A slow protected-token retry in another paragraph must not hold
+			// already valid results until the entire batch has settled.
+			paintJob(masked.unit.job);
+			publish();
 		}
 	};
 

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { it } from "vitest";
+import * as translateProgress from "@/lib/pdf/layout/layout-translate-progress";
 
 // Exercise the real hook with deterministic request completion and hook slots.
 // No DOM or Tauri runtime is needed; this does not replace desktop UI testing.
@@ -262,6 +263,7 @@ function createHarness() {
 					b.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""),
 		},
 		"@/lib/pdf/layout": layout,
+		"@/lib/pdf/layout/layout-translate-progress": translateProgress,
 		"@/lib/shell/settings-window": { openSettingsWindow: () => undefined },
 		// Identity stub: the hook only maps known Host markers, else passes through.
 		"@/lib/translate": { displayTranslateError: (message: string) => message },
@@ -492,17 +494,16 @@ it("queues behind layout analysis and auto-starts when regions land", async () =
 	assert.equal(h.view.layoutTranslateWaiting, true);
 	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.waiting");
 	assert.equal(h.runs.length, 0);
-	assert.equal(h.actions.length, 1);
-	assert.equal(h.actions[0]?.[0], "pdf.layoutTranslate.queuedToast");
-	assert.equal(h.enqueues.length, 0); // parse already pending
+	assert.equal(h.actions.length, 0);
+	assert.equal(h.enqueues.length, 1); // explicitly promotes the existing parse
+	assert.equal((h.enqueues[0][0] as { focus: boolean }).focus, true);
 
 	h.render({ layoutRawRegions: [region(0)] });
 	await h.flush();
 	assert.equal(h.view.layoutTranslateWaiting, false);
 	assert.equal(h.view.layoutTranslateRunning, true);
 	assert.equal(h.runs.length, 1);
-	assert.equal(h.successes.length, 1);
-	assert.equal(h.successes[0]?.[0], "pdf.layoutTranslate.startedAfterLayout");
+	assert.equal(h.successes.length, 0);
 });
 
 it("cancels the queued wait on a second toggle", async () => {
@@ -589,7 +590,7 @@ it("enqueues layout analysis when nothing is pending and ignores stale failures"
 	h.render();
 	assert.equal(h.view.layoutTranslateWaiting, true); // stale failure ignored
 	assert.equal(h.enqueues.length, 1); // nothing pending → parse enqueued
-	assert.equal(h.actions.length, 1);
+	assert.equal(h.actions.length, 0);
 });
 
 it("keeps the legacy hint for a loose PDF with nothing to enqueue", () => {
@@ -621,5 +622,5 @@ it("queues a page translate behind an in-viewer layout run", async () => {
 	assert.equal(h.view.layoutTranslateRunning, true);
 	assert.equal(h.runs.length, 1);
 	assert.equal(h.runs[0].items.length, 1); // only the queued page
-	assert.equal(h.successes.length, 1);
+	assert.equal(h.successes.length, 0);
 });

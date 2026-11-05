@@ -26,6 +26,14 @@ describe("layoutTranslateSettledRatio", () => {
 			layoutTranslateSettledRatio([{ status: "done" }, { status: "error" }]),
 		).toBe(1);
 	});
+	it("includes completed sentences in an unfinished paragraph", () => {
+		expect(
+			layoutTranslateSettledRatio([
+				{ status: "running", progress: 0.5 },
+				{ status: "done" },
+			]),
+		).toBe(0.75);
+	});
 });
 
 describe("layoutTranslateDisplayRatio", () => {

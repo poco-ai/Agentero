@@ -1,12 +1,13 @@
 import type { PdfEngine } from "@embedpdf/models";
 import {
-	Clock,
+	Check,
 	Download,
 	Highlighter,
 	Languages,
 	Library,
 	Loader2,
 	ScanSearch,
+	Square,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -58,9 +59,6 @@ type PdfToolbarProps = {
 	importBusy?: boolean;
 };
 
-/** Pale mint liquid. Same green family as the library reading heat, kept light. */
-const TRANSLATE_CHARGE =
-	"color-mix(in oklch, oklch(0.82 0.12 152) 72%, transparent)";
 const TRANSLATE_METER_LINGER_MS = 700;
 
 /** Top-right toolbar: region select, bulk translate. Always visible. */
@@ -209,9 +207,7 @@ export const PdfToolbar = memo(function PdfToolbar({
 		? 1
 		: Math.max(0, Math.min(1, layoutTranslateProgress ?? 0));
 	const meterPercent = Math.round(meterRatio * 100);
-	// Mount the rim for the whole open session. Unmounting it when the job
-	// flips from running to the preview build restarts the lap after a stall.
-	const showWave = translateBusy;
+
 	const [meterGrown, setMeterGrown] = useState(false);
 	useEffect(() => {
 		if (!meterOpen) {
@@ -223,6 +219,15 @@ export const PdfToolbar = memo(function PdfToolbar({
 	}, [meterOpen]);
 	const meterWidth =
 		meterOpen && meterGrown && !meterIndeterminate ? meterRatio : 0;
+	const meterStage = lingerFull
+		? t("pdf.layoutTranslate.phaseDone")
+		: layoutTranslateWaiting
+			? t("pdf.layoutTranslate.phaseLayout")
+			: layoutTranslatePreparing
+				? t("pdf.layoutTranslate.phaseTypeset")
+				: meterIndeterminate
+					? t("pdf.layoutTranslate.phaseExtract")
+					: t("pdf.layoutTranslate.phaseTranslate");
 	const translateAriaLabel =
 		meterOpen && !meterIndeterminate
 			? `${layoutTranslateLabel} ${t("pdf.layoutTranslate.progress", { percent: meterPercent })}`
@@ -240,7 +245,7 @@ export const PdfToolbar = memo(function PdfToolbar({
 				<span
 					role="progressbar"
 					className="sr-only"
-					aria-label={layoutTranslateLabel}
+					aria-label={meterStage}
 					aria-valuemin={0}
 					aria-valuemax={100}
 					aria-valuenow={meterIndeterminate ? undefined : meterPercent}
@@ -361,7 +366,7 @@ export const PdfToolbar = memo(function PdfToolbar({
 									className={cn(
 										"relative h-6! overflow-hidden px-0 transition-[width,border-radius,color,background-color,border-color,box-shadow,transform,opacity] duration-300 ease-out motion-reduce:transition-none",
 										meterOpen
-											? "w-36! justify-end rounded-full! bg-background/80! shadow-[inset_0_0_0_1px_oklch(0.72_0.04_152/0.35)] hover:bg-background/80! active:bg-background/80!"
+											? "w-44! justify-end rounded-lg! bg-transparent! hover:bg-muted/60!"
 											: "w-6!",
 									)}
 									data-full-text-translate
@@ -374,71 +379,48 @@ export const PdfToolbar = memo(function PdfToolbar({
 									onPointerCancel={handleTranslatePointerLeave}
 									onClick={handleTranslateClick}
 								>
-									{showWave ? (
-										<svg
-											aria-hidden
-											className="pdf-translate-rim-svg size-full"
-										>
-											<title>{translateAriaLabel}</title>
-											<rect
-												className="pdf-translate-rim pdf-translate-rim-glow"
-												pathLength={100}
-											/>
-											<rect
-												className="pdf-translate-rim-track"
-												x="1"
-												y="1"
-												width="100%"
-												height="100%"
-												rx="11"
-												pathLength={100}
-											/>
-											<rect
-												className="pdf-translate-rim"
-												x="1"
-												y="1"
-												width="100%"
-												height="100%"
-												rx="11"
-												pathLength={100}
-											/>
-										</svg>
-									) : null}
-									<span
-										aria-hidden
-										className={cn(
-											"pointer-events-none absolute inset-[0.1875rem] overflow-hidden rounded-full bg-foreground/5 transition-opacity duration-200",
-											meterOpen ? "opacity-100" : "opacity-0",
-										)}
-									>
-										<span
-											className={cn(
-												"absolute inset-y-0 left-0 overflow-hidden rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none",
-												meterIndeterminate && "pdf-translate-indeterminate",
-											)}
-											style={{
-												width: meterIndeterminate
-													? "38%"
-													: `${meterWidth * 100}%`,
-												background: TRANSLATE_CHARGE,
-											}}
-										>
-											{showWave ? (
-												<span className="pdf-translate-wave" />
+									{meterOpen ? (
+										<>
+											<span
+												aria-hidden
+												className="pointer-events-none absolute inset-x-2 bottom-0 h-0.5 overflow-hidden rounded-full bg-foreground/5"
+											>
+												<span
+													className={cn(
+														"absolute inset-y-0 left-0 rounded-full bg-foreground/45 transition-[width] duration-500 ease-out motion-reduce:transition-none",
+														meterIndeterminate && "pdf-translate-indeterminate",
+													)}
+													style={{
+														width: meterIndeterminate
+															? "30%"
+															: `${meterWidth * 100}%`,
+													}}
+												/>
+											</span>
+											<span
+												aria-hidden
+												className="pointer-events-none absolute left-2.5 right-14 truncate text-left text-[0.625rem] font-medium text-foreground/75"
+											>
+												{meterStage}
+											</span>
+											{!meterIndeterminate ? (
+												<span
+													aria-hidden
+													className="absolute right-7 text-[0.625rem] text-muted-foreground tabular-nums"
+												>
+													{meterPercent}%
+												</span>
 											) : null}
-										</span>
-									</span>
-									{meterOpen && !meterIndeterminate ? (
-										<span
-											aria-hidden
-											className="absolute left-3 z-10 text-[0.625rem] font-medium text-foreground/75 tabular-nums"
-										>
-											{meterPercent}%
-										</span>
+										</>
 									) : null}
 									<span className="relative z-10 flex size-6 items-center justify-center">
-										{layoutTranslateWaiting ? (
-											<Clock className="size-3.5 animate-pulse" aria-hidden />
+										{lingerFull ? (
+											<Check className="size-3.5" aria-hidden />
+										) : translateBusy ? (
+											<Square
+												className="size-2.5 fill-current opacity-60"
+												aria-hidden
+											/>
 										) : (
 											<Languages className="size-3.5" aria-hidden />
 										)}

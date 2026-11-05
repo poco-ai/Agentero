@@ -15,12 +15,7 @@ import { toast } from "sonner";
 import { useStore } from "zustand";
 import { backgroundTasksStore } from "@/lib/core/background-tasks";
 import { errorText } from "@/lib/core/error";
-import {
-	notifyAction,
-	notifyError,
-	notifySuccess,
-	notifyWarning,
-} from "@/lib/core/notify";
+import { notifyError, notifyWarning } from "@/lib/core/notify";
 import { sameRelPaperPath } from "@/lib/core/path";
 import {
 	applyLayoutTranslateSidecar,
@@ -221,6 +216,7 @@ export function usePdfLayoutTranslate({
 }: UsePdfLayoutTranslateOptions): PdfLayoutTranslate {
 	const { t } = useTranslation("viewer");
 	/** Progressive layout bulk-translate overlays (body text / abstract / header). */
+	const [sourcePreparing, setSourcePreparing] = useState(false);
 	const [layoutTranslateJob, setLayoutTranslateJob] = useState<{
 		status: LayoutTranslateJobStatus;
 		items: LayoutTranslateItem[];
@@ -290,6 +286,7 @@ export function usePdfLayoutTranslate({
 	const stopLayoutTranslate = useCallback(() => {
 		layoutTranslateAbortRef.current?.abort();
 		layoutTranslateAbortRef.current = null;
+		setSourcePreparing(false);
 		setLayoutTranslateJob((prev) =>
 			prev.status === "running"
 				? {
@@ -304,6 +301,7 @@ export function usePdfLayoutTranslate({
 	const clearLayoutTranslate = useCallback(() => {
 		layoutTranslateAbortRef.current?.abort();
 		layoutTranslateAbortRef.current = null;
+		setSourcePreparing(false);
 		hiddenPageIndexesRef.current.clear();
 		setLayoutTranslateJob({ status: "idle", items: [] });
 	}, []);
@@ -350,13 +348,12 @@ export function usePdfLayoutTranslate({
 	 */
 	const enterWaitingLayout = useCallback(
 		(target: LayoutTranslateWaitTarget) => {
-			if (!parsePendingForPaper) {
-				if (!paperAbsPath) {
-					// Loose PDF with nothing to enqueue and nothing running.
-					notifyError(t("pdf.layoutTranslate.needLayout"));
-					return;
-				}
-				enqueuePaperLayoutAnalysis({ paperAbsPath });
+			if (paperAbsPath) {
+				enqueuePaperLayoutAnalysis({ paperAbsPath, focus: true });
+			} else if (!parsePendingForPaper) {
+				// Loose PDF with nothing to enqueue and nothing running.
+				notifyError(t("pdf.layoutTranslate.needLayout"));
+				return;
 			}
 			layoutTranslateWaitTargetRef.current = target;
 			waitingAutoStartedRef.current = false;
@@ -364,14 +361,8 @@ export function usePdfLayoutTranslate({
 				status: "waitingLayout",
 				items: prev.items,
 			}));
-			notifyAction(t("pdf.layoutTranslate.queuedToast"), {
-				id: layoutTranslateWaitToastIdRef.current,
-				actionLabel: t("pdf.layoutTranslate.cancelQueue"),
-				onAction: cancelWaitingLayout,
-				duration: 12000,
-			});
 		},
-		[parsePendingForPaper, paperAbsPath, cancelWaitingLayout, t],
+		[parsePendingForPaper, paperAbsPath, t],
 	);
 
 	const startLayoutTranslate = useCallback(() => {
@@ -388,6 +379,7 @@ export function usePdfLayoutTranslate({
 		layoutTranslateAbortRef.current?.abort();
 		const ac = new AbortController();
 		layoutTranslateAbortRef.current = ac;
+		setSourcePreparing(true);
 		hiddenPageIndexesRef.current.clear();
 		const cacheKey = currentLayoutTranslateCacheKey();
 		const pendingItems = reuseCompletedTranslateItems(
@@ -408,6 +400,7 @@ export function usePdfLayoutTranslate({
 			if (ac.signal.aborted) return;
 			const prepared = await prepareReflow(pendingItems, ac.signal);
 			if (ac.signal.aborted) return;
+			setSourcePreparing(false);
 			const items = applyLayoutTranslateSidecar(prepared, sidecar);
 			const needsRun = hasPendingLayoutTranslateItems(items);
 			setLayoutTranslateJob({
@@ -451,6 +444,7 @@ export function usePdfLayoutTranslate({
 			.finally(() => {
 				publishes.cancel();
 				if (layoutTranslateAbortRef.current === ac) {
+					if (!ac.signal.aborted) setSourcePreparing(false);
 					layoutTranslateAbortRef.current = null;
 				}
 			});
@@ -484,6 +478,7 @@ export function usePdfLayoutTranslate({
 			layoutTranslateAbortRef.current?.abort();
 			const ac = new AbortController();
 			layoutTranslateAbortRef.current = ac;
+			setSourcePreparing(true);
 			hiddenPageIndexesRef.current.delete(pageIndex);
 			const cacheKey = currentLayoutTranslateCacheKey();
 			const pendingItems = reuseCompletedTranslateItems(
@@ -521,6 +516,7 @@ export function usePdfLayoutTranslate({
 				if (ac.signal.aborted) return;
 				const prepared = await prepareReflow(pendingItems, ac.signal);
 				if (ac.signal.aborted) return;
+				setSourcePreparing(false);
 				const pageItems = applyLayoutTranslateSidecar(prepared, sidecar);
 				const needsRun = hasPendingLayoutTranslateItems(pageItems);
 				setLayoutTranslateJob((prev) => {
@@ -585,6 +581,7 @@ export function usePdfLayoutTranslate({
 				.finally(() => {
 					publishes.cancel();
 					if (layoutTranslateAbortRef.current === ac) {
+						if (!ac.signal.aborted) setSourcePreparing(false);
 						layoutTranslateAbortRef.current = null;
 					}
 				});
@@ -672,6 +669,7 @@ export function usePdfLayoutTranslate({
 		if (!docId) return;
 		layoutTranslateAbortRef.current?.abort();
 		layoutTranslateAbortRef.current = null;
+		setSourcePreparing(false);
 		hiddenPageIndexesRef.current.clear();
 		layoutTranslateWaitTargetRef.current = null;
 		waitingAutoStartedRef.current = false;
@@ -688,9 +686,6 @@ export function usePdfLayoutTranslate({
 		if (!layoutRawRegions?.length) return;
 		if (waitingAutoStartedRef.current) return;
 		waitingAutoStartedRef.current = true;
-		notifySuccess(t("pdf.layoutTranslate.startedAfterLayout"), {
-			id: layoutTranslateWaitToastIdRef.current,
-		});
 		const target = layoutTranslateWaitTargetRef.current;
 		layoutTranslateWaitTargetRef.current = null;
 		if (target?.mode === "page") startPageLayoutTranslate(target.pageIndex);
@@ -700,7 +695,6 @@ export function usePdfLayoutTranslate({
 		layoutRawRegions,
 		startLayoutTranslate,
 		startPageLayoutTranslate,
-		t,
 	]);
 
 	// Edge-triggered parse-failure watch while queued: only tasks observed
@@ -843,8 +837,8 @@ export function usePdfLayoutTranslate({
 		sawFinalReflowBusyRef.current &&
 		!reflowBusy;
 	const layoutTranslateProgress = layoutTranslateDisplayRatio(
-		textSettled,
-		previewPending && !finalReflowFailed,
+		layoutTranslateRunning && sourcePreparing ? null : textSettled,
+		(layoutTranslateRunning || previewPending) && !finalReflowFailed,
 	);
 	// Cached re-runs settle almost immediately, but the translated page only
 	// paints once the final reflow build publishes its previews. Keep the

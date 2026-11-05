@@ -108,9 +108,11 @@ async function runLayoutAnalyzeExecutor(
 export function enqueuePaperLayoutAnalysis(opts: {
 	paperAbsPath: string;
 	paperLabel?: string;
+	/** Explicit reading action takes priority over background imports. */
+	focus?: boolean;
 }): void {
 	const paperAbsPath = normalizePaperKey(opts.paperAbsPath);
-	if (!paperAbsPath || queuedPapers.has(paperAbsPath)) return;
+	if (!paperAbsPath || (!opts.focus && queuedPapers.has(paperAbsPath))) return;
 
 	const vaultPath = getVaultPath();
 	if (!vaultPath) return;
@@ -130,11 +132,18 @@ export function enqueuePaperLayoutAnalysis(opts: {
 					commands.jobLayoutAnalyzeEnqueue({
 						vaultPath,
 						path: paperRelPath,
-						lane: "normal",
+						lane: opts.focus ? "focus" : "normal",
 						force: false,
 					}),
 				{ fallback: "layout analysis enqueue failed" },
 			);
+			// Enqueue dedupes with an existing job without changing its lane.
+			if (opts.focus) {
+				await callApiResult(
+					() => commands.jobFocusPaper({ vaultPath, path: paperRelPath }),
+					{ fallback: "layout analysis priority failed" },
+				);
+			}
 		} catch (e) {
 			logger.warn("enqueue paper layout analysis failed", {
 				paperAbsPath,
