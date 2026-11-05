@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SelectionCopiedLabel } from "@/components/ui/selection-copied-label";
 import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import { SelectionMenu } from "@/components/viewer/pdf/cards/selection-menu";
@@ -125,16 +126,7 @@ export function HtmlViewer({
 	});
 
 	if (!remote) {
-		return (
-			<div
-				className={cn(
-					"flex h-full items-center justify-center p-6 text-center text-muted-foreground text-sm",
-					className,
-				)}
-			>
-				{t("html.empty")}
-			</div>
-		);
+		return <EmptyState className={className}>{t("html.empty")}</EmptyState>;
 	}
 
 	if (trusted) {
@@ -206,9 +198,7 @@ export function HtmlViewer({
 					style={{ colorScheme: "light dark" }}
 				/>
 			) : (
-				<div className="flex h-full items-center justify-center p-6 text-center text-muted-foreground text-sm">
-					{gate === "denied" ? t("html.denied") : null}
-				</div>
+				<EmptyState>{gate === "denied" ? t("html.denied") : null}</EmptyState>
 			)}
 			{iframeUrl && !trusted
 				? createPortal(

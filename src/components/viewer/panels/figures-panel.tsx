@@ -19,6 +19,7 @@ import { useStore } from "zustand";
 import { PaneHeader } from "@/components/shell/pane-header";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { QuietIconButton } from "@/components/ui/quiet-icon-button";
 import {
 	Tooltip,
 	TooltipContent,
@@ -234,14 +235,9 @@ function OverlayToggleButton({
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<Button
-					type="button"
+				<QuietIconButton
 					variant={visible ? "secondary" : "ghost"}
-					size="icon-xs"
-					className={cn(
-						"size-6 text-muted-foreground hover:text-foreground",
-						visible && "text-primary",
-					)}
+					className={cn(visible && "text-primary")}
 					aria-label={t("figures.toggleOverlay")}
 					aria-pressed={visible}
 					onClick={onToggle}
@@ -251,7 +247,7 @@ function OverlayToggleButton({
 					) : (
 						<EyeOff className="size-3.5" aria-hidden />
 					)}
-				</Button>
+				</QuietIconButton>
 			</TooltipTrigger>
 			<TooltipContent side="bottom" className="max-w-52 text-xs">
 				{visible ? t("figures.hideOverlay") : t("figures.showOverlay")}
@@ -542,11 +538,8 @@ export function FiguresPanel({
 									) : null}
 									<Tooltip>
 										<TooltipTrigger asChild>
-											<Button
-												type="button"
+											<QuietIconButton
 												variant={running ? "secondary" : "ghost"}
-												size="icon-xs"
-												className="size-6 text-muted-foreground hover:text-foreground"
 												aria-label={
 													result ? t("figures.reanalyze") : t("figures.analyze")
 												}
@@ -562,7 +555,7 @@ export function FiguresPanel({
 												) : (
 													<Boxes className="size-3.5" aria-hidden />
 												)}
-											</Button>
+											</QuietIconButton>
 										</TooltipTrigger>
 										<TooltipContent side="bottom" className="max-w-64 text-xs">
 											{analyzeTooltip}

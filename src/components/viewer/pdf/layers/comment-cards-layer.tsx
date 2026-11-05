@@ -16,7 +16,7 @@ import { Crop, Link2, MessageSquarePlus, Trash2 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageResponse } from "@/components/agent/message";
-import { Button } from "@/components/ui/button";
+import { QuietIconButton } from "@/components/ui/quiet-icon-button";
 import {
 	Tooltip,
 	TooltipContent,
@@ -540,11 +540,7 @@ const CommentCard = memo(function CommentCard({
 						<>
 							<Tooltip>
 								<TooltipTrigger asChild>
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon-xs"
-										className="size-6 text-muted-foreground hover:text-foreground"
+									<QuietIconButton
 										aria-label={t("annotations.copyLink")}
 										onClick={(e) => {
 											e.stopPropagation();
@@ -552,17 +548,13 @@ const CommentCard = memo(function CommentCard({
 										}}
 									>
 										<Link2 className="size-3.5" />
-									</Button>
+									</QuietIconButton>
 								</TooltipTrigger>
 								<TooltipContent>{t("annotations.copyLink")}</TooltipContent>
 							</Tooltip>
 							<Tooltip>
 								<TooltipTrigger asChild>
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon-xs"
-										className="size-6 text-muted-foreground hover:text-foreground"
+									<QuietIconButton
 										aria-label={t("annotations.copyEmbed")}
 										onClick={(e) => {
 											e.stopPropagation();
@@ -572,7 +564,7 @@ const CommentCard = memo(function CommentCard({
 										<span className="font-mono text-caption leading-none">
 											![[
 										</span>
-									</Button>
+									</QuietIconButton>
 								</TooltipTrigger>
 								<TooltipContent>{t("annotations.copyEmbed")}</TooltipContent>
 							</Tooltip>
@@ -580,11 +572,7 @@ const CommentCard = memo(function CommentCard({
 					) : null}
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-xs"
-								className="size-6 text-muted-foreground hover:text-foreground"
+							<QuietIconButton
 								aria-label={t("pdfExplain.addToSidebarChat")}
 								onClick={(e) => {
 									e.stopPropagation();
@@ -592,17 +580,14 @@ const CommentCard = memo(function CommentCard({
 								}}
 							>
 								<MessageSquarePlus className="size-3.5" />
-							</Button>
+							</QuietIconButton>
 						</TooltipTrigger>
 						<TooltipContent>{t("pdfExplain.addToSidebarChat")}</TooltipContent>
 					</Tooltip>
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-xs"
-								className="size-6 text-muted-foreground hover:text-destructive"
+							<QuietIconButton
+								tone="destructive"
 								aria-label={t("annotations.delete")}
 								onClick={(e) => {
 									e.stopPropagation();
@@ -611,7 +596,7 @@ const CommentCard = memo(function CommentCard({
 								}}
 							>
 								<Trash2 className="size-3.5" />
-							</Button>
+							</QuietIconButton>
 						</TooltipTrigger>
 						<TooltipContent>{t("annotations.delete")}</TooltipContent>
 					</Tooltip>

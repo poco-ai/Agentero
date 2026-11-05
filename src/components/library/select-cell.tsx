@@ -6,6 +6,7 @@
 import { Check, ChevronDown, Plus, Search, Trash2, X } from "lucide-react";
 import { type MouseEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { EDITABLE_CELL } from "@/components/library/cell-styles";
 import {
 	Popover,
 	PopoverContent,
@@ -108,7 +109,8 @@ export function SelectCell({
 						e.stopPropagation();
 					}}
 					className={cn(
-						"group/select flex h-full w-full min-h-[1.75rem] cursor-pointer items-center justify-between gap-1 rounded-sm px-1.5 py-0.5 text-xs transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+						EDITABLE_CELL,
+						"group/select cursor-pointer justify-between",
 						className,
 					)}
 				>
