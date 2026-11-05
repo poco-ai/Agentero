@@ -165,7 +165,7 @@ guard 也会取消首帧默认放大。未按实体 Ctrl 的细粒度像素事�
 | `src/components/viewer/pdf/hooks/use-pdf-pin-anchors.ts` | ask/translate 钉锚点几何投影（`useStableDerived` 指纹稳定：流式期间引用不变，`pinsByPage` 不失效） |
 | `src/components/viewer/pdf/hooks/use-pdf-active-anchors.ts` | 活动卡记录查找（thread/translate/visualTrace）与 ask/translate 页内源锚点投影（仅几何，流式期间保持引用稳定） |
 | `src/components/viewer/pdf/hooks/use-pdf-sidebar-panels.ts` | 左栏 References/Figures 面板开关（与大纲互斥）与评论卡 hover id |
-| `src/components/viewer/pdf/hooks/use-pdf-selection-actions.ts` | 划词动作装配（工具栏：高亮/翻译/复制/加入对话/快速对话；右缘入口：批注；全文或单页译文上的划选不提供高亮和批注）。复制成功不弹 toast、不关工具栏，对勾画在按钮上。划词表面三件套（copied 标签 / ⌘K 注册 / 加入对话尾段）与 plaza / 网页论文 / 文本编辑器共用 `src/components/selection/`（见 [web-view.md](web-view.md)） |
+| `src/components/viewer/pdf/hooks/use-pdf-selection-actions.ts` | 划词动作装配（工具栏：高亮/翻译/复制/加入对话/快速对话；右缘入口：批注；全文或单页译文上的划选不提供高亮、批注和添加书签）。复制成功不弹 toast、不关工具栏，对勾画在按钮上。划词表面三件套（copied 标签 / ⌘K 注册 / 加入对话尾段）与 plaza / 网页论文 / 文本编辑器共用 `src/components/selection/`（见 [web-view.md](web-view.md)） |
 | `src/components/viewer/pdf/hooks/use-pdf-smart-highlights.ts` | 智能高亮任务提交、结果坐标转换、任务事件订阅与清理；阅读器仅组装 busy 状态与触发动作 |
 | `src/components/viewer/pdf/hooks/use-pdf-mark-actions.ts` | 页边针打开（ask 线程/翻译卡/高亮编辑/visual 卡）与高亮标注菜单动作（编辑/删除/换色） |
 | `src/components/viewer/pdf/hooks/use-pdf-layout-cluster.ts` | layout 簇聚合：region 分桶、分析运行与 Figures 处理器、visual draft 卡状态、全文翻译任务 |

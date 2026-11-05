@@ -2165,6 +2165,7 @@ function PdfViewerInner({
 	const handleBookmarkSelection = useCallback(() => {
 		if (
 			!selectionMenu ||
+			selectionMenu.fromTranslation ||
 			!bookmarkEditor.canEdit ||
 			bookmarkEditor.draft?.saving
 		)
@@ -2209,7 +2210,9 @@ function PdfViewerInner({
 			onTranslate: handleMenuTranslate,
 			onCopy: handleMenuCopy,
 			onBookmark:
-				bookmarkEditor.canEdit && !bookmarkEditor.draft?.saving
+				bookmarkEditor.canEdit &&
+				!bookmarkEditor.draft?.saving &&
+				!selectionMenu?.fromTranslation
 					? handleBookmarkSelection
 					: undefined,
 			showHighlight:
