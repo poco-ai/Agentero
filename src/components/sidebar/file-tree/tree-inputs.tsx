@@ -118,7 +118,7 @@ function TreeNameInput({
 				/>
 			</div>
 			{error ? (
-				<p className="pointer-events-none absolute top-full right-0 left-8 z-10 mt-0.5 rounded bg-background/95 px-1 text-destructive text-caption leading-tight shadow-sm">
+				<p className="pointer-events-none absolute top-full right-0 left-8 z-10 mt-0.5 rounded bg-background/95 px-1 text-destructive text-caption leading-tight shadow-raised">
 					{error}
 				</p>
 			) : null}

@@ -147,7 +147,7 @@ export function WritingProblems({ rootFile }: { rootFile: string }) {
 						<TriangleAlert aria-hidden />
 					</Button>
 				</PopoverTrigger>
-				<PopoverContent align="start" className="w-80 gap-1 p-1">
+				<PopoverContent align="start" className="w-80 gap-1 p-1.5">
 					{rows.length === 0 ? (
 						<p className="text-muted-foreground px-2 py-1.5 text-xs">
 							{t("noProblems")}

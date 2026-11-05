@@ -33,7 +33,7 @@ import {
 import { type VenueStatus, venueInfo } from "@/lib/paper/venue-info";
 
 const COPY_CELL_BASE =
-	"cursor-pointer select-text rounded-sm hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+	"cursor-pointer select-text rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 /** Double-click-to-copy cell control shared by library columns. */
 function CopyCellButton({
@@ -51,12 +51,10 @@ function CopyCellButton({
 }) {
 	const label = ctx.t(labelKey);
 	const copyHint = ctx.t("papersLibrary.copyHint", { label });
-	const canCopy = Boolean(copyText?.trim());
 	return (
 		<button
 			type="button"
 			className={cn(COPY_CELL_BASE, className)}
-			title={canCopy ? copyHint : undefined}
 			aria-label={copyHint}
 			onDoubleClick={() => ctx.onCellCopy(copyText, label)}
 		>

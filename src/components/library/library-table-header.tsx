@@ -5,12 +5,13 @@
  * action, and the tags-filter popover; right-click customizes column order +
  * visibility. When `compact` (table is actively scrolling), search +
  * action icons hide so only column labels remain; row height stays
- * fixed (`h-9`). Transient drag state (dragKey/dragOverKey) lives here —
+ * fixed (`h-10`). Transient drag state (dragKey/dragOverKey) lives here —
  * the parent only receives committed reorder events. Memoized so
  * scrolling the virtualized body does not re-render the header unless
  * compact/props change.
  */
 import {
+	Check,
 	ListFilter,
 	MoreHorizontal,
 	Plus,
@@ -138,7 +139,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 	}, [compact]);
 
 	const showActions = !compact;
-	/** Fade chrome in place (keeps h-9); hide instantly, restore with fade-in. */
+	/** Fade chrome in place (keeps h-10); hide instantly, restore with fade-in. */
 	const chromeFadeClass = showActions
 		? "opacity-100 duration-300"
 		: "pointer-events-none opacity-0 duration-0";
@@ -208,12 +209,12 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 										setDragOverKey(null);
 									}}
 								>
-									{/* Fixed h-9 so compact fade never changes header height. */}
-									<div className="flex h-9 min-w-0 items-center gap-1 px-3">
+									{/* Fixed h-10 so compact fade never changes header height. */}
+									<div className="flex h-10 min-w-0 items-center gap-1.5 px-3.5">
 										<button
 											type="button"
 											className={cn(
-												"flex min-w-0 shrink items-center gap-1 py-0.5 text-left cursor-grab active:cursor-grabbing",
+												"flex min-w-0 shrink items-center gap-1 py-1 text-left cursor-grab active:cursor-grabbing",
 												"hover:text-foreground",
 												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 												active && "text-foreground",
@@ -262,7 +263,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 												aria-hidden={!showActions}
 											>
 												<Search
-													className="pointer-events-none absolute top-1/2 left-1.5 size-3 -translate-y-1/2 text-muted-foreground"
+													className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
 													aria-hidden
 												/>
 												<Input
@@ -271,7 +272,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 													onChange={(e) => onInputChange(e.target.value)}
 													aria-label={t("papersLibrary.search")}
 													tabIndex={showActions ? undefined : -1}
-													className="h-6 border-transparent bg-muted/70 pl-6 pr-1.5 text-xs shadow-none placeholder:text-muted-foreground/70 focus-visible:border-border/60 focus-visible:bg-card"
+													className="h-7 border-transparent bg-muted/70 pl-7 pr-2 text-xs shadow-none placeholder:text-muted-foreground/70 focus-visible:border-border/60 focus-visible:bg-card"
 													onMouseDown={(e) => e.stopPropagation()}
 													onClick={(e) => e.stopPropagation()}
 													onKeyDown={(e) => e.stopPropagation()}
@@ -286,7 +287,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 														data-library-header-action
 														tabIndex={showActions ? undefined : -1}
 														className={cn(
-															"ml-1 flex size-6 shrink-0 items-center justify-center rounded-sm",
+															"ml-1 flex size-7 shrink-0 items-center justify-center rounded-md",
 															"hover:bg-muted/60 hover:text-foreground",
 															"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 															"transition-opacity ease-out",
@@ -321,7 +322,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 																data-library-header-action
 																tabIndex={showActions ? undefined : -1}
 																className={cn(
-																	"ml-auto flex size-6 shrink-0 items-center justify-center rounded-sm",
+																	"ml-auto flex size-7 shrink-0 items-center justify-center rounded-md",
 																	"hover:bg-muted/60 hover:text-foreground",
 																	"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 																	"transition-opacity ease-out",
@@ -346,7 +347,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 												</Tooltip>
 												<PopoverContent
 													align="start"
-													className="w-56 p-2"
+													className="w-56 p-1.5"
 													onOpenAutoFocus={(e) => e.preventDefault()}
 												>
 													{availableTags.length === 0 ? (
@@ -362,7 +363,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 																		key={tag.name}
 																		type="button"
 																		className={cn(
-																			"flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs",
+																			"flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs",
 																			"hover:bg-muted/60",
 																			selected && "bg-muted/50",
 																		)}
@@ -371,7 +372,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 																	>
 																		<span
 																			className={cn(
-																				"flex size-3.5 shrink-0 items-center justify-center rounded-sm border",
+																				"flex size-4 shrink-0 items-center justify-center rounded-[4px] border",
 																				selected
 																					? "border-primary bg-primary text-primary-foreground"
 																					: "border-muted-foreground/40",
@@ -379,9 +380,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 																			aria-hidden
 																		>
 																			{selected ? (
-																				<span className="text-caption leading-none">
-																					✓
-																				</span>
+																				<Check className="size-3.5" />
 																			) : null}
 																		</span>
 																		<PaperTagChip tag={tag} />
@@ -435,12 +434,12 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 															</PopoverTrigger>
 															<PopoverContent
 																align="start"
-																className="w-40 p-1 text-xs"
+																className="w-40 p-1.5 text-xs"
 																onClick={(e) => e.stopPropagation()}
 															>
 																<button
 																	type="button"
-																	className="flex w-full items-center gap-1.5 px-2 py-1 text-xs hover:bg-muted rounded text-left"
+																	className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-left hover:bg-muted"
 																	onClick={() => setRenamePropTarget(prop)}
 																>
 																	{t(
@@ -450,7 +449,7 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 																<div className="my-0.5 border-t" />
 																<button
 																	type="button"
-																	className="flex w-full items-center gap-1.5 px-2 py-1 text-xs text-destructive hover:bg-destructive/10 rounded text-left"
+																	className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-destructive text-left hover:bg-destructive/10"
 																	onClick={() => setDeletePropTarget(prop)}
 																>
 																	{t(
@@ -479,14 +478,14 @@ export const LibraryTableHeader = memo(function LibraryTableHeader({
 							);
 						})}
 						<th className="w-9 min-w-9 p-0 text-center">
-							<div className="flex h-9 items-center justify-center">
+							<div className="flex h-10 items-center justify-center">
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<button
 											type="button"
 											onClick={() => setCreatePropOpen(true)}
 											className={cn(
-												"flex size-6 items-center justify-center rounded p-1 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors",
+												"flex size-7 items-center justify-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground",
 												chromeFadeClass,
 											)}
 											aria-label={t(

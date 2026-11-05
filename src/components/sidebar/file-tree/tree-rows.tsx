@@ -499,7 +499,7 @@ export function LoadingRows() {
 	return (
 		<div className="space-y-1 px-2 py-1.5" aria-hidden>
 			{["one", "two", "three", "four", "five"].map((key, index) => (
-				<div key={key} className="flex h-7 items-center gap-2 rounded px-2">
+				<div key={key} className="flex h-7 items-center gap-2 rounded-md px-2">
 					<Skeleton className="size-4 shrink-0 library-shimmer" />
 					<Skeleton
 						className={cn(

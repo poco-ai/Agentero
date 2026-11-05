@@ -102,7 +102,7 @@ export function TextCell({
 			title={value || t("papersLibrary.customProperties.editTextValue")}
 			aria-label={t("papersLibrary.customProperties.editTextValue")}
 			className={cn(
-				"group/text flex h-full w-full min-h-[1.75rem] cursor-text items-center gap-1 rounded-sm px-1.5 py-0.5 text-left text-xs transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				"group/text flex h-full w-full min-h-[1.75rem] cursor-text items-center gap-1 rounded-sm px-1.5 py-0.5 text-left text-xs transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 				className,
 			)}
 		>

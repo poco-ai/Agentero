@@ -402,7 +402,7 @@ export function SettingsContent({
 					{navIndicator ? (
 						<span
 							aria-hidden
-							className="pointer-events-none absolute inset-x-2 top-0 z-0 rounded-md bg-sidebar-primary shadow-sm transition-[transform,height] duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-out)] motion-reduce:transition-none will-change-transform"
+							className="pointer-events-none absolute inset-x-2 top-0 z-0 rounded-md bg-sidebar-primary transition-[transform,height] duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-out)] motion-reduce:transition-none will-change-transform"
 							style={{
 								height: navIndicator.height,
 								transform: `translate3d(0, ${navIndicator.top}px, 0)`,

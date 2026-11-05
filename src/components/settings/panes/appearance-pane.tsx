@@ -194,7 +194,7 @@ function AppearancePaneInner({
 										"hover:border-primary/55 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
 										"active:scale-[0.98]",
 										selected
-											? "border-primary/80 bg-primary/5 shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--primary)_35%,transparent)]"
+											? "border-primary/80 bg-primary/5 ring-1 ring-primary/35"
 											: "border-border/70",
 									)}
 								>

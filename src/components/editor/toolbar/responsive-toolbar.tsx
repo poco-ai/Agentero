@@ -162,7 +162,12 @@ export function ResponsiveFixedToolbar({
 			)}
 
 			{trailing ? (
-				<div className="ml-auto flex shrink-0 items-center">{trailing}</div>
+				<div className="ml-auto flex shrink-0 items-center gap-0.5">
+					{visible.length > 0 ? (
+						<Separator orientation="vertical" className="mx-1.5 h-5" />
+					) : null}
+					{trailing}
+				</div>
 			) : null}
 
 			{/* Invisible measurement row so we can decide what fits without

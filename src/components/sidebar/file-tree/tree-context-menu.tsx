@@ -180,7 +180,7 @@ export function TreeContextMenuPortal({
 			floatingRef={menuRef}
 			point={{ x: menu.x, y: menu.y }}
 			role="menu"
-			className="z-50 min-w-44 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+			className="z-50 min-w-48 rounded-lg bg-popover p-1.5 text-popover-foreground shadow-overlay ring-1 ring-foreground/10"
 		>
 			{isLibraryMenu ? (
 				<>
@@ -466,7 +466,7 @@ export function TreeContextMenuPortal({
 					) : null}
 					{itemContributions.length > 0 ? (
 						<>
-							<div className="-mx-1 my-1 h-px bg-border" />
+							<div className="-mx-1.5 my-1 h-px bg-border" />
 							{itemContributions.map((item) => (
 								<button
 									key={item.id}
