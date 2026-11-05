@@ -183,6 +183,14 @@ agentero --help
 * 感谢 [LinuxDo](https://linux.do/) 与 [ModelScope 魔搭社区](https://modelscope.cn/) 成员在项目早期测试阶段提供的建议与反馈。
 * 感谢 [AtomGit](https://gitcode.com/poco-ai/Agentero) 提供的国内镜像支持。
 
+### 用户交流群
+
+<p align="center">
+  <img src="docs/assets/community-qr.png" alt="Agentero 用户群二维码" width="240" />
+  <br/>
+  <sub>扫码加入微信群：使用心得、问题反馈与版本预告。二维码 7 天内有效，过期请在 <a href="https://github.com/poco-ai/Agentero/issues">Issue</a> 留言。</sub>
+</p>
+
 如果 Agentero 对你的日常学术研究有所帮助，欢迎在 GitHub 上为本项目点亮一个 **⭐ Star**。
 
 感谢所有贡献者！

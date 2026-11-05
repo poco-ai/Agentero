@@ -183,6 +183,14 @@ agentero --help
 * Thanks to the [LinuxDo](https://linux.do/) and [ModelScope](https://modelscope.cn/) communities for their suggestions and feedback during early testing.
 * Thanks to [AtomGit](https://gitcode.com/poco-ai/Agentero) for hosting the domestic mirror.
 
+### Community chat
+
+<p align="center">
+  <img src="docs/assets/community-qr.png" alt="Agentero WeChat group QR code" width="240" />
+  <br/>
+  <sub>Scan to join the WeChat user group (Chinese-speaking) for tips, feedback, and release news. The QR code is valid for 7 days; if it has expired, leave a note in the <a href="https://github.com/poco-ai/Agentero/issues">Issues</a>.</sub>
+</p>
+
 If Agentero helps your daily research, please consider giving the project a **⭐ Star** on GitHub.
 
 Thanks to all contributors!
