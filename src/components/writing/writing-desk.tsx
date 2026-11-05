@@ -52,7 +52,6 @@ type PdfState = {
 	status: "loading" | "ready" | "missing";
 	bytes: ArrayBuffer | null;
 	path: string | null;
-	rev: number;
 };
 
 export function WritingDesk() {
@@ -238,7 +237,6 @@ export function ProjectPdf({
 		status: "loading",
 		bytes: null,
 		path: null,
-		rev: 0,
 	});
 
 	useEffect(() => {
@@ -267,7 +265,7 @@ export function ProjectPdf({
 					setPdf((current) =>
 						current.bytes
 							? current
-							: { status: "missing", bytes: null, path: null, rev: 0 },
+							: { status: "missing", bytes: null, path: null },
 					);
 				}
 				return;
@@ -276,10 +274,10 @@ export function ProjectPdf({
 			if (cancelled) return;
 			setPdf((current) =>
 				bytes
-					? { status: "ready", bytes, path, rev: current.rev + 1 }
+					? { status: "ready", bytes, path }
 					: current.bytes
 						? current
-						: { status: "missing", bytes: null, path, rev: 0 },
+						: { status: "missing", bytes: null, path: null },
 			);
 		})();
 		return () => {
@@ -314,10 +312,10 @@ export function ProjectPdf({
 				}
 			>
 				<PdfViewer
-					key={`${pdf.path}:${pdf.rev}`}
+					key={pdf.path}
 					source={null}
 					sourceBytes={pdf.bytes}
-					docId={`${instanceId}:${normalizePath(pdf.path)}:${pdf.rev}`}
+					docId={`${instanceId}:${normalizePath(pdf.path)}`}
 					vaultPath={vaultPath}
 					isActive={active}
 					plainViewer
