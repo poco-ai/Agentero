@@ -43,7 +43,8 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 2. **Translator Runtime**（`features/import/mod.rs::resolve_metadata`）
    - 若用户输入被识别为 arXiv id / DOI / URL，会构造 `{base}/web` 或 `{base}/search` 请求。
    - arXiv 的各类输入（`2508.05004`、`arXiv:2508.05004v2`、`https://arxiv.org/pdf/...`、`https://arxiv.org/html/...`）都会被规范化为 `https://arxiv.org/abs/{id}` 再走 `/web`。
-   - Translator 失败时按标识符类型走**直连兜底链**（`scholar_api::identifiers::fallback`，见下）。
+   - HTTP 503 与响应体里的 `error code: 1102`（Cloudflare Worker 资源上限）记为 `service_unavailable`，同一请求再试两次（400ms、800ms）后放弃这次调用。
+   - Translator 失败时按标识符类型走**直连兜底链**（`scholar_api::identifiers::fallback`，见下）。链没有命中、或链也失败时，`http(s)` URL 改为直接抓取原网页：论文页用 Highwire `citation_*`（有 DOI 再试一次直连链），普通网页用 URL、标题和 `og:` / `<title>` 元数据建成 `html` 条目。翻译服务不可用不会挡住这次导入。没有 DOI / arXiv / PMID、也不是网页的输入仍失败，错误码 `translator_unavailable`，文案带 HTTP 状态和 1102。
 3. **直连兜底链**（`features/paper/scholar_api/identifiers/fallback.rs`）
    - arXiv → `ARXIV_CHAIN` = arXiv Atom → S2 `ARXIV:{id}` → alphaXiv `/papers/v3/{id}/preview`。
    - DOI → `DOI_CHAIN` = Crossref `works/{doi}` → S2 `DOI:{doi}` → OpenAlex。

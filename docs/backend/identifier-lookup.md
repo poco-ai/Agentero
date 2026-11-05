@@ -100,7 +100,7 @@ UI 阅读：优先 catalog 远程 URL；`source/` 为 arXiv TeX 归档；`PAPER.
 
 - 魔棒入库时前端把设置中的 URL 传入 `lookup_import_batch.args.translatorBaseUrl`。
 - Host：`POST {base}/search` 或 `/web`（`Content-Type: text/plain`）。
-- 服务不可达时按标识符类型走直连兜底链（错峰投机并发，见 §3.2）：arXiv→S2→alphaXiv、DOI→Crossref→S2→OpenAlex、PMID→PubMed。
+- 服务不可达时按标识符类型走直连兜底链（错峰投机并发，见 §3.2）：arXiv→S2→alphaXiv、DOI→Crossref→S2→OpenAlex、PMID→PubMed。HTTP 503 / `error code: 1102` 先重试两次。链未命中的 `http(s)` 网页改为按 URL、标题和页面元数据入库，不因翻译服务失败而中断。
 
 > ~~`downloadFulltextToLocal`~~ 已移除；始终下载 PDF。
 
@@ -370,6 +370,9 @@ lookup:search 被调用
 | Runtime 返回部分成功 | 返回成功草稿 + 失败列表（对齐 Zotero「部分失败仍继续」） |
 | fallback 成功 | `source: 'fallback'`，libraryCatalog 填 `Agentero (Crossref)` 等；meta_source 如实反映链内实际应答源（arxiv / s2 / alphaxiv / crossref / openalex / pubmed） |
 | 回退链全部限流 | 链内先重试一趟（2s 冷却）；仍失败按 `rate_limited` 上报（PDF 识别路径触发 `arxiv_rate_limited` 警告码），不再静默误报「无结果」 |
+| Translator HTTP 503 / error code 1102 | 分类为 `service_unavailable`，同一请求再试两次（400ms、800ms）。仍失败则记 `agentero::lookup` 警告 |
+| 网页 URL，且直连链未命中或失败 | 抓取原网页。论文页用 `citation_*`（页内 DOI 再走一次直连链）；普通网页用 URL、标题、描述建成 `html` 条目。成功时 `asset_messages` 带 `translator_degraded\|状态\|错误码\|page\|服务地址`，界面提示翻译服务不可用但条目已导入。页面抓取失败则只保存 URL（`url_only`） |
+| 不是网页，也没有 DOI / arXiv / PMID | `translator_unavailable`，提示包含 HTTP 状态与错误码；不创建条目 |
 
 ---
 

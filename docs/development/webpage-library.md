@@ -20,7 +20,7 @@ Translator / Connector / Zotero 的 `webpage` 可映射为现有 `PaperKind::Htm
 
 ## 待实现 / 验收
 
-- [x] RSS 右键菜单 / 详情工具栏入库入口，普通网页可提交来源 URL，无需 DOI / arXiv（依赖 Translator 解析成功）。
+- [x] RSS 右键菜单 / 详情工具栏入库入口，普通网页可提交来源 URL，无需 DOI / arXiv。翻译服务不可用时仍按 URL 与页面元数据入库，不再依赖 Translator 成功。
 - [ ] 统一网页入库用例，补全下述正文保存与去重能力。
 - [ ] 确定归档正文文件与资源目录契约；明确远程图片、相对链接及失败重试策略。
 - [ ] 按规范 URL 与已有 HTML 条目去重，兼容只有 `source_url` 的旧条目。
