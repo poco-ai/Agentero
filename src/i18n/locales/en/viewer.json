@@ -60,6 +60,7 @@
 			"invalidTokens": "The translation changed protected formulas or links. The original text has been kept.",
 			"openSettings": "Open translation settings",
 			"waiting": "Waiting for layout analysis…",
+			"progress": "{{percent}}%",
 			"cancelQueue": "Cancel queue",
 			"queuedToast": "Full-text translation queued — waiting for layout analysis",
 			"startedAfterLayout": "Layout analysis finished — full-text translation started",

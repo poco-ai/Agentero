@@ -60,6 +60,7 @@
 			"invalidTokens": "译文改动了受保护的公式或链接，已保留原文。",
 			"openSettings": "打开翻译设置",
 			"waiting": "等待版面解析后翻译…",
+			"progress": "{{percent}}%",
 			"cancelQueue": "取消排队",
 			"queuedToast": "全文翻译已排队，等待版面解析完成",
 			"startedAfterLayout": "版面解析完成，已开始全文翻译",

@@ -39,6 +39,10 @@ import {
 	runLayoutRegionTranslate,
 	toLayoutTranslateItems,
 } from "@/lib/pdf/layout";
+import {
+	layoutTranslateDisplayRatio,
+	layoutTranslateSettledRatio,
+} from "@/lib/pdf/layout/layout-translate-progress";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { displayTranslateError } from "@/lib/translate";
 
@@ -82,6 +86,11 @@ export type PdfLayoutTranslate = {
 	layoutTranslateActive: boolean;
 	/** Toolbar button label for the current job phase. */
 	layoutTranslateLabel: string;
+	/**
+	 * Settled blocks ÷ blocks in the job, 0–1.
+	 * Null before the job has any blocks (the meter stays indeterminate).
+	 */
+	layoutTranslateProgress: number | null;
 	/** Toolbar button: start → stop → retry incomplete / clear complete. */
 	toggleLayoutTranslate: () => void;
 	/** Per-page tag: retry incomplete blocks, translate this page, or hide a complete page. */
@@ -806,10 +815,42 @@ export function usePdfLayoutTranslate({
 	}, [layoutTranslateJob.items]);
 
 	const layoutTranslateRunning = layoutTranslateJob.status === "running";
+	const textSettled = useMemo(
+		() => layoutTranslateSettledRatio(layoutTranslateJob.items),
+		[layoutTranslateJob.items],
+	);
+	const hasTranslatedText = layoutTranslateJob.items.some(
+		(item) => item.status === "done" && Boolean(item.translated?.trim()),
+	);
+	// `reflowReady` stays false for the whole run, and also for the paint
+	// before the final build flips `reflowBusy`. Hold the meter across that
+	// paint so the rim does not unmount, freeze, and start over.
+	const previewPending =
+		hasTranslatedText &&
+		!reflowReady &&
+		(layoutTranslateRunning ||
+			layoutTranslateJob.status === "done" ||
+			layoutTranslateJob.status === "partial");
+	const sawFinalReflowBusyRef = useRef(false);
+	if (layoutTranslateRunning || !previewPending) {
+		sawFinalReflowBusyRef.current = false;
+	} else if (reflowBusy) {
+		sawFinalReflowBusyRef.current = true;
+	}
+	const finalReflowFailed =
+		!layoutTranslateRunning &&
+		previewPending &&
+		sawFinalReflowBusyRef.current &&
+		!reflowBusy;
+	const layoutTranslateProgress = layoutTranslateDisplayRatio(
+		textSettled,
+		previewPending && !finalReflowFailed,
+	);
 	// Cached re-runs settle almost immediately, but the translated page only
 	// paints once the final reflow build publishes its previews. Keep the
 	// loading indicator up through that build instead of leaving a blank wait.
-	const layoutTranslatePreparing = reflowBusy && !reflowReady;
+	const layoutTranslatePreparing =
+		previewPending && !layoutTranslateRunning && !finalReflowFailed;
 	const layoutTranslateWaiting = layoutTranslateJob.status === "waitingLayout";
 	const layoutTranslateActive =
 		layoutTranslateRunning ||
@@ -835,6 +876,7 @@ export function usePdfLayoutTranslate({
 		layoutTranslateWaiting,
 		layoutTranslateActive,
 		layoutTranslateLabel,
+		layoutTranslateProgress,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
 	};

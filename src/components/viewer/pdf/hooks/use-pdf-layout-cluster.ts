@@ -188,6 +188,7 @@ export function usePdfLayoutCluster({
 		layoutTranslateWaiting,
 		layoutTranslateActive,
 		layoutTranslateLabel,
+		layoutTranslateProgress,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
 	} = usePdfLayoutTranslate({
@@ -226,6 +227,7 @@ export function usePdfLayoutCluster({
 		layoutTranslateWaiting,
 		layoutTranslateActive,
 		layoutTranslateLabel,
+		layoutTranslateProgress,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
 	};

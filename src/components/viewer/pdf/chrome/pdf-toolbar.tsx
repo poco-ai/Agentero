@@ -40,6 +40,11 @@ type PdfToolbarProps = {
 	layoutTranslateWaiting?: boolean;
 	layoutTranslateActive: boolean;
 	layoutTranslateLabel: string;
+	/**
+	 * 0–1 fill. Stays under full while the reflow preview is still blank.
+	 * Null before the total is known.
+	 */
+	layoutTranslateProgress?: number | null;
 	onToggleLayoutTranslate: () => void;
 	/** True while jEV smart highlights are being generated. */
 	smartHighlightBusy?: boolean;
@@ -53,6 +58,11 @@ type PdfToolbarProps = {
 	importBusy?: boolean;
 };
 
+/** Pale mint liquid. Same green family as the library reading heat, kept light. */
+const TRANSLATE_CHARGE =
+	"color-mix(in oklch, oklch(0.82 0.12 152) 72%, transparent)";
+const TRANSLATE_METER_LINGER_MS = 700;
+
 /** Top-right toolbar: region select, bulk translate. Always visible. */
 export const PdfToolbar = memo(function PdfToolbar({
 	onExportTranslatedPdf,
@@ -65,6 +75,7 @@ export const PdfToolbar = memo(function PdfToolbar({
 	layoutTranslateWaiting = false,
 	layoutTranslateActive,
 	layoutTranslateLabel,
+	layoutTranslateProgress = null,
 	onToggleLayoutTranslate,
 	smartHighlightBusy = false,
 	onSmartHighlight,
@@ -161,37 +172,118 @@ export const PdfToolbar = memo(function PdfToolbar({
 		[onToggleLayoutTranslate],
 	);
 
+	const translateBusy =
+		layoutTranslateRunning ||
+		layoutTranslatePreparing ||
+		layoutTranslateWaiting;
+	const [lingerFull, setLingerFull] = useState(false);
+	const wasTranslateBusyRef = useRef(false);
+	const translateComplete = layoutTranslateProgress === 1;
+	useEffect(() => {
+		if (translateBusy) {
+			wasTranslateBusyRef.current = true;
+			setLingerFull(false);
+			return;
+		}
+		if (!translateComplete) {
+			setLingerFull(false);
+			wasTranslateBusyRef.current = false;
+			return;
+		}
+		if (!wasTranslateBusyRef.current) return;
+		wasTranslateBusyRef.current = false;
+		setLingerFull(true);
+		const id = window.setTimeout(
+			() => setLingerFull(false),
+			TRANSLATE_METER_LINGER_MS,
+		);
+		return () => window.clearTimeout(id);
+	}, [translateComplete, translateBusy]);
+
+	const meterOpen = translateBusy || lingerFull;
+	const meterIndeterminate =
+		meterOpen &&
+		!lingerFull &&
+		(layoutTranslateWaiting || layoutTranslateProgress == null);
+	const meterRatio = lingerFull
+		? 1
+		: Math.max(0, Math.min(1, layoutTranslateProgress ?? 0));
+	const meterPercent = Math.round(meterRatio * 100);
+	// Mount the rim for the whole open session. Unmounting it when the job
+	// flips from running to the preview build restarts the lap after a stall.
+	const showWave = translateBusy;
+	const [meterGrown, setMeterGrown] = useState(false);
+	useEffect(() => {
+		if (!meterOpen) {
+			setMeterGrown(false);
+			return;
+		}
+		const id = requestAnimationFrame(() => setMeterGrown(true));
+		return () => cancelAnimationFrame(id);
+	}, [meterOpen]);
+	const meterWidth =
+		meterOpen && meterGrown && !meterIndeterminate ? meterRatio : 0;
+	const translateAriaLabel =
+		meterOpen && !meterIndeterminate
+			? `${layoutTranslateLabel} ${t("pdf.layoutTranslate.progress", { percent: meterPercent })}`
+			: layoutTranslateLabel;
+	const asideClass = cn(
+		"grid min-w-0 transition-[grid-template-columns,opacity] duration-300 ease-out motion-reduce:transition-none",
+		meterOpen
+			? "pointer-events-none grid-cols-[0fr] opacity-0"
+			: "grid-cols-[1fr] opacity-100",
+	);
+
 	return (
 		<div className="pointer-events-none absolute top-2 right-3 z-20 flex origin-top-right items-center gap-1">
+			{meterOpen ? (
+				<span
+					role="progressbar"
+					className="sr-only"
+					aria-label={layoutTranslateLabel}
+					aria-valuemin={0}
+					aria-valuemax={100}
+					aria-valuenow={meterIndeterminate ? undefined : meterPercent}
+				/>
+			) : null}
 			<TooltipProvider delayDuration={200}>
 				<div
 					data-pdf-chrome
 					className={cn(
-						"pointer-events-auto flex h-7 select-none items-center gap-0.5 rounded-lg p-0.5",
+						"pointer-events-auto flex h-7 select-none items-center rounded-lg p-0.5",
+						meterOpen ? "gap-0" : "gap-0.5",
 						PDF_CHROME_CHIP,
 					)}
 				>
 					{onExportTranslatedPdf ? (
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button
-									type="button"
-									size="icon-xs"
-									variant="ghost"
-									aria-label={t("pdf.layoutTranslate.exportPdf")}
-								>
-									<Download className="size-3.5" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent>
-								<DropdownMenuItem onSelect={() => onExportTranslatedPdf(false)}>
-									{t("pdf.layoutTranslate.exportPdf")}
-								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => onExportTranslatedPdf(true)}>
-									{t("pdf.layoutTranslate.exportDualPdf")}
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
+						<div className={asideClass} inert={meterOpen}>
+							<div className="min-w-0 overflow-hidden">
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button
+											type="button"
+											size="icon-xs"
+											variant="ghost"
+											aria-label={t("pdf.layoutTranslate.exportPdf")}
+										>
+											<Download className="size-3.5" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent>
+										<DropdownMenuItem
+											onSelect={() => onExportTranslatedPdf(false)}
+										>
+											{t("pdf.layoutTranslate.exportPdf")}
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onSelect={() => onExportTranslatedPdf(true)}
+										>
+											{t("pdf.layoutTranslate.exportDualPdf")}
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</div>
+						</div>
 					) : null}
 					{isRemotePaper ? (
 						<Tooltip>
@@ -218,36 +310,40 @@ export const PdfToolbar = memo(function PdfToolbar({
 						</Tooltip>
 					) : null}
 					{!isRemotePaper ? (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									size="icon-xs"
-									variant={regionSelecting ? "secondary" : "ghost"}
-									className="shrink-0 self-center"
-									aria-label={t("pdfExplain.selectRegion")}
-									aria-pressed={regionSelecting}
-									disabled={visualCropPending || !engine}
-									onClick={onToggleRegionSelect}
-								>
-									<ScanSearch
-										className={cn(
-											"size-3.5",
-											visualCropPending && "animate-pulse",
-										)}
-									/>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">
-								{regionSelecting
-									? t("pdfExplain.cancelRegion")
-									: t("pdfExplain.selectRegion")}
-								{/* Inverted tooltip: mute via text-background, not muted-foreground. */}
-								<span className="ml-2 text-background/70">
-									{visualShortcut}
-								</span>
-							</TooltipContent>
-						</Tooltip>
+						<div className={asideClass} inert={meterOpen}>
+							<div className="min-w-0 overflow-hidden">
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											type="button"
+											size="icon-xs"
+											variant={regionSelecting ? "secondary" : "ghost"}
+											className="shrink-0 self-center"
+											aria-label={t("pdfExplain.selectRegion")}
+											aria-pressed={regionSelecting}
+											disabled={visualCropPending || !engine}
+											onClick={onToggleRegionSelect}
+										>
+											<ScanSearch
+												className={cn(
+													"size-3.5",
+													visualCropPending && "animate-pulse",
+												)}
+											/>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent side="bottom">
+										{regionSelecting
+											? t("pdfExplain.cancelRegion")
+											: t("pdfExplain.selectRegion")}
+										{/* Inverted tooltip: mute via text-background, not muted-foreground. */}
+										<span className="ml-2 text-background/70">
+											{visualShortcut}
+										</span>
+									</TooltipContent>
+								</Tooltip>
+							</div>
+						</div>
 					) : null}
 					{!isRemotePaper ? (
 						<Tooltip>
@@ -262,9 +358,14 @@ export const PdfToolbar = memo(function PdfToolbar({
 											? "secondary"
 											: "ghost"
 									}
-									className="shrink-0 self-center"
+									className={cn(
+										"relative h-6! overflow-hidden px-0 transition-[width,border-radius,color,background-color,border-color,box-shadow,transform,opacity] duration-300 ease-out motion-reduce:transition-none",
+										meterOpen
+											? "w-36! justify-end rounded-full! bg-background/80! shadow-[inset_0_0_0_1px_oklch(0.72_0.04_152/0.35)] hover:bg-background/80! active:bg-background/80!"
+											: "w-6!",
+									)}
 									data-full-text-translate
-									aria-label={layoutTranslateLabel}
+									aria-label={translateAriaLabel}
 									aria-pressed={layoutTranslateActive || layoutTranslateWaiting}
 									disabled={!engine}
 									onPointerDown={handleTranslatePointerDown}
@@ -273,18 +374,86 @@ export const PdfToolbar = memo(function PdfToolbar({
 									onPointerCancel={handleTranslatePointerLeave}
 									onClick={handleTranslateClick}
 								>
-									{layoutTranslateWaiting ? (
-										<Clock className="size-3.5 animate-pulse" aria-hidden />
-									) : (layoutTranslateRunning || layoutTranslatePreparing) &&
-										!longPressing ? (
-										<Loader2 className="size-3.5 animate-spin" aria-hidden />
-									) : (
-										<Languages className="size-3.5" aria-hidden />
-									)}
+									{showWave ? (
+										<svg
+											aria-hidden
+											className="pdf-translate-rim-svg size-full"
+										>
+											<title>{translateAriaLabel}</title>
+											<rect
+												className="pdf-translate-rim pdf-translate-rim-glow"
+												pathLength={100}
+											/>
+											<rect
+												className="pdf-translate-rim-track"
+												x="1"
+												y="1"
+												width="100%"
+												height="100%"
+												rx="11"
+												pathLength={100}
+											/>
+											<rect
+												className="pdf-translate-rim"
+												x="1"
+												y="1"
+												width="100%"
+												height="100%"
+												rx="11"
+												pathLength={100}
+											/>
+										</svg>
+									) : null}
+									<span
+										aria-hidden
+										className={cn(
+											"pointer-events-none absolute inset-[0.1875rem] overflow-hidden rounded-full bg-foreground/5 transition-opacity duration-200",
+											meterOpen ? "opacity-100" : "opacity-0",
+										)}
+									>
+										<span
+											className={cn(
+												"absolute inset-y-0 left-0 overflow-hidden rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none",
+												meterIndeterminate && "pdf-translate-indeterminate",
+											)}
+											style={{
+												width: meterIndeterminate
+													? "38%"
+													: `${meterWidth * 100}%`,
+												background: TRANSLATE_CHARGE,
+											}}
+										>
+											{showWave ? (
+												<span className="pdf-translate-wave" />
+											) : null}
+										</span>
+									</span>
+									{meterOpen && !meterIndeterminate ? (
+										<span
+											aria-hidden
+											className="absolute left-3 z-10 text-[0.625rem] font-medium text-foreground/75 tabular-nums"
+										>
+											{meterPercent}%
+										</span>
+									) : null}
+									<span className="relative z-10 flex size-6 items-center justify-center">
+										{layoutTranslateWaiting ? (
+											<Clock className="size-3.5 animate-pulse" aria-hidden />
+										) : (
+											<Languages className="size-3.5" aria-hidden />
+										)}
+									</span>
 								</Button>
 							</TooltipTrigger>
 							<TooltipContent side="bottom">
 								{layoutTranslateLabel}
+								{meterOpen && !meterIndeterminate ? (
+									<span className="ml-2 text-background/70">
+										{t("pdf.layoutTranslate.progress", {
+											percent: meterPercent,
+										})}
+									</span>
+								) : null}
 								{/* Inverted tooltip: mute via text-background, not muted-foreground. */}
 								<span className="ml-2 text-background/70">
 									{translateShortcut}
@@ -293,28 +462,35 @@ export const PdfToolbar = memo(function PdfToolbar({
 						</Tooltip>
 					) : null}
 					{!isRemotePaper && onSmartHighlight ? (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									size="icon-xs"
-									variant="ghost"
-									className="shrink-0 self-center"
-									aria-label={t("pdf.smartHighlight")}
-									disabled={!engine || smartHighlightBusy}
-									onClick={onSmartHighlight}
-								>
-									{smartHighlightBusy ? (
-										<Loader2 className="size-3.5 animate-spin" aria-hidden />
-									) : (
-										<Highlighter className="size-3.5" aria-hidden />
-									)}
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">
-								{t("pdf.smartHighlight")}
-							</TooltipContent>
-						</Tooltip>
+						<div className={asideClass} inert={meterOpen}>
+							<div className="min-w-0 overflow-hidden">
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											type="button"
+											size="icon-xs"
+											variant="ghost"
+											className="shrink-0 self-center"
+											aria-label={t("pdf.smartHighlight")}
+											disabled={!engine || smartHighlightBusy}
+											onClick={onSmartHighlight}
+										>
+											{smartHighlightBusy ? (
+												<Loader2
+													className="size-3.5 animate-spin"
+													aria-hidden
+												/>
+											) : (
+												<Highlighter className="size-3.5" aria-hidden />
+											)}
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent side="bottom">
+										{t("pdf.smartHighlight")}
+									</TooltipContent>
+								</Tooltip>
+							</div>
+						</div>
 					) : null}
 				</div>
 			</TooltipProvider>
