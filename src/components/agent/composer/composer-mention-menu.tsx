@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { COMPOSER_MENU_SURFACE } from "@/components/agent/composer/composer-menu-surface";
 import { ContextPathIcon } from "@/components/agent/context-path-icon";
 import { PopoverContent } from "@/components/ui/popover";
 import { mentionPathHasChildren } from "@/lib/agent/mention";
@@ -41,7 +42,7 @@ export function ComposerMentionMenu({
 			align="start"
 			sideOffset={8}
 			onOpenAutoFocus={(event) => event.preventDefault()}
-			className="max-h-(--radix-popover-content-available-height) w-[min(28rem,calc(100vw-1rem))] gap-0 overflow-y-auto p-1"
+			className={COMPOSER_MENU_SURFACE}
 		>
 			{mentionBrowseRoot ? (
 				<div className="mb-0.5 flex items-center gap-0.5 border-border/60 border-b px-0.5 pb-1">
