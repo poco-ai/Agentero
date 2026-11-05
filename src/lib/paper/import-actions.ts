@@ -39,6 +39,10 @@ import {
 	type PaperSearchCandidate,
 	type SkillImportResult,
 } from "@/lib/paper/lookup";
+import {
+	formatLookupError,
+	lookupDegradedWarning,
+} from "@/lib/paper/lookup-diagnostics";
 import { enqueuePaperLayoutAnalysis } from "@/lib/pdf/layout";
 import { getSettings } from "@/lib/settings/react-store";
 import {
@@ -302,6 +306,22 @@ async function finishImportedPapers(
 		}
 	}
 	for (const paper of result.imported) {
+		for (const message of paper.assetMessages ?? []) {
+			const warning = lookupDegradedWarning(message);
+			if (!warning) continue;
+			logger.warn("webpage import continued without translator", {
+				status: warning.log.status,
+				code: warning.log.code,
+				mode: warning.log.mode,
+				host: warning.log.host,
+			});
+			notifyWarning(warning.message, {
+				description: warning.description,
+				id: `translator-degraded:${warning.log.status}:${warning.log.code}:${warning.log.mode}`,
+			});
+		}
+	}
+	for (const paper of result.imported) {
 		if (!paper.pdf) continue;
 		const abs = paper.paperDir
 			? paper.paperDir.replace(/[\\/]+$/, "")
@@ -326,7 +346,11 @@ async function finishImportedPapers(
 	}
 
 	if (result.errors.length > 0) {
-		notifyError(result.errors.join("; "));
+		const messages = result.errors.map((error) => formatLookupError(error));
+		for (const error of result.errors) {
+			logger.warn("lookup import failed", { error });
+		}
+		notifyError(messages.join("; "));
 	}
 
 	// Enqueue a DownloadAssets job for each newly imported paper that

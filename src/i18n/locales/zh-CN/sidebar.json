@@ -422,7 +422,14 @@
 		"searchCancel": "取消",
 		"searchConfirm": "添加",
 		"searchCitations_other": "被引 {{count}} 次",
-		"searchCandidatesFound": "找到 {{count}} 篇匹配论文，请选择要添加的一篇。"
+		"searchCandidatesFound": "找到 {{count}} 篇匹配论文，请选择要添加的一篇。",
+		"translatorDegraded": "翻译服务不可用（{{detail}}）。已按网页地址和页面信息导入。",
+		"translatorDegradedUrlOnly": "翻译服务不可用（{{detail}}）。没有读到页面信息，已只保存网址。",
+		"translatorUnavailable": "翻译服务不可用（{{detail}}）。这条内容不是网页，也没有 DOI、arXiv 或 PMID。",
+		"translatorDetailHttp": "HTTP {{status}}",
+		"translatorDetailCode": "HTTP {{status}}，错误码 {{code}}",
+		"translatorDetailDown": "无法连接",
+		"translatorHost": "{{host}}"
 	},
 	"latexPanel": {
 		"title": "LaTeX",

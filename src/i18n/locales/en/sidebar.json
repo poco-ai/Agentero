@@ -423,7 +423,14 @@
 		"searchConfirm": "Add",
 		"searchCitations_one": "{{count}} citation",
 		"searchCitations_other": "{{count}} citations",
-		"searchCandidatesFound": "Found {{count}} matching papers. Choose one to add."
+		"searchCandidatesFound": "Found {{count}} matching papers. Choose one to add.",
+		"translatorDegraded": "Translation service unavailable ({{detail}}). The page was imported from its URL and metadata.",
+		"translatorDegradedUrlOnly": "Translation service unavailable ({{detail}}). Page metadata could not be read, so only the URL was saved.",
+		"translatorUnavailable": "Translation service unavailable ({{detail}}). This input is not a web page and has no DOI, arXiv ID, or PMID.",
+		"translatorDetailHttp": "HTTP {{status}}",
+		"translatorDetailCode": "HTTP {{status}}, error code {{code}}",
+		"translatorDetailDown": "could not connect",
+		"translatorHost": "{{host}}"
 	},
 	"latexPanel": {
 		"title": "LaTeX",
