@@ -20,6 +20,22 @@ Chat / Agent UI 使用 [shadcn/ui AI Elements](https://ui.shadcn.com/docs/ai-ele
 
 Agent / Reasoning 消息里的 Markdown：`Streamdown` + `PlainTable` / `PlainCodeBlock`（代码块左上角语言标签，悬停复制/下载；无外侧卡片，见 [agent.md](agent.md)#消息-markdown-渲染）。
 
+## 表面与层级
+
+浮层统一走主题阴影阶梯，不在业务组件里写 `shadow-lg` / `shadow-2xl`：
+
+| Token | 用途 |
+|---|---|
+| `shadow-raised` | 可悬浮的卡片 / 按钮 hover，轻量抬升 |
+| `shadow-overlay` | Popover、Dropdown、ContextMenu、Select、Tooltip、Toast、PDF 浮卡 |
+| `shadow-dialog` | Dialog / Command 主模态 |
+
+阴影值定义在 `src/index.css`（`--agentero-shadow-*`，暗色单独增强）；浮层仍保留 `ring-1 ring-foreground/10` 发丝边，白底时不靠阴影硬撑边界。菜单容器用 `p-1.5`、菜单项用 `px-2 py-1.5`，与 `Button` 的 24 / 28 / 32 / 36 控件高度阶梯对齐；自绘菜单（文件树右键、编辑器补全）按同一组尺寸复刻。
+
+## 交互态
+
+列表行（论文库、PDF 目录、设置导航、文件树）的 hover / 选中底色落在整行容器上。只读单元格不再叠加内容宽度的 hover 底色；可编辑单元格用尾随铅笔 / 下拉图标提示，行底色由表格行统一提供。PDF 书签编辑行把 hover 放在整行 `<fieldset>` 上，尾部操作按钮也共享同一底色。设置页侧栏的选中态保持平层，不加阴影。
+
 ## 业务组件目录
 
 | 目录 | 职责 |
