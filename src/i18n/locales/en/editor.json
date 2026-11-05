@@ -1,4 +1,15 @@
 {
+	"elnPoc": {
+		"focus": "Focus first cell",
+		"frames": "Sample frames for 5 seconds",
+		"title": "Plate + Glide Data Grid PoC (memory only)",
+		"hint": "Edit a cell, paste a rectangular Excel selection, then leave edit mode to undo the transaction. Changes are discarded on reload.",
+		"before": "Edit this paragraph to check that document input and undo stay separate from the grid.",
+		"after": "Continue writing after the grid.",
+		"undo": "Undo grid",
+		"redo": "Redo grid",
+		"batch": "Apply 1,000 × 20 fixture"
+	},
 	"missingLink": "Missing: {{target}} (click to create)",
 	"toc": {
 		"label": "Table of contents"

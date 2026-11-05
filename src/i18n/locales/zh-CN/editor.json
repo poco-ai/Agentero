@@ -1,4 +1,15 @@
 {
+	"elnPoc": {
+		"focus": "聚焦首个单元格",
+		"frames": "采样 5 秒帧间隔",
+		"title": "Plate + Glide Data Grid PoC（仅内存）",
+		"hint": "编辑单元格、粘贴 Excel 矩形选区，退出编辑后撤销整次操作。刷新后丢弃修改。",
+		"before": "编辑这段正文，检查文档输入与撤销是否与表格互相独立。",
+		"after": "在表格后继续写正文。",
+		"undo": "撤销表格",
+		"redo": "重做表格",
+		"batch": "写入 1,000 × 20 测试数据"
+	},
 	"missingLink": "缺失：{{target}}（点击创建）",
 	"toc": {
 		"label": "文档目录"
