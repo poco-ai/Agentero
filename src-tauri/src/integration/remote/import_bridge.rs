@@ -71,7 +71,10 @@ pub async fn import_by_identifier_remote(
     }
 
     crate::features::paper::import::check_task_not_cancelled(args.task_id.as_deref())?;
-    let (meta, used_translator) = resolve_metadata(text, &base, args.task_id.as_deref()).await?;
+    let resolved = resolve_metadata(text, &base, args.task_id.as_deref()).await?;
+    let used_translator = resolved.used_translator;
+    let notices = resolved.notices;
+    let meta = resolved.record;
     crate::features::paper::import::check_task_not_cancelled(args.task_id.as_deref())?;
 
     let commit = remote_paper_commit(
@@ -98,7 +101,11 @@ pub async fn import_by_identifier_remote(
         pdf: commit.pdf,
         tex: commit.tex,
         paper_md: commit.paper_md,
-        asset_messages: commit.asset_messages,
+        asset_messages: {
+            let mut messages = commit.asset_messages;
+            messages.extend(notices);
+            messages
+        },
         status: None,
         recognize_pending: false,
         preparation: PreparationPlan::default(),

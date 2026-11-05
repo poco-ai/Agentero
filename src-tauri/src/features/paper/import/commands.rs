@@ -272,7 +272,8 @@ pub async fn paper_resolve_identifier(args: PaperResolveIdentifierArgs) -> ApiRe
             .clone()
             .unwrap_or_else(|| super::DEFAULT_TRANSLATOR_BASE_URL.to_string());
         match super::resolve_metadata(&args.text, &base, None).await {
-            Ok((mut meta, _used_translator)) => {
+            Ok(resolved) => {
+                let mut meta = resolved.record;
                 enrich_publication_from_s2(&mut meta).await;
                 super::enrich_remote_urls(&mut meta);
                 op.finish_ok();

@@ -554,7 +554,8 @@ async fn resolve_standalone_meta(
     if let Some(u) = clean_url {
         let base = translator_url_from_ctrl(ctrl);
         let lookup = crate::features::paper::import::resolve_metadata(u, &base, None);
-        if let Ok(Ok((mut resolved_meta, _))) = tokio::time::timeout(RESOLVE_BUDGET, lookup).await {
+        if let Ok(Ok(resolved)) = tokio::time::timeout(RESOLVE_BUDGET, lookup).await {
+            let mut resolved_meta = resolved.record;
             resolved_meta.meta_source = Some("zotero-connector".into());
             resolved_meta.source_url = Some(u.to_string());
             resolved_meta.pdf_url = Some(u.to_string());

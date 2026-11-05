@@ -12,6 +12,7 @@ pub mod sources;
 pub use crate::features::paper::analyze::parse as pdf_parse;
 
 pub mod api_mapper;
+pub mod webpage;
 pub use crate::features::scholar_api::identifiers::doi_slug;
 pub use api_mapper::{api_paper_to_meta, enrich_remote_urls, map_zotero_item_to_record};
 
@@ -337,8 +338,14 @@ pub async fn import_by_identifier_with_progress(
     }
 
     check_task_not_cancelled(args.task_id.as_deref())?;
-    let (meta, used_translator) = resolve_metadata(text, &base, args.task_id.as_deref()).await?;
+    let resolved = resolve_metadata(text, &base, args.task_id.as_deref()).await?;
     check_task_not_cancelled(args.task_id.as_deref())?;
+
+    let ResolvedMetadata {
+        record: meta,
+        used_translator,
+        notices,
+    } = resolved;
 
     let commit = paper_commit(
         meta,
@@ -374,7 +381,11 @@ pub async fn import_by_identifier_with_progress(
         pdf: commit.pdf,
         tex: commit.tex,
         paper_md: commit.paper_md,
-        asset_messages: commit.asset_messages,
+        asset_messages: {
+            let mut messages = commit.asset_messages;
+            messages.extend(notices);
+            messages
+        },
         status: Some(commit.status),
         recognize_pending: false,
         preparation: commit.preparation,
@@ -991,69 +1002,72 @@ pub fn allocate_paper_path(
     }
 }
 
+/// Metadata resolved for an import, plus whether the Translator Runtime
+/// produced it and any diagnostic notices for the UI.
+pub struct ResolvedMetadata {
+    pub record: PaperRecord,
+    pub used_translator: bool,
+    /// Stable tokens such as `translator_degraded|503|1102|page|<host>`.
+    /// The desktop shell translates them; they are not raw user copy.
+    pub notices: Vec<String>,
+}
+
 pub async fn resolve_metadata(
     text: &str,
     translator_base: &str,
     task_id: Option<&str>,
-) -> Result<(PaperRecord, bool), AppError> {
-    // Prefer Translator Runtime (placeholder URL)
-    let resolved = match translator_fetch(text, translator_base, task_id).await {
-        Ok(meta) => {
+) -> Result<ResolvedMetadata, AppError> {
+    // Prefer Translator Runtime. A failure is not fatal for a web URL: the
+    // identifier chains run next, and a page with no DOI / arXiv / PMID is
+    // imported from the page itself.
+    let mut resolved = match translator_fetch(text, translator_base, task_id).await {
+        Ok(record) => {
             check_task_not_cancelled(task_id)?;
-            Ok((meta, true))
-        }
-        Err(e) => {
-            // Direct-connect fallback chains from the resolver table (arXiv →
-            // S2 → alphaXiv, DOI → Crossref → S2 → OpenAlex, PMID → PubMed)
-            // so local dev works without the Runtime sidecar.
-            match crate::features::scholar_api::identifiers::fetch_direct_fallback(text, task_id)
-                .await
-            {
-                Some(Ok(api_paper)) => {
-                    check_task_not_cancelled(task_id)?;
-                    Ok((api_paper_to_meta(&api_paper), false))
-                }
-                Some(Err(err)) => Err(err),
-                None => Err(AppError::message(format!(
-                    "translator unreachable at {translator_base} ({e}); no identifier matched the direct-connect fallback chains (arXiv/S2/alphaXiv, DOI/Crossref/S2/OpenAlex, PMID/PubMed)"
-                ))),
+            ResolvedMetadata {
+                record,
+                used_translator: true,
+                notices: Vec::new(),
             }
         }
+        Err(failure) => webpage::recover_metadata(text, translator_base, task_id, failure).await?,
     };
-    resolved.map(|(mut meta, used_translator)| {
-        if let Some(request) =
-            crate::features::scholar_api::identifiers::extract_arxiv_request(text)
-        {
-            meta.arxiv_id = Some(strip_arxiv_version(&request));
-            let urls = crate::features::scholar_api::urls::arxiv_canonical_urls(&request);
-            meta.pdf_url = Some(urls.pdf);
-            meta.html_url = Some(urls.html);
-            meta.source_url = Some(urls.abs);
-        }
-        (meta, used_translator)
-    })
+    if let Some(request) = crate::features::scholar_api::identifiers::extract_arxiv_request(text) {
+        resolved.record.arxiv_id = Some(strip_arxiv_version(&request));
+        let urls = crate::features::scholar_api::urls::arxiv_canonical_urls(&request);
+        resolved.record.pdf_url = Some(urls.pdf);
+        resolved.record.html_url = Some(urls.html);
+        resolved.record.source_url = Some(urls.abs);
+    }
+    Ok(resolved)
 }
 
 async fn translator_fetch(
     text: &str,
     base: &str,
     task_id: Option<&str>,
-) -> Result<PaperRecord, AppError> {
+) -> Result<PaperRecord, webpage::TranslatorFailure> {
     let (endpoint, body) = translator_request(text);
     let api = TranslatorApi::new(base);
 
     let items = api
         .fetch_raw_items(&endpoint, body)
         .await
-        .map_err(|e| AppError::message(format!("translator request failed: {e}")))?;
-    check_task_not_cancelled(task_id)?;
+        .map_err(webpage::TranslatorFailure::from_api)?;
+    if check_task_not_cancelled(task_id).is_err() {
+        return Err(webpage::TranslatorFailure {
+            status: None,
+            code: None,
+            detail: "cancelled".into(),
+            cancelled: true,
+        });
+    }
 
-    let item = items
-        .into_iter()
-        .next()
-        .ok_or_else(|| AppError::message("translator returned empty items array"))?;
+    let item = items.into_iter().next().ok_or_else(|| {
+        webpage::TranslatorFailure::other("translator returned empty items array")
+    })?;
 
     api_mapper::map_zotero_item_to_record(&item)
+        .map_err(|err| webpage::TranslatorFailure::other(err.to_string()))
 }
 
 /// Build a Translator Runtime request from an identifier: a **relative

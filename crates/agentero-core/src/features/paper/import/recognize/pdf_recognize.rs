@@ -468,13 +468,13 @@ pub async fn recognize_and_resolve(
     // Identifier hits are leads: re-resolve against authoritative sources.
     if let Some(doi) = hit.doi.as_deref().map(str::trim).filter(|d| !d.is_empty()) {
         match resolve_metadata(doi, translator_base, task_id).await {
-            Ok((meta, used_translator)) => {
-                let source = if used_translator {
+            Ok(resolved) => {
+                let source = if resolved.used_translator {
                     "translator"
                 } else {
                     "crossref"
                 };
-                return PdfIdentProbe::from_meta(&file_path, &meta, source);
+                return PdfIdentProbe::from_meta(&file_path, &resolved.record, source);
             }
             Err(e) => {
                 log::debug!(target: "agentero::recognize", "doi {doi} resolve failed: {e}");
