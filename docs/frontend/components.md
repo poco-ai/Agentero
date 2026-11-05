@@ -30,7 +30,23 @@ Agent / Reasoning 消息里的 Markdown：`Streamdown` + `PlainTable` / `PlainCo
 | `shadow-overlay` | Popover、Dropdown、ContextMenu、Select、Tooltip、Toast、PDF 浮卡 |
 | `shadow-dialog` | Dialog / Command 主模态 |
 
-阴影值定义在 `src/index.css`（`--agentero-shadow-*`，暗色单独增强）；浮层仍保留 `ring-1 ring-foreground/10` 发丝边，白底时不靠阴影硬撑边界。菜单容器用 `p-1.5`、菜单项用 `px-2 py-1.5`，与 `Button` 的 24 / 28 / 32 / 36 控件高度阶梯对齐；自绘菜单（文件树右键、编辑器补全）按同一组尺寸复刻。
+阴影值定义在 `src/index.css`（`--agentero-shadow-*`，暗色单独增强）；浮层仍保留 `ring-1 ring-foreground/10` 发丝边，白底时不靠阴影硬撑边界。菜单容器用 `p-1.5`、菜单项用 `px-2 py-1.5`，与 `Button` 的 24 / 28 / 32 / 36 控件高度阶梯对齐；以屏幕坐标锚定的自绘菜单走 `FloatingMenu`，与 `ContextMenuContent` 使用同一表面。
+
+## 复用层
+
+浮层、列表行和编辑单元格先组合下列共享件，不在业务目录重写同一条交互：
+
+| 组件 | 位置 | 用途 |
+|---|---|---|
+| `SelectionToolbar` + `SelectionToolbarAction` / `SelectionToolbarDivider` / `SelectionToolbarIconButton` | `components/selection/selection-toolbar.tsx` | PDF 文本选区、Plaza 选区、高亮标注菜单共用高度、描边、缩放与 dim 行为 |
+| `FloatingMenu` + `FloatingMenuItem` / `FloatingMenuShortcut` / `FloatingMenuSeparator` | `components/ui/floating-menu.tsx` | 屏幕坐标锚定的菜单（文件树右键、Plaza 卡片）；行距与快捷键对齐 Radix 菜单 |
+| `PanelCard` + `PanelCardButton` / `PanelCardActions` / `PanelEmptyState` | `components/viewer/panels/panel-primitives.tsx` | PDF 右栏卡片、整卡跳转、hover 操作条与空态 |
+| `QuietIconButton` | `components/ui/quiet-icon-button.tsx` | 24px 静音图标按钮（面板头、hover 操作条、PDF 浮层） |
+| `EmptyState` | `components/ui/empty-state.tsx` | 查看器无内容时的居中提示 |
+| `WindowHeader` | `components/shell/window-header.tsx` | 主窗口 / 功能窗口 / 文档窗口共用的 32px 标题栏 |
+| `EDITABLE_CELL` | `components/library/cell-styles.ts` | 论文库自定义属性的文本 / 下拉编辑单元格框 |
+
+新增浮层或列表卡片先查这些入口。行为（键盘、ARIA、定位）重复时抽组件；只有样式重复时用常量或 token。
 
 ## 交互态
 
