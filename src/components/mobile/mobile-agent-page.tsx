@@ -328,6 +328,11 @@ function MobilePermissionDialog({
 							<DialogTitle>{t("permission.title")}</DialogTitle>
 							<DialogDescription>{permission.title}</DialogDescription>
 						</DialogHeader>
+						{permission.host ? (
+							<p className="text-xs text-muted-foreground">
+								{t("permission.remoteHost", { host: permission.host })}
+							</p>
+						) : null}
 						{permission.paths.length ? (
 							<div className="space-y-1">
 								{permission.paths.map((path) => (

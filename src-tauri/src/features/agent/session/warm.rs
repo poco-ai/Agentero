@@ -24,12 +24,13 @@ use crate::features::agent::session::handlers::{
 use crate::features::agent::session::pool::{
     pool_key, AgentWarmPool, PoolKey, PooledSlot, POOL_IDLE_TTL,
 };
-use agent_client_protocol::schema::v1::{DeleteSessionRequest, NewSessionRequest};
+use agent_client_protocol::schema::v1::{DeleteSessionRequest, McpServer, NewSessionRequest};
 use agent_client_protocol::{Agent, ConnectionTo, UntypedMessage};
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tauri::Manager;
 use tokio::sync::watch;
 use uuid::Uuid;
 
@@ -138,6 +139,15 @@ pub async fn warm_agent(
     };
     let registry = new_registry();
     let terminals = acp_terminals(Some(cwd.clone()));
+    let mcp_servers = if remote.is_none() {
+        app.app_handle()
+            .try_state::<Arc<crate::features::agent::delegate::DelegateBridge>>()
+            .and_then(|bridge| bridge.mcp_server(&session_id, app.window_label()))
+            .into_iter()
+            .collect()
+    } else {
+        Vec::new()
+    };
     let (setup_tx, setup_rx) = tokio::sync::oneshot::channel::<Result<(), String>>();
     let task = pool.start_warm(&key);
     let cancellation = task.cancellation.clone();
@@ -160,6 +170,7 @@ pub async fn warm_agent(
         task_id: task.id,
         cancellation: cancellation.clone(),
         created: Mutex::new(None),
+        mcp_servers,
     };
 
     let task_cancellation = cancellation.clone();
@@ -265,6 +276,7 @@ struct WarmSetupCtx {
     registry: crate::features::agent::session::handlers::TurnRegistry,
     /// Set once `session/new` returns, so a failed setup can still discard it.
     created: Mutex<Option<(agent_client_protocol::schema::v1::SessionId, bool)>>,
+    mcp_servers: Vec<McpServer>,
 }
 
 /// Remove a warm session the user never prompted.
@@ -362,13 +374,16 @@ impl WarmSetupCtx {
         // Send session/new untyped so the raw response survives: the schema drops
         // hermes-agent's pre-stabilization top-level `models` field on deserialize,
         // and the typed NewSessionResponse would lose it before we can look.
+        let mut new_session = NewSessionRequest::new(self.cwd.clone());
+        if !self.mcp_servers.is_empty() {
+            new_session = new_session.mcp_servers(self.mcp_servers.clone());
+        }
         let raw_new_session = timed_acp_new_session(
             connection
                 .send_request(
-                    UntypedMessage::new("session/new", NewSessionRequest::new(self.cwd.clone()))
-                        .map_err(|e| {
-                            agent_client_protocol::Error::internal_error().data(e.to_string())
-                        })?,
+                    UntypedMessage::new("session/new", new_session).map_err(|e| {
+                        agent_client_protocol::Error::internal_error().data(e.to_string())
+                    })?,
                 )
                 .block_task(),
         )

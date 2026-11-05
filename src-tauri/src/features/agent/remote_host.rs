@@ -29,6 +29,12 @@ pub trait RemoteAgentLaunch: Send + Sync {
     fn agent_cwd(&self) -> PathBuf;
     /// Ephemeral local work root (catalog mirror + optional skill mirror).
     fn work_root(&self) -> &Path;
+    /// SSH destination already used for this session's SFTP connection
+    /// (`user@host` or an `~/.ssh/config` alias). Local-sim returns its host marker.
+    fn ssh_destination(&self) -> String {
+        self.host().to_string()
+    }
+
     /// Build `(program, args)` that launches `command args` on the remote host
     /// over SSH stdio (`ssh … 'cd vault && exec agent'`), mirroring proxy /
     /// Codex-UA env keys from `env` into the remote process.
@@ -63,4 +69,17 @@ pub trait RemoteAgentHosts: Send + Sync {
     ) -> Result<Option<Arc<dyn RemoteAgentLaunch>>, AppError>;
     /// Look up an active session by id.
     async fn get_session(&self, session_id: &str) -> Result<Arc<dyn RemoteAgentLaunch>, AppError>;
+    /// Connected remote vaults a local agent may delegate work to.
+    async fn list_targets(&self) -> Result<Vec<RemoteTargetInfo>, AppError>;
+}
+
+/// One open remote vault, as the delegate tool is allowed to see it.
+#[derive(Debug, Clone)]
+pub struct RemoteTargetInfo {
+    pub session_id: String,
+    /// `user@host` or ssh config alias. Local-sim stores the local-sim host marker;
+    /// callers display `remote_path` instead.
+    pub destination: String,
+    pub remote_path: String,
+    pub local_sim: bool,
 }

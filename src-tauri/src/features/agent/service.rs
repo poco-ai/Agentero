@@ -271,6 +271,23 @@ pub async fn accept_run_once(
     let log_agent_id = desc.id.clone();
     let session_agent_id = log_agent_id.clone();
     let remote_for_spawn = remote_target_early;
+    let attach_delegate =
+        remote_for_spawn.is_none() && request.workflow.as_deref() != Some("translate");
+    let delegate_mcp = if attach_delegate {
+        window
+            .app_handle()
+            .try_state::<Arc<crate::features::agent::delegate::DelegateBridge>>()
+            .and_then(|bridge| bridge.mcp_server(&session_id, window.label()))
+            .into_iter()
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let delegate_hint = if attach_delegate {
+        local_delegate_hint(remote_hosts, registry).await
+    } else {
+        None
+    };
     tauri::async_runtime::spawn(async move {
         let run_result = run_once(RunOnceParams {
             app: events.clone(),
@@ -301,6 +318,12 @@ pub async fn accept_run_once(
             warm_pool: Some(warm_pool),
             context: request.context,
             resume_transcript: request.resume_transcript,
+            delegate_mcp,
+            delegate_hint,
+            suppress_transcript: false,
+            permission_host: None,
+            progress: None,
+            user_wait: None,
         })
         .await;
         if run_result.is_ok() {
@@ -419,4 +442,36 @@ pub async fn load_session(
     let remote_target = remote_hosts.resolve_target(vault_path.as_deref()).await?;
     let cwd = agent_spawn_cwd(remote_target.as_deref(), vault_path.as_deref())?;
     load_acp_session(&desc, session_id, cwd, remote_target.as_deref()).await
+}
+
+async fn local_delegate_hint(
+    hosts: &dyn RemoteAgentHosts,
+    registry: &AgentRegistry,
+) -> Option<String> {
+    use crate::features::agent::delegate::policy::{self, AgentChoice, TargetChoice};
+    use crate::features::agent::models::is_builtin_template;
+
+    let listed = hosts.list_targets().await.ok()?;
+    let targets = listed
+        .into_iter()
+        .map(|target| TargetChoice {
+            handle: format!("remote:{}", target.session_id),
+            session_id: target.session_id,
+            destination: target.destination,
+            remote_path: target.remote_path,
+            local_sim: target.local_sim,
+        })
+        .collect::<Vec<_>>();
+    let state = registry.snapshot().ok()?;
+    let mut agents = state
+        .agents
+        .into_iter()
+        .filter(|agent| !is_builtin_template(&agent.template) && !agent.command.trim().is_empty())
+        .map(|agent| AgentChoice {
+            id: agent.id,
+            name: agent.name,
+        })
+        .collect::<Vec<_>>();
+    agents.sort_by(|left, right| left.id.cmp(&right.id));
+    policy::delegate_hint(&targets, &agents)
 }

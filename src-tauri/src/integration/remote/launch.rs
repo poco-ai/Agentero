@@ -9,7 +9,7 @@ use super::session::{parse_remote_handle, RemoteRegistry, RemoteSession, LOCAL_S
 use crate::core::error::AppError;
 use crate::core::fs::WriteOpts;
 use crate::core::remote::proxy_env_from_map;
-use crate::features::agent::remote_host::{RemoteAgentHosts, RemoteAgentLaunch};
+use crate::features::agent::remote_host::{RemoteAgentHosts, RemoteAgentLaunch, RemoteTargetInfo};
 use crate::features::vault::{self, CreateVaultResult};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -30,6 +30,10 @@ impl RemoteAgentLaunch for RemoteSession {
         &self.host
     }
 
+    fn ssh_destination(&self) -> String {
+        self.destination.clone()
+    }
+
     /// Path string passed to ACP `new_session` / Codex as cwd (remote absolute path).
     fn agent_cwd(&self) -> PathBuf {
         PathBuf::from(&self.remote_path)
@@ -45,8 +49,8 @@ impl RemoteAgentLaunch for RemoteSession {
         args: &[String],
         env: &HashMap<String, String>,
     ) -> Result<(PathBuf, Vec<String>), AppError> {
-        // Prefer host as stored (may already be `user@host` from connect UI).
-        let destination = self.host.clone();
+        // Same destination string as the SFTP session (user@host or config alias).
+        let destination = self.destination.clone();
         if destination.is_empty() {
             return Err(AppError::message("remote SSH destination is empty"));
         }
@@ -75,7 +79,7 @@ impl RemoteAgentLaunch for RemoteSession {
         if self.is_local_sim() {
             return Ok(which::which(bin).ok().map(|p| p.display().to_string()));
         }
-        agent_exec::remote_which(&self.host, bin).await
+        agent_exec::remote_which(&self.destination, bin).await
     }
 
     async fn materialize_skills(&self) -> Result<(), AppError> {
@@ -108,6 +112,22 @@ impl RemoteAgentHosts for RemoteRegistry {
 
     async fn get_session(&self, session_id: &str) -> Result<Arc<dyn RemoteAgentLaunch>, AppError> {
         Ok(self.get(session_id).await?)
+    }
+
+    async fn list_targets(&self) -> Result<Vec<RemoteTargetInfo>, AppError> {
+        let mut targets: Vec<RemoteTargetInfo> = self
+            .list()
+            .await
+            .iter()
+            .map(|session| RemoteTargetInfo {
+                session_id: session.id.clone(),
+                destination: session.destination.clone(),
+                remote_path: session.remote_path.clone(),
+                local_sim: session.kind == "local-sim" || session.host == LOCAL_SIM_HOST,
+            })
+            .collect();
+        targets.sort_by(|a, b| a.session_id.cmp(&b.session_id));
+        Ok(targets)
     }
 }
 

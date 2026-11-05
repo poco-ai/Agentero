@@ -30,6 +30,9 @@ pub struct RemoteSessionInfo {
 pub struct RemoteSession {
     pub id: String,
     pub host: String,
+    /// SSH destination shared with SFTP (`user@host` or a config alias).
+    /// Agent stdio must use this, not [`Self::host`], which can omit the user.
+    pub destination: String,
     pub remote_path: String,
     pub display_name: String,
     pub kind: String,
@@ -77,6 +80,10 @@ impl RemoteRegistry {
         Self {
             inner: Mutex::new(HashMap::new()),
         }
+    }
+
+    pub async fn list(&self) -> Vec<Arc<RemoteSession>> {
+        self.inner.lock().await.values().cloned().collect()
     }
 
     pub async fn get(&self, session_id: &str) -> Result<Arc<RemoteSession>, AppError> {
@@ -127,6 +134,7 @@ impl RemoteRegistry {
         }
 
         let source;
+        let mut ssh_destination = host.to_string();
         let (kind, fs, display_name): (String, Arc<dyn VaultFs>, String) = if host == LOCAL_SIM_HOST
         {
             let root = PathBuf::from(remote_path);
@@ -143,14 +151,11 @@ impl RemoteRegistry {
             #[cfg(unix)]
             {
                 use super::sftp_fs::SftpFs;
-                let destination = match user.map(str::trim).filter(|s| !s.is_empty()) {
-                    Some(u) => format!("{u}@{host}"),
-                    None => host.to_string(),
-                };
-                let sftp = SftpFs::connect(&destination, remote_path).await?;
-                let display = format!("{destination}:{remote_path}");
+                ssh_destination = format_ssh_destination(host, user);
+                let sftp = SftpFs::connect(&ssh_destination, remote_path).await?;
+                let display = format!("{ssh_destination}:{remote_path}");
                 source = CatalogSource::Ssh {
-                    destination,
+                    destination: ssh_destination.clone(),
                     root: remote_path.to_string(),
                 };
                 ("ssh".into(), Arc::new(sftp) as Arc<dyn VaultFs>, display)
@@ -179,6 +184,7 @@ impl RemoteRegistry {
         let session = Arc::new(RemoteSession {
             id: session_id.clone(),
             host: host.to_string(),
+            destination: ssh_destination,
             remote_path: remote_path.to_string(),
             display_name,
             kind,
@@ -191,6 +197,14 @@ impl RemoteRegistry {
         let info = session.info();
         self.inner.lock().await.insert(session_id, session);
         Ok(info)
+    }
+}
+
+/// `user@host` when `user` is set, otherwise `host` unchanged (it may already be `user@host` or an ssh config alias).
+pub fn format_ssh_destination(host: &str, user: Option<&str>) -> String {
+    match user.map(str::trim).filter(|user| !user.is_empty()) {
+        Some(user) => format!("{user}@{host}"),
+        None => host.to_string(),
     }
 }
 
@@ -214,6 +228,31 @@ mod tests {
         std::fs::write(p.join("AGENTS.md"), "# agents\n").unwrap();
         std::fs::write(p.join("papers/demo/NOTES.md"), "# Demo paper\n\nhello\n").unwrap();
         p
+    }
+
+    #[test]
+    fn ssh_destination_joins_a_user_and_keeps_an_alias() {
+        assert_eq!(format_ssh_destination("gpu01", None), "gpu01");
+        assert_eq!(format_ssh_destination("gpu01", Some(" ")), "gpu01");
+        assert_eq!(format_ssh_destination("gpu01", Some("me")), "me@gpu01");
+        assert_eq!(format_ssh_destination("me@gpu01", None), "me@gpu01");
+    }
+
+    #[tokio::test]
+    async fn local_sim_lists_one_delegate_target() {
+        use crate::features::agent::remote_host::RemoteAgentHosts;
+        let root = tmp_vault();
+        let reg = RemoteRegistry::new();
+        let info = reg
+            .connect(LOCAL_SIM_HOST, None, &root.to_string_lossy())
+            .await
+            .expect("connect");
+        let targets = RemoteAgentHosts::list_targets(&reg).await.expect("targets");
+        assert_eq!(targets.len(), 1);
+        assert!(targets[0].local_sim);
+        assert_eq!(targets[0].destination, LOCAL_SIM_HOST);
+        assert_eq!(targets[0].remote_path, root.to_string_lossy());
+        assert_eq!(targets[0].session_id, info.session_id);
     }
 
     #[tokio::test]

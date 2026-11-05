@@ -12,12 +12,25 @@
 	},
 	"permission": {
 		"title": "Agent 权限请求",
+		"remoteHost": "远程主机：{{host}}",
 		"deny": "拒绝",
 		"kind": {
 			"allowOnce": "本次允许",
 			"allowAlways": "始终允许",
 			"rejectOnce": "本次拒绝",
 			"rejectAlways": "始终拒绝"
+		}
+	},
+	"delegate": {
+		"targets": "远程库",
+		"result": "远程结果",
+		"cancel": "取消远程运行",
+		"run": "{{host}} · {{agent}} · {{status}}",
+		"status": {
+			"running": "运行中",
+			"completed": "已完成",
+			"failed": "失败",
+			"cancelled": "已取消"
 		}
 	},
 	"switchAgent": "切换 ACP Agent",

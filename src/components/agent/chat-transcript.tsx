@@ -103,6 +103,7 @@ import {
 	streamingLabel,
 	suggestionItems,
 	type ToolAskUserRecord,
+	type ToolUiState,
 	toolPartState,
 } from "@/lib/agent/chat-state";
 import {
@@ -436,6 +437,64 @@ function CopyAction({ getText }: { getText: () => string }) {
  * references stable, and every other prop is either a primitive or the
  * identity-stable handlers object.
  */
+function delegateField(value: unknown, key: string): string {
+	if (typeof value === "string") {
+		try {
+			return delegateField(JSON.parse(value), key);
+		} catch {
+			return "";
+		}
+	}
+	if (typeof value === "object" && value !== null && key in value) {
+		const field = (value as Record<string, unknown>)[key];
+		return typeof field === "string" ? field : "";
+	}
+	return "";
+}
+
+function delegateToolTitle(
+	tool: ToolUiState,
+	t: (
+		key:
+			| "delegate.targets"
+			| "delegate.result"
+			| "delegate.cancel"
+			| "delegate.run"
+			| "delegate.status.running"
+			| "delegate.status.completed"
+			| "delegate.status.failed"
+			| "delegate.status.cancelled",
+		options?: Record<string, string>,
+	) => string,
+): string | null {
+	const name = `${tool.kind} ${tool.title}`;
+	if (!name.includes("remote_")) return null;
+	if (name.includes("remote_targets")) return t("delegate.targets");
+	if (name.includes("remote_delegate_cancel")) return t("delegate.cancel");
+	if (name.includes("remote_delegate_result")) return t("delegate.result");
+	if (!name.includes("remote_delegate")) return null;
+	const host =
+		delegateField(tool.output, "destination") ||
+		delegateField(tool.input, "target") ||
+		"…";
+	const agent =
+		delegateField(tool.output, "agentId") ||
+		delegateField(tool.input, "agentId") ||
+		"…";
+	const status =
+		delegateField(tool.output, "status") ||
+		(tool.status === "failed" ? "failed" : "running");
+	const statusLabel =
+		status === "completed"
+			? t("delegate.status.completed")
+			: status === "failed"
+				? t("delegate.status.failed")
+				: status === "cancelled"
+					? t("delegate.status.cancelled")
+					: t("delegate.status.running");
+	return t("delegate.run", { host, agent, status: statusLabel });
+}
+
 const ChatTranscriptRow = memo(function ChatTranscriptRow({
 	line,
 	activeTabId,
@@ -766,7 +825,11 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 						<ToolHeader
 							className={insideProcess ? "px-2 py-1.5" : undefined}
 							swapIconOnHover={insideProcess}
-							title={tool.title || t("tool.defaultTitle")}
+							title={
+								delegateToolTitle(tool, t) ||
+								tool.title ||
+								t("tool.defaultTitle")
+							}
 							type={`tool-${tool.kind}`}
 							state={state}
 						/>

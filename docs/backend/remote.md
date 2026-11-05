@@ -10,7 +10,7 @@
 | 文件 | SFTP list/read/write/mkdir/remove/bytes |
 | Catalog | work mirror（本机查询，写回远端） |
 | PDF | blob 缓存（`remote_cache_*`） |
-| Agent | ACP over SSH：`remote_agent_probe` / scan / 与 `agent_run_once` 集成（命令实现属 agent 域 `features/agent/commands/remote.rs`，经反转 trait `agent::remote_host::{RemoteAgentHosts, RemoteAgentLaunch}` 复用 remote 域的 SSH session/exec） |
+| Agent | ACP over SSH：`remote_agent_probe` / scan / 与 `agent_run_once` 集成（命令实现属 agent 域 `features/agent/commands/remote.rs`，经反转 trait `agent::remote_host::{RemoteAgentHosts, RemoteAgentLaunch}` 复用 remote 域的 SSH session/exec）。本机 Agent 还可通过 `agentero-delegate` 把任务交到这条已经连上的会话，SSH 目标与 SFTP 相同 |
 | 入库 / 回收站 | 远端写路径与 trash bridge。回收站的资格、manifest 与 batch id 校验在 core `plan_trash`，bridge 只做 `VaultFs` 移动和既有 `cat.push`。features 命令经反转 trait `import::RemoteImportOps` / `trash::remote_ops::RemoteTrashOps` 调用（`integration::remote` 实现并在 app 启动时注册为 State） |
 | Connector | 可绑定 `remote:<sessionId>` |
 

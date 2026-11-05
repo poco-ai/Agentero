@@ -122,6 +122,9 @@ pub(crate) struct PermissionRequestEvent {
     pub(crate) kind: Option<String>,
     pub(crate) paths: Vec<String>,
     pub(crate) options: Vec<PermissionOptionView>,
+    /// Remote host when this request came from a delegated run.
+    #[serde(default)]
+    pub(crate) host: Option<String>,
 }
 
 #[derive(specta::Type, Clone, serde::Serialize)]
@@ -498,6 +501,8 @@ pub(crate) async fn await_user_permission(
     app: &AgentEventEmitter,
     gate: &PermissionGate,
     session_id: &str,
+    host: Option<&str>,
+    user_wait: Option<&crate::features::agent::session::DelegateUserWait>,
     request: &RequestPermissionRequest,
 ) -> RequestPermissionResponse {
     let request_id = uuid::Uuid::new_v4().to_string();
@@ -533,6 +538,13 @@ pub(crate) async fn await_user_permission(
         .collect();
 
     let rx = gate.register(&request_id);
+    if let Some(wait) = user_wait {
+        if let Ok(mut id) = wait.request_id.lock() {
+            *id = Some(request_id.clone());
+        }
+        wait.waiting
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
     let _ = app.emit(
         "agent:permission-request",
         PermissionRequestEvent {
@@ -542,10 +554,20 @@ pub(crate) async fn await_user_permission(
             kind,
             paths,
             options,
+            host: host.map(str::to_string).filter(|host| !host.is_empty()),
         },
     );
 
     let answer = tokio::time::timeout(std::time::Duration::from_secs(300), rx).await;
+    if let Some(wait) = user_wait {
+        wait.waiting
+            .store(false, std::sync::atomic::Ordering::SeqCst);
+        if let Ok(mut id) = wait.request_id.lock() {
+            if id.as_deref() == Some(request_id.as_str()) {
+                *id = None;
+            }
+        }
+    }
     let outcome = match answer {
         Ok(Ok(Some(option_id))) => {
             RequestPermissionOutcome::Selected(SelectedPermissionOutcome::new(option_id))

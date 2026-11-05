@@ -32,7 +32,7 @@
 | [rust-arch-refactor.md](rust-arch-refactor.md) | Rust 架构重构计划（2026-10-21 更新）：共享业务用例、提交与恢复、Vault 派生状态、论文准备/共享提取、任务生命周期、Agent 上下文六条主线；含前置正确性修复、依赖与验收、旧任务归并及历史裁决。R1 WAL 一致快照、R2 字段原子更新、R3 sync 占用 RAII、A1 共享移动用例已完成；D2 MinerU 在途共享与 B3 原子写基础已落地，长期缓存与跨文件恢复仍按计划推进 |
 | [arxiv-source-lifecycle-audit.md](arxiv-source-lifecycle-audit.md) | arXiv 源码与正文生命周期审计（2026-10-24）：各导入入口、TeX / OCR 路由、补资源与在途竞态、正文消费、版本一致性；含隔离复现与修复对应关系；源码补全、竞态和聊天读取已修复 |
 | [zhihu.md](zhihu.md) | 知乎开放平台集成：**内置知乎 Agent（直连 HTTP：直答 + 标题检索）+ 设置页凭证已落地**（见 [../frontend/zhihu.md](../frontend/zhihu.md)、[../backend/zhihu.md](../backend/zhihu.md)）；统一 CLI 后端、广场知乎面板、论文找讨论 / 划词插引用仍为设计稿 |
-| [A2A.md](A2A.md) | 本机桌面与远端 headless 之间的薄 A2A 任务层：Agent Card + Task，把算力和数据留在服务器。设计草稿，实施未开始 |
+| [A2A.md](A2A.md) | 第一版是本机 Agent 经已连接的远程 Vault SSH 委派远端 CLI Agent。完整 Agent Card + Task 仍是草稿 |
 | [pdf-babeldoc-parity.md](pdf-babeldoc-parity.md) | BabelDOC 固定版本算法对照；字符级 IR、公式保护、重排与 PDF 导出已接通；Attention 15 页、ResNet 12 页全文对照与修复；第四轮补全字符覆盖、文本矩阵、图内标签及表格可用空间；复杂裁剪、公式对象及算法等价仍未通过 |
 | [translate-sentence-anchor.md](translate-sentence-anchor.md) | 全文译文划选按句锚回英文。**已落地**（见 [../frontend/translate.md](../frontend/translate.md)、[../frontend/wiki.md](../frontend/wiki.md)），保留为设计记录。侧栏译文面板不给英文高亮加淡底 |
 

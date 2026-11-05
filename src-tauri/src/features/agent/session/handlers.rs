@@ -150,14 +150,18 @@ impl WarmIdleHooks {
 pub(crate) async fn decide_permission(
     app: &AgentEventEmitter,
     session_id: &str,
+    host: Option<&str>,
     policy: &PermissionPolicy,
     gate: &PermissionGate,
+    user_wait: Option<&crate::features::agent::session::DelegateUserWait>,
     request: &RequestPermissionRequest,
 ) -> RequestPermissionResponse {
     match policy {
         PermissionPolicy::Restricted => permission_response(request, false),
         PermissionPolicy::Auto => permission_response(request, true),
-        PermissionPolicy::Ask => await_user_permission(app, gate, session_id, request).await,
+        PermissionPolicy::Ask => {
+            await_user_permission(app, gate, session_id, host, user_wait, request).await
+        }
     }
 }
 
@@ -227,8 +231,10 @@ macro_rules! agentero_turn_builder {
                                 $crate::features::agent::session::handlers::decide_permission(
                                     &turn.ctx.app,
                                     &turn.ctx.session_id,
+                                    turn.ctx.permission_host.as_deref(),
                                     &turn.permission_policy,
                                     &turn.permission_gate,
+                                    turn.ctx.user_wait.as_deref(),
                                     &request,
                                 )
                                 .await

@@ -145,6 +145,7 @@ pub fn run() {
         .manage(crate::features::agent::PermissionGate::new())
         .manage(crate::features::agent::ElicitationGate::new())
         .manage(crate::features::agent::AskUserGate::new())
+        .manage(crate::features::agent::delegate::DelegateBridge::new())
         .manage(crate::integration::bridge::BridgeController::new())
         .manage(crate::integration::bridge::BridgeClientController::new())
         .manage(
@@ -220,6 +221,8 @@ pub fn run() {
         // Bundled ACP adapter tier (offline fallback): record the packaged
         // adapters root before any catalog scan / spawn path can consult it.
         crate::features::agent::registry::bundled::init(app.handle());
+        app.state::<std::sync::Arc<crate::features::agent::delegate::DelegateBridge>>()
+            .start(app.handle().clone());
         // JobCenter runner registry: business domains own their executors and
         // register them here at assembly time (P2 runner-registry refactor).
         // JobCenter itself lives in features/jobs, alongside the domains it
@@ -582,6 +585,8 @@ pub fn run() {
                 tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
             ) {
                 app.state::<Arc<crate::features::agent::session::pool::AgentWarmPool>>()
+                    .shutdown();
+                app.state::<Arc<crate::features::agent::delegate::DelegateBridge>>()
                     .shutdown();
                 #[cfg(not(target_os = "ios"))]
                 app.state::<Arc<ConnectorController>>().stop();

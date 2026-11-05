@@ -437,6 +437,8 @@ Agentero 是 ACP **Client**：模型 HTTP **不**经 Host 转发，因此只能�
 
 远程 Vault 时在 **SSH 远端** 启动 Agent。见 [remote.md](remote.md)。远程 agent catalog 的扫描/探测/安装命令属 agent 域（`registry/remote.rs` + `commands/remote.rs`），复用 `agent::models` / `probe_agent` / `templates`；agent 域不直接依赖 `integration::remote`，而是经反转 trait `agent::remote_host::{RemoteAgentHosts, RemoteAgentLaunch}`（由 remote 域 `RemoteRegistry` / `RemoteSession` 实现，app 启动时注册为 State）走 SSH。命令壳与 bridge RPC 共用 `agent::service` 门面。
 
+本机 ACP 会话（含 warm）另外挂 `agentero-delegate`。本机 Agent 只能把任务交给已经打开的远程 Vault，以及本机注册表里的 Agent。Host 另起一条 SSH stdio ACP，不进当前聊天流，也不和聊天 warm pool 共用连接。权限固定 Ask。默认等待 10 分钟，上限 30 分钟；超时不杀掉远端进程。`local-sim` 在本机以远端目录为工作目录，供测试。Windows 客户端与远程 Vault 一样不提供这条能力。
+
 ## 代码
 
 `src-tauri/src/features/agent/`  

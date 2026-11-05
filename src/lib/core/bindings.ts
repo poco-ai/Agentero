@@ -4639,6 +4639,8 @@ export type PermissionRequestEvent = {
 	kind: string | null,
 	paths: string[],
 	options: PermissionOptionView[],
+	/**  Remote host when this request came from a delegated run. */
+	host?: string | null,
 };
 
 export type PermissionRequestEvt = PermissionRequestEvent;

@@ -19,6 +19,7 @@ export type AgentPermissionRequest = {
 	title: string;
 	paths: string[];
 	options: AgentPermissionOption[];
+	host?: string | null;
 };
 
 export type AgentStreamEvent = {

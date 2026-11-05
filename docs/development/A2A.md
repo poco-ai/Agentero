@@ -1,3 +1,7 @@
+第一版已实现的是本机 Agent 经已经连上的远程 Vault SSH 会话，把任务交给服务器上已安装的 CLI Agent。不新建 A2A 服务，服务器上也不再跑一份 Agentero。工具是本机 ACP 会话上的 `agentero-delegate`（`remote_targets` / `remote_delegate` / `remote_delegate_result` / `remote_delegate_cancel`）。产物留在远端 Vault，本机用现有 SFTP 查看。
+
+下面仍是完整 Agent Card / Task 协议的草稿，尚未实现。
+
 需求：
 1. 本地阅读文献，出idea与方案
 2. 与服务器进行交互，非常薄的通信层发任务，获取状态

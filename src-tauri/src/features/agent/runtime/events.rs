@@ -15,6 +15,14 @@ impl AgentEventEmitter {
         }
     }
 
+    pub fn window_label(&self) -> &str {
+        &self.window_label
+    }
+
+    pub fn app_handle(&self) -> &AppHandle {
+        &self.app
+    }
+
     pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> tauri::Result<()> {
         self.app.emit_to(
             EventTarget::webview_window(self.window_label.clone()),

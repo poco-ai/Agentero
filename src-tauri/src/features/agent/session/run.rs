@@ -29,7 +29,7 @@ use crate::features::agent::runtime::gates::{AskUserGate, ElicitationGate, Permi
 use crate::features::agent::runtime::stream::{StreamCoalescer, STREAM_COALESCE_WINDOW};
 use crate::features::agent::session::config::RunPreferences;
 use crate::features::agent::session::handlers::{
-    agentero_turn_builder, clear_turn, install_turn, new_registry, ActiveTurn,
+    agentero_turn_builder, clear_turn, install_turn, new_registry, ActiveTurn, TurnRegistry,
 };
 use crate::features::agent::session::pool::{pool_key, AgentWarmPool, PooledSlot};
 use crate::features::agent::session::warm::discard_unprompted_session;
@@ -81,6 +81,24 @@ pub struct RunOnceParams {
     /// Earlier chat turns. Used only when the context fingerprint refuses to
     /// resume `resume_session_id`, so the new session still sees the conversation.
     pub resume_transcript: Option<String>,
+    /// Stdio MCP servers attached on a local session, besides research context.
+    pub delegate_mcp: Vec<agent_client_protocol::schema::v1::McpServer>,
+    /// Remote-target hint inserted before the user request. Empty when none are connected.
+    pub delegate_hint: Option<String>,
+    /// Keep the answer in `progress` and do not emit chat transcript events.
+    pub suppress_transcript: bool,
+    /// Remote host shown on permission dialogs for a delegated run.
+    pub permission_host: Option<String>,
+    /// Live copy of the answer text for a delegated run.
+    pub progress: Option<Arc<Mutex<String>>>,
+    /// Set while a delegated run is blocked on a permission dialog.
+    pub user_wait: Option<Arc<DelegateUserWait>>,
+}
+
+/// Shared with the delegate hub so an unanswered permission fails at the wait limit.
+pub struct DelegateUserWait {
+    pub waiting: AtomicBool,
+    pub request_id: Mutex<Option<String>>,
 }
 
 /// Prompt/cwd prepared before any ACP I/O.
@@ -110,6 +128,7 @@ struct RunTurnInput {
 }
 
 /// Session established by the connect phase of a turn.
+#[derive(Clone)]
 struct ConnectedSession {
     acp_session_id: SessionId,
     config_options: Vec<agent_client_protocol::schema::v1::SessionConfigOption>,
@@ -190,7 +209,9 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
         match load_skill_instructions(&params.skill_ids, skill_vault.as_deref(), skill_style) {
             Ok(instructions) => instructions,
             Err(error) => {
-                emit_run_failed(&params.app, &params.session_id, &error);
+                if !params.suppress_transcript {
+                    emit_run_failed(&params.app, &params.session_id, &error);
+                }
                 return Err(error);
             }
         }
@@ -239,6 +260,13 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
         )
     };
     let mut full_prompt = insert_context_block(&full_prompt, &prepared.block);
+    if let Some(hint) = params
+        .delegate_hint
+        .as_deref()
+        .filter(|hint| !hint.trim().is_empty())
+    {
+        full_prompt = insert_context_block(&full_prompt, hint);
+    }
     if params.resume_session_id.is_some() && prepared.resume_session_id.is_none() {
         if let Some(transcript) = params
             .resume_transcript
@@ -252,15 +280,19 @@ async fn prepare_run_turn(params: &RunOnceParams) -> Result<RunTurnPrep, AppErro
     let cwd = match agent_spawn_cwd(params.remote.as_deref(), params.vault_path.as_deref()) {
         Ok(cwd) => cwd,
         Err(error) => {
-            emit_run_failed(&params.app, &params.session_id, &error);
+            if !params.suppress_transcript {
+                emit_run_failed(&params.app, &params.session_id, &error);
+            }
             return Err(error);
         }
     };
+    let mut mcp_servers = prepared.mcp_servers;
+    mcp_servers.extend(params.delegate_mcp.clone());
     Ok(RunTurnPrep {
         full_prompt,
         prompt_images,
         cwd,
-        mcp_servers: prepared.mcp_servers,
+        mcp_servers,
         resume_session_id: prepared.resume_session_id,
         context_fingerprint: prepared.fingerprint,
         context_usage: prepared.usage_path,
@@ -295,6 +327,10 @@ pub(crate) struct RunOnceContext {
     context_fingerprint: Option<String>,
     context_usage: Option<PathBuf>,
     context_vault: Option<PathBuf>,
+    suppress_transcript: bool,
+    pub(crate) permission_host: Option<String>,
+    progress: Option<Arc<Mutex<String>>>,
+    pub(crate) user_wait: Option<Arc<DelegateUserWait>>,
 }
 
 impl RunOnceContext {
@@ -304,7 +340,11 @@ impl RunOnceContext {
         let coalescer = StreamCoalescer::new(STREAM_COALESCE_WINDOW, {
             let app = params.app.clone();
             let session_id = params.session_id.clone();
+            let suppress = params.suppress_transcript;
             move |chunk, kind| {
+                if suppress {
+                    return;
+                }
                 let _ = app.emit(
                     "agent:stream",
                     AgentStreamEvent {
@@ -331,6 +371,10 @@ impl RunOnceContext {
             context_fingerprint: None,
             context_usage: None,
             context_vault: None,
+            suppress_transcript: params.suppress_transcript,
+            permission_host: params.permission_host.clone(),
+            progress: params.progress.clone(),
+            user_wait: params.user_wait.clone(),
         }
     }
 
@@ -361,19 +405,21 @@ impl RunOnceContext {
     pub(crate) fn relay_session_notification(&self, notification: &SessionNotification) {
         if !self.live_stream.load(Ordering::SeqCst) {
             // Still allow usage / command / config during load settle.
-            match &notification.update {
-                SessionUpdate::AvailableCommandsUpdate(_)
-                | SessionUpdate::ConfigOptionUpdate(_)
-                | SessionUpdate::UsageUpdate(_)
-                | SessionUpdate::SessionInfoUpdate(_) => {
-                    emit_rich_session_update(
-                        &self.app,
-                        &self.session_id,
-                        &self.agent_id,
-                        notification,
-                    );
+            if !self.suppress_transcript {
+                match &notification.update {
+                    SessionUpdate::AvailableCommandsUpdate(_)
+                    | SessionUpdate::ConfigOptionUpdate(_)
+                    | SessionUpdate::UsageUpdate(_)
+                    | SessionUpdate::SessionInfoUpdate(_) => {
+                        emit_rich_session_update(
+                            &self.app,
+                            &self.session_id,
+                            &self.agent_id,
+                            notification,
+                        );
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
             return;
         }
@@ -391,6 +437,11 @@ impl RunOnceContext {
                         if let Ok(mut buf) = self.content_buf.lock() {
                             buf.push_str(&chunk);
                         }
+                        if let Some(progress) = &self.progress {
+                            if let Ok(mut progress) = progress.lock() {
+                                progress.push_str(&chunk);
+                            }
+                        }
                     }
                     AgentStreamKind::Thought => {
                         if let Ok(mut buf) = self.thought_buf.lock() {
@@ -398,14 +449,18 @@ impl RunOnceContext {
                         }
                     }
                 }
-                self.coalescer.push(&chunk, kind);
+                if !self.suppress_transcript {
+                    self.coalescer.push(&chunk, kind);
+                }
             }
-        } else {
+        } else if !self.suppress_transcript {
             // Non-chunk update (tool/plan/…): flush buffered text first
             // so the transcript order stays text → tool/plan.
             self.coalescer.flush();
         }
-        emit_rich_session_update(&self.app, &self.session_id, &self.agent_id, notification);
+        if !self.suppress_transcript {
+            emit_rich_session_update(&self.app, &self.session_id, &self.agent_id, notification);
+        }
     }
 
     /// Grok Build's vendor model-catalog push (`_x.ai/models/update`): forward
@@ -420,14 +475,18 @@ impl RunOnceContext {
             &self.agent_id,
             params,
         ) {
-            let _ = self.app.emit("agent:models", event);
+            if !self.suppress_transcript {
+                let _ = self.app.emit("agent:models", event);
+            }
         }
     }
 
     /// Flush buffered stream text, then emit `agent:completed` (ordered after text).
     fn emit_completed(&self, payload: AgentResultPayload) -> AgentResultPayload {
         self.coalescer.flush();
-        let _ = self.app.emit("agent:completed", payload.clone());
+        if !self.suppress_transcript {
+            let _ = self.app.emit("agent:completed", payload.clone());
+        }
         payload
     }
 
@@ -576,7 +635,14 @@ impl RunOnceContext {
             Ok(TurnPhase::Cancelled(payload)) => return Ok(payload),
             Err(error) => return Err(PromptPhaseError::pre_prompt(error)),
         };
-        emit_session_config_options(&self.app, &self.session_id, &self.agent_id, &config_options);
+        if !self.suppress_transcript {
+            emit_session_config_options(
+                &self.app,
+                &self.session_id,
+                &self.agent_id,
+                &config_options,
+            );
+        }
 
         if *cancellation.borrow() {
             let _ = connection
@@ -612,10 +678,12 @@ impl RunOnceContext {
 
         let session_id = session.acp_session_id.clone();
         // Status: the prompt is on the wire; the next signal is model output.
-        let _ = self.app.emit(
-            "agent:status",
-            AgentStatusEvent::waiting_model(self.session_id.as_str()),
-        );
+        if !self.suppress_transcript {
+            let _ = self.app.emit(
+                "agent:status",
+                AgentStatusEvent::waiting_model(self.session_id.as_str()),
+            );
+        }
         let prompt_response = tokio::select! {
             response = connection
                 .send_request(PromptRequest::new(session_id.clone(), content_blocks.clone()))
@@ -1212,6 +1280,191 @@ pub async fn run_once(params: RunOnceParams) -> Result<AgentResultPayload, AppEr
             Err(AppError::domain("acp", format!("acp: {msg}")))
         }
     }
+}
+
+/// One prompt for a delegated remote ACP connection.
+pub struct DelegatePrompt {
+    pub run_id: String,
+    pub prompt: String,
+    pub cancellation: watch::Receiver<bool>,
+    pub progress: Arc<Mutex<String>>,
+    pub reply: tokio::sync::oneshot::Sender<Result<AgentResultPayload, String>>,
+}
+
+/// Keep one remote ACP process and run each queued prompt on it.
+///
+/// The first prompt opens the session. Later prompts reuse it. Cancel and
+/// errors drop the process so the next delegate call starts a new one.
+pub async fn serve_delegate_prompts(
+    base: RunOnceParams,
+    mut incoming: tokio::sync::mpsc::Receiver<DelegatePrompt>,
+) {
+    let Some(first) = incoming.recv().await else {
+        return;
+    };
+    if let Err(error) = serve_delegate_connection(base, first, incoming).await {
+        log::warn!(target: "agentero::agent", "delegate connection ended: {error}");
+    }
+}
+
+async fn serve_delegate_connection(
+    mut base: RunOnceParams,
+    first: DelegatePrompt,
+    mut incoming: tokio::sync::mpsc::Receiver<DelegatePrompt>,
+) -> Result<(), String> {
+    apply_delegate_prompt(&mut base, &first);
+    let prep = match prepare_run_turn(&base).await {
+        Ok(prep) => prep,
+        Err(error) => {
+            let message = error.to_string();
+            let _ = first.reply.send(Err(message.clone()));
+            return Err(message);
+        }
+    };
+    let acp = match to_acp_agent(&base.desc, Some(&prep.cwd), base.remote.as_deref()) {
+        Ok(acp) => acp,
+        Err(error) => {
+            let message = error.to_string();
+            let _ = first.reply.send(Err(message.clone()));
+            return Err(message);
+        }
+    };
+    let state = RunOnceContext::new(&base, prep.cwd.clone());
+    let registry = new_registry();
+    let preferences = RunPreferences::for_workflow(None, None, None, None, false, None);
+    let params = base.clone();
+    let result = agentero_turn_builder!(state.terminals.clone(), registry.clone(), None)
+        .connect_with(acp, {
+            let registry = registry.clone();
+            move |connection: ConnectionTo<Agent>| async move {
+                let mut state = state;
+                let mut turn = Some(first);
+                let mut session: Option<ConnectedSession> = None;
+                loop {
+                    let Some(current) = turn.take() else {
+                        match incoming.recv().await {
+                            Some(next) => turn = Some(next),
+                            None => break,
+                        }
+                        continue;
+                    };
+                    begin_delegate_turn(&mut state, &current);
+                    install_delegate_turn(&registry, &state, &params);
+                    let mut cancellation = current.cancellation.clone();
+                    if session.is_none() {
+                        match state
+                            .connect_session(
+                                &connection,
+                                &mut cancellation,
+                                None,
+                                &prep.cwd,
+                                prep.mcp_servers.clone(),
+                            )
+                            .await
+                        {
+                            Ok(TurnPhase::Ready(connected)) => session = Some(connected),
+                            Ok(TurnPhase::Cancelled(payload)) => {
+                                let _ = current.reply.send(Ok(payload));
+                                break;
+                            }
+                            Err(error) => {
+                                let _ = current.reply.send(Err(error.to_string()));
+                                break;
+                            }
+                        }
+                    }
+                    let Some(connected) = session.clone() else {
+                        let _ = current
+                            .reply
+                            .send(Err("remote session was not opened".into()));
+                        break;
+                    };
+                    match state
+                        .prompt_phase(
+                            &connection,
+                            &mut cancellation,
+                            connected,
+                            &preferences,
+                            current.prompt.clone(),
+                            Vec::new(),
+                        )
+                        .await
+                    {
+                        Ok(payload) => {
+                            let cancelled = payload.stop_reason.as_deref() == Some("cancelled");
+                            let _ = current.reply.send(Ok(payload));
+                            if cancelled {
+                                break;
+                            }
+                        }
+                        Err(error) => {
+                            let _ = current.reply.send(Err(error.error.to_string()));
+                            break;
+                        }
+                    }
+                }
+                clear_turn(&registry);
+                Ok(AgentResultPayload {
+                    session_id: state.session_id,
+                    message_id: state.message_id,
+                    content: String::new(),
+                    reasoning: None,
+                    sources: Vec::new(),
+                    stop_reason: None,
+                    provider_session_id: None,
+                })
+            }
+        })
+        .await;
+    result.map(|_| ()).map_err(|error| error.to_string())
+}
+
+fn apply_delegate_prompt(base: &mut RunOnceParams, turn: &DelegatePrompt) {
+    base.session_id = turn.run_id.clone();
+    base.message_id = turn.run_id.clone();
+    base.prompt = turn.prompt.clone();
+    base.progress = Some(turn.progress.clone());
+    base.cancellation = turn.cancellation.clone();
+    base.suppress_transcript = true;
+    base.permission_policy = PermissionPolicy::Ask;
+    base.is_acp_command = true;
+    base.warm_pool = None;
+    base.delegate_mcp.clear();
+    base.delegate_hint = None;
+}
+
+fn begin_delegate_turn(state: &mut RunOnceContext, turn: &DelegatePrompt) {
+    state.session_id = turn.run_id.clone();
+    state.message_id = turn.run_id.clone();
+    state.progress = Some(turn.progress.clone());
+    if let Ok(mut buf) = state.content_buf.lock() {
+        buf.clear();
+    }
+    if let Ok(mut buf) = state.thought_buf.lock() {
+        buf.clear();
+    }
+    if let Ok(mut buf) = turn.progress.lock() {
+        buf.clear();
+    }
+    if let Ok(mut stop) = state.stop_reason.lock() {
+        *stop = None;
+    }
+    state.live_stream.store(true, Ordering::SeqCst);
+    state.prompt_sent.store(false, Ordering::SeqCst);
+}
+
+fn install_delegate_turn(registry: &TurnRegistry, state: &RunOnceContext, params: &RunOnceParams) {
+    install_turn(
+        registry,
+        ActiveTurn {
+            ctx: state.clone(),
+            permission_policy: PermissionPolicy::Ask,
+            permission_gate: params.permission_gate.clone(),
+            elicitation_gate: params.elicitation_gate.clone(),
+            ask_user_gate: params.ask_user_gate.clone(),
+            activity: None,
+        },
+    );
 }
 
 /// A warm socket already belongs to one ACP session. Reuse it for a fresh
