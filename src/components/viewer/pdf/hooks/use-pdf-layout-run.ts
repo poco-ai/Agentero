@@ -388,7 +388,9 @@ export function usePdfLayoutRun({
 			if (
 				!sidecar ||
 				!layoutSidecarNeedsViewerReload(
-					appliedLayoutSidecarAt.get(appliedKey),
+					getLayoutDocumentResult(docId)
+						? appliedLayoutSidecarAt.get(appliedKey)
+						: undefined,
 					next,
 				)
 			) {

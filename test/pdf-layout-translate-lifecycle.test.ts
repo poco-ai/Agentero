@@ -3,6 +3,10 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { it } from "vitest";
+import {
+	layoutSidecarNeedsTextLayer,
+	type PdfLayoutSidecar,
+} from "@/lib/pdf/layout/io";
 import * as translateProgress from "@/lib/pdf/layout/layout-translate-progress";
 
 // Exercise the real hook with deterministic request completion and hook slots.
@@ -123,6 +127,9 @@ function createHarness() {
 	const warnings: unknown[][] = [];
 	const dismissed: unknown[][] = [];
 	const enqueues: unknown[][] = [];
+	let cachedLayout: PdfLayoutSidecar | null = null;
+	const layoutWrites = new Set<(path: string) => void>();
+	const publishedLayouts: unknown[] = [];
 	const backgroundTasks = createFakeStore<{ tasks: FakeTask[] }>({
 		tasks: [],
 	});
@@ -188,6 +195,18 @@ function createHarness() {
 		},
 	};
 	const layout = {
+		readLayoutSidecar: async () => cachedLayout,
+		mergeCaptionsIntoHosts: (regions: Item[]) => regions,
+		buildLayoutDocumentResult: (
+			documentId: string,
+			regions: Item[],
+			rawRegions: Item[],
+		) => ({ documentId, regions, rawRegions }),
+		setLayoutDocumentResult: (result: { rawRegions: Item[] }) => {
+			publishedLayouts.push(result);
+			options.layoutRawRegions = result.rawRegions;
+			dirty = true;
+		},
 		listTranslatableLayoutRegions: (regions: Item[]) => regions,
 		toLayoutTranslateItems: (regions: Item[]) =>
 			regions.map((item) => ({ ...item, status: "pending" })),
@@ -263,6 +282,13 @@ function createHarness() {
 					b.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""),
 		},
 		"@/lib/pdf/layout": layout,
+		"@/lib/pdf/layout/io": {
+			layoutSidecarNeedsTextLayer,
+			subscribeLayoutSidecarWrite: (listener: (path: string) => void) => {
+				layoutWrites.add(listener);
+				return () => layoutWrites.delete(listener);
+			},
+		},
 		"@/lib/pdf/layout/layout-translate-progress": translateProgress,
 		"@/lib/shell/settings-window": { openSettingsWindow: () => undefined },
 		// Identity stub: the hook only maps known Host markers, else passes through.
@@ -301,6 +327,21 @@ function createHarness() {
 		warnings,
 		dismissed,
 		enqueues,
+		publishedLayouts,
+		setCachedLayout(regions: Item[], notify = false) {
+			cachedLayout = {
+				schemaVersion: 3,
+				source: {
+					mode: "embedpdf-layout",
+					generatedAt: "cached",
+					textLayerExtracted: true,
+					sourceStylesExtracted: true,
+				},
+				regions: regions as unknown as PdfLayoutSidecar["regions"],
+			};
+			if (notify && options.paperAbsPath)
+				for (const listener of layoutWrites) listener(options.paperAbsPath);
+		},
 		tasks: backgroundTasks,
 		analysis: layoutUi,
 		render,
@@ -327,6 +368,57 @@ function createHarness() {
 function completed(run: RunOptions, translated = "Translated"): Item[] {
 	return run.items.map((item) => ({ ...item, status: "done", translated }));
 }
+
+it("starts from an existing layout cache without a new parse or viewer file event", async () => {
+	const h = createHarness();
+	h.render({ layoutRawRegions: [] });
+	h.setCachedLayout([region(0)]);
+	h.view.toggleLayoutTranslate();
+	h.render();
+	await h.flush();
+	await h.flush();
+	assert.equal(h.view.layoutTranslateWaiting, false);
+	assert.equal(h.runs.length, 1);
+	assert.equal(h.publishedLayouts.length, 1);
+});
+
+it("loads the layout when a headless parse writes it without a viewer file event", async () => {
+	const h = createHarness();
+	h.render({ layoutRawRegions: [] });
+	h.view.toggleLayoutTranslate();
+	h.render();
+	await h.flush();
+	h.setCachedLayout([region(0)], true);
+	await h.flush();
+	await h.flush();
+	assert.equal(h.view.layoutTranslateWaiting, false);
+	assert.equal(h.runs.length, 1);
+});
+
+it("does not load a cached layout after the wait has been cancelled", async () => {
+	const h = createHarness();
+	h.render({ layoutRawRegions: [] });
+	h.setCachedLayout([region(0)]);
+	h.view.toggleLayoutTranslate();
+	h.render();
+	h.view.toggleLayoutTranslate();
+	h.render();
+	await h.flush();
+	assert.equal(h.publishedLayouts.length, 0);
+	assert.equal(h.runs.length, 0);
+});
+
+it("exits preparation and reports an enqueue failure", async () => {
+	const h = createHarness();
+	h.render({ layoutRawRegions: [] });
+	h.view.toggleLayoutTranslate();
+	h.render();
+	const request = h.enqueues[0][0] as { onError: (error: unknown) => void };
+	request.onError(new Error("enqueue failed"));
+	h.render();
+	assert.equal(h.view.layoutTranslateWaiting, false);
+	assert.equal(h.errors.length, 1);
+});
 
 it("ignores a replaced whole-document run's late result", async () => {
 	const h = createHarness();

@@ -19,6 +19,7 @@ import { notifyError, notifyWarning } from "@/lib/core/notify";
 import { sameRelPaperPath } from "@/lib/core/path";
 import {
 	applyLayoutTranslateSidecar,
+	buildLayoutDocumentResult,
 	currentLayoutTranslateCacheKey,
 	enqueuePaperLayoutAnalysis,
 	groupLayoutTranslateItemsByPage,
@@ -27,13 +28,20 @@ import {
 	type LayoutTranslateJobStatus,
 	layoutAnalysisStore,
 	listTranslatableLayoutRegions,
+	mergeCaptionsIntoHosts,
 	normalizeLayoutPaperKey,
 	type PdfLayoutRegion,
 	persistLayoutTranslateSidecarBestEffort,
+	readLayoutSidecar,
 	readLayoutTranslateSidecar,
 	runLayoutRegionTranslate,
+	setLayoutDocumentResult,
 	toLayoutTranslateItems,
 } from "@/lib/pdf/layout";
+import {
+	layoutSidecarNeedsTextLayer,
+	subscribeLayoutSidecarWrite,
+} from "@/lib/pdf/layout/io";
 import {
 	layoutTranslateDisplayRatio,
 	layoutTranslateSettledRatio,
@@ -348,21 +356,35 @@ export function usePdfLayoutTranslate({
 	 */
 	const enterWaitingLayout = useCallback(
 		(target: LayoutTranslateWaitTarget) => {
+			layoutTranslateWaitTargetRef.current = target;
 			if (paperAbsPath) {
-				enqueuePaperLayoutAnalysis({ paperAbsPath, focus: true });
+				enqueuePaperLayoutAnalysis({
+					paperAbsPath,
+					focus: true,
+					onError: (error) => {
+						if (layoutTranslateWaitTargetRef.current !== target) return;
+						cancelWaitingLayout();
+						notifyTranslateFailure(displayTranslateError(errorText(error)));
+					},
+				});
 			} else if (!parsePendingForPaper) {
 				// Loose PDF with nothing to enqueue and nothing running.
 				notifyError(t("pdf.layoutTranslate.needLayout"));
 				return;
 			}
-			layoutTranslateWaitTargetRef.current = target;
 			waitingAutoStartedRef.current = false;
 			setLayoutTranslateJob((prev) => ({
 				status: "waitingLayout",
 				items: prev.items,
 			}));
 		},
-		[parsePendingForPaper, paperAbsPath, t],
+		[
+			parsePendingForPaper,
+			paperAbsPath,
+			cancelWaitingLayout,
+			notifyTranslateFailure,
+			t,
+		],
 	);
 
 	const startLayoutTranslate = useCallback(() => {
@@ -678,6 +700,41 @@ export function usePdfLayoutTranslate({
 			layoutTranslateAbortRef.current?.abort();
 		};
 	}, [docId]);
+
+	// A cached layout is already ready for translation. Do not rely on the
+	// Figures viewer's active-tab/capability gate or a future file-watch event
+	// to publish it, especially after a remount or in a translation companion.
+	useEffect(() => {
+		if (layoutTranslateJob.status !== "waitingLayout" || !paperAbsPath) return;
+		let cancelled = false;
+		let ticket = 0;
+		const load = async () => {
+			const currentTicket = ++ticket;
+			const cached = await readLayoutSidecar(paperAbsPath);
+			if (cancelled || currentTicket !== ticket || !cached?.regions.length)
+				return;
+			// Legacy caches still need the viewer's text-layer enrichment.
+			if (layoutSidecarNeedsTextLayer(cached)) return;
+			setLayoutDocumentResult(
+				buildLayoutDocumentResult(
+					docId,
+					mergeCaptionsIntoHosts(cached.regions),
+					cached.regions,
+				),
+			);
+		};
+		const unsubscribe = subscribeLayoutSidecarWrite((path) => {
+			if (
+				normalizeLayoutPaperKey(path) === normalizeLayoutPaperKey(paperAbsPath)
+			)
+				void load();
+		});
+		void load();
+		return () => {
+			cancelled = true;
+			unsubscribe();
+		};
+	}, [layoutTranslateJob.status, docId, paperAbsPath]);
 
 	// A queued job starts the moment layout regions land (parse finished —
 	// possibly in another tab via the sidecar file watcher).

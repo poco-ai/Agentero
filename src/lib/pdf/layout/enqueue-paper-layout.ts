@@ -29,6 +29,7 @@ import {
 import { layoutAnalysisStore } from "@/lib/pdf/layout/store";
 import {
 	isPathMissingError,
+	joinVaultPath,
 	removeVaultPath,
 	vaultPathExists,
 	vaultRelativePath,
@@ -54,7 +55,7 @@ async function runLayoutAnalyzeExecutor(
 ): Promise<void> {
 	const { jobId, vaultPath, paperPath, signal } = ctx;
 	const paperAbsPath = paperPath
-		? `${vaultPath}/${paperPath}`.replace(/\\/g, "/")
+		? joinVaultPath(vaultPath, paperPath)
 		: vaultPath;
 	const paperLabel =
 		paperPath?.split("/").filter(Boolean).pop() || paperAbsPath;
@@ -110,16 +111,23 @@ export function enqueuePaperLayoutAnalysis(opts: {
 	paperLabel?: string;
 	/** Explicit reading action takes priority over background imports. */
 	focus?: boolean;
+	onError?: (error: unknown) => void;
 }): void {
 	const paperAbsPath = normalizePaperKey(opts.paperAbsPath);
 	if (!paperAbsPath || (!opts.focus && queuedPapers.has(paperAbsPath))) return;
 
 	const vaultPath = getVaultPath();
-	if (!vaultPath) return;
-	const paperRelPath = paperAbsPath
-		.slice(vaultPath.length)
-		.replace(/^[/\\]+/, "");
-	if (!paperRelPath) return;
+	const paperRelPath = vaultPath
+		? vaultRelativePath(vaultPath, paperAbsPath)
+		: null;
+	if (!vaultPath || !paperRelPath) {
+		// The caller parks the UI synchronously, so report invalid scope on
+		// the next microtask rather than silently leaving it waiting forever.
+		queueMicrotask(() =>
+			opts.onError?.(new Error(i18n.t("viewer:pdf.layoutTranslate.failed"))),
+		);
+		return;
+	}
 
 	queuedPapers.add(paperAbsPath);
 
@@ -149,6 +157,7 @@ export function enqueuePaperLayoutAnalysis(opts: {
 				paperAbsPath,
 				error: errorText(e),
 			});
+			opts.onError?.(e);
 		} finally {
 			queuedPapers.delete(paperAbsPath);
 		}
