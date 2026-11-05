@@ -142,8 +142,35 @@ pub enum ApiError {
     UnsupportedQuery(ApiQuery),
     #[error("cancelled")]
     Cancelled,
+    /// Upstream answered, but the service cannot handle the request right now.
+    /// `code` is a provider or CDN code parsed from the body (Cloudflare 1102
+    /// is the worker resource-limit page that arrives as HTTP 503).
+    #[error("{0}")]
+    Unavailable(HttpUnavailable),
     #[error("other: {0}")]
     Other(String),
+}
+
+/// HTTP failure that is not a transport error. Display is the diagnosable
+/// status line; `detail` keeps a short body snippet for logs.
+#[derive(Debug, Clone)]
+pub struct HttpUnavailable {
+    pub status: u16,
+    pub code: Option<u16>,
+    pub detail: String,
+}
+
+impl std::fmt::Display for HttpUnavailable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HTTP {}", self.status)?;
+        if self.status == 503 {
+            write!(f, " Service Unavailable")?;
+        }
+        if let Some(code) = self.code {
+            write!(f, ", error code: {code}")?;
+        }
+        Ok(())
+    }
 }
 
 impl From<ApiError> for AppError {
@@ -154,6 +181,7 @@ impl From<ApiError> for AppError {
             ApiError::RateLimited => AppError::domain("rate_limited", "rate limited"),
             ApiError::Cancelled => AppError::domain("cancelled", "cancelled"),
             ApiError::NotFound => AppError::domain("not_found", "not found"),
+            ApiError::Unavailable(err) => AppError::domain("service_unavailable", err.to_string()),
             other => AppError::message(other.to_string()),
         }
     }
