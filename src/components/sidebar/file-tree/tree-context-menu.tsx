@@ -3,6 +3,7 @@ import {
 	Download,
 	Loader2,
 	Radar,
+	RefreshCw,
 	Trash2,
 } from "lucide-react";
 import { type RefObject, useEffect } from "react";
@@ -60,6 +61,7 @@ export type TreeContextMenuPortalProps = {
 	isLibraryMenu: boolean;
 	libraryExportBusy: boolean;
 	citingScanBusy: boolean;
+	libraryRescanning?: boolean;
 	canPasteAtTarget: boolean;
 	/** Plaza root menu: every source with its current hidden state. */
 	plazaSources?: { source: PlazaSource; hidden: boolean }[];
@@ -68,6 +70,7 @@ export type TreeContextMenuPortalProps = {
 	onClose: () => void;
 	/** Each callback is optional — `undefined` hides the matching menu item. */
 	onExportLibrary?: () => void;
+	onRescanLibrary?: () => void;
 	/** Scan the whole library for new papers citing it. */
 	onDiscoverCiting?: () => void;
 	/** Download assets for every incomplete paper in the library. */
@@ -104,11 +107,13 @@ export function TreeContextMenuPortal({
 	isLibraryMenu,
 	libraryExportBusy,
 	citingScanBusy,
+	libraryRescanning,
 	canPasteAtTarget,
 	plazaSources,
 	onTogglePlazaSource,
 	onClose,
 	onExportLibrary,
+	onRescanLibrary,
 	onDiscoverCiting,
 	onDownloadAllMissing,
 	onEmptyTrash,
@@ -190,6 +195,24 @@ export function TreeContextMenuPortal({
 		>
 			{isLibraryMenu ? (
 				<>
+					{onRescanLibrary ? (
+						<button
+							type="button"
+							role="menuitem"
+							disabled={libraryRescanning}
+							className="flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+							onClick={onRescanLibrary}
+						>
+							<RefreshCw
+								className={cn(
+									"size-3.5 shrink-0",
+									libraryRescanning && "animate-spin",
+								)}
+								aria-hidden
+							/>
+							<span>{t("papersLibrary.rescan")}</span>
+						</button>
+					) : null}
 					{onDownloadAllMissing ? (
 						<FloatingMenuItem onClick={onDownloadAllMissing}>
 							<ArrowDownToLine className="size-3.5 shrink-0" aria-hidden />

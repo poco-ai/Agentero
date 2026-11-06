@@ -578,7 +578,10 @@ async fn migrate_one(
         return Ok((MigrateOutcome::Skipped, duplicate));
     }
 
-    let (folder_id, path_rel, paper_dir) = allocate_paper_path(vault, &base_parent, &id);
+    let unique_local_id =
+        meta.paper_type == papers::PaperKind::Pdf && meta.doi.is_none() && meta.arxiv_id.is_none();
+    let (folder_id, path_rel, paper_dir) =
+        allocate_paper_path(vault, &base_parent, &id, unique_local_id);
     meta.id = folder_id;
     fs::create_dir_all(&paper_dir)?;
     write_paper_shell(&paper_dir, vault, &meta, note_mode).await?;

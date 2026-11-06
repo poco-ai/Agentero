@@ -227,19 +227,9 @@ pub async fn adopt_paper_folder(
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "paper".into());
 
-    // Placeholder id: slug of the user's folder name; when that strips to
-    // nothing (e.g. CJK-only name → "paper" fallback), prefer the first PDF's
-    // stem so `{id}.pdf` still carries something recognizable.
-    let mut id = slug_from_stem(&folder_name);
-    if id == "paper" {
-        if let Some(stem) = pdfs
-            .first()
-            .and_then(|p| p.file_stem())
-            .and_then(|s| s.to_str())
-        {
-            id = slug_from_stem(stem);
-        }
-    }
+    // A placeholder is local to this folder, not evidence that another
+    // directory with the same slug represents the same logical paper.
+    let id = papers::allocate_local_id(vault, &slug_from_stem(&folder_name), &rel)?;
 
     // Main-PDF heuristic among several: a PDF named after the folder (or
     // already `{id}.pdf`) is the obvious paper; otherwise the largest file —
@@ -606,9 +596,50 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn adopt_keeps_identifier_named_pdf_and_uses_pdf_stem_for_cjk_folder() {
+    async fn chinese_papers_are_independently_visible_after_adoption_and_rescan() {
+        let vault = tmp_vault("chinese-library");
+        for name in [
+            "舞蹈概论",
+            "舞蹈学中国学派的构成及其方向",
+            "舞蹈 概论",
+            "舞蹈_概论",
+        ] {
+            let dir = vault.join("papers").join(name);
+            write(&dir.join(format!("{name}.pdf")), b"%PDF-1.4 Chinese paper");
+            let result = adopt_paper_folder(
+                &vault,
+                &dir,
+                AdoptOptions {
+                    note_mode: NoteShellMode::TitleOnly,
+                    cache: None,
+                    app: None,
+                },
+            )
+            .await
+            .unwrap();
+            assert_ne!(result.id, "paper");
+            assert!(dir.join(format!("{}.pdf", result.id)).is_file());
+            assert_eq!(
+                papers::get_by_path(&vault, &result.path)
+                    .unwrap()
+                    .unwrap()
+                    .id,
+                result.id
+            );
+        }
+        let before = papers::list_all_unique_by_id(&vault).unwrap();
+        assert_eq!(before.len(), 4);
+        let ids: std::collections::HashSet<_> = before.iter().map(|r| &r.id).collect();
+        assert_eq!(ids.len(), 4);
+        assert_eq!(papers::rebuild_from_disk(&vault).unwrap(), 0);
+        assert_eq!(papers::list_all_unique_by_id(&vault).unwrap().len(), 4);
+        let _ = fs::remove_dir_all(vault);
+    }
+
+    #[tokio::test]
+    async fn adopt_preserves_cjk_folder_id_and_identifier_folder_id() {
         let vault = tmp_vault("adopt-cjk");
-        // CJK folder name strips to the slug fallback; the PDF stem takes over.
+        // CJK names are preserved instead of collapsing to a shared placeholder.
         write(&vault.join("papers/我的论文/2401.12345.pdf"), b"%PDF-1.4");
         let result = adopt_paper_folder(
             &vault,
@@ -621,9 +652,9 @@ mod tests {
         )
         .await
         .expect("adopt");
-        assert_eq!(result.id, "2401.12345");
+        assert_eq!(result.id, "我的论文");
         assert_eq!(result.path, "papers/我的论文");
-        assert!(vault.join("papers/我的论文/2401.12345.pdf").is_file());
+        assert!(vault.join("papers/我的论文/我的论文.pdf").is_file());
         // Identifier-named main PDF is not renamed when the id already matches.
         let vault2 = tmp_vault("adopt-id");
         write(

@@ -70,7 +70,7 @@ ResearchVault/
 如果已有目录中的文件没有立即出现在 Library：
 
 1. 打开 Library（左侧虚拟节点，或关光文档后回到全库）。
-2. 点击 **Rescan**。
+2. 右键左侧 **papers/** 论文库节点，选择 **重新扫描 papers/**（Rescan papers/）；空库时也可点击中央的扫描按钮。
 3. 等待扫描完成后重新查看论文列表。
 
 有 Zotero 文库时，欢迎页也可选择 **从 Zotero 迁移**（迁移前会先创建 Vault）。详见 [导入和管理论文](import-papers.md)。

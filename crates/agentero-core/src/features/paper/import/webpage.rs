@@ -451,13 +451,12 @@ fn page_id(page_url: &str, title: &str, doi: Option<&str>, arxiv: Option<&str>) 
     if let Some(doi) = doi.filter(|doi| !doi.is_empty()) {
         return doi_slug(doi);
     }
-    let slug = slug_from_stem(title);
-    if slug != "paper" {
-        return slug;
+    if title.chars().any(char::is_alphanumeric) {
+        return slug_from_stem(title);
     }
-    let from_url = slug_from_stem(&title_from_url(page_url));
-    if from_url != "paper" {
-        from_url
+    let from_url = title_from_url(page_url);
+    if from_url.chars().any(char::is_alphanumeric) {
+        slug_from_stem(&from_url)
     } else {
         "webpage".into()
     }

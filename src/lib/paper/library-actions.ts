@@ -104,7 +104,7 @@ export async function rescanLibraryPapers(): Promise<void> {
 		if (n > 0) {
 			notifySuccess(i18n.t("sidebar:papersLibrary.rescanned", { count: n }));
 		} else {
-			notifyWarning(i18n.t("sidebar:papersLibrary.rescanEmpty"));
+			notifySuccess(i18n.t("sidebar:papersLibrary.rescanEmpty"));
 		}
 	} catch (e) {
 		notifyError(

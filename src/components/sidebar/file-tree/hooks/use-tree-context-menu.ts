@@ -89,6 +89,8 @@ export function useTreeContextMenu({
 	prepareContextSelection,
 	openMovePicker,
 	onExportLibrary,
+	onRescanLibrary,
+	libraryRescanning,
 	onDiscoverCiting,
 	onDownloadAllMissing,
 	onEmptyTrash,
@@ -119,6 +121,8 @@ export function useTreeContextMenu({
 	prepareContextSelection: (path: string) => void;
 	openMovePicker: (paths: string[], anchor?: { x: number; y: number }) => void;
 	onExportLibrary?: () => void | Promise<void>;
+	onRescanLibrary?: () => void | Promise<void>;
+	libraryRescanning?: boolean;
 	onDiscoverCiting?: () => void | Promise<void>;
 	/** Papers root menu: download assets for every incomplete paper. */
 	onDownloadAllMissing?: () => void | Promise<void>;
@@ -237,6 +241,7 @@ export function useTreeContextMenu({
 		isPaperMenu,
 		isLibraryMenu,
 		libraryExportBusy,
+		libraryRescanning,
 		citingScanBusy,
 		canPasteAtTarget,
 		plazaSources:
@@ -249,6 +254,12 @@ export function useTreeContextMenu({
 		onTogglePlazaSource:
 			menu.path === PLAZA_VIRTUAL_PATH ? togglePlazaSource : undefined,
 		onClose: close,
+		onRescanLibrary: onRescanLibrary
+			? () => {
+					setMenu(null);
+					void onRescanLibrary();
+				}
+			: undefined,
 		onExportLibrary: onExportLibrary
 			? () => {
 					setMenu(null);

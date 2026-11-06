@@ -569,7 +569,92 @@ pub fn find_by_identifier(
 
 /// List all papers for library table (newest first).
 pub fn list_all(vault_root: &Path) -> Result<Vec<PaperRecord>, AppError> {
-    with_catalog(vault_root, list_all_conn)
+    with_catalog(vault_root, |conn| {
+        repair_legacy_local_ids(vault_root, conn)?;
+        list_all_conn(conn)
+    })
+}
+
+/// Allocate a local placeholder id across the whole vault, keeping its path.
+pub fn allocate_local_id(vault_root: &Path, base: &str, path: &str) -> Result<String, AppError> {
+    with_catalog(vault_root, |conn| local_id_conn(conn, base, path))
+}
+
+fn local_id_conn(conn: &Connection, base: &str, path: &str) -> Result<String, AppError> {
+    use sha2::{Digest, Sha256};
+    let taken = |id: &str| -> Result<bool, AppError> {
+        Ok(conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM papers WHERE id = ?1 AND path != ?2)",
+            params![id, path],
+            |row| row.get(0),
+        )?)
+    };
+    if !taken(base)? {
+        return Ok(base.to_string());
+    }
+    let digest = hex::encode(Sha256::digest(path.as_bytes()));
+    let prefix = format!("{base}-{}", &digest[..12]);
+    let mut id = prefix.clone();
+    let mut suffix = 2;
+    while taken(&id)? {
+        id = format!("{prefix}-{suffix}");
+        suffix += 1;
+    }
+    Ok(id)
+}
+
+// Old ASCII-only slugs collapsed unrelated CJK folders to `paper` (#937).
+// Repair before id-based dedupe; project the correction through the existing
+// durable sidecar queue so rescan cannot resurrect the bad id. Paths and
+// resources stay in place. Canonical scholarly identifiers are left alone.
+fn repair_legacy_local_ids(vault_root: &Path, conn: &Connection) -> Result<Vec<String>, AppError> {
+    let paths = conn
+        .prepare("SELECT path FROM papers WHERE id = 'paper' AND type = 'pdf' ORDER BY path")?
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    if paths.is_empty() {
+        return Ok(Vec::new());
+    }
+    let tx = rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)?;
+    let mut changed = Vec::new();
+    for path in paths {
+        let Some(mut record) = get_conn(&tx, &path)? else {
+            continue;
+        };
+        if record.id != "paper" || !vault_root.join(&path).is_dir() {
+            continue;
+        }
+        // Reconcile newer external edits before projecting the repaired row.
+        if let Some(sidecar) = super::sidecar::read_sidecar(vault_root, &path) {
+            if crate::time::rfc3339_after(&sidecar.updated_at, &record.updated_at) {
+                record = sidecar;
+            }
+        }
+        if record.id != "paper" || record.doi.is_some() || record.arxiv_id.is_some() {
+            continue;
+        }
+        let name = path.rsplit('/').next().unwrap_or(&path);
+        let mut base = crate::features::paper::import::slug_from_stem(name);
+        if base == "paper" {
+            use sha2::{Digest, Sha256};
+            base = format!(
+                "paper-{}",
+                &hex::encode(Sha256::digest(path.as_bytes()))[..12]
+            );
+        }
+        record.id = local_id_conn(&tx, &base, &path)?;
+        let now = crate::time::now_rfc3339_millis();
+        if crate::time::rfc3339_after(&now, &record.updated_at) {
+            record.updated_at = now;
+        }
+        upsert_conn(&tx, &record)?;
+        changed.push(path);
+    }
+    tx.commit()?;
+    for path in &changed {
+        super::sidecar::retry_pending(vault_root, conn, Some(path));
+    }
+    Ok(changed)
 }
 
 /// Read all papers from an already-open Catalog connection.
@@ -712,7 +797,7 @@ pub fn find_duplicates_conn(
 /// This is a defensive view for the Library table: it hides duplicate catalog
 /// rows caused by old bugs or manual folder copies without deleting anything.
 pub fn list_all_unique_by_id(vault_root: &Path) -> Result<Vec<PaperRecord>, AppError> {
-    let rows = with_catalog(vault_root, list_all_conn)?;
+    let rows = list_all(vault_root)?;
     Ok(dedupe_records_by_id(vault_root, rows))
 }
 
@@ -728,11 +813,17 @@ fn dedupe_records_by_id(vault_root: &Path, rows: Vec<PaperRecord>) -> Vec<PaperR
             .or_insert_with(|| vault_root.join(path).is_dir())
     };
 
-    let mut best_by_id: HashMap<String, PaperRecord> = HashMap::new();
+    let mut best_by_id: HashMap<(String, Option<String>), PaperRecord> = HashMap::new();
     for row in rows {
         let existing_path_exists = path_exists(&row.path);
         best_by_id
-            .entry(row.id.clone())
+            // A filename-derived local id is not a scholarly identity. Never
+            // hide distinct local PDFs just because their names collide.
+            .entry((
+                row.id.clone(),
+                (row.paper_type == PaperKind::Pdf && row.doi.is_none() && row.arxiv_id.is_none())
+                    .then(|| row.path.clone()),
+            ))
             .and_modify(|best| {
                 let best_path_exists = path_exists(&best.path);
                 let replace = match (
@@ -899,7 +990,7 @@ pub fn rebuild_from_disk(vault_root: &Path) -> Result<usize, AppError> {
         return Ok(0);
     }
     with_catalog(vault_root, |conn| {
-        let mut count = 0usize;
+        let mut written = std::collections::HashSet::new();
         let mut stack = vec![papers_dir];
         while let Some(dir) = stack.pop() {
             // A directory link is an alias of a paper already stored at its
@@ -933,7 +1024,7 @@ pub fn rebuild_from_disk(vault_root: &Path) -> Result<usize, AppError> {
                     };
                     if let Some(record) = next {
                         if import_disk_row(conn, &record).is_ok() {
-                            count += 1;
+                            written.insert(rel_path);
                         }
                     }
                 }
@@ -951,7 +1042,8 @@ pub fn rebuild_from_disk(vault_root: &Path) -> Result<usize, AppError> {
                 }
             }
         }
-        Ok(count)
+        written.extend(repair_legacy_local_ids(vault_root, conn)?);
+        Ok(written.len())
     })
 }
 
@@ -2879,6 +2971,128 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn chinese_legacy_ids_recover_without_losing_files_or_sidecar_metadata() {
+        let vault = tempfile::tempdir().unwrap();
+        let root = vault.path();
+        let names = ["舞蹈概论", "舞蹈学中国学派的构成及其方向"];
+        for name in names {
+            let path = format!("papers/{name}");
+            let folder = root.join(&path);
+            fs::create_dir_all(folder.join("marks")).unwrap();
+            fs::write(folder.join("NOTES.md"), "中文阅读笔记").unwrap();
+            fs::write(folder.join("paper.pdf"), b"%PDF-1.4 original").unwrap();
+            fs::write(folder.join("marks/1.json"), b"{}").unwrap();
+            let mut record = PaperRecord::local_pdf("paper".into(), name.into()).at_path(&path);
+            record.tags = vec![PaperTag::new("舞蹈")];
+            record.is_read = true;
+            upsert_paper(root, &record).unwrap();
+            // Reproduce the pre-fix catalog AND sidecars, bypassing new writes.
+            with_catalog(root, |conn| {
+                conn.execute("UPDATE papers SET id = 'paper' WHERE path = ?1", [&path])?;
+                Ok(())
+            })
+            .unwrap();
+            fs::write(
+                folder.join("metadata.json"),
+                serde_json::to_vec(&record).unwrap(),
+            )
+            .unwrap();
+        }
+        // A newer externally edited sidecar must survive the repair, even
+        // when its timestamp is ahead of the local clock.
+        let newer_path = format!("papers/{}", names[1]);
+        let mut newer = super::super::sidecar::read_sidecar(root, &newer_path).unwrap();
+        newer.title = "外部更新的中文标题".into();
+        newer.updated_at = "2099-01-01T00:00:00.000Z".into();
+        fs::write(
+            root.join(&newer_path).join("metadata.json"),
+            serde_json::to_vec(&newer).unwrap(),
+        )
+        .unwrap();
+        let rows = list_all_unique_by_id(root).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_ne!(rows[0].id, rows[1].id);
+        assert!(rows.iter().all(|row| row.id != "paper"));
+        assert_eq!(
+            rows.iter()
+                .find(|row| row.path == newer_path)
+                .unwrap()
+                .title,
+            newer.title
+        );
+        for row in &rows {
+            let sidecar = super::super::sidecar::read_sidecar(root, &row.path).unwrap();
+            assert_eq!(sidecar.id, row.id);
+            assert_eq!(sidecar.tags, [PaperTag::new("舞蹈")]);
+            assert!(sidecar.is_read);
+            assert_eq!(
+                fs::read_to_string(root.join(&row.path).join("NOTES.md")).unwrap(),
+                "中文阅读笔记"
+            );
+            assert_eq!(
+                fs::read(root.join(&row.path).join("paper.pdf")).unwrap(),
+                b"%PDF-1.4 original"
+            );
+            assert!(root.join(&row.path).join("marks/1.json").is_file());
+        }
+        // Recovery remains stable across rescan, database loss and reopening.
+        assert_eq!(rebuild_from_disk(root).unwrap(), 0);
+        with_catalog(root, |conn| {
+            conn.execute("DELETE FROM papers", [])?;
+            Ok(())
+        })
+        .unwrap();
+        // Old backups may still carry `paper` in both sidecars. Count each
+        // recovered paper once even when import and id repair both write it.
+        for row in &rows {
+            let mut sidecar = super::super::sidecar::read_sidecar(root, &row.path).unwrap();
+            sidecar.id = "paper".into();
+            fs::write(
+                root.join(&row.path).join("metadata.json"),
+                serde_json::to_vec(&sidecar).unwrap(),
+            )
+            .unwrap();
+        }
+        assert_eq!(rebuild_from_disk(root).unwrap(), 2);
+        super::super::evict_catalog_conn(root);
+        let restored = list_all_unique_by_id(root).unwrap();
+        for row in rows {
+            assert_eq!(
+                restored.iter().find(|r| r.path == row.path).unwrap().id,
+                row.id
+            );
+        }
+    }
+
+    #[test]
+    fn local_pdf_name_collisions_are_distinct_but_canonical_duplicates_stay_deduped() {
+        let vault = tempfile::tempdir().unwrap();
+        let root = vault.path();
+        let a =
+            PaperRecord::local_pdf("中文论文".into(), "甲".into()).at_path("papers/甲/中文论文");
+        let a = upsert_paper(root, &a).unwrap();
+        let id = allocate_local_id(root, "中文论文", "papers/乙/中文论文").unwrap();
+        let b = PaperRecord::local_pdf(id, "乙".into()).at_path("papers/乙/中文论文");
+        let b = upsert_paper(root, &b).unwrap();
+        assert_ne!(a.id, b.id);
+        assert_eq!(upsert_paper(root, &b).unwrap().id, b.id);
+        // Defensive list behavior also protects legacy non-`paper` collisions.
+        let mut legacy_b = b.clone();
+        legacy_b.id = a.id.clone();
+        assert_eq!(
+            dedupe_records_by_id(root, vec![a.clone(), legacy_b.clone()]).len(),
+            2
+        );
+        let mut canonical_a = a;
+        canonical_a.doi = Some("10.1234/example".into());
+        legacy_b.doi = canonical_a.doi.clone();
+        assert_eq!(
+            dedupe_records_by_id(root, vec![canonical_a, legacy_b]).len(),
+            1
+        );
     }
 
     #[test]

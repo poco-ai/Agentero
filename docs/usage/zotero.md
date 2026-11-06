@@ -56,7 +56,7 @@ Connector 是增量导入入口，不会把 Agentero 变成 Zotero 的同步数�
 3. 浏览器扩展是否能探测到本机服务。
 4. Zotero 桌面端是否占用了 `23119`。
 5. Agentero 是否显示了错误 Toast。
-6. 在 Library 中执行 Rescan。
+6. 右键左侧 `papers/` 论文库节点，选择「重新扫描 papers/」（Rescan papers/）。
 
 ## 当前限制
 

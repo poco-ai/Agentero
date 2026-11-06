@@ -41,7 +41,7 @@ The Library table shows all papers in the catalog. You can:
 - Sort by clicking column headers.
 - Right-click a header to choose visible columns and reorder them.
 - Filter by tags or search title, author, abstract, and tag substrings.
-- Use **Rescan** to discover paper folders that exist on disk but are missing from the catalog.
+- Right-click the **papers/** library node and choose **Rescan papers/** to recover paper folders missing from the catalog. An empty library also offers a central Rescan button.
 
 ### Adding Tags
 

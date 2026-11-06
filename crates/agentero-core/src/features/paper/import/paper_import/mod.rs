@@ -185,7 +185,10 @@ pub async fn paper_commit(
         DedupePolicy::None => {}
     }
 
-    let (folder_id, path_rel, paper_dir) = allocate_paper_path(vault, &parent_rel, &meta.id);
+    let unique_local_id =
+        meta.paper_type == papers::PaperKind::Pdf && meta.doi.is_none() && meta.arxiv_id.is_none();
+    let (folder_id, path_rel, paper_dir) =
+        allocate_paper_path(vault, &parent_rel, &meta.id, unique_local_id);
     meta.id = folder_id;
     if opts.fresh_timestamps {
         let now = crate::time::now_rfc3339_millis();

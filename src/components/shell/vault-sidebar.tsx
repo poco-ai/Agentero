@@ -50,6 +50,7 @@ import {
 	libraryImport,
 	paperTagsChange,
 	readPaper,
+	rescanLibraryPapers,
 } from "@/lib/paper/library-actions";
 import { setZoteroOpen, setZoteroSyncOpen } from "@/lib/shell/ui-store";
 import {
@@ -117,6 +118,7 @@ const onDropMove = (paths: string[], targetPath: string) =>
 const onPasteInto = (targetPath: string) => void pasteCutPaths(targetPath);
 const onEmptyTrash = () => void emptyTrash();
 const onExportLibrary = () => void libraryExport();
+const onRescanLibrary = () => void rescanLibraryPapers();
 const onDiscoverCiting = () => void discoverCitingPapers();
 
 /** Catalog keys are vault-relative with forward slashes and no edge slashes. */
@@ -167,6 +169,7 @@ export function VaultSidebar() {
 	const recentVaults = useVaultStore((s) => s.recentVaults);
 	const cutPaths = useVaultStore((s) => s.cutPaths);
 	const ioBusy = useLibraryStore((s) => s.ioBusy);
+	const libraryRescanning = useLibraryStore((s) => s.rescanning);
 	const paperMetaByRelPath = useLibraryStore((s) => s.paperMetaByRelPath);
 	const papers = useLibraryStore((s) => s.papers);
 	const lookupOpenSignal = useUiStore((s) => s.lookupOpenSignal);
@@ -334,6 +337,8 @@ export function VaultSidebar() {
 						onOpenZoteroCollectionPaper={onOpenZoteroCollectionPaper}
 						onEmptyTrash={onEmptyTrash}
 						onExportLibrary={onExportLibrary}
+						onRescanLibrary={onRescanLibrary}
+						libraryRescanning={libraryRescanning}
 						libraryExportBusy={ioBusy === "export"}
 						onDiscoverCiting={onDiscoverCiting}
 						citingScanBusy={ioBusy !== null}

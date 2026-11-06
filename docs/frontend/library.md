@@ -29,7 +29,7 @@
 | tags | 只展示用户标签（染色 chip）；搜索框仍匹配全部可见标签与 publication。`@zotero:` / `@arxiv:` 内部标签不显示；`#submitted:` / `#easyscholar:` 是 Host 写入的投影，不在 Tags 列展示，由「发表 / 投稿」列消费 |
 | 发表 / 投稿 | 原 Publication 列。单元格由 `publication`、`#submitted:` 和 `#easyscholar:` 聚合：真实 publication → 「已发表」+ venue 名 + 指标；仅有 `#submitted:` → 「投稿」+ 目标 + 「模板推断」；仓库类 publication（arXiv/bioRxiv 等）→ 「预印本」+ 仓库短名。支持双击复制完整值 |
 | 阅读热力 | 标题列左侧显示该论文阅读进度热力条；基于 `marks/` 中逐页标注与阅读位置聚合。激活 Library 时经 `paper_reading_activity_batch` 一次批量 IPC 刷新全部活动点（缓存保温，不再逐论文 3 次 IPC）；PDF 页数走 catalog `pdf_page_counts` 缓存，缺缓存时仅对可视行懒加载并回写 |
-| Rescan | `paper_rescan`：盘上有、catalog 无则补齐 |
+| Rescan | 右键左侧 `papers/` 论文库节点 →「重新扫描 papers/」；空库仍保留中央按钮，扫描期间禁用重复操作。`paper_rescan` 补齐盘上有、catalog 无的论文目录，并修复旧 `id=paper` 本地条目；不负责导入任意裸 PDF |
 | 行右键 | 打开 / 编辑元数据（远程 Vault 隐藏编辑项）/ 添加到对话 / 在 Finder 中显示（仅本地）/ 删除→回收站；单击打开、双击复制 |
 | Download | 库内任一篇缺资源时批量补下 |
 | 导入/导出 | Library 工具栏；导出 BibTeX 亦可在 `papers/` 论文库节点右键 |
@@ -77,6 +77,8 @@
 DOI 旁有 **刷新** 按钮：按当前 DOI（或 arXiv ID）拉取权威元数据（`paper_resolve_identifier` → Translator/Crossref/arXiv Atom，再用 S2 `publicationVenue` 补期刊/会议名），只填充表单供确认，保存仍走 patch。venue 源优先级见 [../backend/academic-search-apis.md](../backend/academic-search-apis.md) §2.5。
 
 ## 导入 PDF 识别
+
+本地文件名派生 ID 保留中文等 Unicode 字母与数字；无可用字符时使用名称的稳定短哈希，全库同名本地 ID 冲突时追加后缀（原地自动入库用路径短哈希，分配新目录的文件导入用编号）。Library 不会仅因无 DOI/arXiv 的本地 PDF 同名而隐藏条目。读取列表及 Rescan 会修复旧 ASCII slug 遗留的 `id=paper`，同时通过持久 sidecar 队列写回 `metadata.json`，不移动目录、PDF、笔记或标注（#937）。
 
 拖入/魔棒导入 PDF 直接进入后台导入任务，无确认对话框；识别链路（liteparse probe → Zotero recognizer → 标识符解析，见 [../backend/paper-import.md](../backend/paper-import.md)）在导入任务内自动补全：
 

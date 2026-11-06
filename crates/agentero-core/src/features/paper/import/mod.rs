@@ -939,12 +939,12 @@ pub fn strip_pdf_ext(s: &str) -> &str {
     }
 }
 
-/// Folder-safe slug from a filename stem (alphanumerics + dots; other runs → `-`).
+/// Folder-safe Unicode slug (letters/numbers + dots; other runs → `-`).
 pub fn slug_from_stem(stem: &str) -> String {
     let mut s = String::new();
     let mut prev_sep = true; // suppress leading separators
     for c in stem.trim().chars() {
-        if c.is_ascii_alphanumeric() || c == '.' {
+        if c.is_alphanumeric() || c == '.' {
             s.push(c);
             prev_sep = false;
         } else if !prev_sep {
@@ -955,7 +955,11 @@ pub fn slug_from_stem(stem: &str) -> String {
     let s: String = s.chars().take(60).collect();
     let s = s.trim_matches(|c| c == '-' || c == '.').to_string();
     if s.is_empty() {
-        "paper".into()
+        use sha2::{Digest, Sha256};
+        format!(
+            "paper-{}",
+            &hex::encode(Sha256::digest(stem.trim().as_bytes()))[..12]
+        )
     } else {
         s
     }
@@ -981,19 +985,23 @@ pub fn title_from_stem(stem: &str) -> String {
 /// catalog has a row for it (folder may have been deleted externally).
 /// Returns `(id, path_rel, absolute_dir)` — callers must adopt the returned id
 /// into `meta.id` so folder name and catalog id never diverge.
+/// Local placeholders also reserve the id across other parent directories.
 pub fn allocate_paper_path(
     vault: &Path,
     parent_rel: &str,
     base_id: &str,
+    unique_local_id: bool,
 ) -> (String, String, PathBuf) {
-    let taken = |path_rel: &str| -> bool {
-        vault.join(path_rel).exists() || matches!(papers::get_by_path(vault, path_rel), Ok(Some(_)))
+    let taken = |id: &str, path_rel: &str| -> bool {
+        vault.join(path_rel).exists()
+            || matches!(papers::get_by_path(vault, path_rel), Ok(Some(_)))
+            || (unique_local_id && matches!(papers::get_by_id(vault, id), Ok(Some(_))))
     };
     let mut id = base_id.to_string();
     let mut n = 2;
     loop {
         let path_rel = format!("{parent_rel}/{id}").replace('\\', "/");
-        if !taken(&path_rel) || n > 999 {
+        if !taken(&id, &path_rel) {
             let dir = vault.join(&path_rel);
             return (id, path_rel, dir);
         }
@@ -1495,7 +1503,10 @@ mod tests {
         );
         assert_eq!(slug_from_stem("1706.03762"), "1706.03762");
         assert_eq!(slug_from_stem("  spaced  "), "spaced");
-        assert_eq!(slug_from_stem("!!!"), "paper");
+        assert!(slug_from_stem("!!!").starts_with("paper-"));
+        assert_ne!(slug_from_stem("!!!"), slug_from_stem("???"));
+        assert_eq!(slug_from_stem("舞蹈概论"), "舞蹈概论");
+        assert_eq!(slug_from_stem("舞蹈学：中国学派"), "舞蹈学-中国学派");
     }
 
     #[test]
@@ -1596,16 +1607,27 @@ mod tests {
         fs::create_dir_all(vault.join("papers")).unwrap();
 
         // Free path → base id unchanged.
-        let (id, rel, dir) = allocate_paper_path(&vault, "papers", "1706.03762");
+        let (id, rel, dir) = allocate_paper_path(&vault, "papers", "1706.03762", false);
         assert_eq!(id, "1706.03762");
         assert_eq!(rel, "papers/1706.03762");
         assert_eq!(dir, vault.join("papers/1706.03762"));
 
         // Folder on disk → suffix -2, and returned id matches the folder name.
         fs::create_dir_all(vault.join("papers/1706.03762")).unwrap();
-        let (id, rel, _) = allocate_paper_path(&vault, "papers", "1706.03762");
+        let (id, rel, _) = allocate_paper_path(&vault, "papers", "1706.03762", false);
         assert_eq!(id, "1706.03762-2");
         assert_eq!(rel, "papers/1706.03762-2");
+
+        // Same Chinese filename in another organization folder must also
+        // receive a distinct local id, even though the target path is free.
+        papers::upsert_paper(
+            &vault,
+            &PaperRecord::local_pdf("中文论文".into(), "甲".into()).at_path("papers/甲/中文论文"),
+        )
+        .unwrap();
+        let (id, rel, _) = allocate_paper_path(&vault, "papers/乙", "中文论文", true);
+        assert_eq!(id, "中文论文-2");
+        assert_eq!(rel, "papers/乙/中文论文-2");
 
         let _ = fs::remove_dir_all(&vault);
     }

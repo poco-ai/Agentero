@@ -138,7 +138,7 @@
 		"dropPdfHint": "松开以导入 PDF",
 		"rescan": "重新扫描 papers/",
 		"rescanned": "已找回 {{count}} 篇论文到论文库。",
-		"rescanEmpty": "papers/ 下没有找到论文。",
+		"rescanEmpty": "未发现遗漏论文。",
 		"rescanFailed": "重新扫描失败。",
 		"colTitle": "标题",
 		"colAuthors": "作者",

@@ -82,6 +82,8 @@ type FileTreeProps = {
 	onEmptyTrash?: () => void | Promise<void>;
 	/** Export library bibliography (Library node context menu). */
 	onExportLibrary?: () => void | Promise<void>;
+	onRescanLibrary?: () => void | Promise<void>;
+	libraryRescanning?: boolean;
 	/** True while export (or other library IO) is in progress — disables menu item. */
 	libraryExportBusy?: boolean;
 	/** Find new papers citing the library (Library node context menu). */
@@ -194,6 +196,8 @@ export const FileTree = memo(
 			onOpenZoteroCollectionPaper,
 			onEmptyTrash,
 			onExportLibrary,
+			onRescanLibrary,
+			libraryRescanning = false,
 			libraryExportBusy = false,
 			onDiscoverCiting,
 			citingScanBusy = false,
@@ -351,6 +355,8 @@ export const FileTree = memo(
 				prepareContextSelection: selection.prepareContextSelection,
 				openMovePicker: movePicker.openPicker,
 				onExportLibrary,
+				onRescanLibrary,
+				libraryRescanning,
 				onDiscoverCiting,
 				onDownloadAllMissing: paperActions.showLibraryDownload
 					? paperActions.downloadAllMissing

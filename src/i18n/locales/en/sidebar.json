@@ -138,7 +138,7 @@
 		"dropPdfHint": "Drop PDF to import",
 		"rescan": "Rescan papers/",
 		"rescanned": "Recovered {{count}} papers into the library.",
-		"rescanEmpty": "No papers found under papers/.",
+		"rescanEmpty": "No missing papers found.",
 		"rescanFailed": "Rescan failed.",
 		"colTitle": "Title",
 		"colAuthors": "Authors",
