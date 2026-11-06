@@ -134,42 +134,51 @@ impl RemoteRegistry {
         }
 
         let source;
-        let mut ssh_destination = host.to_string();
-        let (kind, fs, display_name): (String, Arc<dyn VaultFs>, String) = if host == LOCAL_SIM_HOST
-        {
-            let root = PathBuf::from(remote_path);
-            if !root.is_dir() {
-                return Err(AppError::message(format!(
-                    "local-sim path is not a directory: {}",
-                    root.display()
-                )));
-            }
-            let display = format!("local-sim:{}", root.display());
-            source = CatalogSource::Local(root.clone());
-            ("local-sim".into(), Arc::new(LocalFs::new(root)), display)
-        } else {
-            #[cfg(unix)]
-            {
-                use super::sftp_fs::SftpFs;
-                ssh_destination = format_ssh_destination(host, user);
-                let sftp = SftpFs::connect(&ssh_destination, remote_path).await?;
-                let display = format!("{ssh_destination}:{remote_path}");
-                source = CatalogSource::Ssh {
-                    destination: ssh_destination.clone(),
-                    root: remote_path.to_string(),
-                };
-                ("ssh".into(), Arc::new(sftp) as Arc<dyn VaultFs>, display)
-            }
-            #[cfg(not(unix))]
-            {
-                let _ = user;
-                return Err(AppError::message(
-                    "Remote vault over SSH is not supported on Windows yet \
-                     (openssh/SFTP client is Unix-only). Open a local vault, \
-                     or use Agentero on macOS/Linux for remote vaults.",
-                ));
-            }
-        };
+        let (kind, fs, display_name, destination): (String, Arc<dyn VaultFs>, String, String) =
+            if host == LOCAL_SIM_HOST {
+                let root = PathBuf::from(remote_path);
+                if !root.is_dir() {
+                    return Err(AppError::message(format!(
+                        "local-sim path is not a directory: {}",
+                        root.display()
+                    )));
+                }
+                let display = format!("local-sim:{}", root.display());
+                source = CatalogSource::Local(root.clone());
+                (
+                    "local-sim".into(),
+                    Arc::new(LocalFs::new(root)),
+                    display,
+                    host.to_string(),
+                )
+            } else {
+                #[cfg(unix)]
+                {
+                    use super::sftp_fs::SftpFs;
+                    let ssh_destination = format_ssh_destination(host, user);
+                    let sftp = SftpFs::connect(&ssh_destination, remote_path).await?;
+                    let display = format!("{ssh_destination}:{remote_path}");
+                    source = CatalogSource::Ssh {
+                        destination: ssh_destination.clone(),
+                        root: remote_path.to_string(),
+                    };
+                    (
+                        "ssh".into(),
+                        Arc::new(sftp) as Arc<dyn VaultFs>,
+                        display,
+                        ssh_destination,
+                    )
+                }
+                #[cfg(not(unix))]
+                {
+                    let _ = user;
+                    return Err(AppError::message(
+                        "Remote vault over SSH is not supported on Windows yet \
+                         (openssh/SFTP client is Unix-only). Open a local vault, \
+                         or use Agentero on macOS/Linux for remote vaults.",
+                    ));
+                }
+            };
 
         let session_id = uuid::Uuid::new_v4().to_string();
         let cache_key = hex::encode(Sha256::digest(format!("{host}\0{remote_path}").as_bytes()));
@@ -184,7 +193,7 @@ impl RemoteRegistry {
         let session = Arc::new(RemoteSession {
             id: session_id.clone(),
             host: host.to_string(),
-            destination: ssh_destination,
+            destination,
             remote_path: remote_path.to_string(),
             display_name,
             kind,

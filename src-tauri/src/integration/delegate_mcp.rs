@@ -3,16 +3,24 @@
 //! The local CLI agent spawns this process. It only forwards tool calls to the
 //! desktop Unix socket named in the grant file. It cannot see remote sessions.
 
+use crate::features::agent::delegate::protocol::WORKER_ARG;
+
+#[cfg(unix)]
 use crate::features::agent::delegate::protocol::{
     DelegateArgs, DelegateGrant, RunBody, RunIdArgs, TargetsBody, WireRequest, WireResponse,
-    WORKER_ARG,
 };
+#[cfg(unix)]
 use rmcp::handler::server::wrapper::{Json, Parameters};
+#[cfg(unix)]
 use rmcp::model::{CallToolResult, ContentBlock, Implementation, ServerCapabilities, ServerInfo};
+#[cfg(unix)]
 use rmcp::{tool, tool_handler, tool_router, ServerHandler, ServiceExt};
+#[cfg(unix)]
 use std::path::PathBuf;
+#[cfg(unix)]
 use std::sync::Arc;
 
+#[cfg(unix)]
 #[derive(Clone)]
 struct DelegateMcp {
     grant: Arc<DelegateGrant>,
@@ -20,6 +28,7 @@ struct DelegateMcp {
     tool_router: rmcp::handler::server::router::tool::ToolRouter<Self>,
 }
 
+#[cfg(unix)]
 impl DelegateMcp {
     fn new(grant: DelegateGrant) -> Self {
         Self {
@@ -29,10 +38,12 @@ impl DelegateMcp {
     }
 }
 
+#[cfg(unix)]
 fn tool_err(err: impl std::fmt::Display) -> CallToolResult {
     CallToolResult::error(vec![ContentBlock::text(err.to_string())])
 }
 
+#[cfg(unix)]
 #[tool_router]
 impl DelegateMcp {
     #[tool(
@@ -98,6 +109,7 @@ impl DelegateMcp {
     }
 }
 
+#[cfg(unix)]
 #[tool_handler]
 impl ServerHandler for DelegateMcp {
     fn get_info(&self) -> ServerInfo {
@@ -135,7 +147,7 @@ pub fn try_run_delegate_mcp() -> Option<i32> {
     {
         let _ = grant;
         eprintln!("agentero-delegate: unavailable");
-        return Some(2);
+        Some(2)
     }
     #[cfg(unix)]
     match serve(PathBuf::from(grant)) {
@@ -168,24 +180,8 @@ fn serve(grant_path: PathBuf) -> Result<(), String> {
     })
 }
 
-async fn call(
-    grant: &DelegateGrant,
-    op: &str,
-    extra: serde_json::Value,
-) -> Result<serde_json::Value, String> {
-    #[cfg(not(unix))]
-    {
-        let _ = (grant, op, extra);
-        return Err("delegate is unavailable".into());
-    }
-    #[cfg(unix)]
-    {
-        call_unix(grant, op, extra).await
-    }
-}
-
 #[cfg(unix)]
-async fn call_unix(
+async fn call(
     grant: &DelegateGrant,
     op: &str,
     extra: serde_json::Value,

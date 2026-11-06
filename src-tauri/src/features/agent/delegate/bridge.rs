@@ -4,34 +4,54 @@
 //! [`RemoteAgentHosts`]. It presents the token from its grant file. The desktop
 //! process owns the SSH session and the remote ACP connection.
 
+use agent_client_protocol::schema::v1::McpServer;
+use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
+
+#[cfg(unix)]
 use super::policy::{self, AgentChoice, TargetChoice};
+#[cfg(unix)]
 use super::protocol::{
     AgentInfo, DelegateGrant, RunBody, TargetInfo, TargetsBody, WireRequest, WireResponse,
     WORKER_ARG,
 };
+#[cfg(unix)]
 use crate::features::agent::acp::interaction::PermissionPolicy;
+#[cfg(unix)]
 use crate::features::agent::models::{is_builtin_template, AgentResultPayload};
+#[cfg(unix)]
 use crate::features::agent::remote_host::RemoteAgentHosts;
+#[cfg(unix)]
 use crate::features::agent::runtime::events::AgentEventEmitter;
+#[cfg(unix)]
 use crate::features::agent::runtime::gates::{AskUserGate, ElicitationGate, PermissionGate};
+#[cfg(unix)]
 use crate::features::agent::session::{
     serve_delegate_prompts, DelegatePrompt, DelegateUserWait, RunOnceParams,
 };
+#[cfg(unix)]
 use crate::features::agent::AgentRegistry;
-use agent_client_protocol::schema::v1::{McpServer, McpServerStdio};
+#[cfg(unix)]
+use agent_client_protocol::schema::v1::McpServerStdio;
+#[cfg(any(unix, test))]
 use std::collections::HashMap;
+#[cfg(unix)]
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, Mutex as StdMutex};
+#[cfg(unix)]
+use std::sync::Mutex as StdMutex;
+#[cfg(unix)]
 use tauri::Manager;
 #[cfg(unix)]
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 #[cfg(unix)]
 use tokio::net::{UnixListener, UnixStream};
+#[cfg(unix)]
 use tokio::sync::{mpsc, oneshot, watch, Mutex};
-use tokio_util::sync::CancellationToken;
 
+#[cfg(unix)]
 const MAX_LINE: usize = 2_000_000;
 
+#[cfg(unix)]
 struct RunRecord {
     target: String,
     agent_id: String,
@@ -43,17 +63,20 @@ struct RunRecord {
     user_wait: Arc<DelegateUserWait>,
 }
 
+#[cfg(unix)]
 struct Slot {
     tx: Option<mpsc::Sender<DelegatePrompt>>,
     in_flight: Option<String>,
 }
 
+#[cfg(unix)]
 enum Claim {
     Busy(String),
     Enqueue(mpsc::Sender<DelegatePrompt>),
     Start,
 }
 
+#[cfg(unix)]
 struct ClaimLaunch<'a> {
     key: &'a (String, String),
     target: &'a TargetChoice,
@@ -62,12 +85,14 @@ struct ClaimLaunch<'a> {
     user_wait: Arc<DelegateUserWait>,
 }
 
+#[cfg(unix)]
 struct Hub {
     app: tauri::AppHandle,
     runs: Mutex<HashMap<String, Arc<RunRecord>>>,
     slots: Mutex<HashMap<(String, String), Slot>>,
 }
 
+#[cfg(unix)]
 impl Hub {
     fn new(app: tauri::AppHandle) -> Arc<Self> {
         Arc::new(Self {
@@ -399,6 +424,7 @@ impl Hub {
     }
 }
 
+#[cfg(unix)]
 async fn finish_record(record: &RunRecord, outcome: Result<AgentResultPayload, String>) {
     match outcome {
         Ok(payload) => {
@@ -426,6 +452,7 @@ async fn finish_record(record: &RunRecord, outcome: Result<AgentResultPayload, S
     }
 }
 
+#[cfg(unix)]
 async fn connected_targets(app: &tauri::AppHandle) -> Result<Vec<TargetChoice>, String> {
     let hosts = app.state::<Arc<dyn RemoteAgentHosts>>();
     let listed = hosts
@@ -444,6 +471,7 @@ async fn connected_targets(app: &tauri::AppHandle) -> Result<Vec<TargetChoice>, 
         .collect())
 }
 
+#[cfg(unix)]
 async fn agent_choices(app: &tauri::AppHandle) -> Result<Vec<AgentChoice>, String> {
     let registry = app.state::<AgentRegistry>();
     let state = registry.snapshot().map_err(|error| error.to_string())?;
@@ -460,6 +488,7 @@ async fn agent_choices(app: &tauri::AppHandle) -> Result<Vec<AgentChoice>, Strin
     Ok(agents)
 }
 
+#[cfg(unix)]
 async fn base_params(
     app: &tauri::AppHandle,
     target: &TargetChoice,
@@ -519,7 +548,9 @@ async fn base_params(
 /// Desktop side of the delegate socket.
 pub struct DelegateBridge {
     path: std::path::PathBuf,
+    #[cfg(unix)]
     tokens: StdMutex<HashMap<String, String>>,
+    #[cfg(unix)]
     hub: StdMutex<Option<Arc<Hub>>>,
     shutdown: CancellationToken,
 }
@@ -528,7 +559,9 @@ impl DelegateBridge {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             path: socket_path(),
+            #[cfg(unix)]
             tokens: StdMutex::new(HashMap::new()),
+            #[cfg(unix)]
             hub: StdMutex::new(None),
             shutdown: CancellationToken::new(),
         })
@@ -556,9 +589,12 @@ impl DelegateBridge {
 
     pub fn shutdown(&self) {
         self.shutdown.cancel();
-        if let Ok(hub) = self.hub.lock() {
-            if let Some(hub) = hub.as_ref() {
-                hub.shutdown();
+        #[cfg(unix)]
+        {
+            if let Ok(hub) = self.hub.lock() {
+                if let Some(hub) = hub.as_ref() {
+                    hub.shutdown();
+                }
             }
         }
         let _ = std::fs::remove_file(&self.path);
@@ -570,7 +606,7 @@ impl DelegateBridge {
         #[cfg(not(unix))]
         {
             let _ = (session_id, window_label);
-            return None;
+            None
         }
         #[cfg(unix)]
         {
@@ -702,6 +738,7 @@ async fn handle_stream(
     Ok(())
 }
 
+#[cfg(unix)]
 async fn dispatch(
     hub: &Arc<Hub>,
     window: &str,
@@ -743,6 +780,7 @@ async fn dispatch(
     Ok(value)
 }
 
+#[cfg(any(unix, test))]
 fn window_for_token(tokens: &HashMap<String, String>, presented: &str) -> Option<String> {
     tokens
         .iter()
@@ -750,6 +788,7 @@ fn window_for_token(tokens: &HashMap<String, String>, presented: &str) -> Option
         .map(|(_, window)| window.clone())
 }
 
+#[cfg(unix)]
 fn trim_line(buf: &[u8]) -> &[u8] {
     let end = buf
         .iter()
