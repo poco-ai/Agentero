@@ -431,6 +431,8 @@ pub fn insert_paper_if_missing(vault_root: &Path, record: &PaperRecord) -> Resul
 
 pub fn get_by_path(vault_root: &Path, path: &str) -> Result<Option<PaperRecord>, AppError> {
     let path = crate::fs::normalize_rel_separators(path);
+    // A same-vault directory link is another spelling of the canonical folder.
+    let path = crate::fs::linked_dir_vault_rel(vault_root, &path).unwrap_or(path);
     with_catalog(vault_root, |conn| get_conn(conn, &path))
 }
 
@@ -900,6 +902,11 @@ pub fn rebuild_from_disk(vault_root: &Path) -> Result<usize, AppError> {
         let mut count = 0usize;
         let mut stack = vec![papers_dir];
         while let Some(dir) = stack.pop() {
+            // A directory link is an alias of a paper already stored at its
+            // target. Importing it would insert a second row for the same files.
+            if crate::fs::is_linked_dir(&dir) {
+                continue;
+            }
             if dir_is_paper(&dir) {
                 // A paper folder is a leaf: reconcile and do not descend.
                 let rel = dir
@@ -935,6 +942,9 @@ pub fn rebuild_from_disk(vault_root: &Path) -> Result<usize, AppError> {
             if let Ok(read) = fs::read_dir(&dir) {
                 for ent in read.flatten() {
                     let p = ent.path();
+                    if crate::fs::is_linked_dir(&p) {
+                        continue;
+                    }
                     if p.is_dir() {
                         stack.push(p);
                     }
@@ -955,6 +965,12 @@ pub fn ensure_row_for_path(
     rel_path: &str,
 ) -> Result<Option<PaperRecord>, AppError> {
     let rel_path = crate::fs::normalize_rel_separators(rel_path);
+    if let Some(canon) = crate::fs::linked_dir_vault_rel(vault_root, &rel_path) {
+        return ensure_row_for_path(vault_root, &canon);
+    }
+    if crate::fs::is_linked_dir(&vault_root.join(&rel_path)) {
+        return Ok(None);
+    }
     with_catalog(vault_root, |conn| {
         if let Some(row) = get_conn(conn, &rel_path)? {
             // Same sidecar rule as `rebuild_from_disk`: a newer metadata.json

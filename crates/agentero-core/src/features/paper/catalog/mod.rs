@@ -3,6 +3,7 @@
 //! Authoritative store for paper set + structured metadata.
 //! See `docs/backend/catalog.md`.
 
+pub mod add_paper;
 pub mod move_paper;
 pub mod papers;
 pub mod properties;
