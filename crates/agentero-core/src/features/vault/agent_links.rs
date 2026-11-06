@@ -70,31 +70,8 @@ fn ensure_claude_skills_link(vault: &Path, claude_available: bool) -> Option<Str
     }
 }
 
-/// Relative targets keep the link valid when the Vault is moved or renamed.
-#[cfg(unix)]
-fn create_dir_link(rel_target: &Path, _abs_target: &Path, link: &Path) -> io::Result<()> {
-    std::os::unix::fs::symlink(rel_target, link)
-}
-
-/// A real directory symlink needs Developer Mode or elevation; a junction is a
-/// plain reparse point any user can create, at the cost of an absolute target.
-///
-/// The stored target must use `\`. A link created with `/` can exist and still
-/// fail to resolve, so a successful `symlink_dir` is kept only when the target
-/// can be read.
-#[cfg(windows)]
 fn create_dir_link(rel_target: &Path, abs_target: &Path, link: &Path) -> io::Result<()> {
-    let windows_target = rel_target.to_string_lossy().replace('/', "\\");
-    if std::os::windows::fs::symlink_dir(&windows_target, link).is_ok()
-        && fs::metadata(link).is_ok()
-    {
-        return Ok(());
-    }
-    if link.symlink_metadata().is_ok() {
-        let _ = fs::remove_dir(link);
-        let _ = fs::remove_file(link);
-    }
-    create_junction(abs_target, link)
+    crate::fs::create_directory_link(rel_target, abs_target, link)
 }
 
 /// Earlier builds created `.claude/skills` with the `/` target whenever the
@@ -113,54 +90,6 @@ fn remove_unresolvable_legacy_link(link: &Path) {
             );
         }
     }
-}
-
-#[cfg(not(any(unix, windows)))]
-fn create_dir_link(_rel_target: &Path, _abs_target: &Path, _link: &Path) -> io::Result<()> {
-    Err(io::Error::other(
-        "directory links are not supported on this platform",
-    ))
-}
-
-#[cfg(windows)]
-fn create_junction(target: &Path, link: &Path) -> io::Result<()> {
-    use std::process::Command;
-
-    // `mklink` needs existing absolute paths and rejects the `\\?\` prefix that
-    // `canonicalize` returns for drive paths. The link itself does not exist yet,
-    // so resolve its parent and keep the file name.
-    let link_name = link
-        .file_name()
-        .ok_or_else(|| io::Error::other("link path has no file name"))?;
-    let link_abs = crate::process::windows_shell_path(
-        &link
-            .parent()
-            .ok_or_else(|| io::Error::other("link path has no parent"))?
-            .canonicalize()?,
-    )
-    .join(link_name);
-    let target_abs = crate::process::windows_shell_path(&target.canonicalize()?);
-
-    let mut command = Command::new("cmd");
-    command
-        .arg("/D")
-        .arg("/C")
-        .arg("mklink")
-        .arg("/J")
-        .arg(&link_abs)
-        .arg(&target_abs);
-    crate::process::hide_console_window(&mut command);
-    let output = command.output()?;
-    if output.status.success() {
-        return Ok(());
-    }
-    let detail = String::from_utf8_lossy(&output.stderr);
-    let detail = detail.trim();
-    Err(io::Error::other(if detail.is_empty() {
-        format!("mklink /J exited with {:?}", output.status.code())
-    } else {
-        format!("mklink /J failed: {detail}")
-    }))
 }
 
 #[cfg(test)]

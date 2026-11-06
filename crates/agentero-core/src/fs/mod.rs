@@ -2,9 +2,15 @@
 //!
 //! Local vaults use [`LocalFs`]; remote vaults use SFTP (or a local-sim backend for tests).
 
+mod dir_link;
 mod local;
 mod path;
 mod store;
+
+pub use dir_link::{
+    create_directory_link, is_linked_dir, linked_dir_vault_rel, relative_link_target,
+    remove_directory_link, resolved_dir,
+};
 
 pub use local::LocalFs;
 pub use path::{
