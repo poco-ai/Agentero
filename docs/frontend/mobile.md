@@ -135,6 +135,7 @@ GET /ws?v=2&serverId=<agt_…>&role=client                       → client（re
 ```
 
 - client 接入 → Relay 分配 `connectionId`，经 server-control 下发 `{type:"connected",connectionId}`；Bridge 建对应 server-data 通道后按 connectionId 一对一转发；
+- `e2ee_hello.key` 使用标准、带 `=` 填充的 Base64（客户端发送、桌面 Host 解析保持一致）；二维码 offer 与设备身份字段仍使用 base64url。Relay 会以 `1008 Invalid handshake key` 拒绝不符合编码要求的握手；传输层保留非正常关闭的状态码与原因。
 - 断开时 Relay 向对端发 `{type:"disconnected",connectionId}`；Bridge 控制通道重连后经 `{type:"sync",connectionIds:[…]}` 对账；
 - Bridge 控制通道每 10s 应用层 ping，30s 无响应视为掉线；client 侧指数退避重连（1s→30s，带抖动）。
 

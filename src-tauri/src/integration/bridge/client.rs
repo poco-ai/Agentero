@@ -266,9 +266,7 @@ async fn run_client_session(
     let ephemeral = SecretKey::generate(&mut crypto_box::aead::OsRng);
     send_text(
         socket,
-        serde_json::to_string(&E2eeHandshake::E2eeHello {
-            key: URL_SAFE_NO_PAD.encode(ephemeral.public_key().as_bytes()),
-        })?,
+        serde_json::to_string(&E2eeHandshake::hello(ephemeral.public_key().as_bytes()))?,
     )
     .await?;
     let RelayFrame::Text(payload) = next_frame(socket).await? else {

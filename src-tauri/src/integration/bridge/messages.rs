@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -8,6 +9,15 @@ use serde_json::Value;
 pub enum E2eeHandshake {
     E2eeHello { key: String },
     E2eeReady,
+}
+
+impl E2eeHandshake {
+    pub fn hello(public_key: &[u8; 32]) -> Self {
+        // Relay validates handshake keys as canonical padded Base64.
+        Self::E2eeHello {
+            key: STANDARD.encode(public_key),
+        }
+    }
 }
 
 /// Relay control messages are not application requests. They only instruct the
@@ -107,6 +117,17 @@ pub enum BridgeMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn handshake_key_uses_standard_padded_base64() {
+        assert_eq!(
+            serde_json::to_value(E2eeHandshake::hello(&[251; 32])).unwrap(),
+            serde_json::json!({
+                "type": "e2ee_hello",
+                "key": "+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/s="
+            })
+        );
+    }
 
     #[test]
     fn relay_control_message_uses_the_v2_wire_fields() {
