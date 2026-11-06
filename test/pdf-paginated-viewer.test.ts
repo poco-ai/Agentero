@@ -15,6 +15,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { usePdfReadingMode } from "@/components/viewer/pdf/hooks/use-pdf-reading-mode";
 import { DockviewViewport } from "@/components/viewer/pdf/viewport/dockview-viewport";
+import { KeyboardScrollHandler } from "@/components/viewer/pdf/viewport/keyboard-scroll-handler";
 import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
 import { settingsStore } from "@/lib/settings/react-store";
 
@@ -77,15 +78,22 @@ it("shows one page, turns via wheel/keys/links, and preserves the page when retu
 			documentId: docId,
 			hostRef: { current: container },
 			// biome-ignore lint/correctness/noChildrenProp: required by DockviewViewportProps
-			children: createElement(PdfScroller, {
-				documentId: docId,
-				renderPage: (page) =>
-					createElement(
-						"span",
-						{ "data-test-page": page.pageNumber },
-						page.pageNumber,
-					),
-			}),
+			children: [
+				createElement(KeyboardScrollHandler, {
+					documentId: docId,
+					active: true,
+					hostRef: { current: container },
+				}),
+				createElement(PdfScroller, {
+					documentId: docId,
+					renderPage: (page) =>
+						createElement(
+							"span",
+							{ "data-test-page": page.pageNumber },
+							page.pageNumber,
+						),
+				}),
+			],
 		});
 	}
 	const settle = () => act(() => vi.advanceTimersByTimeAsync(250));
@@ -126,6 +134,33 @@ it("shows one page, turns via wheel/keys/links, and preserves the page when retu
 			);
 
 		expect(visiblePages()).toEqual([1]);
+		const arrow = async (
+			key: "ArrowDown" | "ArrowUp",
+			target?: EventTarget,
+		) => {
+			await act(() =>
+				(target ?? viewport).dispatchEvent(
+					new KeyboardEvent("keydown", {
+						key,
+						bubbles: true,
+						cancelable: true,
+					}),
+				),
+			);
+			await settle();
+		};
+		// Paginated layout: arrows turn pages from the focused/hovered reader.
+		await arrow("ArrowDown");
+		expect(scroll.getCurrentPage()).toBe(2);
+		expect(visiblePages()).toEqual([2]);
+		await arrow("ArrowUp");
+		expect(scroll.getCurrentPage()).toBe(1);
+		// A field keeps its own arrow keys.
+		const arrowField = document.createElement("input");
+		viewport.append(arrowField);
+		await arrow("ArrowDown", arrowField);
+		expect(scroll.getCurrentPage()).toBe(1);
+		arrowField.remove();
 		await act(() =>
 			viewport.dispatchEvent(
 				new KeyboardEvent("keydown", {
@@ -217,6 +252,35 @@ it("shows one page, turns via wheel/keys/links, and preserves the page when retu
 		await settle();
 		expect(scroll.getCurrentPage()).toBe(3);
 		expect(viewport.style.overflowY).not.toBe("hidden");
+		await act(() =>
+			settingsStore.setState({
+				pdfScrollStrategy: "vertical",
+				pdfSpreadMode: "none",
+			}),
+		);
+		await settle();
+		// Continuous layout: arrows scroll the reading position instead of turning.
+		const beforeArrow = viewport.scrollTop;
+		await act(() =>
+			viewport.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: "ArrowDown",
+					bubbles: true,
+					cancelable: true,
+				}),
+			),
+		);
+		expect(viewport.scrollTop).toBe(beforeArrow + 72);
+		await act(() =>
+			viewport.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: "ArrowUp",
+					bubbles: true,
+					cancelable: true,
+				}),
+			),
+		);
+		expect(viewport.scrollTop).toBe(beforeArrow);
 	} finally {
 		await act(() => root.unmount());
 		container.remove();

@@ -47,6 +47,7 @@ import type {
 	ScreenPoint,
 } from "@/components/viewer/pdf/types";
 import { DockviewViewport } from "@/components/viewer/pdf/viewport/dockview-viewport";
+import { KeyboardScrollHandler } from "@/components/viewer/pdf/viewport/keyboard-scroll-handler";
 import { PanDragHandler } from "@/components/viewer/pdf/viewport/pan-handler";
 import { PdfScroller } from "@/components/viewer/pdf/viewport/pdf-scroller";
 import { WheelZoomHandler } from "@/components/viewer/pdf/viewport/wheel-zoom-handler";
@@ -489,6 +490,11 @@ export function PdfTranslationViewerInner({
 				className="agentero-scroll-both min-h-0 min-w-0 flex-1"
 			>
 				<WheelZoomHandler docId={docId} />
+				<KeyboardScrollHandler
+					documentId={docId}
+					active={isActive}
+					hostRef={hostRef}
+				/>
 				<PanDragHandler
 					active={isActive}
 					hostRef={hostRef}
