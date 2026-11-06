@@ -86,7 +86,7 @@ pub fn add_paper(
         if vault_fs::is_linked_dir(&from_abs) && inside.is_none() {
             return Err(fail("source link does not stay inside this vault".into()));
         }
-        link_directory(from_vault, &canonical, &new_rel, &to_abs).map_err(&fail)?;
+        link_directory(from_vault, &canonical, &new_rel, &to_abs).map_err(fail)?;
         Ok(PaperAddResult {
             mode: "link",
             from,
@@ -94,7 +94,7 @@ pub fn add_paper(
         })
     } else {
         copy_into_vault(from_vault, &from, &canonical, to_vault, &new_rel, &to_abs)
-            .map_err(&fail)?;
+            .map_err(fail)?;
         Ok(PaperAddResult {
             mode: "copy",
             from,
