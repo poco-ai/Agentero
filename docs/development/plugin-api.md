@@ -70,7 +70,7 @@
 
 破坏性操作不公开：`file.delete`、`paper.delete`、`mark.delete`，以及任何 `side_effects = Destructive` 的操作。
 
-也不公开：`import.*`（`import.id`、`import.pdf`）、`paper.download`、`paper.parse`、`discover.arxiv`、`doctor`、`doctor.wiki`、`export.bib`、`mark.*`、`file.move`、`vault.create`、`translate`、`open`、`describe`。
+也不公开：`import.*`（`import.id`、`import.pdf`）、`paper.add`、`paper.download`、`paper.parse`、`discover.arxiv`、`doctor`、`doctor.wiki`、`export.bib`、`mark.*`、`file.move`、`vault.create`、`translate`、`open`、`describe`。
 
 `file.move` 会改任意路径并重写双链，比 `paper.move` 宽，留在 internal。
 

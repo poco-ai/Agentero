@@ -94,6 +94,11 @@ const TABLE: &[OpClassification] = &[
     ),
     spec("paper.move", OpStability::Stable, OpPermission::VaultWrite),
     spec(
+        "paper.add",
+        OpStability::Internal,
+        OpPermission::Unspecified,
+    ),
+    spec(
         "paper.download",
         OpStability::Internal,
         OpPermission::Unspecified,
