@@ -60,6 +60,8 @@ Vault 根上的 `.agents/` 与 `AGENTS.md` 合成一行，标题为 Agent（中�
 
 ### 论文目录识别
 
+- 后台资源就绪（`paper:assets-ready`，包括 Zotero Connector 的延迟资源下载）后，按论文路径重新列出父目录并刷新 Library。必须更新论文行自身的 `hasTex` / `needsSource`，不能只刷新 `source/` 子项，否则源码已落盘时下载按钮仍可能残留。其它 Vault 的事件不影响当前树。
+
 - `papers/` 下目录的直接子项含 `NOTES.md`、`PAPER.md` 或 `source/` / `assets/` / `marks/` 时，可作为论文单元。
 - 如果目录自身有索引/概览 `NOTES.md`，但其子树中还包含论文单元，则优先判定为组织目录，继续收集子论文；组织目录不会被折叠成单篇论文。
 - `attachments/` 与 `source/` / `assets/` / `marks/` 一样视为论文内部目录：不单独当作论文，也不在其中再找嵌套论文。

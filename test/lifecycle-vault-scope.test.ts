@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { emitScoped } from "@/lib/lifecycle/bus";
+import { emit, emitScoped } from "@/lib/lifecycle/bus";
+import { noteCommittedLibraryList } from "@/lib/lifecycle/refresh-wave";
 import { registerLifecycleHandlers } from "@/lib/lifecycle/register";
 
 const mocks = vi.hoisted(() => {
@@ -183,6 +184,30 @@ describe("vault:opened scope", () => {
 		expect(mocks.maybeShowPaperBackfill).not.toHaveBeenCalled();
 		expect(mocks.commandSpy("vaultHold")).not.toHaveBeenCalled();
 		expect(mocks.commandSpy("vaultRelease")).not.toHaveBeenCalled();
+	});
+
+	it("refreshes paper capability flags when deferred assets finish", async () => {
+		await emit("paper:assets-ready", {
+			vaultId: "/vault-a",
+			paperId: "2401.00001",
+			path: "papers/nested/2401.00001",
+			timestamp: 1,
+		});
+		expect(mocks.scheduleTreeRefresh).toHaveBeenCalledWith([
+			"/vault-a/papers/nested/2401.00001",
+		]);
+		expect(noteCommittedLibraryList).toHaveBeenCalledTimes(1);
+	});
+
+	it("ignores assets that finish after switching vaults", async () => {
+		await emit("paper:assets-ready", {
+			vaultId: "/vault-b",
+			paperId: "2401.00001",
+			path: "papers/2401.00001",
+			timestamp: 1,
+		});
+		expect(mocks.scheduleTreeRefresh).not.toHaveBeenCalled();
+		expect(noteCommittedLibraryList).not.toHaveBeenCalled();
 	});
 
 	it("releases the previous vault before setting up the next one", async () => {

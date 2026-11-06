@@ -137,6 +137,16 @@ export function registerLifecycleHandlers(): () => void {
 				scheduleTreeRefresh();
 			}
 		}),
+		lifecycle.on("paper:assets-ready", ({ vaultId, paperId, path }) => {
+			if (vaultId !== getVaultPath()) return;
+			const folder = path?.trim() || (paperId ? `papers/${paperId}` : "");
+			// Re-list the parent so the paper row's hasTex/needsSource flags
+			// are replaced too; refreshing only source/ leaves them stale.
+			scheduleTreeRefresh(
+				folder ? [joinVaultPath(vaultId, folder)] : undefined,
+			);
+			noteCommittedLibraryList();
+		}),
 		lifecycle.on("paper:renamed", (event) => {
 			const { vaultId, oldPath, newPath, outcome } = event;
 			if (vaultId !== getVaultPath()) return;
