@@ -63,7 +63,7 @@ Skill 不写入 catalog、不创建 `papers/` 条目、不执行 `scripts/`。�
   finalizer 先将 paper 移到 latest target，再在稳定路径提交共享正文准备任务，补齐源码后
   决定是否解析 PDF。打开论文 / reconcile 也使用相同规则。
 - 错误：全局 Toast；重复不破坏用户 NOTES。
-- 标识符去重（#406）：批量预检之外，commit 阶段再按 `id` / `arxiv_id` / `doi` / `pmid` / `isbn` 查 catalog（`DedupePolicy::ByIdentifiers`），任一命中即 `Deduped`，不新建文件夹。
+- 标识符去重（#406）：批量预检之外，commit 阶段按规范 `id` / `arxiv_id` / `doi` / `pmid` / `isbn` 查 catalog（`DedupePolicy::ByIdentifiers`），任一可靠身份命中即 `Deduped`。本地 PDF 的文件名占位 ID 不作为合并依据；碰撞时分配独立条目，避免中文或同名 PDF 被挂到无关论文附件（#937 / #938）。带 arXiv/DOI 的本地 PDF 只有 ID 与该标识符派生值一致时才允许按 ID 恢复不完整旧行。
 - 新建壳会写论文全称 alias，并在元数据足够时写确定性短 alias；历史笔记由 [Doctor](doctor.md) 诊断和确认迁移。`created` 不属于入库壳或 Doctor 的职责。
 - 壳内容由设置 `paper_note_mode` 决定（`standard` / `title-only` / `blank` / `custom`，默认 `standard`，见 [settings.md](../frontend/settings.md)）；`custom` 模板位于 `{vault}/.agentero/templates/NOTES.md`，缺失或不可读时回退 standard 并 warn。任何模式的产物都会补齐 aliases frontmatter（模板 frontmatter 不可安全改写时留给 Doctor）。Connector 的后台摘要机翻仅对 standard 壳生效，避免改写 custom 模板渲染的原文摘要。
 
@@ -185,7 +185,7 @@ liteparse 在**运行时 `dlopen`** PDFium，而 `liteparse-pdfium-sys` 的 buil
 
 - 魔棒多选或拖到 `papers/` 组织夹 → **即时导入**：复制 PDF + catalog + NOTES shell 立刻完成（秒级）。论文库只重读 catalog 行，文件树只刷新涉及的目录，双链只更新新论文目录和被改写的笔记；同一批导入（含后台识别改名）合并成一次刷新，不按篇数重扫整个库。元数据识别在后台进行（见下），识别完成后自动改名/补全。外部放进 `papers/` 且能对应到单篇目录时补一行 catalog；对不上单篇时才整库 rescan。
 - PDF 拖入窗口其它区域也入库到当前 Papers 目标，避免 WebView 导航；识别与版面分析在后台继续。
-- 标识符去重与合并（#406）：导入前按对话框给出的 `id` / DOI / arXiv / PMID / ISBN 查 catalog；命中已有条目时不新建文件夹——原条目缺主 PDF `{id}.pdf` 时，本 PDF 直接成为主 PDF（常见于 PMID 入库后手动补全文）；否则放入 `{paper}/attachments/`（同名自动 `-2` 后缀），并回填 catalog 缺失的标识符列；前端返回 `status: "deduped"` 并 Toast 提示。
+- 标识符去重与合并（#406）：导入前按规范 ID / DOI / arXiv / PMID / ISBN 查 catalog，不凭本地文件名占位 ID 合并（#937 / #938）；命中已有条目时不新建文件夹——原条目缺主 PDF `{id}.pdf` 时，本 PDF 直接成为主 PDF（常见于 PMID 入库后手动补全文）；否则放入 `{paper}/attachments/`（同名自动 `-2` 后缀），并回填 catalog 缺失的标识符列；前端返回 `status: "deduped"` 并 Toast 提示。
 
 ### 文件夹自动收录（auto-ingest，#549）
 
@@ -196,7 +196,7 @@ liteparse 在**运行时 `dlopen`** PDFium，而 `liteparse-pdfium-sys` 的 buil
 - **触发**：vault FS watcher 收到 create/rename 批次且路径为 `papers/` 根目录的独立 PDF、直接子文件夹或文件夹内文件（`src-tauri/src/features/paper/ingest/`）；根目录的 `index.md` 等非 PDF 文件不触发收录。应用未运行期间创建的文件夹和独立 PDF 由前端 `vault:opened` 时 fire-and-forget 调 `paper_ingest_reconcile` 补扫。
 - **稳定探测**：两次间隔 700ms 的 PDF 尺寸快照相等才算拷贝完成（上限 8s）；仍在写入则等下一批 watcher 事件重试，绝不收录半个 PDF。`.crdownload`/`.part` 等临时下载后缀不算 PDF。
 - **分类即护栏**：core 内核 `auto_ingest::classify_papers_subfolder` 依次判定——有 `metadata.json` sidecar 或 catalog 行（已托管）、有 NOTES.md/PAPER.md/内部子目录（已是论文单元）、含嵌套论文单元（组织夹）、裸 PDF 文件夹（可收录）；收录写入的 sidecar/NOTES.md 使分类自然翻转，杜绝循环。
-- **收录动作**（`adopt_paper_folder`，就地、零拷贝）：主 PDF（与 id 同名优先，否则取最大文件）改名为 `{id}.pdf`，其余 PDF 移入 `attachments/`，写 NOTES shell、upsert catalog（`meta_source=local`）、emit `paper:imported`，并 spawn 后台元数据识别（识别命中标识符后照常经 wiki rename 改名为规范 id）。占位 id 取文件夹名 slug（中文等非 ASCII 名回退首个 PDF 文件名 stem）。
+- **收录动作**（`adopt_paper_folder`，就地、零拷贝）：主 PDF（与 id 同名优先，否则取最大文件）改名为 `{id}.pdf`，其余 PDF 移入 `attachments/`，写 NOTES shell、upsert catalog（`meta_source=local`）、emit `paper:imported`，并 spawn 后台元数据识别（识别命中标识符后照常经 wiki rename 改名为规范 id）。占位 ID 取保留中文的文件夹名 slug，全库冲突加路径短哈希；纯中文目录下首个 PDF 若以已知 arXiv 编号命名，仍优先保留该编号，普通 `paper.pdf` 不覆盖中文目录名（#937）。
 - **失败安全**：收录失败不回滚删除用户文件夹（与 `paper_commit` 的 remove_dir_all 回滚刻意不同），留在原地等待重试。
 - **开关**：设置 `auto_ingest`（默认开）同时门控 watcher 触发与启动补扫。
 

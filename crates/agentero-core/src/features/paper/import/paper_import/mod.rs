@@ -34,7 +34,7 @@ pub enum CommitStatus {
 pub enum DedupePolicy {
     /// Catalog has a row with the same `id` → `Deduped` (single-item entries).
     ByCatalogId,
-    /// Catalog row shares `id` or any identifier (arXiv ID, DOI, PMID, ISBN)
+    /// Catalog row shares a canonical id or identifier (arXiv ID, DOI, PMID, ISBN)
     /// → `Deduped`. With `CopyPdf`, the local PDF is merged into the existing
     /// folder instead of being discarded (Fix #406).
     ByIdentifiers,
@@ -468,15 +468,28 @@ fn backfill_existing_metadata(
     changed
 }
 
-/// First catalog row matching `id` or any shared identifier of `meta`
+/// First catalog row matching a canonical id or shared identifier of `meta`
 /// (arXiv ID, DOI, PMID, ISBN) — the cross-identifier lookup behind
 /// [`DedupePolicy::ByIdentifiers`].
 fn find_existing_by_identifiers(
     vault: &Path,
     meta: &papers::PaperRecord,
 ) -> Result<Option<papers::PaperRecord>, AppError> {
-    if let Some(existing) = papers::get_by_id(vault, &meta.id)? {
-        return Ok(Some(existing));
+    // Local PDF names are placeholders, never proof of scholarly identity.
+    // Keep id-based recovery for identifier imports with incomplete old rows.
+    let canonical_id = meta.paper_type != papers::PaperKind::Pdf
+        || meta
+            .arxiv_id
+            .as_deref()
+            .is_some_and(|id| super::slug_from_stem(id) == meta.id)
+        || meta
+            .doi
+            .as_deref()
+            .is_some_and(|doi| super::doi_slug(doi) == meta.id);
+    if canonical_id {
+        if let Some(existing) = papers::get_by_id(vault, &meta.id)? {
+            return Ok(Some(existing));
+        }
     }
     let lookups: [(&str, Option<&str>); 4] = [
         ("arxiv_id", meta.arxiv_id.as_deref()),
@@ -721,6 +734,65 @@ mod tests {
             .is_file());
 
         let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[tokio::test]
+    async fn by_identifiers_never_merges_local_filename_collisions() {
+        for id in ["paper", "中文论文"] {
+            let vault = tmp_vault("local-name-collision");
+            let existing_dir = vault.join("papers/舞蹈概论");
+            fs::create_dir_all(&existing_dir).unwrap();
+            fs::write(existing_dir.join("NOTES.md"), "# 舞蹈概论\n").unwrap();
+            fs::write(existing_dir.join("paper.pdf"), b"%PDF-1.4 dance").unwrap();
+            papers::upsert_paper(
+                &vault,
+                &papers::PaperRecord::local_pdf(id.into(), "舞蹈概论".into())
+                    .at_path("papers/舞蹈概论"),
+            )
+            .unwrap();
+            let src = vault.join("家长情绪支持与儿童英语学习兴趣转化研究.pdf");
+            fs::write(&src, b"%PDF-1.4 unrelated education paper").unwrap();
+            let result = paper_commit(
+                papers::PaperRecord::local_pdf(
+                    id.into(),
+                    "家长情绪支持与儿童英语学习兴趣转化研究".into(),
+                ),
+                PaperCommitOptions {
+                    vault: &vault,
+                    parent_dir: "papers/英语启蒙",
+                    dedupe: DedupePolicy::ByIdentifiers,
+                    assets: AssetsPolicy::CopyPdf {
+                        src: &src,
+                        progress: AssetProgressContext {
+                            app: None,
+                            task_id: None,
+                        },
+                    },
+                    translate_abstract: false,
+                    note_mode: NoteShellMode::TitleOnly,
+                    fresh_timestamps: false,
+                    cache: None,
+                    app: None,
+                    defer_parse_jobs: true,
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(result.status, CommitStatus::Created);
+            assert_ne!(result.id, id);
+            assert!(result.path.starts_with("papers/英语启蒙/"));
+            assert_eq!(
+                fs::read(vault.join(&result.path).join(format!("{}.pdf", result.id))).unwrap(),
+                fs::read(&src).unwrap()
+            );
+            assert!(!existing_dir.join("attachments").exists());
+            assert_eq!(
+                fs::read(existing_dir.join("paper.pdf")).unwrap(),
+                b"%PDF-1.4 dance"
+            );
+            assert_eq!(papers::list_all_unique_by_id(&vault).unwrap().len(), 2);
+            let _ = fs::remove_dir_all(vault);
+        }
     }
 
     #[tokio::test]
