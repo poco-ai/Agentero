@@ -8,8 +8,10 @@ use agent_client_protocol::schema::v1::McpServer;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
+#[cfg(any(unix, test))]
+use super::policy;
 #[cfg(unix)]
-use super::policy::{self, AgentChoice, TargetChoice};
+use super::policy::{AgentChoice, TargetChoice};
 #[cfg(unix)]
 use super::protocol::{
     AgentInfo, DelegateGrant, RunBody, TargetInfo, TargetsBody, WireRequest, WireResponse,
