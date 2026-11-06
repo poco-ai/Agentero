@@ -2747,10 +2747,10 @@ export type CustomProperty_Serialize = {
 /**
  *  Decision-layer provider settings.
  * 
- *  The layer speaks the System One contract (`state + questions -> answers`),
+ *  Callers speak the System One contract (`state + questions -> answers`),
  *  implemented by TypeSafe jEV, Cloudflare Clef, and compatible endpoints.
- *  `provider` selects a vendor preset; `base_url` / `model` can be overridden,
- *  so the OpenAI Decisions API slots in here once its public contract ships.
+ *  The OpenAI Decisions preset (`provider = "openai"`) uses the same settings
+ *  fields; the transport adapts request/response shapes to `/v1/decisions`.
  */
 export type DecisionSettings = {
 	/**  `jev` | `clef` | `openai` | `custom` (empty = `jev`). */
