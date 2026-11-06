@@ -87,9 +87,9 @@ fn parse_translation_response(body: &str) -> Result<String, AppError> {
         .and_then(|x| x.as_str())
         .ok_or_else(|| AppError::message("Unexpected DeepLX translation response"))?;
 
-    // DeepL can return this multilingual service notice in result.texts[0].text
-    // with HTTP 200 and no JSON-RPC error. Treat it as a provider failure so it
-    // cannot win the abstract-translation race and be persisted into NOTES.md.
+    // Reject the known multilingual client-upgrade notice even in a success
+    // payload, so it cannot win the abstract-translation race and be persisted
+    // into NOTES.md.
     const UPGRADE_NOTICE: &str = "You're using an older version of DeepL. To continue using the app, please update to the latest version.";
     if text.trim_start().starts_with(UPGRADE_NOTICE) {
         return Err(AppError::message(
@@ -161,5 +161,89 @@ mod tests {
             .to_string()
             .contains("DeepLX service error"));
         assert!(parse_translation_response(r#"{"result":{"texts":[]}}"#).is_err());
+    }
+
+    #[tokio::test]
+    async fn upgrade_notice_does_not_reach_imported_notes() {
+        use crate::features::catalog::papers::PaperRecord;
+        use crate::features::paper::import::{write_paper_shell_with_translation, NoteShellMode};
+        use crate::features::translate::{free_mt_to_zh_with, TranslateTextResult};
+        use std::fs;
+        use tokio::sync::Notify;
+
+        let vault = std::env::temp_dir().join(format!(
+            "agentero-deeplx-notice-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        fs::create_dir_all(&vault).unwrap();
+        let mut meta = PaperRecord::local_pdf("test-paper".into(), "Test paper".into());
+        meta.abstract_text = Some("We propose a robot control method.".into());
+        // Reconstructed response using the notice observed in imported notes;
+        // this fixture is not a captured response from a live DeepL request.
+        let response = json!({ "result": { "texts": [{ "text":
+            "You're using an older version of DeepL. To continue using the app, please update to the latest version.\n\n您正在使用旧版本的 DeepL。 如需继续使用该应用程序，请更新至最新版本。"
+        }] } }).to_string();
+
+        for fallback_succeeds in [true, false] {
+            let deepl_finished = Notify::new();
+            let write = write_paper_shell_with_translation(
+                &vault,
+                &vault,
+                &meta,
+                NoteShellMode::Standard,
+                true,
+                |text| {
+                    free_mt_to_zh_with(text, |args| {
+                        let response = &response;
+                        let deepl_finished = &deepl_finished;
+                        async move {
+                            assert_eq!(args.text, "We propose a robot control method.");
+                            let text = match args.provider.as_str() {
+                                "deeplx" => {
+                                    let result = parse_translation_response(response);
+                                    deepl_finished.notify_one();
+                                    result?
+                                }
+                                "tencenttransmart" => {
+                                    // The fallback must finish after DeepLX, even on
+                                    // fast machines; no wall-clock sleeps or network.
+                                    deepl_finished.notified().await;
+                                    if !fallback_succeeds {
+                                        return Err(AppError::message("provider unavailable"));
+                                    }
+                                    "本文提出了一种机器人控制方法。".into()
+                                }
+                                "huoshanweb" => {
+                                    return Err(AppError::message("provider unavailable"))
+                                }
+                                other => panic!("unexpected provider: {other}"),
+                            };
+                            Ok(TranslateTextResult {
+                                text,
+                                provider: args.provider,
+                            })
+                        }
+                    })
+                },
+            );
+            tokio::time::timeout(Duration::from_secs(5), write)
+                .await
+                .expect("translation race should finish after the fallback responds")
+                .unwrap();
+
+            let notes = fs::read_to_string(vault.join("NOTES.md")).unwrap();
+            assert!(notes.contains("# Test paper\n"));
+            assert!(!notes.contains("older version of DeepL"));
+            assert!(!notes.contains("We propose a robot control method."));
+            if fallback_succeeds {
+                assert!(notes.contains("> 本文提出了一种机器人控制方法。"));
+            } else {
+                assert!(
+                    !notes.contains("> "),
+                    "omit the abstract when all providers fail"
+                );
+            }
+        }
+        fs::remove_dir_all(vault).unwrap();
     }
 }
