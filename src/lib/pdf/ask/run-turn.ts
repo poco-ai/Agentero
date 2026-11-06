@@ -245,7 +245,12 @@ export async function runAskTurn({
 			unsubsRef,
 			sessionRef,
 			activeSessionRef,
-			onArmed: () => upsertThread(withAssistant),
+			onArmed: () => {
+				upsertThread(withAssistant);
+				// A local mark write schedules a disk refresh. Keep the assistant
+				// message id on disk so that refresh can still receive the reply.
+				void persist?.(withAssistant);
+			},
 			onStream: (ev) =>
 				patchThread(threadId, (th) => {
 					const msgs = [...th.messages];
