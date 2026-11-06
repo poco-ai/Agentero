@@ -44,6 +44,7 @@ pub fn npm_package_for_template(template_id: &str) -> Option<&'static str> {
         "zcode" => Some("zcode-acp-server"),
         "minimax-code" => Some("@minimax-ai/code"),
         "mimo-code" => Some("mimocode"),
+        "codebuddy" => Some("@tencent-ai/codebuddy-code"),
         _ => None,
     }
 }
@@ -315,6 +316,10 @@ mod tests {
             Some("@minimax-ai/code")
         );
         assert_eq!(npm_package_for_template("mimo-code"), Some("mimocode"));
+        assert_eq!(
+            npm_package_for_template("codebuddy"),
+            Some("@tencent-ai/codebuddy-code")
+        );
     }
 
     #[test]

@@ -52,7 +52,7 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `OPENAI_BASE_URL` 等变量；`AgentDescriptor.env` 优先级最高，可覆盖 shell 值（#478）。
   ACP、命令探测和安装器共用 core 的 shell 环境快照；安装前刷新，安装结束（含失败/取消）后失效，
   下次启动重新读取安装器可能修改的 PATH。快照不写入日志。
-- 统一接口：OpenCode、Hermes、Claude ACP、Codex ACP、Cursor Agent、Antigravity ACP、Qoder、Qoder CN、Grok、Pi、Dsh（DeepSeek Harness）、Kimi Code、ZCode、MiniMax Code、MiMo Code、自定义 `command`/`args`/`env`。自定义项不探测安装器，保存后按同一 stdio 路径拉起；前端把参数字符串按空白拆开。设置表单用 `agent.form.hint` 说明这一约定。
+- 统一接口：OpenCode、Hermes、Claude ACP、Codex ACP、Cursor Agent、Antigravity ACP、Qoder、Qoder CN、Grok、Pi、Dsh（DeepSeek Harness）、Kimi Code、ZCode、MiniMax Code、MiMo Code、CodeBuddy、自定义 `command`/`args`/`env`。自定义项不探测安装器，保存后按同一 stdio 路径拉起；前端把参数字符串按空白拆开。设置表单用 `agent.form.hint` 说明这一约定。
 - Dsh：umbrella CLI `@deepseek-ai/dsh`（npm，需 0.1.2+）内置 ACP profile——
   `dsh --profile acp` 以 ACP stdio 服务，首次启动从内置模板自动初始化 profile
   （`$DSH_HOME/profiles/acp`），无需手写 `cordis.yml` 或受管 launcher 目录。
@@ -107,6 +107,15 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   （bin `mimo`，需 Node 22+），install/update 走 `npm i -g mimocode`（Unix
   `--prefix "$HOME/.local"`），uninstall 走 `npm uninstall -g mimocode`；detect/ACP
   入口同二进制，登录在 CLI 内完成（`mimo providers`，即 opencode auth login 流程）。
+- CodeBuddy：腾讯 CodeBuddy Code，原生 ACP（`codebuddy --acp`）。官方 installer
+  （Unix `https://copilot.tencent.com/cli/install.sh`，Windows
+  `irm https://copilot.tencent.com/cli/install.ps1 | iex`）安装原生二进制，Unix 落到
+  `~/.local/bin/codebuddy`，Windows 落到 `%USERPROFILE%\AppData\Local\codebuddy\bin`；
+  npm 包 `@tencent-ai/codebuddy-code`（需 Node 18.20+）作回退。静默 update 优先
+  `codebuddy update`，失败再重跑官方 installer / npm。卸载会
+  `npm uninstall -g @tencent-ai/codebuddy-code` 并清理受管原生入口，但不删除
+  `~/.codebuddy` 里的登录和配置（可用 `CODEBUDDY_CONFIG_DIR` 覆盖）。首次登录在交互式
+  CLI 里选择中国站 / 国际站 / 企业站 / iOA；skill 走 slash mention。
 - Qoder CLI：原生 ACP（`qodercli --acp`）。官方 installer（`https://qoder.com/install`，
   Windows PowerShell 为 `irm https://qoder.com/install.ps1 | iex`）安装原生 `qodercli`；
   npm 包 `@qoder-ai/qodercli`（需 Node 20+）作回退。静默 update 优先 `qodercli update`，

@@ -1459,6 +1459,11 @@ export type AgentTemplate = "opencode" |
  */
 "mimo-code" | 
 /**
+ *  Tencent CodeBuddy Code CLI with native ACP (`codebuddy --acp`).
+ *  Docs: https://www.codebuddy.ai/docs/cli/acp · npm package `@tencent-ai/codebuddy-code`
+ */
+"codebuddy" | 
+/**
  *  内置「知乎」Agent：Host 内建，不 spawn 外部进程，直连知乎开放平台
  *  （直答 + 标题检索）。凭证来自 App settings。
  */

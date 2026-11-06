@@ -146,6 +146,16 @@ pub const MIMO_CODE_INSTALL_COMMAND: &str = if cfg!(windows) {
     "npm i -g mimocode --prefix \"$HOME/.local\""
 };
 
+/// Tencent CodeBuddy Code CLI. The official installer (native binary, no Node
+/// needed) seeds `~/.local/bin/codebuddy` on Unix and
+/// `%USERPROFILE%\AppData\Local\codebuddy\bin` on Windows; npm is the fallback
+/// and keeps the same Unix user prefix as the other agents (#791).
+pub const CODEBUDDY_NPM_INSTALL_COMMAND: &str = if cfg!(windows) {
+    "npm i -g @tencent-ai/codebuddy-code@latest"
+} else {
+    "npm i -g @tencent-ai/codebuddy-code@latest --prefix \"$HOME/.local\""
+};
+
 /// Newest `zcode.cjs` under the given dir, deepest-glob `*/*/glm/*/[arch]`.
 /// Returns candidates newest-mtime first; the cjs is platform-agnostic JS.
 fn zcode_cached_cli_candidates(releases_root: std::path::PathBuf) -> Vec<std::path::PathBuf> {
@@ -645,6 +655,24 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             login_command: None,
         },
         AgentTemplateInfo {
+            id: AgentTemplate::Codebuddy.as_str().to_string(),
+            name: "CodeBuddy".to_string(),
+            description:
+                "Tencent CodeBuddy Code CLI with native ACP (`codebuddy --acp`). \
+                 First launch picks the Chinese / international / enterprise login site."
+                    .to_string(),
+            command: "codebuddy".to_string(),
+            args: vec!["--acp".to_string()],
+            detect_command: Some("codebuddy".to_string()),
+            install_hint:
+                "Official installer (https://copilot.tencent.com/cli/install.sh) or npm: \
+                 `npm i -g @tencent-ai/codebuddy-code`  ·  then run `codebuddy` to log in  ·  \
+                 https://www.codebuddy.ai/docs/cli/acp"
+                    .to_string(),
+            install_command: None,
+            login_command: None,
+        },
+        AgentTemplateInfo {
             id: AgentTemplate::Custom.as_str().to_string(),
             name: "Custom".to_string(),
             description: "Any ACP-compatible command + args.".to_string(),
@@ -684,6 +712,7 @@ pub fn template_from_id(id: &str) -> AgentTemplate {
         "zcode" => AgentTemplate::Zcode,
         "minimax-code" => AgentTemplate::MinimaxCode,
         "mimo-code" => AgentTemplate::MimoCode,
+        "codebuddy" => AgentTemplate::Codebuddy,
         _ => AgentTemplate::Custom,
     }
 }

@@ -34,6 +34,7 @@ export type AgentTemplate =
 	| "zcode"
 	| "minimax-code"
 	| "mimo-code"
+	| "codebuddy"
 	| "qoder-cn"
 	| "zhihu"
 	| "custom";

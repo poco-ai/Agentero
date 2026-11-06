@@ -44,6 +44,9 @@ pub enum AgentTemplate {
     /// Xiaomi MiMo Code CLI (an OpenCode fork) with native ACP (`mimo acp`).
     /// Docs: https://mimo.xiaomi.com · npm package `mimocode`
     MimoCode,
+    /// Tencent CodeBuddy Code CLI with native ACP (`codebuddy --acp`).
+    /// Docs: https://www.codebuddy.ai/docs/cli/acp · npm package `@tencent-ai/codebuddy-code`
+    Codebuddy,
     /// 内置「知乎」Agent：Host 内建，不 spawn 外部进程，直连知乎开放平台
     /// （直答 + 标题检索）。凭证来自 App settings。
     Zhihu,
@@ -84,6 +87,7 @@ impl<'de> serde::Deserialize<'de> for AgentTemplate {
             "zcode" => Self::Zcode,
             "minimax-code" => Self::MinimaxCode,
             "mimo-code" => Self::MimoCode,
+            "codebuddy" => Self::Codebuddy,
             "zhihu" => Self::Zhihu,
             "custom" => Self::Custom,
             other => {
@@ -113,6 +117,7 @@ impl AgentTemplate {
             Self::Zcode => "zcode",
             Self::MinimaxCode => "minimax-code",
             Self::MimoCode => "mimo-code",
+            Self::Codebuddy => "codebuddy",
             Self::Zhihu => "zhihu",
             Self::Custom => "custom",
         }

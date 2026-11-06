@@ -916,6 +916,7 @@ fn apply_user_agent_to_agent(agent: &mut AgentDescriptor, user_agent: &str, prov
         | AgentTemplate::Zcode
         | AgentTemplate::MinimaxCode
         | AgentTemplate::MimoCode
+        | AgentTemplate::Codebuddy
         | AgentTemplate::Zhihu => {}
     }
 }

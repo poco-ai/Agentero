@@ -8,10 +8,10 @@ use crate::features::agent::registry::antigravity;
 use crate::features::agent::registry::discovery::{login_shell_env, path_entries, resolve_command};
 use crate::features::agent::registry::templates::{
     antigravity_install_dir, antigravity_server_name, kimi_launcher_dir, template_info,
-    zcode_host_path, CLAUDE_ACP_INSTALL_COMMAND, CODEX_ACP_INSTALL_COMMAND,
-    CODEX_HOST_INSTALL_COMMAND, DSH_INSTALL_COMMAND, MIMO_CODE_INSTALL_COMMAND,
-    MINIMAX_CODE_INSTALL_COMMAND, PI_ACP_INSTALL_COMMAND, PI_HOST_INSTALL_COMMAND,
-    ZCODE_ACP_INSTALL_COMMAND,
+    zcode_host_path, CLAUDE_ACP_INSTALL_COMMAND, CODEBUDDY_NPM_INSTALL_COMMAND,
+    CODEX_ACP_INSTALL_COMMAND, CODEX_HOST_INSTALL_COMMAND, DSH_INSTALL_COMMAND,
+    MIMO_CODE_INSTALL_COMMAND, MINIMAX_CODE_INSTALL_COMMAND, PI_ACP_INSTALL_COMMAND,
+    PI_HOST_INSTALL_COMMAND, ZCODE_ACP_INSTALL_COMMAND,
 };
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
@@ -85,6 +85,7 @@ pub const LIFECYCLE_TEMPLATES: &[&str] = &[
     "zcode",
     "minimax-code",
     "mimo-code",
+    "codebuddy",
     #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
     "antigravity-acp",
 ];
@@ -212,6 +213,15 @@ const QODER_INSTALL_WINDOWS_SCRIPT: &str = "irm https://qoder.com/install.ps1 | 
 #[cfg(target_os = "windows")]
 const QODER_CN_INSTALL_WINDOWS_SCRIPT: &str =
     "irm https://static.qoder.com.cn/qoder-cli-cn/install.ps1 | iex";
+
+/// CodeBuddy Code native installer (Beta) — no Node.js required, installs into
+/// `~/.local/bin` on Unix and `%USERPROFILE%\AppData\Local\codebuddy\bin` on
+/// Windows. Same download-then-exec shape as the other official installers.
+#[cfg(not(target_os = "windows"))]
+const CODEBUDDY_INSTALL_UNIX: &str = "bash -c 'tmp=$(mktemp) && curl -fsSL https://copilot.tencent.com/cli/install.sh -o $tmp && bash $tmp; status=$?; rm -f $tmp; exit $status'";
+#[cfg(target_os = "windows")]
+const CODEBUDDY_INSTALL_WINDOWS_SCRIPT: &str =
+    "irm https://copilot.tencent.com/cli/install.ps1 | iex";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolLifecycleAction {
@@ -367,6 +377,10 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
         ),
         "minimax-code" => (vec![npm_uninstall_global("@minimax-ai/code")], Vec::new()),
         "mimo-code" => (vec![npm_uninstall_global("mimocode")], Vec::new()),
+        "codebuddy" => (
+            vec![npm_uninstall_global("@tencent-ai/codebuddy-code")],
+            Vec::new(),
+        ),
         // The desktop app owns the ZCode host. Agentero only manages the ACP
         // bridge npm package, so uninstall must never imply that it removed
         // the user's desktop app or login data.
@@ -405,6 +419,13 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
         "antigravity-acp" => (
             Vec::new(),
             vec![antigravity_install_dir().display().to_string()],
+        ),
+        "codebuddy" => (
+            codebuddy_managed_install_paths()
+                .into_iter()
+                .map(|path| path.display().to_string())
+                .collect(),
+            Vec::new(),
         ),
         _ => (Vec::new(), Vec::new()),
     };
@@ -477,6 +498,28 @@ fn qoder_cn_managed_install_paths() -> Vec<std::path::PathBuf> {
         home.join(".qoder-cn").join("bin").join("qoderclicn"),
         home.join(".qoder-cn").join("entry"),
     ];
+    paths
+}
+
+/// Official CodeBuddy installer layout. Unix links `~/.local/bin/codebuddy`;
+/// Windows puts the launcher in `%USERPROFILE%\AppData\Local\codebuddy\bin`.
+/// `~/.codebuddy` holds login and settings, so it is never removed.
+fn codebuddy_managed_install_paths() -> Vec<std::path::PathBuf> {
+    #[cfg(target_os = "windows")]
+    let home = std::env::var_os("USERPROFILE").map(std::path::PathBuf::from);
+    #[cfg(not(target_os = "windows"))]
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    let Some(home) = home.filter(|path| !path.as_os_str().is_empty()) else {
+        return Vec::new();
+    };
+    #[cfg(not(target_os = "windows"))]
+    let paths = vec![home.join(".local").join("bin").join("codebuddy")];
+    #[cfg(target_os = "windows")]
+    let paths = vec![home
+        .join("AppData")
+        .join("Local")
+        .join("codebuddy")
+        .join("bin")];
     paths
 }
 
@@ -554,7 +597,7 @@ pub fn run_partial_template_uninstall(
         // Qoder's official installers do not need Node, so a missing npm must
         // not block removal of the script-installed binary.
         let npm_available = resolve_command("npm").is_some();
-        if !npm_available && !matches!(template_id, "qodercli" | "qoder-cn") {
+        if !npm_available && !matches!(template_id, "qodercli" | "qoder-cn" | "codebuddy") {
             return Err("npm is not available on PATH; cannot uninstall npm packages".to_string());
         }
         if npm_available {
@@ -1052,6 +1095,10 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
             )),
             "minimax-code" => Ok(MINIMAX_CODE_INSTALL_COMMAND.to_string()),
             "mimo-code" => Ok(MIMO_CODE_INSTALL_COMMAND.to_string()),
+            "codebuddy" => Ok(chain_or(
+                &codebuddy_install_windows_command(),
+                CODEBUDDY_NPM_INSTALL_COMMAND,
+            )),
             "grok-build" => Ok(chain_or(
                 &grok_install_windows_command(),
                 GROK_NPM_INSTALL_COMMAND,
@@ -1084,6 +1131,10 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
             "kimi-code" => Ok(chain_or(KIMI_INSTALL_UNIX, KIMI_NPM_INSTALL_COMMAND)),
             "minimax-code" => Ok(MINIMAX_CODE_INSTALL_COMMAND.to_string()),
             "mimo-code" => Ok(MIMO_CODE_INSTALL_COMMAND.to_string()),
+            "codebuddy" => Ok(chain_or(
+                CODEBUDDY_INSTALL_UNIX,
+                CODEBUDDY_NPM_INSTALL_COMMAND,
+            )),
             "grok-build" => Ok(chain_or(GROK_INSTALL_UNIX, GROK_NPM_INSTALL_COMMAND)),
             "zcode" => Err(
                 "ZCode desktop app is required; install it first, then install the ACP bridge"
@@ -1144,6 +1195,25 @@ fn host_update_command(template_id: &str) -> Result<String, String> {
         "kimi-code" => Ok(host_install_command(template_id)?),
         "minimax-code" => Ok(MINIMAX_CODE_INSTALL_COMMAND.to_string()),
         "mimo-code" => Ok(MIMO_CODE_INSTALL_COMMAND.to_string()),
+        "codebuddy" => {
+            #[cfg(target_os = "windows")]
+            {
+                Ok(chain_or(
+                    "codebuddy update",
+                    &chain_or(
+                        &codebuddy_install_windows_command(),
+                        CODEBUDDY_NPM_INSTALL_COMMAND,
+                    ),
+                ))
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                Ok(chain_or(
+                    "codebuddy update",
+                    &chain_or(CODEBUDDY_INSTALL_UNIX, CODEBUDDY_NPM_INSTALL_COMMAND),
+                ))
+            }
+        }
         "hermes" => {
             #[cfg(target_os = "windows")]
             {
@@ -1307,6 +1377,14 @@ fn kimi_install_windows_command() -> String {
 }
 
 #[cfg(target_os = "windows")]
+fn codebuddy_install_windows_command() -> String {
+    format!(
+        "powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand {}",
+        powershell_encoded_command(CODEBUDDY_INSTALL_WINDOWS_SCRIPT)
+    )
+}
+
+#[cfg(target_os = "windows")]
 fn qoder_install_windows_command() -> String {
     format!(
         "powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand {}",
@@ -1364,6 +1442,9 @@ pub fn manual_install_commands_text() -> String {
 # (or) {kimi_npm}
 # MiniMax Code
 {minimax}
+# CodeBuddy Code
+{codebuddy}
+# (or) {codebuddy_npm}
 # Dsh (DeepSeek Harness, ACP via dsh --profile acp)
 {dsh}"#,
             claude_npm = CLAUDE_NPM_INSTALL_COMMAND,
@@ -1384,6 +1465,8 @@ pub fn manual_install_commands_text() -> String {
             kimi = kimi_install_windows_command(),
             kimi_npm = KIMI_NPM_INSTALL_COMMAND,
             minimax = MINIMAX_CODE_INSTALL_COMMAND,
+            codebuddy = codebuddy_install_windows_command(),
+            codebuddy_npm = CODEBUDDY_NPM_INSTALL_COMMAND,
             dsh = DSH_INSTALL_COMMAND,
         )
     }
@@ -1415,6 +1498,8 @@ pub fn manual_install_commands_text() -> String {
 {kimi} || {kimi_npm}
 # MiniMax Code
 {minimax}
+# CodeBuddy Code
+{codebuddy} || {codebuddy_npm}
 # Dsh (DeepSeek Harness, ACP via dsh --profile acp)
 {dsh}"#,
             claude_host = CLAUDE_INSTALL_UNIX,
@@ -1437,6 +1522,8 @@ pub fn manual_install_commands_text() -> String {
             kimi = KIMI_INSTALL_UNIX,
             kimi_npm = KIMI_NPM_INSTALL_COMMAND,
             minimax = MINIMAX_CODE_INSTALL_COMMAND,
+            codebuddy = CODEBUDDY_INSTALL_UNIX,
+            codebuddy_npm = CODEBUDDY_NPM_INSTALL_COMMAND,
             dsh = DSH_INSTALL_COMMAND,
         )
     }
@@ -2089,6 +2176,7 @@ mod tests {
             "minimax-code",
             "mimo-code",
             "zcode",
+            "codebuddy",
         ] {
             if let Ok(command) = host_install_command(id) {
                 check(&command);
@@ -2156,6 +2244,7 @@ mod tests {
         assert!(text.contains("Grok"));
         assert!(text.contains("Pi"));
         assert!(text.contains("Kimi"));
+        assert!(text.contains("CodeBuddy"));
         assert!(text.contains("Dsh"));
     }
 
@@ -2425,6 +2514,59 @@ mod tests {
             info.agent.npm_commands,
             vec![npm_uninstall_global("mimocode")]
         );
+    }
+
+    #[test]
+    fn codebuddy_install_prefers_official_script_with_npm_fallback() {
+        let cmd = host_install_command("codebuddy").expect("CodeBuddy install");
+        let script = if cfg!(target_os = "windows") {
+            decode_encoded_commands(&cmd)
+        } else {
+            cmd.clone()
+        };
+        assert!(
+            script.contains("copilot.tencent.com/cli/install"),
+            "CodeBuddy install must use the official script: {script}"
+        );
+        assert!(
+            !script.contains("curl | bash"),
+            "must not pipe curl to bash"
+        );
+        assert!(
+            cmd.contains("@tencent-ai/codebuddy-code"),
+            "CodeBuddy install must fall back to npm: {cmd}"
+        );
+        let update = host_update_command("codebuddy").expect("CodeBuddy update");
+        let update_text = if cfg!(target_os = "windows") {
+            format!("{update}\n{}", decode_encoded_commands(&update))
+        } else {
+            update.clone()
+        };
+        assert!(
+            update_text.contains("codebuddy update"),
+            "CodeBuddy update must try the built-in updater: {update_text}"
+        );
+        assert!(
+            update_text.contains("copilot.tencent.com/cli/install"),
+            "CodeBuddy update must fall back to the official installer: {update_text}"
+        );
+        let info = uninstall_info("codebuddy").expect("CodeBuddy uninstall");
+        assert_eq!(
+            info.agent.npm_commands,
+            vec![npm_uninstall_global("@tencent-ai/codebuddy-code")]
+        );
+        let dirs: Vec<String> = info
+            .agent
+            .dirs
+            .iter()
+            .map(|dir| dir.replace('\\', "/"))
+            .collect();
+        #[cfg(target_os = "windows")]
+        assert!(dirs
+            .iter()
+            .any(|dir| dir.ends_with("AppData/Local/codebuddy/bin")));
+        #[cfg(not(target_os = "windows"))]
+        assert!(dirs.iter().any(|dir| dir.ends_with(".local/bin/codebuddy")));
     }
 
     #[test]

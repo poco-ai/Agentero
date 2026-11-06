@@ -421,6 +421,7 @@ function catalogTemplateFromId(templateId: string): AgentTemplate | undefined {
 		case "zcode":
 		case "minimax-code":
 		case "mimo-code":
+		case "codebuddy":
 		case "qoder-cn":
 		case "zhihu":
 		case "custom":

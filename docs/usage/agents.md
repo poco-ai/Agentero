@@ -11,7 +11,7 @@ Agentero 使用 **BYOA**（Bring Your Own Agent）：Agent 由你安装和登录
 - Claude ACP
 - Codex（经 ACP 适配器）
 - Cursor Agent（原生 ACP，`cursor-agent acp`）
-- OpenCode、Qoder、Qoder CN、Grok、Kimi Code、ZCode、MiniMax Code、MiMo Code 等兼容 ACP 的 CLI（ZCode 经 `zcode-acp-server` 适配器，复用桌面版登录；Qoder CN 为大陆版 `qodercn --acp`；MiMo Code 为 `mimo acp`，npm 包 `mimocode`）
+- OpenCode、Qoder、Qoder CN、Grok、Kimi Code、ZCode、MiniMax Code、MiMo Code、CodeBuddy 等兼容 ACP 的 CLI（ZCode 经 `zcode-acp-server` 适配器，复用桌面版登录；Qoder CN 为大陆版 `qodercn --acp`；MiMo Code 为 `mimo acp`，npm 包 `mimocode`；CodeBuddy 为腾讯 CodeBuddy Code，`codebuddy --acp`）
 - [GenericAgent ACP](genericagent-acp.md)
 - 自定义 `command` / `args` / `env`
 
@@ -53,6 +53,7 @@ Agentero 使用 **BYOA**（Bring Your Own Agent）：Agent 由你安装和登录
 2. 确认对话框展示该 Agent 的 logo 与将要执行的清理项：
    - Agentero 静默安装的 npm 全局包（如 `@opencode/cli`、`@anthropic-ai/claude-code`、`@minimax-ai/code`、`@qoder-ai/qodercli`、`@qodercn-ai/qoderclicn` 等）逐个 `npm uninstall -g`；OpenCode 会额外清理旧版 `opencode-ai`。
    - Agentero 管理的目录（Kimi Code 的 `~/.kimi-code`、dsh 旧方案的遗留 `~/.agentero/dsh-acp`）整体删除。
+  - CodeBuddy 官方脚本安装会删除 `~/.local/bin/codebuddy`（Unix）或 `%USERPROFILE%\AppData\Local\codebuddy\bin`（Windows），保留 `~/.codebuddy` 里的登录和配置。
    - Qoder CLI 官方脚本安装会删除 `~/.qoder/bin/qodercli`、`~/.qoder/entry`，以及 `~/.local/bin/qodercli` 这个链接（不删除整个 `~/.local/bin`）。
    - Qoder CN 官方脚本安装会删除 `~/.qoder-cn/bin/qoderclicn`、`~/.qoder-cn/entry`，以及 `~/.local/bin/qoderclicn` 这个链接。
 3. 确认后行内显示卸载进度；npm 卸载失败或命令仍可解析时会明确报错，不会再把失败显示为完成。成功后注册项一并移除，行回到「未安装」状态。
