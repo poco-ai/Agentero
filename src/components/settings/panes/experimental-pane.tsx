@@ -52,6 +52,9 @@ function baseUrlPlaceholder(provider: DecisionProviderId): string {
 	if (provider === "clef") {
 		return "https://api.cloudflare.com/client/v4/accounts/{accountId}/ai/run/@cf/cloudflare/clef";
 	}
+	if (provider === "openai") {
+		return DECISION_PROVIDER_PRESETS.openai.baseUrl;
+	}
 	return DEFAULT_DECISION_BASE_URL;
 }
 

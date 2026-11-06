@@ -1,5 +1,6 @@
 //! Built-in decision providers.
 
+pub mod openai_decisions;
 pub mod rule;
 pub mod system_one;
 
