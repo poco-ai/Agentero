@@ -33,6 +33,12 @@
 			"cancelled": "已取消"
 		}
 	},
+	"piTrust": {
+		"title": "Pi 未加载此 Vault 的项目资源",
+		"description": "Pi需要信任目录之后才能加载 skills",
+		"action": "信任此 Vault",
+		"dismiss": "关闭提示"
+	},
 	"switchAgent": "切换 ACP Agent",
 	"configBar": {
 		"label": "模型与会话选项"

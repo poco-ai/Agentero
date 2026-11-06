@@ -86,6 +86,8 @@ Skill 来源不受 Agentero 审计，安装第三方 Skill 等于引入外部指
 
 在 Agent 面板 Composer 中按 Agent 约定触发：Claude 用 `/skill-id`，其他 Agent 由 `SKILL.md` 自动注入。具体写法见 Skill 自身的 `SKILL.md`。
 
+Pi 只有在信任 Vault 后才会加载项目内的 `.agents/skills` 和 `.pi/*`。未信任时 Pi 面板输入框上方会显示提示；点「信任此 Vault」会写入 `~/.pi/agent/trust.json`，下一条消息起生效。也可以先在 pi 自己的 TUI 里信任该目录：回到 Agentero 后提示会自动消失，下一轮会重新启动 pi 进程并加载 Skill。
+
 ## 第一次对话
 
 1. 打开一篇论文（默认 PDF | NOTES 分屏）。

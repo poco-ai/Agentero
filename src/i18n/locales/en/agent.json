@@ -33,6 +33,12 @@
 			"cancelled": "Cancelled"
 		}
 	},
+	"piTrust": {
+		"title": "Pi has not loaded this Vault's project resources",
+		"description": "Pi needs folder trust before it can load skills.",
+		"action": "Trust this Vault",
+		"dismiss": "Dismiss"
+	},
 	"switchAgent": "Switch ACP agent",
 	"configBar": {
 		"label": "Model and session options"

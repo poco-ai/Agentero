@@ -4,6 +4,7 @@ import i18n from "@/i18n";
 import {
 	commands,
 	events,
+	type PiProjectTrustStatus,
 	type UpsertAgentRequest_Deserialize,
 } from "@/lib/core/bindings";
 import { callApi, callApiResult } from "@/lib/core/ipc";
@@ -768,6 +769,38 @@ export type WarmResult = {
 	usageSize?: number | null;
 	error?: string | null;
 };
+
+/**
+ * Pi's effective project-trust state for a local Vault.
+ *
+ * Pi runs headless under `pi-acp`, so `defaultProjectTrust: "ask"` resolves to
+ * untrusted and project skills are skipped. The Host mirrors Pi's lookup order
+ * instead of guessing.
+ */
+export async function piProjectTrustStatus(
+	agentId: string,
+	vaultPath: string,
+): Promise<PiProjectTrustStatus> {
+	return callApi(
+		() => commands.agentPiProjectTrustStatus(agentId, vaultPath),
+		AGENT_CALL_OPTS,
+	);
+}
+
+/**
+ * Explicitly trust this Vault for Pi. The Host merges the Vault entry into
+ * `~/.pi/agent/trust.json` and discards the agent's warm connection so the next
+ * session loads project resources.
+ */
+export async function grantPiProjectTrust(
+	agentId: string,
+	vaultPath: string,
+): Promise<PiProjectTrustStatus> {
+	return callApi(
+		() => commands.agentPiProjectTrustGrant(agentId, vaultPath),
+		AGENT_CALL_OPTS,
+	);
+}
 
 /** Start ACP in the background (no prompt) to prefetch models / usage for Chat UI. */
 export async function warmAgent(request: {

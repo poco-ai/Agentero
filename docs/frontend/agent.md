@@ -28,6 +28,16 @@ shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
   不支持的桥发送 `session/load`。范围与验证见
   [Dsh 重启后的历史恢复](../bug_fix/dsh-history-after-restart.md)。
 
+- **Pi 项目信任提示**：选中 Pi 且当前本地 Vault 需要信任却未信任时，输入框上方
+  显示一条可关闭提示。点击「信任此 Vault」调用 Host 写入 `~/.pi/agent/trust.json`
+  （合并已有条目，不改全局 `settings.json`）；成功后提示消失，Host 同时丢弃该 agent
+  的 warm 连接，使下一轮以新进程加载 `.agents/skills` / `.pi/*` 项目资源（续聊的会话经 `session/load` 重新读取），并立即重新
+  warm 一次，让 `/` 里的技能命令马上可用。提示可见时每 5 秒重探一次、窗口重新获焦时
+  也重探，因此信任是在 pi 自己的 TUI 里授予的也能自动收起（Host 侧的 warm key 同样
+  会随信任决策失效，下一轮冷启动）。提示按 agent + Vault 记住当前面板内的关闭；有
+  运行中会话时按钮禁用，避免续用旧的 Agent 进程。远程 Vault 不显示该提示。文案在
+  `agent.json` 的 `piTrust`。
+
 - 空态建议 chips → workflow：`summary` / `qa` / `related_work`。
 - **Agent 切换器列表**：App 启动即 `scanCatalog` + soft-probe（`prefetchAgentCatalog`，不依赖侧栏挂载）；面板挂载与 vault 变化时再 `listAgents + scanCatalog` 刷新。Settings 探测 / 安装 / 卸载 / 改默认会改 registry，Host 广播 `agent:registry-changed`（已纳入 lifecycle typed bus，见 [lifecycle-events](../development/lifecycle-events.md)），面板经 `lifecycle.on` 防抖刷新——面板常驻不卸载，否则探测成功后切换器仍是旧列表。catalog 项仅 `acpStatus === "ready"`（ACP 握手成功）才显示，不可用项直接隐藏而非置灰。
 - **当前论文默认 context**（可 X 移除）；`@` 提及或文件树拖入 → 在输入正文光标处插入行内 mention chip（见下）。写作界面改为当前打开的稿件文件。空对话在写作时换成续写、收紧、检查论证和从文库起草引用，这些是普通提问，不走阅读工作流。

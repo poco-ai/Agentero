@@ -14,6 +14,7 @@ import { SidebarHistoryTrailing } from "@/components/agent/agent-history";
 import { AgentPermissionDialog } from "@/components/agent/agent-permission-dialog";
 import { AgentSwitcher } from "@/components/agent/agent-switcher";
 import { ChatTranscript } from "@/components/agent/chat-transcript";
+import { PiProjectTrustNotice } from "@/components/agent/pi-project-trust-notice";
 import type { AgentPanelProps } from "@/components/agent/types";
 import { useAgentPanel } from "@/components/agent/use-agent-panel";
 import { PaneHeader } from "@/components/shell/pane-header";
@@ -439,6 +440,12 @@ export const AgentPanel = memo(function AgentPanel({
 
 					{!askUserActive ? (
 						<>
+							<PiProjectTrustNotice
+								vaultPath={vaultPath}
+								agentId={selected?.id}
+								template={selected?.template}
+								disabled={hasRunningSessions}
+							/>
 							<button
 								type="button"
 								aria-label={t("composer.resizeHandle")}
