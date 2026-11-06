@@ -229,7 +229,20 @@ pub async fn adopt_paper_folder(
 
     // A placeholder is local to this folder, not evidence that another
     // directory with the same slug represents the same logical paper.
-    let id = papers::allocate_local_id(vault, &slug_from_stem(&folder_name), &rel)?;
+    let mut base = slug_from_stem(&folder_name);
+    // Keep the existing identifier-filename preference for CJK folders;
+    // generic names such as `paper.pdf` must not replace the Unicode title.
+    if !folder_name.chars().any(|c| c.is_ascii_alphanumeric()) {
+        if let Some(arxiv) = pdfs
+            .first()
+            .and_then(|p| p.file_stem())
+            .and_then(|s| s.to_str())
+            .and_then(super::extract_arxiv_id)
+        {
+            base = slug_from_stem(&arxiv);
+        }
+    }
+    let id = papers::allocate_local_id(vault, &base, &rel)?;
 
     // Main-PDF heuristic among several: a PDF named after the folder (or
     // already `{id}.pdf`) is the obvious paper; otherwise the largest file —
@@ -637,9 +650,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn adopt_preserves_cjk_folder_id_and_identifier_folder_id() {
+    async fn adopt_keeps_identifier_named_pdf_for_cjk_folder() {
         let vault = tmp_vault("adopt-cjk");
-        // CJK names are preserved instead of collapsing to a shared placeholder.
+        // A known arXiv filename still takes precedence over a CJK folder name.
         write(&vault.join("papers/我的论文/2401.12345.pdf"), b"%PDF-1.4");
         let result = adopt_paper_folder(
             &vault,
@@ -652,9 +665,9 @@ mod tests {
         )
         .await
         .expect("adopt");
-        assert_eq!(result.id, "我的论文");
+        assert_eq!(result.id, "2401.12345");
         assert_eq!(result.path, "papers/我的论文");
-        assert!(vault.join("papers/我的论文/我的论文.pdf").is_file());
+        assert!(vault.join("papers/我的论文/2401.12345.pdf").is_file());
         // Identifier-named main PDF is not renamed when the id already matches.
         let vault2 = tmp_vault("adopt-id");
         write(
