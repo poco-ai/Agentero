@@ -139,7 +139,8 @@ fn convert_question(name: &str, question: &Value) -> Option<Value> {
             "instructions": instructions,
         })),
         "score" => {
-            let levels = criteria_to_levels(object.get("criteria").or_else(|| object.get("levels")));
+            let levels =
+                criteria_to_levels(object.get("criteria").or_else(|| object.get("levels")));
             let mut q = Map::new();
             q.insert("type".to_string(), Value::String("score".to_string()));
             q.insert("name".to_string(), Value::String(name.to_string()));
@@ -199,11 +200,7 @@ fn criteria_to_levels(criteria: Option<&Value>) -> Option<Value> {
 fn criteria_to_choices(criteria: Option<&Value>) -> Option<Value> {
     let value = criteria?;
     if let Some(arr) = value.as_array() {
-        if arr
-            .first()
-            .and_then(|v| v.get("value"))
-            .is_some()
-        {
+        if arr.first().and_then(|v| v.get("value")).is_some() {
             return Some(value.clone());
         }
         let choices: Vec<Value> = arr
@@ -258,10 +255,7 @@ pub fn openai_to_system_one_response(response: &Value) -> Value {
         }
     }
 
-    let mut out = response
-        .as_object()
-        .cloned()
-        .unwrap_or_default();
+    let mut out = response.as_object().cloned().unwrap_or_default();
     out.insert("answers".to_string(), Value::Object(map));
     Value::Object(out)
 }
@@ -335,8 +329,8 @@ fn probabilities_array_to_map(probs: &Value) -> Value {
     let mut map = Map::new();
     for item in arr {
         let key = item
-            .get("value")
-            .or_else(|| item.get("label"))
+            .get("label")
+            .or_else(|| item.get("value"))
             .map(|v| match v {
                 Value::String(s) => s.clone(),
                 other => other.to_string(),
