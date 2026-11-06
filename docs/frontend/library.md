@@ -18,7 +18,7 @@
 
 ## 表格能力
 
-论文标题在 Library、Paper Info、文件树、论文标签页、路径栏、回收站与移动端列表中共用 `PaperTitle`：支持来源元数据中的 HTML 斜体（`i` / `em`）、粗体（`b` / `strong`）、上下标（`sup` / `sub`）及 `u` / `s` / `small`，并解码 HTML 实体。渲染前用 DOMPurify 限定行内标签、移除所有属性及活动内容，再组合现有 `MathText`，保留嵌套 TeX 公式与截断行为。仅影响展示；catalog、元数据编辑和复制继续保留原始标题（含 HTML / TeX）。普通文件名不按 HTML 标题解析。
+论文标题在 Library、Paper Info、文件树、论文标签页、路径栏、回收站与移动端列表中共用 `PaperTitle`：支持来源元数据中的 HTML 斜体（`i` / `em`）、粗体（`b` / `strong`）、上下标（`sup` / `sub`）及 `u` / `s` / `small`，并解码 HTML 实体。渲染前用 DOMPurify 限定行内标签、移除所有属性及活动内容，再由 [html-react-parser](https://github.com/remarkablemark/html-react-parser) 转为 React 节点，通过公开的 `replace` 回调将含 TeX 的文本交给现有 `MathText`，保留嵌套公式与截断行为；不自行实现 HTML 解析或节点递归转换。普通标题绕过 HTML 解析，格式化结果按标题 memo。仅影响展示；catalog、元数据编辑和复制继续保留原始标题（含 HTML / TeX）。普通文件名不按 HTML 标题解析。
 
 | 能力 | 说明 |
 |---|---|

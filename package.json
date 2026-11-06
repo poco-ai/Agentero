@@ -123,6 +123,7 @@
 		"dockview-react": "^7.0.4",
 		"dompurify": "3.4.17",
 		"driver.js": "^1.8.0",
+		"html-react-parser": "^6.1.9",
 		"html-to-image": "^1.11.13",
 		"i18next": "^26.3.6",
 		"katex": "^0.18.2",
