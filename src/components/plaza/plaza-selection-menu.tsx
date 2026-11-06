@@ -5,8 +5,11 @@
  */
 
 import { useTranslation } from "react-i18next";
+import {
+	SelectionToolbar,
+	SelectionToolbarAction,
+} from "@/components/selection/selection-toolbar";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
-import { cn } from "@/lib/core/utils";
 
 export type PlazaSelectionScreen = { x: number; y: number };
 
@@ -40,40 +43,24 @@ export function PlazaSelectionMenu({
 	}
 
 	return (
-		<div
+		<SelectionToolbar
 			data-plaza-selection-menu
-			className={cn(
-				"fixed z-50 flex h-8 items-center gap-0.5 rounded-md border border-border/80 bg-background px-1 shadow-2xl ring-1 ring-black/5 dark:ring-white/10",
-				overContent &&
-					"bg-background/80 backdrop-blur-sm transition-[background-color] duration-150 hover:bg-background",
-			)}
+			dimmed={overContent}
+			className="fixed z-50"
 			style={{ left, top }}
-			role="toolbar"
 			aria-label={t("selection.menuLabel")}
 			onMouseDown={(e) => e.stopPropagation()}
 		>
-			<button
-				type="button"
-				className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-caption font-medium text-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97] motion-reduce:active:scale-100"
-				aria-label={`${t("selection.quickChat")} ${quickChatShortcut}`}
+			<SelectionToolbarAction
+				label={t("selection.quickChat")}
+				shortcut={quickChatShortcut}
 				onClick={onAsk}
-			>
-				<span>{t("selection.quickChat")}</span>
-				<kbd className="translate-y-px scale-90 text-caption font-normal text-muted-foreground/80 tabular-nums">
-					{quickChatShortcut}
-				</kbd>
-			</button>
-			<button
-				type="button"
-				className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-caption font-medium text-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97] motion-reduce:active:scale-100"
-				aria-label={`${t("selection.addToChat")} ${addToChatShortcut}`}
+			/>
+			<SelectionToolbarAction
+				label={t("selection.addToChat")}
+				shortcut={addToChatShortcut}
 				onClick={onAddToChat}
-			>
-				<span>{t("selection.addToChat")}</span>
-				<kbd className="translate-y-px scale-90 text-caption font-normal text-muted-foreground/80 tabular-nums">
-					{addToChatShortcut}
-				</kbd>
-			</button>
-		</div>
+			/>
+		</SelectionToolbar>
 	);
 }

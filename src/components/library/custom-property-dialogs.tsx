@@ -101,7 +101,7 @@ export function CreatePropertyDialog({
 								className={cn(
 									"flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1 text-xs transition-colors",
 									type === choice.value
-										? "bg-background font-medium text-foreground shadow-sm"
+										? "bg-background font-medium text-foreground shadow-raised"
 										: "text-muted-foreground hover:text-foreground",
 								)}
 								onClick={() => setType(choice.value)}

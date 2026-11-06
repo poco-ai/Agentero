@@ -3,15 +3,13 @@ import { useAnnotationCapability } from "@embedpdf/plugin-annotation/react";
 import { Pencil, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
 import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
+	SelectionToolbar,
+	SelectionToolbarDivider,
+	SelectionToolbarIconButton,
+} from "@/components/selection/selection-toolbar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { HighlightColorStack } from "@/components/viewer/pdf/cards/highlight-color-stack";
-import { PDF_SELECTION_MENU } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
 import { cn } from "@/lib/core/utils";
 import {
 	highlightColorOf,
@@ -79,13 +77,11 @@ export function HighlightAnnotationMenu({
 	return (
 		<div {...menuWrapperProps} ref={setRef}>
 			<TooltipProvider delayDuration={200}>
-				<div
+				<SelectionToolbar
 					data-pdf-chrome
-					role="toolbar"
 					aria-label={t("selection.highlightMenuLabel")}
 					className={cn(
-						"pointer-events-auto absolute z-10 flex h-10 items-center gap-0.5 px-1",
-						PDF_SELECTION_MENU,
+						"pointer-events-auto absolute z-10",
 						placement.suggestTop ? "top-full mt-1.5" : "bottom-full mb-1.5",
 					)}
 					// Pin the toolbar by its right edge so the color stack fans left on
@@ -100,42 +96,24 @@ export function HighlightAnnotationMenu({
 							onChangeColor(context.pageIndex, obj.id, color)
 						}
 					/>
-					<div className="mx-1 h-5 w-px shrink-0 bg-border" />
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-sm"
-								className="text-muted-foreground hover:text-foreground"
-								aria-label={t("selection.editComment")}
-								onClick={() => onEdit(obj.id)}
-							>
-								<Pencil className="size-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side={placement.suggestTop ? "bottom" : "top"}>
-							{t("selection.editComment")}
-						</TooltipContent>
-					</Tooltip>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-sm"
-								className="text-muted-foreground hover:text-destructive"
-								aria-label={t("selection.removeHighlight")}
-								onClick={() => onDelete(context.pageIndex, obj.id)}
-							>
-								<Trash2 className="size-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side={placement.suggestTop ? "bottom" : "top"}>
-							{t("selection.removeHighlight")}
-						</TooltipContent>
-					</Tooltip>
-				</div>
+					<SelectionToolbarDivider className="mx-1" />
+					<SelectionToolbarIconButton
+						label={t("selection.editComment")}
+						tooltipSide={placement.suggestTop ? "bottom" : "top"}
+						className="text-muted-foreground hover:text-foreground"
+						onClick={() => onEdit(obj.id)}
+					>
+						<Pencil className="size-4" />
+					</SelectionToolbarIconButton>
+					<SelectionToolbarIconButton
+						label={t("selection.removeHighlight")}
+						tooltipSide={placement.suggestTop ? "bottom" : "top"}
+						className="text-muted-foreground hover:text-destructive"
+						onClick={() => onDelete(context.pageIndex, obj.id)}
+					>
+						<Trash2 className="size-4" />
+					</SelectionToolbarIconButton>
+				</SelectionToolbar>
 			</TooltipProvider>
 		</div>
 	);

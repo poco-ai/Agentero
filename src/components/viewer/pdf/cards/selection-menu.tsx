@@ -14,6 +14,12 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import {
+	SelectionToolbar,
+	SelectionToolbarAction,
+	SelectionToolbarDivider,
+	SelectionToolbarIconButton,
+} from "@/components/selection/selection-toolbar";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -21,12 +27,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
 	HIGHLIGHT_COLOR_STACK_EXPANDED_W,
 	HighlightColorStack,
@@ -34,7 +35,6 @@ import {
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import { clamp } from "@/lib/core/math";
-import { cn } from "@/lib/core/utils";
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
 import type { MenuContext } from "@/lib/shell/commands/menu-contributions";
 import {
@@ -108,26 +108,14 @@ function SelectionCopyButton({
 	}, [onCopy]);
 
 	return (
-		<Tooltip>
-			<TooltipTrigger asChild>
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon-sm"
-					className="size-7"
-					aria-label={copied ? copiedLabel : `${label} ${shortcut}`}
-					onPointerDown={(event) => event.preventDefault()}
-					onClick={handleClick}
-				>
-					{copied ? (
-						<Check className="size-3.5" />
-					) : (
-						<Copy className="size-3.5" />
-					)}
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent side="top">{label}</TooltipContent>
-		</Tooltip>
+		<SelectionToolbarIconButton
+			label={copied ? copiedLabel : label}
+			shortcut={copied ? undefined : shortcut}
+			tooltip={label}
+			onClick={handleClick}
+		>
+			{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+		</SelectionToolbarIconButton>
 	);
 }
 
@@ -224,21 +212,17 @@ export function SelectionMenu({
 	}, [screen.x, screen.y, showHighlight]);
 
 	return (
-		<div
+		<SelectionToolbar
 			ref={menuRef}
 			data-pdf-chrome
-			className={cn(
-				"fixed z-50 flex h-8 items-center gap-0.5 rounded-md border border-border/80 bg-background px-1 shadow-2xl ring-1 ring-black/5 transition-[background-color,opacity] duration-150 dark:ring-white/10",
-				// Dim when covering body text or when the selection scrolled away.
-				position?.dimmed &&
-					"bg-background/80 opacity-70 backdrop-blur-sm hover:bg-background hover:opacity-100",
-			)}
+			// Dim when covering body text or when the selection scrolled away.
+			dimmed={position?.dimmed}
+			className="fixed z-50"
 			style={{
 				top: position?.top ?? 0,
 				right: position?.right ?? 0,
 				visibility: position ? undefined : "hidden",
 			}}
-			role="toolbar"
 			aria-label={t("selection.menuLabel")}
 			onMouseDown={(e) => e.stopPropagation()}
 		>
@@ -247,68 +231,34 @@ export function SelectionMenu({
 					<>
 						<HighlightColorStack ref={colorsRef} onSelect={onHighlight} />
 						{onNote ? (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon-sm"
-										className="size-7"
-										aria-label={t("selection.note")}
-										onPointerDown={(event) => event.preventDefault()}
-										onClick={onNote}
-									>
-										<MessageSquare className="size-3.5" />
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent side="top">
-									{t("selection.note")}
-								</TooltipContent>
-							</Tooltip>
+							<SelectionToolbarIconButton
+								label={t("selection.note")}
+								onClick={onNote}
+							>
+								<MessageSquare className="size-3.5" />
+							</SelectionToolbarIconButton>
 						) : null}
-						<div
+						<SelectionToolbarDivider
 							ref={dividerRef}
 							data-selection-anchor=""
-							className="mx-0.5 h-4 w-px shrink-0 bg-border"
 						/>
 					</>
 				) : null}
 				{showTranslate ? (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-sm"
-								className="size-7"
-								aria-label={t("selection.translate")}
-								onClick={onTranslate}
-							>
-								<Languages className="size-3.5" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side="top">
-							{t("selection.translate")}
-						</TooltipContent>
-					</Tooltip>
+					<SelectionToolbarIconButton
+						label={t("selection.translate")}
+						onClick={onTranslate}
+					>
+						<Languages className="size-3.5" />
+					</SelectionToolbarIconButton>
 				) : null}
 				{onBookmark && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-sm"
-								className="size-7"
-								aria-label={t("pdf.bookmarks.add")}
-								onPointerDown={(event) => event.preventDefault()}
-								onClick={onBookmark}
-							>
-								<Bookmark className="size-3.5" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>{t("pdf.bookmarks.add")}</TooltipContent>
-					</Tooltip>
+					<SelectionToolbarIconButton
+						label={t("pdf.bookmarks.add")}
+						onClick={onBookmark}
+					>
+						<Bookmark className="size-3.5" />
+					</SelectionToolbarIconButton>
 				)}
 				{onCopy ? (
 					<SelectionCopyButton
@@ -319,27 +269,21 @@ export function SelectionMenu({
 					/>
 				) : null}
 
-				<div className="mx-0.5 h-4 w-px shrink-0 bg-border" />
+				<SelectionToolbarDivider />
 				<div className="flex shrink-0 items-center">
-					<button
-						type="button"
-						className="inline-flex h-7 shrink-0 items-center gap-1 rounded-l-md px-1.5 text-caption font-medium text-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97] motion-reduce:active:scale-100"
-						aria-label={`${t("selection.addToChat")} ${addToChatShortcut}`}
-						onPointerDown={(event) => event.preventDefault()}
+					<SelectionToolbarAction
+						label={t("selection.addToChat")}
+						shortcut={addToChatShortcut}
+						className="rounded-r-none"
 						onClick={onAddToChat}
-					>
-						<span>{t("selection.addToChat")}</span>
-						<kbd className="translate-y-px scale-90 text-caption font-normal text-muted-foreground/80 tabular-nums">
-							{addToChatShortcut}
-						</kbd>
-					</button>
+					/>
 					<DropdownMenu modal={false}>
 						<DropdownMenuTrigger asChild>
 							<Button
 								type="button"
 								variant="ghost"
 								size="icon-sm"
-								className="h-7 w-6 rounded-l-none"
+								className="w-6 rounded-l-none"
 								aria-label={t("selection.chatActions")}
 							>
 								<ChevronDown className="size-3" />
@@ -357,23 +301,19 @@ export function SelectionMenu({
 				</div>
 				{contributions.length > 0 ? (
 					<>
-						<div className="mx-0.5 h-4 w-px shrink-0 bg-border" />
+						<SelectionToolbarDivider />
 						{contributions.map((item) => (
-							<button
+							<SelectionToolbarAction
 								key={item.id}
-								type="button"
-								className="inline-flex h-7 shrink-0 items-center rounded-md px-1.5 text-caption font-medium text-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-[0.97] motion-reduce:active:scale-100"
-								onPointerDown={(event) => event.preventDefault()}
+								label={item.title}
 								onClick={() => {
 									activateMenuContribution(item, contributionContext);
 								}}
-							>
-								<span>{item.title}</span>
-							</button>
+							/>
 						))}
 					</>
 				) : null}
 			</TooltipProvider>
-		</div>
+		</SelectionToolbar>
 	);
 }

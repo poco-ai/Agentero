@@ -47,7 +47,7 @@ export const PdfFindBar = memo(function PdfFindBar({
 			<div
 				data-pdf-chrome
 				className={cn(
-					"absolute top-12 right-3 z-30 flex origin-top-right select-none items-center gap-1 rounded-lg p-1 shadow-md",
+					"absolute top-12 right-3 z-30 flex origin-top-right select-none items-center gap-1 rounded-lg p-1 shadow-overlay",
 					PDF_CHROME_CHIP,
 					"motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:duration-200 motion-reduce:animate-none",
 				)}

@@ -5,6 +5,7 @@ import { AgentLogo } from "@/components/agent/agent-logo";
 import { LayoutMenu } from "@/components/shell/layout-menu";
 import { TrafficLightSpacer } from "@/components/shell/traffic-light-spacer";
 import { UpdateIndicator } from "@/components/shell/update-indicator";
+import { WindowHeader } from "@/components/shell/window-header";
 import { Button } from "@/components/ui/button";
 import {
 	ContextMenu,
@@ -69,10 +70,7 @@ export const TitleBar = memo(function TitleBar({
 	const agentTemplate = useAgentChromeStore((s) => s.template);
 
 	return (
-		<header
-			data-titlebar
-			className="flex h-8 shrink-0 items-center border-b border-border/50 bg-background/75 backdrop-blur-xl backdrop-saturate-150 supports-backdrop-blur:bg-background/65 select-none"
-		>
+		<WindowHeader>
 			{/* Collapses in native fullscreen, where macOS hides the lights. */}
 			{isMacDesktop ? (
 				<TrafficLightSpacer />
@@ -85,7 +83,7 @@ export const TitleBar = memo(function TitleBar({
 						<TooltipTrigger asChild>
 							<Button
 								variant="ghost"
-								size="icon-xs"
+								size="icon-sm"
 								data-tb-sidebar
 								aria-label={
 									sidebarCollapsed
@@ -121,7 +119,7 @@ export const TitleBar = memo(function TitleBar({
 									<Button
 										type="button"
 										variant="ghost"
-										size="icon-xs"
+										size="icon-sm"
 										data-tb-agent
 										aria-label={
 											rightSidebarOpen
@@ -177,7 +175,7 @@ export const TitleBar = memo(function TitleBar({
 										<Button
 											type="button"
 											variant="ghost"
-											size="icon-xs"
+											size="icon-sm"
 											aria-label={t("titlebar.settings")}
 										>
 											<Settings className="size-3.5" />
@@ -224,6 +222,6 @@ export const TitleBar = memo(function TitleBar({
 					) : null}
 				</div>
 			</TooltipProvider>
-		</header>
+		</WindowHeader>
 	);
 });

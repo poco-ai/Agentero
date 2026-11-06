@@ -80,7 +80,7 @@ export function TextEditorToolbar({
 					<PopoverContent
 						side="bottom"
 						align="end"
-						className="w-auto p-1"
+						className="w-auto p-1.5"
 						onOpenAutoFocus={(e) => e.preventDefault()}
 					>
 						<div className="flex flex-col gap-0.5">

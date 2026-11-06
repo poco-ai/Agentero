@@ -8,6 +8,7 @@
 import { Pencil } from "lucide-react";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { EDITABLE_CELL } from "@/components/library/cell-styles";
 import { cn } from "@/lib/core/utils";
 import {
 	type CustomProperty,
@@ -102,7 +103,8 @@ export function TextCell({
 			title={value || t("papersLibrary.customProperties.editTextValue")}
 			aria-label={t("papersLibrary.customProperties.editTextValue")}
 			className={cn(
-				"group/text flex h-full w-full min-h-[1.75rem] cursor-text items-center gap-1 rounded-sm px-1.5 py-0.5 text-left text-xs transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				EDITABLE_CELL,
+				"group/text cursor-text text-left",
 				className,
 			)}
 		>

@@ -72,7 +72,7 @@ export function HtmlPreviewPanel({
 					}
 					className={cn(
 						"absolute inset-y-0 right-0 z-30 flex w-[min(42rem,72%)] flex-col",
-						"border-l bg-background shadow-2xl",
+						"border-l bg-background shadow-overlay",
 					)}
 				>
 					<motion.div

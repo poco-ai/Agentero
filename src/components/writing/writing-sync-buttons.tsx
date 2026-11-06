@@ -37,7 +37,7 @@ export function WritingSyncButtons({
 
 	return (
 		<div
-			className="pointer-events-auto absolute top-1/3 z-40 flex -translate-x-1/2 -translate-y-1/2 flex-col rounded-full border border-border bg-popover p-0.5 text-popover-foreground shadow-md"
+			className="pointer-events-auto absolute top-1/3 z-40 flex -translate-x-1/2 -translate-y-1/2 flex-col rounded-full border border-border bg-popover p-0.5 text-popover-foreground shadow-overlay"
 			style={{ left: `${position}%` }}
 		>
 			<Tooltip>

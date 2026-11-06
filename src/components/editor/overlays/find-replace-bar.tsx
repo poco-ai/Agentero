@@ -214,7 +214,7 @@ export function FindReplaceBar({
 		<TooltipProvider delayDuration={200}>
 			{/** biome-ignore lint/a11y/noStaticElementInteractions: keyboard shortcuts for the contained inputs */}
 			<div
-				className="absolute top-2 right-4 z-30 rounded-lg border border-border/80 bg-background/95 p-1 shadow-md backdrop-blur-sm"
+				className="absolute top-2 right-4 z-30 rounded-lg border border-border/80 bg-background/95 p-1 shadow-overlay backdrop-blur-sm"
 				onKeyDown={handleBarKeyDown}
 			>
 				<div className="flex items-center gap-1">

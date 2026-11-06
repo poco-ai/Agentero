@@ -10,6 +10,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { QuietIconButton } from "@/components/ui/quiet-icon-button";
 import {
 	Tooltip,
 	TooltipContent,
@@ -82,11 +83,7 @@ export function PdfForceLayoutButton({
 				<TooltipProvider delayDuration={200}>
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-xs"
-								className="size-6 text-muted-foreground hover:text-foreground"
+							<QuietIconButton
 								aria-label={t("figures.forceReanalyze")}
 								disabled={busy}
 								onClick={() => setOpen(true)}
@@ -96,7 +93,7 @@ export function PdfForceLayoutButton({
 								) : (
 									<RefreshCw className="size-3.5" aria-hidden />
 								)}
-							</Button>
+							</QuietIconButton>
 						</TooltipTrigger>
 						<TooltipContent side="bottom">
 							{t("figures.forceReanalyze")}

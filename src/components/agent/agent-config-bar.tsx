@@ -117,7 +117,7 @@ export function AgentConfigBar({
 								{t("composer.collaborationTooltip")}
 							</TooltipContent>
 						</Tooltip>
-						<DropdownMenuContent align="start" className="min-w-36 p-1">
+						<DropdownMenuContent align="start" className="min-w-36 p-1.5">
 							{collaborationOptions.map((mode) => (
 								<DropdownMenuItem
 									key={mode.id}

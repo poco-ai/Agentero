@@ -123,7 +123,7 @@ export function BookmarkEditTree({
 								setDragId(null);
 							}}
 							className={cn(
-								"group flex min-h-8 min-w-0 w-full items-center rounded border-y border-transparent",
+								"group flex min-h-8 min-w-0 w-full items-center rounded-md border-y border-transparent transition-colors hover:bg-muted/60",
 								dragId === node.id && "opacity-40",
 								drop?.id === node.id &&
 									(drop.position === "inside"
@@ -160,7 +160,7 @@ export function BookmarkEditTree({
 									<TooltipTrigger asChild>
 										<button
 											type="button"
-											className="min-w-0 flex-1 truncate rounded px-1 py-1 text-left text-sm hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+											className="min-w-0 flex-1 truncate rounded px-1 py-1 text-left text-sm focus-visible:ring-2 focus-visible:ring-ring"
 											aria-keyshortcuts={isMacOS() ? "Enter F2" : "F2"}
 											onKeyDown={(event) => {
 												if (

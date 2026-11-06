@@ -499,7 +499,7 @@ export function AgentComposer(props: AgentComposerProps) {
 							)}
 							aria-hidden
 						>
-							<div className="flex items-center gap-2 rounded-full border border-primary/25 bg-background/90 px-3 py-1.5 text-primary text-xs font-medium shadow-sm">
+							<div className="flex items-center gap-2 rounded-full border border-primary/25 bg-background/90 px-3 py-1.5 text-primary text-xs font-medium shadow-raised">
 								<ImageIcon className="size-3.5 shrink-0" />
 								<span>{t("composer.dropImageHint")}</span>
 							</div>

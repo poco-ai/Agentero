@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useIframeDragShield } from "@/hooks/use-iframe-drag-shield";
 import { commands } from "@/lib/core/bindings";
 import { callApiResult } from "@/lib/core/ipc";
@@ -69,14 +70,9 @@ export function LocalHtmlViewer({
 
 	if (failed || !src) {
 		return (
-			<div
-				className={cn(
-					"flex h-full items-center justify-center p-6 text-center text-muted-foreground text-sm",
-					className,
-				)}
-			>
+			<EmptyState className={className}>
 				{failed ? t("html.localFailed") : null}
-			</div>
+			</EmptyState>
 		);
 	}
 

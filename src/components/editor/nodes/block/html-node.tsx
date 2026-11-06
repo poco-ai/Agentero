@@ -127,7 +127,7 @@ export function HtmlBlockElement(
 							title={t("html.edit")}
 							aria-label={t("html.edit")}
 							className={cn(
-								"absolute top-1 right-1 z-10 size-6 opacity-0 shadow-sm",
+								"absolute top-1 right-1 z-10 size-6 opacity-0 shadow-raised",
 								"transition-opacity duration-150 ease-out motion-reduce:transition-none",
 								"group-hover/html:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100",
 							)}

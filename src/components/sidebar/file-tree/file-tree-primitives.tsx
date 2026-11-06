@@ -285,7 +285,7 @@ export const FileTreeFolderRow = ({
 			data-path={path}
 			draggable
 			className={cn(
-				"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded pl-2.5 pr-4 text-left text-sm font-normal",
+				"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded-md pl-2.5 pr-4 text-left text-sm font-normal",
 				FILE_TREE_ROW_STATE,
 				isSelected && FILE_TREE_ROW_SELECTED_STATE,
 				dropTargetPath === path && DROP_RING,
@@ -351,9 +351,9 @@ export const FileTreeFolderRow = ({
 					icon={
 						icon ??
 						(isExpanded ? (
-							<FolderOpenIcon className="size-4 text-blue-500" aria-hidden />
+							<FolderOpenIcon className="size-4 text-brand" aria-hidden />
 						) : (
-							<FolderIcon className="size-4 text-blue-500" aria-hidden />
+							<FolderIcon className="size-4 text-brand" aria-hidden />
 						))
 					}
 				/>
@@ -481,7 +481,7 @@ export const FileTreeFile = ({
 				data-path={path}
 				draggable
 				className={cn(
-					"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded pl-2.5 pr-4 text-sm font-normal",
+					"group flex h-7 min-h-7 w-full cursor-pointer items-center gap-1 rounded-md pl-2.5 pr-4 text-sm font-normal",
 					FILE_TREE_ROW_STATE,
 					isSelected && FILE_TREE_ROW_SELECTED_STATE,
 					dropTargetPath === path && DROP_RING,

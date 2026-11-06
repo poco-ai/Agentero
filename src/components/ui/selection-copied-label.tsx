@@ -39,7 +39,7 @@ export function SelectionCopiedLabel({ x, y }: SelectionCopiedLabelProps) {
 	return createPortal(
 		<div
 			className={cn(
-				"pointer-events-none fixed z-50 inline-flex h-5 items-center rounded-full border border-border/80 bg-background/95 px-2 text-caption font-medium text-foreground shadow-xl ring-1 ring-black/10 backdrop-blur-sm animate-in fade-in zoom-in-95 dark:ring-white/10",
+				"pointer-events-none fixed z-50 inline-flex h-5 items-center rounded-full border border-border/80 bg-background/95 px-2 text-caption font-medium text-foreground shadow-raised ring-1 ring-foreground/10 backdrop-blur-sm animate-in fade-in zoom-in-95",
 			)}
 			style={{ left, top }}
 			role="status"

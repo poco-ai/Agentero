@@ -311,7 +311,7 @@ function SelectionChatCard({ draft }: { draft: SelectionChatDraft }) {
 			ref={cardRef}
 			role="dialog"
 			aria-label={t("selection.addToChat")}
-			className={`fixed z-50 border border-border bg-popover text-popover-foreground shadow-lg ${isComment && !draft.editing ? "rounded-[1.75rem]" : "rounded-xl"}`}
+			className={`fixed z-50 border border-border bg-popover text-popover-foreground shadow-overlay ring-1 ring-foreground/10 ${isComment && !draft.editing ? "rounded-[1.75rem]" : "rounded-xl"}`}
 			style={{ left, top, width }}
 		>
 			{isComment ? (

@@ -1,5 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { cleanSkillDisplayName } from "@/components/agent/composer/composer-inline-dom";
+import { COMPOSER_MENU_SURFACE } from "@/components/agent/composer/composer-menu-surface";
 import { PopoverContent } from "@/components/ui/popover";
 import type { AgentSkill } from "@/lib/agent";
 import type { AcpCommand } from "@/lib/agent/slash-commands";
@@ -25,7 +26,7 @@ export function ComposerSkillMenu({
 			align="start"
 			sideOffset={8}
 			onOpenAutoFocus={(event) => event.preventDefault()}
-			className="max-h-(--radix-popover-content-available-height) w-[min(28rem,calc(100vw-1rem))] gap-0 overflow-y-auto p-1"
+			className={COMPOSER_MENU_SURFACE}
 		>
 			{skillOptions.map((skill, index) => (
 				<button
@@ -78,7 +79,7 @@ export function ComposerSlashMenu({
 			align="start"
 			sideOffset={8}
 			onOpenAutoFocus={(event) => event.preventDefault()}
-			className="max-h-(--radix-popover-content-available-height) w-[min(28rem,calc(100vw-1rem))] gap-0 overflow-y-auto p-1"
+			className={COMPOSER_MENU_SURFACE}
 		>
 			{slashOptions.map((command, index) => (
 				<button

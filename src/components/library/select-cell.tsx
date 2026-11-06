@@ -6,6 +6,7 @@
 import { Check, ChevronDown, Plus, Search, Trash2, X } from "lucide-react";
 import { type MouseEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { EDITABLE_CELL } from "@/components/library/cell-styles";
 import {
 	Popover,
 	PopoverContent,
@@ -108,7 +109,8 @@ export function SelectCell({
 						e.stopPropagation();
 					}}
 					className={cn(
-						"group/select flex h-full w-full min-h-[1.75rem] cursor-pointer items-center justify-between gap-1 rounded-sm px-1.5 py-0.5 text-xs transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+						EDITABLE_CELL,
+						"group/select cursor-pointer justify-between",
 						className,
 					)}
 				>
@@ -221,7 +223,7 @@ export function SelectCell({
 									key={opt.id}
 									onClick={(e) => handleSelect(e, opt.id)}
 									className={cn(
-										"group/opt flex w-full cursor-pointer items-center justify-between gap-1.5 rounded px-2 py-1 text-left text-xs hover:bg-muted",
+										"group/opt flex w-full cursor-pointer items-center justify-between gap-1.5 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted",
 										isSelected && "bg-muted font-medium",
 									)}
 								>
@@ -263,7 +265,7 @@ export function SelectCell({
 						<button
 							type="button"
 							onClick={(e) => handleSelect(e, null)}
-							className="flex w-full items-center gap-1.5 rounded px-2 py-1 text-muted-foreground text-xs hover:bg-muted hover:text-foreground"
+							className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-muted-foreground text-xs hover:bg-muted hover:text-foreground"
 						>
 							<X className="size-3" />
 							<span>{t("papersLibrary.customProperties.clearValue")}</span>

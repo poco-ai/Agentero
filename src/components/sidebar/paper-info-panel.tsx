@@ -25,6 +25,7 @@ import { EditablePaperTag } from "@/components/library/editable-paper-tag";
 import { PaperTagRemoveButton } from "@/components/library/paper-tag-chip";
 import { TagColorPalette } from "@/components/library/tag-color-palette";
 import { PaperTitle } from "@/components/paper/paper-title";
+import { Button } from "@/components/ui/button";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -298,7 +299,7 @@ function TagsEditor({
 						placeholder={t("paperInfo.addTag")}
 						aria-label={t("paperInfo.addTag")}
 						disabled={busy}
-						className="h-6 border-dashed py-0 pr-7 pl-1.5 text-caption"
+						className="h-7 border-dashed py-0 pr-8 pl-2 text-xs"
 					/>
 					<Popover open={colorOpen} onOpenChange={setColorOpen}>
 						<PopoverTrigger asChild>
@@ -795,19 +796,15 @@ export function PaperInfoPanel({
 									onOpenChange={setZhihuDraftOpen}
 								>
 									<PopoverTrigger asChild>
-										<button
+										<Button
 											type="button"
+											variant="outline"
+											size="sm"
 											onClick={() => void askOnZhihu()}
 											disabled={zhihuBusy}
 											title={t("paperInfo.zhihuAskHint")}
 											aria-label={t("paperInfo.zhihuAsk")}
-											className={cn(
-												"flex h-7 w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-background px-2",
-												"text-xs leading-none text-muted-foreground transition-colors",
-												"hover:bg-muted hover:text-foreground",
-												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-												"disabled:pointer-events-none disabled:opacity-60",
-											)}
+											className="w-full justify-center gap-1.5 text-xs"
 										>
 											{zhihuBusy ? (
 												<Loader2
@@ -823,7 +820,7 @@ export function PaperInfoPanel({
 											<span className="truncate">
 												{t("paperInfo.zhihuAsk")}
 											</span>
-										</button>
+										</Button>
 									</PopoverTrigger>
 									<PopoverContent
 										side="top"
@@ -844,18 +841,14 @@ export function PaperInfoPanel({
 													</div>
 												</div>
 												<div>
-													<button
+													<Button
 														type="button"
+														variant="outline"
+														size="xs"
 														onClick={() => void copyZhihuDraft(zhihuDraft)}
-														className={cn(
-															"flex h-6 cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-background px-2",
-															"text-caption leading-none text-muted-foreground transition-colors",
-															"hover:bg-muted hover:text-foreground",
-															"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-														)}
 													>
 														{t("paperInfo.zhihuDraftCopy")}
-													</button>
+													</Button>
 												</div>
 											</div>
 										) : null}
@@ -864,21 +857,18 @@ export function PaperInfoPanel({
 							</div>
 							{canEditMeta ? (
 								<div className="px-3 pt-2">
-									<button
+									<Button
 										type="button"
+										variant="outline"
+										size="sm"
+										className="w-full justify-center gap-1.5 text-xs"
 										onClick={() => setEditMetaDraft(meta)}
-										className={cn(
-											"flex h-7 w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-background px-2",
-											"text-xs leading-none text-muted-foreground transition-colors",
-											"hover:bg-muted hover:text-foreground",
-											"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-										)}
 									>
 										<Pencil className="size-3.5 shrink-0" aria-hidden />
 										<span className="truncate">
 											{t("paperInfo.editMeta.title")}
 										</span>
-									</button>
+									</Button>
 								</div>
 							) : null}
 						</div>

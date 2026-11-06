@@ -146,7 +146,7 @@ export function MobileAgentPage({
 							)}
 						</MessageScrollerContent>
 					</ConversationContent>
-					<ConversationScrollButton className="bottom-3 size-8 shadow-md" />
+					<ConversationScrollButton className="bottom-3 size-8 shadow-raised" />
 				</Conversation>
 				<PromptInput
 					className="shrink-0 rounded-none border-0 border-t bg-muted/10 p-3.5 shadow-none md:px-6"

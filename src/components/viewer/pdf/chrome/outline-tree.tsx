@@ -33,7 +33,7 @@ export const OutlineTree = memo(function OutlineTree({
 				<li key={bookmarkKey(n, depth)}>
 					<button
 						type="button"
-						className="w-full truncate rounded px-2 py-1 text-left text-muted-foreground text-sm transition-colors duration-100 hover:bg-muted/60 hover:text-foreground active:bg-muted/80"
+						className="w-full truncate rounded-md px-2 py-1 text-left text-muted-foreground text-sm transition-colors duration-100 hover:bg-muted/60 hover:text-foreground active:bg-muted/80"
 						style={{ paddingLeft: 8 + depth * 12 }}
 						title={n.title}
 						onClick={() => {

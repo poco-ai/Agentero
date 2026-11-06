@@ -88,7 +88,7 @@ export function MobileSidebar({
 			/>
 			<aside
 				className={cn(
-					"absolute inset-y-0 left-0 flex w-[min(20rem,85vw)] select-none flex-col border-r bg-background pt-[env(safe-area-inset-top)] shadow-xl transition-transform duration-200 ease-out",
+					"absolute inset-y-0 left-0 flex w-[min(20rem,85vw)] select-none flex-col border-r bg-background pt-[env(safe-area-inset-top)] shadow-dialog transition-transform duration-200 ease-out",
 					open ? "translate-x-0" : "-translate-x-full",
 				)}
 				aria-label={t("settings.menu")}
@@ -112,7 +112,7 @@ export function MobileSidebar({
 				</header>
 
 				<div className="flex-1 overflow-y-auto px-4 py-5">
-					<section className="rounded-xl border bg-background shadow-sm">
+					<section className="rounded-xl border bg-background shadow-raised">
 						<button
 							type="button"
 							aria-expanded={expandedDevice}

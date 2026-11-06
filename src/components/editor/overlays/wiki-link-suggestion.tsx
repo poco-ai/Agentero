@@ -629,7 +629,7 @@ export function WikiLinkSuggestion({
 	return (
 		<ViewportFloating
 			point={{ x: draft.left, y: draft.top }}
-			className="z-50 flex w-96 flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
+			className="z-50 flex w-96 flex-col overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-overlay ring-1 ring-foreground/10"
 			data-editor-completion="wiki"
 		>
 			<div

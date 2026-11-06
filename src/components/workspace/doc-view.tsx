@@ -223,7 +223,7 @@ function TexCompilingIndicator() {
 		<div
 			role="status"
 			aria-live="polite"
-			className="pointer-events-none absolute bottom-12 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border bg-background/95 px-3 py-1.5 text-xs shadow-sm"
+			className="pointer-events-none absolute bottom-12 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border bg-background/95 px-3 py-1.5 text-xs shadow-raised"
 		>
 			<Loader2
 				className="size-3.5 animate-spin motion-reduce:animate-none"

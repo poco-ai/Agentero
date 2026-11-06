@@ -346,7 +346,7 @@ function LivePreviewBadge({ rootPath }: { rootPath: string }) {
 	return (
 		<div
 			role="status"
-			className="pointer-events-none absolute top-2 right-5 z-10 flex items-center gap-1.5 rounded-md border border-border/70 bg-background/85 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur"
+			className="pointer-events-none absolute top-2 right-5 z-10 flex items-center gap-1.5 rounded-md border border-border/70 bg-background/85 px-2 py-1 text-[11px] text-muted-foreground shadow-raised backdrop-blur"
 		>
 			<span
 				className={cn(

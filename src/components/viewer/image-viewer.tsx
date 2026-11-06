@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import { cn } from "@/lib/core/utils";
 import { isImageViewerSource } from "@/lib/workspace/viewer";
@@ -18,16 +19,7 @@ export function ImageViewer({ source, alt, className }: ImageViewerProps) {
 	const { t } = useTranslation("viewer");
 
 	if (!isImageViewerSource(source)) {
-		return (
-			<div
-				className={cn(
-					"flex h-full items-center justify-center p-6 text-center text-muted-foreground text-sm",
-					className,
-				)}
-			>
-				{t("image.empty")}
-			</div>
-		);
+		return <EmptyState className={className}>{t("image.empty")}</EmptyState>;
 	}
 
 	return (
@@ -40,7 +32,7 @@ export function ImageViewer({ source, alt, className }: ImageViewerProps) {
 			<img
 				src={source}
 				alt={alt?.trim() || t("image.altFallback")}
-				className="max-h-full max-w-full object-contain shadow-sm"
+				className="max-h-full max-w-full object-contain shadow-raised"
 				draggable={false}
 			/>
 		</div>

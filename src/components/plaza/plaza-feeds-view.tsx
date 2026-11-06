@@ -21,13 +21,17 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	FloatingMenu,
+	FloatingMenuItem,
+	FloatingMenuSeparator,
+} from "@/components/ui/floating-menu";
 import { Input } from "@/components/ui/input";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ViewportFloating } from "@/components/ui/viewport-floating";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
@@ -64,9 +68,6 @@ function formatHostError(message: string, t: TFunction<"sidebar">): string {
 }
 
 type FeedSubMenuState = { sub: FeedSub; x: number; y: number };
-
-const MENU_ITEM_CLASS =
-	"flex w-full cursor-default items-center rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground";
 
 function openFeedSubMenu(
 	sub: FeedSub,
@@ -138,57 +139,28 @@ function FeedSubMenu({
 	};
 
 	return (
-		<ViewportFloating
+		<FloatingMenu
 			floatingRef={menuRef}
 			point={{ x: menu.x, y: menu.y }}
-			role="menu"
-			className="z-[2000] min-w-40 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+			className="z-[2000] min-w-44"
 		>
-			<button
-				type="button"
-				role="menuitem"
-				className={MENU_ITEM_CLASS}
-				onClick={() => run(onRename)}
-			>
+			<FloatingMenuItem onClick={() => run(onRename)}>
 				{t("plaza.feeds.rename")}
-			</button>
-			<button
-				type="button"
-				role="menuitem"
-				className={MENU_ITEM_CLASS}
-				onClick={() => run(onCopyUrl)}
-			>
+			</FloatingMenuItem>
+			<FloatingMenuItem onClick={() => run(onCopyUrl)}>
 				{t("plaza.feeds.copyUrl")}
-			</button>
-			<button
-				type="button"
-				role="menuitem"
-				className={MENU_ITEM_CLASS}
-				onClick={() => run(onRefresh)}
-			>
+			</FloatingMenuItem>
+			<FloatingMenuItem onClick={() => run(onRefresh)}>
 				{t("plaza.feeds.refreshOne")}
-			</button>
-			<button
-				type="button"
-				role="menuitem"
-				className={MENU_ITEM_CLASS}
-				onClick={() => run(onPin)}
-			>
+			</FloatingMenuItem>
+			<FloatingMenuItem onClick={() => run(onPin)}>
 				{menu.sub.pinned ? t("plaza.feeds.unpin") : t("plaza.feeds.pin")}
-			</button>
-			<div className="-mx-1 my-1 h-px bg-border" />
-			<button
-				type="button"
-				role="menuitem"
-				className={cn(
-					MENU_ITEM_CLASS,
-					"text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive",
-				)}
-				onClick={() => run(onRemove)}
-			>
+			</FloatingMenuItem>
+			<FloatingMenuSeparator />
+			<FloatingMenuItem variant="destructive" onClick={() => run(onRemove)}>
 				{t("plaza.feeds.remove")}
-			</button>
-		</ViewportFloating>
+			</FloatingMenuItem>
+		</FloatingMenu>
 	);
 }
 

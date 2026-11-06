@@ -168,7 +168,7 @@ export function AnnotationBadges() {
 								type="button"
 								aria-label={`${t("common:edit")} ${index + 1}`}
 								style={{ left: pos.x, top: pos.y }}
-								className="fixed z-40 flex size-6 cursor-pointer items-center justify-center rounded-full rounded-bl-sm bg-blue-500 text-xs font-semibold text-white shadow-sm hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-ring"
+								className="fixed z-40 flex size-6 cursor-pointer items-center justify-center rounded-full rounded-bl-sm bg-blue-500 text-xs font-semibold text-white shadow-raised hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-ring"
 								onPointerDown={(event) => event.preventDefault()}
 								onClick={() => openAnnotationEditor(selection, pos)}
 							>

@@ -35,7 +35,7 @@ export function MobileReaderModeToggle({
 					onClick={() => onChange(id)}
 					className={cn(
 						"grid size-9 place-items-center rounded-md",
-						mode === id && "bg-background shadow-sm",
+						mode === id && "bg-background shadow-raised",
 					)}
 				>
 					<Icon className="size-4" />

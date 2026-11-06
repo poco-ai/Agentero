@@ -1515,7 +1515,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 									/>
 									{showHint ? (
 										<span
-											className="pointer-events-none absolute top-1 right-1 max-w-[calc(100%-0.5rem)] truncate rounded border border-border/60 bg-background/90 px-1.5 py-0.5 font-medium text-caption text-foreground/90 opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+											className="pointer-events-none absolute top-1 right-1 max-w-[calc(100%-0.5rem)] truncate rounded border border-border/60 bg-background/90 px-1.5 py-0.5 font-medium text-caption text-foreground/90 opacity-0 shadow-raised backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
 											aria-hidden="true"
 										>
 											{t("figures.clickAnnotateHint")}

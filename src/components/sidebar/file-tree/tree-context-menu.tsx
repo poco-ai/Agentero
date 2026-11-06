@@ -7,7 +7,12 @@ import {
 } from "lucide-react";
 import { type RefObject, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { ViewportFloating } from "@/components/ui/viewport-floating";
+import {
+	FloatingMenu,
+	FloatingMenuItem,
+	FloatingMenuSeparator,
+	FloatingMenuShortcut,
+} from "@/components/ui/floating-menu";
 import { cn } from "@/lib/core/utils";
 import { TRASH_VIRTUAL_PATH } from "@/lib/paper/api";
 import {
@@ -178,31 +183,22 @@ export function TreeContextMenuPortal({
 	const pasteShortcut = formatShortcutById("pasteTreeItem");
 
 	return (
-		<ViewportFloating
+		<FloatingMenu
 			floatingRef={menuRef}
 			point={{ x: menu.x, y: menu.y }}
-			role="menu"
-			className="z-50 min-w-44 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+			className="z-50 min-w-48"
 		>
 			{isLibraryMenu ? (
 				<>
 					{onDownloadAllMissing ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onDownloadAllMissing}
-						>
+						<FloatingMenuItem onClick={onDownloadAllMissing}>
 							<ArrowDownToLine className="size-3.5 shrink-0" aria-hidden />
 							<span>{t("fileTree.downloadAllMissing")}</span>
-						</button>
+						</FloatingMenuItem>
 					) : null}
 					{onExportLibrary ? (
-						<button
-							type="button"
-							role="menuitem"
+						<FloatingMenuItem
 							disabled={libraryExportBusy}
-							className="flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
 							onClick={onExportLibrary}
 						>
 							{libraryExportBusy ? (
@@ -218,14 +214,11 @@ export function TreeContextMenuPortal({
 									? t("papersLibrary.exporting")
 									: t("papersLibrary.export")}
 							</span>
-						</button>
+						</FloatingMenuItem>
 					) : null}
 					{onDiscoverCiting ? (
-						<button
-							type="button"
-							role="menuitem"
+						<FloatingMenuItem
 							disabled={citingScanBusy}
-							className="flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
 							onClick={onDiscoverCiting}
 						>
 							{citingScanBusy ? (
@@ -241,30 +234,23 @@ export function TreeContextMenuPortal({
 									? t("papersLibrary.discoveringCiting")
 									: t("papersLibrary.discoverCiting")}
 							</span>
-						</button>
+						</FloatingMenuItem>
 					) : null}
 				</>
 			) : null}
 			{isTrashMenu ? (
 				onEmptyTrash ? (
-					<button
-						type="button"
-						role="menuitem"
-						className="flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-destructive outline-hidden select-none hover:bg-destructive/10 focus:bg-destructive/10"
-						onClick={onEmptyTrash}
-					>
+					<FloatingMenuItem variant="destructive" onClick={onEmptyTrash}>
 						<Trash2 className="size-3.5 shrink-0" aria-hidden />
 						<span>{t("recycleBin.emptyTrash")}</span>
-					</button>
+					</FloatingMenuItem>
 				) : null
 			) : isPlazaMenu && plazaSources ? (
 				plazaSources.map(({ source, hidden }) => (
-					<button
+					<FloatingMenuItem
 						key={source.id}
-						type="button"
 						role="menuitemcheckbox"
 						aria-checked={!hidden}
-						className="flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
 						onClick={() => onTogglePlazaSource?.(source.id)}
 					>
 						<span
@@ -281,55 +267,31 @@ export function TreeContextMenuPortal({
 							)}
 						</span>
 						<span>{plazaSourceLabel(source)}</span>
-					</button>
+					</FloatingMenuItem>
 				))
 			) : (
 				<>
 					{menuCount === 1 && isPaperMenu && onOpenNotes ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center justify-between gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onOpenNotes}
-						>
+						<FloatingMenuItem onClick={onOpenNotes}>
 							<span>{t("fileTree.openNotes")}</span>
-							<span className="text-muted-foreground text-xs tracking-wide">
-								{splitPaneShortcut}
-							</span>
-						</button>
+							<FloatingMenuShortcut>{splitPaneShortcut}</FloatingMenuShortcut>
+						</FloatingMenuItem>
 					) : null}
 					{menuCount === 1 && onOpenTexPdf ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center justify-between gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onOpenTexPdf}
-						>
+						<FloatingMenuItem onClick={onOpenTexPdf}>
 							<span>{t("fileTree.openTexPdf")}</span>
-							<span className="text-muted-foreground text-xs tracking-wide">
-								{splitPaneShortcut}
-							</span>
-						</button>
+							<FloatingMenuShortcut>{splitPaneShortcut}</FloatingMenuShortcut>
+						</FloatingMenuItem>
 					) : null}
 					{menuCount === 1 && isPaperMenu && onEditMeta ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onEditMeta}
-						>
+						<FloatingMenuItem onClick={onEditMeta}>
 							<span>{t("papersLibrary.rowEditMeta")}</span>
-						</button>
+						</FloatingMenuItem>
 					) : null}
 					{menuCount === 1 && onAddToChat ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onAddToChat}
-						>
+						<FloatingMenuItem onClick={onAddToChat}>
 							<span>{t("fileTree.addToChat")}</span>
-						</button>
+						</FloatingMenuItem>
 					) : null}
 					{menuCount === 1 && onNewTable ? (
 						<button
@@ -342,59 +304,32 @@ export function TreeContextMenuPortal({
 						</button>
 					) : null}
 					{menuCount === 1 && onNewFile ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onNewFile}
-						>
+						<FloatingMenuItem onClick={onNewFile}>
 							<span>{t("fileTree.newFile")}</span>
-						</button>
+						</FloatingMenuItem>
 					) : null}
 					{menuCount === 1 && onNewFolder && !isPaperMenu ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onNewFolder}
-						>
+						<FloatingMenuItem onClick={onNewFolder}>
 							<span>{t("fileTree.newFolder")}</span>
-						</button>
+						</FloatingMenuItem>
 					) : null}
 					{menuCount === 1 && onCopyPath ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onCopyPath}
-						>
+						<FloatingMenuItem onClick={onCopyPath}>
 							<span>{t("fileTree.copyPath")}</span>
-						</button>
+						</FloatingMenuItem>
 					) : null}
 					{onCut ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center justify-between gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onCut}
-						>
+						<FloatingMenuItem onClick={onCut}>
 							<span>
 								{menuCount > 1
 									? t("fileTree.cutSelected", { count: menuCount })
 									: t("fileTree.cut")}
 							</span>
-							<span className="text-muted-foreground text-xs tracking-wide">
-								{cutShortcut}
-							</span>
-						</button>
+							<FloatingMenuShortcut>{cutShortcut}</FloatingMenuShortcut>
+						</FloatingMenuItem>
 					) : null}
 					{canPasteAtTarget && onPaste ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center justify-between gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onPaste}
-						>
+						<FloatingMenuItem onClick={onPaste}>
 							<span>
 								{menuCount > 1 || isPaperMenu
 									? t("fileTree.paste")
@@ -402,89 +337,57 @@ export function TreeContextMenuPortal({
 											name: menuNodeName ?? t("fileTree.paste"),
 										})}
 							</span>
-							<span className="text-muted-foreground text-xs tracking-wide">
-								{pasteShortcut}
-							</span>
-						</button>
+							<FloatingMenuShortcut>{pasteShortcut}</FloatingMenuShortcut>
+						</FloatingMenuItem>
 					) : null}
 					{menuCount === 1 && onReveal ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center justify-between gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onReveal}
-						>
+						<FloatingMenuItem onClick={onReveal}>
 							<span>{revealLabel}</span>
-							<span className="text-muted-foreground text-xs tracking-wide">
-								{revealShortcut}
-							</span>
-						</button>
+							<FloatingMenuShortcut>{revealShortcut}</FloatingMenuShortcut>
+						</FloatingMenuItem>
 					) : null}
 					{menuCount === 1 && onOpenInTerminal ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center justify-between gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onOpenInTerminal}
-						>
+						<FloatingMenuItem onClick={onOpenInTerminal}>
 							<span>{t("fileTree.openInTerminal")}</span>
-							<span className="text-muted-foreground text-xs tracking-wide">
+							<FloatingMenuShortcut>
 								{openInTerminalShortcut}
-							</span>
-						</button>
+							</FloatingMenuShortcut>
+						</FloatingMenuItem>
 					) : null}
 					{onMove ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onMove}
-						>
+						<FloatingMenuItem onClick={onMove}>
 							<span>
 								{menuCount > 1
 									? t("fileTree.moveSelected", { count: menuCount })
 									: t("fileTree.move")}
 							</span>
-						</button>
+						</FloatingMenuItem>
 					) : null}
 					{menuCount === 1 && onRename ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-							onClick={onRename}
-						>
+						<FloatingMenuItem onClick={onRename}>
 							<span>{t("fileTree.rename")}</span>
-						</button>
+						</FloatingMenuItem>
 					) : null}
 					{onDelete ? (
-						<button
-							type="button"
-							role="menuitem"
-							className="flex w-full cursor-default items-center justify-between gap-4 rounded-md px-2 py-1.5 text-left text-sm text-destructive outline-hidden select-none hover:bg-destructive/10 focus:bg-destructive/10"
-							onClick={onDelete}
-						>
+						<FloatingMenuItem variant="destructive" onClick={onDelete}>
 							<span>
 								{menuCount > 1
 									? t("fileTree.deleteSelected", { count: menuCount })
 									: t("fileTree.delete")}
 							</span>
 							{menuCount === 1 ? (
-								<span className="text-xs tracking-wide opacity-80">
+								<FloatingMenuShortcut className="opacity-80">
 									{deleteShortcut}
-								</span>
+								</FloatingMenuShortcut>
 							) : null}
-						</button>
+						</FloatingMenuItem>
 					) : null}
 					{itemContributions.length > 0 ? (
 						<>
-							<div className="-mx-1 my-1 h-px bg-border" />
+							<FloatingMenuSeparator />
 							{itemContributions.map((item) => (
-								<button
+								<FloatingMenuItem
 									key={item.id}
-									type="button"
-									role="menuitem"
-									className="flex w-full cursor-default items-center gap-4 rounded-md px-2 py-1.5 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
 									onClick={() => {
 										onClose();
 										activateMenuContribution(
@@ -498,12 +401,12 @@ export function TreeContextMenuPortal({
 									}}
 								>
 									<span>{item.title}</span>
-								</button>
+								</FloatingMenuItem>
 							))}
 						</>
 					) : null}
 				</>
 			)}
-		</ViewportFloating>
+		</FloatingMenu>
 	);
 }

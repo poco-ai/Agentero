@@ -839,7 +839,7 @@ export function TexLiveViewer({
 							<div
 								key={page}
 								data-page={page}
-								className="relative overflow-hidden rounded-sm bg-white shadow-sm ring-1 ring-black/5"
+								className="relative overflow-hidden rounded-sm bg-white shadow-raised ring-1 ring-black/5"
 								ref={(element) => {
 									if (element) pageElsRef.current.set(page, element);
 									else pageElsRef.current.delete(page);
