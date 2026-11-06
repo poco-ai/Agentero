@@ -286,6 +286,18 @@ agentero paper move /path/to/src-vault/papers/inbox/demo /path/to/dst-vault/pape
 - **复制/移动语义**：跨 Vault 是移动而非复制。同设备先 `rename`；跨设备回退为复制后删除源目录，复制失败会清理本次创建的目标目录，源 Vault 保持不变，可修正原因后重试。源 Vault 的 `papers/` 下条目在成功后不再存在。
 - **桌面同步**：运行中的桌面通过 watcher 与 Catalog 快照跟随。同 Vault 移动把打开中的论文 / NOTES tab、标注与树选中移到新路径；跨 Vault 迁移或外部删除会关闭该论文在源 Vault 的 tab。macOS 的 FSEvents 不保证配对旧/新路径，所以以 Catalog 的 paper id 对比为准，而不是等 rename 事件。桌面未保存的编辑不受保护（该论文目录已整体移走）。
 
+把已有论文加到另一个文件夹或另一个 Vault，源目录保留。路径规则与 `paper move` 相同：
+
+```bash
+agentero paper add papers/inbox/demo papers/archive
+agentero paper add /path/to/src-vault/papers/inbox/demo /path/to/dst-vault/papers/archive
+```
+
+- **同一 Vault**：在目标父目录下建立与源目录同名的目录链接，相对路径指回原论文。`metadata.json`、笔记、PDF 仍是同一份文件。Catalog 不新增行，原路径不变。扫描会跳过这个链接；按链接路径查询时回到原来那条记录。文件树把链接显示为另一个文件夹入口。
+- **另一个 Vault**：按真实文件复制论文目录，并在目标 Catalog 写入同一 id 的一行。源若本身是目录链接，复制的是它指向的内容，目标里不留下指回源 Vault 的链接。目标已有同 id 时失败。复制中途失败会删掉本次新建的目标目录。
+- **结果**：成功打印 `linked <源> → <目标>` 或 `copied <源> → <目标> (<源 Vault> → <目标 Vault>)`。失败信息同样带上目标路径。`--json` 给出 `mode`（`link` 或 `copy`）、`from`、`newRel`、`fromVault`、`toVault`。
+- **限制**：只加一篇论文（目录下要有 `NOTES.md` 或 `metadata.json`），不批量添加整个文件夹。对链接做 `paper delete` / `paper move` 只动链接本身，不删原文件，也不改原 Catalog 行。原论文被移走后链接会失效，这一版不自动改指向。Windows 优先目录软链接；没有创建权限时改用 junction（绝对路径，Vault 换位置后会断）。软链接用相对路径，整个 Vault 一起挪走后仍然有效。
+
 ### Cool Papers 笔记（`paper notes fetch`）
 
 把 papers.cool 上的 Kimi 解析追加到论文的 `NOTES.md`，与桌面 NOTES 工具栏的「获取 Cool Paper 笔记」共用 `agentero-core` 实现。追加按内容幂等：同一条解析已在 `NOTES.md` 中时不再重复写入，也不改写手写内容。

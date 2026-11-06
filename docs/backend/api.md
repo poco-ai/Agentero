@@ -2436,6 +2436,7 @@ CLI 不再暴露 usage 命令；清除通过桌面端设置 / Host API 操作。
 | `tree` | 磁盘扫描（非 Library 虚拟节点） |
 | `paper list\|get\|paths\|delete\|set-read\|tag list\|set\|add\|rm` | `catalog::papers::*`（含 `set_tags` / `list_all_tags`）/ `paper_*` |
 | `paper list --tag` / `--query` 含 tags | CLI 侧过滤（读 `list_all`）；Host `paper_list` 仍全量 |
+| `paper add` | 同 Vault 目录链接（Catalog 仍一行）/ 跨 Vault 复制文件并写入目标 Catalog |
 | `paper move` | 文件夹 + Catalog 路径同步 |
 | `paper download\|parse` | `lookup::download_paper_assets` / `pdf_parse::parse_paper_body` |
 | `import id\|bib` | `lookup::import_by_identifier` / `import_catalog` |
