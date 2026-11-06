@@ -376,13 +376,13 @@ fn list_dir(
         } else {
             format!("{rel}/{name}")
         };
-        if file_type.is_dir() {
+        // `file_type()` does not follow symlinks, so a directory symlink is not
+        // `is_dir()`. A same-vault paper alias is that symlink (or a Windows
+        // junction, which already reports `is_dir`) and must show up as a folder.
+        // File symlinks stay files; their targets are not walked.
+        if file_type.is_dir() || crate::fs::is_linked_dir(&child_path) {
             dirs.push((name, child_path, child_rel));
         } else if file_type.is_file()
-            // `file_type()` intentionally does not follow symlinks. A valid
-            // symlink to a regular file is still a local paper asset (for
-            // example a PDF kept in a shared Downloads folder), so include it
-            // in the tree without ever traversing symlinked directories.
             || (file_type.is_symlink()
                 && fs::metadata(&child_path)
                     .map(|metadata| metadata.is_file())
@@ -629,6 +629,26 @@ mod tests {
 
         // Outside the vault is rejected.
         assert!(list_children(root, Path::new("/"), &caps).is_err());
+    }
+
+    #[test]
+    fn directory_link_is_listed_as_a_folder() {
+        let root = &temp_root("dir-link");
+        write(&root.join("papers/inbox/demo/NOTES.md"), "# n");
+        fs::create_dir_all(root.join("papers/archive")).unwrap();
+        crate::fs::create_directory_link(
+            Path::new("../inbox/demo"),
+            &root.join("papers/inbox/demo"),
+            &root.join("papers/archive/demo"),
+        )
+        .unwrap();
+
+        let tree = build_tree(root, &CapsCache::new());
+        let papers = find(&tree, "papers").unwrap();
+        let archive = find(papers.children.as_ref().unwrap(), "archive").unwrap();
+        let demo = find(archive.children.as_ref().unwrap(), "demo").unwrap();
+        assert_eq!(demo.kind, "directory");
+        assert!(find(demo.children.as_ref().unwrap(), "NOTES.md").is_some());
     }
 
     #[test]

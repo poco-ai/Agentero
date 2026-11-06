@@ -439,6 +439,14 @@ pub fn delete_paths(
     let mut removed_rows = 0usize;
     let mut paths = Vec::new();
     for (rel, abs, is_dir) in clean {
+        // A directory link is an alias. Removing it must not walk into the
+        // original paper. Catalog rows live at the canonical path, not here.
+        if crate::fs::is_linked_dir(&abs) {
+            removed_rows += papers::delete_under_path(vault_root, &rel)?;
+            crate::fs::remove_directory_link(&abs)?;
+            paths.push(rel);
+            continue;
+        }
         removed_rows += papers::delete_under_path(vault_root, &rel)?;
         if is_dir {
             fs::remove_dir_all(&abs)?;
