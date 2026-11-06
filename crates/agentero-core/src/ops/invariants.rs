@@ -35,6 +35,7 @@ Never dump an entire PDF/TeX/body into context by default.
 - MCP `file_read` / `file_write` take a vault-relative path (`drafts/main.tex`, `notes/idea.md`). They are UTF-8 text only. `file_list` is one directory. Do not use them for `.agentero`, binaries, LaTeX build artifacts, marks, or layout indexes. `NOTES.md` writes still go through `paper_notes_write`.
 - MCP `vault_list` returns every local vault the user has opened. Pass its path as `vault` to target one; the open vault remains the default. Unknown paths are rejected.
 - MCP `paper_move` moves a paper/org folder under `papers/` (optionally to another vault); `file_move` is the generic exact-path move/rename. Both update wiki links and catalog paths.
+- CLI `paper add` keeps the source. Same vault creates a directory link and does not insert a second catalog row. Another vault copies the files and inserts one row; it fails when the destination already has that paper id.
 - MCP `file_delete` defaults to the vault recycle bin (undoable); `permanent=true` is destructive and needs explicit confirmation.
 - MCP `paper_tag_set` replaces user tags while keeping internal `@zotero:` / `@arxiv:` tags; `paper_tag_list` is the catalog inventory.
 - Do not hand-edit `{paper}/marks/annotations.json` or `{paper}/source/layout-index.json`.

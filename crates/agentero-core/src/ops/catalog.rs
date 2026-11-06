@@ -292,6 +292,22 @@ pub fn build() -> Vec<OpSpec> {
             ],
         ),
         op(
+            "paper.add",
+            Some("agentero paper add"),
+            None,
+            "Add a paper to another folder (same vault: directory link, one catalog row) or another vault (copy files and catalog row). Source stays in place.",
+            OpSideEffect::Write,
+            cli,
+            false,
+            json!({"from": "vault-relative or vault-prefixed paper", "to_parent": "destination parent under papers/"}),
+            json!({"mode": "link | copy", "from": "string", "newRel": "string", "fromVault": "string", "toVault": "string"}),
+            &["paper_not_found", "message"],
+            &[
+                "agentero paper add papers/inbox/demo papers/archive --json",
+                "agentero paper add /path/to/src-vault/papers/inbox/demo /path/to/dst-vault/papers/archive --json",
+            ],
+        ),
+        op(
             "paper.download",
             Some("agentero paper download"),
             None,

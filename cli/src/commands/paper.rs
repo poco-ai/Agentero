@@ -116,6 +116,20 @@ pub enum PaperCmd {
         #[arg(long = "force")]
         force: bool,
     },
+    /// Add a paper to another folder or vault.
+    ///
+    /// Same vault: directory link (Windows falls back to a junction), catalog
+    /// stays one row. Another vault: copy the files and insert a catalog row.
+    /// Paths follow `paper move`: `papers/...` uses the current vault, and a
+    /// path under a vault root selects that vault.
+    Add {
+        /// Source path: vault-relative or vault-prefixed.
+        #[arg(value_hint = ValueHint::DirPath)]
+        from: String,
+        /// Destination parent: vault-relative or vault-prefixed.
+        #[arg(value_hint = ValueHint::DirPath)]
+        dest_parent: String,
+    },
     /// Move a paper or papers organization directory under another papers/ directory.
     ///
     /// Paths are normally vault-relative (e.g. `papers/topic/foo`). If a path
@@ -282,6 +296,7 @@ pub async fn run(cmd: PaperCmd, globals: &GlobalOpts) -> Result<Value, CliError>
         }
         PaperCmd::Download { r#ref } => download(globals, &r#ref).await,
         PaperCmd::Parse { r#ref, force } => parse(globals, &r#ref, force).await,
+        PaperCmd::Add { from, dest_parent } => add_paper(globals, &from, &dest_parent),
         PaperCmd::Move { from, dest_parent } => move_paper(globals, &from, &dest_parent),
         PaperCmd::Open { r#ref } => open_in_app(globals, &r#ref),
         PaperCmd::Notes { cmd } => run_notes(cmd, globals).await,
@@ -867,6 +882,38 @@ fn resolve_move_target(arg: &str, globals: &GlobalOpts) -> Result<MoveTarget, Cl
         vault,
         rel: normalized,
     })
+}
+
+fn add_paper(globals: &GlobalOpts, from: &str, dest_parent: &str) -> Result<Value, CliError> {
+    let from = resolve_move_target(from, globals)?;
+    let to = resolve_move_target(dest_parent, globals)?;
+    let added = catalog::add_paper::add_paper(&from.vault, &from.rel, &to.vault, &to.rel)?;
+    let style = globals.style;
+    let from_vault = from.vault.to_string_lossy().to_string();
+    let to_vault = to.vault.to_string_lossy().to_string();
+    let line = if added.mode == "link" {
+        format!(
+            "linked {} → {}",
+            style.path(&added.from),
+            style.path(&added.new_rel)
+        )
+    } else {
+        format!(
+            "copied {} → {} ({} → {})",
+            style.path(&added.from),
+            style.path(&added.new_rel),
+            style.path(&from_vault),
+            style.path(&to_vault)
+        )
+    };
+    Ok(json!({
+        "mode": added.mode,
+        "from": added.from,
+        "newRel": added.new_rel,
+        "fromVault": from_vault,
+        "toVault": to_vault,
+        "lines": [line],
+    }))
 }
 
 fn move_paper(globals: &GlobalOpts, from: &str, dest_parent: &str) -> Result<Value, CliError> {

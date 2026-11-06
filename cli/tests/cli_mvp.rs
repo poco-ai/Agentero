@@ -891,6 +891,86 @@ fn paper_move_cross_vault_migrates_directory_and_catalog() {
     assert_eq!(dst_list["data"][0]["id"], "demo");
 }
 
+#[test]
+fn paper_add_links_inside_one_vault_and_copies_across_vaults() {
+    let tmp = tempdir().unwrap();
+    let src = tmp.path().join("src");
+    let dst = tmp.path().join("dst");
+    create_vault(&src);
+    create_vault(&dst);
+    fs::create_dir_all(src.join("papers/inbox/demo")).unwrap();
+    fs::write(src.join("papers/inbox/demo/NOTES.md"), "# Demo\n").unwrap();
+    fs::write(src.join("papers/inbox/demo/paper.pdf"), "pdf-bytes").unwrap();
+    seed_paper(&src, "papers/inbox/demo", "demo", "Demo");
+
+    let linked = agentero()
+        .args([
+            "--vault",
+            src.to_str().unwrap(),
+            "paper",
+            "add",
+            "papers/inbox/demo",
+            "papers/archive",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let linked: Value = serde_json::from_slice(&linked).unwrap();
+    assert_eq!(linked["data"]["mode"], "link");
+    assert_eq!(linked["data"]["newRel"], "papers/archive/demo");
+    assert!(src.join("papers/inbox/demo/NOTES.md").is_file());
+    assert_eq!(
+        fs::read_to_string(src.join("papers/archive/demo/NOTES.md")).unwrap(),
+        "# Demo\n"
+    );
+
+    let copied = agentero()
+        .args([
+            "paper",
+            "add",
+            src.join("papers/inbox/demo").to_str().unwrap(),
+            dst.join("papers/shelf").to_str().unwrap(),
+            "--json",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let copied: Value = serde_json::from_slice(&copied).unwrap();
+    assert_eq!(copied["data"]["mode"], "copy");
+    assert_eq!(copied["data"]["newRel"], "papers/shelf/demo");
+    assert_eq!(
+        fs::read_to_string(dst.join("papers/shelf/demo/paper.pdf")).unwrap(),
+        "pdf-bytes"
+    );
+    assert_eq!(
+        fs::read_to_string(src.join("papers/inbox/demo/paper.pdf")).unwrap(),
+        "pdf-bytes"
+    );
+
+    let conflict = agentero()
+        .args([
+            "--vault",
+            src.to_str().unwrap(),
+            "paper",
+            "add",
+            "papers/inbox/demo",
+            "papers/archive",
+            "--json",
+        ])
+        .assert()
+        .failure()
+        .get_output()
+        .stdout
+        .clone();
+    let conflict = String::from_utf8(conflict).unwrap();
+    assert!(conflict.contains("papers/archive/demo"), "{conflict}");
+}
+
 /// #166: create missing destination parent, reject conflict and path escape.
 #[test]
 fn paper_move_creates_parent_rejects_conflict_and_escape() {
