@@ -1,6 +1,7 @@
 import { FileIcon, FolderIcon, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PaperTitle } from "@/components/paper/paper-title";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -10,7 +11,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { MathText } from "@/components/ui/math-text";
 import {
 	Tooltip,
 	TooltipContent,
@@ -162,7 +162,7 @@ export function RecycleBinView({
 										/>
 										<div className="min-w-0 flex-1">
 											{item.title ? (
-												<MathText
+												<PaperTitle
 													text={item.title}
 													className="block truncate text-sm"
 												/>

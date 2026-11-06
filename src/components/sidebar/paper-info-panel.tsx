@@ -24,6 +24,7 @@ import { SiArxiv, SiGithub, SiModelscope, SiZhihu } from "react-icons/si";
 import { EditablePaperTag } from "@/components/library/editable-paper-tag";
 import { PaperTagRemoveButton } from "@/components/library/paper-tag-chip";
 import { TagColorPalette } from "@/components/library/tag-color-palette";
+import { PaperTitle } from "@/components/paper/paper-title";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -96,11 +97,13 @@ function CopyValue({
 	label,
 	className,
 	onCopy,
+	children,
 }: {
 	text: string;
 	label: string;
 	className?: string;
 	onCopy: (text: string, label: string) => void;
+	children?: ReactNode;
 }) {
 	const { t } = useTranslation("sidebar");
 	const hint = t("paperInfo.copyHint", { label });
@@ -117,7 +120,7 @@ function CopyValue({
 			)}
 		>
 			{/* No `block` here: it sorts after line-clamp-* and would override display:-webkit-box. */}
-			<MathText text={text} className={cn("w-full", className)} />
+			{children ?? <MathText text={text} className={cn("w-full", className)} />}
 		</button>
 	);
 }
@@ -662,8 +665,12 @@ export function PaperInfoPanel({
 									text={meta.title}
 									label={t("paperInfo.title")}
 									onCopy={copyField}
-									className="line-clamp-2"
-								/>
+								>
+									<PaperTitle
+										text={meta.title}
+										className="w-full line-clamp-2"
+									/>
+								</CopyValue>
 							</MetaRow>
 							{meta.authors?.length ? (
 								<MetaRow icon={Users} label={t("paperInfo.authors")}>

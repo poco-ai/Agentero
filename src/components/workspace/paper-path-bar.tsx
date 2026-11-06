@@ -1,5 +1,6 @@
 import { Folder, FolderOpen, ScrollText } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
+import { PaperTitle } from "@/components/paper/paper-title";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -12,7 +13,6 @@ import {
 	HoverCardContent,
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { MathText } from "@/components/ui/math-text";
 import { useLibraryStore, useVaultStore } from "@/hooks/use-app-stores";
 import { contextPathIcon } from "@/lib/agent/context-path-icon";
 import {
@@ -192,7 +192,7 @@ export function PaperPathBar({ tab, vaultPath }: PaperPathBarProps) {
 					})}
 					<BreadcrumbItem className="min-w-0 flex-1">
 						<BreadcrumbPage className="block w-full truncate">
-							<MathText text={crumbs.title} />
+							<PaperTitle text={crumbs.title} />
 						</BreadcrumbPage>
 					</BreadcrumbItem>
 				</BreadcrumbList>

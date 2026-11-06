@@ -1,6 +1,7 @@
 import { BookOpen, ChevronRight } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { PaperTitle } from "@/components/paper/paper-title";
 import { Shimmer } from "@/components/ui/shimmer";
 import { cn } from "@/lib/core/utils";
 import type { PaperMetadata } from "@/lib/paper/types";
@@ -53,7 +54,7 @@ export function MobileLibraryPage({
 										</div>
 										<span className="min-w-0 flex-1">
 											<span className="line-clamp-2 block font-medium text-base leading-6">
-												{paper.title}
+												<PaperTitle text={paper.title} />
 											</span>
 											<span className="mt-1 block truncate text-muted-foreground text-sm">
 												{paper.authors.join(", ")}

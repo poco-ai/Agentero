@@ -77,6 +77,8 @@ Vitest 适合覆盖纯 TypeScript 逻辑，例如：
 - Vault-relative 路径规范化与目标解析；
 - settings、shortcuts、metadata、viewer 等 helper。
 
+涉及 DOMPurify 的 HTML 渲染测试使用 `// @vitest-environment jsdom`（如 `paper-title.test.ts`）。DOMPurify 上游不支持 `happy-dom`，不要用 sanitizer mock 替代标签、属性与活动内容的实际过滤验证。
+
 测试 Vault 语义时，创建临时 Vault 目录，不要在 `src/` 中引入全局 mock 数据：
 
 ```ts

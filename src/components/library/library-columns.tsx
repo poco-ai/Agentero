@@ -18,7 +18,7 @@ import {
 	type SortKey,
 } from "@/components/library/library-row-utils";
 import { ReadingTitleHeat } from "@/components/library/reading-heatmap";
-import { MathText } from "@/components/ui/math-text";
+import { PaperTitle } from "@/components/paper/paper-title";
 import {
 	Tooltip,
 	TooltipContent,
@@ -191,7 +191,7 @@ export const COLUMN_META = {
 				>
 					<ReadingTitleHeat heatmap={ctx.heat} className="line-clamp-1">
 						<span className="flex min-w-0 items-center gap-1">
-							<MathText text={p.title} className="block min-w-0 truncate" />
+							<PaperTitle text={p.title} className="block min-w-0 truncate" />
 							{isMissingLocalPdf(p) ? (
 								<Tooltip>
 									<TooltipTrigger asChild>

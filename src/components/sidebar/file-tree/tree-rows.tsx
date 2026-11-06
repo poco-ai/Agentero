@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
+import { PaperTitle } from "@/components/paper/paper-title";
 import { PLAZA_SOURCE_ICONS } from "@/components/plaza/source-icons";
 import {
 	FileTreeActions,
@@ -28,7 +29,6 @@ import {
 	useFileTree,
 } from "@/components/sidebar/file-tree/file-tree-primitives";
 import { TreeRowActionButton } from "@/components/sidebar/tree-row-action-button";
-import { MathText } from "@/components/ui/math-text";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NewProjectButton } from "@/components/writing/new-project-button";
 import { contextPathIcon } from "@/lib/agent/context-path-icon";
@@ -147,7 +147,7 @@ export function PaperTreeRow({
 				/>
 			)}
 			<FileTreeName className="min-w-0 flex-1 truncate" title={label}>
-				<MathText text={label} />
+				<PaperTitle text={label} />
 			</FileTreeName>
 			{showActions ? (
 				<FileTreeActions
@@ -489,7 +489,7 @@ export function ZoteroCollectionReferenceRow({
 				<Link2 className="size-4 text-muted-foreground" aria-hidden />
 			</FileTreeIcon>
 			<FileTreeName className="min-w-0 flex-1 truncate" title={label}>
-				<MathText text={label} />
+				<PaperTitle text={label} />
 			</FileTreeName>
 		</FileTreeFile>
 	);

@@ -35,6 +35,7 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { PaperTitle } from "@/components/paper/paper-title";
 import { MathText } from "@/components/ui/math-text";
 import {
 	Tooltip,
@@ -262,7 +263,13 @@ function WorkspaceTab({
 	return (
 		<DocumentTab
 			{...rest}
-			title={<MathText text={title ?? ""} />}
+			title={
+				tab?.paperMeta ? (
+					<PaperTitle text={title ?? ""} />
+				) : (
+					<MathText text={title ?? ""} />
+				)
+			}
 			closeLabel={t("tabs.close", { title })}
 			onClose={isLibrary ? undefined : close}
 			trailing={
