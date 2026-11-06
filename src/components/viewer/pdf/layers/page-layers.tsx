@@ -939,8 +939,19 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		if ((event.target as Element | null)?.closest("[data-pdf-chrome]")) return;
 		const comment = textCommentAtPoint(event.clientX, event.clientY);
 		if (comment?.id === hoveredCommentId) return;
-		if (comment) handlers.onHoverComment(comment);
-		else if (hoveredCommentId) handlers.onLeaveComment();
+		if (comment) {
+			handlers.onHoverComment(comment);
+			return;
+		}
+		// Visual notes own their hover through the crop hit targets and rail
+		// cards. Clearing here would cancel the hover frame on the next pointer
+		// move inside an already-annotated crop.
+		const hoveringVisual =
+			hoveredCommentId !== null &&
+			shownComments.some(
+				(item) => item.id === hoveredCommentId && item.kind === "visual",
+			);
+		if (hoveredCommentId && !hoveringVisual) handlers.onLeaveComment();
 	};
 
 	const handlePagePointerLeave = () => {
