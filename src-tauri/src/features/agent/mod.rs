@@ -8,6 +8,7 @@ pub mod delegate;
 pub mod doctor;
 pub mod doctor_agents;
 pub mod models;
+pub mod pi_trust;
 pub mod prompt;
 pub mod registry;
 pub mod remote_host;

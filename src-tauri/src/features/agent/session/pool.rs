@@ -35,13 +35,17 @@ const POOL_TAKE_WAIT: Duration = Duration::from_secs(5);
 /// Cached chat-UI payload a healthy slot can answer `agent_warm` with.
 pub(crate) type WarmSnapshot = (Option<AgentModelsEvent>, Option<(u64, u64)>);
 
-/// Identity of a pooled connection: same agent, working directory and remote
-/// host are interchangeable for reuse purposes.
+/// Identity of a pooled connection: same agent, working directory, remote
+/// host and startup variant are interchangeable for reuse purposes.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct PoolKey {
     pub agent_id: String,
     pub cwd: PathBuf,
     pub remote_tag: Option<String>,
+    /// State an agent only reads when its process starts, such as the Pi
+    /// project-trust decision. A connection created under another variant
+    /// must never be reused: its process would keep the old startup state.
+    pub variant: Option<String>,
 }
 
 /// Build the pool key for a run / warm request.
@@ -49,12 +53,14 @@ pub(crate) fn pool_key(
     agent_id: &str,
     cwd: PathBuf,
     remote: Option<&Arc<dyn RemoteAgentLaunch>>,
+    variant: Option<String>,
 ) -> PoolKey {
     PoolKey {
         agent_id: agent_id.to_string(),
         cwd,
         remote_tag: remote
             .map(|r| format!("{}{}", if r.is_local_sim() { "sim:" } else { "" }, r.host())),
+        variant,
     }
 }
 
@@ -363,6 +369,42 @@ impl AgentWarmPool {
         self.changed.notify_waiters();
     }
 
+    /// Drop every warm connection for one agent (queued setups and idle
+    /// slots). The next turn cold-starts a fresh process, so changes that only
+    /// apply at agent startup — such as granting project trust — take effect.
+    /// Slots currently borrowed by a running turn are not in the map; they
+    /// still finish that turn.
+    pub(crate) fn discard_agent(&self, agent_id: &str) {
+        let tasks = self.tasks.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cancelled = 0;
+        for task in tasks.values() {
+            if task.key.agent_id == agent_id {
+                task.cancellation.cancel();
+                cancelled += 1;
+            }
+        }
+        let mut slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
+        let mut dropped = 0;
+        slots.entries.retain(|_, (key, slot)| {
+            if key.agent_id == agent_id {
+                slot.stop();
+                dropped += 1;
+                false
+            } else {
+                true
+            }
+        });
+        drop(slots);
+        drop(tasks);
+        if dropped > 0 || cancelled > 0 {
+            log::debug!(
+                target: "agentero::agent",
+                "agent={agent_id} discarded warm connections slots={dropped} pending={cancelled}"
+            );
+        }
+        self.changed.notify_waiters();
+    }
+
     pub fn shutdown(&self) {
         let tasks = self.tasks.lock().unwrap_or_else(|e| e.into_inner());
         self.closed.store(true, Ordering::SeqCst);
@@ -496,6 +538,7 @@ mod slot_map_tests {
             agent_id: agent.to_string(),
             cwd: PathBuf::from(cwd),
             remote_tag: None,
+            variant: None,
         }
     }
 
@@ -512,6 +555,23 @@ mod slot_map_tests {
         );
         // Pooled slot survived the mismatched take attempt.
         assert!(map.remove_matching(&key("codex", "/vault-b")).is_none());
+    }
+
+    #[test]
+    fn startup_variant_distinguishes_keys() {
+        let mut map: SlotMap<u8> = SlotMap::default();
+        let mut untrusted = key("pi", "/vault");
+        untrusted.variant = Some("pi-trust:untrusted".to_string());
+        map.insert(untrusted.clone(), 1);
+
+        // Trust changed since the warm connection was created: miss, but keep
+        // the old slot available (it is still a valid process for its state).
+        let mut trusted = key("pi", "/vault");
+        trusted.variant = Some("pi-trust:trusted".to_string());
+        assert!(map.remove_matching(&trusted).is_none());
+        assert_eq!(map.get_matching(&untrusted), Some(&1));
+        // The matching variant is still reusable.
+        assert_eq!(map.remove_matching(&untrusted), Some((untrusted, 1)));
     }
 
     #[test]
@@ -536,10 +596,10 @@ mod slot_map_tests {
 
     #[test]
     fn remote_tag_distinguishes_keys() {
-        let mut local = pool_key("codex", PathBuf::from("/vault"), None);
+        let mut local = pool_key("codex", PathBuf::from("/vault"), None, None);
         assert!(local.remote_tag.is_none());
         local.remote_tag = Some("sim:host".to_string());
-        let mut other = pool_key("codex", PathBuf::from("/vault"), None);
+        let mut other = pool_key("codex", PathBuf::from("/vault"), None, None);
         other.remote_tag = Some("host".to_string());
         assert_ne!(local, other);
     }

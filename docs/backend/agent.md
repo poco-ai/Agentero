@@ -181,6 +181,27 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `## Context` / `## Skills` / `## Extensions` 清单）当作普通 agent message 推送。Host
   在本轮首个 message chunk 上识别该横幅并丢弃，不写入内容缓冲、不发 `agent:stream`，
   避免它出现在回答之前。
+- **Pi 项目信任（#936）**：`pi-acp` 以 headless RPC 启动 pi，pi 的
+  `defaultProjectTrust` 默认为 `ask`；无 UI 可回答时按不信任处理，于是 Vault 的
+  `.agents/skills` 与 `.pi/*` 项目资源被静默跳过（pi-acp 0.0.33/0.0.34 也不转发
+  `--approve`）。Host 按 pi 的规则判断当前**本地** Vault：
+  1. 从 Vault 向上查找 `~/.pi/agent/trust.json` 中最近的 `true` / `false` 条目（`null`
+     条目忽略；路径比较在 Windows 上不区分大小写）；
+  2. 没有条目时读取同一 agent 目录 `settings.json` 的 `defaultProjectTrust`
+     （`always` / `never`；缺省、非法或 `ask` 都按 ask）；
+  3. ask + headless（无 UI）= 不信任。
+  只有 Vault 根存在 `.pi/{settings.json,mcp.json,extensions,skills,prompts,themes,SYSTEM.md,APPEND_SYSTEM.md}`，
+  或 Vault 及其祖先存在 `.agents/skills`（排除用户级 `~/.agents/skills`）时才需要信任；
+  没有任何需信任资源时直接视为可信（与 pi 的 `hasTrustRequiringProjectResources` 一致）。
+  `PI_CODING_AGENT_DIR` 从 ACP 子进程的合并环境读取，确保与 pi 实际使用的配置目录一致。
+  `agent_pi_project_trust_status` 只读返回 `{required, trusted}`；前端只在选中 Pi 且
+  `required && !trusted` 时显示可关闭提示。`agent_pi_project_trust_grant` 仅写入当前
+  Vault 的 `true` 条目：带与 pi 相同的 `trust.json.lock` 目录锁读取并合并已有条目、
+  保留其他 key 与 `null` 值，不修改全局 `settings.json`，不自动信任；成功后丢弃该 agent
+  的 warm 连接（排队中的 warm 也取消），下一轮冷启动后加载项目资源。warm 池的
+  key 还包含 Pi 的**有效信任决策**（`pi-trust:trusted|untrusted`）：pi 只在进程启动时
+  读取 trust，因此即使信任是在 pi 自己的 TUI 里授予或通过改 `settings.json` 生效，
+  下一轮也会因变体不匹配而冷启动，不会复用启动时未信任的旧进程。远程 Vault 拒绝该操作。
 - **内置 ACP 适配器（bundled 兜底层）**：`@agentclientprotocol/claude-agent-acp` 与
   `@agentclientprotocol/codex-acp` 的纯 JS 依赖树（平台二进制裁掉，~39MB 未压缩）作为应用
   资源随包分发，离线开箱即用。Host CLI（`claude` / `codex`）**永不内置**，仍由用户 PATH
@@ -342,6 +363,7 @@ cursor 不再推进（`next == prev`）时视为走完，避免死循环。
 | `agent_run_once` | 发起一轮；`sessionId` 时按能力 resume 或 load；可选 `images[]`（base64 + mime）→ ACP `ContentBlock::Image` |
 | `agent_list_sessions` / `agent_load_session` | 会话历史 |
 | `agent_list_skills` | Vault skill 列表 |
+| `agent_pi_project_trust_status` / `agent_pi_project_trust_grant` | 读取 / 写入 Pi 的项目信任状态；grant 合并 `trust.json` 并丢弃该 agent 的 warm 连接，见上文「Pi 项目信任」 |
 | `agent_respond_permission` | 回答权限请求 |
 | `agent_respond_elicitation` | 回答 form elicitation（Codex `request_user_input`） |
 | `agent_respond_ask_user` | 回答 Grok `_x.ai/ask_user_question` |

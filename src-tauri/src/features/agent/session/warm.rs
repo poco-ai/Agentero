@@ -91,7 +91,14 @@ pub async fn warm_agent(
             };
         }
     };
-    let key: PoolKey = pool_key(&agent_id, cwd.clone(), remote.as_ref());
+    // Pi reads its project-trust decision only at process start. Including it
+    // in the key retires a warm connection created under another decision.
+    let variant = if remote.is_none() {
+        crate::features::agent::pi_trust::pool_variant(&desc, &cwd)
+    } else {
+        None
+    };
+    let key: PoolKey = pool_key(&agent_id, cwd.clone(), remote.as_ref(), variant);
     pool.retire_idle(&key);
 
     // Healthy pooled slot from an earlier warm: reuse its cached models /

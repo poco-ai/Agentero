@@ -1220,7 +1220,19 @@ pub async fn run_once(params: RunOnceParams) -> Result<AgentResultPayload, AppEr
         prep.resume_session_id.as_deref(),
     ) {
         if let Some(pool) = params.warm_pool.clone() {
-            let key = pool_key(&params.desc.id, prep.cwd.clone(), params.remote.as_ref());
+            // Pi only reads its project-trust decision while starting up; a
+            // slot created under another decision must not serve this turn.
+            let variant = if params.remote.is_none() {
+                crate::features::agent::pi_trust::pool_variant(&params.desc, &prep.cwd)
+            } else {
+                None
+            };
+            let key = pool_key(
+                &params.desc.id,
+                prep.cwd.clone(),
+                params.remote.as_ref(),
+                variant,
+            );
             if let Some(slot) = pool.take(&key).await {
                 match run_on_pooled(&pool, slot, &params, &prep).await {
                     PooledOutcome::Done(result) => {

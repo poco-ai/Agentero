@@ -198,6 +198,8 @@ pub(crate) fn export_typescript_bindings() {
             crate::features::agent::commands::agent_list_sessions,
             crate::features::agent::commands::agent_load_session,
             crate::features::agent::commands::agent_warm,
+            crate::features::agent::commands::agent_pi_project_trust_status,
+            crate::features::agent::commands::agent_pi_project_trust_grant,
             crate::integration::remote::commands::remote_connect,
             crate::integration::remote::commands::remote_ssh_config_hosts,
             crate::integration::remote::commands::remote_disconnect,

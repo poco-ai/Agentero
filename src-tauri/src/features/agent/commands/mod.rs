@@ -8,6 +8,7 @@
 mod citation;
 mod doctor;
 mod interaction;
+mod pi;
 mod registry;
 mod remote;
 mod session;
@@ -24,6 +25,7 @@ pub struct AgentUserAgentResponse {
 pub use citation::*;
 pub use doctor::*;
 pub use interaction::*;
+pub use pi::*;
 pub use registry::*;
 pub use remote::*;
 pub use session::*;

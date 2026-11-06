@@ -517,6 +517,17 @@ export const commands = {
 	agentLoadSession: (agentId: string | null, sessionId: string, vaultPath: string | null) => typedError<ApiResult<AcpLoadSessionResult_Serialize>, string>(__TAURI_INVOKE("agent_load_session", { agentId, sessionId, vaultPath })),
 	/**  Background ACP start when Chat opens — loads models/context without a user prompt. */
 	agentWarm: (request: WarmRequest_Deserialize) => typedError<ApiResult<WarmResult_Serialize>, string>(__TAURI_INVOKE("agent_warm", { request })),
+	/**  Read Pi's effective project-trust decision for a local Vault. */
+	agentPiProjectTrustStatus: (agentId: string, vaultPath: string) => __TAURI_INVOKE<ApiResult<PiProjectTrustStatus>>("agent_pi_project_trust_status", { agentId, vaultPath }),
+	/**
+	 *  Trust this Vault for Pi, then drop the agent's warm connections so the next
+	 *  session starts with project resources loaded.
+	 * 
+	 *  The warm pool also keys Pi connections by the effective trust decision, so
+	 *  a grant made outside Agentero (Pi's own prompt, settings edit) invalidates
+	 *  them on the next turn too.
+	 */
+	agentPiProjectTrustGrant: (agentId: string, vaultPath: string) => __TAURI_INVOKE<ApiResult<PiProjectTrustStatus>>("agent_pi_project_trust_grant", { agentId, vaultPath }),
 	remoteConnect: (args: RemoteConnectArgs) => typedError<ApiResult<RemoteSessionInfo>, string>(__TAURI_INVOKE("remote_connect", { args })),
 	/**  Host entries from `~/.ssh/config` for the connect dialog's suggestions (#339). */
 	remoteSshConfigHosts: () => typedError<ApiResult<SshConfigHost_Serialize[]>, string>(__TAURI_INVOKE("remote_ssh_config_hosts")),
@@ -4660,6 +4671,20 @@ export type PermissionResponseRequest = {
 	requestId: string,
 	/**  Chosen option id; `None` cancels the request. */
 	optionId?: string | null,
+};
+
+/**  Effective Pi project-trust state for one local Vault. */
+export type PiProjectTrustStatus = {
+	/**
+	 *  The Vault has `.pi` resources, or the Vault / an ancestor has
+	 *  `.agents/skills`, so Pi gates them behind project trust.
+	 */
+	required: boolean,
+	/**
+	 *  Pi's effective decision for the Vault. Always `true` when no trust
+	 *  decision applies and nothing needs gating.
+	 */
+	trusted: boolean,
 };
 
 /**  Per-id outcome: one failed paper never blocks the rest of the turn. */
