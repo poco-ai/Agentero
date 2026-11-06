@@ -129,7 +129,9 @@ impl SystemOneProvider {
             .map_err(|e| AppError::message(format!("decision response decode failed: {e}")))?;
 
         if openai {
-            Ok(super::openai_decisions::openai_to_system_one_response(&response))
+            Ok(super::openai_decisions::openai_to_system_one_response(
+                &response,
+            ))
         } else {
             Ok(response)
         }
