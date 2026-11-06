@@ -198,8 +198,8 @@ type SelectionCardProps = {
 	bodyScroll?: boolean;
 	preferRight?: boolean;
 	/**
-	 * Scale the whole card with the PDF zoom (`1` = 100%). Placement uses the
-	 * scaled footprint so the card still flips and clamps inside the viewport.
+	 * PDF scale supplied by selection surfaces. Floating card chrome stays at
+	 * UI scale; the caller still updates its screen anchor when the PDF zooms.
 	 */
 	scale?: number;
 	title: string;
@@ -239,7 +239,6 @@ export function SelectionCard({
 	lockHeight = false,
 	bodyScroll = true,
 	preferRight = true,
-	scale = 1,
 	title,
 	icon: Icon,
 	actions,
@@ -258,9 +257,9 @@ export function SelectionCard({
 	// Suspend dockview drag-and-drop while this card floats over the tab strip
 	// so a stray drag cannot split the layout (#608).
 	useSelectionOverlayGuard();
-	const cardScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
-	// Place the card by its scaled footprint, then scale the unscaled shell
-	// from its top-left corner so text, padding, and radius follow PDF zoom.
+	const cardScale = 1;
+	// Floating controls keep their UI size while the document is zoomed.
+	// Placement still clamps each card within the current viewport.
 	const viewportWidth =
 		typeof window !== "undefined" ? window.innerWidth : 1200;
 	const renderedWidth = Math.min(

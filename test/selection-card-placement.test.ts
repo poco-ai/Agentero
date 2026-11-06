@@ -1,7 +1,10 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import {
 	SELECTION_CARD_EDGE as EDGE,
+	SelectionCard,
 	placeSelectionCard,
 } from "@/components/viewer/pdf/cards/selection-card";
 
@@ -11,6 +14,29 @@ import {
  */
 const VW = 1200;
 const VH = 800;
+
+describe("SelectionCard UI size", () => {
+	it.each([0.5, 1, 1.7, 2.5])(
+		"keeps floating controls at UI size for PDF scale %s",
+		(scale) => {
+			const html = renderToStaticMarkup(
+				createElement(SelectionCard, {
+					screen: { x: 100, y: 100 },
+					width: 360,
+					height: 360,
+					lockHeight: true,
+					scale,
+					title: "Selection test",
+					children: "Popup content",
+				}),
+			);
+
+			expect(html).toContain("width:360px");
+			expect(html).toContain("height:360px");
+			expect(html).toContain("transform:scale(1)");
+		},
+	);
+});
 
 describe("placeSelectionCard", () => {
 	it("keeps the card fully inside the viewport near the bottom-right", () => {
