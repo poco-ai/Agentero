@@ -106,6 +106,11 @@ export type DocViewEditorProps = {
 		lastSaved: string,
 		tabId: string,
 	) => Promise<boolean>;
+	onResolveMarkdownConflict?: (
+		tabId: string,
+		action: "keep" | "load" | "hold",
+		disk: string,
+	) => void;
 	onAssetsChanged: () => void;
 	onTabPatch: (id: string, patch: Partial<DocTab>) => void;
 	onRenameHeading?: (
@@ -428,6 +433,8 @@ const DocumentContent = memo(function DocumentContent({
 							isNotes ? editor.notesPlaceholder : editor.markdownPlaceholder
 						}
 						onPersist={handleEditorPersist}
+						saveConflict={tab.markdownConflict}
+						onResolveSaveConflict={editor.onResolveMarkdownConflict}
 						onAssetsChanged={editor.onAssetsChanged}
 						onRenameHeading={editor.onRenameHeading}
 						onDirtyChange={handleEditorDirtyChange}

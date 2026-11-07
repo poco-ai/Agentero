@@ -53,6 +53,7 @@ import { MarkdownEditorKit } from "@/components/editor/plugins/markdown-editor-k
 import { MarkdownSourceToolbar } from "@/components/editor/toolbar/markdown-source-toolbar";
 import { MarkdownEditorToolbar } from "@/components/editor/toolbar/markdown-toolbar";
 import { ToolbarButton } from "@/components/editor/toolbar/primitives";
+import { Button } from "@/components/ui/button";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -98,6 +99,7 @@ import {
 import { resolveSelectionSourceLines } from "@/lib/markdown/selection-source-lines";
 import { useUiScale } from "@/lib/settings";
 import { formatModShortcut, isFindShortcut } from "@/lib/shell/shortcuts";
+import { readVaultFile } from "@/lib/vault";
 import type { LinkFragment, WikiRenameHeadingRequest } from "@/lib/wiki";
 import { useWikiNav } from "@/lib/wiki/nav-context";
 import {
@@ -146,8 +148,20 @@ export type MarkdownEditorProps = {
 		path: string,
 		markdown: string,
 		lastSaved: string,
+		ownerId?: string,
 	) => Promise<boolean>;
 	onDirtyChange?: (dirty: boolean) => void;
+	/**
+	 * This panel still has a draft, and another panel already saved a newer
+	 * version. The editor will not autosave until the user keeps the draft or
+	 * loads the disk version.
+	 */
+	saveConflict?: boolean;
+	onResolveSaveConflict?: (
+		tabId: string,
+		action: "keep" | "load" | "hold",
+		disk: string,
+	) => void;
 	/** After writing an image under `./assets/` (refresh file tree). */
 	onAssetsChanged?: () => void;
 	/** Explicitly rename one saved heading and repair its inbound fragments. */
@@ -248,6 +262,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 	showToolbar,
 	onPersist,
 	onDirtyChange,
+	saveConflict = false,
+	onResolveSaveConflict,
 	onAssetsChanged,
 	onRenameHeading,
 	navigationIntent,
@@ -419,6 +435,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		readOnly,
 		onPersist,
 		onDirtyChange,
+		ownerId: tabId,
+		saveBlocked: saveConflict,
 		filePathRef,
 		onAssetsChangedRef,
 	});
@@ -429,6 +447,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		noteDocumentChanged,
 		saveNow,
 		applyExternalMarkdown,
+		releaseSaveHold,
+		adoptDiskBaseline,
 		savedRef,
 		dirtyRef,
 		hasSourceSnapshot,
@@ -886,6 +906,40 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		selectionExpanded: contextMenuSelectionExpanded,
 	});
 
+	const [resolvingConflict, setResolvingConflict] = useState(false);
+	const resolveSaveConflict = useCallback(
+		async (action: "keep" | "load") => {
+			if (!filePath || resolvingConflict) return;
+			setResolvingConflict(true);
+			try {
+				const disk = await readVaultFile(filePath);
+				if (!tabId) return;
+				if (action === "load") {
+					onResolveSaveConflict?.(tabId, "load", disk);
+					return;
+				}
+				adoptDiskBaseline(disk);
+				onResolveSaveConflict?.(tabId, "keep", disk);
+				releaseSaveHold();
+				const wrote = await saveNow();
+				if (!wrote) onResolveSaveConflict?.(tabId, "hold", disk);
+			} catch (error) {
+				notifyError(errorMessage(error));
+			} finally {
+				setResolvingConflict(false);
+			}
+		},
+		[
+			adoptDiskBaseline,
+			filePath,
+			onResolveSaveConflict,
+			tabId,
+			releaseSaveHold,
+			resolvingConflict,
+			saveNow,
+		],
+	);
+
 	const sourceLabel = i18n.t(
 		source ? "editor:source.showRendered" : "editor:source.showSource",
 	);
@@ -961,6 +1015,38 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 							)
 						) : null}
 						<div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+							{saveConflict ? (
+								<div
+									className="flex shrink-0 items-center gap-2 border-b bg-amber-500/10 px-3 py-1.5 text-xs"
+									role="status"
+								>
+									<p className="min-w-0 flex-1">
+										<span className="font-medium">
+											{i18n.t("app:diskConflict.splitTitle")}
+										</span>
+										<span className="text-muted-foreground">
+											{" "}
+											{i18n.t("app:diskConflict.splitDetail")}
+										</span>
+									</p>
+									<Button
+										size="sm"
+										variant="outline"
+										disabled={resolvingConflict}
+										onClick={() => void resolveSaveConflict("keep")}
+									>
+										{i18n.t("app:diskConflict.keepDraft")}
+									</Button>
+									<Button
+										size="sm"
+										variant="outline"
+										disabled={resolvingConflict}
+										onClick={() => void resolveSaveConflict("load")}
+									>
+										{i18n.t("app:diskConflict.loadDisk")}
+									</Button>
+								</div>
+							) : null}
 							{/*
 							 * `@container/editor` deliberately sits on this child rather than
 							 * on the pane above. A query container that resizes re-runs style

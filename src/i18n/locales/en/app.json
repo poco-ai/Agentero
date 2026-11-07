@@ -86,7 +86,10 @@
 		"title": "“{{name}}” changed on disk — kept your unsaved edits",
 		"reload": "Load disk version",
 		"keepDraft": "Keep draft",
-		"saveBlocked": "“{{name}}” was modified elsewhere — your edit was not saved to avoid losing changes. Load the disk version, then re-apply your edit."
+		"loadDisk": "Load disk version",
+		"saveBlocked": "“{{name}}” was modified elsewhere — your edit was not saved to avoid losing changes. Load the disk version, then re-apply your edit.",
+		"splitTitle": "Another panel saved a newer version of this note",
+		"splitDetail": "Your unsaved draft is still here. Loading the disk version drops the draft. Keeping the draft overwrites the newer version on disk."
 	},
 	"tabs": {
 		"strip": "Open documents",

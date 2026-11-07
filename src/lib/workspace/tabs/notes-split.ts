@@ -330,6 +330,47 @@ export function refreshPdfTab(
 	});
 }
 
+/**
+ * Apply the banner choice for one panel. Keeping the draft only lifts the
+ * hold; the editor then writes it on purpose. Loading replaces just this pane
+ * with the bytes read at click time.
+ */
+export function applyMarkdownConflictChoice(
+	prev: DocTab[],
+	tabId: string,
+	action: "keep" | "load" | "hold",
+	disk: string,
+): DocTab[] {
+	let changed = false;
+	const next = prev.map((tab) => {
+		if (tab.id !== tabId) return tab;
+		if (action === "hold") {
+			if (tab.markdownConflict) return tab;
+			changed = true;
+			return { ...tab, markdownConflict: true };
+		}
+		if (action === "keep") {
+			if (!tab.markdownConflict) return tab;
+			changed = true;
+			return { ...tab, markdownConflict: false };
+		}
+		const notes = tabIsPaperNotes(tab);
+		const seeded = seedTabs(
+			[tab],
+			notes && tab.notesPath
+				? tab.notesPath.replace(/[\\/]NOTES\.md$/i, "")
+				: tab.path,
+			disk,
+			notes ? "notes" : "markdown",
+			true,
+		);
+		const loaded = seeded[0] ?? tab;
+		if (loaded !== tab) changed = true;
+		return loaded;
+	});
+	return changed ? next : prev;
+}
+
 /** Advance the writer's seed, reload clean siblings and retain conflicted drafts. */
 export function syncTabSeedsForPath(
 	prev: DocTab[],

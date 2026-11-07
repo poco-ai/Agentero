@@ -37,6 +37,7 @@ import {
 	persistTextFile,
 } from "@/lib/workspace/actions";
 import {
+	applyMarkdownConflictChoice,
 	createPlaceholderTab,
 	type DocTab,
 	loadTabResources,
@@ -245,13 +246,27 @@ export function DocWindowRoot() {
 		async (path: string, md: string, lastSaved: string, tabId: string) => {
 			const ok = await persistFile(path, md, lastSaved, tabId);
 			if (ok) {
-				// Keep local seed in sync so our own autosave echo is suppressed.
+				// Popout tabs live in local state. Refresh this pane the same way
+				// the main window refreshes its siblings.
 				setTab((prev) => {
 					if (!prev) return prev;
 					return syncTabSeedsForPath([prev], path, md, tabId)[0] ?? prev;
 				});
 			}
 			return ok;
+		},
+		[],
+	);
+
+	const onResolveMarkdownConflict = useCallback(
+		(tabId: string, action: "keep" | "load" | "hold", disk: string) => {
+			setTab((prev) => {
+				if (!prev) return prev;
+				return (
+					applyMarkdownConflictChoice([prev], tabId, action, disk)[0] ??
+					prev
+				);
+			});
 		},
 		[],
 	);
@@ -265,6 +280,7 @@ export function DocWindowRoot() {
 			notesPlaceholder: t("editor.notesPlaceholder"),
 			markdownPlaceholder: t("editor.markdownPlaceholder"),
 			onPersistFile,
+			onResolveMarkdownConflict,
 			onAssetsChanged: () => {
 				if (vaultPath) void refreshTree(vaultPath);
 			},
@@ -279,6 +295,7 @@ export function DocWindowRoot() {
 			vaultPath,
 			onTabPatch,
 			onPersistFile,
+			onResolveMarkdownConflict,
 		],
 	);
 

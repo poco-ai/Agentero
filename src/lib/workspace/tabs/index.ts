@@ -15,6 +15,7 @@ export {
 	tabIdForPath,
 } from "@/lib/workspace/tabs/model";
 export {
+	applyMarkdownConflictChoice,
 	createNotesSplitPane,
 	findNotesPaneForReplacement,
 	isPaperContentTab,
