@@ -85,6 +85,7 @@
 	"diskConflict": {
 		"title": "“{{name}}” 已被外部修改（已保留你的未存改动）",
 		"reload": "载入磁盘版",
+		"keepDraft": "保留草稿",
 		"saveBlocked": "“{{name}}” 已被外部修改——为避免丢稿，本次未写入。请先载入磁盘版，再重新编辑。"
 	},
 	"tabs": {

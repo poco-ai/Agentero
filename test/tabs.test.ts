@@ -333,13 +333,23 @@ describe("syncTabSeedsForPath", () => {
 		const start = [
 			makeTab("/vault/papers/x", { notesPath: "/vault/papers/x/NOTES.md" }),
 		];
-		const next = syncTabSeedsForPath(start, "/vault/papers/x/notes.md", "n");
+		const next = syncTabSeedsForPath(
+			start,
+			"/vault/papers/x/notes.md",
+			"n",
+			tabIdForPath("/vault/papers/x"),
+		);
 		expect(next[0]?.notesSeed).toBe("n");
 	});
 
 	it("updates markdownSeed when the tab path matches", () => {
 		const start = [makeTab("/vault/a.md")];
-		const next = syncTabSeedsForPath(start, "/VAULT/A.MD", "m");
+		const next = syncTabSeedsForPath(
+			start,
+			"/VAULT/A.MD",
+			"m",
+			tabIdForPath("/vault/a.md"),
+		);
 		expect(next[0]?.markdownSeed).toBe("m");
 	});
 });
