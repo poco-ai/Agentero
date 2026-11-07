@@ -62,8 +62,6 @@ type AskPopoverProps = {
 	onPointerEnter?: () => void;
 	/** Schedule delayed hide when leaving dialog */
 	onPointerLeave?: () => void;
-	/** Scale with the PDF zoom; see SelectionCard. */
-	scale?: number;
 };
 
 export function AskPopover({
@@ -82,7 +80,6 @@ export function AskPopover({
 	onStop,
 	onPointerEnter,
 	onPointerLeave,
-	scale,
 }: AskPopoverProps) {
 	const { t } = useTranslation("viewer");
 	const title = threadTitle(thread, t("pdfAsk.newTitle"));
@@ -188,7 +185,9 @@ export function AskPopover({
 			screen={screen}
 			width={360}
 			height={360}
-			scale={scale}
+			// Conversation UI stays at the app's body type scale. Unlike the
+			// page-anchored translate / visual-trace cards, it must not scale
+			// with PDF zoom (readable type beats matching the paper footprint).
 			// Fixed height so the nested scrollport has a definite viewport.
 			lockHeight
 			// Follow pin while scrolling; shrink height near edges instead of

@@ -1246,6 +1246,29 @@ pub async fn write_paper_shell_opts(
     mode: NoteShellMode,
     translate_abstract: bool,
 ) -> Result<(), AppError> {
+    write_paper_shell_with_translation(
+        paper_dir,
+        vault_root,
+        meta,
+        mode,
+        translate_abstract,
+        abstract_for_notes,
+    )
+    .await
+}
+
+/// Write a shell with a supplied abstract translator (offline fixtures in tests).
+pub(crate) async fn write_paper_shell_with_translation<'a, Fut>(
+    paper_dir: &Path,
+    vault_root: &Path,
+    meta: &'a PaperRecord,
+    mode: NoteShellMode,
+    translate_abstract: bool,
+    translate: impl FnOnce(&'a str) -> Fut,
+) -> Result<(), AppError>
+where
+    Fut: std::future::Future<Output = Option<String>>,
+{
     let aliases = paper_shell_aliases(meta);
     let notes = match mode {
         NoteShellMode::Blank => {
@@ -1261,13 +1284,13 @@ pub async fn write_paper_shell_opts(
             Some(notes) => notes,
             // Template missing/blank → fall through to the Standard shell.
             None => {
-                let body = standard_note_body(meta, translate_abstract).await;
+                let body = standard_note_body(meta, translate_abstract, translate).await;
                 crate::features::wiki::frontmatter::prepend_new_aliases(&body, &aliases)
                     .map_err(AppError::message)?
             }
         },
         NoteShellMode::Standard => {
-            let body = standard_note_body(meta, translate_abstract).await;
+            let body = standard_note_body(meta, translate_abstract, translate).await;
             crate::features::wiki::frontmatter::prepend_new_aliases(&body, &aliases)
                 .map_err(AppError::message)?
         }
@@ -1277,7 +1300,14 @@ pub async fn write_paper_shell_opts(
 }
 
 /// Standard shell body: `# title` + optional abstract blockquote.
-async fn standard_note_body(meta: &PaperRecord, translate_abstract: bool) -> String {
+async fn standard_note_body<'a, Fut>(
+    meta: &'a PaperRecord,
+    translate_abstract: bool,
+    translate: impl FnOnce(&'a str) -> Fut,
+) -> String
+where
+    Fut: std::future::Future<Output = Option<String>>,
+{
     let abstract_block = match meta
         .abstract_text
         .as_deref()
@@ -1288,7 +1318,7 @@ async fn standard_note_body(meta: &PaperRecord, translate_abstract: bool) -> Str
             if translate_abstract {
                 // Race free-MT engines; omit the blockquote when none succeed
                 // (do not fall back to English as a "translation").
-                match abstract_for_notes(a).await {
+                match translate(a).await {
                     Some(display) => format!("> {display}\n\n"),
                     None => String::new(),
                 }

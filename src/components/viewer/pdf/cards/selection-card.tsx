@@ -198,8 +198,10 @@ type SelectionCardProps = {
 	bodyScroll?: boolean;
 	preferRight?: boolean;
 	/**
-	 * Scale the whole card with the PDF zoom (`1` = 100%). Placement uses the
-	 * scaled footprint so the card still flips and clamps inside the viewport.
+	 * Scale the whole card with the PDF zoom (`1` = 100%). Page-anchored cards
+	 * (translate / visual trace) opt in; conversation cards keep body type
+	 * size. Placement uses the scaled footprint so the card still flips and
+	 * clamps inside the viewport.
 	 */
 	scale?: number;
 	title: string;
