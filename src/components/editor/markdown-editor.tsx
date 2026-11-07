@@ -50,12 +50,9 @@ import { BlockSelectionKit } from "@/components/editor/plugins/block-selection-k
 import { convertBlockquoteMarkerToCallout } from "@/components/editor/plugins/callout-plugin";
 import { DndKit } from "@/components/editor/plugins/dnd-kit";
 import { MarkdownEditorKit } from "@/components/editor/plugins/markdown-editor-kit";
+import { MarkdownSourceToolbar } from "@/components/editor/toolbar/markdown-source-toolbar";
 import { MarkdownEditorToolbar } from "@/components/editor/toolbar/markdown-toolbar";
 import { ToolbarButton } from "@/components/editor/toolbar/primitives";
-import {
-	ResponsiveFixedToolbar,
-	type ToolbarAction,
-} from "@/components/editor/toolbar/responsive-toolbar";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -110,7 +107,6 @@ import {
 
 import { registerMarkdownEditor } from "@/lib/workspace/viewer/markdown-editor-registry";
 
-const SOURCE_TOOLBAR_ACTIONS: ToolbarAction[] = [];
 const MarkdownPlateContent = memo(Editor);
 
 export type MarkdownEditorProps = {
@@ -541,14 +537,20 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		setFindOpen(false);
 		setHtmlPreview(null);
 	}, [closeMenus]);
-	const { source, switching, sourceHostRef, toggle, replaceSource } =
-		useMarkdownSource({
-			editor,
-			editorContainerRef,
-			persistence,
-			onEnter: onEnterSource,
-			active,
-		});
+	const {
+		source,
+		switching,
+		sourceHostRef,
+		sourceViewRef,
+		toggle,
+		replaceSource,
+	} = useMarkdownSource({
+		editor,
+		editorContainerRef,
+		persistence,
+		onEnter: onEnterSource,
+		active,
+	});
 	useEffect(() => {
 		if (!source) refreshTocMounted();
 	}, [refreshTocMounted, source]);
@@ -933,9 +935,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 					>
 						{showToolbar && !bodyReadOnly ? (
 							source ? (
-								<ResponsiveFixedToolbar
-									actions={SOURCE_TOOLBAR_ACTIONS}
-									trailing={sourceToggle}
+								<MarkdownSourceToolbar
+									viewRef={sourceViewRef}
+									onExport={isTauri() ? openExportDialog : undefined}
+									sourceToggle={sourceToggle}
 								/>
 							) : (
 								<MarkdownEditorToolbar

@@ -34,6 +34,11 @@ import {
 	editorSyntaxHighlight,
 } from "@/components/viewer/text-editor-theme";
 import i18n from "@/i18n";
+import {
+	type MarkdownSourceFormat,
+	sourceFormatKeymap,
+	sourceFormatTransaction,
+} from "@/lib/markdown/source-format";
 import { readSourceDocument, sourceDocument } from "@/lib/markdown/source-text";
 import {
 	markdownSourceHighlight,
@@ -156,6 +161,20 @@ export function createMarkdownSourceView(parent: HTMLElement) {
 	return new EditorView({ parent });
 }
 
+function sourceFormatCommand(format: MarkdownSourceFormat) {
+	return (view: EditorView) => {
+		const transaction = sourceFormatTransaction(view.state, format);
+		if (!transaction) return false;
+		view.dispatch({ ...transaction, scrollIntoView: true });
+		return true;
+	};
+}
+
+const sourceFormatBindings = sourceFormatKeymap.map(({ key, format }) => ({
+	key,
+	run: sourceFormatCommand(format),
+}));
+
 export function loadMarkdownSourceView(
 	view: EditorView,
 	raw: string,
@@ -188,6 +207,7 @@ export function loadMarkdownSourceView(
 			sourceLayout,
 			Prec.highest(
 				keymap.of([
+					...sourceFormatBindings,
 					{ key: "Mod-/", run: () => true },
 					{
 						key: "Mod-s",

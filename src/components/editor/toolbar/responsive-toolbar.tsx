@@ -29,6 +29,8 @@ export type ToolbarAction = {
 	pressed?: boolean;
 	disabled?: boolean;
 	onClick: () => void;
+	/** Keep focus in the editor surface (source mode) when clicking. */
+	onMouseDown?: React.MouseEventHandler<HTMLButtonElement>;
 	/** Group index; separators are inserted between different groups. */
 	group: number;
 };
@@ -50,6 +52,7 @@ function ActionButton({
 				aria-label={action.label}
 				pressed={action.pressed}
 				disabled={action.disabled}
+				onMouseDown={action.onMouseDown}
 				onClick={action.onClick}
 			>
 				{action.icon}

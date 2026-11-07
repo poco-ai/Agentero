@@ -380,6 +380,7 @@ export function useMarkdownSource({
 		source: mode === "source" || mode === "leaving",
 		switching: mode === "entering" || mode === "leaving",
 		sourceHostRef,
+		sourceViewRef,
 		toggle,
 		replaceSource,
 	};
