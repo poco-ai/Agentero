@@ -6,6 +6,7 @@ Create Vault seeds these when missing. Pick with `$` in Composer.
 | --- | --- |
 | `paper-reader` | 精读 → `{paper}/NOTES.md`，只创建可解析双链 |
 | `agentero-cli` | headless `agentero` CLI，含只读双链检查；按平台播种（POSIX `agentero` / Windows `agentero-cli`） |
+| `openui-blocks` | 只读结构化 UI 块（22 个组件）；由 `scripts/generate-openui-catalog.mjs` 生成 |
 | `vault-normalizer` | 整理现有研究目录并对比迁移前后的双链诊断 |
 | `acdemic-drawing` | 生成学术场景 Excalidraw 图 |
 | `idea-evaluator` | 研究 idea 评审 |

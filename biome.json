@@ -18,7 +18,9 @@
 			"!src/lib/writing/templates/vendor",
 			"!src/lib/core/bindings.ts",
 			"!src/lib/agent/openui/generated",
-			"!test/fixtures/openui-catalog.snapshot.json"
+			"!test/fixtures/openui-catalog.snapshot.json",
+			"!scripts/templates/openui-blocks.SKILL.md",
+			"!templates/vault/.agents/skills/openui-blocks/SKILL.md"
 		]
 	},
 	"formatter": {

@@ -71,38 +71,16 @@ pub fn build_prompt(
     format!("{system}\n\n{target_line}User request:\n{user_prompt}")
 }
 
-/// Read-only OpenUI Lang guidance. Kept in one place so the component catalog
-/// is easy to audit against the frontend schema. The frontend render switch is
-/// `AGENT_OPENUI_BLOCKS_ENABLED` in `src/lib/agent/openui/config.ts`; when it is
-/// off, fenced blocks still render as ordinary Markdown, so this guidance stays
-/// harmless rather than requiring a second Host-side switch.
-///
-/// Deliberately short (~250 tokens): this is an optional presentation channel,
-/// not a second answer format. The frontend re-validates every component and
-/// falls back to the fenced source on unknown props or oversized data.
-const UI_BLOCKS_GUIDANCE: &str = "\n\nOptional structured UI blocks (read-only v1). \
-When a compact visual answer is clearly better than prose, end the reply with \
-exactly one fenced block whose info string is `openui-lang` (not `openui`). \
-Start the fence on its own line and keep the normal prose answer outside it. \
-Inside the fence use OpenUI Lang with `root` as the entry point:\n\
-```openui-lang\n\
-root = Stack([title, table])\n\
-title = Text(\"Results\", \"heading\")\n\
-table = Table([\"Model\", \"Score\"], [[\"A\", \"91\"], [\"B\", \"87\"]])\n\
-```\n\
-Components (positional args): Stack(children, gap?), Row(children, gap?), \
-Text(text, variant?), Table(columns, rows, caption?), Stat(label, value, hint?), \
-BarChart(title, labels, values, unit?), Steps(title, steps), \
-Callout(title, body, tone?). `gap` is sm|md|lg; text variant is \
-body|heading|caption|code; callout tone is info|success|warning|danger. \
-Prefer a normal Markdown table when a table is the whole answer; use Table only \
-inside a larger block. Rules: at most one block per reply; strings use double \
-quotes; arrays use [..]; no state, bindings, queries, actions, HTML, scripts or \
-nested fences; use only the components above. If the data needs more than 60 \
-table rows, 24 chart points, or 12 steps, use Markdown instead.";
+/// Short pointer to the bundled `openui-blocks` skill. The full catalog lives
+/// in `templates/vault/.agents/skills/openui-blocks/SKILL.md` and is generated
+/// from the frontend catalog, so it scales without growing every system prompt.
+/// The frontend render switch is `AGENT_OPENUI_BLOCKS_ENABLED` in
+/// `src/lib/agent/openui/config.ts`; when it is off, fenced blocks still render
+/// as ordinary Markdown, so this pointer stays harmless.
+const UI_BLOCKS_GUIDANCE: &str = include_str!("openui_guidance.generated.txt");
 
-fn ui_blocks_guidance() -> &'static str {
-    UI_BLOCKS_GUIDANCE
+fn ui_blocks_guidance() -> String {
+    format!("\n\n{}", UI_BLOCKS_GUIDANCE.trim())
 }
 
 /// Marker Host always inserts before the real user text in `build_prompt`.
@@ -339,7 +317,8 @@ mod tests {
         assert!(!p.contains("Agentero CLI policy"));
         assert!(!p.contains("Simplified Chinese"));
         assert!(!p.contains("User preference instructions"));
-        assert!(!p.contains("Optional structured UI blocks"));
+        assert!(!p.contains("Structured UI blocks"));
+        assert!(!p.contains("openui-blocks"));
         assert!(!p.contains("openui-lang"));
     }
 
@@ -478,11 +457,11 @@ mod tests {
                 None,
             );
             assert!(
-                p.contains(UI_BLOCKS_GUIDANCE),
+                p.contains(UI_BLOCKS_GUIDANCE.trim()),
                 "{workflow} should include the read-only UI guidance"
             );
             assert!(
-                p.matches("Optional structured UI blocks").count() == 1,
+                p.matches("Structured UI blocks").count() == 1,
                 "{workflow} should include the guidance exactly once"
             );
         }
@@ -501,22 +480,20 @@ mod tests {
         );
         let expected = format!(
             "You are an assistant working inside a Agentero research Vault (cwd is the vault root). \
-             Follow vault AGENTS.md.{}\n\nUser request:\nHello",
-            UI_BLOCKS_GUIDANCE
+             Follow vault AGENTS.md.\n\n{}\n\nUser request:\nHello",
+            UI_BLOCKS_GUIDANCE.trim()
         );
         assert_eq!(p, expected);
     }
 
     #[test]
     fn ui_blocks_guidance_snapshot_is_compact_and_read_only() {
-        assert!(UI_BLOCKS_GUIDANCE.contains("```openui-lang"));
-        assert!(UI_BLOCKS_GUIDANCE.contains("root = Stack([title, table])"));
-        assert!(UI_BLOCKS_GUIDANCE.contains("Prefer a normal Markdown table"));
-        assert!(UI_BLOCKS_GUIDANCE.contains("at most one block per reply"));
-        assert!(UI_BLOCKS_GUIDANCE.contains("no state, bindings, queries"));
-        assert!(UI_BLOCKS_GUIDANCE.contains("If the data needs more than 60"));
-        // Keep the per-turn guidance near the intended 200-300 token budget.
-        assert!(UI_BLOCKS_GUIDANCE.len() < 2400);
+        assert!(UI_BLOCKS_GUIDANCE.contains(".agents/skills/openui-blocks/SKILL.md"));
+        assert!(UI_BLOCKS_GUIDANCE.contains("openui-lang"));
+        assert!(UI_BLOCKS_GUIDANCE.contains("prefer Markdown"));
+        assert!(UI_BLOCKS_GUIDANCE.contains("Components: Stack, Row, Card"));
+        // The per-turn pointer stays flat as the skill grows.
+        assert!(UI_BLOCKS_GUIDANCE.len() < 700);
     }
 
     #[test]

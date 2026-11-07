@@ -18,9 +18,21 @@ import { createServer } from "vite";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CHECK = process.argv.includes("--check");
 
+const SKILL_TEMPLATE = path.join(
+	ROOT,
+	"scripts/templates/openui-blocks.SKILL.md",
+);
 const OUTPUTS = {
 	generatedTs: path.join(ROOT, "src/lib/agent/openui/generated/catalog.ts"),
 	snapshot: path.join(ROOT, "test/fixtures/openui-catalog.snapshot.json"),
+	skill: path.join(
+		ROOT,
+		"templates/vault/.agents/skills/openui-blocks/SKILL.md",
+	),
+	guidance: path.join(
+		ROOT,
+		"src-tauri/src/features/agent/prompt/openui_guidance.generated.txt",
+	),
 };
 
 async function loadCatalog() {
@@ -75,9 +87,28 @@ export const OPENUI_COMPONENT_SIGNATURES: Record<OpenUiComponentName, string> = 
 		"\t",
 	)}\n`;
 
+	const componentLines = components
+		.map(
+			({ signature, description }) =>
+				`- \`${signature}\`${description ? ` — ${description}` : ""}`,
+		)
+		.join("\n");
+	const template = fs.readFileSync(SKILL_TEMPLATE, "utf8");
+	const skill = template.replace(
+		/<!-- BEGIN GENERATED COMPONENTS -->[\s\S]*?<!-- END GENERATED COMPONENTS -->/,
+		`<!-- BEGIN GENERATED COMPONENTS -->\n${componentLines}\n<!-- END GENERATED COMPONENTS -->`,
+	);
+	if (skill === template) {
+		throw new Error("OpenUI skill template is missing generated markers");
+	}
+
+	const guidance = `Structured UI blocks (read-only, optional): when a compact visual answer helps, read \`.agents/skills/openui-blocks/SKILL.md\` and follow it. At most one \`openui-lang\` fence per reply; prefer Markdown when enough; if the skill is unavailable, use Markdown. Components: ${names.join(", ")}.\n`;
+
 	return {
 		[OUTPUTS.generatedTs]: generatedTs,
 		[OUTPUTS.snapshot]: snapshot,
+		[OUTPUTS.skill]: skill,
+		[OUTPUTS.guidance]: guidance,
 	};
 }
 

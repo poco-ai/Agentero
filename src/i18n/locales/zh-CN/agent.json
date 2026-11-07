@@ -196,6 +196,7 @@
 		"tableEmpty": "没有数据行。",
 		"chartEmpty": "没有数据。",
 		"chartAria": "柱状图：{{title}}",
+		"lineChartAria": "折线图：{{title}}",
 		"stepsEmpty": "没有步骤。"
 	},
 	"askUserQuestion": {
