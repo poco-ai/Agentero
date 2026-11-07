@@ -45,7 +45,8 @@
 		"layoutTranslate": {
 			"start": "Full-text translate",
 			"stop": "Stop full-text translate",
-			"clear": "Clear full-text translations",
+			"hide": "Hide translations",
+			"show": "Show translations",
 			"translatePage": "Translate this page",
 			"translatePageShort": "Page",
 			"hidePage": "Hide this page translation",
