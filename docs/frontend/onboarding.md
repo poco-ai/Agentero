@@ -34,7 +34,7 @@ Agent 的可选性由当前依赖是否可用决定（`acpCommandAvailable`）�
 
 流程状态机用 **@stepperize/react**（`defineStepper` + `useStepper`），定义见 `src/components/onboarding/flow.ts`；纯线性、无分支跳转。
 
-> **与内置 provider 的未对齐**：`translate` 与 `layout` 两步早于内置 provider，只提供「填自己的 Key」与「用免费引擎 / 本地模型」的二选一，没有「Agentero 内置」这一档。`translate-step.tsx` 的「用系统默认」按内置可用性解析 provider（与 Host 的 `default_translate_provider()` 一致），所以一路点过引导不会丢掉内置默认；缺的只是把内置作为显式选项呈现。引导步的改造登记在 [`../backend/builtin-provider.md`](../backend/builtin-provider.md) §限制与后续。
+> **翻译默认值**：`translate-step.tsx` 的默认选项使用 `DEFAULT_TRANSLATE_SETTINGS.provider`（`tencenttransmart`），与 Host 新装默认值一致，不依赖内置 key（#857）。文案中的「内置免费翻译」指此免费引擎，不是 `agentero` provider；文案与步骤交互的后续调整由 #856 跟踪。
 
 ## 结构
 

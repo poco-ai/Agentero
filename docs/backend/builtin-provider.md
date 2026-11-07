@@ -199,12 +199,12 @@
 
 | 函数 | 有编译期 key | 无 key |
 |---|---|---|
-| `default_translate_provider()` | `agentero` | `tencenttransmart` |
+| `default_translate_provider()` | `tencenttransmart` | `tencenttransmart` |
 | `default_parser_backend()` | `agentero` | `local` |
 | `default_layout_backend()` | `local` | `local` |
 | `EmbeddingSettings::source`（推断） | `builtin`（仅当 BYOK 三项全空） | `custom`（空字段 → `embedding_config()` 为 `None`，功能禁用） |
 
-新装用户没有 `settings.json`，`read_file` 返回 `AppSettings::default()`，因此**由 Rust 的 `default_*()` 决定首次安装的取值**。前端 TS 的 defaults 只在浏览器 dev（无 Tauri、也就不可能有 key）里生效，所以刻意保持在非内置值上，两边不需要一致。
+新装用户没有 `settings.json`，`read_file` 返回 `AppSettings::default()`，因此**由 Rust 的 `default_*()` 决定首次安装的取值**。翻译默认固定为腾讯交互翻译，与前端 `DEFAULT_TRANSLATE_SETTINGS` 和引导的默认选项一致；旧文件缺少 provider 时也采用该值。Host 保留已显式保存的 `agentero` 等 provider，加载、保存和重启不会改写这一选择（#857）。
 
 ---
 
@@ -219,6 +219,6 @@
 5. ~~**`arxiv_rec_state` 不按 model 建键**~~ **已修**（schema v8 `discovery_runs`）：运行结果键含 model / top_n / 分类，切换 embedding 来源后当天首次运行即重算，不再复用旧结果（详见 [../development/plaza.md](../development/plaza.md) §3.4）。
 6. **目标语言只有 en / zh-CN**：扩到 Hunyuan-MT 的 37 语言需要同时改 `TR_TARGETS`、前端 `TranslateTargetLang` union 与目标语言选择器，并在 `hunyuan_target_name` 补映射。
 7. **内嵌 key → per-install activation token**：由网关签发、可吊销、可做 per-user 配额；客户端 provider 形状不变。这是内嵌 key 可提取问题的真正解法。
-8. **新手引导没有「Agentero 内置」这一档**：`translate` / `layout` 两个引导步只有「填自己的 Key」与「用免费引擎 / 本地模型」二选一。`translate-step.tsx` 的「用系统默认」原先写入静态前端默认值、会覆盖 Host 解析出的内置默认，现已改为按可用性解析（与 `default_translate_provider()` 一致），因此一路点过引导不再丢失内置默认；但引导界面本身仍未把内置作为显式选项呈现。见 [../frontend/onboarding.md](../frontend/onboarding.md)。
+8. **引导默认值已对齐**（#857）：`translate-step.tsx` 的默认选项写入 `tencenttransmart`，与 Host 一致，不依赖内置 key。引导文案和交互的后续调整见 #856；当前设置页已隐藏内置 provider，Host 通道仍保留。见 [../frontend/onboarding.md](../frontend/onboarding.md)。
 
 前端 provider / 面板 / i18n 落点见 [../frontend/settings.md](../frontend/settings.md)、[../frontend/translate.md](../frontend/translate.md)。
