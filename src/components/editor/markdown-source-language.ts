@@ -1,8 +1,39 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { yamlFrontmatter } from "@codemirror/lang-yaml";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { tags } from "@lezer/highlight";
-import type { MarkdownConfig } from "@lezer/markdown";
+import { styleTags, Tag, tags } from "@lezer/highlight";
+import type {
+	BlockContext,
+	InlineContext,
+	MarkdownConfig,
+} from "@lezer/markdown";
+
+import { markdownFencedLanguages } from "./markdown-fenced-languages";
+
+const tableHeader = Tag.define(tags.heading);
+const tableCell = Tag.define(tags.content);
+const tableRule = Tag.define(tags.separator);
+const mathCommand = Tag.define(tags.keyword);
+const mathOperator = Tag.define(tags.operator);
+const mathNumber = Tag.define(tags.number);
+
+function mathTokens(
+	cx: BlockContext | InlineContext,
+	text: string,
+	offset: number,
+) {
+	const tokens = /\\(?:[a-zA-Z]+|.)|(?:\d*\.\d+|\d+)|[+\-*/=<>_^&{}()[\]]/g;
+	return Array.from(text.matchAll(tokens), (match) => {
+		const start = offset + match.index;
+		const value = match[0];
+		const type = value.startsWith("\\")
+			? "MathCommand"
+			: /^[\d.]/.test(value)
+				? "MathNumber"
+				: "MathOperator";
+		return cx.elt(type, start, start + value.length);
+	});
+}
 
 const mathFence = /^\$\$[ \t]*$/;
 const sourceSyntax: MarkdownConfig = {
@@ -10,6 +41,16 @@ const sourceSyntax: MarkdownConfig = {
 		{ name: "BlockMath", block: true, style: tags.special(tags.literal) },
 		{ name: "InlineMath", style: tags.special(tags.literal) },
 		{ name: "MathMark", style: tags.processingInstruction },
+		{ name: "MathCommand", style: mathCommand },
+		{ name: "MathOperator", style: mathOperator },
+		{ name: "MathNumber", style: mathNumber },
+	],
+	props: [
+		styleTags({
+			"TableHeader/TableCell": tableHeader,
+			"TableRow/TableCell": tableCell,
+			TableDelimiter: tableRule,
+		}),
 	],
 	parseBlock: [
 		{
@@ -25,7 +66,11 @@ const sourceSyntax: MarkdownConfig = {
 				const from = cx.lineStart + line.pos;
 				const marks = [cx.elt("MathMark", from, from + 2)];
 				while (cx.nextLine()) {
-					if (!mathFence.test(line.text.slice(line.pos))) continue;
+					if (!mathFence.test(line.text.slice(line.pos))) {
+						for (const token of mathTokens(cx, line.text, cx.lineStart))
+							marks.push(token);
+						continue;
+					}
 					const close = cx.lineStart + line.pos;
 					marks.push(cx.elt("MathMark", close, close + 2));
 					cx.nextLine();
@@ -60,6 +105,7 @@ const sourceSyntax: MarkdownConfig = {
 					return cx.addElement(
 						cx.elt("InlineMath", pos, end + 1, [
 							cx.elt("MathMark", pos, pos + 1),
+							...mathTokens(cx, cx.slice(pos + 1, end), pos + 1),
 							cx.elt("MathMark", end, end + 1),
 						]),
 					);
@@ -72,6 +118,7 @@ const sourceSyntax: MarkdownConfig = {
 
 export const markdownSourceLanguage = markdown({
 	base: markdownLanguage,
+	codeLanguages: markdownFencedLanguages,
 	extensions: sourceSyntax,
 	addKeymap: false,
 	completeHTMLTags: false,
@@ -126,6 +173,16 @@ export const markdownSourceHighlight = syntaxHighlighting(
 				color: muted,
 			},
 			{ tag: tags.atom, color: accent },
+			{ tag: tableHeader, color: accent, fontWeight: "600" },
+			{ tag: tableCell, color: "var(--foreground)" },
+			{ tag: tableRule, color: muted },
+			{ tag: mathCommand, color: accent, fontWeight: "600" },
+			{ tag: mathOperator, color: muted },
+			{
+				tag: mathNumber,
+				color:
+					"light-dark(oklch(from var(--primary) 0.44 0.13 calc(h - 45)), oklch(from var(--primary) 0.83 0.13 calc(h - 45)))",
+			},
 		],
 		{ scope: markdownSourceLanguage.language },
 	),

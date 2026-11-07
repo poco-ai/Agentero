@@ -39,7 +39,8 @@ import {
 	selectLibrary,
 	splitActivePane,
 } from "@/lib/workspace/actions";
-import { getActiveTab } from "@/lib/workspace/store";
+import { getActiveTab, getActiveTabId } from "@/lib/workspace/store";
+import { markdownEditorFor } from "@/lib/workspace/viewer/markdown-editor-registry";
 import { resolveActivePdfHandle } from "@/lib/workspace/viewer/pdf-viewer-registry";
 
 const hasVault = () => Boolean(getVaultPath());
@@ -204,6 +205,14 @@ export const paletteCommands: AppCommand[] = [
 		titleKey: "commands.tabPrev",
 		categoryKey: "commands.catTab",
 		run: () => cycleActiveTab(-1),
+	},
+	{
+		id: "editor.toggleMarkdownSource",
+		titleKey: "commands.toggleMarkdownSource",
+		categoryKey: "commands.catEditor",
+		keywords: ["markdown", "source", "wysiwyg", "源码", "渲染"],
+		when: () => Boolean(markdownEditorFor(getActiveTabId())),
+		run: () => markdownEditorFor(getActiveTabId())?.toggleSource(),
 	},
 	{
 		id: "pdf.exportAnnotatedPdf",
