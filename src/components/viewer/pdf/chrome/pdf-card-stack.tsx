@@ -58,7 +58,7 @@ type PdfCardStackProps = {
 	};
 	/** Shared anchor of the pin-attached cards (ask / translate). */
 	cardScreen: CardScreenPoint | null;
-	/** Live PDF zoom; pin cards scale with the page so they keep covering it. */
+	/** Live PDF zoom; translate / visual-trace cards scale with the page. */
 	zoomLevel: number;
 	/** Shared hover-hide contract of the pin-attached cards. */
 	onCardHoverEnter: () => void;
@@ -101,8 +101,9 @@ function selectionMenuInstanceKey(state: SelectionMenuState): string {
 
 /**
  * Floating cards of the viewer, portaled to `document.body` so page transforms
- * and the scroller's overflow never clip them. Pin cards scale with the PDF
- * zoom instead of staying a fixed viewport size.
+ * and the scroller's overflow never clip them. Translate / visual-trace cards
+ * scale with the page; the ask (quick-chat) card stays at the app's body type
+ * scale so its conversation remains readable at any zoom.
  */
 export const PdfCardStack = memo(function PdfCardStack({
 	selectionMenu,
@@ -177,7 +178,6 @@ export const PdfCardStack = memo(function PdfCardStack({
 						paperTitle={ask.paperTitle}
 						paperLink={ask.paperLink}
 						screen={cardScreen}
-						scale={zoomLevel}
 						preferRight={cardScreen.preferRight ?? true}
 						streaming={ask.streaming}
 						error={ask.error}

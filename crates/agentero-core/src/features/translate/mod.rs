@@ -54,6 +54,16 @@ pub const FREE_MT_ZH_TIMEOUT_MS: u32 = 5_000;
 /// Spawns one request per [`ZH_RACE_PROVIDERS`] entry and returns the **first**
 /// non-empty translation. Dropping unfinished tasks cancels their HTTP work.
 pub async fn free_mt_to_zh(text: &str) -> Option<String> {
+    free_mt_to_zh_with(text, translate_text).await
+}
+
+async fn free_mt_to_zh_with<Fut>(
+    text: &str,
+    translate: impl Fn(TranslateTextArgs) -> Fut,
+) -> Option<String>
+where
+    Fut: std::future::Future<Output = Result<TranslateTextResult, AppError>>,
+{
     use futures_util::stream::{FuturesUnordered, StreamExt};
 
     let slice: String = text.chars().take(MAX_TEXT_CHARS).collect();
@@ -65,8 +75,9 @@ pub async fn free_mt_to_zh(text: &str) -> Option<String> {
     for provider in ZH_RACE_PROVIDERS {
         let text = slice.clone();
         let provider = (*provider).to_string();
+        let translate = &translate;
         tasks.push(async move {
-            let r = translate_text(TranslateTextArgs {
+            let r = translate(TranslateTextArgs {
                 text,
                 source_lang: "auto".into(),
                 target_lang: "zh-CN".into(),
