@@ -188,11 +188,15 @@ agentero discover arxiv -k agent -k "world model" -c cs.AI --since 2026-08-01 --
 
 # 只看某分类当天最新（无关键词时按提交日期新→旧）
 agentero discover arxiv -c cs.LG --top 20 --max-candidates 200 --json
+
+# 多关键词按 OR 合并（任一词命中即可，雷达式广召回；默认 AND 会收窄到须全词命中）
+agentero discover arxiv -k dance -k choreography --match any --top 20 --json
 ```
 
 | 参数 | 说明 |
 |---|---|
 | `-k/--keyword` | 主题词或短语，可重复；多词短语按整词匹配（`all:"…"`） |
+| `--match` | 多关键词如何合并：`all`（AND，默认，须全词命中）或 `any`（OR，任一词命中；雷达式广召回） |
 | `-c/--category` | arXiv 分类（如 `cs.AI`），可重复 |
 | `--since` / `--until` | 提交日期窗口（`YYYY-MM-DD`，映射到 `submittedDate`） |
 | `--top` | 短名单条数（默认 8） |
