@@ -1,11 +1,56 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
+import { errorText } from "@/lib/core/error";
+import { logger, logOp } from "@/lib/core/logger";
 import { LAYOUT_SIDEBAR_MIN_SCORE } from "@/lib/pdf/layout/constants";
 import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
+import type { ReflowIrCacheStore } from "./cache";
 import { extractReflowDocument } from "./extract";
-import type { ReflowDocument } from "./types";
+import {
+	REFLOW_IR_SCHEMA_VERSION,
+	type ReflowDocument,
+	type ReflowPage,
+} from "./types";
+
+/** Cached pages only count when they still describe the open PDF. */
+function reflowPageMatchesDocument(
+	page: ReflowPage,
+	doc: PdfDocumentObject,
+): boolean {
+	const target = doc.pages[page.index];
+	if (!target) return false;
+	return (
+		Math.abs(target.size.width - page.width) < 0.01 &&
+		Math.abs(target.size.height - page.height) < 0.01 &&
+		page.paragraphs.every((paragraph) => paragraph.pageIndex === page.index)
+	);
+}
+
+async function readCachedPages(
+	cache: ReflowIrCacheStore,
+	pageIndexes: readonly number[],
+): Promise<Map<number, ReflowPage>> {
+	try {
+		return await cache.read(pageIndexes);
+	} catch (error) {
+		logger.warn("pdf.reflow.cache read failed", { error: errorText(error) });
+		return new Map();
+	}
+}
+
+async function writeCachedPages(
+	cache: ReflowIrCacheStore,
+	pages: readonly ReflowPage[],
+): Promise<void> {
+	if (!pages.length) return;
+	try {
+		await cache.write(pages);
+	} catch (error) {
+		logger.warn("pdf.reflow.cache write failed", { error: errorText(error) });
+	}
+}
 
 export async function prepareReflowItems(
 	engine: PdfEngine,
@@ -13,8 +58,62 @@ export async function prepareReflowItems(
 	items: readonly LayoutTranslateItem[],
 	regions: readonly PdfLayoutRegion[],
 	signal?: AbortSignal,
+	cache?: ReflowIrCacheStore | null,
 ): Promise<LayoutTranslateItem[]> {
-	const ir = await extractReflowDocument(engine, doc, items, regions, signal);
+	const pageIndexes = [...new Set(items.map((item) => item.pageIndex))];
+	const pages = cache
+		? await logOp(
+				"pdf.reflow.prepare.cache",
+				{ phase: "read", pages: pageIndexes.length },
+				() => readCachedPages(cache, pageIndexes),
+			)
+		: new Map<number, ReflowPage>();
+	if (cache)
+		logger.info("pdf.reflow.cache", {
+			result:
+				pages.size === pageIndexes.length
+					? "hit"
+					: pages.size
+						? "partial"
+						: "miss",
+			pages: pages.size,
+			total: pageIndexes.length,
+		});
+	for (const [index, page] of pages)
+		if (!reflowPageMatchesDocument(page, doc)) {
+			pages.delete(index);
+			logger.warn("pdf.reflow.cache rejected", {
+				page: index,
+				reason: "page geometry",
+			});
+		}
+	const missing = items.filter((item) => !pages.has(item.pageIndex));
+	if (missing.length) {
+		signal?.throwIfAborted();
+		const extracted = await logOp(
+			"pdf.reflow.prepare.extract",
+			{ pages: new Set(missing.map((item) => item.pageIndex)).size },
+			() => extractReflowDocument(engine, doc, missing, regions, signal),
+		);
+		for (const page of extracted.pages) pages.set(page.index, page);
+		if (cache && !signal?.aborted)
+			await logOp(
+				"pdf.reflow.prepare.cache",
+				{ phase: "write", pages: extracted.pages.length },
+				() => writeCachedPages(cache, extracted.pages),
+			);
+	}
+	return preparedItemsFromDocument(doc, items, {
+		version: REFLOW_IR_SCHEMA_VERSION,
+		pages: [...pages.values()].sort((a, b) => a.index - b.index),
+	});
+}
+
+function preparedItemsFromDocument(
+	doc: PdfDocumentObject,
+	items: readonly LayoutTranslateItem[],
+	ir: ReflowDocument,
+): LayoutTranslateItem[] {
 	const byId = new Map(
 		ir.pages.flatMap((p) => p.paragraphs.map((q) => [q.id, q] as const)),
 	);
@@ -69,13 +168,14 @@ export async function prepareReflowItems(
 		}
 	return prepared;
 }
+
 export function reflowDocumentFromItems(
 	doc: PdfDocumentObject,
 	items: readonly LayoutTranslateItem[],
 	regions: readonly PdfLayoutRegion[],
 ): ReflowDocument {
 	return {
-		version: 1,
+		version: REFLOW_IR_SCHEMA_VERSION,
 		pages: doc.pages
 			.map((page) => ({
 				index: page.index,

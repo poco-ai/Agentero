@@ -24,6 +24,7 @@ import {
 	type Formula,
 	formulaToken,
 	type Paragraph,
+	REFLOW_IR_SCHEMA_VERSION,
 	type ReflowDocument,
 	unionBoxes,
 } from "./types";
@@ -667,5 +668,5 @@ export async function extractReflowDocument(
 				.map((r) => r.rect),
 		});
 	}
-	return { version: 1, pages };
+	return { version: REFLOW_IR_SCHEMA_VERSION, pages };
 }

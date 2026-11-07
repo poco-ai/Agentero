@@ -126,6 +126,18 @@ IR 提取结果保存每个非空白字符的归类用于审计，不能把全�
 没有增加服务并发，也没有放宽结构校验。两个文字片段的确定性回归用例从原来的 5 次请求降至 3 次；
 若编号损坏则为 5 次。该数字是模拟服务的请求计数，不是整篇真实网络耗时或速度提升比例。
 
+### 字符 IR 持久化缓存（重启命中）
+
+`prepareReflow` 的 PDFium 字符 IR 提取结果按页写入应用缓存目录，重启后再次全文翻译可直接复用，不再重新抽 glyph / text run / 字符级几何：
+
+- **位置**：`appCacheDir()/reflow-ir/<论文目录名>-<paper key 哈希>/<页码>-<缓存键哈希>.json.gz`。只放在应用缓存目录，不写 `paper/source`，不进入 vault。缓存目录按论文键隔离，单篇最多保留 96 个文件（按 mtime 淘汰更旧的键）。
+- **键**：PDF 内容 sha256 + `source/layout.json` 文件内容 sha256 + 当前页的 items 几何指纹 + 当前页的 regions 几何指纹 + 缓存格式版本 + reflow IR schema 版本 + 算法版本 + paper key。改 PDF、重新版面分析、换论文或调整提取算法都会 miss；命中时不会复用其它 PDF/版面的旧位置。提取算法或段落归组变化时，需要提升 `src/lib/pdf/reflow/cache.ts` 的 `REFLOW_IR_ALGORITHM_VERSION`。
+- **内容**：只存源几何 `ReflowPage`（段落、字符、公式、样式、table/fallback 框、coverage、obstacles），不存译文。译文仍在 `layout-translate.json`；preview / 最终 PDF 仍按现有流程重建。
+- **格式**：整页 JSON 经 gzip（`CompressionStream`）；运行环境没有压缩流时写普通 JSON，读取按 gzip 魔数自动识别。
+- **写入**：先写同目录临时文件，再 `rename` 覆盖，失败只记 warn，不影响翻译。页面级 key 让整篇翻译和单页翻译互不覆盖。
+- **读取**：校验 header 的 format / 版本 / key / paper / PDF 与 layout 哈希，校验页面结构、页码、段落归属和页面尺寸；任一不符或 gzip/JSON 损坏都按 miss 处理，回到 `extractReflowDocument` 重抽。部分页 miss 时只重抽这些页，全部页都 miss 时等价于原有整篇抽取。
+- **日志**：`pdf.reflow.prepare` 是 prepare 总耗时；`pdf.reflow.prepare.cache`（`phase=read|write`）是缓存 IO，`pdf.reflow.prepare.extract` 是 PDFium 抽取，`pdf.reflow.cache` 记录 `result=hit|miss` 与页数；`pdf.reflow.page` / `pdf.reflow.final` 仍是预览和导出耗时。命中后 prepare 只剩缓存解压与 item 映射，页构建与最终 PDF 仍会按页重算。
+
 ### 逐页重排预览（#838）
 
 翻译开始准备字符 IR 时即预取固定字体。某页所有条目结束后，独立串行队列提取单页 PDF，
@@ -140,7 +152,8 @@ IR 提取结果保存每个非空白字符的归类用于审计，不能把全�
 不会继续写出旧结果。
 
 诊断日志包含 `pdf.layout.complete`、`pdf.translate.first-result`、`pdf.translate.complete`，
-以及 `pdf.reflow.prepare/fonts/page/final/render` 的 `duration_ms`。首次缓存和热缓存应分开比较。
+以及 `pdf.reflow.prepare`、`pdf.reflow.prepare.cache`、`pdf.reflow.prepare.extract`、`pdf.reflow.cache`、
+`pdf.reflow.fonts/page/final/render` 的 `duration_ms`。首次缓存和热缓存应分开比较。
 页级构建与最终导出复用同一排版、公式和链接处理；保持 `subset: false` 防止 CJK 缺字。
 字体字节与下载 Promise 已缓存，嵌入对象仍属于各自 PDF，不能跨文档直接复用。
 

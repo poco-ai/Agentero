@@ -64,6 +64,8 @@ export type UsePdfLayoutTranslateOptions = {
 	paperKey?: string | null;
 	/** Vault root passed to the Agent as its cwd. */
 	vaultPath?: string | null;
+	/** Viewer PDF bytes; hashed into the reflow IR cache key. */
+	pdfBytes?: ArrayBuffer | null;
 };
 
 export type PdfLayoutTranslate = {
@@ -221,6 +223,7 @@ export function usePdfLayoutTranslate({
 	paperRelPath,
 	paperKey,
 	vaultPath,
+	pdfBytes,
 }: UsePdfLayoutTranslateOptions): PdfLayoutTranslate {
 	const { t } = useTranslation("viewer");
 	/** Progressive layout bulk-translate overlays (body text / abstract / header). */
@@ -245,6 +248,9 @@ export function usePdfLayoutTranslate({
 		layoutTranslateJob.items,
 		layoutTranslateJob.status === "running",
 		docId,
+		paperAbsPath,
+		paperKey,
+		pdfBytes,
 	);
 	const layoutTranslateAbortRef = useRef<AbortController | null>(null);
 	const hiddenPageIndexesRef = useRef(new Set<number>());

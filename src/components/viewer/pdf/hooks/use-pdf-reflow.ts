@@ -9,6 +9,7 @@ import type {
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
 import { ReflowBuildEngine } from "@/lib/pdf/reflow/builder";
+import { createReflowIrCache } from "@/lib/pdf/reflow/cache";
 import { interleaveReflowPdf } from "@/lib/pdf/reflow/export";
 import { loadReflowFonts } from "@/lib/pdf/reflow/fonts";
 import { NO_REGIONS, ReflowPreviewSession } from "@/lib/pdf/reflow/preview";
@@ -24,10 +25,29 @@ export function usePdfReflow(
 	items: LayoutTranslateItem[],
 	running: boolean,
 	documentKey: string,
+	paperAbsPath?: string | null,
+	paperKey?: string | null,
+	pdfBytes?: ArrayBuffer | null,
 ) {
 	const { t } = useTranslation("viewer");
-	const current = useRef({ context, regions, items, running });
-	current.current = { context, regions, items, running };
+	const current = useRef({
+		context,
+		regions,
+		items,
+		running,
+		paperAbsPath,
+		paperKey,
+		pdfBytes,
+	});
+	current.current = {
+		context,
+		regions,
+		items,
+		running,
+		paperAbsPath,
+		paperKey,
+		pdfBytes,
+	};
 	const session = useRef<ReflowPreviewSession | null>(null);
 	const [revision, setRevision] = useState(0);
 	const ctx = context?.();
@@ -38,16 +58,24 @@ export function usePdfReflow(
 			const value = session.current;
 			const ctx = current.current.context?.();
 			if (!ctx) return seed;
-			if (value)
-				return value.prepare(seed, current.current.regions ?? [], signal);
+			const regions = current.current.regions ?? [];
+			const cache = createReflowIrCache({
+				paperKey: current.current.paperKey || current.current.paperAbsPath,
+				paperAbsPath: current.current.paperAbsPath,
+				pdfBytes: current.current.pdfBytes,
+				items: seed,
+				regions,
+			});
+			if (value) return value.prepare(seed, regions, signal, cache);
 			void loadReflowFonts().catch(() => {});
-			return logOp("pdf.reflow.prepare", undefined, () =>
+			return logOp("pdf.reflow.prepare", { items: seed.length }, () =>
 				prepareReflowItems(
 					ctx.engine,
 					ctx.document,
 					seed,
-					current.current.regions ?? [],
+					regions,
 					signal,
+					cache,
 				),
 			);
 		},

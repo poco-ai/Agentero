@@ -418,6 +418,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 										docId={docId}
 										baseDocId={baseDocId}
 										sourceBytes={effectiveSourceBytes}
+										pdfCacheBytes={props.sourceBytes ?? null}
 									/>
 								) : (
 									<PdfViewerInner
@@ -425,6 +426,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 										docId={docId}
 										baseDocId={baseDocId}
 										sourceBytes={effectiveSourceBytes}
+										pdfCacheBytes={props.sourceBytes ?? null}
 										reloadPositionRef={reloadPositionRef}
 									/>
 								)}
@@ -497,6 +499,7 @@ function PdfViewerInner({
 	paperAbsPath = null,
 	paperRelPath = null,
 	vaultPath = null,
+	pdfCacheBytes = null,
 	paperMeta: paperMetaProp = null,
 	isActive = true,
 	isRemotePaper = false,
@@ -1270,6 +1273,7 @@ function PdfViewerInner({
 		paperRelPath,
 		paperKey,
 		vaultPath,
+		pdfBytes: pdfCacheBytes ?? sourceBytes,
 		layoutCap,
 		layoutCapRef,
 		docCap,

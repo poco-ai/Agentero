@@ -133,6 +133,7 @@ export function PdfTranslationViewerInner({
 	paperRelPath = null,
 	vaultPath = null,
 	sourceBytes = null,
+	pdfCacheBytes = null,
 	isRemotePaper = false,
 	importIdentifier,
 	isActive = true,
@@ -181,6 +182,7 @@ export function PdfTranslationViewerInner({
 		paperRelPath,
 		paperKey,
 		vaultPath,
+		pdfBytes: pdfCacheBytes ?? sourceBytes,
 	});
 
 	// `openTranslationTab` seeds a snapshot at open time; if layout analysis was

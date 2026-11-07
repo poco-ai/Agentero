@@ -5,6 +5,7 @@ import type {
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
 import type { ReflowBuildProvider, ReflowBuildTarget } from "./builder";
+import type { ReflowIrCacheStore } from "./cache";
 import { buildReflowPage, buildReflowPdf, type ReflowOutput } from "./export";
 import { loadReflowFonts } from "./fonts";
 import { prepareReflowItems, reflowDocumentFromItems } from "./service";
@@ -264,13 +265,21 @@ export class ReflowPreviewSession {
 		seed: LayoutTranslateItem[],
 		regions: PdfLayoutRegion[],
 		signal?: AbortSignal,
+		cache?: ReflowIrCacheStore | null,
 	): Promise<LayoutTranslateItem[]> {
 		void loadReflowFonts().catch(() => {});
 		const target = this.disposed
 			? { engine: this.engine, document: this.document }
 			: await this.obtainBuild(signal ?? new AbortController().signal);
-		return logOp("pdf.reflow.prepare", undefined, () =>
-			prepareReflowItems(target.engine, target.document, seed, regions, signal),
+		return logOp("pdf.reflow.prepare", { items: seed.length }, () =>
+			prepareReflowItems(
+				target.engine,
+				target.document,
+				seed,
+				regions,
+				signal,
+				cache,
+			),
 		);
 	}
 
