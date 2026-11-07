@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { scrollTopForViewportAnchor } from "@/lib/markdown/source-mode-alignment";
+import {
+	scrollTopForViewportAnchor,
+	visibleAnchorTop,
+} from "@/lib/markdown/source-mode-alignment";
 
 describe("Markdown source mode alignment", () => {
+	it("accepts only anchors that are inside the visible height", () => {
+		expect(visibleAnchorTop(320, 800)).toBe(320);
+		expect(visibleAnchorTop(0, 800)).toBe(0);
+		expect(visibleAnchorTop(-1, 800)).toBeNull();
+		expect(visibleAnchorTop(801, 800)).toBeNull();
+		expect(visibleAnchorTop(null, 800)).toBeNull();
+		expect(visibleAnchorTop(120, 0)).toBeNull();
+	});
+
 	it("keeps an anchor at the same visual height across mode switches", () => {
 		expect(
 			scrollTopForViewportAnchor({

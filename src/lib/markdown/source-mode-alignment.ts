@@ -1,4 +1,16 @@
 /**
+ * Viewport height usable as a scroll anchor, or null when it cannot be kept
+ * without clamping to the document edge (the caret was scrolled out of view).
+ */
+export function visibleAnchorTop(
+	top: number | null,
+	clientHeight: number,
+): number | null {
+	if (top === null || clientHeight <= 0) return null;
+	return top >= 0 && top <= clientHeight ? top : null;
+}
+
+/**
  * Scroll offset that keeps an anchor at the same visual height across two
  * editors with different line metrics. The result is clamped to the scroll
  * container so the caret stays visible near the document's start or end.

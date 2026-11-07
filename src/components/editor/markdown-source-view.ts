@@ -184,15 +184,33 @@ export function loadMarkdownSourceView(
 		save,
 		update,
 		prefs,
+		reuse = false,
 	}: {
 		line?: number;
 		offset?: number;
 		save: () => void;
 		update: (read: () => string) => void;
 		prefs: SourceViewPreferences;
+		/**
+		 * Keep the existing state (and its measured height map) when the text
+		 * already matches. Only the selection moves.
+		 */
+		reuse?: boolean;
 	},
 ) {
 	const { doc, endings } = sourceDocument(raw);
+	if (reuse && view.state.doc.toString() === doc) {
+		const target = view.state.doc.line(
+			Math.max(1, Math.min(line, view.state.doc.lines)),
+		);
+		const anchor = Math.min(target.from + offset, target.to);
+		if (
+			view.state.selection.main.head !== anchor ||
+			view.state.selection.ranges.length > 1
+		)
+			view.dispatch({ selection: { anchor } });
+		return;
+	}
 	const state = EditorState.create({
 		doc,
 		extensions: [

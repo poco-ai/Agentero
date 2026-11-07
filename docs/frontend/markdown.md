@@ -50,7 +50,7 @@ Plate WYSIWYG；用于普通笔记与论文 `NOTES.md`。磁盘上始终是标�
 
 在可编辑的笔记面板中，点击工具栏的源码图标或按 `⌘/`（Windows/Linux：`Ctrl+/`）切换，也可从命令面板运行「切换 Markdown 源码」。快捷键可在「设置 → 快捷键 → 编辑器」修改。每个分屏独立；关闭再打开笔记时默认显示渲染视图。
 
-源码使用 CodeMirror 的 Markdown/GFM 与 YAML 高亮，沿用正文的字体、字号和行高；正文宽度同样受 `markdownMaxWidth` 限制，限制加在整个源码视面上，行号列随居中列一起收进，不再贴面板左缘。行号使用等宽字体（`font-mono`），字号为正文的 0.8 倍。源码模式保留格式工具栏（标题、引用、加粗、斜体、下划线、删除线、行内代码、高亮、列表、图片、导出），按钮直接编辑 Markdown 源文本；`⌘B` / `⌘I` / `⌘U` / `⇧⌘X` 分别切换加粗、斜体、下划线和删除线。当前行从行号到正文连续高亮；展开和折叠共用与行号居中的箭头，只改变朝向。表格区分表头、单元格和分隔线，公式区分命令、数字和运算符。已标注 JavaScript、TypeScript、Python、JSON、YAML、HTML、CSS、Shell 或 LaTeX 的围栏按相应语言高亮。源码内按 `⌘F` / `Ctrl+F` 可查找、正则查找、逐个替换或全部替换；渲染视图仍用原查找条。源码与渲染分别撤销；切换时按光标（或选中块起点）的屏幕高度对齐，不把所在块滚到顶部；靠近文首或文末时按可滚动范围夹取，只做必要对齐。
+源码使用 CodeMirror 的 Markdown/GFM 与 YAML 高亮，沿用正文的字体、字号和行高；正文宽度同样受 `markdownMaxWidth` 限制，限制加在整个源码视面上，行号列随居中列一起收进，不再贴面板左缘。行号使用等宽字体（`font-mono`），字号为正文的 0.8 倍。源码模式保留格式工具栏（标题、引用、加粗、斜体、下划线、删除线、行内代码、高亮、列表、图片、导出），按钮直接编辑 Markdown 源文本；`⌘B` / `⌘I` / `⌘U` / `⇧⌘X` 分别切换加粗、斜体、下划线和删除线。当前行从行号到正文连续高亮；展开和折叠共用与行号居中的箭头，只改变朝向。表格区分表头、单元格和分隔线，公式区分命令、数字和运算符。已标注 JavaScript、TypeScript、Python、JSON、YAML、HTML、CSS、Shell 或 LaTeX 的围栏按相应语言高亮。源码内按 `⌘F` / `Ctrl+F` 可查找、正则查找、逐个替换或全部替换；渲染视图仍用原查找条。源码与渲染分别撤销；切换时把光标映射到对应的字符位置：渲染态读取当前块的行内叶子及其在块纯文本中的偏移，源码态把同一块的 Markdown 切片投影成同一段可见文本（跳过列表标记、引用符、强调符号、链接目标、图片与脚注编号等），两段文本完全一致时才按文本偏移换算行号与列。支持段落、标题、GFM 列表、引用、围栏代码、脚注定义，以及行内强调、链接、双链、转义和实体；表格等无法投影的块退回块首。屏幕高度跟随光标所在行而不是块上边缘；光标已滚出视口则改用视口顶部的块，避免把视图夹到文首或文末。文本未变时复用 CodeMirror 已有状态和测量结果，切换后按光标实际绘制位置校正（最多重试四帧，用户接管滚动即停止），靠近文首或文末时按可滚动范围夹取。切回渲染后，光标点同时写入 Slate selection 和对应的 DOM Range：Plate 的选区同步以 DOM 为准，而 `tf.select` 在目标点已被选中时不会再写 DOM，焦点操作留下的文首光标随后会覆盖 Slate selection，反复切换时表现为跳回顶部。
 
 源码编辑直接保存原文（包括空白与原有换行）；新增换行沿用文档首个换行样式。自动保存和 `⌘S` / `Ctrl+S` 复用同一套保存冲突检查，包括同一窗口另一个分屏先保存时的停写与横幅。外部改盘时，无未保存改动则就地刷新源码；有未保存改动则提示，保留编辑中的文本。关闭标签或窗口前先尝试保存；发生冲突时保留面板以便处理。
 
@@ -218,6 +218,9 @@ Markdown 里指向本地 `.html` / `.htm` 的链接（`[report](./figures/report
 | `src/lib/markdown/remark-plugins.ts` | 全量 remark 管线与按内容裁剪的反序列化选择器 |
 | `src/lib/markdown/deserialize-md.ts` | 统一的反序列化入口（预处理 + 裁剪后的 remark 插件） |
 | `src/lib/markdown/scroll-memory.ts` | 每文件滚动位置（localStorage，跨重启） |
+| `src/lib/markdown/block-caret-map.ts` | 块纯文本 / 行内叶子偏移，以及 Markdown 块切片的可见文本投影与偏移换算 |
+| `src/lib/markdown/source-caret.ts` | 渲染态光标与源码行列的双向换算（仅当两侧可见文本完全一致时生效） |
+| `src/lib/markdown/source-mode-alignment.ts` | 源码 / 渲染切换的视口锚点计算与滚动范围夹取 |
 | `src/lib/vault/seed-cache.ts` | Markdown/NOTES 打开路径文本种子缓存 |
 | `src/hooks/use-in-view.ts` | 进入视口才执行重活的 IntersectionObserver hook |
 | `src/lib/core/idle.ts` | idle 调度（`requestIdleCallback`，WebKit 回退短定时器） |
