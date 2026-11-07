@@ -38,18 +38,9 @@ Plate 中显示实时只读预览，在未归档行里取最后 20 行（记录�
 
 实验记录是普通 Markdown，不是新的文件类型。文件树在「新建科研表格」旁提供「新建实验记录」。确认名称后，在所选文件夹写入同名的 `*.table.json` 和 `.md`。表名来自文件名（按 `TABLE_SUFFIX.length` 去掉后缀），第一列名称与新建科研表格相同。任一路径已存在则 `notifyError` 并且两个文件都不写。
 
-```yaml
----
-type: experiment
-status: draft
----
-```
+新建的笔记不带 frontmatter。正文按当前界面语言写入目的、步骤、结果三节，结果节嵌入新建的表（同时带 `id` 和 `path`）。需要状态或其它元数据时，用编辑器里已有的「属性」自己添加，不另做状态菜单。
 
-`status` 只取 `draft`、`running`、`done`、`locked`，键和取值保持英文。正文按当前界面语言写入目的、步骤、结果三节，结果节嵌入新建的表（同时带 `id` 和 `path`）。
-
-打开 `type: experiment` 的笔记时，编辑器顶栏有一个紧凑的状态菜单。改状态只替换（或补上）这一行，其余 YAML 原样保留。`locked` 让正文只读，格式工具栏随 `readOnly` 隐藏，状态菜单仍在，选回 `done` 即解锁。其它笔记没有这个菜单。
-
-`file_write` 拒绝替换或追加 frontmatter 为 `type: experiment` 且 `status: locked` 的 Markdown，稳定错误码是 `experiment_locked`，并且不写盘。判断只扫描第一个 frontmatter 块的行，不使用 YAML 库。新建文件允许。`*.table.json` 不受这条规则影响。桌面端锁定笔记的正文不能保存，解锁只走状态菜单。
+已经写成 `type: experiment` 且 `status: locked` 的旧笔记，`file_write` 仍拒绝替换或追加，稳定错误码是 `experiment_locked`，并且不写盘。判断只扫描第一个 frontmatter 块的行，不使用 YAML 库。新建文件允许。`*.table.json` 不受这条规则影响。桌面端不再因为这个状态把正文设成只读。
 
 ## 文件契约与 Agent
 

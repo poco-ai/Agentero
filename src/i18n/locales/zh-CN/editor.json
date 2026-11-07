@@ -1,16 +1,8 @@
 {
 	"experiment": {
-		"statusLabel": "实验状态",
 		"purpose": "目的",
 		"steps": "步骤",
-		"results": "结果",
-		"status": {
-			"missing": "状态",
-			"draft": "草稿",
-			"running": "进行中",
-			"done": "完成",
-			"locked": "已锁定"
-		}
+		"results": "结果"
 	},
 	"researchTable": {
 		"errors": {

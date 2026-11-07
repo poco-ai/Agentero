@@ -29,7 +29,6 @@ import { MarkdownExportSurface } from "@/components/editor/markdown-export-surfa
 import { BlockDragStateBridge } from "@/components/editor/nodes/block/block-draggable";
 import { ImageElement } from "@/components/editor/nodes/block/image-node";
 import { EditorStatusBar } from "@/components/editor/overlays/editor-status-bar";
-import { ExperimentStatusMenu } from "@/components/editor/overlays/experiment-status-menu";
 import { FindReplaceBar } from "@/components/editor/overlays/find-replace-bar";
 import { FrontmatterPanel } from "@/components/editor/overlays/frontmatter-panel";
 import { HeadingRenameDialog } from "@/components/editor/overlays/heading-rename-dialog";
@@ -70,11 +69,6 @@ import {
 } from "@/lib/markdown/block-selection";
 import { deserializeMarkdownBody } from "@/lib/markdown/deserialize-md";
 import { editorContextMenuCapabilities } from "@/lib/markdown/editor-context-menu";
-import {
-	type ExperimentStatus,
-	readExperiment,
-	withExperimentStatus,
-} from "@/lib/markdown/experiment";
 import {
 	exportDefaultName,
 	resolveExportPaperHeader,
@@ -424,8 +418,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 	});
 	const frontmatterYamlRef = useRef(frontmatterYaml);
 	frontmatterYamlRef.current = frontmatterYaml;
-	const experiment = readExperiment(frontmatterYaml);
-	const bodyReadOnly = Boolean(readOnly) || experiment?.status === "locked";
+	const bodyReadOnly = Boolean(readOnly);
 	/** Bumps when body or frontmatter changes — keys Plate source-line cache. */
 	const docVersionRef = useRef(0);
 	const handleFrontmatterChange = useCallback(
@@ -435,13 +428,6 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		},
 		[persistFrontmatterChange],
 	);
-	const setExperimentStatus = useCallback(
-		(status: ExperimentStatus) => {
-			handleFrontmatterChange(withExperimentStatus(frontmatterYaml, status));
-		},
-		[frontmatterYaml, handleFrontmatterChange],
-	);
-
 	/**
 	 * External disk change accepted by the tab layer (applyDiskChange / Agent
 	 * write): the parent bumps `reloadKey` alongside `initialMarkdown`. Reload
@@ -864,12 +850,6 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 							className,
 						)}
 					>
-						{experiment ? (
-							<ExperimentStatusMenu
-								status={experiment.status}
-								onChange={setExperimentStatus}
-							/>
-						) : null}
 						{showToolbar && !bodyReadOnly ? (
 							<MarkdownEditorToolbar
 								onOpenFind={() => {

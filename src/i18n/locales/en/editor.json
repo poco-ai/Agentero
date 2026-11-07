@@ -1,16 +1,8 @@
 {
 	"experiment": {
-		"statusLabel": "Experiment status",
 		"purpose": "Purpose",
 		"steps": "Steps",
-		"results": "Results",
-		"status": {
-			"missing": "Status",
-			"draft": "Draft",
-			"running": "Running",
-			"done": "Done",
-			"locked": "Locked"
-		}
+		"results": "Results"
 	},
 	"researchTable": {
 		"errors": {
