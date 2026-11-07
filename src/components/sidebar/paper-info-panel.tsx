@@ -200,7 +200,7 @@ function OpenReviewIcon({ className }: { className?: string }) {
 	return (
 		<svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
 			<title>OpenReview</title>
-			<rect width="24" height="24" rx="5" fill="#80271A" />
+			<rect width="24" height="24" rx="5" fill="#8C1B13" />
 			<circle cx="12" cy="12" r="5.2" stroke="#FFFFFF" strokeWidth="3.4" />
 		</svg>
 	);
