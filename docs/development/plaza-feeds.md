@@ -95,8 +95,10 @@ MVP **不做**：`@handle` 展开、OPML、登录态、RSSHub 拼接。
 
 | 卡片 | 判定 | 展示 | 主操作 |
 |---|---|---|---|
-| **列表卡** | 全部条目 | 标题；「全部」下显示来源+日期，单源下日期与标题同行。摘要去掉 arXiv 编号 / Announce Type | 点卡片进详情 |
-| **详情** | 同上 | 打开时解析全文（RSS 摘要不够则抓 `item.url` → HTML→Markdown）。整篇是一份 Markdown：`# 标题` + 正文，走 `MessageResponse`。文末 `[...]` 会剥掉。入库 / 打开原文在顶栏。正文可划词：**提问**（浮层 Ask 卡，会话内 ephemeral，不写 `marks/`）/ **加入对话**（pin 到 Agent composer）/ 复制 | 返回列表 |
+| **列表卡** | 全部条目 | 标题；「全部」下显示来源+日期，单源下日期与标题同行。摘要去掉 arXiv 编号 / Announce Type | 点卡片进详情；右键菜单另有**加入对话**（整条送进 Agent，见下） |
+| **详情** | 同上 | 打开时解析全文（RSS 摘要不够则抓 `item.url` → HTML→Markdown）。整篇是一份 Markdown：`# 标题` + 正文，走 `MessageResponse`。文末 `[...]` 会剥掉。入库 / 打开原文 / **加入对话**在顶栏。正文可划词：**提问**（浮层 Ask 卡，会话内 ephemeral，不写 `marks/`）/ **加入对话**（pin 到 Agent composer）/ 复制 | 返回列表 |
+
+- **整条加入对话（列表层）**：列表卡右键菜单与详情顶栏各有一个「加入对话」，把**整条**条目（标题 + RSS 摘要；条目已解析全文时用全文）pin 成 Agent composer 的选区 chip，不必先打开详情再划词。实现：`src/lib/plaza/feed-chat-selection.ts`（payload 构造）、`plaza-feeds-item.tsx`（两个入口）。与详情页划词 Add to chat 共用 `addSelectionToChat`，chip 同样是 ephemeral、不落 `marks/`；source path 与划词一致（原文 URL → paper URL → 标题 → `feed:<id>`）。
 
 - **划词与 Agent（#421）**：详情正文 DOM 选区后浮出文字按钮 Add to chat / Quick chat（`PlazaSelectionMenu`）。Quick chat 复用 PDF `AskPopover` + 内存 `PdfAskThread`（空 rects），`runOnce({ hideFromChatHistory: true })`，Agent 取自设置里的划词提问席位；关闭即丢，不落盘。Add to chat：`publishSelection({ origin: "markdown" })` → pin → 打开右侧 Agent。实现：`plaza-feeds-item.tsx`、`use-plaza-feed-selection.ts`（Ask 运行生命周期在共享 hook `components/selection/use-selection-ask.ts`，网页论文划词同用，见 [../frontend/web-view.md](../frontend/web-view.md)）、`plaza-selection-menu.tsx`、`lib/plaza/ask-prompt.ts`。
 - 入库复用 `importPlazaPaper` / `lookupSubmit`：arXiv 喂 `https://arxiv.org/abs/{id}`；DOI 喂 `https://doi.org/{doi}`。入库不自动打开论文。
