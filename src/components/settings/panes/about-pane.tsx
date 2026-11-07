@@ -2,6 +2,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { appLogDir } from "@tauri-apps/api/path";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import {
+	ArrowRight,
 	Download,
 	ExternalLink,
 	FolderOpen,
@@ -266,8 +267,14 @@ export function AboutPane() {
 								Agentero
 							</p>
 							{version && (
-								<p className="text-muted-foreground text-xs">
-									{t("about.version", { version })}
+								<p className="flex flex-wrap items-center gap-1.5 text-muted-foreground text-xs">
+									<span>{t("about.version", { version })}</span>
+									{update.availableVersion && (
+										<span className="inline-flex items-center gap-0.5 font-medium text-emerald-600 dark:text-emerald-400">
+											<ArrowRight aria-hidden className="size-3" />
+											{`v${update.availableVersion}`}
+										</span>
+									)}
 								</p>
 							)}
 						</div>
