@@ -116,7 +116,8 @@ describe("Markdown split-panel persistence", () => {
 			markdownConflict: true,
 		});
 		expect(notifyReminder).toHaveBeenCalledTimes(1);
-		reminder().onDismiss();
+		// The toast only offers the disk reload; the banner owns "keep draft".
+		expect(reminder().dismissLabel).toBeUndefined();
 		expect(await persistFile(path, SECOND, SEED, second.id)).toBe(false);
 		// Even a caller with an advanced snapshot cannot bypass an unresolved conflict.
 		expect(await persistFile(path, SECOND, FIRST, second.id)).toBe(false);

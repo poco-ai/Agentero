@@ -445,7 +445,6 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		noteDocumentChanged,
 		saveNow,
 		applyExternalMarkdown,
-		releaseSaveHold,
 		adoptDiskBaseline,
 		savedRef,
 		dirtyRef,
@@ -918,8 +917,9 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 				}
 				adoptDiskBaseline(disk);
 				onResolveSaveConflict?.(tabId, "keep", disk);
-				releaseSaveHold();
-				const wrote = await saveNow();
+				// One forced write past the hold that the prop still shows. The
+				// permission dies with this call; a failed write falls back to "hold".
+				const wrote = await saveNow(true);
 				if (!wrote) onResolveSaveConflict?.(tabId, "hold", disk);
 			} catch (error) {
 				notifyError(errorMessage(error));
@@ -932,7 +932,6 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 			filePath,
 			onResolveSaveConflict,
 			tabId,
-			releaseSaveHold,
 			resolvingConflict,
 			saveNow,
 		],
@@ -1041,7 +1040,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 										disabled={resolvingConflict}
 										onClick={() => void resolveSaveConflict("load")}
 									>
-										{i18n.t("app:diskConflict.loadDisk")}
+										{i18n.t("app:diskConflict.reload")}
 									</Button>
 								</div>
 							) : null}

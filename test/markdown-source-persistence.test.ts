@@ -14,12 +14,14 @@ let root: ReturnType<typeof createRoot>;
 let editor: ReturnType<typeof createPlateEditor>;
 let persistence: ReturnType<typeof useMarkdownPersistence>;
 let write: (path: string, md: string, last: string) => Promise<boolean>;
+let blocked = false;
 
 function Host() {
 	persistence = useMarkdownPersistence({
 		editor,
 		initialMarkdown: seed,
 		filePath: path,
+		saveBlocked: blocked,
 		filePathRef: { current: path },
 		onAssetsChangedRef: { current: undefined },
 		onPersist: write,
@@ -33,6 +35,7 @@ describe("source mode persistence", () => {
 		editor = createPlateEditor({ plugins: [MarkdownPlugin] });
 		root = createRoot(document.createElement("div"));
 		write = vi.fn(async () => true);
+		blocked = false;
 		await act(() => root.render(createElement(Host)));
 	});
 
@@ -123,5 +126,34 @@ describe("source mode persistence", () => {
 		expect(write).toHaveBeenNthCalledWith(1, path, "first\n", seed);
 		expect(write).toHaveBeenNthCalledWith(2, path, "second  \n", "first\n");
 		expect(persistence.dirtyRef.current).toBe(false);
+	});
+
+	it("writes a kept draft past a sibling hold without unblocking autosave", async () => {
+		await act(async () => {
+			persistence.beginSource(seed);
+			persistence.updateSource(() => "# Draft\n");
+		});
+		blocked = true;
+		await act(() => root.render(createElement(Host)));
+		await act(async () => {
+			expect(await persistence.saveNow()).toBe(false);
+		});
+		expect(write).not.toHaveBeenCalled();
+
+		// "Keep draft": adopt the newer disk bytes as the baseline, then write
+		// this draft over them on purpose.
+		await act(async () => {
+			persistence.adoptDiskBaseline("# Newer on disk\n");
+			expect(await persistence.saveNow(true)).toBe(true);
+		});
+		expect(write).toHaveBeenCalledWith(path, "# Draft\n", "# Newer on disk\n");
+
+		// The permission belonged to that one save: autosave is still held.
+		await act(async () => {
+			persistence.updateSource(() => "# Draft again\n");
+			expect(await persistence.saveNow()).toBe(false);
+		});
+		expect(write).toHaveBeenCalledTimes(1);
+		expect(persistence.dirtyRef.current).toBe(true);
 	});
 });

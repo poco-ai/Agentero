@@ -118,15 +118,19 @@ export type ReminderOptions = {
 	/** Primary action (e.g. "Open settings"). */
 	actionLabel: string;
 	onAction: () => void;
-	/** Secondary action (e.g. "Don't remind again"). */
-	dismissLabel: string;
-	onDismiss: () => void;
+	/** Optional secondary action (e.g. "Don't remind again"). Omit for a
+	 * single-action reminder; the toast can still be dismissed. */
+	dismissLabel?: string;
+	onDismiss?: () => void;
 };
 
 /**
- * Periodic config reminder with two choices: jump to the fix, or stop showing
- * it. Uses Sonner's secondary `cancel` button so "don't remind again" does not
- * read as the primary call to action.
+ * Periodic config reminder with up to two choices: jump to the fix, and
+ * optionally stop showing it. Uses Sonner's secondary `cancel` button so
+ * "don't remind again" does not read as the primary call to action. Callers
+ * that already surface a persistent in-place control (the Markdown conflict
+ * banner) omit the secondary label: a dismiss that does nothing is worse than
+ * no dismiss at all.
  */
 export function notifyReminder(
 	message: string,
@@ -142,12 +146,18 @@ export function notifyReminder(
 ): string | number {
 	const text = message?.trim();
 	if (!text) return "";
+	// Both halves are optional so a caller with an in-place control can drop the
+	// no-op secondary action; pass the pair only when both are present.
+	const cancel =
+		dismissLabel && onDismiss
+			? { label: dismissLabel, onClick: onDismiss }
+			: undefined;
 	return toast(text, {
 		description,
 		id,
 		duration: duration ?? 20_000,
 		action: { label: actionLabel, onClick: onAction },
-		cancel: { label: dismissLabel, onClick: onDismiss },
+		cancel,
 		// Stack the actions below the text instead of Sonner's default inline row
 		// (see `cn-reminder-toast` in index.css).
 		classNames: { toast: "cn-reminder-toast" },

@@ -31,6 +31,7 @@ import {
 } from "@/lib/wiki/store";
 import { getTabs, setTabs } from "@/lib/workspace/store";
 import {
+	applyMarkdownConflictChoice,
 	type DocTab,
 	normalizeTabPath,
 	refreshPdfTab,
@@ -116,7 +117,13 @@ const defaultDiskChangeSink: DiskChangeSink = {
 	updateTabs: (update) => setTabs(update),
 };
 
-/** Reload only the panel the user chose, reading the current disk version. */
+/**
+ * Reload only the panel the user chose, reading the current disk version. The
+ * banner and this reminder share one resolution path: a tab marked
+ * `markdownConflict` is reloaded through `applyMarkdownConflictChoice`, so the
+ * editor banner, the toast action and any future entry point agree on which
+ * pane changes and what its seed becomes.
+ */
 function promptMarkdownConflict(path: string, tabId: string): void {
 	const name = path.split(/[\\/]/).pop() ?? path;
 	notifyReminder(i18n.t("app:diskConflict.title", { name }), {
@@ -128,25 +135,13 @@ function promptMarkdownConflict(path: string, tabId: string): void {
 					const content = await readVaultFile(path);
 					primeSeedCache(path, content);
 					setTabs((prev) =>
-						prev.map((tab) => {
-							if (tab.id !== tabId) return tab;
-							const notes = tabIsPaperNotes(tab);
-							return seedTabs(
-								[tab],
-								notes ? path.replace(/[\\/]NOTES\.md$/i, "") : path,
-								content,
-								notes ? "notes" : "markdown",
-								true,
-							)[0];
-						}),
+						applyMarkdownConflictChoice(prev, tabId, "load", content),
 					);
 				} catch (error) {
 					notifyError(errorText(error));
 				}
 			})();
 		},
-		dismissLabel: i18n.t("app:diskConflict.keepDraft"),
-		onDismiss: () => {},
 	});
 }
 

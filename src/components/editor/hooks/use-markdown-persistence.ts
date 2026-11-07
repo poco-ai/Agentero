@@ -56,8 +56,12 @@ export type MarkdownPersistence = {
 	serialize: () => string;
 	/** Debounced autosave; also reconciles `./assets/` when the debounce fires. */
 	noteDocumentChanged: () => void;
-	/** Flush the pending debounce and write immediately. */
-	saveNow: () => Promise<boolean>;
+	/**
+	 * Flush the pending debounce and write immediately. `force` writes once past
+	 * a sibling-panel `saveBlocked` hold; the permission dies with this call, so
+	 * it cannot leak into a later autosave.
+	 */
+	saveNow: (force?: boolean) => Promise<boolean>;
 	beginSource: (markdown: string) => void;
 	updateSource: (read: () => string) => void;
 	endSource: (
@@ -74,8 +78,6 @@ export type MarkdownPersistence = {
 	 * (own-write echo) and nothing was reloaded.
 	 */
 	applyExternalMarkdown: (markdown: string) => boolean;
-	/** Let the next save through a sibling-panel hold. Used by "keep draft". */
-	releaseSaveHold: () => void;
 	/**
 	 * Treat `markdown` as the current disk bytes without replacing the editor.
 	 * The next save then writes this draft over that version on purpose.
@@ -174,12 +176,15 @@ export function useMarkdownPersistence({
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: editor.children is an identity probe; depending on it would rebuild persist per keystroke
 	const persist = useCallback(() => {
+		// Consume the "keep draft" permission before any early return: a leaked
+		// true would let the next autosave bypass the sibling-panel hold.
+		const forced = allowBlockedSaveRef.current;
+		allowBlockedSaveRef.current = false;
 		if (readOnly || !filePath || !onPersist) return Promise.resolve();
-		if (saveBlockedRef.current && !allowBlockedSaveRef.current) {
+		if (saveBlockedRef.current && !forced) {
 			persistQueuedRef.current = false;
 			return Promise.resolve();
 		}
-		allowBlockedSaveRef.current = false;
 		persistQueuedRef.current = true;
 		if (persistInFlightRef.current) return persistInFlightRef.current;
 
@@ -411,11 +416,6 @@ export function useMarkdownPersistence({
 		[noteDocumentChanged],
 	);
 
-	const releaseSaveHold = useCallback(() => {
-		allowBlockedSaveRef.current = true;
-		saveBlockedRef.current = false;
-	}, []);
-
 	const adoptDiskBaseline = useCallback(
 		(markdown: string) => {
 			savedRef.current = markdown;
@@ -424,12 +424,22 @@ export function useMarkdownPersistence({
 		[serialize, setDirty],
 	);
 
-	const saveNow = useCallback(async () => {
-		debouncedPersist.cancel();
-		reconcileAssetsRef.current();
-		await persistRef.current();
-		return !dirtyRef.current;
-	}, [debouncedPersist]);
+	const saveNow = useCallback(
+		async (force?: boolean) => {
+			debouncedPersist.cancel();
+			reconcileAssetsRef.current();
+			if (force) allowBlockedSaveRef.current = true;
+			try {
+				await persistRef.current();
+			} finally {
+				// Clear even when persist bailed out before consuming it (read-only or
+				// no file path): the permission must not outlive this explicit save.
+				allowBlockedSaveRef.current = false;
+			}
+			return !dirtyRef.current;
+		},
+		[debouncedPersist],
+	);
 
 	return {
 		frontmatterYaml,
@@ -442,7 +452,6 @@ export function useMarkdownPersistence({
 		hasSourceSnapshot,
 		saveNow,
 		applyExternalMarkdown,
-		releaseSaveHold,
 		adoptDiskBaseline,
 		savedRef,
 		dirtyRef,
