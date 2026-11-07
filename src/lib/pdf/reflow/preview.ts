@@ -212,19 +212,8 @@ export class ReflowPreviewSession {
 							.filter((i) => i.status === "done" && i.translated?.trim())
 							.map((i) => [i.id, i.translated ?? ""]),
 					);
-					const cached = await this.cachedBuild(
-						"page",
-						index,
-						ir,
-						translations,
-						false,
-						fonts,
-						signal,
-					);
-					if (cached) {
-						await this.publish(this.engine, cached, signal, true);
-						return;
-					}
+					// Page builds are never persisted: each one embeds the full
+					// CJK font pair (~20 MB). Only the final document is cached.
 					const target = await this.obtainBuild(signal);
 					const built = await logOp("pdf.reflow.page", { page: index }, () =>
 						buildReflowPage(
@@ -235,14 +224,6 @@ export class ReflowPreviewSession {
 							fonts,
 							signal,
 						),
-					);
-					await this.saveBuilt(
-						"page",
-						index,
-						ir,
-						translations,
-						fonts,
-						built.bytes,
 					);
 					await this.publish(target.engine, built, signal, true);
 				});
@@ -265,15 +246,7 @@ export class ReflowPreviewSession {
 				const translations = new Map(
 					selected.map((i) => [i.id, i.translated ?? ""]),
 				);
-				const cached = await this.cachedBuild(
-					"final",
-					undefined,
-					ir,
-					translations,
-					true,
-					fonts,
-					signal,
-				);
+				const cached = await this.cachedFinal(ir, translations, fonts, signal);
 				if (cached) {
 					await this.publish(this.engine, cached, signal, false, (ratio) =>
 						report(0.8 + ratio * 0.19),
@@ -296,14 +269,7 @@ export class ReflowPreviewSession {
 						(ratio) => report(ratio * 0.8),
 					),
 				);
-				await this.saveBuilt(
-					"final",
-					undefined,
-					ir,
-					translations,
-					fonts,
-					built.bytes,
-				);
+				await this.saveFinal(ir, translations, fonts, built.bytes);
 				await this.publish(target.engine, built, signal, false, (ratio) =>
 					report(0.8 + ratio * 0.19),
 				);
@@ -316,16 +282,15 @@ export class ReflowPreviewSession {
 	}
 
 	/**
-	 * Reuse a previously built page / final PDF when IR, translations, and
-	 * fonts are unchanged. Layouts are recomputed in memory (cheap) so preview
-	 * publishing works identically to a fresh build.
+	 * Reuse a previously built final PDF when IR, translations, and fonts are
+	 * unchanged. Layouts are recomputed in memory (cheap) so preview publishing
+	 * works identically to a fresh build. Per-page builds are never cached:
+	 * each embeds the full CJK font pair (~20 MB), which would dwarf the disk
+	 * budget for a marginal win over the one-shot final entry.
 	 */
-	private async cachedBuild(
-		kind: "page" | "final",
-		page: number | undefined,
+	private async cachedFinal(
 		ir: ReflowDocument,
 		translations: Map<string, string>,
-		commonScale: boolean,
 		fonts: ReflowFontBytes,
 		signal: AbortSignal,
 	): Promise<ReflowOutput | null> {
@@ -334,26 +299,17 @@ export class ReflowPreviewSession {
 		try {
 			const bytes = await logOp(
 				"pdf.reflow.buildCache",
-				{ phase: "read", kind, ...(page !== undefined ? { page } : {}) },
-				() =>
-					kind === "page"
-						? cache.readPage(ir, page ?? -1, translations, fonts)
-						: cache.readFinal(ir, translations, fonts),
+				{ phase: "read" },
+				() => cache.readFinal(ir, translations, fonts),
 			);
 			signal.throwIfAborted();
 			if (!bytes) {
-				logger.info("pdf.reflow.buildCache", {
-					result: "miss",
-					kind,
-					...(page !== undefined ? { page } : {}),
-				});
+				logger.info("pdf.reflow.buildCache", { result: "miss" });
 				return null;
 			}
 			logger.info("pdf.reflow.buildCache", {
 				result: "hit",
-				kind,
 				bytes: bytes.byteLength,
-				...(page !== undefined ? { page } : {}),
 			});
 			// Layout metrics are recomputed in memory against the same embedded
 			// fonts, so overlays match the cached render without rebuilding it.
@@ -363,7 +319,7 @@ export class ReflowPreviewSession {
 			);
 			return {
 				bytes,
-				pages: layoutReflowDocument(ir, translations, embedded, commonScale),
+				pages: layoutReflowDocument(ir, translations, embedded, true),
 			};
 		} catch (error) {
 			if (signal.aborted) throw error;
@@ -374,10 +330,8 @@ export class ReflowPreviewSession {
 		}
 	}
 
-	/** Best-effort persistence of a freshly built PDF; never fails the job. */
-	private saveBuilt(
-		kind: "page" | "final",
-		page: number | undefined,
+	/** Best-effort persistence of a freshly built final PDF; never fails the job. */
+	private saveFinal(
 		ir: ReflowDocument,
 		translations: Map<string, string>,
 		fonts: ReflowFontBytes,
@@ -385,21 +339,15 @@ export class ReflowPreviewSession {
 	): Promise<void> {
 		const cache = this.buildCache;
 		if (!cache) return Promise.resolve();
-		return logOp(
-			"pdf.reflow.buildCache",
-			{ phase: "write", kind, ...(page !== undefined ? { page } : {}) },
-			async () => {
-				try {
-					if (kind === "page")
-						await cache.writePage(ir, page ?? -1, translations, fonts, bytes);
-					else await cache.writeFinal(ir, translations, fonts, bytes);
-				} catch (error) {
-					logger.warn("pdf.reflow.buildCache write failed", {
-						error: errorText(error),
-					});
-				}
-			},
-		).then(() => {});
+		return logOp("pdf.reflow.buildCache", { phase: "write" }, async () => {
+			try {
+				await cache.writeFinal(ir, translations, fonts, bytes);
+			} catch (error) {
+				logger.warn("pdf.reflow.buildCache write failed", {
+					error: errorText(error),
+				});
+			}
+		}).then(() => {});
 	}
 
 	/** Dedicated build engine when available; the viewer pair is the fallback. */

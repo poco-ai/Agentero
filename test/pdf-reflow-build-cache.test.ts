@@ -2,10 +2,8 @@ import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
 import type { PDFFont } from "pdf-lib";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
-import {
-	createReflowBuildCache,
-	type ReflowBuildCacheStore,
-} from "@/lib/pdf/reflow/build-cache";
+import type { ReflowBuildCacheStore } from "@/lib/pdf/reflow/build-cache";
+import { createReflowBuildCache } from "@/lib/pdf/reflow/build-cache";
 import { paragraphFromCharacters } from "@/lib/pdf/reflow/extract";
 import { ReflowPreviewSession } from "@/lib/pdf/reflow/preview";
 
@@ -21,7 +19,16 @@ vi.mock("@/lib/core/logger", () => ({
 	},
 }));
 
-const disk = vi.hoisted(() => ({ files: new Map<string, Uint8Array>() }));
+const disk = vi.hoisted(() => ({
+	files: new Map<string, Uint8Array>(),
+	mtimes: new Map<string, number>(),
+	tick: 0,
+}));
+
+function seedDiskFile(name: string, bytes: Uint8Array): void {
+	disk.files.set(`/app-cache/reflow-build/${name}`, bytes);
+	disk.mtimes.set(`/app-cache/reflow-build/${name}`, 0);
+}
 
 vi.mock("@/lib/core/tauri", () => ({ isTauri: () => true }));
 vi.mock("@tauri-apps/api/path", () => ({
@@ -37,7 +44,29 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
 	},
 	writeFile: async (path: string, bytes: Uint8Array) => {
 		disk.files.set(path, new Uint8Array(bytes));
+		disk.tick += 1;
+		disk.mtimes.set(path, disk.tick);
 	},
+	remove: async (path: string) => {
+		disk.files.delete(path);
+		disk.mtimes.delete(path);
+	},
+	readDir: async (dir: string) =>
+		[...disk.files.keys()]
+			.filter((path) => path.startsWith(`${dir}/`))
+			.map((path) => ({
+				name: path.slice(dir.length + 1),
+				isFile: true,
+				isDirectory: false,
+				isSymlink: false,
+			})),
+	stat: async (path: string) => ({
+		isFile: true,
+		isDirectory: false,
+		isSymlink: false,
+		size: 0,
+		mtime: new Date(disk.mtimes.get(path) ?? 0),
+	}),
 }));
 
 const metric = {
@@ -70,14 +99,37 @@ vi.mock("@/lib/pdf/reflow/fonts", () => ({
 	loadReflowFonts: vi.fn(async () => fontBytes),
 }));
 
-const buildPage = vi.hoisted(() => ({
-	fn: vi.fn(),
-}));
+const pageBuild = vi.hoisted(() => ({ fn: vi.fn() }));
+const buildPdf = vi.hoisted(() => ({ fn: vi.fn() }));
 vi.mock("@/lib/pdf/reflow/export", () => ({
-	buildReflowPage: buildPage.fn,
-	buildReflowPdf: vi.fn(),
+	buildReflowPage: pageBuild.fn,
+	buildReflowPdf: buildPdf.fn,
 	embedReflowFonts: vi.fn(async () => embeddedFonts),
 }));
+
+function layoutsFrom(ir: {
+	pages: {
+		index: number;
+		width: number;
+		height: number;
+		paragraphs: { id: string; pageIndex: number; box: unknown }[];
+	}[];
+}) {
+	return ir.pages.map((page) => ({
+		index: page.index,
+		width: page.width,
+		height: page.height,
+		paragraphs: page.paragraphs.map((p) => ({
+			id: p.id,
+			pageIndex: p.pageIndex,
+			sourceBox: p.box,
+			box: p.box,
+			scale: 1,
+			units: [],
+			fits: true,
+		})),
+	}));
+}
 
 function item(
 	id: string,
@@ -121,30 +173,31 @@ const engine = {
 	closeDocument: close,
 } as unknown as PdfEngine;
 
+const buildOutput = (ir: {
+	pages: {
+		index: number;
+		width: number;
+		height: number;
+		paragraphs: {
+			id: string;
+			pageIndex: number;
+			box: { x: number; y: number; w: number; h: number };
+		}[];
+	}[];
+}) => ({ bytes: new Uint8Array([7]), pages: layoutsFrom(ir) });
+
 let session: ReflowPreviewSession;
 const failed = vi.fn();
 
 beforeEach(() => {
 	vi.clearAllMocks();
 	disk.files.clear();
-	buildPage.fn.mockReset();
-	buildPage.fn.mockImplementation(async (_engine, _doc, ir, translations) => ({
-		bytes: new Uint8Array([7, translations.size]),
-		pages: ir.pages.map((page) => ({
-			index: page.index,
-			width: page.width,
-			height: page.height,
-			paragraphs: page.paragraphs.map((p) => ({
-				id: p.id,
-				pageIndex: p.pageIndex,
-				sourceBox: p.box,
-				box: p.box,
-				scale: 1,
-				units: [],
-				fits: true,
-			})),
-		})),
-	}));
+	disk.mtimes.clear();
+	disk.tick = 0;
+	pageBuild.fn.mockReset();
+	buildPdf.fn.mockReset();
+	pageBuild.fn.mockImplementation(async (_e, _d, ir) => buildOutput(ir));
+	buildPdf.fn.mockImplementation(async (_e, _d, ir) => buildOutput(ir));
 	vi.spyOn(URL, "createObjectURL").mockImplementation(
 		() => `blob:${crypto.randomUUID()}`,
 	);
@@ -161,13 +214,7 @@ describe("reflow build cache", () => {
 		const ir = {
 			version: 1 as const,
 			pages: [
-				{
-					index: 0,
-					width: 100,
-					height: 100,
-					paragraphs: [],
-					obstacles: [],
-				},
+				{ index: 0, width: 100, height: 100, paragraphs: [], obstacles: [] },
 			],
 		};
 		const translations = new Map([["p0", "译文"]]);
@@ -190,7 +237,62 @@ describe("reflow build cache", () => {
 		expect(await otherPdf.readFinal(ir, translations, fontBytes)).toBeNull();
 	});
 
-	it("roundtrips page builds per page index", async () => {
+	it("hits when only paragraph draw order jitters between runs", async () => {
+		const cache = createReflowBuildCache({
+			paperKey: "papers/demo",
+			pdfBytes: new TextEncoder().encode("pdf-one"),
+		});
+		const paragraph = (id: string) => ({
+			id,
+			pageIndex: 0,
+			box: { x: 10, y: 10, w: 80, h: 20 },
+			characters: [],
+			formulas: [],
+			styles: {},
+			source: id,
+			protectedText: id,
+			style: {
+				font: "Times",
+				size: 10,
+				bold: false,
+				italic: false,
+				color: { r: 0, g: 0, b: 0 },
+			},
+			firstLineIndent: 0,
+			heading: false,
+		});
+		const documentWithOrder = (ids: string[]) => ({
+			version: 1 as const,
+			pages: [
+				{
+					index: 0,
+					width: 100,
+					height: 100,
+					paragraphs: ids.map(paragraph),
+					obstacles: [],
+				},
+			],
+		});
+		const translations = new Map([
+			["a", "译文甲"],
+			["b", "译文乙"],
+		]);
+		await cache.writeFinal(
+			documentWithOrder(["a", "b"]),
+			translations,
+			fontBytes,
+			new Uint8Array([1]),
+		);
+		expect(
+			await cache.readFinal(
+				documentWithOrder(["b", "a"]),
+				translations,
+				fontBytes,
+			),
+		).not.toBeNull();
+	});
+
+	it("keeps only the newest finals per paper and sweeps legacy page files", async () => {
 		const cache = createReflowBuildCache({
 			paperKey: "papers/demo",
 			pdfBytes: new TextEncoder().encode("pdf-one"),
@@ -198,40 +300,75 @@ describe("reflow build cache", () => {
 		const ir = {
 			version: 1 as const,
 			pages: [
-				{
-					index: 0,
-					width: 100,
-					height: 100,
-					paragraphs: [],
-					obstacles: [],
-				},
-				{
-					index: 1,
-					width: 100,
-					height: 100,
-					paragraphs: [],
-					obstacles: [],
-				},
+				{ index: 0, width: 100, height: 100, paragraphs: [], obstacles: [] },
 			],
 		};
-		const translations = new Map([["p0", "译文"]]);
-		await cache.writePage(ir, 0, translations, fontBytes, new Uint8Array([1]));
-		await cache.writePage(ir, 1, translations, fontBytes, new Uint8Array([2]));
-		expect(await cache.readPage(ir, 0, translations, fontBytes)).toEqual(
-			new Uint8Array([1]),
+		const write = (t: string) =>
+			cache.writeFinal(
+				ir,
+				new Map([["p0", t]]),
+				fontBytes,
+				new Uint8Array([1]),
+			);
+		await write("one");
+		await write("two");
+		const prefix = [...disk.files.keys()][0]?.match(
+			/reflow-build\/(.+)-final-/,
+		)?.[1];
+		expect(prefix).toBeTruthy();
+		seedDiskFile(`${prefix}-p0003-legacy.pdf`, new Uint8Array([9]));
+		seedDiskFile(`otherpaper-p0003-keep.pdf`, new Uint8Array([9]));
+
+		await write("three");
+
+		const names = [...disk.files.keys()].map((path) =>
+			path.slice(path.lastIndexOf("/") + 1),
 		);
-		expect(await cache.readPage(ir, 1, translations, fontBytes)).toEqual(
-			new Uint8Array([2]),
-		);
+		expect(names.filter((name) => name.includes("-final-"))).toHaveLength(2);
+		expect(names.join("\n")).not.toContain(`${prefix}-p0003`);
+		expect(names.join("\n")).toContain("otherpaper-p0003-keep.pdf");
+		// The two newest finals stay readable; the oldest one is gone.
 		expect(
-			await cache.readPage(ir, 1, new Map([["p0", "重译"]]), fontBytes),
+			await cache.readFinal(ir, new Map([["p0", "two"]]), fontBytes),
+		).not.toBeNull();
+		expect(
+			await cache.readFinal(ir, new Map([["p0", "one"]]), fontBytes),
 		).toBeNull();
+		expect(
+			await cache.readFinal(ir, new Map([["p0", "three"]]), fontBytes),
+		).not.toBeNull();
 	});
 
-	it("skips the builder on a cache hit and publishes the cached bytes", async () => {
+	it("serves the final build from cache without invoking the builder", async () => {
 		const cache: ReflowBuildCacheStore = {
-			readPage: vi.fn(async () => new Uint8Array([9, 9])),
-			writePage: vi.fn(async () => {}),
+			readFinal: vi.fn(async () => new Uint8Array([9, 9])),
+			writeFinal: vi.fn(async () => {}),
+		};
+		session = new ReflowPreviewSession(
+			engine,
+			document,
+			() => {},
+			failed,
+			undefined,
+			cache,
+		);
+		const items = [item("p0", 0), item("p1", 1)];
+		session.update(items, [], false);
+		await vi.waitFor(() => expect(session.busy).toBe(false));
+		expect(buildPdf.fn).not.toHaveBeenCalled();
+		expect(cache.writeFinal).not.toHaveBeenCalled();
+		// Every page is repainted from the cached bytes, then the export
+		// output is published.
+		expect(render).toHaveBeenCalledTimes(2);
+		expect(session.output).toEqual(new Uint8Array([9, 9]));
+		const decorated = session.decorate(items);
+		expect(decorated[0]?.reflowPreview).toBeTruthy();
+		expect(decorated[0]?.reflowLayout?.id).toBe("p0");
+		expect(decorated[1]?.reflowLayout?.id).toBe("p1");
+	});
+
+	it("persists a freshly built final document for the next run", async () => {
+		const cache: ReflowBuildCacheStore = {
 			readFinal: vi.fn(async () => null),
 			writeFinal: vi.fn(async () => {}),
 		};
@@ -243,24 +380,17 @@ describe("reflow build cache", () => {
 			undefined,
 			cache,
 		);
-		const first = item("p0", 0);
-		session.update([first], [], true);
+		session.update([item("p0", 0), item("p1", 1)], [], false);
 		await vi.waitFor(() => expect(session.busy).toBe(false));
-		expect(buildPage.fn).not.toHaveBeenCalled();
-		expect(cache.writePage).not.toHaveBeenCalled();
-		expect(render).toHaveBeenCalledTimes(1);
-		const decorated = session.decorate([first])[0];
-		expect(decorated.reflowPreview).toBeTruthy();
-		expect(decorated.reflowLayout?.id).toBe("p0");
+		expect(buildPdf.fn).toHaveBeenCalledTimes(1);
+		expect(cache.writeFinal).toHaveBeenCalledTimes(1);
+		const [, , , writeBytes] = vi.mocked(cache.writeFinal).mock.calls[0];
+		expect(writeBytes).toEqual(new Uint8Array([7]));
 	});
 
-	it("persists a fresh page build for the next run", async () => {
+	it("never persists per-page builds, even with a cache attached", async () => {
 		const cache: ReflowBuildCacheStore = {
-			readPage: vi.fn(async (_d, pageIndex: number) =>
-				pageIndex === 0 ? new Uint8Array([9, 9]) : null,
-			),
-			writePage: vi.fn(async () => {}),
-			readFinal: vi.fn(async () => null),
+			readFinal: vi.fn(async () => new Uint8Array([9, 9])),
 			writeFinal: vi.fn(async () => {}),
 		};
 		session = new ReflowPreviewSession(
@@ -273,9 +403,10 @@ describe("reflow build cache", () => {
 		);
 		session.update([item("p0", 0), item("p1", 1)], [], true);
 		await vi.waitFor(() => expect(session.busy).toBe(false));
-		expect(buildPage.fn).toHaveBeenCalledTimes(1);
-		expect(cache.writePage).toHaveBeenCalledTimes(1);
-		const call = buildPage.fn.mock.calls[0];
-		expect(call[2].pages[0].index).toBe(1);
+		expect(pageBuild.fn).toHaveBeenCalledTimes(2);
+		expect(buildPdf.fn).not.toHaveBeenCalled();
+		expect(cache.readFinal).not.toHaveBeenCalled();
+		expect(cache.writeFinal).not.toHaveBeenCalled();
+		expect(render).toHaveBeenCalledTimes(2);
 	});
 });

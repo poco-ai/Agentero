@@ -1,21 +1,29 @@
 /**
- * Persistent cache for finished reflow outputs.
+ * Persistent cache for the finished translated document.
  *
- * Page builds and the document-level build repeat the same expensive work on
- * every restart: PDFium text redaction, full CJK font embedding, and pdf-lib
- * serialization. The bytes depend only on the source geometry IR, the exact
- * translations, the font bytes, and the reflow schema — so they are stored
- * under the app cache directory and reused verbatim. Translations already live
- * in the `layout-translate.json` sidecar; this cache stores build output, not
- * translation state.
+ * The document-level build repeats the same expensive work on every restart:
+ * PDFium text redaction, formula fragment extraction, full CJK font embedding
+ * (each embedded copy is ~20 MB), and pdf-lib serialization. The bytes depend
+ * only on the source geometry IR, the exact translations, the font bytes, and
+ * the reflow schema — so the finished PDF is stored under the app cache
+ * directory and reused verbatim. Per-page preview builds are deliberately NOT
+ * cached: each embeds the full CJK font pair, so caching them would cost
+ * ~20 MB per page for a marginal win over the single final entry.
  *
- * Every file is named by a SHA-256 content key and re-read through
+ * The file is named by a SHA-256 content key and re-read through
  * `pdf-lib.load`, which validates PDF structure. A truncated or corrupt file
  * simply fails the load and the caller rebuilds.
  */
 
 import { appCacheDir, join } from "@tauri-apps/api/path";
-import { mkdir, readFile, writeFile } from "@tauri-apps/plugin-fs";
+import {
+	mkdir,
+	readDir,
+	readFile,
+	remove,
+	stat,
+	writeFile,
+} from "@tauri-apps/plugin-fs";
 import { errorText } from "@/lib/core/error";
 import { logger } from "@/lib/core/logger";
 import { isTauri } from "@/lib/core/tauri";
@@ -33,6 +41,13 @@ const REFLOW_BUILD_CACHE_VERSION = 1;
  * changes must invalidate old entries even when the IR schema is unchanged).
  */
 const REFLOW_BUILD_PIPELINE_VERSION = 1;
+/**
+ * Translation state churns with every page-level hide/restore, so one paper
+ * can legitimately produce several distinct finals in a row. Keep the newest
+ * few and drop the rest; page previews from the old per-page cache era are
+ * always swept.
+ */
+const FINAL_KEEP_COUNT = 2;
 
 export type ReflowBuildCacheSource = {
 	/** Stable paper identifier, usually the vault-relative paper folder. */
@@ -41,21 +56,8 @@ export type ReflowBuildCacheSource = {
 	pdfBytes: ArrayBuffer | Uint8Array | null | undefined;
 };
 
-/** Cache operations for finished reflow builds; fakes are used by tests. */
+/** Cache operations for the finished reflow document; fakes are used by tests. */
 export type ReflowBuildCacheStore = {
-	readPage(
-		document: ReflowDocument,
-		pageIndex: number,
-		translations: ReadonlyMap<string, string>,
-		fonts: ReflowFontBytes,
-	): Promise<Uint8Array | null>;
-	writePage(
-		document: ReflowDocument,
-		pageIndex: number,
-		translations: ReadonlyMap<string, string>,
-		fonts: ReflowFontBytes,
-		bytes: Uint8Array,
-	): Promise<void>;
 	readFinal(
 		document: ReflowDocument,
 		translations: ReadonlyMap<string, string>,
@@ -86,6 +88,40 @@ function stableJson(value: unknown): string {
 	);
 }
 
+function sortedById<T extends { id: string }>(values: readonly T[]): T[] {
+	return [...values].sort((a, b) => (a.id < b.id ? -1 : 1));
+}
+
+/**
+ * Canonical view of the document for keying: paragraph order can jitter
+ * between runs (page-level runs re-merge items, and equal-key ties resolve to
+ * insertion order), which changes the PDF's draw order by a fragment without
+ * changing any visible content. Sort everything addressable by id so such
+ * jitter still hits the same cache entry.
+ */
+function canonicalDocument(document: ReflowDocument): unknown {
+	return {
+		version: document.version,
+		pages: [...document.pages]
+			.sort((a, b) => a.index - b.index)
+			.map((page) => ({
+				index: page.index,
+				width: page.width,
+				height: page.height,
+				paragraphs: sortedById(page.paragraphs).map((paragraph) => ({
+					...paragraph,
+					characters: [...paragraph.characters].sort(
+						(a, b) => a.index - b.index,
+					),
+					formulas: sortedById(paragraph.formulas),
+				})),
+				obstacles: [...page.obstacles].sort(
+					(a, b) => a.x - b.x || a.y - b.y || a.w - b.w || a.h - b.h,
+				),
+			})),
+	};
+}
+
 function translationsFingerprint(
 	entries: readonly [string, string][],
 ): Promise<string> {
@@ -102,7 +138,7 @@ async function documentFingerprint(
 		REFLOW_BUILD_CACHE_VERSION,
 		REFLOW_BUILD_PIPELINE_VERSION,
 		document.version,
-		stableJson(document.pages),
+		stableJson(canonicalDocument(document)),
 		await translationsFingerprint([...translations]),
 	];
 	if (fonts) parts.push(await fontFingerprint(fonts));
@@ -148,6 +184,47 @@ async function writeCacheEntry(path: string, bytes: Uint8Array): Promise<void> {
 }
 
 /**
+ * Bound per-paper disk usage: keep the newest few finals of this PDF and sweep
+ * orphaned per-page previews left by the retired per-page cache. Pruning must
+ * never fail the write that triggered it.
+ */
+async function pruneBuildDir(dir: string, prefix: string): Promise<void> {
+	try {
+		const entries = await readDir(dir);
+		const finals = entries.filter(
+			(entry) => entry.isFile && entry.name.startsWith(`${prefix}-final-`),
+		);
+		const stale: string[] = [];
+		if (finals.length > FINAL_KEEP_COUNT) {
+			const dated = await Promise.all(
+				finals.map(async (entry) => {
+					try {
+						const info = await stat(await join(dir, entry.name));
+						return { name: entry.name, at: info.mtime?.getTime() ?? 0 };
+					} catch {
+						return { name: entry.name, at: 0 };
+					}
+				}),
+			);
+			stale.push(
+				...dated
+					.sort((a, b) => b.at - a.at)
+					.slice(FINAL_KEEP_COUNT)
+					.map((entry) => entry.name),
+			);
+		}
+		const pagePattern = new RegExp(`^${prefix}-p\\d+-`);
+		for (const entry of entries)
+			if (entry.isFile && pagePattern.test(entry.name)) stale.push(entry.name);
+		await Promise.all(
+			stale.map(async (name) => remove(await join(dir, name)).catch(() => {})),
+		);
+	} catch {
+		// Pruning must never fail a translation.
+	}
+}
+
+/**
  * Build the real cache store. Key material is computed lazily so a session
  * without a local paper PDF never touches disk.
  */
@@ -167,30 +244,6 @@ export function createReflowBuildCache(
 	};
 
 	return {
-		async readPage(document, page, translations, fonts) {
-			const fingerprint = await documentFingerprint(
-				document,
-				translations,
-				fonts,
-			);
-			const path = await entryPath(
-				`p${String(page).padStart(4, "0")}-${fingerprint}`,
-			);
-			if (!path) return null;
-			return readCacheEntry(path);
-		},
-		async writePage(document, page, translations, fonts, bytes) {
-			const fingerprint = await documentFingerprint(
-				document,
-				translations,
-				fonts,
-			);
-			const path = await entryPath(
-				`p${String(page).padStart(4, "0")}-${fingerprint}`,
-			);
-			if (!path) return;
-			await writeCacheEntry(path, bytes);
-		},
 		async readFinal(document, translations, fonts) {
 			const fingerprint = await documentFingerprint(
 				document,
@@ -210,6 +263,9 @@ export function createReflowBuildCache(
 			const path = await entryPath(`final-${fingerprint}`);
 			if (!path) return;
 			await writeCacheEntry(path, bytes);
+			const cacheBase = await baseIdentity();
+			if (cacheBase)
+				await pruneBuildDir(cacheBase.dir, cacheBase.pdfSha256.slice(0, 16));
 		},
 	};
 }
