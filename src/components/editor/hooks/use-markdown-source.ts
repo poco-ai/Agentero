@@ -73,10 +73,12 @@ export function useMarkdownSource({
 	const sourceHostRef = useRef<HTMLDivElement>(null);
 	const sourceViewRef = useRef<EditorView | null>(null);
 	const frame = useRef(0);
+	const switchMeasure = useRef<{ name: string; start: number } | null>(null);
 	const deferredSwitch = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const activeRef = useRef(active);
 	activeRef.current = active;
 	const restore = useRef<(() => void) | null>(null);
+	const baseline = useRef<{ raw: string; lines: number[] } | null>(null);
 
 	const { beginSource, endSource, saveNow, serialize, updateSource } =
 		persistence;
@@ -175,7 +177,10 @@ export function useMarkdownSource({
 					const raw = persistence.dirtyRef.current
 						? serialize()
 						: persistence.savedRef.current;
-					const lines = sourceBlockLines(raw);
+					const lines =
+						baseline.current?.raw === raw
+							? baseline.current.lines
+							: sourceBlockLines(raw);
 					const { frontmatter } = splitFrontmatter(raw);
 					const lineOf = (index: number) => {
 						if (lines.length === editor.children.length)
@@ -185,13 +190,15 @@ export function useMarkdownSource({
 							frontmatterLineOffset(frontmatter)
 						);
 					};
-					const view = loadSource(raw, lineOf(block));
+					const caretLine = lineOf(block);
+					const viewportLine = viewport === null ? caretLine : lineOf(viewport);
+					const view = loadSource(raw, caretLine);
 					if (!view) throw new Error("Missing Markdown source surface");
+					baseline.current = { raw, lines };
 					beginSource(raw);
 					restore.current = () => {
-						if (!view) return;
 						const pos = view.state.doc.line(
-							Math.min(lineOf(viewport ?? block), view.state.doc.lines),
+							Math.min(viewportLine, view.state.doc.lines),
 						).from;
 						if (activeRef.current) view.focus();
 						view.dispatch({
@@ -202,10 +209,14 @@ export function useMarkdownSource({
 				} else {
 					const raw = serialize();
 					const { body, frontmatter } = splitFrontmatter(raw);
-					const value = deserializeMarkdownBody(editor, body, {
-						throwOnError: true,
-					});
-					const lines = sourceBlockLines(raw);
+					const original = baseline.current;
+					const unchanged = original?.raw === raw;
+					const value = unchanged
+						? null
+						: deserializeMarkdownBody(editor, body, {
+								throwOnError: true,
+							});
+					const lines = unchanged ? original.lines : sourceBlockLines(raw);
 					const view = sourceViewRef.current;
 					const selectionLine =
 						view?.state.doc.lineAt(view.state.selection.main.head).number ?? 1;
@@ -218,11 +229,12 @@ export function useMarkdownSource({
 					const blockFor = (line: number) =>
 						Math.min(
 							blockAtSourceLine(lines, line),
-							Math.max(0, value.length - 1),
+							Math.max(0, (value?.length ?? editor.children.length) - 1),
 						);
 					const selected = blockFor(selectionLine);
 					const visible = blockFor(viewportLine);
 					endSource(value, frontmatter);
+					baseline.current = { raw, lines };
 					restore.current = () => {
 						const point = editor.api.start([selected]);
 						if (point) editor.tf.select(point);
@@ -238,7 +250,6 @@ export function useMarkdownSource({
 						}
 					};
 					changeMode("rendered");
-					if (persistence.dirtyRef.current) void saveNow();
 				}
 				performance.measure(
 					entering ? "markdown-source:enter-work" : "markdown-source:exit-work",
@@ -247,15 +258,10 @@ export function useMarkdownSource({
 						end: performance.now(),
 					},
 				);
-				frame.current = requestAnimationFrame(() => {
-					performance.measure(
-						entering ? "markdown-source:enter" : "markdown-source:exit",
-						{
-							start: started,
-							end: performance.now(),
-						},
-					);
-				});
+				switchMeasure.current = {
+					name: entering ? "markdown-source:enter" : "markdown-source:exit",
+					start: started,
+				};
 			} catch (error) {
 				logger.warn("Markdown source switch failed", {
 					direction: entering ? "enter" : "exit",
@@ -284,7 +290,6 @@ export function useMarkdownSource({
 		onEnter,
 		persistence.dirtyRef,
 		persistence.savedRef,
-		saveNow,
 		serialize,
 		t,
 	]);
@@ -294,6 +299,13 @@ export function useMarkdownSource({
 		const apply = restore.current;
 		restore.current = null;
 		apply?.();
+		const measure = switchMeasure.current;
+		switchMeasure.current = null;
+		if (measure)
+			performance.measure(measure.name, {
+				start: measure.start,
+				end: performance.now(),
+			});
 	}, [mode]);
 
 	useEffect(

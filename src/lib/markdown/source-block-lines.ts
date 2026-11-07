@@ -18,32 +18,55 @@ export function sourceBlockLines(markdown: string): number[] {
 	let lastEnd = 0;
 	let mathUntil = 0;
 	const equationFences: number[] = [];
-	for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
-		if (node.name === "FencedCode" || node.name === "CodeBlock") continue;
-		const first = doc.lineAt(node.from).number;
-		const last = doc.lineAt(node.to).number;
-		for (let line = first; line <= last; line += 1) {
-			if (/^ {0,3}\$\$[ \t]*$/.test(doc.line(line).text))
-				equationFences.push(line);
+	if (body.includes("$$")) {
+		for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
+			if (node.name !== "Paragraph") continue;
+			const first = doc.lineAt(node.from).number;
+			const last = doc.lineAt(node.to).number;
+			for (let line = first; line <= last; line += 1) {
+				if (/^ {0,3}\$\$[ \t]*$/.test(doc.line(line).text))
+					equationFences.push(line);
+			}
 		}
-	}
-	const equationEnds = new Map<number, number>();
-	for (let i = 1; i < equationFences.length; i += 2) {
-		equationEnds.set(equationFences[i - 1], equationFences[i]);
 	}
 	const push = (line: number) => {
 		if (lines.at(-1) !== offset + line) lines.push(offset + line);
 	};
+	let equation = 0;
 	for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
 		const start = doc.lineAt(node.from).number;
 		const end = doc.lineAt(node.to).number;
-		if (start <= mathUntil) continue;
+		let first = Math.max(start, mathUntil + 1);
+		if (first > end) continue;
 		// Plate preserves each extra blank paragraph beyond the ordinary separator.
-		for (let line = lastEnd + 2; line < start; line += 1) push(line);
-		mathUntil = equationEnds.get(start) ?? 0;
-		lastEnd = Math.max(end, mathUntil);
+		for (let line = lastEnd + 2; line < first; line += 1) push(line);
+		lastEnd = Math.max(lastEnd, end);
+
+		// A standalone math fence may interrupt a paragraph in remark even
+		// though CommonMark's tree includes both in one Paragraph.
+		while (
+			equation + 1 < equationFences.length &&
+			equationFences[equation] <= end
+		) {
+			const opening = equationFences[equation];
+			if (first < opening) push(first);
+			push(opening);
+			mathUntil = equationFences[equation + 1];
+			lastEnd = Math.max(lastEnd, mathUntil);
+			first = mathUntil + 1;
+			equation += 2;
+		}
+		if (first > end) continue;
+
+		if (
+			node.name === "LinkReference" &&
+			!doc.line(first).text.trimStart().startsWith("[^")
+		) {
+			// Definitions participate in parsing, but Plate has no display block.
+			continue;
+		}
 		if (node.name !== "BulletList" && node.name !== "OrderedList") {
-			push(start);
+			push(first);
 			continue;
 		}
 		node.cursor().iterate((child) => {

@@ -406,7 +406,6 @@ export function shortcutBelongsToTextField(
 	id: ShortcutId,
 	event: Pick<KeyboardEvent, "key" | "target">,
 ): boolean {
-	if (id === "toggleMarkdownSource") return false;
 	const binding = getShortcut(id);
 	const optionTyping = binding?.alt && !binding.meta && !binding.ctrl;
 	if (
@@ -713,9 +712,8 @@ export function validateShortcutBinding(
 		return false;
 	const mac = getPlatformOS() === "macos";
 	if (
-		mac &&
-		id &&
-		NATIVE_MENU_SHORTCUTS.has(id) &&
+		(id === "toggleMarkdownSource" ||
+			(mac && id && NATIVE_MENU_SHORTCUTS.has(id))) &&
 		binding.alt &&
 		!binding.meta &&
 		!binding.ctrl

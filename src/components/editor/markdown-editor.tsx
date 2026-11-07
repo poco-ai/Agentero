@@ -110,6 +110,7 @@ import {
 import { registerMarkdownEditor } from "@/lib/workspace/viewer/markdown-editor-registry";
 
 const SOURCE_TOOLBAR_ACTIONS: ToolbarAction[] = [];
+const MarkdownPlateContent = memo(Editor);
 
 export type MarkdownEditorProps = {
 	tabId?: string;
@@ -514,7 +515,6 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 	const refreshTocMounted = useCallback(() => {
 		setTocMounted(hasEnoughHeadings(editor.children));
 	}, [editor]);
-	useEffect(refreshTocMounted, [refreshTocMounted]);
 
 	const handleChange = useCallback(() => {
 		scheduleCompletionProbe();
@@ -548,6 +548,9 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 			onEnter: onEnterSource,
 			active,
 		});
+	useEffect(() => {
+		if (!source) refreshTocMounted();
+	}, [refreshTocMounted, source]);
 	const shortcut = useShortcutLabel("toggleMarkdownSource");
 	const canToggleSource = !bodyReadOnly && Boolean(filePath && onPersist);
 	const hasPendingSource = useCallback(
@@ -967,9 +970,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 							<div
 								className={cn(
 									"@container/editor relative min-h-0 min-w-0 flex-1",
-									source && "hidden",
+									source && "invisible",
 								)}
 								data-editor-query-container=""
+								inert={source}
 							>
 								<ContextMenu onOpenChange={handleContextMenuOpenChange}>
 									<ContextMenuTrigger asChild>
@@ -1041,7 +1045,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 											 * to click and Enter can always create a new block below it
 											 * (matches Plate default variant pb-72).
 											 */}
-											<Editor
+											<MarkdownPlateContent
 												data-selection-chat-source={filePath || undefined}
 												data-selection-chat-origin="markdown"
 												placeholder={placeholder}

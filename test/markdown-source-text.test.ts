@@ -70,4 +70,11 @@ describe("Markdown source text", () => {
 		expect(blockAtSourceLine(lines, 21)).toBe(6);
 		expect(blockAtSourceLine(lines, 24)).toBe(7);
 	});
+	it("keeps headings aligned after reference definitions and adjacent math", () => {
+		const raw =
+			"Intro\n$$\nx+1\n$$\n\n[foo]: https://example.com\n\n# Target\n\nAfter";
+		const lines = sourceBlockLines(raw);
+		expect(lines).toEqual([1, 2, 8, 10]);
+		expect(blockAtSourceLine(lines, 8)).toBe(2);
+	});
 });

@@ -5,6 +5,7 @@ import { styleTags, Tag, tags } from "@lezer/highlight";
 import type {
 	BlockContext,
 	InlineContext,
+	Line,
 	MarkdownConfig,
 } from "@lezer/markdown";
 
@@ -36,6 +37,10 @@ function mathTokens(
 }
 
 const mathFence = /^\$\$[ \t]*$/;
+const opensBlockMath = (cx: BlockContext, line: Line) =>
+	cx.depth === 1 &&
+	line.indent < 4 &&
+	mathFence.test(line.text.slice(line.pos));
 const sourceSyntax: MarkdownConfig = {
 	defineNodes: [
 		{ name: "BlockMath", block: true, style: tags.special(tags.literal) },
@@ -56,13 +61,9 @@ const sourceSyntax: MarkdownConfig = {
 		{
 			name: "BlockMath",
 			before: "FencedCode",
+			endLeaf: opensBlockMath,
 			parse(cx, line) {
-				if (
-					cx.depth !== 1 ||
-					line.indent >= 4 ||
-					!mathFence.test(line.text.slice(line.pos))
-				)
-					return false;
+				if (!opensBlockMath(cx, line)) return false;
 				const from = cx.lineStart + line.pos;
 				const marks = [cx.elt("MathMark", from, from + 2)];
 				while (cx.nextLine()) {
@@ -85,10 +86,11 @@ const sourceSyntax: MarkdownConfig = {
 		{
 			name: "InlineMath",
 			parse(cx, next, pos) {
-				if (next !== 36 || cx.char(pos - 1) === 36 || cx.char(pos + 1) === 36)
-					return -1;
-				// As in remark-math, only a matching run of unescaped dollars closes.
-				for (let end = pos + 1; end < cx.end; end += 1) {
+				if (next !== 36 || cx.char(pos - 1) === 36) return -1;
+				let content = pos + 1;
+				while (cx.char(content) === 36) content += 1;
+				const width = content - pos;
+				for (let end = content; end < cx.end; end += 1) {
 					const ch = cx.char(end);
 					if (ch === 10) break;
 					if (ch === 92) {
@@ -96,19 +98,22 @@ const sourceSyntax: MarkdownConfig = {
 						continue;
 					}
 					if (ch !== 36) continue;
-					if (cx.char(end + 1) === 36) {
-						while (cx.char(end + 1) === 36) end += 1;
-						continue;
+					let close = end + 1;
+					while (cx.char(close) === 36) close += 1;
+					if (
+						close - end === width &&
+						end > content &&
+						!/\d/.test(cx.slice(close, close + 1))
+					) {
+						return cx.addElement(
+							cx.elt("InlineMath", pos, close, [
+								cx.elt("MathMark", pos, content),
+								...mathTokens(cx, cx.slice(content, end), content),
+								cx.elt("MathMark", end, close),
+							]),
+						);
 					}
-					if (end === pos + 1 || /\d/.test(cx.slice(end + 1, end + 2)))
-						return -1;
-					return cx.addElement(
-						cx.elt("InlineMath", pos, end + 1, [
-							cx.elt("MathMark", pos, pos + 1),
-							...mathTokens(cx, cx.slice(pos + 1, end), pos + 1),
-							cx.elt("MathMark", end, end + 1),
-						]),
-					);
+					end = close - 1;
 				}
 				return -1;
 			},

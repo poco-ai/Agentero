@@ -23,6 +23,7 @@ import {
 	createManagedAssetGc,
 } from "@/lib/markdown/image";
 import { settleMarkdownSaveAttempt } from "@/lib/markdown/save-state";
+import { applySourceProjection } from "@/lib/markdown/source-projection";
 
 const CHANGE_DEBOUNCE_MS = 500;
 
@@ -57,7 +58,10 @@ export type MarkdownPersistence = {
 	saveNow: () => Promise<boolean>;
 	beginSource: (markdown: string) => void;
 	updateSource: (read: () => string) => void;
-	endSource: (value: PlateEditor["children"], frontmatter: string) => void;
+	endSource: (
+		value: PlateEditor["children"] | null,
+		frontmatter: string,
+	) => void;
 	/** Source mode or a raw source snapshot waiting to be persisted. */
 	hasSourceSnapshot: () => boolean;
 	/**
@@ -287,11 +291,18 @@ export function useMarkdownPersistence({
 
 	/** Install a parsed projection without treating it as a user edit. */
 	const replaceProjection = useCallback(
-		(value: PlateEditor["children"], frontmatter: string) => {
+		(
+			value: PlateEditor["children"],
+			frontmatter: string,
+			fromSource = false,
+		) => {
 			externalReloadRef.current = true;
 			try {
-				editor.tf.deselect();
-				editor.tf.setValue(value);
+				editor.tf.withoutSaving(() => {
+					editor.tf.deselect();
+					if (fromSource) applySourceProjection(editor, value);
+					else editor.tf.setValue(value);
+				});
 				editor.history = { undos: [], redos: [] };
 				frontmatterRef.current = frontmatter;
 				setFrontmatterYaml(frontmatterInterior(frontmatter));
@@ -321,14 +332,15 @@ export function useMarkdownPersistence({
 	);
 
 	const endSource = useCallback(
-		(value: PlateEditor["children"], frontmatter: string) => {
+		(value: PlateEditor["children"] | null, frontmatter: string) => {
 			if (!sourceRef.current) return;
 			const raw = sourceRef.current();
-			replaceProjection(value, frontmatter);
+			if (value) replaceProjection(value, frontmatter, true);
+			else editor.history = { undos: [], redos: [] };
 			projectedSourceRef.current = raw;
 			sourceRef.current = null;
 		},
-		[replaceProjection],
+		[editor, replaceProjection],
 	);
 
 	const noteDocumentChanged = useCallback(() => {
