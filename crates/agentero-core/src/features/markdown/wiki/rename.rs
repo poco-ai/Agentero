@@ -3,13 +3,18 @@
 //! The planner consumes the *pre-move* semantic index and only replaces the
 //! target byte range of occurrences that were already resolved. Markdown stays
 //! the authority: the index is rebuilt by the caller after a successful commit.
+//! The same transaction also rewrites `::research-table` `path` attributes
+//! whose vault-relative path is the moved `*.table.json` file, or a table file
+//! under a moved directory. An existing `id` attribute is left in place.
+//! Quote style is preserved. A destination that would fail the frontend path
+//! check is left unchanged.
 //!
 //! This module is the wiki domain's *atomic* capability (plan + execute +
 //! rollback of the move and link rewrites). The cross-domain orchestration
 //! trunk (index rebuilds, dependent catalog commit, external-repair store)
 //! lives one level up in `features/rename`.
 
-use crate::features::wiki::index::WikiIndex;
+use crate::features::wiki::index::{is_markdown, WikiIndex};
 use crate::features::wiki::models::{
     InternalLinkSyntax, LinkResolutionStatus, ResolvedLink, WikiRenameErrorCode, WikiRenameResult,
     WikiRenameRollback, WikiRenameSkipped,
@@ -227,6 +232,15 @@ impl WikiRenameTransaction {
                     replacement,
                 });
         }
+
+        collect_research_table_edits(
+            &vault_root,
+            index,
+            &from,
+            &to,
+            primary_move_pending,
+            &mut candidates,
+        )?;
 
         let mut sources = Vec::new();
         for (path, mut edits) in candidates {
@@ -449,6 +463,211 @@ impl WikiRenameTransaction {
             WikiRenameRollback::ManualRecoveryRequired
         }
     }
+}
+
+const RESEARCH_TABLE_DIRECTIVE: &str = "::research-table{";
+
+fn is_research_table_path(path: &str) -> bool {
+    path.rsplit('/')
+        .next()
+        .is_some_and(|name| !name.is_empty() && name.to_ascii_lowercase().ends_with(".table.json"))
+}
+
+/// Same acceptance rules as the frontend `safeTableReference`.
+fn safe_table_reference(path: &str) -> bool {
+    !path.is_empty()
+        && path.to_ascii_lowercase().ends_with(".table.json")
+        && !path
+            .chars()
+            .any(|ch| matches!(ch, '\\' | ':' | '#') || ch < ' ')
+        && path
+            .split('/')
+            .all(|part| !part.is_empty() && !part.starts_with('.'))
+}
+
+fn directory_contains_research_table(dir: &Path) -> Result<bool, WikiRenameError> {
+    fn walk(dir: &Path, depth: usize) -> std::io::Result<bool> {
+        if depth > 24 {
+            return Ok(false);
+        }
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name.starts_with('.') {
+                continue;
+            }
+            let file_type = entry.file_type()?;
+            if file_type.is_dir() {
+                if walk(&entry.path(), depth + 1)? {
+                    return Ok(true);
+                }
+            } else if is_research_table_path(&name) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    walk(dir, 0).map_err(|error| {
+        WikiRenameError::new(
+            WikiRenameErrorCode::SourceChanged,
+            format!(
+                "could not inspect {} for research tables: {error}",
+                dir.display()
+            ),
+        )
+    })
+}
+
+/// A table embed follows the move when it names the moved file exactly, or a
+/// `*.table.json` path under a moved directory.
+fn research_table_path_follows(path: &str, from: &str, from_is_dir: bool) -> bool {
+    if !is_research_table_path(path) {
+        return false;
+    }
+    if from_is_dir {
+        path != from && is_at_or_under(path, from)
+    } else {
+        path == from
+    }
+}
+
+fn research_table_edit_on_line(
+    line: &str,
+    line_start: usize,
+    from: &str,
+    to: &str,
+    from_is_dir: bool,
+) -> Option<PlannedEdit> {
+    let indent = line.bytes().take_while(|byte| *byte == b' ').count();
+    if indent > 3 {
+        return None;
+    }
+    let rest = line[indent..].trim_end_matches([' ', '\t']);
+    let body = rest.strip_prefix(RESEARCH_TABLE_DIRECTIVE)?;
+    let end = body.find('}')?;
+    if !body[end + 1..].is_empty() {
+        return None;
+    }
+    let inside = &body[..end];
+    let (value_at, quote, path) = directive_attribute(inside, "path")?;
+    if !research_table_path_follows(path, from, from_is_dir) {
+        return None;
+    }
+    let replacement = remap_path(path, from, to);
+    if replacement == path || replacement.contains(quote) || !safe_table_reference(&replacement) {
+        return None;
+    }
+    let path_start = line_start + indent + RESEARCH_TABLE_DIRECTIVE.len() + value_at;
+    Some(PlannedEdit {
+        start: path_start,
+        end: path_start + path.len(),
+        expected: path.to_string(),
+        replacement,
+    })
+}
+
+/// Byte offset of an attribute value inside a directive body, plus its quote.
+fn directive_attribute<'a>(inside: &'a str, key: &str) -> Option<(usize, char, &'a str)> {
+    let needle = format!("{key}=");
+    let mut search = 0usize;
+    while let Some(rel) = inside[search..].find(&needle) {
+        let at = search + rel;
+        let boundary = at == 0 || inside.as_bytes()[at - 1].is_ascii_whitespace();
+        if boundary {
+            let after = &inside[at + needle.len()..];
+            let quote = after.chars().next()?;
+            if quote == '"' || quote == '\'' {
+                let quoted = &after[quote.len_utf8()..];
+                if let Some(end_quote) = quoted.find(quote) {
+                    let value_at = at + needle.len() + quote.len_utf8();
+                    return Some((value_at, quote, &quoted[..end_quote]));
+                }
+            }
+        }
+        search = at + needle.len();
+    }
+    None
+}
+
+fn research_table_edits(
+    content: &str,
+    from: &str,
+    to: &str,
+    from_is_dir: bool,
+) -> Vec<PlannedEdit> {
+    let mut edits = Vec::new();
+    let mut in_fence = false;
+    let mut byte_start = 0usize;
+    for line in content.split_inclusive('\n') {
+        let content_line = line.strip_suffix('\n').unwrap_or(line);
+        let content_line = content_line.strip_suffix('\r').unwrap_or(content_line);
+        let trimmed = content_line.trim_start();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_fence = !in_fence;
+            byte_start += line.len();
+            continue;
+        }
+        if in_fence {
+            byte_start += line.len();
+            continue;
+        }
+        if let Some(edit) =
+            research_table_edit_on_line(content_line, byte_start, from, to, from_is_dir)
+        {
+            edits.push(edit);
+        }
+        byte_start += line.len();
+    }
+    edits
+}
+
+fn collect_research_table_edits(
+    vault_root: &Path,
+    index: &WikiIndex,
+    from: &str,
+    to: &str,
+    primary_move_pending: bool,
+    candidates: &mut BTreeMap<String, Vec<PlannedEdit>>,
+) -> Result<(), WikiRenameError> {
+    let located = if primary_move_pending { from } else { to };
+    let located_abs = vault_root.join(located);
+    let from_is_dir = located_abs.is_dir();
+    let relevant = if from_is_dir {
+        directory_contains_research_table(&located_abs)?
+    } else {
+        is_research_table_path(from)
+    };
+    if !relevant {
+        return Ok(());
+    }
+
+    for document in index.documents() {
+        if !is_markdown(Path::new(&document.path)) {
+            continue;
+        }
+        let read_path = if primary_move_pending {
+            document.path.clone()
+        } else {
+            remap_path(&document.path, from, to)
+        };
+        let content = fs::read_to_string(vault_root.join(&read_path)).map_err(|error| {
+            WikiRenameError::new(
+                WikiRenameErrorCode::SourceChanged,
+                format!("could not read planned source {read_path}: {error}"),
+            )
+        })?;
+        let edits = research_table_edits(&content, from, to, from_is_dir);
+        if edits.is_empty() {
+            continue;
+        }
+        candidates
+            .entry(document.path.clone())
+            .or_default()
+            .extend(edits);
+    }
+    Ok(())
 }
 
 pub fn normalize_vault_path(path: &str) -> Result<String, WikiRenameError> {
@@ -800,6 +1019,158 @@ mod tests {
         );
         assert!(root.join("notes/Target.md").exists());
         assert!(!root.join("archive/Target.md").exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn rewrites_research_table_embeds_that_follow_the_moved_file() {
+        let root = temp_vault();
+        write(&root, "data/results.table.json", "{}\n");
+        write(&root, "data/other.table.json", "{}\n");
+        write(&root, "notes/Keep.md", "# Keep\n");
+        let source = "\
+[[notes/Keep]]
+::research-table{path=\"data/results.table.json\"}
+::research-table{path='data/results.table.json'}
+::research-table{path=\"data/other.table.json\"}
+::research-table{path=\"notes/data/results.table.json\"}
+::chart{path=\"data/results.table.json\"}
+```
+::research-table{path=\"data/results.table.json\"}
+```
+";
+        write(&root, "notes/Source.md", source);
+        let index = snapshot(&root);
+        let transaction = WikiRenameTransaction::plan(
+            &root,
+            &index,
+            "data/results.table.json",
+            "archive/results.table.json",
+        )
+        .expect("plan file rename");
+        assert_eq!(transaction.updated_sources(), vec!["notes/Source.md"]);
+        transaction.execute(|| Ok(())).expect("rename table file");
+        assert_eq!(
+            fs::read_to_string(root.join("notes/Source.md")).expect("source"),
+            "\
+[[notes/Keep]]
+::research-table{path=\"archive/results.table.json\"}
+::research-table{path='archive/results.table.json'}
+::research-table{path=\"data/other.table.json\"}
+::research-table{path=\"notes/data/results.table.json\"}
+::chart{path=\"data/results.table.json\"}
+```
+::research-table{path=\"data/results.table.json\"}
+```
+"
+        );
+        assert!(root.join("archive/results.table.json").exists());
+        assert!(root.join("data/other.table.json").exists());
+        let _ = fs::remove_dir_all(root);
+
+        let root = temp_vault();
+        write(&root, "lab/nested/results.table.json", "{}\n");
+        write(&root, "lab/deep/keep.table.json", "{}\n");
+        write(&root, "elsewhere/results.table.json", "{}\n");
+        write(&root, "lab-notes/results.table.json", "{}\n");
+        write(
+            &root,
+            "notes/Source.md",
+            "\
+::research-table{path=\"lab/nested/results.table.json\"}
+::research-table{path='lab/deep/keep.table.json'}
+::research-table{path=\"elsewhere/results.table.json\"}
+::research-table{path=\"lab-notes/results.table.json\"}
+",
+        );
+        write(
+            &root,
+            "lab/notes/Inside.md",
+            "\
+::research-table{path='lab/nested/results.table.json'}
+::chart{path=\"lab/nested/results.table.json\"}
+",
+        );
+        let index = snapshot(&root);
+        let transaction = WikiRenameTransaction::plan(&root, &index, "lab", "archive/lab")
+            .expect("plan directory move");
+        transaction.execute(|| Ok(())).expect("move directory");
+        assert_eq!(
+            fs::read_to_string(root.join("notes/Source.md")).expect("source"),
+            "\
+::research-table{path=\"archive/lab/nested/results.table.json\"}
+::research-table{path='archive/lab/deep/keep.table.json'}
+::research-table{path=\"elsewhere/results.table.json\"}
+::research-table{path=\"lab-notes/results.table.json\"}
+"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("archive/lab/notes/Inside.md")).expect("moved note"),
+            "\
+::research-table{path='archive/lab/nested/results.table.json'}
+::chart{path=\"lab/nested/results.table.json\"}
+"
+        );
+        assert!(!root.join("lab/notes/Inside.md").exists());
+        assert!(root.join("archive/lab/nested/results.table.json").exists());
+        assert!(root.join("elsewhere/results.table.json").exists());
+        let _ = fs::remove_dir_all(root);
+
+        let root = temp_vault();
+        write(&root, "data/results.table.json", "{}\n");
+        write(
+            &root,
+            "notes/Source.md",
+            "::research-table{path=\"data/results.table.json\"}\n",
+        );
+        let index = snapshot(&root);
+        let transaction = WikiRenameTransaction::plan(
+            &root,
+            &index,
+            "data/results.table.json",
+            ".hidden/results.table.json",
+        )
+        .expect("plan hidden destination");
+        assert!(transaction.updated_sources().is_empty());
+        transaction.execute(|| Ok(())).expect("move to hidden path");
+        assert_eq!(
+            fs::read_to_string(root.join("notes/Source.md")).expect("source"),
+            "::research-table{path=\"data/results.table.json\"}\n"
+        );
+        assert!(root.join(".hidden/results.table.json").exists());
+        assert!(!root.join("data/results.table.json").exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn rename_keeps_research_table_id_while_rewriting_path() {
+        let root = temp_vault();
+        write(&root, "data/results.table.json", "{}\n");
+        let source = "\
+::research-table{id=\"11111111-1111-1111-1111-111111111111\" path=\"data/results.table.json\"}
+::research-table{path='data/results.table.json' id='22222222-2222-2222-2222-222222222222'}
+::research-table{#44444444-4444-4444-4444-444444444444 path=\"data/results.table.json\"}
+::research-table{id=\"33333333-3333-3333-3333-333333333333\" path=\"data/other.table.json\"}
+";
+        write(&root, "notes/Source.md", source);
+        let index = snapshot(&root);
+        let transaction = WikiRenameTransaction::plan(
+            &root,
+            &index,
+            "data/results.table.json",
+            "archive/results.table.json",
+        )
+        .expect("plan file rename");
+        transaction.execute(|| Ok(())).expect("rename table file");
+        assert_eq!(
+            fs::read_to_string(root.join("notes/Source.md")).expect("source"),
+            "\
+::research-table{id=\"11111111-1111-1111-1111-111111111111\" path=\"archive/results.table.json\"}
+::research-table{path='archive/results.table.json' id='22222222-2222-2222-2222-222222222222'}
+::research-table{#44444444-4444-4444-4444-444444444444 path=\"archive/results.table.json\"}
+::research-table{id=\"33333333-3333-3333-3333-333333333333\" path=\"data/other.table.json\"}
+"
+        );
         let _ = fs::remove_dir_all(root);
     }
 }

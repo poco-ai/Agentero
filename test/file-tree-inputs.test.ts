@@ -13,7 +13,10 @@ import { IME_COMPOSITION_END_GRACE_MS } from "@/lib/core/ime";
 
 vi.mock("react-i18next", async (importOriginal) => ({
 	...(await importOriginal<typeof import("react-i18next")>()),
-	useTranslation: () => ({ t: (key: string) => key }),
+	useTranslation: () => ({
+		t: (key: string) =>
+			key === "fileTree.untitledTable" ? "Untitled table" : key,
+	}),
 }));
 
 vi.mock("@/lib/vault", async () => import("@/lib/vault/path"));
@@ -21,7 +24,7 @@ vi.mock("@/hooks/use-papers-org-folders", () => ({
 	usePapersOrgFolders: () => ["papers"],
 }));
 
-type Mode = "rename" | "file" | "directory" | "move";
+type Mode = "rename" | "file" | "directory" | "table" | "move";
 let root: Root;
 let container: HTMLDivElement;
 
@@ -245,6 +248,32 @@ it("selects the new file basename while keeping the Markdown suffix", async () =
 	expect(input.getAttribute("aria-label")).toBe("fileTree.newFile");
 	expect(input.value).toBe("fileTree.untitledNote.md");
 	expect([input.selectionStart, input.selectionEnd]).toEqual([0, 21]);
+});
+
+it("starts a research table from a human name and appends .table.json", async () => {
+	const { input, onConfirm } = await mount("table");
+	expect(input.getAttribute("aria-label")).toBe("newTableLabel");
+	expect(input.value).toBe("Untitled table");
+	expect([input.selectionStart, input.selectionEnd]).toEqual([
+		0,
+		input.value.length,
+	]);
+	await key(input, "Enter");
+	expect(onConfirm).toHaveBeenCalledExactlyOnceWith(
+		"Untitled table.table.json",
+	);
+});
+
+it.each([
+	["循环结果", "循环结果.table.json"],
+	["results.table.json", "results.table.json"],
+	["results.TABLE.JSON", "results.TABLE.JSON"],
+	["results.json", "results.table.json"],
+])("creates research table %s as %s", async (name, expected) => {
+	const { input, onConfirm } = await mount("table");
+	await type(input, name);
+	await key(input, "Enter");
+	expect(onConfirm).toHaveBeenCalledExactlyOnceWith(expected);
 });
 
 it.each([

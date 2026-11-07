@@ -418,6 +418,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 	});
 	const frontmatterYamlRef = useRef(frontmatterYaml);
 	frontmatterYamlRef.current = frontmatterYaml;
+	const bodyReadOnly = Boolean(readOnly);
 	/** Bumps when body or frontmatter changes — keys Plate source-line cache. */
 	const docVersionRef = useRef(0);
 	const handleFrontmatterChange = useCallback(
@@ -427,7 +428,6 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		},
 		[persistFrontmatterChange],
 	);
-
 	/**
 	 * External disk change accepted by the tab layer (applyDiskChange / Agent
 	 * write): the parent bumps `reloadKey` alongside `initialMarkdown`. Reload
@@ -642,7 +642,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 	// key capture never sees its events; intercept plain Enter there and
 	// break out below block-selected voids (hr / image).
 	useEffect(() => {
-		if (readOnly) return;
+		if (bodyReadOnly) return;
 		const handleShadowInputEnter = (event: globalThis.KeyboardEvent) => {
 			if (
 				event.key !== "Enter" ||
@@ -664,7 +664,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		document.addEventListener("keydown", handleShadowInputEnter, true);
 		return () =>
 			document.removeEventListener("keydown", handleShadowInputEnter, true);
-	}, [editor, readOnly]);
+	}, [editor, bodyReadOnly]);
 
 	const handleEditorBlur = useCallback(
 		(event: React.FocusEvent<HTMLDivElement>) => {
@@ -702,7 +702,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 	} = useEditorContextMenu({
 		editor,
 		editorContainerRef,
-		readOnly,
+		readOnly: bodyReadOnly,
 		savedRef,
 		dirtyRef,
 		filePathRef,
@@ -822,7 +822,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 	const contextMenuCapabilities = editorContextMenuCapabilities({
 		exportAvailable: isTauri(),
 		headingRenameAvailable: Boolean(headingContext),
-		readOnly: Boolean(readOnly),
+		readOnly: bodyReadOnly,
 		selectionExpanded: contextMenuSelectionExpanded,
 	});
 
@@ -850,7 +850,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 							className,
 						)}
 					>
-						{showToolbar && !readOnly ? (
+						{showToolbar && !bodyReadOnly ? (
 							<MarkdownEditorToolbar
 								onOpenFind={() => {
 									setFindOpen(true);
@@ -860,8 +860,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 								propertiesPanel={
 									<FrontmatterPanel
 										value={frontmatterYaml}
-										readOnly={readOnly}
-										onChange={readOnly ? undefined : handleFrontmatterChange}
+										readOnly={bodyReadOnly}
+										onChange={
+											bodyReadOnly ? undefined : handleFrontmatterChange
+										}
 									/>
 								}
 							/>
@@ -926,16 +928,22 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 													event.preventDefault();
 											}}
 											onContextMenuCapture={handleEditorContextMenu}
-											onKeyDownCapture={readOnly ? undefined : handleKeyDown}
-											onBeforeInputCapture={
-												readOnly ? undefined : handleWikiLinkBoundaryBeforeInput
+											onKeyDownCapture={
+												bodyReadOnly ? undefined : handleKeyDown
 											}
-											onBlur={readOnly ? undefined : handleEditorBlur}
+											onBeforeInputCapture={
+												bodyReadOnly
+													? undefined
+													: handleWikiLinkBoundaryBeforeInput
+											}
+											onBlur={bodyReadOnly ? undefined : handleEditorBlur}
 											onCompositionStartCapture={
-												readOnly ? undefined : handleWikiLinkCompositionStart
+												bodyReadOnly
+													? undefined
+													: handleWikiLinkCompositionStart
 											}
 											onCompositionEndCapture={
-												readOnly ? undefined : handleWikiLinkCompositionEnd
+												bodyReadOnly ? undefined : handleWikiLinkCompositionEnd
 											}
 										>
 											{/*
@@ -947,7 +955,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 												data-selection-chat-source={filePath || undefined}
 												data-selection-chat-origin="markdown"
 												placeholder={placeholder}
-												readOnly={readOnly}
+												readOnly={bodyReadOnly}
 												// `pl-10` leaves room for the block drag handle
 												// (`-translate-x-full` in the left gutter).
 												// `pr-14` reserves a right gutter for the collapsed
@@ -959,7 +967,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 												)}
 												style={editorTypographyStyle}
 											/>
-											{!readOnly ? (
+											{!bodyReadOnly ? (
 												<WikiLinkSuggestion
 													draft={wikiCompletionDraft}
 													onClose={() => setWikiCompletionDraft(null)}
@@ -971,7 +979,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 													controllerRef={completionControllerRef}
 												/>
 											) : null}
-											{!readOnly ? (
+											{!bodyReadOnly ? (
 												<SlashCommandMenu
 													draft={slashCommandDraft}
 													onClose={() => setSlashCommandDraft(null)}
@@ -1064,7 +1072,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 										</ContextMenuItem>
 									</ContextMenuContent>
 								</ContextMenu>
-								{findOpen && !readOnly ? (
+								{findOpen && !bodyReadOnly ? (
 									<FindReplaceBar
 										focusTick={findFocusTick}
 										onClose={() => {

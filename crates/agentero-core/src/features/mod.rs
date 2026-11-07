@@ -10,6 +10,7 @@ pub mod markdown;
 pub mod open_request;
 pub mod paper;
 pub mod pdf;
+pub mod research_table;
 pub mod sync;
 pub mod translate;
 pub mod vault;

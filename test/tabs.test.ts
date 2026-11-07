@@ -84,6 +84,18 @@ describe("createPlaceholderTab", () => {
 		expect(tab.loaded).toBe(false);
 	});
 
+	it("hides the research table storage suffix", () => {
+		expect(
+			createPlaceholderTab("/vault/data/Untitled table.table.json").title,
+		).toBe("Untitled table");
+		expect(createPlaceholderTab("/vault/data/results.TABLE.JSON").title).toBe(
+			"results",
+		);
+		expect(createPlaceholderTab("/vault/notes/config.json").title).toBe(
+			"config.json",
+		);
+	});
+
 	it("special-cases the Library virtual path", () => {
 		const tab = createPlaceholderTab(LIBRARY_VIRTUAL_PATH);
 		expect(tab.path).toBe(LIBRARY_VIRTUAL_PATH);

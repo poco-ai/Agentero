@@ -21,7 +21,7 @@
 - 反链 / 出链查询
 - `graph_get_graph` 等（双链 nodes / edges / center / depth，供索引/调试）— 见 [api.md](api.md)
 - 嵌入目标解析（供前端 `![[...]]`）
-- 链接感知重命名/移动；标题重命名事务。同 Vault 的 `paper_move` / CLI `paper move` / 本地 Connector 共用 core `catalog/move_paper.rs`，统一调用既有 `run_local_rename_transaction`：索引已热则先重读保存后尚未纳入索引的 Markdown，再规划改写，否则先重建一次；路径比较认同一资料库的规范写法（`\\?\`、`/var` 与 `/private/var`）。保护 dirty paths，再执行移动、改链与 Catalog 提交；失败沿用补偿机制。CLI 使用这次事务更新后的索引，不依赖 UI 再翻一遍库。
+- 链接感知重命名/移动；标题重命名事务。同 Vault 的 `paper_move` / CLI `paper move` / 本地 Connector 共用 core `catalog/move_paper.rs`，统一调用既有 `run_local_rename_transaction`：索引已热则先重读保存后尚未纳入索引的 Markdown，再规划改写，否则先重建一次；路径比较认同一资料库的规范写法（`\\?\`、`/var` 与 `/private/var`）。保护 dirty paths，再执行移动、改链与 Catalog 提交；失败沿用补偿机制。CLI 使用这次事务更新后的索引，不依赖 UI 再翻一遍库。移动 `*.table.json`，或移动含有该文件的目录时，同一次事务会改写指向旧位置的 `::research-table{path=...}`，并保留单引号或双引号；新路径若不符合表格引用的安全规则，则该条指令保持原样。
 - 索引：`.md` 变更防抖后按路径更新（前端调度 + Host `graph_apply_paths`）
 - 只读语义检查：`WikiIndex::check_links` 按全库、Markdown 文件或目录返回状态计数与问题 occurrence；CLI 暴露为 `agentero doctor wiki [<source>] --json`
 

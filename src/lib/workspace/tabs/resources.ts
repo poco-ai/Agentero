@@ -39,6 +39,7 @@ import {
 } from "@/lib/vault";
 import { basenameOf, normalizePathKey, treeFindNode } from "@/lib/vault/path";
 import { readSeedCached } from "@/lib/vault/seed-cache";
+import { tabTitleForPath } from "@/lib/workspace/tabs/model";
 import {
 	type DocTab,
 	NOTES_PLACEHOLDER,
@@ -464,7 +465,7 @@ export async function loadTabResources(
 
 		return {
 			kind: "file",
-			title: basenameOf(path),
+			title: tabTitleForPath(path),
 			mode,
 			paperMeta: meta,
 			pdfUrl,
@@ -485,7 +486,7 @@ export async function loadTabResources(
 	const mode = preferredModeForPath(path);
 	const base = {
 		kind: "file" as const,
-		title: basenameOf(path),
+		title: tabTitleForPath(path),
 		mode,
 		paperMeta: null,
 		pdfUrl: null as string | null,

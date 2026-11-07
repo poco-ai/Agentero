@@ -7,7 +7,7 @@
 	},
 	"commandPalette": {
 		"title": "Quick open",
-		"placeholder": "Search papers and note contents…",
+		"placeholder": "Search papers, notes, and tables…",
 		"commandsTitle": "Commands",
 		"commandsPlaceholder": "Type a command name…",
 		"commands": "Commands",
@@ -19,7 +19,7 @@
 		"searching": "Searching…",
 		"noResults": "No matches",
 		"noVault": "Open a vault to search",
-		"empty": "Type to search papers and note contents"
+		"empty": "Type to search papers, notes, and tables"
 	},
 	"commands": {
 		"catApp": "App",

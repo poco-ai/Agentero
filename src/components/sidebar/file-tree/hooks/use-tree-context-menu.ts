@@ -327,6 +327,14 @@ export function useTreeContextMenu({
 						onStartCreate("table", parent);
 					}
 				: undefined,
+		onNewExperiment:
+			onStartCreate && vaultPath
+				? () => {
+						const parent = resolveCreateParent(vaultPath, menu.path, nodes);
+						setMenu(null);
+						onStartCreate("experiment", parent);
+					}
+				: undefined,
 		onNewFolder:
 			onStartCreate && vaultPath
 				? () => {

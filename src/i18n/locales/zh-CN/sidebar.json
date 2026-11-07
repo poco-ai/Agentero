@@ -1,9 +1,14 @@
 {
 	"newTableLabel": "新建科研表格",
+	"newExperimentLabel": "新建实验记录",
 	"fileTree": {
 		"empty": "空文件夹",
 		"newFile": "新建文件",
 		"untitledNote": "未命名",
+		"untitledTable": "未命名表格",
+		"untitledExperiment": "未命名实验",
+		"deleteTableConfirm_one": "有 {{count}} 篇笔记嵌入了这张表。仍要删除吗？",
+		"deleteTableConfirm_other": "有 {{count}} 篇笔记嵌入了这张表。仍要删除吗？",
 		"openNotes": "打开笔记",
 		"addToChat": "添加到对话",
 		"newFolder": "新建文件夹",

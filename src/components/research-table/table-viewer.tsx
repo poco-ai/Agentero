@@ -1,7 +1,23 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { TableGrid } from "@/components/research-table/table-grid";
 import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "@/components/research-table/confirm-dialog";
+import {
+	type OptionDraft,
+	SelectOptionsEditor,
+} from "@/components/research-table/select-options-editor";
+import {
+	TableGrid,
+	type TableRowRef,
+} from "@/components/research-table/table-grid";
+import {
+	TableBacklinks,
 	type TableSaveState,
 	TableToolbar,
 } from "@/components/research-table/table-toolbar";
@@ -10,6 +26,7 @@ import {
 	Dialog,
 	DialogContent,
 	DialogFooter,
+	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -23,15 +40,27 @@ import {
 import { isImeKeyboardEvent } from "@/lib/core/ime";
 import { notifyError } from "@/lib/core/notify";
 import { researchTableErrorMessage } from "@/lib/research-table/errors";
+import { safeTableReference } from "@/lib/research-table/markdown";
 import {
 	appendRows,
+	archiveRows,
+	duplicateRows,
+	fieldChangeNeedsMigration,
 	fieldTypes,
+	optionUsage,
 	parseResearchTable,
 	type ResearchTable,
 	removeField,
+	removeRows,
 	replaceField,
+	restoreRows,
 	type TableField,
 } from "@/lib/research-table/model";
+import {
+	cycleSort,
+	type TableSort,
+	visibleRowIndexes,
+} from "@/lib/research-table/view";
 import { notifyWikiEmbedTargets } from "@/lib/wiki/embed-refresh";
 import { registerTextEditorFlusher } from "@/lib/workspace/text-editor-flush";
 
@@ -47,12 +76,40 @@ type Props = {
 	onDirtyChange: (dirty: boolean) => void;
 	vaultPath: string | null;
 };
-function read(source: string): ResearchTable | null {
+function readTable(source: string): {
+	table: ResearchTable | null;
+	error: unknown;
+} {
 	try {
-		return parseResearchTable(source);
-	} catch {
-		return null;
+		return { table: parseResearchTable(source), error: null };
+	} catch (error) {
+		return { table: null, error };
 	}
+}
+
+function shortTableError(error: unknown): string {
+	return researchTableErrorMessage(error).split("\n")[0]?.slice(0, 180) ?? "";
+}
+
+function draftsFrom(field: TableField): OptionDraft[] {
+	return field.options.map((value) => ({
+		id: crypto.randomUUID(),
+		value,
+		from: value,
+	}));
+}
+
+function invalidOptions(drafts: readonly OptionDraft[]): boolean {
+	const values = drafts.map((draft) => draft.value.trim());
+	return (
+		!values.length ||
+		values.some((value) => !value) ||
+		new Set(values).size !== values.length
+	);
+}
+
+function clipLabel(label: string): string {
+	return label.length > 80 ? `${label.slice(0, 79)}…` : label;
 }
 
 export function TableViewer({
@@ -66,7 +123,24 @@ export function TableViewer({
 	const { t } = useTranslation("editor");
 	const formId = useId();
 	const lastReload = useRef(reloadKey);
-	const [table, setTable] = useState(() => read(seed));
+	const [table, setTable] = useState<ResearchTable | null>(
+		() => readTable(seed).table,
+	);
+	const [readError, setReadError] = useState<unknown>(
+		() => readTable(seed).error,
+	);
+	const [query, setQuery] = useState("");
+	const [sort, setSort] = useState<TableSort | null>(null);
+	const [showArchived, setShowArchived] = useState(false);
+	const [selectedRows, setSelectedRows] = useState<TableRowRef[]>([]);
+	const [selectionEpoch, setSelectionEpoch] = useState(0);
+	const [optionDrafts, setOptionDrafts] = useState<OptionDraft[]>([]);
+	const [optionMessage, setOptionMessage] = useState<string | null>(null);
+	const [pendingRows, setPendingRows] = useState<TableRowRef[] | null>(null);
+	const [pendingPermanent, setPendingPermanent] = useState<
+		TableRowRef[] | null
+	>(null);
+	const [pendingFieldDelete, setPendingFieldDelete] = useState(false);
 	const current = useRef(table);
 	current.current = table;
 	const saved = useRef(seed);
@@ -89,6 +163,7 @@ export function TableViewer({
 	}, []);
 	const change = useCallback(
 		(next: ResearchTable) => {
+			if (current.current === next) return;
 			if (current.current)
 				history.current = [...history.current.slice(-19), current.current];
 			future.current = [];
@@ -96,6 +171,13 @@ export function TableViewer({
 		},
 		[setSnapshot],
 	);
+	const clearRowSelection = useCallback(() => {
+		setSelectedRows([]);
+		setSelectionEpoch((epoch) => epoch + 1);
+	}, []);
+	const onRowSelection = useCallback((rows: TableRowRef[]) => {
+		setSelectedRows(rows);
+	}, []);
 	const undo = useCallback(
 		(forward = false) => {
 			const from = forward ? future.current : history.current;
@@ -146,11 +228,12 @@ export function TableViewer({
 		)
 			return;
 		lastReload.current = reloadKey;
-		const next = read(seed);
-		current.current = next;
-		setTable(next);
+		const next = readTable(seed);
+		current.current = next.table;
+		setTable(next.table);
+		setReadError(next.error);
 		saved.current = seed;
-		savedRevision.current = next?.revision ?? 0;
+		savedRevision.current = next.table?.revision ?? 0;
 		history.current = [];
 		future.current = [];
 		setSaveState("saved");
@@ -168,12 +251,60 @@ export function TableViewer({
 		},
 		[flush],
 	);
+	const [viewPath, setViewPath] = useState(path);
+	const selectionView = `${query}\0${sort?.fieldId ?? ""}\0${sort?.direction ?? ""}\0${showArchived ? 1 : 0}\0${selectionEpoch}`;
+	const [seenSelectionView, setSeenSelectionView] = useState(selectionView);
+	if (seenSelectionView !== selectionView) {
+		setSeenSelectionView(selectionView);
+		setSelectedRows([]);
+	}
+	if (viewPath !== path) {
+		setViewPath(path);
+		setQuery("");
+		setSort(null);
+		setShowArchived(false);
+		setSelectedRows([]);
+	}
+	const rowIndexes = useMemo(
+		() =>
+			table ? visibleRowIndexes(table, { query, sort, showArchived }) : [],
+		[table, query, sort, showArchived],
+	);
+	const editField = (next: TableField) => {
+		setField(next);
+		setOptionDrafts(draftsFrom(next));
+		setOptionMessage(null);
+		setPendingFieldDelete(false);
+	};
 	if (!table)
 		return (
-			<p className="p-4 text-muted-foreground" role="alert">
-				{t("researchTable.invalidFile")}
-			</p>
+			<div className="grid gap-1 p-4" role="alert">
+				<p className="text-muted-foreground">
+					{t("researchTable.invalidFile")}
+				</p>
+				{readError ? (
+					<p className="text-sm text-foreground">
+						{shortTableError(readError)}
+					</p>
+				) : null}
+			</div>
 		);
+	const migrationBlocked = field
+		? fieldChangeNeedsMigration(table, field)
+		: false;
+	const linkTargetInvalid =
+		field?.type === "link" &&
+		!!field.target?.trim() &&
+		!safeTableReference(field.target.trim());
+	const archivedCount = table.rows.reduce(
+		(count, row) => count + (row.archivedAt ? 1 : 0),
+		0,
+	);
+	const archivedSelected = selectedRows.filter((row) => row.archived);
+	const optionsBlocked =
+		field?.type === "select" && invalidOptions(optionDrafts);
+	const rowCount = pendingRows?.length ?? 0;
+	const soleRow = rowCount === 1 ? pendingRows?.[0] : undefined;
 	const fail = (error: unknown) =>
 		notifyError(researchTableErrorMessage(error));
 	return (
@@ -210,7 +341,7 @@ export function TableViewer({
 				onSave={() => void flush()}
 				canUndo={!!history.current.length}
 				onAddField={() =>
-					setField({
+					editField({
 						id: crypto.randomUUID(),
 						name: "",
 						type: "text",
@@ -220,6 +351,22 @@ export function TableViewer({
 				}
 				canRedo={!!future.current.length}
 				onUndo={undo}
+				query={query}
+				onQueryChange={setQuery}
+				visibleRows={rowIndexes.length}
+				showArchived={showArchived}
+				onShowArchived={setShowArchived}
+				canManageArchived={archivedSelected.length > 0}
+				onRestoreArchived={() => {
+					change(
+						restoreRows(
+							table,
+							archivedSelected.map((row) => row.index),
+						),
+					);
+					clearRowSelection();
+				}}
+				onDeleteArchived={() => setPendingPermanent(archivedSelected)}
 				onAddRows={(count) => {
 					try {
 						change(appendRows(table, count));
@@ -227,16 +374,35 @@ export function TableViewer({
 						fail(error);
 					}
 				}}
+				selectedRows={selectedRows}
+				onDuplicateRows={(indexes) => {
+					try {
+						change(duplicateRows(table, indexes));
+					} catch (error) {
+						fail(error);
+					}
+				}}
 			/>
-			<div className="min-h-0 flex-1 overflow-hidden border-y border-border/60">
+			<div className="min-h-0 flex-1 overflow-hidden border-y border-border/60 bg-background">
 				<TableGrid
 					table={table}
 					onChange={change}
+					rowIndexes={rowIndexes}
+					sort={sort}
+					query={query}
+					showArchived={showArchived}
+					selectionEpoch={selectionEpoch}
+					onRowSelection={onRowSelection}
+					onSortField={(fieldId) =>
+						setSort((currentSort) => cycleSort(currentSort, fieldId))
+					}
+					onDeleteRows={setPendingRows}
 					onField={(index) => {
-						if (table.fields[index]) setField({ ...table.fields[index] });
+						const next = table.fields[index];
+						if (next) editField({ ...next });
 					}}
 					onAddField={() =>
-						setField({
+						editField({
 							id: crypto.randomUUID(),
 							name: "",
 							type: "text",
@@ -244,14 +410,21 @@ export function TableViewer({
 							options: [],
 						})
 					}
-					height="100%"
 				/>
 			</div>
-			<footer className="flex h-7 shrink-0 items-center px-4 text-[0.6875rem] tabular-nums text-muted-foreground">
-				{t("researchTable.dimensions", {
-					rows: table.rows.length,
-					columns: table.fields.length,
-				})}
+			<footer className="flex h-7 shrink-0 items-center gap-2 px-4 text-[0.6875rem] tabular-nums text-muted-foreground">
+				<span>
+					{t("researchTable.dimensions", {
+						rows: table.rows.length - archivedCount,
+						columns: table.fields.length,
+					})}
+				</span>
+				{archivedCount > 0 ? (
+					<span>
+						{t("researchTable.archivedCount", { count: archivedCount })}
+					</span>
+				) : null}
+				<TableBacklinks tableId={table.id} path={path} vaultPath={vaultPath} />
 			</footer>
 			<Dialog
 				open={field !== null}
@@ -259,15 +432,40 @@ export function TableViewer({
 					if (!open) setField(null);
 				}}
 			>
-				<DialogContent>
-					<DialogTitle>{t("researchTable.field")}</DialogTitle>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>{t("researchTable.field")}</DialogTitle>
+					</DialogHeader>
 					{field && (
 						<form
 							className="grid gap-3"
 							onSubmit={(event) => {
 								event.preventDefault();
+								if (migrationBlocked || optionsBlocked || linkTargetInvalid)
+									return;
+								const drafts = optionDrafts.map((draft) => ({
+									...draft,
+									value: draft.value.trim(),
+								}));
+								const renames: Record<string, string> = {};
+								if (field.type === "select")
+									for (const draft of drafts)
+										if (draft.from && draft.from !== draft.value)
+											renames[draft.from] = draft.value;
 								try {
-									change(replaceField(table, field));
+									change(
+										replaceField(
+											table,
+											{
+												...field,
+												options:
+													field.type === "select"
+														? drafts.map((draft) => draft.value)
+														: [],
+											},
+											renames,
+										),
+									);
 									setField(null);
 								} catch (error) {
 									fail(error);
@@ -304,6 +502,19 @@ export function TableViewer({
 									</SelectContent>
 								</Select>
 							</label>
+							{field.type === "link" && (
+								<label htmlFor={`${formId}-target`}>
+									{t("researchTable.linkTarget")}
+									<Input
+										id={`${formId}-target`}
+										value={field.target ?? ""}
+										placeholder="data/other.table.json"
+										onChange={(e) =>
+											setField({ ...field, target: e.target.value })
+										}
+									/>
+								</label>
+							)}
 							{field.type === "number" && (
 								<label htmlFor={`${formId}-unit`}>
 									{t("researchTable.unit")}
@@ -317,44 +528,158 @@ export function TableViewer({
 								</label>
 							)}
 							{field.type === "select" && (
-								<label htmlFor={`${formId}-options`}>
-									{t("researchTable.options")}
-									<Input
-										id={`${formId}-options`}
-										value={field.options.join(",")}
-										onChange={(e) =>
-											setField({
-												...field,
-												options: e.target.value.split(",").map((x) => x.trim()),
-											})
+								<SelectOptionsEditor
+									labelId={`${formId}-options`}
+									options={optionDrafts}
+									onChange={(next) => {
+										setOptionDrafts(next);
+										setOptionMessage(null);
+									}}
+									onRemove={(option) => {
+										if (option.from) {
+											const count = optionUsage(table, field.id, option.from);
+											if (count > 0) {
+												setOptionMessage(
+													t("researchTable.optionInUse", {
+														count,
+														option: option.from,
+													}),
+												);
+												return;
+											}
 										}
-									/>
-								</label>
+										setOptionDrafts((currentDrafts) =>
+											currentDrafts.filter((item) => item.id !== option.id),
+										);
+										setOptionMessage(null);
+									}}
+								/>
 							)}
+							{migrationBlocked ? (
+								<p className="text-sm text-destructive" role="status">
+									{t("researchTable.migrationBlocked")}
+								</p>
+							) : null}
+							{linkTargetInvalid ? (
+								<p className="text-sm text-destructive" role="status">
+									{t("researchTable.errors.path")}
+								</p>
+							) : null}
+							{field.type === "select" && (optionMessage || optionsBlocked) ? (
+								<p className="text-sm text-destructive" role="status">
+									{optionMessage ?? t("researchTable.optionInvalid")}
+								</p>
+							) : null}
 							<DialogFooter>
-								{table.fields.some((f) => f.id === field.id) ? (
+								{table.fields.some((item) => item.id === field.id) ? (
 									<Button
 										type="button"
 										variant="destructive"
 										disabled={table.fields.length === 1}
-										onClick={() => {
-											try {
-												change(removeField(table, field.id));
-												setField(null);
-											} catch (error) {
-												fail(error);
-											}
-										}}
+										onClick={() => setPendingFieldDelete(true)}
 									>
 										{t("researchTable.deleteField")}
 									</Button>
 								) : null}
-								<Button type="submit">{t("researchTable.save")}</Button>
+								<Button
+									type="submit"
+									disabled={
+										migrationBlocked || optionsBlocked || linkTargetInvalid
+									}
+								>
+									{t("researchTable.save")}
+								</Button>
 							</DialogFooter>
 						</form>
 					)}
 				</DialogContent>
 			</Dialog>
+			<ConfirmDialog
+				open={pendingRows !== null}
+				title={t("researchTable.deleteRowsTitle")}
+				description={
+					soleRow?.label
+						? t("researchTable.deleteRowNamed", {
+								label: clipLabel(soleRow.label),
+							})
+						: t("researchTable.deleteRowsBody", { count: rowCount })
+				}
+				confirmLabel={t("researchTable.deleteRows")}
+				destructive
+				onOpenChange={(open) => {
+					if (!open) setPendingRows(null);
+				}}
+				onConfirm={() => {
+					if (!pendingRows) return;
+					try {
+						change(
+							archiveRows(
+								table,
+								pendingRows.map((row) => row.index),
+							),
+						);
+						clearRowSelection();
+						setPendingRows(null);
+					} catch (error) {
+						fail(error);
+					}
+				}}
+			/>
+			<ConfirmDialog
+				open={pendingPermanent !== null}
+				title={t("researchTable.permanentDeleteTitle")}
+				description={
+					pendingPermanent?.length === 1 && pendingPermanent[0]?.label
+						? t("researchTable.permanentDeleteNamed", {
+								label: clipLabel(pendingPermanent[0].label),
+							})
+						: t("researchTable.permanentDeleteBody", {
+								count: pendingPermanent?.length ?? 0,
+							})
+				}
+				confirmLabel={t("researchTable.deletePermanently")}
+				destructive
+				onOpenChange={(open) => {
+					if (!open) setPendingPermanent(null);
+				}}
+				onConfirm={() => {
+					if (!pendingPermanent) return;
+					try {
+						change(
+							removeRows(
+								table,
+								pendingPermanent.map((row) => row.index),
+							),
+						);
+						clearRowSelection();
+						setPendingPermanent(null);
+					} catch (error) {
+						fail(error);
+					}
+				}}
+			/>
+			<ConfirmDialog
+				open={pendingFieldDelete && field !== null}
+				title={t("researchTable.deleteFieldTitle")}
+				description={t("researchTable.deleteFieldBody", {
+					name: field?.name.trim() || t("researchTable.field"),
+				})}
+				confirmLabel={t("researchTable.deleteField")}
+				destructive
+				onOpenChange={(open) => {
+					if (!open) setPendingFieldDelete(false);
+				}}
+				onConfirm={() => {
+					if (!field) return;
+					try {
+						change(removeField(table, field.id));
+						setField(null);
+						setPendingFieldDelete(false);
+					} catch (error) {
+						fail(error);
+					}
+				}}
+			/>
 		</section>
 	);
 }

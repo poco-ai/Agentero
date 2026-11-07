@@ -45,6 +45,7 @@ import {
 	pickCreateVaultDirectory,
 	pickVaultDirectory,
 	planVaultRename,
+	readVaultFile,
 	removeRecentVault,
 	removeTreeNode,
 	removeVaultPath,
@@ -374,6 +375,7 @@ export async function trashPathsAndNotify(absPaths: string[]): Promise<void> {
 				p.startsWith(`${rootNorm}/`),
 		);
 	if (valid.length === 0) return;
+	if (!(await confirmEmbeddedTableDelete(vaultPath, valid))) return;
 	setVaultBusy(true);
 	trackInternalRenamePaths(valid, Number.POSITIVE_INFINITY);
 	try {
@@ -959,6 +961,106 @@ export async function confirmRenamePath(
 	}
 }
 
+async function tableIdOf(absPath: string): Promise<string | null> {
+	try {
+		const text = await readVaultFile(absPath);
+		const id = (JSON.parse(text) as { id?: unknown }).id;
+		return typeof id === "string" && id.trim() ? id : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Confirm before deleting a research table that notes embed.
+ * A failed lookup reports the error and still allows the delete.
+ */
+async function confirmEmbeddedTableDelete(
+	vaultPath: string,
+	absPaths: string[],
+): Promise<boolean> {
+	const { isResearchTablePath } = await import("@/lib/research-table/model");
+	const tables = absPaths.filter((path) => isResearchTablePath(path));
+	if (tables.length === 0) return true;
+	const { researchTableBacklinks } = await import(
+		"@/lib/research-table/catalog"
+	);
+	let count = 0;
+	for (const abs of tables) {
+		const rel = vaultRelativePath(vaultPath, abs);
+		if (!rel) continue;
+		try {
+			const id = await tableIdOf(abs);
+			const notes = await researchTableBacklinks({
+				vaultPath,
+				path: rel,
+				id: id ?? undefined,
+			});
+			count += notes.length;
+		} catch (error) {
+			notifyError(errorText(error));
+		}
+	}
+	if (count < 1) return true;
+	return window.confirm(
+		i18n.t("sidebar:fileTree.deleteTableConfirm", { count }),
+	);
+}
+
+async function writeExperimentPair(
+	vaultPath: string,
+	parent: string,
+	name: string,
+): Promise<void> {
+	const { createResearchTable, TABLE_SUFFIX } = await import(
+		"@/lib/research-table/model"
+	);
+	const { experimentFileStem, experimentNoteMarkdown } = await import(
+		"@/lib/markdown/experiment"
+	);
+	const stem = experimentFileStem(name);
+	const tableName = `${stem}${TABLE_SUFFIX}`;
+	const noteName = `${stem}.md`;
+	if (
+		!stem ||
+		!isValidVaultEntryName(tableName) ||
+		!isValidVaultEntryName(noteName)
+	) {
+		notifyError(i18n.t("sidebar:fileTree.invalidName"));
+		return;
+	}
+	const tableAbs = joinVaultPath(parent, tableName);
+	const noteAbs = joinVaultPath(parent, noteName);
+	if (await vaultPathExists(tableAbs)) {
+		notifyError(i18n.t("sidebar:fileTree.alreadyExists", { name: tableName }));
+		return;
+	}
+	if (await vaultPathExists(noteAbs)) {
+		notifyError(i18n.t("sidebar:fileTree.alreadyExists", { name: noteName }));
+		return;
+	}
+	const rel = vaultRelativePath(vaultPath, tableAbs);
+	if (!rel) {
+		notifyError(i18n.t("sidebar:fileTree.invalidName"));
+		return;
+	}
+	const table = createResearchTable(stem);
+	table.fields[0].name = i18n.t("editor:researchTable.name");
+	await writeVaultFile(tableAbs, `${JSON.stringify(table, null, 2)}\n`);
+	try {
+		await writeVaultFile(noteAbs, experimentNoteMarkdown(table.id, rel));
+	} catch (error) {
+		try {
+			await removeVaultPath(tableAbs);
+		} catch {
+			// The note error is the one the caller should see.
+		}
+		throw error;
+	}
+	await refreshTree(vaultPath);
+	openPath(noteAbs);
+}
+
 export function startCreate(kind: TreeCreateKind, parentPath: string): void {
 	if (!getVaultPath() || !isTauri()) {
 		notifyError(i18n.t("sidebar:fileTree.needsVault"));
@@ -990,17 +1092,20 @@ export async function confirmCreate(name: string): Promise<void> {
 	setCreateDraft(null);
 	try {
 		setVaultBusy(true);
+		if (kind === "experiment") {
+			await writeExperimentPair(vaultPath, createDraft.parentPath, trimmed);
+			return;
+		}
 		// Use vault-aware exists: local FS plugin cannot see `remote:<id>/…`.
 		if (await vaultPathExists(full)) {
 			notifyError(i18n.t("sidebar:fileTree.alreadyExists", { name: trimmed }));
 			return;
 		}
 		if (kind !== "folder") {
-			const { createResearchTable, isResearchTablePath } = await import(
-				"@/lib/research-table/model"
-			);
+			const { createResearchTable, isResearchTablePath, researchTableStem } =
+				await import("@/lib/research-table/model");
 			const table = isResearchTablePath(trimmed)
-				? createResearchTable(trimmed.slice(0, -11))
+				? createResearchTable(researchTableStem(trimmed))
 				: null;
 			if (table) table.fields[0].name = i18n.t("editor:researchTable.name");
 			const initialContent = table

@@ -82,6 +82,22 @@ describe("wiki self-write echo filter", () => {
 		expect(noteWikiPath).toHaveBeenCalledWith("/vault/notes/Expired.md");
 	});
 
+	it("refreshes a mounted table embed without rebuilding the wiki index", async () => {
+		const embedListener = vi.fn();
+		const unsubscribe = subscribeWikiEmbedTarget(
+			"/vault/data/results.table.json",
+			embedListener,
+		);
+
+		scheduleWikiRebuild("/vault/data/results.table.json");
+		await vi.advanceTimersByTimeAsync(900);
+
+		expect(rebuildWikiIndex).not.toHaveBeenCalled();
+		expect(noteWikiPath).not.toHaveBeenCalled();
+		expect(embedListener).toHaveBeenCalledTimes(1);
+		unsubscribe();
+	});
+
 	it("does not rebuild when no vault is open", async () => {
 		vi.mocked(getVaultPath).mockReturnValueOnce(null);
 

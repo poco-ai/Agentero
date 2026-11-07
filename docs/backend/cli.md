@@ -29,6 +29,7 @@ Headless Vault / Catalog / Wiki 接口；**不含** BYOA / paper-reader。
 | `mark` | 阅读标注：`list` / `get` / `add`（`--quote` 文字锚点或 `--region` 区域锚点）/ `update` / `delete` |
 | `ui` | 桌面工作区/窗口操作：`open`（打开或聚焦文档/文件夹/论文）/ `close`（关闭面板）/ `window`（聚焦原生子窗口）/ `split`（分屏）；均走 `agentero://ui` 深链 + 请求文件 |
 | `translate` | 免费机器翻译纯文本（无需 API Key，不读桌面 settings） |
+| `table` | 科研表格行操作：`query` / `upsert` / `update-cells`（与桌面网格共用 `*.table.json`） |
 
 稳定 `--json` 输出，供脚本与外部 Agent 组合。JSON 默认 **compact 单行**（省 token），`--pretty` 恢复缩进美化（[#367](https://github.com/poco-ai/Agentero/issues/367)）。
 
@@ -161,6 +162,21 @@ known_vaults = ["/Users/philfan/l/paper", "/Users/philfan/l/video-acc"]
 新位置没有配置时，CLI 会校验并原样复制旧 `~/.config/agentero/config.toml`，保留旧文件；新位置已有文件时始终优先它，迁移不覆盖并发创建的文件。旧 `vaults.md` 列表合并去重并成功原子写入后才删除来源。配置解析或写入失败会返回错误，旧文件保留；保存也保留不认识的 TOML 字段，避免新版配置被旧版 CLI 丢弃。
 
 普通保存复用 core 原子写，使用唯一同目录 `.tmp`、Unix `0600`，替换前同步文件内容；旧位置迁移使用 `tempfile::persist_noclobber` 保证不覆盖已有新配置。原子替换失败不会退化为截断写。
+
+## 科研表格（`table`）
+
+`version` 仍是 `1`。`table query|upsert|update-cells` 与桌面网格共用 `src/lib/research-table/model.ts` 的文件模式，直接改 Vault 里的 `*.table.json`。没有 SQLite 索引，也没有全表搜索。查询按文件中的存储顺序返回，单元格用字段名而不是字段 ID。
+
+```bash
+agentero table query data/run.table.json --json
+agentero table query data/run.table.json --field 容量 --equals 2.5 --json
+agentero table update-cells data/run.table.json --expected-revision 3 \
+  --data '{"cells":[{"registryId":"ID-0001","field":"容量","value":2.5}]}' --json
+agentero table upsert data/run.table.json --expected-revision 4 --idempotency-key batch-1 \
+  --data '{"rows":[{"values":{"样品":"A"}}]}' --json
+```
+
+变更正文来自 `--data`，或者在非 TTY 时从 stdin 读取。`expectedRevision` 必须与 `table query` 看到的 `revision` 一致，不一致返回 `revision_conflict`（`details.revision` 为当前修订号）且不写盘。省略 `registryId` 的 `upsert` 追加一行并签发下一个注册编号；已有编号只更新给出的字段。可选 `idempotencyKey`（1–80 个字符、不含空白）在成功写入后记入文件的 `appliedKeys`（最多保留 50 个）。同一个键再次出现时不写盘、不增加 `revision`，返回 `replayed: true`。`file_write` 不能覆盖或追加已有的 `*.table.json`。桌面端保存时如果磁盘内容既不是上次保存的快照、也不是即将写入的正文，已有的字节冲突检查会拒绝覆盖。
 
 ## 发现（discover）
 

@@ -8,7 +8,12 @@ import {
 } from "@/lib/paper";
 import { LIBRARY_VIRTUAL_PATH, TRASH_VIRTUAL_PATH } from "@/lib/paper/api";
 import { isPlazaVirtualPath, PLAZA_VIRTUAL_PATH } from "@/lib/plaza";
+import {
+	isResearchTablePath,
+	researchTableStem,
+} from "@/lib/research-table/model";
 import type { FileNode } from "@/lib/vault";
+import { isMarkdownPath } from "@/lib/vault/fs";
 import { normalizePathKey } from "@/lib/vault/path";
 import { isZoteroCollectionReferencePath } from "./zotero-collection-references";
 
@@ -154,6 +159,18 @@ export function isTreeExpandableDirectory(node: FileNode): boolean {
 		return paperHasVisibleChildren(node);
 	}
 	return true;
+}
+
+/**
+ * Sidebar label for a file. Markdown and research tables hide the suffix;
+ * the row icon shows the type. The disk name is unchanged.
+ */
+export function fileTreeDisplayName(name: string): string {
+	if (isResearchTablePath(name)) return researchTableStem(name) || name;
+	if (isMarkdownPath(name)) {
+		return name.replace(/\.(md|mdx|markdown)$/i, "") || name;
+	}
+	return name;
 }
 
 /** Parent directory paths of `target` (absolute), nearest-first excluded. Root-ward order. */

@@ -7,7 +7,7 @@
 	},
 	"commandPalette": {
 		"title": "快速打开",
-		"placeholder": "搜索论文与笔记正文…",
+		"placeholder": "搜索论文、笔记和表格…",
 		"commandsTitle": "命令",
 		"commandsPlaceholder": "输入命令名称…",
 		"commands": "命令",
@@ -19,7 +19,7 @@
 		"searching": "搜索中…",
 		"noResults": "无匹配",
 		"noVault": "请先打开知识库再搜索",
-		"empty": "输入以搜索论文与笔记正文"
+		"empty": "输入以搜索论文、笔记和表格"
 	},
 	"commands": {
 		"catApp": "应用",

@@ -52,6 +52,30 @@ fn tool_err(err: AppError) -> CallToolResult {
     )])
 }
 
+enum BlockingTableError {
+    Vault(AppError),
+    Table(agentero_core::features::research_table::TableError),
+}
+
+fn blocking_table_err(err: BlockingTableError) -> CallToolResult {
+    match err {
+        BlockingTableError::Vault(err) => tool_err(err),
+        BlockingTableError::Table(err) => table_tool_err(err),
+    }
+}
+
+fn table_tool_err(err: agentero_core::features::research_table::TableError) -> CallToolResult {
+    let code = err.stable_code();
+    let mut body = serde_json::json!({
+        "code": code,
+        "message": if code == "io" { err.to_string() } else { code.to_string() },
+    });
+    if let Some(revision) = err.revision() {
+        body["revision"] = serde_json::json!(revision);
+    }
+    CallToolResult::error(vec![ContentBlock::text(body.to_string())])
+}
+
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PaperListArgs {
@@ -251,6 +275,84 @@ struct FileWriteArgs {
     mode: Option<String>,
 
     /// Optional absolute local vault path from `vault_list`; defaults to the open vault.
+    #[serde(default)]
+    vault: Option<String>,
+}
+
+fn present_json<'de, D>(deserializer: D) -> Result<Option<serde_json::Value>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    serde_json::Value::deserialize(deserializer).map(Some)
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TableQueryArgs {
+    /// Vault-relative `*.table.json`.
+    path: String,
+    #[serde(default)]
+    registry_id: Option<String>,
+    /// Field name. Pair with `equals`.
+    #[serde(default)]
+    field: Option<String>,
+    /// Cell value to match. JSON null matches an empty cell.
+    #[serde(default, deserialize_with = "present_json")]
+    equals: Option<serde_json::Value>,
+    #[serde(default)]
+    include_archived: bool,
+    #[serde(default)]
+    limit: Option<i64>,
+    #[serde(default)]
+    offset: Option<i64>,
+    #[serde(default)]
+    vault: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TableCellArgs {
+    registry_id: String,
+    /// Field name, not the field id.
+    field: String,
+    /// `string`, `number`, `boolean`, or `null` (clears the cell).
+    value: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TableUpdateCellsArgs {
+    path: String,
+    /// Current `revision` from `table_query`.
+    expected_revision: u64,
+    cells: Vec<TableCellArgs>,
+    #[serde(default)]
+    idempotency_key: Option<String>,
+    #[serde(default)]
+    include_archived: bool,
+    #[serde(default)]
+    vault: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TableUpsertRowArgs {
+    #[serde(default)]
+    registry_id: Option<String>,
+    /// Values keyed by field name.
+    values: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TableUpsertArgs {
+    path: String,
+    expected_revision: u64,
+    rows: Vec<TableUpsertRowArgs>,
+    #[serde(default)]
+    idempotency_key: Option<String>,
+    #[serde(default)]
+    include_archived: bool,
     #[serde(default)]
     vault: Option<String>,
 }
@@ -554,7 +656,7 @@ struct VaultSearchArgs {
 #[tool_router]
 impl AgenteroMcp {
     #[tool(
-        description = "Search Markdown in the selected local vault using case-insensitive keyword AND (not semantic search). Returns ranked relative paths, snippets, 1-based lines and truncated; read hits with file_read. limit defaults to 60, clamped to 1..200. Set vault to target a vault from vault_list.",
+        description = "Search Markdown and research tables (*.table.json) in the selected local vault using case-insensitive keyword AND (not semantic search). A hit path may be *.table.json; read those rows with table_query, and other hits with file_read. Catalog filters (year, publication, doi, isRead) drop table hits. Returns ranked relative paths, snippets, 1-based lines and truncated. limit defaults to 60, clamped to 1..200. Set vault to target a vault from vault_list.",
         annotations(read_only_hint = true)
     )]
     async fn vault_search(
@@ -1193,7 +1295,7 @@ impl AgenteroMcp {
     }
 
     #[tool(
-        description = "Read one UTF-8 text file by vault-relative path (e.g. drafts/main.tex or notes/idea.md). Refuses .agentero, binaries, marks, and layout indexes. Missing file is an error. NOTES.md is allowed here; prefer paper_notes_get for a paper. Set vault to target a vault from vault_list."
+        description = "Read one UTF-8 text file by vault-relative path (e.g. drafts/main.tex or notes/idea.md). Refuses .agentero, binaries, marks, and layout indexes. Missing file is an error. NOTES.md is allowed here; prefer paper_notes_get for a paper. Research tables (*.table.json) larger than 2 MiB must use table_query. Set vault to target a vault from vault_list."
     )]
     async fn file_read(
         &self,
@@ -1210,7 +1312,7 @@ impl AgenteroMcp {
     }
 
     #[tool(
-        description = "Write one UTF-8 text file by vault-relative path. mode=replace (default) or append. Creates missing parent directories inside the vault. Use for a LaTeX draft outside papers/. Refuses NOTES.md (use paper_notes_write), .agentero, binaries, marks, and layout indexes. Confirm with the user before replace. Set vault to target a vault from vault_list."
+        description = "Write one UTF-8 text file by vault-relative path. mode=replace (default) or append. Creates missing parent directories inside the vault. Use for a LaTeX draft outside papers/. Refuses NOTES.md (use paper_notes_write), .agentero, binaries, marks, and layout indexes. Cannot append or replace an existing *.table.json — table_upsert and table_update_cells are the only write path for an existing research table. Creating a missing *.table.json succeeds only when the body is a valid table. Refuses to replace or append a Markdown file whose frontmatter is type experiment and status locked (experiment_locked); creating a new file is allowed. Confirm with the user before replace. Set vault to target a vault from vault_list."
     )]
     async fn file_write(
         &self,
@@ -1234,6 +1336,134 @@ impl AgenteroMcp {
             Err(e) => Err(tool_err(e)),
         }
     }
+
+    #[tool(
+        description = "Read rows from an existing *.table.json in stored order. This is the read path for a research table, including tables larger than file_read. Filter by registryId and/or field name plus equals. field names are Unicode-case-insensitive. includeArchived defaults to false. limit defaults to 50 and is clamped to 1..200. Does not write. Set vault to target a vault from vault_list. expectedRevision for table_upsert and table_update_cells comes from this result.",
+        annotations(read_only_hint = true)
+    )]
+    async fn table_query(
+        &self,
+        Parameters(args): Parameters<TableQueryArgs>,
+    ) -> Result<Json<agentero_core::features::research_table::QueryOut>, CallToolResult> {
+        let ctrl = self.ctrl.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            let vault = ctrl
+                .resolve_vault(args.vault.as_deref())
+                .map_err(BlockingTableError::Vault)?;
+            agentero_core::features::research_table::query(
+                &vault,
+                &args.path,
+                &agentero_core::features::research_table::QueryFilter {
+                    registry_id: args.registry_id,
+                    field: args.field,
+                    equals: args.equals,
+                    include_archived: args.include_archived,
+                    limit: args.limit,
+                    offset: args.offset,
+                },
+            )
+            .map_err(BlockingTableError::Table)
+        })
+        .await
+        .map_err(|e| {
+            tool_err(AppError::message(format!(
+                "blocking table_query failed: {e}"
+            )))
+        })?;
+        match result {
+            Ok(out) => Ok(Json(out)),
+            Err(e) => Err(blocking_table_err(e)),
+        }
+    }
+
+    #[tool(
+        description = "Create or patch rows in an existing *.table.json. Together with table_update_cells, this is the only write path for an existing research table. Each row is { registryId?, values } keyed by field name. Omit registryId to append a row and issue the next registry id. expectedRevision comes from table_query. Optional idempotencyKey replays without writing when the key was already applied. Confirm with the user before writing. Set vault to target a vault from vault_list."
+    )]
+    async fn table_upsert(
+        &self,
+        Parameters(args): Parameters<TableUpsertArgs>,
+    ) -> Result<Json<agentero_core::features::research_table::MutationOut>, CallToolResult> {
+        let ctrl = self.ctrl.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            let vault = ctrl
+                .resolve_vault(args.vault.as_deref())
+                .map_err(BlockingTableError::Vault)?;
+            let mut rows = Vec::with_capacity(args.rows.len());
+            for row in args.rows {
+                let Some(values) = row.values.as_object().cloned() else {
+                    return Err(BlockingTableError::Table(
+                        agentero_core::features::research_table::TableError::new("invalid_table"),
+                    ));
+                };
+                rows.push(agentero_core::features::research_table::RowInput {
+                    registry_id: row.registry_id,
+                    values,
+                });
+            }
+            agentero_core::features::research_table::upsert(
+                &vault,
+                &args.path,
+                args.expected_revision,
+                &rows,
+                args.idempotency_key.as_deref(),
+                args.include_archived,
+            )
+            .map_err(BlockingTableError::Table)
+        })
+        .await
+        .map_err(|e| {
+            tool_err(AppError::message(format!(
+                "blocking table_upsert failed: {e}"
+            )))
+        })?;
+        match result {
+            Ok(out) => Ok(Json(out)),
+            Err(e) => Err(blocking_table_err(e)),
+        }
+    }
+
+    #[tool(
+        description = "Patch cells in an existing *.table.json. Together with table_upsert, this is the only write path for an existing research table. Each cell is addressed by registry id and field name, not by row index or field id. value is a string, number, boolean, or null (clears the cell). expectedRevision comes from table_query. The call is all-or-nothing. Optional idempotencyKey replays without writing when the key was already applied. Confirm with the user before writing. Set vault to target a vault from vault_list."
+    )]
+    async fn table_update_cells(
+        &self,
+        Parameters(args): Parameters<TableUpdateCellsArgs>,
+    ) -> Result<Json<agentero_core::features::research_table::MutationOut>, CallToolResult> {
+        let ctrl = self.ctrl.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            let vault = ctrl
+                .resolve_vault(args.vault.as_deref())
+                .map_err(BlockingTableError::Vault)?;
+            let cells = args
+                .cells
+                .into_iter()
+                .map(|cell| agentero_core::features::research_table::CellUpdate {
+                    registry_id: cell.registry_id,
+                    field: cell.field,
+                    value: cell.value,
+                })
+                .collect::<Vec<_>>();
+            agentero_core::features::research_table::update_cells(
+                &vault,
+                &args.path,
+                args.expected_revision,
+                &cells,
+                args.idempotency_key.as_deref(),
+                args.include_archived,
+            )
+            .map_err(BlockingTableError::Table)
+        })
+        .await
+        .map_err(|e| {
+            tool_err(AppError::message(format!(
+                "blocking table_update_cells failed: {e}"
+            )))
+        })?;
+        match result {
+            Ok(out) => Ok(Json(out)),
+            Err(e) => Err(blocking_table_err(e)),
+        }
+    }
 }
 
 #[tool_handler]
@@ -1252,6 +1482,11 @@ impl ServerHandler for AgenteroMcp {
             "paper_list defaults to id/path/title only — pass fields or full when needed. ",
             "ref is a paper id or vault-relative path. Notes writes only touch NOTES.md. ",
             "Other vault text (a .tex draft outside papers/) uses file_list, file_read, and file_write. ",
+            "Research tables (*.table.json) use table_query, table_upsert, and table_update_cells. ",
+            "Those tools are the only write path for an existing table; cells are addressed by registry id and field name, and expectedRevision comes from table_query. ",
+            "Do not file_write an existing *.table.json. ",
+            "vault_search includes *.table.json; read matching rows with table_query. ",
+            "file_write refuses a locked experiment note (experiment_locked). ",
             "Library organization: paper_move changes a paper's parent folder (or vault); file_move renames/moves any path with link updates. ",
             "file_delete defaults to the vault recycle bin; permanent=true is destructive. ",
             "Confirm with the user before replace of user-written NOTES or other files, and before moves or deletes. ",
@@ -2058,5 +2293,227 @@ mod schema_tests {
 
         client.close().await.unwrap();
         server.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn table_row_ops_are_the_write_path() {
+        use rmcp::handler::server::wrapper::Parameters;
+        use rmcp::model::ContentBlock;
+        use serde_json::json;
+        use std::sync::Arc;
+
+        fn error_json(err: &rmcp::model::CallToolResult) -> serde_json::Value {
+            let ContentBlock::Text(text) = &err.content[0] else {
+                panic!("expected a text tool error, got {err:?}");
+            };
+            serde_json::from_str(&text.text).unwrap()
+        }
+
+        fn expect_tool_err<T>(
+            result: Result<T, rmcp::model::CallToolResult>,
+        ) -> rmcp::model::CallToolResult {
+            match result {
+                Err(err) => err,
+                Ok(_) => panic!("expected a tool error"),
+            }
+        }
+
+        let table = r#"{
+  "format": "agentero-table",
+  "version": 1,
+  "id": "t1",
+  "name": "Measurements",
+  "kind": "result",
+  "revision": 3,
+  "idPrefix": "EXP",
+  "nextSequence": 3,
+  "fields": [
+    {"id":"sample","name":"Sample","type":"text","unit":"","options":[]},
+    {"id":"capacity","name":"Capacity","type":"number","unit":"mAh","options":[]}
+  ],
+  "rows": [
+    {"id":"r1","registryId":"EXP-0001","actor":"human","createdAt":"2026-11-07T00:00:00.000Z","updatedAt":"2026-11-07T00:00:00.000Z","values":{"sample":"A","capacity":1}},
+    {"id":"r2","registryId":"EXP-0002","archivedAt":"2026-11-07T01:00:00.000Z","values":{"sample":"old"}}
+  ]
+}"#;
+        let dir = tempfile::tempdir().unwrap();
+        let ctrl = Arc::new(McpController::new());
+        ctrl.set_vault(Some(dir.path().to_string_lossy().into_owned()));
+        let mcp = AgenteroMcp::new(ctrl);
+
+        let invalid = expect_tool_err(
+            mcp.file_write(Parameters(super::FileWriteArgs {
+                path: "bad/nope.table.json".into(),
+                content: "{".into(),
+                mode: Some("replace".into()),
+                vault: None,
+            }))
+            .await,
+        );
+        assert_eq!(error_json(&invalid)["code"], "invalid_table");
+        assert!(!dir.path().join("bad").exists());
+
+        let created = mcp
+            .file_write(Parameters(super::FileWriteArgs {
+                path: "data/run.table.json".into(),
+                content: table.into(),
+                mode: None,
+                vault: None,
+            }))
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(created.path, "data/run.table.json");
+        let path = dir.path().join("data/run.table.json");
+        let original = std::fs::read(&path).unwrap();
+
+        let replaced = expect_tool_err(
+            mcp.file_write(Parameters(super::FileWriteArgs {
+                path: "data/run.table.json".into(),
+                content: table.into(),
+                mode: Some("replace".into()),
+                vault: None,
+            }))
+            .await,
+        );
+        assert_eq!(error_json(&replaced)["code"], "use_table_ops");
+        let appended = expect_tool_err(
+            mcp.file_write(Parameters(super::FileWriteArgs {
+                path: "data/run.table.json".into(),
+                content: "\n".into(),
+                mode: Some("append".into()),
+                vault: None,
+            }))
+            .await,
+        );
+        assert_eq!(error_json(&appended)["code"], "use_table_ops");
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+
+        let queried = mcp
+            .table_query(Parameters(super::TableQueryArgs {
+                path: "data/run.table.json".into(),
+                registry_id: None,
+                field: Some("sample".into()),
+                equals: Some(json!("A")),
+                include_archived: false,
+                limit: None,
+                offset: None,
+                vault: None,
+            }))
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(queried.revision, 3);
+        assert_eq!(queried.match_count, 1);
+        assert_eq!(queried.rows[0].registry_id.as_deref(), Some("EXP-0001"));
+        assert_eq!(
+            queried.rows[0]
+                .values
+                .get("Sample")
+                .and_then(|v| v.as_str()),
+            Some("A")
+        );
+        assert!(queried.rows.iter().all(|row| !row.archived));
+
+        let wrong = expect_tool_err(
+            mcp.table_update_cells(Parameters(super::TableUpdateCellsArgs {
+                path: "data/run.table.json".into(),
+                expected_revision: 1,
+                cells: vec![super::TableCellArgs {
+                    registry_id: "EXP-0001".into(),
+                    field: "Capacity".into(),
+                    value: json!(2.5),
+                }],
+                idempotency_key: None,
+                include_archived: false,
+                vault: None,
+            }))
+            .await,
+        );
+        let wrong = error_json(&wrong);
+        assert_eq!(wrong["code"], "revision_conflict");
+        assert_eq!(wrong["revision"], 3);
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+
+        let hex = expect_tool_err(
+            mcp.table_update_cells(Parameters(super::TableUpdateCellsArgs {
+                path: "data/run.table.json".into(),
+                expected_revision: 3,
+                cells: vec![super::TableCellArgs {
+                    registry_id: "EXP-0001".into(),
+                    field: "Capacity".into(),
+                    value: json!("0x10"),
+                }],
+                idempotency_key: Some("nope".into()),
+                include_archived: false,
+                vault: None,
+            }))
+            .await,
+        );
+        assert_eq!(error_json(&hex)["code"], "invalid_cell");
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+
+        let archived = expect_tool_err(
+            mcp.table_update_cells(Parameters(super::TableUpdateCellsArgs {
+                path: "data/run.table.json".into(),
+                expected_revision: 3,
+                cells: vec![super::TableCellArgs {
+                    registry_id: "EXP-0002".into(),
+                    field: "Sample".into(),
+                    value: json!("later"),
+                }],
+                idempotency_key: None,
+                include_archived: false,
+                vault: None,
+            }))
+            .await,
+        );
+        assert_eq!(error_json(&archived)["code"], "archived");
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+
+        let updated = mcp
+            .table_update_cells(Parameters(super::TableUpdateCellsArgs {
+                path: "data/run.table.json".into(),
+                expected_revision: 3,
+                cells: vec![super::TableCellArgs {
+                    registry_id: "EXP-0001".into(),
+                    field: "Capacity".into(),
+                    value: json!("2.5"),
+                }],
+                idempotency_key: Some("batch-1".into()),
+                include_archived: false,
+                vault: None,
+            }))
+            .await
+            .unwrap()
+            .0;
+        assert!(!updated.replayed);
+        assert_eq!(updated.revision, 4);
+        assert_eq!(updated.rows[0].registry_id.as_deref(), Some("EXP-0001"));
+        let written = std::fs::read_to_string(&path).unwrap();
+        assert!(written.contains("\"revision\": 4"));
+        assert!(written.contains("2.5"));
+        assert!(written.contains("\"actor\": \"agent\""));
+        assert!(written.contains("batch-1"));
+
+        let replay = mcp
+            .table_update_cells(Parameters(super::TableUpdateCellsArgs {
+                path: "data/run.table.json".into(),
+                expected_revision: 1,
+                cells: vec![super::TableCellArgs {
+                    registry_id: "EXP-0001".into(),
+                    field: "Capacity".into(),
+                    value: json!(9),
+                }],
+                idempotency_key: Some("batch-1".into()),
+                include_archived: false,
+                vault: None,
+            }))
+            .await
+            .unwrap()
+            .0;
+        assert!(replay.replayed);
+        assert_eq!(replay.revision, 4);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), written);
     }
 }

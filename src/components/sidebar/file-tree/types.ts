@@ -2,7 +2,7 @@ import type { PaperLibraryRow } from "@/lib/paper";
 import type { PlazaSource } from "@/lib/plaza";
 import type { FileNode } from "@/lib/vault";
 
-export type TreeCreateKind = "file" | "folder" | "table";
+export type TreeCreateKind = "file" | "folder" | "table" | "experiment";
 
 export type TreeCreateDraft = {
 	kind: TreeCreateKind;

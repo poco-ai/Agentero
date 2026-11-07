@@ -1,9 +1,14 @@
 {
 	"newTableLabel": "New research table",
+	"newExperimentLabel": "New experiment",
 	"fileTree": {
 		"empty": "Empty folder",
 		"newFile": "New file",
 		"untitledNote": "Untitled",
+		"untitledTable": "Untitled table",
+		"untitledExperiment": "Untitled experiment",
+		"deleteTableConfirm_one": "This table is embedded in {{count}} note. Delete it?",
+		"deleteTableConfirm_other": "This table is embedded in {{count}} notes. Delete it?",
 		"openNotes": "Open Notes",
 		"addToChat": "Add to conversation",
 		"newFolder": "New folder",

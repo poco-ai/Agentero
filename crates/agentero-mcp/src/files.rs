@@ -5,6 +5,7 @@
 
 use agentero_core::error::AppError;
 use agentero_core::features::paper::catalog::papers;
+use agentero_core::features::research_table;
 use agentero_core::features::vault::rename::{
     run_local_rename_transaction, WikiIndex, WikiRenameResult,
 };
@@ -178,6 +179,12 @@ pub fn read_text(vault: &Path, rel: &str) -> Result<FileReadOut, AppError> {
     let path = contained_existing(&root, &rel, false)?;
     let meta = fs::metadata(&path)?;
     if meta.len() > MAX_TEXT_BYTES as u64 {
+        if is_research_table(&rel) {
+            return Err(AppError::message(format!(
+                "file is {} bytes; MCP reads at most {MAX_TEXT_BYTES} bytes of UTF-8 text; use table_query for research tables",
+                meta.len()
+            )));
+        }
         return Err(AppError::message(format!(
             "file is {} bytes; MCP reads at most {MAX_TEXT_BYTES} bytes of UTF-8 text",
             meta.len()
@@ -204,6 +211,9 @@ pub fn write_text(
     reject_managed(&rel)?;
     reject_notes(&rel)?;
     reject_binary_name(&rel)?;
+    if is_research_table(&rel) && matches!(mode, WriteMode::Append) {
+        return Err(AppError::domain("use_table_ops", "use_table_ops"));
+    }
     if content.len() > MAX_TEXT_BYTES {
         return Err(AppError::message(format!(
             "content is {} bytes; MCP writes at most {MAX_TEXT_BYTES} bytes",
@@ -217,6 +227,16 @@ pub fn write_text(
     let path = contained_write_target(&root, &rel)?;
     if path.is_dir() {
         return Err(AppError::message("path is a directory"));
+    }
+    if is_research_table(&rel) {
+        if path.is_file() {
+            return Err(AppError::domain("use_table_ops", "use_table_ops"));
+        }
+        research_table::validate_table_json(content)
+            .map_err(|err| AppError::domain(err.stable_code(), err.stable_code()))?;
+    }
+    if path.is_file() && is_markdown(&rel) && markdown_experiment_locked(&path)? {
+        return Err(AppError::domain("experiment_locked", "experiment_locked"));
     }
     let next = match mode {
         WriteMode::Replace => content.to_string(),
@@ -332,6 +352,77 @@ pub fn delete_paths(
         return Err(AppError::message("paths is required"));
     }
     trash::delete_paths(&root, &clean, permanent)
+}
+
+fn is_research_table(rel: &str) -> bool {
+    rel.to_ascii_lowercase().ends_with(".table.json")
+}
+
+fn is_markdown(rel: &str) -> bool {
+    rel.to_ascii_lowercase().ends_with(".md")
+}
+
+/// Line scan of the first frontmatter block. No YAML parser.
+fn markdown_experiment_locked(path: &Path) -> Result<bool, AppError> {
+    let mut file = fs::File::open(path)?;
+    let mut buf = [0u8; 8192];
+    let read = std::io::Read::read(&mut file, &mut buf)?;
+    let text = String::from_utf8_lossy(&buf[..read]);
+    Ok(frontmatter_is_locked_experiment(text.as_ref()))
+}
+
+fn frontmatter_is_locked_experiment(text: &str) -> bool {
+    let mut lines = text.split('\n');
+    let Some(first) = lines.next() else {
+        return false;
+    };
+    if first.trim_end_matches('\r').trim() != "---" {
+        return false;
+    }
+    let mut kind = None;
+    let mut status = None;
+    for line in lines {
+        let line = line.trim_end_matches('\r');
+        let trimmed = line.trim();
+        if trimmed == "---" || trimmed == "..." {
+            break;
+        }
+        if line.starts_with([' ', '\t']) || trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        if kind.is_none() {
+            if let Some(value) = yaml_top_scalar(line, "type") {
+                kind = Some(value);
+            }
+        }
+        if status.is_none() {
+            if let Some(value) = yaml_top_scalar(line, "status") {
+                status = Some(value);
+            }
+        }
+    }
+    kind.as_deref() == Some("experiment") && status.as_deref() == Some("locked")
+}
+
+fn yaml_top_scalar(line: &str, key: &str) -> Option<String> {
+    let rest = line.strip_prefix(key)?.strip_prefix(':')?;
+    let raw = rest.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    let raw = raw
+        .split_once(" #")
+        .map(|(value, _)| value.trim())
+        .unwrap_or(raw);
+    let unquoted = if raw.len() >= 2
+        && ((raw.starts_with('"') && raw.ends_with('"'))
+            || (raw.starts_with('\'') && raw.ends_with('\'')))
+    {
+        &raw[1..raw.len() - 1]
+    } else {
+        raw
+    };
+    Some(unquoted.to_string())
 }
 
 fn normalize_dir(raw: &str) -> Result<String, AppError> {
@@ -526,6 +617,69 @@ fn entry_kind(root: &Path, path: &Path) -> Option<&'static str> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn refuses_locked_experiment_markdown_and_still_writes_normal_markdown() {
+        let dir = tempdir().unwrap();
+        let locked = "---\ntype: experiment\nstatus: locked\n---\n\n# Run\n";
+        write_text(dir.path(), "lab/run.md", locked, WriteMode::Replace).unwrap();
+        let replaced = write_text(
+            dir.path(),
+            "lab/run.md",
+            "---\ntype: experiment\nstatus: done\n---\n\n# Changed\n",
+            WriteMode::Replace,
+        )
+        .unwrap_err();
+        assert_eq!(replaced.code(), "experiment_locked");
+        let appended =
+            write_text(dir.path(), "lab/run.md", "more\n", WriteMode::Append).unwrap_err();
+        assert_eq!(appended.code(), "experiment_locked");
+        assert_eq!(
+            fs::read_to_string(dir.path().join("lab/run.md")).unwrap(),
+            locked
+        );
+
+        write_text(
+            dir.path(),
+            "lab/draft.md",
+            "---\ntype: experiment\nstatus: draft\n---\n\n# Draft\n",
+            WriteMode::Replace,
+        )
+        .unwrap();
+        write_text(
+            dir.path(),
+            "lab/draft.md",
+            "---\ntype: experiment\nstatus: running\n---\n\n# Draft\n",
+            WriteMode::Replace,
+        )
+        .unwrap();
+
+        write_text(
+            dir.path(),
+            "notes/plain.md",
+            "# Plain\n",
+            WriteMode::Replace,
+        )
+        .unwrap();
+        write_text(
+            dir.path(),
+            "notes/plain.md",
+            "# Plain\n\nEdited\n",
+            WriteMode::Replace,
+        )
+        .unwrap();
+        assert_eq!(
+            read_text(dir.path(), "notes/plain.md").unwrap().content,
+            "# Plain\n\nEdited\n"
+        );
+        write_text(
+            dir.path(),
+            "lab/fresh.md",
+            "---\ntype: experiment\nstatus: locked\n---\n\n# New\n",
+            WriteMode::Replace,
+        )
+        .unwrap();
+    }
 
     #[test]
     fn writes_and_reads_tex_outside_papers() {

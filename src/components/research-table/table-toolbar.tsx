@@ -1,19 +1,36 @@
 import {
+	Archive,
+	ArchiveRestore,
 	Check,
 	ChevronDown,
+	CircleAlert,
 	Columns3,
 	Copy,
+	CopyPlus,
 	Download,
 	Ellipsis,
+	FileJson,
+	Info,
 	Plus,
 	Redo2,
 	Save,
 	Table,
+	Trash2,
 	Undo2,
+	X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "@/components/research-table/confirm-dialog";
+import type { TableRowRef } from "@/components/research-table/table-grid";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -35,11 +52,34 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useImeGuard } from "@/hooks/use-ime-guard";
+import { formatLocaleTimestamp } from "@/i18n";
 import { notifyError } from "@/lib/core/notify";
+import {
+	type ResearchTableBacklink,
+	researchTableBacklinks,
+} from "@/lib/research-table/catalog";
 import { researchTableErrorMessage } from "@/lib/research-table/errors";
-import type { ResearchTable } from "@/lib/research-table/model";
+import { researchTableDirective } from "@/lib/research-table/markdown";
+import {
+	acceptsSchemaPath,
+	applySchemaFields,
+	checkSchema,
+	parseResearchTable,
+	type ResearchTable,
+} from "@/lib/research-table/model";
+import { researchTableCsv } from "@/lib/research-table/view";
+import {
+	joinVaultPath,
+	readVaultFile,
+	vaultPathExists,
+	vaultRelativePath,
+} from "@/lib/vault";
+import { openPath } from "@/lib/workspace/navigation";
 
 export type TableSaveState = "saved" | "pending" | "saving" | "error";
+
+const BATCH_ROW_CAP = 500;
+const BATCH_ROW_CONFIRM = 100;
 
 export function TableToolbar({
 	table,
@@ -53,6 +93,16 @@ export function TableToolbar({
 	canRedo,
 	onSave,
 	saveState,
+	query,
+	onQueryChange,
+	visibleRows,
+	showArchived,
+	onShowArchived,
+	canManageArchived,
+	onRestoreArchived,
+	onDeleteArchived,
+	selectedRows,
+	onDuplicateRows,
 }: {
 	table: ResearchTable;
 	path: string;
@@ -65,13 +115,125 @@ export function TableToolbar({
 	canRedo: boolean;
 	onSave: () => void;
 	saveState: TableSaveState;
+	query: string;
+	onQueryChange: (query: string) => void;
+	visibleRows: number;
+	showArchived: boolean;
+	onShowArchived: (show: boolean) => void;
+	canManageArchived: boolean;
+	onRestoreArchived: () => void;
+	onDeleteArchived: () => void;
+	selectedRows: readonly TableRowRef[];
+	onDuplicateRows: (indexes: readonly number[]) => void;
 }) {
-	const { t } = useTranslation("editor");
+	const { t, i18n } = useTranslation("editor");
+	const schemaId = useId();
 	const [editing, setEditing] = useState(false);
 	const [name, setName] = useState(table.name);
 	const [batchOpen, setBatchOpen] = useState(false);
 	const [count, setCount] = useState(10);
+	const [pendingRows, setPendingRows] = useState<number | null>(null);
+	const [pendingDuplicate, setPendingDuplicate] = useState<
+		readonly number[] | null
+	>(null);
+	const [schemaOpen, setSchemaOpen] = useState(false);
+	const [schemaDraft, setSchemaDraft] = useState(table.schemaPath ?? "");
+	const [schemaBusy, setSchemaBusy] = useState(false);
+	const [schemaNotice, setSchemaNotice] = useState<string | null>(null);
 	const { compositionProps, isBlockedByIme } = useImeGuard();
+	useEffect(() => {
+		const schemaPath = table.schemaPath;
+		if (!schemaPath || !vaultPath) {
+			setSchemaNotice(null);
+			return;
+		}
+		let cancelled = false;
+		void vaultPathExists(joinVaultPath(vaultPath, schemaPath))
+			.then((exists) => {
+				if (!cancelled)
+					setSchemaNotice(exists ? null : t("researchTable.schemaMissing"));
+			})
+			.catch(() => {
+				if (!cancelled) setSchemaNotice(null);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [table.schemaPath, vaultPath, t]);
+	const readSchema = async (candidate: string) => {
+		const trimmed = candidate.trim();
+		const own = vaultPath ? vaultRelativePath(vaultPath, path) : null;
+		if (!vaultPath || !acceptsSchemaPath(trimmed, own ?? undefined)) {
+			notifyError(t("researchTable.errors.path"));
+			return null;
+		}
+		const absolute = joinVaultPath(vaultPath, trimmed);
+		if (!(await vaultPathExists(absolute)))
+			return { missing: true as const, path: trimmed };
+		try {
+			return {
+				missing: false as const,
+				path: trimmed,
+				schema: parseResearchTable(await readVaultFile(absolute)),
+			};
+		} catch (error) {
+			notifyError(researchTableErrorMessage(error));
+			return null;
+		}
+	};
+	const confirmSchema = async () => {
+		const trimmed = schemaDraft.trim();
+		if (!trimmed) {
+			if (table.schemaPath !== undefined) {
+				const next = { ...table };
+				delete next.schemaPath;
+				onChange(next);
+			}
+			setSchemaNotice(null);
+			setSchemaOpen(false);
+			return;
+		}
+		setSchemaBusy(true);
+		try {
+			const loaded = await readSchema(trimmed);
+			if (!loaded) return;
+			if (loaded.missing) {
+				onChange({ ...table, schemaPath: loaded.path });
+				setSchemaNotice(t("researchTable.schemaMissing"));
+				setSchemaOpen(false);
+				return;
+			}
+			if (!checkSchema(table, loaded.schema).ok) {
+				notifyError(t("researchTable.errors.schemaMismatch"));
+				return;
+			}
+			onChange({ ...table, schemaPath: loaded.path });
+			setSchemaNotice(null);
+			setSchemaOpen(false);
+		} finally {
+			setSchemaBusy(false);
+		}
+	};
+	const applySchema = async () => {
+		setSchemaBusy(true);
+		try {
+			const loaded = await readSchema(schemaDraft);
+			if (!loaded) return;
+			if (loaded.missing) {
+				notifyError(t("researchTable.schemaMissing"));
+				return;
+			}
+			try {
+				const next = applySchemaFields(table, loaded.schema);
+				if (next !== table) onChange(next);
+				setSchemaOpen(false);
+			} catch (error) {
+				notifyError(researchTableErrorMessage(error));
+			}
+		} finally {
+			setSchemaBusy(false);
+		}
+	};
 	const commitName = () => {
 		const next = name.trim();
 		if (next && next !== table.name) onChange({ ...table, name: next });
@@ -79,30 +241,44 @@ export function TableToolbar({
 	};
 	const fail = (error: unknown) =>
 		notifyError(researchTableErrorMessage(error));
+	const requestRows = (amount: number) => {
+		const next = Math.trunc(amount);
+		if (!Number.isInteger(next) || next < 1) return;
+		const capped = Math.min(next, BATCH_ROW_CAP);
+		setBatchOpen(false);
+		if (capped >= BATCH_ROW_CONFIRM) {
+			setPendingRows(capped);
+			return;
+		}
+		onAddRows(capped);
+	};
 	const copyReference = async () => {
 		const root = (vaultPath ?? "").replaceAll("\\", "/").replace(/\/$/, "");
 		const normalized = path.replaceAll("\\", "/");
-		if (!normalized.startsWith(`${root}/`)) return;
+		if (!root || !normalized.startsWith(`${root}/`)) {
+			notifyError(t("researchTable.outsideVault"));
+			return;
+		}
 		try {
 			await navigator.clipboard.writeText(
-				`::research-table{path=${JSON.stringify(normalized.slice(root.length + 1))}}`,
+				researchTableDirective(normalized.slice(root.length + 1), table.id),
 			);
 		} catch (error) {
 			fail(error);
 		}
 	};
+	const requestDuplicate = () => {
+		const indexes = selectedRows.map((row) => row.index);
+		if (!indexes.length) return;
+		if (indexes.length >= BATCH_ROW_CONFIRM) {
+			setPendingDuplicate(indexes);
+			return;
+		}
+		onDuplicateRows(indexes);
+	};
 	const exportCsv = async () => {
 		try {
-			const csvCell = (value: unknown) =>
-				`"${String(value ?? "").replaceAll('"', '""')}"`;
-			const csv = [
-				table.fields
-					.map((f) => csvCell(f.unit ? `${f.name} (${f.unit})` : f.name))
-					.join(","),
-				...table.rows.map((row) =>
-					table.fields.map((f) => csvCell(row.values[f.id])).join(","),
-				),
-			].join("\r\n");
+			const csv = researchTableCsv(table);
 			const { save } = await import("@tauri-apps/plugin-dialog");
 			const { writeVaultFile } = await import("@/lib/vault/fs");
 			const destination = await save({
@@ -187,12 +363,13 @@ export function TableToolbar({
 				<div className="ml-auto flex shrink-0 items-center gap-1">
 					<span
 						role="status"
-						className={`flex items-center gap-1.5 text-xs ${saveState === "error" ? "text-destructive" : "text-muted-foreground"}`}
+						className={`flex shrink-0 items-center gap-1.5 text-xs whitespace-nowrap ${saveState === "error" ? "text-destructive" : "text-muted-foreground"}`}
 					>
 						{saveState === "saved" && <Check className="size-3" aria-hidden />}
-						<span className="sr-only @sm:not-sr-only">
-							{t(`researchTable.saveState.${saveState}`)}
-						</span>
+						{saveState === "error" && (
+							<CircleAlert className="size-3" aria-hidden />
+						)}
+						{t(`researchTable.saveState.${saveState}`)}
 					</span>
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -221,6 +398,15 @@ export function TableToolbar({
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
+								onSelect={() => {
+									setSchemaDraft(table.schemaPath ?? "");
+									setSchemaOpen(true);
+								}}
+							>
+								<FileJson />
+								{t("researchTable.schema")}
+							</DropdownMenuItem>
+							<DropdownMenuItem
 								disabled={!vaultPath}
 								onSelect={() => void copyReference()}
 							>
@@ -235,7 +421,7 @@ export function TableToolbar({
 					</DropdownMenu>
 				</div>
 			</div>
-			<div className="flex items-center justify-between py-2">
+			<div className="flex flex-wrap items-center gap-2 py-2">
 				<div className="flex items-center gap-0.5">
 					{(
 						[
@@ -276,6 +462,69 @@ export function TableToolbar({
 						</Tooltip>
 					))}
 				</div>
+				<div className="flex min-w-32 flex-1 items-center gap-1">
+					<Input
+						className="h-8 min-w-0"
+						aria-label={t("researchTable.filter")}
+						placeholder={t("researchTable.filter")}
+						value={query}
+						onChange={(event) => onQueryChange(event.target.value)}
+					/>
+					{query ? (
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							aria-label={t("researchTable.clearFilter")}
+							onClick={() => onQueryChange("")}
+						>
+							<X />
+						</Button>
+					) : null}
+					{query.trim() ? (
+						<span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+							{t("researchTable.filterMatches", { count: visibleRows })}
+						</span>
+					) : null}
+				</div>
+				{selectedRows.length > 0 ? (
+					<>
+						<RowDetails
+							table={table}
+							rows={selectedRows}
+							locale={i18n.language}
+						/>
+						<Button variant="ghost" size="sm" onClick={requestDuplicate}>
+							<CopyPlus />
+							{t("researchTable.duplicateRows")}
+						</Button>
+					</>
+				) : null}
+				<Button
+					variant={showArchived ? "secondary" : "ghost"}
+					size="sm"
+					aria-pressed={showArchived}
+					onClick={() => onShowArchived(!showArchived)}
+				>
+					<Archive />
+					{t("researchTable.showArchived")}
+				</Button>
+				{canManageArchived ? (
+					<>
+						<Button variant="ghost" size="sm" onClick={onRestoreArchived}>
+							<ArchiveRestore />
+							{t("researchTable.restoreRows")}
+						</Button>
+						<Button variant="ghost" size="sm" onClick={onDeleteArchived}>
+							<Trash2 />
+							{t("researchTable.deletePermanently")}
+						</Button>
+					</>
+				) : null}
+				{schemaNotice ? (
+					<span role="status" className="text-xs text-muted-foreground">
+						{schemaNotice}
+					</span>
+				) : null}
 				<Popover open={batchOpen} onOpenChange={setBatchOpen}>
 					<div className="flex items-center rounded-lg bg-secondary text-secondary-foreground">
 						<Button
@@ -300,16 +549,13 @@ export function TableToolbar({
 					</div>
 					<PopoverContent align="end" className="w-56 gap-3 p-3">
 						<div className="flex gap-1">
-							{[10, 100, 1000].map((amount) => (
+							{[10, 100].map((amount) => (
 								<Button
 									key={amount}
 									variant="secondary"
 									size="sm"
 									className="flex-1 tabular-nums"
-									onClick={() => {
-										onAddRows(amount);
-										setBatchOpen(false);
-									}}
+									onClick={() => requestRows(amount)}
 								>
 									+{amount}
 								</Button>
@@ -319,19 +565,22 @@ export function TableToolbar({
 							className="flex items-center gap-2"
 							onSubmit={(event) => {
 								event.preventDefault();
-								onAddRows(count);
-								setBatchOpen(false);
+								requestRows(count);
 							}}
 						>
 							<Input
 								type="number"
 								min={1}
-								max={1000}
+								max={BATCH_ROW_CAP}
 								required
 								className="h-7 min-w-0 tabular-nums"
 								aria-label={t("researchTable.rowCount")}
 								value={count}
-								onChange={(event) => setCount(Number(event.target.value))}
+								onChange={(event) => {
+									const next = Math.trunc(Number(event.target.value));
+									if (!Number.isFinite(next)) return;
+									setCount(Math.min(BATCH_ROW_CAP, Math.max(1, next)));
+								}}
 							/>
 							<Button size="sm" type="submit">
 								{t("researchTable.addRows")}
@@ -340,6 +589,232 @@ export function TableToolbar({
 					</PopoverContent>
 				</Popover>
 			</div>
+			<Dialog open={schemaOpen} onOpenChange={setSchemaOpen}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>{t("researchTable.schema")}</DialogTitle>
+					</DialogHeader>
+					<form
+						className="grid gap-3"
+						onSubmit={(event) => {
+							event.preventDefault();
+							void confirmSchema();
+						}}
+					>
+						<label htmlFor={schemaId}>
+							{t("researchTable.schemaPath")}
+							<Input
+								id={schemaId}
+								value={schemaDraft}
+								placeholder="data/schema.table.json"
+								disabled={schemaBusy}
+								{...compositionProps}
+								onChange={(event) => setSchemaDraft(event.target.value)}
+								onKeyDown={(event) => {
+									if (isBlockedByIme(event) && event.key === "Enter")
+										event.preventDefault();
+								}}
+							/>
+						</label>
+						<DialogFooter>
+							<Button
+								type="button"
+								variant="outline"
+								disabled={schemaBusy}
+								onClick={() => void applySchema()}
+							>
+								{t("researchTable.applySchema")}
+							</Button>
+							<Button type="submit" disabled={schemaBusy}>
+								{t("researchTable.useSchema")}
+							</Button>
+						</DialogFooter>
+					</form>
+				</DialogContent>
+			</Dialog>
+			<ConfirmDialog
+				open={pendingDuplicate !== null}
+				title={t("researchTable.duplicateRowsTitle")}
+				description={t("researchTable.duplicateRowsBody", {
+					count: pendingDuplicate?.length ?? 0,
+				})}
+				confirmLabel={t("researchTable.duplicateRows")}
+				onOpenChange={(open) => {
+					if (!open) setPendingDuplicate(null);
+				}}
+				onConfirm={() => {
+					if (pendingDuplicate) onDuplicateRows(pendingDuplicate);
+					setPendingDuplicate(null);
+				}}
+			/>
+			<ConfirmDialog
+				open={pendingRows !== null}
+				title={t("researchTable.addBlankRowsTitle")}
+				description={t("researchTable.addBlankRowsBody", {
+					count: pendingRows ?? 0,
+				})}
+				confirmLabel={t("researchTable.addRows")}
+				onOpenChange={(open) => {
+					if (!open) setPendingRows(null);
+				}}
+				onConfirm={() => {
+					if (pendingRows) onAddRows(pendingRows);
+					setPendingRows(null);
+				}}
+			/>
 		</header>
+	);
+}
+
+function RowDetails({
+	table,
+	rows,
+	locale,
+}: {
+	table: ResearchTable;
+	rows: readonly TableRowRef[];
+	locale: string;
+}) {
+	const { t } = useTranslation("editor");
+	const entries = rows.flatMap((ref) => {
+		const row = table.rows[ref.index];
+		if (!row || row.id !== ref.id) return [];
+		const lines: { label: string; value: string }[] = [];
+		if (row.registryId)
+			lines.push({
+				label: t("researchTable.registryId"),
+				value: row.registryId,
+			});
+		if (row.createdAt)
+			lines.push({
+				label: t("researchTable.created"),
+				value: formatLocaleTimestamp(row.createdAt, locale),
+			});
+		if (row.updatedAt)
+			lines.push({
+				label: t("researchTable.updated"),
+				value: formatLocaleTimestamp(row.updatedAt, locale),
+			});
+		if (row.actor === "human" || row.actor === "agent")
+			lines.push({
+				label: t("researchTable.lastEditor"),
+				value: t(
+					row.actor === "agent"
+						? "researchTable.actorAgent"
+						: "researchTable.actorHuman",
+				),
+			});
+		if (!lines.length) return [];
+		return [{ id: row.id, lines }];
+	});
+	if (!entries.length) return null;
+	return (
+		<Popover>
+			<PopoverTrigger asChild>
+				<Button
+					variant="ghost"
+					size="sm"
+					aria-label={t("researchTable.details")}
+				>
+					<Info />
+					{t("researchTable.details")}
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent align="end" className="max-h-80 overflow-auto">
+				<div className="grid gap-3">
+					{entries.map((entry) => (
+						<dl
+							key={entry.id}
+							className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs"
+						>
+							{entry.lines.map((line) => (
+								<div key={line.label} className="contents">
+									<dt className="text-muted-foreground">{line.label}</dt>
+									<dd className="min-w-0 truncate">{line.value}</dd>
+								</div>
+							))}
+						</dl>
+					))}
+				</div>
+			</PopoverContent>
+		</Popover>
+	);
+}
+
+/** One footer line for notes that embed this table. Paths stay behind a click. */
+export function TableBacklinks({
+	tableId,
+	path,
+	vaultPath,
+}: {
+	tableId: string;
+	path: string;
+	vaultPath: string | null;
+}) {
+	const { t } = useTranslation("editor");
+	const relativePath = vaultPath ? vaultRelativePath(vaultPath, path) : null;
+	const [notes, setNotes] = useState<ResearchTableBacklink[] | null>(null);
+	const [open, setOpen] = useState(false);
+	useEffect(() => {
+		if (!vaultPath || !relativePath) {
+			setNotes(null);
+			return;
+		}
+		let cancelled = false;
+		void researchTableBacklinks({
+			vaultPath,
+			path: relativePath,
+			id: tableId,
+		})
+			.then((found) => {
+				if (!cancelled) setNotes(found);
+			})
+			.catch(() => {
+				if (!cancelled) setNotes(null);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [relativePath, tableId, vaultPath]);
+	if (!vaultPath || !notes || notes.length === 0) return null;
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					className="ml-auto max-w-[16rem] truncate rounded-sm px-1 hover:bg-accent hover:text-foreground"
+				>
+					{t("researchTable.backlinks", { count: notes.length })}
+				</button>
+			</PopoverTrigger>
+			<PopoverContent align="end" side="top" className="w-72 p-1">
+				<ul className="agentero-scroll max-h-64 overflow-y-auto">
+					{notes.map((note) => {
+						const name = note.path.split("/").pop() ?? note.path;
+						const label = name.replace(/\.(md|mdx|markdown)$/i, "") || name;
+						return (
+							<li key={note.path}>
+								<button
+									type="button"
+									className="flex w-full min-w-0 flex-col rounded-sm px-2 py-1 text-left hover:bg-accent"
+									title={note.path}
+									onClick={() => {
+										setOpen(false);
+										openPath(joinVaultPath(vaultPath, note.path));
+									}}
+								>
+									<span className="truncate text-xs text-foreground">
+										{label}
+									</span>
+									<span className="truncate text-[0.6875rem] text-muted-foreground">
+										{note.path}
+									</span>
+								</button>
+							</li>
+						);
+					})}
+				</ul>
+			</PopoverContent>
+		</Popover>
 	);
 }

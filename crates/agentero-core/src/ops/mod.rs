@@ -194,6 +194,22 @@ mod tests {
         assert!(get("layout.list").is_some());
         assert!(get("paper.set_read").is_some());
         assert!(get("file_read").is_some());
+        assert!(get("table.query").is_some());
+        assert!(get("table_query").is_some());
+        assert!(get("table.upsert").is_some());
+        assert!(get("table.update_cells").is_some());
+        assert!(get("table_update_cells").is_some());
+        let table_query = get("table.query").unwrap();
+        assert_eq!(table_query.side_effects, OpSideEffect::Read);
+        assert!(!table_query.requires_confirmation);
+        let table_upsert = get("table.upsert").unwrap();
+        assert_eq!(table_upsert.side_effects, OpSideEffect::Write);
+        assert!(table_upsert.requires_confirmation);
+        assert_eq!(
+            get("table.update_cells").unwrap().side_effects,
+            OpSideEffect::Write
+        );
+        assert!(get("table.update_cells").unwrap().requires_confirmation);
         assert!(get("page.read").is_some());
         assert!(get("page_read").is_some());
         assert!(get("file.write").is_some());

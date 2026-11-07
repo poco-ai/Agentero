@@ -406,6 +406,15 @@ export const commands = {
 	 *  run on the main thread (Windows UI message pump).
 	 */
 	vaultSearch: (args: VaultSearchArgs) => __TAURI_INVOKE<ApiResult<VaultSearchResult_Serialize>>("vault_search", { args }),
+	/**
+	 *  Walk the vault for research tables. See `research_table::lookup`.
+	 * 
+	 *  Async + `run_blocking`: the walk reads table files and must not run on the
+	 *  main thread (Windows UI message pump).
+	 */
+	researchTableList: (args: ResearchTableListArgs) => __TAURI_INVOKE<ApiResult<ResearchTableListResult_Serialize>>("research_table_list", { args }),
+	/**  Notes that embed a research table by path or id. */
+	researchTableBacklinks: (args: ResearchTableBacklinkArgs) => __TAURI_INVOKE<ApiResult<ResearchTableBacklinkResult>>("research_table_backlinks", { args }),
 	activityRecordEvents: (args: ActivityRecordArgs) => typedError<ApiResult<number>, string>(__TAURI_INVOKE("activity_record_events", { args })),
 	usageClear: (args: UsageClearArgs) => __TAURI_INVOKE<ApiResult<number>>("usage_clear", { args }),
 	feedbackSubmit: (args: FeedbackSubmitArgs) => __TAURI_INVOKE<ApiResult<null>>("feedback_submit", { args }),
@@ -4951,6 +4960,52 @@ export type RemoteWriteTextArgs = {
 	sessionId: string,
 	path: string,
 	content: string,
+};
+
+export type ResearchTableBacklink = {
+	path: string,
+};
+
+export type ResearchTableBacklinkArgs = {
+	vaultPath: string,
+	path: string,
+	id?: string | null,
+};
+
+export type ResearchTableBacklinkResult = {
+	notes: ResearchTableBacklink[],
+};
+
+export type ResearchTableListArgs = {
+	vaultPath: string,
+};
+
+export type ResearchTableListResult = ResearchTableListResult_Serialize | ResearchTableListResult_Deserialize;
+
+export type ResearchTableListResult_Deserialize = {
+	tables: ResearchTableSummary_Deserialize[],
+	truncated: boolean,
+};
+
+export type ResearchTableListResult_Serialize = {
+	tables: ResearchTableSummary_Serialize[],
+	truncated: boolean,
+};
+
+export type ResearchTableSummary = ResearchTableSummary_Serialize | ResearchTableSummary_Deserialize;
+
+export type ResearchTableSummary_Deserialize = {
+	path: string,
+	id: string,
+	name: string,
+	idPrefix: string | null,
+};
+
+export type ResearchTableSummary_Serialize = {
+	path: string,
+	id: string,
+	name: string,
+	idPrefix?: string | null,
 };
 
 /**  A parsed occurrence enriched with one deterministic resolution result. */
