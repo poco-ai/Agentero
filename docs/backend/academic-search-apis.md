@@ -27,6 +27,7 @@ Agentero Host 端（`src-tauri/src/features/`）在论文识别、入库、引�
 | **Translator Runtime** | `POST {base}/web`, `POST {base}/search`, `POST {base}/import` | 通用 URL/标识符/题录解析 | `features/import/mod.rs` |
 | **Cool Papers (papers.cool)** | `GET https://papers.cool/{branch}/search?query=...`, `GET https://papers.cool/{branch}/kimi?paper={id}` | Kimi 论文解析 / 广场导入 / CLI `paper notes fetch` | `crates/agentero-core/src/features/paper/discovery/coolpapers.rs`（桌面壳：`src-tauri/src/features/paper/discovery/coolpapers/`） |
 | **arXiv RSS** | `GET https://rss.arxiv.org/rss/{category}` | 推荐与订阅流 | `features/recommend/mod.rs`, `features/feeds/` |
+| **Papers with Code** | `GET https://paperswithcode.co/api/v1/papers/arxiv/{id}?include_resources=true` | 入库后的录用会议 / 官方代码仓库 / 引用数 / TL;DR 补全 | `crates/agentero-core/src/features/paper/discovery/pwc.rs` |
 
 ## 2. 调用链路详解
 
@@ -158,6 +159,20 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 - **bioRxiv / medRxiv**：共用 `biorxiv.rs`，实现 `AcademicApi`，仅支持 `FETCH_BY_DOI`（上游 API 无 title 搜索端点）。请求 `https://api.biorxiv.org/details/{server}/{doi}`，解析 title、authors、date、abstract，并构造 `.full.pdf` 直链。
 - PMID 在 `scholar_api::identifiers::resolver` 中已有识别器，现在为其补充 PubMed `efetch` 直连 fallback（`scholar_api::identifiers::fallback::fetch_pubmed_metadata`）；Translator 失败时可直接从 NCBI 拉取。
 
+### 2.12 Papers with Code 入库补全
+
+入口：`crates/agentero-core/src/features/paper/discovery/pwc.rs`；调用点 `paper_import::paper_commit` 与识别任务落盘之后（`src-tauri/src/features/paper/import/job_runners.rs`）。
+
+- 触发条件：catalog 行有 `arxiv_id`。`spawn_enrich` 用 `tokio::spawn` 脱钩，**入库不等待网络**；失败只记 debug 日志。
+- 请求 `GET /api/v1/papers/arxiv/{id}?include_resources=true`。**必须先归一化**：上游对 `arXiv:2103.14030`、`2103.14030v2` 直接返回 `400 Invalid ArXiv ID format`。
+- 只填空字段，不覆盖任何已有值：
+  - `publication` ← `conference_name`（只有 PwC 收录了该会议某一届时才有值；这是「已录用」的确认信号）
+  - `code_repo` ← `is_official=true` 且 star 最多的仓库；`code_repo_manual=1` 时跳过
+  - `citation_count` ← 仅在为 NULL 时写入
+  - `summary` ← `tldr`
+- **不写「未录用」**：`proceeding` 的覆盖并不完整（实测 FlashAttention 为 NULL），查不到只代表「目录未收录」。
+- 限流：进程内串行，最小间隔 600 ms（≈100/min），低于目录 GET 的 120/min 上限。
+
 ## 3. 并发与限流
 
 | 能力 | 并发控制 | 说明 |
@@ -168,6 +183,7 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 | 批量入库 | 默认 `concurrency = 5` | `LookupImportBatchArgs.concurrency` 可覆盖 |
 | 反向引用发现 | `FETCH_CONCURRENCY = 8` | 实测 8 并发比串行快约 4.6 倍 |
 | Cool Papers /kimi | `1` | 避免触发上游 LLM 配额 |
+| Papers with Code 补全 | 串行 + 600ms 间隔 | 目录 GET 限 120/min；批量入库不并发打 |
 | 通用 HTTP | `crate::core::http::client` | 共享连接池，单个请求超时 20s，PDF/TeX 下载 180s |
 
 默认所有调用均使用无 API key 的免费端点（Semantic Scholar、arXiv、Crossref、Unpaywall）；Semantic Scholar、PubMed 与 OpenAlex 额外支持可选的 BYOK 环境变量（见第 4 节）。Cool Papers 无 auth。Translator Runtime 默认使用项目托管实例 `https://translation-server.agentero.app`，用户可在设置中替换。

@@ -21,6 +21,7 @@ export const PLAZA_VIRTUAL_PATH = "agentero:plaza";
 export type PlazaSourceIcon =
 	| "coolPapers"
 	| "modelScope"
+	| "conference"
 	| "sparkles"
 	| "rss"
 	| "telescope"
@@ -78,6 +79,14 @@ export const PLAZA_SOURCES: readonly PlazaSource[] = [
 		url: "https://modelscope.cn/papers",
 		embedOrigin: () => schemeOrigin("agentero-modelscope"),
 		icon: "modelScope",
+	},
+	{
+		id: "papers-with-code",
+		path: sourcePath("papers-with-code"),
+		label: "Papers with Code",
+		url: "https://paperswithcode.co/conferences",
+		embedOrigin: () => schemeOrigin("agentero-pwc"),
+		icon: "conference",
 	},
 	{
 		id: "skills",
@@ -149,6 +158,8 @@ export function plazaSourceLabel(source: PlazaSource): string {
 			return i18n.t("sidebar:plaza.skills.title");
 		case "modelscope":
 			return i18n.t("sidebar:plaza.modelscope");
+		case "papers-with-code":
+			return i18n.t("sidebar:plaza.pwc.label");
 		case "feeds":
 			return i18n.t("sidebar:plaza.feeds.label");
 		case "arxiv-rec":

@@ -233,6 +233,9 @@
 		"openInSystemBrowser": "Open in system browser",
 		"comingSoonFor": "{{label}} is coming soon.",
 		"modelscope": "ModelScope Papers",
+		"pwc": {
+			"label": "Papers with Code"
+		},
 		"arxivRec": {
 			"label": "arXiv Daily",
 			"read": "Read",

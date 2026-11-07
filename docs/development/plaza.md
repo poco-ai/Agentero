@@ -1,6 +1,6 @@
 # 广场（Plaza）— 外部来源发现
 
-> 范围：侧栏虚拟节点 **广场** 及其子来源（Cool Papers / ModelScope 论文 / Skill 推荐 / 订阅 / 播客 / 论文推荐）；中间栏发现流。  
+> 范围：侧栏虚拟节点 **广场** 及其子来源（Cool Papers / ModelScope 论文 / Papers with Code / Skill 推荐 / 订阅 / 播客 / 论文推荐）；中间栏发现流。  
 > 相关：[`../frontend/vault-tree.md`](../frontend/vault-tree.md)、[`../backend/paper-import.md`](../backend/paper-import.md)、[`../backend/index.md`](../backend/index.md)。  
 > 订阅 MVP（已落地）：[`plaza-feeds.md`](plaza-feeds.md)。  
 > 开关：设置 → 通用 → **广场**（`plazaEnabled`，默认开）；关闭后不显示、不加载。
@@ -28,7 +28,7 @@
 | 侧栏行 | `src/components/sidebar/file-tree/tree-rows.tsx`（`PlazaRow` / `PlazaSourceRow`） |
 | Tab kind | `src/lib/workspace/tabs/types.ts` 的 `"plaza"` + `doc-view.tsx` 分支 |
 | 站点代理（共享管道） | `src-tauri/src/features/paper/discovery/proxy/mod.rs` |
-| 站点代理（各站改写 + 注入） | `src-tauri/src/features/paper/discovery/coolpapers/proxy.rs`、`src-tauri/src/features/paper/discovery/proxy/modelscope.rs` |
+| 站点代理（各站改写 + 注入） | `src-tauri/src/features/paper/discovery/coolpapers/proxy.rs`、`src-tauri/src/features/paper/discovery/proxy/modelscope.rs`、`src-tauri/src/features/paper/discovery/proxy/pwc.rs` |
 
 > Kimi 解析没有走广场入库，而是作为论文侧的独立能力落在 Markdown 工具栏的
 > 「获取 Cool Paper 笔记」按钮上（`paper_coolpapers_notes` → 追加 `NOTES.md`）。
@@ -57,6 +57,7 @@ Agentero 已是 **local-first 论文工作台**（Library + 文件树 + PDF\|NOT
 5. **播客** — 占位，后续。  
 6. **论文推荐** — P0 v0：基于本地库的轻量推荐列表（无云端上传）。  
 7. **CCF 截稿** — 原生面板：只读上游 [ccf-deadlines](https://github.com/ccfddl/ccf-deadlines) 数据，按截稿时间列出 CCF A/B/C 会议；见 §3.6。
+8. **Papers with Code** — 内嵌站点浏览（`https://paperswithcode.co/conferences`）：会议页、accepted papers、SOTA 榜单与方法索引；入口默认落在会议列表。入库时的 arXiv 录用/代码仓库补全走同一上游 API，见 [`../backend/academic-search-apis.md`](../backend/academic-search-apis.md) §2.12。
 
 ## 2. 侧栏信息架构
 
@@ -67,6 +68,7 @@ Agentero 已是 **local-first 论文工作台**（Library + 文件树 + PDF\|NOT
 ├── 🌐 广场                     agentero:plaza              ← 可折叠
 │   ├── ✨ Cool Papers         agentero:plaza/cool-papers
 │   ├── ✨ ModelScope 论文      agentero:plaza/modelscope
+│   ├── 🏛️ Papers with Code     agentero:plaza/papers-with-code
 │   ├── ✨ Skill 推荐           agentero:plaza/skills
 │   ├── 📡 订阅                 agentero:plaza/feeds
 │   ├── 🎙️ 播客                 agentero:plaza/podcasts      ← 占位
@@ -93,6 +95,7 @@ Agentero 已是 **local-first 论文工作台**（Library + 文件树 + PDF\|NOT
 | 广场 | `Globe` | Plaza | 广场 |
 | Cool Papers | `Flame` 或自定义标 | Cool Papers | Cool Papers |
 | ModelScope 论文 | 自定义标（魔搭 favicon） | ModelScope papers | ModelScope 论文 |
+| Papers with Code | `Landmark` | Papers with Code | Papers with Code |
 | Skill 推荐 | `Sparkles` | Skill picks | Skill 推荐 |
 | 订阅 | `Rss` | Feeds | 订阅 |
 | 播客 | `Podcast` | Podcasts | 播客 |

@@ -13,6 +13,8 @@
 pub mod arxiv;
 #[cfg(feature = "desktop")]
 pub mod modelscope;
+#[cfg(feature = "desktop")]
+pub mod pwc;
 
 use tauri::http::{header, Response, StatusCode};
 

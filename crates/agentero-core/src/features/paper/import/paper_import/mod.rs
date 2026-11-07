@@ -298,6 +298,9 @@ pub async fn paper_commit(
     if assets.pdf {
         super::code_repo::fill_code_repo_from_pdf(vault, &path_rel).await;
     }
+    // Best-effort catalog fill by arXiv id; detached so the import never waits
+    // on the network. No arXiv id makes it a no-op.
+    crate::features::paper::discovery::pwc::spawn_enrich(vault, &path_rel);
 
     Ok(PaperCommitResult {
         status: CommitStatus::Created,

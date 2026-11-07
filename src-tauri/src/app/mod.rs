@@ -95,6 +95,9 @@ pub fn run() {
                 crate::features::paper::discovery::proxy::modelscope::handle(request, responder);
             },
         )
+        .register_asynchronous_uri_scheme_protocol("agentero-pwc", |_ctx, request, responder| {
+            crate::features::paper::discovery::proxy::pwc::handle(request, responder);
+        })
         .register_asynchronous_uri_scheme_protocol("agentero-web", |_ctx, request, responder| {
             crate::features::web::proxy::handle(request, responder);
         })

@@ -261,6 +261,9 @@ fn recognize_metadata_runner(
         };
         cache.invalidate(&vault, &path);
         cache.invalidate(&vault, &final_path);
+        // A recognized PDF just gained an arXiv id (and maybe a venue): let the
+        // catalog fill follow-ups run against the final path.
+        crate::features::paper::discovery::pwc::spawn_enrich(&vault, &final_path);
 
         // Soft warning for the frontend: arXiv id found, Atom lookup hit 429,
         // recognizer had no title — keep filename placeholder; Toast via

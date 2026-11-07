@@ -5,7 +5,13 @@
  * React/component imports.
  */
 
-import { CalendarClock, Rss, Sparkles, Telescope } from "lucide-react";
+import {
+	CalendarClock,
+	Landmark,
+	Rss,
+	Sparkles,
+	Telescope,
+} from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { CoolPapersIcon } from "@/components/icons/cool-papers-icon";
 import { ModelScopeIcon } from "@/components/icons/modelscope-icon";
@@ -17,6 +23,7 @@ export const PLAZA_SOURCE_ICONS: Record<
 > = {
 	coolPapers: CoolPapersIcon,
 	modelScope: ModelScopeIcon,
+	conference: Landmark,
 	sparkles: Sparkles,
 	rss: Rss,
 	telescope: Telescope,
