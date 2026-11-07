@@ -19,6 +19,7 @@ overrides:
   js-yaml@<4.3.1: '>=4.3.1 <5'
   katex@<0.18.2: '>=0.18.2 <0.19'
   lodash-es@<4.18.0: '>=4.18.0 <5'
+  minimatch@<11.0.1: '>=11.0.1 <12'
   mermaid@<11.16.1: '>=11.16.1 <12'
   nanoid@<3.3.18: '>=3.3.18 <4'
   nanoid@>=4.0.0 <5.1.16: '>=5.1.16 <6'
@@ -150,7 +151,7 @@ importers:
         version: 5.2.9
       '@glideapps/glide-data-grid':
         specifier: 6.0.4-alpha24
-        version: 6.0.4-alpha24(lodash@4.17.21)(marked@16.4.2)(react-dom@19.2.7(react@19.2.7))(react-responsive-carousel@3.2.23)(react@19.2.7)
+        version: 6.0.4-alpha24(lodash@4.18.1)(marked@16.4.2)(react-dom@19.2.7(react@19.2.7))(react-responsive-carousel@3.2.23)(react@19.2.7)
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.5
@@ -317,8 +318,8 @@ importers:
         specifier: ^0.18.2
         version: 0.18.11
       lodash:
-        specifier: 4.17.21
-        version: 4.17.21
+        specifier: 4.18.1
+        version: 4.18.1
       lowlight:
         specifier: ^3.3.0
         version: 3.3.0
@@ -1472,6 +1473,9 @@ packages:
 
   '@iconify/utils@3.1.4':
     resolution: {integrity: sha512-b1S7B1k9ohZ+iNTi2ATxbRYG9fTrJmUT0rc46bvVnNxqNRGW7dyo/vRREwyniI5IRN2RSJHDcm+s3BjWrSAjHw==}
+
+  '@isaacs/nonrecursive-glob-match@1.1.0':
+    resolution: {integrity: sha512-GPm/Dbvk5RLmhRnxXIa7nTpK0xtl4E0wj0MslsuNiJ1FIROU+2+9lgUC/dgF7Ey4QCWhfEsgxilMRMCdHPfDfw==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -5078,9 +5082,6 @@ packages:
   lodash.throttle@4.1.1:
     resolution: {integrity: sha512-wIkUCfVKpVsWo3JSZlc+8MB5it+2AN5W8J7YVMST30UrvcQNZ1Okbj+rbVniijTWE6FGYy4XJq/rHkas8qJMLQ==}
 
-  lodash@4.17.21:
-    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
-
   lodash@4.18.1:
     resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
@@ -5379,13 +5380,9 @@ packages:
     resolution: {integrity: sha512-VP79XUPxV2CigYP3jWwAUFSku2aKqBH7uTAapFWCBqutsbmDo96KY5o8uh6U+/YSIn5OxJnXp73beVkpqMIGhA==}
     engines: {node: '>=18'}
 
-  minimatch@10.2.5:
-    resolution: {integrity: sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg==}
-    engines: {node: 18 || 20 || >=22}
-
-  minimatch@9.0.9:
-    resolution: {integrity: sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==}
-    engines: {node: '>=16 || 14 >=14.17'}
+  minimatch@11.0.5:
+    resolution: {integrity: sha512-snPlVppFcYWfLLFQGhDxUyBcHNtMlWmn3jtj7pEaO+DP8pqL0IvAzXhMYmn1z9ASNtgmwLBdFxSf4tMUB0OTKA==}
+    engines: {node: 20 || >=22}
 
   minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
@@ -7765,11 +7762,11 @@ snapshots:
 
   '@fontsource-variable/geist@5.2.9': {}
 
-  '@glideapps/glide-data-grid@6.0.4-alpha24(lodash@4.17.21)(marked@16.4.2)(react-dom@19.2.7(react@19.2.7))(react-responsive-carousel@3.2.23)(react@19.2.7)':
+  '@glideapps/glide-data-grid@6.0.4-alpha24(lodash@4.18.1)(marked@16.4.2)(react-dom@19.2.7(react@19.2.7))(react-responsive-carousel@3.2.23)(react@19.2.7)':
     dependencies:
       '@linaria/react': 6.3.0(react@19.2.7)
       canvas-hypertxt: 1.0.3
-      lodash: 4.17.21
+      lodash: 4.18.1
       marked: 16.4.2
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
@@ -7787,6 +7784,8 @@ snapshots:
       '@antfu/install-pkg': 1.1.0
       '@iconify/types': 2.0.0
       import-meta-resolve: 4.2.0
+
+  '@isaacs/nonrecursive-glob-match@1.1.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -7850,7 +7849,7 @@ snapshots:
       '@linaria/core': 6.3.0
       '@wyw-in-js/processor-utils': 0.6.0
       '@wyw-in-js/shared': 0.6.0
-      minimatch: 9.0.9
+      minimatch: 11.0.5
       react: 19.2.7
       react-html-attributes: 1.4.6
       resolve: 1.22.12
@@ -9717,7 +9716,7 @@ snapshots:
   '@ts-morph/common@0.27.0':
     dependencies:
       fast-glob: 3.3.3
-      minimatch: 10.2.5
+      minimatch: 11.0.5
       path-browserify: 1.0.1
 
   '@types/babel__core@7.20.5':
@@ -10067,7 +10066,7 @@ snapshots:
     dependencies:
       debug: 4.4.3
       find-up: 5.0.0
-      minimatch: 9.0.9
+      minimatch: 11.0.5
     transitivePeerDependencies:
       - supports-color
 
@@ -11522,8 +11521,6 @@ snapshots:
 
   lodash.throttle@4.1.1: {}
 
-  lodash@4.17.21: {}
-
   lodash@4.18.1: {}
 
   log-symbols@6.0.0:
@@ -12144,12 +12141,9 @@ snapshots:
 
   mimic-function@5.0.1: {}
 
-  minimatch@10.2.5:
+  minimatch@11.0.5:
     dependencies:
-      brace-expansion: 5.0.12
-
-  minimatch@9.0.9:
-    dependencies:
+      '@isaacs/nonrecursive-glob-match': 1.1.0
       brace-expansion: 5.0.12
 
   minimist@1.2.8: {}

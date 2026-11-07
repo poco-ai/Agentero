@@ -29,6 +29,8 @@ overrides:
   # KaTeX 0.11–0.18.1 is vulnerable to a prototype-pollution trust bypass.
   katex@<0.18.2: '>=0.18.2 <0.19'
   lodash-es@<4.18.0: '>=4.18.0 <5'
+  # minimatch <11.0.1 globparts amplification DoS (GHSA-g3hv-75wg-m249).
+  minimatch@<11.0.1: '>=11.0.1 <12'
   mermaid@<11.16.1: '>=11.16.1 <12'
   # Scoped to 3.x: nanoid 5/6 are also installed and unaffected by the advisory.
   nanoid@<3.3.18: '>=3.3.18 <4'
