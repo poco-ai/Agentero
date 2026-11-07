@@ -2271,7 +2271,7 @@ Windows：未设 `XDG_CONFIG_HOME` 时回退 `%APPDATA%/agentero/`。旧版 macO
 {
   "layout": {
     "backend": "local", // "local"（默认，ONNX；**无条件**，不含内置 provider）| "paddle"（AI Studio 异步任务）| "mineru"（MinerU 云 API）
-    "parserBackend": "local", // PAPER.md 正文解析引擎："local" | "paddle" | "mineru" | "openaiCompatible" | "agentero"（内置）。默认取构建是否注入内置 provider key：注入则 "agentero"，否则 "local"
+    "parserBackend": "local", // PAPER.md 正文解析引擎："local" | "paddle" | "mineru" | "openaiCompatible" | "agentero"（内置，Host 兼容已有配置）。默认始终 "local"
     "providerConfigs": {
       "paddle": { "apiKey": "***", "baseUrl": "", "model": "", "prompt": "", "language": "", "isOcr": false },
       "mineru": { "apiKey": "***", "baseUrl": "", "model": "", "prompt": "", "language": "ch", "isOcr": false, "selfHosted": false }, // selfHosted false → 官方云（baseUrl 空即 https://mineru.net）；true → 自建服务

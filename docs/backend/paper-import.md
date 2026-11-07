@@ -84,7 +84,7 @@ Skill 不写入 catalog、不创建 `papers/` 条目、不执行 `scripts/`。�
 | 情况 | 行为 |
 |---|---|
 | 有 TeX | 优先 TeX；不强制 `PAPER.md` |
-| 无 TeX 有 PDF | 下载后由选定的正文解析引擎生成 `PAPER.md`（默认按构建是否注入内置 provider key 决定：注入则 `agentero`，否则本地 liteparse 隔离子进程，单次解析限时 120 秒） |
+| 无 TeX 有 PDF | 下载后由选定的正文解析引擎生成 `PAPER.md`（默认本地 liteparse 隔离子进程，单次解析限时 120 秒，不受构建是否注入内置 provider key 影响） |
 | 解析失败或超时 | 保留 PDF、`NOTES.md` 与 catalog；`ParseBody` 后台任务返回 `error`，job 标记 `Failed` 并在任务面板展示原因，后续可重新执行 `paper parse` |
 | 质量字段 | catalog `body_source` / `body_quality`（实现以 schema 为准） |
 
@@ -129,11 +129,11 @@ PDF 版面任务保持独立，供坐标、图表与引用等功能使用；`for
 
 | backend | 流程 | `body_source` | `body_quality` |
 |---|---|---|---|
-| `local`（无编译期 key 时的默认） | liteparse worker 子进程 + PDFium | `pdf` / `ocr` | `medium` / `low` |
+| `local`（默认） | liteparse worker 子进程 + PDFium | `pdf` / `ocr` | `medium` / `low` |
 | `mineru` | 复用 MinerU 批量提取（上传 → 轮询 → 结果 zip）；写入 `full.md`，并保留其 ZIP 中 `images/` 下的派生图片资产，保持 `images/...` 相对链接可渲染 | `mineru` | `high` |
 | `paddle` | 复用 AI Studio 异步任务，拼接 JSONL 中每页 `markdown.text`。正文模型默认 `PaddleOCR-VL-1.6`，可在设置里改（版面分析固定 `PP-StructureV3`，不受影响） | `paddle` | `high` |
 | `openaiCompatible` | 渲染 worker 逐页出 150 DPI PNG（上限 100 页）→ OpenAI 兼容 `/chat/completions` 多模态 OCR（预设硅基流动；`PaddlePaddle/PaddleOCR-VL-1.5` 提示词 `OCR:`，`deepseek-ai/DeepSeek-OCR` 用 grounding 提示词，按 model id 自动选择） | `vlm` | `medium` |
-| `agentero`（注入 key 的构建里的默认） | **复用同一个 `OpenAiVlmBodyEngine`，没有新引擎**：流程与 `openaiCompatible` 完全一致，只是 endpoint / key / model 来自构建期的内置网关（model 兜底 `PaddlePaddle/PaddleOCR-VL-1.5`，提示词按 model id 自动选）。引擎携带自己注册时的 id，所以回退提示读作 `agentero failed: …` | `vlm` | `medium` |
+| `agentero`（Host 兼容已有配置） | **复用同一个 `OpenAiVlmBodyEngine`，没有新引擎**：流程与 `openaiCompatible` 完全一致，只是 endpoint / key / model 来自构建期的内置网关（model 兜底 `PaddlePaddle/PaddleOCR-VL-1.5`，提示词按 model id 自动选）。引擎携带自己注册时的 id，所以回退提示读作 `agentero failed: …` | `vlm` | `medium` |
 
 - **`agentero` 只是 parser backend，不是版面分析 backend**：`LAYOUT_BACKENDS` 仍是 `local` / `paddle` / `mineru`，`default_layout_backend()` 无条件 `local`——版面分析跑随包的离线 PP-DocLayoutV3 ONNX，切云端只会让每个 PDF 都产生费用而无收益。`layout_prompt` / `layout_language` / `layout_is_ocr` 对它不特判，因此提示词由 model id 推导，而**语言与强制 OCR 是 MinerU 专用**；前端内置描述符的 `requiresApiKey` / `supports*` 全 false，整张凭证卡被 `isProviderCardConfigurable` 过滤掉，什么都不渲染。
 - **两处白名单**：`PARSER_BACKENDS` 必须含 `agentero`，否则 `normalize()` 在每次保存时把它重置为默认值并写盘；引擎注册表也必须显式注册，因为未注册的 backend 会**静默回退**到 `LocalBodyEngine` 而不报错。两者都有测试守着。

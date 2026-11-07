@@ -116,7 +116,7 @@ pnpm tauri signer generate --password '<strong password>' --write-keys /secure/p
 
 | 变量 | 兜底 | 发布构建 |
 |---|---|---|
-| `AGENTERO_BUILTIN_API_KEY` | 无 | **必须注入**；缺失则内置 provider 报告不可用，UI 隐藏/禁用，默认回落免费翻译引擎与本地正文解析 |
+| `AGENTERO_BUILTIN_API_KEY` | 无 | **必须注入**；缺失则内置 provider 报告不可用，UI 隐藏/禁用，翻译默认回落免费引擎；正文解析始终默认本地 |
 | `AGENTERO_BUILTIN_BASE_URL` | `https://api.qiyuanchen.top/v1` | 可选 |
 | `AGENTERO_BUILTIN_TRANSLATE_MODEL` | `tencent/Hunyuan-MT-7B` | 可选 |
 | `AGENTERO_BUILTIN_EMBEDDING_MODEL` | `BAAI/bge-m3` | 可选 |
