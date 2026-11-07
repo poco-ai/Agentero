@@ -36,14 +36,14 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
 - **Windows cwd**：Pi、Custom、Zcode 的 run / warm / list / load 使用 `cmd /D /C`
   切到 Vault，探针不包装。Zcode 的 `server` 模式忽略 ACP `session/new` 的 cwd，
   技能列表只扫进程 cwd 下的 `.agents/skills`；不切目录时 Windows 上看不到 Vault 技能。
-  其余模板仍直启。这三项的 `cd /d` 仍不支持 UNC Vault。
-- **Windows 本地 ACP 进程树**：run / warm / probe / history 统一通过 `acp/process.rs`
-  启动，复用 SDK `Lines` 协议传输。`windows-spawn` 在创建进程时原子绑定独立 Job，
-  连接结束、取消、超时均终止该 Job；宿主崩溃/强杀由非继承 handle 的 kill-on-close 兜底。
-  `ExitRequested` / `Exit` 同步关闭 warm 池及所有本地 ACP Job，包含冷连接和已借出连接。
-  未变化的环境条目直接继承（包括 `=C:` / `=D:` 等隐藏条目），不逐项重设，避免 #772 的启动回归；
-  普通环境变量仍按既有优先级覆盖，其他非法名称仍报错。SSH 沿用 SDK 启动及远端管理。
-  详见 [#774 故障记录](../bug_fix/windows-acp-orphan-processes.md)。
+  其余模板仍直启，交给 ACP SDK。这三项的 `cd /d` 仍不支持 UNC Vault。
+- **Windows ACP 使用 SDK 启动**：run / warm / probe / history 均使用
+  `agent-client-protocol::AcpAgent`。自定义 `windows-spawn` / Job transport 因环境变量名称
+  含 `=` 时拒绝启动而回退（Windows 的 `=C:` 等特殊条目可能触发；见
+  [故障记录](../bug_fix/windows-acp-orphan-processes.md)）。`ExitRequested` / `Exit` 仍关闭
+  warm 池；SDK 1.3.0 在 Windows 只结束直接子进程，launcher 后代与宿主异常退出后的
+  ACP 进程可能残留，无法保证退出时完整回收。该限制由
+  [#774](https://github.com/poco-ai/Agentero/issues/774) 跟踪，后续评估 SDK 的 Windows 进程树能力。
 - Windows Pi / Custom / Zcode 包装的 cwd 与完整 Agent 命令通过环境变量展开，cwd 始终携带双引号，
   防止无空格路径中的括号等 CMD 元字符被当作语法；盘符扩展前缀再幂等剥除一次（#458）。
   该旧包装仍不支持 UNC cwd，不能将其他模板保持直启等同于所有 Windows Agent 都支持 UNC。
@@ -311,9 +311,9 @@ slot 替换、evict 和 shutdown 均有独立取消 token，不依赖 slot 是�
 取用时只有匹配的 setup 正在执行才等待（最多 5 秒），由发布/取消/退出通知唤醒；无匹配任务、
 连接已被其他请求取走或池已关闭时立即走冷启动。并发取用只允许一个请求领取同一连接。
 warm 的 `session/new` 在用户发出 prompt 之前只是临时会话：`session/list` 会跳过这些 id。槽位退出、setup 失败，或这条连接改去续聊另一条会话时，若 Agent 声明 `sessionCapabilities.delete` 就 `session/delete`；删不掉的 id 记在本机，重启后仍然不出现在历史里。真正发出 `session/prompt` 后，这条会话才进入历史。前端若 `session/load` 到一份没有正文的旧会话，也会把它从列表里拿掉并记住。
-取消清理最多允许 1 秒，之后无论 RPC 是否响应均丢弃连接：Unix 由 SDK 终止进程组，
-Windows 本地连接终止所属 Job 的整棵进程树。已有残留不会按进程名自动清扫，需确认路径与
-归属后清理；SSH 远端宿主的进程仍需独立管理。
+取消清理最多允许 1 秒，之后无论 RPC 是否响应均丢弃连接，由 SDK 执行进程清理：
+Unix 终止进程组，Windows 仅结束直接子进程。已有残留不会按进程名自动清扫，需确认路径与
+归属后清理。Windows 完整进程树回收仍为已知限制（#774）；SSH 远端宿主的进程需独立管理。
 
 Kimi Code ACP 会把 `Bash`/`Glob`/`Grep` 等工具实现为 `terminal/create`。[当前实现](https://github.com/MoonshotAI/kimi-cli/blob/main/src/kimi_cli/acp/tools.py)
 会把完整 shell 文本放进 `command`；Host 对可解析的可执行文件继续按 `command + args`
