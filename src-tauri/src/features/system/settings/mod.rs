@@ -620,11 +620,7 @@ fn default_ai_response_language() -> String {
     "auto".into()
 }
 fn default_translate_provider() -> String {
-    if builtin::available() {
-        BUILTIN_PROVIDER_ID.to_string()
-    } else {
-        "tencenttransmart".into()
-    }
+    "tencenttransmart".into()
 }
 fn default_connector_port() -> u16 {
     DEFAULT_CONNECTOR_PORT
@@ -2406,11 +2402,7 @@ mod tests {
         let path = dir.path().join("settings.json");
         let (s, existed) = read_file(&path);
         assert!(!existed);
-        if builtin::available() {
-            assert_eq!(s.translate.provider, BUILTIN_PROVIDER_ID);
-        } else {
-            assert_eq!(s.translate.provider, "tencenttransmart");
-        }
+        assert_eq!(s.translate.provider, "tencenttransmart");
         assert_eq!(s.layout.parser_backend, "local");
         assert_eq!(s.layout.backend, "local");
 
@@ -2433,6 +2425,47 @@ mod tests {
             assert!(existed);
             assert_eq!(loaded.layout.parser_backend, "local");
             assert_eq!(loaded.layout.backend, layout_backend);
+        }
+    }
+
+    #[test]
+    fn translate_default_survives_settings_roundtrip() {
+        for raw in [
+            None,
+            Some("{}"),
+            Some(r#"{"translate":{"targetLang":"en"}}"#),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("settings.json");
+            if let Some(raw) = raw {
+                fs::write(&path, raw).unwrap();
+            }
+            let (settings, existed) = read_file(&path);
+            assert_eq!(existed, raw.is_some());
+            assert_eq!(settings.translate.provider, "tencenttransmart");
+            persist(&path, &settings).unwrap();
+            let (reloaded, existed) = read_file(&path);
+            assert!(existed);
+            assert_eq!(reloaded.translate, settings.translate);
+        }
+    }
+
+    #[test]
+    fn explicit_translate_provider_survives_settings_roundtrip() {
+        for provider in [BUILTIN_PROVIDER_ID, "deepl"] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("settings.json");
+            fs::write(
+                &path,
+                serde_json::json!({"translate": {"provider": provider}}).to_string(),
+            )
+            .unwrap();
+            let (settings, existed) = read_file(&path);
+            assert!(existed);
+            assert_eq!(settings.translate.provider, provider);
+            persist(&path, &settings).unwrap();
+            let (reloaded, _) = read_file(&path);
+            assert_eq!(reloaded.translate.provider, provider);
         }
     }
 }
