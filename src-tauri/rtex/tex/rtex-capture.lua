@@ -221,12 +221,25 @@ function C.begin_document()
 end
 
 -- Units ------------------------------------------------------------------------------------------
+-- A run-in heading (\@xsect) leaves \everypar{\if@noskipsec <set the title>\else \clubpenalty
+-- \@clubpenalty \everypar{}\fi}; the paragraph after the title's own one still starts under it.
+-- With the title out (\if@noskipsec false) only the \else branch runs: \clubpenalty is the one
+-- the lines are built with and \everypar empties itself, which is the default.
+local RUNIN_ELSE = "\\else \\clubpenalty \\@clubpenalty \\everypar {}\\fi "
+local function unit_everypar()
+  local ep = tex.gettoks("everypar")
+  if ep:find("^\\if@noskipsec ") and ep:sub(-#RUNIN_ELSE) == RUNIN_ELSE and not iftrue("if@noskipsec") then
+    return ""
+  end
+  return ep
+end
+
 local function unit_open(kind, name, set_attr)
   C.uid = C.uid + 1
   local ints, dims, glues = params()
   local u = { uid = C.uid, kind = kind, name = name, file = status.filename, begin_line = tex.inputlineno,
               nest = tex.nest.ptr, seqs = {}, placements = {}, counters = counter_delta(), thefmt = thefmt_delta(), macros = macro_delta(),
-              everypar = tex.gettoks("everypar"), nobreak = iftrue("if@nobreak"),
+              everypar = unit_everypar(), nobreak = iftrue("if@nobreak"),
               afterindent = iftrue("if@afterindent"), noskipsec = iftrue("if@noskipsec"),
               nfss = nfss(), color = macro("current@color"),
               ints = ints, dims = dims, glues = glues, parshape = tex.parshape,
@@ -312,14 +325,22 @@ function C.envbegin(name)
   local cur = C.cur
   if DEBUG_ENV then texio.write_nl("RTEXENV begin " .. name .. " line " .. tex.inputlineno .. " depth " .. C.env_depth .. " nest " .. tex.nest.ptr .. " cur " .. tostring(cur and cur.uid)) end
   note_runin(cur)
-  if cur and cur.kind == "heading" and tex.nest.ptr == 0 then unit_close(); cur = nil end
+  if cur and cur.kind == "heading" and tex.nest.ptr == 0 then
+    if iftrue("if@noskipsec") then
+      -- a run-in title still pending: the environment sets it (\@trivlist's \leavevmode), so
+      -- the heading's unit holds the environment, and ends with it
+      cur.env_depth = C.env_depth
+    else
+      unit_close(); cur = nil
+    end
+  end
   if not cur and tex.nest.ptr == 0 then
     unit_open("env", name, true)
   end
   C.env_depth = C.env_depth + 1
 end
--- cmd/@xfloat/after hook (inside the float box, \figure* and \table* included): the float
--- box reset as the float environment set it up, recorded in the float's unit
+-- env/<float>/end hook (still inside the float environment's group): the float box reset as
+-- the float environment set it up, recorded in the float's unit
 function C.floatbox()
   local cur = C.cur
   if not (cur and cur.kind == "env") then return end
@@ -333,7 +354,7 @@ function C.envafter(name)
   C.env_depth = C.env_depth - 1
   if C.env_depth < 0 then C.env_depth = 0 end
   local cur = C.cur
-  if C.env_depth == 0 and cur and (cur.kind == "env" or cur.kind == "par") and tex.nest.ptr == 0 then unit_close() end
+  if C.env_depth == 0 and cur and (cur.kind == "env" or cur.kind == "par" or cur.env_depth == 0) and tex.nest.ptr == 0 then unit_close() end
 end
 
 -- The output routine (wrapped at \begin{document}) and \@outputpage (for output routines set

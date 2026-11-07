@@ -1,0 +1,52 @@
+# Vendored `tesseract-rs` 0.2.0 (MIT). Upstream pins `zip = "2"` for its
+# build-time Tesseract source download; that line is vulnerable to
+# GHSA-m665-v7pm-7grj / GHSA-q7v9-x93c-xqv3 / GHSA-8hxf-qr8p-62x4.
+# Only the version below and the `zip` 9 `mangled_name` result changed.
+# Remove this patch once upstream ships a release on zip >= 9.0.5.
+[package]
+name = "tesseract-rs"
+version = "0.2.0"
+edition = "2021"
+authors = ["Cafer Can Gündoğdu <cafercangundogdu@gmail.com>"]
+description = "Rust bindings for Tesseract OCR with optional built-in compilation"
+license = "MIT"
+repository = "https://github.com/cafercangundogdu/tesseract-rs"
+documentation = "https://docs.rs/tesseract-rs"
+readme = "README.md"
+keywords = [
+	"tesseract",
+	"ocr",
+	"bindings",
+	"computer-vision",
+	"text-recognition",
+]
+categories = ["external-ffi-bindings", "computer-vision", "text-processing"]
+build = "build.rs"
+links = "tesseract"
+rust-version = "1.83.0"
+exclude = ["tessdata/*", "third_party/*"]
+
+[dependencies]
+libc = "0.2.174"
+thiserror = "1.0.69"
+
+[build-dependencies]
+cc = { version = "1.2.30", optional = true }
+glob = { version = "0.3.2", optional = true }
+cmake = { version = "0.1.54", optional = true }
+reqwest = { version = "0.12.22", features = ["blocking"], optional = true }
+zip = { version = "9.0.5", default-features = false, features = [
+	"deflate-flate2-zlib-rs",
+], optional = true }
+
+[features]
+default = ["build-tesseract"]
+build-tesseract = ["cc", "glob", "cmake", "reqwest", "zip"]
+
+[package.metadata.docs.rs]
+features = ["docs-only"]
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+name = "tesseract_rs"
+crate-type = ["lib"]

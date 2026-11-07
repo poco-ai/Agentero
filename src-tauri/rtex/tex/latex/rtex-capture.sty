@@ -1,7 +1,7 @@
 %% rtex-capture.sty — record unit/paragraph contexts, row placements and page display lists
 %% during a normal LuaLaTeX run. Adds no nodes; output is unchanged (verified by tests).
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{rtex-capture}[2026/10/19 v0.0.5 rtex layout capture]
+\ProvidesPackage{rtex-capture}[2026/11/01 v0.0.6 rtex layout capture]
 \RequirePackage{luatexbase}
 \directlua{
   rtex_capture = dofile(kpse.find_file("rtex-capture.lua", "lua") or "rtex-capture.lua")
@@ -21,7 +21,12 @@
 \AddToHook{cmd/@outputpage/after}{\rtex@outend}
 % the whole output routine, as packages left it
 \AddToHook{begindocument/end}{\output\expandafter{\expandafter\rtex@outbegin\the\output\rtex@outend}}
-\AddToHook{cmd/@xfloat/after}{\directlua{rtex_capture.floatbox()}}
+% At \end{<float>} the class's \@floatboxreset (set by \table, \figure) is still in scope. Not a
+% cmd hook on \@xfloat: float.sty makes it \def\@xfloat#1[{...}, which an appended hook breaks.
+\AddToHook{env/figure/end}{\directlua{rtex_capture.floatbox()}}
+\AddToHook{env/figure*/end}{\directlua{rtex_capture.floatbox()}}
+\AddToHook{env/table/end}{\directlua{rtex_capture.floatbox()}}
+\AddToHook{env/table*/end}{\directlua{rtex_capture.floatbox()}}
 \AddToHook{cmd/@afterheading/before}{\directlua{rtex_capture.afterheading()}}
 \AddToHook{enddocument/afterlastpage}{\directlua{rtex_capture.finish()}}
 % Unit boundaries: block environments and sectioning commands. Extra block environments

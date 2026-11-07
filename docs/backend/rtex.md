@@ -1,6 +1,6 @@
 # 实时 TeX 预览（rtex）
 
-基于 [realtime-tex](https://github.com/HenryXiaoYang/realtime-tex) 0.0.5 的 LuaLaTeX 边打边看预览。编辑 `.tex` 时，当前段落由常驻 live engine 重排并回传 display list，整页/分页/交叉引用由后台完整编译更新。
+基于 [realtime-tex](https://github.com/HenryXiaoYang/realtime-tex) 0.0.6 的 LuaLaTeX 边打边看预览。编辑 `.tex` 时，当前段落由常驻 live engine 重排并回传 display list，整页/分页/交叉引用由后台完整编译更新。
 
 ## 范围
 
@@ -20,7 +20,7 @@
 | `rtex_status` | lualatex + support files 检测 |
 | `rtex_kpsewhich` / `rtex_read_tex_file` | 渲染器取字体/map/图片/layout PDF；只允许 kpsewhich 结果、项目根、`.agentero/rtex`、TeX Live 根 |
 
-依赖：`rtex-core`（git tag `v0.0.5`，`src-tauri/Cargo.toml`），仅桌面非移动 target 编译。support files 从 `realtime-tex/tex` 复制到 `src-tauri/rtex/tex`，由 `bundle.resources` 打包；运行时设置 `RTEX_TEXDIR`。GUI 的 PATH 不含 TeX Live，`prepare_environment` 还会设置 `RTEX_TEXLIVE_BIN` 并把它的 bin 目录前置到 PATH。
+依赖：`rtex-core`（git tag `v0.0.6`，`src-tauri/Cargo.toml`），仅桌面非移动 target 编译。support files 从 `realtime-tex/tex` 复制到 `src-tauri/rtex/tex`，由 `bundle.resources` 打包；运行时设置 `RTEX_TEXDIR`。GUI 的 PATH 不含 TeX Live，`prepare_environment` 还会设置 `RTEX_TEXLIVE_BIN` 并把它的 bin 目录前置到 PATH。
 
 **build_dir 固定为 `<vault>/.agentero/rtex/<root-hash>`**：`.agentero` 已被文件树、watcher、sync 和 LaTeX root 反向扫描忽略，后台 pass 的 aux/PDF 不会污染项目或触发刷新。
 
@@ -57,7 +57,7 @@
 
 ## 限制与排查
 
-- rtex 0.0.5 API/display list 仍可能变；升级时固定 tag 并核对 `display-list.md`。
+- rtex 0.0.6 API/display list 仍可能变；升级时固定 tag 并核对 `display-list.md`。
 - 首次 session 要等完整 pass（小文档约 1–3 s，字体缓存冷启动更久）；之后段落约毫秒级。
 - TikZ/旋转页/RTL 由 display list 无法完整描述，页面走 layout PDF；缺失字体也会降级。
 - 中文/ctex/luatexja 需要实测字体解析与速度。

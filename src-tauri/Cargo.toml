@@ -136,7 +136,7 @@ tauri-plugin-better-auth = { version = "=0.1.2", optional = true }
 agentero-plugin-host = { path = "../crates/agentero-plugin-host", optional = true }
 # Real-time LuaLaTeX preview. In-process (no sidecar): the desktop host owns
 # one session per project root; mobile has no local lualatex and gates it off.
-rtex-core = { git = "https://github.com/HenryXiaoYang/realtime-tex", tag = "v0.0.5", optional = true }
+rtex-core = { git = "https://github.com/HenryXiaoYang/realtime-tex", tag = "v0.0.6", optional = true }
 tauri-plugin-updater = { version = "2.14.1", optional = true }
 tauri-plugin-process = { version = "2", optional = true }
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"], optional = true }
