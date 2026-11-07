@@ -43,5 +43,5 @@ cmd /D /C "cd /d %AGENTERO_AGENT_CWD% && %AGENTERO_AGENT_COMMAND%"
 ## 5. 边界
 
 - UNC Vault 上 `cd /d` 仍然失败，Zcode 与 Pi / Custom 一样起不来。不要为了 UNC 把包装扩到其他模板。
-- Windows ACP SDK 只结束直接子进程。包了一层 `cmd` 之后，超时清理杀的是 `cmd`，`zcode-acp-server` 可能残留。这与现有 Pi / Custom 限制相同，由 [#774](https://github.com/poco-ai/Agentero/issues/774) 跟踪。
+- Windows 本地 ACP 已由每连接独立 Job 管理 `cmd` 及其后代，超时、取消和宿主退出都会回收该进程树；特殊环境条目保留原生继承。见 [#774 修复边界](windows-acp-orphan-processes.md)。
 - 用户级 `~/.zcode/skills` 与 `~/.agents/skills` 不依赖 Vault cwd，本次不改。

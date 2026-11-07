@@ -143,8 +143,8 @@
 - [ ] **F2 完整 ExecutionTarget**（依赖 F1 上下文；可独立于 A–D 推进）
   - 统一主进程启动、cwd、terminal executor 和 ACP capabilities；远端终端执行在远端，未支持时明确拒绝。
   - 验收：本地/远端主进程与终端位置一致；Windows 子进程选项保留；不静默回退到本机执行。
-  - 当前边界（#570）：Unix 已统一启动 cwd；Windows 会话包装 Pi / Custom / Zcode（Zcode serve 模式忽略 ACP cwd，技能扫描读进程 cwd），探针直启。本项仍需补齐原生 cwd、UNC 与进程树终止，不能把本次防回归当成统一执行上下文已完成。
-  - Windows 自定义 Job transport 已因启动兼容回归撤回，恢复 ACP SDK；预热取消和退出关闭 warm 池保留。完整进程树回收由 [#774](https://github.com/poco-ai/Agentero/issues/774) 跟踪，后续评估 SDK 能力，当前不重新实现宿主级 Job 管理。
+  - 当前边界（#570）：Unix 已统一启动 cwd；Windows 会话包装 Pi / Custom / Zcode（Zcode serve 模式忽略 ACP cwd，技能扫描读进程 cwd），探针直启。本项仍需补齐原生 cwd 与 UNC，不能把进程树回收完成等同于统一执行上下文已完成。
+  - Windows 本地 ACP 已接回每连接独立 Job，修正特殊盘符环境条目的原生继承，覆盖连接取消、正常退出及宿主强杀；预热取消与退出同步清理保留。SSH 沿用 SDK，详见 [#774 修复边界](../bug_fix/windows-acp-orphan-processes.md)。后续仅在 SDK 提供等价原子绑定和退出兜底能力后评估收敛。
 - [ ] **F3 收回命令编排并统一连接装配**（依赖 F1/F2）
   - warm/probe/lifecycle 进入现有 Agent service；probe/warm/run/history 共用连接装配，保留各模式权限和恢复策略。
   - 验收：commands 仅转换参数与结果；provider session ID、恢复回放抑制和取消的 wire 行为不回归。runtime 可留在 desktop crate，不立即拆独立 ACP crate。

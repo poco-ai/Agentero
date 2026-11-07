@@ -162,8 +162,9 @@ Vault 在前端按窗口 session 隔离（两窗口可同时打开同一 vault�
    - 各 store 的 vault 级 clear + `vault_release`（驱逐 Host catalog 连接；窗口级持有计数 `vault_hold`，多窗口同 vault 时仅最后持有者触发全局释放）
    - 退出时 `BridgeController::stop()`
    - ACP 退出清理已接入 `ExitRequested` / `Exit`：同步关闭 warm 池；warm setup 超时/替换
-     通过取消 token 回收。Windows 已回退 SDK 启动，完整进程树与崩溃清理仍为
-     [已知限制 #774](https://github.com/poco-ai/Agentero/issues/774)，等待评估 SDK 能力。
+     通过取消 token 回收。Windows 本地 ACP 同步终止全部连接 Job，崩溃/强杀由
+     kill-on-close 回收后代；特殊盘符环境条目沿用原生继承，见
+     [#774 修复边界](../bug_fix/windows-acp-orphan-processes.md)。
      实现与边界见 [`../backend/agent.md`](../backend/agent.md)，无需新增前端退出事件。
 6. 后续（本稿不含）：hook 表用户可配置（settings / `.agentero/`），动作接 JobCenter 执行
 
