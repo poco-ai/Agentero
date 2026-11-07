@@ -139,6 +139,36 @@ Streamdown 的 `mode` 由 `isAnimating` 派生：流式中 `"streaming"`（跑 r
 
 **复制**：消息悬停的复制按钮复制该轮原始 Markdown（Agent 返回的就是 Markdown 文本，公式保持原样）；正文划词复制时，若选区包含渲染出来的公式，会先把 KaTeX 还原为 `$…$` / `$$…$$` 再写入剪贴板（否则浏览器只能拷到 KaTeX 字形、丢失 TeX）。不含公式的划词仍是默认纯文本复制。实现：`src/lib/markdown/rendered-math-copy.ts`，`MessageContent` 用 `data-markdown-copy` 标记作用域。
 
+
+## 结构化 UI 块（只读 v1）
+
+助手回复里行首独立的 \`\`\`openui-lang 围栏（兼容 \`\`\`openui）会渲染为只读 UI 块；`<openui-lang>…</openui-lang>` 标签先归一化成同一围栏。围栏内容由 `@openuidev/lang-core` 1.1.0（MIT，精确版本）解析，组件只使用现有 Base UI / 主题 token，不引入图表库。识别只在显式开启的助手正文表面进行：用户消息、推理、工具输出、错误行和**代码块内部**的围栏都不识别。
+
+```
+root = Stack([title, table])
+title = Text("Results", "heading")
+table = Table(["Model", "Score"], [["A", "91"], ["B", "87"]])
+```
+
+| 组件 | 参数（位置顺序） | 渲染 |
+|---|---|---|
+| `Stack` | `children, gap?` | 纵向布局；作为根 |
+| `Row` | `children, gap?` | 横向布局，窄容器换行 |
+| `Text` | `text, variant?` | `body` / `heading` / `caption` / `code` |
+| `Table` | `columns, rows, caption?` | 生成 GFM 字符串交给 Streamdown，复用 `PlainTable` 的复制 / 下载 / 全屏 |
+| `Stat` | `label, value, hint?` | Card 风格指标 |
+| `BarChart` | `title, labels, values, unit?` | 自绘 SVG；`fill-primary` 等主题 token |
+| `Steps` | `title, steps` | 编号步骤列表 |
+| `Callout` | `title, body, tone?` | `info` / `success` / `warning` / `danger` |
+
+流式时使用累计源码增量解析，`partial` 节点保留上一次结构有效解析的 props；围栏结算后做最终解析。未知组件、非法参数、未解析引用、未闭合围栏或超限数据都回退为源码块并显示一句短原因，不静默截断。限制（超过即回退）：源码 24,000 字符、节点 200、子节点 40、单段 Text 4,000 字符、Table 8 列 / 60 行 / 400 格、BarChart 24 点、Steps 12 步、Callout 正文 2,000 字符、Stat 字段 200 字符。
+
+块源文本始终保留在 `AgentPart.text`；渲染、消息复制、导出与历史回放都走同一个 `MessageResponse` / `AgentPart` 路径，回退时也直接展示该源码。固定文案在 `agent.json` 的 `uiBlock` key（en + zh-CN）。
+
+能力总开关是内部常量 `AGENT_OPENUI_BLOCKS_ENABLED`（`src/lib/agent/openui/config.ts`）。设为 `false` 时不归一化标签、不注册 UI 块渲染，助手正文完全按原 Markdown 路径显示。实现：`src/lib/agent/openui/`（config / schema / parse / format / chart）、`src/components/agent/rendering/openui/`。`MessageResponse` 的 `components.code` 会覆盖 Streamdown 内置 code 渲染器，因此 OpenUI 在 code 组件内按语言拦截，并用 `useIsCodeFenceIncomplete()` 取得与 Streamdown 自定义 renderer 相同的流式信号。
+
+Host 侧 `build_prompt` 对除 `translate` 外的所有 workflow 追加约 250 tokens 的 `UI_BLOCKS_GUIDANCE`（`envelope.rs`）：围栏名、组件签名、优先 Markdown 表格、每轮最多一个块、禁止 state / bindings / queries / actions / HTML / 嵌套围栏。`translate` 是封闭变换，不注入；prompt 有快照测试。依赖审计：pnpm 默认不执行其 postinstall，`pnpm-workspace.yaml` 显式 `allowBuilds: false`；运行时遥测需 `OPENUI_RUNTIME_TELEMETRY_ENABLED` 显式开启，浏览器 bundle 不上报。
+
 ## 代码
 
 - UI：`src/components/agent/`（`agent-panel.tsx` / `agent-composer.tsx` / `agent-config-bar.tsx` 外壳、`hooks/` 面板与 composer 状态、`composer/` 输入区子件：附件 / 队列 / context chip / @ 与 $ 与 / 菜单 / 模型选择 / 工具条）
