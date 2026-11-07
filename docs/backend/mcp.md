@@ -94,10 +94,13 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 | `layout_list` | 侧栏版面索引（需 `{paper}/source/layout-index.json`）。`kind[]?`、`minScore?` |
 | `layout_get` | 按 region id 取一条（如 `figure-3`） |
 | `page_read` | 按**物理页**读一篇论文正文（需 `{paper}/source/layout.json`，schemaVersion 3；桌面端跑过版面分析）。`ref` 必填，`page` 为 1-based 物理页。返回该页**阅读顺序**下的全部 region，外加 `textRegions`（段落级）；`pageCount` 为布局页数，越界页返回空数组而非报错 |
-| `vault_search` | 只读全库 Markdown 关键词 AND 搜索（大小写不敏感，非语义检索）。`query` 必填；`limit?` 默认 60，限制到 1–200。根目录由当前作用域 Vault（`vault?`，缺省为打开的 Vault）决定，不接受任意客户端路径。返回 `hits`（相对 `path`、`snippet`、1-based `line`、`title`、`score`、可选 `paperPath`、可选 `page`）及 `truncated`；`PAPER.md` 正文命中会带上由 `source/layout.json` 映射出的 1-based 物理页码 `page`（无法唯一确定时省略）；命中用 `file_read {"path": hit.path}` 回读。可选元数据过滤 `year`（精确）、`publication` / `doi`（大小写不敏感子串）、`isRead`（bool）：一旦给出，只保留能映射到 catalog 论文且全部匹配的命中，其它一律丢弃 |
+| `vault_search` | 只读全库关键词 AND 搜索（大小写不敏感，非语义检索），包含 Markdown 和科研表格 `*.table.json`。命中的 `path` 可以是 `*.table.json`。`query` 必填；`limit?` 默认 60，限制到 1–200。根目录由当前作用域 Vault（`vault?`，缺省为打开的 Vault）决定，不接受任意客户端路径。返回 `hits`（相对 `path`、`snippet`、1-based `line`、`title`、`score`、可选 `paperPath`、可选 `page`）及 `truncated`；`PAPER.md` 正文命中会带上由 `source/layout.json` 映射出的 1-based 物理页码 `page`（无法唯一确定时省略）。Markdown 命中用 `file_read {"path": hit.path}` 回读；表格命中用 `table_query` 读匹配行。可选元数据过滤 `year`（精确）、`publication` / `doi`（大小写不敏感子串）、`isRead`（bool）：一旦给出，只保留能映射到 catalog 论文且全部匹配的命中，表格命中一律丢弃 |
 | `file_list` | 列一层目录。`path?` 为 Vault 相对路径，空则根目录。跳过 `.agentero`、隐藏目录和 LaTeX 编译产物。`limit?` 默认 200，最多 500 |
-| `file_read` | 读一个 UTF-8 文本文件（如 `drafts/main.tex`、`notes/idea.md`）。不限 `papers/` |
-| `file_write` | 写同一个路径。`mode`: `replace`（默认）或 `append`。父目录不存在会在 Vault 内创建。覆盖前需用户确认 |
+| `file_read` | 读一个 UTF-8 文本文件（如 `drafts/main.tex`、`notes/idea.md`）。不限 `papers/`。科研表格超过 2 MiB 时改用 `table_query` |
+| `file_write` | 写同一个路径。`mode`: `replace`（默认）或 `append`。父目录不存在会在 Vault 内创建。覆盖前需用户确认。不能追加或覆盖已有 `*.table.json`；新建缺失的表格时正文必须能通过表格校验。frontmatter 为 `type: experiment` 且 `status: locked` 的 Markdown 不能替换或追加（错误码 `experiment_locked`，不写盘）；新建文件允许 |
+| `table_query` | 按存储顺序读取已有 `*.table.json`。可选 `registryId`、`field` + `equals`、`includeArchived`（默认 false）、`limit`（默认 50，夹到 1–200）、`offset`。单元格按字段名返回。不写盘。`table_upsert` / `table_update_cells` 的 `expectedRevision` 来自这里 |
+| `table_upsert` | 已有科研表格的写路径之一。每行是 `{ registryId?, values }`，`values` 按字段名。省略 `registryId` 则追加并签发下一个注册编号。`expectedRevision` 必填。写入前需用户确认 |
+| `table_update_cells` | 已有科研表格的另一条写路径。每个单元格是注册编号、字段名和值（`string` / `number` / `boolean` / `null`）。一次调用全成或全不成。`expectedRevision` 必填。写入前需用户确认 |
 | `file_move` | 移动/重命名 Vault 内一个文件或目录。`from` / `to` 都是 Vault 相对路径，目标必须不存在；同时更新可解析的 wiki 链接与 `papers/` catalog 路径。覆盖前需用户确认 |
 | `file_delete` | 删除一个或多个 Vault 路径。默认移入回收站（`.agentero/.trash`，可撤销；`papers/` catalog 行随文件快照/恢复）；`permanent=true` 永久删除文件与 catalog 行。删除前需用户确认 |
 
@@ -109,7 +112,7 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 - `file_delete` 覆盖 CLI `paper delete` 的两种模式：默认回收站，`permanent=true` 对应 `--files`；不再单独提供 `paper_delete` 别名的工具。
 - `paper_tag_set` 是替换，`paper_tag_add` / `paper_tag_rm` 是增量；三者共用 core 的标签写入函数，不会各自实现一套。
 
-`vault_search` 复用 Host 搜索算法，不建索引；在遍历/读取前沿用 `file_read` 的路径过滤与符号链接边界。扫描大小写不敏感的 `*.md`（含 `PAPER.md` / `NOTES.md`），跳过隐藏/系统目录、`source`、超过 2 MiB 的文件；沿用深度 16、最多 20,000 文件的扫描上限。空白 query 返回空结果。`truncated` 仅表示匹配数超过 limit，不是扫描完整性或游标分页的保证。snippet 会去除常见 Markdown 前缀、最多约 200 字符；回读后用 line 定位原行。
+`vault_search` 复用 Host 搜索算法，不建索引；在遍历/读取前沿用 `file_read` 的路径过滤与符号链接边界。扫描大小写不敏感的 `*.md`（含 `PAPER.md` / `NOTES.md`）以及 `*.table.json`（扩展名是 `json`，只认这个后缀，不索引其它 JSON）。跳过隐藏/系统目录、`source`、超过 2 MiB 的文件；沿用深度 16、最多 20,000 文件的扫描上限。空白 query 返回空结果。`truncated` 仅表示匹配数超过 limit，不是扫描完整性或游标分页的保证。Markdown snippet 会去除常见前缀、最多约 200 字符。表格命中的 `title` 是表的 `name`；匹配落在某一行时 snippet 带注册编号和字段名，否则是表名。每个文件最多一条命中，条件仍是全部词都出现（AND）。catalog 元数据过滤会丢掉表格命中。表格正文用 `table_query` 读取，不用 `file_read` 代替行查询。回读 Markdown 后用 line 定位原行。
 
 `vault_search` 的 `page` 与 `page_read` 都是**启发式**的：`PAPER.md` 命中行与 `layout.json` 的 `text` region 做归一化（小写 + 折叠空白）后的等式/包含匹配，只有所有匹配 region 落在**同一个** `pageIndex` 时才返回页码，否则留空——绝不返回猜测。语义检索不在 MCP 范围（由外部索引承担），这里只补"页码语义 + 结构化元数据过滤"。
 
@@ -136,7 +139,8 @@ cargo test -p agentero-core pdf::layout_index
 `file_read` / `file_write` / `file_move` / `file_delete`：
 
 - 路径是 Vault 相对路径，禁止 `..`；符号链接解析后必须仍在 Vault 内
-- 只接受 UTF-8 文本，单次最多 2 MiB。拒绝 PDF / 图片 / 压缩包等二进制扩展名，以及内容中的 NUL（`file_move` / `file_delete` 不读取内容，可移动/删除目录和二进制附件）
+- 只接受 UTF-8 文本，单次最多 2 MiB。拒绝 PDF / 图片 / 压缩包等二进制扩展名，以及内容中的 NUL（`file_move` / `file_delete` 不读取内容，可移动/删除目录和二进制附件）。`*.table.json` 超过 2 MiB 时 `file_read` 失败，改用 `table_query`（行操作最多读 32 MiB）
+- `file_write` 不能追加 `*.table.json`，也不能覆盖已有的 `*.table.json`（错误码 `use_table_ops`，不写盘）。创建尚不存在的 `*.table.json` 时，正文必须是合法表格，非法 JSON 不会落盘。已有 Markdown 若第一个 frontmatter 块是 `type: experiment` 且 `status: locked`，替换和追加都返回 `experiment_locked` 且不写盘；新建该文件允许。判断是行扫描，不是 YAML 解析
 - 与文件树相同，拒绝 `.agentero`、`.` 开头的隐藏项（`.agents` 除外）、`target` 等忽略目录，以及 `.aux` / `.log` 等 LaTeX 编译产物
 - 不写 `NOTES.md`（仍走 `paper_notes_write`，以保留 frontmatter）、`marks/annotations.json`、`source/layout-index.json`、`source/layout.json`、`catalog.sqlite`
 - 原子写。编辑器打开同一文件时走 `vault:file-changed`

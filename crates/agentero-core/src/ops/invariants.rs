@@ -33,6 +33,7 @@ Never dump an entire PDF/TeX/body into context by default.
 
 - Confirm with the user before overwriting user-written `NOTES.md` or any other file (`replace`). Prefer `append` when unsure.
 - MCP `file_read` / `file_write` take a vault-relative path (`drafts/main.tex`, `notes/idea.md`). They are UTF-8 text only. `file_list` is one directory. Do not use them for `.agentero`, binaries, LaTeX build artifacts, marks, or layout indexes. `NOTES.md` writes still go through `paper_notes_write`.
+- Research tables (`*.table.json`) use `table_query`, `table_upsert`, and `table_update_cells`. Do not `file_write` an existing `*.table.json`. `expectedRevision` comes from `table_query`. Cells are addressed by registry id and field name. `file_read` still returns a table under 2 MiB; larger tables use `table_query`. `vault_search` includes `*.table.json`; a hit path may be that file, and `table_query` is how you read the matching rows. `file_write` refuses to replace or append a Markdown note whose frontmatter is `type: experiment` and `status: locked` (`experiment_locked`). Creating a new file is allowed.
 - MCP `vault_list` returns every local vault the user has opened. Pass its path as `vault` to target one; the open vault remains the default. Unknown paths are rejected.
 - MCP `paper_move` moves a paper/org folder under `papers/` (optionally to another vault); `file_move` is the generic exact-path move/rename. Both update wiki links and catalog paths.
 - CLI `paper add` keeps the source. Same vault creates a directory link and does not insert a second catalog row. Another vault copies the files and inserts one row; it fails when the destination already has that paper id.
@@ -46,7 +47,7 @@ Never dump an entire PDF/TeX/body into context by default.
 ## Surfaces
 
 - **CLI**: full headless vault/catalog surface (no BYOA / paper-reader runtime).
-- **MCP**: local vaults only (App must be running). Start with resource `agentero://vault`, then tools. Use `vault_list` to discover vaults; pass `vault` to target one other than the open vault. Paper tools use `ref`. Other vault text uses `file_list` / `file_read` / `file_write`; `file_move` and `file_delete` handle moves and recycle-bin deletes.
+- **MCP**: local vaults only (App must be running). Start with resource `agentero://vault`, then tools. Use `vault_list` to discover vaults; pass `vault` to target one other than the open vault. Paper tools use `ref`. Other vault text uses `file_list` / `file_read` / `file_write`; `file_move` and `file_delete` handle moves and recycle-bin deletes. Research tables use `table_query` / `table_upsert` / `table_update_cells`.
 - Lecture-style NOTES content is the agent's job (or the separate `paper-reader` skill), not the CLI/MCP.
 "#
 }

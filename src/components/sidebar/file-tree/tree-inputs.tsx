@@ -1,4 +1,4 @@
-import { FileText, FolderPlus } from "lucide-react";
+import { FileText, FlaskConical, FolderPlus, Table } from "lucide-react";
 import {
 	type ReactNode,
 	useCallback,
@@ -137,23 +137,34 @@ export function TreeCreateInput({
 	onCancel: () => void;
 }) {
 	const { t } = useTranslation("sidebar");
-	const Icon = kind !== "folder" ? FileText : FolderPlus;
+	const Icon =
+		kind === "folder"
+			? FolderPlus
+			: kind === "table"
+				? Table
+				: kind === "experiment"
+					? FlaskConical
+					: FileText;
 	return (
 		<TreeNameInput
 			initialName={
 				kind === "table"
-					? `${t("fileTree.untitledNote")}.table.json`
-					: kind === "file"
-						? `${t("fileTree.untitledNote")}.md`
-						: "New Folder"
+					? t("fileTree.untitledTable")
+					: kind === "experiment"
+						? t("fileTree.untitledExperiment")
+						: kind === "file"
+							? `${t("fileTree.untitledNote")}.md`
+							: "New Folder"
 			}
 			icon={<Icon className="size-4 shrink-0 text-muted-foreground" />}
 			label={
 				kind === "table"
 					? t("newTableLabel")
-					: kind === "file"
-						? t("fileTree.newFile")
-						: t("fileTree.newFolder")
+					: kind === "experiment"
+						? t("newExperimentLabel")
+						: kind === "file"
+							? t("fileTree.newFile")
+							: t("fileTree.newFolder")
 			}
 			selectBasename={kind !== "folder"}
 			onConfirm={(name) =>

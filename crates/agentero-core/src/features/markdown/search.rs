@@ -1,9 +1,11 @@
-//! Vault-wide full-text search over Markdown files.
+//! Vault-wide full-text search over Markdown notes and research tables.
 //!
-//! Walk-based (always fresh, no index): scans `*.md` under the Vault (skipping
-//! hidden / system dirs), requires all query terms (AND), and returns ranked
-//! hits with a snippet + line number. Hits inside a `papers/<…>` folder carry
-//! `paper_path` so the UI can open the paper instead of the raw file.
+//! Walk-based (always fresh, no index): scans `*.md` and `*.table.json` under
+//! the Vault (skipping hidden / system dirs and other JSON files), requires all
+//! query terms (AND), and returns ranked hits with a snippet + line number.
+//! Hits inside a `papers/<…>` folder carry `paper_path` so the UI can open the
+//! paper instead of the raw file. Table hits do not: a `*.table.json` path is
+//! opened as the table, and catalog metadata filters drop those hits.
 
 use crate::error::AppError;
 use crate::features::paper::catalog::papers::PaperRecord;
@@ -120,7 +122,8 @@ pub struct VaultSearchResult {
     pub truncated: bool,
 }
 
-/// Search the Vault's Markdown files for all whitespace-separated terms (AND).
+/// Search the Vault's Markdown notes and `*.table.json` files for all
+/// whitespace-separated terms (AND).
 pub fn vault_search(args: VaultSearchArgs) -> Result<VaultSearchResult, AppError> {
     vault_search_filtered(args, &|_| true)
 }
@@ -166,7 +169,7 @@ pub fn vault_search_filtered(
         });
 
     let mut files: Vec<PathBuf> = Vec::new();
-    collect_md_files(&vault, 0, &mut files, allow_path);
+    collect_search_files(&vault, 0, &mut files, allow_path);
 
     let mut hits: Vec<SearchHit> = Vec::new();
     for file in &files {
@@ -209,9 +212,14 @@ pub fn vault_search_filtered(
     // drop every hit: none can be verified against the filter.
     if filter.active() {
         match paper_meta {
-            Some(map) => hits.retain(|hit| match hit.paper_path.as_deref() {
-                Some(path) => map.get(path).is_some_and(|rec| filter.matches(rec)),
-                None => false,
+            Some(map) => hits.retain(|hit| {
+                if is_research_table_path(&hit.path) {
+                    return false;
+                }
+                match hit.paper_path.as_deref() {
+                    Some(path) => map.get(path).is_some_and(|rec| filter.matches(rec)),
+                    None => false,
+                }
             }),
             None => hits.clear(),
         }
@@ -223,7 +231,7 @@ pub fn vault_search_filtered(
     Ok(VaultSearchResult { hits, truncated })
 }
 
-fn collect_md_files(
+fn collect_search_files(
     dir: &Path,
     depth: usize,
     out: &mut Vec<PathBuf>,
@@ -247,12 +255,8 @@ fn collect_md_files(
             if name.starts_with('.') || name == "node_modules" || name == "source" {
                 continue;
             }
-            collect_md_files(&path, depth + 1, out, allow_path);
-        } else if path
-            .extension()
-            .and_then(|e| e.to_str())
-            .is_some_and(|e| e.eq_ignore_ascii_case("md"))
-        {
+            collect_search_files(&path, depth + 1, out, allow_path);
+        } else if is_markdown_name(&name) || is_research_table_path(&name) {
             out.push(path);
             if out.len() >= MAX_FILES {
                 return;
@@ -261,10 +265,144 @@ fn collect_md_files(
     }
 }
 
+fn is_markdown_name(name: &str) -> bool {
+    name.to_ascii_lowercase().ends_with(".md")
+}
+
+fn is_research_table_path(path: &str) -> bool {
+    path.to_ascii_lowercase().ends_with(".table.json")
+}
+
+fn search_table(vault: &Path, file: &Path, terms: &[String]) -> Option<SearchHit> {
+    let content = fs::read_to_string(file).ok()?;
+    let lower = content.to_lowercase();
+    if !terms.iter().all(|term| lower.contains(term.as_str())) {
+        return None;
+    }
+    let value: serde_json::Value = serde_json::from_str(&content).ok()?;
+    let name = value
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| table_filename_stem(file));
+    let rel = file
+        .strip_prefix(vault)
+        .ok()?
+        .to_string_lossy()
+        .replace('\\', "/");
+    let snippet = table_row_snippet(&value, terms).unwrap_or_else(|| name.clone());
+    let mut line = 0u32;
+    for (index, raw) in content.lines().enumerate() {
+        let lowered = raw.to_lowercase();
+        if terms.iter().any(|term| lowered.contains(term.as_str())) {
+            line = (index + 1) as u32;
+            break;
+        }
+    }
+    let title_lower = name.to_lowercase();
+    let mut score: i64 = 0;
+    for term in terms {
+        if title_lower.contains(term.as_str()) {
+            score += 50;
+        }
+        score += lower.matches(term.as_str()).count().min(20) as i64;
+    }
+    Some(SearchHit {
+        paper_path: None,
+        path: rel,
+        page: None,
+        title: name,
+        snippet,
+        line,
+        score,
+    })
+}
+
+fn table_filename_stem(file: &Path) -> String {
+    let name = file
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("");
+    let lower = name.to_ascii_lowercase();
+    let stem = if let Some(index) = lower.rfind(".table.json") {
+        &name[..index]
+    } else {
+        name
+    };
+    stem.to_string()
+}
+
+/// Registry id plus field name when a term sits in a row; otherwise none.
+fn table_row_snippet(value: &serde_json::Value, terms: &[String]) -> Option<String> {
+    let mut field_names = std::collections::HashMap::<&str, &str>::new();
+    if let Some(fields) = value.get("fields").and_then(serde_json::Value::as_array) {
+        for field in fields {
+            let Some(id) = field.get("id").and_then(serde_json::Value::as_str) else {
+                continue;
+            };
+            let name = field
+                .get("name")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or(id);
+            field_names.insert(id, name);
+        }
+    }
+    let rows = value.get("rows").and_then(serde_json::Value::as_array)?;
+    for row in rows {
+        let registry = row
+            .get("registryId")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("");
+        let registry_hit = !registry.is_empty()
+            && terms
+                .iter()
+                .any(|term| registry.to_lowercase().contains(term.as_str()));
+        if let Some(values) = row.get("values").and_then(serde_json::Value::as_object) {
+            for (field_id, cell) in values {
+                let text = match cell {
+                    serde_json::Value::String(text) => text.clone(),
+                    serde_json::Value::Number(number) => number.to_string(),
+                    serde_json::Value::Bool(flag) => flag.to_string(),
+                    _ => continue,
+                };
+                if text.is_empty() {
+                    continue;
+                }
+                if terms
+                    .iter()
+                    .any(|term| text.to_lowercase().contains(term.as_str()))
+                {
+                    let field_name = field_names
+                        .get(field_id.as_str())
+                        .copied()
+                        .unwrap_or(field_id);
+                    if registry.is_empty() {
+                        return Some(field_name.to_string());
+                    }
+                    return Some(format!("{registry} {field_name}"));
+                }
+            }
+        }
+        if registry_hit {
+            return Some(registry.to_string());
+        }
+    }
+    None
+}
+
 fn search_file(vault: &Path, file: &Path, terms: &[String]) -> Option<SearchHit> {
     let meta = fs::metadata(file).ok()?;
     if meta.len() > MAX_FILE_BYTES {
         return None;
+    }
+    if file
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(is_research_table_path)
+    {
+        return search_table(vault, file, terms);
     }
     let content = fs::read_to_string(file).ok()?;
     let lower = content.to_lowercase();
@@ -427,6 +565,80 @@ mod tests {
         })
         .unwrap();
         assert!(out.hits.is_empty());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn searches_table_cells_and_registry_ids_but_not_other_json() {
+        let root =
+            std::env::temp_dir().join(format!("agentero-search-table-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        write(
+            &root,
+            "data/run.table.json",
+            r#"{
+  "format": "agentero-table",
+  "version": 1,
+  "id": "table-1",
+  "name": "Measurements",
+  "kind": "result",
+  "revision": 1,
+  "fields": [
+    {"id":"sample","name":"Sample","type":"text","unit":"","options":[]}
+  ],
+  "rows": [
+    {"id":"row-1","registryId":"EXP-0001","values":{"sample":"BAT-001"}}
+  ]
+}
+"#,
+        );
+        write(
+            &root,
+            "data/notes.json",
+            "BAT-001 EXP-0001 should stay out\n",
+        );
+        write(
+            &root,
+            "notes/idea.md",
+            "A note that does not mention the sample.\n",
+        );
+
+        let cell = vault_search(VaultSearchArgs {
+            vault_path: root.to_string_lossy().to_string(),
+            query: "BAT-001".into(),
+            limit: None,
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(cell.hits.len(), 1);
+        assert_eq!(cell.hits[0].path, "data/run.table.json");
+        assert_eq!(cell.hits[0].title, "Measurements");
+        assert!(cell.hits[0].snippet.contains("EXP-0001"));
+        assert!(cell.hits[0].snippet.contains("Sample"));
+        assert!(cell.hits[0].paper_path.is_none());
+
+        let registry = vault_search(VaultSearchArgs {
+            vault_path: root.to_string_lossy().to_string(),
+            query: "EXP-0001".into(),
+            limit: None,
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(registry.hits.len(), 1);
+        assert_eq!(registry.hits[0].path, "data/run.table.json");
+        assert_eq!(registry.hits[0].title, "Measurements");
+        assert!(registry.hits[0].snippet.contains("EXP-0001"));
+
+        let filtered = vault_search(VaultSearchArgs {
+            vault_path: root.to_string_lossy().to_string(),
+            query: "BAT-001".into(),
+            limit: None,
+            year: Some(2024),
+            ..Default::default()
+        })
+        .unwrap();
+        assert!(filtered.hits.is_empty(), "catalog filters drop table hits");
         let _ = fs::remove_dir_all(&root);
     }
 

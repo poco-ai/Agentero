@@ -6,7 +6,14 @@ import {
 	useEditorRef,
 	useReadOnly,
 } from "platejs/react";
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import {
+	lazy,
+	Suspense,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useMarkdownExportMode } from "@/components/editor/markdown-export-mode-context";
 import { Button } from "@/components/ui/button";
@@ -19,11 +26,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { notifyError } from "@/lib/core/notify";
 import {
+	listResearchTables,
+	type ResearchTableSummary,
+} from "@/lib/research-table/catalog";
+import {
 	RESEARCH_TABLE_KEY,
 	safeTableReference,
 } from "@/lib/research-table/markdown";
 import {
 	parseResearchTable,
+	previewRows,
 	type ResearchTable,
 } from "@/lib/research-table/model";
 import { joinVaultPath, readVaultFile } from "@/lib/vault";
@@ -43,10 +55,25 @@ function ResearchTableElement(props: PlateElementProps) {
 	const readonly = useReadOnly();
 	const exportMode = useMarkdownExportMode();
 	const target = String(props.element.tablePath ?? "");
+	const tableId = String(props.element.tableId ?? "");
 	const [draft, setDraft] = useState(target);
 	const [table, setTable] = useState<ResearchTable | null>(null);
 	const [failed, setFailed] = useState(false);
 	const [refresh, setRefresh] = useState(0);
+	const [tables, setTables] = useState<ResearchTableSummary[] | null>(null);
+	const [listTruncated, setListTruncated] = useState(false);
+	const [listFailed, setListFailed] = useState(false);
+	const recoverKey = `${tableId}\0${target}`;
+	const [ambiguous, setAmbiguous] = useState<{
+		key: string;
+		paths: string[];
+	} | null>(null);
+	const attempted = useRef(new Set<string>());
+	const recovering = useRef<string | null>(null);
+	const editorRef = useRef(editor);
+	editorRef.current = editor;
+	const elementRef = useRef(props.element);
+	elementRef.current = props.element;
 	const absolute =
 		nav?.vaultPath && safeTableReference(target)
 			? joinVaultPath(nav.vaultPath, target)
@@ -77,14 +104,109 @@ function ResearchTableElement(props: PlateElementProps) {
 				: undefined,
 		[absolute],
 	);
-	const commit = useCallback(() => {
-		if (!safeTableReference(draft)) {
-			notifyError(t("researchTable.invalidFile"));
+	const mismatched = Boolean(table && tableId && table.id !== tableId);
+	const ambiguousPaths =
+		(absolute === null || failed || mismatched) && ambiguous?.key === recoverKey
+			? ambiguous.paths
+			: [];
+	useEffect(() => {
+		if (!tableId || !nav?.vaultPath) return;
+		const waiting = absolute !== null && table === null && !failed;
+		if (waiting) return;
+		const broken = absolute === null || failed || mismatched;
+		if (!broken) return;
+		if (attempted.current.has(recoverKey) || recovering.current === recoverKey)
 			return;
-		}
-		const at = editor.api.findPath(props.element);
-		if (at) editor.tf.setNodes({ tablePath: draft }, { at });
-	}, [draft, editor, props.element, t]);
+		recovering.current = recoverKey;
+		let cancelled = false;
+		void listResearchTables(nav.vaultPath)
+			.then((result) => {
+				if (cancelled) return;
+				const matches = result.tables.filter((item) => item.id === tableId);
+				if (matches.length === 1) {
+					const path = matches[0]?.path ?? "";
+					if (!path || path === target || !safeTableReference(path)) {
+						attempted.current.add(recoverKey);
+						return;
+					}
+					// A locked or export render cannot rewrite the directive.
+					// Leave this pair unmarked so an editable pass can.
+					if (readonly || exportMode) return;
+					attempted.current.add(recoverKey);
+					const at = editorRef.current.api.findPath(elementRef.current);
+					if (at)
+						editorRef.current.tf.setNodes({ tablePath: path, tableId }, { at });
+					return;
+				}
+				attempted.current.add(recoverKey);
+				if (matches.length > 1)
+					setAmbiguous({
+						key: recoverKey,
+						paths: matches.map((item) => item.path),
+					});
+			})
+			.catch(() => {
+				if (!cancelled) attempted.current.add(recoverKey);
+			})
+			.finally(() => {
+				if (recovering.current === recoverKey) recovering.current = null;
+			});
+		return () => {
+			cancelled = true;
+			if (recovering.current === recoverKey) recovering.current = null;
+		};
+	}, [
+		absolute,
+		exportMode,
+		failed,
+		mismatched,
+		nav?.vaultPath,
+		readonly,
+		recoverKey,
+		table,
+		tableId,
+		target,
+	]);
+	const activeRows =
+		table && !mismatched
+			? table.rows.filter((row) => row.archivedAt === undefined)
+			: [];
+	const shownRows = previewRows(activeRows);
+	useEffect(() => {
+		if (target || readonly || !nav?.vaultPath) return;
+		let cancelled = false;
+		void listResearchTables(nav.vaultPath)
+			.then((result) => {
+				if (cancelled) return;
+				setTables(result.tables);
+				setListTruncated(result.truncated);
+				setListFailed(false);
+			})
+			.catch(() => {
+				if (cancelled) return;
+				setTables([]);
+				setListFailed(true);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [nav?.vaultPath, readonly, target]);
+	const commitPath = useCallback(
+		(path: string, id = "") => {
+			if (!safeTableReference(path)) {
+				notifyError(t("researchTable.invalidFile"));
+				return;
+			}
+			const at = editor.api.findPath(props.element);
+			if (at) editor.tf.setNodes({ tablePath: path, tableId: id }, { at });
+		},
+		[editor, props.element, t],
+	);
+	const commit = useCallback(() => {
+		commitPath(draft);
+	}, [commitPath, draft]);
+	const showPathInput =
+		listFailed || listTruncated || (tables !== null && tables.length === 0);
 	return (
 		<PlateElement {...props}>
 			<fieldset
@@ -96,17 +218,44 @@ function ResearchTableElement(props: PlateElementProps) {
 				onCut={(event) => event.stopPropagation()}
 				onPaste={(event) => event.stopPropagation()}
 			>
-				{!target && !readonly ? (
-					<div className="flex gap-2 p-3">
-						<Input
-							aria-label={t("researchTable.path")}
-							placeholder="data/results.table.json"
-							value={draft}
-							onChange={(e) => setDraft(e.target.value)}
-						/>
-						<Button variant="outline" onClick={commit}>
-							{t("researchTable.load")}
-						</Button>
+				{!target && !readonly && ambiguousPaths.length === 0 ? (
+					<div className="flex flex-col gap-2 p-3">
+						{tables && tables.length > 0 ? (
+							<fieldset
+								className="m-0 max-h-40 min-w-0 overflow-auto rounded-md border border-border/60 p-0"
+								aria-label={t("researchTable.pickTable")}
+							>
+								{tables.map((item) => (
+									<button
+										key={item.path}
+										type="button"
+										className="flex w-full min-w-0 items-baseline gap-2 px-2 py-1.5 text-left text-sm hover:bg-accent"
+										onClick={() => commitPath(item.path, item.id)}
+									>
+										<span className="truncate font-medium">{item.name}</span>
+										<span className="min-w-0 flex-1 truncate text-muted-foreground">
+											{item.path}
+										</span>
+										<span className="shrink-0 text-xs text-muted-foreground">
+											{item.idPrefix || item.id}
+										</span>
+									</button>
+								))}
+							</fieldset>
+						) : null}
+						{showPathInput ? (
+							<div className="flex gap-2">
+								<Input
+									aria-label={t("researchTable.path")}
+									placeholder="data/results.table.json"
+									value={draft}
+									onChange={(e) => setDraft(e.target.value)}
+								/>
+								<Button variant="outline" onClick={commit}>
+									{t("researchTable.load")}
+								</Button>
+							</div>
+						) : null}
 					</div>
 				) : null}
 				{target ? (
@@ -158,7 +307,21 @@ function ResearchTableElement(props: PlateElementProps) {
 						)}
 					</div>
 				) : null}
-				{table ? (
+				{mismatched || ambiguousPaths.length > 0 ? (
+					<div className="px-3 py-2 text-sm text-muted-foreground">
+						<p>{t("researchTable.mismatch")}</p>
+						{ambiguousPaths.length > 0 ? (
+							<ul className="mt-1 grid gap-0.5">
+								{ambiguousPaths.map((path) => (
+									<li key={path} className="truncate" title={path}>
+										{path}
+									</li>
+								))}
+							</ul>
+						) : null}
+					</div>
+				) : null}
+				{table && !mismatched ? (
 					exportMode ? (
 						<table>
 							<thead>
@@ -172,7 +335,7 @@ function ResearchTableElement(props: PlateElementProps) {
 								</tr>
 							</thead>
 							<tbody>
-								{table.rows.slice(0, 20).map((row) => (
+								{shownRows.map((row) => (
 									<tr key={row.id}>
 										{table.fields.map((f) => (
 											<td key={f.id}>{String(row.values[f.id] ?? "")}</td>
@@ -184,15 +347,15 @@ function ResearchTableElement(props: PlateElementProps) {
 					) : (
 						<Suspense fallback={<p>{t("researchTable.loading")}</p>}>
 							<Grid
-								table={{ ...table, rows: table.rows.slice(0, 20) }}
+								table={{ ...table, rows: shownRows }}
 								height={Math.min(
 									360,
-									Math.max(110, table.rows.length * 34 + 40),
+									Math.max(110, shownRows.length * 34 + 40),
 								)}
 							/>
 						</Suspense>
 					)
-				) : target ? (
+				) : target && !mismatched && ambiguousPaths.length === 0 ? (
 					<p className="px-3 py-2 text-sm text-muted-foreground">
 						{t(
 							failed || !absolute
@@ -201,11 +364,11 @@ function ResearchTableElement(props: PlateElementProps) {
 						)}
 					</p>
 				) : null}
-				{table ? (
+				{table && !mismatched ? (
 					<p className="border-t border-border/60 px-3 py-1.5 text-[0.6875rem] tabular-nums text-muted-foreground">
 						{t("researchTable.preview", {
-							shown: Math.min(20, table.rows.length),
-							total: table.rows.length,
+							shown: shownRows.length,
+							total: activeRows.length,
 						})}
 					</p>
 				) : null}

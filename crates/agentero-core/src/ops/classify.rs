@@ -201,4 +201,19 @@ const TABLE: &[OpClassification] = &[
     ),
     spec("ui.split", OpStability::Internal, OpPermission::Unspecified),
     spec("describe", OpStability::Internal, OpPermission::Unspecified),
+    spec(
+        "table.query",
+        OpStability::Internal,
+        OpPermission::VaultRead,
+    ),
+    spec(
+        "table.upsert",
+        OpStability::Internal,
+        OpPermission::VaultWrite,
+    ),
+    spec(
+        "table.update_cells",
+        OpStability::Internal,
+        OpPermission::VaultWrite,
+    ),
 ];

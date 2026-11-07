@@ -1,4 +1,11 @@
-import { FileText, FileType2, Folder, ScrollText } from "lucide-react";
+import {
+	FileJson,
+	FileText,
+	FileType2,
+	Folder,
+	ScrollText,
+	Table,
+} from "lucide-react";
 import { describe, expect, it } from "vitest";
 import {
 	contextPathDisplayName,
@@ -92,6 +99,12 @@ describe("context-path-icon", () => {
 				paperPaths: papers,
 			}),
 		).toBe(Folder);
+	});
+
+	it("uses Table for research tables and FileJson for other JSON", () => {
+		expect(contextPathIcon("data/Results.TABLE.JSON")).toBe(Table);
+		expect(contextPathIcon("notes/config.json")).toBe(FileJson);
+		expect(contextPathIcon("notes/config.JSON")).toBe(FileJson);
 	});
 
 	it("classifies files by extension even if not in tree", () => {
