@@ -104,6 +104,7 @@ export type DocViewEditorProps = {
 		path: string,
 		md: string,
 		lastSaved: string,
+		tabId: string,
 	) => Promise<boolean>;
 	onAssetsChanged: () => void;
 	onTabPatch: (id: string, patch: Partial<DocTab>) => void;
@@ -310,6 +311,11 @@ const DocumentContent = memo(function DocumentContent({
 		[pdf, tab.id],
 	);
 	const isNotes = tabIsPaperNotes(tab);
+	const handleEditorPersist = useCallback(
+		(path: string, md: string, lastSaved: string) =>
+			editor.onPersistFile(path, md, lastSaved, tab.id),
+		[editor.onPersistFile, tab.id],
+	);
 	// Stable identity: an inline lambda here is a new prop on every DocView
 	// render, which defeats the memo boundary around MarkdownEditor.
 	const handleEditorDirtyChange = useCallback(
@@ -421,7 +427,7 @@ const DocumentContent = memo(function DocumentContent({
 						placeholder={
 							isNotes ? editor.notesPlaceholder : editor.markdownPlaceholder
 						}
-						onPersist={editor.onPersistFile}
+						onPersist={handleEditorPersist}
 						onAssetsChanged={editor.onAssetsChanged}
 						onRenameHeading={editor.onRenameHeading}
 						onDirtyChange={handleEditorDirtyChange}

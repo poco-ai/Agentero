@@ -85,6 +85,7 @@
 	"diskConflict": {
 		"title": "“{{name}}” changed on disk — kept your unsaved edits",
 		"reload": "Load disk version",
+		"keepDraft": "Keep draft",
 		"saveBlocked": "“{{name}}” was modified elsewhere — your edit was not saved to avoid losing changes. Load the disk version, then re-apply your edit."
 	},
 	"tabs": {

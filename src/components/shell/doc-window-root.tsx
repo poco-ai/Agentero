@@ -242,13 +242,13 @@ export function DocWindowRoot() {
 	});
 
 	const onPersistFile = useCallback(
-		async (path: string, md: string, lastSaved: string) => {
-			const ok = await persistFile(path, md, lastSaved);
+		async (path: string, md: string, lastSaved: string, tabId: string) => {
+			const ok = await persistFile(path, md, lastSaved, tabId);
 			if (ok) {
 				// Keep local seed in sync so our own autosave echo is suppressed.
 				setTab((prev) => {
 					if (!prev) return prev;
-					return syncTabSeedsForPath([prev], path, md)[0] ?? prev;
+					return syncTabSeedsForPath([prev], path, md, tabId)[0] ?? prev;
 				});
 			}
 			return ok;

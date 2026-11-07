@@ -35,6 +35,8 @@ export type DocTab = {
 	textSeed: string;
 	markdownDirty: boolean;
 	notesDirty: boolean;
+	/** A sibling Markdown editor saved over this panel's baseline; retain its draft. */
+	markdownConflict?: boolean;
 	excalidrawDirty: boolean;
 	textDirty: boolean;
 	/** Bump to reload the center Markdown editor's content in place from `markdownSeed`. */

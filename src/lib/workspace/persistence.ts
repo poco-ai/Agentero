@@ -4,7 +4,12 @@
 
 import i18n from "@/i18n";
 import { errorText } from "@/lib/core/error";
-import { notifyError, notifyUndo, notifyWarning } from "@/lib/core/notify";
+import {
+	notifyError,
+	notifyReminder,
+	notifyUndo,
+	notifyWarning,
+} from "@/lib/core/notify";
 import { isTauri } from "@/lib/core/tauri";
 import { localFileToArrayBuffer } from "@/lib/paper";
 import { isRecentBookmarkWrite } from "@/lib/pdf/bookmark-echo";
@@ -70,13 +75,21 @@ const persistQueues: Record<PersistKind, Map<string, Promise<boolean>>> = {
 /** Post-write outcome per kind, run only after the write is confirmed. */
 const persistOutcomes: Record<
 	PersistKind,
-	(path: string, content: string) => void
+	(path: string, content: string, writerId: string) => void
 > = {
-	markdown: (path, content) => {
+	markdown: (path, content, writerId) => {
 		primeSeedCache(path, content);
-		// The Markdown editor keeps live content: only the owning tab's seed
-		// advances (dirty state stays editor-owned).
-		setTabs((prev) => syncTabSeedsForPath(prev, path, content));
+		const conflicts: string[] = [];
+		setTabs((prev) => {
+			const next = syncTabSeedsForPath(prev, path, content, writerId);
+			for (let i = 0; i < next.length; i++) {
+				if (next[i].markdownConflict && !prev[i].markdownConflict) {
+					conflicts.push(next[i].id);
+				}
+			}
+			return next;
+		});
+		for (const id of conflicts) promptMarkdownConflict(path, id);
 	},
 	excalidraw: (path, content) => {
 		setTabs((prev) => seedTabs(prev, path, content, "excalidraw"));
@@ -102,6 +115,40 @@ const defaultDiskChangeSink: DiskChangeSink = {
 	getTabs,
 	updateTabs: (update) => setTabs(update),
 };
+
+/** Reload only the panel the user chose, reading the current disk version. */
+function promptMarkdownConflict(path: string, tabId: string): void {
+	const name = path.split(/[\\/]/).pop() ?? path;
+	notifyReminder(i18n.t("app:diskConflict.title", { name }), {
+		id: `markdown-save-conflict:${tabId}`,
+		actionLabel: i18n.t("app:diskConflict.reload"),
+		onAction: () => {
+			void (async () => {
+				try {
+					const content = await readVaultFile(path);
+					primeSeedCache(path, content);
+					setTabs((prev) =>
+						prev.map((tab) => {
+							if (tab.id !== tabId) return tab;
+							const notes = tabIsPaperNotes(tab);
+							return seedTabs(
+								[tab],
+								notes ? path.replace(/[\\/]NOTES\.md$/i, "") : path,
+								content,
+								notes ? "notes" : "markdown",
+								true,
+							)[0];
+						}),
+					);
+				} catch (error) {
+					notifyError(errorText(error));
+				}
+			})();
+		},
+		dismissLabel: i18n.t("app:diskConflict.keepDraft"),
+		onDismiss: () => {},
+	});
+}
 
 /** One text-like editor kind for disk-change reseeding: which open tabs own
  * the path plus the tab fields holding its in-memory seed / dirty flag. */
@@ -230,7 +277,7 @@ export async function applyDiskChange(
 	// typed during that gap and toasts a false external edit.
 	if (
 		isSelfWrittenContent(absPath, content) ||
-		lastOwnWriteByPath.get(norm) === content
+		lastOwnWriteByPath.get(norm)?.content === content
 	) {
 		return;
 	}
@@ -278,7 +325,10 @@ export async function applyDiskChange(
  * resolution keeps the wiki lock (and the editor's saved snapshot) busy long
  * after the write, and opening `[[` searches that same index.
  */
-const lastOwnWriteByPath = new Map<string, string>();
+const lastOwnWriteByPath = new Map<
+	string,
+	{ content: string; writerId: string }
+>();
 
 /**
  * True when `disk` is neither the editor's last saved snapshot nor a body
@@ -308,6 +358,7 @@ function persistTextLike(
 	path: string,
 	content: string,
 	lastSaved: string,
+	writerId = "",
 ): Promise<boolean> {
 	if (!isTauri() || !getVaultPath() || !path) return Promise.resolve(false);
 	const queues = persistQueues[kind];
@@ -325,21 +376,43 @@ function persistTextLike(
 				// Skip while this path is being reloaded from disk (external/Agent
 				// write): the unmount-flush must not clobber the fresh disk content.
 				if (reseedGuard.has(normalizedPath)) return false;
+				const writer =
+					kind === "markdown"
+						? getTabs().find((tab) => tab.id === writerId)
+						: undefined;
+				if (writer?.markdownConflict) {
+					promptMarkdownConflict(path, writerId);
+					return false;
+				}
 				// Conflict guard: if the file changed on disk since we last saved,
 				// do NOT silently overwrite — keep the user's in-memory edit and warn.
 				// A body this window wrote is not that external edit, even when the
 				// editor snapshot is still the pre-index text.
 				try {
 					const disk = await readVaultFile(path);
+					const ownWrite = lastOwnWriteByPath.get(normalizedPath);
 					if (
 						isResearchTablePath(path)
 							? disk !== lastSaved && disk !== content
 							: markdownDiskConflicts(
 									disk,
 									lastSaved,
-									lastOwnWriteByPath.get(normalizedPath),
+									kind !== "markdown" || ownWrite?.writerId === writerId
+										? ownWrite?.content
+										: undefined,
 								)
 					) {
+						if (writer) {
+							setTabs((prev) =>
+								prev.map((tab) =>
+									tab.id === writerId
+										? { ...tab, markdownConflict: true }
+										: tab,
+								),
+							);
+							promptMarkdownConflict(path, writerId);
+							return false;
+						}
 						const name = path.split(/[\\/]/).pop() ?? path;
 						const notify = isResearchTablePath(path)
 							? notifyError
@@ -357,13 +430,13 @@ function persistTextLike(
 					// Missing/unreadable file → no conflict to guard against.
 				}
 				await writeVaultFile(path, content);
-				lastOwnWriteByPath.set(normalizedPath, content);
+				lastOwnWriteByPath.set(normalizedPath, { content, writerId });
 				// Advance the seed and remember the body before any await. Wiki
 				// indexing yields long enough for the watcher echo to land; if the
 				// seed is still the previous text, that echo looks like an external
 				// edit and a clean paper tab reloads the note over the keystrokes.
 				trackSelfWrittenPath(path, content);
-				persistOutcomes[kind](path, content);
+				persistOutcomes[kind](path, content, writerId);
 				editorOk = true;
 				// The watcher echo of this write must not re-trigger a full Wiki
 				// rebuild on every autosave (#270). The saved file itself is
@@ -405,8 +478,9 @@ export function persistFile(
 	path: string,
 	md: string,
 	lastSaved: string,
+	tabId: string,
 ): Promise<boolean> {
-	return persistTextLike("markdown", path, md, lastSaved);
+	return persistTextLike("markdown", path, md, lastSaved, tabId);
 }
 
 /**
