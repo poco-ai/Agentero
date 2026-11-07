@@ -4,14 +4,12 @@
 //! npm fallback; login-shell PATH for GUI apps; no `curl | bash` pipes).
 //! Scoped to Motif catalog templates.
 
-use crate::features::agent::registry::antigravity;
 use crate::features::agent::registry::discovery::{login_shell_env, path_entries, resolve_command};
 use crate::features::agent::registry::templates::{
-    antigravity_install_dir, antigravity_server_name, kimi_launcher_dir, template_info,
-    zcode_host_path, CLAUDE_ACP_INSTALL_COMMAND, CODEBUDDY_NPM_INSTALL_COMMAND,
-    CODEX_ACP_INSTALL_COMMAND, CODEX_HOST_INSTALL_COMMAND, DSH_INSTALL_COMMAND,
-    MIMO_CODE_INSTALL_COMMAND, MINIMAX_CODE_INSTALL_COMMAND, PI_ACP_INSTALL_COMMAND,
-    PI_HOST_INSTALL_COMMAND, ZCODE_ACP_INSTALL_COMMAND,
+    kimi_launcher_dir, template_info, zcode_host_path, CLAUDE_ACP_INSTALL_COMMAND,
+    CODEBUDDY_NPM_INSTALL_COMMAND, CODEX_ACP_INSTALL_COMMAND, CODEX_HOST_INSTALL_COMMAND,
+    DSH_INSTALL_COMMAND, MIMO_CODE_INSTALL_COMMAND, MINIMAX_CODE_INSTALL_COMMAND,
+    PI_ACP_INSTALL_COMMAND, PI_HOST_INSTALL_COMMAND, ZCODE_ACP_INSTALL_COMMAND,
 };
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
@@ -19,7 +17,6 @@ use std::fs;
 use std::io::{self, Read};
 use std::process::{Command, Output, Stdio};
 use std::sync::{Mutex, MutexGuard, OnceLock, TryLockError};
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
     thread,
     time::{Duration, Instant},
@@ -32,6 +29,8 @@ use std::fs::OpenOptions;
 use std::io::Write;
 #[cfg(target_os = "windows")]
 use std::sync::atomic::{AtomicU64, Ordering};
+#[cfg(target_os = "windows")]
+use std::time::{SystemTime, UNIX_EPOCH};
 
 static TOOL_LIFECYCLE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
@@ -86,8 +85,6 @@ pub const LIFECYCLE_TEMPLATES: &[&str] = &[
     "minimax-code",
     "mimo-code",
     "codebuddy",
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    "antigravity-acp",
 ];
 
 /// Launcher directory of the retired dsh ACP-demo scheme (managed `npm i` of
@@ -260,9 +257,6 @@ impl UninstallScope {
 }
 
 pub fn supports_lifecycle(template_id: &str) -> bool {
-    if template_id == "antigravity-acp" && cfg!(all(target_os = "macos", target_arch = "x86_64")) {
-        return false;
-    }
     LIFECYCLE_TEMPLATES.contains(&template_id)
 }
 
@@ -415,10 +409,6 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
                 .map(|path| path.display().to_string())
                 .collect(),
             Vec::new(),
-        ),
-        "antigravity-acp" => (
-            Vec::new(),
-            vec![antigravity_install_dir().display().to_string()],
         ),
         "codebuddy" => (
             codebuddy_managed_install_paths()
@@ -677,10 +667,6 @@ pub fn run_template_lifecycle(
         return run_template_uninstall(template_id, app, task_id, proxy_enabled, proxy_url);
     }
 
-    if template_id == "antigravity-acp" {
-        return install_antigravity(app, task_id, proxy_enabled, proxy_url);
-    }
-
     let detect = info
         .detect_command
         .as_deref()
@@ -777,246 +763,6 @@ pub fn run_template_lifecycle(
         proxy_url,
         None,
     )
-}
-
-/// Download and stage the official Antigravity ACP server without invoking a
-/// shell or touching the user's Google login. The release (version + archive)
-/// comes from the ACP registry, so the installer always follows the version
-/// Google publishes; the archive is extracted into a temporary sibling
-/// directory and swapped into place only after both required files are present.
-fn install_antigravity(
-    app: Option<&AppHandle>,
-    task_id: Option<&str>,
-    proxy_enabled: bool,
-    proxy_url: &str,
-) -> Result<(), String> {
-    // Registry lookup before the lifecycle lock: another install must not be
-    // held up by a manifest request, and an unreachable registry fails with a
-    // clear error here instead of installing a guessed version.
-    let release = antigravity::resolve_release(proxy_enabled, proxy_url)?;
-    let _guard = acquire_lifecycle_lock(app, task_id)?;
-    check_lifecycle_cancelled(task_id)?;
-    emit_lifecycle_progress(app, task_id, "agent-lifecycle-download", Some(5));
-    log::info!(
-        target: "agentero::agent",
-        "antigravity install version={} archive={}",
-        release.version,
-        release.archive_url
-    );
-
-    let client = antigravity::build_client(
-        &format!("Agentero/antigravity-acp/{}", release.version),
-        proxy_enabled,
-        proxy_url,
-        Duration::from_secs(180),
-    )?;
-    let mut response = client
-        .get(&release.archive_url)
-        .send()
-        .map_err(|e| format!("Antigravity download failed: {e}"))?;
-    if !response.status().is_success() {
-        return Err(format!(
-            "Antigravity download failed with HTTP {}",
-            response.status()
-        ));
-    }
-
-    let total = response.content_length();
-    let mut archive = Vec::new();
-    let mut buffer = [0_u8; 64 * 1024];
-    loop {
-        let read = response
-            .read(&mut buffer)
-            .map_err(|e| format!("Antigravity download read failed: {e}"))?;
-        if read == 0 {
-            break;
-        }
-        check_lifecycle_cancelled(task_id)?;
-        archive.extend_from_slice(&buffer[..read]);
-        let progress = total.map(|size| ((archive.len() as u64 * 70) / size).min(70) as u8);
-        emit_lifecycle_progress(app, task_id, "agent-lifecycle-download", progress);
-    }
-    if archive.is_empty() {
-        return Err("Antigravity download was empty".to_string());
-    }
-
-    let install_dir = antigravity_install_dir();
-    let parent = install_dir
-        .parent()
-        .ok_or_else(|| "invalid Antigravity install directory".to_string())?;
-    fs::create_dir_all(parent)
-        .map_err(|e| format!("failed to create Agentero install directory: {e}"))?;
-    let staging = parent.join(format!(
-        ".antigravity-acp-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|e| format!("failed to create staging name: {e}"))?
-            .as_nanos()
-    ));
-    let _ = fs::remove_dir_all(&staging);
-    fs::create_dir_all(&staging)
-        .map_err(|e| format!("failed to create Antigravity staging directory: {e}"))?;
-
-    let extraction = extract_antigravity_zip(&archive, &staging);
-    if let Err(error) = extraction {
-        let _ = fs::remove_dir_all(&staging);
-        return Err(error);
-    }
-    let server_name = antigravity_server_name();
-    if let Err(error) = normalize_antigravity_layout(&staging, server_name) {
-        let _ = fs::remove_dir_all(&staging);
-        return Err(error);
-    }
-    if let Err(error) = check_lifecycle_cancelled(task_id) {
-        let _ = fs::remove_dir_all(&staging);
-        return Err(error);
-    }
-    if !staging.join(server_name).is_file() || !has_localharness_external(&staging) {
-        let _ = fs::remove_dir_all(&staging);
-        return Err(
-            "Antigravity archive is missing the ACP server or localharness_external".to_string(),
-        );
-    }
-    #[cfg(unix)]
-    if let Err(error) = make_antigravity_executables(&staging) {
-        let _ = fs::remove_dir_all(&staging);
-        return Err(error);
-    }
-    // The release marker travels with the payload: it is written into the
-    // staging directory, so it appears only for a successful install and is
-    // rolled back with the rest when the swap fails. version_check reads it
-    // instead of running the ACP server.
-    if let Err(error) = antigravity::write_version_marker(&staging, &release.version) {
-        let _ = fs::remove_dir_all(&staging);
-        return Err(error);
-    }
-    emit_lifecycle_progress(app, task_id, "agent-lifecycle-install", Some(90));
-    if let Err(error) = replace_antigravity_install(&staging, &install_dir) {
-        let _ = fs::remove_dir_all(&staging);
-        return Err(error);
-    }
-    emit_lifecycle_progress(app, task_id, "agent-lifecycle-install", Some(100));
-    Ok(())
-}
-
-fn replace_antigravity_install(
-    staging: &std::path::Path,
-    install_dir: &std::path::Path,
-) -> Result<(), String> {
-    if !install_dir.exists() {
-        return fs::rename(staging, install_dir)
-            .map_err(|e| format!("failed to install Antigravity ACP server: {e}"));
-    }
-    let backup = install_dir.with_extension(format!(
-        "old-{}",
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|e| format!("failed to create backup name: {e}"))?
-            .as_nanos()
-    ));
-    fs::rename(install_dir, &backup)
-        .map_err(|e| format!("failed to prepare Antigravity update: {e}"))?;
-    if let Err(error) = fs::rename(staging, install_dir) {
-        let _ = fs::rename(&backup, install_dir);
-        return Err(format!("failed to install Antigravity ACP server: {error}"));
-    }
-    let _ = fs::remove_dir_all(backup);
-    Ok(())
-}
-
-fn extract_antigravity_zip(archive: &[u8], dest: &std::path::Path) -> Result<(), String> {
-    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(archive))
-        .map_err(|e| format!("invalid Antigravity archive: {e}"))?;
-    for index in 0..zip.len() {
-        let mut entry = zip
-            .by_index(index)
-            .map_err(|e| format!("invalid Antigravity archive entry: {e}"))?;
-        let entry_name = entry
-            .name()
-            .map_err(|e| format!("invalid Antigravity archive entry name: {e}"))?;
-        let name = std::path::Path::new(entry_name.as_ref());
-        if name.components().any(|component| {
-            matches!(
-                component,
-                std::path::Component::ParentDir | std::path::Component::RootDir
-            )
-        }) {
-            return Err("Antigravity archive contains an unsafe path".to_string());
-        }
-        let output = dest.join(name);
-        if entry.is_dir() {
-            fs::create_dir_all(&output).map_err(|e| format!("failed to extract archive: {e}"))?;
-            continue;
-        }
-        if let Some(parent) = output.parent() {
-            fs::create_dir_all(parent).map_err(|e| format!("failed to extract archive: {e}"))?;
-        }
-        let mut file =
-            fs::File::create(&output).map_err(|e| format!("failed to extract archive: {e}"))?;
-        std::io::copy(&mut entry, &mut file)
-            .map_err(|e| format!("failed to extract archive: {e}"))?;
-    }
-    Ok(())
-}
-
-fn normalize_antigravity_layout(root: &std::path::Path, server_name: &str) -> Result<(), String> {
-    if root.join(server_name).is_file() {
-        return Ok(());
-    }
-    let Some(server) = walkdir::WalkDir::new(root)
-        .into_iter()
-        .flatten()
-        .find(|entry| entry.file_type().is_file() && entry.file_name() == server_name)
-    else {
-        return Ok(());
-    };
-    let Some(parent) = server.path().parent() else {
-        return Ok(());
-    };
-    if parent == root {
-        return Ok(());
-    }
-    for entry in fs::read_dir(parent).map_err(|e| format!("failed to normalize archive: {e}"))? {
-        let entry = entry.map_err(|e| format!("failed to normalize archive: {e}"))?;
-        let target = root.join(entry.file_name());
-        fs::rename(entry.path(), target)
-            .map_err(|e| format!("failed to normalize archive: {e}"))?;
-    }
-    Ok(())
-}
-
-fn has_localharness_external(root: &std::path::Path) -> bool {
-    walkdir::WalkDir::new(root)
-        .into_iter()
-        .flatten()
-        .any(|entry| {
-            entry.file_type().is_file()
-                && entry
-                    .file_name()
-                    .to_string_lossy()
-                    .starts_with("localharness_external")
-        })
-}
-
-#[cfg(unix)]
-fn make_antigravity_executables(root: &std::path::Path) -> Result<(), String> {
-    use std::os::unix::fs::PermissionsExt;
-    for entry in walkdir::WalkDir::new(root).into_iter().flatten() {
-        if !entry.file_type().is_file() {
-            continue;
-        }
-        let name = entry.file_name().to_string_lossy();
-        if name == "agy_acp_server.par" || name.starts_with("localharness_external") {
-            let mut permissions = fs::metadata(entry.path())
-                .map_err(|e| format!("failed to inspect extracted file: {e}"))?
-                .permissions();
-            permissions.set_mode(0o755);
-            fs::set_permissions(entry.path(), permissions)
-                .map_err(|e| format!("failed to mark extracted file executable: {e}"))?;
-        }
-    }
-    Ok(())
 }
 
 fn host_update_includes_adapter(template_id: &str) -> bool {
@@ -1946,6 +1692,7 @@ fn merge_path_segments(primary: &str, extra: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn lifecycle_templates_match_catalog() {
@@ -1958,77 +1705,20 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    fn antigravity_lifecycle_has_registry_platform_and_managed_uninstall() {
-        // The registry manifest, not Agentero, decides version and archive URL
-        // (parsed in `registry::antigravity`).
-        assert!(antigravity::current_platform_key().is_some());
-        let info = uninstall_info("antigravity-acp").expect("antigravity uninstall");
-        assert!(info.agent.npm_commands.is_empty());
-        assert_eq!(
-            info.acp.dirs,
-            vec![antigravity_install_dir().display().to_string()]
-        );
-        assert!(template_info("antigravity-acp")
-            .expect("antigravity template")
-            .command
-            .ends_with(antigravity_server_name()));
-    }
-
-    #[test]
-    fn antigravity_zip_extraction_rejects_traversal_and_keeps_runtime_files() {
-        use std::io::Write;
-        let mut bytes = Vec::new();
-        {
-            let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut bytes));
-            let options = zip::write::SimpleFileOptions::default();
-            writer.start_file("agy_acp_server.par", options).unwrap();
-            writer.write_all(b"server").unwrap();
-            writer.start_file("localharness_external", options).unwrap();
-            writer.write_all(b"helper").unwrap();
-            writer.finish().unwrap();
-        }
-        let root = tempfile::tempdir().unwrap();
-        extract_antigravity_zip(&bytes, root.path()).unwrap();
-        assert!(root.path().join("agy_acp_server.par").is_file());
-        assert!(has_localharness_external(root.path()));
-
-        let mut unsafe_bytes = Vec::new();
-        {
-            let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut unsafe_bytes));
-            let options = zip::write::SimpleFileOptions::default();
-            writer.start_file("../escape", options).unwrap();
-            writer.write_all(b"bad").unwrap();
-            writer.finish().unwrap();
-        }
-        assert!(extract_antigravity_zip(&unsafe_bytes, root.path()).is_err());
-    }
-
-    #[test]
-    fn antigravity_install_swap_replaces_managed_copy() {
-        let root = tempfile::tempdir().unwrap();
-        let install = root.path().join("antigravity-acp");
-        let staging = root.path().join(".staging");
-        std::fs::create_dir_all(&install).unwrap();
-        std::fs::create_dir_all(&staging).unwrap();
-        std::fs::write(install.join("version"), b"old").unwrap();
-        std::fs::write(staging.join("version"), b"new").unwrap();
-        antigravity::write_version_marker(&staging, "1.2.0").unwrap();
-        replace_antigravity_install(&staging, &install).unwrap();
-        assert_eq!(std::fs::read(install.join("version")).unwrap(), b"new");
-        // The release marker travels with the swapped payload, so the Settings
-        // version check sees it without running the server.
-        assert_eq!(
-            antigravity::installed_version_in(&install).as_deref(),
-            Some("1.2.0")
-        );
-        assert!(!staging.exists());
+    fn antigravity_has_no_lifecycle_support() {
+        assert!(!supports_lifecycle("antigravity-acp"));
+        let template = template_info("antigravity-acp").expect("antigravity template");
+        assert_eq!(template.command, "agy");
+        assert_eq!(template.args, vec!["acp"]);
+        assert_eq!(template.detect_command.as_deref(), Some("agy"));
+        assert!(template.install_command.is_none());
+        assert!(host_install_command("antigravity-acp").is_err());
     }
 
     #[test]
     fn host_install_nonempty() {
         for id in LIFECYCLE_TEMPLATES {
-            if matches!(*id, "antigravity-acp" | "zcode") {
+            if *id == "zcode" {
                 continue;
             }
             let cmd = host_install_command(id).expect(id);
@@ -2039,15 +1729,6 @@ mod tests {
             );
             assert!(!cmd.contains("curl|bash"), "{id}");
         }
-    }
-
-    #[test]
-    fn antigravity_has_no_shell_install_command() {
-        assert!(template_info("antigravity-acp")
-            .expect("antigravity template")
-            .install_command
-            .is_none());
-        assert!(host_install_command("antigravity-acp").is_err());
     }
 
     #[test]

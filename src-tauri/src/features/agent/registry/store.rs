@@ -375,9 +375,7 @@ impl AgentRegistry {
                     a.template.as_str() == info.id
                         || (a.command == info.command && a.args == info.args)
                 });
-                // Antigravity switches between a PATH command and the
-                // Agentero-managed absolute path as its managed copy appears
-                // or disappears. Refresh stale descriptors before probing.
+                // Antigravity migrated to native `agy acp`. Refresh stale descriptors before probing.
                 if info.id == "antigravity-acp"
                     && registered.is_some_and(|agent| {
                         agent.command != info.command || agent.args != info.args

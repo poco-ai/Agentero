@@ -5,7 +5,6 @@
 //! of synchronous `scan_catalog` (Doctor / chat switcher also call that path).
 
 use crate::features::agent::models::CatalogScanResponse;
-use crate::features::agent::registry::antigravity;
 use crate::features::agent::registry::discovery::resolve_command;
 use crate::features::agent::registry::templates::template_info;
 use std::collections::HashMap;
@@ -102,31 +101,11 @@ fn latest_version_for_template(
     proxy_enabled: bool,
     proxy_url: &str,
 ) -> Option<String> {
-    if template_id == "antigravity-acp" {
-        // Registry is the only source (the ACP server has no npm package); an
-        // unreachable registry yields no target, so the row keeps the version
-        // recorded by the installer and shows no Upgrade button.
-        return match antigravity::resolve_release(proxy_enabled, proxy_url) {
-            Ok(release) => Some(release.version),
-            Err(error) => {
-                log::warn!(
-                    target: "agentero::agent",
-                    "antigravity version check failed: {error}"
-                );
-                None
-            }
-        };
-    }
     npm_package_for_template(template_id)
         .and_then(|pkg| npm_view_version(pkg, proxy_enabled, proxy_url))
 }
 
 fn read_installed_version(template_id: &str) -> Option<String> {
-    // Antigravity is a managed archive download: the installer records its
-    // release in a version marker, and the ACP server has no `--version`.
-    if template_id == "antigravity-acp" {
-        return antigravity::installed_version();
-    }
     let info = template_info(template_id)?;
     let detect = info
         .detect_command
@@ -344,11 +323,10 @@ mod tests {
 
     #[test]
     fn antigravity_has_no_npm_target() {
-        // Antigravity rows are served by the registry manifest branch, so the
-        // npm lookup must stay out of their way (and never spawn npm for them).
         assert_eq!(npm_package_for_template("antigravity-acp"), None);
         assert_eq!(npm_package_for_template("hermes"), None);
         assert!(latest_version_for_template("hermes", false, "").is_none());
+        assert!(latest_version_for_template("antigravity-acp", false, "").is_none());
     }
 
     #[test]

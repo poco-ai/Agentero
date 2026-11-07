@@ -3,9 +3,7 @@ use crate::features::agent::acp::client::{
     to_acp_agent, ACP_INITIALIZE_TIMEOUT,
 };
 use crate::features::agent::acp::interaction::permission_response;
-use crate::features::agent::doctor::{
-    diagnose_antigravity_auth, diagnose_claude_auth, diagnose_codex_auth, CodexAuthStatus,
-};
+use crate::features::agent::doctor::{diagnose_claude_auth, diagnose_codex_auth, CodexAuthStatus};
 use crate::features::agent::models::{
     AcpSessionCapabilities, AgentDescriptor, AgentTemplate, ProbeResult,
 };
@@ -120,33 +118,19 @@ pub async fn probe_agent(
                                 diagnose_claude_auth(desc).await.status
                                     == CodexAuthStatus::Unauthenticated
                             }
-                            // The Antigravity server initializes without auth
-                            // and only rejects session/new, so the settings/env
-                            // check is the only early signal (#748).
-                            AgentTemplate::AntigravityAcp => {
-                                diagnose_antigravity_auth(desc).await.status
-                                    == CodexAuthStatus::Unauthenticated
-                            }
                             _ => false,
                         };
                         if unauthenticated {
                             let host = match desc.template {
                                 AgentTemplate::ClaudeAcp => "Claude",
-                                AgentTemplate::AntigravityAcp => "Antigravity",
                                 _ => "Codex",
-                            };
-                            let remedy = if desc.template == AgentTemplate::AntigravityAcp {
-                                ": set auth.type in ~/.gemini/antigravity-acp/settings.json \
-                                 (oauth-personal) or export GEMINI_API_KEY"
-                            } else {
-                                ""
                             };
                             return ProbeResult {
                                 agent_id,
                                 available: false,
                                 agent_name: Some(name),
                                 protocol_version: Some(version),
-                                error: Some(format!("{host} is not logged in{remedy}")),
+                                error: Some(format!("{host} is not logged in")),
                                 session_capabilities: Some(session_caps),
                             };
                         }
