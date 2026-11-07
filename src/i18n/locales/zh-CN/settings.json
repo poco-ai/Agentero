@@ -917,6 +917,7 @@
 			"installFailed": "无法安装更新，请重试",
 			"check": "检查更新",
 			"downloadInstall": "安装并重启",
+			"releaseNotes": "更新详情",
 			"tagNew": "新版本",
 			"tagUpdating": "更新中…",
 			"tagDownloading": "更新中 {{progress}}%",

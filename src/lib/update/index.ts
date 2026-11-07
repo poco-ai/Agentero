@@ -1,3 +1,4 @@
+export { getUpdateReleaseUrl } from "./release";
 export {
 	checkForUpdate,
 	getUpdateSnapshot,

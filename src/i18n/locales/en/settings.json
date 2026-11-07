@@ -917,6 +917,7 @@
 			"installFailed": "Couldn't install the update. Try again",
 			"check": "Check for updates",
 			"downloadInstall": "Install and restart",
+			"releaseNotes": "Release notes",
 			"tagNew": "New version",
 			"tagUpdating": "Updating…",
 			"tagDownloading": "Updating {{progress}}%",

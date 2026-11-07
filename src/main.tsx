@@ -6,7 +6,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { errorText } from "@/lib/core/error";
 import { initLogger, logger } from "@/lib/core/logger";
-import { notifyAction, notifyError } from "@/lib/core/notify";
+import { notifyError, notifyReminder } from "@/lib/core/notify";
+import { openExternalUrl } from "@/lib/core/open-external";
 import { initPaintOptimizations } from "@/lib/core/paint-perf";
 import { perfActive, perfEmit } from "@/lib/core/perf";
 import { initAutoHideScrollbars } from "@/lib/core/scrollbars";
@@ -23,7 +24,11 @@ import { initSettingsStore } from "@/lib/settings/react-store";
 import { applyNativeWindowTheme } from "@/lib/shell/native-window-theme";
 import { initShellLayoutFromPrefs } from "@/lib/shell/ui-store";
 import { applyUiTheme } from "@/lib/ui/theme";
-import { checkForUpdate, installAvailableUpdate } from "@/lib/update";
+import {
+	checkForUpdate,
+	getUpdateReleaseUrl,
+	installAvailableUpdate,
+} from "@/lib/update";
 import { initVaultStore } from "@/lib/vault/store";
 import { initWorkspaceStore } from "@/lib/workspace/store";
 import i18n, { applyLocale } from "./i18n";
@@ -262,13 +267,16 @@ async function checkForStartupUpdate(): Promise<void> {
 		if (getCurrentWindow().label !== "main") return;
 		const update = await checkForUpdate();
 		if (update.phase !== "available" || !update.availableVersion) return;
-		notifyAction(
+		notifyReminder(
 			i18n.t("settings:about.update.toastTitle", {
 				version: update.availableVersion,
 			}),
 			{
 				id: "app-update-available",
 				description: i18n.t("settings:about.update.toastDescription"),
+				dismissLabel: i18n.t("settings:about.update.releaseNotes"),
+				onDismiss: () =>
+					openExternalUrl(getUpdateReleaseUrl(update.availableVersion)),
 				actionLabel: i18n.t("settings:about.update.downloadInstall"),
 				onAction: () => {
 					void warnIfNoProxyForDownload()

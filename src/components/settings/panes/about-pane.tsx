@@ -3,6 +3,7 @@ import { appLogDir } from "@tauri-apps/api/path";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import {
 	Download,
+	ExternalLink,
 	FolderOpen,
 	LoaderCircle,
 	RefreshCw,
@@ -40,6 +41,7 @@ import { isMacOS, isMobileApp, isTauri, isWindows } from "@/lib/core/tauri";
 import { warnIfNoProxyForDownload } from "@/lib/settings/proxy-guard";
 import {
 	checkForUpdate,
+	getUpdateReleaseUrl,
 	getUpdateSnapshot,
 	installAvailableUpdate,
 	subscribeUpdate,
@@ -251,7 +253,7 @@ export function AboutPane() {
 				}
 			/>
 			<SettingsGroup>
-				<div className="flex items-center justify-between gap-4 px-3.5 py-4">
+				<div className="flex flex-wrap items-center justify-between gap-4 px-3.5 py-4">
 					<div className="flex min-w-0 items-center gap-3">
 						<img
 							src={agenteroAppIcon}
@@ -270,7 +272,21 @@ export function AboutPane() {
 							)}
 						</div>
 					</div>
-					<div className="flex shrink-0 items-center">
+					<div className="flex shrink-0 items-center gap-2">
+						{update.availableVersion && (
+							<Button variant="link" size="sm" asChild>
+								<a
+									href={getUpdateReleaseUrl(update.availableVersion)}
+									onClick={(event) => {
+										event.preventDefault();
+										openExternalUrl(event.currentTarget.href);
+									}}
+								>
+									{t("about.update.releaseNotes")}
+									<ExternalLink data-icon="inline-end" />
+								</a>
+							</Button>
+						)}
 						{update.phase === "available" ? (
 							<Button size="sm" onClick={onInstall}>
 								<Download data-icon="inline-start" />
