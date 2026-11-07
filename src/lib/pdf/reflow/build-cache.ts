@@ -27,7 +27,7 @@ import {
 import { errorText } from "@/lib/core/error";
 import { logger } from "@/lib/core/logger";
 import { isTauri } from "@/lib/core/tauri";
-import { gunzipBytes, gzipBytes, pdfSha256, sha256Bytes } from "./cache-utils";
+import { gunzipBytes, pdfSha256, sha256Bytes } from "./cache-utils";
 import type { ReflowFontBytes } from "./fonts";
 import type { ReflowDocument } from "./types";
 
@@ -162,6 +162,11 @@ async function resolveBase(
 	}
 }
 
+/**
+ * Reads tolerate both the current raw-PDF format and older gzip-wrapped
+ * entries (`gunzipBytes` passes non-gzip bytes through), so upgrading does not
+ * miss or corrupt existing caches.
+ */
 async function readCacheEntry(path: string): Promise<Uint8Array | null> {
 	try {
 		return gunzipBytes(await readFile(path));
@@ -171,11 +176,15 @@ async function readCacheEntry(path: string): Promise<Uint8Array | null> {
 	}
 }
 
-/** Best-effort write; cache failures never break a running translation. */
+/**
+ * Store the finished PDF as-is. PDFs with embedded fonts are already
+ * compressed; gzip only saved ~10% while making the cache file impossible to
+ * open outside the app. Best-effort: failures never break a translation.
+ */
 async function writeCacheEntry(path: string, bytes: Uint8Array): Promise<void> {
 	try {
 		await mkdir(path.replace(/[/\\][^/\\]+$/, ""), { recursive: true });
-		await writeFile(path, await gzipBytes(bytes));
+		await writeFile(path, bytes);
 	} catch (error) {
 		logger.warn("pdf.reflow.buildCache write failed", {
 			error: errorText(error),

@@ -222,10 +222,13 @@ describe("reflow build cache", () => {
 			ir,
 			translations,
 			fontBytes,
-			new Uint8Array([1, 2, 3]),
+			new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e]),
 		);
+		// The stored file is a plain PDF (openable), not a gzip container.
+		const stored = [...disk.files.values()][0];
+		expect(new TextDecoder().decode(stored?.slice(0, 5))).toBe("%PDF-");
 		expect(await cache.readFinal(ir, translations, fontBytes)).toEqual(
-			new Uint8Array([1, 2, 3]),
+			new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e]),
 		);
 		expect(
 			await cache.readFinal(ir, new Map([["p0", "别的译文"]]), fontBytes),
