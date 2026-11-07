@@ -181,6 +181,8 @@
 		}
 	},
 	"source": {
+		"foldLine": "Fold line",
+		"unfoldLine": "Unfold line",
 		"showSource": "Show Markdown source",
 		"showRendered": "Show rendered Markdown",
 		"openFailed": "Could not open Markdown source.",

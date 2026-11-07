@@ -181,6 +181,8 @@
 		}
 	},
 	"source": {
+		"foldLine": "折叠此行",
+		"unfoldLine": "展开此行",
 		"showSource": "显示 Markdown 源码",
 		"showRendered": "显示 Markdown 渲染视图",
 		"openFailed": "无法打开 Markdown 源码。",

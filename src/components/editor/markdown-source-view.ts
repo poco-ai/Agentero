@@ -1,11 +1,39 @@
+import {
+	autocompletion,
+	closeBrackets,
+	closeBracketsKeymap,
+	completionKeymap,
+} from "@codemirror/autocomplete";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import {
+	bracketMatching,
+	defaultHighlightStyle,
+	foldGutter,
+	foldKeymap,
+	indentOnInput,
+	syntaxHighlighting,
+} from "@codemirror/language";
+import { lintKeymap } from "@codemirror/lint";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState, Prec } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
-import { basicSetup } from "codemirror";
+import {
+	crosshairCursor,
+	drawSelection,
+	dropCursor,
+	EditorView,
+	highlightActiveLine,
+	highlightActiveLineGutter,
+	highlightSpecialChars,
+	keymap,
+	lineNumbers,
+	rectangularSelection,
+} from "@codemirror/view";
 import {
 	editorChrome,
 	editorColorScheme,
 	editorSyntaxHighlight,
 } from "@/components/viewer/text-editor-theme";
+import i18n from "@/i18n";
 import { readSourceDocument, sourceDocument } from "@/lib/markdown/source-text";
 import {
 	markdownSourceHighlight,
@@ -24,7 +52,79 @@ const sourceLayout = EditorView.theme({
 	"& .cm-activeLine, & .cm-gutters .cm-activeLineGutter": {
 		backgroundColor: "color-mix(in oklab, var(--foreground) 6%, transparent)",
 	},
+	// Match the line number's first visual row, even on wrapped lines.
+	"& .cm-foldGutter .cm-source-fold": {
+		display: "grid",
+		placeItems: "center",
+		inlineSize: "1em",
+		blockSize: "1lh",
+		padding: "0",
+		cursor: "pointer",
+	},
+	"& .cm-source-fold > svg": {
+		display: "block",
+		inlineSize: "0.8em",
+		blockSize: "0.8em",
+		pointerEvents: "none",
+	},
+	"& .cm-source-fold-open > svg": { transform: "rotate(90deg)" },
 });
+
+function sourceFoldMarker(open: boolean): HTMLElement {
+	const marker = document.createElement("span");
+	marker.className = open
+		? "cm-source-fold cm-source-fold-open"
+		: "cm-source-fold";
+	marker.title = i18n.t(
+		open ? "editor:source.foldLine" : "editor:source.unfoldLine",
+	);
+
+	const svgNamespace = "http://www.w3.org/2000/svg";
+	const icon = document.createElementNS(svgNamespace, "svg");
+	icon.setAttribute("viewBox", "0 0 16 16");
+	icon.setAttribute("aria-hidden", "true");
+	const path = document.createElementNS(svgNamespace, "path");
+	path.setAttribute("d", "M6 4l4 4-4 4");
+	path.setAttribute("fill", "none");
+	path.setAttribute("stroke", "currentColor");
+	path.setAttribute("stroke-width", "1.75");
+	path.setAttribute("stroke-linecap", "round");
+	path.setAttribute("stroke-linejoin", "round");
+	icon.append(path);
+	marker.append(icon);
+	return marker;
+}
+
+// basicSetup has a fixed fold gutter. Compose the same public extensions
+// here so the source editor can draw its own marker without a second gutter.
+const sourceSetup = [
+	lineNumbers(),
+	highlightActiveLineGutter(),
+	highlightSpecialChars(),
+	history(),
+	foldGutter({ markerDOM: sourceFoldMarker }),
+	drawSelection(),
+	dropCursor(),
+	EditorState.allowMultipleSelections.of(true),
+	indentOnInput(),
+	syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+	bracketMatching(),
+	closeBrackets(),
+	autocompletion(),
+	rectangularSelection(),
+	crosshairCursor(),
+	highlightActiveLine(),
+	highlightSelectionMatches(),
+	keymap.of([
+		...closeBracketsKeymap,
+		...defaultKeymap,
+		...searchKeymap,
+		...historyKeymap,
+		...foldKeymap,
+		...completionKeymap,
+		...lintKeymap,
+	]),
+];
 
 const preferences = new Compartment();
 
@@ -78,7 +178,7 @@ export function loadMarkdownSourceView(
 	const state = EditorState.create({
 		doc,
 		extensions: [
-			basicSetup,
+			sourceSetup,
 			endings,
 			editorChrome,
 			preferences.of(sourcePreferences(prefs)),
