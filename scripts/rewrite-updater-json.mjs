@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const API_ASSET = /\/releases\/assets\/(\d+)$/;
+const API_ASSET = /^https:\/\/api\.github\.com\/repos\/([^/]+)\/([^/]+)\/releases\/assets\/(\d+)$/;
 
 export function buildAssetNameMap(assets) {
 	return new Map(
@@ -29,7 +29,11 @@ export function rewriteManifest(manifest, { repository, tag, idToName }) {
 	let already = 0;
 	for (const [platform, entry] of platforms) {
 		const url = entry.url ?? "";
-		const assetId = url.match(API_ASSET)?.[1];
+		const match = url.match(API_ASSET);
+		const assetId =
+			match && `${match[1]}/${match[2]}`.toLowerCase() === repository.toLowerCase()
+				? match[3]
+				: null;
 		if (!assetId) {
 			// A rerun sees its own output; anything else means tauri-action changed
 			// the manifest format and the rewrite would silently stop working.
