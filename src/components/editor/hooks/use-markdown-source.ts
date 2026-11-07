@@ -1,4 +1,4 @@
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 import { useTheme } from "next-themes";
 import type { PlateEditor } from "platejs/react";
 import {
@@ -30,6 +30,7 @@ import {
 	blockAtSourceLine,
 	sourceBlockLines,
 } from "@/lib/markdown/source-block-lines";
+import { scrollTopForViewportAnchor } from "@/lib/markdown/source-mode-alignment";
 
 type SourceMode = "rendered" | "entering" | "source" | "leaving";
 
@@ -50,6 +51,47 @@ function blockAtViewport(
 	if (!block || !slateRoot) return null;
 	const node = editor.api.toSlateNode(block);
 	return node ? (editor.api.findPath(node)?.[0] ?? null) : null;
+}
+
+/** Caret top in px from the editor viewport, or null when it isn't rendered. */
+function caretTopIn(
+	editor: PlateEditor,
+	container: HTMLElement,
+): number | null {
+	const focus = editor.selection?.focus;
+	if (!focus) return null;
+	try {
+		// Collapse at the focus point so a non-empty selection still reports
+		// where the user is about to type, not where the selection starts.
+		const range = editor.api.toDOMRange({ anchor: focus, focus });
+		if (!range || !container.contains(range.startContainer)) return null;
+		return (
+			range.getBoundingClientRect().top - container.getBoundingClientRect().top
+		);
+	} catch {
+		return null;
+	}
+}
+
+function blockTopIn(
+	editor: PlateEditor,
+	container: HTMLElement,
+	index: number,
+): number | null {
+	const node = editor.children[index];
+	const dom = node ? editor.api.toDOMNode(node) : null;
+	return dom
+		? dom.getBoundingClientRect().top - container.getBoundingClientRect().top
+		: null;
+}
+
+/** Source caret top in px from the CodeMirror viewport. */
+function sourceCaretViewportTop(view: EditorView): number {
+	const head = view.state.selection.main.head;
+	const coords = view.coordsAtPos(head);
+	return coords
+		? coords.top - view.scrollDOM.getBoundingClientRect().top
+		: view.lineBlockAt(head).top - view.scrollDOM.scrollTop;
 }
 
 export function useMarkdownSource({
@@ -173,6 +215,14 @@ export function useMarkdownSource({
 						? blockAtViewport(editor, container)
 						: null;
 					const block = editor.selection?.focus.path[0] ?? viewport ?? 0;
+					// Keep the caret at its current height instead of pinning the
+					// whole block to the viewport top. Fall back to the block top
+					// when the caret rect isn't available (e.g. a hidden pane).
+					const caretTop = container
+						? (caretTopIn(editor, container) ??
+							blockTopIn(editor, container, block) ??
+							0)
+						: 0;
 					onEnter();
 					const raw = persistence.dirtyRef.current
 						? serialize()
@@ -191,18 +241,21 @@ export function useMarkdownSource({
 						);
 					};
 					const caretLine = lineOf(block);
-					const viewportLine = viewport === null ? caretLine : lineOf(viewport);
 					const view = loadSource(raw, caretLine);
 					if (!view) throw new Error("Missing Markdown source surface");
 					baseline.current = { raw, lines };
 					beginSource(raw);
 					restore.current = () => {
-						const pos = view.state.doc.line(
-							Math.min(viewportLine, view.state.doc.lines),
-						).from;
 						if (activeRef.current) view.focus();
-						view.dispatch({
-							effects: EditorView.scrollIntoView(pos, { y: "start" }),
+						// The view was created while its host was hidden; force a
+						// fresh measurement before mapping the caret height.
+						view.requestMeasure();
+						const head = view.state.selection.main.head;
+						view.scrollDOM.scrollTop = scrollTopForViewportAnchor({
+							anchorTop: view.lineBlockAt(head).top,
+							anchorViewportTop: caretTop,
+							scrollHeight: view.scrollDOM.scrollHeight,
+							clientHeight: view.scrollDOM.clientHeight,
 						});
 					};
 					changeMode("source");
@@ -220,19 +273,13 @@ export function useMarkdownSource({
 					const view = sourceViewRef.current;
 					const selectionLine =
 						view?.state.doc.lineAt(view.state.selection.main.head).number ?? 1;
-					const viewportLine =
-						view?.state.doc.lineAt(
-							view.lineBlockAtHeight(
-								view.scrollDOM.getBoundingClientRect().top - view.documentTop,
-							).from,
-						).number ?? selectionLine;
+					const caretTop = view ? sourceCaretViewportTop(view) : 0;
 					const blockFor = (line: number) =>
 						Math.min(
 							blockAtSourceLine(lines, line),
 							Math.max(0, (value?.length ?? editor.children.length) - 1),
 						);
 					const selected = blockFor(selectionLine);
-					const visible = blockFor(viewportLine);
 					endSource(value, frontmatter);
 					baseline.current = { raw, lines };
 					restore.current = () => {
@@ -241,12 +288,22 @@ export function useMarkdownSource({
 						if (activeRef.current)
 							editor.api.toDOMNode(editor)?.focus({ preventScroll: true });
 						const container = editorContainerRef.current;
-						const node = editor.children[visible];
+						const node = editor.children[selected];
 						const dom = node && editor.api.toDOMNode(node);
 						if (container && dom) {
-							container.scrollTop +=
+							// Convert the rendered block's document offset back to
+							// viewport space, then place it at the height the source
+							// caret occupied.
+							const anchorTop =
 								dom.getBoundingClientRect().top -
-								container.getBoundingClientRect().top;
+								container.getBoundingClientRect().top +
+								container.scrollTop;
+							container.scrollTop = scrollTopForViewportAnchor({
+								anchorTop,
+								anchorViewportTop: caretTop,
+								scrollHeight: container.scrollHeight,
+								clientHeight: container.clientHeight,
+							});
 						}
 					};
 					changeMode("rendered");
