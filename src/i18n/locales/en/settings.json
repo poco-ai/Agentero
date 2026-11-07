@@ -904,6 +904,15 @@
 			"clearDone": "Cache cleared",
 			"clearFailed": "Couldn't clear the paper full-text cache."
 		},
+		"reflowCache": {
+			"label": "Translation cache",
+			"description": "Reflow IR and translated-PDF cache from full-text translation",
+			"summary": "{{size}}",
+			"clear": "Clear cache",
+			"clearDone": "Translation cache cleared",
+			"clearFailed": "Couldn't clear the translation cache.",
+			"tip": "Caches full-text translation intermediates so re-translating the same paper reuses them instead of re-extracting and rebuilding."
+		},
 		"downloadProxyNotice": {
 			"title": "No network proxy configured",
 			"description": "CLI downloads and app updates come from GitHub. If this network can't reach GitHub, configure a proxy in General → Network proxy and try again.",

@@ -904,6 +904,15 @@
 			"clearDone": "缓存已清除",
 			"clearFailed": "清除论文全文缓存失败。"
 		},
+		"reflowCache": {
+			"label": "翻译缓存",
+			"description": "全文翻译的重排 IR 与译文 PDF 缓存",
+			"summary": "{{size}}",
+			"clear": "清除缓存",
+			"clearDone": "翻译缓存已清除",
+			"clearFailed": "清除翻译缓存失败。",
+			"tip": "缓存全文翻译的中间结果，同一篇论文再次翻译时直接复用，无需重新提取与构建。"
+		},
 		"downloadProxyNotice": {
 			"title": "未配置网络代理",
 			"description": "CLI 与应用更新都从 GitHub 下载。若当前网络无法访问 GitHub，请先在「通用 → 网络代理」中配置代理后重试。",
