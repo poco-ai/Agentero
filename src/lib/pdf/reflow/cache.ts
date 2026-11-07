@@ -80,6 +80,12 @@ export type ReflowIrCacheSource = {
 
 /** Cache operations used by `prepareReflowItems`; fakes are used by tests. */
 export type ReflowIrCacheStore = {
+	/**
+	 * Whether new pages may be written to disk. Omitted by test fakes, which
+	 * always persist. Reads still reuse files written earlier, so turning the
+	 * Settings switch off freezes disk usage without discarding prior work.
+	 */
+	writesEnabled?: () => boolean;
 	read(pageIndexes: readonly number[]): Promise<Map<number, ReflowPage>>;
 	write(pages: readonly ReflowPage[]): Promise<void>;
 };
@@ -211,10 +217,14 @@ async function resolveBase(
 /**
  * Build the real cache store. Key material is computed lazily on the first
  * read/write so a prepare call without a paper/layout/PDF never touches disk.
+ * `options.writesEnabled` is evaluated per write so the Settings switch
+ * applies to a running session.
  */
 export function createReflowIrCache(
 	source: ReflowIrCacheSource,
+	options?: { writesEnabled?: () => boolean },
 ): ReflowIrCacheStore {
+	const canWrite = options?.writesEnabled ?? (() => true);
 	const itemsByPage = groupByPage(source.items);
 	const regionsByPage = groupByPage(source.regions);
 	let base: Promise<CacheBase | null> | undefined;
@@ -278,6 +288,7 @@ export function createReflowIrCache(
 	};
 
 	return {
+		writesEnabled: canWrite,
 		async read(pageIndexes) {
 			const found = new Map<number, ReflowPage>();
 			await Promise.all(
@@ -303,6 +314,7 @@ export function createReflowIrCache(
 			return found;
 		},
 		async write(cachedPages) {
+			if (!canWrite()) return;
 			const targets = await Promise.all(
 				cachedPages.map(async (page) => {
 					const identity = await pageIdentity(page.index);

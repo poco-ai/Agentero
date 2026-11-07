@@ -345,7 +345,7 @@ export class ReflowPreviewSession {
 		bytes: Uint8Array,
 	): Promise<void> {
 		const cache = this.buildCache;
-		if (!cache) return Promise.resolve();
+		if (!cache || cache.writesEnabled?.() === false) return Promise.resolve();
 		return logOp("pdf.reflow.buildCache", { phase: "write" }, async () => {
 			try {
 				await cache.writeFinal(ir, translations, fonts, bytes);

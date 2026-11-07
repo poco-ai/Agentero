@@ -58,6 +58,11 @@ export type ReflowBuildCacheSource = {
 
 /** Cache operations for the finished reflow document; fakes are used by tests. */
 export type ReflowBuildCacheStore = {
+	/**
+	 * See `ReflowIrCacheStore.writesEnabled`; omitted fakes always persist.
+	 * Existing files are still read when writes are off.
+	 */
+	writesEnabled?: () => boolean;
 	readFinal(
 		document: ReflowDocument,
 		translations: ReadonlyMap<string, string>,
@@ -239,7 +244,9 @@ async function pruneBuildDir(dir: string, prefix: string): Promise<void> {
  */
 export function createReflowBuildCache(
 	source: ReflowBuildCacheSource,
+	options?: { writesEnabled?: () => boolean },
 ): ReflowBuildCacheStore {
+	const canWrite = options?.writesEnabled ?? (() => true);
 	let base: Promise<BuildBase | null> | undefined;
 	const baseIdentity = () => (base ??= resolveBase(source).catch(() => null));
 
@@ -253,6 +260,7 @@ export function createReflowBuildCache(
 	};
 
 	return {
+		writesEnabled: canWrite,
 		async readFinal(document, translations, fonts) {
 			const fingerprint = await documentFingerprint(
 				document,
@@ -264,6 +272,7 @@ export function createReflowBuildCache(
 			return readCacheEntry(path);
 		},
 		async writeFinal(document, translations, fonts, bytes) {
+			if (!canWrite()) return;
 			const fingerprint = await documentFingerprint(
 				document,
 				translations,

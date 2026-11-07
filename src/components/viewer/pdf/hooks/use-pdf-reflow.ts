@@ -1,6 +1,7 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSettings } from "@/hooks/use-app-stores";
 import { errorText } from "@/lib/core/error";
 import { logOp } from "@/lib/core/logger";
 import { notifyError } from "@/lib/core/notify";
@@ -31,6 +32,12 @@ export function usePdfReflow(
 	pdfBytes?: ArrayBuffer | null,
 ) {
 	const { t } = useTranslation("viewer");
+	// Cache persistence is user-controlled (Settings → Translate). The ref keeps
+	// a running session in sync without rebuilding it when a switch flips.
+	const cacheReflowIr = useSettings((s) => s.translate.cacheReflowIr);
+	const cacheReflowFinal = useSettings((s) => s.translate.cacheReflowFinal);
+	const cacheFlags = useRef({ ir: cacheReflowIr, final: cacheReflowFinal });
+	cacheFlags.current = { ir: cacheReflowIr, final: cacheReflowFinal };
 	const current = useRef({
 		context,
 		regions,
@@ -60,13 +67,16 @@ export function usePdfReflow(
 			const ctx = current.current.context?.();
 			if (!ctx) return seed;
 			const regions = current.current.regions ?? [];
-			const cache = createReflowIrCache({
-				paperKey: current.current.paperKey || current.current.paperAbsPath,
-				paperAbsPath: current.current.paperAbsPath,
-				pdfBytes: current.current.pdfBytes,
-				items: seed,
-				regions,
-			});
+			const cache = createReflowIrCache(
+				{
+					paperKey: current.current.paperKey || current.current.paperAbsPath,
+					paperAbsPath: current.current.paperAbsPath,
+					pdfBytes: current.current.pdfBytes,
+					items: seed,
+					regions,
+				},
+				{ writesEnabled: () => cacheFlags.current.ir },
+			);
 			if (value) return value.prepare(seed, regions, signal, cache);
 			void loadReflowFonts().catch(() => {});
 			return logOp("pdf.reflow.prepare", { items: seed.length }, () =>
@@ -96,10 +106,13 @@ export function usePdfReflow(
 					description: errorText(error),
 				}),
 			build,
-			createReflowBuildCache({
-				paperKey: current.current.paperKey || current.current.paperAbsPath,
-				pdfBytes: current.current.pdfBytes,
-			}),
+			createReflowBuildCache(
+				{
+					paperKey: current.current.paperKey || current.current.paperAbsPath,
+					pdfBytes: current.current.pdfBytes,
+				},
+				{ writesEnabled: () => cacheFlags.current.final },
+			),
 		);
 		session.current = value;
 		return () => {

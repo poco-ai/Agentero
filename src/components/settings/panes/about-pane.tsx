@@ -46,6 +46,7 @@ import { openExternalUrl } from "@/lib/core/open-external";
 import { isMacOS, isMobileApp, isTauri, isWindows } from "@/lib/core/tauri";
 import {
 	clearReflowCaches,
+	openReflowCacheFolder,
 	reflowCacheUsage,
 } from "@/lib/pdf/reflow/cache-manage";
 import { warnIfNoProxyForDownload } from "@/lib/settings/proxy-guard";
@@ -228,6 +229,15 @@ export function AboutPane() {
 				}),
 			)
 			.finally(() => setReflowBusy(false));
+	};
+
+	const onOpenReflowCacheFolder = () => {
+		void openReflowCacheFolder().catch((err) => {
+			console.error("open reflow cache folder failed", err);
+			notifyError(t("about.reflowCache.openFailed"), {
+				description: errorText(err),
+			});
+		});
 	};
 
 	const onClearScratch = () => {
@@ -546,16 +556,23 @@ export function AboutPane() {
 								</Tooltip>
 							</span>
 						}
-						description={t("about.reflowCache.description")}
+						description={
+							reflowUsage?.bytes
+								? t("about.reflowCache.summary", {
+										size: `${(reflowUsage.bytes / 1024 / 1024).toFixed(1)} MB`,
+									})
+								: undefined
+						}
 					>
 						<div className="flex items-center gap-2">
-							{reflowUsage?.bytes ? (
-								<span className="text-muted-foreground text-xs">
-									{t("about.reflowCache.summary", {
-										size: `${(reflowUsage.bytes / 1024 / 1024).toFixed(1)} MB`,
-									})}
-								</span>
-							) : null}
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={reflowBusy}
+								onClick={onOpenReflowCacheFolder}
+							>
+								{t("about.reflowCache.open")}
+							</Button>
 							<Button
 								variant="outline"
 								size="sm"

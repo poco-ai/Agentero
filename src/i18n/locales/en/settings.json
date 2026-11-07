@@ -535,6 +535,19 @@
 			"overlay": "Overlay on original PDF",
 			"dualPane": "Dual pane"
 		},
+		"cache": {
+			"section": "Cache",
+			"ir": {
+				"label": "Cache reflow IR",
+				"description": "Saves extracted character geometry so reopening a paper skips extraction."
+			},
+			"final": {
+				"label": "Cache translated PDF",
+				"description": "Saves the built translated PDF. Each paper takes about 25 MB."
+			},
+			"tip": "Turning a switch off only stops new writes; existing entries keep being reused.",
+			"reset": "Restore defaults"
+		},
 		"providerConfig": {
 			"section": "API Services",
 			"confirm": "Confirm",
@@ -906,12 +919,13 @@
 		},
 		"reflowCache": {
 			"label": "Translation cache",
-			"description": "Reflow IR and translated-PDF cache from full-text translation",
 			"summary": "{{size}}",
+			"open": "Open cache folder",
+			"openFailed": "Couldn't open the cache folder.",
 			"clear": "Clear cache",
 			"clearDone": "Translation cache cleared",
 			"clearFailed": "Couldn't clear the translation cache.",
-			"tip": "Caches full-text translation intermediates so re-translating the same paper reuses them instead of re-extracting and rebuilding."
+			"tip": "Caches full-text translation intermediates so re-translating the same paper reuses them instead of re-extracting and rebuilding. Turning a switch off only stops new writes; existing entries keep being reused. Control both caches under Settings → Translate → Cache."
 		},
 		"downloadProxyNotice": {
 			"title": "No network proxy configured",

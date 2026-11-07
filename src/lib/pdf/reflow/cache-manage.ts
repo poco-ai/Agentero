@@ -7,7 +7,8 @@
  */
 
 import { appCacheDir, join } from "@tauri-apps/api/path";
-import { readDir, remove, stat } from "@tauri-apps/plugin-fs";
+import { mkdir, readDir, remove, stat } from "@tauri-apps/plugin-fs";
+import { openPath } from "@tauri-apps/plugin-opener";
 import { isTauri } from "@/lib/core/tauri";
 
 const IR_DIR = "reflow-ir";
@@ -66,6 +67,20 @@ export async function reflowCacheUsage(): Promise<ReflowCacheUsage | null> {
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * Reveal the app cache folder that holds both reflow cache roots. Creates the
+ * roots first so the folder exists even before the first translation.
+ */
+export async function openReflowCacheFolder(): Promise<void> {
+	if (!isTauri()) return;
+	const cacheRoot = await appCacheDir();
+	await Promise.all([
+		mkdir(await join(cacheRoot, IR_DIR), { recursive: true }),
+		mkdir(await join(cacheRoot, BUILD_DIR), { recursive: true }),
+	]);
+	await openPath(cacheRoot);
 }
 
 /**

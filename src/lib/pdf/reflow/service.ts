@@ -61,6 +61,9 @@ export async function prepareReflowItems(
 	cache?: ReflowIrCacheStore | null,
 ): Promise<LayoutTranslateItem[]> {
 	const pageIndexes = [...new Set(items.map((item) => item.pageIndex))];
+	// The Settings switch gates new writes only; files written earlier stay
+	// reusable. Fakes without `writesEnabled` run exactly as before.
+	const writeCache = cache && (cache.writesEnabled?.() ?? true) ? cache : null;
 	const pages = cache
 		? await logOp(
 				"pdf.reflow.prepare.cache",
@@ -96,11 +99,11 @@ export async function prepareReflowItems(
 			() => extractReflowDocument(engine, doc, missing, regions, signal),
 		);
 		for (const page of extracted.pages) pages.set(page.index, page);
-		if (cache && !signal?.aborted)
+		if (writeCache && !signal?.aborted)
 			await logOp(
 				"pdf.reflow.prepare.cache",
 				{ phase: "write", pages: extracted.pages.length },
-				() => writeCachedPages(cache, extracted.pages),
+				() => writeCachedPages(writeCache, extracted.pages),
 			);
 	}
 	return preparedItemsFromDocument(doc, items, {

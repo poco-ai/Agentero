@@ -295,6 +295,37 @@ describe("reflow build cache", () => {
 		).not.toBeNull();
 	});
 
+	it("stops writing new finals when persistence is disabled but keeps reading existing ones", async () => {
+		let enabled = true;
+		const cache = createReflowBuildCache(
+			{
+				paperKey: "papers/demo",
+				pdfBytes: new TextEncoder().encode("pdf-one"),
+			},
+			{ writesEnabled: () => enabled },
+		);
+		const ir = {
+			version: 1 as const,
+			pages: [
+				{ index: 0, width: 100, height: 100, paragraphs: [], obstacles: [] },
+			],
+		};
+		const translations = new Map([["p0", "译文"]]);
+		const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]);
+		await cache.writeFinal(ir, translations, fontBytes, bytes);
+		expect(disk.files.size).toBe(1);
+
+		enabled = false;
+		await cache.writeFinal(
+			ir,
+			translations,
+			fontBytes,
+			new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x32]),
+		);
+		expect(disk.files.size).toBe(1);
+		expect(await cache.readFinal(ir, translations, fontBytes)).toEqual(bytes);
+	});
+
 	it("keeps only the newest finals per paper and sweeps legacy page files", async () => {
 		const cache = createReflowBuildCache({
 			paperKey: "papers/demo",

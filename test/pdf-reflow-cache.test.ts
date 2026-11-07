@@ -321,6 +321,29 @@ describe("reflow IR cache", () => {
 		expect(await otherLayout.read([0])).toEqual(new Map());
 	});
 
+	it("stops writing new pages when persistence is disabled but keeps reusing existing ones", async () => {
+		disk.files.clear();
+		let enabled = true;
+		const cache = createReflowIrCache(
+			{
+				paperKey: "papers/demo",
+				paperAbsPath: "/vault/papers/demo",
+				pdfBytes: new TextEncoder().encode("pdf-one"),
+				items: [item("p0", 0), item("p1", 1)],
+				regions: [],
+			},
+			{ writesEnabled: () => enabled },
+		);
+		await cache.write([pageWithFormula(0)]);
+		expect(disk.files.size).toBe(1);
+
+		enabled = false;
+		await cache.write([pageWithFormula(1)]);
+		expect(disk.files.size).toBe(1);
+		expect(await cache.read([0])).toEqual(new Map([[0, pageWithFormula(0)]]));
+		expect(await cache.read([1])).toEqual(new Map());
+	});
+
 	it("rejects corrupt payloads, different keys, and older versions", async () => {
 		const page = pageWithFormula(0);
 		const expected = header(0);
