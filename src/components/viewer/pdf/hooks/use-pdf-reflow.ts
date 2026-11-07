@@ -8,6 +8,7 @@ import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
+import { createReflowBuildCache } from "@/lib/pdf/reflow/build-cache";
 import { ReflowBuildEngine } from "@/lib/pdf/reflow/builder";
 import { createReflowIrCache } from "@/lib/pdf/reflow/cache";
 import { interleaveReflowPdf } from "@/lib/pdf/reflow/export";
@@ -95,6 +96,10 @@ export function usePdfReflow(
 					description: errorText(error),
 				}),
 			build,
+			createReflowBuildCache({
+				paperKey: current.current.paperKey || current.current.paperAbsPath,
+				pdfBytes: current.current.pdfBytes,
+			}),
 		);
 		session.current = value;
 		return () => {

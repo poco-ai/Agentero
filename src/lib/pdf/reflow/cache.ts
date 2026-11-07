@@ -33,6 +33,14 @@ import type {
 } from "@/lib/pdf/layout/types";
 import { readVaultBytes } from "@/lib/vault/fs";
 import {
+	gunzipBytes,
+	gzipBytes,
+	paperSlug,
+	pdfSha256,
+	sha256Bytes,
+	sha256Text,
+} from "./cache-utils";
+import {
 	type Box,
 	type Character,
 	type CharacterCoverage,
@@ -104,33 +112,6 @@ type PageIdentity = {
 	header: ReflowIrPageHeader;
 };
 
-const pdfDigests = new WeakMap<object, Promise<string>>();
-
-async function sha256(bytes: Uint8Array): Promise<string> {
-	const digest = await crypto.subtle.digest("SHA-256", bytes.slice().buffer);
-	return Array.from(new Uint8Array(digest), (n) =>
-		n.toString(16).padStart(2, "0"),
-	).join("");
-}
-
-function sha256Text(value: string): Promise<string> {
-	return sha256(new TextEncoder().encode(value));
-}
-
-function pdfSha256(bytes: ArrayBuffer | Uint8Array): Promise<string> {
-	let pending = pdfDigests.get(bytes);
-	if (!pending) {
-		pending = sha256(
-			bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes),
-		).catch((error) => {
-			pdfDigests.delete(bytes);
-			throw error;
-		});
-		pdfDigests.set(bytes, pending);
-	}
-	return pending;
-}
-
 const boxParts = (box: Box) => [box.x, box.y, box.w, box.h];
 
 /**
@@ -184,16 +165,6 @@ function pageCacheKey(
 	].join(":");
 }
 
-function paperSlug(paperKey: string): string {
-	const base =
-		paperKey.replace(/\\/g, "/").split("/").filter(Boolean).at(-1) ?? "paper";
-	const slug = base
-		.replace(/[^A-Za-z0-9._-]+/g, "_")
-		.replace(/^_+|_+$/g, "")
-		.slice(0, 48);
-	return slug || "paper";
-}
-
 function groupByPage<T extends { pageIndex: number }>(
 	entries: readonly T[],
 ): Map<number, T[]> {
@@ -221,7 +192,7 @@ async function resolveBase(
 	}
 	const [pdfHash, layoutHash, paperHash] = await Promise.all([
 		pdfSha256(source.pdfBytes),
-		sha256(layoutBytes),
+		sha256Bytes(layoutBytes),
 		sha256Text(paperKey),
 	]);
 	return {
@@ -403,11 +374,7 @@ export async function encodeReflowIrCachePage(
 	file: ReflowIrCacheFile,
 ): Promise<Uint8Array> {
 	const json = new TextEncoder().encode(JSON.stringify(file));
-	if (typeof CompressionStream === "undefined") return json;
-	const stream = new Blob([json])
-		.stream()
-		.pipeThrough(new CompressionStream("gzip"));
-	return new Uint8Array(await new Response(stream).arrayBuffer());
+	return gzipBytes(json);
 }
 
 export async function decodeReflowIrCachePage(
@@ -428,13 +395,7 @@ export async function decodeReflowIrCachePage(
 }
 
 async function decompress(bytes: Uint8Array): Promise<Uint8Array> {
-	if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return bytes;
-	if (typeof DecompressionStream === "undefined")
-		throw new Error("gzip decompression is unavailable");
-	const stream = new Blob([bytes])
-		.stream()
-		.pipeThrough(new DecompressionStream("gzip"));
-	return new Uint8Array(await new Response(stream).arrayBuffer());
+	return gunzipBytes(bytes);
 }
 
 function sameHeader(a: ReflowIrPageHeader, b: ReflowIrPageHeader): boolean {

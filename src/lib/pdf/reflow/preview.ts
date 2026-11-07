@@ -1,15 +1,24 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
-import { logOp } from "@/lib/core/logger";
+import { PDFDocument } from "pdf-lib";
+import { errorText } from "@/lib/core/error";
+import { logger, logOp } from "@/lib/core/logger";
 import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
+import type { ReflowBuildCacheStore } from "./build-cache";
 import type { ReflowBuildProvider, ReflowBuildTarget } from "./builder";
 import type { ReflowIrCacheStore } from "./cache";
-import { buildReflowPage, buildReflowPdf, type ReflowOutput } from "./export";
-import { loadReflowFonts } from "./fonts";
+import {
+	buildReflowPage,
+	buildReflowPdf,
+	embedReflowFonts,
+	type ReflowOutput,
+} from "./export";
+import { loadReflowFonts, type ReflowFontBytes } from "./fonts";
+import { layoutReflowDocument } from "./layout";
 import { prepareReflowItems, reflowDocumentFromItems } from "./service";
-import type { PageLayout } from "./types";
+import type { PageLayout, ReflowDocument } from "./types";
 
 type PageInput = { key: string; items: LayoutTranslateItem[]; ready: boolean };
 type Preview = { key: string; url: string; layout: PageLayout };
@@ -81,6 +90,8 @@ export class ReflowPreviewSession {
 		private failed: (error: unknown) => void,
 		/** Builds run on this dedicated engine so scroll rendering keeps the viewer queue. */
 		private build?: ReflowBuildProvider,
+		/** Finished-build cache: skips PDFium redaction + font embedding on repeats. */
+		private buildCache?: ReflowBuildCacheStore | null,
 	) {}
 
 	get busy(): boolean {
@@ -201,6 +212,19 @@ export class ReflowPreviewSession {
 							.filter((i) => i.status === "done" && i.translated?.trim())
 							.map((i) => [i.id, i.translated ?? ""]),
 					);
+					const cached = await this.cachedBuild(
+						"page",
+						index,
+						ir,
+						translations,
+						false,
+						fonts,
+						signal,
+					);
+					if (cached) {
+						await this.publish(this.engine, cached, signal, true);
+						return;
+					}
 					const target = await this.obtainBuild(signal);
 					const built = await logOp("pdf.reflow.page", { page: index }, () =>
 						buildReflowPage(
@@ -211,6 +235,14 @@ export class ReflowPreviewSession {
 							fonts,
 							signal,
 						),
+					);
+					await this.saveBuilt(
+						"page",
+						index,
+						ir,
+						translations,
+						fonts,
+						built.bytes,
 					);
 					await this.publish(target.engine, built, signal, true);
 				});
@@ -230,18 +262,47 @@ export class ReflowPreviewSession {
 				signal.throwIfAborted();
 				// Retain untranslated IR paragraphs as obstacles (including fallback text).
 				const ir = reflowDocumentFromItems(this.document, items, regions);
+				const translations = new Map(
+					selected.map((i) => [i.id, i.translated ?? ""]),
+				);
+				const cached = await this.cachedBuild(
+					"final",
+					undefined,
+					ir,
+					translations,
+					true,
+					fonts,
+					signal,
+				);
+				if (cached) {
+					await this.publish(this.engine, cached, signal, false, (ratio) =>
+						report(0.8 + ratio * 0.19),
+					);
+					signal.throwIfAborted();
+					this.output = cached.bytes;
+					report(1);
+					return;
+				}
 				const target = await this.obtainBuild(signal);
 				const built = await logOp("pdf.reflow.final", undefined, () =>
 					buildReflowPdf(
 						target.engine,
 						target.document,
 						ir,
-						new Map(selected.map((i) => [i.id, i.translated ?? ""])),
+						translations,
 						fonts,
 						signal,
 						true,
 						(ratio) => report(ratio * 0.8),
 					),
+				);
+				await this.saveBuilt(
+					"final",
+					undefined,
+					ir,
+					translations,
+					fonts,
+					built.bytes,
 				);
 				await this.publish(target.engine, built, signal, false, (ratio) =>
 					report(0.8 + ratio * 0.19),
@@ -252,6 +313,93 @@ export class ReflowPreviewSession {
 			});
 		}
 		this.notify();
+	}
+
+	/**
+	 * Reuse a previously built page / final PDF when IR, translations, and
+	 * fonts are unchanged. Layouts are recomputed in memory (cheap) so preview
+	 * publishing works identically to a fresh build.
+	 */
+	private async cachedBuild(
+		kind: "page" | "final",
+		page: number | undefined,
+		ir: ReflowDocument,
+		translations: Map<string, string>,
+		commonScale: boolean,
+		fonts: ReflowFontBytes,
+		signal: AbortSignal,
+	): Promise<ReflowOutput | null> {
+		const cache = this.buildCache;
+		if (!cache) return null;
+		try {
+			const bytes = await logOp(
+				"pdf.reflow.buildCache",
+				{ phase: "read", kind, ...(page !== undefined ? { page } : {}) },
+				() =>
+					kind === "page"
+						? cache.readPage(ir, page ?? -1, translations, fonts)
+						: cache.readFinal(ir, translations, fonts),
+			);
+			signal.throwIfAborted();
+			if (!bytes) {
+				logger.info("pdf.reflow.buildCache", {
+					result: "miss",
+					kind,
+					...(page !== undefined ? { page } : {}),
+				});
+				return null;
+			}
+			logger.info("pdf.reflow.buildCache", {
+				result: "hit",
+				kind,
+				bytes: bytes.byteLength,
+				...(page !== undefined ? { page } : {}),
+			});
+			// Layout metrics are recomputed in memory against the same embedded
+			// fonts, so overlays match the cached render without rebuilding it.
+			const embedded = await embedReflowFonts(
+				await PDFDocument.create(),
+				fonts,
+			);
+			return {
+				bytes,
+				pages: layoutReflowDocument(ir, translations, embedded, commonScale),
+			};
+		} catch (error) {
+			if (signal.aborted) throw error;
+			logger.warn("pdf.reflow.buildCache read failed", {
+				error: errorText(error),
+			});
+			return null;
+		}
+	}
+
+	/** Best-effort persistence of a freshly built PDF; never fails the job. */
+	private saveBuilt(
+		kind: "page" | "final",
+		page: number | undefined,
+		ir: ReflowDocument,
+		translations: Map<string, string>,
+		fonts: ReflowFontBytes,
+		bytes: Uint8Array,
+	): Promise<void> {
+		const cache = this.buildCache;
+		if (!cache) return Promise.resolve();
+		return logOp(
+			"pdf.reflow.buildCache",
+			{ phase: "write", kind, ...(page !== undefined ? { page } : {}) },
+			async () => {
+				try {
+					if (kind === "page")
+						await cache.writePage(ir, page ?? -1, translations, fonts, bytes);
+					else await cache.writeFinal(ir, translations, fonts, bytes);
+				} catch (error) {
+					logger.warn("pdf.reflow.buildCache write failed", {
+						error: errorText(error),
+					});
+				}
+			},
+		).then(() => {});
 	}
 
 	/** Dedicated build engine when available; the viewer pair is the fallback. */
