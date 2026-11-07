@@ -2,7 +2,9 @@ import { getVersion } from "@tauri-apps/api/app";
 import { appLogDir } from "@tauri-apps/api/path";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import {
+	ArrowRight,
 	Download,
+	ExternalLink,
 	FolderOpen,
 	Info,
 	Languages,
@@ -52,6 +54,7 @@ import {
 import { warnIfNoProxyForDownload } from "@/lib/settings/proxy-guard";
 import {
 	checkForUpdate,
+	getUpdateReleaseUrl,
 	getUpdateSnapshot,
 	installAvailableUpdate,
 	subscribeUpdate,
@@ -303,7 +306,7 @@ export function AboutPane() {
 				}
 			/>
 			<SettingsGroup>
-				<div className="flex items-center justify-between gap-4 px-3.5 py-4">
+				<div className="flex flex-wrap items-center justify-between gap-4 px-3.5 py-4">
 					<div className="flex min-w-0 items-center gap-3">
 						<img
 							src={agenteroAppIcon}
@@ -316,13 +319,33 @@ export function AboutPane() {
 								Agentero
 							</p>
 							{version && (
-								<p className="text-muted-foreground text-xs">
-									{t("about.version", { version })}
+								<p className="flex flex-wrap items-center gap-1.5 text-muted-foreground text-xs">
+									<span>{t("about.version", { version })}</span>
+									{update.availableVersion && (
+										<span className="inline-flex items-center gap-0.5 font-medium text-emerald-600 dark:text-emerald-400">
+											<ArrowRight aria-hidden className="size-3" />
+											{`v${update.availableVersion}`}
+										</span>
+									)}
 								</p>
 							)}
 						</div>
 					</div>
-					<div className="flex shrink-0 items-center">
+					<div className="flex shrink-0 items-center gap-2">
+						{update.availableVersion && (
+							<Button variant="link" size="sm" asChild>
+								<a
+									href={getUpdateReleaseUrl(update.availableVersion)}
+									onClick={(event) => {
+										event.preventDefault();
+										openExternalUrl(event.currentTarget.href);
+									}}
+								>
+									{t("about.update.releaseNotes")}
+									<ExternalLink data-icon="inline-end" />
+								</a>
+							</Button>
+						)}
 						{update.phase === "available" ? (
 							<Button size="sm" onClick={onInstall}>
 								<Download data-icon="inline-start" />
