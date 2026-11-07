@@ -103,6 +103,19 @@ describe("OpenUI block parsing", () => {
 		expect(query.kind).toBe("failed");
 	});
 
+	it("rejects semantic refinements from the shared zod schema", () => {
+		const progress = parseSettled(
+			'root = Stack([p])\np = Progress("Coverage", 120, 100)',
+		).resolved.view;
+		expect(progress.kind).toBe("failed");
+		if (progress.kind === "failed") expect(progress.reason).toBe("invalid");
+
+		const line = parseSettled(
+			'root = Stack([c])\nc = LineChart("Trend", ["A"], [1, 2])',
+		).resolved.view;
+		expect(line.kind).toBe("failed");
+	});
+
 	it("reports an unclosed block as incomplete instead of rendering stale data", () => {
 		const source = 'root = Stack([text])\ntext = Text("Hi';
 		const { resolved } = parseSettled(source);
