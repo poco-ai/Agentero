@@ -263,8 +263,7 @@ export function DocWindowRoot() {
 			setTab((prev) => {
 				if (!prev) return prev;
 				return (
-					applyMarkdownConflictChoice([prev], tabId, action, disk)[0] ??
-					prev
+					applyMarkdownConflictChoice([prev], tabId, action, disk)[0] ?? prev
 				);
 			});
 		},
