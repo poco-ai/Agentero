@@ -589,6 +589,7 @@ pub fn run() {
             ) {
                 app.state::<Arc<crate::features::agent::session::pool::AgentWarmPool>>()
                     .shutdown();
+                crate::features::agent::acp::process::shutdown();
                 app.state::<Arc<crate::features::agent::delegate::DelegateBridge>>()
                     .shutdown();
                 #[cfg(not(target_os = "ios"))]

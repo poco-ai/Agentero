@@ -3,6 +3,7 @@ pub mod client;
 pub mod grok_models;
 pub mod interaction;
 pub mod probe;
+pub(crate) mod process;
 pub mod terminal;
 pub mod updates;
 
