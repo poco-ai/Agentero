@@ -5,7 +5,8 @@ version: 1
 # auto-upgrade a bundled skill when this integer increases.
 description: >-
   Write read-only OpenUI Lang UI blocks in Agentero chat replies. Use when a
-  compact table, chart, steps, card or callout communicates better than prose.
+  compact paper card, figure reference, claim list, outline, table, chart,
+  steps or callout communicates better than prose.
   Not for interactive forms, buttons or stateful widgets.
 ---
 

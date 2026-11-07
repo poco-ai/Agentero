@@ -2,6 +2,7 @@
 "use client";
 
 import type { ElementNode } from "@openuidev/lang-core";
+import { MarkdownText } from "../markdown-text";
 import { optionalStringProp, stringProp } from "./shared";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -27,9 +28,12 @@ export function TimelineNode({ node }: { node: ElementNode }) {
 							{String(item.title ?? "")}
 						</div>
 						{item.description ? (
-							<p className="mt-0.5 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
-								{stringProp(item, "description")}
-							</p>
+							<div className="mt-0.5">
+								<MarkdownText
+									text={stringProp(item, "description")}
+									className="text-xs text-muted-foreground"
+								/>
+							</div>
 						) : null}
 					</li>
 				))}

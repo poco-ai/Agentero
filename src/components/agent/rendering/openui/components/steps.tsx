@@ -4,6 +4,7 @@
 import type { ElementNode } from "@openuidev/lang-core";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MarkdownText } from "../markdown-text";
 import { stringList, stringProp } from "./shared";
 
 export function StepsNode({ node }: { node: ElementNode }) {
@@ -28,9 +29,9 @@ export function StepsNode({ node }: { node: ElementNode }) {
 								<span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
 									{index + 1}
 								</span>
-								<span className="min-w-0 text-sm leading-relaxed whitespace-pre-wrap">
-									{step}
-								</span>
+								<div className="min-w-0">
+									<MarkdownText text={step} />
+								</div>
 							</li>
 						))}
 					</ol>

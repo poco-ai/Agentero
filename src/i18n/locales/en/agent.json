@@ -197,6 +197,28 @@
 		"chartEmpty": "No data.",
 		"chartAria": "Bar chart: {{title}}",
 		"lineChartAria": "Line chart: {{title}}",
+		"openPaper": "Open paper",
+		"openSource": "Open source",
+		"page": "p. {{page}}",
+		"paperStatus": {
+			"unread": "Unread",
+			"reading": "Reading",
+			"read": "Read",
+			"queued": "Queued"
+		},
+		"figureKind": {
+			"figure": "Figure",
+			"table": "Table",
+			"equation": "Equation",
+			"algorithm": "Algorithm",
+			"section": "Section"
+		},
+		"claimStatus": {
+			"supports": "Supports",
+			"contradicts": "Contradicts",
+			"mixed": "Mixed",
+			"unclear": "Unclear"
+		},
 		"stepsEmpty": "No steps."
 	},
 	"askUserQuestion": {

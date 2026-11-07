@@ -29,10 +29,14 @@ row = Row([Text("Left"), Text("Right")], "sm")`;
 
 let host: HTMLDivElement | null = null;
 
-function render(source: string, streaming = false) {
+function render(
+	source: string,
+	streaming = false,
+	onOpenSource?: (source: string) => void,
+) {
 	const container = document.createElement("div");
 	container.innerHTML = renderToStaticMarkup(
-		createElement(OpenUiBlock, { source, streaming }),
+		createElement(OpenUiBlock, { source, streaming, onOpenSource }),
 	);
 	document.body.append(container);
 	host = container;
@@ -62,35 +66,43 @@ describe("OpenUI rendering", () => {
 		expect(element.querySelector("svg[role='img']")).not.toBeNull();
 	});
 
-	it("renders the remaining read-only components", () => {
-		const source = `root = Stack([card, badge, kv, progress, line, quote, code, math, divider, list, timeline, tree, tags, sources, row])
+	it("renders Markdown inside Text", () => {
+		const element = render(
+			'root = Stack([text])\ntext = Text("**Bold** and $x^2$")',
+		);
+		expect(
+			element.querySelector('[data-streamdown="strong"]')?.textContent,
+		).toBe("Bold");
+		expect(element.querySelector(".katex")).not.toBeNull();
+	});
+
+	it("renders the non-Markdown and research components", () => {
+		const source = `root = Stack([card, badge, kv, progress, line, paper, figure, claims, outline, timeline, tree, tags, sources, row])
 card = Card("Overview", [row])
 row = Row([Text("A"), Text("B")])
 badge = Badge("Stable", "success")
 kv = KeyValue([{label: "Model", value: "A"}, {label: "Score", value: 91}])
 progress = Progress("Coverage", 42, 100)
 line = LineChart("Trend", ["Q1", "Q2"], [3, 5], "%")
-quote = Quote("A quote", "Source")
-code = Code("print(1)", "python")
-math = Math("x^2", true)
-divider = Divider("Section")
-list = List(["one", "two"], true)
+paper = PaperCard({title: "Paper", authors: "A. Author", year: "2024", venue: "NeurIPS", path: "papers/x/x.pdf", status: "read", tags: ["LLM"]})
+figure = FigureRef("Figure 2", "Architecture", "papers/x/x.pdf#figure=2", "figure")
+claims = ClaimList("Claims", [{claim: "**Claim**", status: "supports", evidence: "Evidence", source: "papers/x/x.pdf#page=3"}])
+outline = Outline("Outline", [{title: "Intro", level: 1, page: 1, source: "papers/x/x.pdf#page=1"}])
 timeline = Timeline("History", [{title: "Start", description: "Begin"}])
 tree = Tree("Tree", [{label: "Root"}, {label: "Child", depth: 1}])
 tags = TagList(["a", "b"])
-sources = SourceList([{label: "Paper", detail: "arXiv"}])`;
-		const element = render(source);
+sources = SourceList([{label: "Paper", detail: "arXiv", path: "papers/x/x.pdf"}])`;
+		const element = render(source, false, vi.fn());
 		for (const name of [
 			"Card",
 			"Badge",
 			"KeyValue",
 			"Progress",
 			"LineChart",
-			"Quote",
-			"Code",
-			"Math",
-			"Divider",
-			"List",
+			"PaperCard",
+			"FigureRef",
+			"ClaimList",
+			"Outline",
 			"Timeline",
 			"Tree",
 			"TagList",
@@ -103,11 +115,14 @@ sources = SourceList([{label: "Paper", detail: "arXiv"}])`;
 		expect(element.textContent).toContain("Overview");
 		expect(element.textContent).toContain("Stable");
 		expect(element.textContent).toContain("Coverage");
-		expect(element.textContent).toContain("A quote");
-		expect(element.textContent).toContain("print(1)");
 		expect(element.textContent).toContain("Paper");
+		expect(element.textContent).toContain("Figure 2");
+		expect(element.textContent).toContain("Intro");
 		expect(element.querySelector('[role="progressbar"]')).not.toBeNull();
-		expect(element.querySelector("blockquote")).not.toBeNull();
+		expect(
+			element.querySelector('[data-streamdown="strong"]')?.textContent,
+		).toBe("Claim");
+		expect(element.querySelector("button")).not.toBeNull();
 	});
 
 	it("reuses the chat table renderer and its copy payload", () => {

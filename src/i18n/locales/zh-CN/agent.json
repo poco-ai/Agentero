@@ -197,6 +197,28 @@
 		"chartEmpty": "没有数据。",
 		"chartAria": "柱状图：{{title}}",
 		"lineChartAria": "折线图：{{title}}",
+		"openPaper": "打开论文",
+		"openSource": "打开来源",
+		"page": "第 {{page}} 页",
+		"paperStatus": {
+			"unread": "未读",
+			"reading": "在读",
+			"read": "已读",
+			"queued": "待读"
+		},
+		"figureKind": {
+			"figure": "图",
+			"table": "表",
+			"equation": "公式",
+			"algorithm": "算法",
+			"section": "章节"
+		},
+		"claimStatus": {
+			"supports": "支持",
+			"contradicts": "矛盾",
+			"mixed": "混合",
+			"unclear": "不明确"
+		},
 		"stepsEmpty": "没有步骤。"
 	},
 	"askUserQuestion": {

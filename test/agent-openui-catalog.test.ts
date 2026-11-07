@@ -24,7 +24,11 @@ describe("generated OpenUI catalog snapshot", () => {
 	});
 
 	it("keeps names, props and parser signatures in one catalog", () => {
-		expect(OPENUI_COMPONENT_NAMES).toHaveLength(22);
+		expect(OPENUI_COMPONENT_NAMES).toContain("PaperCard");
+		expect(OPENUI_COMPONENT_NAMES).toContain("ClaimList");
+		for (const removed of ["Math", "Code", "Quote", "Divider", "List"]) {
+			expect(OPENUI_COMPONENT_NAMES).not.toContain(removed);
+		}
 		expect(OPENUI_COMPONENT_NAMES).toEqual(Object.keys(blockProps));
 		expect(new Set(OPENUI_COMPONENT_NAMES).size).toBe(
 			OPENUI_COMPONENT_NAMES.length,

@@ -5,7 +5,8 @@ version: 1
 # auto-upgrade a bundled skill when this integer increases.
 description: >-
   Write read-only OpenUI Lang UI blocks in Agentero chat replies. Use when a
-  compact table, chart, steps, card or callout communicates better than prose.
+  compact paper card, figure reference, claim list, outline, table, chart,
+  steps or callout communicates better than prose.
   Not for interactive forms, buttons or stateful widgets.
 ---
 
@@ -40,10 +41,10 @@ chart = BarChart("Scores", ["A", "B"], [91, 87], "%")
 ## Components
 
 <!-- BEGIN GENERATED COMPONENTS -->
-- `Stack(children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | Quote | Code | Math | Divider | List | Timeline | Tree | TagList | SourceList | Row | Card)[], gap?: "sm" | "md" | "lg")` — vertical root container
-- `Row(children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | Quote | Code | Math | Divider | List | Timeline | Tree | TagList | SourceList)[], gap?: "sm" | "md" | "lg")` — horizontal row; wraps on narrow screens
-- `Card(title: string, children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | Quote | Code | Math | Divider | List | Timeline | Tree | TagList | SourceList | Row)[])` — titled container for a group of components
-- `Text(text: string, variant?: "body" | "heading" | "caption" | "code")` — plain text; variant body|heading|caption|code
+- `Stack(children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | PaperCard | FigureRef | ClaimList | Outline | Timeline | Tree | TagList | SourceList | Row | Card)[], gap?: "sm" | "md" | "lg")` — vertical root container
+- `Row(children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | PaperCard | FigureRef | ClaimList | Outline | Timeline | Tree | TagList | SourceList)[], gap?: "sm" | "md" | "lg")` — horizontal row; wraps on narrow screens
+- `Card(title: string, children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | PaperCard | FigureRef | ClaimList | Outline | Timeline | Tree | TagList | SourceList | Row)[])` — titled container for a group of components
+- `Text(markdown: string, variant?: "body" | "heading" | "caption")` — Markdown text; variant body|heading|caption
 - `Badge(label: string, tone?: "neutral" | "info" | "success" | "warning" | "danger")` — small status pill
 - `Callout(title: string, body: string, tone?: "info" | "success" | "warning" | "danger")` — short note with tone info|success|warning|danger
 - `KeyValue(items: {label: string, value: string | number}[])` — label/value rows for metadata
@@ -53,13 +54,12 @@ chart = BarChart("Scores", ["A", "B"], [91, 87], "%")
 - `Steps(title: string, steps: string[])` — ordered steps
 - `BarChart(title: string, labels: string[], values: number[], unit?: string)` — categorical bars; labels and values must be equal length
 - `LineChart(title: string, labels: string[], values: number[], unit?: string)` — values over labels; labels and values must be equal length
-- `Quote(text: string, source?: string)` — short quotation with an optional source
-- `Code(code: string, language?: string)` — read-only code block with language highlighting
-- `Math(tex: string, display?: boolean)` — display or inline TeX formula
-- `Divider(label?: string)` — horizontal separator with an optional label
-- `List(items: string[], ordered?: boolean)` — bullet or numbered list
+- `PaperCard(paper: {title: string, authors: string, year?: string, venue?: string, path?: string, status?: "unread" | "reading" | "read" | "queued", tags?: string[]})` — paper identity card: title, authors, year, venue, status, tags and vault path
+- `FigureRef(label: string, caption?: string, source?: string, kind?: "figure" | "table" | "equation" | "algorithm" | "section")` — reference card for a figure, table, equation, algorithm or section
+- `ClaimList(title: string, claims: {claim: string, status: "supports" | "contradicts" | "mixed" | "unclear", evidence?: string, source?: string}[])` — claims with support/contradict/mixed/unclear status, evidence and source
+- `Outline(title: string, sections: {title: string, level?: number, page?: number, source?: string}[])` — paper outline with nesting, page numbers and optional section source
 - `Timeline(title?: string, items: {title: string, description?: string}[])` — vertical timeline of titled items
 - `Tree(title?: string, items: {label: string, depth?: number}[])` — indented tree; depth starts at 0
 - `TagList(tags: string[])` — wrapped tag pills
-- `SourceList(sources: {label: string, detail?: string}[])` — source list with a label and optional detail
+- `SourceList(sources: {label: string, detail?: string, path?: string}[])` — source list with a label, optional detail and source path
 <!-- END GENERATED COMPONENTS -->

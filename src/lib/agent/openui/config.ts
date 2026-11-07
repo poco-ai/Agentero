@@ -41,9 +41,11 @@ export const OPENUI_LIMITS = {
 	maxCalloutBodyChars: 2_000,
 	maxShortTextChars: 200,
 	maxKeyValues: 24,
+	maxPathChars: 500,
+	maxClaims: 20,
+	maxClaimChars: 2_000,
+	maxOutlineSections: 50,
 	maxKeyValueChars: 500,
-	maxListItems: 40,
-	maxListItemChars: 400,
 	maxTimelineItems: 20,
 	maxTimelineTextChars: 1_000,
 	maxTreeItems: 60,
@@ -52,9 +54,6 @@ export const OPENUI_LIMITS = {
 	maxTagChars: 80,
 	maxSources: 20,
 	maxSourceDetailChars: 1_000,
-	maxCodeChars: 12_000,
-	maxLanguageChars: 40,
-	maxMathChars: 4_000,
 } as const;
 
 export function isOpenUiLanguage(language: string): boolean {

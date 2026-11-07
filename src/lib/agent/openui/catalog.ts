@@ -14,15 +14,14 @@ import { z } from "zod";
  * - post-parse validation (`validateOpenUiShape`) reuses the schema after the
  *   parser has materialized the element tree.
  *
- * Child slots use `z.json()` here and typed component refs in the parser
- * definitions below; this keeps the render tree loose while the language knows
- * which parents accept which components.
+ * Markdown stays in `Text`: prose, math, code, quotes, lists and rules are
+ * Markdown's job, not separate block components.
  */
 const node = z.json();
 const nodes = z.array(node);
 
 const gap = z.enum(["sm", "md", "lg"]);
-const textVariant = z.enum(["body", "heading", "caption", "code"]);
+const textVariant = z.enum(["body", "heading", "caption"]);
 const calloutTone = z.enum(["info", "success", "warning", "danger"]);
 const badgeTone = z.enum(["neutral", "info", "success", "warning", "danger"]);
 
@@ -52,7 +51,7 @@ export const blockProps = {
 		children: nodes,
 	}),
 	Text: z.object({
-		text: z.string(),
+		markdown: z.string(),
 		variant: textVariant.optional(),
 	}),
 	Badge: z.object({
@@ -114,24 +113,46 @@ export const blockProps = {
 		.refine(nonNegativeValues, {
 			message: "values must be non-negative",
 		}),
-	Quote: z.object({
-		text: z.string(),
+	PaperCard: z.object({
+		paper: z.object({
+			title: z.string(),
+			authors: z.string(),
+			year: z.string().optional(),
+			venue: z.string().optional(),
+			path: z.string().optional(),
+			status: z.enum(["unread", "reading", "read", "queued"]).optional(),
+			tags: z.array(z.string()).optional(),
+		}),
+	}),
+	FigureRef: z.object({
+		label: z.string(),
+		caption: z.string().optional(),
 		source: z.string().optional(),
+		kind: z
+			.enum(["figure", "table", "equation", "algorithm", "section"])
+			.optional(),
 	}),
-	Code: z.object({
-		code: z.string(),
-		language: z.string().optional(),
+	ClaimList: z.object({
+		title: z.string(),
+		claims: z.array(
+			z.object({
+				claim: z.string(),
+				status: z.enum(["supports", "contradicts", "mixed", "unclear"]),
+				evidence: z.string().optional(),
+				source: z.string().optional(),
+			}),
+		),
 	}),
-	Math: z.object({
-		tex: z.string(),
-		display: z.boolean().optional(),
-	}),
-	Divider: z.object({
-		label: z.string().optional(),
-	}),
-	List: z.object({
-		items: z.array(z.string()),
-		ordered: z.boolean().optional(),
+	Outline: z.object({
+		title: z.string(),
+		sections: z.array(
+			z.object({
+				title: z.string(),
+				level: z.number().int().min(1).max(6).optional(),
+				page: z.number().int().positive().optional(),
+				source: z.string().optional(),
+			}),
+		),
 	}),
 	Timeline: z.object({
 		title: z.string().optional(),
@@ -159,6 +180,7 @@ export const blockProps = {
 			z.object({
 				label: z.string(),
 				detail: z.string().optional(),
+				path: z.string().optional(),
 			}),
 		),
 	}),
@@ -170,7 +192,7 @@ export const OPENUI_COMPONENT_NAMES = Object.keys(blockProps) as BlockName[];
 
 const Text = defineComponent({
 	name: "Text",
-	description: "plain text; variant body|heading|caption|code",
+	description: "Markdown text; variant body|heading|caption",
 	props: blockProps.Text,
 	component: null,
 });
@@ -229,36 +251,35 @@ const LineChart = defineComponent({
 	props: blockProps.LineChart,
 	component: null,
 });
-const Quote = defineComponent({
-	name: "Quote",
-	description: "short quotation with an optional source",
-	props: blockProps.Quote,
+const PaperCard = defineComponent({
+	name: "PaperCard",
+	description:
+		"paper identity card: title, authors, year, venue, status, tags and vault path",
+	props: blockProps.PaperCard,
 	component: null,
 });
-const Code = defineComponent({
-	name: "Code",
-	description: "read-only code block with language highlighting",
-	props: blockProps.Code,
+const FigureRef = defineComponent({
+	name: "FigureRef",
+	description:
+		"reference card for a figure, table, equation, algorithm or section",
+	props: blockProps.FigureRef,
 	component: null,
 });
-const MathFormula = defineComponent({
-	name: "Math",
-	description: "display or inline TeX formula",
-	props: blockProps.Math,
+const ClaimList = defineComponent({
+	name: "ClaimList",
+	description:
+		"claims with support/contradict/mixed/unclear status, evidence and source",
+	props: blockProps.ClaimList,
 	component: null,
 });
-const Divider = defineComponent({
-	name: "Divider",
-	description: "horizontal separator with an optional label",
-	props: blockProps.Divider,
+const Outline = defineComponent({
+	name: "Outline",
+	description:
+		"paper outline with nesting, page numbers and optional section source",
+	props: blockProps.Outline,
 	component: null,
 });
-const List = defineComponent({
-	name: "List",
-	description: "bullet or numbered list",
-	props: blockProps.List,
-	component: null,
-});
+
 const Timeline = defineComponent({
 	name: "Timeline",
 	description: "vertical timeline of titled items",
@@ -279,7 +300,7 @@ const TagList = defineComponent({
 });
 const SourceList = defineComponent({
 	name: "SourceList",
-	description: "source list with a label and optional detail",
+	description: "source list with a label, optional detail and source path",
 	props: blockProps.SourceList,
 	component: null,
 });
@@ -295,11 +316,10 @@ const leafRefs = [
 	Steps.ref,
 	BarChart.ref,
 	LineChart.ref,
-	Quote.ref,
-	Code.ref,
-	MathFormula.ref,
-	Divider.ref,
-	List.ref,
+	PaperCard.ref,
+	FigureRef.ref,
+	ClaimList.ref,
+	Outline.ref,
 	Timeline.ref,
 	Tree.ref,
 	TagList.ref,
@@ -349,11 +369,10 @@ export const uiBlockLibrary = createLibrary({
 		Steps,
 		BarChart,
 		LineChart,
-		Quote,
-		Code,
-		MathFormula,
-		Divider,
-		List,
+		PaperCard,
+		FigureRef,
+		ClaimList,
+		Outline,
 		Timeline,
 		Tree,
 		TagList,

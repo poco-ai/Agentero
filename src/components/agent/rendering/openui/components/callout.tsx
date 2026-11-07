@@ -4,6 +4,7 @@ import type { ElementNode } from "@openuidev/lang-core";
 import { CircleCheck, CircleX, Info, TriangleAlert } from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "@/lib/core/utils";
+import { MarkdownText } from "../markdown-text";
 import { stringProp } from "./shared";
 
 const TONES: Record<
@@ -35,9 +36,10 @@ export function CalloutNode({ node }: { node: ElementNode }) {
 				<Icon className="size-4 shrink-0" />
 				<span className="min-w-0">{stringProp(node.props, "title")}</span>
 			</div>
-			<p className="mt-1.5 text-sm text-muted-foreground whitespace-pre-wrap">
-				{stringProp(node.props, "body")}
-			</p>
+			<MarkdownText
+				text={stringProp(node.props, "body")}
+				className="mt-1.5 text-sm text-muted-foreground"
+			/>
 		</div>
 	);
 }

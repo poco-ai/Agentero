@@ -12,6 +12,7 @@ import {
 	resolveOpenUiBlock,
 } from "@/lib/agent/openui/parse";
 import { OpenUiNode } from "./openui-node";
+import { type OpenUiOpenSource, OpenUiSourceProvider } from "./source-context";
 
 function useOpenUiView(source: string, streaming: boolean): OpenUiBlockView {
 	const parserRef = useRef<StreamParser | null>(null);
@@ -51,9 +52,11 @@ function useOpenUiView(source: string, streaming: boolean): OpenUiBlockView {
 export function OpenUiBlock({
 	source,
 	streaming,
+	onOpenSource,
 }: {
 	source: string;
 	streaming: boolean;
+	onOpenSource?: OpenUiOpenSource;
 }) {
 	const view = useOpenUiView(source, streaming);
 
@@ -62,13 +65,15 @@ export function OpenUiBlock({
 	}
 
 	return (
-		<div
-			className="my-4 min-w-0 max-w-full"
-			data-openui-block
-			data-openui-state={view.kind}
-		>
-			{view.root ? <OpenUiNode node={view.root} /> : <StreamingPlaceholder />}
-		</div>
+		<OpenUiSourceProvider onOpenSource={onOpenSource}>
+			<div
+				className="my-4 min-w-0 max-w-full"
+				data-openui-block
+				data-openui-state={view.kind}
+			>
+				{view.root ? <OpenUiNode node={view.root} /> : <StreamingPlaceholder />}
+			</div>
+		</OpenUiSourceProvider>
 	);
 }
 

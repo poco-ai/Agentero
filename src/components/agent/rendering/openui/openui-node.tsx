@@ -8,14 +8,13 @@ import { BadgeNode } from "./components/badge";
 import { BarChartNode } from "./components/bar-chart";
 import { CalloutNode } from "./components/callout";
 import { CardNode } from "./components/card";
-import { CodeNode } from "./components/code";
-import { DividerNode } from "./components/divider";
+import { ClaimListNode } from "./components/claim-list";
+import { FigureRefNode } from "./components/figure-ref";
 import { KeyValueNode } from "./components/key-value";
 import { LineChartNode } from "./components/line-chart";
-import { ListNode } from "./components/list";
-import { MathNode } from "./components/math";
+import { OutlineNode } from "./components/outline";
+import { PaperCardNode } from "./components/paper-card";
 import { ProgressNode } from "./components/progress";
-import { QuoteNode } from "./components/quote";
 import { RowNode } from "./components/row";
 import { SourceListNode } from "./components/source-list";
 import { StackNode } from "./components/stack";
@@ -44,11 +43,10 @@ const OPENUI_COMPONENT_REGISTRY = {
 	Steps: StepsNode,
 	BarChart: BarChartNode,
 	LineChart: LineChartNode,
-	Quote: QuoteNode,
-	Code: CodeNode,
-	Math: MathNode,
-	Divider: DividerNode,
-	List: ListNode,
+	PaperCard: PaperCardNode,
+	FigureRef: FigureRefNode,
+	ClaimList: ClaimListNode,
+	Outline: OutlineNode,
 	Timeline: TimelineNode,
 	Tree: TreeNode,
 	TagList: TagListNode,

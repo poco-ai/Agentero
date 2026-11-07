@@ -324,6 +324,10 @@ function stringWithin(value: unknown, max: number): boolean {
 	return typeof value === "string" && value.length <= max;
 }
 
+function optionalStringWithin(value: unknown, max: number): boolean {
+	return value === undefined || stringWithin(value, max);
+}
+
 function stringsWithin(
 	value: unknown,
 	maxItems: number,
@@ -420,7 +424,64 @@ function sourceListWithin(props: Record<string, unknown>): boolean {
 				isRecord(source) &&
 				shortText(source.label) &&
 				(source.detail === undefined ||
-					stringWithin(source.detail, OPENUI_LIMITS.maxSourceDetailChars)),
+					stringWithin(source.detail, OPENUI_LIMITS.maxSourceDetailChars)) &&
+				(source.path === undefined ||
+					stringWithin(source.path, OPENUI_LIMITS.maxPathChars)),
+		)
+	);
+}
+
+function paperCardWithin(props: Record<string, unknown>): boolean {
+	if (!isRecord(props.paper)) return false;
+	const paper = props.paper;
+	const tags = Array.isArray(paper.tags) ? paper.tags : [];
+	return (
+		shortText(paper.title) &&
+		shortText(paper.authors) &&
+		shortText(paper.year) &&
+		shortText(paper.venue) &&
+		optionalStringWithin(paper.path, OPENUI_LIMITS.maxPathChars) &&
+		tags.length <= OPENUI_LIMITS.maxTags &&
+		tags.every(
+			(tag) =>
+				typeof tag === "string" && tag.length <= OPENUI_LIMITS.maxTagChars,
+		)
+	);
+}
+
+function figureRefWithin(props: Record<string, unknown>): boolean {
+	return (
+		shortText(props.label) &&
+		optionalStringWithin(props.caption, OPENUI_LIMITS.maxTextChars) &&
+		optionalStringWithin(props.source, OPENUI_LIMITS.maxPathChars)
+	);
+}
+
+function claimListWithin(props: Record<string, unknown>): boolean {
+	const claims = Array.isArray(props.claims) ? props.claims : [];
+	return (
+		shortText(props.title) &&
+		claims.length <= OPENUI_LIMITS.maxClaims &&
+		claims.every(
+			(claim) =>
+				isRecord(claim) &&
+				stringWithin(claim.claim, OPENUI_LIMITS.maxClaimChars) &&
+				optionalStringWithin(claim.evidence, OPENUI_LIMITS.maxClaimChars) &&
+				optionalStringWithin(claim.source, OPENUI_LIMITS.maxPathChars),
+		)
+	);
+}
+
+function outlineWithin(props: Record<string, unknown>): boolean {
+	const sections = Array.isArray(props.sections) ? props.sections : [];
+	return (
+		shortText(props.title) &&
+		sections.length <= OPENUI_LIMITS.maxOutlineSections &&
+		sections.every(
+			(section) =>
+				isRecord(section) &&
+				shortText(section.title) &&
+				optionalStringWithin(section.source, OPENUI_LIMITS.maxPathChars),
 		)
 	);
 }
@@ -448,7 +509,7 @@ const LIMIT_RULES: Record<
 	Card: (props) =>
 		shortText(props.title) &&
 		arrayWithin(props.children, OPENUI_LIMITS.maxChildren),
-	Text: (props) => stringWithin(props.text, OPENUI_LIMITS.maxTextChars),
+	Text: (props) => stringWithin(props.markdown, OPENUI_LIMITS.maxTextChars),
 	Badge: (props) => shortText(props.label),
 	Callout: (props) =>
 		shortText(props.title) &&
@@ -467,20 +528,10 @@ const LIMIT_RULES: Record<
 		),
 	BarChart: chartWithin,
 	LineChart: chartWithin,
-	Quote: (props) =>
-		stringWithin(props.text, OPENUI_LIMITS.maxTextChars) &&
-		shortText(props.source),
-	Code: (props) =>
-		stringWithin(props.code, OPENUI_LIMITS.maxCodeChars) &&
-		shortText(props.language),
-	Math: (props) => stringWithin(props.tex, OPENUI_LIMITS.maxMathChars),
-	Divider: (props) => shortText(props.label),
-	List: (props) =>
-		stringsWithin(
-			props.items,
-			OPENUI_LIMITS.maxListItems,
-			OPENUI_LIMITS.maxListItemChars,
-		),
+	PaperCard: paperCardWithin,
+	FigureRef: figureRefWithin,
+	ClaimList: claimListWithin,
+	Outline: outlineWithin,
 	Timeline: timelineWithin,
 	Tree: treeWithin,
 	TagList: (props) =>

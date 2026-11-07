@@ -103,6 +103,16 @@ describe("OpenUI block parsing", () => {
 		expect(query.kind).toBe("failed");
 	});
 
+	it("accepts research components without optional source fields", () => {
+		const { resolved } =
+			parseSettled(`root = Stack([paper, figure, claims, outline])
+paper = PaperCard({title: "Paper", authors: "A. Author"})
+figure = FigureRef("Figure 1")
+claims = ClaimList("Claims", [{claim: "A claim", status: "unclear"}])
+outline = Outline("Outline", [{title: "Intro"}])`);
+		expect(resolved.view.kind).toBe("ready");
+	});
+
 	it("rejects semantic refinements from the shared zod schema", () => {
 		const progress = parseSettled(
 			'root = Stack([p])\np = Progress("Coverage", 120, 100)',
