@@ -364,6 +364,7 @@ export class ReflowPreviewSession {
 		cache?: ReflowIrCacheStore | null,
 	): Promise<LayoutTranslateItem[]> {
 		void loadReflowFonts().catch(() => {});
+		this.cancelBuildIdle();
 		const target = this.disposed
 			? { engine: this.engine, document: this.document }
 			: await this.obtainBuild(signal ?? new AbortController().signal);
@@ -403,6 +404,10 @@ export class ReflowPreviewSession {
 		const job = { key, abort: new AbortController() };
 		this.jobs.set(index, job);
 		this.dirty = true;
+		// A pending idle deadline would release the dedicated engine (and its
+		// private document) out from under this build; every in-flight PDFium
+		// RPC then never settles and wedges the serial queue (hide → rebuild).
+		this.cancelBuildIdle();
 		this.queue = this.queue.then(async () => {
 			const signal = job.abort.signal;
 			try {
