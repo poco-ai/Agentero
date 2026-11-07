@@ -13,13 +13,17 @@ import {
 } from "./markdown-source-language";
 
 const sourceLayout = EditorView.theme({
-	"& .cm-content": {
-		maxWidth: "var(--markdown-source-width, none)",
-		marginInline: "auto",
-		width: "100%",
-		paddingBlock: "1rem 5rem",
+	"& .cm-content": { paddingBlock: "1rem 5rem" },
+	// Limit the text measure with line padding so the active line still
+	// paints across the space between the gutter and centered text.
+	"& .cm-line": {
+		paddingInline:
+			"max(1rem, calc((100% - var(--markdown-source-width, 100%)) / 2 + 1rem))",
 	},
-	"& .cm-line": { paddingInline: "1rem" },
+	"& .cm-gutters.cm-gutters-before": { borderRightWidth: "0" },
+	"& .cm-activeLine, & .cm-gutters .cm-activeLineGutter": {
+		backgroundColor: "color-mix(in oklab, var(--foreground) 6%, transparent)",
+	},
 });
 
 const preferences = new Compartment();
