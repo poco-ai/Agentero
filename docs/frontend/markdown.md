@@ -44,7 +44,7 @@ Plate WYSIWYG；用于普通笔记与论文 `NOTES.md`。磁盘上始终是标�
 - **中文双链输入**：连续输入 `【【` 或 `［［` 自动转为 `[[`，沿用双链候选（`!【【` 同样支持嵌入；`！【【` / `！［［` 会连同全角感叹号一起转为 `![[`）；单个括号保留原样。代码、公式区域不转换；输入法组词完成后再转换，保存仍使用标准双链语法。
 - **导出 PDF / PNG / Markdown**（桌面端）：工具栏分享按钮或右键「导出笔记…」。Markdown 格式直接把当前序列化内容（含未保存改动与 frontmatter）另存为独立 `.md` 文件。PDF / PNG 离屏只读渲染当前序列化内容；页面背景贴边；正文内边距对齐编辑器 `default`（`px-16 pt-4`，底边 `pb-10`）。默认完整展开 `![[…]]` 嵌入，就绪后用 `html-to-image` 截视觉层。**PDF**（`pdf-lib`）在位图上叠 **不可见可选中文字层**（DOM 测量 + Host `export_system_cjk_font`）与 **http(s)/mailto 链接注解**，再按 A4 分页；**PNG** 仍为纯位图。可选论文页眉、每页水印（logo + `muted-foreground`）。完整 PDF 附件嵌入为路径占位。导出默认带水印，可在对话框内临时取消。
 - **外部改盘**：无未存改动则重载；有未存则 toast，不自动重载。同一 `NOTES.md` 的论文 PDF 标签没有未存标记，不能因此把笔记编辑器打回磁盘。本次刚写入的正文，以及与种子相同的内容，都不当成外部修改。主窗与文档弹出窗（「移动至新窗口」）各自监听本窗 Vault watcher，规则相同。
-- **保存冲突**：写盘前比对上次落盘内容；磁盘已被外部改则中止并警告。自身写入按面板区分：同一编辑器的后续保存可在双链索引结束前继续排队，同路径的其他 Markdown / `NOTES.md` 面板则不能把它当成自己的写入。保存成功后，干净的兄弟面板就地重载；已有未保存改动的面板保留草稿与原基线，立即提示冲突，并阻止自动保存、手动保存和卸载 flush 覆盖磁盘。提示中可选择「保留草稿」或「载入磁盘版」；后者只重载对应面板，并在点击时重新读盘。渲染态与源码态共用此流程，不自动合并文本。
+- **保存冲突**：写盘前比对上次落盘内容；磁盘已被外部改则中止并警告。自身写入按面板区分：同一编辑器的后续保存可在双链索引结束前继续排队，同路径的其他 Markdown / `NOTES.md` 面板则不能把它当成自己的写入。保存成功后，干净的兄弟面板按块复用就地重载（不变块不动，无整篇重挂闪烁）；已有未保存改动的面板保留草稿与原基线，立即提示冲突，并阻止自动保存、手动保存和卸载 flush 覆盖磁盘。提示中可选择「保留草稿」或「载入磁盘版」；后者只重载对应面板，并在点击时重新读盘。渲染态与源码态共用此流程，不自动合并文本。
 
 ## Markdown 源码视图
 
@@ -95,7 +95,7 @@ Plate WYSIWYG；用于普通笔记与论文 `NOTES.md`。磁盘上始终是标�
 - **~~`@platejs/toc` 每 scroll 事件重建 IntersectionObserver~~**：已修复（`patches/@platejs__toc@53.0.0.patch`）。原实现里 scroll 监听每事件 `setStatus(Date.now())`，observer effect 依赖它，于是每个 scroll 事件都 disconnect + 重建 IO（每个标题一次 `NodeApi.get` + `toDOMNode` + `observe`）并全量重渲染 TOC（约 2–5ms/事件，与滚动距离无关）。现在 observer 长生命周期保留，滚动只按 rAF 合并做一次 diff 重挂（仅重新 observe DOM 节点真的换过的标题），也不再触发 React 状态更新。见 [bug_fix/toc-scroll-observer-rebuild.md](../bug_fix/toc-scroll-observer-rebuild.md)。
 - **macOS 未启用块级 `content-visibility`**：见 §阅读与打开性能第 1 条与 #702；WebKit 逐元素 CV 只在内容进入视口时才 reveal（[WebKit #276735](https://bugs.webkit.org/show_bug.cgi?id=276735) 未修），打开它会把卡顿从拖拽搬到滚动，故仍不开。**拖动分隔条这一条已用「手势期间冻结重排」绕开**；仍未覆盖的是原生窗口缩放，以及拖动期间 `@container/editor` 的每帧 style recalc（见 [bug_fix/dockview-sash-pdf-resize-jank.md](../bug_fix/dockview-sash-pdf-resize-jank.md) §5）。
 - **笔记滚动记忆是像素偏移**：记下 `scrollTop` 和当时的可滚动高度。文档仍够高时恢复原偏移；首屏高度不够（窗口变矮，或离屏块还没测高）则按比例落在当前范围内，避免被夹到文末。改字号、栏宽或正文后，位置会相对上次阅读点漂移。
-- **Agent 写盘光标保护**：`applyExternalMarkdown` 整篇 `setValue` + `deselect()`，Agent 流式写笔记时可能打断正在输入的光标；后续计划 setValue 后恢复 selection（pathRef 吸收位移）。
+- **外部重载按块复用**：`applyExternalMarkdown` 走 `applySourceProjection` 顶层块 diff，结构相同的块保留原节点（DOM 不动），只有变动的块区间被替换——外部改盘、Agent 写盘、同文件多面板的保存回显都不再整篇重挂（此前整篇 `setValue` 会因全部节点换新对象而逐块卸载重挂，面板闪烁、滚动被夹跳再恢复）。仍 `deselect()`；Agent 流式写盘打断输入光标的问题变窄到被改写块自身，后续计划替换后恢复 selection（pathRef 吸收位移）。
 - **对话面板剩余 memo**：流式合帧与窄订阅已落地（见 [agent.md](agent.md)），composer / config bar 等与 lines 无关的子树仍随面板重渲染，待逐个补 memo。
 
 

@@ -65,10 +65,11 @@ export type MarkdownPersistence = {
 	/** Source mode or a raw source snapshot waiting to be persisted. */
 	hasSourceSnapshot: () => boolean;
 	/**
-	 * Replace the whole document in place after an external/Agent disk write.
-	 * Does not remount the editor, does not mark it dirty and does not trigger
-	 * autosave. Returns false when the content matches the current disk
-	 * snapshot (own-write echo) and nothing was reloaded.
+	 * Reload the document in place after an external/Agent disk write or a
+	 * sibling pane's save. Reuses proven-equal top-level blocks so unchanged
+	 * regions keep their DOM; does not mark dirty or trigger autosave.
+	 * Returns false when the content matches the current disk snapshot
+	 * (own-write echo) and nothing was reloaded.
 	 */
 	applyExternalMarkdown: (markdown: string) => boolean;
 	/** Content currently believed to be on disk. */
@@ -291,17 +292,16 @@ export function useMarkdownPersistence({
 
 	/** Install a parsed projection without treating it as a user edit. */
 	const replaceProjection = useCallback(
-		(
-			value: PlateEditor["children"],
-			frontmatter: string,
-			fromSource = false,
-		) => {
+		(value: PlateEditor["children"], frontmatter: string) => {
 			externalReloadRef.current = true;
 			try {
 				editor.tf.withoutSaving(() => {
 					editor.tf.deselect();
-					if (fromSource) applySourceProjection(editor, value);
-					else editor.tf.setValue(value);
+					// Reuse proven-equal top-level blocks: wholesale `setValue`
+					// hands slate-react all-new node objects, so every block
+					// remounts and the pane flickers/jumps on each sibling-pane
+					// save echo or streamed external write.
+					applySourceProjection(editor, value);
 				});
 				editor.history = { undos: [], redos: [] };
 				frontmatterRef.current = frontmatter;
@@ -335,7 +335,7 @@ export function useMarkdownPersistence({
 		(value: PlateEditor["children"] | null, frontmatter: string) => {
 			if (!sourceRef.current) return;
 			const raw = sourceRef.current();
-			if (value) replaceProjection(value, frontmatter, true);
+			if (value) replaceProjection(value, frontmatter);
 			else editor.history = { undos: [], redos: [] };
 			projectedSourceRef.current = raw;
 			sourceRef.current = null;

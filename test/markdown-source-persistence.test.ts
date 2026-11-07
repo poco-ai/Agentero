@@ -80,6 +80,30 @@ describe("source mode persistence", () => {
 		expect(persistence.dirtyRef.current).toBe(false);
 	});
 
+	it("reloads rendered documents by reusing unchanged blocks in place", async () => {
+		const three = "# Head\n\nPara one.\n\nPara two.\n";
+		await act(() => {
+			persistence.applyExternalMarkdown(three);
+		});
+		const [heading, firstPara, lastPara] = editor.children;
+		const edited = "# Head\n\nPara one edited.\n\nPara two.\n";
+		await act(() => {
+			persistence.applyExternalMarkdown(edited);
+		});
+		// Unchanged blocks keep their live node objects: all-new objects make
+		// slate-react remount every block, which flickers the pane on each
+		// sibling-pane save echo.
+		expect(editor.children[0]).toBe(heading);
+		expect(editor.children[2]).toBe(lastPara);
+		expect(editor.children[1]).not.toBe(firstPara);
+		expect(persistence.serialize()).toContain("Para one edited.");
+		expect(persistence.dirtyRef.current).toBe(false);
+		expect(persistence.savedRef.current).toBe(edited);
+		await act(() => {
+			expect(persistence.applyExternalMarkdown(edited)).toBe(false);
+		});
+	});
+
 	it("queues a newer source edit behind an in-flight save", async () => {
 		let release = (_ok: boolean) => {};
 		vi.mocked(write).mockImplementationOnce(
