@@ -74,3 +74,30 @@ test("fails on an unexpected url shape", () => {
 		/unexpected url https:\/\/example\.com\/file/,
 	);
 });
+
+for (const [scenario, url] of [
+	[
+		"different repository",
+		"https://api.github.com/repos/another/repo/releases/assets/7",
+	],
+	[
+		"non-GitHub host",
+		"https://example.com/repos/poco-ai/Agentero/releases/assets/7",
+	],
+]) {
+	test(`rejects asset urls from a ${scenario}`, () => {
+		const doc = manifest({
+			"darwin-aarch64": { signature: "sig", url },
+		});
+		assert.throws(
+			() =>
+				rewriteManifest(doc, {
+					repository,
+					tag,
+					idToName: new Map([["7", "Agentero.tar.gz"]]),
+				}),
+			/unexpected url/,
+		);
+		assert.equal(doc.platforms["darwin-aarch64"].url, url);
+	});
+}
