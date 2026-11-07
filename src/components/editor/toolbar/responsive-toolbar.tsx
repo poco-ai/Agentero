@@ -14,6 +14,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/core/utils";
 
+import { fitToolbarActions } from "./fit-actions";
 import { Toolbar, ToolbarButton } from "./primitives";
 
 /* shrink-0 in the flex editor column — avoid sticky+z-50 so the bar cannot
@@ -68,52 +69,85 @@ export function ResponsiveFixedToolbar({
 	trailing?: React.ReactNode;
 }) {
 	const { t } = useTranslation("editor");
-	const containerRef = useRef<HTMLDivElement>(null);
+	const barRef = useRef<HTMLDivElement>(null);
 	const measureRef = useRef<HTMLDivElement>(null);
+	const trailingRef = useRef<HTMLDivElement>(null);
 	const [visibleCount, setVisibleCount] = useState(actions.length);
 	const [open, setOpen] = useState(false);
 
+	const actionsRef = useRef(actions);
+	actionsRef.current = actions;
+	// Re-fit only when the action set or a label changes; widths come from the
+	// measurement row, so a per-render effect would just add layout reads to
+	// every keystroke (the toolbar re-renders on each selection change).
+	const actionKey = actions
+		.map((action) => `${action.id}\u0000${action.label}`)
+		.join("\u0001");
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: actionKey refits when the action set or labels change; widths come from the measurement row, so this must not run per render.
 	useLayoutEffect(() => {
-		const container = containerRef.current;
+		const bar = barRef.current;
 		const measure = measureRef.current;
-		if (!container || !measure) return;
+		if (!bar || !measure) return;
+
+		let frame = 0;
 
 		const update = () => {
-			const available = container.clientWidth;
-			const items = Array.from(measure.children) as HTMLElement[];
-			const overflowBtn = items[items.length - 1];
-			const overflowBtnWidth = overflowBtn?.offsetWidth ?? 32;
+			frame = 0;
+			// Whole pixels: sub-pixel jitter between frames would otherwise flip
+			// the count back and forth on fractional pane widths.
+			const width = Math.round(bar.clientWidth);
+			// A collapsed or not-yet-laid-out pane reports 0. Keep the current
+			// count instead of collapsing: the observer below refits as soon as
+			// the bar has a real width, whereas a collapse has nothing to undo it.
+			if (width <= 0) return;
 
-			let used = 0;
-			let count = 0;
-			for (let i = 0; i < actions.length; i++) {
-				const width = items[i]?.offsetWidth ?? 0;
-				const willHideSome = i < actions.length - 1;
-				const needed = width + (willHideSome ? overflowBtnWidth : 0);
-				if (used + needed > available) {
-					break;
-				}
-				used += width;
-				count++;
-			}
-			setVisibleCount(count);
+			const style = window.getComputedStyle(bar);
+			const inner =
+				width -
+				(Number.parseFloat(style.paddingLeft) || 0) -
+				(Number.parseFloat(style.paddingRight) || 0);
+			const items = Array.from(measure.children) as HTMLElement[];
+			const overflowWidth = items[items.length - 1]?.offsetWidth ?? 32;
+			const widths = actionsRef.current.map(
+				(_, index) => items[index]?.offsetWidth ?? 0,
+			);
+			const trailingWidth = trailingRef.current?.offsetWidth ?? 0;
+			setVisibleCount(
+				fitToolbarActions(widths, inner - trailingWidth, overflowWidth),
+			);
 		};
 
-		const ro = new ResizeObserver(update);
-		ro.observe(container);
+		// Off the observer callback: writing the fit back into the DOM from the
+		// same delivery re-enters the observer (see fit-actions.ts).
+		const schedule = () => {
+			if (frame) return;
+			frame = window.requestAnimationFrame(update);
+		};
+
+		const observer = new ResizeObserver(schedule);
+		// Bar: pane/width changes. Measure row: labels or fonts reflow.
+		// Trailing: the pinned cluster can appear after async paper metadata.
+		observer.observe(bar);
+		observer.observe(measure);
+		if (trailingRef.current) observer.observe(trailingRef.current);
 		update();
-		return () => ro.disconnect();
-	}, [actions]);
+
+		return () => {
+			observer.disconnect();
+			if (frame) window.cancelAnimationFrame(frame);
+		};
+	}, [actionKey]);
 
 	const visible = actions.slice(0, visibleCount);
 	const hidden = actions.slice(visibleCount);
 
 	return (
-		<Toolbar className={cn(fixedBarClassName, "overflow-hidden", className)}>
-			<div
-				ref={containerRef}
-				className="flex min-w-0 flex-1 items-center overflow-hidden"
-			>
+		<Toolbar
+			ref={barRef}
+			className={cn(fixedBarClassName, "overflow-hidden", className)}
+		>
+			<div className="flex min-w-0 flex-1 items-center overflow-hidden">
 				{visible.map((action, index) => (
 					<ActionButton
 						key={action.id}
@@ -162,10 +196,14 @@ export function ResponsiveFixedToolbar({
 			)}
 
 			{trailing ? (
-				<div className="ml-auto flex shrink-0 items-center gap-0.5">
-					{visible.length > 0 ? (
-						<Separator orientation="vertical" className="mx-1.5 h-5" />
-					) : null}
+				<div
+					ref={trailingRef}
+					className="ml-auto flex shrink-0 items-center gap-0.5"
+				>
+					{/* Always rendered: a separator that comes and goes with the
+					    visible count changes the trailing width, which changes the
+					    fit, which changes the visible count. */}
+					<Separator orientation="vertical" className="mx-1.5 h-5" />
 					{trailing}
 				</div>
 			) : null}

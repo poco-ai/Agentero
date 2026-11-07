@@ -220,7 +220,7 @@ AppKit 拖拽窗口边缘
 
 2. **给侧栏（react-resizable-panels）的 `onResize` 加「拖动中不写 state」**：拖动期间写 ref/CSS 变量，`pointerup`（或 `onResize` 的最后一次）再写 state。依据：§1.15（该库每个 pointermove 都触发 `onResize`，且用 React style 写 `flexGrow`）。
 
-3. **ResizeObserver 回调全面「取整 + 去重 + rAF」审计**：仓库共 10 个文件出现 `ResizeObserver`（`use-tree-reveal.ts`、`viewport-floating.tsx`、`doctor-line-fit.ts`、`papers-library.tsx`、`use-transcript-virtualizer.ts`、`dockview-viewport.tsx`、`selection-chat-popover.tsx`、`selection-annotation-badges.tsx`、`responsive-toolbar.tsx`、`dockview-resize.ts`），建议统一走一个工具函数：`Math.round` → 与上次比较 → 相同 return → 否则推到 rAF 执行。依据：§1.14（Dockview #1219 是同一根因的真实事故）。
+3. **ResizeObserver 回调全面「取整 + 去重 + rAF」审计**：仓库共 10 个文件出现 `ResizeObserver`（`use-tree-reveal.ts`、`viewport-floating.tsx`、`doctor-line-fit.ts`、`papers-library.tsx`、`use-transcript-virtualizer.ts`、`dockview-viewport.tsx`、`selection-chat-popover.tsx`、`selection-annotation-badges.tsx`、`responsive-toolbar.tsx`、`dockview-resize.ts`），建议统一走一个工具函数：`Math.round` → 与上次比较 → 相同 return → 否则推到 rAF 执行。依据：§1.14（Dockview #1219 是同一根因的真实事故）。`responsive-toolbar.tsx` 已改为此形态（取整 + rAF + 只在 action 集合变化时重建观察），并且**折叠数只由工具栏自身宽度、固定尾部宽度算出**——旧实现读折叠后的动作行宽度，同时尾部有一根随「是否可见」增减的分隔线，两者互喂形成 §1.14 式的常驻反馈环（按钮在 0 与 1 之间无限闪）。
 
 ### P1（结构性收益）
 
