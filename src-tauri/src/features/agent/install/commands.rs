@@ -1,9 +1,10 @@
 use crate::core::error::{map_err, ApiResult, AppError};
 
 use super::{
-    add_shim_dir_to_user_path, cli_command_name, collect_status, ensure_cli_binary, install_shim,
-    managed_cli_binary, managed_cli_dir, managed_shim_path, remove_shim_dir_from_user_path,
-    resolve_local_cli, uninstall_shim, CliInstallResult, CliInstallStatus,
+    add_shim_dir_to_user_path, auto_install_opt_out_path, cli_command_name, collect_status,
+    ensure_cli_binary, install_shim, managed_cli_binary, managed_cli_dir, managed_shim_path,
+    remove_shim_dir_from_user_path, resolve_local_cli, set_auto_install_enabled, uninstall_shim,
+    CliInstallResult, CliInstallStatus,
 };
 use tauri::{AppHandle, Runtime};
 
@@ -20,14 +21,36 @@ pub async fn cli_install_status<R: Runtime>(app: AppHandle<R>) -> ApiResult<CliI
 
 #[tauri::command]
 #[specta::specta]
-pub async fn cli_install_command<R: Runtime>(app: AppHandle<R>) -> ApiResult<CliInstallResult> {
+pub async fn cli_install_command<R: Runtime>(
+    app: AppHandle<R>,
+    automatic: Option<bool>,
+) -> ApiResult<CliInstallResult> {
+    let automatic = automatic.unwrap_or(false);
+    if automatic && auto_install_opt_out_path().exists() {
+        return ApiResult::ok(CliInstallResult {
+            status: collect_status(&app),
+            action: "skipped".into(),
+        });
+    }
     let (binary, action) = match ensure_cli_binary(&app).await {
         Ok(v) => v,
         Err(e) => return map_err(e),
     };
+    // Uninstall may have happened while the release archive was downloading.
+    if automatic && auto_install_opt_out_path().exists() {
+        return ApiResult::ok(CliInstallResult {
+            status: collect_status(&app),
+            action: "skipped".into(),
+        });
+    }
     let shim = managed_shim_path();
     if let Err(e) = install_shim(&binary, &shim) {
         return map_err(e);
+    }
+    if !automatic {
+        if let Err(e) = set_auto_install_enabled(&auto_install_opt_out_path(), true) {
+            return map_err(e);
+        }
     }
     // Windows: register the shim dir on the user PATH so `agentero-cli` works in
     // new terminals without manual setup. Non-fatal — the message below then
@@ -78,6 +101,7 @@ fn run_uninstall<R: Runtime>(app: &AppHandle<R>) -> Result<CliInstallResult, App
     let binary = local.as_ref().map(|r| r.path.as_path());
     let shim = managed_shim_path();
     uninstall_shim(&shim, binary)?;
+    set_auto_install_enabled(&auto_install_opt_out_path(), false)?;
     // Drop download cache only (never delete dev target/ or App bundle binaries).
     let managed = managed_cli_binary();
     if managed.is_file() {

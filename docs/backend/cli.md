@@ -6,10 +6,10 @@ Headless Vault / Catalog / Wiki 接口；**不含** BYOA / paper-reader。
 
 - 目录：`cli/`（crate `agentero-cli`）
 - path 依赖 `agentero-core` 与 `agentero-mcp`（**不**依赖 `agentero_lib`，依赖树无 tauri/wry/tao）：`features::{vault,catalog,import,wiki,zotero,feeds,translate,doctor,trash,pdf_locate,open_request,sync}` + 顶层 `{error,fs}`。`agentero mcp serve` 与桌面端共用 `agentero-mcp` 的工具面
-- 可选同版本 CLI 安装（不随桌面安装包打入，减小体积 [#285](https://github.com/poco-ai/Agentero/issues/285)；open/deep-link 仍见 [#165](https://github.com/poco-ai/Agentero/issues/165) / [#166](https://github.com/poco-ai/Agentero/issues/166)）
+- 同版本 CLI 安装（不随桌面安装包打入，减小体积 [#285](https://github.com/poco-ai/Agentero/issues/285)；open/deep-link 仍见 [#165](https://github.com/poco-ai/Agentero/issues/165) / [#166](https://github.com/poco-ai/Agentero/issues/166)）
   - 设置 → 关于：**安装 CLI** 从 GitHub Release 下载与 App **同版本** 的 `agentero-cli-{ver}-{triple}` 归档，校验 `.sha256` 后写入用户目录并创建 PATH shim。POSIX 写 `~/.local/bin/agentero` 软链（不静默改 shell rc）；Windows 写 `agentero-cli.cmd` 并**自动把安装目录加入用户 PATH**（`HKCU\Environment`，广播 `WM_SETTINGCHANGE`，无需重启，新开终端即可用 `agentero-cli`）。下载 404 的错误文案会带上完整资产 URL（含宿主 triple），架构/版本不匹配时自解释；`CliInstallStatus.commandName` 供前端按平台展示验证命令
   - 独立 CLI 归档仍随每次 Release 发布，供无桌面的 headless 机器使用；macOS 亦可通过 Homebrew tap `poco-ai/agentero` 安装 headless CLI
-  - **更新后自动同步**：应用内更新只替换 GUI 包；更新重启后的新进程在 main window 启动时检测已安装 shim（`installed && !shimCurrent`，见 `syncInstalledCliWithApp`），自动重新下载同版本 CLI 并刷新 shim（Host 按编译期 App 版本下载校验，旧进程无法预装新版 CLI，故只能在新进程里同步）。Release 的桌面包与 CLI 归档独立上传，首次请求暂未命中或网络短暂失败时会在 15 秒、60 秒后重试；只对已有 CLI 生效，未安装 CLI 的用户不会被自动安装。成功静默，最终失败 `notifyError` Toast；dev 环境跳过
+  - **启动自动安装与同步**：main window 启动时，CLI 尚未安装或版本 / shim 已过期（`!shimCurrent`，见 `syncCliWithApp`），自动复用上述同版本下载、校验与 shim 安装流程。应用内更新只替换 GUI 包，CLI 由更新重启后的新进程按编译期 App 版本同步。Release 的桌面包与 CLI 归档独立上传，首次请求暂未命中或网络短暂失败时会在 15 秒、60 秒后重试。设置 → 关于的「卸载 CLI」会写入配置目录的 `cli.removed`，后续启动不再安装；手动安装成功后清除标记。下载期间卸载也会在创建 shim 前再次检查并跳过。成功静默，最终失败 `notifyError` Toast；dev 环境跳过，不覆盖非 Agentero 管理的同名文件。
 
 ## 命令组
 

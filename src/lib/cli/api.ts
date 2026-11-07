@@ -19,6 +19,7 @@ export type CliInstallStatus = {
 	releasePageUrl: string;
 	canInstall: boolean;
 	installed: boolean;
+	autoInstallEnabled: boolean;
 	installPath: string | null;
 	shimCurrent: boolean;
 	preferredBinDir: string;
@@ -41,8 +42,10 @@ export function fetchCliInstallStatus(): Promise<CliInstallStatus> {
 	});
 }
 
-export function installCliCommand(): Promise<CliInstallResult> {
-	return callApi(() => commands.cliInstallCommand(), {
+export function installCliCommand(
+	automatic = false,
+): Promise<CliInstallResult> {
+	return callApi(() => commands.cliInstallCommand(automatic), {
 		fallback: "Failed to install CLI command",
 	});
 }
@@ -56,20 +59,16 @@ export function uninstallCliCommand(): Promise<CliInstallResult> {
 export type CliSyncOutcome = "synced" | "skipped";
 
 /**
- * Re-align an already-installed CLI shim with the running app version.
+ * Install or re-align the CLI shim with the running app version.
  *
  * The Host downloads and verifies the CLI against the *compiled-in* app
  * version, so the old process cannot pre-install the next CLI during an app
- * update. Instead the fresh app syncs on startup: when the user has a managed
- * CLI entry (`installed`) whose version drifted (`!shimCurrent`), re-run the
- * install so binary + shim match this build. Never throws; callers can retry
- * a transient release-asset/network failure and surface a final failure with
- * a toast. A missing CLI is always skipped: app updates never opt a user into
- * installing a command-line tool they did not previously install.
+ * update. Instead the fresh app installs on startup unless the CLI already
+ * matches or the user explicitly uninstalled it. Never throws; callers can
+ * retry a transient release-asset/network failure and surface a final failure
+ * with a toast.
  */
-export async function syncInstalledCliWithApp(): Promise<
-	CliSyncOutcome | "failed"
-> {
+export async function syncCliWithApp(): Promise<CliSyncOutcome | "failed"> {
 	if (!isTauri() || import.meta.env.DEV) return "skipped";
 	let status: CliInstallStatus;
 	try {
@@ -78,7 +77,7 @@ export async function syncInstalledCliWithApp(): Promise<
 		logger.warn("cli_sync status_read_failed", { error: String(error) });
 		return "skipped";
 	}
-	if (!status.installed || status.shimCurrent || !status.canInstall) {
+	if (!status.autoInstallEnabled || status.shimCurrent || !status.canInstall) {
 		return "skipped";
 	}
 	logger.info("op start cli_sync", {
@@ -86,7 +85,8 @@ export async function syncInstalledCliWithApp(): Promise<
 		to: status.appVersion,
 	});
 	try {
-		const result = await installCliCommand();
+		const result = await installCliCommand(true);
+		if (result.action === "skipped") return "skipped";
 		logger.info("op end cli_sync ok=true", {
 			version: result.status.cliVersion ?? "?",
 			action: result.action,

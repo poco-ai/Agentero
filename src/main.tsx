@@ -247,9 +247,8 @@ async function boot() {
 	perfEmit("frontend_boot", bootElapsed() * 1000, true, "window=main");
 	if (perfActive()) return;
 	void checkForStartupUpdate();
-	// After an in-app update relaunches the app, re-align the installed CLI
-	// shim with the new build (the updater only replaces the GUI package).
-	void syncInstalledCli();
+	// Install the same-version CLI, or re-align it after a GUI-only update.
+	void syncCliAtStartup();
 	// Layout model download is a Host background task; App mounts
 	// `useLayoutModelPrefetch` to surface it in the tasks panel.
 }
@@ -289,28 +288,25 @@ async function checkForStartupUpdate(): Promise<void> {
 }
 
 /**
- * The updater only replaces the GUI package, so an installed CLI shim keeps
- * pointing at the previous version after an update. The Host resolves CLI
- * downloads against the compiled-in app version, so the sync can only happen
- * in the *new* process — best-effort, silent on success.
+ * Install the same-version CLI on startup, or refresh it after a GUI update.
+ * The Host preserves an explicit uninstall. Best-effort, silent on success.
  */
-async function syncInstalledCli(): Promise<void> {
+async function syncCliAtStartup(): Promise<void> {
 	if (!isTauri()) return;
 	try {
 		const { getCurrentWindow } = await import("@tauri-apps/api/window");
 		if (getCurrentWindow().label !== "main") return;
-		const { syncInstalledCliWithApp } = await import("@/lib/cli/api");
+		const { syncCliWithApp } = await import("@/lib/cli/api");
 		// The updater publishes the desktop package and separate CLI archive
 		// independently. A just-relaunched app can reach the new desktop build
-		// before its matching CLI asset is downloadable, so retry an existing
-		// managed CLI instead of leaving it on the previous version forever.
+		// before its matching CLI asset is downloadable, so retry installation.
 		for (const delayMs of [0, 15_000, 60_000]) {
 			if (delayMs > 0) {
 				await new Promise<void>((resolve) => {
 					window.setTimeout(resolve, delayMs);
 				});
 			}
-			const outcome = await syncInstalledCliWithApp();
+			const outcome = await syncCliWithApp();
 			if (outcome !== "failed") return;
 		}
 		notifyError(i18n.t("settings:about.cli.syncFailed"));
