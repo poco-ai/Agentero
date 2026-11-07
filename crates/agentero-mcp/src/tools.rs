@@ -510,6 +510,10 @@ struct DiscoverArxivArgs {
     /// Topic terms / phrases (repeatable).
     #[serde(default)]
     keywords: Vec<String>,
+    /// Combine multiple keywords: `all` (AND, default) or `any` (OR, broader
+    /// recall). Ignored when fewer than two keywords are given.
+    #[serde(default)]
+    keyword_match: Option<discover::KeywordMatch>,
     /// arXiv categories, e.g. cs.AI (repeatable).
     #[serde(default)]
     categories: Vec<String>,
@@ -795,7 +799,7 @@ impl AgenteroMcp {
     }
 
     #[tool(
-        description = "Discover and rank arXiv papers for a topic (keywords / categories / submission-date window) with a deterministic lexical scorer. Vault-free; when the vault is open, dedup (default) drops papers already in the library. Returns arXiv ids for a follow-up import_id."
+        description = "Discover and rank arXiv papers for a topic (keywords / categories / submission-date window) with a deterministic lexical scorer. Multiple keywords default to AND; set keywordMatch to 'any' to OR them for broader recall. Vault-free; when the vault is open, dedup (default) drops papers already in the library. Returns arXiv ids for a follow-up import_id."
     )]
     async fn discover_arxiv(
         &self,
@@ -815,6 +819,7 @@ impl AgenteroMcp {
         };
         let query = discover::DiscoverQuery {
             keywords: args.keywords,
+            keyword_match: args.keyword_match.unwrap_or_default(),
             categories: args.categories,
             since: args.since,
             until: args.until,
