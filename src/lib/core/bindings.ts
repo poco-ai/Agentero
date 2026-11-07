@@ -5616,6 +5616,13 @@ export type TranslateSettings = {
 	customSystem?: string,
 	/**  Custom user template. Applied only when it contains `{{text}}`. */
 	customUser?: string,
+	/**  Persist extracted reflow character IR pages in the app cache (default on). */
+	cacheReflowIr?: boolean,
+	/**
+	 *  Persist the finished translated PDF in the app cache (default off;
+	 *  each final is roughly 25 MB).
+	 */
+	cacheReflowFinal?: boolean,
 };
 
 export type TranslateTextArgs = {

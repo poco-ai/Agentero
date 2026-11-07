@@ -67,7 +67,12 @@ export type ReflowPage = {
 	obstacles: Box[];
 	coverage?: CharacterCoverage[];
 };
-export type ReflowDocument = { version: 1; pages: ReflowPage[] };
+/** Bump when the persisted character IR shape changes. */
+export const REFLOW_IR_SCHEMA_VERSION = 1;
+export type ReflowDocument = {
+	version: typeof REFLOW_IR_SCHEMA_VERSION;
+	pages: ReflowPage[];
+};
 export type FontKey =
 	| "regular"
 	| "bold"

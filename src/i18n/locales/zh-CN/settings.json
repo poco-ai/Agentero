@@ -535,6 +535,19 @@
 			"overlay": "在原 PDF 上覆盖",
 			"dualPane": "双栏对照"
 		},
+		"cache": {
+			"section": "缓存",
+			"ir": {
+				"label": "缓存重排 IR",
+				"description": "保存抽取出的字符几何，再次打开时无需重新抽取。"
+			},
+			"final": {
+				"label": "缓存译文 PDF",
+				"description": "保存构建完成的译文 PDF，每篇约 25 MB。"
+			},
+			"tip": "关闭开关只停止写入新文件，已有缓存仍会复用。",
+			"reset": "还原默认"
+		},
 		"providerConfig": {
 			"section": "API 服务",
 			"confirm": "确定",
@@ -903,6 +916,16 @@
 			"clear": "清除缓存",
 			"clearDone": "缓存已清除",
 			"clearFailed": "清除论文全文缓存失败。"
+		},
+		"reflowCache": {
+			"label": "翻译缓存",
+			"summary": "{{size}}",
+			"open": "打开缓存文件夹",
+			"openFailed": "打开缓存文件夹失败。",
+			"clear": "清除缓存",
+			"clearDone": "翻译缓存已清除",
+			"clearFailed": "清除翻译缓存失败。",
+			"tip": "缓存全文翻译的中间结果，同一篇论文再次翻译时直接复用，无需重新提取与构建。关闭开关只停止写入新缓存，已有缓存仍会复用；可在「设置 → 翻译 → 缓存」中分别控制。"
 		},
 		"downloadProxyNotice": {
 			"title": "未配置网络代理",

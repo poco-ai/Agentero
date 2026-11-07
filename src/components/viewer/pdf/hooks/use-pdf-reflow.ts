@@ -1,6 +1,7 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSettings } from "@/hooks/use-app-stores";
 import { errorText } from "@/lib/core/error";
 import { logOp } from "@/lib/core/logger";
 import { notifyError } from "@/lib/core/notify";
@@ -8,7 +9,9 @@ import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
+import { createReflowBuildCache } from "@/lib/pdf/reflow/build-cache";
 import { ReflowBuildEngine } from "@/lib/pdf/reflow/builder";
+import { createReflowIrCache } from "@/lib/pdf/reflow/cache";
 import { interleaveReflowPdf } from "@/lib/pdf/reflow/export";
 import { loadReflowFonts } from "@/lib/pdf/reflow/fonts";
 import { NO_REGIONS, ReflowPreviewSession } from "@/lib/pdf/reflow/preview";
@@ -24,10 +27,35 @@ export function usePdfReflow(
 	items: LayoutTranslateItem[],
 	running: boolean,
 	documentKey: string,
+	paperAbsPath?: string | null,
+	paperKey?: string | null,
+	pdfBytes?: ArrayBuffer | null,
 ) {
 	const { t } = useTranslation("viewer");
-	const current = useRef({ context, regions, items, running });
-	current.current = { context, regions, items, running };
+	// Cache persistence is user-controlled (Settings → Translate). The ref keeps
+	// a running session in sync without rebuilding it when a switch flips.
+	const cacheReflowIr = useSettings((s) => s.translate.cacheReflowIr);
+	const cacheReflowFinal = useSettings((s) => s.translate.cacheReflowFinal);
+	const cacheFlags = useRef({ ir: cacheReflowIr, final: cacheReflowFinal });
+	cacheFlags.current = { ir: cacheReflowIr, final: cacheReflowFinal };
+	const current = useRef({
+		context,
+		regions,
+		items,
+		running,
+		paperAbsPath,
+		paperKey,
+		pdfBytes,
+	});
+	current.current = {
+		context,
+		regions,
+		items,
+		running,
+		paperAbsPath,
+		paperKey,
+		pdfBytes,
+	};
 	const session = useRef<ReflowPreviewSession | null>(null);
 	const [revision, setRevision] = useState(0);
 	const ctx = context?.();
@@ -38,16 +66,27 @@ export function usePdfReflow(
 			const value = session.current;
 			const ctx = current.current.context?.();
 			if (!ctx) return seed;
-			if (value)
-				return value.prepare(seed, current.current.regions ?? [], signal);
+			const regions = current.current.regions ?? [];
+			const cache = createReflowIrCache(
+				{
+					paperKey: current.current.paperKey || current.current.paperAbsPath,
+					paperAbsPath: current.current.paperAbsPath,
+					pdfBytes: current.current.pdfBytes,
+					items: seed,
+					regions,
+				},
+				{ writesEnabled: () => cacheFlags.current.ir },
+			);
+			if (value) return value.prepare(seed, regions, signal, cache);
 			void loadReflowFonts().catch(() => {});
-			return logOp("pdf.reflow.prepare", undefined, () =>
+			return logOp("pdf.reflow.prepare", { items: seed.length }, () =>
 				prepareReflowItems(
 					ctx.engine,
 					ctx.document,
 					seed,
-					current.current.regions ?? [],
+					regions,
 					signal,
+					cache,
 				),
 			);
 		},
@@ -67,6 +106,13 @@ export function usePdfReflow(
 					description: errorText(error),
 				}),
 			build,
+			createReflowBuildCache(
+				{
+					paperKey: current.current.paperKey || current.current.paperAbsPath,
+					pdfBytes: current.current.pdfBytes,
+				},
+				{ writesEnabled: () => cacheFlags.current.final },
+			),
 		);
 		session.current = value;
 		return () => {
@@ -127,6 +173,8 @@ export function usePdfReflow(
 		reflowItems,
 		reflowBusy: session.current?.busy ?? false,
 		reflowReady: !running && Boolean(session.current?.output),
+		/** Finished translated PDF bytes; opened as a display document. */
+		reflowOutput: session.current?.output ?? null,
 		reflowProgress: session.current?.progress ?? 0,
 		exportTranslatedPdf: exportPdf,
 	};

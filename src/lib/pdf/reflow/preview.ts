@@ -1,14 +1,24 @@
 import type { PdfDocumentObject, PdfEngine } from "@embedpdf/models";
-import { logOp } from "@/lib/core/logger";
+import { PDFDocument } from "pdf-lib";
+import { errorText } from "@/lib/core/error";
+import { logger, logOp } from "@/lib/core/logger";
 import type {
 	LayoutTranslateItem,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
+import type { ReflowBuildCacheStore } from "./build-cache";
 import type { ReflowBuildProvider, ReflowBuildTarget } from "./builder";
-import { buildReflowPage, buildReflowPdf, type ReflowOutput } from "./export";
-import { loadReflowFonts } from "./fonts";
+import type { ReflowIrCacheStore } from "./cache";
+import {
+	buildReflowPage,
+	buildReflowPdf,
+	embedReflowFonts,
+	type ReflowOutput,
+} from "./export";
+import { loadReflowFonts, type ReflowFontBytes } from "./fonts";
+import { layoutReflowDocument } from "./layout";
 import { prepareReflowItems, reflowDocumentFromItems } from "./service";
-import type { PageLayout } from "./types";
+import type { PageLayout, ReflowDocument } from "./types";
 
 type PageInput = { key: string; items: LayoutTranslateItem[]; ready: boolean };
 type Preview = { key: string; url: string; layout: PageLayout };
@@ -18,6 +28,13 @@ type Job = { key: string; abort: AbortController };
  * copy). Keep it while translation is streaming, drop it once builds settle.
  */
 const BUILD_ENGINE_IDLE_MS = 30_000;
+
+/** Cap the preview raster DPR: 2x is enough for Retina at normal zoom. */
+function previewDpr(): number {
+	if (typeof window === "undefined") return 1;
+	return Math.min(window.devicePixelRatio || 1, 2);
+}
+
 const identities = new WeakMap<object, number>();
 let nextIdentity = 0;
 function identity(value: object | undefined): number {
@@ -80,6 +97,8 @@ export class ReflowPreviewSession {
 		private failed: (error: unknown) => void,
 		/** Builds run on this dedicated engine so scroll rendering keeps the viewer queue. */
 		private build?: ReflowBuildProvider,
+		/** Finished-build cache: skips PDFium redaction + font embedding on repeats. */
+		private buildCache?: ReflowBuildCacheStore | null,
 	) {}
 
 	get busy(): boolean {
@@ -200,6 +219,8 @@ export class ReflowPreviewSession {
 							.filter((i) => i.status === "done" && i.translated?.trim())
 							.map((i) => [i.id, i.translated ?? ""]),
 					);
+					// Page builds are never persisted: each one embeds the full
+					// CJK font pair (~20 MB). Only the final document is cached.
 					const target = await this.obtainBuild(signal);
 					const built = await logOp("pdf.reflow.page", { page: index }, () =>
 						buildReflowPage(
@@ -229,19 +250,33 @@ export class ReflowPreviewSession {
 				signal.throwIfAborted();
 				// Retain untranslated IR paragraphs as obstacles (including fallback text).
 				const ir = reflowDocumentFromItems(this.document, items, regions);
+				const translations = new Map(
+					selected.map((i) => [i.id, i.translated ?? ""]),
+				);
+				const cached = await this.cachedFinal(ir, translations, fonts, signal);
+				if (cached) {
+					await this.publish(this.engine, cached, signal, false, (ratio) =>
+						report(0.8 + ratio * 0.19),
+					);
+					signal.throwIfAborted();
+					this.output = cached.bytes;
+					report(1);
+					return;
+				}
 				const target = await this.obtainBuild(signal);
 				const built = await logOp("pdf.reflow.final", undefined, () =>
 					buildReflowPdf(
 						target.engine,
 						target.document,
 						ir,
-						new Map(selected.map((i) => [i.id, i.translated ?? ""])),
+						translations,
 						fonts,
 						signal,
 						true,
 						(ratio) => report(ratio * 0.8),
 					),
 				);
+				await this.saveFinal(ir, translations, fonts, built.bytes);
 				await this.publish(target.engine, built, signal, false, (ratio) =>
 					report(0.8 + ratio * 0.19),
 				);
@@ -251,6 +286,75 @@ export class ReflowPreviewSession {
 			});
 		}
 		this.notify();
+	}
+
+	/**
+	 * Reuse a previously built final PDF when IR, translations, and fonts are
+	 * unchanged. Layouts are recomputed in memory (cheap) so preview publishing
+	 * works identically to a fresh build. Per-page builds are never cached:
+	 * each embeds the full CJK font pair (~20 MB), which would dwarf the disk
+	 * budget for a marginal win over the one-shot final entry.
+	 */
+	private async cachedFinal(
+		ir: ReflowDocument,
+		translations: Map<string, string>,
+		fonts: ReflowFontBytes,
+		signal: AbortSignal,
+	): Promise<ReflowOutput | null> {
+		const cache = this.buildCache;
+		if (!cache) return null;
+		try {
+			const bytes = await logOp(
+				"pdf.reflow.buildCache",
+				{ phase: "read" },
+				() => cache.readFinal(ir, translations, fonts),
+			);
+			signal.throwIfAborted();
+			if (!bytes) {
+				logger.info("pdf.reflow.buildCache", { result: "miss" });
+				return null;
+			}
+			logger.info("pdf.reflow.buildCache", {
+				result: "hit",
+				bytes: bytes.byteLength,
+			});
+			// Layout metrics are recomputed in memory against the same embedded
+			// fonts, so overlays match the cached render without rebuilding it.
+			const embedded = await embedReflowFonts(
+				await PDFDocument.create(),
+				fonts,
+			);
+			return {
+				bytes,
+				pages: layoutReflowDocument(ir, translations, embedded, true),
+			};
+		} catch (error) {
+			if (signal.aborted) throw error;
+			logger.warn("pdf.reflow.buildCache read failed", {
+				error: errorText(error),
+			});
+			return null;
+		}
+	}
+
+	/** Best-effort persistence of a freshly built final PDF; never fails the job. */
+	private saveFinal(
+		ir: ReflowDocument,
+		translations: Map<string, string>,
+		fonts: ReflowFontBytes,
+		bytes: Uint8Array,
+	): Promise<void> {
+		const cache = this.buildCache;
+		if (!cache || cache.writesEnabled?.() === false) return Promise.resolve();
+		return logOp("pdf.reflow.buildCache", { phase: "write" }, async () => {
+			try {
+				await cache.writeFinal(ir, translations, fonts, bytes);
+			} catch (error) {
+				logger.warn("pdf.reflow.buildCache write failed", {
+					error: errorText(error),
+				});
+			}
+		}).then(() => {});
 	}
 
 	/** Dedicated build engine when available; the viewer pair is the fallback. */
@@ -264,13 +368,22 @@ export class ReflowPreviewSession {
 		seed: LayoutTranslateItem[],
 		regions: PdfLayoutRegion[],
 		signal?: AbortSignal,
+		cache?: ReflowIrCacheStore | null,
 	): Promise<LayoutTranslateItem[]> {
 		void loadReflowFonts().catch(() => {});
+		this.cancelBuildIdle();
 		const target = this.disposed
 			? { engine: this.engine, document: this.document }
 			: await this.obtainBuild(signal ?? new AbortController().signal);
-		return logOp("pdf.reflow.prepare", undefined, () =>
-			prepareReflowItems(target.engine, target.document, seed, regions, signal),
+		return logOp("pdf.reflow.prepare", { items: seed.length }, () =>
+			prepareReflowItems(
+				target.engine,
+				target.document,
+				seed,
+				regions,
+				signal,
+				cache,
+			),
 		);
 	}
 
@@ -298,6 +411,10 @@ export class ReflowPreviewSession {
 		const job = { key, abort: new AbortController() };
 		this.jobs.set(index, job);
 		this.dirty = true;
+		// A pending idle deadline would release the dedicated engine (and its
+		// private document) out from under this build; every in-flight PDFium
+		// RPC then never settles and wedges the serial queue (hide → rebuild).
+		this.cancelBuildIdle();
 		this.queue = this.queue.then(async () => {
 			const signal = job.abort.signal;
 			try {
@@ -349,6 +466,7 @@ export class ReflowPreviewSession {
 						engine
 							.renderPage(preview, preview.pages[single ? 0 : page.index], {
 								scaleFactor: 2,
+								dpr: previewDpr(),
 							})
 							.toPromise(),
 				);

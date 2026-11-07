@@ -146,6 +146,7 @@ function createHarness() {
 	let dirty = true;
 	let effects: (() => void)[] = [];
 	let stateWrites = 0;
+	let reflowInput: Item[] = [];
 	let view: View;
 	let options: Options = {
 		docId: "paper-a",
@@ -249,13 +250,16 @@ function createHarness() {
 	const prepareReflow = async (items: Item[]) => items;
 	const modules: Record<string, unknown> = {
 		"./use-pdf-reflow": {
-			usePdfReflow: (_context: unknown, _regions: unknown, items: Item[]) => ({
-				reflowItems: items,
-				prepare: prepareReflow,
-				reflowBusy: false,
-				reflowReady: false,
-				exportTranslatedPdf: async () => {},
-			}),
+			usePdfReflow: (_context: unknown, _regions: unknown, items: Item[]) => {
+				reflowInput = items;
+				return {
+					reflowItems: items,
+					prepare: prepareReflow,
+					reflowBusy: false,
+					reflowReady: false,
+					exportTranslatedPdf: async () => {},
+				};
+			},
 		},
 		react,
 		"react-i18next": { useTranslation: () => ({ t: (key: string) => key }) },
@@ -350,6 +354,9 @@ function createHarness() {
 		},
 		get stateWrites() {
 			return stateWrites;
+		},
+		get reflowInput() {
+			return reflowInput;
 		},
 		async flush() {
 			for (let i = 0; i < 12; i++) await Promise.resolve();
@@ -489,8 +496,28 @@ it("retries a stopped page before the old request settles", async () => {
 	assert.equal(h.view.layoutTranslateRunning, true);
 });
 
+it("resumes a stopped document and reuses its completed blocks", async () => {
+	const h = createHarness();
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	h.runs[0].onUpdate([
+		completed(h.runs[0], "Keep this")[0],
+		{ ...h.runs[0].items[1], status: "running" },
+	]);
+	h.render();
+	h.view.toggleLayoutTranslate(); // stop
+	h.render();
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.start");
+	h.view.toggleLayoutTranslate(); // resume
+	await h.flush();
+	assert.equal(h.runs.length, 2);
+	assert.equal(h.runs[1].items[0].translated, "Keep this");
+	assert.equal(h.runs[1].items[0].status, "done");
+	assert.equal(h.view.layoutTranslateRunning, true);
+});
+
 for (const mode of ["document", "page"]) {
-	it(`keeps overlays cleared after a late ${mode} result`, async () => {
+	it(`keeps overlays hidden after a late ${mode} result without losing completed text`, async () => {
 		const h = createHarness();
 		if (mode === "document") h.view.toggleLayoutTranslate();
 		else h.view.togglePageLayoutTranslate(0);
@@ -499,13 +526,20 @@ for (const mode of ["document", "page"]) {
 		h.render();
 		h.view.toggleLayoutTranslate(); // stop
 		h.render();
-		h.view.toggleLayoutTranslate(); // clear
+		h.view.toggleLayoutTranslate(); // hide
 		h.render();
 		const writes = h.writes.length;
 		h.runs[0].resolve(completed(h.runs[0], "Late"));
 		await h.flush();
 		assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
 		assert.equal(h.writes.length, writes);
+		h.view.toggleLayoutTranslate(); // show retained progress
+		await h.flush();
+		assert.equal(
+			h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+			"Visible progress",
+		);
+		assert.equal(h.runs.length, 1);
 	});
 
 	it(`discards late ${mode} results when switching documents`, async () => {
@@ -559,12 +593,96 @@ it("persists a successful current page and completes its job", async () => {
 	h.runs[0].resolve(completed(h.runs[0], "Current result"));
 	await h.flush();
 	assert.equal(h.view.layoutTranslateRunning, false);
-	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.clear");
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.hide");
 	assert.equal(
 		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
 		"Current result",
 	);
 	assert.equal(h.writes.length, writes + 1);
+});
+
+for (const entry of ["toolbar", "page"]) {
+	it(`restores a hidden page through the ${entry} without translating or writing again`, async () => {
+		const h = createHarness();
+		h.view.togglePageLayoutTranslate(0);
+		await h.flush();
+		h.runs[0].resolve(completed(h.runs[0], "Saved page"));
+		await h.flush();
+		const writes = h.writes.length;
+		const reflowInput = h.reflowInput;
+		h.view.togglePageLayoutTranslate(0); // hide
+		h.render();
+		assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
+		assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.show");
+		assert.equal(h.reflowInput, reflowInput);
+		if (entry === "toolbar") h.view.toggleLayoutTranslate();
+		else h.view.togglePageLayoutTranslate(0);
+		await h.flush();
+		assert.equal(
+			h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+			"Saved page",
+		);
+		assert.equal(h.view.layoutTranslatePageStateByPage.get(0)?.active, true);
+		assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.hide");
+		assert.equal(h.runs.length, 1);
+		assert.equal(h.writes.length, writes);
+		assert.equal(h.reflowInput, reflowInput);
+	});
+}
+
+it("resets hidden pages when switching documents", async () => {
+	const h = createHarness();
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	h.runs[0].resolve(completed(h.runs[0], "Old page"));
+	await h.flush();
+	h.view.togglePageLayoutTranslate(0);
+	h.render();
+	h.render({ docId: "paper-b", paperAbsPath: "/vault/papers/b" });
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.start");
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	h.runs[1].resolve(completed(h.runs[1], "New page"));
+	await h.flush();
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+		"New page",
+	);
+});
+
+it("keeps a hidden page while another page finishes and shows both from the toolbar", async () => {
+	const h = createHarness();
+	h.view.togglePageLayoutTranslate(0);
+	await h.flush();
+	h.runs[0].resolve(completed(h.runs[0], "First page"));
+	await h.flush();
+	h.view.togglePageLayoutTranslate(0); // hide
+	h.render();
+	h.view.togglePageLayoutTranslate(1);
+	await h.flush();
+	h.runs[1].resolve(completed(h.runs[1], "Second page"));
+	await h.flush();
+	assert.equal(h.view.layoutTranslateItemsByPage.has(0), false);
+	assert.equal(h.view.layoutTranslateItemsByPage.has(1), true);
+	const writes = h.writes.length;
+	h.view.toggleLayoutTranslate(); // show the first page, preserving the second
+	await h.flush();
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+		"First page",
+	);
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(1)?.[0]?.translated,
+		"Second page",
+	);
+	h.view.toggleLayoutTranslate(); // hide both
+	h.render();
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
+	h.view.toggleLayoutTranslate(); // show both
+	await h.flush();
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 2);
+	assert.equal(h.runs.length, 2);
+	assert.equal(h.writes.length, writes);
 });
 
 it("queues behind layout analysis and auto-starts when regions land", async () => {

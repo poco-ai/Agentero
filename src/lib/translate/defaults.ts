@@ -18,6 +18,8 @@ export const DEFAULT_TRANSLATE_SETTINGS: TranslateSettings = {
 	customPrompt: "",
 	customSystem: "",
 	customUser: "",
+	cacheReflowIr: true,
+	cacheReflowFinal: false,
 };
 
 /** Blank commercial provider config (missing draft/stored entry fallback). */

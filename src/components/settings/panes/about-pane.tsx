@@ -4,6 +4,8 @@ import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import {
 	Download,
 	FolderOpen,
+	Info,
+	Languages,
 	LoaderCircle,
 	RefreshCw,
 	Star,
@@ -21,6 +23,11 @@ import {
 	SettingsRow,
 } from "@/components/settings/settings-layout";
 import { Button } from "@/components/ui/button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { lifecycleErrorMessage } from "@/lib/agent/lifecycle-error";
 import {
 	plazaScratchClear,
@@ -37,6 +44,11 @@ import { clearLogs } from "@/lib/core/logger";
 import { notifyError, notifySuccess } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { isMacOS, isMobileApp, isTauri, isWindows } from "@/lib/core/tauri";
+import {
+	clearReflowCaches,
+	openReflowCacheFolder,
+	reflowCacheUsage,
+} from "@/lib/pdf/reflow/cache-manage";
 import { warnIfNoProxyForDownload } from "@/lib/settings/proxy-guard";
 import {
 	checkForUpdate,
@@ -65,6 +77,11 @@ export function AboutPane() {
 		bytes: number;
 	} | null>(null);
 	const [scratchBusy, setScratchBusy] = useState(false);
+	const [reflowUsage, setReflowUsage] = useState<{
+		papers: number;
+		bytes: number;
+	} | null>(null);
+	const [reflowBusy, setReflowBusy] = useState(false);
 	const isMac = useMemo(() => isMacOS(), []);
 	const isWin = useMemo(() => isWindows(), []);
 	const showFeedback = isTauri() && !isMobileApp();
@@ -187,6 +204,41 @@ export function AboutPane() {
 	useEffect(() => {
 		refreshScratchStats();
 	}, [refreshScratchStats]);
+
+	const refreshReflowUsage = useCallback(() => {
+		if (!isTauri()) return;
+		void reflowCacheUsage()
+			.then(setReflowUsage)
+			.catch(() => setReflowUsage(null));
+	}, []);
+
+	useEffect(() => {
+		refreshReflowUsage();
+	}, [refreshReflowUsage]);
+
+	const onClearReflowCache = () => {
+		setReflowBusy(true);
+		void clearReflowCaches()
+			.then(async () => {
+				notifySuccess(t("about.reflowCache.clearDone"));
+				refreshReflowUsage();
+			})
+			.catch((err) =>
+				notifyError(t("about.reflowCache.clearFailed"), {
+					description: errorText(err),
+				}),
+			)
+			.finally(() => setReflowBusy(false));
+	};
+
+	const onOpenReflowCacheFolder = () => {
+		void openReflowCacheFolder().catch((err) => {
+			console.error("open reflow cache folder failed", err);
+			notifyError(t("about.reflowCache.openFailed"), {
+				description: errorText(err),
+			});
+		});
+	};
 
 	const onClearScratch = () => {
 		setScratchBusy(true);
@@ -478,6 +530,62 @@ export function AboutPane() {
 									/>
 								) : null}
 								{t("about.scratch.clear")}
+							</Button>
+						</div>
+					</SettingsRow>
+				</SettingsGroup>
+			) : null}
+			{isTauri() ? (
+				<SettingsGroup>
+					<SettingsRow
+						label={
+							<span className="inline-flex items-center gap-1.5">
+								<Languages
+									className="size-3.5 shrink-0 text-muted-foreground"
+									aria-hidden
+								/>
+								{t("about.reflowCache.label")}
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Info
+											className="size-3.5 shrink-0 text-muted-foreground"
+											aria-hidden
+										/>
+									</TooltipTrigger>
+									<TooltipContent>{t("about.reflowCache.tip")}</TooltipContent>
+								</Tooltip>
+							</span>
+						}
+						description={
+							reflowUsage?.bytes
+								? t("about.reflowCache.summary", {
+										size: `${(reflowUsage.bytes / 1024 / 1024).toFixed(1)} MB`,
+									})
+								: undefined
+						}
+					>
+						<div className="flex items-center gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={reflowBusy}
+								onClick={onOpenReflowCacheFolder}
+							>
+								{t("about.reflowCache.open")}
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={reflowBusy || !reflowUsage?.bytes}
+								onClick={onClearReflowCache}
+							>
+								{reflowBusy ? (
+									<LoaderCircle
+										data-icon="inline-start"
+										className="animate-spin"
+									/>
+								) : null}
+								{t("about.reflowCache.clear")}
 							</Button>
 						</div>
 					</SettingsRow>

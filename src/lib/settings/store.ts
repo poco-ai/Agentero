@@ -746,6 +746,12 @@ function normalizeTranslateSettings(
 	if (typeof raw.customUser === "string") {
 		base.customUser = normalizeTranslateTemplate(raw.customUser);
 	}
+	if (typeof raw.cacheReflowIr === "boolean") {
+		base.cacheReflowIr = raw.cacheReflowIr;
+	}
+	if (typeof raw.cacheReflowFinal === "boolean") {
+		base.cacheReflowFinal = raw.cacheReflowFinal;
+	}
 	return base;
 }
 

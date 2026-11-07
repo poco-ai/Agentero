@@ -144,6 +144,11 @@ export type PdfViewerProps = {
 export type PdfViewerInnerProps = PdfViewerProps & {
 	docId: string;
 	/**
+	 * Original bytes before the private copy passed to EmbedPDF. Cache keying
+	 * must not depend on a buffer the PDF engine may have transferred.
+	 */
+	pdfCacheBytes?: ArrayBuffer | null;
+	/**
 	 * Revision-stripped document id (the tab id / stable scope key). Cross-pane
 	 * callers — e.g. `onOpenTranslationTab`, which resolves it back to a
 	 * workspace tab — need this form, not the per-buffer `docId`.
