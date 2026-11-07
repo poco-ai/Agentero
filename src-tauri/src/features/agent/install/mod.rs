@@ -13,6 +13,7 @@ mod download;
 pub(crate) mod windows_path;
 
 use crate::core::error::AppError;
+use crate::core::paths::agentero_config_dir;
 use download::{
     download_and_extract, host_triple, managed_binary_name, release_download_url,
     release_tag_page_url, versions_equal,
@@ -76,6 +77,8 @@ pub struct CliInstallStatus {
     pub can_install: bool,
     /// Whether a user-level shim/link we manage is installed.
     pub installed: bool,
+    /// Whether startup may install the CLI; explicit uninstall disables it.
+    pub auto_install_enabled: bool,
     /// Where the managed shim lives.
     pub install_path: Option<String>,
     /// Shim points at our CLI and CLI version matches the app.
@@ -166,6 +169,26 @@ pub(crate) fn managed_cli_dir() -> PathBuf {
 
 pub(crate) fn managed_cli_binary() -> PathBuf {
     managed_cli_dir().join(managed_binary_name())
+}
+
+fn auto_install_opt_out_path() -> PathBuf {
+    agentero_config_dir().join("cli.removed")
+}
+
+fn set_auto_install_enabled(marker: &Path, enabled: bool) -> Result<(), AppError> {
+    if enabled {
+        match fs::remove_file(marker) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    } else {
+        if let Some(parent) = marker.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(marker, "")?;
+        Ok(())
+    }
 }
 
 pub(crate) fn resolve_local_cli<R: Runtime>(app: &AppHandle<R>) -> Option<ResolvedCli> {
@@ -461,6 +484,7 @@ pub fn collect_status<R: Runtime>(app: &AppHandle<R>) -> CliInstallStatus {
         release_page_url,
         can_install,
         installed,
+        auto_install_enabled: !auto_install_opt_out_path().exists(),
         install_path: if installed {
             Some(shim.to_string_lossy().into_owned())
         } else {
@@ -614,6 +638,20 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn explicit_uninstall_persists_until_manual_reinstall() {
+        let dir = test_dir("auto-install");
+        let marker = dir.join("config").join("cli.removed");
+        assert!(!marker.exists());
+        set_auto_install_enabled(&marker, false).unwrap();
+        assert!(marker.is_file());
+        set_auto_install_enabled(&marker, false).unwrap();
+        set_auto_install_enabled(&marker, true).unwrap();
+        assert!(!marker.exists());
+        set_auto_install_enabled(&marker, true).unwrap();
+        let _ = fs::remove_dir_all(dir);
     }
 
     #[test]

@@ -671,7 +671,7 @@ export const commands = {
 	/**  Take the pending UI action request (startup race for `ui:request`). */
 	uiRequestTakePending: () => __TAURI_INVOKE<ApiResult<UiRequestPayload_Serialize | null>>("ui_request_take_pending"),
 	cliInstallStatus: () => __TAURI_INVOKE<ApiResult<CliInstallStatus>>("cli_install_status"),
-	cliInstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_install_command"),
+	cliInstallCommand: (automatic: boolean | null) => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_install_command", { automatic }),
 	cliUninstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_uninstall_command"),
 	finderServiceStatus: () => __TAURI_INVOKE<ApiResult<FinderServiceStatus>>("finder_service_status"),
 	finderServiceInstall: () => __TAURI_INVOKE<ApiResult<FinderServiceStatus>>("finder_service_install"),
@@ -2534,6 +2534,8 @@ export type CliInstallStatus = {
 	canInstall: boolean,
 	/**  Whether a user-level shim/link we manage is installed. */
 	installed: boolean,
+	/**  Whether startup may install the CLI; explicit uninstall disables it. */
+	autoInstallEnabled: boolean,
 	/**  Where the managed shim lives. */
 	installPath: string | null,
 	/**  Shim points at our CLI and CLI version matches the app. */
