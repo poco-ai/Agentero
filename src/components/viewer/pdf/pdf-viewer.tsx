@@ -2485,7 +2485,6 @@ function PdfViewerInner({
 					crossrefPreview={cardCrossrefPreview}
 					linkUrlTip={cardLinkUrlTip}
 					cardScreen={cardScreen}
-					zoomLevel={zoomLevel}
 					onCardHoverEnter={markCardHoverEnter}
 					onCardHoverLeave={scheduleHoverHide}
 					ask={cardAsk}

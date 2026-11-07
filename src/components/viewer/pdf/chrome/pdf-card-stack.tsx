@@ -58,8 +58,6 @@ type PdfCardStackProps = {
 	};
 	/** Shared anchor of the pin-attached cards (ask / translate). */
 	cardScreen: CardScreenPoint | null;
-	/** Live PDF zoom; translate / visual-trace cards scale with the page. */
-	zoomLevel: number;
 	/** Shared hover-hide contract of the pin-attached cards. */
 	onCardHoverEnter: () => void;
 	onCardHoverLeave: () => void;
@@ -101,9 +99,8 @@ function selectionMenuInstanceKey(state: SelectionMenuState): string {
 
 /**
  * Floating cards of the viewer, portaled to `document.body` so page transforms
- * and the scroller's overflow never clip them. Translate / visual-trace cards
- * scale with the page; the ask (quick-chat) card stays at the app's body type
- * scale so its conversation remains readable at any zoom.
+ * and the scroller's overflow never clip them. Cards keep a fixed UI size and
+ * type scale at any PDF zoom; their screen anchors still follow the page.
  */
 export const PdfCardStack = memo(function PdfCardStack({
 	selectionMenu,
@@ -111,7 +108,6 @@ export const PdfCardStack = memo(function PdfCardStack({
 	crossrefPreview,
 	linkUrlTip,
 	cardScreen,
-	zoomLevel,
 	onCardHoverEnter,
 	onCardHoverLeave,
 	ask,
@@ -198,7 +194,6 @@ export const PdfCardStack = memo(function PdfCardStack({
 						key={`translate-${translate.record.id}`}
 						screen={cardScreen}
 						preferRight={cardScreen.preferRight ?? false}
-						scale={zoomLevel}
 						result={translate.record.result ?? ""}
 						streaming={translate.streaming}
 						error={translate.error ?? translate.record.error ?? null}
@@ -219,7 +214,6 @@ export const PdfCardStack = memo(function PdfCardStack({
 						trace={visual.trace}
 						screen={cardScreen}
 						preferRight={cardScreen.preferRight ?? true}
-						scale={zoomLevel}
 						onHide={visual.onHide}
 						onDelete={visual.onDelete}
 						onPointerEnter={onCardHoverEnter}

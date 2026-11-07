@@ -16,16 +16,13 @@ const VW = 1200;
 const VH = 800;
 
 describe("SelectionCard UI size", () => {
-	it.each([
-		0.5, 1, 1.7, 2.5,
-	])("keeps floating controls at UI size for PDF scale %s", (scale) => {
+	it("keeps floating controls at a fixed UI size", () => {
 		const html = renderToStaticMarkup(
 			createElement(SelectionCard, {
 				screen: { x: 100, y: 100 },
 				width: 360,
 				height: 360,
 				lockHeight: true,
-				scale,
 				title: "Selection test",
 				// biome-ignore lint/correctness/noChildrenProp: Typed createElement requires SelectionCard's children prop in this non-JSX test.
 				children: "Popup content",
@@ -34,7 +31,6 @@ describe("SelectionCard UI size", () => {
 
 		expect(html).toContain("width:360px");
 		expect(html).toContain("height:360px");
-		expect(html).toContain("transform:scale(1)");
 	});
 });
 
