@@ -12,12 +12,14 @@ import {
 	Loader2,
 	Mail,
 	MailOpen,
+	MessageSquarePlus,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageResponse } from "@/components/agent/message";
 import { PlazaSelectionMenu } from "@/components/plaza/plaza-selection-menu";
 import { usePlazaFeedSelection } from "@/components/plaza/use-plaza-feed-selection";
+import { addSelectionToChat } from "@/components/selection/add-selection-to-chat";
 import { Button } from "@/components/ui/button";
 import {
 	ContextMenu,
@@ -34,6 +36,7 @@ import {
 import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
+import { feedChatSelectionInput } from "@/lib/plaza/feed-chat-selection";
 import {
 	cleanFeedSummary,
 	type FeedItem,
@@ -169,6 +172,15 @@ export function PlazaFeedItemRow({
 			</ContextMenuTrigger>
 			<ContextMenuContent>
 				<ContextMenuItem
+					onSelect={() => {
+						const payload = feedChatSelectionInput(item);
+						if (payload) addSelectionToChat(payload);
+					}}
+				>
+					<MessageSquarePlus aria-hidden />
+					{t("plaza.feeds.addToChat")}
+				</ContextMenuItem>
+				<ContextMenuItem
 					disabled={importing || Boolean(item.importedAt) || !href}
 					onSelect={() => onImport(item)}
 				>
@@ -264,6 +276,23 @@ export function PlazaFeedItemDetail({
 						aria-label={t("plaza.feeds.loadingBody")}
 					/>
 				) : null}
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							aria-label={t("plaza.feeds.addToChat")}
+							onClick={() => {
+								const payload = feedChatSelectionInput(item);
+								if (payload) addSelectionToChat(payload);
+							}}
+						>
+							<MessageSquarePlus className="size-3.5" aria-hidden />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>{t("plaza.feeds.addToChat")}</TooltipContent>
+				</Tooltip>
 				{href ? (
 					<Tooltip>
 						<TooltipTrigger asChild>
