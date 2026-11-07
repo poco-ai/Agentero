@@ -183,6 +183,7 @@ export function usePdfLayoutCluster({
 	const {
 		reflowBusy,
 		reflowReady,
+		reflowOutput,
 		exportTranslatedPdf,
 		layoutTranslateItemsByPage,
 		layoutTranslatePageStateByPage,
@@ -213,6 +214,7 @@ export function usePdfLayoutCluster({
 	return {
 		reflowBusy,
 		reflowReady,
+		reflowOutput,
 		exportTranslatedPdf,
 		layoutOverlayVisible,
 		layoutRawRegions,

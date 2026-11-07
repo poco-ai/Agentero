@@ -71,6 +71,8 @@ export type UsePdfLayoutTranslateOptions = {
 export type PdfLayoutTranslate = {
 	reflowBusy: boolean;
 	reflowReady: boolean;
+	/** Finished translated PDF bytes for the in-app display renderer. */
+	reflowOutput: Uint8Array | null;
 	exportTranslatedPdf: (dual?: boolean) => Promise<void>;
 	/** Progressive bulk-translate overlays (body text / abstract / header), bucketed by page. */
 	layoutTranslateItemsByPage: ReadonlyMap<
@@ -244,6 +246,7 @@ export function usePdfLayoutTranslate({
 		reflowItems,
 		reflowBusy,
 		reflowReady,
+		reflowOutput,
 		reflowProgress,
 		exportTranslatedPdf,
 	} = usePdfReflow(
@@ -938,6 +941,7 @@ export function usePdfLayoutTranslate({
 	return {
 		reflowBusy,
 		reflowReady,
+		reflowOutput,
 		exportTranslatedPdf,
 		layoutTranslateItemsByPage,
 		layoutTranslatePageStateByPage,

@@ -28,6 +28,13 @@ type Job = { key: string; abort: AbortController };
  * copy). Keep it while translation is streaming, drop it once builds settle.
  */
 const BUILD_ENGINE_IDLE_MS = 30_000;
+
+/** Cap the preview raster DPR: 2x is enough for Retina at normal zoom. */
+function previewDpr(): number {
+	if (typeof window === "undefined") return 1;
+	return Math.min(window.devicePixelRatio || 1, 2);
+}
+
 const identities = new WeakMap<object, number>();
 let nextIdentity = 0;
 function identity(value: object | undefined): number {
@@ -459,6 +466,7 @@ export class ReflowPreviewSession {
 						engine
 							.renderPage(preview, preview.pages[single ? 0 : page.index], {
 								scaleFactor: 2,
+								dpr: previewDpr(),
 							})
 							.toPromise(),
 				);

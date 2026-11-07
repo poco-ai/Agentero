@@ -96,6 +96,7 @@ import { usePdfTranslationSelection } from "@/components/viewer/pdf/hooks/use-pd
 import { usePdfViewerHandle } from "@/components/viewer/pdf/hooks/use-pdf-viewer-handle";
 import { usePdfVisualMarks } from "@/components/viewer/pdf/hooks/use-pdf-visual-marks";
 import { usePdfZoomControls } from "@/components/viewer/pdf/hooks/use-pdf-zoom-controls";
+import { useReflowDisplayDocument } from "@/components/viewer/pdf/hooks/use-reflow-display-document";
 import { useStableDerived } from "@/components/viewer/pdf/hooks/use-stable-derived";
 import {
 	excludeOverlappingPdfTextLinks,
@@ -1253,6 +1254,7 @@ function PdfViewerInner({
 		handleRenderLayoutThumb,
 		screenPointForRegion,
 		reflowReady,
+		reflowOutput,
 		exportTranslatedPdf,
 		layoutTranslateItemsByPage,
 		layoutTranslatePageStateByPage,
@@ -1284,6 +1286,12 @@ function PdfViewerInner({
 		isRemotePaper,
 		plainViewer,
 	});
+
+	const reflowDisplayDocumentId = useReflowDisplayDocument(
+		docCap,
+		reflowOutput,
+		docId,
+	);
 
 	usePdfTranslationSelection({
 		enabled: layoutTranslateActive && !translationOnly && !plainViewer,
@@ -2097,6 +2105,7 @@ function PdfViewerInner({
 				annotationSource={paperRelPath ?? paperAbsPath ?? undefined}
 				docId={docId}
 				pageIndex={pageIndex}
+				reflowDocumentId={reflowDisplayDocumentId}
 				width={rotatedWidth || width}
 				height={rotatedHeight || height}
 				tone={pdfTone}
@@ -2130,6 +2139,7 @@ function PdfViewerInner({
 			bookmarkEditor.draft?.saving,
 			handleBookmarkPage,
 			bookmarkedPages,
+			reflowDisplayDocumentId,
 		],
 	);
 

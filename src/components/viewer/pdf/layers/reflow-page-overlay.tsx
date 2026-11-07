@@ -1,4 +1,5 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, type RefObject, useRef } from "react";
+import { AgenteroRenderLayer } from "@/components/viewer/pdf/layers/agentero-render-layer";
 import { cn } from "@/lib/core/utils";
 import { highlightFill } from "@/lib/pdf/highlight/palette";
 import type { TranslateSentenceTint } from "@/lib/pdf/highlight/sentence-tint";
@@ -24,6 +25,9 @@ export function ReflowPageOverlay({
 	items,
 	tints,
 	preview,
+	pageIndex,
+	renderDocumentId,
+	zoom,
 	width,
 	height,
 	links,
@@ -35,6 +39,11 @@ export function ReflowPageOverlay({
 	items: readonly LayoutTranslateItem[];
 	tints?: ReadonlyMap<string, ReadonlyMap<number, TranslateSentenceTint>>;
 	preview: string;
+	/** Source page index; the finished PDF keeps the same page order. */
+	pageIndex: number;
+	/** Finished translated PDF opened in the document manager. */
+	renderDocumentId?: string | null;
+	zoom: number;
 	width: number;
 	height: number;
 	links?: readonly TranslateLinkBox[];
@@ -53,17 +62,37 @@ export function ReflowPageOverlay({
 	const sy = reference?.reflow
 		? height / (reference.reflow.box.h / reference.bbox.h)
 		: 1;
+	const renderRef: RefObject<HTMLDivElement | null> = useRef(null);
 	return (
 		<div className="pointer-events-none absolute inset-0">
-			<img
-				src={preview}
-				alt=""
-				draggable={false}
-				className={cn(
-					"absolute inset-0 h-full w-full",
-					tone === "dark" && PDF_PAGE_RASTER_DARK_CLASS,
-				)}
-			/>
+			{/*
+			 * Static per-page raster stays as the streaming fallback. Once the
+			 * finished PDF is registered, the render layer sits on top and
+			 * re-rasterizes at the viewer zoom / device pixel ratio — the same
+			 * path the source page uses, instead of stretching a fixed image.
+			 */}
+			{preview ? (
+				<img
+					src={preview}
+					alt=""
+					draggable={false}
+					className={cn(
+						"absolute inset-0 h-full w-full",
+						tone === "dark" && PDF_PAGE_RASTER_DARK_CLASS,
+					)}
+				/>
+			) : null}
+			{renderDocumentId ? (
+				<div ref={renderRef} className="absolute inset-0">
+					<AgenteroRenderLayer
+						pageRef={renderRef}
+						documentId={renderDocumentId}
+						pageIndex={pageIndex}
+						scale={zoom}
+						className={tone === "dark" ? PDF_PAGE_RASTER_DARK_CLASS : undefined}
+					/>
+				</div>
+			) : null}
 			{PDF_PAPER_TINT[tone] && (
 				<div
 					className="absolute inset-0 mix-blend-multiply"

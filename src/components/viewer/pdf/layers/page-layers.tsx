@@ -502,6 +502,8 @@ export type PdfPageLayersProps = {
 	annotationSource?: string;
 	docId: string;
 	pageIndex: number;
+	/** Finished translated PDF registered as a hidden display document. */
+	reflowDocumentId?: string | null;
 	width: number;
 	height: number;
 	/** Paper tone for this viewer (process-wide preference). */
@@ -611,6 +613,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 	annotationSource,
 	docId,
 	pageIndex,
+	reflowDocumentId,
 	width,
 	height,
 	tone,
@@ -1156,6 +1159,13 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 		translationVisible && layoutTranslateOnPage ? (
 			<LayoutTranslateOverlay
 				items={layoutTranslateOnPage}
+				pageIndex={pageIndex}
+				reflowDocumentId={reflowDocumentId}
+				zoom={
+					pageSize?.width && pageSize.width > 0
+						? width / pageSize.width
+						: (zoomRef.current ?? 1)
+				}
 				pageWidthPx={width}
 				pageHeightPx={height}
 				tone={tone}

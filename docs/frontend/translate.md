@@ -88,7 +88,7 @@ Settings → **翻译**：
 不进行旧路径的跨段句链合并。缓存按带结构标记的 source 匹配，旧纯文本缓存不会错误套用到新的公式结构。
 没有引擎上下文时仍保留旧 DOM 路径。
 
-翻译完成后生成隔离 PDF 副本，再由 PDFium 渲染译文预览；透明选择层使用同一排版坐标，选区只画底色、不重绘字形，避免与栅格译文叠成重影。
+翻译完成后生成隔离 PDF 副本，再由 PDFium 渲染译文预览；透明选择层使用同一排版坐标，选区只画底色、不重绘字形，避免与栅格译文叠成重影。流式阶段用单页栅格作占位；完成后把译文 PDF 以隐藏文档（`autoActivate: false`）注册进文档管理器，译文页改由与原文页相同的渲染层按当前缩放/DPR 重绘，缩放后不再拉伸固定图片。
 工具栏下载菜单提供译文 PDF 与原文/译文交替页 PDF。字体首次从固定版本公共资源下载、校验并缓存，
 因此首次使用需要联网。当前完整嵌入中文字体，导出文件可能约 20 MB；不修改源 PDF。
 出错使用 Toast，无法容纳或不支持的页面不会静默裁切。
@@ -137,7 +137,7 @@ IR 提取结果保存每个非空白字符的归类用于审计，不能把全�
 - **写入**：先写同目录临时文件，再 `rename` 覆盖，失败只记 warn，不影响翻译。页面级 key 让整篇翻译和单页翻译互不覆盖。
 - **读取**：校验 header 的 format / 版本 / key / paper / PDF 与 layout 哈希，校验页面结构、页码、段落归属和页面尺寸；任一不符或 gzip/JSON 损坏都按 miss 处理，回到 `extractReflowDocument` 重抽。部分页 miss 时只重抽这些页，全部页都 miss 时等价于原有整篇抽取。
 - **日志**：`pdf.reflow.prepare` 是 prepare 总耗时；`pdf.reflow.prepare.cache`（`phase=read|write`）是缓存 IO，`pdf.reflow.prepare.extract` 是 PDFium 抽取，`pdf.reflow.cache` 记录 `result=hit|miss` 与页数；`pdf.reflow.page` / `pdf.reflow.final` 仍是预览和导出耗时。命中后 prepare 只剩缓存解压与 item 映射，页构建与最终 PDF 仍会按页重算。
-- **构建结果缓存（仅整篇）**：最终译文 PDF 持久化在 `appCacheDir()/reflow-build/<pdf 哈希前缀>-<内容键>.pdf`，gzip 存储。键覆盖整篇 IR 内容、全部实际译文、字体字节长度与资源 revision、构建管线版本（`REFLOW_BUILD_PIPELINE_VERSION`，layout/export 输出变化时必须提升）；**键内容规范化**——段落/公式/障碍按 id 排序后参与指纹，页级运行重新合并 items 造成的绘制顺序抖动（内容语义不变）不会导致 miss。命中时 `pdf.reflow.final` 不再重跑 PDFium 去字、公式片段抽取、字体嵌入和 pdf-lib 序列化，读写走 `pdf.reflow.buildCache`（`phase=read|write`、`result=hit|miss`），命中后排版度量在内存中按同一字体重算，逐页渲染照旧。**逐页预览构建不落盘**：每页 PDF 都完整嵌入 CJK 字体对（~20 MB/页），缓存它们会让每篇占用数百 MB，因此页构建仍每次执行（`pdf.reflow.page` 照常出现），只有 final 复用。任何一层校验不符（换 PDF、译文变化、字体更新、管线升级）都按 miss 重建，构建缓存失败从不阻断翻译。单页隐藏 / 恢复会改变译文集合，final 随之 miss 一次属预期；同一篇的 final 按 mtime 只保留最新 2 份，更旧的与早期逐页缓存遗留文件在写入时清扫，磁盘占用约 25–60 MB/篇。
+- **构建结果缓存（仅整篇）**：最终译文 PDF 持久化在 `appCacheDir()/reflow-build/<pdf 哈希前缀>-<内容键>.pdf`，**按原样存为可直接打开的 PDF**。键覆盖整篇 IR 内容、全部实际译文、字体字节长度与资源 revision、构建管线版本（`REFLOW_BUILD_PIPELINE_VERSION`，layout/export 输出变化时必须提升）；**键内容规范化**——段落/公式/障碍按 id 排序后参与指纹，页级运行重新合并 items 造成的绘制顺序抖动（内容语义不变）不会导致 miss。命中时 `pdf.reflow.final` 不再重跑 PDFium 去字、公式片段抽取、字体嵌入和 pdf-lib 序列化，读写走 `pdf.reflow.buildCache`（`phase=read|write`、`result=hit|miss`），命中后排版度量在内存中按同一字体重算，逐页渲染照旧。**逐页预览构建不落盘**：每页 PDF 都完整嵌入 CJK 字体对（~20 MB/页），缓存它们会让每篇占用数百 MB，因此页构建仍每次执行（`pdf.reflow.page` 照常出现），只有 final 复用。任何一层校验不符（换 PDF、译文变化、字体更新、管线升级）都按 miss 重建，构建缓存失败从不阻断翻译。单页隐藏 / 恢复会改变译文集合，final 随之 miss 一次属预期；同一篇的 final 按 mtime 只保留最新 2 份，更旧的与早期逐页缓存遗留文件在写入时清扫，磁盘占用约 25–60 MB/篇。
 
 ### 逐页重排预览（#838）
 
