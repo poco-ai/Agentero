@@ -62,6 +62,54 @@ describe("OpenUI rendering", () => {
 		expect(element.querySelector("svg[role='img']")).not.toBeNull();
 	});
 
+	it("renders the remaining read-only components", () => {
+		const source = `root = Stack([card, badge, kv, progress, line, quote, code, math, divider, list, timeline, tree, tags, sources, row])
+card = Card("Overview", [row])
+row = Row([Text("A"), Text("B")])
+badge = Badge("Stable", "success")
+kv = KeyValue([{label: "Model", value: "A"}, {label: "Score", value: 91}])
+progress = Progress("Coverage", 42, 100)
+line = LineChart("Trend", ["Q1", "Q2"], [3, 5], "%")
+quote = Quote("A quote", "Source")
+code = Code("print(1)", "python")
+math = Math("x^2", true)
+divider = Divider("Section")
+list = List(["one", "two"], true)
+timeline = Timeline("History", [{title: "Start", description: "Begin"}])
+tree = Tree("Tree", [{label: "Root"}, {label: "Child", depth: 1}])
+tags = TagList(["a", "b"])
+sources = SourceList([{label: "Paper", detail: "arXiv"}])`;
+		const element = render(source);
+		for (const name of [
+			"Card",
+			"Badge",
+			"KeyValue",
+			"Progress",
+			"LineChart",
+			"Quote",
+			"Code",
+			"Math",
+			"Divider",
+			"List",
+			"Timeline",
+			"Tree",
+			"TagList",
+			"SourceList",
+		]) {
+			expect(
+				element.querySelector(`[data-openui-component="${name}"]`),
+			).not.toBeNull();
+		}
+		expect(element.textContent).toContain("Overview");
+		expect(element.textContent).toContain("Stable");
+		expect(element.textContent).toContain("Coverage");
+		expect(element.textContent).toContain("A quote");
+		expect(element.textContent).toContain("print(1)");
+		expect(element.textContent).toContain("Paper");
+		expect(element.querySelector('[role="progressbar"]')).not.toBeNull();
+		expect(element.querySelector("blockquote")).not.toBeNull();
+	});
+
 	it("reuses the chat table renderer and its copy payload", () => {
 		const element = render(ALL_COMPONENTS);
 		const table = element.querySelector("table");

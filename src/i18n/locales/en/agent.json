@@ -196,6 +196,7 @@
 		"tableEmpty": "No rows.",
 		"chartEmpty": "No data.",
 		"chartAria": "Bar chart: {{title}}",
+		"lineChartAria": "Line chart: {{title}}",
 		"stepsEmpty": "No steps."
 	},
 	"askUserQuestion": {

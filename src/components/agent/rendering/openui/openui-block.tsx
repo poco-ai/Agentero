@@ -11,7 +11,7 @@ import {
 	type OpenUiFailureReason,
 	resolveOpenUiBlock,
 } from "@/lib/agent/openui/parse";
-import { OpenUiNode } from "./openui-components";
+import { OpenUiNode } from "./openui-node";
 
 function useOpenUiView(source: string, streaming: boolean): OpenUiBlockView {
 	const parserRef = useRef<StreamParser | null>(null);

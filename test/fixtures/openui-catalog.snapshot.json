@@ -1,20 +1,40 @@
 {
-	"componentCount": 8,
+	"componentCount": 22,
 	"components": [
 		{
 			"name": "Stack",
-			"signature": "Stack(children: (Text | Table | Stat | BarChart | Steps | Callout | Row)[], gap?: \"sm\" | \"md\" | \"lg\")",
+			"signature": "Stack(children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | Quote | Code | Math | Divider | List | Timeline | Tree | TagList | SourceList | Row | Card)[], gap?: \"sm\" | \"md\" | \"lg\")",
 			"description": "vertical root container"
 		},
 		{
 			"name": "Row",
-			"signature": "Row(children: (Text | Table | Stat | BarChart | Steps | Callout)[], gap?: \"sm\" | \"md\" | \"lg\")",
+			"signature": "Row(children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | Quote | Code | Math | Divider | List | Timeline | Tree | TagList | SourceList)[], gap?: \"sm\" | \"md\" | \"lg\")",
 			"description": "horizontal row; wraps on narrow screens"
+		},
+		{
+			"name": "Card",
+			"signature": "Card(title: string, children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | Quote | Code | Math | Divider | List | Timeline | Tree | TagList | SourceList | Row)[])",
+			"description": "titled container for a group of components"
 		},
 		{
 			"name": "Text",
 			"signature": "Text(text: string, variant?: \"body\" | \"heading\" | \"caption\" | \"code\")",
 			"description": "plain text; variant body|heading|caption|code"
+		},
+		{
+			"name": "Badge",
+			"signature": "Badge(label: string, tone?: \"neutral\" | \"info\" | \"success\" | \"warning\" | \"danger\")",
+			"description": "small status pill"
+		},
+		{
+			"name": "Callout",
+			"signature": "Callout(title: string, body: string, tone?: \"info\" | \"success\" | \"warning\" | \"danger\")",
+			"description": "short note with tone info|success|warning|danger"
+		},
+		{
+			"name": "KeyValue",
+			"signature": "KeyValue(items: {label: string, value: string | number}[])",
+			"description": "label/value rows for metadata"
 		},
 		{
 			"name": "Table",
@@ -27,9 +47,9 @@
 			"description": "one key number with an optional hint"
 		},
 		{
-			"name": "BarChart",
-			"signature": "BarChart(title: string, labels: string[], values: number[], unit?: string)",
-			"description": "categorical bars; labels and values must be equal length"
+			"name": "Progress",
+			"signature": "Progress(label: string, value: number, max?: number)",
+			"description": "progress bar; max defaults to 100"
 		},
 		{
 			"name": "Steps",
@@ -37,9 +57,59 @@
 			"description": "ordered steps"
 		},
 		{
-			"name": "Callout",
-			"signature": "Callout(title: string, body: string, tone?: \"info\" | \"success\" | \"warning\" | \"danger\")",
-			"description": "short note with tone info|success|warning|danger"
+			"name": "BarChart",
+			"signature": "BarChart(title: string, labels: string[], values: number[], unit?: string)",
+			"description": "categorical bars; labels and values must be equal length"
+		},
+		{
+			"name": "LineChart",
+			"signature": "LineChart(title: string, labels: string[], values: number[], unit?: string)",
+			"description": "values over labels; labels and values must be equal length"
+		},
+		{
+			"name": "Quote",
+			"signature": "Quote(text: string, source?: string)",
+			"description": "short quotation with an optional source"
+		},
+		{
+			"name": "Code",
+			"signature": "Code(code: string, language?: string)",
+			"description": "read-only code block with language highlighting"
+		},
+		{
+			"name": "Math",
+			"signature": "Math(tex: string, display?: boolean)",
+			"description": "display or inline TeX formula"
+		},
+		{
+			"name": "Divider",
+			"signature": "Divider(label?: string)",
+			"description": "horizontal separator with an optional label"
+		},
+		{
+			"name": "List",
+			"signature": "List(items: string[], ordered?: boolean)",
+			"description": "bullet or numbered list"
+		},
+		{
+			"name": "Timeline",
+			"signature": "Timeline(title?: string, items: {title: string, description?: string}[])",
+			"description": "vertical timeline of titled items"
+		},
+		{
+			"name": "Tree",
+			"signature": "Tree(title?: string, items: {label: string, depth?: number}[])",
+			"description": "indented tree; depth starts at 0"
+		},
+		{
+			"name": "TagList",
+			"signature": "TagList(tags: string[])",
+			"description": "wrapped tag pills"
+		},
+		{
+			"name": "SourceList",
+			"signature": "SourceList(sources: {label: string, detail?: string}[])",
+			"description": "source list with a label and optional detail"
 		}
 	]
 }

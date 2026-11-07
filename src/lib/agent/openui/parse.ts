@@ -369,6 +369,62 @@ function tableWithin(props: Record<string, unknown>): boolean {
 	);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function keyValueWithin(props: Record<string, unknown>): boolean {
+	const items = Array.isArray(props.items) ? props.items : [];
+	return (
+		items.length <= OPENUI_LIMITS.maxKeyValues &&
+		items.every(
+			(item) =>
+				isRecord(item) &&
+				shortText(item.label) &&
+				(typeof item.value === "number" ||
+					stringWithin(item.value, OPENUI_LIMITS.maxKeyValueChars)),
+		)
+	);
+}
+
+function timelineWithin(props: Record<string, unknown>): boolean {
+	const items = Array.isArray(props.items) ? props.items : [];
+	return (
+		shortText(props.title) &&
+		items.length <= OPENUI_LIMITS.maxTimelineItems &&
+		items.every(
+			(item) =>
+				isRecord(item) &&
+				shortText(item.title) &&
+				(item.description === undefined ||
+					stringWithin(item.description, OPENUI_LIMITS.maxTimelineTextChars)),
+		)
+	);
+}
+
+function treeWithin(props: Record<string, unknown>): boolean {
+	const items = Array.isArray(props.items) ? props.items : [];
+	return (
+		shortText(props.title) &&
+		items.length <= OPENUI_LIMITS.maxTreeItems &&
+		items.every((item) => isRecord(item) && shortText(item.label))
+	);
+}
+
+function sourceListWithin(props: Record<string, unknown>): boolean {
+	const sources = Array.isArray(props.sources) ? props.sources : [];
+	return (
+		sources.length <= OPENUI_LIMITS.maxSources &&
+		sources.every(
+			(source) =>
+				isRecord(source) &&
+				shortText(source.label) &&
+				(source.detail === undefined ||
+					stringWithin(source.detail, OPENUI_LIMITS.maxSourceDetailChars)),
+		)
+	);
+}
+
 function chartWithin(props: Record<string, unknown>): boolean {
 	const labels = Array.isArray(props.labels) ? props.labels : [];
 	return (
@@ -389,11 +445,19 @@ const LIMIT_RULES: Record<
 > = {
 	Stack: (props) => arrayWithin(props.children, OPENUI_LIMITS.maxChildren),
 	Row: (props) => arrayWithin(props.children, OPENUI_LIMITS.maxChildren),
+	Card: (props) =>
+		shortText(props.title) &&
+		arrayWithin(props.children, OPENUI_LIMITS.maxChildren),
 	Text: (props) => stringWithin(props.text, OPENUI_LIMITS.maxTextChars),
+	Badge: (props) => shortText(props.label),
+	Callout: (props) =>
+		shortText(props.title) &&
+		stringWithin(props.body, OPENUI_LIMITS.maxCalloutBodyChars),
+	KeyValue: keyValueWithin,
 	Table: tableWithin,
 	Stat: (props) =>
 		shortText(props.label) && shortText(props.value) && shortText(props.hint),
-	BarChart: chartWithin,
+	Progress: (props) => shortText(props.label),
 	Steps: (props) =>
 		shortText(props.title) &&
 		stringsWithin(
@@ -401,9 +465,27 @@ const LIMIT_RULES: Record<
 			OPENUI_LIMITS.maxSteps,
 			OPENUI_LIMITS.maxStepChars,
 		),
-	Callout: (props) =>
-		shortText(props.title) &&
-		stringWithin(props.body, OPENUI_LIMITS.maxCalloutBodyChars),
+	BarChart: chartWithin,
+	LineChart: chartWithin,
+	Quote: (props) =>
+		stringWithin(props.text, OPENUI_LIMITS.maxTextChars) &&
+		shortText(props.source),
+	Code: (props) =>
+		stringWithin(props.code, OPENUI_LIMITS.maxCodeChars) &&
+		shortText(props.language),
+	Math: (props) => stringWithin(props.tex, OPENUI_LIMITS.maxMathChars),
+	Divider: (props) => shortText(props.label),
+	List: (props) =>
+		stringsWithin(
+			props.items,
+			OPENUI_LIMITS.maxListItems,
+			OPENUI_LIMITS.maxListItemChars,
+		),
+	Timeline: timelineWithin,
+	Tree: treeWithin,
+	TagList: (props) =>
+		stringsWithin(props.tags, OPENUI_LIMITS.maxTags, OPENUI_LIMITS.maxTagChars),
+	SourceList: sourceListWithin,
 };
 
 /** Size guard checked after shape validation; oversized blocks keep source. */
