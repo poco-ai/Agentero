@@ -24,8 +24,6 @@ type TranslateCardProps = {
 	onTogglePin?: () => void;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
-	/** Scale with the PDF zoom; see SelectionCard. */
-	scale?: number;
 };
 
 /**
@@ -46,7 +44,6 @@ export function TranslateCard({
 	onTogglePin,
 	onPointerEnter,
 	onPointerLeave,
-	scale,
 }: TranslateCardProps) {
 	const { t } = useTranslation("viewer");
 	const showResult = result.trim().length > 0;
@@ -75,7 +72,6 @@ export function TranslateCard({
 			screen={screen}
 			width={340}
 			height={480}
-			scale={scale}
 			// Content-sized: hug the anchor and shrink near viewport edges instead
 			// of pre-shifting by the full preferred height.
 			trackPin
@@ -119,26 +115,26 @@ export function TranslateCard({
 				className="agentero-scroll agentero-scroll-visible flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto px-2.5 py-2"
 			>
 				{showLoading ? (
-					<Shimmer className="text-xs" as="p">
+					<Shimmer className="text-sm" as="p">
 						{t("selection.translating")}
 					</Shimmer>
 				) : null}
 
 				{showResult ? (
-					<MessageResponse className="min-w-0 whitespace-pre-wrap break-words text-xs text-foreground leading-snug">
+					<MessageResponse className="min-w-0 whitespace-pre-wrap break-words text-sm text-foreground leading-snug">
 						{result}
 					</MessageResponse>
 				) : null}
 
 				{!showLoading && !showResult && !error ? (
-					<p className="text-muted-foreground text-xs">
+					<p className="text-muted-foreground text-sm">
 						{t("selection.translating")}
 					</p>
 				) : null}
 
 				{error ? (
 					<div className="flex flex-col items-start gap-1.5">
-						<p className="text-destructive text-xs" role="alert">
+						<p className="text-destructive text-sm" role="alert">
 							{error}
 						</p>
 						<Button

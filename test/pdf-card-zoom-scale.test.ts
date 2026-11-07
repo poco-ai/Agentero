@@ -11,7 +11,6 @@ vi.mock("react-i18next", () => ({
 	}),
 }));
 
-import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import { CommentCardsLayer } from "@/components/viewer/pdf/layers/comment-cards-layer";
 import type { PageAnnotationComment } from "@/components/viewer/pdf/types";
 
@@ -27,29 +26,7 @@ const comment: PageAnnotationComment = {
 	linkAlias: null,
 };
 
-describe("PDF cards follow document zoom", () => {
-	it("scales the floating card shell and its placement footprint", () => {
-		vi.stubGlobal("innerWidth", 1400);
-		vi.stubGlobal("innerHeight", 2000);
-		const html = renderToStaticMarkup(
-			createElement(
-				SelectionCard,
-				{
-					screen: { x: 700, y: 300 },
-					width: 340,
-					height: 480,
-					scale: 0.5,
-					title: "Translation",
-				},
-				"body",
-			),
-		);
-		// 340 / 480 are the unscaled content box; transform halves the result.
-		expect(html).toContain("width:340px");
-		expect(html).toContain("max-height:480px");
-		expect(html).toContain("transform:scale(0.5)");
-	});
-
+describe("PDF comment rail follows document zoom", () => {
 	it("lays out the comment rail in page space and zooms the layer", () => {
 		const html = renderToStaticMarkup(
 			createElement(CommentCardsLayer, {

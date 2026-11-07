@@ -185,9 +185,8 @@ export function AskPopover({
 			screen={screen}
 			width={360}
 			height={360}
-			// Conversation UI stays at the app's body type scale. Unlike the
-			// page-anchored translate / visual-trace cards, it must not scale
-			// with PDF zoom (readable type beats matching the paper footprint).
+			// Conversation UI stays at the app's body type scale, like the
+			// other floating selection cards, while its anchor follows the PDF.
 			// Fixed height so the nested scrollport has a definite viewport.
 			lockHeight
 			// Follow pin while scrolling; shrink height near edges instead of

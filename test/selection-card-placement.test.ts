@@ -1,8 +1,11 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import {
 	SELECTION_CARD_EDGE as EDGE,
 	placeSelectionCard,
+	SelectionCard,
 } from "@/components/viewer/pdf/cards/selection-card";
 
 /**
@@ -11,6 +14,25 @@ import {
  */
 const VW = 1200;
 const VH = 800;
+
+describe("SelectionCard UI size", () => {
+	it("keeps floating controls at a fixed UI size", () => {
+		const html = renderToStaticMarkup(
+			createElement(SelectionCard, {
+				screen: { x: 100, y: 100 },
+				width: 360,
+				height: 360,
+				lockHeight: true,
+				title: "Selection test",
+				// biome-ignore lint/correctness/noChildrenProp: Typed createElement requires SelectionCard's children prop in this non-JSX test.
+				children: "Popup content",
+			}),
+		);
+
+		expect(html).toContain("width:360px");
+		expect(html).toContain("height:360px");
+	});
+});
 
 describe("placeSelectionCard", () => {
 	it("keeps the card fully inside the viewport near the bottom-right", () => {

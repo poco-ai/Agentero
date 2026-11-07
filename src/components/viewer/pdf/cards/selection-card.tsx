@@ -197,13 +197,6 @@ type SelectionCardProps = {
 	 */
 	bodyScroll?: boolean;
 	preferRight?: boolean;
-	/**
-	 * Scale the whole card with the PDF zoom (`1` = 100%). Page-anchored cards
-	 * (translate / visual trace) opt in; conversation cards keep body type
-	 * size. Placement uses the scaled footprint so the card still flips and
-	 * clamps inside the viewport.
-	 */
-	scale?: number;
 	title: string;
 	/** Optional header glyph; omit for a title-only header. */
 	icon?: LucideIcon;
@@ -241,7 +234,6 @@ export function SelectionCard({
 	lockHeight = false,
 	bodyScroll = true,
 	preferRight = true,
-	scale = 1,
 	title,
 	icon: Icon,
 	actions,
@@ -260,26 +252,24 @@ export function SelectionCard({
 	// Suspend dockview drag-and-drop while this card floats over the tab strip
 	// so a stray drag cannot split the layout (#608).
 	useSelectionOverlayGuard();
-	const cardScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
-	// Place the card by its scaled footprint, then scale the unscaled shell
-	// from its top-left corner so text, padding, and radius follow PDF zoom.
+	// Floating controls keep their UI size while the document is zoomed.
+	// Placement still clamps each card within the current viewport.
 	const viewportWidth =
 		typeof window !== "undefined" ? window.innerWidth : 1200;
 	const renderedWidth = Math.min(
-		width * cardScale,
+		width,
 		Math.max(0, viewportWidth - SELECTION_CARD_EDGE * 2),
 	);
-	const contentWidth = renderedWidth / cardScale;
 	const { left, top, maxHeight } = placeSelectionCard(screen, {
 		width: renderedWidth,
-		height: height * cardScale,
+		height,
 		placementWidth: placementWidth
 			? Math.min(
-					placementWidth * cardScale,
+					placementWidth,
 					Math.max(0, viewportWidth - SELECTION_CARD_EDGE * 2),
 				)
 			: undefined,
-		placementHeight: placementHeight ? placementHeight * cardScale : undefined,
+		placementHeight,
 		trackPin,
 		preferRight,
 	});
@@ -331,17 +321,13 @@ export function SelectionCard({
 			style={{
 				left,
 				top,
-				width: contentWidth,
+				width: renderedWidth,
 				// Only enforce maxHeight when the body is a scroller / locked;
 				// content-sized cards grow with their children (viewport clamp is
 				// still applied via placeSelectionCard when height is large).
-				...(bodyScroll || lockHeight
-					? { maxHeight: maxHeight / cardScale }
-					: null),
+				...(bodyScroll || lockHeight ? { maxHeight } : null),
 				// Definite height so flex-1 + nested height:100% scroll areas work.
-				...(lockHeight ? { height: maxHeight / cardScale } : null),
-				transform: `scale(${cardScale})`,
-				transformOrigin: "top left",
+				...(lockHeight ? { height: maxHeight } : null),
 			}}
 			role="dialog"
 			aria-label={ariaLabel ?? title}
