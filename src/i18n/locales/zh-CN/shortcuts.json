@@ -7,7 +7,8 @@
 	"groups": {
 		"app": "应用",
 		"vault": "知识库",
-		"navigation": "导航"
+		"navigation": "导航",
+		"editor": "编辑器"
 	},
 	"labels": {
 		"settings": "设置…",
@@ -43,6 +44,7 @@
 		"prevTab": "上一个标签",
 		"visualAnnotation": "添加视觉批注（PDF）",
 		"layoutTranslate": "全文翻译（PDF）",
-		"toggleFullscreen": "切换无边框全屏"
+		"toggleFullscreen": "切换无边框全屏",
+		"toggleMarkdownSource": "切换 Markdown 源码"
 	}
 }

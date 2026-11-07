@@ -35,6 +35,7 @@ import { useConfigReminders } from "@/hooks/use-config-reminders";
 import { useConnectorSync } from "@/hooks/use-connector-sync";
 import { useExternalFileDrop } from "@/hooks/use-external-file-drop";
 import { useFeatureTour } from "@/hooks/use-feature-tour";
+import { useFlushMarkdownOnClose } from "@/hooks/use-flush-markdown-on-close";
 import { useLayoutModelPrefetch } from "@/hooks/use-layout-model-prefetch";
 import { useMcpSync } from "@/hooks/use-mcp-sync";
 import { useNativeMenuEvents } from "@/hooks/use-native-menu-events";
@@ -124,7 +125,8 @@ import {
 	reopenClosedTab,
 	splitActivePane,
 } from "@/lib/workspace/actions";
-import { workspaceStore } from "@/lib/workspace/store";
+import { getActiveTabId, workspaceStore } from "@/lib/workspace/store";
+import { markdownEditorFor } from "@/lib/workspace/viewer/markdown-editor-registry";
 
 // macOS keeps native traffic lights (Overlay title bar) and a native menu bar.
 // Other desktop platforms also use native decorations, but have no native menu
@@ -350,6 +352,7 @@ export default function App() {
 	});
 
 	const anyModalOverlayOpen = useAnyModalOverlayOpen();
+	useFlushMarkdownOnClose();
 	useAppShortcuts(anyModalOverlayOpen, {
 		settings: toggleSettingsWindow,
 		// Esc → dismiss top overlay (settings, palette, dialogs…)
@@ -384,6 +387,8 @@ export default function App() {
 		magicWand: openMagicWand,
 		quickOpen: () => openPalette("go"),
 		commandPalette: () => openPalette("commands"),
+		toggleMarkdownSource: () =>
+			markdownEditorFor(getActiveTabId())?.toggleSource(),
 		toggleSidebar,
 		toggleChat,
 		// ⌘K: in-page Quick chat (Ask) from the armed PDF / Plaza selection.

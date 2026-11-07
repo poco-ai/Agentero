@@ -95,6 +95,10 @@ export function useAppShortcuts(
 			}
 
 			event.preventDefault();
+			if (id === "toggleMarkdownSource") {
+				event.stopPropagation();
+				if (event.repeat) return;
+			}
 			handlersRef.current[id]();
 		};
 		window.addEventListener("keydown", onKeyDown, true);

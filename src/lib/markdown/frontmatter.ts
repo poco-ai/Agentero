@@ -8,7 +8,7 @@
  * back to raw source editing.
  */
 
-const FRONTMATTER_RE = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
+const FRONTMATTER_RE = /^---[ \t]*\r?\n(?:(?:[^\n]*\n)*?)---[ \t]*(?:\r?\n|$)/;
 
 type MarkdownDoc = {
 	/** Leading YAML frontmatter block, verbatim (incl. delimiters and trailing newline). Empty when absent. */

@@ -7,7 +7,8 @@
 	"groups": {
 		"app": "App",
 		"vault": "Vault",
-		"navigation": "Navigation"
+		"navigation": "Navigation",
+		"editor": "Editor"
 	},
 	"labels": {
 		"settings": "Settings…",
@@ -43,6 +44,7 @@
 		"prevTab": "Previous tab",
 		"visualAnnotation": "Add visual annotation (PDF)",
 		"layoutTranslate": "Full-text translation (PDF)",
-		"toggleFullscreen": "Toggle borderless fullscreen"
+		"toggleFullscreen": "Toggle borderless fullscreen",
+		"toggleMarkdownSource": "Toggle Markdown source"
 	}
 }

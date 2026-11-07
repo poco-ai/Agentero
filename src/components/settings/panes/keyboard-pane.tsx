@@ -40,6 +40,7 @@ const GROUP_KEY = {
 	App: "app",
 	Vault: "vault",
 	Navigation: "navigation",
+	Editor: "editor",
 } as const satisfies Record<ShortcutGroup, string>;
 
 const KEY_ALIASES: Record<string, string> = {

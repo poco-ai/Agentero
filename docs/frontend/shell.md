@@ -73,6 +73,7 @@
 | `⌘\` | 向右 Split pane：当前论文未打开 NOTES 时右侧打开 NOTES；否则复制当前 pane，并将横向 pane 等宽 |
 | `⌘P` | 快速打开 |
 | `⇧⌘P` | 命令面板 |
+| `⌘/` | 切换当前 Markdown 编辑面板的源码与渲染视图（编辑器分组，可重绑） |
 | `⇧⌘I` | 魔棒 |
 | `⌘R` | 刷新文件树 |
 | `⌥⌘R` | Finder 显示 |
@@ -97,7 +98,7 @@ macOS 原生菜单在启动及设置保存后读取 `shortcutOverrides`，菜单
 
 上表列出默认绑定；「设置 → 快捷键」支持修改、清除与恢复，工具栏提示及原生菜单随配置更新。
 
-前端快捷键绑定：`src/lib/shell/shortcuts.ts`；macOS 原生全屏由 `src-tauri/src/app/menu.rs` 的预定义菜单项处理。PDF、Markdown 编辑器及查找替换栏共用 `isFindShortcut`，macOS 仅 `⌘F`（不含 Ctrl / Shift / Alt）触发搜索，避免 `⌃⌘F` 误打开搜索或抢走搜索栏焦点；Windows/Linux 保留 `Ctrl+F`。文案 i18n 见 [settings.md](settings.md)。
+前端快捷键绑定：`src/lib/shell/shortcuts.ts`；macOS 原生全屏由 `src-tauri/src/app/menu.rs` 的预定义菜单项处理。PDF、Markdown 编辑器及查找替换栏共用 `isFindShortcut`，macOS 仅 `⌘F`（不含 Ctrl / Shift / Alt）触发搜索，避免 `⌃⌘F` 误打开搜索或抢走搜索栏焦点；Windows/Linux 保留 `Ctrl+F`。Markdown 源码视图由 CodeMirror 处理查找与替换。文案 i18n 见 [settings.md](settings.md)。
 
 桌面设置里的「插件」入口、命令面板里的开发插件加载，以及打开 Vault 后的自动激活目前先隐藏。开关在 `src/lib/plugins/visibility.ts` 的 `pluginsSurfaceEnabled`；设置页、命令和宿主启动代码都还在，后端安装与执行路径未删。改回 `true` 后，「设置 → 插件」继续管理本地安装、按 Vault 授权及配置。插件通过命令 registry 和三个菜单贡献位接入；菜单点击传入对象上下文，切换 Vault 时撤销注册和在途调用。开发版另提供临时只读目录加载。详见 [本地插件系统](../backend/plugins.md)。
 

@@ -29,8 +29,8 @@ export const editorChrome: Extension = Prec.highest(
 			color: "var(--foreground)",
 		},
 		"& .cm-scroller": {
-			fontFamily: "var(--font-mono)",
-			lineHeight: "1.65",
+			fontFamily: "var(--cm-content-font, var(--font-mono))",
+			lineHeight: "var(--cm-content-leading, 1.65)",
 		},
 		"& .cm-gutters": {
 			backgroundColor: "transparent",
@@ -262,9 +262,11 @@ const texCommandHighlight = ViewPlugin.fromClass(
 	{ decorations: (plugin) => plugin.decorations },
 );
 
+export const editorSyntaxHighlight = syntaxHighlighting(editorHighlightStyle);
+
 /** Syntax colors derived from the app theme. Always on; `basicSetup`'s highlighter is only a fallback. */
 export const editorHighlight: Extension = [
-	syntaxHighlighting(editorHighlightStyle),
+	editorSyntaxHighlight,
 	texCommandHighlight,
 	EditorView.theme({
 		"& .cm-tex-cmd": { color: command },

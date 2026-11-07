@@ -14,7 +14,9 @@ import {
 } from "@/components/workspace/doc-view";
 import { useSettings, useVaultStore } from "@/hooks/use-app-stores";
 import { useExternalFileDrop } from "@/hooks/use-external-file-drop";
+import { useFlushMarkdownOnClose } from "@/hooks/use-flush-markdown-on-close";
 import { useNativeSelectAllGuard } from "@/hooks/use-native-select-all-guard";
+import { useAnyModalOverlayOpen } from "@/hooks/use-overlay-registration";
 import { useVaultFileEvents } from "@/hooks/use-vault-file-events";
 import { isMacOS } from "@/lib/core/tauri";
 import { isLibraryVirtualPath, isTrashVirtualPath } from "@/lib/paper/api";
@@ -42,6 +44,7 @@ import {
 	syncTabSeedsForPath,
 } from "@/lib/workspace/tabs";
 import { isCenterViewMode } from "@/lib/workspace/viewer";
+import { markdownEditorFor } from "@/lib/workspace/viewer/markdown-editor-registry";
 
 // DocView's memo compares domain objects by identity; the popout never shows
 // Library / PDF-chrome surfaces, so constant no-op stubs keep it that way.
@@ -76,6 +79,8 @@ export function DocWindowRoot() {
 	const tabRef = useRef<DocTab | null>(null);
 	tabRef.current = tab;
 	useNativeSelectAllGuard();
+	useFlushMarkdownOnClose();
+	const modalOverlayOpen = useAnyModalOverlayOpen();
 
 	const vaultPath = useVaultStore((s) => s.vaultPath);
 	const fontSize = useSettings((s) => s.editorFontSize);
@@ -161,15 +166,26 @@ export function DocWindowRoot() {
 				document.querySelector("[data-shortcut-recording]")
 			)
 				return;
+			const source =
+				!modalOverlayOpen &&
+				resolveShortcutId(event, { settingsOpen: false }) ===
+					"toggleMarkdownSource";
+			if (source) {
+				event.preventDefault();
+				event.stopPropagation();
+				if (!event.repeat)
+					markdownEditorFor(tabRef.current?.id)?.toggleSource();
+				return;
+			}
 			const id = resolveShortcutId(event, { settingsOpen: true });
 			if (id === "closeSheet" || id === "closeTab") {
 				event.preventDefault();
 				closeCurrentWindow();
 			}
 		};
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
-	}, []);
+		window.addEventListener("keydown", onKeyDown, true);
+		return () => window.removeEventListener("keydown", onKeyDown, true);
+	}, [modalOverlayOpen]);
 
 	const onTabPatch = useCallback((id: string, patch: Partial<DocTab>) => {
 		setTab((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev));
