@@ -154,7 +154,14 @@ export function PlazaWebFrame({
 	useEffect(() => {
 		if (!embedOrigin) return;
 		const onMessage = (event: MessageEvent) => {
-			if (event.origin !== embedOrigin || !isNavMessage(event.data)) return;
+			// Retained tabs can contain other frames from the same origin.
+			if (
+				event.origin !== embedOrigin ||
+				!frameRef.current?.contentWindow ||
+				event.source !== frameRef.current.contentWindow ||
+				!isNavMessage(event.data)
+			)
+				return;
 			const { path, external, externalPath, importPaper, queryImported } =
 				event.data;
 			if (external) {
