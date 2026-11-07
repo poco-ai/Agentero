@@ -141,31 +141,6 @@ export function TableToolbar({
 	const [schemaBusy, setSchemaBusy] = useState(false);
 	const [schemaNotice, setSchemaNotice] = useState<string | null>(null);
 	const { compositionProps, isBlockedByIme } = useImeGuard();
-	const relativePath = vaultPath ? vaultRelativePath(vaultPath, path) : null;
-	const [backlinks, setBacklinks] = useState<ResearchTableBacklink[] | null>(
-		null,
-	);
-	useEffect(() => {
-		if (!vaultPath || !relativePath) {
-			setBacklinks(null);
-			return;
-		}
-		let cancelled = false;
-		void researchTableBacklinks({
-			vaultPath,
-			path: relativePath,
-			id: table.id,
-		})
-			.then((notes) => {
-				if (!cancelled) setBacklinks(notes);
-			})
-			.catch(() => {
-				if (!cancelled) setBacklinks(null);
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [relativePath, table.id, vaultPath]);
 	useEffect(() => {
 		const schemaPath = table.schemaPath;
 		if (!schemaPath || !vaultPath) {
@@ -446,26 +421,6 @@ export function TableToolbar({
 					</DropdownMenu>
 				</div>
 			</div>
-			{backlinks ? (
-				<div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pb-1 text-xs text-muted-foreground">
-					<span>
-						{t("researchTable.backlinks", { count: backlinks.length })}
-					</span>
-					{backlinks.slice(0, 6).map((note) => (
-						<button
-							key={note.path}
-							type="button"
-							className="max-w-48 truncate rounded-sm px-1 hover:bg-accent hover:text-foreground"
-							onClick={() => {
-								if (!vaultPath) return;
-								openPath(joinVaultPath(vaultPath, note.path));
-							}}
-						>
-							{note.path}
-						</button>
-					))}
-				</div>
-			) : null}
 			<div className="flex flex-wrap items-center gap-2 py-2">
 				<div className="flex items-center gap-0.5">
 					{(
@@ -781,6 +736,84 @@ function RowDetails({
 						</dl>
 					))}
 				</div>
+			</PopoverContent>
+		</Popover>
+	);
+}
+
+/** One footer line for notes that embed this table. Paths stay behind a click. */
+export function TableBacklinks({
+	tableId,
+	path,
+	vaultPath,
+}: {
+	tableId: string;
+	path: string;
+	vaultPath: string | null;
+}) {
+	const { t } = useTranslation("editor");
+	const relativePath = vaultPath ? vaultRelativePath(vaultPath, path) : null;
+	const [notes, setNotes] = useState<ResearchTableBacklink[] | null>(null);
+	const [open, setOpen] = useState(false);
+	useEffect(() => {
+		if (!vaultPath || !relativePath) {
+			setNotes(null);
+			return;
+		}
+		let cancelled = false;
+		void researchTableBacklinks({
+			vaultPath,
+			path: relativePath,
+			id: tableId,
+		})
+			.then((found) => {
+				if (!cancelled) setNotes(found);
+			})
+			.catch(() => {
+				if (!cancelled) setNotes(null);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [relativePath, tableId, vaultPath]);
+	if (!vaultPath || !notes || notes.length === 0) return null;
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					className="ml-auto max-w-[16rem] truncate rounded-sm px-1 hover:bg-accent hover:text-foreground"
+				>
+					{t("researchTable.backlinks", { count: notes.length })}
+				</button>
+			</PopoverTrigger>
+			<PopoverContent align="end" side="top" className="w-72 p-1">
+				<ul className="agentero-scroll max-h-64 overflow-y-auto">
+					{notes.map((note) => {
+						const name = note.path.split("/").pop() ?? note.path;
+						const label = name.replace(/\.(md|mdx|markdown)$/i, "") || name;
+						return (
+							<li key={note.path}>
+								<button
+									type="button"
+									className="flex w-full min-w-0 flex-col rounded-sm px-2 py-1 text-left hover:bg-accent"
+									title={note.path}
+									onClick={() => {
+										setOpen(false);
+										openPath(joinVaultPath(vaultPath, note.path));
+									}}
+								>
+									<span className="truncate text-xs text-foreground">
+										{label}
+									</span>
+									<span className="truncate text-[0.6875rem] text-muted-foreground">
+										{note.path}
+									</span>
+								</button>
+							</li>
+						);
+					})}
+				</ul>
 			</PopoverContent>
 		</Popover>
 	);

@@ -17,6 +17,7 @@ import {
 	type TableRowRef,
 } from "@/components/research-table/table-grid";
 import {
+	TableBacklinks,
 	type TableSaveState,
 	TableToolbar,
 } from "@/components/research-table/table-toolbar";
@@ -423,6 +424,7 @@ export function TableViewer({
 						{t("researchTable.archivedCount", { count: archivedCount })}
 					</span>
 				) : null}
+				<TableBacklinks tableId={table.id} path={path} vaultPath={vaultPath} />
 			</footer>
 			<Dialog
 				open={field !== null}

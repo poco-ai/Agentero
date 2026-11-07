@@ -52,6 +52,7 @@ import { isWritingPath } from "@/lib/writing/project-target";
 import type { TexCompileActions as TexCompileHookActions } from "./hooks/use-tex-compile";
 import {
 	DOWNLOAD_REASON_KEYS,
+	fileTreeDisplayName,
 	VAULT_ROOT_LABEL_KEY,
 	type VaultRootFace,
 	vaultRootFace,
@@ -308,6 +309,7 @@ export function NodeTreeRow({
 	}
 
 	const Icon = contextPathIcon(node.name);
+	const display = fileTreeDisplayName(node.name);
 
 	return (
 		<FileTreeFile
@@ -320,7 +322,7 @@ export function NodeTreeRow({
 				<Icon className="size-4 text-muted-foreground" />
 			</FileTreeIcon>
 			<FileTreeName className="min-w-0 flex-1 truncate" title={node.name}>
-				{node.name}
+				{display}
 			</FileTreeName>
 		</FileTreeFile>
 	);
