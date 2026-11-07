@@ -489,6 +489,8 @@
 		"modelscopeInterpretation": "ModelScope reading",
 		"alphaXiv": "alphaXiv",
 		"codeRepo": "GitHub",
+		"huggingface": "Hugging Face",
+		"zhihu": "Zhihu",
 		"openreview": "OpenReview",
 		"arxivId": "arXiv ID",
 		"copyHint": "Click to copy {{label}}",

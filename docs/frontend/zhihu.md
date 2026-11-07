@@ -32,7 +32,7 @@ Host 契约见 [../backend/zhihu.md](../backend/zhihu.md)；完整设计（含�
 
 ## 论文信息栏入口
 
-左侧栏底部 **Paper Info（信息）面板** 有「去知乎提问」按钮（`paper-info-panel.tsx`）：
+左侧栏底部 **Paper Info（信息）面板** 的链接区首行有「知乎」入口（`paper-info-panel.tsx`）：
 
 - 按当前论文生成提问草稿——标题 `如何评价论文《…》？`（≤50 字，配了 Access Secret 时先用直答把英文标题译成中文，失败/未配则回退原标题），正文含论文 / 作者 / 期刊（年份）/ 链接 / 摘要（≤800 字）。
 - 点击后把草稿复制到剪贴板并打开 `zhihu.com`，用户粘贴发布。

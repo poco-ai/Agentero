@@ -11,7 +11,9 @@ import {
 	Users,
 } from "lucide-react";
 import {
+	type ComponentProps,
 	type ComponentType,
+	forwardRef,
 	type KeyboardEvent,
 	type ReactNode,
 	type PointerEvent as ReactPointerEvent,
@@ -20,7 +22,13 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { SiArxiv, SiGithub, SiModelscope, SiZhihu } from "react-icons/si";
+import {
+	SiArxiv,
+	SiGithub,
+	SiHuggingface,
+	SiModelscope,
+	SiZhihu,
+} from "react-icons/si";
 import { EditablePaperTag } from "@/components/library/editable-paper-tag";
 import { PaperTagRemoveButton } from "@/components/library/paper-tag-chip";
 import { TagColorPalette } from "@/components/library/tag-color-palette";
@@ -223,6 +231,38 @@ function ServiceLinkChip({
 		</a>
 	);
 }
+
+const ServiceActionChip = forwardRef<
+	HTMLButtonElement,
+	ComponentProps<"button"> & { label: string; icon: ReactNode }
+>(function ServiceActionChip({ label, icon, className, ...props }, ref) {
+	return (
+		<button
+			ref={ref}
+			type="button"
+			title={label}
+			aria-label={label}
+			{...props}
+			className={cn(
+				"inline-flex h-6 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border bg-background px-1.5",
+				"text-caption leading-none text-muted-foreground transition-colors",
+				"hover:bg-muted hover:text-foreground",
+				"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				"disabled:pointer-events-none disabled:opacity-60",
+				className,
+			)}
+		>
+			{icon}
+			<span className="min-w-0 truncate @max-[18rem]/paper-links:hidden">
+				{label}
+			</span>
+			<ExternalLink
+				className="size-2.5 shrink-0 opacity-70 @max-[18rem]/paper-links:hidden"
+				aria-hidden
+			/>
+		</button>
+	);
+});
 
 function TagsEditor({
 	tags,
@@ -505,6 +545,9 @@ export function PaperInfoPanel({
 	const alphaXivUrl = arxivId
 		? `https://www.alphaxiv.org/abs/${arxivId}`
 		: null;
+	const huggingFaceUrl = arxivId
+		? `https://huggingface.co/papers/${arxivId}`
+		: null;
 	const codeRepo = meta?.code_repo?.trim() || null;
 	const openreviewUrl = openreviewHref(meta?.openreview_url);
 	const venue = meta ? venueInfo(meta) : null;
@@ -728,13 +771,8 @@ export function PaperInfoPanel({
 									}}
 								/>
 							</MetaRow>
-							{meta.pdf_url ||
-							meta.arxiv_id ||
-							modelScopeUrl ||
-							alphaXivUrl ||
-							codeRepo ||
-							openreviewUrl ? (
-								<div className="@container/paper-links flex flex-nowrap items-center gap-1.5 overflow-hidden px-3 pt-1.5">
+							<div className="@container/paper-links flex flex-col gap-1.5 px-3 pt-1.5">
+								<div className="flex flex-nowrap items-center gap-1.5 overflow-hidden">
 									{meta.pdf_url || meta.arxiv_id ? (
 										<LinkChip
 											href={
@@ -746,6 +784,15 @@ export function PaperInfoPanel({
 													className="size-3.5 shrink-0 text-[#B31B1B]"
 													aria-hidden
 												/>
+											}
+										/>
+									) : null}
+									{alphaXivUrl ? (
+										<ServiceLinkChip
+											href={alphaXivUrl}
+											label={t("paperInfo.alphaXiv")}
+											icon={
+												<AlphaXivIcon className="size-3.5 shrink-0 text-[#B33131]" />
 											}
 										/>
 									) : null}
@@ -761,99 +808,98 @@ export function PaperInfoPanel({
 											}
 										/>
 									) : null}
-									{alphaXivUrl ? (
-										<ServiceLinkChip
-											href={alphaXivUrl}
-											label={t("paperInfo.alphaXiv")}
-											icon={
-												<AlphaXivIcon className="size-3.5 shrink-0 text-[#B33131]" />
-											}
-										/>
-									) : null}
-									{codeRepo ? (
-										<ServiceLinkChip
-											href={repoHref(codeRepo)}
-											label={t("paperInfo.codeRepo")}
-											icon={
-												<SiGithub className="size-3.5 shrink-0" aria-hidden />
-											}
-										/>
-									) : null}
-									{openreviewUrl ? (
-										<ServiceLinkChip
-											href={openreviewUrl}
-											label={t("paperInfo.openreview")}
-											icon={
-												<FileText className="size-3.5 shrink-0" aria-hidden />
-											}
-										/>
-									) : null}
-								</div>
-							) : null}
-							<div className="px-3 pt-2">
-								<Popover
-									open={zhihuDraftOpen && Boolean(zhihuDraft)}
-									onOpenChange={setZhihuDraftOpen}
-								>
-									<PopoverTrigger asChild>
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											onClick={() => void askOnZhihu()}
-											disabled={zhihuBusy}
-											title={t("paperInfo.zhihuAskHint")}
-											aria-label={t("paperInfo.zhihuAsk")}
-											className="w-full justify-center gap-1.5 text-xs"
-										>
-											{zhihuBusy ? (
-												<Loader2
-													className="size-3.5 shrink-0 animate-spin"
-													aria-hidden
-												/>
-											) : (
-												<SiZhihu
-													className="size-3.5 shrink-0 text-[#0084FF]"
-													aria-hidden
-												/>
-											)}
-											<span className="truncate">
-												{t("paperInfo.zhihuAsk")}
-											</span>
-										</Button>
-									</PopoverTrigger>
-									<PopoverContent
-										side="top"
-										align="start"
-										className="w-80 gap-2 p-3"
+									<Popover
+										open={zhihuDraftOpen && Boolean(zhihuDraft)}
+										onOpenChange={setZhihuDraftOpen}
 									>
-										{zhihuDraft ? (
-											<div className="flex flex-col gap-2">
-												<div className="text-xs font-medium text-muted-foreground">
-													{t("paperInfo.zhihuDraftHeading")}
-												</div>
-												<div className="rounded-md border bg-muted/40 p-2">
-													<div className="break-words font-medium text-foreground text-xs">
-														{zhihuDraft.title}
+										<PopoverTrigger asChild>
+											<ServiceActionChip
+												label={t("paperInfo.zhihu")}
+												title={t("paperInfo.zhihuAskHint")}
+												onClick={() => void askOnZhihu()}
+												disabled={zhihuBusy}
+												icon={
+													zhihuBusy ? (
+														<Loader2
+															className="size-3.5 shrink-0 animate-spin"
+															aria-hidden
+														/>
+													) : (
+														<SiZhihu
+															className="size-3.5 shrink-0 text-[#0084FF]"
+															aria-hidden
+														/>
+													)
+												}
+											/>
+										</PopoverTrigger>
+										<PopoverContent
+											side="top"
+											align="start"
+											className="w-80 gap-2 p-3"
+										>
+											{zhihuDraft ? (
+												<div className="flex flex-col gap-2">
+													<div className="text-xs font-medium text-muted-foreground">
+														{t("paperInfo.zhihuDraftHeading")}
 													</div>
-													<div className="agentero-scroll mt-1.5 max-h-52 overflow-y-auto whitespace-pre-wrap break-words text-caption text-muted-foreground">
-														{zhihuDraft.body}
+													<div className="rounded-md border bg-muted/40 p-2">
+														<div className="break-words font-medium text-foreground text-xs">
+															{zhihuDraft.title}
+														</div>
+														<div className="agentero-scroll mt-1.5 max-h-52 overflow-y-auto whitespace-pre-wrap break-words text-caption text-muted-foreground">
+															{zhihuDraft.body}
+														</div>
+													</div>
+													<div>
+														<Button
+															type="button"
+															variant="outline"
+															size="xs"
+															onClick={() => void copyZhihuDraft(zhihuDraft)}
+														>
+															{t("paperInfo.zhihuDraftCopy")}
+														</Button>
 													</div>
 												</div>
-												<div>
-													<Button
-														type="button"
-														variant="outline"
-														size="xs"
-														onClick={() => void copyZhihuDraft(zhihuDraft)}
-													>
-														{t("paperInfo.zhihuDraftCopy")}
-													</Button>
-												</div>
-											</div>
+											) : null}
+										</PopoverContent>
+									</Popover>
+								</div>
+								{codeRepo || huggingFaceUrl || openreviewUrl ? (
+									<div className="flex flex-nowrap items-center gap-1.5 overflow-hidden">
+										{codeRepo ? (
+											<ServiceLinkChip
+												href={repoHref(codeRepo)}
+												label={t("paperInfo.codeRepo")}
+												icon={
+													<SiGithub className="size-3.5 shrink-0" aria-hidden />
+												}
+											/>
 										) : null}
-									</PopoverContent>
-								</Popover>
+										{huggingFaceUrl ? (
+											<ServiceLinkChip
+												href={huggingFaceUrl}
+												label={t("paperInfo.huggingface")}
+												icon={
+													<SiHuggingface
+														className="size-3.5 shrink-0 text-[#FF9D00]"
+														aria-hidden
+													/>
+												}
+											/>
+										) : null}
+										{openreviewUrl ? (
+											<ServiceLinkChip
+												href={openreviewUrl}
+												label={t("paperInfo.openreview")}
+												icon={
+													<FileText className="size-3.5 shrink-0" aria-hidden />
+												}
+											/>
+										) : null}
+									</div>
+								) : null}
 							</div>
 							{canEditMeta ? (
 								<div className="px-3 pt-2">

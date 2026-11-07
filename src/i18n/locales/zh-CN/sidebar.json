@@ -488,6 +488,8 @@
 		"modelscopeInterpretation": "魔搭解读",
 		"alphaXiv": "alphaXiv",
 		"codeRepo": "GitHub",
+		"huggingface": "Hugging Face",
+		"zhihu": "知乎",
 		"openreview": "OpenReview",
 		"arxivId": "arXiv 标识号",
 		"copyHint": "单击复制{{label}}",
