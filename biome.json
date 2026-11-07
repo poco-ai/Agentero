@@ -16,7 +16,9 @@
 			"!target",
 			"!agentero",
 			"!src/lib/writing/templates/vendor",
-			"!src/lib/core/bindings.ts"
+			"!src/lib/core/bindings.ts",
+			"!src/lib/agent/openui/generated",
+			"!test/fixtures/openui-catalog.snapshot.json"
 		]
 	},
 	"formatter": {

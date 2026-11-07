@@ -6,13 +6,13 @@ import {
 	type StreamParser,
 	type ValidationError,
 } from "@openuidev/lang-core";
+import { type BlockName, blockProps, OPENUI_SCHEMA } from "./catalog";
 import {
 	isOpenUiLanguage,
 	OPENUI_LIMITS,
 	OPENUI_MAX_SOURCE_CHARS,
 	OPENUI_ROOT_COMPONENT,
 } from "./config";
-import { OPENUI_SCHEMA } from "./schema";
 
 export type OpenUiFailureReason =
 	| "empty"
@@ -284,260 +284,161 @@ function hasPartialValue(value: unknown): boolean {
 	return false;
 }
 
-function asStringArray(value: unknown): string[] | null {
-	if (
-		!Array.isArray(value) ||
-		!value.every((item): item is string => typeof item === "string")
-	) {
-		return null;
-	}
-	return value;
-}
-
-function asStringMatrix(value: unknown): string[][] | null {
-	if (!Array.isArray(value)) return null;
-	const rows: string[][] = [];
-	for (const row of value) {
-		const cells = asStringArray(row);
-		if (!cells) return null;
-		rows.push(cells);
-	}
-	return rows;
-}
-
-function asNumberArray(value: unknown): number[] | null {
-	if (
-		!Array.isArray(value) ||
-		!value.every(
-			(item): item is number =>
-				typeof item === "number" && Number.isFinite(item),
-		)
-	) {
-		return null;
-	}
-	return value;
-}
-
 /**
- * Final-shape validation beyond JSON Schema (equal chart arrays, non-empty
- * table header, known component names). Invalid data falls back to source.
+ * Final-shape validation reuses the same Zod props that produced the parser
+ * schema. The parser already drops missing/typed fields; this catches unknown
+ * components, semantic refinements (chart length, positive ranges) and plain
+ * objects where child elements are required.
  */
-export function checkOpenUiShape(
+export function validateOpenUiShape(
 	node: ElementNode,
 ): OpenUiRenderFailure | null {
-	switch (node.typeName) {
-		case "Stack":
-		case "Row": {
-			const children = node.props.children;
-			if (!Array.isArray(children)) return "invalid";
-			for (const child of children) {
-				if (!isElementNode(child)) return "invalid";
-				const failure = checkOpenUiShape(child);
-				if (failure) return failure;
-			}
-			if (
-				node.props.gap !== undefined &&
-				!["sm", "md", "lg"].includes(String(node.props.gap))
-			) {
-				return "invalid";
-			}
-			return null;
+	let invalid = false;
+
+	const visit = (current: ElementNode) => {
+		if (invalid) return;
+		const schema = blockProps[current.typeName as BlockName];
+		if (!schema?.safeParse(current.props).success) {
+			invalid = true;
+			return;
 		}
-		case "Text": {
-			if (typeof node.props.text !== "string") return "invalid";
-			const variant = node.props.variant;
-			if (
-				variant !== undefined &&
-				!["body", "heading", "caption", "code"].includes(String(variant))
-			) {
-				return "invalid";
+		if ("children" in current.props) {
+			const children = current.props.children;
+			if (!Array.isArray(children) || !children.every(isElementNode)) {
+				invalid = true;
+				return;
 			}
-			return null;
+			for (const child of children) visit(child);
 		}
-		case "Table": {
-			const columns = asStringArray(node.props.columns);
-			const rows = asStringMatrix(node.props.rows);
-			if (!columns || !rows || columns.length === 0) return "invalid";
-			if (
-				node.props.caption !== undefined &&
-				typeof node.props.caption !== "string"
-			) {
-				return "invalid";
-			}
-			return null;
-		}
-		case "Stat": {
-			if (
-				typeof node.props.label !== "string" ||
-				typeof node.props.value !== "string" ||
-				(node.props.hint !== undefined && typeof node.props.hint !== "string")
-			) {
-				return "invalid";
-			}
-			return null;
-		}
-		case "BarChart": {
-			const labels = asStringArray(node.props.labels);
-			const values = asNumberArray(node.props.values);
-			if (
-				typeof node.props.title !== "string" ||
-				!labels ||
-				!values ||
-				labels.length !== values.length ||
-				values.some((value) => value < 0)
-			) {
-				return "invalid";
-			}
-			if (
-				node.props.unit !== undefined &&
-				typeof node.props.unit !== "string"
-			) {
-				return "invalid";
-			}
-			return null;
-		}
-		case "Steps": {
-			if (
-				typeof node.props.title !== "string" ||
-				!asStringArray(node.props.steps)
-			) {
-				return "invalid";
-			}
-			return null;
-		}
-		case "Callout": {
-			if (
-				typeof node.props.title !== "string" ||
-				typeof node.props.body !== "string"
-			) {
-				return "invalid";
-			}
-			const tone = node.props.tone;
-			if (
-				tone !== undefined &&
-				!["info", "success", "warning", "danger"].includes(String(tone))
-			) {
-				return "invalid";
-			}
-			return null;
-		}
-		default:
-			return "invalid";
-	}
+	};
+
+	visit(node);
+	return invalid ? "invalid" : null;
 }
 
-function exceedsShortText(value: unknown): boolean {
+function arrayWithin(value: unknown, max: number): boolean {
+	return Array.isArray(value) && value.length <= max;
+}
+
+function stringWithin(value: unknown, max: number): boolean {
+	return typeof value === "string" && value.length <= max;
+}
+
+function stringsWithin(
+	value: unknown,
+	maxItems: number,
+	maxChars: number,
+): boolean {
 	return (
-		typeof value === "string" && value.length > OPENUI_LIMITS.maxShortTextChars
+		Array.isArray(value) &&
+		value.length <= maxItems &&
+		value.every((item) => typeof item === "string" && item.length <= maxChars)
 	);
 }
 
-/** Size guard checked before rendering; oversized blocks keep their source. */
+function shortText(value: unknown): boolean {
+	return (
+		value === undefined ||
+		(typeof value === "string" &&
+			value.length <= OPENUI_LIMITS.maxShortTextChars)
+	);
+}
+
+function tableWithin(props: Record<string, unknown>): boolean {
+	const columns = Array.isArray(props.columns) ? props.columns : [];
+	const rows = Array.isArray(props.rows) ? props.rows : [];
+	return (
+		columns.length <= OPENUI_LIMITS.maxTableColumns &&
+		rows.length <= OPENUI_LIMITS.maxTableRows &&
+		columns.length * rows.length <= OPENUI_LIMITS.maxTableCells &&
+		columns.every(
+			(column) =>
+				typeof column === "string" &&
+				column.length <= OPENUI_LIMITS.maxTableCellChars,
+		) &&
+		rows.every(
+			(row) =>
+				Array.isArray(row) &&
+				row.every(
+					(cell) =>
+						typeof cell === "string" &&
+						cell.length <= OPENUI_LIMITS.maxTableCellChars,
+				),
+		) &&
+		shortText(props.caption)
+	);
+}
+
+function chartWithin(props: Record<string, unknown>): boolean {
+	const labels = Array.isArray(props.labels) ? props.labels : [];
+	return (
+		shortText(props.title) &&
+		shortText(props.unit) &&
+		labels.length <= OPENUI_LIMITS.maxChartPoints &&
+		labels.every(
+			(label) =>
+				typeof label === "string" &&
+				label.length <= OPENUI_LIMITS.maxChartLabelChars,
+		)
+	);
+}
+
+const LIMIT_RULES: Record<
+	BlockName,
+	(props: Record<string, unknown>) => boolean
+> = {
+	Stack: (props) => arrayWithin(props.children, OPENUI_LIMITS.maxChildren),
+	Row: (props) => arrayWithin(props.children, OPENUI_LIMITS.maxChildren),
+	Text: (props) => stringWithin(props.text, OPENUI_LIMITS.maxTextChars),
+	Table: tableWithin,
+	Stat: (props) =>
+		shortText(props.label) && shortText(props.value) && shortText(props.hint),
+	BarChart: chartWithin,
+	Steps: (props) =>
+		shortText(props.title) &&
+		stringsWithin(
+			props.steps,
+			OPENUI_LIMITS.maxSteps,
+			OPENUI_LIMITS.maxStepChars,
+		),
+	Callout: (props) =>
+		shortText(props.title) &&
+		stringWithin(props.body, OPENUI_LIMITS.maxCalloutBodyChars),
+};
+
+/** Size guard checked after shape validation; oversized blocks keep source. */
 export function checkOpenUiLimits(
 	node: ElementNode,
 ): OpenUiRenderFailure | null {
 	let nodes = 0;
+	let failure: OpenUiRenderFailure | null = null;
 
-	const visit = (current: ElementNode): OpenUiRenderFailure | null => {
+	const visit = (current: ElementNode) => {
+		if (failure) return;
 		nodes += 1;
-		if (nodes > OPENUI_LIMITS.maxNodes) return "tooLarge";
-
-		switch (current.typeName) {
-			case "Stack":
-			case "Row": {
-				const children = current.props.children;
-				if (!Array.isArray(children)) return "invalid";
-				if (children.length > OPENUI_LIMITS.maxChildren) return "tooLarge";
-				for (const child of children) {
-					if (!isElementNode(child)) return "invalid";
-					const failure = visit(child);
-					if (failure) return failure;
-				}
-				return null;
+		if (nodes > OPENUI_LIMITS.maxNodes) {
+			failure = "tooLarge";
+			return;
+		}
+		const rule = LIMIT_RULES[current.typeName as BlockName];
+		if (!rule) {
+			failure = "invalid";
+			return;
+		}
+		if (!rule(current.props)) {
+			failure = "tooLarge";
+			return;
+		}
+		const children = current.props.children;
+		if (Array.isArray(children)) {
+			for (const child of children) {
+				if (isElementNode(child)) visit(child);
 			}
-			case "Text": {
-				const text = current.props.text;
-				return typeof text === "string" &&
-					text.length > OPENUI_LIMITS.maxTextChars
-					? "tooLarge"
-					: null;
-			}
-			case "Table": {
-				const columns = asStringArray(current.props.columns);
-				const rows = asStringMatrix(current.props.rows);
-				if (!columns || !rows) return "invalid";
-				if (
-					exceedsShortText(current.props.caption) ||
-					columns.length > OPENUI_LIMITS.maxTableColumns ||
-					rows.length > OPENUI_LIMITS.maxTableRows ||
-					columns.length * rows.length > OPENUI_LIMITS.maxTableCells ||
-					columns.some(
-						(column) => column.length > OPENUI_LIMITS.maxTableCellChars,
-					) ||
-					rows.some((row) =>
-						row.some((cell) => cell.length > OPENUI_LIMITS.maxTableCellChars),
-					)
-				) {
-					return "tooLarge";
-				}
-				return null;
-			}
-			case "BarChart": {
-				const labels = asStringArray(current.props.labels);
-				const values = asNumberArray(current.props.values);
-				if (!labels || !values) return "invalid";
-				if (
-					exceedsShortText(current.props.title) ||
-					exceedsShortText(current.props.unit) ||
-					labels.length > OPENUI_LIMITS.maxChartPoints ||
-					labels.some(
-						(label) => label.length > OPENUI_LIMITS.maxChartLabelChars,
-					)
-				) {
-					return "tooLarge";
-				}
-				return null;
-			}
-			case "Steps": {
-				const steps = asStringArray(current.props.steps);
-				if (!steps) return "invalid";
-				if (
-					exceedsShortText(current.props.title) ||
-					steps.length > OPENUI_LIMITS.maxSteps ||
-					steps.some((step) => step.length > OPENUI_LIMITS.maxStepChars)
-				) {
-					return "tooLarge";
-				}
-				return null;
-			}
-			case "Callout": {
-				const body = current.props.body;
-				if (typeof body !== "string") return "invalid";
-				if (exceedsShortText(current.props.title)) return "tooLarge";
-				return body.length > OPENUI_LIMITS.maxCalloutBodyChars
-					? "tooLarge"
-					: null;
-			}
-			case "Stat": {
-				const fields = [
-					current.props.label,
-					current.props.value,
-					current.props.hint,
-				];
-				return fields.some(
-					(field) =>
-						typeof field === "string" &&
-						field.length > OPENUI_LIMITS.maxShortTextChars,
-				)
-					? "tooLarge"
-					: null;
-			}
-			default:
-				return "invalid";
 		}
 	};
 
-	return visit(node);
+	visit(node);
+	return failure;
 }
 
 /**
@@ -562,10 +463,6 @@ export function resolveOpenUiBlock(input: {
 	}
 
 	const errors = fatalOpenUiErrors(result);
-	const limitFailure = result.root ? checkOpenUiLimits(result.root) : null;
-	if (limitFailure === "tooLarge") {
-		return { view: { kind: "failed", reason: "tooLarge", source }, lastValid };
-	}
 
 	if (!streaming) {
 		if (result.meta.incomplete || hasPartialNode(result.root)) {
@@ -586,9 +483,19 @@ export function resolveOpenUiBlock(input: {
 		if (!result.root) {
 			return { view: { kind: "failed", reason: "empty", source }, lastValid };
 		}
-		const failure = checkOpenUiShape(result.root);
-		if (failure) {
-			return { view: { kind: "failed", reason: failure, source }, lastValid };
+		const shapeFailure = validateOpenUiShape(result.root);
+		if (shapeFailure) {
+			return {
+				view: { kind: "failed", reason: shapeFailure, source },
+				lastValid,
+			};
+		}
+		const limitFailure = checkOpenUiLimits(result.root);
+		if (limitFailure) {
+			return {
+				view: { kind: "failed", reason: limitFailure, source },
+				lastValid,
+			};
 		}
 		return {
 			view: { kind: "ready", root: result.root, source },

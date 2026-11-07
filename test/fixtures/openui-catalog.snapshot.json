@@ -1,0 +1,45 @@
+{
+	"componentCount": 8,
+	"components": [
+		{
+			"name": "Stack",
+			"signature": "Stack(children: (Text | Table | Stat | BarChart | Steps | Callout | Row)[], gap?: \"sm\" | \"md\" | \"lg\")",
+			"description": "vertical root container"
+		},
+		{
+			"name": "Row",
+			"signature": "Row(children: (Text | Table | Stat | BarChart | Steps | Callout)[], gap?: \"sm\" | \"md\" | \"lg\")",
+			"description": "horizontal row; wraps on narrow screens"
+		},
+		{
+			"name": "Text",
+			"signature": "Text(text: string, variant?: \"body\" | \"heading\" | \"caption\" | \"code\")",
+			"description": "plain text; variant body|heading|caption|code"
+		},
+		{
+			"name": "Table",
+			"signature": "Table(columns: string[], rows: string[][], caption?: string)",
+			"description": "data table; prefer a Markdown table when it is the whole answer"
+		},
+		{
+			"name": "Stat",
+			"signature": "Stat(label: string, value: string, hint?: string)",
+			"description": "one key number with an optional hint"
+		},
+		{
+			"name": "BarChart",
+			"signature": "BarChart(title: string, labels: string[], values: number[], unit?: string)",
+			"description": "categorical bars; labels and values must be equal length"
+		},
+		{
+			"name": "Steps",
+			"signature": "Steps(title: string, steps: string[])",
+			"description": "ordered steps"
+		},
+		{
+			"name": "Callout",
+			"signature": "Callout(title: string, body: string, tone?: \"info\" | \"success\" | \"warning\" | \"danger\")",
+			"description": "short note with tone info|success|warning|danger"
+		}
+	]
+}

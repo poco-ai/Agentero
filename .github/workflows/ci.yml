@@ -65,6 +65,9 @@ jobs:
       - name: Check TypeScript types
         if: matrix.task == 'quality'
         run: pnpm typecheck
+      - name: Check generated OpenUI catalog
+        if: matrix.task == 'quality'
+        run: node scripts/generate-openui-catalog.mjs --check
       - name: Check dependency boundaries
         if: matrix.task == 'quality'
         run: pnpm deps:check

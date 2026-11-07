@@ -12,18 +12,18 @@ import {
 } from "@/lib/agent/openui/config";
 import { openUiTableToGfm } from "@/lib/agent/openui/format";
 import {
+	OPENUI_COMPONENT_NAMES,
+	OPENUI_COMPONENT_SIGNATURES,
+} from "@/lib/agent/openui/generated/catalog";
+import {
 	checkOpenUiLimits,
-	checkOpenUiShape,
 	createOpenUiParser,
 	mergePartialTree,
 	normalizeOpenUiTags,
 	protectOpenUiBlocks,
 	resolveOpenUiBlock,
+	validateOpenUiShape,
 } from "@/lib/agent/openui/parse";
-import {
-	OPENUI_COMPONENT_NAMES,
-	OPENUI_COMPONENT_SIGNATURES,
-} from "@/lib/agent/openui/schema";
 
 const ALL_COMPONENTS = `root = Stack([heading, table, stats, chart, steps, note, row], "md")
 heading = Text("Results", "heading")
@@ -117,7 +117,7 @@ describe("OpenUI block parsing", () => {
 			'root = Stack([chart])\nchart = BarChart("Scores", ["A", "B"], [1])';
 		const { result } = parseSettled(source);
 		expect(result.root).not.toBeNull();
-		expect(checkOpenUiShape(result.root as ElementNode)).toBe("invalid");
+		expect(validateOpenUiShape(result.root as ElementNode)).toBe("invalid");
 		const { resolved } = parseSettled(source);
 		expect(resolved.view.kind).toBe("failed");
 	});

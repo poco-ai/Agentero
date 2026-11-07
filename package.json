@@ -34,7 +34,8 @@
 		"fix:ts": "biome check --write .",
 		"fix:rs": "cargo fmt --all && pnpm run lint:rs",
 		"prepare": "husky",
-		"deps:check": "depcruise --config .dependency-cruiser.cjs src"
+		"deps:check": "depcruise --config .dependency-cruiser.cjs src",
+		"openui:catalog": "node scripts/generate-openui-catalog.mjs"
 	},
 	"dependencies": {
 		"@base-ui/react": "1.8.0",
