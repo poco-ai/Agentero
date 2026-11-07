@@ -3,7 +3,6 @@ import {
 	Calendar,
 	ChevronRight,
 	ExternalLink,
-	FileText,
 	Library,
 	Loader2,
 	Pencil,
@@ -193,6 +192,16 @@ function AlphaXivIcon({ className }: { className?: string }) {
 				strokeWidth="3.1"
 				strokeLinecap="square"
 			/>
+		</svg>
+	);
+}
+
+function OpenReviewIcon({ className }: { className?: string }) {
+	return (
+		<svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+			<title>OpenReview</title>
+			<rect width="24" height="24" rx="5" fill="#80271A" />
+			<circle cx="12" cy="12" r="5.2" stroke="#FFFFFF" strokeWidth="3.4" />
 		</svg>
 	);
 }
@@ -893,9 +902,7 @@ export function PaperInfoPanel({
 											<ServiceLinkChip
 												href={openreviewUrl}
 												label={t("paperInfo.openreview")}
-												icon={
-													<FileText className="size-3.5 shrink-0" aria-hidden />
-												}
+												icon={<OpenReviewIcon className="size-3.5 shrink-0" />}
 											/>
 										) : null}
 									</div>
