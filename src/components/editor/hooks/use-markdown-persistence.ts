@@ -36,11 +36,8 @@ type UseMarkdownPersistenceOptions = {
 		path: string,
 		markdown: string,
 		lastSaved: string,
-		ownerId?: string,
 	) => Promise<boolean>;
 	onDirtyChange?: (dirty: boolean) => void;
-	/** Panel id recorded on the write so a sibling cannot treat it as its own. */
-	ownerId?: string;
 	/** Another panel saved over this draft. Autosave must not replace that file. */
 	saveBlocked?: boolean;
 	/**
@@ -102,7 +99,6 @@ export function useMarkdownPersistence({
 	readOnly,
 	onPersist,
 	onDirtyChange,
-	ownerId,
 	saveBlocked = false,
 	filePathRef,
 	onAssetsChangedRef,
@@ -215,7 +211,7 @@ export function useMarkdownPersistence({
 				const generation = reloadGenerationRef.current;
 				let persisted = false;
 				try {
-					persisted = await onPersist(filePath, markdown, lastSaved, ownerId);
+					persisted = await onPersist(filePath, markdown, lastSaved);
 				} catch {
 					// The App owns user-facing persistence errors. Keep this editor
 					// dirty and retain the last disk-confirmed snapshot.
@@ -253,7 +249,7 @@ export function useMarkdownPersistence({
 		};
 		void task.then(finish, finish);
 		return task;
-	}, [filePath, onPersist, ownerId, readOnly, serialize, setDirty]);
+	}, [filePath, onPersist, readOnly, serialize, setDirty]);
 
 	// Latest persist closure, for the unmount flush (captures this file's path).
 	const persistRef = useRef(persist);

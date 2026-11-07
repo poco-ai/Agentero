@@ -148,7 +148,6 @@ export type MarkdownEditorProps = {
 		path: string,
 		markdown: string,
 		lastSaved: string,
-		ownerId?: string,
 	) => Promise<boolean>;
 	onDirtyChange?: (dirty: boolean) => void;
 	/**
@@ -435,7 +434,6 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		readOnly,
 		onPersist,
 		onDirtyChange,
-		ownerId: tabId,
 		saveBlocked: saveConflict,
 		filePathRef,
 		onAssetsChangedRef,
