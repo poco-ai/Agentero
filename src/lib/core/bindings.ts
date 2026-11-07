@@ -427,6 +427,7 @@ export const commands = {
 	feedsItems: (args: FeedsItemsArgs) => __TAURI_INVOKE<ApiResult<FeedItemsPage>>("feeds_items", { args }),
 	feedsSetRead: (args: FeedsSetReadArgs) => __TAURI_INVOKE<ApiResult<FeedItem>>("feeds_set_read", { args }),
 	feedsMarkImported: (args: FeedsIdArgs) => __TAURI_INVOKE<ApiResult<FeedItem>>("feeds_mark_imported", { args }),
+	paperPwcImport: (args: PwcImportArgs) => typedError<ApiResult<PaperCommitResult>, string>(__TAURI_INVOKE("paper_pwc_import", { args })),
 	plazaScratchPrepare: (args: PlazaScratchPrepareArgs) => __TAURI_INVOKE<ApiResult<PlazaScratchEntry[]>>("plaza_scratch_prepare", { args }),
 	plazaScratchStats: () => __TAURI_INVOKE<ApiResult<ScratchStats>>("plaza_scratch_stats"),
 	plazaScratchClear: () => __TAURI_INVOKE<ApiResult<ScratchClearResult>>("plaza_scratch_clear"),
@@ -4773,6 +4774,15 @@ export type PropertyOption_Serialize = {
 	id: string,
 	name: string,
 	color?: string | null,
+};
+
+export type PwcImportArgs = {
+	vaultPath: string,
+	/**  Parent dir resolved by the renderer (`papers` or a paper group). */
+	parentDir: string,
+	/**  Numeric catalog id or arXiv id from the `/paper/<id>` URL. */
+	paperId: string,
+	taskId?: string | null,
 };
 
 /**  生成提问草稿所需的论文信息（均为公开元数据，前端从 catalog 取）。 */

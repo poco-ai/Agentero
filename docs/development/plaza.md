@@ -57,7 +57,7 @@ Agentero 已是 **local-first 论文工作台**（Library + 文件树 + PDF\|NOT
 5. **播客** — 占位，后续。  
 6. **论文推荐** — P0 v0：基于本地库的轻量推荐列表（无云端上传）。  
 7. **CCF 截稿** — 原生面板：只读上游 [ccf-deadlines](https://github.com/ccfddl/ccf-deadlines) 数据，按截稿时间列出 CCF A/B/C 会议；见 §3.6。
-8. **Papers with Code** — 内嵌站点浏览（`https://paperswithcode.co/conferences`）：会议页、accepted papers、SOTA 榜单与方法索引；入口默认落在会议列表。入库时的 arXiv 录用/代码仓库补全走同一上游 API，见 [`../backend/academic-search-apis.md`](../backend/academic-search-apis.md) §2.12。
+8. **Papers with Code** — 内嵌站点浏览（`https://paperswithcode.co/conferences`）：会议页、accepted papers、SOTA 榜单与方法索引；入口默认落在会议列表，每行注入「入库」。入库时的 arXiv 录用/代码仓库补全走同一上游 API，见 [`../backend/academic-search-apis.md`](../backend/academic-search-apis.md) §2.12。
 
 ## 2. 侧栏信息架构
 
@@ -298,6 +298,21 @@ papers.cool 给几乎所有链接都加了 `target="_blank"`（单个分区页�
 **为什么自建 UI 而非内嵌 ccfddl.top**：数据结构稳定（MIT，schema 3.0.x 带版本号）、CORS 全开、解析成本低；内嵌站点是 jQuery 老表格，且整站 `<base target="_blank">`，仍要写代理改写链接，等于付出代理成本却换不来可用 UI。
 
 **不做**：不接上游 MCP、不做批量入库、不做日程提醒，面板只回答「评几级 / 什么时候截止 / 官网在哪」。预计项只是「近期可能截止」的提示，不做确定日期承诺，也不覆盖任何官方截稿。
+
+### 3.7 Papers with Code（已实现）
+
+**主内容**：内嵌站点（`agentero-pwc` 代理 → `https://paperswithcode.co/conferences`），浏览会议、accepted papers、SOTA 榜单与方法索引。
+
+| 项 | 约定 |
+|---|---|
+| 代理 | `src-tauri/src/features/paper/discovery/proxy/pwc.rs`；丢弃 `X-Frame-Options`、绝对自链接改写为相对、`target="_blank"` → `_self` |
+| 路由观测 | SPA 无真实导航：patch `pushState` / `replaceState` + `popstate`，每次路由变化上报 `{ path }`；面板的 Back / Forward 仍按路径重挂载 |
+| 外链 | 站外链接与 `window.open` 一律交系统浏览器；`download` 链接同样外抛 |
+| 入库 | 注入 `[入库]` 到两类稳定钩子：列表 `article.paper-card > h3.paper-title`、详情 `.action-row`；行 id 取自 `/paper/<id>`。点击上报 `{ importPaper: { id, url, title } }`，成功后按 `importedId` 标「已入库」；重载后通过 `queryImported` 批量回填状态 |
+| Host 入库 | `paper_pwc_import` → `agentero_core::features::paper::discovery::pwc::import_paper`：取 `/api/v1/papers/{id}`，有 arXiv 版则用 arXiv id 作为文件夹并下载 PDF/TeX，没有则落 `pwc-<catalog id>` 与外部链接；复用 `paper_commit` 的去重与资产管线 |
+| 失败 | 入库失败只把该行恢复为「入库」可重试；错误走任务面板 / `notifyError`，不在侧栏挂错误条 |
+
+**不做**：不注入「批量入库」、不接管站点登录、不解析 `paperswithcode.co` 的搜索与榜单数据（面板只借它的 UI）。
 
 ## 4. 与其它模块
 

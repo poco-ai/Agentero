@@ -13,12 +13,13 @@ type ImportedPaper = {
 	path?: string | null;
 };
 
-/** Ids from a ModelScope page that already match a library paper. */
+/** Ids from a 广场 page that already match a library paper. */
 export function matchingImportedIds(
 	queried: string[],
 	papers: ImportedPaper[],
 ): string[] {
 	const have = new Set<string>();
+	const folders = new Set<string>();
 	for (const paper of papers) {
 		const folder = paper.path?.split(/[/\\]/).pop();
 		for (const raw of [paper.arxiv_id, folder]) {
@@ -26,10 +27,14 @@ export function matchingImportedIds(
 			const bare = bareArxivId(raw);
 			if (bare) have.add(bare);
 		}
+		// Papers with Code rows without an arXiv version are stored as
+		// `pwc-<catalog id>`, which is not an arXiv id.
+		if (folder) folders.add(folder.toLowerCase());
 	}
 	return queried.filter((id) => {
 		const bare = bareArxivId(id);
-		return bare != null && have.has(bare);
+		if (bare != null && have.has(bare)) return true;
+		return folders.has(`pwc-${id}`.toLowerCase());
 	});
 }
 

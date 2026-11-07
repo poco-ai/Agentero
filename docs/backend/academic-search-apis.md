@@ -172,6 +172,7 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
   - `summary` ← `tldr`
 - **不写「未录用」**：`proceeding` 的覆盖并不完整（实测 FlashAttention 为 NULL），查不到只代表「目录未收录」。
 - 限流：进程内串行，最小间隔 600 ms（≈100/min），低于目录 GET 的 120/min 上限。
+- 广场入库：`paper_pwc_import`（`src-tauri/src/features/paper/discovery/pwc/commands.rs`）按 `/paper/{id}` 取 `GET /api/v1/papers/{id}?include_resources=true`，映射为 `PaperRecord` 后走 `paper_commit`。有 arXiv 版用 arXiv id 作为文件夹（PDF/TeX 由既有资产链下载）；没有则用 `pwc-<catalog id>`，`PaperKind::Other`，保留 `url_abs` 作为 HTML 入口。
 
 ## 3. 并发与限流
 
