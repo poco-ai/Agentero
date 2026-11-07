@@ -506,7 +506,7 @@ impl RunOnceContext {
     /// connect to the agent process, and run one prompt turn on the connection.
     async fn run(
         &self,
-        acp: crate::features::agent::acp::process::AcpAgent,
+        acp: agent_client_protocol::AcpAgent,
         params: RunOnceParams,
         prep: RunTurnPrep,
     ) -> Result<AgentResultPayload, agent_client_protocol::Error> {

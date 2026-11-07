@@ -1,6 +1,5 @@
 use crate::core::error::AppError;
 use crate::core::process::windows_shell_path;
-use crate::features::agent::acp::process::{remote_agent, AcpAgent};
 use crate::features::agent::acp::terminal::AcpTerminalManager;
 use crate::features::agent::models::{AgentDescriptor, AgentResultPayload, AgentTemplate};
 
@@ -10,7 +9,7 @@ use agent_client_protocol::schema::v1::{
     InitializeRequest, McpServer, McpServerStdio,
 };
 use agent_client_protocol::schema::ProtocolVersion;
-use agent_client_protocol::util;
+use agent_client_protocol::{util, AcpAgent};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -413,8 +412,8 @@ pub(crate) fn to_acp_agent_local(
 
     // Unix agents must not inherit `/` from a Finder-launched app (#570).
     // Windows wraps only Pi, Custom, and Zcode. Zcode's serve mode reads the
-    // process cwd; other templates keep their existing cwd policy. The local
-    // Windows transport owns the entire process tree in either case.
+    // process cwd; the rest stay direct children until native cwd and process
+    // tree teardown exist.
     let (command, args) = local_launch_command(&launch_desc, command, &mut child_env, cwd);
 
     let env: Vec<EnvVariable> = child_env
@@ -443,7 +442,7 @@ pub(crate) fn to_acp_agent(
             let (program, args) = r.ssh_stdio(&desc.command, &desc.args, &desc.env)?;
             let stdio = McpServerStdio::new(desc.name.clone(), program).args(args);
             return Ok(acp_agent_with_debug(
-                remote_agent(McpServer::Stdio(stdio)),
+                AcpAgent::new(McpServer::Stdio(stdio)),
                 &desc.name,
             ));
         }
@@ -1154,6 +1153,32 @@ mod cwd_shell_wrap_tests {
                 assert!(env.is_empty());
             }
         }
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn sdk_launch_accepts_windows_drive_env_and_batch_shims() {
+        let dir = tempfile::tempdir().unwrap();
+        let batch = dir.path().join("agent shim.cmd");
+        std::fs::write(
+            &batch,
+            "@echo off\r\nif not \"%~1\"==\"hello world\" exit /b 1\r\nexit /b 0\r\n",
+        )
+        .unwrap();
+        let mut desc = descriptor(AgentTemplate::Opencode);
+        desc.command = windows_shell_path(&batch).display().to_string();
+        desc.args = vec!["hello world".into()];
+        // Windows exposes per-drive cwd entries through std::env::vars().
+        // Replaying one through windows-spawn rejected the name before launch.
+        desc.env.insert("=C:".into(), r"C:\".into());
+        let agent = to_acp_agent_local(&desc, None).unwrap();
+        let (_stdin, _stdout, _stderr, mut child) = agent.spawn_process().unwrap();
+        let status = tokio::time::timeout(std::time::Duration::from_secs(5), child.status()).await;
+        if status.is_err() {
+            let _ = child.kill();
+            let _ = child.status().await;
+        }
+        assert!(status.unwrap().unwrap().success());
     }
 
     #[test]

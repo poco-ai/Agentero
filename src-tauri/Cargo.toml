@@ -25,7 +25,6 @@ required-features = ["desktop"]
 bindings-export = ["desktop"]
 default = ["desktop"]
 desktop = [
-  "dep:windows-spawn",
   "dep:agent-client-protocol",
   "dep:axum",
   "dep:tauri",
@@ -161,7 +160,6 @@ openssh-sftp-client = { version = "0.15.7", features = ["openssh"] }
 # Windows CLI install: add the shim dir to the user PATH (HKCU\Environment) so
 # new terminals can run `agentero-cli` without manual setup.
 [target.'cfg(windows)'.dependencies]
-windows-spawn = { version = "=0.1.0", optional = true }
 winreg = "0.55"
 roxmltree = "0.20"
 # Match the WebView2 interface versions used by Tauri/Wry.
