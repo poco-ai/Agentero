@@ -33,9 +33,10 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   或整个临时目录。**Unix 探针**也复用该入口：本地用
   scratch，远端沿用目标自己的 Vault；SSH 路径不在本机检查。local-sim 新建连接前验证
   目录存在，失效时明确报错，不悄悄切到 scratch。
-- **Windows 保留既有 cwd 策略**：仅 Pi / Custom 的 run / warm / list / load 使用 `cmd /D /C`
-  切换目录，探针不增加 cwd 包装。原生 `.exe` 和 npm `.cmd` / `.bat` shim 的启动交给
-  ACP SDK。UNC Vault 不推广 `cd /d` 包装。
+- **Windows cwd**：Pi、Custom、Zcode 的 run / warm / list / load 使用 `cmd /D /C`
+  切到 Vault，探针不包装。Zcode 的 `server` 模式忽略 ACP `session/new` 的 cwd，
+  技能列表只扫进程 cwd 下的 `.agents/skills`；不切目录时 Windows 上看不到 Vault 技能。
+  其余模板仍直启，交给 ACP SDK。这三项的 `cd /d` 仍不支持 UNC Vault。
 - **Windows ACP 使用 SDK 启动**：run / warm / probe / history 均使用
   `agent-client-protocol::AcpAgent`。自定义 `windows-spawn` / Job transport 因环境变量名称
   含 `=` 时拒绝启动而回退（Windows 的 `=C:` 等特殊条目可能触发；见
@@ -43,7 +44,7 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   warm 池；SDK 1.3.0 在 Windows 只结束直接子进程，launcher 后代与宿主异常退出后的
   ACP 进程可能残留，无法保证退出时完整回收。该限制由
   [#774](https://github.com/poco-ai/Agentero/issues/774) 跟踪，后续评估 SDK 的 Windows 进程树能力。
-- Windows Pi / Custom 包装的 cwd 与完整 Agent 命令通过环境变量展开，cwd 始终携带双引号，
+- Windows Pi / Custom / Zcode 包装的 cwd 与完整 Agent 命令通过环境变量展开，cwd 始终携带双引号，
   防止无空格路径中的括号等 CMD 元字符被当作语法；盘符扩展前缀再幂等剥除一次（#458）。
   该旧包装仍不支持 UNC cwd，不能将其他模板保持直启等同于所有 Windows Agent 都支持 UNC。
 - **Login-shell 环境注入**：本地 ACP agent 启动时会合并当前进程环境变量、用户 login-shell
@@ -174,6 +175,9 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
     `%APPDATA%\ZCode` 缓存、`C:\Program Files\ZCode`，以及系统盘根目录下一级自定义目录中的
     `ZCode\resources\glm\zcode.cjs`（例如 `C:\Sofware\ZCode`）；并在可解析时额外注入 `ZCODE_NODE`（适配器
     在 Windows 上解析 Node 不可靠）。
+  - Windows 会话启动用 `cmd /D /C` 把进程 cwd 切到 Vault。`zcode-acp-server server`
+    是 serve 模式，忽略 ACP cwd，只从进程 cwd 的 `.agents/skills` 建技能索引。
+    探针仍直启。UNC Vault 不能 `cd /d`，与 Pi / Custom 相同。
 - Pi：无原生 ACP，走社区适配器 `pi-acp`（内部 spawn `pi --mode rpc`）；detect 用 host `pi`、
   ACP 入口用 `pi-acp`。pi 的 skill 以 `/skill:<name>` 暴露，故 Agentero 不发 `/<name>`
   mention，只注入 `SKILL.md` 正文。
