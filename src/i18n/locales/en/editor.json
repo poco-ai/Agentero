@@ -180,6 +180,22 @@
 			"important": "Important"
 		}
 	},
+	"source": {
+		"foldLine": "Fold line",
+		"unfoldLine": "Unfold line",
+		"showSource": "Show Markdown source",
+		"showRendered": "Show rendered Markdown",
+		"openFailed": "Could not open Markdown source.",
+		"renderFailed": "Could not render Markdown. Your source edits are still available.",
+		"allMatches": "All matches",
+		"matchCase": "Match case",
+		"regexp": "Regular expression",
+		"wholeWord": "Whole word",
+		"currentMatch": "Current match",
+		"onLine": "on line",
+		"replacedLine": "Replaced match on line $",
+		"replacedMatches": "Replaced $ matches"
+	},
 	"findReplace": {
 		"title": "Find & replace",
 		"searchPlaceholder": "Find",

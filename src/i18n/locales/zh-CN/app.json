@@ -28,6 +28,8 @@
 		"catLibrary": "论文库",
 		"catTab": "标签",
 		"catPdf": "PDF",
+		"catEditor": "编辑器",
+		"toggleMarkdownSource": "切换 Markdown 源码",
 		"settingsOpen": "打开设置",
 		"settingsClose": "关闭设置",
 		"vaultOpen": "打开 Vault…",

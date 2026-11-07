@@ -344,7 +344,12 @@ function persistTextLike(
 						const notify = isResearchTablePath(path)
 							? notifyError
 							: notifyWarning;
-						notify(i18n.t("app:diskConflict.saveBlocked", { name }));
+						notify(
+							i18n.t("app:diskConflict.saveBlocked", { name }),
+							kind === "markdown"
+								? { id: `markdown-save-conflict:${normalizedPath}` }
+								: undefined,
+						);
 						return false;
 					}
 				} catch (error) {

@@ -388,7 +388,12 @@ const DocumentContent = memo(function DocumentContent({
 		// LRU (`keepMounted`) decides whether the heavyweight Plate editor stays
 		// alive. Evicted editors unmount (their pending autosave flushes on
 		// unmount) and re-deserialize from the seed when shown again.
-		if (!active && !keepMounted) return <TabLoadingSkeleton />;
+		if (
+			!active &&
+			!keepMounted &&
+			!(isNotes ? tab.notesDirty : tab.markdownDirty)
+		)
+			return <TabLoadingSkeleton />;
 		return (
 			<div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-muted/30">
 				<Suspense fallback={<TabLoadingSkeleton />}>
@@ -397,6 +402,8 @@ const DocumentContent = memo(function DocumentContent({
 						// `reloadKey` instead of remounting the whole editor.
 						key={isNotes ? `notes-center-${tab.id}` : `file-${tab.id}`}
 						className="h-full min-h-0"
+						tabId={tab.id}
+						active={active}
 						initialMarkdown={isNotes ? tab.notesSeed : tab.markdownSeed}
 						reloadKey={isNotes ? tab.notesKey : tab.seedKey}
 						filePath={

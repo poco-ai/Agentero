@@ -57,6 +57,32 @@ describe("shell shortcuts", () => {
 		).toBe("splitPane");
 	});
 
+	it("resolves the Markdown source chord, including an override and overlay scope", () => {
+		const slash = keyEvent({ key: "/", metaKey: true });
+		expect(resolveShortcutId(slash, { settingsOpen: false })).toBe(
+			"toggleMarkdownSource",
+		);
+		expect(resolveShortcutId(slash, { settingsOpen: true })).toBeNull();
+		vi.mocked(getPlatformOS).mockReturnValue("windows");
+		expect(
+			resolveShortcutId(keyEvent({ key: "/", ctrlKey: true }), {
+				settingsOpen: false,
+			}),
+		).toBe("toggleMarkdownSource");
+		saveSettings({
+			...loadSettings(),
+			shortcutOverrides: { toggleMarkdownSource: { key: "F8" } },
+		});
+		expect(
+			resolveShortcutId(keyEvent({ key: "/", ctrlKey: true }), {
+				settingsOpen: false,
+			}),
+		).toBeNull();
+		expect(
+			resolveShortcutId(keyEvent({ key: "F8" }), { settingsOpen: false }),
+		).toBe("toggleMarkdownSource");
+	});
+
 	it("distinguishes Ctrl and Meta on macOS", () => {
 		vi.mocked(getPlatformOS).mockReturnValue("macos");
 		expect(

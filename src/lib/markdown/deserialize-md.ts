@@ -16,7 +16,11 @@ import {
  * parses through the same trimmed pipeline. When the document has no `<` tag,
  * `withoutMdx` also skips Plate's `htmlToJsx` scan of the whole source.
  */
-export function deserializeMarkdownBody(editor: SlateEditor, body: string) {
+export function deserializeMarkdownBody(
+	editor: SlateEditor,
+	body: string,
+	{ throwOnError = false } = {},
+) {
 	const prepared = prepareMarkdownForDeserialize(body || " ");
 	const remarkPlugins = selectMarkdownRemarkPluginsForDeserialize(prepared);
 	const withoutMdx = !markdownNeedsMdx(prepared);
@@ -25,6 +29,7 @@ export function deserializeMarkdownBody(editor: SlateEditor, body: string) {
 		remarkPlugins,
 		withoutMdx,
 		onError: (error) => {
+			if (throwOnError) throw error;
 			mdxError = error;
 		},
 	});

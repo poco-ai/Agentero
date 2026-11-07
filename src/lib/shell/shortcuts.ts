@@ -27,6 +27,7 @@ export type ShortcutId =
 	| "quickOpen"
 	/** ⇧⌘P — run app commands */
 	| "commandPalette"
+	| "toggleMarkdownSource"
 	| "toggleSidebar"
 	| "toggleChat"
 	/** ⌘K — in-page Quick chat (Ask) from the live selection */
@@ -53,7 +54,7 @@ export type ShortcutId =
 	/** F11 — borderless fullscreen (Windows only). */
 	| "toggleFullscreen";
 
-export type ShortcutGroup = "App" | "Navigation" | "Vault";
+export type ShortcutGroup = "App" | "Navigation" | "Vault" | "Editor";
 
 export type ShortcutPlatform = "windows" | "macos" | "linux";
 
@@ -230,6 +231,13 @@ export const SHORTCUTS: ShortcutDef[] = [
 		meta: true,
 		shift: true,
 		// No whenSettingsClosed: same key dismisses while palette is open.
+	},
+	{
+		id: "toggleMarkdownSource",
+		group: "Editor",
+		key: "/",
+		meta: true,
+		whenSettingsClosed: true,
 	},
 	{
 		id: "toggleSidebar",
@@ -561,7 +569,7 @@ export function shortcutsByGroup(): {
 	group: ShortcutGroup;
 	items: ShortcutDef[];
 }[] {
-	const order = ["App", "Vault", "Navigation"] as const;
+	const order = ["App", "Vault", "Navigation", "Editor"] as const;
 	return order.map((group) => ({
 		group,
 		items: SHORTCUTS.filter(
@@ -704,9 +712,8 @@ export function validateShortcutBinding(
 		return false;
 	const mac = getPlatformOS() === "macos";
 	if (
-		mac &&
-		id &&
-		NATIVE_MENU_SHORTCUTS.has(id) &&
+		(id === "toggleMarkdownSource" ||
+			(mac && id && NATIVE_MENU_SHORTCUTS.has(id))) &&
 		binding.alt &&
 		!binding.meta &&
 		!binding.ctrl

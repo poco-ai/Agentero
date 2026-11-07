@@ -28,6 +28,8 @@
 		"catLibrary": "Library",
 		"catTab": "Tab",
 		"catPdf": "PDF",
+		"catEditor": "Editor",
+		"toggleMarkdownSource": "Toggle Markdown source",
 		"settingsOpen": "Open Settings",
 		"settingsClose": "Close Settings",
 		"vaultOpen": "Open Vault…",

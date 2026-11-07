@@ -1,3 +1,4 @@
+import { markdownEditorFor } from "@/lib/workspace/viewer/markdown-editor-registry";
 /**
  * Tab open/close, paper+NOTES pairing, and library / file-tree selection.
  */
@@ -457,6 +458,17 @@ export function closeTab(id: string, opts: { remember?: boolean } = {}): void {
 	if (target && isLibraryVirtualPath(target.path)) return;
 	// Resolve pair before setState so Strict Mode double-invoke is stable.
 	const idsToClose = readingPairCloseIds(getTabs(), id);
+	const pending = idsToClose
+		.map(markdownEditorFor)
+		.filter((handle) => handle?.hasPendingSource());
+	if (pending.length) {
+		void Promise.all(pending.map((handle) => handle?.flushSource())).then(
+			(saved) => {
+				if (saved.every(Boolean)) closeTab(id, opts);
+			},
+		);
+		return;
+	}
 	const active = getActiveTabId();
 	if (active && idsToClose.includes(active)) {
 		notePaperFocus(null);

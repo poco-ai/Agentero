@@ -180,6 +180,22 @@
 			"important": "重要"
 		}
 	},
+	"source": {
+		"foldLine": "折叠此行",
+		"unfoldLine": "展开此行",
+		"showSource": "显示 Markdown 源码",
+		"showRendered": "显示 Markdown 渲染视图",
+		"openFailed": "无法打开 Markdown 源码。",
+		"renderFailed": "无法渲染 Markdown，源码改动仍保留。",
+		"allMatches": "全部匹配",
+		"matchCase": "区分大小写",
+		"regexp": "正则表达式",
+		"wholeWord": "全字匹配",
+		"currentMatch": "当前匹配",
+		"onLine": "行号",
+		"replacedLine": "已替换第 $ 行的匹配",
+		"replacedMatches": "已替换 $ 处匹配"
+	},
 	"findReplace": {
 		"title": "查找替换",
 		"searchPlaceholder": "查找",

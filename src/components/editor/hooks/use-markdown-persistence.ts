@@ -23,6 +23,7 @@ import {
 	createManagedAssetGc,
 } from "@/lib/markdown/image";
 import { settleMarkdownSaveAttempt } from "@/lib/markdown/save-state";
+import { applySourceProjection } from "@/lib/markdown/source-projection";
 
 const CHANGE_DEBOUNCE_MS = 500;
 
@@ -54,7 +55,15 @@ export type MarkdownPersistence = {
 	/** Debounced autosave; also reconciles `./assets/` when the debounce fires. */
 	noteDocumentChanged: () => void;
 	/** Flush the pending debounce and write immediately. */
-	saveNow: () => void;
+	saveNow: () => Promise<boolean>;
+	beginSource: (markdown: string) => void;
+	updateSource: (read: () => string) => void;
+	endSource: (
+		value: PlateEditor["children"] | null,
+		frontmatter: string,
+	) => void;
+	/** Source mode or a raw source snapshot waiting to be persisted. */
+	hasSourceSnapshot: () => boolean;
 	/**
 	 * Replace the whole document in place after an external/Agent disk write.
 	 * Does not remount the editor, does not mark it dirty and does not trigger
@@ -91,6 +100,10 @@ export function useMarkdownPersistence({
 		return frontmatterInterior(frontmatter);
 	});
 	const savedRef = useRef(initialMarkdown);
+	// A source edit retains CodeMirror's immutable doc until the save reads it.
+	// After switching back, keep that exact text until the first rich edit.
+	const sourceRef = useRef<(() => string) | null>(null);
+	const projectedSourceRef = useRef<string | null>(null);
 	const readyRef = useRef(false);
 	/**
 	 * Tracks the dirty flag so `onDirtyChange` fires only on a real transition.
@@ -123,8 +136,16 @@ export function useMarkdownPersistence({
 	);
 
 	const serialize = useCallback(() => {
+		if (sourceRef.current) return sourceRef.current();
+		if (projectedSourceRef.current !== null) return projectedSourceRef.current;
 		const body = editor.getApi(MarkdownPlugin).markdown.serialize();
-		return joinFrontmatter(frontmatterRef.current, body);
+		const frontmatter = frontmatterRef.current;
+		return joinFrontmatter(
+			frontmatter && body && !frontmatter.endsWith("\n")
+				? `${frontmatter}\n`
+				: frontmatter,
+			body,
+		);
 	}, [editor]);
 
 	const setDirty = useCallback(
@@ -138,9 +159,9 @@ export function useMarkdownPersistence({
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: editor.children is an identity probe; depending on it would rebuild persist per keystroke
 	const persist = useCallback(() => {
-		if (readOnly || !filePath || !onPersist) return;
+		if (readOnly || !filePath || !onPersist) return Promise.resolve();
 		persistQueuedRef.current = true;
-		if (persistInFlightRef.current) return;
+		if (persistInFlightRef.current) return persistInFlightRef.current;
 
 		const task = (async () => {
 			while (persistQueuedRef.current) {
@@ -152,12 +173,20 @@ export function useMarkdownPersistence({
 				// without paying a second full-document serialization per save.
 				const childrenSnapshot = editor.children;
 				const frontmatterSnapshot = frontmatterRef.current;
+				const sourceSnapshot = sourceRef.current;
+				const projectedSnapshot = projectedSourceRef.current;
 				const lastSaved = savedRef.current;
 				if (markdown === lastSaved) {
 					setDirty(false);
 					continue;
 				}
-				if (!markdown.trim() && lastSaved.trim()) return;
+				if (
+					sourceSnapshot === null &&
+					projectedSnapshot === null &&
+					!markdown.trim() &&
+					lastSaved.trim()
+				)
+					return;
 
 				const generation = reloadGenerationRef.current;
 				let persisted = false;
@@ -174,7 +203,9 @@ export function useMarkdownPersistence({
 					attemptedMarkdown: markdown,
 					currentMarkdown:
 						editor.children === childrenSnapshot &&
-						frontmatterRef.current === frontmatterSnapshot
+						frontmatterRef.current === frontmatterSnapshot &&
+						sourceRef.current === sourceSnapshot &&
+						projectedSourceRef.current === projectedSnapshot
 							? markdown
 							: serialize(),
 					lastSaved,
@@ -197,6 +228,7 @@ export function useMarkdownPersistence({
 			}
 		};
 		void task.then(finish, finish);
+		return task;
 	}, [filePath, onPersist, readOnly, serialize, setDirty]);
 
 	// Latest persist closure, for the unmount flush (captures this file's path).
@@ -211,6 +243,7 @@ export function useMarkdownPersistence({
 	 * the diff does not change when files actually get deleted.
 	 */
 	const reconcileAssets = useCallback(() => {
+		if (sourceRef.current) return;
 		const nextCounts = collectImageUrlCounts(editor.children);
 		const prevCounts = imageCountsRef.current;
 		imageCountsRef.current = nextCounts;
@@ -256,11 +289,72 @@ export function useMarkdownPersistence({
 		debouncedPersist();
 	}, [readOnly, setDirty, debouncedPersist]);
 
-	/**
-	 * Reload the whole document from an external/Agent disk write without
-	 * remounting the editor (keeps plugins, DOM and scroll position alive).
-	 * The caller (tab layer) has already decided the disk content wins.
-	 */
+	/** Install a parsed projection without treating it as a user edit. */
+	const replaceProjection = useCallback(
+		(
+			value: PlateEditor["children"],
+			frontmatter: string,
+			fromSource = false,
+		) => {
+			externalReloadRef.current = true;
+			try {
+				editor.tf.withoutSaving(() => {
+					editor.tf.deselect();
+					if (fromSource) applySourceProjection(editor, value);
+					else editor.tf.setValue(value);
+				});
+				editor.history = { undos: [], redos: [] };
+				frontmatterRef.current = frontmatter;
+				setFrontmatterYaml(frontmatterInterior(frontmatter));
+				imageCountsRef.current = collectImageUrlCounts(editor.children);
+			} finally {
+				// Slate's onChange is queued as a microtask by setValue.
+				queueMicrotask(() => {
+					externalReloadRef.current = false;
+				});
+			}
+		},
+		[editor],
+	);
+
+	const beginSource = useCallback((markdown: string) => {
+		sourceRef.current = () => markdown;
+		assetGcRef.current.cancelAll();
+	}, []);
+
+	const updateSource = useCallback(
+		(read: () => string) => {
+			if (!sourceRef.current) return;
+			sourceRef.current = read;
+			schedulePersist();
+		},
+		[schedulePersist],
+	);
+
+	const endSource = useCallback(
+		(value: PlateEditor["children"] | null, frontmatter: string) => {
+			if (!sourceRef.current) return;
+			const raw = sourceRef.current();
+			if (value) replaceProjection(value, frontmatter, true);
+			else editor.history = { undos: [], redos: [] };
+			projectedSourceRef.current = raw;
+			sourceRef.current = null;
+		},
+		[editor, replaceProjection],
+	);
+
+	const noteDocumentChanged = useCallback(() => {
+		if (sourceRef.current || externalReloadRef.current || !readyRef.current)
+			return;
+		projectedSourceRef.current = null;
+		schedulePersist();
+	}, [schedulePersist]);
+
+	const hasSourceSnapshot = useCallback(
+		() => sourceRef.current !== null || projectedSourceRef.current !== null,
+		[],
+	);
+
 	const applyExternalMarkdown = useCallback(
 		(markdown: string) => {
 			// Own-write echo (autosave advanced the seed): nothing to reload.
@@ -268,51 +362,45 @@ export function useMarkdownPersistence({
 			reloadGenerationRef.current += 1;
 			persistQueuedRef.current = false;
 			debouncedPersist.cancel();
-			const { frontmatter, body } = splitFrontmatter(markdown);
-			frontmatterRef.current = frontmatter;
-			setFrontmatterYaml(frontmatterInterior(frontmatter));
-			externalReloadRef.current = true;
-			try {
-				const value = deserializeMarkdownBody(editor, body);
-				editor.tf.deselect();
-				editor.tf.setValue(value);
-			} finally {
-				// Slate flushes onChange in a microtask; release the guard after it
-				// has run so the reload never marks the document dirty.
-				window.setTimeout(() => {
-					externalReloadRef.current = false;
-				}, 0);
+			projectedSourceRef.current = null;
+			if (sourceRef.current) {
+				sourceRef.current = () => markdown;
+			} else {
+				const { frontmatter, body } = splitFrontmatter(markdown);
+				replaceProjection(deserializeMarkdownBody(editor, body), frontmatter);
 			}
 			savedRef.current = markdown;
 			setDirty(false);
-			// Re-seed asset ref-counts so the reload does not GC images that only
-			// existed in the replaced value.
-			imageCountsRef.current = collectImageUrlCounts(editor.children);
 			return true;
 		},
-		[editor, setDirty, debouncedPersist],
+		[editor, setDirty, debouncedPersist, replaceProjection],
 	);
 
 	const onFrontmatterChange = useCallback(
 		(interior: string) => {
 			setFrontmatterYaml(interior);
 			frontmatterRef.current = wrapFrontmatter(interior);
-			schedulePersist();
+			noteDocumentChanged();
 		},
-		[schedulePersist],
+		[noteDocumentChanged],
 	);
 
-	const saveNow = useCallback(() => {
+	const saveNow = useCallback(async () => {
 		debouncedPersist.cancel();
 		reconcileAssetsRef.current();
-		persistRef.current();
+		await persistRef.current();
+		return !dirtyRef.current;
 	}, [debouncedPersist]);
 
 	return {
 		frontmatterYaml,
 		onFrontmatterChange,
 		serialize,
-		noteDocumentChanged: schedulePersist,
+		noteDocumentChanged,
+		beginSource,
+		updateSource,
+		endSource,
+		hasSourceSnapshot,
 		saveNow,
 		applyExternalMarkdown,
 		savedRef,

@@ -175,6 +175,7 @@ type WorkspaceCtx = {
 	centerProps: Omit<DocViewProps, "tab" | "active" | "keepMounted">;
 	keepMountedIds: Set<string>;
 	onToggleHtmlMode: (panelId: string) => void;
+	onClosePanel: (panelId: string) => void;
 };
 
 const WorkspaceContext = createContext<WorkspaceCtx | null>(null);
@@ -234,7 +235,7 @@ function WorkspaceTab({
 	...rest
 }: ComponentProps<typeof DockviewDefaultTab>) {
 	const { t } = useTranslation("app");
-	const { tabsById, onToggleHtmlMode } = useWorkspace();
+	const { tabsById, onToggleHtmlMode, onClosePanel } = useWorkspace();
 	const [title, setTitle] = useState(api.title);
 	const middleClickRef = useRef(false);
 	const tab = tabsById.get(api.id) ?? null;
@@ -250,7 +251,7 @@ function WorkspaceTab({
 		return () => disposable.dispose();
 	}, [api]);
 
-	const close = useCallback(() => api.close(), [api]);
+	const close = useCallback(() => onClosePanel(api.id), [api.id, onClosePanel]);
 	const toggleHtml = useCallback(
 		(event: React.MouseEvent) => {
 			event.preventDefault();
@@ -520,6 +521,7 @@ export const DockWorkspace = memo(
 				centerProps,
 				keepMountedIds: keepSet,
 				onToggleHtmlMode: (panelId) => onToggleHtmlRef.current(panelId),
+				onClosePanel: (panelId) => onCloseRef.current(panelId),
 			}),
 			[tabsById, activePanelId, centerProps, keepSet],
 		);
@@ -855,7 +857,7 @@ export const DockWorkspace = memo(
 
 		/**
 		 * Tab right-click menu (dockview opt-in). Close actions + tab-group
-		 * create/remove. Closures go through panel.api.close() → onDidRemovePanel.
+		 * create/remove. Close requests go through workspace actions before removing panels.
 		 */
 		const getTabContextMenuItems = useCallback(
 			({ panel, group, api }: GetTabContextMenuItemsParams) => {
@@ -947,14 +949,15 @@ export const DockWorkspace = memo(
 						label: t("tabs.contextClose"),
 						shortcut: formatShortcutById("closeTab"),
 						disabled: panelIsLibrary,
-						action: () => panel.api.close(),
+						action: () => onCloseRef.current(panel.id),
 					}),
 					{
 						label: t("tabs.contextCloseOthers"),
 						disabled: closableOthers === 0,
 						action: () => {
 							for (const p of group.panels) {
-								if (p !== panel && !isLibraryPanel(p.id)) p.api.close();
+								if (p !== panel && !isLibraryPanel(p.id))
+									onCloseRef.current(p.id);
 							}
 						},
 					},
@@ -962,7 +965,7 @@ export const DockWorkspace = memo(
 						label: t("tabs.contextCloseAll"),
 						action: () => {
 							for (const p of [...group.panels]) {
-								if (!isLibraryPanel(p.id)) p.api.close();
+								if (!isLibraryPanel(p.id)) onCloseRef.current(p.id);
 							}
 						},
 					},
