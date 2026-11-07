@@ -213,7 +213,10 @@ function MobileChatLine({
 				{showThinking ? (
 					<Shimmer className="text-sm">{label ?? t("agent.thinking")}</Shimmer>
 				) : (
-					<MessageResponse isAnimating={line.streaming}>
+					<MessageResponse
+						isAnimating={line.streaming}
+						enableOpenUiBlocks={line.role === "assistant"}
+					>
 						{line.text}
 					</MessageResponse>
 				)}

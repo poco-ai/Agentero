@@ -872,6 +872,7 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 				>
 					<MessageResponse
 						isAnimating={isAnimating}
+						enableOpenUiBlocks
 						onOpenSource={onOpenSource}
 					>
 						{part.text}

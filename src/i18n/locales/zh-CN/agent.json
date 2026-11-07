@@ -187,6 +187,17 @@
 		"defaultTitle": "工具",
 		"failed": "工具执行失败"
 	},
+	"uiBlock": {
+		"streaming": "正在生成 UI 块…",
+		"invalid": "该 UI 块使用了不支持的组件或参数，已显示源码。",
+		"tooLarge": "该 UI 块数据过大，无法安全渲染，已显示源码。",
+		"incomplete": "该 UI 块未完整结束，已显示源码。",
+		"empty": "该 UI 块没有可渲染的内容，已显示源码。",
+		"tableEmpty": "没有数据行。",
+		"chartEmpty": "没有数据。",
+		"chartAria": "柱状图：{{title}}",
+		"stepsEmpty": "没有步骤。"
+	},
 	"askUserQuestion": {
 		"submit": "提交",
 		"submitted": "已提交",

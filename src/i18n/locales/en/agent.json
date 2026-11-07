@@ -187,6 +187,17 @@
 		"defaultTitle": "Tool",
 		"failed": "Tool failed"
 	},
+	"uiBlock": {
+		"streaming": "Building UI block…",
+		"invalid": "This UI block uses unsupported components or props. Showing its source instead.",
+		"tooLarge": "This UI block is too large to render safely. Showing its source instead.",
+		"incomplete": "This UI block did not finish. Showing its source instead.",
+		"empty": "This UI block has no content to render. Showing its source instead.",
+		"tableEmpty": "No rows.",
+		"chartEmpty": "No data.",
+		"chartAria": "Bar chart: {{title}}",
+		"stepsEmpty": "No steps."
+	},
 	"askUserQuestion": {
 		"submit": "Submit",
 		"submitted": "Submitted",

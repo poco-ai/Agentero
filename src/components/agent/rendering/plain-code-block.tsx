@@ -39,7 +39,7 @@ export function downloadText(filename: string, text: string) {
 	URL.revokeObjectURL(url);
 }
 
-function extractText(node: ReactNode): string {
+export function extractText(node: ReactNode): string {
 	if (node == null || typeof node === "boolean") return "";
 	if (typeof node === "string" || typeof node === "number") return String(node);
 	if (Array.isArray(node)) return node.map(extractText).join("");
@@ -50,7 +50,7 @@ function extractText(node: ReactNode): string {
 	return "";
 }
 
-function extractLanguage(className?: string): string {
+export function extractLanguage(className?: string): string {
 	const match = className?.match(/language-([^\s]+)/);
 	return match?.[1] ?? "";
 }
@@ -125,7 +125,7 @@ export function PlainCodeBlock({
 	return <PlainCodeBlockView code={code} language={language} />;
 }
 
-function PlainCodeBlockView({
+export function PlainCodeBlockView({
 	code,
 	language,
 }: {
