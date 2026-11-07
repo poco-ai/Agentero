@@ -23,6 +23,7 @@ Headless Vault / Catalog / Wiki 接口；**不含** BYOA / paper-reader。
 | `paper` | list/get、tag list/set/add/rm、move、open、download/parse、notes fetch… |
 | `import` | 标识符入库 |
 | `discover` | 查询式发现：按关键词/分类/提交日期窗口抓 arXiv 候选，确定性词法排序（headless、无 embedding key） |
+| `feed` | 广场订阅源（RSS / Atom / JSON Feed）：`list` / `add` / `remove` / `refresh` / `items` / `read`；与桌面端共用 `$XDG_DATA_HOME/agentero/feeds.sqlite`，无 Vault 概念 |
 | `export` | 导出 |
 | `doctor` | Vault 结构与 Catalog 诊断；含 wikilink 检查与 aliases / 视觉批注 / catalog 去重修复 |
 | `layout` | 侧栏同构版面索引：`list` / `get`（figure / table / algorithm / formula / section / paragraph） |
@@ -188,6 +189,9 @@ agentero discover arxiv -k agent -k "world model" -c cs.AI --since 2026-08-01 --
 
 # 只看某分类当天最新（无关键词时按提交日期新→旧）
 agentero discover arxiv -c cs.LG --top 20 --max-candidates 200 --json
+
+# 多关键词按 OR 合并（任一词命中即可，雷达式广召回；默认 AND 会收窄到须全词命中）
+agentero discover arxiv -k dance -k choreography --match any --top 20 --json
 ```
 
 | 参数 | 说明 |
@@ -208,6 +212,37 @@ agentero discover arxiv -c cs.LG --top 20 --max-candidates 200 --json
 - **可选语义排序**：给了 `--embed-base` + `--embed-model` 后，把关键词的 embedding 与候选 embedding 的余弦按 `--semantic-weight` 加到词法分上（`matches` 里出现 `field: "semantic"` 一项）。端点失败**不报错**，降级为纯词法并在 `semanticError` / 文本末行提示。默认不启用，词法仍是基线。
 - 输出是可直接消费的短名单（`_shortlist.json` 的收敛版）；Agent 拿到后自行判断题相关性，再走 `import id` 入库。
 - 与桌面广场的 arXiv Daily **不同**：后者是「读我的库 → 今天该读什么」的库画像 embedding 排序，依赖 catalog 与 embedding 端点；本命令是 query-first、零依赖，供 headless / 管线使用。
+
+## 订阅源（feed）
+
+`feed *` 是桌面广场订阅源（RSS / Atom / JSON Feed）的 headless 面，与桌面端共用同一个库 `$XDG_DATA_HOME/agentero/feeds.sqlite`（schema 见 `agentero-core::features::paper::discovery::feeds`），**不依赖 Vault、不写 catalog**。给某个 URL 订阅即可；若该 URL 是 HTML 页面，会自动跟随页面里发现的 feed 链接（与桌面端行为一致）。
+
+```bash
+# 订阅（首抓一次），随后交给定时任务
+agentero feed add https://huggingface.co/blog/feed.xml --json
+agentero feed add https://example.com/ --title "Example blog" --json
+
+# 定时拉取：只抓 15 分钟内没抓过的（ETag/Last-Modified 命中 304 时不重写条目）
+agentero feed refresh --stale --json
+
+# 消费：未读条目（脚本请始终加 --json）
+agentero feed items --filter unread --limit 20 --json
+# 只有带 DOI / paper_url 的条目
+agentero feed items --filter paper --json
+
+# 处理完标记已读，避免下轮重复消费
+agentero feed read <item-id> --json
+agentero feed read <item-id> --unread --json
+
+# 管理
+agentero feed list --json
+agentero feed remove <sub-id> -y --json
+```
+
+- **定时拉取推荐做法**：cron / launchd 每 15–30 分钟跑 `agentero feed refresh --stale --json`，再用 `feed items --filter unread --json` 增量消费；`stale` 阈值（15 分钟）与桌面端自动刷新一致，`--stale` 之外显式刷新单个源用 `--id <sub-id>`。单源失败只记到该源的 `lastError`，不中断整批（结果里 `failed` 计数 + `subscriptions[].lastError`）。
+- `items` 默认剥掉 `contentHtml` / `bodyMarkdown`（重 HTML 省 token），`--full` 恢复；条目默认每源缓存最近 200 条。
+- 错误码：`feed_duplicate`（URL 已订阅）、`feed_not_found`、`feed_empty`、`feed_not_found_in_page`、`feed_http_error`（带状态码）、`feed_fetch_failed`、`feed_too_large`；`feed remove` 在非 TTY 且未传 `-y` 时返回 `needs_confirmation`。
+- 桌面端仍负责完整交互面（重命名、置顶、正文解析 `resolve body`、导入论文）；CLI 面只覆盖订阅与消费生命周期（见 [#962](https://github.com/poco-ai/Agentero/issues/962)）。
 
 ## 论文导入
 

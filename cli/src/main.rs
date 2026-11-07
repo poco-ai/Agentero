@@ -208,6 +208,12 @@ enum Commands {
         #[command(subcommand)]
         cmd: commands::discover::DiscoverCmd,
     },
+    /// Plaza feed subscriptions (RSS / Atom / JSON Feed): subscribe, refresh,
+    /// read items — same store as the desktop app, vault-free.
+    Feed {
+        #[command(subcommand)]
+        cmd: commands::feed::FeedCmd,
+    },
     /// Export catalog data.
     Export {
         #[command(subcommand)]
@@ -400,6 +406,7 @@ fn command_label(cmd: &Commands) -> &'static str {
         Commands::Paper { .. } => "cli.paper",
         Commands::Import { .. } => "cli.import",
         Commands::Discover { .. } => "cli.discover",
+        Commands::Feed { .. } => "cli.feed",
         Commands::Export { .. } => "cli.export",
         Commands::Doctor { .. } => "cli.doctor",
         Commands::Layout { .. } => "cli.layout",
@@ -437,6 +444,7 @@ async fn run(command: Commands, globals: &GlobalOpts) -> Result<serde_json::Valu
         Commands::Paper { cmd } => commands::paper::run(cmd, globals).await,
         Commands::Import { cmd } => commands::import::run(cmd, globals).await,
         Commands::Discover { cmd } => commands::discover::run(cmd, globals).await,
+        Commands::Feed { cmd } => commands::feed::run(cmd, globals).await,
         Commands::Export { cmd } => commands::export::run(cmd, globals).await,
         Commands::Doctor { cmd } => commands::doctor::run(cmd, globals),
         Commands::Layout { cmd } => commands::layout::run(cmd, globals),
@@ -512,5 +520,16 @@ mod ops_contract {
             clap_has_path(&root, &["mcp", "serve"]),
             "agentero mcp serve is not registered"
         );
+    }
+
+    #[test]
+    fn feed_commands_are_registered() {
+        let root = Cli::command();
+        for sub in ["list", "add", "remove", "refresh", "items", "read"] {
+            assert!(
+                clap_has_path(&root, &["feed", sub]),
+                "agentero feed {sub} is not registered"
+            );
+        }
     }
 }
