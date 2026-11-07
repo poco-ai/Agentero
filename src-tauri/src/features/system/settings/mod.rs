@@ -654,11 +654,7 @@ fn default_layout_backend() -> String {
     "local".into()
 }
 fn default_parser_backend() -> String {
-    if builtin::available() {
-        BUILTIN_PROVIDER_ID.to_string()
-    } else {
-        "local".into()
-    }
+    "local".into()
 }
 
 /// Domain reaction fired after settings are persisted. Receives the same
@@ -1472,10 +1468,7 @@ fn normalize(s: &mut AppSettings) {
         BUILTIN_PROVIDER_ID,
     ];
     if !PARSER_BACKENDS.contains(&s.layout.parser_backend.as_str()) {
-        // Not default_parser_backend(): on a keyed build that is the billed
-        // gateway, and an invalid stored value means an existing user, not a
-        // fresh install.
-        s.layout.parser_backend = "local".to_string();
+        s.layout.parser_backend = default_parser_backend();
     }
     normalize_layout_provider_configs(&mut s.layout.provider_configs);
     s.dismissed_reminders =
@@ -2240,6 +2233,9 @@ mod tests {
             assert!(!raw.contains(key), "built-in key reached settings.json");
         }
         assert!(raw.contains(BUILTIN_PROVIDER_ID), "parserBackend kept");
+        let (reloaded, existed) = read_file(store.path());
+        assert!(existed);
+        assert_eq!(reloaded.layout.parser_backend, BUILTIN_PROVIDER_ID);
         let _ = fs::remove_file(store.path());
     }
 
@@ -2405,16 +2401,39 @@ mod tests {
     }
 
     #[test]
-    fn fresh_install_defaults_follow_builtin_availability() {
-        let s = AppSettings::default();
+    fn fresh_install_defaults_use_local_parser() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        let (s, existed) = read_file(&path);
+        assert!(!existed);
         if builtin::available() {
             assert_eq!(s.translate.provider, BUILTIN_PROVIDER_ID);
-            assert_eq!(s.layout.parser_backend, BUILTIN_PROVIDER_ID);
         } else {
             assert_eq!(s.translate.provider, "tencenttransmart");
-            assert_eq!(s.layout.parser_backend, "local");
         }
+        assert_eq!(s.layout.parser_backend, "local");
         assert_eq!(s.layout.backend, "local");
+
+        persist(&path, &s).expect("write");
+        let (reloaded, existed) = read_file(&path);
+        assert!(existed);
+        assert_eq!(reloaded.layout, s.layout);
+    }
+
+    #[test]
+    fn legacy_settings_without_parser_backend_use_local() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        for (json, layout_backend) in [
+            (r#"{}"#, "local"),
+            (r#"{"layout":{"backend":"paddle"}}"#, "paddle"),
+        ] {
+            fs::write(&path, json).unwrap();
+            let (loaded, existed) = read_file(&path);
+            assert!(existed);
+            assert_eq!(loaded.layout.parser_backend, "local");
+            assert_eq!(loaded.layout.backend, layout_backend);
+        }
     }
 }
 

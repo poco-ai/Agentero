@@ -72,7 +72,7 @@ catalog **始终**写入 `pdf_url` / `html_url`（有则仍可供在线预览）
 | **PDF** | **始终**尝试下载到 **`{paper}/{id}.pdf`（论文文件夹根目录）**（`pdf_url` + arXiv 多候选 URL 回退） |
 | **arXiv LaTeX** | 从 `https://arxiv.org/e-print/{id}` 下载；gzip/tar 解压到 `source/`（路径穿越拒绝）；纯 PDF e-print 写到论文根目录 |
 | **已有文件** | 跳过对应资源 |
-| **`PAPER.md`（无 TeX 时）** | 下载结束后：若**无**本地 `.tex`/`.ltx`、**有** PDF、且尚无 `PAPER.md` → 用选定正文解析引擎（默认由构建是否注入内置 provider key 决定，见 paper-import.md § 正文解析引擎）写 `{paper}/PAPER.md`，并写 catalog `body_source` / `body_quality`。有 TeX 则不自动生成 |
+| **`PAPER.md`（无 TeX 时）** | 下载结束后：若**无**本地 `.tex`/`.ltx`、**有** PDF、且尚无 `PAPER.md` → 用选定正文解析引擎（默认 `local`，见 paper-import.md § 正文解析引擎）写 `{paper}/PAPER.md`，并写 catalog `body_source` / `body_quality`。有 TeX 则不自动生成 |
 
 按需补下（**Download** 图标）：
 
