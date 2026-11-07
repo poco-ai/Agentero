@@ -1,6 +1,6 @@
 # 内置 Provider（翻译 / Embedding / 正文 OCR）
 
-`agentero` 是一个内置 provider id：凭证在**构建期**编入 Host，用户选中它之后不需要填任何 baseUrl / API Key / model，设置面板也不为它渲染凭证卡片。它是新装用户的默认选项（仅当本次构建注入了 key）。
+`agentero` 是一个内置 provider id：凭证在**构建期**编入 Host，使用它不需要填任何 baseUrl / API Key / model，设置面板也不为它渲染凭证卡片。注入 key 的构建中，新装 Host 默认使用内置翻译与 embedding；正文解析始终默认使用 `local`。
 
 三个消费方：
 
@@ -26,7 +26,7 @@
 
 - 五个变量全部经 `option_env!` 在 Rust 侧**编译期**解析（形态为 `option_env!(...).map(str::trim).filter(|v| !v.is_empty())`，空白串等同未设置）。TS 侧不读任何 `AGENTERO_BUILTIN_*`：`import.meta.env.VITE_*` 会把 key 内联进 JS bundle，等于把秘密发到 webview，因此明确不走那条路。
 - 用 `option_env!` 而非 `env!`：`env!` 在变量缺失时编译失败，会打断本地 dev / contributor / 无 secret 的 CI。仓库必须能在没有任何 secret 的情况下构建。
-- 没有注入 key 的构建里 `available()` 为 `false`，`builtin_provider_status` 返回 `available: false`，UI 隐藏或禁用内置选项，`default_translate_provider()` / `default_parser_backend()` 回落到 `tencenttransmart` / `local`，`embedding_config()` 穿透到已存值（仍为空则返回 `None`，照常触发 `recommend.no_embedding`）。
+- 没有注入 key 的构建里 `available()` 为 `false`，`builtin_provider_status` 返回 `available: false`，UI 隐藏或禁用内置选项，`default_translate_provider()` 回落到 `tencenttransmart`，`embedding_config()` 穿透到已存值（仍为空则返回 `None`，照常触发 `recommend.no_embedding`）。`default_parser_backend()` 无论是否注入 key 都为 `local`。
 - 既有先例：`posthog_key()`（`src-tauri/src/core/telemetry/mod.rs`）用的就是同一套 `option_env!` + trim + filter-empty，见 [telemetry.md](telemetry.md) §开关语义。
 
 **构建脚本转发**：`src-tauri/build.rs` 的 `forward_build_env()` 为 `BUILD_ENV_KEYS` 里的每个变量发 `cargo:rerun-if-env-changed`，并在环境变量缺失时回退读仓库根 `.env`（gitignored），经 `cargo:rustc-env=` 重新导出。列表含 `AGENTERO_POSTHOG_KEY`、五个 `AGENTERO_BUILTIN_*`，以及可选的四份反馈问卷 id（见 [telemetry.md](telemetry.md)）。因此
@@ -189,7 +189,7 @@
 
 ## 版面分析不走内置（layout / parser 不对称）
 
-**`"agentero"` 是 parser（正文）backend，不是 layout（版面分析）backend。** `LAYOUT_BACKENDS` 仍是 `["local", "paddle", "mineru"]`，`default_layout_backend()` **无条件**返回 `"local"`，而 `default_parser_backend()` 在有编译期 key 时优先返回内置。
+**`"agentero"` 是 parser（正文）backend，不是 layout（版面分析）backend。** `LAYOUT_BACKENDS` 仍是 `["local", "paddle", "mineru"]`，`default_layout_backend()` 与 `default_parser_backend()` 都**无条件**返回 `"local"`（#858）。Host 读取与保存设置时仍接受已显式配置的 `agentero`；设置页沿用 `1034143f` 的策略，不展示内置正文解析选项，并在打开该面板时把已有内置选择切回 `local`。新装默认本地不再依赖打开设置页。
 
 原因：版面分析跑在随包的 PP-DocLayoutV3 ONNX 模型上，首次使用下载到 XDG cache 目录，再经 `agentero-model://` scheme 喂给 webview 的 `onnxruntime-web`——已经免费且离线（见 [../frontend/pdf-layout-analysis.md](../frontend/pdf-layout-analysis.md) §模型落盘）。把版面分析默认切到云端网关会让每个 PDF 都产生费用，且没有任何质量收益。有测试 `layout_backend_never_becomes_builtin` 守住这一点。
 
@@ -200,7 +200,7 @@
 | 函数 | 有编译期 key | 无 key |
 |---|---|---|
 | `default_translate_provider()` | `tencenttransmart` | `tencenttransmart` |
-| `default_parser_backend()` | `agentero` | `local` |
+| `default_parser_backend()` | `local` | `local` |
 | `default_layout_backend()` | `local` | `local` |
 | `EmbeddingSettings::source`（推断） | `builtin`（仅当 BYOK 三项全空） | `custom`（空字段 → `embedding_config()` 为 `None`，功能禁用） |
 

@@ -27,7 +27,7 @@ settings 不存内置 provider 的任何凭证；它只在**读取时**把 id `a
 - **`embedding_config()`**：source 非 `custom` 且 `builtin::available()` 时返回网关三元组；无编译期 key 时穿透到已存值，仍为空则 `None`，让 `recommend.no_embedding` 照常触发。
 - **`layout_api_key` / `layout_base_url` / `layout_model`** 在 **getter 层**特判内置 id，这样所有调用方（`body_engines/mod.rs`、`layout/hosted/commands.rs`）自动正确，不必各自加分支。`layout_prompt` / `layout_language` / `layout_is_ocr` / `layout_self_hosted` **不特判** → `None` / `None` / `false` / `false`：提示词由 VLM 引擎按 model id 推导，后三项是 MinerU 专用。
 - **`layout_provider_settings_key("agentero")`** 返回 `"agentero"`，只为给 parser 凭证 `HashMap` 一个稳定的键；它不对应任何落盘卡片。
-- **`PARSER_BACKENDS` vs `LAYOUT_BACKENDS`**：前者含 `agentero`，后者**不含**。`normalize()` 在每次保存时都会跑并把未列入的 backend 重置为默认值、由 `persist` 写盘，所以白名单就是「选择能否留存」的开关。`default_layout_backend()` 无条件 `"local"`；`default_parser_backend()` 在 `builtin::available()` 时返回 `agentero`。
+- **`PARSER_BACKENDS` vs `LAYOUT_BACKENDS`**：前者含 `agentero`，后者**不含**。`normalize()` 在每次保存时都会跑并把未列入的 backend 重置为默认值、由 `persist` 写盘，所以白名单就是「选择能否留存」的开关。`default_layout_backend()` 与 `default_parser_backend()` 无条件 `"local"`，包括旧配置未设置 `parserBackend` 的情况；Host 读写仍保留显式设置的有效引擎（#858）。设置页另有内置选项迁移，见 [builtin-provider.md](builtin-provider.md) §版面分析不走内置。
 - **翻译默认值**：`default_translate_provider()` 始终返回 `tencenttransmart`，与前端默认值及引导的默认选项一致，不依赖编译期 key。新装与旧文件缺少 `translate.provider` 时均使用此值；Host 读写保留显式保存的 provider，包括 `agentero`，不会迁移已有选择（#857）。
 - **新装默认值由 Rust 决定**：没有 `settings.json` 时 `read_file` 返回 `AppSettings::default()`，走的是上面的 `default_*()`。前端 TS defaults 还用于浏览器 dev 和引导的默认选项。
 - **key 收敛**：`normalize_layout_provider_configs` 的 `PROVIDERS` 白名单是 `["paddle", "mineru", "openaiCompatible"]` + `retain`，任何 `agentero` 卡片都会在保存时被丢弃，所以编译进去的 key 不可能被写进 `settings.json`（有测试断言）。
