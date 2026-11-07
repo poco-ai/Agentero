@@ -28,6 +28,7 @@ import { useSelectionContextPublish } from "@/components/editor/hooks/use-select
 import { useWikilinkEditing } from "@/components/editor/hooks/use-wikilink-editing";
 import { MarkdownExportDialog } from "@/components/editor/markdown-export-dialog";
 import { MarkdownExportSurface } from "@/components/editor/markdown-export-surface";
+import { markdownSourceSurfaceStyle } from "@/components/editor/markdown-source-layout";
 import { BlockDragStateBridge } from "@/components/editor/nodes/block/block-draggable";
 import { ImageElement } from "@/components/editor/nodes/block/image-node";
 import { EditorStatusBar } from "@/components/editor/overlays/editor-status-bar";
@@ -903,8 +904,6 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		fontSize: editorTypographyStyle?.fontSize,
 		"--cm-content-font": fontFamily || "var(--font-sans)",
 		"--cm-content-leading": lineHeight ?? 1.65,
-		"--markdown-source-width":
-			markdownMaxWidth > 0 ? `${markdownMaxWidth}px` : undefined,
 	} as CSSProperties;
 
 	return (
@@ -1185,11 +1184,21 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 							</div>
 							{canToggleSource ? (
 								<div
-									ref={sourceHostRef}
 									data-markdown-source=""
-									className={cn("absolute inset-0", !source && "hidden")}
-									style={sourceTypography}
-								/>
+									className={cn(
+										"absolute inset-0 flex justify-center",
+										!source && "hidden",
+									)}
+								>
+									<div
+										ref={sourceHostRef}
+										className="h-full w-full min-w-0"
+										style={{
+											...sourceTypography,
+											...markdownSourceSurfaceStyle(markdownMaxWidth),
+										}}
+									/>
+								</div>
 							) : null}
 							{switching ? (
 								<div
