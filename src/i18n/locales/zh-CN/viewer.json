@@ -45,7 +45,8 @@
 		"layoutTranslate": {
 			"start": "全文翻译",
 			"stop": "停止全文翻译",
-			"clear": "清除全文译文",
+			"hide": "隐藏译文",
+			"show": "查看译文",
 			"translatePage": "翻译本页",
 			"translatePageShort": "翻译页面",
 			"hidePage": "隐藏本页译文",
