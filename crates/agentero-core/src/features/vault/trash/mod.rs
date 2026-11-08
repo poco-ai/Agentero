@@ -300,6 +300,60 @@ pub fn delete_trashed_catalog(
     }
 }
 
+/// Remove catalog rows when a library delete has no folder left to recycle.
+///
+/// A paper the user deletes is gone. If its folder is already missing, there
+/// is nothing to move into the recycle bin, but the catalog row would stay in
+/// the library and look like a paper with no PDF. Rows under `papers/` in
+/// `rels` whose folder is gone are deleted here. `also_ids` are papers just
+/// moved to the bin: other rows of those ids with no folder are deleted too,
+/// so a hidden duplicate does not reappear. Folders that still exist stay.
+/// Returns the vault-relative paths whose rows were removed.
+pub fn delete_absent_paper_rows(
+    vault_root: &Path,
+    rels: &[String],
+    also_ids: &[String],
+) -> Result<Vec<String>, AppError> {
+    let mut removed = Vec::new();
+    let mut ids = Vec::new();
+    for raw in rels {
+        let rel = normalize_rel_separators(raw);
+        if !is_trash_candidate(&rel) || !is_under_papers(&rel) || vault_root.join(&rel).exists() {
+            continue;
+        }
+        let rows = papers::list_under_path(vault_root, &rel)?;
+        for row in &rows {
+            if !row.id.is_empty() {
+                ids.push(row.id.clone());
+            }
+        }
+        if rows.is_empty() {
+            continue;
+        }
+        if papers::delete_under_path(vault_root, &rel)? > 0 {
+            removed.push(rel);
+        }
+    }
+    ids.extend(also_ids.iter().filter(|id| !id.is_empty()).cloned());
+    let mut seen = std::collections::HashSet::new();
+    for id in ids {
+        if !seen.insert(id.clone()) {
+            continue;
+        }
+        for row in papers::list_by_id(vault_root, &id)? {
+            if vault_root.join(&row.path).exists() {
+                continue;
+            }
+            if papers::delete_under_path(vault_root, &row.path)? > 0 {
+                removed.push(row.path);
+            }
+        }
+    }
+    removed.sort();
+    removed.dedup();
+    Ok(removed)
+}
+
 fn read_manifest(batch_dir: &Path) -> Result<TrashManifest, AppError> {
     let raw = fs::read_to_string(batch_dir.join("manifest.json"))
         .map_err(|_| AppError::message("trash batch not found"))?;
@@ -318,7 +372,10 @@ fn write_manifest(batch_dir: &Path, manifest: &TrashManifest) -> Result<(), AppE
 /// Eligibility and catalog snapshots come from [`plan_trash`]. For anything
 /// under `papers/`, catalog rows are removed only after the manifest is stored
 /// so a failed manifest write does not hide the paper while its files sit in
-/// an unrecorded batch. Both are restored on [`restore_batch`].
+/// an unrecorded batch. Both are restored on [`restore_batch`]. A `papers/`
+/// path whose folder is already gone still drops its catalog row (and any
+/// same-id row whose folder is also gone) so the library entry disappears;
+/// there is no recycle-bin item for a folder that was not there.
 pub fn trash_paths(vault_root: &Path, rels: &[String]) -> Result<TrashResult, AppError> {
     crate::fs::ensure_vault_dir(vault_root)?;
     let now = chrono::Utc::now();
@@ -341,10 +398,11 @@ pub fn trash_paths(vault_root: &Path, rels: &[String]) -> Result<TrashResult, Ap
         |rel| snapshots.remove(rel).unwrap_or_default(),
     )?;
     if plan.items.is_empty() {
+        let removed = delete_absent_paper_rows(vault_root, rels, &[])?;
         return Ok(TrashResult {
             batch_id,
             count: 0,
-            rels: Vec::new(),
+            rels: removed,
         });
     }
 
@@ -364,8 +422,17 @@ pub fn trash_paths(vault_root: &Path, rels: &[String]) -> Result<TrashResult, Ap
         manifest.items[index].phase = TrashPhase::Trashed;
         write_manifest(&batch_dir, &manifest)?;
     }
-    let rels_out = manifest.items.iter().map(|item| item.rel.clone()).collect();
+    let mut rels_out: Vec<String> = manifest.items.iter().map(|item| item.rel.clone()).collect();
     delete_trashed_catalog(vault_root, &manifest.batch_id, &manifest.items)?;
+    let mut ids = Vec::new();
+    for item in &manifest.items {
+        for row in &item.catalog_rows {
+            if !row.id.is_empty() {
+                ids.push(row.id.clone());
+            }
+        }
+    }
+    rels_out.extend(delete_absent_paper_rows(vault_root, rels, &ids)?);
 
     Ok(TrashResult {
         batch_id: manifest.batch_id,
@@ -990,6 +1057,59 @@ mod tests {
         assert_eq!(restored, 1);
         assert!(paper_dir.join("NOTES.md").exists());
         assert!(papers::get_by_path(&dir, "papers/x").unwrap().is_some());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn trash_drops_catalog_row_when_paper_folder_is_already_gone() {
+        let dir = env::temp_dir().join(format!(
+            "agentero-trash-ghost-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        papers::upsert_paper(&dir, &sample_record("papers/ghost", "same")).unwrap();
+        papers::upsert_paper(&dir, &sample_record("papers/other-ghost", "same")).unwrap();
+        let keep = dir.join("papers/keep");
+        fs::create_dir_all(&keep).unwrap();
+        fs::write(keep.join("NOTES.md"), "# keep\n").unwrap();
+        papers::upsert_paper(&dir, &sample_record("papers/keep", "same")).unwrap();
+
+        let res = trash_paths(&dir, &["papers/ghost".to_string()]).unwrap();
+        assert_eq!(res.count, 0);
+        assert_eq!(
+            res.rels,
+            vec!["papers/ghost".to_string(), "papers/other-ghost".to_string()]
+        );
+        assert!(papers::get_by_path(&dir, "papers/ghost").unwrap().is_none());
+        assert!(papers::get_by_path(&dir, "papers/other-ghost")
+            .unwrap()
+            .is_none());
+        assert!(papers::get_by_path(&dir, "papers/keep").unwrap().is_some());
+        assert!(list_trash(&dir).unwrap().is_empty());
+
+        let real = dir.join("papers/real");
+        fs::create_dir_all(&real).unwrap();
+        fs::write(real.join("NOTES.md"), "# real\n").unwrap();
+        papers::upsert_paper(&dir, &sample_record("papers/real", "same")).unwrap();
+        papers::upsert_paper(&dir, &sample_record("papers/leftover", "same")).unwrap();
+        let res = trash_paths(&dir, &["papers/real".to_string()]).unwrap();
+        assert_eq!(res.count, 1);
+        assert!(!real.exists());
+        assert!(papers::get_by_path(&dir, "papers/real").unwrap().is_none());
+        assert!(papers::get_by_path(&dir, "papers/leftover")
+            .unwrap()
+            .is_none());
+        assert!(papers::get_by_path(&dir, "papers/keep").unwrap().is_some());
+        assert_eq!(list_trash(&dir).unwrap().len(), 1);
+
+        let untouched = trash_paths(&dir, &["notes/missing.md".to_string()]).unwrap();
+        assert_eq!(untouched.count, 0);
+        assert!(untouched.rels.is_empty());
 
         let _ = fs::remove_dir_all(&dir);
     }

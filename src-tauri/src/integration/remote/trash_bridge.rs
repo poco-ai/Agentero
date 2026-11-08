@@ -10,9 +10,10 @@ use crate::core::fs::{normalize_rel_separators, VaultFs, WriteOpts};
 use crate::features::paper::catalog::papers;
 use crate::features::vault::trash::remote_ops::RemoteTrashOps;
 use crate::features::vault::trash::{
-    delete_trashed_catalog, is_trash_candidate, plan_trash, restore_action, restore_catalog,
-    restore_sidecar_path, snapshot_title, trash_batch_rel, validate_batch_id, RestoreAction,
-    TrashEntry, TrashManifest, TrashPhase, TrashResult, TRASH_REL,
+    delete_absent_paper_rows, delete_trashed_catalog, is_trash_candidate, plan_trash,
+    restore_action, restore_catalog, restore_sidecar_path, snapshot_title, trash_batch_rel,
+    validate_batch_id, RestoreAction, TrashEntry, TrashManifest, TrashPhase, TrashResult,
+    TRASH_REL,
 };
 use std::collections::HashMap;
 use std::path::Path;
@@ -53,10 +54,15 @@ pub async fn trash_paths(
         |rel| snapshots.remove(rel).unwrap_or_default(),
     )?;
     if plan.items.is_empty() {
+        let removed = delete_absent_paper_rows(&work_root, rels, &[])?;
+        if !removed.is_empty() {
+            let mut cat = session.catalog.lock().await;
+            cat.push(fs.clone()).await?;
+        }
         return Ok(TrashResult {
             batch_id,
             count: 0,
-            rels: Vec::new(),
+            rels: removed,
         });
     }
 
@@ -75,9 +81,22 @@ pub async fn trash_paths(
         manifest.items[index].phase = TrashPhase::Trashed;
         write_manifest(fs.as_ref(), &batch_rel, &manifest).await?;
     }
-    let rels_out = manifest.items.iter().map(|item| item.rel.clone()).collect();
+    let mut rels_out: Vec<String> = manifest.items.iter().map(|item| item.rel.clone()).collect();
     let catalog_result =
         delete_trashed_catalog(&session.work_root, &manifest.batch_id, &manifest.items);
+    let absent_result = if catalog_result.is_ok() {
+        let mut ids = Vec::new();
+        for item in &manifest.items {
+            for row in &item.catalog_rows {
+                if !row.id.is_empty() {
+                    ids.push(row.id.clone());
+                }
+            }
+        }
+        delete_absent_paper_rows(&session.work_root, rels, &ids)
+    } else {
+        Ok(Vec::new())
+    };
 
     // Publish even when a catalog delete failed, so the mirror does not keep
     // a partial delete that the server has not seen. A push failure leaves
@@ -87,6 +106,7 @@ pub async fn trash_paths(
         cat.push(fs.clone()).await?;
     }
     catalog_result?;
+    rels_out.extend(absent_result?);
 
     Ok(TrashResult {
         batch_id: manifest.batch_id,

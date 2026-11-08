@@ -66,7 +66,7 @@
 | `path_restore_item` | 恢复 |
 | `path_purge_item` / `path_purge_trash` | 永久删除 / 清空 |
 
-本地与远端 `path_trash` 共用 core `plan_trash` 和同一 `manifest.json` 结构；文件移动仍各自执行，远端 catalog 发布仍在 trash bridge 末尾。本地 `path_trash` 成功后会取消被删论文的全部排队/运行中 JobCenter 任务（`JobCenter::cancel_for_paper`），避免已删论文继续下载 / 解析。
+本地与远端 `path_trash` 共用 core `plan_trash` 和同一 `manifest.json` 结构；文件移动仍各自执行，远端 catalog 发布仍在 trash bridge 末尾。论文目录已经不在磁盘上时，删除仍清掉对应 catalog 行（以及同一 id、目录同样缺失的重复行），库列表不再留下「本地无 PDF」的空条目；这种删除没有回收站项。本地 `path_trash` 成功后会取消被删论文的全部排队/运行中 JobCenter 任务（`JobCenter::cancel_for_paper`），避免已删论文继续下载 / 解析。
 
 回收 manifest 在第一次移动前原子保存，逐项记录 `prepared` / `trashed` / `restoring`；旧 manifest 默认 `trashed`。恢复先验证目标冲突，再保存恢复意图。首次移回前先将 manifest 中的 Catalog 快照原子写入回收目录内的 sidecar，使文件监听器在恢复后的 Catalog 插入失败时也能读到最新 metadata；重试已移回项不重写 sidecar。Catalog 中尚未 prune 的缺失子论文目录只跳过 sidecar 写入和上传，不创建目录；其他 IO 错误继续中止恢复。文件已经移回但 Catalog 或远端发布失败时，重试只补缺失的 Catalog 行，不覆盖已恢复后编辑的 metadata。未移动的 prepared 项不显示为已删除文件；恢复可跳过它。批量/单项恢复均在 Catalog 发布成功后才移除对应恢复记录。
 
