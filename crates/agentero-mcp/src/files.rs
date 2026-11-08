@@ -1,4 +1,4 @@
-//! Vault-relative UTF-8 text read / write for MCP.
+//! Vault-relative text reads and text / Base64 writes for MCP.
 //!
 //! Paper `NOTES.md` stays on `paper_notes_*` (frontmatter). This surface is for
 //! other vault text, such as a LaTeX draft that does not live under `papers/`.
@@ -12,11 +12,12 @@ use agentero_core::features::vault::rename::{
 use agentero_core::features::vault::trash::{self, DeleteResult};
 use agentero_core::features::vault::tree::should_ignore;
 use agentero_core::fs::{atomic_write, sanitize_vault_rel};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// MCP text reads and writes refuse anything larger than this.
+/// MCP reads and writes refuse decoded content larger than this.
 pub const MAX_TEXT_BYTES: usize = 2 * 1024 * 1024;
 
 const BINARY_EXTS: &[&str] = &[
@@ -207,10 +208,46 @@ pub fn write_text(
     mode: WriteMode,
 ) -> Result<FileWriteOut, AppError> {
     let rel = normalize_file(rel)?;
+    reject_binary_name(&rel)?;
+    if content.as_bytes().contains(&0) {
+        return Err(AppError::message("content is binary"));
+    }
+    write_bytes(vault, &rel, content.as_bytes(), mode)
+}
+
+pub fn write_base64(
+    vault: &Path,
+    rel: &str,
+    content: &str,
+    mode: WriteMode,
+) -> Result<FileWriteOut, AppError> {
+    if mode == WriteMode::Append {
+        return Err(AppError::message(
+            "base64 encoding only supports mode=replace",
+        ));
+    }
+    // Bound the allocation before decoding, then check the exact byte length.
+    if content.len() > MAX_TEXT_BYTES.div_ceil(3) * 4 {
+        return Err(AppError::message(format!(
+            "base64 content exceeds {MAX_TEXT_BYTES} decoded bytes"
+        )));
+    }
+    let bytes = STANDARD
+        .decode(content)
+        .map_err(|err| AppError::message(format!("content is not valid standard base64: {err}")))?;
+    write_bytes(vault, rel, &bytes, mode)
+}
+
+fn write_bytes(
+    vault: &Path,
+    rel: &str,
+    content: &[u8],
+    mode: WriteMode,
+) -> Result<FileWriteOut, AppError> {
+    let rel = normalize_file(rel)?;
     reject_segments(&rel)?;
     reject_managed(&rel)?;
     reject_notes(&rel)?;
-    reject_binary_name(&rel)?;
     if is_research_table(&rel) && matches!(mode, WriteMode::Append) {
         return Err(AppError::domain("use_table_ops", "use_table_ops"));
     }
@@ -220,8 +257,8 @@ pub fn write_text(
             content.len()
         )));
     }
-    if content.as_bytes().contains(&0) {
-        return Err(AppError::message("content is binary"));
+    if is_markdown(&rel) {
+        decode_text(content)?;
     }
     let root = canonical_root(vault)?;
     let path = contained_write_target(&root, &rel)?;
@@ -232,14 +269,14 @@ pub fn write_text(
         if path.is_file() {
             return Err(AppError::domain("use_table_ops", "use_table_ops"));
         }
-        research_table::validate_table_json(content)
+        research_table::validate_table_json(&decode_text(content)?)
             .map_err(|err| AppError::domain(err.stable_code(), err.stable_code()))?;
     }
     if path.is_file() && is_markdown(&rel) && markdown_experiment_locked(&path)? {
         return Err(AppError::domain("experiment_locked", "experiment_locked"));
     }
     let next = match mode {
-        WriteMode::Replace => content.to_string(),
+        WriteMode::Replace => content.to_vec(),
         WriteMode::Append => {
             let existing = if path.is_file() {
                 let meta = fs::metadata(&path)?;
@@ -258,15 +295,15 @@ pub fn write_text(
                     "append would exceed {MAX_TEXT_BYTES} bytes"
                 )));
             }
-            let mut next = existing;
-            next.push_str(content);
+            let mut next = existing.into_bytes();
+            next.extend_from_slice(content);
             next
         }
     };
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    atomic_write(&path, next.as_bytes())?;
+    atomic_write(&path, &next)?;
     let mode_name = match mode {
         WriteMode::Replace => "replace",
         WriteMode::Append => "append",
@@ -679,6 +716,109 @@ mod tests {
             WriteMode::Replace,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn base64_writes_preserve_bytes_and_names() {
+        let dir = tempdir().unwrap();
+        let bytes = [0, 255, 128, 13, 10, 1];
+        for rel in ["assets/图.png", "attachments/data.bin", "data/no-extension"] {
+            let out =
+                write_base64(dir.path(), rel, &STANDARD.encode(bytes), WriteMode::Replace).unwrap();
+            assert_eq!(out.path, rel);
+            assert_eq!(out.bytes, bytes.len());
+            assert_eq!(out.mode, "replace");
+            assert_eq!(fs::read(dir.path().join(rel)).unwrap(), bytes);
+        }
+        write_base64(dir.path(), "assets/图.png", "AQ==", WriteMode::Replace).unwrap();
+        assert_eq!(fs::read(dir.path().join("assets/图.png")).unwrap(), [1]);
+    }
+
+    #[test]
+    fn base64_rejects_invalid_oversized_and_append_without_writing() {
+        let dir = tempdir().unwrap();
+        let rel = "assets/data.bin";
+        let at_limit = STANDARD.encode(vec![255; MAX_TEXT_BYTES]);
+        write_base64(dir.path(), rel, &at_limit, WriteMode::Replace).unwrap();
+        let original = fs::read(dir.path().join(rel)).unwrap();
+        for content in [
+            "not-base64!".to_string(),
+            "data:image/png;base64,AQ==".to_string(),
+            STANDARD.encode(vec![0; MAX_TEXT_BYTES + 1]),
+            STANDARD.encode(vec![0; MAX_TEXT_BYTES + 4]),
+        ] {
+            assert!(write_base64(dir.path(), rel, &content, WriteMode::Replace).is_err());
+            assert_eq!(fs::read(dir.path().join(rel)).unwrap(), original);
+            assert!(
+                write_base64(dir.path(), "missing/data.bin", &content, WriteMode::Replace).is_err()
+            );
+            assert!(!dir.path().join("missing").exists());
+        }
+        assert!(write_base64(dir.path(), rel, "AQ==", WriteMode::Append).is_err());
+        assert_eq!(fs::read(dir.path().join(rel)).unwrap(), original);
+    }
+
+    #[test]
+    fn base64_preserves_managed_file_and_experiment_guards() {
+        let dir = tempdir().unwrap();
+        for rel in [
+            "../escape.png",
+            ".agentero/data.bin",
+            "papers/p1/NOTES.md",
+            "papers/p1/marks/annotations.json",
+            "papers/p1/source/layout.json",
+            "papers/p1/source/layout-index.json",
+            "catalog.sqlite",
+            "build/output.aux",
+        ] {
+            assert!(
+                write_base64(dir.path(), rel, "AQ==", WriteMode::Replace).is_err(),
+                "{rel}"
+            );
+        }
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 0);
+        let locked = "---\ntype: experiment\nstatus: locked\n---\n# Result\n";
+        fs::write(dir.path().join("locked.md"), locked).unwrap();
+        let err = write_base64(dir.path(), "locked.md", "eA==", WriteMode::Replace).unwrap_err();
+        assert_eq!(err.code(), "experiment_locked");
+        assert_eq!(
+            fs::read_to_string(dir.path().join("locked.md")).unwrap(),
+            locked
+        );
+        assert!(write_base64(dir.path(), "note.md", "/wA=", WriteMode::Replace).is_err());
+        let err =
+            write_base64(dir.path(), "data.table.json", "eA==", WriteMode::Replace).unwrap_err();
+        assert_eq!(err.code(), "invalid_table");
+        fs::write(dir.path().join("existing.table.json"), "{}").unwrap();
+        let err = write_base64(
+            dir.path(),
+            "existing.table.json",
+            "e30=",
+            WriteMode::Replace,
+        )
+        .unwrap_err();
+        assert_eq!(err.code(), "use_table_ops");
+        assert_eq!(
+            fs::read_to_string(dir.path().join("existing.table.json")).unwrap(),
+            "{}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn base64_rejects_outside_symlink_targets_and_parents() {
+        let dir = tempdir().unwrap();
+        let outside = tempdir().unwrap();
+        let original = outside.path().join("data.bin");
+        fs::write(&original, [255]).unwrap();
+        std::os::unix::fs::symlink(outside.path(), dir.path().join("link")).unwrap();
+        std::os::unix::fs::symlink(&original, dir.path().join("data.bin")).unwrap();
+        for rel in ["link/new/data.bin", "data.bin"] {
+            let err = write_base64(dir.path(), rel, "AQ==", WriteMode::Replace).unwrap_err();
+            assert!(err.to_string().contains("escapes"), "{err}");
+        }
+        assert!(!outside.path().join("new").exists());
+        assert_eq!(fs::read(original).unwrap(), [255]);
     }
 
     #[test]

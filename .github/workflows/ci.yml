@@ -183,9 +183,9 @@ jobs:
               cargo test -p agentero -p agentero-plugin-host
               ;;
             cli-tests)
-              # Dependency builds do not run agentero-core's own tests. Keep
-              # both headless packages in this job to share PDFium and artifacts.
-              cargo test -p agentero-core -p agentero-cli
+              # Dependency builds do not run core/MCP unit tests. Keep all
+              # headless packages in this job to share PDFium and artifacts.
+              cargo test -p agentero-core -p agentero-mcp -p agentero-cli
               cargo build -p agentero-cli
               ;;
             *)
@@ -243,9 +243,9 @@ jobs:
               cargo test --release -p agentero -p agentero-plugin-host
               ;;
             cli-tests)
-              # Dependency builds do not run agentero-core's own tests. Keep
-              # both headless packages in this job to share PDFium and artifacts.
-              cargo test --release -p agentero-core -p agentero-cli
+              # Dependency builds do not run core/MCP unit tests. Keep all
+              # headless packages in this job to share PDFium and artifacts.
+              cargo test --release -p agentero-core -p agentero-mcp -p agentero-cli
               cargo build --release -p agentero-cli
               ;;
             *)

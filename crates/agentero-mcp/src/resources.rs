@@ -58,7 +58,7 @@ pub fn vault_markdown(ctrl: &McpController) -> String {
                  Next: read `{INVARIANTS_URI}`, then `paper_list` (slim by default) / `paper_get`.\n\
                  `ref` is a paper id or vault-relative path. Use `fields` or `full` on `paper_list` only when needed.\n\
                  To target another known vault, pass its path as `vault` (see `vault_list`).\n\
-                 Text outside a paper record (for example `drafts/main.tex`): `file_list`, then `file_read` / `file_write`.\n\
+                 Text outside a paper record (for example `drafts/main.tex`): `file_list`, then `file_read` / `file_write`. For images/binaries use `file_write` with `encoding=base64` (replace only, 2 MiB decoded).\n\
                  Research tables (`*.table.json`): `table_query` / `table_upsert` / `table_update_cells`. Do not `file_write` an existing table.\n",
                 vault.display()
             )
