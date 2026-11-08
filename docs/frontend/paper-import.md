@@ -58,6 +58,8 @@
 | 欢迎页迁移 | 读 `zotero.sqlite` + `storage/` 整库迁移 |
 | Connector | 设置开启后浏览器扩展保存；见 [../backend/connector.md](../backend/connector.md)、[../usage/zotero.md](../usage/zotero.md) |
 
+欢迎页迁移先选择新的 Agentero 知识库目录，再选择 Zotero 来源。新知识库目录检查会向上查找 `zotero.sqlite`，防止把知识库放进 Zotero 数据目录；父目录超出 Tauri 文件访问范围时停止查找。所选目录本身的访问失败和其他检查错误仍会通过错误 Toast 报告。
+
 ## 补资源 / 精读触发
 
 - Download：缺主 PDF、无可读正文，或缺可获取的 arXiv LaTeX 源码时；已有 OCR `PAPER.md`

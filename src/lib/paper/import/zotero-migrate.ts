@@ -20,6 +20,7 @@ import {
 	type ZoteroMigrateResult,
 	type ZoteroScan_Serialize,
 } from "@/lib/core/bindings";
+import { errorText } from "@/lib/core/error";
 import { callApi } from "@/lib/core/ipc";
 import { isTauri } from "@/lib/core/tauri";
 
@@ -70,7 +71,14 @@ export async function isZoteroDataDir(path: string): Promise<boolean> {
 	if (!isTauri()) return false;
 	let current = path;
 	for (let depth = 0; depth < 32; depth++) {
-		if (await exists(await join(current, "zotero.sqlite"))) return true;
+		const sqlitePath = await join(current, "zotero.sqlite");
+		try {
+			if (await exists(sqlitePath)) return true;
+		} catch (error) {
+			// The picker grants the selected directory, not all of its ancestors.
+			if (depth > 0 && errorText(error).startsWith("forbidden path:")) break;
+			throw error;
+		}
 		const parent = await dirname(current);
 		if (parent === current) break;
 		current = parent;
