@@ -6,14 +6,15 @@ import { NodeChildren } from "../node-children";
 import { stringProp } from "./shared";
 
 export function CardNode({ node }: { node: ElementNode }) {
+	const title = stringProp(node.props, "title");
 	return (
-		<Card size="sm" className="w-full gap-2 py-3">
-			<CardHeader className="px-3 pb-0">
-				<CardTitle className="text-sm">
-					{stringProp(node.props, "title")}
-				</CardTitle>
-			</CardHeader>
-			<CardContent className="flex flex-col gap-3 px-3">
+		<Card size="sm" className="w-full gap-2">
+			{title ? (
+				<CardHeader>
+					<CardTitle className="break-words">{title}</CardTitle>
+				</CardHeader>
+			) : null}
+			<CardContent className="flex flex-col gap-3">
 				<NodeChildren value={node.props.children} />
 			</CardContent>
 		</Card>

@@ -9,7 +9,7 @@ export function TextNode({ node }: { node: ElementNode }) {
 	const variant = stringProp(node.props, "variant") || "body";
 	if (variant === "heading") {
 		return (
-			<div className="font-heading text-base font-semibold">
+			<div className="font-heading text-base font-semibold tracking-tight">
 				<MarkdownText text={markdown} className="text-base" />
 			</div>
 		);

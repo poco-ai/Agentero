@@ -3,6 +3,7 @@
 
 import type { ElementNode } from "@openuidev/lang-core";
 import { MarkdownText } from "../markdown-text";
+import { BLOCK_CAPTION_CLASS, BLOCK_TITLE_CLASS } from "../styles";
 import { optionalStringProp, stringProp } from "./shared";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -16,14 +17,17 @@ export function TimelineNode({ node }: { node: ElementNode }) {
 		: [];
 	return (
 		<div className="min-w-0 space-y-2">
-			{title ? <div className="text-sm font-medium">{title}</div> : null}
-			<ol className="relative space-y-3 border-border border-l pl-4">
+			{title ? <div className={BLOCK_TITLE_CLASS}>{title}</div> : null}
+			<ol className="space-y-0">
 				{items.map((item, index) => (
 					<li
 						key={`${String(item.title)}-${index}`}
-						className="relative min-w-0"
+						className="relative border-border/60 border-l pb-3 pl-4 last:pb-0"
 					>
-						<span className="absolute top-1.5 -left-[1.28rem] size-2 rounded-full bg-primary" />
+						<span
+							className="absolute top-1.5 left-0 size-1.5 -translate-x-1/2 rounded-full bg-primary"
+							aria-hidden
+						/>
 						<div className="text-sm font-medium">
 							{String(item.title ?? "")}
 						</div>
@@ -31,7 +35,7 @@ export function TimelineNode({ node }: { node: ElementNode }) {
 							<div className="mt-0.5">
 								<MarkdownText
 									text={stringProp(item, "description")}
-									className="text-xs text-muted-foreground"
+									className={BLOCK_CAPTION_CLASS}
 								/>
 							</div>
 						) : null}

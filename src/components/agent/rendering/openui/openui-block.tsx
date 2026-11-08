@@ -11,8 +11,10 @@ import {
 	type OpenUiFailureReason,
 	resolveOpenUiBlock,
 } from "@/lib/agent/openui/parse";
+import { cn } from "@/lib/core/utils";
 import { OpenUiNode } from "./openui-node";
 import { type OpenUiOpenSource, OpenUiSourceProvider } from "./source-context";
+import { EMPTY_STATE_CLASS } from "./styles";
 
 function useOpenUiView(source: string, streaming: boolean): OpenUiBlockView {
 	const parserRef = useRef<StreamParser | null>(null);
@@ -81,7 +83,7 @@ function StreamingPlaceholder() {
 	const { t } = useTranslation("agent");
 	return (
 		<div
-			className="flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground"
+			className={cn(EMPTY_STATE_CLASS, "flex items-center gap-2 py-2 text-xs")}
 			data-openui-streaming
 		>
 			<LoaderCircle className="size-3.5 animate-spin" />

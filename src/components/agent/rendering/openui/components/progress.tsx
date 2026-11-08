@@ -12,7 +12,7 @@ export function ProgressNode({ node }: { node: ElementNode }) {
 		<div className="min-w-0 space-y-1.5">
 			<div className="flex items-baseline justify-between gap-3 text-xs">
 				<span className="min-w-0 truncate text-muted-foreground">{label}</span>
-				<span className="shrink-0 font-medium tabular-nums">
+				<span className="shrink-0 font-medium tabular-nums text-foreground">
 					{Math.round(percent)}%
 				</span>
 			</div>
@@ -25,7 +25,7 @@ export function ProgressNode({ node }: { node: ElementNode }) {
 				aria-valuenow={value}
 			>
 				<div
-					className="h-full rounded-full bg-primary"
+					className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out motion-reduce:transition-none"
 					style={{ width: `${percent}%` }}
 				/>
 			</div>

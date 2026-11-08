@@ -3,7 +3,9 @@
 
 import type { ElementNode } from "@openuidev/lang-core";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/core/utils";
 import { useOpenUiSource } from "../source-context";
+import { BLOCK_TITLE_CLASS, ROW_LINK_CLASS } from "../styles";
 import { stringProp } from "./shared";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -16,33 +18,35 @@ export function OutlineNode({ node }: { node: ElementNode }) {
 	const sections = Array.isArray(node.props.sections)
 		? node.props.sections.filter(isRecord)
 		: [];
+	const title = stringProp(node.props, "title");
 
 	return (
 		<div className="min-w-0 space-y-1.5">
-			{stringProp(node.props, "title") ? (
-				<div className="text-sm font-medium">
-					{stringProp(node.props, "title")}
-				</div>
-			) : null}
+			{title ? <div className={BLOCK_TITLE_CLASS}>{title}</div> : null}
 			<ol className="space-y-0.5 text-sm">
 				{sections.map((section, index) => {
-					const level = typeof section.level === "number" ? section.level : 1;
+					const level =
+						typeof section.level === "number"
+							? Math.max(1, Math.floor(section.level))
+							: 1;
 					const page =
 						typeof section.page === "number" ? section.page : undefined;
 					const source =
 						typeof section.source === "string" ? section.source : "";
 					const label = (
-						<span className="flex min-w-0 items-baseline justify-between gap-2">
+						<>
 							<span className="min-w-0 truncate">
 								{stringProp(section, "title")}
 							</span>
-							{page ? (
-								<span className="shrink-0 text-xs text-muted-foreground">
+							{page !== undefined ? (
+								<span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
 									{t("uiBlock.page", { page })}
 								</span>
 							) : null}
-						</span>
+						</>
 					);
+					const rowClass =
+						"flex w-full min-w-0 items-baseline justify-between gap-2 rounded-md px-1.5 py-1 text-left";
 					return (
 						<li
 							key={`${String(section.title)}-${index}`}
@@ -51,13 +55,13 @@ export function OutlineNode({ node }: { node: ElementNode }) {
 							{source && onOpenSource ? (
 								<button
 									type="button"
-									className="w-full rounded-sm text-left hover:bg-muted/50"
+									className={cn(rowClass, ROW_LINK_CLASS)}
 									onClick={() => onOpenSource(source)}
 								>
 									{label}
 								</button>
 							) : (
-								label
+								<div className={rowClass}>{label}</div>
 							)}
 						</li>
 					);

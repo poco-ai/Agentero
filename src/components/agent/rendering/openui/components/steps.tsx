@@ -10,26 +10,36 @@ import { stringList, stringProp } from "./shared";
 export function StepsNode({ node }: { node: ElementNode }) {
 	const { t } = useTranslation("agent");
 	const steps = stringList(node.props.steps);
+	const title = stringProp(node.props, "title");
 	return (
-		<Card size="sm" className="w-full gap-2 py-3">
-			<CardHeader className="px-3 pb-0">
-				<CardTitle className="text-sm">
-					{stringProp(node.props, "title")}
-				</CardTitle>
-			</CardHeader>
-			<CardContent className="px-3">
+		<Card size="sm" className="w-full gap-2">
+			{title ? (
+				<CardHeader>
+					<CardTitle className="break-words">{title}</CardTitle>
+				</CardHeader>
+			) : null}
+			<CardContent>
 				{steps.length === 0 ? (
 					<p className="text-sm text-muted-foreground">
 						{t("uiBlock.stepsEmpty")}
 					</p>
 				) : (
-					<ol className="space-y-2.5">
+					<ol className="space-y-0">
 						{steps.map((step, index) => (
-							<li key={`${index}-${step}`} className="flex gap-2.5">
-								<span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
+							<li
+								key={`${index}-${step}`}
+								className="relative flex gap-2.5 pb-3 last:pb-0"
+							>
+								{index < steps.length - 1 ? (
+									<span
+										className="absolute top-5 bottom-0 left-[0.625rem] w-px bg-border"
+										aria-hidden
+									/>
+								) : null}
+								<span className="relative z-10 mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-border/60 bg-muted text-[11px] font-medium text-foreground tabular-nums">
 									{index + 1}
 								</span>
-								<div className="min-w-0">
+								<div className="min-w-0 flex-1 pt-0.5">
 									<MarkdownText text={step} />
 								</div>
 							</li>

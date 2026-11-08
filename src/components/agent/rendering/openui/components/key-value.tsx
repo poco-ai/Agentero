@@ -13,11 +13,11 @@ export function KeyValueNode({ node }: { node: ElementNode }) {
 		? node.props.items.filter(isRecord)
 		: [];
 	return (
-		<dl className="grid grid-cols-[minmax(0,auto)_1fr] gap-x-5 gap-y-1.5 text-sm">
+		<dl className="grid grid-cols-[minmax(0,auto)_1fr] items-baseline gap-x-4 gap-y-1.5 text-sm">
 			{items.map((item, index) => (
 				<Fragment key={`${String(item.label)}-${index}`}>
 					<dt className="text-muted-foreground">{String(item.label ?? "")}</dt>
-					<dd className="min-w-0 text-right font-medium break-words">
+					<dd className="min-w-0 text-right font-medium break-words tabular-nums">
 						{String(item.value ?? "")}
 					</dd>
 				</Fragment>

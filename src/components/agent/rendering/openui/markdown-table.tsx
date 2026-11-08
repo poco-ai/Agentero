@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { Streamdown } from "streamdown";
 import { PlainTable } from "@/components/agent/rendering/plain-table";
 import { openUiTableToGfm } from "@/lib/agent/openui/format";
+import { cn } from "@/lib/core/utils";
+import { BLOCK_CAPTION_CLASS, EMPTY_STATE_CLASS } from "./styles";
 
 const TABLE_COMPONENTS = { table: PlainTable };
 
@@ -27,14 +29,12 @@ export function OpenUiTable({
 	return (
 		<figure className="my-1 min-w-0" data-openui-table>
 			{caption ? (
-				<figcaption className="mb-1 text-xs text-muted-foreground">
+				<figcaption className={cn("mb-1", BLOCK_CAPTION_CLASS)}>
 					{caption}
 				</figcaption>
 			) : null}
 			{rows.length === 0 ? (
-				<p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
-					{t("uiBlock.tableEmpty")}
-				</p>
+				<p className={EMPTY_STATE_CLASS}>{t("uiBlock.tableEmpty")}</p>
 			) : (
 				<Streamdown
 					mode="static"

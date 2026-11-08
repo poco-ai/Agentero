@@ -2,6 +2,8 @@
 "use client";
 
 import type { ElementNode } from "@openuidev/lang-core";
+import { cn } from "@/lib/core/utils";
+import { BLOCK_TITLE_CLASS } from "../styles";
 import { optionalStringProp } from "./shared";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -15,8 +17,8 @@ export function TreeNode({ node }: { node: ElementNode }) {
 		: [];
 	return (
 		<div className="min-w-0 space-y-1.5">
-			{title ? <div className="text-sm font-medium">{title}</div> : null}
-			<ul className="space-y-1 text-sm">
+			{title ? <div className={BLOCK_TITLE_CLASS}>{title}</div> : null}
+			<ul className="space-y-0.5 text-sm">
 				{items.map((item, index) => {
 					const depth =
 						typeof item.depth === "number" && item.depth >= 0
@@ -25,14 +27,17 @@ export function TreeNode({ node }: { node: ElementNode }) {
 					return (
 						<li
 							key={`${String(item.label)}-${index}`}
-							className="relative leading-relaxed"
+							className="flex min-w-0 items-start gap-2 leading-relaxed"
 							style={{ paddingLeft: `${depth * 1.25}rem` }}
 						>
-							{depth > 0 ? (
-								<span className="absolute top-2 -left-2 h-px w-1.5 bg-border" />
-							) : null}
-							<span className="text-muted-foreground">•</span>{" "}
-							{String(item.label ?? "")}
+							<span
+								className={cn(
+									"mt-1.5 size-1 shrink-0 rounded-full",
+									depth === 0 ? "bg-foreground/55" : "bg-muted-foreground/45",
+								)}
+								aria-hidden
+							/>
+							<span className="min-w-0">{String(item.label ?? "")}</span>
 						</li>
 					);
 				})}
