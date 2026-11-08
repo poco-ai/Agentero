@@ -37,6 +37,8 @@ export type PlazaSource = {
 	 * when there is no proxy. `null` with no {@link panel} is a placeholder.
 	 */
 	url: string | null;
+	/** Minimum virtual viewport for a fixed desktop layout; other sites reflow normally. */
+	desktopWidth?: number;
 	/** Native plaza panel (not an iframe). */
 	panel?: "skills" | "feeds" | "arxivRec" | "ccfDeadlines";
 	/**
@@ -77,6 +79,7 @@ export const PLAZA_SOURCES: readonly PlazaSource[] = [
 		path: sourcePath("modelscope"),
 		label: "ModelScope Papers",
 		url: "https://modelscope.cn/papers",
+		desktopWidth: 1280,
 		embedOrigin: () => schemeOrigin("agentero-modelscope"),
 		icon: "modelScope",
 	},

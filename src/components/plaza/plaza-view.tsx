@@ -46,6 +46,7 @@ export function PlazaView({
 		return (
 			<PlazaWebFrame
 				homeUrl={source.url}
+				desktopWidth={source.desktopWidth}
 				embedOrigin={source.embedOrigin?.() ?? null}
 				lastPathStorageKey={
 					source.embedOrigin
