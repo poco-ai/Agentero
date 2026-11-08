@@ -127,7 +127,6 @@ jobs:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v5
-        if: matrix.task != 'cli-tests'
         with:
           node-version: 22
           package-manager-cache: false
@@ -136,33 +135,24 @@ jobs:
         run: node scripts/prepare-adapters.mjs
       - name: Provision PDFium
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           # liteparse-pdfium-sys fetches PDFium in its build script into an OS
           # cache dir that Swatinem/rust-cache does not persist. On a cache hit
           # the build script is skipped, so libpdfium.dylib is absent when tests
           # dlopen it. Provision it explicitly and point both the build script
-          # and the runtime loader at a stable directory. Keep the tag in sync
-          # with liteparse-pdfium-sys (currently chromium/7897).
-          tag="chromium/7897"
-          case "$(uname -m)" in
-            arm64 | aarch64) asset="pdfium-mac-arm64" ;;
-            *) asset="pdfium-mac-x64" ;;
-          esac
-          dest="$RUNNER_TEMP/pdfium"
-          mkdir -p "$dest"
-          url="https://github.com/run-llama/pdfium-binaries/releases/download/${tag/\//%2F}/${asset}.tgz"
-          echo "Downloading $url"
-          curl -fsSL "$url" | tar -xz -C "$dest"
-          test -f "$dest/lib/libpdfium.dylib"
-          test -d "$dest/include"
-          echo "PDFIUM_LIB_PATH=$dest/lib" >> "$GITHUB_ENV"
-          echo "PDFIUM_INCLUDE_PATH=$dest/include" >> "$GITHUB_ENV"
+          # and the runtime loader at a stable directory. The staging script owns
+          # the release tag, so CI never drifts from liteparse-pdfium-sys.
+          node scripts/prepare-pdfium.mjs --extract "$RUNNER_TEMP/pdfium"
+          echo "PDFIUM_LIB_PATH=$RUNNER_TEMP/pdfium/lib" >> "$GITHUB_ENV"
+          echo "PDFIUM_INCLUDE_PATH=$RUNNER_TEMP/pdfium/include" >> "$GITHUB_ENV"
           # tauri.macos.conf.json lists pdfium/libpdfium.dylib under
           # bundle.macOS.frameworks; tauri-build hard-fails when the file is
           # missing even for clippy/tests that never bundle.
           mkdir -p src-tauri/pdfium
-          cp "$dest/lib/libpdfium.dylib" src-tauri/pdfium/libpdfium.dylib
+          cp "$RUNNER_TEMP/pdfium/lib/libpdfium.dylib" src-tauri/pdfium/libpdfium.dylib
       - name: Stage plugin worker sidecar
         if: matrix.task != 'cli-tests'
         run: |
@@ -222,6 +212,8 @@ jobs:
         if: matrix.task != 'cli-tests'
         run: node scripts/prepare-plugin-worker.mjs
       - name: Stage PDFium
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: node scripts/prepare-pdfium.mjs
       - name: Point PDFium at the staged library
         shell: bash

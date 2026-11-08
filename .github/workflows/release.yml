@@ -419,27 +419,20 @@ jobs:
 
       # tauri.macos.conf.json lists pdfium/libpdfium.dylib under
       # bundle.macOS.frameworks; tauri-build hard-fails when the file is
-      # missing even when only compiling the headless CLI. This job has no
-      # Node setup, so download the binary directly (tag must stay in sync
-      # with scripts/prepare-pdfium.mjs).
+      # missing even when only compiling the headless CLI. The staging script
+      # owns the release tag and the download fallbacks.
+      - name: Setup Node.js for PDFium staging
+        if: runner.os == 'macOS'
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
       - name: Stage PDFium for Tauri build-script
         if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          tag="chromium/7897"
-          case "$(uname -m)" in
-            arm64 | aarch64) asset="pdfium-mac-arm64" ;;
-            *) asset="pdfium-mac-x64" ;;
-          esac
-          tmp="$(mktemp -d)"
-          url="https://github.com/run-llama/pdfium-binaries/releases/download/${tag/\//%2F}/${asset}.tgz"
-          echo "Downloading $url"
-          curl -fsSL "$url" | tar -xz -C "$tmp"
-          test -f "$tmp/lib/libpdfium.dylib"
-          mkdir -p src-tauri/pdfium
-          cp "$tmp/lib/libpdfium.dylib" src-tauri/pdfium/libpdfium.dylib
-          rm -rf "$tmp"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/prepare-pdfium.mjs
 
       - name: Build agentero CLI (release)
         run: cargo build -p agentero-cli --release

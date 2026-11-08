@@ -178,8 +178,8 @@ liteparse 在**运行时 `dlopen`** PDFium，而 `liteparse-pdfium-sys` 的 buil
 - iOS/Android 不打包 PDFium：正文解析走配对的桌面 Host，平台 config 已清空 `resources`。
 - 子进程 stderr 落到 worker 临时目录的 `stderr.log`；拿不到 response 时其尾部会拼进错误消息。
 - **升级 `liteparse` 依赖时**，必须同步 `scripts/prepare-pdfium.mjs` 里的
-  `PDFIUM_RELEASE_TAG` 与 `.github/workflows/ci.yml` 的 Provision PDFium 步骤，
-  保持与 `liteparse-pdfium-sys` build script 的 tag 一致。
+  `PDFIUM_RELEASE_TAG`，保持与 `liteparse-pdfium-sys` build script 的 tag 一致。
+  CI 与 release 的 CLI 任务都调用该脚本（CI 用 `--extract`），不再各自固定 tag。
 
 ## 本地 PDF
 
