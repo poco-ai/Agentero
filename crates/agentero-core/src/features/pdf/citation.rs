@@ -3,6 +3,7 @@
 //! Citation links from agents look like:
 //!   `papers/<id>/PAPER.md#section=2.3`
 //!   `papers/<id>/<id>.pdf#figure=1`
+//!   `papers/<id>/<id>.pdf#formula=3`
 //!   `papers/<id>/<id>.pdf#region=figure-1`
 //!   `papers/<id>/<id>.pdf#page=3`
 //!
@@ -258,11 +259,18 @@ fn resolve_layout_index_by_number(
             return Ok(item.into());
         }
     }
-    // The sidebar index only contains merged image/chart/table hosts. A figure
-    // or table that exists as a caption in `layout.json` (common after OCR
-    // merge misses) still satisfies an explicit `#figure=N` citation.
+    // The sidebar index only contains merged image/chart/table/algorithm hosts.
+    // A figure or table that exists as a caption in `layout.json` (common after
+    // OCR merge misses) still satisfies an explicit `#figure=N` citation.
     if let Some(fragment) = resolve_raw_numbered_caption(vault, paper_path, section, n) {
         return Ok(fragment);
+    }
+    // Formula regions carry their number in TeX (`\tag{N}`), not as a caption,
+    // and older sidebar indexes may predate formula entries entirely.
+    if section == "formula" {
+        if let Some(fragment) = resolve_raw_formula_number(vault, paper_path, n) {
+            return Ok(fragment);
+        }
     }
     // Layout extraction can drop a caption while the PDF text layer still has
     // it. Locating that line keeps navigation and the wiki check in agreement.
@@ -325,6 +333,39 @@ fn resolve_raw_numbered_caption(
             .or_else(|| caption.text.clone())
             .or_else(|| target.title.clone()),
         region_id: target.id.clone(),
+    })
+}
+
+/// Locate a numbered formula in raw `layout.json`. MinerU writes the printed
+/// equation number as `\tag{N}` in the TeX text; there is no numbered caption.
+fn resolve_raw_formula_number(
+    vault: &Path,
+    paper_path: &str,
+    number: usize,
+) -> Option<ResolvedFragment> {
+    let layout = layout_index::load_raw_layout(vault, paper_path).ok()?;
+    let tag = format!("\\tag{{{number}}}");
+    let starred = format!("\\tag*{{{number}}}");
+    let mut matches: Vec<&LayoutRegion> = layout
+        .regions
+        .iter()
+        .filter(|region| region.kind == "formula")
+        .filter(|region| {
+            let text = region
+                .text
+                .as_deref()
+                .or(region.title.as_deref())
+                .unwrap_or("");
+            text.contains(&tag) || text.contains(&starred)
+        })
+        .collect();
+    matches.sort_by_key(|region| (region.page_index, region.reading_order.unwrap_or(u32::MAX)));
+    let region = matches.into_iter().next()?;
+    Some(ResolvedFragment {
+        page_index: region.page_index,
+        bbox: region.bbox.clone(),
+        title: Some(format!("Equation ({number})")),
+        region_id: region.id.clone(),
     })
 }
 
@@ -903,6 +944,50 @@ mod tests {
         let target = resolve_citation(vault, "papers/p1/p1.pdf#figure=1").unwrap();
         assert_eq!(target.page_index, 1);
         assert_eq!(target.region_id, "r1");
+    }
+
+    #[test]
+    fn resolves_formula_by_number() {
+        let dir = tempdir().unwrap();
+        let vault = dir.path();
+        let paper = make_paper(vault, "papers/p1");
+        write_index(
+            &paper,
+            r#"{
+                "schemaVersion": 1,
+                "source": {"mode": "sidebar", "from": "layout.json", "generatedAt": "t", "minScore": 0.3},
+                "items": [
+                  {"id":"formula-3","stableKey":"eq3","kind":"formula","section":"formula","page":2,"pageIndex":1,"bbox":{"x":0.1,"y":0.2,"w":0.8,"h":0.1},"score":0.9,"title":"Equation (3)","layoutRegionId":"r-eq3"}
+                ]
+            }"#,
+        );
+        let target = resolve_citation(vault, "papers/p1/p1.pdf#formula=3").unwrap();
+        assert_eq!(target.page_index, 1);
+        assert_eq!(target.region_id, "r-eq3");
+        assert_eq!(target.fragment, "formula=3");
+    }
+
+    #[test]
+    fn resolves_formula_number_from_raw_layout_tag() {
+        let dir = tempdir().unwrap();
+        let vault = dir.path();
+        let paper = make_paper(vault, "papers/p1");
+        write_index(
+            &paper,
+            r#"{"schemaVersion":1,"source":{"mode":"sidebar","from":"layout.json","generatedAt":"t","minScore":0.3},"items":[]}"#,
+        );
+        write_raw_layout(
+            &paper,
+            r#"{"schemaVersion":3,"source":{"mode":"embedpdf-layout","generatedAt":"t"},"regions":[
+              {"id":"eq-2","pageIndex":1,"kind":"formula","score":1,"readingOrder":1,"bbox":{"x":0.1,"y":0.1,"w":0.8,"h":0.1},"text":"$$ a = b \\tag{2} $$"},
+              {"id":"eq-3","pageIndex":2,"kind":"formula","score":1,"readingOrder":2,"bbox":{"x":0.1,"y":0.2,"w":0.8,"h":0.1},"text":"$$ c = d \\tag{3} $$"}
+            ]}"#,
+        );
+        let target = resolve_citation(vault, "papers/p1/p1.pdf#formula=3").unwrap();
+        assert_eq!(target.region_id, "eq-3");
+        assert_eq!(target.page_index, 2);
+        assert_eq!(target.title.as_deref(), Some("Equation (3)"));
+        assert!(resolve_citation(vault, "papers/p1/p1.pdf#equation=3").is_err());
     }
 
     #[test]
