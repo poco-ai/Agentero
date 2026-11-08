@@ -6,10 +6,12 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { CARD_HOVER_HIDE_MS } from "@/components/viewer/pdf/floating-hover";
 import {
 	type PdfCards,
+	type UsePdfCardsOptions,
 	usePdfCards,
 } from "@/components/viewer/pdf/hooks/use-pdf-cards";
 import type { PdfAskThread } from "@/lib/pdf/ask/types";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
+import { workspaceStore } from "@/lib/workspace/store";
 
 vi.mock("@/components/viewer/pdf/floating-hover", () => ({
 	CARD_HOVER_HIDE_MS: 300,
@@ -26,6 +28,13 @@ let cards: PdfCards;
 let page: HTMLDivElement;
 let pageTop: number;
 let onCardClose: ReturnType<typeof vi.fn>;
+let options: UsePdfCardsOptions;
+const translation = { kind: "translate", id: "translate" } as const;
+
+function Harness({ active = true }: { active?: boolean }) {
+	cards = usePdfCards({ ...options, isActive: active });
+	return null;
+}
 
 beforeEach(async () => {
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -38,7 +47,8 @@ beforeEach(async () => {
 	host.append(page);
 	document.body.append(host);
 	onCardClose = vi.fn();
-	const options = {
+	options = {
+		isActive: true,
 		hostRef: { current: host },
 		pageTextMapRef: { current: new Map() },
 		threadsRef: { current: [{ id: "ask", anchor } as PdfAskThread] },
@@ -50,10 +60,6 @@ beforeEach(async () => {
 		onCardClose,
 		stopTranslateSession: vi.fn(),
 	};
-	function Harness() {
-		cards = usePdfCards(options);
-		return null;
-	}
 	root = createRoot(document.createElement("div"));
 	await act(async () => root.render(createElement(Harness)));
 });
@@ -112,7 +118,6 @@ it("keeps an unpinned translation in place when its source moves and unmounts", 
 });
 
 it("restores screen placement when opening again at the previous card's coordinates", async () => {
-	const translation = { kind: "translate", id: "translate" } as const;
 	await act(async () => cards.openCard(translation));
 	const openedAt = cards.cardScreen;
 	expect(openedAt).not.toBeNull();
@@ -123,4 +128,53 @@ it("restores screen placement when opening again at the previous card's coordina
 	});
 	await act(async () => cards.openCard(translation));
 	expect(cards.cardScreen).toEqual(openedAt);
+});
+
+it("closes the previous translation when another opens in the same viewer", async () => {
+	const next = { kind: "translate", id: "next" } as const;
+	await act(async () => {
+		cards.openCard(translation);
+		cards.openCard(next);
+	});
+	expect(onCardClose).toHaveBeenCalledExactlyOnceWith(translation);
+	expect(cards.activeCard).toEqual(next);
+});
+
+it("closes a translation on deactivation and leaves it closed on return", async () => {
+	await act(async () => cards.openCard(translation));
+	await act(async () => root.render(createElement(Harness, { active: false })));
+	expect(cards.activeCard).toBeNull();
+	expect(onCardClose).toHaveBeenCalledExactlyOnceWith(translation);
+	await act(async () => cards.openCard(translation));
+	expect(cards.activeCard).toBeNull();
+	await act(async () => root.render(createElement(Harness, { active: true })));
+	expect(cards.activeCard).toBeNull();
+});
+
+it("lets only one mounted viewer own a translation and closes it on a workspace tab change", async () => {
+	let otherCards!: PdfCards;
+	const otherClose = vi.fn();
+	const otherOptions = { ...options, onCardClose: otherClose };
+	function Other() {
+		otherCards = usePdfCards(otherOptions);
+		return null;
+	}
+	const otherRoot = createRoot(document.createElement("div"));
+	const previousTabId = workspaceStore.getState().activeTabId;
+	try {
+		await act(async () => otherRoot.render(createElement(Other)));
+		await act(async () => cards.openCard(translation));
+		await act(async () => otherCards.openCard(translation));
+		expect(cards.activeCard).toBeNull();
+		expect(onCardClose).toHaveBeenCalledExactlyOnceWith(translation);
+		expect(otherCards.activeCard).toEqual(translation);
+		await act(async () =>
+			workspaceStore.setState({ activeTabId: "another-pdf" }),
+		);
+		expect(otherCards.activeCard).toBeNull();
+		expect(otherClose).toHaveBeenCalledExactlyOnceWith(translation);
+	} finally {
+		await act(async () => otherRoot.unmount());
+		workspaceStore.setState({ activeTabId: previousTabId });
+	}
 });

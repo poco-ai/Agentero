@@ -1,8 +1,7 @@
 /**
  * Selection → 翻译 workflow for the EmbedPDF viewer: the one ephemeral mark kind.
  * A translate card is created straight from the selection menu and streams into
- * the open card. It never auto-closes — the reader dismisses it explicitly,
- * so this cluster owns the whole run lifecycle
+ * the open card. This cluster owns the whole run lifecycle
  * (`translateStreaming`, its cancel token, its error chrome) plus the record
  * write to `marks/<id>.json`.
  *
@@ -50,6 +49,7 @@ import {
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
 
 export type UsePdfSelectionTranslateOptions = {
+	isActive: boolean;
 	/** Sidecar root for `marks/<id>.json` (null for loose PDFs — nothing persists). */
 	paperAbsPath: string | null;
 	/** Vault-relative provenance stamped into the record. */
@@ -93,6 +93,7 @@ export type PdfSelectionTranslate = {
 };
 
 export function usePdfSelectionTranslate({
+	isActive,
 	paperAbsPath,
 	paperRelPath,
 	vaultPath,
@@ -125,6 +126,8 @@ export function usePdfSelectionTranslate({
 	const pendingWritesRef = useRef(new Map<string, Promise<void>>());
 
 	const stopTranslateSession = useCallback(() => {
+		translateGenerationRef.current += 1;
+		translateRunIdRef.current = null;
 		const sid = translateSessionRef.current;
 		if (sid) {
 			void cancelAgentRun(sid).catch(() => undefined);
@@ -245,8 +248,6 @@ export function usePdfSelectionTranslate({
 
 			temporaryTranslateIdsRef.current.delete(id);
 			if (translateRunIdRef.current === id) {
-				translateGenerationRef.current += 1;
-				translateRunIdRef.current = null;
 				stopTranslateSession();
 			}
 
@@ -266,8 +267,7 @@ export function usePdfSelectionTranslate({
 	const translateSelection = useCallback(
 		(anchor: PdfAskAnchor) => {
 			const quote = anchor.quote?.trim();
-			if (!quote) return;
-			const generation = ++translateGenerationRef.current;
+			if (!quote || !isActive) return;
 			stopTranslateSession();
 			const paperPath = paperRelPath || paperAbsPath || "paper";
 			const paperKey = paperRelPath || paperAbsPath || null;
@@ -280,8 +280,9 @@ export function usePdfSelectionTranslate({
 			let currentRecord = upsertTranslate(rec);
 			protectedTranslateIdsRef.current.add(rec.id);
 			temporaryTranslateIdsRef.current.add(rec.id);
-			translateRunIdRef.current = rec.id;
 			openCard({ kind: "translate", id: rec.id });
+			const generation = translateGenerationRef.current;
+			translateRunIdRef.current = rec.id;
 			setTranslateStreaming(true);
 			setTranslateError(null);
 			const isCurrentRun = () =>
@@ -311,7 +312,11 @@ export function usePdfSelectionTranslate({
 				vaultPath,
 				noAgentText: () => t("selection.translateNoAgent"),
 				agentFailedText: () => t("pdfAsk.agentFailed"),
-				disposedRef: translateDisposedRef,
+				disposedRef: {
+					get current() {
+						return !isCurrentRun();
+					},
+				},
 				unsubsRef: translateUnsubsRef,
 				sessionRef: translateSessionRef,
 				activeSessionRef,
@@ -347,6 +352,7 @@ export function usePdfSelectionTranslate({
 		},
 		[
 			t,
+			isActive,
 			vaultPath,
 			paperAbsPath,
 			paperRelPath,

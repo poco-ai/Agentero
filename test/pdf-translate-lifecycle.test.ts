@@ -59,6 +59,7 @@ function harness() {
 	const protectedIds = { current: new Set<string>() };
 	// biome-ignore lint/correctness/useHookAtTopLevel: React hooks are mocked to exercise callback logic without mounting.
 	const hook = usePdfSelectionTranslate({
+		isActive: true,
 		paperAbsPath: "D:/vault/papers/test",
 		paperRelPath: "papers/test",
 		vaultPath: "D:/vault",
@@ -155,6 +156,20 @@ describe("translation compatibility and refresh", () => {
 });
 
 describe("translation retention lifecycle", () => {
+	it("invalidates a superseded request before its late callbacks or agent attachment", () => {
+		const h = harness();
+		const previous = h.start();
+		const current = h.start();
+		expect(previous.disposedRef.current).toBe(true);
+		expect(current.disposedRef.current).toBe(false);
+		previous.commitProviderResult("old result");
+		current.commitProviderResult("new result");
+		expect(h.records.current[0].result).toBe("new result");
+		expect(
+			h.records.current.some((entry) => entry.result === "old result"),
+		).toBe(false);
+	});
+
 	it("keeps a pinned result across dismissal and streaming completion", async () => {
 		const h = harness();
 		const run = h.start();

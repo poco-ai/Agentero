@@ -188,24 +188,22 @@ export const PdfCardStack = memo(function PdfCardStack({
 				) : null}
 			</AnimatePresence>
 
-			<AnimatePresence>
-				{translate.record && cardScreen ? (
-					<TranslateCard
-						key={`translate-${translate.record.id}`}
-						screen={cardScreen}
-						preferRight={cardScreen.preferRight ?? false}
-						result={translate.record.result ?? ""}
-						streaming={translate.streaming}
-						error={translate.error ?? translate.record.error ?? null}
-						pinned={translate.record.pinned}
-						onTogglePin={translate.onTogglePin}
-						onOpenSettings={translate.onOpenSettings}
-						onHide={translate.onHide}
-						onPointerEnter={onCardHoverEnter}
-						onPointerLeave={onCardHoverLeave}
-					/>
-				) : null}
-			</AnimatePresence>
+			{translate.record && cardScreen ? (
+				<TranslateCard
+					key={`translate-${translate.record.id}`}
+					screen={cardScreen}
+					preferRight={cardScreen.preferRight ?? false}
+					result={translate.record.result ?? ""}
+					streaming={translate.streaming}
+					error={translate.error ?? translate.record.error ?? null}
+					pinned={translate.record.pinned}
+					onTogglePin={translate.onTogglePin}
+					onOpenSettings={translate.onOpenSettings}
+					onHide={translate.onHide}
+					onPointerEnter={onCardHoverEnter}
+					onPointerLeave={onCardHoverLeave}
+				/>
+			) : null}
 
 			<AnimatePresence>
 				{visual.trace && cardScreen ? (

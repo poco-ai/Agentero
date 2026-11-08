@@ -14,6 +14,7 @@ import {
 	type RefObject,
 	type SetStateAction,
 	useCallback,
+	useLayoutEffect,
 	useRef,
 	useState,
 } from "react";
@@ -33,8 +34,14 @@ import {
 	pinFromRects,
 } from "@/lib/pdf/selection";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
+import { workspaceStore } from "@/lib/workspace/store";
+
+// Each desktop window has its own webview, including when it contains multiple
+// visible or embedded PDF viewers.
+let dismissOpenTranslation: (() => void) | null = null;
 
 export type UsePdfCardsOptions = {
+	isActive: boolean;
 	hostRef: RefObject<HTMLDivElement | null>;
 	pageTextMapRef: RefObject<Map<number, NormalizedRect[]>>;
 	threadsRef: RefObject<PdfAskThread[]>;
@@ -68,6 +75,7 @@ export type PdfCards = {
 };
 
 export function usePdfCards({
+	isActive,
 	hostRef,
 	pageTextMapRef,
 	threadsRef,
@@ -115,13 +123,57 @@ export function usePdfCards({
 	});
 
 	const hideActiveCard = useCallback(() => {
-		onCardClose(activeCardRef.current);
+		const card = activeCardRef.current;
+		activeCardRef.current = null;
+		if (dismissOpenTranslation === hideActiveCard)
+			dismissOpenTranslation = null;
+		onCardClose(card);
 		cardHoverSurfaceRef.current = false;
 		setActiveCard(null);
 		cardScreenRef.current = null;
 		setCardScreen(null);
 	}, [onCardClose, cardHoverSurfaceRef]);
 	hideActiveCardRef.current = hideActiveCard;
+
+	useLayoutEffect(() => {
+		return () => {
+			if (dismissOpenTranslation === hideActiveCard)
+				dismissOpenTranslation = null;
+		};
+	}, [hideActiveCard]);
+
+	useLayoutEffect(() => {
+		if (activeCard?.kind !== "translate") return;
+		if (!isActive) {
+			hideActiveCard();
+			return;
+		}
+		// Embedded PDFs can be kept mounted with their parent editor. The
+		// workspace tab and pointer also identify when the reader leaves one.
+		const unsubscribe = workspaceStore.subscribe((next, previous) => {
+			if (
+				next.activeTabId !== previous.activeTabId &&
+				dismissOpenTranslation === hideActiveCard
+			)
+				hideActiveCard();
+		});
+		const closeOnOtherPdf = (event: PointerEvent) => {
+			const target = event.target;
+			if (!(target instanceof Element)) return;
+			const pdf = target.closest("[data-pdf-root]");
+			if (
+				pdf &&
+				pdf !== hostRef.current &&
+				dismissOpenTranslation === hideActiveCard
+			)
+				hideActiveCard();
+		};
+		document.addEventListener("pointerdown", closeOnOtherPdf, true);
+		return () => {
+			unsubscribe();
+			document.removeEventListener("pointerdown", closeOnOtherPdf, true);
+		};
+	}, [activeCard, hideActiveCard, hostRef, isActive]);
 
 	/**
 	 * Place the open pin card next to its gutter pin. Returns false when the
@@ -221,6 +273,15 @@ export function usePdfCards({
 
 	const openCard = useCallback(
 		(card: ActiveSelectionCard) => {
+			if (card.kind === "translate") {
+				if (!isActive) return;
+				if (dismissOpenTranslation !== hideActiveCard) {
+					dismissOpenTranslation?.();
+					dismissOpenTranslation = hideActiveCard;
+				}
+			} else if (dismissOpenTranslation === hideActiveCard) {
+				dismissOpenTranslation = null;
+			}
 			// Cancel pending hide and treat open as an active hover surface so
 			// the card does not auto-close while the pointer is still over the
 			// pin / newly mounted modal (mount under cursor skips pointerenter).
@@ -234,6 +295,7 @@ export function usePdfCards({
 				onCardClose(previousCard);
 				stopTranslateSession();
 			}
+			activeCardRef.current = card;
 			setActiveCard(card);
 			onCardOpen(card);
 			// Place now if the page is mounted. If not (far jump / virtualized),
@@ -248,6 +310,8 @@ export function usePdfCards({
 		[
 			cancelHoverHide,
 			cardHoverSurfaceRef,
+			hideActiveCard,
+			isActive,
 			onCardClose,
 			onCardOpen,
 			placeActiveCard,

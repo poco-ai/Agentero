@@ -891,6 +891,7 @@ function PdfViewerInner({
 		markCardHoverEnter,
 		scheduleHoverHide,
 	} = usePdfCards({
+		isActive,
 		hostRef,
 		pageTextMapRef,
 		threadsRef,
@@ -913,6 +914,7 @@ function PdfViewerInner({
 		clearTranslateError,
 		stopTranslateSession: stopTranslateSessionImpl,
 	} = usePdfSelectionTranslate({
+		isActive,
 		paperAbsPath,
 		paperRelPath,
 		vaultPath,
@@ -1648,10 +1650,14 @@ function PdfViewerInner({
 	// menu-identity key re-translated once per wheel tick and stacked a 文A pin
 	// per tick.
 	useEffect(() => {
+		const anchorKey = selectionAnchorKey(selectionMenu?.anchor);
+		if (!isActive) {
+			autoTranslatedSelectionRef.current = anchorKey;
+			return;
+		}
 		// The translation overlay already has this sentence's translation.
 		// Sending the recovered English back would open another translate card.
 		if (selectionMenu?.fromTranslation) return;
-		const anchorKey = selectionAnchorKey(selectionMenu?.anchor);
 		if (
 			!selectionMenu ||
 			plainViewer ||
@@ -1664,7 +1670,13 @@ function PdfViewerInner({
 		if (autoTranslatedSelectionRef.current === anchorKey) return;
 		autoTranslatedSelectionRef.current = anchorKey;
 		translateSelection(selectionMenu.anchor);
-	}, [autoTranslateSelection, plainViewer, selectionMenu, translateSelection]);
+	}, [
+		autoTranslateSelection,
+		isActive,
+		plainViewer,
+		selectionMenu,
+		translateSelection,
+	]);
 
 	// Keep the clicked selection while focusing the comment editor clears it.
 	const [selectionCommentDraft, setSelectionCommentDraft] =
@@ -2299,7 +2311,7 @@ function PdfViewerInner({
 	}, [activeTranslate, toggleTranslatePin]);
 	const cardTranslate = useMemo(
 		() => ({
-			record: activeTranslate,
+			record: isActive ? activeTranslate : null,
 			streaming: translateStreaming,
 			error: translateError,
 			onOpenSettings: openTranslateSettings,
@@ -2310,6 +2322,7 @@ function PdfViewerInner({
 			onHide: hideActiveCard,
 		}),
 		[
+			isActive,
 			activeTranslate,
 			translateStreaming,
 			translateError,
