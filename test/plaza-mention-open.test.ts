@@ -4,25 +4,26 @@ const { openPlazaSource } = vi.hoisted(() => ({ openPlazaSource: vi.fn() }));
 vi.mock("@/lib/workspace/navigation", () => ({ openPlazaSource }));
 
 import {
-	openFeedDetailFromMentionPath,
+	openPlazaMentionPath,
 	subscribeFeedDetail,
 	takePendingFeedDetailId,
-} from "@/lib/plaza/feed-open";
+} from "@/lib/plaza/mention-open";
 import { PLAZA_SOURCES } from "@/lib/plaza/sources";
 
 const FEEDS_SOURCE = PLAZA_SOURCES.find((source) => source.id === "feeds");
+const ARXIV_SOURCE = PLAZA_SOURCES.find((source) => source.id === "arxiv-rec");
 
 beforeEach(() => {
 	takePendingFeedDetailId();
 	openPlazaSource.mockClear();
 });
 
-describe("openFeedDetailFromMentionPath", () => {
+describe("openPlazaMentionPath", () => {
 	it("opens the Plaza feeds tab and hands the item to the live view", () => {
 		const seen: string[] = [];
 		const unsubscribe = subscribeFeedDetail((id) => seen.push(id));
 
-		openFeedDetailFromMentionPath("agentero:plaza/feeds/feed-9");
+		openPlazaMentionPath("agentero:plaza/feeds/feed-9");
 
 		expect(openPlazaSource).toHaveBeenCalledWith(FEEDS_SOURCE);
 		expect(seen).toEqual(["feed-9"]);
@@ -32,18 +33,28 @@ describe("openFeedDetailFromMentionPath", () => {
 		unsubscribe();
 	});
 
-	it("ignores paths that are not feed items", () => {
+	it("opens the arXiv Daily source for its items and the whole list", () => {
 		const listener = vi.fn();
 		const unsubscribe = subscribeFeedDetail(listener);
 
-		openFeedDetailFromMentionPath("papers/a/NOTES.md");
-		openFeedDetailFromMentionPath("agentero:plaza/arxiv-rec/2409.12345");
-		openFeedDetailFromMentionPath(null);
+		openPlazaMentionPath("agentero:plaza/arxiv-rec/2409.12345");
+		openPlazaMentionPath("agentero:plaza/arxiv-rec");
 
-		expect(openPlazaSource).not.toHaveBeenCalled();
+		expect(openPlazaSource).toHaveBeenCalledTimes(2);
+		expect(openPlazaSource).toHaveBeenNthCalledWith(1, ARXIV_SOURCE);
+		expect(openPlazaSource).toHaveBeenNthCalledWith(2, ARXIV_SOURCE);
+		// Only feed items carry a detail target.
 		expect(listener).not.toHaveBeenCalled();
 		expect(takePendingFeedDetailId()).toBeNull();
 		unsubscribe();
+	});
+
+	it("ignores paths that are not plaza entries", () => {
+		openPlazaMentionPath("papers/a/NOTES.md");
+		openPlazaMentionPath(null);
+
+		expect(openPlazaSource).not.toHaveBeenCalled();
+		expect(takePendingFeedDetailId()).toBeNull();
 	});
 
 	it("stops notifying after unsubscribe", () => {
@@ -51,7 +62,7 @@ describe("openFeedDetailFromMentionPath", () => {
 		const unsubscribe = subscribeFeedDetail(listener);
 		unsubscribe();
 
-		openFeedDetailFromMentionPath("agentero:plaza/feeds/feed-1");
+		openPlazaMentionPath("agentero:plaza/feeds/feed-1");
 
 		expect(listener).not.toHaveBeenCalled();
 		expect(takePendingFeedDetailId()).toBe("feed-1");

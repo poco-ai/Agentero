@@ -47,6 +47,7 @@ import {
 	extractMentionPaths,
 	extractVisualIds,
 } from "@/lib/agent/composer-inline-tokens";
+import { openMentionTarget } from "@/lib/agent/mention-open";
 import {
 	COMPOSER_IMAGE_ACCEPT,
 	COMPOSER_IMAGE_MAX_BYTES,
@@ -57,7 +58,6 @@ import type { AcpCommand } from "@/lib/agent/slash-commands";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
 import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
-import { openFeedDetailFromMentionPath } from "@/lib/plaza/feed-open";
 
 export type AgentComposerProps = {
 	autoFocus: boolean;
@@ -448,7 +448,7 @@ export function AgentComposer(props: AgentComposerProps) {
 											onVisualPointer={(phase, id, anchor) =>
 												onReferencePointer("visual", phase, id, anchor)
 											}
-											onPlazaFeedOpen={openFeedDetailFromMentionPath}
+											onOpenMention={openMentionTarget}
 											onPlazaFeedPointer={(phase, path, anchor) =>
 												onReferencePointer("plaza", phase, path, anchor)
 											}

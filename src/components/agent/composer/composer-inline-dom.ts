@@ -677,9 +677,7 @@ export function renderChip(
 		appendPrefixLabel(chip, "@", short, feedReference ? undefined : part.path);
 		chip.setAttribute(
 			"aria-label",
-			feedReference
-				? t("composer.openPlazaEntry", { title: short })
-				: t("composer.removeContext", { path: part.path }),
+			t("composer.openMention", { title: short }),
 		);
 		chip.setAttribute(TOKEN_ATTR, encodeMentionToken(part.path));
 	} else if (part.type === "skill") {

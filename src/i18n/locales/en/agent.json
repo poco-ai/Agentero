@@ -90,7 +90,7 @@
 		"plazaCollectionInstruction": "Above is the abstract catalog of today's recommended papers. Triage from the abstracts alone: if filtering / comparing is enough to answer, give the final report directly. Only when a question requires deep reading, output `NEED_FULLTEXT <arXiv id> ...` (at most {{max}} ids) as the FIRST line of your reply and stop — the system will supply those full texts automatically. Do not fetch or download these papers yourself.",
 		"plazaFulltextFollowup": "Full texts have been retrieved (see context). Please complete the final report based on them.",
 		"resizeHandle": "Resize composer height",
-		"openPlazaEntry": "Open {{title}}",
+		"openMention": "Open {{title}}",
 		"removeContext": "Remove {{path}} from context",
 		"removeSkill": "Remove ${{skill}} from context",
 		"selection": "Selection",

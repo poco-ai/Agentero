@@ -37,10 +37,6 @@ import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
 import {
-	subscribeFeedDetail,
-	takePendingFeedDetailId,
-} from "@/lib/plaza/feed-open";
-import {
 	ARXIV_FEED_CHIPS,
 	arxivFeedUrl,
 	compareFeedSubs,
@@ -59,6 +55,10 @@ import {
 	hostErrorKey,
 	importFeedItem,
 } from "@/lib/plaza/feeds";
+import {
+	subscribeFeedDetail,
+	takePendingFeedDetailId,
+} from "@/lib/plaza/mention-open";
 
 const STALE_REFRESH_MS = 15 * 60 * 1000;
 

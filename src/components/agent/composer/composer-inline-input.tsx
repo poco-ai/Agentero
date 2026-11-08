@@ -88,8 +88,8 @@ export type ComposerInlineInputProps = {
 		id: string,
 		anchor: HTMLElement,
 	) => void;
-	/** Click a Plaza feed reference: open its detail instead of deleting it. */
-	onPlazaFeedOpen?: (path: string) => void;
+	/** Click any mention chip: open its file / Plaza entry, never delete it. */
+	onOpenMention?: (path: string) => void;
 	/** Hover a Plaza feed reference. `leave` starts the card's close delay. */
 	onPlazaFeedPointer?: (
 		phase: "enter" | "leave",
@@ -121,7 +121,7 @@ export const ComposerInlineInput = forwardRef<
 			visualDrafts = [],
 			onSelectionPointer,
 			onVisualPointer,
-			onPlazaFeedOpen,
+			onOpenMention,
 			onPlazaFeedPointer,
 			className,
 			...aria
@@ -496,12 +496,12 @@ export const ComposerInlineInput = forwardRef<
 			const chip = target?.closest?.(`[${CHIP_ATTR}]`) as HTMLElement | null;
 			if (!chip || !editorRef.current?.contains(chip)) return;
 			const kind = chip.getAttribute(CHIP_ATTR);
-			// Plaza feed references navigate: a stray click must not drop the
-			// reference. Their hover card owns removal, like text annotations.
-			if (kind === "mention" && isFeedMentionPath(chip.dataset.path)) {
+			// Mention chips navigate: a stray click must not drop the reference.
+			// Feed references also own a hover card; removal is card / Backspace.
+			if (kind === "mention") {
 				event.preventDefault();
 				event.stopPropagation();
-				onPlazaFeedOpen?.(chip.dataset.path ?? "");
+				onOpenMention?.(chip.dataset.path ?? "");
 				return;
 			}
 			// Text and visual references stay; their hover cards own edit and delete.
