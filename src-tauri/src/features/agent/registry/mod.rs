@@ -1,4 +1,3 @@
-pub mod antigravity;
 pub mod bundled;
 pub mod discovery;
 #[cfg(windows)]

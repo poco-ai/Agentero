@@ -47,7 +47,6 @@ mod acp_live {
             interactive_cli(find("dsh")).as_deref(),
             Some("dsh --profile tui")
         );
-        // Antigravity's CLI is `agy`; the managed `.par` is ACP-only.
         if let Some(antigravity) = cats.iter().find(|entry| entry.id == "antigravity-acp") {
             assert_eq!(interactive_cli(antigravity).as_deref(), Some("agy"));
         }
@@ -81,38 +80,15 @@ mod acp_live {
     }
 
     #[test]
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    fn antigravity_template_uses_the_official_server() {
+    fn antigravity_template_uses_native_acp() {
         let agent = catalog_templates()
             .into_iter()
             .find(|entry| entry.id == "antigravity-acp")
             .expect("Antigravity template");
-        assert!(agent.command.ends_with(if cfg!(windows) {
-            "agy_acp_server.exe"
-        } else {
-            "agy_acp_server.par"
-        }));
-        assert_eq!(
-            agent.args,
-            if cfg!(target_os = "linux") {
-                vec!["--uid="]
-            } else {
-                vec![]
-            }
-        );
-        // Detect the server itself, not the desktop app or the retired adapter.
-        assert!(agent.detect_command.is_none());
-        assert!(crate::features::agent::registry::lifecycle::supports_lifecycle(&agent.id));
-        // Guided login writes the documented auth.type selection into the
-        // server's own settings.json, without clobbering an existing file.
-        let login = agent.login_command.as_deref().expect("login command");
-        assert!(login.contains("antigravity-acp"));
-        assert!(login.contains("oauth-personal"));
-        if !cfg!(windows) {
-            assert!(login.contains("test -s"));
-        } else {
-            assert!(login.contains("if not exist"));
-        }
+        assert_eq!(agent.command, "agy");
+        assert_eq!(agent.args, vec!["acp".to_string()]);
+        assert_eq!(agent.detect_command.as_deref(), Some("agy"));
+        assert_eq!(agent.login_command.as_deref(), Some("agy acp --login"));
     }
 
     #[test]
