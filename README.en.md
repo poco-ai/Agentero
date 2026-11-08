@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/hero.png" alt="Agentero" width="100%" />
+  <img src=".github/assets/hero.png" alt="Agentero" width="100%" />
 </p>
 
 <h3 align="center">An All-in-One Research Workbench Built for Human–Agent Collaboration</h3>
@@ -13,7 +13,7 @@
   <a href="https://github.com/poco-ai/agentero/releases"><img src="https://img.shields.io/github/v/release/poco-ai/agentero?include_prereleases&style=flat" alt="Release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <a href="https://agentero.app/"><img src="https://img.shields.io/badge/website-agentero.app-5319E7" alt="Website" /></a>
-  <a href="https://agentero-docs.poco-ai.com"><img src="https://img.shields.io/badge/docs-online-5319E7?logo=mkdocs&logoColor=white" alt="Documentation" /></a>
+  <a href="https://agentero-docs.poco-ai.com"><img src="https://img.shields.io/badge/docs-online-5319E7" alt="Documentation" /></a>
 </p>
 
 <p align="center">
@@ -54,13 +54,13 @@ However, when it comes to daily research and deep use of large language models (
 * **Multi-mode translation**: selection-based, side-by-side page-level, and full-text translation, with built-in available channels and support for custom API keys (BYOK).
 
 <p align="center">
-  <img src="docs/assets/agent.png" alt="PDF reading with agent assistance" width="90%" />
+  <img src=".github/assets/agent.png" alt="PDF reading with agent assistance" width="90%" />
   <br/>
   <sub>Split-view reading and analysis: highlights and annotations on the left, a local agent answering and reasoning over accurate structured context on the right</sub>
 </p>
 
 <p align="center">
-  <img src="docs/assets/translate.png" alt="Selection translation linked to notes" width="90%" />
+  <img src=".github/assets/translate.png" alt="Selection translation linked to notes" width="90%" />
   <br/>
   <sub>Selection translation with live capture: points extracted while reading flow straight into local Markdown notes</sub>
 </p>
@@ -73,7 +73,7 @@ However, when it comes to daily research and deep use of large language models (
 * **CLI for hackers**: a built-in headless CLI for scripted workflows such as batch paper import, metadata extraction, and note writing.
 
 <p align="center">
-  <img src="docs/assets/image.png" alt="Built-in MCP" width="90%" />
+  <img src=".github/assets/image.png" alt="Built-in MCP" width="90%" />
   <br/>
   <sub>Built-in MCP server connects your local library seamlessly to external AI clients</sub>
 </p>
@@ -86,7 +86,7 @@ However, when it comes to daily research and deep use of large language models (
 * **Automatic citation mapping**: parses reference lists automatically with one-click batch import; fetches publisher metadata and tracks citations forward.
 
 <p align="center">
-  <img src="docs/assets/coolpaper.png" alt="Cool Papers integration" width="90%" />
+  <img src=".github/assets/coolpaper.png" alt="Cool Papers integration" width="90%" />
   <br/>
   <sub>Browse trending Cool Papers inside the app and import them into your local knowledge base in one click</sub>
 </p>
@@ -109,31 +109,31 @@ However, when it comes to daily research and deep use of large language models (
 #### 1. Academic RSS subscriptions
 Track academic blogs, lab homepages, and frontier updates:
 <p align="center">
-  <img src="docs/assets/rss.png" alt="RSS subscriptions" width="85%" />
+  <img src=".github/assets/rss.png" alt="RSS subscriptions" width="85%" />
 </p>
 
 #### 2. Agent Skill extensions
 Browse and install community research skills to extend close-reading and writing analysis:
 <p align="center">
-  <img src="docs/assets/skill-import.png" alt="Skill extensions" width="85%" />
+  <img src=".github/assets/skill-import.png" alt="Skill extensions" width="85%" />
 </p>
 
 #### 3. Agent & connection settings
 Manage, upgrade, and switch local agents via ACP:
 <p align="center">
-  <img src="docs/assets/agent-setting.png" alt="Agent settings" width="85%" />
+  <img src=".github/assets/agent-setting.png" alt="Agent settings" width="85%" />
 </p>
 
 #### 4. S3-compatible cloud sync
 Configure private or commercial S3 storage to sync your knowledge base across devices:
 <p align="center">
-  <img src="docs/assets/s3-sync.png" alt="S3 sync settings" width="85%" />
+  <img src=".github/assets/s3-sync.png" alt="S3 sync settings" width="85%" />
 </p>
 
 #### 5. Multiple themes
 Light/dark and multiple color schemes, following your system appearance:
 <p align="center">
-  <img src="docs/assets/theme.png" alt="Theme settings" width="85%" />
+  <img src=".github/assets/theme.png" alt="Theme settings" width="85%" />
 </p>
 
 </details>
@@ -153,7 +153,7 @@ brew install --cask agentero
 
 ```
 
-> **Note for Linux users**: Ubuntu 22.04+ is required (`webkit2gtk 4.1`). See the [installation docs](docs/usage/getting-started.md) for details.
+> **Note for Linux users**: Ubuntu 22.04+ is required (`webkit2gtk 4.1`).
 
 ---
 
@@ -186,7 +186,7 @@ agentero --help
 ### Community chat
 
 <p align="center">
-  <img src="docs/assets/community-qr.png" alt="Agentero WeChat group QR code" width="240" />
+  <img src=".github/assets/community-qr.png" alt="Agentero WeChat group QR code" width="240" />
   <br/>
   <sub>Scan to join the WeChat user group (Chinese-speaking) for tips, feedback, and release news. The QR code is valid for 7 days; if it has expired, leave a note in the <a href="https://github.com/poco-ai/Agentero/issues">Issues</a>.</sub>
 </p>
