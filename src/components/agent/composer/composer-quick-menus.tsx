@@ -96,7 +96,9 @@ export function ComposerSlashMenu({
 					onClick={() => onAttachSlashCommand(command)}
 				>
 					<span className="flex min-w-0 flex-1 items-center truncate">
-						<span className="shrink-0 font-mono text-muted-foreground">/</span>
+						<span className="shrink-0 font-mono text-muted-foreground">
+							{command.prefix}
+						</span>
 						<span className="shrink-0 whitespace-nowrap">{command.title}</span>
 					</span>
 					{command.description ? (

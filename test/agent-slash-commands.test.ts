@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
 	type AcpCommand,
+	acpCommandInvocation,
 	filterSlashCommands,
 	mapAcpCommands,
+	matchAcpCommandText,
 	normalizeAcpCommandName,
 } from "@/lib/agent/slash-commands";
 
@@ -20,6 +22,7 @@ describe("agent-slash-commands", () => {
 			{
 				id: "acp:search",
 				name: "search",
+				prefix: "/",
 				title: "search",
 				description: "Search the web",
 				inputHint: "query",
@@ -27,6 +30,7 @@ describe("agent-slash-commands", () => {
 			{
 				id: "acp:read",
 				name: "read",
+				prefix: "/",
 				title: "read",
 				description: "Read papers",
 				inputHint: undefined,
@@ -34,7 +38,7 @@ describe("agent-slash-commands", () => {
 		]);
 	});
 
-	it("strips leading $ so Composer does not show /$name (issue #222)", () => {
+	it("keeps the advertised $ prefix for ACP skills", () => {
 		const commands = mapAcpCommands([
 			{
 				name: "$deep-research",
@@ -57,6 +61,45 @@ describe("agent-slash-commands", () => {
 			"deep-research",
 			"idea-evaluator",
 			"git-master",
+		]);
+		expect(commands.map((c) => c.prefix)).toEqual(["$", "/", "$"]);
+		expect(commands.map(acpCommandInvocation)).toEqual([
+			"$deep-research",
+			"/idea-evaluator",
+			"$git-master",
+		]);
+	});
+
+	it("resolves / and $ to the same advertised invocation", () => {
+		const commands = mapAcpCommands([
+			{ name: "$deep-research", description: "Research", input: null },
+			{ name: "/summary", description: "Summarize", input: null },
+		]);
+		expect(matchAcpCommandText(commands, "$deep-research")?.text).toBe(
+			"$deep-research",
+		);
+		expect(matchAcpCommandText(commands, "/deep-research")?.text).toBe(
+			"$deep-research",
+		);
+		expect(
+			matchAcpCommandText(commands, "/deep-research with args")?.text,
+		).toBe("$deep-research with args");
+		expect(matchAcpCommandText(commands, "/summary")?.text).toBe("/summary");
+		expect(matchAcpCommandText(commands, "/$summary")?.text).toBe("/summary");
+		expect(matchAcpCommandText(commands, "$missing")).toBeNull();
+		expect(matchAcpCommandText(commands, "plain text")).toBeNull();
+	});
+
+	it("matches filter queries with either advertised prefix", () => {
+		const commands = mapAcpCommands([
+			{ name: "$deep-research", description: "Research", input: null },
+			{ name: "/summary", description: "Summarize", input: null },
+		]);
+		expect(filterSlashCommands(commands, "$deep").map((c) => c.name)).toEqual([
+			"deep-research",
+		]);
+		expect(filterSlashCommands(commands, "/deep").map((c) => c.name)).toEqual([
+			"deep-research",
 		]);
 	});
 

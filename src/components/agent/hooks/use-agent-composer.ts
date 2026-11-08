@@ -73,6 +73,7 @@ import {
 } from "@/lib/agent/selection-store";
 import {
 	type AcpCommand,
+	acpCommandInvocation,
 	filterSlashCommands,
 } from "@/lib/agent/slash-commands";
 import {
@@ -753,10 +754,10 @@ export function useAgentComposer({
 		(command: AcpCommand) => {
 			setComposerMenuDismissed(true);
 			setComposerText((prev) => {
-				const token = encodeCommandToken(command.name);
+				const token = encodeCommandToken(acpCommandInvocation(command));
 				if (prev.includes(token)) {
 					return prev.replace(
-						/(^|\s)\/[^\s]*$/,
+						/(^|\s)[/$][^\s]*$/,
 						(_m, prefix: string) => `${prefix}`,
 					);
 				}
