@@ -46,5 +46,5 @@ Demo 评论链接：
 - [ ] 已运行与改动对应的检查：前端 `pnpm lint` / `pnpm typecheck` / `pnpm test`；Rust `cargo fmt --check` / `cargo clippy` / `cargo test`
 - [ ] CI 全绿
 - [ ] UI 文案已走 `t()` 并同步 `zh-CN` 翻译（如涉及文案）
-- [ ] 相关文档已更新（如涉及已实现功能）
+- [ ] 相关文档已更新（如现有说明受影响）
 - [ ] 手动验证：

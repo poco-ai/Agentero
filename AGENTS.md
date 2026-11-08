@@ -9,7 +9,7 @@ Agentero 是一个基于 Tauri 2 + React 19 的本地优先科研工作台，产
 ## 开发规则
 
 - 优先做小而聚焦的改动，能用少的修改解决问题就不要增加复杂度。高内聚、低耦合。如果系统有额外冗余可以提示用户进行重构
-- 只加必要的影响性能和功能的测试代码，不加没有实际意义的测试用例。
+- 只在验证功能正确性、性能或防止回归确有必要时新增或修改测试，优先复用现有用例；不为纯文案、样式微调或实现细节机械增加测试。仍需运行已有的相关检查并完成必要的手动验证。
 - 尽可能能复用能力，避免重复造轮子。
 - UI 优先使用上游现成组件及公开组合接口。`src/components/ui/` 的上游基础组件保持通用、可升级，不混入 ACP、Vault、PDF、业务 store、IPC 或项目专用文案；业务状态、数据转换和科研渲染放在对应业务目录，通过 props、children、hook 或 renderer 组合。升级前对比上游源码，优先删除已被上游覆盖的补丁；确需定制时说明能力缺口并保留必要回归验证。不要为减少依赖而重写成熟能力，也不要保留只有转发作用的旧兼容层。
 - 对不熟悉的功能或技术领域，动手实现前先在 GitHub 搜索相关开源项目，对比实现思路、适用场景和限制，优先复用成熟能力；确认现有方案不适合后再自行实现，并简要说明参考项目与取舍。
@@ -17,7 +17,7 @@ Agentero 是一个基于 Tauri 2 + React 19 的本地优先科研工作台，产
 - 国际化（i18n）：所有面向用户文案必须经 `t()` 走 `react-i18next`。en 源语言 → 同步 `zh-CN`（`src/i18n/locales/`）。详见 [docs/frontend/shell.md](docs/frontend/shell.md)。
 - IPC 契约（bindings.ts）：修改 `#[tauri::command]` 签名、事件 payload、或任何进入 bindings 的 Rust 类型——**包括文档注释，注释也导出参与比对**——后，必须重新生成并一并提交 `src/lib/core/bindings.ts`：`AGENTERO_UPDATE_BINDINGS=1 cargo test -p agentero export_typescript_bindings`（不带环境变量则只读校验，CI 会用它挡漂移）。详见 [docs/backend/api.md](docs/backend/api.md) §2.6。
 - 如果修改了 Template 下的 Skill 和 AGENTS.md ，需要对应更新版本号。
-- 修改后需同步更新相关文档，并检查 Roadmap 和 Todo。
+- 按改动影响酌情更新文档：行为、契约、架构或使用方式变化时，更新受影响的说明；不影响已有说明的内部小修不必改文档。检查相关 Roadmap 和 Todo，仅在计划状态变化时更新。
 - 修改完成后，把当次相关的改动按照 commit 部分的要求提交。
 
 ## Windows 注意事项
@@ -41,7 +41,7 @@ Agentero 是一个基于 Tauri 2 + React 19 的本地优先科研工作台，产
 ## PR
 
 - 不要把截图、GIF、录屏提交进仓库，也不要放进 PR diff 或 PR 描述正文。不要用 `gh pr create --attach` / `gh pr edit --attach` 把图片写进 PR 正文。
-- 需要附图时，先创建不含图片的 PR，再在该 PR 的评论区上传。`gh` ≥ 2.99.0 的 `gh pr comment --attach` 与在评论框拖入图片相同：文件托管在 GitHub（`user-attachments`），不进入 git 历史。
+- UI / 功能改动必须实际截取「之前 / 之后」前后对比截图，涉及窄窗口等特殊布局时补充对应尺寸。先创建不含图片的 PR，再在该 PR 的评论区上传。`gh` ≥ 2.99.0 的 `gh pr comment --attach` 与在评论框拖入图片相同：文件托管在 GitHub（`user-attachments`），不进入 git 历史。
 
 ```bash
 gh pr comment <number> --body "之前 / 之后" \
@@ -49,7 +49,7 @@ gh pr comment <number> --body "之前 / 之后" \
   --attach './after.png#之后'
 ```
 
-- UI / 功能改动仍需前后对比；没有界面变化时在评论里写「无」，不要附图片。`feat` 的 Demo 同样用评论区 `--attach` 上传视频或 GIF。
+- 完全没有界面变化时在评论里写「无」，不要附图片，也不要勾选 `ui` 类型。`feat` 的 Demo 同样用评论区 `--attach` 上传视频或 GIF。
 - 本机 `gh` 低于 2.99.0 时，打开该 PR 在网页评论框上传，不要因此把文件提交进仓库。
 
 ## 常用命令
