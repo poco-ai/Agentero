@@ -23,6 +23,7 @@ import { createPortal } from "react-dom";
 import { PdfCitationPreview } from "@/components/viewer/pdf/cards/citation-preview";
 import { PdfCrossrefPreview } from "@/components/viewer/pdf/cards/crossref-preview";
 import { PdfLinkUrlTip } from "@/components/viewer/pdf/cards/link-url-tip";
+import { PdfTranslateProgressChip } from "@/components/viewer/pdf/chrome/pdf-translate-progress";
 import { EMPTY_LAYOUT_REGIONS_BY_PAGE } from "@/components/viewer/pdf/constants";
 import { usePdfEngineContext } from "@/components/viewer/pdf/engine-provider";
 import { usePdfCitations } from "@/components/viewer/pdf/hooks/use-pdf-citations";
@@ -168,6 +169,9 @@ export function PdfTranslationViewerInner({
 		layoutTranslatePageStateByPage,
 		layoutTranslateActive,
 		layoutTranslateRunning,
+		layoutTranslatePreparing,
+		layoutTranslateWaiting,
+		layoutTranslateProgress,
 		reflowOutput,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
@@ -525,6 +529,13 @@ export function PdfTranslationViewerInner({
 					</GlobalPointerProvider>
 				</ZoomGestureWrapper>
 			</DockviewViewport>
+			<PdfTranslateProgressChip
+				layoutTranslateRunning={layoutTranslateRunning}
+				layoutTranslatePreparing={layoutTranslatePreparing}
+				layoutTranslateWaiting={layoutTranslateWaiting}
+				layoutTranslateProgress={layoutTranslateProgress}
+				onStop={toggleLayoutTranslate}
+			/>
 			{typeof document !== "undefined"
 				? createPortal(
 						<>
