@@ -30,7 +30,7 @@
 | 发表 / 投稿 | 原 Publication 列。单元格由 `publication`、`#submitted:` 和 `#easyscholar:` 聚合：真实 publication → 「已发表」+ venue 名 + 指标；仅有 `#submitted:` → 「投稿」+ 目标 + 「模板推断」；仓库类 publication（arXiv/bioRxiv 等）→ 「预印本」+ 仓库短名。支持双击复制完整值 |
 | 阅读热力 | 标题列左侧显示该论文阅读进度热力条；基于 `marks/` 中逐页标注与阅读位置聚合。激活 Library 时经 `paper_reading_activity_batch` 一次批量 IPC 刷新全部活动点（缓存保温，不再逐论文 3 次 IPC）；PDF 页数走 catalog `pdf_page_counts` 缓存，缺缓存时仅对可视行懒加载并回写 |
 | Rescan | 右键左侧 `papers/` 论文库节点 →「重新扫描 papers/」；空库仍保留中央按钮，扫描期间禁用重复操作。`paper_rescan` 补齐盘上有、catalog 无的论文目录，并修复旧 `id=paper` 本地条目；不负责导入任意裸 PDF |
-| 行右键 | 打开 / 编辑元数据（远程 Vault 隐藏编辑项）/ 添加到对话 / 在 Finder 中显示（仅本地）/ 删除→回收站；单击打开、双击复制 |
+| 行右键 | 打开 / 编辑元数据（远程 Vault 隐藏编辑项）/ 添加到对话 / 在 Finder 中显示（仅本地）/ 删除→回收站（无 PDF、甚至本地目录已缺失的 Catalog 条目也可删除并恢复）；单击打开、双击复制 |
 | Download | 库内任一篇缺资源时批量补下 |
 | 导入/导出 | Library 工具栏；导出 BibTeX 亦可在 `papers/` 论文库节点右键 |
 | 发现引用 | `papers/` 论文库节点右键「发现引用我的新论文」→ 后台扫描全库反向引用 → 候选清单勾选入库；见 [../backend/citation-parsing.md](../backend/citation-parsing.md) §7 |

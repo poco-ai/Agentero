@@ -210,7 +210,7 @@ pub fn is_trash_candidate(rel: &str) -> bool {
 /// `present` reports whether a normalized rel exists. `rows_for` supplies the
 /// catalog snapshot for a rel under `papers/` (the caller loads it). Skips
 /// empty rels, the `papers` root, any rel containing `..`, anything under
-/// `.agentero`, and rels `present` says are missing. Stored names keep the
+/// `.agentero`, and missing paths without catalog rows. Stored names keep the
 /// request index (`{i}__{basename}`) so two items that share a basename stay
 /// distinct. Local and remote skip rules already matched; this does not drop
 /// a path the local command trashes.
@@ -232,7 +232,15 @@ where
     let mut seen = std::collections::HashSet::new();
     for (i, raw) in rels.iter().enumerate() {
         let rel = normalize_rel_separators(raw);
-        if !is_trash_candidate(&rel) || !seen.insert(rel.clone()) || !present(&rel) {
+        if !is_trash_candidate(&rel) || !seen.insert(rel.clone()) {
+            continue;
+        }
+        let catalog_rows = if is_under_papers(&rel) {
+            rows_for(&rel)
+        } else {
+            Vec::new()
+        };
+        if !present(&rel) && catalog_rows.is_empty() {
             continue;
         }
         let base = Path::new(&rel)
@@ -240,11 +248,6 @@ where
             .and_then(|name| name.to_str())
             .unwrap_or("item")
             .to_string();
-        let catalog_rows = if is_under_papers(&rel) {
-            rows_for(&rel)
-        } else {
-            Vec::new()
-        };
         items.push(TrashPlanItem {
             rel,
             stored: format!("{i}__{base}"),
@@ -360,7 +363,22 @@ pub fn trash_paths(vault_root: &Path, rels: &[String]) -> Result<TrashResult, Ap
     write_manifest(&batch_dir, &manifest)?;
     for index in 0..manifest.items.len() {
         let item = &manifest.items[index];
-        fs::rename(vault_root.join(&item.rel), batch_dir.join(&item.stored))?;
+        let source = vault_root.join(&item.rel);
+        let stored = batch_dir.join(&item.stored);
+        if let Err(err) = fs::rename(&source, &stored) {
+            if err.kind() != std::io::ErrorKind::NotFound
+                || item.catalog_rows.is_empty()
+                || source.try_exists()?
+            {
+                return Err(err.into());
+            }
+            // Stage only snapshot directories; restore writes their sidecars
+            // before publishing catalog rows, just as for an ordinary move.
+            for row in &item.catalog_rows {
+                let sidecar = stored.join(restore_sidecar_path(item, row)?);
+                fs::create_dir_all(sidecar.parent().expect("sidecar parent"))?;
+            }
+        }
         manifest.items[index].phase = TrashPhase::Trashed;
         write_manifest(&batch_dir, &manifest)?;
     }
@@ -823,6 +841,46 @@ mod tests {
         assert!(json.get("batch_id").is_none());
         assert!(json["items"][0].get("catalogRows").is_some());
         assert!(json["items"][0].get("catalog_rows").is_none());
+    }
+
+    #[test]
+    fn trash_and_restore_catalog_only_papers() {
+        for selected in ["papers/group/missing", "papers/group"] {
+            let root = tempfile::tempdir().unwrap();
+            let path = "papers/group/missing";
+            let record = sample_record(path, "missing");
+            papers::upsert_paper(root.path(), &record).unwrap();
+            papers::upsert_paper(root.path(), &sample_record("papers/group-other", "other"))
+                .unwrap();
+            assert!(!root.path().join(selected).exists());
+
+            let batch =
+                trash_paths(root.path(), &[selected.into(), "notes/missing.md".into()]).unwrap();
+            assert_eq!(batch.count, 1);
+            assert_eq!(batch.rels, vec![selected]);
+            assert!(papers::get_by_path(root.path(), path).unwrap().is_none());
+            assert!(papers::get_by_path(root.path(), "papers/group-other")
+                .unwrap()
+                .is_some());
+            assert!(!root.path().join(selected).exists());
+            let listed = list_trash(root.path()).unwrap();
+            assert_eq!(listed.len(), 1);
+            assert_eq!(listed[0].title.as_deref(), Some("T"));
+            assert!(listed[0].is_dir);
+
+            restore_item(root.path(), &batch.batch_id, &listed[0].stored).unwrap();
+            assert_eq!(
+                papers::get_by_path(root.path(), path).unwrap().unwrap().id,
+                record.id
+            );
+            assert_eq!(
+                crate::features::catalog::sidecar::read_sidecar(root.path(), path)
+                    .unwrap()
+                    .id,
+                record.id
+            );
+            assert!(list_trash(root.path()).unwrap().is_empty());
+        }
     }
 
     #[test]

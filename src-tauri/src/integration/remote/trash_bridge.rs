@@ -1,7 +1,7 @@
 //! Recycle bin over remote `VaultFs` (SFTP / local-sim).
 //!
 //! Eligibility, stored names, manifest types, and batch-id checks come from
-//! core `plan_trash`. Files move via rename only. Catalog
+//! core `plan_trash`. Existing files move via rename only. Catalog
 //! mutations hit the session work mirror, then the existing `cat.push`.
 
 use super::session::{RemoteRegistry, RemoteSession};
@@ -70,8 +70,20 @@ pub async fn trash_paths(
     write_manifest(fs.as_ref(), &batch_rel, &manifest).await?;
     for index in 0..manifest.items.len() {
         let item = &manifest.items[index];
-        fs.rename(&item.rel, &format!("{batch_rel}/{}", item.stored))
-            .await?;
+        let stored = format!("{batch_rel}/{}", item.stored);
+        if let Err(err) = fs.rename(&item.rel, &stored).await {
+            if item.catalog_rows.is_empty() || fs.exists(&item.rel).await? {
+                return Err(err);
+            }
+            for row in &item.catalog_rows {
+                let rel = restore_sidecar_path(item, row)?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                let sidecar = format!("{stored}/{rel}");
+                fs.mkdir(sidecar.rsplit_once('/').expect("sidecar parent").0)
+                    .await?;
+            }
+        }
         manifest.items[index].phase = TrashPhase::Trashed;
         write_manifest(fs.as_ref(), &batch_rel, &manifest).await?;
     }
@@ -399,6 +411,59 @@ mod tests {
             custom_props: Default::default(),
             added_at: "t".into(),
             updated_at: "t".into(),
+        }
+    }
+
+    #[tokio::test]
+    async fn trash_and_restore_catalog_only_papers() {
+        for selected in ["papers/group/missing", "papers/group"] {
+            let root = tempfile::tempdir().unwrap();
+            let reg = RemoteRegistry::new();
+            let info = reg
+                .connect(LOCAL_SIM_HOST, None, &root.path().to_string_lossy())
+                .await
+                .unwrap();
+            let session = reg.get(&info.session_id).await.unwrap();
+            let path = "papers/group/missing";
+            let record = sample_record(path, "missing");
+            papers::upsert_paper(&session.work_root, &record).unwrap();
+            session.push_catalog().await.unwrap();
+            assert!(!session.fs.exists(selected).await.unwrap());
+
+            let batch = trash_paths(&session, &[selected.into(), "notes/missing.md".into()])
+                .await
+                .unwrap();
+            assert_eq!(batch.count, 1);
+            assert_eq!(batch.rels, vec![selected]);
+            assert!(papers::get_by_path(&session.work_root, path)
+                .unwrap()
+                .is_none());
+            assert!(!session.fs.exists(selected).await.unwrap());
+            let listed = list_trash(&session).await.unwrap();
+            assert_eq!(listed.len(), 1);
+            assert!(listed[0].is_dir);
+
+            restore_batch(&session, &batch.batch_id).await.unwrap();
+            assert_eq!(
+                papers::get_by_path(&session.work_root, path)
+                    .unwrap()
+                    .unwrap()
+                    .id,
+                record.id
+            );
+            let sidecar = session
+                .fs
+                .read(&format!("{path}/metadata.json"))
+                .await
+                .unwrap();
+            assert_eq!(
+                serde_json::from_slice::<papers::PaperRecord>(&sidecar)
+                    .unwrap()
+                    .id,
+                record.id
+            );
+            assert!(list_trash(&session).await.unwrap().is_empty());
+            reg.disconnect(&info.session_id).await.unwrap();
         }
     }
 
