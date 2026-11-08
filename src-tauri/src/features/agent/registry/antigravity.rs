@@ -12,9 +12,69 @@ use crate::features::agent::registry::version_check::normalize_version;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
+
+/// Older `agy` launchers only open the IDE. Select native ACP only when the
+/// installed CLI advertises it; cache until the executable is replaced.
+pub(crate) fn native_cli_available() -> bool {
+    type ProbeCache = Option<((PathBuf, Option<SystemTime>, u64), bool)>;
+    static CACHE: OnceLock<Mutex<ProbeCache>> = OnceLock::new();
+    let Some(path) = super::discovery::resolve_command("agy") else {
+        return false;
+    };
+    let Ok(metadata) = path.metadata() else {
+        return false;
+    };
+    let key = (path.clone(), metadata.modified().ok(), metadata.len());
+    let Ok(mut cache) = CACHE.get_or_init(|| Mutex::new(None)).lock() else {
+        return false;
+    };
+    if let Some((cached_key, available)) = cache.as_ref() {
+        if cached_key == &key {
+            return *available;
+        }
+    }
+    let available = cli_has_acp(&path);
+    *cache = Some((key, available));
+    available
+}
+
+fn cli_has_acp(path: &Path) -> bool {
+    let mut command = Command::new(path);
+    command
+        .arg("--help")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    crate::core::process::hide_console_window(&mut command);
+    let Ok(mut child) = command.spawn() else {
+        return false;
+    };
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) if status.success() => {
+                return child.wait_with_output().is_ok_and(|output| {
+                    String::from_utf8_lossy(&output.stdout)
+                        .lines()
+                        .chain(String::from_utf8_lossy(&output.stderr).lines())
+                        .any(|line| line.split_whitespace().next() == Some("acp"))
+                });
+            }
+            Ok(None) if started.elapsed() < Duration::from_secs(2) => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return false;
+            }
+        }
+    }
+}
 
 /// Manifest published by the ACP registry for the official Antigravity server.
 pub(crate) const REGISTRY_MANIFEST_URL: &str =
@@ -259,6 +319,32 @@ pub(crate) fn write_version_marker(dir: &Path, version: &str) -> Result<(), Stri
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[cfg(unix)]
+    fn native_cli_requires_an_advertised_acp_subcommand() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let cli = dir.path().join("agy");
+        for (help, stream, expected) in [
+            (
+                "Available subcommands:\\n  acp  Start the ACP stdio server",
+                "1",
+                true,
+            ),
+            (
+                "Available subcommands:\\n  acp  Start the ACP stdio server",
+                "2",
+                true,
+            ),
+            ("Usage: agy [options] [paths...]", "1", false),
+            ("  --acp  Unrelated option", "2", false),
+        ] {
+            std::fs::write(&cli, format!("#!/bin/sh\nprintf '{help}\\n' >&{stream}\n")).unwrap();
+            std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o755)).unwrap();
+            assert_eq!(super::cli_has_acp(&cli), expected);
+        }
+    }
+
     use super::*;
 
     /// Trimmed copy of the published manifest shape: one entry per platform

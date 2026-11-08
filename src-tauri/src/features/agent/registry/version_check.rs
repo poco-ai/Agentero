@@ -65,6 +65,12 @@ pub fn enrich_catalog_updates(
             continue;
         }
 
+        // The lifecycle updates the standalone ACP server, not the user's
+        // native CLI. Never compare an old managed marker with `agy`.
+        if entry.template_id == "antigravity-acp" && entry.command == "agy" {
+            continue;
+        }
+
         let Some(installed) = read_installed_version(&entry.template_id) else {
             continue;
         };

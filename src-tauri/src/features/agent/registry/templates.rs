@@ -383,6 +383,8 @@ pub fn zcode_runtime_env() -> Vec<(String, String)> {
 }
 
 pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
+    let native_antigravity = super::antigravity::native_cli_available();
+    let antigravity_cli_installed = super::discovery::resolve_command("agy").is_some();
     vec![
         AgentTemplateInfo {
             id: AgentTemplate::Pi.as_str().to_string(),
@@ -468,14 +470,16 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             id: AgentTemplate::AntigravityAcp.as_str().to_string(),
             name: "Antigravity".to_string(),
             description: "Google Antigravity via its official ACP server.".to_string(),
-            command: antigravity_command(),
+            command: if native_antigravity { "agy".to_string() } else { antigravity_command() },
             // Match the launch arguments published in the official ACP registry.
-            args: if cfg!(target_os = "linux") {
+            args: if native_antigravity {
+                vec!["acp".to_string()]
+            } else if cfg!(target_os = "linux") {
                 vec!["--uid=".to_string()]
             } else {
                 vec![]
             },
-            detect_command: None,
+            detect_command: antigravity_cli_installed.then(|| "agy".to_string()),
             install_hint: "Download the official ACP server into Agentero's managed directory; \
                 localharness_external is kept beside it. \
                 https://antigravity.google/docs/ide/extensions/zed"
@@ -490,7 +494,9 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             // the write only happens while settings.json is absent or empty.
             // API-key users keep their env setup; the Doctor detail names the
             // alternatives.
-            login_command: Some(if cfg!(windows) {
+            login_command: Some(if native_antigravity {
+                "agy acp --login".to_string()
+            } else if cfg!(windows) {
                 "mkdir \"%USERPROFILE%\\.gemini\\antigravity-acp\" 2>NUL & \
                  if not exist \"%USERPROFILE%\\.gemini\\antigravity-acp\\settings.json\" \
                  echo {\"auth\":{\"type\":\"oauth-personal\"}}> \

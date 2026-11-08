@@ -1969,10 +1969,10 @@ mod tests {
             info.acp.dirs,
             vec![antigravity_install_dir().display().to_string()]
         );
-        assert!(template_info("antigravity-acp")
-            .expect("antigravity template")
-            .command
-            .ends_with(antigravity_server_name()));
+        assert!(
+            crate::features::agent::registry::templates::antigravity_command()
+                .ends_with(antigravity_server_name())
+        );
     }
 
     #[test]

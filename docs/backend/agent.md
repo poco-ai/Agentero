@@ -133,7 +133,14 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   Windows 同位置不含该链接）。没有 npm 时仍删除这些路径。`~/.qoder-cn` 里的会话和登录保留，
   不改 shell rc。登录在终端完成（`qodercn login`）。GUI 启动或静默安装后尚未继承 shell rc 时，
   Agentero 也会直接扫描 `~/.qoder-cn/entry`。
-- Antigravity ACP：Google 官方 ACP server，安装和更新从 ACP Registry 的 manifest
+- Antigravity ACP：优先复用本机原生 CLI 的 `agy acp`（CLI 1.5.0+）。扫描通过 `agy --help`
+  确认存在 `acp` 子命令，结果按可执行文件路径、修改时间和大小缓存；旧版只打开 IDE 的
+  `agy` 不会被误当作 ACP server。Agent 安装状态独立检测 `agy`，旧 server 单独安装时仍可用。
+  原生 CLI 沿用自己的登录态，登录入口为 `agy acp --login`，不要求下述独立 server 的配置；
+  Doctor 不通过 initialize 推断已登录，首次会话由 CLI 验证凭据。已有 catalog 注册项在
+  启动入口变化时自动刷新并清除旧探测结果。原生 CLI 的版本不与独立 server 的版本比较，
+  CLI 更新由 `agy update` 管理。
+  未提供原生 ACP 时，回退到 Google 官方独立 ACP server，安装和更新从 ACP Registry 的 manifest
   读取当前版本及平台压缩包，不保留旧版本回退。压缩包解压到 Agentero 管理目录，并保留
   `agy_acp_server` 与 `localharness_external`；macOS Intel 没有官方构建，因此不提供该预设。
   Linux 启动时附带官方要求的 `--uid=` 参数。Registry 不可用或当前平台没有构建时直接报错；

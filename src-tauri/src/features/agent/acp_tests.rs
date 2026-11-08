@@ -82,11 +82,17 @@ mod acp_live {
 
     #[test]
     #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    fn antigravity_template_uses_the_official_server() {
+    fn antigravity_template_prefers_native_acp_and_keeps_the_official_server_fallback() {
         let agent = catalog_templates()
             .into_iter()
             .find(|entry| entry.id == "antigravity-acp")
             .expect("Antigravity template");
+        if agent.command == "agy" {
+            assert_eq!(agent.detect_command.as_deref(), Some("agy"));
+            assert_eq!(agent.args, vec!["acp"]);
+            assert_eq!(agent.login_command.as_deref(), Some("agy acp --login"));
+            return;
+        }
         assert!(agent.command.ends_with(if cfg!(windows) {
             "agy_acp_server.exe"
         } else {
@@ -100,8 +106,6 @@ mod acp_live {
                 vec![]
             }
         );
-        // Detect the server itself, not the desktop app or the retired adapter.
-        assert!(agent.detect_command.is_none());
         assert!(crate::features::agent::registry::lifecycle::supports_lifecycle(&agent.id));
         // Guided login writes the documented auth.type selection into the
         // server's own settings.json, without clobbering an existing file.
@@ -113,6 +117,26 @@ mod acp_live {
         } else {
             assert!(login.contains("if not exist"));
         }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a locally installed native Antigravity CLI"]
+    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
+    async fn antigravity_native_cli_initializes_when_installed() {
+        assert!(crate::features::agent::registry::antigravity::native_cli_available());
+        let template = catalog_templates()
+            .into_iter()
+            .find(|entry| entry.id == "antigravity-acp")
+            .unwrap();
+        let agent = desc(
+            "antigravity-native-test",
+            &template.name,
+            AgentTemplate::AntigravityAcp,
+            &template.command,
+            template.args,
+        );
+        let result = crate::features::agent::acp::probe_agent(&agent, None).await;
+        assert!(result.available, "{:?}", result.error);
     }
 
     #[test]

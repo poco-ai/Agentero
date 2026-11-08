@@ -562,6 +562,15 @@ fn antigravity_settings_path_in(environment: &HashMap<String, String>) -> Option
 /// show "authenticated" while every chat turn failed (#748) — this explicit
 /// check is what keeps the Doctor card honest.
 pub(crate) async fn diagnose_antigravity_auth(desc: &AgentDescriptor) -> CodexAuthDiagnostic {
+    if desc.args.first().is_some_and(|arg| arg == "acp") {
+        // Native `agy acp` shares the CLI's sign-in, not the standalone
+        // server's antigravity-acp/settings.json (#748).
+        return CodexAuthDiagnostic {
+            status: CodexAuthStatus::Unknown,
+            method: None,
+            detail: Some("Uses Antigravity CLI authentication (agy acp --login)".to_string()),
+        };
+    }
     let environment = effective_local_agent_env(desc);
     diagnose_antigravity_auth_in_env(&environment)
 }
@@ -1060,6 +1069,33 @@ mod tests {
         let dir = home.join(".gemini").join("antigravity-acp");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("settings.json"), body).unwrap();
+    }
+
+    #[tokio::test]
+    async fn native_antigravity_does_not_require_standalone_server_auth() {
+        let home = tempfile::tempdir().unwrap();
+        let desc = AgentDescriptor {
+            id: "catalog-antigravity-acp".into(),
+            name: "Antigravity".into(),
+            template: AgentTemplate::AntigravityAcp,
+            command: "agy".into(),
+            args: vec!["acp".into()],
+            env: antigravity_env(home.path()),
+            available: true,
+            last_error: None,
+            last_probe_ok: None,
+            last_probe_agent_name: None,
+            last_probe_error: None,
+            last_probed_at: None,
+        };
+        assert_eq!(
+            diagnose_antigravity_auth(&desc).await.status,
+            CodexAuthStatus::Unknown
+        );
+        assert_eq!(
+            diagnose_antigravity_auth_in_env(&desc.env).status,
+            CodexAuthStatus::Unauthenticated
+        );
     }
 
     #[test]
