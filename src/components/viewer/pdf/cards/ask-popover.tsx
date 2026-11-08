@@ -1,4 +1,11 @@
-import { MessageSquareIcon, MinusIcon, Pencil, Trash2Icon } from "lucide-react";
+import {
+	Maximize2Icon,
+	MessageSquareIcon,
+	Minimize2Icon,
+	MinusIcon,
+	Pencil,
+	Trash2Icon,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -83,6 +90,7 @@ export function AskPopover({
 }: AskPopoverProps) {
 	const { t } = useTranslation("viewer");
 	const title = threadTitle(thread, t("pdfAsk.newTitle"));
+	const [expanded, setExpanded] = useState(false);
 	const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
 	const [editingText, setEditingText] = useState("");
 	const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -183,15 +191,13 @@ export function AskPopover({
 	return (
 		<SelectionCard
 			screen={screen}
-			width={360}
-			height={360}
+			width={expanded ? 720 : 360}
+			height={expanded ? 600 : 360}
 			// Conversation UI stays at the app's body type scale, like the
-			// other floating selection cards, while its anchor follows the PDF.
+			// other floating selection cards.
 			// Fixed height so the nested scrollport has a definite viewport.
 			lockHeight
-			// Follow pin while scrolling; shrink height near edges instead of
-			// jumping the card far from the selection.
-			trackPin
+			resizable
 			preferRight={preferRight}
 			title={title}
 			icon={MessageSquareIcon}
@@ -201,6 +207,16 @@ export function AskPopover({
 			// Body only constrains flex; messages own their own scrollport.
 			bodyClassName="min-h-0 overflow-hidden p-0"
 			actions={[
+				{
+					id: "resize",
+					label: t(expanded ? "pdfAsk.restoreSize" : "pdfAsk.expand"),
+					onClick: () => setExpanded((value) => !value),
+					icon: expanded ? (
+						<Minimize2Icon className="size-3.5" />
+					) : (
+						<Maximize2Icon className="size-3.5" />
+					),
+				},
 				{
 					label: t("pdfAsk.openInChatGPT"),
 					onClick: () => openInChatGPT(openInQuery),
@@ -372,6 +388,7 @@ export function AskPopover({
 										// Avoid live markdown reflow thrash while streaming;
 										// animate only the latest assistant turn.
 										<MessageResponse
+											className="[&_.katex]:inline-block [&_.katex]:max-w-full [&_.katex]:overflow-x-auto [&_.katex]:overflow-y-hidden [&_.katex]:align-middle"
 											isAnimating={
 												streaming &&
 												from === "assistant" &&

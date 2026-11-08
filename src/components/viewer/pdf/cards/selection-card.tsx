@@ -6,6 +6,7 @@ import {
 	type PointerEvent as ReactPointerEvent,
 	useEffect,
 	useRef,
+	useState,
 } from "react";
 
 import {
@@ -28,6 +29,8 @@ const SELECTION_CARD_DEFAULT_MAX_HEIGHT = 420;
 const SELECTION_CARD_MIN_HEIGHT = 120;
 
 type SelectionCardAction = {
+	/** Stable identity for actions whose label changes. */
+	id?: string;
 	label: string;
 	onClick: () => void;
 	icon: ReactNode;
@@ -190,6 +193,8 @@ type SelectionCardProps = {
 	 * (e.g. PDF Ask conversation) so the scrollbar has a definite viewport.
 	 */
 	lockHeight?: boolean;
+	/** Allow native corner resizing within the available viewport. */
+	resizable?: boolean;
 	/**
 	 * When false, the body does not scroll (`agentero-scroll` off) and grows
 	 * with content. Use for short tables that should show fully (formula legend).
@@ -232,6 +237,7 @@ export function SelectionCard({
 	placementHeight,
 	trackPin = false,
 	lockHeight = false,
+	resizable = false,
 	bodyScroll = true,
 	preferRight = true,
 	title,
@@ -249,13 +255,27 @@ export function SelectionCard({
 }: SelectionCardProps) {
 	const rootRef = useRef<HTMLDivElement>(null);
 	const reduceMotion = useReducedMotion();
+	const [viewport, setViewport] = useState(() => ({
+		width: typeof window !== "undefined" ? window.innerWidth : 1200,
+		height: typeof window !== "undefined" ? window.innerHeight : 800,
+	}));
+	useEffect(() => {
+		if (!resizable) return;
+		const resize = () =>
+			setViewport({ width: window.innerWidth, height: window.innerHeight });
+		window.addEventListener("resize", resize);
+		return () => window.removeEventListener("resize", resize);
+	}, [resizable]);
 	// Suspend dockview drag-and-drop while this card floats over the tab strip
 	// so a stray drag cannot split the layout (#608).
 	useSelectionOverlayGuard();
 	// Floating controls keep their UI size while the document is zoomed.
 	// Placement still clamps each card within the current viewport.
-	const viewportWidth =
-		typeof window !== "undefined" ? window.innerWidth : 1200;
+	const viewportWidth = resizable
+		? viewport.width
+		: typeof window !== "undefined"
+			? window.innerWidth
+			: 1200;
 	const renderedWidth = Math.min(
 		width,
 		Math.max(0, viewportWidth - SELECTION_CARD_EDGE * 2),
@@ -273,6 +293,14 @@ export function SelectionCard({
 		trackPin,
 		preferRight,
 	});
+	const resizeMaxWidth = Math.max(
+		0,
+		viewport.width - left - SELECTION_CARD_EDGE,
+	);
+	const resizeMaxHeight = Math.max(
+		0,
+		viewport.height - top - SELECTION_CARD_EDGE,
+	);
 	// The gutter pin sits on the side the card opens toward. Reveal the card
 	// from that corner so it looks like the pin expands into the full card.
 	const isRightSide = left + renderedWidth / 2 >= screen.x;
@@ -328,6 +356,15 @@ export function SelectionCard({
 				...(bodyScroll || lockHeight ? { maxHeight } : null),
 				// Definite height so flex-1 + nested height:100% scroll areas work.
 				...(lockHeight ? { height: maxHeight } : null),
+				...(resizable
+					? {
+							resize: "both",
+							minWidth: Math.min(280, resizeMaxWidth),
+							minHeight: Math.min(200, resizeMaxHeight),
+							maxWidth: resizeMaxWidth,
+							maxHeight: resizeMaxHeight,
+						}
+					: null),
 			}}
 			role="dialog"
 			aria-label={ariaLabel ?? title}
@@ -357,7 +394,7 @@ export function SelectionCard({
 					<TooltipProvider delayDuration={200} disableHoverableContent>
 						<div className="flex items-center gap-0.5">
 							{actions.map((a) => (
-								<Tooltip key={a.label}>
+								<Tooltip key={a.id ?? a.label}>
 									<TooltipTrigger asChild>
 										<button
 											type="button"
