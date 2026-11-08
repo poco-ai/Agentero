@@ -29,8 +29,10 @@ const USER_AGENT: &str = "agentero/0.6 (+https://github.com/poco-ai/agentero)";
 /// that virtual viewport and the host scales it to the panel. Manual zoom can
 /// make the scaled page wider than the panel; that overflow lives in the host's
 /// scrollport, so the bridge forwards wheel deltas the frame cannot consume as
-/// `panX` messages. Clamping the pages to the panel instead makes the text
-/// unreadable at narrow widths.
+/// `panX` messages. Ctrl/Cmd+wheel and trackpad pinches become `zoomRatio`
+/// messages for the same reason: wheel events do not cross the frame boundary.
+/// Clamping the pages to the panel instead makes the text unreadable at narrow
+/// widths.
 const NAV_BRIDGE: &str = r##"<style>
 /* The panel is a paper feed, not a browser: the global nav only offers ways out. */
 header.antd5-layout-header { display: none !important; }
@@ -518,8 +520,63 @@ html body { overflow-y: visible !important; }
     var panFrame = 0;
     var panPending = 0;
     var panStart = null;
+    var zoomPending = 1;
+    var zoomFrame = 0;
+    var queueZoom = function (ratio) {
+      if (!isFinite(ratio) || ratio <= 0) return;
+      zoomPending *= ratio;
+      if (zoomFrame) return;
+      zoomFrame = requestAnimationFrame(function () {
+        zoomFrame = 0;
+        var ratio = zoomPending;
+        zoomPending = 1;
+        if (isFinite(ratio) && ratio > 0) post({ zoomRatio: ratio });
+      });
+    };
+
+    // WebKit reports a trackpad pinch as gesture events, not ctrl+wheel.
+    // `gestureUntil` also keeps a simultaneous ctrl+wheel from zooming twice
+    // when an engine sends both; it self-heals if a `gestureend` is dropped.
+    var gestureUntil = 0;
+    var gestureScale = 1;
+    window.addEventListener("gesturestart", function (event) {
+      gestureUntil = Date.now() + 1200;
+      gestureScale = event.scale || 1;
+      if (event.cancelable) event.preventDefault();
+    }, { passive: false });
+    window.addEventListener("gesturechange", function (event) {
+      var next = event.scale;
+      if (!next || !isFinite(next)) return;
+      gestureUntil = Date.now() + 1200;
+      var ratio = next / gestureScale;
+      gestureScale = next;
+      if (event.cancelable) event.preventDefault();
+      queueZoom(ratio);
+    }, { passive: false });
+    window.addEventListener("gestureend", function (event) {
+      gestureUntil = 0;
+      gestureScale = 1;
+      if (event.cancelable) event.preventDefault();
+    }, { passive: false });
+
+    // Ctrl/Cmd+wheel is a zoom gesture on every desktop engine. Keep it out of
+    // the pan handler below and suppress the webview's native page zoom.
+    document.addEventListener(
+      "wheel",
+      function (event) {
+        if (!(event.ctrlKey || event.metaKey)) return;
+        if (event.cancelable) event.preventDefault();
+        if (gestureUntil > Date.now()) return;
+        var dy = event.deltaY;
+        if (event.deltaMode === 1) dy *= 16;
+        else if (event.deltaMode === 2) dy *= window.innerHeight;
+        if (dy) queueZoom(Math.exp(-dy / (event.agenteroPinch ? 100 : 1000)));
+      },
+      { capture: true, passive: false }
+    );
+
     document.addEventListener("wheel", function (event) {
-      if (event.ctrlKey || event.deltaMode === 2) return;
+      if (event.ctrlKey || event.metaKey || event.deltaMode === 2) return;
       if (scrollsHorizontally(event.target)) return;
       var dx = event.deltaX;
       if (!dx && event.shiftKey) dx = event.deltaY;
@@ -748,6 +805,17 @@ mod tests {
     fn forwards_outer_overflow_to_the_host() {
         assert!(NAV_BRIDGE.contains("var remaining = delta - moved;"));
         assert!(NAV_BRIDGE.contains("post({ panX: remaining })"));
+    }
+
+    /// Ctrl/Cmd+wheel and WebKit's trackpad pinch must reach the host as a
+    /// scale ratio; plain wheel events must keep scrolling the page. Windows
+    /// tags a synthetic pinch on the wheel event so it gets the pinch gain.
+    #[test]
+    fn forwards_zoom_gestures_to_the_host() {
+        assert!(NAV_BRIDGE.contains("event.ctrlKey || event.metaKey"));
+        assert!(NAV_BRIDGE.contains("post({ zoomRatio: ratio })"));
+        assert!(NAV_BRIDGE.contains("\"gesturechange\""));
+        assert!(NAV_BRIDGE.contains("agenteroPinch"));
     }
 
     /// The site's own layout root is scrollable in script and gets parked 10px to

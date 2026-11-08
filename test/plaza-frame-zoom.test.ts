@@ -78,6 +78,22 @@ async function click(key: string) {
 	if (!button) throw new Error(`Missing ${key}`);
 	await act(() => button.click());
 }
+async function message(
+	frame: HTMLIFrameElement,
+	origin: string,
+	data: Record<string, unknown>,
+	source: Window | null = frame.contentWindow,
+) {
+	await act(() => {
+		window.dispatchEvent(
+			new MessageEvent("message", {
+				origin,
+				source,
+				data: { source: "agentero-plaza", ...data },
+			}),
+		);
+	});
+}
 describe("Plaza frame zoom", () => {
 	it("fits a fixed desktop page as sidebars resize, preserving iframe and document state", async () => {
 		const frame = await mount(1280);
@@ -110,28 +126,41 @@ describe("Plaza frame zoom", () => {
 		}
 		expect(viewport.className).toContain("overflow-auto");
 
-		await act(() => {
-			window.dispatchEvent(
-				new MessageEvent("message", {
-					origin,
-					source: frame.contentWindow,
-					data: { source: "agentero-plaza", panX: 140 },
-				}),
-			);
-		});
+		await message(frame, origin, { panX: 140 });
 		expect(viewport.scrollLeft).toBe(140);
 
 		// Only the frame itself may pan the host viewport.
-		await act(() => {
-			window.dispatchEvent(
-				new MessageEvent("message", {
-					origin,
-					source: window,
-					data: { source: "agentero-plaza", panX: 999 },
-				}),
-			);
-		});
+		await message(frame, origin, { panX: 999 }, window);
 		expect(viewport.scrollLeft).toBe(140);
+	});
+	it("zooms from the wheel and pinch ratio messages", async () => {
+		const origin = "https://proxy.example";
+		const frame = await mount(1280, origin);
+		await size(640);
+		expect(frame.style.transform).toBe("scale(0.5)");
+
+		// A motionless gesture must not leave automatic fit.
+		await message(frame, origin, { zoomRatio: 1 });
+		expect(
+			host
+				.querySelector('[aria-label="plaza.fitWidth"]')
+				?.getAttribute("aria-pressed"),
+		).toBe("true");
+
+		await message(frame, origin, { zoomRatio: 2 });
+		expect(frame.style.transform).toBe("scale(1)");
+		expect(
+			host
+				.querySelector('[aria-label="plaza.fitWidth"]')
+				?.getAttribute("aria-pressed"),
+		).toBe("false");
+
+		await message(frame, origin, { zoomRatio: 0.1 });
+		expect(frame.style.transform).toBe("scale(0.25)");
+
+		// A non-positive ratio is not a zoom request.
+		await message(frame, origin, { zoomRatio: 0 });
+		expect(frame.style.transform).toBe("scale(0.25)");
 	});
 	it("keeps manual zoom on resize, exposes overflow, and restores automatic fit", async () => {
 		const frame = await mount(1280);

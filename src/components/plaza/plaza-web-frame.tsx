@@ -54,6 +54,8 @@ type NavMessage = {
 	queryImported?: string[];
 	/** Horizontal wheel delta the frame could not consume in its own document. */
 	panX?: number;
+	/** Scale ratio from Ctrl/Cmd+wheel or a trackpad pinch inside the frame. */
+	zoomRatio?: number;
 };
 
 function isNavMessage(data: unknown): data is NavMessage {
@@ -62,6 +64,9 @@ function isNavMessage(data: unknown): data is NavMessage {
 	if (value.source !== "agentero-plaza") return false;
 	return (
 		(typeof value.panX === "number" && Number.isFinite(value.panX)) ||
+		(typeof value.zoomRatio === "number" &&
+			Number.isFinite(value.zoomRatio) &&
+			value.zoomRatio > 0) ||
 		typeof value.path === "string" ||
 		typeof value.external === "string" ||
 		typeof value.externalPath === "string" ||
@@ -177,8 +182,19 @@ export function PlazaWebFrame({
 				!isNavMessage(event.data)
 			)
 				return;
-			const { path, external, externalPath, importPaper, queryImported, panX } =
-				event.data;
+			const {
+				path,
+				external,
+				externalPath,
+				importPaper,
+				queryImported,
+				panX,
+				zoomRatio,
+			} = event.data;
+			if (zoomRatio !== undefined) {
+				zoom.zoomByRatio(zoomRatio);
+				return;
+			}
 			if (panX !== undefined) {
 				zoom.panBy(panX);
 				return;
@@ -228,7 +244,7 @@ export function PlazaWebFrame({
 		};
 		window.addEventListener("message", onMessage);
 		return () => window.removeEventListener("message", onMessage);
-	}, [embedOrigin, homeUrl, zoom.panBy]);
+	}, [embedOrigin, homeUrl, zoom.panBy, zoom.zoomByRatio]);
 
 	const jump = useCallback((delta: number) => {
 		setNav((prev) => {
