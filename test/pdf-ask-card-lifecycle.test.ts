@@ -66,41 +66,39 @@ afterEach(async () => {
 	document.body.replaceChildren();
 });
 
-it("keeps an unfocused conversation open after pointer leave, until explicitly hidden", async () => {
-	await act(async () => cards.openCard({ kind: "ask", id: "ask" }));
+it.each([
+	"ask",
+	"translate",
+] as const)("keeps an unfocused %s card open after pointer leave, until explicitly hidden", async (kind) => {
+	await act(async () => cards.openCard({ kind, id: kind }));
 	await act(async () => {
 		cards.scheduleHoverHide();
 		vi.advanceTimersByTime(CARD_HOVER_HIDE_MS + 1);
 	});
-	expect(cards.activeCard).toEqual({ kind: "ask", id: "ask" });
+	expect(cards.activeCard).toEqual({ kind, id: kind });
 	expect(onCardClose).not.toHaveBeenCalled();
 	await act(async () => cards.hideActiveCard());
 	expect(cards.activeCard).toBeNull();
 	expect(cards.cardScreen).toBeNull();
-	expect(onCardClose).toHaveBeenCalledWith({ kind: "ask", id: "ask" });
+	expect(onCardClose).toHaveBeenCalledWith({ kind, id: kind });
 });
 
-it("keeps the conversation in place when its source scrolls out and is virtualized", async () => {
-	await act(async () => cards.openCard({ kind: "ask", id: "ask" }));
+it.each([
+	"ask",
+	"translate",
+] as const)("keeps the %s card in place when its source scrolls out and is virtualized", async (kind) => {
+	await act(async () => cards.openCard({ kind, id: kind }));
 	const openedAt = cards.cardScreen;
 	expect(openedAt).not.toBeNull();
 	pageTop = -1000;
-	await act(async () => expect(cards.rePlaceActiveCardOnScroll()).toBe(false));
+	await act(async () => cards.rePlaceActiveCardOnScroll());
 	expect(cards.cardScreen).toBe(openedAt);
 	page.remove();
-	await act(async () => expect(cards.rePlaceActiveCardOnScroll()).toBe(false));
+	await act(async () => cards.rePlaceActiveCardOnScroll());
 	expect(cards.cardScreen).toBe(openedAt);
 	// Explicitly reopening the same pin can anchor the card at its new location.
 	document.body.firstElementChild?.append(page);
 	pageTop = 200;
-	await act(async () => cards.openCard({ kind: "ask", id: "ask" }));
+	await act(async () => cards.openCard({ kind, id: kind }));
 	expect(cards.cardScreen?.y).not.toBe(openedAt?.y);
-});
-
-it("still repositions translation cards and reports deliberate scroll travel", async () => {
-	await act(async () => cards.openCard({ kind: "translate", id: "translate" }));
-	const openedAt = cards.cardScreen;
-	pageTop -= 300;
-	await act(async () => expect(cards.rePlaceActiveCardOnScroll()).toBe(true));
-	expect(cards.cardScreen?.y).toBeCloseTo((openedAt?.y ?? 0) - 300);
 });

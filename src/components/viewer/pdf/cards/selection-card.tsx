@@ -213,6 +213,8 @@ type SelectionCardProps = {
 	ariaLive?: "polite" | "off";
 	/** Dismiss this card on Escape or pointer interaction outside it. */
 	onDismiss?: () => void;
+	/** Keep reading cards open while using the document or its controls. */
+	dismissOnInteractOutside?: boolean;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
 	/** Optional footer strip (prompt input, save/cancel). */
@@ -246,6 +248,7 @@ export function SelectionCard({
 	ariaLabel,
 	ariaLive = "off",
 	onDismiss,
+	dismissOnInteractOutside = true,
 	onPointerEnter,
 	onPointerLeave,
 	footer,
@@ -464,6 +467,9 @@ export function SelectionCard({
 				<Dialog.Content
 					asChild
 					aria-describedby={undefined}
+					onInteractOutside={(event) => {
+						if (!dismissOnInteractOutside) event.preventDefault();
+					}}
 					onOpenAutoFocus={(event) => event.preventDefault()}
 					onCloseAutoFocus={(event) => event.preventDefault()}
 				>

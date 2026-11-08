@@ -1,5 +1,12 @@
-import { Pin, PinOff, Settings2Icon, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import {
+	Maximize2Icon,
+	Minimize2Icon,
+	Pin,
+	PinOff,
+	Settings2Icon,
+	X,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
@@ -28,9 +35,8 @@ type TranslateCardProps = {
 
 /**
  * PDF selection translation — shared SelectionCard shell with dismiss / pin.
- * Content-sized up to a generous cap so long paragraphs read in full; only
- * results that overflow the cap (or the viewport) scroll, with an always
- * visible scrollbar so the overflow is discoverable.
+ * Content-sized within the viewport, with native resizing and a keyboard
+ * expand/restore action. Long results scroll with a visible scrollbar.
  */
 export function TranslateCard({
 	screen,
@@ -46,6 +52,7 @@ export function TranslateCard({
 	onPointerLeave,
 }: TranslateCardProps) {
 	const { t } = useTranslation("viewer");
+	const [expanded, setExpanded] = useState(false);
 	const showResult = result.trim().length > 0;
 	const showLoading = streaming && !showResult;
 	const scrollPortRef = useRef<HTMLDivElement>(null);
@@ -70,18 +77,37 @@ export function TranslateCard({
 	return (
 		<SelectionCard
 			screen={screen}
-			width={340}
-			height={480}
+			width={expanded ? 680 : 340}
+			height={expanded ? 600 : 480}
 			// Content-sized: hug the anchor and shrink near viewport edges instead
 			// of pre-shifting by the full preferred height.
 			trackPin
+			lockHeight={expanded}
+			resizable
 			preferRight={preferRight}
 			title={t("selection.translateTitle")}
 			ariaLive="polite"
 			onDismiss={onHide}
+			dismissOnInteractOutside={false}
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
+			// Keep WebKit's native resize corner clear of the nested scrollport.
+			className="pb-3"
 			actions={[
+				{
+					id: "resize",
+					label: t(
+						expanded
+							? "selection.translateRestoreSize"
+							: "selection.translateExpand",
+					),
+					onClick: () => setExpanded((value) => !value),
+					icon: expanded ? (
+						<Minimize2Icon className="size-3.5" />
+					) : (
+						<Maximize2Icon className="size-3.5" />
+					),
+				},
 				...(onTogglePin
 					? [
 							{

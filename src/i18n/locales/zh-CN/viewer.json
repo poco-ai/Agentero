@@ -261,6 +261,8 @@
 		"translateTitle": "翻译",
 		"translating": "翻译中…",
 		"translateHide": "关闭卡片",
+		"translateExpand": "放大译文卡片",
+		"translateRestoreSize": "还原译文卡片大小",
 		"translatePin": "钉住",
 		"translateUnpin": "取消钉住",
 		"translateUpdateFailed": "无法更新译文。",

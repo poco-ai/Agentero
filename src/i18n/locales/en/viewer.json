@@ -261,6 +261,8 @@
 		"translateTitle": "Translation",
 		"translating": "Translating…",
 		"translateHide": "Close card",
+		"translateExpand": "Expand translation",
+		"translateRestoreSize": "Restore translation size",
 		"translatePin": "Pin",
 		"translateUnpin": "Unpin",
 		"translateUpdateFailed": "Could not update translation.",
