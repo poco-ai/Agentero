@@ -4,7 +4,7 @@
 
 - 独立原生单例：`settings_window_open` + `?window=settings` → `SettingsNativeRoot`。
 - macOS Overlay 标题栏 + 交通灯；Windows/Linux 系统原生边框。标题栏与侧栏共用 `--sidebar` 材质（macOS 标题栏 `backdrop-blur`；`prefers-reduced-transparency` 下实色）。
-- 开/关：`⌘,`、菜单、齿轮；`Esc` / 标题栏 X 关闭。
+- 开/关：`⌘,`、菜单、齿轮；已打开时再次触发不会重复建窗，而是还原最小化并置前；`Esc` / 标题栏 X 关闭。
 - 不查询或展示本机 hostname / OS 身份。
 - 保存：`settings_set` → 广播 `settings:changed` 跨窗口同步。
 - 落盘：XDG `$XDG_CONFIG_HOME/agentero/settings.json`。
