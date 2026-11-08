@@ -48,6 +48,8 @@ describe("formatEasyScholarMetric", () => {
 		["#easyscholar:jci=1.2", "JCI 1.2"],
 		["#easyscholar:rank=CCF=A", "CCF-A"],
 		["#easyscholar:rank=SCI=Q1", "SCI Q1"],
+		["#easyscholar:rank=FMS=A(T1)", "FMS A(T1)"],
+		["#easyscholar:rank=UTD24", "UTD24"],
 		["#easyscholar:journal=CVPR", null],
 	])("formats %s", (name, expected) => {
 		expect(formatEasyScholarMetric(name)).toBe(expected);

@@ -45,7 +45,7 @@
 - `@zotero:` 前缀标签属于 Connector 来源标记，只保留在 catalog 中，不参与展示、搜索和筛选；编辑普通标签时会保留这些内部标签。arXiv 学科分类（`@arxiv:` 前缀或同形遗留标签）同样按内部隐标签处理。
 - `publication` 是唯一权威 venue 字段。`#venue:` 已废弃：不再写入，前端立即隐藏遗留标签，Host 同步时从 catalog 清理。
 - `#submitted:` 是 arXiv LaTeX 模板推断的投稿目标（不是学术 API 字段），由 Host 的 `paper::venue::sync` 维护；一旦存在真实 `publication` 就删除。UI 在「发表 / 投稿」列显示为「投稿」并注明「模板推断」。
-- EasyScholar Key 配置后，表头「同步出版信息」会在元数据刷新后调用 Host 的 `paper_sync_publication`：后端用 `publication` 查询 EasyScholar、解析指标并写入 `#easyscholar:`（IF / IF5 / JCI / 分区），不再生成 `journal=` 标签。已有同名标签的颜色会被保留；publication 变化时旧指标立即失效并在下次同步重拉。网络失败时保留已有指标。
+- EasyScholar Key 配置后，表头「同步出版信息」会在元数据刷新后调用 Host 的 `paper_sync_publication`：后端用 `publication` 查询 EasyScholar、解析指标并写入 `#easyscholar:`（IF / IF5 / JCI / 分区），不再生成 `journal=` 标签。等级支持 SCI、SSCI、EI、CSSCI、北大中文核心、CCF，以及经管类 FMS 和 UTD24；FMS 保留 API 返回的等级（如 `A(T1)`），UTD24 收录标记显示为 `UTD24`。已有同名标签的颜色会被保留；publication 变化时旧指标立即失效并在下次同步重拉。网络失败时保留已有指标。
 - 表头只有一个「同步出版信息」按钮（「发表 / 投稿」列），Tags 列只保留用户标签筛选；分组操作（单独刷新元数据 / venue / 分区）不再暴露。
 - 标签类型与语义（normalize / coerce / 可见性）：`src/lib/paper/tags.ts`（类型在 `src/lib/paper/types.ts`）；命名空间判定：`src/lib/paper/tag-namespaces.ts`；色板映射：`src/lib/ui/tag-colors.ts`。
 - CLI 标签见 [../backend/catalog.md](../backend/catalog.md)。

@@ -161,6 +161,8 @@ fn rank_label(system: &str) -> Option<&'static str> {
         "cssci" => Some("CSSCI"),
         "pku" => Some("北大中文核心"),
         "ccf" => Some("CCF"),
+        "fms" => Some("FMS"),
+        "utd24" => Some("UTD24"),
         _ => None,
     }
 }
@@ -212,13 +214,11 @@ pub fn tags_from_metrics(metrics: &VenueMetrics) -> Vec<PaperTag> {
         let Some(label) = rank_label(&rank.system) else {
             continue;
         };
-        let name = if rank.value.trim().is_empty() {
+        let value = rank.value.trim();
+        let name = if value.is_empty() || value.eq_ignore_ascii_case(label) {
             format!("{EASY_SCHOLAR_TAG_PREFIX}rank={label}")
         } else {
-            format!(
-                "{EASY_SCHOLAR_TAG_PREFIX}rank={label}={}",
-                rank.value.trim()
-            )
+            format!("{EASY_SCHOLAR_TAG_PREFIX}rank={label}={value}")
         };
         push_tag(&mut tags, name, EASY_SCHOLAR_OTHER_COLOR);
     }
@@ -293,6 +293,39 @@ mod tests {
             ]
         );
         assert!(tags.iter().all(|tag| !tag.name.contains("journal=")));
+    }
+
+    #[test]
+    fn business_rankings_survive_response_to_tag_projection() {
+        let response = serde_json::json!({
+            "code": 200,
+            "data": { "officialRank": { "all": {
+                "fms": "A(T1)",
+                "utd24": "UTD24",
+                "sciif": "4.2",
+                "ccf": "A",
+                "unrecognized": "A"
+            } } }
+        });
+        let metrics = parse_response(
+            "Management Science",
+            &VenueIdentifiers::default(),
+            &response,
+        )
+        .unwrap();
+        let tags = tags_from_metrics(&metrics);
+        assert_eq!(
+            tags.iter().map(|tag| tag.name.as_str()).collect::<Vec<_>>(),
+            vec![
+                "#easyscholar:if=4.2",
+                "#easyscholar:rank=CCF=A",
+                "#easyscholar:rank=FMS=A(T1)",
+                "#easyscholar:rank=UTD24",
+            ]
+        );
+        assert!(tags[1..]
+            .iter()
+            .all(|tag| tag.color.as_deref() == Some("blue")));
     }
 
     #[test]
