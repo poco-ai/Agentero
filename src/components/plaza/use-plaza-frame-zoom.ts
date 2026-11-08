@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const ZOOM_STEPS = [
 	0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2,
 ];
+const MIN_SCALE = 0.25;
+const MAX_SCALE = 2;
 
 /** Scale the frame element, without accessing a cross-origin document or reloading it. */
 export function usePlazaFrameZoom(desktopWidth = 0) {
@@ -33,6 +35,18 @@ export function usePlazaFrameZoom(desktopWidth = 0) {
 		desktopWidth > 0 && size.width > 0
 			? Math.min(1, size.width / desktopWidth)
 			: 1;
+	const fitScaleRef = useRef(fitScale);
+	fitScaleRef.current = fitScale;
+	/** Apply a wheel / pinch ratio to the current scale, leaving auto fit. */
+	const zoomByRatio = useCallback((ratio: number) => {
+		if (!Number.isFinite(ratio) || ratio <= 0) return;
+		setManualScale((current) => {
+			const base = current ?? fitScaleRef.current;
+			const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, base * ratio));
+			// A gesture that has not moved must not disable automatic fit.
+			return Math.abs(next - base) < 1e-6 ? current : next;
+		});
+	}, []);
 	const scale = manualScale ?? fitScale;
 	const smaller = [...ZOOM_STEPS]
 		.reverse()
@@ -47,6 +61,7 @@ export function usePlazaFrameZoom(desktopWidth = 0) {
 		canZoomOut: smaller !== undefined,
 		canZoomIn: larger !== undefined,
 		panBy,
+		zoomByRatio,
 		fit: () => {
 			setManualScale(null);
 			if (viewportRef.current) viewportRef.current.scrollLeft = 0;
