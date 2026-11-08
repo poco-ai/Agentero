@@ -371,6 +371,13 @@
 	--color-input: var(--input);
 	--color-border: var(--border);
 	--color-destructive: var(--destructive);
+	/*
+	 * Semantic status colors. UI theme presets only carry the shadcn token set,
+	 * so success / warning stay app-level and keep their meaning across presets
+	 * instead of being frozen emerald / amber utilities.
+	 */
+	--color-success: var(--success);
+	--color-warning: var(--warning);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-accent: var(--accent);
 	--color-muted-foreground: var(--muted-foreground);
@@ -429,6 +436,8 @@
 	--accent: oklch(0.952 0.008 260);
 	--accent-foreground: oklch(0.25 0.012 260);
 	--destructive: oklch(0.577 0.245 27.325);
+	--success: oklch(0.58 0.14 158);
+	--warning: oklch(0.6 0.15 68);
 	--border: oklch(0.905 0.008 260);
 	--input: oklch(0.905 0.008 260);
 	--ring: oklch(0.62 0.02 260);
@@ -469,6 +478,8 @@
 	--accent: oklch(0.27 0.01 260);
 	--accent-foreground: oklch(0.98 0.004 260);
 	--destructive: oklch(0.704 0.191 22.216);
+	--success: oklch(0.8 0.14 158);
+	--warning: oklch(0.82 0.13 76);
 	--border: oklch(0.98 0.004 260 / 12%);
 	--input: oklch(0.98 0.004 260 / 16%);
 	--ring: oklch(0.58 0.02 260);

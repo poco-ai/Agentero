@@ -1,4 +1,8 @@
 allowBuilds:
+  # postinstall is installation telemetry only; the parser itself has no build
+  # step. Runtime telemetry is opt-in via OPENUI_RUNTIME_TELEMETRY_ENABLED and
+  # the browser bundle never sends it.
+  '@openuidev/lang-core': false
   core-js: false
   esbuild: false
   protobufjs: false

@@ -62,12 +62,25 @@ pub fn build_prompt(
     };
 
     let system = format!(
-        "{system}{}{}",
+        "{system}{}{}{}",
         language_directive(response_language),
-        personal_preference_directive(personal_prompt)
+        personal_preference_directive(personal_prompt),
+        ui_blocks_guidance()
     );
 
     format!("{system}\n\n{target_line}User request:\n{user_prompt}")
+}
+
+/// Short pointer to the bundled `openui-blocks` skill. The full catalog lives
+/// in `templates/vault/.agents/skills/openui-blocks/SKILL.md` and is generated
+/// from the frontend catalog, so it scales without growing every system prompt.
+/// The frontend render switch is `AGENT_OPENUI_BLOCKS_ENABLED` in
+/// `src/lib/agent/openui/config.ts`; when it is off, fenced blocks still render
+/// as ordinary Markdown, so this pointer stays harmless.
+const UI_BLOCKS_GUIDANCE: &str = include_str!("openui_guidance.generated.txt");
+
+fn ui_blocks_guidance() -> String {
+    format!("\n\n{}", UI_BLOCKS_GUIDANCE.trim())
 }
 
 /// Marker Host always inserts before the real user text in `build_prompt`.
@@ -304,6 +317,9 @@ mod tests {
         assert!(!p.contains("Agentero CLI policy"));
         assert!(!p.contains("Simplified Chinese"));
         assert!(!p.contains("User preference instructions"));
+        assert!(!p.contains("Structured UI blocks"));
+        assert!(!p.contains("openui-blocks"));
+        assert!(!p.contains("openui-lang"));
     }
 
     #[test]
@@ -426,6 +442,58 @@ mod tests {
         );
         assert!(p.contains("You are an assistant"));
         assert_eq!(strip_prompt_envelope_for_display(&p), "123 check rendering");
+    }
+
+    #[test]
+    fn ui_blocks_guidance_is_injected_for_non_translate_workflows() {
+        for workflow in ["free", "qa", "summary", "related_work", "paper_reader"] {
+            let p = build_prompt(
+                Some(workflow),
+                "hello",
+                None,
+                SkillMentionStyle::InjectedOnly,
+                &[],
+                None,
+                None,
+            );
+            assert!(
+                p.contains(UI_BLOCKS_GUIDANCE.trim()),
+                "{workflow} should include the read-only UI guidance"
+            );
+            assert!(
+                p.matches("Structured UI blocks").count() == 1,
+                "{workflow} should include the guidance exactly once"
+            );
+        }
+    }
+
+    #[test]
+    fn free_prompt_with_ui_guidance_snapshot() {
+        let p = build_prompt(
+            Some("free"),
+            "Hello",
+            None,
+            SkillMentionStyle::InjectedOnly,
+            &[],
+            None,
+            None,
+        );
+        let expected = format!(
+            "You are an assistant working inside a Agentero research Vault (cwd is the vault root). \
+             Follow vault AGENTS.md.\n\n{}\n\nUser request:\nHello",
+            UI_BLOCKS_GUIDANCE.trim()
+        );
+        assert_eq!(p, expected);
+    }
+
+    #[test]
+    fn ui_blocks_guidance_snapshot_is_compact_and_read_only() {
+        assert!(UI_BLOCKS_GUIDANCE.contains(".agents/skills/openui-blocks/SKILL.md"));
+        assert!(UI_BLOCKS_GUIDANCE.contains("openui-lang"));
+        assert!(UI_BLOCKS_GUIDANCE.contains("prefer Markdown"));
+        assert!(UI_BLOCKS_GUIDANCE.contains("Components: Stack, Row, Card"));
+        // The per-turn pointer stays flat as the skill grows.
+        assert!(UI_BLOCKS_GUIDANCE.len() < 700);
     }
 
     #[test]

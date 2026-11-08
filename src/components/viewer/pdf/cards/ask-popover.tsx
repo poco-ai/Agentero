@@ -394,6 +394,7 @@ export function AskPopover({
 												from === "assistant" &&
 												m.id === thread.messages[thread.messages.length - 1]?.id
 											}
+											enableOpenUiBlocks={from === "assistant"}
 										>
 											{m.content}
 										</MessageResponse>

@@ -351,6 +351,7 @@ mod tests {
         assert!(dir.join(".agents/skills/README.md").is_file());
         assert!(dir.join(".agents/skills/paper-reader/SKILL.md").is_file());
         assert!(dir.join(".agents/skills/agentero-cli/SKILL.md").is_file());
+        assert!(dir.join(".agents/skills/openui-blocks/SKILL.md").is_file());
         assert!(dir.join(".agents/skills/idea-evaluator/SKILL.md").is_file());
         assert!(dir
             .join(".agents/skills/idea-evaluator/references/five-dimensions.md")

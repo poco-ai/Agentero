@@ -1,0 +1,110 @@
+{
+	"componentCount": 21,
+	"components": [
+		{
+			"name": "Stack",
+			"signature": "Stack(children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | PaperCard | FigureRef | ClaimList | Outline | Timeline | Tree | TagList | SourceList | Row | Card)[], gap?: \"sm\" | \"md\" | \"lg\")",
+			"description": "vertical root container"
+		},
+		{
+			"name": "Row",
+			"signature": "Row(children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | PaperCard | FigureRef | ClaimList | Outline | Timeline | Tree | TagList | SourceList)[], gap?: \"sm\" | \"md\" | \"lg\")",
+			"description": "horizontal row; wraps on narrow screens"
+		},
+		{
+			"name": "Card",
+			"signature": "Card(title: string, children: (Text | Badge | Callout | KeyValue | Table | Stat | Progress | Steps | BarChart | LineChart | PaperCard | FigureRef | ClaimList | Outline | Timeline | Tree | TagList | SourceList | Row)[])",
+			"description": "titled container for a group of components"
+		},
+		{
+			"name": "Text",
+			"signature": "Text(markdown: string, variant?: \"body\" | \"heading\" | \"caption\")",
+			"description": "Markdown text; variant body|heading|caption"
+		},
+		{
+			"name": "Badge",
+			"signature": "Badge(label: string, tone?: \"neutral\" | \"info\" | \"success\" | \"warning\" | \"danger\")",
+			"description": "small status pill"
+		},
+		{
+			"name": "Callout",
+			"signature": "Callout(title: string, body: string, tone?: \"info\" | \"success\" | \"warning\" | \"danger\")",
+			"description": "short note with tone info|success|warning|danger"
+		},
+		{
+			"name": "KeyValue",
+			"signature": "KeyValue(items: {label: string, value: string | number}[])",
+			"description": "label/value rows for metadata"
+		},
+		{
+			"name": "Table",
+			"signature": "Table(columns: string[], rows: string[][], caption?: string)",
+			"description": "data table; prefer a Markdown table when it is the whole answer"
+		},
+		{
+			"name": "Stat",
+			"signature": "Stat(label: string, value: string, hint?: string)",
+			"description": "one key number with an optional hint"
+		},
+		{
+			"name": "Progress",
+			"signature": "Progress(label: string, value: number, max?: number)",
+			"description": "progress bar; max defaults to 100"
+		},
+		{
+			"name": "Steps",
+			"signature": "Steps(title: string, steps: string[])",
+			"description": "ordered steps"
+		},
+		{
+			"name": "BarChart",
+			"signature": "BarChart(title: string, labels: string[], values: number[], unit?: string)",
+			"description": "categorical bars; labels and values must be equal length"
+		},
+		{
+			"name": "LineChart",
+			"signature": "LineChart(title: string, labels: string[], values: number[], unit?: string)",
+			"description": "values over labels; labels and values must be equal length"
+		},
+		{
+			"name": "PaperCard",
+			"signature": "PaperCard(paper: {title: string, authors: string, year?: string, venue?: string, path?: string, status?: \"unread\" | \"reading\" | \"read\" | \"queued\", tags?: string[]})",
+			"description": "paper identity card: title, authors, year, venue, status, tags and vault path"
+		},
+		{
+			"name": "FigureRef",
+			"signature": "FigureRef(label: string, caption?: string, source?: string, kind?: \"figure\" | \"table\" | \"equation\" | \"algorithm\" | \"section\")",
+			"description": "reference card for a figure, table, equation, algorithm or section"
+		},
+		{
+			"name": "ClaimList",
+			"signature": "ClaimList(title: string, claims: {claim: string, status: \"supports\" | \"contradicts\" | \"mixed\" | \"unclear\", evidence?: string, source?: string}[])",
+			"description": "claims with support/contradict/mixed/unclear status, evidence and source"
+		},
+		{
+			"name": "Outline",
+			"signature": "Outline(title: string, sections: {title: string, level?: number, page?: number, source?: string}[])",
+			"description": "paper outline with nesting, page numbers and optional section source"
+		},
+		{
+			"name": "Timeline",
+			"signature": "Timeline(title?: string, items: {title: string, description?: string}[])",
+			"description": "vertical timeline of titled items"
+		},
+		{
+			"name": "Tree",
+			"signature": "Tree(title?: string, items: {label: string, depth?: number}[])",
+			"description": "indented tree; depth starts at 0"
+		},
+		{
+			"name": "TagList",
+			"signature": "TagList(tags: string[])",
+			"description": "wrapped tag pills"
+		},
+		{
+			"name": "SourceList",
+			"signature": "SourceList(sources: {label: string, detail?: string, path?: string}[])",
+			"description": "source list with a label, optional detail and source path"
+		}
+	]
+}

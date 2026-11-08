@@ -103,7 +103,9 @@ export function VisualTraceCard({
 									>
 										{bodyText ? (
 											from === "assistant" ? (
-												<MessageResponse>{bodyText}</MessageResponse>
+												<MessageResponse enableOpenUiBlocks>
+													{bodyText}
+												</MessageResponse>
 											) : (
 												<span className="whitespace-pre-wrap break-words">
 													{bodyText}
