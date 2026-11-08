@@ -37,6 +37,10 @@ import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
 import {
+	subscribeFeedDetail,
+	takePendingFeedDetailId,
+} from "@/lib/plaza/feed-open";
+import {
 	ARXIV_FEED_CHIPS,
 	arxivFeedUrl,
 	compareFeedSubs,
@@ -49,6 +53,7 @@ import {
 	feedsRefresh,
 	feedsRemove,
 	feedsRename,
+	feedsResolveBody,
 	feedsSetPinned,
 	feedsSetRead,
 	hostErrorKey,
@@ -268,6 +273,8 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 	);
 	const readPending = useRef(new Set<string>());
 	const [items, setItems] = useState<FeedItem[]>([]);
+	const itemsRef = useRef(items);
+	itemsRef.current = items;
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [busy, setBusy] = useState(false);
@@ -465,6 +472,33 @@ export function PlazaFeedsView({ className }: { className?: string }) {
 		},
 		[setRead],
 	);
+
+	/**
+	 * Chip click in the Agent composer: reopen this item's detail. The list
+	 * usually holds it; an older chip falls back to one body resolve, which is
+	 * what opening the detail would do anyway. Failures leave the list alone.
+	 */
+	const openFeedById = useCallback(
+		async (feedId: string) => {
+			const local = itemsRef.current.find((row) => row.id === feedId);
+			if (local) {
+				openFeedItem(local);
+				return;
+			}
+			try {
+				openFeedItem(await feedsResolveBody(feedId));
+			} catch {
+				// Opening is best-effort; the Plaza tab still shows the list.
+			}
+		},
+		[openFeedItem],
+	);
+
+	useEffect(() => {
+		const pending = takePendingFeedDetailId();
+		if (pending) void openFeedById(pending);
+		return subscribeFeedDetail((feedId) => void openFeedById(feedId));
+	}, [openFeedById]);
 
 	const onPin = useCallback(
 		async (id: string, pinned: boolean) => {

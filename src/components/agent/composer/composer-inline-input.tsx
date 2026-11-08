@@ -26,6 +26,7 @@ import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
 import { filesFromDataTransfer } from "@/lib/core/file-accept";
 import { isImeKeyboardEvent } from "@/lib/core/ime";
 import { cn } from "@/lib/core/utils";
+import { isFeedMentionPath } from "@/lib/plaza/feed-mention";
 
 import {
 	CARET_PAD,
@@ -87,6 +88,14 @@ export type ComposerInlineInputProps = {
 		id: string,
 		anchor: HTMLElement,
 	) => void;
+	/** Click a Plaza feed reference: open its detail instead of deleting it. */
+	onPlazaFeedOpen?: (path: string) => void;
+	/** Hover a Plaza feed reference. `leave` starts the card's close delay. */
+	onPlazaFeedPointer?: (
+		phase: "enter" | "leave",
+		path: string,
+		anchor: HTMLElement,
+	) => void;
 	"aria-expanded"?: boolean | undefined;
 	"aria-autocomplete"?: HTMLAttributes<HTMLDivElement>["aria-autocomplete"];
 	"aria-controls"?: string | undefined;
@@ -112,6 +121,8 @@ export const ComposerInlineInput = forwardRef<
 			visualDrafts = [],
 			onSelectionPointer,
 			onVisualPointer,
+			onPlazaFeedOpen,
+			onPlazaFeedPointer,
 			className,
 			...aria
 		},
@@ -485,6 +496,14 @@ export const ComposerInlineInput = forwardRef<
 			const chip = target?.closest?.(`[${CHIP_ATTR}]`) as HTMLElement | null;
 			if (!chip || !editorRef.current?.contains(chip)) return;
 			const kind = chip.getAttribute(CHIP_ATTR);
+			// Plaza feed references navigate: a stray click must not drop the
+			// reference. Their hover card owns removal, like text annotations.
+			if (kind === "mention" && isFeedMentionPath(chip.dataset.path)) {
+				event.preventDefault();
+				event.stopPropagation();
+				onPlazaFeedOpen?.(chip.dataset.path ?? "");
+				return;
+			}
 			// Text and visual references stay; their hover cards own edit and delete.
 			if (kind === "selection" || kind === "visual") return;
 			event.preventDefault();
@@ -502,7 +521,7 @@ export const ComposerInlineInput = forwardRef<
 		) => {
 			const target = event.target as HTMLElement | null;
 			const chip = target?.closest?.(
-				`[${CHIP_ATTR}="selection"], [${CHIP_ATTR}="visual"]`,
+				`[${CHIP_ATTR}="selection"], [${CHIP_ATTR}="visual"], [${CHIP_ATTR}="mention"]`,
 			) as HTMLElement | null;
 			if (!chip || !editorRef.current?.contains(chip)) return;
 			const kind = chip.getAttribute(CHIP_ATTR);
@@ -517,6 +536,11 @@ export const ComposerInlineInput = forwardRef<
 				) {
 					return;
 				}
+			}
+			if (kind === "mention") {
+				const path = chip.dataset.path ?? "";
+				if (isFeedMentionPath(path)) onPlazaFeedPointer?.(phase, path, chip);
+				return;
 			}
 			if (kind === "selection") {
 				const id = chip.dataset.selectionId;

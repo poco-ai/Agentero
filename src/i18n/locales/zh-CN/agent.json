@@ -90,6 +90,7 @@
 		"plazaCollectionInstruction": "以上是今日推荐论文的摘要目录。请第一步仅凭摘要完成筛选：只需筛选 / 对比即可回答时，直接给出最终报告；仅当必须深读才能回答时，在回复的第一行输出「NEED_FULLTEXT <arXiv id> …」（最多 {{max}} 篇）然后停止等待，系统会自动提供所选论文的全文；不要自行联网检索或下载这些论文。",
 		"plazaFulltextFollowup": "全文已取回（见上下文），请基于它们完成最终报告。",
 		"resizeHandle": "调整输入区高度",
+		"openPlazaEntry": "打开 {{title}}",
 		"removeContext": "从上下文移除 {{path}}",
 		"removeSkill": "从上下文移除 ${{skill}}",
 		"selection": "选中文本",

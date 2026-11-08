@@ -13,6 +13,7 @@ import { selectionLineLabel } from "@/lib/agent/selection-line-label";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
 import { basenameOf } from "@/lib/core/path";
 import { cn, truncateToChars } from "@/lib/core/utils";
+import { isFeedMentionPath } from "@/lib/plaza/feed-mention";
 
 export const CHIP_ATTR = "data-composer-chip";
 const MAX_CHIP_TITLE_CHARS = 9;
@@ -670,10 +671,15 @@ export function renderChip(
 		const short = plazaTitle
 			? truncateToChars(plazaTitle, MAX_CHIP_TITLE_CHARS)
 			: basenameOf(part.path) || labelForPath(part.path) || part.path;
-		appendPrefixLabel(chip, "@", short, part.path);
+		const feedReference = isFeedMentionPath(part.path);
+		// Feed references open their detail and own a hover card; the native
+		// path tooltip would sit on top of it.
+		appendPrefixLabel(chip, "@", short, feedReference ? undefined : part.path);
 		chip.setAttribute(
 			"aria-label",
-			t("composer.removeContext", { path: part.path }),
+			feedReference
+				? t("composer.openPlazaEntry", { title: short })
+				: t("composer.removeContext", { path: part.path }),
 		);
 		chip.setAttribute(TOKEN_ATTR, encodeMentionToken(part.path));
 	} else if (part.type === "skill") {
