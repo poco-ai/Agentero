@@ -52,6 +52,8 @@ type NavMessage = {
 	importPaper?: PlazaImportRequest;
 	/** Paper ids on screen; the host answers which of them are already imported. */
 	queryImported?: string[];
+	/** Horizontal wheel delta the frame could not consume in its own document. */
+	panX?: number;
 };
 
 function isNavMessage(data: unknown): data is NavMessage {
@@ -59,6 +61,7 @@ function isNavMessage(data: unknown): data is NavMessage {
 	const value = data as Partial<NavMessage>;
 	if (value.source !== "agentero-plaza") return false;
 	return (
+		(typeof value.panX === "number" && Number.isFinite(value.panX)) ||
 		typeof value.path === "string" ||
 		typeof value.external === "string" ||
 		typeof value.externalPath === "string" ||
@@ -174,8 +177,12 @@ export function PlazaWebFrame({
 				!isNavMessage(event.data)
 			)
 				return;
-			const { path, external, externalPath, importPaper, queryImported } =
+			const { path, external, externalPath, importPaper, queryImported, panX } =
 				event.data;
+			if (panX !== undefined) {
+				zoom.panBy(panX);
+				return;
+			}
 			if (external) {
 				openExternalUrl(external);
 				return;
@@ -221,7 +228,7 @@ export function PlazaWebFrame({
 		};
 		window.addEventListener("message", onMessage);
 		return () => window.removeEventListener("message", onMessage);
-	}, [embedOrigin, homeUrl]);
+	}, [embedOrigin, homeUrl, zoom.panBy]);
 
 	const jump = useCallback((delta: number) => {
 		setNav((prev) => {

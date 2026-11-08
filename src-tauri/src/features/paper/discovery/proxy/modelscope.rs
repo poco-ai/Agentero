@@ -25,10 +25,12 @@ const USER_AGENT: &str = "agentero/0.6 (+https://github.com/poco-ai/agentero)";
 /// site's Emotion classes (`acss-*`) are content-hashed per release and must
 /// never be matched on.
 ///
-/// The site pins its paper pages at a 1280px desktop width, so the panel browses
-/// it as a narrow desktop window: the frame keeps that layout and its own
-/// document is the horizontal scrollport, which is what lets a trackpad pan the
-/// page. Clamping the pages to the panel instead would leave no overflow to pan.
+/// The site pins its paper pages at a 1280px desktop width, so the frame keeps
+/// that virtual viewport and the host scales it to the panel. Manual zoom can
+/// make the scaled page wider than the panel; that overflow lives in the host's
+/// scrollport, so the bridge forwards wheel deltas the frame cannot consume as
+/// `panX` messages. Clamping the pages to the panel instead makes the text
+/// unreadable at narrow widths.
 const NAV_BRIDGE: &str = r##"<style>
 /* The panel is a paper feed, not a browser: the global nav only offers ways out. */
 header.antd5-layout-header { display: none !important; }
@@ -469,11 +471,11 @@ html body { overflow-y: visible !important; }
     );
 
     // ModelScope centres a page action with
-    // `scrollIntoView({ block: "center", inline: "center" })`. The frame is
-    // narrower than the site's 1280px desktop layout, so that call drags the
-    // whole document sideways and the feed loads scrolled past its left edge
-    // (#550). The panel is panned by the user, not by the site: undo the
-    // horizontal part of every such call, leaving vertical scrolling alone.
+    // `scrollIntoView({ block: "center", inline: "center" })`. When the site's
+    // own content overflows, that call can drag the whole document sideways and
+    // hide the left edge (#550). The panel is panned by the user, not by the
+    // site: undo the horizontal part of every such call, leaving vertical
+    // scrolling alone.
     var scrollIntoView = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = function () {
       var chain = [];
@@ -492,13 +494,14 @@ html body { overflow-y: visible !important; }
       return result;
     };
 
-    // The frame owns horizontal panning: nothing outside an iframe reliably
-    // receives its wheel deltas, and the frame is narrower than the site's
-    // desktop layout. Trackpad swipes, and Shift+wheel (a keyboard reports that
-    // as deltaY), pan the document — but the event is never cancelled, so a
-    // diagonal gesture keeps scrolling vertically too. An engine that pans
-    // horizontally on its own is left to it: the delta is only added when the
-    // document did not move. An in-page horizontal scroller (a carousel) wins.
+    // The frame keeps the site's desktop layout; the host scales it to the
+    // panel. Manual zoom can make that scaled page wider than the panel, and
+    // that overflow lives in the host's wrapper — not in this document. Wheel
+    // deltas never leave an iframe reliably, so pan horizontally here while
+    // this document has room, then hand the remainder to the host. Trackpad
+    // swipes and Shift+wheel (a keyboard reports that as deltaY) both work;
+    // the event is never cancelled, so a diagonal gesture keeps scrolling
+    // vertically too. An in-page horizontal scroller (a carousel) wins.
     var scrollsHorizontally = function (node) {
       while (node && node.nodeType === 1 && node !== document.documentElement) {
         var overflow = getComputedStyle(node).overflowX;
@@ -517,23 +520,33 @@ html body { overflow-y: visible !important; }
     var panStart = null;
     document.addEventListener("wheel", function (event) {
       if (event.ctrlKey || event.deltaMode === 2) return;
-      var scroller = document.scrollingElement || document.documentElement;
-      if (!scroller || scroller.scrollWidth <= scroller.clientWidth + 1) return;
       if (scrollsHorizontally(event.target)) return;
       var dx = event.deltaX;
       if (!dx && event.shiftKey) dx = event.deltaY;
       if (!dx) return;
       if (event.deltaMode === 1) dx *= 16;
+      var scroller = document.scrollingElement || document.documentElement;
+      if (!scroller) return;
       if (panStart === null) panStart = scroller.scrollLeft;
       panPending += dx;
       if (panFrame) return;
       panFrame = requestAnimationFrame(function () {
         panFrame = 0;
-        var moved = scroller.scrollLeft - panStart;
+        var scroller = document.scrollingElement || document.documentElement;
+        var start = panStart;
         var delta = panPending;
         panStart = null;
         panPending = 0;
-        if (!moved) scroller.scrollLeft += delta;
+        if (!scroller || start === null) return;
+        var moved = scroller.scrollLeft - start;
+        if (!moved) {
+          scroller.scrollLeft += delta;
+          moved = scroller.scrollLeft - start;
+        }
+        // The frame is at its horizontal edge; the rest belongs to the host's
+        // manual-zoom scrollport. Keep sub-pixel noise from posting.
+        var remaining = delta - moved;
+        if (Math.abs(remaining) > 0.5) post({ panX: remaining });
       });
     });
 
@@ -699,10 +712,9 @@ mod tests {
         assert!(NAV_BRIDGE.contains("html body { overflow-y: visible !important; }"));
     }
 
-    /// The panel browses the site as a narrow desktop window: the frame keeps
-    /// the 1280px layout and its own document is the horizontal scrollport, so a
-    /// trackpad pans it. Clamping the pages to the panel would leave no
-    /// horizontal overflow — and nothing to pan.
+    /// The panel browses the site as a desktop window: the frame keeps the
+    /// 1280px layout and the host scales it. Clamping the pages to the panel
+    /// would make the text unreadable at narrow widths.
     #[test]
     fn keeps_the_desktop_layout_pannable() {
         assert!(!NAV_BRIDGE.contains("min-width: 0 !important"));
@@ -726,7 +738,16 @@ mod tests {
     #[test]
     fn pans_horizontally_without_cancelling_the_wheel() {
         assert!(NAV_BRIDGE.contains("scrollsHorizontally(event.target)"));
-        assert!(NAV_BRIDGE.contains("if (!moved) scroller.scrollLeft += delta;"));
+        assert!(NAV_BRIDGE.contains("scroller.scrollLeft += delta;"));
+    }
+
+    /// Manual zoom puts the widened page's overflow in the host's scrollport,
+    /// outside this document. Once the frame cannot pan any further, the bridge
+    /// must hand the residual delta to the host instead of dropping it.
+    #[test]
+    fn forwards_outer_overflow_to_the_host() {
+        assert!(NAV_BRIDGE.contains("var remaining = delta - moved;"));
+        assert!(NAV_BRIDGE.contains("post({ panX: remaining })"));
     }
 
     /// The site's own layout root is scrollable in script and gets parked 10px to

@@ -53,12 +53,12 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 	vi.unstubAllGlobals();
 });
-async function mount(desktopWidth?: number) {
+async function mount(desktopWidth?: number, embedOrigin: string | null = null) {
 	await act(() =>
 		root.render(
 			createElement(PlazaWebFrame, {
 				homeUrl: "about:blank",
-				embedOrigin: null,
+				embedOrigin,
 				title: "fixture",
 				desktopWidth,
 			}),
@@ -99,6 +99,39 @@ describe("Plaza frame zoom", () => {
 		expect(host.querySelector("iframe")).toBe(frame);
 		expect(frame.contentDocument).toBe(doc);
 		expect(doc.querySelector("input")?.value).toBe("keep me");
+	});
+	it("hands wheel overflow the frame cannot consume to the outer scrollport", async () => {
+		const origin = "https://proxy.example";
+		const frame = await mount(1280, origin);
+		await size(640);
+		const viewport = frame.parentElement?.parentElement;
+		if (!(viewport instanceof HTMLDivElement)) {
+			throw new Error("Missing viewport");
+		}
+		expect(viewport.className).toContain("overflow-auto");
+
+		await act(() => {
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin,
+					source: frame.contentWindow,
+					data: { source: "agentero-plaza", panX: 140 },
+				}),
+			);
+		});
+		expect(viewport.scrollLeft).toBe(140);
+
+		// Only the frame itself may pan the host viewport.
+		await act(() => {
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin,
+					source: window,
+					data: { source: "agentero-plaza", panX: 999 },
+				}),
+			);
+		});
+		expect(viewport.scrollLeft).toBe(140);
 	});
 	it("keeps manual zoom on resize, exposes overflow, and restores automatic fit", async () => {
 		const frame = await mount(1280);
