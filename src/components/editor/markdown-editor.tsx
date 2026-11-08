@@ -28,6 +28,7 @@ import { useSelectionContextPublish } from "@/components/editor/hooks/use-select
 import { useWikilinkEditing } from "@/components/editor/hooks/use-wikilink-editing";
 import { MarkdownExportDialog } from "@/components/editor/markdown-export-dialog";
 import { MarkdownExportSurface } from "@/components/editor/markdown-export-surface";
+import { markdownSourceSurfaceStyle } from "@/components/editor/markdown-source-layout";
 import { BlockDragStateBridge } from "@/components/editor/nodes/block/block-draggable";
 import { ImageElement } from "@/components/editor/nodes/block/image-node";
 import { EditorStatusBar } from "@/components/editor/overlays/editor-status-bar";
@@ -49,12 +50,10 @@ import { BlockSelectionKit } from "@/components/editor/plugins/block-selection-k
 import { convertBlockquoteMarkerToCallout } from "@/components/editor/plugins/callout-plugin";
 import { DndKit } from "@/components/editor/plugins/dnd-kit";
 import { MarkdownEditorKit } from "@/components/editor/plugins/markdown-editor-kit";
+import { MarkdownSourceToolbar } from "@/components/editor/toolbar/markdown-source-toolbar";
 import { MarkdownEditorToolbar } from "@/components/editor/toolbar/markdown-toolbar";
 import { ToolbarButton } from "@/components/editor/toolbar/primitives";
-import {
-	ResponsiveFixedToolbar,
-	type ToolbarAction,
-} from "@/components/editor/toolbar/responsive-toolbar";
+import { Button } from "@/components/ui/button";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -100,6 +99,7 @@ import {
 import { resolveSelectionSourceLines } from "@/lib/markdown/selection-source-lines";
 import { useUiScale } from "@/lib/settings";
 import { formatModShortcut, isFindShortcut } from "@/lib/shell/shortcuts";
+import { readVaultFile } from "@/lib/vault";
 import type { LinkFragment, WikiRenameHeadingRequest } from "@/lib/wiki";
 import { useWikiNav } from "@/lib/wiki/nav-context";
 import {
@@ -109,7 +109,6 @@ import {
 
 import { registerMarkdownEditor } from "@/lib/workspace/viewer/markdown-editor-registry";
 
-const SOURCE_TOOLBAR_ACTIONS: ToolbarAction[] = [];
 const MarkdownPlateContent = memo(Editor);
 
 export type MarkdownEditorProps = {
@@ -151,6 +150,17 @@ export type MarkdownEditorProps = {
 		lastSaved: string,
 	) => Promise<boolean>;
 	onDirtyChange?: (dirty: boolean) => void;
+	/**
+	 * This panel still has a draft, and another panel already saved a newer
+	 * version. The editor will not autosave until the user keeps the draft or
+	 * loads the disk version.
+	 */
+	saveConflict?: boolean;
+	onResolveSaveConflict?: (
+		tabId: string,
+		action: "keep" | "load" | "hold",
+		disk: string,
+	) => void;
 	/** After writing an image under `./assets/` (refresh file tree). */
 	onAssetsChanged?: () => void;
 	/** Explicitly rename one saved heading and repair its inbound fragments. */
@@ -251,6 +261,8 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 	showToolbar,
 	onPersist,
 	onDirtyChange,
+	saveConflict = false,
+	onResolveSaveConflict,
 	onAssetsChanged,
 	onRenameHeading,
 	navigationIntent,
@@ -422,6 +434,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		readOnly,
 		onPersist,
 		onDirtyChange,
+		saveBlocked: saveConflict,
 		filePathRef,
 		onAssetsChangedRef,
 	});
@@ -432,6 +445,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		noteDocumentChanged,
 		saveNow,
 		applyExternalMarkdown,
+		adoptDiskBaseline,
 		savedRef,
 		dirtyRef,
 		hasSourceSnapshot,
@@ -540,14 +554,20 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		setFindOpen(false);
 		setHtmlPreview(null);
 	}, [closeMenus]);
-	const { source, switching, sourceHostRef, toggle, replaceSource } =
-		useMarkdownSource({
-			editor,
-			editorContainerRef,
-			persistence,
-			onEnter: onEnterSource,
-			active,
-		});
+	const {
+		source,
+		switching,
+		sourceHostRef,
+		sourceViewRef,
+		toggle,
+		replaceSource,
+	} = useMarkdownSource({
+		editor,
+		editorContainerRef,
+		persistence,
+		onEnter: onEnterSource,
+		active,
+	});
 	useEffect(() => {
 		if (!source) refreshTocMounted();
 	}, [refreshTocMounted, source]);
@@ -883,6 +903,40 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		selectionExpanded: contextMenuSelectionExpanded,
 	});
 
+	const [resolvingConflict, setResolvingConflict] = useState(false);
+	const resolveSaveConflict = useCallback(
+		async (action: "keep" | "load") => {
+			if (!filePath || resolvingConflict) return;
+			setResolvingConflict(true);
+			try {
+				const disk = await readVaultFile(filePath);
+				if (!tabId) return;
+				if (action === "load") {
+					onResolveSaveConflict?.(tabId, "load", disk);
+					return;
+				}
+				adoptDiskBaseline(disk);
+				onResolveSaveConflict?.(tabId, "keep", disk);
+				// One forced write past the hold that the prop still shows. The
+				// permission dies with this call; a failed write falls back to "hold".
+				const wrote = await saveNow(true);
+				if (!wrote) onResolveSaveConflict?.(tabId, "hold", disk);
+			} catch (error) {
+				notifyError(errorMessage(error));
+			} finally {
+				setResolvingConflict(false);
+			}
+		},
+		[
+			adoptDiskBaseline,
+			filePath,
+			onResolveSaveConflict,
+			tabId,
+			resolvingConflict,
+			saveNow,
+		],
+	);
+
 	const sourceLabel = i18n.t(
 		source ? "editor:source.showRendered" : "editor:source.showSource",
 	);
@@ -903,8 +957,6 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		fontSize: editorTypographyStyle?.fontSize,
 		"--cm-content-font": fontFamily || "var(--font-sans)",
 		"--cm-content-leading": lineHeight ?? 1.65,
-		"--markdown-source-width":
-			markdownMaxWidth > 0 ? `${markdownMaxWidth}px` : undefined,
 	} as CSSProperties;
 
 	return (
@@ -934,9 +986,10 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 					>
 						{showToolbar && !bodyReadOnly ? (
 							source ? (
-								<ResponsiveFixedToolbar
-									actions={SOURCE_TOOLBAR_ACTIONS}
-									trailing={sourceToggle}
+								<MarkdownSourceToolbar
+									viewRef={sourceViewRef}
+									onExport={isTauri() ? openExportDialog : undefined}
+									sourceToggle={sourceToggle}
 								/>
 							) : (
 								<MarkdownEditorToolbar
@@ -959,6 +1012,38 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 							)
 						) : null}
 						<div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+							{saveConflict ? (
+								<div
+									className="flex shrink-0 items-center gap-2 border-b bg-amber-500/10 px-3 py-1.5 text-xs"
+									role="status"
+								>
+									<p className="min-w-0 flex-1">
+										<span className="font-medium">
+											{i18n.t("app:diskConflict.splitTitle")}
+										</span>
+										<span className="text-muted-foreground">
+											{" "}
+											{i18n.t("app:diskConflict.splitDetail")}
+										</span>
+									</p>
+									<Button
+										size="sm"
+										variant="outline"
+										disabled={resolvingConflict}
+										onClick={() => void resolveSaveConflict("keep")}
+									>
+										{i18n.t("app:diskConflict.keepDraft")}
+									</Button>
+									<Button
+										size="sm"
+										variant="outline"
+										disabled={resolvingConflict}
+										onClick={() => void resolveSaveConflict("load")}
+									>
+										{i18n.t("app:diskConflict.reload")}
+									</Button>
+								</div>
+							) : null}
 							{/*
 							 * `@container/editor` deliberately sits on this child rather than
 							 * on the pane above. A query container that resizes re-runs style
@@ -1185,11 +1270,21 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 							</div>
 							{canToggleSource ? (
 								<div
-									ref={sourceHostRef}
 									data-markdown-source=""
-									className={cn("absolute inset-0", !source && "hidden")}
-									style={sourceTypography}
-								/>
+									className={cn(
+										"absolute inset-0 flex justify-center",
+										!source && "hidden",
+									)}
+								>
+									<div
+										ref={sourceHostRef}
+										className="h-full w-full min-w-0"
+										style={{
+											...sourceTypography,
+											...markdownSourceSurfaceStyle(markdownMaxWidth),
+										}}
+									/>
+								</div>
 							) : null}
 							{switching ? (
 								<div

@@ -384,3 +384,50 @@ it("releases the build engine once the queue drains", async () => {
 		vi.useRealTimers();
 	}
 });
+
+it("keeps the build engine alive when a rebuild starts before the idle deadline", async () => {
+	const provider = {
+		get: vi.fn(async () => ({ engine, document })),
+		idle: vi.fn(),
+		dispose: vi.fn(),
+	};
+	session = new ReflowPreviewSession(
+		engine,
+		document,
+		() => {},
+		failed,
+		provider,
+	);
+	vi.useFakeTimers();
+	try {
+		session.update([item(0)], [], false);
+		for (let i = 0; i < 50 && session.busy; i++) await Promise.resolve();
+		// The first build finished; the release deadline is armed (30s).
+		const gate = deferred<ReflowOutput>();
+		vi.mocked(buildReflowPdf).mockImplementationOnce(
+			async (_engine, _doc, ir) => {
+				await gate.promise;
+				return result(ir);
+			},
+		);
+		// A hide-one-page style rebuild enqueues a new final key inside the
+		// deadline window. Releasing the engine now would leave every
+		// in-flight PDFium RPC unsettled and wedge the serial queue.
+		session.update([{ ...item(0), translated: "changed" }], [], false);
+		for (let i = 0; i < 200 && session.busy !== true; i++)
+			await Promise.resolve();
+		vi.advanceTimersByTime(30_000);
+		expect(provider.idle).not.toHaveBeenCalled();
+		expect(session.busy).toBe(true);
+		const ir = vi.mocked(buildReflowPdf).mock.calls.at(-1)?.[2];
+		if (!ir) throw new Error("final build was not invoked");
+		gate.resolve(result(ir));
+		for (let i = 0; i < 200 && session.busy; i++) await Promise.resolve();
+		expect(session.busy).toBe(false);
+		// Once the queue drains again the deadline is re-armed and fires.
+		vi.advanceTimersByTime(30_000);
+		expect(provider.idle).toHaveBeenCalledTimes(1);
+	} finally {
+		vi.useRealTimers();
+	}
+});

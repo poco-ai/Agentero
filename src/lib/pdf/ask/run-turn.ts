@@ -245,7 +245,14 @@ export async function runAskTurn({
 			unsubsRef,
 			sessionRef,
 			activeSessionRef,
-			onArmed: () => upsertThread(withAssistant),
+			onArmed: () => {
+				upsertThread(withAssistant);
+				// The `withUser` write schedules a marks refresh. Persist the
+				// assistant placeholder (and its session id) too, otherwise that
+				// refresh reloads a snapshot without the message the stream and
+				// completed handlers below need to patch.
+				void persist?.(withAssistant);
+			},
 			onStream: (ev) =>
 				patchThread(threadId, (th) => {
 					const msgs = [...th.messages];

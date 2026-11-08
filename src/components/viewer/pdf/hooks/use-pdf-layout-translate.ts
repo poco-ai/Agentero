@@ -4,7 +4,7 @@ import { type ReflowContext, usePdfReflow } from "./use-pdf-reflow";
  *
  * Its own hook because it shares nothing with hover or with the analysis run
  * beyond the region list it reads: one abortable job, progressive overlay items,
- * and the toolbar button's start → stop → retry/clear flow. When layout regions
+ * and the toolbar button's start → stop → retry/hide/show flow. When layout regions
  * are missing the job queues (`waitingLayout`) behind the layout-analysis run
  * and auto-starts once regions land.
  */
@@ -64,11 +64,15 @@ export type UsePdfLayoutTranslateOptions = {
 	paperKey?: string | null;
 	/** Vault root passed to the Agent as its cwd. */
 	vaultPath?: string | null;
+	/** Viewer PDF bytes; hashed into the reflow IR cache key. */
+	pdfBytes?: ArrayBuffer | null;
 };
 
 export type PdfLayoutTranslate = {
 	reflowBusy: boolean;
 	reflowReady: boolean;
+	/** Finished translated PDF bytes for the in-app display renderer. */
+	reflowOutput: Uint8Array | null;
 	exportTranslatedPdf: (dual?: boolean) => Promise<void>;
 	/** Progressive bulk-translate overlays (body text / abstract / header), bucketed by page. */
 	layoutTranslateItemsByPage: ReadonlyMap<
@@ -94,7 +98,7 @@ export type PdfLayoutTranslate = {
 	 * Null before the job has any blocks (the meter stays indeterminate).
 	 */
 	layoutTranslateProgress: number | null;
-	/** Toolbar button: start → stop → retry incomplete / clear complete. */
+	/** Toolbar button: start → stop → retry incomplete / hide or show retained translations. */
 	toggleLayoutTranslate: () => void;
 	/** Per-page tag: retry incomplete blocks, translate this page, or hide a complete page. */
 	togglePageLayoutTranslate: (pageIndex: number) => void;
@@ -221,6 +225,7 @@ export function usePdfLayoutTranslate({
 	paperRelPath,
 	paperKey,
 	vaultPath,
+	pdfBytes,
 }: UsePdfLayoutTranslateOptions): PdfLayoutTranslate {
 	const { t } = useTranslation("viewer");
 	/** Progressive layout bulk-translate overlays (body text / abstract / header). */
@@ -232,11 +237,16 @@ export function usePdfLayoutTranslate({
 	}>({ status: "idle", items: [] });
 	const layoutTranslateJobRef = useRef(layoutTranslateJob);
 	layoutTranslateJobRef.current = layoutTranslateJob;
+	// Visibility must not discard the translation or invalidate its reflow preview.
+	const [hiddenPageIndexes, setHiddenPageIndexes] = useState<
+		ReadonlySet<number>
+	>(new Set());
 	const {
 		prepare: prepareReflow,
 		reflowItems,
 		reflowBusy,
 		reflowReady,
+		reflowOutput,
 		reflowProgress,
 		exportTranslatedPdf,
 	} = usePdfReflow(
@@ -245,9 +255,11 @@ export function usePdfLayoutTranslate({
 		layoutTranslateJob.items,
 		layoutTranslateJob.status === "running",
 		docId,
+		paperAbsPath,
+		paperKey,
+		pdfBytes,
 	);
 	const layoutTranslateAbortRef = useRef<AbortController | null>(null);
-	const hiddenPageIndexesRef = useRef(new Set<number>());
 	/** Queued target to auto-start once layout regions land. */
 	const layoutTranslateWaitTargetRef = useRef<LayoutTranslateWaitTarget | null>(
 		null,
@@ -282,17 +294,6 @@ export function usePdfLayoutTranslate({
 	});
 	const parsePendingForPaper = layoutJobPending || layoutUiRunning;
 
-	const applyHiddenPages = useCallback(
-		(items: readonly LayoutTranslateItem[]) => {
-			const hidden = hiddenPageIndexesRef.current;
-			if (hidden.size === 0) return items.map((it) => ({ ...it }));
-			return items
-				.filter((it) => !hidden.has(it.pageIndex))
-				.map((it) => ({ ...it }));
-		},
-		[],
-	);
-
 	const stopLayoutTranslate = useCallback(() => {
 		layoutTranslateAbortRef.current?.abort();
 		layoutTranslateAbortRef.current = null;
@@ -306,14 +307,6 @@ export function usePdfLayoutTranslate({
 					}
 				: prev,
 		);
-	}, []);
-
-	const clearLayoutTranslate = useCallback(() => {
-		layoutTranslateAbortRef.current?.abort();
-		layoutTranslateAbortRef.current = null;
-		setSourcePreparing(false);
-		hiddenPageIndexesRef.current.clear();
-		setLayoutTranslateJob({ status: "idle", items: [] });
 	}, []);
 
 	// `runLayoutRegionTranslate` settles per-chain errors into item state instead
@@ -404,7 +397,7 @@ export function usePdfLayoutTranslate({
 		const ac = new AbortController();
 		layoutTranslateAbortRef.current = ac;
 		setSourcePreparing(true);
-		hiddenPageIndexesRef.current.clear();
+		setHiddenPageIndexes(new Set());
 		const cacheKey = currentLayoutTranslateCacheKey();
 		const pendingItems = reuseCompletedTranslateItems(
 			toLayoutTranslateItems(regions),
@@ -416,7 +409,7 @@ export function usePdfLayoutTranslate({
 			persistLayoutTranslateSidecarBestEffort(paperAbsPath, cacheKey, next);
 			setLayoutTranslateJob((prev) => ({
 				status: prev.status === "cancelled" ? "cancelled" : "running",
-				items: applyHiddenPages(next),
+				items: next,
 			}));
 		});
 		void (async () => {
@@ -444,7 +437,7 @@ export function usePdfLayoutTranslate({
 				},
 			});
 			// Cancellation/replacement owns the visible state now. A late result
-			// must not restore cleared overlays or overwrite a newer sidecar write.
+			// must not restore hidden overlays or overwrite a newer sidecar write.
 			if (ac.signal.aborted || layoutTranslateAbortRef.current !== ac) return;
 			persistLayoutTranslateSidecarBestEffort(
 				paperAbsPath,
@@ -454,7 +447,7 @@ export function usePdfLayoutTranslate({
 			notifyTranslateItemErrors(finalItems);
 			setLayoutTranslateJob({
 				status: hasPendingLayoutTranslateItems(finalItems) ? "partial" : "done",
-				items: applyHiddenPages(finalItems),
+				items: finalItems,
 			});
 		})()
 			.catch((e) => {
@@ -478,7 +471,6 @@ export function usePdfLayoutTranslate({
 		paperAbsPath,
 		paperKey,
 		vaultPath,
-		applyHiddenPages,
 		enterWaitingLayout,
 		prepareReflow,
 		notifyTranslateItemErrors,
@@ -504,7 +496,12 @@ export function usePdfLayoutTranslate({
 			const ac = new AbortController();
 			layoutTranslateAbortRef.current = ac;
 			setSourcePreparing(true);
-			hiddenPageIndexesRef.current.delete(pageIndex);
+			setHiddenPageIndexes((hidden) => {
+				if (!hidden.has(pageIndex)) return hidden;
+				const next = new Set(hidden);
+				next.delete(pageIndex);
+				return next;
+			});
 			const cacheKey = currentLayoutTranslateCacheKey();
 			const pendingItems = reuseCompletedTranslateItems(
 				toLayoutTranslateItems(regions),
@@ -528,9 +525,7 @@ export function usePdfLayoutTranslate({
 				});
 				setLayoutTranslateJob((prev) => ({
 					status: prev.status === "cancelled" ? "cancelled" : "running",
-					items: applyHiddenPages(
-						mergeTranslatePageItems(prev.items, pageIndex, next),
-					),
+					items: mergeTranslatePageItems(prev.items, pageIndex, next),
 				}));
 			});
 			void (async () => {
@@ -591,7 +586,7 @@ export function usePdfLayoutTranslate({
 					);
 					return {
 						status: hasPendingLayoutTranslateItems(merged) ? "partial" : "done",
-						items: applyHiddenPages(merged),
+						items: merged,
 					};
 				});
 			})()
@@ -617,7 +612,6 @@ export function usePdfLayoutTranslate({
 			paperAbsPath,
 			paperKey,
 			vaultPath,
-			applyHiddenPages,
 			enterWaitingLayout,
 			prepareReflow,
 			notifyTranslateItemErrors,
@@ -633,6 +627,14 @@ export function usePdfLayoutTranslate({
 				cancelWaitingLayout();
 				return;
 			}
+			if (hiddenPageIndexes.has(pageIndex)) {
+				setHiddenPageIndexes((hidden) => {
+					const next = new Set(hidden);
+					next.delete(pageIndex);
+					return next;
+				});
+				return;
+			}
 			const pageItems = layoutTranslateJobRef.current.items.filter(
 				(item) => item.pageIndex === pageIndex,
 			);
@@ -646,16 +648,17 @@ export function usePdfLayoutTranslate({
 			}
 			const pageActive = pageItems.some((item) => item.translated?.trim());
 			if (pageActive) {
-				hiddenPageIndexesRef.current.add(pageIndex);
-				setLayoutTranslateJob((prev) => ({
-					...prev,
-					items: prev.items.filter((item) => item.pageIndex !== pageIndex),
-				}));
+				setHiddenPageIndexes((hidden) => new Set([...hidden, pageIndex]));
 				return;
 			}
 			startPageLayoutTranslate(pageIndex);
 		},
-		[startPageLayoutTranslate, stopLayoutTranslate, cancelWaitingLayout],
+		[
+			hiddenPageIndexes,
+			startPageLayoutTranslate,
+			stopLayoutTranslate,
+			cancelWaitingLayout,
+		],
 	);
 
 	const toggleLayoutTranslate = useCallback(() => {
@@ -667,26 +670,30 @@ export function usePdfLayoutTranslate({
 			stopLayoutTranslate();
 			return;
 		}
-		if (layoutTranslateJob.status === "partial") {
-			startLayoutTranslate();
+		if (hiddenPageIndexes.size > 0) {
+			setHiddenPageIndexes(new Set());
 			return;
 		}
 		if (
-			layoutTranslateJob.status === "done" ||
-			layoutTranslateJob.status === "cancelled"
+			layoutTranslateJob.status === "partial" ||
+			(layoutTranslateJob.items.length > 0 &&
+				hasPendingLayoutTranslateItems(layoutTranslateJob.items))
 		) {
-			// Complete/explicitly-cancelled overlays keep the original clear action.
-			if (layoutTranslateJob.items.some((it) => it.translated)) {
-				clearLayoutTranslate();
-				return;
-			}
+			startLayoutTranslate();
+			return;
+		}
+		if (layoutTranslateJob.items.some((item) => item.translated?.trim())) {
+			setHiddenPageIndexes(
+				new Set(layoutTranslateJob.items.map((item) => item.pageIndex)),
+			);
+			return;
 		}
 		startLayoutTranslate();
 	}, [
 		layoutTranslateJob,
+		hiddenPageIndexes,
 		startLayoutTranslate,
 		stopLayoutTranslate,
-		clearLayoutTranslate,
 		cancelWaitingLayout,
 	]);
 
@@ -696,7 +703,7 @@ export function usePdfLayoutTranslate({
 		layoutTranslateAbortRef.current?.abort();
 		layoutTranslateAbortRef.current = null;
 		setSourcePreparing(false);
-		hiddenPageIndexesRef.current.clear();
+		setHiddenPageIndexes(new Set());
 		layoutTranslateWaitTargetRef.current = null;
 		waitingAutoStartedRef.current = false;
 		setLayoutTranslateJob({ status: "idle", items: [] });
@@ -843,16 +850,19 @@ export function usePdfLayoutTranslate({
 	>(new Map());
 	const layoutTranslateItemsByPage = useMemo(() => {
 		const grouped = groupLayoutTranslateItemsByPage(
-			reflowItems,
+			hiddenPageIndexes.size > 0
+				? reflowItems.filter((item) => !hiddenPageIndexes.has(item.pageIndex))
+				: reflowItems,
 			layoutTranslateByPageRef.current,
 		);
 		layoutTranslateByPageRef.current = grouped;
 		return grouped;
-	}, [reflowItems]);
+	}, [reflowItems, hiddenPageIndexes]);
 
 	const layoutTranslatePageStateByPage = useMemo(() => {
 		const states = new Map<number, { active: boolean; running: boolean }>();
 		for (const item of layoutTranslateJob.items) {
+			if (hiddenPageIndexes.has(item.pageIndex)) continue;
 			const state = states.get(item.pageIndex) ?? {
 				active: false,
 				running: false,
@@ -867,7 +877,7 @@ export function usePdfLayoutTranslate({
 			states.set(item.pageIndex, state);
 		}
 		return states;
-	}, [layoutTranslateJob.items]);
+	}, [layoutTranslateJob.items, hiddenPageIndexes]);
 
 	const layoutTranslateRunning = layoutTranslateJob.status === "running";
 	const textSettled = useMemo(
@@ -911,20 +921,27 @@ export function usePdfLayoutTranslate({
 	const layoutTranslateWaiting = layoutTranslateJob.status === "waitingLayout";
 	const layoutTranslateActive =
 		layoutTranslateRunning ||
-		layoutTranslateJob.items.some((it) => it.translated);
+		layoutTranslateJob.items.some(
+			(item) => item.translated && !hiddenPageIndexes.has(item.pageIndex),
+		);
 	const layoutTranslateLabel = layoutTranslateWaiting
 		? t("pdf.layoutTranslate.waiting")
 		: layoutTranslateRunning
 			? t("pdf.layoutTranslate.stop")
-			: layoutTranslateJob.status === "partial"
-				? t("pdf.layoutTranslate.start")
-				: layoutTranslateActive
-					? t("pdf.layoutTranslate.clear")
-					: t("pdf.layoutTranslate.start");
+			: hiddenPageIndexes.size > 0
+				? t("pdf.layoutTranslate.show")
+				: layoutTranslateJob.status === "partial" ||
+						(layoutTranslateJob.items.length > 0 &&
+							hasPendingLayoutTranslateItems(layoutTranslateJob.items))
+					? t("pdf.layoutTranslate.start")
+					: layoutTranslateActive
+						? t("pdf.layoutTranslate.hide")
+						: t("pdf.layoutTranslate.start");
 
 	return {
 		reflowBusy,
 		reflowReady,
+		reflowOutput,
 		exportTranslatedPdf,
 		layoutTranslateItemsByPage,
 		layoutTranslatePageStateByPage,

@@ -2,9 +2,9 @@ import { normalizeQuoteContext } from "./selection-context";
 /**
  * Inline @mention / $skill / /command / selection tokens embedded in composer
  * draft text. Contenteditable renders markers as chips; send path strips
- * mention/skill/selection markers and expands command markers to `/name` for
- * ACP. The raw draft is kept on the user line so the transcript can redraw
- * @ / $ / / chips after send.
+ * mention/skill/selection markers and expands command markers to the command's
+ * advertised prefix (usually `/name`, `$name` for ACP skills). The raw draft is
+ * kept on the user line so the transcript can redraw @ / $ / / chips after send.
  */
 
 import { plazaMentionTitle } from "@/lib/agent/plaza-mention";
@@ -334,14 +334,13 @@ export function replaceSelectionToken(
 /**
  * Draft → send/display body:
  * - mention / skill / selection markers removed (paths, skillIds, selections travel separately)
- * - command markers become `/name` (ACP slash text)
+ * - command markers become the advertised invocation (`/name` or `$name`)
  */
 export function stripInlineTokens(text: string): string {
 	return text
-		.replace(COMMAND_RE, (_m, payload: string) => {
-			const name = decodeCommandTokenPayload(payload).trim();
-			return name ? `/${name}` : "";
-		})
+		.replace(COMMAND_RE, (_m, payload: string) =>
+			commandInvocationLabel(decodeCommandTokenPayload(payload)),
+		)
 		.replace(/\{\{(?:m|s|sel|vis):[^}]+\}\}/g, "")
 		.replace(/\u200B/g, "")
 		.replace(/[ \t]+\n/g, "\n")
@@ -373,6 +372,17 @@ export function displaySkillName(name: string): string {
 		.replace(/^skill\s*:\s*/i, "");
 }
 
+/** Prefix a command token should keep when it is sent to the agent. */
+export function commandPrefix(invocation: string): "/" | "$" {
+	return invocation.trim().startsWith("$") ? "$" : "/";
+}
+
+/** Readable invocation for a command token (`$skill`, `/help`). */
+export function commandInvocationLabel(invocation: string): string {
+	const name = displaySkillName(invocation);
+	return name ? `${commandPrefix(invocation)}${name}` : "";
+}
+
 /** Visible label for an @ chip: plaza title, otherwise the path basename. */
 export function mentionChipLabel(path: string): string {
 	return plazaMentionTitle(path) || basenameOf(path) || path;
@@ -399,8 +409,7 @@ function chipPlainLabel(part: InlineTokenPart): string {
 	if (part.type === "mention") return `@${mentionChipLabel(part.path)}`;
 	if (part.type === "skill") return displaySkillName(part.skillId);
 	if (part.type === "command") {
-		const name = displaySkillName(part.name);
-		return name ? `/${name}` : "";
+		return commandInvocationLabel(part.name);
 	}
 	return "";
 }
@@ -460,8 +469,7 @@ export function replaceTrailingTriggerWithToken(
 	kind: "mention" | "skill" | "command",
 	token: string,
 ): string {
-	const trigger =
-		kind === "mention" ? "@" : kind === "skill" ? String.raw`\$` : "/";
+	const trigger = kind === "mention" ? "@" : "[/$]";
 	const pattern = new RegExp(`(${TRIGGER_BOUNDARY})${trigger}[^\\s]*$`);
 	if (!pattern.test(text)) {
 		const needsSpace = text.length > 0 && !/\s$/.test(text);

@@ -1,6 +1,10 @@
 # Windows ACP 孤儿进程累积
 
-## 当前状态（2026-10-15）
+## 当前状态（2026-11-07）
+
+`964d03434` / `0692a4c28` 曾重新接入本地 Windows Job 管理及其说明；收到 macOS
+兼容性回归反馈后再次撤回，恢复既有 SDK 启动路径。尚未定位 macOS 回归原因，不能据此
+断言是 SDK 上游问题。当前先保持兼容性，Windows 进程树残留仍按下述已知限制跟踪。
 
 为恢复 Windows ACP 启动兼容性，已定向回退 `5f841360` 引入的自定义 Windows
 `windows-spawn` / Job transport，所有平台恢复使用 `agent-client-protocol::AcpAgent`。

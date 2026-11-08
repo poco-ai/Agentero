@@ -9,13 +9,7 @@ import {
 	ScanSearch,
 	Square,
 } from "lucide-react";
-import {
-	motion,
-	useMotionValueEvent,
-	useReducedMotion,
-	useSpring,
-	useTransform,
-} from "motion/react";
+import { motion } from "motion/react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -32,6 +26,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
+import { useTranslateMeter } from "@/components/viewer/pdf/hooks/use-translate-meter";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import { cn } from "@/lib/core/utils";
 
@@ -65,8 +60,6 @@ type PdfToolbarProps = {
 	/** True while the import is running. */
 	importBusy?: boolean;
 };
-
-const TRANSLATE_METER_LINGER_MS = 700;
 
 /** Top-right toolbar: region select, bulk translate. Always visible. */
 export const PdfToolbar = memo(function PdfToolbar({
@@ -177,65 +170,22 @@ export const PdfToolbar = memo(function PdfToolbar({
 		[onToggleLayoutTranslate],
 	);
 
-	const translateBusy =
-		layoutTranslateRunning ||
-		layoutTranslatePreparing ||
-		layoutTranslateWaiting;
-	const [lingerFull, setLingerFull] = useState(false);
-	const wasTranslateBusyRef = useRef(false);
-	const translateComplete = layoutTranslateProgress === 1;
-	useEffect(() => {
-		if (translateBusy) {
-			wasTranslateBusyRef.current = true;
-			setLingerFull(false);
-			return;
-		}
-		if (!translateComplete) {
-			setLingerFull(false);
-			wasTranslateBusyRef.current = false;
-			return;
-		}
-		if (!wasTranslateBusyRef.current) return;
-		wasTranslateBusyRef.current = false;
-		setLingerFull(true);
-		const id = window.setTimeout(
-			() => setLingerFull(false),
-			TRANSLATE_METER_LINGER_MS,
-		);
-		return () => window.clearTimeout(id);
-	}, [translateComplete, translateBusy]);
-
-	const meterOpen = translateBusy || lingerFull;
-	const meterIndeterminate =
-		meterOpen &&
-		!lingerFull &&
-		(layoutTranslateWaiting || layoutTranslateProgress == null);
-	const meterRatio = lingerFull
-		? 1
-		: Math.max(0, Math.min(1, layoutTranslateProgress ?? 0));
-	const reduceMotion = useReducedMotion();
-	const smoothPercent = useSpring(0, { stiffness: 180, damping: 30 });
-	const smoothWidth = useTransform(smoothPercent, (value) => `${value}%`);
-	const [meterPercent, setMeterPercent] = useState(0);
-	useMotionValueEvent(smoothPercent, "change", (value) =>
-		setMeterPercent(Math.round(value)),
-	);
-	useEffect(() => {
-		const target = meterOpen && !meterIndeterminate ? meterRatio * 100 : 0;
-		if (reduceMotion || !meterOpen || meterIndeterminate)
-			smoothPercent.jump(target);
-		else smoothPercent.set(target);
-	}, [meterOpen, meterIndeterminate, meterRatio, reduceMotion, smoothPercent]);
-
-	const meterStage = lingerFull
-		? t("pdf.layoutTranslate.phaseDone")
-		: layoutTranslateWaiting
-			? t("pdf.layoutTranslate.phaseLayout")
-			: layoutTranslatePreparing
-				? t("pdf.layoutTranslate.phaseTypeset")
-				: meterIndeterminate
-					? t("pdf.layoutTranslate.phaseExtract")
-					: t("pdf.layoutTranslate.phaseTranslate");
+	const translateMeter = useTranslateMeter({
+		layoutTranslateRunning,
+		layoutTranslatePreparing,
+		layoutTranslateWaiting,
+		layoutTranslateProgress,
+	});
+	const {
+		busy: translateBusy,
+		open: meterOpen,
+		indeterminate: meterIndeterminate,
+		ratio: meterRatio,
+		percent: meterPercent,
+		stage: meterStage,
+		width: smoothWidth,
+		lingerFull,
+	} = translateMeter;
 	const translateAriaLabel =
 		meterOpen && !meterIndeterminate
 			? `${layoutTranslateLabel} ${t("pdf.layoutTranslate.progress", { percent: meterPercent })}`

@@ -45,7 +45,8 @@
 		"layoutTranslate": {
 			"start": "Full-text translate",
 			"stop": "Stop full-text translate",
-			"clear": "Clear full-text translations",
+			"hide": "Hide translations",
+			"show": "Show translations",
 			"translatePage": "Translate this page",
 			"translatePageShort": "Page",
 			"hidePage": "Hide this page translation",
@@ -107,6 +108,8 @@
 		"newTitle": "New question",
 		"placeholder": "Ask…",
 		"hide": "Hide",
+		"expand": "Expand conversation",
+		"restoreSize": "Restore conversation size",
 		"delete": "Delete",
 		"thinking": "Thinking…",
 		"agentFailed": "Agent failed. Check Agent settings and try again.",

@@ -96,6 +96,7 @@ import { usePdfTranslationSelection } from "@/components/viewer/pdf/hooks/use-pd
 import { usePdfViewerHandle } from "@/components/viewer/pdf/hooks/use-pdf-viewer-handle";
 import { usePdfVisualMarks } from "@/components/viewer/pdf/hooks/use-pdf-visual-marks";
 import { usePdfZoomControls } from "@/components/viewer/pdf/hooks/use-pdf-zoom-controls";
+import { useReflowDisplayDocument } from "@/components/viewer/pdf/hooks/use-reflow-display-document";
 import { useStableDerived } from "@/components/viewer/pdf/hooks/use-stable-derived";
 import {
 	excludeOverlappingPdfTextLinks,
@@ -418,6 +419,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 										docId={docId}
 										baseDocId={baseDocId}
 										sourceBytes={effectiveSourceBytes}
+										pdfCacheBytes={props.sourceBytes ?? null}
 									/>
 								) : (
 									<PdfViewerInner
@@ -425,6 +427,7 @@ export const PdfViewer = memo(function PdfViewer(props: PdfViewerProps) {
 										docId={docId}
 										baseDocId={baseDocId}
 										sourceBytes={effectiveSourceBytes}
+										pdfCacheBytes={props.sourceBytes ?? null}
 										reloadPositionRef={reloadPositionRef}
 									/>
 								)}
@@ -497,6 +500,7 @@ function PdfViewerInner({
 	paperAbsPath = null,
 	paperRelPath = null,
 	vaultPath = null,
+	pdfCacheBytes = null,
 	paperMeta: paperMetaProp = null,
 	isActive = true,
 	isRemotePaper = false,
@@ -1250,6 +1254,7 @@ function PdfViewerInner({
 		handleRenderLayoutThumb,
 		screenPointForRegion,
 		reflowReady,
+		reflowOutput,
 		exportTranslatedPdf,
 		layoutTranslateItemsByPage,
 		layoutTranslatePageStateByPage,
@@ -1270,6 +1275,7 @@ function PdfViewerInner({
 		paperRelPath,
 		paperKey,
 		vaultPath,
+		pdfBytes: pdfCacheBytes ?? sourceBytes,
 		layoutCap,
 		layoutCapRef,
 		docCap,
@@ -1280,6 +1286,12 @@ function PdfViewerInner({
 		isRemotePaper,
 		plainViewer,
 	});
+
+	const reflowDisplayDocumentId = useReflowDisplayDocument(
+		docCap,
+		reflowOutput,
+		docId,
+	);
 
 	usePdfTranslationSelection({
 		enabled: layoutTranslateActive && !translationOnly && !plainViewer,
@@ -1762,8 +1774,8 @@ function PdfViewerInner({
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scrollReady/zoomLevel are intentional re-place triggers
 	useEffect(() => {
 		if (!activeCard && !selectionMenuOpen) return;
-		// Force re-place after zoom / card change even if rounded coords match.
-		if (activeCard) {
+		// Ask stays in place while reading; other cards follow the zoomed anchor.
+		if (activeCard && (activeCard.kind !== "ask" || !cardScreenRef.current)) {
 			cardScreenRef.current = null;
 			placeActiveCard(activeCard);
 		}
@@ -2093,6 +2105,7 @@ function PdfViewerInner({
 				annotationSource={paperRelPath ?? paperAbsPath ?? undefined}
 				docId={docId}
 				pageIndex={pageIndex}
+				reflowDocumentId={reflowDisplayDocumentId}
 				width={rotatedWidth || width}
 				height={rotatedHeight || height}
 				tone={pdfTone}
@@ -2126,6 +2139,7 @@ function PdfViewerInner({
 			bookmarkEditor.draft?.saving,
 			handleBookmarkPage,
 			bookmarkedPages,
+			reflowDisplayDocumentId,
 		],
 	);
 

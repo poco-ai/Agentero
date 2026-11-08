@@ -21,6 +21,11 @@ export function markdownEditorFor(tabId: string | null | undefined) {
 	return tabId ? handles.get(tabId) : undefined;
 }
 
+/** Registered tab ids, in registration order (oldest first). */
+export function markdownEditorIds(): string[] {
+	return [...handles.keys()];
+}
+
 export function flushMarkdownSources() {
 	return Promise.all(
 		Array.from(handles.values())

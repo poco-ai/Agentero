@@ -48,9 +48,11 @@ ACP stdio 传输没有 cwd 字段：`NewSessionRequest.cwd` 只告诉 Agent 会�
    `agentero/agent-cwd` 专用子目录；两处均无法创建则在启动前返回包含失败路径的错误，
    不回落到进程 cwd 或整个临时目录。远端保留自身 Vault 路径；
    local-sim 路径失效时在新建连接前明确报错，而非执行后才出现 shell/ACP 错误。
-3. **Windows 不扩大包装范围**：保留 Pi / Custom 会话的旧包装及所有探针的直启行为。
-   Windows 没有此 macOS TCC 问题，而 ACP SDK 只强杀直接子进程；新增 CMD 层会妨碍原生
-   Agent 的超时清理，也会让 UNC Vault 被 `cd /d` 拒绝。因此不以该修复引入这些新回归。
+3. **Windows 不把包装扩到其余模板**：会话包装停在 Pi / Custom / Zcode，探针保持直启。
+   Zcode 纳入是因为 `server` 模式只认进程 cwd，见
+   [zcode-acp-windows-skills-cwd.md](zcode-acp-windows-skills-cwd.md)。
+   Windows 没有此 macOS TCC 问题，而 ACP SDK 只强杀直接子进程；再给其他模板加 CMD
+   会妨碍原生 Agent 的超时清理，也会让 UNC Vault 被 `cd /d` 拒绝。
 
 ## 4. 验收建议
 
@@ -70,6 +72,6 @@ ACP stdio 传输没有 cwd 字段：`NewSessionRequest.cwd` 只告诉 Agent 会�
 - Vault 本身位于云盘（iCloud / OneDrive / CloudStorage）时，读写 Vault 触发
   `kTCCServiceFileProviderDomain` 是预期行为，不在此修复范围。
 - Dsh 不套外层 shell，服务进程仍由自带 launcher 切到管理目录后启动。
-- Windows 既有 Pi / Custom 包装的 UNC 限制，以及自带 launcher 的进程树清理限制，仍未解决。
+- Windows 上 Pi / Custom / Zcode 包装的 UNC 限制，以及自带 launcher 的进程树清理限制，仍未解决。
   Windows 发布前需检查探针超时后原生 `.exe` 不残留，并单独记录 shim / launcher 的后代进程；
   不能以 Unix 的进程组测试代替 Windows 实机验收。

@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Info, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -466,6 +466,71 @@ export function TranslatePane({
 					</Select>
 				</SettingsRow>
 			</SettingsGroup>
+
+			<div className="mb-5">
+				<div className="mb-2 flex items-center justify-between gap-2 px-0.5">
+					<h3 className="flex items-center gap-1 font-medium text-sm">
+						{t("translate.cache.section")}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<button
+									type="button"
+									aria-label={t("translate.cache.tip")}
+									className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+								>
+									<Info className="size-3.5" aria-hidden />
+								</button>
+							</TooltipTrigger>
+							<TooltipContent className="max-w-64">
+								{t("translate.cache.tip")}
+							</TooltipContent>
+						</Tooltip>
+					</h3>
+					<Button
+						type="button"
+						variant="outline"
+						size="xs"
+						disabled={
+							tr.cacheReflowIr === DEFAULT_TRANSLATE_SETTINGS.cacheReflowIr &&
+							tr.cacheReflowFinal ===
+								DEFAULT_TRANSLATE_SETTINGS.cacheReflowFinal
+						}
+						onClick={() =>
+							patchTranslate({
+								cacheReflowIr: DEFAULT_TRANSLATE_SETTINGS.cacheReflowIr,
+								cacheReflowFinal: DEFAULT_TRANSLATE_SETTINGS.cacheReflowFinal,
+							})
+						}
+					>
+						<RotateCcw aria-hidden data-icon="inline-start" />
+						{t("translate.cache.reset")}
+					</Button>
+				</div>
+				<SettingsGroup>
+					<SettingsRow
+						label={t("translate.cache.ir.label")}
+						description={t("translate.cache.ir.description")}
+						htmlFor="translate-cache-ir"
+					>
+						<Switch
+							id="translate-cache-ir"
+							checked={tr.cacheReflowIr}
+							onCheckedChange={(v) => patchTranslate({ cacheReflowIr: v })}
+						/>
+					</SettingsRow>
+					<SettingsRow
+						label={t("translate.cache.final.label")}
+						description={t("translate.cache.final.description")}
+						htmlFor="translate-cache-final"
+					>
+						<Switch
+							id="translate-cache-final"
+							checked={tr.cacheReflowFinal}
+							onCheckedChange={(v) => patchTranslate({ cacheReflowFinal: v })}
+						/>
+					</SettingsRow>
+				</SettingsGroup>
+			</div>
 
 			<div className="mb-5">
 				<h3 className="mb-2 px-0.5 font-medium text-sm">

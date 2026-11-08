@@ -64,7 +64,10 @@ import {
 	toggleTabHtmlMode,
 	updateTab,
 } from "@/lib/workspace/store";
-import { savePersistedTabs } from "@/lib/workspace/tabs";
+import {
+	applyMarkdownConflictChoice,
+	savePersistedTabs,
+} from "@/lib/workspace/tabs";
 import { viewerModeSpec } from "@/lib/workspace/viewer";
 
 /**
@@ -325,6 +328,15 @@ export function WorkspaceHost() {
 			notesPlaceholder: t("editor.notesPlaceholder"),
 			markdownPlaceholder: t("editor.markdownPlaceholder"),
 			onPersistFile: persistFile,
+			onResolveMarkdownConflict: (
+				tabId: string,
+				action: "keep" | "load" | "hold",
+				disk: string,
+			) => {
+				setTabs((prev) =>
+					applyMarkdownConflictChoice(prev, tabId, action, disk),
+				);
+			},
 			onAssetsChanged: handleAssetsChanged,
 			onTabPatch: updateTab,
 			onRenameHeading:

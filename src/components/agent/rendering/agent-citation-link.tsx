@@ -103,7 +103,7 @@ export function AgentCitationLink({
 			variant="secondary"
 			size="xs"
 			className={cn(
-				"inline-flex h-auto max-w-[12rem] rounded-full px-2 py-0.5 align-baseline text-xs text-muted-foreground",
+				"inline-flex h-auto max-w-[12rem] rounded-full px-2 py-0.5 align-baseline text-xs",
 				incomplete && "cursor-default opacity-70",
 			)}
 		>

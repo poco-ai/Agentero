@@ -23,6 +23,7 @@ import { createPortal } from "react-dom";
 import { PdfCitationPreview } from "@/components/viewer/pdf/cards/citation-preview";
 import { PdfCrossrefPreview } from "@/components/viewer/pdf/cards/crossref-preview";
 import { PdfLinkUrlTip } from "@/components/viewer/pdf/cards/link-url-tip";
+import { PdfTranslateProgressChip } from "@/components/viewer/pdf/chrome/pdf-translate-progress";
 import { EMPTY_LAYOUT_REGIONS_BY_PAGE } from "@/components/viewer/pdf/constants";
 import { usePdfEngineContext } from "@/components/viewer/pdf/engine-provider";
 import { usePdfCitations } from "@/components/viewer/pdf/hooks/use-pdf-citations";
@@ -34,6 +35,7 @@ import { usePdfPaperTone } from "@/components/viewer/pdf/hooks/use-pdf-paper-ton
 import { usePdfReadingMode } from "@/components/viewer/pdf/hooks/use-pdf-reading-mode";
 import { usePdfScrollSync } from "@/components/viewer/pdf/hooks/use-pdf-scroll-sync";
 import { usePdfZoomControls } from "@/components/viewer/pdf/hooks/use-pdf-zoom-controls";
+import { useReflowDisplayDocument } from "@/components/viewer/pdf/hooks/use-reflow-display-document";
 import { getLinkDestination } from "@/components/viewer/pdf/layers/citation-links";
 import {
 	type PdfPageHandlers,
@@ -133,6 +135,7 @@ export function PdfTranslationViewerInner({
 	paperRelPath = null,
 	vaultPath = null,
 	sourceBytes = null,
+	pdfCacheBytes = null,
 	isRemotePaper = false,
 	importIdentifier,
 	isActive = true,
@@ -166,6 +169,10 @@ export function PdfTranslationViewerInner({
 		layoutTranslatePageStateByPage,
 		layoutTranslateActive,
 		layoutTranslateRunning,
+		layoutTranslatePreparing,
+		layoutTranslateWaiting,
+		layoutTranslateProgress,
+		reflowOutput,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
 	} = usePdfLayoutTranslate({
@@ -181,7 +188,14 @@ export function PdfTranslationViewerInner({
 		paperRelPath,
 		paperKey,
 		vaultPath,
+		pdfBytes: pdfCacheBytes ?? sourceBytes,
 	});
+
+	const reflowDisplayDocumentId = useReflowDisplayDocument(
+		docCap,
+		reflowOutput,
+		docId,
+	);
 
 	// `openTranslationTab` seeds a snapshot at open time; if layout analysis was
 	// still running then, mirror the source result when it lands so the
@@ -464,6 +478,7 @@ export function PdfTranslationViewerInner({
 			<PdfPageLayers
 				docId={docId}
 				pageIndex={pageIndex}
+				reflowDocumentId={reflowDisplayDocumentId}
 				width={rotatedWidth || width}
 				height={rotatedHeight || height}
 				tone={pdfTone}
@@ -475,7 +490,15 @@ export function PdfTranslationViewerInner({
 				handlers={pageHandlers}
 			/>
 		),
-		[docId, pdfTone, zoomRef, pageMarks, pageLayout, pageHandlers],
+		[
+			docId,
+			pdfTone,
+			zoomRef,
+			pageMarks,
+			pageLayout,
+			pageHandlers,
+			reflowDisplayDocumentId,
+		],
 	);
 
 	return (
@@ -506,6 +529,13 @@ export function PdfTranslationViewerInner({
 					</GlobalPointerProvider>
 				</ZoomGestureWrapper>
 			</DockviewViewport>
+			<PdfTranslateProgressChip
+				layoutTranslateRunning={layoutTranslateRunning}
+				layoutTranslatePreparing={layoutTranslatePreparing}
+				layoutTranslateWaiting={layoutTranslateWaiting}
+				layoutTranslateProgress={layoutTranslateProgress}
+				onStop={toggleLayoutTranslate}
+			/>
 			{typeof document !== "undefined"
 				? createPortal(
 						<>

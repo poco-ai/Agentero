@@ -55,9 +55,14 @@ describe("composer inline tokens", () => {
 		);
 	});
 
-	it("expands command markers to /name on send", () => {
-		const text = `run ${encodeCommandToken("summarize")} now`;
-		expect(stripInlineTokens(text)).toBe("run /summarize now");
+	it("expands command markers to the advertised prefix", () => {
+		expect(
+			stripInlineTokens(`run ${encodeCommandToken("summarize")} now`),
+		).toBe("run /summarize now");
+		expect(
+			stripInlineTokens(`run ${encodeCommandToken("$deep-research")} now`),
+		).toBe("run $deep-research now");
+		expect(stripInlineTokens(encodeCommandToken("/help"))).toBe("/help");
 	});
 
 	it("encodes odd path characters", () => {
@@ -93,6 +98,26 @@ describe("composer inline tokens", () => {
 		);
 		expect(next).toBe(`do ${encodeCommandToken("summarize")} `);
 		expect(stripInlineTokens(next)).toBe("do /summarize");
+	});
+
+	it("replaces a trailing $ trigger with a command token", () => {
+		const next = replaceTrailingTriggerWithToken(
+			"do $deep",
+			"command",
+			encodeCommandToken("$deep-research"),
+		);
+		expect(next).toBe(`do ${encodeCommandToken("$deep-research")} `);
+		expect(stripInlineTokens(next)).toBe("do $deep-research");
+	});
+
+	it("replaces a trailing / trigger with a local skill token", () => {
+		const next = replaceTrailingTriggerWithToken(
+			"run /paper",
+			"skill",
+			encodeSkillToken("paper-reader"),
+		);
+		expect(next).toBe(`run ${encodeSkillToken("paper-reader")} `);
+		expect(stripInlineTokens(next)).toBe("run");
 	});
 
 	it("appends missing tokens for legacy drafts", () => {

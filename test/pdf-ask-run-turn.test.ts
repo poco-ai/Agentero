@@ -156,11 +156,50 @@ describe("runAskTurn", () => {
 			sources: [{ uri: "https://a" }],
 		});
 
-		expect(c.persisted).toHaveLength(2);
+		expect(c.persisted).toHaveLength(3);
 		expect(c.persisted[0]?.messages).toHaveLength(1);
-		expect(c.persisted[1]?.messages[1]?.content).toBe("Hello!");
+		expect(c.persisted[1]?.messages[1]).toMatchObject({
+			role: "assistant",
+			content: "",
+			agentSessionId: "sess-1",
+		});
+		expect(c.persisted[2]?.messages[1]?.content).toBe("Hello!");
 		expect(errors).toEqual([null]);
 		expect(streaming).toEqual([true, false]);
+	});
+
+	it("keeps receiving a reply after a marks refresh reloads the saved thread", async () => {
+		const c = container();
+		const { options } = runOptions(c);
+		const thread = fixture();
+		runOnce.mockResolvedValue({
+			sessionId: "sess-refresh",
+			messageId: "m-refresh",
+			agentId: "agent-1",
+		});
+		attachAgentRun.mockImplementation(async (raw: AttachOptions) => {
+			raw.onArmed?.("sess-refresh");
+			// subscribeLocalMarkWrites refreshes marks/ after a write. Replace
+			// the live state with that disk snapshot before model output.
+			const saved = c.persisted.at(-1);
+			expect(saved).toBeDefined();
+			c.upsertThread(structuredClone(saved as PdfAskThread));
+			raw.onStream({ chunk: "Visible" });
+			expect(c.threads.get(thread.id)?.messages.at(-1)?.content).toBe(
+				"Visible",
+			);
+			raw.onCompleted({ content: "Visible answer", sources: [] });
+			raw.onSettled?.();
+		});
+
+		await runAskTurn({ thread, question: "Explain the selection", ...options });
+
+		expect(c.threads.get(thread.id)?.messages).toHaveLength(2);
+		expect(c.persisted.at(-1)?.messages.at(-1)).toMatchObject({
+			role: "assistant",
+			content: "Visible answer",
+			agentSessionId: "sess-refresh",
+		});
 	});
 
 	it("removes the assistant placeholder on failure and persists the filtered thread", async () => {

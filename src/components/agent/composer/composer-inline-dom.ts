@@ -1,5 +1,7 @@
 import type { TFunction } from "i18next";
 import {
+	commandInvocationLabel,
+	commandPrefix,
 	displaySkillName,
 	encodeCommandToken,
 	encodeMentionToken,
@@ -692,8 +694,8 @@ export function renderChip(
 		chip.setAttribute(CHIP_ATTR, "command");
 		chip.dataset.commandName = part.name;
 		const commandLabel = cleanSkillDisplayName(part.name);
-		appendPrefixLabel(chip, "/", commandLabel);
-		chip.setAttribute("aria-label", `/${commandLabel}`);
+		appendPrefixLabel(chip, commandPrefix(part.name), commandLabel);
+		chip.setAttribute("aria-label", commandInvocationLabel(part.name));
 		chip.setAttribute(TOKEN_ATTR, encodeCommandToken(part.name));
 	} else if (part.type === "selection") {
 		chip.setAttribute(CHIP_ATTR, "selection");

@@ -82,7 +82,7 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 | `paper_set_read` | 设置 catalog `isRead`（默认 true） |
 | `paper_set_meta` | 更新论文元数据（`publication`、`title`、`date`、`doi`、`arxivId`、`authors`），同步更新 `catalog.sqlite` 与 `metadata.json` |
 | `import_id` | 魔棒入库（arxiv / DOI / URL）。`parent?` 默认当前 Library 作用域或 `papers` |
-| `discover_arxiv` | 查询式发现：`keywords[]?` / `categories[]?` / `since?` / `until?` / `top?` / `maxCandidates?`，确定性词法排序，返回短名单（含 arXiv id，供后续 `import_id`）。`dedup?`（默认 true）剔除已在库的论文；无 Vault 时也可用（跳过去重）。不写 Vault |
+| `discover_arxiv` | 查询式发现：`keywords[]?` / `keywordMatch?`（`all` 默认 AND / `any` OR）/ `categories[]?` / `since?` / `until?` / `top?` / `maxCandidates?`，确定性词法排序，返回短名单（含 arXiv id，供后续 `import_id`）。`dedup?`（默认 true）剔除已在库的论文；无 Vault 时也可用（跳过去重）。不写 Vault |
 | `paper_notes_get` | 读 `{paper}/NOTES.md`（文件不存在则空字符串） |
 | `paper_notes_write` | 写 `NOTES.md`。`mode`: `replace`（默认）或 `append` |
 | `paper_tag_add` | 加标签；可用 `topic:blue` 色后缀 |

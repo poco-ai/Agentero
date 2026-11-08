@@ -230,7 +230,12 @@ const SEED_SPECS: Record<SeedKind, SeedSpec> = {
 	notes: {
 		owns: (tab, _norm, absPath) =>
 			tab.id === tabIdForPath(absPath) ||
-			tab.id === tabIdForPath(notesPathForPaper(absPath)),
+			tab.id === tabIdForPath(notesPathForPaper(absPath)) ||
+			Boolean(
+				tab.notesPath &&
+					normalizeTabPath(tab.notesPath) ===
+						normalizeTabPath(notesPathForPaper(absPath)),
+			),
 		seed: "notesSeed",
 		dirty: "notesDirty",
 		key: "notesKey",
@@ -294,6 +299,7 @@ export function seedTabs(
 		const next = { ...tab };
 		next[spec.seed] = content;
 		next[spec.dirty] = false;
+		if (kind === "notes" || kind === "markdown") next.markdownConflict = false;
 		if (bump) next[spec.key] = tab[spec.key] + 1;
 		return next;
 	});
@@ -324,37 +330,71 @@ export function refreshPdfTab(
 	});
 }
 
-/** Keep the seed of the tab(s) owning `path` in sync after a disk write. */
+/**
+ * Apply the banner choice for one panel. Keeping the draft only lifts the
+ * hold; the editor then writes it on purpose. Loading replaces just this pane
+ * with the bytes read at click time.
+ */
+export function applyMarkdownConflictChoice(
+	prev: DocTab[],
+	tabId: string,
+	action: "keep" | "load" | "hold",
+	disk: string,
+): DocTab[] {
+	let changed = false;
+	const next = prev.map((tab) => {
+		if (tab.id !== tabId) return tab;
+		if (action === "hold") {
+			if (tab.markdownConflict) return tab;
+			changed = true;
+			return { ...tab, markdownConflict: true };
+		}
+		if (action === "keep") {
+			if (!tab.markdownConflict) return tab;
+			changed = true;
+			return { ...tab, markdownConflict: false };
+		}
+		const notes = tabIsPaperNotes(tab);
+		const seeded = seedTabs(
+			[tab],
+			notes && tab.notesPath
+				? tab.notesPath.replace(/[\\/]NOTES\.md$/i, "")
+				: tab.path,
+			disk,
+			notes ? "notes" : "markdown",
+			true,
+		);
+		const loaded = seeded[0] ?? tab;
+		if (loaded !== tab) changed = true;
+		return loaded;
+	});
+	return changed ? next : prev;
+}
+
+/** Advance the writer's seed, reload clean siblings and retain conflicted drafts. */
 export function syncTabSeedsForPath(
 	prev: DocTab[],
 	path: string,
 	content: string,
+	writerId: string,
 ): DocTab[] {
-	const key = path.replace(/\\/g, "/").toLowerCase();
-	const pathId = tabIdForPath(path);
+	const norm = normalizeTabPath(path);
 	return prev.map((tab) => {
-		const notesKey = tab.notesPath?.replace(/\\/g, "/").toLowerCase();
-		// PERF: an unchanged seed keeps the tab identity stable — a fresh
-		// object per autosave would re-render the whole memoized viewer tree.
-		if (notesKey === key) {
-			if (tab.notesSeed === content) return tab;
-			return { ...tab, notesSeed: content };
+		const notes = Boolean(
+			tab.notesPath && normalizeTabPath(tab.notesPath) === norm,
+		);
+		if (!notes && normalizeTabPath(tab.path) !== norm) return tab;
+		const seed = notes ? "notesSeed" : "markdownSeed";
+		const dirty = notes ? tab.notesDirty : tab.markdownDirty;
+		const key = notes ? "notesKey" : "seedKey";
+		if (tab.mode === "markdown" && tab.id !== writerId) {
+			if (tab.markdownConflict) return tab;
+			if (tab[seed] === content) return tab;
+			if (dirty) return { ...tab, markdownConflict: true };
+			return { ...tab, [seed]: content, [key]: tab[key] + 1 };
 		}
-		if (
-			tab.id === pathId ||
-			normalizeTabPath(tab.path) === normalizeTabPath(path)
-		) {
-			const isNotes = Boolean(
-				tab.notesPath &&
-					normalizeTabPath(tab.path) === normalizeTabPath(tab.notesPath),
-			);
-			if (isNotes || notesKey === key) {
-				if (tab.notesSeed === content) return tab;
-				return { ...tab, notesSeed: content };
-			}
-			if (tab.markdownSeed === content) return tab;
-			return { ...tab, markdownSeed: content };
-		}
-		return tab;
+		// The writer's live state and dirty flag remain editor-owned. Paper body
+		// tabs also keep the latest NOTES seed for a later companion open.
+		return tab[seed] === content ? tab : { ...tab, [seed]: content };
 	});
 }

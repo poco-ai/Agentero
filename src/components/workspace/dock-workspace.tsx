@@ -616,6 +616,10 @@ export const DockWorkspace = memo(
 					const nextIdx = (base + delta + panels.length) % panels.length;
 					panels[nextIdx]?.api.setActive();
 				},
+				visiblePanelIds() {
+					const api = apiRef.current;
+					return api ? visiblePanelIds(api) : [];
+				},
 				activatePanel(panelId, options) {
 					const api = apiRef.current;
 					const panel = api?.getPanel(panelId);

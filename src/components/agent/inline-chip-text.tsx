@@ -5,6 +5,8 @@
 import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import {
+	commandInvocationLabel,
+	commandPrefix,
 	displaySkillName,
 	mentionChipLabel,
 	parseInlineTokenParts,
@@ -105,8 +107,12 @@ export function InlineChipText({
 				<ChipShell
 					key={key}
 					label={label}
-					title={`/${label}`}
-					prefix={<span className="font-mono text-muted-foreground">/</span>}
+					title={commandInvocationLabel(part.name)}
+					prefix={
+						<span className="font-mono text-muted-foreground">
+							{commandPrefix(part.name)}
+						</span>
+					}
 				/>,
 			);
 		}

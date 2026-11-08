@@ -13,7 +13,11 @@ import { visiblePageBox } from "../page-box";
 import type { ReflowFontBytes } from "./fonts";
 import { layoutReflowDocument, type ReflowFonts } from "./layout";
 import { relocateReflowLinks } from "./links";
-import type { PageLayout, ReflowDocument } from "./types";
+import {
+	type PageLayout,
+	REFLOW_IR_SCHEMA_VERSION,
+	type ReflowDocument,
+} from "./types";
 
 /**
  * pdf-lib re-parses font bytes on every `embedFont` call, and page-level
@@ -293,7 +297,7 @@ export async function buildReflowPage(
 			engine,
 			single,
 			{
-				version: 1,
+				version: REFLOW_IR_SCHEMA_VERSION,
 				pages: [
 					{
 						...page,

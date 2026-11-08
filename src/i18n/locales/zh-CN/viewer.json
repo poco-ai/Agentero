@@ -45,7 +45,8 @@
 		"layoutTranslate": {
 			"start": "全文翻译",
 			"stop": "停止全文翻译",
-			"clear": "清除全文译文",
+			"hide": "隐藏译文",
+			"show": "查看译文",
 			"translatePage": "翻译本页",
 			"translatePageShort": "翻译页面",
 			"hidePage": "隐藏本页译文",
@@ -107,6 +108,8 @@
 		"newTitle": "新提问",
 		"placeholder": "提问…",
 		"hide": "隐藏",
+		"expand": "放大对话",
+		"restoreSize": "还原对话大小",
 		"delete": "删除",
 		"thinking": "思考中…",
 		"agentFailed": "Agent 调用失败。请检查 Agent 设置后重试。",

@@ -1,15 +1,18 @@
-import { Download, LoaderCircle } from "lucide-react";
+import { Download, ExternalLink, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { notifyError } from "@/lib/core/notify";
+import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
 import { warnIfNoProxyForDownload } from "@/lib/settings/proxy-guard";
 import {
+	getUpdateReleaseUrl,
 	getUpdateSnapshot,
 	installAvailableUpdate,
 	subscribeUpdate,
@@ -83,25 +86,46 @@ export function UpdateIndicator() {
 	};
 
 	return (
-		<Tooltip>
-			<TooltipTrigger asChild>
-				<button
-					type="button"
-					aria-label={busy ? tooltip : t("about.update.downloadInstall")}
-					className={cn(
-						"inline-flex h-5 items-center gap-1 rounded-4xl border px-2 text-xs font-medium whitespace-nowrap transition-colors",
-						"[&_svg]:pointer-events-none [&_svg]:size-3",
-						busy
-							? "border-border bg-muted/50 text-muted-foreground"
-							: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400",
-					)}
-					onClick={onInstall}
-				>
-					{busy ? <LoaderCircle className="animate-spin" /> : <Download />}
-					{tagText}
-				</button>
-			</TooltipTrigger>
-			<TooltipContent side="bottom">{tooltip}</TooltipContent>
-		</Tooltip>
+		<div className="flex items-center gap-1">
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<button
+						type="button"
+						aria-label={busy ? tooltip : t("about.update.downloadInstall")}
+						className={cn(
+							"inline-flex h-5 items-center gap-1 rounded-4xl border px-2 text-xs font-medium whitespace-nowrap transition-colors",
+							"[&_svg]:pointer-events-none [&_svg]:size-3",
+							busy
+								? "border-border bg-muted/50 text-muted-foreground"
+								: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400",
+						)}
+						onClick={onInstall}
+					>
+						{busy ? <LoaderCircle className="animate-spin" /> : <Download />}
+						{tagText}
+					</button>
+				</TooltipTrigger>
+				<TooltipContent side="bottom">{tooltip}</TooltipContent>
+			</Tooltip>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Button variant="ghost" size="icon-xs" asChild>
+						<a
+							href={getUpdateReleaseUrl(update.availableVersion)}
+							aria-label={t("about.update.releaseNotes")}
+							onClick={(event) => {
+								event.preventDefault();
+								openExternalUrl(event.currentTarget.href);
+							}}
+						>
+							<ExternalLink aria-hidden />
+						</a>
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent side="bottom">
+					{t("about.update.releaseNotes")}
+				</TooltipContent>
+			</Tooltip>
+		</div>
 	);
 }

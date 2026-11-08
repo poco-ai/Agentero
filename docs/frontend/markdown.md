@@ -19,7 +19,7 @@ Plate WYSIWYG；用于普通笔记与论文 `NOTES.md`。磁盘上始终是标�
 
 - 自动保存；可选顶部格式工具栏（`showEditorToolbar`）。论文 `NOTES.md` 工具栏右侧多一个「笔记」按钮（Cool Papers 图标 + 文案；悬停显示「获取 Cool Paper 笔记」），把 papers.cool 的 Kimi 解析追加进当前笔记（FAQ 为 `## Qn`，答案内原有 `###` 小节嵌在其下；去掉末尾「想要进一步了解论文」跳转 Kimi 网页的 CTA）。从广场 venue 入库的论文优先用已保存的 Cool Papers id / `source_url`（如 `38818@AAAI`），不再只靠标题精确搜索。
 - **文档目录**：至少存在三个标题时，才在编辑器右侧四分之一高度显示层级标记，一级标题标记最长，后续层级依次缩短；收起时保持紧凑，悬停或键盘聚焦后以动效展开标题；展开后标题按层级缩进、在目录块内左对齐，depth marker 始终贴住同一右侧边缘，展开/收起与 hover 都不会让标记横向位移；滚动时以中性色高亮视口对应的标题，点击标题会在当前 Dockview 文档面板内平滑滚动并高亮目标。面板宽度小于 18rem 时隐藏目录条，正文同时收回为目录预留的右侧留白。
-- **正文最大宽度**：Appearance → Markdown editor 的 `markdownMaxWidth`。`0`（默认）为面板全宽；可选 640 / 720 / 800 / 960 / 1120 CSS px，编辑列 `mx-auto` 居中。数值是 CSS px，不乘 `uiScale`。导出 PDF / PNG 仍用导出面自己的页边距。
+- **正文最大宽度**：Appearance → Markdown editor 的 `markdownMaxWidth`。`0`（默认）为面板全宽；可选 640 / 720 / 800 / 960 / 1120 CSS px，编辑列 `mx-auto` 居中。数值是 CSS px，不乘 `uiScale`。源码视图同样受该宽度限制，行号列一起收进居中列。导出 PDF / PNG 仍用导出面自己的页边距。
 - **状态栏**：编辑器底部单行显示反向链接（悬停查看列表）、词数、字符数；词数与字符数把 `$…$` / `$$…$$` 公式源码一并计入（公式节点是 void，TeX 存在 `texExpression`，只走文本叶子会漏掉整篇公式），因此数学笔记的统计与磁盘 Markdown 基本一致；按面板宽度逐级降级（小于 18rem 隐藏反向链接，小于 11rem 再隐藏词数，字符数始终保留），避免窄面板下换行溢出。
 - **窄面板标题**：一至三级标题字号随面板宽度分两档递减（小于 24rem、小于 18rem），避免窄面板下单个标题占满整屏并逐字换行。
 - **标题上边距**：GitHub 风格固定阶梯，H1–H3 为 `mt-6`、H4–H6 为 `mt-4`，不随标题字号放大；文档第一个块不再叠加段前间距，笔记以 `# 标题` 开头时只保留编辑器 `pt-4`。
@@ -44,15 +44,15 @@ Plate WYSIWYG；用于普通笔记与论文 `NOTES.md`。磁盘上始终是标�
 - **中文双链输入**：连续输入 `【【` 或 `［［` 自动转为 `[[`，沿用双链候选（`!【【` 同样支持嵌入；`！【【` / `！［［` 会连同全角感叹号一起转为 `![[`）；单个括号保留原样。代码、公式区域不转换；输入法组词完成后再转换，保存仍使用标准双链语法。
 - **导出 PDF / PNG / Markdown**（桌面端）：工具栏分享按钮或右键「导出笔记…」。Markdown 格式直接把当前序列化内容（含未保存改动与 frontmatter）另存为独立 `.md` 文件。PDF / PNG 离屏只读渲染当前序列化内容；页面背景贴边；正文内边距对齐编辑器 `default`（`px-16 pt-4`，底边 `pb-10`）。默认完整展开 `![[…]]` 嵌入，就绪后用 `html-to-image` 截视觉层。**PDF**（`pdf-lib`）在位图上叠 **不可见可选中文字层**（DOM 测量 + Host `export_system_cjk_font`）与 **http(s)/mailto 链接注解**，再按 A4 分页；**PNG** 仍为纯位图。可选论文页眉、每页水印（logo + `muted-foreground`）。完整 PDF 附件嵌入为路径占位。导出默认带水印，可在对话框内临时取消。
 - **外部改盘**：无未存改动则重载；有未存则 toast，不自动重载。同一 `NOTES.md` 的论文 PDF 标签没有未存标记，不能因此把笔记编辑器打回磁盘。本次刚写入的正文，以及与种子相同的内容，都不当成外部修改。主窗与文档弹出窗（「移动至新窗口」）各自监听本窗 Vault watcher，规则相同。
-- **保存冲突**：写盘前比对上次落盘内容；磁盘已被外部改则中止并警告。本窗口刚写过的同一正文不算外部修改（双链索引还在解析 PDF 锚点时，编辑器快照可能尚未跟上）。
+- **保存冲突**：写盘前比对上次落盘内容；磁盘已被外部改则中止并警告。自身写入按面板区分：同一编辑器的后续保存可在双链索引结束前继续排队，同路径的其他 Markdown / `NOTES.md` 面板不能把它当成自己的写入。保存成功后，没有未保存改动的兄弟面板按块复用就地重载（不变块不动，无整篇重挂闪烁）；已有草稿的面板保留草稿和原基线，立刻标成冲突。冲突期间自动保存、手动保存和卸载 flush 都不写入。编辑器横幅可选「保留草稿」（用草稿覆盖磁盘上的新版本）或「载入磁盘新版」（点击时重新读盘，只重载这一面板）。同时弹出的 toast 只保留「载入磁盘版」一个动作，和横幅走同一条载入路径，避免出现两个行为不一致的「保留草稿」。渲染态和源码态共用这道横幅，不自动合并文本。外部改盘重载笔记时，分屏出来的 `NOTES.md` 面板同样算这篇笔记的所有者。
 
 ## Markdown 源码视图
 
-在可编辑的笔记面板中，点击工具栏的源码图标或按 `⌘/`（Windows/Linux：`Ctrl+/`）切换，也可从命令面板运行「切换 Markdown 源码」。快捷键可在「设置 → 快捷键 → 编辑器」修改。每个分屏独立；关闭再打开笔记时默认显示渲染视图。
+在可编辑的笔记面板中，点击工具栏的源码图标或按 `⌘/`（Windows/Linux：`Ctrl+/`）切换，也可从命令面板运行「切换 Markdown 源码」。快捷键可在「设置 → 快捷键 → 编辑器」修改。每个分屏独立；关闭再打开笔记时默认显示渲染视图。从 NOTES 预览点链接跳到 PDF 后，NOTES 仍是其分栏的激活 tab，焦点留在 PDF 侧时 `⌘/` 也会切换该笔记的源码/渲染视图。
 
-源码使用 CodeMirror 的 Markdown/GFM 与 YAML 高亮，沿用正文的字体、字号、行高和宽度。当前行从行号到正文连续高亮；展开和折叠共用与行号居中的箭头，只改变朝向。表格区分表头、单元格和分隔线，公式区分命令、数字和运算符。已标注 JavaScript、TypeScript、Python、JSON、YAML、HTML、CSS、Shell 或 LaTeX 的围栏按相应语言高亮。源码内按 `⌘F` / `Ctrl+F` 可查找、正则查找、逐个替换或全部替换；渲染视图仍用原查找条。源码与渲染分别撤销，切换时尽量保留光标和视口所在块。
+源码使用 CodeMirror 的 Markdown/GFM 与 YAML 高亮，沿用正文的字体、字号和行高；正文宽度同样受 `markdownMaxWidth` 限制，限制加在整个源码视面上，行号列随居中列一起收进，不再贴面板左缘。行号使用等宽字体（`font-mono`），字号为正文的 0.8 倍。源码模式保留格式工具栏（标题、引用、加粗、斜体、下划线、删除线、行内代码、高亮、列表、图片、导出），按钮直接编辑 Markdown 源文本；`⌘B` / `⌘I` / `⌘U` / `⇧⌘X` 分别切换加粗、斜体、下划线和删除线。当前行从行号到正文连续高亮；展开和折叠共用与行号居中的箭头，只改变朝向。表格区分表头、单元格和分隔线，公式区分命令、数字和运算符。已标注 JavaScript、TypeScript、Python、JSON、YAML、HTML、CSS、Shell 或 LaTeX 的围栏按相应语言高亮。源码内按 `⌘F` / `Ctrl+F` 可查找、正则查找、逐个替换或全部替换；渲染视图仍用原查找条。源码与渲染分别撤销；切换时把光标映射到对应的字符位置：渲染态读取当前块的行内叶子及其在块纯文本中的偏移，源码态把同一块的 Markdown 切片投影成同一段可见文本（跳过列表标记、引用符、强调符号、链接目标、图片与脚注编号等），两段文本完全一致时才按文本偏移换算行号与列。支持段落、标题、GFM 列表、引用、围栏代码、脚注定义，以及行内强调、链接、双链、转义和实体；表格等无法投影的块退回块首。屏幕高度跟随光标所在行而不是块上边缘；光标已滚出视口则改用视口顶部的块，避免把视图夹到文首或文末。文本未变时复用 CodeMirror 已有状态和测量结果，切换后按光标实际绘制位置校正（最多重试四帧，用户接管滚动即停止），靠近文首或文末时按可滚动范围夹取。切回渲染后，光标点同时写入 Slate selection 和对应的 DOM Range：Plate 的选区同步以 DOM 为准，而 `tf.select` 在目标点已被选中时不会再写 DOM，焦点操作留下的文首光标随后会覆盖 Slate selection，反复切换时表现为跳回顶部。
 
-源码编辑直接保存原文（包括空白与原有换行）；新增换行沿用文档首个换行样式。自动保存和 `⌘S` / `Ctrl+S` 复用同一套保存冲突检查。外部改盘时，无未保存改动则就地刷新源码；有未保存改动则提示，保留编辑中的文本。关闭标签或窗口前先尝试保存；发生冲突时保留面板以便处理。
+源码编辑直接保存原文（包括空白与原有换行）；新增换行沿用文档首个换行样式。自动保存和 `⌘S` / `Ctrl+S` 复用同一套保存冲突检查，包括同一窗口另一个分屏先保存时的停写与横幅。外部改盘时，无未保存改动则就地刷新源码；有未保存改动则提示，保留编辑中的文本。关闭标签或窗口前先尝试保存；发生冲突时保留面板以便处理。
 
 切回渲染时，源码没变就复用原有 Plate 文档；有改动时全文解析一次，保留解析结果中相同的首尾块，只替换中间的变更范围。遇到跨块图片合并等需要重新规范化的边界，使用完整替换。解析失败时保留源码。源码态暂停图片引用回收，恢复渲染后重新统计引用。
 
@@ -95,7 +95,7 @@ Plate WYSIWYG；用于普通笔记与论文 `NOTES.md`。磁盘上始终是标�
 - **~~`@platejs/toc` 每 scroll 事件重建 IntersectionObserver~~**：已修复（`patches/@platejs__toc@53.0.0.patch`）。原实现里 scroll 监听每事件 `setStatus(Date.now())`，observer effect 依赖它，于是每个 scroll 事件都 disconnect + 重建 IO（每个标题一次 `NodeApi.get` + `toDOMNode` + `observe`）并全量重渲染 TOC（约 2–5ms/事件，与滚动距离无关）。现在 observer 长生命周期保留，滚动只按 rAF 合并做一次 diff 重挂（仅重新 observe DOM 节点真的换过的标题），也不再触发 React 状态更新。见 [bug_fix/toc-scroll-observer-rebuild.md](../bug_fix/toc-scroll-observer-rebuild.md)。
 - **macOS 未启用块级 `content-visibility`**：见 §阅读与打开性能第 1 条与 #702；WebKit 逐元素 CV 只在内容进入视口时才 reveal（[WebKit #276735](https://bugs.webkit.org/show_bug.cgi?id=276735) 未修），打开它会把卡顿从拖拽搬到滚动，故仍不开。**拖动分隔条这一条已用「手势期间冻结重排」绕开**；仍未覆盖的是原生窗口缩放，以及拖动期间 `@container/editor` 的每帧 style recalc（见 [bug_fix/dockview-sash-pdf-resize-jank.md](../bug_fix/dockview-sash-pdf-resize-jank.md) §5）。
 - **笔记滚动记忆是像素偏移**：记下 `scrollTop` 和当时的可滚动高度。文档仍够高时恢复原偏移；首屏高度不够（窗口变矮，或离屏块还没测高）则按比例落在当前范围内，避免被夹到文末。改字号、栏宽或正文后，位置会相对上次阅读点漂移。
-- **Agent 写盘光标保护**：`applyExternalMarkdown` 整篇 `setValue` + `deselect()`，Agent 流式写笔记时可能打断正在输入的光标；后续计划 setValue 后恢复 selection（pathRef 吸收位移）。
+- **外部重载按块复用**：`applyExternalMarkdown` 走 `applySourceProjection` 顶层块 diff，结构相同的块保留原节点（DOM 不动），只有变动的块区间被替换——外部改盘、Agent 写盘、同文件多面板的保存回显都不再整篇重挂（此前整篇 `setValue` 会因全部节点换新对象而逐块卸载重挂，面板闪烁、滚动被夹跳再恢复）。仍 `deselect()`；Agent 流式写盘打断输入光标的问题变窄到被改写块自身，后续计划替换后恢复 selection（pathRef 吸收位移）。
 - **对话面板剩余 memo**：流式合帧与窄订阅已落地（见 [agent.md](agent.md)），composer / config bar 等与 lines 无关的子树仍随面板重渲染，待逐个补 memo。
 
 
@@ -218,6 +218,9 @@ Markdown 里指向本地 `.html` / `.htm` 的链接（`[report](./figures/report
 | `src/lib/markdown/remark-plugins.ts` | 全量 remark 管线与按内容裁剪的反序列化选择器 |
 | `src/lib/markdown/deserialize-md.ts` | 统一的反序列化入口（预处理 + 裁剪后的 remark 插件） |
 | `src/lib/markdown/scroll-memory.ts` | 每文件滚动位置（localStorage，跨重启） |
+| `src/lib/markdown/block-caret-map.ts` | 块纯文本 / 行内叶子偏移，以及 Markdown 块切片的可见文本投影与偏移换算 |
+| `src/lib/markdown/source-caret.ts` | 渲染态光标与源码行列的双向换算（仅当两侧可见文本完全一致时生效） |
+| `src/lib/markdown/source-mode-alignment.ts` | 源码 / 渲染切换的视口锚点计算与滚动范围夹取 |
 | `src/lib/vault/seed-cache.ts` | Markdown/NOTES 打开路径文本种子缓存 |
 | `src/hooks/use-in-view.ts` | 进入视口才执行重活的 IntersectionObserver hook |
 | `src/lib/core/idle.ts` | idle 调度（`requestIdleCallback`，WebKit 回退短定时器） |

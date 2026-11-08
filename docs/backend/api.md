@@ -364,7 +364,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 - **返回**：`Result<(), String>`
 - **行为**
-  - label 为 `feature-{view}`；已存在则 `set_focus`。
+  - label 为 `feature-{view}`；已存在则还原最小化并置前。
   - URL：`index.html?window=feature&view=…&vault_path=…&active_path=…&paper_title=…`（轻量 Feature 根，不加载完整 App Dock）。
   - 窗口关闭时 Host 向所有窗口 `emit("window:closed", { kind: "feature", view })`。
   - **必须是 `async` command**（同 `window_new`）。
@@ -393,7 +393,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 - **返回**：`Result<(), String>`
 - **行为**
-  - label 为 `doc-` + path 的 sha256 前 16 hex；同 path 再开则聚焦。
+  - label 为 `doc-` + path 的 sha256 前 16 hex；同 path 再开则还原最小化并置前。
   - URL：`index.html?window=doc&path=…&mode=…&vault_path=…`。
   - **必须是 `async` command**。
 
@@ -412,7 +412,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 - **返回**：`Result<(), String>`
 - **行为**
-  - 若 label 为 `settings` 的窗口已存在，则将其聚焦并返回；否则新建。
+  - 若 label 为 `settings` 的窗口已存在，则还原最小化的窗口并置前，不重复建窗；Windows 上的还原 / 显示 / 聚焦在主线程依次执行。
   - URL 带 `?window=settings&section=...&vault_path=...`，由 `src/main.tsx` 分支渲染轻量 Settings 页面（不加载完整 `App`）。
   - 新窗口初始隐藏，由全局 page-load hook 在页面加载完成后显示；首个 React commit 前显示静态启动壳。
   - macOS 使用 Overlay 标题栏与原生交通灯；Windows / Linux 使用系统原生窗口边框（OS 自绘标题栏与 caption 按钮）。

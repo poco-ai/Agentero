@@ -40,6 +40,32 @@ pub fn emit_window_closed(app: &AppHandle, kind: &str, view: Option<&str>) {
     let _ = app.emit(WINDOW_CLOSED_EVENT, WindowClosedPayload { kind, view });
 }
 
+/// Bring an existing singleton window back to the front, restoring it if the
+/// user minimized it.
+///
+/// `set_focus` alone is not enough on Windows: tao only calls
+/// `SetForegroundWindow` for a window that is visible and not minimized, so a
+/// minimized Settings / feature / document window silently ignores the click.
+/// `unminimize` and `show` are queued onto the event loop when called from an
+/// async command, so a `set_focus` right after them would still read the stale
+/// minimized state. Run the sequence on the main thread, where each call is
+/// applied to the window state before the next one reads it. macOS and Linux
+/// keep plain `set_focus` — their implementations already deminiaturize and
+/// raise the window.
+fn raise_existing_window(window: &tauri::WebviewWindow) {
+    #[cfg(windows)]
+    {
+        let win = window.clone();
+        let _ = window.run_on_main_thread(move || {
+            let _ = win.unminimize();
+            let _ = win.show();
+            let _ = win.set_focus();
+        });
+    }
+    #[cfg(not(windows))]
+    let _ = window.set_focus();
+}
+
 /// Enables macOS native fullscreen space and window tiling (Move & Resize).
 ///
 /// `setCollectionBehavior:` must run on the main thread: AppKit routes it
@@ -151,7 +177,7 @@ pub async fn settings_window_open(
     let op = OpTimer::start("settings_window_open");
 
     if let Some(win) = app.get_webview_window(SETTINGS_WINDOW_LABEL) {
-        let _ = win.set_focus();
+        raise_existing_window(&win);
         op.finish_ok_extra("existing");
         return Ok(());
     }
@@ -261,7 +287,7 @@ pub async fn feature_window_open(
     let label = feature_window_label(&view);
 
     if let Some(win) = app.get_webview_window(&label) {
-        let _ = win.set_focus();
+        raise_existing_window(&win);
         op.finish_ok_extra(format!("existing view={view}"));
         return Ok(());
     }
@@ -352,7 +378,7 @@ pub async fn doc_window_open(
     let label = doc_window_label(&path);
 
     if let Some(win) = app.get_webview_window(&label) {
-        let _ = win.set_focus();
+        raise_existing_window(&win);
         op.finish_ok_extra(format!("existing label={label}"));
         return Ok(());
     }

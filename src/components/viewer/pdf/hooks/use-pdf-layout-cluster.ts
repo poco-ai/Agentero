@@ -49,6 +49,8 @@ export type UsePdfLayoutClusterOptions = {
 	paperKey: string | null;
 	/** Vault root passed to the Agent as its cwd. */
 	vaultPath: string | null;
+	/** Viewer PDF bytes; hashed into the reflow IR cache key. */
+	pdfBytes?: ArrayBuffer | null;
 	/** Layout capability value gates the auto-run effect; the ref is never a dep. */
 	layoutCap: LayoutCapability;
 	layoutCapRef: RefObject<LayoutCapability>;
@@ -90,6 +92,7 @@ export function usePdfLayoutCluster({
 	paperRelPath,
 	paperKey,
 	vaultPath,
+	pdfBytes,
 	layoutCap,
 	layoutCapRef,
 	docCap,
@@ -180,6 +183,7 @@ export function usePdfLayoutCluster({
 	const {
 		reflowBusy,
 		reflowReady,
+		reflowOutput,
 		exportTranslatedPdf,
 		layoutTranslateItemsByPage,
 		layoutTranslatePageStateByPage,
@@ -204,11 +208,13 @@ export function usePdfLayoutCluster({
 		paperRelPath,
 		paperKey,
 		vaultPath,
+		pdfBytes,
 	});
 
 	return {
 		reflowBusy,
 		reflowReady,
+		reflowOutput,
 		exportTranslatedPdf,
 		layoutOverlayVisible,
 		layoutRawRegions,

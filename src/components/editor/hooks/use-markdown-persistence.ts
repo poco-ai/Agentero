@@ -38,6 +38,8 @@ type UseMarkdownPersistenceOptions = {
 		lastSaved: string,
 	) => Promise<boolean>;
 	onDirtyChange?: (dirty: boolean) => void;
+	/** Another panel saved over this draft. Autosave must not replace that file. */
+	saveBlocked?: boolean;
 	/**
 	 * Mirrored props owned by the caller: the Plate plugin store is built before
 	 * this hook runs, so both it and autosave read the same cells.
@@ -54,8 +56,12 @@ export type MarkdownPersistence = {
 	serialize: () => string;
 	/** Debounced autosave; also reconciles `./assets/` when the debounce fires. */
 	noteDocumentChanged: () => void;
-	/** Flush the pending debounce and write immediately. */
-	saveNow: () => Promise<boolean>;
+	/**
+	 * Flush the pending debounce and write immediately. `force` writes once past
+	 * a sibling-panel `saveBlocked` hold; the permission dies with this call, so
+	 * it cannot leak into a later autosave.
+	 */
+	saveNow: (force?: boolean) => Promise<boolean>;
 	beginSource: (markdown: string) => void;
 	updateSource: (read: () => string) => void;
 	endSource: (
@@ -65,12 +71,18 @@ export type MarkdownPersistence = {
 	/** Source mode or a raw source snapshot waiting to be persisted. */
 	hasSourceSnapshot: () => boolean;
 	/**
-	 * Replace the whole document in place after an external/Agent disk write.
-	 * Does not remount the editor, does not mark it dirty and does not trigger
-	 * autosave. Returns false when the content matches the current disk
-	 * snapshot (own-write echo) and nothing was reloaded.
+	 * Reload the document in place after an external/Agent disk write or a
+	 * sibling pane's save. Reuses proven-equal top-level blocks so unchanged
+	 * regions keep their DOM; does not mark dirty or trigger autosave.
+	 * Returns false when the content matches the current disk snapshot
+	 * (own-write echo) and nothing was reloaded.
 	 */
 	applyExternalMarkdown: (markdown: string) => boolean;
+	/**
+	 * Treat `markdown` as the current disk bytes without replacing the editor.
+	 * The next save then writes this draft over that version on purpose.
+	 */
+	adoptDiskBaseline: (markdown: string) => void;
 	/** Content currently believed to be on disk. */
 	savedRef: RefObject<string>;
 	dirtyRef: RefObject<boolean>;
@@ -89,6 +101,7 @@ export function useMarkdownPersistence({
 	readOnly,
 	onPersist,
 	onDirtyChange,
+	saveBlocked = false,
 	filePathRef,
 	onAssetsChangedRef,
 }: UseMarkdownPersistenceOptions): MarkdownPersistence {
@@ -111,6 +124,10 @@ export function useMarkdownPersistence({
 	 * (the tab-bar unsaved indicator), which made editing laggy on large notes.
 	 */
 	const dirtyRef = useRef(false);
+	const saveBlockedRef = useRef(saveBlocked);
+	saveBlockedRef.current = saveBlocked;
+	/** One explicit "keep draft" save, past the hold that the prop still shows. */
+	const allowBlockedSaveRef = useRef(false);
 	const persistInFlightRef = useRef<Promise<void> | null>(null);
 	const persistQueuedRef = useRef(false);
 	/**
@@ -159,7 +176,15 @@ export function useMarkdownPersistence({
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: editor.children is an identity probe; depending on it would rebuild persist per keystroke
 	const persist = useCallback(() => {
+		// Consume the "keep draft" permission before any early return: a leaked
+		// true would let the next autosave bypass the sibling-panel hold.
+		const forced = allowBlockedSaveRef.current;
+		allowBlockedSaveRef.current = false;
 		if (readOnly || !filePath || !onPersist) return Promise.resolve();
+		if (saveBlockedRef.current && !forced) {
+			persistQueuedRef.current = false;
+			return Promise.resolve();
+		}
 		persistQueuedRef.current = true;
 		if (persistInFlightRef.current) return persistInFlightRef.current;
 
@@ -262,6 +287,12 @@ export function useMarkdownPersistence({
 		persistRef.current();
 	}, CHANGE_DEBOUNCE_MS);
 
+	useEffect(() => {
+		if (!saveBlocked) return;
+		debouncedPersist.cancel();
+		persistQueuedRef.current = false;
+	}, [saveBlocked, debouncedPersist]);
+
 	// Mark ready after the initial normalization pass so opening a file never saves.
 	// Seed image URL counts so we only GC assets removed after open.
 	// On unmount, flush pending edit + deferred asset GC for this file.
@@ -286,22 +317,22 @@ export function useMarkdownPersistence({
 		if (!dirtyRef.current) {
 			setDirty(true);
 		}
+		if (saveBlockedRef.current) return;
 		debouncedPersist();
 	}, [readOnly, setDirty, debouncedPersist]);
 
 	/** Install a parsed projection without treating it as a user edit. */
 	const replaceProjection = useCallback(
-		(
-			value: PlateEditor["children"],
-			frontmatter: string,
-			fromSource = false,
-		) => {
+		(value: PlateEditor["children"], frontmatter: string) => {
 			externalReloadRef.current = true;
 			try {
 				editor.tf.withoutSaving(() => {
 					editor.tf.deselect();
-					if (fromSource) applySourceProjection(editor, value);
-					else editor.tf.setValue(value);
+					// Reuse proven-equal top-level blocks: wholesale `setValue`
+					// hands slate-react all-new node objects, so every block
+					// remounts and the pane flickers/jumps on each sibling-pane
+					// save echo or streamed external write.
+					applySourceProjection(editor, value);
 				});
 				editor.history = { undos: [], redos: [] };
 				frontmatterRef.current = frontmatter;
@@ -335,7 +366,7 @@ export function useMarkdownPersistence({
 		(value: PlateEditor["children"] | null, frontmatter: string) => {
 			if (!sourceRef.current) return;
 			const raw = sourceRef.current();
-			if (value) replaceProjection(value, frontmatter, true);
+			if (value) replaceProjection(value, frontmatter);
 			else editor.history = { undos: [], redos: [] };
 			projectedSourceRef.current = raw;
 			sourceRef.current = null;
@@ -385,12 +416,30 @@ export function useMarkdownPersistence({
 		[noteDocumentChanged],
 	);
 
-	const saveNow = useCallback(async () => {
-		debouncedPersist.cancel();
-		reconcileAssetsRef.current();
-		await persistRef.current();
-		return !dirtyRef.current;
-	}, [debouncedPersist]);
+	const adoptDiskBaseline = useCallback(
+		(markdown: string) => {
+			savedRef.current = markdown;
+			setDirty(serialize() !== markdown);
+		},
+		[serialize, setDirty],
+	);
+
+	const saveNow = useCallback(
+		async (force?: boolean) => {
+			debouncedPersist.cancel();
+			reconcileAssetsRef.current();
+			if (force) allowBlockedSaveRef.current = true;
+			try {
+				await persistRef.current();
+			} finally {
+				// Clear even when persist bailed out before consuming it (read-only or
+				// no file path): the permission must not outlive this explicit save.
+				allowBlockedSaveRef.current = false;
+			}
+			return !dirtyRef.current;
+		},
+		[debouncedPersist],
+	);
 
 	return {
 		frontmatterYaml,
@@ -403,6 +452,7 @@ export function useMarkdownPersistence({
 		hasSourceSnapshot,
 		saveNow,
 		applyExternalMarkdown,
+		adoptDiskBaseline,
 		savedRef,
 		dirtyRef,
 	};

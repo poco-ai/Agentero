@@ -113,6 +113,21 @@ pub(crate) fn windows_cmd_cwd_env_value(cwd: &Path) -> String {
     format!("\"{}\"", windows_cmd_cwd(cwd))
 }
 
+/// Templates whose Windows process must start in the Vault.
+///
+/// ACP stdio has no cwd field. Pi and Custom already used a `cmd` `cd`.
+/// Zcode's `server` mode ignores the ACP session cwd and indexes
+/// `.agents/skills` from the process cwd, so a direct spawn never sees the
+/// Vault. Other templates stay direct children: wrapping them changes
+/// quoting, `cd /d` rejects UNC, and the SDK only kills the direct child.
+#[cfg(any(windows, test))]
+fn windows_process_cwd_template(template: &AgentTemplate) -> bool {
+    matches!(
+        template,
+        AgentTemplate::Pi | AgentTemplate::Custom | AgentTemplate::Zcode
+    )
+}
+
 /// Windows launch policy and command construction. Kept available to unit
 /// tests on Unix so changes to the wrapper policy are checked on every CI run.
 #[cfg(any(windows, test))]
@@ -122,12 +137,7 @@ fn windows_launch_command(
     env: &mut HashMap<String, String>,
     cwd: Option<&Path>,
 ) -> (PathBuf, Vec<String>) {
-    // Keep the pre-#570 Windows policy: adding cmd around native launchers
-    // changes quoting and breaks UNC cwd. The SDK currently only kills the
-    // direct child on Windows; launcher descendants remain a known limitation.
-    let Some(cwd) =
-        cwd.filter(|_| matches!(desc.template, AgentTemplate::Pi | AgentTemplate::Custom))
-    else {
+    let Some(cwd) = cwd.filter(|_| windows_process_cwd_template(&desc.template)) else {
         return (command, desc.args.clone());
     };
     env.insert(
@@ -401,8 +411,9 @@ pub(crate) fn to_acp_agent_local(
     let (launch_desc, command) = plan_local_launch(desc, &mut child_env)?;
 
     // Unix agents must not inherit `/` from a Finder-launched app (#570).
-    // Windows retains its existing Pi/Custom-only wrapping policy until the
-    // transport supports native cwd + tree teardown.
+    // Windows wraps only Pi, Custom, and Zcode. Zcode's serve mode reads the
+    // process cwd; the rest stay direct children until native cwd and process
+    // tree teardown exist.
     let (command, args) = local_launch_command(&launch_desc, command, &mut child_env, cwd);
 
     let env: Vec<EnvVariable> = child_env
@@ -1082,7 +1093,7 @@ mod cwd_shell_wrap_tests {
         templates.push(AgentTemplate::Custom);
         for template in templates {
             let desc = descriptor(template);
-            // Probe has no cwd wrapper, including Pi/Custom. A native .exe
+            // Probe has no cwd wrapper, including Pi/Custom/Zcode. A native .exe
             // remains the SDK's direct child and can still be killed on timeout.
             let mut env = HashMap::new();
             let command = PathBuf::from(&desc.command);
@@ -1092,11 +1103,37 @@ mod cwd_shell_wrap_tests {
             );
             assert!(env.is_empty());
 
-            if matches!(desc.template, AgentTemplate::Pi | AgentTemplate::Custom) {
-                let (program, _) =
+            if windows_process_cwd_template(&desc.template) {
+                let (program, args) =
                     windows_launch_command(&desc, command, &mut env, Some(Path::new(r"C:\Vault")));
                 assert_eq!(program, PathBuf::from("cmd"));
+                assert_eq!(
+                    args,
+                    vec![
+                        "/D".to_string(),
+                        "/C".to_string(),
+                        "cd /d %AGENTERO_AGENT_CWD% && %AGENTERO_AGENT_COMMAND%".to_string(),
+                    ]
+                );
                 assert!(env.contains_key("AGENTERO_AGENT_CWD"));
+                // Zcode's `server` subcommand must survive the wrap. Without it
+                // the adapter opens a TUI and never indexes `.agents/skills`.
+                if !desc.args.is_empty() {
+                    let suffix = format!(
+                        " {}",
+                        desc.args
+                            .iter()
+                            .map(|arg| windows_shell_quote(arg))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
+                    let command_env = env.get("AGENTERO_AGENT_COMMAND").unwrap();
+                    assert!(
+                        command_env.ends_with(&suffix),
+                        "{} command {command_env} missing {suffix}",
+                        desc.id
+                    );
+                }
                 continue;
             }
             // Native launchers also remain direct for UNC vaults; they must not

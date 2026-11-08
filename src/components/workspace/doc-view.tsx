@@ -2,6 +2,7 @@ import { Loader2 } from "lucide-react";
 import { lazy, memo, Suspense, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { PapersLibrary } from "@/components/library/papers-library";
+import { PlazaTabView } from "@/components/plaza/plaza-tab-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PdfViewerHandle } from "@/components/viewer";
 import { HtmlViewer, ImageViewer } from "@/components/viewer";
@@ -46,11 +47,6 @@ const PdfViewer = lazy(() =>
 const MarkdownEditor = lazy(() =>
 	import("@/components/editor").then((m) => ({
 		default: m.MarkdownEditor,
-	})),
-);
-const PlazaView = lazy(() =>
-	import("@/components/plaza/plaza-view").then((m) => ({
-		default: m.PlazaView,
 	})),
 );
 const ExcalidrawViewer = lazy(() =>
@@ -104,7 +100,13 @@ export type DocViewEditorProps = {
 		path: string,
 		md: string,
 		lastSaved: string,
+		tabId: string,
 	) => Promise<boolean>;
+	onResolveMarkdownConflict?: (
+		tabId: string,
+		action: "keep" | "load" | "hold",
+		disk: string,
+	) => void;
 	onAssetsChanged: () => void;
 	onTabPatch: (id: string, patch: Partial<DocTab>) => void;
 	onRenameHeading?: (
@@ -310,6 +312,11 @@ const DocumentContent = memo(function DocumentContent({
 		[pdf, tab.id],
 	);
 	const isNotes = tabIsPaperNotes(tab);
+	const handleEditorPersist = useCallback(
+		(path: string, md: string, lastSaved: string) =>
+			editor.onPersistFile(path, md, lastSaved, tab.id),
+		[editor.onPersistFile, tab.id],
+	);
 	// Stable identity: an inline lambda here is a new prop on every DocView
 	// render, which defeats the memo boundary around MarkdownEditor.
 	const handleEditorDirtyChange = useCallback(
@@ -374,11 +381,15 @@ const DocumentContent = memo(function DocumentContent({
 	}
 	if (tab.kind === "plaza") {
 		if (!plazaEnabled) return null;
-		// Embedded remote site: don't mount (and don't start its requests) until active.
-		if (!active) return null;
+		// The tab owns its embedded page until close, independent of the editor LRU.
 		return (
 			<Suspense fallback={<TabLoadingSkeleton />}>
-				<PlazaView path={tab.path} className="bg-background" />
+				<PlazaTabView
+					key={`${tab.id}:${tab.path}`}
+					path={tab.path}
+					active={active}
+					className="bg-background"
+				/>
 			</Suspense>
 		);
 	}
@@ -421,7 +432,9 @@ const DocumentContent = memo(function DocumentContent({
 						placeholder={
 							isNotes ? editor.notesPlaceholder : editor.markdownPlaceholder
 						}
-						onPersist={editor.onPersistFile}
+						onPersist={handleEditorPersist}
+						saveConflict={tab.markdownConflict}
+						onResolveSaveConflict={editor.onResolveMarkdownConflict}
 						onAssetsChanged={editor.onAssetsChanged}
 						onRenameHeading={editor.onRenameHeading}
 						onDirtyChange={handleEditorDirtyChange}

@@ -92,6 +92,17 @@ export type TranslateSettings = {
 	 * otherwise the source is still quoted. Max 8000 chars.
 	 */
 	customUser: string;
+	/**
+	 * Persist extracted reflow character IR pages under the app cache directory
+	 * (default on). Off = extraction runs again on every open and nothing is
+	 * written; existing files stay until the cache is cleared.
+	 */
+	cacheReflowIr: boolean;
+	/**
+	 * Persist the finished translated PDF under the app cache directory
+	 * (default off: each final is ~25 MB).
+	 */
+	cacheReflowFinal: boolean;
 };
 
 export type TranslateProviderConfig = {

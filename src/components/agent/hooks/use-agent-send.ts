@@ -83,7 +83,10 @@ import {
 	currentSelections,
 	type SelectionContext,
 } from "@/lib/agent/selection-store";
-import type { AcpCommand } from "@/lib/agent/slash-commands";
+import {
+	type AcpCommand,
+	matchAcpCommandText,
+} from "@/lib/agent/slash-commands";
 import { assembleTurnPrompt } from "@/lib/agent/turn-prompt";
 import {
 	activeVisualDraftSessionKey,
@@ -702,11 +705,14 @@ export function useAgentSend({
 			const agent = await resolveTurnAgentAndModel(options, forceNewSession);
 			if (!agent) return false;
 			// Options are availability-filtered in buildOptions; unavailable agents
-			// never appear in the switcher.
-			const isAcpCommand = (acpCommandsByAgent[agent.agentId] ?? []).some(
-				(command) =>
-					text === `/${command.name}` || text.startsWith(`/${command.name} `),
+			// never appear in the switcher. Match both `/name` and `$name` so a
+			// skill inserted by either prefix is sent in the advertised form.
+			const acpCommand = matchAcpCommandText(
+				acpCommandsByAgent[agent.agentId] ?? [],
+				text,
 			);
+			const isAcpCommand = acpCommand !== null;
+			const turnText = acpCommand?.text ?? text;
 			if (forceNewSession) {
 				// Drop any panel-level continue target before resolving resume.
 				activeConversationRef.current = null;
@@ -729,7 +735,9 @@ export function useAgentSend({
 			);
 			const { prompt, images, visualAnnotations, historyTitle } =
 				assembleTurnPrompt({
-					text: textRaw,
+					// ACP command chips already collapsed into `turnText`; keep the raw
+					// draft for mention / visual markers on normal turns.
+					text: isAcpCommand ? turnText : textRaw,
 					contextPaths: turnContextPaths,
 					paper: turnPaper,
 					visualDrafts: resolvedVisualDrafts,
@@ -759,7 +767,7 @@ export function useAgentSend({
 			const userLine: ChatLine = {
 				id: nextLineId("user"),
 				kind: "user",
-				text,
+				text: turnText,
 				...(markup ? { markup } : {}),
 				...(visualAnnotations?.length ? { visualAnnotations } : {}),
 				...(resolvedSelections.length

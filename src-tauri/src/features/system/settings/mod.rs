@@ -364,6 +364,13 @@ pub struct TranslateSettings {
     /// Custom user template. Applied only when it contains `{{text}}`.
     #[serde(default)]
     pub custom_user: String,
+    /// Persist extracted reflow character IR pages in the app cache (default on).
+    #[serde(default = "default_true")]
+    pub cache_reflow_ir: bool,
+    /// Persist the finished translated PDF in the app cache (default off;
+    /// each final is roughly 25 MB).
+    #[serde(default)]
+    pub cache_reflow_final: bool,
 }
 
 impl Default for TranslateSettings {
@@ -382,6 +389,8 @@ impl Default for TranslateSettings {
             custom_prompt: String::new(),
             custom_system: String::new(),
             custom_user: String::new(),
+            cache_reflow_ir: true,
+            cache_reflow_final: false,
         }
     }
 }
