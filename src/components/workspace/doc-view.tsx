@@ -2,6 +2,7 @@ import { Loader2 } from "lucide-react";
 import { lazy, memo, Suspense, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { PapersLibrary } from "@/components/library/papers-library";
+import { PlazaTabView } from "@/components/plaza/plaza-tab-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PdfViewerHandle } from "@/components/viewer";
 import { HtmlViewer, ImageViewer } from "@/components/viewer";
@@ -46,11 +47,6 @@ const PdfViewer = lazy(() =>
 const MarkdownEditor = lazy(() =>
 	import("@/components/editor").then((m) => ({
 		default: m.MarkdownEditor,
-	})),
-);
-const PlazaView = lazy(() =>
-	import("@/components/plaza/plaza-view").then((m) => ({
-		default: m.PlazaView,
 	})),
 );
 const ExcalidrawViewer = lazy(() =>
@@ -385,11 +381,15 @@ const DocumentContent = memo(function DocumentContent({
 	}
 	if (tab.kind === "plaza") {
 		if (!plazaEnabled) return null;
-		// Embedded remote site: don't mount (and don't start its requests) until active.
-		if (!active) return null;
+		// The tab owns its embedded page until close, independent of the editor LRU.
 		return (
 			<Suspense fallback={<TabLoadingSkeleton />}>
-				<PlazaView path={tab.path} className="bg-background" />
+				<PlazaTabView
+					key={`${tab.id}:${tab.path}`}
+					path={tab.path}
+					active={active}
+					className="bg-background"
+				/>
 			</Suspense>
 		);
 	}
