@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const ZOOM_STEPS = [
 	0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2,
@@ -9,6 +9,12 @@ export function usePlazaFrameZoom(desktopWidth = 0) {
 	const viewportRef = useRef<HTMLDivElement>(null);
 	const [size, setSize] = useState({ width: 0, height: 0 });
 	const [manualScale, setManualScale] = useState<number | null>(null);
+	/** Scroll the outer scrollport by the delta the frame could not consume. */
+	const panBy = useCallback((dx: number) => {
+		const viewport = viewportRef.current;
+		if (!viewport || !Number.isFinite(dx)) return;
+		viewport.scrollLeft += dx;
+	}, []);
 	useEffect(() => {
 		const viewport = viewportRef.current;
 		if (!viewport) return;
@@ -40,6 +46,7 @@ export function usePlazaFrameZoom(desktopWidth = 0) {
 		zoomIn: () => larger !== undefined && setManualScale(larger),
 		canZoomOut: smaller !== undefined,
 		canZoomIn: larger !== undefined,
+		panBy,
 		fit: () => {
 			setManualScale(null);
 			if (viewportRef.current) viewportRef.current.scrollLeft = 0;
