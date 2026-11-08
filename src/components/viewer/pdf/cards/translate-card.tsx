@@ -5,6 +5,7 @@ import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
 import { Shimmer } from "@/components/ui/shimmer";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
+import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 
@@ -54,6 +55,43 @@ export function TranslateCard({
 	const [copied, setCopied] = useState(false);
 
 	useEffect(() => {
+		// This nonmodal card stays open when focus leaves it. Scope the keys to
+		// its mounted lifetime and leave native editing and other dialogs alone.
+		const onKeyDown = (event: KeyboardEvent) => {
+			const action =
+				event.key === "Escape"
+					? onHide
+					: event.key.toLowerCase() === "p"
+						? onTogglePin
+						: undefined;
+			if (
+				!action ||
+				event.defaultPrevented ||
+				event.isComposing ||
+				event.repeat ||
+				event.altKey ||
+				event.ctrlKey ||
+				event.metaKey ||
+				event.shiftKey ||
+				isEditableClipboardTarget(event.target)
+			)
+				return;
+			const overlay =
+				event.target instanceof Element
+					? event.target.closest(
+							"[role='dialog'], [role='alertdialog'], [role='menu'], [role='listbox']",
+						)
+					: null;
+			if (overlay && !overlay.contains(scrollPortRef.current)) return;
+			event.preventDefault();
+			action();
+		};
+		// Capture before the card's action tooltip can consume Escape.
+		window.addEventListener("keydown", onKeyDown, true);
+		return () => window.removeEventListener("keydown", onKeyDown, true);
+	}, [onHide, onTogglePin]);
+
+	useEffect(() => {
 		if (!copied) return;
 		const timer = setTimeout(() => setCopied(false), 1500);
 		return () => clearTimeout(timer);
@@ -95,8 +133,6 @@ export function TranslateCard({
 			preferRight={preferRight}
 			title={t("selection.translateTitle")}
 			ariaLive="polite"
-			onDismiss={onHide}
-			dismissOnInteractOutside={false}
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
 			// Leave WebKit's native resize corner outside the nested scrollport.
@@ -115,6 +151,7 @@ export function TranslateCard({
 				...(onTogglePin
 					? [
 							{
+								id: "pin",
 								label: t(
 									pinned
 										? "selection.translateUnpin"
@@ -127,6 +164,7 @@ export function TranslateCard({
 									<Pin className="size-3.5" />
 								),
 								pressed: pinned,
+								shortcut: "P",
 							},
 						]
 					: []),
@@ -134,6 +172,7 @@ export function TranslateCard({
 					label: t("selection.translateHide"),
 					onClick: onHide,
 					icon: <X className="size-3.5" />,
+					shortcut: "Escape",
 				},
 			]}
 			// Body only constrains flex; the translation owns its own scrollport.

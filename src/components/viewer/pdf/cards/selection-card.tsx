@@ -41,6 +41,7 @@ type SelectionCardAction = {
 	destructive?: boolean;
 	/** Pressed state for toggle actions such as pin / unpin. */
 	pressed?: boolean;
+	shortcut?: string;
 };
 
 type PlaceSelectionCardOptions = {
@@ -218,7 +219,6 @@ type SelectionCardProps = {
 	ariaLive?: "polite" | "off";
 	/** Dismiss this card on Escape or pointer interaction outside it. */
 	onDismiss?: () => void;
-	dismissOnInteractOutside?: boolean;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
 	/** Optional footer strip (prompt input, save/cancel). */
@@ -253,7 +253,6 @@ export function SelectionCard({
 	ariaLabel,
 	ariaLive = "off",
 	onDismiss,
-	dismissOnInteractOutside = true,
 	onPointerEnter,
 	onPointerLeave,
 	footer,
@@ -487,6 +486,7 @@ export function SelectionCard({
 											type="button"
 											aria-label={a.label}
 											aria-pressed={a.pressed}
+											aria-keyshortcuts={a.shortcut}
 											// Native button (not ghost Button): avoid variant
 											// hover:text-foreground fighting the red icon color.
 											className={cn(
@@ -512,7 +512,14 @@ export function SelectionCard({
 											</span>
 										</button>
 									</TooltipTrigger>
-									<TooltipContent side="bottom">{a.label}</TooltipContent>
+									<TooltipContent side="bottom">
+										{a.label}
+										{a.shortcut ? (
+											<kbd className="ml-1.5 font-sans opacity-75">
+												{a.shortcut === "Escape" ? "Esc" : a.shortcut}
+											</kbd>
+										) : null}
+									</TooltipContent>
 								</Tooltip>
 							))}
 						</div>
@@ -551,9 +558,6 @@ export function SelectionCard({
 				<Dialog.Content
 					asChild
 					aria-describedby={undefined}
-					onInteractOutside={(event) => {
-						if (!dismissOnInteractOutside) event.preventDefault();
-					}}
 					onOpenAutoFocus={(event) => event.preventDefault()}
 					onCloseAutoFocus={(event) => event.preventDefault()}
 				>

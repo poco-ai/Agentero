@@ -31,7 +31,7 @@ afterEach(async () => {
 	vi.unstubAllGlobals();
 });
 
-async function renderCard(onHide = vi.fn()) {
+async function renderCard(onHide = vi.fn(), onTogglePin = vi.fn()) {
 	await act(() =>
 		root.render(
 			createElement(
@@ -43,7 +43,7 @@ async function renderCard(onHide = vi.fn()) {
 					streaming: false,
 					error: null,
 					onOpenSettings: vi.fn(),
-					onTogglePin: vi.fn(),
+					onTogglePin,
 					onHide,
 				}),
 			),
@@ -61,9 +61,7 @@ it("keeps the PDF controls interactive, copies the translation, and dismisses on
 	const onPdfClick = vi.fn();
 	pdfControl.addEventListener("click", onPdfClick);
 	document.body.append(pdfControl);
-	// Radix installs its outside pointer listener on the next task.
-	await act(async () => {
-		await new Promise((resolve) => setTimeout(resolve, 0));
+	await act(() => {
 		pdfControl.dispatchEvent(
 			new PointerEvent("pointerdown", { bubbles: true }),
 		);
@@ -86,7 +84,7 @@ it("keeps the PDF controls interactive, copies the translation, and dismisses on
 	expect(onHide).not.toHaveBeenCalled();
 
 	await act(() => {
-		document.dispatchEvent(
+		document.body.dispatchEvent(
 			new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
 		);
 	});
@@ -97,6 +95,37 @@ it("keeps the PDF controls interactive, copies the translation, and dismisses on
 	expect(close).not.toBeNull();
 	await act(() => close?.click());
 	expect(onHide).toHaveBeenCalledTimes(2);
+});
+
+it("uses P for the pin action and leaves typing, composing and modified keys alone", async () => {
+	const onHide = vi.fn();
+	const onTogglePin = vi.fn();
+	const card = await renderCard(onHide, onTogglePin);
+	const input = document.createElement("input");
+	document.body.append(input);
+	const key = (target: HTMLElement, init: KeyboardEventInit) => {
+		const event = new KeyboardEvent("keydown", {
+			bubbles: true,
+			cancelable: true,
+			...init,
+		});
+		target.dispatchEvent(event);
+		return event.defaultPrevented;
+	};
+	expect(key(input, { key: "p" })).toBe(false);
+	expect(key(input, { key: "Escape" })).toBe(false);
+	expect(key(document.body, { key: "Escape", isComposing: true })).toBe(false);
+	expect(key(document.body, { key: "p", ctrlKey: true })).toBe(false);
+	expect(key(document.body, { key: "p", repeat: true })).toBe(false);
+	expect(onTogglePin).not.toHaveBeenCalled();
+	expect(onHide).not.toHaveBeenCalled();
+
+	const pin = card.querySelector<HTMLButtonElement>('[aria-keyshortcuts="P"]');
+	expect(pin).not.toBeNull();
+	await act(() => expect(key(document.body, { key: "p" })).toBe(true));
+	expect(onTogglePin).toHaveBeenCalledOnce();
+	await act(() => pin?.click());
+	expect(onTogglePin).toHaveBeenCalledTimes(2);
 });
 
 it("keeps the grab offset and clamps dragging using the card's resized dimensions", async () => {
