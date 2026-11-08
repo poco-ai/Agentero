@@ -11,7 +11,14 @@
  * pushes entries onto the app's own session history.
  */
 
-import { ArrowLeft, ArrowRight, ExternalLink, RotateCw } from "lucide-react";
+import {
+	ArrowLeft,
+	ArrowRight,
+	ExternalLink,
+	RotateCw,
+	ZoomIn,
+	ZoomOut,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -25,6 +32,7 @@ import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
 import { importPlazaPaper, type PlazaImportRequest } from "@/lib/plaza/import";
 import { importedIdsInLibrary } from "@/lib/plaza/imported";
+import { usePlazaFrameZoom } from "./use-plaza-frame-zoom";
 
 /** No `allow-popups`: every link must resolve inside this frame. */
 const SANDBOX = "allow-scripts allow-same-origin allow-forms";
@@ -65,6 +73,7 @@ export function PlazaWebFrame({
 	lastPathStorageKey,
 	title,
 	className,
+	desktopWidth,
 }: {
 	/** Canonical public URL, used for "open in browser". */
 	homeUrl: string;
@@ -74,8 +83,11 @@ export function PlazaWebFrame({
 	lastPathStorageKey?: string;
 	title: string;
 	className?: string;
+	/** Fixed-layout sources need a virtual desktop viewport when fitting a narrow panel. */
+	desktopWidth?: number;
 }) {
 	const { t } = useTranslation("sidebar");
+	const zoom = usePlazaFrameZoom(desktopWidth);
 	const home = new URL(homeUrl);
 	const homePath = `${home.pathname || "/"}${home.search}`;
 	const normalizePath = (value: unknown): string | null => {
@@ -257,7 +269,7 @@ export function PlazaWebFrame({
 				className,
 			)}
 		>
-			<div className="flex h-8 shrink-0 select-none items-center gap-0.5 border-b px-1.5">
+			<div className="flex min-h-8 shrink-0 flex-wrap select-none items-center gap-0.5 border-b px-1.5">
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button
@@ -316,6 +328,52 @@ export function PlazaWebFrame({
 							type="button"
 							variant="ghost"
 							size="icon-xs"
+							aria-label={t("plaza.zoomOut")}
+							disabled={!zoom.canZoomOut}
+							onClick={zoom.zoomOut}
+						>
+							<ZoomOut className="size-3.5" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>{t("plaza.zoomOut")}</TooltipContent>
+				</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className="h-6 shrink-0 px-1 text-caption tabular-nums"
+							aria-label={t("plaza.fitWidth")}
+							aria-pressed={zoom.automatic}
+							onClick={zoom.fit}
+						>
+							{Math.round(zoom.scale * 100)}%
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>{t("plaza.fitWidth")}</TooltipContent>
+				</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-xs"
+							aria-label={t("plaza.zoomIn")}
+							disabled={!zoom.canZoomIn}
+							onClick={zoom.zoomIn}
+						>
+							<ZoomIn className="size-3.5" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>{t("plaza.zoomIn")}</TooltipContent>
+				</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-xs"
 							aria-label={t("plaza.openInSystemBrowser")}
 							onClick={() =>
 								openExternalUrl(new URL(currentPath, homeUrl).href)
@@ -329,23 +387,42 @@ export function PlazaWebFrame({
 					</TooltipContent>
 				</Tooltip>
 			</div>
-			<div className="relative min-h-0 flex-1">
-				<iframe
-					// Keyed on the epoch alone: only Back / Forward / Reload remount.
-					// Keying on observed navigation would reload `frame.path` on every
-					// in-frame click and bounce the user back to the starting page.
-					key={frame.epoch}
-					ref={frameRef}
-					title={title}
-					src={frameSrc}
-					sandbox={SANDBOX}
-					referrerPolicy="no-referrer-when-downgrade"
-					className={cn(
-						"absolute inset-0 block h-full w-full border-0 bg-background",
-						dragShield && "pointer-events-none",
-					)}
-					style={{ colorScheme: "light dark" }}
-				/>
+			<div
+				ref={zoom.viewportRef}
+				className="relative min-h-0 min-w-0 flex-1 overflow-auto"
+			>
+				<div
+					className="relative h-full overflow-hidden"
+					style={{
+						width:
+							zoom.pageWidth === undefined
+								? "100%"
+								: zoom.pageWidth * zoom.scale,
+					}}
+				>
+					<iframe
+						// Keyed on the epoch alone: only Back / Forward / Reload remount.
+						// Keying on observed navigation would reload `frame.path` on every
+						// in-frame click and bounce the user back to the starting page.
+						key={frame.epoch}
+						ref={frameRef}
+						title={title}
+						src={frameSrc}
+						sandbox={SANDBOX}
+						referrerPolicy="no-referrer-when-downgrade"
+						className={cn(
+							"absolute inset-0 block h-full w-full border-0 bg-background",
+							dragShield && "pointer-events-none",
+						)}
+						style={{
+							colorScheme: "light dark",
+							width: zoom.pageWidth,
+							height: zoom.pageHeight,
+							transform: `scale(${zoom.scale})`,
+							transformOrigin: "top left",
+						}}
+					/>
+				</div>
 			</div>
 		</div>
 	);
