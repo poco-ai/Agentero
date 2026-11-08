@@ -25,6 +25,31 @@ export function pageElByIndex(
 	return host.querySelector<HTMLElement>(`[${EMBED_PAGE_ATTR}="${pageIndex}"]`);
 }
 
+/** Map the union of normalized selection rects to the viewport. */
+export function selectionBoundsOnScreen(
+	pageEl: HTMLElement | null,
+	rects: PdfAskNormalizedRect[],
+) {
+	if (!pageEl || !rects.length) return null;
+	const page = pageEl.getBoundingClientRect();
+	let left = 1;
+	let top = 1;
+	let right = 0;
+	let bottom = 0;
+	for (const rect of rects) {
+		left = Math.min(left, rect.x);
+		top = Math.min(top, rect.y);
+		right = Math.max(right, rect.x + rect.w);
+		bottom = Math.max(bottom, rect.y + rect.h);
+	}
+	return {
+		left: page.left + left * page.width,
+		top: page.top + top * page.height,
+		right: page.left + right * page.width,
+		bottom: page.top + bottom * page.height,
+	};
+}
+
 /**
  * Map a page-coordinate rect (PDF points) to a screen point. The rendered page
  * element is `points * zoom` CSS px, so a point offset maps to `offset * zoom`

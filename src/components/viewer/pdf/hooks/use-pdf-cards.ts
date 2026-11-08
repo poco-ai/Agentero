@@ -18,7 +18,10 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { pageElByIndex } from "@/components/viewer/pdf/coords";
+import {
+	pageElByIndex,
+	selectionBoundsOnScreen,
+} from "@/components/viewer/pdf/coords";
 import { CARD_HOVER_HIDE_MS } from "@/components/viewer/pdf/floating-hover";
 import { useStickyHoverHide } from "@/components/viewer/pdf/hooks/use-sticky-hover-hide";
 import type { CardScreenPoint } from "@/components/viewer/pdf/types";
@@ -207,22 +210,22 @@ export function usePdfCards({
 			} else {
 				return false;
 			}
-			// Same side choice as the gutter pin (page text → may flip left).
-			// Translate cards always open on the left of the selection so they
-			// don't cover the reading column; the gutter pin side is unchanged.
-			const pageText = pageTextMapRef.current.get(page - 1);
-			const pin = pinFromRects(rects, pageText);
 			const pageEl = pageElByIndex(host, page - 1);
-			const cardPin =
+			const selectionBounds =
 				card.kind === "translate"
-					? (() => {
-							let minX = 1;
-							for (const r of rects) minX = Math.min(minX, r.x);
-							const leftX = Math.min(0.98, Math.max(0.02, minX - 0.014));
-							return { x: leftX, y: pin.y, side: "left" as const };
-						})()
-					: pin;
-			const pt = popoverScreenPoint(pageEl, rects, cardPin);
+					? selectionBoundsOnScreen(pageEl, rects)
+					: null;
+			const pt: CardScreenPoint | null = selectionBounds
+				? {
+						x: (selectionBounds.left + selectionBounds.right) / 2,
+						y: selectionBounds.top,
+						selectionBounds,
+					}
+				: popoverScreenPoint(
+						pageEl,
+						rects,
+						pinFromRects(rects, pageTextMapRef.current.get(page - 1)),
+					);
 			// Target page not in the virtual DOM yet — keep cardScreen null so the
 			// modal stays hidden until onScroll / rAF retry can place it for real.
 			if (!pt) return false;

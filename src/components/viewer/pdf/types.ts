@@ -169,6 +169,12 @@ export type ScreenPoint = {
 /** Screen anchor for a floating card, including which side to open on. */
 export type CardScreenPoint = ScreenPoint & {
 	preferRight?: boolean;
+	selectionBounds?: {
+		left: number;
+		top: number;
+		right: number;
+		bottom: number;
+	};
 };
 
 export type SelectionMenuState = {

@@ -1,4 +1,3 @@
-import type { LucideIcon } from "lucide-react";
 import { GripHorizontal } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { Dialog } from "radix-ui";
@@ -6,6 +5,7 @@ import {
 	type ReactNode,
 	type PointerEvent as ReactPointerEvent,
 	useEffect,
+	useLayoutEffect,
 	useRef,
 	useState,
 } from "react";
@@ -17,7 +17,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PDF_FLOAT_CARD } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
-import type { ScreenPoint } from "@/components/viewer/pdf/types";
+import type { CardScreenPoint } from "@/components/viewer/pdf/types";
 import { clamp } from "@/lib/core/math";
 import { cn } from "@/lib/core/utils";
 import { useSelectionOverlayGuard } from "@/lib/workspace/selection-overlay";
@@ -70,6 +70,8 @@ type PlaceSelectionCardOptions = {
 	preferRight?: boolean;
 	/** Gap from the anchor point (default 4). */
 	gap?: number;
+	/** The rendered height, used to align a card above a selection. */
+	contentHeight?: number;
 };
 
 type PlaceSelectionCardResult = {
@@ -92,7 +94,7 @@ type PlaceSelectionCardResult = {
  * visual max height. Compact previews that later expand stay on one side.
  */
 export function placeSelectionCard(
-	screen: ScreenPoint,
+	screen: CardScreenPoint,
 	opts: PlaceSelectionCardOptions,
 ): PlaceSelectionCardResult {
 	const preferredWidth = opts.width;
@@ -103,6 +105,56 @@ export function placeSelectionCard(
 	const edge = SELECTION_CARD_EDGE;
 	const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
 	const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+
+	if (screen.selectionBounds) {
+		const bounds = screen.selectionBounds;
+		const gap = 8;
+		const usableHeight = Math.max(0, vh - edge * 2);
+		const minHeight = Math.min(SELECTION_CARD_MIN_HEIGHT, usableHeight);
+		const upperEdge = clamp(bounds.top - gap, edge, edge + usableHeight);
+		const lowerEdge = clamp(bounds.bottom + gap, edge, edge + usableHeight);
+		const above = upperEdge - edge;
+		const below = edge + usableHeight - lowerEdge;
+		const left = clamp(
+			screen.x - preferredWidth / 2,
+			edge,
+			Math.max(edge, vw - edge - preferredWidth),
+		);
+
+		if (above < minHeight && below < minHeight) {
+			const leftSpace = bounds.left - gap - edge;
+			const rightSpace = vw - edge - bounds.right - gap;
+			if (Math.max(leftSpace, rightSpace) >= preferredWidth) {
+				const maxHeight = Math.min(preferredMaxH, usableHeight);
+				return {
+					left:
+						rightSpace >= leftSpace
+							? bounds.right + gap
+							: bounds.left - gap - preferredWidth,
+					top: clamp(bounds.top, edge, edge + usableHeight - maxHeight),
+					maxHeight,
+				};
+			}
+		}
+
+		if (above >= minHeight || (below < minHeight && above >= below)) {
+			const maxHeight = Math.min(preferredMaxH, Math.max(minHeight, above));
+			const contentHeight = Math.min(
+				maxHeight,
+				opts.contentHeight ?? minHeight,
+			);
+			return {
+				left,
+				top: Math.max(edge, upperEdge - contentHeight),
+				maxHeight,
+			};
+		}
+		return {
+			left,
+			top: Math.min(lowerEdge, edge + usableHeight - minHeight),
+			maxHeight: Math.min(preferredMaxH, Math.max(minHeight, below)),
+		};
+	}
 
 	// Layout footprint for flip/clamp (stable across compact → expanded).
 	const planWidth = Math.min(
@@ -173,7 +225,7 @@ export function placeSelectionCard(
 }
 
 type SelectionCardProps = {
-	screen: ScreenPoint;
+	screen: CardScreenPoint;
 	/** Visual width class / clamp target (px number for placement). */
 	width?: number;
 	/** Preferred max height; actual height is min(this, viewport remainder). */
@@ -210,7 +262,7 @@ type SelectionCardProps = {
 	preferRight?: boolean;
 	title: string;
 	/** Optional header glyph; omit for a title-only header. */
-	icon?: LucideIcon;
+	icon?: ReactNode;
 	/** Header trailing icon buttons (close / hide / delete …). */
 	actions?: SelectionCardAction[];
 	/** Accessible name; defaults to title. */
@@ -248,7 +300,7 @@ export function SelectionCard({
 	bodyScroll = true,
 	preferRight = true,
 	title,
-	icon: Icon,
+	icon,
 	actions,
 	ariaLabel,
 	ariaLive = "off",
@@ -262,6 +314,7 @@ export function SelectionCard({
 }: SelectionCardProps) {
 	const rootRef = useRef<HTMLDivElement>(null);
 	const [position, setPosition] = useState<{ left: number; top: number }>();
+	const [contentHeight, setContentHeight] = useState<number>();
 	const dragRef = useRef<{ pointerId: number; x: number; y: number }>(null);
 	const reduceMotion = useReducedMotion();
 	const [viewport, setViewport] = useState(() => ({
@@ -302,7 +355,26 @@ export function SelectionCard({
 		placementHeight,
 		trackPin,
 		preferRight,
+		contentHeight,
 	});
+	const anchoredToSelection = Boolean(screen.selectionBounds) && !position;
+	useLayoutEffect(() => {
+		const card = rootRef.current;
+		if (!anchoredToSelection || !card) return;
+		const measure = () => {
+			const rect = card.getBoundingClientRect();
+			if (resizable && !lockHeight && card.style.height) {
+				// Native corner resizing takes over from the initial anchor.
+				setPosition({ left: rect.left, top: rect.top });
+			} else {
+				setContentHeight(rect.height);
+			}
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(card);
+		return () => observer.disconnect();
+	}, [anchoredToSelection, lockHeight, resizable]);
 	const edge = SELECTION_CARD_EDGE;
 	const left = position
 		? clamp(
@@ -328,9 +400,9 @@ export function SelectionCard({
 		0,
 		viewport.width - left - SELECTION_CARD_EDGE,
 	);
-	const resizeMaxHeight = Math.max(
-		0,
-		viewport.height - top - SELECTION_CARD_EDGE,
+	const resizeMaxHeight = Math.min(
+		anchoredToSelection ? maxHeight : Infinity,
+		Math.max(0, viewport.height - top - SELECTION_CARD_EDGE),
 	);
 	// The gutter pin sits on the side the card opens toward. Reveal the card
 	// from that corner so it looks like the pin expands into the full card.
@@ -347,7 +419,9 @@ export function SelectionCard({
 		</span>
 	);
 
-	const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+	const startDrag = (event: ReactPointerEvent<HTMLElement>) => {
+		if (event.target instanceof Element && event.target.closest("button"))
+			return;
 		const rect = rootRef.current?.getBoundingClientRect();
 		if (!rect || event.button !== 0 || dragRef.current) return;
 		event.currentTarget.setPointerCapture(event.pointerId);
@@ -358,7 +432,7 @@ export function SelectionCard({
 		};
 	};
 
-	const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+	const moveDrag = (event: ReactPointerEvent<HTMLElement>) => {
 		const drag = dragRef.current;
 		if (!drag || drag.pointerId !== event.pointerId) return;
 		const rect = rootRef.current?.getBoundingClientRect();
@@ -443,33 +517,33 @@ export function SelectionCard({
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={handlePointerLeave}
 		>
-			<header className="flex shrink-0 items-center gap-2 border-border/60 border-b px-3 py-2">
-				{Icon ? (
-					<Icon
-						className="size-3.5 shrink-0 text-muted-foreground"
+			<header
+				className={cn(
+					"relative flex shrink-0 items-center gap-2 border-border/60 border-b px-3 py-2",
+					draggable &&
+						"touch-none select-none cursor-grab pt-2.5 active:cursor-grabbing",
+				)}
+				onPointerDown={draggable ? startDrag : undefined}
+				onPointerMove={draggable ? moveDrag : undefined}
+				onLostPointerCapture={() => {
+					dragRef.current = null;
+				}}
+			>
+				{draggable ? (
+					<GripHorizontal
+						className="pointer-events-none absolute top-1 left-1/2 size-3.5 -translate-x-1/2 text-muted-foreground"
 						aria-hidden
 					/>
 				) : null}
-				{draggable ? (
-					<div
-						className="flex min-w-0 flex-1 touch-none select-none items-center gap-1.5 self-stretch cursor-grab active:cursor-grabbing"
-						onPointerDown={startDrag}
-						onPointerMove={moveDrag}
-						onLostPointerCapture={() => {
-							dragRef.current = null;
-						}}
+				{icon ? (
+					<span
+						className="shrink-0 text-muted-foreground [&_svg]:size-3.5"
+						aria-hidden
 					>
-						<GripHorizontal
-							className="size-3.5 shrink-0 text-muted-foreground"
-							aria-hidden
-						/>
-						{onDismiss ? (
-							<Dialog.Title asChild>{titleNode}</Dialog.Title>
-						) : (
-							titleNode
-						)}
-					</div>
-				) : onDismiss ? (
+						{icon}
+					</span>
+				) : null}
+				{onDismiss ? (
 					<Dialog.Title asChild>{titleNode}</Dialog.Title>
 				) : (
 					titleNode
@@ -490,7 +564,7 @@ export function SelectionCard({
 											// Native button (not ghost Button): avoid variant
 											// hover:text-foreground fighting the red icon color.
 											className={cn(
-												"inline-flex size-6 shrink-0 items-center justify-center rounded-md",
+												"inline-flex size-6 shrink-0 cursor-default items-center justify-center rounded-md",
 												"text-muted-foreground transition-colors outline-none",
 												"focus-visible:ring-2 focus-visible:ring-ring/50",
 												a.pressed

@@ -1,16 +1,17 @@
 import { Check, Copy, Pin, PinOff, Settings2Icon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import agenteroAppIcon from "@/assets/agentero-app-icon.svg";
 import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
 import { Shimmer } from "@/components/ui/shimmer";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
-import type { ScreenPoint } from "@/components/viewer/pdf/types";
+import type { CardScreenPoint } from "@/components/viewer/pdf/types";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 
 type TranslateCardProps = {
-	screen: ScreenPoint;
+	screen: CardScreenPoint;
 	preferRight?: boolean;
 	/** Translation text (may stream in) */
 	result: string;
@@ -132,6 +133,7 @@ export function TranslateCard({
 			resizable
 			preferRight={preferRight}
 			title={t("selection.translateTitle")}
+			icon={<img src={agenteroAppIcon} alt="" className="size-5 rounded" />}
 			ariaLive="polite"
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}

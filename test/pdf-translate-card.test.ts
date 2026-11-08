@@ -130,7 +130,7 @@ it("uses P for the pin action and leaves typing, composing and modified keys alo
 
 it("keeps the grab offset and clamps dragging using the card's resized dimensions", async () => {
 	const card = await renderCard();
-	const handle = card.querySelector<HTMLElement>("header > div");
+	const handle = card.querySelector<HTMLElement>("header");
 	if (!handle) throw new Error("Missing translation title handle");
 	handle.setPointerCapture = vi.fn();
 	card.getBoundingClientRect = () =>

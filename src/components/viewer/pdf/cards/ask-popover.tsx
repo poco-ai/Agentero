@@ -200,7 +200,7 @@ export function AskPopover({
 			resizable
 			preferRight={preferRight}
 			title={title}
-			icon={MessageSquareIcon}
+			icon={<MessageSquareIcon />}
 			ariaLabel={t("pdfAsk.dialogLabel")}
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
