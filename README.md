@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/assets/hero.png" alt="Agentero" width="100%" />
+  <img src="assets/hero.png" alt="Agentero" width="100%" />
 </p>
 
 <h3 align="center">为人与 Agent 协作而生的一站式科研工作台</h3>
@@ -54,13 +54,13 @@ Zotero 是学术管理领域非常优秀的软件。它功能成熟、生态稳�
 * **多模式翻译服务**：支持划词翻译、按页对照翻译与全文翻译，内置可用翻译通道，并支持配置自定义 API Key（BYOK）。
 
 <p align="center">
-  <img src=".github/assets/agent.png" alt="PDF 阅读与 Agent 伴读" width="90%" />
+  <img src="assets/agent.png" alt="PDF 阅读与 Agent 伴读" width="90%" />
   <br/>
   <sub>分屏阅读与分析：左侧高亮批注，右侧本地 Agent 基于准确的结构化上下文进行答疑与推导</sub>
 </p>
 
 <p align="center">
-  <img src=".github/assets/translate.png" alt="划词翻译与笔记联动" width="90%" />
+  <img src="assets/translate.png" alt="划词翻译与笔记联动" width="90%" />
   <br/>
   <sub>划词翻译与实时记录：阅读过程中提取的要点可直接沉淀至本地 Markdown 笔记</sub>
 </p>
@@ -73,7 +73,7 @@ Zotero 是学术管理领域非常优秀的软件。它功能成熟、生态稳�
 * **极客 CLI 支持**：内置无头命令行工具，支持通过脚本实现批量导入文献、提取元数据与写入笔记等自动化工作流。
 
 <p align="center">
-  <img src=".github/assets/image.png" alt="内置 MCP 连接" width="90%" />
+  <img src="assets/image.png" alt="内置 MCP 连接" width="90%" />
   <br/>
   <sub>内置 MCP 协议服务，支持将本地文献库无缝接入各类外部 AI 客户端</sub>
 </p>
@@ -86,7 +86,7 @@ Zotero 是学术管理领域非常优秀的软件。它功能成熟、生态稳�
 * **引用关系自动梳理**：自动解析文献末尾的参考文献列表，支持一键批量抓取入库；支持获取出版商元数据并追踪后续被引动态。
 
 <p align="center">
-  <img src=".github/assets/coolpaper.png" alt="Cool Papers 集成" width="90%" />
+  <img src="assets/coolpaper.png" alt="Cool Papers 集成" width="90%" />
   <br/>
   <sub>应用内直接浏览 Cool Papers 热门论文并一键导入本地知识库</sub>
 </p>
@@ -109,31 +109,31 @@ Zotero 是学术管理领域非常优秀的软件。它功能成熟、生态稳�
 #### 1. 学术 RSS 订阅
 追踪关注的学术博客、实验室主页与前沿动态：
 <p align="center">
-  <img src=".github/assets/rss.png" alt="RSS 订阅" width="85%" />
+  <img src="assets/rss.png" alt="RSS 订阅" width="85%" />
 </p>
 
 #### 2. Agent 技能（Skill）扩展
 浏览并安装社区提供的科研技能，扩展论文精读与写作分析能力：
 <p align="center">
-  <img src=".github/assets/skill-import.png" alt="Skill 扩展" width="85%" />
+  <img src="assets/skill-import.png" alt="Skill 扩展" width="85%" />
 </p>
 
 #### 3. Agent 与连接配置
 通过 ACP 协议管理、升级和切换本地 Agent：
 <p align="center">
-  <img src=".github/assets/agent-setting.png" alt="Agent 设置" width="85%" />
+  <img src="assets/agent-setting.png" alt="Agent 设置" width="85%" />
 </p>
 
 #### 4. S3 兼容云存储同步
 配置私有或商业 S3 存储，实现多设备间知识库同步：
 <p align="center">
-  <img src=".github/assets/s3-sync.png" alt="S3 同步设置" width="85%" />
+  <img src="assets/s3-sync.png" alt="S3 同步设置" width="85%" />
 </p>
 
 #### 5. 多套界面主题
 支持亮色/暗色及多种配色风格，支持自适应系统外观设置：
 <p align="center">
-  <img src=".github/assets/theme.png" alt="主题配置" width="85%" />
+  <img src="assets/theme.png" alt="主题配置" width="85%" />
 </p>
 
 </details>
@@ -186,7 +186,7 @@ agentero --help
 ### 用户交流群
 
 <p align="center">
-  <img src=".github/assets/community-qr.png" alt="Agentero 用户群二维码" width="240" />
+  <img src="assets/community-qr.png" alt="Agentero 用户群二维码" width="240" />
   <br/>
   <sub>扫码加入微信群：使用心得、问题反馈与版本预告。二维码 7 天内有效，过期请在 <a href="https://github.com/poco-ai/Agentero/issues">Issue</a> 留言。</sub>
 </p>
