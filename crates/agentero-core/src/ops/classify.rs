@@ -124,6 +124,32 @@ const TABLE: &[OpClassification] = &[
         OpPermission::Unspecified,
     ),
     spec(
+        "feed.list",
+        OpStability::Internal,
+        OpPermission::Unspecified,
+    ),
+    spec("feed.add", OpStability::Internal, OpPermission::Unspecified),
+    spec(
+        "feed.remove",
+        OpStability::Internal,
+        OpPermission::Unspecified,
+    ),
+    spec(
+        "feed.refresh",
+        OpStability::Internal,
+        OpPermission::Unspecified,
+    ),
+    spec(
+        "feed.items",
+        OpStability::Internal,
+        OpPermission::Unspecified,
+    ),
+    spec(
+        "feed.read",
+        OpStability::Internal,
+        OpPermission::Unspecified,
+    ),
+    spec(
         "export.bib",
         OpStability::Internal,
         OpPermission::Unspecified,

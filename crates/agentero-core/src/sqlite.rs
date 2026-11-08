@@ -14,9 +14,14 @@ use std::path::Path;
 /// Standard PRAGMA batch applied right after every Agentero database open.
 /// WAL lets readers proceed while the app writes; `busy_timeout` absorbs
 /// short lock contention instead of failing commands immediately.
-pub const STANDARD_PRAGMAS: &str = "PRAGMA journal_mode = WAL;\n\
+///
+/// `busy_timeout` must come first: switching `journal_mode` can itself need a
+/// lock, and a CLI process opening the shared feeds database while the desktop
+/// app (or a second CLI) is migrating would otherwise fail immediately with
+/// `database is locked` before the timeout is installed.
+pub const STANDARD_PRAGMAS: &str = "PRAGMA busy_timeout = 5000;\n\
+     PRAGMA journal_mode = WAL;\n\
      PRAGMA synchronous = NORMAL;\n\
-     PRAGMA busy_timeout = 5000;\n\
      PRAGMA foreign_keys = ON;";
 
 /// Pattern for descendants of a normalized relative path. Pair with
@@ -274,12 +279,13 @@ mod tests {
     use super::*;
 
     /// The PRAGMA batch must stay verbatim: catalog / usage / feeds shipped
-    /// with exactly this string and opening behavior must not drift.
+    /// with exactly this string and opening behavior must not drift. Order
+    /// matters: `busy_timeout` is installed before the WAL switch.
     #[test]
     fn pragma_batch_is_verbatim() {
         assert_eq!(
             STANDARD_PRAGMAS,
-            "PRAGMA journal_mode = WAL;\nPRAGMA synchronous = NORMAL;\nPRAGMA busy_timeout = 5000;\nPRAGMA foreign_keys = ON;"
+            "PRAGMA busy_timeout = 5000;\nPRAGMA journal_mode = WAL;\nPRAGMA synchronous = NORMAL;\nPRAGMA foreign_keys = ON;"
         );
     }
 

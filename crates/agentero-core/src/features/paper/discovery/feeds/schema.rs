@@ -86,7 +86,11 @@ const MIGRATION_STEPS: [MigrationStep; 5] = [
     // artifact cleanup, placeholder restore fix); cached bodies from
     // older versions may show broken math. Re-resolve on next open.
     MigrationStep::batch(4, "UPDATE items SET body_markdown = NULL"),
-    MigrationStep::batch(5, "ALTER TABLE items ADD COLUMN read_at TEXT"),
+    // v5 is an ADD COLUMN. The desktop app and CLI (or two cron jobs) can race
+    // the migration: both read v4, both run the ALTER, and the loser gets
+    // `duplicate column name` after waiting for the writer. Tolerate the replay
+    // like v2's legacy ADD COLUMN ladder, then let the normal version stamp run.
+    MigrationStep::script_tolerant(5, "ALTER TABLE items ADD COLUMN read_at TEXT"),
 ];
 
 fn migrate(conn: &Connection) -> Result<(), AppError> {
@@ -160,6 +164,20 @@ mod tests {
         assert_eq!(body, "# Saved body");
         assert!(imported.is_some());
         assert!(read.is_none());
+        migrate(&conn).unwrap();
+        assert_eq!(schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn migrates_v5_tolerates_replayed_add_column() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(DDL_V1).unwrap();
+        conn.execute_batch(MIGRATE_V1_TO_V2).unwrap();
+        set_schema_version(&conn, 4).unwrap();
+        // Another process won the v4→v5 race and already added the column;
+        // this process still read v4 and re-runs the migration step.
+        conn.execute_batch("ALTER TABLE items ADD COLUMN read_at TEXT;")
+            .unwrap();
         migrate(&conn).unwrap();
         assert_eq!(schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }
