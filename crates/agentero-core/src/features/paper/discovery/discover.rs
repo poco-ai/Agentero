@@ -33,6 +33,27 @@ pub const DEFAULT_SEMANTIC_WEIGHT: f32 = 1.0;
 /// Chars of a candidate sent for embedding (providers cap tokens per input).
 const MAX_EMBED_CHARS: usize = 4_000;
 
+/// How multiple keywords combine in the arXiv `search_query`.
+///
+/// * [`KeywordMatch::All`] (default) — `all:a AND all:b`: only papers containing
+///   *every* term. Historic behaviour; narrower recall.
+/// * [`KeywordMatch::Any`] — `all:a OR all:b`: papers containing *any* term.
+///   Broader recall for "radar" sweeps; the lexical scorer still ranks
+///   multi-term hits higher, so exact AND-style papers float to the top.
+///
+/// Ignored when fewer than two keywords are supplied.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum KeywordMatch {
+    /// Combine with `AND` (a paper must contain every keyword).
+    #[default]
+    All,
+    /// Combine with `OR` (a paper needs any keyword).
+    Any,
+}
+
 /// A discovery request. At least one keyword or category is required; a date
 /// window alone would scan an unbounded slice of arXiv.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -41,6 +62,9 @@ pub struct DiscoverQuery {
     /// Topic terms / phrases (repeatable).
     #[serde(default)]
     pub keywords: Vec<String>,
+    /// How to combine multiple keywords: `all` (AND, default) or `any` (OR).
+    #[serde(default, skip_serializing_if = "is_default_keyword_match")]
+    pub keyword_match: KeywordMatch,
     /// arXiv categories, e.g. `cs.AI`.
     #[serde(default)]
     pub categories: Vec<String>,
@@ -258,9 +282,16 @@ pub fn known_arxiv_ids(vault_root: &Path) -> Result<HashSet<String>, AppError> {
 
 /// Compose the arXiv `search_query` expression from keywords / categories /
 /// submission-date bounds. Pure so it is unit-testable without the network.
+///
+/// Keywords combine per [`DiscoverQuery::keyword_match`] (`AND` by default,
+/// `OR` for broader recall). An `OR` keyword group is parenthesised so it stays
+/// grouped against the AND-ed category / date clauses; a flat `AND` group needs
+/// no parens, keeping the default query byte-identical to the historic form.
 fn build_search_query(query: &DiscoverQuery) -> Result<String, AppError> {
     let mut clauses: Vec<String> = Vec::new();
 
+    // Keywords, combined per keyword_match (default AND).
+    let mut kw_clauses: Vec<String> = Vec::new();
     for keyword in &query.keywords {
         let keyword = keyword.trim();
         if keyword.is_empty() {
@@ -268,9 +299,21 @@ fn build_search_query(query: &DiscoverQuery) -> Result<String, AppError> {
         }
         if keyword.chars().any(char::is_whitespace) {
             // Multi-word phrase → quoted so arXiv treats it as one unit.
-            clauses.push(format!("all:\"{}\"", keyword.replace('"', " ")));
+            let q = '"';
+            let phrase = keyword.replace(q, " ");
+            kw_clauses.push(format!("all:{q}{phrase}{q}"));
         } else {
-            clauses.push(format!("all:{keyword}"));
+            kw_clauses.push(format!("all:{keyword}"));
+        }
+    }
+    match kw_clauses.len() {
+        0 => {}
+        1 => clauses.push(kw_clauses.pop().expect("len == 1")),
+        _ => {
+            let is_or = matches!(query.keyword_match, KeywordMatch::Any);
+            let group = kw_clauses.join(if is_or { " OR " } else { " AND " });
+            // Parenthesise only the OR group; a flat AND group stays bare.
+            clauses.push(if is_or { format!("({group})") } else { group });
         }
     }
 
@@ -305,6 +348,10 @@ fn build_search_query(query: &DiscoverQuery) -> Result<String, AppError> {
         ));
     }
     Ok(clauses.join(" AND "))
+}
+
+fn is_default_keyword_match(keyword_match: &KeywordMatch) -> bool {
+    matches!(keyword_match, KeywordMatch::All)
 }
 
 /// `YYYY-MM-DD` → arXiv `submittedDate` bound (`YYYYMMDD0000` / `YYYYMMDD2359`).
@@ -453,6 +500,48 @@ mod tests {
             "all:agent AND all:\"world model\" AND cat:cs.AI \
              AND submittedDate:[202608010000 TO 202608072359]"
         );
+    }
+
+    #[test]
+    fn keyword_or_is_grouped_against_category() {
+        let query = DiscoverQuery {
+            keywords: vec!["dance".into(), "choreography".into()],
+            categories: vec!["cs.HC".into()],
+            keyword_match: KeywordMatch::Any,
+            ..Default::default()
+        };
+        assert_eq!(
+            build_search_query(&query).unwrap(),
+            "(all:dance OR all:choreography) AND cat:cs.HC"
+        );
+    }
+
+    #[test]
+    fn keyword_or_with_phrase_and_date_window() {
+        let query = DiscoverQuery {
+            keywords: vec!["dance".into(), "dance history".into()],
+            since: Some("2026-10-01".into()),
+            until: Some("2026-11-07".into()),
+            keyword_match: KeywordMatch::Any,
+            ..Default::default()
+        };
+        assert_eq!(
+            build_search_query(&query).unwrap(),
+            "(all:dance OR all:\"dance history\") \
+             AND submittedDate:[202610010000 TO 202611072359]"
+        );
+    }
+
+    #[test]
+    fn single_keyword_ignores_match_mode() {
+        let mut query = DiscoverQuery {
+            keywords: vec!["dance".into()],
+            keyword_match: KeywordMatch::Any,
+            ..Default::default()
+        };
+        assert_eq!(build_search_query(&query).unwrap(), "all:dance");
+        query.keyword_match = KeywordMatch::All;
+        assert_eq!(build_search_query(&query).unwrap(), "all:dance");
     }
 
     #[test]

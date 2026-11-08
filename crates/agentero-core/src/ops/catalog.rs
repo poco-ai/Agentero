@@ -379,6 +379,8 @@ pub fn build() -> Vec<OpSpec> {
             false,
             json!({
                 "keyword?": ["string"],
+                "match?": "'all' (default, AND) | 'any' (OR) — CLI flag combining multiple keywords",
+                "keywordMatch?": "'all' (default, AND) | 'any' (OR) — MCP field, same as --match",
                 "category?": ["string"],
                 "since?": "YYYY-MM-DD",
                 "until?": "YYYY-MM-DD",
@@ -408,6 +410,7 @@ pub fn build() -> Vec<OpSpec> {
             &["usage"],
             &[
                 "agentero discover arxiv -k agent -k \"world model\" -c cs.AI --since 2026-08-01 --json",
+                "agentero discover arxiv -k dance -k choreography --match any --top 20 --json",
                 "agentero discover arxiv -c cs.LG --top 20 --json",
                 "MCP discover_arxiv { \"keywords\": [\"agent\"], \"categories\": [\"cs.AI\"], \"top\": 5 }",
             ],

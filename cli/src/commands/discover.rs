@@ -9,7 +9,8 @@ use crate::output::to_value;
 use crate::resolve::{resolve_vault, GlobalOpts};
 use crate::style::{format_table, truncate_chars};
 use agentero_core::features::paper::discovery::discover::{
-    discover_arxiv, known_arxiv_ids, DiscoverQuery, DEFAULT_MAX_CANDIDATES, DEFAULT_TOP,
+    discover_arxiv, known_arxiv_ids, DiscoverQuery, KeywordMatch, DEFAULT_MAX_CANDIDATES,
+    DEFAULT_TOP,
 };
 use agentero_core::features::paper::discovery::embeddings::EmbeddingConfig;
 use clap::Subcommand;
@@ -29,6 +30,15 @@ pub enum DiscoverCmd {
         /// Topic term or phrase (repeatable). e.g. -k agent -k "world model".
         #[arg(short = 'k', long = "keyword", value_name = "TERM")]
         keywords: Vec<String>,
+        /// Combine multiple keywords: `all` (AND, default) or `any` (OR).
+        /// `any` broadens recall for multi-term radar sweeps (fewer/no hits).
+        #[arg(
+            long = "match",
+            value_name = "MODE",
+            default_value = "all",
+            value_parser = parse_keyword_match
+        )]
+        keyword_match: KeywordMatch,
         /// arXiv category (repeatable), e.g. -c cs.AI.
         #[arg(short = 'c', long = "category", value_name = "CAT")]
         categories: Vec<String>,
@@ -67,6 +77,7 @@ pub async fn run(cmd: DiscoverCmd, globals: &GlobalOpts) -> Result<Value, CliErr
     match cmd {
         DiscoverCmd::Arxiv {
             keywords,
+            keyword_match,
             categories,
             since,
             until,
@@ -82,6 +93,7 @@ pub async fn run(cmd: DiscoverCmd, globals: &GlobalOpts) -> Result<Value, CliErr
                 globals,
                 ArxivInputs {
                     keywords,
+                    keyword_match,
                     categories,
                     since,
                     until,
@@ -101,6 +113,7 @@ pub async fn run(cmd: DiscoverCmd, globals: &GlobalOpts) -> Result<Value, CliErr
 
 struct ArxivInputs {
     keywords: Vec<String>,
+    keyword_match: KeywordMatch,
     categories: Vec<String>,
     since: Option<String>,
     until: Option<String>,
@@ -116,6 +129,7 @@ struct ArxivInputs {
 async fn run_arxiv(globals: &GlobalOpts, inputs: ArxivInputs) -> Result<Value, CliError> {
     let query = DiscoverQuery {
         keywords: inputs.keywords,
+        keyword_match: inputs.keyword_match,
         categories: inputs.categories,
         since: inputs.since,
         until: inputs.until,
@@ -173,6 +187,18 @@ async fn run_arxiv(globals: &GlobalOpts, inputs: ArxivInputs) -> Result<Value, C
         obj.insert("lines".into(), json!(lines));
     }
     Ok(out)
+}
+
+/// Parse the `--match` value into [`KeywordMatch`].
+///
+/// Accepts `any`/`or` (OR) and `all`/`and` (AND) so the flag reads naturally
+/// against both spellings.
+fn parse_keyword_match(value: &str) -> Result<KeywordMatch, String> {
+    match value {
+        "any" | "or" => Ok(KeywordMatch::Any),
+        "all" | "and" => Ok(KeywordMatch::All),
+        other => Err(format!("expected 'any' (OR) or 'all' (AND), got '{other}'")),
+    }
 }
 
 /// Build an embedding config when both a base URL and a model are given.

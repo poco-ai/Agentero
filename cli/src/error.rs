@@ -130,10 +130,9 @@ impl From<agentero_core::error::AppError> for CliError {
         if lower.contains("vault") && lower.contains("not a directory") {
             return Self::vault_not_found(msg);
         }
-        // Prefer domain-specific codes for Translator IO.
-        if lower.contains("export") {
-            return Self::export_failed(msg);
-        }
+        // Prefer domain-specific codes for Translator IO. Export maps its own
+        // failures explicitly (`export_failed`); matching the bare substring
+        // here would also catch URLs such as `export.arxiv.org`.
         if lower.contains("translator") || lower.contains("import") {
             return Self::import_failed(msg);
         }
@@ -151,6 +150,23 @@ impl From<agentero_core::error::AppError> for CliError {
 impl From<std::io::Error> for CliError {
     fn from(err: std::io::Error) -> Self {
         Self::new("io", err.to_string(), ExitCode::Business)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use agentero_core::error::AppError;
+
+    #[test]
+    fn arxiv_network_errors_are_not_misread_as_export_failures() {
+        let err = AppError::message(
+            "network: error sending request for url \
+             (https://export.arxiv.org/api/query?search_query=all:test)",
+        );
+        let cli = CliError::from(err);
+        assert_eq!(cli.code, "message");
+        assert_eq!(cli.exit_code(), ExitCode::Business);
     }
 }
 

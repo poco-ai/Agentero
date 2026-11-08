@@ -188,6 +188,21 @@ mod tests {
     }
 
     #[test]
+    fn discover_documents_both_keyword_match_spellings() {
+        let op = get("discover.arxiv").expect("discover.arxiv catalog entry");
+        assert!(
+            op.input.get("match?").is_some(),
+            "CLI --match missing from describe: {:?}",
+            op.input
+        );
+        assert!(
+            op.input.get("keywordMatch?").is_some(),
+            "MCP keywordMatch missing from describe: {:?}",
+            op.input
+        );
+    }
+
+    #[test]
     fn catalog_has_core_ops() {
         assert!(get("paper.list").is_some());
         assert!(get("paper_list").is_some()); // mcp alias

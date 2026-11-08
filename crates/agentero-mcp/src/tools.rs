@@ -510,6 +510,10 @@ struct DiscoverArxivArgs {
     /// Topic terms / phrases (repeatable).
     #[serde(default)]
     keywords: Vec<String>,
+    /// Combine multiple keywords: `all` (AND, default) or `any` (OR, broader
+    /// recall). Ignored when fewer than two keywords are given.
+    #[serde(default)]
+    keyword_match: Option<discover::KeywordMatch>,
     /// arXiv categories, e.g. cs.AI (repeatable).
     #[serde(default)]
     categories: Vec<String>,
@@ -795,7 +799,7 @@ impl AgenteroMcp {
     }
 
     #[tool(
-        description = "Discover and rank arXiv papers for a topic (keywords / categories / submission-date window) with a deterministic lexical scorer. Vault-free; when the vault is open, dedup (default) drops papers already in the library. Returns arXiv ids for a follow-up import_id."
+        description = "Discover and rank arXiv papers for a topic (keywords / categories / submission-date window) with a deterministic lexical scorer. Multiple keywords default to AND; set keywordMatch to 'any' to OR them for broader recall. Vault-free; when the vault is open, dedup (default) drops papers already in the library. Returns arXiv ids for a follow-up import_id."
     )]
     async fn discover_arxiv(
         &self,
@@ -815,6 +819,7 @@ impl AgenteroMcp {
         };
         let query = discover::DiscoverQuery {
             keywords: args.keywords,
+            keyword_match: args.keyword_match.unwrap_or_default(),
             categories: args.categories,
             since: args.since,
             until: args.until,
@@ -1542,8 +1547,9 @@ impl ServerHandler for AgenteroMcp {
 
 #[cfg(test)]
 mod schema_tests {
-    use super::AgenteroMcp;
+    use super::{AgenteroMcp, DiscoverArxivArgs};
     use crate::McpController;
+    use agentero_core::features::paper::discovery::discover;
     use rmcp::ServerHandler;
 
     /// Stable ops that advertise MCP must use a name from `AgenteroMcp::tool_router`
@@ -1939,6 +1945,22 @@ mod schema_tests {
         for key in ["path", "id", "title", "pdf", "tex", "paperMd"] {
             assert!(props.contains_key(key), "missing {key} in {props:?}");
         }
+    }
+
+    #[test]
+    fn discover_arxiv_accepts_keyword_match() {
+        let args: DiscoverArxivArgs = serde_json::from_value(serde_json::json!({
+            "keywords": ["dance", "choreography"],
+            "keywordMatch": "any"
+        }))
+        .expect("keywordMatch should deserialize");
+        assert_eq!(args.keyword_match, Some(discover::KeywordMatch::Any));
+
+        let tool = AgenteroMcp::discover_arxiv_tool_attr();
+        let schema =
+            serde_json::to_string(&*tool.input_schema).expect("input schema should serialize");
+        assert!(schema.contains("keywordMatch"), "{schema}");
+        assert!(schema.contains("\"any\""), "{schema}");
     }
 
     #[test]
