@@ -129,7 +129,7 @@ export const blockProps = {
 		caption: z.string().optional(),
 		source: z.string().optional(),
 		kind: z
-			.enum(["figure", "table", "equation", "algorithm", "section"])
+			.enum(["figure", "table", "formula", "algorithm", "section"])
 			.optional(),
 	}),
 	ClaimList: z.object({
@@ -261,7 +261,7 @@ const PaperCard = defineComponent({
 const FigureRef = defineComponent({
 	name: "FigureRef",
 	description:
-		"reference card for a figure, table, equation, algorithm or section",
+		"reference card for a figure, table, formula (numbered equation), algorithm or section",
 	props: blockProps.FigureRef,
 	component: null,
 });
@@ -275,7 +275,7 @@ const ClaimList = defineComponent({
 const Outline = defineComponent({
 	name: "Outline",
 	description:
-		"paper outline with nesting, page numbers and optional section source",
+		"paper outline with nesting; section level is 1-based (1 = top, 2 = subsection), optional page and source",
 	props: blockProps.Outline,
 	component: null,
 });

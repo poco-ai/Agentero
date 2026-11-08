@@ -15,6 +15,22 @@ describe("linkifyBareVaultCitations", () => {
 		);
 	});
 
+	it("wraps a bare PDF formula citation path in a Markdown link", () => {
+		expect(
+			linkifyBareVaultCitations(
+				"Equation 3 (papers/vla/2504.16054/2504.16054.pdf#formula=3)",
+			),
+		).toBe(
+			"Equation 3 ([2504.16054.pdf · formula=3](./papers/vla/2504.16054/2504.16054.pdf#formula=3))",
+		);
+	});
+
+	it("does not link the removed equation alias", () => {
+		const prose =
+			"Equation 3 (papers/vla/2504.16054/2504.16054.pdf#equation=3)";
+		expect(linkifyBareVaultCitations(prose)).toBe(prose);
+	});
+
 	it("leaves Markdown links and inline code unchanged", () => {
 		const href = "papers/vla/2504.16054/2504.16054.pdf#page=1";
 		expect(linkifyBareVaultCitations(`[Figure 1](${href})`)).toBe(

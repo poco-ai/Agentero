@@ -210,7 +210,7 @@
 		"figureKind": {
 			"figure": "图",
 			"table": "表",
-			"equation": "公式",
+			"formula": "公式",
 			"algorithm": "算法",
 			"section": "章节"
 		},

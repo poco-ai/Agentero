@@ -18,7 +18,7 @@ export const OPENUI_COMPONENT_SIGNATURES: Record<OpenUiComponentName, string> = 
 	"BarChart": "BarChart(title: string, labels: string[], values: number[], unit?: string)",
 	"LineChart": "LineChart(title: string, labels: string[], values: number[], unit?: string)",
 	"PaperCard": "PaperCard(paper: {title: string, authors: string, year?: string, venue?: string, path?: string, status?: \"unread\" | \"reading\" | \"read\" | \"queued\", tags?: string[]})",
-	"FigureRef": "FigureRef(label: string, caption?: string, source?: string, kind?: \"figure\" | \"table\" | \"equation\" | \"algorithm\" | \"section\")",
+	"FigureRef": "FigureRef(label: string, caption?: string, source?: string, kind?: \"figure\" | \"table\" | \"formula\" | \"algorithm\" | \"section\")",
 	"ClaimList": "ClaimList(title: string, claims: {claim: string, status: \"supports\" | \"contradicts\" | \"mixed\" | \"unclear\", evidence?: string, source?: string}[])",
 	"Outline": "Outline(title: string, sections: {title: string, level?: number, page?: number, source?: string}[])",
 	"Timeline": "Timeline(title?: string, items: {title: string, description?: string}[])",

@@ -73,8 +73,8 @@
 		},
 		{
 			"name": "FigureRef",
-			"signature": "FigureRef(label: string, caption?: string, source?: string, kind?: \"figure\" | \"table\" | \"equation\" | \"algorithm\" | \"section\")",
-			"description": "reference card for a figure, table, equation, algorithm or section"
+			"signature": "FigureRef(label: string, caption?: string, source?: string, kind?: \"figure\" | \"table\" | \"formula\" | \"algorithm\" | \"section\")",
+			"description": "reference card for a figure, table, formula (numbered equation), algorithm or section"
 		},
 		{
 			"name": "ClaimList",
@@ -84,7 +84,7 @@
 		{
 			"name": "Outline",
 			"signature": "Outline(title: string, sections: {title: string, level?: number, page?: number, source?: string}[])",
-			"description": "paper outline with nesting, page numbers and optional section source"
+			"description": "paper outline with nesting; section level is 1-based (1 = top, 2 = subsection), optional page and source"
 		},
 		{
 			"name": "Timeline",

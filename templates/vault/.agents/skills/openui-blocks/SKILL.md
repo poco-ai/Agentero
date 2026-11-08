@@ -1,6 +1,6 @@
 ---
 name: openui-blocks
-version: 2
+version: 1
 # Bump when the component list or guidance changes; existing Vaults only
 # auto-upgrade a bundled skill when this integer increases.
 description: >-
@@ -22,9 +22,21 @@ when it is enough, especially for a single table.
 - Arguments are positional; strings use double quotes; arrays use `[...]`.
 - Use only the components listed below. Do not invent props or components.
 - `source` / `path` must be a Vault-relative file path or citation target:
-  `papers/<id>/<id>.pdf#page=3`, `#figure=2`, `#section=4.2`. Never put a
+  `papers/<id>/<id>.pdf#page=<N>`, `#figure=<N>`, `#formula=<N>`,
+  `#section=<x.y>` (numbers are placeholders; only use anchors that exist).
+  Numbered equations use `#formula=N`, never `#equation=`. Never put a
   human-readable label such as "Table 3, Section 4.2" there; use `label`,
   `caption` or `detail` for display text. Unrecognized targets stay as text.
+- Never invent a numbered PDF anchor. `#figure=N`, `#table=N`, `#formula=N`,
+  `#algorithm=N` and `#section=...` must exist in the paper's layout: check
+  `agentero layout list <paper> --kind <kind> --json`, or read
+  `{paper}/source/layout-index.json` when the CLI is unavailable. Formulas may
+  also live as `\tag{N}` in `{paper}/source/layout.json`. Only a matching
+  numbered id, title/caption, or `\tag{N}` counts; an unnumbered region of that
+  kind is not a citation. If the number is not there, use a verified `#page=N`
+  or omit `source`; a PDF existing is not the same as the anchor existing.
+- `Outline` section `level` is **1-based** (1 = top, 2 = subsection);
+  `Tree` `depth` is 0-based. Never use `level: 0`.
 - Read-only v1: no state, bindings, queries, mutations, actions, HTML, scripts,
   or nested code fences.
 - Keep data small: at most 8 table columns / 60 rows, 24 chart points, 12 steps,
@@ -59,9 +71,9 @@ chart = BarChart("Scores", ["A", "B"], [91, 87], "%")
 - `BarChart(title: string, labels: string[], values: number[], unit?: string)` — categorical bars; labels and values must be equal length
 - `LineChart(title: string, labels: string[], values: number[], unit?: string)` — values over labels; labels and values must be equal length
 - `PaperCard(paper: {title: string, authors: string, year?: string, venue?: string, path?: string, status?: "unread" | "reading" | "read" | "queued", tags?: string[]})` — paper identity card: title, authors, year, venue, status, tags and vault path
-- `FigureRef(label: string, caption?: string, source?: string, kind?: "figure" | "table" | "equation" | "algorithm" | "section")` — reference card for a figure, table, equation, algorithm or section
+- `FigureRef(label: string, caption?: string, source?: string, kind?: "figure" | "table" | "formula" | "algorithm" | "section")` — reference card for a figure, table, formula (numbered equation), algorithm or section
 - `ClaimList(title: string, claims: {claim: string, status: "supports" | "contradicts" | "mixed" | "unclear", evidence?: string, source?: string}[])` — claims with support/contradict/mixed/unclear status, evidence and source
-- `Outline(title: string, sections: {title: string, level?: number, page?: number, source?: string}[])` — paper outline with nesting, page numbers and optional section source
+- `Outline(title: string, sections: {title: string, level?: number, page?: number, source?: string}[])` — paper outline with nesting; section level is 1-based (1 = top, 2 = subsection), optional page and source
 - `Timeline(title?: string, items: {title: string, description?: string}[])` — vertical timeline of titled items
 - `Tree(title?: string, items: {label: string, depth?: number}[])` — indented tree; depth starts at 0
 - `TagList(tags: string[])` — wrapped tag pills

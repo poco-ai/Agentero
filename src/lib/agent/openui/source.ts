@@ -20,8 +20,11 @@ export function isOpenUiSourceTarget(value: string): boolean {
 	if (!trimmed) return false;
 	const href = cleanCitationHref(trimmed);
 	if (/^https?:\/\//i.test(href)) return true;
-	if (isAgentCitationHref(href) || isVaultPdfHref(href)) return true;
-	const { path } = splitCitationHref(href);
+	if (isAgentCitationHref(href)) return true;
+	const { path, fragment } = splitCitationHref(href);
 	if (!path) return false;
+	// A PDF path with an unrecognized fragment is not a citation we can jump
+	// to. Keep it as muted source text instead of rendering a dead button.
+	if (isVaultPdfHref(href)) return !fragment;
 	return isTextOpenable(path);
 }

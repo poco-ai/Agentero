@@ -59,6 +59,12 @@ describe("isAgentCitationHref", () => {
 		expect(
 			isAgentCitationHref("papers/vla/2504.16054/2504.16054.pdf#figure=3"),
 		).toBe(true);
+		expect(
+			isAgentCitationHref("papers/vla/2504.16054/2504.16054.pdf#formula=3"),
+		).toBe(true);
+		expect(
+			isAgentCitationHref("papers/vla/2504.16054/2504.16054.pdf#equation=3"),
+		).toBe(false);
 	});
 
 	it("rejects plain paths and http urls", () => {

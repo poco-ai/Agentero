@@ -115,6 +115,32 @@ outline = Outline("Outline", [{title: "Intro"}])`);
 		expect(resolved.view.kind).toBe("ready");
 	});
 
+	it("keeps formula refs on the formula kind and rejects the removed equation kind", () => {
+		const formula = parseSettled(
+			'root = Stack([figure])\nfigure = FigureRef("Equation 3", "", "papers/a/a.pdf#formula=3", "formula")',
+		).resolved.view;
+		expect(formula.kind).toBe("ready");
+
+		const equation = parseSettled(
+			'root = Stack([figure])\nfigure = FigureRef("Equation 3", "", "papers/a/a.pdf#formula=3", "equation")',
+		).resolved.view;
+		expect(equation.kind).toBe("failed");
+		if (equation.kind === "failed") expect(equation.reason).toBe("invalid");
+	});
+
+	it("uses 1-based Outline levels", () => {
+		const valid = parseSettled(
+			'root = Stack([outline])\noutline = Outline("Outline", [{title: "Intro", level: 1}, {title: "Method", level: 2}])',
+		).resolved.view;
+		expect(valid.kind).toBe("ready");
+
+		const zero = parseSettled(
+			'root = Stack([outline])\noutline = Outline("Outline", [{title: "Intro", level: 0}])',
+		).resolved.view;
+		expect(zero.kind).toBe("failed");
+		if (zero.kind === "failed") expect(zero.reason).toBe("invalid");
+	});
+
 	it("rejects semantic refinements from the shared zod schema", () => {
 		const progress = parseSettled(
 			'root = Stack([p])\np = Progress("Coverage", 120, 100)',
@@ -290,6 +316,8 @@ describe("OpenUI source targets", () => {
 		expect(isOpenUiSourceTarget("Section 4.3")).toBe(false);
 		expect(isOpenUiSourceTarget("notes/a.md")).toBe(true);
 		expect(isOpenUiSourceTarget("papers/a/a.pdf#figure=2")).toBe(true);
+		expect(isOpenUiSourceTarget("papers/a/a.pdf#formula=2")).toBe(true);
+		expect(isOpenUiSourceTarget("papers/a/a.pdf#equation=2")).toBe(false);
 		expect(isOpenUiSourceTarget("https://example.com/paper")).toBe(true);
 	});
 });

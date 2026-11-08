@@ -14,7 +14,7 @@ import { ToneBadge } from "./tone-badge";
 const KIND_KEY = {
 	figure: "uiBlock.figureKind.figure",
 	table: "uiBlock.figureKind.table",
-	equation: "uiBlock.figureKind.equation",
+	formula: "uiBlock.figureKind.formula",
 	algorithm: "uiBlock.figureKind.algorithm",
 	section: "uiBlock.figureKind.section",
 } as const;
@@ -25,7 +25,7 @@ const KIND_ICON: Record<
 > = {
 	figure: ImageIcon,
 	table: Table2,
-	equation: Sigma,
+	formula: Sigma,
 	algorithm: ListOrdered,
 	section: TextQuote,
 };
