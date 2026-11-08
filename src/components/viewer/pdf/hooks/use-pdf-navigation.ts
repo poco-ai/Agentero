@@ -14,7 +14,13 @@ import {
 	useScrollCapability,
 } from "@embedpdf/plugin-scroll/react";
 import type { useZoom } from "@embedpdf/plugin-zoom/react";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import {
+	type RefObject,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import {
 	type PdfNavigationRegion,
 	type PdfNavigationTarget,
@@ -256,13 +262,16 @@ export function usePdfNavigation({
 		else setPageField(String(currentPage));
 	};
 
+	const goToRegion = useCallback((region: PdfNavigationRegion) => {
+		ownerRef.current?.request({ page: region.pageIndex + 1, region });
+	}, []);
+
 	return {
 		pageField,
 		setPageField,
 		pageFocusedRef,
 		goToPage,
-		goToRegion: (region) =>
-			ownerRef.current?.request({ page: region.pageIndex + 1, region }),
+		goToRegion,
 		commitPageField,
 	};
 }

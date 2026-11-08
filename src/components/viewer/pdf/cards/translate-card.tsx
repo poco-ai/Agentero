@@ -1,4 +1,12 @@
-import { Check, Copy, Pin, PinOff, Settings2Icon, X } from "lucide-react";
+import {
+	Check,
+	Copy,
+	LocateFixed,
+	Pin,
+	PinOff,
+	Settings2Icon,
+	X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import agenteroAppIcon from "@/assets/agentero-app-icon.svg";
@@ -13,6 +21,7 @@ import { copyTextToClipboard } from "@/lib/core/clipboard";
 type TranslateCardProps = {
 	screen: CardScreenPoint;
 	preferRight?: boolean;
+	source?: { quote?: string; page: number; onLocate: () => void };
 	/** Translation text (may stream in) */
 	result: string;
 	streaming: boolean;
@@ -38,6 +47,7 @@ type TranslateCardProps = {
 export function TranslateCard({
 	screen,
 	preferRight = false,
+	source,
 	result,
 	streaming,
 	error,
@@ -140,6 +150,16 @@ export function TranslateCard({
 			// Leave WebKit's native resize corner outside the nested scrollport.
 			className="pb-3"
 			actions={[
+				...(source
+					? [
+							{
+								id: "locate",
+								label: t("selection.locateSource"),
+								onClick: source.onLocate,
+								icon: <LocateFixed />,
+							},
+						]
+					: []),
 				...(showResult
 					? [
 							{
@@ -180,10 +200,18 @@ export function TranslateCard({
 			// Body only constrains flex; the translation owns its own scrollport.
 			bodyClassName="min-h-0 overflow-hidden p-0"
 		>
+			{source ? (
+				<div className="mx-2.5 mt-2 flex min-h-6 shrink-0 flex-col justify-end border-border/70 border-l-2 pl-2 text-muted-foreground">
+					<p className="line-clamp-2 break-words text-xs leading-relaxed">
+						{source.quote?.trim() ||
+							t("selection.sourcePage", { page: source.page })}
+					</p>
+				</div>
+			) : null}
 			<div
 				ref={scrollPortRef}
 				onScroll={handleScroll}
-				className="agentero-scroll agentero-scroll-visible flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto px-2.5 py-2"
+				className="agentero-scroll agentero-scroll-visible mx-2.5 mt-2 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto rounded-md border border-border/70 px-2.5 py-2"
 			>
 				{showLoading ? (
 					<Shimmer className="text-sm" as="p">
@@ -192,7 +220,7 @@ export function TranslateCard({
 				) : null}
 
 				{showResult ? (
-					<MessageResponse className="min-w-0 whitespace-pre-wrap break-words text-sm text-foreground leading-snug">
+					<MessageResponse className="min-w-0 whitespace-pre-wrap break-words text-[0.875rem] text-foreground leading-snug">
 						{result}
 					</MessageResponse>
 				) : null}

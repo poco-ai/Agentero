@@ -171,6 +171,7 @@ import {
 	linkPreviewDragActive,
 	subscribeLinkPreviewDrag,
 } from "@/lib/pdf/link-preview-drag";
+import { unionNormalizedRegions } from "@/lib/pdf/region";
 import type { PdfReloadPosition } from "@/lib/pdf/reload-position";
 import {
 	type ActiveSelectionCard,
@@ -2309,12 +2310,28 @@ function PdfViewerInner({
 	const handleToggleTranslatePin = useCallback(() => {
 		if (activeTranslate) toggleTranslatePin(activeTranslate);
 	}, [activeTranslate, toggleTranslatePin]);
+	const handleLocateTranslateSource = useCallback(() => {
+		if (!activeTranslate) return;
+		const { id, page, rects } = activeTranslate;
+		const bbox = unionNormalizedRegions(rects);
+		if (!bbox) {
+			handleGoToPage(page);
+			return;
+		}
+		goToRegion({
+			id: `translate-source-${id}`,
+			pageIndex: page - 1,
+			bbox,
+			kind: "text",
+		});
+	}, [activeTranslate, goToRegion, handleGoToPage]);
 	const cardTranslate = useMemo(
 		() => ({
 			record: isActive ? activeTranslate : null,
 			streaming: translateStreaming,
 			error: translateError,
 			onOpenSettings: openTranslateSettings,
+			onLocateSource: handleLocateTranslateSource,
 			onTogglePin:
 				paperAbsPath && activeTranslate?.rects.length
 					? handleToggleTranslatePin
@@ -2327,6 +2344,7 @@ function PdfViewerInner({
 			translateStreaming,
 			translateError,
 			openTranslateSettings,
+			handleLocateTranslateSource,
 			paperAbsPath,
 			handleToggleTranslatePin,
 			hideActiveCard,
