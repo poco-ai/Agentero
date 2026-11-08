@@ -110,6 +110,16 @@ describe("composer inline tokens", () => {
 		expect(stripInlineTokens(next)).toBe("do $deep-research");
 	});
 
+	it("replaces a trailing / trigger with a local skill token", () => {
+		const next = replaceTrailingTriggerWithToken(
+			"run /paper",
+			"skill",
+			encodeSkillToken("paper-reader"),
+		);
+		expect(next).toBe(`run ${encodeSkillToken("paper-reader")} `);
+		expect(stripInlineTokens(next)).toBe("run");
+	});
+
 	it("appends missing tokens for legacy drafts", () => {
 		const next = appendMissingInlineTokens(
 			"hello",

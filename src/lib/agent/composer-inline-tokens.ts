@@ -469,8 +469,7 @@ export function replaceTrailingTriggerWithToken(
 	kind: "mention" | "skill" | "command",
 	token: string,
 ): string {
-	const trigger =
-		kind === "mention" ? "@" : kind === "skill" ? String.raw`\$` : "[/$]";
+	const trigger = kind === "mention" ? "@" : "[/$]";
 	const pattern = new RegExp(`(${TRIGGER_BOUNDARY})${trigger}[^\\s]*$`);
 	if (!pattern.test(text)) {
 		const needsSpace = text.length > 0 && !/\s$/.test(text);

@@ -81,33 +81,45 @@ export function ComposerSlashMenu({
 			onOpenAutoFocus={(event) => event.preventDefault()}
 			className={COMPOSER_MENU_SURFACE}
 		>
-			{slashOptions.map((command, index) => (
-				<button
-					key={command.id}
-					id={`agent-slash-option-${index}`}
-					type="button"
-					role="option"
-					aria-selected={slashActiveIndex === index}
-					className={cn(
-						"flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm focus-visible:outline-none",
-						slashActiveIndex === index ? "bg-muted" : "hover:bg-muted/70",
-					)}
-					onMouseEnter={() => onSlashActiveIndexChange(index)}
-					onClick={() => onAttachSlashCommand(command)}
-				>
-					<span className="flex min-w-0 flex-1 items-center truncate">
-						<span className="shrink-0 font-mono text-muted-foreground">
-							{command.prefix}
+			{slashOptions.map((command, index) => {
+				const isSkill = command.kind === "skill";
+				return (
+					<button
+						key={command.id}
+						id={`agent-slash-option-${index}`}
+						type="button"
+						role="option"
+						aria-selected={slashActiveIndex === index}
+						className={cn(
+							"flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm focus-visible:outline-none",
+							slashActiveIndex === index ? "bg-muted" : "hover:bg-muted/70",
+						)}
+						onMouseEnter={() => onSlashActiveIndexChange(index)}
+						onClick={() => onAttachSlashCommand(command)}
+					>
+						{isSkill ? (
+							<Sparkles
+								className="size-3.5 shrink-0 text-muted-foreground"
+								aria-hidden
+							/>
+						) : (
+							<span className="shrink-0 font-mono text-muted-foreground">
+								{command.prefix}
+							</span>
+						)}
+						<span className="flex min-w-0 flex-1 items-center truncate">
+							<span className="shrink-0 whitespace-nowrap">
+								{isSkill ? cleanSkillDisplayName(command.title) : command.title}
+							</span>
 						</span>
-						<span className="shrink-0 whitespace-nowrap">{command.title}</span>
-					</span>
-					{command.description ? (
-						<span className="min-w-0 max-w-40 flex-1 truncate text-muted-foreground text-xs">
-							{command.description}
-						</span>
-					) : null}
-				</button>
-			))}
+						{command.description ? (
+							<span className="min-w-0 max-w-40 flex-1 truncate text-muted-foreground text-xs">
+								{command.description}
+							</span>
+						) : null}
+					</button>
+				);
+			})}
 		</PopoverContent>
 	);
 }

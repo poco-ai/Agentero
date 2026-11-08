@@ -74,7 +74,7 @@ import {
 import {
 	type AcpCommand,
 	acpCommandInvocation,
-	filterSlashCommands,
+	buildSlashOptions,
 } from "@/lib/agent/slash-commands";
 import {
 	forgetVisualInsertRequests,
@@ -519,8 +519,10 @@ export function useAgentComposer({
 	const slashCommands = acpCommandsByAgent[selectedAgentId ?? ""] ?? [];
 	const slashOptions = useMemo(() => {
 		if (!slashMatch) return [];
-		return filterSlashCommands(slashCommands, slashQuery);
-	}, [slashCommands, slashMatch, slashQuery]);
+		return buildSlashOptions(slashCommands, skills, slashQuery, {
+			selectedSkillIds: new Set(selectedSkillIds),
+		});
+	}, [slashCommands, slashMatch, slashQuery, selectedSkillIds, skills]);
 
 	const showMentionMenu =
 		!composerMenuDismissed &&
@@ -718,22 +720,25 @@ export function useAgentComposer({
 		[attachContextPaths],
 	);
 
-	const attachSkill = (skill: AgentSkill) => {
-		setComposerMenuDismissed(true);
-		setComposerText((prev) => {
-			const token = encodeSkillToken(skill.id);
-			if (prev.includes(token)) {
-				setSelectedSkillIds(extractSkillIds(prev));
-				return prev.replace(
-					/(^|\s)\$[^\s]*$/,
-					(_m, prefix: string) => `${prefix}`,
-				);
-			}
-			const next = replaceTrailingTriggerWithToken(prev, "skill", token);
-			setSelectedSkillIds(extractSkillIds(next));
-			return next;
-		});
-	};
+	const attachSkill = useCallback(
+		(skill: AgentSkill) => {
+			setComposerMenuDismissed(true);
+			setComposerText((prev) => {
+				const token = encodeSkillToken(skill.id);
+				if (prev.includes(token)) {
+					setSelectedSkillIds(extractSkillIds(prev));
+					return prev.replace(
+						/(^|\s)[/$][^\s]*$/,
+						(_m, prefix: string) => `${prefix}`,
+					);
+				}
+				const next = replaceTrailingTriggerWithToken(prev, "skill", token);
+				setSelectedSkillIds(extractSkillIds(next));
+				return next;
+			});
+		},
+		[setComposerText, setSelectedSkillIds],
+	);
 
 	const removeSkill = useCallback(
 		(skillId: string) => {
@@ -752,6 +757,14 @@ export function useAgentComposer({
 
 	const attachSlashCommand = useCallback(
 		(command: AcpCommand) => {
+			if (command.kind === "skill") {
+				attachSkill({
+					id: command.name,
+					name: command.title,
+					description: command.description,
+				});
+				return;
+			}
 			setComposerMenuDismissed(true);
 			setComposerText((prev) => {
 				const token = encodeCommandToken(acpCommandInvocation(command));
@@ -764,7 +777,7 @@ export function useAgentComposer({
 				return replaceTrailingTriggerWithToken(prev, "command", token);
 			});
 		},
-		[setComposerText],
+		[attachSkill, setComposerText],
 	);
 
 	const handleComposerMenuKeyDown = (event: KeyboardEvent<HTMLElement>) => {

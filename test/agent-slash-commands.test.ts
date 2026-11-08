@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
 	type AcpCommand,
 	acpCommandInvocation,
+	buildSlashOptions,
 	filterSlashCommands,
 	mapAcpCommands,
+	mapSkillSlashCommands,
 	matchAcpCommandText,
 	normalizeAcpCommandName,
 } from "@/lib/agent/slash-commands";
@@ -23,6 +25,7 @@ describe("agent-slash-commands", () => {
 				id: "acp:search",
 				name: "search",
 				prefix: "/",
+				kind: "command",
 				title: "search",
 				description: "Search the web",
 				inputHint: "query",
@@ -31,6 +34,7 @@ describe("agent-slash-commands", () => {
 				id: "acp:read",
 				name: "read",
 				prefix: "/",
+				kind: "command",
 				title: "read",
 				description: "Read papers",
 				inputHint: undefined,
@@ -101,6 +105,68 @@ describe("agent-slash-commands", () => {
 		expect(filterSlashCommands(commands, "/deep").map((c) => c.name)).toEqual([
 			"deep-research",
 		]);
+	});
+
+	it("offers local skills from the slash menu and avoids ACP duplicates", () => {
+		const skills = [
+			{
+				id: "paper-reader",
+				name: "Paper Reader",
+				description: "Read papers",
+			},
+			{
+				id: "deep-research",
+				name: "Deep Research",
+				description: "Research deeply",
+			},
+		];
+		expect(mapSkillSlashCommands(skills, "").map((c) => c.id)).toEqual([
+			"skill:paper-reader",
+			"skill:deep-research",
+		]);
+		expect(mapSkillSlashCommands(skills, "/paper").map((c) => c.title)).toEqual(
+			["Paper Reader"],
+		);
+		expect(mapSkillSlashCommands(skills, "$deep").map((c) => c.kind)).toEqual([
+			"skill",
+		]);
+		expect(
+			mapSkillSlashCommands(skills, "", {
+				excludeIds: new Set(["deep-research"]),
+			}).map((c) => c.id),
+		).toEqual(["skill:paper-reader"]);
+		expect(
+			mapSkillSlashCommands(skills, "", {
+				excludeNames: new Set(["paper-reader"]),
+			}).map((c) => c.id),
+		).toEqual(["skill:deep-research"]);
+	});
+
+	it("builds / candidates from ACP commands plus local skills", () => {
+		const commands = mapAcpCommands([
+			{ name: "/summary", description: "Summarize", input: null },
+		]);
+		const skills = [
+			{ id: "paper-reader", name: "Paper Reader", description: "Read papers" },
+			{
+				id: "deep-research",
+				name: "Deep Research",
+				description: "Research deeply",
+			},
+		];
+		expect(buildSlashOptions(commands, skills, "").map((c) => c.id)).toEqual([
+			"acp:summary",
+			"skill:paper-reader",
+			"skill:deep-research",
+		]);
+		expect(
+			buildSlashOptions(commands, skills, "deep").map((c) => c.id),
+		).toEqual(["skill:deep-research"]);
+		expect(
+			buildSlashOptions(commands, skills, "", {
+				selectedSkillIds: new Set(["paper-reader"]),
+			}).map((c) => c.id),
+		).toEqual(["acp:summary", "skill:deep-research"]);
 	});
 
 	it("normalizeAcpCommandName strips mixed / and $ prefixes", () => {
