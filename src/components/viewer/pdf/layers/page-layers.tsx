@@ -430,7 +430,7 @@ export type PdfPageModeSlice = {
 };
 
 export type PdfPageHandlers = {
-	onOpenPin: (pin: SelectionPin) => void;
+	onOpenPin: (pin: SelectionPin, preview?: boolean) => void;
 	onCardHoverEnter: () => void;
 	onCardHoverLeave: () => void;
 	onCitationActivate: (link: PdfLinkAnnoObject) => void;

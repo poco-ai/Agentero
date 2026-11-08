@@ -14,7 +14,7 @@ type SelectionGutterProps = {
 	/** Pins for this page only (ask + annotate + translate + agent-trace) */
 	items: SelectionPin[];
 	activeId: string | null;
-	onOpen: (pin: SelectionPin) => void;
+	onOpen: (pin: SelectionPin, preview?: boolean) => void;
 	/** Leave pin — parent may schedule delayed hide (ask hover UX) */
 	onLeave?: (pin: SelectionPin) => void;
 	/** Enter pin — cancel pending hide */
@@ -196,12 +196,12 @@ export const SelectionGutter = memo(function SelectionGutter({
 							// enter share one hover surface (mouse-only races hide).
 							onPointerEnter={() => {
 								onEnter?.(item);
-								onOpen(item);
+								onOpen(item, true);
 							}}
 							onPointerLeave={() => onLeave?.(item)}
 							onFocus={() => {
 								onEnter?.(item);
-								onOpen(item);
+								onOpen(item, true);
 							}}
 							onClick={(e) => {
 								e.stopPropagation();

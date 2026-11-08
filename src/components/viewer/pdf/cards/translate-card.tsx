@@ -1,11 +1,12 @@
-import { Pin, PinOff, Settings2Icon, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { Check, Copy, Pin, PinOff, Settings2Icon, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
 import { Shimmer } from "@/components/ui/shimmer";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import type { ScreenPoint } from "@/components/viewer/pdf/types";
+import { copyTextToClipboard } from "@/lib/core/clipboard";
 
 type TranslateCardProps = {
 	screen: ScreenPoint;
@@ -50,6 +51,20 @@ export function TranslateCard({
 	const showLoading = streaming && !showResult;
 	const scrollPortRef = useRef<HTMLDivElement>(null);
 	const stickToBottomRef = useRef(true);
+	const [copied, setCopied] = useState(false);
+
+	useEffect(() => {
+		if (!copied) return;
+		const timer = setTimeout(() => setCopied(false), 1500);
+		return () => clearTimeout(timer);
+	}, [copied]);
+
+	const copyResult = async () => {
+		const ok = await copyTextToClipboard(result.trim(), {
+			errorMessage: t("selection.translateCopyFailed"),
+		});
+		if (ok) setCopied(true);
+	};
 
 	const handleScroll = () => {
 		const el = scrollPortRef.current;
@@ -75,13 +90,28 @@ export function TranslateCard({
 			// Content-sized: hug the anchor and shrink near viewport edges instead
 			// of pre-shifting by the full preferred height.
 			trackPin
+			draggable
+			resizable
 			preferRight={preferRight}
 			title={t("selection.translateTitle")}
 			ariaLive="polite"
 			onDismiss={onHide}
+			dismissOnInteractOutside={false}
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
+			// Leave WebKit's native resize corner outside the nested scrollport.
+			className="pb-3"
 			actions={[
+				...(showResult
+					? [
+							{
+								id: "copy",
+								label: t(copied ? "selection.copied" : "selection.copy"),
+								onClick: () => void copyResult(),
+								icon: copied ? <Check /> : <Copy />,
+							},
+						]
+					: []),
 				...(onTogglePin
 					? [
 							{

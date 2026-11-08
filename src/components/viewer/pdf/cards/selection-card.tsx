@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { GripHorizontal } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { Dialog } from "radix-ui";
 import {
@@ -27,6 +28,8 @@ export const SELECTION_CARD_EDGE = 12;
 const SELECTION_CARD_DEFAULT_MAX_HEIGHT = 420;
 /** Floor so a clipped card remains usable on short viewports (px). */
 const SELECTION_CARD_MIN_HEIGHT = 120;
+const RESIZE_MIN_WIDTH = 280;
+const RESIZE_MIN_HEIGHT = 200;
 
 type SelectionCardAction = {
 	/** Stable identity for actions whose label changes. */
@@ -195,6 +198,8 @@ type SelectionCardProps = {
 	lockHeight?: boolean;
 	/** Allow native corner resizing within the available viewport. */
 	resizable?: boolean;
+	/** Allow repositioning from the title, independently of the source anchor. */
+	draggable?: boolean;
 	/**
 	 * When false, the body does not scroll (`agentero-scroll` off) and grows
 	 * with content. Use for short tables that should show fully (formula legend).
@@ -213,6 +218,7 @@ type SelectionCardProps = {
 	ariaLive?: "polite" | "off";
 	/** Dismiss this card on Escape or pointer interaction outside it. */
 	onDismiss?: () => void;
+	dismissOnInteractOutside?: boolean;
 	onPointerEnter?: () => void;
 	onPointerLeave?: () => void;
 	/** Optional footer strip (prompt input, save/cancel). */
@@ -238,6 +244,7 @@ export function SelectionCard({
 	trackPin = false,
 	lockHeight = false,
 	resizable = false,
+	draggable = false,
 	bodyScroll = true,
 	preferRight = true,
 	title,
@@ -246,6 +253,7 @@ export function SelectionCard({
 	ariaLabel,
 	ariaLive = "off",
 	onDismiss,
+	dismissOnInteractOutside = true,
 	onPointerEnter,
 	onPointerLeave,
 	footer,
@@ -254,33 +262,36 @@ export function SelectionCard({
 	children,
 }: SelectionCardProps) {
 	const rootRef = useRef<HTMLDivElement>(null);
+	const [position, setPosition] = useState<{ left: number; top: number }>();
+	const dragRef = useRef<{ pointerId: number; x: number; y: number }>(null);
 	const reduceMotion = useReducedMotion();
 	const [viewport, setViewport] = useState(() => ({
 		width: typeof window !== "undefined" ? window.innerWidth : 1200,
 		height: typeof window !== "undefined" ? window.innerHeight : 800,
 	}));
 	useEffect(() => {
-		if (!resizable) return;
+		if (!resizable && !draggable) return;
 		const resize = () =>
 			setViewport({ width: window.innerWidth, height: window.innerHeight });
 		window.addEventListener("resize", resize);
 		return () => window.removeEventListener("resize", resize);
-	}, [resizable]);
+	}, [resizable, draggable]);
 	// Suspend dockview drag-and-drop while this card floats over the tab strip
 	// so a stray drag cannot split the layout (#608).
 	useSelectionOverlayGuard();
 	// Floating controls keep their UI size while the document is zoomed.
 	// Placement still clamps each card within the current viewport.
-	const viewportWidth = resizable
-		? viewport.width
-		: typeof window !== "undefined"
-			? window.innerWidth
-			: 1200;
+	const viewportWidth =
+		resizable || draggable
+			? viewport.width
+			: typeof window !== "undefined"
+				? window.innerWidth
+				: 1200;
 	const renderedWidth = Math.min(
 		width,
 		Math.max(0, viewportWidth - SELECTION_CARD_EDGE * 2),
 	);
-	const { left, top, maxHeight } = placeSelectionCard(screen, {
+	const anchor = placeSelectionCard(screen, {
 		width: renderedWidth,
 		height,
 		placementWidth: placementWidth
@@ -293,6 +304,27 @@ export function SelectionCard({
 		trackPin,
 		preferRight,
 	});
+	const edge = SELECTION_CARD_EDGE;
+	const left = position
+		? clamp(
+				position.left,
+				edge,
+				Math.max(
+					edge,
+					viewport.width -
+						edge -
+						(resizable ? RESIZE_MIN_WIDTH : renderedWidth),
+				),
+			)
+		: anchor.left;
+	const top = position
+		? clamp(
+				position.top,
+				edge,
+				Math.max(edge, viewport.height - edge - SELECTION_CARD_MIN_HEIGHT),
+			)
+		: anchor.top;
+	const maxHeight = anchor.maxHeight;
 	const resizeMaxWidth = Math.max(
 		0,
 		viewport.width - left - SELECTION_CARD_EDGE,
@@ -303,7 +335,7 @@ export function SelectionCard({
 	);
 	// The gutter pin sits on the side the card opens toward. Reveal the card
 	// from that corner so it looks like the pin expands into the full card.
-	const isRightSide = left + renderedWidth / 2 >= screen.x;
+	const isRightSide = anchor.left + renderedWidth / 2 >= screen.x;
 	const originClip = isRightSide
 		? "inset(0 100% 100% 0)"
 		: "inset(0 0 100% 100%)";
@@ -315,6 +347,36 @@ export function SelectionCard({
 			{title}
 		</span>
 	);
+
+	const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+		const rect = rootRef.current?.getBoundingClientRect();
+		if (!rect || event.button !== 0 || dragRef.current) return;
+		event.currentTarget.setPointerCapture(event.pointerId);
+		dragRef.current = {
+			pointerId: event.pointerId,
+			x: event.clientX - rect.left,
+			y: event.clientY - rect.top,
+		};
+	};
+
+	const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+		const drag = dragRef.current;
+		if (!drag || drag.pointerId !== event.pointerId) return;
+		const rect = rootRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		setPosition({
+			left: clamp(
+				event.clientX - drag.x,
+				edge,
+				Math.max(edge, viewport.width - edge - rect.width),
+			),
+			top: clamp(
+				event.clientY - drag.y,
+				edge,
+				Math.max(edge, viewport.height - edge - rect.height),
+			),
+		});
+	};
 
 	// If the card mounts / remounts under an existing pointer (mode switch,
 	// open under cursor), browsers do not re-fire pointerenter — re-arm the
@@ -353,14 +415,20 @@ export function SelectionCard({
 				// Only enforce maxHeight when the body is a scroller / locked;
 				// content-sized cards grow with their children (viewport clamp is
 				// still applied via placeSelectionCard when height is large).
-				...(bodyScroll || lockHeight ? { maxHeight } : null),
+				...(bodyScroll || lockHeight
+					? {
+							maxHeight: position
+								? Math.min(height, resizeMaxHeight)
+								: maxHeight,
+						}
+					: null),
 				// Definite height so flex-1 + nested height:100% scroll areas work.
 				...(lockHeight ? { height: maxHeight } : null),
 				...(resizable
 					? {
 							resize: "both",
-							minWidth: Math.min(280, resizeMaxWidth),
-							minHeight: Math.min(200, resizeMaxHeight),
+							minWidth: Math.min(RESIZE_MIN_WIDTH, resizeMaxWidth),
+							minHeight: Math.min(RESIZE_MIN_HEIGHT, resizeMaxHeight),
 							maxWidth: resizeMaxWidth,
 							maxHeight: resizeMaxHeight,
 						}
@@ -383,7 +451,26 @@ export function SelectionCard({
 						aria-hidden
 					/>
 				) : null}
-				{onDismiss ? (
+				{draggable ? (
+					<div
+						className="flex min-w-0 flex-1 touch-none select-none items-center gap-1.5 self-stretch cursor-grab active:cursor-grabbing"
+						onPointerDown={startDrag}
+						onPointerMove={moveDrag}
+						onLostPointerCapture={() => {
+							dragRef.current = null;
+						}}
+					>
+						<GripHorizontal
+							className="size-3.5 shrink-0 text-muted-foreground"
+							aria-hidden
+						/>
+						{onDismiss ? (
+							<Dialog.Title asChild>{titleNode}</Dialog.Title>
+						) : (
+							titleNode
+						)}
+					</div>
+				) : onDismiss ? (
 					<Dialog.Title asChild>{titleNode}</Dialog.Title>
 				) : (
 					titleNode
@@ -464,6 +551,9 @@ export function SelectionCard({
 				<Dialog.Content
 					asChild
 					aria-describedby={undefined}
+					onInteractOutside={(event) => {
+						if (!dismissOnInteractOutside) event.preventDefault();
+					}}
 					onOpenAutoFocus={(event) => event.preventDefault()}
 					onCloseAutoFocus={(event) => event.preventDefault()}
 				>

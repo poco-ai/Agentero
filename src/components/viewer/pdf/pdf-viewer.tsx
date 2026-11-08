@@ -883,13 +883,11 @@ function PdfViewerInner({
 		activeCard,
 		activeCardRef,
 		cardScreen,
-		cardScreenRef,
 		setActiveCard,
 		setCardScreen,
 		openCard,
 		hideActiveCard,
-		placeActiveCard,
-		rePlaceActiveCardOnScroll,
+		syncActiveCardPosition,
 		markCardHoverEnter,
 		scheduleHoverHide,
 	} = usePdfCards({
@@ -1576,6 +1574,7 @@ function PdfViewerInner({
 		handleDeleteHighlightAnnotation,
 		handleChangeHighlightColor,
 	} = usePdfMarkActions({
+		activeCardRef,
 		threadsRef,
 		visualTracesRef,
 		upsertThread,
@@ -1742,31 +1741,16 @@ function PdfViewerInner({
 
 	// ---- In-PDF highlight selection menu ----
 
-	// Scrolling means the reader moved on, so a translate card is dismissed
-	// rather than dragged along. Pointer wander alone must never close it,
-	// which is why the hover timer holds translate cards open.
-	//
-	// Gated on the pin actually moving: scroll events also fire when the
-	// listener is (re)subscribed and from EmbedPDF's selection/layout churn
-	// right after the card opens, and those must not flash the card away.
 	const rePlaceFloatingOnScroll = useCallback(() => {
-		const pinMoved = rePlaceActiveCardOnScroll();
-		if (pinMoved && activeCard?.kind === "translate") {
-			hideActiveCard();
-		}
+		syncActiveCardPosition();
 		rePlaceSelectionMenu();
-	}, [
-		activeCard,
-		rePlaceActiveCardOnScroll,
-		rePlaceSelectionMenu,
-		hideActiveCard,
-	]);
+	}, [syncActiveCardPosition, rePlaceSelectionMenu]);
 
 	// Boolean only — do not depend on selectionMenu.screen or re-place loops.
 	const selectionMenuOpen = selectionMenu != null;
 
-	// Re-anchor the active pin modal and the text-selection toolbar on scroll +
-	// zoom. zoomLevel forces re-placement after zoom. Use scrollReady (boolean)
+	// Update page-anchored cards and the selection toolbar on scroll and zoom.
+	// Use scrollReady (boolean)
 	// — not `scroll` — because EmbedPDF returns a new scope object every render;
 	// depending on it re-fired this effect → setCardScreen → re-render →
 	// Maximum update depth when a modal card was open.
@@ -1774,12 +1758,7 @@ function PdfViewerInner({
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scrollReady/zoomLevel are intentional re-place triggers
 	useEffect(() => {
 		if (!activeCard && !selectionMenuOpen) return;
-		// Ask stays in place while reading; other cards follow the zoomed anchor.
-		if (activeCard && (activeCard.kind !== "ask" || !cardScreenRef.current)) {
-			cardScreenRef.current = null;
-			placeActiveCard(activeCard);
-		}
-		if (selectionMenuOpen) rePlaceSelectionMenu();
+		rePlaceFloatingOnScroll();
 		let raf: number | null = null;
 		const rePlace = () => {
 			if (raf != null) return;
@@ -1798,10 +1777,8 @@ function PdfViewerInner({
 		activeCard,
 		selectionMenuOpen,
 		scrollReady,
-		placeActiveCard,
 		zoomLevel,
 		rePlaceFloatingOnScroll,
-		rePlaceSelectionMenu,
 	]);
 
 	usePdfViewerHandle({

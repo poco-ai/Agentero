@@ -85,10 +85,10 @@ it("keeps the conversation in place when its source scrolls out and is virtualiz
 	const openedAt = cards.cardScreen;
 	expect(openedAt).not.toBeNull();
 	pageTop = -1000;
-	await act(async () => expect(cards.rePlaceActiveCardOnScroll()).toBe(false));
+	await act(async () => cards.syncActiveCardPosition());
 	expect(cards.cardScreen).toBe(openedAt);
 	page.remove();
-	await act(async () => expect(cards.rePlaceActiveCardOnScroll()).toBe(false));
+	await act(async () => cards.syncActiveCardPosition());
 	expect(cards.cardScreen).toBe(openedAt);
 	// Explicitly reopening the same pin can anchor the card at its new location.
 	document.body.firstElementChild?.append(page);
@@ -97,10 +97,30 @@ it("keeps the conversation in place when its source scrolls out and is virtualiz
 	expect(cards.cardScreen?.y).not.toBe(openedAt?.y);
 });
 
-it("still repositions translation cards and reports deliberate scroll travel", async () => {
+it("keeps an unpinned translation in place when its source moves and unmounts", async () => {
 	await act(async () => cards.openCard({ kind: "translate", id: "translate" }));
 	const openedAt = cards.cardScreen;
-	pageTop -= 300;
-	await act(async () => expect(cards.rePlaceActiveCardOnScroll()).toBe(true));
-	expect(cards.cardScreen?.y).toBeCloseTo((openedAt?.y ?? 0) - 300);
+	expect(openedAt).not.toBeNull();
+	pageTop = -1000;
+	await act(async () => cards.syncActiveCardPosition());
+	expect(cards.cardScreen).toBe(openedAt);
+	page.remove();
+	await act(async () => cards.syncActiveCardPosition());
+	expect(cards.cardScreen).toBe(openedAt);
+	expect(cards.activeCard).toEqual({ kind: "translate", id: "translate" });
+	expect(onCardClose).not.toHaveBeenCalled();
+});
+
+it("restores screen placement when opening again at the previous card's coordinates", async () => {
+	const translation = { kind: "translate", id: "translate" } as const;
+	await act(async () => cards.openCard(translation));
+	const openedAt = cards.cardScreen;
+	expect(openedAt).not.toBeNull();
+	await act(async () => {
+		// The Ask cluster closes its card through the state setters.
+		cards.setActiveCard(null);
+		cards.setCardScreen(null);
+	});
+	await act(async () => cards.openCard(translation));
+	expect(cards.cardScreen).toEqual(openedAt);
 });

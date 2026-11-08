@@ -259,6 +259,7 @@
 		"highlightMenuLabel": "高亮操作",
 		"editComment": "编辑批注",
 		"translateTitle": "翻译",
+		"translateCopyFailed": "无法复制译文。",
 		"translating": "翻译中…",
 		"translateHide": "关闭卡片",
 		"translatePin": "钉住",

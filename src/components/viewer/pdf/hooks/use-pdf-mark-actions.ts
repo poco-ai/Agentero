@@ -24,6 +24,7 @@ type AnnotationCapabilityProvides = ReturnType<
 >["provides"];
 
 export type UsePdfMarkActionsOptions = {
+	activeCardRef: RefObject<ActiveSelectionCard | null>;
 	/** Marks-io mirrors; pin opens read the latest records. */
 	threadsRef: RefObject<PdfAskThread[]>;
 	visualTracesRef: RefObject<PdfVisualSessionTrace[]>;
@@ -49,7 +50,7 @@ export type UsePdfMarkActionsOptions = {
 };
 
 export type PdfMarkActions = {
-	handleOpenPin: (pin: SelectionPin) => void;
+	handleOpenPin: (pin: SelectionPin, preview?: boolean) => void;
 	handleEditHighlightAnnotation: (id: string) => void;
 	handleDeleteHighlightAnnotation: (pageIndex: number, id: string) => void;
 	handleChangeHighlightColor: (
@@ -60,6 +61,7 @@ export type PdfMarkActions = {
 };
 
 export function usePdfMarkActions({
+	activeCardRef,
 	threadsRef,
 	visualTracesRef,
 	upsertThread,
@@ -73,7 +75,9 @@ export function usePdfMarkActions({
 	updateHighlightColor,
 }: UsePdfMarkActionsOptions): PdfMarkActions {
 	const handleOpenPin = useCallback(
-		(pin: SelectionPin) => {
+		(pin: SelectionPin, preview = false) => {
+			// A pin can pass under a stationary pointer while the reader scrolls.
+			if (preview && activeCardRef.current?.kind === "translate") return;
 			if (pin.kind === "ask") {
 				const thread = threadsRef.current.find((th) => th.id === pin.id);
 				if (!thread) return;
@@ -110,6 +114,7 @@ export function usePdfMarkActions({
 			}
 		},
 		[
+			activeCardRef,
 			upsertThread,
 			openThread,
 			openCard,

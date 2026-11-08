@@ -259,6 +259,7 @@
 		"highlightMenuLabel": "Highlight actions",
 		"editComment": "Edit note",
 		"translateTitle": "Translation",
+		"translateCopyFailed": "Could not copy the translation.",
 		"translating": "Translating…",
 		"translateHide": "Close card",
 		"translatePin": "Pin",
