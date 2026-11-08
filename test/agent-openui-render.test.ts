@@ -135,6 +135,25 @@ sources = SourceList([{label: "Paper", detail: "arXiv", path: "papers/x/x.pdf"}]
 		);
 	});
 
+	it("keeps non-path source labels as text instead of broken links", () => {
+		const element = render(
+			'root = Stack([figure])\nfigure = FigureRef("Table 3", "Results", "Table 3, Section 4.2", "table")',
+			false,
+			vi.fn(),
+		);
+		expect(element.querySelector("button")).toBeNull();
+		expect(element.textContent).toContain("Table 3, Section 4.2");
+	});
+
+	it("shows a source action for a recognized citation target", () => {
+		const element = render(
+			'root = Stack([figure])\nfigure = FigureRef("Figure 2", "Architecture", "papers/x/x.pdf#figure=2", "figure")',
+			false,
+			vi.fn(),
+		);
+		expect(element.querySelector("button")).not.toBeNull();
+	});
+
 	it("shows fixed copy for an empty table and an empty chart", () => {
 		const emptyTable = render(
 			'root = Stack([table])\ntable = Table(["A"], [])',

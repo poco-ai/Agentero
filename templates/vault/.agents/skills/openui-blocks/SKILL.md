@@ -1,7 +1,7 @@
 ---
 name: openui-blocks
-version: 1
-# Bump when the generated component list changes; existing Vaults only
+version: 2
+# Bump when the component list or guidance changes; existing Vaults only
 # auto-upgrade a bundled skill when this integer increases.
 description: >-
   Write read-only OpenUI Lang UI blocks in Agentero chat replies. Use when a
@@ -21,6 +21,10 @@ when it is enough, especially for a single table.
 - Fence info string: `openui-lang`. The root must be `root = Stack([...])`.
 - Arguments are positional; strings use double quotes; arrays use `[...]`.
 - Use only the components listed below. Do not invent props or components.
+- `source` / `path` must be a Vault-relative file path or citation target:
+  `papers/<id>/<id>.pdf#page=3`, `#figure=2`, `#section=4.2`. Never put a
+  human-readable label such as "Table 3, Section 4.2" there; use `label`,
+  `caption` or `detail` for display text. Unrecognized targets stay as text.
 - Read-only v1: no state, bindings, queries, mutations, actions, HTML, scripts,
   or nested code fences.
 - Keep data small: at most 8 table columns / 60 rows, 24 chart points, 12 steps,

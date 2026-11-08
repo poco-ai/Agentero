@@ -4,6 +4,7 @@
 import type { ElementNode } from "@openuidev/lang-core";
 import { ArrowUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { isOpenUiSourceTarget } from "@/lib/agent/openui/source";
 import { cn } from "@/lib/core/utils";
 import { useOpenUiSource } from "../source-context";
 import { ROW_LINK_CLASS } from "../styles";
@@ -25,16 +26,18 @@ export function SourceListNode({ node }: { node: ElementNode }) {
 		<ol className="space-y-0.5 text-sm">
 			{sources.map((source, index) => {
 				const path = typeof source.path === "string" ? source.path : "";
+				const canOpen =
+					Boolean(path) && Boolean(onOpenSource) && isOpenUiSourceTarget(path);
 				const label = String(source.label ?? "");
 				const detail = typeof source.detail === "string" ? source.detail : "";
 				return (
 					<li key={`${label}-${index}`} className="min-w-0">
-						{path && onOpenSource ? (
+						{canOpen ? (
 							<button
 								type="button"
 								className={cn(ROW_CLASS, ROW_LINK_CLASS)}
 								aria-label={`${t("uiBlock.openSource")}: ${label}`}
-								onClick={() => onOpenSource(path)}
+								onClick={() => onOpenSource?.(path)}
 							>
 								<span className="inline-flex min-w-0 items-center gap-0.5 font-medium text-primary">
 									<span className="truncate">{label}</span>

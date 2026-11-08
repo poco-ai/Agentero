@@ -1,25 +1,14 @@
 "use client";
 
 import type { ElementNode } from "@openuidev/lang-core";
-import {
-	ArrowUpRight,
-	ImageIcon,
-	ListOrdered,
-	Sigma,
-	Table2,
-	TextQuote,
-} from "lucide-react";
+import { ImageIcon, ListOrdered, Sigma, Table2, TextQuote } from "lucide-react";
 import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/core/utils";
 import { MarkdownText } from "../markdown-text";
-import { useOpenUiSource } from "../source-context";
-import {
-	BLOCK_TITLE_CLASS,
-	NESTED_SURFACE_CLASS,
-	SOURCE_LINK_CLASS,
-} from "../styles";
+import { BLOCK_TITLE_CLASS, NESTED_SURFACE_CLASS } from "../styles";
 import { stringProp } from "./shared";
+import { SourceReference } from "./source-reference";
 import { ToneBadge } from "./tone-badge";
 
 const KIND_KEY = {
@@ -47,7 +36,6 @@ function resolveKind(value: string): keyof typeof KIND_KEY {
 
 export function FigureRefNode({ node }: { node: ElementNode }) {
 	const { t } = useTranslation("agent");
-	const onOpenSource = useOpenUiSource();
 	const kind = resolveKind(stringProp(node.props, "kind"));
 	const Icon = KIND_ICON[kind];
 	const source = stringProp(node.props, "source");
@@ -76,16 +64,11 @@ export function FigureRefNode({ node }: { node: ElementNode }) {
 						className="mt-1 text-xs text-muted-foreground"
 					/>
 				) : null}
-				{source && onOpenSource ? (
-					<button
-						type="button"
-						className={cn(SOURCE_LINK_CLASS, "mt-1.5")}
-						onClick={() => onOpenSource(source)}
-					>
-						{t("uiBlock.openSource")}
-						<ArrowUpRight className="size-3" aria-hidden />
-					</button>
-				) : null}
+				<SourceReference
+					source={source}
+					actionLabel={t("uiBlock.openSource")}
+					className="mt-1.5"
+				/>
 			</div>
 		</div>
 	);

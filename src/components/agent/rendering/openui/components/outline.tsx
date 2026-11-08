@@ -3,6 +3,7 @@
 
 import type { ElementNode } from "@openuidev/lang-core";
 import { useTranslation } from "react-i18next";
+import { isOpenUiSourceTarget } from "@/lib/agent/openui/source";
 import { cn } from "@/lib/core/utils";
 import { useOpenUiSource } from "../source-context";
 import { BLOCK_TITLE_CLASS, ROW_LINK_CLASS } from "../styles";
@@ -33,6 +34,10 @@ export function OutlineNode({ node }: { node: ElementNode }) {
 						typeof section.page === "number" ? section.page : undefined;
 					const source =
 						typeof section.source === "string" ? section.source : "";
+					const canOpen =
+						Boolean(source) &&
+						Boolean(onOpenSource) &&
+						isOpenUiSourceTarget(source);
 					const label = (
 						<>
 							<span className="min-w-0 truncate">
@@ -52,11 +57,11 @@ export function OutlineNode({ node }: { node: ElementNode }) {
 							key={`${String(section.title)}-${index}`}
 							style={{ paddingLeft: `${Math.max(0, level - 1) * 0.75}rem` }}
 						>
-							{source && onOpenSource ? (
+							{canOpen ? (
 								<button
 									type="button"
 									className={cn(rowClass, ROW_LINK_CLASS)}
-									onClick={() => onOpenSource(source)}
+									onClick={() => onOpenSource?.(source)}
 								>
 									{label}
 								</button>

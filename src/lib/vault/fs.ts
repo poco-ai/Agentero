@@ -12,18 +12,7 @@ import {
 	remoteWriteText,
 } from "@/lib/vault/remote/remote-vault";
 
-export function isMarkdownPath(path: string): boolean {
-	return /\.(md|mdx|markdown)$/i.test(path);
-}
-
-export function isTextOpenable(path: string): boolean {
-	return (
-		isMarkdownPath(path) ||
-		/\.(txt|json|bib|tex|html?|css|ts|tsx|js|jsx|rs|toml|yaml|yml|excalidraw)$/i.test(
-			path,
-		)
-	);
-}
+export { isMarkdownPath, isTextOpenable } from "./path-kinds";
 
 export async function readVaultFile(path: string): Promise<string> {
 	if (!isTauri()) {

@@ -1,18 +1,15 @@
 "use client";
 
 import type { ElementNode } from "@openuidev/lang-core";
-import { ArrowUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MathText } from "@/components/ui/math-text";
+import { isOpenUiSourceTarget } from "@/lib/agent/openui/source";
 import { cn } from "@/lib/core/utils";
 import { useOpenUiSource } from "../source-context";
-import {
-	BLOCK_CAPTION_CLASS,
-	type OpenUiTone,
-	SOURCE_LINK_CLASS,
-} from "../styles";
+import { BLOCK_CAPTION_CLASS, type OpenUiTone } from "../styles";
 import { stringProp } from "./shared";
+import { SourceReference } from "./source-reference";
 import { TagBadge, ToneBadge } from "./tone-badge";
 
 const STATUS_KEY = {
@@ -49,6 +46,8 @@ export function PaperCardNode({ node }: { node: ElementNode }) {
 		.filter(Boolean)
 		.join(" · ");
 	const path = stringProp(paper, "path");
+	const canOpenPath =
+		Boolean(path) && Boolean(onOpenSource) && isOpenUiSourceTarget(path);
 
 	return (
 		<Card size="sm" className="w-full gap-2">
@@ -70,21 +69,17 @@ export function PaperCardNode({ node }: { node: ElementNode }) {
 					<div className={cn("truncate", BLOCK_CAPTION_CLASS)}>{meta}</div>
 				) : null}
 			</CardHeader>
-			{tags.length > 0 || (path && onOpenSource) ? (
+			{tags.length > 0 || canOpenPath ? (
 				<CardContent className="flex flex-wrap items-center gap-1.5">
 					{tags.map((tag) => (
 						<TagBadge key={tag}>{tag}</TagBadge>
 					))}
-					{path && onOpenSource ? (
-						<button
-							type="button"
-							className={cn(SOURCE_LINK_CLASS, "ms-auto")}
-							onClick={() => onOpenSource(path)}
-						>
-							{t("uiBlock.openPaper")}
-							<ArrowUpRight className="size-3" aria-hidden />
-						</button>
-					) : null}
+					<SourceReference
+						source={path}
+						actionLabel={t("uiBlock.openPaper")}
+						className="ms-auto"
+						showUnopenableText={false}
+					/>
 				</CardContent>
 			) : null}
 		</Card>

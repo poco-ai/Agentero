@@ -25,6 +25,7 @@ import {
 	resolveOpenUiBlock,
 	validateOpenUiShape,
 } from "@/lib/agent/openui/parse";
+import { isOpenUiSourceTarget } from "@/lib/agent/openui/source";
 
 const ALL_COMPONENTS = `root = Stack([heading, table, stats, chart, steps, note, row], "md")
 heading = Text("Results", "heading")
@@ -280,6 +281,16 @@ describe("OpenUI fence and tag normalization", () => {
 		expect(isOpenUiLanguage("openui-lang")).toBe(true);
 		expect(isOpenUiLanguage("openui")).toBe(true);
 		expect(isOpenUiLanguage("markdown")).toBe(false);
+	});
+});
+
+describe("OpenUI source targets", () => {
+	it("rejects human labels and accepts paths, citations and URLs", () => {
+		expect(isOpenUiSourceTarget("Table 3, Section 4.2")).toBe(false);
+		expect(isOpenUiSourceTarget("Section 4.3")).toBe(false);
+		expect(isOpenUiSourceTarget("notes/a.md")).toBe(true);
+		expect(isOpenUiSourceTarget("papers/a/a.pdf#figure=2")).toBe(true);
+		expect(isOpenUiSourceTarget("https://example.com/paper")).toBe(true);
 	});
 });
 

@@ -2,18 +2,16 @@
 "use client";
 
 import type { ElementNode } from "@openuidev/lang-core";
-import { ArrowUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/core/utils";
 import { MarkdownText } from "../markdown-text";
-import { useOpenUiSource } from "../source-context";
 import {
 	BLOCK_TITLE_CLASS,
 	NESTED_SURFACE_CLASS,
 	type OpenUiTone,
-	SOURCE_LINK_CLASS,
 } from "../styles";
 import { stringProp } from "./shared";
+import { SourceReference } from "./source-reference";
 import { ToneBadge } from "./tone-badge";
 
 const STATUS_KEY = {
@@ -36,7 +34,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function ClaimListNode({ node }: { node: ElementNode }) {
 	const { t } = useTranslation("agent");
-	const onOpenSource = useOpenUiSource();
 	const claims = Array.isArray(node.props.claims)
 		? node.props.claims.filter(isRecord)
 		: [];
@@ -72,16 +69,10 @@ export function ClaimListNode({ node }: { node: ElementNode }) {
 											/>
 										</div>
 									) : null}
-									{source && onOpenSource ? (
-										<button
-											type="button"
-											className={SOURCE_LINK_CLASS}
-											onClick={() => onOpenSource(source)}
-										>
-											{t("uiBlock.openSource")}
-											<ArrowUpRight className="size-3" aria-hidden />
-										</button>
-									) : null}
+									<SourceReference
+										source={source}
+										actionLabel={t("uiBlock.openSource")}
+									/>
 								</div>
 							</div>
 						</li>
