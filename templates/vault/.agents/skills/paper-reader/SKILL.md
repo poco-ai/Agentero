@@ -1,6 +1,6 @@
 ---
 name: paper-reader
-version: 10
+version: 11
 description: >-
   用中文清晰阅读和讲解科研论文。用于提炼核心贡献、深入解释方法、分析实验与局限，并在 NOTES.md 中写入中文讲义式笔记。
 ---
@@ -46,6 +46,10 @@ description: >-
   have separate counters. Never guess an ordinal from candidate/display order.
   If analysis or a unique anchor is unavailable, report the limit and use a
   verified page/section reference instead; do not invent a paragraph anchor.
+  Numbered `#figure=` / `#table=` / `#formula=` / `#algorithm=` anchors follow
+  the same rule: verify they exist in the layout
+  (`agentero layout list <paper> --kind ... --json`), never guess a number, and
+  fall back to a verified page/section when the anchor is absent.
   Shorthand `#2` / `#2.1` / `#2.1#p3` is only for PDF targets; Markdown
   `#heading`, legacy `#section=` / `#page=`, figures and annotations keep their semantics.
 
