@@ -114,6 +114,8 @@ guard 也会取消首帧默认放大。未按实体 Ctrl 的细粒度像素事�
   没有这一步，论文开着时 CLI 追加的高亮既看不见，还会被下一次 debounce 导出覆盖。
 - per-id mark：活动 tab 的 marks 刷新同时重读 ask / visual / translate。
 
+PDF 快速对话在会话接收后同时把空的 assistant 消息及其 `agentSessionId` 写入 ask mark。这样本地写入触发的 marks 刷新仍保留回复目标，后续流式内容与最终答案可以按同一消息 id 更新并保存；失败时移除该占位消息。
+
 历史遗留的 per-id `kind: highlight` mark 仍由 `migrateHighlightMarks` 在 `annotations.json`
 缺失/为空时一次性投影并删除源文件；新写入不再走这条路。
 
