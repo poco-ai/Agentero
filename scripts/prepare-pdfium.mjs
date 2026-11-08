@@ -11,16 +11,24 @@
  *
  * Usage:
  *   node scripts/prepare-pdfium.mjs
+ *   node scripts/prepare-pdfium.mjs --extract <dir>
+ *
+ * `--extract` unpacks the full archive (library + headers) into <dir> without
+ * touching src-tauri/pdfium; CI uses it to provision the build-script cache and
+ * runtime search paths from one tag definition.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 const PDFIUM_RELEASE_TAG = "chromium/8058";
 const PDFIUM_RELEASE_URL =
 	"https://github.com/run-llama/pdfium-binaries/releases/download";
+const PDFIUM_RELEASE_API =
+	"https://api.github.com/repos/run-llama/pdfium-binaries/releases";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -125,14 +133,42 @@ function findStaged() {
 	return null;
 }
 
-async function download() {
-	const tag = PDFIUM_RELEASE_TAG.replace("/", "%2F");
-	const url = `${PDFIUM_RELEASE_URL}/${tag}/${asset}.tgz`;
-	console.log(`[prepare-pdfium] GET ${url}`);
-	const response = await fetch(url);
-	if (!response.ok) {
-		throw new Error(`download failed: ${response.status} ${url}`);
+function githubToken() {
+	return process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
+}
+
+function authHeaders() {
+	const token = githubToken();
+	return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/**
+ * GitHub's release download endpoint intermittently answers 500/504 while the
+ * REST API stays healthy, so retry transient failures instead of failing CI on
+ * a single hiccup.
+ */
+async function fetchWithRetry(url, options = {}, attempts = 3) {
+	let lastError;
+	for (let attempt = 1; attempt <= attempts; attempt += 1) {
+		let response;
+		try {
+			response = await fetch(url, options);
+		} catch (error) {
+			lastError = error;
+		}
+		if (response) {
+			if (response.ok) return response;
+			lastError = new Error(`GET ${url}: HTTP ${response.status}`);
+			const transient = response.status >= 500 || response.status === 429;
+			await response.body?.cancel?.();
+			if (!transient) throw lastError;
+		}
+		if (attempt < attempts) await sleep(1000 * 2 ** (attempt - 1));
 	}
+	throw lastError;
+}
+
+async function extractArchive(response) {
 	const tmp = `${cacheDir}.tmp`;
 	fs.rmSync(tmp, { recursive: true, force: true });
 	fs.mkdirSync(tmp, { recursive: true });
@@ -144,6 +180,68 @@ async function download() {
 	fs.mkdirSync(path.dirname(cacheDir), { recursive: true });
 	fs.renameSync(tmp, cacheDir);
 	console.log(`[prepare-pdfium] cached at ${cacheDir}`);
+}
+
+/** Resolve the same archive through the release asset API, which redirects to a
+ * different download service than the `releases/download` URL. */
+async function assetApiUrl() {
+	const tag = encodeURIComponent(PDFIUM_RELEASE_TAG);
+	const response = await fetchWithRetry(
+		`${PDFIUM_RELEASE_API}/tags/${tag}`,
+		{ headers: authHeaders() },
+		2,
+	);
+	const release = await response.json();
+	const match = release.assets?.find((entry) => entry.name === `${asset}.tgz`);
+	if (!match) {
+		throw new Error(`${PDFIUM_RELEASE_TAG} has no ${asset}.tgz asset`);
+	}
+	return match.url;
+}
+
+async function download() {
+	const directUrl = `${PDFIUM_RELEASE_URL}/${PDFIUM_RELEASE_TAG.replace("/", "%2F")}/${asset}.tgz`;
+	console.log(`[prepare-pdfium] GET ${directUrl}`);
+	try {
+		await extractArchive(await fetchWithRetry(directUrl));
+		return;
+	} catch (error) {
+		console.warn(
+			`[prepare-pdfium] release download failed (${error.message}); retrying via the asset API`,
+		);
+	}
+	const url = await assetApiUrl();
+	console.log(`[prepare-pdfium] GET ${url}`);
+	await extractArchive(
+		await fetchWithRetry(url, {
+			headers: { Accept: "application/octet-stream", ...authHeaders() },
+		}),
+	);
+}
+
+const extractIndex = process.argv.indexOf("--extract");
+if (extractIndex !== -1) {
+	const dest = process.argv[extractIndex + 1];
+	if (!dest) {
+		console.error("[prepare-pdfium] --extract needs a destination directory");
+		process.exit(1);
+	}
+	if (
+		!fs.existsSync(path.join(cacheDir, "include")) ||
+		!fs.existsSync(path.join(cacheLibDir, libName))
+	) {
+		await download();
+	}
+	const extractedLib = path.join(cacheLibDir, libName);
+	if (!fs.existsSync(extractedLib)) {
+		console.error(`[prepare-pdfium] ${extractedLib} missing after download`);
+		process.exit(1);
+	}
+	fs.rmSync(dest, { recursive: true, force: true });
+	fs.mkdirSync(path.dirname(dest), { recursive: true });
+	fs.cpSync(cacheDir, dest, { recursive: true });
+	console.log(`[prepare-pdfium] extracted ${asset} to ${dest}`);
+	process.exit(0);
 }
 
 let src = findStaged();
