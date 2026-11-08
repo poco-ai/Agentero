@@ -93,6 +93,7 @@ import {
 } from "@/lib/core/file-accept";
 import { isImeKeyboardEvent } from "@/lib/core/ime";
 import { toSafeDisposer } from "@/lib/core/tauri-events";
+import { draggedFeedMentionPath, isFeedItemDrag } from "@/lib/plaza/feed-drag";
 import {
 	collectUserPromptTexts,
 	nextHistoryIndexOnDown,
@@ -661,6 +662,13 @@ export function useAgentComposer({
 	 * (those are FileUIPart blobs; ACP context is path-based).
 	 */
 	const handleComposerDragOver = useCallback((e: ReactDragEvent) => {
+		// Plaza feed cards carry a mention path, never a Vault path; taking the
+		// drop here turns the card into the same chip "add to chat" produces.
+		if (isFeedItemDrag(e.dataTransfer)) {
+			e.preventDefault();
+			e.dataTransfer.dropEffect = "copy";
+			return;
+		}
 		const types = dataTransferTypes(e.dataTransfer);
 		if (!types.length) return;
 		const hasText = types.includes("text/plain") || types.includes("Text");
@@ -678,6 +686,13 @@ export function useAgentComposer({
 
 	const handleComposerDrop = useCallback(
 		(e: ReactDragEvent) => {
+			const feedPath = draggedFeedMentionPath(e.dataTransfer);
+			if (feedPath) {
+				e.preventDefault();
+				e.stopPropagation();
+				attachContextPaths([feedPath]);
+				return;
+			}
 			// PDF drops belong to the app-wide importer, even when the composer
 			// receives a text/plain path alongside the file payload.
 			if (

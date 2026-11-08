@@ -198,6 +198,27 @@ const META_PREFIXES = [
 ] as const;
 
 /** Drop arXiv RSS headers so cards show the abstract, not the id / type. */
+/**
+ * Relative ("3 hours ago") then short-date feed timestamp. Kept next to the
+ * feed display helpers so the list card and the Agent preview agree.
+ */
+export function formatFeedWhen(iso: string | null, locale: string): string {
+	if (!iso) return "";
+	const date = new Date(iso);
+	if (Number.isNaN(date.getTime())) return "";
+	const diffSec = Math.round((date.getTime() - Date.now()) / 1000);
+	const abs = Math.abs(diffSec);
+	const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+	if (abs < 60) return rtf.format(diffSec, "second");
+	if (abs < 3600) return rtf.format(Math.round(diffSec / 60), "minute");
+	if (abs < 86400) return rtf.format(Math.round(diffSec / 3600), "hour");
+	if (abs < 86400 * 7) return rtf.format(Math.round(diffSec / 86400), "day");
+	return new Intl.DateTimeFormat(locale, {
+		month: "short",
+		day: "numeric",
+	}).format(date);
+}
+
 export function cleanFeedSummary(raw: string): string {
 	let rest = raw.replace(/<[^>]+>/g, " ").trim();
 	for (;;) {

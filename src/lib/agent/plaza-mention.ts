@@ -26,6 +26,8 @@ export type PlazaMentionEntry = {
 	publishedAt: string | null;
 	/** "arXiv Daily" (localized) or the feed subscription title. */
 	sourceLabel: string;
+	/** `abstract` was cut at the excerpt cap; the URL has the rest. */
+	abstractTruncated?: boolean;
 };
 
 export function arxivRecMentionPath(arxivId: string): string {
@@ -100,14 +102,20 @@ export function registerPlazaMentionEntries(
 ): void {
 	entryByPath.clear();
 	pathByArxivId.clear();
-	for (const entry of entries) {
-		if (!entry.path) continue;
-		entryByPath.set(entry.path, entry);
-		if (!isPlazaCollectionPath(entry.path)) {
-			const id = plazaMentionArxivId(entry.path);
-			if (id && !pathByArxivId.has(id)) pathByArxivId.set(id, entry.path);
-		}
-	}
+	for (const entry of entries) registerPlazaMentionEntry(entry);
+}
+
+/**
+ * Add one entry without dropping the loaded set. Drag and "add to chat" hand
+ * the composer a path for an item that may sit outside the newest-N window,
+ * so the send-time expansion needs it registered before the drop.
+ */
+export function registerPlazaMentionEntry(entry: PlazaMentionEntry): void {
+	if (!entry.path) return;
+	entryByPath.set(entry.path, entry);
+	if (isPlazaCollectionPath(entry.path)) return;
+	const id = plazaMentionArxivId(entry.path);
+	if (id && !pathByArxivId.has(id)) pathByArxivId.set(id, entry.path);
 }
 
 /** Mention path registered for an arXiv id (NEED_FULLTEXT continuation). */
@@ -163,6 +171,9 @@ function entryBlock(
 	}
 	if (entry.abstract) {
 		lines.push("Abstract:", entry.abstract);
+		if (entry.abstractTruncated) {
+			lines.push("(Excerpt truncated; open the URL above for the rest.)");
+		}
 	}
 	return lines.join("\n");
 }

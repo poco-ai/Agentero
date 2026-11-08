@@ -10,17 +10,13 @@ import { useTranslation } from "react-i18next";
 import type { PlazaMentionEntry } from "@/lib/agent/plaza-mention";
 import {
 	arxivRecMentionPath,
-	feedMentionPath,
 	PLAZA_ARXIV_REC_COLLECTION_PATH,
 	registerPlazaMentionEntries,
 } from "@/lib/agent/plaza-mention";
-import type { FeedItem, RecommendItem } from "@/lib/core/bindings";
+import type { RecommendItem } from "@/lib/core/bindings";
 import { isTauri } from "@/lib/core/tauri";
-import {
-	cleanFeedSummary,
-	feedsItems,
-	stripTrailingEllipsis,
-} from "@/lib/plaza/feeds";
+import { feedMentionEntry } from "@/lib/plaza/feed-mention";
+import { feedsItems } from "@/lib/plaza/feeds";
 import { PLAZA_SOURCES, plazaSourceLabel } from "@/lib/plaza/sources";
 import { recommendArxivLast } from "@/lib/recommend";
 
@@ -42,19 +38,6 @@ function entryFromRecommend(item: RecommendItem): PlazaMentionEntry {
 		abstract: item.abstract?.trim() || null,
 		publishedAt: item.publishedAt,
 		sourceLabel: arxivRecSourceLabel(),
-	};
-}
-
-function entryFromFeedItem(item: FeedItem): PlazaMentionEntry {
-	const rawAbstract = item.bodyMarkdown?.trim() || item.summaryText;
-	return {
-		path: feedMentionPath(item.id),
-		source: "feed",
-		title: item.title.trim(),
-		url: item.paperUrl?.trim() || item.url?.trim() || null,
-		abstract: stripTrailingEllipsis(cleanFeedSummary(rawAbstract)) || null,
-		publishedAt: item.publishedAt,
-		sourceLabel: item.subscriptionTitle?.trim() || "Feeds",
 	};
 }
 
@@ -102,7 +85,7 @@ export function usePlazaMentionSource(
 			const next: PlazaMentionEntry[] = [
 				...collection,
 				...recEntries,
-				...(feedItems ?? []).map(entryFromFeedItem),
+				...(feedItems ?? []).map(feedMentionEntry),
 			];
 			registerPlazaMentionEntries(next);
 			setEntries(next);
