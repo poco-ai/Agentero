@@ -35,7 +35,11 @@
 		"fix:rs": "cargo fmt --all && pnpm run lint:rs",
 		"prepare": "husky",
 		"deps:check": "depcruise --config .dependency-cruiser.cjs src",
-		"openui:catalog": "node scripts/generate-openui-catalog.mjs"
+		"openui:catalog": "node scripts/generate-openui-catalog.mjs",
+		"docs:dev": "pnpm --filter docs dev",
+		"docs:build": "pnpm --filter docs build",
+		"docs:check": "pnpm --filter docs types:check",
+		"docs:preview": "pnpm --filter docs start"
 	},
 	"dependencies": {
 		"@base-ui/react": "1.8.0",

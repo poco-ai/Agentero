@@ -4,7 +4,7 @@
 
 Agentero 是一个基于 Tauri 2 + React 19 的本地优先科研工作台，产品是桌面端应用。Vault 中笔记与源文件以 Markdown/文件为准，论文结构化 metadata 以 `.agentero/catalog.sqlite` 为准。离开应用后数据仍可被外部工具读取。
 
-文档将使用 Fumadocs 在仓库内的 `docs/` 从零重建；旧文档可通过 Git 历史查阅。
+文档使用仓库内 `docs/` 的 Fumadocs 静态项目；旧文档可通过 Git 历史查阅。
 
 ## 开发规则
 
@@ -84,4 +84,4 @@ cargo test -p agentero-core   # tauri 无关基础层（crates/agentero-core）
 
 ## 文档
 
-`docs/` 预留给新的 Fumadocs 静态文档项目，目前尚未初始化。新内容围绕用户任务组织，以当前产品实际行为为准。
+`docs/` 是 pnpm workspace 中的 Fumadocs 静态文档项目，内容位于 `docs/content/docs/`。根目录运行 `pnpm docs:dev`、`pnpm docs:check`、`pnpm docs:build`；构建产物为 `docs/out/`，用 `pnpm docs:preview` 预览。新内容围绕用户任务组织，以当前产品实际行为为准。

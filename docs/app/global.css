@@ -1,0 +1,14 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+html {
+	scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+	/* biome-ignore lint/complexity/noImportantStyles: Override inline scroll-lock compensation with stable scrollbar gutters. */
+	margin-right: 0px !important;
+	/* biome-ignore lint/complexity/noImportantStyles: Match the upstream scroll-lock override. */
+	--removed-body-scroll-bar-size: 0px !important;
+}
