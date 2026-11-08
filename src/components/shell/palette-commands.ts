@@ -39,8 +39,11 @@ import {
 	selectLibrary,
 	splitActivePane,
 } from "@/lib/workspace/actions";
-import { getActiveTab, getActiveTabId } from "@/lib/workspace/store";
-import { markdownEditorFor } from "@/lib/workspace/viewer/markdown-editor-registry";
+import {
+	activeMarkdownEditorId,
+	toggleActiveMarkdownSource,
+} from "@/lib/workspace/markdown-source-toggle";
+import { getActiveTab } from "@/lib/workspace/store";
 import { resolveActivePdfHandle } from "@/lib/workspace/viewer/pdf-viewer-registry";
 
 const hasVault = () => Boolean(getVaultPath());
@@ -211,8 +214,10 @@ export const paletteCommands: AppCommand[] = [
 		titleKey: "commands.toggleMarkdownSource",
 		categoryKey: "commands.catEditor",
 		keywords: ["markdown", "source", "wysiwyg", "源码", "渲染"],
-		when: () => Boolean(markdownEditorFor(getActiveTabId())),
-		run: () => markdownEditorFor(getActiveTabId())?.toggleSource(),
+		when: () => activeMarkdownEditorId() !== null,
+		run: () => {
+			toggleActiveMarkdownSource();
+		},
 	},
 	{
 		id: "pdf.exportAnnotatedPdf",

@@ -125,8 +125,8 @@ import {
 	reopenClosedTab,
 	splitActivePane,
 } from "@/lib/workspace/actions";
-import { getActiveTabId, workspaceStore } from "@/lib/workspace/store";
-import { markdownEditorFor } from "@/lib/workspace/viewer/markdown-editor-registry";
+import { toggleActiveMarkdownSource } from "@/lib/workspace/markdown-source-toggle";
+import { workspaceStore } from "@/lib/workspace/store";
 
 // macOS keeps native traffic lights (Overlay title bar) and a native menu bar.
 // Other desktop platforms also use native decorations, but have no native menu
@@ -387,8 +387,7 @@ export default function App() {
 		magicWand: openMagicWand,
 		quickOpen: () => openPalette("go"),
 		commandPalette: () => openPalette("commands"),
-		toggleMarkdownSource: () =>
-			markdownEditorFor(getActiveTabId())?.toggleSource(),
+		toggleMarkdownSource: () => toggleActiveMarkdownSource(),
 		toggleSidebar,
 		toggleChat,
 		// ⌘K: in-page Quick chat (Ask) from the armed PDF / Plaza selection.
