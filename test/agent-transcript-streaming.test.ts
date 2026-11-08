@@ -108,6 +108,28 @@ async function click(text: string) {
 }
 
 describe("live transcript rendering", () => {
+	it("compacts Pi references only in user bubbles without changing stored messages", async () => {
+		const path = String.raw`C:\Users\Louis\.pi-desktop\scratch\session\pasted\pasted-context.txt`;
+		const text = `Please read this\n\n@${path}`;
+		setLines([
+			{ id: "u1", kind: "user", text },
+			{
+				id: "a1",
+				kind: "agent",
+				streaming: false,
+				parts: [{ id: "t1", type: "text", text }],
+			},
+		]);
+		await renderTranscript();
+		const user = host.querySelector(".is-user");
+		expect(user?.textContent).toContain("pasted-context.txt");
+		expect(user?.textContent).not.toContain(path);
+		expect(host.querySelector(".is-assistant")?.textContent).toContain(path);
+		expect(agentSessionStore.getState().sessions[0].lines[0]).toMatchObject({
+			text,
+		});
+	});
+
 	it("defaults to one line and toggles the synchronized live parts on click", async () => {
 		setLines([
 			{

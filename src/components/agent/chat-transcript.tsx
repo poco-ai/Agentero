@@ -72,6 +72,7 @@ import {
 	MessageResponse,
 } from "@/components/agent/message";
 import { TerminalTool } from "@/components/agent/rendering/terminal-tool";
+import { UserMessageResponse } from "@/components/agent/rendering/user-message-response";
 import { ZhihuDiscussions } from "@/components/agent/zhihu-discussions";
 import { Button } from "@/components/ui/button";
 import {
@@ -653,9 +654,9 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 							{chipMarkup ? (
 								<InlineChipText markup={chipMarkup} onOpenPath={onOpenSource} />
 							) : (
-								<MessageResponse className="text-base leading-relaxed">
+								<UserMessageResponse className="text-base leading-relaxed">
 									{userDisplay}
-								</MessageResponse>
+								</UserMessageResponse>
 							)}
 						</MessageContent>
 					) : null}

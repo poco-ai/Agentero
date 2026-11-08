@@ -16,6 +16,8 @@ shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
 
 流式：`agent:stream`（message | thought）→ 完成 / 失败事件。写 NOTES 后统一 Diff（Keep / Revert）。
 
+用户消息中独占一行的 Pi Desktop `@<绝对路径>/.pi-desktop/scratch/<session>/pasted/pasted-*.txt` 引用显示为文件名附件卡片；点击或键盘激活可展开完整路径。支持 Windows / POSIX 路径及引号包裹的空格路径；普通路径、代码块与助手回复不折叠。右侧聊天和 PDF 快速对话共用此显示组件，不读取附件内容，不修改保存、复制或重发的原文。
+
 **行内 citation pill / 统一跳转**：Agent 按格式输出 `[label](papers/…/<id>.pdf#section|figure|page=…)` 或 `[[papers/…/NOTES]]`。路径含空格时写成 `%20`，或用 CommonMark 尖括号包住目标（`[p.4](<papers/Quantum Error Correcting/…pdf#page=4>)`）。`prepareAgentMessageMarkdown` 会给 vault 相对 href 加 `./` 前缀，并把尖括号目标改成 `./` + 百分号编码——Streamdown 内置 rehype-harden 只把 `/` `./` `../` 当相对路径，裸 `papers/…` 或带空格的 href 会被标成 Blocked。点击时 `cleanCitationHref` 剥掉 `./`，再对路径和 fragment 做 `decodeURIComponent`，然后按 vault 相对路径打开。`MessageResponse` / `ReasoningContent` 把 `<a>` 渲成同一 citation pill：`http(s)` 开系统浏览器，vault 路径走 `openCitation`。裸 `papers/…#page|section|figure=…` 也会补成链接。`.tex` href 回退到同论文 `{id}.pdf`。残留 status tag / `blocked` 标签有显示兜底。约定不加外层 `([…])`，不用文末 `## Sources`。Host 解析：`#figure=N` 在 caption 任意位置匹配 `Fig./Figure N`（避免 OCR 把标签挤到标题中间）；`#section=N` 同时认阿拉伯与 IEEE 罗马章节号（如 `3` ↔ `III.`），并抬高短数字的相似度门槛以免误命中页眉噪声。解析失败 Toast 按 fragment 类型短提示（如「找不到 Figure：…#figure=7」）并带上 source。跳转成功后用黄色半透明高亮块闪一下目标区域（约 1.6s 淡出消失），目的是引起注意；细条 section 标题会扩成标题下一段预览块，并按 bbox 滚进视口。Figures 侧栏选中仍用 kind 色描边（常驻）。
 
 章节与段落引用也支持 `[label](papers/<id>/<id>.pdf#2.1)`、`[label](papers/<id>/<id>.pdf#2.1#p3)` 和同格式的 PDF 双链。Agent 应先用 `agentero layout list <paper> --kind paragraph --json` 查询真实锚点，再引用返回的 `anchor`；`p3` 是章节内的正文块序号，子章节独立计数。聊天、普通 Markdown 链接与双链使用同一个解析器；缺少解析、目标不存在或有歧义时报告失败。Markdown 的 `#标题` 与 PDF 的编号章节分别解释。
