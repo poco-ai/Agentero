@@ -12,6 +12,7 @@ import {
 	Loader2,
 	Mail,
 	MailOpen,
+	MessageSquarePlus,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,29 +35,15 @@ import {
 import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
+import { addFeedItemToChat } from "@/lib/plaza/feed-chat";
+import { beginFeedItemDrag } from "@/lib/plaza/feed-drag";
 import {
 	cleanFeedSummary,
 	type FeedItem,
 	feedDetailMarkdown,
 	feedsResolveBody,
+	formatFeedWhen,
 } from "@/lib/plaza/feeds";
-
-export function formatFeedWhen(iso: string | null, locale: string): string {
-	if (!iso) return "";
-	const date = new Date(iso);
-	if (Number.isNaN(date.getTime())) return "";
-	const diffSec = Math.round((date.getTime() - Date.now()) / 1000);
-	const abs = Math.abs(diffSec);
-	const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-	if (abs < 60) return rtf.format(diffSec, "second");
-	if (abs < 3600) return rtf.format(Math.round(diffSec / 60), "minute");
-	if (abs < 86400) return rtf.format(Math.round(diffSec / 3600), "hour");
-	if (abs < 86400 * 7) return rtf.format(Math.round(diffSec / 86400), "day");
-	return new Intl.DateTimeFormat(locale, {
-		month: "short",
-		day: "numeric",
-	}).format(date);
-}
 
 export function PlazaFeedItemRow({
 	item,
@@ -81,7 +68,9 @@ export function PlazaFeedItemRow({
 	return (
 		<ContextMenu>
 			<ContextMenuTrigger asChild>
-				<div
+				<article
+					draggable
+					onDragStart={(event) => beginFeedItemDrag(event.dataTransfer, item)}
 					className={cn(
 						"group relative rounded-lg border bg-background p-2.5",
 						"transition-colors hover:border-foreground/20 hover:bg-muted/50",
@@ -165,9 +154,13 @@ export function PlazaFeedItemRow({
 							<TooltipContent>{t("plaza.feeds.openOriginal")}</TooltipContent>
 						</Tooltip>
 					) : null}
-				</div>
+				</article>
 			</ContextMenuTrigger>
 			<ContextMenuContent>
+				<ContextMenuItem onSelect={() => addFeedItemToChat(item)}>
+					<MessageSquarePlus aria-hidden />
+					{t("plaza.feeds.addToChat")}
+				</ContextMenuItem>
 				<ContextMenuItem
 					disabled={importing || Boolean(item.importedAt) || !href}
 					onSelect={() => onImport(item)}
@@ -264,6 +257,20 @@ export function PlazaFeedItemDetail({
 						aria-label={t("plaza.feeds.loadingBody")}
 					/>
 				) : null}
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							aria-label={t("plaza.feeds.addToChat")}
+							onClick={() => addFeedItemToChat(item)}
+						>
+							<MessageSquarePlus className="size-3.5" aria-hidden />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>{t("plaza.feeds.addToChat")}</TooltipContent>
+				</Tooltip>
 				{href ? (
 					<Tooltip>
 						<TooltipTrigger asChild>
