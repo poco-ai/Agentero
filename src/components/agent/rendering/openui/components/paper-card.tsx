@@ -1,13 +1,19 @@
 "use client";
 
 import type { ElementNode } from "@openuidev/lang-core";
+import { ArrowUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MathText } from "@/components/ui/math-text";
 import { cn } from "@/lib/core/utils";
 import { useOpenUiSource } from "../source-context";
+import {
+	BLOCK_CAPTION_CLASS,
+	type OpenUiTone,
+	SOURCE_LINK_CLASS,
+} from "../styles";
 import { stringProp } from "./shared";
+import { TagBadge, ToneBadge } from "./tone-badge";
 
 const STATUS_KEY = {
 	unread: "uiBlock.paperStatus.unread",
@@ -16,13 +22,12 @@ const STATUS_KEY = {
 	queued: "uiBlock.paperStatus.queued",
 } as const;
 
-const STATUS_CLASS = {
-	unread: "border-border bg-muted text-muted-foreground",
-	reading: "border-primary/30 bg-primary/10 text-primary",
-	read: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-	queued:
-		"border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-} as const;
+const STATUS_TONE: Record<keyof typeof STATUS_KEY, OpenUiTone> = {
+	unread: "neutral",
+	reading: "info",
+	read: "success",
+	queued: "warning",
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -39,57 +44,49 @@ export function PaperCardNode({ node }: { node: ElementNode }) {
 	const tags = Array.isArray(paper.tags)
 		? paper.tags.filter((tag): tag is string => typeof tag === "string")
 		: [];
+	const authors = stringProp(paper, "authors");
 	const meta = [stringProp(paper, "venue"), stringProp(paper, "year")]
 		.filter(Boolean)
 		.join(" · ");
 	const path = stringProp(paper, "path");
 
 	return (
-		<Card size="sm" className="w-full gap-2 py-3">
-			<CardHeader className="px-3 pb-0">
+		<Card size="sm" className="w-full gap-2">
+			<CardHeader>
 				<div className="flex min-w-0 items-start justify-between gap-2">
-					<CardTitle className="min-w-0 text-sm leading-snug">
+					<CardTitle className="min-w-0 break-words leading-snug">
 						<MathText text={stringProp(paper, "title")} />
 					</CardTitle>
 					{status ? (
-						<Badge
-							variant="outline"
-							className={cn(
-								"h-5 shrink-0 rounded-md px-1.5 text-[11px]",
-								STATUS_CLASS[status],
-							)}
-						>
+						<ToneBadge tone={STATUS_TONE[status]}>
 							{t(STATUS_KEY[status])}
-						</Badge>
+						</ToneBadge>
 					) : null}
 				</div>
-				<div className="truncate text-xs text-muted-foreground">
-					{stringProp(paper, "authors")}
-				</div>
+				{authors ? (
+					<div className={cn("truncate", BLOCK_CAPTION_CLASS)}>{authors}</div>
+				) : null}
 				{meta ? (
-					<div className="truncate text-xs text-muted-foreground">{meta}</div>
+					<div className={cn("truncate", BLOCK_CAPTION_CLASS)}>{meta}</div>
 				) : null}
 			</CardHeader>
-			<CardContent className="flex flex-wrap items-center gap-1.5 px-3">
-				{tags.map((tag) => (
-					<Badge
-						key={tag}
-						variant="outline"
-						className="h-5 rounded-md px-1.5 text-[11px]"
-					>
-						{tag}
-					</Badge>
-				))}
-				{path && onOpenSource ? (
-					<button
-						type="button"
-						className="ms-auto text-xs text-primary underline underline-offset-2"
-						onClick={() => onOpenSource(path)}
-					>
-						{t("uiBlock.openPaper")}
-					</button>
-				) : null}
-			</CardContent>
+			{tags.length > 0 || (path && onOpenSource) ? (
+				<CardContent className="flex flex-wrap items-center gap-1.5">
+					{tags.map((tag) => (
+						<TagBadge key={tag}>{tag}</TagBadge>
+					))}
+					{path && onOpenSource ? (
+						<button
+							type="button"
+							className={cn(SOURCE_LINK_CLASS, "ms-auto")}
+							onClick={() => onOpenSource(path)}
+						>
+							{t("uiBlock.openPaper")}
+							<ArrowUpRight className="size-3" aria-hidden />
+						</button>
+					) : null}
+				</CardContent>
+			) : null}
 		</Card>
 	);
 }
