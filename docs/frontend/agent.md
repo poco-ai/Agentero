@@ -133,7 +133,9 @@ Skill 语法由 Host 按 provider 分流（Claude `/id`，其它注入 `SKILL.md
 | 代码块 | `PlainCodeBlock` | 左上角语言小标签；悬停复制/下载（按语言后缀）；无外侧卡片、无全屏 |
 | Mermaid | `MermaidBlock` | 默认只显示图形；悬停右上角出现复制与源码图标，点源码才换成代码；无法编译时自动回退源码 |
 
-`mermaid` 代码块不再交给 `@streamdown/mermaid` 的默认卡片，`MessageResponse` 通过 Streamdown 的 `renderers` 接管该语言，渲染配色、字体与排版由 `lib/markdown/mermaid-theme.ts` 按亮/暗主题生成（主题令牌的 sRGB 等价色，Mermaid 的取色库无法解析 `oklch()`）。
+表格全屏是应用内覆盖层（portal），保留粘性表头、Esc 关闭和复制/下载操作；不再对 `<table>` 直接调用 Fullscreen API，避免浏览器把表格拉伸到视口高度、露出透明背景。
+
+`mermaid` 代码块不再交给 `@streamdown/mermaid` 的默认卡片：`MessageResponse` 的 `AgentCodeBlock` 在 code renderer 里拦截该语言，复用编辑器的 `MermaidCodeRenderer` / `MermaidBlock`。`MarkdownSurface` 的 `renderers` 在这里不会生效，因为 `components.code` 已替换 Streamdown 内置渲染器。渲染配色、字体与排版由 `lib/markdown/mermaid-theme.ts` 按亮/暗主题生成（主题令牌的 sRGB 等价色，Mermaid 的取色库无法解析 `oklch()`）。
 
 落盘：`src/components/agent/rendering/plain-table.tsx`、`plain-code-block.tsx`；正文与推理统一复用同目录的 `message-response.tsx`。Mermaid 走 `src/components/markdown/mermaid-diagram.tsx`（`MermaidBlock` / `MermaidDiagram` / `useMermaidSvg`）。代码高亮复用 shadcn 的 `use-highlighted-code` 与 `lib/ui/highlighter`，复制经业务适配调用 Tauri 兼容剪贴板。
 
@@ -173,6 +175,8 @@ table = Table(["Model", "Score"], [["A", "91"], ["B", "87"]])
 - `Timeline` / `Tree` / `TagList` / `SourceList` 继续承担时间线、分类树、标签和来源列表；`SourceList` 的 source 可点击。
 
 块内视觉收敛到一套 token 规则（`src/components/agent/rendering/openui/styles.ts`）：卡片用上游 `Card`（`rounded-xl`），内嵌表面与空态用 `rounded-lg` + `bg-muted/20`，状态胶囊 / 标签用 `rounded-md`；标题、caption 与来源链接共用同一套 class。状态色不再写死 emerald / amber：`info` / `danger` 跟 `--primary` / `--destructive`，`success` / `warning` 用 `index.css` 的 `--success` / `--warning` 语义 token（暗色单独定义），切换 tweakcn 主题时块内颜色和圆角一起变化。图表的网格值同时作为 y 轴刻度渲染，描边与填充全部走主题 token。
+
+`source` / `path` 只接受 Vault 相对文件路径、`http(s)` URL 或 `path#page=` / `#figure=` / `#section=` 等 citation 目标；像 “Table 3, Section 4.2” 这样的人类可读标签应放在 `label` / `caption` / `detail`。`isOpenUiSourceTarget` 会拒绝无法识别的目标，组件将其显示为普通 muted 文本，不再生成会打开成文件路径的错误链接。
 
 完整的位置参数签名、嵌套规则和示例在 bundled skill：`templates/vault/.agents/skills/openui-blocks/SKILL.md`。新 Vault 会自动播种到 `.agents/skills/openui-blocks/`，已有 Vault 在下次打开时补种（缺失才写，不覆盖用户改动）。Host `build_prompt` 不再注入完整目录，只追加一段很短的 `openui_guidance.generated.txt` 指针：需要富 UI 时读该 skill，每轮最多一个 `openui-lang` 块，能 Markdown 就 Markdown。这样组件增加不会线性膨胀每轮 system prompt；代价是首次使用需要一次读文件。`translate` 是封闭变换，连指针也不注入。
 
