@@ -6,7 +6,6 @@ import { createMathPlugin } from "@streamdown/math";
 import type { ComponentProps } from "react";
 import { memo } from "react";
 import { type PluginConfig, Streamdown } from "streamdown";
-import { MermaidCodeRenderer } from "@/components/markdown/mermaid-diagram";
 import { cn } from "@/lib/core/utils";
 import { AgentCitationLink } from "./agent-citation-link";
 import { PlainCodeBlock } from "./plain-code-block";
@@ -22,13 +21,14 @@ const streamdownPlugins: PluginConfig = {
 	cjk,
 	code,
 	math: streamdownMath,
-	renderers: [{ language: "mermaid", component: MermaidCodeRenderer }],
 };
 
 /**
  * Shared Streamdown surface for chat replies and Markdown inside OpenUI Text.
  * Callers prepare the source (citations, math normalization) before rendering;
- * this component only owns the plugin/code/table wiring.
+ * this component only owns the plugin/code/table wiring. Mermaid is intercepted
+ * by `MessageResponse`'s code component because `components.code` replaces
+ * Streamdown's built-in renderer (and therefore its `renderers` hook).
  */
 export const MarkdownSurface = memo(
 	({

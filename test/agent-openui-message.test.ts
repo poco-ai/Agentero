@@ -89,6 +89,11 @@ describe("MessageResponse OpenUI integration", () => {
 		expect(html).toContain("Hel");
 	});
 
+	it("renders a mermaid fence through the shared editor Mermaid block", () => {
+		const html = render("```mermaid\ngraph LR\n  A --> B\n```");
+		expect(html).toContain("group/mermaid");
+	});
+
 	it("falls back to the source plus a short reason for invalid blocks", () => {
 		const html = render(
 			'```openui-lang\nroot = Stack([bad])\nbad = Unknown("x")\n```',

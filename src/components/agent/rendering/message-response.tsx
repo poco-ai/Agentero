@@ -3,6 +3,7 @@
 import type { ComponentProps, ComponentPropsWithoutRef } from "react";
 import { createContext, memo, useContext } from "react";
 import { type Streamdown, useIsCodeFenceIncomplete } from "streamdown";
+import { MermaidCodeRenderer } from "@/components/markdown/mermaid-diagram";
 import { prepareAgentMessageMarkdown } from "@/lib/agent/message-markdown";
 import {
 	AGENT_OPENUI_BLOCKS_ENABLED,
@@ -37,18 +38,18 @@ type AgentCodeProps = ComponentPropsWithoutRef<"code"> & { node?: unknown };
 
 /**
  * Streamdown's `components.code` replaces its built-in code renderer, so the
- * `renderers` hook never sees fenced blocks here. Intercept OpenUI fences in
- * the code component instead; every other language keeps the existing
- * {@link PlainCodeBlock} chrome. `useIsCodeFenceIncomplete` is the same signal
- * Streamdown's custom renderers receive.
+ * `renderers` hook never sees fenced blocks here. Intercept OpenUI and Mermaid
+ * fences in the code component instead; every other language keeps the
+ * existing {@link PlainCodeBlock} chrome. `useIsCodeFenceIncomplete` is the
+ * same signal Streamdown's custom renderers receive.
  */
 function AgentCodeBlock(props: AgentCodeProps) {
 	const openUiEnabled = useContext(OpenUiCodeContext);
 	const onOpenSource = useOpenUiSource();
 	const isIncomplete = useIsCodeFenceIncomplete();
-	if (openUiEnabled && "data-block" in props) {
+	if ("data-block" in props) {
 		const language = extractLanguage(props.className);
-		if (isOpenUiLanguage(language)) {
+		if (openUiEnabled && isOpenUiLanguage(language)) {
 			const source = extractText(props.children).replace(/\n$/, "");
 			return (
 				<OpenUiBlock
@@ -57,6 +58,10 @@ function AgentCodeBlock(props: AgentCodeProps) {
 					onOpenSource={onOpenSource}
 				/>
 			);
+		}
+		if (language.toLowerCase() === "mermaid") {
+			const source = extractText(props.children).replace(/\n$/, "");
+			return <MermaidCodeRenderer code={source} isIncomplete={isIncomplete} />;
 		}
 	}
 	return <PlainCodeBlock {...props} />;
