@@ -379,7 +379,8 @@ pub fn build() -> Vec<OpSpec> {
             false,
             json!({
                 "keyword?": ["string"],
-                "match?": "'all' (default, AND) | 'any' (OR) — combines multiple keywords",
+                "match?": "'all' (default, AND) | 'any' (OR) — CLI flag combining multiple keywords",
+                "keywordMatch?": "'all' (default, AND) | 'any' (OR) — MCP field, same as --match",
                 "category?": ["string"],
                 "since?": "YYYY-MM-DD",
                 "until?": "YYYY-MM-DD",

@@ -1547,8 +1547,9 @@ impl ServerHandler for AgenteroMcp {
 
 #[cfg(test)]
 mod schema_tests {
-    use super::AgenteroMcp;
+    use super::{AgenteroMcp, DiscoverArxivArgs};
     use crate::McpController;
+    use agentero_core::features::paper::discovery::discover;
     use rmcp::ServerHandler;
 
     /// Stable ops that advertise MCP must use a name from `AgenteroMcp::tool_router`
@@ -1944,6 +1945,22 @@ mod schema_tests {
         for key in ["path", "id", "title", "pdf", "tex", "paperMd"] {
             assert!(props.contains_key(key), "missing {key} in {props:?}");
         }
+    }
+
+    #[test]
+    fn discover_arxiv_accepts_keyword_match() {
+        let args: DiscoverArxivArgs = serde_json::from_value(serde_json::json!({
+            "keywords": ["dance", "choreography"],
+            "keywordMatch": "any"
+        }))
+        .expect("keywordMatch should deserialize");
+        assert_eq!(args.keyword_match, Some(discover::KeywordMatch::Any));
+
+        let tool = AgenteroMcp::discover_arxiv_tool_attr();
+        let schema =
+            serde_json::to_string(&*tool.input_schema).expect("input schema should serialize");
+        assert!(schema.contains("keywordMatch"), "{schema}");
+        assert!(schema.contains("\"any\""), "{schema}");
     }
 
     #[test]
