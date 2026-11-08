@@ -224,6 +224,8 @@ agentero feed add https://example.com/ --title "Example blog" --json
 
 # 定时拉取：只抓 15 分钟内没抓过的（ETag/Last-Modified 命中 304 时不重写条目）
 agentero feed refresh --stale --json
+# 单个源同样可以加 --stale：只在超过 15 分钟时才抓
+agentero feed refresh --id <sub-id> --stale --json
 
 # 消费：未读条目（脚本请始终加 --json）
 agentero feed items --filter unread --limit 20 --json
@@ -239,9 +241,9 @@ agentero feed list --json
 agentero feed remove <sub-id> -y --json
 ```
 
-- **定时拉取推荐做法**：cron / launchd 每 15–30 分钟跑 `agentero feed refresh --stale --json`，再用 `feed items --filter unread --json` 增量消费；`stale` 阈值（15 分钟）与桌面端自动刷新一致，`--stale` 之外显式刷新单个源用 `--id <sub-id>`。单源失败只记到该源的 `lastError`，不中断整批（结果里 `failed` 计数 + `subscriptions[].lastError`）。
-- `items` 默认剥掉 `contentHtml` / `bodyMarkdown`（重 HTML 省 token），`--full` 恢复；条目默认每源缓存最近 200 条。
-- 错误码：`feed_duplicate`（URL 已订阅）、`feed_not_found`、`feed_empty`、`feed_not_found_in_page`、`feed_http_error`（带状态码）、`feed_fetch_failed`、`feed_too_large`；`feed remove` 在非 TTY 且未传 `-y` 时返回 `needs_confirmation`。
+- **定时拉取推荐做法**：cron / launchd 每 15–30 分钟跑 `agentero feed refresh --stale --json`，再用 `feed items --filter unread --json` 增量消费；`stale` 阈值（15 分钟）与桌面端自动刷新一致，`--stale` 也适用于 `--id <sub-id>`（只在该源超过 15 分钟时刷新）。单源失败只记到该源的 `lastError`，不中断整批（结果里 `failed` 计数 + `subscriptions[].lastError`）。
+- `items` 默认剥掉 `contentHtml` / `bodyMarkdown`（重 HTML 省 token），`--full` 恢复；条目默认每源缓存最近 200 条。`--filter` 仅接受 `all` / `unread` / `paper` / `other`，`--limit` 限 `1..=200`，越界由参数解析直接拒绝。
+- 错误码：`feed_duplicate`（URL 已订阅）、`feed_not_found`、`feed_empty`、`feed_parse_error`（feed 不是合法 RSS/Atom/JSON）、`feed_not_found_in_page`、`feed_http_error`（带状态码）、`feed_fetch_failed`、`feed_too_large`；`feed remove` 在非 TTY 且未传 `-y` 时返回 `needs_confirmation`。底层 IO / JSON / SQLite 错误分别以 `io` / `json` / `sqlite` 透传。
 - 桌面端仍负责完整交互面（重命名、置顶、正文解析 `resolve body`、导入论文）；CLI 面只覆盖订阅与消费生命周期（见 [#962](https://github.com/poco-ai/Agentero/issues/962)）。
 
 ## 论文导入

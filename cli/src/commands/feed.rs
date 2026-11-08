@@ -19,7 +19,7 @@ use clap::Subcommand;
 use serde_json::{json, Value};
 
 const DEFAULT_LIMIT: u32 = 50;
-const MAX_LIMIT: u32 = 200;
+const MAX_LIMIT: i64 = 200;
 
 #[derive(Debug, Subcommand)]
 pub enum FeedCmd {
@@ -58,10 +58,18 @@ pub enum FeedCmd {
         #[arg(long)]
         subscription: Option<String>,
         /// Item filter: `all` | `unread` | `paper` | `other` (default `all`).
-        #[arg(long, default_value = "all")]
+        #[arg(
+            long,
+            default_value = "all",
+            value_parser = ["all", "unread", "paper", "other"]
+        )]
         filter: String,
         /// Max items to return (1..=200, default 50).
-        #[arg(long, default_value_t = DEFAULT_LIMIT)]
+        #[arg(
+            long,
+            default_value_t = DEFAULT_LIMIT,
+            value_parser = clap::value_parser!(u32).range(1..=MAX_LIMIT)
+        )]
         limit: u32,
         /// Include `contentHtml` / `bodyMarkdown` (heavy HTML; off by default).
         #[arg(long)]
@@ -121,7 +129,7 @@ fn map_err(err: AppError) -> CliError {
             "no RSS/Atom/JSON feed link found on the page",
             ExitCode::Business,
         ),
-        "feeds.invalid_url" => CliError::usage("feed URL must stay http(s) after redirects"),
+        "feeds.invalid_url" => CliError::usage("feed URL must be a valid http(s) URL"),
         "feeds.body" => CliError::new(
             "feed_body_unavailable",
             "article body could not be extracted",
@@ -138,10 +146,20 @@ fn map_err(err: AppError) -> CliError {
                 ExitCode::Business,
             )
         }
-        _ if msg.starts_with("feeds.fetch:") || msg.starts_with("feeds.body:") => {
+        _ if msg.starts_with("feeds.parse:") => CliError::new(
+            "feed_parse_error",
+            "feed body is not valid RSS / Atom / JSON",
+            ExitCode::Business,
+        ),
+        _ if msg.starts_with("feeds.fetch:")
+            || msg.starts_with("feeds.body:")
+            || msg.starts_with("http client:") =>
+        {
             CliError::new("feed_fetch_failed", msg, ExitCode::Business)
         }
-        _ => CliError::message(msg),
+        // Preserve core's io/json/sqlite codes instead of flattening them to
+        // `message`; feed-specific keys are all mapped above.
+        _ => CliError::new(err.code(), msg, ExitCode::Business),
     }
 }
 
@@ -212,6 +230,16 @@ async fn run_refresh(
     id: Option<&str>,
     stale: bool,
 ) -> Result<Value, CliError> {
+    if let Some(id) = id {
+        let data = feeds_core::list().map_err(map_err)?;
+        if !data.subscriptions.iter().any(|sub| sub.id == id) {
+            return Err(CliError::new(
+                "feed_not_found",
+                "no feed subscription with that id",
+                ExitCode::Business,
+            ));
+        }
+    }
     let result = feeds_core::refresh(id.map(str::to_string), stale)
         .await
         .map_err(map_err)?;
@@ -238,8 +266,17 @@ fn run_items(
     limit: u32,
     full: bool,
 ) -> Result<Value, CliError> {
-    let page = feeds_core::items(subscription, filter, limit.clamp(1, MAX_LIMIT), None, None)
-        .map_err(map_err)?;
+    if let Some(id) = subscription {
+        let data = feeds_core::list().map_err(map_err)?;
+        if !data.subscriptions.iter().any(|sub| sub.id == id) {
+            return Err(CliError::new(
+                "feed_not_found",
+                "no feed subscription with that id",
+                ExitCode::Business,
+            ));
+        }
+    }
+    let page = feeds_core::items(subscription, filter, limit, None, None).map_err(map_err)?;
 
     let mut items_json: Vec<Value> = Vec::with_capacity(page.items.len());
     let mut unread = 0usize;
@@ -324,6 +361,14 @@ mod tests {
         assert!(e.message.contains("404"));
         let e = map_err(AppError::message("feeds.empty"));
         assert_eq!(e.code, "feed_empty");
+        let e = map_err(AppError::message("feeds.parse:no root element"));
+        assert_eq!(e.code, "feed_parse_error");
+        assert!(!e.message.contains("feeds.parse"));
+        let e = map_err(AppError::message("feeds.invalid_url"));
+        assert_eq!(e.code, "usage");
+        assert_eq!(e.exit_code(), ExitCode::Usage);
+        let e = map_err(AppError::Sqlite("database is locked".into()));
+        assert_eq!(e.code, "sqlite");
         let e = map_err(AppError::message("some.other.error"));
         assert_eq!(e.code, "message");
     }

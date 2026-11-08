@@ -436,7 +436,7 @@ pub fn build() -> Vec<OpSpec> {
             false,
             json!({"url": "feed URL (http/https)", "title?": "override the subscription title"}),
             json!({"id": "string", "url": "string", "title": "string", "itemCount": "number"}),
-            &["feed_duplicate", "feed_empty", "feed_not_found_in_page", "feed_http_error", "feed_fetch_failed", "feed_too_large", "usage"],
+            &["feed_duplicate", "feed_empty", "feed_parse_error", "feed_not_found_in_page", "feed_http_error", "feed_fetch_failed", "feed_too_large", "usage"],
             &[
                 "agentero feed add https://huggingface.co/blog/feed.xml --json",
                 "agentero feed add https://example.com/ --title \"Example blog\" --json",
@@ -463,9 +463,9 @@ pub fn build() -> Vec<OpSpec> {
             OpSideEffect::Write,
             cli,
             false,
-            json!({"id?": "subscription id (default: all)", "stale?": "bool (default false)"}),
+            json!({"id?": "subscription id (default: all)", "stale?": "bool (default false; with --id it only refreshes when older than 15 minutes)"}),
             json!({"subscriptions": ["FeedSub…"], "fetched": "number", "failed": "number"}),
-            &["feed_http_error", "feed_fetch_failed", "io"],
+            &["feed_not_found", "feed_http_error", "feed_fetch_failed", "io"],
             &["agentero feed refresh --stale --json"],
         ),
         op(
