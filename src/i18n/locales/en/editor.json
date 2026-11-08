@@ -194,7 +194,8 @@
 		"currentMatch": "Current match",
 		"onLine": "on line",
 		"replacedLine": "Replaced match on line $",
-		"replacedMatches": "Replaced $ matches"
+		"replacedMatches": "Replaced $ matches",
+		"zwspPlaceholder": "Zero-width space placeholder"
 	},
 	"findReplace": {
 		"title": "Find & replace",

@@ -194,7 +194,8 @@
 		"currentMatch": "当前匹配",
 		"onLine": "行号",
 		"replacedLine": "已替换第 $ 行的匹配",
-		"replacedMatches": "已替换 $ 处匹配"
+		"replacedMatches": "已替换 $ 处匹配",
+		"zwspPlaceholder": "零宽空格占位"
 	},
 	"findReplace": {
 		"title": "查找替换",

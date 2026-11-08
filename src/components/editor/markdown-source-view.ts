@@ -49,6 +49,12 @@ import { markdownSourceLineNumberStyle } from "./markdown-source-layout";
 const sourceLayout = EditorView.theme({
 	"& .cm-content": { paddingBlock: "1rem 5rem" },
 	"& .cm-line": { paddingInline: "1rem" },
+	// U+200B is a real Markdown character (Plate writes it for empty text
+	// leaves), so keep it visible but muted instead of CodeMirror's red glyph.
+	"& .cm-zwsp-marker": {
+		color: "var(--muted-foreground)",
+		opacity: "0.55",
+	},
 	// The source surface itself is capped at markdownMaxWidth in the editor
 	// shell, which keeps the gutter inside the centered column.
 	"& .cm-lineNumbers": markdownSourceLineNumberStyle,
@@ -99,12 +105,44 @@ function sourceFoldMarker(open: boolean): HTMLElement {
 	return marker;
 }
 
+/** U+200B: Plate's placeholder for an empty text leaf or empty paragraph. */
+const ZERO_WIDTH_SPACE = 0x200b;
+
+/** Drawn instead of the placeholder; still selectable and deletable. */
+const ZERO_WIDTH_SPACE_MARKER = "·";
+
+/** Marker for the U+200B placeholder, with a translated hover label. */
+function zeroWidthSpaceMarker(label: string): HTMLElement {
+	const marker = document.createElement("span");
+	marker.className = "cm-zwsp-marker";
+	marker.textContent = ZERO_WIDTH_SPACE_MARKER;
+	marker.title = label;
+	marker.setAttribute("aria-label", label);
+	return marker;
+}
+
+type SpecialCharRenderer = (
+	code: number,
+	description: string | null,
+	placeholder: string,
+) => HTMLElement;
+
+/**
+ * Draw U+200B ourselves; other special characters keep CodeMirror's marker,
+ * because the widget falls back when `render` returns null (the public type
+ * has no null branch, hence the cast).
+ */
+function sourceSpecialCharRenderer(label: string): SpecialCharRenderer {
+	const render = (code: number): HTMLElement | null =>
+		code === ZERO_WIDTH_SPACE ? zeroWidthSpaceMarker(label) : null;
+	return render as unknown as SpecialCharRenderer;
+}
+
 // basicSetup has a fixed fold gutter. Compose the same public extensions
 // here so the source editor can draw its own marker without a second gutter.
 const sourceSetup = [
 	lineNumbers(),
 	highlightActiveLineGutter(),
-	highlightSpecialChars(),
 	history(),
 	foldGutter({ markerDOM: sourceFoldMarker }),
 	drawSelection(),
@@ -135,15 +173,22 @@ const preferences = new Compartment();
 export type SourceViewPreferences = {
 	phrases: Record<string, string>;
 	dark: boolean;
+	/** Hover / screen-reader label for the U+200B placeholder marker. */
+	zwspLabel: string;
 };
 
-function sourcePreferences({ dark, phrases }: SourceViewPreferences) {
+function sourcePreferences({
+	dark,
+	phrases,
+	zwspLabel,
+}: SourceViewPreferences) {
 	return [
 		editorColorScheme(dark),
 		EditorState.phrases.of(phrases),
 		EditorView.contentAttributes.of({
 			"aria-label": phrases["Markdown source"],
 		}),
+		highlightSpecialChars({ render: sourceSpecialCharRenderer(zwspLabel) }),
 	];
 }
 

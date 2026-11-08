@@ -276,6 +276,7 @@ export function useMarkdownSource({
 	const prefs = useMemo(
 		() => ({
 			dark,
+			zwspLabel: t("source.zwspPlaceholder"),
 			phrases: {
 				"Markdown source": t("source.showSource"),
 				Find: t("findReplace.searchPlaceholder"),
