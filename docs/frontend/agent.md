@@ -170,6 +170,8 @@ table = Table(["Model", "Score"], [["A", "91"], ["B", "87"]])
 - `Outline`：章节层级、页码和可选 source，适合论文结构导航。
 - `Timeline` / `Tree` / `TagList` / `SourceList` 继续承担时间线、分类树、标签和来源列表；`SourceList` 的 source 可点击。
 
+块内视觉收敛到一套 token 规则（`src/components/agent/rendering/openui/styles.ts`）：卡片用上游 `Card`（`rounded-xl`），内嵌表面与空态用 `rounded-lg` + `bg-muted/20`，状态胶囊 / 标签用 `rounded-md`；标题、caption 与来源链接共用同一套 class。状态色不再写死 emerald / amber：`info` / `danger` 跟 `--primary` / `--destructive`，`success` / `warning` 用 `index.css` 的 `--success` / `--warning` 语义 token（暗色单独定义），切换 tweakcn 主题时块内颜色和圆角一起变化。图表的网格值同时作为 y 轴刻度渲染，描边与填充全部走主题 token。
+
 完整的位置参数签名、嵌套规则和示例在 bundled skill：`templates/vault/.agents/skills/openui-blocks/SKILL.md`。新 Vault 会自动播种到 `.agents/skills/openui-blocks/`，已有 Vault 在下次打开时补种（缺失才写，不覆盖用户改动）。Host `build_prompt` 不再注入完整目录，只追加一段很短的 `openui_guidance.generated.txt` 指针：需要富 UI 时读该 skill，每轮最多一个 `openui-lang` 块，能 Markdown 就 Markdown。这样组件增加不会线性膨胀每轮 system prompt；代价是首次使用需要一次读文件。`translate` 是封闭变换，连指针也不注入。
 
 组件目录的单一源是 `src/lib/agent/openui/catalog.ts`：Zod `blockProps` + `createLibrary` 同时产出 parser JSON Schema、后置形状校验和签名，不再维护手写 JSON Schema。`scripts/generate-openui-catalog.mjs` 从该源生成：
