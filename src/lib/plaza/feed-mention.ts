@@ -15,8 +15,8 @@ import {
 	type PlazaMentionEntry,
 } from "@/lib/agent/plaza-mention";
 import {
-	cleanFeedSummary,
 	type FeedItem,
+	stripFeedMeta,
 	stripTrailingEllipsis,
 } from "@/lib/plaza/feeds";
 
@@ -32,16 +32,58 @@ export type FeedMentionExcerpt = {
 	truncated: boolean;
 };
 
+const LINE_BREAK_TAG = /<br\s*\/?>/gi;
+const LIST_ITEM_TAG = /<li\b[^>]*>/gi;
+const BLOCK_END_TAG =
+	/<\/(?:p|div|section|article|h[1-6]|blockquote|pre|ul|ol|table|tr|figure)\s*>/gi;
+const HTML_TAG = /<\/?[a-z][^>]*>/i;
+
 /**
- * Clean one RSS summary / resolved body into prompt-sized text. Both surfaces
- * carry markup and feed boilerplate, so the cleaning always applies; only the
- * cap depends on the caller.
+ * RSS summaries are HTML. Block ends become paragraph breaks and list items
+ * become `- ` so the excerpt survives Markdown rendering as readable text
+ * instead of one collapsed line.
  */
-export function feedMentionExcerpt(raw: string): FeedMentionExcerpt {
-	const cleaned = stripTrailingEllipsis(cleanFeedSummary(raw)).trim();
-	const chars = Array.from(cleaned);
+function htmlExcerptToMarkdown(raw: string): string {
+	return raw
+		.replace(LINE_BREAK_TAG, "\n")
+		.replace(LIST_ITEM_TAG, "\n- ")
+		.replace(BLOCK_END_TAG, "\n\n")
+		.replace(/<[^>]+>/g, " ")
+		.replace(/&nbsp;/gi, " ")
+		.replace(/&amp;/gi, "&")
+		.replace(/&lt;/gi, "<")
+		.replace(/&gt;/gi, ">")
+		.replace(/&quot;/gi, '"')
+		.replace(/&#0*39;|&apos;/gi, "'");
+}
+
+function normalizeExcerptLines(text: string): string {
+	return stripTrailingEllipsis(
+		text
+			.replace(/\r\n?/g, "\n")
+			.replace(/[ \t]+/g, " ")
+			.replace(/ *\n */g, "\n")
+			.replace(/\n{3,}/g, "\n\n"),
+	).trim();
+}
+
+/**
+ * Clean one RSS summary / resolved body into prompt-sized text. A resolved
+ * body is already Markdown and keeps its structure; an RSS summary goes
+ * through the HTML pass first. Line breaks stay so the excerpt can render as
+ * Markdown in the hover preview; only the length is capped.
+ */
+export function feedMentionExcerpt(
+	raw: string,
+	options?: { html?: boolean },
+): FeedMentionExcerpt {
+	const html = options?.html ?? HTML_TAG.test(raw);
+	const text = normalizeExcerptLines(
+		stripFeedMeta(html ? htmlExcerptToMarkdown(raw) : raw),
+	);
+	const chars = Array.from(text);
 	if (chars.length <= MAX_FEED_EXCERPT_CHARS) {
-		return { text: cleaned, truncated: false };
+		return { text, truncated: false };
 	}
 	const head = chars.slice(0, MAX_FEED_EXCERPT_CHARS).join("").trimEnd();
 	return { text: `${head}…`, truncated: true };
@@ -62,9 +104,8 @@ export function feedIdFromMentionPath(
 }
 
 export function feedMentionEntry(item: FeedItem): PlazaMentionEntry {
-	const excerpt = feedMentionExcerpt(
-		item.bodyMarkdown?.trim() || item.summaryText,
-	);
+	const body = item.bodyMarkdown?.trim();
+	const excerpt = feedMentionExcerpt(body || item.summaryText, { html: !body });
 	return {
 		path: feedMentionPath(item.id),
 		source: "feed",

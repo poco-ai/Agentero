@@ -72,6 +72,18 @@ describe("feed reference card", () => {
 		expect(document.body.textContent).toContain("15万人次消费");
 		expect(document.body.textContent).toContain("舞蹈-CNKI");
 
+		// The card must allow a native text selection: the old handler called
+		// preventDefault() on mousedown, which made the preview unselectable.
+		const card = document.querySelector<HTMLElement>("[data-annotation-ui]");
+		expect(card, "card root missing").not.toBeNull();
+		expect(card?.className).toContain("select-text");
+		const down = new MouseEvent("mousedown", {
+			bubbles: true,
+			cancelable: true,
+		});
+		card?.dispatchEvent(down);
+		expect(down.defaultPrevented).toBe(false);
+
 		const remove = document.querySelector<HTMLButtonElement>(
 			"button[aria-label='remove']",
 		);

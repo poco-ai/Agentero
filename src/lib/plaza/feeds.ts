@@ -197,7 +197,6 @@ const META_PREFIXES = [
 	"abstract:",
 ] as const;
 
-/** Drop arXiv RSS headers so cards show the abstract, not the id / type. */
 /**
  * Relative ("3 hours ago") then short-date feed timestamp. Kept next to the
  * feed display helpers so the list card and the Agent preview agree.
@@ -219,8 +218,12 @@ export function formatFeedWhen(iso: string | null, locale: string): string {
 	}).format(date);
 }
 
-export function cleanFeedSummary(raw: string): string {
-	let rest = raw.replace(/<[^>]+>/g, " ").trim();
+/**
+ * Drop arXiv RSS headers so cards show the abstract, not the id / type.
+ * Line breaks are preserved for callers that keep paragraph structure.
+ */
+export function stripFeedMeta(raw: string): string {
+	let rest = raw.trim();
 	for (;;) {
 		const lower = rest.toLowerCase();
 		const hit = META_PREFIXES.find((prefix) => lower.startsWith(prefix));
@@ -233,7 +236,15 @@ export function cleanFeedSummary(raw: string): string {
 		const skip = after.search(/\s/);
 		rest = (skip === -1 ? "" : after.slice(skip)).trimStart();
 	}
-	return stripTrailingEllipsis(rest.replace(/\s+/g, " ").trim());
+	return rest;
+}
+
+export function cleanFeedSummary(raw: string): string {
+	return stripTrailingEllipsis(
+		stripFeedMeta(raw.replace(/<[^>]+>/g, " "))
+			.replace(/\s+/g, " ")
+			.trim(),
+	);
 }
 
 /** Drop RSS teaser tails (`[...]`, `…`) from cards and the detail body. */

@@ -67,6 +67,19 @@ describe("feed mention entry", () => {
 		expect(entry.abstractTruncated).toBe(true);
 	});
 
+	it("keeps paragraph and list structure from an HTML summary", () => {
+		const entry = feedMentionEntry(
+			item({
+				summaryText:
+					"<p>First paragraph.</p><p>Second:</p><ul><li>one</li><li>two</li></ul>",
+			}),
+		);
+		const text = entry.abstract ?? "";
+		expect(text).toContain("First paragraph.\n\nSecond:");
+		expect(text).toContain("- one\n- two");
+		expect(text).not.toContain("<p>");
+	});
+
 	it("uses the resolved body and strips feed markup", () => {
 		const entry = feedMentionEntry(
 			item({

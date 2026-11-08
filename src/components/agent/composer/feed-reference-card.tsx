@@ -9,7 +9,13 @@
  */
 
 import { X } from "lucide-react";
-import { useEffect, useLayoutEffect, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -17,9 +23,14 @@ import {
 	remToPx,
 } from "@/components/agent/composer/anchored-popover";
 import { clientRectMoved } from "@/components/agent/composer/composer-annotations";
+import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
 import { lookupPlazaMention } from "@/lib/agent/plaza-mention";
 import { formatFeedWhen } from "@/lib/plaza/feeds";
+
+/** Streamdown/typography defaults are chat-sized; the card is a 24rem preview. */
+const EXCERPT_CLASS =
+	"prose prose-sm dark:prose-invert mt-2 max-w-none break-words leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_h1]:mt-1 [&_h1]:mb-1 [&_h1]:font-medium [&_h1]:text-sm [&_h2]:mt-2 [&_h2]:mb-1 [&_h2]:font-medium [&_h2]:text-sm [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:font-medium [&_h3]:text-xs [&_h4]:mt-2 [&_h4]:mb-1 [&_h4]:text-xs [&_p]:my-1 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0 [&_pre]:my-1 [&_pre]:text-[0.7rem] [&_blockquote]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:pl-2 [&_a]:underline";
 
 export function FeedReferenceCard({
 	path,
@@ -36,6 +47,49 @@ export function FeedReferenceCard({
 }) {
 	const { t, i18n } = useTranslation(["agent", "common"]);
 	const [rect, setRect] = useState(() => anchor.getBoundingClientRect());
+	const cardRef = useRef<HTMLDivElement>(null);
+	const hoveringRef = useRef(false);
+	const selectingRef = useRef(false);
+
+	/** A live, non-collapsed selection anchored inside the card. */
+	const selectionInsideCard = useCallback(() => {
+		const card = cardRef.current;
+		const selection =
+			typeof document.getSelection === "function"
+				? document.getSelection()
+				: null;
+		const node = selection?.anchorNode;
+		return Boolean(
+			card &&
+				selection &&
+				!selection.isCollapsed &&
+				node &&
+				card.contains(node),
+		);
+	}, []);
+
+	// Selecting the preview is a normal reading gesture: releasing outside the
+	// card must not dismiss it. A click anywhere else still does.
+	useEffect(() => {
+		const onMouseUp = () => {
+			if (!selectingRef.current) return;
+			selectingRef.current = false;
+			if (hoveringRef.current || selectionInsideCard()) return;
+			onHoverRelease();
+		};
+		const onMouseDown = (event: MouseEvent) => {
+			const card = cardRef.current;
+			if (!card) return;
+			if (event.target instanceof Node && card.contains(event.target)) return;
+			onHoverRelease();
+		};
+		window.addEventListener("mouseup", onMouseUp);
+		window.addEventListener("mousedown", onMouseDown);
+		return () => {
+			window.removeEventListener("mouseup", onMouseUp);
+			window.removeEventListener("mousedown", onMouseDown);
+		};
+	}, [onHoverRelease, selectionInsideCard]);
 
 	useLayoutEffect(() => {
 		const update = () => {
@@ -74,20 +128,31 @@ export function FeedReferenceCard({
 	return createPortal(
 		// biome-ignore lint/a11y/noStaticElementInteractions: pointer bridge so the card stays open between the chip and its remove button
 		<div
+			ref={cardRef}
 			data-annotation-ui
-			className="fixed z-50 max-h-[min(24rem,calc(100vh-2rem))] overflow-y-auto rounded-lg bg-popover p-2.5 text-popover-foreground text-sm shadow-overlay ring-1 ring-foreground/10"
+			className="fixed z-50 max-h-[min(24rem,calc(100vh-2rem))] select-text overflow-y-auto rounded-lg bg-popover p-2.5 text-popover-foreground text-sm shadow-overlay ring-1 ring-foreground/10"
 			style={{
 				left: position.left,
 				top: position.top,
 				width: position.width,
 				transform: position.transform,
+				// Tailwind's select-text may skip the prefix on older WebKit.
+				WebkitUserSelect: "text",
+				userSelect: "text",
 			}}
-			onMouseEnter={onHoverHold}
-			onMouseLeave={onHoverRelease}
+			onMouseEnter={() => {
+				hoveringRef.current = true;
+				onHoverHold();
+			}}
+			onMouseLeave={() => {
+				hoveringRef.current = false;
+				if (selectingRef.current || selectionInsideCard()) return;
+				onHoverRelease();
+			}}
 			onMouseDown={(event) => {
 				const target = event.target as HTMLElement | null;
 				if (target?.closest("button, a, input, textarea")) return;
-				event.preventDefault();
+				selectingRef.current = true;
 			}}
 		>
 			<div className="flex items-start gap-2">
@@ -113,9 +178,9 @@ export function FeedReferenceCard({
 				</Button>
 			</div>
 			{entry?.abstract ? (
-				<p className="mt-2 whitespace-pre-wrap break-words text-muted-foreground text-xs leading-relaxed">
+				<MessageResponse className={EXCERPT_CLASS}>
 					{entry.abstract}
-				</p>
+				</MessageResponse>
 			) : null}
 		</div>,
 		document.body,
