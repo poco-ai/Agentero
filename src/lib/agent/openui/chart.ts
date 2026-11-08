@@ -8,10 +8,18 @@ export const BAR_CHART_HEIGHT = 220;
 export const LINE_CHART_WIDTH = 640;
 export const LINE_CHART_HEIGHT = 220;
 
-const PADDING = { top: 28, right: 16, bottom: 46, left: 28 } as const;
+const PADDING = { top: 28, right: 16, bottom: 46, left: 44 } as const;
+export const MIN_CHART_WIDTH = 240;
+const MIN_AXIS_SLOT = 26;
 const MAX_BAR_WIDTH = 48;
 const BAR_SLOT_RATIO = 0.62;
 const MAX_LABEL_CHARS = 14;
+
+function chartWidthFor(width: number | undefined, fallback: number): number {
+	return Number.isFinite(width)
+		? Math.max(MIN_CHART_WIDTH, Math.round(width as number))
+		: fallback;
+}
 
 export type BarChartBar = {
 	label: string;
@@ -29,13 +37,23 @@ export type BarChartGeometry = {
 	height: number;
 	plot: { x: number; y: number; width: number; height: number };
 	bars: BarChartBar[];
+	/** Render every Nth x-axis label; dense series keep all bars visible. */
+	labelStep: number;
 	grid: Array<{ y: number; value: number }>;
 };
 
-export function truncateChartLabel(label: string): string {
+export function truncateChartLabel(
+	label: string,
+	maxChars = MAX_LABEL_CHARS,
+): string {
 	const chars = [...label.trim()];
-	if (chars.length <= MAX_LABEL_CHARS) return chars.join("");
-	return `${chars.slice(0, MAX_LABEL_CHARS - 1).join("")}…`;
+	if (chars.length <= maxChars) return chars.join("");
+	return `${chars.slice(0, Math.max(1, maxChars - 1)).join("")}…`;
+}
+
+/** Keep labels near their rendered width; 10px SVG text is ~6px per glyph. */
+function labelCharsFor(slot: number, maxChars: number): number {
+	return Math.max(4, Math.min(maxChars, Math.round(slot / 6.2)));
 }
 
 export function formatChartValue(value: number, unit?: string): string {
@@ -47,13 +65,16 @@ export function buildBarChartGeometry(
 	labels: readonly string[],
 	values: readonly number[],
 	unit?: string,
+	width?: number,
 ): BarChartGeometry {
+	const chartWidth = chartWidthFor(width, BAR_CHART_WIDTH);
 	if (labels.length === 0) {
 		return {
-			width: BAR_CHART_WIDTH,
+			width: chartWidth,
 			height: BAR_CHART_HEIGHT,
 			plot: { x: PADDING.left, y: PADDING.top, width: 0, height: 0 },
 			bars: [],
+			labelStep: 1,
 			grid: [],
 		};
 	}
@@ -61,18 +82,20 @@ export function buildBarChartGeometry(
 	const plot = {
 		x: PADDING.left,
 		y: PADDING.top,
-		width: BAR_CHART_WIDTH - PADDING.left - PADDING.right,
+		width: chartWidth - PADDING.left - PADDING.right,
 		height: BAR_CHART_HEIGHT - PADDING.top - PADDING.bottom,
 	};
 	const maxValue = Math.max(1, ...values.filter(Number.isFinite));
 	const slot = plot.width / labels.length;
 	const barWidth = Math.min(MAX_BAR_WIDTH, slot * BAR_SLOT_RATIO);
+	const labelStep = Math.max(1, Math.ceil(MIN_AXIS_SLOT / slot));
+	const maxLabelChars = labelCharsFor(slot * labelStep, MAX_LABEL_CHARS);
 
 	const bars = labels.map((label, index) => {
 		const value = Math.max(0, values[index] ?? 0);
 		const height = (value / maxValue) * plot.height;
 		return {
-			label: truncateChartLabel(label),
+			label: truncateChartLabel(label, maxLabelChars),
 			fullLabel: label,
 			value,
 			valueLabel: formatChartValue(value, unit),
@@ -84,10 +107,11 @@ export function buildBarChartGeometry(
 	});
 
 	return {
-		width: BAR_CHART_WIDTH,
+		width: chartWidth,
 		height: BAR_CHART_HEIGHT,
 		plot,
 		bars,
+		labelStep,
 		grid: [0, 0.5, 1].map((ratio) => ({
 			y: plot.y + plot.height * (1 - ratio),
 			value: maxValue * ratio,
@@ -111,6 +135,8 @@ export type LineChartGeometry = {
 	points: LineChartPoint[];
 	path: string;
 	areaPath: string;
+	/** Render every Nth x-axis label; dense series keep all points visible. */
+	labelStep: number;
 	grid: Array<{ y: number; value: number }>;
 };
 
@@ -118,26 +144,33 @@ export function buildLineChartGeometry(
 	labels: readonly string[],
 	values: readonly number[],
 	unit?: string,
+	width?: number,
 ): LineChartGeometry {
+	const chartWidth = chartWidthFor(width, LINE_CHART_WIDTH);
 	const plot = {
 		x: PADDING.left,
 		y: PADDING.top,
-		width: LINE_CHART_WIDTH - PADDING.left - PADDING.right,
+		width: chartWidth - PADDING.left - PADDING.right,
 		height: LINE_CHART_HEIGHT - PADDING.top - PADDING.bottom,
 	};
 	if (labels.length === 0) {
 		return {
-			width: LINE_CHART_WIDTH,
+			width: chartWidth,
 			height: LINE_CHART_HEIGHT,
 			plot,
 			points: [],
 			path: "",
 			areaPath: "",
+			labelStep: 1,
 			grid: [],
 		};
 	}
 
 	const maxValue = Math.max(1, ...values.filter(Number.isFinite));
+	const spacing =
+		labels.length > 1 ? plot.width / (labels.length - 1) : plot.width;
+	const labelStep = Math.max(1, Math.ceil(MIN_AXIS_SLOT / spacing));
+	const maxLabelChars = labelCharsFor(spacing * labelStep, MAX_LABEL_CHARS);
 	const points = labels.map((label, index) => {
 		const value = Math.max(0, values[index] ?? 0);
 		const x =
@@ -145,7 +178,7 @@ export function buildLineChartGeometry(
 				? plot.x + plot.width / 2
 				: plot.x + (index / (labels.length - 1)) * plot.width;
 		return {
-			label: truncateChartLabel(label),
+			label: truncateChartLabel(label, maxLabelChars),
 			fullLabel: label,
 			value,
 			valueLabel: formatChartValue(value, unit),
@@ -165,12 +198,13 @@ export function buildLineChartGeometry(
 			: "";
 
 	return {
-		width: LINE_CHART_WIDTH,
+		width: chartWidth,
 		height: LINE_CHART_HEIGHT,
 		plot,
 		points,
 		path,
 		areaPath,
+		labelStep,
 		grid: [0, 0.5, 1].map((ratio) => ({
 			y: plot.y + plot.height * (1 - ratio),
 			value: maxValue * ratio,

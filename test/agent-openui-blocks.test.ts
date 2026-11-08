@@ -5,6 +5,7 @@ import { prepareAgentMessageMarkdown } from "@/lib/agent/message-markdown";
 import {
 	BAR_CHART_WIDTH,
 	buildBarChartGeometry,
+	buildLineChartGeometry,
 } from "@/lib/agent/openui/chart";
 import {
 	isOpenUiLanguage,
@@ -305,6 +306,17 @@ describe("OpenUI table and chart formatting", () => {
 		expect(geometry.bars[1]?.height).toBeGreaterThan(
 			geometry.bars[0]?.height ?? 0,
 		);
+	});
+
+	it("scales charts to the measured width and thins dense axis labels", () => {
+		const labels = Array.from({ length: 12 }, (_, index) => `Run ${index + 1}`);
+		const values = labels.map((_, index) => index + 1);
+		const bar = buildBarChartGeometry(labels, values, "%", 320);
+		expect(bar.width).toBe(320);
+		expect(bar.labelStep).toBeGreaterThan(1);
+		const line = buildLineChartGeometry(labels, values, "%", 320);
+		expect(line.width).toBe(320);
+		expect(line.labelStep).toBeGreaterThan(1);
 	});
 });
 
