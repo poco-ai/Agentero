@@ -52,7 +52,6 @@ import { DndKit } from "@/components/editor/plugins/dnd-kit";
 import { MarkdownEditorKit } from "@/components/editor/plugins/markdown-editor-kit";
 import { MarkdownSourceToolbar } from "@/components/editor/toolbar/markdown-source-toolbar";
 import { MarkdownEditorToolbar } from "@/components/editor/toolbar/markdown-toolbar";
-import { ToolbarButton } from "@/components/editor/toolbar/primitives";
 import { Button } from "@/components/ui/button";
 import {
 	ContextMenu,
@@ -63,6 +62,11 @@ import {
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useLibraryStore, useSettings } from "@/hooks/use-app-stores";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import i18n from "@/i18n";
@@ -941,17 +945,31 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 		source ? "editor:source.showRendered" : "editor:source.showSource",
 	);
 	const sourceToggle = canToggleSource ? (
-		<ToolbarButton
-			aria-label={sourceLabel}
-			aria-pressed={source}
-			data-markdown-source-toggle=""
-			disabled={switching}
-			tooltip={shortcut ? `${sourceLabel} (${shortcut})` : sourceLabel}
-			onMouseDown={(event) => event.preventDefault()}
-			onClick={toggle}
-		>
-			{source ? <Eye /> : <CodeXml />}
-		</ToolbarButton>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon-xs"
+					aria-label={sourceLabel}
+					aria-pressed={source}
+					data-markdown-source-toggle=""
+					disabled={switching}
+					className="text-muted-foreground hover:text-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={toggle}
+				>
+					{source ? (
+						<Eye className="size-3.5" />
+					) : (
+						<CodeXml className="size-3.5" />
+					)}
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent>
+				{shortcut ? `${sourceLabel} (${shortcut})` : sourceLabel}
+			</TooltipContent>
+		</Tooltip>
 	) : null;
 	const sourceTypography = {
 		fontSize: editorTypographyStyle?.fontSize,
@@ -989,11 +1007,9 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 								<MarkdownSourceToolbar
 									viewRef={sourceViewRef}
 									onExport={isTauri() ? openExportDialog : undefined}
-									sourceToggle={sourceToggle}
 								/>
 							) : (
 								<MarkdownEditorToolbar
-									sourceToggle={sourceToggle}
 									onOpenFind={() => {
 										setFindOpen(true);
 										setFindFocusTick((tick) => tick + 1);
@@ -1300,6 +1316,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 						<EditorStatusBar
 							filePath={filePath}
 							vaultPath={wikiNav?.vaultPath ?? null}
+							leading={sourceToggle}
 						/>
 						<HeadingRenameDialog
 							open={headingRenameOpen}

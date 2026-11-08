@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import {
 	type MouseEvent as ReactMouseEvent,
-	type ReactNode,
 	type RefObject,
 	useCallback,
 	useMemo,
@@ -58,12 +57,10 @@ type FormatAction = {
 export function MarkdownSourceToolbar({
 	viewRef,
 	onExport,
-	sourceToggle,
 }: {
 	viewRef: RefObject<EditorView | null>;
 	/** Export the current source document as PDF / PNG / Markdown. */
 	onExport?: () => void;
-	sourceToggle?: ReactNode;
 }) {
 	const { t } = useTranslation("editor");
 	const { filePath, onAssetsChanged } = useMarkdownDoc();
@@ -230,7 +227,6 @@ export function MarkdownSourceToolbar({
 							<Share />
 						</ToolbarButton>
 					) : null}
-					{sourceToggle}
 					<ToolbarButton
 						tooltip={`${t("findReplace.title")} (${formatModShortcut("f")})`}
 						aria-label={t("findReplace.title")}

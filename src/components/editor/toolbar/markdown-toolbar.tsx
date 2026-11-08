@@ -223,7 +223,6 @@ export function MarkdownEditorToolbar({
 	onOpenFind,
 	onExport,
 	propertiesPanel,
-	sourceToggle,
 }: {
 	/** Show the Search button at the right end; opens the find & replace bar. */
 	onOpenFind?: () => void;
@@ -231,7 +230,6 @@ export function MarkdownEditorToolbar({
 	onExport?: () => void;
 	/** Content rendered in the Properties toolbar popover. */
 	propertiesPanel?: ReactNode;
-	sourceToggle?: ReactNode;
 }) {
 	const { t } = useTranslation("editor");
 	const blockType = useSelectionFragmentProp({
@@ -350,7 +348,6 @@ export function MarkdownEditorToolbar({
 							<Share />
 						</ToolbarButton>
 					) : null}
-					{sourceToggle}
 					{onOpenFind ? (
 						<ToolbarButton
 							tooltip={`${t("findReplace.title")} (${formatModShortcut("f")})`}
