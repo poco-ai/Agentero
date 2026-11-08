@@ -460,7 +460,9 @@ fn load_refresh_targets(
         stmt.query_map([], map_sub_row)?
             .collect::<Result<Vec<_>, _>>()?
     };
-    if stale_only && id.is_none() {
+    // An explicit stale refresh wins even with a single id: `--id X --stale`
+    // must keep the 15-minute guard instead of force-fetching X.
+    if stale_only {
         Ok(mapped
             .into_iter()
             .filter(|s| is_stale(&s.last_fetched_at))
@@ -1073,6 +1075,31 @@ mod tests {
             Some("https://arxiv.org/abs/1706.03762")
         );
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn stale_filter_applies_to_single_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = schema::ensure_feeds_at(&dir.path().join("feeds.sqlite")).unwrap();
+        let fresh = insert_subscription(&conn, "https://example.com/fresh.xml", "Fresh").unwrap();
+        let old = insert_subscription(&conn, "https://example.com/old.xml", "Old").unwrap();
+        conn.execute(
+            "UPDATE subscriptions SET last_fetched_at = ?1 WHERE id = ?2",
+            params![now_rfc3339(), fresh],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE subscriptions SET last_fetched_at = ?1 WHERE id = ?2",
+            params!["2020-01-01T00:00:00.000Z", old],
+        )
+        .unwrap();
+
+        assert!(load_refresh_targets(&conn, Some(&fresh), true)
+            .unwrap()
+            .is_empty());
+        let targets = load_refresh_targets(&conn, Some(&old), true).unwrap();
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0].id, old);
     }
 
     #[test]
