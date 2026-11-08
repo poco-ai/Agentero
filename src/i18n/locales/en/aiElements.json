@@ -56,7 +56,8 @@
 		"download": "Download table",
 		"downloadAsCsv": "Download as CSV",
 		"downloadAsMarkdown": "Download as Markdown",
-		"viewFullscreen": "View fullscreen"
+		"viewFullscreen": "View fullscreen",
+		"exitFullscreen": "Exit fullscreen"
 	},
 	"code": {
 		"copy": "Copy code",
