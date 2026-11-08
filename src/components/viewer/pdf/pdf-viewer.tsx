@@ -1774,8 +1774,8 @@ function PdfViewerInner({
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scrollReady/zoomLevel are intentional re-place triggers
 	useEffect(() => {
 		if (!activeCard && !selectionMenuOpen) return;
-		// Force re-place after zoom / card change even if rounded coords match.
-		if (activeCard) {
+		// Ask stays in place while reading; other cards follow the zoomed anchor.
+		if (activeCard && (activeCard.kind !== "ask" || !cardScreenRef.current)) {
 			cardScreenRef.current = null;
 			placeActiveCard(activeCard);
 		}

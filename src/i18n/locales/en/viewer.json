@@ -108,6 +108,8 @@
 		"newTitle": "New question",
 		"placeholder": "Ask…",
 		"hide": "Hide",
+		"expand": "Expand conversation",
+		"restoreSize": "Restore conversation size",
 		"delete": "Delete",
 		"thinking": "Thinking…",
 		"agentFailed": "Agent failed. Check Agent settings and try again.",

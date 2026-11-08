@@ -110,14 +110,16 @@ export function usePdfCards({
 	 * Sticky hover contract for the open card: hide `CARD_HOVER_HIDE_MS` after
 	 * the pointer leaves every hover surface (pin / card / source fragment),
 	 * never while the floating dialog is hovered / focused, and never
-	 * auto-hide for translate — the user reads the translation. A translate
+	 * auto-hide for ask / translate — the user reads the response. A translate
 	 * card closes through its own dismiss action, Escape, outside interaction,
 	 * or deliberate page scrolling. `hideActiveCard` needs the hook's
 	 * surface ref, so the hook receives it through a ref assigned below —
 	 * both stay identity-stable (`onCardClose` already is).
 	 */
 	const holdCardOpen = useCallback(
-		() => activeCardRef.current?.kind === "translate",
+		() =>
+			activeCardRef.current?.kind === "translate" ||
+			activeCardRef.current?.kind === "ask",
 		[],
 	);
 	const hideActiveCardRef = useRef<() => void>(() => undefined);
@@ -238,6 +240,9 @@ export function usePdfCards({
 	const rePlaceActiveCardOnScroll = useCallback(() => {
 		const card = activeCardRef.current;
 		if (!card) return false;
+		// Conversations stay in the viewport while their source page scrolls
+		// away (and may be virtualized). Retry placement only before first open.
+		if (card.kind === "ask" && cardScreenRef.current) return false;
 		const before = cardScreenRef.current;
 		placeActiveCard(card);
 		const after = cardScreenRef.current;
