@@ -66,6 +66,11 @@ export function AgenteroRenderLayer({
 		() => pdfPageRenderRotation(documentState, pageIndex),
 		[documentState, pageIndex],
 	);
+	// The render plugin throws when the document is still opening (hidden
+	// translation display documents load asynchronously). Wait for the loaded
+	// state; the static per-page preview stays visible until then.
+	const documentLoaded =
+		documentState?.status === "loaded" && Boolean(documentState.document);
 
 	useEffect(() => {
 		const id = `${documentId}:${pageIndex}`;
@@ -109,7 +114,7 @@ export function AgenteroRenderLayer({
 	const renderKey = `${actualScale}|${actualDpr}|${rotation}|${refreshVersion}`;
 
 	useEffect(() => {
-		if (!renderProvides || !visible) return;
+		if (!renderProvides || !visible || !documentLoaded) return;
 		const id = `${documentId}:${pageIndex}`;
 		if (pageBitmapCache.matches(id, renderKey)) return;
 		let settled = false;
@@ -150,6 +155,7 @@ export function AgenteroRenderLayer({
 		renderProvides,
 		renderKey,
 		visible,
+		documentLoaded,
 	]);
 
 	if (!imageUrl) return null;
