@@ -81,8 +81,7 @@ it("renders PDF previews even when no legacy DOM paragraphs remain", () => {
 	expect(html).toContain("译文");
 });
 
-it("writes reflow highlights and notes with only the selected source sentence geometry", async () => {
-	const source = "First quote. Second quote. Third quote.";
+it("writes continuous source line highlights for the selected reflow sentences", async () => {
 	const sourceStyle = {
 		font: "Helvetica",
 		size: 12,
@@ -90,14 +89,23 @@ it("writes reflow highlights and notes with only the selected source sentence ge
 		italic: false,
 		color: { r: 0, g: 0, b: 0 },
 	};
-	const characters = [...source].map((text, index) => {
-		const box = { x: 10 + index * 4, y: 10, w: 4, h: 12 };
-		return { index, text, box, visualBox: box, style: sourceStyle };
-	});
+	const characters = ["First quote. Second", "quote. Third quote."].flatMap(
+		(line, row) =>
+			[...line].map((text, column) => {
+				const box = { x: 10 + column * 4, y: 10 + row * 18, w: 4, h: 12 };
+				return {
+					index: row * 20 + column,
+					text,
+					box,
+					visualBox: { x: box.x + 1, y: box.y + 2, w: 3, h: 8 },
+					style: sourceStyle,
+				};
+			}),
+	);
 	const reflow = paragraphFromCharacters(
 		"p",
 		0,
-		{ x: 10, y: 10, w: 160, h: 12 },
+		{ x: 10, y: 10, w: 80, h: 30 },
 		characters,
 		[],
 		false,
@@ -117,7 +125,7 @@ it("writes reflow highlights and notes with only the selected source sentence ge
 		id: "p",
 		pageIndex: 0,
 		kind: "text",
-		bbox: { x: 0.05, y: 0.05, w: 0.8, h: 0.06 },
+		bbox: { x: 0.05, y: 0.05, w: 0.4, h: 0.15 },
 		source: reflow.source,
 		translated,
 		sentences: ["First quote.", "Second quote.", "Third quote."].map(
@@ -235,12 +243,10 @@ it("writes reflow highlights and notes with only the selected source sentence ge
 		await act(() => actions?.handleHighlight("yellow"));
 		const [pages, , quote] = createHighlights.mock.calls[0];
 		expect(quote).toBe("Second quote.");
-		expect(pages[0].segmentRects.map((rect) => rect.origin.x)).toEqual(
-			characters
-				.slice(13, 26)
-				.filter((c) => c.text.trim())
-				.map((c) => c.box.x),
-		);
+		expect(pages[0].segmentRects).toEqual([
+			{ origin: { x: 63, y: 12 }, size: { width: 23, height: 8 } },
+			{ origin: { x: 11, y: 30 }, size: { width: 23, height: 8 } },
+		]);
 
 		const pair = await pick(0, 1);
 		expect(pair?.anchor.quote).toBe("First quote. Second quote.");
@@ -258,12 +264,10 @@ it("writes reflow highlights and notes with only the selected source sentence ge
 		const [notePages, , noteQuote, translatedPages] =
 			createHighlights.mock.calls[1];
 		expect(noteQuote).toBe("First quote. Second quote.");
-		expect(notePages[0].segmentRects.map((rect) => rect.origin.x)).toEqual(
-			characters
-				.slice(0, 26)
-				.filter((c) => c.text.trim())
-				.map((c) => c.box.x),
-		);
+		expect(notePages[0].segmentRects).toEqual([
+			{ origin: { x: 11, y: 12 }, size: { width: 75, height: 8 } },
+			{ origin: { x: 11, y: 30 }, size: { width: 23, height: 8 } },
+		]);
 		expect(translatedPages?.[0].rects).toHaveLength(1);
 		expect(updateHighlightComment).toHaveBeenCalledWith(0, "mark", "My note");
 

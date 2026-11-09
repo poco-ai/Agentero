@@ -27,7 +27,6 @@ import {
 	type TranslationSelection,
 	translationHitsFromRange,
 	translationSelectionFromHits,
-	unionPageRect,
 } from "@/lib/pdf/layout/layout-sentence-selection";
 import {
 	clearTranslationSelectionBands,
@@ -41,6 +40,10 @@ import {
 	visiblePagesFromClientRects,
 } from "@/lib/pdf/layout/visible-selection-rects";
 import { holdLinkPreviewDrag } from "@/lib/pdf/link-preview-drag";
+import {
+	mergeTightGlyphRects,
+	unionRectsAll,
+} from "@/lib/pdf/selection-appearance";
 import { loadSettings } from "@/lib/settings/store";
 import { langsFromSettings } from "@/lib/translate/lang";
 
@@ -172,20 +175,23 @@ async function locatePages(
 			}
 			return [];
 		};
-		const rects: Rect[] = [];
+		const rectsByBlock = new Map<TranslationPagePick["bbox"], Rect[]>();
 		for (const pick of picks) {
 			const located = locatePick(pick).filter(
 				(rect) => rect.size.width > 0 && rect.size.height > 0,
 			);
 			// Do not persist only the locatable pieces of a multi-sentence selection.
 			if (!located.length) return [];
-			rects.push(...located);
+			const rects = rectsByBlock.get(pick.bbox);
+			if (rects) rects.push(...located);
+			else rectsByBlock.set(pick.bbox, located);
 		}
-		formatted.push({
-			pageIndex,
-			rect: unionPageRect(rects),
-			segmentRects: rects,
-		});
+		const segmentRects = [...rectsByBlock.values()].flatMap(
+			mergeTightGlyphRects,
+		);
+		const rect = unionRectsAll(segmentRects);
+		if (!rect) return [];
+		formatted.push({ pageIndex, rect, segmentRects });
 	}
 	return formatted;
 }

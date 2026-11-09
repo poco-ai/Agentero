@@ -779,20 +779,3 @@ export function sentenceGlyphRects(options: {
 		});
 	});
 }
-
-export function unionPageRect(rects: readonly Rect[]): Rect {
-	let minX = Number.POSITIVE_INFINITY;
-	let minY = Number.POSITIVE_INFINITY;
-	let maxX = Number.NEGATIVE_INFINITY;
-	let maxY = Number.NEGATIVE_INFINITY;
-	for (const rect of rects) {
-		minX = Math.min(minX, rect.origin.x);
-		minY = Math.min(minY, rect.origin.y);
-		maxX = Math.max(maxX, rect.origin.x + rect.size.width);
-		maxY = Math.max(maxY, rect.origin.y + rect.size.height);
-	}
-	return {
-		origin: { x: minX, y: minY },
-		size: { width: Math.max(0, maxX - minX), height: Math.max(0, maxY - minY) },
-	};
-}

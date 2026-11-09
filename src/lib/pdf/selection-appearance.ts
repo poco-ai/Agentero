@@ -201,6 +201,17 @@ function mergeLineFragments(fragments: TextFragment[]): Rect[] {
 	return merged.map((fragment) => fragment.rect);
 }
 
+/** Turn matched glyphs in reading order into continuous bands on each line. */
+export function mergeTightGlyphRects(rects: readonly Rect[]): Rect[] {
+	return mergeLineFragments(
+		rects.map((rect) => ({
+			rect,
+			charCount: 1,
+			averageGlyphWidth: rect.size.width,
+		})),
+	);
+}
+
 function orderedSelection(selection: SelectionRangeX): SelectionRangeX {
 	const startBeforeEnd =
 		selection.start.page < selection.end.page ||
