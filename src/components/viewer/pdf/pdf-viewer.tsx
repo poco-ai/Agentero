@@ -1702,13 +1702,7 @@ function PdfViewerInner({
 
 	const handleMenuNote = useCallback(() => {
 		const menu = selectionMenuRef.current;
-		if (
-			!menu ||
-			menu.fromTranslation ||
-			isRemotePaper ||
-			plainViewer ||
-			regionSelecting
-		)
+		if (!menu?.pages.length || isRemotePaper || plainViewer || regionSelecting)
 			return;
 		const visible = selectionAnchorFromVisible(menu.visiblePages ?? []);
 		selectionCommentEngagedRef.current = true;
@@ -2169,13 +2163,12 @@ function PdfViewerInner({
 	);
 	const handleBookmarkSelection = useCallback(() => {
 		if (
-			!selectionMenu ||
-			selectionMenu.fromTranslation ||
+			!selectionMenu?.pages.length ||
 			!bookmarkEditor.canEdit ||
 			bookmarkEditor.draft?.saving
 		)
 			return;
-		const title = (selectionMenu.copyText ?? selectionMenu.anchor.quote ?? "")
+		const title = (selectionMenu.anchor.quote ?? selectionMenu.copyText ?? "")
 			.replace(/\s+/g, " ")
 			.trim();
 		bookmarkEditor.begin();
@@ -2202,14 +2195,13 @@ function PdfViewerInner({
 		closeSelectionMenu,
 	]);
 	const contributionPaperId = paperMeta?.id?.trim() || undefined;
+	const canMarkSelection =
+		!isRemotePaper && !plainViewer && Boolean(selectionMenu?.pages.length);
 	const cardSelectionMenu = useMemo(
 		() => ({
 			state: selectionMenu,
 			onHighlight: handleHighlight,
-			onNote:
-				!isRemotePaper && !plainViewer && !selectionMenu?.fromTranslation
-					? handleMenuNote
-					: undefined,
+			onNote: canMarkSelection ? handleMenuNote : undefined,
 			onAsk: handleMenuAsk,
 			onAddToChat: handleMenuAddToChat,
 			onTranslate: handleMenuTranslate,
@@ -2217,11 +2209,10 @@ function PdfViewerInner({
 			onBookmark:
 				bookmarkEditor.canEdit &&
 				!bookmarkEditor.draft?.saving &&
-				!selectionMenu?.fromTranslation
+				selectionMenu?.pages.length
 					? handleBookmarkSelection
 					: undefined,
-			showHighlight:
-				!isRemotePaper && !plainViewer && !selectionMenu?.fromTranslation,
+			showHighlight: canMarkSelection,
 			showTranslate:
 				!selectionMenu?.fromTranslation && !isRemotePaper && !plainViewer,
 			contributionContext: pdfSelectionMenuContext({
@@ -2235,6 +2226,7 @@ function PdfViewerInner({
 		[
 			plainViewer,
 			selectionMenu,
+			canMarkSelection,
 			handleHighlight,
 			handleMenuNote,
 			handleMenuAsk,

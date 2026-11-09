@@ -98,10 +98,7 @@ export function usePdfSelectionActions({
 	const handleHighlight = useCallback(
 		(color: HighlightColor) => {
 			const menu = selectionMenuRef.current;
-			// A translation selection is recovered English plus a page-fraction
-			// band. Storing that as a highlight lands in the wrong place once
-			// the overlay is cleared.
-			if (!menu || menu.fromTranslation) return;
+			if (!menu?.pages.length) return;
 			createHighlights(
 				menu.pages,
 				color,

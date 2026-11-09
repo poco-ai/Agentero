@@ -181,6 +181,7 @@ export type SelectionMenuState = {
 	/** Top-center of the selection — floating toolbar anchor. */
 	screen: ScreenPoint;
 	anchor: PdfAskAnchor;
+	/** Original PDF geometry. Empty when a translated quote could not be located. */
 	pages: FormattedSelection[];
 	/**
 	 * Visible text to put on the clipboard. Set when the selection is on a

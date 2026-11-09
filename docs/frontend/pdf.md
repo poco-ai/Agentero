@@ -167,7 +167,7 @@ PDF 快速对话在会话接收后同时把空的 assistant 消息及其 `agentS
 | `src/components/viewer/pdf/hooks/use-pdf-pin-anchors.ts` | ask/translate 钉锚点几何投影（`useStableDerived` 指纹稳定：流式期间引用不变，`pinsByPage` 不失效） |
 | `src/components/viewer/pdf/hooks/use-pdf-active-anchors.ts` | 活动卡记录查找（thread/translate/visualTrace）与 ask/translate 页内源锚点投影（仅几何，流式期间保持引用稳定） |
 | `src/components/viewer/pdf/hooks/use-pdf-sidebar-panels.ts` | 左栏 References/Figures 面板开关（与大纲互斥）与评论卡 hover id |
-| `src/components/viewer/pdf/hooks/use-pdf-selection-actions.ts` | 划词动作装配（工具栏：高亮/翻译/复制/加入对话/快速对话；右缘入口：批注；全文或单页译文上的划选不提供高亮、批注和添加书签）。复制成功不弹 toast、不关工具栏，对勾画在按钮上。划词表面三件套（copied 标签 / ⌘K 注册 / 加入对话尾段）与 plaza / 网页论文 / 文本编辑器共用 `src/components/selection/`（见 [web-view.md](web-view.md)） |
+| `src/components/viewer/pdf/hooks/use-pdf-selection-actions.ts` | 划词动作装配（工具栏：高亮/翻译/复制/加入对话/快速对话；右缘入口：批注；全文或单页译文上的划选用英文句子坐标写入高亮和批注，书签默认标题取对应英文）。复制成功不弹 toast、不关工具栏，对勾画在按钮上。划词表面三件套（copied 标签 / ⌘K 注册 / 加入对话尾段）与 plaza / 网页论文 / 文本编辑器共用 `src/components/selection/`（见 [web-view.md](web-view.md)） |
 | `src/components/viewer/pdf/hooks/use-pdf-smart-highlights.ts` | 智能高亮任务提交、结果坐标转换、任务事件订阅与清理；阅读器仅组装 busy 状态与触发动作 |
 | `src/components/viewer/pdf/hooks/use-pdf-mark-actions.ts` | 页边针打开（ask 线程/翻译卡/高亮编辑/visual 卡）与高亮标注菜单动作（编辑/删除/换色） |
 | `src/components/viewer/pdf/hooks/use-pdf-layout-cluster.ts` | layout 簇聚合：region 分桶、分析运行与 Figures 处理器、visual draft 卡状态、全文翻译任务 |
@@ -230,7 +230,7 @@ Host 下载/解析：[../backend/paper-import.md](../backend/paper-import.md)。
 
 - EmbedPDF 升级时继续核对 engines 原生内存 / 坐标 / refcount、tiling 旋转与 DPR、AI 按 backend 选择 ORT 入口的补丁；2.15.1 对应实现仍与 2.14.4 相同，不能仅凭升版删掉。zoom 评论列留白补丁也需核对上游是否已有等价配置。Document Manager 的加载态关闭所有权补丁需验证迟到成功、失败、重复关闭和共享 pane 后才能移除。待上游修复 annotation 同 uid 在途变更被旧 commit 清 pending 的问题后，移除删除协调器。
 
-字符级全文翻译路径使用 `src/lib/pdf/reflow/`，将公式作为可移动矢量片段，基于固定字体度量重排；每页翻译结束后增量显示重排预览，全文结束时执行全局字号校正，最终预览与译文/双语 PDF 导出共用输出。该路径按段落对齐，旧句链逻辑只用于无引擎上下文的回退。限制及字体下载见 [translate.md](translate.md#与-babeldoc-的差异和后续)。
+字符级全文翻译路径使用 `src/lib/pdf/reflow/`，将公式作为可移动矢量片段，基于固定字体度量重排；每页翻译结束后增量显示重排预览，全文结束时执行全局字号校正，最终预览与译文/双语 PDF 导出共用输出。该路径在段落内保留句对，并用排版偏移和原文字形坐标连接译文选区与英文。跨版面块的句链用于无引擎上下文的回退路径。限制及字体下载见 [translate.md](translate.md#与-babeldoc-的差异和后续)。
 
 ### 章节与正文块引用
 

@@ -126,7 +126,7 @@ async function locatePages(
 		if (!generation()) return null;
 		const page = doc?.pages[pageIndex];
 		const size = page?.size;
-		if (!page || !size || size.width <= 0 || size.height <= 0) continue;
+		if (!page || !size || size.width <= 0 || size.height <= 0) return [];
 		let runs: { text: string; rect: Rect }[] = [];
 		if (engine && doc && picks.some((pick) => !pick.glyphRects?.length)) {
 			try {
@@ -151,7 +151,7 @@ async function locatePages(
 			}
 		}
 		if (!generation()) return null;
-		const rects = picks.flatMap((pick) => {
+		const locatePick = (pick: TranslationPagePick): Rect[] => {
 			if (pick.glyphRects?.length) return pick.glyphRects;
 			const located = runs.length
 				? locateQuoteInBlock({
@@ -160,7 +160,7 @@ async function locatePages(
 						pageWidth: size.width,
 						pageHeight: size.height,
 						bbox: pick.bbox,
-						blockText: pick.wholeBlock ? pick.blockText : undefined,
+						blockText: pick.wholeBlock ? pick.locateText : undefined,
 					})
 				: [];
 			if (located.length) return located;
@@ -170,8 +170,16 @@ async function locatePages(
 				return [bboxToPageRect(pick.bbox, size.width, size.height)];
 			}
 			return [];
-		});
-		if (!rects.length) continue;
+		};
+		const rects: Rect[] = [];
+		for (const pick of picks) {
+			const located = locatePick(pick).filter(
+				(rect) => rect.size.width > 0 && rect.size.height > 0,
+			);
+			// Do not persist only the locatable pieces of a multi-sentence selection.
+			if (!located.length) return [];
+			rects.push(...located);
+		}
 		formatted.push({
 			pageIndex,
 			rect: unionPageRect(rects),
@@ -271,7 +279,7 @@ export function usePdfTranslationSelection({
 						resolved,
 						alive,
 					);
-					if (!pages?.length || !alive()) return;
+					if (!pages || !alive()) return;
 					const live = hostRange(root);
 					if (
 						!live ||
@@ -282,32 +290,41 @@ export function usePdfTranslationSelection({
 						return;
 					}
 					const doc = docCapRef.current?.getDocument(docId);
-					const anchorPage = pages[pages.length - 1];
-					if (!anchorPage) return;
+					const anchorPage = pages.at(-1);
+					const pageIndex =
+						anchorPage?.pageIndex ?? resolved.pages.at(-1)?.pageIndex;
+					if (pageIndex == null) return;
+					// A geometry miss still has a quote for copy and chat. It has no
+					// original rectangles for a persisted highlight or note.
 					const anchor = anchorFromEmbedSelection(
 						pages,
 						resolved.quote,
 						(pageIndex) => doc?.pages[pageIndex]?.size ?? null,
 						"selection",
-						anchorPage.pageIndex,
-					);
+						pageIndex,
+					) ?? {
+						page: pageIndex + 1,
+						rects: [],
+						quote: resolved.quote,
+						trigger: "selection" as const,
+					};
 					const frames = pageFrames(root);
 					const visiblePages = visiblePagesFromClientRects(
 						mergeClientRectsIntoLines(Array.from(live.getClientRects())),
 						frames,
 					);
-					const pageEl = pageElByIndex(root, anchorPage.pageIndex);
+					const pageEl = pageElByIndex(root, pageIndex);
 					const screen =
 						visibleMenuPoint(
 							visiblePages,
-							anchorPage.pageIndex,
+							pageIndex,
 							(pageIndex) =>
 								frames.find((frame) => frame.pageIndex === pageIndex) ?? null,
 						) ??
-						(pageEl
+						(pageEl && anchorPage
 							? rectTopCenterScreen(pageEl, anchorPage.rect, zoomRef.current)
 							: null);
-					if (!anchor || !screen || !alive()) return;
+					if (!screen || !alive()) return;
 					setSelectionMenu({
 						screen,
 						anchor,

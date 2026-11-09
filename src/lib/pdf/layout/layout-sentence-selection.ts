@@ -45,8 +45,6 @@ export type TranslationPagePick = {
 	bbox: TranslationBlockRef["bbox"];
 	/** Text-layer slice to search on this page. */
 	locateText: string;
-	/** This block's text-layer string. Used to place a sentence inside it. */
-	blockText: string;
 	/** The whole box may be used only when all of this member is selected. */
 	wholeBlock: boolean;
 };
@@ -91,7 +89,7 @@ function reflowSentenceRects(
 	for (const ignoreHyphens of [false, true]) {
 		const key = (text: string) =>
 			text
-				.normalize("NFKC")
+				.normalize("NFKD")
 				.replace(ignoreHyphens ? /[\s\u00ad-]/g : /[\s\u00ad]/g, "");
 		const refs: number[] = [];
 		const text = paragraph.characters
@@ -119,7 +117,7 @@ function reflowSentenceRects(
 
 /**
  * Turn span hits into the English quote, the paired translation, and one
- * locate request per layout block. Identical sentence quotes are kept once.
+ * locate requests for its source fragments. A split sentence is quoted once.
  */
 export function translationSelectionFromHits(
 	hits: readonly TranslationSpanHit[],
@@ -137,6 +135,7 @@ export function translationSelectionFromHits(
 	}
 	const sentenceQuotes: string[] = [];
 	const pairedParts: string[] = [];
+	const seenSplitSentences = new Map<string, string>();
 	const pages: TranslationPagePick[] = [];
 	for (const group of groups) {
 		const item = byId.get(group.itemId);
@@ -150,25 +149,28 @@ export function translationSelectionFromHits(
 					return sentence?.quote ? [{ index, sentence }] : [];
 				});
 		if (!wholeBlock && !chosen.length) continue;
-		const quotes = chosen.length
-			? chosen.map(({ sentence }) => sentence.quote)
-			: item.source.trim()
-				? [item.reflow?.source ?? item.source]
-				: [];
-		if (!quotes.length) continue;
-		const paired = chosen.length
-			? chosen.map(({ sentence }) => sentence.translated)
-			: item.translated?.trim()
-				? [item.translated]
-				: [];
-		for (const quote of quotes) {
-			if (!sentenceQuotes.includes(quote)) sentenceQuotes.push(quote);
-		}
-		for (const part of paired) {
+		const pairs = chosen.length
+			? chosen.map(({ sentence }) => sentence)
+			: [
+					{
+						quote: item.reflow?.source ?? item.source,
+						translated: item.translated ?? "",
+						display: undefined,
+					},
+				];
+		for (const { quote, translated, display } of pairs) {
+			if (!quote.trim()) continue;
+			if (display !== undefined) {
+				const key = `${quote}\u0000${translated}`;
+				const prior = seenSplitSentences.get(key);
+				if (prior && prior !== item.id) continue;
+				seenSplitSentences.set(key, item.id);
+			}
+			sentenceQuotes.push(quote);
 			const text = (
-				item.reflow ? reflowDisplayText(item.reflow, part) : part
+				item.reflow ? reflowDisplayText(item.reflow, translated) : translated
 			).trim();
-			if (text && !pairedParts.includes(text)) pairedParts.push(text);
+			if (text) pairedParts.push(text);
 		}
 		const blockText = normalizeSentenceKey(
 			item.raw || item.reflow?.source || item.source,
@@ -194,7 +196,6 @@ export function translationSelectionFromHits(
 				pageIndex: item.pageIndex,
 				bbox: item.bbox,
 				locateText,
-				blockText,
 				wholeBlock: index === null || picks[index] === blockText,
 				glyphRects:
 					index === null && item.reflow
@@ -255,26 +256,22 @@ export function translationHitsFromRange(
 ): TranslationSpanHit[] {
 	if (range.collapsed) return [];
 	const hits: TranslationSpanHit[] = [];
-	const seenBlocks = new Set<string>();
-	const spans = root.querySelectorAll<HTMLElement>(
-		"[data-layout-item] [data-sentence]",
-	);
-	for (const span of spans) {
-		if (!selectedTextWithin(range, span).trim()) continue;
-		const block = span.closest<HTMLElement>("[data-layout-item]");
-		const itemId = block?.getAttribute("data-layout-item");
-		const sentenceIndex = Number(span.getAttribute("data-sentence"));
-		if (!itemId || !Number.isInteger(sentenceIndex)) continue;
-		hits.push({ itemId, sentenceIndex });
-		seenBlocks.add(itemId);
-	}
-	const blocks = root.querySelectorAll<HTMLElement>("[data-layout-item]");
-	for (const block of blocks) {
+	for (const block of root.querySelectorAll<HTMLElement>(
+		"[data-layout-item]",
+	)) {
 		const itemId = block.getAttribute("data-layout-item");
-		if (!itemId || seenBlocks.has(itemId)) continue;
-		if (block.querySelector("[data-sentence]")) continue;
-		if (!selectedTextWithin(range, block).trim()) continue;
-		hits.push({ itemId, sentenceIndex: null });
+		if (!itemId || !range.intersectsNode(block)) continue;
+		const spans = block.querySelectorAll<HTMLElement>("[data-sentence]");
+		if (!spans.length && selectedTextWithin(range, block).trim())
+			hits.push({ itemId, sentenceIndex: null });
+		for (const span of spans) {
+			const sentenceIndex = Number(span.getAttribute("data-sentence"));
+			if (
+				Number.isInteger(sentenceIndex) &&
+				selectedTextWithin(range, span).trim()
+			)
+				hits.push({ itemId, sentenceIndex });
+		}
 	}
 	return hits;
 }
