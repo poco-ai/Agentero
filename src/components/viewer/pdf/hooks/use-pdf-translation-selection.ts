@@ -29,7 +29,6 @@ import {
 	translationSelectionFromHits,
 	unionPageRect,
 } from "@/lib/pdf/layout/layout-sentence-selection";
-import { normalizeSentenceKey } from "@/lib/pdf/layout/layout-sentences";
 import {
 	clearTranslationSelectionBands,
 	publishTranslationSelectionBands,
@@ -129,7 +128,7 @@ async function locatePages(
 		const size = page?.size;
 		if (!page || !size || size.width <= 0 || size.height <= 0) continue;
 		let runs: { text: string; rect: Rect }[] = [];
-		if (engine && doc) {
+		if (engine && doc && picks.some((pick) => !pick.glyphRects?.length)) {
 			try {
 				const pageRuns = await engine.getPageTextRuns(doc, page).toPromise();
 				runs = (pageRuns?.runs ?? []).map((run) => ({
@@ -161,15 +160,13 @@ async function locatePages(
 						pageWidth: size.width,
 						pageHeight: size.height,
 						bbox: pick.bbox,
-						blockText: pick.blockText,
+						blockText: pick.wholeBlock ? pick.blockText : undefined,
 					})
 				: [];
 			if (located.length) return located;
 			// The whole block is the annotation only when the selection is that
 			// block. A sentence that missed the text layer must not fill the block.
-			const quote = normalizeSentenceKey(pick.locateText);
-			const block = normalizeSentenceKey(pick.blockText);
-			if (quote && quote === block) {
+			if (pick.wholeBlock) {
 				return [bboxToPageRect(pick.bbox, size.width, size.height)];
 			}
 			return [];

@@ -5,6 +5,8 @@ import {
 	translationSelectionFromHits,
 } from "@/lib/pdf/layout/layout-sentence-selection";
 import type { LayoutTranslateSentence } from "@/lib/pdf/layout/types";
+import { paragraphFromCharacters } from "@/lib/pdf/reflow/extract";
+import type { Character } from "@/lib/pdf/reflow/types";
 
 function glyph(content: string, x: number, y: number, width = 80) {
 	return {
@@ -17,6 +19,36 @@ const sentence = (
 	quote: string,
 	translated: string,
 ): LayoutTranslateSentence => ({ quote, source: quote, translated });
+
+function reflowParagraph(glyphs: readonly string[], source: string) {
+	const characters: Character[] = glyphs.map((text, i) => {
+		const box = { x: 40 + i * 5, y: 100, w: 5, h: 12 };
+		return {
+			index: i + 200,
+			text,
+			box,
+			visualBox: box,
+			style: {
+				font: "Helvetica",
+				size: 12,
+				bold: false,
+				italic: false,
+				color: { r: 0, g: 0, b: 0 },
+			},
+		};
+	});
+	return {
+		...paragraphFromCharacters(
+			"a",
+			0,
+			{ x: 40, y: 100, w: 5 * glyphs.length, h: 12 },
+			characters,
+			[],
+			false,
+		),
+		source,
+	};
+}
 
 describe("translationSelectionFromHits", () => {
 	const block = {
@@ -57,6 +89,58 @@ describe("translationSelectionFromHits", () => {
 		expect(selection?.quote).toBe("First sentence. Second sentence.");
 		expect(selection?.paired).toBe("第一句。第二句。");
 		expect(selection?.quote).not.toContain("Third");
+	});
+
+	it("keeps only selected reflow glyph boxes despite ligatures and omitted spaces", () => {
+		const first = ["ﬁ", ..."rst."];
+		const second = [..."Second."];
+		const third = [..."Third."];
+		const source = "first. Second. Third.";
+		const reflow = reflowParagraph([...first, ...second, ...third], source);
+		const selection = translationSelectionFromHits(
+			[
+				{ itemId: "a", sentenceIndex: 0 },
+				{ itemId: "a", sentenceIndex: 1 },
+			],
+			[
+				{
+					...block,
+					source,
+					reflow,
+					sentences: [
+						sentence("first.", "第一句。"),
+						sentence("Second.", "第二句。"),
+						sentence("Third.", "第三句。"),
+					],
+				},
+			],
+			"zh-CN",
+			"一句。第二",
+		);
+		expect(
+			selection?.pages.map((page) =>
+				page.glyphRects?.map((rect) => rect.origin.x),
+			),
+		).toEqual([
+			[40, 45, 50, 55, 60],
+			[65, 70, 75, 80, 85, 90, 95],
+		]);
+		expect(selection?.pages.every((page) => !page.wholeBlock)).toBe(true);
+	});
+
+	it("does not fall back to the entire reflow block for an unmatched sentence", () => {
+		const reflow = reflowParagraph([...block.source], block.source);
+		const selection = translationSelectionFromHits(
+			[{ itemId: "a", sentenceIndex: 0 }],
+			[{ ...block, reflow, sentences: [sentence("Unmatched.", "缺失。")] }],
+			"zh-CN",
+			"缺失",
+		);
+		expect(selection?.pages[0]).toMatchObject({
+			locateText: "Unmatched.",
+			wholeBlock: false,
+		});
+		expect(selection?.pages[0]?.glyphRects).toBeUndefined();
 	});
 
 	it("uses one English sentence when both boxes of a chain are selected", () => {

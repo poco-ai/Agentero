@@ -1,4 +1,8 @@
-import { type Paragraph, reflowDisplayText } from "@/lib/pdf/reflow/types";
+import {
+	type Character,
+	type Paragraph,
+	reflowDisplayText,
+} from "@/lib/pdf/reflow/types";
 /**
  * Resolve a translation-overlay selection to English sentence quotes and the
  * PDF text-layer boxes that should carry the annotation.
@@ -43,6 +47,8 @@ export type TranslationPagePick = {
 	locateText: string;
 	/** This block's text-layer string. Used to place a sentence inside it. */
 	blockText: string;
+	/** The whole box may be used only when all of this member is selected. */
+	wholeBlock: boolean;
 };
 
 export type TranslationSelection = {
@@ -52,25 +58,63 @@ export type TranslationSelection = {
 	pages: TranslationPagePick[];
 };
 
-function memberLocateText(
-	item: TranslationBlockRef,
-	quotes: readonly string[],
-): string {
-	const raw = normalizeSentenceKey(item.raw || item.source);
-	const parts = quotes.map((quote) => {
-		const key = normalizeSentenceKey(quote);
-		if (!key) return "";
-		if (!raw || raw.includes(key)) return key;
-		if (key.includes(raw)) return raw;
-		for (let len = Math.min(raw.length, key.length); len >= 8; len--) {
-			const suffix = raw.slice(raw.length - len);
-			if (key.startsWith(suffix)) return suffix;
-			const prefix = raw.slice(0, len);
-			if (key.endsWith(prefix)) return prefix;
-		}
-		return raw;
-	});
-	return parts.filter(Boolean).join(" ");
+function memberLocateText(block: string, quote: string): string {
+	const key = normalizeSentenceKey(quote);
+	if (!key || !block) return "";
+	if (block.includes(key)) return key;
+	if (key.includes(block)) return block;
+	for (let len = Math.min(block.length, key.length); len >= 8; len--) {
+		const suffix = block.slice(block.length - len);
+		if (key.startsWith(suffix)) return suffix;
+		const prefix = block.slice(0, len);
+		if (key.endsWith(prefix)) return prefix;
+	}
+	return "";
+}
+
+function characterRects(characters: readonly Character[]): Rect[] {
+	return characters
+		.filter((c) => c.text.trim())
+		.map(({ visualBox: { x, y, w, h } }) => ({
+			origin: { x, y },
+			size: { width: w, height: h },
+		}));
+}
+
+/** Match the paragraph's reading-order text back to its PDF glyphs. Source
+ * offsets can differ from glyph indexes after inserted spaces, line-end
+ * dehyphenation or ligature expansion. */
+function reflowSentenceRects(
+	paragraph: Paragraph,
+	parts: readonly string[],
+): (Rect[] | undefined)[] {
+	for (const ignoreHyphens of [false, true]) {
+		const key = (text: string) =>
+			text
+				.normalize("NFKC")
+				.replace(ignoreHyphens ? /[\s\u00ad-]/g : /[\s\u00ad]/g, "");
+		const refs: number[] = [];
+		const text = paragraph.characters
+			.map((character, index) => {
+				const value = key(character.text);
+				for (let i = 0; i < value.length; i++) refs.push(index);
+				return value;
+			})
+			.join("");
+		if (text !== key(paragraph.source)) continue;
+		let cursor = 0;
+		return parts.map((part) => {
+			const needle = key(part);
+			if (!needle) return undefined;
+			const start = text.indexOf(needle, cursor);
+			if (start < 0) return undefined;
+			cursor = start + needle.length;
+			const first = refs[start];
+			const last = refs[cursor - 1];
+			return characterRects(paragraph.characters.slice(first, last + 1));
+		});
+	}
+	return [];
 }
 
 /**
@@ -97,21 +141,23 @@ export function translationSelectionFromHits(
 	for (const group of groups) {
 		const item = byId.get(group.itemId);
 		if (!item) continue;
-		const chosen = group.indexes.includes(null)
+		const wholeBlock = group.indexes.includes(null);
+		const chosen = wholeBlock
 			? []
-			: group.indexes
-					.map((index) => (index == null ? undefined : item.sentences?.[index]))
-					.filter((sentence): sentence is LayoutTranslateSentence =>
-						Boolean(sentence?.quote),
-					);
+			: [...new Set(group.indexes)].flatMap((index) => {
+					if (index === null) return [];
+					const sentence = item.sentences?.[index];
+					return sentence?.quote ? [{ index, sentence }] : [];
+				});
+		if (!wholeBlock && !chosen.length) continue;
 		const quotes = chosen.length
-			? chosen.map((sentence) => sentence.quote)
+			? chosen.map(({ sentence }) => sentence.quote)
 			: item.source.trim()
 				? [item.reflow?.source ?? item.source]
 				: [];
 		if (!quotes.length) continue;
 		const paired = chosen.length
-			? chosen.map((sentence) => sentence.translated)
+			? chosen.map(({ sentence }) => sentence.translated)
 			: item.translated?.trim()
 				? [item.translated]
 				: [];
@@ -124,24 +170,40 @@ export function translationSelectionFromHits(
 			).trim();
 			if (text && !pairedParts.includes(text)) pairedParts.push(text);
 		}
-		const locateText = memberLocateText(item, quotes);
-		if (!locateText) continue;
-		pages.push({
-			pageIndex: item.pageIndex,
-			bbox: item.bbox,
-			locateText,
-			blockText: normalizeSentenceKey(item.raw || item.source),
-			...(item.reflow
-				? {
-						glyphRects: item.reflow.characters
-							.filter((c) => c.text.trim())
-							.map((c) => ({
-								origin: { x: c.visualBox.x, y: c.visualBox.y },
-								size: { width: c.visualBox.w, height: c.visualBox.h },
-							})),
-					}
-				: {}),
-		});
+		const blockText = normalizeSentenceKey(
+			item.raw || item.reflow?.source || item.source,
+		);
+		const picks = chosen.length
+			? (item.sentences ?? []).map((sentence) =>
+					memberLocateText(blockText, sentence.quote),
+				)
+			: [];
+		const sentenceRects =
+			item.reflow && picks.length
+				? reflowSentenceRects(item.reflow, picks)
+				: [];
+		for (const index of chosen.length
+			? chosen.map(({ index }) => index)
+			: [null]) {
+			const locateText =
+				index === null
+					? blockText
+					: picks[index] ||
+						normalizeSentenceKey(item.sentences?.[index]?.quote ?? "");
+			pages.push({
+				pageIndex: item.pageIndex,
+				bbox: item.bbox,
+				locateText,
+				blockText,
+				wholeBlock: index === null || picks[index] === blockText,
+				glyphRects:
+					index === null && item.reflow
+						? characterRects(item.reflow.characters)
+						: index === null
+							? undefined
+							: sentenceRects[index],
+			});
+		}
 	}
 	const quote = sentenceQuotes.join(" ");
 	if (!quote || pages.length === 0) return null;
@@ -520,21 +582,10 @@ export function sentenceGlyphRects(options: {
 }): PageFractionRect[][] {
 	const { sentences, runs, pageWidth, pageHeight, bbox } = options;
 	const blockText = normalizeSentenceKey(options.raw || options.source);
-	const item: TranslationBlockRef = {
-		id: "",
-		pageIndex: 0,
-		bbox,
-		source: options.source,
-		raw: options.raw,
-	};
 	return sentences.map((sentence) => {
-		const quoteKey = normalizeSentenceKey(sentence.quote);
-		let locateText = memberLocateText(item, [sentence.quote]);
-		// The member helper's last resort is the whole block. That box belongs
-		// to every sentence, so a word highlight would tint the entire block.
-		if (locateText === blockText && quoteKey && quoteKey !== blockText) {
-			locateText = quoteKey;
-		}
+		const locateText =
+			memberLocateText(blockText, sentence.quote) ||
+			normalizeSentenceKey(sentence.quote);
 		if (!locateText) return [];
 		return locateQuoteInBlock({
 			quote: locateText,
