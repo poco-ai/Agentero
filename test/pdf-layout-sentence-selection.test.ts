@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	locateQuoteGlyphs,
+	locateSelectionGlyphs,
 	translationSelectionFromHits,
 } from "@/lib/pdf/layout/layout-sentence-selection";
 import type { LayoutTranslateSentence } from "@/lib/pdf/layout/types";
@@ -141,9 +142,62 @@ describe("translationSelectionFromHits", () => {
 			wholeBlock: false,
 		});
 		expect(selection?.pages[0]?.glyphRects).toBeUndefined();
+		expect(selection?.canLocate).toBe(false);
 	});
 
-	it("uses one English sentence when both boxes of a chain are selected", () => {
+	it("marks a paragraph-only reflow block only when the entire block was selected", () => {
+		const reflow = reflowParagraph([...block.source], block.source);
+		const items = [
+			{ ...block, reflow, sentences: [sentence(block.source, "整段译文。")] },
+		];
+		const select = (wholeBlockSelected: boolean) =>
+			translationSelectionFromHits(
+				[{ itemId: "a", sentenceIndex: 0, wholeBlockSelected }],
+				items,
+				"zh-CN",
+				wholeBlockSelected ? "整段译文。" : "整段",
+			);
+		expect(select(false)?.canLocate).toBe(false);
+		expect(select(true)?.canLocate).toBe(true);
+	});
+
+	it("uses exact proportional glyph boxes and the occurrence selected", () => {
+		const source = "iiii. WWWW. iiii.";
+		const item = {
+			...block,
+			source,
+			bbox: { x: 0, y: 0, w: 1, h: 1 },
+			sentences: [
+				sentence("iiii.", "一。"),
+				sentence("WWWW.", "二。"),
+				sentence("iiii.", "三。"),
+			],
+		};
+		let x = 20;
+		const glyphs = [...source].map((text) => {
+			const width = text === "W" ? 15 : 4;
+			const rect = glyph(text, x, 100, width).rect;
+			x += width;
+			return { text, rect };
+		});
+		for (const [sentenceIndex, indexes] of [
+			[0, [0, 5]],
+			[2, [12, 17]],
+		] as const) {
+			const pick = translationSelectionFromHits(
+				[{ itemId: "a", sentenceIndex }],
+				[item],
+				"zh-CN",
+				"译",
+			)?.pages[0];
+			if (!pick) throw new Error("missing source pick");
+			expect(locateSelectionGlyphs(pick, glyphs, 200, 200)).toEqual(
+				glyphs.slice(...indexes).map(({ rect }) => rect),
+			);
+		}
+	});
+
+	it("recovers both source pages when one or both boxes of a split sentence are selected", () => {
 		const quote =
 			"the agent queries the environment and then updates its policy.";
 		const left = {
@@ -168,20 +222,33 @@ describe("translationSelectionFromHits", () => {
 			source: "environment and then updates its policy.",
 			raw: "environment and then updates its policy.",
 		};
-		const selection = translationSelectionFromHits(
-			[
-				{ itemId: "left", sentenceIndex: 0 },
-				{ itemId: "right", sentenceIndex: 0 },
-			],
-			[left, right],
-			"zh-CN",
-			"智能体查询环境。随后",
-		);
-		expect(selection?.quote).toBe(quote);
-		expect(selection?.pages.map((page) => page.locateText)).toEqual([
-			"the agent queries the",
-			"environment and then updates its policy.",
-		]);
+		for (const ids of [["left"], ["right"], ["left", "right"]]) {
+			const selection = translationSelectionFromHits(
+				ids.map((itemId) => ({ itemId, sentenceIndex: 0 })),
+				[left, right],
+				"zh-CN",
+				"智能体查询环境。随后",
+			);
+			expect(selection?.canLocate).toBe(true);
+			expect(selection?.quote).toBe(quote);
+			expect(
+				selection?.pages.map(({ pageIndex, locateText }) => [
+					pageIndex,
+					locateText,
+				]),
+			).toEqual([
+				[0, "the agent queries the"],
+				[1, "environment and then updates its policy."],
+			]);
+		}
+		expect(
+			translationSelectionFromHits(
+				[{ itemId: "left", sentenceIndex: 0 }],
+				[left],
+				"zh-CN",
+				"查询",
+			)?.canLocate,
+		).toBe(false);
 	});
 
 	it("anchors a block without sentence pairs to its whole English source", () => {

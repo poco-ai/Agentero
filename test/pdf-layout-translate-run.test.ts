@@ -51,7 +51,7 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 		runTranslate.mockReset();
 	});
 
-	it("keeps separate reflow sentence pairs and preserves their formula and style tokens", async () => {
+	it("keeps separate reflow sentence pairs with formulas and styles spanning sentences", async () => {
 		const reflow = paragraphFromCharacters(
 			"p",
 			0,
@@ -62,7 +62,7 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 		);
 		reflow.source = "Use x here. Bold follows. Last sentence.";
 		reflow.protectedText =
-			"Use ⟪F0⟫ here. ⟪S0⟫Bold⟪/S0⟫ follows. Last sentence.";
+			"Use ⟪F0⟫ here. ⟪S0⟫Bold follows. Last sentence.⟪/S0⟫";
 		reflow.formulas = [
 			{
 				id: "0",
@@ -74,7 +74,7 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 		];
 		reflow.styles = { "0": { ...reflow.style, bold: true } };
 		runTranslate.mockResolvedValueOnce(
-			"[[1]] 使用 ⟦0⟧。\n[[2]] 接着是⟦0⟧粗体⟦1⟧。\n[[3]] 末句。",
+			"[[1]] 使用 ⟦0⟧。\n[[2]] ⟦0⟧接着是粗体。\n[[3]] 末句。⟦0⟧",
 		);
 		const [translated] = await runLayoutRegionTranslate({
 			items: [
@@ -87,8 +87,8 @@ describe("runLayoutRegionTranslate paragraph chains", () => {
 			translated.sentences?.map(({ quote, translated }) => [quote, translated]),
 		).toEqual([
 			["Use x here.", "使用 ⟪F0⟫。"],
-			["Bold follows.", "接着是⟪S0⟫粗体⟪/S0⟫。"],
-			["Last sentence.", "末句。"],
+			["Bold follows.", "⟪S0⟫接着是粗体。"],
+			["Last sentence.", "末句。⟪/S0⟫"],
 		]);
 		expect(validReflowTranslation(reflow, translated.translated ?? "")).toBe(
 			true,

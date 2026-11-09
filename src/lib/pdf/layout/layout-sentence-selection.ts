@@ -15,6 +15,7 @@ import type { Rect } from "@embedpdf/models";
 import {
 	joinTranslatedDisplays,
 	normalizeSentenceKey,
+	splitLayoutSentences,
 } from "@/lib/pdf/layout/layout-sentences";
 import {
 	orderByReadingLine,
@@ -37,6 +38,7 @@ export type TranslationBlockRef = {
 export type TranslationSpanHit = {
 	itemId: string;
 	sentenceIndex: number | null;
+	wholeBlockSelected?: boolean;
 };
 
 export type TranslationPagePick = {
@@ -45,6 +47,9 @@ export type TranslationPagePick = {
 	bbox: TranslationBlockRef["bbox"];
 	/** Text-layer slice to search on this page. */
 	locateText: string;
+	blockText: string;
+	/** Earlier sentences disambiguate repeated quotes in this block. */
+	precedingParts: readonly string[];
 	/** The whole box may be used only when all of this member is selected. */
 	wholeBlock: boolean;
 };
@@ -54,6 +59,7 @@ export type TranslationSelection = {
 	quote: string;
 	paired: string;
 	pages: TranslationPagePick[];
+	canLocate: boolean;
 };
 
 function memberLocateText(block: string, quote: string): string {
@@ -70,20 +76,108 @@ function memberLocateText(block: string, quote: string): string {
 	return "";
 }
 
-function characterRects(characters: readonly Character[]): Rect[] {
-	return characters
-		.filter((c) => c.text.trim())
-		.map(({ visualBox: { x, y, w, h } }) => ({
-			origin: { x, y },
-			size: { width: w, height: h },
-		}));
+function blockSource(item: TranslationBlockRef): string {
+	return normalizeSentenceKey(item.raw || item.reflow?.source || item.source);
+}
+
+function hitKey(hit: TranslationSpanHit): string {
+	return `${hit.itemId}\u0000${hit.sentenceIndex}`;
+}
+
+/** Reassemble the source parts of a sentence that was painted across boxes.
+ * Only expand a chain whose member text reconstructs the whole quote. */
+function completeSplitHits(
+	hits: readonly TranslationSpanHit[],
+	items: readonly TranslationBlockRef[],
+	byId: ReadonlyMap<string, TranslationBlockRef>,
+) {
+	const expanded = new Map(hits.map((hit) => [hitKey(hit), hit]));
+	const chains = new Map<string, string>();
+	let complete = true;
+	for (const hit of hits) {
+		if (hit.sentenceIndex === null || chains.has(hitKey(hit))) continue;
+		const item = byId.get(hit.itemId);
+		const sentence = item?.sentences?.[hit.sentenceIndex];
+		if (!item || item.reflow || !sentence) continue;
+		const quote = normalizeSentenceKey(sentence.quote);
+		if (!sentence.display && blockSource(item).includes(quote)) continue;
+		const members = items
+			.flatMap((item) =>
+				(item.sentences ?? []).flatMap((pair, sentenceIndex) => {
+					if (
+						item.reflow ||
+						pair.quote !== sentence.quote ||
+						pair.translated !== sentence.translated
+					)
+						return [];
+					const text = memberLocateText(blockSource(item), quote);
+					return text
+						? [
+								{
+									itemId: item.id,
+									sentenceIndex,
+									text,
+									pageIndex: item.pageIndex,
+								},
+							]
+						: [];
+				}),
+			)
+			.sort((a, b) => a.pageIndex - b.pageIndex);
+		const target = members.findIndex(
+			(member) => hitKey(member) === hitKey(hit),
+		);
+		let matched = false;
+		for (let start = target; start >= 0 && !matched; start--) {
+			if (!quote.startsWith(members[start].text)) continue;
+			let joined = "";
+			for (let end = start; end < members.length; end++) {
+				joined = joined ? `${joined} ${members[end].text}` : members[end].text;
+				if (!quote.startsWith(joined)) break;
+				if (joined !== quote || end < target) continue;
+				const chain = hitKey(members[start]);
+				for (const member of members.slice(start, end + 1)) {
+					const key = hitKey(member);
+					chains.set(key, chain);
+					if (!expanded.has(key)) expanded.set(key, member);
+				}
+				matched = true;
+				break;
+			}
+		}
+		if (!matched) complete = false;
+	}
+	if (expanded.size === hits.length) return { hits, chains, complete };
+	const order = new Map(items.map(({ id }, index) => [id, index]));
+	return {
+		hits: [...expanded.values()].sort(
+			(a, b) =>
+				(byId.get(a.itemId)?.pageIndex ?? 0) -
+					(byId.get(b.itemId)?.pageIndex ?? 0) ||
+				(order.get(a.itemId) ?? 0) - (order.get(b.itemId) ?? 0) ||
+				(a.sentenceIndex ?? 0) - (b.sentenceIndex ?? 0),
+		),
+		chains,
+		complete,
+	};
+}
+
+function characterGlyph({
+	text,
+	visualBox: { x, y, w, h },
+}: Character): TextPiece {
+	return {
+		text,
+		rect: { origin: { x, y }, size: { width: w, height: h } },
+	};
 }
 
 /** Match the paragraph's reading-order text back to its PDF glyphs. Source
  * offsets can differ from glyph indexes after inserted spaces, line-end
  * dehyphenation or ligature expansion. */
-function reflowSentenceRects(
-	paragraph: Paragraph,
+function glyphRectsForParts(
+	glyphs: readonly TextPiece[],
+	blockText: string,
 	parts: readonly string[],
 ): (Rect[] | undefined)[] {
 	for (const ignoreHyphens of [false, true]) {
@@ -92,32 +186,60 @@ function reflowSentenceRects(
 				.normalize("NFKD")
 				.replace(ignoreHyphens ? /[\s\u00ad-]/g : /[\s\u00ad]/g, "");
 		const refs: number[] = [];
-		const text = paragraph.characters
+		const text = glyphs
 			.map((character, index) => {
 				const value = key(character.text);
 				for (let i = 0; i < value.length; i++) refs.push(index);
 				return value;
 			})
 			.join("");
-		if (text !== key(paragraph.source)) continue;
+		if (text !== key(blockText)) continue;
 		let cursor = 0;
 		return parts.map((part) => {
 			const needle = key(part);
-			if (!needle) return undefined;
-			const start = text.indexOf(needle, cursor);
-			if (start < 0) return undefined;
+			const start = needle ? text.indexOf(needle, cursor) : -1;
+			if (start < 0) {
+				cursor = text.length;
+				return undefined;
+			}
 			cursor = start + needle.length;
 			const first = refs[start];
 			const last = refs[cursor - 1];
-			return characterRects(paragraph.characters.slice(first, last + 1));
+			return glyphs
+				.slice(first, last + 1)
+				.filter((glyph) => glyph.text.trim())
+				.map((glyph) => glyph.rect);
 		});
 	}
 	return [];
 }
 
+/** Locate a selected sentence from exact PDFium glyphs, never a fraction of a run. */
+export function locateSelectionGlyphs(
+	pick: TranslationPagePick,
+	glyphs: readonly TextPiece[],
+	width: number,
+	height: number,
+): Rect[] {
+	const inside = glyphs.filter(
+		({ text, rect }) =>
+			Boolean(text.trim()) && centerInBbox(rect, pick.bbox, width, height),
+	);
+	const parts = [...pick.precedingParts, pick.locateText];
+	return (
+		glyphRectsForParts(inside, pick.blockText, parts).at(-1) ??
+		glyphRectsForParts(
+			orderByReadingLine(inside, pieceReadingBox),
+			pick.blockText,
+			parts,
+		).at(-1) ??
+		[]
+	);
+}
+
 /**
- * Turn span hits into the English quote, the paired translation, and one
- * locate requests for its source fragments. A split sentence is quoted once.
+ * Turn span hits into an English quote, a paired translation, and locate
+ * requests for the source fragments. A split sentence is quoted once.
  */
 export function translationSelectionFromHits(
 	hits: readonly TranslationSpanHit[],
@@ -127,15 +249,28 @@ export function translationSelectionFromHits(
 ): TranslationSelection | null {
 	if (!hits.length || !copyText.trim()) return null;
 	const byId = new Map(items.map((item) => [item.id, item]));
-	const groups: { itemId: string; indexes: (number | null)[] }[] = [];
-	for (const hit of hits) {
+	const split = completeSplitHits(hits, items, byId);
+	let canLocate = split.complete;
+	const groups: {
+		itemId: string;
+		indexes: (number | null)[];
+		wholeBlockSelected?: boolean;
+	}[] = [];
+	for (const hit of split.hits) {
 		const last = groups[groups.length - 1];
-		if (last?.itemId === hit.itemId) last.indexes.push(hit.sentenceIndex);
-		else groups.push({ itemId: hit.itemId, indexes: [hit.sentenceIndex] });
+		if (last?.itemId === hit.itemId) {
+			last.indexes.push(hit.sentenceIndex);
+			last.wholeBlockSelected ||= hit.wholeBlockSelected;
+		} else
+			groups.push({
+				itemId: hit.itemId,
+				indexes: [hit.sentenceIndex],
+				wholeBlockSelected: hit.wholeBlockSelected,
+			});
 	}
 	const sentenceQuotes: string[] = [];
 	const pairedParts: string[] = [];
-	const seenSplitSentences = new Map<string, string>();
+	const seenSplitSentences = new Set<string>();
 	const pages: TranslationPagePick[] = [];
 	for (const group of groups) {
 		const item = byId.get(group.itemId);
@@ -149,22 +284,34 @@ export function translationSelectionFromHits(
 					return sentence?.quote ? [{ index, sentence }] : [];
 				});
 		if (!wholeBlock && !chosen.length) continue;
+		if (
+			item.reflow &&
+			(wholeBlock || item.sentences?.length === 1) &&
+			splitLayoutSentences(item.reflow.source).filter((quote) =>
+				/[\p{L}\p{N}]/u.test(quote),
+			).length > 1 &&
+			!group.wholeBlockSelected
+		)
+			canLocate = false;
 		const pairs = chosen.length
-			? chosen.map(({ sentence }) => sentence)
+			? chosen.map(({ sentence, index }) => ({
+					...sentence,
+					chain: split.chains.get(
+						hitKey({ itemId: item.id, sentenceIndex: index }),
+					),
+				}))
 			: [
 					{
 						quote: item.reflow?.source ?? item.source,
 						translated: item.translated ?? "",
-						display: undefined,
+						chain: undefined,
 					},
 				];
-		for (const { quote, translated, display } of pairs) {
+		for (const { quote, translated, chain } of pairs) {
 			if (!quote.trim()) continue;
-			if (display !== undefined) {
-				const key = `${quote}\u0000${translated}`;
-				const prior = seenSplitSentences.get(key);
-				if (prior && prior !== item.id) continue;
-				seenSplitSentences.set(key, item.id);
+			if (chain) {
+				if (seenSplitSentences.has(chain)) continue;
+				seenSplitSentences.add(chain);
 			}
 			sentenceQuotes.push(quote);
 			const text = (
@@ -172,17 +319,16 @@ export function translationSelectionFromHits(
 			).trim();
 			if (text) pairedParts.push(text);
 		}
-		const blockText = normalizeSentenceKey(
-			item.raw || item.reflow?.source || item.source,
-		);
+		const blockText = blockSource(item);
 		const picks = chosen.length
 			? (item.sentences ?? []).map((sentence) =>
 					memberLocateText(blockText, sentence.quote),
 				)
 			: [];
+		const reflowGlyphs = item.reflow?.characters.map(characterGlyph);
 		const sentenceRects =
-			item.reflow && picks.length
-				? reflowSentenceRects(item.reflow, picks)
+			reflowGlyphs && picks.length
+				? glyphRectsForParts(reflowGlyphs, blockText, picks)
 				: [];
 		for (const index of chosen.length
 			? chosen.map(({ index }) => index)
@@ -196,13 +342,18 @@ export function translationSelectionFromHits(
 				pageIndex: item.pageIndex,
 				bbox: item.bbox,
 				locateText,
-				wholeBlock: index === null || picks[index] === blockText,
+				blockText,
+				precedingParts: index === null ? [] : picks.slice(0, index),
+				wholeBlock:
+					index === null ||
+					normalizeSentenceKey(item.sentences?.[index]?.quote ?? "") ===
+						blockText,
 				glyphRects:
-					index === null && item.reflow
-						? characterRects(item.reflow.characters)
-						: index === null
-							? undefined
-							: sentenceRects[index],
+					index === null
+						? reflowGlyphs
+								?.filter((glyph) => glyph.text.trim())
+								.map((glyph) => glyph.rect)
+						: sentenceRects[index],
 			});
 		}
 	}
@@ -213,6 +364,7 @@ export function translationSelectionFromHits(
 		quote,
 		paired: joinTranslatedDisplays(pairedParts, targetLang),
 		pages,
+		canLocate,
 	};
 }
 
@@ -262,15 +414,20 @@ export function translationHitsFromRange(
 		const itemId = block.getAttribute("data-layout-item");
 		if (!itemId || !range.intersectsNode(block)) continue;
 		const spans = block.querySelectorAll<HTMLElement>("[data-sentence]");
-		if (!spans.length && selectedTextWithin(range, block).trim())
-			hits.push({ itemId, sentenceIndex: null });
+		const blockText =
+			spans.length < 2 ? selectedTextWithin(range, block).trim() : "";
+		const wholeBlockSelected = Boolean(
+			blockText && blockText === block.textContent?.trim(),
+		);
+		if (!spans.length && blockText)
+			hits.push({ itemId, sentenceIndex: null, wholeBlockSelected });
 		for (const span of spans) {
 			const sentenceIndex = Number(span.getAttribute("data-sentence"));
 			if (
 				Number.isInteger(sentenceIndex) &&
 				selectedTextWithin(range, span).trim()
 			)
-				hits.push({ itemId, sentenceIndex });
+				hits.push({ itemId, sentenceIndex, wholeBlockSelected });
 		}
 	}
 	return hits;

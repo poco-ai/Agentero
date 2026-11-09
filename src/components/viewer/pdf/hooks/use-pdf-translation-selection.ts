@@ -22,7 +22,7 @@ import type { SelectionMenuState } from "@/components/viewer/pdf/types";
 import { publishSelection } from "@/lib/agent/selection-store";
 import {
 	bboxToPageRect,
-	locateQuoteInBlock,
+	locateSelectionGlyphs,
 	type TranslationPagePick,
 	type TranslationSelection,
 	translationHitsFromRange,
@@ -114,6 +114,7 @@ async function locatePages(
 	selection: TranslationSelection,
 	generation: () => boolean,
 ): Promise<FormattedSelection[] | null> {
+	if (!selection.canLocate) return [];
 	const doc = docCap?.getDocument(docId);
 	const grouped = new Map<number, TranslationPagePick[]>();
 	for (const pick of selection.pages) {
@@ -127,42 +128,42 @@ async function locatePages(
 		const page = doc?.pages[pageIndex];
 		const size = page?.size;
 		if (!page || !size || size.width <= 0 || size.height <= 0) return [];
-		let runs: { text: string; rect: Rect }[] = [];
+		let glyphs: { text: string; rect: Rect }[] = [];
 		if (engine && doc && picks.some((pick) => !pick.glyphRects?.length)) {
 			try {
-				const pageRuns = await engine.getPageTextRuns(doc, page).toPromise();
-				runs = (pageRuns?.runs ?? []).map((run) => ({
-					text: run.text ?? "",
-					rect: run.rect,
+				const raw = await engine.getPageGlyphs(doc, page).toPromise();
+				if (!generation()) return null;
+				const text = await engine
+					.getTextSlices(
+						doc,
+						raw.map((_, charIndex) => ({
+							pageIndex,
+							charIndex,
+							charCount: 1,
+							rawCharacters: true,
+						})),
+					)
+					.toPromise();
+				glyphs = raw.map((glyph, index) => ({
+					text: text[index] ?? "",
+					rect: {
+						origin: glyph.tightOrigin ?? glyph.origin,
+						size: glyph.tightSize ?? glyph.size,
+					},
 				}));
 			} catch {
-				runs = [];
-			}
-			if (!runs.length) {
-				try {
-					const raw = await engine.getPageTextRects(doc, page).toPromise();
-					runs = (raw ?? []).map((glyph) => ({
-						text: glyph.content ?? "",
-						rect: glyph.rect,
-					}));
-				} catch {
-					runs = [];
-				}
+				glyphs = [];
 			}
 		}
 		if (!generation()) return null;
 		const locatePick = (pick: TranslationPagePick): Rect[] => {
 			if (pick.glyphRects?.length) return pick.glyphRects;
-			const located = runs.length
-				? locateQuoteInBlock({
-						quote: pick.locateText,
-						runs,
-						pageWidth: size.width,
-						pageHeight: size.height,
-						bbox: pick.bbox,
-						blockText: pick.wholeBlock ? pick.locateText : undefined,
-					})
-				: [];
+			const located = locateSelectionGlyphs(
+				pick,
+				glyphs,
+				size.width,
+				size.height,
+			);
 			if (located.length) return located;
 			// The whole block is the annotation only when the selection is that
 			// block. A sentence that missed the text layer must not fill the block.
@@ -258,6 +259,10 @@ export function usePdfTranslationSelection({
 			const hits = translationHitsFromRange(range, root);
 			if (!hits.length) return;
 			const items = [...itemsRef.current.values()].flat();
+			const lastHit = hits.at(-1);
+			const preferredPageIndex = items.find(
+				(item) => item.id === lastHit?.itemId,
+			)?.pageIndex;
 			const targetLang = langsFromSettings(
 				loadSettings().translate,
 				langRef.current ?? "en",
@@ -290,9 +295,13 @@ export function usePdfTranslationSelection({
 						return;
 					}
 					const doc = docCapRef.current?.getDocument(docId);
-					const anchorPage = pages.at(-1);
+					const anchorPage =
+						pages.find((page) => page.pageIndex === preferredPageIndex) ??
+						pages.at(-1);
 					const pageIndex =
-						anchorPage?.pageIndex ?? resolved.pages.at(-1)?.pageIndex;
+						anchorPage?.pageIndex ??
+						preferredPageIndex ??
+						resolved.pages.at(-1)?.pageIndex;
 					if (pageIndex == null) return;
 					// A geometry miss still has a quote for copy and chat. It has no
 					// original rectangles for a persisted highlight or note.

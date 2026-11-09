@@ -19,6 +19,7 @@ import {
 	joinTranslatedDisplays,
 	type LayoutSentenceDraft,
 	paintSentenceTranslations,
+	reflowSentenceValidator,
 } from "@/lib/pdf/layout/layout-sentences";
 import {
 	buildLayoutTranslateChains,
@@ -33,11 +34,6 @@ import type {
 	LayoutTranslateSentence,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
-import {
-	type ReflowStructure,
-	reflowStructureForText,
-	validReflowTranslation,
-} from "@/lib/pdf/reflow/types";
 import {
 	evictAgentTranslateSessionId,
 	getAgentTranslateSessionId,
@@ -856,7 +852,7 @@ export async function runLayoutRegionTranslate(options: {
 	type SentenceUnit = {
 		source: string;
 		tokens: MaskedToken[];
-		structural?: ReflowStructure;
+		validateReflow?: (text: string) => boolean;
 		job: ChainJob;
 		draftIndex: number;
 	};
@@ -887,10 +883,9 @@ export async function runLayoutRegionTranslate(options: {
 			units.push({
 				source: masked.text,
 				tokens: masked.tokens,
-				structural:
-					structural && drafts.length > 1
-						? reflowStructureForText(structural, draft.source)
-						: structural,
+				validateReflow: structural
+					? reflowSentenceValidator(structural, draft)
+					: undefined,
 				job,
 				draftIndex,
 			});
@@ -947,17 +942,17 @@ export async function runLayoutRegionTranslate(options: {
 		tokens: readonly MaskedToken[],
 	): Promise<string> => {
 		const restored = restoreInlineTokens(segment.trim(), tokens);
-		const structural = unit.structural;
+		const validateReflow = unit.validateReflow;
 		if (
 			restored.missing === 0 &&
 			!restored.invalid &&
-			(!structural || validReflowTranslation(structural, restored.text))
+			(!validateReflow || validateReflow(restored.text))
 		)
 			return restored.text;
 		if (signal?.aborted) return "";
 		// A structural failure may recur with the same token spelling. Change
 		// the spelling immediately instead of repeating the same request.
-		const retry = structural
+		const retry = validateReflow
 			? restored
 			: restoreInlineTokens(
 					await translateText(unit.source, pageOf(unit)),
@@ -966,9 +961,9 @@ export async function runLayoutRegionTranslate(options: {
 		if (
 			retry.missing ||
 			retry.invalid ||
-			(structural && !validReflowTranslation(structural, retry.text))
+			(validateReflow && !validateReflow(retry.text))
 		) {
-			if (structural) {
+			if (validateReflow) {
 				// Some MT engines interpret a numeric placeholder as a number (e.g.
 				// "factor of ⟦4⟧" becomes "4 倍"). Retry with nonnumeric opaque words.
 				const aliases = tokens.map((token, index) => ({
@@ -985,7 +980,7 @@ export async function runLayoutRegionTranslate(options: {
 				if (
 					!restoredAlternate.missing &&
 					!restoredAlternate.invalid &&
-					validReflowTranslation(structural, restoredAlternate.text)
+					validateReflow(restoredAlternate.text)
 				)
 					return restoredAlternate.text;
 				// Last resort: keep structural boundaries in source order and translate
@@ -1021,7 +1016,7 @@ export async function runLayoutRegionTranslate(options: {
 				if (
 					!segmented.missing &&
 					!segmented.invalid &&
-					validReflowTranslation(structural, segmented.text)
+					validateReflow(segmented.text)
 				) {
 					unit.job.chain.members[0].reflowFallback = "protected-spans";
 					return segmented.text;
@@ -1127,11 +1122,11 @@ export async function runLayoutRegionTranslate(options: {
 			if (signal?.aborted) return;
 			const segment = segments[index] ?? "";
 			const restored = restoreInlineTokens(segment.trim(), masked.tokens);
-			const structural = masked.unit.structural;
+			const validateReflow = masked.unit.validateReflow;
 			if (
 				restored.missing ||
 				restored.invalid ||
-				(structural && !validReflowTranslation(structural, restored.text))
+				(validateReflow && !validateReflow(restored.text))
 			) {
 				retries.push({ ...masked, segment });
 				continue;
