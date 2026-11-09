@@ -31,14 +31,20 @@ afterEach(async () => {
 	vi.unstubAllGlobals();
 });
 
-async function renderCard(onHide = vi.fn(), onTogglePin = vi.fn()) {
+async function renderCard(
+	onHide = vi.fn(),
+	onTogglePin = vi.fn(),
+	screen: Parameters<typeof TranslateCard>[0]["screen"] = { x: 600, y: 200 },
+	source?: Parameters<typeof TranslateCard>[0]["source"],
+) {
 	await act(() =>
 		root.render(
 			createElement(
 				MotionConfig,
 				{ isStatic: true },
 				createElement(TranslateCard, {
-					screen: { x: 600, y: 200 },
+					screen,
+					source,
 					result,
 					streaming: false,
 					error: null,
@@ -53,6 +59,32 @@ async function renderCard(onHide = vi.fn(), onTogglePin = vi.fn()) {
 	if (!card) throw new Error("Translation card did not render");
 	return card;
 }
+
+it("opens below the selected lines instead of covering them", async () => {
+	const card = await renderCard(vi.fn(), vi.fn(), {
+		x: 600,
+		y: 200,
+		selectionBounds: { left: 500, top: 200, right: 700, bottom: 260 },
+	});
+	expect(Number.parseFloat(card.style.top)).toBeGreaterThanOrEqual(260);
+});
+
+it("keeps the locate action inside the source quote instead of the header", async () => {
+	const onLocate = vi.fn();
+	const card = await renderCard(
+		vi.fn(),
+		vi.fn(),
+		{ x: 600, y: 200 },
+		{ quote: "source quote", title: "Paper title", onLocate },
+	);
+	const locate = card.querySelector<HTMLButtonElement>(
+		'[aria-label="selection.locateSource"]',
+	);
+	expect(locate).not.toBeNull();
+	expect(locate?.closest("header")).toBeNull();
+	await act(() => locate?.click());
+	expect(onLocate).toHaveBeenCalledOnce();
+});
 
 it("keeps the PDF controls interactive, copies the translation, and dismisses on Escape", async () => {
 	const onHide = vi.fn();

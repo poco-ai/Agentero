@@ -232,4 +232,20 @@ describe("placeSelectionCard with a selection box", () => {
 
 		expect(top).toBeGreaterThanOrEqual(60);
 	});
+
+	it("opens below when preferBelow is set for translation cards", () => {
+		const { top, maxHeight } = placeSelectionCard(
+			{ x: 300, y: bounds.top, selectionBounds: bounds },
+			{
+				width: 340,
+				height: 480,
+				trackPin: true,
+				contentHeight: 200,
+				preferBelow: true,
+			},
+		);
+
+		expect(top).toBeGreaterThanOrEqual(bounds.bottom);
+		expect(maxHeight).toBeGreaterThan(0);
+	});
 });

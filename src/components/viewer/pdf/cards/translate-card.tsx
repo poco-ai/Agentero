@@ -1,18 +1,24 @@
 import {
 	Check,
 	Copy,
-	LocateFixed,
+	CornerUpLeft,
 	Pin,
 	PinOff,
 	Settings2Icon,
 	X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import agenteroAppIcon from "@/assets/agentero-app-icon.svg";
 import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
 import { Shimmer } from "@/components/ui/shimmer";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
 import type { CardScreenPoint } from "@/components/viewer/pdf/types";
@@ -43,6 +49,38 @@ type TranslateCardProps = {
 	onPointerLeave?: () => void;
 };
 
+function LocateSourceButton({
+	label,
+	onClick,
+}: {
+	label: string;
+	onClick: () => void;
+}) {
+	return (
+		<TooltipProvider delayDuration={200} disableHoverableContent>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<button
+						type="button"
+						aria-label={label}
+						className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+						onClick={onClick}
+					>
+						<CornerUpLeft className="size-3.5" />
+					</button>
+				</TooltipTrigger>
+				<TooltipContent side="left">{label}</TooltipContent>
+			</Tooltip>
+		</TooltipProvider>
+	);
+}
+
+/**
+ * Quote split at the first rendered line break. Line 1 keeps the full source
+ * width; only line 2 loses room for the return icon.
+ */
+type QuoteLines = { first: string; second: string | null };
+
 /**
  * PDF selection translation — shared SelectionCard shell with dismiss / pin.
  * Content-sized up to a generous cap so long paragraphs read in full; only
@@ -69,6 +107,63 @@ export function TranslateCard({
 	const scrollPortRef = useRef<HTMLDivElement>(null);
 	const stickToBottomRef = useRef(true);
 	const [copied, setCopied] = useState(false);
+	const quoteText = source
+		? source.quote?.trim() || t("selection.sourcePage", { page: source.page })
+		: "";
+	const quoteMeasureRef = useRef<HTMLParagraphElement>(null);
+	const [quoteLines, setQuoteLines] = useState<QuoteLines | null>(null);
+
+	useLayoutEffect(() => {
+		const el = quoteMeasureRef.current;
+		if (!el) return;
+		const measure = () => {
+			const node = el.firstChild;
+			let next: QuoteLines = { first: quoteText, second: null };
+			const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight);
+			if (
+				node?.nodeType === Node.TEXT_NODE &&
+				Number.isFinite(lineHeight) &&
+				lineHeight > 0 &&
+				el.clientHeight > lineHeight * 1.5
+			) {
+				const textNode = node as Text;
+				const secondTop = el.getBoundingClientRect().top + lineHeight;
+				let low = 0;
+				let high = quoteText.length;
+				while (low < high) {
+					const mid = Math.floor((low + high) / 2);
+					const caret = document.createRange();
+					caret.setStart(textNode, mid);
+					caret.collapse(true);
+					if (caret.getBoundingClientRect().top >= secondTop - 0.5) {
+						high = mid;
+					} else {
+						low = mid + 1;
+					}
+				}
+				let split = low;
+				// Do not split a surrogate pair.
+				if (split > 0) {
+					const code = quoteText.charCodeAt(split - 1);
+					if (code >= 0xd800 && code <= 0xdbff) split += 1;
+				}
+				if (split > 0 && split < quoteText.length) {
+					const first = quoteText.slice(0, split).trimEnd();
+					const second = quoteText.slice(split).trimStart();
+					if (first && second) next = { first, second };
+				}
+			}
+			setQuoteLines((prev) =>
+				prev?.first === next.first && prev?.second === next.second
+					? prev
+					: next,
+			);
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, [quoteText]);
 
 	useEffect(() => {
 		// This nonmodal card stays open when focus leaves it. Scope the keys to
@@ -147,6 +242,9 @@ export function TranslateCard({
 			draggable
 			resizable
 			preferRight={preferRight}
+			preferBelow
+			// Slightly tighter header than other selection cards.
+			headerClassName="pt-2 pb-1.5"
 			title={t("selection.translateTitle")}
 			icon={<img src={agenteroAppIcon} alt="" className="size-5 rounded" />}
 			ariaLive="polite"
@@ -155,16 +253,6 @@ export function TranslateCard({
 			// Leave WebKit's native resize corner outside the nested scrollport.
 			className="pb-3"
 			actions={[
-				...(source
-					? [
-							{
-								id: "locate",
-								label: t("selection.locateSource"),
-								onClick: source.onLocate,
-								icon: <LocateFixed />,
-							},
-						]
-					: []),
 				...(showResult
 					? [
 							{
@@ -206,7 +294,7 @@ export function TranslateCard({
 			bodyClassName="min-h-0 overflow-hidden p-0"
 		>
 			{source ? (
-				<div className="mx-2.5 mt-2 flex min-h-6 shrink-0 flex-col justify-end border-border/70 border-l-2 pl-2 text-muted-foreground">
+				<div className="mx-2.5 mt-2 flex min-h-6 shrink-0 flex-col justify-end border-border/70 border-l-2 pr-2.5 pl-2 text-muted-foreground">
 					{source.title && (
 						<button
 							type="button"
@@ -216,16 +304,47 @@ export function TranslateCard({
 							{source.title}
 						</button>
 					)}
-					<p className="line-clamp-2 break-words text-xs leading-relaxed">
-						{source.quote?.trim() ||
-							t("selection.sourcePage", { page: source.page })}
-					</p>
+					<div className="relative">
+						<p
+							ref={quoteMeasureRef}
+							aria-hidden
+							className="pointer-events-none invisible absolute inset-x-0 top-0 break-words text-xs leading-relaxed"
+						>
+							{quoteText}
+						</p>
+						{quoteLines?.second ? (
+							<>
+								<p className="break-words text-xs leading-relaxed">
+									{quoteLines.first}
+								</p>
+								<div className="flex items-center gap-1.5">
+									<p className="min-w-0 flex-1 truncate text-xs leading-relaxed">
+										{quoteLines.second}
+									</p>
+									<LocateSourceButton
+										label={t("selection.locateSource")}
+										onClick={source.onLocate}
+									/>
+								</div>
+							</>
+						) : (
+							<div className="flex items-center gap-1.5">
+								<p className="line-clamp-2 min-w-0 flex-1 break-words text-xs leading-relaxed">
+									{quoteLines?.first ?? quoteText}
+								</p>
+								<LocateSourceButton
+									label={t("selection.locateSource")}
+									onClick={source.onLocate}
+								/>
+							</div>
+						)}
+					</div>
 				</div>
 			) : null}
 			<div
 				ref={scrollPortRef}
 				onScroll={handleScroll}
-				className="agentero-scroll agentero-scroll-visible mx-2.5 mt-2 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto rounded-md border border-border/70 px-2.5 py-2"
+				className="agentero-scroll agentero-scroll-visible mx-2.5 mt-2 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto rounded-md px-2.5 py-2"
 			>
 				{showLoading ? (
 					<Shimmer className="text-sm" as="p">

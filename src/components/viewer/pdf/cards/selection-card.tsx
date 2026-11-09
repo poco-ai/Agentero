@@ -68,6 +68,11 @@ type PlaceSelectionCardOptions = {
 	trackPin?: boolean;
 	/** Open to the right of the anchor when there is room (default true). */
 	preferRight?: boolean;
+	/**
+	 * Open below the selected lines instead of above. Translation cards use
+	 * this so the result never covers the text the reader just selected.
+	 */
+	preferBelow?: boolean;
 	/** Gap from the anchor point (default 4). */
 	gap?: number;
 	/** The rendered height, used to align a card above a selection. */
@@ -137,7 +142,7 @@ export function placeSelectionCard(
 			}
 		}
 
-		if (above >= minHeight || (below < minHeight && above >= below)) {
+		const openAbove = () => {
 			const maxHeight = Math.min(preferredMaxH, Math.max(minHeight, above));
 			const contentHeight = Math.min(
 				maxHeight,
@@ -148,12 +153,27 @@ export function placeSelectionCard(
 				top: Math.max(edge, upperEdge - contentHeight),
 				maxHeight,
 			};
-		}
-		return {
-			left,
-			top: Math.min(lowerEdge, edge + usableHeight - minHeight),
-			maxHeight: Math.min(preferredMaxH, Math.max(minHeight, below)),
 		};
+		const openBelow = (fillMinimum: boolean) => {
+			const height = fillMinimum ? Math.max(minHeight, below) : below;
+			return {
+				left,
+				top: fillMinimum
+					? Math.min(lowerEdge, edge + usableHeight - minHeight)
+					: lowerEdge,
+				maxHeight: Math.min(preferredMaxH, Math.max(0, height)),
+			};
+		};
+
+		if (opts.preferBelow) {
+			if (below >= minHeight || above < minHeight) return openBelow(false);
+			return openAbove();
+		}
+
+		if (above >= minHeight || (below < minHeight && above >= below)) {
+			return openAbove();
+		}
+		return openBelow(true);
 	}
 
 	// Layout footprint for flip/clamp (stable across compact → expanded).
@@ -262,6 +282,10 @@ type SelectionCardProps = {
 	 */
 	bodyScroll?: boolean;
 	preferRight?: boolean;
+	/** Open below the selected lines instead of above (translation cards). */
+	preferBelow?: boolean;
+	/** Extra header classes, e.g. tighter padding for the translation card. */
+	headerClassName?: string;
 	title: string;
 	/** Optional header glyph; omit for a title-only header. */
 	icon?: ReactNode;
@@ -302,6 +326,8 @@ export function SelectionCard({
 	draggable = false,
 	bodyScroll = true,
 	preferRight = true,
+	preferBelow = false,
+	headerClassName,
 	title,
 	icon,
 	actions,
@@ -358,6 +384,7 @@ export function SelectionCard({
 		placementHeight,
 		trackPin,
 		preferRight,
+		preferBelow,
 		contentHeight,
 	});
 	const anchoredToSelection = Boolean(screen.selectionBounds) && !position;
@@ -528,6 +555,7 @@ export function SelectionCard({
 					"relative flex shrink-0 items-center gap-2 border-border/60 border-b px-3 py-2",
 					draggable &&
 						"touch-none select-none cursor-grab pt-2.5 active:cursor-grabbing",
+					headerClassName,
 				)}
 				onPointerDown={draggable ? startDrag : undefined}
 				onPointerMove={draggable ? moveDrag : undefined}
