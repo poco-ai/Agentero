@@ -30,19 +30,12 @@ pub use remote_ops::RemoteImportOps;
 ))]
 pub use crate::features::paper::analyze::body_engines::refresh_parser_config;
 
-/// Whether an import commit must queue the layout follow-up itself (plaza
-/// imports). True only for a new paper with a locally downloaded PDF and no
-/// `RecognizeMetadata` step: recognition owns the follow-ups against the
-/// post-rename path, so queueing layout now would race it.
+/// Whether a plaza import commit must queue the layout follow-up itself: the
+/// plaza commands download the PDF synchronously and never defer parse jobs to
+/// metadata recognition, so a new paper with a local PDF is ready for layout.
 #[cfg(feature = "desktop")]
 pub fn commit_needs_layout_follow_up(commit: &paper_import::PaperCommitResult) -> bool {
-    commit.status == CommitStatus::Created
-        && commit.pdf
-        && !commit
-            .preparation
-            .steps
-            .iter()
-            .any(|step| matches!(step, PreparationStep::RecognizeMetadata))
+    commit.status == CommitStatus::Created && commit.pdf
 }
 
 /// Resolve the configured NOTES shell mode from the managed settings store.
@@ -100,15 +93,6 @@ mod tests {
             CommitStatus::Skipped,
             true,
             Vec::new(),
-        )));
-    }
-
-    #[test]
-    fn recognition_owns_the_layout_follow_up() {
-        assert!(!commit_needs_layout_follow_up(&commit(
-            CommitStatus::Created,
-            true,
-            vec![PreparationStep::RecognizeMetadata],
         )));
     }
 }

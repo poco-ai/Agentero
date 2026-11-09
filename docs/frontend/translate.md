@@ -25,7 +25,7 @@ Settings → **翻译**：
 
 设置 → **翻译** →「导入后自动翻译」默认关闭；开启后在其下方显示「同时翻译的论文数」（1–5，默认 1）。持久化为 `TranslateSettings.autoTranslateImport` / `autoTranslateImportConcurrency`；旧 `settings.json` 缺字段时按关闭 / 1 处理。关闭开关只停止新任务，已排队的翻译任务仍会执行。
 
-触发点是**导入 / 下载链路**入队 `layoutAnalyze` 时：设置开启时 Host 同时入队一个 `layoutTranslate` 任务，用 JobCenter `depends_on` 指向那次版面任务（`DepPolicy::AllSucceeded`）。覆盖本地 PDF、魔棒 / lookup、广场（PWC / papers.cool）与 Connector 附件——广场和 Connector 的 PDF 由 Host 直接落盘、不经过 `DownloadAssets`，所以这些入口在 Host 侧显式调用同一个 helper（`jobs::spawn_layout_after_import`）：广场只对新建且有本地 PDF、且没有进行中的元数据识别的提交入队；Connector 在附件写完时入队，另在会话首次 finalize、论文移动到目标分类后按最终路径补一次。
+触发点是**导入 / 下载链路**入队 `layoutAnalyze` 时：设置开启时 Host 同时入队一个 `layoutTranslate` 任务，用 JobCenter `depends_on` 指向那次版面任务（`DepPolicy::AllSucceeded`）。覆盖本地 PDF、魔棒 / lookup、广场（PWC / papers.cool）与 Connector 附件——广场和 Connector 的 PDF 由 Host 直接落盘、不经过 `DownloadAssets`，所以这些入口在 Host 侧显式调用同一个 helper（`jobs::spawn_layout_after_import`）：广场只对新建且有本地 PDF 的提交入队（广场提交不会推迟到元数据识别）；Connector 在附件写完时入队，另在会话首次 finalize、论文移动到目标分类后按最终路径补一次，并跳过已交给元数据识别的论文（识别任务会在改名 / 合并后的最终路径入队）。
 
 只有导入来源的入队才带 `autoTranslate` 标记：打开论文后的补解析与手动重新解析不带，因此不触发。打开一篇没有本地 PDF 的论文会先入队 `DownloadAssets`，属于下载链路，下载完成后同样触发。
 
@@ -34,7 +34,7 @@ Settings → **翻译**：
 - 版面失败 / 取消时依赖任务标为 `Skipped`，不发翻译请求。`job_cancel` 和终止态 `job_report` 都会触发 `drain`，依赖任务随即结算；`cancel_for_paper` / `cancel_for_vault` 直接取消同论文或同 Vault 的所有任务，不再单独 `drain`。
 - Headless 流程（`src/lib/pdf/layout/headless-translate.ts`）：读取论文根 `{id}.pdf` → `source/layout.json`（raw regions）→ `listTranslatableLayoutRegions` → `prepareReflowItems`（IR 缓存受 `cacheReflowIr` 控制）→ 用 `layout-translate.json` hydrate → 只翻译 pending 块（后台失败不自动重试）→ 写回 sidecar，已完成块保留为 partial。完整命中缓存时 no-op；无 PDF / 无 translatable 区域时跳过且不报错。
 - `cacheReflowFinal` 开启时额外构建译文 PDF 并写入现有 final build 缓存（命中则跳过重建）；关闭时只写 sidecar，页面留到打开论文后生成。构建失败只记日志、任务仍按成功结算（sidecar 已写入，下次打开重建页面）。
-- **查看器接管**：后台任务运行中，用户打开论文并手动点全文翻译时，查看器先让该论文的后台执行器停止：同窗口直接 abort，并等待它把已完成块写回 sidecar（最多 5s）后再继续；执行器在其它窗口时走 `job_cancel`。随后按缓存流程**继续翻译 pending 块**，已落盘的块不重复请求。等待超时或跨窗口时，接管前已经在途的单批请求仍可能重复；没有生效中的后台任务时保持原有缓存优先行为。
+- **查看器接管**：后台任务运行中，用户打开论文并手动点全文翻译时，查看器先让该论文的后台执行器停止：同窗口直接 abort，并等待它把已完成块写回 sidecar（最多 5s）后再继续；执行器在其它窗口时走 `job_cancel`。随后按缓存流程**继续翻译 pending 块**，已落盘的块不重复请求。等待超时或跨窗口时，接管前已经在途的单批请求仍可能重复；被取消的后台任务写 sidecar 时按已有条目合并，不会删掉查看器已写入的块。没有生效中的后台任务时保持原有缓存优先行为。
 
 ## 消费方
 

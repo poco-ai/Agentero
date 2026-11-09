@@ -348,7 +348,15 @@ export async function translatePaperLayoutHeadless(opts: {
 				pending,
 			};
 		}
-		await writeLayoutTranslateSidecar(opts.paperAbsPath, cacheKey, items);
+		// An aborted run (cancel or takeover) can race a manual run in another
+		// window that already persisted newer blocks: merge instead of
+		// replacing the sidecar so those translations are never dropped.
+		await writeLayoutTranslateSidecar(
+			opts.paperAbsPath,
+			cacheKey,
+			items,
+			signal?.aborted ? { preserveExisting: true } : {},
+		);
 		logger.info("pdf.translate.headless", {
 			result: "written",
 			paper: opts.paperKey,

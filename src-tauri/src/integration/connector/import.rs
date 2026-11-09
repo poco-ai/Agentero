@@ -28,6 +28,10 @@ pub struct ConnectorImportResult {
     pub deduped: bool,
     pub connector_item_id: Value,
     pub item_type: String,
+    /// The Host spawned `RecognizeMetadata` for this paper: it owns the layout
+    /// follow-up against the post-rename path, so the Connector finalizer must
+    /// not queue one for the placeholder folder.
+    pub recognition_pending: bool,
 }
 
 /// Resolve the configured NOTES shell mode from the controller's AppHandle
@@ -93,6 +97,7 @@ pub async fn import_connector_item_with_cookies(
             deduped: true,
             connector_item_id,
             item_type,
+            recognition_pending: false,
         });
     }
 
@@ -126,6 +131,7 @@ pub async fn import_connector_item_with_cookies(
         deduped: false,
         connector_item_id,
         item_type,
+        recognition_pending: false,
     })
 }
 
@@ -163,6 +169,7 @@ pub async fn import_connector_item_remote_with_cookies(
             deduped: true,
             connector_item_id,
             item_type,
+            recognition_pending: false,
         });
     }
 
@@ -196,6 +203,7 @@ pub async fn import_connector_item_remote_with_cookies(
         deduped: false,
         connector_item_id,
         item_type,
+        recognition_pending: false,
     })
 }
 
@@ -625,6 +633,9 @@ async fn complete_standalone_session(
         ctrl.record_session_item_paper(session_id, u, &result.path);
     }
     ctrl.record_session_item_paper(session_id, &result.id, &result.path);
+    if result.recognition_pending {
+        ctrl.record_pending_recognition(session_id, &result.path);
+    }
     ctrl.mark_session_done(session_id);
     if result.deduped {
         ctrl.emit_item_saved(saved);
@@ -734,6 +745,7 @@ async fn import_standalone_local(
             deduped: true,
             connector_item_id: Value::Null,
             item_type: "attachment".into(),
+            recognition_pending: false,
         });
     }
 
@@ -744,6 +756,7 @@ async fn import_standalone_local(
         deduped: false,
         connector_item_id: Value::Null,
         item_type: "attachment".into(),
+        recognition_pending: commit.status == CommitStatus::Created && needs_recognize,
     })
 }
 
@@ -786,6 +799,7 @@ async fn import_standalone_remote(
             deduped: true,
             connector_item_id: Value::Null,
             item_type: "attachment".into(),
+            recognition_pending: false,
         });
     }
 
@@ -819,6 +833,7 @@ async fn import_standalone_remote(
         deduped: false,
         connector_item_id: Value::Null,
         item_type: "attachment".into(),
+        recognition_pending: false,
     })
 }
 
@@ -927,11 +942,11 @@ pub fn spawn_layout_after_connector_pdf(
     let Some(paper_rel) = ctrl.session_item_paper(session_id, item_id) else {
         return;
     };
-    crate::features::jobs::spawn_layout_after_import(
-        Some(&app),
-        &PathBuf::from(vault_handle),
-        &paper_rel,
-    );
+    let vault = PathBuf::from(vault_handle);
+    if !paper_has_local_pdf(&vault, &paper_rel) {
+        return;
+    }
+    crate::features::jobs::spawn_layout_after_import(Some(&app), &vault, &paper_rel);
 }
 
 /// Queue the layout follow-up for every paper in a finished Connector session,
@@ -946,13 +961,21 @@ pub fn spawn_layout_after_session_papers(ctrl: &ConnectorController, session_id:
     if parse_remote_handle(&vault_handle).is_some() {
         return;
     }
-    let Some(papers) = ctrl.session_paper_paths(session_id) else {
+    let Some(papers) = ctrl.session_layout_paths(session_id) else {
         return;
     };
     let vault = PathBuf::from(vault_handle);
     for paper in papers {
+        if !paper_has_local_pdf(&vault, &paper) {
+            continue;
+        }
         crate::features::jobs::spawn_layout_after_import(Some(&app), &vault, &paper);
     }
+}
+
+/// Local PDF presence for a vault-relative paper folder.
+fn paper_has_local_pdf(vault: &Path, paper_rel: &str) -> bool {
+    crate::features::paper::import::has_local_pdf(&vault.join(paper_rel))
 }
 
 /// DOI / arXiv / local-PDF presence for resolver decisions.

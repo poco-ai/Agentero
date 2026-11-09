@@ -103,6 +103,9 @@ pub struct SaveSession {
     pub active_writers: usize,
     /// Completion events held until every new item has a stable final path.
     pub pending_saved: Vec<ConnectorItemSaved>,
+    /// Paper folders whose `RecognizeMetadata` job owns the layout follow-up;
+    /// the connector finalizer must not queue one for the placeholder path.
+    pub pending_recognition: std::collections::HashSet<String>,
     pub initial_finalized: bool,
     /// Serializes finalization and collection moves without blocking browser downloads.
     pub io_gate: Arc<AsyncMutex<()>>,
@@ -430,6 +433,7 @@ impl ConnectorController {
                 attachment_phase: HashMap::new(),
                 active_writers: 0,
                 pending_saved: Vec::new(),
+                pending_recognition: std::collections::HashSet::new(),
                 initial_finalized: false,
                 io_gate: Arc::new(AsyncMutex::new(())),
             },
@@ -508,16 +512,34 @@ impl ConnectorController {
         }
     }
 
-    /// Resolve a saved paper by Connector item id, falling back to the only
-    /// paper in the session for older saveSingleFile callers.
-    /// All paper folders in a session (already rebased after a collection move).
-    pub fn session_paper_paths(&self, session_id: &str) -> Option<Vec<String>> {
+    /// Paper folders that still need the layout follow-up: everything in the
+    /// session except papers whose recognition job owns it.
+    pub fn session_layout_paths(&self, session_id: &str) -> Option<Vec<String>> {
         let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        g.sessions
-            .get(session_id)
-            .map(|session| session.paper_paths.clone())
+        g.sessions.get(session_id).map(|session| {
+            session
+                .paper_paths
+                .iter()
+                .filter(|path| !session.pending_recognition.contains(*path))
+                .cloned()
+                .collect()
+        })
     }
 
+    /// Mark a paper as recognition-owned so the finalizer leaves its layout
+    /// follow-up to the recognize runner (which runs against the final path).
+    pub fn record_pending_recognition(&self, session_id: &str, paper_path: &str) {
+        if let Ok(mut g) = self.inner.lock() {
+            if let Some(session) = g.sessions.get_mut(session_id) {
+                session
+                    .pending_recognition
+                    .insert(paper_path.replace('\\', "/"));
+            }
+        }
+    }
+
+    /// Resolve a saved paper by Connector item id, falling back to the only
+    /// paper in the session for older saveSingleFile callers.
     pub fn session_item_paper(&self, session_id: &str, item_id: Option<&str>) -> Option<String> {
         let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let session = g.sessions.get(session_id)?;
@@ -740,6 +762,11 @@ impl ConnectorController {
                 for saved in &mut session.pending_saved {
                     saved.path = Self::rebase_path(&saved.path, from, to);
                 }
+                session.pending_recognition = session
+                    .pending_recognition
+                    .iter()
+                    .map(|path| Self::rebase_path(path, from, to))
+                    .collect();
             }
         }
     }
