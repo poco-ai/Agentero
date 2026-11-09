@@ -46,17 +46,28 @@ html body { overflow-y: visible !important; }
 /* The site smooth-scrolls its layout root while centring a page action; the
    bridge re-pins that root, and a running smooth animation would win. */
 .ms-page-container { scroll-behavior: auto !important; }
+/* Matches the Papers with Code panel: a quiet pill in the page's own colour,
+   no mark, no borrowed site classes. */
 .agentero-import {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  margin-left: 8px;
+  padding: 2px 9px;
+  border: 1px solid color-mix(in oklab, currentColor 26%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, currentColor 7%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
   cursor: pointer;
   user-select: none;
+  vertical-align: middle;
 }
+.agentero-import:hover { background: color-mix(in oklab, currentColor 15%, transparent); }
 .agentero-import[data-state] { cursor: default; opacity: 0.55; }
-.agentero-import-logo {
-  width: 14px;
-  height: 14px;
-  flex: none;
-  margin-right: 3px;
-}
 .agentero-import-titlerow {
   display: flex;
   /* The title is a fixed two-line-tall box holding one line at the top, so
@@ -67,23 +78,7 @@ html body { overflow-y: visible !important; }
 }
 /* The title keeps its own width clamp and ellipsis; the button never shrinks. */
 .agentero-import-titlerow > :first-child { flex: 0 1 auto; min-width: 0; }
-.agentero-import-card {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  /* Replaced with the title's own line-height, which centres it on the text. */
-  height: 20px;
-  padding: 0 8px;
-  border: 1px solid rgba(128, 128, 128, 0.35);
-  border-radius: 6px;
-  background: rgba(128, 128, 128, 0.12);
-  color: inherit;
-  font-size: 12px;
-  line-height: 1;
-  white-space: nowrap;
-}
-.agentero-import-card:hover { background: rgba(128, 128, 128, 0.22); }
+.agentero-import-card { margin-left: 0; }
 </style>
 <script>
 (function () {
@@ -280,15 +275,6 @@ html body { overflow-y: visible !important; }
       return ID.test(id) ? id : null;
     };
     var LABELS = { idle: "入库", pending: "入库中", done: "已入库" };
-    // The Agentero mark reduced to its copper spectacles: the full illustrated
-    // face is unreadable mush at the 14px the site's button icons use.
-    var LOGO =
-      '<svg class="agentero-import-logo" viewBox="0 0 16 16" aria-hidden="true">' +
-      '<g fill="none" stroke="#B96442" stroke-width="1.35" stroke-linecap="round">' +
-      '<circle cx="4.3" cy="8.4" r="4.1"/>' +
-      '<circle cx="11.7" cy="8.4" r="4.1"/>' +
-      '<path d="M7.6 7.2c.3-.35.8-.35 1.1 0"/>' +
-      "</g></svg>";
     var setLabel = function (el, text) {
       var label = el.querySelector(".agentero-import-label");
       if (label) label.textContent = text;
@@ -320,17 +306,14 @@ html body { overflow-y: visible !important; }
       }
       if (ids.length) post({ queryImported: ids });
     };
-    var button = function (id, variant, borrowedClass) {
+    var button = function (id, variant) {
       var el = document.createElement(variant === "action" ? "div" : "span");
-      el.className =
-        "agentero-import agentero-import-" +
-        variant +
-        (borrowedClass ? " " + borrowedClass : "");
+      el.className = "agentero-import agentero-import-" + variant;
       el.title = "导入到我的论文库";
       el.setAttribute("role", "button");
       el.dataset.paperId = id;
       el.innerHTML =
-        LOGO + '<span class="agentero-import-label">' + LABELS.idle + "</span>";
+        '<span class="agentero-import-label">' + LABELS.idle + "</span>";
       return el;
     };
     // The card title is the first text-bearing leaf block inside it — the site's
@@ -367,25 +350,19 @@ html body { overflow-y: visible !important; }
         title.parentNode.insertBefore(titleRow, title);
         titleRow.appendChild(title);
         var cardButton = button(id, "card");
-        // Match the title's line box so the button centres on the text. A
-        // `normal` line-height is not a length, so the CSS fallback stands.
-        var lineHeight = getComputedStyle(title).lineHeight;
-        if (/^[\d.]+px$/.test(lineHeight)) cardButton.style.height = lineHeight;
         titleRow.appendChild(cardButton);
       }
       var current = paperId(location.pathname);
       if (!current) return;
-      // Sit beside the detail page's own 「arXiv 原文 / PDF / Git」 actions, wearing
-      // their classes. The row is found through the arXiv favicon: its classes are
-      // content-hashed and its label is localized, but the icon's src is neither.
+      // Sit beside the detail page's own 「arXiv 原文 / PDF / Git」 actions as a
+      // standalone pill, the same affordance the Papers with Code panel uses. The
+      // row is found through the arXiv favicon: its classes are content-hashed and
+      // its label is localized, but the icon's src is neither.
       var icon = document.querySelector('img[src*="arxiv.org"]');
       var arxivAction = icon && icon.parentElement;
       var row = arxivAction && arxivAction.parentNode;
       if (!row || row.querySelector(".agentero-import-action")) return;
-      row.insertBefore(
-        button(current, "action", arxivAction.className),
-        arxivAction
-      );
+      row.insertBefore(button(current, "action"), arxivAction);
     };
     // React re-renders wipe injected nodes, and the feed also paginates in place.
     var scheduled = false;
@@ -883,7 +860,6 @@ mod tests {
     #[test]
     fn centres_the_card_button_on_the_title_text() {
         assert!(NAV_BRIDGE.contains("align-items: flex-start;"));
-        assert!(NAV_BRIDGE.contains("cardButton.style.height = lineHeight;"));
     }
 
     /// The title is the only structural handle on a card, and requiring one is
@@ -894,23 +870,22 @@ mod tests {
         assert!(NAV_BRIDGE.contains("if (!title || !title.parentNode) continue;"));
     }
 
-    /// Both affordances are buttons carrying the Agentero mark, so they read as
-    /// ours rather than as one of the site's own actions.
+    /// The affordance mirrors the Papers with Code panel: a quiet pill in the
+    /// page's own colour, with no brand mark and no borrowed site classes.
     #[test]
-    fn brands_both_buttons_with_the_agentero_mark() {
-        assert!(NAV_BRIDGE.contains("agentero-import-logo"));
-        // The mark's copper spectacles.
-        assert!(NAV_BRIDGE.contains("#B96442"));
-        assert!(NAV_BRIDGE.contains("border-radius: 6px;"));
+    fn matches_the_papers_with_code_pill_style() {
+        assert!(NAV_BRIDGE.contains("border-radius: 999px;"));
+        assert!(NAV_BRIDGE.contains("color-mix(in oklab, currentColor 7%, transparent)"));
+        assert!(!NAV_BRIDGE.contains("agentero-import-logo"));
+        assert!(!NAV_BRIDGE.contains("borrowedClass"));
     }
 
-    /// The detail affordance joins the site's own action row and borrows its
-    /// classes, so it cannot key off them: the row is reached through the arXiv
-    /// favicon, which is neither content-hashed nor localized.
+    /// The detail affordance joins the site's own action row without borrowing
+    /// its classes: the row is reached through the arXiv favicon, which is
+    /// neither content-hashed nor localized.
     #[test]
     fn matches_the_detail_action_row_buttons() {
         assert!(NAV_BRIDGE.contains("img[src*=\"arxiv.org\"]"));
-        assert!(NAV_BRIDGE.contains("arxivAction.className"));
         assert!(NAV_BRIDGE.contains("row.insertBefore("));
     }
 
