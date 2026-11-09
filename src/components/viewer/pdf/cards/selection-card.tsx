@@ -271,8 +271,21 @@ type SelectionCardProps = {
 	lockHeight?: boolean;
 	/** Allow native corner resizing within the available viewport. */
 	resizable?: boolean;
-	/** Minimum native corner-resize height (px). Defaults to 200. */
+	/** Minimum native resize width (px). Defaults to 280. */
+	resizeMinWidth?: number;
+	/** Minimum native resize height (px). Defaults to 200. */
 	resizeMinHeight?: number;
+	/**
+	 * Design/content cap for horizontal resizing (px). Omit to use the viewport
+	 * room; prose cards pass their reading width so lines never grow unbounded.
+	 */
+	resizeMaxWidth?: number;
+	/**
+	 * Content-derived cap for native resizing (px). The card cannot be dragged
+	 * past the height its own content needs, so prose cards never grow blank
+	 * space below the last line.
+	 */
+	resizeMaxHeight?: number;
 	/** Allow repositioning from the title, independently of the source anchor. */
 	draggable?: boolean;
 	/** Show the centered grip glyph in a draggable header (default true). */
@@ -324,7 +337,10 @@ export function SelectionCard({
 	trackPin = false,
 	lockHeight = false,
 	resizable = false,
+	resizeMinWidth = RESIZE_MIN_WIDTH,
 	resizeMinHeight = RESIZE_MIN_HEIGHT,
+	resizeMaxWidth,
+	resizeMaxHeight,
 	draggable = false,
 	showDragHandle = true,
 	bodyScroll = true,
@@ -429,19 +445,36 @@ export function SelectionCard({
 			)
 		: anchor.top;
 	const maxHeight = anchor.maxHeight;
-	const resizeMaxWidth = Math.max(
+	const resizeRoomWidth = Math.max(
 		0,
 		viewport.width - left - SELECTION_CARD_EDGE,
 	);
-	const resizeMaxHeight = Math.min(
+	const resizeRoomHeight = Math.min(
 		anchoredToSelection ? maxHeight : Infinity,
 		Math.max(0, viewport.height - top - SELECTION_CARD_EDGE),
 	);
+	const resizeWidthCap =
+		resizeMaxWidth !== undefined && Number.isFinite(resizeMaxWidth)
+			? Math.min(resizeRoomWidth, Math.max(0, resizeMaxWidth))
+			: resizeRoomWidth;
+	// Content-derived cap: a card never needs more height than its own text.
+	// Keep the viewport room when the content itself is taller than the window.
+	const resizeHeightCap =
+		resizeMaxHeight !== undefined && Number.isFinite(resizeMaxHeight)
+			? Math.min(resizeRoomHeight, Math.max(0, resizeMaxHeight))
+			: resizeRoomHeight;
 	// Locked cards use the placement cap while anchored; after a drag, shrink
 	// to the room below the new top so a short window does not overflow.
 	const cardMaxHeight = position
-		? Math.min(height, resizeMaxHeight)
+		? Math.min(height, resizeRoomHeight)
 		: maxHeight;
+	// Never let the content cap lift the card's normal placement ceiling (a long
+	// paragraph still scrolls at the preferred height until the user resizes).
+	// Cards without a content cap keep the old viewport-room behaviour.
+	const resizableMaxHeight =
+		resizeMaxHeight !== undefined
+			? Math.min(cardMaxHeight, resizeHeightCap)
+			: resizeHeightCap;
 	// The gutter pin sits on the side the card opens toward. Reveal the card
 	// from that corner so it looks like the pin expands into the full card.
 	const isRightSide = anchor.left + renderedWidth / 2 >= screen.x;
@@ -536,10 +569,10 @@ export function SelectionCard({
 				...(resizable
 					? {
 							resize: "both",
-							minWidth: Math.min(RESIZE_MIN_WIDTH, resizeMaxWidth),
-							minHeight: Math.min(resizeMinHeight, resizeMaxHeight),
-							maxWidth: resizeMaxWidth,
-							maxHeight: resizeMaxHeight,
+							minWidth: Math.min(resizeMinWidth, resizeWidthCap),
+							minHeight: Math.min(resizeMinHeight, resizableMaxHeight),
+							maxWidth: resizeWidthCap,
+							maxHeight: resizableMaxHeight,
 						}
 					: null),
 			}}
