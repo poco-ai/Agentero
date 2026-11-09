@@ -56,6 +56,26 @@ type Options = {
 	layoutRawRegions: Item[];
 };
 
+type CachedTranslate = {
+	id: string;
+	source: string;
+	translated: string;
+};
+
+type PartialView = {
+	pendingRequired: number;
+	translatedCount: number;
+	totalCount: number;
+	pageRange: { start: number; end: number } | null;
+	visible: boolean;
+	open: boolean;
+	completionFailed: boolean;
+	onOpenChange: (open: boolean) => void;
+	onCompleteMissing: () => void;
+	onRetranslateAll: () => void;
+	onDismiss: () => void;
+};
+
 type View = {
 	layoutTranslateItemsByPage: ReadonlyMap<number, readonly Item[]>;
 	layoutTranslatePageStateByPage: ReadonlyMap<
@@ -65,6 +85,10 @@ type View = {
 	layoutTranslateRunning: boolean;
 	layoutTranslateWaiting: boolean;
 	layoutTranslateLabel: string;
+	layoutTranslatePendingRequired: number;
+	layoutTranslateStatus: string;
+	layoutTranslateFromCache: boolean;
+	layoutTranslatePartial: PartialView;
 	toggleLayoutTranslate: () => void;
 	togglePageLayoutTranslate: (pageIndex: number) => void;
 };
@@ -128,6 +152,7 @@ function createHarness() {
 	const dismissed: unknown[][] = [];
 	const enqueues: unknown[][] = [];
 	let cachedLayout: PdfLayoutSidecar | null = null;
+	const dismissedPartialKeys = new Set<string>();
 	const layoutWrites = new Set<(path: string) => void>();
 	const publishedLayouts: unknown[] = [];
 	const backgroundTasks = createFakeStore<{ tasks: FakeTask[] }>({
@@ -147,6 +172,7 @@ function createHarness() {
 	let effects: (() => void)[] = [];
 	let stateWrites = 0;
 	let reflowInput: Item[] = [];
+	let reflowReady = false;
 	let view: View;
 	let options: Options = {
 		docId: "paper-a",
@@ -195,6 +221,23 @@ function createHarness() {
 			});
 		},
 	};
+	let translateSidecar: { items: CachedTranslate[] } | null = null;
+	const applyCachedTranslations = (
+		items: Item[],
+		sidecar: { items: CachedTranslate[] } | null,
+	) => {
+		if (!sidecar?.items.length) return items.map((item) => ({ ...item }));
+		const byId = new Map(sidecar.items.map((item) => [item.id, item]));
+		return items.map((item) => {
+			const cached = byId.get(item.id);
+			if (!cached || cached.source !== item.source) return { ...item };
+			return {
+				...item,
+				status: "done",
+				translated: cached.translated,
+			};
+		});
+	};
 	const layout = {
 		readLayoutSidecar: async () => cachedLayout,
 		mergeCaptionsIntoHosts: (regions: Item[]) => regions,
@@ -217,8 +260,31 @@ function createHarness() {
 			targetLang: "zh",
 			serviceKey: "test",
 		}),
-		readLayoutTranslateSidecar: async () => null,
-		applyLayoutTranslateSidecar: (items: Item[]) => items,
+		readLayoutTranslateSidecar: async () => translateSidecar,
+		applyLayoutTranslateSidecar: applyCachedTranslations,
+		hydrateLayoutTranslateItems: (
+			items: Item[],
+			sidecar: { items: CachedTranslate[] } | null,
+		) => {
+			const hydrated = applyCachedTranslations(items, sidecar);
+			const cachedCount = hydrated.filter((item) =>
+				item.translated?.trim(),
+			).length;
+			return {
+				items: hydrated,
+				cachedCount,
+				pendingRequired: hydrated.length - cachedCount,
+				fromCache: cachedCount > 0,
+			};
+		},
+		countPendingLayoutTranslateItems: (items: Item[]) =>
+			items.filter((item) => !item.translated?.trim()).length,
+		layoutTranslatePendingPageRange: (items: Item[]) => {
+			const pending = items.filter((item) => !item.translated?.trim());
+			if (!pending.length) return null;
+			const pages = pending.map((item) => item.pageIndex);
+			return { start: Math.min(...pages) + 1, end: Math.max(...pages) + 1 };
+		},
 		hasPendingLayoutTranslateItems: (items: Item[]) =>
 			items.some((item) => item.status !== "done" || !item.translated?.trim()),
 		groupLayoutTranslateItemsByPage(items: Item[]) {
@@ -256,7 +322,7 @@ function createHarness() {
 					reflowItems: items,
 					prepare: prepareReflow,
 					reflowBusy: false,
-					reflowReady: false,
+					reflowReady,
 					exportTranslatedPdf: async () => {},
 				};
 			},
@@ -291,6 +357,29 @@ function createHarness() {
 			subscribeLayoutSidecarWrite: (listener: (path: string) => void) => {
 				layoutWrites.add(listener);
 				return () => layoutWrites.delete(listener);
+			},
+		},
+		"@/lib/pdf/translation-partial-dismissal": {
+			translationPartialDismissalKey: ({
+				paperKey,
+				pendingItems,
+			}: {
+				paperKey: string;
+				pendingItems: Item[];
+			}) =>
+				pendingItems.length > 0
+					? `${paperKey}:${pendingItems
+							.map((item) => item.id)
+							.sort()
+							.join(",")}`
+					: null,
+			isTranslationPartialDismissed: (key: string | null) =>
+				key != null && dismissedPartialKeys.has(key),
+			dismissTranslationPartial: (key: string | null) => {
+				if (key) dismissedPartialKeys.add(key);
+			},
+			clearTranslationPartialDismissal: (key: string | null) => {
+				if (key) dismissedPartialKeys.delete(key);
 			},
 		},
 		"@/lib/pdf/layout/layout-translate-progress": translateProgress,
@@ -330,8 +419,16 @@ function createHarness() {
 		successes,
 		warnings,
 		dismissed,
+		dismissedPartialKeys,
 		enqueues,
 		publishedLayouts,
+		setReflowReady(ready: boolean) {
+			reflowReady = ready;
+			dirty = true;
+		},
+		setTranslateSidecar(items: CachedTranslate[]) {
+			translateSidecar = { items };
+		},
 		setCachedLayout(regions: Item[], notify = false) {
 			cachedLayout = {
 				schemaVersion: 3,
@@ -387,6 +484,191 @@ it("starts from an existing layout cache without a new parse or viewer file even
 	assert.equal(h.view.layoutTranslateWaiting, false);
 	assert.equal(h.runs.length, 1);
 	assert.equal(h.publishedLayouts.length, 1);
+});
+
+it("hydrates a partial sidecar and starts no translation request", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.view.layoutTranslateRunning, false);
+	assert.equal(h.view.layoutTranslateStatus, "partial");
+	assert.equal(h.view.layoutTranslatePendingRequired, 1);
+	assert.equal(h.view.layoutTranslateFromCache, true);
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+		"译文 0",
+	);
+});
+
+it("hydrates a complete sidecar as done without a translation request", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+		{ id: "region-1", source: "Source 1", translated: "译文 1" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(h.view.layoutTranslatePendingRequired, 0);
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 2);
+});
+
+it("auto-opens the partial dialog once after the cached page is ready", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	// The popover opens while page generation continues in the background.
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
+	assert.equal(h.view.layoutTranslatePartial.open, true);
+	assert.equal(h.view.layoutTranslatePartial.pendingRequired, 1);
+	assert.equal(h.view.layoutTranslatePartial.translatedCount, 1);
+	assert.equal(h.view.layoutTranslatePartial.totalCount, 2);
+	assert.deepEqual(h.view.layoutTranslatePartial.pageRange, {
+		start: 2,
+		end: 2,
+	});
+
+	h.view.layoutTranslatePartial.onOpenChange(false);
+	h.render();
+	assert.equal(h.view.layoutTranslatePartial.open, false);
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
+	h.view.layoutTranslatePartial.onOpenChange(true);
+	h.render();
+	assert.equal(h.view.layoutTranslatePartial.open, true);
+});
+
+it("ignores the partial hint without removing the entry", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	h.setReflowReady(true);
+	h.render();
+	assert.equal(h.view.layoutTranslatePartial.open, true);
+	h.view.layoutTranslatePartial.onDismiss();
+	h.render();
+	assert.equal(h.view.layoutTranslatePartial.open, false);
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
+	assert.equal(h.dismissedPartialKeys.size, 1);
+	// The entry still opens manually after "ignore".
+	h.view.layoutTranslatePartial.onOpenChange(true);
+	h.render();
+	assert.equal(h.view.layoutTranslatePartial.open, true);
+});
+
+it("completes only pending blocks and rewrites the sidecar", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	h.setReflowReady(true);
+	h.render();
+	const writes = h.writes.length;
+	h.view.layoutTranslatePartial.onCompleteMissing();
+	await h.flush();
+	assert.equal(h.runs.length, 1);
+	assert.equal(h.runs[0].items[0].status, "done");
+	assert.equal(h.runs[0].items[0].translated, "译文 0");
+	assert.equal(h.runs[0].items[1].status, "running");
+	assert.equal(h.runs[0].items[1].translated, undefined);
+	assert.equal(h.view.layoutTranslateRunning, true);
+	h.runs[0].resolve(
+		h.runs[0].items.map((item, index) =>
+			index === 0
+				? { ...item, status: "done", translated: "译文 0" }
+				: { ...item, status: "done", translated: "补全译文" },
+		),
+	);
+	await h.flush();
+	assert.equal(h.view.layoutTranslateRunning, false);
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(h.view.layoutTranslatePendingRequired, 0);
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+		"译文 0",
+	);
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(1)?.[0]?.translated,
+		"补全译文",
+	);
+	assert.equal(h.writes.length, writes + 1);
+});
+
+it("keeps the partial entry after a failed completion without reopening", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	h.setReflowReady(true);
+	h.render();
+	h.view.layoutTranslatePartial.onCompleteMissing();
+	await h.flush();
+	h.runs[0].resolve([
+		h.runs[0].items[0],
+		{ ...h.runs[0].items[1], status: "error", error: "boom" },
+	]);
+	await h.flush();
+	assert.equal(h.view.layoutTranslateStatus, "partial");
+	assert.equal(h.view.layoutTranslatePendingRequired, 1);
+	assert.equal(h.view.layoutTranslatePartial.visible, true);
+	assert.equal(h.view.layoutTranslatePartial.open, false);
+	assert.equal(h.view.layoutTranslatePartial.completionFailed, true);
+	assert.equal(h.errors.length, 1);
+});
+
+it("retranslates everything and restores old text for failed blocks", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+		{ id: "region-1", source: "Source 1", translated: "译文 1" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	h.setReflowReady(true);
+	h.render();
+	h.view.layoutTranslatePartial.onRetranslateAll();
+	await h.flush();
+	assert.equal(h.runs.length, 1);
+	assert.deepEqual(
+		h.runs[0].items.map((item) => item.status),
+		["pending", "pending"],
+	);
+	// Old text stays painted while the confirmed rerun streams.
+	assert.equal(h.runs[0].items[0].translated, "译文 0");
+	h.runs[0].resolve([
+		{ ...h.runs[0].items[0], status: "done", translated: "新译文 0" },
+		{ ...h.runs[0].items[1], status: "error", error: "boom" },
+	]);
+	await h.flush();
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(h.view.layoutTranslatePendingRequired, 0);
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+		"新译文 0",
+	);
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(1)?.[0]?.translated,
+		"译文 1",
+	);
+	const lastWrite = h.writes.at(-1)?.[2] as Item[] | undefined;
+	assert.equal(
+		lastWrite?.find((item) => item.id === "region-1")?.translated,
+		"译文 1",
+	);
 });
 
 it("loads the layout when a headless parse writes it without a viewer file event", async () => {
@@ -496,7 +778,7 @@ it("retries a stopped page before the old request settles", async () => {
 	assert.equal(h.view.layoutTranslateRunning, true);
 });
 
-it("resumes a stopped document and reuses its completed blocks", async () => {
+it("hides a stopped document instead of resuming translation", async () => {
 	const h = createHarness();
 	h.view.toggleLayoutTranslate();
 	await h.flush();
@@ -507,13 +789,42 @@ it("resumes a stopped document and reuses its completed blocks", async () => {
 	h.render();
 	h.view.toggleLayoutTranslate(); // stop
 	h.render();
-	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.start");
-	h.view.toggleLayoutTranslate(); // resume
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.hide");
+	h.view.toggleLayoutTranslate(); // hide, do not resume
+	h.render();
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.show");
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
+	h.view.toggleLayoutTranslate(); // show retained text
 	await h.flush();
-	assert.equal(h.runs.length, 2);
-	assert.equal(h.runs[1].items[0].translated, "Keep this");
-	assert.equal(h.runs[1].items[0].status, "done");
-	assert.equal(h.view.layoutTranslateRunning, true);
+	assert.equal(h.runs.length, 1);
+	assert.equal(h.view.layoutTranslateRunning, false);
+	assert.equal(h.view.layoutTranslateStatus, "cancelled");
+	assert.equal(h.view.layoutTranslatePendingRequired, 1);
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+		"Keep this",
+	);
+});
+
+it("switches a partial cache without translating again", async () => {
+	const h = createHarness();
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.runs.length, 0);
+	assert.equal(h.view.layoutTranslateStatus, "partial");
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.hide");
+	h.view.toggleLayoutTranslate(); // hide
+	h.render();
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.show");
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 0);
+	h.view.toggleLayoutTranslate(); // show
+	await h.flush();
+	assert.equal(h.view.layoutTranslateLabel, "pdf.layoutTranslate.hide");
+	assert.equal(h.view.layoutTranslateItemsByPage.size, 2);
+	assert.equal(h.runs.length, 0);
 });
 
 for (const mode of ["document", "page"]) {

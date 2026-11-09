@@ -20,13 +20,18 @@ import { sameRelPaperPath } from "@/lib/core/path";
 import {
 	applyLayoutTranslateSidecar,
 	buildLayoutDocumentResult,
+	countPendingLayoutTranslateItems,
 	currentLayoutTranslateCacheKey,
 	enqueuePaperLayoutAnalysis,
 	groupLayoutTranslateItemsByPage,
 	hasPendingLayoutTranslateItems,
+	hydrateLayoutTranslateItems,
+	type LayoutTranslateCacheKey,
 	type LayoutTranslateItem,
 	type LayoutTranslateJobStatus,
+	type LayoutTranslateRunScope,
 	layoutAnalysisStore,
+	layoutTranslatePendingPageRange,
 	listTranslatableLayoutRegions,
 	mergeCaptionsIntoHosts,
 	normalizeLayoutPaperKey,
@@ -46,6 +51,12 @@ import {
 	layoutTranslateDisplayRatio,
 	layoutTranslateSettledRatio,
 } from "@/lib/pdf/layout/layout-translate-progress";
+import {
+	clearTranslationPartialDismissal,
+	dismissTranslationPartial,
+	isTranslationPartialDismissed,
+	translationPartialDismissalKey,
+} from "@/lib/pdf/translation-partial-dismissal";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { displayTranslateError } from "@/lib/translate";
 
@@ -66,6 +77,24 @@ export type UsePdfLayoutTranslateOptions = {
 	vaultPath?: string | null;
 	/** Viewer PDF bytes; hashed into the reflow IR cache key. */
 	pdfBytes?: ArrayBuffer | null;
+};
+
+/** View model for the partial-translation button and its anchored dialog. */
+export type PdfLayoutTranslatePartial = {
+	pendingRequired: number;
+	translatedCount: number;
+	totalCount: number;
+	/** 1-based inclusive page span of the untranslated blocks. */
+	pageRange: { start: number; end: number } | null;
+	/** The trigger is rendered only while true (no translation run in flight). */
+	visible: boolean;
+	open: boolean;
+	/** A completion / retranslate attempt already ran and gaps remain. */
+	completionFailed: boolean;
+	onOpenChange: (open: boolean) => void;
+	onCompleteMissing: () => void;
+	onRetranslateAll: () => void;
+	onDismiss: () => void;
 };
 
 export type PdfLayoutTranslate = {
@@ -93,6 +122,14 @@ export type PdfLayoutTranslate = {
 	layoutTranslateActive: boolean;
 	/** Toolbar button label for the current job phase. */
 	layoutTranslateLabel: string;
+	/** Blocks with no translated text; drives the partial-translation entry. */
+	layoutTranslatePendingRequired: number;
+	/** At least one job block already had a translation when the job started. */
+	layoutTranslateFromCache: boolean;
+	/** Job phase, including `partial` after a cache hydrate or interrupted run. */
+	layoutTranslateStatus: LayoutTranslateJobStatus;
+	/** Partial-translation entry; render the button only when `visible`. */
+	layoutTranslatePartial: PdfLayoutTranslatePartial;
 	/**
 	 * Settled blocks ÷ blocks in the job, 0–1.
 	 * Null before the job has any blocks (the meter stays indeterminate).
@@ -108,6 +145,65 @@ export type PdfLayoutTranslate = {
 type LayoutTranslateWaitTarget =
 	| { mode: "document" }
 	| { mode: "page"; pageIndex: number };
+
+/**
+ * One bulk-translate job. `runScopeIds` is the block set the meter measures:
+ * a pending-completion run must not start from the whole-document ratio.
+ */
+type LayoutTranslateJobState = {
+	status: LayoutTranslateJobStatus;
+	items: LayoutTranslateItem[];
+	/** True when the job started from (or reused) already translated blocks. */
+	fromCache: boolean;
+	runScope: LayoutTranslateRunScope;
+	runScopeIds: readonly string[];
+	/** Cache identity backing `items`; keys the UI-only dismissal state. */
+	cacheKey: LayoutTranslateCacheKey | null;
+	/** Identity of the current gap set; null when nothing is pending. */
+	partialDismissKey: string | null;
+	/** A completion / retranslate ran and some blocks still have no translation. */
+	partialCompletionFailed: boolean;
+};
+
+const EMPTY_LAYOUT_TRANSLATE_JOB: LayoutTranslateJobState = {
+	status: "idle",
+	items: [],
+	fromCache: false,
+	runScope: "initial",
+	runScopeIds: [],
+	cacheKey: null,
+	partialDismissKey: null,
+	partialCompletionFailed: false,
+};
+
+function layoutTranslateJobPatch(
+	patch: Partial<LayoutTranslateJobState>,
+): LayoutTranslateJobState {
+	return { ...EMPTY_LAYOUT_TRANSLATE_JOB, ...patch };
+}
+
+/** Dismissal identity for the untranslated subset of `items`. */
+function layoutTranslatePendingDismissKey(
+	paperKey: string,
+	cacheKey: LayoutTranslateCacheKey | null,
+	items: readonly LayoutTranslateItem[],
+): string | null {
+	return translationPartialDismissalKey({
+		paperKey,
+		cacheKey,
+		pendingItems: items.filter((item) => !item.translated?.trim()),
+	});
+}
+
+/** Run ids for the meter: the whole block list unless the run only fills gaps. */
+function layoutTranslateScopeIds(
+	items: readonly LayoutTranslateItem[],
+	onlyPending: boolean,
+): string[] {
+	return items
+		.filter((item) => !onlyPending || !item.translated?.trim())
+		.map((item) => item.id);
+}
 
 function mergeTranslatePageItems(
 	items: readonly LayoutTranslateItem[],
@@ -157,6 +253,49 @@ function resetRunningTranslateItems(
 	return items.map((item) =>
 		item.status === "running" ? { ...item, status: "pending" } : item,
 	);
+}
+
+type TranslatedSnapshot = {
+	translated: string;
+	sentences?: LayoutTranslateItem["sentences"];
+};
+
+/** Remember successful translations before a run that may clear them. */
+function snapshotTranslatedItems(
+	items: readonly LayoutTranslateItem[],
+): Map<string, TranslatedSnapshot> {
+	const snapshot = new Map<string, TranslatedSnapshot>();
+	for (const item of items) {
+		if (!item.translated?.trim()) continue;
+		snapshot.set(item.id, {
+			translated: item.translated,
+			sentences: item.sentences,
+		});
+	}
+	return snapshot;
+}
+
+/**
+ * A failed batch clears the block's translation. Put the pre-run translation
+ * back so retranslate failures never erase an existing cache.
+ */
+function restoreTranslatedItems(
+	items: readonly LayoutTranslateItem[],
+	snapshot: ReadonlyMap<string, TranslatedSnapshot>,
+): LayoutTranslateItem[] {
+	if (snapshot.size === 0) return items.map((item) => ({ ...item }));
+	return items.map((item) => {
+		if (item.translated?.trim()) return { ...item };
+		const previous = snapshot.get(item.id);
+		if (!previous) return { ...item };
+		return {
+			...item,
+			status: "done" as const,
+			translated: previous.translated,
+			sentences: previous.sentences,
+			error: undefined,
+		};
+	});
 }
 
 /** One items state update per frame while batches stream in. */
@@ -231,12 +370,15 @@ export function usePdfLayoutTranslate({
 	/** Progressive layout bulk-translate overlays (body text / abstract / header). */
 	const [sourcePreparing, setSourcePreparing] = useState(false);
 	const [cacheOnly, setCacheOnly] = useState(false);
-	const [layoutTranslateJob, setLayoutTranslateJob] = useState<{
-		status: LayoutTranslateJobStatus;
-		items: LayoutTranslateItem[];
-	}>({ status: "idle", items: [] });
+	const [layoutTranslateJob, setLayoutTranslateJob] =
+		useState<LayoutTranslateJobState>(EMPTY_LAYOUT_TRANSLATE_JOB);
 	const layoutTranslateJobRef = useRef(layoutTranslateJob);
 	layoutTranslateJobRef.current = layoutTranslateJob;
+	const [partialDialogOpen, setPartialDialogOpen] = useState(false);
+	/** Gap identity that already got its one automatic open this session. */
+	const partialAutoOpenedKeyRef = useRef<string | null>(null);
+	/** Stable paper identity for the machine-local dismissal records. */
+	const dismissalPaperKey = paperAbsPath ?? paperRelPath ?? docId;
 	// Visibility must not discard the translation or invalidate its reflow preview.
 	const [hiddenPageIndexes, setHiddenPageIndexes] = useState<
 		ReadonlySet<number>
@@ -298,16 +440,23 @@ export function usePdfLayoutTranslate({
 		layoutTranslateAbortRef.current?.abort();
 		layoutTranslateAbortRef.current = null;
 		setSourcePreparing(false);
-		setLayoutTranslateJob((prev) =>
-			prev.status === "running"
-				? {
-						...prev,
-						status: "cancelled",
-						items: resetRunningTranslateItems(prev.items),
-					}
-				: prev,
-		);
-	}, []);
+		setPartialDialogOpen(false);
+		setLayoutTranslateJob((prev) => {
+			if (prev.status !== "running") return prev;
+			const items = resetRunningTranslateItems(prev.items);
+			return {
+				...prev,
+				status: "cancelled",
+				items,
+				partialDismissKey: layoutTranslatePendingDismissKey(
+					dismissalPaperKey,
+					prev.cacheKey,
+					items,
+				),
+				partialCompletionFailed: false,
+			};
+		});
+	}, [dismissalPaperKey]);
 
 	// `runLayoutRegionTranslate` settles per-chain errors into item state instead
 	// of throwing, so a dead translation API would otherwise finish silently.
@@ -338,9 +487,7 @@ export function usePdfLayoutTranslate({
 		waitingAutoStartedRef.current = false;
 		toast.dismiss(layoutTranslateWaitToastIdRef.current);
 		setLayoutTranslateJob((prev) =>
-			prev.status === "waitingLayout"
-				? { status: "idle", items: prev.items }
-				: prev,
+			prev.status === "waitingLayout" ? { ...prev, status: "idle" } : prev,
 		);
 	}, []);
 
@@ -369,8 +516,8 @@ export function usePdfLayoutTranslate({
 			}
 			waitingAutoStartedRef.current = false;
 			setLayoutTranslateJob((prev) => ({
+				...prev,
 				status: "waitingLayout",
-				items: prev.items,
 			}));
 		},
 		[
@@ -381,6 +528,18 @@ export function usePdfLayoutTranslate({
 			t,
 		],
 	);
+
+	/**
+	 * Ask for at most one automatic popover per gap set. Dismissed sets stay
+	 * silent across sessions; a changed gap set has a new key and asks again.
+	 */
+	const schedulePartialAutoOpen = useCallback((dismissKey: string | null) => {
+		if (!dismissKey) return;
+		if (partialAutoOpenedKeyRef.current === dismissKey) return;
+		partialAutoOpenedKeyRef.current = dismissKey;
+		if (isTranslationPartialDismissed(dismissKey)) return;
+		setPartialDialogOpen(true);
+	}, []);
 
 	const startLayoutTranslate = useCallback(() => {
 		const raw = layoutRawRegions;
@@ -403,11 +562,22 @@ export function usePdfLayoutTranslate({
 			toLayoutTranslateItems(regions),
 			layoutTranslateJobRef.current.items,
 		);
-		setLayoutTranslateJob({ status: "running", items: pendingItems });
+		const seedScopeIds = layoutTranslateScopeIds(pendingItems, true);
+		setLayoutTranslateJob(
+			layoutTranslateJobPatch({
+				status: "running",
+				items: pendingItems,
+				fromCache: false,
+				runScope: "initial",
+				runScopeIds: seedScopeIds,
+				cacheKey,
+			}),
+		);
 		const publishes = createTranslatePublishCoalescer((next) => {
 			if (ac.signal.aborted) return;
 			persistLayoutTranslateSidecarBestEffort(paperAbsPath, cacheKey, next);
 			setLayoutTranslateJob((prev) => ({
+				...prev,
 				status: prev.status === "cancelled" ? "cancelled" : "running",
 				items: next,
 			}));
@@ -418,18 +588,44 @@ export function usePdfLayoutTranslate({
 			const prepared = await prepareReflow(pendingItems, ac.signal);
 			if (ac.signal.aborted) return;
 			setSourcePreparing(false);
-			const items = applyLayoutTranslateSidecar(prepared, sidecar, {
+			// Cache-first: render every hydrated block, then translate only when
+			// the sidecar had nothing usable. A cache with gaps stays partial.
+			const hydration = hydrateLayoutTranslateItems(prepared, sidecar, {
 				requireReflowSentencePairs: true,
 			});
-			const needsRun = hasPendingLayoutTranslateItems(items);
+			const needsRun = !hydration.fromCache;
+			const dismissKey = layoutTranslatePendingDismissKey(
+				dismissalPaperKey,
+				cacheKey,
+				hydration.items,
+			);
 			setCacheOnly(!needsRun);
 			setLayoutTranslateJob({
-				status: needsRun ? "running" : "done",
-				items,
+				status: needsRun
+					? "running"
+					: hydration.pendingRequired > 0
+						? "partial"
+						: "done",
+				items: hydration.items,
+				fromCache: hydration.fromCache,
+				runScope: "initial",
+				runScopeIds: layoutTranslateScopeIds(
+					hydration.items,
+					hydration.pendingRequired > 0,
+				),
+				cacheKey,
+				partialDismissKey: dismissKey,
+				partialCompletionFailed: false,
 			});
-			if (!needsRun) return;
+			if (!needsRun) {
+				// Cache-first renders a partial page without asking the user yet;
+				// the popover opens once the page build finishes and the button can
+				// anchor it. The build itself is never blocked.
+				if (hydration.pendingRequired > 0) schedulePartialAutoOpen(dismissKey);
+				return;
+			}
 			const finalItems = await runLayoutRegionTranslate({
-				items,
+				items: hydration.items,
 				signal: ac.signal,
 				paperKey,
 				vaultPath,
@@ -447,18 +643,26 @@ export function usePdfLayoutTranslate({
 				finalItems,
 			);
 			notifyTranslateItemErrors(finalItems);
-			setLayoutTranslateJob({
+			const pendingKey = layoutTranslatePendingDismissKey(
+				dismissalPaperKey,
+				cacheKey,
+				finalItems,
+			);
+			setLayoutTranslateJob((prev) => ({
+				...prev,
 				status: hasPendingLayoutTranslateItems(finalItems) ? "partial" : "done",
 				items: finalItems,
-			});
+				partialDismissKey: pendingKey,
+				partialCompletionFailed: false,
+			}));
 		})()
 			.catch((e) => {
 				if (ac.signal.aborted) return;
 				const message = displayTranslateError(errorText(e));
 				notifyTranslateFailure(message);
 				setLayoutTranslateJob((prev) => ({
+					...prev,
 					status: "partial",
-					items: prev.items,
 				}));
 			})
 			.finally(() => {
@@ -473,12 +677,17 @@ export function usePdfLayoutTranslate({
 		paperAbsPath,
 		paperKey,
 		vaultPath,
+		dismissalPaperKey,
 		enterWaitingLayout,
 		prepareReflow,
 		notifyTranslateItemErrors,
 		notifyTranslateFailure,
+		schedulePartialAutoOpen,
 		t,
 	]);
+	/** Cache-miss fallback from the translation pane's hydrate effect. */
+	const startLayoutTranslateRef = useRef(startLayoutTranslate);
+	startLayoutTranslateRef.current = startLayoutTranslate;
 
 	const startPageLayoutTranslate = useCallback(
 		(pageIndex: number) => {
@@ -511,8 +720,12 @@ export function usePdfLayoutTranslate({
 					(item) => item.pageIndex === pageIndex,
 				),
 			);
+			// A page run keeps measuring the whole visible job, as before.
 			setLayoutTranslateJob((prev) => ({
+				...prev,
 				status: "running",
+				runScope: "all",
+				runScopeIds: [],
 				items: mergeTranslatePageItems(
 					resetRunningTranslateItems(prev.items),
 					pageIndex,
@@ -526,6 +739,7 @@ export function usePdfLayoutTranslate({
 					replacePageIndexes: [pageIndex],
 				});
 				setLayoutTranslateJob((prev) => ({
+					...prev,
 					status: prev.status === "cancelled" ? "cancelled" : "running",
 					items: mergeTranslatePageItems(prev.items, pageIndex, next),
 				}));
@@ -551,6 +765,7 @@ export function usePdfLayoutTranslate({
 						pageItems,
 					);
 					return {
+						...prev,
 						status: needsRun
 							? "running"
 							: hasPendingLayoutTranslateItems(merged)
@@ -589,6 +804,7 @@ export function usePdfLayoutTranslate({
 						finalPageItems,
 					);
 					return {
+						...prev,
 						status: hasPendingLayoutTranslateItems(merged) ? "partial" : "done",
 						items: merged,
 					};
@@ -599,8 +815,8 @@ export function usePdfLayoutTranslate({
 					const message = displayTranslateError(errorText(e));
 					notifyTranslateFailure(message);
 					setLayoutTranslateJob((prev) => ({
+						...prev,
 						status: "partial",
-						items: prev.items,
 					}));
 				})
 				.finally(() => {
@@ -665,6 +881,244 @@ export function usePdfLayoutTranslate({
 		],
 	);
 
+	/**
+	 * Translate only the blocks still missing a translation. Completed blocks
+	 * keep their text and the sidecar is rewritten from the merged result, so a
+	 * partial run can never drop cached translations.
+	 */
+	const completeMissingLayoutTranslate = useCallback(() => {
+		const job = layoutTranslateJobRef.current;
+		if (job.status === "running" || job.status === "waitingLayout") return;
+		const pendingIds = new Set(
+			job.items
+				.filter((item) => !item.translated?.trim())
+				.map((item) => item.id),
+		);
+		if (pendingIds.size === 0) return;
+		const cacheKey = job.cacheKey ?? currentLayoutTranslateCacheKey();
+		const snapshot = snapshotTranslatedItems(job.items);
+		layoutTranslateAbortRef.current?.abort();
+		const ac = new AbortController();
+		layoutTranslateAbortRef.current = ac;
+		setPartialDialogOpen(false);
+		setHiddenPageIndexes(new Set());
+		setSourcePreparing(false);
+		setCacheOnly(false);
+		const scopeIds = [...pendingIds];
+		const seed = job.items.map((item) =>
+			pendingIds.has(item.id)
+				? { ...item, status: "running" as const, error: undefined }
+				: item,
+		);
+		setLayoutTranslateJob({
+			...job,
+			status: "running",
+			items: seed,
+			cacheKey,
+			runScope: "pending",
+			runScopeIds: scopeIds,
+			partialDismissKey: null,
+			partialCompletionFailed: false,
+		});
+		const publishes = createTranslatePublishCoalescer((next) => {
+			if (ac.signal.aborted) return;
+			setLayoutTranslateJob((prev) => ({
+				...prev,
+				status: prev.status === "cancelled" ? "cancelled" : "running",
+				items: next,
+			}));
+		});
+		void (async () => {
+			const finalItems = await runLayoutRegionTranslate({
+				items: seed.map((item) => ({ ...item })),
+				signal: ac.signal,
+				paperKey,
+				vaultPath,
+				onUpdate: (next) => {
+					if (ac.signal.aborted) return;
+					publishes.push(next);
+				},
+			});
+			if (ac.signal.aborted || layoutTranslateAbortRef.current !== ac) return;
+			const settled = restoreTranslatedItems(finalItems, snapshot);
+			persistLayoutTranslateSidecarBestEffort(paperAbsPath, cacheKey, settled);
+			notifyTranslateItemErrors(settled);
+			const pending = settled.filter((item) => !item.translated?.trim());
+			const dismissKey = layoutTranslatePendingDismissKey(
+				dismissalPaperKey,
+				cacheKey,
+				settled,
+			);
+			if (!dismissKey) clearTranslationPartialDismissal(job.partialDismissKey);
+			setLayoutTranslateJob((prev) => ({
+				...prev,
+				status: pending.length > 0 ? "partial" : "done",
+				items: settled,
+				cacheKey,
+				runScope: "pending",
+				runScopeIds: scopeIds,
+				partialDismissKey: dismissKey,
+				// Failure keeps the button visible but must not auto-open again.
+				partialCompletionFailed: pending.length > 0,
+			}));
+		})()
+			.catch((error) => {
+				if (ac.signal.aborted) return;
+				notifyTranslateFailure(displayTranslateError(errorText(error)));
+				setLayoutTranslateJob((prev) => {
+					const settled = restoreTranslatedItems(
+						resetRunningTranslateItems(prev.items),
+						snapshot,
+					);
+					const pending = settled.filter((item) => !item.translated?.trim());
+					return {
+						...prev,
+						status: "partial",
+						items: settled,
+						partialDismissKey: layoutTranslatePendingDismissKey(
+							dismissalPaperKey,
+							cacheKey,
+							settled,
+						),
+						partialCompletionFailed: pending.length > 0,
+					};
+				});
+			})
+			.finally(() => {
+				publishes.cancel();
+				if (layoutTranslateAbortRef.current === ac) {
+					if (!ac.signal.aborted) setSourcePreparing(false);
+					layoutTranslateAbortRef.current = null;
+				}
+			});
+	}, [
+		paperAbsPath,
+		paperKey,
+		vaultPath,
+		dismissalPaperKey,
+		notifyTranslateFailure,
+		notifyTranslateItemErrors,
+	]);
+
+	/**
+	 * Re-request the whole document after an explicit confirmation. Every
+	 * successful block is replaced; a failed block falls back to its pre-run
+	 * translation so one bad pass cannot empty the cache.
+	 */
+	const retranslateAllLayoutTranslate = useCallback(() => {
+		const job = layoutTranslateJobRef.current;
+		if (job.status === "running" || job.status === "waitingLayout") return;
+		if (job.items.length === 0) return;
+		const cacheKey = job.cacheKey ?? currentLayoutTranslateCacheKey();
+		const snapshot = snapshotTranslatedItems(job.items);
+		clearTranslationPartialDismissal(job.partialDismissKey);
+		layoutTranslateAbortRef.current?.abort();
+		const ac = new AbortController();
+		layoutTranslateAbortRef.current = ac;
+		setPartialDialogOpen(false);
+		setHiddenPageIndexes(new Set());
+		setSourcePreparing(false);
+		setCacheOnly(false);
+		const scopeIds = job.items.map((item) => item.id);
+		// Keep the old text painted while the new pass streams; status alone
+		// tells the runner that every block still needs a request.
+		const seed = job.items.map((item) => ({
+			...item,
+			status: "pending" as const,
+			error: undefined,
+		}));
+		setLayoutTranslateJob({
+			...job,
+			status: "running",
+			items: seed,
+			cacheKey,
+			runScope: "all",
+			runScopeIds: scopeIds,
+			partialDismissKey: null,
+			partialCompletionFailed: false,
+		});
+		const publishes = createTranslatePublishCoalescer((next) => {
+			if (ac.signal.aborted) return;
+			setLayoutTranslateJob((prev) => ({
+				...prev,
+				status: prev.status === "cancelled" ? "cancelled" : "running",
+				items: next,
+			}));
+		});
+		void (async () => {
+			const finalItems = await runLayoutRegionTranslate({
+				items: seed.map((item) => ({ ...item })),
+				signal: ac.signal,
+				paperKey,
+				vaultPath,
+				onUpdate: (next) => {
+					if (ac.signal.aborted) return;
+					publishes.push(next);
+				},
+			});
+			if (ac.signal.aborted || layoutTranslateAbortRef.current !== ac) return;
+			const settled = restoreTranslatedItems(finalItems, snapshot);
+			persistLayoutTranslateSidecarBestEffort(paperAbsPath, cacheKey, settled);
+			notifyTranslateItemErrors(settled);
+			const pending = settled.filter((item) => !item.translated?.trim());
+			setLayoutTranslateJob((prev) => ({
+				...prev,
+				status: pending.length > 0 ? "partial" : "done",
+				items: settled,
+				cacheKey,
+				runScope: "all",
+				runScopeIds: scopeIds,
+				partialDismissKey: layoutTranslatePendingDismissKey(
+					dismissalPaperKey,
+					cacheKey,
+					settled,
+				),
+				partialCompletionFailed: pending.length > 0,
+			}));
+		})()
+			.catch((error) => {
+				if (ac.signal.aborted) return;
+				notifyTranslateFailure(displayTranslateError(errorText(error)));
+				setLayoutTranslateJob((prev) => {
+					const settled = restoreTranslatedItems(
+						resetRunningTranslateItems(prev.items),
+						snapshot,
+					);
+					const pending = settled.filter((item) => !item.translated?.trim());
+					return {
+						...prev,
+						status: pending.length > 0 ? "partial" : "done",
+						items: settled,
+						partialDismissKey: layoutTranslatePendingDismissKey(
+							dismissalPaperKey,
+							cacheKey,
+							settled,
+						),
+						partialCompletionFailed: pending.length > 0,
+					};
+				});
+			})
+			.finally(() => {
+				publishes.cancel();
+				if (layoutTranslateAbortRef.current === ac) {
+					if (!ac.signal.aborted) setSourcePreparing(false);
+					layoutTranslateAbortRef.current = null;
+				}
+			});
+	}, [
+		paperAbsPath,
+		paperKey,
+		vaultPath,
+		dismissalPaperKey,
+		notifyTranslateFailure,
+		notifyTranslateItemErrors,
+	]);
+
+	/**
+	 * The main button owns original/translated switching. Pending gaps never
+	 * make it translate again: completion and full retranslation live on the
+	 * partial entry. Stopping keeps completed text and the next click hides it.
+	 */
 	const toggleLayoutTranslate = useCallback(() => {
 		if (layoutTranslateJob.status === "waitingLayout") {
 			cancelWaitingLayout();
@@ -676,14 +1130,6 @@ export function usePdfLayoutTranslate({
 		}
 		if (hiddenPageIndexes.size > 0) {
 			setHiddenPageIndexes(new Set());
-			return;
-		}
-		if (
-			layoutTranslateJob.status === "partial" ||
-			(layoutTranslateJob.items.length > 0 &&
-				hasPendingLayoutTranslateItems(layoutTranslateJob.items))
-		) {
-			startLayoutTranslate();
 			return;
 		}
 		if (layoutTranslateJob.items.some((item) => item.translated?.trim())) {
@@ -710,7 +1156,9 @@ export function usePdfLayoutTranslate({
 		setHiddenPageIndexes(new Set());
 		layoutTranslateWaitTargetRef.current = null;
 		waitingAutoStartedRef.current = false;
-		setLayoutTranslateJob({ status: "idle", items: [] });
+		partialAutoOpenedKeyRef.current = null;
+		setPartialDialogOpen(false);
+		setLayoutTranslateJob(EMPTY_LAYOUT_TRANSLATE_JOB);
 		return () => {
 			layoutTranslateAbortRef.current?.abort();
 		};
@@ -813,38 +1261,91 @@ export function usePdfLayoutTranslate({
 
 	// A translation pane must show the source pane's completed cache immediately;
 	// it should not depend on starting a second translation job or on the source
-	// pane's local React state.
+	// pane's local React state. Cache hydrate is shared with `startLayoutTranslate`
+	// so both modes agree on cached blocks and the remaining pending set.
 	useEffect(() => {
 		if (!translationPane || !paperAbsPath) return;
 		let cancelled = false;
-		void readLayoutTranslateSidecar(
-			paperAbsPath,
-			currentLayoutTranslateCacheKey(),
-		)
-			.then(async (sidecar) => {
-				if (cancelled || !sidecar?.items.length) return;
-				const seed = layoutRawRegions?.length
-					? toLayoutTranslateItems(
-							listTranslatableLayoutRegions(layoutRawRegions),
-						)
-					: sidecar.items.map((item) => ({ ...item, status: "done" as const }));
-				const items = applyLayoutTranslateSidecar(
-					await prepareReflow(seed),
-					sidecar,
-				);
-
-				if (!cancelled) setLayoutTranslateJob({ status: "done", items });
-			})
-			.catch((error) => {
-				if (!cancelled)
-					notifyError(t("pdf.layoutTranslate.reflowFailed"), {
-						description: errorText(error),
-					});
+		const cacheKey = currentLayoutTranslateCacheKey();
+		void (async () => {
+			const sidecar = await readLayoutTranslateSidecar(paperAbsPath, cacheKey);
+			if (cancelled || !sidecar?.items.length) return;
+			// Paint the cached blocks before the region-prepare pass. Besides making
+			// the pane visible sooner, this marks the job active so the pane's
+			// auto-start cannot fire a second, network-backed job while preparing.
+			const seededItems = sidecar.items.map((item) => ({
+				...item,
+				status: "done" as const,
+			}));
+			if (layoutTranslateJobRef.current.status !== "running") {
+				setLayoutTranslateJob((prev) => ({
+					...prev,
+					status: "done",
+					fromCache: true,
+					runScope: "initial",
+					runScopeIds: seededItems.map((item) => item.id),
+					items: seededItems,
+					cacheKey,
+					partialDismissKey: null,
+					partialCompletionFailed: false,
+				}));
+			}
+			const seed = layoutRawRegions?.length
+				? toLayoutTranslateItems(
+						listTranslatableLayoutRegions(layoutRawRegions),
+					)
+				: seededItems;
+			const prepared = await prepareReflow(seed);
+			if (cancelled) return;
+			const hydration = hydrateLayoutTranslateItems(prepared, sidecar, {
+				requireReflowSentencePairs: true,
 			});
+			if (!hydration.fromCache) {
+				// The cache exists but no block matches the current layout/source.
+				// Fall back to the normal first-translation flow.
+				startLayoutTranslateRef.current();
+				return;
+			}
+			// A real run started while preparing owns the visible state.
+			if (layoutTranslateJobRef.current.status === "running") return;
+			const dismissKey = layoutTranslatePendingDismissKey(
+				dismissalPaperKey,
+				cacheKey,
+				hydration.items,
+			);
+			setCacheOnly(true);
+			setSourcePreparing(false);
+			setLayoutTranslateJob((prev) => ({
+				...prev,
+				status: hydration.pendingRequired > 0 ? "partial" : "done",
+				items: hydration.items,
+				fromCache: true,
+				runScope: "initial",
+				runScopeIds: layoutTranslateScopeIds(
+					hydration.items,
+					hydration.pendingRequired > 0,
+				),
+				cacheKey,
+				partialDismissKey: dismissKey,
+				partialCompletionFailed: false,
+			}));
+		})().catch((error) => {
+			if (!cancelled)
+				notifyError(t("pdf.layoutTranslate.reflowFailed"), {
+					description: errorText(error),
+				});
+		});
 		return () => {
 			cancelled = true;
 		};
-	}, [translationPane, paperAbsPath, layoutRawRegions, prepareReflow, t]);
+	}, [
+		translationPane,
+		paperAbsPath,
+		layoutRawRegions,
+		prepareReflow,
+		dismissalPaperKey,
+		t,
+	]);
 
 	// Bucket once per job update (not per page); unchanged buckets keep their
 	// previous array identity so memoized page overlays bail out while another
@@ -884,10 +1385,26 @@ export function usePdfLayoutTranslate({
 	}, [layoutTranslateJob.items, hiddenPageIndexes]);
 
 	const layoutTranslateRunning = layoutTranslateJob.status === "running";
-	const textSettled = useMemo(
-		() => layoutTranslateSettledRatio(layoutTranslateJob.items),
+	const layoutTranslatePendingRequired = useMemo(
+		() => countPendingLayoutTranslateItems(layoutTranslateJob.items),
 		[layoutTranslateJob.items],
 	);
+	// A pending-completion run measures only the blocks it is filling in, not the
+	// document-wide ratio (which would sit near 98% for a handful of gaps).
+	const textSettled = useMemo(() => {
+		const scopeIds = layoutTranslateJob.runScopeIds;
+		const items = layoutTranslateJob.items;
+		if (layoutTranslateJob.runScope === "all" || scopeIds.length === 0) {
+			return layoutTranslateSettledRatio(items);
+		}
+		return layoutTranslateSettledRatio(
+			items.filter((item) => scopeIds.includes(item.id)),
+		);
+	}, [
+		layoutTranslateJob.items,
+		layoutTranslateJob.runScope,
+		layoutTranslateJob.runScopeIds,
+	]);
 	const hasTranslatedText = layoutTranslateJob.items.some(
 		(item) => item.status === "done" && Boolean(item.translated?.trim()),
 	);
@@ -934,13 +1451,58 @@ export function usePdfLayoutTranslate({
 			? t("pdf.layoutTranslate.stop")
 			: hiddenPageIndexes.size > 0
 				? t("pdf.layoutTranslate.show")
-				: layoutTranslateJob.status === "partial" ||
-						(layoutTranslateJob.items.length > 0 &&
-							hasPendingLayoutTranslateItems(layoutTranslateJob.items))
-					? t("pdf.layoutTranslate.start")
-					: layoutTranslateActive
-						? t("pdf.layoutTranslate.hide")
-						: t("pdf.layoutTranslate.start");
+				: layoutTranslateActive
+					? t("pdf.layoutTranslate.hide")
+					: t("pdf.layoutTranslate.start");
+
+	const dismissPartialLayoutTranslate = useCallback(() => {
+		dismissTranslationPartial(layoutTranslateJobRef.current.partialDismissKey);
+		setPartialDialogOpen(false);
+	}, []);
+
+	// The main translate button owns original/translated switching; the partial
+	// entry stays a separate, always-available action while gaps remain (page
+	// building does not hide it, only an in-flight translation run does).
+	const layoutTranslatePartialVisible =
+		layoutTranslatePendingRequired > 0 &&
+		!layoutTranslateRunning &&
+		!layoutTranslateWaiting;
+
+	const partialPageRange = useMemo(
+		() => layoutTranslatePendingPageRange(layoutTranslateJob.items),
+		[layoutTranslateJob.items],
+	);
+	const layoutTranslateTranslatedCount = Math.max(
+		0,
+		layoutTranslateJob.items.length - layoutTranslatePendingRequired,
+	);
+	const layoutTranslatePartial = useMemo<PdfLayoutTranslatePartial>(
+		() => ({
+			pendingRequired: layoutTranslatePendingRequired,
+			translatedCount: layoutTranslateTranslatedCount,
+			totalCount: layoutTranslateJob.items.length,
+			pageRange: partialPageRange,
+			visible: layoutTranslatePartialVisible,
+			open: partialDialogOpen,
+			completionFailed: layoutTranslateJob.partialCompletionFailed,
+			onOpenChange: setPartialDialogOpen,
+			onCompleteMissing: completeMissingLayoutTranslate,
+			onRetranslateAll: retranslateAllLayoutTranslate,
+			onDismiss: dismissPartialLayoutTranslate,
+		}),
+		[
+			layoutTranslatePendingRequired,
+			layoutTranslateTranslatedCount,
+			layoutTranslateJob.items.length,
+			partialPageRange,
+			layoutTranslatePartialVisible,
+			partialDialogOpen,
+			layoutTranslateJob.partialCompletionFailed,
+			completeMissingLayoutTranslate,
+			retranslateAllLayoutTranslate,
+			dismissPartialLayoutTranslate,
+		],
+	);
 
 	return {
 		reflowBusy,
@@ -954,6 +1516,10 @@ export function usePdfLayoutTranslate({
 		layoutTranslateWaiting,
 		layoutTranslateActive,
 		layoutTranslateLabel,
+		layoutTranslatePendingRequired,
+		layoutTranslateFromCache: layoutTranslateJob.fromCache,
+		layoutTranslateStatus: layoutTranslateJob.status,
+		layoutTranslatePartial,
 		layoutTranslateProgress,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
