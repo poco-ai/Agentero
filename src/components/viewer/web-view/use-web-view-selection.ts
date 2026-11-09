@@ -128,7 +128,6 @@ export function useWebViewSelection({
 						msg.side,
 						msg.cursorX != null ? msg.cursorX * scale : undefined,
 					),
-					"menu",
 				);
 				void copyTextToClipboard(msg.text);
 			} else if (msg.type === "scroll") closeMenu();

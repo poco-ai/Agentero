@@ -123,7 +123,6 @@ it("normalizes reader teardown paths to the frozen Vault-relative source", () =>
 	openSelectionChat(
 		{ text: "quote", sourcePath: "/vault/notes/a.md", origin: "markdown" },
 		{ x: 0, y: 0 },
-		"menu",
 	);
 	closeSelectionSource("/vault/notes/a.md");
 	expect(selectionChatStore.getState().draft).toBeNull();

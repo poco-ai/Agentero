@@ -15,13 +15,9 @@ import { layoutAnalysisStore } from "@/lib/pdf/layout/store";
 import type { FormattedSelection } from "@embedpdf/plugin-selection/react";
 import { useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { addSelectionToChat } from "@/components/selection/add-selection-to-chat";
 import { useSelectionQuickChat } from "@/components/selection/use-selection-quick-chat";
 import type { SelectionMenuState } from "@/components/viewer/pdf/types";
-import { annotationPdfAnchors } from "@/lib/agent/selection-annotations";
-import {
-	openSelectionChat,
-	selectionChatStore,
-} from "@/lib/agent/selection-chat-store";
 import { copyTextToClipboard } from "@/lib/core/clipboard";
 import type { PdfAskAnchor } from "@/lib/pdf/ask/types";
 import {
@@ -174,28 +170,17 @@ export function usePdfSelectionActions({
 		const context = paired
 			? normalizeQuoteContext({ ...regionContext, translation: paired })
 			: regionContext;
-		// Keep a draft after clear: typing a comment must not depend on live selection.
-		// Keep page geometry so the next Agent turn can write a conversation card pin.
-		openSelectionChat(
-			{
-				text: quote,
-				sourcePath: paperRelPath ?? paperAbsPath ?? "PDF",
-				origin: "pdf",
-				context,
-				page: anchor.page,
-				rects: anchor.rects,
-				paperAbsPath: paperAbsPath ?? undefined,
-			},
-			menu.screen,
-		);
-		const id = selectionChatStore.getState().draft?.selection.id;
-		const rect = menu.anchor.rects?.at(-1);
-		if (id && rect)
-			annotationPdfAnchors.set(id, {
-				documentId: docId,
-				page: menu.anchor.page,
-				rect: { ...rect },
-			});
+		// Pin the quote directly: no intermediate comment step. Page geometry
+		// travels with the chip so the next Agent turn can write its pin.
+		addSelectionToChat({
+			text: quote,
+			sourcePath: paperRelPath ?? paperAbsPath ?? "PDF",
+			origin: "pdf",
+			context,
+			page: anchor.page,
+			rects: anchor.rects,
+			paperAbsPath: paperAbsPath ?? undefined,
+		});
 	}, [closeSelectionMenu, docId, paperRelPath, paperAbsPath]);
 
 	const handleMenuTranslate = useCallback(() => {

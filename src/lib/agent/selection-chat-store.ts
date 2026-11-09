@@ -3,7 +3,6 @@
 import { createStore } from "zustand/vanilla";
 import {
 	createSelectionContext,
-	pinSelection,
 	type SelectionContext,
 	type SelectionInput,
 } from "@/lib/agent/selection-store";
@@ -15,7 +14,6 @@ import {
 	annotationRanges,
 	annotationStore,
 	editAnnotation,
-	releaseAnnotationAnchor,
 } from "./selection-annotations";
 import type { SelectionSide } from "./selection-side";
 
@@ -61,24 +59,17 @@ export function closeSelectionSource(path: string): void {
 export function openSelectionChat(
 	input: SelectionInput,
 	screen: SelectionChatDraft["screen"],
-	stage: SelectionChatDraft["stage"] = "comment",
 ): void {
 	const selection = createSelectionContext(input);
 	if (!selection) return;
 	suspendSelectionChat();
-	const ownerId = draftOwner();
-	const saved = selectionChatStore
-		.getState()
-		.suspended.find(
-			(item) =>
-				item.ownerId === ownerId &&
-				!item.editing &&
-				sameQuote(item.selection, selection),
-		);
 	selectionChatStore.setState({
-		draft: saved
-			? { ...saved, screen: { ...screen }, stage: "comment" }
-			: { selection, screen: { ...screen }, stage, ownerId },
+		draft: {
+			selection,
+			screen: { ...screen },
+			stage: "menu",
+			ownerId: draftOwner(),
+		},
 	});
 }
 export function openAnnotationEditor(
@@ -113,20 +104,16 @@ export function dismissSelectionChat(): void {
 		suspended: state.suspended.filter((item) => item.selection.id !== id),
 	}));
 }
-export function beginSelectionComment(): void {
-	const { draft } = selectionChatStore.getState();
-	if (draft)
-		selectionChatStore.setState({ draft: { ...draft, stage: "comment" } });
-}
 export function confirmSelectionChat(comment: string): boolean {
 	const { draft } = selectionChatStore.getState();
-	if (!draft) return false;
-	if (draft.editing && !editAnnotation(draft.selection.id, comment.trim())) {
+	if (!draft?.editing) {
 		dismissSelectionChat();
 		return false;
 	}
-	if (!draft.editing)
-		pinSelection({ ...draft.selection, comment: comment.trim() || undefined });
+	if (!editAnnotation(draft.selection.id, comment.trim())) {
+		dismissSelectionChat();
+		return false;
+	}
 	dismissSelectionChat();
 	return true;
 }
@@ -149,18 +136,6 @@ vaultStore.subscribe((state, previous) => {
 	}
 });
 
-function sameQuote(a: SelectionContext, b: SelectionContext): boolean {
-	return (
-		a.origin === b.origin &&
-		a.sourcePath === b.sourcePath &&
-		a.text === b.text &&
-		a.messageId === b.messageId &&
-		a.page === b.page &&
-		a.lineFrom === b.lineFrom &&
-		JSON.stringify(a.rects) === JSON.stringify(b.rects) &&
-		JSON.stringify(a.textAnchor) === JSON.stringify(b.textAnchor)
-	);
-}
 export function updateSelectionChatComment(comment: string): void {
 	const draft = selectionChatStore.getState().draft;
 	if (draft) selectionChatStore.setState({ draft: { ...draft, comment } });
@@ -170,10 +145,8 @@ export function suspendSelectionChat(): void {
 	if (!draft) return;
 	const changed =
 		draft.stage === "comment" &&
-		(draft.editing
-			? (draft.comment ?? draft.selection.comment ?? "") !==
-				(draft.selection.comment ?? "")
-			: Boolean(draft.comment?.trim()));
+		(draft.comment ?? draft.selection.comment ?? "") !==
+			(draft.selection.comment ?? "");
 	selectionChatStore.setState((state) => ({
 		draft: null,
 		suspended: [
@@ -183,9 +156,6 @@ export function suspendSelectionChat(): void {
 			...(changed ? [draft] : []),
 		],
 	}));
-	// An abandoned empty comment owns no annotation or recoverable draft.
-	if (!changed && !draft.editing && draft.stage === "comment")
-		releaseAnnotationAnchor(draft.selection.id);
 }
 export function resumeSelectionChat(
 	id: string,

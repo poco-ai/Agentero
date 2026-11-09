@@ -141,7 +141,6 @@ export function useTextEditorSelection({
 				lineTo,
 			},
 			screen,
-			"menu",
 		);
 		ownedId.current = selectionChatStore.getState().draft?.selection.id ?? null;
 		publishedRef.current = true;

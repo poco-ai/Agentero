@@ -1,11 +1,10 @@
-import { ArrowUp, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
 import { Button } from "@/components/ui/button";
 import { agentSessionStore } from "@/lib/agent/agent-session-store";
-import { presentAgentComposer } from "@/lib/agent/composer-focus";
 import {
 	annotationRanges,
 	editAnnotation,
@@ -157,7 +156,6 @@ export function SelectionChatPopover() {
 						bottom: rect.bottom,
 					},
 				},
-				"menu",
 			);
 			const draft = selectionChatStore.getState().draft;
 			if (source.dataset.selectionAutoCopy === "true")
@@ -268,7 +266,7 @@ function SelectionChatCard({ draft }: { draft: SelectionChatDraft }) {
 	const comment = draft.comment ?? draft.selection.comment ?? "";
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const cardRef = useRef<HTMLDivElement>(null);
-	const [cardHeight, setCardHeight] = useState(draft.editing ? 120 : 54);
+	const [cardHeight, setCardHeight] = useState(120);
 	const priorFocus = useRef(document.activeElement);
 	const [viewport, setViewport] = useState({
 		width: window.innerWidth,
@@ -342,28 +340,19 @@ function SelectionChatCard({ draft }: { draft: SelectionChatDraft }) {
 		),
 	);
 	const confirm = () => {
-		const editing = Boolean(selectionChatStore.getState().draft?.editing);
 		if (!confirmSelectionChat(comment)) return;
-		if (editing) {
-			openRightTab("agent");
-			return;
-		}
-		presentAgentComposer({ preserveCaret: true });
+		openRightTab("agent");
 	};
 	return (
 		<div
 			ref={cardRef}
 			role="dialog"
-			aria-label={t("selection.addToChat")}
-			className={`fixed z-50 border border-border bg-popover text-popover-foreground shadow-overlay ring-1 ring-foreground/10 ${!draft.editing ? "rounded-[1.75rem]" : "rounded-xl"}`}
+			aria-label={t("selection.editComment")}
+			className="fixed z-50 rounded-xl border border-border bg-popover text-popover-foreground shadow-overlay ring-1 ring-foreground/10"
 			style={{ left, top, width }}
 		>
 			<form
-				className={
-					draft.editing
-						? "flex flex-col gap-2 p-3"
-						: "flex items-end gap-2 p-2 pl-4"
-				}
+				className="flex flex-col gap-2 p-3"
 				onSubmit={(event) => {
 					event.preventDefault();
 					confirm();
@@ -395,43 +384,30 @@ function SelectionChatCard({ draft }: { draft: SelectionChatDraft }) {
 					}}
 				/>
 				<div className="flex justify-end gap-1">
-					{draft.editing && (
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-sm"
-							className="mr-auto"
-							aria-label={t("common:remove")}
-							onClick={() => {
-								editAnnotation(draft.selection.id, null);
-								dismissSelectionChat();
-							}}
-						>
-							<Trash2 className="size-4" />
-						</Button>
-					)}
-					{draft.editing && (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							aria-label={t("common:cancel")}
-							onClick={dismissSelectionChat}
-						>
-							{t("common:cancel")}
-						</Button>
-					)}
 					<Button
-						type="submit"
-						className={
-							draft.editing ? undefined : "size-9 shrink-0 rounded-full"
-						}
-						size={draft.editing ? "sm" : "icon-sm"}
-						aria-label={
-							draft.editing ? t("common:save") : t("selection.addToChat")
-						}
+						type="button"
+						variant="ghost"
+						size="icon-sm"
+						className="mr-auto"
+						aria-label={t("common:remove")}
+						onClick={() => {
+							editAnnotation(draft.selection.id, null);
+							dismissSelectionChat();
+						}}
 					>
-						{draft.editing ? t("common:save") : <ArrowUp className="size-4" />}
+						<Trash2 className="size-4" />
+					</Button>
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						aria-label={t("common:cancel")}
+						onClick={dismissSelectionChat}
+					>
+						{t("common:cancel")}
+					</Button>
+					<Button type="submit" size="sm" aria-label={t("common:save")}>
+						{t("common:save")}
 					</Button>
 				</div>
 			</form>

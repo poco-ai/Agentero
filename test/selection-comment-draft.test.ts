@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { agentSessionStore } from "@/lib/agent/agent-session-store";
 import {
 	annotationStore,
@@ -8,74 +8,80 @@ import {
 	confirmSelectionChat,
 	dismissSelectionChat,
 	openAnnotationEditor,
-	openSelectionChat,
 	selectionChatStore,
 	suspendSelectionChat,
 	updateSelectionChatComment,
 } from "@/lib/agent/selection-chat-store";
-import {
-	clearSelections,
-	currentSelections,
-} from "@/lib/agent/selection-store";
+import type { SelectionContext } from "@/lib/agent/selection-store";
+import { clearSelections } from "@/lib/agent/selection-store";
 
-const quote = {
+const selection: SelectionContext = {
+	id: "existing",
 	text: "a quote",
 	sourcePath: "notes/test.md",
-	origin: "markdown" as const,
+	origin: "markdown",
+	pinned: true,
+	comment: "old",
 };
 const screen = { x: 100, y: 100 };
+const bindAnnotation = (selections: SelectionContext[] = [selection]) => {
+	const update = vi.fn();
+	annotationStore.setState({ binding: { selections, update } });
+	return update;
+};
 beforeEach(() => {
 	selectionChatStore.setState({ draft: null, suspended: [] });
 	agentSessionStore.setState({ activeTabId: "draft" });
 	annotationStore.setState({ binding: null, releasedId: null });
 	clearSelections();
 });
-describe("recoverable comment drafts", () => {
-	it("outside dismissal saves text; reopening recovers it, confirmation consumes it", () => {
-		openSelectionChat(quote, screen);
+describe("recoverable annotation drafts", () => {
+	it("outside dismissal saves text; reopening recovers it, confirmation updates the composer token", () => {
+		const update = bindAnnotation();
+		openAnnotationEditor(selection, screen);
 		updateSelectionChatComment("unfinished");
 		suspendSelectionChat();
 		expect(selectionChatStore.getState().draft).toBeNull();
-		openSelectionChat(quote, { x: 200, y: 200 }, "menu");
+		openAnnotationEditor(selection, { x: 200, y: 200 });
 		expect(selectionChatStore.getState().draft).toMatchObject({
 			comment: "unfinished",
 			stage: "comment",
+			editing: true,
 			screen: { x: 200, y: 200 },
 		});
-		confirmSelectionChat("finished");
-		expect(currentSelections()[0].comment).toBe("finished");
+		expect(confirmSelectionChat("finished")).toBe(true);
+		expect(update).toHaveBeenCalledWith("existing", "finished");
 		expect(selectionChatStore.getState().suspended).toEqual([]);
 	});
-	it("explicit cancel discards only this quote, keeping another suspended draft", () => {
-		openSelectionChat(quote, screen);
+	it("explicit cancel discards only this quote's draft", () => {
+		bindAnnotation([selection, { ...selection, id: "other" }]);
+		openAnnotationEditor(selection, screen);
 		updateSelectionChatComment("keep");
 		suspendSelectionChat();
-		openSelectionChat({ ...quote, text: "other" }, screen);
+		openAnnotationEditor({ ...selection, id: "other" }, screen);
 		updateSelectionChatComment("discard");
 		dismissSelectionChat();
 		expect(selectionChatStore.getState().suspended).toHaveLength(1);
-		openSelectionChat(quote, screen);
+		openAnnotationEditor(selection, screen);
 		expect(selectionChatStore.getState().draft?.comment).toBe("keep");
 		dismissSelectionChat();
-		openSelectionChat(quote, screen);
-		expect(selectionChatStore.getState().draft?.comment).toBeUndefined();
+		openAnnotationEditor(selection, screen);
+		expect(selectionChatStore.getState().draft?.comment).toBe("old");
 	});
 	it("isolates scratch text by conversation and preserves an intentional empty edit", () => {
-		openSelectionChat(quote, screen);
+		bindAnnotation();
+		openAnnotationEditor(selection, screen);
 		updateSelectionChatComment("session A");
 		agentSessionStore.setState({ activeTabId: "other" });
-		openSelectionChat(quote, screen);
-		expect(selectionChatStore.getState().draft?.comment).toBeUndefined();
-		dismissSelectionChat();
+		expect(selectionChatStore.getState().draft).toBeNull();
 		agentSessionStore.setState({ activeTabId: "draft" });
-		openSelectionChat(quote, screen);
+		openAnnotationEditor(selection, screen);
 		expect(selectionChatStore.getState().draft?.comment).toBe("session A");
 		dismissSelectionChat();
-		const original = { ...quote, id: "existing", pinned: true, comment: "old" };
-		openAnnotationEditor(original, screen);
+		openAnnotationEditor(selection, screen);
 		updateSelectionChatComment("");
 		suspendSelectionChat();
-		openAnnotationEditor(original, screen);
+		openAnnotationEditor(selection, screen);
 		expect(selectionChatStore.getState().draft?.comment).toBe("");
 		suspendSelectionChat();
 		releaseAnnotationAnchor("existing");

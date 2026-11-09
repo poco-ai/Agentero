@@ -48,7 +48,6 @@ beforeEach(async () => {
 				origin: "markdown",
 			},
 			{ x: 100, y: 200 },
-			"menu",
 		),
 	);
 });

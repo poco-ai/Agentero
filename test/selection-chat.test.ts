@@ -9,7 +9,6 @@ import {
 } from "@/lib/agent/composer-inline-tokens";
 import { annotationStore } from "@/lib/agent/selection-annotations";
 import {
-	beginSelectionComment,
 	confirmSelectionChat,
 	dismissSelectionChat,
 	openAnnotationEditor,
@@ -22,29 +21,28 @@ import {
 	clearSelections,
 	consumeSelections,
 	currentSelections,
+	pinActiveSelection,
 	publishSelection,
 } from "@/lib/agent/selection-store";
 import { vaultStore } from "@/lib/vault/store";
 
 const screen = { x: 200, y: 120 };
-describe("Add to chat comments", () => {
+describe("Add to chat selections", () => {
 	beforeEach(() => {
 		dismissSelectionChat();
 		clearSelections();
 	});
-	it("retains a PDF snapshot and geometry after focus clears live selection", () => {
+	it("pins a PDF snapshot and geometry after the live selection clears", () => {
 		const rects = [{ x: 0.1, y: 0.2, w: 0.3, h: 0.04 }];
-		openSelectionChat(
-			{
-				text: "original quote",
-				sourcePath: "papers/a",
-				origin: "pdf",
-				page: 3,
-				rects,
-				paperAbsPath: "/vault/papers/a",
-			},
-			screen,
-		);
+		publishSelection({
+			text: "original quote",
+			sourcePath: "papers/a",
+			origin: "pdf",
+			page: 3,
+			rects,
+			paperAbsPath: "/vault/papers/a",
+		});
+		pinActiveSelection();
 		rects[0].x = 0.9;
 		publishSelection({
 			text: "unrelated",
@@ -52,53 +50,26 @@ describe("Add to chat comments", () => {
 			origin: "markdown",
 		});
 		clearActiveSelection();
-		expect(currentSelections()).toHaveLength(0);
-		expect(confirmSelectionChat("  Explain this  ")).toBe(true);
 		expect(consumeSelections()[0]).toMatchObject({
 			text: "original quote",
 			page: 3,
 			rects: [{ x: 0.1, y: 0.2, w: 0.3, h: 0.04 }],
-			comment: "Explain this",
 			paperAbsPath: "/vault/papers/a",
 		});
-		expect(confirmSelectionChat("again")).toBe(false);
-	});
-	it("supports menu, optional empty comments and cancel without pinning", () => {
-		openSelectionChat(
-			{ text: "quote", sourcePath: "notes/a.md", origin: "markdown" },
-			screen,
-			"menu",
-		);
-		beginSelectionComment();
-		expect(selectionChatStore.getState().draft?.stage).toBe("comment");
-		dismissSelectionChat();
-		expect(confirmSelectionChat("cancelled")).toBe(false);
-		expect(currentSelections()).toEqual([]);
-		openSelectionChat(
-			{ text: "quote", sourcePath: "notes/a.md", origin: "markdown" },
-			screen,
-		);
-		confirmSelectionChat("  ");
-		expect(currentSelections()[0]?.comment).toBeUndefined();
-		expect(selectionsPromptBlock(currentSelections())).not.toContain(
-			"User comment",
-		);
 	});
 	it("keeps separate comments and source messages on identical chat quotes through composer tokens", () => {
 		for (const [messageId, comment] of [
 			["m1", "Explain"],
 			["m2", "Disagree"],
 		]) {
-			openSelectionChat(
-				{
-					text: "same text",
-					sourcePath: "Chat session-1",
-					origin: "chat",
-					messageId,
-				},
-				screen,
-			);
-			confirmSelectionChat(comment);
+			publishSelection({
+				text: "same text",
+				sourcePath: "Chat session-1",
+				origin: "chat",
+				messageId,
+				comment,
+			});
+			pinActiveSelection();
 		}
 		const selections = consumeSelections();
 		const decoded = extractSelectionTokens(
@@ -114,24 +85,22 @@ describe("Add to chat comments", () => {
 		);
 	});
 	it("preserves text-editor line provenance and comments in inline tokens", () => {
-		openSelectionChat(
-			{
-				text: "first\nsecond",
-				sourcePath: "notes/a.md",
-				origin: "markdown",
-				lineFrom: 2,
-				lineTo: 3,
-			},
-			screen,
-		);
-		confirmSelectionChat("逐行解释");
+		publishSelection({
+			text: "first\nsecond",
+			sourcePath: "notes/a.md",
+			origin: "markdown",
+			lineFrom: 2,
+			lineTo: 3,
+			comment: "逐行解释",
+		});
+		pinActiveSelection();
 		const decoded = extractSelectionTokens(
 			encodeSelectionToken(consumeSelections()[0]),
 		);
 		expect(selectionsPromptBlock(decoded)).toContain("notes/a.md (lines 2-3)");
 		expect(decoded[0]?.comment).toBe("逐行解释");
 	});
-	it("discards drafts on vault change", () => {
+	it("discards menu drafts on vault change", () => {
 		const previous = vaultStore.getState().vaultPath;
 		openSelectionChat(
 			{ text: "quote", sourcePath: "a.md", origin: "markdown" },

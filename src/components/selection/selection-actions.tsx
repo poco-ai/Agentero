@@ -4,7 +4,6 @@ import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import { TranslateCard } from "@/components/viewer/pdf/cards/translate-card";
 import { textAskContextRequest } from "@/lib/agent/context-request";
 import {
-	beginSelectionComment,
 	dismissSelectionChat,
 	type SelectionChatDraft,
 	type SelectionDraftScreen,
@@ -107,6 +106,14 @@ export function SelectionActions({
 		dismissSelectionChat();
 	}, [ask.setAsk, close]);
 	useSelectionQuickChat(() => menuRef.current != null && !ask.ask, openAsk);
+	/** Add to chat pins the quote directly — no intermediate comment step. */
+	const addMenuSelectionToChat = useCallback(() => {
+		const current = menuRef.current;
+		if (!current) return false;
+		addSelectionToChat(current.selection);
+		dismissSelectionChat();
+		return true;
+	}, []);
 	// An embedded frame's Escape cannot reach this window's keydown listeners.
 	useEffect(() => {
 		const dismiss = () => {
@@ -118,15 +125,8 @@ export function SelectionActions({
 		return () => window.removeEventListener(SELECTION_DISMISS_EVENT, dismiss);
 	}, [close, hideAsk]);
 	useEffect(
-		() =>
-			registerSelectionAddToChat(() => {
-				const current = menuRef.current;
-				if (!current) return false;
-				addSelectionToChat(current.selection);
-				dismissSelectionChat();
-				return true;
-			}),
-		[],
+		() => registerSelectionAddToChat(addMenuSelectionToChat),
+		[addMenuSelectionToChat],
 	);
 	return (
 		<div data-selection-ui data-annotation-ui>
@@ -134,7 +134,7 @@ export function SelectionActions({
 				<SelectionActionMenu
 					screen={menu.screen}
 					onAsk={openAsk}
-					onAddToChat={beginSelectionComment}
+					onAddToChat={addMenuSelectionToChat}
 					onCopy={() => copyTextToClipboard(menu.selection.text)}
 					onTranslate={() => {
 						translation.translate(menu.selection, menu.screen);
