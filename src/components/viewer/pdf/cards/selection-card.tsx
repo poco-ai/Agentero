@@ -437,7 +437,9 @@ export function SelectionCard({
 	);
 	const anchor = placeSelectionCard(screen, {
 		width: renderedWidth,
-		height,
+		// Page-anchored cards may use the whole reading area; short results still
+		// hug their content, long ones no longer stop at a fixed 480px cap.
+		height: container ? Math.max(height, container.height) : height,
 		placementWidth: placementWidth
 			? Math.min(
 					placementWidth,

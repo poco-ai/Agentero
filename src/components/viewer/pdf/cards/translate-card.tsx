@@ -168,6 +168,9 @@ export function TranslateCard({
 			resizeMinHeight={resizeMinHeight ?? 0}
 			preferRight={preferRight}
 			preferBelow
+			// Opaque card: the default translucent shell picks up the white paper
+			// behind it and reads as a washed-out gray in the dark theme.
+			className="bg-background!"
 			// Slightly tighter header than other selection cards.
 			headerClassName="pt-2 pb-1.5"
 			title={t("selection.translateTitle")}
@@ -222,9 +225,7 @@ export function TranslateCard({
 							{source.title}
 						</div>
 					)}
-					<p className="line-clamp-2 break-words text-xs leading-relaxed">
-						{quoteText}
-					</p>
+					<p className="break-words text-xs leading-relaxed">{quoteText}</p>
 				</div>
 			) : null}
 			<div
