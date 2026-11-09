@@ -275,6 +275,10 @@ export function TranslateStep({
 					<Button
 						type="button"
 						size="sm"
+						// Busy is not the same as invalid: keep the button solid while
+						// probing so the disabled fade cannot flash a grey block behind
+						// the spinner.
+						className={probe === "probing" ? "disabled:opacity-100" : undefined}
 						disabled={probe === "probing" || !displayKey.trim()}
 						onClick={() => void confirmCommercial()}
 					>

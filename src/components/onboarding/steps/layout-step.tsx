@@ -192,6 +192,9 @@ export function LayoutStep({
 					<Button
 						type="button"
 						size="sm"
+						// Keep the button solid while probing; the disabled fade can
+						// flash a grey block behind the spinner in WebKit.
+						className={probe === "probing" ? "disabled:opacity-100" : undefined}
 						disabled={probe === "probing" || !displayKey.trim()}
 						onClick={() => void confirm()}
 					>
