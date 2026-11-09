@@ -1,4 +1,4 @@
-import { Check, FolderPlus } from "lucide-react";
+import { Check, Folder, FolderPlus, Library } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,6 +63,11 @@ export function MoveDestinationPicker({
 					<div className="agentero-scroll max-h-[min(50vh,18rem)] space-y-0.5 overflow-y-auto overscroll-contain">
 						{folders.map((folder) => {
 							const active = !typed && selectedFolder === folder;
+							const depth = folder.split("/").length - 1;
+							const label =
+								folder === "papers"
+									? t("fileTree.movePicker.papersRoot")
+									: (folder.split("/").pop() ?? folder);
 							return (
 								<button
 									key={folder}
@@ -70,16 +75,24 @@ export function MoveDestinationPicker({
 									disabled={busy}
 									title={folder}
 									className={cn(
-										"flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors hover:bg-accent",
+										"flex w-full items-center gap-1.5 rounded py-1 pr-2 text-left text-xs transition-colors hover:bg-accent",
 										active && "bg-muted",
 									)}
+									style={{ paddingLeft: 8 + depth * 12 }}
 									onClick={() => handleSelect(folder)}
 								>
-									<span className="min-w-0 flex-1 truncate font-mono">
-										{folder === "papers"
-											? t("fileTree.movePicker.papersRoot")
-											: folder}
-									</span>
+									{folder === "papers" ? (
+										<Library
+											className="size-3.5 shrink-0 text-muted-foreground"
+											aria-hidden
+										/>
+									) : (
+										<Folder
+											className="size-3.5 shrink-0 text-muted-foreground"
+											aria-hidden
+										/>
+									)}
+									<span className="min-w-0 flex-1 truncate">{label}</span>
 									{active ? (
 										<Check className="size-3 shrink-0 text-primary" />
 									) : null}
