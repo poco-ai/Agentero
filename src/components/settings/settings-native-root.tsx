@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SettingsSection } from "@/components/settings/types";
 import { TrafficLightSpacer } from "@/components/shell/traffic-light-spacer";
 import { applyLocale } from "@/i18n";
-import { commands } from "@/lib/core/bindings";
+import { commands, events } from "@/lib/core/bindings";
 import { errorMessage, notifyError } from "@/lib/core/notify";
 import { isMacOS, isTauri } from "@/lib/core/tauri";
+import { listenEventSafe } from "@/lib/core/tauri-events";
 import {
 	applyDocumentChrome,
 	ensureSettingsLoaded,
@@ -97,6 +98,14 @@ export function SettingsNativeRoot() {
 		url.searchParams.set("section", next);
 		window.history.replaceState(null, "", url.toString());
 	}, []);
+
+	useEffect(
+		() =>
+			listenEventSafe(events.settingsSectionRequested, (next) => {
+				handleSectionChange(next as SettingsSection);
+			}),
+		[handleSectionChange],
+	);
 
 	const handleChange = useCallback(async (next: typeof settings) => {
 		const previous = loadSettings();

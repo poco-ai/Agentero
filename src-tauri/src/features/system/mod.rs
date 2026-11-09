@@ -8,3 +8,5 @@ pub mod desktop_apps;
 pub mod network;
 #[cfg(feature = "desktop")]
 pub mod settings;
+#[cfg(feature = "desktop")]
+pub mod updater;

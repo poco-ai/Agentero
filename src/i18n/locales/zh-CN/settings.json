@@ -927,9 +927,8 @@
 			"clearFailed": "清除翻译缓存失败。",
 			"tip": "缓存全文翻译的中间结果，同一篇论文再次翻译时直接复用，无需重新提取与构建。关闭开关只停止写入新缓存，已有缓存仍会复用；可在「设置 → 翻译 → 缓存」中分别控制。"
 		},
-		"downloadProxyNotice": {
-			"title": "未配置网络代理",
-			"description": "CLI 与应用更新都从 GitHub 下载。若当前网络无法访问 GitHub，请先在「通用 → 网络代理」中配置代理后重试。",
+		"downloadNetworkError": {
+			"title": "从 GitHub 下载时发生网络错误",
 			"openSettings": "打开网络设置"
 		},
 		"update": {

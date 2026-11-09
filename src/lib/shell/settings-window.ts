@@ -8,11 +8,14 @@ import { isTauri } from "@/lib/core/tauri";
 import { getVaultPath } from "@/lib/vault/store";
 import { setSettingsOpenState, uiStore } from "./ui-store";
 
-export function openSettingsWindow(section: string = "general"): void {
+export function openSettingsWindow(section?: string): void {
 	if (!isTauri()) return;
 	void (async () => {
 		try {
-			const res = await commands.settingsWindowOpen(section, getVaultPath());
+			const res = await commands.settingsWindowOpen(
+				section ?? null,
+				getVaultPath(),
+			);
 			if (res.status === "error") {
 				notifyError(res.error);
 				return;

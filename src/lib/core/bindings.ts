@@ -593,7 +593,7 @@ export const commands = {
 	 * 
 	 *  See [`window_new`] for why this must stay `async`.
 	 */
-	settingsWindowOpen: (section: string, vaultPath: string | null) => typedError<null, string>(__TAURI_INVOKE("settings_window_open", { section, vaultPath })),
+	settingsWindowOpen: (section: string | null, vaultPath: string | null) => typedError<null, string>(__TAURI_INVOKE("settings_window_open", { section, vaultPath })),
 	/**
 	 *  Open (or focus) a singleton feature window for a right-rail view.
 	 * 
@@ -670,6 +670,12 @@ export const commands = {
 	vaultOpenTakePending: () => __TAURI_INVOKE<ApiResult<string | null>>("vault_open_take_pending"),
 	/**  Take the pending UI action request (startup race for `ui:request`). */
 	uiRequestTakePending: () => __TAURI_INVOKE<ApiResult<UiRequestPayload_Serialize | null>>("ui_request_take_pending"),
+	appUpdateCheck: (proxy: string | null, retryOnTimeout: boolean) => typedError<{
+	rid: number,
+	currentVersion: string,
+	version: string,
+	body: string | null,
+} | null, string>(__TAURI_INVOKE("app_update_check", { proxy, retryOnTimeout })),
 	cliInstallStatus: () => __TAURI_INVOKE<ApiResult<CliInstallStatus>>("cli_install_status"),
 	cliInstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_install_command"),
 	cliUninstallCommand: () => __TAURI_INVOKE<ApiResult<CliInstallResult>>("cli_uninstall_command"),
@@ -828,6 +834,7 @@ export const events = {
 	pluginsDataChanged: makeEvent<PluginsDataChangedEvent>("plugins:data-changed"),
 	rtexEvent: makeEvent<RtexEventEvt>("rtex:event"),
 	settingsChanged: makeEvent<SettingsChangedEvent_Deserialize>("settings:changed"),
+	settingsSectionRequested: makeEvent<SettingsSectionRequestedEvent>("settings:section-requested"),
 	syncProgress: makeEvent<SyncProgressEvent>("sync:progress"),
 	syncState: makeEvent<SyncStateEvent_Deserialize>("sync:state"),
 	uiRequest: makeEvent<UiRequestEvent_Deserialize>("ui:request"),
@@ -1880,6 +1887,13 @@ export type AppSettings_Serialize = {
 	 *  (`layout-local-model` | `network-proxy`). Unknown ids are dropped on save.
 	 */
 	dismissedReminders: string[],
+};
+
+export type AppUpdate = {
+	rid: number,
+	currentVersion: string,
+	version: string,
+	body: string | null,
 };
 
 export type AskUserOptionDto = AskUserOptionDto_Serialize | AskUserOptionDto_Deserialize;
@@ -5277,6 +5291,8 @@ export type SettingsGetResult_Serialize = {
 	/**  Whether the file already existed before this read (false → first run / defaults). */
 	existed: boolean,
 };
+
+export type SettingsSectionRequestedEvent = string;
 
 export type ShortcutBinding = ShortcutBinding_Serialize | ShortcutBinding_Deserialize;
 

@@ -1,7 +1,10 @@
 import type { Update } from "@tauri-apps/plugin-updater";
+import i18n from "@/i18n";
 import { errorText } from "@/lib/core/error";
 import { logger } from "@/lib/core/logger";
+import { notifyError } from "@/lib/core/notify";
 import { isTauri } from "@/lib/core/tauri";
+import { notifyReleaseDownloadError } from "@/lib/settings/download-error";
 import { ensureSettingsLoaded } from "@/lib/settings/store";
 import type { UpdateSnapshot } from "@/lib/update/types";
 
@@ -49,6 +52,26 @@ async function resolveProxyUrl(): Promise<string | undefined> {
 	return url;
 }
 
+async function requestUpdate(
+	proxy: string | undefined,
+	retryOnTimeout = false,
+): Promise<Update | null> {
+	const { callResult } = await import("@/lib/core/ipc");
+	const { commands } = await import("@/lib/core/bindings");
+	const { Update } = await import("@tauri-apps/plugin-updater");
+	const metadata = await callResult(() =>
+		commands.appUpdateCheck(proxy ?? null, retryOnTimeout),
+	);
+	if (!metadata) return null;
+
+	return new Update({
+		...metadata,
+		body: metadata.body ?? undefined,
+		// The complete manifest is held by the native updater resource.
+		rawJson: {},
+	});
+}
+
 function emit(next: UpdateSnapshot): UpdateSnapshot {
 	snapshot = next;
 	for (const listener of listeners) listener(snapshot);
@@ -83,9 +106,7 @@ function compareVersions(a: string, b: string): number {
 async function refreshStaleUpdate(cached: Update): Promise<Update> {
 	let latest: Update | null = null;
 	try {
-		const proxy = await resolveProxyUrl();
-		const { check } = await import("@tauri-apps/plugin-updater");
-		latest = await check({ timeout: 10_000, proxy });
+		latest = await requestUpdate(await resolveProxyUrl());
 	} catch {
 		return cached;
 	}
@@ -117,19 +138,22 @@ export function subscribeUpdate(
  * Queries the signed updater endpoint. It never throws so a background check
  * cannot affect application startup; callers render the returned state instead.
  */
-export async function checkForUpdate(): Promise<UpdateSnapshot> {
+export async function checkForUpdate({
+	retryOnTimeout = false,
+}: {
+	retryOnTimeout?: boolean;
+} = {}): Promise<UpdateSnapshot> {
 	if (!isUpdaterSupported()) return emit(UNSUPPORTED);
 	if (checkPromise) return checkPromise;
 
 	checkPromise = (async () => {
 		await closeAvailableUpdate();
 		emit({ phase: "checking" });
-		const proxy = await resolveProxyUrl();
-		logger.info(`op start updater_check proxy=${proxy ? "on" : "off"}`);
 		try {
-			const { check } = await import("@tauri-apps/plugin-updater");
+			const proxy = await resolveProxyUrl();
+			logger.info(`op start updater_check proxy=${proxy ? "on" : "off"}`);
 			// The returned Update carries this proxy into the later download.
-			const update = await check({ timeout: 10_000, proxy });
+			const update = await requestUpdate(proxy, retryOnTimeout);
 			if (!update) {
 				logger.info("op end updater_check ok=true available=false");
 				return emit({ phase: "up-to-date" });
@@ -161,8 +185,10 @@ export async function checkForUpdate(): Promise<UpdateSnapshot> {
 export async function installAvailableUpdate(): Promise<UpdateSnapshot> {
 	if (!isUpdaterSupported()) return emit(UNSUPPORTED);
 	if (installPromise) return installPromise;
-	if (!availableUpdate)
+	if (!availableUpdate) {
+		notifyError(i18n.t("settings:about.update.installFailed"));
 		return emit({ phase: "error", errorOperation: "install" });
+	}
 
 	const cached = availableUpdate;
 	installPromise = (async () => {
@@ -188,6 +214,7 @@ export async function installAvailableUpdate(): Promise<UpdateSnapshot> {
 				downloadedBytes,
 			});
 		}
+		let downloading = true;
 		try {
 			await update.download((event) => {
 				if (event.event === "Started") {
@@ -204,6 +231,7 @@ export async function installAvailableUpdate(): Promise<UpdateSnapshot> {
 					totalBytes,
 				});
 			});
+			downloading = false;
 			emit({
 				phase: "installing",
 				currentVersion: update.currentVersion,
@@ -222,6 +250,12 @@ export async function installAvailableUpdate(): Promise<UpdateSnapshot> {
 				version: update.version,
 				error: errorText(error),
 			});
+			const message = i18n.t("settings:about.update.installFailed");
+			if (downloading) {
+				notifyReleaseDownloadError(message, error);
+			} else {
+				notifyError(message);
+			}
 			await closeAvailableUpdate();
 			return emit({ phase: "error", errorOperation: "install" });
 		} finally {

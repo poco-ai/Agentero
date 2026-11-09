@@ -171,6 +171,10 @@ export function notifyReminder(
 const NETWORK_FAILURE_RE =
 	/timed?\s*out|timeout|dns|name resolution|resolve host|connection (refused|reset|closed|aborted)|connect(ion)? (error|failed)|network (is )?unreachable|failed to (connect|fetch|resolve)|unreachable|\btls\b|handshake|certificate|\bproxy\b/i;
 
+export function isLikelyNetworkFailure(message: string): boolean {
+	return NETWORK_FAILURE_RE.test(message);
+}
+
 /**
  * Registered by the main window (`useConfigReminders`) to surface the proxy
  * reminder. Kept as a setter so this funnel stays a leaf: the reminder module
@@ -186,7 +190,7 @@ function reportNetworkFailureIfLikely(
 	message: string,
 	description?: string,
 ): void {
-	if (!NETWORK_FAILURE_RE.test(`${message} ${description ?? ""}`)) return;
+	if (!isLikelyNetworkFailure(`${message} ${description ?? ""}`)) return;
 	// Registered by the main window (see `use-config-reminders`).
 	networkFailureReporter?.();
 }

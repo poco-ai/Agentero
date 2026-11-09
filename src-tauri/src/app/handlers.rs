@@ -266,6 +266,7 @@ pub fn attach_handlers(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<ta
             crate::integration::mcp::commands::mcp_tunnel_stop,
             crate::app::open_request::commands::vault_open_take_pending,
             crate::app::open_request::commands::ui_request_take_pending,
+            crate::features::system::updater::app_update_check,
             crate::features::cli_install::commands::cli_install_status,
             crate::features::cli_install::commands::cli_install_command,
             crate::features::cli_install::commands::cli_uninstall_command,

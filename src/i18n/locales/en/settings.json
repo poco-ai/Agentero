@@ -927,9 +927,8 @@
 			"clearFailed": "Couldn't clear the translation cache.",
 			"tip": "Caches full-text translation intermediates so re-translating the same paper reuses them instead of re-extracting and rebuilding. Turning a switch off only stops new writes; existing entries keep being reused. Control both caches under Settings → Translate → Cache."
 		},
-		"downloadProxyNotice": {
-			"title": "No network proxy configured",
-			"description": "CLI downloads and app updates come from GitHub. If this network can't reach GitHub, configure a proxy in General → Network proxy and try again.",
+		"downloadNetworkError": {
+			"title": "Network error downloading from GitHub",
 			"openSettings": "Open network settings"
 		},
 		"update": {

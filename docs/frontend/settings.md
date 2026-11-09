@@ -73,14 +73,14 @@
 
 ## 应用更新
 
-- 正式桌面构建的主窗口会在启动后异步检查一次稳定版更新，不阻塞首屏或 Vault 初始化；检查失败只记日志。
+- 正式桌面构建的主窗口会在启动后异步检查稳定版更新，不阻塞首屏或 Vault 初始化。每次检查最多等待 30 秒，启动检查遇到网络超时会重试一次，最终失败只记日志。手动检查和安装前刷新清单各请求一次。
 - 设置 → 关于可手动检查。发现新版后在当前版本号右侧用绿色 `→ v<version>` 标出可更新到的版本，并显示 Release notes，用户点击「安装并重启」后才下载、验证、安装并重启；不会静默替换应用。
 - 启动更新 Toast、标题栏「新版本」标签旁及设置 → 关于均提供「更新详情」入口，在系统浏览器打开待安装版本对应的 GitHub Release；即使 manifest 没有 notes 也可查看完整更新说明。
 - 发现新版后标题栏右上角常驻「新版本」标签按钮（绿色胶囊 tag，`src/components/shell/update-indicator.tsx`），点击直接下载安装并重启；下载/安装中显示 spinner 与进度文案，安装完成前不消失，详情入口仍可使用。
 - 安装前会重新拉取一次远端 manifest（`refreshStaleUpdate`）：应用长期驻留导致缓存的 Update 落后于最新 Release 时，直接改装最新版；re-check 失败（离线等）则回退安装缓存清单，不会因此中断（#481）。
 - 更新包由 Tauri Updater 使用内置公钥验证签名，并根据当前系统/架构从 GitHub Release 的 `latest.json` 选择产物。
-- 更新检查与下载复用通用页的「网络代理」设置（`src/lib/update/service.ts` 在每次检查时读取，下载沿用检查时的代理）：Updater 插件自带 HTTP 客户端，不走 Host `core::http::client_builder`，因此必须显式传入。该客户端只支持 HTTP(S) 代理，SOCKS 代理需另配 HTTP 端口。
-- 下载前做一次代理检测（`src/lib/settings/proxy-guard.ts`）：应用代理与系统代理都未配置时弹 Toast 提醒（带「打开网络设置」跳转「通用 → 网络代理」），非阻塞、仍继续下载；About 页「安装并重启」与 CLI 安装、标题栏「新版本」标签、启动更新 Toast 四个下载入口都经过该检测。
+- 更新检查与下载复用通用页的「网络代理」设置（`src/lib/update/service.ts` 在每次检查时读取，下载沿用检查时的代理）。Host 的 `app_update_check` 使用 Tauri Updater 自带的 HTTP 客户端，并依据原始网络错误判断是否超时。应用代理地址使用 HTTP(S) 端口。
+- CLI 与应用更新直接尝试下载。请求或传输发生网络错误时，错误 Toast 提供「打开网络设置」入口，打开含网络代理配置的「通用」页。CLI 下载的每个请求仍最多等待 180 秒。
 - 浏览器预览、`pnpm tauri dev`、移动端不检查更新；设置页会说明该限制。
 - 只有 GitHub **已发布**的稳定版 Release 可作为更新源；Draft 和 prerelease 不会推送给普通稳定版用户。
 

@@ -19,7 +19,6 @@ import {
 	loadSettings,
 	subscribeSettings,
 } from "@/lib/settings";
-import { warnIfNoProxyForDownload } from "@/lib/settings/proxy-guard";
 import { initSettingsStore } from "@/lib/settings/react-store";
 import { applyNativeWindowTheme } from "@/lib/shell/native-window-theme";
 import { initShellLayoutFromPrefs } from "@/lib/shell/ui-store";
@@ -265,7 +264,7 @@ async function checkForStartupUpdate(): Promise<void> {
 	try {
 		const { getCurrentWindow } = await import("@tauri-apps/api/window");
 		if (getCurrentWindow().label !== "main") return;
-		const update = await checkForUpdate();
+		const update = await checkForUpdate({ retryOnTimeout: true });
 		if (update.phase !== "available" || !update.availableVersion) return;
 		notifyReminder(
 			i18n.t("settings:about.update.toastTitle", {
@@ -279,13 +278,7 @@ async function checkForStartupUpdate(): Promise<void> {
 					openExternalUrl(getUpdateReleaseUrl(update.availableVersion)),
 				actionLabel: i18n.t("settings:about.update.downloadInstall"),
 				onAction: () => {
-					void warnIfNoProxyForDownload()
-						.then(() => installAvailableUpdate())
-						.then((next) => {
-							if (next.phase === "error") {
-								notifyError(i18n.t("settings:about.update.installFailed"));
-							}
-						});
+					void installAvailableUpdate();
 				},
 			},
 		);

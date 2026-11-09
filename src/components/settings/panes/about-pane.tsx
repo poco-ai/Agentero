@@ -51,7 +51,7 @@ import {
 	openReflowCacheFolder,
 	reflowCacheUsage,
 } from "@/lib/pdf/reflow/cache-manage";
-import { warnIfNoProxyForDownload } from "@/lib/settings/proxy-guard";
+import { notifyReleaseDownloadError } from "@/lib/settings/download-error";
 import {
 	checkForUpdate,
 	getUpdateReleaseUrl,
@@ -119,13 +119,7 @@ export function AboutPane() {
 		void checkForUpdate();
 	};
 	const onInstall = () => {
-		void warnIfNoProxyForDownload()
-			.then(() => installAvailableUpdate())
-			.then((next) => {
-				if (next.phase === "error") {
-					notifyError(t("about.update.installFailed"));
-				}
-			});
+		void installAvailableUpdate();
 	};
 	const installErrorText = (err: unknown) =>
 		lifecycleErrorMessage(errorText(err), (key, options) =>
@@ -133,8 +127,7 @@ export function AboutPane() {
 		);
 	const onInstallCli = () => {
 		setCliBusy(true);
-		void warnIfNoProxyForDownload()
-			.then(() => installCliCommand())
+		void installCliCommand()
 			.then(async (res) => {
 				setCli(res.status);
 				await refreshCli();
@@ -147,9 +140,11 @@ export function AboutPane() {
 			// Surface the Host error text: silent failures here are exactly what
 			// makes users guess at causes (e.g. "64-bit not supported").
 			.catch((err) =>
-				notifyError(t("about.cli.installFailed"), {
-					description: installErrorText(err),
-				}),
+				notifyReleaseDownloadError(
+					t("about.cli.installFailed"),
+					err,
+					installErrorText(err),
+				),
 			)
 			.finally(() => setCliBusy(false));
 	};

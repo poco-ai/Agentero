@@ -405,19 +405,23 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 
 ```ts
 {
-  section: "general" | "appearance" | "agent" | "translate" | "keyboard" | "about";
+  section?: string | null; // 设置分类 ID
   vaultPath?: string | null; // 当前 Vault 路径，用于远端 Agent 页上下文
 }
 ```
 
 - **返回**：`Result<(), String>`
 - **行为**
-  - 若 label 为 `settings` 的窗口已存在，则还原最小化的窗口并置前，不重复建窗；Windows 上的还原 / 显示 / 聚焦在主线程依次执行。
+  - 若 label 为 `settings` 的窗口已存在，则还原最小化的窗口并置前。提供 `section` 时通过 `settings:section-requested` 切换分类，否则沿用当前分类。Windows 上的还原 / 显示 / 聚焦在主线程依次执行。
   - URL 带 `?window=settings&section=...&vault_path=...`，由 `src/main.tsx` 分支渲染轻量 Settings 页面（不加载完整 `App`）。
   - 新窗口初始隐藏，由全局 page-load hook 在页面加载完成后显示；首个 React commit 前显示静态启动壳。
   - macOS 使用 Overlay 标题栏与原生交通灯；Windows / Linux 使用系统原生窗口边框（OS 自绘标题栏与 caption 按钮）。
   - 窗口关闭时 Host 向所有窗口 `emit("window:closed", { kind: "settings" })`，便于主窗口同步 Settings 打开状态（实现 `⌘,` _toggle_）；建窗失败时也会 emit 一次，避免 toggle 卡在“已打开”。
   - 与 `window_new` 同理，**必须是 `async` command**。
+
+#### `app_update_check`（桌面）
+
+使用 Tauri Updater 查询当前平台的更新，返回 `Result<AppUpdate | null, String>`。请求超时为 30 秒，`retryOnTimeout` 为 `true` 时仅在网络超时后重试一次。返回的 `rid` 是当前 Webview 持有的 updater 资源，供 Tauri Updater 插件下载、安装和释放。
 
 #### `fs_watch_start` / `fs_watch_stop`（已实现）
 

@@ -1,7 +1,7 @@
 //! Multi-window helpers.
 
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, EventTarget, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use crate::core::log_util::OpTimer;
 
@@ -21,6 +21,7 @@ const TRAFFIC_LIGHT_X: f64 = 14.0;
 const SETTINGS_TRAFFIC_LIGHT_Y: f64 = 16.0;
 
 pub const SETTINGS_WINDOW_LABEL: &str = "settings";
+pub const SETTINGS_SECTION_REQUESTED_EVENT: &str = "settings:section-requested";
 
 /// Broadcast when a singleton child window closes (or fails to build).
 /// Wire naming follows docs/development/lifecycle-events.md (`domain:event`);
@@ -171,12 +172,20 @@ pub async fn window_new(app: AppHandle) -> Result<(), String> {
 #[specta::specta]
 pub async fn settings_window_open(
     app: AppHandle,
-    section: String,
+    section: Option<String>,
     vault_path: Option<String>,
 ) -> Result<(), String> {
     let op = OpTimer::start("settings_window_open");
 
     if let Some(win) = app.get_webview_window(SETTINGS_WINDOW_LABEL) {
+        if let Some(section) = section {
+            win.emit_to(
+                EventTarget::webview_window(SETTINGS_WINDOW_LABEL),
+                SETTINGS_SECTION_REQUESTED_EVENT,
+                section,
+            )
+            .map_err(|error| error.to_string())?;
+        }
         raise_existing_window(&win);
         op.finish_ok_extra("existing");
         return Ok(());
@@ -184,7 +193,7 @@ pub async fn settings_window_open(
 
     let mut url = format!(
         "index.html?window=settings&section={}",
-        urlencoding::encode(&section)
+        urlencoding::encode(section.as_deref().unwrap_or("general"))
     );
     if let Some(path) = vault_path {
         url.push_str(&format!("&vault_path={}", urlencoding::encode(&path)));

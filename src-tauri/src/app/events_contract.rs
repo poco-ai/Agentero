@@ -108,6 +108,10 @@ pub struct VaultFileChangedEvent(pub crate::features::vault::watcher::FileChange
 pub struct SettingsChangedEvent(pub crate::features::system::settings::AppSettings);
 
 #[derive(specta::Type, tauri_specta::Event)]
+#[tauri_specta(event_name = "settings:section-requested")]
+pub struct SettingsSectionRequestedEvent(pub String);
+
+#[derive(specta::Type, tauri_specta::Event)]
 #[tauri_specta(event_name = "job:progress")]
 pub struct JobProgressEvent(
     pub agentero_core::features::paper::import::download::AssetDownloadProgress,

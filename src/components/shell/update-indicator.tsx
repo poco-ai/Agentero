@@ -7,10 +7,8 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { notifyError } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
-import { warnIfNoProxyForDownload } from "@/lib/settings/proxy-guard";
 import {
 	getUpdateReleaseUrl,
 	getUpdateSnapshot,
@@ -76,13 +74,7 @@ export function UpdateIndicator() {
 
 	const onInstall = () => {
 		if (busy) return;
-		void warnIfNoProxyForDownload()
-			.then(() => installAvailableUpdate())
-			.then((next) => {
-				if (next.phase === "error") {
-					notifyError(t("about.update.installFailed"));
-				}
-			});
+		void installAvailableUpdate();
 	};
 
 	return (
