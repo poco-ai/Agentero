@@ -80,21 +80,13 @@ cargo test -p agentero-core -p agentero-cli
 
 1. Fork 后从 `main` 拉功能分支，保持改动小而聚焦。
 2. 按模板填写 PR，**以下为硬性要求**：
-   - **UI / 功能改动必须附截图**：先创建不含图片的 PR，再在 **PR 评论区**上传「之前 / 之后」前后对比；涉及窄窗口等特殊布局时补充对应尺寸的截图。PR 正文可链接到该评论。
-   - **`feat` 必须附 Demo**：在 **PR 评论区**上传 10–60 秒短视频或 GIF，演示「入口 → 关键操作 → 结果」主路径。
-   - 完全没有界面变化时，在评论里写「无」，不附图片，并且不要勾选 `ui` 类型。
-   - 截图、GIF、录屏不得提交进仓库，也不要放进 PR diff 或 PR 描述正文。
+   - **UI / 功能改动必须附截图**：在 PR 正文标明「之前 / 之后」前后对比；涉及窄窗口等特殊布局时补充对应尺寸的截图。
+   - **`feat` 必须附 Demo**：在 PR 正文附 10–60 秒短视频或 GIF，演示「入口 → 关键操作 → 结果」主路径。
+   - 完全没有界面变化时，在截图栏写「无」，不附图片，并且不要勾选 `ui` 类型。
+   - 截图、GIF、录屏不得提交进仓库，也不要放进 PR diff。
 3. **CI 必须全绿**。PR 与 `main` 的 push 会触发 [ci.yml](.github/workflows/ci.yml)，未通过的 PR 不会进入 review。
 
-媒体上传方式与 [AGENTS.md 的 PR 约定](AGENTS.md#pr)一致：在网页的 **PR 评论框**拖入文件；或使用 `gh` ≥ 2.99.0：
-
-```bash
-gh pr comment <number> --body "之前 / 之后" \
-  --attach './before.png#之前' \
-  --attach './after.png#之后'
-```
-
-Demo 同样通过评论区上传。文件由 GitHub 托管，不进入 Git 历史。`gh` 低于 2.99.0 时使用网页评论框，不要改用 `gh pr create --attach` / `gh pr edit --attach`，也不要将媒体文件提交进仓库。
+媒体放在 PR 描述中：网页创建/编辑 PR 时拖入文件，或使用 `gh pr create --attach` / `gh pr edit --attach`。文件由 GitHub 托管，不进入 Git 历史。
 
 | CI 任务 | 内容 | 本地等价命令 |
 | --- | --- | --- |
