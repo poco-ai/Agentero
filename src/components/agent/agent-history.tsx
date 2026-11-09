@@ -1,4 +1,4 @@
-import { History, Pencil, Plus } from "lucide-react";
+import { History, Pencil, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -27,9 +27,19 @@ import {
 	agentSessionStore,
 	useAgentSessionStore,
 } from "@/lib/agent/agent-session-store";
+import type { AcpDeleteSessionResult } from "@/lib/agent/api";
 import type { ChatLine, ChatSessionHistoryItem } from "@/lib/agent/chat-state";
 import { displayHistoryTitle } from "@/lib/agent/prompt-display";
+import { errorText } from "@/lib/core/error";
+import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
+
+function isHistoryDeleteConfirm(target: EventTarget | null): boolean {
+	return (
+		target instanceof Element &&
+		Boolean(target.closest("[data-history-delete-confirm]"))
+	);
+}
 
 const HISTORY_STATUS_DOT = {
 	running: "bg-primary motion-safe:animate-pulse",
@@ -80,16 +90,21 @@ export function HistorySessionList({
 	activeTabId,
 	submitting,
 	onOpen,
+	onDelete,
 }: {
 	sessionHistory: ChatSessionHistoryItem[];
 	activeTabId: string;
 	submitting: boolean;
 	onOpen: (item: ChatSessionHistoryItem) => void;
+	onDelete: (item: ChatSessionHistoryItem) => Promise<AcpDeleteSessionResult>;
 }) {
 	const { t } = useTranslation(["agent", "common"]);
 	const [renameTarget, setRenameTarget] =
 		useState<ChatSessionHistoryItem | null>(null);
 	const [renameTitle, setRenameTitle] = useState("");
+	const [deleteTarget, setDeleteTarget] =
+		useState<ChatSessionHistoryItem | null>(null);
+	const [deleting, setDeleting] = useState(false);
 	// compositionend can fire before the confirming Enter (see useImeGuard).
 	const { isBlockedByIme, compositionProps } = useImeGuard();
 
@@ -118,6 +133,24 @@ export function HistorySessionList({
 		setRenameTarget(null);
 	};
 
+	const confirmDelete = async () => {
+		if (!deleteTarget || deleting) return;
+		setDeleting(true);
+		try {
+			const result = await onDelete(deleteTarget);
+			setDeleteTarget(null);
+			if (result.agentError) {
+				notifyError(t("history.deleteAgentFailed"), {
+					description: result.agentError,
+				});
+			}
+		} catch (error) {
+			notifyError(errorText(error) || t("history.deleteFailed"));
+		} finally {
+			setDeleting(false);
+		}
+	};
+
 	return (
 		<>
 			<div className="max-h-72 overflow-y-auto p-1.5">
@@ -135,7 +168,7 @@ export function HistorySessionList({
 								type="button"
 								disabled={submitting}
 								className={cn(
-									"flex w-full flex-col gap-1 rounded-md py-2 pr-8 pl-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+									"flex w-full flex-col gap-1 rounded-md py-2 pr-14 pl-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
 									isActive
 										? "bg-muted text-foreground"
 										: "group-hover:bg-muted/70 focus-visible:bg-muted/70",
@@ -163,23 +196,85 @@ export function HistorySessionList({
 									{item.startedAt}
 								</span>
 							</button>
-							<button
-								type="button"
+							<div
 								className={cn(
-									// Center with auto margins. A translate would be replaced by
-									// Button's active:translate-y-px and the icon would jump.
-									"pointer-events-none absolute inset-y-0 right-1 z-10 my-auto flex size-6 items-center justify-center rounded-[min(var(--radius-md),10px)] text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring",
-									"group-hover:pointer-events-auto group-hover:opacity-100",
-									"focus-visible:pointer-events-auto focus-visible:opacity-100",
-									"disabled:pointer-events-none",
+									"pointer-events-none absolute inset-y-0 right-1 z-10 my-auto flex items-center",
+									"group-hover:pointer-events-auto",
+									"has-[:focus-visible]:pointer-events-auto",
+									"has-[[data-state=open]]:pointer-events-auto",
 								)}
-								aria-label={t("history.rename")}
-								title={t("history.rename")}
-								disabled={submitting}
-								onClick={() => beginRename(item)}
 							>
-								<Pencil className="size-3" aria-hidden />
-							</button>
+								<button
+									type="button"
+									className={cn(
+										// No translate: Button's active:translate-y-px would jump the icon.
+										"flex size-6 items-center justify-center rounded-[min(var(--radius-md),10px)] text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring",
+										"group-hover:opacity-100",
+										"focus-visible:opacity-100",
+										"disabled:pointer-events-none",
+									)}
+									aria-label={t("history.rename")}
+									title={t("history.rename")}
+									disabled={submitting || deleting}
+									onClick={() => beginRename(item)}
+								>
+									<Pencil className="size-3" aria-hidden />
+								</button>
+								<Popover
+									open={deleteTarget?.id === item.id}
+									onOpenChange={(open) => {
+										if (deleting) return;
+										setDeleteTarget(open ? item : null);
+									}}
+								>
+									<PopoverTrigger asChild>
+										<button
+											type="button"
+											className={cn(
+												"flex size-6 items-center justify-center rounded-[min(var(--radius-md),10px)] text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:opacity-100",
+												"group-hover:opacity-100",
+												"focus-visible:opacity-100",
+												"disabled:pointer-events-none",
+											)}
+											aria-label={t("history.delete")}
+											title={t("history.delete")}
+											disabled={submitting || deleting}
+										>
+											<Trash2 className="size-3" aria-hidden />
+										</button>
+									</PopoverTrigger>
+									<PopoverContent
+										data-history-delete-confirm=""
+										side="bottom"
+										align="end"
+										className="z-[70] w-44 gap-2 p-2.5"
+									>
+										<p className="font-medium text-sm leading-snug">
+											{t("history.deleteConfirmTitle")}
+										</p>
+										<div className="flex justify-end gap-1">
+											<Button
+												type="button"
+												size="xs"
+												variant="ghost"
+												disabled={deleting}
+												onClick={() => setDeleteTarget(null)}
+											>
+												{t("common:cancel")}
+											</Button>
+											<Button
+												type="button"
+												size="xs"
+												variant="destructive"
+												disabled={deleting}
+												onClick={() => void confirmDelete()}
+											>
+												{t("history.delete")}
+											</Button>
+										</div>
+									</PopoverContent>
+								</Popover>
+							</div>
 						</div>
 					);
 				})}
@@ -237,10 +332,12 @@ function SidebarHistorySessions({
 	activeTabId,
 	submitting,
 	onOpen,
+	onDelete,
 }: {
 	activeTabId: string;
 	submitting: boolean;
 	onOpen: (item: ChatSessionHistoryItem) => void;
+	onDelete: (item: ChatSessionHistoryItem) => Promise<AcpDeleteSessionResult>;
 }) {
 	const { t } = useTranslation("agent");
 	// Subscribe to a derived primitive: every stream flush replaces the
@@ -269,6 +366,7 @@ function SidebarHistorySessions({
 			activeTabId={activeTabId}
 			submitting={submitting}
 			onOpen={onOpen}
+			onDelete={onDelete}
 		/>
 	);
 }
@@ -282,6 +380,7 @@ export function SidebarHistoryTrailing({
 	headerActions,
 	onNewConversation,
 	onOpenSession,
+	onDeleteSession,
 }: {
 	historyOpen: boolean;
 	onHistoryOpenChange: (open: boolean) => void;
@@ -290,6 +389,9 @@ export function SidebarHistoryTrailing({
 	headerActions?: ReactNode;
 	onNewConversation: () => void;
 	onOpenSession: (item: ChatSessionHistoryItem) => void;
+	onDeleteSession: (
+		item: ChatSessionHistoryItem,
+	) => Promise<AcpDeleteSessionResult>;
 }) {
 	const { t } = useTranslation("agent");
 
@@ -320,7 +422,16 @@ export function SidebarHistoryTrailing({
 						<History className="size-3.5" />
 					</Button>
 				</PopoverTrigger>
-				<PopoverContent align="end" className="w-80 gap-0 p-0">
+				<PopoverContent
+					align="end"
+					className="w-80 gap-0 p-0"
+					onInteractOutside={(event) => {
+						if (isHistoryDeleteConfirm(event.target)) event.preventDefault();
+					}}
+					onFocusOutside={(event) => {
+						if (isHistoryDeleteConfirm(event.target)) event.preventDefault();
+					}}
+				>
 					<PopoverHeader className="border-b px-3 py-2">
 						<PopoverTitle className="font-medium text-sm leading-none">
 							{t("history.title")}
@@ -333,6 +444,7 @@ export function SidebarHistoryTrailing({
 						activeTabId={activeTabId}
 						submitting={submitting}
 						onOpen={onOpenSession}
+						onDelete={onDeleteSession}
 					/>
 				</PopoverContent>
 			</Popover>

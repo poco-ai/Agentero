@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
-import { LoaderCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { LoaderCircle, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	PromptInput,
@@ -21,6 +21,7 @@ import {
 } from "@/components/agent/message";
 import { useMobileAgentChat } from "@/components/mobile/hooks/use-mobile-agent-chat";
 import type {
+	AcpDeleteSessionResult,
 	AcpListSessionsResult,
 	AgentLine,
 	AgentPermissionRequest,
@@ -43,6 +44,8 @@ import {
 import { Shimmer } from "@/components/ui/shimmer";
 import { displayHistoryTitle } from "@/lib/agent/prompt-display";
 import { bridgeRpc } from "@/lib/bridge/client";
+import { errorText } from "@/lib/core/error";
+import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
 
 const phaseLabelKey: Record<
@@ -74,7 +77,7 @@ export function MobileAgentPage({
 }: {
 	selectedAgentId: string | null;
 	sessionId: string | null;
-	onSessionId: (sessionId: string) => void;
+	onSessionId: (sessionId: string | null) => void;
 	historyOpen: boolean;
 	onHistoryOpenChange: (open: boolean) => void;
 }) {
@@ -87,6 +90,7 @@ export function MobileAgentPage({
 		phase,
 		restore,
 		send,
+		clearSession,
 		respondToPermission,
 	} = useMobileAgentChat({
 		agentId: selectedAgentId,
@@ -177,11 +181,13 @@ export function MobileAgentPage({
 			<MobileAgentHistoryDialog
 				open={historyOpen}
 				agentId={selectedAgentId}
+				currentSessionId={sessionId}
 				onClose={() => onHistoryOpenChange(false)}
 				onPick={(target) => {
 					onHistoryOpenChange(false);
 					void restore(target);
 				}}
+				onCurrentDeleted={clearSession}
 			/>
 		</>
 	);
@@ -228,17 +234,24 @@ function MobileChatLine({
 function MobileAgentHistoryDialog({
 	open,
 	agentId,
+	currentSessionId,
 	onClose,
 	onPick,
+	onCurrentDeleted,
 }: {
 	open: boolean;
 	agentId: string | null;
+	currentSessionId: string | null;
 	onClose: () => void;
 	onPick: (sessionId: string) => void;
+	onCurrentDeleted: () => void;
 }) {
-	const { t } = useTranslation("mobile");
+	const { t } = useTranslation(["mobile", "common"]);
 	const [loading, setLoading] = useState(false);
 	const [result, setResult] = useState<AcpListSessionsResult | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+	const [deleting, setDeleting] = useState(false);
+	const hiddenIds = useRef(new Set<string>());
 
 	useEffect(() => {
 		if (!open) return;
@@ -248,13 +261,58 @@ function MobileAgentHistoryDialog({
 		void bridgeRpc<AcpListSessionsResult>("agent_list_sessions", {
 			agentId: agentId ?? undefined,
 		})
-			.then((next) => active && setResult(next))
+			.then((next) => {
+				if (!active) return;
+				setResult({
+					...next,
+					sessions: next.sessions.filter(
+						(session) => !hiddenIds.current.has(session.sessionId),
+					),
+				});
+			})
 			.catch(() => active && setResult({ sessions: [], supported: false }))
 			.finally(() => active && setLoading(false));
 		return () => {
 			active = false;
 		};
 	}, [agentId, open]);
+
+	const confirmDelete = async () => {
+		if (!deleteTarget || deleting) return;
+		setDeleting(true);
+		try {
+			const deleted = await bridgeRpc<AcpDeleteSessionResult>(
+				"agent_delete_session",
+				{
+					agentId: agentId ?? undefined,
+					sessionId: deleteTarget,
+				},
+			);
+			const removedId = deleteTarget;
+			hiddenIds.current.add(removedId);
+			setResult((current) =>
+				current
+					? {
+							...current,
+							sessions: current.sessions.filter(
+								(session) => session.sessionId !== removedId,
+							),
+						}
+					: current,
+			);
+			setDeleteTarget(null);
+			if (removedId === currentSessionId) onCurrentDeleted();
+			if (deleted.agentError) {
+				notifyError(t("agent.historyDeleteAgentFailed"), {
+					description: deleted.agentError,
+				});
+			}
+		} catch (error) {
+			notifyError(errorText(error) || t("agent.historyDeleteFailed"));
+		} finally {
+			setDeleting(false);
+		}
+	};
 
 	return (
 		<Dialog
@@ -283,23 +341,74 @@ function MobileAgentHistoryDialog({
 					<ul className="agentero-scroll max-h-80 divide-y">
 						{result?.sessions.map((session) => (
 							<li key={session.sessionId}>
-								<button
-									type="button"
-									className="flex w-full flex-col gap-0.5 px-1 py-3 text-left"
-									onClick={() => onPick(session.sessionId)}
-								>
-									<span className="line-clamp-2 text-sm">
-										{displayHistoryTitle(
-											session.title ?? "",
-											session.sessionId.slice(0, 8),
-										)}
-									</span>
-									{session.updatedAt ? (
-										<span className="text-muted-foreground text-xs">
-											{session.updatedAt}
+								<div className="flex items-stretch">
+									<button
+										type="button"
+										className="flex min-w-0 flex-1 flex-col gap-0.5 px-1 py-3 text-left"
+										onClick={() => onPick(session.sessionId)}
+									>
+										<span className="line-clamp-2 text-sm">
+											{displayHistoryTitle(
+												session.title ?? "",
+												session.sessionId.slice(0, 8),
+											)}
 										</span>
-									) : null}
-								</button>
+										{session.updatedAt ? (
+											<span className="text-muted-foreground text-xs">
+												{session.updatedAt}
+											</span>
+										) : null}
+									</button>
+									<button
+										type="button"
+										className={cn(
+											"my-auto mr-1 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
+											deleteTarget === session.sessionId &&
+												"bg-destructive/10 text-destructive",
+										)}
+										aria-label={t("agent.historyDelete")}
+										aria-expanded={deleteTarget === session.sessionId}
+										disabled={deleting}
+										onClick={() =>
+											setDeleteTarget((current) =>
+												current === session.sessionId
+													? null
+													: session.sessionId,
+											)
+										}
+									>
+										<Trash2 className="size-4" aria-hidden />
+									</button>
+								</div>
+								{deleteTarget === session.sessionId ? (
+									<div className="flex justify-end px-1 pb-2">
+										<div className="flex w-44 flex-col gap-2 rounded-lg bg-muted/40 p-2.5">
+											<p className="font-medium text-sm leading-snug">
+												{t("agent.historyDeleteTitle")}
+											</p>
+											<div className="flex justify-end gap-1">
+												<Button
+													type="button"
+													size="xs"
+													variant="ghost"
+													disabled={deleting}
+													onClick={() => setDeleteTarget(null)}
+												>
+													{t("common:cancel")}
+												</Button>
+												<Button
+													type="button"
+													size="xs"
+													variant="destructive"
+													disabled={deleting}
+													onClick={() => void confirmDelete()}
+												>
+													{t("agent.historyDelete")}
+												</Button>
+											</div>
+										</div>
+									</div>
+								) : null}
 							</li>
 						))}
 					</ul>

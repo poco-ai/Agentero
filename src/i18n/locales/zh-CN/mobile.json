@@ -55,6 +55,10 @@
 		"history": "历史会话",
 		"historyEmpty": "暂无历史会话",
 		"historyUnsupported": "当前 Agent 不支持查看历史会话。",
+		"historyDelete": "删除",
+		"historyDeleteTitle": "删除这段对话？",
+		"historyDeleteFailed": "无法删除这段对话。",
+		"historyDeleteAgentFailed": "已从这里隐藏。Agent 那边的记录没有删掉。",
 		"restoring": "正在恢复会话…"
 	},
 	"settings": {

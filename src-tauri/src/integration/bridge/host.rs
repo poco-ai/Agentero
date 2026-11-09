@@ -1013,6 +1013,20 @@ async fn dispatch_agent_rpc(
             .await;
             api_service_data(result)
         }
+        "agent_delete_session" => {
+            let session_id = required_string(&params, "sessionId")?;
+            let remote_hosts = app.state::<std::sync::Arc<dyn RemoteAgentHosts>>();
+            let result = agent_service::delete_session(
+                app.state::<AgentRegistry>().inner(),
+                remote_hosts.inner().as_ref(),
+                app.state::<Arc<AgentWarmPool>>().inner(),
+                optional_string(&params, "agentId"),
+                session_id,
+                vault_path,
+            )
+            .await;
+            api_service_data(result)
+        }
         _ => Err(AppError::message("Bridge Agent RPC method is not allowed")),
     }
 }

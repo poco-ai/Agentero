@@ -18,8 +18,8 @@ use crate::features::agent::models::{
 mod dsh_history;
 
 use agent_client_protocol::schema::v1::{
-    ListSessionsRequest, LoadSessionRequest, RequestPermissionRequest, SessionId,
-    SessionNotification, SessionUpdate,
+    DeleteSessionRequest, ListSessionsRequest, LoadSessionRequest, RequestPermissionRequest,
+    SessionId, SessionNotification, SessionUpdate,
 };
 use agent_client_protocol::{Agent, ConnectionTo};
 use std::collections::HashSet;
@@ -160,6 +160,63 @@ pub async fn list_acp_sessions(
     match result {
         Ok(r) => Ok(r),
         Err(e) => Err(AppError::domain("acp", format!("acp: list sessions: {e}"))),
+    }
+}
+
+/// Delete one session via ACP `session/delete`.
+///
+/// `Ok(true)` means the agent accepted the delete. `Ok(false)` means it did
+/// not advertise `sessionCapabilities.delete` — the caller still hides the id
+/// locally. Errors are RPC failures after the capability was advertised.
+pub async fn delete_acp_session(
+    desc: &AgentDescriptor,
+    session_id: &str,
+    cwd: PathBuf,
+    remote: Option<&dyn crate::features::agent::remote_host::RemoteAgentLaunch>,
+) -> Result<bool, AppError> {
+    let acp = to_acp_agent(desc, Some(&cwd), remote)?;
+    let terminals = acp_terminals(Some(cwd));
+    let session_id = session_id.to_string();
+
+    let result = agentero_acp_builder!(terminals)
+        .on_receive_request(
+            async move |request: RequestPermissionRequest, responder, _cx| {
+                let _ = responder.respond(permission_response(&request, false));
+                Ok(())
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .connect_with(acp, {
+            move |connection: ConnectionTo<Agent>| async move {
+                let init = timed_acp_initialize(
+                    connection
+                        .send_request(client_initialize_request())
+                        .block_task(),
+                )
+                .await?;
+                if init
+                    .agent_capabilities
+                    .session_capabilities
+                    .delete
+                    .is_none()
+                {
+                    return Ok(false);
+                }
+                timed_acp_request(
+                    "session/delete",
+                    connection
+                        .send_request(DeleteSessionRequest::new(session_id))
+                        .block_task(),
+                )
+                .await?;
+                Ok(true)
+            }
+        })
+        .await;
+
+    match result {
+        Ok(deleted) => Ok(deleted),
+        Err(e) => Err(AppError::domain("acp", format!("acp: delete session: {e}"))),
     }
 }
 

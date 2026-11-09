@@ -26,6 +26,6 @@ pub use runtime::{
     PermissionGate,
 };
 pub use session::{
-    list_acp_sessions, load_acp_session, new_ids, run_once, warm_agent, AgentWarmPool,
-    RunOnceParams,
+    delete_acp_session, list_acp_sessions, load_acp_session, new_ids, run_once, warm_agent,
+    AgentWarmPool, RunOnceParams,
 };

@@ -9,18 +9,19 @@ use crate::core::error::AppError;
 use crate::core::log_util::{trunc, OpTimer};
 use crate::features::agent::acp::client::agent_spawn_cwd;
 use crate::features::agent::models::{
-    AcpListSessionsResult, AcpLoadSessionResult, AgentListResponse, AgentOnly, AgentRegistryState,
-    AgentStatusEvent, AskUserResponseRequest, CatalogScanResponse, ElicitationResponseRequest,
-    PermissionResponded, PermissionResponseRequest, ProbeResult, RunOnceAccepted, RunOnceRequest,
+    AcpDeleteSessionResult, AcpListSessionsResult, AcpLoadSessionResult, AgentListResponse,
+    AgentOnly, AgentRegistryState, AgentStatusEvent, AskUserResponseRequest, CatalogScanResponse,
+    ElicitationResponseRequest, PermissionResponded, PermissionResponseRequest, ProbeResult,
+    RunOnceAccepted, RunOnceRequest,
 };
 use crate::features::agent::remote_host::RemoteAgentHosts;
 use crate::features::agent::runtime::gates::{
     AskUserAnswer, AskUserGate, ElicitationAnswer, ElicitationGate, PermissionGate,
 };
 use crate::features::agent::{
-    list_acp_sessions, load_acp_session, new_ids, probe_agent, run_once, AgentEventEmitter,
-    AgentRegistry, AgentRunController, AgentWarmGate, AgentWarmPool, PermissionPolicy,
-    RunOnceParams,
+    delete_acp_session, list_acp_sessions, load_acp_session, new_ids, probe_agent, run_once,
+    AgentEventEmitter, AgentRegistry, AgentRunController, AgentWarmGate, AgentWarmPool,
+    PermissionPolicy, RunOnceParams,
 };
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
@@ -398,10 +399,12 @@ pub async fn list_sessions(
     match list_acp_sessions(&desc, cwd, cursor, remote_target.as_deref()).await {
         Ok(mut result) => {
             let hidden = pool.unprompted_ids();
-            if !hidden.is_empty() {
-                result
-                    .sessions
-                    .retain(|session| !hidden.contains(&session.session_id));
+            let dismissed = pool.dismissed_ids();
+            if !hidden.is_empty() || !dismissed.is_empty() {
+                result.sessions.retain(|session| {
+                    !hidden.contains(&session.session_id)
+                        && !dismissed.contains(&session.session_id)
+                });
             }
             warm_gate.clear(&desc.id);
             op.finish_ok_extra(format!(
@@ -442,6 +445,57 @@ pub async fn load_session(
     let remote_target = remote_hosts.resolve_target(vault_path.as_deref()).await?;
     let cwd = agent_spawn_cwd(remote_target.as_deref(), vault_path.as_deref())?;
     load_acp_session(&desc, session_id, cwd, remote_target.as_deref()).await
+}
+
+/// Service for `agent_delete_session`.
+///
+/// The id is recorded locally before any ACP call, so a later `session/list`
+/// hides it even when the agent has no `session/delete` or the RPC fails.
+/// An idle warm slot bound to this id is dropped so the next turn does not
+/// continue a conversation the user just removed.
+pub async fn delete_session(
+    registry: &AgentRegistry,
+    remote_hosts: &dyn RemoteAgentHosts,
+    pool: &AgentWarmPool,
+    agent_id: Option<String>,
+    session_id: String,
+    vault_path: Option<String>,
+) -> Result<AcpDeleteSessionResult, AppError> {
+    let session_id = session_id.trim().to_string();
+    if session_id.is_empty() {
+        return Err(AppError::message("session id is required"));
+    }
+    let desc = registry.resolve_default(agent_id.as_deref())?;
+    pool.dismiss_session(&session_id);
+    pool.drop_session(&desc.id, &session_id);
+
+    if crate::features::agent::models::is_builtin_template(&desc.template) {
+        return Ok(AcpDeleteSessionResult {
+            session_id,
+            deleted_on_agent: false,
+            agent_error: None,
+        });
+    }
+
+    let remote_target = remote_hosts.resolve_target(vault_path.as_deref()).await?;
+    let cwd = agent_spawn_cwd(remote_target.as_deref(), vault_path.as_deref())?;
+    match delete_acp_session(&desc, &session_id, cwd, remote_target.as_deref()).await {
+        Ok(true) => Ok(AcpDeleteSessionResult {
+            session_id,
+            deleted_on_agent: true,
+            agent_error: None,
+        }),
+        Ok(false) => Ok(AcpDeleteSessionResult {
+            session_id,
+            deleted_on_agent: false,
+            agent_error: None,
+        }),
+        Err(error) => Ok(AcpDeleteSessionResult {
+            session_id,
+            deleted_on_agent: false,
+            agent_error: Some(error.to_string()),
+        }),
+    }
 }
 
 async fn local_delegate_hint(

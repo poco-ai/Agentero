@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	deleteHistorySession,
 	hydrateSessionTitles,
 	isSessionIdPrefixTitle,
 	mergeImportedSessions,
@@ -16,13 +17,19 @@ import {
 import type { AcpSessionInfo } from "@/lib/agent/api";
 import { encodeMentionToken } from "@/lib/agent/composer-inline-tokens";
 import * as titleCache from "@/lib/agent/history-title-cache";
-import { rememberEmptyAcpSession } from "@/lib/agent/history-title-cache";
+import {
+	isDismissedAcpSession,
+	rememberDismissedAcpSession,
+	rememberEmptyAcpSession,
+} from "@/lib/agent/history-title-cache";
 
 vi.mock("@/lib/agent", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@/lib/agent")>();
 	return {
 		...actual,
 		loadSession: vi.fn(),
+		deleteSession: vi.fn(),
+		cancelAgentRun: vi.fn(),
 	};
 });
 
@@ -193,6 +200,39 @@ describe("mergeImportedSessions", () => {
 		);
 
 		expect(sessions).toHaveLength(0);
+	});
+
+	it("omits sessions the user deleted, including a local running row", () => {
+		const storage = new Map<string, string>();
+		vi.stubGlobal("localStorage", {
+			getItem: (key: string) => storage.get(key) ?? null,
+			setItem: (key: string, value: string) => {
+				storage.set(key, value);
+			},
+			removeItem: (key: string) => {
+				storage.delete(key);
+			},
+		});
+		rememberDismissedAcpSession("agent-1", "prov");
+
+		const { sessions } = mergeImportedSessions(
+			[
+				makeRecord({
+					id: "runtime",
+					providerSessionId: "prov",
+					source: "local",
+					status: "running",
+					lines: [{ id: "u1", kind: "user" as const, text: "hello" }],
+				}),
+			],
+			[makeAcpSession({ sessionId: "prov", title: "Kept" })],
+			"agent-1",
+			"Agent",
+			"zh-CN",
+		);
+
+		expect(sessions).toHaveLength(0);
+		expect(isDismissedAcpSession("agent-1", "prov")).toBe(true);
 	});
 
 	it("flags untitled external sessions as hydration candidates", () => {
@@ -532,5 +572,65 @@ describe("hydrateSessionTitles", () => {
 
 		expect(mockedLoadSession).toHaveBeenCalledTimes(1);
 		expect(setSessionHistory).not.toHaveBeenCalled();
+	});
+});
+
+describe("deleteHistorySession", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		agentSessionStore.getState().setSessions([]);
+		agentSessionStore.getState().startDraft();
+	});
+
+	function stubStorage() {
+		const storage = new Map<string, string>();
+		vi.stubGlobal("localStorage", {
+			getItem: (key: string) => storage.get(key) ?? null,
+			setItem: (key: string, value: string) => {
+				storage.set(key, value);
+			},
+			removeItem: (key: string) => {
+				storage.delete(key);
+			},
+		});
+	}
+
+	it("cancels a running turn, hides the provider id, and leaves the open draft", async () => {
+		stubStorage();
+		vi.mocked(agentApi.cancelAgentRun).mockResolvedValue(undefined);
+		vi.mocked(agentApi.deleteSession).mockResolvedValue({
+			sessionId: "prov",
+			deletedOnAgent: false,
+			agentError: null,
+		});
+		agentSessionStore.getState().setSessions([
+			makeRecord({
+				id: "runtime",
+				providerSessionId: "prov",
+				status: "running",
+			}),
+		]);
+		agentSessionStore.getState().setActiveTabId("runtime");
+
+		const result = await deleteHistorySession(
+			makeRecord({
+				id: "runtime",
+				providerSessionId: "prov",
+				status: "running",
+			}),
+			"/vault",
+		);
+
+		expect(agentApi.cancelAgentRun).toHaveBeenCalledWith("runtime");
+		expect(agentApi.deleteSession).toHaveBeenCalledWith({
+			agentId: "agent-1",
+			sessionId: "prov",
+			vaultPath: "/vault",
+		});
+		expect(result.deletedOnAgent).toBe(false);
+		expect(agentSessionStore.getState().sessions).toEqual([]);
+		expect(agentSessionStore.getState().activeTabId).toBe("draft");
+		expect(isDismissedAcpSession("agent-1", "prov")).toBe(true);
+		expect(isDismissedAcpSession("agent-1", "runtime")).toBe(true);
 	});
 });

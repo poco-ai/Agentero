@@ -14,6 +14,7 @@ import { readJsonStorage, writeJsonStorage } from "@/lib/core/storage";
 const STORAGE_KEY = "agentero.agent-history-titles.v1";
 const OVERRIDE_KEY = "agentero.agent-history-title-overrides.v1";
 const EMPTY_KEY = "agentero.agent-empty-sessions.v1";
+const DISMISSED_KEY = "agentero.agent-dismissed-sessions.v1";
 const MAX_ENTRIES = 400;
 const MAX_EMPTY = 2000;
 
@@ -143,8 +144,8 @@ export function setUserHistoryTitle(
 	writeOverrides(overrides);
 }
 
-function readEmptySessions(): CacheMap {
-	const parsed = readJsonStorage<unknown>(EMPTY_KEY, null);
+function readFlagSet(storageKey: string): CacheMap {
+	const parsed = readJsonStorage<unknown>(storageKey, null);
 	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
 		return {};
 	}
@@ -155,7 +156,7 @@ function readEmptySessions(): CacheMap {
 	return out;
 }
 
-function writeEmptySessions(map: CacheMap): void {
+function writeFlagSet(storageKey: string, map: CacheMap): void {
 	const entries = Object.entries(map);
 	const trimmed =
 		entries.length > MAX_EMPTY
@@ -163,7 +164,15 @@ function writeEmptySessions(map: CacheMap): void {
 			: map;
 	const stored: Record<string, true> = {};
 	for (const key of Object.keys(trimmed)) stored[key] = true;
-	writeJsonStorage(EMPTY_KEY, stored);
+	writeJsonStorage(storageKey, stored);
+}
+
+function readEmptySessions(): CacheMap {
+	return readFlagSet(EMPTY_KEY);
+}
+
+function writeEmptySessions(map: CacheMap): void {
+	writeFlagSet(EMPTY_KEY, map);
 }
 
 /** ACP sessions whose transcript had no lines the last time we loaded them. */
@@ -186,6 +195,39 @@ export function rememberEmptyAcpSession(
 	if (map[key] === "1") return;
 	map[key] = "1";
 	writeEmptySessions(map);
+}
+
+function readDismissedSessions(): CacheMap {
+	return readFlagSet(DISMISSED_KEY);
+}
+
+function writeDismissedSessions(map: CacheMap): void {
+	writeFlagSet(DISMISSED_KEY, map);
+}
+
+/** Sessions the user removed from history. `session/list` must not bring them back. */
+export function isDismissedAcpSession(
+	agentId: string,
+	sessionId: string,
+): boolean {
+	const id = sessionId.trim();
+	const agent = agentId.trim();
+	if (!id || !agent) return false;
+	return readDismissedSessions()[cacheKey(agent, id)] === "1";
+}
+
+export function rememberDismissedAcpSession(
+	agentId: string,
+	sessionId: string,
+): void {
+	const id = sessionId.trim();
+	const agent = agentId.trim();
+	if (!id || !agent) return;
+	const map = readDismissedSessions();
+	const key = cacheKey(agent, id);
+	if (map[key] === "1") return;
+	map[key] = "1";
+	writeDismissedSessions(map);
 }
 
 export function forgetEmptyAcpSession(

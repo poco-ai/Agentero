@@ -210,6 +210,7 @@ export const AgentPanel = memo(function AgentPanel({
 		setHistoryOpen,
 		newConversation,
 		openHistorySession,
+		removeHistorySession,
 		options,
 		selectedAgentId,
 		hasRunningSessions,
@@ -364,6 +365,7 @@ export const AgentPanel = memo(function AgentPanel({
 							headerActions={headerActions}
 							onNewConversation={newConversation}
 							onOpenSession={openHistorySession}
+							onDeleteSession={removeHistorySession}
 						/>
 					}
 				>

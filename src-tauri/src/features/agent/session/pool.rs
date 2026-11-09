@@ -163,13 +163,18 @@ const UNPROMPTED_SESSION_CAP: usize = 2000;
 /// Warm `session/new` ids that have not had a user prompt delivered.
 /// History listing skips them. The file survives restart so an agent that
 /// cannot `session/delete` does not show the empty thread again.
-struct UnpromptedSessions {
+/// Session ids persisted across restarts so `session/list` can skip them.
+struct PersistedSessionIds {
     ids: Mutex<Vec<String>>,
     path: PathBuf,
 }
 
 fn unprompted_sessions_path() -> PathBuf {
     crate::core::paths::agentero_data_dir().join("unprompted-acp-sessions.json")
+}
+
+fn dismissed_sessions_path() -> PathBuf {
+    crate::core::paths::agentero_data_dir().join("dismissed-acp-sessions.json")
 }
 
 fn read_unprompted_ids(path: &Path) -> Vec<String> {
@@ -194,7 +199,7 @@ fn read_unprompted_ids(path: &Path) -> Vec<String> {
     out
 }
 
-impl UnpromptedSessions {
+impl PersistedSessionIds {
     fn open(path: PathBuf) -> Self {
         let ids = read_unprompted_ids(&path);
         Self {
@@ -242,6 +247,13 @@ impl UnpromptedSessions {
         }
     }
 
+    fn contains(&self, session_id: &str) -> bool {
+        self.ids
+            .lock()
+            .map(|ids| ids.iter().any(|id| id == session_id))
+            .unwrap_or(false)
+    }
+
     fn snapshot(&self) -> HashSet<String> {
         self.ids
             .lock()
@@ -256,7 +268,10 @@ pub struct AgentWarmPool {
     tasks: Mutex<HashMap<Uuid, WarmState>>,
     closed: AtomicBool,
     changed: Notify,
-    unprompted: UnpromptedSessions,
+    unprompted: PersistedSessionIds,
+    /// Sessions the user removed from history. Filtered out of `session/list`
+    /// even when the agent cannot `session/delete`.
+    dismissed: PersistedSessionIds,
 }
 
 enum TakeState {
@@ -295,7 +310,8 @@ impl AgentWarmPool {
             tasks: Mutex::new(HashMap::new()),
             closed: AtomicBool::new(false),
             changed: Notify::new(),
-            unprompted: UnpromptedSessions::open(unprompted_sessions_path()),
+            unprompted: PersistedSessionIds::open(unprompted_sessions_path()),
+            dismissed: PersistedSessionIds::open(dismissed_sessions_path()),
         }
     }
 
@@ -311,6 +327,37 @@ impl AgentWarmPool {
 
     pub(crate) fn unprompted_ids(&self) -> HashSet<String> {
         self.unprompted.snapshot()
+    }
+
+    /// Hide `session_id` from later `session/list` results.
+    pub(crate) fn dismiss_session(&self, session_id: &str) {
+        self.dismissed.track(session_id);
+    }
+
+    pub(crate) fn dismissed_ids(&self) -> HashSet<String> {
+        self.dismissed.snapshot()
+    }
+
+    /// Stop an idle warm slot bound to a session the user just deleted.
+    /// A slot borrowed by a running turn is not in the map; [`Self::release`]
+    /// drops it once that turn ends, because the id is already dismissed.
+    pub(crate) fn drop_session(&self, agent_id: &str, session_id: &str) {
+        let session_id = session_id.trim();
+        if session_id.is_empty() {
+            return;
+        }
+        let mut slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
+        let matches = slots
+            .entries
+            .get(agent_id)
+            .is_some_and(|(_, slot)| slot.acp_session_id.to_string() == session_id);
+        if !matches {
+            return;
+        }
+        if let Some((_, (_, slot))) = slots.entries.remove_entry(agent_id) {
+            slot.stop();
+        }
+        self.changed.notify_waiters();
     }
 
     pub(crate) fn start_warm(self: &Arc<Self>, key: &PoolKey) -> WarmTask {
@@ -496,6 +543,10 @@ impl AgentWarmPool {
     /// Return a slot after a finished turn; a dead or displaced connection is
     /// torn down instead of pooled again.
     pub(crate) fn release(&self, slot: PooledSlot) {
+        if self.dismissed.contains(&slot.acp_session_id.to_string()) {
+            slot.stop();
+            return;
+        }
         slot.activity.send_if_modified(|v| {
             *v += 1;
             true
@@ -751,15 +802,15 @@ mod slot_map_tests {
             std::process::id(),
             uuid::Uuid::new_v4()
         ));
-        let store = super::UnpromptedSessions::open(path.clone());
+        let store = super::PersistedSessionIds::open(path.clone());
         store.track("warm-1");
         store.track("warm-1");
         store.track("warm-2");
-        let reloaded = super::UnpromptedSessions::open(path.clone());
+        let reloaded = super::PersistedSessionIds::open(path.clone());
         assert!(reloaded.snapshot().contains("warm-1"));
         assert!(reloaded.snapshot().contains("warm-2"));
         reloaded.forget("warm-1");
-        let again = super::UnpromptedSessions::open(path.clone());
+        let again = super::PersistedSessionIds::open(path.clone());
         assert!(!again.snapshot().contains("warm-1"));
         assert!(again.snapshot().contains("warm-2"));
         let _ = std::fs::remove_file(path);

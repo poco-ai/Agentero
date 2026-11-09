@@ -62,6 +62,10 @@
 		"restoring": "正在恢复会话……",
 		"rename": "重命名",
 		"renameAria": "对话标题",
+		"delete": "删除",
+		"deleteConfirmTitle": "删除这段对话？",
+		"deleteFailed": "无法删除这段对话。",
+		"deleteAgentFailed": "已从这里隐藏。Agent 那边的记录没有删掉。",
 		"status": {
 			"running": "运行中",
 			"completed": "已完成",

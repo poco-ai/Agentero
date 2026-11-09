@@ -827,6 +827,20 @@ pub struct AcpHistoryLine {
     pub sources: Vec<String>,
 }
 
+/// Response for `agent_delete_session`.
+///
+/// The id is always hidden from later `session/list` results. `deleted_on_agent`
+/// is true only when the agent accepted `session/delete`. `agent_error` is set
+/// when that RPC was attempted and failed; the local hide still stands.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AcpDeleteSessionResult {
+    pub session_id: String,
+    pub deleted_on_agent: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_error: Option<String>,
+}
+
 /// Response for `agent_load_session`.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

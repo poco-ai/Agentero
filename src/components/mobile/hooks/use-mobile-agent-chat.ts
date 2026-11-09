@@ -31,7 +31,7 @@ export function useMobileAgentChat({
 }: {
 	agentId: string | null;
 	sessionId: string | null;
-	onSessionId: (sessionId: string) => void;
+	onSessionId: (sessionId: string | null) => void;
 }) {
 	const { t } = useTranslation("mobile");
 	const [lines, setLines] = useState<AgentLine[]>([]);
@@ -152,6 +152,21 @@ export function useMobileAgentChat({
 		};
 	}, [t]);
 
+	const clearSession = useCallback(() => {
+		const current = sessionRef.current;
+		sessionRef.current = null;
+		setLines([]);
+		setSending(false);
+		setPhase(null);
+		setPermission(null);
+		onSessionId(null);
+		if (current) {
+			void bridgeRpc("agent_cancel_run", { sessionId: current }).catch(
+				() => undefined,
+			);
+		}
+	}, [onSessionId]);
+
 	const respondToPermission = useCallback((optionId: string | null) => {
 		const pending = pendingPermissionRef.current;
 		if (!pending) return;
@@ -202,6 +217,7 @@ export function useMobileAgentChat({
 		phase,
 		restore,
 		send,
+		clearSession,
 		respondToPermission,
 	};
 }

@@ -1581,11 +1581,20 @@ Host 作为 ACP Client：按注册表 spawn 用户本机 Agent（`cwd` = 当前 
 
 #### `agent_list_sessions`
 
-列出当前 Vault 的 Agent 会话历史（所有 provider 统一）。Host 通过 ACP `session/list` 获取会话列表，按最近活跃时间排序。`hideFromChatHistory` 的后台运行不出现在列表中。尚未发送用户 prompt 的 warm 会话也不会出现。
+列出当前 Vault 的 Agent 会话历史（所有 provider 统一）。Host 通过 ACP `session/list` 获取会话列表，按最近活跃时间排序。`hideFromChatHistory` 的后台运行不出现在列表中。尚未发送用户 prompt 的 warm 会话、以及用户删除过的会话，也不会出现。
 
 ```ts
 { agentId?: string; vaultPath?: string }
 // -> { ok: true, data: { sessions: AgentSessionInfo[] } }
+```
+
+#### `agent_delete_session`
+
+从历史里去掉一条会话。Host 先把 `sessionId` 记入本机 `dismissed-acp-sessions.json`，之后 `agent_list_sessions` 不再返回它。Agent 在 initialize 里声明 `sessionCapabilities.delete` 时，再发 ACP `session/delete`（用 provider session id，不是 Agentero runtime id）。没声明时不发该 RPC。RPC 失败时 `agentError` 带上原因，但本机隐藏仍然生效。正在使用这条会话的空闲 warm 连接会被拆掉。
+
+```ts
+{ agentId?: string; sessionId: string; vaultPath?: string }
+// -> { ok: true, data: { sessionId: string; deletedOnAgent: boolean; agentError?: string | null } }
 ```
 
 #### `agent_load_session`

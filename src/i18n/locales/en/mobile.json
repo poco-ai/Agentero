@@ -55,6 +55,10 @@
 		"history": "Sessions",
 		"historyEmpty": "No past sessions",
 		"historyUnsupported": "This Agent does not expose past sessions.",
+		"historyDelete": "Delete",
+		"historyDeleteTitle": "Delete this conversation?",
+		"historyDeleteFailed": "Could not delete this conversation.",
+		"historyDeleteAgentFailed": "Hidden here. The agent kept its own copy.",
 		"restoring": "Restoring session…"
 	},
 	"settings": {

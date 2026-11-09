@@ -74,6 +74,35 @@ pub async fn agent_list_sessions(
     }
 }
 
+/// Remove one session from history.
+///
+/// Always hides the id from later `session/list` results. Sends ACP
+/// `session/delete` only when the agent advertises that capability.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_delete_session(
+    registry: State<'_, AgentRegistry>,
+    remote_registry: State<'_, Arc<dyn RemoteAgentHosts>>,
+    pool: State<'_, Arc<AgentWarmPool>>,
+    agent_id: Option<String>,
+    session_id: String,
+    vault_path: Option<String>,
+) -> Result<ApiResult<crate::features::agent::models::AcpDeleteSessionResult>, String> {
+    match service::delete_session(
+        registry.inner(),
+        remote_registry.inner().as_ref(),
+        pool.inner(),
+        agent_id,
+        session_id,
+        vault_path,
+    )
+    .await
+    {
+        Ok(result) => Ok(ApiResult::ok(result)),
+        Err(e) => Ok(map_err(e)),
+    }
+}
+
 /// Load an ACP session's history via `session/load`.
 #[tauri::command]
 #[specta::specta]

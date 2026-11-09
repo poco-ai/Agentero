@@ -109,6 +109,12 @@ export type AcpListSessionsResult = {
 	supported: boolean;
 };
 
+export type AcpDeleteSessionResult = {
+	sessionId: string;
+	deletedOnAgent: boolean;
+	agentError?: string | null;
+};
+
 export type PromptImage = {
 	/** Raw base64 without data: prefix */
 	data: string;
@@ -692,6 +698,29 @@ export async function listSessions(request: {
 			),
 		AGENT_CALL_OPTS,
 	)) as AcpListSessionsResult;
+}
+
+/**
+ * Remove one session from history.
+ *
+ * The host always hides the id from later lists. `deletedOnAgent` is true
+ * only when the agent accepted `session/delete`. `agentError` means that
+ * call failed and the agent's own copy may remain.
+ */
+export async function deleteSession(request: {
+	agentId?: string;
+	sessionId: string;
+	vaultPath?: string;
+}): Promise<AcpDeleteSessionResult> {
+	return (await callApiResult(
+		() =>
+			commands.agentDeleteSession(
+				request.agentId ?? null,
+				request.sessionId,
+				request.vaultPath ?? null,
+			),
+		AGENT_CALL_OPTS,
+	)) as AcpDeleteSessionResult;
 }
 
 /** Load an ACP session's history via `session/load`. */

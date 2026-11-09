@@ -525,6 +525,13 @@ export const commands = {
 	agentListSessions: (agentId: string | null, vaultPath: string | null, cursor: string | null) => typedError<ApiResult<AcpListSessionsResult_Serialize>, string>(__TAURI_INVOKE("agent_list_sessions", { agentId, vaultPath, cursor })),
 	/**  Load an ACP session's history via `session/load`. */
 	agentLoadSession: (agentId: string | null, sessionId: string, vaultPath: string | null) => typedError<ApiResult<AcpLoadSessionResult_Serialize>, string>(__TAURI_INVOKE("agent_load_session", { agentId, sessionId, vaultPath })),
+	/**
+	 *  Remove one session from history.
+	 * 
+	 *  Always hides the id from later `session/list` results. Sends ACP
+	 *  `session/delete` only when the agent advertises that capability.
+	 */
+	agentDeleteSession: (agentId: string | null, sessionId: string, vaultPath: string | null) => typedError<ApiResult<AcpDeleteSessionResult_Serialize>, string>(__TAURI_INVOKE("agent_delete_session", { agentId, sessionId, vaultPath })),
 	/**  Background ACP start when Chat opens — loads models/context without a user prompt. */
 	agentWarm: (request: WarmRequest_Deserialize) => typedError<ApiResult<WarmResult_Serialize>, string>(__TAURI_INVOKE("agent_warm", { request })),
 	/**  Read Pi's effective project-trust decision for a local Vault. */
@@ -846,6 +853,41 @@ export const events = {
 };
 
 /* Types */
+/**
+ *  Response for `agent_delete_session`.
+ * 
+ *  The id is always hidden from later `session/list` results. `deleted_on_agent`
+ *  is true only when the agent accepted `session/delete`. `agent_error` is set
+ *  when that RPC was attempted and failed; the local hide still stands.
+ */
+export type AcpDeleteSessionResult = AcpDeleteSessionResult_Serialize | AcpDeleteSessionResult_Deserialize;
+
+/**
+ *  Response for `agent_delete_session`.
+ * 
+ *  The id is always hidden from later `session/list` results. `deleted_on_agent`
+ *  is true only when the agent accepted `session/delete`. `agent_error` is set
+ *  when that RPC was attempted and failed; the local hide still stands.
+ */
+export type AcpDeleteSessionResult_Deserialize = {
+	sessionId: string,
+	deletedOnAgent: boolean,
+	agentError?: string | null,
+};
+
+/**
+ *  Response for `agent_delete_session`.
+ * 
+ *  The id is always hidden from later `session/list` results. `deleted_on_agent`
+ *  is true only when the agent accepted `session/delete`. `agent_error` is set
+ *  when that RPC was attempted and failed; the local hide still stands.
+ */
+export type AcpDeleteSessionResult_Serialize = {
+	sessionId: string,
+	deletedOnAgent: boolean,
+	agentError?: string | null,
+};
+
 export type AcpFailureCategory = "command-missing" | "not-logged-in" | "timeout" | "spawn-failed" | "protocol-failed" | "unknown";
 
 /**  A single history line reconstructed from ACP `session/load` replay. */

@@ -200,6 +200,7 @@ pub(crate) fn export_typescript_bindings() {
             crate::features::agent::commands::agent_run_once,
             crate::features::agent::commands::agent_list_sessions,
             crate::features::agent::commands::agent_load_session,
+            crate::features::agent::commands::agent_delete_session,
             crate::features::agent::commands::agent_warm,
             crate::features::agent::commands::agent_pi_project_trust_status,
             crate::features::agent::commands::agent_pi_project_trust_grant,

@@ -15,8 +15,11 @@ import type {
 } from "@/components/agent/hooks/use-agent-panel-context";
 import { formatLocaleTimestamp } from "@/i18n";
 import {
+	type AcpDeleteSessionResult,
 	type AcpLoadSessionResult,
 	type AcpSessionInfo,
+	cancelAgentRun,
+	deleteSession,
 	listSessions,
 	loadSession,
 } from "@/lib/agent";
@@ -44,7 +47,9 @@ import {
 	forgetEmptyAcpSession,
 	getCachedHistoryTitle,
 	getOverriddenHistoryTitle,
+	isDismissedAcpSession,
 	isEmptyAcpSession,
+	rememberDismissedAcpSession,
 	rememberEmptyAcpSession,
 	setCachedHistoryTitle,
 	setUserHistoryTitle,
@@ -252,6 +257,56 @@ export function renameHistorySessionTitle(
 	return title;
 }
 
+/**
+ * Hide a history row and ask the agent to delete it when it can.
+ *
+ * The host records the id before `session/delete`, so a later list cannot
+ * bring the row back. A running turn is cancelled first. Deleting the open
+ * conversation returns to a blank draft.
+ */
+export async function deleteHistorySession(
+	item: Pick<
+		AgentSessionRecord,
+		"id" | "agentId" | "providerSessionId" | "status"
+	>,
+	vaultPath: string | null,
+): Promise<AcpDeleteSessionResult> {
+	const providerId = item.providerSessionId?.trim() || item.id;
+	if (item.status === "running") {
+		try {
+			await cancelAgentRun(item.id);
+		} catch {
+			// The turn may already have finished. Still hide the row.
+		}
+	}
+	const result = await deleteSession({
+		agentId: item.agentId,
+		sessionId: providerId,
+		vaultPath: vaultPath ?? undefined,
+	});
+	rememberDismissedAcpSession(item.agentId, providerId);
+	if (item.id !== providerId) {
+		rememberDismissedAcpSession(item.agentId, item.id);
+	}
+	const state = agentSessionStore.getState();
+	const removed =
+		state.activeTabId === item.id || state.activeTabId === providerId;
+	state.setSessions((prev) =>
+		prev.filter(
+			(session) =>
+				!(
+					session.agentId === item.agentId &&
+					(session.id === item.id ||
+						session.id === providerId ||
+						session.providerSessionId === providerId ||
+						session.providerSessionId === item.id)
+				),
+		),
+	);
+	if (removed) agentSessionStore.getState().startDraft();
+	return result;
+}
+
 type MergeImportedSessionsResult = {
 	sessions: AgentSessionRecord[];
 	hydrationCandidates: AgentSessionRecord[];
@@ -282,6 +337,9 @@ export function mergeImportedSessions(
 	const hydrationCandidates: AgentSessionRecord[] = [];
 
 	const listed = chatSessions.filter((session) => {
+		if (isDismissedAcpSession(selectedAgentId, session.sessionId)) {
+			return false;
+		}
 		const current =
 			existingById.get(session.sessionId) ??
 			existingByProvider.get(session.sessionId);
@@ -364,15 +422,20 @@ export function mergeImportedSessions(
 	});
 
 	const importedIds = new Set(listed.map((session) => session.sessionId));
-	const localOnly = prev.filter(
-		(item) =>
+	const localOnly = prev.filter((item) => {
+		const providerId = item.providerSessionId?.trim() ?? "";
+		return (
 			item.agentId === selectedAgentId &&
+			!isDismissedAcpSession(selectedAgentId, item.id) &&
+			(providerId === "" ||
+				!isDismissedAcpSession(selectedAgentId, providerId)) &&
 			!importedIds.has(item.id) &&
-			!importedIds.has(item.providerSessionId?.trim() ?? "") &&
+			!importedIds.has(providerId) &&
 			!isBackgroundWorkflowHistoryTitle(item.title) &&
 			(item.status === "running" ||
-				(item.source === "local" && item.lines.length > 0)),
-	);
+				(item.source === "local" && item.lines.length > 0))
+		);
+	});
 
 	return {
 		sessions: [...localOnly, ...imported],
@@ -418,6 +481,9 @@ export type UseAgentHistoryOptions = {
 
 export type AgentHistory = {
 	openHistorySession: (item: ChatSessionHistoryItem) => void;
+	removeHistorySession: (
+		item: ChatSessionHistoryItem,
+	) => Promise<AcpDeleteSessionResult>;
 };
 
 export function useAgentHistory({
@@ -702,7 +768,39 @@ export function useAgentHistory({
 		})();
 	};
 
+	const removeHistorySession = useCallback(
+		async (item: ChatSessionHistoryItem) => {
+			const providerId = item.providerSessionId?.trim() || item.id;
+			const active =
+				activeTabRef.current === item.id ||
+				activeTabRef.current === providerId ||
+				agentSessionStore.getState().activeTabId === item.id ||
+				agentSessionStore.getState().activeTabId === providerId;
+			// Drop the continue target before the RPC returns so a queued send
+			// cannot resume the conversation being removed. The visible tab
+			// stays until the delete succeeds.
+			if (active) {
+				activeConversationRef.current = null;
+				clearMessageQueue();
+			}
+			const result = await deleteHistorySession(item, vaultPathRef.current);
+			if (active) {
+				activeTabRef.current = "draft";
+				activateComposerSession("draft");
+			}
+			return result;
+		},
+		[
+			activateComposerSession,
+			activeConversationRef,
+			activeTabRef,
+			clearMessageQueue,
+			vaultPathRef,
+		],
+	);
+
 	return {
 		openHistorySession,
+		removeHistorySession,
 	};
 }

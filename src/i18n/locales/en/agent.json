@@ -62,6 +62,10 @@
 		"restoring": "Restoring session…",
 		"rename": "Rename",
 		"renameAria": "Conversation title",
+		"delete": "Delete",
+		"deleteConfirmTitle": "Delete this conversation?",
+		"deleteFailed": "Could not delete this conversation.",
+		"deleteAgentFailed": "Hidden here. The agent kept its own copy.",
 		"status": {
 			"running": "Running",
 			"completed": "Completed",

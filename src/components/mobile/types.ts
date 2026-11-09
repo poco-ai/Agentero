@@ -58,6 +58,12 @@ export type AcpListSessionsResult = {
 	supported: boolean;
 };
 
+export type AcpDeleteSessionResult = {
+	sessionId: string;
+	deletedOnAgent: boolean;
+	agentError?: string | null;
+};
+
 export type AcpHistoryLine = {
 	id: string;
 	kind: string;

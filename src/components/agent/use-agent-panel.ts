@@ -586,7 +586,7 @@ export function useAgentPanel({
 		clearMessageQueue();
 	};
 
-	const { openHistorySession } = useAgentHistory({
+	const { openHistorySession, removeHistorySession } = useAgentHistory({
 		refs,
 		t,
 		i18nLanguage: i18n.language,
@@ -635,6 +635,7 @@ export function useAgentPanel({
 		setHistoryOpen,
 		newConversation,
 		openHistorySession,
+		removeHistorySession,
 		// Agent switcher
 		options,
 		selectedAgentId,
