@@ -24,6 +24,8 @@ Agentero 是 **无 OAuth 的 loopback HTTP MCP**，对应 quickstart 的 sample 
 
 本机 Inspector、能打 loopback 的客户端到这里就可以用这个地址。后面的 API key、隧道和 client 只服务 ChatGPT。
 
+外部 Agent 保存图片等二进制文件时，使用 `file_write`，把文件编码成标准 Base64 放进 `content`，并传 `encoding: "base64"` 和 Vault 相对 `path`（例如 `assets/figure.png`）。不带 `data:` 前缀；仅支持替换，覆盖前需确认，解码后最多 2 MiB。普通文本写入无需传 `encoding`，仍支持追加；`file_read` 仍只读文本。
+
 ## 2. 获取 Runtime API key
 
 设置页隧道区第一行是 **Runtime API key**。行尾按钮打开 [API keys](https://platform.openai.com/settings/organization/api-keys)。

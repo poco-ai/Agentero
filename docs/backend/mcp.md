@@ -97,7 +97,7 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 | `vault_search` | 只读全库关键词 AND 搜索（大小写不敏感，非语义检索），包含 Markdown 和科研表格 `*.table.json`。命中的 `path` 可以是 `*.table.json`。`query` 必填；`limit?` 默认 60，限制到 1–200。根目录由当前作用域 Vault（`vault?`，缺省为打开的 Vault）决定，不接受任意客户端路径。返回 `hits`（相对 `path`、`snippet`、1-based `line`、`title`、`score`、可选 `paperPath`、可选 `page`）及 `truncated`；`PAPER.md` 正文命中会带上由 `source/layout.json` 映射出的 1-based 物理页码 `page`（无法唯一确定时省略）。Markdown 命中用 `file_read {"path": hit.path}` 回读；表格命中用 `table_query` 读匹配行。可选元数据过滤 `year`（精确）、`publication` / `doi`（大小写不敏感子串）、`isRead`（bool）：一旦给出，只保留能映射到 catalog 论文且全部匹配的命中，表格命中一律丢弃 |
 | `file_list` | 列一层目录。`path?` 为 Vault 相对路径，空则根目录。跳过 `.agentero`、隐藏目录和 LaTeX 编译产物。`limit?` 默认 200，最多 500 |
 | `file_read` | 读一个 UTF-8 文本文件（如 `drafts/main.tex`、`notes/idea.md`）。不限 `papers/`。科研表格超过 2 MiB 时改用 `table_query` |
-| `file_write` | 写同一个路径。`mode`: `replace`（默认）或 `append`。父目录不存在会在 Vault 内创建。覆盖前需用户确认。不能追加或覆盖已有 `*.table.json`；新建缺失的表格时正文必须能通过表格校验。frontmatter 为 `type: experiment` 且 `status: locked` 的 Markdown 不能替换或追加（错误码 `experiment_locked`，不写盘）；新建文件允许 |
+| `file_write` | 写 Vault 相对路径。`encoding`: `utf8`（默认）或 `base64`（图片等二进制）；`mode`: `replace`（默认）或 `append`（仅文本）。父目录不存在会在 Vault 内创建。覆盖前需用户确认。不能追加或覆盖已有 `*.table.json`；新建缺失的表格时正文必须能通过表格校验。frontmatter 为 `type: experiment` 且 `status: locked` 的 Markdown 不能替换或追加（错误码 `experiment_locked`，不写盘）；新建文件允许 |
 | `table_query` | 按存储顺序读取已有 `*.table.json`。可选 `registryId`、`field` + `equals`、`includeArchived`（默认 false）、`limit`（默认 50，夹到 1–200）、`offset`。单元格按字段名返回。不写盘。`table_upsert` / `table_update_cells` 的 `expectedRevision` 来自这里 |
 | `table_upsert` | 已有科研表格的写路径之一。每行是 `{ registryId?, values }`，`values` 按字段名。省略 `registryId` 则追加并签发下一个注册编号。`expectedRevision` 必填。写入前需用户确认 |
 | `table_update_cells` | 已有科研表格的另一条写路径。每个单元格是注册编号、字段名和值（`string` / `number` / `boolean` / `null`）。一次调用全成或全不成。`expectedRevision` 必填。写入前需用户确认 |
@@ -119,6 +119,7 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 复现（macOS 未 stage 打包资源时可仅为测试设置 `TAURI_CONFIG='{"bundle":{"resources":[],"macOS":{"frameworks":[]}}}'`）：
 
 ```bash
+cargo test -p agentero-mcp
 cargo test -p agentero-mcp --lib vault_search_ -- --nocapture
 cargo test -p agentero-mcp --lib page_read_ -- --nocapture
 cargo test -p agentero-core --lib features::markdown::search -- --nocapture
@@ -136,10 +137,16 @@ cargo test -p agentero-core pdf::layout_index
 - `append`：追加正文，保留 frontmatter
 - 编辑器有未存改动时走现有 `vault:file-changed` 冲突逻辑
 
+二进制写入示例（保存三个字节 `00 ff 80`；真实图片使用完整文件的 Base64）：
+
+```json
+{"path":"assets/data.bin","content":"AP+A","encoding":"base64"}
+```
+
 `file_read` / `file_write` / `file_move` / `file_delete`：
 
 - 路径是 Vault 相对路径，禁止 `..`；符号链接解析后必须仍在 Vault 内
-- 只接受 UTF-8 文本，单次最多 2 MiB。拒绝 PDF / 图片 / 压缩包等二进制扩展名，以及内容中的 NUL（`file_move` / `file_delete` 不读取内容，可移动/删除目录和二进制附件）。`*.table.json` 超过 2 MiB 时 `file_read` 失败，改用 `table_query`（行操作最多读 32 MiB）
+- `file_read` 与默认的 `file_write` 只接受 UTF-8 文本，单次最多 2 MiB，拒绝二进制扩展名及 NUL。`file_write` 的 `encoding: "base64"` 可保存图片、PDF、压缩包等二进制，使用标准带填充 Base64（不带 `data:` 前缀），仅支持 `mode: "replace"`，解码后最多 2 MiB；返回的 `bytes` 是实际写入字节数。解码失败或超限不创建目录、不修改文件。Markdown 仍须为 UTF-8 文本，NOTES、表格、锁定实验及托管路径保护同样生效。`file_move` / `file_delete` 不读取内容，可移动/删除目录和二进制附件。`*.table.json` 超过 2 MiB 时 `file_read` 失败，改用 `table_query`（行操作最多读 32 MiB）
 - `file_write` 不能追加 `*.table.json`，也不能覆盖已有的 `*.table.json`（错误码 `use_table_ops`，不写盘）。创建尚不存在的 `*.table.json` 时，正文必须是合法表格，非法 JSON 不会落盘。已有 Markdown 若第一个 frontmatter 块是 `type: experiment` 且 `status: locked`，替换和追加都返回 `experiment_locked` 且不写盘；新建该文件允许。判断是行扫描，不是 YAML 解析
 - 与文件树相同，拒绝 `.agentero`、`.` 开头的隐藏项（`.agents` 除外）、`target` 等忽略目录，以及 `.aux` / `.log` 等 LaTeX 编译产物
 - 不写 `NOTES.md`（仍走 `paper_notes_write`，以保留 frontmatter）、`marks/annotations.json`、`source/layout-index.json`、`source/layout.json`、`catalog.sqlite`
@@ -153,7 +160,7 @@ cargo test -p agentero-core pdf::layout_index
 
 ## 代码
 
-`crates/agentero-mcp/`：`McpController` + Streamable HTTP（`rmcp`）+ tools/resource。论文工具直接调 `agentero-core` 的 catalog、import、vault、`pdf::layout_index`；全文搜索在 `agentero-core` 的 `features::markdown::search`；`file_*` 只做 Vault 内 UTF-8 文本读写。桌面侧 `src-tauri/src/integration/mcp/` 只留 Tauri 命令、状态事件、ChatGPT 隧道，以及导入后续任务、双链索引、删除取消任务、`mcpExposePaperText` 这些宿主钩子。CLI 入口是 `agentero mcp serve`。
+`crates/agentero-mcp/`：`McpController` + Streamable HTTP（`rmcp`）+ tools/resource。论文工具直接调 `agentero-core` 的 catalog、import、vault、`pdf::layout_index`；全文搜索在 `agentero-core` 的 `features::markdown::search`；`file_*` 复用 Vault 路径检查与原子写，支持 UTF-8 文本和 Base64 二进制写入；读取仍限文本。桌面侧 `src-tauri/src/integration/mcp/` 只留 Tauri 命令、状态事件、ChatGPT 隧道，以及导入后续任务、双链索引、删除取消任务、`mcpExposePaperText` 这些宿主钩子。CLI 入口是 `agentero mcp serve`。
 
 ## 安全
 

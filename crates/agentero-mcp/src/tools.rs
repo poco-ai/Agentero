@@ -267,9 +267,13 @@ struct FileReadArgs {
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FileWriteArgs {
-    /// Vault-relative text file, e.g. `drafts/main.tex`.
+    /// Vault-relative file, e.g. `drafts/main.tex` or `assets/figure.png`.
     path: String,
+    /// UTF-8 text, or standard padded Base64 when encoding is base64 (no data URL prefix).
     content: String,
+    /// `utf8` (default) or `base64`. Base64 only supports replace; at most 2 MiB decoded.
+    #[serde(default)]
+    encoding: Option<String>,
     /// `replace` (default) or `append`.
     #[serde(default)]
     mode: Option<String>,
@@ -1317,7 +1321,7 @@ impl AgenteroMcp {
     }
 
     #[tool(
-        description = "Write one UTF-8 text file by vault-relative path. mode=replace (default) or append. Creates missing parent directories inside the vault. Use for a LaTeX draft outside papers/. Refuses NOTES.md (use paper_notes_write), .agentero, binaries, marks, and layout indexes. Cannot append or replace an existing *.table.json — table_upsert and table_update_cells are the only write path for an existing research table. Creating a missing *.table.json succeeds only when the body is a valid table. Refuses to replace or append a Markdown file whose frontmatter is type experiment and status locked (experiment_locked); creating a new file is allowed. Confirm with the user before replace. Set vault to target a vault from vault_list."
+        description = "Write one vault-relative file. encoding=utf8 (default) writes text with mode=replace (default) or append; encoding=base64 writes binary files such as images with replace only. Supply standard padded Base64 without a data URL prefix, at most 2 MiB decoded. Creates missing parent directories inside the vault. Refuses NOTES.md (use paper_notes_write), .agentero, marks, and layout indexes. Markdown must remain UTF-8 text. Cannot append or replace an existing *.table.json — table_upsert and table_update_cells are the only write path for an existing research table. Creating a missing *.table.json succeeds only when the body is a valid table. Refuses to replace or append a Markdown file whose frontmatter is type experiment and status locked (experiment_locked); creating a new file is allowed. Confirm with the user before replace. Set vault to target a vault from vault_list."
     )]
     async fn file_write(
         &self,
@@ -1336,7 +1340,14 @@ impl AgenteroMcp {
                 ))));
             }
         };
-        match files::write_text(&vault, &args.path, &args.content, mode) {
+        let result = match args.encoding.as_deref().unwrap_or("utf8") {
+            "utf8" => files::write_text(&vault, &args.path, &args.content, mode),
+            "base64" => files::write_base64(&vault, &args.path, &args.content, mode),
+            other => Err(AppError::message(format!(
+                "encoding must be utf8 or base64, got {other}"
+            ))),
+        };
+        match result {
             Ok(out) => Ok(Json(out)),
             Err(e) => Err(tool_err(e)),
         }
@@ -1486,7 +1497,7 @@ impl ServerHandler for AgenteroMcp {
             "Call vault_list first when you may need a vault other than the open one; pass its path as `vault` on other tools. ",
             "paper_list defaults to id/path/title only — pass fields or full when needed. ",
             "ref is a paper id or vault-relative path. Notes writes only touch NOTES.md. ",
-            "Other vault text (a .tex draft outside papers/) uses file_list, file_read, and file_write. ",
+            "Other vault files use file_list, file_read (UTF-8), and file_write. file_write encoding=base64 saves images/binaries (replace only, at most 2 MiB decoded). ",
             "Research tables (*.table.json) use table_query, table_upsert, and table_update_cells. ",
             "Those tools are the only write path for an existing table; cells are addressed by registry id and field name, and expectedRevision comes from table_query. ",
             "Do not file_write an existing *.table.json. ",
@@ -1685,6 +1696,71 @@ mod schema_tests {
             vec!["inside.md"]
         );
         assert!(super::files::read_text(vault.path(), "linked.md").is_err());
+    }
+
+    #[tokio::test]
+    async fn file_write_protocol_supports_base64_and_existing_text_clients() {
+        use rmcp::{model::CallToolRequestParams, ServiceExt};
+        use serde_json::json;
+        let vault = tempfile::tempdir().unwrap();
+        let ctrl = std::sync::Arc::new(McpController::new());
+        ctrl.set_vault(Some(vault.path().to_string_lossy().into_owned()));
+        let (server_io, client_io) = tokio::io::duplex(65536);
+        let server =
+            tokio::spawn(async move { AgenteroMcp::new(ctrl).serve(server_io).await.unwrap() });
+        let mut client = ().serve(client_io).await.unwrap();
+        let mut server = server.await.unwrap();
+        let tools = client.list_all_tools().await.unwrap();
+        let write = tools.iter().find(|tool| tool.name == "file_write").unwrap();
+        assert!(write.input_schema["properties"]["encoding"].is_object());
+        for (args, expected) in [
+            (
+                json!({"path":"assets/图.png", "content":"AP+A", "encoding":"base64"}),
+                vec![0, 255, 128],
+            ),
+            (
+                json!({"path":"drafts/main.tex", "content":"hello"}),
+                b"hello".to_vec(),
+            ),
+            (
+                json!({"path":"drafts/main.tex", "content":" world", "mode":"append"}),
+                b"hello world".to_vec(),
+            ),
+        ] {
+            let response = client
+                .call_tool(
+                    CallToolRequestParams::new("file_write")
+                        .with_arguments(args.as_object().unwrap().clone()),
+                )
+                .await
+                .unwrap();
+            assert_ne!(response.is_error, Some(true), "{response:?}");
+            let out = response.structured_content.unwrap();
+            assert_eq!(out["path"], args["path"]);
+            assert_eq!(out["bytes"], expected.len());
+            assert_eq!(
+                std::fs::read(vault.path().join(args["path"].as_str().unwrap())).unwrap(),
+                expected
+            );
+        }
+        for args in [
+            json!({"path":"invalid/file.bin", "content":"AA==", "encoding":"hex"}),
+            json!({"path":"invalid/file.bin", "content":"not-base64!", "encoding":"base64"}),
+            json!({"path":"invalid/file.bin", "content":"AA==", "encoding":"base64", "mode":"append"}),
+            json!({"path":"invalid/file.bin", "content":"text"}),
+        ] {
+            let response = client
+                .call_tool(
+                    CallToolRequestParams::new("file_write")
+                        .with_arguments(args.as_object().unwrap().clone()),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.is_error, Some(true), "{response:?}");
+            assert!(!vault.path().join("invalid").exists());
+        }
+        client.close().await.unwrap();
+        server.close().await.unwrap();
     }
 
     #[tokio::test]
@@ -2368,6 +2444,7 @@ mod schema_tests {
                 path: "bad/nope.table.json".into(),
                 content: "{".into(),
                 mode: Some("replace".into()),
+                encoding: None,
                 vault: None,
             }))
             .await,
@@ -2379,6 +2456,7 @@ mod schema_tests {
             .file_write(Parameters(super::FileWriteArgs {
                 path: "data/run.table.json".into(),
                 content: table.into(),
+                encoding: None,
                 mode: None,
                 vault: None,
             }))
@@ -2394,6 +2472,7 @@ mod schema_tests {
                 path: "data/run.table.json".into(),
                 content: table.into(),
                 mode: Some("replace".into()),
+                encoding: None,
                 vault: None,
             }))
             .await,
@@ -2404,6 +2483,7 @@ mod schema_tests {
                 path: "data/run.table.json".into(),
                 content: "\n".into(),
                 mode: Some("append".into()),
+                encoding: None,
                 vault: None,
             }))
             .await,
