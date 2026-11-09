@@ -162,6 +162,7 @@ export const commands = {
 	 */
 	jobPapersNeedingAssets: (args: JobPapersNeedingAssetsArgs) => typedError<ApiResult<string[]>, string>(__TAURI_INVOKE("job_papers_needing_assets", { args })),
 	jobFocusPaper: (args: JobFocusPaperArgs) => typedError<ApiResult<JobSnapshot[]>, string>(__TAURI_INVOKE("job_focus_paper", { args })),
+	jobReorder: (args: JobReorderArgs) => typedError<ApiResult<boolean>, string>(__TAURI_INVOKE("job_reorder", { args })),
 	jobCancel: (jobId: string) => typedError<ApiResult<boolean>, string>(__TAURI_INVOKE("job_cancel", { jobId })),
 	jobReport: (args: JobReportArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_report", { args })),
 	jobList: (args: JobListArgs) => typedError<ApiResult<JobSnapshot[]>, string>(__TAURI_INVOKE("job_list", { args })),
@@ -3516,6 +3517,10 @@ export type JobProgressEvent_Serialize = AssetDownloadProgress_Serialize;
 export type JobReconcilePaperArgs = {
 	vaultPath: string,
 	path: string,
+};
+
+export type JobReorderArgs = {
+	jobIds: string[],
 };
 
 export type JobReportArgs = {
