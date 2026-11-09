@@ -44,6 +44,32 @@ import {
 } from "@/lib/workspace/selection-card-owner";
 import { workspaceStore } from "@/lib/workspace/store";
 
+type ClipInset = NonNullable<CardScreenPoint["clipInset"]>;
+
+/** Reading-area clip (inset from the window edges) for page-anchored cards. */
+function viewportClipInset(host: HTMLElement): ClipInset | undefined {
+	const viewport = host.querySelector<HTMLElement>("[data-pdf-viewport]");
+	if (!viewport) return undefined;
+	const rect = viewport.getBoundingClientRect();
+	const root = host.ownerDocument.documentElement;
+	return {
+		top: Math.round(rect.top),
+		left: Math.round(rect.left),
+		right: Math.round(root.clientWidth - rect.right),
+		bottom: Math.round(root.clientHeight - rect.bottom),
+	};
+}
+
+function sameClipInset(a?: ClipInset, b?: ClipInset): boolean {
+	if (!a || !b) return a === b;
+	return (
+		a.top === b.top &&
+		a.left === b.left &&
+		a.right === b.right &&
+		a.bottom === b.bottom
+	);
+}
+
 export type UsePdfCardsOptions = {
 	isActive: boolean;
 	hostRef: RefObject<HTMLDivElement | null>;
@@ -228,6 +254,11 @@ export function usePdfCards({
 			// Target page not in the virtual DOM yet — keep cardScreen null so the
 			// modal stays hidden until onScroll / rAF retry can place it for real.
 			if (!pt) return false;
+			// Page-anchored cards scroll out of the reading area instead of
+			// floating over the tab strip / toolbars: clip them to the scroller.
+			if (card.kind === "translate") {
+				pt.clipInset = viewportClipInset(host);
+			}
 			// Skip identical coords — avoids re-rendering the open card (and its
 			// input) on every scroll tick when the pin did not actually move.
 			const prev = cardScreenRef.current;
@@ -235,7 +266,8 @@ export function usePdfCards({
 				prev &&
 				Math.round(prev.x) === Math.round(pt.x) &&
 				Math.round(prev.y) === Math.round(pt.y) &&
-				prev.preferRight === pt.preferRight
+				prev.preferRight === pt.preferRight &&
+				sameClipInset(prev.clipInset, pt.clipInset)
 			) {
 				return true;
 			}

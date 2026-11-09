@@ -1,5 +1,5 @@
 import { AnimatePresence } from "motion/react";
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import {
@@ -99,6 +99,32 @@ function selectionMenuInstanceKey(state: SelectionMenuState): string {
 }
 
 /**
+ * Clip page-anchored cards to the reading area. The wrapper is window-sized
+ * (`inset-0`) so the card keeps its client coordinates, and `clip-path` makes
+ * it the containing block for the fixed card — without it the card would keep
+ * painting over the tab strip once its text scrolls above the viewport.
+ */
+function PageClip({
+	inset,
+	children,
+}: {
+	inset: CardScreenPoint["clipInset"];
+	children: ReactNode;
+}) {
+	if (!inset) return <>{children}</>;
+	return (
+		<div
+			className="pointer-events-none fixed inset-0 z-50 [&>*]:pointer-events-auto"
+			style={{
+				clipPath: `inset(${inset.top}px ${inset.right}px ${inset.bottom}px ${inset.left}px)`,
+			}}
+		>
+			{children}
+		</div>
+	);
+}
+
+/**
  * Floating cards of the viewer, portaled to `document.body` so page transforms
  * and the scroller's overflow never clip them. Cards keep a fixed UI size and
  * type scale at any PDF zoom; their screen anchors still follow the page.
@@ -190,25 +216,27 @@ export const PdfCardStack = memo(function PdfCardStack({
 			</AnimatePresence>
 
 			{translate.record && cardScreen ? (
-				<TranslateCard
-					key={`translate-${translate.record.id}`}
-					screen={cardScreen}
-					preferRight={cardScreen.preferRight ?? false}
-					source={{
-						quote: translate.record.quote,
-						page: translate.record.page,
-						onLocate: translate.onLocateSource,
-					}}
-					result={translate.record.result ?? ""}
-					streaming={translate.streaming}
-					error={translate.error ?? translate.record.error ?? null}
-					pinned={translate.record.pinned}
-					onTogglePin={translate.onTogglePin}
-					onOpenSettings={translate.onOpenSettings}
-					onHide={translate.onHide}
-					onPointerEnter={onCardHoverEnter}
-					onPointerLeave={onCardHoverLeave}
-				/>
+				<PageClip inset={cardScreen.clipInset}>
+					<TranslateCard
+						key={`translate-${translate.record.id}`}
+						screen={cardScreen}
+						preferRight={cardScreen.preferRight ?? false}
+						source={{
+							quote: translate.record.quote,
+							page: translate.record.page,
+							onLocate: translate.onLocateSource,
+						}}
+						result={translate.record.result ?? ""}
+						streaming={translate.streaming}
+						error={translate.error ?? translate.record.error ?? null}
+						pinned={translate.record.pinned}
+						onTogglePin={translate.onTogglePin}
+						onOpenSettings={translate.onOpenSettings}
+						onHide={translate.onHide}
+						onPointerEnter={onCardHoverEnter}
+						onPointerLeave={onCardHoverLeave}
+					/>
+				</PageClip>
 			) : null}
 
 			<AnimatePresence>

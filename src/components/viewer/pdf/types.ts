@@ -174,6 +174,16 @@ export type ScreenPoint = {
 /** Screen anchor for a floating card, including which side to open on. */
 export type CardScreenPoint = ScreenPoint & {
 	preferRight?: boolean;
+	/**
+	 * Inset from the window edges that page-anchored cards are clipped to, so
+	 * a card scrolling with the page never paints over the app chrome.
+	 */
+	clipInset?: {
+		top: number;
+		right: number;
+		bottom: number;
+		left: number;
+	};
 	selectionBounds?: {
 		left: number;
 		top: number;
