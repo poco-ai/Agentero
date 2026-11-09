@@ -64,6 +64,12 @@ pub struct JobListArgs {
 
 #[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub struct JobReorderArgs {
+    pub job_ids: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct JobReportArgs {
     pub job_id: String,
     #[serde(default)]
@@ -760,6 +766,15 @@ pub async fn job_focus_paper(
         emit_job_changed(&app, snapshot.clone());
     }
     Ok(ApiResult::ok(promoted))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn job_reorder(
+    center: State<'_, JobCenter>,
+    args: JobReorderArgs,
+) -> Result<ApiResult<bool>, String> {
+    Ok(ApiResult::ok(center.reorder_queued(&args.job_ids).await))
 }
 
 #[tauri::command]

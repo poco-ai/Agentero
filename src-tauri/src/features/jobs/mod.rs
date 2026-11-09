@@ -369,6 +369,33 @@ impl LaneQueues {
         }
     }
 
+    /// Rewrite the relative order of the given queued ids inside `lane`.
+    /// Ids that already started (or never queued here) are ignored, and every
+    /// other job keeps the position it already had. Returns whether the lane
+    /// order actually changed.
+    fn reorder(&mut self, lane: JobLane, ordered: &[JobId]) -> bool {
+        let queue = self.queue_mut(lane);
+        let present: Vec<JobId> = ordered
+            .iter()
+            .filter(|id| queue.contains(id))
+            .cloned()
+            .collect();
+        if present.len() < 2 {
+            return false;
+        }
+        let positions: Vec<usize> = queue
+            .iter()
+            .enumerate()
+            .filter(|(_, id)| present.contains(id))
+            .map(|(index, _)| index)
+            .collect();
+        let before: Vec<JobId> = queue.iter().cloned().collect();
+        for (position, id) in positions.into_iter().zip(present) {
+            queue[position] = id;
+        }
+        before != queue.iter().cloned().collect::<Vec<_>>()
+    }
+
     #[cfg(test)]
     fn next_eligible(&self) -> Option<JobId> {
         self.focus
@@ -1019,6 +1046,38 @@ impl JobCenter {
             inner.lanes.promote_to_focus(&id);
         }
         snapshots
+    }
+
+    /// Reorder the queued jobs in `job_ids` to the given relative order.
+    /// Running / unknown ids are ignored; each lane is rewritten independently
+    /// and unlisted jobs keep their positions. Returns whether any lane moved.
+    pub async fn reorder_queued(&self, job_ids: &[String]) -> bool {
+        let mut inner = self.inner.lock().await;
+        let mut seen = std::collections::HashSet::new();
+        let mut requested: Vec<(JobId, JobLane)> = Vec::new();
+        for raw in job_ids {
+            let id = JobId(raw.clone());
+            if !seen.insert(id.clone()) {
+                continue;
+            }
+            let Some(job) = inner.jobs.get(&id) else {
+                continue;
+            };
+            if job.state != JobState::Queued {
+                continue;
+            }
+            requested.push((id, job.lane));
+        }
+        let mut changed = false;
+        for lane in [JobLane::Focus, JobLane::Normal, JobLane::Idle] {
+            let ordered: Vec<JobId> = requested
+                .iter()
+                .filter(|(_, job_lane)| *job_lane == lane)
+                .map(|(id, _)| id.clone())
+                .collect();
+            changed |= inner.lanes.reorder(lane, &ordered);
+        }
+        changed
     }
 
     pub async fn cancel(&self, job_id: &str) -> bool {
@@ -1816,6 +1875,80 @@ mod tests {
 
         assert_eq!(first.id, duplicate.id);
         assert_eq!(center.list(None, None).await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn reorder_queued_rewrites_the_lane_order() {
+        let center = JobCenter::new();
+        let vault = vault("reorder");
+        let mut ids = Vec::new();
+        for path in ["papers/a", "papers/b", "papers/c"] {
+            ids.push(
+                center
+                    .enqueue_for_test(
+                        JobKind::Import,
+                        vault.clone(),
+                        path,
+                        Vec::new(),
+                        DepPolicy::AllSettled,
+                    )
+                    .await,
+            );
+        }
+        let requested: Vec<String> = ids.iter().rev().map(|id| id.0.clone()).collect();
+
+        assert!(center.reorder_queued(&requested).await);
+
+        let inner = center.inner.lock().await;
+        let order: Vec<String> = inner.lanes.normal.iter().map(|id| id.0.clone()).collect();
+        assert_eq!(order, requested);
+    }
+
+    #[tokio::test]
+    async fn reorder_queued_ignores_running_jobs() {
+        let center = JobCenter::new();
+        let vault = vault("reorder-running");
+        let first = center
+            .enqueue_for_test(
+                JobKind::Import,
+                vault.clone(),
+                "papers/a",
+                Vec::new(),
+                DepPolicy::AllSettled,
+            )
+            .await;
+        let second = center
+            .enqueue_for_test(
+                JobKind::Import,
+                vault.clone(),
+                "papers/b",
+                Vec::new(),
+                DepPolicy::AllSettled,
+            )
+            .await;
+        let third = center
+            .enqueue_for_test(
+                JobKind::Import,
+                vault,
+                "papers/c",
+                Vec::new(),
+                DepPolicy::AllSettled,
+            )
+            .await;
+        assert!(matches!(
+            center.try_start(&first.0).await,
+            StartOutcome::Started(_)
+        ));
+
+        // The running job is not in the lane; only the queued tail can move.
+        assert!(
+            center
+                .reorder_queued(&[third.0.clone(), second.0.clone()])
+                .await
+        );
+        let inner = center.inner.lock().await;
+        let order: Vec<String> = inner.lanes.normal.iter().map(|id| id.0.clone()).collect();
+        assert_eq!(order, vec![third.0, second.0]);
     }
 
     #[tokio::test]

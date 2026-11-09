@@ -352,6 +352,28 @@ function connectorPanelTitle(params: unknown): string {
 }
 
 /**
+ * Compact-list identity for import rows: the submitted identifier or the
+ * batch head. Kept out of `detail` so the background panel still prefers the
+ * resolved paper title.
+ */
+function importRowSource(params: unknown): string | undefined {
+	const p = jobParams(params);
+	switch (p.mode) {
+		case "lookup":
+		case "skillLookup":
+			return p.text?.trim().slice(0, 80) || undefined;
+		case "lookupBatch": {
+			const first = p.texts?.[0]?.trim().slice(0, 60);
+			const extra = (p.texts?.length ?? 0) - 1;
+			if (!first) return undefined;
+			return extra > 0 ? `${first} +${extra}` : first;
+		}
+		default:
+			return undefined;
+	}
+}
+
+/**
  * Stable paper subject for the row (title preferred). Kept across status /
  * byte-progress updates so the panel does not fall back to `papers/<id>`.
  * `taskPaperPaths` lets progress events re-resolve after a late catalog refresh.
@@ -513,6 +535,7 @@ export function projectJobToBackgroundTask(job: JobChangedSnapshot): void {
 				kind: job.kind,
 				title,
 				detail: rowDetail,
+				source: job.kind === "import" ? importRowSource(job.params) : undefined,
 				paperPath,
 				icon,
 				running: job.state === "running",

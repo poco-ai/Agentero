@@ -56,6 +56,7 @@ macro_rules! common_commands {
             crate::features::paper::ingest::commands::paper_ingest_reconcile,
             crate::features::jobs::commands::job_papers_needing_assets,
             crate::features::jobs::commands::job_focus_paper,
+            crate::features::jobs::commands::job_reorder,
             crate::features::jobs::commands::job_cancel,
             crate::features::jobs::commands::job_report,
             crate::features::jobs::commands::job_list,

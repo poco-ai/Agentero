@@ -29,6 +29,8 @@ import {
 	useVaultStore,
 	useWorkspaceStore,
 } from "@/hooks/use-app-stores";
+import { errorText } from "@/lib/core/error";
+import { notifyError } from "@/lib/core/notify";
 import type { PaperTag } from "@/lib/paper";
 import {
 	isPaperDirectory,
@@ -37,9 +39,9 @@ import {
 } from "@/lib/paper";
 import {
 	dropLocalPdfs,
+	enqueueLookup,
+	enqueueLookupBatch,
 	importLocalPdf,
-	lookupBatchSubmit,
-	lookupSubmit,
 } from "@/lib/paper/import-actions";
 import {
 	discoverCitingPapers,
@@ -91,8 +93,20 @@ import {
 import { bindWritingVault } from "@/lib/writing/store";
 
 // Stable callbacks so the memoized header / tree bail out on unrelated renders.
-const onLookupSubmit = (texts: string[]) => lookupSubmit(texts);
-const onLookupBatchSubmit = (texts: string[]) => lookupBatchSubmit(texts);
+// The wand returns as soon as its inputs are queued: the JobCenter rows, the
+// wand badge and the popover status line carry the rest of the lifecycle, and
+// the next identifier can be submitted while earlier jobs still run.
+const onLookupSubmit = async (texts: string[]) => {
+	await enqueueLookup(texts);
+};
+const onLookupBatchSubmit = async (texts: string[]) => {
+	const queued = await enqueueLookupBatch(texts);
+	// Enqueue already closed the popover; a batch failure surfaces as a toast
+	// and on the task row.
+	void queued?.settled.catch((error) => {
+		notifyError(errorText(error));
+	});
+};
 const onImportBibliography = () => void libraryImport();
 const onImportLocalPdf = () => void importLocalPdf();
 const onOpenRecent = (p: string) => void openRecentVault(p);

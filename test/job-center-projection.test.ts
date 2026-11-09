@@ -339,6 +339,10 @@ describe("job task projection", () => {
 		expect(task("job-import-1")?.title).toBe("Add paper");
 		// Lookup rows no longer surface the raw identifier / URL as detail.
 		expect(task("job-import-1")?.detail).toBeUndefined();
+		// The compact queue list still needs a stable identity per row.
+		expect(task("job-import-1")?.source).toBe(
+			"https://arxiv.org/abs/1706.03762",
+		);
 		expect(task("job-import-1")?.status).toBe("queued");
 		// No numeric progress yet → the ring stays indeterminate.
 		expect(task("job-import-1")?.progress).toBeNull();

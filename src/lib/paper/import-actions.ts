@@ -143,58 +143,106 @@ function stashLookupResult(jobId: string, result: LookupBatchAddResult): void {
 	}
 }
 
-export async function lookupSubmit(
+/** Jobs queued by one submission; completion is opt-in via `settled`. */
+export type LookupQueue = {
+	jobIds: string[];
+	/** Resolves once every queued job reached a terminal state. */
+	settled: Promise<void>;
+};
+
+/**
+ * Queue one import job per input and return as soon as they are enqueued.
+ *
+ * The magic wand submits through this so its popover closes immediately and
+ * the next identifier can be queued while earlier jobs still run; callers that
+ * own a per-item spinner (citation cards, Plaza) call {@link lookupSubmit},
+ * which waits for `settled` instead.
+ */
+export async function enqueueLookup(
 	texts: string[],
 	opts: LookupSubmitOptions = {},
-): Promise<void> {
+): Promise<LookupQueue> {
 	const vaultPath = getVaultPath();
 	if (!vaultPath) {
 		throw new Error(i18n.t("sidebar:lookup.needsVault"));
 	}
-	if (texts.length === 0) return;
+	const inputs = texts.map((text) => text.trim()).filter(Boolean);
+	if (inputs.length === 0) return { jobIds: [], settled: Promise.resolve() };
 	const parentDir = opts.parentDir ?? currentLookupParentDir();
-
-	const promises: Promise<void>[] = [];
-	for (const text of texts) {
-		const input = text.trim();
-		if (!input) continue;
-		// Open the picker immediately with shimmer when input looks like a title
-		// (#438). settlePaperSearchDraft no-ops if the user already cancelled.
-		const expectTitleSearch = looksLikeTitleSearchQuery(input);
-		if (expectTitleSearch) {
-			addPaperSearchDraft([
-				{ query: input, candidates: [], parentDir, pending: true },
-			]);
-		}
-		promises.push(
-			(async () => {
-				const job = await enqueueTask({
-					kind: "import",
-					vaultPath,
-					path: parentDir,
-					lane: "normal",
-					params: {
-						mode:
-							inferLookupSource(input) === "skill" ? "skillLookup" : "lookup",
-						text: input,
-					},
-				});
-				if (expectTitleSearch) pendingSearchJobIds.add(job.id);
-				try {
-					await awaitTaskSettled(job);
-					const result = lookupResults.get(job.id);
-					if (result) await opts.onComplete?.(result);
-				} finally {
-					pendingSearchJobIds.delete(job.id);
-				}
-			})().catch((e) => {
-				if (isBackgroundTaskCancelledError(e)) return;
+	const runs = await Promise.all(
+		inputs.map((input) =>
+			enqueueLookupRun(input, vaultPath, parentDir, opts).catch((e) => {
+				// Enqueue failures never reach `settled`: report them here so a
+				// queue nobody awaits stays safe.
 				notifyError(`${input}: ${errorText(e)}`);
+				return null;
 			}),
-		);
-	}
-	await Promise.all(promises);
+		),
+	);
+	return {
+		jobIds: runs.flatMap((run) => (run ? [run.jobId] : [])),
+		settled: Promise.all(runs.map((run) => run?.settled)).then(() => undefined),
+	};
 }
+
+/**
+ * Enqueue one identifier and settle it in the background. Failures are toasted
+ * here, so `settled` never rejects and discarding the queue is safe.
+ */
+async function enqueueLookupRun(
+	input: string,
+	vaultPath: string,
+	parentDir: string,
+	opts: LookupSubmitOptions,
+): Promise<{ jobId: string; settled: Promise<void> }> {
+	// Open the picker immediately with shimmer when input looks like a title
+	// (#438). settlePaperSearchDraft no-ops if the user already cancelled.
+	const expectTitleSearch = looksLikeTitleSearchQuery(input);
+	if (expectTitleSearch) {
+		addPaperSearchDraft([
+			{ query: input, candidates: [], parentDir, pending: true },
+		]);
+	}
+	const job = await enqueueTask({
+		kind: "import",
+		vaultPath,
+		path: parentDir,
+		lane: "normal",
+		params: {
+			mode: inferLookupSource(input) === "skill" ? "skillLookup" : "lookup",
+			text: input,
+		},
+	});
+	if (expectTitleSearch) pendingSearchJobIds.add(job.id);
+	const settled = (async () => {
+		try {
+			await awaitTaskSettled(job);
+			const result = lookupResults.get(job.id);
+			if (result) await opts.onComplete?.(result);
+		} finally {
+			pendingSearchJobIds.delete(job.id);
+		}
+	})().catch((e) => {
+		if (isBackgroundTaskCancelledError(e)) return;
+		notifyError(`${input}: ${errorText(e)}`);
+	});
+	return { jobId: job.id, settled };
+}
+
+/** Queue every input, then wait for the whole batch to finish importing. */
+export async function lookupSubmit(
+	texts: string[],
+	opts: LookupSubmitOptions = {},
+): Promise<void> {
+	await (await enqueueLookup(texts, opts)).settled;
+}
+
+/**
+ * Row progress before the first download byte arrives: the job has started
+ * (metadata lookup). Host byte progress takes over from there, and the row
+ * update never moves the bar backwards.
+ */
+const IMPORT_STARTED_PROGRESS = 5;
 
 /** Executor body of a magic-wand (`mode: "lookup"`) import job. */
 export async function runLookupImportJob(
@@ -216,6 +264,9 @@ export async function runLookupImportJob(
 				: "app:tasks.lookupFetching",
 		),
 	);
+	// Identifiers show a determinate bar from the start instead of a spinner
+	// until the first download byte lands; byte progress only moves it up.
+	if (!isSkillLookup) await ctx.report({ progress: IMPORT_STARTED_PROGRESS });
 	const result = await addPapersByIdentifiers({
 		vaultRoot: vaultPath,
 		parentDir,
@@ -407,6 +458,7 @@ export async function runLookupBatchImportJob(
 	const settings = getSettings();
 
 	await reportTaskPhase(ctx, i18n.t("app:tasks.lookupFetching"));
+	await ctx.report({ progress: IMPORT_STARTED_PROGRESS });
 	const result = await addPapersByIdentifiers({
 		vaultRoot: vaultPath,
 		parentDir,
@@ -430,13 +482,22 @@ export async function runLookupBatchImportJob(
 	await finishImportedPapers(vaultPath, result, texts[0] ?? "");
 }
 
-/** Submit the confirmed chat-paste checklist as ONE batch import job and
- * surface its failure to the popover. */
-export async function lookupBatchSubmit(texts: string[]): Promise<void> {
+/** Jobs queued by one chat-review confirm. */
+export type LookupBatchQueue = {
+	jobId: string;
+	/** Rejects when the batch job fails; callers that discard it must catch. */
+	settled: Promise<void>;
+};
+
+/** Queue the confirmed checklist as ONE batch import job (batch dedupe +
+ * n/total progress) and return at enqueue time. */
+export async function enqueueLookupBatch(
+	texts: string[],
+): Promise<LookupBatchQueue | null> {
 	const vaultPath = getVaultPath();
 	if (!vaultPath) throw new Error(i18n.t("sidebar:lookup.needsVault"));
 	const list = texts.map((t) => t.trim()).filter(Boolean);
-	if (list.length === 0) return;
+	if (list.length === 0) return null;
 	const job = await enqueueTask({
 		kind: "import",
 		vaultPath,
@@ -444,7 +505,10 @@ export async function lookupBatchSubmit(texts: string[]): Promise<void> {
 		lane: "normal",
 		params: { mode: "lookupBatch", texts: list },
 	});
-	await awaitTaskSettled(job);
+	return {
+		jobId: job.id,
+		settled: awaitTaskSettled(job).then(() => undefined),
+	};
 }
 
 function lookupJobText(params: unknown): string {
