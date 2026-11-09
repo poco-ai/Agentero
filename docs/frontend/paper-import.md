@@ -12,6 +12,8 @@
 - 成功后：局部刷新 `papers/` 子树、Wiki、Library；**不**自动打开论文（并行入库时抢焦点会让文件树反复跳转），批量也**不**自动连跑精读。
 - 同一条 identifier lookup 管线可由其它入口复用（References 面板、Plaza 入库、Zotero 迁移）。
 - 调度：每个输入一个 JobCenter `import` job（Normal lane；并发取 `batchImportConcurrency`；`params` = `mode` + 来源标识并参与去重，同一 URL 不重复入队）。编排仍在渲染端执行器（`src/lib/paper/import/import-tasks.ts` 按 `params.mode` 分发），job id 兼作 Host `task_id`：字节进度经 `job:progress` 写回投影行，协作取消查 JobCenter 按 task id 索引的 cancel token。
+- **提交即入队**：`lookupSubmit` 会等整批入库结束（引用卡 spinner 依赖这个语义，#434）；魔棒改用 `enqueueLookup` / `enqueueLookupBatch`，入队成功就清空输入并关闭弹层，因此前一批还在下载时可以直接粘贴下一条。弹层里的「添加中…」只覆盖解析与入队。
+- **队列可见**：有 `import` 任务在排队或运行时，魔棒按钮显示进行中数量徽标（>9 记 `9+`），弹层底部一行「N 个进行中 · 当前阶段」，点击展开左下角后台任务面板。单条标识符入库在拿到首个下载字节前从 5% 起步，之后跟随字节进度，进度条不回退。
 - Host：`lookup_import_batch` 等。
 
 ## References 侧栏导入

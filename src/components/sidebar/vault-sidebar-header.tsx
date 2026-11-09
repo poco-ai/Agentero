@@ -21,6 +21,7 @@ import {
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SiZotero } from "react-icons/si";
+import { useStore } from "zustand";
 import {
 	type OpenRemoteVaultArgs,
 	RemoteVaultDialog,
@@ -48,8 +49,14 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useBackgroundTasks } from "@/hooks/use-background-tasks";
 import { useImeGuard } from "@/hooks/use-ime-guard";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
+import {
+	type BackgroundTask,
+	backgroundTasksStore,
+	setBackgroundTasksExpanded,
+} from "@/lib/core/background-tasks";
 import { type ChatImportExtractResult, commands } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { callApiResult } from "@/lib/core/ipc";
@@ -77,8 +84,10 @@ export type VaultSidebarHeaderProps = {
 	};
 	/** Vault-relative papers parent, e.g. `papers` or `papers/nlp` */
 	lookupParentDir: string;
+	/** Magic-wand submit: resolve once the inputs are queued, not imported. */
 	onLookupSubmit: (texts: string[]) => Promise<void>;
-	/** Chat-review confirm (#652): one batch import job for the checked rows. */
+	/** Chat-review confirm (#652): one batch import job for the checked rows;
+	 * resolves once that job is queued. */
 	onLookupBatchSubmit?: (texts: string[]) => Promise<void>;
 	/** Bibliography import (bottom-left of magic-wand popover). */
 	onImportBibliography?: () => void | Promise<void>;
@@ -106,6 +115,49 @@ export type VaultSidebarHeaderProps = {
 	/** Bidirectional Zotero sync (item in the vault switcher dropdown). */
 	onSyncZotero?: () => void;
 };
+
+/** Import jobs still queued or running (magic wand, local PDF, Connector). */
+function selectActiveImportCount(state: {
+	tasks: readonly BackgroundTask[];
+}): number {
+	let count = 0;
+	for (const task of state.tasks) {
+		if (task.kind !== "import") continue;
+		if (task.status === "queued" || task.status === "running") count += 1;
+	}
+	return count;
+}
+
+/**
+ * Inline queue readout under the magic-wand input. Mounted with the popover,
+ * so import progress re-renders just this line; clicking opens the background
+ * task HUD for per-item detail. Reuses the row's own localized detail, which
+ * already carries the current phase and download percentage.
+ */
+function ImportQueueLine() {
+	const { t } = useTranslation("app");
+	const { tasks } = useBackgroundTasks();
+	const active = tasks.filter(
+		(task) =>
+			task.kind === "import" &&
+			(task.status === "queued" || task.status === "running"),
+	);
+	if (active.length === 0) return null;
+	const detail = active[0]?.detail;
+	return (
+		<button
+			type="button"
+			className="flex w-full min-w-0 items-center gap-1.5 rounded px-1 py-0.5 text-left text-caption text-muted-foreground transition-colors hover:bg-accent/40"
+			onClick={() => setBackgroundTasksExpanded(true)}
+		>
+			<Loader2 className="size-3 shrink-0 animate-spin" aria-hidden="true" />
+			<span className="shrink-0">
+				{t("tasks.activeCount", { count: active.length })}
+			</span>
+			{detail ? <span className="min-w-0 truncate">{detail}</span> : null}
+		</button>
+	);
+}
 
 export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 	title,
@@ -135,6 +187,8 @@ export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 	const [lookupText, setLookupText] = useState("");
 	const [lookupBusy, setLookupBusy] = useState(false);
 	const [lookupError, setLookupError] = useState<string | null>(null);
+	/** Wand badge: imports still running, independent of the HUD being open. */
+	const importCount = useStore(backgroundTasksStore, selectActiveImportCount);
 	// Chat-paste review state (#652): extracted ids + which rows are checked.
 	const [chatExtract, setChatExtract] =
 		useState<ChatImportExtractResult | null>(null);
@@ -406,10 +460,23 @@ export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 											variant="ghost"
 											size="icon-xs"
 											data-magic-wand
-											aria-label={t("lookup.magicWand")}
+											aria-label={
+												importCount > 0
+													? `${t("lookup.magicWand")} · ${t("app:tasks.activeCount", { count: importCount })}`
+													: t("lookup.magicWand")
+											}
 											disabled={lookupDisabled}
+											className="relative"
 										>
 											<WandSparkles className="size-3.5" />
+											{importCount > 0 ? (
+												<span
+													aria-hidden="true"
+													className="pointer-events-none absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-primary font-medium text-[9px] text-primary-foreground tabular-nums leading-none"
+												>
+													{importCount > 9 ? "9+" : importCount}
+												</span>
+											) : null}
 										</Button>
 									</PopoverTrigger>
 								</TooltipTrigger>
@@ -507,6 +574,7 @@ export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 											{lookupError}
 										</p>
 									) : null}
+									<ImportQueueLine />
 									{/* Imports bottom-left (PDF · bibliography) · Add bottom-right */}
 									{chatExtract ? (
 										<>
