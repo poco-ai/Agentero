@@ -498,6 +498,71 @@ export function applyLayoutTranslateSidecar(
 	});
 }
 
+/** Cached translations recovered from `layout-translate.json`, plus what is left. */
+export type LayoutTranslateCacheHydration = {
+	items: LayoutTranslateItem[];
+	/** Blocks with a non-empty translation after applying the sidecar. */
+	cachedCount: number;
+	/** Blocks whose translation is still empty; the partial-translate scope. */
+	pendingRequired: number;
+	/** At least one block already had a translation (cached or carried over). */
+	fromCache: boolean;
+};
+
+/**
+ * Apply a sidecar to the full block list and report what the UI must show.
+ *
+ * This is the single place both translation entrypoints hydrate a cache, so a
+ * stopped/partially failed document renders the same `{ items, pendingRequired }`
+ * regardless of which mode opened it. Callers decide the job status: no cache
+ * keeps the normal translate flow, a complete cache renders immediately, and a
+ * cache with gaps renders immediately as partial without a network request.
+ */
+export function hydrateLayoutTranslateItems(
+	items: readonly LayoutTranslateItem[],
+	sidecar: LayoutTranslateSidecar | null,
+	options?: { requireReflowSentencePairs?: boolean },
+): LayoutTranslateCacheHydration {
+	const hydrated = applyLayoutTranslateSidecar(items, sidecar, options);
+	let cachedCount = 0;
+	for (const item of hydrated) {
+		if (item.translated?.trim()) cachedCount += 1;
+	}
+	return {
+		items: hydrated,
+		cachedCount,
+		pendingRequired: hydrated.length - cachedCount,
+		fromCache: cachedCount > 0,
+	};
+}
+
+/** Blocks that still have no translation, in reading order. */
+export function countPendingLayoutTranslateItems(
+	items: readonly LayoutTranslateItem[],
+): number {
+	let pending = 0;
+	for (const item of items) {
+		if (!item.translated?.trim()) pending += 1;
+	}
+	return pending;
+}
+
+/** 1-based inclusive page span of untranslated blocks, for the partial hint. */
+export function layoutTranslatePendingPageRange(
+	items: readonly LayoutTranslateItem[],
+): { start: number; end: number } | null {
+	let first = Number.POSITIVE_INFINITY;
+	let last = Number.NEGATIVE_INFINITY;
+	for (const item of items) {
+		if (item.translated?.trim()) continue;
+		first = Math.min(first, item.pageIndex);
+		last = Math.max(last, item.pageIndex);
+	}
+	return Number.isFinite(first) && Number.isFinite(last)
+		? { start: first + 1, end: last + 1 }
+		: null;
+}
+
 export async function writeLayoutTranslateSidecar(
 	paperAbsPath: string | null | undefined,
 	key: LayoutTranslateCacheKey,

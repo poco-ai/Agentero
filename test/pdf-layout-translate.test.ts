@@ -9,13 +9,16 @@ import {
 } from "@/components/viewer/pdf/layers/layout-translate-overlay";
 import {
 	applyLayoutTranslateSidecar,
+	countPendingLayoutTranslateItems,
 	groupLayoutTranslateItemsByPage,
 	hasPendingLayoutTranslateItems,
+	hydrateLayoutTranslateItems,
 	LAYOUT_TRANSLATE_WRITE_DEBOUNCE_MS,
 	type LayoutTranslateCacheKey,
 	type LayoutTranslateItem,
 	type LayoutTranslateItemStatus,
 	layoutRegionSourceText,
+	layoutTranslatePendingPageRange,
 	listTranslatableLayoutRegions,
 	parseLayoutTranslateSidecar,
 	persistLayoutTranslateSidecarBestEffort,
@@ -675,6 +678,115 @@ describe("layout translate sidecar cache", () => {
 		expect(parsed.schemaVersion).toBe(2);
 		expect(parsed.items[0]?.sentences[0]?.display).toBeUndefined();
 		expect(parsed.items[0]?.sentences[1]?.display).toBe("走吧。");
+	});
+});
+
+describe("hydrateLayoutTranslateItems", () => {
+	const key: LayoutTranslateCacheKey = {
+		providerId: "googleapi",
+		sourceLang: "auto",
+		targetLang: "zh-CN",
+		serviceKey: "googleapi",
+	};
+
+	function item(
+		id: string,
+		pageIndex = 0,
+		status: LayoutTranslateItem["status"] = "pending",
+	): LayoutTranslateItem {
+		return {
+			id,
+			pageIndex,
+			bbox: { x: 0.1, y: 0.1, w: 0.5, h: 0.05 },
+			kind: "text",
+			readingOrder: pageIndex,
+			source: `source ${id}`,
+			status,
+		};
+	}
+
+	function sidecar(
+		entries: { id: string; pageIndex?: number; source: string }[],
+	) {
+		return parseLayoutTranslateSidecar(
+			{
+				schemaVersion: 2,
+				source: {
+					mode: "pdf-layout-translate",
+					generatedAt: "2026-08-10T00:00:00.000Z",
+					providerId: "googleapi",
+					sourceLang: "auto",
+					targetLang: "zh-CN",
+					serviceKey: "googleapi",
+				},
+				items: entries.map((entry) => ({
+					id: entry.id,
+					pageIndex: entry.pageIndex ?? 0,
+					bbox: { x: 0.1, y: 0.1, w: 0.5, h: 0.05 },
+					kind: "text",
+					readingOrder: 0,
+					source: entry.source,
+					translated: `译 ${entry.id}`,
+				})),
+			},
+			key,
+		);
+	}
+
+	it("renders every matching cached block and leaves the rest pending", () => {
+		const items = [item("a"), item("b"), item("c", 2)];
+		const hydration = hydrateLayoutTranslateItems(
+			items,
+			sidecar([
+				{ id: "a", source: "source a" },
+				{ id: "b", source: "stale source" },
+				{ id: "c", pageIndex: 2, source: "source c" },
+			]),
+		);
+		expect(hydration.fromCache).toBe(true);
+		expect(hydration.cachedCount).toBe(2);
+		expect(hydration.pendingRequired).toBe(1);
+		expect(hydration.items.map((it) => it.status)).toEqual([
+			"done",
+			"pending",
+			"done",
+		]);
+		expect(hydration.items[1]?.translated).toBeUndefined();
+		expect(countPendingLayoutTranslateItems(hydration.items)).toBe(1);
+		expect(layoutTranslatePendingPageRange(hydration.items)).toEqual({
+			start: 1,
+			end: 1,
+		});
+	});
+
+	it("reports no usable cache when the sidecar is missing", () => {
+		const hydration = hydrateLayoutTranslateItems(
+			[item("a"), item("b", 4)],
+			null,
+		);
+		expect(hydration).toMatchObject({
+			fromCache: false,
+			cachedCount: 0,
+			pendingRequired: 2,
+		});
+		expect(layoutTranslatePendingPageRange(hydration.items)).toEqual({
+			start: 1,
+			end: 5,
+		});
+	});
+
+	it("needs no pending completion when every block is cached", () => {
+		const hydration = hydrateLayoutTranslateItems(
+			[item("a"), item("b")],
+			sidecar([
+				{ id: "a", source: "source a" },
+				{ id: "b", source: "source b" },
+			]),
+		);
+		expect(hydration.fromCache).toBe(true);
+		expect(hydration.cachedCount).toBe(2);
+		expect(hydration.pendingRequired).toBe(0);
+		expect(hasPendingLayoutTranslateItems(hydration.items)).toBe(false);
 	});
 });
 

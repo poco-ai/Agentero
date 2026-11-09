@@ -10,9 +10,14 @@ import type { LayoutTranslateItem } from "@/lib/pdf/layout/types";
 
 export {
 	applyLayoutTranslateSidecar,
+	countPendingLayoutTranslateItems,
 	currentLayoutTranslateCacheKey,
 	groupLayoutTranslateItemsByPage,
 	hasPendingLayoutTranslateItems,
+	hydrateLayoutTranslateItems,
+	type LayoutTranslateCacheHydration,
+	type LayoutTranslateCacheKey,
+	layoutTranslatePendingPageRange,
 	listTranslatableLayoutRegions,
 	persistLayoutTranslateSidecarBestEffort,
 	readLayoutTranslateSidecar,
@@ -48,6 +53,9 @@ export function isLayoutTranslateItemPainted(
 		(item.status === "error" && Boolean(item.translated))
 	);
 }
+
+/** Which blocks the current job is measuring progress over. */
+export type LayoutTranslateRunScope = "initial" | "pending" | "all";
 
 /** A finished job can now explicitly report that some blocks still need work. */
 export type LayoutTranslateJobStatus =
