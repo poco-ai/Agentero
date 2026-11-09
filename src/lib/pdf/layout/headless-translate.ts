@@ -10,7 +10,8 @@
  *
  * The renderer executor also owns the takeover lease: when the user starts a
  * manual full-text translation for a paper this job is translating, the viewer
- * aborts the background run and continues from the blocks already written.
+ * aborts the background run and waits for it to flush the blocks it already
+ * completed into the sidecar, so the manual run continues from those blocks.
  */
 
 import type { PdfDocumentObject } from "@embedpdf/models";
@@ -133,6 +134,8 @@ async function runLayoutTranslateExecutor(
 	else signal.addEventListener("abort", abort, { once: true });
 
 	let takenOver = false;
+	/** The abort did not settle within the flush budget: skip late writes. */
+	let flushTimedOut = false;
 	let resolveFinished: () => void = () => undefined;
 	const finishedPromise = new Promise<void>((resolve) => {
 		resolveFinished = resolve;
@@ -142,9 +145,12 @@ async function runLayoutTranslateExecutor(
 				abortAndFlush: async () => {
 					takenOver = true;
 					controller.abort();
-					await Promise.race([
-						finishedPromise,
-						delay(TAKEOVER_FLUSH_TIMEOUT_MS),
+					// A completed run flushes its blocks to the sidecar before
+					// resolving, so the viewer can reuse them. Only a timed-out
+					// abort gives up on the write.
+					flushTimedOut = await Promise.race([
+						finishedPromise.then(() => false),
+						delay(TAKEOVER_FLUSH_TIMEOUT_MS).then(() => true),
 					]);
 				},
 			}
@@ -159,7 +165,8 @@ async function runLayoutTranslateExecutor(
 			jobId,
 			signal: controller.signal,
 			report: (args) => report(args),
-			shouldPersist: () => !takenOver,
+			shouldPersist: () => !flushTimedOut,
+			shouldBuildFinal: () => !takenOver,
 		});
 		if (takenOver) {
 			await report({ state: "cancelled" });
@@ -215,14 +222,20 @@ export async function translatePaperLayoutHeadless(opts: {
 	jobId: string;
 	signal?: AbortSignal;
 	report: (args: TaskReportArgs) => Promise<void> | void;
-	/** False once a viewer took the paper over: do not write caches. */
+	/**
+	 * False once a viewer took the paper over and the flush timed out: skip
+	 * late sidecar writes so they cannot clobber the viewer's newer translations.
+	 */
 	shouldPersist?: () => boolean;
+	/** False once a viewer took the paper over: it owns the page build now. */
+	shouldBuildFinal?: () => boolean;
 }): Promise<HeadlessTranslateResult> {
 	const signal = opts.signal;
 	const report = (args: TaskReportArgs) => {
 		void Promise.resolve(opts.report(args)).catch(() => undefined);
 	};
 	const shouldPersist = opts.shouldPersist ?? (() => true);
+	const shouldBuildFinal = opts.shouldBuildFinal ?? shouldPersist;
 	signal?.throwIfAborted();
 
 	const skipped = (
@@ -344,7 +357,11 @@ export async function translatePaperLayoutHeadless(opts: {
 			total,
 		});
 
-		if (loadSettings().translate.cacheReflowFinal && translated > 0) {
+		if (
+			shouldBuildFinal() &&
+			loadSettings().translate.cacheReflowFinal &&
+			translated > 0
+		) {
 			await buildFinalCache({
 				engine,
 				doc,
