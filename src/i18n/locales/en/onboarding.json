@@ -9,7 +9,7 @@
 		"node": "Node.js",
 		"agent": "Agent",
 		"translate": "Translation",
-		"layout": "Figures & formulas",
+		"layout": "Formula & figure parsing",
 		"vault": "Get started"
 	},
 	"welcome": {},
@@ -97,7 +97,7 @@
 		}
 	},
 	"layout": {
-		"title": "Spot figures and formulas automatically",
+		"title": "Formula & figure parsing",
 		"configureOwn": "Use a cloud service (recommended)",
 		"configureOwnDesc": "Bring your own Paddle, MinerU, or OpenAI-compatible API key for the best accuracy on figures and formulas.",
 		"useDefault": "Use the free on-device model",

@@ -9,7 +9,7 @@
 		"node": "Node.js",
 		"agent": "Agent",
 		"translate": "翻译",
-		"layout": "图表公式",
+		"layout": "公式和图表解析配置",
 		"vault": "开始使用"
 	},
 	"welcome": {},
@@ -97,7 +97,7 @@
 		}
 	},
 	"layout": {
-		"title": "自动识别图表和公式",
+		"title": "公式和图表解析配置",
 		"configureOwn": "配置云端服务（推荐）",
 		"configureOwnDesc": "填入 Paddle、MinerU 或兼容 OpenAI 的 API Key，图表公式识别更精准。",
 		"useDefault": "用本地免费模型",
