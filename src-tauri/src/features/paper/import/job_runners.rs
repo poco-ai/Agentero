@@ -8,7 +8,8 @@
 //! (probe → metadata/rename/merge → PAPER.md + refs + layout).
 
 use crate::features::jobs::{
-    emit_job_changed, JobCenter, JobKind, JobLane, RunOutcome, StartOutcome, StartedJob,
+    emit_job_changed, start_enqueued_job, JobCenter, JobKind, JobLane, RunOutcome, StartOutcome,
+    StartedJob,
 };
 use crate::features::paper::catalog::CapsCache;
 use std::sync::Arc;
@@ -136,14 +137,26 @@ fn download_assets_runner(
                     }
                 }
                 if caps.has_pdf() {
-                    let backend = app
-                        .state::<crate::features::system::settings::AppSettingsStore>()
-                        .layout_backend();
+                    let settings =
+                        app.state::<crate::features::system::settings::AppSettingsStore>();
+                    let backend = settings.layout_backend();
+                    let auto_translate = settings.auto_translate_import();
                     center.apply_layout_backend(&backend).await;
-                    let lsnap = center
-                        .enqueue_layout_analyze(&vault, &path, JobLane::Normal, false)
+                    let (lsnap, translate) = center
+                        .enqueue_layout_analysis_with_translate(
+                            &vault,
+                            &path,
+                            JobLane::Normal,
+                            false,
+                            auto_translate,
+                        )
                         .await;
                     emit_job_changed(&app, lsnap.clone());
+                    if let Some(translate) = translate {
+                        emit_job_changed(&app, translate.clone());
+                        // Close the race where layout settled between enqueues.
+                        start_enqueued_job(&app, &center, &translate).await;
+                    }
                     if let StartOutcome::Started(started) = center.try_start(&lsnap.id).await {
                         center.spawn_runner(&app, started);
                     }
@@ -297,14 +310,25 @@ fn recognize_metadata_runner(
             &final_path,
         );
         if final_caps.has_pdf() {
-            let backend = app
-                .state::<crate::features::system::settings::AppSettingsStore>()
-                .layout_backend();
+            let settings = app.state::<crate::features::system::settings::AppSettingsStore>();
+            let backend = settings.layout_backend();
+            let auto_translate = settings.auto_translate_import();
             center.apply_layout_backend(&backend).await;
-            let lsnap = center
-                .enqueue_layout_analyze(&vault, &final_path, JobLane::Normal, false)
+            let (lsnap, translate) = center
+                .enqueue_layout_analysis_with_translate(
+                    &vault,
+                    &final_path,
+                    JobLane::Normal,
+                    false,
+                    auto_translate,
+                )
                 .await;
             emit_job_changed(&app, lsnap.clone());
+            if let Some(translate) = translate {
+                emit_job_changed(&app, translate.clone());
+                // Close the race where layout settled between enqueues.
+                start_enqueued_job(&app, &center, &translate).await;
+            }
             if let StartOutcome::Started(started) = center.try_start(&lsnap.id).await {
                 center.spawn_runner(&app, started);
             }

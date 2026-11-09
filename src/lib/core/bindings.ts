@@ -101,7 +101,7 @@ export const commands = {
 	agentCancelRun: (sessionId: string) => __TAURI_INVOKE<ApiResult<boolean>>("agent_cancel_run", { sessionId }),
 	jobParseRefsEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_parse_refs_enqueue", { args })),
 	jobParseBodyEnqueue: (args: JobParseBodyEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_parse_body_enqueue", { args })),
-	jobLayoutAnalyzeEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_analyze_enqueue", { args })),
+	jobLayoutAnalyzeEnqueue: (args: JobLayoutAnalyzeEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_layout_analyze_enqueue", { args })),
 	jobDownloadAssetsEnqueue: (args: JobEnqueueArgs) => typedError<ApiResult<JobSnapshot>, string>(__TAURI_INVOKE("job_download_assets_enqueue", { args })),
 	/**
 	 *  Enqueue a renderer-orchestrated import (magic wand / local PDF / plaza /
@@ -3510,6 +3510,20 @@ export type JobLatexCompileEnqueueArgs = {
 	build?: LatexBuildOptions | null,
 };
 
+/**
+ *  `layoutAnalyze` enqueue args. `auto_translate` marks import / download
+ *  origins: when Settings → Translate → "Auto-translate after import" is on,
+ *  the Host also queues the dependent `layoutTranslate` job. Opening a paper or
+ *  re-parsing layout leaves it false.
+ */
+export type JobLayoutAnalyzeEnqueueArgs = {
+	vaultPath: string,
+	path: string,
+	lane?: JobLane | null,
+	force?: boolean,
+	autoTranslate?: boolean,
+};
+
 export type JobListArgs = {
 	vaultPath?: string | null,
 	path?: string | null,
@@ -5684,6 +5698,16 @@ export type TranslateSettings = {
 	 *  each final is roughly 25 MB).
 	 */
 	cacheReflowFinal?: boolean,
+	/**
+	 *  Full-document translation runs in the background after a paper is
+	 *  imported and its layout lands (default off: it spends provider quota).
+	 */
+	autoTranslateImport?: boolean,
+	/**
+	 *  How many papers the background import translation runs at once.
+	 *  Seeded into the JobCenter `LayoutTranslate` cap (1–5, default 1).
+	 */
+	autoTranslateImportConcurrency?: number,
 };
 
 export type TranslateTextArgs = {

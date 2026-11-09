@@ -3,10 +3,11 @@ use crate::core::error::{map_err, ApiResult, AppError};
 use serde::{Deserialize, Serialize};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use tauri::State;
+use tauri::{Manager, State};
 
 use super::{
-    emit_job_changed, parse_lane, JobCenter, JobKind, JobLane, JobSnapshot, JobState, StartOutcome,
+    emit_job_changed, parse_lane, start_enqueued_job, JobCenter, JobKind, JobLane, JobSnapshot,
+    JobState, StartOutcome,
 };
 
 /// Validate the command's (vault, paper) pair or early-return the IPC error
@@ -31,6 +32,23 @@ pub struct JobEnqueueArgs {
     pub lane: Option<JobLane>,
     #[serde(default)]
     pub force: bool,
+}
+
+/// `layoutAnalyze` enqueue args. `auto_translate` marks import / download
+/// origins: when Settings → Translate → "Auto-translate after import" is on,
+/// the Host also queues the dependent `layoutTranslate` job. Opening a paper or
+/// re-parsing layout leaves it false.
+#[derive(Debug, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct JobLayoutAnalyzeEnqueueArgs {
+    pub vault_path: String,
+    pub path: String,
+    #[serde(default)]
+    pub lane: Option<JobLane>,
+    #[serde(default)]
+    pub force: bool,
+    #[serde(default)]
+    pub auto_translate: bool,
 }
 
 #[derive(Debug, Deserialize, specta::Type)]
@@ -412,7 +430,7 @@ pub async fn job_papers_needing_assets(
 pub async fn job_layout_analyze_enqueue(
     app: tauri::AppHandle,
     center: State<'_, JobCenter>,
-    args: JobEnqueueArgs,
+    args: JobLayoutAnalyzeEnqueueArgs,
 ) -> Result<ApiResult<JobSnapshot>, String> {
     let (vault, path) = try_job_paper!(args);
     if let Some(snapshot) = deferred_if_recognizing(
@@ -427,13 +445,30 @@ pub async fn job_layout_analyze_enqueue(
     {
         return Ok(ApiResult::ok(snapshot));
     }
+    // Only import / download origins opt in; the setting is read here so the
+    // renderer never has to mirror it and a settings change needs no requeue.
+    let auto_translate = args.auto_translate
+        && app
+            .state::<crate::features::system::settings::AppSettingsStore>()
+            .auto_translate_import();
     center.refresh_layout_backend().await;
-    Ok(start_enqueued(
-        &app,
-        &center,
-        center.enqueue_layout_analyze(&vault, &path, parse_lane(args.lane), args.force),
-    )
-    .await)
+    let (layout, translate) = center
+        .enqueue_layout_analysis_with_translate(
+            &vault,
+            &path,
+            parse_lane(args.lane),
+            args.force,
+            auto_translate,
+        )
+        .await;
+    if let Some(translate) = translate {
+        // Queued behind the layout job; its own `job:changed` carries the row.
+        emit_job_changed(&app, translate.clone());
+        // Layout may have settled between the two enqueues (dedupe hit on a
+        // running job); the finish event would then never wake the dependent.
+        start_enqueued_job(&app, &center, &translate).await;
+    }
+    Ok(ApiResult::ok(start_or_hold(&app, &center, layout).await))
 }
 
 #[derive(Debug, Deserialize, specta::Type)]

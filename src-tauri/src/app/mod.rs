@@ -137,6 +137,7 @@ pub fn run() {
     let settings_store = AppSettingsStore::load();
     let layout_backend = settings_store.layout_backend();
     let import_concurrency = settings_store.batch_import_concurrency();
+    let translate_concurrency = settings_store.auto_translate_import_concurrency();
     builder = builder
         .manage(settings_store)
         .manage(AgentRegistry::load())
@@ -153,7 +154,8 @@ pub fn run() {
         .manage(crate::integration::bridge::BridgeClientController::new())
         .manage(
             crate::features::jobs::JobCenter::with_layout_backend(&layout_backend)
-                .with_import_concurrency(import_concurrency),
+                .with_import_concurrency(import_concurrency)
+                .with_layout_translate_concurrency(translate_concurrency),
         )
         .manage(crate::features::paper::catalog::CapsCache::new())
         .manage(crate::app::vault_session::VaultHolders::new())
@@ -344,10 +346,19 @@ pub fn run() {
                         .clone();
                     let backend = s.layout.backend.clone();
                     let import_cap = s.batch_import_concurrency.max(1) as usize;
+                    // Out-of-range background-translation caps fall back to 1
+                    // instead of parking papers forever.
+                    let translate_cap = s.translate.auto_translate_import_concurrency.clamp(
+                        1,
+                        crate::features::system::settings::MAX_AUTO_TRANSLATE_IMPORT_CONCURRENCY,
+                    ) as usize;
                     let app = handle.clone();
                     tauri::async_runtime::spawn(async move {
                         center.apply_layout_backend(&backend).await;
                         center.apply_import_concurrency(import_cap).await;
+                        center
+                            .apply_layout_translate_concurrency(translate_cap)
+                            .await;
                         center.drain_and_spawn(&app).await;
                     });
                 });
