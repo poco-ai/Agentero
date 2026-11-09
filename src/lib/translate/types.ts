@@ -103,6 +103,16 @@ export type TranslateSettings = {
 	 * (default off: each final is ~25 MB).
 	 */
 	cacheReflowFinal: boolean;
+	/**
+	 * Translate a paper's full text in the background once it is imported and
+	 * its layout analysis succeeds (default off: it spends provider quota).
+	 */
+	autoTranslateImport: boolean;
+	/**
+	 * How many papers the import-triggered background translation runs at
+	 * once (1–5, default 1). Seeded into the JobCenter `layoutTranslate` cap.
+	 */
+	autoTranslateImportConcurrency: number;
 };
 
 export type TranslateProviderConfig = {

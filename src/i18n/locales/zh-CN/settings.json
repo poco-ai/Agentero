@@ -530,6 +530,13 @@
 		"autoSelection": {
 			"label": "PDF 划词后自动翻译"
 		},
+		"autoImport": {
+			"label": "导入后自动翻译",
+			"description": "版面解析完成后在后台翻译全文。会使用当前翻译服务，可能消耗 API 额度。",
+			"concurrency": {
+				"label": "同时翻译的论文数"
+			}
+		},
 		"displayMode": {
 			"label": "翻译显示模式",
 			"overlay": "在原 PDF 上覆盖",

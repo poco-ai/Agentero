@@ -530,6 +530,13 @@
 		"autoSelection": {
 			"label": "Auto-translate PDF selection"
 		},
+		"autoImport": {
+			"label": "Auto-translate after import",
+			"description": "Runs full-text translation in the background once layout analysis finishes. Uses your translation service, so it may consume API quota.",
+			"concurrency": {
+				"label": "Papers translated at once"
+			}
+		},
 		"displayMode": {
 			"label": "Translation display mode",
 			"overlay": "Overlay on original PDF",

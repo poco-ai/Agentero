@@ -460,6 +460,42 @@ export function TranslatePane({
 						}
 					/>
 				</SettingsRow>
+				<SettingsRow
+					label={t("translate.autoImport.label")}
+					description={t("translate.autoImport.description")}
+					htmlFor="translate-auto-import"
+				>
+					<Switch
+						id="translate-auto-import"
+						checked={tr.autoTranslateImport}
+						onCheckedChange={(v) => patchTranslate({ autoTranslateImport: v })}
+					/>
+				</SettingsRow>
+				{tr.autoTranslateImport ? (
+					<SettingsRow
+						label={t("translate.autoImport.concurrency.label")}
+						htmlFor="translate-auto-import-concurrency"
+					>
+						<Input
+							id="translate-auto-import-concurrency"
+							type="number"
+							min={1}
+							max={5}
+							className="h-8 w-24"
+							defaultValue={tr.autoTranslateImportConcurrency}
+							onBlur={(e) => {
+								const parsed = Number(e.currentTarget.value);
+								const next = Number.isFinite(parsed)
+									? Math.min(5, Math.max(1, Math.round(parsed)))
+									: DEFAULT_TRANSLATE_SETTINGS.autoTranslateImportConcurrency;
+								e.currentTarget.value = String(next);
+								if (next !== tr.autoTranslateImportConcurrency) {
+									patchTranslate({ autoTranslateImportConcurrency: next });
+								}
+							}}
+						/>
+					</SettingsRow>
+				) : null}
 				<SettingsRow label={t("translate.displayMode.label")}>
 					<Select
 						value={tr.displayMode}

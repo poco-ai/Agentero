@@ -20,6 +20,8 @@ export const DEFAULT_TRANSLATE_SETTINGS: TranslateSettings = {
 	customUser: "",
 	cacheReflowIr: true,
 	cacheReflowFinal: false,
+	autoTranslateImport: false,
+	autoTranslateImportConcurrency: 1,
 };
 
 /** Blank commercial provider config (missing draft/stored entry fallback). */

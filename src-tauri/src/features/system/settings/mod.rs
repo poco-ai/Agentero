@@ -30,6 +30,10 @@ pub const DEFAULT_CONNECTOR_PORT: u16 = 23119;
 /// Default loopback port for the optional MCP HTTP server.
 pub use agentero_mcp::DEFAULT_MCP_PORT;
 
+/// Upper bound for `auto_translate_import_concurrency` (the settings UI offers
+/// 1–5; larger values would hammer translation providers and disk).
+pub const MAX_AUTO_TRANSLATE_IMPORT_CONCURRENCY: u32 = 5;
+
 /// Built-in provider id, re-exported so the Host never re-types the literal.
 pub use agentero_core::features::translate::BUILTIN_PROVIDER_ID;
 
@@ -368,6 +372,14 @@ pub struct TranslateSettings {
     /// each final is roughly 25 MB).
     #[serde(default)]
     pub cache_reflow_final: bool,
+    /// Full-document translation runs in the background after a paper is
+    /// imported and its layout lands (default off: it spends provider quota).
+    #[serde(default)]
+    pub auto_translate_import: bool,
+    /// How many papers the background import translation runs at once.
+    /// Seeded into the JobCenter `LayoutTranslate` cap (1–5, default 1).
+    #[serde(default = "default_auto_translate_import_concurrency")]
+    pub auto_translate_import_concurrency: u32,
 }
 
 impl Default for TranslateSettings {
@@ -388,6 +400,8 @@ impl Default for TranslateSettings {
             custom_user: String::new(),
             cache_reflow_ir: true,
             cache_reflow_final: false,
+            auto_translate_import: false,
+            auto_translate_import_concurrency: default_auto_translate_import_concurrency(),
         }
     }
 }
@@ -635,6 +649,9 @@ fn default_mcp_port() -> u16 {
 fn default_batch_import_concurrency() -> u32 {
     5
 }
+fn default_auto_translate_import_concurrency() -> u32 {
+    1
+}
 fn default_translate_target() -> String {
     "ui".into()
 }
@@ -818,6 +835,30 @@ impl AppSettingsStore {
             .ok()
             .map(|guard| guard.batch_import_concurrency.max(1) as usize)
             .unwrap_or_else(|| default_batch_import_concurrency() as usize)
+    }
+
+    /// Whether imported papers get a background full-text translation job.
+    pub fn auto_translate_import(&self) -> bool {
+        self.inner
+            .lock()
+            .ok()
+            .map(|guard| guard.translate.auto_translate_import)
+            .unwrap_or(false)
+    }
+
+    /// Background import-translation parallelism, seeded into the JobCenter
+    /// `LayoutTranslate` cap (1–5; out-of-range values fall back to 1).
+    pub fn auto_translate_import_concurrency(&self) -> usize {
+        self.inner
+            .lock()
+            .ok()
+            .map(|guard| {
+                guard
+                    .translate
+                    .auto_translate_import_concurrency
+                    .clamp(1, MAX_AUTO_TRANSLATE_IMPORT_CONCURRENCY) as usize
+            })
+            .unwrap_or_else(|| default_auto_translate_import_concurrency() as usize)
     }
 
     /// PAPER.md body-parse engine backend (`local` when unset).
@@ -1259,6 +1300,11 @@ fn normalize(s: &mut AppSettings) {
     }
     if s.batch_import_concurrency < 1 || s.batch_import_concurrency > 10 {
         s.batch_import_concurrency = default_batch_import_concurrency();
+    }
+    if s.translate.auto_translate_import_concurrency < 1
+        || s.translate.auto_translate_import_concurrency > MAX_AUTO_TRANSLATE_IMPORT_CONCURRENCY
+    {
+        s.translate.auto_translate_import_concurrency = default_auto_translate_import_concurrency();
     }
     s.network_proxy_url = s.network_proxy_url.trim().to_string();
     if s.network_proxy_url.is_empty() {
