@@ -9,15 +9,20 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/poco-ai/agentero/stargazers"><img src="https://img.shields.io/github/stars/poco-ai/agentero?style=flat&logo=github" alt="GitHub stars" /></a>
-  <a href="https://github.com/poco-ai/agentero/releases"><img src="https://img.shields.io/github/v/release/poco-ai/agentero?include_prereleases&style=flat" alt="Release" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
-  <a href="https://agentero.app/"><img src="https://img.shields.io/badge/官网-agentero.app-5319E7" alt="Website" /></a>
-  <a href="https://agentero-docs.poco-ai.com"><img src="https://img.shields.io/badge/文档-在线查看-5319E7?logo=mkdocs&logoColor=white" alt="Documentation" /></a>
+  <b>中文</b> | <a href="README.en.md">English</a>
 </p>
 
 <p align="center">
-  <b>中文</b> | <a href="README.en.md">English</a>
+  <a href="https://github.com/poco-ai/agentero/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/poco-ai/agentero?style=for-the-badge&logo=github&color=E3B341&labelColor=20242D"></a>
+  <a href="https://github.com/poco-ai/agentero/releases"><img alt="release" src="https://img.shields.io/github/v/release/poco-ai/agentero?include_prereleases&style=for-the-badge&logo=github&color=1B54E8&labelColor=20242D"></a>
+  <a href="https://github.com/poco-ai/agentero/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/github/license/poco-ai/agentero?style=for-the-badge&logo=opensourceinitiative&logoColor=white&color=34D399&labelColor=20242D"></a>
+  <a href="https://agentero.app/"><img alt="website" src="https://img.shields.io/badge/官网-agentero.app-5319E7?style=for-the-badge&labelColor=20242D"></a>
+  <a href="https://agentero-docs.poco-ai.com"><img alt="docs" src="https://img.shields.io/badge/文档-在线查看-5319E7?style=for-the-badge&logo=mkdocs&logoColor=white&labelColor=20242D"></a>
+</p>
+
+<p align="center">
+  <a href="https://trendshift.io/repositories/119836?utm_source=repository-badge&utm_medium=badge&utm_campaign=badge-repository-119836" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/119836" alt="poco-ai%2FAgentero | Trendshift" width="250" height="55"/></a>
+  <a href="https://trendshift.io/repositories/119836?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-119836" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/119836/daily?language=TypeScript" alt="poco-ai%2FAgentero | Trendshift" width="250" height="55"/></a>
 </p>
 
 如果本项目对你有帮助，请在右上角**给个 star** 吧！
