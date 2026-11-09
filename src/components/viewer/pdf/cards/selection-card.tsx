@@ -24,6 +24,8 @@ import { useSelectionOverlayGuard } from "@/lib/workspace/selection-overlay";
 
 /** Minimum inset from the viewport edges (px). */
 export const SELECTION_CARD_EDGE = 12;
+/** Gap between a text-selection box and its card (px). */
+const SELECTION_ANCHOR_GAP = 8;
 /** Default preferred max height when callers omit `height` (px). */
 const SELECTION_CARD_DEFAULT_MAX_HEIGHT = 420;
 /** Floor so a clipped card remains usable on short viewports (px). */
@@ -113,7 +115,7 @@ export function placeSelectionCard(
 
 	if (screen.selectionBounds) {
 		const bounds = screen.selectionBounds;
-		const gap = 8;
+		const gap = SELECTION_ANCHOR_GAP;
 		const usableHeight = Math.max(0, vh - edge * 2);
 		const minHeight = Math.min(SELECTION_CARD_MIN_HEIGHT, usableHeight);
 		const upperEdge = clamp(bounds.top - gap, edge, edge + usableHeight);
@@ -415,7 +417,28 @@ export function SelectionCard({
 		preferBelow,
 		contentHeight,
 	});
-	const anchoredToSelection = Boolean(screen.selectionBounds) && !offset;
+	const selectionBounds = screen.selectionBounds;
+	const followsPage = Boolean(selectionBounds);
+	/**
+	 * Selection-anchored cards (e.g. translate) freeze the placement they got
+	 * when they opened, then follow the text: side, left offset and height cap
+	 * stay put while the card tracks the page. Re-running the viewport clamp on
+	 * every scroll tick would pin the card to the top edge instead.
+	 */
+	const trackRef = useRef<{
+		side: "above" | "below";
+		dx: number;
+		maxHeight: number;
+	} | null>(null);
+	if (!trackRef.current && selectionBounds) {
+		trackRef.current = {
+			side: anchor.top < selectionBounds.top ? "above" : "below",
+			dx: anchor.left - screen.x,
+			maxHeight: anchor.maxHeight,
+		};
+	}
+	const track = trackRef.current;
+	const anchoredToSelection = followsPage && !offset;
 	useLayoutEffect(() => {
 		const card = rootRef.current;
 		if (!anchoredToSelection || !card) return;
@@ -438,26 +461,51 @@ export function SelectionCard({
 		return () => observer.disconnect();
 	}, [anchoredToSelection, lockHeight, resizable]);
 	const edge = SELECTION_CARD_EDGE;
-	const left = offset
-		? clamp(
-				screen.x + offset.dx,
-				edge,
-				Math.max(
-					edge,
-					viewport.width -
-						edge -
-						(resizable ? RESIZE_MIN_WIDTH : renderedWidth),
-				),
+	const rawLeft = offset
+		? screen.x + offset.dx
+		: track
+			? screen.x + track.dx
+			: null;
+	const left =
+		rawLeft == null
+			? anchor.left
+			: followsPage
+				? rawLeft
+				: clamp(
+						rawLeft,
+						edge,
+						Math.max(
+							edge,
+							viewport.width -
+								edge -
+								(resizable ? RESIZE_MIN_WIDTH : renderedWidth),
+						),
+					);
+	const rawTop = offset
+		? screen.y + offset.dy
+		: track && selectionBounds
+			? track.side === "above"
+				? contentHeight != null
+					? selectionBounds.top - SELECTION_ANCHOR_GAP - contentHeight
+					: anchor.top
+				: selectionBounds.bottom + SELECTION_ANCHOR_GAP
+			: null;
+	const top =
+		rawTop == null
+			? anchor.top
+			: followsPage
+				? rawTop
+				: clamp(
+						rawTop,
+						edge,
+						Math.max(edge, viewport.height - edge - SELECTION_CARD_MIN_HEIGHT),
+					);
+	const maxHeight = track
+		? Math.min(
+				track.maxHeight,
+				Math.max(SELECTION_CARD_MIN_HEIGHT, viewport.height - edge * 2),
 			)
-		: anchor.left;
-	const top = offset
-		? clamp(
-				screen.y + offset.dy,
-				edge,
-				Math.max(edge, viewport.height - edge - SELECTION_CARD_MIN_HEIGHT),
-			)
-		: anchor.top;
-	const maxHeight = anchor.maxHeight;
+		: anchor.maxHeight;
 	const resizeRoomWidth = Math.max(
 		0,
 		viewport.width - left - SELECTION_CARD_EDGE,
@@ -471,8 +519,10 @@ export function SelectionCard({
 			? Math.min(resizeRoomWidth, Math.max(0, resizeMaxWidth))
 			: resizeRoomWidth;
 	// Locked cards use the placement cap while anchored; after a drag, shrink
-	// to the room below the new top so a short window does not overflow.
-	const cardMaxHeight = offset ? Math.min(height, resizeRoomHeight) : maxHeight;
+	// to the room below the new top so a short window does not overflow. Cards
+	// that follow the page keep their cap so scrolling never compresses them.
+	const cardMaxHeight =
+		offset && !followsPage ? Math.min(height, resizeRoomHeight) : maxHeight;
 	// The gutter pin sits on the side the card opens toward. Reveal the card
 	// from that corner so it looks like the pin expands into the full card.
 	const isRightSide = anchor.left + renderedWidth / 2 >= screen.x;
