@@ -21,6 +21,11 @@
         │  headless EmbedPDF 栈写 `{paper}/source/layout.json`（有缓存则跳过；`force` 不跳过）
         │  只打开论文根目录 `{id}.pdf`。根文件还没落盘时跳过，不改用 `source/assets/` 里的插图 PDF
         │  实现：`enqueue-paper-layout.ts` + `headless-analyze.ts`
+        │  设置开启「导入后自动翻译」时，同一次入队还创建依赖该任务的
+        │  `layoutTranslate`（JobCenter `depends_on` / `AllSucceeded`）；
+        │  版面失败或取消则标记 Skipped，打开论文补解析 / 手动重解析不触发
+        │  实现：`JobCenter::enqueue_layout_analysis_with_translate` +
+        │  `headless-translate.ts`（渲染端执行，见 translate.md）
         │
 打开论文 PDF（含非 active 的已挂载 tab）→ enqueue 到后台任务队列
         │  多篇并行打开：都进左下角任务列表

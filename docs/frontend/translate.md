@@ -18,7 +18,21 @@ Settings → **翻译**：
   - OpenAI 兼容翻译要求服务支持 **Chat Completions** 格式：`POST {baseUrl}/chat/completions`，返回 `choices[0].message.content`。设置里填写 Base URL（例如 `https://api.openai.com/v1` 或服务商自己的 `/v1` 根地址），不要填写 Responses / Completions 端点；应用会自动追加 `/chat/completions`。
     用户配置说明见 [配置 OpenAI 兼容翻译](../usage/translate-openai-compatible.md)。
 - 默认服务为 Agent 时展示 Agent / 模型座。
+- **导入后自动翻译**：开启后导入的论文在版面解析完成后后台翻译全文；并发数控制同时翻译的论文数。只有导入 / 下载链路触发，打开论文补解析和手动重新解析不触发。实现见下文「导入后自动翻译」。
 - **自定义翻译提示词**（`translate.customSystem` / `translate.customUser`，旧 `translate.customPrompt` 仍可读）：仅对 **Agent 与 OpenAI 兼容**两条 LLM 路径生效（免费引擎与内置 provider 无提示词概念）。设置里分系统提示词和用户模板两栏。引擎规则（只输出译文、不反问、公式 / 引用 / `⟦n⟧` 原样）始终生效。系统栏里多行或带占位符的内容只替换学术风格块；一行不超过 180 字、且不含 `{{…}}` 的口语（如「翻译得自然一点」）作为附加偏好追加。占位符只认 `{{targetLang}}` / `{{sourceLang}}` / `{{text}}`，其它在失焦时校验失败、不写入；手改 settings.json 里的未知占位符会在归一化时被剥离。用户模板留空时原文仍用 `"""…"""` 包裹；非空则必须包含 `{{text}}`，由它决定原文插入位置。`[[n]]` 批量规则写在 system。每栏上限 8000 字符。「填入默认」把学术风格块写入系统栏并清掉旧的单段 `customPrompt`，「恢复默认」三栏都清空。OpenAI 兼容路径由 Host 在 `translate_text` 内注入（WebView 调用方无感）。保存系统栏时写入 `customSystem` 并清空 `customPrompt`，避免两段叠在一起。
+
+## 导入后自动翻译
+
+设置 → **翻译** →「导入后自动翻译」默认关闭；开启后在其下方显示「同时翻译的论文数」（1–5，默认 1）。持久化为 `TranslateSettings.autoTranslateImport` / `autoTranslateImportConcurrency`；旧 `settings.json` 缺字段时按关闭 / 1 处理。关闭开关只停止新任务，已排队的翻译任务仍会执行。
+
+触发点是**导入 / 下载链路**入队 `layoutAnalyze` 时（本地 PDF、魔棒 / lookup、广场、Connector、资源下载后补解析）：设置开启时 Host 同时入队一个 `layoutTranslate` 任务，用 JobCenter `depends_on` 指向那次版面任务（`DepPolicy::AllSucceeded`）。页面进入编辑器后的补解析、手动重新解析（`force: true`）不会触发。入口统一走 `JobCenter::enqueue_layout_analysis_with_translate`，前端命令按 `autoTranslate` 标记来源，Rust import runner 直接读设置。
+
+- `LayoutTranslate` 改为渲染端执行（`ExecHost::Renderer`），`registerTaskExecutor("layoutTranslate", …)` 在后台任务面板显示逐篇进度、可取消；`layoutTranslate` 已加入面板投影。
+- `LayoutTranslateCap` 由 `autoTranslateImportConcurrency` 播种（默认 1），设置变化时更新 cap 并 `drain_and_spawn`，控制同时翻译的论文数；单篇内部仍沿用原有批次并发。
+- 版面失败 / 取消时依赖任务标为 `Skipped`，不发翻译请求；取消版面任务的 `drain` 会立即结算依赖任务，不会留下永久排队。
+- Headless 流程（`src/lib/pdf/layout/headless-translate.ts`）：读取论文根 `{id}.pdf` → `source/layout.json`（raw regions）→ `listTranslatableLayoutRegions` → `prepareReflowItems`（IR 缓存受 `cacheReflowIr` 控制）→ 用 `layout-translate.json` hydrate → 只翻译 pending 块（后台失败不自动重试）→ 写回 sidecar，已完成块保留为 partial。完整命中缓存时 no-op；无 PDF / 无 translatable 区域时跳过且不报错。
+- `cacheReflowFinal` 开启时额外构建译文 PDF 并写入现有 final build 缓存（命中则跳过重建）；关闭时只写 sidecar，页面留到打开论文后生成。
+- **查看器接管**：后台任务运行中，用户打开论文并手动点全文翻译时，查看器先让该论文的后台执行器停止并等待已完成块落盘（同窗口直接 abort；执行器在其它窗口时走 `job_cancel`），再按缓存流程**继续翻译 pending 块**，已完成块不重复请求。没有生效中的后台任务时保持原有缓存优先行为。
 
 ## 消费方
 
