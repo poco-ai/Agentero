@@ -50,12 +50,12 @@ Host `features/web/proxy.rs`(agentero-web scheme)
 |---|---|---|---|
 | frame → app | `selection` | `{text(≤4000), rect\|null, url}` | 选区(视口坐标矩形);空文本即清菜单。带 rect 时帧内已 `execCommand("copy")`(焦点在 frame,应用侧剪贴板写入可能被拒的降级) |
 | frame → app | `scroll` | — | 页内滚动,隐藏工具栏(plaza 同款语义) |
+| frame → app | `escape` | — | 非输入元素上的 Escape（window 捕获阶段转发，站点 `stopPropagation` / `preventDefault` 不影响）；父窗口转交共享选区宿主关闭工具栏 / 批注 / 结果卡。桥不拦截按键,站点自身的 Escape 行为保留 |
 | frame → app | `ready` | — | 桥完成监听后请求当前快捷键配置；每次文档导航重新握手 |
 | frame → app | `shortcut` | `{event: {key, code, metaKey, ctrlKey, altKey, shiftKey}}` | 仅转发匹配的配置；应用以 `resolveShortcutId` 再校验。可编辑元素、IME 与普通输入不转发 |
 | frame → app | `external` | `{url}` | 跨站链接交系统浏览器 |
 | app → frame | `shortcuts` | `{bindings: ShortcutDef[], isMac}` | 同步 toggleChat / quickChat / addSelectionToChat 的有效配置；禁用不传。桥 ready、iframe load 和设置变更均同步 |
 | app → frame | `clearSelection` | — | 加入对话后清除帧内选区 |
-| app → frame | `copySelection` | — | 应用侧复制失败时的兜底 |
 
 站内导航:同 host 链接被改写为 `/<host><path>` 原地导航(每次文档加载都重新注入桥);SPA 的 `pushState`/`replaceState` 被包装以保留 host 段;非 http(s) scheme 的链接直接阻止(私有 scheme 绝不漏给系统浏览器)。
 
@@ -70,7 +70,7 @@ Host `features/web/proxy.rs`(agentero-web scheme)
 
 默认 `⌘L` 仅切换 Agent 侧栏；`⇧⌘L` 加入选区，`⌘K` 打开 Quick chat。提示与 iframe 转发均跟随用户配置。桥本身也用于广场代理与 arXiv HTML 的受信 `srcdoc`；父窗口始终校验 origin 和精确 frame 身份。
 
-坐标换算:`bridgeSelectionScreen(rect, iframeRect)`(桥给的是 frame 视口坐标,加 iframe 元素偏移即应用视口坐标),纯函数在 `bridge-message.ts`,与消息 parse 守卫一起有 vitest 覆盖。
+坐标换算:`bridgeSelectionScreen(rect, iframeRect)`(桥给的是 frame 视口坐标,加 iframe 元素偏移即应用视口坐标,并一并给出选区矩形 `selectionBounds`),纯函数在 `bridge-message.ts`,与消息 parse 守卫一起有 vitest 覆盖。共享翻译卡和快速对话卡用该矩形在选区外打开。
 
 ## 已知限制
 

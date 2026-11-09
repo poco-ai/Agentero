@@ -18,9 +18,21 @@ import {
 	releaseAnnotationAnchor,
 } from "./selection-annotations";
 
+/** Viewport anchor plus the box cards must not cover. */
+export type SelectionDraftScreen = {
+	x: number;
+	y: number;
+	selectionBounds?: {
+		left: number;
+		top: number;
+		right: number;
+		bottom: number;
+	};
+};
+
 export type SelectionChatDraft = {
 	selection: SelectionContext;
-	screen: { x: number; y: number };
+	screen: SelectionDraftScreen;
 	stage: "menu" | "comment";
 	editing?: boolean;
 	comment?: string;

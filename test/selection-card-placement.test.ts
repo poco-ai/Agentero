@@ -207,3 +207,29 @@ describe("placeSelectionCard", () => {
 		expect(lower.top + lower.maxHeight).toBeLessThanOrEqual(VH - EDGE + 0.5);
 	});
 });
+
+describe("placeSelectionCard with a selection box", () => {
+	const bounds = { left: 100, top: 400, right: 500, bottom: 440 };
+
+	it("opens above the selected lines instead of covering them", () => {
+		const { top } = placeSelectionCard(
+			{ x: 300, y: bounds.top, selectionBounds: bounds },
+			{ width: 340, height: 480, trackPin: true, contentHeight: 200 },
+		);
+
+		expect(top + 200).toBeLessThanOrEqual(bounds.top);
+	});
+
+	it("flips below when the selection sits near the top edge", () => {
+		const { top } = placeSelectionCard(
+			{
+				x: 300,
+				y: 20,
+				selectionBounds: { left: 100, top: 20, right: 500, bottom: 60 },
+			},
+			{ width: 340, height: 480, trackPin: true, contentHeight: 200 },
+		);
+
+		expect(top).toBeGreaterThanOrEqual(60);
+	});
+});

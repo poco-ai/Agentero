@@ -140,7 +140,17 @@ export function SelectionChatPopover() {
 							}
 						: {}),
 				},
-				{ x: rect.left + rect.width / 2, y: rect.top },
+				{
+					x: rect.left + rect.width / 2,
+					y: rect.top,
+					// Keep result cards outside the highlighted lines.
+					selectionBounds: {
+						left: rect.left,
+						top: rect.top,
+						right: rect.right,
+						bottom: rect.bottom,
+					},
+				},
 				"menu",
 			);
 			const draft = selectionChatStore.getState().draft;
@@ -212,17 +222,16 @@ export function SelectionChatPopover() {
 				dismissSelectionChat();
 		};
 		const onEscape = (event: KeyboardEvent) => {
-			if (
-				event.key === "Escape" &&
-				!event.isComposing &&
-				selectionChatStore.getState().draft?.stage === "menu"
-			)
+			if (event.key !== "Escape" || event.isComposing) return;
+			if (selectionChatStore.getState().draft?.stage === "menu")
 				dismissSelectionChat();
 		};
 		document.addEventListener("pointerdown", onDown, true);
 		document.addEventListener("pointerup", scheduleCapture);
 		document.addEventListener("keyup", scheduleCapture);
-		document.addEventListener("keydown", onEscape);
+		// Capture: editors can consume Escape before it bubbles, but they must not
+		// leave the app-owned toolbar stranded.
+		document.addEventListener("keydown", onEscape, true);
 		document.addEventListener("selectionchange", onSelectionChange);
 		window.addEventListener("scroll", onScroll, true);
 		return () => {
@@ -230,7 +239,7 @@ export function SelectionChatPopover() {
 			document.removeEventListener("pointerdown", onDown, true);
 			document.removeEventListener("pointerup", scheduleCapture);
 			document.removeEventListener("keyup", scheduleCapture);
-			document.removeEventListener("keydown", onEscape);
+			document.removeEventListener("keydown", onEscape, true);
 			document.removeEventListener("selectionchange", onSelectionChange);
 			window.removeEventListener("scroll", onScroll, true);
 		};

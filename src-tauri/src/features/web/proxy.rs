@@ -554,6 +554,14 @@ mod tests {
         assert!(WEB_BRIDGE.contains("isEditable"));
     }
 
+    /// Escape cannot cross the frame boundary; every proxied site must relay it
+    /// so the app can close its selection chrome.
+    #[test]
+    fn bridge_relays_escape() {
+        assert!(WEB_BRIDGE.contains("type: \"escape\""));
+        assert!(WEB_BRIDGE.contains("event.key === \"Escape\""));
+    }
+
     /// Same-site navigations stay proxied; foreign ones are handed to the app.
     #[test]
     fn bridge_confines_navigation() {
@@ -568,6 +576,5 @@ mod tests {
     fn bridge_honors_host_messages() {
         assert!(WEB_BRIDGE.contains("agentero-web-host"));
         assert!(WEB_BRIDGE.contains("clearSelection"));
-        assert!(WEB_BRIDGE.contains("copySelection"));
     }
 }

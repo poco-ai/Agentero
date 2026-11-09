@@ -323,6 +323,8 @@ mod tests {
         let html = r#"<html><head><link rel="canonical" href="https://paperswithcode.co/conferences"></head><body><article class="paper-card"><h3 class="paper-title"><a href="/paper/2512.14692">x</a></h3></article></body></html>"#;
         let out = rewrite(html);
         assert!(out.contains("agentero-plaza"));
+        // Shared selection bridge: Escape and shortcuts must reach the app.
+        assert!(out.contains("type: \"escape\""));
         assert!(out.contains(r#"href="/paper/2512.14692""#));
         assert!(!out.contains("https://paperswithcode.co/paper/2512.14692"));
         // Exactly one bridge, before the document body.

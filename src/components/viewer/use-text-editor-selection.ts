@@ -3,8 +3,8 @@
 import type { Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { type RefObject, useCallback, useEffect, useMemo, useRef } from "react";
-import type { ScreenPoint } from "@/components/viewer/pdf/types";
 import type { WritingSelectionGroup } from "@/components/writing/writing-selection-group";
+import type { SelectionDraftScreen } from "@/lib/agent/selection-chat-store";
 import {
 	closeSelectionSource,
 	dismissSelectionChat,
@@ -19,7 +19,7 @@ import { basenameOf } from "@/lib/core/path";
 
 export type TextEditorSelectionMenu = {
 	text: string;
-	screen: ScreenPoint;
+	screen: SelectionDraftScreen;
 	/** 1-based selected line span — shown on the Agent context chip. */
 	lineFrom: number;
 	lineTo: number;
@@ -45,7 +45,7 @@ function selectionLines(
  * exactly what the fixed-position `SelectionMenu` places by. Null when the
  * position is not rendered (scrolled out of the editor viewport).
  */
-function selectionMenuScreen(view: EditorView): ScreenPoint | null {
+function selectionMenuScreen(view: EditorView): SelectionDraftScreen | null {
 	const selection = view.state.selection.main;
 	if (selection.empty) return null;
 	const start = view.coordsAtPos(selection.from, -1);
@@ -56,7 +56,19 @@ function selectionMenuScreen(view: EditorView): ScreenPoint | null {
 		sameLine && end != null
 			? (start.left + end.right) / 2
 			: (start.left + start.right) / 2;
-	return { x, y: Math.min(start.top, end?.top ?? start.top) };
+	const top = Math.min(start.top, end?.top ?? start.top);
+	// Multi-line selections open cards below the last line, not just the first.
+	const bottom = Math.max(start.bottom, end?.bottom ?? start.bottom);
+	return {
+		x,
+		y: top,
+		selectionBounds: {
+			left: Math.min(start.left, end?.left ?? start.left),
+			top,
+			right: Math.max(start.right, end?.right ?? start.right),
+			bottom,
+		},
+	};
 }
 
 export function useTextEditorSelection({

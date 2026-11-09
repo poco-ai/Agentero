@@ -93,6 +93,11 @@ it("captures one source with quote context and clears its menu on Escape", async
 	await select();
 	expect(selectionChatStore.getState().draft).toMatchObject({
 		stage: "menu",
+		screen: {
+			x: 140,
+			y: 200,
+			selectionBounds: { left: 100, top: 200, right: 180, bottom: 220 },
+		},
 		selection: {
 			text: "First sentence",
 			sourceTitle: "Research digest",
@@ -124,4 +129,19 @@ it("normalizes reader teardown paths to the frozen Vault-relative source", () =>
 	expect(selectionChatStore.getState().draft).toBeNull();
 	expect(selectionChatStore.getState().closedSource?.path).toBe("notes/a.md");
 	vaultStore.setState({ vaultPath: previous });
+});
+
+it("closes the toolbar when the editor consumes Escape before it bubbles", async () => {
+	await select();
+	const target = container.querySelector<HTMLElement>("#evidence");
+	if (!target) throw new Error("Missing test content");
+	const consume = (event: KeyboardEvent) => event.stopPropagation();
+	target.addEventListener("keydown", consume);
+	await act(() =>
+		target.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+		),
+	);
+	target.removeEventListener("keydown", consume);
+	expect(selectionChatStore.getState().draft).toBeNull();
 });

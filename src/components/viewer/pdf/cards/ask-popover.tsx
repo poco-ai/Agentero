@@ -40,7 +40,7 @@ import { Button } from "@/components/ui/button";
 import { Shimmer } from "@/components/ui/shimmer";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
-import type { ScreenPoint } from "@/components/viewer/pdf/types";
+import type { CardScreenPoint } from "@/components/viewer/pdf/types";
 import { useImeGuard } from "@/hooks/use-ime-guard";
 import { cn } from "@/lib/core/utils";
 import { threadHasUserQuestion, threadTitle } from "@/lib/pdf/ask/schema";
@@ -66,7 +66,7 @@ type AskPopoverProps = {
 	paperTitle?: string;
 	/** Catalog arXiv / source link used in the external "open in chat" query. */
 	paperLink?: string;
-	screen: ScreenPoint;
+	screen: CardScreenPoint;
 	/** Match gutter pin side so the card stays next to the pin. */
 	preferRight?: boolean;
 	streaming: boolean;

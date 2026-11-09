@@ -9,6 +9,7 @@ import {
 	dismissSelectionChat,
 	selectionChatStore,
 } from "@/lib/agent/selection-chat-store";
+import { SELECTION_DISMISS_EVENT } from "@/lib/agent/selection-dismiss";
 
 const mocks = vi.hoisted(() => ({
 	toggle: vi.fn(),
@@ -196,11 +197,28 @@ it("ignores selection shortcuts owned by another reader and closes its menu on s
 		url: "agentero-web://localhost/example.com/next",
 	});
 	expect(selectionChatStore.getState().draft).toMatchObject({
-		screen: { x: 45, y: 60 },
+		screen: {
+			x: 45,
+			y: 60,
+			selectionBounds: { left: 30, top: 60, right: 60, bottom: 70 },
+		},
 		selection: { sourceUrl: "https://example.com/next" },
 	});
 	await message({ type: "shortcut", event: key });
 	expect(mocks.quick).toHaveBeenCalledOnce();
 	await message({ type: "scroll" });
 	expect(selectionChatStore.getState().draft).toBeNull();
+});
+
+it("relays an in-frame Escape to the shared selection host", async () => {
+	const dismiss = vi.fn();
+	window.addEventListener(SELECTION_DISMISS_EVENT, dismiss);
+	try {
+		await message({ type: "escape" }, {});
+		expect(dismiss).not.toHaveBeenCalled();
+		await message({ type: "escape" });
+		expect(dismiss).toHaveBeenCalledOnce();
+	} finally {
+		window.removeEventListener(SELECTION_DISMISS_EVENT, dismiss);
+	}
 });

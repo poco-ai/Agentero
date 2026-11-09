@@ -106,15 +106,19 @@
 			if (event.metaKey) return false;
 			return !!def.ctrl === event.ctrlKey;
 		};
-		document.addEventListener(
+		// Keyboard events never leave a cross-origin frame. Listen in the window
+		// capture phase: SPA sites often stop propagation for their own overlays,
+		// which would otherwise swallow app shortcuts and Escape. The site keeps
+		// its handlers and default action; the app only closes UI it owns.
+		window.addEventListener(
 			"keydown",
 			(event) => {
-				if (
-					event.defaultPrevented ||
-					event.isComposing ||
-					isEditable(event.target)
-				)
+				if (event.isComposing || isEditable(event.target)) return;
+				if (event.key === "Escape") {
+					if (!event.repeat) post({ type: "escape" });
 					return;
+				}
+				if (event.defaultPrevented) return;
 				for (let i = 0; i < bindings.length; i++) {
 					const def = bindings[i];
 					if (!matches(event, def)) continue;
@@ -169,10 +173,6 @@
 			} else if (data.type === "clearSelection") {
 				const sel = window.getSelection();
 				if (sel) sel.removeAllRanges();
-			} else if (data.type === "copySelection") {
-				try {
-					document.execCommand("copy");
-				} catch {}
 			}
 		});
 		post({ type: "ready" });

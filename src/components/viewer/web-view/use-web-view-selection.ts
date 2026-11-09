@@ -5,6 +5,7 @@ import {
 	openSelectionChat,
 	selectionChatStore,
 } from "@/lib/agent/selection-chat-store";
+import { relaySelectionDismiss } from "@/lib/agent/selection-dismiss";
 import {
 	runSelectionAddToChat,
 	runSelectionQuickChat,
@@ -129,6 +130,7 @@ export function useWebViewSelection({
 				);
 				void copyTextToClipboard(msg.text);
 			} else if (msg.type === "scroll") closeMenu();
+			else if (msg.type === "escape") relaySelectionDismiss();
 			else if (msg.type === "shortcut") {
 				const id = resolveShortcutId(new KeyboardEvent("keydown", msg.event), {
 					settingsOpen: false,

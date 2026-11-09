@@ -7,8 +7,10 @@ import {
 	beginSelectionComment,
 	dismissSelectionChat,
 	type SelectionChatDraft,
+	type SelectionDraftScreen,
 	selectionChatStore,
 } from "@/lib/agent/selection-chat-store";
+import { SELECTION_DISMISS_EVENT } from "@/lib/agent/selection-dismiss";
 import { navigateToSelection } from "@/lib/agent/selection-navigation";
 import { selectionAnnotationBody } from "@/lib/agent/selection-prompt";
 import { registerSelectionAddToChat } from "@/lib/agent/selection-quick-chat";
@@ -38,7 +40,7 @@ export function SelectionActions({
 	const sourceRef = useRef(askSource);
 	sourceRef.current = askSource;
 	const activeSessionRef = useRef<string | null>(null);
-	const ask = useSelectionAsk<{ x: number; y: number }>({
+	const ask = useSelectionAsk<SelectionDraftScreen>({
 		activeSessionRef,
 		buildPrompt: (thread, question) => {
 			const source = sourceRef.current;
@@ -99,11 +101,23 @@ export function SelectionActions({
 				current.selection.sourcePath,
 				current.selection.text,
 			),
+			// Menu anchor, including the selection box so the card opens outside
+			// the quoted lines (PDF keeps its gutter-pin anchor).
 			screen: current.screen,
 		});
 		dismissSelectionChat();
 	}, [ask.setAsk, close]);
 	useSelectionQuickChat(() => menuRef.current != null && !ask.ask, openAsk);
+	// An embedded frame's Escape cannot reach this window's keydown listeners.
+	useEffect(() => {
+		const dismiss = () => {
+			if (selectionChatStore.getState().draft) dismissSelectionChat();
+			hideAsk();
+			close();
+		};
+		window.addEventListener(SELECTION_DISMISS_EVENT, dismiss);
+		return () => window.removeEventListener(SELECTION_DISMISS_EVENT, dismiss);
+	}, [close, hideAsk]);
 	useEffect(
 		() =>
 			registerSelectionAddToChat(() => {

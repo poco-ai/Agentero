@@ -742,6 +742,8 @@ mod tests {
     #[test]
     fn injects_the_bridge_before_head_close() {
         let out = rewrite_html("<html><head><title>t</title></head><body></body></html>");
+        // Shared selection bridge: Escape and shortcuts must reach the app.
+        assert!(out.contains("type: \"escape\""));
         let script = out.find("agentero-plaza").expect("bridge present");
         let head_end = out.find("</head>").expect("head close present");
         assert!(script < head_end);

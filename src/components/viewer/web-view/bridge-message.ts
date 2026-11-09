@@ -7,6 +7,8 @@
  * Parsing lives here so both the listener hook and tests share one guard.
  */
 
+import type { SelectionDraftScreen } from "@/lib/agent/selection-chat-store";
+
 /** Keyboard state forwarded for authoritative matching against live settings. */
 export type WebBridgeKeyEvent = Pick<
 	KeyboardEvent,
@@ -30,6 +32,7 @@ export type WebBridgeMessage =
 	  }
 	| { type: "scroll" }
 	| { type: "ready" }
+	| { type: "escape" }
 	| { type: "shortcut"; event: WebBridgeKeyEvent }
 	| { type: "external"; url: string };
 
@@ -63,6 +66,8 @@ export function parseWebBridgeMessage(data: unknown): WebBridgeMessage | null {
 			return { type: "ready" };
 		case "scroll":
 			return { type: "scroll" };
+		case "escape":
+			return { type: "escape" };
 		case "shortcut": {
 			const event = data.event;
 			if (
@@ -92,30 +97,20 @@ export function parseWebBridgeMessage(data: unknown): WebBridgeMessage | null {
 
 /**
  * Anchor point (top-center of the selection) in app viewport coordinates:
- * frame-viewport rect + the iframe element's offset in the page.
+ * frame-viewport rect + the iframe element's offset in the page. The returned
+ * bounds let floating cards open outside the selected lines.
  */
 export function bridgeSelectionScreen(
 	rect: WebBridgeRect,
 	iframeRect: { x: number; y: number },
-): { x: number; y: number } {
+): SelectionDraftScreen {
+	const left = iframeRect.x + rect.x;
+	const top = iframeRect.y + rect.y;
+	const right = left + rect.width;
+	const bottom = top + rect.height;
 	return {
-		x: iframeRect.x + rect.x + rect.width / 2,
-		y: iframeRect.y + rect.y,
-	};
-}
-
-/**
- * Bottom-right corner of the selection in app viewport coordinates. Translate
- * cards anchor here so they open below-right of the selected text instead of
- * on top of its first lines (a cross-paragraph selection's bounding rect
- * reaches far down the page, making a top anchor cover body text).
- */
-export function bridgeSelectionBottomRight(
-	rect: WebBridgeRect,
-	iframeRect: { x: number; y: number },
-): { x: number; y: number } {
-	return {
-		x: iframeRect.x + rect.x + rect.width,
-		y: iframeRect.y + rect.y + rect.height,
+		x: (left + right) / 2,
+		y: top,
+		selectionBounds: { left, top, right, bottom },
 	};
 }

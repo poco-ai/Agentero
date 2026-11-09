@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type AgentRunRefs, disposeAgentRun } from "@/lib/agent/run-attach";
+import type { SelectionDraftScreen } from "@/lib/agent/selection-chat-store";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import { runSelectionTranslate } from "@/lib/pdf/translate/run-selection";
 import { getVaultPath } from "@/lib/vault/store";
@@ -11,7 +12,7 @@ import {
 
 type Translation = {
 	selection: SelectionContext;
-	screen: { x: number; y: number };
+	screen: SelectionDraftScreen;
 	result: string;
 	streaming: boolean;
 	error: string | null;
