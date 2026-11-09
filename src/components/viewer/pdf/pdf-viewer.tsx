@@ -2372,7 +2372,7 @@ function PdfViewerInner({
 				// A capability can be available one render before the viewport has
 				// non-zero metrics. EmbedPDF treats that as a silent no-op; retry
 				// once on the next frame after ResizeObserver has committed them.
-				if (!retry && capability.getState().zoomLevel !== ZoomMode.FitWidth) {
+				if (!retry) {
 					window.requestAnimationFrame(() => requestFitWidth(true));
 				}
 			} catch {
