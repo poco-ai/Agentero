@@ -525,7 +525,18 @@ mod tests {
         record
             .set_value("DisplayIcon", &format!("\"{}\",0", exe.display()))
             .unwrap();
-        assert_eq!(fixture.detect(3).unwrap().path, exe);
+        let detected = fixture.detect(3).unwrap().path;
+        assert_eq!(detected, exe);
+        assert!(super::super::dsh_cli_dir_for_executable(&detected).is_none());
+        let resources = exe.parent().unwrap().join("resources");
+        let cli_dir = resources.join("runtime/cli/bin");
+        std::fs::create_dir_all(&cli_dir).unwrap();
+        std::fs::write(resources.join("app.asar"), b"fixture").unwrap();
+        std::fs::write(cli_dir.join("dsh.cmd"), b"@echo off").unwrap();
+        assert_eq!(
+            super::super::dsh_cli_dir_for_executable(&detected),
+            Some(cli_dir)
+        );
         std::fs::remove_file(exe).unwrap();
         assert!(fixture.detect(3).is_none());
     }

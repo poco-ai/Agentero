@@ -126,6 +126,30 @@ pub fn probe_desktop_apps() -> Vec<DesktopAppStatus> {
         .collect()
 }
 
+/// Windows Dsh ships a CLI launcher beside its runtime. Reuse the native
+/// installation probe so custom install locations work without scanning caches.
+#[cfg(windows)]
+pub(crate) fn dsh_cli_dir() -> Option<PathBuf> {
+    let spec = APPS
+        .iter()
+        .find(|spec| spec.id == DesktopAppId::DshDesktop)?;
+    let executable = detect_app(spec)?;
+    dsh_cli_dir_for_executable(&executable)
+}
+
+#[cfg(any(windows, test))]
+fn dsh_cli_dir_for_executable(executable: &std::path::Path) -> Option<PathBuf> {
+    if !executable.is_file() {
+        return None;
+    }
+    let resources = executable.parent()?.join("resources");
+    let directory = resources.join("runtime/cli/bin");
+    // The launcher invokes the installed Electron executable in run-as-node
+    // mode and loads its CLI from app.asar. Never substitute the GUI executable.
+    (resources.join("app.asar").is_file() && directory.join("dsh.cmd").is_file())
+        .then_some(directory)
+}
+
 /// Launch an installed app. Errors when the platform/open call fails; callers
 /// gate on `installed` so a missing app should not normally reach here.
 pub fn open_desktop_app(id: DesktopAppId) -> Result<(), AppError> {
@@ -244,6 +268,23 @@ fn open_resolved(_spec: &AppSpec) -> Result<(), AppError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dsh_cli_requires_a_complete_desktop_installation() {
+        let fixture = tempfile::tempdir().unwrap();
+        let executable = fixture
+            .path()
+            .join("安装目录 with spaces/DeepSeek Harness.exe");
+        let resources = executable.parent().unwrap().join("resources");
+        let directory = resources.join("runtime/cli/bin");
+        std::fs::create_dir_all(&directory).unwrap();
+        assert!(dsh_cli_dir_for_executable(&executable).is_none());
+        std::fs::write(&executable, b"MZ fixture").unwrap();
+        std::fs::write(resources.join("app.asar"), b"fixture").unwrap();
+        assert!(dsh_cli_dir_for_executable(&executable).is_none());
+        std::fs::write(directory.join("dsh.cmd"), b"@echo off").unwrap();
+        assert_eq!(dsh_cli_dir_for_executable(&executable), Some(directory));
+    }
 
     #[test]
     fn apps_are_unique_and_ordered() {
