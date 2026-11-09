@@ -59,31 +59,34 @@ export function MoveDestinationPicker({
 				<p className="font-medium text-xs text-foreground">
 					{t("fileTree.moveToFolder", { count: sourcePaths.length })}
 				</p>
-				<div className="agentero-scroll max-h-[min(50vh,18rem)] space-y-0.5 overflow-y-auto overscroll-contain rounded-md border p-1">
-					{folders.map((folder) => {
-						const active = !typed && selectedFolder === folder;
-						return (
-							<button
-								key={folder}
-								type="button"
-								disabled={busy}
-								className={cn(
-									"group flex w-full items-start gap-2 rounded px-2 py-1 text-left text-xs transition-colors hover:bg-accent",
-									active && "bg-muted",
-								)}
-								onClick={() => handleSelect(folder)}
-							>
-								<span className="min-w-0 flex-1 truncate font-mono group-hover:overflow-visible group-hover:whitespace-normal group-hover:break-all">
-									{folder === "papers"
-										? t("fileTree.movePicker.papersRoot")
-										: folder}
-								</span>
-								{active ? (
-									<Check className="mt-0.5 size-3 shrink-0 text-primary" />
-								) : null}
-							</button>
-						);
-					})}
+				<div className="rounded-md border p-1">
+					<div className="agentero-scroll max-h-[min(50vh,18rem)] space-y-0.5 overflow-y-auto overscroll-contain">
+						{folders.map((folder) => {
+							const active = !typed && selectedFolder === folder;
+							return (
+								<button
+									key={folder}
+									type="button"
+									disabled={busy}
+									title={folder}
+									className={cn(
+										"flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors hover:bg-accent",
+										active && "bg-muted",
+									)}
+									onClick={() => handleSelect(folder)}
+								>
+									<span className="min-w-0 flex-1 truncate font-mono">
+										{folder === "papers"
+											? t("fileTree.movePicker.papersRoot")
+											: folder}
+									</span>
+									{active ? (
+										<Check className="size-3 shrink-0 text-primary" />
+									) : null}
+								</button>
+							);
+						})}
+					</div>
 				</div>
 				<div className="space-y-1">
 					<Label
