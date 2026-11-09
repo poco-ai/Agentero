@@ -240,6 +240,9 @@ export function TranslateCard({
 			trackPin
 			draggable
 			resizable
+			// Short translations should hug their text; the shell's 200px resize
+			// floor would otherwise pad a large gap under the last line.
+			resizeMinHeight={0}
 			preferRight={preferRight}
 			preferBelow
 			// Slightly tighter header than other selection cards.
@@ -248,8 +251,6 @@ export function TranslateCard({
 			ariaLive="polite"
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
-			// Leave WebKit's native resize corner outside the nested scrollport.
-			className="pb-3"
 			actions={[
 				...(showResult
 					? [
