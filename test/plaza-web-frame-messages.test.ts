@@ -113,7 +113,7 @@ describe("retained Plaza frame messages", () => {
 			),
 		);
 		const folder = document.querySelector<HTMLElement>(
-			'[role="option"][data-state="unchecked"]',
+			'[role="menuitemradio"][data-state="unchecked"]',
 		);
 		if (!folder) throw new Error("Missing folder option");
 		expect(folder.textContent).toBe("papers/nlp");
@@ -137,12 +137,16 @@ describe("retained Plaza frame messages", () => {
 			);
 		});
 		expect(importPlazaPaper).toHaveBeenCalledWith(request, "papers/nlp");
+		expect(picker.textContent).toBe("nlp");
+		expect(picker.title).toBe("papers/nlp");
 		expect(reply).toHaveBeenCalledWith(
 			{ source: "agentero-plaza-host", importedId: request.id, ok: true },
 			origin,
 		);
 		expect(container.querySelector("iframe")).toBe(first);
-		const pickers = container.querySelectorAll('[role="combobox"]');
+		const pickers = container.querySelectorAll(
+			'[aria-label="viewer:references.importToFolder"]',
+		);
 		expect(pickers[1].textContent).toBe("papers");
 		vault.vaultPath = "/other-vault";
 		await mountFrames();

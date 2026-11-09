@@ -78,7 +78,7 @@ DOI 旁有 **刷新** 按钮：按当前 DOI（或 arXiv ID）拉取权威元数
 
 ## 导入 PDF 识别
 
-广场的 ModelScope 论文、Cool Papers 和 Papers with Code 代理页面共用顶部入库文件夹选择器（`PlazaWebFrame`），通过 `usePapersOrgFolders` 列出 `papers/` 下的分类目录。选择按来源标签及 Vault 隔离；排队任务将目标存入 `path`，执行时从 `ctx.paperPath` 读取，不再依赖当时的文件树选中项。操作步骤见[从广场导入](../usage/import-papers.md#从广场导入)。
+广场的 ModelScope 论文、Cool Papers 和 Papers with Code 代理页面共用顶部入库文件夹菜单（`PlazaWebFrame`），通过 `usePapersOrgFolders` 列出 `papers/` 下的分类目录。入口沿用工具栏的紧凑 ghost 按钮，只显示当前文件夹名，悬浮提示及菜单保留完整路径，菜单勾选当前目录。选择按来源标签及 Vault 隔离；排队任务将目标存入 `path`，执行时从 `ctx.paperPath` 读取，不再依赖当时的文件树选中项。操作步骤见[从广场导入](../usage/import-papers.md#从广场导入)。
 
 本地文件名派生 ID 保留中文等 Unicode 字母与数字；无可用字符时使用名称的稳定短哈希，全库同名本地 ID 冲突时追加后缀（原地自动入库用路径短哈希，分配新目录的文件导入用编号）。Library 不会仅因无 DOI/arXiv 的本地 PDF 同名而隐藏条目。读取列表及 Rescan 会修复旧 ASCII slug 遗留的 `id=paper`，同时通过持久 sidecar 队列写回 `metadata.json`，不移动目录、PDF、笔记或标注（#937）。
 

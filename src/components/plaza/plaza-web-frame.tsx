@@ -14,6 +14,7 @@
 import {
 	ArrowLeft,
 	ArrowRight,
+	ChevronDown,
 	ExternalLink,
 	FolderInput,
 	RotateCw,
@@ -24,12 +25,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuLabel,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
 	Tooltip,
 	TooltipContent,
@@ -368,36 +370,54 @@ export function PlazaWebFrame({
 					{currentPath}
 				</span>
 				{embedOrigin ? (
-					<Select
-						value={parentDir}
-						onValueChange={(parentDir) =>
-							setDestination({ vaultPath, parentDir })
-						}
-						disabled={!vaultPath}
-					>
-						<SelectTrigger
-							size="sm"
-							className="h-6 max-w-40 text-caption"
-							aria-label={t("viewer:references.importToFolder")}
-							title={parentDir}
-						>
-							<FolderInput className="size-3.5" aria-hidden />
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent
-							position="popper"
+					<DropdownMenu>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<DropdownMenuTrigger asChild>
+									<Button
+										type="button"
+										variant="ghost"
+										size="xs"
+										className="max-w-32 px-1.5 text-caption font-normal text-muted-foreground"
+										aria-label={t("viewer:references.importToFolder")}
+										title={parentDir}
+										disabled={!vaultPath}
+									>
+										<FolderInput className="size-3.5" aria-hidden />
+										<span className="truncate">
+											{parentDir.split("/").at(-1)}
+										</span>
+										<ChevronDown className="size-3 opacity-70" aria-hidden />
+									</Button>
+								</DropdownMenuTrigger>
+							</TooltipTrigger>
+							<TooltipContent side="bottom">
+								{t("viewer:references.importToFolder")}: {parentDir}
+							</TooltipContent>
+						</Tooltip>
+						<DropdownMenuContent
 							align="end"
-							className="max-w-[calc(100vw-2rem)]"
+							className="w-max min-w-48 max-w-[min(24rem,calc(100vw-2rem))]"
 						>
-							{folders.map((folder) => (
-								<SelectItem key={folder} value={folder}>
-									<span className="truncate" title={folder}>
-										{folder}
-									</span>
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+							<DropdownMenuLabel>
+								{t("viewer:references.importToFolder")}
+							</DropdownMenuLabel>
+							<DropdownMenuRadioGroup
+								value={parentDir}
+								onValueChange={(parentDir) =>
+									setDestination({ vaultPath, parentDir })
+								}
+							>
+								{folders.map((folder) => (
+									<DropdownMenuRadioItem key={folder} value={folder}>
+										<span className="truncate" title={folder}>
+											{folder}
+										</span>
+									</DropdownMenuRadioItem>
+								))}
+							</DropdownMenuRadioGroup>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				) : null}
 				<Tooltip>
 					<TooltipTrigger asChild>
