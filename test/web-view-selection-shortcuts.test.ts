@@ -5,9 +5,15 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useWebViewSelection } from "@/components/viewer/web-view/use-web-view-selection";
 
+import {
+	dismissSelectionChat,
+	selectionChatStore,
+} from "@/lib/agent/selection-chat-store";
+
 const mocks = vi.hoisted(() => ({
 	toggle: vi.fn(),
-	add: vi.fn(),
+	add: vi.fn(() => true),
+	quick: vi.fn(),
 	resolve: vi.fn(),
 	getShortcut: vi.fn(),
 	listeners: new Set<() => void>(),
@@ -18,25 +24,9 @@ vi.mock("react-i18next", () => ({
 	initReactI18next: { type: "3rdParty", init: () => undefined },
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
-vi.mock("@/lib/agent", () => ({
-	cancelAgentRun: vi.fn(),
-	disposeAgentRun: vi.fn(),
-}));
 vi.mock("@/lib/agent/selection-quick-chat", () => ({
-	registerSelectionAddToChat: () => () => {},
-}));
-vi.mock("@/components/selection/use-selection-quick-chat", () => ({
-	useSelectionQuickChat: vi.fn(),
-}));
-vi.mock("@/components/selection/add-selection-to-chat", () => ({
-	addSelectionToChat: mocks.add,
-}));
-vi.mock("@/components/selection/use-selection-ask", () => ({
-	createSelectionAskThread: vi.fn(),
-	useSelectionAsk: () => ({ resetAsk, setAsk: vi.fn() }),
-}));
-vi.mock("@/components/selection/use-copied-label", () => ({
-	useCopiedLabel: () => ({ clearCopiedLabel, showCopiedLabel }),
+	runSelectionQuickChat: mocks.quick,
+	runSelectionAddToChat: mocks.add,
 }));
 vi.mock("@/lib/core/clipboard", () => ({ copyTextToClipboard: vi.fn() }));
 vi.mock("@/lib/pdf/translate", () => ({
@@ -58,9 +48,6 @@ vi.mock("@/lib/settings/react-store", () => ({
 	},
 }));
 
-const resetAsk = vi.fn();
-const clearCopiedLabel = vi.fn();
-const showCopiedLabel = vi.fn();
 let root: Root;
 let container: HTMLDivElement;
 let selection: ReturnType<typeof useWebViewSelection>;
@@ -69,13 +56,21 @@ const contentWindow = { postMessage };
 const iframeRef = {
 	current: {
 		contentWindow,
-		getBoundingClientRect: () => ({ x: 10, y: 20 }),
+		getBoundingClientRect: () => ({
+			x: 10,
+			y: 20,
+			left: 10,
+			top: 20,
+			width: 800,
+			height: 600,
+		}),
 	} as unknown as HTMLIFrameElement,
 };
 function Probe() {
 	selection = useWebViewSelection({
 		srcUrl: "https://example.com/paper",
 		iframeRef,
+		title: "Research paper",
 	});
 	return null;
 }
@@ -106,6 +101,7 @@ const key = {
 beforeEach(async () => {
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	vi.clearAllMocks();
+	dismissSelectionChat();
 	mocks.settings.shortcutOverrides = {};
 	mocks.getShortcut.mockImplementation((id, overrides) => ({
 		id,
@@ -155,18 +151,21 @@ it("resolves each forwarded key live and keeps toggle independent of an armed se
 	expect(mocks.resolve.mock.lastCall?.[1]).toEqual({ settingsOpen: false });
 	expect(mocks.toggle).toHaveBeenCalledOnce();
 	expect(mocks.add).not.toHaveBeenCalled();
-	expect(selection.menu?.text).toBe("quote");
+	expect(selectionChatStore.getState().draft?.selection).toMatchObject({
+		text: "quote",
+		sourceTitle: "Research paper",
+		sourceUrl: "https://example.com/paper",
+		surface: "web",
+	});
 	mocks.resolve.mockReturnValue("addSelectionToChat");
 	await message({
 		type: "shortcut",
 		event: { ...key, key: "L", shiftKey: true },
 	});
-	expect(mocks.add).toHaveBeenCalledWith({
-		text: "quote",
-		sourcePath: "https://example.com/paper",
-		origin: "markdown",
+	expect(mocks.add).toHaveBeenCalledOnce();
+	expect(postMessage.mock.lastCall?.[0]).toMatchObject({
+		type: "clearSelection",
 	});
-	expect(selection.menu).toBeNull();
 });
 
 it("rejects sibling frames and foreign origins, and ignores disabled or unrelated bindings", async () => {
@@ -184,4 +183,24 @@ it("rejects sibling frames and foreign origins, and ignores disabled or unrelate
 	}
 	expect(mocks.toggle).not.toHaveBeenCalled();
 	expect(mocks.add).not.toHaveBeenCalled();
+});
+
+it("ignores selection shortcuts owned by another reader and closes its menu on scroll", async () => {
+	mocks.resolve.mockReturnValue("quickChat");
+	await message({ type: "shortcut", event: key });
+	expect(mocks.quick).not.toHaveBeenCalled();
+	await message({
+		type: "selection",
+		text: "quote",
+		rect: { x: 20, y: 40, width: 30, height: 10 },
+		url: "agentero-web://localhost/example.com/next",
+	});
+	expect(selectionChatStore.getState().draft).toMatchObject({
+		screen: { x: 45, y: 60 },
+		selection: { sourceUrl: "https://example.com/next" },
+	});
+	await message({ type: "shortcut", event: key });
+	expect(mocks.quick).toHaveBeenCalledOnce();
+	await message({ type: "scroll" });
+	expect(selectionChatStore.getState().draft).toBeNull();
 });

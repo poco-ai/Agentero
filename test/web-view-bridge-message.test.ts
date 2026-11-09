@@ -156,13 +156,10 @@ describe("bridgeSelectionBottomRight", () => {
 });
 
 // Execute the shipped script rather than a second implementation of its matcher.
-const proxySource = readFileSync(
-	new URL("../src-tauri/src/features/web/proxy.rs", import.meta.url),
+const bridgeScript = readFileSync(
+	new URL("../src/lib/web-view/selection-bridge.js", import.meta.url),
 	"utf8",
 );
-const bridgeScript = proxySource.match(
-	/const WEB_BRIDGE: &str = r##"<script>([\s\S]*?)<\/script>"##;/,
-)?.[1];
 
 function frameBridge() {
 	const messages: Record<string, unknown>[] = [];

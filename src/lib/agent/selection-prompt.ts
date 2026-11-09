@@ -16,7 +16,12 @@ export function selectionAnnotationBody(sel: SelectionContext): string {
 		.split("\n")
 		.map((line) => `> ${line}`)
 		.join("\n");
-	const source = sel.messageId ? `${where} (message ${sel.messageId})` : where;
+	const location = sel.messageId
+		? `${where} (message ${sel.messageId})`
+		: where;
+	const source = sel.sourceTitle
+		? `${sel.sourceTitle} — ${location}`
+		: location;
 	const comment = sel.comment?.trim();
 	return `Selected text from ${source}:\n${quoted}${comment ? `\n\nUser comment on this selection:\n${comment}` : ""}\n\n${quoteContextPrompt(sel)}`;
 }

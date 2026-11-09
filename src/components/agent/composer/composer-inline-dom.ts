@@ -710,6 +710,7 @@ export function renderChip(
 		chip.setAttribute(TOKEN_ATTR, token);
 
 		const name =
+			selection.sourceTitle ||
 			basenameOf(selection.sourcePath) ||
 			labelForPath(selection.sourcePath) ||
 			t("composer.selection");

@@ -37,6 +37,20 @@ function visual(id: string, page: number, data: string): PdfVisualDraft {
 }
 
 describe("annotation markers in the turn prompt", () => {
+	it("preserves RSS provenance and quotes through composer serialization", () => {
+		const { prompt } = assembleTurnPrompt({
+			text: `Explain ${encodeSelectionToken({ ...selection, sourcePath: "https://example.org/paper", sourceUrl: "https://example.org/paper", sourceTitle: "Research digest", surface: "feed", lineFrom: undefined, lineTo: undefined })}`,
+			contextPaths: [],
+			visualDrafts: [],
+			attachedImages: [],
+			isAcpCommand: false,
+			t,
+		});
+		expect(prompt).toContain("## Annotation 1");
+		expect(prompt).toContain("Research digest — https://example.org/paper");
+		expect(prompt).toContain("> 分协议");
+		expect(prompt).toContain("User comment on this selection:\n看这里");
+	});
 	it("keeps a shared number at the caret and in the appendix", () => {
 		const raw = `这个公式 ${encodeSelectionToken(selection)} 和图 ${encodeVisualToken("mark-1")} 矛盾吗`;
 		expect(proseWithAnnotationMarkers(raw)).toBe(

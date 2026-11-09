@@ -373,6 +373,8 @@ const NAV_BRIDGE: &str = r##"<style>
 
 /// Keep every click inside the frame and keep internal links on this scheme.
 fn rewrite_html(html: &str) -> String {
+    let html = crate::features::web::proxy::inject_selection_bridge(html);
+    let html = html.as_str();
     let retargeted = html
         .replace("target=\"_blank\"", "target=\"_self\"")
         .replace("target='_blank'", "target='_self'")

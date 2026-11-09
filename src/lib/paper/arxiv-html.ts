@@ -14,6 +14,7 @@ import {
 	isArxivHostedUrl,
 	normalizeArxivId,
 } from "@/lib/paper/arxiv";
+import selectionBridge from "@/lib/web-view/selection-bridge.js?raw";
 
 /**
  * One attempt. A full HTML page on a slow link can take around 45s, so this
@@ -78,7 +79,7 @@ function escapeAttr(value: string): string {
 
 /** Point root-absolute and relative assets at arXiv, and keep in-page anchors. */
 export function rewriteArxivHtml(html: string, pageUrl: string): string {
-	const head = `<base href="${escapeAttr(pageUrl)}">${READER_STYLE}${EXTERNAL_LINK_SCRIPT}`;
+	const head = `<base href="${escapeAttr(pageUrl)}">${READER_STYLE}${EXTERNAL_LINK_SCRIPT}<script>${selectionBridge}</script>`;
 	if (/<head[^>]*>/i.test(html)) {
 		return html.replace(/<head[^>]*>/i, (open) => `${open}${head}`);
 	}

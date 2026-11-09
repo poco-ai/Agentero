@@ -1,4 +1,3 @@
-export { buildPlazaAskPrompt } from "@/lib/plaza/ask-prompt";
 export {
 	SKILL_THEMES,
 	type SkillRepo,

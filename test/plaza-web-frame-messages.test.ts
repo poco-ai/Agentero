@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlazaWebFrame } from "@/components/plaza/plaza-web-frame";
 
 vi.mock("react-i18next", () => ({
+	initReactI18next: { type: "3rdParty", init() {} },
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 vi.mock("@/components/ui/tooltip", () => {
@@ -28,6 +29,20 @@ const origin = "https://proxy.example";
 beforeEach(() => {
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	localStorage.clear();
+	const contentWindow = Object.getOwnPropertyDescriptor(
+		HTMLIFrameElement.prototype,
+		"contentWindow",
+	)?.get;
+	vi.spyOn(
+		HTMLIFrameElement.prototype,
+		"contentWindow",
+		"get",
+	).mockImplementation(function () {
+		const frame = contentWindow?.call(this) as Window | null;
+		if (frame && !vi.isMockFunction(frame.postMessage))
+			vi.spyOn(frame, "postMessage").mockImplementation(() => {});
+		return frame;
+	});
 	// Give each real iframe a local document/window without fetching a remote site.
 	const createElement = document.createElement.bind(document);
 	vi.spyOn(document, "createElement").mockImplementation((tagName, options) => {
@@ -116,7 +131,7 @@ describe("retained Plaza frame messages", () => {
 		const listeners = add.mock.calls
 			.filter(([type]) => type === "message")
 			.map(([, listener]) => listener);
-		expect(listeners).toHaveLength(2);
+		expect(listeners).toHaveLength(4);
 		const sender = first.contentWindow;
 		await act(() => root.render(null));
 		for (const listener of listeners) {

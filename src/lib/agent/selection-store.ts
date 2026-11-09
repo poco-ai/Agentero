@@ -24,6 +24,11 @@ export type SelectionContext = {
 	text: string;
 	/** Vault-relative source path when the file lives inside the Vault. */
 	sourcePath: string;
+	/** Display provenance for reading surfaces without a Vault file. */
+	sourceTitle?: string;
+	sourceUrl?: string;
+	/** Rendering surface, independent of the anchor/storage origin. */
+	surface?: "feed" | "web" | "abstract" | "text" | "markdown" | "chat";
 	origin: SelectionOrigin;
 	/** 1-based PDF page number. */
 	page?: number;

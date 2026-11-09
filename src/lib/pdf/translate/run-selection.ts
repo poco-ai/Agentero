@@ -103,6 +103,7 @@ export async function runSelectionTranslate({
 		});
 		try {
 			const resolved = await resolveConfiguredTranslateAgent();
+			if (disposedRef.current) return;
 			if (!resolved.agentId) {
 				const msg = noAgentText();
 				notifyError(msg);
@@ -145,6 +146,7 @@ export async function runSelectionTranslate({
 					}
 				},
 				onFailed: (ev) => {
+					if (disposedRef.current) return;
 					evictAgentTranslateSessionId(paperKey, agentId, modelId);
 					const msg = ev.error || agentFailedText();
 					notifyError(msg);
@@ -153,6 +155,7 @@ export async function runSelectionTranslate({
 				onSettled: () => stopStreaming(),
 			});
 		} catch (e) {
+			if (disposedRef.current) return;
 			const message = errorText(e);
 			notifyError(message);
 			markFailed(message);
@@ -163,8 +166,10 @@ export async function runSelectionTranslate({
 
 	try {
 		const result = await runTranslate({ text, context }, { providerId });
+		if (disposedRef.current) return;
 		commitProviderResult(result.trim());
 	} catch (e) {
+		if (disposedRef.current) return;
 		const message = displayTranslateError(errorText(e));
 		notifyError(message);
 		markFailed(message);

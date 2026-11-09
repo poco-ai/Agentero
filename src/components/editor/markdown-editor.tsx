@@ -52,6 +52,10 @@ import { DndKit } from "@/components/editor/plugins/dnd-kit";
 import { MarkdownEditorKit } from "@/components/editor/plugins/markdown-editor-kit";
 import { MarkdownSourceToolbar } from "@/components/editor/toolbar/markdown-source-toolbar";
 import { MarkdownEditorToolbar } from "@/components/editor/toolbar/markdown-toolbar";
+import {
+	selectionSurfaceProps,
+	useSelectionSource,
+} from "@/components/selection/selection-surface";
 import { Button } from "@/components/ui/button";
 import {
 	ContextMenu,
@@ -272,6 +276,7 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 	navigationIntent,
 }: MarkdownEditorProps) {
 	const filePathRef = useRef(filePath ?? null);
+	useSelectionSource(filePath);
 	filePathRef.current = filePath ?? null;
 	const onAssetsChangedRef = useRef(onAssetsChanged);
 	onAssetsChangedRef.current = onAssetsChanged;
@@ -1147,8 +1152,13 @@ export const MarkdownEditor = memo(function MarkdownEditor({
 											 * (matches Plate default variant pb-72).
 											 */}
 											<MarkdownPlateContent
-												data-selection-chat-source={filePath || undefined}
-												data-selection-chat-origin="markdown"
+												{...(filePath
+													? selectionSurfaceProps({
+															sourcePath: filePath,
+															origin: "markdown",
+															surface: "markdown",
+														})
+													: {})}
 												placeholder={placeholder}
 												readOnly={bodyReadOnly}
 												// `pl-10` leaves room for the block drag handle

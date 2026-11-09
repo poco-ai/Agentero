@@ -42,7 +42,7 @@ Host `features/web/proxy.rs`(agentero-web scheme)
 
 ## 桥脚本(WEB_BRIDGE)
 
-NAV_BRIDGE 同款 vanilla ES5 IIFE,只装配顶层 frame。经 `parent.postMessage` 与应用通信;应用侧监听 `message` 并校验 `event.origin ∈ webViewProxyOrigins()` 、`event.source === iframe.contentWindow` 且 `data.source === "agentero-web"`(防无关 frame 伪造)。
+共享 `lib/web-view/selection-bridge.js` IIFE,只装配顶层 frame。经 `parent.postMessage` 与应用通信;应用侧监听 `message` 并校验 `event.origin ∈ webViewProxyOrigins()` 、`event.source === iframe.contentWindow` 且 `data.source === "agentero-web"`(防无关 frame 伪造)。
 
 ### 消息协议
 
@@ -61,16 +61,14 @@ NAV_BRIDGE 同款 vanilla ES5 IIFE,只装配顶层 frame。经 `parent.postMessa
 
 ## 划词动作管线(前端)
 
-`use-web-view-selection.ts`(`src/components/viewer/web-view/`)消费桥消息,产出与 PDF / plaza 同款的浮层:
+`use-web-view-selection.ts`(`src/components/viewer/web-view/`)消费桥消息,将快照交给窗口级 `SelectionActions`，详见[通用划词动作](selection.md)：
 
-- **工具栏**:`SelectionMenu`(复用 `viewer/pdf/cards/`,`showHighlight={false}`——网页无 marks/,藏高亮留翻译)+ 选中即复制标签 `SelectionCopiedLabel`;
-- **翻译**:`TranslateCard` 流式卡,双 provider 执行在共享引擎 `lib/pdf/translate/run-selection.ts`(agent → `runOnce{workflow:"translate"}` 流式;免费 MT → `runTranslate`;与 PDF 划词复用),ephemeral 单卡不写 marks;
-- **Quick chat ⌘K**:`AskPopover` + 共享 `use-selection-ask.ts`(从 plaza 抽出的 ephemeral ask 生命周期:`PdfAskThread` + 共享引擎 `lib/pdf/ask/run-turn.ts` 的 `runOnce{workflow:"free"}` + `attachAgentRun` 流式,plaza 改为消费方);
-- **加入对话 ⇧⌘L**:`addSelectionToChat`(= `publishSelection` + `pinActiveSelection` + `presentAgentComposer({ preserveCaret: true })`)。
+- **工具栏**：共享 `SelectionActionMenu`，网页省略 PDF 高亮和标注扩展；选中即复制行为继续保留。
+- **翻译**：共享 `useSelectionTranslation` + `TranslateCard`；使用同一翻译服务与单卡所有权，不写 marks。
+- **Quick chat**：共享 `useSelectionAsk` + `AskPopover`；保留选区、标题和原始 URL，关闭或导航时取消在途请求。
+- **加入对话**：工具栏可填写针对选区的批注；快捷键直接冻结选区并聚焦 Agent composer。
 
-默认 `⌘L` 仅切换 Agent 侧栏，即使有选区也不 pin；`⇧⌘L` 才加入选区并打开、聚焦 composer，`⌘K` 保留页内 Quick chat。网页 iframe 中后两者只在有选区时转发。PDF / Plaza / 网页工具栏提示通过 `useShortcutLabel` 跟随用户配置。
-
-四个划词表面(PDF / plaza / 网页论文 / 文本编辑器)共用 `src/components/selection/` 下的三件套:`use-copied-label.ts`(自动复制的 copied 确认标签,1000ms 自隐藏)、`use-selection-quick-chat.ts`(⌘K 注册,ref 守卫 mount 稳定 + armed 谓词)、`add-selection-to-chat.ts`(发布 + pin + 打开 Agent 侧栏);ask 生命周期在 `use-selection-ask.ts`。各表面只保留自己的来源 origin、几何信息与 dismissal 编排。
+默认 `⌘L` 仅切换 Agent 侧栏；`⇧⌘L` 加入选区，`⌘K` 打开 Quick chat。提示与 iframe 转发均跟随用户配置。桥本身也用于广场代理与 arXiv HTML 的受信 `srcdoc`；父窗口始终校验 origin 和精确 frame 身份。
 
 坐标换算:`bridgeSelectionScreen(rect, iframeRect)`(桥给的是 frame 视口坐标,加 iframe 元素偏移即应用视口坐标),纯函数在 `bridge-message.ts`,与消息 parse 守卫一起有 vitest 覆盖。
 

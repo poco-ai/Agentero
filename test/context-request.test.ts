@@ -57,3 +57,21 @@ it("turns sidebar selections and mentions into anchors without plaza paths", () 
 		{ kind: "mention", filePath: "papers/attention" },
 	]);
 });
+
+it("keeps web, feed and chat evidence out of file access grants", () => {
+	const selections = [
+		{
+			sourcePath: "https://example.org/paper",
+			sourceUrl: "https://example.org/paper",
+			origin: "markdown" as const,
+		},
+		{ sourcePath: "agentero:plaza/feeds/1", origin: "markdown" as const },
+		{ sourcePath: "Chat session-1", origin: "chat" as const },
+	].map((source, i) => ({
+		...source,
+		id: String(i),
+		text: "evidence",
+		pinned: true,
+	}));
+	expect(sidebarContextRequest({ contextPaths: [], selections })).toBeNull();
+});

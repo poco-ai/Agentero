@@ -7,6 +7,7 @@ import {
 	Trash2Icon,
 } from "lucide-react";
 import {
+	type ReactNode,
 	useCallback,
 	useEffect,
 	useLayoutEffect,
@@ -59,6 +60,7 @@ const QUICK_CHAT_COMPOSER_MAX_HEIGHT = 72;
 const QUICK_CHAT_GROW_MS = 400;
 
 type AskPopoverProps = {
+	source?: ReactNode;
 	thread: PdfAskThread;
 	/** Catalog title used to build the external "open in chat" query. */
 	paperTitle?: string;
@@ -92,6 +94,7 @@ type AskPopoverProps = {
 };
 
 export function AskPopover({
+	source,
 	thread,
 	paperTitle,
 	paperLink,
@@ -440,6 +443,7 @@ export function AskPopover({
 			}
 		>
 			{/* Plain scroll — not StickToBottom (hover/open must not jump to reply end). */}
+			{source}
 			<div
 				ref={scrollPortRef}
 				className={cn(

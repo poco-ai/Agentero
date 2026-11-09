@@ -283,6 +283,8 @@ const NAV_BRIDGE: &str = r##"<style>
 </script>"##;
 
 fn rewrite(html: &str) -> String {
+    let html = crate::features::web::proxy::inject_selection_bridge(html);
+    let html = html.as_str();
     // The site is the only origin the proxy may reach; absolute self links
     // would otherwise look cross-origin to the bridge and leave the frame.
     let html = html.replace("https://paperswithcode.co/", "/");

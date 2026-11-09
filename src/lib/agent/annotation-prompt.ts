@@ -8,6 +8,8 @@ import {
 	decodeVisualTokenPayload,
 	stripInlineTokens,
 } from "@/lib/agent/composer-inline-tokens";
+import { selectionAnnotationBody } from "@/lib/agent/selection-prompt";
+import { isVaultSelection } from "@/lib/agent/selection-source-kind";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import type { PdfVisualDraft } from "@/lib/agent/visual-context-store";
 
@@ -124,8 +126,12 @@ export function annotationAppendix(
 		`${ANNOTATION_APPENDIX_LEAD} Address each numbered annotation separately. A user comment applies only to that annotation.` +
 		imageSentence;
 	const sections = refs.flatMap((ref) => {
-		// Selection quotes are resolved by the host context plan, not pasted here.
-		if (ref.kind === "selection") return [];
+		// Vault evidence is resolved by the Host; web/chat quotes retain their
+		// explicit provenance here without granting access to a fictitious file.
+		if (ref.kind === "selection")
+			return isVaultSelection(ref.selection)
+				? []
+				: [`## Annotation ${ref.n}\n${selectionAnnotationBody(ref.selection)}`];
 		const draft = draftsById.get(ref.id);
 		const comment = draft?.comment.trim() || "(no comment)";
 		const lines = [

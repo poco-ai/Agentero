@@ -4,6 +4,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlazaWebFrame } from "@/components/plaza/plaza-web-frame";
 
+vi.mock("@/components/viewer/web-view/use-web-view-selection", () => ({
+	useWebViewSelection: () => ({ onFrameLoad: vi.fn() }),
+}));
+
 vi.mock("react-i18next", () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -57,7 +61,7 @@ async function mount(desktopWidth?: number, embedOrigin: string | null = null) {
 	await act(() =>
 		root.render(
 			createElement(PlazaWebFrame, {
-				homeUrl: "about:blank",
+				homeUrl: "https://site.example/",
 				embedOrigin,
 				title: "fixture",
 				desktopWidth,

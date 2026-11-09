@@ -681,6 +681,8 @@ html body { overflow-y: visible !important; }
 /// resolve to `agentero-modelscope://g.alicdn.com/…` under our scheme and the
 /// application never boots.
 fn rewrite_html(html: &str) -> String {
+    let html = crate::features::web::proxy::inject_selection_bridge(html);
+    let html = html.as_str();
     let absolute = html
         .replace("=\"//", "=\"https://")
         .replace("='//", "='https://")

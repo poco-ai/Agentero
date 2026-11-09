@@ -37,11 +37,12 @@ import {
 	pinFromRects,
 } from "@/lib/pdf/selection";
 import type { PdfTranslateRecord } from "@/lib/pdf/translate/types";
+import {
+	claimSelectionTranslation,
+	ownsSelectionTranslation,
+	releaseSelectionTranslation,
+} from "@/lib/workspace/selection-card-owner";
 import { workspaceStore } from "@/lib/workspace/store";
-
-// Each desktop window has its own webview, including when it contains multiple
-// visible or embedded PDF viewers.
-let dismissOpenTranslation: (() => void) | null = null;
 
 export type UsePdfCardsOptions = {
 	isActive: boolean;
@@ -128,8 +129,7 @@ export function usePdfCards({
 	const hideActiveCard = useCallback(() => {
 		const card = activeCardRef.current;
 		activeCardRef.current = null;
-		if (dismissOpenTranslation === hideActiveCard)
-			dismissOpenTranslation = null;
+		releaseSelectionTranslation(hideActiveCard);
 		onCardClose(card);
 		cardHoverSurfaceRef.current = false;
 		setActiveCard(null);
@@ -140,8 +140,7 @@ export function usePdfCards({
 
 	useLayoutEffect(() => {
 		return () => {
-			if (dismissOpenTranslation === hideActiveCard)
-				dismissOpenTranslation = null;
+			releaseSelectionTranslation(hideActiveCard);
 		};
 	}, [hideActiveCard]);
 
@@ -156,7 +155,7 @@ export function usePdfCards({
 		const unsubscribe = workspaceStore.subscribe((next, previous) => {
 			if (
 				next.activeTabId !== previous.activeTabId &&
-				dismissOpenTranslation === hideActiveCard
+				ownsSelectionTranslation(hideActiveCard)
 			)
 				hideActiveCard();
 		});
@@ -167,7 +166,7 @@ export function usePdfCards({
 			if (
 				pdf &&
 				pdf !== hostRef.current &&
-				dismissOpenTranslation === hideActiveCard
+				ownsSelectionTranslation(hideActiveCard)
 			)
 				hideActiveCard();
 		};
@@ -278,12 +277,9 @@ export function usePdfCards({
 		(card: ActiveSelectionCard) => {
 			if (card.kind === "translate") {
 				if (!isActive) return;
-				if (dismissOpenTranslation !== hideActiveCard) {
-					dismissOpenTranslation?.();
-					dismissOpenTranslation = hideActiveCard;
-				}
-			} else if (dismissOpenTranslation === hideActiveCard) {
-				dismissOpenTranslation = null;
+				claimSelectionTranslation(hideActiveCard);
+			} else if (ownsSelectionTranslation(hideActiveCard)) {
+				releaseSelectionTranslation(hideActiveCard);
 			}
 			// Cancel pending hide and treat open as an active hover surface so
 			// the card does not auto-close while the pointer is still over the

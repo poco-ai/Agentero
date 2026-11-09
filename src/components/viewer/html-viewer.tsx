@@ -1,13 +1,8 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SelectionCopiedLabel } from "@/components/ui/selection-copied-label";
-import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
-import { SelectionMenu } from "@/components/viewer/pdf/cards/selection-menu";
-import { TranslateCard } from "@/components/viewer/pdf/cards/translate-card";
 import { useWebViewSelection } from "@/components/viewer/web-view/use-web-view-selection";
 import { useIframeDragShield } from "@/hooks/use-iframe-drag-shield";
 import { commands } from "@/lib/core/bindings";
@@ -123,6 +118,7 @@ export function HtmlViewer({
 		srcUrl: remote ?? "",
 		iframeRef,
 		title,
+		origin: trusted ? "null" : undefined,
 	});
 
 	if (!remote) {
@@ -200,58 +196,6 @@ export function HtmlViewer({
 			) : (
 				<EmptyState>{gate === "denied" ? t("html.denied") : null}</EmptyState>
 			)}
-			{iframeUrl && !trusted
-				? createPortal(
-						<>
-							{selection.menu && !selection.ask ? (
-								<SelectionMenu
-									screen={selection.menu.screen}
-									onHighlight={() => undefined}
-									onAsk={selection.handleAsk}
-									onAddToChat={selection.handleAddToChat}
-									onTranslate={selection.handleTranslate}
-									showHighlight={false}
-								/>
-							) : null}
-							{selection.copiedLabelPos ? (
-								<SelectionCopiedLabel
-									x={selection.copiedLabelPos.x}
-									y={selection.copiedLabelPos.y}
-								/>
-							) : null}
-							{selection.ask ? (
-								<AskPopover
-									thread={selection.ask.thread}
-									paperTitle={title}
-									paperLink={remote}
-									screen={selection.ask.screen}
-									streaming={selection.streaming}
-									error={selection.askError}
-									onSend={selection.sendAskQuestion}
-									onResend={selection.resendAskQuestion}
-									onHide={selection.hideAsk}
-									onDelete={selection.deleteAsk}
-									onStop={selection.stopAskStreaming}
-								/>
-							) : null}
-							{selection.translateRec && selection.translateScreen ? (
-								<TranslateCard
-									screen={selection.translateScreen}
-									result={selection.translateRec.result ?? ""}
-									streaming={selection.translateStreaming}
-									error={
-										selection.translateError ??
-										selection.translateRec.error ??
-										null
-									}
-									onOpenSettings={selection.openTranslateSettings}
-									onHide={selection.hideTranslate}
-								/>
-							) : null}
-						</>,
-						document.body,
-					)
-				: null}
 		</div>
 	);
 }
