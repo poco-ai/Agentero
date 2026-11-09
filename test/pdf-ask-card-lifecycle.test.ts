@@ -103,6 +103,15 @@ it("keeps the conversation in place when its source scrolls out and is virtualiz
 	expect(cards.cardScreen?.y).not.toBe(openedAt?.y);
 });
 
+it("closes an open conversation when another card replaces it", async () => {
+	await act(async () => cards.openCard({ kind: "ask", id: "ask" }));
+	await act(async () => cards.openCard(translation));
+	expect(onCardClose).toHaveBeenCalledExactlyOnceWith({
+		kind: "ask",
+		id: "ask",
+	});
+});
+
 it("keeps an unpinned translation in place when its source moves and unmounts", async () => {
 	await act(async () => cards.openCard({ kind: "translate", id: "translate" }));
 	const openedAt = cards.cardScreen;

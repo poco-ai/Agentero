@@ -251,6 +251,8 @@ type SelectionCardProps = {
 	lockHeight?: boolean;
 	/** Allow native corner resizing within the available viewport. */
 	resizable?: boolean;
+	/** Minimum native corner-resize height (px). Defaults to 200. */
+	resizeMinHeight?: number;
 	/** Allow repositioning from the title, independently of the source anchor. */
 	draggable?: boolean;
 	/**
@@ -296,6 +298,7 @@ export function SelectionCard({
 	trackPin = false,
 	lockHeight = false,
 	resizable = false,
+	resizeMinHeight = RESIZE_MIN_HEIGHT,
 	draggable = false,
 	bodyScroll = true,
 	preferRight = true,
@@ -504,7 +507,7 @@ export function SelectionCard({
 					? {
 							resize: "both",
 							minWidth: Math.min(RESIZE_MIN_WIDTH, resizeMaxWidth),
-							minHeight: Math.min(RESIZE_MIN_HEIGHT, resizeMaxHeight),
+							minHeight: Math.min(resizeMinHeight, resizeMaxHeight),
 							maxWidth: resizeMaxWidth,
 							maxHeight: resizeMaxHeight,
 						}

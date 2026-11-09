@@ -13,6 +13,8 @@ const store = createMarkStore<PdfAskThread>({
 	sort: (a, b) => b.updatedAt.localeCompare(a.updatedAt),
 	prepareWrite: (thread) => ({
 		...thread,
+		// Composer drafts are session-only; never write unsent text to marks/.
+		draft: undefined,
 		kind: "ask",
 		updatedAt: new Date().toISOString(),
 	}),

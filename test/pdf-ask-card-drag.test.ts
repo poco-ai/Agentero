@@ -51,6 +51,8 @@ const baseProps: ComponentProps<typeof AskPopover> = {
 	onDelete: vi.fn(),
 };
 
+const draftThread: PdfAskThread = { ...thread, messages: [] };
+
 let container: HTMLDivElement;
 let root: Root;
 
@@ -65,6 +67,7 @@ beforeEach(() => {
 
 afterEach(async () => {
 	await act(() => root.unmount());
+	vi.useRealTimers();
 	document.body.replaceChildren();
 	vi.restoreAllMocks();
 	vi.unstubAllGlobals();
@@ -131,6 +134,152 @@ function action(card: HTMLElement, label: string) {
 	if (!button) throw new Error(`Missing card action: ${label}`);
 	return button;
 }
+
+/** Set the value past React's value tracker so the input event is observed. */
+function setTextareaValue(el: HTMLTextAreaElement, value: string) {
+	const setter = Object.getOwnPropertyDescriptor(
+		HTMLTextAreaElement.prototype,
+		"value",
+	)?.set;
+	setter?.call(el, value);
+	el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+it("focuses the composer when the card opens", async () => {
+	const card = await renderAsk();
+	const composer = card.querySelector<HTMLTextAreaElement>("textarea");
+	expect(composer).not.toBeNull();
+	expect(document.activeElement).toBe(composer);
+});
+
+it("hides with Escape unless the focused element owns the key", async () => {
+	const onHide = vi.fn();
+	const card = await renderAsk({ onHide });
+	const composer = card.querySelector<HTMLTextAreaElement>("textarea");
+	if (!composer) throw new Error("Ask card has no composer");
+	expect(document.activeElement).toBe(composer);
+
+	// The composer keeps its own Escape handler: hide exactly once.
+	await act(() => {
+		composer.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "Escape",
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+	});
+	expect(onHide).toHaveBeenCalledOnce();
+	onHide.mockClear();
+
+	// Focus elsewhere in the card (a header action) still hides it.
+	const hide = action(card, "pdfAsk.hide");
+	hide.focus();
+	await act(() => {
+		hide.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "Escape",
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+	});
+	expect(onHide).toHaveBeenCalledOnce();
+});
+
+it("opens an untouched draft small and grows after the first question", async () => {
+	vi.useFakeTimers();
+	const onSend = vi.fn();
+	const card = await renderAsk({ thread: draftThread, onSend });
+	expect(card.style.height).toBe("140px");
+	expect(card.style.minHeight).toBe("140px");
+	expect(card.className).not.toContain("transition-[height,top]");
+
+	const composer = card.querySelector<HTMLTextAreaElement>("textarea");
+	if (!composer) throw new Error("Ask card has no composer");
+	composer.value = "What does this mean?";
+	const form = card.querySelector("form");
+	if (!form) throw new Error("Ask card has no form");
+	await act(async () => {
+		form.requestSubmit();
+	});
+	expect(onSend).toHaveBeenCalledWith("What does this mean?");
+
+	// The parent appends the optimistic user turn; the card grows with the
+	// resize transition armed for the commit that changes the height.
+	await renderAsk({
+		thread: { ...draftThread, messages: [thread.messages[0]] },
+		onSend,
+	});
+	expect(card.style.height).toBe("360px");
+	expect(card.style.minHeight).toBe("200px");
+	expect(card.className).toContain("transition-[height,top]");
+
+	await act(() => vi.advanceTimersByTime(500));
+	expect(card.className).not.toContain("transition-[height,top]");
+	vi.useRealTimers();
+});
+
+it("deletes an untouched draft when the card is hidden", async () => {
+	const onHide = vi.fn();
+	const onDelete = vi.fn();
+	const card = await renderAsk({ thread: draftThread, onHide, onDelete });
+	await act(() => action(card, "pdfAsk.hide").click());
+	expect(onDelete).toHaveBeenCalledOnce();
+	expect(onHide).not.toHaveBeenCalled();
+});
+
+it("keeps a typed draft and its text when the card is hidden", async () => {
+	const onHide = vi.fn();
+	const onDelete = vi.fn();
+	const card = await renderAsk({ thread: draftThread, onHide, onDelete });
+	const composer = card.querySelector<HTMLTextAreaElement>("textarea");
+	if (!composer) throw new Error("Ask card has no composer");
+	composer.value = "Why does this hold?";
+	await act(() => action(card, "pdfAsk.hide").click());
+	expect(onHide).toHaveBeenCalledWith("Why does this hold?");
+	expect(onDelete).not.toHaveBeenCalled();
+});
+
+it("restores a saved draft when the card reopens", async () => {
+	const card = await renderAsk({
+		thread: { ...draftThread, draft: "half-written question" },
+	});
+	const composer = card.querySelector<HTMLTextAreaElement>("textarea");
+	expect(composer?.value).toBe("half-written question");
+});
+
+it("grows the composer to three lines and scrolls beyond it", async () => {
+	const card = await renderAsk({ thread: draftThread });
+	const composer = card.querySelector<HTMLTextAreaElement>("textarea");
+	if (!composer) throw new Error("Ask card has no composer");
+	const inputGroup = card.querySelector('[data-slot="input-group"]');
+	// The bordered group must grow with the textarea instead of clipping it.
+	expect(inputGroup?.className).toContain("h-auto");
+	expect(inputGroup?.className).not.toContain("h-8");
+	expect(composer.className).toContain("max-h-[4.5rem]");
+	expect(composer.className).toContain("overflow-y-auto");
+
+	Object.defineProperty(composer, "scrollHeight", {
+		configurable: true,
+		value: 72,
+	});
+	await act(() => {
+		setTextareaValue(composer, "one\ntwo\nthree");
+	});
+	expect(composer.style.height).toBe("72px");
+	expect(card.style.height).toBe("180px");
+
+	Object.defineProperty(composer, "scrollHeight", {
+		configurable: true,
+		value: 92,
+	});
+	await act(() => {
+		setTextareaValue(composer, "one\ntwo\nthree\nfour");
+	});
+	expect(composer.style.height).toBe("72px");
+	expect(card.style.height).toBe("180px");
+});
 
 it("keeps the dragged position when the anchor moves and across expand/restore", async () => {
 	const card = await renderAsk();

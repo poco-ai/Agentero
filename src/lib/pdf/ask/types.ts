@@ -52,4 +52,9 @@ export type PdfAskThread = {
 	status: PdfAskStatus;
 	anchor: PdfAskAnchor;
 	messages: PdfAskMessage[];
+	/**
+	 * Unsent composer text kept while the card is closed. Session-only:
+	 * `prepareWrite` strips it, so it never reaches `marks/<id>.json`.
+	 */
+	draft?: string;
 };

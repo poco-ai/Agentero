@@ -53,9 +53,9 @@ export type UsePdfCardsOptions = {
 	/** Cluster-owned chrome reset for the card being opened (ask / translate errors). */
 	onCardOpen: (card: ActiveSelectionCard) => void;
 	/**
-	 * Cluster-owned cleanup for the card being closed: keep an empty ask draft
-	 * so its highlight stays, discard an unpinned translate, clear per-kind
-	 * errors, and close the note editor.
+	 * Cluster-owned cleanup for the card being closed: keep a started ask draft
+	 * (the card deletes untouched ones itself), discard an unpinned translate,
+	 * clear per-kind errors, and close the note editor.
 	 */
 	onCardClose: (card: ActiveSelectionCard | null) => void;
 	/** Cancel an in-flight translate run when its card is replaced. */
@@ -297,6 +297,13 @@ export function usePdfCards({
 			) {
 				onCardClose(previousCard);
 				stopTranslateSession();
+			} else if (
+				previousCard?.kind === "ask" &&
+				(card.kind !== "ask" || card.id !== previousCard.id)
+			) {
+				// Replacing an open quick chat closes it: an untouched draft must
+				// not leave its pin/highlight behind when another card takes over.
+				onCardClose(previousCard);
 			}
 			activeCardRef.current = card;
 			setActiveCard(card);

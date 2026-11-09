@@ -98,8 +98,8 @@ export type PdfAskThreads = {
 	sendAskQuestion: (question: string) => void;
 	/** Edit a user turn: drop it and everything after, then re-send. */
 	resendAskQuestion: (messageId: string, question: string) => void;
-	/** Card hide button: end a thread that has a question, and dismiss. */
-	hideAskThread: () => void;
+	/** Card hide button: keep a started draft or end a thread with a question, then dismiss. */
+	hideAskThread: (draft?: string) => void;
 	deleteAskThread: () => void;
 	stopAskStreaming: () => void;
 	/** Per-kind chrome reset when an ask card opens (wired into `usePdfCards`). */
@@ -180,10 +180,18 @@ export function usePdfAskThreads({
 		setAskError(null);
 	}, []);
 
+	const removeThread = useCallback(
+		(threadId: string) => {
+			setThreads((prev) => prev.filter((th) => th.id !== threadId));
+			rememberPairedAskTranslation(threadId, "");
+			if (paperAbsPath) void deletePdfAskThread(paperAbsPath, threadId);
+		},
+		[paperAbsPath, setThreads],
+	);
+
 	const closeAskChrome = useCallback((_threadId: string) => {
-		// Keep empty drafts after the card closes so the selection range
-		// stays painted like an annotation (#732). createThreadFromAnchor
-		// still drops prior empties when the next Ask starts.
+		// Non-explicit closes keep a started draft (and its pin/highlight); the
+		// card itself deletes only when the composer was never touched.
 		setAskError(null);
 	}, []);
 
@@ -196,7 +204,14 @@ export function usePdfAskThreads({
 		(anchor: PdfAskAnchor) => {
 			const paperPath = paperRelPath || paperAbsPath || "paper";
 			const thread = createEmptyThread({ paperPath, anchor });
-			setThreads((prev) => [thread, ...prev.filter(threadHasUserQuestion)]);
+			// Keep conversations and started drafts; only untouched empties are
+			// dropped when the next Ask starts.
+			setThreads((prev) => [
+				thread,
+				...prev.filter(
+					(th) => threadHasUserQuestion(th) || Boolean(th.draft?.trim()),
+				),
+			]);
 			return thread;
 		},
 		[paperAbsPath, paperRelPath, setThreads],
@@ -251,13 +266,25 @@ export function usePdfAskThreads({
 		[t],
 	);
 
+	/** A sent question consumes the session-only composer draft. */
+	const clearDraft = useCallback(
+		(thread: PdfAskThread) => {
+			if (thread.draft === undefined) return thread;
+			const clean: PdfAskThread = { ...thread, draft: undefined };
+			upsertThread(clean);
+			return clean;
+		},
+		[upsertThread],
+	);
+
 	const sendAskQuestion = useCallback(
 		(question: string) => {
 			const card = activeCardRef.current;
 			const threadId = card?.kind === "ask" ? card.id : null;
 			if (!threadId) return;
-			const thread = threadsRef.current.find((th) => th.id === threadId);
-			if (!thread) return;
+			const current = threadsRef.current.find((th) => th.id === threadId);
+			if (!current) return;
+			const thread = clearDraft(current);
 			dispatchAskTurn({
 				thread,
 				question,
@@ -266,7 +293,7 @@ export function usePdfAskThreads({
 				onError: setAskError,
 			});
 		},
-		[sendToThread, resolvePdfAskAgent, activeCardRef, threadsRef],
+		[clearDraft, sendToThread, resolvePdfAskAgent, activeCardRef, threadsRef],
 	);
 
 	/** Edit last (or any) user turn: drop that message and everything after, then re-send. */
@@ -275,10 +302,11 @@ export function usePdfAskThreads({
 			const card = activeCardRef.current;
 			const threadId = card?.kind === "ask" ? card.id : null;
 			if (!threadId) return;
-			const thread = threadsRef.current.find((th) => th.id === threadId);
-			if (!thread) return;
-			const baseMessages = resendBaseMessages(thread.messages, messageId);
+			const current = threadsRef.current.find((th) => th.id === threadId);
+			if (!current) return;
+			const baseMessages = resendBaseMessages(current.messages, messageId);
 			if (!baseMessages) return;
+			const thread = clearDraft(current);
 			dispatchAskTurn({
 				thread,
 				question,
@@ -288,7 +316,7 @@ export function usePdfAskThreads({
 				onError: setAskError,
 			});
 		},
-		[sendToThread, resolvePdfAskAgent, activeCardRef, threadsRef],
+		[clearDraft, sendToThread, resolvePdfAskAgent, activeCardRef, threadsRef],
 	);
 
 	/** Cancel the run, clear the chrome, and close the card if it is an ask card. */
@@ -302,39 +330,47 @@ export function usePdfAskThreads({
 		}
 	}, [activeCardRef, setActiveCard, setCardScreen, activeSessionRef]);
 
-	const hideAskThread = useCallback(() => {
-		const id =
-			activeCardRef.current?.kind === "ask" ? activeCardRef.current.id : null;
-		if (id) {
-			const thread = threadsRef.current.find((th) => th.id === id);
-			// An empty draft stays, so its gutter pin and selection highlight
-			// remain after the card closes. The next Ask drops prior empties.
-			if (
-				thread &&
-				threadHasUserQuestion(thread) &&
-				thread.status !== "ended"
-			) {
-				const ended: PdfAskThread = {
-					...thread,
-					status: "ended",
-					updatedAt: new Date().toISOString(),
-				};
-				upsertThread(ended);
-				void persist(ended);
+	const hideAskThread = useCallback(
+		(draft?: string) => {
+			const id =
+				activeCardRef.current?.kind === "ask" ? activeCardRef.current.id : null;
+			if (id) {
+				const thread = threadsRef.current.find((th) => th.id === id);
+				if (thread) {
+					const text = draft?.trim();
+					if (threadHasUserQuestion(thread)) {
+						// Keep an unsent follow-up too: the conversation stays ended
+						// until it is reopened, and the draft is restored with it.
+						const nextDraft = text || undefined;
+						if (thread.status !== "ended" || nextDraft !== thread.draft) {
+							const ended: PdfAskThread = {
+								...thread,
+								draft: nextDraft,
+								status: "ended",
+								updatedAt: new Date().toISOString(),
+							};
+							upsertThread(ended);
+							void persist(ended);
+						}
+					} else if (text && text !== thread.draft) {
+						// Keep a started draft (text, pin and highlight) so reopening
+						// continues where the user left off. The card calls
+						// deleteAskThread instead when the composer was untouched.
+						upsertThread({ ...thread, draft: text });
+					}
+				}
 			}
-		}
-		dismissAskChrome();
-	}, [upsertThread, persist, dismissAskChrome, activeCardRef, threadsRef]);
+			dismissAskChrome();
+		},
+		[upsertThread, persist, dismissAskChrome, activeCardRef, threadsRef],
+	);
 
 	const deleteAskThread = useCallback(() => {
 		const id =
 			activeCardRef.current?.kind === "ask" ? activeCardRef.current.id : null;
-		if (id) {
-			setThreads((prev) => prev.filter((th) => th.id !== id));
-			if (paperAbsPath) void deletePdfAskThread(paperAbsPath, id);
-		}
+		if (id) removeThread(id);
 		dismissAskChrome();
-	}, [paperAbsPath, dismissAskChrome, activeCardRef, setThreads]);
+	}, [removeThread, dismissAskChrome, activeCardRef]);
 
 	const stopAskStreaming = useCallback(() => {
 		stopAskRun(askSessionRef, activeSessionRef, () => setStreaming(false));
