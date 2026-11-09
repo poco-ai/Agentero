@@ -222,6 +222,13 @@ export function usePdfTextSelection({
 		clearActiveSelection("pdf");
 	}, [selectionCap, docId, hostRef]);
 
+	// Dockview keeps hidden tabs mounted. Drop their selection, including any
+	// pending text extraction, as soon as this viewer loses focus or unmounts.
+	useEffect(() => {
+		if (!isActive) return;
+		return closeSelectionMenu;
+	}, [isActive, closeSelectionMenu]);
+
 	const rePlaceSelectionMenu = useCallback(() => {
 		setSelectionMenu((prev) => {
 			if (!prev) return prev;
@@ -267,7 +274,7 @@ export function usePdfTextSelection({
 
 	// Show the selection action menu when a drag-selection ends.
 	useEffect(() => {
-		if (!selectionCap || !docCap) return;
+		if (!isActive || !selectionCap || !docCap) return;
 
 		const scope = selectionCap.forDocument(docId);
 		// A translation drag is a DOM range on top of the English glyphs. Ending
@@ -396,6 +403,7 @@ export function usePdfTextSelection({
 			clearActiveSelection("pdf");
 		};
 	}, [
+		isActive,
 		selectionCap,
 		docCap,
 		docId,
@@ -455,7 +463,7 @@ export function usePdfTextSelection({
 	}, [isActive, selectionMenu, selectionCap, docId, hostRef]);
 
 	return {
-		selectionMenu,
+		selectionMenu: isActive ? selectionMenu : null,
 		setSelectionMenu,
 		isSelecting,
 		closeSelectionMenu,

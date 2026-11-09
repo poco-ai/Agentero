@@ -1,5 +1,6 @@
 import i18n from "@/i18n";
 import { notifyError } from "@/lib/core/notify";
+import { openExternalUrl } from "@/lib/core/open-external";
 import { toVaultRelative } from "@/lib/core/path";
 import { joinVaultPath } from "@/lib/vault/path";
 import { vaultStore } from "@/lib/vault/store";
@@ -37,6 +38,10 @@ export async function navigateToSelection(
 		const live = resolveSelectionRange(selection);
 		if (live) {
 			reveal(live);
+			return;
+		}
+		if (selection.sourceUrl && /^https?:\/\//i.test(selection.sourceUrl)) {
+			openExternalUrl(selection.sourceUrl);
 			return;
 		}
 		const { openVaultRel, openPaper, scheduleCitationJump } = await import(

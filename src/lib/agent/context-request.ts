@@ -4,6 +4,7 @@
  * expand it. These surfaces no longer paste paper paths or quotes into the prompt.
  */
 import { isPlazaMentionPath } from "@/lib/agent/plaza-mention";
+import { isVaultSelection } from "@/lib/agent/selection-source-kind";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import { pairedAskTranslation } from "@/lib/pdf/ask/prompt";
 import type { PdfAskThread } from "@/lib/pdf/ask/types";
@@ -104,9 +105,11 @@ export function sidebarContextRequest(input: {
 	selections: SelectionContext[];
 	selectionAnnotations?: ReadonlyMap<string, number>;
 }): ContextRequest | null {
-	const anchors: ContextAnchor[] = input.selections.map((selection) =>
-		selectionAnchor(selection, input.selectionAnnotations?.get(selection.id)),
-	);
+	const anchors: ContextAnchor[] = input.selections
+		.filter(isVaultSelection)
+		.map((selection) =>
+			selectionAnchor(selection, input.selectionAnnotations?.get(selection.id)),
+		);
 	for (const path of input.contextPaths) {
 		if (!path.trim() || isPlazaMentionPath(path)) continue;
 		anchors.push({ kind: "mention", filePath: path });

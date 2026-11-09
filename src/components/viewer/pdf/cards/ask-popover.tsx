@@ -7,6 +7,7 @@ import {
 	Trash2Icon,
 } from "lucide-react";
 import {
+	type ReactNode,
 	useCallback,
 	useEffect,
 	useLayoutEffect,
@@ -39,7 +40,7 @@ import { Button } from "@/components/ui/button";
 import { Shimmer } from "@/components/ui/shimmer";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
-import type { ScreenPoint } from "@/components/viewer/pdf/types";
+import type { CardScreenPoint } from "@/components/viewer/pdf/types";
 import { useImeGuard } from "@/hooks/use-ime-guard";
 import { cn } from "@/lib/core/utils";
 import { threadHasUserQuestion, threadTitle } from "@/lib/pdf/ask/schema";
@@ -59,12 +60,13 @@ const QUICK_CHAT_COMPOSER_MAX_HEIGHT = 72;
 const QUICK_CHAT_GROW_MS = 400;
 
 type AskPopoverProps = {
+	source?: ReactNode;
 	thread: PdfAskThread;
 	/** Catalog title used to build the external "open in chat" query. */
 	paperTitle?: string;
 	/** Catalog arXiv / source link used in the external "open in chat" query. */
 	paperLink?: string;
-	screen: ScreenPoint;
+	screen: CardScreenPoint;
 	/** Match gutter pin side so the card stays next to the pin. */
 	preferRight?: boolean;
 	streaming: boolean;
@@ -92,6 +94,7 @@ type AskPopoverProps = {
 };
 
 export function AskPopover({
+	source,
 	thread,
 	paperTitle,
 	paperLink,
@@ -440,6 +443,7 @@ export function AskPopover({
 			}
 		>
 			{/* Plain scroll — not StickToBottom (hover/open must not jump to reply end). */}
+			{source}
 			<div
 				ref={scrollPortRef}
 				className={cn(

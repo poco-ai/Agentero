@@ -9,10 +9,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useTextEditorFontSize } from "@/components/viewer/hooks/use-text-editor-font-size";
-import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
-import { SelectionMenu } from "@/components/viewer/pdf/cards/selection-menu";
 import { TexCitationPicker } from "@/components/viewer/tex-citation-picker";
 import { textLanguageExtensions } from "@/components/viewer/text-editor-language";
 import {
@@ -28,7 +25,7 @@ import {
 import { TextEditorToolbar } from "@/components/viewer/text-editor-toolbar";
 import { useTextEditorSelection } from "@/components/viewer/use-text-editor-selection";
 import { useWritingSelectionGroup } from "@/components/writing/writing-selection-group";
-import { basenameOf, dirnameOf, normalizePath } from "@/lib/core/path";
+import { dirnameOf, normalizePath } from "@/lib/core/path";
 import { texSettingsStore } from "@/lib/tex/config";
 import { insertTexCitation } from "@/lib/tex/editor-intelligence";
 import {
@@ -604,38 +601,6 @@ export function TextEditor({
 					onJump={jumpToDiagnostic}
 				/>
 			) : null}
-			{active
-				? createPortal(
-						<>
-							{selection.menu && !selection.ask ? (
-								<SelectionMenu
-									screen={selection.menu.screen}
-									onHighlight={() => undefined}
-									onAsk={selection.handleAsk}
-									onAddToChat={selection.handleAddToChat}
-									onTranslate={() => undefined}
-									showHighlight={false}
-									showTranslate={false}
-								/>
-							) : null}
-							{selection.ask ? (
-								<AskPopover
-									thread={selection.ask.thread}
-									paperTitle={basenameOf(path)}
-									screen={selection.ask.screen}
-									streaming={selection.streaming}
-									error={selection.askError}
-									onSend={selection.sendAskQuestion}
-									onResend={selection.resendAskQuestion}
-									onHide={selection.hideAsk}
-									onDelete={selection.deleteAsk}
-									onStop={selection.stopAskStreaming}
-								/>
-							) : null}
-						</>,
-						document.body,
-					)
-				: null}
 		</div>
 	);
 }

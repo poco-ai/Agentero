@@ -3,7 +3,6 @@ import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 
 import {
-	bridgeSelectionBottomRight,
 	bridgeSelectionScreen,
 	parseWebBridgeMessage,
 } from "@/components/viewer/web-view/bridge-message";
@@ -64,12 +63,15 @@ describe("parseWebBridgeMessage", () => {
 		).toMatchObject({ rect: null });
 	});
 
-	it("parses scroll / shortcut / external messages", () => {
+	it("parses scroll / escape / shortcut / external messages", () => {
 		expect(
 			parseWebBridgeMessage({ source: "agentero-web", type: "scroll" }),
 		).toEqual({
 			type: "scroll",
 		});
+		expect(
+			parseWebBridgeMessage({ source: "agentero-web", type: "escape" }),
+		).toEqual({ type: "escape" });
 		expect(
 			parseWebBridgeMessage({ source: "agentero-web", type: "ready" }),
 		).toEqual({ type: "ready" });
@@ -134,35 +136,25 @@ describe("parseWebBridgeMessage", () => {
 });
 
 describe("bridgeSelectionScreen", () => {
-	it("maps the frame-viewport rect into the app viewport", () => {
+	it("maps the frame-viewport rect into app coordinates with the selection box", () => {
 		expect(
 			bridgeSelectionScreen(
 				{ x: 100, y: 200, width: 60, height: 8 },
 				{ x: 40, y: 12 },
 			),
-		).toEqual({ x: 170, y: 212 });
-	});
-});
-
-describe("bridgeSelectionBottomRight", () => {
-	it("anchors at the selection's bottom-right corner (translate cards)", () => {
-		expect(
-			bridgeSelectionBottomRight(
-				{ x: 100, y: 200, width: 60, height: 8 },
-				{ x: 40, y: 12 },
-			),
-		).toEqual({ x: 200, y: 220 });
+		).toEqual({
+			x: 170,
+			y: 212,
+			selectionBounds: { left: 140, top: 212, right: 200, bottom: 220 },
+		});
 	});
 });
 
 // Execute the shipped script rather than a second implementation of its matcher.
-const proxySource = readFileSync(
-	new URL("../src-tauri/src/features/web/proxy.rs", import.meta.url),
+const bridgeScript = readFileSync(
+	new URL("../src/lib/web-view/selection-bridge.js", import.meta.url),
 	"utf8",
 );
-const bridgeScript = proxySource.match(
-	/const WEB_BRIDGE: &str = r##"<script>([\s\S]*?)<\/script>"##;/,
-)?.[1];
 
 function frameBridge() {
 	const messages: Record<string, unknown>[] = [];
@@ -184,11 +176,9 @@ function frameBridge() {
 			toString: () => (selected ? "quote" : ""),
 		}),
 	};
-	const document = {
-		addEventListener: (type: string, listener: (typeof listeners)[string]) => {
-			listeners[type] = listener;
-		},
-	};
+	// Document mouseup/keyup listeners exist in the shipped script; these tests
+	// only drive keyboard forwarding.
+	const document = { addEventListener: () => {} };
 	if (!bridgeScript) throw new Error("Missing injected bridge script");
 	runInNewContext(bridgeScript, {
 		parent,
@@ -304,5 +294,22 @@ describe("injected selection shortcut routing", () => {
 			frame.keydown("å", { code: "KeyA", metaKey: false, altKey: true }),
 		).toBe(true);
 		expect(frame.keydown("a", { metaKey: false })).toBe(false);
+	});
+
+	it("relays Escape without consuming it, except in editable fields", () => {
+		const frame = frameBridge();
+		const escapes = () =>
+			frame.messages.filter((message) => message.type === "escape");
+		expect(frame.keydown("Escape")).toBe(false);
+		expect(escapes()).toHaveLength(1);
+		expect(frame.keydown("Escape", { isComposing: true })).toBe(false);
+		expect(frame.keydown("Escape", { repeat: true })).toBe(false);
+		expect(frame.keydown("Escape", { target: { nodeName: "INPUT" } })).toBe(
+			false,
+		);
+		expect(escapes()).toHaveLength(1);
+		// A site that already handled Escape must not hide the app's own UI.
+		expect(frame.keydown("Escape", { defaultPrevented: true })).toBe(false);
+		expect(escapes()).toHaveLength(2);
 	});
 });

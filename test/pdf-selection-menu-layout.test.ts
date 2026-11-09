@@ -3,7 +3,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { PlazaSelectionMenu } from "@/components/plaza/plaza-selection-menu";
+import { SelectionActionMenu } from "@/components/selection/selection-action-menu";
 import {
 	HIGHLIGHT_COLOR_STACK_COLLAPSED_W,
 	HIGHLIGHT_COLOR_STACK_EXPANDED_W,
@@ -290,10 +290,10 @@ it("updates PDF quick-chat and add-to-chat hints while its menu is mounted", asy
 	expect(document.querySelector('[role="menuitem"] kbd')?.textContent).toBe("");
 });
 
-it("updates Plaza hints and removes disabled bindings without remounting", async () => {
+it("updates shared menu hints and removes disabled bindings without remounting", async () => {
 	await act(() =>
 		root.render(
-			createElement(PlazaSelectionMenu, {
+			createElement(SelectionActionMenu, {
 				screen: props.screen,
 				onAsk: vi.fn(),
 				onAddToChat: vi.fn(),
@@ -305,14 +305,11 @@ it("updates Plaza hints and removes disabled bindings without remounting", async
 	);
 	const labels = () =>
 		Array.from(container.querySelectorAll("kbd"), (kbd) => kbd.textContent);
-	expect(labels()).toEqual([
-		formatShortcut(customBindings.quickChat),
-		formatShortcut(customBindings.addSelectionToChat),
-	]);
+	expect(labels()).toEqual([formatShortcut(customBindings.addSelectionToChat)]);
 	await act(() =>
 		settingsStore.setState({
 			shortcutOverrides: { quickChat: null, addSelectionToChat: null },
 		}),
 	);
-	expect(labels()).toEqual(["", ""]);
+	expect(labels()).toEqual([""]);
 });

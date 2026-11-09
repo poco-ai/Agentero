@@ -1,3 +1,4 @@
+import { useWebViewSelection } from "@/components/viewer/web-view/use-web-view-selection";
 /**
  * Embedded web page for a Plaza source, with in-frame browsing.
  *
@@ -260,6 +261,13 @@ export function PlazaWebFrame({
 	const canGoForward = nav.index < nav.stack.length - 1;
 	const currentPath = nav.stack[nav.index] ?? homePath;
 	const frameSrc = embedOrigin ? `${embedOrigin}${frame.path}` : homeUrl;
+	const selection = useWebViewSelection({
+		srcUrl: new URL(currentPath, homeUrl).href,
+		iframeRef: frameRef,
+		title,
+		origin: embedOrigin ?? undefined,
+		scale: zoom.scale,
+	});
 
 	useEffect(() => {
 		if (!lastPathStorageKey || typeof window === "undefined") return;
@@ -429,6 +437,7 @@ export function PlazaWebFrame({
 						// in-frame click and bounce the user back to the starting page.
 						key={frame.epoch}
 						ref={frameRef}
+						onLoad={selection.onFrameLoad}
 						title={title}
 						src={frameSrc}
 						sandbox={SANDBOX}

@@ -21,7 +21,12 @@ import { copyTextToClipboard } from "@/lib/core/clipboard";
 type TranslateCardProps = {
 	screen: CardScreenPoint;
 	preferRight?: boolean;
-	source?: { quote?: string; page: number; onLocate: () => void };
+	source?: {
+		quote?: string;
+		page?: number;
+		title?: string;
+		onLocate: () => void;
+	};
 	/** Translation text (may stream in) */
 	result: string;
 	streaming: boolean;
@@ -202,6 +207,15 @@ export function TranslateCard({
 		>
 			{source ? (
 				<div className="mx-2.5 mt-2 flex min-h-6 shrink-0 flex-col justify-end border-border/70 border-l-2 pl-2 text-muted-foreground">
+					{source.title && (
+						<button
+							type="button"
+							className="mb-1 truncate text-left text-xs hover:text-foreground"
+							onClick={source.onLocate}
+						>
+							{source.title}
+						</button>
+					)}
 					<p className="line-clamp-2 break-words text-xs leading-relaxed">
 						{source.quote?.trim() ||
 							t("selection.sourcePage", { page: source.page })}

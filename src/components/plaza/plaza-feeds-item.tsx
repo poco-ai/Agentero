@@ -1,3 +1,4 @@
+import { SelectionSurface } from "@/components/selection/selection-surface";
 /**
  * Feed timeline card + in-panel detail. Import is available from the card
  * context menu and detail toolbar. Detail body supports selection Ask /
@@ -14,11 +15,9 @@ import {
 	MailOpen,
 	MessageSquarePlus,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageResponse } from "@/components/agent/message";
-import { PlazaSelectionMenu } from "@/components/plaza/plaza-selection-menu";
-import { usePlazaFeedSelection } from "@/components/plaza/use-plaza-feed-selection";
 import { Button } from "@/components/ui/button";
 import {
 	ContextMenu,
@@ -26,13 +25,11 @@ import {
 	ContextMenuItem,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { SelectionCopiedLabel } from "@/components/ui/selection-copied-label";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
 import { addFeedItemToChat } from "@/lib/plaza/feed-chat";
@@ -198,13 +195,11 @@ export function PlazaFeedItemDetail({
 }) {
 	const { t, i18n } = useTranslation("sidebar");
 	const [resolving, setResolving] = useState(!item.bodyMarkdown);
-	const bodyRef = useRef<HTMLDivElement | null>(null);
 	const when = formatFeedWhen(item.publishedAt, i18n.language);
 	const href = item.url?.trim() || item.paperUrl?.trim();
 	const imported = Boolean(item.importedAt);
 	const canImport = Boolean(item.paperUrl?.trim() || item.url?.trim());
 	const markdown = feedDetailMarkdown(item);
-	const selection = usePlazaFeedSelection({ item, bodyRef });
 
 	useEffect(() => {
 		if (item.bodyMarkdown?.trim()) {
@@ -316,8 +311,15 @@ export function PlazaFeedItemDetail({
 					)
 				) : null}
 			</div>
-			<div
-				ref={bodyRef}
+			<SelectionSurface
+				source={{
+					sourcePath: href || `agentero:plaza/feeds/${item.id}`,
+					sourceUrl: href,
+					sourceTitle: item.title,
+					origin: "markdown",
+					surface: "feed",
+				}}
+				autoCopy
 				className="agentero-scroll min-h-0 flex-1 select-text overflow-y-auto px-5 py-4"
 			>
 				{markdown ? (
@@ -325,37 +327,7 @@ export function PlazaFeedItemDetail({
 						{markdown}
 					</MessageResponse>
 				) : null}
-			</div>
-			{selection.menu && !selection.ask ? (
-				<PlazaSelectionMenu
-					screen={selection.menu.screen}
-					onAsk={selection.handleAsk}
-					onAddToChat={selection.handleAddToChat}
-				/>
-			) : null}
-			{selection.copiedLabelPos ? (
-				<SelectionCopiedLabel
-					x={selection.copiedLabelPos.x}
-					y={selection.copiedLabelPos.y}
-				/>
-			) : null}
-			{selection.ask ? (
-				<div data-plaza-ask-card>
-					<AskPopover
-						thread={selection.ask.thread}
-						paperTitle={selection.itemTitle}
-						paperLink={selection.itemLink}
-						screen={selection.ask.screen}
-						streaming={selection.streaming}
-						error={selection.askError}
-						onSend={selection.sendAskQuestion}
-						onResend={selection.resendAskQuestion}
-						onHide={selection.hideAsk}
-						onDelete={selection.deleteAsk}
-						onStop={selection.stopAskStreaming}
-					/>
-				</div>
-			) : null}
+			</SelectionSurface>
 		</div>
 	);
 }

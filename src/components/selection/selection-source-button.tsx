@@ -16,7 +16,7 @@ export function SelectionSourceButton({
 	const pathBase =
 		selection.origin === "chat"
 			? t("selection.chatSource")
-			: selection.sourcePath;
+			: selection.sourceTitle || selection.sourcePath;
 	const pathLabel = selectionLineLabel(tAgent, selection, pathBase) ?? pathBase;
 	return (
 		<button

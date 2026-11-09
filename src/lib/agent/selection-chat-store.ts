@@ -7,6 +7,7 @@ import {
 	type SelectionContext,
 	type SelectionInput,
 } from "@/lib/agent/selection-store";
+import { toVaultRelative } from "@/lib/core/path";
 import { vaultStore } from "@/lib/vault/store";
 import { agentSessionStore } from "./agent-session-store";
 import {
@@ -17,9 +18,21 @@ import {
 	releaseAnnotationAnchor,
 } from "./selection-annotations";
 
+/** Viewport anchor plus the box cards must not cover. */
+export type SelectionDraftScreen = {
+	x: number;
+	y: number;
+	selectionBounds?: {
+		left: number;
+		top: number;
+		right: number;
+		bottom: number;
+	};
+};
+
 export type SelectionChatDraft = {
 	selection: SelectionContext;
-	screen: { x: number; y: number };
+	screen: SelectionDraftScreen;
 	stage: "menu" | "comment";
 	editing?: boolean;
 	comment?: string;
@@ -28,7 +41,17 @@ export type SelectionChatDraft = {
 export const selectionChatStore = createStore<{
 	draft: SelectionChatDraft | null;
 	suspended: SelectionChatDraft[];
-}>(() => ({ draft: null, suspended: [] }));
+	closedSource: { path: string } | null;
+}>(() => ({ draft: null, suspended: [], closedSource: null }));
+
+/** Invalidate transient actions when a mounted reader navigates or closes. */
+export function closeSelectionSource(path: string): void {
+	path = toVaultRelative(vaultStore.getState().vaultPath, path);
+	const current = selectionChatStore.getState().draft;
+	if (current?.stage === "menu" && current.selection.sourcePath === path)
+		dismissSelectionChat();
+	selectionChatStore.setState({ closedSource: { path } });
+}
 
 export function openSelectionChat(
 	input: SelectionInput,

@@ -73,6 +73,10 @@ import {
 } from "@/components/agent/message";
 import { TerminalTool } from "@/components/agent/rendering/terminal-tool";
 import { ZhihuDiscussions } from "@/components/agent/zhihu-discussions";
+import {
+	selectionSurfaceProps,
+	useSelectionSource,
+} from "@/components/selection/selection-surface";
 import { Button } from "@/components/ui/button";
 import {
 	Collapsible,
@@ -528,7 +532,7 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 	/** Loading phase, only passed to the last streaming agent row. */
 	phase?: AgentPhaseState | null;
 }) {
-	const { t } = useTranslation("agent");
+	const { t } = useTranslation(["agent", "viewer"]);
 	const { onOpenSource } = handlers;
 
 	if (line.kind === "user") {
@@ -646,9 +650,13 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 					{chipMarkup || userDisplay ? (
 						<MessageContent
 							className="rounded-2xl px-4 py-2.5"
-							data-selection-chat-source={`Chat ${activeTabId}`}
-							data-selection-chat-origin="chat"
-							data-selection-chat-message={line.id}
+							{...selectionSurfaceProps({
+								sourcePath: `Chat ${activeTabId}`,
+								sourceTitle: t("viewer:selection.chatSource"),
+								origin: "chat",
+								surface: "chat",
+								messageId: line.id,
+							})}
 						>
 							{chipMarkup ? (
 								<InlineChipText markup={chipMarkup} onOpenPath={onOpenSource} />
@@ -866,9 +874,13 @@ const ChatTranscriptRow = memo(function ChatTranscriptRow({
 				<div
 					key={partKey}
 					className="min-w-0"
-					data-selection-chat-source={`Chat ${activeTabId}`}
-					data-selection-chat-origin="chat"
-					data-selection-chat-message={line.id}
+					{...selectionSurfaceProps({
+						sourcePath: `Chat ${activeTabId}`,
+						sourceTitle: t("viewer:selection.chatSource"),
+						origin: "chat",
+						surface: "chat",
+						messageId: line.id,
+					})}
 				>
 					<MessageResponse
 						isAnimating={isAnimating}
@@ -1029,6 +1041,7 @@ function TranscriptBody({
 		activeTabId,
 		forceVirtualize,
 	});
+	useSelectionSource(`Chat ${activeTabId}`);
 
 	// PERF: narrow subscriptions — `nonce` only invalidates the navigation
 	// promise on the writer side, and a whole-store subscription re-rendered

@@ -681,6 +681,8 @@ html body { overflow-y: visible !important; }
 /// resolve to `agentero-modelscope://g.alicdn.com/…` under our scheme and the
 /// application never boots.
 fn rewrite_html(html: &str) -> String {
+    let html = crate::features::web::proxy::inject_selection_bridge(html);
+    let html = html.as_str();
     let absolute = html
         .replace("=\"//", "=\"https://")
         .replace("='//", "='https://")
@@ -740,6 +742,8 @@ mod tests {
     #[test]
     fn injects_the_bridge_before_head_close() {
         let out = rewrite_html("<html><head><title>t</title></head><body></body></html>");
+        // Shared selection bridge: Escape and shortcuts must reach the app.
+        assert!(out.contains("type: \"escape\""));
         let script = out.find("agentero-plaza").expect("bridge present");
         let head_end = out.find("</head>").expect("head close present");
         assert!(script < head_end);

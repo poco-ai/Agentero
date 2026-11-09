@@ -31,10 +31,26 @@ use crate::features::paper::discovery::proxy::looks_like_document;
 
 /// Selection / shortcut / navigation bridge injected into proxied documents.
 ///
-/// Vanilla ES5 in an IIFE with no namespace leakage (the 广场 NAV_BRIDGE
-/// pattern). Talks to the app window via `postMessage`; the app validates
-/// `event.origin` against the proxy origin.
-const WEB_BRIDGE: &str = r##"<script>
+/// Shared selection IIFE with no namespace leakage. The app validates both
+/// `event.origin` and the sending iframe before consuming its messages.
+pub(crate) const SELECTION_BRIDGE: &str = concat!(
+    "<script>",
+    include_str!("../../../../src/lib/web-view/selection-bridge.js"),
+    "</script>"
+);
+
+pub(crate) fn inject_selection_bridge(html: &str) -> String {
+    match html.to_ascii_lowercase().find("</head>") {
+        Some(index) => format!("{}{}{}", &html[..index], SELECTION_BRIDGE, &html[index..]),
+        None => format!("{SELECTION_BRIDGE}{html}"),
+    }
+}
+
+const WEB_BRIDGE: &str = concat!(
+    "<script>",
+    include_str!("../../../../src/lib/web-view/selection-bridge.js"),
+    "</script>",
+    r##"<script>
 (function () {
   try {
     // Only the top-level proxied document talks to the app. A nested frame on
@@ -53,103 +69,6 @@ const WEB_BRIDGE: &str = r##"<script>
     try {
       host = decodeURIComponent((location.pathname.match(/^\/([^/]+)/) || [])[1] || "") || "";
     } catch (e) {}
-
-    // ---- selection → app toolbar -----------------------------------------
-    var MAX_SELECTION_CHARS = 4000;
-    var sendSelection = function () {
-      var text = "";
-      var rect = null;
-      var sel = window.getSelection();
-      if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
-        text = (sel.toString() || "")
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, MAX_SELECTION_CHARS);
-        if (text) {
-          var r = sel.getRangeAt(0).getBoundingClientRect();
-          if (r.width !== 0 || r.height !== 0) {
-            rect = { x: r.left, y: r.top, width: r.width, height: r.height };
-          }
-        }
-      }
-      if (text && rect) {
-        // Raw copy inside the frame: the app's clipboard write can be refused
-        // while focus sits in this cross-origin frame.
-        try { document.execCommand("copy"); } catch (e) {}
-      }
-      post({ type: "selection", text: text, rect: rect, url: location.href });
-    };
-    var scheduleSelection = function () {
-      // Let the browser finish updating the selection first.
-      requestAnimationFrame(function () { setTimeout(sendSelection, 0); });
-    };
-    document.addEventListener("mouseup", scheduleSelection);
-    document.addEventListener("keyup", function (event) {
-      var key = event.key || "";
-      if (key === "Shift" || key.indexOf("Arrow") === 0) scheduleSelection();
-    });
-
-    // The app hides its toolbar while the page scrolls (plaza parity).
-    var scrollPending = false;
-    window.addEventListener("scroll", function () {
-      if (scrollPending) return;
-      scrollPending = true;
-      setTimeout(function () {
-        scrollPending = false;
-        post({ type: "scroll" });
-      }, 150);
-    }, true);
-
-    // ---- shortcuts → app handlers -----------------------------------------
-    // Keyboard events never bubble out of the frame. The app supplies effective
-    // bindings and re-resolves forwarded keys against its live registry.
-    var bindings = [];
-    var isMac = false;
-    var isEditable = function (el) {
-      if (!el || !el.nodeName) return false;
-      var name = el.nodeName.toLowerCase();
-      return (
-        name === "input" ||
-        name === "textarea" ||
-        name === "select" ||
-        el.isContentEditable === true
-      );
-    };
-    var matches = function (event, def) {
-      var key = event.key || "";
-      var defKey = def.key;
-      if (key.length === 1) key = key.toLowerCase();
-      if (defKey.length === 1) defKey = defKey.toLowerCase();
-      var physicalKey = /^Key[A-Z]$/.test(event.code || "")
-        ? event.code.slice(3).toLowerCase() : null;
-      if (key !== defKey && event.key !== def.key &&
-          !(def.alt && physicalKey === defKey)) return false;
-      if (!!def.alt !== event.altKey || !!def.shift !== event.shiftKey) return false;
-      if (isMac) {
-        return !!def.meta === event.metaKey && !!def.ctrl === event.ctrlKey;
-      }
-      if (def.meta) return event.metaKey || event.ctrlKey;
-      if (event.metaKey) return false;
-      return !!def.ctrl === event.ctrlKey;
-    };
-    document.addEventListener("keydown", function (event) {
-      if (event.defaultPrevented || event.isComposing || isEditable(event.target)) return;
-      for (var i = 0; i < bindings.length; i++) {
-        var def = bindings[i];
-        if (!matches(event, def)) continue;
-        if (def.id !== "toggleChat") {
-          var selection = window.getSelection();
-          if (!selection || selection.isCollapsed || !selection.toString().trim()) return;
-        }
-        event.preventDefault();
-        post({ type: "shortcut", event: {
-          key: event.key, code: event.code || "",
-          metaKey: event.metaKey, ctrlKey: event.ctrlKey,
-          altKey: event.altKey, shiftKey: event.shiftKey
-        } });
-        return;
-      }
-    }, true);
 
     // ---- navigation policy --------------------------------------------------
     // Same-site navigations stay inside the proxy so the bridge survives;
@@ -202,27 +121,10 @@ const WEB_BRIDGE: &str = r##"<script>
       });
     }
 
-    // ---- app → frame --------------------------------------------------------
-    window.addEventListener("message", function (event) {
-      var data = event.data;
-      if (event.source !== parent || !data || data.source !== "agentero-web-host") return;
-      if (data.type === "shortcuts") {
-        bindings = Array.isArray(data.bindings) ? data.bindings.filter(function (def) {
-          return def && typeof def.key === "string" &&
-            (def.id === "toggleChat" || def.id === "quickChat" || def.id === "addSelectionToChat");
-        }) : [];
-        isMac = data.isMac === true;
-      } else if (data.type === "clearSelection") {
-        var sel = window.getSelection();
-        if (sel) sel.removeAllRanges();
-      } else if (data.type === "copySelection") {
-        try { document.execCommand("copy"); } catch (e) {}
-      }
-    });
-    post({ type: "ready" });
   } catch (e) {}
 })();
-</script>"##;
+</script>"##
+);
 
 /// Where a proxy request goes upstream.
 struct Target {
@@ -652,6 +554,14 @@ mod tests {
         assert!(WEB_BRIDGE.contains("isEditable"));
     }
 
+    /// Escape cannot cross the frame boundary; every proxied site must relay it
+    /// so the app can close its selection chrome.
+    #[test]
+    fn bridge_relays_escape() {
+        assert!(WEB_BRIDGE.contains("type: \"escape\""));
+        assert!(WEB_BRIDGE.contains("event.key === \"Escape\""));
+    }
+
     /// Same-site navigations stay proxied; foreign ones are handed to the app.
     #[test]
     fn bridge_confines_navigation() {
@@ -666,6 +576,5 @@ mod tests {
     fn bridge_honors_host_messages() {
         assert!(WEB_BRIDGE.contains("agentero-web-host"));
         assert!(WEB_BRIDGE.contains("clearSelection"));
-        assert!(WEB_BRIDGE.contains("copySelection"));
     }
 }

@@ -111,6 +111,15 @@ export function decodeSelectionTokenPayload(
 			id: candidate.id,
 			text: candidate.text,
 			sourcePath: candidate.sourcePath,
+			sourceTitle:
+				typeof candidate.sourceTitle === "string"
+					? candidate.sourceTitle
+					: undefined,
+			sourceUrl:
+				typeof candidate.sourceUrl === "string"
+					? candidate.sourceUrl
+					: undefined,
+			surface: candidate.surface,
 			origin: candidate.origin,
 			page: candidate.page,
 			lineFrom: candidate.lineFrom,

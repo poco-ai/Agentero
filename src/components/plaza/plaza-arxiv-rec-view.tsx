@@ -1,3 +1,4 @@
+import { SelectionSurface } from "@/components/selection/selection-surface";
 /**
  * Native 广场 panel: today's arXiv papers ranked against the Vault library.
  *
@@ -542,9 +543,18 @@ function RecommendCard({
 					{item.title}
 				</span>
 			</div>
-			<p className="mt-1 line-clamp-3 text-muted-foreground text-xs leading-snug">
+			<SelectionSurface
+				source={{
+					sourcePath: item.url,
+					sourceUrl: item.url,
+					sourceTitle: item.title,
+					origin: "markdown",
+					surface: "abstract",
+				}}
+				className="mt-1 line-clamp-3 select-text text-muted-foreground text-xs leading-snug"
+			>
 				{translation ?? item.abstract}
-			</p>
+			</SelectionSurface>
 			<div className="absolute top-2 right-2 flex items-center gap-0.5">
 				<Tooltip>
 					<TooltipTrigger asChild>

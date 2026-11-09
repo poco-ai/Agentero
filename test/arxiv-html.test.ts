@@ -117,3 +117,9 @@ it("retries a stalled download on a new connection", async () => {
 	await vi.advanceTimersByTimeAsync(ARXIV_HTML_ATTEMPT_MS);
 	await expect(pending).resolves.toEqual({ status: "network" });
 });
+
+it("injects the shared selection bridge so Escape and shortcuts reach the app", () => {
+	const out = rewriteArxivHtml(DOCUMENT, PAGE);
+	expect(out).toContain('type: "escape"');
+	expect(out).toContain('message.source = "agentero-web"');
+});

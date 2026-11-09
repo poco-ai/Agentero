@@ -11,7 +11,6 @@ import {
 	editAnnotation,
 } from "@/lib/agent/selection-annotations";
 import {
-	beginSelectionComment,
 	confirmSelectionChat,
 	dismissSelectionChat,
 	openSelectionChat,
@@ -29,9 +28,12 @@ import {
 	captureTextAnchor,
 	resolveSelectionRange,
 } from "@/lib/agent/selection-source";
+import type { SelectionContext } from "@/lib/agent/selection-store";
+import { copyTextToClipboard } from "@/lib/core/clipboard";
 import { resolveMarkdownSelectionLinesForPath } from "@/lib/markdown/markdown-selection-lines-registry";
 import { applyMarkdownTextareaShortcut } from "@/lib/markdown/textarea-shortcuts";
 import { openRightTab } from "@/lib/shell/ui-window-actions";
+import { SelectionActions } from "./selection-actions";
 import { AnnotationBadges } from "./selection-annotation-badges";
 
 const SURFACE = "[data-selection-chat-source]";
@@ -112,6 +114,10 @@ export function SelectionChatPopover() {
 				{
 					text: selection.toString(),
 					sourcePath,
+					sourceTitle: source.dataset.selectionChatTitle,
+					sourceUrl: source.dataset.selectionChatUrl,
+					surface: source.dataset
+						.selectionChatSurface as SelectionContext["surface"],
 					origin,
 					messageId: source.dataset.selectionChatMessage,
 					chatSessionId:
@@ -134,10 +140,22 @@ export function SelectionChatPopover() {
 							}
 						: {}),
 				},
-				{ x: rect.left + rect.width / 2, y: rect.top },
+				{
+					x: rect.left + rect.width / 2,
+					y: rect.top,
+					// Keep result cards outside the highlighted lines.
+					selectionBounds: {
+						left: rect.left,
+						top: rect.top,
+						right: rect.right,
+						bottom: rect.bottom,
+					},
+				},
 				"menu",
 			);
 			const draft = selectionChatStore.getState().draft;
+			if (source.dataset.selectionAutoCopy === "true")
+				void copyTextToClipboard(selection.toString());
 			if (draft) {
 				annotationRanges.set(draft.selection.id, range.cloneRange());
 				if (annotationRanges.size > 256) {
@@ -152,15 +170,19 @@ export function SelectionChatPopover() {
 				event.target instanceof Node &&
 				(popoverRef.current?.contains(event.target) ||
 					(event.target instanceof Element &&
-						event.target.closest("[data-annotation-ui]")))
+						event.target.closest(
+							"[data-annotation-ui], [data-selection-ui], [data-pdf-chrome]",
+						)))
 			)
 				return;
 			if (
 				event instanceof KeyboardEvent &&
-				(event.key === "Escape" ||
-					event.key === "Enter" ||
-					event.metaKey ||
-					event.ctrlKey)
+				(event.isComposing ||
+					!(
+						event.key === "Shift" ||
+						event.key.startsWith("Arrow") ||
+						((event.metaKey || event.ctrlKey) && event.code === "KeyA")
+					))
 			)
 				return;
 			cancelAnimationFrame(frame);
@@ -171,7 +193,9 @@ export function SelectionChatPopover() {
 				event.target instanceof Node &&
 				(popoverRef.current?.contains(event.target) ||
 					(event.target instanceof Element &&
-						event.target.closest("[data-annotation-ui]")))
+						event.target.closest(
+							"[data-annotation-ui], [data-selection-ui], [data-pdf-chrome]",
+						)))
 			)
 				return;
 			suspendSelectionChat();
@@ -181,7 +205,9 @@ export function SelectionChatPopover() {
 				event.target instanceof Node &&
 				(popoverRef.current?.contains(event.target) ||
 					(event.target instanceof Element &&
-						event.target.closest("[data-annotation-ui]")))
+						event.target.closest(
+							"[data-annotation-ui], [data-selection-ui], [data-pdf-chrome]",
+						)))
 			)
 				return;
 			if (selectionChatStore.getState().draft?.stage === "menu")
@@ -190,13 +216,22 @@ export function SelectionChatPopover() {
 		const onSelectionChange = () => {
 			if (
 				selectionChatStore.getState().draft?.stage === "menu" &&
+				selectionChatStore.getState().draft?.selection.textAnchor &&
 				window.getSelection()?.isCollapsed
 			)
+				dismissSelectionChat();
+		};
+		const onEscape = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || event.isComposing) return;
+			if (selectionChatStore.getState().draft?.stage === "menu")
 				dismissSelectionChat();
 		};
 		document.addEventListener("pointerdown", onDown, true);
 		document.addEventListener("pointerup", scheduleCapture);
 		document.addEventListener("keyup", scheduleCapture);
+		// Capture: editors can consume Escape before it bubbles, but they must not
+		// leave the app-owned toolbar stranded.
+		document.addEventListener("keydown", onEscape, true);
 		document.addEventListener("selectionchange", onSelectionChange);
 		window.addEventListener("scroll", onScroll, true);
 		return () => {
@@ -204,6 +239,7 @@ export function SelectionChatPopover() {
 			document.removeEventListener("pointerdown", onDown, true);
 			document.removeEventListener("pointerup", scheduleCapture);
 			document.removeEventListener("keyup", scheduleCapture);
+			document.removeEventListener("keydown", onEscape, true);
 			document.removeEventListener("selectionchange", onSelectionChange);
 			window.removeEventListener("scroll", onScroll, true);
 		};
@@ -212,7 +248,10 @@ export function SelectionChatPopover() {
 	return createPortal(
 		<div ref={popoverRef}>
 			<AnnotationBadges />
-			{draft && <SelectionChatCard key={draft.selection.id} draft={draft} />}
+			<SelectionActions draft={draft} />
+			{draft?.stage === "comment" && (
+				<SelectionChatCard key={draft.selection.id} draft={draft} />
+			)}
 		</div>,
 		document.body,
 	);
@@ -282,8 +321,7 @@ function SelectionChatCard({ draft }: { draft: SelectionChatDraft }) {
 		observer.observe(card);
 		return () => observer.disconnect();
 	}, []);
-	const isComment = draft.stage === "comment";
-	const width = Math.min(isComment ? 360 : 144, viewport.width - 24);
+	const width = Math.min(360, viewport.width - 24);
 	const height = cardHeight;
 	const left = Math.max(
 		12,
@@ -311,101 +349,86 @@ function SelectionChatCard({ draft }: { draft: SelectionChatDraft }) {
 			ref={cardRef}
 			role="dialog"
 			aria-label={t("selection.addToChat")}
-			className={`fixed z-50 border border-border bg-popover text-popover-foreground shadow-overlay ring-1 ring-foreground/10 ${isComment && !draft.editing ? "rounded-[1.75rem]" : "rounded-xl"}`}
+			className={`fixed z-50 border border-border bg-popover text-popover-foreground shadow-overlay ring-1 ring-foreground/10 ${!draft.editing ? "rounded-[1.75rem]" : "rounded-xl"}`}
 			style={{ left, top, width }}
 		>
-			{isComment ? (
-				<form
-					className={
-						draft.editing
-							? "flex flex-col gap-2 p-3"
-							: "flex items-end gap-2 p-2 pl-4"
-					}
-					onSubmit={(event) => {
-						event.preventDefault();
-						confirm();
+			<form
+				className={
+					draft.editing
+						? "flex flex-col gap-2 p-3"
+						: "flex items-end gap-2 p-2 pl-4"
+				}
+				onSubmit={(event) => {
+					event.preventDefault();
+					confirm();
+				}}
+			>
+				<textarea
+					ref={inputRef}
+					rows={1}
+					aria-label={t("selection.chatCommentPlaceholder")}
+					placeholder={t("selection.chatCommentPlaceholder")}
+					className="min-w-0 flex-1 resize-none bg-transparent py-1 text-sm leading-6 outline-none"
+					value={comment}
+					onChange={(event) => updateSelectionChatComment(event.target.value)}
+					onKeyDown={(event) => {
+						event.stopPropagation();
+						if (
+							applyMarkdownTextareaShortcut(event, updateSelectionChatComment)
+						)
+							return;
+						if (
+							event.key === "Enter" &&
+							!event.shiftKey &&
+							!event.nativeEvent.isComposing &&
+							event.keyCode !== 229
+						) {
+							event.preventDefault();
+							confirm();
+						}
 					}}
-				>
-					<textarea
-						ref={inputRef}
-						rows={1}
-						aria-label={t("selection.chatCommentPlaceholder")}
-						placeholder={t("selection.chatCommentPlaceholder")}
-						className="min-w-0 flex-1 resize-none bg-transparent py-1 text-sm leading-6 outline-none"
-						value={comment}
-						onChange={(event) => updateSelectionChatComment(event.target.value)}
-						onKeyDown={(event) => {
-							event.stopPropagation();
-							if (
-								applyMarkdownTextareaShortcut(event, updateSelectionChatComment)
-							)
-								return;
-							if (
-								event.key === "Enter" &&
-								!event.shiftKey &&
-								!event.nativeEvent.isComposing &&
-								event.keyCode !== 229
-							) {
-								event.preventDefault();
-								confirm();
-							}
-						}}
-					/>
-					<div className="flex justify-end gap-1">
-						{draft.editing && (
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-sm"
-								className="mr-auto"
-								aria-label={t("common:remove")}
-								onClick={() => {
-									editAnnotation(draft.selection.id, null);
-									dismissSelectionChat();
-								}}
-							>
-								<Trash2 className="size-4" />
-							</Button>
-						)}
-						{draft.editing && (
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								aria-label={t("common:cancel")}
-								onClick={dismissSelectionChat}
-							>
-								{t("common:cancel")}
-							</Button>
-						)}
+				/>
+				<div className="flex justify-end gap-1">
+					{draft.editing && (
 						<Button
-							type="submit"
-							className={
-								draft.editing ? undefined : "size-9 shrink-0 rounded-full"
-							}
-							size={draft.editing ? "sm" : "icon-sm"}
-							aria-label={
-								draft.editing ? t("common:save") : t("selection.addToChat")
-							}
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							className="mr-auto"
+							aria-label={t("common:remove")}
+							onClick={() => {
+								editAnnotation(draft.selection.id, null);
+								dismissSelectionChat();
+							}}
 						>
-							{draft.editing ? (
-								t("common:save")
-							) : (
-								<ArrowUp className="size-4" />
-							)}
+							<Trash2 className="size-4" />
 						</Button>
-					</div>
-				</form>
-			) : (
-				<button
-					type="button"
-					className="h-9 w-full cursor-pointer rounded-xl px-3 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-					onPointerDown={(event) => event.preventDefault()}
-					onClick={beginSelectionComment}
-				>
-					{t("selection.addToChat")}
-				</button>
-			)}
+					)}
+					{draft.editing && (
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							aria-label={t("common:cancel")}
+							onClick={dismissSelectionChat}
+						>
+							{t("common:cancel")}
+						</Button>
+					)}
+					<Button
+						type="submit"
+						className={
+							draft.editing ? undefined : "size-9 shrink-0 rounded-full"
+						}
+						size={draft.editing ? "sm" : "icon-sm"}
+						aria-label={
+							draft.editing ? t("common:save") : t("selection.addToChat")
+						}
+					>
+						{draft.editing ? t("common:save") : <ArrowUp className="size-4" />}
+					</Button>
+				</div>
+			</form>
 		</div>
 	);
 }

@@ -1,47 +1,25 @@
-/**
- * CodeMirror selection → floating chat toolbar for the plain-text editor.
- *
- * Same selection chrome the PDF / web-paper surfaces have, sourced from a
- * CodeMirror update-listener extension instead of a DOM selection: a
- * non-empty selection arms the shared `SelectionMenu` with Quick chat /
- * Add to chat only (text files have no marks/ sidecar, and no auto-copy —
- * silently replacing the clipboard mid-edit in a code buffer would destroy
- * the paste the selection is usually a prelude to). ⌘K opens the in-page
- * Ask popover; Add to chat opens an optional inline comment before pinning
- * the quote as an Agent composer chip. ⇧⌘L pins directly. Drag selections arm on mouse release (same as the PDF viewer);
- * keyboard selections arm immediately, and the toolbar re-anchors while
- * the editor scrolls.
- */
+/** CodeMirror adapter: supplies text, source lines and viewport coordinates to the shared host. */
 
 import type { Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import {
-	type RefObject,
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
-import {
-	createSelectionAskThread,
-	useSelectionAsk,
-} from "@/components/selection/use-selection-ask";
-import { useSelectionQuickChat } from "@/components/selection/use-selection-quick-chat";
-import type { ScreenPoint } from "@/components/viewer/pdf/types";
+import { type RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 import type { WritingSelectionGroup } from "@/components/writing/writing-selection-group";
-import { textAskContextRequest } from "@/lib/agent/context-request";
-import { openSelectionChat } from "@/lib/agent/selection-chat-store";
+import type { SelectionDraftScreen } from "@/lib/agent/selection-chat-store";
+import {
+	closeSelectionSource,
+	dismissSelectionChat,
+	openSelectionChat,
+	selectionChatStore,
+} from "@/lib/agent/selection-chat-store";
 import {
 	clearActiveSelection,
 	publishSelection,
 } from "@/lib/agent/selection-store";
 import { basenameOf } from "@/lib/core/path";
-import { buildPlazaAskPrompt } from "@/lib/plaza/ask-prompt";
 
 export type TextEditorSelectionMenu = {
 	text: string;
-	screen: ScreenPoint;
+	screen: SelectionDraftScreen;
 	/** 1-based selected line span — shown on the Agent context chip. */
 	lineFrom: number;
 	lineTo: number;
@@ -67,7 +45,7 @@ function selectionLines(
  * exactly what the fixed-position `SelectionMenu` places by. Null when the
  * position is not rendered (scrolled out of the editor viewport).
  */
-function selectionMenuScreen(view: EditorView): ScreenPoint | null {
+function selectionMenuScreen(view: EditorView): SelectionDraftScreen | null {
 	const selection = view.state.selection.main;
 	if (selection.empty) return null;
 	const start = view.coordsAtPos(selection.from, -1);
@@ -78,7 +56,19 @@ function selectionMenuScreen(view: EditorView): ScreenPoint | null {
 		sameLine && end != null
 			? (start.left + end.right) / 2
 			: (start.left + start.right) / 2;
-	return { x, y: Math.min(start.top, end?.top ?? start.top) };
+	const top = Math.min(start.top, end?.top ?? start.top);
+	// Multi-line selections open cards below the last line, not just the first.
+	const bottom = Math.max(start.bottom, end?.bottom ?? start.bottom);
+	return {
+		x,
+		y: top,
+		selectionBounds: {
+			left: Math.min(start.left, end?.left ?? start.left),
+			top,
+			right: Math.max(start.right, end?.right ?? start.right),
+			bottom,
+		},
+	};
 }
 
 export function useTextEditorSelection({
@@ -96,29 +86,12 @@ export function useTextEditorSelection({
 	/** Writing split: keep source and PDF selections mutually exclusive. */
 	selectionGroup?: WritingSelectionGroup | null;
 }) {
-	const [menu, setMenu] = useState<TextEditorSelectionMenu | null>(null);
-	const menuRef = useRef(menu);
-	menuRef.current = menu;
+	const menuRef = useRef<TextEditorSelectionMenu | null>(null);
+	const ownedId = useRef<string | null>(null);
 	const activeRef = useRef(active);
 	activeRef.current = active;
 	const pathRef = useRef(path);
 	pathRef.current = path;
-
-	// Single in-flight agent run per editor, owned here for the ask cluster.
-	const activeSessionRef = useRef<string | null>(null);
-
-	const askCtl = useSelectionAsk<ScreenPoint>({
-		buildPrompt: (thread, question) =>
-			buildPlazaAskPrompt(thread, question, {
-				title: basenameOf(pathRef.current),
-				path: pathRef.current,
-				surface: "text",
-				omitLocatedQuote: true,
-			}),
-		context: (thread) => textAskContextRequest(thread, pathRef.current),
-		activeSessionRef,
-	});
-	const { ask, setAsk } = askCtl;
 
 	// True while this surface owns the store's live "markdown" chip. Cleared
 	// selectively so our empty-selection updates never drop a chip another
@@ -126,7 +99,12 @@ export function useTextEditorSelection({
 	const publishedRef = useRef(false);
 
 	const hideMenu = useCallback(() => {
-		setMenu(null);
+		menuRef.current = null;
+		if (
+			selectionChatStore.getState().draft?.selection.id === ownedId.current &&
+			selectionChatStore.getState().draft?.stage === "menu"
+		)
+			dismissSelectionChat();
 		if (publishedRef.current) {
 			publishedRef.current = false;
 			clearActiveSelection("markdown");
@@ -147,7 +125,21 @@ export function useTextEditorSelection({
 		const screen = selectionMenuScreen(view);
 		if (!screen) return;
 		const { lineFrom, lineTo } = selectionLines(view.state.doc, selection);
-		setMenu({ text, screen, lineFrom, lineTo });
+		menuRef.current = { text, screen, lineFrom, lineTo };
+		openSelectionChat(
+			{
+				text,
+				sourcePath: pathRef.current,
+				sourceTitle: basenameOf(pathRef.current),
+				origin: "markdown",
+				surface: "text",
+				lineFrom,
+				lineTo,
+			},
+			screen,
+			"menu",
+		);
+		ownedId.current = selectionChatStore.getState().draft?.selection.id ?? null;
 		publishedRef.current = true;
 		selectionGroup?.announce("source");
 		publishSelection({
@@ -174,43 +166,6 @@ export function useTextEditorSelection({
 		[],
 	);
 
-	const handleAsk = useCallback(() => {
-		const current = menuRef.current;
-		if (!current) return;
-		const { text, screen } = current;
-		setMenu(null);
-		// Keep the editor selection + live chip armed while asking, mirroring
-		// the PDF surface (⇧⌘L pins the quote mid-ask).
-		setAsk({
-			thread: createSelectionAskThread(pathRef.current, text),
-			screen,
-		});
-	}, [setAsk]);
-
-	const handleAddToChat = useCallback(() => {
-		const current = menuRef.current;
-		if (!current) return;
-		setMenu(null);
-		openSelectionChat(
-			{
-				text: current.text,
-				sourcePath: pathRef.current,
-				origin: "markdown",
-				lineFrom: current.lineFrom,
-				lineTo: current.lineTo,
-			},
-			current.screen,
-		);
-		// Collapse the selection so the toolbar does not re-arm when the editor
-		// regains focus; the update listener drops the live chip while the
-		// independent comment draft retains its quote and line range.
-		const view = viewRef.current;
-		const selection = view?.state.selection.main;
-		if (view && selection && !selection.empty) {
-			view.dispatch({ selection: { anchor: selection.head } });
-		}
-	}, [viewRef]);
-
 	// PDF selection took over the writing split: drop the source range, but do
 	// not move the cursor or steal focus.
 	useEffect(() => {
@@ -223,9 +178,6 @@ export function useTextEditorSelection({
 			view.dispatch({ selection: { anchor: selection.head } });
 		});
 	}, [selectionGroup, viewRef]);
-
-	// ⌘K Quick chat — while this editor's selection toolbar is armed.
-	useSelectionQuickChat(() => menuRef.current != null, handleAsk);
 
 	// Drag arm point + collapse dismissal: mousedown/mouseup pairs anywhere
 	// (capture), arming only when the release lands inside this editor.
@@ -261,38 +213,31 @@ export function useTextEditorSelection({
 			if (!screen) return; // off-viewport: SelectionMenu clamps + dims
 			if (screen.x === current.screen.x && screen.y === current.screen.y)
 				return;
-			setMenu({ ...current, screen });
+			menuRef.current = { ...current, screen };
+			const draft = selectionChatStore.getState().draft;
+			if (draft?.stage === "menu" && draft.selection.id === ownedId.current)
+				selectionChatStore.setState({ draft: { ...draft, screen } });
 		};
 		window.addEventListener("scroll", onScroll, true);
 		return () => window.removeEventListener("scroll", onScroll, true);
 	}, []);
 
 	// Leaving the tab dismisses the toolbar (the panel may be resized while
-	// hidden, stranding the anchor); the Ask thread keeps streaming.
+	// hidden, stranding the anchor); the shared host cancels transient requests.
 	useEffect(() => {
-		if (!active) hideMenu();
-	}, [active, hideMenu]);
+		if (!active) {
+			hideMenu();
+			closeSelectionSource(path);
+		}
+	}, [active, hideMenu, path]);
 
 	// Tab close / LRU eviction: drop the live chip this surface published.
 	useEffect(() => {
 		return () => {
 			if (publishedRef.current) clearActiveSelection("markdown");
+			closeSelectionSource(pathRef.current);
 		};
 	}, []);
 
-	return {
-		/** Add to TextEditor's mount-once extension array. */
-		selectionListener,
-		menu,
-		handleAsk,
-		handleAddToChat,
-		ask,
-		streaming: askCtl.streaming,
-		askError: askCtl.askError,
-		sendAskQuestion: askCtl.sendAskQuestion,
-		resendAskQuestion: askCtl.resendAskQuestion,
-		hideAsk: askCtl.hideAsk,
-		deleteAsk: askCtl.deleteAsk,
-		stopAskStreaming: askCtl.stopAskStreaming,
-	};
+	return { selectionListener };
 }
