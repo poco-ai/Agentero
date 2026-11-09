@@ -112,16 +112,16 @@ it("closes an open conversation when another card replaces it", async () => {
 	});
 });
 
-it("keeps an unpinned translation in place when its source moves and unmounts", async () => {
+it("moves an unpinned translation with its source and keeps it open when the page unmounts", async () => {
 	await act(async () => cards.openCard({ kind: "translate", id: "translate" }));
-	const openedAt = cards.cardScreen;
-	expect(openedAt).not.toBeNull();
+	expect(cards.cardScreen?.y).toBe(260);
 	pageTop = -1000;
 	await act(async () => cards.syncActiveCardPosition());
-	expect(cards.cardScreen).toBe(openedAt);
+	const scrolledAt = cards.cardScreen;
+	expect(scrolledAt?.y).toBe(-840);
 	page.remove();
 	await act(async () => cards.syncActiveCardPosition());
-	expect(cards.cardScreen).toBe(openedAt);
+	expect(cards.cardScreen).toBe(scrolledAt);
 	expect(cards.activeCard).toEqual({ kind: "translate", id: "translate" });
 	expect(onCardClose).not.toHaveBeenCalled();
 });

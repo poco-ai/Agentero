@@ -296,10 +296,7 @@ type SelectionCardProps = {
 	 * room; prose cards pass their reading width so lines never grow unbounded.
 	 */
 	resizeMaxWidth?: number;
-	/**
-	 * Allow repositioning from the title. The drag offset is kept relative to
-	 * the source anchor so the card still follows the page on scroll.
-	 */
+	/** Allow repositioning from the title. */
 	draggable?: boolean;
 	/** Show the centered grip glyph in a draggable header (default true). */
 	showDragHandle?: boolean;
@@ -373,11 +370,7 @@ export function SelectionCard({
 	children,
 }: SelectionCardProps) {
 	const rootRef = useRef<HTMLDivElement>(null);
-	/**
-	 * Manual placement offset from the source anchor. Storing it as a delta
-	 * (not absolute coords) keeps a dragged / resized card moving with its page
-	 * when the viewport scrolls.
-	 */
+	/** Manual placement relative to the page anchor or the viewport origin. */
 	const [offset, setOffset] = useState<{ dx: number; dy: number }>();
 	const screenRef = useRef(screen);
 	screenRef.current = screen;
@@ -455,6 +448,8 @@ export function SelectionCard({
 	});
 	const selectionBounds = screen.selectionBounds;
 	const followsPage = Boolean(selectionBounds);
+	const dragOriginX = followsPage ? screen.x : 0;
+	const dragOriginY = followsPage ? screen.y : 0;
 	/**
 	 * Freeze the placement a page-anchored card received when it opened, then
 	 * track the text: side, horizontal offset and height cap stay put while the
@@ -504,7 +499,7 @@ export function SelectionCard({
 	const boundBottom =
 		(container ? container.top + container.height : viewport.height) - edge;
 	const rawLeft = offset
-		? screen.x + offset.dx
+		? dragOriginX + offset.dx
 		: track
 			? screen.x + track.dx
 			: null;
@@ -522,7 +517,7 @@ export function SelectionCard({
 						),
 					);
 	const rawTop = offset
-		? screen.y + offset.dy
+		? dragOriginY + offset.dy
 		: track && selectionBounds
 			? track.side === "above"
 				? contentHeight != null
@@ -585,8 +580,8 @@ export function SelectionCard({
 			pointerId: event.pointerId,
 			x: event.clientX - rect.left,
 			y: event.clientY - rect.top,
-			anchorX: screenRef.current.x,
-			anchorY: screenRef.current.y,
+			anchorX: dragOriginX,
+			anchorY: dragOriginY,
 		};
 	};
 
@@ -605,8 +600,6 @@ export function SelectionCard({
 			boundTop,
 			Math.max(boundTop, boundBottom - rect.height),
 		);
-		// Keep the drop point relative to the page anchor so scrolling after a
-		// drag still moves the card with the document.
 		setOffset({ dx: left - drag.anchorX, dy: top - drag.anchorY });
 	};
 

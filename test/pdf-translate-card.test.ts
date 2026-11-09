@@ -143,8 +143,12 @@ it("uses P for the pin action and leaves typing, composing and modified keys alo
 	expect(onTogglePin).toHaveBeenCalledTimes(2);
 });
 
-it("keeps the grab offset and clamps dragging using the card's resized dimensions", async () => {
-	const card = await renderCard();
+it("clamps dragging using the resized dimensions and keeps the offset as the page scrolls", async () => {
+	const card = await renderCard(vi.fn(), vi.fn(), {
+		x: 600,
+		y: 200,
+		selectionBounds: { left: 500, top: 200, right: 700, bottom: 260 },
+	});
 	const handle = card.querySelector<HTMLElement>("header");
 	if (!handle) throw new Error("Missing translation title handle");
 	handle.setPointerCapture = vi.fn();
@@ -178,4 +182,11 @@ it("keeps the grab offset and clamps dragging using the card's resized dimension
 	await emitPointer("pointermove", 50, 50);
 	expect(card.style.left).toBe("588px");
 	expect(card.style.top).toBe("428px");
+	await renderCard(vi.fn(), vi.fn(), {
+		x: 600,
+		y: 100,
+		selectionBounds: { left: 500, top: 100, right: 700, bottom: 160 },
+	});
+	expect(card.style.left).toBe("588px");
+	expect(card.style.top).toBe("328px");
 });
