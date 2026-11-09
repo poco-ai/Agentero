@@ -2358,7 +2358,33 @@ function PdfViewerInner({
 		zoomCapRef.current?.requestZoom(next);
 	}, []);
 	const handleFitWidth = useCallback(() => {
-		zoomCapRef.current?.requestZoom(ZoomMode.FitWidth);
+		const requestFitWidth = (retry = false) => {
+			const capability = zoomCapRef.current;
+			if (!capability) {
+				if (!retry) {
+					window.requestAnimationFrame(() => requestFitWidth(true));
+				}
+				return;
+			}
+
+			try {
+				capability.requestZoom(ZoomMode.FitWidth);
+				// A capability can be available one render before the viewport has
+				// non-zero metrics. EmbedPDF treats that as a silent no-op; retry
+				// once on the next frame after ResizeObserver has committed them.
+				if (!retry && capability.getState().zoomLevel !== ZoomMode.FitWidth) {
+					window.requestAnimationFrame(() => requestFitWidth(true));
+				}
+			} catch {
+				// The document scope can be recreated while a PDF buffer is reloading.
+				// Give the next render a chance to expose a fresh capability.
+				if (!retry) {
+					window.requestAnimationFrame(() => requestFitWidth(true));
+				}
+			}
+		};
+
+		requestFitWidth();
 	}, []);
 
 	return (
