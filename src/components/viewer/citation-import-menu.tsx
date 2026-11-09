@@ -97,7 +97,7 @@ export function CitationImportPopover({
 										type="button"
 										disabled={importing}
 										className={cn(
-											"flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors hover:bg-accent",
+											"flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs outline-none transition-colors hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
 											active && "bg-muted",
 										)}
 										onClick={() => select(folder)}

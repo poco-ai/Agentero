@@ -85,7 +85,7 @@ export function MoveDestinationPicker({
 									disabled={busy}
 									title={folder}
 									className={cn(
-										"flex w-full items-center gap-1.5 rounded py-1 pr-2 text-left text-xs transition-colors hover:bg-accent",
+										"flex w-full items-center gap-1.5 rounded py-1 pr-2 text-left text-xs outline-none transition-colors hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
 										active && "bg-muted",
 									)}
 									style={{ paddingLeft: 8 + depth * 12 }}
