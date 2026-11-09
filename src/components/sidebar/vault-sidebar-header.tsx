@@ -21,17 +21,11 @@ import {
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SiZotero } from "react-icons/si";
-import { useStore } from "zustand";
 import {
 	type OpenRemoteVaultArgs,
 	RemoteVaultDialog,
 } from "@/components/dialogs/remote-vault-dialog";
 import { PaneHeader } from "@/components/shell/pane-header";
-import {
-	ImportQueueActions,
-	ImportQueueList,
-	ImportQueueProvider,
-} from "@/components/sidebar/import-queue";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -56,11 +50,6 @@ import {
 } from "@/components/ui/tooltip";
 import { useImeGuard } from "@/hooks/use-ime-guard";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
-import {
-	type BackgroundTask,
-	backgroundTasksStore,
-	isActiveImportTask,
-} from "@/lib/core/background-tasks";
 import { type ChatImportExtractResult, commands } from "@/lib/core/bindings";
 import { errorText } from "@/lib/core/error";
 import { callApiResult } from "@/lib/core/ipc";
@@ -120,17 +109,6 @@ export type VaultSidebarHeaderProps = {
 	onSyncZotero?: () => void;
 };
 
-/** Import jobs still queued or running (magic wand, local PDF, Connector). */
-function selectActiveImportCount(state: {
-	tasks: readonly BackgroundTask[];
-}): number {
-	let count = 0;
-	for (const task of state.tasks) {
-		if (isActiveImportTask(task)) count += 1;
-	}
-	return count;
-}
-
 export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 	title,
 	selection,
@@ -159,8 +137,6 @@ export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 	const [lookupText, setLookupText] = useState("");
 	const [lookupBusy, setLookupBusy] = useState(false);
 	const [lookupError, setLookupError] = useState<string | null>(null);
-	/** Wand badge: imports still running, independent of the HUD being open. */
-	const importCount = useStore(backgroundTasksStore, selectActiveImportCount);
 	// Chat-paste review state (#652): extracted ids + which rows are checked.
 	const [chatExtract, setChatExtract] =
 		useState<ChatImportExtractResult | null>(null);
@@ -260,9 +236,8 @@ export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 			const texts = parseLookupTexts(lookupText);
 			if (texts.length === 0) return;
 			await onLookupSubmit(texts);
-			// Keep the popover open: the queue list below is the point, and the
-			// next identifier can be queued without reopening it. Esc closes.
 			setLookupText("");
+			setWandOpen(false);
 			if (lookupTextareaRef.current) {
 				lookupTextareaRef.current.style.height = "auto";
 			}
@@ -320,6 +295,7 @@ export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 			await submit(texts);
 			setLookupText("");
 			setChatExtract(null);
+			setWandOpen(false);
 		} catch (e) {
 			setLookupError(errorText(e));
 		} finally {
@@ -435,23 +411,11 @@ export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 											variant="ghost"
 											size="icon-xs"
 											data-magic-wand
-											aria-label={
-												importCount > 0
-													? `${t("lookup.magicWand")} · ${t("app:tasks.activeCount", { count: importCount })}`
-													: t("lookup.magicWand")
-											}
+											aria-label={t("lookup.magicWand")}
 											disabled={lookupDisabled}
 											className="relative"
 										>
 											<WandSparkles className="size-3.5" />
-											{importCount > 0 ? (
-												<span
-													aria-hidden="true"
-													className="pointer-events-none absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-primary font-medium text-[9px] text-primary-foreground tabular-nums leading-none"
-												>
-													{importCount > 9 ? "9+" : importCount}
-												</span>
-											) : null}
 										</Button>
 									</PopoverTrigger>
 								</TooltipTrigger>
@@ -466,224 +430,211 @@ export const VaultSidebarHeader = memo(function VaultSidebarHeader({
 								align="end"
 								side="bottom"
 								className="w-72 gap-2 p-2.5"
-								onEscapeKeyDown={(event) => {
-									// The popover stays open after enqueue; keep Esc as
-									// the explicit dismiss path even while the composer
-									// or a queue row has focus.
-									event.preventDefault();
-									setWandOpen(false);
-									setLookupError(null);
-								}}
 							>
-								<ImportQueueProvider>
-									<form
-										className="flex flex-col gap-2"
-										onSubmit={(e) => {
-											e.preventDefault();
-											void (chatExtract ? confirmChatReview() : runLookup());
-										}}
-									>
-										<p className="text-muted-foreground text-xs">
-											{t("lookup.addTo", { path: lookupParentDir })}
-										</p>
-										{chatExtract ? (
-											<div className="flex flex-col gap-1.5">
-												<div className="flex items-center justify-between gap-2">
-													<span className="text-xs">
-														{t("lookup.chatFound", {
-															count: chatItems.length,
-														})}
-													</span>
-													{chatExtract.fetchedFrom ? (
-														<span className="truncate text-caption text-muted-foreground">
-															{t("lookup.chatShareFetched")}
-														</span>
-													) : null}
-												</div>
-												<div className="max-h-44 space-y-1 overflow-y-auto pr-1">
-													{chatItems.map((item) => {
-														const checkboxId = `chat-import-${item.key}`;
-														return (
-															<label
-																key={item.key}
-																htmlFor={checkboxId}
-																className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 hover:bg-accent/40"
-															>
-																<Checkbox
-																	id={checkboxId}
-																	checked={chatSelected.has(item.key)}
-																	disabled={lookupBusy}
-																	onCheckedChange={(value) =>
-																		toggleChatItem(item.key, value === true)
-																	}
-																/>
-																<span className="truncate font-mono text-xs">
-																	{item.label}
-																</span>
-															</label>
-														);
+								<form
+									className="flex flex-col gap-2"
+									onSubmit={(e) => {
+										e.preventDefault();
+										void (chatExtract ? confirmChatReview() : runLookup());
+									}}
+								>
+									<p className="text-muted-foreground text-xs">
+										{t("lookup.addTo", { path: lookupParentDir })}
+									</p>
+									{chatExtract ? (
+										<div className="flex flex-col gap-1.5">
+											<div className="flex items-center justify-between gap-2">
+												<span className="text-xs">
+													{t("lookup.chatFound", {
+														count: chatItems.length,
 													})}
-												</div>
+												</span>
+												{chatExtract.fetchedFrom ? (
+													<span className="truncate text-caption text-muted-foreground">
+														{t("lookup.chatShareFetched")}
+													</span>
+												) : null}
 											</div>
-										) : (
-											<Textarea
-												ref={lookupTextareaRef}
-												value={lookupText}
-												onChange={(e) => {
-													setLookupText(e.target.value);
-													// Auto-grow up to max-h-32; shrink when lines are removed.
-													const el = lookupTextareaRef.current;
-													if (el) {
-														el.style.height = "auto";
-														el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
-													}
-												}}
-												onKeyDown={(e) => {
-													if (e.key === "Enter" && !e.shiftKey) {
-														// Let the IME confirm its candidate; don't search yet.
-														if (isBlockedByIme(e)) return;
-														e.preventDefault();
-														void runLookup();
-													}
-												}}
-												{...compositionProps}
-												placeholder={t("lookup.placeholder")}
+											<div className="max-h-44 space-y-1 overflow-y-auto pr-1">
+												{chatItems.map((item) => {
+													const checkboxId = `chat-import-${item.key}`;
+													return (
+														<label
+															key={item.key}
+															htmlFor={checkboxId}
+															className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 hover:bg-accent/40"
+														>
+															<Checkbox
+																id={checkboxId}
+																checked={chatSelected.has(item.key)}
+																disabled={lookupBusy}
+																onCheckedChange={(value) =>
+																	toggleChatItem(item.key, value === true)
+																}
+															/>
+															<span className="truncate font-mono text-xs">
+																{item.label}
+															</span>
+														</label>
+													);
+												})}
+											</div>
+										</div>
+									) : (
+										<Textarea
+											ref={lookupTextareaRef}
+											value={lookupText}
+											onChange={(e) => {
+												setLookupText(e.target.value);
+												// Auto-grow up to max-h-32; shrink when lines are removed.
+												const el = lookupTextareaRef.current;
+												if (el) {
+													el.style.height = "auto";
+													el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+												}
+											}}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" && !e.shiftKey) {
+													// Let the IME confirm its candidate; don't search yet.
+													if (isBlockedByIme(e)) return;
+													e.preventDefault();
+													void runLookup();
+												}
+											}}
+											{...compositionProps}
+											placeholder={t("lookup.placeholder")}
+											disabled={lookupBusy}
+											className="min-h-[2.5rem] max-h-32 resize-none overflow-y-auto text-xs"
+											rows={1}
+										/>
+									)}
+									{lookupError ? (
+										<p className="text-destructive text-xs leading-snug">
+											{lookupError}
+										</p>
+									) : null}
+									{/* Imports bottom-left (PDF · bibliography) · Add bottom-right */}
+									{chatExtract ? (
+										<>
+											<button
+												type="button"
+												className="text-caption text-muted-foreground hover:text-foreground"
 												disabled={lookupBusy}
-												className="min-h-[2.5rem] max-h-32 resize-none overflow-y-auto text-xs"
-												rows={1}
-											/>
-										)}
-										{lookupError ? (
-											<p className="text-destructive text-xs leading-snug">
-												{lookupError}
-											</p>
-										) : null}
-										<ImportQueueList />
-										{/* Imports bottom-left (PDF · bibliography) · Add bottom-right */}
-										{chatExtract ? (
-											<>
-												<button
+												onClick={() => {
+													const allSelected =
+														chatSelected.size === chatItems.length &&
+														chatItems.length > 0;
+													setChatSelected(
+														allSelected
+															? new Set()
+															: new Set(chatItems.map((item) => item.key)),
+													);
+												}}
+											>
+												{chatSelected.size === chatItems.length &&
+												chatItems.length > 0
+													? t("lookup.skillImportSelectNone")
+													: t("lookup.skillImportSelectAll")}
+											</button>
+											<div className="flex items-center gap-1">
+												<Button
 													type="button"
-													className="text-caption text-muted-foreground hover:text-foreground"
+													variant="outline"
+													size="sm"
+													className="h-7 px-2.5 text-xs"
 													disabled={lookupBusy}
 													onClick={() => {
-														const allSelected =
-															chatSelected.size === chatItems.length &&
-															chatItems.length > 0;
-														setChatSelected(
-															allSelected
-																? new Set()
-																: new Set(chatItems.map((item) => item.key)),
-														);
+														setChatExtract(null);
+														setLookupError(null);
 													}}
 												>
-													{chatSelected.size === chatItems.length &&
-													chatItems.length > 0
-														? t("lookup.skillImportSelectNone")
-														: t("lookup.skillImportSelectAll")}
-												</button>
-												<div className="flex items-center gap-1">
-													<Button
-														type="button"
-														variant="outline"
-														size="sm"
-														className="h-7 px-2.5 text-xs"
-														disabled={lookupBusy}
-														onClick={() => {
-															setChatExtract(null);
-															setLookupError(null);
-														}}
-													>
-														{t("lookup.chatBack")}
-													</Button>
-													<ImportQueueActions />
-													<Button
-														type="submit"
-														size="sm"
-														className="h-7 px-2.5 text-xs"
-														disabled={lookupBusy || chatSelected.size === 0}
-													>
-														{lookupBusy
-															? t("lookup.adding")
-															: t("lookup.chatConfirm", {
-																	count: chatSelected.size,
-																})}
-													</Button>
-												</div>
-											</>
-										) : (
-											<div className="flex items-center justify-between gap-2">
-												<div className="flex items-center gap-1">
-													{onImportLocalPdf ? (
-														<Tooltip>
-															<TooltipTrigger asChild>
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="icon-xs"
-																	disabled={
-																		actionsDisabled || Boolean(importBusy)
-																	}
-																	aria-label={t("papersLibrary.importPdf")}
-																	onClick={() => {
-																		void onImportLocalPdf();
-																	}}
-																>
-																	{importPdfBusy ? (
-																		<Loader2 className="size-3.5 animate-spin" />
-																	) : (
-																		<FileUp className="size-3.5" />
-																	)}
-																</Button>
-															</TooltipTrigger>
-															<TooltipContent side="bottom">
-																{t("papersLibrary.importPdf")}
-															</TooltipContent>
-														</Tooltip>
-													) : null}
-													{onImportBibliography ? (
-														<Tooltip>
-															<TooltipTrigger asChild>
-																<Button
-																	type="button"
-																	variant="ghost"
-																	size="icon-xs"
-																	disabled={
-																		actionsDisabled || Boolean(importBusy)
-																	}
-																	aria-label={t("papersLibrary.import")}
-																	onClick={() => {
-																		void onImportBibliography();
-																	}}
-																>
-																	{importBusy ? (
-																		<Loader2 className="size-3.5 animate-spin" />
-																	) : (
-																		<Upload className="size-3.5" />
-																	)}
-																</Button>
-															</TooltipTrigger>
-															<TooltipContent side="bottom">
-																{t("papersLibrary.import")}
-															</TooltipContent>
-														</Tooltip>
-													) : null}
-												</div>
-												<div className="flex items-center gap-1">
-													<ImportQueueActions />
-													<Button
-														type="submit"
-														size="sm"
-														className="h-7 px-2.5 text-xs"
-														disabled={lookupBusy || !lookupText.trim()}
-													>
-														{lookupBusy ? t("lookup.adding") : t("lookup.add")}
-													</Button>
-												</div>
+													{t("lookup.chatBack")}
+												</Button>
+												<Button
+													type="submit"
+													size="sm"
+													className="h-7 px-2.5 text-xs"
+													disabled={lookupBusy || chatSelected.size === 0}
+												>
+													{lookupBusy
+														? t("lookup.adding")
+														: t("lookup.chatConfirm", {
+																count: chatSelected.size,
+															})}
+												</Button>
 											</div>
-										)}
-									</form>
-								</ImportQueueProvider>
+										</>
+									) : (
+										<div className="flex items-center justify-between gap-2">
+											<div className="flex items-center gap-1">
+												{onImportLocalPdf ? (
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<Button
+																type="button"
+																variant="ghost"
+																size="icon-xs"
+																disabled={
+																	actionsDisabled || Boolean(importBusy)
+																}
+																aria-label={t("papersLibrary.importPdf")}
+																onClick={() => {
+																	void onImportLocalPdf();
+																}}
+															>
+																{importPdfBusy ? (
+																	<Loader2 className="size-3.5 animate-spin" />
+																) : (
+																	<FileUp className="size-3.5" />
+																)}
+															</Button>
+														</TooltipTrigger>
+														<TooltipContent side="bottom">
+															{t("papersLibrary.importPdf")}
+														</TooltipContent>
+													</Tooltip>
+												) : null}
+												{onImportBibliography ? (
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<Button
+																type="button"
+																variant="ghost"
+																size="icon-xs"
+																disabled={
+																	actionsDisabled || Boolean(importBusy)
+																}
+																aria-label={t("papersLibrary.import")}
+																onClick={() => {
+																	void onImportBibliography();
+																}}
+															>
+																{importBusy ? (
+																	<Loader2 className="size-3.5 animate-spin" />
+																) : (
+																	<Upload className="size-3.5" />
+																)}
+															</Button>
+														</TooltipTrigger>
+														<TooltipContent side="bottom">
+															{t("papersLibrary.import")}
+														</TooltipContent>
+													</Tooltip>
+												) : null}
+											</div>
+											<div className="flex items-center gap-1">
+												<Button
+													type="submit"
+													size="sm"
+													className="h-7 px-2.5 text-xs"
+													disabled={lookupBusy || !lookupText.trim()}
+												>
+													{lookupBusy ? t("lookup.adding") : t("lookup.add")}
+												</Button>
+											</div>
+										</div>
+									)}
+								</form>
 							</PopoverContent>
 						</Popover>
 					}

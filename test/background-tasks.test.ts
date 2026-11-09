@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
 	backgroundTasksStore,
 	mapDownloadProgress,
-	reorderBackgroundTasks,
 	startBackgroundTask,
 	updateBackgroundTask,
 } from "@/lib/core/background-tasks";
@@ -38,25 +37,6 @@ describe("background task download progress", () => {
 			backgroundTasksStore.getState().tasks.find((task) => task.id === id)
 				?.progress,
 		).toBe(40);
-
-		backgroundTasksStore.setState({ tasks: [], expanded: false });
-	});
-});
-
-describe("background task queue reorder", () => {
-	it("moves the listed rows in place and keeps their queue indexes", () => {
-		backgroundTasksStore.setState({ tasks: [], expanded: false });
-		for (const id of ["a", "b", "c"]) {
-			startBackgroundTask({ id, kind: "import", title: id });
-		}
-
-		// `b` is not listed, so it keeps the middle slot while `c` and `a`
-		// swap around it.
-		reorderBackgroundTasks(["c", "a"]);
-
-		const tasks = backgroundTasksStore.getState().tasks;
-		expect(tasks.map((task) => task.id)).toEqual(["c", "b", "a"]);
-		expect(tasks.map((task) => task.queueIndex)).toEqual([1, 2, 3]);
 
 		backgroundTasksStore.setState({ tasks: [], expanded: false });
 	});

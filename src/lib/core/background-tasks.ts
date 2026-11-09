@@ -52,12 +52,6 @@ export type BackgroundTask = {
 	/** Secondary line (path, phase, …) */
 	detail?: string;
 	/**
-	 * Original input that identifies the row in compact queue lists
-	 * (identifier, batch head). The background panel keeps showing `detail`
-	 * so identifiers never replace a resolved paper title there.
-	 */
-	source?: string;
-	/**
 	 * Vault-relative paper folder when the row targets one paper (e.g.
 	 * `layoutAnalyze`). Used by the Figures sidebar to show loading for the
 	 * open paper while a headless job is queued/running.
@@ -204,7 +198,6 @@ export function startBackgroundTask(input: {
 	kind: BackgroundTaskKind;
 	title: string;
 	detail?: string;
-	source?: string;
 	paperPath?: string | null;
 	icon?: BackgroundTaskIcon;
 	/** Start as running immediately (default true). */
@@ -233,7 +226,6 @@ export function startBackgroundTask(input: {
 		kind: input.kind,
 		title: input.title,
 		detail: input.detail,
-		source: input.source,
 		paperPath: input.paperPath,
 		icon: input.icon,
 		status: input.running === false ? "queued" : "running",
@@ -345,41 +337,10 @@ export function clearFinishedBackgroundTasks(): void {
 	});
 }
 
-/**
- * Rewrite the relative order of the listed rows in place. Rows missing from
- * `orderedIds` keep their slots, so reordering one project's queue does not
- * disturb unrelated tasks in the panel.
- */
-export function reorderBackgroundTasks(orderedIds: readonly string[]): void {
-	if (orderedIds.length < 2) return;
-	const rank = new Map(orderedIds.map((id, index) => [id, index]));
-	const tasks = store().tasks;
-	const slots = tasks
-		.map((task, index) => ({ task, index }))
-		.filter(({ task }) => rank.has(task.id));
-	if (slots.length < 2) return;
-	const ordered = slots
-		.map(({ task }) => task)
-		.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
-	const next = [...tasks];
-	slots.forEach(({ index }, position) => {
-		next[index] = ordered[position];
-	});
-	setStore({ ...store(), tasks: next });
-}
-
 export function getActiveBackgroundTasks(
 	tasks: BackgroundTask[],
 ): BackgroundTask[] {
 	return tasks.filter((t) => t.status === "queued" || t.status === "running");
-}
-
-/** Import rows still queued or running (magic wand, local PDF, Connector). */
-export function isActiveImportTask(task: BackgroundTask): boolean {
-	return (
-		task.kind === "import" &&
-		(task.status === "queued" || task.status === "running")
-	);
 }
 
 const FINISHED_STATUSES: ReadonlySet<BackgroundTaskStatus> = new Set([

@@ -93,9 +93,9 @@ import {
 import { bindWritingVault } from "@/lib/writing/store";
 
 // Stable callbacks so the memoized header / tree bail out on unrelated renders.
-// The wand returns as soon as its inputs are queued: the JobCenter rows, the
-// wand badge and the popover status line carry the rest of the lifecycle, and
-// the next identifier can be submitted while earlier jobs still run.
+// The wand returns as soon as its inputs are queued; the background task HUD
+// carries the rest of the lifecycle, so the next identifier can be submitted
+// while earlier jobs still run.
 const onLookupSubmit = async (texts: string[]) => {
 	await enqueueLookup(texts);
 };
