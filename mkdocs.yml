@@ -90,6 +90,7 @@ nav:
 
   - 开发草稿:
       - 概览: development/index.md
+      - 键盘导航层 RFC: development/rfc-keyboard-navigation-layer.md
       - Word 引用集成: development/zotero-word-integration.md
       - 标注 CLI 路线 (#170): development/mark-cli-roadmap.md
       - 标注惰性定位: development/mark-locate-lazy.md
