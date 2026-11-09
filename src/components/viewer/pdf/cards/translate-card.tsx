@@ -11,6 +11,7 @@ import { copyTextToClipboard } from "@/lib/core/clipboard";
 
 const TRANSLATE_CARD_WIDTH = 340;
 const TRANSLATE_CARD_MIN_WIDTH = 220;
+const TRANSLATE_CARD_MAX_WIDTH = 500;
 const TRANSLATE_CARD_HEIGHT = 480;
 
 type TranslateCardProps = {
@@ -163,7 +164,7 @@ export function TranslateCard({
 			draggable
 			resizable
 			resizeMinWidth={TRANSLATE_CARD_MIN_WIDTH}
-			resizeMaxWidth={TRANSLATE_CARD_WIDTH}
+			resizeMaxWidth={TRANSLATE_CARD_MAX_WIDTH}
 			// Never shrink past the header + source quote (0 until measured).
 			resizeMinHeight={resizeMinHeight ?? 0}
 			preferRight={preferRight}
@@ -215,24 +216,25 @@ export function TranslateCard({
 					shortcut: "Escape",
 				},
 			]}
-			// Body only constrains flex; the translation owns its own scrollport.
-			bodyClassName="min-h-0 overflow-hidden p-0"
+			// Body only constrains flex; the content owns its own scrollport so the
+			// card body never scrolls and never draws a bar under the resize grip.
+			bodyClassName="min-h-0 overflow-hidden p-0 [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
 		>
-			{source ? (
-				<div className="mx-3 mt-2.5 flex min-h-6 shrink-0 flex-col justify-end gap-0.5 border-border/60 border-l-2 pr-2.5 pl-2.5 text-muted-foreground">
-					{source.title && (
-						<div className="mb-0.5 truncate font-medium text-[11px] tracking-[0.01em]">
-							{source.title}
-						</div>
-					)}
-					<p className="break-words text-xs leading-relaxed">{quoteText}</p>
-				</div>
-			) : null}
 			<div
 				ref={scrollPortRef}
 				onScroll={handleScroll}
 				className="agentero-scroll mx-3 mt-2 mb-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto py-0.5 pr-0.5 [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
 			>
+				{source ? (
+					<div className="flex min-h-6 shrink-0 flex-col justify-end gap-0.5 border-border/60 border-l-2 pr-2.5 pl-2.5 text-muted-foreground">
+						{source.title && (
+							<div className="mb-0.5 truncate font-medium text-[11px] tracking-[0.01em]">
+								{source.title}
+							</div>
+						)}
+						<p className="break-words text-xs leading-relaxed">{quoteText}</p>
+					</div>
+				) : null}
 				{showLoading ? (
 					<Shimmer className="text-sm" as="p">
 						{t("selection.translating")}
