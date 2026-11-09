@@ -237,6 +237,11 @@ export function usePdfTextSelection({
 		upY: number | null;
 		upX: number | null;
 	} | null>(null);
+	// Read through a ref: callers pass an inline lambda, and putting it in the
+	// subscription deps would tear down and re-register the EmbedPDF listeners
+	// on every viewer render (clearing the live selection each time).
+	const isCommentDraftActiveRef = useRef(isCommentDraftActive);
+	isCommentDraftActiveRef.current = isCommentDraftActive;
 
 	const closeSelectionMenu = useCallback(() => {
 		selectionEpochRef.current += 1;
@@ -452,7 +457,7 @@ export function usePdfTextSelection({
 				setIsSelecting(false);
 				if (selectionInsideTranslation()) return;
 				if (
-					isCommentDraftActive?.() ||
+					isCommentDraftActiveRef.current?.() ||
 					document.activeElement?.closest("[data-selection-comment]")
 				) {
 					return;
@@ -477,7 +482,6 @@ export function usePdfTextSelection({
 		paperAbsPath,
 		hostRef,
 		zoomRef,
-		isCommentDraftActive,
 		selectionGroup,
 	]);
 
