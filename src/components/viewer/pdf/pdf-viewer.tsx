@@ -2357,6 +2357,12 @@ function PdfViewerInner({
 	const handleZoomSliderChange = useCallback((next: number) => {
 		zoomCapRef.current?.requestZoom(next);
 	}, []);
+	const handleFitWidth = useCallback(() => {
+		zoomCapRef.current?.requestZoom(ZoomMode.FitWidth);
+	}, []);
+	const handleFitPage = useCallback(() => {
+		zoomCapRef.current?.requestZoom(ZoomMode.FitPage);
+	}, []);
 
 	return (
 		<div
@@ -2522,6 +2528,8 @@ function PdfViewerInner({
 					onSetPdfTone={setPdfTone}
 					zoomLevel={zoomLevel}
 					onZoomChange={handleZoomSliderChange}
+					onFitWidth={handleFitWidth}
+					onFitPage={handleFitPage}
 					isRemotePaper={isRemotePaper}
 				/>
 			)}
