@@ -1264,6 +1264,7 @@ function PdfViewerInner({
 		layoutTranslateWaiting,
 		layoutTranslateActive,
 		layoutTranslateLabel,
+		layoutTranslatePartial,
 		layoutTranslateProgress,
 		toggleLayoutTranslate,
 		togglePageLayoutTranslate,
@@ -2435,6 +2436,7 @@ function PdfViewerInner({
 					layoutTranslateWaiting={layoutTranslateWaiting}
 					layoutTranslateActive={layoutTranslateActive}
 					layoutTranslateLabel={layoutTranslateLabel}
+					layoutTranslatePartial={layoutTranslatePartial}
 					layoutTranslateProgress={layoutTranslateProgress}
 					onToggleLayoutTranslate={handleToggleLayoutTranslateWithDualPane}
 					isRemotePaper={isRemotePaper}
