@@ -404,6 +404,11 @@ export function SelectionCard({
 		anchoredToSelection ? maxHeight : Infinity,
 		Math.max(0, viewport.height - top - SELECTION_CARD_EDGE),
 	);
+	// Locked cards use the placement cap while anchored; after a drag, shrink
+	// to the room below the new top so a short window does not overflow.
+	const cardMaxHeight = position
+		? Math.min(height, resizeMaxHeight)
+		: maxHeight;
 	// The gutter pin sits on the side the card opens toward. Reveal the card
 	// from that corner so it looks like the pin expands into the full card.
 	const isRightSide = anchor.left + renderedWidth / 2 >= screen.x;
@@ -490,13 +495,11 @@ export function SelectionCard({
 				// still applied via placeSelectionCard when height is large).
 				...(bodyScroll || lockHeight
 					? {
-							maxHeight: position
-								? Math.min(height, resizeMaxHeight)
-								: maxHeight,
+							maxHeight: cardMaxHeight,
 						}
 					: null),
 				// Definite height so flex-1 + nested height:100% scroll areas work.
-				...(lockHeight ? { height: maxHeight } : null),
+				...(lockHeight ? { height: cardMaxHeight } : null),
 				...(resizable
 					? {
 							resize: "both",
