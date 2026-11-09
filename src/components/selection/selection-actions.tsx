@@ -11,7 +11,6 @@ import {
 	selectionChatStore,
 } from "@/lib/agent/selection-chat-store";
 import { SELECTION_DISMISS_EVENT } from "@/lib/agent/selection-dismiss";
-import { navigateToSelection } from "@/lib/agent/selection-navigation";
 import { selectionAnnotationBody } from "@/lib/agent/selection-prompt";
 import { registerSelectionAddToChat } from "@/lib/agent/selection-quick-chat";
 import { isVaultSelection } from "@/lib/agent/selection-source-kind";
@@ -176,10 +175,6 @@ export function SelectionActions({
 						title:
 							translation.translation.selection.sourceTitle ??
 							translation.translation.selection.sourcePath,
-						onLocate: () => {
-							if (translation.translation)
-								void navigateToSelection(translation.translation.selection);
-						},
 					}}
 					result={translation.translation.result}
 					streaming={translation.translation.streaming}

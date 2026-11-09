@@ -69,23 +69,6 @@ it("opens below the selected lines instead of covering them", async () => {
 	expect(Number.parseFloat(card.style.top)).toBeGreaterThanOrEqual(260);
 });
 
-it("keeps the locate action inside the source quote instead of the header", async () => {
-	const onLocate = vi.fn();
-	const card = await renderCard(
-		vi.fn(),
-		vi.fn(),
-		{ x: 600, y: 200 },
-		{ quote: "source quote", title: "Paper title", onLocate },
-	);
-	const locate = card.querySelector<HTMLButtonElement>(
-		'[aria-label="selection.locateSource"]',
-	);
-	expect(locate).not.toBeNull();
-	expect(locate?.closest("header")).toBeNull();
-	await act(() => locate?.click());
-	expect(onLocate).toHaveBeenCalledOnce();
-});
-
 it("keeps the PDF controls interactive, copies the translation, and dismisses on Escape", async () => {
 	const onHide = vi.fn();
 	const card = await renderCard(onHide);

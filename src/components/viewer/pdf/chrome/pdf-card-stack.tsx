@@ -80,7 +80,6 @@ type PdfCardStackProps = {
 		streaming: boolean;
 		error: string | null;
 		onOpenSettings: () => void;
-		onLocateSource: () => void;
 		onTogglePin?: () => void;
 		onHide: () => void;
 	};
@@ -224,7 +223,6 @@ export const PdfCardStack = memo(function PdfCardStack({
 						source={{
 							quote: translate.record.quote,
 							page: translate.record.page,
-							onLocate: translate.onLocateSource,
 						}}
 						result={translate.record.result ?? ""}
 						streaming={translate.streaming}

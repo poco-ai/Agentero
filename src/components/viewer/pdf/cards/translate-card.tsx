@@ -1,23 +1,9 @@
-import {
-	Check,
-	Copy,
-	CornerUpLeft,
-	Pin,
-	PinOff,
-	Settings2Icon,
-	X,
-} from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Check, Copy, Pin, PinOff, Settings2Icon, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
 import { Shimmer } from "@/components/ui/shimmer";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { SelectionCard } from "@/components/viewer/pdf/cards/selection-card";
 import { isEditableClipboardTarget } from "@/components/viewer/pdf/host-dom";
 import type { CardScreenPoint } from "@/components/viewer/pdf/types";
@@ -34,7 +20,6 @@ type TranslateCardProps = {
 		quote?: string;
 		page?: number;
 		title?: string;
-		onLocate: () => void;
 	};
 	/** Translation text (may stream in) */
 	result: string;
@@ -52,43 +37,11 @@ type TranslateCardProps = {
 	onPointerLeave?: () => void;
 };
 
-function LocateSourceButton({
-	label,
-	onClick,
-}: {
-	label: string;
-	onClick: () => void;
-}) {
-	return (
-		<TooltipProvider delayDuration={200} disableHoverableContent>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<button
-						type="button"
-						aria-label={label}
-						className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-						onClick={onClick}
-					>
-						<CornerUpLeft className="size-3.5" />
-					</button>
-				</TooltipTrigger>
-				<TooltipContent side="left">{label}</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
-	);
-}
-
-/**
- * Quote split at the first rendered line break. Line 1 keeps the full source
- * width; only line 2 loses room for the return icon.
- */
-type QuoteLines = { first: string; second: string | null };
-
 /**
  * PDF selection translation — shared SelectionCard shell with dismiss / pin.
  * Content-sized up to a generous cap so long paragraphs read in full; only
- * results that overflow the cap (or the viewport) scroll, with an always
- * visible scrollbar so the overflow is discoverable.
+ * results that overflow the cap (or the viewport) scroll, without a visible
+ * scrollbar inside the card.
  */
 export function TranslateCard({
 	screen,
@@ -113,60 +66,6 @@ export function TranslateCard({
 	const quoteText = source
 		? source.quote?.trim() || t("selection.sourcePage", { page: source.page })
 		: "";
-	const quoteMeasureRef = useRef<HTMLParagraphElement>(null);
-	const [quoteLines, setQuoteLines] = useState<QuoteLines | null>(null);
-
-	useLayoutEffect(() => {
-		const el = quoteMeasureRef.current;
-		if (!el) return;
-		const measure = () => {
-			const node = el.firstChild;
-			let next: QuoteLines = { first: quoteText, second: null };
-			const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight);
-			if (
-				node?.nodeType === Node.TEXT_NODE &&
-				Number.isFinite(lineHeight) &&
-				lineHeight > 0 &&
-				el.clientHeight > lineHeight * 1.5
-			) {
-				const textNode = node as Text;
-				const secondTop = el.getBoundingClientRect().top + lineHeight;
-				let low = 0;
-				let high = quoteText.length;
-				while (low < high) {
-					const mid = Math.floor((low + high) / 2);
-					const caret = document.createRange();
-					caret.setStart(textNode, mid);
-					caret.collapse(true);
-					if (caret.getBoundingClientRect().top >= secondTop - 0.5) {
-						high = mid;
-					} else {
-						low = mid + 1;
-					}
-				}
-				let split = low;
-				// Do not split a surrogate pair.
-				if (split > 0) {
-					const code = quoteText.charCodeAt(split - 1);
-					if (code >= 0xd800 && code <= 0xdbff) split += 1;
-				}
-				if (split > 0 && split < quoteText.length) {
-					const first = quoteText.slice(0, split).trimEnd();
-					const second = quoteText.slice(split).trimStart();
-					if (first && second) next = { first, second };
-				}
-			}
-			setQuoteLines((prev) =>
-				prev?.first === next.first && prev?.second === next.second
-					? prev
-					: next,
-			);
-		};
-		measure();
-		const observer = new ResizeObserver(measure);
-		observer.observe(el);
-		return () => observer.disconnect();
-	}, [quoteText]);
 
 	/** Smallest height that still shows the header and source quote. */
 	const [resizeMinHeight, setResizeMinHeight] = useState<number>();
@@ -314,60 +213,24 @@ export function TranslateCard({
 				},
 			]}
 			// Body only constrains flex; the translation owns its own scrollport.
-			bodyClassName="min-h-0 overflow-hidden p-0"
+			bodyClassName="agentero-scroll-none min-h-0 overflow-hidden p-0"
 		>
 			{source ? (
 				<div className="mx-3 mt-2.5 flex min-h-6 shrink-0 flex-col justify-end gap-0.5 border-border/60 border-l-2 pr-2.5 pl-2.5 text-muted-foreground">
 					{source.title && (
-						<button
-							type="button"
-							className="mb-0.5 truncate text-left font-medium text-[11px] tracking-[0.01em] hover:text-foreground"
-							onClick={source.onLocate}
-						>
+						<div className="mb-0.5 truncate font-medium text-[11px] tracking-[0.01em]">
 							{source.title}
-						</button>
+						</div>
 					)}
-					<div className="relative">
-						<p
-							ref={quoteMeasureRef}
-							aria-hidden
-							className="pointer-events-none invisible absolute inset-x-0 top-0 break-words text-xs leading-relaxed"
-						>
-							{quoteText}
-						</p>
-						{quoteLines?.second ? (
-							<>
-								<p className="break-words text-xs leading-relaxed">
-									{quoteLines.first}
-								</p>
-								<div className="flex items-center gap-1.5">
-									<p className="min-w-0 flex-1 truncate text-xs leading-relaxed">
-										{quoteLines.second}
-									</p>
-									<LocateSourceButton
-										label={t("selection.locateSource")}
-										onClick={source.onLocate}
-									/>
-								</div>
-							</>
-						) : (
-							<div className="flex items-center gap-1.5">
-								<p className="line-clamp-2 min-w-0 flex-1 break-words text-xs leading-relaxed">
-									{quoteLines?.first ?? quoteText}
-								</p>
-								<LocateSourceButton
-									label={t("selection.locateSource")}
-									onClick={source.onLocate}
-								/>
-							</div>
-						)}
-					</div>
+					<p className="line-clamp-2 break-words text-xs leading-relaxed">
+						{quoteText}
+					</p>
 				</div>
 			) : null}
 			<div
 				ref={scrollPortRef}
 				onScroll={handleScroll}
-				className="agentero-scroll agentero-scroll-visible mx-3 mt-2 mb-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto py-0.5 pr-0.5"
+				className="agentero-scroll agentero-scroll-none mx-3 mt-2 mb-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto py-0.5 pr-0.5"
 			>
 				{showLoading ? (
 					<Shimmer className="text-sm" as="p">
