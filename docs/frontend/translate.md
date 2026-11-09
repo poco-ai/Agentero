@@ -55,6 +55,8 @@ Settings → **翻译**：
 
 ## Prompt
 
+翻译 API 层仅透传已知错误码；错误展示由 `displayTranslateError` 统一本地化。API 层不导入 i18n 初始化模块，避免经 settings / services 形成循环依赖。
+
 OpenAI 兼容服务卡片增加「额外参数」JSON 输入框，与 API Key / 模型一起在「确定」时保存。留空采用自动模型适配；填写对象后完全替代自动采样和思考配置，`{}` 不发送附加参数。`model`、`messages`、`stream` 保留给应用控制；格式错误通过 `notifyError` 提示并保留草稿。probe 与实际翻译传递相同配置；`translateServiceKey` 包含 JSON 指纹，留空保持旧缓存 key。完整规则与最新模型行为见 [OpenAI 兼容翻译配置](../usage/translate-openai-compatible.md#额外参数与覆盖顺序)。
 
 `buildTranslateMessages` / `buildTranslatePrompt`（Agent 路径）与 Host `openai_translate_messages`（OpenAI-compatible 路径）共用同一套约束，改一处要同步另一处：

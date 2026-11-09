@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { commands } from "@/lib/core/bindings";
+import { invokeTranslateText } from "@/lib/translate/api";
+import { displayTranslateError } from "@/lib/translate/errors";
 import { probeCommercialMtProvider } from "@/lib/translate/probe";
 import { extraRequestBodyIssue } from "@/lib/translate/request-options";
 import { makeCommercialMtService } from "@/lib/translate/services/commercial";
@@ -16,6 +18,30 @@ vi.mock("@/lib/core/bindings", () => ({
 
 describe("translation request options", () => {
 	beforeEach(() => vi.clearAllMocks());
+	it.each([
+		[
+			"translate.extra_parameters_invalid",
+			"Extra parameters must be a valid JSON object.",
+		],
+		[
+			"translate.extra_parameters_reserved",
+			"Extra parameters cannot override model, messages or stream.",
+		],
+	])("localizes %s at the display boundary", async (code, message) => {
+		vi.mocked(commands.translateText).mockResolvedValueOnce({
+			ok: false,
+			data: null,
+			error: { code, message: "Host fallback" },
+		});
+		const result = invokeTranslateText({
+			text: "Hi",
+			sourceLang: "en",
+			targetLang: "zh-CN",
+			provider: "openaicompatible",
+		});
+		await expect(result).rejects.toThrow(code);
+		expect(displayTranslateError(code)).toBe(message);
+	});
 	it("rejects non-objects and protected fields before saving", () => {
 		for (const raw of ["{", "[]", "null", "42", '"text"'])
 			expect(extraRequestBodyIssue(raw)).toBe("invalid");

@@ -1,9 +1,11 @@
-import i18n from "@/i18n";
 import { commands } from "@/lib/core/bindings";
 import { isTauri } from "@/lib/core/tauri";
 
 /** Host marker for "the built-in provider has no compiled-in key". */
 export const ERR_TRANSLATE_NO_BUILTIN_KEY = "translate.no_builtin_key";
+export const ERR_TRANSLATE_EXTRA_INVALID = "translate.extra_parameters_invalid";
+export const ERR_TRANSLATE_EXTRA_RESERVED =
+	"translate.extra_parameters_reserved";
 
 /**
  * Host MT command via the generated typed binding (tauri-specta pilot).
@@ -44,18 +46,10 @@ export async function invokeTranslateText(args: {
 		// `sqlite`), so treating "not `message`" as a marker would eventually show
 		// users a bare code instead of the Host's human text.
 		const code = res.error?.code;
-		if (
-			code === "translate.extra_parameters_invalid" ||
-			code === "translate.extra_parameters_reserved"
-		) {
-			throw new Error(
-				i18n.t(
-					`settings:translate.providerConfig.extraRequestBody.${code === "translate.extra_parameters_invalid" ? "invalid" : "reserved"}`,
-				),
-			);
-		}
 		throw new Error(
-			code === ERR_TRANSLATE_NO_BUILTIN_KEY
+			code === ERR_TRANSLATE_NO_BUILTIN_KEY ||
+				code === ERR_TRANSLATE_EXTRA_INVALID ||
+				code === ERR_TRANSLATE_EXTRA_RESERVED
 				? code
 				: (res.error?.message ?? "translate failed"),
 		);
