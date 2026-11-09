@@ -1,4 +1,3 @@
-import { validReflowTranslation } from "@/lib/pdf/reflow/types";
 /**
  * Bulk page translation for layout body-text regions (text / abstract / header).
  * Progressive: callers apply each result as soon as it completes.
@@ -16,6 +15,7 @@ import {
 import { parseBbox } from "@/lib/pdf/layout/layout-index";
 import {
 	draftChainSentences,
+	draftReflowSentences,
 	joinTranslatedDisplays,
 	type LayoutSentenceDraft,
 	paintSentenceTranslations,
@@ -33,6 +33,11 @@ import type {
 	LayoutTranslateSentence,
 	PdfLayoutRegion,
 } from "@/lib/pdf/layout/types";
+import {
+	type ReflowStructure,
+	reflowStructureForText,
+	validReflowTranslation,
+} from "@/lib/pdf/reflow/types";
 import {
 	evictAgentTranslateSessionId,
 	getAgentTranslateSessionId,
@@ -462,12 +467,31 @@ export async function readLayoutTranslateSidecar(
 export function applyLayoutTranslateSidecar(
 	items: readonly LayoutTranslateItem[],
 	sidecar: LayoutTranslateSidecar | null,
+	options?: { requireReflowSentencePairs?: boolean },
 ): LayoutTranslateItem[] {
 	if (!sidecar?.items.length) return items.map((it) => ({ ...it }));
 	const byId = new Map(sidecar.items.map((item) => [item.id, item]));
 	return items.map((item) => {
 		const cached = byId.get(item.id);
 		if (!cached || cached.source !== item.source) return { ...item };
+		if (options?.requireReflowSentencePairs && item.reflow) {
+			const drafts = draftReflowSentences(item.reflow);
+			if (
+				drafts.length > 1 &&
+				(cached.sentences?.length !== drafts.length ||
+					drafts.some(
+						(draft, index) => draft.quote !== cached.sentences?.[index]?.quote,
+					))
+			) {
+				return {
+					...item,
+					status: "pending",
+					translated: undefined,
+					sentences: undefined,
+					error: undefined,
+				};
+			}
+		}
 		return {
 			...item,
 			status: "done" as const,
@@ -832,6 +856,7 @@ export async function runLayoutRegionTranslate(options: {
 	type SentenceUnit = {
 		source: string;
 		tokens: MaskedToken[];
+		structural?: ReflowStructure;
 		job: ChainJob;
 		draftIndex: number;
 	};
@@ -842,13 +867,7 @@ export async function runLayoutRegionTranslate(options: {
 	)) {
 		const structural = chain.members[0]?.reflow;
 		const drafts: LayoutSentenceDraft[] = structural
-			? [
-					{
-						quote: structural.source,
-						source: structural.protectedText,
-						spans: [{ memberIndex: 0, rawLength: structural.source.length }],
-					},
-				]
+			? draftReflowSentences(structural)
 			: draftChainSentences(chain.members);
 		if (drafts.length === 0) {
 			for (const member of chain.members) {
@@ -868,6 +887,10 @@ export async function runLayoutRegionTranslate(options: {
 			units.push({
 				source: masked.text,
 				tokens: masked.tokens,
+				structural:
+					structural && drafts.length > 1
+						? reflowStructureForText(structural, draft.source)
+						: structural,
 				job,
 				draftIndex,
 			});
@@ -924,7 +947,7 @@ export async function runLayoutRegionTranslate(options: {
 		tokens: readonly MaskedToken[],
 	): Promise<string> => {
 		const restored = restoreInlineTokens(segment.trim(), tokens);
-		const structural = unit.job.chain.members[0]?.reflow;
+		const structural = unit.structural;
 		if (
 			restored.missing === 0 &&
 			!restored.invalid &&
@@ -1104,7 +1127,7 @@ export async function runLayoutRegionTranslate(options: {
 			if (signal?.aborted) return;
 			const segment = segments[index] ?? "";
 			const restored = restoreInlineTokens(segment.trim(), masked.tokens);
-			const structural = masked.unit.job.chain.members[0]?.reflow;
+			const structural = masked.unit.structural;
 			if (
 				restored.missing ||
 				restored.invalid ||

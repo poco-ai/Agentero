@@ -418,7 +418,9 @@ export function usePdfLayoutTranslate({
 			const prepared = await prepareReflow(pendingItems, ac.signal);
 			if (ac.signal.aborted) return;
 			setSourcePreparing(false);
-			const items = applyLayoutTranslateSidecar(prepared, sidecar);
+			const items = applyLayoutTranslateSidecar(prepared, sidecar, {
+				requireReflowSentencePairs: true,
+			});
 			const needsRun = hasPendingLayoutTranslateItems(items);
 			setCacheOnly(!needsRun);
 			setLayoutTranslateJob({
@@ -537,7 +539,9 @@ export function usePdfLayoutTranslate({
 				const prepared = await prepareReflow(pendingItems, ac.signal);
 				if (ac.signal.aborted) return;
 				setSourcePreparing(false);
-				const pageItems = applyLayoutTranslateSidecar(prepared, sidecar);
+				const pageItems = applyLayoutTranslateSidecar(prepared, sidecar, {
+					requireReflowSentencePairs: true,
+				});
 				const needsRun = hasPendingLayoutTranslateItems(pageItems);
 				setCacheOnly(!needsRun);
 				setLayoutTranslateJob((prev) => {

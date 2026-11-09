@@ -3,6 +3,7 @@ import { AgenteroRenderLayer } from "@/components/viewer/pdf/layers/agentero-ren
 import { cn } from "@/lib/core/utils";
 import { highlightFill } from "@/lib/pdf/highlight/palette";
 import type { TranslateSentenceTint } from "@/lib/pdf/highlight/sentence-tint";
+import { layoutTranslateSentenceNodes } from "@/lib/pdf/layout/layout-sentences";
 import {
 	assignPreservedLinks,
 	type GlyphRun,
@@ -20,6 +21,35 @@ import {
 	PDF_PAPER_TINT,
 	type PdfPaperTone,
 } from "@/lib/pdf/page-theme";
+import type { PlacedUnit } from "@/lib/pdf/reflow/types";
+
+function reflowSentenceGroups(
+	item: LayoutTranslateItem,
+	units: PlacedUnit[],
+): { index?: number; units: PlacedUnit[] }[] {
+	const split = layoutTranslateSentenceNodes(
+		item.translated ?? "",
+		item.sentences,
+	);
+	if (!split) return [{ units }];
+	let offset = 0;
+	const groups = split.nodes.map((node) => {
+		const start = offset;
+		offset += node.text.length + split.gap.length;
+		return { index: node.index, start, units: [] as PlacedUnit[] };
+	});
+	let current = 0;
+	for (const unit of units) {
+		while (
+			current + 1 < groups.length &&
+			unit.translatedOffset >= groups[current + 1].start
+		)
+			current++;
+		groups[current].units.push(unit);
+	}
+	return groups;
+}
+
 /** The PDF raster and transparent selection geometry share the export layout. */
 export function ReflowPageOverlay({
 	items,
@@ -101,7 +131,6 @@ export function ReflowPageOverlay({
 			)}
 			{items.map((item) => {
 				const layout = item.reflowLayout;
-				const tint = tints?.get(item.id)?.get(0);
 				if (!layout) return null;
 				const text = layout.units.map((u) => u.text).join("");
 				const assignments = assignPreservedLinks(
@@ -141,72 +170,82 @@ export function ReflowPageOverlay({
 							color: "transparent",
 						}}
 					>
-						<span data-sentence={0}>
-							{layout.units.map((u) => {
-								const start = offset;
-								offset += u.text.length;
-								const assignment = assignments.find(
-									(a) => a.start < offset && a.end > start,
-								);
-								const style: CSSProperties = {
-									position: "absolute",
-									left: (u.x - layout.box.x) * sx,
-									top:
-										(u.y -
-											layout.box.y -
-											(u.formula ? u.height : u.fontSize * 0.8)) *
-										sy,
-									width: u.width * sx,
-									height: u.height * sy,
-									fontSize: u.fontSize * sy,
-									lineHeight: 1,
-									fontFamily: "serif",
-									whiteSpace: "pre",
-									color: "transparent",
-									textDecoration: "none",
-									backgroundColor: tint ? highlightFill(tint.color) : undefined,
-								};
-								const key = `${u.x}-${u.y}-${u.text}`;
-								return assignment ? (
-									<a
-										key={key}
-										style={style}
-										href={assignment.url ?? "#"}
-										draggable={false}
-										aria-label={assignment.text}
-										tabIndex={start === assignment.start ? 0 : -1}
-										className="select-text"
-										onDragStart={(event) => event.preventDefault()}
-										onClick={(event) => {
-											event.preventDefault();
-											event.stopPropagation();
-											if (!window.getSelection()?.toString())
-												onOpenLink?.(assignment);
-										}}
-										onPointerEnter={(event) => {
-											if (linkHoverSuppressed(event.buttons)) return;
-											const b = event.currentTarget.getBoundingClientRect();
-											onHoverLink?.(assignment, {
-												x: b.left + b.width / 2,
-												y: b.bottom,
-												top: b.top,
-												bottom: b.bottom,
-											});
-										}}
-										onPointerLeave={() => {
-											if (linkPreviewDragActive()) return;
-											onHoverLink?.(null, null);
-										}}
-									>
-										{u.text}
-									</a>
-								) : (
-									<span key={key} style={style}>
-										{u.text}
-									</span>
-								);
-							})}
-						</span>
+						{reflowSentenceGroups(item, layout.units).map((group) => {
+							const tint =
+								group.index === undefined
+									? undefined
+									: tints?.get(item.id)?.get(group.index);
+							return (
+								<span key={group.index ?? "block"} data-sentence={group.index}>
+									{group.units.map((u) => {
+										const start = offset;
+										offset += u.text.length;
+										const assignment = assignments.find(
+											(a) => a.start < offset && a.end > start,
+										);
+										const style: CSSProperties = {
+											position: "absolute",
+											left: (u.x - layout.box.x) * sx,
+											top:
+												(u.y -
+													layout.box.y -
+													(u.formula ? u.height : u.fontSize * 0.8)) *
+												sy,
+											width: u.width * sx,
+											height: u.height * sy,
+											fontSize: u.fontSize * sy,
+											lineHeight: 1,
+											fontFamily: "serif",
+											whiteSpace: "pre",
+											color: "transparent",
+											textDecoration: "none",
+											backgroundColor: tint
+												? highlightFill(tint.color)
+												: undefined,
+										};
+										const key = `${u.x}-${u.y}-${u.text}`;
+										return assignment ? (
+											<a
+												key={key}
+												style={style}
+												href={assignment.url ?? "#"}
+												draggable={false}
+												aria-label={assignment.text}
+												tabIndex={start === assignment.start ? 0 : -1}
+												className="select-text"
+												onDragStart={(event) => event.preventDefault()}
+												onClick={(event) => {
+													event.preventDefault();
+													event.stopPropagation();
+													if (!window.getSelection()?.toString())
+														onOpenLink?.(assignment);
+												}}
+												onPointerEnter={(event) => {
+													if (linkHoverSuppressed(event.buttons)) return;
+													const b = event.currentTarget.getBoundingClientRect();
+													onHoverLink?.(assignment, {
+														x: b.left + b.width / 2,
+														y: b.bottom,
+														top: b.top,
+														bottom: b.bottom,
+													});
+												}}
+												onPointerLeave={() => {
+													if (linkPreviewDragActive()) return;
+													onHoverLink?.(null, null);
+												}}
+											>
+												{u.text}
+											</a>
+										) : (
+											<span key={key} style={style}>
+												{u.text}
+											</span>
+										);
+									})}
+								</span>
+							);
+						})}
 					</div>
 				);
 			})}

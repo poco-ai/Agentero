@@ -59,6 +59,7 @@ export type Paragraph = {
 	layoutBox?: Box;
 	origin?: "detected" | "table" | "fallback";
 };
+export type ReflowStructure = Pick<Paragraph, "formulas" | "styles">;
 export type ReflowPage = {
 	index: number;
 	width: number;
@@ -82,6 +83,8 @@ export type FontKey =
 	| "cjkBold";
 export type PlacedUnit = {
 	text: string;
+	/** Offset in the protected translation before line wrapping drops spaces. */
+	translatedOffset: number;
 	x: number;
 	y: number;
 	width: number;
@@ -125,7 +128,10 @@ export function intersects(a: Box, b: Box): boolean {
 }
 
 /** Formula and style tags are a structural contract, not ordinary prose. */
-export function validReflowTranslation(p: Paragraph, text: string): boolean {
+export function validReflowTranslation(
+	p: ReflowStructure,
+	text: string,
+): boolean {
 	const formulas = new Set<string>(),
 		opened = new Set<string>(),
 		closed = new Set<string>();
@@ -152,6 +158,22 @@ export function validReflowTranslation(p: Paragraph, text: string): boolean {
 		p.formulas.every((f) => formulas.has(f.id)) &&
 		Object.keys(p.styles).every((id) => opened.has(id) && closed.has(id))
 	);
+}
+
+export function reflowStructureForText(
+	p: Paragraph,
+	text: string,
+): ReflowStructure {
+	return {
+		formulas: p.formulas.filter((formula) =>
+			text.includes(formulaToken(formula.id)),
+		),
+		styles: Object.fromEntries(
+			Object.entries(p.styles).filter(
+				([id]) => text.includes(`⟪S${id}⟫`) || text.includes(`⟪/S${id}⟫`),
+			),
+		),
+	};
 }
 
 export function reflowDisplayText(p: Paragraph, text: string): string {

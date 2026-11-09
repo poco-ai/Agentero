@@ -46,7 +46,10 @@ export function translationUnits(
 	const opened = new Set<string>(),
 		closed = new Set<string>();
 	let activeStyle: string | undefined;
+	let offset = 0;
 	for (const token of tokens) {
+		const start = offset;
+		offset += token.length;
 		const styleMatch = /^⟪(\/?)S(\d+)⟫$/.exec(token);
 		if (styleMatch) {
 			const id = styleMatch[2],
@@ -73,6 +76,7 @@ export function translationUnits(
 		if (formula) {
 			units.push({
 				text: formula.text,
+				translatedOffset: start,
 				width: formula.box.w,
 				height: formula.box.h,
 				font: "regular",
@@ -84,10 +88,12 @@ export function translationUnits(
 			});
 			continue;
 		}
-		for (const ch of Array.from(token.replace(/[\r\n]+/g, " "))) {
+		for (const match of token.matchAll(/[\r\n]+|./gsu)) {
+			const ch = match[0].replace(/^[\r\n]+$/u, " ");
 			const font = fontFor(ch, current, fonts);
 			units.push({
 				text: ch,
+				translatedOffset: start + match.index,
 				width: fonts[font].widthOfTextAtSize(ch, p.style.size),
 				height: fonts[font].heightAtSize(p.style.size),
 				font,

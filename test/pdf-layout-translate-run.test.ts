@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LayoutTranslateItem } from "@/lib/pdf/layout/layout-translate";
-import { runLayoutRegionTranslate } from "@/lib/pdf/layout/layout-translate";
+import {
+	applyLayoutTranslateSidecar,
+	type LayoutTranslateItem,
+	type LayoutTranslateSidecar,
+	runLayoutRegionTranslate,
+} from "@/lib/pdf/layout/layout-translate";
 import { runLayoutRegionTranslate as runPublicLayoutTranslate } from "@/lib/pdf/layout/layout-translate-reliable";
 import { paragraphFromCharacters } from "@/lib/pdf/reflow/extract";
+import { validReflowTranslation } from "@/lib/pdf/reflow/types";
 
 const runTranslate = vi.fn<(...args: unknown[]) => Promise<string>>();
 
@@ -44,6 +49,90 @@ function item(
 describe("runLayoutRegionTranslate paragraph chains", () => {
 	beforeEach(() => {
 		runTranslate.mockReset();
+	});
+
+	it("keeps separate reflow sentence pairs and preserves their formula and style tokens", async () => {
+		const reflow = paragraphFromCharacters(
+			"p",
+			0,
+			{ x: 0, y: 0, w: 100, h: 40 },
+			[],
+			[],
+			false,
+		);
+		reflow.source = "Use x here. Bold follows. Last sentence.";
+		reflow.protectedText =
+			"Use ⟪F0⟫ here. ⟪S0⟫Bold⟪/S0⟫ follows. Last sentence.";
+		reflow.formulas = [
+			{
+				id: "0",
+				text: "x",
+				box: { x: 0, y: 0, w: 5, h: 5 },
+				characterIndexes: [4],
+				baselineOffset: 0,
+			},
+		];
+		reflow.styles = { "0": { ...reflow.style, bold: true } };
+		runTranslate.mockResolvedValueOnce(
+			"[[1]] 使用 ⟦0⟧。\n[[2]] 接着是⟦0⟧粗体⟦1⟧。\n[[3]] 末句。",
+		);
+		const [translated] = await runLayoutRegionTranslate({
+			items: [
+				{ ...item("p", reflow.protectedText, 0), raw: reflow.source, reflow },
+			],
+			onUpdate: () => {},
+		});
+		expect(translated.status).toBe("done");
+		expect(
+			translated.sentences?.map(({ quote, translated }) => [quote, translated]),
+		).toEqual([
+			["Use x here.", "使用 ⟪F0⟫。"],
+			["Bold follows.", "接着是⟪S0⟫粗体⟪/S0⟫。"],
+			["Last sentence.", "末句。"],
+		]);
+		expect(validReflowTranslation(reflow, translated.translated ?? "")).toBe(
+			true,
+		);
+
+		const sidecar: LayoutTranslateSidecar = {
+			schemaVersion: 2,
+			source: {
+				mode: "pdf-layout-translate",
+				generatedAt: "",
+				providerId: "googleapi",
+				sourceLang: "en",
+				targetLang: "zh-CN",
+				serviceKey: "",
+			},
+			items: [
+				{
+					...translated,
+					translated: translated.translated ?? "",
+					sentences: [
+						{
+							quote: reflow.source,
+							source: reflow.protectedText,
+							translated: translated.translated ?? "",
+						},
+					],
+				},
+			],
+		};
+		expect(
+			applyLayoutTranslateSidecar([translated], sidecar, {
+				requireReflowSentencePairs: true,
+			})[0],
+		).toMatchObject({
+			status: "pending",
+			translated: undefined,
+			sentences: undefined,
+		});
+		sidecar.items[0].sentences = translated.sentences;
+		expect(
+			applyLayoutTranslateSidecar([translated], sidecar, {
+				requireReflowSentencePairs: true,
+			})[0],
+		).toMatchObject({ status: "done", sentences: translated.sentences });
 	});
 
 	it("publishes valid batch results before a different paragraph finishes retrying", async () => {
