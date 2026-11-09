@@ -8,5 +8,8 @@ pub mod desktop_apps;
 pub mod network;
 #[cfg(feature = "desktop")]
 pub mod settings;
-#[cfg(feature = "desktop")]
+#[cfg(all(
+    feature = "desktop",
+    not(any(target_os = "android", target_os = "ios"))
+))]
 pub mod updater;

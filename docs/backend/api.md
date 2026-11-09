@@ -117,6 +117,7 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
 
   另有 `event_names_match_emit_literals` 测试断言事件名与 emit 常量一致。改任何命令签名 / 事件 payload 后必须重新生成并提交 bindings.ts。Rust 类型的文档注释也会导出并参与一致性校验，因此只修改这些注释时同样需要重新生成。
   `scanned_emit_event_names_match_registered_contract` 扫描桌面 Host、`agentero-core` 与 `agentero-mcp` 的 Rust 源码，解析跨 crate 的事件常量并核对注册集合；抽取共享事件定义时需同步维护扫描范围。
+  新增事件须同时登记 `events_contract.rs` 的类型和 `registered_event_names()` 集合，以及 `bindings_test.rs` 的导出列表；仅生成 TypeScript bindings 不会覆盖事件扫描检查。
   插件事件也纳入生成契约：`plugins:changed` 的 payload 为 `null`，`plugins:data-changed` 为 Vault 路径字符串。
 - **`_Serialize` / `_Deserialize` 拆分**：specta 对 serde 不对称表示的忠实拆分——`X_Deserialize` 是 **TS→Rust 入参**形态（`#[serde(default)]` 字段可省略），`X_Serialize` 是 **Rust→TS 出参**形态（`skip_serializing_if` 字段可缺省）。二者一致时只生成单一 `X`。命令函数与 `events.*` 的签名已内嵌正确方向的类型，**调用点无需手写这些类型名**。
 - **论文域的派生范式**：`src/lib/paper/types.ts` 不再手写 `PaperRecord` 的孪生类型，而是 `PaperMetadata = Omit<PaperRecord_Serialize, …>`、`PaperLibraryRow = PaperMetadata & { has_pdf }`（源自 `PaperListRow_Serialize`）。只窄化四处：`status` / `body_source` / `body_quality`（Rust 侧仍是 `String` 列）与 `tags`（`PaperTag` 的序列化在无色时是裸字符串）。IPC → 域模型的唯一 unchecked 折叠点是 `src/lib/paper/wire.ts::paperFromWire`。给那三列加 Rust enum（照 `PaperKind` 先例：enum + `From<&str>` + `FromSql` + 未知值兜底）即可去掉窄化，列都是 TEXT，**不需要 schema migration**；代价清单见 [../development/import-api-abstraction.md](../development/import-api-abstraction.md) §11。
@@ -422,6 +423,8 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 #### `app_update_check`（桌面）
 
 使用 Tauri Updater 查询当前平台的更新，返回 `Result<AppUpdate | null, String>`。请求超时为 30 秒，`retryOnTimeout` 为 `true` 时仅在网络超时后重试一次。返回的 `rid` 是当前 Webview 持有的 updater 资源，供 Tauri Updater 插件下载、安装和释放。
+
+Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插件依赖门控一致。`desktop` feature 在移动端构建中也会启用，不能单独用它判断桌面平台。
 
 #### `fs_watch_start` / `fs_watch_stop`（已实现）
 
