@@ -4,7 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlazaWebFrame } from "@/components/plaza/plaza-web-frame";
 
-vi.mock("react-i18next", () => ({
+vi.mock("react-i18next", async (importOriginal) => ({
+	...(await importOriginal<typeof import("react-i18next")>()),
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 vi.mock("@/components/ui/tooltip", () => {
@@ -13,6 +14,10 @@ vi.mock("@/components/ui/tooltip", () => {
 });
 vi.mock("@/hooks/use-iframe-drag-shield", () => ({
 	useIframeDragShield: () => false,
+}));
+vi.mock("@/hooks/use-app-stores", () => ({
+	useVaultStore: (selector: (state: unknown) => unknown) =>
+		selector({ vaultPath: null, tree: [] }),
 }));
 vi.mock("@/lib/core/open-external", () => ({ openExternalUrl: vi.fn() }));
 vi.mock("@/lib/plaza/import", () => ({ importPlazaPaper: vi.fn() }));

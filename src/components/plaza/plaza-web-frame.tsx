@@ -15,6 +15,7 @@ import {
 	ArrowLeft,
 	ArrowRight,
 	ExternalLink,
+	FolderInput,
 	RotateCw,
 	ZoomIn,
 	ZoomOut,
@@ -23,11 +24,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useVaultStore } from "@/hooks/use-app-stores";
 import { useIframeDragShield } from "@/hooks/use-iframe-drag-shield";
+import { usePapersOrgFolders } from "@/hooks/use-papers-org-folders";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { cn } from "@/lib/core/utils";
 import { importPlazaPaper, type PlazaImportRequest } from "@/lib/plaza/import";
@@ -94,7 +104,19 @@ export function PlazaWebFrame({
 	/** Fixed-layout sources need a virtual desktop viewport when fitting a narrow panel. */
 	desktopWidth?: number;
 }) {
-	const { t } = useTranslation("sidebar");
+	const { t } = useTranslation(["sidebar", "viewer"]);
+	const vaultPath = useVaultStore((s) => s.vaultPath);
+	const tree = useVaultStore((s) => s.tree);
+	const folders = usePapersOrgFolders(vaultPath, tree);
+	const [destination, setDestination] = useState<{
+		vaultPath: string | null;
+		parentDir: string;
+	} | null>(null);
+	const parentDir =
+		destination?.vaultPath === vaultPath &&
+		folders.includes(destination.parentDir)
+			? destination.parentDir
+			: "papers";
 	const zoom = usePlazaFrameZoom(desktopWidth);
 	const home = new URL(homeUrl);
 	const homePath = `${home.pathname || "/"}${home.search}`;
@@ -220,7 +242,7 @@ export function PlazaWebFrame({
 				return;
 			}
 			if (importPaper) {
-				void importPlazaPaper(importPaper).then((ok) => {
+				void importPlazaPaper(importPaper, parentDir).then((ok) => {
 					frameRef.current?.contentWindow?.postMessage(
 						{
 							source: "agentero-plaza-host",
@@ -244,7 +266,7 @@ export function PlazaWebFrame({
 		};
 		window.addEventListener("message", onMessage);
 		return () => window.removeEventListener("message", onMessage);
-	}, [embedOrigin, homeUrl, zoom.panBy, zoom.zoomByRatio]);
+	}, [embedOrigin, homeUrl, parentDir, zoom.panBy, zoom.zoomByRatio]);
 
 	const jump = useCallback((delta: number) => {
 		setNav((prev) => {
@@ -345,6 +367,38 @@ export function PlazaWebFrame({
 				>
 					{currentPath}
 				</span>
+				{embedOrigin ? (
+					<Select
+						value={parentDir}
+						onValueChange={(parentDir) =>
+							setDestination({ vaultPath, parentDir })
+						}
+						disabled={!vaultPath}
+					>
+						<SelectTrigger
+							size="sm"
+							className="h-6 max-w-40 text-caption"
+							aria-label={t("viewer:references.importToFolder")}
+							title={parentDir}
+						>
+							<FolderInput className="size-3.5" aria-hidden />
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent
+							position="popper"
+							align="end"
+							className="max-w-[calc(100vw-2rem)]"
+						>
+							{folders.map((folder) => (
+								<SelectItem key={folder} value={folder}>
+									<span className="truncate" title={folder}>
+										{folder}
+									</span>
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				) : null}
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button

@@ -3,8 +3,20 @@ import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlazaWebFrame } from "@/components/plaza/plaza-web-frame";
+import { importPlazaPaper } from "@/lib/plaza/import";
 
-vi.mock("react-i18next", () => ({
+const vault = vi.hoisted(() => ({
+	vaultPath: "/vault",
+	tree: [
+		{ name: "nlp", kind: "directory", path: "/vault/papers/nlp", children: [] },
+	],
+}));
+vi.mock("@/hooks/use-app-stores", () => ({
+	useVaultStore: (selector: (state: unknown) => unknown) => selector(vault),
+}));
+
+vi.mock("react-i18next", async (importOriginal) => ({
+	...(await importOriginal<typeof import("react-i18next")>()),
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 vi.mock("@/components/ui/tooltip", () => {
@@ -28,6 +40,7 @@ const origin = "https://proxy.example";
 beforeEach(() => {
 	vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 	localStorage.clear();
+	vault.vaultPath = "/vault";
 	// Give each real iframe a local document/window without fetching a remote site.
 	const createElement = document.createElement.bind(document);
 	vi.spyOn(document, "createElement").mockImplementation((tagName, options) => {
@@ -44,6 +57,7 @@ afterEach(async () => {
 	await act(() => root.unmount());
 	container.remove();
 	vi.restoreAllMocks();
+	vi.clearAllMocks();
 	localStorage.clear();
 	vi.unstubAllGlobals();
 });
@@ -84,6 +98,57 @@ async function navigate(
 }
 
 describe("retained Plaza frame messages", () => {
+	it("imports into the chosen folder without reloading the source or changing another tab", async () => {
+		const [first] = await mountFrames();
+		const reply = vi
+			.spyOn(first.contentWindow as Window, "postMessage")
+			.mockImplementation(() => {});
+		const picker = container.querySelector<HTMLButtonElement>(
+			'[aria-label="viewer:references.importToFolder"]',
+		);
+		if (!picker) throw new Error("Missing import destination picker");
+		await act(() =>
+			picker.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+			),
+		);
+		const folder = document.querySelector<HTMLElement>(
+			'[role="option"][data-state="unchecked"]',
+		);
+		if (!folder) throw new Error("Missing folder option");
+		expect(folder.textContent).toBe("papers/nlp");
+		await act(() =>
+			folder.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+			),
+		);
+		const request = {
+			id: "2501.00001",
+			url: "https://arxiv.org/abs/2501.00001",
+			title: "Paper",
+		};
+		await act(async () => {
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					origin,
+					source: first.contentWindow,
+					data: { source: "agentero-plaza", importPaper: request },
+				}),
+			);
+		});
+		expect(importPlazaPaper).toHaveBeenCalledWith(request, "papers/nlp");
+		expect(reply).toHaveBeenCalledWith(
+			{ source: "agentero-plaza-host", importedId: request.id, ok: true },
+			origin,
+		);
+		expect(container.querySelector("iframe")).toBe(first);
+		const pickers = container.querySelectorAll('[role="combobox"]');
+		expect(pickers[1].textContent).toBe("papers");
+		vault.vaultPath = "/other-vault";
+		await mountFrames();
+		expect(picker.textContent).toBe("papers");
+	});
+
 	it("handles navigation only for the sending frame without replacing either iframe", async () => {
 		const [first, second] = await mountFrames();
 		await navigate(first.contentWindow, "/paper/one");
