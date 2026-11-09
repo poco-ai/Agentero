@@ -934,6 +934,27 @@ pub fn spawn_layout_after_connector_pdf(
     );
 }
 
+/// Queue the layout follow-up for every paper in a finished Connector session,
+/// using the post-collection-move paths. Remote vaults are skipped.
+pub fn spawn_layout_after_session_papers(ctrl: &ConnectorController, session_id: &str) {
+    let Some(app) = ctrl.app_handle() else {
+        return;
+    };
+    let Ok((vault_handle, _)) = ctrl.vault_handle_and_parent() else {
+        return;
+    };
+    if parse_remote_handle(&vault_handle).is_some() {
+        return;
+    }
+    let Some(papers) = ctrl.session_paper_paths(session_id) else {
+        return;
+    };
+    let vault = PathBuf::from(vault_handle);
+    for paper in papers {
+        crate::features::jobs::spawn_layout_after_import(Some(&app), &vault, &paper);
+    }
+}
+
 /// DOI / arXiv / local-PDF presence for resolver decisions.
 async fn paper_resolver_hints(
     ctrl: &ConnectorController,

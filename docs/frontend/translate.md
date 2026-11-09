@@ -25,7 +25,7 @@ Settings → **翻译**：
 
 设置 → **翻译** →「导入后自动翻译」默认关闭；开启后在其下方显示「同时翻译的论文数」（1–5，默认 1）。持久化为 `TranslateSettings.autoTranslateImport` / `autoTranslateImportConcurrency`；旧 `settings.json` 缺字段时按关闭 / 1 处理。关闭开关只停止新任务，已排队的翻译任务仍会执行。
 
-触发点是**导入 / 下载链路**入队 `layoutAnalyze` 时：设置开启时 Host 同时入队一个 `layoutTranslate` 任务，用 JobCenter `depends_on` 指向那次版面任务（`DepPolicy::AllSucceeded`）。覆盖本地 PDF、魔棒 / lookup、广场（PWC / papers.cool）与 Connector 附件——广场和 Connector 的 PDF 由 Host 直接落盘、不经过 `DownloadAssets`，所以这些入口在 Host 侧显式调用同一个 Host helper（`jobs::spawn_layout_after_import`）（仅新建论文、有本地 PDF、且没有进行中的元数据识别时）。
+触发点是**导入 / 下载链路**入队 `layoutAnalyze` 时：设置开启时 Host 同时入队一个 `layoutTranslate` 任务，用 JobCenter `depends_on` 指向那次版面任务（`DepPolicy::AllSucceeded`）。覆盖本地 PDF、魔棒 / lookup、广场（PWC / papers.cool）与 Connector 附件——广场和 Connector 的 PDF 由 Host 直接落盘、不经过 `DownloadAssets`，所以这些入口在 Host 侧显式调用同一个 helper（`jobs::spawn_layout_after_import`）：广场只对新建且有本地 PDF、且没有进行中的元数据识别的提交入队；Connector 在附件写完时入队，另在会话首次 finalize、论文移动到目标分类后按最终路径补一次。
 
 只有导入来源的入队才带 `autoTranslate` 标记：打开论文后的补解析与手动重新解析不带，因此不触发。打开一篇没有本地 PDF 的论文会先入队 `DownloadAssets`，属于下载链路，下载完成后同样触发。
 

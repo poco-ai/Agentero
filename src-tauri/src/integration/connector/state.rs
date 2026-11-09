@@ -510,6 +510,14 @@ impl ConnectorController {
 
     /// Resolve a saved paper by Connector item id, falling back to the only
     /// paper in the session for older saveSingleFile callers.
+    /// All paper folders in a session (already rebased after a collection move).
+    pub fn session_paper_paths(&self, session_id: &str) -> Option<Vec<String>> {
+        let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        g.sessions
+            .get(session_id)
+            .map(|session| session.paper_paths.clone())
+    }
+
     pub fn session_item_paper(&self, session_id: &str, item_id: Option<&str>) -> Option<String> {
         let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let session = g.sessions.get(session_id)?;
@@ -816,7 +824,7 @@ impl ConnectorController {
             self.rebase_session_path(session_id, &from, &new_rel);
         }
 
-        let pending = {
+        let (pending, first_finalize) = {
             let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             let session = g
                 .sessions
@@ -824,14 +832,21 @@ impl ConnectorController {
                 .ok_or_else(|| AppError::message("SESSION_NOT_FOUND"))?;
             session.desired_parent = None;
             if session.initial_finalized {
-                Vec::new()
+                (Vec::new(), false)
             } else {
                 session.initial_finalized = true;
-                std::mem::take(&mut session.pending_saved)
+                (std::mem::take(&mut session.pending_saved), true)
             }
         };
         for saved in pending {
             self.emit_item_saved(saved);
+        }
+        if first_finalize {
+            // Every attachment has landed and the papers are now at their final
+            // collection path: queue the layout follow-up (+ optional import
+            // translation) that the JobCenter never ran for this browser-driven
+            // save.
+            super::import::spawn_layout_after_session_papers(self, session_id);
         }
         Ok(())
     }
