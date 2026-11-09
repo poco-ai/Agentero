@@ -59,3 +59,6 @@ src-tauri/pdfium/
 
 # Staged by scripts/prepare-adapters.mjs on every dev/release build
 src-tauri/adapters/
+
+# Local stargazer affiliation viz (not part of the app)
+/stargazers-viz/
