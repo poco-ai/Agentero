@@ -342,12 +342,14 @@ const NAV_BRIDGE: &str = r##"<style>
       if (button.dataset.state) return;
       var titleLink = document.getElementById("title-" + button.dataset.paperId);
       setState(button, "pending", "[入库中]");
+      var box = button.getBoundingClientRect();
       post({
         importPaper: {
           id: button.dataset.paperId,
           branch: document.body.id || "",
           url: button.dataset.url,
-          title: titleLink ? titleLink.textContent.trim() : null
+          title: titleLink ? titleLink.textContent.trim() : null,
+          anchor: { x: box.left, y: box.bottom }
         }
       });
     });
@@ -448,6 +450,8 @@ mod tests {
         assert!(out.contains("importPaper"));
         // Settled from the app so a row can show 已入库 / stay retryable.
         assert!(out.contains("agentero-plaza-host"));
+        // The import click carries its anchor point for the folder menu.
+        assert!(out.contains("anchor: { x: box.left, y: box.bottom }"));
     }
 
     /// The bridge lands in `<head>`, where the body does not exist yet: decorating

@@ -18,6 +18,12 @@ type MoveDestinationPickerProps = {
 	busy: boolean;
 	onNewFolderChange: (value: string) => void;
 	onConfirm: (dest: string) => void | Promise<void>;
+	/** Heading text; defaults to the file-tree move wording. */
+	title?: string;
+	/** Unique input id prefix when several pickers can exist. */
+	idPrefix?: string;
+	/** Popover side; the tree opens to the right, inline menus below. */
+	side?: "right" | "bottom";
 };
 
 export function MoveDestinationPicker({
@@ -29,6 +35,9 @@ export function MoveDestinationPicker({
 	busy,
 	onNewFolderChange,
 	onConfirm,
+	title,
+	idPrefix = "move",
+	side = "right",
 }: MoveDestinationPickerProps) {
 	const { t } = useTranslation("sidebar");
 	const { isBlockedByIme, compositionProps } = useImeGuard();
@@ -38,6 +47,7 @@ export function MoveDestinationPicker({
 		? normalizePath(typed.startsWith("papers") ? typed : `papers/${typed}`)
 		: selectedFolder;
 	const destValid = dest.startsWith("papers");
+	const inputId = `${idPrefix}-new-folder`;
 
 	const handleSelect = (folder: string) => {
 		onNewFolderChange("");
@@ -47,7 +57,7 @@ export function MoveDestinationPicker({
 	return (
 		<PopoverContent
 			align="start"
-			side="right"
+			side={side}
 			sideOffset={4}
 			avoidCollisions
 			className="w-56 p-2"
@@ -57,7 +67,7 @@ export function MoveDestinationPicker({
 		>
 			<div className="space-y-2">
 				<p className="font-medium text-xs text-foreground">
-					{t("fileTree.moveToFolder", { count: sourcePaths.length })}
+					{title ?? t("fileTree.moveToFolder", { count: sourcePaths.length })}
 				</p>
 				<div className="rounded-md border p-1">
 					<div className="agentero-scroll max-h-[min(50vh,18rem)] space-y-0.5 overflow-y-auto overscroll-contain">
@@ -103,7 +113,7 @@ export function MoveDestinationPicker({
 				</div>
 				<div className="space-y-1">
 					<Label
-						htmlFor="move-new-folder"
+						htmlFor={inputId}
 						className="text-caption text-muted-foreground"
 					>
 						{t("fileTree.movePicker.newFolder")}
@@ -111,7 +121,7 @@ export function MoveDestinationPicker({
 					<div className="relative">
 						<FolderPlus className="-translate-y-1/2 absolute top-1/2 left-2 size-3 text-muted-foreground" />
 						<Input
-							id="move-new-folder"
+							id={inputId}
 							value={newFolder}
 							onChange={(e) => onNewFolderChange(e.target.value)}
 							placeholder={t("fileTree.movePicker.newFolderHint")}

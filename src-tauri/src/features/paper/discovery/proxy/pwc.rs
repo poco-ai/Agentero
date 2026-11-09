@@ -111,11 +111,13 @@ const NAV_BRIDGE: &str = r##"<style>
           }
           action.dataset.state = "pending";
           setLabel(action, LABELS.pending);
+          var box = action.getBoundingClientRect();
           post({
             importPaper: {
               id: action.dataset.paperId,
               url: "https://paperswithcode.co/paper/" + encodeURIComponent(action.dataset.paperId),
-              title: action.dataset.paperTitle || null
+              title: action.dataset.paperTitle || null,
+              anchor: { x: box.left, y: box.bottom }
             }
           });
           return;
@@ -344,6 +346,8 @@ mod tests {
         assert!(out.contains("importedIds"));
         // Settled from the app so a row can show 已入库 / stay retryable.
         assert!(out.contains("agentero-plaza-host"));
+        // The import click carries its anchor point for the folder menu.
+        assert!(out.contains("anchor: { x: box.left, y: box.bottom }"));
         // Card and detail hooks are the only selectors the bridge relies on.
         assert!(out.contains("article.paper-card"));
         assert!(out.contains("h3.paper-title"));

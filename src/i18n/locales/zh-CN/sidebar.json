@@ -234,6 +234,7 @@
 		"zoomIn": "放大页面",
 		"fitWidth": "自动适应面板宽度",
 		"openInSystemBrowser": "在系统浏览器打开",
+		"importToFolder": "导入到文件夹",
 		"comingSoonFor": "{{label}} 即将推出。",
 		"modelscope": "ModelScope 论文",
 		"pwc": {

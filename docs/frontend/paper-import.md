@@ -53,6 +53,13 @@
 - 识别落地：改名/合并通过 `paper:renamed` 事件通知前端 —— handler 抑制 watcher 的外部 rename 修复（`trackInternalRenamePaths`）、remap 打开的 tab/标注。树、论文库和双链与 `paper:imported` 合成一轮：导入或识别任务还在跑就继续合并，结束后论文库走 `paper_list`（不 `paper_rescan`），树只列新旧路径，双链走 `graph_apply_paths`。`outcome=merged` 时 Toast「识别后的 PDF 已合入已有条目」。仅元数据更新走 `job:changed` 终态 → 同一轮论文库列表刷新，树行标签随 `paperMetaByRelPath` 自动更新。
 - PDF 解析最多等待 120 秒，取消任务会终止当前解析子进程。解析失败或超时时，后台入库任务仍会结束，已复制的 PDF、`NOTES.md` 与 catalog 记录保持可用；用户可稍后通过 CLI `paper parse` 重试派生正文。
 
+## 广场（Cool Papers / ModelScope / Papers with Code）
+
+- 卡片上的「入库」先弹出文件夹选择，复用文件树移动目标的同一张卡片（`MoveDestinationPicker`）：`papers/…` 组织夹、新建文件夹、当前目标高亮。
+- 选中的目录随 `importPlazaPaper(request, parentDir)` 传入 lookup / `paper_pwc_import` / `paper_coolpapers_import`；未手动选择时跟随当前树选中的 Papers 文件夹，连续入库记住上一次选择。
+- 点击空白处或 Esc 关闭选择时，该行恢复为可重试的「入库」；选择后行进入「入库中」，完成后显示「已入库」。
+- Host 侧 iframe 会把按钮位置以未缩放的 frame 坐标回传；弹层锚点渲染到 `document.body`，避免 Dockview 的 transform / `contain` 改变 `position: fixed` 的参照系。
+
 ## Zotero
 
 | 入口 | 说明 |

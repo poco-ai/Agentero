@@ -234,6 +234,7 @@
 		"zoomIn": "Zoom in page",
 		"fitWidth": "Fit page to panel width (automatic)",
 		"openInSystemBrowser": "Open in system browser",
+		"importToFolder": "Import to folder",
 		"comingSoonFor": "{{label}} is coming soon.",
 		"modelscope": "ModelScope Papers",
 		"pwc": {

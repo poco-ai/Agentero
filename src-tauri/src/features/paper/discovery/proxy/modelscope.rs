@@ -411,12 +411,14 @@ html body { overflow-y: visible !important; }
         var id = target.dataset.paperId;
         target.dataset.state = "pending";
         setLabel(target, LABELS.pending);
+        var box = target.getBoundingClientRect();
         post({
           importPaper: {
             id: id,
             branch: "arxiv",
             url: "https://arxiv.org/abs/" + id,
-            title: null
+            title: null,
+            anchor: { x: box.left, y: box.bottom }
           }
         });
       },
@@ -842,6 +844,8 @@ mod tests {
         // are already in the library.
         assert!(NAV_BRIDGE.contains("queryImported"));
         assert!(NAV_BRIDGE.contains("importedIds"));
+        // The import click carries its anchor point for the folder menu.
+        assert!(NAV_BRIDGE.contains("anchor: { x: box.left, y: box.bottom }"));
     }
 
     /// Absolute positioning against the card's own anchor is ill-defined: the
