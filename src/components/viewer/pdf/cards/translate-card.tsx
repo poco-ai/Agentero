@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import agenteroAppIcon from "@/assets/agentero-app-icon.svg";
 import { MessageResponse } from "@/components/agent/message";
 import { Button } from "@/components/ui/button";
 import { Shimmer } from "@/components/ui/shimmer";
@@ -246,7 +245,6 @@ export function TranslateCard({
 			// Slightly tighter header than other selection cards.
 			headerClassName="pt-2 pb-1.5"
 			title={t("selection.translateTitle")}
-			icon={<img src={agenteroAppIcon} alt="" className="size-5 rounded" />}
 			ariaLive="polite"
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
