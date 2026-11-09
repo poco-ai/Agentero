@@ -213,7 +213,7 @@ export function TranslateCard({
 				},
 			]}
 			// Body only constrains flex; the translation owns its own scrollport.
-			bodyClassName="agentero-scroll-none min-h-0 overflow-hidden p-0"
+			bodyClassName="min-h-0 overflow-hidden p-0"
 		>
 			{source ? (
 				<div className="mx-3 mt-2.5 flex min-h-6 shrink-0 flex-col justify-end gap-0.5 border-border/60 border-l-2 pr-2.5 pl-2.5 text-muted-foreground">
@@ -230,7 +230,7 @@ export function TranslateCard({
 			<div
 				ref={scrollPortRef}
 				onScroll={handleScroll}
-				className="agentero-scroll agentero-scroll-none mx-3 mt-2 mb-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto py-0.5 pr-0.5"
+				className="agentero-scroll mx-3 mt-2 mb-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto py-0.5 pr-0.5 [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden!"
 			>
 				{showLoading ? (
 					<Shimmer className="text-sm" as="p">

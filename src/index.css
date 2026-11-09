@@ -822,16 +822,22 @@
 }
 
 /*
- * Hidden scrollbar for cards clipped by design (translate card): the content
- * still scrolls with the wheel / trackpad, but no thumb is drawn inside the
- * floating card.
+ * Always-visible variant for content clipped by design (translate card):
+ * the thumb stays shown so the overflow is discoverable. Must come after the
+ * rules above to win at equal specificity; `overflow-y: auto` still means no
+ * scrollbar renders until the content actually clips.
  */
-.agentero-scroll-none {
-	scrollbar-width: none;
+.agentero-scroll-visible {
+	scrollbar-color: color-mix(in oklch, var(--muted-foreground) 32%, transparent)
+		transparent;
 }
 
-.agentero-scroll-none::-webkit-scrollbar {
-	display: none;
+.agentero-scroll-visible::-webkit-scrollbar-thumb {
+	background-color: color-mix(
+		in oklch,
+		var(--muted-foreground) 28%,
+		transparent
+	);
 }
 
 /*
