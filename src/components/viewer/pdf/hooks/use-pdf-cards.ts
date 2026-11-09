@@ -71,7 +71,7 @@ export type PdfCards = {
 	setCardScreen: Dispatch<SetStateAction<CardScreenPoint | null>>;
 	openCard: (card: ActiveSelectionCard) => void;
 	hideActiveCard: () => void;
-	/** Keep reading cards in place after their first placement. */
+	/** Re-anchor the open card after its page moved under it. */
 	syncActiveCardPosition: () => void;
 	cancelHoverHide: () => void;
 	markCardHoverEnter: () => void;
@@ -265,11 +265,10 @@ export function usePdfCards({
 	const syncActiveCardPosition = useCallback(() => {
 		const card = activeCardRef.current;
 		if (!card) return;
-		if (
-			cardScreenRef.current &&
-			(card.kind === "ask" || card.kind === "translate")
-		)
-			return;
+		// Conversations stay in the viewport while their source page scrolls
+		// away (and may be virtualized) — only retry before the first placement.
+		// Reading cards (translate / visual) stay anchored to the page instead.
+		if (card.kind === "ask" && cardScreenRef.current) return;
 		placeActiveCard(card);
 	}, [placeActiveCard]);
 

@@ -280,7 +280,10 @@ type SelectionCardProps = {
 	 * room; prose cards pass their reading width so lines never grow unbounded.
 	 */
 	resizeMaxWidth?: number;
-	/** Allow repositioning from the title, independently of the source anchor. */
+	/**
+	 * Allow repositioning from the title. The drag offset is kept relative to
+	 * the source anchor so the card still follows the page on scroll.
+	 */
 	draggable?: boolean;
 	/** Show the centered grip glyph in a draggable header (default true). */
 	showDragHandle?: boolean;
@@ -354,9 +357,22 @@ export function SelectionCard({
 	children,
 }: SelectionCardProps) {
 	const rootRef = useRef<HTMLDivElement>(null);
-	const [position, setPosition] = useState<{ left: number; top: number }>();
+	/**
+	 * Manual placement offset from the source anchor. Storing it as a delta
+	 * (not absolute coords) keeps a dragged / resized card moving with its page
+	 * when the viewport scrolls.
+	 */
+	const [offset, setOffset] = useState<{ dx: number; dy: number }>();
+	const screenRef = useRef(screen);
+	screenRef.current = screen;
 	const [contentHeight, setContentHeight] = useState<number>();
-	const dragRef = useRef<{ pointerId: number; x: number; y: number }>(null);
+	const dragRef = useRef<{
+		pointerId: number;
+		x: number;
+		y: number;
+		anchorX: number;
+		anchorY: number;
+	} | null>(null);
 	const reduceMotion = useReducedMotion();
 	const [viewport, setViewport] = useState(() => ({
 		width: typeof window !== "undefined" ? window.innerWidth : 1200,
@@ -399,15 +415,19 @@ export function SelectionCard({
 		preferBelow,
 		contentHeight,
 	});
-	const anchoredToSelection = Boolean(screen.selectionBounds) && !position;
+	const anchoredToSelection = Boolean(screen.selectionBounds) && !offset;
 	useLayoutEffect(() => {
 		const card = rootRef.current;
 		if (!anchoredToSelection || !card) return;
 		const measure = () => {
 			const rect = card.getBoundingClientRect();
 			if (resizable && !lockHeight && card.style.height) {
-				// Native corner resizing takes over from the initial anchor.
-				setPosition({ left: rect.left, top: rect.top });
+				// Native corner resizing takes over from the initial anchor, but
+				// keeps tracking the page through the stored anchor offset.
+				setOffset({
+					dx: rect.left - screenRef.current.x,
+					dy: rect.top - screenRef.current.y,
+				});
 			} else {
 				setContentHeight(rect.height);
 			}
@@ -418,9 +438,9 @@ export function SelectionCard({
 		return () => observer.disconnect();
 	}, [anchoredToSelection, lockHeight, resizable]);
 	const edge = SELECTION_CARD_EDGE;
-	const left = position
+	const left = offset
 		? clamp(
-				position.left,
+				screen.x + offset.dx,
 				edge,
 				Math.max(
 					edge,
@@ -430,9 +450,9 @@ export function SelectionCard({
 				),
 			)
 		: anchor.left;
-	const top = position
+	const top = offset
 		? clamp(
-				position.top,
+				screen.y + offset.dy,
 				edge,
 				Math.max(edge, viewport.height - edge - SELECTION_CARD_MIN_HEIGHT),
 			)
@@ -452,9 +472,7 @@ export function SelectionCard({
 			: resizeRoomWidth;
 	// Locked cards use the placement cap while anchored; after a drag, shrink
 	// to the room below the new top so a short window does not overflow.
-	const cardMaxHeight = position
-		? Math.min(height, resizeRoomHeight)
-		: maxHeight;
+	const cardMaxHeight = offset ? Math.min(height, resizeRoomHeight) : maxHeight;
 	// The gutter pin sits on the side the card opens toward. Reveal the card
 	// from that corner so it looks like the pin expands into the full card.
 	const isRightSide = anchor.left + renderedWidth / 2 >= screen.x;
@@ -480,6 +498,8 @@ export function SelectionCard({
 			pointerId: event.pointerId,
 			x: event.clientX - rect.left,
 			y: event.clientY - rect.top,
+			anchorX: screenRef.current.x,
+			anchorY: screenRef.current.y,
 		};
 	};
 
@@ -488,18 +508,19 @@ export function SelectionCard({
 		if (!drag || drag.pointerId !== event.pointerId) return;
 		const rect = rootRef.current?.getBoundingClientRect();
 		if (!rect) return;
-		setPosition({
-			left: clamp(
-				event.clientX - drag.x,
-				edge,
-				Math.max(edge, viewport.width - edge - rect.width),
-			),
-			top: clamp(
-				event.clientY - drag.y,
-				edge,
-				Math.max(edge, viewport.height - edge - rect.height),
-			),
-		});
+		const left = clamp(
+			event.clientX - drag.x,
+			edge,
+			Math.max(edge, viewport.width - edge - rect.width),
+		);
+		const top = clamp(
+			event.clientY - drag.y,
+			edge,
+			Math.max(edge, viewport.height - edge - rect.height),
+		);
+		// Keep the drop point relative to the page anchor so scrolling after a
+		// drag still moves the card with the document.
+		setOffset({ dx: left - drag.anchorX, dy: top - drag.anchorY });
 	};
 
 	// If the card mounts / remounts under an existing pointer (mode switch,
