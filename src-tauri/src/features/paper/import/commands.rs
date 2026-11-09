@@ -246,8 +246,6 @@ pub async fn paper_stage_import_file(
 pub struct PaperResolveIdentifierArgs {
     /// DOI / arXiv id / URL / title text.
     pub text: String,
-    #[serde(default)]
-    pub translator_base_url: Option<String>,
 }
 
 /// Resolve an identifier (DOI/arXiv) to metadata without importing — backs
@@ -267,10 +265,7 @@ pub async fn paper_resolve_identifier(args: PaperResolveIdentifierArgs) -> ApiRe
             && super::search_router::extract_primary_identifier(&args.text).is_some();
 
     if try_identifier {
-        let base = args
-            .translator_base_url
-            .clone()
-            .unwrap_or_else(|| super::DEFAULT_TRANSLATOR_BASE_URL.to_string());
+        let base = super::DEFAULT_TRANSLATOR_BASE_URL.to_string();
         match super::resolve_metadata(&args.text, &base, None).await {
             Ok(resolved) => {
                 let mut meta = resolved.record;

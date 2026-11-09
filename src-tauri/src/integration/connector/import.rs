@@ -498,17 +498,6 @@ fn decode_connector_title(raw: &str) -> String {
 /// the HTTP 201 body. Parsing is triggered only after `connector:item-saved`.
 /// Official Zotero returns `{ canRecognize }`; we return `canRecognize: false`
 /// because `/connector/getRecognizedItem` is not implemented yet.
-fn translator_url_from_ctrl(ctrl: &ConnectorController) -> String {
-    use tauri::Manager;
-    ctrl.app_handle()
-        .and_then(|app| {
-            app.try_state::<crate::features::system::settings::AppSettingsStore>()
-                .and_then(|s| s.get().ok())
-                .map(|r| r.settings.translator_base_url)
-        })
-        .unwrap_or_else(|| crate::features::paper::import::DEFAULT_TRANSLATOR_BASE_URL.to_string())
-}
-
 /// Fallback metadata for a standalone PDF when online resolution is unavailable.
 fn fallback_standalone_meta(title: Option<&str>, clean_url: Option<&str>) -> papers::PaperRecord {
     let title_raw = title.map(str::trim).filter(|s| !s.is_empty());
@@ -544,16 +533,12 @@ fn fallback_standalone_meta(title: Option<&str>, clean_url: Option<&str>) -> pap
 /// under ~15s, so the synchronous lookup is bounded far below the translator's
 /// own 60s timeout; on timeout or failure the fallback metadata is used and the
 /// background recognition pass completes the record later.
-async fn resolve_standalone_meta(
-    ctrl: &ConnectorController,
-    title: Option<&str>,
-    url: Option<&str>,
-) -> papers::PaperRecord {
+async fn resolve_standalone_meta(title: Option<&str>, url: Option<&str>) -> papers::PaperRecord {
     const RESOLVE_BUDGET: std::time::Duration = std::time::Duration::from_secs(6);
     let clean_url = url.map(str::trim).filter(|s| !s.is_empty());
     if let Some(u) = clean_url {
-        let base = translator_url_from_ctrl(ctrl);
-        let lookup = crate::features::paper::import::resolve_metadata(u, &base, None);
+        let base = crate::features::paper::import::DEFAULT_TRANSLATOR_BASE_URL;
+        let lookup = crate::features::paper::import::resolve_metadata(u, base, None);
         if let Ok(Ok(resolved)) = tokio::time::timeout(RESOLVE_BUDGET, lookup).await {
             let mut resolved_meta = resolved.record;
             resolved_meta.meta_source = Some("zotero-connector".into());
@@ -666,7 +651,7 @@ pub async fn import_standalone_attachment(
         session_parent
     };
 
-    let meta = resolve_standalone_meta(&ctrl, title, url).await;
+    let meta = resolve_standalone_meta(title, url).await;
     let progress_id = url
         .map(str::trim)
         .filter(|s| !s.is_empty())

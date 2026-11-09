@@ -308,7 +308,8 @@ pub fn run() {
                 settings_store.subscribe(move |s| {
                     let ctrl = Arc::clone(handle.state::<Arc<McpController>>().inner());
                     let port = s.mcp_port;
-                    let translator = s.translator_base_url.clone();
+                    let translator =
+                        crate::features::paper::import::DEFAULT_TRANSLATOR_BASE_URL.to_string();
                     let note_mode = s.paper_note_mode.clone();
                     ctrl.set_translator_url(Some(translator));
                     ctrl.set_paper_note_mode(note_mode);
@@ -394,7 +395,9 @@ pub fn run() {
         {
             let mcp = app.state::<Arc<McpController>>();
             crate::integration::mcp::attach_app(&mcp, app.handle().clone());
-            mcp.set_translator_url(Some(settings.translator_base_url.clone()));
+            mcp.set_translator_url(Some(
+                crate::features::paper::import::DEFAULT_TRANSLATOR_BASE_URL.to_string(),
+            ));
             mcp.set_paper_note_mode(settings.paper_note_mode.clone());
         }
         #[cfg(not(target_os = "ios"))]

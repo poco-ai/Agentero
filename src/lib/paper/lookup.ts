@@ -1,7 +1,7 @@
 /**
  * Magic-wand identifier import via Host `lookup_import`.
  * Always downloads PDF; arXiv also downloads and unpacks LaTeX into `source/`.
- * Translator base URL comes from Settings (`translatorBaseUrl`).
+ * Translator base URL is the hardcoded official endpoint.
  * @see docs/backend/identifier-lookup.md
  */
 import { open } from "@tauri-apps/plugin-dialog";
@@ -101,17 +101,6 @@ function looksLikeIdentifierToken(token: string): boolean {
 	return false;
 }
 
-function resolveTranslatorBaseUrl(
-	settings: AppSettings | undefined,
-	override?: string,
-): string {
-	const raw =
-		override?.trim() ||
-		settings?.translatorBaseUrl?.trim() ||
-		DEFAULT_TRANSLATOR_BASE_URL;
-	return raw.replace(/\/+$/, "");
-}
-
 function toLookupAddResult(d: LookupImportResult_Serialize): LookupAddResult {
 	return {
 		paperDir: d.paperDir,
@@ -148,8 +137,6 @@ export async function addPapersByIdentifiers(opts: {
 	parentDir: string;
 	texts: string[];
 	settings: AppSettings;
-	/** Override settings URL for this call */
-	translatorBaseUrl?: string;
 	progressTaskId?: string;
 }): Promise<LookupBatchAddResult> {
 	if (!isTauri()) {
@@ -161,18 +148,13 @@ export async function addPapersByIdentifiers(opts: {
 		throw new Error(i18n.t("sidebar:lookup.batchEmpty"));
 	}
 
-	const translatorBaseUrl = resolveTranslatorBaseUrl(
-		opts.settings,
-		opts.translatorBaseUrl,
-	);
-
 	const result = await callApiResult(
 		() =>
 			commands.lookupImportBatch({
 				vaultPath: opts.vaultRoot,
 				parentDir: opts.parentDir.replace(/\\/g, "/"),
 				texts,
-				translatorBaseUrl,
+				translatorBaseUrl: DEFAULT_TRANSLATOR_BASE_URL,
 				taskId: opts.progressTaskId ?? null,
 				concurrency: opts.settings.batchImportConcurrency ?? null,
 			}),

@@ -48,7 +48,7 @@ Skill 不写入 catalog、不创建 `papers/` 条目、不执行 `scripts/`。�
   → 前端刷树 / openPaper
 ```
 
-- 设置：`translatorBaseUrl`。查找与 Zotero 导入共用 `import::translator_base`：去除首尾空白、空值回退默认服务、移除末尾 `/`。
+- Translator 地址：桌面端固定使用官方常量 `DEFAULT_TRANSLATOR_BASE_URL`，不读设置；CLI / 远程调用可通过 `LookupImportArgs.translator_base_url` 覆盖。查找与 Zotero 导入共用 `import::translator_base`：去除首尾空白、空值回退默认服务、移除末尾 `/`。
 - arXiv 的 `abs` / `pdf` / `html` / `src` / `e-print` URL 与裸 ID 都会先提取 ID；不会将 PDF 二进制 URL 交给 Translator 的网页解析器。
 - Translator 带回的 arXiv 学科分类（`Computer Science - Machine Learning` 这类 `"Archive - Sub-Field"` 标签）写入 catalog 时加 `@arxiv:` 前缀，作为隐标签保留来源、不出现在 Library / Paper Info / 标签筛选。用户自己加的普通标签不受影响。
 - venue 标签：arXiv e-print 解包到 `source/` 后扫描 LaTeX 模板（`\documentclass` / `\usepackage` / `.sty`/`.cls` 名），命中已知会议/期刊时写 `#submitted:<会议> <年份>` 标签（如 `#submitted:AAAI 2027`）。该标签由 Host 维护、仅作为投稿目标的兼容投影，UI 在「发表 / 投稿」列显示；若 catalog `publication` 已是**真实出版 venue**，同步时会删除它。`#venue:` 已废弃，不再写入。preprint / 仓库类 `publication`（arXiv、bioRxiv、medRxiv、SSRN、Research Square、Zenodo、OpenReview 等）不算 venue，会保留/走模板推断。已有 `#submitted:`、或用户标签已含该会议名的论文会跳过。见 [catalog.md](catalog.md)。

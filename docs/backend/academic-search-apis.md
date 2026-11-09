@@ -187,15 +187,15 @@ UI 刷新（`paper_resolve_identifier`）对 DOI/arXiv/URL **先走标识符解�
 | Papers with Code 补全 | 串行 + 600ms 间隔 | 目录 GET 限 120/min；批量入库不并发打 |
 | 通用 HTTP | `crate::core::http::client` | 共享连接池，单个请求超时 20s，PDF/TeX 下载 180s |
 
-默认所有调用均使用无 API key 的免费端点（Semantic Scholar、arXiv、Crossref、Unpaywall）；Semantic Scholar、PubMed 与 OpenAlex 额外支持可选的 BYOK 环境变量（见第 4 节）。Cool Papers 无 auth。Translator Runtime 默认使用项目托管实例 `https://translation-server.agentero.app`，用户可在设置中替换。
+默认所有调用均使用无 API key 的免费端点（Semantic Scholar、arXiv、Crossref、Unpaywall）；Semantic Scholar、PubMed 与 OpenAlex 额外支持可选的 BYOK 环境变量（见第 4 节）。Cool Papers 无 auth。Translator Runtime 在桌面端固定使用项目托管实例 `https://translation-server.agentero.app`，不读设置；CLI/远程调用可显式覆盖。
 
 ## 4. 配置与可替换项
 
 | 配置项 | 位置 | 默认值 | 说明 |
 |---|---|---|---|
-| `translatorBaseUrl` | `features/system/settings/mod.rs` | `https://translation-server.agentero.app` | 可替换为自托管 Translator Runtime |
-| `LookupImportArgs.translator_base_url` | 单次请求参数 | 空则使用设置值 | CLI/批量导入可临时覆盖 |
-| 后台 PDF 识别（RecognizeMetadata job） | `job_runners.rs` 直接读设置 `translator_base_url` | 空则用 `DEFAULT_TRANSLATOR_BASE_URL` | **不**经 IPC 入参传入（`ImportLocalPdfArgs` 无此字段） |
+| `DEFAULT_TRANSLATOR_BASE_URL` | `features/paper/import/mod.rs` | `https://translation-server.agentero.app` | 桌面端固定使用，不读 `settings.json` |
+| `LookupImportArgs.translator_base_url` | 单次请求参数 | 空则使用官方常量 | CLI / 远程调用可显式覆盖 |
+| 后台 PDF 识别（RecognizeMetadata job） | `job_runners.rs` 直接使用官方常量 | `DEFAULT_TRANSLATOR_BASE_URL` | **不**经 IPC 入参传入（`ImportLocalPdfArgs` 无此字段） |
 | `SEMANTIC_SCHOLAR_API_KEY` | 环境变量，`scholar_api/client.rs::auth_headers` 按请求读取 | 未设置 | 对 `api.semanticscholar.org` 的请求追加 `x-api-key` 头；免费 key 可将共享池限速提升至 1 req/s+ |
 | `NCBI_API_KEY` | 环境变量，`scholar_api/sources/pubmed.rs` 按请求读取 | 未设置 | esearch/efetch 追加 `api_key=` 参数；免费 key 将单 IP 限速从 3 提升到 10 req/s |
 | `institutionProxyType` | 设置项 | `ezproxy` | 网关形态：`ezproxy`（查询透传 `{prefix}{urlencode(target)}`，裸域名自动补 `/login?url=`）或 `wengine`（网瑞达路径式 `/https/{AES-128-CTR(host)}/{path}`，浙大等，见 [settings.md](settings.md)） |

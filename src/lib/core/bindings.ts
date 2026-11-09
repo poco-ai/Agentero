@@ -1660,7 +1660,6 @@ export type AppSettings = AppSettings_Serialize | AppSettings_Deserialize;
 export type AppSettings_Deserialize = {
 	/**  Null disables a command; absent ids use their default shortcut. */
 	shortcutOverrides?: { [key in string]: ShortcutBinding_Deserialize | null },
-	translatorBaseUrl?: string,
 	/**  EasyScholar key for journal ranking and impact-factor lookups. */
 	easyScholarKey?: string,
 	/**  知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。 */
@@ -1802,7 +1801,6 @@ export type AppSettings_Deserialize = {
 export type AppSettings_Serialize = {
 	/**  Null disables a command; absent ids use their default shortcut. */
 	shortcutOverrides: { [key in string]: ShortcutBinding_Serialize | null },
-	translatorBaseUrl: string,
 	/**  EasyScholar key for journal ranking and impact-factor lookups. */
 	easyScholarKey: string,
 	/**  知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。 */
@@ -4622,7 +4620,6 @@ export type PaperRescanResult = {
 export type PaperResolveIdentifierArgs = {
 	/**  DOI / arXiv id / URL / title text. */
 	text: string,
-	translatorBaseUrl?: string | null,
 };
 
 /**  Frontend-facing title/keyword search candidate. */

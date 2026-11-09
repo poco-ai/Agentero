@@ -153,11 +153,6 @@ export type AppSettings = {
 	/** Null disables a command; absent ids use their default shortcut. */
 	shortcutOverrides: ShortcutOverrides;
 	// General
-	/**
-	 * Translator Runtime base URL for magic-wand / identifier import.
-	 * Default: hosted poco-ai service.
-	 */
-	translatorBaseUrl: string;
 	/** EasyScholar key for journal ranking and impact-factor lookups. */
 	easyScholarKey: string;
 	/** 知乎开放平台 Access Secret（内置「知乎」Agent 的直答 / 检索凭证）。 */

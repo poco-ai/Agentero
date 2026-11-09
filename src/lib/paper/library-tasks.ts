@@ -36,7 +36,6 @@ import {
 	setCitingScanDraft,
 } from "@/lib/paper/library-store";
 import { libraryCitingScan } from "@/lib/paper/refs";
-import { getSettings } from "@/lib/settings/react-store";
 import { getVaultPath, refreshTree } from "@/lib/vault/store";
 
 /** Register the library-scope executors (before `startTaskRuntime`). */
@@ -94,7 +93,6 @@ async function runLibraryIoJob(ctx: TaskExecutorContext): Promise<void> {
 		// A dismissed save dialog resolves to null: soft cancel, job succeeds.
 		await exportLibraryToFile({
 			vaultPath: ctx.vaultPath,
-			settings: getSettings(),
 			format: "bibtex",
 		});
 		return;
@@ -103,7 +101,6 @@ async function runLibraryIoJob(ctx: TaskExecutorContext): Promise<void> {
 		const r = await importLibraryFromFile({
 			vaultPath: ctx.vaultPath,
 			parentDir: currentLookupParentDir(),
-			settings: getSettings(),
 		});
 		if (!r) return;
 		await reportTaskPhase(

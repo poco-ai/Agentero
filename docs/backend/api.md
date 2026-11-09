@@ -947,7 +947,7 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
 **交互**：侧边栏魔棒 → 粘贴链接/编号 → Host `lookup_import_batch` → Translator → 写 paper 文件夹。  
 详见 [`paper-import.md`](paper-import.md)。
 
-**Translator 默认地址**：`https://translation-server.agentero.app`（设置 `translatorBaseUrl` 可改）。  
+**Translator 地址**：固定为 `https://translation-server.agentero.app`（桌面端不读 settings，代码常量）。  
 `POST {base}/search` 或 `/web`，body 为 plain text。
 
 #### `lookup_import_batch`（魔棒批量入库）
@@ -959,7 +959,7 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
     vaultPath: string;
     parentDir: string;              // "papers" | "papers/nlp"
     texts: string[];                // 拆分后的原始 token 数组
-    translatorBaseUrl?: string;     // 来自设置，默认 https://translation-server.agentero.app
+    translatorBaseUrl?: string;     // GUI 固定传官方地址；CLI/远程调用可显式覆盖
     taskId?: string;                // 前端后台任务 id；单条进度聚合在该任务下
     concurrency?: number;           // 最大并发入库数，默认 5，范围 1–10
   }
@@ -1053,7 +1053,7 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
   }
   ```
 
-  > 后台识别阶段的 Translator 地址由 Host 直接读设置 `translatorBaseUrl`（`job_runners.rs`），不经本命令入参传入。
+  > 后台识别阶段固定使用 `DEFAULT_TRANSLATOR_BASE_URL`（`job_runners.rs`），不读设置，也不经本命令入参传入。
 
 - **返回**：`{ ok: true; data: { papers: LookupImportResult[]; errors: string[] } }`（`errors` 为 `"<文件>: <原因>"`；仅当**全部**失败才整体 `ok:false`）。
 - **行为**：每个 PDF → 标题优先用 `entries` 覆盖，否则文件名 stem；文件夹 id 按 arXiv ID slug → DOI slug → 文件名 stem 派生（与标识符导入命名一致，Host 仍做 `-2`/`-3` 去重）；带 `doi`/`arxivId`/`extra` 的 entries 记 `meta_source=manual`；无覆盖元数据的 entries（UI 默认路径）内联跑识别链路（见 [paper-import.md](paper-import.md) § PDF 元数据识别），命中则用解析出的元数据与标识符 slug 命名（`meta_source=recognize`），失败退回文件名 stem。复制到 `{slug}.pdf`；写 `NOTES.md` 壳 + catalog。导入任务本身**不**再等待 liteparse；前端会在导入完成后独立入队 `job_parse_body_enqueue`（ParseBody）后台任务生成 `PAPER.md`（无 TeX 且有 PDF 时）。不覆盖已存在文件夹（slug 去重）。
@@ -1064,7 +1064,7 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
 
 把 DOI / arXiv id 解析为元数据（不入库）。支撑编辑元数据的刷新按钮。
 
-- **参数**（invoke 字段名 `args`）：`{ text: string; translatorBaseUrl?: string }`
+- **参数**（invoke 字段名 `args`）：`{ text: string }`
 - **返回**：`{ ok: true; data: PaperRecord }`（snake_case，与 `paper_get` 行同构）。
 - **链路**：输入是 DOI / arXiv / URL 时先走标识符解析（Translator → Crossref / arXiv Atom），再用 Semantic Scholar `publicationVenue.name` 补空缺或截断的会议名；自由文本才走 title search。仓储名（`arXiv` / `CoRR`）不当作有效 publication。详见 [academic-search-apis.md](academic-search-apis.md) §2.5。
 
@@ -1102,7 +1102,7 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
 
 #### `paper_export`
 
-导出 catalog 全文：Host 将每行转为 **Zotero API JSON item**，组成 **JSON 数组**，再 `POST {translatorBaseUrl}/export?format=…`（`Content-Type: application/json`）。
+导出 catalog 全文：Host 将每行转为 **Zotero API JSON item**，组成 **JSON 数组**，再 `POST {base}/export?format=…`（`Content-Type: application/json`）。桌面端 `base` 固定为官方地址。
 
 - **参数**（`args`）：
 
@@ -1110,7 +1110,7 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
   {
     vaultPath: string;
     format?: string;              // 默认 "bibtex"；亦支持 biblatex/ris/csljson/csv/…
-    translatorBaseUrl?: string;
+    translatorBaseUrl?: string;   // GUI 固定官方地址；CLI/远程调用可覆盖
   }
   ```
 
@@ -1119,7 +1119,7 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
 
 #### `paper_import`
 
-导入 BibTeX / RIS 等：`POST {translatorBaseUrl}/import`（`Content-Type: text/plain`）→ Zotero items 数组 → map + catalog upsert + paper 壳 + 默认下载资源。
+导入 BibTeX / RIS 等：`POST {base}/import`（`Content-Type: text/plain`）→ Zotero items 数组 → map + catalog upsert + paper 壳 + 默认下载资源。桌面端 `base` 固定为官方地址。
 
 - **参数**（`args`）：
 
@@ -1128,7 +1128,7 @@ Updater 模块与命令注册均排除 Android / iOS，与 Cargo 的 updater 插
     vaultPath: string;
     content: string;              // 文件全文
     parentDir?: string;           // 默认 "papers"
-    translatorBaseUrl?: string;
+    translatorBaseUrl?: string;   // GUI 固定官方地址；CLI/远程调用可覆盖
   }
   ```
 

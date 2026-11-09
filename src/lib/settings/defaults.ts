@@ -80,7 +80,7 @@ export const DECISION_PROVIDER_PRESETS: Record<
 	},
 };
 
-/** Default Translator Runtime endpoint (overridable in Settings). */
+/** Official Translator Runtime endpoint (hardcoded; not user-configurable). */
 export const DEFAULT_TRANSLATOR_BASE_URL =
 	"https://translation-server.agentero.app";
 export const DEFAULT_NETWORK_PROXY_URL = "http://127.0.0.1:7890";
@@ -165,7 +165,6 @@ export function clampEditorLineHeight(value: number): number {
 
 export const DEFAULT_SETTINGS: AppSettings = {
 	shortcutOverrides: {},
-	translatorBaseUrl: DEFAULT_TRANSLATOR_BASE_URL,
 	easyScholarKey: "",
 	zhihuAccessSecret: "",
 	institutionProxyPrefix: "",

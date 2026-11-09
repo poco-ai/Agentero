@@ -23,7 +23,7 @@ import type {
 	PaperTagInput,
 } from "@/lib/paper/types";
 import { paperFromWire } from "@/lib/paper/wire";
-import { type AppSettings, DEFAULT_TRANSLATOR_BASE_URL } from "@/lib/settings";
+import { DEFAULT_TRANSLATOR_BASE_URL } from "@/lib/settings";
 import type { WikiRenameResult } from "@/lib/wiki";
 
 /**
@@ -500,13 +500,10 @@ export async function resolveIdentifierMetadata(
 	if (!isTauri()) {
 		throw new Error(i18n.t("sidebar:paperInfo.editMeta.desktopOnly"));
 	}
-	const { getSettings } = await import("@/lib/settings/react-store");
-	const settings: AppSettings = getSettings();
 	const record = await callApi(
 		() =>
 			commands.paperResolveIdentifier({
 				text: text.trim(),
-				translatorBaseUrl: settings.translatorBaseUrl,
 			}),
 		{ fallback: i18n.t("sidebar:paperInfo.editMeta.fetchFailed") },
 	);
@@ -521,19 +518,12 @@ export type PaperImportResult = {
 	errors: string[];
 };
 
-function translatorBase(settings?: AppSettings): string {
-	const raw =
-		settings?.translatorBaseUrl?.trim() || DEFAULT_TRANSLATOR_BASE_URL;
-	return raw.replace(/\/+$/, "");
-}
-
 /**
  * Export catalog via Host → Translator `POST /export`.
  * Host converts catalog rows to a **Zotero API JSON array** (required body shape).
  */
 export async function exportLibrary(opts: {
 	vaultPath: string;
-	settings?: AppSettings;
 	/** Default bibtex */
 	format?: string;
 }): Promise<PaperExportResult> {
@@ -545,7 +535,7 @@ export async function exportLibrary(opts: {
 			commands.paperExport({
 				vaultPath: opts.vaultPath,
 				format: opts.format ?? "bibtex",
-				translatorBaseUrl: translatorBase(opts.settings),
+				translatorBaseUrl: DEFAULT_TRANSLATOR_BASE_URL,
 			}),
 		{ fallback: i18n.t("sidebar:papersLibrary.exportFailed") },
 	);
@@ -557,7 +547,6 @@ export async function exportLibrary(opts: {
  */
 export async function exportLibraryToFile(opts: {
 	vaultPath: string;
-	settings?: AppSettings;
 	format?: string;
 }): Promise<PaperExportResult | null> {
 	const data = await exportLibrary(opts);
@@ -582,7 +571,6 @@ export async function importLibraryText(opts: {
 	vaultPath: string;
 	content: string;
 	parentDir?: string;
-	settings?: AppSettings;
 }): Promise<PaperImportResult> {
 	if (!isTauri()) {
 		throw new Error(i18n.t("sidebar:papersLibrary.desktopOnly"));
@@ -593,7 +581,7 @@ export async function importLibraryText(opts: {
 				vaultPath: opts.vaultPath,
 				parentDir: opts.parentDir ?? "papers",
 				content: opts.content,
-				translatorBaseUrl: translatorBase(opts.settings),
+				translatorBaseUrl: DEFAULT_TRANSLATOR_BASE_URL,
 			}),
 		{ fallback: i18n.t("sidebar:papersLibrary.importFailed") },
 	);
@@ -606,7 +594,6 @@ export async function importLibraryText(opts: {
 export async function importLibraryFromFile(opts: {
 	vaultPath: string;
 	parentDir?: string;
-	settings?: AppSettings;
 }): Promise<PaperImportResult | null> {
 	const selected = await open({
 		multiple: false,
@@ -625,6 +612,5 @@ export async function importLibraryFromFile(opts: {
 		vaultPath: opts.vaultPath,
 		content,
 		parentDir: opts.parentDir,
-		settings: opts.settings,
 	});
 }

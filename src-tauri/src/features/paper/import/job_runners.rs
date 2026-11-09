@@ -187,21 +187,8 @@ fn recognize_metadata_runner(
             return RunOutcome::Succeeded; // nothing to recognize without a PDF
         }
 
-        let translator_base = app
-            .state::<crate::features::system::settings::AppSettingsStore>()
-            .get()
-            .ok()
-            .map(|r| {
-                r.settings
-                    .translator_base_url
-                    .trim()
-                    .trim_end_matches('/')
-                    .to_string()
-            })
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| {
-                crate::features::paper::import::DEFAULT_TRANSLATOR_BASE_URL.to_string()
-            });
+        let translator_base =
+            crate::features::paper::import::DEFAULT_TRANSLATOR_BASE_URL.to_string();
 
         let probe =
             crate::features::paper::import::recognize::pdf_recognize::recognize_and_resolve(

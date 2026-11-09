@@ -30,7 +30,6 @@ import {
 	DEFAULT_PAPER_READER_SETTINGS,
 	DEFAULT_PDF_ASK_SETTINGS,
 	DEFAULT_SETTINGS,
-	DEFAULT_TRANSLATOR_BASE_URL,
 	snapUiScale,
 } from "@/lib/settings/defaults";
 import { normalizeFontFamilyValue } from "@/lib/settings/fonts";
@@ -324,13 +323,6 @@ function normalizePartial(
 		rest.agentPermissionMode === undefined
 	) {
 		merged.agentPermissionMode = parsed.agentYolo ? "auto" : "restricted";
-	}
-	if (!merged.translatorBaseUrl?.trim()) {
-		merged.translatorBaseUrl = DEFAULT_TRANSLATOR_BASE_URL;
-	} else {
-		merged.translatorBaseUrl = merged.translatorBaseUrl
-			.trim()
-			.replace(/\/+$/, "");
 	}
 	if (typeof parsed.easyScholarKey !== "string") {
 		merged.easyScholarKey = DEFAULT_SETTINGS.easyScholarKey;

@@ -90,15 +90,14 @@ catalog **始终**写入 `pdf_url` / `html_url`（有则仍可供在线预览）
 
 UI 阅读：优先 catalog 远程 URL；`source/` 为 arXiv TeX 归档；`PAPER.md` 为无 TeX 时的派生正文。
 
-#### Translator 服务地址（设置）
+#### Translator 服务地址（固定）
 
 | 项 | 值 |
 |---|---|
-| 设置 key | `translatorBaseUrl`（Settings → General） |
-| 默认 | **`https://translation-server.agentero.app`** |
-| Host 常量 | `DEFAULT_TRANSLATOR_BASE_URL`（与设置默认一致） |
+| 地址 | **`https://translation-server.agentero.app`** |
+| 来源 | 代码常量 `DEFAULT_TRANSLATOR_BASE_URL`（桌面端不读 `settings.json`） |
 
-- 魔棒入库时前端把设置中的 URL 传入 `lookup_import_batch.args.translatorBaseUrl`。
+- 魔棒入库时前端把固定常量传入 `lookup_import_batch.args.translatorBaseUrl`；CLI / 远程调用仍可显式覆盖。
 - Host：`POST {base}/search` 或 `/web`（`Content-Type: text/plain`）。
 - 服务不可达时按标识符类型走直连兜底链（错峰投机并发，见 §3.2）：arXiv→S2→alphaXiv、DOI→Crossref→S2→OpenAlex、PMID→PubMed。HTTP 503 / `error code: 1102` 先重试两次。链未命中的 `http(s)` 网页改为按 URL、标题和页面元数据入库，不因翻译服务失败而中断。
 
@@ -536,7 +535,7 @@ await ensure_paper_assets(paperDir, record);           // PDF + arXiv LaTeX → 
     vaultPath: string;
     parentDir: string;              // "papers" | "papers/nlp"
     texts: string[];                // 用户输入拆分后的原始 token 数组
-    translatorBaseUrl?: string;     // 同上
+    translatorBaseUrl?: string;     // GUI 固定官方常量；CLI/远程可覆盖
     taskId?: string;                // 前端后台任务 id
     concurrency?: number;           // 最大并发入库数，默认 5，范围 1–10
   }
@@ -729,8 +728,8 @@ arXiv URL 推导：
 
 ### Phase B — Translator 服务
 
-- [x] HTTP 客户端 → `POST {translatorBaseUrl}/search|/web`（默认 `https://translation-server.agentero.app`）
-- [x] map → `PaperRecord` / catalog schema v2；设置页 `translatorBaseUrl`
+- [x] HTTP 客户端 → `POST {base}/search|/web`（固定 `https://translation-server.agentero.app`）
+- [x] map → `PaperRecord` / catalog schema v2；地址为代码常量，不读设置
 - [ ] 可选本机 sidecar 捆绑 / 探测；更细 dedupe UX
 
 ### Phase C — 体验打磨

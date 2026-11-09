@@ -20,7 +20,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-pub const DEFAULT_TRANSLATOR_BASE_URL: &str = "https://translation-server.agentero.app";
 pub const DEFAULT_NETWORK_PROXY_URL: &str = "http://127.0.0.1:7890";
 /// Default System One endpoint (TypeSafe jEV). Clef/OpenAI presets override it.
 pub const DEFAULT_DECISION_BASE_URL: &str = "https://api.typesafe.ai/v1/systemone";
@@ -70,8 +69,6 @@ pub struct AppSettings {
     /// Null disables a command; absent ids use their default shortcut.
     #[serde(default)]
     pub shortcut_overrides: HashMap<String, Option<ShortcutBinding>>,
-    #[serde(default = "default_translator_base_url")]
-    pub translator_base_url: String,
     /// EasyScholar key for journal ranking and impact-factor lookups.
     #[serde(default)]
     pub easy_scholar_key: String,
@@ -465,7 +462,6 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             shortcut_overrides: HashMap::new(),
-            translator_base_url: DEFAULT_TRANSLATOR_BASE_URL.to_string(),
             easy_scholar_key: String::new(),
             zhihu_access_secret: String::new(),
             network_proxy_enabled: false,
@@ -527,9 +523,6 @@ impl Default for AppSettings {
 
 fn default_true() -> bool {
     true
-}
-fn default_translator_base_url() -> String {
-    DEFAULT_TRANSLATOR_BASE_URL.to_string()
 }
 fn default_network_proxy_url() -> String {
     DEFAULT_NETWORK_PROXY_URL.to_string()
@@ -1267,12 +1260,6 @@ fn normalize(s: &mut AppSettings) {
     if s.batch_import_concurrency < 1 || s.batch_import_concurrency > 10 {
         s.batch_import_concurrency = default_batch_import_concurrency();
     }
-    let url = s.translator_base_url.trim().trim_end_matches('/');
-    s.translator_base_url = if url.is_empty() {
-        DEFAULT_TRANSLATOR_BASE_URL.to_string()
-    } else {
-        url.to_string()
-    };
     s.network_proxy_url = s.network_proxy_url.trim().to_string();
     if s.network_proxy_url.is_empty() {
         s.network_proxy_url = default_network_proxy_url();
@@ -1621,7 +1608,6 @@ mod tests {
         let (loaded, existed) = read_file(&path);
         assert!(existed);
         assert_eq!(loaded.theme, "system");
-        assert_eq!(loaded.translator_base_url, DEFAULT_TRANSLATOR_BASE_URL);
         assert_eq!(loaded.auto_update_internal_links, "ask");
         assert_eq!(loaded.paper_note_mode, "standard");
         assert!(!loaded.onboarding_done);
@@ -1731,16 +1717,6 @@ mod tests {
             s.dismissed_reminders,
             vec!["layout-local-model", "network-proxy"]
         );
-    }
-
-    #[test]
-    fn normalize_empty_translator_url() {
-        let mut s = AppSettings {
-            translator_base_url: "  ".into(),
-            ..AppSettings::default()
-        };
-        normalize(&mut s);
-        assert_eq!(s.translator_base_url, DEFAULT_TRANSLATOR_BASE_URL);
     }
 
     #[test]

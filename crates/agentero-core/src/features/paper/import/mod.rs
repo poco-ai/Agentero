@@ -73,7 +73,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// Default Translator Runtime base URL (hosted service).
-/// Override via Settings → `translatorBaseUrl` / `LookupImportArgs.translator_base_url`.
+/// Desktop callers use this fixed endpoint; CLI / remote calls may override via
+/// `LookupImportArgs.translator_base_url`.
 pub const DEFAULT_TRANSLATOR_BASE_URL: &str = "https://translation-server.agentero.app";
 
 pub fn check_task_not_cancelled(task_id: Option<&str>) -> Result<(), AppError> {
