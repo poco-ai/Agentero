@@ -16,6 +16,8 @@ Agentero 是一个基于 Tauri 2 + React 19 的本地优先科研工作台，产
 - 在 UI 修改的过程中尽量少加入无关的、非必须的i18n 文案，如果能用icon表达，就不要加额外的描述。操作失败用 `notifyError` Toast，不在侧栏 header 挂常驻错误条。
 - 国际化（i18n）：所有面向用户文案必须经 `t()` 走 `react-i18next`。en 源语言 → 同步 `zh-CN`（`src/i18n/locales/`）。详见 [docs/frontend/shell.md](docs/frontend/shell.md)。
 - IPC 契约（bindings.ts）：修改 `#[tauri::command]` 签名、事件 payload、或任何进入 bindings 的 Rust 类型——**包括文档注释，注释也导出参与比对**——后，必须重新生成并一并提交 `src/lib/core/bindings.ts`：`AGENTERO_UPDATE_BINDINGS=1 cargo test -p agentero export_typescript_bindings`（不带环境变量则只读校验，CI 会用它挡漂移）。详见 [docs/backend/api.md](docs/backend/api.md) §2.6。
+- IPC / 事件改动提交前，运行 `cargo test -p agentero export_typescript_bindings` 和 `cargo test -p agentero app::events_contract`。新增或重命名事件须同步事件类型、`events_contract.rs` 的 `registered_event_names()` 和 `bindings_test.rs` 的导出列表；bindings 生成通过不代表事件登记检查通过。
+- 前端模块依赖改动（import / re-export，包括 i18n、settings、service 之间的引用）提交前，除 `pnpm typecheck` 外必须运行 `pnpm deps:check`；类型检查和单元测试不能替代循环依赖检查。按改动范围在提交前执行这些检查，不要求每次编辑都跑全套 CI。
 - 如果修改了 Template 下的 Skill 和 AGENTS.md ，需要对应更新版本号。
 - 修改后需同步更新相关文档，并检查 Roadmap 和 Todo。
 - 修改完成后，把当次相关的改动按照 commit 部分的要求提交。
