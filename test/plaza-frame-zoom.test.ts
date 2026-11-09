@@ -9,6 +9,7 @@ vi.mock("@/components/viewer/web-view/use-web-view-selection", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
+	initReactI18next: { type: "3rdParty", init: () => undefined },
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 vi.mock("@/components/ui/tooltip", () => {
