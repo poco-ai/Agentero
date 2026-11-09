@@ -34,6 +34,7 @@ import { startPerfRun } from "@/lib/shell/perf-run";
 // Side-effect: register catalog title lookup for JobCenter task subjects.
 import "@/lib/paper/task-label";
 import { registerLayoutTaskExecutor } from "@/lib/pdf/layout/enqueue-paper-layout";
+import { registerLayoutTranslateTaskExecutor } from "@/lib/pdf/layout/headless-translate";
 import { applyDocumentChrome } from "@/lib/settings";
 import { validateRestoredVault } from "@/lib/vault/actions";
 import { setTree, setTreeLoading } from "@/lib/vault/store";
@@ -133,6 +134,7 @@ export function useAppBootstrap(): void {
 	useEffect(() => {
 		if (!isTauri()) return;
 		registerLayoutTaskExecutor();
+		registerLayoutTranslateTaskExecutor();
 		registerImportTaskExecutor();
 		registerConnectorTaskExecutor();
 		registerLibraryTaskExecutors();

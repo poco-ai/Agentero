@@ -13,7 +13,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
-import { backgroundTasksStore } from "@/lib/core/background-tasks";
+import {
+	backgroundTasksStore,
+	cancelBackgroundTask,
+} from "@/lib/core/background-tasks";
 import { errorText } from "@/lib/core/error";
 import { notifyError, notifyWarning } from "@/lib/core/notify";
 import { sameRelPaperPath } from "@/lib/core/path";
@@ -41,6 +44,7 @@ import {
 	readLayoutTranslateSidecar,
 	runLayoutRegionTranslate,
 	setLayoutDocumentResult,
+	takeOverHeadlessLayoutTranslate,
 	toLayoutTranslateItems,
 } from "@/lib/pdf/layout";
 import {
@@ -541,6 +545,31 @@ export function usePdfLayoutTranslate({
 		setPartialDialogOpen(true);
 	}, []);
 
+	/**
+	 * A background `layoutTranslate` job (import auto-translate) may still be
+	 * writing this paper's sidecar and spending provider requests. Take it over
+	 * before a manual full-text run: abort the renderer executor in this window
+	 * (it flushes what it has), or cancel the queued JobCenter row when the
+	 * executor lives in another window. Returns whether an active job existed.
+	 */
+	const takeOverBackgroundLayoutTranslate = useCallback(async () => {
+		const takeover = takeOverHeadlessLayoutTranslate(paperRelPath);
+		if (takeover) {
+			await takeover;
+			return true;
+		}
+		const active = backgroundTasksStore
+			.getState()
+			.tasks.filter(
+				(task) =>
+					task.kind === "layoutTranslate" &&
+					(task.status === "queued" || task.status === "running") &&
+					sameRelPaperPath(task.paperPath, paperRelPath),
+			);
+		for (const task of active) cancelBackgroundTask(task.id);
+		return active.length > 0;
+	}, [paperRelPath]);
+
 	const startLayoutTranslate = useCallback(() => {
 		const raw = layoutRawRegions;
 		if (!raw?.length) {
@@ -583,17 +612,23 @@ export function usePdfLayoutTranslate({
 			}));
 		});
 		void (async () => {
+			const tookOver = await takeOverBackgroundLayoutTranslate();
+			if (ac.signal.aborted) return;
 			const sidecar = await readLayoutTranslateSidecar(paperAbsPath, cacheKey);
 			if (ac.signal.aborted) return;
 			const prepared = await prepareReflow(pendingItems, ac.signal);
 			if (ac.signal.aborted) return;
 			setSourcePreparing(false);
 			// Cache-first: render every hydrated block, then translate only when
-			// the sidecar had nothing usable. A cache with gaps stays partial.
+			// the sidecar had nothing usable. A cache with gaps stays partial,
+			// except after taking over a background job: its pending blocks are
+			// this run's job, so manual translate continues them instead of
+			// stopping at the partial view.
 			const hydration = hydrateLayoutTranslateItems(prepared, sidecar, {
 				requireReflowSentencePairs: true,
 			});
-			const needsRun = !hydration.fromCache;
+			const needsRun =
+				!hydration.fromCache || (tookOver && hydration.pendingRequired > 0);
 			const dismissKey = layoutTranslatePendingDismissKey(
 				dismissalPaperKey,
 				cacheKey,
@@ -683,6 +718,7 @@ export function usePdfLayoutTranslate({
 		notifyTranslateItemErrors,
 		notifyTranslateFailure,
 		schedulePartialAutoOpen,
+		takeOverBackgroundLayoutTranslate,
 		t,
 	]);
 	/** Cache-miss fallback from the translation pane's hydrate effect. */

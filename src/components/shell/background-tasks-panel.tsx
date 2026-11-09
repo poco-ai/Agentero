@@ -11,6 +11,7 @@ import {
 	Download,
 	FileCode2,
 	FileUp,
+	Languages,
 	LayoutGrid,
 	ListOrdered,
 	Loader2,
@@ -71,6 +72,7 @@ const KIND_ICONS: Partial<Record<BackgroundTaskKind, BackgroundTaskIcon>> = {
 	parseRefs: "layout",
 	layoutAnalyze: "layout",
 	layoutRun: "layout",
+	layoutTranslate: "translate",
 	connectorSync: "plug",
 	recognizeMetadata: "scan",
 	latexCompile: "fileCode",
@@ -120,6 +122,8 @@ function iconGlyph(icon: BackgroundTaskIcon) {
 			return <Package className={cls} aria-hidden />;
 		case "layout":
 			return <LayoutGrid className={cls} aria-hidden />;
+		case "translate":
+			return <Languages className={cls} aria-hidden />;
 		case "read":
 			return <BookOpen className={cls} aria-hidden />;
 		case "plug":
@@ -240,6 +244,25 @@ function TaskRow({ task }: { task: BackgroundTask }) {
 						</TooltipTrigger>
 						<TooltipContent side="left">
 							{t("tasks.openLayoutSettings")}
+						</TooltipContent>
+					</Tooltip>
+				) : null}
+				{task.status === "failed" && task.kind === "layoutTranslate" ? (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-xs"
+								className="size-6 shrink-0"
+								aria-label={t("tasks.openTranslateSettings")}
+								onClick={() => openSettingsWindow("translate")}
+							>
+								<Settings className="size-3.5" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="left">
+							{t("tasks.openTranslateSettings")}
 						</TooltipContent>
 					</Tooltip>
 				) : null}
@@ -595,15 +618,30 @@ export function BackgroundTasksPanel({ className }: { className?: string }) {
 		const failedTasks = getBackgroundTasksSnapshot().tasks;
 		for (const id of fresh) {
 			const task = failedTasks.find((item) => item.id === id);
-			if (!task || !JOB_LAYOUT_TOAST_KINDS.has(task.kind)) continue;
-			notifyError(task.title, {
-				description: task.error?.trim() || undefined,
-				id: `layout-failed-${id}`,
-				action: {
-					label: t("tasks.openLayoutSettings"),
-					onClick: () => openSettingsWindow("layout"),
-				},
-			});
+			if (!task) continue;
+			if (JOB_LAYOUT_TOAST_KINDS.has(task.kind)) {
+				notifyError(task.title, {
+					description: task.error?.trim() || undefined,
+					id: `layout-failed-${id}`,
+					action: {
+						label: t("tasks.openLayoutSettings"),
+						onClick: () => openSettingsWindow("layout"),
+					},
+				});
+				continue;
+			}
+			// Background import translation fails without a viewer: surface the
+			// provider / settings error here instead of only the panel row.
+			if (task.kind === "layoutTranslate") {
+				notifyError(task.title, {
+					description: task.error?.trim() || undefined,
+					id: `translate-failed-${id}`,
+					action: {
+						label: t("tasks.openTranslateSettings"),
+						onClick: () => openSettingsWindow("translate"),
+					},
+				});
+			}
 		}
 
 		openDetail();

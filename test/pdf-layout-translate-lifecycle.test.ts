@@ -151,6 +151,9 @@ function createHarness() {
 	const warnings: unknown[][] = [];
 	const dismissed: unknown[][] = [];
 	const enqueues: unknown[][] = [];
+	const takeovers: (string | null | undefined)[] = [];
+	const cancels: string[] = [];
+	let takeover: (() => Promise<void>) | null = null;
 	let cachedLayout: PdfLayoutSidecar | null = null;
 	const dismissedPartialKeys = new Set<string>();
 	const layoutWrites = new Set<(path: string) => void>();
@@ -298,6 +301,10 @@ function createHarness() {
 		},
 		persistLayoutTranslateSidecarBestEffort: (...args: unknown[]) =>
 			writes.push(args),
+		takeOverHeadlessLayoutTranslate: (paperPath: string | null) => {
+			takeovers.push(paperPath);
+			return takeover ? takeover() : null;
+		},
 		normalizeLayoutPaperKey: (path: string) =>
 			path.replace(/[/\\]+$/, "").replace(/\\/g, "/"),
 		enqueuePaperLayoutAnalysis: (...args: unknown[]) => enqueues.push(args),
@@ -336,7 +343,10 @@ function createHarness() {
 			useStore: <T, S>(store: FakeStore<T>, selector: (state: T) => S): S =>
 				selector(store.getState()),
 		},
-		"@/lib/core/background-tasks": { backgroundTasksStore: backgroundTasks },
+		"@/lib/core/background-tasks": {
+			backgroundTasksStore: backgroundTasks,
+			cancelBackgroundTask: (id: string) => cancels.push(id),
+		},
 		"@/lib/core/error": { errorText: String },
 		"@/lib/core/notify": {
 			notifyError: (...args: unknown[]) => errors.push(args),
@@ -421,6 +431,11 @@ function createHarness() {
 		dismissed,
 		dismissedPartialKeys,
 		enqueues,
+		takeovers,
+		cancels,
+		setTakeover(handler: (() => Promise<void>) | null) {
+			takeover = handler;
+		},
 		publishedLayouts,
 		setReflowReady(ready: boolean) {
 			reflowReady = ready;
@@ -502,6 +517,65 @@ it("hydrates a partial sidecar and starts no translation request", async () => {
 		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
 		"译文 0",
 	);
+});
+
+it("takes over a running background translate and continues the pending blocks", async () => {
+	const h = createHarness();
+	h.tasks.setState({
+		tasks: [
+			{
+				id: "bg-1",
+				kind: "layoutTranslate",
+				status: "running",
+				paperPath: "papers/a",
+			},
+		],
+	});
+	h.setTranslateSidecar([
+		{ id: "region-0", source: "Source 0", translated: "译文 0" },
+	]);
+	let flushed = false;
+	h.setTakeover(async () => {
+		flushed = true;
+	});
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.takeovers.length, 1);
+	assert.equal(h.takeovers[0], "papers/a");
+	assert.equal(flushed, true);
+	assert.equal(h.cancels.length, 0); // the executor reports its own cancel
+	// Cached-only hydration used to stop at "partial"; a takeover continues
+	// the blocks the background job had not finished.
+	assert.equal(h.runs.length, 1);
+	assert.equal(h.view.layoutTranslateRunning, true);
+	assert.equal(
+		h.view.layoutTranslateItemsByPage.get(0)?.[0]?.translated,
+		"译文 0",
+	);
+	h.runs[0].resolve(completed(h.runs[0], "New 1"));
+	await h.flush();
+	assert.equal(h.view.layoutTranslateStatus, "done");
+	assert.equal(h.view.layoutTranslatePendingRequired, 0);
+});
+
+it("cancels a queued background translate when this window has no executor", async () => {
+	const h = createHarness();
+	h.tasks.setState({
+		tasks: [
+			{
+				id: "bg-1",
+				kind: "layoutTranslate",
+				status: "queued",
+				paperPath: "papers/a",
+			},
+		],
+	});
+	h.setTakeover(null);
+	h.view.toggleLayoutTranslate();
+	await h.flush();
+	assert.equal(h.takeovers.length, 1);
+	assert.deepEqual(h.cancels, ["bg-1"]);
+	assert.equal(h.runs.length, 1);
 });
 
 it("hydrates a complete sidecar as done without a translation request", async () => {

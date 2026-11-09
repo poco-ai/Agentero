@@ -111,6 +111,13 @@ export function enqueuePaperLayoutAnalysis(opts: {
 	paperLabel?: string;
 	/** Explicit reading action takes priority over background imports. */
 	focus?: boolean;
+	/**
+	 * Import / download origin. When Settings → Translate → "Auto-translate
+	 * after import" is on, the Host also queues a `layoutTranslate` job that
+	 * starts only after this layout analysis succeeds. Opening a paper or
+	 * re-parsing layout must leave this false.
+	 */
+	autoTranslate?: boolean;
 	onError?: (error: unknown) => void;
 }): void {
 	const paperAbsPath = normalizePaperKey(opts.paperAbsPath);
@@ -142,6 +149,7 @@ export function enqueuePaperLayoutAnalysis(opts: {
 						path: paperRelPath,
 						lane: opts.focus ? "focus" : "normal",
 						force: false,
+						autoTranslate: opts.autoTranslate ?? false,
 					}),
 				{ fallback: "layout analysis enqueue failed" },
 			);

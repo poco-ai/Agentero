@@ -34,6 +34,12 @@ export {
 	type HeadlessLayoutResult,
 } from "@/lib/pdf/layout/headless-analyze";
 export {
+	type HeadlessTranslateResult,
+	registerLayoutTranslateTaskExecutor,
+	takeOverHeadlessLayoutTranslate,
+	translatePaperLayoutHeadless,
+} from "@/lib/pdf/layout/headless-translate";
+export {
 	bboxArea,
 	hoverableLayoutRegions,
 	hoverableLayoutRegionsByPage,
