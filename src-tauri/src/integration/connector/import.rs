@@ -718,6 +718,13 @@ async fn import_standalone_local(
             app.spawn_recognize_metadata(vault, &commit.path);
         }
     }
+    // Resolved metadata skips recognition, so nobody else queues the layout
+    // follow-up (+ optional import translation) for this attachment.
+    if commit.status == CommitStatus::Created && !needs_recognize {
+        if let Some(app) = app {
+            app.spawn_layout_analysis(vault, &commit.path);
+        }
+    }
 
     if commit.status == CommitStatus::Deduped {
         return Ok(ConnectorImportResult {
@@ -898,6 +905,33 @@ pub async fn save_attachment_from_resolver(
         return Err(AppError::message("Failed to save an attachment"));
     }
     Ok("Full Text PDF".into())
+}
+
+/// Queue layout analysis (and the optional import translation) after a
+/// Connector attachment wrote its PDF. Remote vaults keep their assets on the
+/// remote side, so layout only runs for local handles.
+pub fn spawn_layout_after_connector_pdf(
+    ctrl: &ConnectorController,
+    session_id: &str,
+    item_id: Option<&str>,
+) {
+    let Some(app) = ctrl.app_handle() else {
+        return;
+    };
+    let Ok((vault_handle, _)) = ctrl.vault_handle_and_parent() else {
+        return;
+    };
+    if parse_remote_handle(&vault_handle).is_some() {
+        return;
+    }
+    let Some(paper_rel) = ctrl.session_item_paper(session_id, item_id) else {
+        return;
+    };
+    crate::features::jobs::spawn_layout_after_import(
+        Some(&app),
+        &PathBuf::from(vault_handle),
+        &paper_rel,
+    );
 }
 
 /// DOI / arXiv / local-PDF presence for resolver decisions.

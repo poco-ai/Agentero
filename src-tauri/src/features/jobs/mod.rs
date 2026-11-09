@@ -1904,6 +1904,44 @@ pub async fn start_enqueued_job(
     }
 }
 
+/// Import follow-up for entry points that write the PDF outside the
+/// `DownloadAssets` runner (plaza, Connector attachments): enqueue and start
+/// layout analysis and, when Settings → Translate → auto-translate-after-import
+/// is on, its dependent background translation. No-op without an app handle
+/// (headless / CLI).
+pub fn spawn_layout_after_import(app: Option<&tauri::AppHandle>, vault: &Path, path_rel: &str) {
+    let Some(app) = app else {
+        return;
+    };
+    let app = app.clone();
+    let vault = vault.to_path_buf();
+    let path_rel = path_rel.to_string();
+    tauri::async_runtime::spawn(async move {
+        let center = app.state::<JobCenter>().handle();
+        let settings = app.state::<crate::features::system::settings::AppSettingsStore>();
+        let backend = settings.layout_backend();
+        let auto_translate = settings.auto_translate_import();
+        center.apply_layout_backend(&backend).await;
+        let (layout, translate) = center
+            .enqueue_layout_analysis_with_translate(
+                &vault,
+                &path_rel,
+                JobLane::Normal,
+                false,
+                auto_translate,
+            )
+            .await;
+        emit_job_changed(&app, layout.clone());
+        if let Some(translate) = translate {
+            emit_job_changed(&app, translate.clone());
+            // The layout job may already have settled (dedupe hit); wake the
+            // dependent here instead of relying on a finish event.
+            start_enqueued_job(&app, &center, &translate).await;
+        }
+        start_enqueued_job(&app, &center, &layout).await;
+    });
+}
+
 pub fn spawn_parse_body_after_assets(
     app: Option<&tauri::AppHandle>,
     vault: &Path,

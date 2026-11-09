@@ -23,6 +23,7 @@
         │  实现：`enqueue-paper-layout.ts` + `headless-analyze.ts`
         │  设置开启「导入后自动翻译」时，同一次入队还创建依赖该任务的
         │  `layoutTranslate`（JobCenter `depends_on` / `AllSucceeded`）；
+        │  广场 / Connector 的 PDF 由 Host 直接落盘，也显式调用同一 helper；
         │  版面失败或取消则标记 Skipped，打开论文补解析 / 手动重解析不触发
         │  实现：`JobCenter::enqueue_layout_analysis_with_translate` +
         │  `headless-translate.ts`（渲染端执行，见 translate.md）
