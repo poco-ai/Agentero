@@ -104,10 +104,7 @@ export function useTextEditorSelection({
 
 	const hideMenu = useCallback(() => {
 		menuRef.current = null;
-		if (
-			selectionChatStore.getState().draft?.selection.id === ownedId.current &&
-			selectionChatStore.getState().draft?.stage === "menu"
-		)
+		if (selectionChatStore.getState().draft?.selection.id === ownedId.current)
 			dismissSelectionChat();
 		if (publishedRef.current) {
 			publishedRef.current = false;
@@ -218,7 +215,7 @@ export function useTextEditorSelection({
 				return;
 			menuRef.current = { ...current, screen };
 			const draft = selectionChatStore.getState().draft;
-			if (draft?.stage === "menu" && draft.selection.id === ownedId.current)
+			if (draft?.selection.id === ownedId.current)
 				selectionChatStore.setState({ draft: { ...draft, screen } });
 		};
 		window.addEventListener("scroll", onScroll, true);

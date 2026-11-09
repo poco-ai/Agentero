@@ -1,6 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
 import {
-	annotationPdfAnchors,
 	annotationRanges,
 	releaseAnnotationAnchor,
 } from "@/lib/agent/selection-annotations";
@@ -8,7 +7,6 @@ import {
 afterEach(() => {
 	vi.unstubAllGlobals();
 	annotationRanges.clear();
-	annotationPdfAnchors.clear();
 });
 
 it("clears a removed annotation's native selection, cloned highlights and anchors", () => {
@@ -35,11 +33,6 @@ it("clears a removed annotation's native selection, cloned highlights and anchor
 	vi.stubGlobal("CSS", { highlights });
 	annotationRanges.set("removed", anchor);
 	annotationRanges.set("other", unrelated);
-	annotationPdfAnchors.set("removed", {
-		documentId: "pdf",
-		page: 1,
-		rect: { x: 0, y: 0, w: 1, h: 1 },
-	});
 	releaseAnnotationAnchor("removed");
 	expect(clear).toHaveBeenCalledOnce();
 	expect(highlights.has("agentero-annotation-selection")).toBe(false);
@@ -47,7 +40,6 @@ it("clears a removed annotation's native selection, cloned highlights and anchor
 		unrelated,
 	]);
 	expect(annotationRanges.has("removed")).toBe(false);
-	expect(annotationPdfAnchors.has("removed")).toBe(false);
 	expect(annotationRanges.get("other")).toBe(unrelated);
 });
 

@@ -66,7 +66,7 @@ Host `features/web/proxy.rs`(agentero-web scheme)
 - **工具栏**：共享 `SelectionActionMenu`，网页省略 PDF 高亮和标注扩展；选中即复制行为继续保留。
 - **翻译**：共享 `useSelectionTranslation` + `TranslateCard`；使用同一翻译服务与单卡所有权，不写 marks。
 - **Quick chat**：共享 `useSelectionAsk` + `AskPopover`；保留选区、标题和原始 URL，关闭或导航时取消在途请求。
-- **加入对话**：工具栏和快捷键都直接冻结选区并聚焦 Agent composer，不经过批注框；备注可在 composer 引用块的悬停卡片里补写。
+- **加入对话**：工具栏和快捷键都直接冻结选区并聚焦 Agent composer，不经过批注框。
 
 默认 `⌘L` 仅切换 Agent 侧栏；`⇧⌘L` 加入选区，`⌘K` 打开 Quick chat。提示与 iframe 转发均跟随用户配置。桥本身也用于广场代理与 arXiv HTML 的受信 `srcdoc`；父窗口始终校验 origin 和精确 frame 身份。
 

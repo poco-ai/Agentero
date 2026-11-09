@@ -57,10 +57,7 @@ export function useWebViewSelection({
 		let selectionSource = srcUrl;
 		const closeMenu = () => {
 			const draft = selectionChatStore.getState().draft;
-			if (
-				draft?.stage === "menu" &&
-				draft.selection.sourcePath === selectionSource
-			)
+			if (draft && draft.selection.sourcePath === selectionSource)
 				dismissSelectionChat();
 		};
 		const onMessage = (event: MessageEvent) => {

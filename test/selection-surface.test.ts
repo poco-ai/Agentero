@@ -15,9 +15,6 @@ import { vaultStore } from "@/lib/vault/store";
 vi.mock("@/components/selection/selection-actions", () => ({
 	SelectionActions: () => null,
 }));
-vi.mock("@/components/selection/selection-annotation-badges", () => ({
-	AnnotationBadges: () => null,
-}));
 vi.mock("@/lib/core/clipboard", () => ({ copyTextToClipboard: vi.fn() }));
 let root: Root;
 let container: HTMLDivElement;
@@ -92,7 +89,6 @@ async function select(cross = false) {
 it("captures one source with quote context and clears its menu on Escape", async () => {
 	await select();
 	expect(selectionChatStore.getState().draft).toMatchObject({
-		stage: "menu",
 		screen: {
 			x: 140,
 			y: 200,

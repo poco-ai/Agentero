@@ -53,7 +53,7 @@ Vault 选区交给 Host 上下文解析器。RSS、网页和消息引文携带�
 
 父窗口同时校验消息来源标记、代理 origin 和发送窗口身份；`null` origin 仅显式用于对应的沙盒 `srcdoc`。坐标按 iframe 偏移与广场缩放比例换算。导航后的公开 URL 从代理路径还原，来源记录不保存代理地址。
 
-键盘事件不会穿出跨域 frame：桥转发匹配的快捷键，并在 window 捕获阶段把非输入元素上的 `Escape` 作为 `escape` 消息交给父窗口，SPA 站点为自己的浮层调用 `stopPropagation` / `preventDefault` 也不会吞掉它；桥不拦截按键，站点自己的 Escape 行为不受影响。共享选区宿主收到后关闭工具栏 / 批注 / 结果卡。
+键盘事件不会穿出跨域 frame：桥转发匹配的快捷键，并在 window 捕获阶段把非输入元素上的 `Escape` 作为 `escape` 消息交给父窗口，SPA 站点为自己的浮层调用 `stopPropagation` / `preventDefault` 也不会吞掉它；桥不拦截按键，站点自己的 Escape 行为不受影响。共享选区宿主收到后关闭工具栏 / 结果卡。
 
 ## 限制与后续
 

@@ -1,35 +1,10 @@
-import { createStore } from "zustand/vanilla";
-import type { SelectionContext } from "./selection-store";
-
-export type AnnotationBinding = {
-	selections: SelectionContext[];
-	update: (id: string, comment: string | null) => void;
-};
-export const annotationStore = createStore<{
-	binding: AnnotationBinding | null;
-	releasedId: string | null;
-}>(() => ({ binding: null, releasedId: null }));
-/** DOM anchors are transient and never serialized into a prompt or persisted draft. */
+/**
+ * Transient DOM anchors for selection tokens. They let "show in source"
+ * resolve the live Range immediately; never persisted or sent to a prompt.
+ */
 export const annotationRanges = new Map<string, Range>();
-export function editAnnotation(id: string, comment: string | null) {
-	const binding = annotationStore.getState().binding;
-	if (!binding?.selections.some((selection) => selection.id === id))
-		return false;
-	if (comment === null) releaseAnnotationAnchor(id);
-	binding.update(id, comment);
-	return true;
-}
 
-export const annotationPdfAnchors = new Map<
-	string,
-	{
-		documentId: string;
-		page: number;
-		rect: { x: number; y: number; w: number; h: number };
-	}
->();
-
-/** Delete only the selection owned by this annotation, preserving unrelated live selections. */
+/** Drop a removed token's anchor and any still-visible native highlight. */
 export function releaseAnnotationAnchor(id: string): void {
 	const anchor = annotationRanges.get(id);
 	if (anchor) {
@@ -62,6 +37,4 @@ export function releaseAnnotationAnchor(id: string): void {
 		}
 	}
 	annotationRanges.delete(id);
-	annotationPdfAnchors.delete(id);
-	annotationStore.setState({ releasedId: id });
 }

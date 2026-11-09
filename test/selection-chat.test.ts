@@ -7,11 +7,8 @@ import {
 	updateSelectionToken,
 	withoutSelectionTokens,
 } from "@/lib/agent/composer-inline-tokens";
-import { annotationStore } from "@/lib/agent/selection-annotations";
 import {
-	confirmSelectionChat,
 	dismissSelectionChat,
-	openAnnotationEditor,
 	openSelectionChat,
 	selectionChatStore,
 } from "@/lib/agent/selection-chat-store";
@@ -113,7 +110,7 @@ describe("Add to chat selections", () => {
 	});
 });
 
-describe("annotation draft editing", () => {
+describe("composer selection tokens", () => {
 	it("edits/removes exactly the chosen quote and preserves prose and mention tokens", () => {
 		const first = {
 			id: "first",
@@ -166,33 +163,5 @@ describe("annotation draft editing", () => {
 				),
 			),
 		).toHaveLength(2);
-	});
-	it("cancel is inert and saving edits the owning composer instead of pinning another quote", () => {
-		clearSelections();
-		const selection = {
-			id: "edit",
-			text: "quote",
-			sourcePath: "a.md",
-			origin: "markdown" as const,
-			pinned: true,
-			comment: "old",
-		};
-		let value = encodeSelectionToken(selection);
-		annotationStore.setState({
-			binding: {
-				selections: [selection],
-				update: (id, comment) => {
-					value = updateSelectionToken(value, id, comment);
-				},
-			},
-		});
-		openAnnotationEditor(selection, screen);
-		dismissSelectionChat();
-		expect(extractSelectionTokens(value)[0].comment).toBe("old");
-		openAnnotationEditor(selection, screen);
-		expect(confirmSelectionChat("updated")).toBe(true);
-		expect(extractSelectionTokens(value)[0].comment).toBe("updated");
-		expect(currentSelections()).toEqual([]);
-		annotationStore.setState({ binding: null });
 	});
 });

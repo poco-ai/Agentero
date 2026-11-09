@@ -31,7 +31,7 @@ export function SelectionActions({
 }: {
 	draft: SelectionChatDraft | null;
 }) {
-	const menu = draft?.stage === "menu" ? draft : null;
+	const menu = draft;
 	const menuRef = useRef(menu);
 	menuRef.current = menu;
 	const [askSource, setAskSource] = useState<SelectionContext | null>(null);

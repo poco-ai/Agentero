@@ -9,21 +9,13 @@ import {
 import { AnnotationQuoteBlock } from "@/components/selection/annotation-quote-block";
 import { SelectionSourceButton } from "@/components/selection/selection-source-button";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { annotationOrdinal } from "@/lib/agent/annotation-prompt";
 import {
 	extractSelectionTokens,
 	updateSelectionToken,
 	withoutSelectionTokens,
 } from "@/lib/agent/composer-inline-tokens";
-import {
-	annotationStore,
-	releaseAnnotationAnchor,
-} from "@/lib/agent/selection-annotations";
-import {
-	selectionChatStore,
-	suspendSelectionChat,
-} from "@/lib/agent/selection-chat-store";
+import { releaseAnnotationAnchor } from "@/lib/agent/selection-annotations";
 import type { SelectionContext } from "@/lib/agent/selection-store";
 import { lookupHighlightColor } from "@/lib/pdf/annotation-ref";
 import {
@@ -62,20 +54,7 @@ export function ComposerAnnotations({
 			if (!ids.includes(id)) releaseAnnotationAnchor(id);
 		}
 		seenIdsRef.current = ids;
-		const binding = {
-			selections,
-			update: (id: string, comment: string | null) =>
-				onChange(updateSelectionToken(value, id, comment)),
-		};
-		annotationStore.setState({ binding });
-		const draft = selectionChatStore.getState().draft;
-		if (draft?.editing && !selections.some((s) => s.id === draft.selection.id))
-			suspendSelectionChat();
-		return () => {
-			if (annotationStore.getState().binding === binding)
-				annotationStore.setState({ binding: null });
-		};
-	}, [selections, value, onChange]);
+	}, [selections]);
 	const remove = (id?: string) => {
 		for (const selection of selections)
 			if (!id || selection.id === id) releaseAnnotationAnchor(selection.id);
@@ -101,9 +80,6 @@ export function ComposerAnnotations({
 			selection={hovered}
 			onHoverHold={onHoverHold}
 			onHoverRelease={onHoverRelease}
-			onComment={(comment) =>
-				onChange(updateSelectionToken(value, hovered.id, comment))
-			}
 			onRemove={() => remove(hovered.id)}
 		/>
 	);
@@ -135,7 +111,6 @@ function SelectionReferenceCard({
 	selection,
 	onHoverHold,
 	onHoverRelease,
-	onComment,
 	onRemove,
 }: {
 	anchor: HTMLElement;
@@ -143,7 +118,6 @@ function SelectionReferenceCard({
 	selection: SelectionContext;
 	onHoverHold: () => void;
 	onHoverRelease: () => void;
-	onComment: (comment: string) => void;
 	onRemove: () => void;
 }) {
 	const { t } = useTranslation(["viewer", "common"]);
@@ -278,46 +252,10 @@ function SelectionReferenceCard({
 						selectable
 						textClassName="text-[13px]"
 					/>
-					<label
-						className="mt-3 mb-1 block text-xs text-muted-foreground"
-						htmlFor={`selection-comment-${selection.id}`}
-					>
-						{t("selection.userComment")}
-					</label>
-					<SelectionCommentField
-						key={selection.id}
-						id={selection.id}
-						comment={selection.comment ?? ""}
-						onChange={onComment}
-					/>
 				</div>
 			</div>
 		</div>,
 		document.body,
-	);
-}
-
-function SelectionCommentField({
-	id,
-	comment,
-	onChange,
-}: {
-	id: string;
-	comment: string;
-	onChange: (comment: string) => void;
-}) {
-	const [draft, setDraft] = useState(comment);
-	return (
-		<Textarea
-			id={`selection-comment-${id}`}
-			value={draft}
-			rows={3}
-			onChange={(event) => {
-				const next = event.target.value;
-				setDraft(next);
-				onChange(next);
-			}}
-		/>
 	);
 }
 
