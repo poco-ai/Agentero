@@ -1,5 +1,6 @@
 import { MarkdownPlugin } from "@platejs/markdown";
 import { KEYS, RangeApi, type SlateEditor, type TRange } from "platejs";
+import { stripInlinePlaceholders } from "@/lib/markdown/serialize";
 
 /**
  * Math nodes are void: their TeX source lives in `texExpression`, not in any
@@ -41,7 +42,9 @@ export function serializeSelectionAsMarkdown(
 	if (!selection || RangeApi.isCollapsed(selection)) return "";
 	const fragment = editor.api.fragment(selection);
 	if (!fragment || fragment.length === 0) return "";
-	return editor.getApi(MarkdownPlugin).markdown.serialize({ value: fragment });
+	return stripInlinePlaceholders(
+		editor.getApi(MarkdownPlugin).markdown.serialize({ value: fragment }),
+	);
 }
 
 function selectionHasMath(editor: SlateEditor, selection: TRange): boolean {

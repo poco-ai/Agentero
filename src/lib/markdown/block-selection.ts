@@ -13,6 +13,7 @@ import {
 } from "platejs";
 import { COLUMN_GROUP_KEY } from "@/lib/markdown/columns";
 import { IMAGE_GROUP_KEY } from "@/lib/markdown/image-group";
+import { stripInlinePlaceholders } from "@/lib/markdown/serialize";
 
 /** Zero-width / whitespace that Slate uses to keep an empty text leaf alive. */
 const INVISIBLE_RE = /\s|\u200B|\u200C|\u200D|\uFEFF/g;
@@ -50,7 +51,9 @@ export function serializeBlocksAsMarkdown(
 	nodes: TElement[],
 ): string {
 	if (nodes.length === 0) return "";
-	return editor.getApi(MarkdownPlugin).markdown.serialize({ value: nodes });
+	return stripInlinePlaceholders(
+		editor.getApi(MarkdownPlugin).markdown.serialize({ value: nodes }),
+	);
 }
 
 export function selectedBlockNodes(editor: SlateEditor): TElement[] {

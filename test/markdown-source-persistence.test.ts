@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { BaseLinkPlugin } from "@platejs/link";
 import { MarkdownPlugin } from "@platejs/markdown";
 import { createPlateEditor } from "platejs/react";
 import { act, createElement } from "react";
@@ -32,7 +33,7 @@ function Host() {
 describe("source mode persistence", () => {
 	beforeEach(async () => {
 		vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-		editor = createPlateEditor({ plugins: [MarkdownPlugin] });
+		editor = createPlateEditor({ plugins: [BaseLinkPlugin, MarkdownPlugin] });
 		root = createRoot(document.createElement("div"));
 		write = vi.fn(async () => true);
 		blocked = false;
@@ -45,7 +46,7 @@ describe("source mode persistence", () => {
 	});
 
 	it("flushes exact edited text after restoring Plate, including frontmatter and empty documents", async () => {
-		const raw = "---\r\ntitle: Exact  \r\n---\r\n\r\n*kept as typed*  \n";
+		const raw = "---\r\ntitle: Exact  \r\n---\r\n\r\n*kept as typed*\u200B  \n";
 		await act(async () => {
 			persistence.beginSource(seed);
 			persistence.updateSource(() => raw);
@@ -62,6 +63,20 @@ describe("source mode persistence", () => {
 			await persistence.saveNow();
 		});
 		expect(write).toHaveBeenLastCalledWith(path, "", raw);
+	});
+
+	it("cleans legacy inline placeholders when saving rich text while preserving empty paragraphs", async () => {
+		const legacy =
+			"\u200B[link](https://example.com)\u200B\n\n\u200B\n\n\u200B\n\nB\n";
+		await act(async () => {
+			persistence.applyExternalMarkdown(legacy);
+			await persistence.saveNow();
+		});
+		expect(write).toHaveBeenCalledExactlyOnceWith(
+			path,
+			"[link](https://example.com)\n\n\u200B\n\n\u200B\n\nB\n",
+			legacy,
+		);
 	});
 
 	it("keeps the saved baseline on conflict and reloads the source buffer only when told to", async () => {

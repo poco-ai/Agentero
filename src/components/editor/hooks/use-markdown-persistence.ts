@@ -23,6 +23,7 @@ import {
 	createManagedAssetGc,
 } from "@/lib/markdown/image";
 import { settleMarkdownSaveAttempt } from "@/lib/markdown/save-state";
+import { stripInlinePlaceholders } from "@/lib/markdown/serialize";
 import { applySourceProjection } from "@/lib/markdown/source-projection";
 
 const CHANGE_DEBOUNCE_MS = 500;
@@ -155,7 +156,9 @@ export function useMarkdownPersistence({
 	const serialize = useCallback(() => {
 		if (sourceRef.current) return sourceRef.current();
 		if (projectedSourceRef.current !== null) return projectedSourceRef.current;
-		const body = editor.getApi(MarkdownPlugin).markdown.serialize();
+		const body = stripInlinePlaceholders(
+			editor.getApi(MarkdownPlugin).markdown.serialize(),
+		);
 		const frontmatter = frontmatterRef.current;
 		return joinFrontmatter(
 			frontmatter && body && !frontmatter.endsWith("\n")
