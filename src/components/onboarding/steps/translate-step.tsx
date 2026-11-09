@@ -1,17 +1,23 @@
 import {
-	ArrowLeft,
 	ExternalLink,
 	KeyRound,
 	LoaderCircle,
 	RefreshCw,
 	Sparkles,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChoiceCard } from "@/components/onboarding/choice-card";
-import type { OnboardingStepId } from "@/components/onboarding/flow";
 import { ProbeDot } from "@/components/settings/provider-card";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -25,13 +31,14 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { errorText } from "@/lib/core/error";
+import { notifyError } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { isSecretMask, maskSecret } from "@/lib/core/secret-mask";
 import type {
 	AppSettings,
 	CommercialTranslateProviderId,
 	TranslateProviderConfig,
-	TranslateProviderId,
 } from "@/lib/settings";
 import { saveSettingsAsync } from "@/lib/settings";
 import {
@@ -39,7 +46,6 @@ import {
 	COMMERCIAL_MT_DOCS_URLS,
 	COMMERCIAL_MT_PROVIDER_IDS,
 	isCommercialTranslateProvider,
-	isTranslateProviderId,
 	probeCommercialMtProvider,
 } from "@/lib/translate";
 import {
@@ -60,39 +66,31 @@ const PROBE_LABEL_KEYS = {
 export function TranslateStep({
 	settings,
 	patch,
-	onUseDefault,
-	onNextChange,
 }: {
 	settings: AppSettings;
 	patch: (p: Partial<AppSettings>) => void;
-	/** User picked "use system default" — wizard should advance. */
-	onUseDefault: () => void;
-	/** Report whether a choice has been made (gates Next). */
-	onNextChange: (id: OnboardingStepId, allowed: boolean) => void;
 }) {
 	const { t } = useTranslation(["onboarding", "settings"]);
 	const tr = settings.translate;
 	const isCommercial = isCommercialTranslateProvider(tr.provider);
-	const stored = isCommercial
-		? tr.providerConfigs[tr.provider as CommercialTranslateProviderId]
-		: undefined;
-	const [mode, setMode] = useState<"choose" | "configure">("choose");
+	const [providerId, setProviderId] = useState<CommercialTranslateProviderId>(
+		isCommercialTranslateProvider(tr.provider)
+			? tr.provider
+			: FIRST_COMMERCIAL_PROVIDER,
+	);
+	const stored = tr.providerConfigs[providerId];
+	const [configureOpen, setConfigureOpen] = useState(false);
 	const [draft, setDraft] = useState<{ apiKey?: string; baseUrl?: string }>({});
 	const [probe, setProbe] = useState<ProbeStatus>("idle");
 
-	// Next is allowed once the user committed to the own-API flow ("use system
-	// default" advances immediately from the chooser instead).
-	useEffect(() => {
-		onNextChange("translate", mode === "configure");
-	}, [mode, onNextChange]);
-
 	const enterConfigure = () => {
-		setMode("configure");
-		// Default the provider to a commercial engine so the API-key form is
-		// immediately useful (user can still switch engines in the form).
-		if (!isCommercial) {
-			patch({ translate: { ...tr, provider: FIRST_COMMERCIAL_PROVIDER } });
-		}
+		const id = isCommercialTranslateProvider(tr.provider)
+			? tr.provider
+			: FIRST_COMMERCIAL_PROVIDER;
+		setProviderId(id);
+		setDraft({});
+		setProbe("idle");
+		openExternalUrl(COMMERCIAL_MT_DOCS_URLS[id]);
 	};
 
 	const chooseSystemDefault = () => {
@@ -102,7 +100,6 @@ export function TranslateStep({
 				provider: DEFAULT_TRANSLATE_SETTINGS.provider,
 			},
 		});
-		onUseDefault();
 	};
 
 	const displayKey =
@@ -111,15 +108,14 @@ export function TranslateStep({
 		draft.baseUrl !== undefined ? draft.baseUrl : (stored?.baseUrl ?? "");
 
 	const onProviderChange = (value: string) => {
-		if (!isTranslateProviderId(value)) return;
-		patch({ translate: { ...tr, provider: value as TranslateProviderId } });
+		if (!isCommercialTranslateProvider(value)) return;
+		setProviderId(value);
 		setDraft({});
 		setProbe("idle");
 	};
 
 	const confirmCommercial = async () => {
-		if (!isCommercial) return;
-		const pid = tr.provider as CommercialTranslateProviderId;
+		const pid = providerId;
 		const storedCfg =
 			tr.providerConfigs[pid] ?? EMPTY_TRANSLATE_PROVIDER_CONFIG;
 		const apiKey = (draft.apiKey ?? storedCfg.apiKey).trim();
@@ -131,19 +127,28 @@ export function TranslateStep({
 		const masked = isSecretMask(apiKey) ? apiKey : maskSecret(apiKey);
 		const nextTranslate = {
 			...tr,
+			provider: pid,
 			providerConfigs: {
 				...tr.providerConfigs,
 				[pid]: { ...toSave, apiKey: masked },
 			},
 		};
-		setDraft({ apiKey: masked });
-		try {
-			await saveSettingsAsync({ ...settings, translate: nextTranslate });
-		} catch {
-			// Still mask the UI below.
-		}
-		patch({ translate: nextTranslate });
 		setProbe("probing");
+		try {
+			await saveSettingsAsync({
+				...settings,
+				translate: {
+					...nextTranslate,
+					providerConfigs: { ...tr.providerConfigs, [pid]: toSave },
+				},
+			});
+		} catch (error) {
+			setProbe("fail");
+			notifyError(errorText(error));
+			return;
+		}
+		setDraft({ apiKey: masked });
+		patch({ translate: nextTranslate });
 		try {
 			const ok = await probeCommercialMtProvider(pid, { config: toSave });
 			setProbe(ok ? "ok" : "fail");
@@ -152,120 +157,134 @@ export function TranslateStep({
 		}
 	};
 
-	if (mode === "choose") {
-		return (
-			<div className="grid grid-cols-2 gap-3">
-				<ChoiceCard
-					icon={<Sparkles className="size-5 text-muted-foreground" />}
-					title={t("translate.useDefault")}
-					description={t("translate.useDefaultDesc")}
-					recommended
-					recommendedLabel={t("recommended")}
-					onClick={chooseSystemDefault}
-				/>
-				<ChoiceCard
-					icon={<KeyRound className="size-5 text-muted-foreground" />}
-					title={t("translate.configureOwn")}
-					description={t("translate.configureOwnDesc")}
-					onClick={enterConfigure}
-				/>
-			</div>
-		);
-	}
-
 	return (
-		<div className="space-y-3">
-			<div className="flex items-center gap-2">
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon-xs"
-					className="-ml-1.5 shrink-0"
-					aria-label={t("actions.back")}
-					title={t("actions.back")}
-					onClick={() => setMode("choose")}
-				>
-					<ArrowLeft className="size-4" />
-				</Button>
-				<Select value={tr.provider} onValueChange={onProviderChange}>
-					<SelectTrigger size="sm" className="w-full max-w-[180px]">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent className="max-h-72">
-						{COMMERCIAL_MT_PROVIDER_IDS.map((id) => (
-							<SelectItem key={id} value={id}>
-								{t(
-									`settings:translate.provider.${id}` as "settings:translate.provider.deepl",
-								)}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-xs"
-							className="shrink-0"
-							aria-label={t("translate.openDocs")}
-							title={t("translate.openDocs")}
-							onClick={() =>
-								openExternalUrl(
-									COMMERCIAL_MT_DOCS_URLS[
-										tr.provider as CommercialTranslateProviderId
-									],
-								)
-							}
-						>
-							<ExternalLink className="size-4" />
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent className="max-w-xs">
-						{t(
-							`settings:translate.providerDesc.${tr.provider}` as "settings:translate.providerDesc.deepl",
-						)}
-					</TooltipContent>
-				</Tooltip>
-				<div className="ml-auto flex items-center gap-2">
-					<ProbeDot
-						status={probe}
-						label={t(PROBE_LABEL_KEYS[probe])}
-						title={t(PROBE_LABEL_KEYS[probe])}
+		<Dialog open={configureOpen} onOpenChange={setConfigureOpen}>
+			<div className="space-y-3">
+				<div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
+					<ChoiceCard
+						icon={<Sparkles className="size-5 text-muted-foreground" />}
+						title={t("translate.useDefault")}
+						description={t("translate.useDefaultDesc")}
+						recommended
+						recommendedLabel={t("recommended")}
+						selected={tr.provider === DEFAULT_TRANSLATE_SETTINGS.provider}
+						onClick={chooseSystemDefault}
 					/>
-					<Button
-						type="button"
-						size="sm"
-						disabled={probe === "probing" || !displayKey.trim()}
-						onClick={() => void confirmCommercial()}
-					>
-						{probe === "probing" ? (
-							<LoaderCircle data-icon="inline-start" className="animate-spin" />
-						) : (
-							<RefreshCw data-icon="inline-start" />
-						)}
-						{t("translate.test")}
-					</Button>
+					<DialogTrigger asChild>
+						<ChoiceCard
+							icon={<KeyRound className="size-5 text-muted-foreground" />}
+							title={t("translate.configureOwn")}
+							description={t("translate.configureOwnDesc")}
+							selected={isCommercial}
+							onClick={enterConfigure}
+						/>
+					</DialogTrigger>
 				</div>
+				<p className="text-muted-foreground text-xs">
+					{t("translate.settingsHint")}
+				</p>
 			</div>
+			<DialogContent className="sm:max-w-lg">
+				<DialogHeader>
+					<DialogTitle>{t("translate.configureOwn")}</DialogTitle>
+					<DialogDescription>
+						{t("translate.configureOwnDesc")}
+					</DialogDescription>
+				</DialogHeader>
+				<div className="space-y-3">
+					<div className="flex flex-wrap items-center gap-2">
+						<Select value={providerId} onValueChange={onProviderChange}>
+							<SelectTrigger
+								size="sm"
+								className="w-full max-w-[180px]"
+								aria-label={t("settings:translate.provider.label")}
+								disabled={probe === "probing"}
+							>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent className="max-h-72">
+								{COMMERCIAL_MT_PROVIDER_IDS.map((id) => (
+									<SelectItem key={id} value={id}>
+										{t(
+											`settings:translate.provider.${id}` as "settings:translate.provider.deepl",
+										)}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon-xs"
+									className="shrink-0"
+									aria-label={t("translate.openDocs")}
+									title={t("translate.openDocs")}
+									onClick={() =>
+										openExternalUrl(COMMERCIAL_MT_DOCS_URLS[providerId])
+									}
+								>
+									<ExternalLink className="size-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent className="max-w-xs">
+								{t(
+									`settings:translate.providerDesc.${providerId}` as "settings:translate.providerDesc.deepl",
+								)}
+							</TooltipContent>
+						</Tooltip>
+						<div className="ml-auto flex items-center gap-2">
+							<ProbeDot
+								status={probe}
+								label={t(PROBE_LABEL_KEYS[probe])}
+								title={t(PROBE_LABEL_KEYS[probe])}
+							/>
+							<Button
+								type="button"
+								size="sm"
+								disabled={probe === "probing" || !displayKey.trim()}
+								onClick={() => void confirmCommercial()}
+							>
+								{probe === "probing" ? (
+									<LoaderCircle
+										data-icon="inline-start"
+										className="animate-spin"
+									/>
+								) : (
+									<RefreshCw data-icon="inline-start" />
+								)}
+								{t("translate.test")}
+							</Button>
+						</div>
+					</div>
 
-			<Input
-				value={displayKey}
-				placeholder={t("translate.apiKeyPlaceholder")}
-				onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
-				className="h-8"
-			/>
+					<Input
+						value={displayKey}
+						disabled={probe === "probing"}
+						aria-label={t("translate.apiKeyPlaceholder")}
+						placeholder={t("translate.apiKeyPlaceholder")}
+						onChange={(e) =>
+							setDraft((d) => ({ ...d, apiKey: e.target.value }))
+						}
+						className="h-8"
+					/>
 
-			<Input
-				value={displayBaseUrl}
-				placeholder={
-					COMMERCIAL_MT_DEFAULT_BASE_URLS[
-						tr.provider as CommercialTranslateProviderId
-					] ?? t("translate.endpointPlaceholder")
-				}
-				onChange={(e) => setDraft((d) => ({ ...d, baseUrl: e.target.value }))}
-				className="h-8 font-mono text-xs"
-			/>
-		</div>
+					<Input
+						value={displayBaseUrl}
+						disabled={probe === "probing"}
+						aria-label={t("translate.endpointPlaceholder")}
+						placeholder={
+							COMMERCIAL_MT_DEFAULT_BASE_URLS[providerId] ??
+							t("translate.endpointPlaceholder")
+						}
+						onChange={(e) =>
+							setDraft((d) => ({ ...d, baseUrl: e.target.value }))
+						}
+						className="h-8 font-mono text-xs"
+					/>
+				</div>
+			</DialogContent>
+		</Dialog>
 	);
 }

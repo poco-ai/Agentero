@@ -26,15 +26,21 @@ Onboarding 关闭、Vault 首次打开后，`useFeatureTour` 用 driver.js 高�
 | 网络 | `proxy` | 配置应用级网络代理，并运行「问题诊断 → 网络连通性」同一组 probe | `saveSettingsAsync` / `doctorCheckNetwork` |
 | 运行环境 | `node` | 检测本机 Node.js / npm；已安装显示完成，缺失时提示并支持一键安装，安装期间显示百分比进度 | `useHostNodeStatus` / `installNodeInBackground`（`doctorCheckHost` / `doctorInstallNode`） |
 | Agent | `agent` | 扫描本机 ACP Agent、安装可托管 Agent、探测、设默认（可跳过）；安装期间卡片显示 `agent-lifecycle:progress` 进度与阶段，并提供取消（X）按钮静默中止安装。下方另列**本地桌面应用**（ChatGPT / 千问办公 / WorkBuddy）：不支持 ACP，已装高亮、未装灰度，均标注「暂不支持」，不可选 | `scanCatalog` / `probeCatalogAgent` / `ensureCatalogAgent` / `useAgentToolLifecycle` / `probeDesktopApps` |
-| 翻译 | `translate` | 选择「用自己的翻译 API」或「内置免费翻译」，选前者则填 Key 并测试 | `probeCommercialMtProvider` |
-| 图表公式 | `layout` | 选择「配置云端服务」或「本地免费模型」，选前者则填 Key 并测试 | `probeLayoutProvider` |
+| 翻译 | `translate` | 默认先展示并选中「腾讯交互翻译」（免费在线、无需 Key）；自己的 API 在弹窗中保存并测试 | `probeCommercialMtProvider` |
+| 图表公式 | `layout` | 默认先展示并选中「本地模型」（下载后离线）；云端 API 在弹窗中保存并测试，独立于正文解析 | `probeLayoutProvider` |
 | 收尾 | `vault` | 创建 Vault / 从 Zotero 导入 / 稍后再说 | `createNewVault()` / `migrateZoteroFromWelcome()`（`src/lib/vault/actions.ts`） |
 
 Agent 的可选性由当前依赖是否可用决定（`acpCommandAvailable`）；内置 ACP 适配器不能代替所需的 Agent CLI，保留历史注册、默认项或成功探测记录不代表当前可用。
 
 流程状态机用 **@stepperize/react**（`defineStepper` + `useStepper`），定义见 `src/components/onboarding/flow.ts`；纯线性、无分支跳转。
 
-> **翻译默认值**：`translate-step.tsx` 的默认选项使用 `DEFAULT_TRANSLATE_SETTINGS.provider`（`tencenttransmart`），与 Host 新装默认值一致，不依赖内置 key（#857）。文案中的「内置免费翻译」指此免费引擎，不是 `agentero` provider；文案与步骤交互的后续调整由 #856 跟踪。
+> **翻译默认值**：`translate-step.tsx` 的默认选项使用 `DEFAULT_TRANSLATE_SETTINGS.provider`（`tencenttransmart`），与 Host 新装默认值一致，不依赖内置 key（#857）。卡片直接显示引擎名称和联网要求，不再笼统称「内置翻译」。
+
+两步均按「免费默认项 → 自己的 API」排列，推荐标签标在默认项；选中状态从已保存的设置读取（视觉勾选 + `aria-pressed`），返回步骤也保留。点击默认项只保存选择，使用「下一步」前进，不再立即跳步。设置页已有其他 provider 时保留该配置，不在进入向导时重置。
+
+点击自己的 API 卡片会打开对应 provider 网站及标准配置 Dialog；可切换服务、再次打开网站、填写 Key 并「保存并测试」。只打开或取消弹窗不改变当前 provider，保存后才启用；翻译 API 的新 Key 以原值交给 Host 保存，界面仅保留 mask。Dialog 支持 Esc 关闭并恢复卡片焦点。两步均注明稍后修改的设置位置。
+
+版面步骤只改变 `layout.backend`，不改 `layout.parserBackend`；说明文字明确区分图表/公式定位与正文提取。
 
 ## 结构
 

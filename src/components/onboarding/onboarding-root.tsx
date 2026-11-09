@@ -1,6 +1,6 @@
 import { ArrowRight, RefreshCw } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "zustand";
 import type { AgentStepHandle } from "@/components/onboarding/steps/agent-step";
@@ -31,7 +31,6 @@ import { patchSettings } from "@/lib/settings/react-store";
 import { setZoteroOpen } from "@/lib/shell/ui-store";
 import { createNewVault } from "@/lib/vault/actions";
 import { vaultStore } from "@/lib/vault/store";
-import type { OnboardingStepId } from "./flow";
 import { onboardingFlow } from "./flow";
 import {
 	closeOnboarding,
@@ -145,23 +144,8 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 	const patch = patchSettings;
 	const agentStepRef = useRef<AgentStepHandle>(null);
 
-	/** Per-step "choice made" gate for the footer Next button. */
-	const [gate, setGate] = useState<{
-		id: OnboardingStepId;
-		allowed: boolean;
-	} | null>(null);
-	const reportGate = useCallback((id: OnboardingStepId, allowed: boolean) => {
-		setGate((prev) =>
-			prev?.id === id && prev.allowed === allowed ? prev : { id, allowed },
-		);
-	}, []);
-
 	const stepLabels = onboardingFlow.steps.map((step) => t(`steps.${step.id}`));
 
-	const gated = ["translate", "layout"].includes(stepper.current.id);
-	const canNext = gated
-		? gate?.id === stepper.current.id && gate.allowed
-		: true;
 	const nextLabel = stepper.isLast
 		? t("actions.finish")
 		: stepper.isFirst
@@ -205,23 +189,9 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 			case "agent":
 				return <AgentStep ref={agentStepRef} />;
 			case "translate":
-				return (
-					<TranslateStep
-						settings={settings}
-						patch={patch}
-						onUseDefault={() => void stepper.next()}
-						onNextChange={reportGate}
-					/>
-				);
+				return <TranslateStep settings={settings} patch={patch} />;
 			case "layout":
-				return (
-					<LayoutStep
-						settings={settings}
-						patch={patch}
-						onUseDefault={() => void stepper.next()}
-						onNextChange={reportGate}
-					/>
-				);
+				return <LayoutStep settings={settings} patch={patch} />;
 			case "vault":
 				return <VaultChoiceStep onCreate={onCreateVault} />;
 		}
@@ -240,7 +210,7 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 			case "translate":
 				return { title: t("translate.title"), desc: t("translate.desc") };
 			case "layout":
-				return { title: t("layout.title"), desc: undefined };
+				return { title: t("layout.title"), desc: t("layout.desc") };
 			case "vault":
 				return { title: t("vault.title"), desc: t("vault.desc") };
 			default:
@@ -326,7 +296,7 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 							<FlowDots index={stepper.index} labels={stepLabels} />
 						</div>
 					)}
-					<Button type="button" disabled={!canNext} onClick={onNext}>
+					<Button type="button" onClick={onNext}>
 						{nextLabel}
 						{stepper.isFirst ? <ArrowRight data-icon="inline-end" /> : null}
 					</Button>

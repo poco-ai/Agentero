@@ -219,6 +219,6 @@
 5. ~~**`arxiv_rec_state` 不按 model 建键**~~ **已修**（schema v8 `discovery_runs`）：运行结果键含 model / top_n / 分类，切换 embedding 来源后当天首次运行即重算，不再复用旧结果（详见 [../development/plaza.md](../development/plaza.md) §3.4）。
 6. **目标语言只有 en / zh-CN**：扩到 Hunyuan-MT 的 37 语言需要同时改 `TR_TARGETS`、前端 `TranslateTargetLang` union 与目标语言选择器，并在 `hunyuan_target_name` 补映射。
 7. **内嵌 key → per-install activation token**：由网关签发、可吊销、可做 per-user 配额；客户端 provider 形状不变。这是内嵌 key 可提取问题的真正解法。
-8. **引导默认值已对齐**（#857）：`translate-step.tsx` 的默认选项写入 `tencenttransmart`，与 Host 一致，不依赖内置 key。引导文案和交互的后续调整见 #856；当前设置页已隐藏内置 provider，Host 通道仍保留。见 [../frontend/onboarding.md](../frontend/onboarding.md)。
+8. **引导默认值已对齐**（#857）：`translate-step.tsx` 的默认选项写入 `tencenttransmart`，与 Host 一致，不依赖内置 key。引导同步显示具体免费引擎、选中状态和配置弹窗（#856）；当前设置页已隐藏内置 provider，Host 通道仍保留。见 [../frontend/onboarding.md](../frontend/onboarding.md)。
 
 前端 provider / 面板 / i18n 落点见 [../frontend/settings.md](../frontend/settings.md)、[../frontend/translate.md](../frontend/translate.md)。
