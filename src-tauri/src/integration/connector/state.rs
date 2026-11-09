@@ -834,6 +834,7 @@ impl ConnectorController {
             (handle, parent, session.paper_paths.clone())
         };
 
+        let moved = !paths.is_empty();
         for from in paths {
             let new_rel = match self
                 .move_paper_to_parent(&vault_handle, &from, &desired_parent)
@@ -868,11 +869,11 @@ impl ConnectorController {
         for saved in pending {
             self.emit_item_saved(saved);
         }
-        if first_finalize {
+        if first_finalize || moved {
             // Every attachment has landed and the papers are now at their final
             // collection path: queue the layout follow-up (+ optional import
             // translation) that the JobCenter never ran for this browser-driven
-            // save.
+            // save. A later collection move re-queues against the new path too.
             super::import::spawn_layout_after_session_papers(self, session_id);
         }
         Ok(())
