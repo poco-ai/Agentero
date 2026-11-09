@@ -450,9 +450,9 @@ export function SelectionCard({
 		: "inset(0 0 100% 100%)";
 	const transition = reduceMotion
 		? { duration: 0 }
-		: { type: "spring" as const, bounce: 0.15, duration: 0.35 };
+		: { type: "spring" as const, bounce: 0, duration: 0.35 };
 	const titleNode = (
-		<span className="min-w-0 flex-1 truncate font-medium text-foreground text-sm">
+		<span className="min-w-0 flex-1 truncate font-semibold text-[13px] text-foreground tracking-[-0.01em]">
 			{title}
 		</span>
 	);
@@ -555,10 +555,10 @@ export function SelectionCard({
 		>
 			<header
 				className={cn(
-					"relative flex shrink-0 items-center gap-2 border-border/60 border-b px-3 py-2",
+					"relative flex shrink-0 items-center gap-2 border-border/50 border-b px-3 py-1.5",
 					draggable &&
-						"touch-none select-none cursor-grab active:cursor-grabbing",
-					draggable && showDragHandle && "pt-2.5",
+					"touch-none select-none cursor-grab active:cursor-grabbing",
+					draggable && showDragHandle && "pt-2",
 					headerClassName,
 				)}
 				onPointerDown={draggable ? startDrag : undefined}
@@ -569,7 +569,7 @@ export function SelectionCard({
 			>
 				{draggable && showDragHandle ? (
 					<GripHorizontal
-						className="pointer-events-none absolute top-1 left-1/2 size-3.5 -translate-x-1/2 text-muted-foreground"
+						className="pointer-events-none absolute top-0.5 left-1/2 size-3.5 -translate-x-1/2 text-muted-foreground/70"
 						aria-hidden
 					/>
 				) : null}

@@ -293,11 +293,11 @@ export function TranslateCard({
 			bodyClassName="min-h-0 overflow-hidden p-0"
 		>
 			{source ? (
-				<div className="mx-2.5 mt-2 flex min-h-6 shrink-0 flex-col justify-end border-border/70 border-l-2 pr-2.5 pl-2 text-muted-foreground">
+				<div className="mx-3 mt-2.5 flex min-h-6 shrink-0 flex-col justify-end gap-0.5 border-border/60 border-l-2 pr-2.5 pl-2.5 text-muted-foreground">
 					{source.title && (
 						<button
 							type="button"
-							className="mb-1 truncate text-left text-xs hover:text-foreground"
+							className="mb-0.5 truncate text-left font-medium text-[11px] tracking-[0.01em] hover:text-foreground"
 							onClick={source.onLocate}
 						>
 							{source.title}
@@ -343,7 +343,7 @@ export function TranslateCard({
 			<div
 				ref={scrollPortRef}
 				onScroll={handleScroll}
-				className="agentero-scroll agentero-scroll-visible mx-2.5 mt-2 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto px-2.5 py-2"
+				className="agentero-scroll agentero-scroll-visible mx-3 mt-2 mb-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto py-0.5 pr-0.5"
 			>
 				{showLoading ? (
 					<Shimmer className="text-sm" as="p">
@@ -352,7 +352,7 @@ export function TranslateCard({
 				) : null}
 
 				{showResult ? (
-					<MessageResponse className="min-w-0 whitespace-pre-wrap break-words text-[0.875rem] text-foreground leading-snug">
+					<MessageResponse className="min-w-0 whitespace-pre-wrap break-words text-[0.9375rem] text-foreground leading-relaxed">
 						{result}
 					</MessageResponse>
 				) : null}
