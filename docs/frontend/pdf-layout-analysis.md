@@ -352,7 +352,7 @@ type PdfLayoutRegion = {
 - 不改 PDF 二进制；只写可重建的 `{paper}/source/layout.json`。单篇强制重解析在 force 任务入队成功后删掉这篇的 `layout.json` 和 `layout-index.json`，再由新的解析重写。
 - 版面分析只读论文根目录 `{id}.pdf`。根文件尚未落盘时跳过，不会改去解析 `source/assets/` 里的插图 PDF。查看器打开 PDF 仍用 `findLocalPdfPath`。
 - `layout.json` 只缓存 raw layout，不等同于未来 `agentero-figures.json` / 缩略图资产 sidecar。
-- 跨页关联只支持相邻页的唯一候选；更远的图注、扫描件无可用文字层或冲突图号不会强行配对，可靠无图题图片仍展示。MinerU #704 的真实论文回放与修复记录见 [mineru-missing-figures.md](../bug_fix/mineru-missing-figures.md)。
+- 跨页关联只支持相邻页的唯一候选；更远的图注、扫描件无可用文字层或冲突图号不会强行配对，可靠无图题图片仍展示。
 - **模型级整面板误标仍会漏图**（merge 层无法救回，页上没有可用 image/chart 检测）：ViT 附录 Fig 14（注意力图网格被标 `header` 0.91，同框 `image` 仅 0.05）、Transformer 附录 Fig 4（注意力可视化被标 `table` 0.88）。四篇论文（resnet / vit / transformer / swin，单双栏混合）实测图题召回 28/30 ≈ 93%，在容忍范围内；后续如换更强检测模型可回归 `test/pdf-layout-arxiv.test.ts` 复核。
 - **真实 PDF smoke test（opt-in，默认跳过）**：`test/pdf-layout-arxiv.test.ts`，需 `AGENTERO_LAYOUT_PDF_DIR`（放 `<name>.pdf`）+ `AGENTERO_LAYOUT_MODEL`（pp-doclayoutv3.onnx 路径），`AGENTERO_LAYOUT_PDFS` 逗号分隔指定论文名（默认 `resnet,vit`）。逐页输出渲染 PNG、合并后 bbox 叠加 PNG 与 `*-detections.json`，供 before/after 回归对比（`/tmp/agentero-bbox-validation/compare.mjs` 为临时脚本，不在仓库内）。
 - 后续：最终 figure sidecar、自动分析、一键视觉批注。

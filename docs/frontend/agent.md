@@ -26,9 +26,8 @@ shadcn/ui primitives → agent/ 应用组合与 rendering/ 科研渲染
 
 - **Dsh 重启历史**：官方 ACP 桥仅支持 `session/resume` 时，本机历史从
   Dsh 标准落盘日志只读恢复；后台标题补全和点击历史项共用该路径。已有日志
-  完整时可恢复文字、推理、工具记录，标题缺失时回退首条用户消息；不会再向
-  不支持的桥发送 `session/load`。范围与验证见
-  [Dsh 重启后的历史恢复](../bug_fix/dsh-history-after-restart.md)。
+  完整时可恢复文字、推理、工具记录，标题缺失时回退首条用户消息；  不会再向
+  不支持的桥发送 `session/load`。
 
 - **Pi 项目信任提示**：选中 Pi 且当前本地 Vault 需要信任却未信任时，输入框上方
   显示一条可关闭提示。点击「信任此 Vault」调用 Host 写入 `~/.pi/agent/trust.json`
