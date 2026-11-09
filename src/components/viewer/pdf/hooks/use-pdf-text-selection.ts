@@ -32,7 +32,7 @@ import {
 import {
 	anchorFromEmbedSelection,
 	pageElByIndex,
-	rectTopCenterScreen,
+	rectBottomCenterScreen,
 } from "@/components/viewer/pdf/coords";
 import {
 	clearDomSelectionInside,
@@ -44,6 +44,7 @@ import type {
 	SelectionMenuState,
 } from "@/components/viewer/pdf/types";
 import { useWritingSelectionGroup } from "@/components/writing/writing-selection-group";
+import type { SelectionSide } from "@/lib/agent/selection-side";
 import {
 	clearActiveSelection,
 	publishSelection,
@@ -119,10 +120,25 @@ function menuScreenPoint(
 	host: HTMLElement | null,
 	anchorPage: FormattedSelection,
 	zoom: number,
+	side?: SelectionSide,
+	cursorXFraction?: number,
 ): ScreenPoint | null {
 	const pageEl = pageElByIndex(host, anchorPage.pageIndex);
 	if (!pageEl) return null;
-	return rectTopCenterScreen(pageEl, anchorPage.rect, zoom);
+	const box = rectBottomCenterScreen(pageEl, anchorPage.rect, zoom);
+	const pageBox = pageEl.getBoundingClientRect();
+	const cursorX =
+		cursorXFraction != null && pageBox.width > 0
+			? pageBox.left + cursorXFraction * pageBox.width
+			: undefined;
+	return {
+		x: box.x,
+		cursorX,
+		y: box.top,
+		top: box.top,
+		bottom: box.bottom,
+		side,
+	};
 }
 
 function pageFrame(host: HTMLElement, pageIndex: number): PageFrame | null {
@@ -147,18 +163,20 @@ function menuScreenFromState(
 	host: HTMLElement | null,
 	menu: SelectionMenuState,
 	zoom: number,
+	side?: SelectionSide,
 ): ScreenPoint | null {
 	if (host && menu.visiblePages?.length) {
 		const screen = visibleMenuPoint(
 			menu.visiblePages,
 			menu.anchor.page - 1,
 			(pageIndex) => pageFrame(host, pageIndex),
+			menu.cursorXFraction,
 		);
-		if (screen) return screen;
+		if (screen) return { ...screen, side };
 	}
 	const anchorPage = menuAnchorPage(menu.pages, menu.anchor.page - 1);
 	if (!anchorPage) return null;
-	return menuScreenPoint(host, anchorPage, zoom);
+	return menuScreenPoint(host, anchorPage, zoom, side, menu.cursorXFraction);
 }
 
 export type UsePdfTextSelectionOptions = {
@@ -213,6 +231,12 @@ export function usePdfTextSelection({
 	const [isSelecting, setIsSelecting] = useState(false);
 	const selectionGroup = useWritingSelectionGroup();
 	const selectionEpochRef = useRef(0);
+	/** Vertical drag direction; PDFium normalizes start/end, so track the pointer. */
+	const dragPointerRef = useRef<{
+		downY: number;
+		upY: number | null;
+		upX: number | null;
+	} | null>(null);
 
 	const closeSelectionMenu = useCallback(() => {
 		selectionEpochRef.current += 1;
@@ -236,9 +260,16 @@ export function usePdfTextSelection({
 				hostRef.current,
 				prev,
 				zoomRef.current,
+				prev.screen.side,
 			);
 			if (!screen) return prev;
-			if (screen.x === prev.screen.x && screen.y === prev.screen.y) {
+			if (
+				screen.x === prev.screen.x &&
+				screen.y === prev.screen.y &&
+				screen.bottom === prev.screen.bottom &&
+				screen.cursorX === prev.screen.cursorX &&
+				screen.side === prev.screen.side
+			) {
 				return prev;
 			}
 			return { ...prev, screen };
@@ -254,13 +285,32 @@ export function usePdfTextSelection({
 		if (!host) return;
 		const onPointerDown = (event: PointerEvent) => {
 			if (event.button !== 0) return;
+			dragPointerRef.current = {
+				downY: event.clientY,
+				upY: null,
+				upX: null,
+			};
 			releaseNativeSelectionForPdfPointer({
 				host,
 				target: event.target,
 			});
 		};
+		const onPointerUp = (event: PointerEvent) => {
+			if (event.button !== 0) return;
+			const drag = dragPointerRef.current;
+			if (drag) {
+				drag.upY = event.clientY;
+				drag.upX = event.clientX;
+			}
+		};
 		host.addEventListener("pointerdown", onPointerDown, true);
-		return () => host.removeEventListener("pointerdown", onPointerDown, true);
+		// Window capture runs before PDFium's own pointerup, so the menu can
+		// compare where the drag ended with where it started.
+		window.addEventListener("pointerup", onPointerUp, true);
+		return () => {
+			host.removeEventListener("pointerdown", onPointerDown, true);
+			window.removeEventListener("pointerup", onPointerUp, true);
+		};
 	}, [hostRef]);
 
 	// Source editor took over the writing split: drop the PDFium selection and
@@ -296,6 +346,14 @@ export function usePdfTextSelection({
 			setIsSelecting(true);
 		});
 		const offEnd = scope.onEndSelection(() => {
+			const drag = dragPointerRef.current;
+			dragPointerRef.current = null;
+			const side: SelectionSide | undefined =
+				drag?.upY != null && Math.abs(drag.upY - drag.downY) >= 4
+					? drag.upY > drag.downY
+						? "below"
+						: "above"
+					: undefined;
 			// Glyphs under the overlay share the pointer, so a drag on the
 			// translation also ends an English selection. Drop those rects and
 			// leave the DOM range's menu in place.
@@ -332,10 +390,18 @@ export function usePdfTextSelection({
 				return;
 			}
 
+			const pageEl = pageElByIndex(hostRef.current, anchorPage.pageIndex);
+			const pageBox = pageEl?.getBoundingClientRect();
+			const cursorXFraction =
+				drag?.upX != null && pageBox && pageBox.width > 0
+					? (drag.upX - pageBox.left) / pageBox.width
+					: undefined;
 			const screen = menuScreenPoint(
 				hostRef.current,
 				anchorPage,
 				zoomRef.current,
+				side,
+				cursorXFraction,
 			);
 			if (!screen) {
 				setIsSelecting(false);
@@ -368,7 +434,7 @@ export function usePdfTextSelection({
 					setIsSelecting(false);
 					return;
 				}
-				setSelectionMenu({ screen, anchor, pages });
+				setSelectionMenu({ screen, cursorXFraction, anchor, pages });
 				setIsSelecting(false);
 				selectionGroup?.announce("pdf");
 				publishSelection({

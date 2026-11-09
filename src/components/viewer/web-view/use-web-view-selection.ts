@@ -125,6 +125,8 @@ export function useWebViewSelection({
 							height: msg.rect.height * scale,
 						},
 						bounds,
+						msg.side,
+						msg.cursorX != null ? msg.cursorX * scale : undefined,
 					),
 					"menu",
 				);

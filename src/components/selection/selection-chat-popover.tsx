@@ -25,6 +25,10 @@ import {
 	normalizeQuoteContext,
 } from "@/lib/agent/selection-context";
 import {
+	selectionFocusRect,
+	selectionSideFromSelection,
+} from "@/lib/agent/selection-side";
+import {
 	captureTextAnchor,
 	resolveSelectionRange,
 } from "@/lib/agent/selection-source";
@@ -143,6 +147,8 @@ export function SelectionChatPopover() {
 				{
 					x: rect.left + rect.width / 2,
 					y: rect.top,
+					side: selectionSideFromSelection(selection),
+					cursorX: selectionFocusRect(selection)?.left,
 					// Keep result cards outside the highlighted lines.
 					selectionBounds: {
 						left: rect.left,

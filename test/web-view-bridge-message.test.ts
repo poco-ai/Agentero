@@ -16,12 +16,16 @@ describe("parseWebBridgeMessage", () => {
 				text: "quoted text",
 				rect: { x: 10, y: 20, width: 100, height: 5 },
 				url: "https://x.com/a",
+				side: "below",
+				cursorX: 42,
 			}),
 		).toEqual({
 			type: "selection",
 			text: "quoted text",
 			rect: { x: 10, y: 20, width: 100, height: 5 },
 			url: "https://x.com/a",
+			side: "below",
+			cursorX: 42,
 		});
 	});
 
@@ -141,10 +145,14 @@ describe("bridgeSelectionScreen", () => {
 			bridgeSelectionScreen(
 				{ x: 100, y: 200, width: 60, height: 8 },
 				{ x: 40, y: 12 },
+				"above",
+				100,
 			),
 		).toEqual({
 			x: 170,
 			y: 212,
+			side: "above",
+			cursorX: 140,
 			selectionBounds: { left: 140, top: 212, right: 200, bottom: 220 },
 		});
 	});

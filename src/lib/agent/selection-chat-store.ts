@@ -17,11 +17,16 @@ import {
 	editAnnotation,
 	releaseAnnotationAnchor,
 } from "./selection-annotations";
+import type { SelectionSide } from "./selection-side";
 
 /** Viewport anchor plus the box cards must not cover. */
 export type SelectionDraftScreen = {
 	x: number;
 	y: number;
+	/** Side of the selection where the gesture ended. */
+	side?: SelectionSide;
+	/** Viewport x of the gesture endpoint; the menu centers on this point. */
+	cursorX?: number;
 	selectionBounds?: {
 		left: number;
 		top: number;

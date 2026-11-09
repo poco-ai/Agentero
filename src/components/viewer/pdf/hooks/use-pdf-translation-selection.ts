@@ -16,9 +16,13 @@ import {
 	anchorFromEmbedSelection,
 	EMBED_PAGE_ATTR,
 	pageElByIndex,
-	rectTopCenterScreen,
+	rectBottomCenterScreen,
 } from "@/components/viewer/pdf/coords";
 import type { SelectionMenuState } from "@/components/viewer/pdf/types";
+import {
+	selectionFocusRect,
+	selectionSideFromSelection,
+} from "@/lib/agent/selection-side";
 import { publishSelection } from "@/lib/agent/selection-store";
 import {
 	bboxToPageRect,
@@ -329,19 +333,43 @@ export function usePdfTranslationSelection({
 						frames,
 					);
 					const pageEl = pageElByIndex(root, pageIndex);
-					const screen =
-						visibleMenuPoint(
-							visiblePages,
-							pageIndex,
-							(pageIndex) =>
-								frames.find((frame) => frame.pageIndex === pageIndex) ?? null,
-						) ??
-						(pageEl && anchorPage
-							? rectTopCenterScreen(pageEl, anchorPage.rect, zoomRef.current)
-							: null);
+					const domSelection = window.getSelection();
+					const side = selectionSideFromSelection(domSelection);
+					const focusRect = selectionFocusRect(domSelection);
+					const anchorFrame = frames.find(
+						(frame) => frame.pageIndex === pageIndex,
+					);
+					const cursorXFraction =
+						focusRect && anchorFrame && anchorFrame.width > 0
+							? (focusRect.left - anchorFrame.left) / anchorFrame.width
+							: undefined;
+					const visibleScreen = visibleMenuPoint(
+						visiblePages,
+						pageIndex,
+						(pageIndex) =>
+							frames.find((frame) => frame.pageIndex === pageIndex) ?? null,
+						cursorXFraction,
+					);
+					const fallbackBox =
+						!visibleScreen && pageEl && anchorPage
+							? rectBottomCenterScreen(pageEl, anchorPage.rect, zoomRef.current)
+							: null;
+					const screen = visibleScreen
+						? { ...visibleScreen, side }
+						: fallbackBox
+							? {
+									x: fallbackBox.x,
+									y: fallbackBox.top,
+									top: fallbackBox.top,
+									bottom: fallbackBox.bottom,
+									side,
+									cursorX: focusRect?.left,
+								}
+							: null;
 					if (!screen || !alive()) return;
 					setSelectionMenu({
 						screen,
+						cursorXFraction,
 						anchor,
 						pages,
 						copyText: resolved.copyText,

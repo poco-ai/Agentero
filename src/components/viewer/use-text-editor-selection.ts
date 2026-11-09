@@ -50,6 +50,7 @@ function selectionMenuScreen(view: EditorView): SelectionDraftScreen | null {
 	if (selection.empty) return null;
 	const start = view.coordsAtPos(selection.from, -1);
 	const end = view.coordsAtPos(selection.to, 1);
+	const head = view.coordsAtPos(selection.head);
 	if (!start) return null;
 	const sameLine = end != null && Math.abs(end.top - start.top) < 1;
 	const x =
@@ -62,6 +63,9 @@ function selectionMenuScreen(view: EditorView): SelectionDraftScreen | null {
 	return {
 		x,
 		y: top,
+		// CodeMirror keeps the move endpoint in `head`; follow it for placement.
+		side: selection.head >= selection.anchor ? "below" : "above",
+		cursorX: head?.left,
 		selectionBounds: {
 			left: Math.min(start.left, end?.left ?? start.left),
 			top,

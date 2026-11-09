@@ -121,11 +121,22 @@ describe("visibleMenuPoint", () => {
 			x: 0.4,
 			y: 0.2,
 		});
+		const point = visibleMenuPoint(frames, 0, (pageIndex) => {
+			const page = pages.find((item) => item.pageIndex === pageIndex);
+			return page ?? null;
+		});
+		expect(point).toMatchObject({ x: 80, y: 80, top: 80 });
+		expect(point?.bottom).toBeCloseTo(96);
 		expect(
-			visibleMenuPoint(frames, 0, (pageIndex) => {
-				const page = pages.find((item) => item.pageIndex === pageIndex);
-				return page ?? null;
-			}),
-		).toEqual({ x: 80, y: 80 });
+			visibleMenuPoint(
+				frames,
+				0,
+				(pageIndex) => {
+					const page = pages.find((item) => item.pageIndex === pageIndex);
+					return page ?? null;
+				},
+				0.75,
+			)?.cursorX,
+		).toBeCloseTo(150);
 	});
 });

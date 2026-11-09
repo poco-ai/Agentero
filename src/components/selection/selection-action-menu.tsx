@@ -30,7 +30,14 @@ import { formatModShortcut } from "@/lib/shell/shortcuts";
 import { useSelectionOverlayGuard } from "@/lib/workspace/selection-overlay";
 
 export type SelectionActionMenuProps = {
-	screen: ScreenPoint;
+	screen: ScreenPoint & {
+		selectionBounds?: {
+			left: number;
+			top: number;
+			right: number;
+			bottom: number;
+		};
+	};
 	onAsk?: () => void;
 	onAddToChat?: () => void;
 	onTranslate?: () => void;
@@ -128,9 +135,15 @@ export function SelectionActionMenu({
 		const place = () => {
 			const rect = menu.getBoundingClientRect();
 			const divider = anchorRef?.current?.getBoundingClientRect();
-			const anchor = divider
-				? divider.left + divider.width / 2
-				: rect.left + rect.width / 2;
+			// With a cursor endpoint, center the whole bar on it. Legacy
+			// selection-center anchors keep the palette/action divider fixed so
+			// expanding the color stack never moves the actions.
+			const anchor =
+				screen.cursorX != null
+					? rect.left + rect.width / 2
+					: divider
+						? divider.left + divider.width / 2
+						: rect.left + rect.width / 2;
 			// Measure the action side, so labels and plugin actions need no estimates.
 			// Keep `right` fixed while the color stack expands to the left.
 			const reservedWidth =
@@ -138,20 +151,44 @@ export function SelectionActionMenu({
 				(expandingRef?.current
 					? expandedWidth - expandingRef.current.getBoundingClientRect().width
 					: 0);
+			// Center the bar on the gesture endpoint, not the selection center.
+			const anchorX = screen.cursorX ?? screen.x;
 			const right = clamp(
-				window.innerWidth - screen.x - (rect.right - anchor),
+				window.innerWidth - anchorX - (rect.right - anchor),
 				EDGE,
 				Math.max(EDGE, window.innerWidth - reservedWidth - EDGE),
 			);
-			// Prefer above the selection, flipping below near the top edge.
-			const above = screen.y - rect.height - 10;
-			const overContent = above < EDGE;
-			const top = clamp(
-				overContent ? screen.y + 18 : above,
-				EDGE,
-				Math.max(EDGE, window.innerHeight - rect.height - EDGE),
-			);
-			const dimmed = overContent || top !== above;
+			const topLimit = Math.max(EDGE, window.innerHeight - rect.height - EDGE);
+			let top: number;
+			let dimmed: boolean;
+			const boundsTop = screen.selectionBounds?.top ?? screen.top ?? screen.y;
+			const boundsBottom =
+				screen.selectionBounds?.bottom ?? screen.bottom ?? screen.y;
+			const hasSelectionBounds =
+				screen.selectionBounds?.top !== undefined &&
+				screen.selectionBounds?.bottom !== undefined;
+			// Legacy anchors have no selection side: keep preferring above.
+			if (screen.side === undefined && !hasSelectionBounds) {
+				const above = screen.y - rect.height - 10;
+				const overContent = above < EDGE;
+				top = clamp(overContent ? screen.y + 18 : above, EDGE, topLimit);
+				dimmed = overContent || top !== above;
+			} else {
+				// Follow the last cursor: downward drags open below, upward above.
+				// Flip only when the preferred side has no room, then clamp.
+				const above = boundsTop - rect.height - 10;
+				const below = boundsBottom + 10;
+				const aboveFits = above >= EDGE && above <= topLimit;
+				const belowFits = below >= EDGE && below <= topLimit;
+				const preferBelow = screen.side === "below";
+				const preferredTop = preferBelow ? below : above;
+				const flipTop = preferBelow ? above : below;
+				const preferredFits = preferBelow ? belowFits : aboveFits;
+				const flipFits = preferBelow ? aboveFits : belowFits;
+				const chosenTop = preferredFits || !flipFits ? preferredTop : flipTop;
+				top = clamp(chosenTop, EDGE, topLimit);
+				dimmed = chosenTop !== preferredTop || top !== chosenTop;
+			}
 			setPosition((prev) =>
 				prev?.right === right && prev.top === top && prev.dimmed === dimmed
 					? prev
@@ -166,7 +203,19 @@ export function SelectionActionMenu({
 			observer.disconnect();
 			window.removeEventListener("resize", place);
 		};
-	}, [screen.x, screen.y, anchorRef, expandingRef, expandedWidth]);
+	}, [
+		screen.x,
+		screen.y,
+		screen.cursorX,
+		screen.side,
+		screen.top,
+		screen.bottom,
+		screen.selectionBounds?.top,
+		screen.selectionBounds?.bottom,
+		anchorRef,
+		expandingRef,
+		expandedWidth,
+	]);
 
 	return (
 		<SelectionToolbar

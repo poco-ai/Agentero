@@ -213,6 +213,49 @@ it("centers surfaces without highlights and retains vertical flipping and clampi
 	expect(menu.className).toContain("opacity-70");
 });
 
+it("opens on the side where the selection gesture ended, centered on the cursor", async () => {
+	const menu = await render({
+		showHighlight: false,
+		screen: {
+			x: 500,
+			y: 200,
+			cursorX: 620,
+			bottom: 260,
+			side: "below",
+		},
+	});
+	// Below the selected lines, centered on the gesture endpoint.
+	expect(menu.style.top).toBe("270px");
+	const belowRect = menu.getBoundingClientRect();
+	expect(belowRect.left + belowRect.width / 2).toBeCloseTo(620);
+	await render({
+		showHighlight: false,
+		screen: {
+			x: 500,
+			y: 200,
+			cursorX: 380,
+			top: 180,
+			side: "above",
+		},
+	});
+	expect(menu.style.top).toBe("138px");
+	const aboveRect = menu.getBoundingClientRect();
+	expect(aboveRect.left + aboveRect.width / 2).toBeCloseTo(380);
+	// The PDF palette is part of the bar: center the whole bar, not its divider.
+	await render({
+		showHighlight: true,
+		screen: {
+			x: 500,
+			y: 200,
+			cursorX: 620,
+			bottom: 260,
+			side: "below",
+		},
+	});
+	const paletteRect = menu.getBoundingClientRect();
+	expect(paletteRect.left + paletteRect.width / 2).toBeCloseTo(620);
+});
+
 it("keeps note clicks explicit and opens quick chat through the chat arrow", async () => {
 	const onNote = vi.fn();
 	const onAsk = vi.fn();

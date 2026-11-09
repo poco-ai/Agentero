@@ -8,6 +8,7 @@
  */
 
 import type { SelectionDraftScreen } from "@/lib/agent/selection-chat-store";
+import type { SelectionSide } from "@/lib/agent/selection-side";
 
 /** Keyboard state forwarded for authoritative matching against live settings. */
 export type WebBridgeKeyEvent = Pick<
@@ -29,6 +30,10 @@ export type WebBridgeMessage =
 			text: string;
 			rect: WebBridgeRect | null;
 			url: string;
+			/** Side of the selection where the frame gesture ended. */
+			side?: SelectionSide;
+			/** Frame-viewport x of the gesture endpoint. */
+			cursorX?: number;
 	  }
 	| { type: "scroll" }
 	| { type: "ready" }
@@ -60,7 +65,18 @@ export function parseWebBridgeMessage(data: unknown): WebBridgeMessage | null {
 					rect = { x, y, width, height };
 				}
 			}
-			return { type: "selection", text: data.text, rect, url: data.url };
+			const side =
+				data.side === "above" || data.side === "below" ? data.side : undefined;
+			const cursorX =
+				typeof data.cursorX === "number" ? data.cursorX : undefined;
+			return {
+				type: "selection",
+				text: data.text,
+				rect,
+				url: data.url,
+				side,
+				cursorX,
+			};
 		}
 		case "ready":
 			return { type: "ready" };
@@ -103,6 +119,8 @@ export function parseWebBridgeMessage(data: unknown): WebBridgeMessage | null {
 export function bridgeSelectionScreen(
 	rect: WebBridgeRect,
 	iframeRect: { x: number; y: number },
+	side?: SelectionSide,
+	cursorX?: number,
 ): SelectionDraftScreen {
 	const left = iframeRect.x + rect.x;
 	const top = iframeRect.y + rect.y;
@@ -111,6 +129,8 @@ export function bridgeSelectionScreen(
 	return {
 		x: (left + right) / 2,
 		y: top,
+		side,
+		cursorX: cursorX != null ? iframeRect.x + cursorX : undefined,
 		selectionBounds: { left, top, right, bottom },
 	};
 }

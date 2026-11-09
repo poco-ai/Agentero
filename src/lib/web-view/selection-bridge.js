@@ -13,10 +13,35 @@
 		};
 		// ---- selection → app toolbar -----------------------------------------
 		const MAX_SELECTION_CHARS = 4000;
+		const getSelectionGesture = (sel) => {
+			if (!sel || sel.anchorNode == null || sel.focusNode == null) return {};
+			try {
+				const range = document.createRange();
+				range.setStart(sel.anchorNode, sel.anchorOffset);
+				range.collapse(true);
+				const anchor = range.getBoundingClientRect();
+				range.setStart(sel.focusNode, sel.focusOffset);
+				range.collapse(true);
+				const focus = range.getBoundingClientRect();
+				return {
+					side:
+						focus.top > anchor.top
+							? "below"
+							: focus.top < anchor.top
+								? "above"
+								: undefined,
+					focusX: focus.left,
+				};
+			} catch {
+				return {};
+			}
+		};
 		const sendSelection = () => {
 			if (isEditable(document.activeElement)) return;
 			let text = "";
 			let rect = null;
+			let side;
+			let cursorX;
 			const sel = window.getSelection();
 			if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
 				text = (sel.toString() || "").trim().slice(0, MAX_SELECTION_CHARS);
@@ -24,6 +49,9 @@
 					const r = sel.getRangeAt(0).getBoundingClientRect();
 					if (r.width !== 0 || r.height !== 0) {
 						rect = { x: r.left, y: r.top, width: r.width, height: r.height };
+						const gesture = getSelectionGesture(sel);
+						side = gesture.side;
+						cursorX = gesture.focusX;
 					}
 				}
 			}
@@ -34,7 +62,14 @@
 					document.execCommand("copy");
 				} catch {}
 			}
-			post({ type: "selection", text: text, rect: rect, url: location.href });
+			post({
+				type: "selection",
+				text: text,
+				rect: rect,
+				url: location.href,
+				side: side,
+				cursorX: cursorX,
+			});
 		};
 		const scheduleSelection = () => {
 			// Let the browser finish updating the selection first.

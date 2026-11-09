@@ -191,41 +191,68 @@ export function selectionAnchorFromVisible(
 	};
 }
 
+/** Union bounds in page fractions. */
+export function visibleBounds(
+	rects: readonly PdfAskNormalizedRect[],
+): { left: number; top: number; right: number; bottom: number } | null {
+	if (!rects.length) return null;
+	let left = 1;
+	let top = 1;
+	let right = 0;
+	let bottom = 0;
+	for (const rect of rects) {
+		left = Math.min(left, rect.x);
+		top = Math.min(top, rect.y);
+		right = Math.max(right, rect.x + rect.w);
+		bottom = Math.max(bottom, rect.y + rect.h);
+	}
+	return { left, top, right, bottom };
+}
+
 /** Union top-center in page fractions. */
 export function visibleTopCenter(
 	rects: readonly PdfAskNormalizedRect[],
 ): { x: number; y: number } | null {
-	if (!rects.length) return null;
-	let minX = 1;
-	let minY = 1;
-	let maxX = 0;
-	for (const rect of rects) {
-		minX = Math.min(minX, rect.x);
-		minY = Math.min(minY, rect.y);
-		maxX = Math.max(maxX, rect.x + rect.w);
-	}
-	return { x: (minX + maxX) / 2, y: minY };
+	const bounds = visibleBounds(rects);
+	if (!bounds) return null;
+	return { x: (bounds.left + bounds.right) / 2, y: bounds.top };
 }
 
 /**
  * Screen point for the floating toolbar. Prefers `preferredPageIndex` when
- * that page has visible rects; otherwise the last page.
+ * that page has visible rects; otherwise the last page. `top` / `bottom` let
+ * the menu open on the side where the gesture ended.
  */
 export function visibleMenuPoint(
 	pages: readonly VisibleSelectionPage[],
 	preferredPageIndex: number,
 	pageBox: (pageIndex: number) => PageFrame | null,
-): { x: number; y: number } | null {
+	cursorXFraction?: number,
+): {
+	x: number;
+	y: number;
+	top: number;
+	bottom: number;
+	cursorX?: number;
+} | null {
 	if (!pages.length) return null;
 	const page =
 		pages.find((item) => item.pageIndex === preferredPageIndex) ??
 		pages[pages.length - 1];
 	if (!page) return null;
-	const point = visibleTopCenter(page.rects);
+	const bounds = visibleBounds(page.rects);
 	const box = pageBox(page.pageIndex);
-	if (!point || !box || box.width <= 0 || box.height <= 0) return null;
+	if (!bounds || !box || box.width <= 0 || box.height <= 0) return null;
+	const top = box.top + bounds.top * box.height;
+	const cursorX =
+		cursorXFraction != null
+			? box.left + cursorXFraction * box.width
+			: undefined;
 	return {
-		x: box.left + point.x * box.width,
-		y: box.top + point.y * box.height,
+		x: box.left + ((bounds.left + bounds.right) / 2) * box.width,
+		y: top,
+		top,
+		bottom: box.top + bounds.bottom * box.height,
+		cursorX,
 	};
 }
