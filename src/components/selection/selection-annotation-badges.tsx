@@ -23,12 +23,15 @@ export function AnnotationBadges() {
 		Record<string, { x: number; y: number }>
 	>({});
 	useEffect(() => {
-		// No bound selections: nothing to position, so do not observe at all.
-		if (!binding?.selections?.length) return;
+		// No quoted comment: nothing to position, so do not observe at all.
+		const annotated = (binding?.selections ?? []).filter((selection) =>
+			Boolean(selection.comment?.trim()),
+		);
+		if (!annotated.length) return;
 		let frame = 0;
 		const measure = () => {
 			const next: typeof positions = {};
-			for (const selection of binding?.selections ?? []) {
+			for (const selection of annotated) {
 				const range = resolveSelectionRange(selection);
 				let rect: DOMRect | undefined;
 				let source: Element | null = null;
@@ -157,7 +160,9 @@ export function AnnotationBadges() {
 	}, [binding]);
 	return (
 		<>
-			{binding?.selections.map((selection, index) => {
+			{(binding?.selections ?? []).map((selection, index) => {
+				// A plain quote has no comment to show or edit — no badge.
+				if (!selection.comment?.trim()) return null;
 				const pos = positions[selection.id];
 				if (!pos) return null;
 				return (
@@ -180,7 +185,7 @@ export function AnnotationBadges() {
 							side="top"
 							className="max-w-80 whitespace-pre-wrap break-words"
 						>
-							{selection.comment || t("selection.noComment")}
+							{selection.comment}
 						</HoverCardContent>
 					</HoverCard>
 				);

@@ -287,7 +287,6 @@
 		"translateOpenSettings": "打开翻译设置",
 		"annotationCount": "{{count}} 条批注",
 		"userComment": "批注",
-		"noComment": "未添加批注",
 		"locateSource": "定位原文",
 		"chatSource": "聊天消息",
 		"sourcePage": "第 {{page}} 页",
