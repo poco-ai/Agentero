@@ -198,36 +198,42 @@ describe("translationSelectionFromHits", () => {
 	});
 
 	it("recovers both source pages when one or both boxes of a split sentence are selected", () => {
-		const quote =
-			"the agent queries the environment and then updates its policy.";
+		const quote = "It works on inputs.";
+		const splitSentence = {
+			...sentence(quote, "它可以处理输入。"),
+			display: "它",
+		};
 		const left = {
 			id: "left",
 			pageIndex: 0,
 			bbox: { x: 0.1, y: 0.2, w: 0.3, h: 0.1 },
-			source: "the agent queries the",
-			raw: "the agent queries the",
+			source: "The first result is known. It",
+			raw: "The first result is known. It",
 			sentences: [
-				{
-					quote,
-					source: quote,
-					translated: "智能体查询环境。随后它更新自己的策略。",
-					display: "智能体查询环境。",
-				},
+				sentence("The first result is known.", "已知第一个结果。"),
+				splitSentence,
 			],
 		};
 		const right = {
 			...left,
 			id: "right",
 			pageIndex: 1,
-			source: "environment and then updates its policy.",
-			raw: "environment and then updates its policy.",
+			source: "works on inputs. Another result follows.",
+			raw: "works on inputs. Another result follows.",
+			sentences: [
+				{ ...splitSentence, display: "可以处理输入。" },
+				sentence("Another result follows.", "另一个结果如下。"),
+			],
 		};
 		for (const ids of [["left"], ["right"], ["left", "right"]]) {
 			const selection = translationSelectionFromHits(
-				ids.map((itemId) => ({ itemId, sentenceIndex: 0 })),
+				ids.map((itemId) => ({
+					itemId,
+					sentenceIndex: itemId === "left" ? 1 : 0,
+				})),
 				[left, right],
 				"zh-CN",
-				"智能体查询环境。随后",
+				"可以处理输入",
 			);
 			expect(selection?.canLocate).toBe(true);
 			expect(selection?.quote).toBe(quote);
@@ -237,13 +243,13 @@ describe("translationSelectionFromHits", () => {
 					locateText,
 				]),
 			).toEqual([
-				[0, "the agent queries the"],
-				[1, "environment and then updates its policy."],
+				[0, "It"],
+				[1, "works on inputs."],
 			]);
 		}
 		expect(
 			translationSelectionFromHits(
-				[{ itemId: "left", sentenceIndex: 0 }],
+				[{ itemId: "left", sentenceIndex: 1 }],
 				[left],
 				"zh-CN",
 				"查询",

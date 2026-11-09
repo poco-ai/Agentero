@@ -62,16 +62,36 @@ export type TranslationSelection = {
 	canLocate: boolean;
 };
 
-function memberLocateText(block: string, quote: string): string {
+function memberLocateText(
+	block: string,
+	quote: string,
+	knownSplit = false,
+): string {
 	const key = normalizeSentenceKey(quote);
 	if (!key || !block) return "";
 	if (block.includes(key)) return key;
 	if (key.includes(block)) return block;
-	for (let len = Math.min(block.length, key.length); len >= 8; len--) {
+	for (
+		let len = Math.min(block.length, key.length);
+		len >= (knownSplit ? 1 : 8);
+		len--
+	) {
 		const suffix = block.slice(block.length - len);
-		if (key.startsWith(suffix)) return suffix;
+		if (
+			key.startsWith(suffix) &&
+			(len >= 8 ||
+				(key[len] === " " &&
+					/[\s.!?。！？]/u.test(block[block.length - len - 1] ?? "")))
+		)
+			return suffix;
 		const prefix = block.slice(0, len);
-		if (key.endsWith(prefix)) return prefix;
+		if (
+			key.endsWith(prefix) &&
+			(len >= 8 ||
+				(key[key.length - len - 1] === " " &&
+					/[\s.!?。！？]/u.test(block[len] ?? "")))
+		)
+			return prefix;
 	}
 	return "";
 }
@@ -110,7 +130,7 @@ function completeSplitHits(
 						pair.translated !== sentence.translated
 					)
 						return [];
-					const text = memberLocateText(blockSource(item), quote);
+					const text = memberLocateText(blockSource(item), quote, true);
 					return text
 						? [
 								{
@@ -321,8 +341,13 @@ export function translationSelectionFromHits(
 		}
 		const blockText = blockSource(item);
 		const picks = chosen.length
-			? (item.sentences ?? []).map((sentence) =>
-					memberLocateText(blockText, sentence.quote),
+			? (item.sentences ?? []).map((sentence, sentenceIndex) =>
+					memberLocateText(
+						blockText,
+						sentence.quote,
+						Boolean(sentence.display) ||
+							split.chains.has(hitKey({ itemId: item.id, sentenceIndex })),
+					),
 				)
 			: [];
 		const reflowGlyphs = item.reflow?.characters.map(characterGlyph);
