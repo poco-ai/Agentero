@@ -139,12 +139,13 @@ Importing binding name 'c' is not found.
 验证方式（已实测）：
 
 ```bash
-rm -rf node_modules/.vite
-pnpm exec vite --port 5199
+pnpm exec vite --force --port 5199
 # 预打包产物里应含补丁标记，且不应残留 react-compiler-runtime 的裸导入
-grep -c unobserve node_modules/.vite/deps/@platejs_toc_react.js          # 期望 1
-grep -c 'from "react-compiler-runtime"' node_modules/.vite/deps/@platejs_toc_react.js  # 期望 0
+rg -c unobserve node_modules/.vite/agentero-dev/deps/@platejs_toc_react.js          # 期望 1
+rg -c 'from "react-compiler-runtime"' node_modules/.vite/agentero-dev/deps/@platejs_toc_react.js  # 期望无匹配
 ```
+
+开发版 WebView 会跨会话复用 `localhost:1420` 的 HTTP 缓存。若旧的 Plate 列表预包与当前 ReactDOM 混用，工具栏会报 `ReactSharedInternals.H.useMemoCache`。Vite 使用新的预包 URL 前缀绕开已有缓存，并在开发服务器响应上设置 `Cache-Control: no-store`，让后续启动直接加载当次预包。
 
 生产构建侧同样验证：`pnpm build` 后 `dist/assets/` 中承载 TOC 的 chunk 应含 `unobserve`
 （原版从不调用 `unobserve`）。

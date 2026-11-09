@@ -14,6 +14,10 @@ const port = Number(process.env.TAURI_DEV_PORT) || 1420;
 export default defineConfig(async () => ({
 	plugins: [react(), tailwindcss()],
 
+	// Use a new URL prefix so WebViews with old immutable prebundles fetch a
+	// consistent dependency graph after upgrading the dev server.
+	cacheDir: "node_modules/.vite/agentero-dev",
+
 	resolve: {
 		alias: {
 			"@": path.resolve(__dirname, "./src"),
@@ -70,6 +74,9 @@ export default defineConfig(async () => ({
 		// iOS Simulator reaches the Mac dev server through the local network
 		// bridge; binding only to loopback makes localhost:1420 unreachable.
 		host: host || "0.0.0.0",
+		// WebViews persist the HTTP cache across dev sessions on the same port.
+		// Do not let a cached dependency outlive a rebuilt prebundle.
+		headers: { "Cache-Control": "no-store" },
 		hmr: host
 			? {
 					protocol: "ws",
