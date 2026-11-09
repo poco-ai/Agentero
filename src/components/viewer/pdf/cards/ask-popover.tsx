@@ -330,6 +330,7 @@ export function AskPopover({
 			// Drag from the title bar; once moved, the card stays put instead of
 			// following the source anchor, and expand/restore only resizes it.
 			draggable
+			showDragHandle={false}
 			preferRight={preferRight}
 			title={title}
 			icon={<MessageSquareIcon />}

@@ -275,6 +275,8 @@ type SelectionCardProps = {
 	resizeMinHeight?: number;
 	/** Allow repositioning from the title, independently of the source anchor. */
 	draggable?: boolean;
+	/** Show the centered grip glyph in a draggable header (default true). */
+	showDragHandle?: boolean;
 	/**
 	 * When false, the body does not scroll (`agentero-scroll` off) and grows
 	 * with content. Use for short tables that should show fully (formula legend).
@@ -324,6 +326,7 @@ export function SelectionCard({
 	resizable = false,
 	resizeMinHeight = RESIZE_MIN_HEIGHT,
 	draggable = false,
+	showDragHandle = true,
 	bodyScroll = true,
 	preferRight = true,
 	preferBelow = false,
@@ -554,7 +557,8 @@ export function SelectionCard({
 				className={cn(
 					"relative flex shrink-0 items-center gap-2 border-border/60 border-b px-3 py-2",
 					draggable &&
-						"touch-none select-none cursor-grab pt-2.5 active:cursor-grabbing",
+						"touch-none select-none cursor-grab active:cursor-grabbing",
+					draggable && showDragHandle && "pt-2.5",
 					headerClassName,
 				)}
 				onPointerDown={draggable ? startDrag : undefined}
@@ -563,7 +567,7 @@ export function SelectionCard({
 					dragRef.current = null;
 				}}
 			>
-				{draggable ? (
+				{draggable && showDragHandle ? (
 					<GripHorizontal
 						className="pointer-events-none absolute top-1 left-1/2 size-3.5 -translate-x-1/2 text-muted-foreground"
 						aria-hidden
