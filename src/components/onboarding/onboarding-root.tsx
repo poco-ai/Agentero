@@ -23,6 +23,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { useSettings, useVaultStore } from "@/hooks/use-app-stores";
+import { useHostNodeStatus } from "@/hooks/use-host-node-status";
 import { perfActive } from "@/lib/core/perf";
 import { isMobileApp, isTauri } from "@/lib/core/tauri";
 import { cn } from "@/lib/core/utils";
@@ -40,6 +41,27 @@ import {
 } from "./onboarding-store";
 
 const useOnboardingStepper = onboardingFlow.useStepper;
+
+/** Steps whose only purpose is a check that can already be satisfied. */
+const SKIPPABLE_STEPS: readonly OnboardingStepId[] = ["node"];
+
+function neighborStep(
+	id: OnboardingStepId,
+	direction: 1 | -1,
+	skip: ReadonlySet<OnboardingStepId>,
+): OnboardingStepId | undefined {
+	const index = onboardingFlow.steps.findIndex((step) => step.id === id);
+	if (index === -1) return undefined;
+	for (
+		let next = index + direction;
+		next >= 0 && next < onboardingFlow.steps.length;
+		next += direction
+	) {
+		const candidate = onboardingFlow.steps[next].id;
+		if (!skip.has(candidate)) return candidate;
+	}
+	return undefined;
+}
 
 function FlowDots({ index, labels }: { index: number; labels: string[] }) {
 	const { t } = useTranslation("common");
@@ -144,6 +166,19 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 	const settings = useSettings((s) => s);
 	const patch = patchSettings;
 	const agentStepRef = useRef<AgentStepHandle>(null);
+	const hostNode = useHostNodeStatus();
+
+	// If Node.js/npm are already present the check step has nothing to offer, so
+	// drop it from the flow (and from the progress dots) instead of making the
+	// user click through a "ready" screen.
+	const skipNode =
+		hostNode.report?.node.status === "available" &&
+		hostNode.report.npm.status === "available";
+	const skippedSteps = useMemo(
+		(): ReadonlySet<OnboardingStepId> =>
+			new Set<OnboardingStepId>(skipNode ? SKIPPABLE_STEPS : []),
+		[skipNode],
+	);
 
 	/** Per-step "choice made" gate for the footer Next button. */
 	const [gate, setGate] = useState<{
@@ -156,7 +191,21 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 		);
 	}, []);
 
-	const stepLabels = onboardingFlow.steps.map((step) => t(`steps.${step.id}`));
+	const visibleSteps = stepper.steps.filter(
+		(step) => !skippedSteps.has(step.id),
+	);
+	const stepLabels = visibleSteps.map((step) => t(`steps.${step.id}`));
+	const dotIndex = visibleSteps.findIndex(
+		(step) => step.id === stepper.current.id,
+	);
+
+	// A probe started on mount can resolve while the user is already on the
+	// step; jump over it as soon as we know it is unnecessary.
+	useEffect(() => {
+		if (skippedSteps.has("node") && stepper.current.id === "node") {
+			void stepper.goTo("agent");
+		}
+	}, [skippedSteps, stepper]);
 
 	const gated = ["translate", "layout"].includes(stepper.current.id);
 	const canNext = gated
@@ -173,7 +222,13 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 			finish();
 			return;
 		}
-		void stepper.next();
+		const target = neighborStep(stepper.current.id, 1, skippedSteps);
+		if (target) void stepper.goTo(target);
+	};
+
+	const onBack = () => {
+		const target = neighborStep(stepper.current.id, -1, skippedSteps);
+		if (target) void stepper.goTo(target);
 	};
 
 	const finish = () => {
@@ -201,7 +256,7 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 			case "proxy":
 				return <ProxyStep settings={settings} patch={patch} />;
 			case "node":
-				return <NodeStep />;
+				return skippedSteps.has("node") ? null : <NodeStep status={hostNode} />;
 			case "agent":
 				return <AgentStep ref={agentStepRef} />;
 			case "translate":
@@ -313,17 +368,13 @@ function OnboardingDialog({ onVaultCreated }: { onVaultCreated: () => void }) {
 					{stepper.isFirst ? (
 						<div className="w-20" aria-hidden />
 					) : (
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={() => void stepper.prev()}
-						>
+						<Button type="button" variant="ghost" onClick={onBack}>
 							{t("actions.back")}
 						</Button>
 					)}
 					{stepper.isFirst ? null : (
 						<div className="absolute left-1/2 flex -translate-x-1/2 items-center">
-							<FlowDots index={stepper.index} labels={stepLabels} />
+							<FlowDots index={dotIndex} labels={stepLabels} />
 						</div>
 					)}
 					<Button type="button" disabled={!canNext} onClick={onNext}>

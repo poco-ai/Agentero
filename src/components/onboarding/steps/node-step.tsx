@@ -9,7 +9,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { useHostNodeStatus } from "@/hooks/use-host-node-status";
+import type { HostNodeStatus } from "@/hooks/use-host-node-status";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { isTauri } from "@/lib/core/tauri";
 import { cn } from "@/lib/core/utils";
@@ -63,10 +63,10 @@ function ToolStatus({
 	);
 }
 
-export function NodeStep() {
+export function NodeStep({ status }: { status: HostNodeStatus }) {
 	const { t } = useTranslation("onboarding");
 	const { report, probing, installing, installProgress, refresh, installNode } =
-		useHostNodeStatus();
+		status;
 
 	if (probing && !report) {
 		return (
