@@ -26,6 +26,8 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PDF_CHROME_CHIP } from "@/components/viewer/pdf/chrome/pdf-chrome-surface";
+import { PdfTranslatePartialButton } from "@/components/viewer/pdf/chrome/pdf-translate-partial-button";
+import type { PdfLayoutTranslatePartial } from "@/components/viewer/pdf/hooks/use-pdf-layout-translate";
 import { useTranslateMeter } from "@/components/viewer/pdf/hooks/use-translate-meter";
 import { useShortcutLabel } from "@/hooks/use-shortcut-label";
 import { cn } from "@/lib/core/utils";
@@ -43,6 +45,8 @@ type PdfToolbarProps = {
 	layoutTranslateWaiting?: boolean;
 	layoutTranslateActive: boolean;
 	layoutTranslateLabel: string;
+	/** Partial-translation entry; hidden while the meter is running. */
+	layoutTranslatePartial?: PdfLayoutTranslatePartial | null;
 	/**
 	 * 0–1 fill. Stays under full while the reflow preview is still blank.
 	 * Null before the total is known.
@@ -73,6 +77,7 @@ export const PdfToolbar = memo(function PdfToolbar({
 	layoutTranslateWaiting = false,
 	layoutTranslateActive,
 	layoutTranslateLabel,
+	layoutTranslatePartial = null,
 	layoutTranslateProgress = null,
 	onToggleLayoutTranslate,
 	smartHighlightBusy = false,
@@ -400,6 +405,11 @@ export const PdfToolbar = memo(function PdfToolbar({
 								</span>
 							</TooltipContent>
 						</Tooltip>
+					) : null}
+					{!isRemotePaper && layoutTranslatePartial?.visible ? (
+						<div className="shrink-0">
+							<PdfTranslatePartialButton partial={layoutTranslatePartial} />
+						</div>
 					) : null}
 					{!isRemotePaper && onSmartHighlight ? (
 						<div className={asideClass} inert={meterOpen}>
