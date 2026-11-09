@@ -25,7 +25,7 @@ import { copyTextToClipboard } from "@/lib/core/clipboard";
 
 const TRANSLATE_CARD_WIDTH = 340;
 const TRANSLATE_CARD_MIN_WIDTH = 220;
-const TRANSLATE_CARD_MAX_HEIGHT = 480;
+const TRANSLATE_CARD_HEIGHT = 480;
 
 type TranslateCardProps = {
 	screen: CardScreenPoint;
@@ -168,11 +168,8 @@ export function TranslateCard({
 		return () => observer.disconnect();
 	}, [quoteText]);
 
-	/** Vertical resize range derived from the card chrome and its text. */
-	const [resizeBounds, setResizeBounds] = useState<{
-		min: number;
-		max: number;
-	}>();
+	/** Smallest height that still shows the header and source quote. */
+	const [resizeMinHeight, setResizeMinHeight] = useState<number>();
 
 	useEffect(() => {
 		// This nonmodal card stays open when focus leaves it. Scope the keys to
@@ -240,45 +237,27 @@ export function TranslateCard({
 		el.scrollTop = el.scrollHeight;
 	}, [result, streaming]);
 
-	// Bound vertical resizing by the card's own content: the smallest height
-	// keeps the header and source quote visible, the largest shows every line
-	// without blank space. Summing the scroll children (instead of scrollHeight)
-	// keeps the range stable while the user drags: once the card is taller than
-	// its text, scrollHeight follows the viewport and the cap would ratchet.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: new text changes the content height; re-measure per chunk
+	// Keep the source context visible when the card is shrunk: the floor is
+	// everything above the translation scrollport (header + quote + margins).
 	useEffect(() => {
 		const port = scrollPortRef.current;
 		const card = port?.closest<HTMLElement>('[role="dialog"]');
 		if (!port || !card) return;
 		const measure = () => {
-			const chrome = card.offsetHeight - port.clientHeight;
-			const style = getComputedStyle(port);
-			const gap = Number.parseFloat(style.rowGap) || 0;
-			let content =
-				(Number.parseFloat(style.paddingTop) || 0) +
-				(Number.parseFloat(style.paddingBottom) || 0);
-			for (let i = 0; i < port.children.length; i++) {
-				content += (port.children[i] as HTMLElement).offsetHeight;
-				if (i > 0) content += gap;
-			}
-			const min = Math.ceil(chrome);
-			const max = Math.ceil(chrome + content);
-			setResizeBounds((prev) =>
-				prev && prev.min === min && prev.max === max ? prev : { min, max },
-			);
+			setResizeMinHeight(Math.ceil(card.offsetHeight - port.clientHeight));
 		};
 		measure();
 		const observer = new ResizeObserver(measure);
 		observer.observe(card);
 		observer.observe(port);
 		return () => observer.disconnect();
-	}, [result, streaming]);
+	}, []);
 
 	return (
 		<SelectionCard
 			screen={screen}
 			width={TRANSLATE_CARD_WIDTH}
-			height={TRANSLATE_CARD_MAX_HEIGHT}
+			height={TRANSLATE_CARD_HEIGHT}
 			// Content-sized: hug the anchor and shrink near viewport edges instead
 			// of pre-shifting by the full preferred height.
 			trackPin
@@ -287,16 +266,7 @@ export function TranslateCard({
 			resizeMinWidth={TRANSLATE_CARD_MIN_WIDTH}
 			resizeMaxWidth={TRANSLATE_CARD_WIDTH}
 			// Never shrink past the header + source quote (0 until measured).
-			resizeMinHeight={resizeBounds?.min ?? 0}
-			// Cap resizing at the height the full text needs; long paragraphs still
-			// scroll at the card's preferred height until the user grows them. While
-			// text streams, keep the normal cap so each chunk can grow the card
-			// without a one-frame clamp. The fallback covers the first paint.
-			resizeMaxHeight={
-				streaming
-					? TRANSLATE_CARD_MAX_HEIGHT
-					: (resizeBounds?.max ?? TRANSLATE_CARD_MAX_HEIGHT)
-			}
+			resizeMinHeight={resizeMinHeight ?? 0}
 			preferRight={preferRight}
 			preferBelow
 			// Slightly tighter header than other selection cards.
