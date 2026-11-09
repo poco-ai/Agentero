@@ -89,7 +89,12 @@
 		"probeIdle": "尚未测试",
 		"probeProbing": "测试中…",
 		"probeOk": "可用",
-		"probeFail": "请检查你的 Key 后重试"
+		"probeFail": "请检查你的 Key 后重试",
+		"displayMode": {
+			"label": "翻译显示方式",
+			"overlay": "原地覆盖",
+			"dualPane": "双栏对照"
+		}
 	},
 	"layout": {
 		"title": "自动识别图表和公式",

@@ -8,6 +8,7 @@ export function ChoiceCard({
 	description,
 	recommended,
 	recommendedLabel,
+	selected,
 	onClick,
 }: {
 	icon: React.ReactNode;
@@ -15,17 +16,22 @@ export function ChoiceCard({
 	description?: string;
 	recommended?: boolean;
 	recommendedLabel?: string;
+	/** Mark this card as the current choice (default) rather than a plain action. */
+	selected?: boolean;
 	onClick: () => void;
 }) {
 	return (
 		<button
 			type="button"
+			aria-pressed={selected === undefined ? undefined : selected}
 			onClick={onClick}
 			className={cn(
 				"relative flex flex-col items-center justify-center gap-2.5 rounded-xl border bg-background p-5 text-center outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
-				recommended
-					? "border-primary/60 hover:border-primary"
-					: "hover:border-primary/60",
+				selected
+					? "border-primary ring-1 ring-primary/30 hover:border-primary"
+					: recommended
+						? "border-primary/60 hover:border-primary"
+						: "hover:border-primary/60",
 			)}
 		>
 			{recommended && recommendedLabel ? (

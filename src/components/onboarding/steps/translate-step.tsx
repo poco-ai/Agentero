@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/tooltip";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { isSecretMask, maskSecret } from "@/lib/core/secret-mask";
+import { cn } from "@/lib/core/utils";
 import type {
 	AppSettings,
 	CommercialTranslateProviderId,
@@ -80,11 +81,11 @@ export function TranslateStep({
 	const [draft, setDraft] = useState<{ apiKey?: string; baseUrl?: string }>({});
 	const [probe, setProbe] = useState<ProbeStatus>("idle");
 
-	// Next is allowed once the user committed to the own-API flow ("use system
-	// default" advances immediately from the chooser instead).
+	// Free translation is preselected, so the step never blocks Next. The
+	// commercial-API flow is opt-in and can still be left unfinished.
 	useEffect(() => {
-		onNextChange("translate", mode === "configure");
-	}, [mode, onNextChange]);
+		onNextChange("translate", true);
+	}, [onNextChange]);
 
 	const enterConfigure = () => {
 		setMode("configure");
@@ -104,6 +105,40 @@ export function TranslateStep({
 		});
 		onUseDefault();
 	};
+
+	const setDisplayMode = (displayMode: "overlay" | "dualPane") => {
+		if (displayMode === tr.displayMode) return;
+		patch({ translate: { ...tr, displayMode } });
+	};
+
+	const displayModeRow = (
+		<div className="flex items-center justify-between gap-3">
+			<span className="text-muted-foreground text-sm">
+				{t("translate.displayMode.label")}
+			</span>
+			<div className="flex items-center rounded-lg border bg-muted p-0.5">
+				{(["overlay", "dualPane"] as const).map((mode) => {
+					const selected = tr.displayMode === mode;
+					return (
+						<button
+							key={mode}
+							type="button"
+							aria-pressed={selected}
+							onClick={() => setDisplayMode(mode)}
+							className={cn(
+								"rounded-md px-2.5 py-1 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+								selected
+									? "bg-background text-foreground shadow-raised"
+									: "text-muted-foreground hover:text-foreground",
+							)}
+						>
+							{t(`translate.displayMode.${mode}`)}
+						</button>
+					);
+				})}
+			</div>
+		</div>
+	);
 
 	const displayKey =
 		draft.apiKey !== undefined ? draft.apiKey : (stored?.apiKey ?? "");
@@ -154,21 +189,25 @@ export function TranslateStep({
 
 	if (mode === "choose") {
 		return (
-			<div className="grid grid-cols-2 gap-3">
-				<ChoiceCard
-					icon={<Sparkles className="size-5 text-muted-foreground" />}
-					title={t("translate.useDefault")}
-					description={t("translate.useDefaultDesc")}
-					recommended
-					recommendedLabel={t("recommended")}
-					onClick={chooseSystemDefault}
-				/>
-				<ChoiceCard
-					icon={<KeyRound className="size-5 text-muted-foreground" />}
-					title={t("translate.configureOwn")}
-					description={t("translate.configureOwnDesc")}
-					onClick={enterConfigure}
-				/>
+			<div className="space-y-4">
+				<div className="grid grid-cols-2 gap-3">
+					<ChoiceCard
+						icon={<Sparkles className="size-5 text-muted-foreground" />}
+						title={t("translate.useDefault")}
+						description={t("translate.useDefaultDesc")}
+						recommended
+						recommendedLabel={t("recommended")}
+						selected={!isCommercial}
+						onClick={chooseSystemDefault}
+					/>
+					<ChoiceCard
+						icon={<KeyRound className="size-5 text-muted-foreground" />}
+						title={t("translate.configureOwn")}
+						description={t("translate.configureOwnDesc")}
+						onClick={enterConfigure}
+					/>
+				</div>
+				{displayModeRow}
 			</div>
 		);
 	}
@@ -266,6 +305,8 @@ export function TranslateStep({
 				onChange={(e) => setDraft((d) => ({ ...d, baseUrl: e.target.value }))}
 				className="h-8 font-mono text-xs"
 			/>
+
+			{displayModeRow}
 		</div>
 	);
 }
