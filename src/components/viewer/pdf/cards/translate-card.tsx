@@ -342,7 +342,7 @@ export function TranslateCard({
 			<div
 				ref={scrollPortRef}
 				onScroll={handleScroll}
-				className="agentero-scroll agentero-scroll-visible mx-2.5 mt-2 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto rounded-md px-2.5 py-2"
+				className="agentero-scroll agentero-scroll-visible mx-2.5 mt-2 flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto px-2.5 py-2"
 			>
 				{showLoading ? (
 					<Shimmer className="text-sm" as="p">
