@@ -198,12 +198,17 @@ export function AskPopover({
 			// Fixed height so the nested scrollport has a definite viewport.
 			lockHeight
 			resizable
+			// Drag from the title bar; once moved, the card stays put instead of
+			// following the source anchor, and expand/restore only resizes it.
+			draggable
 			preferRight={preferRight}
 			title={title}
 			icon={<MessageSquareIcon />}
 			ariaLabel={t("pdfAsk.dialogLabel")}
 			onPointerEnter={onPointerEnter}
 			onPointerLeave={onPointerLeave}
+			// Leave WebKit's native resize corner outside the footer composer.
+			className="pb-3"
 			// Body only constrains flex; messages own their own scrollport.
 			bodyClassName="min-h-0 overflow-hidden p-0"
 			actions={[
