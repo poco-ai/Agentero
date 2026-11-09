@@ -2360,9 +2360,6 @@ function PdfViewerInner({
 	const handleFitWidth = useCallback(() => {
 		zoomCapRef.current?.requestZoom(ZoomMode.FitWidth);
 	}, []);
-	const handleFitPage = useCallback(() => {
-		zoomCapRef.current?.requestZoom(ZoomMode.FitPage);
-	}, []);
 
 	return (
 		<div
@@ -2529,7 +2526,6 @@ function PdfViewerInner({
 					zoomLevel={zoomLevel}
 					onZoomChange={handleZoomSliderChange}
 					onFitWidth={handleFitWidth}
-					onFitPage={handleFitPage}
 					isRemotePaper={isRemotePaper}
 				/>
 			)}

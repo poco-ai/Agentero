@@ -2,7 +2,6 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	MoveHorizontal,
-	MoveVertical,
 	Palette,
 } from "lucide-react";
 import type { RefObject } from "react";
@@ -54,8 +53,6 @@ type PdfBottomBarProps = {
 	onZoomChange: (zoom: number) => void;
 	/** Fit the page width to the reading area. */
 	onFitWidth: () => void;
-	/** Fit the whole page to the reading area. */
-	onFitPage: () => void;
 	/** True for remote arXiv papers with no local sidecar. */
 	isRemotePaper?: boolean;
 };
@@ -74,7 +71,6 @@ export const PdfBottomBar = memo(function PdfBottomBar({
 	zoomLevel,
 	onZoomChange,
 	onFitWidth,
-	onFitPage,
 	isRemotePaper = false,
 }: PdfBottomBarProps) {
 	const { t } = useTranslation("viewer");
@@ -223,20 +219,6 @@ export const PdfBottomBar = memo(function PdfBottomBar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent side="top">{t("pdf.zoomFit")}</TooltipContent>
-					</Tooltip>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								size="icon-xs"
-								variant="ghost"
-								aria-label={t("pdf.zoomFitPage")}
-								onClick={onFitPage}
-							>
-								<MoveVertical className="size-3.5" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side="top">{t("pdf.zoomFitPage")}</TooltipContent>
 					</Tooltip>
 				</div>
 				<span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border" />
