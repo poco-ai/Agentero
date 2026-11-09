@@ -33,6 +33,7 @@ export function makeCommercialMtService(
 				baseUrl: cfg?.baseUrl,
 				region: cfg?.region,
 				model: cfg?.model,
+				extraRequestBody: cfg?.extraRequestBody,
 			});
 			task.result = result;
 		},

@@ -34,6 +34,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { BUILTIN_PROVIDER_ID } from "@/lib/core/builtin";
+import { notifyError } from "@/lib/core/notify";
 import { openExternalUrl } from "@/lib/core/open-external";
 import { hasSecret, isSecretMask, maskSecret } from "@/lib/core/secret-mask";
 import { isTauri } from "@/lib/core/tauri";
@@ -67,6 +68,7 @@ import {
 	DEFAULT_TRANSLATE_SETTINGS,
 	EMPTY_TRANSLATE_PROVIDER_CONFIG,
 } from "@/lib/translate/defaults";
+import { extraRequestBodyIssue } from "@/lib/translate/request-options";
 import type { ProbeStatus } from "@/lib/ui/probe-status";
 
 /** Resolve API key for save/probe: draft wins; otherwise keep stored (may be mask). */
@@ -293,6 +295,13 @@ export function TranslatePane({
 				...draft,
 				apiKey: draftOrStored,
 			};
+			if (providerId === "openaiCompatible") {
+				const issue = extraRequestBodyIssue(toSave.extraRequestBody);
+				if (issue) {
+					notifyError(t(`translate.providerConfig.extraRequestBody.${issue}`));
+					return;
+				}
+			}
 			if (!isCommercialProviderConfigured(providerId, toSave)) {
 				setCommercialProbeMap((prev) => ({ ...prev, [providerId]: "idle" }));
 				return;
@@ -342,7 +351,15 @@ export function TranslatePane({
 
 			runCommercialProbe(providerId, maskedCfg);
 		},
-		[configDrafts, getProviderConfig, patch, runCommercialProbe, settings, tr],
+		[
+			configDrafts,
+			getProviderConfig,
+			patch,
+			runCommercialProbe,
+			settings,
+			tr,
+			t,
+		],
 	);
 
 	/** Probe configured commercial engines when the default-service Select opens. */
@@ -698,26 +715,53 @@ export function TranslatePane({
 										</ProviderFieldRow>
 									) : null}
 									{id === "openaiCompatible" ? (
-										<ProviderFieldRow
-											label={t("translate.providerConfig.model.label")}
-											htmlFor={`${inputPrefix}-model`}
-										>
-											<Input
-												id={`${inputPrefix}-model`}
-												value={effectiveCfg.model}
-												onChange={(e) =>
-													setDraftField(id, {
-														model: e.target.value,
-													})
-												}
-												placeholder={t(
-													"translate.providerConfig.model.placeholder",
+										<>
+											<ProviderFieldRow
+												label={t("translate.providerConfig.model.label")}
+												htmlFor={`${inputPrefix}-model`}
+											>
+												<Input
+													id={`${inputPrefix}-model`}
+													value={effectiveCfg.model}
+													onChange={(e) =>
+														setDraftField(id, {
+															model: e.target.value,
+														})
+													}
+													placeholder={t(
+														"translate.providerConfig.model.placeholder",
+													)}
+													className={PROVIDER_INPUT_CLASS}
+													spellCheck={false}
+													autoComplete="off"
+												/>
+											</ProviderFieldRow>
+											<ProviderFieldRow
+												label={t(
+													"translate.providerConfig.extraRequestBody.label",
 												)}
-												className={PROVIDER_INPUT_CLASS}
-												spellCheck={false}
-												autoComplete="off"
-											/>
-										</ProviderFieldRow>
+												htmlFor={`${inputPrefix}-extra-request-body`}
+											>
+												<Textarea
+													id={`${inputPrefix}-extra-request-body`}
+													value={effectiveCfg.extraRequestBody ?? ""}
+													onChange={(e) =>
+														setDraftField(id, {
+															extraRequestBody: e.target.value,
+														})
+													}
+													placeholder={'{ "temperature": 0.2 }'}
+													className="min-h-24 min-w-0 flex-1 font-mono text-xs"
+													spellCheck={false}
+													autoComplete="off"
+													aria-invalid={
+														extraRequestBodyIssue(
+															effectiveCfg.extraRequestBody,
+														) !== null
+													}
+												/>
+											</ProviderFieldRow>
+										</>
 									) : null}
 								</div>
 							</ProviderCard>

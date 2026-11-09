@@ -5605,6 +5605,7 @@ export type TranslateProviderConfig = {
 	baseUrl?: string,
 	region?: string,
 	model?: string,
+	extraRequestBody?: string,
 };
 
 export type TranslateSettings = {
@@ -5655,6 +5656,11 @@ export type TranslateTextArgs = {
 	region?: string | null,
 	/**  OpenAI-compatible model id. */
 	model?: string | null,
+	/**
+	 *  OpenAI-compatible JSON object replacing automatic sampling/thinking
+	 *  parameters. Blank uses model defaults; an empty object disables them.
+	 */
+	extraRequestBody?: string | null,
 	/**
 	 *  Legacy single template (settings `translate.customPrompt`). A short line
 	 *  is a preference; a longer value replaces the academic style block only.

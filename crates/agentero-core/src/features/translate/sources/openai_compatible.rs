@@ -44,6 +44,7 @@ const OPENAI_TRANSLATE_TEMPERATURE: f32 = 0.2;
 
 /// Sampling fields added only for model ids that document them. A generic
 /// compatible endpoint gets `temperature` and nothing else.
+#[derive(Default)]
 struct Sampling {
     omit_temperature: bool,
     reasoning_effort: Option<&'static str>,
@@ -310,6 +311,41 @@ fn model_leaf(model: &str) -> String {
 fn sampling_for_model(model: &str) -> Sampling {
     let leaf = model_leaf(model);
     let full = model.trim().to_ascii_lowercase();
+    // Official API contracts checked 2026-11-09; see the source links in
+    // docs/usage/translate-openai-compatible.md. Forced-thinking models must
+    // be matched before their hybrid families (notably GLM-5.3 vs GLM-5).
+    let glm_forced = leaf.starts_with("glm-5.3");
+    let minimax_flash = leaf.starts_with("minimax-m3.1-flash");
+    let kimi_k3 = leaf == "kimi-k3" || leaf.starts_with("kimi-k3.") || leaf.starts_with("kimi-k3-");
+    if glm_forced || minimax_flash || kimi_k3 {
+        return Sampling {
+            omit_temperature: minimax_flash || kimi_k3,
+            reasoning_effort: Some("low"),
+            ..Default::default()
+        };
+    }
+    // Kimi's new models reject custom temperatures. K2.7 cannot disable
+    // thinking or set effort; K2.5/2.6 can switch to instant mode.
+    if leaf.starts_with("kimi-k2.7") {
+        return Sampling {
+            omit_temperature: true,
+            ..Default::default()
+        };
+    }
+    if leaf.starts_with("kimi-k2.5") || leaf.starts_with("kimi-k2.6") {
+        return Sampling {
+            omit_temperature: true,
+            thinking_disabled: true,
+            ..Default::default()
+        };
+    }
+    if leaf == "minimax-m3" || leaf.starts_with("minimax-m3-") {
+        return Sampling {
+            omit_temperature: true,
+            thinking_disabled: true,
+            ..Default::default()
+        };
+    }
     // o1 / o3 / o4 reject `reasoning_effort: none` and reject temperature.
     if leaf.starts_with("o1") || leaf.starts_with("o3") || leaf.starts_with("o4") {
         return Sampling {
@@ -329,9 +365,24 @@ fn sampling_for_model(model: &str) -> Sampling {
             thinking_disabled: false,
         };
     }
-    // Qwen3 / QwQ think unless `enable_thinking` is false. Qwen2 does not
-    // document that field; do not send it.
-    if full.contains("qwen3") || full.contains("qwen-3") || full.contains("qwq") {
+    // Hybrid Qwen3 / 3.5–3.8 use enable_thinking. Dedicated thinking /
+    // instruct snapshots and QwQ do not have that switch. Omni has its own
+    // parameter dialect; leave it to explicit request options.
+    let qwen = full.contains("qwen3")
+        || full.contains("qwen-3")
+        || matches!(
+            leaf.as_str(),
+            "qwen-plus" | "qwen-plus-latest" | "qwen-flash" | "qwen-flash-latest"
+        );
+    let qwen_fixed = full.contains("thinking")
+        || full.contains("instruct")
+        || full.contains("omni")
+        || leaf.starts_with("qwen3.8-2.4t")
+        || matches!(
+            leaf.as_str(),
+            "qwen3.7-max-preview" | "qwen3.7-max-2026-05-17"
+        );
+    if qwen && !qwen_fixed {
         return Sampling {
             omit_temperature: false,
             reasoning_effort: None,
@@ -339,17 +390,21 @@ fn sampling_for_model(model: &str) -> Sampling {
             thinking_disabled: false,
         };
     }
-    // DeepSeek reasoner, GLM 4.5+, and MiniMax M2 document
-    // `thinking: { type: "disabled" }`. A generic `deepseek-chat` id is left
-    // alone: proxies reuse that name and reject the object.
-    let deepseek_reasoner = full.contains("deepseek")
-        && (full.contains("reason") || full.contains("r1") || full.contains("-v3"));
+    // DeepSeek V4/V4.1 (including the current deepseek-flash alias) and
+    // GLM's hybrid models use thinking.type. Keep legacy deepseek-chat alone:
+    // proxies reuse that name. R1 / MiniMax M2 are thinking-only models.
+    let deepseek_hybrid = full.contains("deepseek")
+        && (full.contains("reasoner")
+            || full.contains("-v3.1")
+            || full.contains("-v3.2")
+            || full.contains("-v4")
+            || leaf == "deepseek-flash"
+            || leaf.starts_with("deepseek-flash-"));
     let glm = full.contains("glm-4.5")
         || full.contains("glm-4.6")
         || full.contains("glm-4.7")
         || full.contains("glm-5");
-    let minimax = full.contains("minimax") && full.contains("m2");
-    if deepseek_reasoner || glm || minimax {
+    if deepseek_hybrid || glm {
         return Sampling {
             omit_temperature: false,
             reasoning_effort: None,
@@ -401,6 +456,7 @@ pub async fn translate_openai_compatible(
     custom_prompt: Option<&str>,
     custom_system: Option<&str>,
     custom_user: Option<&str>,
+    extra_request_body: Option<&str>,
 ) -> Result<String, AppError> {
     let key = super::required_api_key("OpenAI-compatible", api_key)?;
     let model = model
@@ -418,12 +474,14 @@ pub async fn translate_openai_compatible(
         custom_system,
         custom_user,
     );
+    let mut body = openai_chat_body(model, &system, &user);
+    apply_request_options(&mut body, extra_request_body)?;
     let client = http::client(timeout)?;
     let resp = client
         .post(&url)
         .header("Authorization", format!("Bearer {key}"))
         .header("Content-Type", "application/json")
-        .json(&openai_chat_body(model, &system, &user))
+        .json(&body)
         .send()
         .await
         .map_err(|e| AppError::message(format!("OpenAI-compatible request failed: {e}")))?;
@@ -452,9 +510,105 @@ pub async fn translate_openai_compatible(
         .ok_or_else(|| AppError::message("Unexpected OpenAI-compatible response"))
 }
 
+/// A supplied JSON object replaces all inferred request options. Only the
+/// translation envelope survives; `{}` explicitly opts out of all defaults.
+fn apply_request_options(
+    body: &mut Value,
+    extra_request_body: Option<&str>,
+) -> Result<(), AppError> {
+    let Some(raw) = extra_request_body.map(str::trim).filter(|s| !s.is_empty()) else {
+        return Ok(());
+    };
+    let extra: Value = serde_json::from_str(raw).map_err(|_| {
+        AppError::domain(
+            "translate.extra_parameters_invalid",
+            "Extra request parameters must be a valid JSON object",
+        )
+    })?;
+    let extra = extra.as_object().ok_or_else(|| {
+        AppError::domain(
+            "translate.extra_parameters_invalid",
+            "Extra request parameters must be a valid JSON object",
+        )
+    })?;
+    for key in ["model", "messages", "stream"] {
+        if extra.contains_key(key) {
+            return Err(AppError::domain(
+                "translate.extra_parameters_reserved",
+                format!("Extra request parameters cannot override {key}"),
+            ));
+        }
+    }
+    let body = body.as_object_mut().expect("chat body is an object");
+    body.retain(|key, _| matches!(key.as_str(), "model" | "messages"));
+    body.extend(extra.clone());
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn extra_parameters_override_defaults_without_deep_merging() {
+        let mut body = openai_chat_body("glm-4.7", "sys", "text");
+        apply_request_options(&mut body, Some(r#"{"temperature":0.7,"thinking":{"budget_tokens":1024},"stop":["END"],"vendor":null}"#)).unwrap();
+        assert_eq!(body["temperature"], json!(0.7));
+        assert_eq!(body["thinking"], json!({"budget_tokens":1024}));
+        assert_eq!(body["stop"], json!(["END"]));
+        assert!(body["vendor"].is_null());
+        assert_eq!(body["messages"][1]["content"], "text");
+    }
+
+    #[test]
+    fn supplied_json_replaces_all_inference_even_with_different_field_names() {
+        for model in ["gpt-5", "o3", "qwen3", "glm-4.7"] {
+            let mut body = openai_chat_body(model, "sys", "text");
+            apply_request_options(&mut body, Some("{}")).unwrap();
+            for key in [
+                "temperature",
+                "reasoning_effort",
+                "enable_thinking",
+                "thinking",
+            ] {
+                assert!(body.get(key).is_none());
+            }
+        }
+        let mut body = openai_chat_body("qwen3", "sys", "text");
+        apply_request_options(
+            &mut body,
+            Some(r#"{"chat_template_kwargs":{"enable_thinking":false}}"#),
+        )
+        .unwrap();
+        assert!(body.get("enable_thinking").is_none());
+        assert!(body.get("temperature").is_none());
+        assert_eq!(body["chat_template_kwargs"]["enable_thinking"], false);
+        let mut body = openai_chat_body("gpt-5", "sys", "text");
+        assert!(body.get("temperature").is_none());
+        apply_request_options(&mut body, Some(r#"{"reasoning_effort":"high"}"#)).unwrap();
+        assert_eq!(body["reasoning_effort"], "high");
+    }
+
+    #[test]
+    fn extra_parameters_reject_invalid_objects_and_reserved_fields() {
+        for raw in [
+            "{",
+            "[]",
+            "null",
+            "false",
+            "42",
+            r#"{"model":"x"}"#,
+            r#"{"messages":[]}"#,
+            r#"{"stream":true}"#,
+        ] {
+            let mut body = openai_chat_body("gpt-4o-mini", "sys", "text");
+            assert!(apply_request_options(&mut body, Some(raw)).is_err());
+        }
+        let mut body = openai_chat_body("qwen3", "sys", "text");
+        let original = body.clone();
+        apply_request_options(&mut body, Some("  ")).unwrap();
+        assert_eq!(body, original);
+    }
 
     fn temperature_is_low(value: &Value) -> bool {
         value
@@ -586,6 +740,79 @@ mod tests {
         assert!(body.get("thinking").is_none());
         assert_eq!(body["messages"][0]["role"], "system");
         assert_eq!(body["messages"][1]["content"], "user");
+    }
+
+    #[test]
+    fn current_models_use_their_documented_thinking_controls() {
+        for model in [
+            "deepseek-flash",
+            "deepseek-v4-pro",
+            "deepseek-v4-flash",
+            "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+            "kimi-k2.6",
+            "MiniMax-M3",
+            "glm-5.2",
+        ] {
+            let body = openai_chat_body(model, "sys", "user");
+            assert_eq!(body["thinking"], json!({"type":"disabled"}), "{model}");
+            assert!(body.get("reasoning_effort").is_none(), "{model}");
+        }
+        for model in [
+            "glm-5.3",
+            "zai/GLM-5.3-Flash",
+            "MiniMax-M3.1-Flash",
+            "kimi-k3",
+            "moonshotai/kimi-k3.1-pro-highspeed",
+        ] {
+            let body = openai_chat_body(model, "sys", "user");
+            assert_eq!(body["reasoning_effort"], "low", "{model}");
+            assert!(body.get("thinking").is_none(), "{model}");
+        }
+        for model in [
+            "qwen3.5-plus",
+            "qwen3.6-flash",
+            "qwen3.7-plus",
+            "qwen3.8-max",
+            "qwen-plus-latest",
+            "qwen-flash",
+        ] {
+            assert_eq!(
+                openai_chat_body(model, "sys", "user")["enable_thinking"],
+                false,
+                "{model}"
+            );
+        }
+        for model in [
+            "kimi-k2.6",
+            "kimi-k2.7-code",
+            "kimi-k3.1-pro",
+            "MiniMax-M3",
+            "MiniMax-M3.1-Flash",
+        ] {
+            assert!(
+                openai_chat_body(model, "sys", "user")
+                    .get("temperature")
+                    .is_none(),
+                "{model}"
+            );
+        }
+        for model in [
+            "Qwen/QwQ-32B",
+            "Qwen3-235B-A22B-Thinking-2507",
+            "qwen3.7-max-preview",
+            "qwen3.8-2.4t-a95b",
+            "deepseek-ai/DeepSeek-R1",
+            "MiniMax-M2.5",
+            "kimi-k2.7-code",
+        ] {
+            let body = openai_chat_body(model, "sys", "user");
+            assert!(body.get("enable_thinking").is_none(), "{model}");
+            assert!(body.get("thinking").is_none(), "{model}");
+            assert!(body.get("reasoning_effort").is_none(), "{model}");
+        }
+        let mut body = openai_chat_body("MiniMax-M3.1-Flash", "sys", "user");
+        apply_request_options(&mut body, Some(r#"{"reasoning_effort":"high"}"#)).unwrap();
+        assert_eq!(body["reasoning_effort"], "high");
     }
 
     #[test]

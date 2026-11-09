@@ -113,6 +113,8 @@ export type TranslateProviderConfig = {
 	region: string;
 	/** OpenAI-compatible model id. */
 	model: string;
+	/** JSON object replacing automatic request options; blank uses model defaults. */
+	extraRequestBody?: string;
 };
 
 export type TranslateServiceType = "sentence" | "word";

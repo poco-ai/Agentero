@@ -567,6 +567,11 @@
 			"model": {
 				"label": "模型",
 				"placeholder": "服务商模型 ID"
+			},
+			"extraRequestBody": {
+				"label": "额外参数",
+				"invalid": "额外参数必须是有效的 JSON 对象。",
+				"reserved": "额外参数不能覆盖 model、messages 或 stream。"
 			}
 		},
 		"providerDesc": {

@@ -28,4 +28,5 @@ export const EMPTY_TRANSLATE_PROVIDER_CONFIG: TranslateProviderConfig = {
 	baseUrl: "",
 	region: "",
 	model: "",
+	extraRequestBody: "",
 };

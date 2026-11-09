@@ -86,6 +86,7 @@ where
                 base_url: None,
                 region: None,
                 model: None,
+                extra_request_body: None,
                 custom_prompt: None,
                 custom_system: None,
                 custom_user: None,
@@ -147,6 +148,10 @@ pub struct TranslateTextArgs {
     /// OpenAI-compatible model id.
     #[serde(default)]
     pub model: Option<String>,
+    /// OpenAI-compatible JSON object replacing automatic sampling/thinking
+    /// parameters. Blank uses model defaults; an empty object disables them.
+    #[serde(default)]
+    pub extra_request_body: Option<String>,
     /// Legacy single template (settings `translate.customPrompt`). A short line
     /// is a preference; a longer value replaces the academic style block only.
     /// Ignored when `custom_system` is non-empty.
@@ -280,6 +285,7 @@ pub async fn translate_text(args: TranslateTextArgs) -> Result<TranslateTextResu
                 args.custom_prompt.as_deref(),
                 args.custom_system.as_deref(),
                 args.custom_user.as_deref(),
+                args.extra_request_body.as_deref(),
             )
             .await?
         }

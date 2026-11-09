@@ -52,6 +52,7 @@ pub async fn run_raw(
                 base_url: None,
                 region: None,
                 model: None,
+                extra_request_body: None,
                 custom_prompt: None,
                 custom_system: None,
                 custom_user: None,

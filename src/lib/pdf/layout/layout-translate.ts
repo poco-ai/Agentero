@@ -273,18 +273,30 @@ export function translateServiceKey(settings: TranslateSettings): string {
 	const configs = settings.providerConfigs as Partial<
 		Record<
 			CommercialTranslateProviderId,
-			{ baseUrl?: string; region?: string; model?: string }
+			{
+				baseUrl?: string;
+				region?: string;
+				model?: string;
+				extraRequestBody?: string;
+			}
 		>
 	>;
 	const config = configs[providerId as CommercialTranslateProviderId];
 	if (!config) return `${providerId}${promptPart}`;
+	const extra = config.extraRequestBody?.trim() ?? "";
+	const optionsPart =
+		providerId === "openaiCompatible" && extra
+			? `:o${promptFingerprint(extra)}`
+			: "";
 	return (
 		[
 			providerId,
 			config.baseUrl?.trim() ?? "",
 			config.region?.trim() ?? "",
 			config.model?.trim() ?? "",
-		].join(":") + promptPart
+		].join(":") +
+		promptPart +
+		optionsPart
 	);
 }
 

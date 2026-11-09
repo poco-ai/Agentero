@@ -55,6 +55,8 @@ Settings → **翻译**：
 
 ## Prompt
 
+OpenAI 兼容服务卡片增加「额外参数」JSON 输入框，与 API Key / 模型一起在「确定」时保存。留空采用自动模型适配；填写对象后完全替代自动采样和思考配置，`{}` 不发送附加参数。`model`、`messages`、`stream` 保留给应用控制；格式错误通过 `notifyError` 提示并保留草稿。probe 与实际翻译传递相同配置；`translateServiceKey` 包含 JSON 指纹，留空保持旧缓存 key。完整规则与最新模型行为见 [OpenAI 兼容翻译配置](../usage/translate-openai-compatible.md#额外参数与覆盖顺序)。
+
 `buildTranslateMessages` / `buildTranslatePrompt`（Agent 路径）与 Host `openai_translate_messages`（OpenAI-compatible 路径）共用同一套约束，改一处要同步另一处：
 
 - **system** 是翻译引擎，不是聊天助手：`focusing solely on translating… Only return the translated text`。不解释、不润色、不总结、不反问「翻译还是解释」。
@@ -62,7 +64,7 @@ Settings → **翻译**：
 - 学术风格（按意思重组语序、术语首次可附原文，如 `注意力机制（attention）`）和少量英↔中论文例句放在 system。公式 / 符号 / 变量 / 单位 / 行内代码 / URL / 引用标记 / 图表公式编号 / `⟦n⟧` 占位符原样保留。
 - 词或短短语（约 1–4 个词，或不超过 8 个汉字，且没有句末标点；`[[n]]` 批量不算）追加词典式约束：只给译文或一行词性释义，禁止反问意图。长句仍走翻译引擎。
 - 批量 payload 里每个 `[[n]]` 是一句。规则在 system：保留全部标记、顺序和编号，不跨编号搬运、不合并、不丢弃。一个编号内部可以调整语序，也可以把一句原文拆成多句译文。
-- OpenAI-compatible 的 `temperature` 用 0.2（0.0 的直译感太强）。能关 thinking 才关，而且只对认得出的模型：`o1`/`o3`/`o4` 发 `reasoning_effort: low` 并不发 temperature；`gpt-5`（非 `*-chat*`）发 `reasoning_effort: none` 并不发 temperature；Qwen3 / QwQ 发 `enable_thinking: false`；DeepSeek reasoner、GLM 4.5+、MiniMax M2 发 `thinking: {type: disabled}`。其它兼容端只发 temperature，避免未知字段被拒。Agent 翻译把会话 effort 调到已声明档位里最低的一档（有 `none` 就用 `none`）。
+- OpenAI-compatible 的 `temperature` 用 0.2（0.0 的直译感太强）。能关 thinking 才关，而且只对认得出的模型：`o1`/`o3`/`o4` 发 `reasoning_effort: low` 并不发 temperature；`gpt-5`（非 `*-chat*`）发 `reasoning_effort: none` 并不发 temperature；混合思考型号使用对应关闭参数，强制思考的新型号只降低 effort，不发送不支持的 disabled。Kimi 新系列和 MiniMax M3 系列不发送 temperature。具体型号及例外见配置说明。填写额外 JSON 后这些自动参数全部被用户配置替代。Agent 翻译把会话 effort 调到已声明档位里最低的一档（有 `none` 就用 `none`）。
 
 **内置 provider（`agentero`）不适用以上整套约束**：`tencent/Hunyuan-MT-7B` 是专用 MT 模型而非 instruct 模型，只认它自己的单行模板，Host 改发单条 user message（无 system message），并且**不把 `[[n]]` 喂给模型**——批量对齐依赖指令遵循，对它无效，所以标记由 Host 拆分、逐句请求、按序重组。`⟦n⟧` 占位符仍由前端 `mask.ts` 插入并原样透传。详见 [../backend/builtin-provider.md](../backend/builtin-provider.md) §翻译：Hunyuan-MT。
 

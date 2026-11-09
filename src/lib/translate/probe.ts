@@ -134,6 +134,7 @@ export async function probeCommercialMtProvider(
 			baseUrl: opts.config.baseUrl,
 			region: opts.config.region,
 			model: opts.config.model,
+			extraRequestBody: opts.config.extraRequestBody,
 			timeoutMs: opts.timeoutMs ?? TRANSLATE_PROBE_TIMEOUT_MS,
 		});
 		return text.trim().length > 0;

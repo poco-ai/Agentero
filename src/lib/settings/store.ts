@@ -773,6 +773,7 @@ function normalizeTranslateProviderConfigs(
 			baseUrl?: unknown;
 			region?: unknown;
 			model?: unknown;
+			extraRequestBody?: unknown;
 		};
 		out[id] = {
 			apiKey: typeof cfg.apiKey === "string" ? cfg.apiKey.trim() : "",
@@ -782,6 +783,10 @@ function normalizeTranslateProviderConfigs(
 			baseUrl: typeof cfg.baseUrl === "string" ? cfg.baseUrl.trim() : "",
 			region: typeof cfg.region === "string" ? cfg.region.trim() : "",
 			model: typeof cfg.model === "string" ? cfg.model.trim() : "",
+			extraRequestBody:
+				typeof cfg.extraRequestBody === "string"
+					? cfg.extraRequestBody.trim()
+					: "",
 		};
 	}
 	return out;

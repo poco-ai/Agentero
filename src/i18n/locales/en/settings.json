@@ -567,6 +567,11 @@
 			"model": {
 				"label": "Model",
 				"placeholder": "Provider model id"
+			},
+			"extraRequestBody": {
+				"label": "Extra JSON",
+				"invalid": "Extra parameters must be a valid JSON object.",
+				"reserved": "Extra parameters cannot override model, messages or stream."
 			}
 		},
 		"providerDesc": {

@@ -22,6 +22,25 @@ function normalize(translate: Record<string, unknown>) {
 }
 
 describe("translate prompt settings", () => {
+	it("preserves extra JSON through settings normalization and defaults legacy settings", () => {
+		const extraRequestBody = '{"thinking":{"type":"disabled"}}';
+		const cfg = normalize({
+			providerConfigs: {
+				openaiCompatible: {
+					apiKey: "test",
+					model: "custom",
+					extraRequestBody,
+				},
+			},
+		}).providerConfigs.openaiCompatible;
+		expect(cfg?.extraRequestBody).toBe(extraRequestBody);
+		const legacy = normalize({
+			providerConfigs: {
+				openaiCompatible: { apiKey: "test", model: "custom" },
+			},
+		}).providerConfigs.openaiCompatible;
+		expect(legacy?.extraRequestBody).toBe("");
+	});
 	it("keeps a legacy custom prompt and empty system and user fields", () => {
 		const settings = normalize({ customPrompt: "Be terse." });
 		expect(settings.customPrompt).toBe("Be terse.");

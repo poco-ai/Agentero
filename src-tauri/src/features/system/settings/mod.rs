@@ -406,6 +406,8 @@ pub struct TranslateProviderConfig {
     pub region: String,
     #[serde(default)]
     pub model: String,
+    #[serde(default)]
+    pub extra_request_body: String,
 }
 
 /// PDF layout-analysis backend selection.
@@ -1810,6 +1812,27 @@ mod tests {
         let mut echoed = redacted_tunnel;
         merge_secrets(&mut echoed, &with_tunnel);
         assert_eq!(echoed.mcp_tunnel_api_key, "sk-tunnel-secret");
+    }
+
+    #[test]
+    fn translate_request_options_survive_settings_roundtrip() {
+        let legacy: TranslateProviderConfig = serde_json::from_str(r#"{"model":"qwen3"}"#).unwrap();
+        assert!(legacy.extra_request_body.is_empty());
+        let mut settings = AppSettings::default();
+        settings.translate.provider_configs.insert(
+            "openaiCompatible".into(),
+            TranslateProviderConfig {
+                extra_request_body: r#"{"chat_template_kwargs":{"enable_thinking":false}}"#.into(),
+                ..legacy
+            },
+        );
+        normalize(&mut settings);
+        let decoded: AppSettings =
+            serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
+        assert_eq!(
+            decoded.translate.provider_configs,
+            settings.translate.provider_configs
+        );
     }
 
     #[test]

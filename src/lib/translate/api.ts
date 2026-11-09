@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import { commands } from "@/lib/core/bindings";
 import { isTauri } from "@/lib/core/tauri";
 
@@ -18,6 +19,7 @@ export async function invokeTranslateText(args: {
 	baseUrl?: string;
 	region?: string;
 	model?: string;
+	extraRequestBody?: string;
 	/** Host request timeout (ms); clamped 1s–30s server-side. */
 	timeoutMs?: number;
 }): Promise<string> {
@@ -33,6 +35,7 @@ export async function invokeTranslateText(args: {
 		baseUrl: args.baseUrl?.trim() || null,
 		region: args.region?.trim() || null,
 		model: args.model?.trim() || null,
+		extraRequestBody: args.extraRequestBody?.trim() || null,
 		timeoutMs: args.timeoutMs ?? null,
 	});
 	if (!res.ok || !res.data) {
@@ -41,6 +44,16 @@ export async function invokeTranslateText(args: {
 		// `sqlite`), so treating "not `message`" as a marker would eventually show
 		// users a bare code instead of the Host's human text.
 		const code = res.error?.code;
+		if (
+			code === "translate.extra_parameters_invalid" ||
+			code === "translate.extra_parameters_reserved"
+		) {
+			throw new Error(
+				i18n.t(
+					`settings:translate.providerConfig.extraRequestBody.${code === "translate.extra_parameters_invalid" ? "invalid" : "reserved"}`,
+				),
+			);
+		}
 		throw new Error(
 			code === ERR_TRANSLATE_NO_BUILTIN_KEY
 				? code

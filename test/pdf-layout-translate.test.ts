@@ -728,6 +728,26 @@ describe("persistLayoutTranslateSidecarBestEffort debounce", () => {
 });
 
 describe("translateServiceKey custom prompt fingerprint", () => {
+	it("invalidates OpenAI translation caches when request options change", () => {
+		const cfg = {
+			apiKey: "",
+			baseUrl: "https://example.test/v1",
+			region: "",
+			model: "qwen3",
+		};
+		const key = (options: { extraRequestBody?: string }) =>
+			translateServiceKey({
+				...DEFAULT_TRANSLATE_SETTINGS,
+				provider: "openaiCompatible",
+				providerConfigs: { openaiCompatible: { ...cfg, ...options } },
+			});
+		expect(key({})).toBe("openaiCompatible:https://example.test/v1::qwen3");
+		expect(key({ extraRequestBody: "" })).toBe(key({}));
+		expect(key({ extraRequestBody: "{}" })).not.toBe(key({}));
+		expect(key({ extraRequestBody: '{"temperature":0.7}' })).not.toBe(
+			key({ extraRequestBody: '{"temperature":0.2}' }),
+		);
+	});
 	const base = {
 		...DEFAULT_TRANSLATE_SETTINGS,
 		provider: "googleapi" as const,
