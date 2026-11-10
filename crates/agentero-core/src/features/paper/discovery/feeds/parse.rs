@@ -79,8 +79,12 @@ pub fn discover_feed_href(html: &str) -> Option<String> {
             continue;
         }
         let ty = attr(tag, tag_l, "type").unwrap_or_default();
-        let href = attr(tag, tag_l, "href")?;
-        let pri = feed_type_priority(&ty)?;
+        let Some(href) = attr(tag, tag_l, "href") else {
+            continue;
+        };
+        let Some(pri) = feed_type_priority(&ty) else {
+            continue;
+        };
         if best.as_ref().is_none_or(|(p, _)| pri < *p) {
             best = Some((pri, href));
         }
@@ -441,6 +445,57 @@ mod tests {
         assert_eq!(
             resolve_href("https://example.com/blog", "/feed.xml").unwrap(),
             "https://example.com/feed.xml"
+        );
+    }
+
+    #[test]
+    fn discovers_wordpress_feed_among_oembed_links() {
+        let wordpress = r#"<head>
+          <link rel="alternate" type="application/rss+xml" title="Feed" href="https://example.com/feed/" />
+          <link rel="alternate" type="application/rss+xml" title="Comments" href="https://example.com/comments/feed/" />
+          <link rel="alternate" type="application/json" href="https://example.com/wp-json/wp/v2/posts/1" />
+          <link rel="alternate" type="application/json+oembed" href="https://example.com/wp-json/oembed/1.0/embed?url=x" />
+          <link rel="alternate" type="text/xml+oembed" href="https://example.com/wp-json/oembed/1.0/embed?url=x&format=xml" />
+        </head>"#;
+        assert_eq!(
+            discover_feed_href(wordpress).as_deref(),
+            Some("https://example.com/feed/")
+        );
+    }
+
+    #[test]
+    fn skips_hreflang_alternate_before_feed() {
+        let hreflang_first = r#"<head>
+          <link rel="alternate" hreflang="zh" href="/zh/">
+          <link rel="alternate" type="application/rss+xml" href="/feed.xml">
+        </head>"#;
+        assert_eq!(
+            discover_feed_href(hreflang_first).as_deref(),
+            Some("/feed.xml")
+        );
+    }
+
+    #[test]
+    fn skips_hreflang_alternate_after_feed() {
+        let hreflang_after = r#"<head>
+          <link rel="alternate" type="application/rss+xml" href="/feed.xml">
+          <link rel="alternate" hreflang="zh" href="/zh/">
+        </head>"#;
+        assert_eq!(
+            discover_feed_href(hreflang_after).as_deref(),
+            Some("/feed.xml")
+        );
+    }
+
+    #[test]
+    fn skips_mobile_alternate_before_feed() {
+        let mobile_first = r#"<head>
+          <link rel="alternate" media="only screen and (max-width: 640px)" href="https://m.example.com/">
+          <link rel="alternate" type="application/atom+xml" href="/atom.xml">
+        </head>"#;
+        assert_eq!(
+            discover_feed_href(mobile_first).as_deref(),
+            Some("/atom.xml")
         );
     }
 
