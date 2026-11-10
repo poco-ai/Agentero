@@ -9,7 +9,18 @@ import {
 	matchHintLabel,
 } from "@/lib/keyboard/hint-labels";
 import { collectHintTargets } from "@/lib/keyboard/hint-targets";
+import { forwardListVimKey } from "@/lib/keyboard/list-vim-keys";
 import { PdfKeySequence } from "@/lib/keyboard/pdf-key-sequence";
+
+/** Minimal KeyboardEvent shape for the pure j/k mapping helpers. */
+const press = (key: string, extra: Record<string, boolean> = {}) => ({
+	key,
+	metaKey: false,
+	ctrlKey: false,
+	altKey: false,
+	shiftKey: false,
+	...extra,
+});
 
 describe("keyboard navigation primitives", () => {
 	it("parses page sequences with renewed deadlines and cancellation", () => {
@@ -136,6 +147,68 @@ describe("keyboard navigation primitives", () => {
 			"mouseup",
 			"click",
 		]);
+	});
+
+	it("maps j/k onto an open dropdown's own arrow navigation", () => {
+		document.body.innerHTML = `
+			<button id="trigger" aria-controls="menu" data-state="open">Menu</button>
+			<div role="menu" id="menu" data-state="open">
+				<div role="menuitem" id="item">One</div>
+			</div>
+		`;
+		const menu = document.getElementById("menu") as HTMLElement;
+		Object.defineProperty(menu, "getClientRects", {
+			value: () => [new DOMRect(0, 0, 100, 40)],
+		});
+
+		// Select pattern: focus stays on the trigger, which owns the listbox.
+		const trigger = document.getElementById("trigger") as HTMLButtonElement;
+		trigger.focus();
+		const triggerKeys: string[] = [];
+		trigger.addEventListener("keydown", (event) =>
+			triggerKeys.push((event as KeyboardEvent).key),
+		);
+		expect(forwardListVimKey(press("j"), document)).toBe(true);
+		expect(triggerKeys).toEqual(["ArrowDown"]);
+
+		// Menu pattern: focus moved into the popup, arrows bubble to its content.
+		const item = document.getElementById("item") as HTMLElement;
+		item.focus();
+		const menuKeys: string[] = [];
+		menu.addEventListener("keydown", (event) =>
+			menuKeys.push((event as KeyboardEvent).key),
+		);
+		expect(forwardListVimKey(press("k"), document)).toBe(true);
+		expect(menuKeys).toEqual(["ArrowUp"]);
+		// h/l are tree-only; inside a menu they stay inert.
+		expect(forwardListVimKey(press("h"), document)).toBe(false);
+		expect(forwardListVimKey(press("l"), document)).toBe(false);
+
+		expect(forwardListVimKey(press("J", { shiftKey: true }), document)).toBe(
+			false,
+		);
+		document.body.innerHTML = "";
+		expect(forwardListVimKey(press("j"), document)).toBe(false);
+	});
+
+	it("maps j/k onto tree arrow navigation", () => {
+		document.body.innerHTML = `
+			<div role="tree">
+				<div role="treeitem" id="a" data-path="a">A</div>
+				<div role="treeitem" id="b" data-path="b">B</div>
+			</div>
+		`;
+		const first = document.getElementById("a") as HTMLElement;
+		first.focus();
+		const keys: string[] = [];
+		first.addEventListener("keydown", (event) =>
+			keys.push((event as KeyboardEvent).key),
+		);
+		expect(forwardListVimKey(press("j"), document)).toBe(true);
+		expect(forwardListVimKey(press("k"), document)).toBe(true);
+		expect(forwardListVimKey(press("h"), document)).toBe(true);
+		expect(forwardListVimKey(press("l"), document)).toBe(true);
+		expect(keys).toEqual(["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"]);
 	});
 
 	it("filters disabled, hidden, editable, and out-of-viewport controls", () => {

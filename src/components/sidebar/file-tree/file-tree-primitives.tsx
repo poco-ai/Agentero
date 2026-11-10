@@ -101,6 +101,7 @@ export const FileTree = ({
 	onRowDrop,
 	onRowDragEnd,
 	onExpandedChange,
+	onKeyDown: onKeyDownProp,
 	className,
 	children,
 	...props
@@ -125,6 +126,97 @@ export const FileTree = ({
 			onExpandedChange?.(newExpanded);
 		},
 		[controlledExpanded, internalExpanded, onExpandedChange],
+	);
+
+	/** Focus a row and mirror the click-selection it implies. */
+	const selectRow = useCallback(
+		(row: HTMLElement) => {
+			row.focus();
+			const path = row.dataset.path;
+			if (!path) return;
+			if (onSelectRow) {
+				onSelectRow(path, { meta: false, ctrl: false, shift: false });
+			} else {
+				onSelect?.(path);
+			}
+		},
+		[onSelect, onSelectRow],
+	);
+
+	/**
+	 * Arrow keys navigate the flat, visible rows: up/down move,
+	 * right expands or enters the first child, left collapses or goes to the
+	 * parent folder — the WAI-ARIA tree pattern `j/k/h/l` builds on.
+	 */
+	const handleTreeKeyDown = useCallback(
+		(event: KeyboardEvent<HTMLDivElement>) => {
+			onKeyDownProp?.(event);
+			const arrow = [
+				"ArrowDown",
+				"ArrowUp",
+				"ArrowLeft",
+				"ArrowRight",
+			].includes(event.key);
+			if (!arrow || event.defaultPrevented) return;
+			if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+				return;
+			}
+			const target = event.target;
+			const current =
+				target instanceof HTMLElement
+					? target.closest<HTMLElement>("[role='treeitem']")
+					: null;
+			if (!current || !event.currentTarget.contains(current)) return;
+			const items = Array.from(
+				event.currentTarget.querySelectorAll<HTMLElement>("[role='treeitem']"),
+			).filter((item) => item.getClientRects().length > 0);
+			const index = items.indexOf(current);
+			if (index < 0) return;
+			const path = current.dataset.path;
+			const isFolder = current.hasAttribute("aria-expanded");
+			const expanded = current.getAttribute("aria-expanded") === "true";
+			const disclosure = () =>
+				current.querySelector<HTMLElement>("[data-tree-disclosure]");
+
+			if (event.key === "ArrowLeft") {
+				// Collapse an open folder, otherwise step up to its parent row.
+				if (isFolder && expanded) {
+					event.preventDefault();
+					disclosure()?.click();
+					return;
+				}
+				const slash = path?.lastIndexOf("/") ?? -1;
+				if (!path || slash <= 0) return;
+				const parentPath = path.slice(0, slash);
+				const parent = items.find((item) => item.dataset.path === parentPath);
+				if (!parent) return;
+				event.preventDefault();
+				selectRow(parent);
+				return;
+			}
+
+			if (event.key === "ArrowRight") {
+				if (!isFolder) return;
+				// Expand a closed folder; otherwise enter its first child row.
+				if (!expanded) {
+					event.preventDefault();
+					disclosure()?.click();
+					return;
+				}
+				const next = items[index + 1];
+				if (!next || !path) return;
+				if (!next.dataset.path?.startsWith(`${path}/`)) return;
+				event.preventDefault();
+				selectRow(next);
+				return;
+			}
+
+			const next = items[index + (event.key === "ArrowDown" ? 1 : -1)];
+			if (!next) return;
+			event.preventDefault();
+			selectRow(next);
+		},
+		[onKeyDownProp, selectRow],
 	);
 
 	const contextValue = useMemo(
@@ -168,6 +260,7 @@ export const FileTree = ({
 				className={cn("text-sm", className)}
 				role="tree"
 				aria-multiselectable={Boolean(onSelectRow)}
+				onKeyDown={handleTreeKeyDown}
 				{...props}
 			>
 				{children}

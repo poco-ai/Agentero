@@ -13,6 +13,7 @@ import {
 	collectHintTargets,
 	type HintTarget,
 } from "@/lib/keyboard/hint-targets";
+import { forwardListVimKey } from "@/lib/keyboard/list-vim-keys";
 import { isKeyboardInput, topKeyboardModal } from "@/lib/keyboard/ownership";
 
 type HintSession = {
@@ -63,6 +64,18 @@ export function HintModeProvider({ children }: { children: ReactNode }) {
 			setAnnouncement(t("navigator.hintTargets", { count: targets.length }));
 		};
 		const onKeyDown = (event: KeyboardEvent) => {
+			// j/k move inside an open dropdown list or a focused tree. Skip while a
+			// hint session is open (letters are labels) or while typing.
+			if (
+				!sessionRef.current &&
+				!event.isComposing &&
+				!isKeyboardInput(event.target) &&
+				forwardListVimKey(event, doc)
+			) {
+				event.preventDefault();
+				event.stopImmediatePropagation();
+				return;
+			}
 			if (event.repeat) return;
 			const current = sessionRef.current;
 			if (!current) {
