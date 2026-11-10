@@ -2,6 +2,7 @@ import { ThemeProvider } from "next-themes";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
+import { HintModeProvider } from "@/components/shell/hint-mode-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { errorText } from "@/lib/core/error";
@@ -109,6 +110,11 @@ async function boot() {
 	bootStage("i18n");
 
 	const root = document.getElementById("root") as HTMLElement;
+	// Every Tauri window is its own webview with its own document, so window
+	// level keyboard handling (F hint mode) only exists where it is mounted.
+	// The main window mounts `HintModeProvider` inside App.tsx; the settings,
+	// feature and doc roots below wrap theirs here. A new window root must do
+	// the same or `F` silently does nothing there.
 	if (isSettingsWindow) {
 		// Load the shell and the pane for the requested section together: the pane
 		// is behind `lazy()`, so leaving it until after render would stall the
@@ -125,7 +131,9 @@ async function boot() {
 				<I18nextProvider i18n={i18n}>
 					<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
 						<TooltipProvider delayDuration={300}>
-							<SettingsNativeRoot />
+							<HintModeProvider>
+								<SettingsNativeRoot />
+							</HintModeProvider>
 							{/* Global error / notice stack (top-right); use notifyError from @/lib/notify */}
 							<Toaster />
 						</TooltipProvider>
@@ -155,7 +163,9 @@ async function boot() {
 				<I18nextProvider i18n={i18n}>
 					<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
 						<TooltipProvider delayDuration={300}>
-							<FeatureWindowRoot />
+							<HintModeProvider>
+								<FeatureWindowRoot />
+							</HintModeProvider>
 							<SelectionChatPopover />
 							<Toaster />
 						</TooltipProvider>
@@ -193,7 +203,9 @@ async function boot() {
 								enableSystem
 							>
 								<TooltipProvider delayDuration={300}>
-									<DocWindowRoot />
+									<HintModeProvider>
+										<DocWindowRoot />
+									</HintModeProvider>
 									<SelectionChatPopover />
 									<Toaster />
 								</TooltipProvider>
