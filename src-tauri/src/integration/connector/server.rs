@@ -3,7 +3,7 @@
 use super::import::{
     import_connector_item_remote_with_cookies, import_connector_item_with_cookies,
     import_standalone_attachment, save_attachment_from_resolver, session_has_attachment_resolvers,
-    write_snapshot_html, write_snapshot_html_remote,
+    spawn_layout_after_connector_pdf, write_snapshot_html, write_snapshot_html_remote,
 };
 use super::state::{ConnectorController, ConnectorItemSaved, ProgressAttachment, ProgressItem};
 use crate::core::error::AppError;
@@ -912,6 +912,9 @@ async fn save_attachment(
             "{write_error}; finalizer: {finalize_error}"
         ))),
     };
+    if result.is_ok() {
+        spawn_layout_after_connector_pdf(&state.ctrl, &session_id, parent_item_id.as_deref());
+    }
 
     match result {
         Ok(path) => json_response(StatusCode::CREATED, json!({ "path": path })),
@@ -1171,6 +1174,9 @@ async fn save_attachment_from_resolver_handler(
             "{save_error}; finalizer: {finalize_error}"
         ))),
     };
+    if result.is_ok() {
+        spawn_layout_after_connector_pdf(&state.ctrl, &session_id, Some(item_id.as_str()));
+    }
 
     match result {
         Ok(title) => text_response(StatusCode::CREATED, "text/plain", &title),

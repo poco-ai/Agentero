@@ -41,6 +41,10 @@ impl HostHooks for TauriHostHooks {
     fn spawn_recognize_metadata(&self, vault: &Path, path_rel: &str) {
         crate::features::jobs::spawn_recognize_metadata(Some(&self.0), vault, path_rel);
     }
+
+    fn spawn_layout_analysis(&self, vault: &Path, path_rel: &str) {
+        crate::features::jobs::spawn_layout_after_import(Some(&self.0), vault, path_rel);
+    }
 }
 
 /// Wrap a desktop handle for the migrated (tauri-free) service APIs.

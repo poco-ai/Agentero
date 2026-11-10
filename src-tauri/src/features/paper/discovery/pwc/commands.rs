@@ -53,6 +53,12 @@ pub async fn paper_pwc_import(
                 &vault,
                 &commit.preparation,
             );
+            // Plaza imports write the PDF inside this command, not through the
+            // DownloadAssets runner, so queue the layout follow-up (+ optional
+            // import translation) here for new papers with a local PDF.
+            if crate::features::paper::import::commit_needs_layout_follow_up(&commit) {
+                crate::features::jobs::spawn_layout_after_import(Some(&app), &vault, &commit.path);
+            }
             Ok(ApiResult::ok(commit))
         }
         Err(error) => Ok(map_err(error)),

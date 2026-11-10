@@ -25,6 +25,10 @@ Settings → **翻译**：
 
 设置 → **翻译** →「导入后自动翻译」默认关闭；开启后在其下方显示「同时翻译的论文数」（1–5，默认 1）。持久化为 `TranslateSettings.autoTranslateImport` / `autoTranslateImportConcurrency`；旧 `settings.json` 缺字段时按关闭 / 1 处理。关闭开关只停止新任务，已排队的翻译任务仍会执行。
 
+触发点是**导入 / 下载链路**入队 `layoutAnalyze` 时：设置开启时 Host 同时入队一个 `layoutTranslate` 任务，用 JobCenter `depends_on` 指向那次版面任务（`DepPolicy::AllSucceeded`）。覆盖本地 PDF、魔棒 / lookup、广场（PWC / papers.cool）与 Connector 附件——广场和 Connector 的 PDF 由 Host 直接落盘、不经过 `DownloadAssets`，所以这些入口在 Host 侧显式调用同一个 helper（`jobs::spawn_layout_after_import`）：广场只对新建且有本地 PDF 的提交入队（广场提交不会推迟到元数据识别）；Connector 在附件写完时入队，另在会话首次 finalize、以及每次论文移动到目标分类后按最终路径补一次，并跳过已交给元数据识别的论文（识别任务会在改名 / 合并后的最终路径入队）。
+
+只有导入来源的入队才带 `autoTranslate` 标记：打开论文后的补解析与手动重新解析不带，因此不触发。打开一篇没有本地 PDF 的论文会先入队 `DownloadAssets`，属于下载链路，下载完成后同样触发。
+
 - `LayoutTranslate` 改为渲染端执行（`ExecHost::Renderer`），`registerTaskExecutor("layoutTranslate", …)` 在后台任务面板显示逐篇进度、可取消；`layoutTranslate` 已加入面板投影。
 - `LayoutTranslateCap` 由 `autoTranslateImportConcurrency` 播种（默认 1），设置变化时更新 cap 并 `drain_and_spawn`，控制自动与手动全文任务共同占用的论文并发数；单篇内部仍沿用原有批次并发。
 - 版面失败 / 取消时依赖任务标为 `Skipped`，不发翻译请求。`job_cancel` 和终止态 `job_report` 都会触发 `drain`，依赖任务随即结算；`cancel_for_paper` / `cancel_for_vault` 直接取消同论文或同 Vault 的所有任务，不再单独 `drain`。
