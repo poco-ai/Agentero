@@ -4,8 +4,10 @@ import {
 	clampZoomPreviewScale,
 	formatPdfZoomPercentage,
 	parsePdfZoomPercentage,
+	zoomGestureCenteringMargin,
 	zoomPreviewTranslate,
 	zoomPreviewTranslateForViewport,
+	zoomReadingWidth,
 } from "@/lib/pdf/zoom";
 
 describe("parsePdfZoomPercentage", () => {
@@ -50,6 +52,17 @@ describe("zoomPreviewTranslate", () => {
 		// ...while a point twice as far from it ends up twice as far from the origin.
 		expect(zoomPreviewTranslate(200, 100, 2)).toEqual({ x: -200, y: -100 });
 		expect(zoomPreviewTranslate(200, 100, 0.5)).toEqual({ x: 100, y: 50 });
+	});
+});
+
+describe("zoom gesture reading box", () => {
+	it("centers a narrow page in the box left of the comment rail", () => {
+		// 900px viewport, 20px gap, 212px rail reserved on the right.
+		const readingWidth = zoomReadingWidth(900, 20, 232);
+		expect(readingWidth).toBe(648);
+		// Fit-width already fills that box, so the gesture margin stays put.
+		expect(zoomGestureCenteringMargin(648, readingWidth)).toBe(0);
+		expect(zoomGestureCenteringMargin(400, readingWidth)).toBe(124);
 	});
 });
 

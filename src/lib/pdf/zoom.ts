@@ -41,6 +41,32 @@ export function zoomPreviewTranslate(
 }
 
 /**
+ * Width left for the page after the viewport's own padding. The right padding
+ * includes the comment rail, so this is the reading box fit-width uses.
+ */
+export function zoomReadingWidth(
+	clientWidth: number,
+	paddingLeft: number,
+	paddingRight: number,
+): number {
+	if (!(clientWidth > 0)) return 0;
+	return Math.max(0, clientWidth - paddingLeft - paddingRight);
+}
+
+/**
+ * Left margin that centers the gesture element inside the reading box.
+ * Zero once the page fills that box, so a zoom commit does not collapse a
+ * margin that was only there because the rail was left out of the box.
+ */
+export function zoomGestureCenteringMargin(
+	elementWidth: number,
+	readingWidth: number,
+): number {
+	if (!(elementWidth > 0) || !(readingWidth > elementWidth)) return 0;
+	return (readingWidth - elementWidth) / 2;
+}
+
+/**
  * Follow the reader's centered-page geometry while the document is narrower
  * than its reading area, then blend to the gesture point as it overflows.
  */

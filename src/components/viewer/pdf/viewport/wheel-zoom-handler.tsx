@@ -8,7 +8,9 @@ import { EMBED_PAGE_ATTR } from "@/components/viewer/pdf/coords";
 import { bindZoomGesture, type ZoomGesturePoint } from "@/lib/pdf/wheel-zoom";
 import {
 	clampZoomPreviewScale,
+	zoomGestureCenteringMargin,
 	zoomPreviewTranslateForViewport,
+	zoomReadingWidth,
 } from "@/lib/pdf/zoom";
 
 /** Safety net for a dropped `gestureend`: commit the pending preview. */
@@ -47,13 +49,16 @@ type PageAnchor = {
  * viewport, then hands the horizontal anchor smoothly to the gesture point as
  * the page overflows.
  */
-export function WheelZoomHandler({
-	docId,
-	rightGutter = 0,
-}: {
-	docId: string;
-	rightGutter?: number;
-}) {
+function readingWidthOf(container: HTMLElement): number {
+	const style = getComputedStyle(container);
+	return zoomReadingWidth(
+		container.clientWidth,
+		parseFloat(style.paddingLeft) || 0,
+		parseFloat(style.paddingRight) || 0,
+	);
+}
+
+export function WheelZoomHandler({ docId }: { docId: string }) {
 	const viewportRef = useViewportElement();
 	const { provides: viewportCapability } = useViewportCapability();
 	const viewportCapabilityRef = useRef(viewportCapability);
@@ -174,6 +179,17 @@ export function WheelZoomHandler({
 				return;
 			}
 
+			// The gesture wrapper recenters with marginLeft after layout, in a
+			// resize observer that runs after this frame's anchor correction.
+			// Write the final margin first so that correction measures the
+			// position the observer will keep, instead of letting a collapsing
+			// margin slide the page sideways once the transform is gone.
+			const readingWidth = readingWidthOf(container);
+			element.style.marginLeft = `${zoomGestureCenteringMargin(
+				element.offsetWidth,
+				readingWidth,
+			)}px`;
+
 			if (Number.isFinite(scroll.left)) container.scrollLeft = scroll.left;
 			if (Number.isFinite(scroll.top)) container.scrollTop = scroll.top;
 			if (anchor && page) {
@@ -262,9 +278,7 @@ export function WheelZoomHandler({
 				previewZoom = zoomLevelRef.current || 1;
 				previewScale = 1;
 				previewElementWidth = previewElementRef.current?.offsetWidth ?? 0;
-				previewViewportWidth =
-					(viewportCapabilityRef.current?.forDocument(docId).getMetrics()
-						.clientWidth ?? container.clientWidth) - rightGutter;
+				previewViewportWidth = readingWidthOf(container);
 				running = true;
 				const element = previewElementRef.current;
 				if (element) {
@@ -311,7 +325,7 @@ export function WheelZoomHandler({
 			pendingAnchorRef.current = null;
 			resetPreview();
 		};
-	}, [docId, viewportRef, rightGutter]);
+	}, [docId, viewportRef]);
 
 	return null;
 }

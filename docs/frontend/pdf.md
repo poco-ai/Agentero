@@ -17,7 +17,7 @@
 
 阅读光栅采用 [EmbedPDF 官方推荐的低清底图 + 高清瓦片](https://www.embedpdf.com/docs/react/headless/plugins/plugin-tiling)。整页底图固定 `scale: 1`、`dpr: 1`，不随缩放重渲染；保留最近 24 页的 pinned 底图缓存，遮住缩放与回滚时的瓦片空档。高清 `TilingLayer` 按 `min(devicePixelRatio, 2)`（`pdfTileDpr`）出图，使用 `tileSize: 512`、上游默认 `extraRings: 0`，只请求当前视口的瓦片，减少单 PDFium worker 上的预渲染竞争。512px 将 DPR=2 的单块位图边长限制为 1024px，缩短重页面上不可抢占的同步光栅任务；像素密度、底图与上游瓦片生命周期不变。实测与复现见 [瓦片性能对照](../test/pdf-tiling-performance.md)。整页底图仅在页面进入视口时请求，离开时取消未完成请求，避免 Scroller 缓冲区的屏外重页以 CRITICAL 优先级排在可见瓦片和框选裁剪之前；已有 pinned 底图照常复用。取舍与浏览器 A/B 见 [可见页面优先性能对照](../test/pdf-visible-rendering-performance.md)。
 
-viewport 始终上报滚动容器的真实尺寸，使放大或与笔记分屏时，右侧可见区域也有高清瓦片（#827）。评论列的 `rightGutter` 只通过 zoom 补丁的 `viewportPaddingRight` 从缩放计算中扣除，保留适应宽度与缩放锚点所需的页外留白；手势预览使用同一阅读宽度。纯 PDF 与译文栏传 0，不预留评论空间。滚动容器固定预留滚动条槽（`scrollbar-gutter: stable`）：适应宽度按 `clientWidth` 反推 zoom，若滚动条在首屏排版后才出现，宽度会少约 12px 并触发第二次 fit，写作模式打开时表现为百分比来回跳一档。
+viewport 始终上报滚动容器的真实尺寸，使放大或与笔记分屏时，右侧可见区域也有高清瓦片（#827）。评论列的 `rightGutter` 只通过 zoom 补丁的 `viewportPaddingRight` 从缩放计算中扣除，保留适应宽度与缩放锚点所需的页外留白；手势预览使用同一阅读宽度（视口宽度减去左右 padding，右侧含评论列）。手势容器的居中 `marginLeft` 也按这个宽度计算：适应宽度时边距为 0。若按「只扣 viewport gap、不扣评论列」居中，适应宽度会多出约半栏宽的左边距，页面变宽后这条边距在布局完成后的 resize 回调里被收回，视角就在真实 zoom 提交后向右跳一段（#1042）。纯 PDF 与译文栏传 0，不预留评论空间。滚动容器固定预留滚动条槽（`scrollbar-gutter: stable`）：适应宽度按 `clientWidth` 反推 zoom，若滚动条在首屏排版后才出现，宽度会少约 12px 并触发第二次 fit，写作模式打开时表现为百分比来回跳一档。
 
 `RenderPluginPackage` 配置 `defaultImageType: "image/bmp"`，让不透明的整页底图与阅读瓦片复用 2.14.4 已有的 BMP 快速路径（[上游 #557](https://github.com/embedpdf/embed-pdf-viewer/pull/557)），跳过 PNG 的 Canvas 编码。BMP 未压缩，单张 Blob 更大；瓦片由上游负责加载、取消和 URL 释放，不再在应用里额外缓存 32 张瓦片或协调双栏共享任务。Agent 区域裁剪显式指定 PNG，保持原格式。版本不变，也不修改引擎队列。
 

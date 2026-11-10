@@ -19,6 +19,7 @@ import {
 	ViewportPluginPackage,
 } from "@embedpdf/plugin-viewport";
 import { ZoomMode, ZoomPlugin, ZoomPluginPackage } from "@embedpdf/plugin-zoom";
+import { ZoomGestureWrapper } from "@embedpdf/plugin-zoom/react";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -212,5 +213,82 @@ it.each([
 		} finally {
 			await registry.destroy();
 		}
+	}
+});
+
+it("centers the zoom gesture in the reading box instead of half the comment rail", async () => {
+	const observed: { target: Element; notify: () => void }[] = [];
+	vi.stubGlobal(
+		"ResizeObserver",
+		class {
+			private notify: () => void;
+			constructor(callback: () => void) {
+				this.notify = callback;
+			}
+			observe(target: Element) {
+				observed.push({ target, notify: this.notify });
+			}
+			disconnect() {}
+		},
+	);
+	const { registry } = await createRegistry(ZoomPluginPackage, gutter);
+	const container = document.createElement("div");
+	document.body.appendChild(container);
+	const root = createRoot(container);
+	let pageWidth = 0;
+	try {
+		await act(() =>
+			root.render(
+				createElement(
+					PDFContext.Provider,
+					{ value: { registry } as PDFContextState },
+					createElement(DockviewViewport, {
+						documentId: docId,
+						hostRef: { current: container },
+						rightGutter: gutter,
+						// biome-ignore lint/correctness/noChildrenProp: required by DockviewViewportProps
+						children: createElement(
+							ZoomGestureWrapper,
+							{
+								documentId: docId,
+								enablePinch: false,
+								enableWheel: false,
+							},
+							"page",
+						),
+					}),
+				),
+			),
+		);
+		const viewport = container.firstElementChild as HTMLDivElement;
+		for (const key of ["offsetWidth", "clientWidth", "scrollWidth"]) {
+			Object.defineProperty(viewport, key, { get: () => 900 });
+		}
+		for (const key of ["offsetHeight", "clientHeight", "scrollHeight"]) {
+			Object.defineProperty(viewport, key, { get: () => 800 });
+		}
+		observed.find((entry) => entry.target === viewport)?.notify();
+		await act(() => vi.advanceTimersByTimeAsync(200));
+
+		const gesture = viewport.firstElementChild as HTMLDivElement;
+		expect(viewport.style.paddingRight).toBe("232px");
+		Object.defineProperty(gesture, "offsetWidth", { get: () => pageWidth });
+		const notifyGesture = observed.find(
+			(entry) => entry.target === gesture,
+		)?.notify;
+		expect(notifyGesture).toBeTypeOf("function");
+
+		// Fit-width already fills the reading box, so the rail is not a leftover margin.
+		pageWidth = 900 - 20 - 232;
+		notifyGesture?.();
+		expect(gesture.style.marginLeft).toBe("0px");
+
+		pageWidth = 400;
+		notifyGesture?.();
+		expect(gesture.style.marginLeft).toBe("124px");
+	} finally {
+		await act(() => root.unmount());
+		container.remove();
+		await registry.destroy();
 	}
 });

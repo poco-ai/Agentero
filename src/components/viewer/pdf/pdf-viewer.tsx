@@ -2484,7 +2484,7 @@ function PdfViewerInner({
 						toggleOutline();
 				}}
 			>
-				<WheelZoomHandler docId={docId} rightGutter={rightGutter} />
+				<WheelZoomHandler docId={docId} />
 				<KeyboardScrollHandler
 					documentId={docId}
 					active={isActive}

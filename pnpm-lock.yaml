@@ -39,7 +39,7 @@ patchedDependencies:
   '@embedpdf/plugin-document-manager@2.14.4': 40f81e74a2058a267cf4e42eb7619d0ac331432bf427846c3a9c7608e42bd352
   '@embedpdf/plugin-scroll@2.14.4': 46f51180000bc3639503170803c08d40e9d58bf474309441195a90cf3ea62c9d
   '@embedpdf/plugin-tiling@2.14.4': c3ef64464b3685d9ada63e641e8704ae79af3797bd431f5634734aaafc7e379e
-  '@embedpdf/plugin-zoom@2.14.4': b928e0a0cc43e5535017cd299cebdce9cd5f4b239016c7eb3663849286b50310
+  '@embedpdf/plugin-zoom@2.14.4': d4ebd8fc974855d180d59272f8f201300352135325af9ddd39a535e815afddb3
   '@platejs/toc@53.0.0': 59d8aa74c06566a1b758035ef7d31e02ddb2140d68c0cd04ac1afb0c3992c09c
   dockview-core@7.0.4: c4e401908d6c38c3fa1c7c4d21f9c6c3669b677d61d5344dd6bd379313000154
 
@@ -160,7 +160,7 @@ importers:
         version: 2.14.4(@embedpdf/core@2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3)))(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))
       '@embedpdf/plugin-zoom':
         specifier: 2.14.4
-        version: 2.14.4(patch_hash=b928e0a0cc43e5535017cd299cebdce9cd5f4b239016c7eb3663849286b50310)(1d8d5bd4ad7069df3ff1c9b8157f264c)
+        version: 2.14.4(patch_hash=d4ebd8fc974855d180d59272f8f201300352135325af9ddd39a535e815afddb3)(1d8d5bd4ad7069df3ff1c9b8157f264c)
       '@excalidraw/excalidraw':
         specifier: ^0.18.1
         version: 0.18.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -7719,7 +7719,7 @@ snapshots:
       svelte: 5.56.6
       vue: 3.5.43(typescript@5.8.3)
 
-  '@embedpdf/plugin-zoom@2.14.4(patch_hash=b928e0a0cc43e5535017cd299cebdce9cd5f4b239016c7eb3663849286b50310)(1d8d5bd4ad7069df3ff1c9b8157f264c)':
+  '@embedpdf/plugin-zoom@2.14.4(patch_hash=d4ebd8fc974855d180d59272f8f201300352135325af9ddd39a535e815afddb3)(1d8d5bd4ad7069df3ff1c9b8157f264c)':
     dependencies:
       '@embedpdf/core': 2.14.4(preact@10.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(svelte@5.56.6)(vue@3.5.43(typescript@5.8.3))
       '@embedpdf/models': 2.14.4
