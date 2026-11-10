@@ -69,7 +69,7 @@ export function PlazaFeedItemRow({
 					draggable
 					onDragStart={(event) => beginFeedItemDrag(event.dataTransfer, item)}
 					className={cn(
-						"group relative rounded-lg border bg-background p-2.5",
+						"group relative flex items-start gap-1 rounded-lg border bg-background p-2.5",
 						"transition-colors hover:border-foreground/20 hover:bg-muted/50",
 					)}
 				>
@@ -77,7 +77,7 @@ export function PlazaFeedItemRow({
 						type="button"
 						onClick={() => onOpen(item)}
 						className={cn(
-							"block w-full min-w-0 pr-16 text-left",
+							"block min-w-0 flex-1 text-left",
 							item.readAt && "text-muted-foreground",
 							"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 						)}
@@ -128,29 +128,29 @@ export function PlazaFeedItemRow({
 							</p>
 						) : null}
 					</button>
-					<div className="absolute top-2 right-10">
+					<div className="flex shrink-0 flex-col items-center gap-0.5">
 						<FeedReadButton item={item} onClick={() => onToggleRead(item)} />
+						{href ? (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon-sm"
+										className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+										aria-label={t("plaza.feeds.openOriginal")}
+										onClick={(event) => {
+											event.stopPropagation();
+											openExternalUrl(href);
+										}}
+									>
+										<ExternalLink className="size-3.5" aria-hidden />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>{t("plaza.feeds.openOriginal")}</TooltipContent>
+							</Tooltip>
+						) : null}
 					</div>
-					{href ? (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-sm"
-									className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-									aria-label={t("plaza.feeds.openOriginal")}
-									onClick={(event) => {
-										event.stopPropagation();
-										openExternalUrl(href);
-									}}
-								>
-									<ExternalLink className="size-3.5" aria-hidden />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>{t("plaza.feeds.openOriginal")}</TooltipContent>
-						</Tooltip>
-					) : null}
 				</article>
 			</ContextMenuTrigger>
 			<ContextMenuContent>

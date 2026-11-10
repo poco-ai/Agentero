@@ -59,12 +59,12 @@
 │ [+ 添加订阅] │  全部 · 论文 · 其它      [刷新]    │
 │ ──────────── │                                    │
 │ ● 全部       │  ┌──────────────────────────────┐  │
-│ ○ cs.LG      │  │ Attention Is All You Need …  │  │
-│ ○ weekly     │  │ arXiv · cs.LG · 2h    [入库] │  │
+│ ○ cs.LG      │  │ Attention Is All You Need …✉ │  │
+│ ○ weekly     │  │ arXiv · cs.LG · 2h         ↗ │  │
 │              │  └──────────────────────────────┘  │
 │              │  ┌──────────────────────────────┐  │
-│              │  │ Some blog title              │  │
-│              │  │ weekly · 4h         打开原文 │  │
+│              │  │ Some blog title             ✉ │  │
+│              │  │ weekly · 4h                 ↗ │  │
 │              │  └──────────────────────────────┘  │
 └──────────────┴────────────────────────────────────┘
 ```
@@ -105,7 +105,7 @@ MVP **不做**：`@handle` 展开、OPML、登录态、RSSHub 拼接。
 - 入库中按钮 busy；成功 Toast + 该行变为「已入库」（本机缓存记 `importedAt`，刷新不丢）。
 - 失败 `notifyError`，不在侧栏挂错误条。
 - 列表卡摘要只示纯文本 3 行。详情打开时走 `feeds_resolve_body`：已缓存 `bodyMarkdown` 则直接用；否则若 RSS 已是全文（或 arXiv / DOI 落地页）转 Markdown；博客摘要带 `[...]` 或 `paper_url` 为空（可能从落地页 metadata 确认论文身份）则抓原文 HTML，抽 `<article>` / 常见正文容器后 `htmd` 成 Markdown，并顺手解析 `citation_doi` 等回填 `paper_url`。渲染复用 `MessageResponse`（Streamdown + `$…$`）。`\begin{equation}` 等块环境归一成 `$$…$$` 显示公式：抓取侧（`body.rs`）与渲染侧（`math-normalize.ts`）都剥掉 KaTeX 不支持的 `equation` / `multline` / `flalign` 外壳，`align` / `gather` 等保留；环境内的 HTML 残留（`<br />` 换行、实体）在抽取时清理。占位符定宽编号，防 `LATEXBLOCK1` 前缀误替换 `LATEXBLOCK10`。
-- 点标题 = 主操作。另给一个外链图标，论文卡也可打开原文。
+- 点标题 = 主操作。卡片最右侧竖排图标：上为已读 / 未读切换（常显），下为打开原文（hover 或键盘聚焦才浮现）。
 - 抓原文页用浏览器 UA + cookie store 的 client：部分站点（如 spaces.ac.cn 的 WAF）首访回 403 + Set-Cookie + `window.location` 重定向壳页，`fetch_article` 检测到这类挑战页会带 Cookie 自动重发一次。抓取失败记 `agentero::feeds` warn 日志，回退 RSS 摘要。
 
 不做第三种「提醒卡」、图墙、视频墙、全文阅读栏（经典三栏的第三栏）。
