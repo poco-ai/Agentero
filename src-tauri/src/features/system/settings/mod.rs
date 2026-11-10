@@ -1669,8 +1669,14 @@ mod tests {
         assert_eq!(loaded.theme, "system");
         assert_eq!(loaded.auto_update_internal_links, "ask");
         assert_eq!(loaded.paper_note_mode, "standard");
+        assert!(loaded.vim_mode);
         assert!(!loaded.onboarding_done);
         assert!(!loaded.feature_tour_done);
+        // Persisted wire shape is camelCase: the settings window sends
+        // `vimMode` and expects it back, otherwise the switch snaps back on.
+        let json: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(json["vimMode"], serde_json::json!(true));
         let _ = fs::remove_dir_all(&dir);
     }
 
