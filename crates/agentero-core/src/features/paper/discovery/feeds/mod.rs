@@ -2,7 +2,7 @@
 //!
 //! Stored in `$XDG_DATA_HOME/agentero/feeds.sqlite`. Does not write catalog or Vault.
 //!
-//! @see docs/development/plaza-feeds.md
+//! @see docs/backend/api.md §3.10.4
 
 mod body;
 pub mod parse;

@@ -29,7 +29,7 @@
 
 ## 关闭 / 切换
 
-没有 `vault_close` 命令。vault 的生命期由前端 `vault:opened` 作用域的 teardown 表达（见 [../development/lifecycle-events.md](../development/lifecycle-events.md)）：
+没有 `vault_close` 命令。vault 的生命期由前端 `vault:opened` 作用域的 teardown 表达（见 [../architecture.md](../architecture.md) 的「生命周期」）：
 
 ```text
 切换 / 关闭 vault

@@ -3,7 +3,7 @@
 > 状态：草稿，待评审
 > 日期：2026-11-10
 > 关联：[＃459](https://github.com/poco-ai/Agentero/issues/459)、[＃460](https://github.com/poco-ai/Agentero/issues/460)、[＃719](https://github.com/poco-ai/Agentero/issues/719)、[＃848](https://github.com/poco-ai/Agentero/issues/848)、[＃960](https://github.com/poco-ai/Agentero/issues/960)；＃1080 待核实
-> 性质：拟议设计。「现状」以 2026-11-10 代码为准；[原 API 抽象设计稿](import-api-abstraction.md) 和 [现有 API 说明](../backend/academic-search-apis.md) 有部分过期描述。
+> 性质：拟议设计。「现状」以 2026-11-10 代码为准。[现有 API 说明](../backend/academic-search-apis.md) 有部分过期描述。
 
 ## 摘要
 
@@ -188,7 +188,6 @@ PaperRecord 与现有 IPC 出参先保持兼容。建议在 Catalog 增加可迁
 ## 参考
 
 - [现有学术搜索 API](../backend/academic-search-apis.md)
-- [原 Import API 抽象设计记录](import-api-abstraction.md)
 - [Catalog 数据模型](../backend/catalog.md)
 - [论文入库](../backend/paper-import.md)
 - [引用解析](../backend/citation-parsing.md)

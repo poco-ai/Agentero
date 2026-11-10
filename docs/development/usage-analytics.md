@@ -1,7 +1,7 @@
 # 使用记录、Memory 与产品分析
 
 > 状态：**P0 存储已落地**（XDG `usage.sqlite` schema v2 + `track()`），漏斗与画像仍按本文推进。关联 [\#239](https://github.com/poco-ai/Agentero/issues/239)。实现契约见 [`../backend/usage.md`](../backend/usage.md)。
-> 相关：[`../backend/catalog.md`](../backend/catalog.md)、[`../backend/agent.md`](../backend/agent.md)、[`../backend/telemetry.md`](../backend/telemetry.md)、[`../backend/translate.md`](../backend/translate.md)、[`../backend/skill-import.md`](../backend/skill-import.md)、[`../frontend/pdf.md`](../frontend/pdf.md)、[`../frontend/pdf-layout-analysis.md`](../frontend/pdf-layout-analysis.md)、[`plaza.md`](plaza.md)
+> 相关：[`../backend/catalog.md`](../backend/catalog.md)、[`../backend/agent.md`](../backend/agent.md)、[`../backend/telemetry.md`](../backend/telemetry.md)、[`../backend/translate.md`](../backend/translate.md)、[`../backend/skill-import.md`](../backend/skill-import.md)、[`../frontend/pdf.md`](../frontend/pdf.md)、[`../frontend/pdf-layout-analysis.md`](../frontend/pdf-layout-analysis.md)、[`../backend/api.md`](../backend/api.md) §3.10.4–3.10.5
 
 ## 1. 目标与非目标
 
@@ -403,4 +403,4 @@ iOS / TestFlight 仍无遥测。debug / 无 key 构建不上报。
 ## 11. 文档落点
 
 - 本文（草案）：`docs/development/usage-analytics.md`
-- 实现后：`docs/backend/usage.md` + 同步 `telemetry.md` / `data-model.md` / `agent.md` / `cli.md` / `remote.md` / `library.md` / `roadmap.md` + `todo.md`
+- 已落地的存储契约：[`../backend/usage.md`](../backend/usage.md)

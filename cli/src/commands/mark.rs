@@ -5,7 +5,7 @@
 //! same engine the viewer selects with, so a CLI highlight lands exactly where
 //! a hand-drawn one would. Coordinates are never hand-computed here.
 //!
-//! @see docs/development/mark-cli-roadmap.md
+//! @see docs/backend/cli.md
 //! @see docs/backend/cli.md
 
 use crate::commands::layout as layout_cmd;

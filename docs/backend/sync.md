@@ -1,6 +1,6 @@
 # 云同步（S3 / WebDAV / Git）
 
-多设备间同步整个 Vault 到 S3 兼容对象存储（AWS S3 / R2 / MinIO / OSS / BOS 等）、任意 WebDAV 服务器（坚果云 / Nextcloud / ownCloud / NAS 等），或 Git 远端。设计草稿与分期：[../development/cloud-sync-s3.md](../development/cloud-sync-s3.md)。当前已落地 Phase 0–1 与 Phase 2 的自动同步（状态栏指示、GC、multipart 除外），以及 Git 同步（#781；同步范围经 `.gitignore` 排除）。
+多设备间同步整个 Vault 到 S3 兼容对象存储（AWS S3 / R2 / MinIO / OSS / BOS 等）、任意 WebDAV 服务器（坚果云 / Nextcloud / ownCloud / NAS 等），或 Git 远端。当前已落地内容寻址同步与自动同步（状态栏指示、GC、multipart 除外），以及 Git 同步（#781；同步范围经 `.gitignore` 排除）。
 
 引擎位于 `crates/agentero-core/src/features/sync/`（Tauri 无关），桌面端与 headless CLI 共用同一份实现——冲突处理、失败恢复与请求预算语义完全一致；CLI 侧见 `agentero sync`（[cli.md](cli.md)）。桌面端仅在 `src-tauri/src/integration/sync/` 叠加 IPC 命令与调度。
 
@@ -90,7 +90,7 @@ S3 / WebDAV 共用同一套状态化同步协议（内容寻址 blob + 不可变
 - **认证**：不把 token 写入 `sync.json`；使用系统 credential helper / SSH agent。子进程设置 `GIT_TERMINAL_PROMPT=0`、`GCM_INTERACTIVE=never`、`SSH_ASKPASS_REQUIRE=never`（Unix 未自定义 `GIT_SSH_COMMAND` 时加 `ssh -o BatchMode=yes`），非交互环境失败而不是挂起。HTTPS URL 内嵌凭据、`ext::`、`git://` 一律拒绝。
 - **Windows 进程回收**：每次 Git 命令经 `process::command_output` 先暂停创建、加入独立 Job Object 后恢复运行，避免 Git 启动器派生的 HTTPS / SSH 后代逃逸。命令正常结束、超时（网络命令 600s）或同步任务取消时均关闭 Job，终止该次命令留下的完整进程树；不按进程名清理，不影响其它仓库的 Git。同一守卫也用于写作目录同步、Doctor / 安装器、编译工具和 MCP tunnel。非 Windows 保持原有执行方式。全局 `http.postBuffer` 等用户 Git 配置仍由 Git 自身读取，本修复不会修改；过大的上传缓冲可能放大单次 HTTPS 推送内存占用。
 - **触发**：复用自动同步调度（打开 Vault、静置 30s、定时间隔）。退出 flush 跳过 Git——5s 预算可能中断 commit/push 并留下 `index.lock`，下次启动补推。`.git` 与 `.agentero` 已被 watcher 忽略，不会事件回环。
-- **限制**：关掉的类别不再进入新提交；已经在 Git 历史里的 PDF/TeX 不会被清掉（未接 Git LFS）。没有按论文按需拉取；该能力依赖 partial clone + sparse-checkout，见 [../development/cloud-sync-s3.md](../development/cloud-sync-s3.md) 的 Git Phase 2。
+- **限制**：关掉的类别不再进入新提交；已经在 Git 历史里的 PDF/TeX 不会被清掉（未接 Git LFS）。没有按论文按需拉取；partial clone + sparse-checkout 尚未接入。
 
 ## 条件写降级（OSS 等后端）
 

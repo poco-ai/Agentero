@@ -3,7 +3,7 @@
 //! Deliberately free-MT only: the CLI config (`~/.config/agentero/config.toml`)
 //! is isolated from GUI settings, so commercial BYOK keys are not available here.
 //!
-//! @see docs/development/mark-cli-roadmap.md §6.3
+//! @see docs/backend/cli.md
 
 use crate::error::CliError;
 use crate::resolve::GlobalOpts;

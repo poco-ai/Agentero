@@ -121,7 +121,6 @@ CLI `paper parse` 使用相同规则。远程导入保留 staging / 上传路径
 
 PDF 版面任务保持独立，供坐标、图表与引用等功能使用；`force` 仍只表示重建派生正文，不会
 越过有效 TeX 的优先级。切换正文引擎只改变后续解析，不自动对全库重新 OCR。
-审计证据及修复对应关系见 [arXiv 源码生命周期审计](../development/arxiv-source-lifecycle-audit.md)。
 
 ### 正文解析引擎（可插拔）
 

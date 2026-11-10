@@ -161,7 +161,7 @@
 
 也就是说：已经填过自定义端点的老用户**不会被静默切走**；真正全新 / 全空的配置只在官方这类已注入 key 的构建里变成内置。
 
-`embedding_config()` 在解析出的 source 非 `"custom"` 且 `builtin::available()` 时返回网关三元组；否则穿透到已存值。这条链路只服务 arXiv 每日推荐（[../development/plaza.md](../development/plaza.md) §3.4），Host 命令 `recommend_arxiv` 透明继承，无需改动。
+`embedding_config()` 在解析出的 source 非 `"custom"` 且 `builtin::available()` 时返回网关三元组；否则穿透到已存值。这条链路只服务 arXiv 每日推荐（[api.md](api.md) §3.10.5），Host 命令 `recommend_arxiv` 透明继承，无需改动。
 
 向量缓存安全：`embed_cache` 的主键是 `(text_hash, model)`（`catalog/schema.rs` v6），所有读写都按 model 过滤，所以换 embedding 模型不会读到旧向量。
 
@@ -216,7 +216,7 @@
 2. **模板空格待 A/B**：arXiv Hunyuan-MT 技术报告渲染为 `…explanation. <source_text>`（**有**空格），实现用的是模型文档模板的无空格形式。值得一次真实对比再定。
 3. **`temperature = 0.2`** 沿用仓库惯例；技术报告没有规定解码参数。
 4. **多段翻译没有全局 deadline**：最坏墙钟时间是 `ceil(n/3) × timeout`（`timeout` 默认 30s，钳制 1–30s）。整篇 PDF 的一批最多十几段，实测前不设总闸。
-5. ~~**`arxiv_rec_state` 不按 model 建键**~~ **已修**（schema v8 `discovery_runs`）：运行结果键含 model / top_n / 分类，切换 embedding 来源后当天首次运行即重算，不再复用旧结果（详见 [../development/plaza.md](../development/plaza.md) §3.4）。
+5. ~~**`arxiv_rec_state` 不按 model 建键**~~ **已修**（schema v8 `discovery_runs`）：运行结果键含 model / top_n / 分类，切换 embedding 来源后当天首次运行即重算，不再复用旧结果（详见 [api.md](api.md) §3.10.5）。
 6. **目标语言只有 en / zh-CN**：扩到 Hunyuan-MT 的 37 语言需要同时改 `TR_TARGETS`、前端 `TranslateTargetLang` union 与目标语言选择器，并在 `hunyuan_target_name` 补映射。
 7. **内嵌 key → per-install activation token**：由网关签发、可吊销、可做 per-user 配额；客户端 provider 形状不变。这是内嵌 key 可提取问题的真正解法。
 8. **引导默认值已对齐**（#857）：`translate-step.tsx` 的默认选项写入 `tencenttransmart`，与 Host 一致，不依赖内置 key。引导文案和交互的后续调整见 #856；当前设置页已隐藏内置 provider，Host 通道仍保留。见 [../frontend/onboarding.md](../frontend/onboarding.md)。

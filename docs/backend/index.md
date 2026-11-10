@@ -1,6 +1,6 @@
 # 后端
 
-Tauri 2 + Rust Host：文件系统、Catalog、索引、ACP Client、远程 Vault。tauri 无关的基座与数据域在 `agentero-core` crate；CLI（`cli/`）只依赖 `agentero-core`，Host 经桥接 re-export 复用同一实现（见 [../development/crate-split-roadmap.md](../development/crate-split-roadmap.md)）。
+Tauri 2 + Rust Host：文件系统、Catalog、索引、ACP Client、远程 Vault。tauri 无关的基座与数据域在 `agentero-core` crate；CLI（`cli/`）只依赖 `agentero-core`，Host 经桥接 re-export 复用同一实现。
 
 > 整体架构与跨层工作流见 [../architecture.md](../architecture.md)。
 

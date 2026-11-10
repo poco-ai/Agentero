@@ -5,7 +5,7 @@
 //! JobCenter; the paper fact events live here and reach the frontend through
 //! the [`crate::app_handle::HostHooks`] emit callback.
 //!
-//! @see docs/development/lifecycle-events.md
+//! @see docs/architecture.md
 
 use crate::app_handle::AppHandle;
 use serde::Serialize;

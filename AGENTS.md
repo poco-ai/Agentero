@@ -91,7 +91,7 @@ cargo test -p agentero-core   # tauri 无关基础层（crates/agentero-core）
 | **前端** | 壳、工作区、文件树、论文库、入库、Markdown、PDF、Agent、双链、翻译、设置 | [docs/frontend/](docs/frontend/index.md) |
 | **后端** | 数据模型、Catalog、Vault、入库、Connector、Wiki、Agent、远程、搜索、日志、CLI、API | [docs/backend/](docs/backend/index.md) |
 | **教程** | 快速上手、导入论文、阅读整理、接入 Agent、Zotero | [docs/usage/](docs/usage/index.md) |
-| **开发** | 路线图、TODO、设计记录 | [docs/development/](docs/development/index.md) |
+| **开发** | 未实现草稿与设计记录 | [docs/development/](docs/development/index.md) |
 | **测试** | 测试策略、发布 Checklist | [docs/test/](docs/test/index.md) |
 | **Bug 复盘** | 会再次踩中的约束；一次性事故不留 | [docs/bug_fix/](docs/bug_fix/) |
 

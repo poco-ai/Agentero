@@ -25,7 +25,7 @@ pub const SETTINGS_SECTION_REQUESTED_EVENT: &str = "settings:section-requested";
 pub const SETTINGS_VAULT_REQUESTED_EVENT: &str = "settings:vault-requested";
 
 /// Broadcast when a singleton child window closes (or fails to build).
-/// Wire naming follows docs/development/lifecycle-events.md (`domain:event`);
+/// Wire naming follows docs/architecture.md (`domain:event`);
 /// this is a window signal, not a lifecycle fact event.
 pub const WINDOW_CLOSED_EVENT: &str = "window:closed";
 

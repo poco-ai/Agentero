@@ -1,7 +1,7 @@
 /**
  * Native 广场 panel: user RSS / Atom subscriptions and a paper-aware timeline.
  *
- * @see docs/development/plaza-feeds.md
+ * @see docs/backend/api.md §3.10.4
  */
 
 import { useVirtualizer } from "@tanstack/react-virtual";

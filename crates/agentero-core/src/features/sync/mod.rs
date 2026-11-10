@@ -1,7 +1,7 @@
 //! Vault sync over official Agentero cloud, S3-compatible object storage,
 //! WebDAV, or a Git remote.
 //!
-//! Design doc: `docs/development/cloud-sync-s3.md`. S3/WebDAV use a
+//! Design doc: `docs/backend/sync.md`. S3/WebDAV use a
 //! state-based engine: content-addressed blobs + immutable manifests + a CAS
 //! `HEAD` pointer. Git uses a separate full-vault work-tree sync (`git.rs`).
 //! Credentials live in XDG `sync.json` (never inside the vault).

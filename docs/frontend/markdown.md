@@ -188,7 +188,7 @@ Markdown 里指向本地 `.html` / `.htm` 的链接（`[report](./figures/report
 |---|---|
 | `src/components/editor/` | Plate 编辑器；`index.ts` 是唯一对外出口，内部分 `nodes/` `plugins/` `hooks/` `embeds/` `toolbar/` `overlays/` |
 | `src/components/editor/markdown-editor.tsx` | 编排容器：组合各 hook、keydown 派发、导出入口与整体布局 |
-| `src/components/editor/toolbar/` | 格式工具栏与响应式溢出菜单。折叠数必须只由「工具栏自身宽度 + 固定尾部宽度」算出（`fit-actions.ts`，纯函数可测），**不能读折叠后的动作行宽度**，尾部也不能有随可见数增减的分隔线，否则会互相触发 ResizeObserver 反馈环（按钮持续闪，见 [resize-performance-research.md](../development/resize-performance-research.md) §1.14） |
+| `src/components/editor/toolbar/` | 格式工具栏与响应式溢出菜单。折叠数必须只由「工具栏自身宽度 + 固定尾部宽度」算出（`fit-actions.ts`，纯函数可测），**不能读折叠后的动作行宽度**，尾部也不能有随可见数增减的分隔线，否则会互相触发 ResizeObserver 反馈环（按钮持续闪） |
 | `src/components/editor/hooks/` | 有状态逻辑：自动保存、双链编辑语义、补全菜单、右键菜单、选区发布 |
 | `src/components/editor/markdown-export-dialog.tsx` | 导出格式与选项对话框 |
 | `src/components/editor/markdown-export-surface.tsx` | 离屏只读导出渲染（export mode） |

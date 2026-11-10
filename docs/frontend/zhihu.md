@@ -2,7 +2,7 @@
 
 内置「知乎」Agent：出现在右侧栏 Agent 面板的切换器里，无需安装任何 CLI。它把**知乎直答**与**按标题检索**两项能力接进对话面板，随论文阅读随时调用。
 
-Host 契约见 [../backend/zhihu.md](../backend/zhihu.md)；完整设计（含未来的 CLI 后端与广场面板）见 [../development/zhihu.md](../development/zhihu.md)。
+Host 契约见 [../backend/zhihu.md](../backend/zhihu.md)。统一 CLI 后端与广场知乎面板尚未做。
 
 ## 形态
 

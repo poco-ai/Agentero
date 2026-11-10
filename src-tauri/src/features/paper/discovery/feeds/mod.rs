@@ -4,7 +4,7 @@
 //! Vault. The tauri-free body lives in
 //! `agentero_core::features::paper::discovery::feeds`; desktop command shell here.
 //!
-//! @see docs/development/plaza-feeds.md
+//! @see docs/backend/api.md §3.10.4
 
 pub use agentero_core::features::paper::discovery::feeds::*;
 

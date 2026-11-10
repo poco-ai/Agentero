@@ -48,8 +48,8 @@ pub struct JobTerminalPayload {
     pub kind: crate::features::jobs::JobKind,
     /// Vault root as passed by the enqueuing caller (`JobSnapshot.vault_id`):
     /// frontend-initiated jobs carry the exact `getVaultPath()` string;
-    /// host-internal jobs the Host's (usually canonical) form. See the
-    /// 已知限制 note in docs/development/lifecycle-events.md.
+    /// host-internal jobs the Host's (usually canonical) form. Consumers
+    /// must tolerate both spellings; see docs/backend/api.md (`job:completed`).
     pub vault_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub paper_id: Option<String>,

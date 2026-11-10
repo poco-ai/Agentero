@@ -18,7 +18,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
 
-/// Event name follows `docs/development/lifecycle-events.md` (one domain, one colon).
+/// Event name follows `docs/architecture.md` (one domain, one colon).
 pub const MCP_TUNNEL_STATUS_EVENT: &str = "mcp:tunnel-status";
 
 pub const TUNNEL_CLIENT_BIN: &str = "tunnel-client";

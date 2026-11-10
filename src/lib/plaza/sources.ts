@@ -5,7 +5,7 @@
  * is a single {@link PLAZA_SOURCES} entry — the sidebar child row and the
  * center panel both derive from this registry.
  *
- * @see docs/development/plaza.md
+ * @see docs/frontend/paper-import.md
  */
 
 import i18n from "@/i18n";

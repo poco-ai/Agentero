@@ -3642,8 +3642,8 @@ export type JobTerminalPayload_Deserialize = {
 	/**
 	 *  Vault root as passed by the enqueuing caller (`JobSnapshot.vault_id`):
 	 *  frontend-initiated jobs carry the exact `getVaultPath()` string;
-	 *  host-internal jobs the Host's (usually canonical) form. See the
-	 *  已知限制 note in docs/development/lifecycle-events.md.
+	 *  host-internal jobs the Host's (usually canonical) form. Consumers
+	 *  must tolerate both spellings; see docs/backend/api.md (`job:completed`).
 	 */
 	vaultId: string,
 	paperId?: string | null,
@@ -3661,8 +3661,8 @@ export type JobTerminalPayload_Serialize = {
 	/**
 	 *  Vault root as passed by the enqueuing caller (`JobSnapshot.vault_id`):
 	 *  frontend-initiated jobs carry the exact `getVaultPath()` string;
-	 *  host-internal jobs the Host's (usually canonical) form. See the
-	 *  已知限制 note in docs/development/lifecycle-events.md.
+	 *  host-internal jobs the Host's (usually canonical) form. Consumers
+	 *  must tolerate both spellings; see docs/backend/api.md (`job:completed`).
 	 */
 	vaultId: string,
 	paperId?: string | null,

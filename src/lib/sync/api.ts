@@ -1,6 +1,6 @@
 /**
  * Vault cloud sync (S3-compatible / WebDAV) — Host command wrappers.
- * Design: docs/development/cloud-sync-s3.md
+ * Design: docs/backend/sync.md
  */
 
 import {

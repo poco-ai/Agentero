@@ -145,7 +145,7 @@ fn menu_accelerator(
 }
 
 /// Broadcast when a native menu item is clicked; payload `{ action: <menu id> }`.
-/// Wire naming follows docs/development/lifecycle-events.md (`domain:event`);
+/// Wire naming follows docs/architecture.md (`domain:event`);
 /// this is a request/command signal, not a lifecycle fact event.
 pub const MENU_INVOKED_EVENT: &str = "menu:invoked";
 

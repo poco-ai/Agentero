@@ -524,7 +524,7 @@ pub fn run() {
             }
             // Remaining menu ids are renderer actions: broadcast one
             // `menu:invoked` event with the action id (naming per
-            // docs/development/lifecycle-events.md).
+            // docs/architecture.md).
             let _ = app.emit(
                 crate::app::menu::MENU_INVOKED_EVENT,
                 serde_json::json!({ "action": id }),

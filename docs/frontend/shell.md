@@ -115,4 +115,4 @@ macOS 原生菜单在启动及设置保存后读取 `shortcutOverrides`，菜单
 - **启动种子放 `boot()`**（`src/main.tsx`），不要在 render 期做副作用。`initSettingsStore` 紧接 `ensureSettingsLoaded`，在主窗口 / 设置 / 功能 / 文档窗口分流前统一初始化并订阅设置，避免子窗口用模块初始默认值覆盖已加载配置。`initVaultStore` / `initWorkspaceStore` 在需要工作区的窗口 `createRoot` 前调用；这些初始化不依赖 render 或 `useState` 初始化器（StrictMode 下可能跑两次）。
 - **订阅 Host 事件一律用类型化事件绑定（`src/lib/core/bindings.ts` 的 `events.*`）：组件内 `useTauriEvent(events.x, cb)`，非 UI 模块 `listenEventSafe(events.x, cb)`（`src/lib/core/tauri-events.ts`）**；字符串事件名仅限前端窗口间广播（`workspace:*`、`agent:attach-context` 等）与 iOS bridge client 事件，非 Tauri wire 的 promise 式订阅（bridge、workspace-broadcast）用 `toSafeDisposer()`。手写 `let off; void (async () => { off = await listen(...) })(); return () => off?.()` 会在 `listen` resolve 前 dispose 时泄漏监听器 —— StrictMode 每次开发挂载都会命中。
 - **注册全局订阅的 `init*` / `start*` 必须返回 disposer**，并由调用方 effect 返回。
-- 每个 vault 的副作用挂在 `vault:opened` 作用域上，清理写在同一 handler 的 teardown 里，见 [../development/lifecycle-events.md](../development/lifecycle-events.md)。
+- 每个 vault 的副作用挂在 `vault:opened` 作用域上，清理写在同一 handler 的 teardown 里，见 [../architecture.md](../architecture.md) 的「生命周期」。
